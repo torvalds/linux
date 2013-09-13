@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011-2013 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -11,34 +11,64 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/clkdev.h>
-#include <linux/cpuidle.h>
+#include <linux/clocksource.h>
+#include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/pinctrl/machine.h>
+#include <linux/opp.h>
 #include <linux/phy.h>
+#include <linux/reboot.h>
+#include <linux/regmap.h>
 #include <linux/micrel_phy.h>
-#include <linux/mfd/anatop.h>
-#include <asm/cpuidle.h>
-#include <asm/smp_twd.h>
-#include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
+#include <linux/mfd/syscon.h>
+#include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
+#include <asm/mach/map.h>
 #include <asm/system_misc.h>
-#include <mach/common.h>
-#include <mach/cpuidle.h>
-#include <mach/hardware.h>
 
+#include "common.h"
+#include "cpuidle.h"
+#include "hardware.h"
 
-void imx6q_restart(char mode, const char *cmd)
+static u32 chip_revision;
+
+int imx6q_revision(void)
+{
+	return chip_revision;
+}
+
+static void __init imx6q_init_revision(void)
+{
+	u32 rev = imx_anatop_get_digprog();
+
+	switch (rev & 0xff) {
+	case 0:
+		chip_revision = IMX_CHIP_REVISION_1_0;
+		break;
+	case 1:
+		chip_revision = IMX_CHIP_REVISION_1_1;
+		break;
+	case 2:
+		chip_revision = IMX_CHIP_REVISION_1_2;
+		break;
+	default:
+		chip_revision = IMX_CHIP_REVISION_UNKNOWN;
+	}
+
+	mxc_set_cpu_type(rev >> 16 & 0xff);
+}
+
+static void imx6q_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device_node *np;
 	void __iomem *wdog_base;
@@ -73,163 +103,210 @@ static int ksz9021rn_phy_fixup(struct phy_device *phydev)
 {
 	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		/* min rx data delay */
-		phy_write(phydev, 0x0b, 0x8105);
-		phy_write(phydev, 0x0c, 0x0000);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			0x8000 | MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0x0000);
 
 		/* max rx/tx clock delay, min rx/tx control delay */
-		phy_write(phydev, 0x0b, 0x8104);
-		phy_write(phydev, 0x0c, 0xf0f0);
-		phy_write(phydev, 0x0b, 0x104);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			0x8000 | MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0xf0f0);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW);
 	}
 
 	return 0;
 }
 
-static void __init imx6q_sabrelite_cko1_setup(void)
+static void mmd_write_reg(struct phy_device *dev, int device, int reg, int val)
 {
-	struct clk *cko1_sel, *ahb, *cko1;
-	unsigned long rate;
-
-	cko1_sel = clk_get_sys(NULL, "cko1_sel");
-	ahb = clk_get_sys(NULL, "ahb");
-	cko1 = clk_get_sys(NULL, "cko1");
-	if (IS_ERR(cko1_sel) || IS_ERR(ahb) || IS_ERR(cko1)) {
-		pr_err("cko1 setup failed!\n");
-		goto put_clk;
-	}
-	clk_set_parent(cko1_sel, ahb);
-	rate = clk_round_rate(cko1, 16000000);
-	clk_set_rate(cko1, rate);
-	clk_register_clkdev(cko1, NULL, "0-000a");
-put_clk:
-	if (!IS_ERR(cko1_sel))
-		clk_put(cko1_sel);
-	if (!IS_ERR(ahb))
-		clk_put(ahb);
-	if (!IS_ERR(cko1))
-		clk_put(cko1);
+	phy_write(dev, 0x0d, device);
+	phy_write(dev, 0x0e, reg);
+	phy_write(dev, 0x0d, (1 << 14) | device);
+	phy_write(dev, 0x0e, val);
 }
 
-static void __init imx6q_sabrelite_init(void)
+static int ksz9031rn_phy_fixup(struct phy_device *dev)
 {
-	if (IS_BUILTIN(CONFIG_PHYLIB))
+	/*
+	 * min rx data delay, max rx/tx clock delay,
+	 * min rx/tx control delay
+	 */
+	mmd_write_reg(dev, 2, 4, 0);
+	mmd_write_reg(dev, 2, 5, 0);
+	mmd_write_reg(dev, 2, 8, 0x003ff);
+
+	return 0;
+}
+
+static int ar8031_phy_fixup(struct phy_device *dev)
+{
+	u16 val;
+
+	/* To enable AR8031 output a 125MHz clk from CLK_25M */
+	phy_write(dev, 0xd, 0x7);
+	phy_write(dev, 0xe, 0x8016);
+	phy_write(dev, 0xd, 0x4007);
+
+	val = phy_read(dev, 0xe);
+	val &= 0xffe3;
+	val |= 0x18;
+	phy_write(dev, 0xe, val);
+
+	/* introduce tx clock delay */
+	phy_write(dev, 0x1d, 0x5);
+	val = phy_read(dev, 0x1e);
+	val |= 0x0100;
+	phy_write(dev, 0x1e, val);
+
+	return 0;
+}
+
+#define PHY_ID_AR8031	0x004dd074
+
+static void __init imx6q_enet_phy_init(void)
+{
+	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
 				ksz9021rn_phy_fixup);
-	imx6q_sabrelite_cko1_setup();
+		phy_register_fixup_for_uid(PHY_ID_KSZ9031, MICREL_PHY_ID_MASK,
+				ksz9031rn_phy_fixup);
+		phy_register_fixup_for_uid(PHY_ID_AR8031, 0xffffffff,
+				ar8031_phy_fixup);
+	}
 }
 
-static void __init imx6q_usb_init(void)
+static void __init imx6q_1588_init(void)
 {
-	struct device_node *np;
-	struct platform_device *pdev = NULL;
-	struct anatop *adata = NULL;
+	struct regmap *gpr;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
-	if (np)
-		pdev = of_find_device_by_node(np);
-	if (pdev)
-		adata = platform_get_drvdata(pdev);
-	if (!adata) {
-		if (np)
-			of_node_put(np);
-		return;
-	}
+	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
+	if (!IS_ERR(gpr))
+		regmap_update_bits(gpr, IOMUXC_GPR1,
+				IMX6Q_GPR1_ENET_CLK_SEL_MASK,
+				IMX6Q_GPR1_ENET_CLK_SEL_ANATOP);
+	else
+		pr_err("failed to find fsl,imx6q-iomux-gpr regmap\n");
 
-#define HW_ANADIG_USB1_CHRG_DETECT		0x000001b0
-#define HW_ANADIG_USB2_CHRG_DETECT		0x00000210
-
-#define BM_ANADIG_USB_CHRG_DETECT_EN_B		0x00100000
-#define BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B	0x00080000
-
-	/*
-	 * The external charger detector needs to be disabled,
-	 * or the signal at DP will be poor
-	 */
-	anatop_write_reg(adata, HW_ANADIG_USB1_CHRG_DETECT,
-			BM_ANADIG_USB_CHRG_DETECT_EN_B
-			| BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B,
-			~0);
-	anatop_write_reg(adata, HW_ANADIG_USB2_CHRG_DETECT,
-			BM_ANADIG_USB_CHRG_DETECT_EN_B |
-			BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B,
-			~0);
-
-	of_node_put(np);
 }
 
 static void __init imx6q_init_machine(void)
 {
-	/*
-	 * This should be removed when all imx6q boards have pinctrl
-	 * states for devices defined in device tree.
-	 */
-	pinctrl_provide_dummies();
-
-	if (of_machine_is_compatible("fsl,imx6q-sabrelite"))
-		imx6q_sabrelite_init();
+	imx6q_enet_phy_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
+	imx_anatop_init();
 	imx6q_pm_init();
-	imx6q_usb_init();
+	imx6q_1588_init();
 }
 
-static struct cpuidle_driver imx6q_cpuidle_driver = {
-	.name			= "imx6q_cpuidle",
-	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
-	.states[0]		= ARM_CPUIDLE_WFI_STATE,
-	.state_count		= 1,
+#define OCOTP_CFG3			0x440
+#define OCOTP_CFG3_SPEED_SHIFT		16
+#define OCOTP_CFG3_SPEED_1P2GHZ		0x3
+
+static void __init imx6q_opp_check_1p2ghz(struct device *cpu_dev)
+{
+	struct device_node *np;
+	void __iomem *base;
+	u32 val;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-ocotp");
+	if (!np) {
+		pr_warn("failed to find ocotp node\n");
+		return;
+	}
+
+	base = of_iomap(np, 0);
+	if (!base) {
+		pr_warn("failed to map ocotp\n");
+		goto put_node;
+	}
+
+	val = readl_relaxed(base + OCOTP_CFG3);
+	val >>= OCOTP_CFG3_SPEED_SHIFT;
+	if ((val & 0x3) != OCOTP_CFG3_SPEED_1P2GHZ)
+		if (opp_disable(cpu_dev, 1200000000))
+			pr_warn("failed to disable 1.2 GHz OPP\n");
+
+put_node:
+	of_node_put(np);
+}
+
+static void __init imx6q_opp_init(struct device *cpu_dev)
+{
+	struct device_node *np;
+
+	np = of_node_get(cpu_dev->of_node);
+	if (!np) {
+		pr_warn("failed to find cpu0 node\n");
+		return;
+	}
+
+	if (of_init_opp_table(cpu_dev)) {
+		pr_warn("failed to init OPP table\n");
+		goto put_node;
+	}
+
+	imx6q_opp_check_1p2ghz(cpu_dev);
+
+put_node:
+	of_node_put(np);
+}
+
+static struct platform_device imx6q_cpufreq_pdev = {
+	.name = "imx6q-cpufreq",
 };
 
 static void __init imx6q_init_late(void)
 {
-	imx_cpuidle_init(&imx6q_cpuidle_driver);
+	/*
+	 * WAIT mode is broken on TO 1.0 and 1.1, so there is no point
+	 * to run cpuidle on them.
+	 */
+	if (imx6q_revision() > IMX_CHIP_REVISION_1_1)
+		imx6q_cpuidle_init();
+
+	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ)) {
+		imx6q_opp_init(&imx6q_cpufreq_pdev.dev);
+		platform_device_register(&imx6q_cpufreq_pdev);
+	}
 }
 
 static void __init imx6q_map_io(void)
 {
-	imx_lluart_map_io();
+	debug_ll_io_init();
 	imx_scu_map_io();
-	imx6q_clock_map_io();
 }
-
-static const struct of_device_id imx6q_irq_match[] __initconst = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{ /* sentinel */ }
-};
 
 static void __init imx6q_init_irq(void)
 {
-	l2x0_of_init(0, ~0UL);
+	imx6q_init_revision();
+	imx_init_l2cache();
 	imx_src_init();
 	imx_gpc_init();
-	of_irq_init(imx6q_irq_match);
+	irqchip_init();
 }
 
 static void __init imx6q_timer_init(void)
 {
-	mx6q_clocks_init();
-	twd_local_timer_of_register();
+	of_clk_init(NULL);
+	clocksource_of_init();
+	imx_print_silicon_rev(cpu_is_imx6dl() ? "i.MX6DL" : "i.MX6Q",
+			      imx6q_revision());
 }
 
-static struct sys_timer imx6q_timer = {
-	.init = imx6q_timer_init,
-};
-
 static const char *imx6q_dt_compat[] __initdata = {
-	"fsl,imx6q-arm2",
-	"fsl,imx6q-sabrelite",
-	"fsl,imx6q-sabresd",
+	"fsl,imx6dl",
 	"fsl,imx6q",
 	NULL,
 };
 
-DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
+DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad/DualLite (Device Tree)")
+	.smp		= smp_ops(imx_smp_ops),
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,
-	.handle_irq	= imx6q_handle_irq,
-	.timer		= &imx6q_timer,
+	.init_time	= imx6q_timer_init,
 	.init_machine	= imx6q_init_machine,
 	.init_late      = imx6q_init_late,
 	.dt_compat	= imx6q_dt_compat,

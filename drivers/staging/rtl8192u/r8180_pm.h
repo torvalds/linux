@@ -1,11 +1,11 @@
 /*
-        Power management interface routines.
+	Power management interface routines.
 	Written by Mariusz Matuszek.
 	This code is currently just a placeholder for later work and
 	does not do anything useful.
 
 	This is part of rtl8180 OpenSource driver.
-	Copyright (C) Andrea Merello 2004  <andreamrl@tiscali.it>
+	Copyright (C) Andrea Merello 2004  <andrea.merello@gmail.com>
 	Released under the terms of GPL (General Public Licence)
 
 */

@@ -23,9 +23,9 @@
 #include <linux/platform_device.h>
 #include <asm/mach-powertv/asic_regs.h>
 
-#define DVR_CAPABLE     (1<<0)
-#define PCIE_CAPABLE    (1<<1)
-#define FFS_CAPABLE     (1<<2)
+#define DVR_CAPABLE	(1<<0)
+#define PCIE_CAPABLE	(1<<1)
+#define FFS_CAPABLE	(1<<2)
 #define DISPLAY_CAPABLE (1<<3)
 
 /* Platform Family types
@@ -111,7 +111,7 @@ enum sys_reboot_type {
 					 * Older drivers may report as
 					 * userReboot. */
 	sys_hardware_reset = 0x09,	/* HW watchdog or front-panel
-					 * reset button reset.  Older
+					 * reset button reset.	Older
 					 * drivers may report as
 					 * userReboot. */
 	sys_watchdogInterrupt = 0x0A	/* Pre-watchdog interrupt */

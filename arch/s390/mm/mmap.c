@@ -91,22 +91,23 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	if (mmap_is_legacy()) {
 		mm->mmap_base = TASK_UNMAPPED_BASE;
 		mm->get_unmapped_area = arch_get_unmapped_area;
-		mm->unmap_area = arch_unmap_area;
 	} else {
 		mm->mmap_base = mmap_base();
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
-		mm->unmap_area = arch_unmap_area_topdown;
 	}
 }
 
 #else
 
-int s390_mmap_check(unsigned long addr, unsigned long len)
+int s390_mmap_check(unsigned long addr, unsigned long len, unsigned long flags)
 {
 	int rc;
 
-	if (!is_compat_task() &&
-	    len >= TASK_SIZE && TASK_SIZE < (1UL << 53)) {
+	if (is_compat_task() || (TASK_SIZE >= (1UL << 53)))
+		return 0;
+	if (!(flags & MAP_FIXED))
+		addr = 0;
+	if ((addr + len) >= TASK_SIZE) {
 		rc = crst_table_upgrade(current->mm, 1UL << 53);
 		if (rc)
 			return rc;
@@ -173,11 +174,9 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	if (mmap_is_legacy()) {
 		mm->mmap_base = TASK_UNMAPPED_BASE;
 		mm->get_unmapped_area = s390_get_unmapped_area;
-		mm->unmap_area = arch_unmap_area;
 	} else {
 		mm->mmap_base = mmap_base();
 		mm->get_unmapped_area = s390_get_unmapped_area_topdown;
-		mm->unmap_area = arch_unmap_area_topdown;
 	}
 }
 

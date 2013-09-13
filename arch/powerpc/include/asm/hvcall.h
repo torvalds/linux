@@ -152,11 +152,6 @@
 #define H_VASI_RESUMED          5
 #define H_VASI_COMPLETED        6
 
-/* DABRX flags */
-#define H_DABRX_HYPERVISOR	(1UL<<(63-61))
-#define H_DABRX_KERNEL		(1UL<<(63-62))
-#define H_DABRX_USER		(1UL<<(63-63))
-
 /* Each control block has to be on a 4K boundary */
 #define H_CB_ALIGNMENT          4096
 
@@ -269,10 +264,15 @@
 #define H_GET_MPP		0x2D4
 #define H_HOME_NODE_ASSOCIATIVITY 0x2EC
 #define H_BEST_ENERGY		0x2F4
+#define H_XIRR_X		0x2FC
 #define H_RANDOM		0x300
 #define H_COP			0x304
 #define H_GET_MPP_X		0x314
-#define MAX_HCALL_OPCODE	H_GET_MPP_X
+#define H_SET_MODE		0x31C
+#define MAX_HCALL_OPCODE	H_SET_MODE
+
+/* Platform specific hcalls, used by KVM */
+#define H_RTAS			0xf000
 
 #ifndef __ASSEMBLY__
 
@@ -360,6 +360,26 @@ struct hvcall_mpp_x_data {
 
 int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data);
 
+static inline unsigned int get_longbusy_msecs(int longbusy_rc)
+{
+	switch (longbusy_rc) {
+	case H_LONG_BUSY_ORDER_1_MSEC:
+		return 1;
+	case H_LONG_BUSY_ORDER_10_MSEC:
+		return 10;
+	case H_LONG_BUSY_ORDER_100_MSEC:
+		return 100;
+	case H_LONG_BUSY_ORDER_1_SEC:
+		return 1000;
+	case H_LONG_BUSY_ORDER_10_SEC:
+		return 10000;
+	case H_LONG_BUSY_ORDER_100_SEC:
+		return 100000;
+	default:
+		return 1;
+	}
+}
+
 #ifdef CONFIG_PPC_PSERIES
 extern int CMO_PrPSP;
 extern int CMO_SecPSP;
@@ -379,6 +399,15 @@ static inline unsigned long cmo_get_page_size(void)
 {
 	return CMO_PageSize;
 }
+
+extern long pSeries_enable_reloc_on_exc(void);
+extern long pSeries_disable_reloc_on_exc(void);
+
+#else
+
+#define pSeries_enable_reloc_on_exc()  do {} while (0)
+#define pSeries_disable_reloc_on_exc() do {} while (0)
+
 #endif /* CONFIG_PPC_PSERIES */
 
 #endif /* __ASSEMBLY__ */

@@ -81,8 +81,30 @@ int smt_enabled_at_boot = 1;
 
 static void (*crash_ipi_function_ptr)(struct pt_regs *) = NULL;
 
+/*
+ * Returns 1 if the specified cpu should be brought up during boot.
+ * Used to inhibit booting threads if they've been disabled or
+ * limited on the command line
+ */
+int smp_generic_cpu_bootable(unsigned int nr)
+{
+	/* Special case - we inhibit secondary thread startup
+	 * during boot if the user requests it.
+	 */
+	if (system_state == SYSTEM_BOOTING && cpu_has_feature(CPU_FTR_SMT)) {
+		if (!smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
+			return 0;
+		if (smt_enabled_at_boot
+		    && cpu_thread_in_core(nr) >= smt_enabled_at_boot)
+			return 0;
+	}
+
+	return 1;
+}
+
+
 #ifdef CONFIG_PPC64
-int __devinit smp_generic_kick_cpu(int nr)
+int smp_generic_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
@@ -102,7 +124,7 @@ int __devinit smp_generic_kick_cpu(int nr)
 	 * Ok it's not there, so it might be soft-unplugged, let's
 	 * try to bring it back
 	 */
-	per_cpu(cpu_state, nr) = CPU_UP_PREPARE;
+	generic_set_cpu_up(nr);
 	smp_wmb();
 	smp_send_reschedule(nr);
 #endif /* CONFIG_HOTPLUG_CPU */
@@ -171,8 +193,8 @@ int smp_request_message_ipi(int virq, int msg)
 	}
 #endif
 	err = request_irq(virq, smp_ipi_action[msg],
-			  IRQF_PERCPU | IRQF_NO_THREAD,
-			  smp_ipi_name[msg], 0);
+			  IRQF_PERCPU | IRQF_NO_THREAD | IRQF_NO_SUSPEND,
+			  smp_ipi_name[msg], NULL);
 	WARN(err < 0, "unable to request_irq %d for %s (rc %d)\n",
 		virq, smp_ipi_name[msg], err);
 
@@ -198,10 +220,23 @@ void smp_muxed_ipi_message_pass(int cpu, int msg)
 	struct cpu_messages *info = &per_cpu(ipi_message, cpu);
 	char *message = (char *)&info->messages;
 
+	/*
+	 * Order previous accesses before accesses in the IPI handler.
+	 */
+	smp_mb();
 	message[msg] = 1;
-	mb();
+	/*
+	 * cause_ipi functions are required to include a full barrier
+	 * before doing whatever causes the IPI.
+	 */
 	smp_ops->cause_ipi(cpu, info->data);
 }
+
+#ifdef __BIG_ENDIAN__
+#define IPI_MESSAGE(A) (1 << (24 - 8 * (A)))
+#else
+#define IPI_MESSAGE(A) (1 << (8 * (A)))
+#endif
 
 irqreturn_t smp_ipi_demux(void)
 {
@@ -211,20 +246,15 @@ irqreturn_t smp_ipi_demux(void)
 	mb();	/* order any irq clear */
 
 	do {
-		all = xchg_local(&info->messages, 0);
-
-#ifdef __BIG_ENDIAN
-		if (all & (1 << (24 - 8 * PPC_MSG_CALL_FUNCTION)))
+		all = xchg(&info->messages, 0);
+		if (all & IPI_MESSAGE(PPC_MSG_CALL_FUNCTION))
 			generic_smp_call_function_interrupt();
-		if (all & (1 << (24 - 8 * PPC_MSG_RESCHEDULE)))
+		if (all & IPI_MESSAGE(PPC_MSG_RESCHEDULE))
 			scheduler_ipi();
-		if (all & (1 << (24 - 8 * PPC_MSG_CALL_FUNC_SINGLE)))
+		if (all & IPI_MESSAGE(PPC_MSG_CALL_FUNC_SINGLE))
 			generic_smp_call_function_single_interrupt();
-		if (all & (1 << (24 - 8 * PPC_MSG_DEBUGGER_BREAK)))
+		if (all & IPI_MESSAGE(PPC_MSG_DEBUGGER_BREAK))
 			debug_ipi_action(0, NULL);
-#else
-#error Unsupported ENDIAN
-#endif
 	} while (info->messages);
 
 	return IRQ_HANDLED;
@@ -304,7 +334,7 @@ void smp_send_stop(void)
 
 struct thread_info *current_set[NR_CPUS];
 
-static void __devinit smp_store_cpu_info(int id)
+static void smp_store_cpu_info(int id)
 {
 	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
 #ifdef CONFIG_PPC_FSL_BOOK3E
@@ -348,7 +378,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		max_cpus = 1;
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != boot_cpuid);
 #ifdef CONFIG_PPC64
@@ -406,10 +436,59 @@ void generic_set_cpu_dead(unsigned int cpu)
 	per_cpu(cpu_state, cpu) = CPU_DEAD;
 }
 
+/*
+ * The cpu_state should be set to CPU_UP_PREPARE in kick_cpu(), otherwise
+ * the cpu_state is always CPU_DEAD after calling generic_set_cpu_dead(),
+ * which makes the delay in generic_cpu_die() not happen.
+ */
+void generic_set_cpu_up(unsigned int cpu)
+{
+	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
+}
+
 int generic_check_cpu_restart(unsigned int cpu)
 {
 	return per_cpu(cpu_state, cpu) == CPU_UP_PREPARE;
 }
+
+static atomic_t secondary_inhibit_count;
+
+/*
+ * Don't allow secondary CPU threads to come online
+ */
+void inhibit_secondary_onlining(void)
+{
+	/*
+	 * This makes secondary_inhibit_count stable during cpu
+	 * online/offline operations.
+	 */
+	get_online_cpus();
+
+	atomic_inc(&secondary_inhibit_count);
+	put_online_cpus();
+}
+EXPORT_SYMBOL_GPL(inhibit_secondary_onlining);
+
+/*
+ * Allow secondary CPU threads to come online again
+ */
+void uninhibit_secondary_onlining(void)
+{
+	get_online_cpus();
+	atomic_dec(&secondary_inhibit_count);
+	put_online_cpus();
+}
+EXPORT_SYMBOL_GPL(uninhibit_secondary_onlining);
+
+static int secondaries_inhibited(void)
+{
+	return atomic_read(&secondary_inhibit_count);
+}
+
+#else /* HOTPLUG_CPU */
+
+#define secondaries_inhibited()		0
+
 #endif
 
 static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
@@ -424,9 +503,16 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 	secondary_ti = current_set[cpu] = ti;
 }
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc, c;
+
+	/*
+	 * Don't allow secondary threads to come online if inhibited
+	 */
+	if (threads_per_core > 1 && secondaries_inhibited() &&
+	    cpu % threads_per_core != 0)
+		return -EBUSY;
 
 	if (smp_ops == NULL ||
 	    (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu)))
@@ -511,6 +597,22 @@ out:
 	return id;
 }
 
+/* Return the value of the chip-id property corresponding
+ * to the given logical cpu.
+ */
+int cpu_to_chip_id(int cpu)
+{
+	struct device_node *np;
+
+	np = of_get_cpu_node(cpu, NULL);
+	if (!np)
+		return -1;
+
+	of_node_put(np);
+	return of_get_ibm_chip_id(np);
+}
+EXPORT_SYMBOL(cpu_to_chip_id);
+
 /* Helper routines for cpu to core mapping */
 int cpu_core_index_of_thread(int cpu)
 {
@@ -523,6 +625,33 @@ int cpu_first_thread_of_core(int core)
 	return core << threads_shift;
 }
 EXPORT_SYMBOL_GPL(cpu_first_thread_of_core);
+
+static void traverse_siblings_chip_id(int cpu, bool add, int chipid)
+{
+	const struct cpumask *mask;
+	struct device_node *np;
+	int i, plen;
+	const __be32 *prop;
+
+	mask = add ? cpu_online_mask : cpu_present_mask;
+	for_each_cpu(i, mask) {
+		np = of_get_cpu_node(i, NULL);
+		if (!np)
+			continue;
+		prop = of_get_property(np, "ibm,chip-id", &plen);
+		if (prop && plen == sizeof(int) &&
+		    of_read_number(prop, 1) == chipid) {
+			if (add) {
+				cpumask_set_cpu(cpu, cpu_core_mask(i));
+				cpumask_set_cpu(i, cpu_core_mask(cpu));
+			} else {
+				cpumask_clear_cpu(cpu, cpu_core_mask(i));
+				cpumask_clear_cpu(i, cpu_core_mask(cpu));
+			}
+		}
+		of_node_put(np);
+	}
+}
 
 /* Must be called when no change can occur to cpu_present_mask,
  * i.e. during cpu online or offline.
@@ -546,11 +675,51 @@ static struct device_node *cpu_to_l2cache(int cpu)
 	return cache;
 }
 
+static void traverse_core_siblings(int cpu, bool add)
+{
+	struct device_node *l2_cache, *np;
+	const struct cpumask *mask;
+	int i, chip, plen;
+	const __be32 *prop;
+
+	/* First see if we have ibm,chip-id properties in cpu nodes */
+	np = of_get_cpu_node(cpu, NULL);
+	if (np) {
+		chip = -1;
+		prop = of_get_property(np, "ibm,chip-id", &plen);
+		if (prop && plen == sizeof(int))
+			chip = of_read_number(prop, 1);
+		of_node_put(np);
+		if (chip >= 0) {
+			traverse_siblings_chip_id(cpu, add, chip);
+			return;
+		}
+	}
+
+	l2_cache = cpu_to_l2cache(cpu);
+	mask = add ? cpu_online_mask : cpu_present_mask;
+	for_each_cpu(i, mask) {
+		np = cpu_to_l2cache(i);
+		if (!np)
+			continue;
+		if (np == l2_cache) {
+			if (add) {
+				cpumask_set_cpu(cpu, cpu_core_mask(i));
+				cpumask_set_cpu(i, cpu_core_mask(cpu));
+			} else {
+				cpumask_clear_cpu(cpu, cpu_core_mask(i));
+				cpumask_clear_cpu(i, cpu_core_mask(cpu));
+			}
+		}
+		of_node_put(np);
+	}
+	of_node_put(l2_cache);
+}
+
 /* Activate a secondary processor. */
-void __devinit start_secondary(void *unused)
+void start_secondary(void *unused)
 {
 	unsigned int cpu = smp_processor_id();
-	struct device_node *l2_cache;
 	int i, base;
 
 	atomic_inc(&init_mm.mm_count);
@@ -574,12 +743,10 @@ void __devinit start_secondary(void *unused)
 
 	vdso_getcpu_init();
 #endif
-	notify_cpu_starting(cpu);
-	set_cpu_online(cpu, true);
 	/* Update sibling maps */
 	base = cpu_first_thread_sibling(cpu);
 	for (i = 0; i < threads_per_core; i++) {
-		if (cpu_is_offline(base + i))
+		if (cpu_is_offline(base + i) && (cpu != base + i))
 			continue;
 		cpumask_set_cpu(cpu, cpu_sibling_mask(base + i));
 		cpumask_set_cpu(base + i, cpu_sibling_mask(cpu));
@@ -591,22 +758,15 @@ void __devinit start_secondary(void *unused)
 		cpumask_set_cpu(cpu, cpu_core_mask(base + i));
 		cpumask_set_cpu(base + i, cpu_core_mask(cpu));
 	}
-	l2_cache = cpu_to_l2cache(cpu);
-	for_each_online_cpu(i) {
-		struct device_node *np = cpu_to_l2cache(i);
-		if (!np)
-			continue;
-		if (np == l2_cache) {
-			cpumask_set_cpu(cpu, cpu_core_mask(i));
-			cpumask_set_cpu(i, cpu_core_mask(cpu));
-		}
-		of_node_put(np);
-	}
-	of_node_put(l2_cache);
+	traverse_core_siblings(cpu, true);
+
+	smp_wmb();
+	notify_cpu_starting(cpu);
+	set_cpu_online(cpu, true);
 
 	local_irq_enable();
 
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 
 	BUG();
 }
@@ -654,7 +814,6 @@ int arch_sd_sibling_asym_packing(void)
 #ifdef CONFIG_HOTPLUG_CPU
 int __cpu_disable(void)
 {
-	struct device_node *l2_cache;
 	int cpu = smp_processor_id();
 	int base, i;
 	int err;
@@ -674,20 +833,7 @@ int __cpu_disable(void)
 		cpumask_clear_cpu(cpu, cpu_core_mask(base + i));
 		cpumask_clear_cpu(base + i, cpu_core_mask(cpu));
 	}
-
-	l2_cache = cpu_to_l2cache(cpu);
-	for_each_present_cpu(i) {
-		struct device_node *np = cpu_to_l2cache(i);
-		if (!np)
-			continue;
-		if (np == l2_cache) {
-			cpumask_clear_cpu(cpu, cpu_core_mask(i));
-			cpumask_clear_cpu(i, cpu_core_mask(cpu));
-		}
-		of_node_put(np);
-	}
-	of_node_put(l2_cache);
-
+	traverse_core_siblings(cpu, false);
 
 	return 0;
 }

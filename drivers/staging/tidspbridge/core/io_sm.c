@@ -837,8 +837,8 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
 /*
  *  ======== io_dpc ========
  *      Deferred procedure call for shared memory channel driver ISR.  Carries
- *      out the dispatch of I/O as a non-preemptible event.It can only be
- *      pre-empted      by an ISR.
+ *      out the dispatch of I/O as a non-preemptible event. It can only be
+ *      pre-empted by an ISR.
  */
 void io_dpc(unsigned long ref_data)
 {
@@ -877,7 +877,7 @@ void io_dpc(unsigned long ref_data)
 						  pio_mgr->intr_val);
 			}
 		}
-		/* Proc-copy chanel dispatch */
+		/* Proc-copy channel dispatch */
 		input_chnl(pio_mgr, NULL, IO_SERVICE);
 		output_chnl(pio_mgr, NULL, IO_SERVICE);
 
@@ -938,7 +938,7 @@ int io_mbox_msg(struct notifier_block *self, unsigned long len, void *msg)
 /*
  *  ======== io_request_chnl ========
  *  Purpose:
- *      Request chanenel I/O from the DSP. Sets flags in shared memory, then
+ *      Request channel I/O from the DSP. Sets flags in shared memory, then
  *      interrupts the DSP.
  */
 void io_request_chnl(struct io_mgr *io_manager, struct chnl_object *pchnl,
@@ -2208,7 +2208,7 @@ void dump_dl_modules(struct bridge_dev_context *bridge_context)
 			module_struct->num_sects);
 
 		/*
-		 * The section name strings start immedialty following
+		 * The section name strings start immediately following
 		 * the array of dll_sect structures.
 		 */
 		sect_str = (char *) &module_struct->

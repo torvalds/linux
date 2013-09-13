@@ -19,6 +19,7 @@
 #include <linux/ata_platform.h>
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
+#include <linux/cpu.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -30,11 +31,10 @@
 #include <mach/bridge-regs.h>
 #include <mach/hardware.h>
 #include <mach/orion5x.h>
-#include <plat/orion_nand.h>
-#include <plat/ehci-orion.h>
+#include <linux/platform_data/mtd-orion_nand.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/time.h>
 #include <plat/common.h>
-#include <plat/addr-map.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -42,22 +42,12 @@
  ****************************************************************************/
 static struct map_desc orion5x_io_desc[] __initdata = {
 	{
-		.virtual	= ORION5X_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_REGS_PHYS_BASE),
 		.length		= ORION5X_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= ORION5X_PCIE_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(ORION5X_PCIE_IO_PHYS_BASE),
-		.length		= ORION5X_PCIE_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= ORION5X_PCI_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(ORION5X_PCI_IO_PHYS_BASE),
-		.length		= ORION5X_PCI_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= ORION5X_PCIE_WA_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_PCIE_WA_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_PCIE_WA_PHYS_BASE),
 		.length		= ORION5X_PCIE_WA_SIZE,
 		.type		= MT_DEVICE,
@@ -75,7 +65,7 @@ void __init orion5x_map_io(void)
  ****************************************************************************/
 static struct clk *tclk;
 
-static void __init clk_init(void)
+void __init clk_init(void)
 {
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
 				       orion5x_tclk);
@@ -184,7 +174,10 @@ void __init orion5x_xor_init(void)
  ****************************************************************************/
 static void __init orion5x_crypto_init(void)
 {
-	orion5x_setup_sram_win();
+	mvebu_mbus_add_window_by_id(ORION_MBUS_SRAM_TARGET,
+				    ORION_MBUS_SRAM_ATTR,
+				    ORION5X_SRAM_PHYS_BASE,
+				    ORION5X_SRAM_SIZE);
 	orion_crypto_init(ORION5X_CRYPTO_PHYS_BASE, ORION5X_SRAM_PHYS_BASE,
 			  SZ_8K, IRQ_ORION5X_CESA);
 }
@@ -203,7 +196,52 @@ void __init orion5x_wdt_init(void)
  ****************************************************************************/
 void __init orion5x_init_early(void)
 {
+	u32 rev, dev;
+	const char *mbus_soc_name;
+
 	orion_time_set_base(TIMER_VIRT_BASE);
+
+	/* Initialize the MBUS driver */
+	orion5x_pcie_id(&dev, &rev);
+	if (dev == MV88F5281_DEV_ID)
+		mbus_soc_name = "marvell,orion5x-88f5281-mbus";
+	else if (dev == MV88F5182_DEV_ID)
+		mbus_soc_name = "marvell,orion5x-88f5182-mbus";
+	else if (dev == MV88F5181_DEV_ID)
+		mbus_soc_name = "marvell,orion5x-88f5181-mbus";
+	else if (dev == MV88F6183_DEV_ID)
+		mbus_soc_name = "marvell,orion5x-88f6183-mbus";
+	else
+		mbus_soc_name = NULL;
+	mvebu_mbus_init(mbus_soc_name, ORION5X_BRIDGE_WINS_BASE,
+			ORION5X_BRIDGE_WINS_SZ,
+			ORION5X_DDR_WINS_BASE, ORION5X_DDR_WINS_SZ);
+}
+
+void orion5x_setup_wins(void)
+{
+	/*
+	 * The PCIe windows will no longer be statically allocated
+	 * here once Orion5x is migrated to the pci-mvebu driver.
+	 */
+	mvebu_mbus_add_window_remap_by_id(ORION_MBUS_PCIE_IO_TARGET,
+					  ORION_MBUS_PCIE_IO_ATTR,
+					  ORION5X_PCIE_IO_PHYS_BASE,
+					  ORION5X_PCIE_IO_SIZE,
+					  ORION5X_PCIE_IO_BUS_BASE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_PCIE_MEM_TARGET,
+				    ORION_MBUS_PCIE_MEM_ATTR,
+				    ORION5X_PCIE_MEM_PHYS_BASE,
+				    ORION5X_PCIE_MEM_SIZE);
+	mvebu_mbus_add_window_remap_by_id(ORION_MBUS_PCI_IO_TARGET,
+					  ORION_MBUS_PCI_IO_ATTR,
+					  ORION5X_PCI_IO_PHYS_BASE,
+					  ORION5X_PCI_IO_SIZE,
+					  ORION5X_PCI_IO_BUS_BASE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_PCI_MEM_TARGET,
+				    ORION_MBUS_PCI_MEM_ATTR,
+				    ORION5X_PCI_MEM_PHYS_BASE,
+				    ORION5X_PCI_MEM_SIZE);
 }
 
 int orion5x_tclk;
@@ -220,17 +258,13 @@ int __init orion5x_find_tclk(void)
 	return 166666667;
 }
 
-static void __init orion5x_timer_init(void)
+void __init orion5x_timer_init(void)
 {
 	orion5x_tclk = orion5x_find_tclk();
 
 	orion_time_init(ORION5X_BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_ORION5X_BRIDGE, orion5x_tclk);
 }
-
-struct sys_timer orion5x_timer = {
-	.init = orion5x_timer_init,
-};
 
 
 /*****************************************************************************
@@ -239,7 +273,7 @@ struct sys_timer orion5x_timer = {
 /*
  * Identify device ID and rev from PCIe configuration header space '0'.
  */
-static void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
+void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
 {
 	orion5x_pcie_id(dev, rev);
 
@@ -289,7 +323,7 @@ void __init orion5x_init(void)
 	/*
 	 * Setup Orion address map
 	 */
-	orion5x_setup_cpu_mbus_bridge();
+	orion5x_setup_wins();
 
 	/* Setup root of clk tree */
 	clk_init();
@@ -300,7 +334,7 @@ void __init orion5x_init(void)
 	 */
 	if (dev == MV88F5281_DEV_ID && rev == MV88F5281_REV_D0) {
 		printk(KERN_INFO "Orion: Applying 5281 D0 WFI workaround.\n");
-		disable_hlt();
+		cpu_idle_poll_ctrl(true);
 	}
 
 	/*
@@ -317,7 +351,7 @@ void __init orion5x_init(void)
 	orion5x_wdt_init();
 }
 
-void orion5x_restart(char mode, const char *cmd)
+void orion5x_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Enable and issue soft reset

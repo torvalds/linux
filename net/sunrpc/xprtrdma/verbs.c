@@ -1086,7 +1086,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	case RPCRDMA_MEMWINDOWS:
 		/* Allocate one extra request's worth, for full cycling */
 		for (i = (buf->rb_max_requests+1) * RPCRDMA_MAX_SEGS; i; i--) {
-			r->r.mw = ib_alloc_mw(ia->ri_pd);
+			r->r.mw = ib_alloc_mw(ia->ri_pd, IB_MW_TYPE_1);
 			if (IS_ERR(r->r.mw)) {
 				rc = PTR_ERR(r->r.mw);
 				dprintk("RPC:       %s: ib_alloc_mw"
@@ -1673,12 +1673,12 @@ rpcrdma_register_memwin_external(struct rpcrdma_mr_seg *seg,
 
 	*nsegs = 1;
 	rpcrdma_map_one(ia, seg, writing);
-	param.mr = ia->ri_bind_mem;
+	param.bind_info.mr = ia->ri_bind_mem;
 	param.wr_id = 0ULL;	/* no send cookie */
-	param.addr = seg->mr_dma;
-	param.length = seg->mr_len;
+	param.bind_info.addr = seg->mr_dma;
+	param.bind_info.length = seg->mr_len;
 	param.send_flags = 0;
-	param.mw_access_flags = mem_priv;
+	param.bind_info.mw_access_flags = mem_priv;
 
 	DECR_CQCOUNT(&r_xprt->rx_ep);
 	rc = ib_bind_mw(ia->ri_id->qp, seg->mr_chunk.rl_mw->r.mw, &param);
@@ -1690,7 +1690,7 @@ rpcrdma_register_memwin_external(struct rpcrdma_mr_seg *seg,
 		rpcrdma_unmap_one(ia, seg);
 	} else {
 		seg->mr_rkey = seg->mr_chunk.rl_mw->r.mw->rkey;
-		seg->mr_base = param.addr;
+		seg->mr_base = param.bind_info.addr;
 		seg->mr_nsegs = 1;
 	}
 	return rc;
@@ -1706,10 +1706,10 @@ rpcrdma_deregister_memwin_external(struct rpcrdma_mr_seg *seg,
 	int rc;
 
 	BUG_ON(seg->mr_nsegs != 1);
-	param.mr = ia->ri_bind_mem;
-	param.addr = 0ULL;	/* unbind */
-	param.length = 0;
-	param.mw_access_flags = 0;
+	param.bind_info.mr = ia->ri_bind_mem;
+	param.bind_info.addr = 0ULL;	/* unbind */
+	param.bind_info.length = 0;
+	param.bind_info.mw_access_flags = 0;
 	if (*r) {
 		param.wr_id = (u64) (unsigned long) *r;
 		param.send_flags = IB_SEND_SIGNALED;

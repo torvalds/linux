@@ -26,6 +26,7 @@ enum stmpe_partnum {
 	STMPE801,
 	STMPE811,
 	STMPE1601,
+	STMPE1801,
 	STMPE2401,
 	STMPE2403,
 	STMPE_NBR_PARTS
@@ -39,6 +40,7 @@ enum {
 	STMPE_IDX_CHIP_ID,
 	STMPE_IDX_ICR_LSB,
 	STMPE_IDX_IER_LSB,
+	STMPE_IDX_ISR_LSB,
 	STMPE_IDX_ISR_MSB,
 	STMPE_IDX_GPMR_LSB,
 	STMPE_IDX_GPSR_LSB,
@@ -49,6 +51,7 @@ enum {
 	STMPE_IDX_GPFER_LSB,
 	STMPE_IDX_GPAFR_U_MSB,
 	STMPE_IDX_IEGPIOR_LSB,
+	STMPE_IDX_ISGPIOR_LSB,
 	STMPE_IDX_ISGPIOR_MSB,
 	STMPE_IDX_MAX,
 };
@@ -62,6 +65,7 @@ struct stmpe_client_info;
  * @lock: lock protecting I/O operations
  * @irq_lock: IRQ bus lock
  * @dev: device, mostly for dev_dbg()
+ * @irq_domain: IRQ domain
  * @client: client - i2c or spi
  * @ci: client specific information
  * @partnum: part number
@@ -79,6 +83,7 @@ struct stmpe {
 	struct mutex lock;
 	struct mutex irq_lock;
 	struct device *dev;
+	struct irq_domain *domain;
 	void *client;
 	struct stmpe_client_info *ci;
 	enum stmpe_partnum partnum;
@@ -188,7 +193,6 @@ struct stmpe_ts_platform_data {
  * @id: device id to distinguish between multiple STMPEs on the same board
  * @blocks: bitmask of blocks to enable (use STMPE_BLOCK_*)
  * @irq_trigger: IRQ trigger to use for the interrupt to the host
- * @irq_invert_polarity: IRQ line is connected with reversed polarity
  * @autosleep: bool to enable/disable stmpe autosleep
  * @autosleep_timeout: inactivity timeout in milliseconds for autosleep
  * @irq_base: base IRQ number.  %STMPE_NR_IRQS irqs will be used, or
@@ -205,7 +209,6 @@ struct stmpe_platform_data {
 	unsigned int blocks;
 	int irq_base;
 	unsigned int irq_trigger;
-	bool irq_invert_polarity;
 	bool autosleep;
 	bool irq_over_gpio;
 	int irq_gpio;

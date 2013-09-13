@@ -61,7 +61,7 @@ static void acpi_hed_notify(struct acpi_device *device, u32 event)
 	blocking_notifier_call_chain(&acpi_hed_notify_list, 0, NULL);
 }
 
-static int __devinit acpi_hed_add(struct acpi_device *device)
+static int acpi_hed_add(struct acpi_device *device)
 {
 	/* Only one hardware error device */
 	if (hed_handle)
@@ -70,7 +70,7 @@ static int __devinit acpi_hed_add(struct acpi_device *device)
 	return 0;
 }
 
-static int __devexit acpi_hed_remove(struct acpi_device *device, int type)
+static int acpi_hed_remove(struct acpi_device *device)
 {
 	hed_handle = NULL;
 	return 0;
@@ -86,25 +86,7 @@ static struct acpi_driver acpi_hed_driver = {
 		.notify = acpi_hed_notify,
 	},
 };
-
-static int __init acpi_hed_init(void)
-{
-	if (acpi_disabled)
-		return -ENODEV;
-
-	if (acpi_bus_register_driver(&acpi_hed_driver) < 0)
-		return -ENODEV;
-
-	return 0;
-}
-
-static void __exit acpi_hed_exit(void)
-{
-	acpi_bus_unregister_driver(&acpi_hed_driver);
-}
-
-module_init(acpi_hed_init);
-module_exit(acpi_hed_exit);
+module_acpi_driver(acpi_hed_driver);
 
 ACPI_MODULE_NAME("hed");
 MODULE_AUTHOR("Huang Ying");

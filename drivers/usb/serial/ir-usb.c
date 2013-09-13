@@ -38,14 +38,8 @@
 #include <linux/usb/serial.h>
 #include <linux/usb/irda.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.5"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "USB IR Dongle driver"
-
-static bool debug;
 
 /* if overridden by the user, then use their value for the size of the read and
  * write urbs */
@@ -293,7 +287,6 @@ static void ir_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
-	struct tty_struct *tty;
 
 	if (!urb->actual_length)
 		return;
@@ -308,12 +301,8 @@ static void ir_process_read_urb(struct urb *urb)
 	if (urb->actual_length == 1)
 		return;
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-	tty_insert_flip_string(tty, data + 1, urb->actual_length - 1);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_insert_flip_string(&port->port, data + 1, urb->actual_length - 1);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void ir_set_termios_callback(struct urb *urb)
@@ -381,7 +370,7 @@ static void ir_set_termios(struct tty_struct *tty,
 		ir_xbof = ir_xbof_change(xbof) ;
 
 	/* Only speed changes are supported */
-	tty_termios_copy_hw(tty->termios, old_termios);
+	tty_termios_copy_hw(&tty->termios, old_termios);
 	tty_encode_baud_rate(tty, baud, baud);
 
 	/*
@@ -430,18 +419,12 @@ err_buf:
 
 static int __init ir_init(void)
 {
-	int retval;
-
 	if (buffer_size) {
 		ir_device.bulk_in_size = buffer_size;
 		ir_device.bulk_out_size = buffer_size;
 	}
 
-	retval = usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ir_id_table);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
+	return usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ir_id_table);
 }
 
 static void __exit ir_exit(void)
@@ -457,8 +440,6 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 module_param(xbof, int, 0);
 MODULE_PARM_DESC(xbof, "Force specific number of XBOFs");
 module_param(buffer_size, int, 0);

@@ -1,9 +1,10 @@
 /*
  * TI Palmas
  *
- * Copyright 2011 Texas Instruments Inc.
+ * Copyright 2011-2013 Texas Instruments Inc.
  *
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
+ * Author: Ian Lartey <ian@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under  the terms of the GNU General  Public License as published by the
@@ -19,10 +20,43 @@
 #include <linux/leds.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
+#include <linux/extcon.h>
+#include <linux/usb/phy_companion.h>
 
 #define PALMAS_NUM_CLIENTS		3
 
+/* The ID_REVISION NUMBERS */
+#define PALMAS_CHIP_OLD_ID		0x0000
+#define PALMAS_CHIP_ID			0xC035
+#define PALMAS_CHIP_CHARGER_ID		0xC036
+
+#define is_palmas(a)	(((a) == PALMAS_CHIP_OLD_ID) || \
+			((a) == PALMAS_CHIP_ID))
+#define is_palmas_charger(a) ((a) == PALMAS_CHIP_CHARGER_ID)
+
+/**
+ * Palmas PMIC feature types
+ *
+ * PALMAS_PMIC_FEATURE_SMPS10_BOOST - used when the PMIC provides SMPS10_BOOST
+ *	regulator.
+ *
+ * PALMAS_PMIC_HAS(b, f) - macro to check if a bandgap device is capable of a
+ *	specific feature (above) or not. Return non-zero, if yes.
+ */
+#define PALMAS_PMIC_FEATURE_SMPS10_BOOST	BIT(0)
+#define PALMAS_PMIC_HAS(b, f)			\
+			((b)->features & PALMAS_PMIC_FEATURE_ ## f)
+
 struct palmas_pmic;
+struct palmas_gpadc;
+struct palmas_resource;
+struct palmas_usb;
+
+enum palmas_usb_state {
+	PALMAS_USB_STATE_DISCONNECT,
+	PALMAS_USB_STATE_VBUS,
+	PALMAS_USB_STATE_ID,
+};
 
 struct palmas {
 	struct device *dev;
@@ -33,6 +67,7 @@ struct palmas {
 	/* Stored chip id */
 	int id;
 
+	unsigned int features;
 	/* IRQ Data */
 	int irq;
 	u32 irq_mask;
@@ -41,11 +76,31 @@ struct palmas {
 
 	/* Child Devices */
 	struct palmas_pmic *pmic;
+	struct palmas_gpadc *gpadc;
+	struct palmas_resource *resource;
+	struct palmas_usb *usb;
 
 	/* GPIO MUXing */
 	u8 gpio_muxed;
 	u8 led_muxed;
 	u8 pwm_muxed;
+};
+
+struct palmas_gpadc_platform_data {
+	/* Channel 3 current source is only enabled during conversion */
+	int ch3_current;
+
+	/* Channel 0 current source can be used for battery detection.
+	 * If used for battery detection this will cause a permanent current
+	 * consumption depending on current level set here.
+	 */
+	int ch0_current;
+
+	/* default BAT_REMOVAL_DAT setting on device probe */
+	int bat_removal;
+
+	/* Sets the START_POLARITY bit in the RT_CTRL register */
+	int start_polarity;
 };
 
 struct palmas_reg_init {
@@ -86,19 +141,6 @@ struct palmas_reg_init {
 	 */
 	int mode_sleep;
 
-	/* tstep is the timestep loaded to the TSTEP register
-	 *
-	 * For SMPS
-	 *
-	 * 0: Jump (no slope control)
-	 * 1: 10mV/us
-	 * 2: 5mV/us
-	 * 3: 2.5mV/us
-	 *
-	 * For LDO unused
-	 */
-	int tstep;
-
 	/* voltage_sel is the bitfield loaded onto the SMPSX_VOLTAGE
 	 * register. Set this is the default voltage set in OTP needs
 	 * to be overridden.
@@ -107,24 +149,149 @@ struct palmas_reg_init {
 
 };
 
+enum palmas_regulators {
+	/* SMPS regulators */
+	PALMAS_REG_SMPS12,
+	PALMAS_REG_SMPS123,
+	PALMAS_REG_SMPS3,
+	PALMAS_REG_SMPS45,
+	PALMAS_REG_SMPS457,
+	PALMAS_REG_SMPS6,
+	PALMAS_REG_SMPS7,
+	PALMAS_REG_SMPS8,
+	PALMAS_REG_SMPS9,
+	PALMAS_REG_SMPS10_OUT2,
+	PALMAS_REG_SMPS10_OUT1,
+	/* LDO regulators */
+	PALMAS_REG_LDO1,
+	PALMAS_REG_LDO2,
+	PALMAS_REG_LDO3,
+	PALMAS_REG_LDO4,
+	PALMAS_REG_LDO5,
+	PALMAS_REG_LDO6,
+	PALMAS_REG_LDO7,
+	PALMAS_REG_LDO8,
+	PALMAS_REG_LDO9,
+	PALMAS_REG_LDOLN,
+	PALMAS_REG_LDOUSB,
+	/* External regulators */
+	PALMAS_REG_REGEN1,
+	PALMAS_REG_REGEN2,
+	PALMAS_REG_REGEN3,
+	PALMAS_REG_SYSEN1,
+	PALMAS_REG_SYSEN2,
+	/* Total number of regulators */
+	PALMAS_NUM_REGS,
+};
+
+/* External controll signal name */
+enum {
+	PALMAS_EXT_CONTROL_ENABLE1      = 0x1,
+	PALMAS_EXT_CONTROL_ENABLE2      = 0x2,
+	PALMAS_EXT_CONTROL_NSLEEP       = 0x4,
+};
+
+/*
+ * Palmas device resources can be controlled externally for
+ * enabling/disabling it rather than register write through i2c.
+ * Add the external controlled requestor ID for different resources.
+ */
+enum palmas_external_requestor_id {
+	PALMAS_EXTERNAL_REQSTR_ID_REGEN1,
+	PALMAS_EXTERNAL_REQSTR_ID_REGEN2,
+	PALMAS_EXTERNAL_REQSTR_ID_SYSEN1,
+	PALMAS_EXTERNAL_REQSTR_ID_SYSEN2,
+	PALMAS_EXTERNAL_REQSTR_ID_CLK32KG,
+	PALMAS_EXTERNAL_REQSTR_ID_CLK32KGAUDIO,
+	PALMAS_EXTERNAL_REQSTR_ID_REGEN3,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS12,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS3,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS45,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS6,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS7,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS8,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS9,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS10,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO1,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO2,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO3,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO4,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO5,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO6,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO7,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO8,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO9,
+	PALMAS_EXTERNAL_REQSTR_ID_LDOLN,
+	PALMAS_EXTERNAL_REQSTR_ID_LDOUSB,
+
+	/* Last entry */
+	PALMAS_EXTERNAL_REQSTR_ID_MAX,
+};
+
 struct palmas_pmic_platform_data {
 	/* An array of pointers to regulator init data indexed by regulator
 	 * ID
 	 */
-	struct regulator_init_data **reg_data;
+	struct regulator_init_data *reg_data[PALMAS_NUM_REGS];
 
 	/* An array of pointers to structures containing sleep mode and DVS
 	 * configuration for regulators indexed by ID
 	 */
-	struct palmas_reg_init **reg_init;
+	struct palmas_reg_init *reg_init[PALMAS_NUM_REGS];
 
 	/* use LDO6 for vibrator control */
 	int ldo6_vibrator;
 
+	/* Enable tracking mode of LDO8 */
+	bool enable_ldo8_tracking;
+};
 
+struct palmas_usb_platform_data {
+	/* Do we enable the wakeup comparator on probe */
+	int wakeup;
+};
+
+struct palmas_resource_platform_data {
+	int regen1_mode_sleep;
+	int regen2_mode_sleep;
+	int sysen1_mode_sleep;
+	int sysen2_mode_sleep;
+
+	/* bitfield to be loaded to NSLEEP_RES_ASSIGN */
+	u8 nsleep_res;
+	/* bitfield to be loaded to NSLEEP_SMPS_ASSIGN */
+	u8 nsleep_smps;
+	/* bitfield to be loaded to NSLEEP_LDO_ASSIGN1 */
+	u8 nsleep_ldo1;
+	/* bitfield to be loaded to NSLEEP_LDO_ASSIGN2 */
+	u8 nsleep_ldo2;
+
+	/* bitfield to be loaded to ENABLE1_RES_ASSIGN */
+	u8 enable1_res;
+	/* bitfield to be loaded to ENABLE1_SMPS_ASSIGN */
+	u8 enable1_smps;
+	/* bitfield to be loaded to ENABLE1_LDO_ASSIGN1 */
+	u8 enable1_ldo1;
+	/* bitfield to be loaded to ENABLE1_LDO_ASSIGN2 */
+	u8 enable1_ldo2;
+
+	/* bitfield to be loaded to ENABLE2_RES_ASSIGN */
+	u8 enable2_res;
+	/* bitfield to be loaded to ENABLE2_SMPS_ASSIGN */
+	u8 enable2_smps;
+	/* bitfield to be loaded to ENABLE2_LDO_ASSIGN1 */
+	u8 enable2_ldo1;
+	/* bitfield to be loaded to ENABLE2_LDO_ASSIGN2 */
+	u8 enable2_ldo2;
+};
+
+struct palmas_clk_platform_data {
+	int clk32kg_mode_sleep;
+	int clk32kgaudio_mode_sleep;
 };
 
 struct palmas_platform_data {
+	int irq_flags;
 	int gpio_base;
 
 	/* bit value to be loaded to the POWER_CTRL register */
@@ -136,9 +303,51 @@ struct palmas_platform_data {
 	 */
 	int mux_from_pdata;
 	u8 pad1, pad2;
+	bool pm_off;
 
 	struct palmas_pmic_platform_data *pmic_pdata;
+	struct palmas_gpadc_platform_data *gpadc_pdata;
+	struct palmas_usb_platform_data *usb_pdata;
+	struct palmas_resource_platform_data *resource_pdata;
+	struct palmas_clk_platform_data *clk_pdata;
 };
+
+struct palmas_gpadc_calibration {
+	s32 gain;
+	s32 gain_error;
+	s32 offset_error;
+};
+
+struct palmas_gpadc {
+	struct device *dev;
+	struct palmas *palmas;
+
+	int ch3_current;
+	int ch0_current;
+
+	int gpadc_force;
+
+	int bat_removal;
+
+	struct mutex reading_lock;
+	struct completion irq_complete;
+
+	int eoc_sw_irq;
+
+	struct palmas_gpadc_calibration *palmas_cal_tbl;
+
+	int conv0_channel;
+	int conv1_channel;
+	int rt_channel;
+};
+
+struct palmas_gpadc_result {
+	s32 raw_code;
+	s32 corrected_code;
+	s32 result;
+};
+
+#define PALMAS_MAX_CHANNELS 16
 
 /* Define the palmas IRQ numbers */
 enum palmas_irqs {
@@ -182,34 +391,6 @@ enum palmas_irqs {
 	PALMAS_NUM_IRQ,
 };
 
-enum palmas_regulators {
-	/* SMPS regulators */
-	PALMAS_REG_SMPS12,
-	PALMAS_REG_SMPS123,
-	PALMAS_REG_SMPS3,
-	PALMAS_REG_SMPS45,
-	PALMAS_REG_SMPS457,
-	PALMAS_REG_SMPS6,
-	PALMAS_REG_SMPS7,
-	PALMAS_REG_SMPS8,
-	PALMAS_REG_SMPS9,
-	PALMAS_REG_SMPS10,
-	/* LDO regulators */
-	PALMAS_REG_LDO1,
-	PALMAS_REG_LDO2,
-	PALMAS_REG_LDO3,
-	PALMAS_REG_LDO4,
-	PALMAS_REG_LDO5,
-	PALMAS_REG_LDO6,
-	PALMAS_REG_LDO7,
-	PALMAS_REG_LDO8,
-	PALMAS_REG_LDO9,
-	PALMAS_REG_LDOLN,
-	PALMAS_REG_LDOUSB,
-	/* Total number of regulators */
-	PALMAS_NUM_REGS,
-};
-
 struct palmas_pmic {
 	struct palmas *palmas;
 	struct device *dev;
@@ -220,7 +401,67 @@ struct palmas_pmic {
 	int smps123;
 	int smps457;
 
-	int range[PALMAS_REG_SMPS10];
+	int range[PALMAS_REG_SMPS10_OUT1];
+	unsigned int ramp_delay[PALMAS_REG_SMPS10_OUT1];
+	unsigned int current_reg_mode[PALMAS_REG_SMPS10_OUT1];
+};
+
+struct palmas_resource {
+	struct palmas *palmas;
+	struct device *dev;
+};
+
+struct palmas_usb {
+	struct palmas *palmas;
+	struct device *dev;
+
+	struct extcon_dev edev;
+
+	int id_otg_irq;
+	int id_irq;
+	int vbus_otg_irq;
+	int vbus_irq;
+
+	enum palmas_usb_state linkstat;
+	int wakeup;
+	bool enable_vbus_detection;
+	bool enable_id_detection;
+};
+
+#define comparator_to_palmas(x) container_of((x), struct palmas_usb, comparator)
+
+enum usb_irq_events {
+	/* Wakeup events from INT3 */
+	PALMAS_USB_ID_WAKEPUP,
+	PALMAS_USB_VBUS_WAKEUP,
+
+	/* ID_OTG_EVENTS */
+	PALMAS_USB_ID_GND,
+	N_PALMAS_USB_ID_GND,
+	PALMAS_USB_ID_C,
+	N_PALMAS_USB_ID_C,
+	PALMAS_USB_ID_B,
+	N_PALMAS_USB_ID_B,
+	PALMAS_USB_ID_A,
+	N_PALMAS_USB_ID_A,
+	PALMAS_USB_ID_FLOAT,
+	N_PALMAS_USB_ID_FLOAT,
+
+	/* VBUS_OTG_EVENTS */
+	PALMAS_USB_VB_SESS_END,
+	N_PALMAS_USB_VB_SESS_END,
+	PALMAS_USB_VB_SESS_VLD,
+	N_PALMAS_USB_VB_SESS_VLD,
+	PALMAS_USB_VA_SESS_VLD,
+	N_PALMAS_USB_VA_SESS_VLD,
+	PALMAS_USB_VA_VBUS_VLD,
+	N_PALMAS_USB_VA_VBUS_VLD,
+	PALMAS_USB_VADP_SNS,
+	N_PALMAS_USB_VADP_SNS,
+	PALMAS_USB_VADP_PRB,
+	N_PALMAS_USB_VADP_PRB,
+	PALMAS_USB_VOTG_SESS_VLD,
+	N_PALMAS_USB_VOTG_SESS_VLD,
 };
 
 /* defines so we can store the mux settings */
@@ -252,7 +493,7 @@ struct palmas_pmic {
 #define PALMAS_DVFS_BASE					0x180
 #define PALMAS_PMU_CONTROL_BASE					0x1A0
 #define PALMAS_RESOURCE_BASE					0x1D4
-#define PALMAS_PU_PD_OD_BASE					0x1F4
+#define PALMAS_PU_PD_OD_BASE					0x1F0
 #define PALMAS_LED_BASE						0x200
 #define PALMAS_INTERRUPT_BASE					0x210
 #define PALMAS_USB_OTG_BASE					0x250
@@ -1537,16 +1778,20 @@ struct palmas_pmic {
 #define PALMAS_REGEN3_CTRL_MODE_ACTIVE_SHIFT			0
 
 /* Registers for function PAD_CONTROL */
-#define PALMAS_PU_PD_INPUT_CTRL1				0x0
-#define PALMAS_PU_PD_INPUT_CTRL2				0x1
-#define PALMAS_PU_PD_INPUT_CTRL3				0x2
-#define PALMAS_OD_OUTPUT_CTRL					0x4
-#define PALMAS_POLARITY_CTRL					0x5
-#define PALMAS_PRIMARY_SECONDARY_PAD1				0x6
-#define PALMAS_PRIMARY_SECONDARY_PAD2				0x7
-#define PALMAS_I2C_SPI						0x8
-#define PALMAS_PU_PD_INPUT_CTRL4				0x9
-#define PALMAS_PRIMARY_SECONDARY_PAD3				0xA
+#define PALMAS_OD_OUTPUT_CTRL2					0x2
+#define PALMAS_POLARITY_CTRL2					0x3
+#define PALMAS_PU_PD_INPUT_CTRL1				0x4
+#define PALMAS_PU_PD_INPUT_CTRL2				0x5
+#define PALMAS_PU_PD_INPUT_CTRL3				0x6
+#define PALMAS_PU_PD_INPUT_CTRL5				0x7
+#define PALMAS_OD_OUTPUT_CTRL					0x8
+#define PALMAS_POLARITY_CTRL					0x9
+#define PALMAS_PRIMARY_SECONDARY_PAD1				0xA
+#define PALMAS_PRIMARY_SECONDARY_PAD2				0xB
+#define PALMAS_I2C_SPI						0xC
+#define PALMAS_PU_PD_INPUT_CTRL4				0xD
+#define PALMAS_PRIMARY_SECONDARY_PAD3				0xE
+#define PALMAS_PRIMARY_SECONDARY_PAD4				0xF
 
 /* Bit definitions for PU_PD_INPUT_CTRL1 */
 #define PALMAS_PU_PD_INPUT_CTRL1_RESET_IN_PD			0x40
@@ -2304,6 +2549,15 @@ struct palmas_pmic {
 #define PALMAS_PU_PD_GPIO_CTRL1					0x6
 #define PALMAS_PU_PD_GPIO_CTRL2					0x7
 #define PALMAS_OD_OUTPUT_GPIO_CTRL				0x8
+#define PALMAS_GPIO_DATA_IN2					0x9
+#define PALMAS_GPIO_DATA_DIR2					0x0A
+#define PALMAS_GPIO_DATA_OUT2					0x0B
+#define PALMAS_GPIO_DEBOUNCE_EN2				0x0C
+#define PALMAS_GPIO_CLEAR_DATA_OUT2				0x0D
+#define PALMAS_GPIO_SET_DATA_OUT2				0x0E
+#define PALMAS_PU_PD_GPIO_CTRL3					0x0F
+#define PALMAS_PU_PD_GPIO_CTRL4					0x10
+#define PALMAS_OD_OUTPUT_GPIO_CTRL2				0x11
 
 /* Bit definitions for GPIO_DATA_IN */
 #define PALMAS_GPIO_DATA_IN_GPIO_7_IN				0x80
@@ -2616,5 +2870,62 @@ struct palmas_pmic {
 #define PALMAS_GPADC_TRIM14					0xD
 #define PALMAS_GPADC_TRIM15					0xE
 #define PALMAS_GPADC_TRIM16					0xF
+
+static inline int palmas_read(struct palmas *palmas, unsigned int base,
+		unsigned int reg, unsigned int *val)
+{
+	unsigned int addr =  PALMAS_BASE_TO_REG(base, reg);
+	int slave_id = PALMAS_BASE_TO_SLAVE(base);
+
+	return regmap_read(palmas->regmap[slave_id], addr, val);
+}
+
+static inline int palmas_write(struct palmas *palmas, unsigned int base,
+		unsigned int reg, unsigned int value)
+{
+	unsigned int addr = PALMAS_BASE_TO_REG(base, reg);
+	int slave_id = PALMAS_BASE_TO_SLAVE(base);
+
+	return regmap_write(palmas->regmap[slave_id], addr, value);
+}
+
+static inline int palmas_bulk_write(struct palmas *palmas, unsigned int base,
+	unsigned int reg, const void *val, size_t val_count)
+{
+	unsigned int addr = PALMAS_BASE_TO_REG(base, reg);
+	int slave_id = PALMAS_BASE_TO_SLAVE(base);
+
+	return regmap_bulk_write(palmas->regmap[slave_id], addr,
+			val, val_count);
+}
+
+static inline int palmas_bulk_read(struct palmas *palmas, unsigned int base,
+		unsigned int reg, void *val, size_t val_count)
+{
+	unsigned int addr = PALMAS_BASE_TO_REG(base, reg);
+	int slave_id = PALMAS_BASE_TO_SLAVE(base);
+
+	return regmap_bulk_read(palmas->regmap[slave_id], addr,
+		val, val_count);
+}
+
+static inline int palmas_update_bits(struct palmas *palmas, unsigned int base,
+	unsigned int reg, unsigned int mask, unsigned int val)
+{
+	unsigned int addr = PALMAS_BASE_TO_REG(base, reg);
+	int slave_id = PALMAS_BASE_TO_SLAVE(base);
+
+	return regmap_update_bits(palmas->regmap[slave_id], addr, mask, val);
+}
+
+static inline int palmas_irq_get_virq(struct palmas *palmas, int irq)
+{
+	return regmap_irq_get_virq(palmas->irq_data, irq);
+}
+
+
+int palmas_ext_control_req_config(struct palmas *palmas,
+	enum palmas_external_requestor_id ext_control_req_id,
+	int ext_ctrl, bool enable);
 
 #endif /*  __LINUX_MFD_PALMAS_H */

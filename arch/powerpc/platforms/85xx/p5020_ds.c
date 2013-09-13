@@ -75,12 +75,7 @@ define_machine(p5020_ds) {
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 #endif
-/* coreint doesn't play nice with lazy EE, use legacy mpic for now */
-#ifdef CONFIG_PPC64
-	.get_irq		= mpic_get_irq,
-#else
 	.get_irq		= mpic_get_coreint_irq,
-#endif
 	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
@@ -91,7 +86,7 @@ define_machine(p5020_ds) {
 #endif
 };
 
-machine_device_initcall(p5020_ds, corenet_ds_publish_devices);
+machine_arch_initcall(p5020_ds, corenet_ds_publish_devices);
 
 #ifdef CONFIG_SWIOTLB
 machine_arch_initcall(p5020_ds, swiotlb_setup_bus_notifier);

@@ -91,11 +91,11 @@ struct cvmx_bootinfo {
 #if (CVMX_BOOTINFO_MIN_VER >= 1)
 	/*
 	 * Several boards support compact flash on the Octeon boot
-	 * bus.  The CF memory spaces may be mapped to different
+	 * bus.	 The CF memory spaces may be mapped to different
 	 * addresses on different boards.  These are the physical
 	 * addresses, so care must be taken to use the correct
 	 * XKPHYS/KSEG0 addressing depending on the application's
-	 * ABI.  These values will be 0 if CF is not present.
+	 * ABI.	 These values will be 0 if CF is not present.
 	 */
 	uint64_t compact_flash_common_base_addr;
 	uint64_t compact_flash_attribute_base_addr;
@@ -131,7 +131,7 @@ struct cvmx_bootinfo {
 #define CVMX_BOOTINFO_CFG_FLAG_NO_MAGIC			(1ull << 3)
 /* This flag is set if the TLB mappings are not contained in the
  * 0x10000000 - 0x20000000 boot bus region. */
-#define CVMX_BOOTINFO_CFG_FLAG_OVERSIZE_TLB_MAPPING     (1ull << 4)
+#define CVMX_BOOTINFO_CFG_FLAG_OVERSIZE_TLB_MAPPING	(1ull << 4)
 #define CVMX_BOOTINFO_CFG_FLAG_BREAK			(1ull << 5)
 
 #endif /*   (CVMX_BOOTINFO_MAJ_VER == 1) */
@@ -164,9 +164,9 @@ enum cvmx_board_types_enum {
 	CVMX_BOARD_TYPE_EBT5600 = 22,
 	CVMX_BOARD_TYPE_EBH5201 = 23,
 	CVMX_BOARD_TYPE_EBT5200 = 24,
-	CVMX_BOARD_TYPE_CB5600  = 25,
-	CVMX_BOARD_TYPE_CB5601  = 26,
-	CVMX_BOARD_TYPE_CB5200  = 27,
+	CVMX_BOARD_TYPE_CB5600	= 25,
+	CVMX_BOARD_TYPE_CB5601	= 26,
+	CVMX_BOARD_TYPE_CB5200	= 27,
 	/* Special 'generic' board type, supports many boards */
 	CVMX_BOARD_TYPE_GENERIC = 28,
 	CVMX_BOARD_TYPE_EBH5610 = 29,
@@ -223,10 +223,11 @@ enum cvmx_board_types_enum {
 	CVMX_BOARD_TYPE_CUST_DEFINED_MAX = 20000,
 
 	/*
-	 * Set aside a range for customer private use.  The SDK won't
+	 * Set aside a range for customer private use.	The SDK won't
 	 * use any numbers in this range.
 	 */
 	CVMX_BOARD_TYPE_CUST_PRIVATE_MIN = 20001,
+	CVMX_BOARD_TYPE_UBNT_E100 = 20002,
 	CVMX_BOARD_TYPE_CUST_PRIVATE_MAX = 30000,
 
 	/* The remaining range is reserved for future use. */
@@ -325,6 +326,7 @@ static inline const char *cvmx_board_type_to_string(enum
 
 		    /* Customer private range */
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MIN)
+		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E100)
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MAX)
 	}
 	return "Unsupported Board";

@@ -162,7 +162,6 @@ mach-types.h
 machtypes.h
 map
 map_hugetlb
-maui_boot.h
 media
 mconf
 miboot*
@@ -182,7 +181,6 @@ modversions.h*
 nconf
 ncscope.*
 offset.h
-offsets.h
 oui.c*
 page-types
 parse.c

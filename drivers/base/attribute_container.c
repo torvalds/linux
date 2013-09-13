@@ -158,7 +158,7 @@ attribute_container_add_device(struct device *dev,
 
 		ic = kzalloc(sizeof(*ic), GFP_KERNEL);
 		if (!ic) {
-			dev_printk(KERN_ERR, dev, "failed to allocate class container\n");
+			dev_err(dev, "failed to allocate class container\n");
 			continue;
 		}
 
@@ -167,7 +167,7 @@ attribute_container_add_device(struct device *dev,
 		ic->classdev.parent = get_device(dev);
 		ic->classdev.class = cont->class;
 		cont->class->dev_release = attribute_container_release;
-		dev_set_name(&ic->classdev, dev_name(dev));
+		dev_set_name(&ic->classdev, "%s", dev_name(dev));
 		if (fn)
 			fn(cont, dev, &ic->classdev);
 		else

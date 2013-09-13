@@ -174,8 +174,8 @@ static int bcm63xx_pci_write(struct pci_bus *bus, unsigned int devfn,
 }
 
 struct pci_ops bcm63xx_pci_ops = {
-	.read   = bcm63xx_pci_read,
-	.write  = bcm63xx_pci_write
+	.read	= bcm63xx_pci_read,
+	.write	= bcm63xx_pci_write
 };
 
 #ifdef CONFIG_CARDBUS
@@ -370,8 +370,8 @@ static int bcm63xx_cb_read(struct pci_bus *bus, unsigned int devfn,
 		return fake_cb_bridge_read(where, size, val);
 	}
 
-	/* a  configuration  cycle for  the  device  behind the  cardbus
-	 * bridge is  actually done as a  type 0 cycle  on the primary
+	/* a  configuration  cycle for	the  device  behind the	 cardbus
+	 * bridge is  actually done as a  type 0 cycle	on the primary
 	 * bus. This means that only  one device can be on the cardbus
 	 * bus */
 	if (fake_cb_bridge_regs.bus_assigned &&
@@ -403,15 +403,15 @@ static int bcm63xx_cb_write(struct pci_bus *bus, unsigned int devfn,
 }
 
 struct pci_ops bcm63xx_cb_ops = {
-	.read   = bcm63xx_cb_read,
-	.write   = bcm63xx_cb_write,
+	.read	= bcm63xx_cb_read,
+	.write	 = bcm63xx_cb_write,
 };
 
 /*
  * only one IO window, so it  cannot be shared by PCI and cardbus, use
  * fixup to choose and detect unhandled configuration
  */
-static void __devinit bcm63xx_fixup(struct pci_dev *dev)
+static void bcm63xx_fixup(struct pci_dev *dev)
 {
 	static int io_window = -1;
 	int i, found, new_io_window;
@@ -523,6 +523,6 @@ static int bcm63xx_pcie_write(struct pci_bus *bus, unsigned int devfn,
 
 
 struct pci_ops bcm63xx_pcie_ops = {
-	.read   = bcm63xx_pcie_read,
-	.write  = bcm63xx_pcie_write
+	.read	= bcm63xx_pcie_read,
+	.write	= bcm63xx_pcie_write
 };

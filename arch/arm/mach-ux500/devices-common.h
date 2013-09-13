@@ -13,7 +13,7 @@
 #include <linux/sys_soc.h>
 #include <linux/amba/bus.h>
 #include <linux/platform_data/i2c-nomadik.h>
-#include <mach/crypto-ux500.h>
+#include <linux/platform_data/crypto-ux500.h>
 
 struct spi_master_cntlr;
 
@@ -129,12 +129,18 @@ void dbx500_add_gpios(struct device *parent, resource_size_t *base, int num,
 		      int irq, struct nmk_gpio_platform_data *pdata);
 
 static inline void
-dbx500_add_pinctrl(struct device *parent, const char *name)
+dbx500_add_pinctrl(struct device *parent, const char *name,
+		   resource_size_t base)
 {
+	struct resource res[] = {
+		DEFINE_RES_MEM(base, SZ_8K),
+	};
 	struct platform_device_info pdevinfo = {
 		.parent = parent,
 		.name = name,
 		.id = -1,
+		.res = res,
+		.num_res = ARRAY_SIZE(res),
 	};
 
 	platform_device_register_full(&pdevinfo);

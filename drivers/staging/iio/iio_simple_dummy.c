@@ -54,7 +54,7 @@ struct iio_dummy_accel_calibscale {
 static const struct iio_dummy_accel_calibscale dummy_scales[] = {
 	{ 0, 100, 0x8 }, /* 0.000100 */
 	{ 0, 133, 0x7 }, /* 0.000133 */
-	{ 733, 13, 0x9 }, /* 733.00013 */
+	{ 733, 13, 0x9 }, /* 733.000013 */
 };
 
 /*
@@ -63,7 +63,7 @@ static const struct iio_dummy_accel_calibscale dummy_scales[] = {
  * This array of structures tells the IIO core about what the device
  * actually provides for a given channel.
  */
-static struct iio_chan_spec iio_dummy_channels[] = {
+static const struct iio_chan_spec iio_dummy_channels[] = {
 	/* indexed ADC channel in_voltage0_raw etc */
 	{
 		.type = IIO_VOLTAGE,
@@ -71,25 +71,25 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		/* What other information is available? */
-		.info_mask =
+		.info_mask_separate =
 		/*
 		 * in_voltage0_raw
 		 * Raw (unscaled no bias removal etc) measurement
 		 * from the device.
 		 */
-		IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		BIT(IIO_CHAN_INFO_RAW) |
 		/*
 		 * in_voltage0_offset
 		 * Offset for userspace to apply prior to scale
 		 * when converting to standard units (microvolts)
 		 */
-		IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+		BIT(IIO_CHAN_INFO_OFFSET) |
 		/*
 		 * in_voltage0_scale
 		 * Multipler for userspace to apply post offset
 		 * when converting to standard units (microvolts)
 		 */
-		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		BIT(IIO_CHAN_INFO_SCALE),
 		/* The ordering of elements in the buffer via an enum */
 		.scan_index = voltage0,
 		.scan_type = { /* Description of storage in buffer */
@@ -118,19 +118,18 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		.indexed = 1,
 		.channel = 1,
 		.channel2 = 2,
-		.info_mask =
 		/*
 		 * in_voltage1-voltage2_raw
 		 * Raw (unscaled no bias removal etc) measurement
 		 * from the device.
 		 */
-		IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		/*
 		 * in_voltage-voltage_scale
 		 * Shared version of scale - shared by differential
 		 * input channels of type IIO_VOLTAGE.
 		 */
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = diffvoltage1m2,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
@@ -146,9 +145,8 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		.indexed = 1,
 		.channel = 3,
 		.channel2 = 4,
-		.info_mask =
-		IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = diffvoltage3m4,
 		.scan_type = {
 			.sign = 's',
@@ -166,15 +164,15 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		.modified = 1,
 		/* Channel 2 is use for modifiers */
 		.channel2 = IIO_MOD_X,
-		.info_mask =
-		IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		/*
-		 * Internal bias correction value. Applied
+		 * Internal bias and gain correction values. Applied
 		 * by the hardware or driver prior to userspace
 		 * seeing the readings. Typically part of hardware
 		 * calibration.
 		 */
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+		BIT(IIO_CHAN_INFO_CALIBSCALE) |
+		BIT(IIO_CHAN_INFO_CALIBBIAS),
 		.scan_index = accelx,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
@@ -191,7 +189,7 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 	/* DAC channel out_voltage0_raw */
 	{
 		.type = IIO_VOLTAGE,
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.output = 1,
 		.indexed = 1,
 		.channel = 0,
@@ -204,8 +202,8 @@ static struct iio_chan_spec iio_dummy_channels[] = {
  * @chan:	the channel whose data is to be read
  * @val:	first element of returned value (typically INT)
  * @val2:	second element of returned value (typically MICRO)
- * @mask:	what we actually want to read. 0 is the channel, everything else
- *		is as per the info_mask in iio_chan_spec.
+ * @mask:	what we actually want to read as per the info_mask_*
+ *		in iio_chan_spec.
  */
 static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 			      struct iio_chan_spec const *chan,
@@ -284,11 +282,11 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 /**
  * iio_dummy_write_raw() - data write function.
  * @indio_dev:	the struct iio_dev associated with this device instance
- * @chan:	the channel whose data is to be read
+ * @chan:	the channel whose data is to be written
  * @val:	first element of value to set (typically INT)
  * @val2:	second element of value to set (typically MICRO)
- * @mask:	what we actually want to write. 0 is the channel, everything else
- *		is as per the info_mask in iio_chan_spec.
+ * @mask:	what we actually want to write as per the info_mask_*
+ *		in iio_chan_spec.
  *
  * Note that all raw writes are assumed IIO_VAL_INT and info mask elements
  * are assumed to be IIO_INT_PLUS_MICRO unless the callback write_raw_get_fmt
@@ -314,7 +312,7 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 		st->dac_val = val;
 		mutex_unlock(&st->lock);
 		return 0;
-	case IIO_CHAN_INFO_CALIBBIAS:
+	case IIO_CHAN_INFO_CALIBSCALE:
 		mutex_lock(&st->lock);
 		/* Compare against table - hard matching here */
 		for (i = 0; i < ARRAY_SIZE(dummy_scales); i++)
@@ -327,6 +325,12 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 			st->accel_calibscale = &dummy_scales[i];
 		mutex_unlock(&st->lock);
 		return ret;
+	case IIO_CHAN_INFO_CALIBBIAS:
+		mutex_lock(&st->lock);
+		st->accel_calibbias = val;
+		mutex_unlock(&st->lock);
+		return 0;
+
 	default:
 		return -EINVAL;
 	}
@@ -378,7 +382,7 @@ static int iio_dummy_init_device(struct iio_dev *indio_dev)
  *                      const struct i2c_device_id *id)
  * SPI: iio_dummy_probe(struct spi_device *spi)
  */
-static int __devinit iio_dummy_probe(int index)
+static int iio_dummy_probe(int index)
 {
 	int ret;
 	struct iio_dev *indio_dev;
@@ -445,26 +449,20 @@ static int __devinit iio_dummy_probe(int index)
 	if (ret < 0)
 		goto error_free_device;
 
-	/* Configure buffered capture support. */
-	ret = iio_simple_dummy_configure_buffer(indio_dev);
+	/*
+	 * Configure buffered capture support and register the channels with the
+	 * buffer, but avoid the output channel being registered by reducing the
+	 * number of channels by 1.
+	 */
+	ret = iio_simple_dummy_configure_buffer(indio_dev, iio_dummy_channels, 5);
 	if (ret < 0)
 		goto error_unregister_events;
 
-	/*
-	 * Register the channels with the buffer, but avoid the output
-	 * channel being registered by reducing the number of channels by 1.
-	 */
-	ret = iio_buffer_register(indio_dev, iio_dummy_channels, 5);
+	ret = iio_device_register(indio_dev);
 	if (ret < 0)
 		goto error_unconfigure_buffer;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		goto error_unregister_buffer;
-
 	return 0;
-error_unregister_buffer:
-	iio_buffer_unregister(indio_dev);
 error_unconfigure_buffer:
 	iio_simple_dummy_unconfigure_buffer(indio_dev);
 error_unregister_events:
@@ -499,7 +497,6 @@ static int iio_dummy_remove(int index)
 	/* Device specific code to power down etc */
 
 	/* Buffered capture related cleanup */
-	iio_buffer_unregister(indio_dev);
 	iio_simple_dummy_unconfigure_buffer(indio_dev);
 
 	ret = iio_simple_dummy_events_unregister(indio_dev);
@@ -530,6 +527,7 @@ static __init int iio_dummy_init(void)
 		instances = 1;
 		return -EINVAL;
 	}
+
 	/* Fake a bus */
 	iio_dummy_devs = kcalloc(instances, sizeof(*iio_dummy_devs),
 				 GFP_KERNEL);
@@ -558,6 +556,6 @@ static __exit void iio_dummy_exit(void)
 }
 module_exit(iio_dummy_exit);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("IIO dummy driver");
 MODULE_LICENSE("GPL v2");

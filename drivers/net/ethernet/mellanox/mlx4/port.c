@@ -32,6 +32,7 @@
 
 #include <linux/errno.h>
 #include <linux/if_ether.h>
+#include <linux/if_vlan.h>
 #include <linux/export.h>
 
 #include <linux/mlx4/cmd.h>
@@ -74,87 +75,6 @@ void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table)
 	table->total = 0;
 }
 
-static int mlx4_uc_steer_add(struct mlx4_dev *dev, u8 port,
-			     u64 mac, int *qpn, u64 *reg_id)
-{
-	__be64 be_mac;
-	int err;
-
-	mac &= MLX4_MAC_MASK;
-	be_mac = cpu_to_be64(mac << 16);
-
-	switch (dev->caps.steering_mode) {
-	case MLX4_STEERING_MODE_B0: {
-		struct mlx4_qp qp;
-		u8 gid[16] = {0};
-
-		qp.qpn = *qpn;
-		memcpy(&gid[10], &be_mac, ETH_ALEN);
-		gid[5] = port;
-
-		err = mlx4_unicast_attach(dev, &qp, gid, 0, MLX4_PROT_ETH);
-		break;
-	}
-	case MLX4_STEERING_MODE_DEVICE_MANAGED: {
-		struct mlx4_spec_list spec_eth = { {NULL} };
-		__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
-
-		struct mlx4_net_trans_rule rule = {
-			.queue_mode = MLX4_NET_TRANS_Q_FIFO,
-			.exclusive = 0,
-			.allow_loopback = 1,
-			.promisc_mode = MLX4_FS_PROMISC_NONE,
-			.priority = MLX4_DOMAIN_NIC,
-		};
-
-		rule.port = port;
-		rule.qpn = *qpn;
-		INIT_LIST_HEAD(&rule.list);
-
-		spec_eth.id = MLX4_NET_TRANS_RULE_ID_ETH;
-		memcpy(spec_eth.eth.dst_mac, &be_mac, ETH_ALEN);
-		memcpy(spec_eth.eth.dst_mac_msk, &mac_mask, ETH_ALEN);
-		list_add_tail(&spec_eth.list, &rule.list);
-
-		err = mlx4_flow_attach(dev, &rule, reg_id);
-		break;
-	}
-	default:
-		return -EINVAL;
-	}
-	if (err)
-		mlx4_warn(dev, "Failed Attaching Unicast\n");
-
-	return err;
-}
-
-static void mlx4_uc_steer_release(struct mlx4_dev *dev, u8 port,
-				  u64 mac, int qpn, u64 reg_id)
-{
-	switch (dev->caps.steering_mode) {
-	case MLX4_STEERING_MODE_B0: {
-		struct mlx4_qp qp;
-		u8 gid[16] = {0};
-		__be64 be_mac;
-
-		qp.qpn = qpn;
-		mac &= MLX4_MAC_MASK;
-		be_mac = cpu_to_be64(mac << 16);
-		memcpy(&gid[10], &be_mac, ETH_ALEN);
-		gid[5] = port;
-
-		mlx4_unicast_detach(dev, &qp, gid, MLX4_PROT_ETH);
-		break;
-	}
-	case MLX4_STEERING_MODE_DEVICE_MANAGED: {
-		mlx4_flow_detach(dev, reg_id);
-		break;
-	}
-	default:
-		mlx4_err(dev, "Invalid steering mode.\n");
-	}
-}
-
 static int validate_index(struct mlx4_dev *dev,
 			  struct mlx4_mac_table *table, int index)
 {
@@ -180,92 +100,6 @@ static int find_index(struct mlx4_dev *dev,
 	/* Mac not found */
 	return -EINVAL;
 }
-
-int mlx4_get_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn)
-{
-	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
-	struct mlx4_mac_entry *entry;
-	int index = 0;
-	int err = 0;
-	u64 reg_id;
-
-	mlx4_dbg(dev, "Registering MAC: 0x%llx for adding\n",
-			(unsigned long long) mac);
-	index = mlx4_register_mac(dev, port, mac);
-	if (index < 0) {
-		err = index;
-		mlx4_err(dev, "Failed adding MAC: 0x%llx\n",
-			 (unsigned long long) mac);
-		return err;
-	}
-
-	if (dev->caps.steering_mode == MLX4_STEERING_MODE_A0) {
-		*qpn = info->base_qpn + index;
-		return 0;
-	}
-
-	err = mlx4_qp_reserve_range(dev, 1, 1, qpn);
-	mlx4_dbg(dev, "Reserved qp %d\n", *qpn);
-	if (err) {
-		mlx4_err(dev, "Failed to reserve qp for mac registration\n");
-		goto qp_err;
-	}
-
-	err = mlx4_uc_steer_add(dev, port, mac, qpn, &reg_id);
-	if (err)
-		goto steer_err;
-
-	entry = kmalloc(sizeof *entry, GFP_KERNEL);
-	if (!entry) {
-		err = -ENOMEM;
-		goto alloc_err;
-	}
-	entry->mac = mac;
-	entry->reg_id = reg_id;
-	err = radix_tree_insert(&info->mac_tree, *qpn, entry);
-	if (err)
-		goto insert_err;
-	return 0;
-
-insert_err:
-	kfree(entry);
-
-alloc_err:
-	mlx4_uc_steer_release(dev, port, mac, *qpn, reg_id);
-
-steer_err:
-	mlx4_qp_release_range(dev, *qpn, 1);
-
-qp_err:
-	mlx4_unregister_mac(dev, port, mac);
-	return err;
-}
-EXPORT_SYMBOL_GPL(mlx4_get_eth_qp);
-
-void mlx4_put_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int qpn)
-{
-	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
-	struct mlx4_mac_entry *entry;
-
-	mlx4_dbg(dev, "Registering MAC: 0x%llx for deleting\n",
-		 (unsigned long long) mac);
-	mlx4_unregister_mac(dev, port, mac);
-
-	if (dev->caps.steering_mode != MLX4_STEERING_MODE_A0) {
-		entry = radix_tree_lookup(&info->mac_tree, qpn);
-		if (entry) {
-			mlx4_dbg(dev, "Releasing qp: port %d, mac 0x%llx,"
-				 " qpn %d\n", port,
-				 (unsigned long long) mac, qpn);
-			mlx4_uc_steer_release(dev, port, entry->mac,
-					      qpn, entry->reg_id);
-			mlx4_qp_release_range(dev, qpn, 1);
-			radix_tree_delete(&info->mac_tree, qpn);
-			kfree(entry);
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(mlx4_put_eth_qp);
 
 static int mlx4_set_port_mac_table(struct mlx4_dev *dev, u8 port,
 				   __be64 *entries)
@@ -307,8 +141,9 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 		}
 
 		if (mac == (MLX4_MAC_MASK & be64_to_cpu(table->entries[i]))) {
-			/* MAC already registered, Must not have duplicates */
-			err = -EEXIST;
+			/* MAC already registered, increment ref count */
+			err = i;
+			++table->refs[i];
 			goto out;
 		}
 	}
@@ -331,7 +166,7 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 		table->entries[free] = 0;
 		goto out;
 	}
-
+	table->refs[free] = 1;
 	err = free;
 	++table->total;
 out:
@@ -342,7 +177,7 @@ EXPORT_SYMBOL_GPL(__mlx4_register_mac);
 
 int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
-	u64 out_param;
+	u64 out_param = 0;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
@@ -359,6 +194,12 @@ int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 }
 EXPORT_SYMBOL_GPL(mlx4_register_mac);
 
+int mlx4_get_base_qpn(struct mlx4_dev *dev, u8 port)
+{
+	return dev->caps.reserved_qps_base[MLX4_QP_REGION_ETH_ADDR] +
+			(port - 1) * (1 << dev->caps.log_num_macs);
+}
+EXPORT_SYMBOL_GPL(mlx4_get_base_qpn);
 
 void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
@@ -366,12 +207,16 @@ void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 	struct mlx4_mac_table *table = &info->mac_table;
 	int index;
 
-	index = find_index(dev, table, mac);
-
 	mutex_lock(&table->mutex);
+	index = find_index(dev, table, mac);
 
 	if (validate_index(dev, table, index))
 		goto out;
+	if (--table->refs[index]) {
+		mlx4_dbg(dev, "Have more references for index %d,"
+			 "no need to modify mac table\n", index);
+		goto out;
+	}
 
 	table->entries[index] = 0;
 	mlx4_set_port_mac_table(dev, port, table->entries);
@@ -383,7 +228,7 @@ EXPORT_SYMBOL_GPL(__mlx4_unregister_mac);
 
 void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
-	u64 out_param;
+	u64 out_param = 0;
 
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&out_param, port);
@@ -397,28 +242,12 @@ void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 }
 EXPORT_SYMBOL_GPL(mlx4_unregister_mac);
 
-int mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac)
+int __mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac)
 {
 	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
 	struct mlx4_mac_table *table = &info->mac_table;
-	struct mlx4_mac_entry *entry;
 	int index = qpn - info->base_qpn;
 	int err = 0;
-
-	if (dev->caps.steering_mode != MLX4_STEERING_MODE_A0) {
-		entry = radix_tree_lookup(&info->mac_tree, qpn);
-		if (!entry)
-			return -EINVAL;
-		mlx4_uc_steer_release(dev, port, entry->mac,
-				      qpn, entry->reg_id);
-		mlx4_unregister_mac(dev, port, entry->mac);
-		entry->mac = new_mac;
-		entry->reg_id = 0;
-		mlx4_register_mac(dev, port, new_mac);
-		err = mlx4_uc_steer_add(dev, port, entry->mac,
-					&qpn, &entry->reg_id);
-		return err;
-	}
 
 	/* CX1 doesn't support multi-functions */
 	mutex_lock(&table->mutex);
@@ -439,7 +268,7 @@ out:
 	mutex_unlock(&table->mutex);
 	return err;
 }
-EXPORT_SYMBOL_GPL(mlx4_replace_mac);
+EXPORT_SYMBOL_GPL(__mlx4_replace_mac);
 
 static int mlx4_set_port_vlan_table(struct mlx4_dev *dev, u8 port,
 				    __be32 *entries)
@@ -481,7 +310,7 @@ int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx)
 }
 EXPORT_SYMBOL_GPL(mlx4_find_cached_vlan);
 
-static int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
+int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
 				int *index)
 {
 	struct mlx4_vlan_table *table = &mlx4_priv(dev)->port[port].vlan_table;
@@ -538,7 +367,7 @@ out:
 
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 {
-	u64 out_param;
+	u64 out_param = 0;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
@@ -555,7 +384,7 @@ int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 }
 EXPORT_SYMBOL_GPL(mlx4_register_vlan);
 
-static void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index)
+void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index)
 {
 	struct mlx4_vlan_table *table = &mlx4_priv(dev)->port[port].vlan_table;
 
@@ -583,7 +412,7 @@ out:
 
 void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index)
 {
-	u64 in_param;
+	u64 in_param = 0;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
@@ -694,7 +523,8 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 			/* Mtu is configured as the max MTU among all the
 			 * the functions on the port. */
 			mtu = be16_to_cpu(gen_context->mtu);
-			mtu = min_t(int, mtu, dev->caps.eth_mtu_cap[port]);
+			mtu = min_t(int, mtu, dev->caps.eth_mtu_cap[port] +
+				    ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN);
 			prev_mtu = slave_st->mtu[port];
 			slave_st->mtu[port] = mtu;
 			if (mtu > master->max_mtu[port])
@@ -731,6 +561,16 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 		reset_qkey_viols = ((u8 *) inbox->buf)[3] & 0x1;
 		new_cap_mask = ((__be32 *) inbox->buf)[1];
 	}
+
+	/* slave may not set the IS_SM capability for the port */
+	if (slave != mlx4_master_func_num(dev) &&
+	    (be32_to_cpu(new_cap_mask) & MLX4_PORT_CAP_IS_SM))
+		return -EINVAL;
+
+	/* No DEV_MGMT in multifunc mode */
+	if (mlx4_is_mfunc(dev) &&
+	    (be32_to_cpu(new_cap_mask) & MLX4_PORT_CAP_DEV_MGMT_SUP))
+		return -EINVAL;
 
 	agg_cap_mask = 0;
 	slave_cap_mask =

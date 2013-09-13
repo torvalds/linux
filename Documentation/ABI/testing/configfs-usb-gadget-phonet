@@ -1,0 +1,8 @@
+What:		/config/usb-gadget/gadget/functions/phonet.name
+Date:		Jun 2013
+KenelVersion:	3.11
+Description:
+
+		This item contains just one readonly attribute: ifname.
+		It contains the network interface name assigned during
+		network device registration.

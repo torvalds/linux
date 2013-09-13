@@ -101,7 +101,7 @@ static void gmux_pio_write32(struct apple_gmux_data *gmux_data, int port,
 
 	for (i = 0; i < 4; i++) {
 		tmpval = (val >> (i * 8)) & 0xff;
-		outb(tmpval, port + i);
+		outb(tmpval, gmux_data->iostart + port + i);
 	}
 }
 
@@ -142,8 +142,9 @@ static u8 gmux_index_read8(struct apple_gmux_data *gmux_data, int port)
 	u8 val;
 
 	mutex_lock(&gmux_data->index_lock);
-	outb((port & 0xff), gmux_data->iostart + GMUX_PORT_READ);
 	gmux_index_wait_ready(gmux_data);
+	outb((port & 0xff), gmux_data->iostart + GMUX_PORT_READ);
+	gmux_index_wait_complete(gmux_data);
 	val = inb(gmux_data->iostart + GMUX_PORT_VALUE);
 	mutex_unlock(&gmux_data->index_lock);
 
@@ -166,8 +167,9 @@ static u32 gmux_index_read32(struct apple_gmux_data *gmux_data, int port)
 	u32 val;
 
 	mutex_lock(&gmux_data->index_lock);
-	outb((port & 0xff), gmux_data->iostart + GMUX_PORT_READ);
 	gmux_index_wait_ready(gmux_data);
+	outb((port & 0xff), gmux_data->iostart + GMUX_PORT_READ);
+	gmux_index_wait_complete(gmux_data);
 	val = inl(gmux_data->iostart + GMUX_PORT_VALUE);
 	mutex_unlock(&gmux_data->index_lock);
 
@@ -391,17 +393,21 @@ static void gmux_notify_handler(acpi_handle device, u32 value, void *context)
 		complete(&gmux_data->powerchange_done);
 }
 
-static int gmux_suspend(struct pnp_dev *pnp, pm_message_t state)
+static int gmux_suspend(struct device *dev)
 {
+	struct pnp_dev *pnp = to_pnp_dev(dev);
 	struct apple_gmux_data *gmux_data = pnp_get_drvdata(pnp);
+
 	gmux_data->resume_client_id = gmux_active_client(gmux_data);
 	gmux_disable_interrupts(gmux_data);
 	return 0;
 }
 
-static int gmux_resume(struct pnp_dev *pnp)
+static int gmux_resume(struct device *dev)
 {
+	struct pnp_dev *pnp = to_pnp_dev(dev);
 	struct apple_gmux_data *gmux_data = pnp_get_drvdata(pnp);
+
 	gmux_enable_interrupts(gmux_data);
 	gmux_switchto(gmux_data->resume_client_id);
 	if (gmux_data->power_state == VGA_SWITCHEROO_OFF)
@@ -409,8 +415,7 @@ static int gmux_resume(struct pnp_dev *pnp)
 	return 0;
 }
 
-static int __devinit gmux_probe(struct pnp_dev *pnp,
-				const struct pnp_device_id *id)
+static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 {
 	struct apple_gmux_data *gmux_data;
 	struct resource *res;
@@ -461,18 +466,22 @@ static int __devinit gmux_probe(struct pnp_dev *pnp,
 	ver_release = gmux_read8(gmux_data, GMUX_PORT_VERSION_RELEASE);
 	if (ver_major == 0xff && ver_minor == 0xff && ver_release == 0xff) {
 		if (gmux_is_indexed(gmux_data)) {
+			u32 version;
 			mutex_init(&gmux_data->index_lock);
 			gmux_data->indexed = true;
+			version = gmux_read32(gmux_data,
+				GMUX_PORT_VERSION_MAJOR);
+			ver_major = (version >> 24) & 0xff;
+			ver_minor = (version >> 16) & 0xff;
+			ver_release = (version >> 8) & 0xff;
 		} else {
 			pr_info("gmux device not present\n");
 			ret = -ENODEV;
 			goto err_release;
 		}
-		pr_info("Found indexed gmux\n");
-	} else {
-		pr_info("Found gmux version %d.%d.%d\n", ver_major, ver_minor,
-			ver_release);
 	}
+	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_minor,
+		ver_release, (gmux_data->indexed ? "indexed" : "classic"));
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
@@ -505,9 +514,7 @@ static int __devinit gmux_probe(struct pnp_dev *pnp,
 	 * Disable the other backlight choices.
 	 */
 	acpi_video_dmi_promote_vendor();
-#if defined (CONFIG_ACPI_VIDEO) || defined (CONFIG_ACPI_VIDEO_MODULE)
 	acpi_video_unregister();
-#endif
 	apple_bl_unregister();
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
@@ -573,7 +580,7 @@ err_free:
 	return ret;
 }
 
-static void __devexit gmux_remove(struct pnp_dev *pnp)
+static void gmux_remove(struct pnp_dev *pnp)
 {
 	struct apple_gmux_data *gmux_data = pnp_get_drvdata(pnp);
 
@@ -593,9 +600,7 @@ static void __devexit gmux_remove(struct pnp_dev *pnp)
 	kfree(gmux_data);
 
 	acpi_video_dmi_demote_vendor();
-#if defined (CONFIG_ACPI_VIDEO) || defined (CONFIG_ACPI_VIDEO_MODULE)
 	acpi_video_register();
-#endif
 	apple_bl_register();
 }
 
@@ -604,13 +609,19 @@ static const struct pnp_device_id gmux_device_ids[] = {
 	{"", 0}
 };
 
+static const struct dev_pm_ops gmux_dev_pm_ops = {
+	.suspend = gmux_suspend,
+	.resume = gmux_resume,
+};
+
 static struct pnp_driver gmux_pnp_driver = {
 	.name		= "apple-gmux",
 	.probe		= gmux_probe,
-	.remove		= __devexit_p(gmux_remove),
+	.remove		= gmux_remove,
 	.id_table	= gmux_device_ids,
-	.suspend	= gmux_suspend,
-	.resume		= gmux_resume
+	.driver		= {
+			.pm = &gmux_dev_pm_ops,
+	},
 };
 
 static int __init apple_gmux_init(void)

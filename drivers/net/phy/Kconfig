@@ -4,7 +4,6 @@
 
 menuconfig PHYLIB
 	tristate "PHY Device support and infrastructure"
-	depends on !S390
 	depends on NETDEVICES
 	help
 	  Ethernet controllers are usually attached to PHY
@@ -14,6 +13,11 @@ menuconfig PHYLIB
 if PHYLIB
 
 comment "MII PHY device drivers"
+
+config AT803X_PHY
+	tristate "Drivers for Atheros AT803X PHYs"
+	---help---
+	  Currently supports the AT8030 and AT8035 model
 
 config AMD_PHY
 	tristate "Drivers for the AMD PHYs"
@@ -122,7 +126,7 @@ config MDIO_BITBANG
 
 config MDIO_GPIO
 	tristate "Support for GPIO lib-based bitbanged MDIO buses"
-	depends on MDIO_BITBANG && GENERIC_GPIO
+	depends on MDIO_BITBANG && GPIOLIB
 	---help---
 	  Supports GPIO lib-based MDIO busses.
 
@@ -131,7 +135,7 @@ config MDIO_GPIO
 
 config MDIO_OCTEON
 	tristate "Support for MDIO buses on Octeon SOCs"
-	depends on  CPU_CAVIUM_OCTEON
+	depends on CAVIUM_OCTEON_SOC
 	default y
 	help
 
@@ -139,6 +143,16 @@ config MDIO_OCTEON
 	  It is required by the Octeon Ethernet device drivers.
 
 	  If in doubt, say Y.
+
+config MDIO_SUN4I
+	tristate "Allwinner sun4i MDIO interface support"
+	depends on ARCH_SUNXI
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	help
+	  This driver supports the MDIO interface found in the network
+	  interface units of the Allwinner SoC that have an EMAC (A10,
+	  A12, A10s, etc.)
 
 config MDIO_BUS_MUX
 	tristate
@@ -158,6 +172,19 @@ config MDIO_BUS_MUX_GPIO
 	  are controlled via GPIO lines.  The multiplexer connects one of
 	  several child MDIO busses to a parent bus.  Child bus
 	  selection is under the control of GPIO lines.
+
+config MDIO_BUS_MUX_MMIOREG
+	tristate "Support for MMIO device-controlled MDIO bus multiplexers"
+	depends on OF_MDIO
+	select MDIO_BUS_MUX
+	help
+	  This module provides a driver for MDIO bus multiplexers that
+	  are controlled via a simple memory-mapped device, like an FPGA.
+	  The multiplexer connects one of several child MDIO busses to a
+	  parent bus.  Child bus selection is under the control of one of
+	  the FPGA's registers.
+
+	  Currently, only 8-bit registers are supported.
 
 endif # PHYLIB
 

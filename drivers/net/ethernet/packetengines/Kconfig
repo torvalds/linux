@@ -21,7 +21,6 @@ if NET_PACKET_ENGINE
 config HAMACHI
 	tristate "Packet Engines Hamachi GNIC-II support"
 	depends on PCI
-	select NET_CORE
 	select MII
 	---help---
 	  If you have a Gigabit Ethernet card of this type, say Y and read
@@ -32,8 +31,8 @@ config HAMACHI
 	  called hamachi.
 
 config YELLOWFIN
-	tristate "Packet Engines Yellowfin Gigabit-NIC support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Packet Engines Yellowfin Gigabit-NIC support"
+	depends on PCI
 	select CRC32
 	---help---
 	  Say Y here if you have a Packet Engines G-NIC PCI Gigabit Ethernet

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2006, 2007, 2008, 2009 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -46,7 +47,7 @@
  * The size has to be longer than this string, so we can append
  * board/chip information to it in the init code.
  */
-const char ib_qib_version[] = QIB_IDSTR "\n";
+const char ib_qib_version[] = QIB_DRIVER_VERSION "\n";
 
 DEFINE_SPINLOCK(qib_devs_lock);
 LIST_HEAD(qib_dev_list);
@@ -63,8 +64,9 @@ MODULE_PARM_DESC(compat_ddr_negotiate,
 		 "Attempt pre-IBTA 1.2 DDR speed negotiation");
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("QLogic <support@qlogic.com>");
-MODULE_DESCRIPTION("QLogic IB driver");
+MODULE_AUTHOR("Intel <ibsupport@intel.com>");
+MODULE_DESCRIPTION("Intel IB driver");
+MODULE_VERSION(QIB_DRIVER_VERSION);
 
 /*
  * QIB_PIO_MAXIBHDR is the max IB header size allowed for in our
@@ -556,7 +558,6 @@ move_along:
 	}
 
 	rcd->head = l;
-	rcd->pkt_count += i;
 
 	/*
 	 * Iterate over all QPs waiting to respond.

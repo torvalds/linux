@@ -27,71 +27,40 @@
 #include <mach/emev2.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
-#include <asm/hardware/gic.h>
-#include <asm/cacheflush.h>
 
 #define EMEV2_SCU_BASE 0x1e000000
+#define EMEV2_SMU_BASE 0xe0110000
+#define SMU_GENERAL_REG0 0x7c0
 
-static DEFINE_SPINLOCK(scu_lock);
-static void __iomem *scu_base;
-
-static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
+static int emev2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	unsigned long tmp;
+	int ret;
 
-	/* we assume this code is running on a different cpu
-	 * than the one that is changing coherency setting */
-	spin_lock(&scu_lock);
-	tmp = readl(scu_base + 8);
-	tmp &= ~clr;
-	tmp |= set;
-	writel(tmp, scu_base + 8);
-	spin_unlock(&scu_lock);
+	ret = shmobile_smp_scu_boot_secondary(cpu, idle);
+	if (ret)
+		return ret;
 
-}
-
-unsigned int __init emev2_get_core_count(void)
-{
-	if (!scu_base) {
-		scu_base = ioremap(EMEV2_SCU_BASE, PAGE_SIZE);
-		emev2_clock_init(); /* need ioremapped SMU */
-	}
-
-	WARN_ON_ONCE(!scu_base);
-
-	return scu_base ? scu_get_core_count(scu_base) : 1;
-}
-
-int emev2_platform_cpu_kill(unsigned int cpu)
-{
-	return 0; /* not supported yet */
-}
-
-void __cpuinit emev2_secondary_init(unsigned int cpu)
-{
-	gic_secondary_init(0);
-}
-
-int __cpuinit emev2_boot_secondary(unsigned int cpu)
-{
-	cpu = cpu_logical_map(cpu);
-
-	/* enable cache coherency */
-	modify_scu_cpu_psr(0, 3 << (cpu * 8));
-
-	/* Tell ROM loader about our vector (in headsmp.S) */
-	emev2_set_boot_vector(__pa(shmobile_secondary_vector));
-
-	gic_raise_softirq(cpumask_of(cpu), 1);
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu_logical_map(cpu)));
 	return 0;
 }
 
-void __init emev2_smp_prepare_cpus(void)
+static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int cpu = cpu_logical_map(0);
+	void __iomem *smu;
 
-	scu_enable(scu_base);
+	/* Tell ROM loader about our vector (in headsmp.S) */
+	smu = ioremap(EMEV2_SMU_BASE, PAGE_SIZE);
+	if (smu) {
+		iowrite32(__pa(shmobile_boot_vector), smu + SMU_GENERAL_REG0);
+		iounmap(smu);
+	}
 
-	/* enable cache coherency on CPU0 */
-	modify_scu_cpu_psr(0, 3 << (cpu * 8));
+	/* setup EMEV2 specific SCU bits */
+	shmobile_scu_base = ioremap(EMEV2_SCU_BASE, PAGE_SIZE);
+	shmobile_smp_scu_prepare_cpus(max_cpus);
 }
+
+struct smp_operations emev2_smp_ops __initdata = {
+	.smp_prepare_cpus	= emev2_smp_prepare_cpus,
+	.smp_boot_secondary	= emev2_boot_secondary,
+};

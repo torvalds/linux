@@ -450,7 +450,7 @@ struct slic_regs {
 	u32	pad34;
 #define SLIC_DBAR64		0x0108
 
-	u32	slic_cbar64; 	/* 64 bit Xmt Cmd buf addr regs. */
+	u32	slic_cbar64;	/* 64 bit Xmt Cmd buf addr regs. */
 	u32	pad35;
 #define SLIC_CBAR64		0x0110
 
@@ -478,11 +478,11 @@ struct slic_regs {
 
 	u32	slic_read_xf_info;	/* Read Transformer info */
 	u32	pad41;
-#define SLIC_READ_XF_INFO 	0x0140
+#define SLIC_READ_XF_INFO	0x0140
 
 	u32	slic_write_xf_info;	/* Write Transformer info */
 	u32	pad42;
-#define SLIC_WRITE_XF_INFO 	0x0148
+#define SLIC_WRITE_XF_INFO	0x0148
 
 	u32	RSVD1;		/* TOE Only */
 	u32	pad43;

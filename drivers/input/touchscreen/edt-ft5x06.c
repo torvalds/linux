@@ -440,8 +440,7 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 		return -EIO;
 	}
 
-	if (tsdata->raw_buffer)
-		kfree(tsdata->raw_buffer);
+	kfree(tsdata->raw_buffer);
 	tsdata->raw_buffer = NULL;
 
 	/* restore parameters */
@@ -490,14 +489,6 @@ static int edt_ft5x06_debugfs_mode_set(void *data, u64 mode)
 
 DEFINE_SIMPLE_ATTRIBUTE(debugfs_mode_fops, edt_ft5x06_debugfs_mode_get,
 			edt_ft5x06_debugfs_mode_set, "%llu\n");
-
-static int edt_ft5x06_debugfs_raw_data_open(struct inode *inode,
-					    struct file *file)
-{
-	file->private_data = inode->i_private;
-
-	return 0;
-}
 
 static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
 				char __user *buf, size_t count, loff_t *off)
@@ -566,9 +557,12 @@ static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
 	}
 
 	read = min_t(size_t, count, tsdata->raw_bufsize - *off);
-	error = copy_to_user(buf, tsdata->raw_buffer + *off, read);
-	if (!error)
-		*off += read;
+	if (copy_to_user(buf, tsdata->raw_buffer + *off, read)) {
+		error = -EFAULT;
+		goto out;
+	}
+
+	*off += read;
 out:
 	mutex_unlock(&tsdata->mutex);
 	return error ?: read;
@@ -576,11 +570,11 @@ out:
 
 
 static const struct file_operations debugfs_raw_data_fops = {
-	.open = edt_ft5x06_debugfs_raw_data_open,
+	.open = simple_open,
 	.read = edt_ft5x06_debugfs_raw_data_read,
 };
 
-static void __devinit
+static void
 edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
 			      const char *debugfs_name)
 {
@@ -597,11 +591,12 @@ edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
 			    tsdata->debug_dir, tsdata, &debugfs_raw_data_fops);
 }
 
-static void __devexit
+static void
 edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 {
 	if (tsdata->debug_dir)
 		debugfs_remove_recursive(tsdata->debug_dir);
+	kfree(tsdata->raw_buffer);
 }
 
 #else
@@ -621,7 +616,7 @@ edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 
 
 
-static int __devinit edt_ft5x06_ts_reset(struct i2c_client *client,
+static int edt_ft5x06_ts_reset(struct i2c_client *client,
 					 int reset_pin)
 {
 	int error;
@@ -645,7 +640,7 @@ static int __devinit edt_ft5x06_ts_reset(struct i2c_client *client,
 	return 0;
 }
 
-static int __devinit edt_ft5x06_ts_identify(struct i2c_client *client,
+static int edt_ft5x06_ts_identify(struct i2c_client *client,
 					    char *model_name,
 					    char *fw_version)
 {
@@ -679,7 +674,7 @@ static int __devinit edt_ft5x06_ts_identify(struct i2c_client *client,
 	    pdata->name <= edt_ft5x06_attr_##name.limit_high)		\
 		edt_ft5x06_register_write(tsdata, reg, pdata->name)
 
-static void __devinit
+static void
 edt_ft5x06_ts_get_defaults(struct edt_ft5x06_ts_data *tsdata,
 			   const struct edt_ft5x06_platform_data *pdata)
 {
@@ -693,7 +688,7 @@ edt_ft5x06_ts_get_defaults(struct edt_ft5x06_ts_data *tsdata,
 	EDT_ATTR_CHECKSET(report_rate, WORK_REGISTER_REPORT_RATE);
 }
 
-static void __devinit
+static void
 edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 {
 	tsdata->threshold = edt_ft5x06_register_read(tsdata,
@@ -706,7 +701,7 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	tsdata->num_y = edt_ft5x06_register_read(tsdata, WORK_REGISTER_NUM_Y);
 }
 
-static int __devinit edt_ft5x06_ts_probe(struct i2c_client *client,
+static int edt_ft5x06_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
 	const struct edt_ft5x06_platform_data *pdata =
@@ -778,7 +773,7 @@ static int __devinit edt_ft5x06_ts_probe(struct i2c_client *client,
 			     0, tsdata->num_x * 64 - 1, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y,
 			     0, tsdata->num_y * 64 - 1, 0, 0);
-	error = input_mt_init_slots(input, MAX_SUPPORT_POINTS);
+	error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, 0);
 	if (error) {
 		dev_err(&client->dev, "Unable to init MT slots.\n");
 		goto err_free_mem;
@@ -826,7 +821,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit edt_ft5x06_ts_remove(struct i2c_client *client)
+static int edt_ft5x06_ts_remove(struct i2c_client *client)
 {
 	const struct edt_ft5x06_platform_data *pdata =
 						dev_get_platdata(&client->dev);
@@ -843,7 +838,6 @@ static int __devexit edt_ft5x06_ts_remove(struct i2c_client *client)
 	if (gpio_is_valid(pdata->reset_pin))
 		gpio_free(pdata->reset_pin);
 
-	kfree(tsdata->raw_buffer);
 	kfree(tsdata);
 
 	return 0;
@@ -888,7 +882,7 @@ static struct i2c_driver edt_ft5x06_ts_driver = {
 	},
 	.id_table = edt_ft5x06_ts_id,
 	.probe    = edt_ft5x06_ts_probe,
-	.remove   = __devexit_p(edt_ft5x06_ts_remove),
+	.remove   = edt_ft5x06_ts_remove,
 };
 
 module_i2c_driver(edt_ft5x06_ts_driver);

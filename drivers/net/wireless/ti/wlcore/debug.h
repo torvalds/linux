@@ -28,7 +28,7 @@
 #include <linux/bitops.h>
 #include <linux/printk.h>
 
-#define DRIVER_NAME "wl12xx"
+#define DRIVER_NAME "wlcore"
 #define DRIVER_PREFIX DRIVER_NAME ": "
 
 enum {
@@ -73,31 +73,40 @@ extern u32 wl12xx_debug_level;
 #define wl1271_info(fmt, arg...) \
 	pr_info(DRIVER_PREFIX fmt "\n", ##arg)
 
+/* define the debug macro differently if dynamic debug is supported */
+#if defined(CONFIG_DYNAMIC_DEBUG)
 #define wl1271_debug(level, fmt, arg...) \
 	do { \
-		if (level & wl12xx_debug_level) \
-			pr_debug(DRIVER_PREFIX fmt "\n", ##arg); \
+		if (unlikely(level & wl12xx_debug_level)) \
+			dynamic_pr_debug(DRIVER_PREFIX fmt "\n", ##arg); \
+	} while (0)
+#else
+#define wl1271_debug(level, fmt, arg...) \
+	do { \
+		if (unlikely(level & wl12xx_debug_level)) \
+			printk(KERN_DEBUG pr_fmt(DRIVER_PREFIX fmt "\n"), \
+			       ##arg); \
+	} while (0)
+#endif
+
+#define wl1271_dump(level, prefix, buf, len)				      \
+	do {								      \
+		if (level & wl12xx_debug_level)				      \
+			print_hex_dump_debug(DRIVER_PREFIX prefix,	      \
+					DUMP_PREFIX_OFFSET, 16, 1,	      \
+					buf,				      \
+					min_t(size_t, len, DEBUG_DUMP_LIMIT), \
+					0);				      \
 	} while (0)
 
-/* TODO: use pr_debug_hex_dump when it becomes available */
-#define wl1271_dump(level, prefix, buf, len)	\
-	do { \
-		if (level & wl12xx_debug_level) \
-			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
-				       DUMP_PREFIX_OFFSET, 16, 1,	\
-				       buf,				\
-				       min_t(size_t, len, DEBUG_DUMP_LIMIT), \
-				       0);				\
-	} while (0)
-
-#define wl1271_dump_ascii(level, prefix, buf, len)	\
-	do { \
-		if (level & wl12xx_debug_level) \
-			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
-				       DUMP_PREFIX_OFFSET, 16, 1,	\
-				       buf,				\
-				       min_t(size_t, len, DEBUG_DUMP_LIMIT), \
-				       true);				\
+#define wl1271_dump_ascii(level, prefix, buf, len)			      \
+	do {								      \
+		if (level & wl12xx_debug_level)				      \
+			print_hex_dump_debug(DRIVER_PREFIX prefix,	      \
+					DUMP_PREFIX_OFFSET, 16, 1,	      \
+					buf,				      \
+					min_t(size_t, len, DEBUG_DUMP_LIMIT), \
+					true);				      \
 	} while (0)
 
 #endif /* __DEBUG_H__ */

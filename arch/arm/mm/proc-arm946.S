@@ -310,6 +310,9 @@ ENTRY(arm946_dma_unmap_area)
 	mov	pc, lr
 ENDPROC(arm946_dma_unmap_area)
 
+	.globl	arm946_flush_kern_cache_louis
+	.equ	arm946_flush_kern_cache_louis, arm946_flush_kern_cache_all
+
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
 	define_cache_functions arm946
 
@@ -322,8 +325,6 @@ ENTRY(cpu_arm946_dcache_clean_area)
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	pc, lr
-
-	__CPUINIT
 
 	.type	__arm946_setup, #function
 __arm946_setup:

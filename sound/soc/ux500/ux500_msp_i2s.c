@@ -17,9 +17,9 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-
-#include <mach/hardware.h>
-#include <mach/msp.h>
+#include <linux/io.h>
+#include <linux/of.h>
+#include <linux/platform_data/asoc-ux500-msp.h>
 
 #include <sound/soc.h>
 
@@ -355,16 +355,6 @@ static int enable_msp(struct ux500_msp *msp, struct ux500_msp_config *config)
 	int status = 0;
 	u32 reg_val_DMACR, reg_val_GCR;
 
-	/* Check msp state whether in RUN or CONFIGURED Mode */
-	if ((msp->msp_state == MSP_STATE_IDLE) && (msp->plat_init)) {
-		status = msp->plat_init();
-		if (status) {
-			dev_err(msp->dev, "%s: ERROR: Failed to init MSP (%d)!\n",
-				__func__, status);
-			return status;
-		}
-	}
-
 	/* Configure msp with protocol dependent settings */
 	configure_protocol(msp, config);
 	setup_bitclk(msp, config);
@@ -377,12 +367,14 @@ static int enable_msp(struct ux500_msp *msp, struct ux500_msp_config *config)
 	}
 
 	/* Make sure the correct DMA-directions are configured */
-	if ((config->direction & MSP_DIR_RX) && (!msp->dma_cfg_rx)) {
+	if ((config->direction & MSP_DIR_RX) &&
+			!msp->capture_dma_data.dma_cfg) {
 		dev_err(msp->dev, "%s: ERROR: MSP RX-mode is not configured!",
 			__func__);
 		return -EINVAL;
 	}
-	if ((config->direction == MSP_DIR_TX) && (!msp->dma_cfg_tx)) {
+	if ((config->direction == MSP_DIR_TX) &&
+			!msp->playback_dma_data.dma_cfg) {
 		dev_err(msp->dev, "%s: ERROR: MSP TX-mode is not configured!",
 			__func__);
 		return -EINVAL;
@@ -631,12 +623,7 @@ int ux500_msp_i2s_close(struct ux500_msp *msp, unsigned int dir)
 		writel((readl(msp->registers + MSP_GCR) &
 			       (~(FRAME_GEN_ENABLE | SRG_ENABLE))),
 			      msp->registers + MSP_GCR);
-		if (msp->plat_exit)
-			status = msp->plat_exit();
-			if (status)
-				dev_warn(msp->dev,
-					"%s: WARN: ux500_msp_i2s_exit failed (%d)!\n",
-					__func__, status);
+
 		writel(0, msp->registers + MSP_GCR);
 		writel(0, msp->registers + MSP_TCF);
 		writel(0, msp->registers + MSP_RCF);
@@ -663,80 +650,61 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 			struct ux500_msp **msp_p,
 			struct msp_i2s_platform_data *platform_data)
 {
-	int ret = 0;
 	struct resource *res = NULL;
-	struct i2s_controller *i2s_cont;
+	struct device_node *np = pdev->dev.of_node;
 	struct ux500_msp *msp;
+
+	*msp_p = devm_kzalloc(&pdev->dev, sizeof(struct ux500_msp), GFP_KERNEL);
+	msp = *msp_p;
+	if (!msp)
+		return -ENOMEM;
+
+	if (np) {
+		if (!platform_data) {
+			platform_data = devm_kzalloc(&pdev->dev,
+				sizeof(struct msp_i2s_platform_data), GFP_KERNEL);
+			if (!platform_data)
+				return -ENOMEM;
+		}
+	} else
+		if (!platform_data)
+			return -EINVAL;
 
 	dev_dbg(&pdev->dev, "%s: Enter (name: %s, id: %d).\n", __func__,
 		pdev->name, platform_data->id);
 
-	*msp_p = devm_kzalloc(&pdev->dev, sizeof(struct ux500_msp), GFP_KERNEL);
-	msp = *msp_p;
-
 	msp->id = platform_data->id;
 	msp->dev = &pdev->dev;
-	msp->plat_init = platform_data->msp_i2s_init;
-	msp->plat_exit = platform_data->msp_i2s_exit;
-	msp->dma_cfg_rx = platform_data->msp_i2s_dma_rx;
-	msp->dma_cfg_tx = platform_data->msp_i2s_dma_tx;
+	msp->playback_dma_data.dma_cfg = platform_data->msp_i2s_dma_tx;
+	msp->capture_dma_data.dma_cfg = platform_data->msp_i2s_dma_rx;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "%s: ERROR: Unable to get resource!\n",
 			__func__);
-		ret = -ENOMEM;
-		goto err_res;
+		return -ENOMEM;
 	}
 
-	msp->registers = ioremap(res->start, (res->end - res->start + 1));
+	msp->playback_dma_data.tx_rx_addr = res->start + MSP_DR;
+	msp->capture_dma_data.tx_rx_addr = res->start + MSP_DR;
+
+	msp->registers = devm_ioremap(&pdev->dev, res->start,
+				      resource_size(res));
 	if (msp->registers == NULL) {
 		dev_err(&pdev->dev, "%s: ERROR: ioremap failed!\n", __func__);
-		ret = -ENOMEM;
-		goto err_res;
+		return -ENOMEM;
 	}
 
 	msp->msp_state = MSP_STATE_IDLE;
 	msp->loopback_enable = 0;
 
-	/* I2S-controller is allocated and added in I2S controller class. */
-	i2s_cont = devm_kzalloc(&pdev->dev, sizeof(*i2s_cont), GFP_KERNEL);
-	if (!i2s_cont) {
-		dev_err(&pdev->dev,
-			"%s: ERROR: Failed to allocate I2S-controller!\n",
-			__func__);
-		goto err_i2s_cont;
-	}
-	i2s_cont->dev.parent = &pdev->dev;
-	i2s_cont->data = (void *)msp;
-	i2s_cont->id = (s16)msp->id;
-	snprintf(i2s_cont->name, sizeof(i2s_cont->name), "ux500-msp-i2s.%04x",
-		msp->id);
-	dev_dbg(&pdev->dev, "I2S device-name: '%s'\n", i2s_cont->name);
-	msp->i2s_cont = i2s_cont;
-
 	return 0;
-
-err_i2s_cont:
-	iounmap(msp->registers);
-
-err_res:
-	devm_kfree(&pdev->dev, msp);
-
-	return ret;
 }
 
 void ux500_msp_i2s_cleanup_msp(struct platform_device *pdev,
 			struct ux500_msp *msp)
 {
 	dev_dbg(msp->dev, "%s: Enter (id = %d).\n", __func__, msp->id);
-
-	device_unregister(&msp->i2s_cont->dev);
-	devm_kfree(&pdev->dev, msp->i2s_cont);
-
-	iounmap(msp->registers);
-
-	devm_kfree(&pdev->dev, msp);
 }
 
 MODULE_LICENSE("GPL v2");

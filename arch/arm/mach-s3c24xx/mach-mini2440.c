@@ -39,14 +39,13 @@
 
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
-#include <mach/leds-gpio.h>
-#include <mach/regs-mem.h>
+#include <linux/platform_data/leds-s3c24xx.h>
 #include <mach/regs-lcd.h>
 #include <mach/irqs.h>
-#include <plat/nand.h>
-#include <plat/iic.h>
-#include <plat/mci.h>
-#include <plat/udc.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/mmc-s3cmci.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -57,6 +56,7 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/samsung-time.h>
 
 #include <sound/s3c24xx_uda134x.h>
 
@@ -519,7 +519,6 @@ static struct platform_device *mini2440_devices[] __initdata = {
 	&s3c_device_iis,
 	&uda1340_codec,
 	&mini2440_audio,
-	&samsung_asoc_dma,
 };
 
 static void __init mini2440_map_io(void)
@@ -527,6 +526,7 @@ static void __init mini2440_map_io(void)
 	s3c24xx_init_io(mini2440_iodesc, ARRAY_SIZE(mini2440_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(mini2440_uartcfgs, ARRAY_SIZE(mini2440_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 /*
@@ -638,9 +638,9 @@ static void __init mini2440_init(void)
 	gpio_free(S3C2410_GPG(4));
 
 	/* remove pullup on optional PWM backlight -- unused on 3.5 and 7"s */
+	gpio_request_one(S3C2410_GPB(1), GPIOF_IN, NULL);
 	s3c_gpio_setpull(S3C2410_GPB(1), S3C_GPIO_PULL_UP);
-	s3c2410_gpio_setpin(S3C2410_GPB(1), 0);
-	s3c_gpio_cfgpin(S3C2410_GPB(1), S3C2410_GPIO_INPUT);
+	gpio_free(S3C2410_GPB(1));
 
 	/* mark the key as input, without pullups (there is one on the board) */
 	for (i = 0; i < ARRAY_SIZE(mini2440_buttons); i++) {
@@ -688,7 +688,7 @@ MACHINE_START(MINI2440, "MINI2440")
 	.atag_offset	= 0x100,
 	.map_io		= mini2440_map_io,
 	.init_machine	= mini2440_init,
-	.init_irq	= s3c24xx_init_irq,
-	.timer		= &s3c24xx_timer,
+	.init_irq	= s3c2440_init_irq,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,
 MACHINE_END

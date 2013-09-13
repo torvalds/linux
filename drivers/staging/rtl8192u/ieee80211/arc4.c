@@ -79,7 +79,7 @@ static struct crypto_alg arc4_alg = {
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	ARC4_MIN_KEY_SIZE,
 	.cia_max_keysize	=	ARC4_MAX_KEY_SIZE,
-	.cia_setkey		= 	arc4_set_key,
+	.cia_setkey		=	arc4_set_key,
 	.cia_encrypt		=	arc4_crypt,
 	.cia_decrypt		=	arc4_crypt } }
 };

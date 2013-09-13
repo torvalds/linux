@@ -45,7 +45,7 @@ unsigned mpi_get_nbits(MPI a)
 	if (a->nlimbs) {
 		mpi_limb_t alimb = a->d[a->nlimbs - 1];
 		if (alimb)
-			count_leading_zeros(n, alimb);
+			n = count_leading_zeros(alimb);
 		else
 			n = BITS_PER_MPI_LIMB;
 		n = BITS_PER_MPI_LIMB - n + (a->nlimbs - 1) * BITS_PER_MPI_LIMB;

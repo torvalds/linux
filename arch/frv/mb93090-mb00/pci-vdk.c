@@ -26,7 +26,6 @@
 unsigned int __nongpreldata pci_probe = 1;
 
 int  __nongpreldata pcibios_last_bus = -1;
-struct pci_bus *__nongpreldata pci_root_bus;
 struct pci_ops *__nongpreldata pci_root_ops;
 
 /*
@@ -268,7 +267,7 @@ static void __init pci_fixup_umc_ide(struct pci_dev *d)
 		d->resource[i].flags |= PCI_BASE_ADDRESS_SPACE_IO;
 }
 
-static void __devinit pci_fixup_ide_bases(struct pci_dev *d)
+static void pci_fixup_ide_bases(struct pci_dev *d)
 {
 	int i;
 
@@ -287,7 +286,7 @@ static void __devinit pci_fixup_ide_bases(struct pci_dev *d)
 	}
 }
 
-static void __devinit pci_fixup_ide_trash(struct pci_dev *d)
+static void pci_fixup_ide_trash(struct pci_dev *d)
 {
 	int i;
 
@@ -300,7 +299,7 @@ static void __devinit pci_fixup_ide_trash(struct pci_dev *d)
 		d->resource[i].start = d->resource[i].end = d->resource[i].flags = 0;
 }
 
-static void __devinit  pci_fixup_latency(struct pci_dev *d)
+static void pci_fixup_latency(struct pci_dev *d)
 {
 	/*
 	 *  SiS 5597 and 5598 chipsets require latency timer set to
@@ -321,7 +320,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
  *  are examined.
  */
 
-void __init pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 #if 0
 	printk("### PCIBIOS_FIXUP_BUS(%d)\n",bus->number);
@@ -330,10 +329,8 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 	pci_read_bridge_bases(bus);
 
 	if (bus->number == 0) {
-		struct list_head *ln;
 		struct pci_dev *dev;
-		for (ln=bus->devices.next; ln != &bus->devices; ln=ln->next) {
-			dev = pci_dev_b(ln);
+		list_for_each_entry(dev, &bus->devices, bus_list) {
 			if (dev->devfn == 0) {
 				dev->resource[0].start = 0;
 				dev->resource[0].end = 0;
@@ -418,8 +415,7 @@ int __init pcibios_init(void)
 	printk("PCI: Probing PCI hardware\n");
 	pci_add_resource(&resources, &pci_ioport_resource);
 	pci_add_resource(&resources, &pci_iomem_resource);
-	pci_root_bus = pci_scan_root_bus(NULL, 0, pci_root_ops, NULL,
-					 &resources);
+	pci_scan_root_bus(NULL, 0, pci_root_ops, NULL, &resources);
 
 	pcibios_irq_init();
 	pcibios_fixup_peer_bridges();

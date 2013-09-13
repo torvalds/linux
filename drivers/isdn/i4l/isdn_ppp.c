@@ -595,7 +595,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 			j = ipc->num / (sizeof(long) * 8);
 			i = ipc->num % (sizeof(long) * 8);
 			if (j < 8)
-				protos[j] |= (0x1 << i);
+				protos[j] |= (1UL << i);
 			ipc = ipc->next;
 		}
 		if ((r = set_arg(argp, protos, 8 * sizeof(long))))
@@ -668,7 +668,7 @@ isdn_ppp_poll(struct file *file, poll_table *wait)
 
 	if (is->debug & 0x2)
 		printk(KERN_DEBUG "isdn_ppp_poll: minor: %d\n",
-		       iminor(file->f_path.dentry->d_inode));
+		       iminor(file_inode(file)));
 
 	/* just registers wait_queue hook. This doesn't really wait. */
 	poll_wait(file, &is->wq, wait);

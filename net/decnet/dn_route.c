@@ -961,7 +961,7 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowidn *o
 		.saddr = oldflp->saddr,
 		.flowidn_scope = RT_SCOPE_UNIVERSE,
 		.flowidn_mark = oldflp->flowidn_mark,
-		.flowidn_iif = init_net.loopback_dev->ifindex,
+		.flowidn_iif = LOOPBACK_IFINDEX,
 		.flowidn_oif = oldflp->flowidn_oif,
 	};
 	struct dn_route *rt = NULL;
@@ -979,7 +979,7 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowidn *o
 		       "dn_route_output_slow: dst=%04x src=%04x mark=%d"
 		       " iif=%d oif=%d\n", le16_to_cpu(oldflp->daddr),
 		       le16_to_cpu(oldflp->saddr),
-		       oldflp->flowidn_mark, init_net.loopback_dev->ifindex,
+		       oldflp->flowidn_mark, LOOPBACK_IFINDEX,
 		       oldflp->flowidn_oif);
 
 	/* If we have an output interface, verify its a DECnet device */
@@ -1042,7 +1042,7 @@ source_ok:
 			if (!fld.daddr)
 				goto out;
 		}
-		fld.flowidn_oif = init_net.loopback_dev->ifindex;
+		fld.flowidn_oif = LOOPBACK_IFINDEX;
 		res.type = RTN_LOCAL;
 		goto make_route;
 	}
@@ -1282,7 +1282,7 @@ static int dn_route_output_key(struct dst_entry **pprt, struct flowidn *flp, int
 	return err;
 }
 
-int dn_route_output_sock(struct dst_entry **pprt, struct flowidn *fl, struct sock *sk, int flags)
+int dn_route_output_sock(struct dst_entry __rcu **pprt, struct flowidn *fl, struct sock *sk, int flags)
 {
 	int err;
 
@@ -1543,7 +1543,7 @@ static int dn_route_input(struct sk_buff *skb)
 	return dn_route_input_slow(skb);
 }
 
-static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
+static int dn_rt_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
 			   int event, int nowait, unsigned int flags)
 {
 	struct dn_route *rt = (struct dn_route *)skb_dst(skb);
@@ -1551,7 +1551,7 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	struct nlmsghdr *nlh;
 	long expires;
 
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*r), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*r), flags);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -1613,22 +1613,40 @@ errout:
 	return -EMSGSIZE;
 }
 
+const struct nla_policy rtm_dn_policy[RTA_MAX + 1] = {
+	[RTA_DST]		= { .type = NLA_U16 },
+	[RTA_SRC]		= { .type = NLA_U16 },
+	[RTA_IIF]		= { .type = NLA_U32 },
+	[RTA_OIF]		= { .type = NLA_U32 },
+	[RTA_GATEWAY]		= { .type = NLA_U16 },
+	[RTA_PRIORITY]		= { .type = NLA_U32 },
+	[RTA_PREFSRC]		= { .type = NLA_U16 },
+	[RTA_METRICS]		= { .type = NLA_NESTED },
+	[RTA_MULTIPATH]		= { .type = NLA_NESTED },
+	[RTA_TABLE]		= { .type = NLA_U32 },
+	[RTA_MARK]		= { .type = NLA_U32 },
+};
+
 /*
  * This is called by both endnodes and routers now.
  */
-static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void *arg)
+static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(in_skb->sk);
-	struct rtattr **rta = arg;
 	struct rtmsg *rtm = nlmsg_data(nlh);
 	struct dn_route *rt = NULL;
 	struct dn_skb_cb *cb;
 	int err;
 	struct sk_buff *skb;
 	struct flowidn fld;
+	struct nlattr *tb[RTA_MAX+1];
 
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
+
+	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_dn_policy);
+	if (err < 0)
+		return err;
 
 	memset(&fld, 0, sizeof(fld));
 	fld.flowidn_proto = DNPROTO_NSP;
@@ -1639,12 +1657,14 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	skb_reset_mac_header(skb);
 	cb = DN_SKB_CB(skb);
 
-	if (rta[RTA_SRC-1])
-		memcpy(&fld.saddr, RTA_DATA(rta[RTA_SRC-1]), 2);
-	if (rta[RTA_DST-1])
-		memcpy(&fld.daddr, RTA_DATA(rta[RTA_DST-1]), 2);
-	if (rta[RTA_IIF-1])
-		memcpy(&fld.flowidn_iif, RTA_DATA(rta[RTA_IIF-1]), sizeof(int));
+	if (tb[RTA_SRC])
+		fld.saddr = nla_get_le16(tb[RTA_SRC]);
+
+	if (tb[RTA_DST])
+		fld.daddr = nla_get_le16(tb[RTA_DST]);
+
+	if (tb[RTA_IIF])
+		fld.flowidn_iif = nla_get_u32(tb[RTA_IIF]);
 
 	if (fld.flowidn_iif) {
 		struct net_device *dev;
@@ -1669,10 +1689,9 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 		if (!err && -rt->dst.error)
 			err = rt->dst.error;
 	} else {
-		int oif = 0;
-		if (rta[RTA_OIF - 1])
-			memcpy(&oif, RTA_DATA(rta[RTA_OIF - 1]), sizeof(int));
-		fld.flowidn_oif = oif;
+		if (tb[RTA_OIF])
+			fld.flowidn_oif = nla_get_u32(tb[RTA_OIF]);
+
 		err = dn_route_output_key((struct dst_entry **)&rt, &fld, 0);
 	}
 
@@ -1685,7 +1704,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	if (rtm->rtm_flags & RTM_F_NOTIFY)
 		rt->rt_flags |= RTCF_NOTIFY;
 
-	err = dn_rt_fill_info(skb, NETLINK_CB(in_skb).pid, nlh->nlmsg_seq, RTM_NEWROUTE, 0, 0);
+	err = dn_rt_fill_info(skb, NETLINK_CB(in_skb).portid, nlh->nlmsg_seq, RTM_NEWROUTE, 0, 0);
 
 	if (err == 0)
 		goto out_free;
@@ -1694,7 +1713,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 		goto out_free;
 	}
 
-	return rtnl_unicast(skb, &init_net, NETLINK_CB(in_skb).pid);
+	return rtnl_unicast(skb, &init_net, NETLINK_CB(in_skb).portid);
 
 out_free:
 	kfree_skb(skb);
@@ -1737,7 +1756,7 @@ int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			if (idx < s_idx)
 				continue;
 			skb_dst_set(skb, dst_clone(&rt->dst));
-			if (dn_rt_fill_info(skb, NETLINK_CB(cb->skb).pid,
+			if (dn_rt_fill_info(skb, NETLINK_CB(cb->skb).portid,
 					cb->nlh->nlmsg_seq, RTM_NEWROUTE,
 					1, NLM_F_MULTI) <= 0) {
 				skb_dst_drop(skb);
@@ -1901,7 +1920,8 @@ void __init dn_route_init(void)
 
 	dn_dst_ops.gc_thresh = (dn_rt_hash_mask + 1);
 
-	proc_net_fops_create(&init_net, "decnet_cache", S_IRUGO, &dn_rt_cache_seq_fops);
+	proc_create("decnet_cache", S_IRUGO, init_net.proc_net,
+		    &dn_rt_cache_seq_fops);
 
 #ifdef CONFIG_DECNET_ROUTER
 	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
@@ -1917,7 +1937,7 @@ void __exit dn_route_cleanup(void)
 	del_timer(&dn_route_timer);
 	dn_run_flush(0);
 
-	proc_net_remove(&init_net, "decnet_cache");
+	remove_proc_entry("decnet_cache", init_net.proc_net);
 	dst_entries_destroy(&dn_dst_ops);
 }
 

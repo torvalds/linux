@@ -13,6 +13,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/reboot.h>
+
 #include <asm/types.h>
 
 #ifndef	__ARMEB__
@@ -89,8 +91,6 @@ struct ixp4xx_pata_data {
 	void __iomem	*cs1;
 };
 
-struct sys_timer;
-
 #define IXP4XX_ETH_NPEA		0x00
 #define IXP4XX_ETH_NPEB		0x10
 #define IXP4XX_ETH_NPEC		0x20
@@ -125,8 +125,7 @@ extern void ixp4xx_init_early(void);
 extern void ixp4xx_init_irq(void);
 extern void ixp4xx_sys_init(void);
 extern void ixp4xx_timer_init(void);
-extern struct sys_timer ixp4xx_timer;
-extern void ixp4xx_restart(char, const char *);
+extern void ixp4xx_restart(enum reboot_mode, const char *);
 extern void ixp4xx_pci_preinit(void);
 struct pci_sys_data;
 extern int ixp4xx_setup(int nr, struct pci_sys_data *sys);

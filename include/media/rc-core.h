@@ -50,7 +50,8 @@ enum rc_driver_type {
  * @input_dev: the input child device used to communicate events to userspace
  * @driver_type: specifies if protocol decoding is done in hardware or software
  * @idle: used to keep track of RX state
- * @allowed_protos: bitmask with the supported RC_TYPE_* protocols
+ * @allowed_protos: bitmask with the supported RC_BIT_* protocols
+ * @enabled_protocols: bitmask with the enabled RC_BIT_* protocols
  * @scanmask: some hardware decoders are not capable of providing the full
  *	scancode to the application. As this is a hardware limit, we can't do
  *	anything with it. Yet, as the same keycode table can be used with other
@@ -99,6 +100,8 @@ struct rc_dev {
 	enum rc_driver_type		driver_type;
 	bool				idle;
 	u64				allowed_protos;
+	u64				enabled_protocols;
+	u32				users;
 	u32				scanmask;
 	void				*priv;
 	spinlock_t			keylock;
@@ -113,7 +116,7 @@ struct rc_dev {
 	u32				max_timeout;
 	u32				rx_resolution;
 	u32				tx_resolution;
-	int				(*change_protocol)(struct rc_dev *dev, u64 rc_type);
+	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_type);
 	int				(*open)(struct rc_dev *dev);
 	void				(*close)(struct rc_dev *dev);
 	int				(*s_tx_mask)(struct rc_dev *dev, u32 mask);
@@ -139,6 +142,9 @@ struct rc_dev *rc_allocate_device(void);
 void rc_free_device(struct rc_dev *dev);
 int rc_register_device(struct rc_dev *dev);
 void rc_unregister_device(struct rc_dev *dev);
+
+int rc_open(struct rc_dev *rdev);
+void rc_close(struct rc_dev *rdev);
 
 void rc_repeat(struct rc_dev *dev);
 void rc_keydown(struct rc_dev *dev, int scancode, u8 toggle);

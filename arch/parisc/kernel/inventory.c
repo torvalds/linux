@@ -186,12 +186,14 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 
 	if (status != PDC_OK) {
 		/* no more cell modules or error */
+		kfree(pa_pdc_cell);
 		return status;
 	}
 
 	temp = pa_pdc_cell->cba;
 	dev = alloc_pa_dev(PAT_GET_CBA(temp), &(pa_pdc_cell->mod_path));
 	if (!dev) {
+		kfree(pa_pdc_cell);
 		return PDC_OK;
 	}
 
@@ -209,6 +211,7 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 	/* REVISIT: who is the consumer of this? not sure yet... */
 	dev->mod_info = pa_pdc_cell->mod_info;	/* pass to PAT_GET_ENTITY() */
 	dev->pmod_loc = pa_pdc_cell->mod_location;
+	dev->mod0 = pa_pdc_cell->mod[0];
 
 	register_parisc_device(dev);	/* advertise device */
 

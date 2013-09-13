@@ -1,30 +1,90 @@
 /include/ "skeleton.dtsi"
 
+#define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
+
 / {
 	compatible = "marvell,kirkwood";
 	interrupt-parent = <&intc>;
 
-	intc: interrupt-controller {
-		compatible = "marvell,orion-intc", "marvell,intc";
-		interrupt-controller;
-		#interrupt-cells = <1>;
-		reg = <0xf1020204 0x04>,
-		      <0xf1020214 0x04>;
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "marvell,feroceon";
+			clocks = <&core_clk 1>, <&core_clk 3>, <&gate_clk 11>;
+			clock-names = "cpu_clk", "ddrclk", "powersave";
+		};
+	};
+
+	aliases {
+	       gpio0 = &gpio0;
+	       gpio1 = &gpio1;
+	};
+
+	mbus {
+		compatible = "marvell,kirkwood-mbus", "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		controller = <&mbusc>;
+		pcie-mem-aperture = <0xe0000000 0x10000000>; /* 256 MiB memory space */
+		pcie-io-aperture  = <0xf2000000 0x100000>;   /*   1 MiB    I/O space */
 	};
 
 	ocp@f1000000 {
 		compatible = "simple-bus";
-		ranges = <0 0xf1000000 0x4000000>;
+		ranges = <0x00000000 0xf1000000 0x0100000
+		          0xf4000000 0xf4000000 0x0000400
+		          0xf5000000 0xf5000000 0x0000400>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		mbusc: mbus-controller@20000 {
+			compatible = "marvell,mbus-controller";
+			reg = <0x20000 0x80>, <0x1500 0x20>;
+		};
+
+		timer: timer@20300 {
+			compatible = "marvell,orion-timer";
+			reg = <0x20300 0x20>;
+			interrupt-parent = <&bridge_intc>;
+			interrupts = <1>, <2>;
+			clocks = <&core_clk 0>;
+		};
+
+		intc: main-interrupt-ctrl@20200 {
+			compatible = "marvell,orion-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x20200 0x10>, <0x20210 0x10>;
+		};
+
+		bridge_intc: bridge-interrupt-ctrl@20110 {
+			compatible = "marvell,orion-bridge-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x20110 0x8>;
+			interrupts = <1>;
+			marvell,#interrupts = <6>;
+		};
+
+		core_clk: core-clocks@10030 {
+			compatible = "marvell,kirkwood-core-clock";
+			reg = <0x10030 0x4>;
+	        	#clock-cells = <1>;
+		};
 
 		gpio0: gpio@10100 {
 			compatible = "marvell,orion-gpio";
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0x10100 0x40>;
-			ngpio = <32>;
+			ngpios = <32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <35>, <36>, <37>, <38>;
+			clocks = <&gate_clk 7>;
 		};
 
 		gpio1: gpio@10140 {
@@ -32,8 +92,11 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0x10140 0x40>;
-			ngpio = <18>;
+			ngpios = <18>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <39>, <40>, <41>;
+			clocks = <&gate_clk 7>;
 		};
 
 		serial@12000 {
@@ -41,7 +104,7 @@
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <33>;
-			/* set clock-frequency in board dts */
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 
@@ -50,14 +113,8 @@
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <34>;
-			/* set clock-frequency in board dts */
+			clocks = <&gate_clk 7>;
 			status = "disabled";
-		};
-
-		rtc@10300 {
-			compatible = "marvell,kirkwood-rtc", "marvell,orion-rtc";
-			reg = <0x10300 0x20>;
-			interrupts = <53>;
 		};
 
 		spi@10600 {
@@ -67,20 +124,72 @@
 			cell-index = <0>;
 			interrupts = <23>;
 			reg = <0x10600 0x28>;
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 
-		wdt@20300 {
+		gate_clk: clock-gating-control@2011c {
+			compatible = "marvell,kirkwood-gating-clock";
+			reg = <0x2011c 0x4>;
+			clocks = <&core_clk 0>;
+			#clock-cells = <1>;
+		};
+
+		wdt: watchdog-timer@20300 {
 			compatible = "marvell,orion-wdt";
 			reg = <0x20300 0x28>;
+			interrupt-parent = <&bridge_intc>;
+			interrupts = <3>;
+			clocks = <&gate_clk 7>;
 			status = "okay";
 		};
 
-		sata@80000 {
-			compatible = "marvell,orion-sata";
-			reg = <0x80000 0x5000>;
-			interrupts = <21>;
-			status = "disabled";
+		xor@60800 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60800 0x100
+			       0x60A00 0x100>;
+			status = "okay";
+			clocks = <&gate_clk 8>;
+
+			xor00 {
+			      interrupts = <5>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			};
+			xor01 {
+			      interrupts = <6>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			      dmacap,memset;
+			};
+		};
+
+		xor@60900 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60900 0x100
+			       0xd0B00 0x100>;
+			status = "okay";
+			clocks = <&gate_clk 16>;
+
+			xor00 {
+			      interrupts = <7>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			};
+			xor01 {
+			      interrupts = <8>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			      dmacap,memset;
+			};
+		};
+
+		ehci@50000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <19>;
+			clocks = <&gate_clk 3>;
+			status = "okay";
 		};
 
 		nand@3000000 {
@@ -90,9 +199,10 @@
 			ale = <1>;
 			bank-width = <1>;
 			compatible = "marvell,orion-nand";
-			reg = <0x3000000 0x400>;
+			reg = <0xf4000000 0x400>;
 			chip-delay = <25>;
 			/* set partition map and/or chip-delay in board dts */
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 
@@ -103,7 +213,70 @@
 			#size-cells = <0>;
 			interrupts = <29>;
 			clock-frequency = <100000>;
+			clocks = <&gate_clk 7>;
 			status = "disabled";
+		};
+
+		crypto@30000 {
+			compatible = "marvell,orion-crypto";
+			reg = <0x30000 0x10000>,
+			      <0xf5000000 0x800>;
+			reg-names = "regs", "sram";
+			interrupts = <22>;
+			clocks = <&gate_clk 17>;
+			status = "okay";
+		};
+
+		mdio: mdio-bus@72004 {
+			compatible = "marvell,orion-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x72004 0x84>;
+			interrupts = <46>;
+			clocks = <&gate_clk 0>;
+			status = "disabled";
+
+			/* add phy nodes in board file */
+		};
+
+		eth0: ethernet-controller@72000 {
+			compatible = "marvell,kirkwood-eth";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x72000 0x4000>;
+			clocks = <&gate_clk 0>;
+			marvell,tx-checksum-limit = <1600>;
+			status = "disabled";
+
+			ethernet0-port@0 {
+				device_type = "network";
+				compatible = "marvell,kirkwood-eth-port";
+				reg = <0>;
+				interrupts = <11>;
+				/* overwrite MAC address in bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+				/* set phy-handle property in board file */
+			};
+		};
+
+		eth1: ethernet-controller@76000 {
+			compatible = "marvell,kirkwood-eth";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x76000 0x4000>;
+			clocks = <&gate_clk 19>;
+			marvell,tx-checksum-limit = <1600>;
+			status = "disabled";
+
+			ethernet1-port@0 {
+				device_type = "network";
+				compatible = "marvell,kirkwood-eth-port";
+				reg = <0>;
+				interrupts = <15>;
+				/* overwrite MAC address in bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+				/* set phy-handle property in board file */
+			};
 		};
 	};
 };

@@ -104,7 +104,7 @@ static int kvmppc_book3s_vec2irqprio(unsigned int vec)
 	return prio;
 }
 
-static void kvmppc_book3s_dequeue_irqprio(struct kvm_vcpu *vcpu,
+void kvmppc_book3s_dequeue_irqprio(struct kvm_vcpu *vcpu,
 					  unsigned int vec)
 {
 	unsigned long old_pending = vcpu->arch.pending_exceptions;
@@ -160,8 +160,7 @@ void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
 	kvmppc_book3s_queue_irqprio(vcpu, vec);
 }
 
-void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
-                                  struct kvm_interrupt *irq)
+void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu)
 {
 	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL);
 	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
@@ -411,6 +410,15 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+int kvmppc_subarch_vcpu_init(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
+void kvmppc_subarch_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+}
+
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
 	int i;
@@ -476,10 +484,157 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	return -ENOTSUPP;
 }
 
+int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r;
+	union kvmppc_one_reg val;
+	int size;
+	long int i;
+
+	size = one_reg_size(reg->id);
+	if (size > sizeof(val))
+		return -EINVAL;
+
+	r = kvmppc_get_one_reg(vcpu, reg->id, &val);
+
+	if (r == -EINVAL) {
+		r = 0;
+		switch (reg->id) {
+		case KVM_REG_PPC_DAR:
+			val = get_reg_val(reg->id, vcpu->arch.shared->dar);
+			break;
+		case KVM_REG_PPC_DSISR:
+			val = get_reg_val(reg->id, vcpu->arch.shared->dsisr);
+			break;
+		case KVM_REG_PPC_FPR0 ... KVM_REG_PPC_FPR31:
+			i = reg->id - KVM_REG_PPC_FPR0;
+			val = get_reg_val(reg->id, vcpu->arch.fpr[i]);
+			break;
+		case KVM_REG_PPC_FPSCR:
+			val = get_reg_val(reg->id, vcpu->arch.fpscr);
+			break;
+#ifdef CONFIG_ALTIVEC
+		case KVM_REG_PPC_VR0 ... KVM_REG_PPC_VR31:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			val.vval = vcpu->arch.vr[reg->id - KVM_REG_PPC_VR0];
+			break;
+		case KVM_REG_PPC_VSCR:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			val = get_reg_val(reg->id, vcpu->arch.vscr.u[3]);
+			break;
+#endif /* CONFIG_ALTIVEC */
+		case KVM_REG_PPC_DEBUG_INST: {
+			u32 opcode = INS_TW;
+			r = copy_to_user((u32 __user *)(long)reg->addr,
+					 &opcode, sizeof(u32));
+			break;
+		}
+#ifdef CONFIG_KVM_XICS
+		case KVM_REG_PPC_ICP_STATE:
+			if (!vcpu->arch.icp) {
+				r = -ENXIO;
+				break;
+			}
+			val = get_reg_val(reg->id, kvmppc_xics_get_icp(vcpu));
+			break;
+#endif /* CONFIG_KVM_XICS */
+		default:
+			r = -EINVAL;
+			break;
+		}
+	}
+	if (r)
+		return r;
+
+	if (copy_to_user((char __user *)(unsigned long)reg->addr, &val, size))
+		r = -EFAULT;
+
+	return r;
+}
+
+int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r;
+	union kvmppc_one_reg val;
+	int size;
+	long int i;
+
+	size = one_reg_size(reg->id);
+	if (size > sizeof(val))
+		return -EINVAL;
+
+	if (copy_from_user(&val, (char __user *)(unsigned long)reg->addr, size))
+		return -EFAULT;
+
+	r = kvmppc_set_one_reg(vcpu, reg->id, &val);
+
+	if (r == -EINVAL) {
+		r = 0;
+		switch (reg->id) {
+		case KVM_REG_PPC_DAR:
+			vcpu->arch.shared->dar = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_DSISR:
+			vcpu->arch.shared->dsisr = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_FPR0 ... KVM_REG_PPC_FPR31:
+			i = reg->id - KVM_REG_PPC_FPR0;
+			vcpu->arch.fpr[i] = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_FPSCR:
+			vcpu->arch.fpscr = set_reg_val(reg->id, val);
+			break;
+#ifdef CONFIG_ALTIVEC
+		case KVM_REG_PPC_VR0 ... KVM_REG_PPC_VR31:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			vcpu->arch.vr[reg->id - KVM_REG_PPC_VR0] = val.vval;
+			break;
+		case KVM_REG_PPC_VSCR:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			vcpu->arch.vscr.u[3] = set_reg_val(reg->id, val);
+			break;
+#endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_KVM_XICS
+		case KVM_REG_PPC_ICP_STATE:
+			if (!vcpu->arch.icp) {
+				r = -ENXIO;
+				break;
+			}
+			r = kvmppc_xics_set_icp(vcpu,
+						set_reg_val(reg->id, val));
+			break;
+#endif /* CONFIG_KVM_XICS */
+		default:
+			r = -EINVAL;
+			break;
+		}
+	}
+
+	return r;
+}
+
 int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
                                   struct kvm_translation *tr)
 {
 	return 0;
+}
+
+int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+					struct kvm_guest_debug *dbg)
+{
+	return -EINVAL;
 }
 
 void kvmppc_decrementer_func(unsigned long data)

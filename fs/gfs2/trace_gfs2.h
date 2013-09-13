@@ -159,9 +159,9 @@ TRACE_EVENT(gfs2_glock_put,
 /* Callback (local or remote) requesting lock demotion */
 TRACE_EVENT(gfs2_demote_rq,
 
-	TP_PROTO(const struct gfs2_glock *gl),
+	TP_PROTO(const struct gfs2_glock *gl, bool remote),
 
-	TP_ARGS(gl),
+	TP_ARGS(gl, remote),
 
 	TP_STRUCT__entry(
 		__field(        dev_t,  dev                     )
@@ -170,6 +170,7 @@ TRACE_EVENT(gfs2_demote_rq,
 		__field(	u8,	cur_state		)
 		__field(	u8,	dmt_state		)
 		__field(	unsigned long,	flags		)
+		__field(	bool,	remote			)
 	),
 
 	TP_fast_assign(
@@ -179,14 +180,16 @@ TRACE_EVENT(gfs2_demote_rq,
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
 		__entry->dmt_state	= glock_trace_state(gl->gl_demote_state);
 		__entry->flags		= gl->gl_flags  | (gl->gl_object ? (1UL<<GLF_OBJECT) : 0);
+		__entry->remote		= remote;
 	),
 
-	TP_printk("%u,%u glock %d:%lld demote %s to %s flags:%s",
+	TP_printk("%u,%u glock %d:%lld demote %s to %s flags:%s %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->gltype,
 		  (unsigned long long)__entry->glnum,
                   glock_trace_name(__entry->cur_state),
                   glock_trace_name(__entry->dmt_state),
-		  show_glock_flags(__entry->flags))
+		  show_glock_flags(__entry->flags),
+		  __entry->remote ? "remote" : "local")
 
 );
 
@@ -486,7 +489,7 @@ TRACE_EVENT(gfs2_block_alloc,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= ip->i_gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev		= rgd->rd_gl->gl_sbd->sd_vfs->s_dev;
 		__entry->start		= block;
 		__entry->inum		= ip->i_no_addr;
 		__entry->len		= len;
@@ -509,10 +512,9 @@ TRACE_EVENT(gfs2_block_alloc,
 /* Keep track of multi-block reservations as they are allocated/freed */
 TRACE_EVENT(gfs2_rs,
 
-	TP_PROTO(const struct gfs2_inode *ip, const struct gfs2_blkreserv *rs,
-		 u8 func),
+	TP_PROTO(const struct gfs2_blkreserv *rs, u8 func),
 
-	TP_ARGS(ip, rs, func),
+	TP_ARGS(rs, func),
 
 	TP_STRUCT__entry(
 		__field(        dev_t,  dev                     )
@@ -526,18 +528,17 @@ TRACE_EVENT(gfs2_rs,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= rs->rs_rgd ? rs->rs_rgd->rd_sbd->sd_vfs->s_dev : 0;
-		__entry->rd_addr	= rs->rs_rgd ? rs->rs_rgd->rd_addr : 0;
-		__entry->rd_free_clone	= rs->rs_rgd ? rs->rs_rgd->rd_free_clone : 0;
-		__entry->rd_reserved	= rs->rs_rgd ? rs->rs_rgd->rd_reserved : 0;
-		__entry->inum		= ip ? ip->i_no_addr : 0;
-		__entry->start		= gfs2_rs_startblk(rs);
+		__entry->dev		= rs->rs_rbm.rgd->rd_sbd->sd_vfs->s_dev;
+		__entry->rd_addr	= rs->rs_rbm.rgd->rd_addr;
+		__entry->rd_free_clone	= rs->rs_rbm.rgd->rd_free_clone;
+		__entry->rd_reserved	= rs->rs_rbm.rgd->rd_reserved;
+		__entry->inum		= rs->rs_inum;
+		__entry->start		= gfs2_rbm_to_block(&rs->rs_rbm);
 		__entry->free		= rs->rs_free;
 		__entry->func		= func;
 	),
 
-	TP_printk("%u,%u bmap %llu resrv %llu rg:%llu rf:%lu rr:%lu %s "
-		  "f:%lu",
+	TP_printk("%u,%u bmap %llu resrv %llu rg:%llu rf:%lu rr:%lu %s f:%lu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->inum,
 		  (unsigned long long)__entry->start,

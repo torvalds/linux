@@ -34,9 +34,9 @@
 #include <mach/pxa25x.h>
 #include <mach/audio.h>
 #include <mach/palmtc.h>
-#include <mach/mmc.h>
-#include <mach/pxafb.h>
-#include <mach/irda.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/irda-pxaficp.h>
 #include <mach/udc.h>
 
 #include "generic.h"
@@ -542,7 +542,7 @@ MACHINE_START(PALMTC, "Palm Tungsten|C")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= palmtc_init,
 	.restart	= pxa_restart,
 MACHINE_END

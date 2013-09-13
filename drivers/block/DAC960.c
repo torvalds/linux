@@ -6473,7 +6473,7 @@ static int dac960_initial_status_proc_show(struct seq_file *m, void *v)
 
 static int dac960_initial_status_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dac960_initial_status_proc_show, PDE(inode)->data);
+	return single_open(file, dac960_initial_status_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations dac960_initial_status_proc_fops = {
@@ -6519,7 +6519,7 @@ static int dac960_current_status_proc_show(struct seq_file *m, void *v)
 
 static int dac960_current_status_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dac960_current_status_proc_show, PDE(inode)->data);
+	return single_open(file, dac960_current_status_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations dac960_current_status_proc_fops = {
@@ -6540,14 +6540,14 @@ static int dac960_user_command_proc_show(struct seq_file *m, void *v)
 
 static int dac960_user_command_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dac960_user_command_proc_show, PDE(inode)->data);
+	return single_open(file, dac960_user_command_proc_show, PDE_DATA(inode));
 }
 
 static ssize_t dac960_user_command_proc_write(struct file *file,
 				       const char __user *Buffer,
 				       size_t Count, loff_t *pos)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) PDE(file->f_path.dentry->d_inode)->data;
+  DAC960_Controller_T *Controller = PDE_DATA(file_inode(file));
   unsigned char CommandBuffer[80];
   int Length;
   if (Count > sizeof(CommandBuffer)-1) return -EINVAL;
@@ -7054,6 +7054,7 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
 	else
 		ErrorCode =  0;
       }
+      break;
       default:
 	ErrorCode = -ENOTTY;
     }

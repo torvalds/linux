@@ -33,9 +33,9 @@ void   _Set_D_ECCdata(BYTE, BYTE *);
 void   _Calc_D_ECCdata(BYTE *);
 
 
-struct SSFDCTYPE                Ssfdc;
-struct ADDRESS                  Media;
-struct CIS_AREA                 CisArea;
+struct keucr_media_info         Ssfdc;
+struct keucr_media_address      Media;
+struct keucr_media_area         CisArea;
 
 static BYTE                            EccBuf[6];
 extern PBYTE                    SMHostAddr;
@@ -103,8 +103,10 @@ int Load_D_LogBlockAddr(BYTE *redundant)
 {
 	WORD addr1, addr2;
 
-	addr1 = (WORD)*(redundant + REDT_ADDR1H)*0x0100 + (WORD)*(redundant + REDT_ADDR1L);
-	addr2 = (WORD)*(redundant + REDT_ADDR2H)*0x0100 + (WORD)*(redundant + REDT_ADDR2L);
+	addr1 = (WORD)*(redundant + REDT_ADDR1H)*0x0100 +
+					(WORD)*(redundant + REDT_ADDR1L);
+	addr2 = (WORD)*(redundant + REDT_ADDR2H)*0x0100 +
+					(WORD)*(redundant + REDT_ADDR2L);
 
 	if (addr1 == addr2)
 		if ((addr1 & 0xF000) == 0x1000) {
@@ -151,7 +153,8 @@ void Set_D_LogBlockAddr(BYTE *redundant)
 	if ((hweight16(addr) % 2))
 		addr++;
 
-	*(redundant + REDT_ADDR1H) = *(redundant + REDT_ADDR2H) = (BYTE)(addr / 0x0100);
+	*(redundant + REDT_ADDR1H) = *(redundant + REDT_ADDR2H) =
+							(BYTE)(addr / 0x0100);
 	*(redundant + REDT_ADDR1L) = *(redundant + REDT_ADDR2L) = (BYTE)addr;
 }
 
@@ -191,7 +194,9 @@ int Ssfdc_D_ReadCisSect(struct us_data *us, BYTE *buf, BYTE *redundant)
 	Media.Sector = CisArea.Sector;
 
 	if (Ssfdc_D_ReadSect(us, buf, redundant)) {
-		Media.Zone = zone; Media.PhyBlock = block; Media.Sector = sector;
+		Media.Zone = zone;
+		Media.PhyBlock = block;
+		Media.Sector = sector;
 		return ERROR;
 	}
 
@@ -209,7 +214,8 @@ int Ssfdc_D_ReadSect(struct us_data *us, BYTE *buf, BYTE *redundant)
 
 	result = ENE_LoadBinCode(us, SM_RW_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk("Load SM RW Code Fail !!\n");
+		dev_err(&us->pusb_dev->dev,
+			"Failed to load SmartMedia read/write code\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -252,7 +258,8 @@ int Ssfdc_D_ReadSect(struct us_data *us, BYTE *buf, BYTE *redundant)
 }
 
 /* ----- Ssfdc_D_ReadBlock() --------------------------------------------- */
-int Ssfdc_D_ReadBlock(struct us_data *us, WORD count, BYTE *buf, BYTE *redundant)
+int Ssfdc_D_ReadBlock(struct us_data *us, WORD count, BYTE *buf,
+							BYTE *redundant)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int	result;
@@ -260,7 +267,8 @@ int Ssfdc_D_ReadBlock(struct us_data *us, WORD count, BYTE *buf, BYTE *redundant
 
 	result = ENE_LoadBinCode(us, SM_RW_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk("Load SM RW Code Fail !!\n");
+		dev_err(&us->pusb_dev->dev,
+			"Failed to load SmartMedia read/write code\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -304,7 +312,8 @@ int Ssfdc_D_ReadBlock(struct us_data *us, WORD count, BYTE *buf, BYTE *redundant
 
 
 /* ----- Ssfdc_D_CopyBlock() -------------------------------------------- */
-int Ssfdc_D_CopyBlock(struct us_data *us, WORD count, BYTE *buf, BYTE *redundant)
+int Ssfdc_D_CopyBlock(struct us_data *us, WORD count, BYTE *buf,
+							BYTE *redundant)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int	result;
@@ -312,7 +321,8 @@ int Ssfdc_D_CopyBlock(struct us_data *us, WORD count, BYTE *buf, BYTE *redundant
 
 	result = ENE_LoadBinCode(us, SM_RW_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk("Load SM RW Code Fail !!\n");
+		dev_err(&us->pusb_dev->dev,
+			"Failed to load SmartMedia read/write code\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -358,7 +368,8 @@ int Ssfdc_D_WriteSectForCopy(struct us_data *us, BYTE *buf, BYTE *redundant)
 
 	result = ENE_LoadBinCode(us, SM_RW_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk("Load SM RW Code Fail !!\n");
+		dev_err(&us->pusb_dev->dev,
+			"Failed to load SmartMedia read/write code\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -396,7 +407,8 @@ int Ssfdc_D_EraseBlock(struct us_data *us)
 
 	result = ENE_LoadBinCode(us, SM_RW_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk("Load SM RW Code Fail !!\n");
+		dev_err(&us->pusb_dev->dev,
+			"Failed to load SmartMedia read/write code\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -431,7 +443,8 @@ int Ssfdc_D_ReadRedtData(struct us_data *us, BYTE *redundant)
 
 	result = ENE_LoadBinCode(us, SM_RW_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk("Load SM RW Code Fail !!\n");
+		dev_err(&us->pusb_dev->dev,
+			"Failed to load SmartMedia read/write code\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -470,7 +483,8 @@ int Ssfdc_D_WriteRedtData(struct us_data *us, BYTE *redundant)
 
 	result = ENE_LoadBinCode(us, SM_RW_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk("Load SM RW Code Fail !!\n");
+		dev_err(&us->pusb_dev->dev,
+			"Failed to load SmartMedia read/write code\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -611,7 +625,7 @@ int Set_D_SsfdcModel(BYTE dcode)
 		return ERROR;
 	}
 
-    return SMSUCCESS;
+	return SMSUCCESS;
 }
 
 /* ----- _Check_D_DevCode() --------------------------------------------- */
@@ -686,8 +700,8 @@ int Check_D_CISdata(BYTE *buf, BYTE *redundant)
 /* ----- Set_D_RightECC() ---------------------------------------------- */
 void Set_D_RightECC(BYTE *redundant)
 {
-    /* Driver ECC Check */
-    return;
+	/* Driver ECC Check */
+	return;
 }
 
 

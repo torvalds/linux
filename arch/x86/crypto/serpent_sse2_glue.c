@@ -59,19 +59,19 @@ static void serpent_decrypt_cbc_xway(void *ctx, u128 *dst, const u128 *src)
 		u128_xor(dst + (j + 1), dst + (j + 1), ivs + j);
 }
 
-static void serpent_crypt_ctr(void *ctx, u128 *dst, const u128 *src, u128 *iv)
+static void serpent_crypt_ctr(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 {
 	be128 ctrblk;
 
-	u128_to_be128(&ctrblk, iv);
-	u128_inc(iv);
+	le128_to_be128(&ctrblk, iv);
+	le128_inc(iv);
 
 	__serpent_encrypt(ctx, (u8 *)&ctrblk, (u8 *)&ctrblk);
 	u128_xor(dst, src, (u128 *)&ctrblk);
 }
 
 static void serpent_crypt_ctr_xway(void *ctx, u128 *dst, const u128 *src,
-				   u128 *iv)
+				   le128 *iv)
 {
 	be128 ctrblks[SERPENT_PARALLEL_BLOCKS];
 	unsigned int i;
@@ -80,8 +80,8 @@ static void serpent_crypt_ctr_xway(void *ctx, u128 *dst, const u128 *src,
 		if (dst != src)
 			dst[i] = src[i];
 
-		u128_to_be128(&ctrblks[i], iv);
-		u128_inc(iv);
+		le128_to_be128(&ctrblks[i], iv);
+		le128_inc(iv);
 	}
 
 	serpent_enc_blk_xway_xor(ctx, (u8 *)dst, (u8 *)ctrblks);
@@ -393,7 +393,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_blkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[0].cra_list),
 	.cra_u = {
 		.blkcipher = {
 			.min_keysize	= SERPENT_MIN_KEY_SIZE,
@@ -413,7 +412,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_blkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[1].cra_list),
 	.cra_u = {
 		.blkcipher = {
 			.min_keysize	= SERPENT_MIN_KEY_SIZE,
@@ -433,7 +431,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_blkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[2].cra_list),
 	.cra_u = {
 		.blkcipher = {
 			.min_keysize	= SERPENT_MIN_KEY_SIZE,
@@ -454,7 +451,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_blkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[3].cra_list),
 	.cra_exit		= lrw_exit_tfm,
 	.cra_u = {
 		.blkcipher = {
@@ -478,7 +474,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_blkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[4].cra_list),
 	.cra_u = {
 		.blkcipher = {
 			.min_keysize	= SERPENT_MIN_KEY_SIZE * 2,
@@ -499,7 +494,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[5].cra_list),
 	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {
@@ -521,7 +515,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[6].cra_list),
 	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {
@@ -544,7 +537,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[7].cra_list),
 	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {
@@ -568,7 +560,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[8].cra_list),
 	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {
@@ -593,7 +584,6 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(serpent_algs[9].cra_list),
 	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {

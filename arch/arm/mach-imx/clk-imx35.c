@@ -14,11 +14,10 @@
 #include <linux/of.h>
 #include <linux/err.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-
 #include "crmregs-imx3.h"
 #include "clk.h"
+#include "common.h"
+#include "hardware.h"
 
 struct arm_ahb_div {
 	unsigned char arm, ahb, sel;
@@ -62,19 +61,19 @@ enum mx35_clks {
 	kpp_gate, mlb_gate, mshc_gate, owire_gate, pwm_gate, rngc_gate,
 	rtc_gate, rtic_gate, scc_gate, sdma_gate, spba_gate, spdif_gate,
 	ssi1_gate, ssi2_gate, uart1_gate, uart2_gate, uart3_gate, usbotg_gate,
-	wdog_gate, max_gate, admux_gate, csi_gate, iim_gate, gpu2d_gate,
-	clk_max
+	wdog_gate, max_gate, admux_gate, csi_gate, csi_div, csi_sel, iim_gate,
+	gpu2d_gate, clk_max
 };
 
 static struct clk *clk[clk_max];
 
-int __init mx35_clocks_init()
+int __init mx35_clocks_init(void)
 {
 	void __iomem *base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);
 	u32 pdr0, consumer_sel, hsp_sel;
 	struct arm_ahb_div *aad;
 	unsigned char *hsp_div;
-	int i;
+	u32 i;
 
 	pdr0 = __raw_readl(base + MXC_CCM_PDR0);
 	consumer_sel = (pdr0 >> 16) & 0xf;
@@ -142,6 +141,9 @@ int __init mx35_clocks_init()
 
 	clk[nfc_div] = imx_clk_divider("nfc_div", "ahb", base + MX35_CCM_PDR4, 28, 4);
 
+	clk[csi_sel] = imx_clk_mux("csi_sel", base + MX35_CCM_PDR2, 7, 1, std_sel, ARRAY_SIZE(std_sel));
+	clk[csi_div] = imx_clk_divider("csi_div", "csi_sel", base + MX35_CCM_PDR2, 16, 6);
+
 	clk[asrc_gate] = imx_clk_gate2("asrc_gate", "ipg", base + MX35_CCM_CGR0,  0);
 	clk[pata_gate] = imx_clk_gate2("pata_gate", "ipg", base + MX35_CCM_CGR0,  2);
 	clk[audmux_gate] = imx_clk_gate2("audmux_gate", "ipg", base + MX35_CCM_CGR0,  4);
@@ -192,7 +194,7 @@ int __init mx35_clocks_init()
 	clk[max_gate] = imx_clk_gate2("max_gate", "dummy", base + MX35_CCM_CGR2, 26);
 	clk[admux_gate] = imx_clk_gate2("admux_gate", "ipg", base + MX35_CCM_CGR2, 30);
 
-	clk[csi_gate] = imx_clk_gate2("csi_gate", "ipg", base + MX35_CCM_CGR3,  0);
+	clk[csi_gate] = imx_clk_gate2("csi_gate", "csi_div", base + MX35_CCM_CGR3,  0);
 	clk[iim_gate] = imx_clk_gate2("iim_gate", "ipg", base + MX35_CCM_CGR3,  2);
 	clk[gpu2d_gate] = imx_clk_gate2("gpu2d_gate", "ahb", base + MX35_CCM_CGR3,  4);
 
@@ -223,17 +225,16 @@ int __init mx35_clocks_init()
 	clk_register_clkdev(clk[fec_gate], NULL, "imx27-fec.0");
 	clk_register_clkdev(clk[gpt_gate], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[i2c1_gate], NULL, "imx-i2c.0");
-	clk_register_clkdev(clk[i2c2_gate], NULL, "imx-i2c.1");
-	clk_register_clkdev(clk[i2c3_gate], NULL, "imx-i2c.2");
+	clk_register_clkdev(clk[i2c1_gate], NULL, "imx21-i2c.0");
+	clk_register_clkdev(clk[i2c2_gate], NULL, "imx21-i2c.1");
+	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[ipu_gate], NULL, "ipu-core");
 	clk_register_clkdev(clk[ipu_gate], NULL, "mx3_sdc_fb");
+	clk_register_clkdev(clk[kpp_gate], NULL, "imx-keypad");
 	clk_register_clkdev(clk[owire_gate], NULL, "mxc_w1");
 	clk_register_clkdev(clk[sdma_gate], NULL, "imx35-sdma");
-	clk_register_clkdev(clk[ipg], "ipg", "imx-ssi.0");
-	clk_register_clkdev(clk[ssi1_div_post], "per", "imx-ssi.0");
-	clk_register_clkdev(clk[ipg], "ipg", "imx-ssi.1");
-	clk_register_clkdev(clk[ssi2_div_post], "per", "imx-ssi.1");
+	clk_register_clkdev(clk[ssi1_gate], NULL, "imx-ssi.0");
+	clk_register_clkdev(clk[ssi2_gate], NULL, "imx-ssi.1");
 	/* i.mx35 has the i.mx21 type uart */
 	clk_register_clkdev(clk[uart1_gate], "per", "imx21-uart.0");
 	clk_register_clkdev(clk[ipg], "ipg", "imx21-uart.0");
@@ -250,11 +251,13 @@ int __init mx35_clocks_init()
 	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.2");
 	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.2");
 	clk_register_clkdev(clk[usbotg_gate], "ahb", "mxc-ehci.2");
-	clk_register_clkdev(clk[usb_div], "per", "fsl-usb2-udc");
-	clk_register_clkdev(clk[ipg], "ipg", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usbotg_gate], "ahb", "fsl-usb2-udc");
+	clk_register_clkdev(clk[usb_div], "per", "imx-udc-mx27");
+	clk_register_clkdev(clk[ipg], "ipg", "imx-udc-mx27");
+	clk_register_clkdev(clk[usbotg_gate], "ahb", "imx-udc-mx27");
 	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[nfc_div], NULL, "mxc_nand.0");
+	clk_register_clkdev(clk[nfc_div], NULL, "imx25-nand.0");
+	clk_register_clkdev(clk[csi_gate], NULL, "mx3-camera.0");
+	clk_register_clkdev(clk[admux_gate], "audmux", NULL);
 
 	clk_prepare_enable(clk[spba_gate]);
 	clk_prepare_enable(clk[gpio1_gate]);
@@ -262,6 +265,8 @@ int __init mx35_clocks_init()
 	clk_prepare_enable(clk[gpio3_gate]);
 	clk_prepare_enable(clk[iim_gate]);
 	clk_prepare_enable(clk[emi_gate]);
+	clk_prepare_enable(clk[max_gate]);
+	clk_prepare_enable(clk[iomuxc_gate]);
 
 	/*
 	 * SCC is needed to boot via mmc after a watchdog reset. The clock code

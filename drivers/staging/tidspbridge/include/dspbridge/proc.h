@@ -23,8 +23,6 @@
 #include <dspbridge/devdefs.h>
 #include <dspbridge/drv.h>
 
-extern char *iva_img;
-
 /*
  *  ======== proc_attach ========
  *  Purpose:
@@ -263,7 +261,7 @@ extern int proc_get_processor_id(void *proc, u32 * proc_id);
  *  Returns:
  *      0     :   Success.
  *      -EFAULT :   Invalid processor handle.
- *      -EPERM   :   General failure while retireving processor trace
+ *      -EPERM   :   General failure while retrieving processor trace
  *		      Buffer.
  *  Requires:
  *      pbuf is not NULL
@@ -286,7 +284,7 @@ extern int proc_get_trace(void *hprocessor, u8 * pbuf, u32 max_size);
  *      user_envp:       An Array of Environment settings(Unicode Strings)
  *  Returns:
  *      0:       Success.
- *      -ENOENT:       The DSP Execuetable was not found.
+ *      -ENOENT:       The DSP Executable was not found.
  *      -EFAULT:       Invalid processor handle.
  *      -EPERM   :       Unable to Load the Processor
  *  Requires:

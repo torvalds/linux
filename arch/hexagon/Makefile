@@ -15,20 +15,9 @@ KBUILD_CFLAGS += -fno-short-enums
 # LDFLAGS_MODULE += -shared
 CFLAGS_MODULE += -mlong-calls
 
-cflags-$(CONFIG_HEXAGON_ARCH_V1) += $(call cc-option,-mv1)
-cflags-$(CONFIG_HEXAGON_ARCH_V2) += $(call cc-option,-mv2)
-cflags-$(CONFIG_HEXAGON_ARCH_V3) += $(call cc-option,-mv3)
-cflags-$(CONFIG_HEXAGON_ARCH_V4) += $(call cc-option,-mv4)
-
-aflags-$(CONFIG_HEXAGON_ARCH_V1) += $(call cc-option,-mv1)
-aflags-$(CONFIG_HEXAGON_ARCH_V2) += $(call cc-option,-mv2)
-aflags-$(CONFIG_HEXAGON_ARCH_V3) += $(call cc-option,-mv3)
-aflags-$(CONFIG_HEXAGON_ARCH_V4) += $(call cc-option,-mv4)
-
-ldflags-$(CONFIG_HEXAGON_ARCH_V1) += $(call cc-option,-mv1)
-ldflags-$(CONFIG_HEXAGON_ARCH_V2) += $(call cc-option,-mv2)
-ldflags-$(CONFIG_HEXAGON_ARCH_V3) += $(call cc-option,-mv3)
-ldflags-$(CONFIG_HEXAGON_ARCH_V4) += $(call cc-option,-mv4)
+cflags-y += $(call cc-option,-mv${CONFIG_HEXAGON_ARCH_VERSION})
+aflags-y += $(call cc-option,-mv${CONFIG_HEXAGON_ARCH_VERSION})
+ldflags-y += $(call cc-option,-mv${CONFIG_HEXAGON_ARCH_VERSION})
 
 KBUILD_CFLAGS += $(cflags-y)
 KBUILD_AFLAGS += $(aflags-y)

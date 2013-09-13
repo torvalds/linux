@@ -202,8 +202,11 @@ static struct resource physmap_flash_resource = {
 	.end	= 0x107fffff,
 };
 
+static const char *ar7_probe_types[] = { "ar7part", NULL };
+
 static struct physmap_flash_data physmap_flash_data = {
 	.width	= 2,
+	.part_probe_types = ar7_probe_types,
 };
 
 static struct platform_device physmap_flash = {
@@ -489,11 +492,11 @@ static struct gpio_led gt701_leds[] = {
 		.active_low		= 1,
 		.default_trigger	= "default-on",
 	},
-        {
-                .name                   = "ethernet",
-                .gpio                   = 10,
-                .active_low             = 1,
-        },
+	{
+		.name			= "ethernet",
+		.gpio			= 10,
+		.active_low		= 1,
+	},
 };
 
 static struct gpio_led_platform_data ar7_led_data;
@@ -509,7 +512,7 @@ static void __init detect_leds(void)
 {
 	char *prid, *usb_prod;
 
-	/* Default LEDs	*/
+	/* Default LEDs */
 	ar7_led_data.num_leds = ARRAY_SIZE(default_leds);
 	ar7_led_data.leds = default_leds;
 

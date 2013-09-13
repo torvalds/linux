@@ -42,21 +42,21 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm);
 static void kvm_iommu_put_pages(struct kvm *kvm,
 				gfn_t base_gfn, unsigned long npages);
 
-static pfn_t kvm_pin_pages(struct kvm *kvm, struct kvm_memory_slot *slot,
-			   gfn_t gfn, unsigned long size)
+static pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
+			   unsigned long size)
 {
 	gfn_t end_gfn;
 	pfn_t pfn;
 
-	pfn     = gfn_to_pfn_memslot(kvm, slot, gfn);
+	pfn     = gfn_to_pfn_memslot(slot, gfn);
 	end_gfn = gfn + (size >> PAGE_SHIFT);
 	gfn    += 1;
 
-	if (is_error_pfn(pfn))
+	if (is_error_noslot_pfn(pfn))
 		return pfn;
 
 	while (gfn < end_gfn)
-		gfn_to_pfn_memslot(kvm, slot, gfn++);
+		gfn_to_pfn_memslot(slot, gfn++);
 
 	return pfn;
 }
@@ -76,7 +76,9 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 	gfn     = slot->base_gfn;
 	end_gfn = gfn + slot->npages;
 
-	flags = IOMMU_READ | IOMMU_WRITE;
+	flags = IOMMU_READ;
+	if (!(slot->flags & KVM_MEM_READONLY))
+		flags |= IOMMU_WRITE;
 	if (kvm->arch.iommu_flags & KVM_IOMMU_CACHE_COHERENCY)
 		flags |= IOMMU_CACHE;
 
@@ -105,8 +107,8 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 		 * Pin all pages we are about to map in memory. This is
 		 * important because we unmap and unpin in 4kb steps later.
 		 */
-		pfn = kvm_pin_pages(kvm, slot, gfn, page_size);
-		if (is_error_pfn(pfn)) {
+		pfn = kvm_pin_pages(slot, gfn, page_size);
+		if (is_error_noslot_pfn(pfn)) {
 			gfn += 1;
 			continue;
 		}
@@ -168,11 +170,7 @@ int kvm_assign_device(struct kvm *kvm,
 
 	r = iommu_attach_device(domain, &pdev->dev);
 	if (r) {
-		printk(KERN_ERR "assign device %x:%x:%x.%x failed",
-			pci_domain_nr(pdev->bus),
-			pdev->bus->number,
-			PCI_SLOT(pdev->devfn),
-			PCI_FUNC(pdev->devfn));
+		dev_err(&pdev->dev, "kvm assign device failed ret %d", r);
 		return r;
 	}
 
@@ -300,6 +298,12 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 
 		/* Get physical address */
 		phys = iommu_iova_to_phys(domain, gfn_to_gpa(gfn));
+
+		if (!phys) {
+			gfn++;
+			continue;
+		}
+
 		pfn  = phys >> PAGE_SHIFT;
 
 		/* Unmap address from IO address space */

@@ -22,6 +22,7 @@
 #include <linux/vfio.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #include "vfio_pci_private.h"
 
@@ -76,9 +77,24 @@ static int virqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 			schedule_work(&virqfd->inject);
 	}
 
-	if (flags & POLLHUP)
-		/* The eventfd is closing, detach from VFIO */
-		virqfd_deactivate(virqfd);
+	if (flags & POLLHUP) {
+		unsigned long flags;
+		spin_lock_irqsave(&virqfd->vdev->irqlock, flags);
+
+		/*
+		 * The eventfd is closing, if the virqfd has not yet been
+		 * queued for release, as determined by testing whether the
+		 * vdev pointer to it is still valid, queue it now.  As
+		 * with kvm irqfds, we know we won't race against the virqfd
+		 * going away because we hold wqh->lock to get here.
+		 */
+		if (*(virqfd->pvirqfd) == virqfd) {
+			*(virqfd->pvirqfd) = NULL;
+			virqfd_deactivate(virqfd);
+		}
+
+		spin_unlock_irqrestore(&virqfd->vdev->irqlock, flags);
+	}
 
 	return 0;
 }
@@ -93,7 +109,6 @@ static void virqfd_ptable_queue_proc(struct file *file,
 static void virqfd_shutdown(struct work_struct *work)
 {
 	struct virqfd *virqfd = container_of(work, struct virqfd, shutdown);
-	struct virqfd **pvirqfd = virqfd->pvirqfd;
 	u64 cnt;
 
 	eventfd_ctx_remove_wait_queue(virqfd->eventfd, &virqfd->wait, &cnt);
@@ -101,7 +116,6 @@ static void virqfd_shutdown(struct work_struct *work)
 	eventfd_ctx_put(virqfd->eventfd);
 
 	kfree(virqfd);
-	*pvirqfd = NULL;
 }
 
 static void virqfd_inject(struct work_struct *work)
@@ -116,21 +130,17 @@ static int virqfd_enable(struct vfio_pci_device *vdev,
 			 void (*thread)(struct vfio_pci_device *, void *),
 			 void *data, struct virqfd **pvirqfd, int fd)
 {
-	struct file *file = NULL;
-	struct eventfd_ctx *ctx = NULL;
+	struct fd irqfd;
+	struct eventfd_ctx *ctx;
 	struct virqfd *virqfd;
 	int ret = 0;
 	unsigned int events;
-
-	if (*pvirqfd)
-		return -EBUSY;
 
 	virqfd = kzalloc(sizeof(*virqfd), GFP_KERNEL);
 	if (!virqfd)
 		return -ENOMEM;
 
 	virqfd->pvirqfd = pvirqfd;
-	*pvirqfd = virqfd;
 	virqfd->vdev = vdev;
 	virqfd->handler = handler;
 	virqfd->thread = thread;
@@ -139,19 +149,36 @@ static int virqfd_enable(struct vfio_pci_device *vdev,
 	INIT_WORK(&virqfd->shutdown, virqfd_shutdown);
 	INIT_WORK(&virqfd->inject, virqfd_inject);
 
-	file = eventfd_fget(fd);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
-		goto fail;
+	irqfd = fdget(fd);
+	if (!irqfd.file) {
+		ret = -EBADF;
+		goto err_fd;
 	}
 
-	ctx = eventfd_ctx_fileget(file);
+	ctx = eventfd_ctx_fileget(irqfd.file);
 	if (IS_ERR(ctx)) {
 		ret = PTR_ERR(ctx);
-		goto fail;
+		goto err_ctx;
 	}
 
 	virqfd->eventfd = ctx;
+
+	/*
+	 * virqfds can be released by closing the eventfd or directly
+	 * through ioctl.  These are both done through a workqueue, so
+	 * we update the pointer to the virqfd under lock to avoid
+	 * pushing multiple jobs to release the same virqfd.
+	 */
+	spin_lock_irq(&vdev->irqlock);
+
+	if (*pvirqfd) {
+		spin_unlock_irq(&vdev->irqlock);
+		ret = -EBUSY;
+		goto err_busy;
+	}
+	*pvirqfd = virqfd;
+
+	spin_unlock_irq(&vdev->irqlock);
 
 	/*
 	 * Install our own custom wake-up handling so we are notified via
@@ -160,7 +187,7 @@ static int virqfd_enable(struct vfio_pci_device *vdev,
 	init_waitqueue_func_entry(&virqfd->wait, virqfd_wakeup);
 	init_poll_funcptr(&virqfd->pt, virqfd_ptable_queue_proc);
 
-	events = file->f_op->poll(file, &virqfd->pt);
+	events = irqfd.file->f_op->poll(irqfd.file, &virqfd->pt);
 
 	/*
 	 * Check if there was an event already pending on the eventfd
@@ -175,31 +202,38 @@ static int virqfd_enable(struct vfio_pci_device *vdev,
 	 * Do not drop the file until the irqfd is fully initialized,
 	 * otherwise we might race against the POLLHUP.
 	 */
-	fput(file);
+	fdput(irqfd);
 
 	return 0;
-
-fail:
-	if (ctx && !IS_ERR(ctx))
-		eventfd_ctx_put(ctx);
-
-	if (file && !IS_ERR(file))
-		fput(file);
-
+err_busy:
+	eventfd_ctx_put(ctx);
+err_ctx:
+	fdput(irqfd);
+err_fd:
 	kfree(virqfd);
-	*pvirqfd = NULL;
 
 	return ret;
 }
 
-static void virqfd_disable(struct virqfd *virqfd)
+static void virqfd_disable(struct vfio_pci_device *vdev,
+			   struct virqfd **pvirqfd)
 {
-	if (!virqfd)
-		return;
+	unsigned long flags;
 
-	virqfd_deactivate(virqfd);
+	spin_lock_irqsave(&vdev->irqlock, flags);
 
-	/* Block until we know all outstanding shutdown jobs have completed. */
+	if (*pvirqfd) {
+		virqfd_deactivate(*pvirqfd);
+		*pvirqfd = NULL;
+	}
+
+	spin_unlock_irqrestore(&vdev->irqlock, flags);
+
+	/*
+	 * Block until we know all outstanding shutdown jobs have completed.
+	 * Even if we don't queue the job, flush the wq to be sure it's
+	 * been released.
+	 */
 	flush_workqueue(vfio_irqfd_cleanup_wq);
 }
 
@@ -250,7 +284,8 @@ void vfio_pci_intx_mask(struct vfio_pci_device *vdev)
  * a signal is necessary, which can then be handled via a work queue
  * or directly depending on the caller.
  */
-int vfio_pci_intx_unmask_handler(struct vfio_pci_device *vdev, void *unused)
+static int vfio_pci_intx_unmask_handler(struct vfio_pci_device *vdev,
+					void *unused)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	unsigned long flags;
@@ -330,6 +365,17 @@ static int vfio_intx_enable(struct vfio_pci_device *vdev)
 		return -ENOMEM;
 
 	vdev->num_ctx = 1;
+
+	/*
+	 * If the virtual interrupt is masked, restore it.  Devices
+	 * supporting DisINTx can be masked at the hardware level
+	 * here, non-PCI-2.3 devices will have to wait until the
+	 * interrupt is enabled.
+	 */
+	vdev->ctx[0].masked = vdev->virq_disabled;
+	if (vdev->pci_2_3)
+		pci_intx(vdev->pdev, !vdev->ctx[0].masked);
+
 	vdev->irq_type = VFIO_PCI_INTX_IRQ_INDEX;
 
 	return 0;
@@ -364,25 +410,26 @@ static int vfio_intx_set_signal(struct vfio_pci_device *vdev, int fd)
 		return PTR_ERR(trigger);
 	}
 
+	vdev->ctx[0].trigger = trigger;
+
 	if (!vdev->pci_2_3)
 		irqflags = 0;
 
 	ret = request_irq(pdev->irq, vfio_intx_handler,
 			  irqflags, vdev->ctx[0].name, vdev);
 	if (ret) {
+		vdev->ctx[0].trigger = NULL;
 		kfree(vdev->ctx[0].name);
 		eventfd_ctx_put(trigger);
 		return ret;
 	}
-
-	vdev->ctx[0].trigger = trigger;
 
 	/*
 	 * INTx disable will stick across the new irq setup,
 	 * disable_irq won't.
 	 */
 	spin_lock_irqsave(&vdev->irqlock, flags);
-	if (!vdev->pci_2_3 && (vdev->ctx[0].masked || vdev->virq_disabled))
+	if (!vdev->pci_2_3 && vdev->ctx[0].masked)
 		disable_irq_nosync(pdev->irq);
 	spin_unlock_irqrestore(&vdev->irqlock, flags);
 
@@ -392,8 +439,8 @@ static int vfio_intx_set_signal(struct vfio_pci_device *vdev, int fd)
 static void vfio_intx_disable(struct vfio_pci_device *vdev)
 {
 	vfio_intx_set_signal(vdev, -1);
-	virqfd_disable(vdev->ctx[0].unmask);
-	virqfd_disable(vdev->ctx[0].mask);
+	virqfd_disable(vdev, &vdev->ctx[0].unmask);
+	virqfd_disable(vdev, &vdev->ctx[0].mask);
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
 	vdev->num_ctx = 0;
 	kfree(vdev->ctx);
@@ -539,8 +586,8 @@ static void vfio_msi_disable(struct vfio_pci_device *vdev, bool msix)
 	vfio_msi_set_block(vdev, 0, vdev->num_ctx, NULL, msix);
 
 	for (i = 0; i < vdev->num_ctx; i++) {
-		virqfd_disable(vdev->ctx[i].unmask);
-		virqfd_disable(vdev->ctx[i].mask);
+		virqfd_disable(vdev, &vdev->ctx[i].unmask);
+		virqfd_disable(vdev, &vdev->ctx[i].mask);
 	}
 
 	if (msix) {
@@ -577,7 +624,7 @@ static int vfio_pci_set_intx_unmask(struct vfio_pci_device *vdev,
 					     vfio_send_intx_eventfd, NULL,
 					     &vdev->ctx[0].unmask, fd);
 
-		virqfd_disable(vdev->ctx[0].unmask);
+		virqfd_disable(vdev, &vdev->ctx[0].unmask);
 	}
 
 	return 0;
@@ -697,6 +744,63 @@ static int vfio_pci_set_msi_trigger(struct vfio_pci_device *vdev,
 	return 0;
 }
 
+static int vfio_pci_set_err_trigger(struct vfio_pci_device *vdev,
+				    unsigned index, unsigned start,
+				    unsigned count, uint32_t flags, void *data)
+{
+	int32_t fd = *(int32_t *)data;
+	struct pci_dev *pdev = vdev->pdev;
+
+	if ((index != VFIO_PCI_ERR_IRQ_INDEX) ||
+	    !(flags & VFIO_IRQ_SET_DATA_TYPE_MASK))
+		return -EINVAL;
+
+	/*
+	 * device_lock synchronizes setting and checking of
+	 * err_trigger. The vfio_pci_aer_err_detected() is also
+	 * called with device_lock held.
+	 */
+
+	/* DATA_NONE/DATA_BOOL enables loopback testing */
+
+	if (flags & VFIO_IRQ_SET_DATA_NONE) {
+		device_lock(&pdev->dev);
+		if (vdev->err_trigger)
+			eventfd_signal(vdev->err_trigger, 1);
+		device_unlock(&pdev->dev);
+		return 0;
+	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
+		uint8_t trigger = *(uint8_t *)data;
+		device_lock(&pdev->dev);
+		if (trigger && vdev->err_trigger)
+			eventfd_signal(vdev->err_trigger, 1);
+		device_unlock(&pdev->dev);
+		return 0;
+	}
+
+	/* Handle SET_DATA_EVENTFD */
+
+	if (fd == -1) {
+		device_lock(&pdev->dev);
+		if (vdev->err_trigger)
+			eventfd_ctx_put(vdev->err_trigger);
+		vdev->err_trigger = NULL;
+		device_unlock(&pdev->dev);
+		return 0;
+	} else if (fd >= 0) {
+		struct eventfd_ctx *efdctx;
+		efdctx = eventfd_ctx_fdget(fd);
+		if (IS_ERR(efdctx))
+			return PTR_ERR(efdctx);
+		device_lock(&pdev->dev);
+		if (vdev->err_trigger)
+			eventfd_ctx_put(vdev->err_trigger);
+		vdev->err_trigger = efdctx;
+		device_unlock(&pdev->dev);
+		return 0;
+	} else
+		return -EINVAL;
+}
 int vfio_pci_set_irqs_ioctl(struct vfio_pci_device *vdev, uint32_t flags,
 			    unsigned index, unsigned start, unsigned count,
 			    void *data)
@@ -731,6 +835,13 @@ int vfio_pci_set_irqs_ioctl(struct vfio_pci_device *vdev, uint32_t flags,
 			break;
 		}
 		break;
+	case VFIO_PCI_ERR_IRQ_INDEX:
+		switch (flags & VFIO_IRQ_SET_ACTION_TYPE_MASK) {
+		case VFIO_IRQ_SET_ACTION_TRIGGER:
+			if (pci_is_pcie(vdev->pdev))
+				func = vfio_pci_set_err_trigger;
+			break;
+		}
 	}
 
 	if (!func)

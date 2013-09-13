@@ -62,10 +62,10 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 
 	tail = MICHAEL_MIC_LEN;
 	if (!info->control.hw_key)
-		tail += TKIP_ICV_LEN;
+		tail += IEEE80211_TKIP_ICV_LEN;
 
 	if (WARN_ON(skb_tailroom(skb) < tail ||
-		    skb_headroom(skb) < TKIP_IV_LEN))
+		    skb_headroom(skb) < IEEE80211_TKIP_IV_LEN))
 		return TX_DROP;
 
 	key = &tx->key->conf.key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY];
@@ -104,9 +104,10 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 	 */
 	if (status->flag & (RX_FLAG_MMIC_STRIPPED | RX_FLAG_IV_STRIPPED)) {
 		if (status->flag & RX_FLAG_MMIC_ERROR)
-			goto mic_fail;
+			goto mic_fail_no_key;
 
-		if (!(status->flag & RX_FLAG_IV_STRIPPED) && rx->key)
+		if (!(status->flag & RX_FLAG_IV_STRIPPED) && rx->key &&
+		    rx->key->conf.cipher == WLAN_CIPHER_SUITE_TKIP)
 			goto update_iv;
 
 		return RX_CONTINUE;
@@ -160,6 +161,9 @@ update_iv:
 	return RX_CONTINUE;
 
 mic_fail:
+	rx->key->u.tkip.mic_failures++;
+
+mic_fail_no_key:
 	/*
 	 * In some cases the key can be unset - e.g. a multicast packet, in
 	 * a driver that supports HW encryption. Send up the key idx only if
@@ -177,7 +181,6 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_key *key = tx->key;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	unsigned long flags;
 	unsigned int hdrlen;
 	int len, tail;
 	u8 *pos;
@@ -195,15 +198,16 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	if (info->control.hw_key)
 		tail = 0;
 	else
-		tail = TKIP_ICV_LEN;
+		tail = IEEE80211_TKIP_ICV_LEN;
 
 	if (WARN_ON(skb_tailroom(skb) < tail ||
-		    skb_headroom(skb) < TKIP_IV_LEN))
+		    skb_headroom(skb) < IEEE80211_TKIP_IV_LEN))
 		return -1;
 
-	pos = skb_push(skb, TKIP_IV_LEN);
-	memmove(pos, pos + TKIP_IV_LEN, hdrlen);
-	skb_set_network_header(skb, skb_network_offset(skb) + TKIP_IV_LEN);
+	pos = skb_push(skb, IEEE80211_TKIP_IV_LEN);
+	memmove(pos, pos + IEEE80211_TKIP_IV_LEN, hdrlen);
+	skb_set_network_header(skb, skb_network_offset(skb) +
+				    IEEE80211_TKIP_IV_LEN);
 	pos += hdrlen;
 
 	/* the HW only needs room for the IV, but not the actual IV */
@@ -212,19 +216,19 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 		return 0;
 
 	/* Increase IV for the frame */
-	spin_lock_irqsave(&key->u.tkip.txlock, flags);
+	spin_lock(&key->u.tkip.txlock);
 	key->u.tkip.tx.iv16++;
 	if (key->u.tkip.tx.iv16 == 0)
 		key->u.tkip.tx.iv32++;
 	pos = ieee80211_tkip_add_iv(pos, key);
-	spin_unlock_irqrestore(&key->u.tkip.txlock, flags);
+	spin_unlock(&key->u.tkip.txlock);
 
 	/* hwaccel - with software IV */
 	if (info->control.hw_key)
 		return 0;
 
 	/* Add room for ICV */
-	skb_put(skb, TKIP_ICV_LEN);
+	skb_put(skb, IEEE80211_TKIP_ICV_LEN);
 
 	return ieee80211_tkip_encrypt_data(tx->local->wep_tx_tfm,
 					   key, skb, pos, len);
@@ -287,11 +291,11 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 
 	/* Trim ICV */
-	skb_trim(skb, skb->len - TKIP_ICV_LEN);
+	skb_trim(skb, skb->len - IEEE80211_TKIP_ICV_LEN);
 
 	/* Remove IV */
-	memmove(skb->data + TKIP_IV_LEN, skb->data, hdrlen);
-	skb_pull(skb, TKIP_IV_LEN);
+	memmove(skb->data + IEEE80211_TKIP_IV_LEN, skb->data, hdrlen);
+	skb_pull(skb, IEEE80211_TKIP_IV_LEN);
 
 	return RX_CONTINUE;
 }
@@ -334,9 +338,9 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *scratch,
 	else
 		qos_tid = 0;
 
-	data_len = skb->len - hdrlen - CCMP_HDR_LEN;
+	data_len = skb->len - hdrlen - IEEE80211_CCMP_HDR_LEN;
 	if (encrypted)
-		data_len -= CCMP_MIC_LEN;
+		data_len -= IEEE80211_CCMP_MIC_LEN;
 
 	/* First block, b_0 */
 	b_0[0] = 0x59; /* flags: Adata: 1, M: 011, L: 001 */
@@ -345,7 +349,7 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *scratch,
 	 */
 	b_0[1] = qos_tid | (mgmt << 4);
 	memcpy(&b_0[2], hdr->addr2, ETH_ALEN);
-	memcpy(&b_0[8], pn, CCMP_PN_LEN);
+	memcpy(&b_0[8], pn, IEEE80211_CCMP_PN_LEN);
 	/* l(m) */
 	put_unaligned_be16(data_len, &b_0[14]);
 
@@ -421,15 +425,16 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	if (info->control.hw_key)
 		tail = 0;
 	else
-		tail = CCMP_MIC_LEN;
+		tail = IEEE80211_CCMP_MIC_LEN;
 
 	if (WARN_ON(skb_tailroom(skb) < tail ||
-		    skb_headroom(skb) < CCMP_HDR_LEN))
+		    skb_headroom(skb) < IEEE80211_CCMP_HDR_LEN))
 		return -1;
 
-	pos = skb_push(skb, CCMP_HDR_LEN);
-	memmove(pos, pos + CCMP_HDR_LEN, hdrlen);
-	skb_set_network_header(skb, skb_network_offset(skb) + CCMP_HDR_LEN);
+	pos = skb_push(skb, IEEE80211_CCMP_HDR_LEN);
+	memmove(pos, pos + IEEE80211_CCMP_HDR_LEN, hdrlen);
+	skb_set_network_header(skb, skb_network_offset(skb) +
+				    IEEE80211_CCMP_HDR_LEN);
 
 	/* the HW only needs room for the IV, but not the actual IV */
 	if (info->control.hw_key &&
@@ -454,10 +459,10 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	if (info->control.hw_key)
 		return 0;
 
-	pos += CCMP_HDR_LEN;
+	pos += IEEE80211_CCMP_HDR_LEN;
 	ccmp_special_blocks(skb, pn, scratch, 0);
 	ieee80211_aes_ccm_encrypt(key->u.ccmp.tfm, scratch, pos, len,
-				  pos, skb_put(skb, CCMP_MIC_LEN));
+				  pos, skb_put(skb, IEEE80211_CCMP_MIC_LEN));
 
 	return 0;
 }
@@ -487,7 +492,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	struct ieee80211_key *key = rx->key;
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	u8 pn[CCMP_PN_LEN];
+	u8 pn[IEEE80211_CCMP_PN_LEN];
 	int data_len;
 	int queue;
 
@@ -497,12 +502,13 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	    !ieee80211_is_robust_mgmt_frame(hdr))
 		return RX_CONTINUE;
 
-	data_len = skb->len - hdrlen - CCMP_HDR_LEN - CCMP_MIC_LEN;
+	data_len = skb->len - hdrlen - IEEE80211_CCMP_HDR_LEN -
+		   IEEE80211_CCMP_MIC_LEN;
 	if (!rx->sta || data_len < 0)
 		return RX_DROP_UNUSABLE;
 
 	if (status->flag & RX_FLAG_DECRYPTED) {
-		if (!pskb_may_pull(rx->skb, hdrlen + CCMP_HDR_LEN))
+		if (!pskb_may_pull(rx->skb, hdrlen + IEEE80211_CCMP_HDR_LEN))
 			return RX_DROP_UNUSABLE;
 	} else {
 		if (skb_linearize(rx->skb))
@@ -513,7 +519,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 
 	queue = rx->security_idx;
 
-	if (memcmp(pn, key->u.ccmp.rx_pn[queue], CCMP_PN_LEN) <= 0) {
+	if (memcmp(pn, key->u.ccmp.rx_pn[queue], IEEE80211_CCMP_PN_LEN) <= 0) {
 		key->u.ccmp.replays++;
 		return RX_DROP_UNUSABLE;
 	}
@@ -525,19 +531,20 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 
 		if (ieee80211_aes_ccm_decrypt(
 			    key->u.ccmp.tfm, scratch,
-			    skb->data + hdrlen + CCMP_HDR_LEN, data_len,
-			    skb->data + skb->len - CCMP_MIC_LEN,
-			    skb->data + hdrlen + CCMP_HDR_LEN))
+			    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN,
+			    data_len,
+			    skb->data + skb->len - IEEE80211_CCMP_MIC_LEN,
+			    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN))
 			return RX_DROP_UNUSABLE;
 	}
 
-	memcpy(key->u.ccmp.rx_pn[queue], pn, CCMP_PN_LEN);
+	memcpy(key->u.ccmp.rx_pn[queue], pn, IEEE80211_CCMP_PN_LEN);
 
 	/* Remove CCMP header and MIC */
-	if (pskb_trim(skb, skb->len - CCMP_MIC_LEN))
+	if (pskb_trim(skb, skb->len - IEEE80211_CCMP_MIC_LEN))
 		return RX_DROP_UNUSABLE;
-	memmove(skb->data + CCMP_HDR_LEN, skb->data, hdrlen);
-	skb_pull(skb, CCMP_HDR_LEN);
+	memmove(skb->data + IEEE80211_CCMP_HDR_LEN, skb->data, hdrlen);
+	skb_pull(skb, IEEE80211_CCMP_HDR_LEN);
 
 	return RX_CONTINUE;
 }
@@ -545,14 +552,19 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 
 static void bip_aad(struct sk_buff *skb, u8 *aad)
 {
+	__le16 mask_fc;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+
 	/* BIP AAD: FC(masked) || A1 || A2 || A3 */
 
 	/* FC type/subtype */
-	aad[0] = skb->data[0];
 	/* Mask FC Retry, PwrMgt, MoreData flags to zero */
-	aad[1] = skb->data[1] & ~(BIT(4) | BIT(5) | BIT(6));
+	mask_fc = hdr->frame_control;
+	mask_fc &= ~cpu_to_le16(IEEE80211_FCTL_RETRY | IEEE80211_FCTL_PM |
+				IEEE80211_FCTL_MOREDATA);
+	put_unaligned(mask_fc, (__le16 *) &aad[0]);
 	/* A1 || A2 || A3 */
-	memcpy(aad + 2, skb->data + 4, 3 * ETH_ALEN);
+	memcpy(aad + 2, &hdr->addr1, 3 * ETH_ALEN);
 }
 
 

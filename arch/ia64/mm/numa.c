@@ -61,16 +61,34 @@ paddr_to_nid(unsigned long paddr)
 int __meminit __early_pfn_to_nid(unsigned long pfn)
 {
 	int i, section = pfn >> PFN_SECTION_SHIFT, ssec, esec;
+	/*
+	 * NOTE: The following SMP-unsafe globals are only used early in boot
+	 * when the kernel is running single-threaded.
+	 */
+	static int __meminitdata last_ssec, last_esec;
+	static int __meminitdata last_nid;
+
+	if (section >= last_ssec && section < last_esec)
+		return last_nid;
 
 	for (i = 0; i < num_node_memblks; i++) {
 		ssec = node_memblk[i].start_paddr >> PA_SECTION_SHIFT;
 		esec = (node_memblk[i].start_paddr + node_memblk[i].size +
 			((1L << PA_SECTION_SHIFT) - 1)) >> PA_SECTION_SHIFT;
-		if (section >= ssec && section < esec)
+		if (section >= ssec && section < esec) {
+			last_ssec = ssec;
+			last_esec = esec;
+			last_nid = node_memblk[i].nid;
 			return node_memblk[i].nid;
+		}
 	}
 
 	return -1;
+}
+
+void numa_clear_node(int cpu)
+{
+	unmap_cpu_from_node(cpu, NUMA_NO_NODE);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

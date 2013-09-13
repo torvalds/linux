@@ -15,8 +15,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/module.h>
-
-#include <mach/ipu.h>
+#include <linux/dma/ipu-dma.h>
 
 #include "ipu_intern.h"
 
@@ -45,7 +44,6 @@ static void ipu_write_reg(struct ipu *ipu, u32 value, unsigned long reg)
 struct ipu_irq_bank {
 	unsigned int	control;
 	unsigned int	status;
-	spinlock_t	lock;
 	struct ipu	*ipu;
 };
 

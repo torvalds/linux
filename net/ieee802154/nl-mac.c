@@ -246,7 +246,7 @@ nla_put_failure:
 }
 EXPORT_SYMBOL(ieee802154_nl_start_confirm);
 
-static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 pid,
+static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 	u32 seq, int flags, struct net_device *dev)
 {
 	void *hdr;
@@ -315,7 +315,7 @@ static int ieee802154_associate_req(struct sk_buff *skb,
 	struct net_device *dev;
 	struct ieee802154_addr addr;
 	u8 page;
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 
 	if (!info->attrs[IEEE802154_ATTR_CHANNEL] ||
 	    !info->attrs[IEEE802154_ATTR_COORD_PAN_ID] ||
@@ -327,6 +327,8 @@ static int ieee802154_associate_req(struct sk_buff *skb,
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
 		return -ENODEV;
+	if (!ieee802154_mlme_ops(dev)->assoc_req)
+		goto out;
 
 	if (info->attrs[IEEE802154_ATTR_COORD_HW_ADDR]) {
 		addr.addr_type = IEEE802154_ADDR_LONG;
@@ -350,6 +352,7 @@ static int ieee802154_associate_req(struct sk_buff *skb,
 			page,
 			nla_get_u8(info->attrs[IEEE802154_ATTR_CAPABILITY]));
 
+out:
 	dev_put(dev);
 	return ret;
 }
@@ -359,7 +362,7 @@ static int ieee802154_associate_resp(struct sk_buff *skb,
 {
 	struct net_device *dev;
 	struct ieee802154_addr addr;
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 
 	if (!info->attrs[IEEE802154_ATTR_STATUS] ||
 	    !info->attrs[IEEE802154_ATTR_DEST_HW_ADDR] ||
@@ -369,6 +372,8 @@ static int ieee802154_associate_resp(struct sk_buff *skb,
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
 		return -ENODEV;
+	if (!ieee802154_mlme_ops(dev)->assoc_resp)
+		goto out;
 
 	addr.addr_type = IEEE802154_ADDR_LONG;
 	nla_memcpy(addr.hwaddr, info->attrs[IEEE802154_ATTR_DEST_HW_ADDR],
@@ -380,6 +385,7 @@ static int ieee802154_associate_resp(struct sk_buff *skb,
 		nla_get_u16(info->attrs[IEEE802154_ATTR_DEST_SHORT_ADDR]),
 		nla_get_u8(info->attrs[IEEE802154_ATTR_STATUS]));
 
+out:
 	dev_put(dev);
 	return ret;
 }
@@ -389,7 +395,7 @@ static int ieee802154_disassociate_req(struct sk_buff *skb,
 {
 	struct net_device *dev;
 	struct ieee802154_addr addr;
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 
 	if ((!info->attrs[IEEE802154_ATTR_DEST_HW_ADDR] &&
 		!info->attrs[IEEE802154_ATTR_DEST_SHORT_ADDR]) ||
@@ -399,6 +405,8 @@ static int ieee802154_disassociate_req(struct sk_buff *skb,
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
 		return -ENODEV;
+	if (!ieee802154_mlme_ops(dev)->disassoc_req)
+		goto out;
 
 	if (info->attrs[IEEE802154_ATTR_DEST_HW_ADDR]) {
 		addr.addr_type = IEEE802154_ADDR_LONG;
@@ -415,6 +423,7 @@ static int ieee802154_disassociate_req(struct sk_buff *skb,
 	ret = ieee802154_mlme_ops(dev)->disassoc_req(dev, &addr,
 			nla_get_u8(info->attrs[IEEE802154_ATTR_REASON]));
 
+out:
 	dev_put(dev);
 	return ret;
 }
@@ -432,7 +441,7 @@ static int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	u8 channel, bcn_ord, sf_ord;
 	u8 page;
 	int pan_coord, blx, coord_realign;
-	int ret;
+	int ret = -EOPNOTSUPP;
 
 	if (!info->attrs[IEEE802154_ATTR_COORD_PAN_ID] ||
 	    !info->attrs[IEEE802154_ATTR_COORD_SHORT_ADDR] ||
@@ -448,6 +457,8 @@ static int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
 		return -ENODEV;
+	if (!ieee802154_mlme_ops(dev)->start_req)
+		goto out;
 
 	addr.addr_type = IEEE802154_ADDR_SHORT;
 	addr.short_addr = nla_get_u16(
@@ -476,6 +487,7 @@ static int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	ret = ieee802154_mlme_ops(dev)->start_req(dev, &addr, channel, page,
 		bcn_ord, sf_ord, pan_coord, blx, coord_realign);
 
+out:
 	dev_put(dev);
 	return ret;
 }
@@ -483,7 +495,7 @@ static int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 static int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
-	int ret;
+	int ret = -EOPNOTSUPP;
 	u8 type;
 	u32 channels;
 	u8 duration;
@@ -497,6 +509,8 @@ static int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info)
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
 		return -ENODEV;
+	if (!ieee802154_mlme_ops(dev)->scan_req)
+		goto out;
 
 	type = nla_get_u8(info->attrs[IEEE802154_ATTR_SCAN_TYPE]);
 	channels = nla_get_u32(info->attrs[IEEE802154_ATTR_CHANNELS]);
@@ -511,6 +525,7 @@ static int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info)
 	ret = ieee802154_mlme_ops(dev)->scan_req(dev, type, channels, page,
 			duration);
 
+out:
 	dev_put(dev);
 	return ret;
 }
@@ -534,7 +549,7 @@ static int ieee802154_list_iface(struct sk_buff *skb,
 	if (!msg)
 		goto out_dev;
 
-	rc = ieee802154_nl_fill_iface(msg, info->snd_pid, info->snd_seq,
+	rc = ieee802154_nl_fill_iface(msg, info->snd_portid, info->snd_seq,
 			0, dev);
 	if (rc < 0)
 		goto out_free;
@@ -565,7 +580,7 @@ static int ieee802154_dump_iface(struct sk_buff *skb,
 		if (idx < s_idx || (dev->type != ARPHRD_IEEE802154))
 			goto cont;
 
-		if (ieee802154_nl_fill_iface(skb, NETLINK_CB(cb->skb).pid,
+		if (ieee802154_nl_fill_iface(skb, NETLINK_CB(cb->skb).portid,
 			cb->nlh->nlmsg_seq, NLM_F_MULTI, dev) < 0)
 			break;
 cont:

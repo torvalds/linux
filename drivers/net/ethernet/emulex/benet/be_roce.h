@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@ enum be_interrupt_mode {
 	BE_INTERRUPT_MODE_MSI	= 2,
 };
 
-#define MAX_ROCE_MSIX_VECTORS   16
+#define MAX_MSIX_VECTORS		32
 struct be_dev_info {
 	u8 __iomem *db;
 	u64 unmapped_db;
@@ -45,7 +45,7 @@ struct be_dev_info {
 	struct {
 		int num_vectors;
 		int start_vector;
-		u32 vector_list[MAX_ROCE_MSIX_VECTORS];
+		u32 vector_list[MAX_MSIX_VECTORS];
 	} msix;
 };
 

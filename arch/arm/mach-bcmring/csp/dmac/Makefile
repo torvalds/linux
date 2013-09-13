@@ -1,1 +1,0 @@
-obj-y += dmacHw.o dmacHw_extra.o

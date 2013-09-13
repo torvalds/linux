@@ -556,15 +556,7 @@ static enum dma_status
 mpc_dma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	       struct dma_tx_state *txstate)
 {
-	struct mpc_dma_chan *mchan = dma_chan_to_mpc_dma_chan(chan);
-	enum dma_status ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mchan->lock, flags);
-	ret = dma_cookie_status(chan, cookie, txstate);
-	spin_unlock_irqrestore(&mchan->lock, flags);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 /* Prepare descriptor for memory to memory copy */
@@ -641,7 +633,7 @@ mpc_dma_prep_memcpy(struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 	return &mdesc->desc;
 }
 
-static int __devinit mpc_dma_probe(struct platform_device *op)
+static int mpc_dma_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct device *dev = &op->dev;
@@ -799,7 +791,7 @@ static int __devinit mpc_dma_probe(struct platform_device *op)
 	return retval;
 }
 
-static int __devexit mpc_dma_remove(struct platform_device *op)
+static int mpc_dma_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mpc_dma *mdma = dev_get_drvdata(dev);
@@ -818,7 +810,7 @@ static struct of_device_id mpc_dma_match[] = {
 
 static struct platform_driver mpc_dma_driver = {
 	.probe		= mpc_dma_probe,
-	.remove		= __devexit_p(mpc_dma_remove),
+	.remove		= mpc_dma_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

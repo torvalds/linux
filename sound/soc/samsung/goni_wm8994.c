@@ -218,6 +218,10 @@ static struct snd_soc_dai_driver voice_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 };
 
+static const struct snd_soc_component_driver voice_component = {
+	.name		= "goni-voice",
+};
+
 static struct snd_soc_ops goni_voice_ops = {
 	.hw_params = goni_voice_hw_params,
 };
@@ -228,7 +232,7 @@ static struct snd_soc_dai_link goni_dai[] = {
 	.stream_name = "WM8994 HiFi",
 	.cpu_dai_name = "samsung-i2s.0",
 	.codec_dai_name = "wm8994-aif1",
-	.platform_name = "samsung-audio",
+	.platform_name = "samsung-i2s.0",
 	.codec_name = "wm8994-codec.0-001a",
 	.init = goni_wm8994_init,
 	.ops = &goni_hifi_ops,
@@ -270,7 +274,8 @@ static int __init goni_init(void)
 		return -ENOMEM;
 
 	/* register voice DAI here */
-	ret = snd_soc_register_dai(&goni_snd_device->dev, &voice_dai);
+	ret = snd_soc_register_component(&goni_snd_device->dev, &voice_component,
+					 &voice_dai, 1);
 	if (ret) {
 		platform_device_put(goni_snd_device);
 		return ret;
@@ -280,7 +285,7 @@ static int __init goni_init(void)
 	ret = platform_device_add(goni_snd_device);
 
 	if (ret) {
-		snd_soc_unregister_dai(&goni_snd_device->dev);
+		snd_soc_unregister_component(&goni_snd_device->dev);
 		platform_device_put(goni_snd_device);
 	}
 
@@ -289,7 +294,7 @@ static int __init goni_init(void)
 
 static void __exit goni_exit(void)
 {
-	snd_soc_unregister_dai(&goni_snd_device->dev);
+	snd_soc_unregister_component(&goni_snd_device->dev);
 	platform_device_unregister(goni_snd_device);
 }
 

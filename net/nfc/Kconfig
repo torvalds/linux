@@ -3,8 +3,9 @@
 #
 
 menuconfig NFC
-	depends on NET && EXPERIMENTAL
-	tristate "NFC subsystem support (EXPERIMENTAL)"
+	depends on NET
+	depends on RFKILL || !RFKILL
+	tristate "NFC subsystem support"
 	default n
 	help
 	  Say Y here if you want to build support for NFC (Near field
@@ -15,6 +16,5 @@ menuconfig NFC
 
 source "net/nfc/nci/Kconfig"
 source "net/nfc/hci/Kconfig"
-source "net/nfc/llcp/Kconfig"
 
 source "drivers/nfc/Kconfig"

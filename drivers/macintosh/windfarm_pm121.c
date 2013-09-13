@@ -276,6 +276,7 @@ static const char *loop_names[N_LOOPS] = {
 
 static unsigned int pm121_failure_state;
 static int pm121_readjust, pm121_skipping;
+static bool pm121_overtemp;
 static s32 average_power;
 
 struct pm121_correction {
@@ -847,6 +848,7 @@ static void pm121_tick(void)
 	if (new_failure & FAILURE_OVERTEMP) {
 		wf_set_overtemp();
 		pm121_skipping = 2;
+		pm121_overtemp = true;
 	}
 
 	/* We only clear the overtemp condition if overtemp is cleared
@@ -855,8 +857,10 @@ static void pm121_tick(void)
 	 * the control loop levels, but we don't want to keep it clear
 	 * here in this case
 	 */
-	if (new_failure == 0 && last_failure & FAILURE_OVERTEMP)
+	if (!pm121_failure_state && pm121_overtemp) {
 		wf_clear_overtemp();
+		pm121_overtemp = false;
+	}
 }
 
 
@@ -987,7 +991,7 @@ static int pm121_probe(struct platform_device *ddev)
 	return 0;
 }
 
-static int __devexit pm121_remove(struct platform_device *ddev)
+static int pm121_remove(struct platform_device *ddev)
 {
 	wf_unregister_client(&pm121_events);
 	return 0;
@@ -995,7 +999,7 @@ static int __devexit pm121_remove(struct platform_device *ddev)
 
 static struct platform_driver pm121_driver = {
 	.probe = pm121_probe,
-	.remove = __devexit_p(pm121_remove),
+	.remove = pm121_remove,
 	.driver = {
 		.name = "windfarm",
 		.bus = &platform_bus_type,

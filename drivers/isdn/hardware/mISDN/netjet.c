@@ -812,8 +812,9 @@ nj_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
+		cancel_work_sync(&bch->workq);
 		spin_lock_irqsave(&card->lock, flags);
-		mISDN_freebchannel(bch);
+		mISDN_clear_bchannel(bch);
 		mode_tiger(bc, ISDN_P_NONE);
 		spin_unlock_irqrestore(&card->lock, flags);
 		ch->protocol = ISDN_P_NONE;
@@ -1007,7 +1008,7 @@ nj_setup(struct tiger_hw *card)
 }
 
 
-static int __devinit
+static int
 setup_instance(struct tiger_hw *card)
 {
 	int i, err;
@@ -1058,7 +1059,7 @@ error:
 	return err;
 }
 
-static int __devinit
+static int
 nj_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int err = -ENOMEM;
@@ -1123,7 +1124,7 @@ nj_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 }
 
 
-static void __devexit nj_remove(struct pci_dev *pdev)
+static void nj_remove(struct pci_dev *pdev)
 {
 	struct tiger_hw *card = pci_get_drvdata(pdev);
 
@@ -1136,7 +1137,7 @@ static void __devexit nj_remove(struct pci_dev *pdev)
 /* We cannot select cards with PCI_SUB... IDs, since here are cards with
  * SUB IDs set to PCI_ANY_ID, so we need to match all and reject
  * known other cards which not work with this driver - see probe function */
-static struct pci_device_id nj_pci_ids[] __devinitdata = {
+static struct pci_device_id nj_pci_ids[] = {
 	{ PCI_VENDOR_ID_TIGERJET, PCI_DEVICE_ID_TIGERJET_300,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ }
@@ -1146,7 +1147,7 @@ MODULE_DEVICE_TABLE(pci, nj_pci_ids);
 static struct pci_driver nj_driver = {
 	.name = "netjet",
 	.probe = nj_probe,
-	.remove = __devexit_p(nj_remove),
+	.remove = nj_remove,
 	.id_table = nj_pci_ids,
 };
 

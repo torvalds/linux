@@ -206,6 +206,7 @@ static inline bool test_and_clear_restore_sigmask(void)
 	ti->status &= ~TS_RESTORE_SIGMASK;
 	return true;
 }
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

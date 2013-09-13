@@ -16,81 +16,6 @@
 
 /* These are here to support 32-bit syscalls on a 64-bit kernel. */
 
-typedef struct compat_siginfo {
-	int si_signo;
-	int si_errno;
-	int si_code;
-
-	union {
-		int _pad[SI_PAD_SIZE32];
-
-		/* kill() */
-		struct {
-			compat_pid_t _pid;		/* sender's pid */
-			compat_uid_t _uid;		/* sender's uid */
-		} _kill;
-
-		/* POSIX.1b timers */
-		struct {
-			compat_timer_t _tid;			/* timer id */
-			int _overrun;			/* overrun count */
-			compat_sigval_t _sigval;		/* same as below */
-			int _sys_private;		/* not to be passed to user */
-		} _timer;
-
-		/* POSIX.1b signals */
-		struct {
-			compat_pid_t _pid;		/* sender's pid */
-			compat_uid_t _uid;		/* sender's uid */
-			compat_sigval_t _sigval;
-		} _rt;
-
-		/* SIGCHLD */
-		struct {
-			compat_pid_t _pid;		/* which child */
-			compat_uid_t _uid;		/* sender's uid */
-			int _status;			/* exit code */
-			compat_clock_t _utime;
-			compat_clock_t _stime;
-		} _sigchld;
-
-		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGEMT */
-		struct {
-			unsigned int _addr; /* faulting insn/memory ref. */
-		} _sigfault;
-
-		/* SIGPOLL */
-		struct {
-			int _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
-			int _fd;
-		} _sigpoll;
-	} _sifields;
-} compat_siginfo_t;
-
-#define __old_sigaction32	old_sigaction32
-
-struct __old_sigaction32 {
-	compat_uptr_t		sa_handler;
-	compat_old_sigset_t  	sa_mask;
-	unsigned int    	sa_flags;
-	compat_uptr_t		sa_restorer;     /* not used by Linux/SPARC yet */
-};
-
-
-
-struct sigaction32 {
-       compat_uptr_t  sa_handler;	/* Really a pointer, but need to deal with 32 bits */
-       unsigned int sa_flags;
-       compat_uptr_t sa_restorer;	/* Another 32 bit pointer */
-       compat_sigset_t sa_mask;		/* A 32 bit mask */
-};
-
-typedef struct sigaltstack_32 {
-	unsigned int ss_sp;
-	int ss_flags;
-	compat_size_t ss_size;
-} stack_32_t;
-
 struct pt_regs32 {
 	unsigned int gpr[32];
 	unsigned int nip;
@@ -126,7 +51,7 @@ struct mcontext32 {
 struct ucontext32 { 
 	unsigned int	  	uc_flags;
 	unsigned int 	  	uc_link;
-	stack_32_t	 	uc_stack;
+	compat_stack_t	 	uc_stack;
 	int		 	uc_pad[7];
 	compat_uptr_t		uc_regs;	/* points to uc_mcontext field */
 	compat_sigset_t	 	uc_sigmask;	/* mask last for extensibility */

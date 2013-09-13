@@ -1,17 +1,9 @@
 #ifndef _ASM_X86_MSR_H
 #define _ASM_X86_MSR_H
 
-#include <asm/msr-index.h>
+#include <uapi/asm/msr.h>
 
 #ifndef __ASSEMBLY__
-
-#include <linux/types.h>
-#include <linux/ioctl.h>
-
-#define X86_IOC_RDMSR_REGS	_IOWR('c', 0xA0, __u32[8])
-#define X86_IOC_WRMSR_REGS	_IOWR('c', 0xA1, __u32[8])
-
-#ifdef __KERNEL__
 
 #include <asm/asm.h>
 #include <asm/errno.h>
@@ -145,11 +137,11 @@ static inline unsigned long long native_read_pmc(int counter)
  * pointer indirection), this allows gcc to optimize better
  */
 
-#define rdmsr(msr, val1, val2)					\
+#define rdmsr(msr, low, high)					\
 do {								\
 	u64 __val = native_read_msr((msr));			\
-	(void)((val1) = (u32)__val);				\
-	(void)((val2) = (u32)(__val >> 32));			\
+	(void)((low) = (u32)__val);				\
+	(void)((high) = (u32)(__val >> 32));			\
 } while (0)
 
 static inline void wrmsr(unsigned msr, unsigned low, unsigned high)
@@ -170,12 +162,12 @@ static inline int wrmsr_safe(unsigned msr, unsigned low, unsigned high)
 }
 
 /* rdmsr with exception handling */
-#define rdmsr_safe(msr, p1, p2)					\
+#define rdmsr_safe(msr, low, high)				\
 ({								\
 	int __err;						\
 	u64 __val = native_read_msr_safe((msr), &__err);	\
-	(*p1) = (u32)__val;					\
-	(*p2) = (u32)(__val >> 32);				\
+	(*low) = (u32)__val;					\
+	(*high) = (u32)(__val >> 32);				\
 	__err;							\
 })
 
@@ -216,7 +208,7 @@ do {                                                            \
 #define wrmsrl_safe(msr, val) wrmsr_safe((msr), (u32)(val),		\
 					     (u32)((val) >> 32))
 
-#define write_tsc(val1, val2) wrmsr(MSR_IA32_TSC, (val1), (val2))
+#define write_tsc(low, high) wrmsr(MSR_IA32_TSC, (low), (high))
 
 #define write_rdtscp_aux(val) wrmsr(MSR_TSC_AUX, (val), 0)
 
@@ -271,6 +263,5 @@ static inline int wrmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8])
 	return wrmsr_safe_regs(regs);
 }
 #endif  /* CONFIG_SMP */
-#endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_X86_MSR_H */

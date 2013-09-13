@@ -582,8 +582,6 @@ static int new_lockspace(const char *name, const char *cluster,
 	INIT_LIST_HEAD(&ls->ls_root_list);
 	init_rwsem(&ls->ls_root_sem);
 
-	down_write(&ls->ls_in_recovery);
-
 	spin_lock(&lslist_lock);
 	ls->ls_create_count = 1;
 	list_add(&ls->ls_list, &lslist);
@@ -597,12 +595,23 @@ static int new_lockspace(const char *name, const char *cluster,
 		}
 	}
 
-	/* needs to find ls in lslist */
+	init_waitqueue_head(&ls->ls_recover_lock_wait);
+
+	/*
+	 * Once started, dlm_recoverd first looks for ls in lslist, then
+	 * initializes ls_in_recovery as locked in "down" mode.  We need
+	 * to wait for the wakeup from dlm_recoverd because in_recovery
+	 * has to start out in down mode.
+	 */
+
 	error = dlm_recoverd_start(ls);
 	if (error) {
 		log_error(ls, "can't start dlm_recoverd %d", error);
 		goto out_callback;
 	}
+
+	wait_event(ls->ls_recover_lock_wait,
+		   test_bit(LSFL_RECOVER_LOCK, &ls->ls_flags));
 
 	ls->ls_kobj.kset = dlm_kset;
 	error = kobject_init_and_add(&ls->ls_kobj, &dlm_ktype, NULL,
@@ -787,7 +796,6 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	 */
 
 	idr_for_each(&ls->ls_lkbidr, lkb_idr_free, ls);
-	idr_remove_all(&ls->ls_lkbidr);
 	idr_destroy(&ls->ls_lkbidr);
 
 	/*
@@ -875,17 +883,24 @@ int dlm_release_lockspace(void *lockspace, int force)
 void dlm_stop_lockspaces(void)
 {
 	struct dlm_ls *ls;
+	int count;
 
  restart:
+	count = 0;
 	spin_lock(&lslist_lock);
 	list_for_each_entry(ls, &lslist, ls_list) {
-		if (!test_bit(LSFL_RUNNING, &ls->ls_flags))
+		if (!test_bit(LSFL_RUNNING, &ls->ls_flags)) {
+			count++;
 			continue;
+		}
 		spin_unlock(&lslist_lock);
 		log_error(ls, "no userland control daemon, stopping lockspace");
 		dlm_ls_stop(ls);
 		goto restart;
 	}
 	spin_unlock(&lslist_lock);
+
+	if (count)
+		log_print("dlm user daemon left %d lockspaces", count);
 }
 

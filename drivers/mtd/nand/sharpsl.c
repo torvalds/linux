@@ -106,13 +106,13 @@ static int sharpsl_nand_calculate_ecc(struct mtd_info *mtd, const u_char * dat, 
 /*
  * Main initialization routine
  */
-static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
+static int sharpsl_nand_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
 	struct resource *r;
 	int err = 0;
 	struct sharpsl_nand *sharpsl;
-	struct sharpsl_nand_platform_data *data = pdev->dev.platform_data;
+	struct sharpsl_nand_platform_data *data = dev_get_platdata(&pdev->dev);
 
 	if (!data) {
 		dev_err(&pdev->dev, "no platform data!\n");
@@ -194,7 +194,6 @@ err_add:
 	nand_release(&sharpsl->mtd);
 
 err_scan:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(sharpsl->io);
 err_ioremap:
 err_get_res:
@@ -205,14 +204,12 @@ err_get_res:
 /*
  * Clean up routine
  */
-static int __devexit sharpsl_nand_remove(struct platform_device *pdev)
+static int sharpsl_nand_remove(struct platform_device *pdev)
 {
 	struct sharpsl_nand *sharpsl = platform_get_drvdata(pdev);
 
 	/* Release resources, unregister device */
 	nand_release(&sharpsl->mtd);
-
-	platform_set_drvdata(pdev, NULL);
 
 	iounmap(sharpsl->io);
 
@@ -228,7 +225,7 @@ static struct platform_driver sharpsl_nand_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sharpsl_nand_probe,
-	.remove		= __devexit_p(sharpsl_nand_remove),
+	.remove		= sharpsl_nand_remove,
 };
 
 module_platform_driver(sharpsl_nand_driver);

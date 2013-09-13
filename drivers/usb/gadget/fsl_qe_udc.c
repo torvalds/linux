@@ -1894,7 +1894,7 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
 
 /* defined in usb_gadget.h */
-static struct usb_gadget_ops qe_gadget_ops = {
+static const struct usb_gadget_ops qe_gadget_ops = {
 	.get_frame = qe_get_frame,
 	.udc_start = fsl_qe_start,
 	.udc_stop = fsl_qe_stop,
@@ -2296,7 +2296,6 @@ static int fsl_qe_start(struct usb_gadget *gadget,
 	driver->driver.bus = NULL;
 	/* hook up the driver */
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 	udc->gadget.speed = driver->max_speed;
 
 	/* Enable IRQ reg and Set usbcmd reg EN bit */
@@ -2338,7 +2337,6 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 		nuke(loop_ep, -ESHUTDOWN);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	dev_info(udc->dev, "unregistered gadget driver '%s'\r\n",
@@ -2347,7 +2345,7 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 }
 
 /* udc structure's alloc and setup, include ep-param alloc */
-static struct qe_udc __devinit *qe_udc_config(struct platform_device *ofdev)
+static struct qe_udc *qe_udc_config(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
 	struct device_node *np = ofdev->dev.of_node;
@@ -2402,7 +2400,7 @@ cleanup:
 }
 
 /* USB Controller register init */
-static int __devinit qe_udc_reg_init(struct qe_udc *udc)
+static int qe_udc_reg_init(struct qe_udc *udc)
 {
 	struct usb_ctlr __iomem *qe_usbregs;
 	qe_usbregs = udc->usb_regs;
@@ -2420,7 +2418,7 @@ static int __devinit qe_udc_reg_init(struct qe_udc *udc)
 	return 0;
 }
 
-static int __devinit qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
+static int qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
 {
 	struct qe_ep *ep = &udc->eps[pipe_num];
 
@@ -2473,7 +2471,7 @@ static void qe_udc_release(struct device *dev)
 
 /* Driver probe functions */
 static const struct of_device_id qe_udc_match[];
-static int __devinit qe_udc_probe(struct platform_device *ofdev)
+static int qe_udc_probe(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
 	const struct of_device_id *match;
@@ -2523,12 +2521,6 @@ static int __devinit qe_udc_probe(struct platform_device *ofdev)
 
 	/* name: Identifies the controller hardware type. */
 	udc->gadget.name = driver_name;
-
-	device_initialize(&udc->gadget.dev);
-
-	dev_set_name(&udc->gadget.dev, "gadget");
-
-	udc->gadget.dev.release = qe_udc_release;
 	udc->gadget.dev.parent = &ofdev->dev;
 
 	/* initialize qe_ep struct */
@@ -2592,22 +2584,17 @@ static int __devinit qe_udc_probe(struct platform_device *ofdev)
 		goto err5;
 	}
 
-	ret = device_add(&udc->gadget.dev);
+	ret = usb_add_gadget_udc_release(&ofdev->dev, &udc->gadget,
+			qe_udc_release);
 	if (ret)
 		goto err6;
 
-	ret = usb_add_gadget_udc(&ofdev->dev, &udc->gadget);
-	if (ret)
-		goto err7;
-
-	dev_set_drvdata(&ofdev->dev, udc);
+	platform_set_drvdata(ofdev, udc);
 	dev_info(udc->dev,
 			"%s USB controller initialized as device\n",
 			(udc->soc_type == PORT_QE) ? "QE" : "CPM");
 	return 0;
 
-err7:
-	device_unregister(&udc->gadget.dev);
 err6:
 	free_irq(udc->usb_irq, udc);
 err5:
@@ -2651,9 +2638,9 @@ static int qe_udc_resume(struct platform_device *dev)
 }
 #endif
 
-static int __devexit qe_udc_remove(struct platform_device *ofdev)
+static int qe_udc_remove(struct platform_device *ofdev)
 {
-	struct qe_udc *udc = dev_get_drvdata(&ofdev->dev);
+	struct qe_udc *udc = platform_get_drvdata(ofdev);
 	struct qe_ep *ep;
 	unsigned int size;
 	DECLARE_COMPLETION(done);
@@ -2702,7 +2689,6 @@ static int __devexit qe_udc_remove(struct platform_device *ofdev)
 
 	iounmap(udc->usb_regs);
 
-	device_unregister(&udc->gadget.dev);
 	/* wait for release() of gadget.dev to free udc */
 	wait_for_completion(&done);
 
@@ -2710,7 +2696,7 @@ static int __devexit qe_udc_remove(struct platform_device *ofdev)
 }
 
 /*-------------------------------------------------------------------------*/
-static const struct of_device_id qe_udc_match[] __devinitconst = {
+static const struct of_device_id qe_udc_match[] = {
 	{
 		.compatible = "fsl,mpc8323-qe-usb",
 		.data = (void *)PORT_QE,
@@ -2735,7 +2721,7 @@ static struct platform_driver udc_driver = {
 		.of_match_table = qe_udc_match,
 	},
 	.probe          = qe_udc_probe,
-	.remove         = __devexit_p(qe_udc_remove),
+	.remove         = qe_udc_remove,
 #ifdef CONFIG_PM
 	.suspend        = qe_udc_suspend,
 	.resume         = qe_udc_resume,

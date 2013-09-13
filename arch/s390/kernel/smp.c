@@ -49,7 +49,6 @@
 
 enum {
 	ec_schedule = 0,
-	ec_call_function,
 	ec_call_function_single,
 	ec_stop_cpu,
 };
@@ -66,7 +65,7 @@ struct pcpu {
 	unsigned long panic_stack;	/* panic stack for the cpu */
 	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
 	int state;			/* physical cpu state */
-	u32 status;			/* last status received via sigp */
+	int polarization;		/* physical polarization */
 	u16 address;			/* physical cpu address */
 };
 
@@ -74,6 +73,10 @@ static u8 boot_cpu_type;
 static u16 boot_cpu_address;
 static struct pcpu pcpu_devices[NR_CPUS];
 
+/*
+ * The smp_cpu_state_mutex must be held when changing the state or polarization
+ * member of a pcpu data structure within the pcpu_devices arreay.
+ */
 DEFINE_MUTEX(smp_cpu_state_mutex);
 
 /*
@@ -99,7 +102,7 @@ static inline int __pcpu_sigp_relax(u16 addr, u8 order, u32 parm, u32 *status)
 	int cc;
 
 	while (1) {
-		cc = __pcpu_sigp(addr, order, parm, status);
+		cc = __pcpu_sigp(addr, order, parm, NULL);
 		if (cc != SIGP_CC_BUSY)
 			return cc;
 		cpu_relax();
@@ -111,7 +114,7 @@ static int pcpu_sigp_retry(struct pcpu *pcpu, u8 order, u32 parm)
 	int cc, retry;
 
 	for (retry = 0; ; retry++) {
-		cc = __pcpu_sigp(pcpu->address, order, parm, &pcpu->status);
+		cc = __pcpu_sigp(pcpu->address, order, parm, NULL);
 		if (cc != SIGP_CC_BUSY)
 			break;
 		if (retry >= 3)
@@ -122,16 +125,18 @@ static int pcpu_sigp_retry(struct pcpu *pcpu, u8 order, u32 parm)
 
 static inline int pcpu_stopped(struct pcpu *pcpu)
 {
+	u32 uninitialized_var(status);
+
 	if (__pcpu_sigp(pcpu->address, SIGP_SENSE,
-			0, &pcpu->status) != SIGP_CC_STATUS_STORED)
+			0, &status) != SIGP_CC_STATUS_STORED)
 		return 0;
-	return !!(pcpu->status & (SIGP_STATUS_CHECK_STOP|SIGP_STATUS_STOPPED));
+	return !!(status & (SIGP_STATUS_CHECK_STOP|SIGP_STATUS_STOPPED));
 }
 
 static inline int pcpu_running(struct pcpu *pcpu)
 {
 	if (__pcpu_sigp(pcpu->address, SIGP_SENSE_RUNNING,
-			0, &pcpu->status) != SIGP_CC_STATUS_STORED)
+			0, NULL) != SIGP_CC_STATUS_STORED)
 		return 1;
 	/* Status stored condition code is equivalent to cpu not running. */
 	return 0;
@@ -160,7 +165,7 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 	pcpu_sigp_retry(pcpu, order, 0);
 }
 
-static int __cpuinit pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
+static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 {
 	struct _lowcore *lc;
 
@@ -175,8 +180,10 @@ static int __cpuinit pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc = pcpu->lowcore;
 	memcpy(lc, &S390_lowcore, 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
-	lc->async_stack = pcpu->async_stack + ASYNC_SIZE;
-	lc->panic_stack = pcpu->panic_stack + PAGE_SIZE;
+	lc->async_stack = pcpu->async_stack + ASYNC_SIZE
+		- STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
+	lc->panic_stack = pcpu->panic_stack + PAGE_SIZE
+		- STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->cpu_nr = cpu;
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
@@ -247,7 +254,8 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 	struct _lowcore *lc = pcpu->lowcore;
 	struct thread_info *ti = task_thread_info(tsk);
 
-	lc->kernel_stack = (unsigned long) task_stack_page(tsk) + THREAD_SIZE;
+	lc->kernel_stack = (unsigned long) task_stack_page(tsk)
+		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->thread_info = (unsigned long) task_thread_info(tsk);
 	lc->current_task = (unsigned long) tsk;
 	lc->user_timer = ti->user_timer;
@@ -354,21 +362,21 @@ void smp_yield_cpu(int cpu)
  * Send cpus emergency shutdown signal. This gives the cpus the
  * opportunity to complete outstanding interrupts.
  */
-void smp_emergency_stop(cpumask_t *cpumask)
+static void smp_emergency_stop(cpumask_t *cpumask)
 {
 	u64 end;
 	int cpu;
 
-	end = get_clock() + (1000000UL << 12);
+	end = get_tod_clock() + (1000000UL << 12);
 	for_each_cpu(cpu, cpumask) {
 		struct pcpu *pcpu = pcpu_devices + cpu;
 		set_bit(ec_stop_cpu, &pcpu->ec_mask);
 		while (__pcpu_sigp(pcpu->address, SIGP_EMERGENCY_SIGNAL,
 				   0, NULL) == SIGP_CC_BUSY &&
-		       get_clock() < end)
+		       get_tod_clock() < end)
 			cpu_relax();
 	}
-	while (get_clock() < end) {
+	while (get_tod_clock() < end) {
 		for_each_cpu(cpu, cpumask)
 			if (pcpu_stopped(pcpu_devices + cpu))
 				cpumask_clear_cpu(cpu, cpumask);
@@ -419,34 +427,25 @@ void smp_stop_cpu(void)
  * This is the main routine where commands issued by other
  * cpus are handled.
  */
+static void smp_handle_ext_call(void)
+{
+	unsigned long bits;
+
+	/* handle bit signal external calls */
+	bits = xchg(&pcpu_devices[smp_processor_id()].ec_mask, 0);
+	if (test_bit(ec_stop_cpu, &bits))
+		smp_stop_cpu();
+	if (test_bit(ec_schedule, &bits))
+		scheduler_ipi();
+	if (test_bit(ec_call_function_single, &bits))
+		generic_smp_call_function_single_interrupt();
+}
+
 static void do_ext_call_interrupt(struct ext_code ext_code,
 				  unsigned int param32, unsigned long param64)
 {
-	unsigned long bits;
-	int cpu;
-
-	cpu = smp_processor_id();
-	if (ext_code.code == 0x1202)
-		kstat_cpu(cpu).irqs[EXTINT_EXC]++;
-	else
-		kstat_cpu(cpu).irqs[EXTINT_EMS]++;
-	/*
-	 * handle bit signal external calls
-	 */
-	bits = xchg(&pcpu_devices[cpu].ec_mask, 0);
-
-	if (test_bit(ec_stop_cpu, &bits))
-		smp_stop_cpu();
-
-	if (test_bit(ec_schedule, &bits))
-		scheduler_ipi();
-
-	if (test_bit(ec_call_function, &bits))
-		generic_smp_call_function_interrupt();
-
-	if (test_bit(ec_call_function_single, &bits))
-		generic_smp_call_function_single_interrupt();
-
+	inc_irq_stat(ext_code.code == 0x1202 ? IRQEXT_EXC : IRQEXT_EMS);
+	smp_handle_ext_call();
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -454,7 +453,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	int cpu;
 
 	for_each_cpu(cpu, mask)
-		pcpu_ec_call(pcpu_devices + cpu, ec_call_function);
+		pcpu_ec_call(pcpu_devices + cpu, ec_call_function_single);
 }
 
 void arch_send_call_function_single_ipi(int cpu)
@@ -586,6 +585,16 @@ static inline void smp_get_save_area(int cpu, u16 address) { }
 
 #endif /* CONFIG_ZFCPDUMP || CONFIG_CRASH_DUMP */
 
+void smp_cpu_set_polarization(int cpu, int val)
+{
+	pcpu_devices[cpu].polarization = val;
+}
+
+int smp_cpu_get_polarization(int cpu)
+{
+	return pcpu_devices[cpu].polarization;
+}
+
 static struct sclp_cpu_info *smp_get_cpu_info(void)
 {
 	static int use_sigp_detection;
@@ -607,10 +616,9 @@ static struct sclp_cpu_info *smp_get_cpu_info(void)
 	return info;
 }
 
-static int __devinit smp_add_present_cpu(int cpu);
+static int smp_add_present_cpu(int cpu);
 
-static int __devinit __smp_rescan_cpus(struct sclp_cpu_info *info,
-				       int sysfs_add)
+static int __smp_rescan_cpus(struct sclp_cpu_info *info, int sysfs_add)
 {
 	struct pcpu *pcpu;
 	cpumask_t avail;
@@ -626,9 +634,9 @@ static int __devinit __smp_rescan_cpus(struct sclp_cpu_info *info,
 			continue;
 		pcpu = pcpu_devices + cpu;
 		pcpu->address = info->cpu[i].address;
-		pcpu->state = (cpu >= info->configured) ?
+		pcpu->state = (i >= info->configured) ?
 			CPU_STATE_STANDBY : CPU_STATE_CONFIGURED;
-		cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 		set_cpu_present(cpu, true);
 		if (sysfs_add && smp_add_present_cpu(cpu) != 0)
 			set_cpu_present(cpu, false);
@@ -676,9 +684,9 @@ static void __init smp_detect_cpus(void)
 /*
  *	Activate a secondary processor.
  */
-static void __cpuinit smp_start_secondary(void *cpuvoid)
+static void smp_start_secondary(void *cpuvoid)
 {
-	S390_lowcore.last_update_clock = get_clock();
+	S390_lowcore.last_update_clock = get_tod_clock();
 	S390_lowcore.restart_stack = (unsigned long) restart_stack;
 	S390_lowcore.restart_fn = (unsigned long) do_restart;
 	S390_lowcore.restart_data = 0;
@@ -693,13 +701,13 @@ static void __cpuinit smp_start_secondary(void *cpuvoid)
 	pfault_init();
 	notify_cpu_starting(smp_processor_id());
 	set_cpu_online(smp_processor_id(), true);
+	inc_irq_stat(CPU_RST);
 	local_irq_enable();
-	/* cpu_idle will call schedule for us */
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 /* Upping and downing of CPUs */
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	struct pcpu *pcpu;
 	int rc;
@@ -741,6 +749,8 @@ int __cpu_disable(void)
 {
 	unsigned long cregs[16];
 
+	/* Handle possible pending IPIs */
+	smp_handle_ext_call();
 	set_cpu_online(smp_processor_id(), false);
 	/* Disable pseudo page faults on this cpu. */
 	pfault_fini();
@@ -793,10 +803,12 @@ void __init smp_prepare_boot_cpu(void)
 	pcpu->state = CPU_STATE_CONFIGURED;
 	pcpu->address = boot_cpu_address;
 	pcpu->lowcore = (struct _lowcore *)(unsigned long) store_prefix();
-	pcpu->async_stack = S390_lowcore.async_stack - ASYNC_SIZE;
-	pcpu->panic_stack = S390_lowcore.panic_stack - PAGE_SIZE;
+	pcpu->async_stack = S390_lowcore.async_stack - ASYNC_SIZE
+		+ STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
+	pcpu->panic_stack = S390_lowcore.panic_stack - PAGE_SIZE
+		+ STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
-	cpu_set_polarization(0, POLARIZATION_UNKNOWN);
+	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 	set_cpu_present(0, true);
 	set_cpu_online(0, true);
 }
@@ -862,7 +874,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 		if (rc)
 			break;
 		pcpu->state = CPU_STATE_STANDBY;
-		cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 		topology_expect_change();
 		break;
 	case 1:
@@ -872,7 +884,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 		if (rc)
 			break;
 		pcpu->state = CPU_STATE_CONFIGURED;
-		cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 		topology_expect_change();
 		break;
 	default:
@@ -930,7 +942,7 @@ static ssize_t show_idle_time(struct device *dev,
 	unsigned int sequence;
 
 	do {
-		now = get_clock();
+		now = get_tod_clock();
 		sequence = ACCESS_ONCE(idle->sequence);
 		idle_time = ACCESS_ONCE(idle->idle_time);
 		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
@@ -951,32 +963,26 @@ static struct attribute_group cpu_online_attr_group = {
 	.attrs = cpu_online_attrs,
 };
 
-static int __cpuinit smp_cpu_notify(struct notifier_block *self,
-				    unsigned long action, void *hcpu)
+static int smp_cpu_notify(struct notifier_block *self, unsigned long action,
+			  void *hcpu)
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
 	struct cpu *c = &pcpu_devices[cpu].cpu;
 	struct device *s = &c->dev;
 	int err = 0;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
 		err = sysfs_create_group(&s->kobj, &cpu_online_attr_group);
 		break;
 	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
 		sysfs_remove_group(&s->kobj, &cpu_online_attr_group);
 		break;
 	}
 	return notifier_from_errno(err);
 }
 
-static struct notifier_block __cpuinitdata smp_cpu_nb = {
-	.notifier_call = smp_cpu_notify,
-};
-
-static int __devinit smp_add_present_cpu(int cpu)
+static int smp_add_present_cpu(int cpu)
 {
 	struct cpu *c = &pcpu_devices[cpu].cpu;
 	struct device *s = &c->dev;
@@ -1050,7 +1056,7 @@ static int __init s390_smp_init(void)
 {
 	int cpu, rc;
 
-	register_cpu_notifier(&smp_cpu_nb);
+	hotcpu_notifier(smp_cpu_notify, 0);
 #ifdef CONFIG_HOTPLUG_CPU
 	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_rescan);
 	if (rc)

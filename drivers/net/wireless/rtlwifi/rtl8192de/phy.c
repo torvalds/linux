@@ -298,13 +298,13 @@ static u32 _rtl92d_phy_rf_serial_read(struct ieee80211_hw *hw,
 		rfpi_enable = (u8) rtl_get_bbreg(hw, RFPGA0_XB_HSSIPARAMETER1,
 			      BIT(8));
 	if (rfpi_enable)
-		retvalue = rtl_get_bbreg(hw, pphyreg->rflssi_readbackpi,
+		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rbpi,
 			BLSSIREADBACKDATA);
 	else
-		retvalue = rtl_get_bbreg(hw, pphyreg->rflssi_readback,
+		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb,
 			BLSSIREADBACKDATA);
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE, "RFR-%d Addr[0x%x] = 0x%x\n",
-		 rfpath, pphyreg->rflssi_readback, retvalue);
+		 rfpath, pphyreg->rf_rb, retvalue);
 	return retvalue;
 }
 
@@ -478,14 +478,10 @@ static void _rtl92d_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw)
 
 	/* RF switch Control */
 	/* TR/Ant switch control */
-	rtlphy->phyreg_def[RF90_PATH_A].rfswitch_control =
-		RFPGA0_XAB_SWITCHCONTROL;
-	rtlphy->phyreg_def[RF90_PATH_B].rfswitch_control =
-	    RFPGA0_XAB_SWITCHCONTROL;
-	rtlphy->phyreg_def[RF90_PATH_C].rfswitch_control =
-	    RFPGA0_XCD_SWITCHCONTROL;
-	rtlphy->phyreg_def[RF90_PATH_D].rfswitch_control =
-	    RFPGA0_XCD_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_A].rfsw_ctrl = RFPGA0_XAB_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_B].rfsw_ctrl = RFPGA0_XAB_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_C].rfsw_ctrl = RFPGA0_XCD_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_D].rfsw_ctrl = RFPGA0_XCD_SWITCHCONTROL;
 
 	/* AGC control 1 */
 	rtlphy->phyreg_def[RF90_PATH_A].rfagc_control1 = ROFDM0_XAAGCCORE1;
@@ -500,14 +496,10 @@ static void _rtl92d_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_D].rfagc_control2 = ROFDM0_XDAGCCORE2;
 
 	/* RX AFE control 1 */
-	rtlphy->phyreg_def[RF90_PATH_A].rfrxiq_imbalance =
-	    ROFDM0_XARXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_B].rfrxiq_imbalance =
-	    ROFDM0_XBRXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_C].rfrxiq_imbalance =
-	    ROFDM0_XCRXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_D].rfrxiq_imbalance =
-	    ROFDM0_XDRXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_A].rfrxiq_imbal = ROFDM0_XARXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_B].rfrxiq_imbal = ROFDM0_XBRXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_C].rfrxiq_imbal = ROFDM0_XCRXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_D].rfrxiq_imbal = ROFDM0_XDRXIQIMBALANCE;
 
 	/*RX AFE control 1 */
 	rtlphy->phyreg_def[RF90_PATH_A].rfrx_afe = ROFDM0_XARXAFE;
@@ -516,14 +508,10 @@ static void _rtl92d_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_D].rfrx_afe = ROFDM0_XDRXAFE;
 
 	/* Tx AFE control 1 */
-	rtlphy->phyreg_def[RF90_PATH_A].rftxiq_imbalance =
-	    ROFDM0_XATxIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_B].rftxiq_imbalance =
-	    ROFDM0_XBTxIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_C].rftxiq_imbalance =
-	    ROFDM0_XCTxIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_D].rftxiq_imbalance =
-	    ROFDM0_XDTxIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_A].rftxiq_imbal = ROFDM0_XATxIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_B].rftxiq_imbal = ROFDM0_XBTxIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_C].rftxiq_imbal = ROFDM0_XCTxIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_D].rftxiq_imbal = ROFDM0_XDTxIQIMBALANCE;
 
 	/* Tx AFE control 2 */
 	rtlphy->phyreg_def[RF90_PATH_A].rftx_afe = ROFDM0_XATxAFE;
@@ -532,20 +520,14 @@ static void _rtl92d_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_D].rftx_afe = ROFDM0_XDTxAFE;
 
 	/* Tranceiver LSSI Readback SI mode */
-	rtlphy->phyreg_def[RF90_PATH_A].rflssi_readback =
-	    RFPGA0_XA_LSSIREADBACK;
-	rtlphy->phyreg_def[RF90_PATH_B].rflssi_readback =
-	    RFPGA0_XB_LSSIREADBACK;
-	rtlphy->phyreg_def[RF90_PATH_C].rflssi_readback =
-	    RFPGA0_XC_LSSIREADBACK;
-	rtlphy->phyreg_def[RF90_PATH_D].rflssi_readback =
-	    RFPGA0_XD_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_A].rf_rb = RFPGA0_XA_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_B].rf_rb = RFPGA0_XB_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_C].rf_rb = RFPGA0_XC_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_D].rf_rb = RFPGA0_XD_LSSIREADBACK;
 
 	/* Tranceiver LSSI Readback PI mode */
-	rtlphy->phyreg_def[RF90_PATH_A].rflssi_readbackpi =
-	    TRANSCEIVERA_HSPI_READBACK;
-	rtlphy->phyreg_def[RF90_PATH_B].rflssi_readbackpi =
-	    TRANSCEIVERB_HSPI_READBACK;
+	rtlphy->phyreg_def[RF90_PATH_A].rf_rbpi = TRANSCEIVERA_HSPI_READBACK;
+	rtlphy->phyreg_def[RF90_PATH_B].rf_rbpi = TRANSCEIVERB_HSPI_READBACK;
 }
 
 static bool _rtl92d_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
@@ -702,12 +684,11 @@ static void _rtl92d_store_pwrindex_diffrate_offset(struct ieee80211_hw *hw,
 	else
 		return;
 
-	rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][index] = data;
+	rtlphy->mcs_offset[rtlphy->pwrgroup_cnt][index] = data;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
 		 "MCSTxPowerLevelOriginalOffset[%d][%d] = 0x%ulx\n",
 		 rtlphy->pwrgroup_cnt, index,
-		 rtlphy->mcs_txpwrlevel_origoffset
-		 [rtlphy->pwrgroup_cnt][index]);
+		 rtlphy->mcs_offset[rtlphy->pwrgroup_cnt][index]);
 	if (index == 13)
 		rtlphy->pwrgroup_cnt++;
 }
@@ -1314,7 +1295,7 @@ static void _rtl92d_phy_restore_rf_env(struct ieee80211_hw *hw, u8 rfpath,
 	struct bb_reg_def *pphyreg = &rtlphy->phyreg_def[rfpath];
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_LOUD, "=====>\n");
-	/*----Restore RFENV control type----*/ ;
+	/*----Restore RFENV control type----*/
 	switch (rfpath) {
 	case RF90_PATH_A:
 	case RF90_PATH_C:
@@ -2498,9 +2479,9 @@ void rtl92d_phy_iq_calibrate(struct ieee80211_hw *hw)
 				  rtlphy->current_channel);
 
 		for (i = 0; i < IQK_MATRIX_REG_NUM; i++)
-			rtlphy->iqk_matrix_regsetting[indexforchannel].
+			rtlphy->iqk_matrix[indexforchannel].
 				value[0][i] = result[final_candidate][i];
-		rtlphy->iqk_matrix_regsetting[indexforchannel].iqk_done =
+		rtlphy->iqk_matrix[indexforchannel].iqk_done =
 			true;
 
 		RT_TRACE(rtlpriv, COMP_SCAN | COMP_MLME, DBG_LOUD,
@@ -2520,8 +2501,8 @@ void rtl92d_phy_reload_iqk_setting(struct ieee80211_hw *hw, u8 channel)
 	indexforchannel = rtl92d_get_rightchnlplace_for_iqk(channel);
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD, "indexforchannel %d done %d\n",
 		 indexforchannel,
-		 rtlphy->iqk_matrix_regsetting[indexforchannel].iqk_done);
-	if (0 && !rtlphy->iqk_matrix_regsetting[indexforchannel].iqk_done &&
+		 rtlphy->iqk_matrix[indexforchannel].iqk_done);
+	if (0 && !rtlphy->iqk_matrix[indexforchannel].iqk_done &&
 		rtlphy->need_iqk) {
 		/* Re Do IQK. */
 		RT_TRACE(rtlpriv, COMP_SCAN | COMP_INIT, DBG_LOUD,
@@ -2535,23 +2516,23 @@ void rtl92d_phy_reload_iqk_setting(struct ieee80211_hw *hw, u8 channel)
 			RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
 				 "Just Read IQK Matrix reg for channel:%d....\n",
 				 channel);
-			if ((rtlphy->iqk_matrix_regsetting[indexforchannel].
+			if ((rtlphy->iqk_matrix[indexforchannel].
 			     value[0] != NULL)
 				/*&&(regea4 != 0) */)
 				_rtl92d_phy_patha_fill_iqk_matrix(hw, true,
-					rtlphy->iqk_matrix_regsetting[
+					rtlphy->iqk_matrix[
 					indexforchannel].value,	0,
-					(rtlphy->iqk_matrix_regsetting[
+					(rtlphy->iqk_matrix[
 					indexforchannel].value[0][2] == 0));
 			if (IS_92D_SINGLEPHY(rtlhal->version)) {
-				if ((rtlphy->iqk_matrix_regsetting[
+				if ((rtlphy->iqk_matrix[
 					indexforchannel].value[0][4] != 0)
 					/*&&(regec4 != 0) */)
 					_rtl92d_phy_pathb_fill_iqk_matrix(hw,
 						true,
-						rtlphy->iqk_matrix_regsetting[
+						rtlphy->iqk_matrix[
 						indexforchannel].value, 0,
-						(rtlphy->iqk_matrix_regsetting[
+						(rtlphy->iqk_matrix[
 						indexforchannel].value[0][6]
 						== 0));
 			}
@@ -2849,20 +2830,20 @@ void rtl92d_phy_reset_iqk_result(struct ieee80211_hw *hw)
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "settings regs %d default regs %d\n",
-		 (int)(sizeof(rtlphy->iqk_matrix_regsetting) /
+		 (int)(sizeof(rtlphy->iqk_matrix) /
 		       sizeof(struct iqk_matrix_regs)),
 		 IQK_MATRIX_REG_NUM);
 	/* 0xe94, 0xe9c, 0xea4, 0xeac, 0xeb4, 0xebc, 0xec4, 0xecc */
 	for (i = 0; i < IQK_MATRIX_SETTINGS_NUM; i++) {
-		rtlphy->iqk_matrix_regsetting[i].value[0][0] = 0x100;
-		rtlphy->iqk_matrix_regsetting[i].value[0][2] = 0x100;
-		rtlphy->iqk_matrix_regsetting[i].value[0][4] = 0x100;
-		rtlphy->iqk_matrix_regsetting[i].value[0][6] = 0x100;
-		rtlphy->iqk_matrix_regsetting[i].value[0][1] = 0x0;
-		rtlphy->iqk_matrix_regsetting[i].value[0][3] = 0x0;
-		rtlphy->iqk_matrix_regsetting[i].value[0][5] = 0x0;
-		rtlphy->iqk_matrix_regsetting[i].value[0][7] = 0x0;
-		rtlphy->iqk_matrix_regsetting[i].iqk_done = false;
+		rtlphy->iqk_matrix[i].value[0][0] = 0x100;
+		rtlphy->iqk_matrix[i].value[0][2] = 0x100;
+		rtlphy->iqk_matrix[i].value[0][4] = 0x100;
+		rtlphy->iqk_matrix[i].value[0][6] = 0x100;
+		rtlphy->iqk_matrix[i].value[0][1] = 0x0;
+		rtlphy->iqk_matrix[i].value[0][3] = 0x0;
+		rtlphy->iqk_matrix[i].value[0][5] = 0x0;
+		rtlphy->iqk_matrix[i].value[0][7] = 0x0;
+		rtlphy->iqk_matrix[i].iqk_done = false;
 	}
 }
 

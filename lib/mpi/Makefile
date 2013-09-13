@@ -14,6 +14,7 @@ mpi-y = \
 	generic_mpih-add1.o		\
 	mpicoder.o			\
 	mpi-bit.o			\
+	mpi-cmp.o			\
 	mpih-cmp.o			\
 	mpih-div.o			\
 	mpih-mul.o			\

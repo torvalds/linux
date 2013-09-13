@@ -3,16 +3,13 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
+#include <asm/css_chars.h>
 #include <asm/chpid.h>
 #include <asm/chsc.h>
 #include <asm/schid.h>
+#include <asm/qdio.h>
 
 #define CHSC_SDA_OC_MSS   0x2
-
-struct chsc_header {
-	u16 length;
-	u16 code;
-} __attribute__ ((packed));
 
 #define NR_MEASUREMENT_CHARS 5
 struct cmg_chars {
@@ -42,7 +39,9 @@ struct channel_path_desc_fmt1 {
 	u8 chpid;
 	u32:24;
 	u8 chpp;
-	u32 unused[3];
+	u32 unused[2];
+	u16 chid;
+	u32:16;
 	u16 mdc;
 	u16:13;
 	u8 r:1;
@@ -73,6 +72,40 @@ struct chsc_ssd_info {
 	struct chp_id chpid[8];
 	u16 fla[8];
 };
+
+struct chsc_ssqd_area {
+	struct chsc_header request;
+	u16:10;
+	u8 ssid:2;
+	u8 fmt:4;
+	u16 first_sch;
+	u16:16;
+	u16 last_sch;
+	u32:32;
+	struct chsc_header response;
+	u32:32;
+	struct qdio_ssqd_desc qdio_ssqd;
+} __packed;
+
+struct chsc_scssc_area {
+	struct chsc_header request;
+	u16 operation_code;
+	u16:16;
+	u32:32;
+	u32:32;
+	u64 summary_indicator_addr;
+	u64 subchannel_indicator_addr;
+	u32 ks:4;
+	u32 kc:4;
+	u32:21;
+	u32 isc:3;
+	u32 word_with_d_bit;
+	u32:32;
+	struct subchannel_id schid;
+	u32 reserved[1004];
+	struct chsc_header response;
+	u32:32;
+} __packed;
 
 struct chsc_scpd {
 	struct chsc_header request;
@@ -113,9 +146,55 @@ int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 void chsc_chp_online(struct chp_id chpid);
 void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);
-
+int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd);
+int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
+	      u64 summary_indicator_addr, u64 subchannel_indicator_addr);
 int chsc_error_from_response(int response);
 
 int chsc_siosl(struct subchannel_id schid);
+
+/* Functions and definitions to query storage-class memory. */
+struct sale {
+	u64 sa;
+	u32 p:4;
+	u32 op_state:4;
+	u32 data_state:4;
+	u32 rank:4;
+	u32 r:1;
+	u32:7;
+	u32 rid:8;
+	u32:32;
+} __packed;
+
+struct chsc_scm_info {
+	struct chsc_header request;
+	u32:32;
+	u64 reqtok;
+	u32 reserved1[4];
+	struct chsc_header response;
+	u64:56;
+	u8 rq;
+	u32 mbc;
+	u64 msa;
+	u16 is;
+	u16 mmc;
+	u32 mci;
+	u64 nr_scm_ini;
+	u64 nr_scm_unini;
+	u32 reserved2[10];
+	u64 restok;
+	struct sale scmal[248];
+} __packed;
+
+int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token);
+
+#ifdef CONFIG_SCM_BUS
+int scm_update_information(void);
+int scm_process_availability_information(void);
+#else /* CONFIG_SCM_BUS */
+static inline int scm_update_information(void) { return 0; }
+static inline int scm_process_availability_information(void) { return 0; }
+#endif /* CONFIG_SCM_BUS */
+
 
 #endif

@@ -19,12 +19,16 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/types.h>
+#include <linux/platform_data/atmel.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio.h>
@@ -35,9 +39,6 @@
 
 #include <asm/io.h>
 #include <asm/unaligned.h>
-
-#include <mach/cpu.h>
-#include <mach/board.h>
 
 #include "atmel-mci-regs.h"
 
@@ -71,7 +72,7 @@ enum atmci_pdc_buf {
 };
 
 struct atmel_mci_caps {
-	bool    has_dma;
+	bool    has_dma_conf_reg;
 	bool    has_pdc;
 	bool    has_cfg_reg;
 	bool    has_cstor_reg;
@@ -81,6 +82,7 @@ struct atmel_mci_caps {
 	bool	has_bad_data_ordering;
 	bool	need_reset_after_xfer;
 	bool	need_blksz_mul_4;
+	bool	need_notbusy_for_read_ops;
 };
 
 struct atmel_mci_dma {
@@ -174,6 +176,7 @@ struct atmel_mci {
 	void __iomem		*regs;
 
 	struct scatterlist	*sg;
+	unsigned int		sg_len;
 	unsigned int		pio_offset;
 	unsigned int		*buffer;
 	unsigned int		buf_size;
@@ -375,6 +378,8 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 {
 	struct atmel_mci	*host = s->private;
 	u32			*buf;
+	int			ret = 0;
+
 
 	buf = kmalloc(ATMCI_REGS_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -385,11 +390,15 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 	 * not disabling interrupts, so IMR and SR may not be
 	 * consistent.
 	 */
+	ret = clk_prepare_enable(host->mck);
+	if (ret)
+		goto out;
+
 	spin_lock_bh(&host->lock);
-	clk_enable(host->mck);
 	memcpy_fromio(buf, host->regs, ATMCI_REGS_SIZE);
-	clk_disable(host->mck);
 	spin_unlock_bh(&host->lock);
+
+	clk_disable_unprepare(host->mck);
 
 	seq_printf(s, "MR:\t0x%08x%s%s ",
 			buf[ATMCI_MR / 4],
@@ -417,7 +426,7 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 	atmci_show_status_reg(s, "SR", buf[ATMCI_SR / 4]);
 	atmci_show_status_reg(s, "IMR", buf[ATMCI_IMR / 4]);
 
-	if (host->caps.has_dma) {
+	if (host->caps.has_dma_conf_reg) {
 		u32 val;
 
 		val = buf[ATMCI_DMA / 4];
@@ -439,9 +448,10 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 				val & ATMCI_CFG_LSYNC ? " LSYNC" : "");
 	}
 
+out:
 	kfree(buf);
 
-	return 0;
+	return ret;
 }
 
 static int atmci_regs_open(struct inode *inode, struct file *file)
@@ -498,6 +508,70 @@ static void atmci_init_debugfs(struct atmel_mci_slot *slot)
 err:
 	dev_err(&mmc->class_dev, "failed to initialize debugfs for slot\n");
 }
+
+#if defined(CONFIG_OF)
+static const struct of_device_id atmci_dt_ids[] = {
+	{ .compatible = "atmel,hsmci" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, atmci_dt_ids);
+
+static struct mci_platform_data*
+atmci_of_init(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *cnp;
+	struct mci_platform_data *pdata;
+	u32 slot_id;
+
+	if (!np) {
+		dev_err(&pdev->dev, "device node not found\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(&pdev->dev, "could not allocate memory for pdata\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	for_each_child_of_node(np, cnp) {
+		if (of_property_read_u32(cnp, "reg", &slot_id)) {
+			dev_warn(&pdev->dev, "reg property is missing for %s\n",
+				 cnp->full_name);
+			continue;
+		}
+
+		if (slot_id >= ATMCI_MAX_NR_SLOTS) {
+			dev_warn(&pdev->dev, "can't have more than %d slots\n",
+			         ATMCI_MAX_NR_SLOTS);
+			break;
+		}
+
+		if (of_property_read_u32(cnp, "bus-width",
+		                         &pdata->slot[slot_id].bus_width))
+			pdata->slot[slot_id].bus_width = 1;
+
+		pdata->slot[slot_id].detect_pin =
+			of_get_named_gpio(cnp, "cd-gpios", 0);
+
+		pdata->slot[slot_id].detect_is_active_high =
+			of_property_read_bool(cnp, "cd-inverted");
+
+		pdata->slot[slot_id].wp_pin =
+			of_get_named_gpio(cnp, "wp-gpios", 0);
+	}
+
+	return pdata;
+}
+#else /* CONFIG_OF */
+static inline struct mci_platform_data*
+atmci_of_init(struct platform_device *dev)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif
 
 static inline unsigned int atmci_get_version(struct atmel_mci *host)
 {
@@ -773,7 +847,7 @@ static void atmci_dma_complete(void *arg)
 
 	dev_vdbg(&host->pdev->dev, "DMA complete\n");
 
-	if (host->caps.has_dma)
+	if (host->caps.has_dma_conf_reg)
 		/* Disable DMA hardware handshaking on MCI */
 		atmci_writel(host, ATMCI_DMA, atmci_readl(host, ATMCI_DMA) & ~ATMCI_DMAEN);
 
@@ -824,6 +898,7 @@ static u32 atmci_prepare_data(struct atmel_mci *host, struct mmc_data *data)
 	data->error = -EINPROGRESS;
 
 	host->sg = data->sg;
+	host->sg_len = data->sg_len;
 	host->data = data;
 	host->data_chan = NULL;
 
@@ -960,7 +1035,9 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 		maxburst = atmci_convert_chksize(host->dma_conf.dst_maxburst);
 	}
 
-	atmci_writel(host, ATMCI_DMA, ATMCI_DMA_CHKSIZE(maxburst) | ATMCI_DMAEN);
+	if (host->caps.has_dma_conf_reg)
+		atmci_writel(host, ATMCI_DMA, ATMCI_DMA_CHKSIZE(maxburst) |
+			ATMCI_DMAEN);
 
 	sglen = dma_map_sg(chan->device->dev, data->sg,
 			data->sg_len, direction);
@@ -1021,7 +1098,7 @@ static void atmci_stop_transfer(struct atmel_mci *host)
 }
 
 /*
- * Stop data transfer because error(s) occured.
+ * Stop data transfer because error(s) occurred.
  */
 static void atmci_stop_transfer_pdc(struct atmel_mci *host)
 {
@@ -1192,6 +1269,7 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct atmel_mci_slot	*slot = mmc_priv(mmc);
 	struct atmel_mci	*host = slot->host;
 	unsigned int		i;
+	bool			unprepare_clk;
 
 	slot->sdc_reg &= ~ATMCI_SDCBUS_MASK;
 	switch (ios->bus_width) {
@@ -1207,9 +1285,13 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		unsigned int clock_min = ~0U;
 		u32 clkdiv;
 
+		clk_prepare(host->mck);
+		unprepare_clk = true;
+
 		spin_lock_bh(&host->lock);
 		if (!host->mode_reg) {
 			clk_enable(host->mck);
+			unprepare_clk = false;
 			atmci_writel(host, ATMCI_CR, ATMCI_CR_SWRST);
 			atmci_writel(host, ATMCI_CR, ATMCI_CR_MCIEN);
 			if (host->caps.has_cfg_reg)
@@ -1277,6 +1359,8 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	} else {
 		bool any_slot_active = false;
 
+		unprepare_clk = false;
+
 		spin_lock_bh(&host->lock);
 		slot->clock = 0;
 		for (i = 0; i < ATMCI_MAX_NR_SLOTS; i++) {
@@ -1290,11 +1374,15 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			if (host->mode_reg) {
 				atmci_readl(host, ATMCI_MR);
 				clk_disable(host->mck);
+				unprepare_clk = true;
 			}
 			host->mode_reg = 0;
 		}
 		spin_unlock_bh(&host->lock);
 	}
+
+	if (unprepare_clk)
+		clk_unprepare(host->mck);
 
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
@@ -1625,7 +1713,8 @@ static void atmci_tasklet_func(unsigned long priv)
 				__func__);
 			atmci_set_completed(host, EVENT_XFER_COMPLETE);
 
-			if (host->data->flags & MMC_DATA_WRITE) {
+			if (host->caps.need_notbusy_for_read_ops ||
+			   (host->data->flags & MMC_DATA_WRITE)) {
 				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
 				state = STATE_WAITING_NOTBUSY;
 			} else if (host->mrq->stop) {
@@ -1755,7 +1844,8 @@ static void atmci_read_data_pio(struct atmel_mci *host)
 			if (offset == sg->length) {
 				flush_dcache_page(sg_page(sg));
 				host->sg = sg = sg_next(sg);
-				if (!sg)
+				host->sg_len--;
+				if (!sg || !host->sg_len)
 					goto done;
 
 				offset = 0;
@@ -1768,7 +1858,8 @@ static void atmci_read_data_pio(struct atmel_mci *host)
 
 			flush_dcache_page(sg_page(sg));
 			host->sg = sg = sg_next(sg);
-			if (!sg)
+			host->sg_len--;
+			if (!sg || !host->sg_len)
 				goto done;
 
 			offset = 4 - remaining;
@@ -1819,7 +1910,8 @@ static void atmci_write_data_pio(struct atmel_mci *host)
 			nbytes += 4;
 			if (offset == sg->length) {
 				host->sg = sg = sg_next(sg);
-				if (!sg)
+				host->sg_len--;
+				if (!sg || !host->sg_len)
 					goto done;
 
 				offset = 0;
@@ -1833,7 +1925,8 @@ static void atmci_write_data_pio(struct atmel_mci *host)
 			nbytes += remaining;
 
 			host->sg = sg = sg_next(sg);
-			if (!sg) {
+			host->sg_len--;
+			if (!sg || !host->sg_len) {
 				atmci_writel(host, ATMCI_TDR, value);
 				goto done;
 			}
@@ -2044,6 +2137,13 @@ static int __init atmci_init_slot(struct atmel_mci *host,
 	slot->sdc_reg = sdc_reg;
 	slot->sdio_irq = sdio_irq;
 
+	dev_dbg(&mmc->class_dev,
+	        "slot[%u]: bus_width=%u, detect_pin=%d, "
+		"detect_is_active_high=%s, wp_pin=%d\n",
+		id, slot_data->bus_width, slot_data->detect_pin,
+		slot_data->detect_is_active_high ? "true" : "false",
+		slot_data->wp_pin);
+
 	mmc->ops = &atmci_ops;
 	mmc->f_min = DIV_ROUND_UP(host->bus_hz, 512);
 	mmc->f_max = host->bus_hz / 2;
@@ -2146,10 +2246,15 @@ static void __exit atmci_cleanup_slot(struct atmel_mci_slot *slot,
 	mmc_free_host(slot->mmc);
 }
 
-static bool atmci_filter(struct dma_chan *chan, void *slave)
+static bool atmci_filter(struct dma_chan *chan, void *pdata)
 {
-	struct mci_dma_data	*sl = slave;
+	struct mci_platform_data *sl_pdata = pdata;
+	struct mci_dma_data *sl;
 
+	if (!sl_pdata)
+		return false;
+
+	sl = sl_pdata->dma_slave;
 	if (sl && find_slave_dev(sl) == chan->device->dev) {
 		chan->private = slave_data_ptr(sl);
 		return true;
@@ -2161,21 +2266,18 @@ static bool atmci_filter(struct dma_chan *chan, void *slave)
 static bool atmci_configure_dma(struct atmel_mci *host)
 {
 	struct mci_platform_data	*pdata;
+	dma_cap_mask_t mask;
 
 	if (host == NULL)
 		return false;
 
 	pdata = host->pdev->dev.platform_data;
 
-	if (pdata && find_slave_dev(pdata->dma_slave)) {
-		dma_cap_mask_t mask;
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
 
-		/* Try to grab a DMA channel */
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-		host->dma.chan =
-			dma_request_channel(mask, atmci_filter, pdata->dma_slave);
-	}
+	host->dma.chan = dma_request_slave_channel_compat(mask, atmci_filter, pdata,
+							  &host->pdev->dev, "rxtx");
 	if (!host->dma.chan) {
 		dev_warn(&host->pdev->dev, "no DMA channel available\n");
 		return false;
@@ -2208,8 +2310,8 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	dev_info(&host->pdev->dev,
 			"version: 0x%x\n", version);
 
-	host->caps.has_dma = 0;
-	host->caps.has_pdc = 1;
+	host->caps.has_dma_conf_reg = 0;
+	host->caps.has_pdc = ATMCI_PDC_CONNECTED;
 	host->caps.has_cfg_reg = 0;
 	host->caps.has_cstor_reg = 0;
 	host->caps.has_highspeed = 0;
@@ -2218,6 +2320,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	host->caps.has_bad_data_ordering = 1;
 	host->caps.need_reset_after_xfer = 1;
 	host->caps.need_blksz_mul_4 = 1;
+	host->caps.need_notbusy_for_read_ops = 0;
 
 	/* keep only major version number */
 	switch (version & 0xf00) {
@@ -2225,12 +2328,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 		host->caps.has_odd_clk_div = 1;
 	case 0x400:
 	case 0x300:
-#ifdef CONFIG_AT_HDMAC
-		host->caps.has_dma = 1;
-#else
-		dev_info(&host->pdev->dev,
-			"has dma capability but dma engine is not selected, then use pio\n");
-#endif
+		host->caps.has_dma_conf_reg = 1;
 		host->caps.has_pdc = 0;
 		host->caps.has_cfg_reg = 1;
 		host->caps.has_cstor_reg = 1;
@@ -2238,6 +2336,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	case 0x200:
 		host->caps.has_rwproof = 1;
 		host->caps.need_blksz_mul_4 = 0;
+		host->caps.need_notbusy_for_read_ops = 1;
 	case 0x100:
 		host->caps.has_bad_data_ordering = 0;
 		host->caps.need_reset_after_xfer = 0;
@@ -2264,8 +2363,14 @@ static int __init atmci_probe(struct platform_device *pdev)
 	if (!regs)
 		return -ENXIO;
 	pdata = pdev->dev.platform_data;
-	if (!pdata)
-		return -ENXIO;
+	if (!pdata) {
+		pdata = atmci_of_init(pdev);
+		if (IS_ERR(pdata)) {
+			dev_err(&pdev->dev, "platform data not available\n");
+			return PTR_ERR(pdata);
+		}
+	}
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -2289,10 +2394,12 @@ static int __init atmci_probe(struct platform_device *pdev)
 	if (!host->regs)
 		goto err_ioremap;
 
-	clk_enable(host->mck);
+	ret = clk_prepare_enable(host->mck);
+	if (ret)
+		goto err_request_irq;
 	atmci_writel(host, ATMCI_CR, ATMCI_CR_SWRST);
 	host->bus_hz = clk_get_rate(host->mck);
-	clk_disable(host->mck);
+	clk_disable_unprepare(host->mck);
 
 	host->mapbase = regs->start;
 
@@ -2304,7 +2411,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 
 	/* Get MCI capabilities and set operations according to it */
 	atmci_get_cap(host);
-	if (host->caps.has_dma && atmci_configure_dma(host)) {
+	if (atmci_configure_dma(host)) {
 		host->prepare_data = &atmci_prepare_data_dma;
 		host->submit_data = &atmci_submit_data_dma;
 		host->stop_transfer = &atmci_stop_transfer_dma;
@@ -2386,8 +2493,6 @@ static int __exit atmci_remove(struct platform_device *pdev)
 	struct atmel_mci	*host = platform_get_drvdata(pdev);
 	unsigned int		i;
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (host->buffer)
 		dma_free_coherent(&pdev->dev, host->buf_size,
 		                  host->buffer, host->buf_phys_addr);
@@ -2397,16 +2502,14 @@ static int __exit atmci_remove(struct platform_device *pdev)
 			atmci_cleanup_slot(host->slot[i], i);
 	}
 
-	clk_enable(host->mck);
+	clk_prepare_enable(host->mck);
 	atmci_writel(host, ATMCI_IDR, ~0UL);
 	atmci_writel(host, ATMCI_CR, ATMCI_CR_MCIDIS);
 	atmci_readl(host, ATMCI_SR);
-	clk_disable(host->mck);
+	clk_disable_unprepare(host->mck);
 
-#ifdef CONFIG_MMC_ATMELMCI_DMA
 	if (host->dma.chan)
 		dma_release_channel(host->dma.chan);
-#endif
 
 	free_irq(platform_get_irq(pdev, 0), host);
 	iounmap(host->regs);
@@ -2417,7 +2520,7 @@ static int __exit atmci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int atmci_suspend(struct device *dev)
 {
 	struct atmel_mci *host = dev_get_drvdata(dev);
@@ -2472,17 +2575,16 @@ static int atmci_resume(struct device *dev)
 
 	return ret;
 }
-static SIMPLE_DEV_PM_OPS(atmci_pm, atmci_suspend, atmci_resume);
-#define ATMCI_PM_OPS	(&atmci_pm)
-#else
-#define ATMCI_PM_OPS	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(atmci_pm, atmci_suspend, atmci_resume);
 
 static struct platform_driver atmci_driver = {
 	.remove		= __exit_p(atmci_remove),
 	.driver		= {
 		.name		= "atmel_mci",
-		.pm		= ATMCI_PM_OPS,
+		.pm		= &atmci_pm,
+		.of_match_table	= of_match_ptr(atmci_dt_ids),
 	},
 };
 

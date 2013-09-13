@@ -25,7 +25,7 @@
 #define DRV_MODULE_VERSION	"1.0"
 #define DRV_MODULE_RELDATE	"June 25, 2007"
 
-static char version[] __devinitdata =
+static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_DESCRIPTION("Sun LDOM virtual disk client driver");
@@ -461,7 +461,7 @@ static int generic_request(struct vdc_port *port, u8 op, void *buf, int len)
 	int op_len, err;
 	void *req_buf;
 
-	if (!(((u64)1 << ((u64)op - 1)) & port->operations))
+	if (!(((u64)1 << (u64)op) & port->operations))
 		return -EOPNOTSUPP;
 
 	switch (op) {
@@ -592,7 +592,7 @@ static int generic_request(struct vdc_port *port, u8 op, void *buf, int len)
 	return err;
 }
 
-static int __devinit vdc_alloc_tx_ring(struct vdc_port *port)
+static int vdc_alloc_tx_ring(struct vdc_port *port)
 {
 	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 	unsigned long len, entry_size;
@@ -725,7 +725,7 @@ static struct vio_driver_ops vdc_vio_ops = {
 	.handshake_complete	= vdc_handshake_complete,
 };
 
-static void __devinit print_version(void)
+static void print_version(void)
 {
 	static int version_printed;
 
@@ -733,8 +733,7 @@ static void __devinit print_version(void)
 		printk(KERN_INFO "%s", version);
 }
 
-static int __devinit vdc_port_probe(struct vio_dev *vdev,
-				    const struct vio_device_id *id)
+static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 {
 	struct mdesc_handle *hp;
 	struct vdc_port *port;

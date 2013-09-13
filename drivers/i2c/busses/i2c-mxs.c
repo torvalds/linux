@@ -1,13 +1,11 @@
 /*
  * Freescale MXS I2C bus driver
  *
- * Copyright (C) 2011 Wolfram Sang, Pengutronix e.K.
+ * Copyright (C) 2011-2012 Wolfram Sang, Pengutronix e.K.
  *
  * based on a (non-working) driver which was:
  *
  * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * TODO: add dma-support if platform-support for it is available
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,11 +24,11 @@
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
 #include <linux/io.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_i2c.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 
 #define DRIVER_NAME "mxs-i2c"
 
@@ -38,6 +36,7 @@
 #define MXS_I2C_CTRL0_SET	(0x04)
 
 #define MXS_I2C_CTRL0_SFTRST			0x80000000
+#define MXS_I2C_CTRL0_RUN			0x20000000
 #define MXS_I2C_CTRL0_SEND_NAK_ON_LAST		0x02000000
 #define MXS_I2C_CTRL0_RETAIN_CLOCK		0x00200000
 #define MXS_I2C_CTRL0_POST_SEND_STOP		0x00100000
@@ -54,6 +53,7 @@
 #define MXS_I2C_CTRL1_SET	(0x44)
 #define MXS_I2C_CTRL1_CLR	(0x48)
 
+#define MXS_I2C_CTRL1_CLR_GOT_A_NAK		0x10000000
 #define MXS_I2C_CTRL1_BUS_FREE_IRQ		0x80
 #define MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ	0x40
 #define MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ		0x20
@@ -63,29 +63,23 @@
 #define MXS_I2C_CTRL1_SLAVE_STOP_IRQ		0x02
 #define MXS_I2C_CTRL1_SLAVE_IRQ			0x01
 
+#define MXS_I2C_STAT		(0x50)
+#define MXS_I2C_STAT_BUS_BUSY			0x00000800
+#define MXS_I2C_STAT_CLK_GEN_BUSY		0x00000400
+
+#define MXS_I2C_DATA		(0xa0)
+
+#define MXS_I2C_DEBUG0		(0xb0)
+#define MXS_I2C_DEBUG0_CLR	(0xb8)
+
+#define MXS_I2C_DEBUG0_DMAREQ	0x80000000
+
 #define MXS_I2C_IRQ_MASK	(MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ | \
 				 MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ | \
 				 MXS_I2C_CTRL1_EARLY_TERM_IRQ | \
 				 MXS_I2C_CTRL1_MASTER_LOSS_IRQ | \
 				 MXS_I2C_CTRL1_SLAVE_STOP_IRQ | \
 				 MXS_I2C_CTRL1_SLAVE_IRQ)
-
-#define MXS_I2C_QUEUECTRL	(0x60)
-#define MXS_I2C_QUEUECTRL_SET	(0x64)
-#define MXS_I2C_QUEUECTRL_CLR	(0x68)
-
-#define MXS_I2C_QUEUECTRL_QUEUE_RUN		0x20
-#define MXS_I2C_QUEUECTRL_PIO_QUEUE_MODE	0x04
-
-#define MXS_I2C_QUEUESTAT	(0x70)
-#define MXS_I2C_QUEUESTAT_RD_QUEUE_EMPTY        0x00002000
-#define MXS_I2C_QUEUESTAT_WRITE_QUEUE_CNT_MASK	0x0000001F
-
-#define MXS_I2C_QUEUECMD	(0x80)
-
-#define MXS_I2C_QUEUEDATA	(0x90)
-
-#define MXS_I2C_DATA		(0xa0)
 
 
 #define MXS_CMD_I2C_SELECT	(MXS_I2C_CTRL0_RETAIN_CLOCK |	\
@@ -101,35 +95,6 @@
 #define MXS_CMD_I2C_READ	(MXS_I2C_CTRL0_SEND_NAK_ON_LAST | \
 				 MXS_I2C_CTRL0_MASTER_MODE)
 
-struct mxs_i2c_speed_config {
-	uint32_t	timing0;
-	uint32_t	timing1;
-	uint32_t	timing2;
-};
-
-/*
- * Timing values for the default 24MHz clock supplied into the i2c block.
- *
- * The bus can operate at 95kHz or at 400kHz with the following timing
- * register configurations. The 100kHz mode isn't present because it's
- * values are not stated in the i.MX233/i.MX28 datasheet. The 95kHz mode
- * shall be close enough replacement. Therefore when the bus is configured
- * for 100kHz operation, 95kHz timing settings are actually loaded.
- *
- * For details, see i.MX233 [25.4.2 - 25.4.4] and i.MX28 [27.5.2 - 27.5.4].
- */
-static const struct mxs_i2c_speed_config mxs_i2c_95kHz_config = {
-	.timing0	= 0x00780030,
-	.timing1	= 0x00800030,
-	.timing2	= 0x00300030,
-};
-
-static const struct mxs_i2c_speed_config mxs_i2c_400kHz_config = {
-	.timing0	= 0x000f0007,
-	.timing1	= 0x001f000f,
-	.timing2	= 0x00300030,
-};
-
 /**
  * struct mxs_i2c_dev - per device, private MXS-I2C data
  *
@@ -143,107 +108,366 @@ struct mxs_i2c_dev {
 	struct device *dev;
 	void __iomem *regs;
 	struct completion cmd_complete;
-	u32 cmd_err;
+	int cmd_err;
 	struct i2c_adapter adapter;
-	const struct mxs_i2c_speed_config *speed;
+
+	uint32_t timing0;
+	uint32_t timing1;
+	uint32_t timing2;
+
+	/* DMA support components */
+	struct dma_chan			*dmach;
+	uint32_t			pio_data[2];
+	uint32_t			addr_data;
+	struct scatterlist		sg_io[2];
+	bool				dma_read;
 };
 
-static void mxs_i2c_reset(struct mxs_i2c_dev *i2c)
+static int mxs_i2c_reset(struct mxs_i2c_dev *i2c)
 {
-	stmp_reset_block(i2c->regs);
-
-	writel(i2c->speed->timing0, i2c->regs + MXS_I2C_TIMING0);
-	writel(i2c->speed->timing1, i2c->regs + MXS_I2C_TIMING1);
-	writel(i2c->speed->timing2, i2c->regs + MXS_I2C_TIMING2);
-
-	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
-	writel(MXS_I2C_QUEUECTRL_PIO_QUEUE_MODE,
-			i2c->regs + MXS_I2C_QUEUECTRL_SET);
-}
-
-static void mxs_i2c_pioq_setup_read(struct mxs_i2c_dev *i2c, u8 addr, int len,
-					int flags)
-{
-	u32 data;
-
-	writel(MXS_CMD_I2C_SELECT, i2c->regs + MXS_I2C_QUEUECMD);
-
-	data = (addr << 1) | I2C_SMBUS_READ;
-	writel(data, i2c->regs + MXS_I2C_DATA);
-
-	data = MXS_CMD_I2C_READ | MXS_I2C_CTRL0_XFER_COUNT(len) | flags;
-	writel(data, i2c->regs + MXS_I2C_QUEUECMD);
-}
-
-static void mxs_i2c_pioq_setup_write(struct mxs_i2c_dev *i2c,
-				    u8 addr, u8 *buf, int len, int flags)
-{
-	u32 data;
-	int i, shifts_left;
-
-	data = MXS_CMD_I2C_WRITE | MXS_I2C_CTRL0_XFER_COUNT(len + 1) | flags;
-	writel(data, i2c->regs + MXS_I2C_QUEUECMD);
+	int ret = stmp_reset_block(i2c->regs);
+	if (ret)
+		return ret;
 
 	/*
-	 * We have to copy the slave address (u8) and buffer (arbitrary number
-	 * of u8) into the data register (u32). To achieve that, the u8 are put
-	 * into the MSBs of 'data' which is then shifted for the next u8. When
-	 * appropriate, 'data' is written to MXS_I2C_DATA. So, the first u32
-	 * looks like this:
+	 * Configure timing for the I2C block. The I2C TIMING2 register has to
+	 * be programmed with this particular magic number. The rest is derived
+	 * from the XTAL speed and requested I2C speed.
 	 *
-	 *  3          2          1          0
-	 * 10987654|32109876|54321098|76543210
-	 * --------+--------+--------+--------
-	 * buffer+2|buffer+1|buffer+0|slave_addr
+	 * For details, see i.MX233 [25.4.2 - 25.4.4] and i.MX28 [27.5.2 - 27.5.4].
 	 */
+	writel(i2c->timing0, i2c->regs + MXS_I2C_TIMING0);
+	writel(i2c->timing1, i2c->regs + MXS_I2C_TIMING1);
+	writel(i2c->timing2, i2c->regs + MXS_I2C_TIMING2);
 
-	data = ((addr << 1) | I2C_SMBUS_WRITE) << 24;
+	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
 
-	for (i = 0; i < len; i++) {
-		data >>= 8;
-		data |= buf[i] << 24;
-		if ((i & 3) == 2)
-			writel(data, i2c->regs + MXS_I2C_DATA);
-	}
-
-	/* Write out the remaining bytes if any */
-	shifts_left = 24 - (i & 3) * 8;
-	if (shifts_left)
-		writel(data >> shifts_left, i2c->regs + MXS_I2C_DATA);
+	return 0;
 }
 
-/*
- * TODO: should be replaceable with a waitqueue and RD_QUEUE_IRQ (setting the
- * rd_threshold to 1). Couldn't get this to work, though.
- */
-static int mxs_i2c_wait_for_data(struct mxs_i2c_dev *i2c)
+static void mxs_i2c_dma_finish(struct mxs_i2c_dev *i2c)
+{
+	if (i2c->dma_read) {
+		dma_unmap_sg(i2c->dev, &i2c->sg_io[0], 1, DMA_TO_DEVICE);
+		dma_unmap_sg(i2c->dev, &i2c->sg_io[1], 1, DMA_FROM_DEVICE);
+	} else {
+		dma_unmap_sg(i2c->dev, i2c->sg_io, 2, DMA_TO_DEVICE);
+	}
+}
+
+static void mxs_i2c_dma_irq_callback(void *param)
+{
+	struct mxs_i2c_dev *i2c = param;
+
+	complete(&i2c->cmd_complete);
+	mxs_i2c_dma_finish(i2c);
+}
+
+static int mxs_i2c_dma_setup_xfer(struct i2c_adapter *adap,
+			struct i2c_msg *msg, uint32_t flags)
+{
+	struct dma_async_tx_descriptor *desc;
+	struct mxs_i2c_dev *i2c = i2c_get_adapdata(adap);
+
+	if (msg->flags & I2C_M_RD) {
+		i2c->dma_read = 1;
+		i2c->addr_data = (msg->addr << 1) | I2C_SMBUS_READ;
+
+		/*
+		 * SELECT command.
+		 */
+
+		/* Queue the PIO register write transfer. */
+		i2c->pio_data[0] = MXS_CMD_I2C_SELECT;
+		desc = dmaengine_prep_slave_sg(i2c->dmach,
+					(struct scatterlist *)&i2c->pio_data[0],
+					1, DMA_TRANS_NONE, 0);
+		if (!desc) {
+			dev_err(i2c->dev,
+				"Failed to get PIO reg. write descriptor.\n");
+			goto select_init_pio_fail;
+		}
+
+		/* Queue the DMA data transfer. */
+		sg_init_one(&i2c->sg_io[0], &i2c->addr_data, 1);
+		dma_map_sg(i2c->dev, &i2c->sg_io[0], 1, DMA_TO_DEVICE);
+		desc = dmaengine_prep_slave_sg(i2c->dmach, &i2c->sg_io[0], 1,
+					DMA_MEM_TO_DEV,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_err(i2c->dev,
+				"Failed to get DMA data write descriptor.\n");
+			goto select_init_dma_fail;
+		}
+
+		/*
+		 * READ command.
+		 */
+
+		/* Queue the PIO register write transfer. */
+		i2c->pio_data[1] = flags | MXS_CMD_I2C_READ |
+				MXS_I2C_CTRL0_XFER_COUNT(msg->len);
+		desc = dmaengine_prep_slave_sg(i2c->dmach,
+					(struct scatterlist *)&i2c->pio_data[1],
+					1, DMA_TRANS_NONE, DMA_PREP_INTERRUPT);
+		if (!desc) {
+			dev_err(i2c->dev,
+				"Failed to get PIO reg. write descriptor.\n");
+			goto select_init_dma_fail;
+		}
+
+		/* Queue the DMA data transfer. */
+		sg_init_one(&i2c->sg_io[1], msg->buf, msg->len);
+		dma_map_sg(i2c->dev, &i2c->sg_io[1], 1, DMA_FROM_DEVICE);
+		desc = dmaengine_prep_slave_sg(i2c->dmach, &i2c->sg_io[1], 1,
+					DMA_DEV_TO_MEM,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_err(i2c->dev,
+				"Failed to get DMA data write descriptor.\n");
+			goto read_init_dma_fail;
+		}
+	} else {
+		i2c->dma_read = 0;
+		i2c->addr_data = (msg->addr << 1) | I2C_SMBUS_WRITE;
+
+		/*
+		 * WRITE command.
+		 */
+
+		/* Queue the PIO register write transfer. */
+		i2c->pio_data[0] = flags | MXS_CMD_I2C_WRITE |
+				MXS_I2C_CTRL0_XFER_COUNT(msg->len + 1);
+		desc = dmaengine_prep_slave_sg(i2c->dmach,
+					(struct scatterlist *)&i2c->pio_data[0],
+					1, DMA_TRANS_NONE, 0);
+		if (!desc) {
+			dev_err(i2c->dev,
+				"Failed to get PIO reg. write descriptor.\n");
+			goto write_init_pio_fail;
+		}
+
+		/* Queue the DMA data transfer. */
+		sg_init_table(i2c->sg_io, 2);
+		sg_set_buf(&i2c->sg_io[0], &i2c->addr_data, 1);
+		sg_set_buf(&i2c->sg_io[1], msg->buf, msg->len);
+		dma_map_sg(i2c->dev, i2c->sg_io, 2, DMA_TO_DEVICE);
+		desc = dmaengine_prep_slave_sg(i2c->dmach, i2c->sg_io, 2,
+					DMA_MEM_TO_DEV,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_err(i2c->dev,
+				"Failed to get DMA data write descriptor.\n");
+			goto write_init_dma_fail;
+		}
+	}
+
+	/*
+	 * The last descriptor must have this callback,
+	 * to finish the DMA transaction.
+	 */
+	desc->callback = mxs_i2c_dma_irq_callback;
+	desc->callback_param = i2c;
+
+	/* Start the transfer. */
+	dmaengine_submit(desc);
+	dma_async_issue_pending(i2c->dmach);
+	return 0;
+
+/* Read failpath. */
+read_init_dma_fail:
+	dma_unmap_sg(i2c->dev, &i2c->sg_io[1], 1, DMA_FROM_DEVICE);
+select_init_dma_fail:
+	dma_unmap_sg(i2c->dev, &i2c->sg_io[0], 1, DMA_TO_DEVICE);
+select_init_pio_fail:
+	dmaengine_terminate_all(i2c->dmach);
+	return -EINVAL;
+
+/* Write failpath. */
+write_init_dma_fail:
+	dma_unmap_sg(i2c->dev, i2c->sg_io, 2, DMA_TO_DEVICE);
+write_init_pio_fail:
+	dmaengine_terminate_all(i2c->dmach);
+	return -EINVAL;
+}
+
+static int mxs_i2c_pio_wait_dmareq(struct mxs_i2c_dev *i2c)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
-	while (readl(i2c->regs + MXS_I2C_QUEUESTAT)
-			& MXS_I2C_QUEUESTAT_RD_QUEUE_EMPTY) {
-			if (time_after(jiffies, timeout))
-				return -ETIMEDOUT;
-			cond_resched();
+	while (!(readl(i2c->regs + MXS_I2C_DEBUG0) &
+		MXS_I2C_DEBUG0_DMAREQ)) {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+		cond_resched();
 	}
 
 	return 0;
 }
 
-static int mxs_i2c_finish_read(struct mxs_i2c_dev *i2c, u8 *buf, int len)
+static int mxs_i2c_pio_wait_cplt(struct mxs_i2c_dev *i2c, int last)
 {
-	u32 uninitialized_var(data);
-	int i;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
-	for (i = 0; i < len; i++) {
-		if ((i & 3) == 0) {
-			if (mxs_i2c_wait_for_data(i2c))
-				return -ETIMEDOUT;
-			data = readl(i2c->regs + MXS_I2C_QUEUEDATA);
-		}
-		buf[i] = data & 0xff;
-		data >>= 8;
+	/*
+	 * We do not use interrupts in the PIO mode. Due to the
+	 * maximum transfer length being 8 bytes in PIO mode, the
+	 * overhead of interrupt would be too large and this would
+	 * neglect the gain from using the PIO mode.
+	 */
+
+	while (!(readl(i2c->regs + MXS_I2C_CTRL1) &
+		MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ)) {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+		cond_resched();
 	}
+
+	writel(MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ,
+		i2c->regs + MXS_I2C_CTRL1_CLR);
+
+	/*
+	 * When ending a transfer with a stop, we have to wait for the bus to
+	 * go idle before we report the transfer as completed. Otherwise the
+	 * start of the next transfer may race with the end of the current one.
+	 */
+	while (last && (readl(i2c->regs + MXS_I2C_STAT) &
+			(MXS_I2C_STAT_BUS_BUSY | MXS_I2C_STAT_CLK_GEN_BUSY))) {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+		cond_resched();
+	}
+
+	return 0;
+}
+
+static int mxs_i2c_pio_check_error_state(struct mxs_i2c_dev *i2c)
+{
+	u32 state;
+
+	state = readl(i2c->regs + MXS_I2C_CTRL1_CLR) & MXS_I2C_IRQ_MASK;
+
+	if (state & MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ)
+		i2c->cmd_err = -ENXIO;
+	else if (state & (MXS_I2C_CTRL1_EARLY_TERM_IRQ |
+			  MXS_I2C_CTRL1_MASTER_LOSS_IRQ |
+			  MXS_I2C_CTRL1_SLAVE_STOP_IRQ |
+			  MXS_I2C_CTRL1_SLAVE_IRQ))
+		i2c->cmd_err = -EIO;
+
+	return i2c->cmd_err;
+}
+
+static void mxs_i2c_pio_trigger_cmd(struct mxs_i2c_dev *i2c, u32 cmd)
+{
+	u32 reg;
+
+	writel(cmd, i2c->regs + MXS_I2C_CTRL0);
+
+	/* readback makes sure the write is latched into hardware */
+	reg = readl(i2c->regs + MXS_I2C_CTRL0);
+	reg |= MXS_I2C_CTRL0_RUN;
+	writel(reg, i2c->regs + MXS_I2C_CTRL0);
+}
+
+static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
+			struct i2c_msg *msg, uint32_t flags)
+{
+	struct mxs_i2c_dev *i2c = i2c_get_adapdata(adap);
+	uint32_t addr_data = msg->addr << 1;
+	uint32_t data = 0;
+	int i, shifts_left, ret;
+
+	/* Mute IRQs coming from this block. */
+	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_CLR);
+
+	if (msg->flags & I2C_M_RD) {
+		addr_data |= I2C_SMBUS_READ;
+
+		/* SELECT command. */
+		mxs_i2c_pio_trigger_cmd(i2c, MXS_CMD_I2C_SELECT);
+
+		ret = mxs_i2c_pio_wait_dmareq(i2c);
+		if (ret)
+			return ret;
+
+		writel(addr_data, i2c->regs + MXS_I2C_DATA);
+		writel(MXS_I2C_DEBUG0_DMAREQ, i2c->regs + MXS_I2C_DEBUG0_CLR);
+
+		ret = mxs_i2c_pio_wait_cplt(i2c, 0);
+		if (ret)
+			return ret;
+
+		if (mxs_i2c_pio_check_error_state(i2c))
+			goto cleanup;
+
+		/* READ command. */
+		mxs_i2c_pio_trigger_cmd(i2c,
+					MXS_CMD_I2C_READ | flags |
+					MXS_I2C_CTRL0_XFER_COUNT(msg->len));
+
+		for (i = 0; i < msg->len; i++) {
+			if ((i & 3) == 0) {
+				ret = mxs_i2c_pio_wait_dmareq(i2c);
+				if (ret)
+					return ret;
+				data = readl(i2c->regs + MXS_I2C_DATA);
+				writel(MXS_I2C_DEBUG0_DMAREQ,
+				       i2c->regs + MXS_I2C_DEBUG0_CLR);
+			}
+			msg->buf[i] = data & 0xff;
+			data >>= 8;
+		}
+	} else {
+		addr_data |= I2C_SMBUS_WRITE;
+
+		/* WRITE command. */
+		mxs_i2c_pio_trigger_cmd(i2c,
+					MXS_CMD_I2C_WRITE | flags |
+					MXS_I2C_CTRL0_XFER_COUNT(msg->len + 1));
+
+		/*
+		 * The LSB of data buffer is the first byte blasted across
+		 * the bus. Higher order bytes follow. Thus the following
+		 * filling schematic.
+		 */
+		data = addr_data << 24;
+		for (i = 0; i < msg->len; i++) {
+			data >>= 8;
+			data |= (msg->buf[i] << 24);
+			if ((i & 3) == 2) {
+				ret = mxs_i2c_pio_wait_dmareq(i2c);
+				if (ret)
+					return ret;
+				writel(data, i2c->regs + MXS_I2C_DATA);
+				writel(MXS_I2C_DEBUG0_DMAREQ,
+				       i2c->regs + MXS_I2C_DEBUG0_CLR);
+			}
+		}
+
+		shifts_left = 24 - (i & 3) * 8;
+		if (shifts_left) {
+			data >>= shifts_left;
+			ret = mxs_i2c_pio_wait_dmareq(i2c);
+			if (ret)
+				return ret;
+			writel(data, i2c->regs + MXS_I2C_DATA);
+			writel(MXS_I2C_DEBUG0_DMAREQ,
+			       i2c->regs + MXS_I2C_DEBUG0_CLR);
+		}
+	}
+
+	ret = mxs_i2c_pio_wait_cplt(i2c, flags & MXS_I2C_CTRL0_POST_SEND_STOP);
+	if (ret)
+		return ret;
+
+	/* make sure we capture any occurred error into cmd_err */
+	mxs_i2c_pio_check_error_state(i2c);
+
+cleanup:
+	/* Clear any dangling IRQs and re-enable interrupts. */
+	writel(MXS_I2C_IRQ_MASK, i2c->regs + MXS_I2C_CTRL1_CLR);
+	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
 
 	return 0;
 }
@@ -255,8 +479,10 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 				int stop)
 {
 	struct mxs_i2c_dev *i2c = i2c_get_adapdata(adap);
-	int ret;
+	int ret, err;
 	int flags;
+
+	flags = stop ? MXS_I2C_CTRL0_POST_SEND_STOP : 0;
 
 	dev_dbg(i2c->dev, "addr: 0x%04x, len: %d, flags: 0x%x, stop: %d\n",
 		msg->addr, msg->len, msg->flags, stop);
@@ -264,44 +490,54 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	if (msg->len == 0)
 		return -EINVAL;
 
-	init_completion(&i2c->cmd_complete);
+	/*
+	 * The current boundary to select between PIO/DMA transfer method
+	 * is set to 8 bytes, transfers shorter than 8 bytes are transfered
+	 * using PIO mode while longer transfers use DMA. The 8 byte border is
+	 * based on this empirical measurement and a lot of previous frobbing.
+	 */
 	i2c->cmd_err = 0;
-
-	flags = stop ? MXS_I2C_CTRL0_POST_SEND_STOP : 0;
-
-	if (msg->flags & I2C_M_RD)
-		mxs_i2c_pioq_setup_read(i2c, msg->addr, msg->len, flags);
-	else
-		mxs_i2c_pioq_setup_write(i2c, msg->addr, msg->buf, msg->len,
-					flags);
-
-	writel(MXS_I2C_QUEUECTRL_QUEUE_RUN,
-			i2c->regs + MXS_I2C_QUEUECTRL_SET);
-
-	ret = wait_for_completion_timeout(&i2c->cmd_complete,
-						msecs_to_jiffies(1000));
-	if (ret == 0)
-		goto timeout;
-
-	if ((!i2c->cmd_err) && (msg->flags & I2C_M_RD)) {
-		ret = mxs_i2c_finish_read(i2c, msg->buf, msg->len);
+	if (0) {	/* disable PIO mode until a proper fix is made */
+		ret = mxs_i2c_pio_setup_xfer(adap, msg, flags);
+		if (ret) {
+			err = mxs_i2c_reset(i2c);
+			if (err)
+				return err;
+		}
+	} else {
+		INIT_COMPLETION(i2c->cmd_complete);
+		ret = mxs_i2c_dma_setup_xfer(adap, msg, flags);
 		if (ret)
+			return ret;
+
+		ret = wait_for_completion_timeout(&i2c->cmd_complete,
+						msecs_to_jiffies(1000));
+		if (ret == 0)
 			goto timeout;
 	}
 
-	if (i2c->cmd_err == -ENXIO)
-		mxs_i2c_reset(i2c);
-	else
-		writel(MXS_I2C_QUEUECTRL_QUEUE_RUN,
-				i2c->regs + MXS_I2C_QUEUECTRL_CLR);
+	if (i2c->cmd_err == -ENXIO) {
+		/*
+		 * If the transfer fails with a NAK from the slave the
+		 * controller halts until it gets told to return to idle state.
+		 */
+		writel(MXS_I2C_CTRL1_CLR_GOT_A_NAK,
+		       i2c->regs + MXS_I2C_CTRL1_SET);
+	}
 
-	dev_dbg(i2c->dev, "Done with err=%d\n", i2c->cmd_err);
+	ret = i2c->cmd_err;
 
-	return i2c->cmd_err;
+	dev_dbg(i2c->dev, "Done with err=%d\n", ret);
+
+	return ret;
 
 timeout:
 	dev_dbg(i2c->dev, "Timeout!\n");
-	mxs_i2c_reset(i2c);
+	mxs_i2c_dma_finish(i2c);
+	ret = mxs_i2c_reset(i2c);
+	if (ret)
+		return ret;
+
 	return -ETIMEDOUT;
 }
 
@@ -322,14 +558,13 @@ static int mxs_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 static u32 mxs_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
 static irqreturn_t mxs_i2c_isr(int this_irq, void *dev_id)
 {
 	struct mxs_i2c_dev *i2c = dev_id;
 	u32 stat = readl(i2c->regs + MXS_I2C_CTRL1) & MXS_I2C_IRQ_MASK;
-	bool is_last_cmd;
 
 	if (!stat)
 		return IRQ_NONE;
@@ -342,12 +577,6 @@ static irqreturn_t mxs_i2c_isr(int this_irq, void *dev_id)
 		/* MXS_I2C_CTRL1_OVERSIZE_XFER_TERM_IRQ is only for slaves */
 		i2c->cmd_err = -EIO;
 
-	is_last_cmd = (readl(i2c->regs + MXS_I2C_QUEUESTAT) &
-		MXS_I2C_QUEUESTAT_WRITE_QUEUE_CNT_MASK) == 0;
-
-	if (is_last_cmd || i2c->cmd_err)
-		complete(&i2c->cmd_complete);
-
 	writel(stat, i2c->regs + MXS_I2C_CTRL1_CLR);
 
 	return IRQ_HANDLED;
@@ -358,6 +587,81 @@ static const struct i2c_algorithm mxs_i2c_algo = {
 	.functionality = mxs_i2c_func,
 };
 
+static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, uint32_t speed)
+{
+	/* The I2C block clock runs at 24MHz */
+	const uint32_t clk = 24000000;
+	uint32_t divider;
+	uint16_t high_count, low_count, rcv_count, xmit_count;
+	uint32_t bus_free, leadin;
+	struct device *dev = i2c->dev;
+
+	divider = DIV_ROUND_UP(clk, speed);
+
+	if (divider < 25) {
+		/*
+		 * limit the divider, so that min(low_count, high_count)
+		 * is >= 1
+		 */
+		divider = 25;
+		dev_warn(dev,
+			"Speed too high (%u.%03u kHz), using %u.%03u kHz\n",
+			speed / 1000, speed % 1000,
+			clk / divider / 1000, clk / divider % 1000);
+	} else if (divider > 1897) {
+		/*
+		 * limit the divider, so that max(low_count, high_count)
+		 * cannot exceed 1023
+		 */
+		divider = 1897;
+		dev_warn(dev,
+			"Speed too low (%u.%03u kHz), using %u.%03u kHz\n",
+			speed / 1000, speed % 1000,
+			clk / divider / 1000, clk / divider % 1000);
+	}
+
+	/*
+	 * The I2C spec specifies the following timing data:
+	 *                          standard mode  fast mode Bitfield name
+	 * tLOW (SCL LOW period)     4700 ns        1300 ns
+	 * tHIGH (SCL HIGH period)   4000 ns         600 ns
+	 * tSU;DAT (data setup time)  250 ns         100 ns
+	 * tHD;STA (START hold time) 4000 ns         600 ns
+	 * tBUF (bus free time)      4700 ns        1300 ns
+	 *
+	 * The hardware (of the i.MX28 at least) seems to add 2 additional
+	 * clock cycles to the low_count and 7 cycles to the high_count.
+	 * This is compensated for by subtracting the respective constants
+	 * from the values written to the timing registers.
+	 */
+	if (speed > 100000) {
+		/* fast mode */
+		low_count = DIV_ROUND_CLOSEST(divider * 13, (13 + 6));
+		high_count = DIV_ROUND_CLOSEST(divider * 6, (13 + 6));
+		leadin = DIV_ROUND_UP(600 * (clk / 1000000), 1000);
+		bus_free = DIV_ROUND_UP(1300 * (clk / 1000000), 1000);
+	} else {
+		/* normal mode */
+		low_count = DIV_ROUND_CLOSEST(divider * 47, (47 + 40));
+		high_count = DIV_ROUND_CLOSEST(divider * 40, (47 + 40));
+		leadin = DIV_ROUND_UP(4700 * (clk / 1000000), 1000);
+		bus_free = DIV_ROUND_UP(4700 * (clk / 1000000), 1000);
+	}
+	rcv_count = high_count * 3 / 8;
+	xmit_count = low_count * 3 / 8;
+
+	dev_dbg(dev,
+		"speed=%u(actual %u) divider=%u low=%u high=%u xmit=%u rcv=%u leadin=%u bus_free=%u\n",
+		speed, clk / divider, divider, low_count, high_count,
+		xmit_count, rcv_count, leadin, bus_free);
+
+	low_count -= 2;
+	high_count -= 7;
+	i2c->timing0 = (high_count << 16) | rcv_count;
+	i2c->timing1 = (low_count << 16) | xmit_count;
+	i2c->timing2 = (bus_free << 16 | leadin);
+}
+
 static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 {
 	uint32_t speed;
@@ -365,41 +669,34 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	struct device_node *node = dev->of_node;
 	int ret;
 
-	if (!node)
-		return -EINVAL;
-
-	i2c->speed = &mxs_i2c_95kHz_config;
 	ret = of_property_read_u32(node, "clock-frequency", &speed);
-	if (ret)
+	if (ret) {
 		dev_warn(dev, "No I2C speed selected, using 100kHz\n");
-	else if (speed == 400000)
-		i2c->speed = &mxs_i2c_400kHz_config;
-	else if (speed != 100000)
-		dev_warn(dev, "Unsupported I2C speed selected, using 100kHz\n");
+		speed = 100000;
+	}
+
+	mxs_i2c_derive_timing(i2c, speed);
 
 	return 0;
 }
 
-static int __devinit mxs_i2c_probe(struct platform_device *pdev)
+static int mxs_i2c_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mxs_i2c_dev *i2c;
 	struct i2c_adapter *adap;
-	struct pinctrl *pinctrl;
 	struct resource *res;
 	resource_size_t res_size;
 	int err, irq;
-
-	pinctrl = devm_pinctrl_get_select_default(dev);
-	if (IS_ERR(pinctrl))
-		return PTR_ERR(pinctrl);
 
 	i2c = devm_kzalloc(dev, sizeof(struct mxs_i2c_dev), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
+	irq = platform_get_irq(pdev, 0);
+
+	if (!res || irq < 0)
 		return -ENOENT;
 
 	res_size = resource_size(res);
@@ -410,24 +707,33 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 	if (!i2c->regs)
 		return -EBUSY;
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
 	err = devm_request_irq(dev, irq, mxs_i2c_isr, 0, dev_name(dev), i2c);
 	if (err)
 		return err;
 
 	i2c->dev = dev;
 
-	err = mxs_i2c_get_ofdata(i2c);
-	if (err)
-		return err;
+	init_completion(&i2c->cmd_complete);
+
+	if (dev->of_node) {
+		err = mxs_i2c_get_ofdata(i2c);
+		if (err)
+			return err;
+	}
+
+	/* Setup the DMA */
+	i2c->dmach = dma_request_slave_channel(dev, "rx-tx");
+	if (!i2c->dmach) {
+		dev_err(dev, "Failed to request dma\n");
+		return -ENODEV;
+	}
 
 	platform_set_drvdata(pdev, i2c);
 
 	/* Do reset to enforce correct startup after pinmuxing */
-	mxs_i2c_reset(i2c);
+	err = mxs_i2c_reset(i2c);
+	if (err)
+		return err;
 
 	adap = &i2c->adapter;
 	strlcpy(adap->name, "MXS I2C adapter", sizeof(adap->name));
@@ -445,23 +751,19 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	of_i2c_register_devices(adap);
-
 	return 0;
 }
 
-static int __devexit mxs_i2c_remove(struct platform_device *pdev)
+static int mxs_i2c_remove(struct platform_device *pdev)
 {
 	struct mxs_i2c_dev *i2c = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = i2c_del_adapter(&i2c->adapter);
-	if (ret)
-		return -EBUSY;
+	i2c_del_adapter(&i2c->adapter);
+
+	if (i2c->dmach)
+		dma_release_channel(i2c->dmach);
 
 	writel(MXS_I2C_CTRL0_SFTRST, i2c->regs + MXS_I2C_CTRL0_SET);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -478,7 +780,7 @@ static struct platform_driver mxs_i2c_driver = {
 		   .owner = THIS_MODULE,
 		   .of_match_table = mxs_i2c_dt_ids,
 		   },
-	.remove = __devexit_p(mxs_i2c_remove),
+	.remove = mxs_i2c_remove,
 };
 
 static int __init mxs_i2c_init(void)

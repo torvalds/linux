@@ -143,7 +143,7 @@ struct ct_atc {
 
 	struct ct_timer *timer;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	int (*suspend)(struct ct_atc *atc);
 	int (*resume)(struct ct_atc *atc);
 #define NUM_PCMS (NUM_CTALSADEVS - 1)
@@ -152,9 +152,9 @@ struct ct_atc {
 };
 
 
-int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
-			    unsigned int rsr, unsigned int msr, int chip_type,
-			    unsigned int subsysid, struct ct_atc **ratc);
-int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc);
+int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
+		  unsigned int rsr, unsigned int msr, int chip_type,
+		  unsigned int subsysid, struct ct_atc **ratc);
+int ct_atc_create_alsa_devs(struct ct_atc *atc);
 
 #endif /* CTATC_H */

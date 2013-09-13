@@ -928,16 +928,4 @@ static struct pcmcia_driver tc589_driver = {
 	.suspend	= tc589_suspend,
 	.resume		= tc589_resume,
 };
-
-static int __init init_tc589(void)
-{
-	return pcmcia_register_driver(&tc589_driver);
-}
-
-static void __exit exit_tc589(void)
-{
-	pcmcia_unregister_driver(&tc589_driver);
-}
-
-module_init(init_tc589);
-module_exit(exit_tc589);
+module_pcmcia_driver(tc589_driver);

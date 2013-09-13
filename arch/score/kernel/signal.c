@@ -134,21 +134,10 @@ static void __user *get_sigframe(struct k_sigaction *ka,
 }
 
 asmlinkage long
-score_sigaltstack(struct pt_regs *regs)
-{
-	const stack_t __user *uss = (const stack_t __user *) regs->regs[4];
-	stack_t __user *uoss = (stack_t __user *) regs->regs[5];
-	unsigned long usp = regs->regs[0];
-
-	return do_sigaltstack(uss, uoss, usp);
-}
-
-asmlinkage long
 score_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	sigset_t set;
-	stack_t st;
 	int sig;
 
 	/* Always make any pending restarted system calls return -EINTR */
@@ -168,12 +157,9 @@ score_rt_sigreturn(struct pt_regs *regs)
 	else if (sig)
 		force_sig(sig, current);
 
-	if (__copy_from_user(&st, &frame->rs_uc.uc_stack, sizeof(st)))
+	if (restore_altstack(&frame->rs_uc.uc_stack))
 		goto badframe;
-
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	do_sigaltstack((stack_t __user *)&st, NULL, regs->regs[0]);
+	regs->is_syscall = 0;
 
 	__asm__ __volatile__(
 		"mv\tr0, %0\n\t"
@@ -211,12 +197,7 @@ static int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	err |= copy_siginfo_to_user(&frame->rs_info, info);
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
 	err |= __put_user(NULL, &frame->rs_uc.uc_link);
-	err |= __put_user((void __user *)current->sas_ss_sp,
-				&frame->rs_uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->regs[0]),
-				&frame->rs_uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size,
-				&frame->rs_uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->rs_uc.uc_stack, regs->regs[0]);
 	err |= setup_sigcontext(regs, &frame->rs_uc.uc_mcontext);
 	err |= __copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set));
 

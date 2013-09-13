@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/seq_file.h>
 #include <scsi/scsi.h>
 
 struct request_queue;
@@ -340,7 +341,8 @@ struct scsi_host_template {
 	 *
 	 * Status: OBSOLETE
 	 */
-	int (*proc_info)(struct Scsi_Host *, char *, char **, off_t, int, int);
+	int (*show_info)(struct seq_file *, struct Scsi_Host *);
+	int (*write_info)(struct Scsi_Host *, char *, int);
 
 	/*
 	 * This is an optional routine that allows the transport to become
@@ -375,7 +377,7 @@ struct scsi_host_template {
 
 	/*
 	 * Used to store the procfs directory if a driver implements the
-	 * proc_info method.
+	 * show_info method.
 	 */
 	struct proc_dir_entry *proc_dir;
 
@@ -873,6 +875,9 @@ static inline unsigned int scsi_host_dif_capable(struct Scsi_Host *shost, unsign
 				       SHOST_DIF_TYPE2_PROTECTION,
 				       SHOST_DIF_TYPE3_PROTECTION };
 
+	if (target_type >= ARRAY_SIZE(cap))
+		return 0;
+
 	return shost->prot_capabilities & cap[target_type] ? target_type : 0;
 }
 
@@ -883,6 +888,9 @@ static inline unsigned int scsi_host_dix_capable(struct Scsi_Host *shost, unsign
 				       SHOST_DIX_TYPE1_PROTECTION,
 				       SHOST_DIX_TYPE2_PROTECTION,
 				       SHOST_DIX_TYPE3_PROTECTION };
+
+	if (target_type >= ARRAY_SIZE(cap))
+		return 0;
 
 	return shost->prot_capabilities & cap[target_type];
 #endif

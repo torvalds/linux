@@ -382,7 +382,7 @@ static int ea_read(struct inode *ip, struct jfs_ea_list *ealist)
 
 	nbytes = sizeDXD(&ji->ea);
 	if (!nbytes) {
-		jfs_error(sb, "ea_read: nbytes is 0");
+		jfs_error(sb, "nbytes is 0\n");
 		return -EIO;
 	}
 
@@ -482,7 +482,7 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 		current_blocks = 0;
 	} else {
 		if (!(ji->ea.flag & DXD_EXTENT)) {
-			jfs_error(sb, "ea_get: invalid ea.flag)");
+			jfs_error(sb, "invalid ea.flag\n");
 			return -EIO;
 		}
 		current_blocks = (ea_size + sb->s_blocksize - 1) >>
@@ -685,7 +685,7 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 	 * POSIX_ACL_XATTR_ACCESS is tied to i_mode
 	 */
 	if (strcmp(name, POSIX_ACL_XATTR_ACCESS) == 0) {
-		acl = posix_acl_from_xattr(value, value_len);
+		acl = posix_acl_from_xattr(&init_user_ns, value, value_len);
 		if (IS_ERR(acl)) {
 			rc = PTR_ERR(acl);
 			printk(KERN_ERR "posix_acl_from_xattr returned %d\n",
@@ -710,7 +710,7 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 
 		return 0;
 	} else if (strcmp(name, POSIX_ACL_XATTR_DEFAULT) == 0) {
-		acl = posix_acl_from_xattr(value, value_len);
+		acl = posix_acl_from_xattr(&init_user_ns, value, value_len);
 		if (IS_ERR(acl)) {
 			rc = PTR_ERR(acl);
 			printk(KERN_ERR "posix_acl_from_xattr returned %d\n",
@@ -1089,8 +1089,8 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 }
 
 #ifdef CONFIG_JFS_SECURITY
-int jfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
-		   void *fs_info)
+static int jfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+			  void *fs_info)
 {
 	const struct xattr *xattr;
 	tid_t *tid = fs_info;

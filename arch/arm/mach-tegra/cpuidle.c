@@ -23,85 +23,34 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/cpu.h>
-#include <linux/cpuidle.h>
-#include <linux/hrtimer.h>
 
-#include <asm/proc-fns.h>
+#include "fuse.h"
+#include "cpuidle.h"
 
-#include <mach/iomap.h>
-
-static int tegra_idle_enter_lp3(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int index);
-
-struct cpuidle_driver tegra_idle_driver = {
-	.name = "tegra_idle",
-	.owner = THIS_MODULE,
-	.state_count = 1,
-	.states = {
-		[0] = {
-			.enter			= tegra_idle_enter_lp3,
-			.exit_latency		= 10,
-			.target_residency	= 10,
-			.power_usage		= 600,
-			.flags			= CPUIDLE_FLAG_TIME_VALID,
-			.name			= "LP3",
-			.desc			= "CPU flow-controlled",
-		},
-	},
-};
-
-static DEFINE_PER_CPU(struct cpuidle_device, tegra_idle_device);
-
-static int tegra_idle_enter_lp3(struct cpuidle_device *dev,
-	struct cpuidle_driver *drv, int index)
+void __init tegra_cpuidle_init(void)
 {
-	ktime_t enter, exit;
-	s64 us;
-
-	local_irq_disable();
-	local_fiq_disable();
-
-	enter = ktime_get();
-
-	cpu_do_idle();
-
-	exit = ktime_sub(ktime_get(), enter);
-	us = ktime_to_us(exit);
-
-	local_fiq_enable();
-	local_irq_enable();
-
-	dev->last_residency = us;
-
-	return index;
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
+			tegra20_cpuidle_init();
+		break;
+	case TEGRA30:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC))
+			tegra30_cpuidle_init();
+		break;
+	case TEGRA114:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC))
+			tegra114_cpuidle_init();
+		break;
+	}
 }
 
-static int __init tegra_cpuidle_init(void)
+void tegra_cpuidle_pcie_irqs_in_use(void)
 {
-	int ret;
-	unsigned int cpu;
-	struct cpuidle_device *dev;
-	struct cpuidle_driver *drv = &tegra_idle_driver;
-
-	ret = cpuidle_register_driver(&tegra_idle_driver);
-	if (ret) {
-		pr_err("CPUidle driver registration failed\n");
-		return ret;
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
+			tegra20_cpuidle_pcie_irqs_in_use();
+		break;
 	}
-
-	for_each_possible_cpu(cpu) {
-		dev = &per_cpu(tegra_idle_device, cpu);
-		dev->cpu = cpu;
-
-		dev->state_count = drv->state_count;
-		ret = cpuidle_register_device(dev);
-		if (ret) {
-			pr_err("CPU%u: CPUidle device registration failed\n",
-				cpu);
-			return ret;
-		}
-	}
-	return 0;
 }
-device_initcall(tegra_cpuidle_init);

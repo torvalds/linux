@@ -55,12 +55,12 @@ do {                                                            	\
 
 #define FCOE_DBG(fmt, args...)						\
 	FCOE_CHECK_LOGGING(FCOE_LOGGING,				\
-			   printk(KERN_INFO "fcoe: " fmt, ##args);)
+			   pr_info("fcoe: " fmt, ##args);)
 
 #define FCOE_NETDEV_DBG(netdev, fmt, args...)			\
 	FCOE_CHECK_LOGGING(FCOE_NETDEV_LOGGING,			\
-			   printk(KERN_INFO "fcoe: %s: " fmt,	\
-				  netdev->name, ##args);)
+			   pr_info("fcoe: %s: " fmt,		\
+				   netdev->name, ##args);)
 
 /**
  * struct fcoe_interface - A FCoE interface
@@ -71,6 +71,7 @@ do {                                                            	\
  * @oem:	      The offload exchange manager for all local port
  *		      instances associated with this port
  * @removed:	      Indicates fcoe interface removed from net device
+ * @priority:	      Priority for the FCoE packet (DCB)
  * This structure is 1:1 with a net device.
  */
 struct fcoe_interface {
@@ -81,6 +82,7 @@ struct fcoe_interface {
 	struct packet_type fip_packet_type;
 	struct fc_exch_mgr *oem;
 	u8	removed;
+	u8	priority;
 };
 
 #define fcoe_to_ctlr(x)						\

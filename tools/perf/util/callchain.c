@@ -15,18 +15,11 @@
 #include <errno.h>
 #include <math.h>
 
+#include "hist.h"
 #include "util.h"
 #include "callchain.h"
 
 __thread struct callchain_cursor callchain_cursor;
-
-bool ip_callchain__valid(struct ip_callchain *chain,
-			 const union perf_event *event)
-{
-	unsigned int chain_size = event->header.size;
-	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;
-	return chain->nr * sizeof(u64) <= chain_size;
-}
 
 #define chain_for_each_child(child, parent)	\
 	list_for_each_entry(child, &parent->children, siblings)
@@ -93,7 +86,7 @@ __sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
  */
 static void
 sort_chain_flat(struct rb_root *rb_root, struct callchain_root *root,
-		u64 min_hit, struct callchain_param *param __used)
+		u64 min_hit, struct callchain_param *param __maybe_unused)
 {
 	__sort_chain_flat(rb_root, &root->node, min_hit);
 }
@@ -115,7 +108,7 @@ static void __sort_chain_graph_abs(struct callchain_node *node,
 
 static void
 sort_chain_graph_abs(struct rb_root *rb_root, struct callchain_root *chain_root,
-		     u64 min_hit, struct callchain_param *param __used)
+		     u64 min_hit, struct callchain_param *param __maybe_unused)
 {
 	__sort_chain_graph_abs(&chain_root->node, min_hit);
 	rb_root->rb_node = chain_root->node.rb_root.rb_node;
@@ -140,7 +133,7 @@ static void __sort_chain_graph_rel(struct callchain_node *node,
 
 static void
 sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_root *chain_root,
-		     u64 min_hit __used, struct callchain_param *param)
+		     u64 min_hit __maybe_unused, struct callchain_param *param)
 {
 	__sort_chain_graph_rel(&chain_root->node, param->min_percent / 100.0);
 	rb_root->rb_node = chain_root->node.rb_root.rb_node;
@@ -327,7 +320,8 @@ append_chain(struct callchain_node *root,
 	/*
 	 * Lookup in the current node
 	 * If we have a symbol, then compare the start to match
-	 * anywhere inside a function.
+	 * anywhere inside a function, unless function
+	 * mode is disabled.
 	 */
 	list_for_each_entry(cnode, &root->val, list) {
 		struct callchain_cursor_node *node;
@@ -339,7 +333,8 @@ append_chain(struct callchain_node *root,
 
 		sym = node->sym;
 
-		if (cnode->ms.sym && sym) {
+		if (cnode->ms.sym && sym &&
+		    callchain_param.key == CCKEY_FUNCTION) {
 			if (cnode->ms.sym->start != sym->start)
 				break;
 		} else if (cnode->ip != node->ip)
@@ -444,7 +439,7 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	struct callchain_cursor_node *node = *cursor->last;
 
 	if (!node) {
-		node = calloc(sizeof(*node), 1);
+		node = calloc(1, sizeof(*node));
 		if (!node)
 			return -ENOMEM;
 

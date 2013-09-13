@@ -12,6 +12,8 @@
  * of the License.
  */
 
+#include <traceevent/event-parse.h>
+
 #include "builtin.h"
 
 #include "util/util.h"
@@ -19,6 +21,7 @@
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
+#include "util/evlist.h"
 #include "util/evsel.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
@@ -37,9 +40,6 @@
 #define SUPPORT_OLD_POWER_EVENTS 1
 #define PWR_EVENT_EXIT -1
 
-
-static const char	*input_name;
-static const char	*output_name = "output.svg";
 
 static unsigned int	numcpus;
 static u64		min_freq;	/* Lowest CPU frequency seen */
@@ -168,9 +168,8 @@ static struct per_pid *find_create_pid(int pid)
 			return cursor;
 		cursor = cursor->next;
 	}
-	cursor = malloc(sizeof(struct per_pid));
+	cursor = zalloc(sizeof(*cursor));
 	assert(cursor != NULL);
-	memset(cursor, 0, sizeof(struct per_pid));
 	cursor->pid = pid;
 	cursor->next = all_data;
 	all_data = cursor;
@@ -195,9 +194,8 @@ static void pid_set_comm(int pid, char *comm)
 		}
 		c = c->next;
 	}
-	c = malloc(sizeof(struct per_pidcomm));
+	c = zalloc(sizeof(*c));
 	assert(c != NULL);
-	memset(c, 0, sizeof(struct per_pidcomm));
 	c->comm = strdup(comm);
 	p->current = c;
 	c->next = p->all;
@@ -239,17 +237,15 @@ pid_put_sample(int pid, int type, unsigned int cpu, u64 start, u64 end)
 	p = find_create_pid(pid);
 	c = p->current;
 	if (!c) {
-		c = malloc(sizeof(struct per_pidcomm));
+		c = zalloc(sizeof(*c));
 		assert(c != NULL);
-		memset(c, 0, sizeof(struct per_pidcomm));
 		p->current = c;
 		c->next = p->all;
 		p->all = c;
 	}
 
-	sample = malloc(sizeof(struct cpu_sample));
+	sample = zalloc(sizeof(*sample));
 	assert(sample != NULL);
-	memset(sample, 0, sizeof(struct cpu_sample));
 	sample->start_time = start;
 	sample->end_time = end;
 	sample->type = type;
@@ -275,28 +271,28 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int process_comm_event(struct perf_tool *tool __used,
+static int process_comm_event(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
-			      struct perf_sample *sample __used,
-			      struct machine *machine __used)
+			      struct perf_sample *sample __maybe_unused,
+			      struct machine *machine __maybe_unused)
 {
 	pid_set_comm(event->comm.tid, event->comm.comm);
 	return 0;
 }
 
-static int process_fork_event(struct perf_tool *tool __used,
+static int process_fork_event(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
-			      struct perf_sample *sample __used,
-			      struct machine *machine __used)
+			      struct perf_sample *sample __maybe_unused,
+			      struct machine *machine __maybe_unused)
 {
 	pid_fork(event->fork.pid, event->fork.ppid, event->fork.time);
 	return 0;
 }
 
-static int process_exit_event(struct perf_tool *tool __used,
+static int process_exit_event(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
-			      struct perf_sample *sample __used,
-			      struct machine *machine __used)
+			      struct perf_sample *sample __maybe_unused,
+			      struct machine *machine __maybe_unused)
 {
 	pid_exit(event->fork.pid, event->fork.time);
 	return 0;
@@ -335,25 +331,6 @@ struct wakeup_entry {
 	int   success;
 };
 
-/*
- * trace_flag_type is an enumeration that holds different
- * states when a trace occurs. These are:
- *  IRQS_OFF            - interrupts were disabled
- *  IRQS_NOSUPPORT      - arch does not support irqs_disabled_flags
- *  NEED_RESCED         - reschedule is requested
- *  HARDIRQ             - inside an interrupt handler
- *  SOFTIRQ             - inside a softirq handler
- */
-enum trace_flag_type {
-	TRACE_FLAG_IRQS_OFF		= 0x01,
-	TRACE_FLAG_IRQS_NOSUPPORT	= 0x02,
-	TRACE_FLAG_NEED_RESCHED		= 0x04,
-	TRACE_FLAG_HARDIRQ		= 0x08,
-	TRACE_FLAG_SOFTIRQ		= 0x10,
-};
-
-
-
 struct sched_switch {
 	struct trace_entry te;
 	char prev_comm[TASK_COMM_LEN];
@@ -373,11 +350,10 @@ static void c_state_start(int cpu, u64 timestamp, int state)
 
 static void c_state_end(int cpu, u64 timestamp)
 {
-	struct power_event *pwr;
-	pwr = malloc(sizeof(struct power_event));
+	struct power_event *pwr = zalloc(sizeof(*pwr));
+
 	if (!pwr)
 		return;
-	memset(pwr, 0, sizeof(struct power_event));
 
 	pwr->state = cpus_cstate_state[cpu];
 	pwr->start_time = cpus_cstate_start_times[cpu];
@@ -392,14 +368,13 @@ static void c_state_end(int cpu, u64 timestamp)
 static void p_state_change(int cpu, u64 timestamp, u64 new_freq)
 {
 	struct power_event *pwr;
-	pwr = malloc(sizeof(struct power_event));
 
 	if (new_freq > 8000000) /* detect invalid data */
 		return;
 
+	pwr = zalloc(sizeof(*pwr));
 	if (!pwr)
 		return;
-	memset(pwr, 0, sizeof(struct power_event));
 
 	pwr->state = cpus_pstate_state[cpu];
 	pwr->start_time = cpus_pstate_start_times[cpu];
@@ -429,15 +404,13 @@ static void p_state_change(int cpu, u64 timestamp, u64 new_freq)
 static void
 sched_wakeup(int cpu, u64 timestamp, int pid, struct trace_entry *te)
 {
-	struct wake_event *we;
 	struct per_pid *p;
 	struct wakeup_entry *wake = (void *)te;
+	struct wake_event *we = zalloc(sizeof(*we));
 
-	we = malloc(sizeof(struct wake_event));
 	if (!we)
 		return;
 
-	memset(we, 0, sizeof(struct wake_event));
 	we->time = timestamp;
 	we->waker = pid;
 
@@ -490,15 +463,15 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 	}
 }
 
+typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
+				  struct perf_sample *sample);
 
-static int process_sample_event(struct perf_tool *tool __used,
-				union perf_event *event __used,
+static int process_sample_event(struct perf_tool *tool __maybe_unused,
+				union perf_event *event __maybe_unused,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
-				struct machine *machine __used)
+				struct machine *machine __maybe_unused)
 {
-	struct trace_entry *te;
-
 	if (evsel->attr.sample_type & PERF_SAMPLE_TIME) {
 		if (!first_time || first_time > sample->time)
 			first_time = sample->time;
@@ -506,68 +479,89 @@ static int process_sample_event(struct perf_tool *tool __used,
 			last_time = sample->time;
 	}
 
-	te = (void *)sample->raw_data;
-	if ((evsel->attr.sample_type & PERF_SAMPLE_RAW) && sample->raw_size > 0) {
-		char *event_str;
-#ifdef SUPPORT_OLD_POWER_EVENTS
-		struct power_entry_old *peo;
-		peo = (void *)te;
-#endif
-		/*
-		 * FIXME: use evsel, its already mapped from id to perf_evsel,
-		 * remove perf_header__find_event infrastructure bits.
-		 * Mapping all these "power:cpu_idle" strings to the tracepoint
-		 * ID and then just comparing against evsel->attr.config.
-		 *
-		 * e.g.:
-		 *
-		 * if (evsel->attr.config == power_cpu_idle_id)
-		 */
-		event_str = perf_header__find_event(te->type);
+	if (sample->cpu > numcpus)
+		numcpus = sample->cpu;
 
-		if (!event_str)
-			return 0;
-
-		if (sample->cpu > numcpus)
-			numcpus = sample->cpu;
-
-		if (strcmp(event_str, "power:cpu_idle") == 0) {
-			struct power_processor_entry *ppe = (void *)te;
-			if (ppe->state == (u32)PWR_EVENT_EXIT)
-				c_state_end(ppe->cpu_id, sample->time);
-			else
-				c_state_start(ppe->cpu_id, sample->time,
-					      ppe->state);
-		}
-		else if (strcmp(event_str, "power:cpu_frequency") == 0) {
-			struct power_processor_entry *ppe = (void *)te;
-			p_state_change(ppe->cpu_id, sample->time, ppe->state);
-		}
-
-		else if (strcmp(event_str, "sched:sched_wakeup") == 0)
-			sched_wakeup(sample->cpu, sample->time, sample->pid, te);
-
-		else if (strcmp(event_str, "sched:sched_switch") == 0)
-			sched_switch(sample->cpu, sample->time, te);
-
-#ifdef SUPPORT_OLD_POWER_EVENTS
-		if (use_old_power_events) {
-			if (strcmp(event_str, "power:power_start") == 0)
-				c_state_start(peo->cpu_id, sample->time,
-					      peo->value);
-
-			else if (strcmp(event_str, "power:power_end") == 0)
-				c_state_end(sample->cpu, sample->time);
-
-			else if (strcmp(event_str,
-					"power:power_frequency") == 0)
-				p_state_change(peo->cpu_id, sample->time,
-					       peo->value);
-		}
-#endif
+	if (evsel->handler.func != NULL) {
+		tracepoint_handler f = evsel->handler.func;
+		return f(evsel, sample);
 	}
+
 	return 0;
 }
+
+static int
+process_sample_cpu_idle(struct perf_evsel *evsel __maybe_unused,
+			struct perf_sample *sample)
+{
+	struct power_processor_entry *ppe = sample->raw_data;
+
+	if (ppe->state == (u32) PWR_EVENT_EXIT)
+		c_state_end(ppe->cpu_id, sample->time);
+	else
+		c_state_start(ppe->cpu_id, sample->time, ppe->state);
+	return 0;
+}
+
+static int
+process_sample_cpu_frequency(struct perf_evsel *evsel __maybe_unused,
+			     struct perf_sample *sample)
+{
+	struct power_processor_entry *ppe = sample->raw_data;
+
+	p_state_change(ppe->cpu_id, sample->time, ppe->state);
+	return 0;
+}
+
+static int
+process_sample_sched_wakeup(struct perf_evsel *evsel __maybe_unused,
+			    struct perf_sample *sample)
+{
+	struct trace_entry *te = sample->raw_data;
+
+	sched_wakeup(sample->cpu, sample->time, sample->pid, te);
+	return 0;
+}
+
+static int
+process_sample_sched_switch(struct perf_evsel *evsel __maybe_unused,
+			    struct perf_sample *sample)
+{
+	struct trace_entry *te = sample->raw_data;
+
+	sched_switch(sample->cpu, sample->time, te);
+	return 0;
+}
+
+#ifdef SUPPORT_OLD_POWER_EVENTS
+static int
+process_sample_power_start(struct perf_evsel *evsel __maybe_unused,
+			   struct perf_sample *sample)
+{
+	struct power_entry_old *peo = sample->raw_data;
+
+	c_state_start(peo->cpu_id, sample->time, peo->value);
+	return 0;
+}
+
+static int
+process_sample_power_end(struct perf_evsel *evsel __maybe_unused,
+			 struct perf_sample *sample)
+{
+	c_state_end(sample->cpu, sample->time);
+	return 0;
+}
+
+static int
+process_sample_power_frequency(struct perf_evsel *evsel __maybe_unused,
+			       struct perf_sample *sample)
+{
+	struct power_entry_old *peo = sample->raw_data;
+
+	p_state_change(peo->cpu_id, sample->time, peo->value);
+	return 0;
+}
+#endif /* SUPPORT_OLD_POWER_EVENTS */
 
 /*
  * After the last sample we need to wrap up the current C/P state
@@ -579,13 +573,12 @@ static void end_sample_processing(void)
 	struct power_event *pwr;
 
 	for (cpu = 0; cpu <= numcpus; cpu++) {
-		pwr = malloc(sizeof(struct power_event));
-		if (!pwr)
-			return;
-		memset(pwr, 0, sizeof(struct power_event));
-
 		/* C state */
 #if 0
+		pwr = zalloc(sizeof(*pwr));
+		if (!pwr)
+			return;
+
 		pwr->state = cpus_cstate_state[cpu];
 		pwr->start_time = cpus_cstate_start_times[cpu];
 		pwr->end_time = last_time;
@@ -597,10 +590,9 @@ static void end_sample_processing(void)
 #endif
 		/* P state */
 
-		pwr = malloc(sizeof(struct power_event));
+		pwr = zalloc(sizeof(*pwr));
 		if (!pwr)
 			return;
-		memset(pwr, 0, sizeof(struct power_event));
 
 		pwr->state = cpus_pstate_state[cpu];
 		pwr->start_time = cpus_pstate_start_times[cpu];
@@ -830,11 +822,9 @@ static void draw_process_bars(void)
 
 static void add_process_filter(const char *string)
 {
-	struct process_filter *filt;
-	int pid;
+	int pid = strtoull(string, NULL, 10);
+	struct process_filter *filt = malloc(sizeof(*filt));
 
-	pid = strtoull(string, NULL, 10);
-	filt = malloc(sizeof(struct process_filter));
 	if (!filt)
 		return;
 
@@ -980,16 +970,26 @@ static void write_svg_file(const char *filename)
 	svg_close();
 }
 
-static struct perf_tool perf_timechart = {
-	.comm			= process_comm_event,
-	.fork			= process_fork_event,
-	.exit			= process_exit_event,
-	.sample			= process_sample_event,
-	.ordered_samples	= true,
-};
-
-static int __cmd_timechart(void)
+static int __cmd_timechart(const char *output_name)
 {
+	struct perf_tool perf_timechart = {
+		.comm		 = process_comm_event,
+		.fork		 = process_fork_event,
+		.exit		 = process_exit_event,
+		.sample		 = process_sample_event,
+		.ordered_samples = true,
+	};
+	const struct perf_evsel_str_handler power_tracepoints[] = {
+		{ "power:cpu_idle",		process_sample_cpu_idle },
+		{ "power:cpu_frequency",	process_sample_cpu_frequency },
+		{ "sched:sched_wakeup",		process_sample_sched_wakeup },
+		{ "sched:sched_switch",		process_sample_sched_switch },
+#ifdef SUPPORT_OLD_POWER_EVENTS
+		{ "power:power_start",		process_sample_power_start },
+		{ "power:power_end",		process_sample_power_end },
+		{ "power:power_frequency",	process_sample_power_frequency },
+#endif
+	};
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
 							 0, false, &perf_timechart);
 	int ret = -EINVAL;
@@ -999,6 +999,12 @@ static int __cmd_timechart(void)
 
 	if (!perf_session__has_traces(session, "timechart record"))
 		goto out_delete;
+
+	if (perf_session__set_tracepoints_handlers(session,
+						   power_tracepoints)) {
+		pr_err("Initializing session tracepoint handlers failed\n");
+		goto out_delete;
+	}
 
 	ret = perf_session__process_events(session, &perf_timechart);
 	if (ret)
@@ -1017,40 +1023,25 @@ out_delete:
 	return ret;
 }
 
-static const char * const timechart_usage[] = {
-	"perf timechart [<options>] {record}",
-	NULL
-};
-
-#ifdef SUPPORT_OLD_POWER_EVENTS
-static const char * const record_old_args[] = {
-	"record",
-	"-a",
-	"-R",
-	"-f",
-	"-c", "1",
-	"-e", "power:power_start",
-	"-e", "power:power_end",
-	"-e", "power:power_frequency",
-	"-e", "sched:sched_wakeup",
-	"-e", "sched:sched_switch",
-};
-#endif
-
-static const char * const record_new_args[] = {
-	"record",
-	"-a",
-	"-R",
-	"-f",
-	"-c", "1",
-	"-e", "power:cpu_frequency",
-	"-e", "power:cpu_idle",
-	"-e", "sched:sched_wakeup",
-	"-e", "sched:sched_switch",
-};
-
 static int __cmd_record(int argc, const char **argv)
 {
+#ifdef SUPPORT_OLD_POWER_EVENTS
+	const char * const record_old_args[] = {
+		"record", "-a", "-R", "-c", "1",
+		"-e", "power:power_start",
+		"-e", "power:power_end",
+		"-e", "power:power_frequency",
+		"-e", "sched:sched_wakeup",
+		"-e", "sched:sched_switch",
+	};
+#endif
+	const char * const record_new_args[] = {
+		"record", "-a", "-R", "-c", "1",
+		"-e", "power:cpu_frequency",
+		"-e", "power:cpu_idle",
+		"-e", "sched:sched_wakeup",
+		"-e", "sched:sched_switch",
+	};
 	unsigned int rec_argc, i, j;
 	const char **rec_argv;
 	const char * const *record_args = record_new_args;
@@ -1081,33 +1072,35 @@ static int __cmd_record(int argc, const char **argv)
 }
 
 static int
-parse_process(const struct option *opt __used, const char *arg, int __used unset)
+parse_process(const struct option *opt __maybe_unused, const char *arg,
+	      int __maybe_unused unset)
 {
 	if (arg)
 		add_process_filter(arg);
 	return 0;
 }
 
-static const struct option options[] = {
-	OPT_STRING('i', "input", &input_name, "file",
-		    "input file name"),
-	OPT_STRING('o', "output", &output_name, "file",
-		    "output file name"),
-	OPT_INTEGER('w', "width", &svg_page_width,
-		    "page width"),
-	OPT_BOOLEAN('P', "power-only", &power_only,
-		    "output power data only"),
+int cmd_timechart(int argc, const char **argv,
+		  const char *prefix __maybe_unused)
+{
+	const char *output_name = "output.svg";
+	const struct option options[] = {
+	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+	OPT_STRING('o', "output", &output_name, "file", "output file name"),
+	OPT_INTEGER('w', "width", &svg_page_width, "page width"),
+	OPT_BOOLEAN('P', "power-only", &power_only, "output power data only"),
 	OPT_CALLBACK('p', "process", NULL, "process",
 		      "process selector. Pass a pid or process name.",
 		       parse_process),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_END()
-};
+	};
+	const char * const timechart_usage[] = {
+		"perf timechart [<options>] {record}",
+		NULL
+	};
 
-
-int cmd_timechart(int argc, const char **argv, const char *prefix __used)
-{
 	argc = parse_options(argc, argv, options, timechart_usage,
 			PARSE_OPT_STOP_AT_NON_OPTION);
 
@@ -1120,5 +1113,5 @@ int cmd_timechart(int argc, const char **argv, const char *prefix __used)
 
 	setup_pager();
 
-	return __cmd_timechart();
+	return __cmd_timechart(output_name);
 }

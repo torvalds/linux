@@ -2,7 +2,7 @@
  * A hwmon driver for the IBM PowerExecutive temperature/power sensors
  * Copyright (C) 2007 IBM
  *
- * Author: Darrick J. Wong <djwong@us.ibm.com>
+ * Author: Darrick J. Wong <darrick.wong@oracle.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 
 #define REFRESH_INTERVAL	(2 * HZ)
 #define DRVNAME			"ibmpex"
@@ -162,8 +163,8 @@ static int ibmpex_ver_check(struct ibmpex_bmc_data *data)
 	data->sensor_major = data->rx_msg_data[0];
 	data->sensor_minor = data->rx_msg_data[1];
 
-	dev_info(data->bmc_device, "Found BMC with sensor interface "
-		 "v%d.%d %d-%02d-%02d on interface %d\n",
+	dev_info(data->bmc_device,
+		 "Found BMC with sensor interface v%d.%d %d-%02d-%02d on interface %d\n",
 		 data->sensor_major,
 		 data->sensor_minor,
 		 extract_value(data->rx_msg_data, 2),
@@ -477,8 +478,9 @@ static void ibmpex_register_bmc(int iface, struct device *dev)
 	err = ipmi_create_user(data->interface, &driver_data.ipmi_hndlrs,
 			       data, &data->user);
 	if (err < 0) {
-		dev_err(dev, "Unable to register user with IPMI "
-			"interface %d\n", data->interface);
+		dev_err(dev,
+			"Unable to register user with IPMI interface %d\n",
+			data->interface);
 		goto out;
 	}
 
@@ -500,8 +502,8 @@ static void ibmpex_register_bmc(int iface, struct device *dev)
 	data->hwmon_dev = hwmon_device_register(data->bmc_device);
 
 	if (IS_ERR(data->hwmon_dev)) {
-		dev_err(data->bmc_device, "Unable to register hwmon "
-			"device for IPMI interface %d\n",
+		dev_err(data->bmc_device,
+			"Unable to register hwmon device for IPMI interface %d\n",
 			data->interface);
 		goto out_user;
 	}
@@ -566,8 +568,8 @@ static void ibmpex_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 	struct ibmpex_bmc_data *data = (struct ibmpex_bmc_data *)user_msg_data;
 
 	if (msg->msgid != data->tx_msgid) {
-		dev_err(data->bmc_device, "Mismatch between received msgid "
-			"(%02x) and transmitted msgid (%02x)!\n",
+		dev_err(data->bmc_device,
+			"Mismatch between received msgid (%02x) and transmitted msgid (%02x)!\n",
 			(int)msg->msgid,
 			(int)data->tx_msgid);
 		ipmi_free_recv_msg(msg);
@@ -604,7 +606,7 @@ static void __exit ibmpex_exit(void)
 		ibmpex_bmc_delete(p);
 }
 
-MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
+MODULE_AUTHOR("Darrick J. Wong <darrick.wong@oracle.com>");
 MODULE_DESCRIPTION("IBM PowerExecutive power/temperature sensor driver");
 MODULE_LICENSE("GPL");
 

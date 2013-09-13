@@ -91,7 +91,7 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 		memcpy(info->packets_out,
 		       priv->wmm.packets_out,
 		       sizeof(priv->wmm.packets_out));
-		info->max_tx_buf_size = (u32) adapter->max_tx_buf_size;
+		info->curr_tx_buf_size = (u32) adapter->curr_tx_buf_size;
 		info->tx_buf_size = (u32) adapter->tx_buf_size;
 		info->rx_tbl_num = mwifiex_get_rx_reorder_tbl(priv,
 							      info->rx_tbl);
@@ -142,6 +142,42 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 }
 
 /*
+ * This function processes the received management packet and send it
+ * to the kernel.
+ */
+int
+mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
+			    struct sk_buff *skb)
+{
+	struct rxpd *rx_pd;
+	u16 pkt_len;
+
+	if (!skb)
+		return -1;
+
+	rx_pd = (struct rxpd *)skb->data;
+
+	skb_pull(skb, le16_to_cpu(rx_pd->rx_pkt_offset));
+	skb_pull(skb, sizeof(pkt_len));
+
+	pkt_len = le16_to_cpu(rx_pd->rx_pkt_length);
+
+	/* Remove address4 */
+	memmove(skb->data + sizeof(struct ieee80211_hdr_3addr),
+		skb->data + sizeof(struct ieee80211_hdr),
+		pkt_len - sizeof(struct ieee80211_hdr));
+
+	pkt_len -= ETH_ALEN + sizeof(pkt_len);
+	rx_pd->rx_pkt_length = cpu_to_le16(pkt_len);
+
+	cfg80211_rx_mgmt(priv->wdev, priv->roc_cfg.chan.center_freq,
+			 CAL_RSSI(rx_pd->snr, rx_pd->nf), skb->data, pkt_len,
+			 0, GFP_ATOMIC);
+
+	return 0;
+}
+
+/*
  * This function processes the received packet before sending it to the
  * kernel.
  *
@@ -150,25 +186,16 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
  * the function creates a blank SKB, fills it with the data from the
  * received buffer and then sends this new SKB to the kernel.
  */
-int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
+int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 {
-	struct mwifiex_rxinfo *rx_info;
-	struct mwifiex_private *priv;
-
 	if (!skb)
-		return -1;
-
-	rx_info = MWIFIEX_SKB_RXCB(skb);
-	priv = mwifiex_get_priv_by_id(adapter, rx_info->bss_num,
-				      rx_info->bss_type);
-	if (!priv)
 		return -1;
 
 	skb->dev = priv->netdev;
 	skb->protocol = eth_type_trans(skb, priv->netdev);
 	skb->ip_summed = CHECKSUM_NONE;
 
-	/* This is required only in case of 11n and USB as we alloc
+	/* This is required only in case of 11n and USB/PCIE as we alloc
 	 * a buffer of 4K only if its 11N (to be able to receive 4K
 	 * AMSDU packets). In case of SD we allocate buffers based
 	 * on the size of packet and hence this is not needed.
@@ -185,7 +212,8 @@ int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 	 * fragments. Currently we fail the Filesndl-ht.scr script
 	 * for UDP, hence this fix
 	 */
-	if ((adapter->iface_type == MWIFIEX_USB) &&
+	if ((priv->adapter->iface_type == MWIFIEX_USB ||
+	     priv->adapter->iface_type == MWIFIEX_PCIE) &&
 	    (skb->truesize > MWIFIEX_RX_DATA_BUF_SIZE))
 		skb->truesize += (skb->len - MWIFIEX_RX_DATA_BUF_SIZE);
 
@@ -211,7 +239,6 @@ int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
 			 struct cmd_ctrl_node *cmd_node)
 {
-	atomic_dec(&adapter->cmd_pending);
 	dev_dbg(adapter->dev, "cmd completed: status=%d\n",
 		adapter->cmd_wait_q.status);
 

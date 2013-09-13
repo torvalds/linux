@@ -15,11 +15,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: ssv_dnp
@@ -31,6 +26,7 @@ Status: unknown
 
 /* include files ----------------------------------------------------------- */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 /* Some global definitions: the registers of the DNP ----------------------- */
@@ -49,15 +45,6 @@ Status: unknown
 #define PBDR  0xa8		/* Port B Data Register                      */
 #define PCMR  0xa3		/* Port C Mode Register                      */
 #define PCDR  0xa7		/* Port C Data Register                      */
-
-/* This data structure holds information about the supported boards -------- */
-
-struct dnp_board {
-	const char *name;
-	int ai_chans;
-	int ai_bits;
-	int have_dio;
-};
 
 /* ------------------------------------------------------------------------- */
 /* The insn_bits interface allows packed reading/writing of DIO channels.    */
@@ -106,86 +93,61 @@ static int dnp_dio_insn_bits(struct comedi_device *dev,
 
 }
 
-/* ------------------------------------------------------------------------- */
-/* Configure the direction of the bidirectional digital i/o pins. chanspec   */
-/* contains the channel to be changed and data[0] contains either            */
-/* COMEDI_INPUT or COMEDI_OUTPUT.                                            */
-/* ------------------------------------------------------------------------- */
-
 static int dnp_dio_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	unsigned int val;
+	int ret;
 
-	u8 register_buffer;
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
-	/* reduces chanspec to lower 16 bits */
-	int chan = CR_CHAN(insn->chanspec);
-
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-	case INSN_CONFIG_DIO_INPUT:
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (inb(CSCDR) & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
-	/* Test: which port does the channel belong to?                       */
-
-	/* We have to pay attention with port C: this is the meaning of PCMR: */
-	/* Bit in PCMR:              7 6 5 4 3 2 1 0                          */
-	/* Corresponding port C pin: d 3 d 2 d 1 d 0   d= don't touch         */
-
-	if ((chan >= 0) && (chan <= 7)) {
-		/* this is port A */
+	if (chan < 8) {			/* Port A */
+		mask = 1 << chan;
 		outb(PAMR, CSCIR);
-	} else if ((chan >= 8) && (chan <= 15)) {
-		/* this is port B */
-		chan -= 8;
+	} else if (chan < 16) {		/* Port B */
+		mask = 1 << (chan - 8);
 		outb(PBMR, CSCIR);
-	} else if ((chan >= 16) && (chan <= 19)) {
-		/* this is port C; multiplication with 2 brings bits into     */
-		/* correct position for PCMR!                                 */
-		chan -= 16;
-		chan *= 2;
+	} else {			/* Port C */
+		/*
+		 * We have to pay attention with port C.
+		 * This is the meaning of PCMR:
+		 *   Bit in PCMR:              7 6 5 4 3 2 1 0
+		 *   Corresponding port C pin: d 3 d 2 d 1 d 0   d= don't touch
+		 *
+		 * Multiplication by 2 brings bits into correct position
+		 * for PCMR!
+		 */
+		mask = 1 << ((chan - 16) * 2);
 		outb(PCMR, CSCIR);
-	} else {
-		return -EINVAL;
 	}
 
-	/* read 'old' direction of the port and set bits (out=1, in=0)        */
-	register_buffer = inb(CSCDR);
+	val = inb(CSCDR);
 	if (data[0] == COMEDI_OUTPUT)
-		register_buffer |= (1 << chan);
+		val |= mask;
 	else
-		register_buffer &= ~(1 << chan);
+		val &= ~mask;
+	outb(val, CSCDR);
 
-	outb(register_buffer, CSCDR);
-
-	return 1;
+	return insn->n;
 
 }
 
 static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct dnp_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int ret;
-
-	printk(KERN_INFO "comedi%d: dnp: ", dev->minor);
-
-	dev->board_name = board->name;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* digital i/o subdevice                                             */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -194,8 +156,6 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->insn_bits = dnp_dio_insn_bits;
 	s->insn_config = dnp_dio_insn_config;
-
-	printk("attached\n");
 
 	/* We use the I/O ports 0x22,0x23 and 0xa3-0xa9, which are always
 	 * allocated for the primary 8259, so we don't need to allocate them
@@ -209,6 +169,7 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(PCMR, CSCIR);
 	outb((inb(CSCDR) & 0xAA), CSCDR);
 
+	dev_info(dev->class_dev, "%s: attached\n", dev->board_name);
 	return 1;
 }
 
@@ -222,23 +183,11 @@ static void dnp_detach(struct comedi_device *dev)
 	outb((inb(CSCDR) & 0xAA), CSCDR);
 }
 
-static const struct dnp_board dnp_boards[] = {
-	{
-		.name		= "dnp-1486",
-		.ai_chans	= 16,
-		.ai_bits	= 12,
-		.have_dio	= 1,
-	},
-};
-
 static struct comedi_driver dnp_driver = {
-	.driver_name	= "ssv_dnp",
+	.driver_name	= "dnp-1486",
 	.module		= THIS_MODULE,
 	.attach		= dnp_attach,
 	.detach		= dnp_detach,
-	.board_name	= &dnp_boards[0].name,
-	.offset		= sizeof(struct dnp_board),
-	.num_names	= ARRAY_SIZE(dnp_boards),
 };
 module_comedi_driver(dnp_driver);
 

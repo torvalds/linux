@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_gpio.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/slab.h>
 
 /* Private data structure for of_gpiochip_find_and_xlate */
@@ -60,7 +61,7 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
  * in flags for the GPIO.
  */
 int of_get_named_gpio_flags(struct device_node *np, const char *propname,
-                           int index, enum of_gpio_flags *flags)
+			   int index, enum of_gpio_flags *flags)
 {
 	/* Return -EPROBE_DEFER to support probe() functions to be called
 	 * later when the GPIO actually becomes available
@@ -75,52 +76,18 @@ int of_get_named_gpio_flags(struct device_node *np, const char *propname,
 	ret = of_parse_phandle_with_args(np, propname, "#gpio-cells", index,
 					 &gg_data.gpiospec);
 	if (ret) {
-		pr_debug("%s: can't parse gpios property\n", __func__);
+		pr_debug("%s: can't parse gpios property of node '%s[%d]'\n",
+			__func__, np->full_name, index);
 		return ret;
 	}
 
 	gpiochip_find(&gg_data, of_gpiochip_find_and_xlate);
 
 	of_node_put(gg_data.gpiospec.np);
-	pr_debug("%s exited with status %d\n", __func__, ret);
+	pr_debug("%s exited with status %d\n", __func__, gg_data.out_gpio);
 	return gg_data.out_gpio;
 }
 EXPORT_SYMBOL(of_get_named_gpio_flags);
-
-/**
- * of_gpio_named_count - Count GPIOs for a device
- * @np:		device node to count GPIOs for
- * @propname:	property name containing gpio specifier(s)
- *
- * The function returns the count of GPIOs specified for a node.
- *
- * Note that the empty GPIO specifiers counts too. For example,
- *
- * gpios = <0
- *          &pio1 1 2
- *          0
- *          &pio2 3 4>;
- *
- * defines four GPIOs (so this function will return 4), two of which
- * are not specified.
- */
-unsigned int of_gpio_named_count(struct device_node *np, const char* propname)
-{
-	unsigned int cnt = 0;
-
-	do {
-		int ret;
-
-		ret = of_parse_phandle_with_args(np, propname, "#gpio-cells",
-						 cnt, NULL);
-		/* A hole in the gpios = <> counts anyway. */
-		if (ret < 0 && ret != -EEXIST)
-			break;
-	} while (++cnt);
-
-	return cnt;
-}
-EXPORT_SYMBOL(of_gpio_named_count);
 
 /**
  * of_gpio_simple_xlate - translate gpio_spec to the GPIO number and flags
@@ -216,6 +183,42 @@ err0:
 }
 EXPORT_SYMBOL(of_mm_gpiochip_add);
 
+#ifdef CONFIG_PINCTRL
+static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
+{
+	struct device_node *np = chip->of_node;
+	struct of_phandle_args pinspec;
+	struct pinctrl_dev *pctldev;
+	int index = 0, ret;
+
+	if (!np)
+		return;
+
+	for (;; index++) {
+		ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3,
+				index, &pinspec);
+		if (ret)
+			break;
+
+		pctldev = of_pinctrl_get(pinspec.np);
+		if (!pctldev)
+			break;
+
+		ret = gpiochip_add_pin_range(chip,
+					     pinctrl_dev_get_devname(pctldev),
+					     pinspec.args[0],
+					     pinspec.args[1],
+					     pinspec.args[2]);
+
+		if (ret)
+			break;
+	}
+}
+
+#else
+static void of_gpiochip_add_pin_range(struct gpio_chip *chip) {}
+#endif
+
 void of_gpiochip_add(struct gpio_chip *chip)
 {
 	if ((!chip->of_node) && (chip->dev))
@@ -229,11 +232,14 @@ void of_gpiochip_add(struct gpio_chip *chip)
 		chip->of_xlate = of_gpio_simple_xlate;
 	}
 
+	of_gpiochip_add_pin_range(chip);
 	of_node_get(chip->of_node);
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
+	gpiochip_remove_pin_ranges(chip);
+
 	if (chip->of_node)
 		of_node_put(chip->of_node);
 }

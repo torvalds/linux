@@ -6,12 +6,12 @@
 #ifndef __LINE_H__
 #define __LINE_H__
 
-#include "linux/list.h"
-#include "linux/workqueue.h"
-#include "linux/tty.h"
-#include "linux/interrupt.h"
-#include "linux/spinlock.h"
-#include "linux/mutex.h"
+#include <linux/list.h>
+#include <linux/workqueue.h>
+#include <linux/tty.h>
+#include <linux/interrupt.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include "chan_user.h"
 #include "mconsole_kern.h"
 

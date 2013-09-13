@@ -21,26 +21,17 @@
 
 #include "sysfs.h"
 
-static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
-				const char *name, int warn)
+static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
+				   struct kobject *target,
+				   const char *name, int warn)
 {
-	struct sysfs_dirent *parent_sd = NULL;
 	struct sysfs_dirent *target_sd = NULL;
 	struct sysfs_dirent *sd = NULL;
 	struct sysfs_addrm_cxt acxt;
 	enum kobj_ns_type ns_type;
 	int error;
 
-	BUG_ON(!name);
-
-	if (!kobj)
-		parent_sd = &sysfs_root;
-	else
-		parent_sd = kobj->sd;
-
-	error = -EFAULT;
-	if (!parent_sd)
-		goto out_put;
+	BUG_ON(!name || !parent_sd);
 
 	/* target->sd can go away beneath us but is protected with
 	 * sysfs_assoc_lock.  Fetch target_sd from it.
@@ -96,6 +87,34 @@ static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 }
 
 /**
+ *	sysfs_create_link_sd - create symlink to a given object.
+ *	@sd:		directory we're creating the link in.
+ *	@target:	object we're pointing to.
+ *	@name:		name of the symlink.
+ */
+int sysfs_create_link_sd(struct sysfs_dirent *sd, struct kobject *target,
+			 const char *name)
+{
+	return sysfs_do_create_link_sd(sd, target, name, 1);
+}
+
+static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
+				const char *name, int warn)
+{
+	struct sysfs_dirent *parent_sd = NULL;
+
+	if (!kobj)
+		parent_sd = &sysfs_root;
+	else
+		parent_sd = kobj->sd;
+
+	if (!parent_sd)
+		return -EFAULT;
+
+	return sysfs_do_create_link_sd(parent_sd, target, name, warn);
+}
+
+/**
  *	sysfs_create_link - create symlink between two objects.
  *	@kobj:	object whose directory we're creating the link in.
  *	@target:	object we're pointing to.
@@ -106,6 +125,7 @@ int sysfs_create_link(struct kobject *kobj, struct kobject *target,
 {
 	return sysfs_do_create_link(kobj, target, name, 1);
 }
+EXPORT_SYMBOL_GPL(sysfs_create_link);
 
 /**
  *	sysfs_create_link_nowarn - create symlink between two objects.
@@ -113,7 +133,7 @@ int sysfs_create_link(struct kobject *kobj, struct kobject *target,
  *	@target:	object we're pointing to.
  *	@name:		name of the symlink.
  *
- *	This function does the same as sysf_create_link(), but it
+ *	This function does the same as sysfs_create_link(), but it
  *	doesn't warn if the link already exists.
  */
 int sysfs_create_link_nowarn(struct kobject *kobj, struct kobject *target,
@@ -147,8 +167,7 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
  *	@kobj:	object we're acting for.
  *	@name:	name of the symlink to remove.
  */
-
-void sysfs_remove_link(struct kobject * kobj, const char * name)
+void sysfs_remove_link(struct kobject *kobj, const char *name)
 {
 	struct sysfs_dirent *parent_sd = NULL;
 
@@ -159,6 +178,7 @@ void sysfs_remove_link(struct kobject * kobj, const char * name)
 
 	sysfs_hash_and_remove(parent_sd, NULL, name);
 }
+EXPORT_SYMBOL_GPL(sysfs_remove_link);
 
 /**
  *	sysfs_rename_link - rename symlink in object's directory.
@@ -204,6 +224,7 @@ out:
 	sysfs_put(sd);
 	return result;
 }
+EXPORT_SYMBOL_GPL(sysfs_rename_link);
 
 static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
 				 struct sysfs_dirent *target_sd, char *path)
@@ -257,7 +278,7 @@ static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
 	return 0;
 }
 
-static int sysfs_getlink(struct dentry *dentry, char * path)
+static int sysfs_getlink(struct dentry *dentry, char *path)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
 	struct sysfs_dirent *parent_sd = sd->s_parent;
@@ -276,7 +297,7 @@ static void *sysfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	int error = -ENOMEM;
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	if (page) {
-		error = sysfs_getlink(dentry, (char *) page); 
+		error = sysfs_getlink(dentry, (char *) page);
 		if (error < 0)
 			free_page((unsigned long)page);
 	}
@@ -284,7 +305,8 @@ static void *sysfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
+static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd,
+			   void *cookie)
 {
 	char *page = nd_get_link(nd);
 	if (!IS_ERR(page))
@@ -300,8 +322,3 @@ const struct inode_operations sysfs_symlink_inode_operations = {
 	.getattr	= sysfs_getattr,
 	.permission	= sysfs_permission,
 };
-
-
-EXPORT_SYMBOL_GPL(sysfs_create_link);
-EXPORT_SYMBOL_GPL(sysfs_remove_link);
-EXPORT_SYMBOL_GPL(sysfs_rename_link);

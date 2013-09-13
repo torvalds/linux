@@ -139,17 +139,17 @@ static u32 _rtl92s_phy_rf_serial_read(struct ieee80211_hw *hw,
 						BIT(8));
 
 	if (rfpi_enable)
-		retvalue = rtl_get_bbreg(hw, pphyreg->rflssi_readbackpi,
+		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rbpi,
 					 BLSSI_READBACK_DATA);
 	else
-		retvalue = rtl_get_bbreg(hw, pphyreg->rflssi_readback,
+		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb,
 					 BLSSI_READBACK_DATA);
 
-	retvalue = rtl_get_bbreg(hw, pphyreg->rflssi_readback,
+	retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb,
 				 BLSSI_READBACK_DATA);
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE, "RFR-%d Addr[0x%x]=0x%x\n",
-		 rfpath, pphyreg->rflssi_readback, retvalue);
+		 rfpath, pphyreg->rf_rb, retvalue);
 
 	return retvalue;
 
@@ -696,7 +696,7 @@ static void _rtl92s_store_pwrindex_diffrate_offset(struct ieee80211_hw *hw,
 	else
 		return;
 
-	rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][index] = data;
+	rtlphy->mcs_offset[rtlphy->pwrgroup_cnt][index] = data;
 	if (index == 5)
 		rtlphy->pwrgroup_cnt++;
 }
@@ -765,14 +765,10 @@ static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_D].rfhssi_para2 = RFPGA0_XD_HSSIPARAMETER2;
 
 	/* RF switch Control */
-	rtlphy->phyreg_def[RF90_PATH_A].rfswitch_control =
-						 RFPGA0_XAB_SWITCHCONTROL;
-	rtlphy->phyreg_def[RF90_PATH_B].rfswitch_control =
-						 RFPGA0_XAB_SWITCHCONTROL;
-	rtlphy->phyreg_def[RF90_PATH_C].rfswitch_control =
-						 RFPGA0_XCD_SWITCHCONTROL;
-	rtlphy->phyreg_def[RF90_PATH_D].rfswitch_control =
-						 RFPGA0_XCD_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_A].rfsw_ctrl = RFPGA0_XAB_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_B].rfsw_ctrl = RFPGA0_XAB_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_C].rfsw_ctrl = RFPGA0_XCD_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_D].rfsw_ctrl = RFPGA0_XCD_SWITCHCONTROL;
 
 	/* AGC control 1  */
 	rtlphy->phyreg_def[RF90_PATH_A].rfagc_control1 = ROFDM0_XAAGCCORE1;
@@ -787,14 +783,10 @@ static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_D].rfagc_control2 = ROFDM0_XDAGCCORE2;
 
 	/* RX AFE control 1  */
-	rtlphy->phyreg_def[RF90_PATH_A].rfrxiq_imbalance =
-						 ROFDM0_XARXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_B].rfrxiq_imbalance =
-						 ROFDM0_XBRXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_C].rfrxiq_imbalance =
-						 ROFDM0_XCRXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_D].rfrxiq_imbalance =
-						 ROFDM0_XDRXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_A].rfrxiq_imbal = ROFDM0_XARXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_B].rfrxiq_imbal = ROFDM0_XBRXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_C].rfrxiq_imbal = ROFDM0_XCRXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_D].rfrxiq_imbal = ROFDM0_XDRXIQIMBALANCE;
 
 	/* RX AFE control 1   */
 	rtlphy->phyreg_def[RF90_PATH_A].rfrx_afe = ROFDM0_XARXAFE;
@@ -803,14 +795,10 @@ static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_D].rfrx_afe = ROFDM0_XDRXAFE;
 
 	/* Tx AFE control 1  */
-	rtlphy->phyreg_def[RF90_PATH_A].rftxiq_imbalance =
-						 ROFDM0_XATXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_B].rftxiq_imbalance =
-						 ROFDM0_XBTXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_C].rftxiq_imbalance =
-						 ROFDM0_XCTXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_D].rftxiq_imbalance =
-						 ROFDM0_XDTXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_A].rftxiq_imbal = ROFDM0_XATXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_B].rftxiq_imbal = ROFDM0_XBTXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_C].rftxiq_imbal = ROFDM0_XCTXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_D].rftxiq_imbal = ROFDM0_XDTXIQIMBALANCE;
 
 	/* Tx AFE control 2  */
 	rtlphy->phyreg_def[RF90_PATH_A].rftx_afe = ROFDM0_XATXAFE;
@@ -819,20 +807,14 @@ static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_D].rftx_afe = ROFDM0_XDTXAFE;
 
 	/* Tranceiver LSSI Readback */
-	rtlphy->phyreg_def[RF90_PATH_A].rflssi_readback =
-			 RFPGA0_XA_LSSIREADBACK;
-	rtlphy->phyreg_def[RF90_PATH_B].rflssi_readback =
-			 RFPGA0_XB_LSSIREADBACK;
-	rtlphy->phyreg_def[RF90_PATH_C].rflssi_readback =
-			 RFPGA0_XC_LSSIREADBACK;
-	rtlphy->phyreg_def[RF90_PATH_D].rflssi_readback =
-			 RFPGA0_XD_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_A].rf_rb = RFPGA0_XA_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_B].rf_rb = RFPGA0_XB_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_C].rf_rb = RFPGA0_XC_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_D].rf_rb = RFPGA0_XD_LSSIREADBACK;
 
 	/* Tranceiver LSSI Readback PI mode  */
-	rtlphy->phyreg_def[RF90_PATH_A].rflssi_readbackpi =
-			 TRANSCEIVERA_HSPI_READBACK;
-	rtlphy->phyreg_def[RF90_PATH_B].rflssi_readbackpi =
-			 TRANSCEIVERB_HSPI_READBACK;
+	rtlphy->phyreg_def[RF90_PATH_A].rf_rbpi = TRANSCEIVERA_HSPI_READBACK;
+	rtlphy->phyreg_def[RF90_PATH_B].rf_rbpi = TRANSCEIVERB_HSPI_READBACK;
 }
 
 
@@ -1325,6 +1307,8 @@ static void _rtl92s_phy_set_fwcmd_io(struct ieee80211_hw *hw)
 	if (is_hal_stop(rtlhal))
 		return;
 
+	if (hal_get_firmwareversion(rtlpriv) < 0x34)
+		goto skip;
 	/* We re-map RA related CMD IO to combinational ones */
 	/* if FW version is v.52 or later. */
 	switch (rtlhal->current_fwcmd_io) {
@@ -1338,6 +1322,7 @@ static void _rtl92s_phy_set_fwcmd_io(struct ieee80211_hw *hw)
 		break;
 	}
 
+skip:
 	switch (rtlhal->current_fwcmd_io) {
 	case FW_CMD_RA_RESET:
 		RT_TRACE(rtlpriv, COMP_CMD, DBG_DMESG, "FW_CMD_RA_RESET\n");
@@ -1458,7 +1443,7 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	u32	fw_param = FW_CMD_IO_PARA_QUERY(rtlpriv);
 	u16	fw_cmdmap = FW_CMD_IO_QUERY(rtlpriv);
-	bool bPostProcessing = false;
+	bool postprocessing = false;
 
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD,
 		 "Set FW Cmd(%#x), set_fwcmd_inprogress(%d)\n",
@@ -1467,15 +1452,24 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 	do {
 		/* We re-map to combined FW CMD ones if firmware version */
 		/* is v.53 or later. */
-		switch (fw_cmdio) {
-		case FW_CMD_RA_REFRESH_N:
-			fw_cmdio = FW_CMD_RA_REFRESH_N_COMB;
-			break;
-		case FW_CMD_RA_REFRESH_BG:
-			fw_cmdio = FW_CMD_RA_REFRESH_BG_COMB;
-			break;
-		default:
-			break;
+		if (hal_get_firmwareversion(rtlpriv) >= 0x35) {
+			switch (fw_cmdio) {
+			case FW_CMD_RA_REFRESH_N:
+				fw_cmdio = FW_CMD_RA_REFRESH_N_COMB;
+				break;
+			case FW_CMD_RA_REFRESH_BG:
+				fw_cmdio = FW_CMD_RA_REFRESH_BG_COMB;
+				break;
+			default:
+				break;
+			}
+		} else {
+			if ((fw_cmdio == FW_CMD_IQK_ENABLE) ||
+			    (fw_cmdio == FW_CMD_RA_REFRESH_N) ||
+			    (fw_cmdio == FW_CMD_RA_REFRESH_BG)) {
+				postprocessing = true;
+				break;
+			}
 		}
 
 		/* If firmware version is v.62 or later,
@@ -1606,19 +1600,19 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 				fw_cmdmap &= ~FW_DIG_ENABLE_CTL;
 
 			FW_CMD_IO_SET(rtlpriv, fw_cmdmap);
-			bPostProcessing = true;
+			postprocessing = true;
 			break;
 		case FW_CMD_PAUSE_DM_BY_SCAN:
 			fw_cmdmap &= ~(FW_DIG_ENABLE_CTL |
 				       FW_HIGH_PWR_ENABLE_CTL |
 				       FW_SS_CTL);
 			FW_CMD_IO_SET(rtlpriv, fw_cmdmap);
-			bPostProcessing = true;
+			postprocessing = true;
 			break;
 		case FW_CMD_HIGH_PWR_DISABLE:
 			fw_cmdmap &= ~FW_HIGH_PWR_ENABLE_CTL;
 			FW_CMD_IO_SET(rtlpriv, fw_cmdmap);
-			bPostProcessing = true;
+			postprocessing = true;
 			break;
 		case FW_CMD_HIGH_PWR_ENABLE:
 			if (!(rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) &&
@@ -1626,7 +1620,7 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 				fw_cmdmap |= (FW_HIGH_PWR_ENABLE_CTL |
 					      FW_SS_CTL);
 				FW_CMD_IO_SET(rtlpriv, fw_cmdmap);
-				bPostProcessing = true;
+				postprocessing = true;
 			}
 			break;
 		case FW_CMD_DIG_MODE_FA:
@@ -1647,14 +1641,15 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 		default:
 			/* Pass to original FW CMD processing callback
 			 * routine. */
-			bPostProcessing = true;
+			postprocessing = true;
 			break;
 		}
 	} while (false);
 
 	/* We shall post processing these FW CMD if
-	 * variable bPostProcessing is set. */
-	if (bPostProcessing && !rtlhal->set_fwcmd_inprogress) {
+	 * variable postprocessing is set.
+	 */
+	if (postprocessing && !rtlhal->set_fwcmd_inprogress) {
 		rtlhal->set_fwcmd_inprogress = true;
 		/* Update current FW Cmd for callback use. */
 		rtlhal->current_fwcmd_io = fw_cmdio;
@@ -1715,8 +1710,18 @@ void rtl92s_phy_switch_ephy_parameter(struct ieee80211_hw *hw)
 
 }
 
-void rtl92s_phy_set_beacon_hwreg(struct ieee80211_hw *hw, u16 BeaconInterval)
+void rtl92s_phy_set_beacon_hwreg(struct ieee80211_hw *hw, u16 beaconinterval)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	rtl_write_dword(rtlpriv, WFM5, 0xF1000000 | (BeaconInterval << 8));
+	u32 new_bcn_num = 0;
+
+	if (hal_get_firmwareversion(rtlpriv) >= 0x33) {
+		/* Fw v.51 and later. */
+		rtl_write_dword(rtlpriv, WFM5, 0xF1000000 |
+				(beaconinterval << 8));
+	} else {
+		new_bcn_num = beaconinterval * 32 - 64;
+		rtl_write_dword(rtlpriv, WFM3 + 4, new_bcn_num);
+		rtl_write_dword(rtlpriv, WFM3, 0xB026007C);
+	}
 }

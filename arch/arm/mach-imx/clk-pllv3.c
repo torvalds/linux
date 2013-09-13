@@ -31,7 +31,6 @@
  * @clk_hw:	 clock source
  * @base:	 base address of PLL registers
  * @powerup_set: set POWER bit to power up the PLL
- * @gate_mask:	 mask of gate bits
  * @div_mask:	 mask of divider bits
  *
  * IMX PLL clock version 3, found on i.MX6 series.  Divider for pllv3
@@ -41,7 +40,6 @@ struct clk_pllv3 {
 	struct clk_hw	hw;
 	void __iomem	*base;
 	bool		powerup_set;
-	u32		gate_mask;
 	u32		div_mask;
 };
 
@@ -50,7 +48,7 @@ struct clk_pllv3 {
 static int clk_pllv3_prepare(struct clk_hw *hw)
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	unsigned long timeout = jiffies + msecs_to_jiffies(10);
+	unsigned long timeout;
 	u32 val;
 
 	val = readl_relaxed(pll->base);
@@ -61,12 +59,19 @@ static int clk_pllv3_prepare(struct clk_hw *hw)
 		val &= ~BM_PLL_POWER;
 	writel_relaxed(val, pll->base);
 
+	timeout = jiffies + msecs_to_jiffies(10);
 	/* Wait for PLL to lock */
-	while (!(readl_relaxed(pll->base) & BM_PLL_LOCK))
+	do {
+		if (readl_relaxed(pll->base) & BM_PLL_LOCK)
+			break;
 		if (time_after(jiffies, timeout))
-			return -ETIMEDOUT;
+			break;
+	} while (1);
 
-	return 0;
+	if (readl_relaxed(pll->base) & BM_PLL_LOCK)
+		return 0;
+	else
+		return -ETIMEDOUT;
 }
 
 static void clk_pllv3_unprepare(struct clk_hw *hw)
@@ -89,7 +94,7 @@ static int clk_pllv3_enable(struct clk_hw *hw)
 	u32 val;
 
 	val = readl_relaxed(pll->base);
-	val |= pll->gate_mask;
+	val |= BM_PLL_ENABLE;
 	writel_relaxed(val, pll->base);
 
 	return 0;
@@ -101,7 +106,7 @@ static void clk_pllv3_disable(struct clk_hw *hw)
 	u32 val;
 
 	val = readl_relaxed(pll->base);
-	val &= ~pll->gate_mask;
+	val &= ~BM_PLL_ENABLE;
 	writel_relaxed(val, pll->base);
 }
 
@@ -287,66 +292,7 @@ static const struct clk_ops clk_pllv3_av_ops = {
 static unsigned long clk_pllv3_enet_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
-	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 div = readl_relaxed(pll->base) & pll->div_mask;
-
-	switch (div) {
-	case 0:
-		return 25000000;
-	case 1:
-		return 50000000;
-	case 2:
-		return 100000000;
-	case 3:
-		return 125000000;
-	}
-
-	return 0;
-}
-
-static long clk_pllv3_enet_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *prate)
-{
-	if (rate >= 125000000)
-		rate = 125000000;
-	else if (rate >= 100000000)
-		rate = 100000000;
-	else if (rate >= 50000000)
-		rate = 50000000;
-	else
-		rate = 25000000;
-	return rate;
-}
-
-static int clk_pllv3_enet_set_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long parent_rate)
-{
-	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 val, div;
-
-	switch (rate) {
-	case 25000000:
-		div = 0;
-		break;
-	case 50000000:
-		div = 1;
-		break;
-	case 100000000:
-		div = 2;
-		break;
-	case 125000000:
-		div = 3;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	val = readl_relaxed(pll->base);
-	val &= ~pll->div_mask;
-	val |= div;
-	writel_relaxed(val, pll->base);
-
-	return 0;
+	return 500000000;
 }
 
 static const struct clk_ops clk_pllv3_enet_ops = {
@@ -355,20 +301,11 @@ static const struct clk_ops clk_pllv3_enet_ops = {
 	.enable		= clk_pllv3_enable,
 	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_enet_recalc_rate,
-	.round_rate	= clk_pllv3_enet_round_rate,
-	.set_rate	= clk_pllv3_enet_set_rate,
-};
-
-static const struct clk_ops clk_pllv3_mlb_ops = {
-	.prepare	= clk_pllv3_prepare,
-	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
 };
 
 struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 			  const char *parent_name, void __iomem *base,
-			  u32 gate_mask, u32 div_mask)
+			  u32 div_mask)
 {
 	struct clk_pllv3 *pll;
 	const struct clk_ops *ops;
@@ -393,14 +330,10 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	case IMX_PLLV3_ENET:
 		ops = &clk_pllv3_enet_ops;
 		break;
-	case IMX_PLLV3_MLB:
-		ops = &clk_pllv3_mlb_ops;
-		break;
 	default:
 		ops = &clk_pllv3_ops;
 	}
 	pll->base = base;
-	pll->gate_mask = gate_mask;
 	pll->div_mask = div_mask;
 
 	init.name = name;

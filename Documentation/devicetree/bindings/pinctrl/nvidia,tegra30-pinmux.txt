@@ -83,13 +83,25 @@ Valid values for pin and group names are:
   drive groups:
 
     These all support nvidia,pull-down-strength, nvidia,pull-up-strength,
-    nvidia,slew_rate-rising, nvidia,slew_rate-falling. Most but not all
+    nvidia,slew-rate-rising, nvidia,slew-rate-falling. Most but not all
     support nvidia,high-speed-mode, nvidia,schmitt, nvidia,low-power-mode.
 
     ao1, ao2, at1, at2, at3, at4, at5, cdev1, cdev2, cec, crt, csus, dap1,
     dap2, dap3, dap4, dbg, ddc, dev3, gma, gmb, gmc, gmd, gme, gmf, gmg,
     gmh, gpv, lcd1, lcd2, owr, sdio1, sdio2, sdio3, spi, uaa, uab, uart2,
     uart3, uda, vi1.
+
+Valid values for nvidia,functions are:
+
+  blink, cec, clk_12m_out, clk_32k_in, core_pwr_req, cpu_pwr_req, crt,
+  dap, ddr, dev3, displaya, displayb, dtv, extperiph1, extperiph2,
+  extperiph3, gmi, gmi_alt, hda, hdcp, hdmi, hsi, i2c1, i2c2, i2c3,
+  i2c4, i2cpwr, i2s0, i2s1, i2s2, i2s3, i2s4, invalid, kbc, mio, nand,
+  nand_alt, owr, pcie, pwm0, pwm1, pwm2, pwm3, pwr_int_n, rsvd1, rsvd2,
+  rsvd3, rsvd4, rtck, sata, sdmmc1, sdmmc2, sdmmc3, sdmmc4, spdif, spi1,
+  spi2, spi2_alt, spi3, spi4, spi5, spi6, sysclk, test, trace, uarta,
+  uartb, uartc, uartd, uarte, ulpi, vgp1, vgp2, vgp3, vgp4, vgp5, vgp6,
+  vi, vi_alt1, vi_alt2, vi_alt3
 
 Example:
 

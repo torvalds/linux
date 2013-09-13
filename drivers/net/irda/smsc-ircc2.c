@@ -376,8 +376,8 @@ MODULE_DEVICE_TABLE(pnp, smsc_ircc_pnp_table);
 static int pnp_driver_registered;
 
 #ifdef CONFIG_PNP
-static int __devinit smsc_ircc_pnp_probe(struct pnp_dev *dev,
-				      const struct pnp_device_id *dev_id)
+static int smsc_ircc_pnp_probe(struct pnp_dev *dev,
+			       const struct pnp_device_id *dev_id)
 {
 	unsigned int firbase, sirbase;
 	u8 dma, irq;
@@ -515,7 +515,7 @@ static const struct net_device_ops smsc_ircc_netdev_ops = {
  *    Try to open driver instance
  *
  */
-static int __devinit smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u8 dma, u8 irq)
+static int smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u8 dma, u8 irq)
 {
 	struct smsc_ircc_cb *self;
 	struct net_device *dev;
@@ -562,25 +562,16 @@ static int __devinit smsc_ircc_open(unsigned int fir_base, unsigned int sir_base
 	self->tx_buff.truesize = SMSC_IRCC2_TX_BUFF_TRUESIZE;
 
 	self->rx_buff.head =
-		dma_alloc_coherent(NULL, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL);
-	if (self->rx_buff.head == NULL) {
-		IRDA_ERROR("%s, Can't allocate memory for receive buffer!\n",
-			   driver_name);
+		dma_zalloc_coherent(NULL, self->rx_buff.truesize,
+				    &self->rx_buff_dma, GFP_KERNEL);
+	if (self->rx_buff.head == NULL)
 		goto err_out2;
-	}
 
 	self->tx_buff.head =
-		dma_alloc_coherent(NULL, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL);
-	if (self->tx_buff.head == NULL) {
-		IRDA_ERROR("%s, Can't allocate memory for transmit buffer!\n",
-			   driver_name);
+		dma_zalloc_coherent(NULL, self->tx_buff.truesize,
+				    &self->tx_buff_dma, GFP_KERNEL);
+	if (self->tx_buff.head == NULL)
 		goto err_out3;
-	}
-
-	memset(self->rx_buff.head, 0, self->rx_buff.truesize);
-	memset(self->tx_buff.head, 0, self->tx_buff.truesize);
 
 	self->rx_buff.in_frame = FALSE;
 	self->rx_buff.state = OUTSIDE_FRAME;

@@ -134,7 +134,7 @@ static struct regulator_ops fixed_voltage_ops = {
 	.list_voltage = fixed_voltage_list_voltage,
 };
 
-static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
+static int reg_fixed_voltage_probe(struct platform_device *pdev)
 {
 	struct fixed_voltage_config *config;
 	struct fixed_voltage_data *drvdata;
@@ -146,7 +146,7 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 		if (IS_ERR(config))
 			return PTR_ERR(config);
 	} else {
-		config = pdev->dev.platform_data;
+		config = dev_get_platdata(&pdev->dev);
 	}
 
 	if (!config)
@@ -234,7 +234,7 @@ err:
 	return ret;
 }
 
-static int __devexit reg_fixed_voltage_remove(struct platform_device *pdev)
+static int reg_fixed_voltage_remove(struct platform_device *pdev)
 {
 	struct fixed_voltage_data *drvdata = platform_get_drvdata(pdev);
 
@@ -246,7 +246,7 @@ static int __devexit reg_fixed_voltage_remove(struct platform_device *pdev)
 }
 
 #if defined(CONFIG_OF)
-static const struct of_device_id fixed_of_match[] __devinitconst = {
+static const struct of_device_id fixed_of_match[] = {
 	{ .compatible = "regulator-fixed", },
 	{},
 };
@@ -255,7 +255,7 @@ MODULE_DEVICE_TABLE(of, fixed_of_match);
 
 static struct platform_driver regulator_fixed_voltage_driver = {
 	.probe		= reg_fixed_voltage_probe,
-	.remove		= __devexit_p(reg_fixed_voltage_remove),
+	.remove		= reg_fixed_voltage_remove,
 	.driver		= {
 		.name		= "reg-fixed-voltage",
 		.owner		= THIS_MODULE,

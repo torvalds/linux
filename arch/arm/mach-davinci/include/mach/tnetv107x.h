@@ -35,13 +35,13 @@
 #include <linux/serial_8250.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/mfd/ti_ssp.h>
+#include <linux/reboot.h>
 
-#include <mach/mmc.h>
-#include <mach/nand.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
 #include <mach/serial.h>
 
 struct tnetv107x_device_info {
-	struct davinci_uart_config	*serial_config;
 	struct davinci_mmc_config	*mmc_config[2];  /* 2 controllers */
 	struct davinci_nand_pdata	*nand_config[4]; /* 4 chipsels */
 	struct matrix_keypad_platform_data *keypad_config;
@@ -49,12 +49,12 @@ struct tnetv107x_device_info {
 };
 
 extern struct platform_device tnetv107x_wdt_device;
-extern struct platform_device tnetv107x_serial_device;
+extern struct platform_device tnetv107x_serial_device[];
 
-extern void __init tnetv107x_init(void);
-extern void __init tnetv107x_devices_init(struct tnetv107x_device_info *);
-extern void __init tnetv107x_irq_init(void);
-void tnetv107x_restart(char mode, const char *cmd);
+extern void tnetv107x_init(void);
+extern void tnetv107x_devices_init(struct tnetv107x_device_info *);
+extern void tnetv107x_irq_init(void);
+void tnetv107x_restart(enum reboot_mode mode, const char *cmd);
 
 #endif
 

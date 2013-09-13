@@ -35,6 +35,14 @@ struct nphy_rf_control_override_rev3 {
 	u8 val_addr1;
 };
 
+struct nphy_rf_control_override_rev7 {
+	u16 field;
+	u16 val_addr_core0;
+	u16 val_addr_core1;
+	u16 val_mask;
+	u8 val_shift;
+};
+
 struct nphy_gain_ctl_workaround_entry {
 	s8 lna1_gain[4];
 	s8 lna2_gain[4];
@@ -107,22 +115,22 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_NOISEVAR11_SIZE	256
 #define B43_NTAB_C0_ESTPLT		B43_NTAB8 (0x1A, 0x000) /* Estimate Power Lookup Table Core 0 */
 #define B43_NTAB_C0_ESTPLT_SIZE		64
-#define B43_NTAB_C1_ESTPLT		B43_NTAB8 (0x1B, 0x000) /* Estimate Power Lookup Table Core 1 */
-#define B43_NTAB_C1_ESTPLT_SIZE		64
 #define B43_NTAB_C0_ADJPLT		B43_NTAB8 (0x1A, 0x040) /* Adjust Power Lookup Table Core 0 */
 #define B43_NTAB_C0_ADJPLT_SIZE		128
-#define B43_NTAB_C1_ADJPLT		B43_NTAB8 (0x1B, 0x040) /* Adjust Power Lookup Table Core 1 */
-#define B43_NTAB_C1_ADJPLT_SIZE		128
 #define B43_NTAB_C0_GAINCTL		B43_NTAB32(0x1A, 0x0C0) /* Gain Control Lookup Table Core 0 */
 #define B43_NTAB_C0_GAINCTL_SIZE	128
-#define B43_NTAB_C1_GAINCTL		B43_NTAB32(0x1B, 0x0C0) /* Gain Control Lookup Table Core 1 */
-#define B43_NTAB_C1_GAINCTL_SIZE	128
 #define B43_NTAB_C0_IQLT		B43_NTAB32(0x1A, 0x140) /* IQ Lookup Table Core 0 */
 #define B43_NTAB_C0_IQLT_SIZE		128
-#define B43_NTAB_C1_IQLT		B43_NTAB32(0x1B, 0x140) /* IQ Lookup Table Core 1 */
-#define B43_NTAB_C1_IQLT_SIZE		128
 #define B43_NTAB_C0_LOFEEDTH		B43_NTAB16(0x1A, 0x1C0) /* Local Oscillator Feed Through Lookup Table Core 0 */
 #define B43_NTAB_C0_LOFEEDTH_SIZE	128
+#define B43_NTAB_C1_ESTPLT		B43_NTAB8 (0x1B, 0x000) /* Estimate Power Lookup Table Core 1 */
+#define B43_NTAB_C1_ESTPLT_SIZE		64
+#define B43_NTAB_C1_ADJPLT		B43_NTAB8 (0x1B, 0x040) /* Adjust Power Lookup Table Core 1 */
+#define B43_NTAB_C1_ADJPLT_SIZE		128
+#define B43_NTAB_C1_GAINCTL		B43_NTAB32(0x1B, 0x0C0) /* Gain Control Lookup Table Core 1 */
+#define B43_NTAB_C1_GAINCTL_SIZE	128
+#define B43_NTAB_C1_IQLT		B43_NTAB32(0x1B, 0x140) /* IQ Lookup Table Core 1 */
+#define B43_NTAB_C1_IQLT_SIZE		128
 #define B43_NTAB_C1_LOFEEDTH		B43_NTAB16(0x1B, 0x1C0) /* Local Oscillator Feed Through Lookup Table Core 1 */
 #define B43_NTAB_C1_LOFEEDTH_SIZE	128
 
@@ -146,15 +154,17 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_CHANEST_R3		B43_NTAB32(22,   0) /* channel estimate  */
 #define B43_NTAB_FRAMELT_R3		 B43_NTAB8(24,   0) /* frame lookup  */
 #define B43_NTAB_C0_ESTPLT_R3		 B43_NTAB8(26,   0) /* estimated power lookup 0  */
-#define B43_NTAB_C1_ESTPLT_R3		 B43_NTAB8(27,   0) /* estimated power lookup 1  */
 #define B43_NTAB_C0_ADJPLT_R3		 B43_NTAB8(26,  64) /* adjusted power lookup 0  */
-#define B43_NTAB_C1_ADJPLT_R3		 B43_NTAB8(27,  64) /* adjusted power lookup 1  */
 #define B43_NTAB_C0_GAINCTL_R3		B43_NTAB32(26, 192) /* gain control lookup 0  */
-#define B43_NTAB_C1_GAINCTL_R3		B43_NTAB32(27, 192) /* gain control lookup 1  */
 #define B43_NTAB_C0_IQLT_R3		B43_NTAB32(26, 320) /* I/Q lookup 0  */
-#define B43_NTAB_C1_IQLT_R3		B43_NTAB32(27, 320) /* I/Q lookup 1  */
 #define B43_NTAB_C0_LOFEEDTH_R3		B43_NTAB16(26, 448) /* Local Oscillator Feed Through lookup 0  */
+#define B43_NTAB_C0_PAPD_COMP_R3	B43_NTAB16(26, 576)
+#define B43_NTAB_C1_ESTPLT_R3		 B43_NTAB8(27,   0) /* estimated power lookup 1  */
+#define B43_NTAB_C1_ADJPLT_R3		 B43_NTAB8(27,  64) /* adjusted power lookup 1  */
+#define B43_NTAB_C1_GAINCTL_R3		B43_NTAB32(27, 192) /* gain control lookup 1  */
+#define B43_NTAB_C1_IQLT_R3		B43_NTAB32(27, 320) /* I/Q lookup 1  */
 #define B43_NTAB_C1_LOFEEDTH_R3		B43_NTAB16(27, 448) /* Local Oscillator Feed Through lookup 1 */
+#define B43_NTAB_C1_PAPD_COMP_R3	B43_NTAB16(27, 576)
 
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_40_SIZE	18
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_20_SIZE	18
@@ -174,8 +184,7 @@ void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value);
 void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, const void *_data);
 
-void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev);
-void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev);
+void b43_nphy_tables_init(struct b43_wldev *dev);
 
 const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev);
 
@@ -202,5 +211,7 @@ extern const struct nphy_rf_control_override_rev2
 	tbl_rf_control_override_rev2[];
 extern const struct nphy_rf_control_override_rev3
 	tbl_rf_control_override_rev3[];
+const struct nphy_rf_control_override_rev7 *b43_nphy_get_rf_ctl_over_rev7(
+	struct b43_wldev *dev, u16 field, u8 override);
 
 #endif /* B43_TABLES_NPHY_H_ */

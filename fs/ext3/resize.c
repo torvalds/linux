@@ -116,8 +116,8 @@ static struct buffer_head *bclean(handle_t *handle, struct super_block *sb,
 	int err;
 
 	bh = sb_getblk(sb, blk);
-	if (!bh)
-		return ERR_PTR(-EIO);
+	if (unlikely(!bh))
+		return ERR_PTR(-ENOMEM);
 	if ((err = ext3_journal_get_write_access(handle, bh))) {
 		brelse(bh);
 		bh = ERR_PTR(err);
@@ -234,8 +234,8 @@ static int setup_new_group_blocks(struct super_block *sb,
 			goto exit_bh;
 
 		gdb = sb_getblk(sb, block);
-		if (!gdb) {
-			err = -EIO;
+		if (unlikely(!gdb)) {
+			err = -ENOMEM;
 			goto exit_bh;
 		}
 		if ((err = ext3_journal_get_write_access(handle, gdb))) {
@@ -722,8 +722,8 @@ static void update_backups(struct super_block *sb,
 			break;
 
 		bh = sb_getblk(sb, group * bpg + blk_off);
-		if (!bh) {
-			err = -EIO;
+		if (unlikely(!bh)) {
+			err = -ENOMEM;
 			break;
 		}
 		ext3_debug("update metadata backup %#04lx\n",

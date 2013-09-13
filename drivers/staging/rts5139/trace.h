@@ -27,32 +27,16 @@
 #ifndef __RTS51X_TRACE_H
 #define __RTS51X_TRACE_H
 
+#include <linux/string.h>
+
 #include "debug.h"
 
 #define _MSG_TRACE
 
 #ifdef _MSG_TRACE
-static inline char *filename(char *path)
-{
-	char *ptr;
-
-	if (path == NULL)
-		return NULL;
-
-	ptr = path;
-
-	while (*ptr != '\0') {
-		if ((*ptr == '\\') || (*ptr == '/'))
-			path = ptr + 1;
-		ptr++;
-	}
-
-	return path;
-}
-
 #define TRACE_RET(chip, ret)						\
 do {									\
-	char *_file = filename((char *)__FILE__);			\
+	const char *_file = kbasename(__FILE__);			\
 	RTS51X_DEBUGP("[%s][%s]:[%d]\n", _file, __func__, __LINE__);	\
 	(chip)->trace_msg[(chip)->msg_idx].line = (u16)(__LINE__);	\
 	strncpy((chip)->trace_msg[(chip)->msg_idx].func,		\
@@ -71,7 +55,7 @@ do {									\
 
 #define TRACE_GOTO(chip, label)						\
 do {									\
-	char *_file = filename((char *)__FILE__);			\
+	const char *_file = kbasename(__FILE__);			\
 	RTS51X_DEBUGP("[%s][%s]:[%d]\n", _file, __func__, __LINE__);	\
 	(chip)->trace_msg[(chip)->msg_idx].line = (u16)(__LINE__);	\
 	strncpy((chip)->trace_msg[(chip)->msg_idx].func,		\
@@ -93,35 +77,9 @@ do {									\
 #endif
 
 #ifdef CONFIG_RTS5139_DEBUG
-static inline void rts51x_dump(u8 *buf, int buf_len)
-{
-	int i;
-	u8 tmp[16] = { 0 };
-	u8 *_ptr = buf;
-
-	for (i = 0; i < ((buf_len) / 16); i++) {
-		RTS51X_DEBUGP("%02x %02x %02x %02x %02x %02x %02x %02x "
-			       "%02x %02x %02x %02x %02x %02x %02x %02x\n",
-			       _ptr[0], _ptr[1], _ptr[2], _ptr[3], _ptr[4],
-			       _ptr[5], _ptr[6], _ptr[7], _ptr[8], _ptr[9],
-			       _ptr[10], _ptr[11], _ptr[12], _ptr[13], _ptr[14],
-			       _ptr[15]);
-		_ptr += 16;
-	}
-	if ((buf_len) % 16) {
-		memcpy(tmp, _ptr, (buf_len) % 16);
-		_ptr = tmp;
-		RTS51X_DEBUGP("%02x %02x %02x %02x %02x %02x %02x %02x "
-			       "%02x %02x %02x %02x %02x %02x %02x %02x\n",
-			       _ptr[0], _ptr[1], _ptr[2], _ptr[3], _ptr[4],
-			       _ptr[5], _ptr[6], _ptr[7], _ptr[8], _ptr[9],
-			       _ptr[10], _ptr[11], _ptr[12], _ptr[13], _ptr[14],
-			       _ptr[15]);
-	}
-}
-
-#define RTS51X_DUMP(buf, buf_len)	\
-		rts51x_dump((u8 *)(buf), (buf_len))
+#define RTS51X_DUMP(buf, buf_len)					\
+	print_hex_dump(KERN_DEBUG, RTS51X_TIP, DUMP_PREFIX_NONE,	\
+				16, 1, (buf), (buf_len), false)
 
 #define CATCH_TRIGGER(chip)					\
 do {								\

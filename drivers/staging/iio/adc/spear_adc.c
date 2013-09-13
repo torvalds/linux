@@ -180,8 +180,8 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 #define SPEAR_ADC_CHAN(idx) {				\
 	.type = IIO_VOLTAGE,				\
 	.indexed = 1,					\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-	IIO_CHAN_INFO_SCALE_SHARED_BIT,			\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 	.channel = idx,					\
 	.scan_type = {					\
 		.sign = 'u',				\
@@ -189,7 +189,7 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 	},						\
 }
 
-static struct iio_chan_spec spear_adc_iio_channels[] = {
+static const struct iio_chan_spec spear_adc_iio_channels[] = {
 	SPEAR_ADC_CHAN(0),
 	SPEAR_ADC_CHAN(1),
 	SPEAR_ADC_CHAN(2),
@@ -291,7 +291,7 @@ static const struct iio_info spear_adc_iio_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit spear_adc_probe(struct platform_device *pdev)
+static int spear_adc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
@@ -300,11 +300,10 @@ static int __devinit spear_adc_probe(struct platform_device *pdev)
 	int ret = -ENODEV;
 	int irq;
 
-	iodev = iio_device_alloc(sizeof(struct spear_adc_info));
+	iodev = devm_iio_device_alloc(dev, sizeof(struct spear_adc_info));
 	if (!iodev) {
 		dev_err(dev, "failed allocating iio device\n");
-		ret = -ENOMEM;
-		goto errout1;
+		return -ENOMEM;
 	}
 
 	info = iio_priv(iodev);
@@ -318,8 +317,7 @@ static int __devinit spear_adc_probe(struct platform_device *pdev)
 	info->adc_base_spear6xx = of_iomap(np, 0);
 	if (!info->adc_base_spear6xx) {
 		dev_err(dev, "failed mapping memory\n");
-		ret = -ENOMEM;
-		goto errout2;
+		return -ENOMEM;
 	}
 	info->adc_base_spear3xx =
 		(struct adc_regs_spear3xx *)info->adc_base_spear6xx;
@@ -327,39 +325,33 @@ static int __devinit spear_adc_probe(struct platform_device *pdev)
 	info->clk = clk_get(dev, NULL);
 	if (IS_ERR(info->clk)) {
 		dev_err(dev, "failed getting clock\n");
-		goto errout3;
+		goto errout1;
 	}
 
-	ret = clk_prepare(info->clk);
-	if (ret) {
-		dev_err(dev, "failed preparing clock\n");
-		goto errout4;
-	}
-
-	ret = clk_enable(info->clk);
+	ret = clk_prepare_enable(info->clk);
 	if (ret) {
 		dev_err(dev, "failed enabling clock\n");
-		goto errout5;
+		goto errout2;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if ((irq < 0) || (irq >= NR_IRQS)) {
 		dev_err(dev, "failed getting interrupt resource\n");
 		ret = -EINVAL;
-		goto errout6;
+		goto errout3;
 	}
 
 	ret = devm_request_irq(dev, irq, spear_adc_isr, 0, MOD_NAME, info);
 	if (ret < 0) {
 		dev_err(dev, "failed requesting interrupt\n");
-		goto errout6;
+		goto errout3;
 	}
 
 	if (of_property_read_u32(np, "sampling-frequency",
 				 &info->sampling_freq)) {
 		dev_err(dev, "sampling-frequency missing in DT\n");
 		ret = -EINVAL;
-		goto errout6;
+		goto errout3;
 	}
 
 	/*
@@ -389,51 +381,45 @@ static int __devinit spear_adc_probe(struct platform_device *pdev)
 
 	ret = iio_device_register(iodev);
 	if (ret)
-		goto errout6;
+		goto errout3;
 
 	dev_info(dev, "SPEAR ADC driver loaded, IRQ %d\n", irq);
 
 	return 0;
 
-errout6:
-	clk_disable(info->clk);
-errout5:
-	clk_unprepare(info->clk);
-errout4:
-	clk_put(info->clk);
 errout3:
-	iounmap(info->adc_base_spear6xx);
+	clk_disable_unprepare(info->clk);
 errout2:
-	iio_device_free(iodev);
+	clk_put(info->clk);
 errout1:
+	iounmap(info->adc_base_spear6xx);
 	return ret;
 }
 
-static int __devexit spear_adc_remove(struct platform_device *pdev)
+static int spear_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *iodev = platform_get_drvdata(pdev);
 	struct spear_adc_info *info = iio_priv(iodev);
 
 	iio_device_unregister(iodev);
-	platform_set_drvdata(pdev, NULL);
-	clk_disable(info->clk);
-	clk_unprepare(info->clk);
+	clk_disable_unprepare(info->clk);
 	clk_put(info->clk);
 	iounmap(info->adc_base_spear6xx);
-	iio_device_free(iodev);
 
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id spear_adc_dt_ids[] = {
 	{ .compatible = "st,spear600-adc", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, spear_adc_dt_ids);
+#endif
 
 static struct platform_driver spear_adc_driver = {
 	.probe		= spear_adc_probe,
-	.remove		= __devexit_p(spear_adc_remove),
+	.remove		= spear_adc_remove,
 	.driver		= {
 		.name	= MOD_NAME,
 		.owner	= THIS_MODULE,

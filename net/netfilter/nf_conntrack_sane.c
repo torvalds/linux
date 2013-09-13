@@ -138,6 +138,7 @@ static int help(struct sk_buff *skb,
 
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
+		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
 		ret = NF_DROP;
 		goto out;
 	}
@@ -151,8 +152,10 @@ static int help(struct sk_buff *skb,
 	nf_ct_dump_tuple(&exp->tuple);
 
 	/* Can't expect this?  Best to drop packet now. */
-	if (nf_ct_expect_related(exp) != 0)
+	if (nf_ct_expect_related(exp) != 0) {
+		nf_ct_helper_log(skb, ct, "cannot add expectation");
 		ret = NF_DROP;
+	}
 
 	nf_ct_expect_put(exp);
 

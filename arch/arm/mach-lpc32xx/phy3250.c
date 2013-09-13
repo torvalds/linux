@@ -24,12 +24,9 @@
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/eeprom.h>
 #include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
-#include <linux/amba/pl022.h>
 #include <linux/amba/pl08x.h>
 #include <linux/amba/mmci.h>
 #include <linux/of.h>
@@ -37,6 +34,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
+#include <linux/mtd/lpc32xx_slc.h>
+#include <linux/mtd/lpc32xx_mlc.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -156,21 +155,6 @@ static struct clcd_board lpc32xx_clcd_data = {
 	.remove		= lpc32xx_clcd_remove,
 };
 
-/*
- * AMBA SSP (SPI)
- */
-static struct pl022_ssp_controller lpc32xx_ssp0_data = {
-	.bus_id			= 0,
-	.num_chipselect		= 1,
-	.enable_dma		= 0,
-};
-
-static struct pl022_ssp_controller lpc32xx_ssp1_data = {
-	.bus_id			= 1,
-	.num_chipselect		= 1,
-	.enable_dma		= 0,
-};
-
 static struct pl08x_channel_data pl08x_slave_channels[] = {
 	{
 		.bus_id = "nand-slc",
@@ -198,8 +182,8 @@ static void pl08x_put_signal(const struct pl08x_channel_data *cd, int ch)
 static struct pl08x_platform_data pl08x_pd = {
 	.slave_channels = &pl08x_slave_channels[0],
 	.num_slave_channels = ARRAY_SIZE(pl08x_slave_channels),
-	.get_signal = pl08x_get_signal,
-	.put_signal = pl08x_put_signal,
+	.get_xfer_signal = pl08x_get_signal,
+	.put_xfer_signal = pl08x_put_signal,
 	.lli_buses = PL08X_AHB1,
 	.mem_buses = PL08X_AHB1,
 };
@@ -223,13 +207,25 @@ static struct mmci_platform_data lpc32xx_mmci_data = {
 	 * gather, and the MMCI driver doesn't do it this way */
 };
 
+static struct lpc32xx_slc_platform_data lpc32xx_slc_data = {
+	.dma_filter = pl08x_filter_id,
+};
+
+static struct lpc32xx_mlc_platform_data lpc32xx_mlc_data = {
+	.dma_filter = pl08x_filter_id,
+};
+
 static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
-	OF_DEV_AUXDATA("arm,pl022", 0x20084000, "dev:ssp0", &lpc32xx_ssp0_data),
-	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", &lpc32xx_ssp1_data),
+	OF_DEV_AUXDATA("arm,pl022", 0x20084000, "dev:ssp0", NULL),
+	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", NULL),
 	OF_DEV_AUXDATA("arm,pl110", 0x31040000, "dev:clcd", &lpc32xx_clcd_data),
 	OF_DEV_AUXDATA("arm,pl080", 0x31000000, "pl08xdmac", &pl08x_pd),
 	OF_DEV_AUXDATA("arm,pl18x", 0x20098000, "20098000.sd",
 		       &lpc32xx_mmci_data),
+	OF_DEV_AUXDATA("nxp,lpc3220-slc", 0x20020000, "20020000.flash",
+		       &lpc32xx_slc_data),
+	OF_DEV_AUXDATA("nxp,lpc3220-mlc", 0x200a8000, "200a8000.flash",
+		       &lpc32xx_mlc_data),
 	{ }
 };
 
@@ -253,12 +249,6 @@ static void __init lpc3250_machine_init(void)
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     lpc32xx_auxdata_lookup, NULL);
-
-	/* Register GPIOs used on this board */
-	if (gpio_request(MMC_PWR_ENABLE_GPIO, "mmc_power_en"))
-		pr_err("Error requesting gpio %u", MMC_PWR_ENABLE_GPIO);
-	else if (gpio_direction_output(MMC_PWR_ENABLE_GPIO, 1))
-		pr_err("Error setting gpio %u to output", MMC_PWR_ENABLE_GPIO);
 }
 
 static char const *lpc32xx_dt_compat[] __initdata = {
@@ -273,7 +263,7 @@ DT_MACHINE_START(LPC32XX_DT, "LPC32XX SoC (Flattened Device Tree)")
 	.atag_offset	= 0x100,
 	.map_io		= lpc32xx_map_io,
 	.init_irq	= lpc32xx_init_irq,
-	.timer		= &lpc32xx_timer,
+	.init_time	= lpc32xx_timer_init,
 	.init_machine	= lpc3250_machine_init,
 	.dt_compat	= lpc32xx_dt_compat,
 	.restart	= lpc23xx_restart,

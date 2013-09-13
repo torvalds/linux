@@ -38,9 +38,14 @@
 
 /*
  * mmid - get context id from mm pointer (mm->context.id)
+ * note, this field is 64bit, so in big-endian the two words are swapped too.
  */
 	.macro	mmid, rd, rn
+#ifdef __ARMEB__
+	ldr	\rd, [\rn, #MM_CONTEXT_ID + 4 ]
+#else
 	ldr	\rd, [\rn, #MM_CONTEXT_ID]
+#endif
 	.endm
 
 /*
@@ -167,6 +172,10 @@
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_PRESENT
 	moveq	r3, #0
+#ifndef CONFIG_CPU_USE_DOMAINS
+	tstne	r1, #L_PTE_NONE
+	movne	r3, #0
+#endif
 
 	str	r3, [r0]
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
@@ -299,6 +308,7 @@ ENTRY(\name\()_processor_functions)
 ENTRY(\name\()_cache_fns)
 	.long	\name\()_flush_icache_all
 	.long	\name\()_flush_kern_cache_all
+	.long   \name\()_flush_kern_cache_louis
 	.long	\name\()_flush_user_cache_all
 	.long	\name\()_flush_user_cache_range
 	.long	\name\()_coherent_kern_range
@@ -322,4 +332,9 @@ ENTRY(\name\()_tlb_fns)
 		.long	\flags_up
 	.endif
 	.size	\name\()_tlb_fns, . - \name\()_tlb_fns
+.endm
+
+.macro globl_equ x, y
+	.globl	\x
+	.equ	\x, \y
 .endm

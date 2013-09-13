@@ -1,0 +1,95 @@
+/*
+ * Copyright (C) 2012 Florian Vaussard, EPFL Mobots group
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * The Gumstix Overo must be combined with an expansion board.
+ */
+/dts-v1/;
+
+#include "omap34xx.dtsi"
+
+/ {
+	pwmleds {
+		compatible = "pwm-leds";
+
+		overo {
+			label = "overo:blue:COM";
+			pwms = <&twl_pwmled 1 7812500>;
+			max-brightness = <127>;
+			linux,default-trigger = "mmc0";
+		};
+	};
+
+	sound {
+		compatible = "ti,omap-twl4030";
+		ti,model = "overo";
+
+		ti,mcbsp = <&mcbsp2>;
+		ti,codec = <&twl_audio>;
+	};
+};
+
+&i2c1 {
+	clock-frequency = <2600000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+		interrupt-parent = <&intc>;
+
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+			codec {
+			};
+		};
+	};
+};
+
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
+
+/* i2c2 pins are used for gpio */
+&i2c2 {
+	status = "disabled";
+};
+
+/* on board microSD slot */
+&mmc1 {
+	vmmc-supply = <&vmmc1>;
+	bus-width = <4>;
+};
+
+/* optional on board WiFi */
+&mmc2 {
+	bus-width = <4>;
+};
+
+&twl_gpio {
+	ti,use-leds;
+};
+
+&usb_otg_hs {
+	interface-type = <0>;
+	usb-phy = <&usb2_phy>;
+	mode = <3>;
+	power = <50>;
+};
+
+&omap3_pmx_core {
+	uart3_pins: pinmux_uart3_pins {
+		pinctrl-single,pins = <
+			0x16e (PIN_INPUT | PIN_OFF_WAKEUPENABLE | MUX_MODE0) /* uart3_rx_irrx.uart3_rx_irrx */
+			0x170 (PIN_OUTPUT | MUX_MODE0) /* uart3_tx_irtx.uart3_tx_irtx */
+		>;
+	};
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
+};

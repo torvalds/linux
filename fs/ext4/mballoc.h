@@ -37,11 +37,11 @@
 /*
  */
 #ifdef CONFIG_EXT4_DEBUG
-extern u8 mb_enable_debug;
+extern ushort ext4_mballoc_debug;
 
 #define mb_debug(n, fmt, a...)	                                        \
 	do {								\
-		if ((n) <= mb_enable_debug) {		        	\
+		if ((n) <= ext4_mballoc_debug) {		        \
 			printk(KERN_DEBUG "(%s, %d): %s: ",		\
 			       __FILE__, __LINE__, __func__);		\
 			printk(fmt, ## a);				\
@@ -63,11 +63,6 @@ extern u8 mb_enable_debug;
  * How long mballoc must look for a best extent
  */
 #define MB_DEFAULT_MIN_TO_SCAN		10
-
-/*
- * How many groups mballoc will scan looking for the best chunk
- */
-#define MB_DEFAULT_MAX_GROUPS_TO_SCAN	5
 
 /*
  * with 'ext4_mb_stats' allocator will collect stats that will be

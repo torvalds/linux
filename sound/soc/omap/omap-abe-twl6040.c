@@ -23,26 +23,23 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/twl6040.h>
-#include <linux/platform_data/omap-abe-twl6040.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
 
-#include <asm/mach-types.h>
-#include <plat/hardware.h>
-#include <plat/mux.h>
-
 #include "omap-dmic.h"
 #include "omap-mcpdm.h"
-#include "omap-pcm.h"
 #include "../codecs/twl6040.h"
 
 struct abe_twl6040 {
 	int	jack_detection;	/* board can detect jack events */
 	int	mclk_freq;	/* MCLK frequency speed for twl6040 */
+
+	struct platform_device *dmic_codec_dev;
 };
 
 static int omap_abe_hw_params(struct snd_pcm_substream *substream,
@@ -168,33 +165,13 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"AFMR", NULL, "Line In"},
 };
 
-static inline void twl6040_disconnect_pin(struct snd_soc_dapm_context *dapm,
-					  int connected, char *pin)
-{
-	if (!connected)
-		snd_soc_dapm_disable_pin(dapm, pin);
-}
-
 static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = codec->card;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct omap_abe_twl6040_data *pdata = dev_get_platdata(card->dev);
 	struct abe_twl6040 *priv = snd_soc_card_get_drvdata(card);
 	int hs_trim;
 	int ret = 0;
-
-	/* Disable not connected paths if not used */
-	twl6040_disconnect_pin(dapm, pdata->has_hs, "Headset Stereophone");
-	twl6040_disconnect_pin(dapm, pdata->has_hf, "Ext Spk");
-	twl6040_disconnect_pin(dapm, pdata->has_ep, "Earphone Spk");
-	twl6040_disconnect_pin(dapm, pdata->has_aux, "Line Out");
-	twl6040_disconnect_pin(dapm, pdata->has_vibra, "Vinrator");
-	twl6040_disconnect_pin(dapm, pdata->has_hsmic, "Headset Mic");
-	twl6040_disconnect_pin(dapm, pdata->has_mainmic, "Main Handset Mic");
-	twl6040_disconnect_pin(dapm, pdata->has_submic, "Sub Handset Mic");
-	twl6040_disconnect_pin(dapm, pdata->has_afm, "Line In");
 
 	/*
 	 * Configure McPDM offset cancellation based on the HSOTRIM value from
@@ -267,45 +244,78 @@ static struct snd_soc_card omap_abe_card = {
 	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
-static __devinit int omap_abe_probe(struct platform_device *pdev)
+static int omap_abe_probe(struct platform_device *pdev)
 {
-	struct omap_abe_twl6040_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device_node *node = pdev->dev.of_node;
 	struct snd_soc_card *card = &omap_abe_card;
+	struct device_node *dai_node;
 	struct abe_twl6040 *priv;
 	int num_links = 0;
-	int ret;
+	int ret = 0;
 
-	card->dev = &pdev->dev;
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "Missing pdata\n");
+	if (!node) {
+		dev_err(&pdev->dev, "of node is missing.\n");
 		return -ENODEV;
 	}
+
+	card->dev = &pdev->dev;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct abe_twl6040), GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
 
-	if (pdata->card_name) {
-		card->name = pdata->card_name;
-	} else {
+	priv->dmic_codec_dev = ERR_PTR(-EINVAL);
+
+	if (snd_soc_of_parse_card_name(card, "ti,model")) {
 		dev_err(&pdev->dev, "Card name is not provided\n");
 		return -ENODEV;
 	}
 
-	priv->jack_detection = pdata->jack_detection;
-	priv->mclk_freq = pdata->mclk_freq;
+	ret = snd_soc_of_parse_audio_routing(card, "ti,audio-routing");
+	if (ret) {
+		dev_err(&pdev->dev, "Error while parsing DAPM routing\n");
+		return ret;
+	}
 
+	dai_node = of_parse_phandle(node, "ti,mcpdm", 0);
+	if (!dai_node) {
+		dev_err(&pdev->dev, "McPDM node is not provided\n");
+		return -EINVAL;
+	}
+	abe_twl6040_dai_links[0].cpu_dai_name  = NULL;
+	abe_twl6040_dai_links[0].cpu_of_node = dai_node;
+
+	dai_node = of_parse_phandle(node, "ti,dmic", 0);
+	if (dai_node) {
+		num_links = 2;
+		abe_twl6040_dai_links[1].cpu_dai_name  = NULL;
+		abe_twl6040_dai_links[1].cpu_of_node = dai_node;
+
+		priv->dmic_codec_dev = platform_device_register_simple(
+						"dmic-codec", -1, NULL, 0);
+		if (IS_ERR(priv->dmic_codec_dev)) {
+			dev_err(&pdev->dev, "Can't instantiate dmic-codec\n");
+			return PTR_ERR(priv->dmic_codec_dev);
+		}
+	} else {
+		num_links = 1;
+	}
+
+	priv->jack_detection = of_property_read_bool(node, "ti,jack-detection");
+	of_property_read_u32(node, "ti,mclk-freq", &priv->mclk_freq);
+	if (!priv->mclk_freq) {
+		dev_err(&pdev->dev, "MCLK frequency not provided\n");
+		ret = -EINVAL;
+		goto err_unregister;
+	}
+
+	card->fully_routed = 1;
 
 	if (!priv->mclk_freq) {
 		dev_err(&pdev->dev, "MCLK frequency missing\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_unregister;
 	}
-
-	if (pdata->has_dmic)
-		num_links = 2;
-	else
-		num_links = 1;
 
 	card->dai_link = abe_twl6040_dai_links;
 	card->num_links = num_links;
@@ -313,30 +323,49 @@ static __devinit int omap_abe_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, priv);
 
 	ret = snd_soc_register_card(card);
-	if (ret)
+	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
+		goto err_unregister;
+	}
+
+	return 0;
+
+err_unregister:
+	if (!IS_ERR(priv->dmic_codec_dev))
+		platform_device_unregister(priv->dmic_codec_dev);
 
 	return ret;
 }
 
-static int __devexit omap_abe_remove(struct platform_device *pdev)
+static int omap_abe_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct abe_twl6040 *priv = snd_soc_card_get_drvdata(card);
 
 	snd_soc_unregister_card(card);
 
+	if (!IS_ERR(priv->dmic_codec_dev))
+		platform_device_unregister(priv->dmic_codec_dev);
+
 	return 0;
 }
+
+static const struct of_device_id omap_abe_of_match[] = {
+	{.compatible = "ti,abe-twl6040", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, omap_abe_of_match);
 
 static struct platform_driver omap_abe_driver = {
 	.driver = {
 		.name = "omap-abe-twl6040",
 		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
+		.of_match_table = omap_abe_of_match,
 	},
 	.probe = omap_abe_probe,
-	.remove = __devexit_p(omap_abe_remove),
+	.remove = omap_abe_remove,
 };
 
 module_platform_driver(omap_abe_driver);

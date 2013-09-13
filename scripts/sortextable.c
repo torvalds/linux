@@ -31,6 +31,10 @@
 #include <tools/be_byteshift.h>
 #include <tools/le_byteshift.h>
 
+#ifndef EM_AARCH64
+#define EM_AARCH64	183
+#endif
+
 static int fd_map;	/* File descriptor for file being modified. */
 static int mmap_failed; /* Boolean flag. */
 static void *ehdr_curr; /* current ElfXX_Ehdr *  for resource cleanup */
@@ -59,14 +63,6 @@ fail_file(void)
 	cleanup();
 	longjmp(jmpenv, SJ_FAIL);
 }
-
-static void __attribute__((noreturn))
-succeed_file(void)
-{
-	cleanup();
-	longjmp(jmpenv, SJ_SUCCEED);
-}
-
 
 /*
  * Get the whole file as a programming convenience in order to avoid
@@ -161,7 +157,7 @@ typedef void (*table_sort_t)(char *, int);
 #define SORTEXTABLE_64
 #include "sortextable.h"
 
-static int compare_x86_table(const void *a, const void *b)
+static int compare_relative_table(const void *a, const void *b)
 {
 	int32_t av = (int32_t)r(a);
 	int32_t bv = (int32_t)r(b);
@@ -173,7 +169,7 @@ static int compare_x86_table(const void *a, const void *b)
 	return 0;
 }
 
-static void sort_x86_table(char *extab_image, int image_size)
+static void sort_relative_table(char *extab_image, int image_size)
 {
 	int i;
 
@@ -188,7 +184,7 @@ static void sort_x86_table(char *extab_image, int image_size)
 		i += 4;
 	}
 
-	qsort(extab_image, image_size / 8, 8, compare_x86_table);
+	qsort(extab_image, image_size / 8, 8, compare_relative_table);
 
 	/* Now denormalize. */
 	i = 0;
@@ -245,9 +241,11 @@ do_file(char const *const fname)
 		break;
 	case EM_386:
 	case EM_X86_64:
-		custom_sort = sort_x86_table;
-		break;
 	case EM_S390:
+		custom_sort = sort_relative_table;
+		break;
+	case EM_ARM:
+	case EM_AARCH64:
 	case EM_MIPS:
 		break;
 	}  /* end switch */

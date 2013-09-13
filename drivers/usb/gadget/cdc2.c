@@ -11,11 +11,11 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/module.h>
 
 #include "u_ether.h"
 #include "u_serial.h"
+#include "u_ecm.h"
 
 
 #define DRIVER_DESC		"CDC Composite Gadget"
@@ -33,24 +33,9 @@
 #define CDC_VENDOR_NUM		0x0525	/* NetChip */
 #define CDC_PRODUCT_NUM		0xa4aa	/* CDC Composite: ECM + ACM */
 
-/*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
-/*
- * Kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-
-#include "composite.c"
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-#include "u_serial.c"
-#include "f_acm.c"
-#include "f_ecm.c"
-#include "u_ether.c"
+USB_ETHERNET_MODULE_PARAMETERS();
 
 /*-------------------------------------------------------------------------*/
 
@@ -92,15 +77,10 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 
 /* string IDs are assigned dynamically */
-
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-
-static char manufacturer[50];
-
 static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer,
-	[STRING_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_SERIAL_IDX].s = "",
 	{  } /* end of list */
 };
 
@@ -114,9 +94,12 @@ static struct usb_gadget_strings *dev_strings[] = {
 	NULL,
 };
 
-static u8 hostaddr[ETH_ALEN];
-
 /*-------------------------------------------------------------------------*/
+static struct usb_function *f_acm;
+static struct usb_function_instance *fi_serial;
+
+static struct usb_function *f_ecm;
+static struct usb_function_instance *fi_ecm;
 
 /*
  * We _always_ have both CDC ECM and CDC ACM functions.
@@ -130,15 +113,52 @@ static int __init cdc_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	status = ecm_bind_config(c, hostaddr);
-	if (status < 0)
-		return status;
+	fi_ecm = usb_get_function_instance("ecm");
+	if (IS_ERR(fi_ecm)) {
+		status = PTR_ERR(fi_ecm);
+		goto err_func_ecm;
+	}
 
-	status = acm_bind_config(c, 0);
-	if (status < 0)
-		return status;
+	f_ecm = usb_get_function(fi_ecm);
+	if (IS_ERR(f_ecm)) {
+		status = PTR_ERR(f_ecm);
+		goto err_get_ecm;
+	}
+
+	status = usb_add_function(c, f_ecm);
+	if (status)
+		goto err_add_ecm;
+
+	fi_serial = usb_get_function_instance("acm");
+	if (IS_ERR(fi_serial)) {
+		status = PTR_ERR(fi_serial);
+		goto err_get_acm;
+	}
+
+	f_acm = usb_get_function(fi_serial);
+	if (IS_ERR(f_acm)) {
+		status = PTR_ERR(f_acm);
+		goto err_func_acm;
+	}
+
+	status = usb_add_function(c, f_acm);
+	if (status)
+		goto err_add_acm;
 
 	return 0;
+
+err_add_acm:
+	usb_put_function(f_acm);
+err_func_acm:
+	usb_put_function_instance(fi_serial);
+err_get_acm:
+	usb_remove_function(c, f_ecm);
+err_add_ecm:
+	usb_put_function(f_ecm);
+err_get_ecm:
+	usb_put_function_instance(fi_ecm);
+err_func_ecm:
+	return status;
 }
 
 static struct usb_configuration cdc_config_driver = {
@@ -152,8 +172,8 @@ static struct usb_configuration cdc_config_driver = {
 
 static int __init cdc_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;
+	struct f_ecm_opts	*ecm_opts;
 	int			status;
 
 	if (!can_support_ecm(cdev->gadget)) {
@@ -162,81 +182,69 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 		return -EINVAL;
 	}
 
-	/* set up network link layer */
-	status = gether_setup(cdev->gadget, hostaddr);
-	if (status < 0)
-		return status;
+	fi_ecm = usb_get_function_instance("ecm");
+	if (IS_ERR(fi_ecm))
+		return PTR_ERR(fi_ecm);
 
-	/* set up serial link layer */
-	status = gserial_setup(cdev->gadget, 1);
-	if (status < 0)
-		goto fail0;
+	ecm_opts = container_of(fi_ecm, struct f_ecm_opts, func_inst);
 
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(0x0300 | gcnum);
-	else {
-		/* We assume that can_support_ecm() tells the truth;
-		 * but if the controller isn't recognized at all then
-		 * that assumption is a bit more likely to be wrong.
-		 */
-		WARNING(cdev, "controller '%s' not recognized; trying %s\n",
-				gadget->name,
-				cdc_config_driver.label);
-		device_desc.bcdDevice =
-			cpu_to_le16(0x0300 | 0x0099);
+	gether_set_qmult(ecm_opts->net, qmult);
+	if (!gether_set_host_addr(ecm_opts->net, host_addr))
+		pr_info("using host ethernet address: %s", host_addr);
+	if (!gether_set_dev_addr(ecm_opts->net, dev_addr))
+		pr_info("using self ethernet address: %s", dev_addr);
+
+	fi_serial = usb_get_function_instance("acm");
+	if (IS_ERR(fi_serial)) {
+		status = PTR_ERR(fi_serial);
+		goto fail;
 	}
-
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 
-	/* device descriptor strings: manufacturer, product */
-	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
-		init_utsname()->sysname, init_utsname()->release,
-		gadget->name);
-	status = usb_string_id(cdev);
+	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		goto fail1;
-	strings_dev[STRING_MANUFACTURER_IDX].id = status;
-	device_desc.iManufacturer = status;
-
-	status = usb_string_id(cdev);
-	if (status < 0)
-		goto fail1;
-	strings_dev[STRING_PRODUCT_IDX].id = status;
-	device_desc.iProduct = status;
+	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
 	/* register our configuration */
 	status = usb_add_config(cdev, &cdc_config_driver, cdc_do_config);
 	if (status < 0)
 		goto fail1;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, "%s, version: " DRIVER_VERSION "\n",
 			DRIVER_DESC);
 
 	return 0;
 
 fail1:
-	gserial_cleanup();
-fail0:
-	gether_cleanup();
+	usb_put_function_instance(fi_serial);
+fail:
+	usb_put_function_instance(fi_ecm);
 	return status;
 }
 
 static int __exit cdc_unbind(struct usb_composite_dev *cdev)
 {
-	gserial_cleanup();
-	gether_cleanup();
+	usb_put_function(f_acm);
+	usb_put_function_instance(fi_serial);
+	if (!IS_ERR_OR_NULL(f_ecm))
+		usb_put_function(f_ecm);
+	if (!IS_ERR_OR_NULL(fi_ecm))
+		usb_put_function_instance(fi_ecm);
 	return 0;
 }
 
-static struct usb_composite_driver cdc_driver = {
+static __refdata struct usb_composite_driver cdc_driver = {
 	.name		= "g_cdc",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= cdc_bind,
 	.unbind		= __exit_p(cdc_unbind),
 };
 
@@ -246,7 +254,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	return usb_composite_probe(&cdc_driver, cdc_bind);
+	return usb_composite_probe(&cdc_driver);
 }
 module_init(init);
 

@@ -111,7 +111,7 @@ static double timeval2double(struct timeval *ts)
 static void alloc_mem(void **dst, size_t length)
 {
 	*dst = zalloc(length);
-	if (!dst)
+	if (!*dst)
 		die("memory allocation failed - maybe length is too large?\n");
 }
 
@@ -171,7 +171,7 @@ static double do_memset_gettimeofday(memset_t fn, size_t len, bool prefault)
 	} while (0)
 
 int bench_mem_memset(int argc, const char **argv,
-		     const char *prefix __used)
+		     const char *prefix __maybe_unused)
 {
 	int i;
 	size_t len;

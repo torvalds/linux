@@ -22,6 +22,8 @@
 #ifndef __LINUX_TPM_H__
 #define __LINUX_TPM_H__
 
+#define TPM_DIGEST_SIZE 20	/* Max TPM v1.2 PCR size */
+
 /*
  * Chip num is this value or a valid tpm idx
  */
@@ -32,6 +34,7 @@
 extern int tpm_pcr_read(u32 chip_num, int pcr_idx, u8 *res_buf);
 extern int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash);
 extern int tpm_send(u32 chip_num, void *cmd, size_t buflen);
+extern int tpm_get_random(u32 chip_num, u8 *data, size_t max);
 #else
 static inline int tpm_pcr_read(u32 chip_num, int pcr_idx, u8 *res_buf) {
 	return -ENODEV;
@@ -40,6 +43,9 @@ static inline int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash) {
 	return -ENODEV;
 }
 static inline int tpm_send(u32 chip_num, void *cmd, size_t buflen) {
+	return -ENODEV;
+}
+static inline int tpm_get_random(u32 chip_num, u8 *data, size_t max) {
 	return -ENODEV;
 }
 #endif

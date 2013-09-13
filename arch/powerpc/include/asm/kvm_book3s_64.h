@@ -37,7 +37,7 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 #define KVM_DEFAULT_HPT_ORDER	24	/* 16MB HPT by default */
-extern int kvm_hpt_order;		/* order of preallocated HPTs */
+extern unsigned long kvm_rma_pages;
 #endif
 
 #define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */
@@ -50,6 +50,15 @@ extern int kvm_hpt_order;		/* order of preallocated HPTs */
 #define HPTE_V_HVLOCK	0x40UL
 #define HPTE_V_ABSENT	0x20UL
 
+/*
+ * We use this bit in the guest_rpte field of the revmap entry
+ * to indicate a modified HPTE.
+ */
+#define HPTE_GR_MODIFIED	(1ul << 62)
+
+/* These bits are reserved in the guest view of the HPTE */
+#define HPTE_GR_RESERVED	HPTE_GR_MODIFIED
+
 static inline long try_lock_hpte(unsigned long *hpte, unsigned long bits)
 {
 	unsigned long tmp, old;
@@ -60,7 +69,7 @@ static inline long try_lock_hpte(unsigned long *hpte, unsigned long bits)
 		     "	ori	%0,%0,%4\n"
 		     "  stdcx.	%0,0,%2\n"
 		     "	beq+	2f\n"
-		     "	li	%1,%3\n"
+		     "	mr	%1,%3\n"
 		     "2:	isync"
 		     : "=&r" (tmp), "=&r" (old)
 		     : "r" (hpte), "r" (bits), "i" (HPTE_V_HVLOCK)
@@ -91,7 +100,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 			/* (masks depend on page size) */
 			rb |= 0x1000;		/* page encoding in LP field */
 			rb |= (va_low & 0x7f) << 16; /* 7b of VA in AVA/LP field */
-			rb |= (va_low & 0xfe);	/* AVAL field (P7 doesn't seem to care) */
+			rb |= ((va_low << 4) & 0xf0);	/* AVAL field (P7 doesn't seem to care) */
 		}
 	} else {
 		/* 4kB page */
@@ -150,35 +159,45 @@ static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
 }
 
 /*
- * Lock and read a linux PTE.  If it's present and writable, atomically
- * set dirty and referenced bits and return the PTE, otherwise return 0.
+ * If it's present and writable, atomically set dirty and referenced bits and
+ * return the PTE, otherwise return 0. If we find a transparent hugepage
+ * and if it is marked splitting we return 0;
  */
-static inline pte_t kvmppc_read_update_linux_pte(pte_t *p, int writing)
+static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing,
+						 unsigned int hugepage)
 {
-	pte_t pte, tmp;
+	pte_t old_pte, new_pte = __pte(0);
 
-	/* wait until _PAGE_BUSY is clear then set it atomically */
-	__asm__ __volatile__ (
-		"1:	ldarx	%0,0,%3\n"
-		"	andi.	%1,%0,%4\n"
-		"	bne-	1b\n"
-		"	ori	%1,%0,%4\n"
-		"	stdcx.	%1,0,%3\n"
-		"	bne-	1b"
-		: "=&r" (pte), "=&r" (tmp), "=m" (*p)
-		: "r" (p), "i" (_PAGE_BUSY)
-		: "cc");
+	while (1) {
+		old_pte = pte_val(*ptep);
+		/*
+		 * wait until _PAGE_BUSY is clear then set it atomically
+		 */
+		if (unlikely(old_pte & _PAGE_BUSY)) {
+			cpu_relax();
+			continue;
+		}
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+		/* If hugepage and is trans splitting return None */
+		if (unlikely(hugepage &&
+			     pmd_trans_splitting(pte_pmd(old_pte))))
+			return __pte(0);
+#endif
+		/* If pte is not present return None */
+		if (unlikely(!(old_pte & _PAGE_PRESENT)))
+			return __pte(0);
 
-	if (pte_present(pte)) {
-		pte = pte_mkyoung(pte);
-		if (writing && pte_write(pte))
-			pte = pte_mkdirty(pte);
+		new_pte = pte_mkyoung(old_pte);
+		if (writing && pte_write(old_pte))
+			new_pte = pte_mkdirty(new_pte);
+
+		if (old_pte == __cmpxchg_u64((unsigned long *)ptep, old_pte,
+					     new_pte))
+			break;
 	}
-
-	*p = pte;	/* clears _PAGE_BUSY */
-
-	return pte;
+	return new_pte;
 }
+
 
 /* Return HPTE cache control bits corresponding to Linux pte bits */
 static inline unsigned long hpte_cache_bits(unsigned long pte_val)
@@ -236,5 +255,40 @@ static inline bool slot_is_aligned(struct kvm_memory_slot *memslot,
 		return 1;
 	return !(memslot->base_gfn & mask) && !(memslot->npages & mask);
 }
+
+/*
+ * This works for 4k, 64k and 16M pages on POWER7,
+ * and 4k and 16M pages on PPC970.
+ */
+static inline unsigned long slb_pgsize_encoding(unsigned long psize)
+{
+	unsigned long senc = 0;
+
+	if (psize > 0x1000) {
+		senc = SLB_VSID_L;
+		if (psize == 0x10000)
+			senc |= SLB_VSID_LP_01;
+	}
+	return senc;
+}
+
+static inline int is_vrma_hpte(unsigned long hpte_v)
+{
+	return (hpte_v & ~0xffffffUL) ==
+		(HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)));
+}
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+/*
+ * Note modification of an HPTE; set the HPTE modified bit
+ * if anyone is interested.
+ */
+static inline void note_hpte_modification(struct kvm *kvm,
+					  struct revmap_entry *rev)
+{
+	if (atomic_read(&kvm->arch.hpte_mod_interest))
+		rev->guest_rpte |= HPTE_GR_MODIFIED;
+}
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
 
 #endif /* __ASM_KVM_BOOK3S_64_H__ */

@@ -133,15 +133,109 @@ static const struct reg_default wm5110_reva_patch[] = {
 	{ 0x209, 0x002A },
 };
 
+static const struct reg_default wm5110_revb_patch[] = {
+	{ 0x80, 0x3 },
+	{ 0x36e, 0x0210 },
+	{ 0x370, 0x0210 },
+	{ 0x372, 0x0210 },
+	{ 0x374, 0x0210 },
+	{ 0x376, 0x0210 },
+	{ 0x378, 0x0210 },
+	{ 0x36d, 0x0028 },
+	{ 0x36f, 0x0028 },
+	{ 0x371, 0x0028 },
+	{ 0x373, 0x0028 },
+	{ 0x375, 0x0028 },
+	{ 0x377, 0x0028 },
+	{ 0x280, 0x2002 },
+	{ 0x44, 0x20 },
+	{ 0x45, 0x40 },
+	{ 0x46, 0x60 },
+	{ 0x47, 0x80 },
+	{ 0x48, 0xa0 },
+	{ 0x51, 0x13 },
+	{ 0x52, 0x33 },
+	{ 0x53, 0x53 },
+	{ 0x54, 0x73 },
+	{ 0x55, 0x93 },
+	{ 0x56, 0xb3 },
+	{ 0xc30, 0x3e3e },
+	{ 0xc31, 0x3e },
+	{ 0xc32, 0x3e3e },
+	{ 0xc33, 0x3e3e },
+	{ 0xc34, 0x3e3e },
+	{ 0xc35, 0x3e3e },
+	{ 0xc36, 0x3e3e },
+	{ 0xc37, 0x3e3e },
+	{ 0xc38, 0x3e3e },
+	{ 0xc39, 0x3e3e },
+	{ 0xc3a, 0x3e3e },
+	{ 0xc3b, 0x3e3e },
+	{ 0xc3c, 0x3e },
+	{ 0x201, 0x18a5 },
+	{ 0x202, 0x4100 },
+	{ 0x460, 0x0c40 },
+	{ 0x461, 0x8000 },
+	{ 0x462, 0x0c41 },
+	{ 0x463, 0x4820 },
+	{ 0x464, 0x0c41 },
+	{ 0x465, 0x4040 },
+	{ 0x466, 0x0841 },
+	{ 0x467, 0x3940 },
+	{ 0x468, 0x0841 },
+	{ 0x469, 0x2030 },
+	{ 0x46a, 0x0842 },
+	{ 0x46b, 0x1990 },
+	{ 0x46c, 0x08c2 },
+	{ 0x46d, 0x1450 },
+	{ 0x46e, 0x08c6 },
+	{ 0x46f, 0x1020 },
+	{ 0x470, 0x08c6 },
+	{ 0x471, 0x0cd0 },
+	{ 0x472, 0x08c6 },
+	{ 0x473, 0x0a30 },
+	{ 0x474, 0x0442 },
+	{ 0x475, 0x0660 },
+	{ 0x476, 0x0446 },
+	{ 0x477, 0x0510 },
+	{ 0x478, 0x04c6 },
+	{ 0x479, 0x0400 },
+	{ 0x47a, 0x04ce },
+	{ 0x47b, 0x0330 },
+	{ 0x47c, 0x05df },
+	{ 0x47d, 0x0001 },
+	{ 0x47e, 0x07ff },
+	{ 0x2db, 0x0a00 },
+	{ 0x2dd, 0x0023 },
+	{ 0x2df, 0x0102 },
+	{ 0x2ef, 0x924 },
+	{ 0x2f0, 0x924 },
+	{ 0x2f1, 0x924 },
+	{ 0x2f2, 0x924 },
+	{ 0x2f3, 0x924 },
+	{ 0x2f4, 0x924 },
+	{ 0x2eb, 0x60 },
+	{ 0x2ec, 0x60 },
+	{ 0x2ed, 0x60 },
+	{ 0x4f2, 0x33e },
+	{ 0x458, 0x0000 },
+	{ 0x15a, 0x0003 },
+	{ 0x80, 0x0 },
+};
+
 /* We use a function so we can use ARRAY_SIZE() */
 int wm5110_patch(struct arizona *arizona)
 {
 	switch (arizona->rev) {
 	case 0:
-	case 1:
 		return regmap_register_patch(arizona->regmap,
 					     wm5110_reva_patch,
 					     ARRAY_SIZE(wm5110_reva_patch));
+	case 1:
+		return regmap_register_patch(arizona->regmap,
+					     wm5110_revb_patch,
+					     ARRAY_SIZE(wm5110_revb_patch));
+
 	default:
 		return 0;
 	}
@@ -161,6 +255,7 @@ const struct regmap_irq_chip wm5110_aod = {
 	.mask_base = ARIZONA_AOD_IRQ_MASK_IRQ1,
 	.ack_base = ARIZONA_AOD_IRQ1,
 	.wake_base = ARIZONA_WAKE_CONTROL,
+	.wake_invert = 1,
 	.num_regs = 1,
 	.irqs = wm5110_aod_irqs,
 	.num_irqs = ARRAY_SIZE(wm5110_aod_irqs),
@@ -373,12 +468,14 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000176, 0x0000 },    /* R374   - FLL1 Control 6 */
 	{ 0x00000177, 0x0281 },    /* R375   - FLL1 Loop Filter Test 1 */
 	{ 0x00000178, 0x0000 },    /* R376   - FLL1 NCO Test 0 */
+	{ 0x00000179, 0x0000 },    /* R376   - FLL1 Control 7 */
 	{ 0x00000181, 0x0000 },    /* R385   - FLL1 Synchroniser 1 */
 	{ 0x00000182, 0x0000 },    /* R386   - FLL1 Synchroniser 2 */
 	{ 0x00000183, 0x0000 },    /* R387   - FLL1 Synchroniser 3 */
 	{ 0x00000184, 0x0000 },    /* R388   - FLL1 Synchroniser 4 */
 	{ 0x00000185, 0x0000 },    /* R389   - FLL1 Synchroniser 5 */
 	{ 0x00000186, 0x0000 },    /* R390   - FLL1 Synchroniser 6 */
+	{ 0x00000187, 0x0001 },    /* R390   - FLL1 Synchroniser 7 */
 	{ 0x00000189, 0x0000 },    /* R393   - FLL1 Spread Spectrum */
 	{ 0x0000018A, 0x0004 },    /* R394   - FLL1 GPIO Clock */
 	{ 0x00000191, 0x0000 },    /* R401   - FLL2 Control 1 */
@@ -389,12 +486,14 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000196, 0x0000 },    /* R406   - FLL2 Control 6 */
 	{ 0x00000197, 0x0000 },    /* R407   - FLL2 Loop Filter Test 1 */
 	{ 0x00000198, 0x0000 },    /* R408   - FLL2 NCO Test 0 */
+	{ 0x00000199, 0x0000 },    /* R408   - FLL2 Control 7 */
 	{ 0x000001A1, 0x0000 },    /* R417   - FLL2 Synchroniser 1 */
 	{ 0x000001A2, 0x0000 },    /* R418   - FLL2 Synchroniser 2 */
 	{ 0x000001A3, 0x0000 },    /* R419   - FLL2 Synchroniser 3 */
 	{ 0x000001A4, 0x0000 },    /* R420   - FLL2 Synchroniser 4 */
 	{ 0x000001A5, 0x0000 },    /* R421   - FLL2 Synchroniser 5 */
 	{ 0x000001A6, 0x0000 },    /* R422   - FLL2 Synchroniser 6 */
+	{ 0x000001A7, 0x0001 },    /* R422   - FLL2 Synchroniser 7 */
 	{ 0x000001A9, 0x0000 },    /* R425   - FLL2 Spread Spectrum */
 	{ 0x000001AA, 0x0004 },    /* R426   - FLL2 GPIO Clock */
 	{ 0x00000200, 0x0006 },    /* R512   - Mic Charge Pump 1 */
@@ -408,6 +507,11 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x0000029C, 0x0000 },    /* R668   - Headphone Detect 2 */
 	{ 0x000002A3, 0x1102 },    /* R675   - Mic Detect 1 */
 	{ 0x000002A4, 0x009F },    /* R676   - Mic Detect 2 */
+	{ 0x000002A5, 0x0000 },    /* R677   - Mic Detect 3 */
+	{ 0x000002A6, 0x3737 },    /* R678   - Mic Detect Level 1 */
+	{ 0x000002A7, 0x372C },    /* R679   - Mic Detect Level 2 */
+	{ 0x000002A8, 0x1422 },    /* R680   - Mic Detect Level 3 */
+	{ 0x000002A9, 0x300A },    /* R681   - Mic Detect Level 4 */
 	{ 0x000002C3, 0x0000 },    /* R707   - Mic noise mix control 1 */
 	{ 0x000002D3, 0x0000 },    /* R723   - Jack detect analogue */
 	{ 0x00000300, 0x0000 },    /* R768   - Input Enables */
@@ -1297,6 +1401,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL1_CONTROL_4:
 	case ARIZONA_FLL1_CONTROL_5:
 	case ARIZONA_FLL1_CONTROL_6:
+	case ARIZONA_FLL1_CONTROL_7:
 	case ARIZONA_FLL1_LOOP_FILTER_TEST_1:
 	case ARIZONA_FLL1_NCO_TEST_0:
 	case ARIZONA_FLL1_SYNCHRONISER_1:
@@ -1305,6 +1410,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL1_SYNCHRONISER_4:
 	case ARIZONA_FLL1_SYNCHRONISER_5:
 	case ARIZONA_FLL1_SYNCHRONISER_6:
+	case ARIZONA_FLL1_SYNCHRONISER_7:
 	case ARIZONA_FLL1_SPREAD_SPECTRUM:
 	case ARIZONA_FLL1_GPIO_CLOCK:
 	case ARIZONA_FLL2_CONTROL_1:
@@ -1313,6 +1419,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL2_CONTROL_4:
 	case ARIZONA_FLL2_CONTROL_5:
 	case ARIZONA_FLL2_CONTROL_6:
+	case ARIZONA_FLL2_CONTROL_7:
 	case ARIZONA_FLL2_LOOP_FILTER_TEST_1:
 	case ARIZONA_FLL2_NCO_TEST_0:
 	case ARIZONA_FLL2_SYNCHRONISER_1:
@@ -1321,6 +1428,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL2_SYNCHRONISER_4:
 	case ARIZONA_FLL2_SYNCHRONISER_5:
 	case ARIZONA_FLL2_SYNCHRONISER_6:
+	case ARIZONA_FLL2_SYNCHRONISER_7:
 	case ARIZONA_FLL2_SPREAD_SPECTRUM:
 	case ARIZONA_FLL2_GPIO_CLOCK:
 	case ARIZONA_MIC_CHARGE_PUMP_1:
@@ -1335,6 +1443,10 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_MIC_DETECT_1:
 	case ARIZONA_MIC_DETECT_2:
 	case ARIZONA_MIC_DETECT_3:
+	case ARIZONA_MIC_DETECT_LEVEL_1:
+	case ARIZONA_MIC_DETECT_LEVEL_2:
+	case ARIZONA_MIC_DETECT_LEVEL_3:
+	case ARIZONA_MIC_DETECT_LEVEL_4:
 	case ARIZONA_MIC_NOISE_MIX_CONTROL_1:
 	case ARIZONA_JACK_DETECT_ANALOGUE:
 	case ARIZONA_INPUT_ENABLES:
@@ -2178,18 +2290,22 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP1_CLOCKING_1:
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:
+	case ARIZONA_DSP1_STATUS_3:
 	case ARIZONA_DSP2_CONTROL_1:
 	case ARIZONA_DSP2_CLOCKING_1:
 	case ARIZONA_DSP2_STATUS_1:
 	case ARIZONA_DSP2_STATUS_2:
+	case ARIZONA_DSP2_STATUS_3:
 	case ARIZONA_DSP3_CONTROL_1:
 	case ARIZONA_DSP3_CLOCKING_1:
 	case ARIZONA_DSP3_STATUS_1:
 	case ARIZONA_DSP3_STATUS_2:
+	case ARIZONA_DSP3_STATUS_3:
 	case ARIZONA_DSP4_CONTROL_1:
 	case ARIZONA_DSP4_CLOCKING_1:
 	case ARIZONA_DSP4_STATUS_1:
 	case ARIZONA_DSP4_STATUS_2:
+	case ARIZONA_DSP4_STATUS_3:
 		return true;
 	default:
 		return false;
@@ -2233,18 +2349,23 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_IRQ_PIN_STATUS:
 	case ARIZONA_AOD_IRQ1:
 	case ARIZONA_AOD_IRQ2:
+	case ARIZONA_FX_CTRL2:
 	case ARIZONA_ASRC_STATUS:
 	case ARIZONA_DSP_STATUS:
 	case ARIZONA_DSP1_CONTROL_1:
 	case ARIZONA_DSP1_CLOCKING_1:
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:
+	case ARIZONA_DSP1_STATUS_3:
 	case ARIZONA_DSP2_STATUS_1:
 	case ARIZONA_DSP2_STATUS_2:
+	case ARIZONA_DSP2_STATUS_3:
 	case ARIZONA_DSP3_STATUS_1:
 	case ARIZONA_DSP3_STATUS_2:
+	case ARIZONA_DSP3_STATUS_3:
 	case ARIZONA_DSP4_STATUS_1:
 	case ARIZONA_DSP4_STATUS_2:
+	case ARIZONA_DSP4_STATUS_3:
 		return true;
 	default:
 		return false;

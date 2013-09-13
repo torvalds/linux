@@ -18,6 +18,7 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/file.h>
 #include <linux/net.h>
 
 #include "usbip_common.h"
@@ -26,7 +27,7 @@
 /* TODO: refine locking ?*/
 
 /* Sysfs entry to show port status */
-static ssize_t show_status(struct device *dev, struct device_attribute *attr,
+static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 			   char *out)
 {
 	char *s = out;
@@ -73,7 +74,7 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 
 	return out - s;
 }
-static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
+static DEVICE_ATTR_RO(status);
 
 /* Sysfs entry to shutdown a virtual connection */
 static int vhci_port_disconnect(__u32 rhport)
@@ -189,7 +190,8 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	if (valid_args(rhport, speed) < 0)
 		return -EINVAL;
 
-	/* check sockfd */
+	/* Extract socket from fd. */
+	/* The correct way to clean this up is to fput(socket->file). */
 	socket = sockfd_to_socket(sockfd);
 	if (!socket)
 		return -EINVAL;
@@ -205,6 +207,8 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		/* end of the lock */
 		spin_unlock(&vdev->ud.lock);
 		spin_unlock(&the_controller->lock);
+
+		fput(socket->file);
 
 		dev_err(dev, "port %d already used\n", rhport);
 		return -EINVAL;

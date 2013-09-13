@@ -17,7 +17,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <plat/audio.h>
+#include <linux/platform_data/asoc-s3c.h>
 #include <mach/dma.h>
 
 #include "dma.h"
@@ -357,7 +357,11 @@ static struct snd_soc_dai_driver samsung_spdif_dai = {
 	.resume = spdif_resume,
 };
 
-static __devinit int spdif_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver samsung_spdif_component = {
+	.name		= "samsung-spdif",
+};
+
+static int spdif_probe(struct platform_device *pdev)
 {
 	struct s3c_audio_pdata *spdif_pdata;
 	struct resource *mem_res, *dma_res;
@@ -391,21 +395,21 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 
 	spin_lock_init(&spdif->lock);
 
-	spdif->pclk = clk_get(&pdev->dev, "spdif");
+	spdif->pclk = devm_clk_get(&pdev->dev, "spdif");
 	if (IS_ERR(spdif->pclk)) {
 		dev_err(&pdev->dev, "failed to get peri-clock\n");
 		ret = -ENOENT;
 		goto err0;
 	}
-	clk_enable(spdif->pclk);
+	clk_prepare_enable(spdif->pclk);
 
-	spdif->sclk = clk_get(&pdev->dev, "sclk_spdif");
+	spdif->sclk = devm_clk_get(&pdev->dev, "sclk_spdif");
 	if (IS_ERR(spdif->sclk)) {
 		dev_err(&pdev->dev, "failed to get internal source clock\n");
 		ret = -ENOENT;
 		goto err1;
 	}
-	clk_enable(spdif->sclk);
+	clk_prepare_enable(spdif->sclk);
 
 	/* Request S/PDIF Register's memory region */
 	if (!request_mem_region(mem_res->start,
@@ -424,7 +428,8 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, spdif);
 
-	ret = snd_soc_register_dai(&pdev->dev, &samsung_spdif_dai);
+	ret = snd_soc_register_component(&pdev->dev, &samsung_spdif_component,
+					 &samsung_spdif_dai, 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "fail to register dai\n");
 		goto err4;
@@ -437,28 +442,34 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 
 	spdif->dma_playback = &spdif_stereo_out;
 
-	return 0;
+	ret = samsung_asoc_dma_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
+		goto err5;
+	}
 
+	return 0;
+err5:
+	snd_soc_unregister_component(&pdev->dev);
 err4:
 	iounmap(spdif->regs);
 err3:
 	release_mem_region(mem_res->start, resource_size(mem_res));
 err2:
-	clk_disable(spdif->sclk);
-	clk_put(spdif->sclk);
+	clk_disable_unprepare(spdif->sclk);
 err1:
-	clk_disable(spdif->pclk);
-	clk_put(spdif->pclk);
+	clk_disable_unprepare(spdif->pclk);
 err0:
 	return ret;
 }
 
-static __devexit int spdif_remove(struct platform_device *pdev)
+static int spdif_remove(struct platform_device *pdev)
 {
 	struct samsung_spdif_info *spdif = &spdif_info;
 	struct resource *mem_res;
 
-	snd_soc_unregister_dai(&pdev->dev);
+	samsung_asoc_dma_platform_unregister(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	iounmap(spdif->regs);
 
@@ -466,17 +477,15 @@ static __devexit int spdif_remove(struct platform_device *pdev)
 	if (mem_res)
 		release_mem_region(mem_res->start, resource_size(mem_res));
 
-	clk_disable(spdif->sclk);
-	clk_put(spdif->sclk);
-	clk_disable(spdif->pclk);
-	clk_put(spdif->pclk);
+	clk_disable_unprepare(spdif->sclk);
+	clk_disable_unprepare(spdif->pclk);
 
 	return 0;
 }
 
 static struct platform_driver samsung_spdif_driver = {
 	.probe	= spdif_probe,
-	.remove	= __devexit_p(spdif_remove),
+	.remove	= spdif_remove,
 	.driver	= {
 		.name	= "samsung-spdif",
 		.owner	= THIS_MODULE,

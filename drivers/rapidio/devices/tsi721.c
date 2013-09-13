@@ -471,6 +471,10 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 	u32 intval;
 	u32 ch_inte;
 
+	/* For MSI mode disable all device-level interrupts */
+	if (priv->flags & TSI721_USING_MSI)
+		iowrite32(0, priv->regs + TSI721_DEV_INTE);
+
 	dev_int = ioread32(priv->regs + TSI721_DEV_INT);
 	if (!dev_int)
 		return IRQ_NONE;
@@ -560,6 +564,14 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 		}
 	}
 #endif
+
+	/* For MSI mode re-enable device-level interrupts */
+	if (priv->flags & TSI721_USING_MSI) {
+		dev_int = TSI721_DEV_INT_SR2PC_CH | TSI721_DEV_INT_SRIO |
+			TSI721_DEV_INT_SMSG_CH | TSI721_DEV_INT_BDMA_CH;
+		iowrite32(dev_int, priv->regs + TSI721_DEV_INTE);
+	}
+
 	return IRQ_HANDLED;
 }
 
@@ -862,6 +874,90 @@ static void tsi721_init_pc2sr_mapping(struct tsi721_device *priv)
 }
 
 /**
+ * tsi721_rio_map_inb_mem -- Mapping inbound memory region.
+ * @mport: RapidIO master port
+ * @lstart: Local memory space start address.
+ * @rstart: RapidIO space start address.
+ * @size: The mapping region size.
+ * @flags: Flags for mapping. 0 for using default flags.
+ *
+ * Return: 0 -- Success.
+ *
+ * This function will create the inbound mapping
+ * from rstart to lstart.
+ */
+static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
+		u64 rstart, u32 size, u32 flags)
+{
+	struct tsi721_device *priv = mport->priv;
+	int i;
+	u32 regval;
+
+	if (!is_power_of_2(size) || size < 0x1000 ||
+	    ((u64)lstart & (size - 1)) || (rstart & (size - 1)))
+		return -EINVAL;
+
+	/* Search for free inbound translation window */
+	for (i = 0; i < TSI721_IBWIN_NUM; i++) {
+		regval = ioread32(priv->regs + TSI721_IBWIN_LB(i));
+		if (!(regval & TSI721_IBWIN_LB_WEN))
+			break;
+	}
+
+	if (i >= TSI721_IBWIN_NUM) {
+		dev_err(&priv->pdev->dev,
+			"Unable to find free inbound window\n");
+		return -EBUSY;
+	}
+
+	iowrite32(TSI721_IBWIN_SIZE(size) << 8,
+			priv->regs + TSI721_IBWIN_SZ(i));
+
+	iowrite32(((u64)lstart >> 32), priv->regs + TSI721_IBWIN_TUA(i));
+	iowrite32(((u64)lstart & TSI721_IBWIN_TLA_ADD),
+		  priv->regs + TSI721_IBWIN_TLA(i));
+
+	iowrite32(rstart >> 32, priv->regs + TSI721_IBWIN_UB(i));
+	iowrite32((rstart & TSI721_IBWIN_LB_BA) | TSI721_IBWIN_LB_WEN,
+		priv->regs + TSI721_IBWIN_LB(i));
+	dev_dbg(&priv->pdev->dev,
+		"Configured IBWIN%d mapping (RIO_0x%llx -> PCIe_0x%llx)\n",
+		i, rstart, (unsigned long long)lstart);
+
+	return 0;
+}
+
+/**
+ * fsl_rio_unmap_inb_mem -- Unmapping inbound memory region.
+ * @mport: RapidIO master port
+ * @lstart: Local memory space start address.
+ */
+static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
+				dma_addr_t lstart)
+{
+	struct tsi721_device *priv = mport->priv;
+	int i;
+	u64 addr;
+	u32 regval;
+
+	/* Search for matching active inbound translation window */
+	for (i = 0; i < TSI721_IBWIN_NUM; i++) {
+		regval = ioread32(priv->regs + TSI721_IBWIN_LB(i));
+		if (regval & TSI721_IBWIN_LB_WEN) {
+			regval = ioread32(priv->regs + TSI721_IBWIN_TUA(i));
+			addr = (u64)regval << 32;
+			regval = ioread32(priv->regs + TSI721_IBWIN_TLA(i));
+			addr |= regval & TSI721_IBWIN_TLA_ADD;
+
+			if (addr == (u64)lstart) {
+				iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
+				break;
+			}
+		}
+	}
+}
+
+/**
  * tsi721_init_sr2pc_mapping - initializes inbound (SRIO->PCIe)
  * translation regions.
  * @priv: pointer to tsi721 private data
@@ -874,7 +970,7 @@ static void tsi721_init_sr2pc_mapping(struct tsi721_device *priv)
 
 	/* Disable all SR2PC inbound windows */
 	for (i = 0; i < TSI721_IBWIN_NUM; i++)
-		iowrite32(0, priv->regs + TSI721_IBWINLB(i));
+		iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
 }
 
 /**
@@ -2118,7 +2214,7 @@ static void tsi721_disable_ints(struct tsi721_device *priv)
  *
  * Configures Tsi721 as RapidIO master port.
  */
-static int __devinit tsi721_setup_mport(struct tsi721_device *priv)
+static int tsi721_setup_mport(struct tsi721_device *priv)
 {
 	struct pci_dev *pdev = priv->pdev;
 	int err = 0;
@@ -2144,6 +2240,8 @@ static int __devinit tsi721_setup_mport(struct tsi721_device *priv)
 	ops->add_outb_message = tsi721_add_outb_message;
 	ops->add_inb_buffer = tsi721_add_inb_buffer;
 	ops->get_inb_message = tsi721_get_inb_message;
+	ops->map_inb = tsi721_rio_map_inb_mem;
+	ops->unmap_inb = tsi721_rio_unmap_inb_mem;
 
 	mport = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
 	if (!mport) {
@@ -2165,7 +2263,8 @@ static int __devinit tsi721_setup_mport(struct tsi721_device *priv)
 	rio_init_dbell_res(&mport->riores[RIO_DOORBELL_RESOURCE], 0, 0xffff);
 	rio_init_mbox_res(&mport->riores[RIO_INB_MBOX_RESOURCE], 0, 3);
 	rio_init_mbox_res(&mport->riores[RIO_OUTB_MBOX_RESOURCE], 0, 3);
-	strcpy(mport->name, "Tsi721 mport");
+	snprintf(mport->name, RIO_MAX_MPORT_NAME, "%s(%s)",
+		 dev_driver_string(&pdev->dev), dev_name(&pdev->dev));
 
 	/* Hook up interrupt handler */
 
@@ -2215,13 +2314,11 @@ err_exit:
 	return err;
 }
 
-static int __devinit tsi721_probe(struct pci_dev *pdev,
+static int tsi721_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *id)
 {
 	struct tsi721_device *priv;
-	int cap;
 	int err;
-	u32 regval;
 
 	priv = kzalloc(sizeof(struct tsi721_device), GFP_KERNEL);
 	if (priv == NULL) {
@@ -2317,7 +2414,8 @@ static int __devinit tsi721_probe(struct pci_dev *pdev,
 
 	/* Configure DMA attributes. */
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (err) {
 			dev_info(&pdev->dev, "Unable to set DMA mask\n");
 			goto err_unmap_bars;
 		}
@@ -2330,20 +2428,16 @@ static int __devinit tsi721_probe(struct pci_dev *pdev,
 			dev_info(&pdev->dev, "Unable to set consistent DMA mask\n");
 	}
 
-	cap = pci_pcie_cap(pdev);
-	BUG_ON(cap == 0);
+	BUG_ON(!pci_is_pcie(pdev));
 
 	/* Clear "no snoop" and "relaxed ordering" bits, use default MRRS. */
-	pci_read_config_dword(pdev, cap + PCI_EXP_DEVCTL, &regval);
-	regval &= ~(PCI_EXP_DEVCTL_READRQ | PCI_EXP_DEVCTL_RELAX_EN |
-		    PCI_EXP_DEVCTL_NOSNOOP_EN);
-	regval |= 0x2 << MAX_READ_REQUEST_SZ_SHIFT;
-	pci_write_config_dword(pdev, cap + PCI_EXP_DEVCTL, regval);
+	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
+		PCI_EXP_DEVCTL_READRQ | PCI_EXP_DEVCTL_RELAX_EN |
+		PCI_EXP_DEVCTL_NOSNOOP_EN,
+		0x2 << MAX_READ_REQUEST_SZ_SHIFT);
 
 	/* Adjust PCIe completion timeout. */
-	pci_read_config_dword(pdev, cap + PCI_EXP_DEVCTL2, &regval);
-	regval &= ~(0x0f);
-	pci_write_config_dword(pdev, cap + PCI_EXP_DEVCTL2, regval | 0x2);
+	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL2, 0xf, 0x2);
 
 	/*
 	 * FIXUP: correct offsets of MSI-X tables in the MSI-X Capability Block
@@ -2421,9 +2515,8 @@ static int __init tsi721_init(void)
 	return pci_register_driver(&tsi721_driver);
 }
 
-static void __exit tsi721_exit(void)
-{
-	pci_unregister_driver(&tsi721_driver);
-}
-
 device_initcall(tsi721_init);
+
+MODULE_DESCRIPTION("IDT Tsi721 PCIExpress-to-SRIO bridge driver");
+MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_LICENSE("GPL");

@@ -344,6 +344,7 @@ struct adapter {
 	unsigned long registered_device_map;
 	unsigned long open_device_map;
 	unsigned long flags;
+	enum chip_type chip;
 	struct adapter_params params;
 
 	/* queue and interrupt resources */
@@ -466,7 +467,6 @@ static inline void t4_os_set_hw_addr(struct adapter *adapter, int pidx,
 				     u8 hw_addr[])
 {
 	memcpy(adapter->port[pidx]->dev_addr, hw_addr, ETH_ALEN);
-	memcpy(adapter->port[pidx]->perm_addr, hw_addr, ETH_ALEN);
 }
 
 /**

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Name: acobject.h - Definition of union acpi_operand_object  (Internal object only)
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -179,7 +178,7 @@ struct acpi_object_method {
 	union acpi_operand_object *mutex;
 	u8 *aml_start;
 	union {
-		ACPI_INTERNAL_METHOD implementation;
+		acpi_internal_method implementation;
 		union acpi_operand_object *handler;
 	} dispatch;
 
@@ -198,7 +197,7 @@ struct acpi_object_method {
 
 /******************************************************************************
  *
- * Objects that can be notified.  All share a common notify_info area.
+ * Objects that can be notified. All share a common notify_info area.
  *
  *****************************************************************************/
 
@@ -235,7 +234,7 @@ ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_NOTIFY_INFO};
 
 /******************************************************************************
  *
- * Fields.  All share a common header/info field.
+ * Fields. All share a common header/info field.
  *
  *****************************************************************************/
 
@@ -308,7 +307,7 @@ struct acpi_object_addr_handler {
 	struct acpi_namespace_node *node;	/* Parent device */
 	void *context;
 	acpi_adr_space_setup setup;
-	union acpi_operand_object *region_list;	/* regions using this handler */
+	union acpi_operand_object *region_list;	/* Regions using this handler */
 	union acpi_operand_object *next;
 };
 

@@ -55,12 +55,18 @@ static void asix_status(struct usbnet *dev, struct urb *urb)
 	event = urb->transfer_buffer;
 	link = event->link & 0x01;
 	if (netif_carrier_ok(dev->net) != link) {
-		if (link) {
-			netif_carrier_on(dev->net);
-			usbnet_defer_kevent (dev, EVENT_LINK_RESET );
-		} else
-			netif_carrier_off(dev->net);
+		usbnet_link_change(dev, link, 1);
 		netdev_dbg(dev->net, "Link Status is: %d\n", link);
+	}
+}
+
+static void asix_set_netdev_dev_addr(struct usbnet *dev, u8 *addr)
+{
+	if (is_valid_ether_addr(addr)) {
+		memcpy(dev->net->dev_addr, addr, ETH_ALEN);
+	} else {
+		netdev_info(dev->net, "invalid hw address, using random\n");
+		eth_hw_addr_random(dev->net);
 	}
 }
 
@@ -221,10 +227,12 @@ static int ax88172_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Get the MAC address */
 	ret = asix_read_cmd(dev, AX88172_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, buf);
 	if (ret < 0) {
-		dbg("read AX_CMD_READ_NODE_ID failed: %d", ret);
+		netdev_dbg(dev->net, "read AX_CMD_READ_NODE_ID failed: %d\n",
+			   ret);
 		goto out;
 	}
-	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
+
+	asix_set_netdev_dev_addr(dev, buf);
 
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;
@@ -303,7 +311,7 @@ static int ax88772_reset(struct usbnet *dev)
 
 	ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, embd_phy, 0, 0, NULL);
 	if (ret < 0) {
-		dbg("Select PHY #1 failed: %d", ret);
+		netdev_dbg(dev->net, "Select PHY #1 failed: %d\n", ret);
 		goto out;
 	}
 
@@ -331,13 +339,13 @@ static int ax88772_reset(struct usbnet *dev)
 
 	msleep(150);
 	rx_ctl = asix_read_rx_ctl(dev);
-	dbg("RX_CTL is 0x%04x after software reset", rx_ctl);
+	netdev_dbg(dev->net, "RX_CTL is 0x%04x after software reset\n", rx_ctl);
 	ret = asix_write_rx_ctl(dev, 0x0000);
 	if (ret < 0)
 		goto out;
 
 	rx_ctl = asix_read_rx_ctl(dev);
-	dbg("RX_CTL is 0x%04x setting to 0x0000", rx_ctl);
+	netdev_dbg(dev->net, "RX_CTL is 0x%04x setting to 0x0000\n", rx_ctl);
 
 	ret = asix_sw_reset(dev, AX_SWRESET_PRL);
 	if (ret < 0)
@@ -364,7 +372,7 @@ static int ax88772_reset(struct usbnet *dev)
 				AX88772_IPG0_DEFAULT | AX88772_IPG1_DEFAULT,
 				AX88772_IPG2_DEFAULT, 0, NULL);
 	if (ret < 0) {
-		dbg("Write IPG,IPG1,IPG2 failed: %d", ret);
+		netdev_dbg(dev->net, "Write IPG,IPG1,IPG2 failed: %d\n", ret);
 		goto out;
 	}
 
@@ -381,10 +389,13 @@ static int ax88772_reset(struct usbnet *dev)
 		goto out;
 
 	rx_ctl = asix_read_rx_ctl(dev);
-	dbg("RX_CTL is 0x%04x after all initializations", rx_ctl);
+	netdev_dbg(dev->net, "RX_CTL is 0x%04x after all initializations\n",
+		   rx_ctl);
 
 	rx_ctl = asix_read_medium_status(dev);
-	dbg("Medium Status is 0x%04x after all initializations", rx_ctl);
+	netdev_dbg(dev->net,
+		   "Medium Status is 0x%04x after all initializations\n",
+		   rx_ctl);
 
 	return 0;
 
@@ -407,19 +418,31 @@ static const struct net_device_ops ax88772_netdev_ops = {
 
 static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	int ret, embd_phy;
+	int ret, embd_phy, i;
 	u8 buf[ETH_ALEN];
 	u32 phyid;
 
 	usbnet_get_endpoints(dev,intf);
 
 	/* Get the MAC address */
-	ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, buf);
+	if (dev->driver_info->data & FLAG_EEPROM_MAC) {
+		for (i = 0; i < (ETH_ALEN >> 1); i++) {
+			ret = asix_read_cmd(dev, AX_CMD_READ_EEPROM, 0x04 + i,
+					0, 2, buf + i * 2);
+			if (ret < 0)
+				break;
+		}
+	} else {
+		ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID,
+				0, 0, ETH_ALEN, buf);
+	}
+
 	if (ret < 0) {
-		dbg("Failed to read MAC address: %d", ret);
+		netdev_dbg(dev->net, "Failed to read MAC address: %d\n", ret);
 		return ret;
 	}
-	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
+
+	asix_set_netdev_dev_addr(dev, buf);
 
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;
@@ -439,7 +462,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Reset the PHY to normal operation mode */
 	ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, embd_phy, 0, 0, NULL);
 	if (ret < 0) {
-		dbg("Select PHY #1 failed: %d", ret);
+		netdev_dbg(dev->net, "Select PHY #1 failed: %d\n", ret);
 		return ret;
 	}
 
@@ -459,7 +482,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* Read PHYID register *AFTER* the PHY was reset properly */
 	phyid = asix_get_phyid(dev);
-	dbg("PHYID=0x%08x", phyid);
+	netdev_dbg(dev->net, "PHYID=0x%08x\n", phyid);
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
 	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
@@ -468,7 +491,17 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->rx_urb_size = 2048;
 	}
 
+	dev->driver_priv = kzalloc(sizeof(struct asix_common_private), GFP_KERNEL);
+	if (!dev->driver_priv)
+		return -ENOMEM;
+
 	return 0;
+}
+
+static void ax88772_unbind(struct usbnet *dev, struct usb_interface *intf)
+{
+	if (dev->driver_priv)
+		kfree(dev->driver_priv);
 }
 
 static const struct ethtool_ops ax88178_ethtool_ops = {
@@ -575,13 +608,13 @@ static int ax88178_reset(struct usbnet *dev)
 	u32 phyid;
 
 	asix_read_cmd(dev, AX_CMD_READ_GPIOS, 0, 0, 1, &status);
-	dbg("GPIO Status: 0x%04x", status);
+	netdev_dbg(dev->net, "GPIO Status: 0x%04x\n", status);
 
 	asix_write_cmd(dev, AX_CMD_WRITE_ENABLE, 0, 0, 0, NULL);
 	asix_read_cmd(dev, AX_CMD_READ_EEPROM, 0x0017, 0, 2, &eeprom);
 	asix_write_cmd(dev, AX_CMD_WRITE_DISABLE, 0, 0, 0, NULL);
 
-	dbg("EEPROM index 0x17 is 0x%04x", eeprom);
+	netdev_dbg(dev->net, "EEPROM index 0x17 is 0x%04x\n", eeprom);
 
 	if (eeprom == cpu_to_le16(0xffff)) {
 		data->phymode = PHY_MODE_MARVELL;
@@ -592,7 +625,7 @@ static int ax88178_reset(struct usbnet *dev)
 		data->ledmode = le16_to_cpu(eeprom) >> 8;
 		gpio0 = (le16_to_cpu(eeprom) & 0x80) ? 0 : 1;
 	}
-	dbg("GPIO0: %d, PhyMode: %d", gpio0, data->phymode);
+	netdev_dbg(dev->net, "GPIO0: %d, PhyMode: %d\n", gpio0, data->phymode);
 
 	/* Power up external GigaPHY through AX88178 GPIO pin */
 	asix_write_gpio(dev, AX_GPIO_RSE | AX_GPIO_GPO_1 | AX_GPIO_GPO1EN, 40);
@@ -601,14 +634,14 @@ static int ax88178_reset(struct usbnet *dev)
 		asix_write_gpio(dev, 0x001c, 300);
 		asix_write_gpio(dev, 0x003c, 30);
 	} else {
-		dbg("gpio phymode == 1 path");
+		netdev_dbg(dev->net, "gpio phymode == 1 path\n");
 		asix_write_gpio(dev, AX_GPIO_GPO1EN, 30);
 		asix_write_gpio(dev, AX_GPIO_GPO1EN | AX_GPIO_GPO_1, 30);
 	}
 
 	/* Read PHYID register *AFTER* powering up PHY */
 	phyid = asix_get_phyid(dev);
-	dbg("PHYID=0x%08x", phyid);
+	netdev_dbg(dev->net, "PHYID=0x%08x\n", phyid);
 
 	/* Set AX88178 to enable MII/GMII/RGMII interface for external PHY */
 	asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, 0, 0, 0, NULL);
@@ -745,6 +778,9 @@ static int ax88178_change_mtu(struct net_device *net, int new_mtu)
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 	ax88178_set_mfb(dev);
 
+	/* max qlen depend on hard_mtu and rx_urb_size */
+	usbnet_update_max_qlen(dev);
+
 	return 0;
 }
 
@@ -770,10 +806,11 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Get the MAC address */
 	ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, buf);
 	if (ret < 0) {
-		dbg("Failed to read MAC address: %d", ret);
+		netdev_dbg(dev->net, "Failed to read MAC address: %d\n", ret);
 		return ret;
 	}
-	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
+
+	asix_set_netdev_dev_addr(dev, buf);
 
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;
@@ -800,6 +837,10 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 		   jumbo eth frames */
 		dev->rx_urb_size = 2048;
 	}
+
+	dev->driver_priv = kzalloc(sizeof(struct asix_common_private), GFP_KERNEL);
+	if (!dev->driver_priv)
+			return -ENOMEM;
 
 	return 0;
 }
@@ -847,26 +888,63 @@ static const struct driver_info hawking_uf200_info = {
 static const struct driver_info ax88772_info = {
 	.description = "ASIX AX88772 USB 2.0 Ethernet",
 	.bind = ax88772_bind,
+	.unbind = ax88772_unbind,
 	.status = asix_status,
 	.link_reset = ax88772_link_reset,
 	.reset = ax88772_reset,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR | FLAG_MULTI_PACKET,
-	.rx_fixup = asix_rx_fixup,
+	.rx_fixup = asix_rx_fixup_common,
 	.tx_fixup = asix_tx_fixup,
+};
+
+static const struct driver_info ax88772b_info = {
+	.description = "ASIX AX88772B USB 2.0 Ethernet",
+	.bind = ax88772_bind,
+	.unbind = ax88772_unbind,
+	.status = asix_status,
+	.link_reset = ax88772_link_reset,
+	.reset = ax88772_reset,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |
+	         FLAG_MULTI_PACKET,
+	.rx_fixup = asix_rx_fixup_common,
+	.tx_fixup = asix_tx_fixup,
+	.data = FLAG_EEPROM_MAC,
 };
 
 static const struct driver_info ax88178_info = {
 	.description = "ASIX AX88178 USB 2.0 Ethernet",
 	.bind = ax88178_bind,
+	.unbind = ax88772_unbind,
 	.status = asix_status,
 	.link_reset = ax88178_link_reset,
 	.reset = ax88178_reset,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR,
-	.rx_fixup = asix_rx_fixup,
+	.rx_fixup = asix_rx_fixup_common,
 	.tx_fixup = asix_tx_fixup,
 };
 
-extern const struct driver_info ax88172a_info;
+/*
+ * USBLINK 20F9 "USB 2.0 LAN" USB ethernet adapter, typically found in
+ * no-name packaging.
+ * USB device strings are:
+ *   1: Manufacturer: USBLINK
+ *   2: Product: HG20F9 USB2.0
+ *   3: Serial: 000003
+ * Appears to be compatible with Asix 88772B.
+ */
+static const struct driver_info hg20f9_info = {
+	.description = "HG20F9 USB 2.0 Ethernet",
+	.bind = ax88772_bind,
+	.unbind = ax88772_unbind,
+	.status = asix_status,
+	.link_reset = ax88772_link_reset,
+	.reset = ax88772_reset,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |
+	         FLAG_MULTI_PACKET,
+	.rx_fixup = asix_rx_fixup_common,
+	.tx_fixup = asix_tx_fixup,
+	.data = FLAG_EEPROM_MAC,
+};
 
 static const struct usb_device_id	products [] = {
 {
@@ -930,9 +1008,13 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x04f1, 0x3008),
 	.driver_info = (unsigned long) &ax8817x_info,
 }, {
+	// Lenovo U2L100P 10/100
+	USB_DEVICE (0x17ef, 0x7203),
+	.driver_info = (unsigned long) &ax88772_info,
+}, {
 	// ASIX AX88772B 10/100
 	USB_DEVICE (0x0b95, 0x772b),
-	.driver_info = (unsigned long) &ax88772_info,
+	.driver_info = (unsigned long) &ax88772b_info,
 }, {
 	// ASIX AX88772 10/100
 	USB_DEVICE (0x0b95, 0x7720),
@@ -961,6 +1043,10 @@ static const struct usb_device_id	products [] = {
 	// DLink DUB-E100 H/W Ver B1 Alternate
 	USB_DEVICE (0x2001, 0x3c05),
 	.driver_info = (unsigned long) &ax88772_info,
+}, {
+       // DLink DUB-E100 H/W Ver C1
+       USB_DEVICE (0x2001, 0x1a02),
+       .driver_info = (unsigned long) &ax88772_info,
 }, {
 	// Linksys USB1000
 	USB_DEVICE (0x1737, 0x0039),
@@ -997,6 +1083,14 @@ static const struct usb_device_id	products [] = {
 	/* ASIX 88172a demo board */
 	USB_DEVICE(0x0b95, 0x172a),
 	.driver_info = (unsigned long) &ax88172a_info,
+}, {
+	/*
+	 * USBLINK HG20F9 "USB 2.0 LAN"
+	 * Appears to have gazumped Linksys's manufacturer ID but
+	 * doesn't (yet) conflict with any known Linksys product.
+	 */
+	USB_DEVICE(0x066b, 0x20f9),
+	.driver_info = (unsigned long) &hg20f9_info,
 },
 	{ },		// END
 };

@@ -70,14 +70,13 @@ static struct bt_sock_list hci_sk_list = {
 void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 	struct sk_buff *skb_copy = NULL;
 
 	BT_DBG("hdev %p len %d", hdev, skb->len);
 
 	read_lock(&hci_sk_list.lock);
 
-	sk_for_each(sk, node, &hci_sk_list.head) {
+	sk_for_each(sk, &hci_sk_list.head) {
 		struct hci_filter *flt;
 		struct sk_buff *nskb;
 
@@ -142,13 +141,12 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 void hci_send_to_control(struct sk_buff *skb, struct sock *skip_sk)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 
 	BT_DBG("len %d", skb->len);
 
 	read_lock(&hci_sk_list.lock);
 
-	sk_for_each(sk, node, &hci_sk_list.head) {
+	sk_for_each(sk, &hci_sk_list.head) {
 		struct sk_buff *nskb;
 
 		/* Skip the original socket */
@@ -176,7 +174,6 @@ void hci_send_to_control(struct sk_buff *skb, struct sock *skip_sk)
 void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 	struct sk_buff *skb_copy = NULL;
 	__le16 opcode;
 
@@ -210,7 +207,7 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 
 	read_lock(&hci_sk_list.lock);
 
-	sk_for_each(sk, node, &hci_sk_list.head) {
+	sk_for_each(sk, &hci_sk_list.head) {
 		struct sk_buff *nskb;
 
 		if (sk->sk_state != BT_BOUND)
@@ -251,13 +248,12 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 static void send_monitor_event(struct sk_buff *skb)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 
 	BT_DBG("len %d", skb->len);
 
 	read_lock(&hci_sk_list.lock);
 
-	sk_for_each(sk, node, &hci_sk_list.head) {
+	sk_for_each(sk, &hci_sk_list.head) {
 		struct sk_buff *nskb;
 
 		if (sk->sk_state != BT_BOUND)
@@ -393,11 +389,10 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event)
 
 	if (event == HCI_DEV_UNREG) {
 		struct sock *sk;
-		struct hlist_node *node;
 
 		/* Detach sockets from device */
 		read_lock(&hci_sk_list.lock);
-		sk_for_each(sk, node, &hci_sk_list.head) {
+		sk_for_each(sk, &hci_sk_list.head) {
 			bh_lock_sock_nested(sk);
 			if (hci_pi(sk)->hdev == hdev) {
 				hci_pi(sk)->hdev = NULL;
@@ -490,7 +485,7 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	switch (cmd) {
 	case HCISETRAW:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 
 		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 			return -EPERM;
@@ -510,12 +505,12 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 
 	case HCIBLOCKADDR:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_sock_blacklist_add(hdev, (void __user *) arg);
 
 	case HCIUNBLOCKADDR:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_sock_blacklist_del(hdev, (void __user *) arg);
 
 	default:
@@ -546,22 +541,22 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 
 	case HCIDEVUP:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_open(arg);
 
 	case HCIDEVDOWN:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_close(arg);
 
 	case HCIDEVRESET:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_reset(arg);
 
 	case HCIDEVRESTAT:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_reset_stat(arg);
 
 	case HCISETSCAN:
@@ -573,7 +568,7 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 	case HCISETACLMTU:
 	case HCISETSCOMTU:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_cmd(cmd, argp);
 
 	case HCIINQUIRY:
@@ -859,6 +854,11 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			skb_queue_tail(&hdev->raw_q, skb);
 			queue_work(hdev->workqueue, &hdev->tx_work);
 		} else {
+			/* Stand-alone HCI commands must be flaged as
+			 * single-command requests.
+			 */
+			bt_cb(skb)->req.start = true;
+
 			skb_queue_tail(&hdev->cmd_q, skb);
 			queue_work(hdev->workqueue, &hdev->cmd_work);
 		}
@@ -1102,23 +1102,30 @@ int __init hci_sock_init(void)
 		return err;
 
 	err = bt_sock_register(BTPROTO_HCI, &hci_sock_family_ops);
-	if (err < 0)
+	if (err < 0) {
+		BT_ERR("HCI socket registration failed");
 		goto error;
+	}
+
+	err = bt_procfs_init(&init_net, "hci", &hci_sk_list, NULL);
+	if (err < 0) {
+		BT_ERR("Failed to create HCI proc file");
+		bt_sock_unregister(BTPROTO_HCI);
+		goto error;
+	}
 
 	BT_INFO("HCI socket layer initialized");
 
 	return 0;
 
 error:
-	BT_ERR("HCI socket registration failed");
 	proto_unregister(&hci_sk_proto);
 	return err;
 }
 
 void hci_sock_cleanup(void)
 {
-	if (bt_sock_unregister(BTPROTO_HCI) < 0)
-		BT_ERR("HCI socket unregistration failed");
-
+	bt_procfs_cleanup(&init_net, "hci");
+	bt_sock_unregister(BTPROTO_HCI);
 	proto_unregister(&hci_sk_proto);
 }

@@ -14,6 +14,8 @@
  *  0e8f:0003 "GASIA USB Gamepad"
  *   - another version of the König gamepad
  *
+ *  0f30:0111 "Saitek Color Rumble Pad"
+ *
  *  Copyright (c) 2007, 2009 Anssi Hannula <anssi.hannula@gmail.com>
  */
 
@@ -41,16 +43,15 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/usb.h>
 #include <linux/hid.h>
 
 #include "hid-ids.h"
 
 #ifdef CONFIG_PANTHERLORD_FF
-#include "usbhid/usbhid.h"
 
 struct plff_device {
 	struct hid_report *report;
+	s32 maxval;
 	s32 *strong;
 	s32 *weak;
 };
@@ -66,13 +67,13 @@ static int hid_plff_play(struct input_dev *dev, void *data,
 	right = effect->u.rumble.weak_magnitude;
 	debug("called with 0x%04x 0x%04x", left, right);
 
-	left = left * 0x7f / 0xffff;
-	right = right * 0x7f / 0xffff;
+	left = left * plff->maxval / 0xffff;
+	right = right * plff->maxval / 0xffff;
 
 	*plff->strong = left;
 	*plff->weak = right;
 	debug("running with 0x%02x 0x%02x", left, right);
-	usbhid_submit_report(hid, plff->report, USB_DIR_OUT);
+	hid_hw_request(hid, plff->report, HID_REQ_SET_REPORT);
 
 	return 0;
 }
@@ -87,6 +88,7 @@ static int plff_init(struct hid_device *hid)
 	struct list_head *report_ptr = report_list;
 	struct input_dev *dev;
 	int error;
+	s32 maxval;
 	s32 *strong;
 	s32 *weak;
 
@@ -123,18 +125,27 @@ static int plff_init(struct hid_device *hid)
 			return -ENODEV;
 		}
 
+		maxval = 0x7f;
 		if (report->field[0]->report_count >= 4) {
 			report->field[0]->value[0] = 0x00;
 			report->field[0]->value[1] = 0x00;
 			strong = &report->field[0]->value[2];
 			weak = &report->field[0]->value[3];
 			debug("detected single-field device");
-		} else if (report->maxfield >= 4 && report->field[0]->maxusage == 1 &&
-				report->field[0]->usage[0].hid == (HID_UP_LED | 0x43)) {
+		} else if (report->field[0]->maxusage == 1 &&
+			   report->field[0]->usage[0].hid ==
+				(HID_UP_LED | 0x43) &&
+			   report->maxfield >= 4 &&
+			   report->field[0]->report_count >= 1 &&
+			   report->field[1]->report_count >= 1 &&
+			   report->field[2]->report_count >= 1 &&
+			   report->field[3]->report_count >= 1) {
 			report->field[0]->value[0] = 0x00;
 			report->field[1]->value[0] = 0x00;
 			strong = &report->field[2]->value[0];
 			weak = &report->field[3]->value[0];
+			if (hid->vendor == USB_VENDOR_ID_JESS2)
+				maxval = 0xff;
 			debug("detected 4-field device");
 		} else {
 			hid_err(hid, "not enough fields or values\n");
@@ -158,10 +169,11 @@ static int plff_init(struct hid_device *hid)
 		plff->report = report;
 		plff->strong = strong;
 		plff->weak = weak;
+		plff->maxval = maxval;
 
 		*strong = 0x00;
 		*weak = 0x00;
-		usbhid_submit_report(hid, plff->report, USB_DIR_OUT);
+		hid_hw_request(hid, plff->report, HID_REQ_SET_REPORT);
 	}
 
 	hid_info(hid, "Force feedback for PantherLord/GreenAsia devices by Anssi Hannula <anssi.hannula@gmail.com>\n");
@@ -207,6 +219,7 @@ static const struct hid_device_id pl_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_GAMERON, USB_DEVICE_ID_GAMERON_DUAL_PCS_ADAPTOR),
 		.driver_data = 1 }, /* Twin USB Joystick */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_GREENASIA, 0x0003), },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_JESS2, USB_DEVICE_ID_JESS2_COLOR_RUMBLE_PAD), },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, pl_devices);
@@ -216,17 +229,6 @@ static struct hid_driver pl_driver = {
 	.id_table = pl_devices,
 	.probe = pl_probe,
 };
+module_hid_driver(pl_driver);
 
-static int __init pl_init(void)
-{
-	return hid_register_driver(&pl_driver);
-}
-
-static void __exit pl_exit(void)
-{
-	hid_unregister_driver(&pl_driver);
-}
-
-module_init(pl_init);
-module_exit(pl_exit);
 MODULE_LICENSE("GPL");

@@ -1,8 +1,6 @@
 #ifndef __MACH_MOTHERBOARD_H
 #define __MACH_MOTHERBOARD_H
 
-#include <linux/clk-provider.h>
-
 /*
  * Physical addresses, offset from V2M_PA_CS0-3
  */
@@ -41,31 +39,6 @@
 #define V2M_CF			(V2M_PA_CS7 + 0x0001a000)
 #define V2M_CLCD		(V2M_PA_CS7 + 0x0001f000)
 
-/*
- * Offsets from SYSREGS base
- */
-#define V2M_SYS_ID		0x000
-#define V2M_SYS_SW		0x004
-#define V2M_SYS_LED		0x008
-#define V2M_SYS_100HZ		0x024
-#define V2M_SYS_FLAGS		0x030
-#define V2M_SYS_FLAGSSET	0x030
-#define V2M_SYS_FLAGSCLR	0x034
-#define V2M_SYS_NVFLAGS		0x038
-#define V2M_SYS_NVFLAGSSET	0x038
-#define V2M_SYS_NVFLAGSCLR	0x03c
-#define V2M_SYS_MCI		0x048
-#define V2M_SYS_FLASH		0x03c
-#define V2M_SYS_CFGSW		0x058
-#define V2M_SYS_24MHZ		0x05c
-#define V2M_SYS_MISC		0x060
-#define V2M_SYS_DMA		0x064
-#define V2M_SYS_PROCID0		0x084
-#define V2M_SYS_PROCID1		0x088
-#define V2M_SYS_CFGDATA		0x0a0
-#define V2M_SYS_CFGCTRL		0x0a4
-#define V2M_SYS_CFGSTAT		0x0a8
-
 
 /*
  * Interrupts.  Those in {} are for AMBA devices
@@ -91,43 +64,6 @@
 
 
 /*
- * Configuration
- */
-#define SYS_CFG_START		(1 << 31)
-#define SYS_CFG_WRITE		(1 << 30)
-#define SYS_CFG_OSC		(1 << 20)
-#define SYS_CFG_VOLT		(2 << 20)
-#define SYS_CFG_AMP		(3 << 20)
-#define SYS_CFG_TEMP		(4 << 20)
-#define SYS_CFG_RESET		(5 << 20)
-#define SYS_CFG_SCC		(6 << 20)
-#define SYS_CFG_MUXFPGA		(7 << 20)
-#define SYS_CFG_SHUTDOWN	(8 << 20)
-#define SYS_CFG_REBOOT		(9 << 20)
-#define SYS_CFG_DVIMODE		(11 << 20)
-#define SYS_CFG_POWER		(12 << 20)
-#define SYS_CFG_SITE(n)		((n) << 16)
-#define SYS_CFG_SITE_MB		0
-#define SYS_CFG_SITE_DB1	1
-#define SYS_CFG_SITE_DB2	2
-#define SYS_CFG_STACK(n)	((n) << 12)
-
-#define SYS_CFG_ERR		(1 << 1)
-#define SYS_CFG_COMPLETE	(1 << 0)
-
-int v2m_cfg_write(u32 devfn, u32 data);
-int v2m_cfg_read(u32 devfn, u32 *data);
-void v2m_flags_set(u32 data);
-
-/*
- * Miscellaneous
- */
-#define SYS_MISC_MASTERSITE	(1 << 14)
-#define SYS_PROCIDx_HBI_MASK	0xfff
-
-int v2m_get_master_site(void);
-
-/*
  * Core tile IDs
  */
 #define V2M_CT_ID_CA9		0x0c000191
@@ -148,22 +84,5 @@ struct ct_desc {
 };
 
 extern struct ct_desc *ct_desc;
-
-/*
- * OSC clock provider
- */
-struct v2m_osc {
-	struct clk_hw hw;
-	u8 site; /* 0 = motherboard, 1 = site 1, 2 = site 2 */
-	u8 stack; /* board stack position */
-	u16 osc;
-	unsigned long rate_min;
-	unsigned long rate_max;
-	unsigned long rate_default;
-};
-
-#define to_v2m_osc(osc) container_of(osc, struct v2m_osc, hw)
-
-struct clk *v2m_osc_register(const char *name, struct v2m_osc *osc);
 
 #endif

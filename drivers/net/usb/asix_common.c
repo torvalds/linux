@@ -25,164 +25,116 @@
 int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		  u16 size, void *data)
 {
-	void *buf;
-	int err = -ENOMEM;
+	int ret;
+	ret = usbnet_read_cmd(dev, cmd,
+			       USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			       value, index, data, size);
 
-	netdev_dbg(dev->net, "asix_read_cmd() cmd=0x%02x value=0x%04x index=0x%04x size=%d\n",
-		   cmd, value, index, size);
-
-	buf = kmalloc(size, GFP_KERNEL);
-	if (!buf)
-		goto out;
-
-	err = usb_control_msg(
-		dev->udev,
-		usb_rcvctrlpipe(dev->udev, 0),
-		cmd,
-		USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		value,
-		index,
-		buf,
-		size,
-		USB_CTRL_GET_TIMEOUT);
-	if (err == size)
-		memcpy(data, buf, size);
-	else if (err >= 0)
-		err = -EINVAL;
-	kfree(buf);
-
-out:
-	return err;
+	if (ret != size && ret >= 0)
+		return -EINVAL;
+	return ret;
 }
 
 int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		   u16 size, void *data)
 {
-	void *buf = NULL;
-	int err = -ENOMEM;
-
-	netdev_dbg(dev->net, "asix_write_cmd() cmd=0x%02x value=0x%04x index=0x%04x size=%d\n",
-		   cmd, value, index, size);
-
-	if (data) {
-		buf = kmemdup(data, size, GFP_KERNEL);
-		if (!buf)
-			goto out;
-	}
-
-	err = usb_control_msg(
-		dev->udev,
-		usb_sndctrlpipe(dev->udev, 0),
-		cmd,
-		USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		value,
-		index,
-		buf,
-		size,
-		USB_CTRL_SET_TIMEOUT);
-	kfree(buf);
-
-out:
-	return err;
-}
-
-static void asix_async_cmd_callback(struct urb *urb)
-{
-	struct usb_ctrlrequest *req = (struct usb_ctrlrequest *)urb->context;
-	int status = urb->status;
-
-	if (status < 0)
-		printk(KERN_DEBUG "asix_async_cmd_callback() failed with %d",
-			status);
-
-	kfree(req);
-	usb_free_urb(urb);
+	return usbnet_write_cmd(dev, cmd,
+				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+				value, index, data, size);
 }
 
 void asix_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 			  u16 size, void *data)
 {
-	struct usb_ctrlrequest *req;
-	int status;
-	struct urb *urb;
-
-	netdev_dbg(dev->net, "asix_write_cmd_async() cmd=0x%02x value=0x%04x index=0x%04x size=%d\n",
-		   cmd, value, index, size);
-
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		netdev_err(dev->net, "Error allocating URB in write_cmd_async!\n");
-		return;
-	}
-
-	req = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
-	if (!req) {
-		netdev_err(dev->net, "Failed to allocate memory for control request\n");
-		usb_free_urb(urb);
-		return;
-	}
-
-	req->bRequestType = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
-	req->bRequest = cmd;
-	req->wValue = cpu_to_le16(value);
-	req->wIndex = cpu_to_le16(index);
-	req->wLength = cpu_to_le16(size);
-
-	usb_fill_control_urb(urb, dev->udev,
-			     usb_sndctrlpipe(dev->udev, 0),
-			     (void *)req, data, size,
-			     asix_async_cmd_callback, req);
-
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status < 0) {
-		netdev_err(dev->net, "Error submitting the control message: status=%d\n",
-			   status);
-		kfree(req);
-		usb_free_urb(urb);
-	}
+	usbnet_write_cmd_async(dev, cmd,
+			       USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			       value, index, data, size);
 }
 
-int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
+int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
+			   struct asix_rx_fixup_info *rx)
 {
 	int offset = 0;
 
-	while (offset + sizeof(u32) < skb->len) {
-		struct sk_buff *ax_skb;
-		u16 size;
-		u32 header = get_unaligned_le32(skb->data + offset);
+	while (offset + sizeof(u16) <= skb->len) {
+		u16 remaining = 0;
+		unsigned char *data;
 
-		offset += sizeof(u32);
+		if (!rx->size) {
+			if ((skb->len - offset == sizeof(u16)) ||
+			    rx->split_head) {
+				if(!rx->split_head) {
+					rx->header = get_unaligned_le16(
+							skb->data + offset);
+					rx->split_head = true;
+					offset += sizeof(u16);
+					break;
+				} else {
+					rx->header |= (get_unaligned_le16(
+							skb->data + offset)
+							<< 16);
+					rx->split_head = false;
+					offset += sizeof(u16);
+				}
+			} else {
+				rx->header = get_unaligned_le32(skb->data +
+								offset);
+				offset += sizeof(u32);
+			}
 
-		/* get the packet length */
-		size = (u16) (header & 0x7ff);
-		if (size != ((~header >> 16) & 0x07ff)) {
-			netdev_err(dev->net, "asix_rx_fixup() Bad Header Length\n");
-			return 0;
+			/* get the packet length */
+			rx->size = (u16) (rx->header & 0x7ff);
+			if (rx->size != ((~rx->header >> 16) & 0x7ff)) {
+				netdev_err(dev->net, "asix_rx_fixup() Bad Header Length 0x%x, offset %d\n",
+					   rx->header, offset);
+				rx->size = 0;
+				return 0;
+			}
+			rx->ax_skb = netdev_alloc_skb_ip_align(dev->net,
+							       rx->size);
+			if (!rx->ax_skb)
+				return 0;
 		}
 
-		if ((size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) ||
-		    (size + offset > skb->len)) {
+		if (rx->size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
 			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
-				   size);
+				   rx->size);
+			kfree_skb(rx->ax_skb);
+			rx->ax_skb = NULL;
+			rx->size = 0U;
+
 			return 0;
 		}
-		ax_skb = netdev_alloc_skb_ip_align(dev->net, size);
-		if (!ax_skb)
-			return 0;
 
-		skb_put(ax_skb, size);
-		memcpy(ax_skb->data, skb->data + offset, size);
-		usbnet_skb_return(dev, ax_skb);
+		if (rx->size > skb->len - offset) {
+			remaining = rx->size - (skb->len - offset);
+			rx->size = skb->len - offset;
+		}
 
-		offset += (size + 1) & 0xfffe;
+		data = skb_put(rx->ax_skb, rx->size);
+		memcpy(data, skb->data + offset, rx->size);
+		if (!remaining)
+			usbnet_skb_return(dev, rx->ax_skb);
+
+		offset += (rx->size + 1) & 0xfffe;
+		rx->size = remaining;
 	}
 
 	if (skb->len != offset) {
-		netdev_err(dev->net, "asix_rx_fixup() Bad SKB Length %d\n",
-			   skb->len);
+		netdev_err(dev->net, "asix_rx_fixup() Bad SKB Length %d, %d\n",
+			   skb->len, offset);
 		return 0;
 	}
+
 	return 1;
+}
+
+int asix_rx_fixup_common(struct usbnet *dev, struct sk_buff *skb)
+{
+	struct asix_common_private *dp = dev->driver_priv;
+	struct asix_rx_fixup_info *rx = &dp->rx_fixup_info;
+
+	return asix_rx_fixup_internal(dev, skb, rx);
 }
 
 struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
@@ -601,8 +553,8 @@ void asix_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
 {
 	/* Inherit standard device info */
 	usbnet_get_drvinfo(net, info);
-	strncpy (info->driver, DRIVER_NAME, sizeof info->driver);
-	strncpy (info->version, DRIVER_VERSION, sizeof info->version);
+	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
 	info->eedump_len = AX_EEPROM_LEN;
 }
 

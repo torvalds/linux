@@ -50,6 +50,7 @@ enum dss_feat_id {
 	FEAT_DSI_VC_OCP_WIDTH,
 	FEAT_DSI_REVERSE_TXCLKESC,
 	FEAT_DSI_GNQ,
+	FEAT_DPI_USES_VDDS_DSI,
 	FEAT_HDMI_CTS_SWMODE,
 	FEAT_HDMI_AUDIO_USE_MCLK,
 	FEAT_HANDLE_UV_SEPARATE,
@@ -64,6 +65,9 @@ enum dss_feat_id {
 	/* An unknown HW bug causing the normal FIFO thresholds not to work */
 	FEAT_OMAP3_DSI_FIFO_BUG,
 	FEAT_BURST_2D,
+	FEAT_DSI_PLL_SELFREQDCO,
+	FEAT_DSI_PLL_REFSEL,
+	FEAT_DSI_PHY_DCC,
 };
 
 /* DSS register field id */
@@ -91,19 +95,15 @@ enum dss_range_param {
 	FEAT_PARAM_DSIPLL_REGM_DSI,
 	FEAT_PARAM_DSIPLL_FINT,
 	FEAT_PARAM_DSIPLL_LPDIV,
+	FEAT_PARAM_DSI_FCK,
 	FEAT_PARAM_DOWNSCALE,
 	FEAT_PARAM_LINEWIDTH,
-	FEAT_PARAM_MGR_WIDTH,
-	FEAT_PARAM_MGR_HEIGHT,
 };
 
 /* DSS Feature Functions */
-int dss_feat_get_num_mgrs(void);
-int dss_feat_get_num_ovls(void);
+int dss_feat_get_num_wbs(void);
 unsigned long dss_feat_get_param_min(enum dss_range_param param);
 unsigned long dss_feat_get_param_max(enum dss_range_param param);
-enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel);
-enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
 enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane plane);
 bool dss_feat_color_mode_supported(enum omap_plane plane,
 		enum omap_color_mode color_mode);
@@ -116,8 +116,9 @@ bool dss_feat_rotation_type_supported(enum omap_dss_rotation_type rot_type);
 
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);
-void dss_features_init(void);
+void dss_features_init(enum omapdss_version version);
 #if defined(CONFIG_OMAP4_DSS_HDMI)
-void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data);
+void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data,
+		enum omapdss_version version);
 #endif
 #endif

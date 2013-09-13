@@ -73,13 +73,14 @@ MODULE_PARM_DESC(channels, "GF1 channels for " CRD_NAME " driver.");
 module_param_array(pcm_channels, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for " CRD_NAME " driver.");
 
-static int __devinit snd_gusclassic_match(struct device *dev, unsigned int n)
+static int snd_gusclassic_match(struct device *dev, unsigned int n)
 {
 	return enable[n];
 }
 
-static int __devinit snd_gusclassic_create(struct snd_card *card,
-		struct device *dev, unsigned int n, struct snd_gus_card **rgus)
+static int snd_gusclassic_create(struct snd_card *card,
+				 struct device *dev, unsigned int n,
+				 struct snd_gus_card **rgus)
 {
 	static long possible_ports[] = {0x220, 0x230, 0x240, 0x250, 0x260};
 	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, 4, -1};
@@ -123,7 +124,7 @@ static int __devinit snd_gusclassic_create(struct snd_card *card,
 	return error;
 }
 
-static int __devinit snd_gusclassic_detect(struct snd_gus_card *gus)
+static int snd_gusclassic_detect(struct snd_gus_card *gus)
 {
 	unsigned char d;
 
@@ -142,7 +143,7 @@ static int __devinit snd_gusclassic_detect(struct snd_gus_card *gus)
 	return 0;
 }
 
-static int __devinit snd_gusclassic_probe(struct device *dev, unsigned int n)
+static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 {
 	struct snd_card *card;
 	struct snd_gus_card *gus;
@@ -211,17 +212,16 @@ out:	snd_card_free(card);
 	return error;
 }
 
-static int __devexit snd_gusclassic_remove(struct device *dev, unsigned int n)
+static int snd_gusclassic_remove(struct device *dev, unsigned int n)
 {
 	snd_card_free(dev_get_drvdata(dev));
-	dev_set_drvdata(dev, NULL);
 	return 0;
 }
 
 static struct isa_driver snd_gusclassic_driver = {
 	.match		= snd_gusclassic_match,
 	.probe		= snd_gusclassic_probe,
-	.remove		= __devexit_p(snd_gusclassic_remove),
+	.remove		= snd_gusclassic_remove,
 #if 0	/* FIXME */
 	.suspend	= snd_gusclassic_suspend,
 	.remove		= snd_gusclassic_remove,

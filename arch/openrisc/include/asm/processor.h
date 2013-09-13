@@ -70,7 +70,6 @@ struct thread_struct {
  */
 
 #define task_pt_regs(task) user_regs(task_thread_info(task))
-#define current_regs() user_regs(current_thread_info())
 
 #define INIT_SP         (sizeof(init_stack) + (unsigned long) &init_stack)
 
@@ -80,8 +79,6 @@ struct thread_struct {
 #define KSTK_EIP(tsk)   (task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
 
-
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp);
 void release_thread(struct task_struct *);
@@ -103,7 +100,7 @@ extern unsigned long thread_saved_pc(struct task_struct *t);
 
 #define init_stack      (init_thread_union.stack)
 
-#define cpu_relax()     do { } while (0)
+#define cpu_relax()     barrier()
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_OPENRISC_PROCESSOR_H */

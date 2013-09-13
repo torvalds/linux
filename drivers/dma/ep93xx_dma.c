@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-ep93xx.h>
 
 #include "dmaengine.h"
 
@@ -903,8 +903,7 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 			switch (data->port) {
 			case EP93XX_DMA_SSP:
 			case EP93XX_DMA_IDE:
-				if (data->direction != DMA_MEM_TO_DEV &&
-				    data->direction != DMA_DEV_TO_MEM)
+				if (!is_slave_direction(data->direction))
 					return -EINVAL;
 				break;
 			default:
@@ -1118,8 +1117,9 @@ fail:
  * @chan: channel
  * @dma_addr: DMA mapped address of the buffer
  * @buf_len: length of the buffer (in bytes)
- * @period_len: lenght of a single period
+ * @period_len: length of a single period
  * @dir: direction of the operation
+ * @flags: tx descriptor status flags
  * @context: operation context (ignored)
  *
  * Prepares a descriptor for cyclic DMA operation. This means that once the
@@ -1133,7 +1133,8 @@ fail:
 static struct dma_async_tx_descriptor *
 ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 			   size_t buf_len, size_t period_len,
-			   enum dma_transfer_direction dir, void *context)
+			   enum dma_transfer_direction dir, unsigned long flags,
+			   void *context)
 {
 	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
 	struct ep93xx_dma_desc *desc, *first;
@@ -1312,15 +1313,7 @@ static enum dma_status ep93xx_dma_tx_status(struct dma_chan *chan,
 					    dma_cookie_t cookie,
 					    struct dma_tx_state *state)
 {
-	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
-	enum dma_status ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&edmac->lock, flags);
-	ret = dma_cookie_status(chan, cookie, state);
-	spin_unlock_irqrestore(&edmac->lock, flags);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, state);
 }
 
 /**

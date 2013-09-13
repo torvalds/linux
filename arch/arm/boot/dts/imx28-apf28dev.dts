@@ -1,0 +1,180 @@
+/*
+ * Copyright 2012 Armadeus Systems - <support@armadeus.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/* APF28Dev is a docking board for the APF28 SOM */
+/include/ "imx28-apf28.dts"
+
+/ {
+	model = "Armadeus Systems APF28Dev docking/development board";
+	compatible = "armadeus,imx28-apf28dev", "armadeus,imx28-apf28", "fsl,imx28";
+
+	apb@80000000 {
+		apbh@80000000 {
+			ssp0: ssp@80010000 {
+				compatible = "fsl,imx28-mmc";
+				pinctrl-names = "default";
+				pinctrl-0 = <&mmc0_4bit_pins_a
+					&mmc0_cd_cfg &mmc0_sck_cfg>;
+				bus-width = <4>;
+				status = "okay";
+			};
+
+			ssp2: ssp@80014000 {
+				compatible = "fsl,imx28-spi";
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi2_pins_a>;
+				status = "okay";
+			};
+
+			pinctrl@80018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&hog_pins_apf28dev>;
+
+				hog_pins_apf28dev: hog@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1103 /* MX28_PAD_LCD_D16__GPIO_1_16 */
+						0x1113 /* MX28_PAD_LCD_D17__GPIO_1_17 */
+						0x1123 /* MX28_PAD_LCD_D18__GPIO_1_18 */
+						0x1133 /* MX28_PAD_LCD_D19__GPIO_1_19 */
+						0x1143 /* MX28_PAD_LCD_D20__GPIO_1_20 */
+						0x1153 /* MX28_PAD_LCD_D21__GPIO_1_21 */
+						0x1163 /* MX28_PAD_LCD_D22__GPIO_1_22 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				lcdif_pins_apf28dev: lcdif-apf28dev@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
+						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
+						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
+						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+			};
+
+			lcdif@80030000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&lcdif_16bit_pins_a
+						&lcdif_pins_apf28dev>;
+				display = <&display>;
+				status = "okay";
+
+				display: display {
+					bits-per-pixel = <16>;
+					bus-width = <16>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <33000033>;
+							hactive = <800>;
+							vactive = <480>;
+							hback-porch = <96>;
+							hfront-porch = <96>;
+							vback-porch = <20>;
+							vfront-porch = <21>;
+							hsync-len = <64>;
+							vsync-len = <4>;
+							hsync-active = <1>;
+							vsync-active = <1>;
+							de-active = <1>;
+							pixelclk-active = <0>;
+						};
+					};
+				};
+			};
+		};
+
+		apbx@80040000 {
+			lradc@80050000 {
+				fsl,lradc-touchscreen-wires = <4>;
+				status = "okay";
+			};
+
+			i2c0: i2c@80058000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c0_pins_a>;
+				status = "okay";
+			};
+
+			pwm: pwm@80064000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pwm3_pins_a &pwm4_pins_a>;
+				status = "okay";
+			};
+
+			usbphy0: usbphy@8007c000 {
+				status = "okay";
+			};
+
+			usbphy1: usbphy@8007e000 {
+				status = "okay";
+			};
+		};
+	};
+
+	ahb@80080000 {
+		usb0: usb@80080000 {
+			vbus-supply = <&reg_usb0_vbus>;
+			status = "okay";
+		};
+
+		usb1: usb@80090000 {
+			status = "okay";
+		};
+
+		mac1: ethernet@800f4000 {
+			phy-mode = "rmii";
+			pinctrl-names = "default";
+			pinctrl-0 = <&mac1_pins_a>;
+			phy-reset-gpios = <&gpio0 23 0>;
+			status = "okay";
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_usb0_vbus: usb0_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb0_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 23 1>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user {
+			label = "Heartbeat";
+			gpios = <&gpio0 21 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+
+		pwms = <&pwm 3 191000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
+};

@@ -337,6 +337,9 @@ ENTRY(xsc3_dma_unmap_area)
 	mov	pc, lr
 ENDPROC(xsc3_dma_unmap_area)
 
+	.globl	xsc3_flush_kern_cache_louis
+	.equ	xsc3_flush_kern_cache_louis, xsc3_flush_kern_cache_all
+
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
 	define_cache_functions xsc3
 
@@ -410,7 +413,7 @@ ENTRY(cpu_xsc3_set_pte_ext)
 
 .globl	cpu_xsc3_suspend_size
 .equ	cpu_xsc3_suspend_size, 4 * 6
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ARM_CPU_SUSPEND
 ENTRY(cpu_xsc3_do_suspend)
 	stmfd	sp!, {r4 - r9, lr}
 	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
@@ -442,8 +445,6 @@ ENTRY(cpu_xsc3_do_resume)
 	b	cpu_resume_mmu
 ENDPROC(cpu_xsc3_do_resume)
 #endif
-
-	__CPUINIT
 
 	.type	__xsc3_setup, #function
 __xsc3_setup:

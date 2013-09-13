@@ -38,6 +38,7 @@ show up in /proc/sys/kernel:
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/debugging-modules.txt
 - modules_disabled
+- msg_next_id		      [ sysv ipc ]
 - msgmax
 - msgmnb
 - msgmni
@@ -62,17 +63,19 @@ show up in /proc/sys/kernel:
 - rtsig-max
 - rtsig-nr
 - sem
+- sem_next_id		      [ sysv ipc ]
 - sg-big-buff                 [ generic SCSI device (sg) ]
+- shm_next_id		      [ sysv ipc ]
 - shm_rmid_forced
 - shmall
 - shmmax                      [ sysv ipc ]
 - shmmni
-- softlockup_thresh
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
 - tainted
 - threads-max
 - unknown_nmi_panic
+- watchdog_thresh
 - version
 
 ==============================================================
@@ -179,8 +182,11 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%<NUL>	'%' is dropped
 	%%	output one '%'
 	%p	pid
+	%P	global pid (init PID namespace)
 	%u	uid
 	%g	gid
+	%d	dump mode, matches PR_SET_DUMPABLE and
+		/proc/sys/fs/suid_dumpable
 	%s	signal number
 	%t	UNIX time of dump
 	%h	hostname
@@ -318,6 +324,22 @@ to false.
 
 ==============================================================
 
+msg_next_id, sem_next_id, and shm_next_id:
+
+These three toggles allows to specify desired id for next allocated IPC
+object: message, semaphore or shared memory respectively.
+
+By default they are equal to -1, which means generic allocation logic.
+Possible values to set are in range {0..INT_MAX}.
+
+Notes:
+1) kernel doesn't guarantee, that new object will have desired id. So,
+it's up to userspace, how to handle an object with "wrong" id.
+2) Toggle with non-default value will be set back to -1 by kernel after
+successful IPC object allocation.
+
+==============================================================
+
 nmi_watchdog:
 
 Enables/Disables the NMI watchdog on x86 systems. When the value is
@@ -403,6 +425,32 @@ This file shows up if CONFIG_DEBUG_STACKOVERFLOW is enabled.
 0: try to continue operation.
 
 1: panic immediately.
+
+==============================================================
+
+perf_cpu_time_max_percent:
+
+Hints to the kernel how much CPU time it should be allowed to
+use to handle perf sampling events.  If the perf subsystem
+is informed that its samples are exceeding this limit, it
+will drop its sampling frequency to attempt to reduce its CPU
+usage.
+
+Some perf sampling happens in NMIs.  If these samples
+unexpectedly take too long to execute, the NMIs can become
+stacked up next to each other so much that nothing else is
+allowed to execute.
+
+0: disable the mechanism.  Do not monitor or correct perf's
+   sampling rate no matter how CPU time it takes.
+
+1-100: attempt to throttle perf's sample rate to this
+   percentage of CPU.  Note: the kernel calculates an
+   "expected" length of each sample event.  100 here means
+   100% of that expected length.  Even if this is set to
+   100, you may still see sample throttling if this
+   length is exceeded.  Set to 0 if you truly do not care
+   how much CPU is consumed.
 
 ==============================================================
 
@@ -540,6 +588,19 @@ are doing anyway :)
 
 ==============================================================
 
+shmall:
+
+This parameter sets the total amount of shared memory pages that
+can be used system wide. Hence, SHMALL should always be at least
+ceil(shmmax/PAGE_SIZE).
+
+If you are not sure what the default PAGE_SIZE is on your Linux
+system, you can run the following command:
+
+# getconf PAGE_SIZE
+
+==============================================================
+
 shmmax:
 
 This value can be used to query and set the run time limit
@@ -567,15 +628,6 @@ need this.
 
 Note that if you change this from 0 to 1, already created segments
 without users and with a dead originative process will be destroyed.
-
-==============================================================
-
-softlockup_thresh:
-
-This value can be used to lower the softlockup tolerance threshold.  The
-default threshold is 60 seconds.  If a cpu is locked up for 60 seconds,
-the kernel complains.  Valid values are 1-60 seconds.  Setting this
-tunable to zero will disable the softlockup detection altogether.
 
 ==============================================================
 
@@ -614,3 +666,16 @@ that time, kernel debugging information is displayed on console.
 
 NMI switch that most IA32 servers have fires unknown NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.
+
+==============================================================
+
+watchdog_thresh:
+
+This value can be used to control the frequency of hrtimer and NMI
+events and the soft and hard lockup thresholds. The default threshold
+is 10 seconds.
+
+The softlockup threshold is (2 * watchdog_thresh). Setting this
+tunable to zero will disable lockup detection altogether.
+
+==============================================================

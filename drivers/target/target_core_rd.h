@@ -22,8 +22,10 @@ struct rd_dev_sg_table {
 } ____cacheline_aligned;
 
 #define RDF_HAS_PAGE_COUNT	0x01
+#define RDF_NULLIO		0x02
 
 struct rd_dev {
+	struct se_device dev;
 	u32		rd_flags;
 	/* Unique Ramdisk Device ID in Ramdisk HBA */
 	u32		rd_dev_id;

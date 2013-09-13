@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -356,7 +357,7 @@ do {									\
 			_irq, ret);					\
 } while (0)
 
-static __devinit int max8925_init_charger(struct max8925_chip *chip,
+static int max8925_init_charger(struct max8925_chip *chip,
 					  struct max8925_power_info *info)
 {
 	int ret;
@@ -414,7 +415,7 @@ static __devinit int max8925_init_charger(struct max8925_chip *chip,
 	return 0;
 }
 
-static __devexit int max8925_deinit_charger(struct max8925_power_info *info)
+static int max8925_deinit_charger(struct max8925_power_info *info)
 {
 	struct max8925_chip *chip = info->chip;
 	int irq;
@@ -426,21 +427,71 @@ static __devexit int max8925_deinit_charger(struct max8925_power_info *info)
 	return 0;
 }
 
-static __devinit int max8925_power_probe(struct platform_device *pdev)
+#ifdef CONFIG_OF
+static struct max8925_power_pdata *
+max8925_power_dt_init(struct platform_device *pdev)
+{
+	struct device_node *nproot = pdev->dev.parent->of_node;
+	struct device_node *np;
+	int batt_detect;
+	int topoff_threshold;
+	int fast_charge;
+	int no_temp_support;
+	int no_insert_detect;
+	struct max8925_power_pdata *pdata;
+
+	if (!nproot)
+		return pdev->dev.platform_data;
+
+	np = of_find_node_by_name(nproot, "charger");
+	if (!np) {
+		dev_err(&pdev->dev, "failed to find charger node\n");
+		return NULL;
+	}
+
+	pdata = devm_kzalloc(&pdev->dev,
+			sizeof(struct max8925_power_pdata),
+			GFP_KERNEL);
+
+	of_property_read_u32(np, "topoff-threshold", &topoff_threshold);
+	of_property_read_u32(np, "batt-detect", &batt_detect);
+	of_property_read_u32(np, "fast-charge", &fast_charge);
+	of_property_read_u32(np, "no-insert-detect", &no_insert_detect);
+	of_property_read_u32(np, "no-temp-support", &no_temp_support);
+	of_node_put(np);
+
+	pdata->batt_detect = batt_detect;
+	pdata->fast_charge = fast_charge;
+	pdata->topoff_threshold = topoff_threshold;
+	pdata->no_insert_detect = no_insert_detect;
+	pdata->no_temp_support = no_temp_support;
+
+	return pdata;
+}
+#else
+static struct max8925_power_pdata *
+max8925_power_dt_init(struct platform_device *pdev)
+{
+	return pdev->dev.platform_data;
+}
+#endif
+
+static int max8925_power_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_power_pdata *pdata = NULL;
 	struct max8925_power_info *info;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = max8925_power_dt_init(pdev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "platform data isn't assigned to "
 			"power supply\n");
 		return -EINVAL;
 	}
 
-	info = kzalloc(sizeof(struct max8925_power_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max8925_power_info),
+				GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 	info->chip = chip;
@@ -497,11 +548,10 @@ out_battery:
 out_usb:
 	power_supply_unregister(&info->ac);
 out:
-	kfree(info);
 	return ret;
 }
 
-static __devexit int max8925_power_remove(struct platform_device *pdev)
+static int max8925_power_remove(struct platform_device *pdev)
 {
 	struct max8925_power_info *info = platform_get_drvdata(pdev);
 
@@ -510,14 +560,13 @@ static __devexit int max8925_power_remove(struct platform_device *pdev)
 		power_supply_unregister(&info->usb);
 		power_supply_unregister(&info->battery);
 		max8925_deinit_charger(info);
-		kfree(info);
 	}
 	return 0;
 }
 
 static struct platform_driver max8925_power_driver = {
 	.probe	= max8925_power_probe,
-	.remove	= __devexit_p(max8925_power_remove),
+	.remove	= max8925_power_remove,
 	.driver	= {
 		.name	= "max8925-power",
 	},

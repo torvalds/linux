@@ -104,6 +104,7 @@ void sh_bios_vbr_reload(void)
 		);
 }
 
+#ifdef CONFIG_EARLY_PRINTK
 /*
  *	Print a string through the BIOS
  */
@@ -144,8 +145,6 @@ static struct console bios_console = {
 	.index		= -1,
 };
 
-static struct console *early_console;
-
 static int __init setup_early_printk(char *buf)
 {
 	int keep_early = 0;
@@ -170,3 +169,4 @@ static int __init setup_early_printk(char *buf)
 	return 0;
 }
 early_param("earlyprintk", setup_early_printk);
+#endif

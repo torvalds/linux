@@ -1,12 +1,15 @@
 config SND_SOC_FSL_SSI
 	tristate
 
+config SND_SOC_FSL_SPDIF
+	tristate
+
 config SND_SOC_FSL_UTILS
 	tristate
 
 menuconfig SND_POWERPC_SOC
 	tristate "SoC Audio for Freescale PowerPC CPUs"
-	depends on FSL_SOC
+	depends on FSL_SOC || PPC_MPC52xx
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the PowerPC CPUs.
@@ -46,6 +49,20 @@ config SND_SOC_P1022_DS
 	  This will also include the Wolfson Microelectronics WM8776 codec
 	  driver.
 
+config SND_SOC_P1022_RDK
+	tristate "ALSA SoC support for the Freescale / iVeia P1022 RDK board"
+	# I2C is necessary for the WM8960 driver
+	depends on P1022_RDK && I2C
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	select SND_SOC_POWERPC_DMA
+	select SND_SOC_WM8960
+	default y if P1022_RDK
+	help
+	  Say Y if you want to enable audio on the Freescale / iVeia
+	  P1022 RDK board.  This will also include the Wolfson
+	  Microelectronics WM8960 codec driver.
+
 config SND_SOC_MPC5200_I2S
 	tristate "Freescale MPC5200 PSC in I2S mode driver"
 	depends on PPC_MPC52xx && PPC_BESTCOMM
@@ -84,7 +101,7 @@ endif # SND_POWERPC_SOC
 
 menuconfig SND_IMX_SOC
 	tristate "SoC Audio for Freescale i.MX CPUs"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the i.MX CPUs.
@@ -94,25 +111,20 @@ if SND_IMX_SOC
 config SND_SOC_IMX_SSI
 	tristate
 
-config SND_SOC_IMX_PCM
-	tristate
-
 config SND_SOC_IMX_PCM_FIQ
 	tristate
 	select FIQ
-	select SND_SOC_IMX_PCM
 
 config SND_SOC_IMX_PCM_DMA
 	tristate
-	select SND_SOC_DMAENGINE_PCM
-	select SND_SOC_IMX_PCM
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 
 config SND_SOC_IMX_AUDMUX
 	tristate
 
 config SND_MXC_SOC_WM1133_EV1
 	tristate "Audio on the i.MX31ADS with WM1133-EV1 fitted"
-	depends on MACH_MX31ADS_WM1133_EV1 && EXPERIMENTAL
+	depends on MACH_MX31ADS_WM1133_EV1
 	select SND_SOC_WM8350
 	select SND_SOC_IMX_PCM_FIQ
 	select SND_SOC_IMX_AUDMUX
@@ -159,6 +171,17 @@ config SND_SOC_EUKREA_TLV320
 	  Enable I2S based access to the TLV320AIC23B codec attached
 	  to the SSI interface
 
+config SND_SOC_IMX_WM8962
+	tristate "SoC Audio support for i.MX boards with wm8962"
+	depends on OF && I2C
+	select SND_SOC_WM8962
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_FSL_SSI
+	help
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a wm8962 codec.
+
 config SND_SOC_IMX_SGTL5000
 	tristate "SoC Audio support for i.MX boards with sgtl5000"
 	depends on OF && I2C
@@ -166,14 +189,24 @@ config SND_SOC_IMX_SGTL5000
 	select SND_SOC_IMX_PCM_DMA
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_FSL_SSI
-	select SND_SOC_FSL_UTILS
 	help
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  a sgtl5000 codec.
 
+config SND_SOC_IMX_SPDIF
+	tristate "SoC Audio support for i.MX boards with S/PDIF"
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_FSL_SPDIF
+	select SND_SOC_SPDIF
+	select REGMAP_MMIO
+	help
+	  SoC Audio support for i.MX boards with S/PDIF
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a S/DPDIF.
+
 config SND_SOC_IMX_MC13783
 	tristate "SoC Audio support for I.MX boards with mc13783"
-	depends on MFD_MC13783
+	depends on MFD_MC13783 && ARM
 	select SND_SOC_IMX_SSI
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_MC13783

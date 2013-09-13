@@ -11,8 +11,8 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 
-#include <mach/hardware.h>
 #include "board-mop500.h"
+#include "id.h"
 
 enum mop500_uib {
 	STUIB,

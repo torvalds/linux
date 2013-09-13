@@ -44,7 +44,7 @@
 
 /* BOOT_SEL - find what boot media we have */
 #define BS_FLASH		0x1
-#define BS_SPI                  0x4
+#define BS_SPI			0x4
 
 /* global register ranges */
 extern __iomem void *ltq_ebu_membase;
@@ -56,6 +56,10 @@ extern __iomem void *ltq_sys1_membase;
 #define ltq_sys1_r32(x)		ltq_r32(ltq_sys1_membase + (x))
 #define ltq_sys1_w32_mask(clear, set, reg)   \
 	ltq_sys1_w32((ltq_sys1_r32(reg) & ~(clear)) | (set), reg)
+
+/* allow the gpio and pinctrl drivers to talk to eachother */
+extern int pinctrl_falcon_get_range_size(int id);
+extern void pinctrl_falcon_add_gpio_range(struct pinctrl_gpio_range *range);
 
 /*
  * to keep the irq code generic we need to define this to 0 as falcon

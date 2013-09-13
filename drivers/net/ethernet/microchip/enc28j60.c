@@ -527,7 +527,6 @@ static int enc28j60_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(address->sa_data))
 		return -EADDRNOTAVAIL;
 
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, address->sa_data, dev->addr_len);
 	return enc28j60_set_hw_macaddr(dev);
 }
@@ -1541,7 +1540,7 @@ static const struct net_device_ops enc28j60_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit enc28j60_probe(struct spi_device *spi)
+static int enc28j60_probe(struct spi_device *spi)
 {
 	struct net_device *dev;
 	struct enc28j60_net *priv;
@@ -1567,7 +1566,7 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 	INIT_WORK(&priv->setrx_work, enc28j60_setrx_work_handler);
 	INIT_WORK(&priv->irq_work, enc28j60_irq_work_handler);
 	INIT_WORK(&priv->restart_work, enc28j60_restart_work_handler);
-	dev_set_drvdata(&spi->dev, priv);	/* spi to priv reference */
+	spi_set_drvdata(spi, priv);	/* spi to priv reference */
 	SET_NETDEV_DEV(dev, &spi->dev);
 
 	if (!enc28j60_chipset_init(dev)) {
@@ -1617,9 +1616,9 @@ error_alloc:
 	return ret;
 }
 
-static int __devexit enc28j60_remove(struct spi_device *spi)
+static int enc28j60_remove(struct spi_device *spi)
 {
-	struct enc28j60_net *priv = dev_get_drvdata(&spi->dev);
+	struct enc28j60_net *priv = spi_get_drvdata(spi);
 
 	if (netif_msg_drv(priv))
 		printk(KERN_DEBUG DRV_NAME ": remove\n");
@@ -1637,7 +1636,7 @@ static struct spi_driver enc28j60_driver = {
 		   .owner = THIS_MODULE,
 	 },
 	.probe = enc28j60_probe,
-	.remove = __devexit_p(enc28j60_remove),
+	.remove = enc28j60_remove,
 };
 
 static int __init enc28j60_init(void)

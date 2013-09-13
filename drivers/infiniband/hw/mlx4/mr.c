@@ -41,7 +41,17 @@ static u32 convert_access(int acc)
 	       (acc & IB_ACCESS_REMOTE_WRITE  ? MLX4_PERM_REMOTE_WRITE : 0) |
 	       (acc & IB_ACCESS_REMOTE_READ   ? MLX4_PERM_REMOTE_READ  : 0) |
 	       (acc & IB_ACCESS_LOCAL_WRITE   ? MLX4_PERM_LOCAL_WRITE  : 0) |
+	       (acc & IB_ACCESS_MW_BIND	      ? MLX4_PERM_BIND_MW      : 0) |
 	       MLX4_PERM_LOCAL_READ;
+}
+
+static enum mlx4_mw_type to_mlx4_type(enum ib_mw_type type)
+{
+	switch (type) {
+	case IB_MW_TYPE_1:	return MLX4_MW_TYPE_1;
+	case IB_MW_TYPE_2:	return MLX4_MW_TYPE_2;
+	default:		return -1;
+	}
 }
 
 struct ib_mr *mlx4_ib_get_dma_mr(struct ib_pd *pd, int acc)
@@ -68,7 +78,7 @@ struct ib_mr *mlx4_ib_get_dma_mr(struct ib_pd *pd, int acc)
 	return &mr->ibmr;
 
 err_mr:
-	mlx4_mr_free(to_mdev(pd->device)->dev, &mr->mmr);
+	(void) mlx4_mr_free(to_mdev(pd->device)->dev, &mr->mmr);
 
 err_free:
 	kfree(mr);
@@ -163,7 +173,7 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	return &mr->ibmr;
 
 err_mr:
-	mlx4_mr_free(to_mdev(pd->device)->dev, &mr->mmr);
+	(void) mlx4_mr_free(to_mdev(pd->device)->dev, &mr->mmr);
 
 err_umem:
 	ib_umem_release(mr->umem);
@@ -177,11 +187,78 @@ err_free:
 int mlx4_ib_dereg_mr(struct ib_mr *ibmr)
 {
 	struct mlx4_ib_mr *mr = to_mmr(ibmr);
+	int ret;
 
-	mlx4_mr_free(to_mdev(ibmr->device)->dev, &mr->mmr);
+	ret = mlx4_mr_free(to_mdev(ibmr->device)->dev, &mr->mmr);
+	if (ret)
+		return ret;
 	if (mr->umem)
 		ib_umem_release(mr->umem);
 	kfree(mr);
+
+	return 0;
+}
+
+struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
+{
+	struct mlx4_ib_dev *dev = to_mdev(pd->device);
+	struct mlx4_ib_mw *mw;
+	int err;
+
+	mw = kmalloc(sizeof(*mw), GFP_KERNEL);
+	if (!mw)
+		return ERR_PTR(-ENOMEM);
+
+	err = mlx4_mw_alloc(dev->dev, to_mpd(pd)->pdn,
+			    to_mlx4_type(type), &mw->mmw);
+	if (err)
+		goto err_free;
+
+	err = mlx4_mw_enable(dev->dev, &mw->mmw);
+	if (err)
+		goto err_mw;
+
+	mw->ibmw.rkey = mw->mmw.key;
+
+	return &mw->ibmw;
+
+err_mw:
+	mlx4_mw_free(dev->dev, &mw->mmw);
+
+err_free:
+	kfree(mw);
+
+	return ERR_PTR(err);
+}
+
+int mlx4_ib_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
+		    struct ib_mw_bind *mw_bind)
+{
+	struct ib_send_wr  wr;
+	struct ib_send_wr *bad_wr;
+	int ret;
+
+	memset(&wr, 0, sizeof(wr));
+	wr.opcode               = IB_WR_BIND_MW;
+	wr.wr_id                = mw_bind->wr_id;
+	wr.send_flags           = mw_bind->send_flags;
+	wr.wr.bind_mw.mw        = mw;
+	wr.wr.bind_mw.bind_info = mw_bind->bind_info;
+	wr.wr.bind_mw.rkey      = ib_inc_rkey(mw->rkey);
+
+	ret = mlx4_ib_post_send(qp, &wr, &bad_wr);
+	if (!ret)
+		mw->rkey = wr.wr.bind_mw.rkey;
+
+	return ret;
+}
+
+int mlx4_ib_dealloc_mw(struct ib_mw *ibmw)
+{
+	struct mlx4_ib_mw *mw = to_mmw(ibmw);
+
+	mlx4_mw_free(to_mdev(ibmw->device)->dev, &mw->mmw);
+	kfree(mw);
 
 	return 0;
 }
@@ -212,7 +289,7 @@ struct ib_mr *mlx4_ib_alloc_fast_reg_mr(struct ib_pd *pd,
 	return &mr->ibmr;
 
 err_mr:
-	mlx4_mr_free(dev->dev, &mr->mmr);
+	(void) mlx4_mr_free(dev->dev, &mr->mmr);
 
 err_free:
 	kfree(mr);
@@ -291,7 +368,7 @@ struct ib_fmr *mlx4_ib_fmr_alloc(struct ib_pd *pd, int acc,
 	return &fmr->ibfmr;
 
 err_mr:
-	mlx4_mr_free(to_mdev(pd->device)->dev, &fmr->mfmr.mr);
+	(void) mlx4_mr_free(to_mdev(pd->device)->dev, &fmr->mfmr.mr);
 
 err_free:
 	kfree(fmr);

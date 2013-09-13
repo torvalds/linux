@@ -26,22 +26,22 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <video/samsung_fimd.h>
 #include <mach/hardware.h>
 #include <mach/map.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/regs-fb-v4.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 
@@ -123,7 +123,7 @@ static struct platform_pwm_backlight_data hmt_backlight_data = {
 static struct platform_device hmt_backlight_device = {
 	.name		= "pwm-backlight",
 	.dev		= {
-		.parent	= &s3c_device_timer[1].dev,
+		.parent	= &samsung_device_pwm.dev,
 		.platform_data = &hmt_backlight_data,
 	},
 };
@@ -239,7 +239,7 @@ static struct platform_device *hmt_devices[] __initdata = {
 	&s3c_device_nand,
 	&s3c_device_fb,
 	&s3c_device_ohci,
-	&s3c_device_timer[1],
+	&samsung_device_pwm,
 	&hmt_backlight_device,
 	&hmt_leds_device,
 };
@@ -249,6 +249,7 @@ static void __init hmt_map_io(void)
 	s3c64xx_init_io(hmt_iodesc, ARRAY_SIZE(hmt_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(hmt_uartcfgs, ARRAY_SIZE(hmt_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init hmt_machine_init(void)
@@ -273,10 +274,9 @@ MACHINE_START(HMT, "Airgoo-HMT")
 	/* Maintainer: Peter Korsgaard <jacmet@sunsite.dk> */
 	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= hmt_map_io,
 	.init_machine	= hmt_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

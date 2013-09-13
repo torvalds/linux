@@ -26,6 +26,12 @@
 #define VFL_TYPE_SUBDEV		3
 #define VFL_TYPE_MAX		4
 
+/* Is this a receiver, transmitter or mem-to-mem? */
+/* Ignored for VFL_TYPE_SUBDEV. */
+#define VFL_DIR_RX		0
+#define VFL_DIR_TX		1
+#define VFL_DIR_M2M		2
+
 struct v4l2_ioctl_callbacks;
 struct video_device;
 struct v4l2_device;
@@ -39,9 +45,6 @@ struct v4l2_ctrl_handler;
 #define V4L2_FL_USES_V4L2_FH	(1)
 /* Use the prio field of v4l2_fh for core priority checking */
 #define V4L2_FL_USE_FH_PRIO	(2)
-/* If ioctl core locking is in use, then apply that also to all
-   file operations. Don't use this flag in new drivers! */
-#define V4L2_FL_LOCK_ALL_FOPS	(3)
 
 /* Priority helper functions */
 
@@ -93,9 +96,9 @@ struct video_device
 	struct device dev;		/* v4l device */
 	struct cdev *cdev;		/* character device */
 
-	/* Set either parent or v4l2_dev if your driver uses v4l2_device */
-	struct device *parent;		/* device parent */
 	struct v4l2_device *v4l2_dev;	/* v4l2_device parent */
+	/* Only set parent if that can't be deduced from v4l2_dev */
+	struct device *dev_parent;	/* device parent */
 
 	/* Control handler associated with this device node. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
@@ -108,7 +111,8 @@ struct video_device
 
 	/* device info */
 	char name[32];
-	int vfl_type;
+	int vfl_type;	/* device type */
+	int vfl_dir;	/* receiver, transmitter or m2m */
 	/* 'minor' is set to -1 if the registration failed */
 	int minor;
 	u16 num;
@@ -125,7 +129,6 @@ struct video_device
 
 	/* Video standard vars */
 	v4l2_std_id tvnorms;		/* Supported tv norms */
-	v4l2_std_id current_norm;	/* Current tvnorm */
 
 	/* callbacks */
 	void (*release)(struct video_device *vdev);

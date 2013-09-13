@@ -42,11 +42,11 @@ MODULE_LICENSE("GPL v2");
 
 static unsigned long port[MAXDEV];
 static unsigned long mem[MAXDEV];
-static int __devinitdata irq[MAXDEV];
-static int __devinitdata clk[MAXDEV];
-static unsigned char __devinitdata cdr[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
-static unsigned char __devinitdata ocr[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
-static int __devinitdata indirect[MAXDEV] = {[0 ... (MAXDEV - 1)] = -1};
+static int irq[MAXDEV];
+static int clk[MAXDEV];
+static unsigned char cdr[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
+static unsigned char ocr[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
+static int indirect[MAXDEV] = {[0 ... (MAXDEV - 1)] = -1};
 
 module_param_array(port, ulong, NULL, S_IRUGO);
 MODULE_PARM_DESC(port, "I/O port number");
@@ -117,7 +117,7 @@ static void sja1000_isa_port_write_reg_indirect(const struct sja1000_priv *priv,
 	outb(val, base + 1);
 }
 
-static int __devinit sja1000_isa_probe(struct platform_device *pdev)
+static int sja1000_isa_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct sja1000_priv *priv;
@@ -197,7 +197,7 @@ static int __devinit sja1000_isa_probe(struct platform_device *pdev)
 	else
 		priv->cdr = CDR_DEFAULT;
 
-	dev_set_drvdata(&pdev->dev, dev);
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = register_sja1000dev(dev);
@@ -223,14 +223,13 @@ static int __devinit sja1000_isa_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit sja1000_isa_remove(struct platform_device *pdev)
+static int sja1000_isa_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = dev_get_drvdata(&pdev->dev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sja1000_priv *priv = netdev_priv(dev);
 	int idx = pdev->id;
 
 	unregister_sja1000dev(dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	if (mem[idx]) {
 		iounmap(priv->reg_base);
@@ -248,7 +247,7 @@ static int __devexit sja1000_isa_remove(struct platform_device *pdev)
 
 static struct platform_driver sja1000_isa_driver = {
 	.probe = sja1000_isa_probe,
-	.remove = __devexit_p(sja1000_isa_remove),
+	.remove = sja1000_isa_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

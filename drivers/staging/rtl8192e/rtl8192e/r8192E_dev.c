@@ -2,7 +2,7 @@
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
  * Based on the r8180 driver, which is:
- * Copyright 2004-2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2004-2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -1183,6 +1183,8 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 						pTxFwInfo->TxRate,
 						cb_desc);
 
+	if (pci_dma_mapping_error(priv->pdev, mapping))
+		RT_TRACE(COMP_ERR, "DMA Mapping error\n");;
 	if (cb_desc->bAMPDUEnable) {
 		pTxFwInfo->AllowAggregation = 1;
 		pTxFwInfo->RxMF = cb_desc->ampdu_factor;
@@ -1280,6 +1282,8 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 	dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len,
 			 PCI_DMA_TODEVICE);
 
+	if (pci_dma_mapping_error(priv->pdev, mapping))
+		RT_TRACE(COMP_ERR, "DMA Mapping error\n");;
 	memset(entry, 0, 12);
 	entry->LINIP = cb_desc->bLastIniPkt;
 	entry->FirstSeg = 1;
@@ -2124,10 +2128,11 @@ void rtl8192_update_ratr_table(struct net_device *dev)
 	struct rtllib_device *ieee = priv->rtllib;
 	u8 *pMcsRate = ieee->dot11HTOperationalRateSet;
 	u32 ratr_value = 0;
+	u16 rate_config = 0;
 	u8 rate_index = 0;
 
-	rtl8192_config_rate(dev, (u16 *)(&ratr_value));
-	ratr_value |= (*(u16 *)(pMcsRate)) << 12;
+	rtl8192_config_rate(dev, &rate_config);
+	ratr_value = rate_config | *pMcsRate << 12;
 	switch (ieee->mode) {
 	case IEEE_A:
 		ratr_value &= 0x00000FF0;

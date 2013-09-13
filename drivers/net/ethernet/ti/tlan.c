@@ -300,7 +300,7 @@ these functions are more or less common to all linux network drivers.
  **************************************************************/
 
 
-static void __devexit tlan_remove_one(struct pci_dev *pdev)
+static void tlan_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct tlan_priv	*priv = netdev_priv(dev);
@@ -320,6 +320,7 @@ static void __devexit tlan_remove_one(struct pci_dev *pdev)
 	free_netdev(dev);
 
 	pci_set_drvdata(pdev, NULL);
+	cancel_work_sync(&priv->tlan_tqueue);
 }
 
 static void tlan_start(struct net_device *dev)
@@ -371,7 +372,7 @@ static int tlan_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_enable_wake(pdev, 0, 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 	netif_device_attach(dev);
 
 	if (netif_running(dev))
@@ -392,7 +393,7 @@ static struct pci_driver tlan_driver = {
 	.name		= "tlan",
 	.id_table	= tlan_pci_tbl,
 	.probe		= tlan_init_one,
-	.remove		= __devexit_p(tlan_remove_one),
+	.remove		= tlan_remove_one,
 	.suspend	= tlan_suspend,
 	.resume		= tlan_resume,
 };
@@ -434,7 +435,7 @@ err_out_pci_free:
 }
 
 
-static int __devinit tlan_init_one(struct pci_dev *pdev,
+static int tlan_init_one(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
 	return tlan_probe1(pdev, -1, -1, 0, ent);
@@ -460,9 +461,8 @@ static int __devinit tlan_init_one(struct pci_dev *pdev,
 *
 **************************************************************/
 
-static int __devinit tlan_probe1(struct pci_dev *pdev,
-				 long ioaddr, int irq, int rev,
-				 const struct pci_device_id *ent)
+static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
+		       const struct pci_device_id *ent)
 {
 
 	struct net_device  *dev;
@@ -533,7 +533,6 @@ static int __devinit tlan_probe1(struct pci_dev *pdev,
 		/* This is a hack. We need to know which board structure
 		 * is suited for this adapter */
 		device_id = inw(ioaddr + EISA_ID2);
-		priv->is_eisa = 1;
 		if (device_id == 0x20F1) {
 			priv->adapter = &board_info[13]; /* NetFlex-3/E */
 			priv->adapter_rev = 23;		/* TLAN 2.3 */
@@ -1912,10 +1911,8 @@ static void tlan_reset_lists(struct net_device *dev)
 		list->frame_size = TLAN_MAX_FRAME_SIZE;
 		list->buffer[0].count = TLAN_MAX_FRAME_SIZE | TLAN_LAST_BUFFER;
 		skb = netdev_alloc_skb_ip_align(dev, TLAN_MAX_FRAME_SIZE + 5);
-		if (!skb) {
-			netdev_err(dev, "Out of memory for received data\n");
+		if (!skb)
 			break;
-		}
 
 		list->buffer[0].address = pci_map_single(priv->pci_dev,
 							 skb->data,

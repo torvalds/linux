@@ -27,9 +27,9 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/remoteproc.h>
+#include <linux/omap-mailbox.h>
 
-#include <plat/mailbox.h>
-#include <plat/remoteproc.h>
+#include <linux/platform_data/remoteproc-omap.h>
 
 #include "omap_remoteproc.h"
 #include "remoteproc_internal.h"
@@ -116,6 +116,9 @@ static int omap_rproc_start(struct rproc *rproc)
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	int ret;
 
+	if (pdata->set_bootaddr)
+		pdata->set_bootaddr(rproc->bootaddr);
+
 	oproc->nb.notifier_call = omap_rproc_mbox_callback;
 
 	/* every omap rproc is assigned a mailbox instance for messaging */
@@ -176,7 +179,7 @@ static struct rproc_ops omap_rproc_ops = {
 	.kick		= omap_rproc_kick,
 };
 
-static int __devinit omap_rproc_probe(struct platform_device *pdev)
+static int omap_rproc_probe(struct platform_device *pdev)
 {
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	struct omap_rproc *oproc;
@@ -210,7 +213,7 @@ free_rproc:
 	return ret;
 }
 
-static int __devexit omap_rproc_remove(struct platform_device *pdev)
+static int omap_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
@@ -222,7 +225,7 @@ static int __devexit omap_rproc_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_rproc_driver = {
 	.probe = omap_rproc_probe,
-	.remove = __devexit_p(omap_rproc_remove),
+	.remove = omap_rproc_remove,
 	.driver = {
 		.name = "omap-rproc",
 		.owner = THIS_MODULE,

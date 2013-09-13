@@ -1,5 +1,5 @@
 /*
- * PMC-Sierra SPC 8001 SAS/SATA based host adapters driver
+ * PMC-Sierra 8001/8081/8088/8089 SAS/SATA based host adapters driver
  *
  * Copyright (c) 2008-2009 USI Co., Ltd.
  * All rights reserved.
@@ -58,8 +58,13 @@ static ssize_t pm8001_ctl_mpi_interface_rev_show(struct device *cdev,
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-		pm8001_ha->main_cfg_tbl.interface_rev);
+	if (pm8001_ha->chip_id == chip_8001) {
+		return snprintf(buf, PAGE_SIZE, "%d\n",
+			pm8001_ha->main_cfg_tbl.pm8001_tbl.interface_rev);
+	} else {
+		return snprintf(buf, PAGE_SIZE, "%d\n",
+			pm8001_ha->main_cfg_tbl.pm80xx_tbl.interface_rev);
+	}
 }
 static
 DEVICE_ATTR(interface_rev, S_IRUGO, pm8001_ctl_mpi_interface_rev_show, NULL);
@@ -78,11 +83,19 @@ static ssize_t pm8001_ctl_fw_version_show(struct device *cdev,
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 
-	return snprintf(buf, PAGE_SIZE, "%02x.%02x.%02x.%02x\n",
-		       (u8)(pm8001_ha->main_cfg_tbl.firmware_rev >> 24),
-		       (u8)(pm8001_ha->main_cfg_tbl.firmware_rev >> 16),
-		       (u8)(pm8001_ha->main_cfg_tbl.firmware_rev >> 8),
-		       (u8)(pm8001_ha->main_cfg_tbl.firmware_rev));
+	if (pm8001_ha->chip_id == chip_8001) {
+		return snprintf(buf, PAGE_SIZE, "%02x.%02x.%02x.%02x\n",
+		(u8)(pm8001_ha->main_cfg_tbl.pm8001_tbl.firmware_rev >> 24),
+		(u8)(pm8001_ha->main_cfg_tbl.pm8001_tbl.firmware_rev >> 16),
+		(u8)(pm8001_ha->main_cfg_tbl.pm8001_tbl.firmware_rev >> 8),
+		(u8)(pm8001_ha->main_cfg_tbl.pm8001_tbl.firmware_rev));
+	} else {
+		return snprintf(buf, PAGE_SIZE, "%02x.%02x.%02x.%02x\n",
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.firmware_rev >> 24),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.firmware_rev >> 16),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.firmware_rev >> 8),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.firmware_rev));
+	}
 }
 static DEVICE_ATTR(fw_version, S_IRUGO, pm8001_ctl_fw_version_show, NULL);
 /**
@@ -99,8 +112,13 @@ static ssize_t pm8001_ctl_max_out_io_show(struct device *cdev,
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			pm8001_ha->main_cfg_tbl.max_out_io);
+	if (pm8001_ha->chip_id == chip_8001) {
+		return snprintf(buf, PAGE_SIZE, "%d\n",
+			pm8001_ha->main_cfg_tbl.pm8001_tbl.max_out_io);
+	} else {
+		return snprintf(buf, PAGE_SIZE, "%d\n",
+			pm8001_ha->main_cfg_tbl.pm80xx_tbl.max_out_io);
+	}
 }
 static DEVICE_ATTR(max_out_io, S_IRUGO, pm8001_ctl_max_out_io_show, NULL);
 /**
@@ -117,8 +135,15 @@ static ssize_t pm8001_ctl_max_devices_show(struct device *cdev,
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 
-	return snprintf(buf, PAGE_SIZE, "%04d\n",
-			(u16)(pm8001_ha->main_cfg_tbl.max_sgl >> 16));
+	if (pm8001_ha->chip_id == chip_8001) {
+		return snprintf(buf, PAGE_SIZE, "%04d\n",
+			(u16)(pm8001_ha->main_cfg_tbl.pm8001_tbl.max_sgl >> 16)
+			);
+	} else {
+		return snprintf(buf, PAGE_SIZE, "%04d\n",
+			(u16)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.max_sgl >> 16)
+			);
+	}
 }
 static DEVICE_ATTR(max_devices, S_IRUGO, pm8001_ctl_max_devices_show, NULL);
 /**
@@ -136,8 +161,15 @@ static ssize_t pm8001_ctl_max_sg_list_show(struct device *cdev,
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 
-	return snprintf(buf, PAGE_SIZE, "%04d\n",
-			pm8001_ha->main_cfg_tbl.max_sgl & 0x0000FFFF);
+	if (pm8001_ha->chip_id == chip_8001) {
+		return snprintf(buf, PAGE_SIZE, "%04d\n",
+			pm8001_ha->main_cfg_tbl.pm8001_tbl.max_sgl & 0x0000FFFF
+			);
+	} else {
+		return snprintf(buf, PAGE_SIZE, "%04d\n",
+			pm8001_ha->main_cfg_tbl.pm80xx_tbl.max_sgl & 0x0000FFFF
+			);
+	}
 }
 static DEVICE_ATTR(max_sg_list, S_IRUGO, pm8001_ctl_max_sg_list_show, NULL);
 
@@ -173,7 +205,14 @@ static ssize_t pm8001_ctl_sas_spec_support_show(struct device *cdev,
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
-	mode = (pm8001_ha->main_cfg_tbl.ctrl_cap_flag & 0xfe000000)>>25;
+	/* fe000000 means supports SAS2.1 */
+	if (pm8001_ha->chip_id == chip_8001)
+		mode = (pm8001_ha->main_cfg_tbl.pm8001_tbl.ctrl_cap_flag &
+							0xfe000000)>>25;
+	else
+		/* fe000000 means supports SAS2.1 */
+		mode = (pm8001_ha->main_cfg_tbl.pm80xx_tbl.ctrl_cap_flag &
+							0xfe000000)>>25;
 	return show_sas_spec_support_status(mode, buf);
 }
 static DEVICE_ATTR(sas_spec_support, S_IRUGO,
@@ -361,10 +400,11 @@ static int pm8001_set_nvmd(struct pm8001_hba_info *pm8001_ha)
 		goto out;
 	}
 	payload = (struct pm8001_ioctl_payload *)ioctlbuffer;
-	memcpy((u8 *)payload->func_specific, (u8 *)pm8001_ha->fw_image->data,
+	memcpy((u8 *)&payload->func_specific, (u8 *)pm8001_ha->fw_image->data,
 				pm8001_ha->fw_image->size);
 	payload->length = pm8001_ha->fw_image->size;
 	payload->id = 0;
+	payload->minor_function = 0x1;
 	pm8001_ha->nvmd_completion = &completion;
 	ret = PM8001_CHIP_DISP->set_nvmd_req(pm8001_ha, payload);
 	wait_for_completion(&completion);
@@ -411,7 +451,7 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 			payload->length = 1024*16;
 			payload->id = 0;
 			fwControl =
-			      (struct fw_control_info *)payload->func_specific;
+			      (struct fw_control_info *)&payload->func_specific;
 			fwControl->len = IOCTL_BUF_SIZE;   /* IN */
 			fwControl->size = partitionSize + HEADER_LEN;/* IN */
 			fwControl->retcode = 0;/* OUT */

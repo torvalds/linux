@@ -22,7 +22,7 @@
 #include <linux/err.h>
 #include "bmp085.h"
 
-static int __devinit bmp085_spi_probe(struct spi_device *client)
+static int bmp085_spi_probe(struct spi_device *client)
 {
 	int err;
 	struct regmap *regmap;
@@ -70,22 +70,11 @@ static struct spi_driver bmp085_spi_driver = {
 	},
 	.id_table	= bmp085_id,
 	.probe		= bmp085_spi_probe,
-	.remove		= __devexit_p(bmp085_spi_remove)
+	.remove		= bmp085_spi_remove
 };
 
-static int __init bmp085_spi_init(void)
-{
-	return spi_register_driver(&bmp085_spi_driver);
-}
-
-static void __exit bmp085_spi_exit(void)
-{
-	spi_unregister_driver(&bmp085_spi_driver);
-}
+module_spi_driver(bmp085_spi_driver);
 
 MODULE_AUTHOR("Eric Andersson <eric.andersson@unixphere.com>");
 MODULE_DESCRIPTION("BMP085 SPI bus driver");
 MODULE_LICENSE("GPL");
-
-module_init(bmp085_spi_init);
-module_exit(bmp085_spi_exit);

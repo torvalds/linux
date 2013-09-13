@@ -88,6 +88,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	char b[BDEVNAME_SIZE];
 	char b2[BDEVNAME_SIZE];
 	struct r0conf *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
+	bool discard_supported = false;
 
 	if (!conf)
 		return -ENOMEM;
@@ -174,7 +175,13 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 			rdev1->new_raid_disk = j;
 		}
 
-		if (j < 0 || j >= mddev->raid_disks) {
+		if (j < 0) {
+			printk(KERN_ERR
+			       "md/raid0:%s: remove inactive devices before converting to RAID0\n",
+			       mdname(mddev));
+			goto abort;
+		}
+		if (j >= mddev->raid_disks) {
 			printk(KERN_ERR "md/raid0:%s: bad disk number %d - "
 			       "aborting!\n", mdname(mddev), j);
 			goto abort;
@@ -195,6 +202,9 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		if (!smallest || (rdev1->sectors < smallest->sectors))
 			smallest = rdev1;
 		cnt++;
+
+		if (blk_queue_discard(bdev_get_queue(rdev1->bdev)))
+			discard_supported = true;
 	}
 	if (cnt != mddev->raid_disks) {
 		printk(KERN_ERR "md/raid0:%s: too few disks (%d of %d) - "
@@ -272,6 +282,11 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	blk_queue_io_opt(mddev->queue,
 			 (mddev->chunk_sectors << 9) * mddev->raid_disks);
 
+	if (!discard_supported)
+		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
+	else
+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
+
 	pr_debug("md/raid0:%s: done.\n", mdname(mddev));
 	*private_conf = conf;
 
@@ -280,7 +295,7 @@ abort:
 	kfree(conf->strip_zone);
 	kfree(conf->devlist);
 	kfree(conf);
-	*private_conf = NULL;
+	*private_conf = ERR_PTR(err);
 	return err;
 }
 
@@ -402,7 +417,8 @@ static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks
 		  "%s does not support generic reshape\n", __func__);
 
 	rdev_for_each(rdev, mddev)
-		array_sectors += rdev->sectors;
+		array_sectors += (rdev->sectors &
+				  ~(sector_t)(mddev->chunk_sectors-1));
 
 	return array_sectors;
 }
@@ -422,6 +438,8 @@ static int raid0_run(struct mddev *mddev)
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
 	blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
+	blk_queue_max_write_same_sectors(mddev->queue, mddev->chunk_sectors);
+	blk_queue_max_discard_sectors(mddev->queue, mddev->chunk_sectors);
 
 	/* if private is not null, we are here after takeover */
 	if (mddev->private == NULL) {
@@ -484,11 +502,11 @@ static inline int is_io_in_chunk_boundary(struct mddev *mddev,
 {
 	if (likely(is_power_of_2(chunk_sects))) {
 		return chunk_sects >= ((bio->bi_sector & (chunk_sects-1))
-					+ (bio->bi_size >> 9));
+					+ bio_sectors(bio));
 	} else{
 		sector_t sector = bio->bi_sector;
 		return chunk_sects >= (sector_div(sector, chunk_sects)
-						+ (bio->bi_size >> 9));
+						+ bio_sectors(bio));
 	}
 }
 
@@ -509,8 +527,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 		sector_t sector = bio->bi_sector;
 		struct bio_pair *bp;
 		/* Sanity check -- queue functions should prevent this happening */
-		if (bio->bi_vcnt != 1 ||
-		    bio->bi_idx != 0)
+		if (bio_segments(bio) > 1)
 			goto bad_map;
 		/* This is a one page bio that upper layers
 		 * refuse to split for us, so we need to split it.
@@ -535,6 +552,13 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 	bio->bi_sector = sector_offset + zone->dev_start +
 		tmp_dev->data_offset;
 
+	if (unlikely((bio->bi_rw & REQ_DISCARD) &&
+		     !blk_queue_discard(bdev_get_queue(bio->bi_bdev)))) {
+		/* Just ignore it */
+		bio_endio(bio, 0);
+		return;
+	}
+
 	generic_make_request(bio);
 	return;
 
@@ -542,7 +566,7 @@ bad_map:
 	printk("md/raid0:%s: make_request bug: can't convert block across chunks"
 	       " or bigger than %dk %llu %d\n",
 	       mdname(mddev), chunk_sects / 2,
-	       (unsigned long long)bio->bi_sector, bio->bi_size >> 10);
+	       (unsigned long long)bio->bi_sector, bio_sectors(bio) / 2);
 
 	bio_io_error(bio);
 	return;
@@ -573,6 +597,7 @@ static void *raid0_takeover_raid45(struct mddev *mddev)
 			       mdname(mddev));
 			return ERR_PTR(-EINVAL);
 		}
+		rdev->sectors = mddev->dev_sectors;
 	}
 
 	/* Set new parameters */

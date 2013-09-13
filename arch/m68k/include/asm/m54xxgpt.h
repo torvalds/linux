@@ -16,26 +16,26 @@
 *********************************************************************/
 
 /* Register read/write macros */
-#define MCF_GPT_GMS0       0x000800
-#define MCF_GPT_GCIR0      0x000804
-#define MCF_GPT_GPWM0      0x000808
-#define MCF_GPT_GSR0       0x00080C
-#define MCF_GPT_GMS1       0x000810
-#define MCF_GPT_GCIR1      0x000814
-#define MCF_GPT_GPWM1      0x000818
-#define MCF_GPT_GSR1       0x00081C
-#define MCF_GPT_GMS2       0x000820
-#define MCF_GPT_GCIR2      0x000824
-#define MCF_GPT_GPWM2      0x000828
-#define MCF_GPT_GSR2       0x00082C
-#define MCF_GPT_GMS3       0x000830
-#define MCF_GPT_GCIR3      0x000834
-#define MCF_GPT_GPWM3      0x000838
-#define MCF_GPT_GSR3       0x00083C
-#define MCF_GPT_GMS(x)     (0x000800+((x)*0x010))
-#define MCF_GPT_GCIR(x)    (0x000804+((x)*0x010))
-#define MCF_GPT_GPWM(x)    (0x000808+((x)*0x010))
-#define MCF_GPT_GSR(x)     (0x00080C+((x)*0x010))
+#define MCF_GPT_GMS0       (MCF_MBAR + 0x000800)
+#define MCF_GPT_GCIR0      (MCF_MBAR + 0x000804)
+#define MCF_GPT_GPWM0      (MCF_MBAR + 0x000808)
+#define MCF_GPT_GSR0       (MCF_MBAR + 0x00080C)
+#define MCF_GPT_GMS1       (MCF_MBAR + 0x000810)
+#define MCF_GPT_GCIR1      (MCF_MBAR + 0x000814)
+#define MCF_GPT_GPWM1      (MCF_MBAR + 0x000818)
+#define MCF_GPT_GSR1       (MCF_MBAR + 0x00081C)
+#define MCF_GPT_GMS2       (MCF_MBAR + 0x000820)
+#define MCF_GPT_GCIR2      (MCF_MBAR + 0x000824)
+#define MCF_GPT_GPWM2      (MCF_MBAR + 0x000828)
+#define MCF_GPT_GSR2       (MCF_MBAR + 0x00082C)
+#define MCF_GPT_GMS3       (MCF_MBAR + 0x000830)
+#define MCF_GPT_GCIR3      (MCF_MBAR + 0x000834)
+#define MCF_GPT_GPWM3      (MCF_MBAR + 0x000838)
+#define MCF_GPT_GSR3       (MCF_MBAR + 0x00083C)
+#define MCF_GPT_GMS(x)     (MCF_MBAR + 0x000800 + ((x) * 0x010))
+#define MCF_GPT_GCIR(x)    (MCF_MBAR + 0x000804 + ((x) * 0x010))
+#define MCF_GPT_GPWM(x)    (MCF_MBAR + 0x000808 + ((x) * 0x010))
+#define MCF_GPT_GSR(x)     (MCF_MBAR + 0x00080C + ((x) * 0x010))
 
 /* Bit definitions and macros for MCF_GPT_GMS */
 #define MCF_GPT_GMS_TMS(x)         (((x)&0x00000007)<<0)

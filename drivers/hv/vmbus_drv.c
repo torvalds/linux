@@ -33,14 +33,16 @@
 #include <acpi/acpi_bus.h>
 #include <linux/completion.h>
 #include <linux/hyperv.h>
+#include <linux/kernel_stat.h>
 #include <asm/hyperv.h>
+#include <asm/hypervisor.h>
+#include <asm/mshyperv.h>
 #include "hyperv_vmbus.h"
 
 
 static struct acpi_device  *hv_acpi_dev;
 
 static struct tasklet_struct msg_dpc;
-static struct tasklet_struct event_dpc;
 static struct completion probe_event;
 static int irq;
 
@@ -146,43 +148,9 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 	get_channel_info(hv_dev, device_info);
 
 	if (!strcmp(dev_attr->attr.name, "class_id")) {
-		ret = sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-			       "%02x%02x%02x%02x%02x%02x%02x%02x}\n",
-			       device_info->chn_type.b[3],
-			       device_info->chn_type.b[2],
-			       device_info->chn_type.b[1],
-			       device_info->chn_type.b[0],
-			       device_info->chn_type.b[5],
-			       device_info->chn_type.b[4],
-			       device_info->chn_type.b[7],
-			       device_info->chn_type.b[6],
-			       device_info->chn_type.b[8],
-			       device_info->chn_type.b[9],
-			       device_info->chn_type.b[10],
-			       device_info->chn_type.b[11],
-			       device_info->chn_type.b[12],
-			       device_info->chn_type.b[13],
-			       device_info->chn_type.b[14],
-			       device_info->chn_type.b[15]);
+		ret = sprintf(buf, "{%pUl}\n", device_info->chn_type.b);
 	} else if (!strcmp(dev_attr->attr.name, "device_id")) {
-		ret = sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-			       "%02x%02x%02x%02x%02x%02x%02x%02x}\n",
-			       device_info->chn_instance.b[3],
-			       device_info->chn_instance.b[2],
-			       device_info->chn_instance.b[1],
-			       device_info->chn_instance.b[0],
-			       device_info->chn_instance.b[5],
-			       device_info->chn_instance.b[4],
-			       device_info->chn_instance.b[7],
-			       device_info->chn_instance.b[6],
-			       device_info->chn_instance.b[8],
-			       device_info->chn_instance.b[9],
-			       device_info->chn_instance.b[10],
-			       device_info->chn_instance.b[11],
-			       device_info->chn_instance.b[12],
-			       device_info->chn_instance.b[13],
-			       device_info->chn_instance.b[14],
-			       device_info->chn_instance.b[15]);
+		ret = sprintf(buf, "{%pUl}\n", device_info->chn_instance.b);
 	} else if (!strcmp(dev_attr->attr.name, "modalias")) {
 		print_alias_name(hv_dev, alias_name);
 		ret = sprintf(buf, "vmbus:%s\n", alias_name);
@@ -466,7 +434,7 @@ static void vmbus_on_msg_dpc(unsigned long data)
 		 * will not deliver any more messages since there is
 		 * no empty slot
 		 */
-		smp_mb();
+		mb();
 
 		if (msg->header.message_flags.msg_pending) {
 			/*
@@ -487,20 +455,39 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	union hv_synic_event_flags *event;
 	bool handled = false;
 
+	page_addr = hv_context.synic_event_page[cpu];
+	if (page_addr == NULL)
+		return IRQ_NONE;
+
+	event = (union hv_synic_event_flags *)page_addr +
+					 VMBUS_MESSAGE_SINT;
 	/*
 	 * Check for events before checking for messages. This is the order
 	 * in which events and messages are checked in Windows guests on
 	 * Hyper-V, and the Windows team suggested we do the same.
 	 */
 
-	page_addr = hv_context.synic_event_page[cpu];
-	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
+	if ((vmbus_proto_version == VERSION_WS2008) ||
+		(vmbus_proto_version == VERSION_WIN7)) {
 
-	/* Since we are a child, we only need to check bit 0 */
-	if (sync_test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
+		/* Since we are a child, we only need to check bit 0 */
+		if (sync_test_and_clear_bit(0,
+			(unsigned long *) &event->flags32[0])) {
+			handled = true;
+		}
+	} else {
+		/*
+		 * Our host is win8 or above. The signaling mechanism
+		 * has changed and we can directly look at the event page.
+		 * If bit n is set then we have an interrup on the channel
+		 * whose id is n.
+		 */
 		handled = true;
-		tasklet_schedule(&event_dpc);
 	}
+
+	if (handled)
+		tasklet_schedule(hv_context.event_dpc[cpu]);
+
 
 	page_addr = hv_context.synic_message_page[cpu];
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
@@ -518,6 +505,19 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 }
 
 /*
+ * vmbus interrupt flow handler:
+ * vmbus interrupts can concurrently occur on multiple CPUs and
+ * can be handled concurrently.
+ */
+
+static void vmbus_flow_handler(unsigned int irq, struct irq_desc *desc)
+{
+	kstat_incr_irqs_this_cpu(irq, desc);
+
+	desc->action->handler(irq, desc->action->dev_id);
+}
+
+/*
  * vmbus_bus_init -Main vmbus driver initialization routine.
  *
  * Here, we
@@ -529,7 +529,6 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 static int vmbus_bus_init(int irq)
 {
 	int ret;
-	unsigned int vector;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = hv_init();
@@ -539,7 +538,6 @@ static int vmbus_bus_init(int irq)
 	}
 
 	tasklet_init(&msg_dpc, vmbus_on_msg_dpc, 0);
-	tasklet_init(&event_dpc, vmbus_on_event, 0);
 
 	ret = bus_register(&hv_bus);
 	if (ret)
@@ -553,22 +551,36 @@ static int vmbus_bus_init(int irq)
 		goto err_unregister;
 	}
 
-	vector = IRQ0_VECTOR + irq;
+	/*
+	 * Vmbus interrupts can be handled concurrently on
+	 * different CPUs. Establish an appropriate interrupt flow
+	 * handler that can support this model.
+	 */
+	irq_set_handler(irq, vmbus_flow_handler);
 
 	/*
-	 * Notify the hypervisor of our irq and
+	 * Register our interrupt handler.
+	 */
+	hv_register_vmbus_handler(irq, vmbus_isr);
+
+	ret = hv_synic_alloc();
+	if (ret)
+		goto err_alloc;
+	/*
+	 * Initialize the per-cpu interrupt state and
 	 * connect to the host.
 	 */
-	on_each_cpu(hv_synic_init, (void *)&vector, 1);
+	on_each_cpu(hv_synic_init, NULL, 1);
 	ret = vmbus_connect();
 	if (ret)
-		goto err_irq;
+		goto err_alloc;
 
 	vmbus_request_offers();
 
 	return 0;
 
-err_irq:
+err_alloc:
+	hv_synic_free();
 	free_irq(irq, hv_acpi_dev);
 
 err_unregister:
@@ -607,8 +619,6 @@ int __vmbus_driver_register(struct hv_driver *hv_driver, struct module *owner, c
 	hv_driver->driver.bus = &hv_bus;
 
 	ret = driver_register(&hv_driver->driver);
-
-	vmbus_request_offers();
 
 	return ret;
 }
@@ -680,7 +690,7 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 	if (ret)
 		pr_err("Unable to register child device\n");
 	else
-		pr_info("child device %s registered\n",
+		pr_debug("child device %s registered\n",
 			dev_name(&child_device_obj->device));
 
 	return ret;
@@ -692,14 +702,14 @@ int vmbus_device_register(struct hv_device *child_device_obj)
  */
 void vmbus_device_unregister(struct hv_device *device_obj)
 {
+	pr_debug("child device %s unregistered\n",
+		dev_name(&device_obj->device));
+
 	/*
 	 * Kick off the process of unregistering the device.
 	 * This will call vmbus_remove() and eventually vmbus_device_release()
 	 */
 	device_unregister(&device_obj->device);
-
-	pr_info("child device %s unregistered\n",
-		dev_name(&device_obj->device));
 }
 
 
@@ -757,6 +767,9 @@ static int __init hv_acpi_init(void)
 {
 	int ret, t;
 
+	if (x86_hyper != &x86_hyper_ms_hyperv)
+		return -ENODEV;
+
 	init_completion(&probe_event);
 
 	/*
@@ -803,7 +816,6 @@ static void __exit vmbus_exit(void)
 
 
 MODULE_LICENSE("GPL");
-MODULE_VERSION(HV_DRV_VERSION);
 
 subsys_initcall(hv_acpi_init);
 module_exit(vmbus_exit);

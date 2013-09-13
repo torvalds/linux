@@ -60,13 +60,12 @@ long spu_sys_callback(struct spu_syscall_block *s)
 
 	syscall = spu_syscall_table[s->nr_ret];
 
-#ifdef DEBUG
-	print_symbol(KERN_DEBUG "SPU-syscall %s:", (unsigned long)syscall);
-	printk("syscall%ld(%lx, %lx, %lx, %lx, %lx, %lx)\n",
-			s->nr_ret,
-			s->parm[0], s->parm[1], s->parm[2],
-			s->parm[3], s->parm[4], s->parm[5]);
-#endif
+	pr_debug("SPU-syscall "
+		 "%pSR:syscall%lld(%llx, %llx, %llx, %llx, %llx, %llx)\n",
+		 syscall,
+		 s->nr_ret,
+		 s->parm[0], s->parm[1], s->parm[2],
+		 s->parm[3], s->parm[4], s->parm[5]);
 
 	return syscall(s->parm[0], s->parm[1], s->parm[2],
 		       s->parm[3], s->parm[4], s->parm[5]);

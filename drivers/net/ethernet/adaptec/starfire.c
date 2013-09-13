@@ -166,7 +166,7 @@ static int rx_copybreak /* = 0 */;
 #define FIRMWARE_TX	"adaptec/starfire_tx.bin"
 
 /* These identify the driver base version and may not be removed. */
-static const char version[] __devinitconst =
+static const char version[] =
 KERN_INFO "starfire.c:v1.03 7/26/2000  Written by Donald Becker <becker@scyld.com>\n"
 " (unofficial 2.2/2.4 kernel port, version " DRV_VERSION ", " DRV_RELDATE ")\n";
 
@@ -295,7 +295,7 @@ MODULE_DEVICE_TABLE(pci, starfire_pci_tbl);
 static const struct chip_info {
 	const char *name;
 	int drv_flags;
-} netdrv_tbl[] __devinitdata = {
+} netdrv_tbl[] = {
 	{ "Adaptec Starfire 6915", CanHaveMII },
 };
 
@@ -594,7 +594,8 @@ static const struct ethtool_ops ethtool_ops;
 
 
 #ifdef VLAN_SUPPORT
-static int netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int netdev_vlan_rx_add_vid(struct net_device *dev,
+				  __be16 proto, u16 vid)
 {
 	struct netdev_private *np = netdev_priv(dev);
 
@@ -608,7 +609,8 @@ static int netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
-static int netdev_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int netdev_vlan_rx_kill_vid(struct net_device *dev,
+				   __be16 proto, u16 vid)
 {
 	struct netdev_private *np = netdev_priv(dev);
 
@@ -641,8 +643,8 @@ static const struct net_device_ops netdev_ops = {
 #endif
 };
 
-static int __devinit starfire_init_one(struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+static int starfire_init_one(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	struct device *d = &pdev->dev;
 	struct netdev_private *np;
@@ -702,7 +704,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 #endif /* ZEROCOPY */
 
 #ifdef VLAN_SUPPORT
-	dev->features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER;
 #endif /* VLAN_RX_KILL_VID */
 #ifdef ADDR_64BITS
 	dev->features |= NETIF_F_HIGHDMA;
@@ -1496,7 +1498,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 				printk(KERN_DEBUG "  netdev_rx() vlanid = %d\n",
 				       vlid);
 			}
-			__vlan_hwaccel_put_tag(skb, vlid);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlid);
 		}
 #endif /* VLAN_SUPPORT */
 		netif_receive_skb(skb);
@@ -1990,7 +1992,7 @@ static int starfire_resume(struct pci_dev *pdev)
 #endif /* CONFIG_PM */
 
 
-static void __devexit starfire_remove_one (struct pci_dev *pdev)
+static void starfire_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct netdev_private *np = netdev_priv(dev);
@@ -2018,7 +2020,7 @@ static void __devexit starfire_remove_one (struct pci_dev *pdev)
 static struct pci_driver starfire_driver = {
 	.name		= DRV_NAME,
 	.probe		= starfire_init_one,
-	.remove		= __devexit_p(starfire_remove_one),
+	.remove		= starfire_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= starfire_suspend,
 	.resume		= starfire_resume,

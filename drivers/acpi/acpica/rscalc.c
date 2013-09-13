@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ static u8 acpi_rs_count_set_bits(u16 bit_field)
 		bit_field &= (u16) (bit_field - 1);
 	}
 
-	return bits_set;
+	return (bits_set);
 }
 
 /*******************************************************************************
@@ -200,6 +200,12 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
 			return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
+		}
+
+		/* Sanity check the length. It must not be zero, or we loop forever */
+
+		if (!resource->length) {
+			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
 		}
 
 		/* Get the base size of the (external stream) resource descriptor */
@@ -346,6 +352,7 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 			break;
 
 		default:
+
 			break;
 		}
 
@@ -407,7 +414,9 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 
 		/* Validate the Resource Type and Resource Length */
 
-		status = acpi_ut_validate_resource(aml_buffer, &resource_index);
+		status =
+		    acpi_ut_validate_resource(NULL, aml_buffer,
+					      &resource_index);
 		if (ACPI_FAILURE(status)) {
 			/*
 			 * Exit on failure. Cannot continue because the descriptor length
@@ -457,6 +466,15 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Get the number of vendor data bytes
 			 */
 			extra_struct_bytes = resource_length;
+
+			/*
+			 * There is already one byte included in the minimum
+			 * descriptor size. If there are extra struct bytes,
+			 * subtract one from the count.
+			 */
+			if (extra_struct_bytes) {
+				extra_struct_bytes--;
+			}
 			break;
 
 		case ACPI_RESOURCE_NAME_END_TAG:
@@ -522,6 +540,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			break;
 
 		default:
+
 			break;
 		}
 
@@ -601,7 +620,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 	/*
 	 * Calculate the size of the return buffer.
 	 * The base size is the number of elements * the sizes of the
-	 * structures.  Additional space for the strings is added below.
+	 * structures. Additional space for the strings is added below.
 	 * The minus one is to subtract the size of the u8 Source[1]
 	 * member because it is added below.
 	 *
@@ -633,8 +652,9 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 
 		name_found = FALSE;
 
-		for (table_index = 0; table_index < 4 && !name_found;
-		     table_index++) {
+		for (table_index = 0;
+		     table_index < package_element->package.count
+		     && !name_found; table_index++) {
 			if (*sub_object_list &&	/* Null object allowed */
 			    ((ACPI_TYPE_STRING ==
 			      (*sub_object_list)->common.type) ||
@@ -664,8 +684,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 						     (*sub_object_list)->string.
 						     length + 1);
 			} else {
-				temp_size_needed +=
-				    acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
+				temp_size_needed += acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
 			}
 		} else {
 			/*

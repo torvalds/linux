@@ -12,8 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include <mach/hardware.h>
-
 #include "cryp_p.h"
 #include "cryp.h"
 
@@ -293,7 +291,7 @@ void cryp_save_device_context(struct cryp_device_data *device_data,
 			      int cryp_mode)
 {
 	enum cryp_algo_mode algomode;
-	struct cryp_register *src_reg = device_data->base;
+	struct cryp_register __iomem *src_reg = device_data->base;
 	struct cryp_config *config =
 		(struct cryp_config *)device_data->current_ctx;
 
@@ -351,7 +349,7 @@ void cryp_save_device_context(struct cryp_device_data *device_data,
 void cryp_restore_device_context(struct cryp_device_data *device_data,
 				 struct cryp_device_context *ctx)
 {
-	struct cryp_register *reg = device_data->base;
+	struct cryp_register __iomem *reg = device_data->base;
 	struct cryp_config *config =
 		(struct cryp_config *)device_data->current_ctx;
 

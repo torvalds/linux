@@ -162,7 +162,7 @@ static irqreturn_t sh_keysc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit sh_keysc_probe(struct platform_device *pdev)
+static int sh_keysc_probe(struct platform_device *pdev)
 {
 	struct sh_keysc_priv *priv;
 	struct sh_keysc_info *pdata;
@@ -266,13 +266,12 @@ static int __devinit sh_keysc_probe(struct platform_device *pdev)
  err2:
 	iounmap(priv->iomem_base);
  err1:
-	platform_set_drvdata(pdev, NULL);
 	kfree(priv);
  err0:
 	return error;
 }
 
-static int __devexit sh_keysc_remove(struct platform_device *pdev)
+static int sh_keysc_remove(struct platform_device *pdev)
 {
 	struct sh_keysc_priv *priv = platform_get_drvdata(pdev);
 
@@ -285,7 +284,6 @@ static int __devexit sh_keysc_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(priv);
 
 	return 0;
@@ -331,7 +329,7 @@ static SIMPLE_DEV_PM_OPS(sh_keysc_dev_pm_ops,
 
 static struct platform_driver sh_keysc_device_driver = {
 	.probe		= sh_keysc_probe,
-	.remove		= __devexit_p(sh_keysc_remove),
+	.remove		= sh_keysc_remove,
 	.driver		= {
 		.name	= "sh_keysc",
 		.pm	= &sh_keysc_dev_pm_ops,

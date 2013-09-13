@@ -25,7 +25,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/of.h>
-#include <linux/of_i2c.h>
 
 /* multiplexer per channel data */
 struct i2c_mux_priv {
@@ -88,9 +87,23 @@ static u32 i2c_mux_functionality(struct i2c_adapter *adap)
 	return parent->algo->functionality(parent);
 }
 
+/* Return all parent classes, merged */
+static unsigned int i2c_mux_parent_classes(struct i2c_adapter *parent)
+{
+	unsigned int class = 0;
+
+	do {
+		class |= parent->class;
+		parent = i2c_parent_is_i2c_adapter(parent);
+	} while (parent);
+
+	return class;
+}
+
 struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 				struct device *mux_dev,
 				void *mux_priv, u32 force_nr, u32 chan_id,
+				unsigned int class,
 				int (*select) (struct i2c_adapter *,
 					       void *, u32),
 				int (*deselect) (struct i2c_adapter *,
@@ -126,6 +139,14 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 	priv->adap.algo = &priv->algo;
 	priv->adap.algo_data = priv;
 	priv->adap.dev.parent = &parent->dev;
+
+	/* Sanity check on class */
+	if (i2c_mux_parent_classes(parent) & class)
+		dev_err(&parent->dev,
+			"Segment %d behind mux can't share classes with ancestors\n",
+			chan_id);
+	else
+		priv->adap.class = class;
 
 	/*
 	 * Try to populate the mux adapter's of_node, expands to
@@ -163,23 +184,16 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 	dev_info(&parent->dev, "Added multiplexed i2c bus %d\n",
 		 i2c_adapter_id(&priv->adap));
 
-	of_i2c_register_devices(&priv->adap);
-
 	return &priv->adap;
 }
 EXPORT_SYMBOL_GPL(i2c_add_mux_adapter);
 
-int i2c_del_mux_adapter(struct i2c_adapter *adap)
+void i2c_del_mux_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_mux_priv *priv = adap->algo_data;
-	int ret;
 
-	ret = i2c_del_adapter(adap);
-	if (ret < 0)
-		return ret;
+	i2c_del_adapter(adap);
 	kfree(priv);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(i2c_del_mux_adapter);
 

@@ -25,9 +25,8 @@ struct saved_context {
 	u64 misc_enable;
 	bool misc_enable_saved;
 	unsigned long efer;
-	u16 gdt_pad;
-	u16 gdt_limit;
-	unsigned long gdt_base;
+	u16 gdt_pad; /* Unused */
+	struct desc_ptr gdt_desc;
 	u16 idt_pad;
 	u16 idt_limit;
 	unsigned long idt_base;

@@ -43,7 +43,7 @@ static u32 hash_v4(const struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 
 	/* packets in either direction go into same queue */
-	if (iph->saddr < iph->daddr)
+	if ((__force u32)iph->saddr < (__force u32)iph->daddr)
 		return jhash_3words((__force u32)iph->saddr,
 			(__force u32)iph->daddr, iph->protocol, jhash_initval);
 
@@ -57,7 +57,8 @@ static u32 hash_v6(const struct sk_buff *skb)
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	u32 a, b, c;
 
-	if (ip6h->saddr.s6_addr32[3] < ip6h->daddr.s6_addr32[3]) {
+	if ((__force u32)ip6h->saddr.s6_addr32[3] <
+	    (__force u32)ip6h->daddr.s6_addr32[3]) {
 		a = (__force u32) ip6h->saddr.s6_addr32[3];
 		b = (__force u32) ip6h->daddr.s6_addr32[3];
 	} else {
@@ -65,7 +66,8 @@ static u32 hash_v6(const struct sk_buff *skb)
 		a = (__force u32) ip6h->daddr.s6_addr32[3];
 	}
 
-	if (ip6h->saddr.s6_addr32[1] < ip6h->daddr.s6_addr32[1])
+	if ((__force u32)ip6h->saddr.s6_addr32[1] <
+	    (__force u32)ip6h->daddr.s6_addr32[1])
 		c = (__force u32) ip6h->saddr.s6_addr32[1];
 	else
 		c = (__force u32) ip6h->daddr.s6_addr32[1];
@@ -74,22 +76,31 @@ static u32 hash_v6(const struct sk_buff *skb)
 }
 #endif
 
+static u32
+nfqueue_hash(const struct sk_buff *skb, const struct xt_action_param *par)
+{
+	const struct xt_NFQ_info_v1 *info = par->targinfo;
+	u32 queue = info->queuenum;
+
+	if (par->family == NFPROTO_IPV4)
+		queue += ((u64) hash_v4(skb) * info->queues_total) >> 32;
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	else if (par->family == NFPROTO_IPV6)
+		queue += ((u64) hash_v6(skb) * info->queues_total) >> 32;
+#endif
+
+	return queue;
+}
+
 static unsigned int
 nfqueue_tg_v1(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_NFQ_info_v1 *info = par->targinfo;
 	u32 queue = info->queuenum;
 
-	if (info->queues_total > 1) {
-		if (par->family == NFPROTO_IPV4)
-			queue = (((u64) hash_v4(skb) * info->queues_total) >>
-				 32) + queue;
-#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
-		else if (par->family == NFPROTO_IPV6)
-			queue = (((u64) hash_v6(skb) * info->queues_total) >>
-				 32) + queue;
-#endif
-	}
+	if (info->queues_total > 1)
+		queue = nfqueue_hash(skb, par);
+
 	return NF_QUEUE_NR(queue);
 }
 
@@ -106,7 +117,7 @@ nfqueue_tg_v2(struct sk_buff *skb, const struct xt_action_param *par)
 
 static int nfqueue_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct xt_NFQ_info_v2 *info = par->targinfo;
+	const struct xt_NFQ_info_v3 *info = par->targinfo;
 	u32 maxid;
 
 	if (unlikely(!rnd_inited)) {
@@ -123,9 +134,30 @@ static int nfqueue_tg_check(const struct xt_tgchk_param *par)
 		       info->queues_total, maxid);
 		return -ERANGE;
 	}
-	if (par->target->revision == 2 && info->bypass > 1)
+	if (par->target->revision == 2 && info->flags > 1)
 		return -EINVAL;
+	if (par->target->revision == 3 && info->flags & ~NFQ_FLAG_MASK)
+		return -EINVAL;
+
 	return 0;
+}
+
+static unsigned int
+nfqueue_tg_v3(struct sk_buff *skb, const struct xt_action_param *par)
+{
+	const struct xt_NFQ_info_v3 *info = par->targinfo;
+	u32 queue = info->queuenum;
+
+	if (info->queues_total > 1) {
+		if (info->flags & NFQ_FLAG_CPU_FANOUT) {
+			int cpu = smp_processor_id();
+
+			queue = info->queuenum + cpu % info->queues_total;
+		} else
+			queue = nfqueue_hash(skb, par);
+	}
+
+	return NF_QUEUE_NR(queue);
 }
 
 static struct xt_target nfqueue_tg_reg[] __read_mostly = {
@@ -152,6 +184,15 @@ static struct xt_target nfqueue_tg_reg[] __read_mostly = {
 		.checkentry	= nfqueue_tg_check,
 		.target		= nfqueue_tg_v2,
 		.targetsize	= sizeof(struct xt_NFQ_info_v2),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "NFQUEUE",
+		.revision	= 3,
+		.family		= NFPROTO_UNSPEC,
+		.checkentry	= nfqueue_tg_check,
+		.target		= nfqueue_tg_v3,
+		.targetsize	= sizeof(struct xt_NFQ_info_v3),
 		.me		= THIS_MODULE,
 	},
 };

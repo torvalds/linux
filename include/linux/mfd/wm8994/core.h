@@ -19,6 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
 
+#include <linux/mfd/wm8994/pdata.h>
+
 enum wm8994_type {
 	WM8994 = 0,
 	WM8958 = 1,
@@ -27,6 +29,7 @@ enum wm8994_type {
 
 struct regulator_dev;
 struct regulator_bulk_data;
+struct irq_domain;
 
 #define WM8994_NUM_GPIO_REGS 11
 #define WM8994_NUM_LDO_REGS   2
@@ -55,6 +58,8 @@ struct regulator_bulk_data;
 struct wm8994 {
 	struct mutex irq_lock;
 
+	struct wm8994_pdata pdata;
+
 	enum wm8994_type type;
 	int revision;
 	int cust_id;
@@ -69,6 +74,7 @@ struct wm8994 {
 
 	int irq;
 	struct regmap_irq_chip_data *irq_data;
+	struct irq_domain *edge_irq;
 
 	/* Used over suspend/resume */
 	bool suspended;

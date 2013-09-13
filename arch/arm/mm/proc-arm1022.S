@@ -343,6 +343,9 @@ ENTRY(arm1022_dma_unmap_area)
 	mov	pc, lr
 ENDPROC(arm1022_dma_unmap_area)
 
+	.globl	arm1022_flush_kern_cache_louis
+	.equ	arm1022_flush_kern_cache_louis, arm1022_flush_kern_cache_all
+
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
 	define_cache_functions arm1022
 
@@ -403,8 +406,6 @@ ENTRY(cpu_arm1022_set_pte_ext)
 #endif
 #endif /* CONFIG_MMU */
 	mov	pc, lr
-
-	__CPUINIT
 
 	.type	__arm1022_setup, #function
 __arm1022_setup:

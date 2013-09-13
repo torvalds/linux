@@ -348,7 +348,7 @@ static inline int snd_es18xx_mixer_writable(struct snd_es18xx *chip, unsigned ch
 }
 
 
-static int __devinit snd_es18xx_reset(struct snd_es18xx *chip)
+static int snd_es18xx_reset(struct snd_es18xx *chip)
 {
 	int i;
         outb(0x03, chip->port + 0x06);
@@ -1363,7 +1363,7 @@ static struct snd_kcontrol_new snd_es18xx_hw_volume_controls[] = {
 ES18XX_SINGLE("Hardware Master Volume Split", 0, 0x64, 7, 1, 0),
 };
 
-static int __devinit snd_es18xx_config_read(struct snd_es18xx *chip, unsigned char reg)
+static int snd_es18xx_config_read(struct snd_es18xx *chip, unsigned char reg)
 {
 	int data;
 
@@ -1372,8 +1372,8 @@ static int __devinit snd_es18xx_config_read(struct snd_es18xx *chip, unsigned ch
 	return data;
 }
 
-static void __devinit snd_es18xx_config_write(struct snd_es18xx *chip, 
-					      unsigned char reg, unsigned char data)
+static void snd_es18xx_config_write(struct snd_es18xx *chip,
+				    unsigned char reg, unsigned char data)
 {
 	/* No need for spinlocks, this function is used only in
 	   otherwise protected init code */
@@ -1384,9 +1384,9 @@ static void __devinit snd_es18xx_config_write(struct snd_es18xx *chip,
 #endif
 }
 
-static int __devinit snd_es18xx_initialize(struct snd_es18xx *chip,
-					   unsigned long mpu_port,
-					   unsigned long fm_port)
+static int snd_es18xx_initialize(struct snd_es18xx *chip,
+				 unsigned long mpu_port,
+				 unsigned long fm_port)
 {
 	int mask = 0;
 
@@ -1549,7 +1549,7 @@ static int __devinit snd_es18xx_initialize(struct snd_es18xx *chip,
         return 0;
 }
 
-static int __devinit snd_es18xx_identify(struct snd_es18xx *chip)
+static int snd_es18xx_identify(struct snd_es18xx *chip)
 {
 	int hi,lo;
 
@@ -1618,9 +1618,9 @@ static int __devinit snd_es18xx_identify(struct snd_es18xx *chip)
 	return 0;
 }
 
-static int __devinit snd_es18xx_probe(struct snd_es18xx *chip,
-					unsigned long mpu_port,
-					unsigned long fm_port)
+static int snd_es18xx_probe(struct snd_es18xx *chip,
+			    unsigned long mpu_port,
+			    unsigned long fm_port)
 {
 	if (snd_es18xx_identify(chip) < 0) {
 		snd_printk(KERN_ERR PFX "[0x%lx] ESS chip not found\n", chip->port);
@@ -1680,8 +1680,8 @@ static struct snd_pcm_ops snd_es18xx_capture_ops = {
 	.pointer =	snd_es18xx_capture_pointer,
 };
 
-static int __devinit snd_es18xx_pcm(struct snd_card *card, int device,
-				    struct snd_pcm **rpcm)
+static int snd_es18xx_pcm(struct snd_card *card, int device,
+			  struct snd_pcm **rpcm)
 {
 	struct snd_es18xx *chip = card->private_data;
         struct snd_pcm *pcm;
@@ -1777,11 +1777,11 @@ static int snd_es18xx_dev_free(struct snd_device *device)
 	return snd_es18xx_free(device->card);
 }
 
-static int __devinit snd_es18xx_new_device(struct snd_card *card,
-					   unsigned long port,
-					   unsigned long mpu_port,
-					   unsigned long fm_port,
-					   int irq, int dma1, int dma2)
+static int snd_es18xx_new_device(struct snd_card *card,
+				 unsigned long port,
+				 unsigned long mpu_port,
+				 unsigned long fm_port,
+				 int irq, int dma1, int dma2)
 {
 	struct snd_es18xx *chip = card->private_data;
 	static struct snd_device_ops ops = {
@@ -1839,7 +1839,7 @@ static int __devinit snd_es18xx_new_device(struct snd_card *card,
         return 0;
 }
 
-static int __devinit snd_es18xx_mixer(struct snd_card *card)
+static int snd_es18xx_mixer(struct snd_card *card)
 {
 	struct snd_es18xx *chip = card->private_data;
 	int err;
@@ -2016,7 +2016,7 @@ static struct pnp_device_id snd_audiodrive_pnpbiosids[] = {
 MODULE_DEVICE_TABLE(pnp, snd_audiodrive_pnpbiosids);
 
 /* PnP main device initialization */
-static int __devinit snd_audiodrive_pnp_init_main(int dev, struct pnp_dev *pdev)
+static int snd_audiodrive_pnp_init_main(int dev, struct pnp_dev *pdev)
 {
 	if (pnp_activate_dev(pdev) < 0) {
 		snd_printk(KERN_ERR PFX "PnP configure failure (out of resources?)\n");
@@ -2043,8 +2043,8 @@ static int __devinit snd_audiodrive_pnp_init_main(int dev, struct pnp_dev *pdev)
 	return 0;
 }
 
-static int __devinit snd_audiodrive_pnp(int dev, struct snd_es18xx *chip,
-					struct pnp_dev *pdev)
+static int snd_audiodrive_pnp(int dev, struct snd_es18xx *chip,
+			      struct pnp_dev *pdev)
 {
 	chip->dev = pdev;
 	if (snd_audiodrive_pnp_init_main(dev, chip->dev) < 0)
@@ -2073,9 +2073,9 @@ static struct pnp_card_device_id snd_audiodrive_pnpids[] = {
 
 MODULE_DEVICE_TABLE(pnp_card, snd_audiodrive_pnpids);
 
-static int __devinit snd_audiodrive_pnpc(int dev, struct snd_es18xx *chip,
-					struct pnp_card_link *card,
-					const struct pnp_card_device_id *id)
+static int snd_audiodrive_pnpc(int dev, struct snd_es18xx *chip,
+			       struct pnp_card_link *card,
+			       const struct pnp_card_device_id *id)
 {
 	chip->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (chip->dev == NULL)
@@ -2111,7 +2111,7 @@ static int snd_es18xx_card_new(int dev, struct snd_card **cardp)
 			       sizeof(struct snd_es18xx), cardp);
 }
 
-static int __devinit snd_audiodrive_probe(struct snd_card *card, int dev)
+static int snd_audiodrive_probe(struct snd_card *card, int dev)
 {
 	struct snd_es18xx *chip = card->private_data;
 	struct snd_opl3 *opl3;
@@ -2169,12 +2169,12 @@ static int __devinit snd_audiodrive_probe(struct snd_card *card, int dev)
 	return snd_card_register(card);
 }
 
-static int __devinit snd_es18xx_isa_match(struct device *pdev, unsigned int dev)
+static int snd_es18xx_isa_match(struct device *pdev, unsigned int dev)
 {
 	return enable[dev] && !is_isapnp_selected(dev);
 }
 
-static int __devinit snd_es18xx_isa_probe1(int dev, struct device *devptr)
+static int snd_es18xx_isa_probe1(int dev, struct device *devptr)
 {
 	struct snd_card *card;
 	int err;
@@ -2191,7 +2191,7 @@ static int __devinit snd_es18xx_isa_probe1(int dev, struct device *devptr)
 	return 0;
 }
 
-static int __devinit snd_es18xx_isa_probe(struct device *pdev, unsigned int dev)
+static int snd_es18xx_isa_probe(struct device *pdev, unsigned int dev)
 {
 	int err;
 	static int possible_irqs[] = {5, 9, 10, 7, 11, 12, -1};
@@ -2231,11 +2231,10 @@ static int __devinit snd_es18xx_isa_probe(struct device *pdev, unsigned int dev)
 	}
 }
 
-static int __devexit snd_es18xx_isa_remove(struct device *devptr,
-					   unsigned int dev)
+static int snd_es18xx_isa_remove(struct device *devptr,
+				 unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
@@ -2257,7 +2256,7 @@ static int snd_es18xx_isa_resume(struct device *dev, unsigned int n)
 static struct isa_driver snd_es18xx_isa_driver = {
 	.match		= snd_es18xx_isa_match,
 	.probe		= snd_es18xx_isa_probe,
-	.remove		= __devexit_p(snd_es18xx_isa_remove),
+	.remove		= snd_es18xx_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_es18xx_isa_suspend,
 	.resume		= snd_es18xx_isa_resume,
@@ -2269,8 +2268,8 @@ static struct isa_driver snd_es18xx_isa_driver = {
 
 
 #ifdef CONFIG_PNP
-static int __devinit snd_audiodrive_pnp_detect(struct pnp_dev *pdev,
-					    const struct pnp_device_id *id)
+static int snd_audiodrive_pnp_detect(struct pnp_dev *pdev,
+				     const struct pnp_device_id *id)
 {
 	static int dev;
 	int err;
@@ -2302,10 +2301,9 @@ static int __devinit snd_audiodrive_pnp_detect(struct pnp_dev *pdev,
 	return 0;
 }
 
-static void __devexit snd_audiodrive_pnp_remove(struct pnp_dev * pdev)
+static void snd_audiodrive_pnp_remove(struct pnp_dev *pdev)
 {
 	snd_card_free(pnp_get_drvdata(pdev));
-	pnp_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -2323,15 +2321,15 @@ static struct pnp_driver es18xx_pnp_driver = {
 	.name = "es18xx-pnpbios",
 	.id_table = snd_audiodrive_pnpbiosids,
 	.probe = snd_audiodrive_pnp_detect,
-	.remove = __devexit_p(snd_audiodrive_pnp_remove),
+	.remove = snd_audiodrive_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend = snd_audiodrive_pnp_suspend,
 	.resume = snd_audiodrive_pnp_resume,
 #endif
 };
 
-static int __devinit snd_audiodrive_pnpc_detect(struct pnp_card_link *pcard,
-					       const struct pnp_card_device_id *pid)
+static int snd_audiodrive_pnpc_detect(struct pnp_card_link *pcard,
+				      const struct pnp_card_device_id *pid)
 {
 	static int dev;
 	struct snd_card *card;
@@ -2363,7 +2361,7 @@ static int __devinit snd_audiodrive_pnpc_detect(struct pnp_card_link *pcard,
 	return 0;
 }
 
-static void __devexit snd_audiodrive_pnpc_remove(struct pnp_card_link * pcard)
+static void snd_audiodrive_pnpc_remove(struct pnp_card_link *pcard)
 {
 	snd_card_free(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
@@ -2387,7 +2385,7 @@ static struct pnp_card_driver es18xx_pnpc_driver = {
 	.name = "es18xx",
 	.id_table = snd_audiodrive_pnpids,
 	.probe = snd_audiodrive_pnpc_detect,
-	.remove = __devexit_p(snd_audiodrive_pnpc_remove),
+	.remove = snd_audiodrive_pnpc_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_audiodrive_pnpc_suspend,
 	.resume		= snd_audiodrive_pnpc_resume,

@@ -62,7 +62,7 @@ struct radar_detector_specs {
 /**
  * struct dfs_pattern_detector - DFS pattern detector
  * @exit(): destructor
- * @set_domain(): set DFS domain, resets detector lines upon domain changes
+ * @set_dfs_domain(): set DFS domain, resets detector lines upon domain changes
  * @add_pulse(): add radar pulse to detector, returns true on detection
  * @region: active DFS region, NL80211_DFS_UNSET until set
  * @num_radar_types: number of different radar types
@@ -72,7 +72,7 @@ struct radar_detector_specs {
  */
 struct dfs_pattern_detector {
 	void (*exit)(struct dfs_pattern_detector *dpd);
-	bool (*set_domain)(struct dfs_pattern_detector *dpd,
+	bool (*set_dfs_domain)(struct dfs_pattern_detector *dpd,
 			   enum nl80211_dfs_regions region);
 	bool (*add_pulse)(struct dfs_pattern_detector *dpd,
 			  struct pulse_event *pe);
@@ -80,6 +80,8 @@ struct dfs_pattern_detector {
 	enum nl80211_dfs_regions region;
 	u8 num_radar_types;
 	u64 last_pulse_ts;
+	/* needed for ath_dbg() */
+	struct ath_hw *ah;
 
 	const struct radar_detector_specs *radar_spec;
 	struct list_head channel_detectors;
@@ -92,10 +94,10 @@ struct dfs_pattern_detector {
  */
 #if defined(CONFIG_ATH9K_DFS_CERTIFIED)
 extern struct dfs_pattern_detector *
-dfs_pattern_detector_init(enum nl80211_dfs_regions region);
+dfs_pattern_detector_init(struct ath_hw *ah, enum nl80211_dfs_regions region);
 #else
 static inline struct dfs_pattern_detector *
-dfs_pattern_detector_init(enum nl80211_dfs_regions region)
+dfs_pattern_detector_init(struct ath_hw *ah, enum nl80211_dfs_regions region)
 {
 	return NULL;
 }

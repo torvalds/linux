@@ -29,6 +29,8 @@
 #include <linux/io.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
+#include <linux/cpu.h>
+#include <linux/sched_clock.h>
 
 #include <mach/udc.h>
 #include <mach/hardware.h>
@@ -37,7 +39,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
-#include <asm/sched_clock.h>
 #include <asm/system_misc.h>
 
 #include <asm/mach/map.h>
@@ -53,29 +54,26 @@ static struct clock_event_device clockevent_ixp4xx;
  *************************************************************************/
 static struct map_desc ixp4xx_io_desc[] __initdata = {
 	{	/* UART, Interrupt ctrl, GPIO, timers, NPEs, MACs, USB .... */
-		.virtual	= IXP4XX_PERIPHERAL_BASE_VIRT,
+		.virtual	= (unsigned long)IXP4XX_PERIPHERAL_BASE_VIRT,
 		.pfn		= __phys_to_pfn(IXP4XX_PERIPHERAL_BASE_PHYS),
 		.length		= IXP4XX_PERIPHERAL_REGION_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* Expansion Bus Config Registers */
-		.virtual	= IXP4XX_EXP_CFG_BASE_VIRT,
+		.virtual	= (unsigned long)IXP4XX_EXP_CFG_BASE_VIRT,
 		.pfn		= __phys_to_pfn(IXP4XX_EXP_CFG_BASE_PHYS),
 		.length		= IXP4XX_EXP_CFG_REGION_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* PCI Registers */
-		.virtual	= IXP4XX_PCI_CFG_BASE_VIRT,
+		.virtual	= (unsigned long)IXP4XX_PCI_CFG_BASE_VIRT,
 		.pfn		= __phys_to_pfn(IXP4XX_PCI_CFG_BASE_PHYS),
 		.length		= IXP4XX_PCI_CFG_REGION_SIZE,
 		.type		= MT_DEVICE
-	},
-#ifdef CONFIG_DEBUG_LL
-	{	/* Debug UART mapping */
-		.virtual	= IXP4XX_DEBUG_UART_BASE_VIRT,
-		.pfn		= __phys_to_pfn(IXP4XX_DEBUG_UART_BASE_PHYS),
-		.length		= IXP4XX_DEBUG_UART_REGION_SIZE,
+	}, {	/* Queue Manager */
+		.virtual	= (unsigned long)IXP4XX_QMGR_BASE_VIRT,
+		.pfn		= __phys_to_pfn(IXP4XX_QMGR_BASE_PHYS),
+		.length		= IXP4XX_QMGR_REGION_SIZE,
 		.type		= MT_DEVICE
-	}
-#endif
+	},
 };
 
 void __init ixp4xx_map_io(void)
@@ -242,7 +240,7 @@ void __init ixp4xx_init_irq(void)
 	 * ixp4xx does not implement the XScale PWRMODE register
 	 * so it must not call cpu_do_idle().
 	 */
-	disable_hlt();
+	cpu_idle_poll_ctrl(true);
 
 	/* Route all sources to IRQ instead of FIQ */
 	*IXP4XX_ICLR = 0x0;
@@ -309,10 +307,6 @@ void __init ixp4xx_timer_init(void)
 	ixp4xx_clocksource_init();
 	ixp4xx_clockevent_init();
 }
-
-struct sys_timer ixp4xx_timer = {
-	.init		= ixp4xx_timer_init,
-};
 
 static struct pxa2xx_udc_mach_info ixp4xx_udc_info;
 
@@ -526,27 +520,20 @@ static struct clock_event_device clockevent_ixp4xx = {
 	.name		= "ixp4xx timer1",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.rating         = 200,
-	.shift		= 24,
 	.set_mode	= ixp4xx_set_mode,
 	.set_next_event	= ixp4xx_set_next_event,
 };
 
 static void __init ixp4xx_clockevent_init(void)
 {
-	clockevent_ixp4xx.mult = div_sc(IXP4XX_TIMER_FREQ, NSEC_PER_SEC,
-					clockevent_ixp4xx.shift);
-	clockevent_ixp4xx.max_delta_ns =
-		clockevent_delta2ns(0xfffffffe, &clockevent_ixp4xx);
-	clockevent_ixp4xx.min_delta_ns =
-		clockevent_delta2ns(0xf, &clockevent_ixp4xx);
 	clockevent_ixp4xx.cpumask = cpumask_of(0);
-
-	clockevents_register_device(&clockevent_ixp4xx);
+	clockevents_config_and_register(&clockevent_ixp4xx, IXP4XX_TIMER_FREQ,
+					0xf, 0xfffffffe);
 }
 
-void ixp4xx_restart(char mode, const char *cmd)
+void ixp4xx_restart(enum reboot_mode mode, const char *cmd)
 {
-	if ( 1 && mode == 's') {
+	if ( 1 && mode == REBOOT_SOFT) {
 		/* Jump into ROM at address 0 */
 		soft_restart(0);
 	} else {
@@ -572,7 +559,7 @@ void ixp4xx_restart(char mode, const char *cmd)
  * fallback to the default.
  */
 
-static void __iomem *ixp4xx_ioremap_caller(unsigned long addr, size_t size,
+static void __iomem *ixp4xx_ioremap_caller(phys_addr_t addr, size_t size,
 					   unsigned int mtype, void *caller)
 {
 	if (!is_pci_memory(addr))

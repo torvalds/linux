@@ -24,6 +24,7 @@
 #include <linux/module.h>
 
 #include <xen/platform_pci.h>
+#include "xen-ops.h"
 
 #define XEN_PLATFORM_ERR_MAGIC -1
 #define XEN_PLATFORM_ERR_PROTOCOL -2

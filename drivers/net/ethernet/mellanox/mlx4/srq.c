@@ -149,7 +149,7 @@ void __mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)
 
 static void mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)
 {
-	u64 in_param;
+	u64 in_param = 0;
 
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&in_param, srqn);
@@ -298,3 +298,18 @@ void mlx4_cleanup_srq_table(struct mlx4_dev *dev)
 		return;
 	mlx4_bitmap_cleanup(&mlx4_priv(dev)->srq_table.bitmap);
 }
+
+struct mlx4_srq *mlx4_srq_lookup(struct mlx4_dev *dev, u32 srqn)
+{
+	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
+	struct mlx4_srq *srq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&srq_table->lock, flags);
+	srq = radix_tree_lookup(&srq_table->tree,
+				srqn & (dev->caps.num_srqs - 1));
+	spin_unlock_irqrestore(&srq_table->lock, flags);
+
+	return srq;
+}
+EXPORT_SYMBOL_GPL(mlx4_srq_lookup);

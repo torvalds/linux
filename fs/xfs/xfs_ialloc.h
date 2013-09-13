@@ -147,7 +147,17 @@ int xfs_inobt_lookup(struct xfs_btree_cur *cur, xfs_agino_t ino,
 /*
  * Get the data from the pointed-to record.
  */
-extern int xfs_inobt_get_rec(struct xfs_btree_cur *cur,
+int xfs_inobt_get_rec(struct xfs_btree_cur *cur,
 		xfs_inobt_rec_incore_t *rec, int *stat);
+
+/*
+ * Inode chunk initialisation routine
+ */
+int xfs_ialloc_inode_init(struct xfs_mount *mp, struct xfs_trans *tp,
+			  struct list_head *buffer_list,
+			  xfs_agnumber_t agno, xfs_agblock_t agbno,
+			  xfs_agblock_t length, unsigned int gen);
+
+extern const struct xfs_buf_ops xfs_agi_buf_ops;
 
 #endif	/* __XFS_IALLOC_H__ */

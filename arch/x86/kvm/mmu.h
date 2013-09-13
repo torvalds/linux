@@ -18,8 +18,10 @@
 #define PT_PCD_MASK (1ULL << 4)
 #define PT_ACCESSED_SHIFT 5
 #define PT_ACCESSED_MASK (1ULL << PT_ACCESSED_SHIFT)
-#define PT_DIRTY_MASK (1ULL << 6)
-#define PT_PAGE_SIZE_MASK (1ULL << 7)
+#define PT_DIRTY_SHIFT 6
+#define PT_DIRTY_MASK (1ULL << PT_DIRTY_SHIFT)
+#define PT_PAGE_SIZE_SHIFT 7
+#define PT_PAGE_SIZE_MASK (1ULL << PT_PAGE_SIZE_SHIFT)
 #define PT_PAT_MASK (1ULL << 7)
 #define PT_GLOBAL_MASK (1ULL << 8)
 #define PT64_NX_SHIFT 63
@@ -50,19 +52,35 @@
 
 int kvm_mmu_get_spte_hierarchy(struct kvm_vcpu *vcpu, u64 addr, u64 sptes[4]);
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask);
+
+/*
+ * Return values of handle_mmio_page_fault_common:
+ * RET_MMIO_PF_EMULATE: it is a real mmio page fault, emulate the instruction
+ *			directly.
+ * RET_MMIO_PF_INVALID: invalid spte is detected then let the real page
+ *			fault path update the mmio spte.
+ * RET_MMIO_PF_RETRY: let CPU fault again on the address.
+ * RET_MMIO_PF_BUG: bug is detected.
+ */
+enum {
+	RET_MMIO_PF_EMULATE = 1,
+	RET_MMIO_PF_INVALID = 2,
+	RET_MMIO_PF_RETRY = 0,
+	RET_MMIO_PF_BUG = -1
+};
+
 int handle_mmio_page_fault_common(struct kvm_vcpu *vcpu, u64 addr, bool direct);
 int kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context);
+int kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
+		bool execonly);
 
 static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 {
-	return kvm->arch.n_max_mmu_pages -
-		kvm->arch.n_used_mmu_pages;
-}
+	if (kvm->arch.n_max_mmu_pages > kvm->arch.n_used_mmu_pages)
+		return kvm->arch.n_max_mmu_pages -
+			kvm->arch.n_used_mmu_pages;
 
-static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
-{
-	if (unlikely(kvm_mmu_available_pages(vcpu->kvm)< KVM_MIN_FREE_MMU_PAGES))
-		__kvm_mmu_free_some_pages(vcpu);
+	return 0;
 }
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
@@ -88,17 +106,15 @@ static inline bool is_write_protection(struct kvm_vcpu *vcpu)
 	return kvm_read_cr0_bits(vcpu, X86_CR0_WP);
 }
 
-static inline bool check_write_user_access(struct kvm_vcpu *vcpu,
-					   bool write_fault, bool user_fault,
-					   unsigned long pte)
+/*
+ * Will a fault with a given page-fault error code (pfec) cause a permission
+ * fault with the given access (in ACC_* format)?
+ */
+static inline bool permission_fault(struct kvm_mmu *mmu, unsigned pte_access,
+				    unsigned pfec)
 {
-	if (unlikely(write_fault && !is_writable_pte(pte)
-	      && (user_fault || is_write_protection(vcpu))))
-		return false;
-
-	if (unlikely(user_fault && !(pte & PT_USER_MASK)))
-		return false;
-
-	return true;
+	return (mmu->permissions[pfec >> 1] >> pte_access) & 1;
 }
+
+void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm);
 #endif

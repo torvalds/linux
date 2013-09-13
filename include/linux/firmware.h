@@ -12,6 +12,9 @@ struct firmware {
 	size_t size;
 	const u8 *data;
 	struct page **pages;
+
+	/* firmware loader private fields */
+	void *priv;
 };
 
 struct module;
@@ -62,6 +65,7 @@ static inline int request_firmware_nowait(
 static inline void release_firmware(const struct firmware *fw)
 {
 }
+
 #endif
 
 #endif

@@ -126,10 +126,19 @@ static void vcc_write_space(struct sock *sk)
 	rcu_read_unlock();
 }
 
+static void vcc_release_cb(struct sock *sk)
+{
+	struct atm_vcc *vcc = atm_sk(sk);
+
+	if (vcc->release_cb)
+		vcc->release_cb(vcc);
+}
+
 static struct proto vcc_proto = {
 	.name	  = "VCC",
 	.owner	  = THIS_MODULE,
 	.obj_size = sizeof(struct atm_vcc),
+	.release_cb = vcc_release_cb,
 };
 
 int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
@@ -156,7 +165,9 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
 	atomic_set(&sk->sk_rmem_alloc, 0);
 	vcc->push = NULL;
 	vcc->pop = NULL;
+	vcc->owner = NULL;
 	vcc->push_oam = NULL;
+	vcc->release_cb = NULL;
 	vcc->vpi = vcc->vci = 0; /* no VCI/VPI yet */
 	vcc->atm_options = vcc->aal_options = 0;
 	sk->sk_destruct = vcc_sock_destruct;
@@ -175,6 +186,7 @@ static void vcc_destroy_socket(struct sock *sk)
 			vcc->dev->ops->close(vcc);
 		if (vcc->push)
 			vcc->push(vcc, NULL); /* atmarpd has no push */
+		module_put(vcc->owner);
 
 		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 			atm_return(vcc, skb->truesize);
@@ -258,11 +270,11 @@ void atm_dev_release_vccs(struct atm_dev *dev)
 	write_lock_irq(&vcc_sklist_lock);
 	for (i = 0; i < VCC_HTABLE_SIZE; i++) {
 		struct hlist_head *head = &vcc_hash[i];
-		struct hlist_node *node, *tmp;
+		struct hlist_node *tmp;
 		struct sock *s;
 		struct atm_vcc *vcc;
 
-		sk_for_each_safe(s, node, tmp, head) {
+		sk_for_each_safe(s, tmp, head) {
 			vcc = atm_sk(s);
 			if (vcc->dev == dev) {
 				vcc_release_async(vcc, -EPIPE);
@@ -305,11 +317,10 @@ static int adjust_tp(struct atm_trafprm *tp, unsigned char aal)
 static int check_ci(const struct atm_vcc *vcc, short vpi, int vci)
 {
 	struct hlist_head *head = &vcc_hash[vci & (VCC_HTABLE_SIZE - 1)];
-	struct hlist_node *node;
 	struct sock *s;
 	struct atm_vcc *walk;
 
-	sk_for_each(s, node, head) {
+	sk_for_each(s, head) {
 		walk = atm_sk(s);
 		if (walk->dev != vcc->dev)
 			continue;
@@ -519,6 +530,8 @@ int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	struct atm_vcc *vcc;
 	struct sk_buff *skb;
 	int copied, error = -EINVAL;
+
+	msg->msg_namelen = 0;
 
 	if (sock->state != SS_CONNECTED)
 		return -ENOTCONN;

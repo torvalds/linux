@@ -93,6 +93,9 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 			int send_it = 0;
 			extern int aac_sync_mode;
 
+			src_writel(dev, MUnit.ODR_C, bellbits);
+			src_readl(dev, MUnit.ODR_C);
+
 			if (!aac_sync_mode) {
 				src_writel(dev, MUnit.ODR_C, bellbits);
 				src_readl(dev, MUnit.ODR_C);
@@ -407,7 +410,7 @@ static int aac_src_deliver_message(struct fib *fib)
 		fib->hw_fib_va->header.StructType = FIB_MAGIC2;
 		fib->hw_fib_va->header.SenderFibAddress = (u32)address;
 		fib->hw_fib_va->header.u.TimeStamp = 0;
-		BUG_ON((u32)(address >> 32) != 0L);
+		BUG_ON(upper_32_bits(address) != 0L);
 		address |= fibsize;
 	} else {
 		/* Calculate the amount to the fibsize bits */
@@ -431,7 +434,7 @@ static int aac_src_deliver_message(struct fib *fib)
 		address |= fibsize;
 	}
 
-	src_writel(dev, MUnit.IQ_H, (address >> 32) & 0xffffffff);
+	src_writel(dev, MUnit.IQ_H, upper_32_bits(address) & 0xffffffff);
 	src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
 
 	return 0;
@@ -703,6 +706,28 @@ int aac_srcv_init(struct aac_dev *dev)
 		!aac_src_restart_adapter(dev, 0))
 		++restart;
 	/*
+	 *	Check to see if flash update is running.
+	 *	Wait for the adapter to be up and running. Wait up to 5 minutes
+	 */
+	status = src_readl(dev, MUnit.OMR);
+	if (status & FLASH_UPD_PENDING) {
+		start = jiffies;
+		do {
+			status = src_readl(dev, MUnit.OMR);
+			if (time_after(jiffies, start+HZ*FWUPD_TIMEOUT)) {
+				printk(KERN_ERR "%s%d: adapter flash update failed.\n",
+					dev->name, instance);
+				goto error_iounmap;
+			}
+		} while (!(status & FLASH_UPD_SUCCESS) &&
+			 !(status & FLASH_UPD_FAILED));
+		/* Delay 10 seconds.
+		 * Because right now FW is doing a soft reset,
+		 * do not read scratch pad register at this time
+		 */
+		ssleep(10);
+	}
+	/*
 	 *	Check to see if the board panic'd while booting.
 	 */
 	status = src_readl(dev, MUnit.OMR);
@@ -730,7 +755,9 @@ int aac_srcv_init(struct aac_dev *dev)
 	/*
 	 *	Wait for the adapter to be up and running. Wait up to 3 minutes
 	 */
-	while (!((status = src_readl(dev, MUnit.OMR)) & KERNEL_UP_AND_RUNNING)) {
+	while (!((status = src_readl(dev, MUnit.OMR)) &
+		KERNEL_UP_AND_RUNNING) ||
+		status == 0xffffffff) {
 		if ((restart &&
 		  (status & (KERNEL_PANIC|SELF_TEST_FAILED|MONITOR_PANIC))) ||
 		  time_after(jiffies, start+HZ*startup_timeout)) {

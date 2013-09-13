@@ -27,6 +27,65 @@
 #include <linux/of_device.h>
 #endif
 
+/* I2C safe register check */
+static inline bool i2c_safe_reg(unsigned char reg)
+{
+	switch (reg) {
+	case DA9052_STATUS_A_REG:
+	case DA9052_STATUS_B_REG:
+	case DA9052_STATUS_C_REG:
+	case DA9052_STATUS_D_REG:
+	case DA9052_ADC_RES_L_REG:
+	case DA9052_ADC_RES_H_REG:
+	case DA9052_VDD_RES_REG:
+	case DA9052_ICHG_AV_REG:
+	case DA9052_TBAT_RES_REG:
+	case DA9052_ADCIN4_RES_REG:
+	case DA9052_ADCIN5_RES_REG:
+	case DA9052_ADCIN6_RES_REG:
+	case DA9052_TJUNC_RES_REG:
+	case DA9052_TSI_X_MSB_REG:
+	case DA9052_TSI_Y_MSB_REG:
+	case DA9052_TSI_LSB_REG:
+	case DA9052_TSI_Z_MSB_REG:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/*
+ * There is an issue with DA9052 and DA9053_AA/BA/BB PMIC where the PMIC
+ * gets lockup up or fails to respond following a system reset.
+ * This fix is to follow any read or write with a dummy read to a safe
+ * register.
+ */
+static int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
+{
+	int val;
+
+	switch (da9052->chip_id) {
+	case DA9052:
+	case DA9053_AA:
+	case DA9053_BA:
+	case DA9053_BB:
+		/* A dummy read to a safe register address. */
+	if (!i2c_safe_reg(reg))
+			return regmap_read(da9052->regmap,
+					   DA9052_PARK_REGISTER,
+					   &val);
+		break;
+	default:
+		/*
+		 * For other chips parking of I2C register
+		 * to a safe place is not required.
+		 */
+		break;
+	}
+
+	return 0;
+}
+
 static int da9052_i2c_enable_multiwrite(struct da9052 *da9052)
 {
 	int reg_val, ret;
@@ -46,7 +105,7 @@ static int da9052_i2c_enable_multiwrite(struct da9052 *da9052)
 	return 0;
 }
 
-static struct i2c_device_id da9052_i2c_id[] = {
+static const struct i2c_device_id da9052_i2c_id[] = {
 	{"da9052", DA9052},
 	{"da9053-aa", DA9053_AA},
 	{"da9053-ba", DA9053_BA},
@@ -64,7 +123,7 @@ static const struct of_device_id dialog_dt_ids[] = {
 };
 #endif
 
-static int __devinit da9052_i2c_probe(struct i2c_client *client,
+static int da9052_i2c_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
 	struct da9052 *da9052;
@@ -83,6 +142,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 
 	da9052->dev = &client->dev;
 	da9052->chip_irq = client->irq;
+	da9052->fix_io = da9052_i2c_fix;
 
 	i2c_set_clientdata(client, da9052);
 
@@ -104,7 +164,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 		const struct of_device_id *deviceid;
 
 		deviceid = of_match_node(dialog_dt_ids, np);
-		id = (const struct i2c_device_id *)deviceid->data;
+		id = deviceid->data;
 	}
 #endif
 
@@ -121,7 +181,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit da9052_i2c_remove(struct i2c_client *client)
+static int da9052_i2c_remove(struct i2c_client *client)
 {
 	struct da9052 *da9052 = i2c_get_clientdata(client);
 
@@ -131,7 +191,7 @@ static int __devexit da9052_i2c_remove(struct i2c_client *client)
 
 static struct i2c_driver da9052_i2c_driver = {
 	.probe = da9052_i2c_probe,
-	.remove = __devexit_p(da9052_i2c_remove),
+	.remove = da9052_i2c_remove,
 	.id_table = da9052_i2c_id,
 	.driver = {
 		.name = "da9052",

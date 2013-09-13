@@ -1,0 +1,32 @@
+OMAP HS USB EHCI controller
+
+This device is usually the child of the omap-usb-host
+Documentation/devicetree/bindings/mfd/omap-usb-host.txt
+
+Required properties:
+
+- compatible: should be "ti,ehci-omap"
+- reg: should contain one register range i.e. start and length
+- interrupts: description of the interrupt line
+
+Optional properties:
+
+- phys: list of phandles to PHY nodes.
+  This property is required if at least one of the ports are in
+  PHY mode i.e. OMAP_EHCI_PORT_MODE_PHY
+
+To specify the port mode, see
+Documentation/devicetree/bindings/mfd/omap-usb-host.txt
+
+Example for OMAP4:
+
+usbhsehci: ehci@4a064c00 {
+	compatible = "ti,ehci-omap", "usb-ehci";
+	reg = <0x4a064c00 0x400>;
+	interrupts = <0 77 0x4>;
+};
+
+&usbhsehci {
+	phys = <&hsusb1_phy 0 &hsusb3_phy>;
+};
+

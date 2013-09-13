@@ -3,13 +3,13 @@
  * Licensed under the GPL
  */
 
-#include "linux/sched.h"
-#include "linux/spinlock.h"
-#include "linux/slab.h"
-#include "linux/oom.h"
-#include "kern_util.h"
-#include "os.h"
-#include "skas.h"
+#include <linux/sched.h>
+#include <linux/spinlock.h>
+#include <linux/slab.h>
+#include <linux/oom.h>
+#include <kern_util.h>
+#include <os.h>
+#include <skas.h>
 
 void (*pm_power_off)(void);
 

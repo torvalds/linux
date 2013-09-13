@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
@@ -22,9 +23,7 @@
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 
-#include <asm/mach/irq.h>
-
-#define GPIO_BASE(chip)		(((unsigned long)(chip)->base) & 0xFFFFF000u)
+#define GPIO_BASE(chip)		((void __iomem *)((unsigned long)((chip)->base) & 0xFFFFF000u))
 
 #define CON_OFFSET		0x700
 #define MASK_OFFSET		0x900
@@ -153,7 +152,7 @@ static __init int s5p_gpioint_add(struct samsung_gpio_chip *chip)
 	bank->chips[group - bank->start] = chip;
 
 	gc = irq_alloc_generic_chip("s5p_gpioint", 1, chip->irq_base,
-				    (void __iomem *)GPIO_BASE(chip),
+				    GPIO_BASE(chip),
 				    handle_level_irq);
 	if (!gc)
 		return -ENOMEM;
@@ -185,7 +184,7 @@ int __init s5p_register_gpio_interrupt(int pin)
 
 	/* check if the group has been already registered */
 	if (my_chip->irq_base)
-		return my_chip->irq_base + offset;
+		goto success;
 
 	/* register gpio group */
 	ret = s5p_gpioint_add(my_chip);
@@ -193,9 +192,13 @@ int __init s5p_register_gpio_interrupt(int pin)
 		my_chip->chip.to_irq = samsung_gpiolib_to_irq;
 		printk(KERN_INFO "Registered interrupt support for gpio group %d.\n",
 		       group);
-		return my_chip->irq_base + offset;
+		goto success;
 	}
 	return ret;
+success:
+	my_chip->bitmap_gpio_int |= BIT(offset);
+
+	return my_chip->irq_base + offset;
 }
 
 int __init s5p_register_gpioint_bank(int chain_irq, int start, int nr_groups)

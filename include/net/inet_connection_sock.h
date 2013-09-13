@@ -133,6 +133,8 @@ struct inet_connection_sock {
 #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
 #define ICSK_TIME_DACK		2	/* Delayed ack timer */
 #define ICSK_TIME_PROBE0	3	/* Zero window probe timer */
+#define ICSK_TIME_EARLY_RETRANS 4	/* Early retransmit timer */
+#define ICSK_TIME_LOSS_PROBE	5	/* Tail loss probe timer */
 
 static inline struct inet_connection_sock *inet_csk(const struct sock *sk)
 {
@@ -222,7 +224,8 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 		when = max_when;
 	}
 
-	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0) {
+	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0 ||
+	    what == ICSK_TIME_EARLY_RETRANS || what ==  ICSK_TIME_LOSS_PROBE) {
 		icsk->icsk_pending = what;
 		icsk->icsk_timeout = jiffies + when;
 		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, icsk->icsk_timeout);
@@ -318,6 +321,7 @@ extern void inet_csk_reqsk_queue_prune(struct sock *parent,
 				       const unsigned long max_rto);
 
 extern void inet_csk_destroy_sock(struct sock *sk);
+extern void inet_csk_prepare_forced_close(struct sock *sk);
 
 /*
  * LISTEN is a special case for poll..

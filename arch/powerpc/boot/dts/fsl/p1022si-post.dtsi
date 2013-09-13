@@ -45,7 +45,7 @@
 
 /* controller at 0x9000 */
 &pci0 {
-	compatible = "fsl,p1022-pcie";
+	compatible = "fsl,mpc8548-pcie";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;
@@ -73,7 +73,7 @@
 
 /* controller at 0xa000 */
 &pci1 {
-	compatible = "fsl,p1022-pcie";
+	compatible = "fsl,mpc8548-pcie";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;
@@ -102,7 +102,7 @@
 
 /* controller at 0xb000 */
 &pci2 {
-	compatible = "fsl,p1022-pcie";
+	compatible = "fsl,mpc8548-pcie";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;

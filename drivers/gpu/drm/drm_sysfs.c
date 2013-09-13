@@ -18,9 +18,9 @@
 #include <linux/err.h>
 #include <linux/export.h>
 
-#include "drm_sysfs.h"
-#include "drm_core.h"
-#include "drmP.h"
+#include <drm/drm_sysfs.h>
+#include <drm/drm_core.h>
+#include <drm/drmP.h>
 
 #define to_drm_minor(d) container_of(d, struct drm_minor, kdev)
 #define to_drm_connector(d) container_of(d, struct drm_connector, kdev)
@@ -30,14 +30,14 @@ static struct device_type drm_sysfs_device_minor = {
 };
 
 /**
- * drm_class_suspend - DRM class suspend hook
+ * __drm_class_suspend - internal DRM class suspend routine
  * @dev: Linux device to suspend
  * @state: power state to enter
  *
  * Just figures out what the actual struct drm_device associated with
  * @dev is and calls its suspend hook, if present.
  */
-static int drm_class_suspend(struct device *dev, pm_message_t state)
+static int __drm_class_suspend(struct device *dev, pm_message_t state)
 {
 	if (dev->type == &drm_sysfs_device_minor) {
 		struct drm_minor *drm_minor = to_drm_minor(dev);
@@ -49,6 +49,26 @@ static int drm_class_suspend(struct device *dev, pm_message_t state)
 			return drm_dev->driver->suspend(drm_dev, state);
 	}
 	return 0;
+}
+
+/**
+ * drm_class_suspend - internal DRM class suspend hook. Simply calls
+ * __drm_class_suspend() with the correct pm state.
+ * @dev: Linux device to suspend
+ */
+static int drm_class_suspend(struct device *dev)
+{
+	return __drm_class_suspend(dev, PMSG_SUSPEND);
+}
+
+/**
+ * drm_class_freeze - internal DRM class freeze hook. Simply calls
+ * __drm_class_suspend() with the correct pm state.
+ * @dev: Linux device to freeze
+ */
+static int drm_class_freeze(struct device *dev)
+{
+	return __drm_class_suspend(dev, PMSG_FREEZE);
 }
 
 /**
@@ -71,6 +91,12 @@ static int drm_class_resume(struct device *dev)
 	}
 	return 0;
 }
+
+static const struct dev_pm_ops drm_class_dev_pm_ops = {
+	.suspend	= drm_class_suspend,
+	.resume		= drm_class_resume,
+	.freeze		= drm_class_freeze,
+};
 
 static char *drm_devnode(struct device *dev, umode_t *mode)
 {
@@ -106,8 +132,7 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 		goto err_out;
 	}
 
-	class->suspend = drm_class_suspend;
-	class->resume = drm_class_resume;
+	class->pm = &drm_class_dev_pm_ops;
 
 	err = class_create_file(class, &class_attr_version.attr);
 	if (err)
@@ -182,7 +207,7 @@ static ssize_t dpms_show(struct device *device,
 	uint64_t dpms_status;
 	int ret;
 
-	ret = drm_connector_property_get_value(connector,
+	ret = drm_object_property_get_value(&connector->base,
 					    dev->mode_config.dpms_property,
 					    &dpms_status);
 	if (ret)
@@ -277,7 +302,7 @@ static ssize_t subconnector_show(struct device *device,
 		return 0;
 	}
 
-	ret = drm_connector_property_get_value(connector, prop, &subconnector);
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
 	if (ret)
 		return 0;
 
@@ -318,7 +343,7 @@ static ssize_t select_subconnector_show(struct device *device,
 		return 0;
 	}
 
-	ret = drm_connector_property_get_value(connector, prop, &subconnector);
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
 	if (ret)
 		return 0;
 

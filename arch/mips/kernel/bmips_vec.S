@@ -28,8 +28,6 @@
 	.set	mips0
 	.endm
 
-	__CPUINIT
-
 /***********************************************************************
  * Alternate CPU1 startup vector for BMIPS4350
  *
@@ -56,7 +54,11 @@ LEAF(bmips_smp_movevec)
 	/* set up CPU1 CBR; move BASE to 0xa000_0000 */
 	li	k0, 0xff400000
 	mtc0	k0, $22, 6
-	li	k1, CKSEG1 | BMIPS_RELO_VECTOR_CONTROL_1
+	/* set up relocation vector address based on thread ID */
+	mfc0	k1, $22, 3
+	srl	k1, 16
+	andi	k1, 0x8000
+	or	k1, CKSEG1 | BMIPS_RELO_VECTOR_CONTROL_0
 	or	k0, k1
 	li	k1, 0xa0080000
 	sw	k1, 0(k0)
@@ -170,7 +172,7 @@ bmips_smp_entry:
 
 	/* switch to permanent stack and continue booting */
 
-	.global	bmips_secondary_reentry
+	.global bmips_secondary_reentry
 bmips_secondary_reentry:
 	la	k0, bmips_smp_boot_sp
 	lw	sp, 0(k0)
@@ -182,7 +184,7 @@ bmips_secondary_reentry:
 #endif /* CONFIG_SMP */
 
 	.align	4
-	.global	bmips_reset_nmi_vec_end
+	.global bmips_reset_nmi_vec_end
 bmips_reset_nmi_vec_end:
 
 END(bmips_reset_nmi_vec)
@@ -206,7 +208,7 @@ LEAF(bmips_smp_int_vec)
 	eret
 
 	.align	4
-	.global	bmips_smp_int_vec_end
+	.global bmips_smp_int_vec_end
 bmips_smp_int_vec_end:
 
 END(bmips_smp_int_vec)
@@ -215,8 +217,6 @@ END(bmips_smp_int_vec)
  * XKS01 support
  * Certain CPUs support extending kseg0 to 1024MB.
  ***********************************************************************/
-
-	__CPUINIT
 
 LEAF(bmips_enable_xks01)
 

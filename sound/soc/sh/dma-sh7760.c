@@ -342,18 +342,18 @@ static int camelot_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_platform sh7760_soc_platform = {
-	.pcm_ops 	= &camelot_pcm_ops,
+static struct snd_soc_platform_driver sh7760_soc_platform = {
+	.ops		= &camelot_pcm_ops,
 	.pcm_new	= camelot_pcm_new,
 	.pcm_free	= camelot_pcm_free,
 };
 
-static int __devinit sh7760_soc_platform_probe(struct platform_device *pdev)
+static int sh7760_soc_platform_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev, &sh7760_soc_platform);
 }
 
-static int __devexit sh7760_soc_platform_remove(struct platform_device *pdev)
+static int sh7760_soc_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -366,7 +366,7 @@ static struct platform_driver sh7760_pcm_driver = {
 	},
 
 	.probe = sh7760_soc_platform_probe,
-	.remove = __devexit_p(sh7760_soc_platform_remove),
+	.remove = sh7760_soc_platform_remove,
 };
 
 module_platform_driver(sh7760_pcm_driver);

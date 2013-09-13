@@ -60,10 +60,10 @@ struct ieee80211_ccmp_data {
 void ieee80211_ccmp_aes_encrypt(struct crypto_tfm *tfm,
 			     const u8 pt[16], u8 ct[16])
 {
-	crypto_cipher_encrypt_one((void*)tfm, ct, pt);
+	crypto_cipher_encrypt_one((void *)tfm, ct, pt);
 }
 
-static void * ieee80211_ccmp_init(int key_idx)
+static void *ieee80211_ccmp_init(int key_idx)
 {
 	struct ieee80211_ccmp_data *priv;
 
@@ -72,7 +72,7 @@ static void * ieee80211_ccmp_init(int key_idx)
 		goto fail;
 	priv->key_idx = key_idx;
 
-       priv->tfm = (void*)crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
+       priv->tfm = (void *)crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tfm)) {
 		printk(KERN_DEBUG "ieee80211_crypt_ccmp: could not allocate "
 		       "crypto API aes\n");
@@ -85,7 +85,7 @@ static void * ieee80211_ccmp_init(int key_idx)
 fail:
 	if (priv) {
 		if (priv->tfm)
-			crypto_free_cipher((void*)priv->tfm);
+			crypto_free_cipher((void *)priv->tfm);
 		kfree(priv);
 	}
 
@@ -98,7 +98,7 @@ static void ieee80211_ccmp_deinit(void *priv)
 	struct ieee80211_ccmp_data *_priv = priv;
 
 	if (_priv && _priv->tfm)
-		crypto_free_cipher((void*)_priv->tfm);
+		crypto_free_cipher((void *)_priv->tfm);
 	kfree(priv);
 }
 
@@ -393,7 +393,7 @@ static int ieee80211_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 			data->rx_pn[4] = seq[1];
 			data->rx_pn[5] = seq[0];
 		}
-		crypto_cipher_setkey((void*)data->tfm, data->key, CCMP_TK_LEN);
+		crypto_cipher_setkey((void *)data->tfm, data->key, CCMP_TK_LEN);
 	} else if (len == 0)
 		data->key_set = 0;
 	else
@@ -427,7 +427,7 @@ static int ieee80211_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 }
 
 
-static char * ieee80211_ccmp_print_stats(char *p, void *priv)
+static char *ieee80211_ccmp_print_stats(char *p, void *priv)
 {
 	struct ieee80211_ccmp_data *ccmp = priv;
 	p += sprintf(p, "key[%d] alg=CCMP key_set=%d "

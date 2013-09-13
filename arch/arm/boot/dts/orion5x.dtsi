@@ -1,0 +1,166 @@
+/*
+ * Copyright (C) 2012 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2. This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	model = "Marvell Orion5x SoC";
+	compatible = "marvell,orion5x";
+	interrupt-parent = <&intc>;
+
+	aliases {
+		gpio0 = &gpio0;
+	};
+
+	intc: interrupt-controller {
+		compatible = "marvell,orion-intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0xf1020200 0x08>;
+	};
+
+	ocp@f1000000 {
+		compatible = "simple-bus";
+		ranges = <0x00000000 0xf1000000 0x4000000
+		          0xf2200000 0xf2200000 0x0000800>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		gpio0: gpio@10100 {
+			compatible = "marvell,orion-gpio";
+			#gpio-cells = <2>;
+			gpio-controller;
+			reg = <0x10100 0x40>;
+			ngpios = <32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <6>, <7>, <8>, <9>;
+		};
+
+		serial@12000 {
+			compatible = "ns16550a";
+			reg = <0x12000 0x100>;
+			reg-shift = <2>;
+			interrupts = <3>;
+			/* set clock-frequency in board dts */
+			status = "disabled";
+		};
+
+		serial@12100 {
+			compatible = "ns16550a";
+			reg = <0x12100 0x100>;
+			reg-shift = <2>;
+			interrupts = <4>;
+			/* set clock-frequency in board dts */
+			status = "disabled";
+		};
+
+		spi@10600 {
+			compatible = "marvell,orion-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			reg = <0x10600 0x28>;
+			status = "disabled";
+		};
+
+		wdt@20300 {
+			compatible = "marvell,orion-wdt";
+			reg = <0x20300 0x28>;
+			status = "okay";
+		};
+
+		ehci@50000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <17>;
+			status = "disabled";
+		};
+
+		ehci@a0000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0xa0000 0x1000>;
+			interrupts = <12>;
+			status = "disabled";
+		};
+
+		sata@80000 {
+			compatible = "marvell,orion-sata";
+			reg = <0x80000 0x5000>;
+			interrupts = <29>;
+			status = "disabled";
+		};
+
+		i2c@11000 {
+			compatible = "marvell,mv64xxx-i2c";
+			reg = <0x11000 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <5>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		xor@60900 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60900 0x100
+			       0x60b00 0x100>;
+			status = "okay";
+
+			xor00 {
+			      interrupts = <30>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			};
+			xor01 {
+			      interrupts = <31>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			      dmacap,memset;
+			};
+		};
+
+		crypto@90000 {
+			compatible = "marvell,orion-crypto";
+			reg = <0x90000 0x10000>,
+			      <0xf2200000 0x800>;
+			reg-names = "regs", "sram";
+			interrupts = <28>;
+			status = "okay";
+		};
+
+		mdio: mdio-bus@72004 {
+			compatible = "marvell,orion-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x72004 0x84>;
+			interrupts = <22>;
+			status = "disabled";
+
+			/* add phy nodes in board file */
+		};
+
+		eth: ethernet-controller@72000 {
+			compatible = "marvell,orion-eth";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x72000 0x4000>;
+			marvell,tx-checksum-limit = <1600>;
+			status = "disabled";
+
+			ethernet-port@0 {
+				device_type = "network";
+				compatible = "marvell,orion-eth-port";
+				reg = <0>;
+				/* overwrite MAC address in bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+				/* set phy-handle property in board file */
+			};
+		};
+	};
+};

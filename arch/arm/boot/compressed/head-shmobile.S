@@ -46,7 +46,7 @@ __image_start:
 __image_end:
 	.long	_got_end
 __load_base:
-	.long	CONFIG_MEMORY_START + 0x02000000 @ Load at 32Mb into SDRAM
+	.long	MEMORY_START + 0x02000000 @ Load at 32Mb into SDRAM
 __loaded:
 	.long	__continue
 	.align
@@ -55,29 +55,47 @@ __tmp_stack:
 __continue:
 #endif /* CONFIG_ZBOOT_ROM_MMC || CONFIG_ZBOOT_ROM_SH_MOBILE_SDHI */
 
-	b	1f
-__atags:@ tag #1
-	.long	12			@ tag->hdr.size = tag_size(tag_core);
-	.long	0x54410001		@ tag->hdr.tag = ATAG_CORE;
-	.long   0			@ tag->u.core.flags = 0;
-	.long	0			@ tag->u.core.pagesize = 0;
-	.long	0			@ tag->u.core.rootdev = 0;
-	@ tag #2
-	.long	8			@ tag->hdr.size = tag_size(tag_mem32);
-	.long	0x54410002		@ tag->hdr.tag = ATAG_MEM;
-	.long	CONFIG_MEMORY_SIZE	@ tag->u.mem.size = CONFIG_MEMORY_SIZE;
-	.long	CONFIG_MEMORY_START	@ @ tag->u.mem.start = CONFIG_MEMORY_START;
-	@ tag #3
-	.long	0			@ tag->hdr.size = 0
-	.long	0			@ tag->hdr.tag = ATAG_NONE;
-1:
+	adr	r0, dtb_info
+	ldmia	r0, {r1, r3, r4, r5, r7}
 
-	/* Set board ID necessary for boot */
-	ldr	r7, 1f				@ Set machine type register
-	adr	r8, __atags			@ Set atag register
+	sub	r0, r0, r1		@ calculate the delta offset
+	add	r5, r5, r0		@ _edata
+
+	ldr	lr, [r5, #0]		@ check if valid DTB is present
+	cmp	lr, r3
+	bne	0f
+
+	add	r9, r7, #31		@ rounded up to a multiple
+	bic	r9, r9, #31		@ ... of 32 bytes
+
+	add	r6, r9, r5		@ copy from _edata
+	add	r9, r9, r4		@ to MEMORY_START
+
+1:	ldmdb	r6!, {r0 - r3, r10 - r12, lr}
+	cmp	r6, r5
+	stmdb	r9!, {r0 - r3, r10 - r12, lr}
+	bhi	1b
+
+	/* Success: Zero board ID, pointer to start of memory for atag/dtb */
+	mov	r7, #0
+	mov	r8, r4
 	b	2f
 
-1 :	.long MACH_TYPE
+	.align	2
+dtb_info:
+	.word	dtb_info
+#ifndef __ARMEB__
+	.word	0xedfe0dd0		@ sig is 0xd00dfeed big endian
+#else
+	.word	0xd00dfeed
+#endif
+	.word	MEMORY_START
+	.word	_edata
+	.word	0x4000			@ maximum DTB size
+0:
+	/* Failure: Zero board ID, NULL atag/dtb */
+	mov 	r7, #0
+	mov	r8, #0			@ pass null pointer as atag
 2 :
 
 #endif /* CONFIG_ZBOOT_ROM */

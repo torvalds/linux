@@ -81,7 +81,7 @@ int ipz_queue_abs_to_offset(struct ipz_queue *queue, u64 addr, u64 *q_offset)
 {
 	int i;
 	for (i = 0; i < queue->queue_length / queue->pagesize; i++) {
-		u64 page = (u64)virt_to_abs(queue->queue_pages[i]);
+		u64 page = __pa(queue->queue_pages[i]);
 		if (addr >= page && addr < page + queue->pagesize) {
 			*q_offset = addr - page + i * queue->pagesize;
 			return 0;
@@ -222,7 +222,8 @@ int ipz_queue_ctor(struct ehca_pd *pd, struct ipz_queue *queue,
 	queue->small_page = NULL;
 
 	/* allocate queue page pointers */
-	queue->queue_pages = kzalloc(nr_of_pages * sizeof(void *), GFP_KERNEL);
+	queue->queue_pages = kzalloc(nr_of_pages * sizeof(void *),
+				     GFP_KERNEL | __GFP_NOWARN);
 	if (!queue->queue_pages) {
 		queue->queue_pages = vzalloc(nr_of_pages * sizeof(void *));
 		if (!queue->queue_pages) {

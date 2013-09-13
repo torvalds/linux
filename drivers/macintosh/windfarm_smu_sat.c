@@ -343,7 +343,6 @@ static int wf_sat_remove(struct i2c_client *client)
 		wf_unregister_sensor(&sens->sens);
 	}
 	sat->i2c = NULL;
-	i2c_set_clientdata(client, NULL);
 	kref_put(&sat->ref, wf_sat_release);
 
 	return 0;
@@ -364,18 +363,7 @@ static struct i2c_driver wf_sat_driver = {
 	.id_table	= wf_sat_id,
 };
 
-static int __init sat_sensors_init(void)
-{
-	return i2c_add_driver(&wf_sat_driver);
-}
-
-static void __exit sat_sensors_exit(void)
-{
-	i2c_del_driver(&wf_sat_driver);
-}
-
-module_init(sat_sensors_init);
-module_exit(sat_sensors_exit);
+module_i2c_driver(wf_sat_driver);
 
 MODULE_AUTHOR("Paul Mackerras <paulus@samba.org>");
 MODULE_DESCRIPTION("SMU satellite sensors for PowerMac thermal control");

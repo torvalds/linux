@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -35,14 +35,19 @@ extern s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset,
 			      u16 words, u16 *data);
 extern s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset,
 			     u16 words, u16 *data);
-extern s32 igb_read_invm_i211(struct e1000_hw *hw, u16 address, u16 *data);
 extern s32 igb_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
 extern void igb_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
 extern s32 igb_acquire_nvm_i210(struct e1000_hw *hw);
 extern void igb_release_nvm_i210(struct e1000_hw *hw);
 extern s32 igb_valid_led_default_i210(struct e1000_hw *hw, u16 *data);
-extern s32 igb_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
-			       u16 *data);
+extern s32 igb_read_invm_version(struct e1000_hw *hw,
+				 struct e1000_fw_version *invm_ver);
+extern s32 igb_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,
+			      u16 *data);
+extern s32 igb_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,
+			       u16 data);
+extern s32 igb_init_nvm_params_i210(struct e1000_hw *hw);
+extern bool igb_get_flash_presence_i210(struct e1000_hw *hw);
 
 #define E1000_STM_OPCODE		0xDB00
 #define E1000_EEPROM_FLASH_SIZE_WORD	0x11
@@ -65,12 +70,27 @@ enum E1000_INVM_STRUCTURE_TYPE {
 
 #define E1000_INVM_RSA_KEY_SHA256_DATA_SIZE_IN_DWORDS	8
 #define E1000_INVM_CSR_AUTOLOAD_DATA_SIZE_IN_DWORDS	1
+#define E1000_INVM_ULT_BYTES_SIZE			8
+#define E1000_INVM_RECORD_SIZE_IN_BYTES			4
+#define E1000_INVM_VER_FIELD_ONE			0x1FF8
+#define E1000_INVM_VER_FIELD_TWO			0x7FE000
+#define E1000_INVM_IMGTYPE_FIELD			0x1F800000
+
+#define E1000_INVM_MAJOR_MASK		0x3F0
+#define E1000_INVM_MINOR_MASK		0xF
+#define E1000_INVM_MAJOR_SHIFT		4
 
 #define ID_LED_DEFAULT_I210		((ID_LED_OFF1_ON2  << 8) | \
-					 (ID_LED_OFF1_OFF2 <<  4) | \
-					 (ID_LED_DEF1_DEF2))
+					 (ID_LED_DEF1_DEF2 <<  4) | \
+					 (ID_LED_OFF1_OFF2))
 #define ID_LED_DEFAULT_I210_SERDES	((ID_LED_DEF1_DEF2 << 8) | \
 					 (ID_LED_DEF1_DEF2 <<  4) | \
-					 (ID_LED_DEF1_DEF2))
+					 (ID_LED_OFF1_ON2))
+
+/* NVM offset defaults for i211 device */
+#define NVM_INIT_CTRL_2_DEFAULT_I211	0X7243
+#define NVM_INIT_CTRL_4_DEFAULT_I211	0x00C1
+#define NVM_LED_1_CFG_DEFAULT_I211	0x0184
+#define NVM_LED_0_2_CFG_DEFAULT_I211	0x200C
 
 #endif

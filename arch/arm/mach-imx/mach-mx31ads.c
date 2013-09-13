@@ -28,8 +28,6 @@
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
 
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
 #include <linux/mfd/wm8350/audio.h>
@@ -37,7 +35,10 @@
 #include <linux/mfd/wm8350/pmic.h>
 #endif
 
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 /* Base address of PBC controller */
 #define PBC_BASE_ADDRESS	MX31_CS4_BASE_ADDR_VIRT
@@ -540,7 +541,7 @@ static void __init mxc_init_audio(void)
  */
 static struct map_desc mx31ads_io_desc[] __initdata = {
 	{
-		.virtual	= MX31_CS4_BASE_ADDR_VIRT,
+		.virtual	= (unsigned long)MX31_CS4_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(MX31_CS4_BASE_ADDR),
 		.length		= CS4_CS8900_MMIO_START,
 		.type		= MT_DEVICE
@@ -575,10 +576,6 @@ static void __init mx31ads_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer mx31ads_timer = {
-	.init	= mx31ads_timer_init,
-};
-
 MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.atag_offset = 0x100,
@@ -586,7 +583,7 @@ MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	.init_early = imx31_init_early,
 	.init_irq = mx31ads_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &mx31ads_timer,
+	.init_time	= mx31ads_timer_init,
 	.init_machine = mx31ads_init,
 	.restart	= mxc_restart,
 MACHINE_END

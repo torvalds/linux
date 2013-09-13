@@ -15,9 +15,9 @@
 
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/platform_data/usb-ehci-mxc.h>
 
-#include <mach/hardware.h>
-#include <mach/mxc_ehci.h>
+#include "hardware.h"
 
 #define MXC_OTG_OFFSET			0
 #define MXC_H1_OFFSET			0x200

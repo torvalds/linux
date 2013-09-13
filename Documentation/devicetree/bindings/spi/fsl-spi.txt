@@ -4,7 +4,7 @@ Required properties:
 - cell-index : QE SPI subblock index.
 		0: QE subblock SPI1
 		1: QE subblock SPI2
-- compatible : should be "fsl,spi".
+- compatible : should be "fsl,spi" or "aeroflexgaisler,spictrl".
 - mode : the SPI operation mode, it can be "cpu" or "cpu-qe".
 - reg : Offset and length of the register set for the device
 - interrupts : <a b> where a is the interrupt number and b is a
@@ -14,6 +14,7 @@ Required properties:
   controller you have.
 - interrupt-parent : the phandle for the interrupt controller that
   services interrupts for this device.
+- clock-frequency : input clock frequency to non FSL_SOC cores
 
 Optional properties:
 - gpios : specifies the gpio pins to be used for chipselects.

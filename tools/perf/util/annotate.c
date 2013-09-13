@@ -14,9 +14,12 @@
 #include "symbol.h"
 #include "debug.h"
 #include "annotate.h"
+#include "evsel.h"
 #include <pthread.h>
+#include <linux/bitops.h>
 
 const char 	*disassembler_style;
+const char	*objdump_path;
 
 static struct ins *ins__find(const char *name);
 static int disasm_line__parse(char *line, char **namep, char **rawp);
@@ -107,10 +110,10 @@ static int jump__parse(struct ins_operands *ops)
 {
 	const char *s = strchr(ops->raw, '+');
 
-	ops->target.addr = strtoll(ops->raw, NULL, 16);
+	ops->target.addr = strtoull(ops->raw, NULL, 16);
 
 	if (s++ != NULL)
-		ops->target.offset = strtoll(s, NULL, 16);
+		ops->target.offset = strtoull(s, NULL, 16);
 	else
 		ops->target.offset = UINT64_MAX;
 
@@ -169,15 +172,15 @@ static int lock__parse(struct ins_operands *ops)
 	if (disasm_line__parse(ops->raw, &name, &ops->locked.ops->raw) < 0)
 		goto out_free_ops;
 
-        ops->locked.ins = ins__find(name);
-        if (ops->locked.ins == NULL)
-                goto out_free_ops;
+	ops->locked.ins = ins__find(name);
+	if (ops->locked.ins == NULL)
+		goto out_free_ops;
 
-        if (!ops->locked.ins->ops)
-                return 0;
+	if (!ops->locked.ins->ops)
+		return 0;
 
-        if (ops->locked.ins->ops->parse)
-                ops->locked.ins->ops->parse(ops->locked.ops);
+	if (ops->locked.ins->ops->parse)
+		ops->locked.ins->ops->parse(ops->locked.ops);
 
 	return 0;
 
@@ -312,8 +315,8 @@ static struct ins_ops dec_ops = {
 	.scnprintf = dec__scnprintf,
 };
 
-static int nop__scnprintf(struct ins *ins __used, char *bf, size_t size,
-			  struct ins_operands *ops __used)
+static int nop__scnprintf(struct ins *ins __maybe_unused, char *bf, size_t size,
+			  struct ins_operands *ops __maybe_unused)
 {
 	return scnprintf(bf, size, "%-6.6s", "nop");
 }
@@ -399,6 +402,8 @@ static struct ins instructions[] = {
 	{ .name = "testb", .ops  = &mov_ops, },
 	{ .name = "testl", .ops  = &mov_ops, },
 	{ .name = "xadd",  .ops  = &mov_ops, },
+	{ .name = "xbeginl", .ops  = &jump_ops, },
+	{ .name = "xbeginq", .ops  = &jump_ops, },
 };
 
 static int ins__cmp(const void *name, const void *insp)
@@ -415,7 +420,7 @@ static struct ins *ins__find(const char *name)
 	return bsearch(name, instructions, nmemb, sizeof(struct ins), ins__cmp);
 }
 
-int symbol__annotate_init(struct map *map __used, struct symbol *sym)
+int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	pthread_mutex_init(&notes->lock, NULL);
@@ -598,8 +603,42 @@ struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disa
 	return NULL;
 }
 
+double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
+			    s64 end, const char **path)
+{
+	struct source_line *src_line = notes->src->lines;
+	double percent = 0.0;
+
+	if (src_line) {
+		size_t sizeof_src_line = sizeof(*src_line) +
+				sizeof(src_line->p) * (src_line->nr_pcnt - 1);
+
+		while (offset < end) {
+			src_line = (void *)notes->src->lines +
+					(sizeof_src_line * offset);
+
+			if (*path == NULL)
+				*path = src_line->path;
+
+			percent += src_line->p[evidx].percent;
+			offset++;
+		}
+	} else {
+		struct sym_hist *h = annotation__histogram(notes, evidx);
+		unsigned int hits = 0;
+
+		while (offset < end)
+			hits += h->addr[offset++];
+
+		if (h->sum)
+			percent = 100.0 * hits / h->sum;
+	}
+
+	return percent;
+}
+
 static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 start,
-		      int evidx, u64 len, int min_pcnt, int printed,
+		      struct perf_evsel *evsel, u64 len, int min_pcnt, int printed,
 		      int max_lines, struct disasm_line *queue)
 {
 	static const char *prev_line;
@@ -607,34 +646,37 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 	if (dl->offset != -1) {
 		const char *path = NULL;
-		unsigned int hits = 0;
-		double percent = 0.0;
+		double percent, max_percent = 0.0;
+		double *ppercents = &percent;
+		int i, nr_percent = 1;
 		const char *color;
 		struct annotation *notes = symbol__annotation(sym);
-		struct source_line *src_line = notes->src->lines;
-		struct sym_hist *h = annotation__histogram(notes, evidx);
 		s64 offset = dl->offset;
 		const u64 addr = start + offset;
 		struct disasm_line *next;
 
 		next = disasm__get_next_ip_line(&notes->src->source, dl);
 
-		while (offset < (s64)len &&
-		       (next == NULL || offset < next->offset)) {
-			if (src_line) {
-				if (path == NULL)
-					path = src_line[offset].path;
-				percent += src_line[offset].percent;
-			} else
-				hits += h->addr[offset];
-
-			++offset;
+		if (perf_evsel__is_group_event(evsel)) {
+			nr_percent = evsel->nr_members;
+			ppercents = calloc(nr_percent, sizeof(double));
+			if (ppercents == NULL)
+				return -1;
 		}
 
-		if (src_line == NULL && h->sum)
-			percent = 100.0 * hits / h->sum;
+		for (i = 0; i < nr_percent; i++) {
+			percent = disasm__calc_percent(notes,
+					notes->src->lines ? i : evsel->idx + i,
+					offset,
+					next ? next->offset : (s64) len,
+					&path);
 
-		if (percent < min_pcnt)
+			ppercents[i] = percent;
+			if (percent > max_percent)
+				max_percent = percent;
+		}
+
+		if (max_percent < min_pcnt)
 			return -1;
 
 		if (max_lines && printed >= max_lines)
@@ -644,12 +686,12 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 			list_for_each_entry_from(queue, &notes->src->source, node) {
 				if (queue == dl)
 					break;
-				disasm_line__print(queue, sym, start, evidx, len,
+				disasm_line__print(queue, sym, start, evsel, len,
 						    0, 0, 1, NULL);
 			}
 		}
 
-		color = get_percent_color(percent);
+		color = get_percent_color(max_percent);
 
 		/*
 		 * Also color the filename and line if needed, with
@@ -665,25 +707,59 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 			}
 		}
 
-		color_fprintf(stdout, color, " %7.2f", percent);
+		for (i = 0; i < nr_percent; i++) {
+			percent = ppercents[i];
+			color = get_percent_color(percent);
+			color_fprintf(stdout, color, " %7.2f", percent);
+		}
+
 		printf(" :	");
 		color_fprintf(stdout, PERF_COLOR_MAGENTA, "  %" PRIx64 ":", addr);
 		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", dl->line);
+
+		if (ppercents != &percent)
+			free(ppercents);
+
 	} else if (max_lines && printed >= max_lines)
 		return 1;
 	else {
+		int width = 8;
+
 		if (queue)
 			return -1;
 
+		if (perf_evsel__is_group_event(evsel))
+			width *= evsel->nr_members;
+
 		if (!*dl->line)
-			printf("         :\n");
+			printf(" %*s:\n", width, " ");
 		else
-			printf("         :	%s\n", dl->line);
+			printf(" %*s:	%s\n", width, " ", dl->line);
 	}
 
 	return 0;
 }
 
+/*
+ * symbol__parse_objdump_line() parses objdump output (with -d --no-show-raw)
+ * which looks like following
+ *
+ *  0000000000415500 <_init>:
+ *    415500:       sub    $0x8,%rsp
+ *    415504:       mov    0x2f5ad5(%rip),%rax        # 70afe0 <_DYNAMIC+0x2f8>
+ *    41550b:       test   %rax,%rax
+ *    41550e:       je     415515 <_init+0x15>
+ *    415510:       callq  416e70 <__gmon_start__@plt>
+ *    415515:       add    $0x8,%rsp
+ *    415519:       retq
+ *
+ * it will be parsed and saved into struct disasm_line as
+ *  <offset>       <name>  <ops.raw>
+ *
+ * The offset will be a relative offset from the start of the symbol and -1
+ * means that it's not a disassembly line so should be treated differently.
+ * The ops.raw part will be parsed further according to type of the instruction.
+ */
 static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 				      FILE *file, size_t privsize)
 {
@@ -745,9 +821,53 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 	if (dl == NULL)
 		return -1;
 
+	if (dl->ops.target.offset == UINT64_MAX)
+		dl->ops.target.offset = dl->ops.target.addr -
+					map__rip_2objdump(map, sym->start);
+
+	/*
+	 * kcore has no symbols, so add the call target name if it is on the
+	 * same map.
+	 */
+	if (dl->ins && ins__is_call(dl->ins) && !dl->ops.target.name) {
+		struct symbol *s;
+		u64 ip = dl->ops.target.addr;
+
+		if (ip >= map->start && ip <= map->end) {
+			ip = map->map_ip(map, ip);
+			s = map__find_symbol(map, ip, NULL);
+			if (s && s->start == ip)
+				dl->ops.target.name = strdup(s->name);
+		}
+	}
+
 	disasm__add(&notes->src->source, dl);
 
 	return 0;
+}
+
+static void delete_last_nop(struct symbol *sym)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	struct list_head *list = &notes->src->source;
+	struct disasm_line *dl;
+
+	while (!list_empty(list)) {
+		dl = list_entry(list->prev, struct disasm_line, node);
+
+		if (dl->ins && dl->ins->ops) {
+			if (dl->ins->ops != &nop_ops)
+				return;
+		} else {
+			if (!strstr(dl->line, " nop ") &&
+			    !strstr(dl->line, " nopl ") &&
+			    !strstr(dl->line, " nopw "))
+				return;
+		}
+
+		list_del(&dl->node);
+		disasm_line__free(dl);
+	}
 }
 
 int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
@@ -788,7 +908,8 @@ fallback:
 		free_filename = false;
 	}
 
-	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS) {
+	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
+	    !dso__is_kcore(dso)) {
 		char bf[BUILD_ID_SIZE * 2 + 16] = " with build id ";
 		char *build_id_msg = NULL;
 
@@ -805,7 +926,7 @@ fallback:
 		pr_err("Can't annotate %s:\n\n"
 		       "No vmlinux file%s\nwas found in the path.\n\n"
 		       "Please use:\n\n"
-		       "  perf buildid-cache -av vmlinux\n\n"
+		       "  perf buildid-cache -vu vmlinux\n\n"
 		       "or:\n\n"
 		       "  --vmlinux vmlinux\n",
 		       sym->name, build_id_msg ?: "");
@@ -820,9 +941,10 @@ fallback:
 		 dso, dso->long_name, sym, sym->name);
 
 	snprintf(command, sizeof(command),
-		 "objdump %s%s --start-address=0x%016" PRIx64
+		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
-		 " -d %s %s -C %s|grep -v %s|expand",
+		 " -d %s %s -C %s 2>/dev/null|grep -v %s|expand",
+		 objdump_path ? objdump_path : "objdump",
 		 disassembler_style ? "-M " : "",
 		 disassembler_style ? disassembler_style : "",
 		 map__rip_2objdump(map, sym->start),
@@ -841,6 +963,13 @@ fallback:
 		if (symbol__parse_objdump_line(sym, map, file, privsize) < 0)
 			break;
 
+	/*
+	 * kallsyms does not have symbol sizes so there may a nop at the end.
+	 * Remove it.
+	 */
+	if (dso__is_kcore(dso))
+		delete_last_nop(sym);
+
 	pclose(file);
 out_free_filename:
 	if (free_filename)
@@ -853,12 +982,56 @@ static void insert_source_line(struct rb_root *root, struct source_line *src_lin
 	struct source_line *iter;
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
+	int i, ret;
 
 	while (*p != NULL) {
 		parent = *p;
 		iter = rb_entry(parent, struct source_line, node);
 
-		if (src_line->percent > iter->percent)
+		ret = strcmp(iter->path, src_line->path);
+		if (ret == 0) {
+			for (i = 0; i < src_line->nr_pcnt; i++)
+				iter->p[i].percent_sum += src_line->p[i].percent;
+			return;
+		}
+
+		if (ret < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	for (i = 0; i < src_line->nr_pcnt; i++)
+		src_line->p[i].percent_sum = src_line->p[i].percent;
+
+	rb_link_node(&src_line->node, parent, p);
+	rb_insert_color(&src_line->node, root);
+}
+
+static int cmp_source_line(struct source_line *a, struct source_line *b)
+{
+	int i;
+
+	for (i = 0; i < a->nr_pcnt; i++) {
+		if (a->p[i].percent_sum == b->p[i].percent_sum)
+			continue;
+		return a->p[i].percent_sum > b->p[i].percent_sum;
+	}
+
+	return 0;
+}
+
+static void __resort_source_line(struct rb_root *root, struct source_line *src_line)
+{
+	struct source_line *iter;
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+
+	while (*p != NULL) {
+		parent = *p;
+		iter = rb_entry(parent, struct source_line, node);
+
+		if (cmp_source_line(src_line, iter))
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -868,35 +1041,74 @@ static void insert_source_line(struct rb_root *root, struct source_line *src_lin
 	rb_insert_color(&src_line->node, root);
 }
 
+static void resort_source_line(struct rb_root *dest_root, struct rb_root *src_root)
+{
+	struct source_line *src_line;
+	struct rb_node *node;
+
+	node = rb_first(src_root);
+	while (node) {
+		struct rb_node *next;
+
+		src_line = rb_entry(node, struct source_line, node);
+		next = rb_next(node);
+		rb_erase(node, src_root);
+
+		__resort_source_line(dest_root, src_line);
+		node = next;
+	}
+}
+
 static void symbol__free_source_line(struct symbol *sym, int len)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct source_line *src_line = notes->src->lines;
+	size_t sizeof_src_line;
 	int i;
 
-	for (i = 0; i < len; i++)
-		free(src_line[i].path);
+	sizeof_src_line = sizeof(*src_line) +
+			  (sizeof(src_line->p) * (src_line->nr_pcnt - 1));
 
-	free(src_line);
+	for (i = 0; i < len; i++) {
+		free(src_line->path);
+		src_line = (void *)src_line + sizeof_src_line;
+	}
+
+	free(notes->src->lines);
 	notes->src->lines = NULL;
 }
 
 /* Get the filename:line for the colored entries */
 static int symbol__get_source_line(struct symbol *sym, struct map *map,
-				   int evidx, struct rb_root *root, int len,
+				   struct perf_evsel *evsel,
+				   struct rb_root *root, int len,
 				   const char *filename)
 {
 	u64 start;
-	int i;
+	int i, k;
+	int evidx = evsel->idx;
 	char cmd[PATH_MAX * 2];
 	struct source_line *src_line;
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct rb_root tmp_root = RB_ROOT;
+	int nr_pcnt = 1;
+	u64 h_sum = h->sum;
+	size_t sizeof_src_line = sizeof(struct source_line);
 
-	if (!h->sum)
+	if (perf_evsel__is_group_event(evsel)) {
+		for (i = 1; i < evsel->nr_members; i++) {
+			h = annotation__histogram(notes, evidx + i);
+			h_sum += h->sum;
+		}
+		nr_pcnt = evsel->nr_members;
+		sizeof_src_line += (nr_pcnt - 1) * sizeof(src_line->p);
+	}
+
+	if (!h_sum)
 		return 0;
 
-	src_line = notes->src->lines = calloc(len, sizeof(struct source_line));
+	src_line = notes->src->lines = calloc(len, sizeof_src_line);
 	if (!notes->src->lines)
 		return -1;
 
@@ -907,31 +1119,44 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 		size_t line_len;
 		u64 offset;
 		FILE *fp;
+		double percent_max = 0.0;
 
-		src_line[i].percent = 100.0 * h->addr[i] / h->sum;
-		if (src_line[i].percent <= 0.5)
-			continue;
+		src_line->nr_pcnt = nr_pcnt;
+
+		for (k = 0; k < nr_pcnt; k++) {
+			h = annotation__histogram(notes, evidx + k);
+			src_line->p[k].percent = 100.0 * h->addr[i] / h->sum;
+
+			if (src_line->p[k].percent > percent_max)
+				percent_max = src_line->p[k].percent;
+		}
+
+		if (percent_max <= 0.5)
+			goto next;
 
 		offset = start + i;
 		sprintf(cmd, "addr2line -e %s %016" PRIx64, filename, offset);
 		fp = popen(cmd, "r");
 		if (!fp)
-			continue;
+			goto next;
 
 		if (getline(&path, &line_len, fp) < 0 || !line_len)
-			goto next;
+			goto next_close;
 
-		src_line[i].path = malloc(sizeof(char) * line_len + 1);
-		if (!src_line[i].path)
-			goto next;
+		src_line->path = malloc(sizeof(char) * line_len + 1);
+		if (!src_line->path)
+			goto next_close;
 
-		strcpy(src_line[i].path, path);
-		insert_source_line(root, &src_line[i]);
+		strcpy(src_line->path, path);
+		insert_source_line(&tmp_root, src_line);
 
-	next:
+	next_close:
 		pclose(fp);
+	next:
+		src_line = (void *)src_line + sizeof_src_line;
 	}
 
+	resort_source_line(root, &tmp_root);
 	return 0;
 }
 
@@ -950,24 +1175,33 @@ static void print_summary(struct rb_root *root, const char *filename)
 
 	node = rb_first(root);
 	while (node) {
-		double percent;
+		double percent, percent_max = 0.0;
 		const char *color;
 		char *path;
+		int i;
 
 		src_line = rb_entry(node, struct source_line, node);
-		percent = src_line->percent;
-		color = get_percent_color(percent);
-		path = src_line->path;
+		for (i = 0; i < src_line->nr_pcnt; i++) {
+			percent = src_line->p[i].percent_sum;
+			color = get_percent_color(percent);
+			color_fprintf(stdout, color, " %7.2f", percent);
 
-		color_fprintf(stdout, color, " %7.2f %s", percent, path);
+			if (percent > percent_max)
+				percent_max = percent;
+		}
+
+		path = src_line->path;
+		color = get_percent_color(percent_max);
+		color_fprintf(stdout, color, " %s", path);
+
 		node = rb_next(node);
 	}
 }
 
-static void symbol__annotate_hits(struct symbol *sym, int evidx)
+static void symbol__annotate_hits(struct symbol *sym, struct perf_evsel *evsel)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct sym_hist *h = annotation__histogram(notes, evsel->idx);
 	u64 len = symbol__size(sym), offset;
 
 	for (offset = 0; offset < len; ++offset)
@@ -977,18 +1211,25 @@ static void symbol__annotate_hits(struct symbol *sym, int evidx)
 	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
-int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
-			    bool full_paths, int min_pcnt, int max_lines,
-			    int context)
+int symbol__annotate_printf(struct symbol *sym, struct map *map,
+			    struct perf_evsel *evsel, bool full_paths,
+			    int min_pcnt, int max_lines, int context)
 {
 	struct dso *dso = map->dso;
-	const char *filename = dso->long_name, *d_filename;
+	char *filename;
+	const char *d_filename;
 	struct annotation *notes = symbol__annotation(sym);
 	struct disasm_line *pos, *queue = NULL;
 	u64 start = map__rip_2objdump(map, sym->start);
 	int printed = 2, queue_len = 0;
 	int more = 0;
 	u64 len;
+	int width = 8;
+	int namelen;
+
+	filename = strdup(dso->long_name);
+	if (!filename)
+		return -ENOMEM;
 
 	if (full_paths)
 		d_filename = filename;
@@ -996,12 +1237,18 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 		d_filename = basename(filename);
 
 	len = symbol__size(sym);
+	namelen = strlen(d_filename);
 
-	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
-	printf("------------------------------------------------\n");
+	if (perf_evsel__is_group_event(evsel))
+		width *= evsel->nr_members;
+
+	printf(" %-*.*s|	Source code & Disassembly of %s\n",
+	       width, width, "Percent", d_filename);
+	printf("-%-*.*s-------------------------------------\n",
+	       width+namelen, width+namelen, graph_dotted_line);
 
 	if (verbose)
-		symbol__annotate_hits(sym, evidx);
+		symbol__annotate_hits(sym, evsel);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
 		if (context && queue == NULL) {
@@ -1009,7 +1256,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			queue_len = 0;
 		}
 
-		switch (disasm_line__print(pos, sym, start, evidx, len,
+		switch (disasm_line__print(pos, sym, start, evsel, len,
 					    min_pcnt, printed, max_lines,
 					    queue)) {
 		case 0:
@@ -1039,6 +1286,8 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			break;
 		}
 	}
+
+	free(filename);
 
 	return more;
 }
@@ -1102,9 +1351,9 @@ size_t disasm__fprintf(struct list_head *head, FILE *fp)
 	return printed;
 }
 
-int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
-			 bool print_lines, bool full_paths, int min_pcnt,
-			 int max_lines)
+int symbol__tty_annotate(struct symbol *sym, struct map *map,
+			 struct perf_evsel *evsel, bool print_lines,
+			 bool full_paths, int min_pcnt, int max_lines)
 {
 	struct dso *dso = map->dso;
 	const char *filename = dso->long_name;
@@ -1117,12 +1366,12 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 	len = symbol__size(sym);
 
 	if (print_lines) {
-		symbol__get_source_line(sym, map, evidx, &source_line,
+		symbol__get_source_line(sym, map, evsel, &source_line,
 					len, filename);
 		print_summary(&source_line, filename);
 	}
 
-	symbol__annotate_printf(sym, map, evidx, full_paths,
+	symbol__annotate_printf(sym, map, evsel, full_paths,
 				min_pcnt, max_lines, 0);
 	if (print_lines)
 		symbol__free_source_line(sym, len);

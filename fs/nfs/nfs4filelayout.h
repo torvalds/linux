@@ -36,7 +36,7 @@
  * Default data server connection timeout and retrans vaules.
  * Set by module paramters dataserver_timeo and dataserver_retrans.
  */
-#define NFS4_DEF_DS_TIMEO   60
+#define NFS4_DEF_DS_TIMEO   600 /* in tenths of a second */
 #define NFS4_DEF_DS_RETRANS 5
 
 /*
@@ -70,6 +70,8 @@ struct nfs4_pnfs_ds {
 	struct list_head	ds_addrs;
 	struct nfs_client	*ds_clp;
 	atomic_t		ds_count;
+	unsigned long		ds_state;
+#define NFS4DS_CONNECTING	0	/* ds is establishing connection */
 };
 
 struct nfs4_file_layout_dsaddr {
@@ -129,23 +131,13 @@ filelayout_mark_devid_invalid(struct nfs4_deviceid_node *node)
 }
 
 static inline bool
-filelayout_test_layout_invalid(struct pnfs_layout_hdr *lo)
-{
-	return test_bit(NFS_LAYOUT_INVALID, &lo->plh_flags);
-}
-
-static inline bool
 filelayout_test_devid_invalid(struct nfs4_deviceid_node *node)
 {
 	return test_bit(NFS_DEVICEID_INVALID, &node->flags);
 }
 
-static inline bool
-filelayout_reset_to_mds(struct pnfs_layout_segment *lseg)
-{
-	return filelayout_test_devid_invalid(FILELAYOUT_DEVID_NODE(lseg)) ||
-		filelayout_test_layout_invalid(lseg->pls_layout);
-}
+extern bool
+filelayout_test_devid_unavailable(struct nfs4_deviceid_node *node);
 
 extern struct nfs_fh *
 nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j);
@@ -158,7 +150,7 @@ struct nfs4_pnfs_ds *nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg,
 extern void nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr);
 extern void nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr);
 struct nfs4_file_layout_dsaddr *
-get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags);
-void nfs4_ds_disconnect(struct nfs_client *clp);
+filelayout_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id,
+		struct rpc_cred *cred, gfp_t gfp_flags);
 
 #endif /* FS_NFS_NFS4FILELAYOUT_H */

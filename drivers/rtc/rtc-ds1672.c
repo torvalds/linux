@@ -37,8 +37,17 @@ static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	unsigned char buf[4];
 
 	struct i2c_msg msgs[] = {
-		{client->addr, 0, 1, &addr},	/* setup read ptr */
-		{client->addr, I2C_M_RD, 4, buf},	/* read date */
+		{/* setup read ptr */
+			.addr = client->addr,
+			.len = 1,
+			.buf = &addr
+		},
+		{/* read date */
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 4,
+			.buf = buf
+		},
 	};
 
 	/* read date registers */
@@ -99,8 +108,17 @@ static int ds1672_get_control(struct i2c_client *client, u8 *status)
 	unsigned char addr = DS1672_REG_CONTROL;
 
 	struct i2c_msg msgs[] = {
-		{client->addr, 0, 1, &addr},	/* setup read ptr */
-		{client->addr, I2C_M_RD, 1, status},	/* read control */
+		{/* setup read ptr */
+			.addr = client->addr,
+			.len = 1,
+			.buf = &addr
+		},
+		{/* read control */
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = status
+		},
 	};
 
 	/* read control register */
@@ -135,16 +153,6 @@ static const struct rtc_class_ops ds1672_rtc_ops = {
 	.set_mmss = ds1672_rtc_set_mmss,
 };
 
-static int ds1672_remove(struct i2c_client *client)
-{
-	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	if (rtc)
-		rtc_device_unregister(rtc);
-
-	return 0;
-}
-
 static int ds1672_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -159,7 +167,7 @@ static int ds1672_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
-	rtc = rtc_device_register(ds1672_driver.driver.name, &client->dev,
+	rtc = devm_rtc_device_register(&client->dev, ds1672_driver.driver.name,
 				  &ds1672_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
@@ -184,7 +192,6 @@ static int ds1672_probe(struct i2c_client *client,
 	return 0;
 
  exit_devreg:
-	rtc_device_unregister(rtc);
 	return err;
 }
 
@@ -198,7 +205,6 @@ static struct i2c_driver ds1672_driver = {
 		   .name = "rtc-ds1672",
 		   },
 	.probe = &ds1672_probe,
-	.remove = &ds1672_remove,
 	.id_table = ds1672_id,
 };
 

@@ -34,8 +34,8 @@
 #define PB44_KEYS_DEBOUNCE_INTERVAL	(3 * PB44_KEYS_POLL_INTERVAL)
 
 static struct i2c_gpio_platform_data pb44_i2c_gpio_data = {
-	.sda_pin        = PB44_GPIO_I2C_SDA,
-	.scl_pin        = PB44_GPIO_I2C_SCL,
+	.sda_pin	= PB44_GPIO_I2C_SDA,
+	.scl_pin	= PB44_GPIO_I2C_SCL,
 };
 
 static struct platform_device pb44_i2c_gpio_device = {
@@ -53,7 +53,7 @@ static struct pcf857x_platform_data pb44_pcf857x_data = {
 static struct i2c_board_info pb44_i2c_board_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("pcf8575", 0x20),
-		.platform_data  = &pb44_pcf857x_data,
+		.platform_data	= &pb44_pcf857x_data,
 	},
 };
 

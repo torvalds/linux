@@ -113,7 +113,9 @@ static void ath9k_htc_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	struct ath9k_htc_priv *priv = data;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
-	if ((vif->type == NL80211_IFTYPE_AP) && bss_conf->enable_beacon)
+	if ((vif->type == NL80211_IFTYPE_AP ||
+	     vif->type == NL80211_IFTYPE_MESH_POINT) &&
+	    bss_conf->enable_beacon)
 		priv->reconfig_beacon = true;
 
 	if (bss_conf->assoc) {
@@ -127,8 +129,9 @@ static void ath9k_htc_vif_reconfig(struct ath9k_htc_priv *priv)
 	priv->rearm_ani = false;
 	priv->reconfig_beacon = false;
 
-	ieee80211_iterate_active_interfaces_atomic(priv->hw,
-						   ath9k_htc_vif_iter, priv);
+	ieee80211_iterate_active_interfaces_atomic(
+		priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath9k_htc_vif_iter, priv);
 	if (priv->rearm_ani)
 		ath9k_htc_start_ani(priv);
 
@@ -165,8 +168,9 @@ static void ath9k_htc_set_bssid_mask(struct ath9k_htc_priv *priv,
 		ath9k_htc_bssid_iter(&iter_data, vif->addr, vif);
 
 	/* Get list of all active MAC addresses */
-	ieee80211_iterate_active_interfaces_atomic(priv->hw, ath9k_htc_bssid_iter,
-						   &iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath9k_htc_bssid_iter, &iter_data);
 
 	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
 	ath_hw_setbssidmask(common);
@@ -178,6 +182,8 @@ static void ath9k_htc_set_opmode(struct ath9k_htc_priv *priv)
 		priv->ah->opmode = NL80211_IFTYPE_ADHOC;
 	else if (priv->num_ap_vif)
 		priv->ah->opmode = NL80211_IFTYPE_AP;
+	else if (priv->num_mbss_vif)
+		priv->ah->opmode = NL80211_IFTYPE_MESH_POINT;
 	else
 		priv->ah->opmode = NL80211_IFTYPE_STATION;
 
@@ -188,7 +194,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 {
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_channel *channel = priv->hw->conf.channel;
+	struct ieee80211_channel *channel = priv->hw->conf.chandef.chan;
 	struct ath9k_hw_cal_data *caldata = NULL;
 	enum htc_phymode mode;
 	__be16 htc_mode;
@@ -248,7 +254,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
 	bool fastcc;
-	struct ieee80211_channel *channel = hw->conf.channel;
+	struct ieee80211_channel *channel = hw->conf.chandef.chan;
 	struct ath9k_hw_cal_data *caldata = NULL;
 	enum htc_phymode mode;
 	__be16 htc_mode;
@@ -489,23 +495,19 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
 		memcpy(&tsta.macaddr, sta->addr, ETH_ALEN);
 		memcpy(&tsta.bssid, common->curbssid, ETH_ALEN);
-		tsta.is_vif_sta = 0;
 		ista->index = sta_idx;
+		tsta.is_vif_sta = 0;
+		maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+				 sta->ht_cap.ampdu_factor);
+		tsta.maxampdu = cpu_to_be16(maxampdu);
 	} else {
 		memcpy(&tsta.macaddr, vif->addr, ETH_ALEN);
 		tsta.is_vif_sta = 1;
+		tsta.maxampdu = cpu_to_be16(0xffff);
 	}
 
 	tsta.sta_index = sta_idx;
 	tsta.vif_index = avp->index;
-
-	if (!sta) {
-		tsta.maxampdu = cpu_to_be16(0xffff);
-	} else {
-		maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
-				 sta->ht_cap.ampdu_factor);
-		tsta.maxampdu = cpu_to_be16(maxampdu);
-	}
 
 	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
 	if (ret) {
@@ -604,7 +606,7 @@ static void ath9k_htc_setup_rate(struct ath9k_htc_priv *priv,
 	u32 caps = 0;
 	int i, j;
 
-	sband = priv->hw->wiphy->bands[priv->hw->conf.channel->band];
+	sband = priv->hw->wiphy->bands[priv->hw->conf.chandef.chan->band];
 
 	for (i = 0, j = 0; i < sband->n_bitrates; i++) {
 		if (sta->supp_rates[sband->band] & BIT(i)) {
@@ -625,6 +627,8 @@ static void ath9k_htc_setup_rate(struct ath9k_htc_priv *priv,
 		trate->rates.ht_rates.rs_nrates = j;
 
 		caps = WLAN_RC_HT_FLAG;
+		if (sta->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
+			caps |= ATH_RC_TX_STBC_FLAG;
 		if (sta->ht_cap.mcs.rx_mask[1])
 			caps |= WLAN_RC_DS_FLAG;
 		if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) &&
@@ -812,8 +816,7 @@ void ath9k_htc_ani_work(struct work_struct *work)
 	}
 
 	/* Verify whether we must check ANI */
-	if (ah->config.enable_ani &&
-	    (timestamp - common->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
+	if ((timestamp - common->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
 		aniflag = true;
 		common->ani.checkani_timer = timestamp;
 	}
@@ -843,8 +846,7 @@ set_timer:
 	* short calibration and long calibration.
 	*/
 	cal_interval = ATH_LONG_CALINTERVAL;
-	if (ah->config.enable_ani)
-		cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
+	cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
 	if (!common->ani.caldone)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
@@ -856,7 +858,9 @@ set_timer:
 /* mac80211 Callbacks */
 /**********************/
 
-static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void ath9k_htc_tx(struct ieee80211_hw *hw,
+			 struct ieee80211_tx_control *control,
+			 struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	struct ath9k_htc_priv *priv = hw->priv;
@@ -866,7 +870,7 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *) skb->data;
 
 	/* Add the padding after the header if this is not already done */
-	padpos = ath9k_cmn_padpos(hdr->frame_control);
+	padpos = ieee80211_hdrlen(hdr->frame_control);
 	padsize = padpos & 3;
 	if (padsize && skb->len > padpos) {
 		if (skb_headroom(skb) < padsize) {
@@ -883,7 +887,7 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto fail_tx;
 	}
 
-	ret = ath9k_htc_tx_start(priv, skb, slot, false);
+	ret = ath9k_htc_tx_start(priv, control->sta, skb, slot, false);
 	if (ret != 0) {
 		ath_dbg(common, XMIT, "Tx failed\n");
 		goto clear_slot;
@@ -904,7 +908,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_channel *curchan = hw->conf.channel;
+	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
 	struct ath9k_channel *init_channel;
 	int ret = 0;
 	enum htc_phymode mode;
@@ -1038,26 +1042,6 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	if (priv->nvifs >= ATH9K_HTC_MAX_VIF) {
-		mutex_unlock(&priv->mutex);
-		return -ENOBUFS;
-	}
-
-	if (priv->num_ibss_vif ||
-	    (priv->nvifs && vif->type == NL80211_IFTYPE_ADHOC)) {
-		ath_err(common, "IBSS coexistence with other modes is not allowed\n");
-		mutex_unlock(&priv->mutex);
-		return -ENOBUFS;
-	}
-
-	if (((vif->type == NL80211_IFTYPE_AP) ||
-	     (vif->type == NL80211_IFTYPE_ADHOC)) &&
-	    ((priv->num_ap_vif + priv->num_ibss_vif) >= ATH9K_HTC_MAX_BCN_VIF)) {
-		ath_err(common, "Max. number of beaconing interfaces reached\n");
-		mutex_unlock(&priv->mutex);
-		return -ENOBUFS;
-	}
-
 	ath9k_htc_ps_wakeup(priv);
 	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
 	memcpy(&hvif.myaddr, vif->addr, ETH_ALEN);
@@ -1071,6 +1055,9 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_AP:
 		hvif.opmode = HTC_M_HOSTAP;
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		hvif.opmode = HTC_M_WDS;	/* close enough */
 		break;
 	default:
 		ath_err(common,
@@ -1104,6 +1091,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	INC_VIF(priv, vif->type);
 
 	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_MESH_POINT) ||
 	    (vif->type == NL80211_IFTYPE_ADHOC))
 		ath9k_htc_assign_bslot(priv, vif);
 
@@ -1154,6 +1142,7 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	DEC_VIF(priv, vif->type);
 
 	if ((vif->type == NL80211_IFTYPE_AP) ||
+	     vif->type == NL80211_IFTYPE_MESH_POINT ||
 	    (vif->type == NL80211_IFTYPE_ADHOC))
 		ath9k_htc_remove_bslot(priv, vif);
 
@@ -1166,8 +1155,9 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	 */
 	if ((vif->type == NL80211_IFTYPE_AP) && (priv->num_ap_vif == 0)) {
 		priv->rearm_ani = false;
-		ieee80211_iterate_active_interfaces_atomic(priv->hw,
-						   ath9k_htc_vif_iter, priv);
+		ieee80211_iterate_active_interfaces_atomic(
+			priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_htc_vif_iter, priv);
 		if (!priv->rearm_ani)
 			ath9k_htc_stop_ani(priv);
 	}
@@ -1193,7 +1183,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		mutex_lock(&priv->htc_pm_lock);
 
 		priv->ps_idle = !!(conf->flags & IEEE80211_CONF_IDLE);
-		if (priv->ps_idle)
+		if (!priv->ps_idle)
 			chip_reset = true;
 
 		mutex_unlock(&priv->htc_pm_lock);
@@ -1212,15 +1202,14 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) || chip_reset) {
-		struct ieee80211_channel *curchan = hw->conf.channel;
+		struct ieee80211_channel *curchan = hw->conf.chandef.chan;
 		int pos = curchan->hw_value;
 
 		ath_dbg(common, CONFIG, "Set channel: %d MHz\n",
 			curchan->center_freq);
 
 		ath9k_cmn_update_ichannel(&priv->ah->channels[pos],
-					  hw->conf.channel,
-					  hw->conf.channel_type);
+					  &hw->conf.chandef);
 
 		if (ath9k_htc_set_channel(priv, hw, &priv->ah->channels[pos]) < 0) {
 			ath_err(common, "Unable to set channel\n");
@@ -1331,6 +1320,34 @@ static int ath9k_htc_sta_remove(struct ieee80211_hw *hw,
 	return ret;
 }
 
+static void ath9k_htc_sta_rc_update(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta, u32 changed)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_target_rate trate;
+
+	mutex_lock(&priv->mutex);
+	ath9k_htc_ps_wakeup(priv);
+
+	if (changed & IEEE80211_RC_SUPP_RATES_CHANGED) {
+		memset(&trate, 0, sizeof(struct ath9k_htc_target_rate));
+		ath9k_htc_setup_rate(priv, sta, &trate);
+		if (!ath9k_htc_send_rate_cmd(priv, &trate))
+			ath_dbg(common, CONFIG,
+				"Supported rates for sta: %pM updated, rate caps: 0x%X\n",
+				sta->addr, be32_to_cpu(trate.capflags));
+		else
+			ath_dbg(common, CONFIG,
+				"Unable to update supported rates for sta: %pM\n",
+				sta->addr);
+	}
+
+	ath9k_htc_ps_restore(priv);
+	mutex_unlock(&priv->mutex);
+}
+
 static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif, u16 queue,
 			     const struct ieee80211_tx_queue_params *params)
@@ -1340,7 +1357,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 	struct ath9k_tx_queue_info qi;
 	int ret = 0, qnum;
 
-	if (queue >= WME_NUM_AC)
+	if (queue >= IEEE80211_NUM_ACS)
 		return 0;
 
 	mutex_lock(&priv->mutex);
@@ -1367,7 +1384,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 	}
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_ADHOC) &&
-	    (qnum == priv->hwq_map[WME_AC_BE]))
+	    (qnum == priv->hwq_map[IEEE80211_AC_BE]))
 		    ath9k_htc_beaconq_config(priv);
 out:
 	ath9k_htc_ps_restore(priv);
@@ -1419,7 +1436,7 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 			if (priv->ah->sw_mgmt_crypto &&
 			    key->cipher == WLAN_CIPHER_SUITE_CCMP)
-				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT;
+				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 			ret = 0;
 		}
 		break;
@@ -1460,8 +1477,9 @@ static void ath9k_htc_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 static void ath9k_htc_choose_set_bssid(struct ath9k_htc_priv *priv)
 {
 	if (priv->num_sta_assoc_vif == 1) {
-		ieee80211_iterate_active_interfaces_atomic(priv->hw,
-							   ath9k_htc_bss_iter, priv);
+		ieee80211_iterate_active_interfaces_atomic(
+			priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_htc_bss_iter, priv);
 		ath9k_htc_set_bssid(priv);
 	}
 }
@@ -1513,9 +1531,10 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) && !bss_conf->enable_beacon) {
 		/*
 		 * Disable SWBA interrupt only if there are no
-		 * AP/IBSS interfaces.
+		 * concurrent AP/mesh or IBSS interfaces.
 		 */
-		if ((priv->num_ap_vif <= 1) || priv->num_ibss_vif) {
+		if ((priv->num_ap_vif + priv->num_mbss_vif <= 1) ||
+		     priv->num_ibss_vif) {
 			ath_dbg(common, CONFIG,
 				"Beacon disabled for BSS: %pM\n",
 				bss_conf->bssid);
@@ -1526,12 +1545,15 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		/*
-		 * Reset the HW TSF for the first AP interface.
+		 * Reset the HW TSF for the first AP or mesh interface.
 		 */
-		if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
-		    (priv->nvifs == 1) &&
-		    (priv->num_ap_vif == 1) &&
-		    (vif->type == NL80211_IFTYPE_AP)) {
+		if (priv->nvifs == 1 &&
+		    ((priv->ah->opmode == NL80211_IFTYPE_AP &&
+		      vif->type == NL80211_IFTYPE_AP &&
+		      priv->num_ap_vif == 1) ||
+		    (priv->ah->opmode == NL80211_IFTYPE_MESH_POINT &&
+		      vif->type == NL80211_IFTYPE_MESH_POINT &&
+		      priv->num_mbss_vif == 1))) {
 			set_bit(OP_TSF_RESET, &priv->op_flags);
 		}
 		ath_dbg(common, CONFIG,
@@ -1618,7 +1640,9 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 		if (!ret)
 			ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		ath9k_htc_tx_aggr_oper(priv, vif, sta, action, tid);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -1747,6 +1771,43 @@ static int ath9k_htc_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
+struct base_eep_header *ath9k_htc_get_eeprom_base(struct ath9k_htc_priv *priv)
+{
+	struct base_eep_header *pBase = NULL;
+	/*
+	 * This can be done since all the 3 EEPROM families have the
+	 * same base header upto a certain point, and we are interested in
+	 * the data only upto that point.
+	 */
+
+	if (AR_SREV_9271(priv->ah))
+		pBase = (struct base_eep_header *)
+			&priv->ah->eeprom.map4k.baseEepHeader;
+	else if (priv->ah->hw_version.usbdev == AR9280_USB)
+		pBase = (struct base_eep_header *)
+			&priv->ah->eeprom.def.baseEepHeader;
+	else if (priv->ah->hw_version.usbdev == AR9287_USB)
+		pBase = (struct base_eep_header *)
+			&priv->ah->eeprom.map9287.baseEepHeader;
+	return pBase;
+}
+
+
+static int ath9k_htc_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
+				 u32 *rx_ant)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	struct base_eep_header *pBase = ath9k_htc_get_eeprom_base(priv);
+	if (pBase) {
+		*tx_ant = pBase->txMask;
+		*rx_ant = pBase->rxMask;
+	} else {
+		*tx_ant = 0;
+		*rx_ant = 0;
+	}
+	return 0;
+}
+
 struct ieee80211_ops ath9k_htc_ops = {
 	.tx                 = ath9k_htc_tx,
 	.start              = ath9k_htc_start,
@@ -1758,6 +1819,7 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.sta_add            = ath9k_htc_sta_add,
 	.sta_remove         = ath9k_htc_sta_remove,
 	.conf_tx            = ath9k_htc_conf_tx,
+	.sta_rc_update      = ath9k_htc_sta_rc_update,
 	.bss_info_changed   = ath9k_htc_bss_info_changed,
 	.set_key            = ath9k_htc_set_key,
 	.get_tsf            = ath9k_htc_get_tsf,
@@ -1771,4 +1833,11 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.set_coverage_class = ath9k_htc_set_coverage_class,
 	.set_bitrate_mask   = ath9k_htc_set_bitrate_mask,
 	.get_stats	    = ath9k_htc_get_stats,
+	.get_antenna	    = ath9k_htc_get_antenna,
+
+#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+	.get_et_sset_count  = ath9k_htc_get_et_sset_count,
+	.get_et_stats       = ath9k_htc_get_et_stats,
+	.get_et_strings     = ath9k_htc_get_et_strings,
+#endif
 };

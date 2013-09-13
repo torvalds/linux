@@ -9,10 +9,10 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <asm/unistd.h>
-#include "aio.h"
-#include "init.h"
-#include "kern_util.h"
-#include "os.h"
+#include <aio.h>
+#include <init.h>
+#include <kern_util.h>
+#include <os.h>
 
 struct aio_thread_req {
 	enum aio_type type;
@@ -104,8 +104,7 @@ static int aio_thread(void *arg)
 	struct io_event event;
 	int err, n, reply_fd;
 
-	signal(SIGWINCH, SIG_IGN);
-
+	os_fix_helper_signals();
 	while (1) {
 		n = io_getevents(ctx, 1, 1, &event, NULL);
 		if (n < 0) {
@@ -173,7 +172,7 @@ static int not_aio_thread(void *arg)
 	struct aio_thread_reply reply;
 	int err;
 
-	signal(SIGWINCH, SIG_IGN);
+	os_fix_helper_signals();
 	while (1) {
 		err = read(aio_req_fd_r, &req, sizeof(req));
 		if (err != sizeof(req)) {

@@ -53,7 +53,6 @@ struct slave;
 
 
 #define TLB_NULL_INDEX		0xffffffff
-#define MAX_LP_BURST		3
 
 /* rlb defs */
 #define RLB_HASH_TABLE_SIZE	256
@@ -94,19 +93,38 @@ struct tlb_client_info {
 
 /* -------------------------------------------------------------------------
  * struct rlb_client_info contains all info related to a specific rx client
- * connection. This is the Clients Hash Table entry struct
+ * connection. This is the Clients Hash Table entry struct.
+ * Note that this is not a proper hash table; if a new client's IP address
+ * hash collides with an existing client entry, the old entry is replaced.
+ *
+ * There is a linked list (linked by the used_next and used_prev members)
+ * linking all the used entries of the hash table. This allows updating
+ * all the clients without walking over all the unused elements of the table.
+ *
+ * There are also linked lists of entries with identical hash(ip_src). These
+ * allow cleaning up the table from ip_src<->mac_src associations that have
+ * become outdated and would cause sending out invalid ARP updates to the
+ * network. These are linked by the (src_next and src_prev members).
  * -------------------------------------------------------------------------
  */
 struct rlb_client_info {
 	__be32 ip_src;		/* the server IP address */
 	__be32 ip_dst;		/* the client IP address */
+	u8  mac_src[ETH_ALEN];	/* the server MAC address */
 	u8  mac_dst[ETH_ALEN];	/* the client MAC address */
-	u32 next;		/* The next Hash table entry index */
-	u32 prev;		/* The previous Hash table entry index */
+
+	/* list of used hash table entries, starting at rx_hashtbl_used_head */
+	u32 used_next;
+	u32 used_prev;
+
+	/* ip_src based hashing */
+	u32 src_next;	/* next entry with same hash(ip_src) */
+	u32 src_prev;	/* prev entry with same hash(ip_src) */
+	u32 src_first;	/* first entry with hash(ip_src) == this entry's index */
+
 	u8  assigned;		/* checking whether this entry is assigned */
 	u8  ntt;		/* flag - need to transmit client info */
 	struct slave *slave;	/* the slave assigned to this client */
-	u8 tag;			/* flag - need to tag skb */
 	unsigned short vlan_id;	/* VLAN tag associated with IP address */
 };
 
@@ -131,7 +149,7 @@ struct alb_bond_info {
 	int rlb_enabled;
 	struct rlb_client_info	*rx_hashtbl;	/* Receive hash table */
 	spinlock_t		rx_hashtbl_lock;
-	u32			rx_hashtbl_head;
+	u32			rx_hashtbl_used_head;
 	u8			rx_ntt;	/* flag - need to transmit
 					 * to all rx clients
 					 */
@@ -150,7 +168,6 @@ struct alb_bond_info {
 						 * rx traffic should be
 						 * rebalanced
 						 */
-	struct vlan_entry	*current_alb_vlan;
 };
 
 int bond_alb_initialize(struct bonding *bond, int rlb_enabled);

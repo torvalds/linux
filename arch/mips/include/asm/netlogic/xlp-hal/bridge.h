@@ -88,6 +88,7 @@
 #define BRIDGE_DRAM_LIMIT6		0x22
 #define BRIDGE_DRAM_LIMIT7		0x23
 
+#define BRIDGE_DRAM_NODE_TRANSLN(i)	(0x24 + (i))
 #define BRIDGE_DRAM_NODE_TRANSLN0	0x24
 #define BRIDGE_DRAM_NODE_TRANSLN1	0x25
 #define BRIDGE_DRAM_NODE_TRANSLN2	0x26
@@ -96,6 +97,8 @@
 #define BRIDGE_DRAM_NODE_TRANSLN5	0x29
 #define BRIDGE_DRAM_NODE_TRANSLN6	0x2a
 #define BRIDGE_DRAM_NODE_TRANSLN7	0x2b
+
+#define BRIDGE_DRAM_CHNL_TRANSLN(i)	(0x2c + (i))
 #define BRIDGE_DRAM_CHNL_TRANSLN0	0x2c
 #define BRIDGE_DRAM_CHNL_TRANSLN1	0x2d
 #define BRIDGE_DRAM_CHNL_TRANSLN2	0x2e
@@ -104,6 +107,7 @@
 #define BRIDGE_DRAM_CHNL_TRANSLN5	0x31
 #define BRIDGE_DRAM_CHNL_TRANSLN6	0x32
 #define BRIDGE_DRAM_CHNL_TRANSLN7	0x33
+
 #define BRIDGE_PCIEMEM_BASE0		0x34
 #define BRIDGE_PCIEMEM_BASE1		0x35
 #define BRIDGE_PCIEMEM_BASE2		0x36
@@ -178,9 +182,9 @@
 
 #define nlm_read_bridge_reg(b, r)	nlm_read_reg(b, r)
 #define nlm_write_bridge_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define	nlm_get_bridge_pcibase(node)	\
+#define nlm_get_bridge_pcibase(node)	\
 			nlm_pcicfg_base(XLP_IO_BRIDGE_OFFSET(node))
-#define	nlm_get_bridge_regbase(node)	\
+#define nlm_get_bridge_regbase(node)	\
 			(nlm_get_bridge_pcibase(node) + XLP_IO_PCI_HDRSZ)
 
 #endif /* __ASSEMBLY__ */

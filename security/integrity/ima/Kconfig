@@ -11,6 +11,7 @@ config IMA
 	select CRYPTO_SHA1
 	select TCG_TPM if HAS_IOMEM && !UML
 	select TCG_TIS if TCG_TPM && X86
+	select TCG_IBMVTPM if TCG_TPM && PPC64
 	help
 	  The Trusted Computing Group(TCG) runtime Integrity
 	  Measurement Architecture(IMA) maintains a list of hash
@@ -37,21 +38,24 @@ config IMA_MEASURE_PCR_IDX
 	  that IMA uses to maintain the integrity aggregate of the
 	  measurement list.  If unsure, use the default 10.
 
-config IMA_AUDIT
-	bool "Enables auditing support"
-	depends on IMA
-	depends on AUDIT
-	default y
-	help
-	  This option adds a kernel parameter 'ima_audit', which
-	  allows informational auditing messages to be enabled
-	  at boot.  If this option is selected, informational integrity
-	  auditing messages can be enabled with 'ima_audit=1' on
-	  the kernel command line.
-
 config IMA_LSM_RULES
 	bool
 	depends on IMA && AUDIT && (SECURITY_SELINUX || SECURITY_SMACK)
 	default y
 	help
 	  Disabling this option will disregard LSM based policy rules.
+
+config IMA_APPRAISE
+	bool "Appraise integrity measurements"
+	depends on IMA
+	default n
+	help
+	  This option enables local measurement integrity appraisal.
+	  It requires the system to be labeled with a security extended
+	  attribute containing the file hash measurement.  To protect
+	  the security extended attributes from offline attack, enable
+	  and configure EVM.
+
+	  For more information on integrity appraisal refer to:
+	  <http://linux-ima.sourceforge.net>
+	  If unsure, say N.

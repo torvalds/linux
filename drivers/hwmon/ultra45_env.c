@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/err.h>
 
 #define DRV_MODULE_VERSION	"0.1"
 
@@ -249,7 +250,7 @@ static const struct attribute_group env_group = {
 	.attrs = env_attributes,
 };
 
-static int __devinit env_probe(struct platform_device *op)
+static int env_probe(struct platform_device *op)
 {
 	struct env *p = kzalloc(sizeof(*p), GFP_KERNEL);
 	int err = -ENOMEM;
@@ -290,7 +291,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit env_remove(struct platform_device *op)
+static int env_remove(struct platform_device *op)
 {
 	struct env *p = platform_get_drvdata(op);
 
@@ -320,7 +321,7 @@ static struct platform_driver env_driver = {
 		.of_match_table = env_match,
 	},
 	.probe		= env_probe,
-	.remove		= __devexit_p(env_remove),
+	.remove		= env_remove,
 };
 
 module_platform_driver(env_driver);

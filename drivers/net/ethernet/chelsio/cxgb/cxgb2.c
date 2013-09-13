@@ -131,7 +131,7 @@ static void t1_set_rxmode(struct net_device *dev)
 static void link_report(struct port_info *p)
 {
 	if (!netif_carrier_ok(p->dev))
-		printk(KERN_INFO "%s: link down\n", p->dev->name);
+		netdev_info(p->dev, "link down\n");
 	else {
 		const char *s = "10Mbps";
 
@@ -141,9 +141,9 @@ static void link_report(struct port_info *p)
 			case SPEED_100:   s = "100Mbps"; break;
 		}
 
-		printk(KERN_INFO "%s: link up, %s, %s-duplex\n",
-		       p->dev->name, s,
-		       p->link_config.duplex == DUPLEX_FULL ? "full" : "half");
+		netdev_info(p->dev, "link up, %s, %s-duplex\n",
+			    s, p->link_config.duplex == DUPLEX_FULL
+			    ? "full" : "half");
 	}
 }
 
@@ -856,10 +856,10 @@ static netdev_features_t t1_fix_features(struct net_device *dev,
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -869,7 +869,7 @@ static int t1_set_features(struct net_device *dev, netdev_features_t features)
 	netdev_features_t changed = dev->features ^ features;
 	struct adapter *adapter = dev->ml_priv;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		t1_vlan_mode(adapter, features);
 
 	return 0;
@@ -974,22 +974,15 @@ static const struct net_device_ops cxgb_netdev_ops = {
 #endif
 };
 
-static int __devinit init_one(struct pci_dev *pdev,
-			      const struct pci_device_id *ent)
+static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int version_printed;
-
 	int i, err, pci_using_dac = 0;
 	unsigned long mmio_start, mmio_len;
 	const struct board_info *bi;
 	struct adapter *adapter = NULL;
 	struct port_info *pi;
 
-	if (!version_printed) {
-		printk(KERN_INFO "%s - version %s\n", DRV_DESCRIPTION,
-		       DRV_VERSION);
-		++version_printed;
-	}
+	pr_info_once("%s - version %s\n", DRV_DESCRIPTION, DRV_VERSION);
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1092,8 +1085,9 @@ static int __devinit init_one(struct pci_dev *pdev,
 			netdev->features |= NETIF_F_HIGHDMA;
 		if (vlan_tso_capable(adapter)) {
 			netdev->features |=
-				NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-			netdev->hw_features |= NETIF_F_HW_VLAN_RX;
+				NETIF_F_HW_VLAN_CTAG_TX |
+				NETIF_F_HW_VLAN_CTAG_RX;
+			netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
 
 			/* T204: disable TSO */
 			if (!(is_T2(adapter)) || bi->port_number != 4) {
@@ -1125,8 +1119,8 @@ static int __devinit init_one(struct pci_dev *pdev,
 	for (i = 0; i < bi->port_number; ++i) {
 		err = register_netdev(adapter->port[i].dev);
 		if (err)
-			pr_warning("%s: cannot register net device %s, skipping\n",
-				   pci_name(pdev), adapter->port[i].dev->name);
+			pr_warn("%s: cannot register net device %s, skipping\n",
+				pci_name(pdev), adapter->port[i].dev->name);
 		else {
 			/*
 			 * Change the name we use for messages to the name of
@@ -1144,10 +1138,10 @@ static int __devinit init_one(struct pci_dev *pdev,
 		goto out_release_adapter_res;
 	}
 
-	printk(KERN_INFO "%s: %s (rev %d), %s %dMHz/%d-bit\n", adapter->name,
-	       bi->desc, adapter->params.chip_revision,
-	       adapter->params.pci.is_pcix ? "PCIX" : "PCI",
-	       adapter->params.pci.speed, adapter->params.pci.width);
+	pr_info("%s: %s (rev %d), %s %dMHz/%d-bit\n",
+		adapter->name, bi->desc, adapter->params.chip_revision,
+		adapter->params.pci.is_pcix ? "PCIX" : "PCI",
+		adapter->params.pci.speed, adapter->params.pci.width);
 
 	/*
 	 * Set the T1B ASIC and memory clocks.
@@ -1332,7 +1326,7 @@ static inline void t1_sw_reset(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, A_PCICFG_PM_CSR, 0);
 }
 
-static void __devexit remove_one(struct pci_dev *pdev)
+static void remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct adapter *adapter = dev->ml_priv;
@@ -1357,22 +1351,11 @@ static void __devexit remove_one(struct pci_dev *pdev)
 	t1_sw_reset(pdev);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver cxgb_pci_driver = {
 	.name     = DRV_NAME,
 	.id_table = t1_pci_tbl,
 	.probe    = init_one,
-	.remove   = __devexit_p(remove_one),
+	.remove   = remove_one,
 };
 
-static int __init t1_init_module(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit t1_cleanup_module(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(t1_init_module);
-module_exit(t1_cleanup_module);
+module_pci_driver(cxgb_pci_driver);

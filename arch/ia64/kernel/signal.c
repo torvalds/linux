@@ -39,14 +39,6 @@
 # define GET_SIGSET(k,u)	__get_user((k)->sig[0], &(u)->sig[0])
 #endif
 
-asmlinkage long
-sys_sigaltstack (const stack_t __user *uss, stack_t __user *uoss, long arg2,
-		 long arg3, long arg4, long arg5, long arg6, long arg7,
-		 struct pt_regs regs)
-{
-	return do_sigaltstack(uss, uoss, regs.r12);
-}
-
 static long
 restore_sigcontext (struct sigcontext __user *sc, struct sigscratch *scr)
 {
@@ -208,11 +200,8 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	printk("SIG return (%s:%d): sp=%lx ip=%lx\n",
 	       current->comm, current->pid, scr->pt.r12, scr->pt.cr_iip);
 #endif
-	/*
-	 * It is more difficult to avoid calling this function than to
-	 * call it and ignore errors.
-	 */
-	do_sigaltstack(&sc->sc_stack, NULL, scr->pt.r12);
+	if (restore_altstack(&sc->sc_stack))
+		goto give_sigsegv;
 	return retval;
 
   give_sigsegv:
@@ -220,7 +209,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	si.si_errno = 0;
 	si.si_code = SI_KERNEL;
 	si.si_pid = task_pid_vnr(current);
-	si.si_uid = current_uid();
+	si.si_uid = from_kuid_munged(current_user_ns(), current_uid());
 	si.si_addr = sc;
 	force_sig_info(SIGSEGV, &si, current);
 	return retval;
@@ -317,7 +306,7 @@ force_sigsegv_info (int sig, void __user *addr)
 	si.si_errno = 0;
 	si.si_code = SI_KERNEL;
 	si.si_pid = task_pid_vnr(current);
-	si.si_uid = current_uid();
+	si.si_uid = from_kuid_munged(current_user_ns(), current_uid());
 	si.si_addr = addr;
 	force_sig_info(SIGSEGV, &si, current);
 	return 0;
@@ -376,9 +365,7 @@ setup_frame (int sig, struct k_sigaction *ka, siginfo_t *info, sigset_t *set,
 
 	err |= copy_siginfo_to_user(&frame->info, info);
 
-	err |= __put_user(current->sas_ss_sp, &frame->sc.sc_stack.ss_sp);
-	err |= __put_user(current->sas_ss_size, &frame->sc.sc_stack.ss_size);
-	err |= __put_user(sas_ss_flags(scr->pt.r12), &frame->sc.sc_stack.ss_flags);
+	err |= __save_altstack(&frame->sc.sc_stack, scr->pt.r12);
 	err |= setup_sigcontext(&frame->sc, set, scr);
 
 	if (unlikely(err))
@@ -436,14 +423,6 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 	siginfo_t info;
 	long restart = in_syscall;
 	long errno = scr->pt.r8;
-
-	/*
-	 * In the ia64_leave_kernel code path, we want the common case to go fast, which
-	 * is why we may in certain cases get here from kernel mode. Just return without
-	 * doing anything if so.
-	 */
-	if (!user_mode(&scr->pt))
-		return;
 
 	/*
 	 * This only loops in the rare cases of handle_signal() failing, in which case we

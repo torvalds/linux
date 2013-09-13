@@ -20,7 +20,6 @@
 #include <linux/i2c-mux.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/i2c-mux-pinctrl.h>
 #include <linux/platform_device.h>
@@ -129,7 +128,7 @@ static inline int i2c_mux_pinctrl_parse_dt(struct i2c_mux_pinctrl *mux,
 }
 #endif
 
-static int __devinit i2c_mux_pinctrl_probe(struct platform_device *pdev)
+static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 {
 	struct i2c_mux_pinctrl *mux;
 	int (*deselect)(struct i2c_adapter *, void *, u32);
@@ -145,7 +144,7 @@ static int __devinit i2c_mux_pinctrl_probe(struct platform_device *pdev)
 
 	mux->dev = &pdev->dev;
 
-	mux->pdata = pdev->dev.platform_data;
+	mux->pdata = dev_get_platdata(&pdev->dev);
 	if (!mux->pdata) {
 		ret = i2c_mux_pinctrl_parse_dt(mux, pdev);
 		if (ret < 0)
@@ -167,9 +166,9 @@ static int __devinit i2c_mux_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	mux->busses = devm_kzalloc(&pdev->dev,
-				   sizeof(mux->busses) * mux->pdata->bus_count,
+				   sizeof(*mux->busses) * mux->pdata->bus_count,
 				   GFP_KERNEL);
-	if (!mux->states) {
+	if (!mux->busses) {
 		dev_err(&pdev->dev, "Cannot allocate busses\n");
 		ret = -ENOMEM;
 		goto err;
@@ -221,7 +220,7 @@ static int __devinit i2c_mux_pinctrl_probe(struct platform_device *pdev)
 				(mux->pdata->base_bus_num + i) : 0;
 
 		mux->busses[i] = i2c_add_mux_adapter(mux->parent, &pdev->dev,
-						     mux, bus, i,
+						     mux, bus, i, 0,
 						     i2c_mux_pinctrl_select,
 						     deselect);
 		if (!mux->busses[i]) {
@@ -241,7 +240,7 @@ err:
 	return ret;
 }
 
-static int __devexit i2c_mux_pinctrl_remove(struct platform_device *pdev)
+static int i2c_mux_pinctrl_remove(struct platform_device *pdev)
 {
 	struct i2c_mux_pinctrl *mux = platform_get_drvdata(pdev);
 	int i;
@@ -255,7 +254,7 @@ static int __devexit i2c_mux_pinctrl_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id i2c_mux_pinctrl_of_match[] __devinitconst = {
+static const struct of_device_id i2c_mux_pinctrl_of_match[] = {
 	{ .compatible = "i2c-mux-pinctrl", },
 	{},
 };
@@ -269,7 +268,7 @@ static struct platform_driver i2c_mux_pinctrl_driver = {
 		.of_match_table = of_match_ptr(i2c_mux_pinctrl_of_match),
 	},
 	.probe	= i2c_mux_pinctrl_probe,
-	.remove	= __devexit_p(i2c_mux_pinctrl_remove),
+	.remove	= i2c_mux_pinctrl_remove,
 };
 module_platform_driver(i2c_mux_pinctrl_driver);
 

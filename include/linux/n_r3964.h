@@ -43,15 +43,12 @@
  *
  *
  */
-
 #ifndef __LINUX_N_R3964_H__
 #define __LINUX_N_R3964_H__
 
-/* line disciplines for r3964 protocol */
-
-#ifdef __KERNEL__
 
 #include <linux/param.h>
+#include <uapi/linux/n_r3964.h>
 
 /*
  * Common ascii handshake characters:
@@ -73,32 +70,6 @@
 #define R3964_TO_RX_PANIC ((4000)*HZ/1000)
 #define R3964_MAX_RETRIES 5
 
-#endif
-
-/*
- * Ioctl-commands
- */
-
-#define R3964_ENABLE_SIGNALS      0x5301
-#define R3964_SETPRIORITY         0x5302
-#define R3964_USE_BCC             0x5303
-#define R3964_READ_TELEGRAM       0x5304
-
-/* Options for R3964_SETPRIORITY */
-#define R3964_MASTER   0
-#define R3964_SLAVE    1
-
-/* Options for R3964_ENABLE_SIGNALS */
-#define R3964_SIG_ACK   0x0001
-#define R3964_SIG_DATA  0x0002
-#define R3964_SIG_ALL   0x000f
-#define R3964_SIG_NONE  0x0000
-#define R3964_USE_SIGIO 0x1000
-
-/*
- * r3964 operation states:
- */
-#ifdef __KERNEL__
 
 enum { R3964_IDLE, 
 	   R3964_TX_REQUEST, R3964_TRANSMITTING, 
@@ -127,29 +98,6 @@ struct r3964_client_info {
 };
 
 
-#endif
-
-/* types for msg_id: */
-enum {R3964_MSG_ACK=1, R3964_MSG_DATA };
-
-#define R3964_MAX_MSG_COUNT 32
-
-/* error codes for client messages */
-#define R3964_OK 0        /* no error. */
-#define R3964_TX_FAIL -1  /* transmission error, block NOT sent */
-#define R3964_OVERFLOW -2 /* msg queue overflow */
-
-/* the client gets this struct when calling read(fd,...): */
-struct r3964_client_message {
-	  int     msg_id;
-	  int     arg;
-	  int     error_code;
-};
-
-#define R3964_MTU      256
-
-
-#ifdef __KERNEL__
 
 struct r3964_block_header;
 
@@ -225,7 +173,5 @@ struct r3964_info {
 	struct timer_list tmr;
 	int nRetry;
 };
-
-#endif	
 
 #endif

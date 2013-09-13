@@ -415,7 +415,7 @@ static u16 mdio_read_latched(void __iomem *ioaddr, int phy_id, int reg)
 	return mdio_read(ioaddr, phy_id, reg);
 }
 
-static u16 __devinit sis190_read_eeprom(void __iomem *ioaddr, u32 reg)
+static u16 sis190_read_eeprom(void __iomem *ioaddr, u32 reg)
 {
 	u16 data = 0xffff;
 	unsigned int i;
@@ -1379,7 +1379,7 @@ static void sis190_mii_probe_88e1111_fixup(struct sis190_private *tp)
  *	Identify and set current phy if found one,
  *	return error if it failed to found.
  */
-static int __devinit sis190_mii_probe(struct net_device *dev)
+static int sis190_mii_probe(struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 	struct mii_if_info *mii_if = &tp->mii_if;
@@ -1451,7 +1451,7 @@ static void sis190_release_board(struct pci_dev *pdev)
 	free_netdev(dev);
 }
 
-static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
+static struct net_device *sis190_init_board(struct pci_dev *pdev)
 {
 	struct sis190_private *tp;
 	struct net_device *dev;
@@ -1573,8 +1573,8 @@ static void sis190_set_rgmii(struct sis190_private *tp, u8 reg)
 	tp->features |= (reg & 0x80) ? F_HAS_RGMII : 0;
 }
 
-static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
-						     struct net_device *dev)
+static int sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
+					   struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -1615,10 +1615,10 @@ static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
  *	APC CMOS RAM is accessed through ISA bridge.
  *	MAC address is read into @net_dev->dev_addr.
  */
-static int __devinit sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
-						  struct net_device *dev)
+static int sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
+					struct net_device *dev)
 {
-	static const u16 __devinitdata ids[] = { 0x0965, 0x0966, 0x0968 };
+	static const u16 ids[] = { 0x0965, 0x0966, 0x0968 };
 	struct sis190_private *tp = netdev_priv(dev);
 	struct pci_dev *isa_bridge;
 	u8 reg, tmp8;
@@ -1693,8 +1693,7 @@ static inline void sis190_init_rxfilter(struct net_device *dev)
 	SIS_PCI_COMMIT();
 }
 
-static int __devinit sis190_get_mac_addr(struct pci_dev *pdev,
-					 struct net_device *dev)
+static int sis190_get_mac_addr(struct pci_dev *pdev, struct net_device *dev)
 {
 	int rc;
 
@@ -1771,9 +1770,6 @@ static void sis190_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	struct sis190_private *tp = netdev_priv(dev);
 	unsigned long flags;
 
-	if (regs->len > SIS190_REGS_SIZE)
-		regs->len = SIS190_REGS_SIZE;
-
 	spin_lock_irqsave(&tp->lock, flags);
 	memcpy_fromio(p, tp->mmio_addr, regs->len);
 	spin_unlock_irqrestore(&tp->lock, flags);
@@ -1845,8 +1841,8 @@ static const struct net_device_ops sis190_netdev_ops = {
 #endif
 };
 
-static int __devinit sis190_init_one(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+static int sis190_init_one(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
 	struct sis190_private *tp;
@@ -1916,7 +1912,7 @@ err_release_board:
 	goto out;
 }
 
-static void __devexit sis190_remove_one(struct pci_dev *pdev)
+static void sis190_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct sis190_private *tp = netdev_priv(dev);
@@ -1932,18 +1928,7 @@ static struct pci_driver sis190_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= sis190_pci_tbl,
 	.probe		= sis190_init_one,
-	.remove		= __devexit_p(sis190_remove_one),
+	.remove		= sis190_remove_one,
 };
 
-static int __init sis190_init_module(void)
-{
-	return pci_register_driver(&sis190_pci_driver);
-}
-
-static void __exit sis190_cleanup_module(void)
-{
-	pci_unregister_driver(&sis190_pci_driver);
-}
-
-module_init(sis190_init_module);
-module_exit(sis190_cleanup_module);
+module_pci_driver(sis190_pci_driver);

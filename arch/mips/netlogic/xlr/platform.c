@@ -15,6 +15,8 @@
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 #include <linux/i2c.h>
+#include <linux/usb/ehci_pdriver.h>
+#include <linux/usb/ohci_pdriver.h>
 
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/xlr/iomap.h>
@@ -62,7 +64,7 @@ void nlm_xlr_uart_out(struct uart_port *p, int offset, int value)
 		.iotype		= UPIO_MEM32,		\
 		.flags		= (UPF_SKIP_TEST |	\
 			 UPF_FIXED_TYPE | UPF_BOOT_AUTOCONF),\
-		.uartclk	= PIC_CLKS_PER_SEC,	\
+		.uartclk	= PIC_CLK_HZ,		\
 		.type		= PORT_16550A,		\
 		.serial_in	= nlm_xlr_uart_in,	\
 		.serial_out	= nlm_xlr_uart_out,	\
@@ -123,12 +125,18 @@ static u64 xls_usb_dmamask = ~(u32)0;
 		},							\
 	}
 
+static struct usb_ehci_pdata xls_usb_ehci_pdata = {
+	.caps_offset	= 0,
+};
+
+static struct usb_ohci_pdata xls_usb_ohci_pdata;
+
 static struct platform_device xls_usb_ehci_device =
-			 USB_PLATFORM_DEV("ehci-xls", 0, PIC_USB_IRQ);
+			 USB_PLATFORM_DEV("ehci-platform", 0, PIC_USB_IRQ);
 static struct platform_device xls_usb_ohci_device_0 =
-			 USB_PLATFORM_DEV("ohci-xls-0", 1, PIC_USB_IRQ);
+			 USB_PLATFORM_DEV("ohci-platform", 1, PIC_USB_IRQ);
 static struct platform_device xls_usb_ohci_device_1 =
-			 USB_PLATFORM_DEV("ohci-xls-1", 2, PIC_USB_IRQ);
+			 USB_PLATFORM_DEV("ohci-platform", 2, PIC_USB_IRQ);
 
 static struct platform_device *xls_platform_devices[] = {
 	&xls_usb_ehci_device,
@@ -154,32 +162,35 @@ int xls_platform_usb_init(void)
 	nlm_write_reg(usb_mmio, 50, 0x1f000000);
 
 	/* Enable ports */
-	nlm_write_reg(usb_mmio,  1, 0x07000500);
+	nlm_write_reg(usb_mmio,	 1, 0x07000500);
 
 	val = nlm_read_reg(gpio_mmio, 21);
 	if (((val >> 22) & 0x01) == 0) {
 		pr_info("Detected USB Device mode - Not supported!\n");
-		nlm_write_reg(usb_mmio,  0, 0x01000000);
+		nlm_write_reg(usb_mmio,	 0, 0x01000000);
 		return 0;
 	}
 
 	pr_info("Detected USB Host mode - Adding XLS USB devices.\n");
 	/* Clear reset, host mode */
-	nlm_write_reg(usb_mmio,  0, 0x02000000);
+	nlm_write_reg(usb_mmio,	 0, 0x02000000);
 
 	/* Memory resource for various XLS usb ports */
 	usb_mmio = nlm_mmio_base(NETLOGIC_IO_USB_0_OFFSET);
 	memres = CPHYSADDR((unsigned long)usb_mmio);
 	xls_usb_ehci_device.resource[0].start = memres;
 	xls_usb_ehci_device.resource[0].end = memres + 0x400 - 1;
+	xls_usb_ehci_device.dev.platform_data = &xls_usb_ehci_pdata;
 
 	memres += 0x400;
 	xls_usb_ohci_device_0.resource[0].start = memres;
 	xls_usb_ohci_device_0.resource[0].end = memres + 0x400 - 1;
+	xls_usb_ohci_device_0.dev.platform_data = &xls_usb_ohci_pdata;
 
 	memres += 0x400;
 	xls_usb_ohci_device_1.resource[0].start = memres;
 	xls_usb_ohci_device_1.resource[0].end = memres + 0x400 - 1;
+	xls_usb_ohci_device_1.dev.platform_data = &xls_usb_ohci_pdata;
 
 	return platform_add_devices(xls_platform_devices,
 				ARRAY_SIZE(xls_platform_devices));
@@ -210,8 +221,8 @@ static struct resource i2c_resources[] = {
 };
 
 static struct platform_device nlm_xlr_i2c_1 = {
-	.name           = "xlr-i2cbus",
-	.id             = 1,
+	.name		= "xlr-i2cbus",
+	.id		= 1,
 	.num_resources	= 1,
 	.resource	= i2c_resources,
 };

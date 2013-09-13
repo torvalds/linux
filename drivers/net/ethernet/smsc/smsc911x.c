@@ -33,6 +33,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/crc32.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
@@ -144,6 +145,9 @@ struct smsc911x_data {
 
 	/* regulators */
 	struct regulator_bulk_data supplies[SMSC911X_NUM_SUPPLIES];
+
+	/* clock */
+	struct clk *clk;
 };
 
 /* Easy access to information */
@@ -253,7 +257,7 @@ smsc911x_tx_writefifo(struct smsc911x_data *pdata, unsigned int *buf,
 	}
 
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
-		writesl(pdata->ioaddr + TX_DATA_FIFO, buf, wordcount);
+		iowrite32_rep(pdata->ioaddr + TX_DATA_FIFO, buf, wordcount);
 		goto out;
 	}
 
@@ -285,7 +289,7 @@ smsc911x_tx_writefifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
 	}
 
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
-		writesl(pdata->ioaddr + __smsc_shift(pdata,
+		iowrite32_rep(pdata->ioaddr + __smsc_shift(pdata,
 						TX_DATA_FIFO), buf, wordcount);
 		goto out;
 	}
@@ -319,7 +323,7 @@ smsc911x_rx_readfifo(struct smsc911x_data *pdata, unsigned int *buf,
 	}
 
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
-		readsl(pdata->ioaddr + RX_DATA_FIFO, buf, wordcount);
+		ioread32_rep(pdata->ioaddr + RX_DATA_FIFO, buf, wordcount);
 		goto out;
 	}
 
@@ -351,7 +355,7 @@ smsc911x_rx_readfifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
 	}
 
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
-		readsl(pdata->ioaddr + __smsc_shift(pdata,
+		ioread32_rep(pdata->ioaddr + __smsc_shift(pdata,
 						RX_DATA_FIFO), buf, wordcount);
 		goto out;
 	}
@@ -369,7 +373,7 @@ out:
 }
 
 /*
- * enable resources, currently just regulators.
+ * enable regulator and clock resources.
  */
 static int smsc911x_enable_resources(struct platform_device *pdev)
 {
@@ -382,6 +386,13 @@ static int smsc911x_enable_resources(struct platform_device *pdev)
 	if (ret)
 		netdev_err(ndev, "failed to enable regulators %d\n",
 				ret);
+
+	if (!IS_ERR(pdata->clk)) {
+		ret = clk_prepare_enable(pdata->clk);
+		if (ret < 0)
+			netdev_err(ndev, "failed to enable clock %d\n", ret);
+	}
+
 	return ret;
 }
 
@@ -396,6 +407,10 @@ static int smsc911x_disable_resources(struct platform_device *pdev)
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(pdata->supplies),
 			pdata->supplies);
+
+	if (!IS_ERR(pdata->clk))
+		clk_disable_unprepare(pdata->clk);
+
 	return ret;
 }
 
@@ -421,6 +436,12 @@ static int smsc911x_request_resources(struct platform_device *pdev)
 	if (ret)
 		netdev_err(ndev, "couldn't get regulators %d\n",
 				ret);
+
+	/* Request clock */
+	pdata->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pdata->clk))
+		netdev_warn(ndev, "couldn't get clock %li\n", PTR_ERR(pdata->clk));
+
 	return ret;
 }
 
@@ -436,6 +457,12 @@ static void smsc911x_free_resources(struct platform_device *pdev)
 	/* Free regulators */
 	regulator_bulk_free(ARRAY_SIZE(pdata->supplies),
 			pdata->supplies);
+
+	/* Free clock */
+	if (!IS_ERR(pdata->clk)) {
+		clk_put(pdata->clk);
+		pdata->clk = NULL;
+	}
 }
 
 /* waits for MAC not busy, with timeout.  Only called by smsc911x_mac_read
@@ -997,9 +1024,8 @@ static int smsc911x_mii_probe(struct net_device *dev)
 	SMSC_TRACE(pdata, probe, "PHY: addr %d, phy_id 0x%08X",
 		   phydev->addr, phydev->phy_id);
 
-	ret = phy_connect_direct(dev, phydev,
-			&smsc911x_phy_adjust_link, 0,
-			pdata->config.phy_interface);
+	ret = phy_connect_direct(dev, phydev, &smsc911x_phy_adjust_link,
+				 pdata->config.phy_interface);
 
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -1031,8 +1057,8 @@ static int smsc911x_mii_probe(struct net_device *dev)
 	return 0;
 }
 
-static int __devinit smsc911x_mii_init(struct platform_device *pdev,
-				       struct net_device *dev)
+static int smsc911x_mii_init(struct platform_device *pdev,
+			     struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
 	int err = -ENXIO, i;
@@ -1463,11 +1489,6 @@ static int smsc911x_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
-	if (!is_valid_ether_addr(dev->dev_addr)) {
-		SMSC_WARN(pdata, hw, "dev_addr is not a valid MAC address");
-		return -EADDRNOTAVAIL;
-	}
-
 	/* Reset the LAN911x */
 	if (smsc911x_soft_reset(pdata)) {
 		SMSC_WARN(pdata, hw, "soft reset failed");
@@ -1836,7 +1857,6 @@ static int smsc911x_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 
 	spin_lock_irq(&pdata->mac_lock);
@@ -2092,7 +2112,7 @@ static const struct net_device_ops smsc911x_netdev_ops = {
 };
 
 /* copies the current mac address from hardware to dev->dev_addr */
-static void __devinit smsc911x_read_mac_address(struct net_device *dev)
+static void smsc911x_read_mac_address(struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
 	u32 mac_high16 = smsc911x_mac_read(pdata, ADDRH);
@@ -2107,10 +2127,10 @@ static void __devinit smsc911x_read_mac_address(struct net_device *dev)
 }
 
 /* Initializing private device structures, only called from probe */
-static int __devinit smsc911x_init(struct net_device *dev)
+static int smsc911x_init(struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
-	unsigned int byte_test;
+	unsigned int byte_test, mask;
 	unsigned int to = 100;
 
 	SMSC_TRACE(pdata, probe, "Driver Parameters:");
@@ -2122,7 +2142,7 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	spin_lock_init(&pdata->dev_lock);
 	spin_lock_init(&pdata->mac_lock);
 
-	if (pdata->ioaddr == 0) {
+	if (pdata->ioaddr == NULL) {
 		SMSC_WARN(pdata, probe, "pdata->ioaddr: 0x00000000");
 		return -ENODEV;
 	}
@@ -2130,9 +2150,22 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	/*
 	 * poll the READY bit in PMT_CTRL. Any other access to the device is
 	 * forbidden while this bit isn't set. Try for 100ms
+	 *
+	 * Note that this test is done before the WORD_SWAP register is
+	 * programmed. So in some configurations the READY bit is at 16 before
+	 * WORD_SWAP is written to. This issue is worked around by waiting
+	 * until either bit 0 or bit 16 gets set in PMT_CTRL.
+	 *
+	 * SMSC has confirmed that checking bit 16 (marked as reserved in
+	 * the datasheet) is fine since these bits "will either never be set
+	 * or can only go high after READY does (so also indicate the device
+	 * is ready)".
 	 */
-	while (!(smsc911x_reg_read(pdata, PMT_CTRL) & PMT_CTRL_READY_) && --to)
+
+	mask = PMT_CTRL_READY_ | swahw32(PMT_CTRL_READY_);
+	while (!(smsc911x_reg_read(pdata, PMT_CTRL) & mask) && --to)
 		udelay(1000);
+
 	if (to == 0) {
 		pr_err("Device not READY in 100ms aborting\n");
 		return -ENODEV;
@@ -2231,7 +2264,7 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	return 0;
 }
 
-static int __devexit smsc911x_drv_remove(struct platform_device *pdev)
+static int smsc911x_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct smsc911x_data *pdata;
@@ -2251,7 +2284,6 @@ static int __devexit smsc911x_drv_remove(struct platform_device *pdev)
 	mdiobus_unregister(pdata->mii_bus);
 	mdiobus_free(pdata->mii_bus);
 
-	platform_set_drvdata(pdev, NULL);
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -2288,9 +2320,8 @@ static const struct smsc911x_ops shifted_smsc911x_ops = {
 };
 
 #ifdef CONFIG_OF
-static int __devinit smsc911x_probe_config_dt(
-				struct smsc911x_platform_config *config,
-				struct device_node *np)
+static int smsc911x_probe_config_dt(struct smsc911x_platform_config *config,
+				    struct device_node *np)
 {
 	const char *mac;
 	u32 width = 0;
@@ -2338,12 +2369,12 @@ static inline int smsc911x_probe_config_dt(
 }
 #endif /* CONFIG_OF */
 
-static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
+static int smsc911x_drv_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct net_device *dev;
 	struct smsc911x_data *pdata;
-	struct smsc911x_platform_config *config = pdev->dev.platform_data;
+	struct smsc911x_platform_config *config = dev_get_platdata(&pdev->dev);
 	struct resource *res, *irq_res;
 	unsigned int intcfg = 0;
 	int res_size, irq_flags;
@@ -2507,7 +2538,6 @@ out_disable_resources:
 out_enable_resources_fail:
 	smsc911x_free_resources(pdev);
 out_request_resources_fail:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(pdata->ioaddr);
 	free_netdev(dev);
 out_release_io_1:
@@ -2568,20 +2598,22 @@ static const struct dev_pm_ops smsc911x_pm_ops = {
 #define SMSC911X_PM_OPS NULL
 #endif
 
+#ifdef CONFIG_OF
 static const struct of_device_id smsc911x_dt_ids[] = {
 	{ .compatible = "smsc,lan9115", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, smsc911x_dt_ids);
+#endif
 
 static struct platform_driver smsc911x_driver = {
 	.probe = smsc911x_drv_probe,
-	.remove = __devexit_p(smsc911x_drv_remove),
+	.remove = smsc911x_drv_remove,
 	.driver = {
 		.name	= SMSC_CHIPNAME,
 		.owner	= THIS_MODULE,
 		.pm	= SMSC911X_PM_OPS,
-		.of_match_table = smsc911x_dt_ids,
+		.of_match_table = of_match_ptr(smsc911x_dt_ids),
 	},
 };
 

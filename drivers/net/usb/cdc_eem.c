@@ -31,6 +31,7 @@
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
 #include <linux/gfp.h>
+#include <linux/if_vlan.h>
 
 
 /*
@@ -92,7 +93,7 @@ static int eem_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* no jumbogram (16K) support for now */
 
-	dev->net->hard_header_len += EEM_HEAD + ETH_FCS_LEN;
+	dev->net->hard_header_len += EEM_HEAD + ETH_FCS_LEN + VLAN_HLEN;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
 
 	return 0;
@@ -244,8 +245,12 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			 *  - suspend: peripheral ready to suspend
 			 *  - response: suggest N millisec polling
 			 *  - response complete: suggest N sec polling
+			 *
+			 * Suspend is reported and maybe heeded.
 			 */
 			case 2:		/* Suspend hint */
+				usbnet_device_suggests_idle(dev);
+				continue;
 			case 3:		/* Response hint */
 			case 4:		/* Response complete hint */
 				continue;

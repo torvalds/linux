@@ -1,7 +1,7 @@
 /*
  *  DEC I/O ASIC's counter clocksource
  *
- *  Copyright (C) 2008  Yoichi Yuasa <yuasa@linux-mips.org>
+ *  Copyright (C) 2008	Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,9 +41,9 @@ void __init dec_ioasic_clocksource_init(void)
 {
 	unsigned int freq;
 	u32 start, end;
-	int i = HZ / 10;
+	int i = HZ / 8;
 
-
+	ds1287_timer_state();
 	while (!ds1287_timer_state())
 		;
 
@@ -55,7 +55,7 @@ void __init dec_ioasic_clocksource_init(void)
 
 	end = dec_ioasic_hpt_read(&clocksource_dec);
 
-	freq = (end - start) * 10;
+	freq = (end - start) * 8;
 	printk(KERN_INFO "I/O ASIC clock frequency %dHz\n", freq);
 
 	clocksource_dec.rating = 200 + freq / 10000000;

@@ -17,7 +17,7 @@
 
 /* Address map */
 #define RBTX4939_IOC_REG_ADDR	(IO_BASE + TXX9_CE(1) + 0x00000000)
-#define RBTX4939_BOARD_REV_ADDR	(IO_BASE + TXX9_CE(1) + 0x00000000)
+#define RBTX4939_BOARD_REV_ADDR (IO_BASE + TXX9_CE(1) + 0x00000000)
 #define RBTX4939_IOC_REV_ADDR	(IO_BASE + TXX9_CE(1) + 0x00000002)
 #define RBTX4939_CONFIG1_ADDR	(IO_BASE + TXX9_CE(1) + 0x00000004)
 #define RBTX4939_CONFIG2_ADDR	(IO_BASE + TXX9_CE(1) + 0x00000006)
@@ -46,9 +46,9 @@
 #define RBTX4939_VPSIN_ADDR	(IO_BASE + TXX9_CE(1) + 0x0000500c)
 #define RBTX4939_7SEG_ADDR(s, ch)	\
 	(IO_BASE + TXX9_CE(1) + 0x00006000 + (s) * 16 + ((ch) & 3) * 2)
-#define RBTX4939_SOFTRESET_ADDR	(IO_BASE + TXX9_CE(1) + 0x00007000)
+#define RBTX4939_SOFTRESET_ADDR (IO_BASE + TXX9_CE(1) + 0x00007000)
 #define RBTX4939_RESETEN_ADDR	(IO_BASE + TXX9_CE(1) + 0x00007002)
-#define RBTX4939_RESETSTAT_ADDR	(IO_BASE + TXX9_CE(1) + 0x00007004)
+#define RBTX4939_RESETSTAT_ADDR (IO_BASE + TXX9_CE(1) + 0x00007004)
 #define RBTX4939_ETHER_BASE	(IO_BASE + TXX9_CE(1) + 0x00020000)
 
 /* Ethernet port address */
@@ -77,11 +77,11 @@
 #define RBTX4939_PE2_CIR	0x08
 #define RBTX4939_PE2_SPI	0x10
 #define RBTX4939_PE2_GPIO	0x20
-#define RBTX4939_PE3_VP	0x01
+#define RBTX4939_PE3_VP 0x01
 #define RBTX4939_PE3_VP_P	0x02
 #define RBTX4939_PE3_VP_S	0x04
 
-#define rbtx4939_board_rev_addr	((u8 __iomem *)RBTX4939_BOARD_REV_ADDR)
+#define rbtx4939_board_rev_addr ((u8 __iomem *)RBTX4939_BOARD_REV_ADDR)
 #define rbtx4939_ioc_rev_addr	((u8 __iomem *)RBTX4939_IOC_REV_ADDR)
 #define rbtx4939_config1_addr	((u8 __iomem *)RBTX4939_CONFIG1_ADDR)
 #define rbtx4939_config2_addr	((u8 __iomem *)RBTX4939_CONFIG2_ADDR)
@@ -110,9 +110,9 @@
 #define rbtx4939_vpsin_addr	((u8 __iomem *)RBTX4939_VPSIN_ADDR)
 #define rbtx4939_7seg_addr(s, ch) \
 				((u8 __iomem *)RBTX4939_7SEG_ADDR(s, ch))
-#define rbtx4939_softreset_addr	((u8 __iomem *)RBTX4939_SOFTRESET_ADDR)
+#define rbtx4939_softreset_addr ((u8 __iomem *)RBTX4939_SOFTRESET_ADDR)
 #define rbtx4939_reseten_addr	((u8 __iomem *)RBTX4939_RESETEN_ADDR)
-#define rbtx4939_resetstat_addr	((u8 __iomem *)RBTX4939_RESETSTAT_ADDR)
+#define rbtx4939_resetstat_addr ((u8 __iomem *)RBTX4939_RESETSTAT_ADDR)
 
 /*
  * IRQ mappings

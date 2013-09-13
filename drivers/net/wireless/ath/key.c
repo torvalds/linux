@@ -45,7 +45,8 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry)
 	void *ah = common->ah;
 
 	if (entry >= common->keymax) {
-		ath_err(common, "keycache entry %u out of range\n", entry);
+		ath_err(common, "keyreset: keycache entry %u out of range\n",
+			entry);
 		return false;
 	}
 
@@ -91,7 +92,8 @@ static bool ath_hw_keysetmac(struct ath_common *common,
 	void *ah = common->ah;
 
 	if (entry >= common->keymax) {
-		ath_err(common, "keycache entry %u out of range\n", entry);
+		ath_err(common, "keysetmac: keycache entry %u out of range\n",
+			entry);
 		return false;
 	}
 
@@ -133,7 +135,8 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 	u32 keyType;
 
 	if (entry >= common->keymax) {
-		ath_err(common, "keycache entry %u out of range\n", entry);
+		ath_err(common, "set-entry: keycache entry %u out of range\n",
+			entry);
 		return false;
 	}
 

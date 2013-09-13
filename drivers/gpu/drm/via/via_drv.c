@@ -24,11 +24,11 @@
 
 #include <linux/module.h>
 
-#include "drmP.h"
-#include "via_drm.h"
+#include <drm/drmP.h>
+#include <drm/via_drm.h>
 #include "via_drv.h"
 
-#include "drm_pciids.h"
+#include <drm/drm_pciids.h>
 
 static int via_driver_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -64,13 +64,15 @@ static const struct file_operations via_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.llseek = noop_llseek,
 };
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_HAVE_IRQ |
+	    DRIVER_USE_AGP | DRIVER_HAVE_IRQ |
 	    DRIVER_IRQ_SHARED,
 	.load = via_driver_load,
 	.unload = via_driver_unload,

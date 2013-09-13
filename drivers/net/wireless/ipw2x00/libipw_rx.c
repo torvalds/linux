@@ -1108,7 +1108,7 @@ static const char *get_info_element_string(u16 id)
 		MFIE_STRING(ERP_INFO);
 		MFIE_STRING(RSN);
 		MFIE_STRING(EXT_SUPP_RATES);
-		MFIE_STRING(GENERIC);
+		MFIE_STRING(VENDOR_SPECIFIC);
 		MFIE_STRING(QOS_PARAMETER);
 	default:
 		return "UNKNOWN";
@@ -1195,7 +1195,7 @@ static int libipw_parse_info_param(struct libipw_info_element
 #ifdef CONFIG_LIBIPW_DEBUG
 				p += snprintf(p, sizeof(rates_str) -
 					      (p - rates_str), "%02X ",
-					      network->rates[i]);
+					      network->rates_ex[i]);
 #endif
 				if (libipw_is_ofdm_rate
 				    (info_element->data[i])) {
@@ -1248,8 +1248,8 @@ static int libipw_parse_info_param(struct libipw_info_element
 			LIBIPW_DEBUG_MGMT("WLAN_EID_CHALLENGE: ignored\n");
 			break;
 
-		case WLAN_EID_GENERIC:
-			LIBIPW_DEBUG_MGMT("WLAN_EID_GENERIC: %d bytes\n",
+		case WLAN_EID_VENDOR_SPECIFIC:
+			LIBIPW_DEBUG_MGMT("WLAN_EID_VENDOR_SPECIFIC: %d bytes\n",
 					     info_element->len);
 			if (!libipw_parse_qos_info_param_IE(info_element,
 							       network))

@@ -14,10 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
 Driver: ni_pcimio
@@ -110,10 +106,12 @@ Bugs:
 
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
+
 #include "../comedidev.h"
 
 #include <asm/byteorder.h>
-#include <linux/delay.h>
 
 #include "ni_stc.h"
 #include "mite.h"
@@ -156,1043 +154,898 @@ static const struct comedi_lrange range_ni_M_625x_ao = { 3, {
 							     }
 };
 
-static const struct comedi_lrange range_ni_M_622x_ao = { 1, {
-							     RANGE(-10, 10),
-							     }
+enum ni_pcimio_boardid {
+	BOARD_PCIMIO_16XE_50,
+	BOARD_PCIMIO_16XE_10,
+	BOARD_PCI6014,
+	BOARD_PXI6030E,
+	BOARD_PCIMIO_16E_1,
+	BOARD_PCIMIO_16E_4,
+	BOARD_PXI6040E,
+	BOARD_PCI6031E,
+	BOARD_PCI6032E,
+	BOARD_PCI6033E,
+	BOARD_PCI6071E,
+	BOARD_PCI6023E,
+	BOARD_PCI6024E,
+	BOARD_PCI6025E,
+	BOARD_PXI6025E,
+	BOARD_PCI6034E,
+	BOARD_PCI6035E,
+	BOARD_PCI6052E,
+	BOARD_PCI6110,
+	BOARD_PCI6111,
+	/* BOARD_PCI6115, */
+	/* BOARD_PXI6115, */
+	BOARD_PCI6711,
+	BOARD_PXI6711,
+	BOARD_PCI6713,
+	BOARD_PXI6713,
+	BOARD_PCI6731,
+	/* BOARD_PXI6731, */
+	BOARD_PCI6733,
+	BOARD_PXI6733,
+	BOARD_PXI6071E,
+	BOARD_PXI6070E,
+	BOARD_PXI6052E,
+	BOARD_PXI6031E,
+	BOARD_PCI6036E,
+	BOARD_PCI6220,
+	BOARD_PCI6221,
+	BOARD_PCI6221_37PIN,
+	BOARD_PCI6224,
+	BOARD_PXI6224,
+	BOARD_PCI6225,
+	BOARD_PXI6225,
+	BOARD_PCI6229,
+	BOARD_PCI6250,
+	BOARD_PCI6251,
+	BOARD_PCIE6251,
+	BOARD_PXIE6251,
+	BOARD_PCI6254,
+	BOARD_PCI6259,
+	BOARD_PCIE6259,
+	BOARD_PCI6280,
+	BOARD_PCI6281,
+	BOARD_PXI6281,
+	BOARD_PCI6284,
+	BOARD_PCI6289,
+	BOARD_PCI6143,
+	BOARD_PXI6143,
 };
 
 static const struct ni_board_struct ni_boards[] = {
-	{
-	 .device_id = 0x0162,	/*  NI also says 0x1620.  typo? */
-	 .name = "pci-mio-16xe-50",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 2048,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_8,
-	 .ai_speed = 50000,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 0,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_unipolar = 0,
-	 .ao_speed = 50000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {dac8800, dac8043},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x1170,
-	 .name = "pci-mio-16xe-10",	/*  aka pci-6030E */
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_14,
-	 .ai_speed = 10000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 10000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {dac8800, dac8043, ad8522},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x28c0,
-	 .name = "pci-6014",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_4,
-	 .ai_speed = 5000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 0,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_unipolar = 0,
-	 .ao_speed = 100000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x11d0,
-	 .name = "pxi-6030e",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_14,
-	 .ai_speed = 10000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 10000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {dac8800, dac8043, ad8522},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x1180,
-	 .name = "pci-mio-16e-1",	/* aka pci-6070e */
-	 .n_adchan = 16,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_16,
-	 .ai_speed = 800,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {mb88341},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x1190,
-	 .name = "pci-mio-16e-4",	/* aka pci-6040e */
-	 .n_adchan = 16,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_16,
-	 /*      .Note = there have been reported problems with full speed
-	  * on this board */
-	 .ai_speed = 2000,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 512,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},	/*  doc says mb88341 */
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x11c0,
-	 .name = "pxi-6040e",
-	 .n_adchan = 16,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_16,
-	 .ai_speed = 2000,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 512,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {mb88341},
-	 .has_8255 = 0,
-	 },
-
-	{
-	 .device_id = 0x1330,
-	 .name = "pci-6031e",
-	 .n_adchan = 64,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_14,
-	 .ai_speed = 10000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 10000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {dac8800, dac8043, ad8522},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x1270,
-	 .name = "pci-6032e",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_14,
-	 .ai_speed = 10000,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 0,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {dac8800, dac8043, ad8522},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x1340,
-	 .name = "pci-6033e",
-	 .n_adchan = 64,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_14,
-	 .ai_speed = 10000,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 0,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {dac8800, dac8043, ad8522},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x1350,
-	 .name = "pci-6071e",
-	 .n_adchan = 64,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_16,
-	 .ai_speed = 800,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x2a60,
-	 .name = "pci-6023e",
-	 .n_adchan = 16,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_4,
-	 .ai_speed = 5000,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},	/* manual is wrong */
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x2a70,
-	 .name = "pci-6024e",
-	 .n_adchan = 16,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_4,
-	 .ai_speed = 5000,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 0,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_unipolar = 0,
-	 .ao_speed = 100000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},	/* manual is wrong */
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x2a80,
-	 .name = "pci-6025e",
-	 .n_adchan = 16,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_4,
-	 .ai_speed = 5000,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 0,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_unipolar = 0,
-	 .ao_speed = 100000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},	/* manual is wrong */
-	 .has_8255 = 1,
-	 },
-	{
-	 .device_id = 0x2ab0,
-	 .name = "pxi-6025e",
-	 .n_adchan = 16,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_4,
-	 .ai_speed = 5000,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 0,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 100000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},	/* manual is wrong */
-	 .has_8255 = 1,
-	 },
-
-	{
-	 .device_id = 0x2ca0,
-	 .name = "pci-6034e",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_4,
-	 .ai_speed = 5000,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 0,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x2c80,
-	 .name = "pci-6035e",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_4,
-	 .ai_speed = 5000,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 0,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_unipolar = 0,
-	 .ao_speed = 100000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x18b0,
-	 .name = "pci-6052e",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_16,
-	 .ai_speed = 3000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_unipolar = 1,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_speed = 3000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug, ad8804_debug, ad8522},	/* manual is wrong */
-	 },
-	{.device_id = 0x14e0,
-	 .name = "pci-6110",
-	 .n_adchan = 4,
-	 .adbits = 12,
-	 .ai_fifo_depth = 8192,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_611x,
-	 .ai_speed = 200,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .reg_type = ni_reg_611x,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 2048,
-	 .ao_speed = 250,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804, ad8804},
-	 },
-	{
-	 .device_id = 0x14f0,
-	 .name = "pci-6111",
-	 .n_adchan = 2,
-	 .adbits = 12,
-	 .ai_fifo_depth = 8192,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_611x,
-	 .ai_speed = 200,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .reg_type = ni_reg_611x,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 2048,
-	 .ao_speed = 250,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804, ad8804},
-	 },
+	[BOARD_PCIMIO_16XE_50] = {
+		.name		= "pci-mio-16xe-50",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 2048,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_8,
+		.ai_speed	= 50000,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 50000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { dac8800, dac8043 },
+	},
+	[BOARD_PCIMIO_16XE_10] = {
+		.name		= "pci-mio-16xe-10",	/*  aka pci-6030E */
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_14,
+		.ai_speed	= 10000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 10000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { dac8800, dac8043, ad8522 },
+	},
+	[BOARD_PCI6014] = {
+		.name		= "pci-6014",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_4,
+		.ai_speed	= 5000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 100000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },
+	},
+	[BOARD_PXI6030E] = {
+		.name		= "pxi-6030e",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_14,
+		.ai_speed	= 10000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 10000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { dac8800, dac8043, ad8522 },
+	},
+	[BOARD_PCIMIO_16E_1] = {
+		.name		= "pci-mio-16e-1",	/* aka pci-6070e */
+		.n_adchan	= 16,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.gainlkup	= ai_gain_16,
+		.ai_speed	= 800,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { mb88341 },
+	},
+	[BOARD_PCIMIO_16E_4] = {
+		.name		= "pci-mio-16e-4",	/* aka pci-6040e */
+		.n_adchan	= 16,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.gainlkup	= ai_gain_16,
+		/*
+		 * there have been reported problems with
+		 * full speed on this board
+		 */
+		.ai_speed	= 2000,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_fifo_depth	= 512,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },	/* doc says mb88341 */
+	},
+	[BOARD_PXI6040E] = {
+		.name		= "pxi-6040e",
+		.n_adchan	= 16,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.gainlkup	= ai_gain_16,
+		.ai_speed	= 2000,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_fifo_depth	= 512,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { mb88341 },
+	},
+	[BOARD_PCI6031E] = {
+		.name		= "pci-6031e",
+		.n_adchan	= 64,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_14,
+		.ai_speed	= 10000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 10000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { dac8800, dac8043, ad8522 },
+	},
+	[BOARD_PCI6032E] = {
+		.name		= "pci-6032e",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_14,
+		.ai_speed	= 10000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { dac8800, dac8043, ad8522 },
+	},
+	[BOARD_PCI6033E] = {
+		.name		= "pci-6033e",
+		.n_adchan	= 64,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_14,
+		.ai_speed	= 10000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { dac8800, dac8043, ad8522 },
+	},
+	[BOARD_PCI6071E] = {
+		.name		= "pci-6071e",
+		.n_adchan	= 64,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_16,
+		.ai_speed	= 800,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },
+	},
+	[BOARD_PCI6023E] = {
+		.name		= "pci-6023e",
+		.n_adchan	= 16,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.gainlkup	= ai_gain_4,
+		.ai_speed	= 5000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },	/* manual is wrong */
+	},
+	[BOARD_PCI6024E] = {
+		.name		= "pci-6024e",
+		.n_adchan	= 16,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.gainlkup	= ai_gain_4,
+		.ai_speed	= 5000,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 100000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },	/* manual is wrong */
+	},
+	[BOARD_PCI6025E] = {
+		.name		= "pci-6025e",
+		.n_adchan	= 16,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.gainlkup	= ai_gain_4,
+		.ai_speed	= 5000,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 100000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },	/* manual is wrong */
+		.has_8255	= 1,
+	},
+	[BOARD_PXI6025E] = {
+		.name		= "pxi-6025e",
+		.n_adchan	= 16,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.gainlkup	= ai_gain_4,
+		.ai_speed	= 5000,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 100000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },	/* manual is wrong */
+		.has_8255	= 1,
+	},
+	[BOARD_PCI6034E] = {
+		.name		= "pci-6034e",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_4,
+		.ai_speed	= 5000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },
+	},
+	[BOARD_PCI6035E] = {
+		.name		= "pci-6035e",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_4,
+		.ai_speed	= 5000,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 100000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },
+	},
+	[BOARD_PCI6052E] = {
+		.name		= "pci-6052e",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_16,
+		.ai_speed	= 3000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_unipolar	= 1,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_speed	= 3000,
+		.num_p0_dio_channels = 8,
+		/* manual is wrong */
+		.caldac		= { ad8804_debug, ad8804_debug, ad8522 },
+	},
+	[BOARD_PCI6110] = {
+		.name		= "pci-6110",
+		.n_adchan	= 4,
+		.adbits		= 12,
+		.ai_fifo_depth	= 8192,
+		.alwaysdither	= 0,
+		.gainlkup	= ai_gain_611x,
+		.ai_speed	= 200,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.reg_type	= ni_reg_611x,
+		.ao_range_table	= &range_bipolar10,
+		.ao_fifo_depth	= 2048,
+		.ao_speed	= 250,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804, ad8804 },
+	},
+	[BOARD_PCI6111] = {
+		.name		= "pci-6111",
+		.n_adchan	= 2,
+		.adbits		= 12,
+		.ai_fifo_depth	= 8192,
+		.gainlkup	= ai_gain_611x,
+		.ai_speed	= 200,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.reg_type	= ni_reg_611x,
+		.ao_range_table	= &range_bipolar10,
+		.ao_fifo_depth	= 2048,
+		.ao_speed	= 250,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804, ad8804 },
+	},
 #if 0
 	/* The 6115 boards probably need their own driver */
-	{
-	 .device_id = 0x2ed0,
-	 .name = "pci-6115",
-	 .n_adchan = 4,
-	 .adbits = 12,
-	 .ai_fifo_depth = 8192,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_611x,
-	 .ai_speed = 100,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_671x = 1,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 2048,
-	 .ao_speed = 250,
-	 .num_p0_dio_channels = 8,
-	 .reg_611x = 1,
-	 .caldac = {ad8804_debug, ad8804_debug, ad8804_debug},	/* XXX */
-	 },
+	[BOARD_PCI6115] = {	/* .device_id = 0x2ed0, */
+		.name		= "pci-6115",
+		.n_adchan	= 4,
+		.adbits		= 12,
+		.ai_fifo_depth	= 8192,
+		.gainlkup	= ai_gain_611x,
+		.ai_speed	= 100,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_671x	= 1,
+		.ao_fifo_depth	= 2048,
+		.ao_speed	= 250,
+		.num_p0_dio_channels = 8,
+		.reg_611x	= 1,
+		/* XXX */
+		.caldac		= { ad8804_debug, ad8804_debug, ad8804_debug },
+	},
 #endif
 #if 0
-	{
-	 .device_id = 0x0000,
-	 .name = "pxi-6115",
-	 .n_adchan = 4,
-	 .adbits = 12,
-	 .ai_fifo_depth = 8192,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_611x,
-	 .ai_speed = 100,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_671x = 1,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 2048,
-	 .ao_speed = 250,
-	 .reg_611x = 1,
-	 .num_p0_dio_channels = 8,
-	 caldac = {ad8804_debug, ad8804_debug, ad8804_debug},	/* XXX */
-	 },
-#endif
-	{
-	 .device_id = 0x1880,
-	 .name = "pci-6711",
-	 .n_adchan = 0,		/* no analog input */
-	 .n_aochan = 4,
-	 .aobits = 12,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 16384,
-	 /* data sheet says 8192, but fifo really holds 16384 samples */
-	 .ao_range_table = &range_bipolar10,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .reg_type = ni_reg_6711,
-	 .caldac = {ad8804_debug},
-	 },
-	{
-	 .device_id = 0x2b90,
-	 .name = "pxi-6711",
-	 .n_adchan = 0,		/* no analog input */
-	 .n_aochan = 4,
-	 .aobits = 12,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 16384,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .reg_type = ni_reg_6711,
-	 .caldac = {ad8804_debug},
-	 },
-	{
-	 .device_id = 0x1870,
-	 .name = "pci-6713",
-	 .n_adchan = 0,		/* no analog input */
-	 .n_aochan = 8,
-	 .aobits = 12,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 16384,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .reg_type = ni_reg_6713,
-	 .caldac = {ad8804_debug, ad8804_debug},
-	 },
-	{
-	 .device_id = 0x2b80,
-	 .name = "pxi-6713",
-	 .n_adchan = 0,		/* no analog input */
-	 .n_aochan = 8,
-	 .aobits = 12,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 16384,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .reg_type = ni_reg_6713,
-	 .caldac = {ad8804_debug, ad8804_debug},
-	 },
-	{
-	 .device_id = 0x2430,
-	 .name = "pci-6731",
-	 .n_adchan = 0,		/* no analog input */
-	 .n_aochan = 4,
-	 .aobits = 16,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 8192,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .reg_type = ni_reg_6711,
-	 .caldac = {ad8804_debug},
-	 },
-#if 0				/* need device ids */
-	{
-	 .device_id = 0x0,
-	 .name = "pxi-6731",
-	 .n_adchan = 0,		/* no analog input */
-	 .n_aochan = 4,
-	 .aobits = 16,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 8192,
-	 .ao_range_table = &range_bipolar10,
-	 .num_p0_dio_channels = 8,
-	 .reg_type = ni_reg_6711,
-	 .caldac = {ad8804_debug},
-	 },
-#endif
-	{
-	 .device_id = 0x2410,
-	 .name = "pci-6733",
-	 .n_adchan = 0,		/* no analog input */
-	 .n_aochan = 8,
-	 .aobits = 16,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 16384,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .reg_type = ni_reg_6713,
-	 .caldac = {ad8804_debug, ad8804_debug},
-	 },
-	{
-	 .device_id = 0x2420,
-	 .name = "pxi-6733",
-	 .n_adchan = 0,		/* no analog input */
-	 .n_aochan = 8,
-	 .aobits = 16,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 16384,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .reg_type = ni_reg_6713,
-	 .caldac = {ad8804_debug, ad8804_debug},
-	 },
-	{
-	 .device_id = 0x15b0,
-	 .name = "pxi-6071e",
-	 .n_adchan = 64,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_16,
-	 .ai_speed = 800,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x11b0,
-	 .name = "pxi-6070e",
-	 .n_adchan = 16,
-	 .adbits = 12,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_16,
-	 .ai_speed = 800,
-	 .n_aochan = 2,
-	 .aobits = 12,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 1000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x18c0,
-	 .name = "pxi-6052e",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_16,
-	 .ai_speed = 3000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_unipolar = 1,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_speed = 3000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {mb88341, mb88341, ad8522},
-	 },
-	{
-	 .device_id = 0x1580,
-	 .name = "pxi-6031e",
-	 .n_adchan = 64,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_14,
-	 .ai_speed = 10000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 2048,
-	 .ao_range_table = &range_ni_E_ao_ext,
-	 .ao_unipolar = 1,
-	 .ao_speed = 10000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {dac8800, dac8043, ad8522},
-	 },
-	{
-	 .device_id = 0x2890,
-	 .name = "pci-6036e",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 .alwaysdither = 1,
-	 .gainlkup = ai_gain_4,
-	 .ai_speed = 5000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 0,
-	 .ao_range_table = &range_bipolar10,
-	 .ao_unipolar = 0,
-	 .ao_speed = 100000,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70b0,
-	 .name = "pci-6220",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 512,
-	 /*      .FIXME = guess */
-	 .gainlkup = ai_gain_622x,
-	 .ai_speed = 4000,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 0,
-	 .num_p0_dio_channels = 8,
-	 .reg_type = ni_reg_622x,
-	 .ao_unipolar = 0,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70af,
-	 .name = "pci-6221",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_622x,
-	 .ai_speed = 4000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_622x_ao,
-	 .reg_type = ni_reg_622x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 1200,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x71bc,
-	 .name = "pci-6221_37pin",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_622x,
-	 .ai_speed = 4000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_622x_ao,
-	 .reg_type = ni_reg_622x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 1200,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70f2,
-	 .name = "pci-6224",
-	 .n_adchan = 32,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_622x,
-	 .ai_speed = 4000,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 0,
-	 .reg_type = ni_reg_622x,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70f3,
-	 .name = "pxi-6224",
-	 .n_adchan = 32,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_622x,
-	 .ai_speed = 4000,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 0,
-	 .reg_type = ni_reg_622x,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x716c,
-	 .name = "pci-6225",
-	 .n_adchan = 80,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_622x,
-	 .ai_speed = 4000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_622x_ao,
-	 .reg_type = ni_reg_622x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 1200,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x716d,
-	 .name = "pxi-6225",
-	 .n_adchan = 80,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_622x,
-	 .ai_speed = 4000,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_622x_ao,
-	 .reg_type = ni_reg_622x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 1200,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
+	[BOARD_PXI6115] = {	/* .device_id = ????, */
+		.name		= "pxi-6115",
+		.n_adchan	= 4,
+		.adbits		= 12,
+		.ai_fifo_depth	= 8192,
+		.gainlkup	= ai_gain_611x,
+		.ai_speed	= 100,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_671x	= 1,
+		.ao_fifo_depth	= 2048,
+		.ao_speed	= 250,
+		.reg_611x	= 1,
+		.num_p0_dio_channels = 8,
+		/* XXX */
+		.caldac		= { ad8804_debug, ad8804_debug, ad8804_debug },
 	},
-	{
-	 .device_id = 0x70aa,
-	 .name = "pci-6229",
-	 .n_adchan = 32,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_622x,
-	 .ai_speed = 4000,
-	 .n_aochan = 4,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_622x_ao,
-	 .reg_type = ni_reg_622x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 1200,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70b4,
-	 .name = "pci-6250",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 800,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 0,
-	 .reg_type = ni_reg_625x,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70b8,
-	 .name = "pci-6251",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 800,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_625x_ao,
-	 .reg_type = ni_reg_625x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 357,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x717d,
-	 .name = "pcie-6251",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 800,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_625x_ao,
-	 .reg_type = ni_reg_625x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 357,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x72e8,
-	 .name = "pxie-6251",
-	 .n_adchan = 16,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 800,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_625x_ao,
-	 .reg_type = ni_reg_625x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 357,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70b7,
-	 .name = "pci-6254",
-	 .n_adchan = 32,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 800,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 0,
-	 .reg_type = ni_reg_625x,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70ab,
-	 .name = "pci-6259",
-	 .n_adchan = 32,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 800,
-	 .n_aochan = 4,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_625x_ao,
-	 .reg_type = ni_reg_625x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 357,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x717f,
-	 .name = "pcie-6259",
-	 .n_adchan = 32,
-	 .adbits = 16,
-	 .ai_fifo_depth = 4095,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 800,
-	 .n_aochan = 4,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_625x_ao,
-	 .reg_type = ni_reg_625x,
-	 .ao_unipolar = 0,
-	 .ao_speed = 357,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70b6,
-	 .name = "pci-6280",
-	 .n_adchan = 16,
-	 .adbits = 18,
-	 .ai_fifo_depth = 2047,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 1600,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 8191,
-	 .reg_type = ni_reg_628x,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70bd,
-	 .name = "pci-6281",
-	 .n_adchan = 16,
-	 .adbits = 18,
-	 .ai_fifo_depth = 2047,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 1600,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_628x_ao,
-	 .reg_type = ni_reg_628x,
-	 .ao_unipolar = 1,
-	 .ao_speed = 357,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70bf,
-	 .name = "pxi-6281",
-	 .n_adchan = 16,
-	 .adbits = 18,
-	 .ai_fifo_depth = 2047,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 1600,
-	 .n_aochan = 2,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_628x_ao,
-	 .reg_type = ni_reg_628x,
-	 .ao_unipolar = 1,
-	 .ao_speed = 357,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70bc,
-	 .name = "pci-6284",
-	 .n_adchan = 32,
-	 .adbits = 18,
-	 .ai_fifo_depth = 2047,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 1600,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .ao_fifo_depth = 0,
-	 .reg_type = ni_reg_628x,
-	 .ao_unipolar = 0,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70ac,
-	 .name = "pci-6289",
-	 .n_adchan = 32,
-	 .adbits = 18,
-	 .ai_fifo_depth = 2047,
-	 .gainlkup = ai_gain_628x,
-	 .ai_speed = 1600,
-	 .n_aochan = 4,
-	 .aobits = 16,
-	 .ao_fifo_depth = 8191,
-	 .ao_range_table = &range_ni_M_628x_ao,
-	 .reg_type = ni_reg_628x,
-	 .ao_unipolar = 1,
-	 .ao_speed = 357,
-	 .num_p0_dio_channels = 32,
-	 .caldac = {caldac_none},
-	 .has_8255 = 0,
-	 },
-	{
-	 .device_id = 0x70C0,
-	 .name = "pci-6143",
-	 .n_adchan = 8,
-	 .adbits = 16,
-	 .ai_fifo_depth = 1024,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_6143,
-	 .ai_speed = 4000,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .reg_type = ni_reg_6143,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 0,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug, ad8804_debug},
-	 },
-	{
-	 .device_id = 0x710D,
-	 .name = "pxi-6143",
-	 .n_adchan = 8,
-	 .adbits = 16,
-	 .ai_fifo_depth = 1024,
-	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_6143,
-	 .ai_speed = 4000,
-	 .n_aochan = 0,
-	 .aobits = 0,
-	 .reg_type = ni_reg_6143,
-	 .ao_unipolar = 0,
-	 .ao_fifo_depth = 0,
-	 .num_p0_dio_channels = 8,
-	 .caldac = {ad8804_debug, ad8804_debug},
-	 },
+#endif
+	[BOARD_PCI6711] = {
+		.name = "pci-6711",
+		.n_aochan	= 4,
+		.aobits		= 12,
+		/* data sheet says 8192, but fifo really holds 16384 samples */
+		.ao_fifo_depth	= 16384,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.reg_type	= ni_reg_6711,
+		.caldac		= { ad8804_debug },
+	},
+	[BOARD_PXI6711] = {
+		.name		= "pxi-6711",
+		.n_aochan	= 4,
+		.aobits		= 12,
+		.ao_fifo_depth	= 16384,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.reg_type	= ni_reg_6711,
+		.caldac		= { ad8804_debug },
+	},
+	[BOARD_PCI6713] = {
+		.name		= "pci-6713",
+		.n_aochan	= 8,
+		.aobits		= 12,
+		.ao_fifo_depth	= 16384,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.reg_type	= ni_reg_6713,
+		.caldac		= { ad8804_debug, ad8804_debug },
+	},
+	[BOARD_PXI6713] = {
+		.name		= "pxi-6713",
+		.n_aochan	= 8,
+		.aobits		= 12,
+		.ao_fifo_depth	= 16384,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.reg_type	= ni_reg_6713,
+		.caldac		= { ad8804_debug, ad8804_debug },
+	},
+	[BOARD_PCI6731] = {
+		.name		= "pci-6731",
+		.n_aochan	= 4,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8192,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.reg_type	= ni_reg_6711,
+		.caldac		= { ad8804_debug },
+	},
+#if 0
+	[BOARD_PXI6731] = {	/* .device_id = ????, */
+		.name		= "pxi-6731",
+		.n_aochan	= 4,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8192,
+		.ao_range_table	= &range_bipolar10,
+		.num_p0_dio_channels = 8,
+		.reg_type	= ni_reg_6711,
+		.caldac		= { ad8804_debug },
+	},
+#endif
+	[BOARD_PCI6733] = {
+		.name		= "pci-6733",
+		.n_aochan	= 8,
+		.aobits		= 16,
+		.ao_fifo_depth	= 16384,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.reg_type	= ni_reg_6713,
+		.caldac		= { ad8804_debug, ad8804_debug },
+	},
+	[BOARD_PXI6733] = {
+		.name		= "pxi-6733",
+		.n_aochan	= 8,
+		.aobits		= 16,
+		.ao_fifo_depth	= 16384,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.reg_type	= ni_reg_6713,
+		.caldac		= { ad8804_debug, ad8804_debug },
+	},
+	[BOARD_PXI6071E] = {
+		.name		= "pxi-6071e",
+		.n_adchan	= 64,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_16,
+		.ai_speed	= 800,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },
+	},
+	[BOARD_PXI6070E] = {
+		.name		= "pxi-6070e",
+		.n_adchan	= 16,
+		.adbits		= 12,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_16,
+		.ai_speed	= 800,
+		.n_aochan	= 2,
+		.aobits		= 12,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 1000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },
+	},
+	[BOARD_PXI6052E] = {
+		.name		= "pxi-6052e",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_16,
+		.ai_speed	= 3000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_unipolar	= 1,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_speed	= 3000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { mb88341, mb88341, ad8522 },
+	},
+	[BOARD_PXI6031E] = {
+		.name		= "pxi-6031e",
+		.n_adchan	= 64,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_14,
+		.ai_speed	= 10000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 2048,
+		.ao_range_table	= &range_ni_E_ao_ext,
+		.ao_unipolar	= 1,
+		.ao_speed	= 10000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { dac8800, dac8043, ad8522 },
+	},
+	[BOARD_PCI6036E] = {
+		.name = "pci-6036e",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,
+		.alwaysdither	= 1,
+		.gainlkup	= ai_gain_4,
+		.ai_speed	= 5000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_range_table	= &range_bipolar10,
+		.ao_speed	= 100000,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug },
+	},
+	[BOARD_PCI6220] = {
+		.name		= "pci-6220",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 512,		/* FIXME: guess */
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.num_p0_dio_channels = 8,
+		.reg_type	= ni_reg_622x,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6221] = {
+		.name		= "pci-6221",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_bipolar10,
+		.reg_type	= ni_reg_622x,
+		.ao_speed	= 1200,
+		.num_p0_dio_channels = 8,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6221_37PIN] = {
+		.name		= "pci-6221_37pin",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_bipolar10,
+		.reg_type	= ni_reg_622x,
+		.ao_speed	= 1200,
+		.num_p0_dio_channels = 8,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6224] = {
+		.name		= "pci-6224",
+		.n_adchan	= 32,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.reg_type	= ni_reg_622x,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PXI6224] = {
+		.name		= "pxi-6224",
+		.n_adchan	= 32,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.reg_type	= ni_reg_622x,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6225] = {
+		.name		= "pci-6225",
+		.n_adchan	= 80,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_bipolar10,
+		.reg_type	= ni_reg_622x,
+		.ao_speed	= 1200,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PXI6225] = {
+		.name		= "pxi-6225",
+		.n_adchan	= 80,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_bipolar10,
+		.reg_type	= ni_reg_622x,
+		.ao_speed	= 1200,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6229] = {
+		.name		= "pci-6229",
+		.n_adchan	= 32,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.n_aochan	= 4,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_bipolar10,
+		.reg_type	= ni_reg_622x,
+		.ao_speed	= 1200,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6250] = {
+		.name		= "pci-6250",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.reg_type	= ni_reg_625x,
+		.num_p0_dio_channels = 8,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6251] = {
+		.name		= "pci-6251",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_625x_ao,
+		.reg_type	= ni_reg_625x,
+		.ao_speed	= 350,
+		.num_p0_dio_channels = 8,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCIE6251] = {
+		.name		= "pcie-6251",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_625x_ao,
+		.reg_type	= ni_reg_625x,
+		.ao_speed	= 350,
+		.num_p0_dio_channels = 8,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PXIE6251] = {
+		.name		= "pxie-6251",
+		.n_adchan	= 16,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_625x_ao,
+		.reg_type	= ni_reg_625x,
+		.ao_speed	= 350,
+		.num_p0_dio_channels = 8,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6254] = {
+		.name		= "pci-6254",
+		.n_adchan	= 32,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.reg_type	= ni_reg_625x,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6259] = {
+		.name		= "pci-6259",
+		.n_adchan	= 32,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.n_aochan	= 4,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_625x_ao,
+		.reg_type	= ni_reg_625x,
+		.ao_speed	= 350,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCIE6259] = {
+		.name		= "pcie-6259",
+		.n_adchan	= 32,
+		.adbits		= 16,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.n_aochan	= 4,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_625x_ao,
+		.reg_type	= ni_reg_625x,
+		.ao_speed	= 350,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6280] = {
+		.name		= "pci-6280",
+		.n_adchan	= 16,
+		.adbits		= 18,
+		.ai_fifo_depth	= 2047,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 1600,
+		.ao_fifo_depth	= 8191,
+		.reg_type	= ni_reg_628x,
+		.num_p0_dio_channels = 8,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6281] = {
+		.name		= "pci-6281",
+		.n_adchan	= 16,
+		.adbits		= 18,
+		.ai_fifo_depth	= 2047,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 1600,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table = &range_ni_M_628x_ao,
+		.reg_type	= ni_reg_628x,
+		.ao_unipolar	= 1,
+		.ao_speed	= 350,
+		.num_p0_dio_channels = 8,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PXI6281] = {
+		.name		= "pxi-6281",
+		.n_adchan	= 16,
+		.adbits		= 18,
+		.ai_fifo_depth	= 2047,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 1600,
+		.n_aochan	= 2,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_628x_ao,
+		.reg_type	= ni_reg_628x,
+		.ao_unipolar	= 1,
+		.ao_speed	= 350,
+		.num_p0_dio_channels = 8,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6284] = {
+		.name		= "pci-6284",
+		.n_adchan	= 32,
+		.adbits		= 18,
+		.ai_fifo_depth	= 2047,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 1600,
+		.reg_type	= ni_reg_628x,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6289] = {
+		.name		= "pci-6289",
+		.n_adchan	= 32,
+		.adbits		= 18,
+		.ai_fifo_depth	= 2047,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 1600,
+		.n_aochan	= 4,
+		.aobits		= 16,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_628x_ao,
+		.reg_type	= ni_reg_628x,
+		.ao_unipolar	= 1,
+		.ao_speed	= 350,
+		.num_p0_dio_channels = 32,
+		.caldac		= { caldac_none },
+	},
+	[BOARD_PCI6143] = {
+		.name		= "pci-6143",
+		.n_adchan	= 8,
+		.adbits		= 16,
+		.ai_fifo_depth	= 1024,
+		.gainlkup	= ai_gain_6143,
+		.ai_speed	= 4000,
+		.reg_type	= ni_reg_6143,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug, ad8804_debug },
+	},
+	[BOARD_PXI6143] = {
+		.name		= "pxi-6143",
+		.n_adchan	= 8,
+		.adbits		= 16,
+		.ai_fifo_depth	= 1024,
+		.gainlkup	= ai_gain_6143,
+		.ai_speed	= 4000,
+		.reg_type	= ni_reg_6143,
+		.num_p0_dio_channels = 8,
+		.caldac		= { ad8804_debug, ad8804_debug },
+	},
 };
-
-#define n_pcimio_boards ARRAY_SIZE(ni_boards)
 
 struct ni_private {
 NI_PRIVATE_COMMON};
-#define devpriv ((struct ni_private *)dev->private)
 
 /* How we access registers */
 
@@ -1215,6 +1068,7 @@ NI_PRIVATE_COMMON};
 
 static void e_series_win_out(struct comedi_device *dev, uint16_t data, int reg)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
@@ -1225,6 +1079,7 @@ static void e_series_win_out(struct comedi_device *dev, uint16_t data, int reg)
 
 static uint16_t e_series_win_in(struct comedi_device *dev, int reg)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 	uint16_t ret;
 
@@ -1239,7 +1094,9 @@ static uint16_t e_series_win_in(struct comedi_device *dev, int reg)
 static void m_series_stc_writew(struct comedi_device *dev, uint16_t data,
 				int reg)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned offset;
+
 	switch (reg) {
 	case ADC_FIFO_Clear:
 		offset = M_Offset_AI_FIFO_Clear;
@@ -1383,8 +1240,9 @@ static void m_series_stc_writew(struct comedi_device *dev, uint16_t data,
 		/* FIXME: DIO_Output_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Output (32 bit)
 		   and M_Offset_SCXI_Serial_Data_Out (8 bit) */
 	default:
-		printk(KERN_WARNING "%s: bug! unhandled register=0x%x in switch.\n",
-		       __func__, reg);
+		dev_warn(dev->class_dev,
+			 "%s: bug! unhandled register=0x%x in switch.\n",
+			 __func__, reg);
 		BUG();
 		return;
 		break;
@@ -1394,7 +1252,9 @@ static void m_series_stc_writew(struct comedi_device *dev, uint16_t data,
 
 static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned offset;
+
 	switch (reg) {
 	case AI_Status_1_Register:
 		offset = M_Offset_AI_Status_1;
@@ -1418,8 +1278,9 @@ static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
 		offset = M_Offset_G01_Status;
 		break;
 	default:
-		printk(KERN_WARNING "%s: bug! unhandled register=0x%x in switch.\n",
-		       __func__, reg);
+		dev_warn(dev->class_dev,
+			 "%s: bug! unhandled register=0x%x in switch.\n",
+			 __func__, reg);
 		BUG();
 		return 0;
 		break;
@@ -1430,7 +1291,9 @@ static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
 static void m_series_stc_writel(struct comedi_device *dev, uint32_t data,
 				int reg)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned offset;
+
 	switch (reg) {
 	case AI_SC_Load_A_Registers:
 		offset = M_Offset_AI_SC_Load_A;
@@ -1460,8 +1323,9 @@ static void m_series_stc_writel(struct comedi_device *dev, uint32_t data,
 		offset = M_Offset_G1_Load_B;
 		break;
 	default:
-		printk(KERN_WARNING "%s: bug! unhandled register=0x%x in switch.\n",
-		       __func__, reg);
+		dev_warn(dev->class_dev,
+			 "%s: bug! unhandled register=0x%x in switch.\n",
+			 __func__, reg);
 		BUG();
 		return;
 		break;
@@ -1471,7 +1335,9 @@ static void m_series_stc_writel(struct comedi_device *dev, uint32_t data,
 
 static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned offset;
+
 	switch (reg) {
 	case G_HW_Save_Register(0):
 		offset = M_Offset_G0_HW_Save;
@@ -1486,8 +1352,9 @@ static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
 		offset = M_Offset_G1_Save;
 		break;
 	default:
-		printk(KERN_WARNING "%s: bug! unhandled register=0x%x in switch.\n",
-		       __func__, reg);
+		dev_warn(dev->class_dev,
+			 "%s: bug! unhandled register=0x%x in switch.\n",
+			 __func__, reg);
 		BUG();
 		return 0;
 		break;
@@ -1502,7 +1369,6 @@ static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
 
 #include "ni_mio_common.c"
 
-static int pcimio_find_device(struct comedi_device *dev, int bus, int slot);
 static int pcimio_ai_change(struct comedi_device *dev,
 			    struct comedi_subdevice *s, unsigned long new_size);
 static int pcimio_ao_change(struct comedi_device *dev,
@@ -1519,6 +1385,7 @@ static int pcimio_dio_change(struct comedi_device *dev,
 
 static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 {
+	struct ni_private *devpriv = dev->private;
 	static const int Start_Cal_EEPROM = 0x400;
 	static const unsigned window_size = 10;
 	static const int serial_number_eeprom_offset = 0x4;
@@ -1556,6 +1423,9 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 
 static void init_6143(struct comedi_device *dev)
 {
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+
 	/*  Disable interrupts */
 	devpriv->stc_writew(dev, 0, Interrupt_Control_Register);
 
@@ -1564,7 +1434,8 @@ static void init_6143(struct comedi_device *dev)
 	ni_writeb(0x80, PipelineDelay_6143);	/*  Set EOCMode, ADCMode and pipelinedelay */
 	ni_writeb(0x00, EOC_Set_6143);	/*  Set EOC Delay */
 
-	ni_writel(boardtype.ai_fifo_depth / 2, AIFIFO_Flag_6143);	/*  Set the FIFO half full level */
+	/* Set the FIFO half full level */
+	ni_writel(board->ai_fifo_depth / 2, AIFIFO_Flag_6143);
 
 	/*  Strobe Relay disable bit */
 	devpriv->ai_calib_source_enabled = 0;
@@ -1575,38 +1446,54 @@ static void init_6143(struct comedi_device *dev)
 
 static void pcimio_detach(struct comedi_device *dev)
 {
+	struct ni_private *devpriv = dev->private;
+
 	mio_common_detach(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->private) {
+	if (devpriv) {
 		mite_free_ring(devpriv->ai_mite_ring);
 		mite_free_ring(devpriv->ao_mite_ring);
 		mite_free_ring(devpriv->cdo_mite_ring);
 		mite_free_ring(devpriv->gpct_mite_ring[0]);
 		mite_free_ring(devpriv->gpct_mite_ring[1]);
-		if (devpriv->mite)
+		if (devpriv->mite) {
 			mite_unsetup(devpriv->mite);
+			mite_free(devpriv->mite);
+		}
 	}
+	comedi_pci_disable(dev);
 }
 
-static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int pcimio_auto_attach(struct comedi_device *dev,
+			      unsigned long context)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct ni_board_struct *board = NULL;
+	struct ni_private *devpriv;
 	int ret;
 
-	dev_info(dev->class_dev, "ni_pcimio: attach\n");
+	if (context < ARRAY_SIZE(ni_boards))
+		board = &ni_boards[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
 
 	ret = ni_alloc_private(dev);
-	if (ret < 0)
+	if (ret)
 		return ret;
+	devpriv = dev->private;
 
-	ret = pcimio_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
+	devpriv->mite = mite_alloc(pcidev);
+	if (!devpriv->mite)
+		return -ENOMEM;
 
-	dev_dbg(dev->class_dev, "%s\n", boardtype.name);
-	dev->board_name = boardtype.name;
-
-	if (boardtype.reg_type & ni_reg_m_series_mask) {
+	if (board->reg_type & ni_reg_m_series_mask) {
 		devpriv->stc_writew = &m_series_stc_writew;
 		devpriv->stc_readw = &m_series_stc_readw;
 		devpriv->stc_writel = &m_series_stc_writel;
@@ -1623,7 +1510,7 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		pr_warn("error setting up mite\n");
 		return ret;
 	}
-	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
+
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->ai_mite_ring == NULL)
 		return -ENOMEM;
@@ -1640,9 +1527,9 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (devpriv->gpct_mite_ring[1] == NULL)
 		return -ENOMEM;
 
-	if (boardtype.reg_type & ni_reg_m_series_mask)
+	if (board->reg_type & ni_reg_m_series_mask)
 		m_series_init_eeprom_buffer(dev);
-	if (boardtype.reg_type == ni_reg_6143)
+	if (board->reg_type == ni_reg_6143)
 		init_6143(dev);
 
 	dev->irq = mite_irq(devpriv->mite);
@@ -1659,7 +1546,7 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	ret = ni_E_init(dev, it);
+	ret = ni_E_init(dev);
 	if (ret < 0)
 		return ret;
 
@@ -1672,37 +1559,10 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return ret;
 }
 
-static int pcimio_find_device(struct comedi_device *dev, int bus, int slot)
-{
-	struct mite_struct *mite;
-	int i;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-			    slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-
-		for (i = 0; i < n_pcimio_boards; i++) {
-			if (mite_device_id(mite) == ni_boards[i].device_id) {
-				dev->board_ptr = ni_boards + i;
-				devpriv->mite = mite;
-
-				return 0;
-			}
-		}
-	}
-	pr_warn("no device found\n");
-	mite_list_devices();
-	return -EIO;
-}
-
 static int pcimio_ai_change(struct comedi_device *dev,
 			    struct comedi_subdevice *s, unsigned long new_size)
 {
+	struct ni_private *devpriv = dev->private;
 	int ret;
 
 	ret = mite_buf_change(devpriv->ai_mite_ring, s->async);
@@ -1715,6 +1575,7 @@ static int pcimio_ai_change(struct comedi_device *dev,
 static int pcimio_ao_change(struct comedi_device *dev,
 			    struct comedi_subdevice *s, unsigned long new_size)
 {
+	struct ni_private *devpriv = dev->private;
 	int ret;
 
 	ret = mite_buf_change(devpriv->ao_mite_ring, s->async);
@@ -1728,6 +1589,7 @@ static int pcimio_gpct0_change(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       unsigned long new_size)
 {
+	struct ni_private *devpriv = dev->private;
 	int ret;
 
 	ret = mite_buf_change(devpriv->gpct_mite_ring[0], s->async);
@@ -1741,6 +1603,7 @@ static int pcimio_gpct1_change(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       unsigned long new_size)
 {
+	struct ni_private *devpriv = dev->private;
 	int ret;
 
 	ret = mite_buf_change(devpriv->gpct_mite_ring[1], s->async);
@@ -1753,6 +1616,7 @@ static int pcimio_gpct1_change(struct comedi_device *dev,
 static int pcimio_dio_change(struct comedi_device *dev,
 			     struct comedi_subdevice *s, unsigned long new_size)
 {
+	struct ni_private *devpriv = dev->private;
 	int ret;
 
 	ret = mite_buf_change(devpriv->cdo_mite_ring, s->async);
@@ -1765,75 +1629,71 @@ static int pcimio_dio_change(struct comedi_device *dev,
 static struct comedi_driver ni_pcimio_driver = {
 	.driver_name	= "ni_pcimio",
 	.module		= THIS_MODULE,
-	.attach		= pcimio_attach,
+	.auto_attach	= pcimio_auto_attach,
 	.detach		= pcimio_detach,
 };
 
-static int __devinit ni_pcimio_pci_probe(struct pci_dev *dev,
-					 const struct pci_device_id *ent)
+static int ni_pcimio_pci_probe(struct pci_dev *dev,
+			       const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &ni_pcimio_driver);
-}
-
-static void __devexit ni_pcimio_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &ni_pcimio_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ni_pcimio_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0162) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1170) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1180) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1190) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11b0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11c0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11d0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1270) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1330) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1340) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1350) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x14e0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x14f0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1580) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x15b0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1880) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1870) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x18b0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x18c0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2410) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2420) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2430) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2890) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x28c0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a60) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a70) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a80) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2ab0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b80) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b90) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c80) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2ca0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70aa) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70ab) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70ac) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70af) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b4) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b6) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b7) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b8) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bc) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bd) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bf) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70f2) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x710d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x716c) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x716d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x717f) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x71bc) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x717d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x72e8) },
+	{ PCI_VDEVICE(NI, 0x0162), BOARD_PCIMIO_16XE_50 },	/* 0x1620? */
+	{ PCI_VDEVICE(NI, 0x1170), BOARD_PCIMIO_16XE_10 },
+	{ PCI_VDEVICE(NI, 0x1180), BOARD_PCIMIO_16E_1 },
+	{ PCI_VDEVICE(NI, 0x1190), BOARD_PCIMIO_16E_4 },
+	{ PCI_VDEVICE(NI, 0x11b0), BOARD_PXI6070E },
+	{ PCI_VDEVICE(NI, 0x11c0), BOARD_PXI6040E },
+	{ PCI_VDEVICE(NI, 0x11d0), BOARD_PXI6030E },
+	{ PCI_VDEVICE(NI, 0x1270), BOARD_PCI6032E },
+	{ PCI_VDEVICE(NI, 0x1330), BOARD_PCI6031E },
+	{ PCI_VDEVICE(NI, 0x1340), BOARD_PCI6033E },
+	{ PCI_VDEVICE(NI, 0x1350), BOARD_PCI6071E },
+	{ PCI_VDEVICE(NI, 0x14e0), BOARD_PCI6110 },
+	{ PCI_VDEVICE(NI, 0x14f0), BOARD_PCI6111 },
+	{ PCI_VDEVICE(NI, 0x1580), BOARD_PXI6031E },
+	{ PCI_VDEVICE(NI, 0x15b0), BOARD_PXI6071E },
+	{ PCI_VDEVICE(NI, 0x1880), BOARD_PCI6711 },
+	{ PCI_VDEVICE(NI, 0x1870), BOARD_PCI6713 },
+	{ PCI_VDEVICE(NI, 0x18b0), BOARD_PCI6052E },
+	{ PCI_VDEVICE(NI, 0x18c0), BOARD_PXI6052E },
+	{ PCI_VDEVICE(NI, 0x2410), BOARD_PCI6733 },
+	{ PCI_VDEVICE(NI, 0x2420), BOARD_PXI6733 },
+	{ PCI_VDEVICE(NI, 0x2430), BOARD_PCI6731 },
+	{ PCI_VDEVICE(NI, 0x2890), BOARD_PCI6036E },
+	{ PCI_VDEVICE(NI, 0x28c0), BOARD_PCI6014 },
+	{ PCI_VDEVICE(NI, 0x2a60), BOARD_PCI6023E },
+	{ PCI_VDEVICE(NI, 0x2a70), BOARD_PCI6024E },
+	{ PCI_VDEVICE(NI, 0x2a80), BOARD_PCI6025E },
+	{ PCI_VDEVICE(NI, 0x2ab0), BOARD_PXI6025E },
+	{ PCI_VDEVICE(NI, 0x2b80), BOARD_PXI6713 },
+	{ PCI_VDEVICE(NI, 0x2b90), BOARD_PXI6711 },
+	{ PCI_VDEVICE(NI, 0x2c80), BOARD_PCI6035E },
+	{ PCI_VDEVICE(NI, 0x2ca0), BOARD_PCI6034E },
+	{ PCI_VDEVICE(NI, 0x70aa), BOARD_PCI6229 },
+	{ PCI_VDEVICE(NI, 0x70ab), BOARD_PCI6259 },
+	{ PCI_VDEVICE(NI, 0x70ac), BOARD_PCI6289 },
+	{ PCI_VDEVICE(NI, 0x70af), BOARD_PCI6221 },
+	{ PCI_VDEVICE(NI, 0x70b0), BOARD_PCI6220 },
+	{ PCI_VDEVICE(NI, 0x70b4), BOARD_PCI6250 },
+	{ PCI_VDEVICE(NI, 0x70b6), BOARD_PCI6280 },
+	{ PCI_VDEVICE(NI, 0x70b7), BOARD_PCI6254 },
+	{ PCI_VDEVICE(NI, 0x70b8), BOARD_PCI6251 },
+	{ PCI_VDEVICE(NI, 0x70bc), BOARD_PCI6284 },
+	{ PCI_VDEVICE(NI, 0x70bd), BOARD_PCI6281 },
+	{ PCI_VDEVICE(NI, 0x70bf), BOARD_PXI6281 },
+	{ PCI_VDEVICE(NI, 0x70c0), BOARD_PCI6143 },
+	{ PCI_VDEVICE(NI, 0x70f2), BOARD_PCI6224 },
+	{ PCI_VDEVICE(NI, 0x70f3), BOARD_PXI6224 },
+	{ PCI_VDEVICE(NI, 0x710d), BOARD_PXI6143 },
+	{ PCI_VDEVICE(NI, 0x716c), BOARD_PCI6225 },
+	{ PCI_VDEVICE(NI, 0x716d), BOARD_PXI6225 },
+	{ PCI_VDEVICE(NI, 0x717f), BOARD_PCIE6259 },
+	{ PCI_VDEVICE(NI, 0x71bc), BOARD_PCI6221_37PIN },
+	{ PCI_VDEVICE(NI, 0x717d), BOARD_PCIE6251 },
+	{ PCI_VDEVICE(NI, 0x72e8), BOARD_PXIE6251 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pcimio_pci_table);
@@ -1842,9 +1702,9 @@ static struct pci_driver ni_pcimio_pci_driver = {
 	.name		= "ni_pcimio",
 	.id_table	= ni_pcimio_pci_table,
 	.probe		= ni_pcimio_pci_probe,
-	.remove		= __devexit_p(ni_pcimio_pci_remove)
+	.remove		= comedi_pci_auto_unconfig,
 };
-module_comedi_pci_driver(ni_pcimio_driver, ni_pcimio_pci_driver)
+module_comedi_pci_driver(ni_pcimio_driver, ni_pcimio_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

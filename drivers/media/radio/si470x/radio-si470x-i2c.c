@@ -98,8 +98,12 @@ int si470x_get_register(struct si470x_device *radio, int regnr)
 {
 	u16 buf[READ_REG_NUM];
 	struct i2c_msg msgs[1] = {
-		{ radio->client->addr, I2C_M_RD, sizeof(u16) * READ_REG_NUM,
-			(void *)buf },
+		{
+			.addr = radio->client->addr,
+			.flags = I2C_M_RD,
+			.len = sizeof(u16) * READ_REG_NUM,
+			.buf = (void *)buf
+		},
 	};
 
 	if (i2c_transfer(radio->client->adapter, msgs, 1) != 1)
@@ -119,8 +123,11 @@ int si470x_set_register(struct si470x_device *radio, int regnr)
 	int i;
 	u16 buf[WRITE_REG_NUM];
 	struct i2c_msg msgs[1] = {
-		{ radio->client->addr, 0, sizeof(u16) * WRITE_REG_NUM,
-			(void *)buf },
+		{
+			.addr = radio->client->addr,
+			.len = sizeof(u16) * WRITE_REG_NUM,
+			.buf = (void *)buf
+		},
 	};
 
 	for (i = 0; i < WRITE_REG_NUM; i++)
@@ -146,8 +153,12 @@ static int si470x_get_all_registers(struct si470x_device *radio)
 	int i;
 	u16 buf[READ_REG_NUM];
 	struct i2c_msg msgs[1] = {
-		{ radio->client->addr, I2C_M_RD, sizeof(u16) * READ_REG_NUM,
-			(void *)buf },
+		{
+			.addr = radio->client->addr,
+			.flags = I2C_M_RD,
+			.len = sizeof(u16) * READ_REG_NUM,
+			.buf = (void *)buf
+		},
 	};
 
 	if (i2c_transfer(radio->client->adapter, msgs, 1) != 1)
@@ -297,7 +308,7 @@ static irqreturn_t si470x_i2c_interrupt(int irq, void *dev_id)
 					READCHAN_BLERD) >> 10;
 			rds = radio->registers[RDSD];
 			break;
-		};
+		}
 
 		/* Fill the V4L2 RDS buffer */
 		put_unaligned_le16(rds, &tmpbuf);
@@ -336,8 +347,8 @@ end:
 /*
  * si470x_i2c_probe - probe for the device
  */
-static int __devinit si470x_i2c_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int si470x_i2c_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
 {
 	struct si470x_device *radio;
 	int retval = 0;
@@ -440,7 +451,7 @@ err_initial:
 /*
  * si470x_i2c_remove - remove the device
  */
-static __devexit int si470x_i2c_remove(struct i2c_client *client)
+static int si470x_i2c_remove(struct i2c_client *client)
 {
 	struct si470x_device *radio = i2c_get_clientdata(client);
 
@@ -503,7 +514,7 @@ static struct i2c_driver si470x_i2c_driver = {
 #endif
 	},
 	.probe			= si470x_i2c_probe,
-	.remove			= __devexit_p(si470x_i2c_remove),
+	.remove			= si470x_i2c_remove,
 	.id_table		= si470x_i2c_id,
 };
 

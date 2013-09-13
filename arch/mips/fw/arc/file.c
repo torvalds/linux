@@ -15,7 +15,7 @@
 
 LONG
 ArcGetDirectoryEntry(ULONG FileID, struct linux_vdirent *Buffer,
-                     ULONG N, ULONG *Count)
+		     ULONG N, ULONG *Count)
 {
 	return ARC_CALL4(get_vdirent, FileID, Buffer, N, Count);
 }
@@ -69,7 +69,7 @@ ArcGetFileInformation(ULONG FileID, struct linux_finfo *Information)
 }
 
 LONG ArcSetFileInformation(ULONG FileID, ULONG AttributeFlags,
-                           ULONG AttributeMask)
+			   ULONG AttributeMask)
 {
 	return ARC_CALL3(set_finfo, FileID, AttributeFlags, AttributeMask);
 }

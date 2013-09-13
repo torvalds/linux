@@ -14,11 +14,10 @@
 
 #include <asm/lguest.h>
 
-void free_pagetables(void);
-int init_pagetables(struct page **switcher_page, unsigned int pages);
-
 struct pgdir {
 	unsigned long gpgdir;
+	bool switcher_mapped;
+	int last_host_cpu;
 	pgd_t *pgdir;
 };
 
@@ -124,6 +123,7 @@ bool lguest_address_ok(const struct lguest *lg,
 		       unsigned long addr, unsigned long len);
 void __lgread(struct lg_cpu *, void *, unsigned long, unsigned);
 void __lgwrite(struct lg_cpu *, unsigned long, const void *, unsigned);
+extern struct page **lg_switcher_pages;
 
 /*H:035
  * Using memory-copy operations like that is usually inconvient, so we

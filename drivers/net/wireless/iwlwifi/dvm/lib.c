@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +19,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -59,7 +59,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	/* half dBm need to multiply */
 	tx_power_cmd.global_lmt = (s8)(2 * priv->tx_power_user_lmt);
 
-	if (tx_power_cmd.global_lmt > priv->eeprom_data->max_tx_pwr_half_dbm) {
+	if (tx_power_cmd.global_lmt > priv->nvm_data->max_tx_pwr_half_dbm) {
 		/*
 		 * For the newer devices which using enhanced/extend tx power
 		 * table in EEPROM, the format is in half dBm. driver need to
@@ -72,7 +72,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 		 * half-dBm format), lower the tx power based on EEPROM
 		 */
 		tx_power_cmd.global_lmt =
-			priv->eeprom_data->max_tx_pwr_half_dbm;
+			priv->nvm_data->max_tx_pwr_half_dbm;
 	}
 	tx_power_cmd.flags = IWLAGN_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWLAGN_TX_POWER_AUTO;
@@ -136,7 +136,7 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
  *  1. acquire mutex before calling
  *  2. make sure rf is on and not in exit state
  */
-int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
+int iwlagn_txfifo_flush(struct iwl_priv *priv, u32 scd_q_msk)
 {
 	struct iwl_txfifo_flush_cmd flush_cmd;
 	struct iwl_host_cmd cmd = {
@@ -146,35 +146,37 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 		.data = { &flush_cmd, },
 	};
 
-	might_sleep();
-
 	memset(&flush_cmd, 0, sizeof(flush_cmd));
-	if (flush_control & BIT(IWL_RXON_CTX_BSS))
-		flush_cmd.fifo_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
-				 IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
-				 IWL_SCD_MGMT_MSK;
-	if ((flush_control & BIT(IWL_RXON_CTX_PAN)) &&
-	    (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
-		flush_cmd.fifo_control |= IWL_PAN_SCD_VO_MSK |
-				IWL_PAN_SCD_VI_MSK | IWL_PAN_SCD_BE_MSK |
-				IWL_PAN_SCD_BK_MSK | IWL_PAN_SCD_MGMT_MSK |
-				IWL_PAN_SCD_MULTICAST_MSK;
 
-	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE)
-		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
+	flush_cmd.queue_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
+				  IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
+				  IWL_SCD_MGMT_MSK;
+	if ((priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
+		flush_cmd.queue_control |= IWL_PAN_SCD_VO_MSK |
+					   IWL_PAN_SCD_VI_MSK |
+					   IWL_PAN_SCD_BE_MSK |
+					   IWL_PAN_SCD_BK_MSK |
+					   IWL_PAN_SCD_MGMT_MSK |
+					   IWL_PAN_SCD_MULTICAST_MSK;
 
-	IWL_DEBUG_INFO(priv, "fifo queue control: 0X%x\n",
-		       flush_cmd.fifo_control);
-	flush_cmd.flush_control = cpu_to_le16(flush_control);
+	if (priv->nvm_data->sku_cap_11n_enable)
+		flush_cmd.queue_control |= IWL_AGG_TX_QUEUE_MSK;
+
+	if (scd_q_msk)
+		flush_cmd.queue_control = cpu_to_le32(scd_q_msk);
+
+	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n",
+		       flush_cmd.queue_control);
+	flush_cmd.flush_control = cpu_to_le16(IWL_DROP_ALL);
 
 	return iwl_dvm_send_cmd(priv, &cmd);
 }
 
-void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
+void iwlagn_dev_txfifo_flush(struct iwl_priv *priv)
 {
 	mutex_lock(&priv->mutex);
 	ieee80211_stop_queues(priv->hw);
-	if (iwlagn_txfifo_flush(priv, IWL_DROP_ALL)) {
+	if (iwlagn_txfifo_flush(priv, 0)) {
 		IWL_ERR(priv, "flush request fail\n");
 		goto done;
 	}
@@ -252,23 +254,23 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	BUILD_BUG_ON(sizeof(iwlagn_def_3w_lookup) !=
 			sizeof(basic.bt3_lookup_table));
 
-	if (priv->cfg->bt_params) {
+	if (priv->lib->bt_params) {
 		/*
 		 * newer generation of devices (2000 series and newer)
 		 * use the version 2 of the bt command
 		 * we need to make sure sending the host command
 		 * with correct data structure to avoid uCode assert
 		 */
-		if (priv->cfg->bt_params->bt_session_2) {
+		if (priv->lib->bt_params->bt_session_2) {
 			bt_cmd_v2.prio_boost = cpu_to_le32(
-				priv->cfg->bt_params->bt_prio_boost);
+				priv->lib->bt_params->bt_prio_boost);
 			bt_cmd_v2.tx_prio_boost = 0;
 			bt_cmd_v2.rx_prio_boost = 0;
 		} else {
 			/* older version only has 8 bits */
-			WARN_ON(priv->cfg->bt_params->bt_prio_boost & ~0xFF);
+			WARN_ON(priv->lib->bt_params->bt_prio_boost & ~0xFF);
 			bt_cmd_v1.prio_boost =
-				priv->cfg->bt_params->bt_prio_boost;
+				priv->lib->bt_params->bt_prio_boost;
 			bt_cmd_v1.tx_prio_boost = 0;
 			bt_cmd_v1.rx_prio_boost = 0;
 		}
@@ -328,7 +330,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		       priv->bt_full_concurrent ?
 		       "full concurrency" : "3-wire");
 
-	if (priv->cfg->bt_params->bt_session_2) {
+	if (priv->lib->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_v2.basic, &basic,
 			sizeof(basic));
 		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
@@ -756,8 +758,8 @@ static bool is_single_rx_stream(struct iwl_priv *priv)
  */
 static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 {
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist &&
 	    (priv->bt_full_concurrent ||
 	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*
@@ -826,10 +828,10 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (priv->chain_noise_data.active_chains)
 		active_chains = priv->chain_noise_data.active_chains;
 	else
-		active_chains = priv->eeprom_data->valid_rx_ant;
+		active_chains = priv->nvm_data->valid_rx_ant;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist &&
 	    (priv->bt_full_concurrent ||
 	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*
@@ -1085,7 +1087,14 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwlagn_wowlan_kek_kck_material_cmd kek_kck_cmd;
 	struct iwlagn_wowlan_tkip_params_cmd tkip_cmd = {};
-	struct iwlagn_d3_config_cmd d3_cfg_cmd = {};
+	struct iwlagn_d3_config_cmd d3_cfg_cmd = {
+		/*
+		 * Program the minimum sleep time to 10 seconds, as many
+		 * platforms have issues processing a wakeup signal while
+		 * still being in the process of suspending.
+		 */
+		.min_sleep_time = cpu_to_le32(10 * 1000 * 1000),
+	};
 	struct wowlan_key_data key_data = {
 		.ctx = ctx,
 		.bssid = ctx->active.bssid_addr,
@@ -1263,18 +1272,21 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	}
 
 	/*
+	 * This can happen upon FW ASSERT: we clear the STATUS_FW_ERROR flag
+	 * in iwl_down but cancel the workers only later.
+	 */
+	if (!priv->ucode_loaded) {
+		IWL_ERR(priv, "Fw not loaded - dropping CMD: %x\n", cmd->id);
+		return -EIO;
+	}
+
+	/*
 	 * Synchronous commands from this op-mode must hold
 	 * the mutex, this ensures we don't try to send two
 	 * (or more) synchronous commands at a time.
 	 */
 	if (!(cmd->flags & CMD_ASYNC))
 		lockdep_assert_held(&priv->mutex);
-
-	if (priv->ucode_owner == IWL_OWNERSHIP_TM &&
-	    !(cmd->flags & CMD_ON_DEMAND)) {
-		IWL_DEBUG_HC(priv, "tm own the uCode, no regular hcmd send\n");
-		return -EIO;
-	}
 
 	return iwl_trans_send_cmd(priv->trans, cmd);
 }

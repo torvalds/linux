@@ -43,7 +43,7 @@ union cvmx_pcie_address {
 		uint64_t upper:2;	/* Normally 2 for XKPHYS */
 		uint64_t reserved_49_61:13;	/* Must be zero */
 		uint64_t io:1;	/* 1 for IO space access */
-		uint64_t did:5;	/* PCIe DID = 3 */
+		uint64_t did:5; /* PCIe DID = 3 */
 		uint64_t subdid:3;	/* PCIe SubDID = 1 */
 		uint64_t reserved_36_39:4;	/* Must be zero */
 		uint64_t es:2;	/* Endian swap = 1 */
@@ -74,7 +74,7 @@ union cvmx_pcie_address {
 		uint64_t upper:2;	/* Normally 2 for XKPHYS */
 		uint64_t reserved_49_61:13;	/* Must be zero */
 		uint64_t io:1;	/* 1 for IO space access */
-		uint64_t did:5;	/* PCIe DID = 3 */
+		uint64_t did:5; /* PCIe DID = 3 */
 		uint64_t subdid:3;	/* PCIe SubDID = 2 */
 		uint64_t reserved_36_39:4;	/* Must be zero */
 		uint64_t es:2;	/* Endian swap = 1 */
@@ -85,7 +85,7 @@ union cvmx_pcie_address {
 		uint64_t upper:2;	/* Normally 2 for XKPHYS */
 		uint64_t reserved_49_61:13;	/* Must be zero */
 		uint64_t io:1;	/* 1 for IO space access */
-		uint64_t did:5;	/* PCIe DID = 3 */
+		uint64_t did:5; /* PCIe DID = 3 */
 		uint64_t subdid:3;	/* PCIe SubDID = 3-6 */
 		uint64_t reserved_36_39:4;	/* Must be zero */
 		uint64_t address:36;	/* PCIe Mem address */
@@ -166,7 +166,7 @@ static inline uint64_t cvmx_pcie_get_mem_size(int pcie_port)
  * Read a PCIe config space register indirectly. This is used for
  * registers of the form PCIEEP_CFG??? and PCIERC?_CFG???.
  *
- * @pcie_port:  PCIe port to read from
+ * @pcie_port:	PCIe port to read from
  * @cfg_offset: Address to read
  *
  * Returns Value read
@@ -194,9 +194,9 @@ static uint32_t cvmx_pcie_cfgx_read(int pcie_port, uint32_t cfg_offset)
  * Write a PCIe config space register indirectly. This is used for
  * registers of the form PCIEEP_CFG??? and PCIERC?_CFG???.
  *
- * @pcie_port:  PCIe port to write to
+ * @pcie_port:	PCIe port to write to
  * @cfg_offset: Address to write
- * @val:        Value to write
+ * @val:	Value to write
  */
 static void cvmx_pcie_cfgx_write(int pcie_port, uint32_t cfg_offset,
 				 uint32_t val)
@@ -222,7 +222,7 @@ static void cvmx_pcie_cfgx_write(int pcie_port, uint32_t cfg_offset,
  * @pcie_port: PCIe port to access
  * @bus:       Sub bus
  * @dev:       Device ID
- * @fn:        Device sub function
+ * @fn:	       Device sub function
  * @reg:       Register to access
  *
  * Returns 64bit Octeon IO address
@@ -259,7 +259,7 @@ static inline uint64_t __cvmx_pcie_build_config_addr(int pcie_port, int bus,
  * @pcie_port: PCIe port the device is on
  * @bus:       Sub bus
  * @dev:       Device ID
- * @fn:        Device sub function
+ * @fn:	       Device sub function
  * @reg:       Register to access
  *
  * Returns Result of the read
@@ -281,7 +281,7 @@ static uint8_t cvmx_pcie_config_read8(int pcie_port, int bus, int dev,
  * @pcie_port: PCIe port the device is on
  * @bus:       Sub bus
  * @dev:       Device ID
- * @fn:        Device sub function
+ * @fn:	       Device sub function
  * @reg:       Register to access
  *
  * Returns Result of the read
@@ -303,7 +303,7 @@ static uint16_t cvmx_pcie_config_read16(int pcie_port, int bus, int dev,
  * @pcie_port: PCIe port the device is on
  * @bus:       Sub bus
  * @dev:       Device ID
- * @fn:        Device sub function
+ * @fn:	       Device sub function
  * @reg:       Register to access
  *
  * Returns Result of the read
@@ -325,7 +325,7 @@ static uint32_t cvmx_pcie_config_read32(int pcie_port, int bus, int dev,
  * @pcie_port: PCIe port the device is on
  * @bus:       Sub bus
  * @dev:       Device ID
- * @fn:        Device sub function
+ * @fn:	       Device sub function
  * @reg:       Register to access
  * @val:       Value to write
  */
@@ -344,7 +344,7 @@ static void cvmx_pcie_config_write8(int pcie_port, int bus, int dev, int fn,
  * @pcie_port: PCIe port the device is on
  * @bus:       Sub bus
  * @dev:       Device ID
- * @fn:        Device sub function
+ * @fn:	       Device sub function
  * @reg:       Register to access
  * @val:       Value to write
  */
@@ -363,7 +363,7 @@ static void cvmx_pcie_config_write16(int pcie_port, int bus, int dev, int fn,
  * @pcie_port: PCIe port the device is on
  * @bus:       Sub bus
  * @dev:       Device ID
- * @fn:        Device sub function
+ * @fn:	       Device sub function
  * @reg:       Register to access
  * @val:       Value to write
  */
@@ -883,14 +883,14 @@ retry:
 
 	/* Store merge control (NPEI_MEM_ACCESS_CTL[TIMER,MAX_WORD]) */
 	npei_mem_access_ctl.u64 = cvmx_read_csr(CVMX_PEXP_NPEI_MEM_ACCESS_CTL);
-	npei_mem_access_ctl.s.max_word = 0;     /* Allow 16 words to combine */
-	npei_mem_access_ctl.s.timer = 127;      /* Wait up to 127 cycles for more data */
+	npei_mem_access_ctl.s.max_word = 0;	/* Allow 16 words to combine */
+	npei_mem_access_ctl.s.timer = 127;	/* Wait up to 127 cycles for more data */
 	cvmx_write_csr(CVMX_PEXP_NPEI_MEM_ACCESS_CTL, npei_mem_access_ctl.u64);
 
 	/* Setup Mem access SubDIDs */
 	mem_access_subid.u64 = 0;
 	mem_access_subid.s.port = pcie_port; /* Port the request is sent to. */
-	mem_access_subid.s.nmerge = 1;  /* Due to an errata on pass 1 chips, no merging is allowed. */
+	mem_access_subid.s.nmerge = 1;	/* Due to an errata on pass 1 chips, no merging is allowed. */
 	mem_access_subid.s.esr = 1;	/* Endian-swap for Reads. */
 	mem_access_subid.s.esw = 1;	/* Endian-swap for Writes. */
 	mem_access_subid.s.nsr = 0;	/* Enable Snooping for Reads. Octeon doesn't care, but devices might want this more conservative setting */
@@ -926,7 +926,7 @@ retry:
 
 	bar1_index.u32 = 0;
 	bar1_index.s.addr_idx = (CVMX_PCIE_BAR1_PHYS_BASE >> 22);
-	bar1_index.s.ca = 1;       /* Not Cached */
+	bar1_index.s.ca = 1;	   /* Not Cached */
 	bar1_index.s.end_swp = 1;  /* Endian Swap mode */
 	bar1_index.s.addr_v = 1;   /* Valid entry */
 
@@ -1342,11 +1342,11 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	/* Setup Mem access SubDIDs */
 	mem_access_subid.u64 = 0;
 	mem_access_subid.s.port = pcie_port; /* Port the request is sent to. */
-	mem_access_subid.s.nmerge = 0;  /* Allow merging as it works on CN6XXX. */
-	mem_access_subid.s.esr = 1;     /* Endian-swap for Reads. */
-	mem_access_subid.s.esw = 1;     /* Endian-swap for Writes. */
-	mem_access_subid.s.wtype = 0;   /* "No snoop" and "Relaxed ordering" are not set */
-	mem_access_subid.s.rtype = 0;   /* "No snoop" and "Relaxed ordering" are not set */
+	mem_access_subid.s.nmerge = 0;	/* Allow merging as it works on CN6XXX. */
+	mem_access_subid.s.esr = 1;	/* Endian-swap for Reads. */
+	mem_access_subid.s.esw = 1;	/* Endian-swap for Writes. */
+	mem_access_subid.s.wtype = 0;	/* "No snoop" and "Relaxed ordering" are not set */
+	mem_access_subid.s.rtype = 0;	/* "No snoop" and "Relaxed ordering" are not set */
 	/* PCIe Adddress Bits <63:34>. */
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
 		mem_access_subid.cn68xx.ba = 0;
@@ -1409,7 +1409,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 
 	bar1_index.u64 = 0;
 	bar1_index.s.addr_idx = (CVMX_PCIE_BAR1_PHYS_BASE >> 22);
-	bar1_index.s.ca = 1;       /* Not Cached */
+	bar1_index.s.ca = 1;	   /* Not Cached */
 	bar1_index.s.end_swp = 1;  /* Endian Swap mode */
 	bar1_index.s.addr_v = 1;   /* Valid entry */
 
@@ -1458,10 +1458,10 @@ static int cvmx_pcie_rc_initialize(int pcie_port)
  *
  * @dev:    The Linux PCI device structure for the device to map
  * @slot:   The slot number for this device on __BUS 0__. Linux
- *               enumerates through all the bridges and figures out the
- *               slot on Bus 0 where this device eventually hooks to.
+ *		 enumerates through all the bridges and figures out the
+ *		 slot on Bus 0 where this device eventually hooks to.
  * @pin:    The PCI interrupt pin read from the device, then swizzled
- *               as it goes through each bridge.
+ *		 as it goes through each bridge.
  * Returns Interrupt number for the device
  */
 int __init octeon_pcie_pcibios_map_irq(const struct pci_dev *dev,
@@ -1503,7 +1503,7 @@ int __init octeon_pcie_pcibios_map_irq(const struct pci_dev *dev,
 	return pin - 1 + OCTEON_IRQ_PCI_INT0;
 }
 
-static  void set_cfg_read_retry(u32 retry_cnt)
+static	void set_cfg_read_retry(u32 retry_cnt)
 {
 	union cvmx_pemx_ctl_status pemx_ctl;
 	pemx_ctl.u64 = cvmx_read_csr(CVMX_PEMX_CTL_STATUS(1));
@@ -1931,7 +1931,7 @@ static int __init octeon_pcie_setup(void)
 			OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0)) {
 			sriox_status_reg.u64 = cvmx_read_csr(CVMX_SRIOX_STATUS_REG(0));
 			if (sriox_status_reg.s.srio) {
-				srio_war15205 += 1;      /* Port is SRIO */
+				srio_war15205 += 1;	 /* Port is SRIO */
 				port = 0;
 			}
 		}
@@ -2004,7 +2004,7 @@ static int __init octeon_pcie_setup(void)
 			OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0)) {
 			sriox_status_reg.u64 = cvmx_read_csr(CVMX_SRIOX_STATUS_REG(1));
 			if (sriox_status_reg.s.srio) {
-				srio_war15205 += 1;      /* Port is SRIO */
+				srio_war15205 += 1;	 /* Port is SRIO */
 				port = 1;
 			}
 		}

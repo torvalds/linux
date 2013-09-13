@@ -34,7 +34,7 @@
 #define IOMMU_RNGE	IOMMU_RNGE_256MB
 #define IOMMU_START	0xF0000000
 #define IOMMU_WINSIZE	(256*1024*1024U)
-#define IOMMU_NPTES	(IOMMU_WINSIZE/PAGE_SIZE)	/* 64K PTEs, 265KB */
+#define IOMMU_NPTES	(IOMMU_WINSIZE/PAGE_SIZE)	/* 64K PTEs, 256KB */
 #define IOMMU_ORDER	6				/* 4096 * (1<<6) */
 
 /* srmmu.c */
@@ -90,8 +90,8 @@ static void __init sbus_iommu_init(struct platform_device *op)
            it to us. */
         tmp = __get_free_pages(GFP_KERNEL, IOMMU_ORDER);
 	if (!tmp) {
-		prom_printf("Unable to allocate iommu table [0x%08x]\n",
-			    IOMMU_NPTES*sizeof(iopte_t));
+		prom_printf("Unable to allocate iommu table [0x%lx]\n",
+			    IOMMU_NPTES * sizeof(iopte_t));
 		prom_halt();
 	}
 	iommu->page_table = (iopte_t *)tmp;

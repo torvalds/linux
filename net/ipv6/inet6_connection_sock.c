@@ -31,25 +31,37 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 			    const struct inet_bind_bucket *tb, bool relax)
 {
 	const struct sock *sk2;
-	const struct hlist_node *node;
+	int reuse = sk->sk_reuse;
+	int reuseport = sk->sk_reuseport;
+	kuid_t uid = sock_i_uid((struct sock *)sk);
 
 	/* We must walk the whole port owner list in this case. -DaveM */
 	/*
 	 * See comment in inet_csk_bind_conflict about sock lookup
 	 * vs net namespaces issues.
 	 */
-	sk_for_each_bound(sk2, node, &tb->owners) {
+	sk_for_each_bound(sk2, &tb->owners) {
 		if (sk != sk2 &&
 		    (!sk->sk_bound_dev_if ||
 		     !sk2->sk_bound_dev_if ||
-		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if) &&
-		    (!sk->sk_reuse || !sk2->sk_reuse ||
-		     sk2->sk_state == TCP_LISTEN) &&
-		     ipv6_rcv_saddr_equal(sk, sk2))
-			break;
+		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
+			if ((!reuse || !sk2->sk_reuse ||
+			     sk2->sk_state == TCP_LISTEN) &&
+			    (!reuseport || !sk2->sk_reuseport ||
+			     (sk2->sk_state != TCP_TIME_WAIT &&
+			      !uid_eq(uid,
+				      sock_i_uid((struct sock *)sk2))))) {
+				if (ipv6_rcv_saddr_equal(sk, sk2))
+					break;
+			}
+			if (!relax && reuse && sk2->sk_reuse &&
+			    sk2->sk_state != TCP_LISTEN &&
+			    ipv6_rcv_saddr_equal(sk, sk2))
+				break;
+		}
 	}
 
-	return node != NULL;
+	return sk2 != NULL;
 }
 
 EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
@@ -161,10 +173,8 @@ void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
 	sin6->sin6_port	= inet_sk(sk)->inet_dport;
 	/* We do not store received flowlabel for TCP */
 	sin6->sin6_flowinfo = 0;
-	sin6->sin6_scope_id = 0;
-	if (sk->sk_bound_dev_if &&
-	    ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
-		sin6->sin6_scope_id = sk->sk_bound_dev_if;
+	sin6->sin6_scope_id = ipv6_iface_scope_id(&sin6->sin6_addr,
+						  sk->sk_bound_dev_if);
 }
 
 EXPORT_SYMBOL_GPL(inet6_csk_addr2sockaddr);
@@ -175,33 +185,12 @@ void __inet6_csk_dst_store(struct sock *sk, struct dst_entry *dst,
 			   const struct in6_addr *saddr)
 {
 	__ip6_dst_store(sk, dst, daddr, saddr);
-
-#ifdef CONFIG_XFRM
-	{
-		struct rt6_info *rt = (struct rt6_info  *)dst;
-		rt->rt6i_flow_cache_genid = atomic_read(&flow_cache_genid);
-	}
-#endif
 }
 
 static inline
 struct dst_entry *__inet6_csk_dst_check(struct sock *sk, u32 cookie)
 {
-	struct dst_entry *dst;
-
-	dst = __sk_dst_check(sk, cookie);
-
-#ifdef CONFIG_XFRM
-	if (dst) {
-		struct rt6_info *rt = (struct rt6_info *)dst;
-		if (rt->rt6i_flow_cache_genid != atomic_read(&flow_cache_genid)) {
-			__sk_dst_reset(sk);
-			dst = NULL;
-		}
-	}
-#endif
-
-	return dst;
+	return __sk_dst_check(sk, cookie);
 }
 
 static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
@@ -273,6 +262,7 @@ struct dst_entry *inet6_csk_update_pmtu(struct sock *sk, u32 mtu)
 		return NULL;
 	dst->ops->update_pmtu(dst, sk, NULL, mtu);
 
-	return inet6_csk_route_socket(sk, &fl6);
+	dst = inet6_csk_route_socket(sk, &fl6);
+	return IS_ERR(dst) ? NULL : dst;
 }
 EXPORT_SYMBOL_GPL(inet6_csk_update_pmtu);

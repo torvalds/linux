@@ -44,6 +44,51 @@
 
 #include "musb_core.h"
 
+/*
+* Program the HDRC to start (enable interrupts, dma, etc.).
+*/
+static void musb_start(struct musb *musb)
+{
+	void __iomem	*regs = musb->mregs;
+	u8		devctl = musb_readb(regs, MUSB_DEVCTL);
+
+	dev_dbg(musb->controller, "<== devctl %02x\n", devctl);
+
+	/*  Set INT enable registers, enable interrupts */
+	musb->intrtxe = musb->epmask;
+	musb_writew(regs, MUSB_INTRTXE, musb->intrtxe);
+	musb->intrrxe = musb->epmask & 0xfffe;
+	musb_writew(regs, MUSB_INTRRXE, musb->intrrxe);
+	musb_writeb(regs, MUSB_INTRUSBE, 0xf7);
+
+	musb_writeb(regs, MUSB_TESTMODE, 0);
+
+	/* put into basic highspeed mode and start session */
+	musb_writeb(regs, MUSB_POWER, MUSB_POWER_ISOUPDATE
+						| MUSB_POWER_HSENAB
+						/* ENSUSPEND wedges tusb */
+						/* | MUSB_POWER_ENSUSPEND */
+						);
+
+	musb->is_active = 0;
+	devctl = musb_readb(regs, MUSB_DEVCTL);
+	devctl &= ~MUSB_DEVCTL_SESSION;
+
+	/* session started after:
+	 * (a) ID-grounded irq, host mode;
+	 * (b) vbus present/connect IRQ, peripheral mode;
+	 * (c) peripheral initiates, using SRP
+	 */
+	if (musb->port_mode != MUSB_PORT_MODE_HOST &&
+	    (devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS) {
+		musb->is_active = 1;
+	} else {
+		devctl |= MUSB_DEVCTL_SESSION;
+	}
+
+	musb_platform_enable(musb);
+	musb_writeb(regs, MUSB_DEVCTL, devctl);
+}
 
 static void musb_port_suspend(struct musb *musb, bool do_suspend)
 {
@@ -81,8 +126,7 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 		switch (musb->xceiv->state) {
 		case OTG_STATE_A_HOST:
 			musb->xceiv->state = OTG_STATE_A_SUSPEND;
-			musb->is_active = is_otg_enabled(musb)
-					&& otg->host->b_hnp_enable;
+			musb->is_active = otg->host->b_hnp_enable;
 			if (musb->is_active)
 				mod_timer(&musb->otg_timer, jiffies
 					+ msecs_to_jiffies(
@@ -91,13 +135,12 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 			break;
 		case OTG_STATE_B_HOST:
 			musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
-			musb->is_active = is_otg_enabled(musb)
-					&& otg->host->b_hnp_enable;
+			musb->is_active = otg->host->b_hnp_enable;
 			musb_platform_try_idle(musb, 0);
 			break;
 		default:
 			dev_dbg(musb->controller, "bogus rh suspend? %s\n",
-				otg_state_string(musb->xceiv->state));
+				usb_otg_state_string(musb->xceiv->state));
 		}
 	} else if (power & MUSB_POWER_SUSPENDM) {
 		power &= ~MUSB_POWER_SUSPENDM;
@@ -147,7 +190,6 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 			msleep(1);
 		}
 
-		musb->ignore_disconnect = true;
 		power &= 0xf0;
 		musb_writeb(mbase, MUSB_POWER,
 				power | MUSB_POWER_RESET);
@@ -160,8 +202,6 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 		musb_writeb(mbase, MUSB_POWER,
 				power & ~MUSB_POWER_RESET);
 
-		musb->ignore_disconnect = false;
-
 		power = musb_readb(mbase, MUSB_POWER);
 		if (power & MUSB_POWER_HSMODE) {
 			dev_dbg(musb->controller, "high-speed device connected\n");
@@ -172,7 +212,7 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 		musb->port1_status |= USB_PORT_STAT_ENABLE
 					| (USB_PORT_STAT_C_RESET << 16)
 					| (USB_PORT_STAT_C_ENABLE << 16);
-		usb_hcd_poll_rh_status(musb_to_hcd(musb));
+		usb_hcd_poll_rh_status(musb->hcd);
 
 		musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
 	}
@@ -185,13 +225,12 @@ void musb_root_disconnect(struct musb *musb)
 	musb->port1_status = USB_PORT_STAT_POWER
 			| (USB_PORT_STAT_C_CONNECTION << 16);
 
-	usb_hcd_poll_rh_status(musb_to_hcd(musb));
+	usb_hcd_poll_rh_status(musb->hcd);
 	musb->is_active = 0;
 
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_SUSPEND:
-		if (is_otg_enabled(musb)
-				&& otg->host->b_hnp_enable) {
+		if (otg->host->b_hnp_enable) {
 			musb->xceiv->state = OTG_STATE_A_PERIPHERAL;
 			musb->g.is_a_peripheral = 1;
 			break;
@@ -206,7 +245,7 @@ void musb_root_disconnect(struct musb *musb)
 		break;
 	default:
 		dev_dbg(musb->controller, "host disconnect (%s)\n",
-			otg_state_string(musb->xceiv->state));
+			usb_otg_state_string(musb->xceiv->state));
 	}
 }
 
@@ -273,7 +312,7 @@ int musb_hub_control(
 			musb_port_suspend(musb, false);
 			break;
 		case USB_PORT_FEAT_POWER:
-			if (!(is_otg_enabled(musb) && hcd->self.is_b_host))
+			if (!hcd->self.is_b_host)
 				musb_platform_set_vbus(musb, 0);
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
@@ -340,7 +379,7 @@ int musb_hub_control(
 			musb->port1_status &= ~(USB_PORT_STAT_SUSPEND
 					| MUSB_PORT_STAT_RESUME);
 			musb->port1_status |= USB_PORT_STAT_C_SUSPEND << 16;
-			usb_hcd_poll_rh_status(musb_to_hcd(musb));
+			usb_hcd_poll_rh_status(musb->hcd);
 			/* NOTE: it might really be A_WAIT_BCON ... */
 			musb->xceiv->state = OTG_STATE_A_HOST;
 		}
@@ -369,7 +408,7 @@ int musb_hub_control(
 			 * initialization logic, e.g. for OTG, or change any
 			 * logic relating to VBUS power-up.
 			 */
-			if (!(is_otg_enabled(musb) && hcd->self.is_b_host))
+			if (!hcd->self.is_b_host)
 				musb_start(musb);
 			break;
 		case USB_PORT_FEAT_RESET:

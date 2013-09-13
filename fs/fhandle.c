@@ -22,7 +22,7 @@ static long do_sys_name_to_handle(struct path *path,
 	struct file_handle *handle = NULL;
 
 	/*
-	 * We need t make sure wether the file system
+	 * We need to make sure whether the file system
 	 * support decoding of the file handle
 	 */
 	if (!path->dentry->d_sb->s_export_op ||
@@ -40,7 +40,7 @@ static long do_sys_name_to_handle(struct path *path,
 	if (!handle)
 		return -ENOMEM;
 
-	/* convert handle size to  multiple of sizeof(u32) */
+	/* convert handle size to multiple of sizeof(u32) */
 	handle_dwords = f_handle.handle_bytes >> 2;
 
 	/* we ask for a non connected handle */
@@ -52,7 +52,7 @@ static long do_sys_name_to_handle(struct path *path,
 	handle_bytes = handle_dwords * sizeof(u32);
 	handle->handle_bytes = handle_bytes;
 	if ((handle->handle_bytes > f_handle.handle_bytes) ||
-	    (retval == 255) || (retval == -ENOSPC)) {
+	    (retval == FILEID_INVALID) || (retval == -ENOSPC)) {
 		/* As per old exportfs_encode_fh documentation
 		 * we could return ENOSPC to indicate overflow
 		 * But file system returned 255 always. So handle
@@ -113,24 +113,21 @@ SYSCALL_DEFINE5(name_to_handle_at, int, dfd, const char __user *, name,
 
 static struct vfsmount *get_vfsmount_from_fd(int fd)
 {
-	struct path path;
+	struct vfsmount *mnt;
 
 	if (fd == AT_FDCWD) {
 		struct fs_struct *fs = current->fs;
 		spin_lock(&fs->lock);
-		path = fs->pwd;
-		mntget(path.mnt);
+		mnt = mntget(fs->pwd.mnt);
 		spin_unlock(&fs->lock);
 	} else {
-		int fput_needed;
-		struct file *file = fget_light(fd, &fput_needed);
-		if (!file)
+		struct fd f = fdget(fd);
+		if (!f.file)
 			return ERR_PTR(-EBADF);
-		path = file->f_path;
-		mntget(path.mnt);
-		fput_light(file, fput_needed);
+		mnt = mntget(f.file->f_path.mnt);
+		fdput(f);
 	}
-	return path.mnt;
+	return mnt;
 }
 
 static int vfs_dentry_acceptable(void *context, struct dentry *dentry)

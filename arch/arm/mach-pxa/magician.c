@@ -38,10 +38,10 @@
 
 #include <mach/pxa27x.h>
 #include <mach/magician.h>
-#include <mach/pxafb.h>
-#include <mach/mmc.h>
-#include <mach/irda.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -774,6 +774,6 @@ MACHINE_START(MAGICIAN, "HTC Magician")
 	.init_irq = pxa27x_init_irq,
 	.handle_irq = pxa27x_handle_irq,
 	.init_machine = magician_init,
-	.timer = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END

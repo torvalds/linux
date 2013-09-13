@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +31,12 @@
 
 #define MPU_EP_CONTROL 		0
 
-/********** MPU semphore ******************/
-#define MPU_EP_SEMAPHORE_OFFSET		0xac
-#define MPU_EP_SEMAPHORE_IF_TYPE2_OFFSET	0x400
-#define EP_SEMAPHORE_POST_STAGE_MASK		0x0000FFFF
-#define EP_SEMAPHORE_POST_ERR_MASK		0x1
-#define EP_SEMAPHORE_POST_ERR_SHIFT		31
+/********** MPU semphore: used for SH & BE  *************/
+#define SLIPORT_SEMAPHORE_OFFSET_BEx		0xac  /* CSR BAR offset */
+#define SLIPORT_SEMAPHORE_OFFSET_SH		0x94  /* PCI-CFG offset */
+#define POST_STAGE_MASK				0x0000FFFF
+#define POST_ERR_MASK				0x1
+#define POST_ERR_SHIFT				31
 
 /* MPU semphore POST stage values */
 #define POST_STAGE_AWAITING_HOST_RDY 	0x1 /* FW awaiting goahead from host */
@@ -53,11 +53,16 @@
 #define PHYSDEV_CONTROL_OFFSET		0x414
 
 #define SLIPORT_STATUS_ERR_MASK		0x80000000
+#define SLIPORT_STATUS_DIP_MASK		0x02000000
 #define SLIPORT_STATUS_RN_MASK		0x01000000
 #define SLIPORT_STATUS_RDY_MASK		0x00800000
 #define SLI_PORT_CONTROL_IP_MASK	0x08000000
 #define PHYSDEV_CONTROL_FW_RESET_MASK	0x00000002
+#define PHYSDEV_CONTROL_DD_MASK		0x00000004
 #define PHYSDEV_CONTROL_INP_MASK	0x40000000
+
+#define SLIPORT_ERROR_NO_RESOURCE1	0x2
+#define SLIPORT_ERROR_NO_RESOURCE2	0x9
 
 /********* Memory BAR register ************/
 #define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET 	0xfc
@@ -68,6 +73,10 @@
  * with the OS.
  */
 #define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
+
+/********* PCI Function Capability *********/
+#define BE_FUNCTION_CAPS_RSS			0x2
+#define BE_FUNCTION_CAPS_SUPER_NIC		0x40
 
 /********* Power management (WOL) **********/
 #define PCICFG_PM_CONTROL_OFFSET		0x44
@@ -101,11 +110,6 @@
 
 #define SLI_INTF_TYPE_2		2
 #define SLI_INTF_TYPE_3		3
-
-/* SLI family */
-#define BE_SLI_FAMILY		0x0
-#define LANCER_A0_SLI_FAMILY	0xA
-#define SKYHAWK_SLI_FAMILY      0x2
 
 /********* ISR0 Register offset **********/
 #define CEV_ISR0_OFFSET 			0xC18
@@ -354,7 +358,7 @@ struct amap_eth_rx_compl_v0 {
 	u8 ip_version;		/* dword 1 */
 	u8 macdst[6];		/* dword 1 */
 	u8 vtp;			/* dword 1 */
-	u8 rsvd0;		/* dword 1 */
+	u8 ip_frag;		/* dword 1 */
 	u8 fragndx[10];		/* dword 1 */
 	u8 ct[2];		/* dword 1 */
 	u8 sw;			/* dword 1 */
@@ -497,7 +501,8 @@ struct flash_file_hdr_g3 {
 	u32 antidote;
 	u32 num_imgs;
 	u8 build[24];
-	u8 rsvd[32];
+	u8 asic_type_rev;
+	u8 rsvd[31];
 };
 
 struct flash_section_hdr {

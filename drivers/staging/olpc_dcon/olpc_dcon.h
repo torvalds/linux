@@ -22,15 +22,24 @@
 #define MODE_DEBUG	(1<<14)
 #define MODE_SELFTEST	(1<<15)
 
-#define DCON_REG_HRES		2
-#define DCON_REG_HTOTAL		3
-#define DCON_REG_HSYNC_WIDTH	4
-#define DCON_REG_VRES		5
-#define DCON_REG_VTOTAL		6
-#define DCON_REG_VSYNC_WIDTH	7
-#define DCON_REG_TIMEOUT	8
-#define DCON_REG_SCAN_INT	9
-#define DCON_REG_BRIGHT		10
+#define DCON_REG_HRES		0x2
+#define DCON_REG_HTOTAL		0x3
+#define DCON_REG_HSYNC_WIDTH	0x4
+#define DCON_REG_VRES		0x5
+#define DCON_REG_VTOTAL		0x6
+#define DCON_REG_VSYNC_WIDTH	0x7
+#define DCON_REG_TIMEOUT	0x8
+#define DCON_REG_SCAN_INT	0x9
+#define DCON_REG_BRIGHT		0xa
+#define DCON_REG_MEM_OPT_A	0x41
+#define DCON_REG_MEM_OPT_B	0x42
+
+/* Load Delay Locked Loop (DLL) settings for clock delay */
+#define MEM_DLL_CLOCK_DELAY	(1<<0)
+/* Memory controller power down function */
+#define MEM_POWER_DOWN  	(1<<8)
+/* Memory controller software reset */
+#define MEM_SOFT_RESET		(1<<0)
 
 /* Status values */
 
@@ -52,9 +61,9 @@ struct dcon_priv {
 	struct fb_info *fbinfo;
 	struct backlight_device *bl_dev;
 
+	wait_queue_head_t waitq;
 	struct work_struct switch_source;
 	struct notifier_block reboot_nb;
-	struct notifier_block fbevent_nb;
 
 	/* Shadow register for the DCON_REG_MODE register */
 	u8 disp_mode;

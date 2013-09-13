@@ -18,9 +18,8 @@
 #include <linux/err.h>
 #include <linux/init.h>
 
+#include "soc.h"
 #include "common.h"
-#include <plat/cpu.h>
-
 #include "prm-regbits-34xx.h"
 #include "omap_opp_data.h"
 #include "voltage.h"
@@ -117,6 +116,11 @@ void __init omap3xxx_voltagedomains_init(void)
 		omap3_voltdm_core.volt_data = omap34xx_vddcore_volt_data;
 	}
 #endif
+
+	omap3_voltdm_mpu.vp_param = &omap3_mpu_vp_data;
+	omap3_voltdm_core.vp_param = &omap3_core_vp_data;
+	omap3_voltdm_mpu.vc_param = &omap3_mpu_vc_data;
+	omap3_voltdm_core.vc_param = &omap3_core_vc_data;
 
 	if (soc_is_am35xx())
 		voltdms = voltagedomains_am35xx;

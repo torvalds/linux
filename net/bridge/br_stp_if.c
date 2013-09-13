@@ -54,7 +54,7 @@ void br_stp_enable_bridge(struct net_bridge *br)
 	br_config_bpdu_generation(br);
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if ((p->dev->flags & IFF_UP) && netif_carrier_ok(p->dev))
+		if (netif_running(p->dev) && netif_oper_up(p->dev))
 			br_stp_enable_port(p);
 
 	}
@@ -216,7 +216,7 @@ bool br_stp_recalculate_bridge_id(struct net_bridge *br)
 	struct net_bridge_port *p;
 
 	/* user has chosen a value so keep it */
-	if (br->flags & BR_SET_MAC_ADDR)
+	if (br->dev->addr_assign_type == NET_ADDR_SET)
 		return false;
 
 	list_for_each_entry(p, &br->port_list, list) {
@@ -288,6 +288,7 @@ int br_stp_set_path_cost(struct net_bridge_port *p, unsigned long path_cost)
 	    path_cost > BR_MAX_PATH_COST)
 		return -ERANGE;
 
+	p->flags |= BR_ADMIN_COST;
 	p->path_cost = path_cost;
 	br_configuration_update(p->br);
 	br_port_state_selection(p->br);

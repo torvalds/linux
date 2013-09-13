@@ -75,4 +75,45 @@ Example of two SOC GPIO banks defined as gpio-controller nodes:
 		gpio-controller;
 	};
 
+2.1) gpio- and pin-controller interaction
+-----------------------------------------
 
+Some or all of the GPIOs provided by a GPIO controller may be routed to pins
+on the package via a pin controller. This allows muxing those pins between
+GPIO and other functions.
+
+It is useful to represent which GPIOs correspond to which pins on which pin
+controllers. The gpio-ranges property described below represents this, and
+contains information structures as follows:
+
+	gpio-range-list ::= <single-gpio-range> [gpio-range-list]
+	single-gpio-range ::=
+			<pinctrl-phandle> <gpio-base> <pinctrl-base> <count>
+	gpio-phandle : phandle to pin controller node.
+	gpio-base : Base GPIO ID in the GPIO controller
+	pinctrl-base : Base pinctrl pin ID in the pin controller
+	count : The number of GPIOs/pins in this range
+
+The "pin controller node" mentioned above must conform to the bindings
+described in ../pinctrl/pinctrl-bindings.txt.
+
+Previous versions of this binding required all pin controller nodes that
+were referenced by any gpio-ranges property to contain a property named
+#gpio-range-cells with value <3>. This requirement is now deprecated.
+However, that property may still exist in older device trees for
+compatibility reasons, and would still be required even in new device
+trees that need to be compatible with older software.
+
+Example:
+
+	qe_pio_e: gpio-controller@1460 {
+		#gpio-cells = <2>;
+		compatible = "fsl,qe-pario-bank-e", "fsl,qe-pario-bank";
+		reg = <0x1460 0x18>;
+		gpio-controller;
+		gpio-ranges = <&pinctrl1 0 20 10>, <&pinctrl2 10 50 20>;
+	};
+
+Here, a single GPIO controller has GPIOs 0..9 routed to pin controller
+pinctrl1's pins 20..29, and GPIOs 10..19 routed to pin controller pinctrl2's
+pins 50..59.

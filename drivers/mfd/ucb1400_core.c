@@ -52,7 +52,7 @@ static int ucb1400_core_probe(struct device *dev)
 	struct ucb1400_ts ucb_ts;
 	struct ucb1400_gpio ucb_gpio;
 	struct snd_ac97 *ac97;
-	struct ucb1400_pdata *pdata = dev->platform_data;
+	struct ucb1400_pdata *pdata = dev_get_platdata(dev);
 
 	memset(&ucb_ts, 0, sizeof(ucb_ts));
 	memset(&ucb_gpio, 0, sizeof(ucb_gpio));
@@ -75,6 +75,11 @@ static int ucb1400_core_probe(struct device *dev)
 
 	/* GPIO */
 	ucb_gpio.ac97 = ac97;
+	if (pdata) {
+		ucb_gpio.gpio_setup = pdata->gpio_setup;
+		ucb_gpio.gpio_teardown = pdata->gpio_teardown;
+		ucb_gpio.gpio_offset = pdata->gpio_offset;
+	}
 	ucb->ucb1400_gpio = platform_device_alloc("ucb1400_gpio", -1);
 	if (!ucb->ucb1400_gpio) {
 		err = -ENOMEM;

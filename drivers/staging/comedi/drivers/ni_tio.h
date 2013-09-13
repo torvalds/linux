@@ -13,11 +13,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #ifndef _COMEDI_NI_TIO_H
@@ -120,9 +115,9 @@ struct ni_gpct {
 
 struct ni_gpct_device {
 	struct comedi_device *dev;
-	void (*write_register) (struct ni_gpct * counter, unsigned bits,
+	void (*write_register) (struct ni_gpct *counter, unsigned bits,
 				enum ni_gpct_register reg);
-	unsigned (*read_register) (struct ni_gpct * counter,
+	unsigned (*read_register) (struct ni_gpct *counter,
 				   enum ni_gpct_register reg);
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;

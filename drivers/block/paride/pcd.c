@@ -236,13 +236,12 @@ static int pcd_block_open(struct block_device *bdev, fmode_t mode)
 	return ret;
 }
 
-static int pcd_block_release(struct gendisk *disk, fmode_t mode)
+static void pcd_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct pcd_unit *cd = disk->private_data;
 	mutex_lock(&pcd_mutex);
 	cdrom_release(&cd->info, mode);
 	mutex_unlock(&pcd_mutex);
-	return 0;
 }
 
 static int pcd_block_ioctl(struct block_device *bdev, fmode_t mode,

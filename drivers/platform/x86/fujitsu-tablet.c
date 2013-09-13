@@ -52,7 +52,7 @@ struct fujitsu_config {
 	unsigned int quirks;
 };
 
-static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -71,7 +71,7 @@ static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -90,7 +90,7 @@ static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -109,7 +109,7 @@ static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -192,8 +192,8 @@ static void fujitsu_reset(void)
 	fujitsu_send_state();
 }
 
-static int __devinit input_fujitsu_setup(struct device *parent,
-					 const char *name, const char *phys)
+static int input_fujitsu_setup(struct device *parent, const char *name,
+			       const char *phys)
 {
 	struct input_dev *idev;
 	int error;
@@ -277,21 +277,21 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void __devinit fujitsu_dmi_common(const struct dmi_system_id *dmi)
+static void fujitsu_dmi_common(const struct dmi_system_id *dmi)
 {
 	pr_info("%s\n", dmi->ident);
 	memcpy(fujitsu.config.keymap, dmi->driver_data,
 			sizeof(fujitsu.config.keymap));
 }
 
-static int __devinit fujitsu_dmi_lifebook(const struct dmi_system_id *dmi)
+static int fujitsu_dmi_lifebook(const struct dmi_system_id *dmi)
 {
 	fujitsu_dmi_common(dmi);
 	fujitsu.config.quirks |= INVERT_TABLET_MODE_BIT;
 	return 1;
 }
 
-static int __devinit fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
+static int fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
 {
 	fujitsu_dmi_common(dmi);
 	fujitsu.config.quirks |= FORCE_TABLET_MODE_IF_UNDOCK;
@@ -299,7 +299,7 @@ static int __devinit fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct dmi_system_id dmi_ids[] __initconst = {
+static const struct dmi_system_id dmi_ids[] __initconst = {
 	{
 		.callback = fujitsu_dmi_lifebook,
 		.ident = "Fujitsu Siemens P/T Series",
@@ -366,8 +366,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 	{ NULL }
 };
 
-static acpi_status __devinit
-fujitsu_walk_resources(struct acpi_resource *res, void *data)
+static acpi_status fujitsu_walk_resources(struct acpi_resource *res, void *data)
 {
 	switch (res->type) {
 	case ACPI_RESOURCE_TYPE_IRQ:
@@ -390,7 +389,7 @@ fujitsu_walk_resources(struct acpi_resource *res, void *data)
 	}
 }
 
-static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
+static int acpi_fujitsu_add(struct acpi_device *adev)
 {
 	acpi_status status;
 	int error;
@@ -432,7 +431,7 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 	return 0;
 }
 
-static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
+static int acpi_fujitsu_remove(struct acpi_device *adev)
 {
 	free_irq(fujitsu.irq, fujitsu_interrupt);
 	release_region(fujitsu.io_base, fujitsu.io_length);

@@ -55,10 +55,10 @@ struct cifs_sb_info {
 	unsigned int wsize;
 	unsigned long actimeo; /* attribute cache timeout (jiffies) */
 	atomic_t active;
-	uid_t	mnt_uid;
-	gid_t	mnt_gid;
-	uid_t	mnt_backupuid;
-	gid_t	mnt_backupgid;
+	kuid_t	mnt_uid;
+	kgid_t	mnt_gid;
+	kuid_t	mnt_backupuid;
+	kgid_t	mnt_backupgid;
 	umode_t	mnt_file_mode;
 	umode_t	mnt_dir_mode;
 	unsigned int mnt_cifs_flags;

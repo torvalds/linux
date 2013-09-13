@@ -85,6 +85,8 @@ pdu_write_u(struct p9_fcall *pdu, const char __user *udata, size_t size)
 	d - int32_t
 	q - int64_t
 	s - string
+	u - numeric uid
+	g - numeric gid
 	S - stat
 	Q - qid
 	D - data blob (int32_t size followed by void *, results are not freed)
@@ -163,6 +165,26 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 					(*sptr)[len] = 0;
 			}
 			break;
+		case 'u': {
+				kuid_t *uid = va_arg(ap, kuid_t *);
+				__le32 le_val;
+				if (pdu_read(pdu, &le_val, sizeof(le_val))) {
+					errcode = -EFAULT;
+					break;
+				}
+				*uid = make_kuid(&init_user_ns,
+						 le32_to_cpu(le_val));
+			} break;
+		case 'g': {
+				kgid_t *gid = va_arg(ap, kgid_t *);
+				__le32 le_val;
+				if (pdu_read(pdu, &le_val, sizeof(le_val))) {
+					errcode = -EFAULT;
+					break;
+				}
+				*gid = make_kgid(&init_user_ns,
+						 le32_to_cpu(le_val));
+			} break;
 		case 'Q':{
 				struct p9_qid *qid =
 				    va_arg(ap, struct p9_qid *);
@@ -177,11 +199,12 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				    va_arg(ap, struct p9_wstat *);
 
 				memset(stbuf, 0, sizeof(struct p9_wstat));
-				stbuf->n_uid = stbuf->n_gid = stbuf->n_muid =
-									-1;
+				stbuf->n_uid = stbuf->n_muid = INVALID_UID;
+				stbuf->n_gid = INVALID_GID;
+
 				errcode =
 				    p9pdu_readf(pdu, proto_version,
-						"wwdQdddqssss?sddd",
+						"wwdQdddqssss?sugu",
 						&stbuf->size, &stbuf->type,
 						&stbuf->dev, &stbuf->qid,
 						&stbuf->mode, &stbuf->atime,
@@ -294,7 +317,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				memset(stbuf, 0, sizeof(struct p9_stat_dotl));
 				errcode =
 				    p9pdu_readf(pdu, proto_version,
-					"qQdddqqqqqqqqqqqqqqq",
+					"qQdugqqqqqqqqqqqqqqq",
 					&stbuf->st_result_mask,
 					&stbuf->qid,
 					&stbuf->st_mode,
@@ -377,6 +400,20 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 					errcode = -EFAULT;
 			}
 			break;
+		case 'u': {
+				kuid_t uid = va_arg(ap, kuid_t);
+				__le32 val = cpu_to_le32(
+						from_kuid(&init_user_ns, uid));
+				if (pdu_write(pdu, &val, sizeof(val)))
+					errcode = -EFAULT;
+			} break;
+		case 'g': {
+				kgid_t gid = va_arg(ap, kgid_t);
+				__le32 val = cpu_to_le32(
+						from_kgid(&init_user_ns, gid));
+				if (pdu_write(pdu, &val, sizeof(val)))
+					errcode = -EFAULT;
+			} break;
 		case 'Q':{
 				const struct p9_qid *qid =
 				    va_arg(ap, const struct p9_qid *);
@@ -390,7 +427,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				    va_arg(ap, const struct p9_wstat *);
 				errcode =
 				    p9pdu_writef(pdu, proto_version,
-						 "wwdQdddqssss?sddd",
+						 "wwdQdddqssss?sugu",
 						 stbuf->size, stbuf->type,
 						 stbuf->dev, &stbuf->qid,
 						 stbuf->mode, stbuf->atime,
@@ -468,7 +505,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 							struct p9_iattr_dotl *);
 
 				errcode = p9pdu_writef(pdu, proto_version,
-							"ddddqqqqq",
+							"ddugqqqqq",
 							p9attr->valid,
 							p9attr->mode,
 							p9attr->uid,

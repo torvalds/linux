@@ -7,15 +7,18 @@
 #define FD_DEVICE_QUEUE_DEPTH	32
 #define FD_MAX_DEVICE_QUEUE_DEPTH 128
 #define FD_BLOCKSIZE		512
-#define FD_MAX_SECTORS		1024
+#define FD_MAX_SECTORS		2048
 
 #define RRF_EMULATE_CDB		0x01
 #define RRF_GOT_LBA		0x02
 
 #define FBDF_HAS_PATH		0x01
 #define FBDF_HAS_SIZE		0x02
+#define FDBD_HAS_BUFFERED_IO_WCE 0x04
 
 struct fd_dev {
+	struct se_device dev;
+
 	u32		fbd_flags;
 	unsigned char	fd_dev_name[FD_MAX_DEV_NAME];
 	/* Unique Ramdisk Device ID in Ramdisk HBA */

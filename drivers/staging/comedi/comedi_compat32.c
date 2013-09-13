@@ -17,21 +17,13 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
-#define __NO_VERSION__
 #include <linux/uaccess.h>
 #include <linux/compat.h>
 #include <linux/fs.h>
 #include "comedi.h"
 #include "comedi_compat32.h"
-
-#ifdef CONFIG_COMPAT
 
 #define COMEDI32_CHANINFO _IOR(CIO, 3, struct comedi32_chaninfo_struct)
 #define COMEDI32_RANGEINFO _IOR(CIO, 8, struct comedi32_rangeinfo_struct)
@@ -461,5 +453,3 @@ long comedi_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return raw_ioctl(file, cmd, arg);
 }
-
-#endif /* CONFIG_COMPAT */

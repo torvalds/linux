@@ -14,6 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include "dbx500-prcmu.h"
 
@@ -22,18 +23,6 @@
  */
 static int power_state_active_cnt; /* will initialize to zero */
 static DEFINE_SPINLOCK(power_state_active_lock);
-
-int power_state_active_get(void)
-{
-	unsigned long flags;
-	int cnt;
-
-	spin_lock_irqsave(&power_state_active_lock, flags);
-	cnt = power_state_active_cnt;
-	spin_unlock_irqrestore(&power_state_active_lock, flags);
-
-	return cnt;
-}
 
 void power_state_active_enable(void)
 {
@@ -63,6 +52,18 @@ out:
 }
 
 #ifdef CONFIG_REGULATOR_DEBUG
+
+static int power_state_active_get(void)
+{
+	unsigned long flags;
+	int cnt;
+
+	spin_lock_irqsave(&power_state_active_lock, flags);
+	cnt = power_state_active_cnt;
+	spin_unlock_irqrestore(&power_state_active_lock, flags);
+
+	return cnt;
+}
 
 static struct ux500_regulator_debug {
 	struct dentry *dir;
@@ -173,7 +174,7 @@ int __attribute__((weak)) dbx500_regulator_testcase(
 	return 0;
 }
 
-int __devinit
+int
 ux500_regulator_debug_init(struct platform_device *pdev,
 	struct dbx500_regulator_info *regulator_info,
 	int num_regulators)
@@ -230,7 +231,7 @@ exit_no_debugfs:
 	return -ENOMEM;
 }
 
-int __devexit ux500_regulator_debug_exit(void)
+int ux500_regulator_debug_exit(void)
 {
 	debugfs_remove_recursive(rdebug.dir);
 	kfree(rdebug.state_after_suspend);

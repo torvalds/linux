@@ -24,20 +24,24 @@ void __init paging_init(void)
  */
 void __init init_mmu(void)
 {
-	/* Writing zeros to the <t>TLBCFG special registers ensure
-	 * that valid values exist in the register.  For existing
-	 * PGSZID<w> fields, zero selects the first element of the
-	 * page-size array.  For nonexistent PGSZID<w> fields, zero is
-	 * the best value to write.  Also, when changing PGSZID<w>
+#if !(XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY)
+	/*
+	 * Writing zeros to the instruction and data TLBCFG special
+	 * registers ensure that valid values exist in the register.
+	 *
+	 * For existing PGSZID<w> fields, zero selects the first element
+	 * of the page-size array.  For nonexistent PGSZID<w> fields,
+	 * zero is the best value to write.  Also, when changing PGSZID<w>
 	 * fields, the corresponding TLB must be flushed.
 	 */
 	set_itlbcfg_register(0);
 	set_dtlbcfg_register(0);
+#endif
 	flush_tlb_all();
 
 	/* Set rasid register to a known value. */
 
-	set_rasid_register(ASID_USER_FIRST);
+	set_rasid_register(ASID_INSERT(ASID_USER_FIRST));
 
 	/* Set PTEVADDR special register to the start of the page
 	 * table, which is in kernel mappable space (ie. not

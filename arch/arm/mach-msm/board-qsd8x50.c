@@ -28,18 +28,16 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-#include <mach/board.h>
 #include <mach/irqs.h>
 #include <mach/sirc.h>
 #include <mach/vreg.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-msm_sdcc.h>
 
 #include "devices.h"
+#include "common.h"
 
-extern struct sys_timer msm_timer;
-
-static const resource_size_t qsd8x50_surf_smc91x_base __initdata = 0x70000300;
-static const unsigned        qsd8x50_surf_smc91x_gpio __initdata = 156;
+static const resource_size_t qsd8x50_surf_smc91x_base __initconst = 0x70000300;
+static const unsigned        qsd8x50_surf_smc91x_gpio __initconst = 156;
 
 /* Leave smc91x resources empty here, as we'll fill them in
  * at run-time: they vary from board to board, and the true
@@ -90,6 +88,8 @@ static struct msm_otg_platform_data msm_otg_pdata = {
 };
 
 static struct platform_device *devices[] __initdata = {
+	&msm_clock_8x50,
+	&msm_device_gpio_8x50,
 	&msm_device_uart3,
 	&msm_device_smd,
 	&msm_device_otg,
@@ -172,7 +172,6 @@ static void __init qsd8x50_init_mmc(void)
 static void __init qsd8x50_map_io(void)
 {
 	msm_map_qsd8x50_io();
-	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
 }
 
 static void __init qsd8x50_init_irq(void)
@@ -201,7 +200,7 @@ MACHINE_START(QSD8X50_SURF, "QCT QSD8X50 SURF")
 	.init_irq = qsd8x50_init_irq,
 	.init_machine = qsd8x50_init,
 	.init_late = qsd8x50_init_late,
-	.timer = &msm_timer,
+	.init_time	= qsd8x50_timer_init,
 MACHINE_END
 
 MACHINE_START(QSD8X50A_ST1_5, "QCT QSD8X50A ST1.5")
@@ -210,5 +209,5 @@ MACHINE_START(QSD8X50A_ST1_5, "QCT QSD8X50A ST1.5")
 	.init_irq = qsd8x50_init_irq,
 	.init_machine = qsd8x50_init,
 	.init_late = qsd8x50_init_late,
-	.timer = &msm_timer,
+	.init_time	= qsd8x50_timer_init,
 MACHINE_END

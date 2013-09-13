@@ -3,7 +3,7 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corp. 2002, 2010
+ * Copyright IBM Corp. 2002, 2013
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -22,6 +22,13 @@ static u32 dbfsize = 4;
 module_param(dbfsize, uint, 0400);
 MODULE_PARM_DESC(dbfsize,
 		 "number of pages for each debug feature area (default 4)");
+
+static u32 dbflevel = 3;
+
+module_param(dbflevel, uint, 0400);
+MODULE_PARM_DESC(dbflevel,
+		 "log level for each debug feature area "
+		 "(default 3, range 0..6)");
 
 static inline unsigned int zfcp_dbf_plen(unsigned int offset)
 {
@@ -191,13 +198,33 @@ void zfcp_dbf_hba_def_err(struct zfcp_adapter *adapter, u64 req_id, u16 scount,
 	length = min((u16)sizeof(struct qdio_buffer),
 		     (u16)ZFCP_DBF_PAY_MAX_REC);
 
-	while ((char *)pl[payload->counter] && payload->counter < scount) {
+	while (payload->counter < scount && (char *)pl[payload->counter]) {
 		memcpy(payload->data, (char *)pl[payload->counter], length);
 		debug_event(dbf->pay, 1, payload, zfcp_dbf_plen(length));
 		payload->counter++;
 	}
 
 	spin_unlock_irqrestore(&dbf->pay_lock, flags);
+}
+
+/**
+ * zfcp_dbf_hba_basic - trace event for basic adapter events
+ * @adapter: pointer to struct zfcp_adapter
+ */
+void zfcp_dbf_hba_basic(char *tag, struct zfcp_adapter *adapter)
+{
+	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf_hba *rec = &dbf->hba_buf;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dbf->hba_lock, flags);
+	memset(rec, 0, sizeof(*rec));
+
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	rec->id = ZFCP_DBF_HBA_BASIC;
+
+	debug_event(dbf->hba, 1, rec, sizeof(*rec));
+	spin_unlock_irqrestore(&dbf->hba_lock, flags);
 }
 
 static void zfcp_dbf_set_common(struct zfcp_dbf_rec *rec,
@@ -427,7 +454,7 @@ static debug_info_t *zfcp_dbf_reg(const char *name, int size, int rec_size)
 		return NULL;
 
 	debug_register_view(d, &debug_hex_ascii_view);
-	debug_set_level(d, 3);
+	debug_set_level(d, dbflevel);
 
 	return d;
 }

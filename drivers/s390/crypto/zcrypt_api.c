@@ -1,7 +1,7 @@
 /*
  *  zcrypt 2.1.0
  *
- *  Copyright IBM Corp. 2001, 2006
+ *  Copyright IBM Corp. 2001, 2012
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *	       Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -9,6 +9,7 @@
  *  Hotplug & misc device support: Jochen Roehrig (roehrig@de.ibm.com)
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
  *				  Ralph Wuerthner <rwuerthn@de.ibm.com>
+ *  MSGTYPE restruct:		  Holger Dengler <hd@linux.vnet.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,24 +38,38 @@
 #include <linux/atomic.h>
 #include <asm/uaccess.h>
 #include <linux/hw_random.h>
+#include <linux/debugfs.h>
+#include <asm/debug.h>
 
+#include "zcrypt_debug.h"
 #include "zcrypt_api.h"
 
 /*
  * Module description.
  */
 MODULE_AUTHOR("IBM Corporation");
-MODULE_DESCRIPTION("Cryptographic Coprocessor interface, "
-		   "Copyright IBM Corp. 2001, 2006");
+MODULE_DESCRIPTION("Cryptographic Coprocessor interface, " \
+		   "Copyright IBM Corp. 2001, 2012");
 MODULE_LICENSE("GPL");
 
 static DEFINE_SPINLOCK(zcrypt_device_lock);
 static LIST_HEAD(zcrypt_device_list);
 static int zcrypt_device_count = 0;
 static atomic_t zcrypt_open_count = ATOMIC_INIT(0);
+static atomic_t zcrypt_rescan_count = ATOMIC_INIT(0);
+
+atomic_t zcrypt_rescan_req = ATOMIC_INIT(0);
+EXPORT_SYMBOL(zcrypt_rescan_req);
 
 static int zcrypt_rng_device_add(void);
 static void zcrypt_rng_device_remove(void);
+
+static DEFINE_SPINLOCK(zcrypt_ops_list_lock);
+static LIST_HEAD(zcrypt_ops_list);
+
+static debug_info_t *zcrypt_dbf_common;
+static debug_info_t *zcrypt_dbf_devices;
+static struct dentry *debugfs_root;
 
 /*
  * Device attributes common for all crypto devices.
@@ -85,6 +100,8 @@ static ssize_t zcrypt_online_store(struct device *dev,
 	if (sscanf(buf, "%d\n", &online) != 1 || online < 0 || online > 1)
 		return -EINVAL;
 	zdev->online = online;
+	ZCRYPT_DBF_DEV(DBF_INFO, zdev, "dev%04xo%dman", zdev->ap_dev->qid,
+		       zdev->online);
 	if (!online)
 		ap_flush_queue(zdev->ap_dev);
 	return count;
@@ -101,6 +118,24 @@ static struct attribute * zcrypt_device_attrs[] = {
 static struct attribute_group zcrypt_device_attr_group = {
 	.attrs = zcrypt_device_attrs,
 };
+
+/**
+ * Process a rescan of the transport layer.
+ *
+ * Returns 1, if the rescan has been processed, otherwise 0.
+ */
+static inline int zcrypt_process_rescan(void)
+{
+	if (atomic_read(&zcrypt_rescan_req)) {
+		atomic_set(&zcrypt_rescan_req, 0);
+		atomic_inc(&zcrypt_rescan_count);
+		ap_bus_force_rescan();
+		ZCRYPT_DBF_COMMON(DBF_INFO, "rescan%07d",
+				  atomic_inc_return(&zcrypt_rescan_count));
+		return 1;
+	}
+	return 0;
+}
 
 /**
  * __zcrypt_increase_preference(): Increase preference of a crypto device.
@@ -190,6 +225,7 @@ struct zcrypt_device *zcrypt_device_alloc(size_t max_response_size)
 	zdev->reply.length = max_response_size;
 	spin_lock_init(&zdev->lock);
 	INIT_LIST_HEAD(&zdev->list);
+	zdev->dbf_area = zcrypt_dbf_devices;
 	return zdev;
 
 out_free:
@@ -215,6 +251,8 @@ int zcrypt_device_register(struct zcrypt_device *zdev)
 {
 	int rc;
 
+	if (!zdev->ops)
+		return -ENODEV;
 	rc = sysfs_create_group(&zdev->ap_dev->device.kobj,
 				&zcrypt_device_attr_group);
 	if (rc)
@@ -223,6 +261,8 @@ int zcrypt_device_register(struct zcrypt_device *zdev)
 	kref_init(&zdev->refcount);
 	spin_lock_bh(&zcrypt_device_lock);
 	zdev->online = 1;	/* New devices are online by default. */
+	ZCRYPT_DBF_DEV(DBF_INFO, zdev, "dev%04xo%dreg", zdev->ap_dev->qid,
+		       zdev->online);
 	list_add_tail(&zdev->list, &zcrypt_device_list);
 	__zcrypt_increase_preference(zdev);
 	zcrypt_device_count++;
@@ -268,6 +308,67 @@ void zcrypt_device_unregister(struct zcrypt_device *zdev)
 	zcrypt_device_put(zdev);
 }
 EXPORT_SYMBOL(zcrypt_device_unregister);
+
+void zcrypt_msgtype_register(struct zcrypt_ops *zops)
+{
+	if (zops->owner) {
+		spin_lock_bh(&zcrypt_ops_list_lock);
+		list_add_tail(&zops->list, &zcrypt_ops_list);
+		spin_unlock_bh(&zcrypt_ops_list_lock);
+	}
+}
+EXPORT_SYMBOL(zcrypt_msgtype_register);
+
+void zcrypt_msgtype_unregister(struct zcrypt_ops *zops)
+{
+	spin_lock_bh(&zcrypt_ops_list_lock);
+	list_del_init(&zops->list);
+	spin_unlock_bh(&zcrypt_ops_list_lock);
+}
+EXPORT_SYMBOL(zcrypt_msgtype_unregister);
+
+static inline
+struct zcrypt_ops *__ops_lookup(unsigned char *name, int variant)
+{
+	struct zcrypt_ops *zops;
+	int found = 0;
+
+	spin_lock_bh(&zcrypt_ops_list_lock);
+	list_for_each_entry(zops, &zcrypt_ops_list, list) {
+		if ((zops->variant == variant) &&
+		    (!strncmp(zops->owner->name, name, MODULE_NAME_LEN))) {
+			found = 1;
+			break;
+		}
+	}
+	spin_unlock_bh(&zcrypt_ops_list_lock);
+
+	if (!found)
+		return NULL;
+	return zops;
+}
+
+struct zcrypt_ops *zcrypt_msgtype_request(unsigned char *name, int variant)
+{
+	struct zcrypt_ops *zops = NULL;
+
+	zops = __ops_lookup(name, variant);
+	if (!zops) {
+		request_module(name);
+		zops = __ops_lookup(name, variant);
+	}
+	if ((!zops) || (!try_module_get(zops->owner)))
+		return NULL;
+	return zops;
+}
+EXPORT_SYMBOL(zcrypt_msgtype_request);
+
+void zcrypt_msgtype_release(struct zcrypt_ops *zops)
+{
+	if (zops)
+		module_put(zops->owner);
+}
+EXPORT_SYMBOL(zcrypt_msgtype_release);
 
 /**
  * zcrypt_read (): Not supported beyond zcrypt 1.3.1.
@@ -640,6 +741,11 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		do {
 			rc = zcrypt_rsa_modexpo(&mex);
 		} while (rc == -EAGAIN);
+		/* on failure: retry once again after a requested rescan */
+		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+			do {
+				rc = zcrypt_rsa_modexpo(&mex);
+			} while (rc == -EAGAIN);
 		if (rc)
 			return rc;
 		return put_user(mex.outputdatalength, &umex->outputdatalength);
@@ -652,6 +758,11 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		do {
 			rc = zcrypt_rsa_crt(&crt);
 		} while (rc == -EAGAIN);
+		/* on failure: retry once again after a requested rescan */
+		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+			do {
+				rc = zcrypt_rsa_crt(&crt);
+			} while (rc == -EAGAIN);
 		if (rc)
 			return rc;
 		return put_user(crt.outputdatalength, &ucrt->outputdatalength);
@@ -664,6 +775,11 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		do {
 			rc = zcrypt_send_cprb(&xcRB);
 		} while (rc == -EAGAIN);
+		/* on failure: retry once again after a requested rescan */
+		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+			do {
+				rc = zcrypt_send_cprb(&xcRB);
+			} while (rc == -EAGAIN);
 		if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
 			return -EFAULT;
 		return rc;
@@ -770,10 +886,15 @@ static long trans_modexpo32(struct file *filp, unsigned int cmd,
 	do {
 		rc = zcrypt_rsa_modexpo(&mex64);
 	} while (rc == -EAGAIN);
-	if (!rc)
-		rc = put_user(mex64.outputdatalength,
-			      &umex32->outputdatalength);
-	return rc;
+	/* on failure: retry once again after a requested rescan */
+	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+		do {
+			rc = zcrypt_rsa_modexpo(&mex64);
+		} while (rc == -EAGAIN);
+	if (rc)
+		return rc;
+	return put_user(mex64.outputdatalength,
+			&umex32->outputdatalength);
 }
 
 struct compat_ica_rsa_modexpo_crt {
@@ -810,10 +931,15 @@ static long trans_modexpo_crt32(struct file *filp, unsigned int cmd,
 	do {
 		rc = zcrypt_rsa_crt(&crt64);
 	} while (rc == -EAGAIN);
-	if (!rc)
-		rc = put_user(crt64.outputdatalength,
-			      &ucrt32->outputdatalength);
-	return rc;
+	/* on failure: retry once again after a requested rescan */
+	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+		do {
+			rc = zcrypt_rsa_crt(&crt64);
+		} while (rc == -EAGAIN);
+	if (rc)
+		return rc;
+	return put_user(crt64.outputdatalength,
+			&ucrt32->outputdatalength);
 }
 
 struct compat_ica_xcRB {
@@ -869,6 +995,11 @@ static long trans_xcRB32(struct file *filp, unsigned int cmd,
 	do {
 		rc = zcrypt_send_cprb(&xcRB64);
 	} while (rc == -EAGAIN);
+	/* on failure: retry once again after a requested rescan */
+	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+		do {
+			rc = zcrypt_send_cprb(&xcRB64);
+		} while (rc == -EAGAIN);
 	xcRB32.reply_control_blk_length = xcRB64.reply_control_blk_length;
 	xcRB32.reply_data_length = xcRB64.reply_data_length;
 	xcRB32.status = xcRB64.status;
@@ -1126,6 +1257,9 @@ static int zcrypt_rng_data_read(struct hwrng *rng, u32 *data)
 	 */
 	if (zcrypt_rng_buffer_index == 0) {
 		rc = zcrypt_rng((char *) zcrypt_rng_buffer);
+		/* on failure: retry once again after a requested rescan */
+		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+			rc = zcrypt_rng((char *) zcrypt_rng_buffer);
 		if (rc < 0)
 			return -EIO;
 		zcrypt_rng_buffer_index = rc / sizeof *data;
@@ -1178,6 +1312,30 @@ static void zcrypt_rng_device_remove(void)
 	mutex_unlock(&zcrypt_rng_mutex);
 }
 
+int __init zcrypt_debug_init(void)
+{
+	debugfs_root = debugfs_create_dir("zcrypt", NULL);
+
+	zcrypt_dbf_common = debug_register("zcrypt_common", 1, 1, 16);
+	debug_register_view(zcrypt_dbf_common, &debug_hex_ascii_view);
+	debug_set_level(zcrypt_dbf_common, DBF_ERR);
+
+	zcrypt_dbf_devices = debug_register("zcrypt_devices", 1, 1, 16);
+	debug_register_view(zcrypt_dbf_devices, &debug_hex_ascii_view);
+	debug_set_level(zcrypt_dbf_devices, DBF_ERR);
+
+	return 0;
+}
+
+void zcrypt_debug_exit(void)
+{
+	debugfs_remove(debugfs_root);
+	if (zcrypt_dbf_common)
+		debug_unregister(zcrypt_dbf_common);
+	if (zcrypt_dbf_devices)
+		debug_unregister(zcrypt_dbf_devices);
+}
+
 /**
  * zcrypt_api_init(): Module initialization.
  *
@@ -1186,6 +1344,12 @@ static void zcrypt_rng_device_remove(void)
 int __init zcrypt_api_init(void)
 {
 	int rc;
+
+	rc = zcrypt_debug_init();
+	if (rc)
+		goto out;
+
+	atomic_set(&zcrypt_rescan_req, 0);
 
 	/* Register the request sprayer. */
 	rc = misc_register(&zcrypt_misc_device);
@@ -1216,6 +1380,7 @@ void zcrypt_api_exit(void)
 {
 	remove_proc_entry("driver/z90crypt", NULL);
 	misc_deregister(&zcrypt_misc_device);
+	zcrypt_debug_exit();
 }
 
 module_init(zcrypt_api_init);

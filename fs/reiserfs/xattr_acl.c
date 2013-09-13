@@ -30,7 +30,7 @@ posix_acl_set(struct dentry *dentry, const char *name, const void *value,
 		return -EPERM;
 
 	if (value) {
-		acl = posix_acl_from_xattr(value, size);
+		acl = posix_acl_from_xattr(&init_user_ns, value, size);
 		if (IS_ERR(acl)) {
 			return PTR_ERR(acl);
 		} else if (acl) {
@@ -49,13 +49,15 @@ posix_acl_set(struct dentry *dentry, const char *name, const void *value,
 
 	reiserfs_write_lock(inode->i_sb);
 	error = journal_begin(&th, inode->i_sb, jcreate_blocks);
+	reiserfs_write_unlock(inode->i_sb);
 	if (error == 0) {
 		error = reiserfs_set_acl(&th, inode, type, acl);
+		reiserfs_write_lock(inode->i_sb);
 		error2 = journal_end(&th, inode->i_sb, jcreate_blocks);
+		reiserfs_write_unlock(inode->i_sb);
 		if (error2)
 			error = error2;
 	}
-	reiserfs_write_unlock(inode->i_sb);
 
       release_and_out:
 	posix_acl_release(acl);
@@ -77,7 +79,7 @@ posix_acl_get(struct dentry *dentry, const char *name, void *buffer,
 		return PTR_ERR(acl);
 	if (acl == NULL)
 		return -ENODATA;
-	error = posix_acl_to_xattr(acl, buffer, size);
+	error = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 	posix_acl_release(acl);
 
 	return error;
@@ -121,15 +123,23 @@ static struct posix_acl *posix_acl_from_disk(const void *value, size_t size)
 		case ACL_OTHER:
 			value = (char *)value +
 			    sizeof(reiserfs_acl_entry_short);
-			acl->a_entries[n].e_id = ACL_UNDEFINED_ID;
 			break;
 
 		case ACL_USER:
+			value = (char *)value + sizeof(reiserfs_acl_entry);
+			if ((char *)value > end)
+				goto fail;
+			acl->a_entries[n].e_uid = 
+				make_kuid(&init_user_ns,
+					  le32_to_cpu(entry->e_id));
+			break;
 		case ACL_GROUP:
 			value = (char *)value + sizeof(reiserfs_acl_entry);
 			if ((char *)value > end)
 				goto fail;
-			acl->a_entries[n].e_id = le32_to_cpu(entry->e_id);
+			acl->a_entries[n].e_gid =
+				make_kgid(&init_user_ns,
+					  le32_to_cpu(entry->e_id));
 			break;
 
 		default:
@@ -164,13 +174,19 @@ static void *posix_acl_to_disk(const struct posix_acl *acl, size_t * size)
 	ext_acl->a_version = cpu_to_le32(REISERFS_ACL_VERSION);
 	e = (char *)ext_acl + sizeof(reiserfs_acl_header);
 	for (n = 0; n < acl->a_count; n++) {
+		const struct posix_acl_entry *acl_e = &acl->a_entries[n];
 		reiserfs_acl_entry *entry = (reiserfs_acl_entry *) e;
 		entry->e_tag = cpu_to_le16(acl->a_entries[n].e_tag);
 		entry->e_perm = cpu_to_le16(acl->a_entries[n].e_perm);
 		switch (acl->a_entries[n].e_tag) {
 		case ACL_USER:
+			entry->e_id = cpu_to_le32(
+				from_kuid(&init_user_ns, acl_e->e_uid));
+			e += sizeof(reiserfs_acl_entry);
+			break;
 		case ACL_GROUP:
-			entry->e_id = cpu_to_le32(acl->a_entries[n].e_id);
+			entry->e_id = cpu_to_le32(
+				from_kgid(&init_user_ns, acl_e->e_gid));
 			e += sizeof(reiserfs_acl_entry);
 			break;
 
@@ -421,13 +437,18 @@ int reiserfs_cache_default_acl(struct inode *inode)
 	return nblocks;
 }
 
+/*
+ * Called under i_mutex
+ */
 int reiserfs_acl_chmod(struct inode *inode)
 {
 	struct reiserfs_transaction_handle th;
 	struct posix_acl *acl;
 	size_t size;
-	int depth;
 	int error;
+
+	if (IS_PRIVATE(inode))
+		return 0;
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
@@ -437,9 +458,7 @@ int reiserfs_acl_chmod(struct inode *inode)
 		return 0;
 	}
 
-	reiserfs_write_unlock(inode->i_sb);
 	acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
-	reiserfs_write_lock(inode->i_sb);
 	if (!acl)
 		return 0;
 	if (IS_ERR(acl))
@@ -449,16 +468,18 @@ int reiserfs_acl_chmod(struct inode *inode)
 		return error;
 
 	size = reiserfs_xattr_nblocks(inode, reiserfs_acl_size(acl->a_count));
-	depth = reiserfs_write_lock_once(inode->i_sb);
+	reiserfs_write_lock(inode->i_sb);
 	error = journal_begin(&th, inode->i_sb, size * 2);
+	reiserfs_write_unlock(inode->i_sb);
 	if (!error) {
 		int error2;
 		error = reiserfs_set_acl(&th, inode, ACL_TYPE_ACCESS, acl);
+		reiserfs_write_lock(inode->i_sb);
 		error2 = journal_end(&th, inode->i_sb, size * 2);
+		reiserfs_write_unlock(inode->i_sb);
 		if (error2)
 			error = error2;
 	}
-	reiserfs_write_unlock_once(inode->i_sb, depth);
 	posix_acl_release(acl);
 	return error;
 }

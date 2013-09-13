@@ -327,8 +327,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
  *
  * flush_icache_range(unsigned long start, unsigned long stop)
  */
-_KPROBE(__flush_icache_range)
+_KPROBE(flush_icache_range)
 BEGIN_FTR_SECTION
+	isync
 	blr				/* for 601, do nothing */
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	li	r5,L1_CACHE_BYTES-1
@@ -657,43 +658,21 @@ _GLOBAL(__ucmpdi2)
 	li	r3,2
 	blr
 
+_GLOBAL(__bswapdi2)
+	rotlwi  r9,r4,8
+	rotlwi  r10,r3,8
+	rlwimi  r9,r4,24,0,7
+	rlwimi  r10,r3,24,0,7
+	rlwimi  r9,r4,24,16,23
+	rlwimi  r10,r3,24,16,23
+	mr      r3,r9
+	mr      r4,r10
+	blr
+
 _GLOBAL(abs)
 	srawi	r4,r3,31
 	xor	r3,r3,r4
 	sub	r3,r3,r4
-	blr
-
-/*
- * Create a kernel thread
- *   kernel_thread(fn, arg, flags)
- */
-_GLOBAL(kernel_thread)
-	stwu	r1,-16(r1)
-	stw	r30,8(r1)
-	stw	r31,12(r1)
-	mr	r30,r3		/* function */
-	mr	r31,r4		/* argument */
-	ori	r3,r5,CLONE_VM	/* flags */
-	oris	r3,r3,CLONE_UNTRACED>>16
-	li	r4,0		/* new sp (unused) */
-	li	r0,__NR_clone
-	sc
-	bns+	1f		/* did system call indicate error? */
-	neg	r3,r3		/* if so, make return code negative */
-1:	cmpwi	0,r3,0		/* parent or child? */
-	bne	2f		/* return if parent */
-	li	r0,0		/* make top-level stack frame */
-	stwu	r0,-16(r1)
-	mtlr	r30		/* fn addr in lr */
-	mr	r3,r31		/* load arg and call fn */
-	PPC440EP_ERR42
-	blrl
-	li	r0,__NR_exit	/* exit if function returns */
-	li	r3,0
-	sc
-2:	lwz	r30,8(r1)
-	lwz	r31,12(r1)
-	addi	r1,r1,16
 	blr
 
 #ifdef CONFIG_SMP

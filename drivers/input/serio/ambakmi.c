@@ -72,7 +72,7 @@ static int amba_kmi_open(struct serio *io)
 	unsigned int divisor;
 	int ret;
 
-	ret = clk_enable(kmi->clk);
+	ret = clk_prepare_enable(kmi->clk);
 	if (ret)
 		goto out;
 
@@ -92,7 +92,7 @@ static int amba_kmi_open(struct serio *io)
 	return 0;
 
  clk_disable:
-	clk_disable(kmi->clk);
+	clk_disable_unprepare(kmi->clk);
  out:
 	return ret;
 }
@@ -104,10 +104,10 @@ static void amba_kmi_close(struct serio *io)
 	writeb(0, KMICR);
 
 	free_irq(kmi->irq, kmi);
-	clk_disable(kmi->clk);
+	clk_disable_unprepare(kmi->clk);
 }
 
-static int __devinit amba_kmi_probe(struct amba_device *dev,
+static int amba_kmi_probe(struct amba_device *dev,
 	const struct amba_id *id)
 {
 	struct amba_kmi_port *kmi;
@@ -163,7 +163,7 @@ static int __devinit amba_kmi_probe(struct amba_device *dev,
 	return ret;
 }
 
-static int __devexit amba_kmi_remove(struct amba_device *dev)
+static int amba_kmi_remove(struct amba_device *dev)
 {
 	struct amba_kmi_port *kmi = amba_get_drvdata(dev);
 
@@ -204,7 +204,7 @@ static struct amba_driver ambakmi_driver = {
 	},
 	.id_table	= amba_kmi_idtable,
 	.probe		= amba_kmi_probe,
-	.remove		= __devexit_p(amba_kmi_remove),
+	.remove		= amba_kmi_remove,
 	.resume		= amba_kmi_resume,
 };
 

@@ -1,5 +1,5 @@
 /*
- * RDC321x MFD southbrige driver
+ * RDC321x MFD southbridge driver
  *
  * Copyright (C) 2007-2010 Florian Fainelli <florian@openwrt.org>
  * Copyright (C) 2010 Bernhard Loos <bernhardloos@googlemail.com>
@@ -72,7 +72,7 @@ static struct mfd_cell rdc321x_sb_cells[] = {
 	},
 };
 
-static int __devinit rdc321x_sb_probe(struct pci_dev *pdev,
+static int rdc321x_sb_probe(struct pci_dev *pdev,
 					const struct pci_device_id *ent)
 {
 	int err;
@@ -87,10 +87,11 @@ static int __devinit rdc321x_sb_probe(struct pci_dev *pdev,
 	rdc321x_wdt_pdata.sb_pdev = pdev;
 
 	return mfd_add_devices(&pdev->dev, -1,
-		rdc321x_sb_cells, ARRAY_SIZE(rdc321x_sb_cells), NULL, 0);
+			       rdc321x_sb_cells, ARRAY_SIZE(rdc321x_sb_cells),
+			       NULL, 0, NULL);
 }
 
-static void __devexit rdc321x_sb_remove(struct pci_dev *pdev)
+static void rdc321x_sb_remove(struct pci_dev *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
 }
@@ -105,7 +106,7 @@ static struct pci_driver rdc321x_sb_driver = {
 	.name		= "RDC321x Southbridge",
 	.id_table	= rdc321x_sb_table,
 	.probe		= rdc321x_sb_probe,
-	.remove		= __devexit_p(rdc321x_sb_remove),
+	.remove		= rdc321x_sb_remove,
 };
 
 module_pci_driver(rdc321x_sb_driver);

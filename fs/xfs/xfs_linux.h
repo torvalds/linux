@@ -32,6 +32,38 @@
 # define XFS_BIG_INUMS	0
 #endif
 
+/*
+ * Kernel specific type declarations for XFS
+ */
+typedef signed char		__int8_t;
+typedef unsigned char		__uint8_t;
+typedef signed short int	__int16_t;
+typedef unsigned short int	__uint16_t;
+typedef signed int		__int32_t;
+typedef unsigned int		__uint32_t;
+typedef signed long long int	__int64_t;
+typedef unsigned long long int	__uint64_t;
+
+typedef __uint32_t		inst_t;		/* an instruction */
+
+typedef __s64			xfs_off_t;	/* <file offset> type */
+typedef unsigned long long	xfs_ino_t;	/* <inode> type */
+typedef __s64			xfs_daddr_t;	/* <disk address> type */
+typedef char *			xfs_caddr_t;	/* <core address> type */
+typedef __u32			xfs_dev_t;
+typedef __u32			xfs_nlink_t;
+
+/* __psint_t is the same size as a pointer */
+#if (BITS_PER_LONG == 32)
+typedef __int32_t __psint_t;
+typedef __uint32_t __psunsigned_t;
+#elif (BITS_PER_LONG == 64)
+typedef __int64_t __psint_t;
+typedef __uint64_t __psunsigned_t;
+#else
+#error BITS_PER_LONG must be 32 or 64
+#endif
+
 #include "xfs_types.h"
 
 #include "kmem.h"
@@ -44,6 +76,7 @@
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
+#include <linux/crc32c.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/file.h>
@@ -71,6 +104,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/list_sort.h>
+#include <linux/ratelimit.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -112,12 +146,11 @@
 #define xfs_inherit_sync	xfs_params.inherit_sync.val
 #define xfs_inherit_nodump	xfs_params.inherit_nodump.val
 #define xfs_inherit_noatime	xfs_params.inherit_noatim.val
-#define xfs_buf_timer_centisecs	xfs_params.xfs_buf_timer.val
-#define xfs_buf_age_centisecs	xfs_params.xfs_buf_age.val
 #define xfs_inherit_nosymlinks	xfs_params.inherit_nosym.val
 #define xfs_rotorstep		xfs_params.rotorstep.val
 #define xfs_inherit_nodefrag	xfs_params.inherit_nodfrg.val
 #define xfs_fstrm_centisecs	xfs_params.fstrm_timer.val
+#define xfs_eofb_secs		xfs_params.eofb_timer.val
 
 #define current_cpu()		(raw_smp_processor_id())
 #define current_pid()		(current->pid)
@@ -155,6 +188,32 @@
 #define MIN(a,b)	(min(a,b))
 #define MAX(a,b)	(max(a,b))
 #define howmany(x, y)	(((x)+((y)-1))/(y))
+
+/* Kernel uid/gid conversion. These are used to convert to/from the on disk
+ * uid_t/gid_t types to the kuid_t/kgid_t types that the kernel uses internally.
+ * The conversion here is type only, the value will remain the same since we
+ * are converting to the init_user_ns. The uid is later mapped to a particular
+ * user namespace value when crossing the kernel/user boundary.
+ */
+static inline __uint32_t xfs_kuid_to_uid(kuid_t uid)
+{
+	return from_kuid(&init_user_ns, uid);
+}
+
+static inline kuid_t xfs_uid_to_kuid(__uint32_t uid)
+{
+	return make_kuid(&init_user_ns, uid);
+}
+
+static inline __uint32_t xfs_kgid_to_gid(kgid_t gid)
+{
+	return from_kgid(&init_user_ns, gid);
+}
+
+static inline kgid_t xfs_gid_to_kgid(__uint32_t gid)
+{
+	return make_kgid(&init_user_ns, gid);
+}
 
 /*
  * Various platform dependent calls that don't fit anywhere else
@@ -290,15 +349,7 @@ static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
 #define ASSERT_ALWAYS(expr)	\
 	(unlikely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
-#ifndef DEBUG
-#define ASSERT(expr)	((void)0)
-
-#ifndef STATIC
-# define STATIC static noinline
-#endif
-
-#else /* DEBUG */
-
+#ifdef DEBUG
 #define ASSERT(expr)	\
 	(unlikely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
@@ -306,6 +357,26 @@ static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
 # define STATIC noinline
 #endif
 
+#else	/* !DEBUG */
+
+#ifdef XFS_WARN
+
+#define ASSERT(expr)	\
+	(unlikely(expr) ? (void)0 : asswarn(#expr, __FILE__, __LINE__))
+
+#ifndef STATIC
+# define STATIC static noinline
+#endif
+
+#else	/* !DEBUG && !XFS_WARN */
+
+#define ASSERT(expr)	((void)0)
+
+#ifndef STATIC
+# define STATIC static noinline
+#endif
+
+#endif /* XFS_WARN */
 #endif /* DEBUG */
 
 #endif /* __XFS_LINUX__ */

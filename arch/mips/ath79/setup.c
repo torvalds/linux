@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 
 #include <asm/bootinfo.h>
+#include <asm/idle.h>
 #include <asm/time.h>		/* for mips_hpt_frequency */
 #include <asm/reboot.h>		/* for _machine_{restart,halt} */
 #include <asm/mips_machine.h>
@@ -49,20 +50,6 @@ static void ath79_halt(void)
 {
 	while (1)
 		cpu_wait();
-}
-
-static void __init ath79_detect_mem_size(void)
-{
-	unsigned long size;
-
-	for (size = ATH79_MEM_SIZE_MIN; size < ATH79_MEM_SIZE_MAX;
-	     size <<= 1) {
-		if (!memcmp(ath79_detect_mem_size,
-			    ath79_detect_mem_size + size, 1024))
-			break;
-	}
-
-	add_memory_region(0, size, BOOT_MEM_RAM);
 }
 
 static void __init ath79_detect_sys_type(void)
@@ -164,13 +151,29 @@ static void __init ath79_detect_sys_type(void)
 		rev = id & AR934X_REV_ID_REVISION_MASK;
 		break;
 
+	case REV_ID_MAJOR_QCA9556:
+		ath79_soc = ATH79_SOC_QCA9556;
+		chip = "9556";
+		rev = id & QCA955X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_QCA9558:
+		ath79_soc = ATH79_SOC_QCA9558;
+		chip = "9558";
+		rev = id & QCA955X_REV_ID_REVISION_MASK;
+		break;
+
 	default:
 		panic("ath79: unknown SoC, id:0x%08x", id);
 	}
 
 	ath79_soc_rev = rev;
 
-	sprintf(ath79_sys_type, "Atheros AR%s rev %u", chip, rev);
+	if (soc_is_qca955x())
+		sprintf(ath79_sys_type, "Qualcomm Atheros QCA%s rev %u",
+			chip, rev);
+	else
+		sprintf(ath79_sys_type, "Atheros AR%s rev %u", chip, rev);
 	pr_info("SoC: %s\n", ath79_sys_type);
 }
 
@@ -179,7 +182,7 @@ const char *get_system_type(void)
 	return ath79_sys_type;
 }
 
-unsigned int __cpuinit get_c0_compare_int(void)
+unsigned int get_c0_compare_int(void)
 {
 	return CP0_LEGACY_COMPARE_IRQ;
 }
@@ -196,8 +199,7 @@ void __init plat_mem_setup(void)
 					 AR71XX_DDR_CTRL_SIZE);
 
 	ath79_detect_sys_type();
-	ath79_detect_mem_size();
-	ath79_clocks_init();
+	detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
 
 	_machine_restart = ath79_restart;
 	_machine_halt = ath79_halt;
@@ -206,13 +208,25 @@ void __init plat_mem_setup(void)
 
 void __init plat_time_init(void)
 {
-	struct clk *clk;
+	unsigned long cpu_clk_rate;
+	unsigned long ahb_clk_rate;
+	unsigned long ddr_clk_rate;
+	unsigned long ref_clk_rate;
 
-	clk = clk_get(NULL, "cpu");
-	if (IS_ERR(clk))
-		panic("unable to get CPU clock, err=%ld", PTR_ERR(clk));
+	ath79_clocks_init();
 
-	mips_hpt_frequency = clk_get_rate(clk) / 2;
+	cpu_clk_rate = ath79_get_sys_clk_rate("cpu");
+	ahb_clk_rate = ath79_get_sys_clk_rate("ahb");
+	ddr_clk_rate = ath79_get_sys_clk_rate("ddr");
+	ref_clk_rate = ath79_get_sys_clk_rate("ref");
+
+	pr_info("Clocks: CPU:%lu.%03luMHz, DDR:%lu.%03luMHz, AHB:%lu.%03luMHz, Ref:%lu.%03luMHz",
+		cpu_clk_rate / 1000000, (cpu_clk_rate / 1000) % 1000,
+		ddr_clk_rate / 1000000, (ddr_clk_rate / 1000) % 1000,
+		ahb_clk_rate / 1000000, (ahb_clk_rate / 1000) % 1000,
+		ref_clk_rate / 1000000, (ref_clk_rate / 1000) % 1000);
+
+	mips_hpt_frequency = cpu_clk_rate / 2;
 }
 
 static int __init ath79_setup(void)

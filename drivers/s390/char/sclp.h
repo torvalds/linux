@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 1999, 2009
+ * Copyright IBM Corp. 1999,2012
  *
  * Author(s): Martin Peschke <mpeschke@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -15,7 +15,7 @@
 
 /* maximum number of pages concerning our own memory management */
 #define MAX_KMEM_PAGES (sizeof(unsigned long) << 3)
-#define MAX_CONSOLE_PAGES	6
+#define SCLP_CONSOLE_PAGES	6
 
 #define EVTYP_OPCMD		0x01
 #define EVTYP_MSG		0x02
@@ -103,6 +103,7 @@ extern u64 sclp_facilities;
 #define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
 #define SCLP_HAS_CPU_INFO	(sclp_facilities & 0x0800000000000000ULL)
 #define SCLP_HAS_CPU_RECONFIG	(sclp_facilities & 0x0400000000000000ULL)
+#define SCLP_HAS_PCI_RECONFIG	(sclp_facilities & 0x0000000040000000ULL)
 
 
 struct gds_subvector {
@@ -170,9 +171,14 @@ int sclp_remove_processed(struct sccb_header *sccb);
 int sclp_deactivate(void);
 int sclp_reactivate(void);
 int sclp_service_call(sclp_cmdw_t command, void *sccb);
+int sclp_sync_request(sclp_cmdw_t command, void *sccb);
 
 int sclp_sdias_init(void);
 void sclp_sdias_exit(void);
+
+extern int sclp_console_pages;
+extern int sclp_console_drop;
+extern unsigned long sclp_console_full;
 
 /* useful inlines */
 

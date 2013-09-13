@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/suspend.h>
 #include <linux/io.h>
+#include "pm.h"
 
 static int mxs_suspend_enter(suspend_state_t state)
 {
@@ -34,9 +35,7 @@ static struct platform_suspend_ops mxs_suspend_ops = {
 	.valid = suspend_valid_only_mem,
 };
 
-static int __init mxs_pm_init(void)
+void __init mxs_pm_init(void)
 {
 	suspend_set_ops(&mxs_suspend_ops);
-	return 0;
 }
-device_initcall(mxs_pm_init);

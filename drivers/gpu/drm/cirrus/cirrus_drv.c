@@ -10,8 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/console.h>
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
 
 #include "cirrus_drv.h"
 
@@ -36,12 +35,15 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 };
 
 
-static void cirrus_kick_out_firmware_fb(struct pci_dev *pdev)
+static int cirrus_kick_out_firmware_fb(struct pci_dev *pdev)
 {
 	struct apertures_struct *ap;
 	bool primary = false;
 
 	ap = alloc_apertures(1);
+	if (!ap)
+		return -ENOMEM;
+
 	ap->ranges[0].base = pci_resource_start(pdev, 0);
 	ap->ranges[0].size = pci_resource_len(pdev, 0);
 
@@ -50,12 +52,18 @@ static void cirrus_kick_out_firmware_fb(struct pci_dev *pdev)
 #endif
 	remove_conflicting_framebuffers(ap, "cirrusdrmfb", primary);
 	kfree(ap);
+
+	return 0;
 }
 
-static int __devinit
-cirrus_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int cirrus_pci_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
-	cirrus_kick_out_firmware_fb(pdev);
+	int ret;
+
+	ret = cirrus_kick_out_firmware_fb(pdev);
+	if (ret)
+		return ret;
 
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
@@ -74,10 +82,12 @@ static const struct file_operations cirrus_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = cirrus_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 };
 static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_USE_MTRR,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.load = cirrus_driver_load,
 	.unload = cirrus_driver_unload,
 	.fops = &cirrus_driver_fops,
@@ -91,7 +101,7 @@ static struct drm_driver driver = {
 	.gem_free_object = cirrus_gem_free_object,
 	.dumb_create = cirrus_dumb_create,
 	.dumb_map_offset = cirrus_dumb_mmap_offset,
-	.dumb_destroy = cirrus_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 };
 
 static struct pci_driver cirrus_pci_driver = {

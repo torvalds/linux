@@ -1,6 +1,6 @@
 config DRM_MGAG200
 	tristate "Kernel modesetting driver for MGA G200 server engines"
-	depends on DRM && PCI && EXPERIMENTAL
+	depends on DRM && PCI
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT

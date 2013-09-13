@@ -45,7 +45,7 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 	struct usb_line6 *line6 =
 	    line6_rawmidi_substream_midi(substream)->line6;
 	struct snd_line6_midi *line6midi = line6->line6midi;
-	struct MidiBuffer *mb = &line6midi->midibuf_out;
+	struct midi_buffer *mb = &line6midi->midibuf_out;
 	unsigned long flags;
 	unsigned char chunk[line6->max_packet_size];
 	int req, done;
@@ -59,9 +59,6 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 		if (done == 0)
 			break;
 
-#ifdef CONFIG_LINE6_USB_DUMP_MIDI
-		line6_write_hexdump(line6, 's', chunk, done);
-#endif
 		line6_midibuf_write(mb, chunk, done);
 		snd_rawmidi_transmit_ack(substream, done);
 	}
@@ -71,10 +68,6 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 
 		if (done == 0)
 			break;
-
-		if (line6_midibuf_skip_message
-		    (mb, line6midi->midi_mask_transmit))
-			continue;
 
 		send_midi_async(line6, chunk, done);
 	}
@@ -131,9 +124,6 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 		dev_err(line6->ifcdev, "Out of memory\n");
 		return -ENOMEM;
 	}
-#ifdef CONFIG_LINE6_USB_DUMP_CTRL
-	line6_write_hexdump(line6, 'S', data, length);
-#endif
 
 	transfer_buffer = kmemdup(data, length, GFP_ATOMIC);
 
@@ -158,28 +148,6 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 	}
 
 	++line6->line6midi->num_active_send_urbs;
-
-	switch (line6->usbdev->descriptor.idProduct) {
-	case LINE6_DEVID_BASSPODXT:
-	case LINE6_DEVID_BASSPODXTLIVE:
-	case LINE6_DEVID_BASSPODXTPRO:
-	case LINE6_DEVID_PODXT:
-	case LINE6_DEVID_PODXTLIVE:
-	case LINE6_DEVID_PODXTPRO:
-	case LINE6_DEVID_POCKETPOD:
-		line6_pod_midi_postprocess((struct usb_line6_pod *)line6, data,
-					   length);
-		break;
-
-	case LINE6_DEVID_VARIAX:
-	case LINE6_DEVID_PODHD300:
-	case LINE6_DEVID_PODHD500:
-		break;
-
-	default:
-		MISSING_CASE;
-	}
-
 	return 0;
 }
 
@@ -287,83 +255,10 @@ static int snd_line6_new_midi(struct snd_line6_midi *line6midi)
 	return 0;
 }
 
-/*
-	"read" request on "midi_mask_transmit" special file.
-*/
-static ssize_t midi_get_midi_mask_transmit(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	return sprintf(buf, "%d\n", line6->line6midi->midi_mask_transmit);
-}
-
-/*
-	"write" request on "midi_mask" special file.
-*/
-static ssize_t midi_set_midi_mask_transmit(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	unsigned short value;
-	int ret;
-
-	ret = kstrtou16(buf, 10, &value);
-	if (ret)
-		return ret;
-
-	line6->line6midi->midi_mask_transmit = value;
-	return count;
-}
-
-/*
-	"read" request on "midi_mask_receive" special file.
-*/
-static ssize_t midi_get_midi_mask_receive(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	return sprintf(buf, "%d\n", line6->line6midi->midi_mask_receive);
-}
-
-/*
-	"write" request on "midi_mask" special file.
-*/
-static ssize_t midi_set_midi_mask_receive(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	unsigned short value;
-	int ret;
-
-	ret = kstrtou16(buf, 10, &value);
-	if (ret)
-		return ret;
-
-	line6->line6midi->midi_mask_receive = value;
-	return count;
-}
-
-static DEVICE_ATTR(midi_mask_transmit, S_IWUSR | S_IRUGO,
-		   midi_get_midi_mask_transmit, midi_set_midi_mask_transmit);
-static DEVICE_ATTR(midi_mask_receive, S_IWUSR | S_IRUGO,
-		   midi_get_midi_mask_receive, midi_set_midi_mask_receive);
-
 /* MIDI device destructor */
 static int snd_line6_midi_free(struct snd_device *device)
 {
 	struct snd_line6_midi *line6midi = device->device_data;
-	device_remove_file(line6midi->line6->ifcdev,
-			   &dev_attr_midi_mask_transmit);
-	device_remove_file(line6midi->line6->ifcdev,
-			   &dev_attr_midi_mask_receive);
 	line6_midibuf_destroy(&line6midi->midibuf_in);
 	line6_midibuf_destroy(&line6midi->midibuf_out);
 	return 0;
@@ -405,19 +300,6 @@ int line6_init_midi(struct usb_line6 *line6)
 	}
 
 	line6midi->line6 = line6;
-
-	switch (line6->product) {
-	case LINE6_DEVID_PODHD300:
-	case LINE6_DEVID_PODHD500:
-		line6midi->midi_mask_transmit = 1;
-		line6midi->midi_mask_receive = 1;
-		break;
-
-	default:
-		line6midi->midi_mask_transmit = 1;
-		line6midi->midi_mask_receive = 4;
-	}
-
 	line6->line6midi = line6midi;
 
 	err = snd_device_new(line6->card, SNDRV_DEV_RAWMIDI, line6midi,
@@ -428,14 +310,6 @@ int line6_init_midi(struct usb_line6 *line6)
 	snd_card_set_dev(line6->card, line6->ifcdev);
 
 	err = snd_line6_new_midi(line6midi);
-	if (err < 0)
-		return err;
-
-	err = device_create_file(line6->ifcdev, &dev_attr_midi_mask_transmit);
-	if (err < 0)
-		return err;
-
-	err = device_create_file(line6->ifcdev, &dev_attr_midi_mask_receive);
 	if (err < 0)
 		return err;
 

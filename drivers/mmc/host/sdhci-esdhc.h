@@ -36,34 +36,42 @@
 /* pltfm-specific */
 #define ESDHC_HOST_CONTROL_LE	0x20
 
+/*
+ * P2020 interpretation of the SDHCI_HOST_CONTROL register
+ */
+#define ESDHC_CTRL_4BITBUS          (0x1 << 1)
+#define ESDHC_CTRL_8BITBUS          (0x2 << 1)
+#define ESDHC_CTRL_BUSWIDTH_MASK    (0x3 << 1)
+
 /* OF-specific */
 #define ESDHC_DMA_SYSCTL	0x40c
 #define ESDHC_DMA_SNOOP		0x00000040
 
 #define ESDHC_HOST_CONTROL_RES	0x05
 
-static inline void esdhc_set_clock(struct sdhci_host *host, unsigned int clock)
+static inline void esdhc_set_clock(struct sdhci_host *host, unsigned int clock,
+				   unsigned int host_clock)
 {
 	int pre_div = 2;
 	int div = 1;
 	u32 temp;
+
+	if (clock == 0)
+		goto out;
 
 	temp = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
 	temp &= ~(ESDHC_CLOCK_IPGEN | ESDHC_CLOCK_HCKEN | ESDHC_CLOCK_PEREN
 		| ESDHC_CLOCK_MASK);
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 
-	if (clock == 0)
-		goto out;
-
-	while (host->max_clk / pre_div / 16 > clock && pre_div < 256)
+	while (host_clock / pre_div / 16 > clock && pre_div < 256)
 		pre_div *= 2;
 
-	while (host->max_clk / pre_div / div > clock && div < 16)
+	while (host_clock / pre_div / div > clock && div < 16)
 		div++;
 
 	dev_dbg(mmc_dev(host->mmc), "desired SD clock: %d, actual: %d\n",
-		clock, host->max_clk / pre_div / div);
+		clock, host_clock / pre_div / div);
 
 	pre_div >>= 1;
 	div--;

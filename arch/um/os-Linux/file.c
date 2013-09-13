@@ -13,7 +13,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-#include "os.h"
+#include <os.h>
 
 static void copy_stat(struct uml_stat *dst, const struct stat64 *src)
 {
@@ -260,6 +260,15 @@ int os_read_file(int fd, void *buf, int len)
 int os_write_file(int fd, const void *buf, int len)
 {
 	int n = write(fd, (void *) buf, len);
+
+	if (n < 0)
+		return -errno;
+	return n;
+}
+
+int os_sync_file(int fd)
+{
+	int n = fsync(fd);
 
 	if (n < 0)
 		return -errno;

@@ -72,7 +72,7 @@ static inline unsigned int xfrm6_tunnel_spi_hash_byaddr(const xfrm_address_t *ad
 {
 	unsigned int h;
 
-	h = (__force u32)(addr->a6[0] ^ addr->a6[1] ^ addr->a6[2] ^ addr->a6[3]);
+	h = ipv6_addr_hash((const struct in6_addr *)addr);
 	h ^= h >> 16;
 	h ^= h >> 8;
 	h &= XFRM6_TUNNEL_SPI_BYADDR_HSIZE - 1;
@@ -89,12 +89,11 @@ static struct xfrm6_tunnel_spi *__xfrm6_tunnel_spi_lookup(struct net *net, const
 {
 	struct xfrm6_tunnel_net *xfrm6_tn = xfrm6_tunnel_pernet(net);
 	struct xfrm6_tunnel_spi *x6spi;
-	struct hlist_node *pos;
 
-	hlist_for_each_entry_rcu(x6spi, pos,
+	hlist_for_each_entry_rcu(x6spi,
 			     &xfrm6_tn->spi_byaddr[xfrm6_tunnel_spi_hash_byaddr(saddr)],
 			     list_byaddr) {
-		if (memcmp(&x6spi->addr, saddr, sizeof(x6spi->addr)) == 0)
+		if (xfrm6_addr_equal(&x6spi->addr, saddr))
 			return x6spi;
 	}
 
@@ -120,9 +119,8 @@ static int __xfrm6_tunnel_spi_check(struct net *net, u32 spi)
 	struct xfrm6_tunnel_net *xfrm6_tn = xfrm6_tunnel_pernet(net);
 	struct xfrm6_tunnel_spi *x6spi;
 	int index = xfrm6_tunnel_spi_hash_byspi(spi);
-	struct hlist_node *pos;
 
-	hlist_for_each_entry(x6spi, pos,
+	hlist_for_each_entry(x6spi,
 			     &xfrm6_tn->spi_byspi[index],
 			     list_byspi) {
 		if (x6spi->spi == spi)
@@ -203,15 +201,15 @@ static void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_net *xfrm6_tn = xfrm6_tunnel_pernet(net);
 	struct xfrm6_tunnel_spi *x6spi;
-	struct hlist_node *pos, *n;
+	struct hlist_node *n;
 
 	spin_lock_bh(&xfrm6_tunnel_spi_lock);
 
-	hlist_for_each_entry_safe(x6spi, pos, n,
+	hlist_for_each_entry_safe(x6spi, n,
 				  &xfrm6_tn->spi_byaddr[xfrm6_tunnel_spi_hash_byaddr(saddr)],
 				  list_byaddr)
 	{
-		if (memcmp(&x6spi->addr, saddr, sizeof(x6spi->addr)) == 0) {
+		if (xfrm6_addr_equal(&x6spi->addr, saddr)) {
 			if (atomic_dec_and_test(&x6spi->refcnt)) {
 				hlist_del_rcu(&x6spi->list_byaddr);
 				hlist_del_rcu(&x6spi->list_byspi);

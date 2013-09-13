@@ -42,7 +42,7 @@
 #include <linux/videodev2.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <sound/tea575x-tuner.h>
+#include <media/tea575x.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
@@ -114,7 +114,8 @@ static struct snd_tea575x_ops maxiradio_tea_ops = {
 	.set_direction = maxiradio_tea575x_set_direction,
 };
 
-static int __devinit maxiradio_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int maxiradio_probe(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	struct maxiradio *dev;
 	struct v4l2_device *v4l2_dev;
@@ -172,7 +173,7 @@ errfr:
 	return retval;
 }
 
-static void __devexit maxiradio_remove(struct pci_dev *pdev)
+static void maxiradio_remove(struct pci_dev *pdev)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
 	struct maxiradio *dev = to_maxiradio(v4l2_dev);
@@ -196,18 +197,7 @@ static struct pci_driver maxiradio_driver = {
 	.name		= "radio-maxiradio",
 	.id_table	= maxiradio_pci_tbl,
 	.probe		= maxiradio_probe,
-	.remove		= __devexit_p(maxiradio_remove),
+	.remove		= maxiradio_remove,
 };
 
-static int __init maxiradio_init(void)
-{
-	return pci_register_driver(&maxiradio_driver);
-}
-
-static void __exit maxiradio_exit(void)
-{
-	pci_unregister_driver(&maxiradio_driver);
-}
-
-module_init(maxiradio_init);
-module_exit(maxiradio_exit);
+module_pci_driver(maxiradio_driver);

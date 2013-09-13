@@ -98,15 +98,6 @@ EXPORT_SYMBOL(___copy_from_user);
 EXPORT_SYMBOL(___copy_in_user);
 EXPORT_SYMBOL(__clear_user);
 
-/* RW semaphores */
-EXPORT_SYMBOL(__down_read);
-EXPORT_SYMBOL(__down_read_trylock);
-EXPORT_SYMBOL(__down_write);
-EXPORT_SYMBOL(__down_write_trylock);
-EXPORT_SYMBOL(__up_read);
-EXPORT_SYMBOL(__up_write);
-EXPORT_SYMBOL(__downgrade_write);
-
 /* Atomic counter implementation. */
 EXPORT_SYMBOL(atomic_add);
 EXPORT_SYMBOL(atomic_add_ret);
@@ -116,6 +107,7 @@ EXPORT_SYMBOL(atomic64_add);
 EXPORT_SYMBOL(atomic64_add_ret);
 EXPORT_SYMBOL(atomic64_sub);
 EXPORT_SYMBOL(atomic64_sub_ret);
+EXPORT_SYMBOL(atomic64_dec_if_positive);
 
 /* Atomic bit operations. */
 EXPORT_SYMBOL(test_and_set_bit);
@@ -133,6 +125,10 @@ EXPORT_SYMBOL(copy_user_page);
 /* RAID code needs this */
 void VISenter(void);
 EXPORT_SYMBOL(VISenter);
+
+/* CRYPTO code needs this */
+void VISenterhalf(void);
+EXPORT_SYMBOL(VISenterhalf);
 
 extern void xor_vis_2(unsigned long, unsigned long *, unsigned long *);
 extern void xor_vis_3(unsigned long, unsigned long *, unsigned long *,

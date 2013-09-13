@@ -231,7 +231,9 @@ static void altera_uart_rx_chars(struct altera_uart *pp)
 				 flag);
 	}
 
-	tty_flip_buffer_push(port->state->port.tty);
+	spin_unlock(&port->lock);
+	tty_flip_buffer_push(&port->state->port);
+	spin_lock(&port->lock);
 }
 
 static void altera_uart_tx_chars(struct altera_uart *pp)
@@ -532,9 +534,9 @@ static int altera_uart_get_of_uartclk(struct platform_device *pdev,
 }
 #endif /* CONFIG_OF */
 
-static int __devinit altera_uart_probe(struct platform_device *pdev)
+static int altera_uart_probe(struct platform_device *pdev)
 {
-	struct altera_uart_platform_uart *platp = pdev->dev.platform_data;
+	struct altera_uart_platform_uart *platp = dev_get_platdata(&pdev->dev);
 	struct uart_port *port;
 	struct resource *res_mem;
 	struct resource *res_irq;
@@ -591,20 +593,19 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	port->ops = &altera_uart_ops;
 	port->flags = UPF_BOOT_AUTOCONF;
 
-	dev_set_drvdata(&pdev->dev, port);
+	platform_set_drvdata(pdev, port);
 
 	uart_add_one_port(&altera_uart_driver, port);
 
 	return 0;
 }
 
-static int __devexit altera_uart_remove(struct platform_device *pdev)
+static int altera_uart_remove(struct platform_device *pdev)
 {
-	struct uart_port *port = dev_get_drvdata(&pdev->dev);
+	struct uart_port *port = platform_get_drvdata(pdev);
 
 	if (port) {
 		uart_remove_one_port(&altera_uart_driver, port);
-		dev_set_drvdata(&pdev->dev, NULL);
 		port->mapbase = 0;
 	}
 
@@ -614,6 +615,7 @@ static int __devexit altera_uart_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static struct of_device_id altera_uart_match[] = {
 	{ .compatible = "ALTR,uart-1.0", },
+	{ .compatible = "altr,uart-1.0", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, altera_uart_match);
@@ -621,7 +623,7 @@ MODULE_DEVICE_TABLE(of, altera_uart_match);
 
 static struct platform_driver altera_uart_platform_driver = {
 	.probe	= altera_uart_probe,
-	.remove	= __devexit_p(altera_uart_remove),
+	.remove	= altera_uart_remove,
 	.driver	= {
 		.name		= DRV_NAME,
 		.owner		= THIS_MODULE,
@@ -637,11 +639,9 @@ static int __init altera_uart_init(void)
 	if (rc)
 		return rc;
 	rc = platform_driver_register(&altera_uart_platform_driver);
-	if (rc) {
+	if (rc)
 		uart_unregister_driver(&altera_uart_driver);
-		return rc;
-	}
-	return 0;
+	return rc;
 }
 
 static void __exit altera_uart_exit(void)

@@ -1120,8 +1120,11 @@ static int dbll_rmm_alloc(struct dynamic_loader_allocate *this,
 	   or DYN_EXTERNAL, then mem granularity information is present
 	   within the section name - only process if there are at least three
 	   tokens within the section name (just a minor optimization) */
-	if (count >= 3)
-		strict_strtol(sz_last_token, 10, (long *)&req);
+	if (count >= 3) {
+		status = kstrtos32(sz_last_token, 10, &req);
+		if (status)
+			goto func_cont;
+	}
 
 	if ((req == 0) || (req == 1)) {
 		if (strcmp(sz_sec_last_token, "DYN_DARAM") == 0) {
@@ -1382,7 +1385,7 @@ void find_symbol_callback(void *elem, void *user_data)
 		offset < context->cur_best_offset) {
 		context->cur_best_offset = offset;
 		context->sym_addr = symbol_addr;
-		strncpy(context->name, symbol->name, sizeof(context->name));
+		strlcpy(context->name, symbol->name, sizeof(context->name));
 	}
 
 	return;

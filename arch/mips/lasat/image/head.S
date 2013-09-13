@@ -7,7 +7,7 @@
 
 	/* Magic words identifying a software image */
 	.word	LASAT_K_MAGIC0_VAL
-	.word 	LASAT_K_MAGIC1_VAL
+	.word	LASAT_K_MAGIC1_VAL
 
 	/* Image header version */
 	.word	0x00000002

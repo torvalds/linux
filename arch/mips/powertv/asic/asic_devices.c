@@ -1,6 +1,6 @@
 /*
  *
- * Description:  Defines the platform resources for Gaia-based settops.
+ * Description:	 Defines the platform resources for Gaia-based settops.
  *
  * Copyright (C) 2005-2009 Scientific-Atlanta, Inc.
  *
@@ -90,12 +90,12 @@ struct resource asic_resource = {
 
 /*
  * Allow override of bootloader-specified model
- * Returns zero on success, a negative errno value on failure.  This parameter
+ * Returns zero on success, a negative errno value on failure.	This parameter
  * allows overriding of the bootloader-specified model.
  */
 static char __initdata cmdline[COMMAND_LINE_SIZE];
 
-#define	FORCEFAMILY_PARAM	"forcefamily"
+#define FORCEFAMILY_PARAM	"forcefamily"
 
 /*
  * check_forcefamily - check for, and parse, forcefamily command line parameter
@@ -147,20 +147,10 @@ static __init noinline void platform_set_family(void)
 	if (check_forcefamily(forced_family) == 0)
 		bootldr_family = BOOTLDRFAMILY(forced_family[0],
 			forced_family[1]);
-	else {
-
-#ifdef CONFIG_BOOTLOADER_DRIVER
-		bootldr_family = (unsigned short) kbldr_GetSWFamily();
-#else
-#if defined(CONFIG_BOOTLOADER_FAMILY)
+	else
 		bootldr_family = (unsigned short) BOOTLDRFAMILY(
 			CONFIG_BOOTLOADER_FAMILY[0],
 			CONFIG_BOOTLOADER_FAMILY[1]);
-#else
-#error "Unknown Bootloader Family"
-#endif
-#endif
-	}
 
 	pr_info("Bootloader Family = 0x%04X\n", bootldr_family);
 
@@ -486,7 +476,7 @@ static void __init pmem_setup_resource(void)
 		resource->start = phys_to_dma(pmemaddr - 0x80000000);
 		resource->end = resource->start + pmemlen - 1;
 
-		pr_info("persistent memory: start=0x%x  end=0x%x\n",
+		pr_info("persistent memory: start=0x%x	end=0x%x\n",
 			resource->start, resource->end);
 	}
 }
@@ -529,17 +519,7 @@ EXPORT_SYMBOL(asic_resource_get);
  */
 void platform_release_memory(void *ptr, int size)
 {
-	unsigned long addr;
-	unsigned long end;
-
-	addr = ((unsigned long)ptr + (PAGE_SIZE - 1)) & PAGE_MASK;
-	end = ((unsigned long)ptr + size) & PAGE_MASK;
-
-	for (; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(__va(addr)));
-		init_page_count(virt_to_page(__va(addr)));
-		free_page((unsigned long)__va(addr));
-	}
+	free_reserved_area(ptr, ptr + size, -1, NULL);
 }
 EXPORT_SYMBOL(platform_release_memory);
 

@@ -137,6 +137,7 @@ enum access_mode {
 
 /**
  * fsmc_nand_platform_data - platform specific NAND controller config
+ * @nand_timings: timing setup for the physical NAND interface
  * @partitions: partition table for the platform, use a default fallback
  * if this is NULL
  * @nr_partitions: the number of partitions in the previous entry
@@ -155,9 +156,6 @@ struct fsmc_nand_platform_data {
 	unsigned int		width;
 	unsigned int		bank;
 
-	/* CLE, ALE offsets */
-	unsigned int		cle_off;
-	unsigned int		ale_off;
 	enum access_mode	mode;
 
 	void			(*select_bank)(uint32_t bank, uint32_t busw);

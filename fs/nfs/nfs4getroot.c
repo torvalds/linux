@@ -5,10 +5,11 @@
 
 #include <linux/nfs_fs.h>
 #include "nfs4_fs.h"
+#include "internal.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
-int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh)
+int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh, bool auth_probe)
 {
 	struct nfs_fsinfo fsinfo;
 	int ret = -ENOMEM;
@@ -20,7 +21,7 @@ int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh)
 		goto out;
 
 	/* Start by getting the root filehandle from the server */
-	ret = nfs4_proc_get_rootfh(server, mntfh, &fsinfo);
+	ret = nfs4_proc_get_rootfh(server, mntfh, &fsinfo, auth_probe);
 	if (ret < 0) {
 		dprintk("nfs4_get_rootfh: getroot error = %d\n", -ret);
 		goto out;

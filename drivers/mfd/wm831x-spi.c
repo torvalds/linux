@@ -21,7 +21,7 @@
 
 #include <linux/mfd/wm831x/core.h>
 
-static int __devinit wm831x_spi_probe(struct spi_device *spi)
+static int wm831x_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct wm831x *wm831x;
@@ -34,10 +34,9 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	if (wm831x == NULL)
 		return -ENOMEM;
 
-	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
 
-	dev_set_drvdata(&spi->dev, wm831x);
+	spi_set_drvdata(spi, wm831x);
 	wm831x->dev = &spi->dev;
 
 	wm831x->regmap = devm_regmap_init_spi(spi, &wm831x_regmap_config);
@@ -51,9 +50,9 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	return wm831x_device_init(wm831x, type, spi->irq);
 }
 
-static int __devexit wm831x_spi_remove(struct spi_device *spi)
+static int wm831x_spi_remove(struct spi_device *spi)
 {
-	struct wm831x *wm831x = dev_get_drvdata(&spi->dev);
+	struct wm831x *wm831x = spi_get_drvdata(spi);
 
 	wm831x_device_exit(wm831x);
 
@@ -69,7 +68,7 @@ static int wm831x_spi_suspend(struct device *dev)
 
 static void wm831x_spi_shutdown(struct spi_device *spi)
 {
-	struct wm831x *wm831x = dev_get_drvdata(&spi->dev);
+	struct wm831x *wm831x = spi_get_drvdata(spi);
 
 	wm831x_device_shutdown(wm831x);
 }
@@ -99,7 +98,7 @@ static struct spi_driver wm831x_spi_driver = {
 	},
 	.id_table	= wm831x_spi_ids,
 	.probe		= wm831x_spi_probe,
-	.remove		= __devexit_p(wm831x_spi_remove),
+	.remove		= wm831x_spi_remove,
 	.shutdown	= wm831x_spi_shutdown,
 };
 

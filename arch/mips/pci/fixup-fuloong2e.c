@@ -6,9 +6,9 @@
  * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
+ *  This program is free software; you can redistribute	 it and/or modify it
+ *  under  the terms of	 the GNU General  Public License as published by the
+ *  Free Software Foundation;  either version 2 of the	License, or (at your
  *  option) any later version.
  */
 #include <linux/init.h>
@@ -48,7 +48,7 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
-static void __devinit loongson2e_nec_fixup(struct pci_dev *pdev)
+static void loongson2e_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 
@@ -60,7 +60,7 @@ static void __devinit loongson2e_nec_fixup(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, 0xe4, 1 << 5);
 }
 
-static void __devinit loongson2e_686b_func0_fixup(struct pci_dev *pdev)
+static void loongson2e_686b_func0_fixup(struct pci_dev *pdev)
 {
 	unsigned char c;
 
@@ -135,7 +135,7 @@ static void __devinit loongson2e_686b_func0_fixup(struct pci_dev *pdev)
 	printk(KERN_INFO"via686b fix: ISA bridge done\n");
 }
 
-static void __devinit loongson2e_686b_func1_fixup(struct pci_dev *pdev)
+static void loongson2e_686b_func1_fixup(struct pci_dev *pdev)
 {
 	printk(KERN_INFO"via686b fix: IDE\n");
 
@@ -152,7 +152,7 @@ static void __devinit loongson2e_686b_func1_fixup(struct pci_dev *pdev)
 	/* disable read prefetch/write post buffers */
 	pci_write_config_byte(pdev, 0x41, 0x02);
 
-	/* use 3/4 as fifo thresh hold  */
+	/* use 3/4 as fifo thresh hold	*/
 	pci_write_config_byte(pdev, 0x43, 0x0a);
 	pci_write_config_byte(pdev, 0x44, 0x00);
 
@@ -168,19 +168,19 @@ static void __devinit loongson2e_686b_func1_fixup(struct pci_dev *pdev)
 	printk(KERN_INFO"via686b fix: IDE done\n");
 }
 
-static void __devinit loongson2e_686b_func2_fixup(struct pci_dev *pdev)
+static void loongson2e_686b_func2_fixup(struct pci_dev *pdev)
 {
 	/* irq routing */
 	pci_write_config_byte(pdev, PCI_INTERRUPT_LINE, 10);
 }
 
-static void __devinit loongson2e_686b_func3_fixup(struct pci_dev *pdev)
+static void loongson2e_686b_func3_fixup(struct pci_dev *pdev)
 {
 	/* irq routing */
 	pci_write_config_byte(pdev, PCI_INTERRUPT_LINE, 11);
 }
 
-static void __devinit loongson2e_686b_func5_fixup(struct pci_dev *pdev)
+static void loongson2e_686b_func5_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 	unsigned char c;

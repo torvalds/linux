@@ -4,7 +4,6 @@
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
- *  Copyright (c) 2007 Paul Walmsley
  *  Copyright (c) 2008 Jiri Slaby
  *  Copyright (c) 2006-2008 Jiri Kosina
  */
@@ -89,17 +88,6 @@ static struct hid_driver gyration_driver = {
 	.input_mapping = gyration_input_mapping,
 	.event = gyration_event,
 };
+module_hid_driver(gyration_driver);
 
-static int __init gyration_init(void)
-{
-	return hid_register_driver(&gyration_driver);
-}
-
-static void __exit gyration_exit(void)
-{
-	hid_unregister_driver(&gyration_driver);
-}
-
-module_init(gyration_init);
-module_exit(gyration_exit);
 MODULE_LICENSE("GPL");

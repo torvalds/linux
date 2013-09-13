@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -145,6 +145,7 @@ struct lpfc_node_rrq {
 #define NLP_RCV_PLOGI      0x00080000	/* Rcv'ed PLOGI from remote system */
 #define NLP_LOGO_ACC       0x00100000	/* Process LOGO after ACC completes */
 #define NLP_TGT_NO_SCSIID  0x00200000	/* good PRLI but no binding for scsid */
+#define NLP_ISSUE_LOGO     0x00400000	/* waiting to issue a LOGO */
 #define NLP_ACC_REGLOGIN   0x01000000	/* Issue Reg Login after successful
 					   ACC */
 #define NLP_NPR_ADISC      0x02000000	/* Issue ADISC when dq'ed from
@@ -153,6 +154,7 @@ struct lpfc_node_rrq {
 #define NLP_NODEV_REMOVE   0x08000000	/* Defer removal till discovery ends */
 #define NLP_TARGET_REMOVE  0x10000000   /* Target remove in process */
 #define NLP_SC_REQ         0x20000000	/* Target requires authentication */
+#define NLP_FIRSTBURST     0x40000000	/* Target supports FirstBurst */
 #define NLP_RPI_REGISTERED 0x80000000	/* nlp_rpi is valid */
 
 /* ndlp usage management macros */
@@ -201,10 +203,11 @@ struct lpfc_node_rrq {
 #define NLP_STE_ADISC_ISSUE       0x2	/* ADISC was sent to NL_PORT */
 #define NLP_STE_REG_LOGIN_ISSUE   0x3	/* REG_LOGIN was issued for NL_PORT */
 #define NLP_STE_PRLI_ISSUE        0x4	/* PRLI was sent to NL_PORT */
-#define NLP_STE_UNMAPPED_NODE     0x5	/* PRLI completed from NL_PORT */
-#define NLP_STE_MAPPED_NODE       0x6	/* Identified as a FCP Target */
-#define NLP_STE_NPR_NODE          0x7	/* NPort disappeared */
-#define NLP_STE_MAX_STATE         0x8
+#define NLP_STE_LOGO_ISSUE	  0x5	/* LOGO was sent to NL_PORT */
+#define NLP_STE_UNMAPPED_NODE     0x6	/* PRLI completed from NL_PORT */
+#define NLP_STE_MAPPED_NODE       0x7	/* Identified as a FCP Target */
+#define NLP_STE_NPR_NODE          0x8	/* NPort disappeared */
+#define NLP_STE_MAX_STATE         0x9
 #define NLP_STE_FREED_NODE        0xff	/* node entry was freed to MEM_NLP */
 
 /* For UNUSED_NODE state, the node has just been allocated.

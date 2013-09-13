@@ -1,0 +1,114 @@
+/*
+ * Device Tree for the ARM Integrator/AP platform
+ */
+
+/dts-v1/;
+/include/ "integrator.dtsi"
+
+/ {
+	model = "ARM Integrator/AP";
+	compatible = "arm,integrator-ap";
+
+	aliases {
+		arm,timer-primary = &timer2;
+		arm,timer-secondary = &timer1;
+	};
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAM0,38400n8 earlyprintk";
+	};
+
+	syscon {
+		/* AP system controller registers */
+		reg = <0x11000000 0x100>;
+	};
+
+	timer0: timer@13000000 {
+		compatible = "arm,integrator-timer";
+	};
+
+	timer1: timer@13000100 {
+		compatible = "arm,integrator-timer";
+	};
+
+	timer2: timer@13000200 {
+		compatible = "arm,integrator-timer";
+	};
+
+	pic: pic@14000000 {
+		valid-mask = <0x003fffff>;
+	};
+
+	pci: pciv3@62000000 {
+		compatible = "v3,v360epc-pci";
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0x62000000 0x10000>;
+		interrupt-parent = <&pic>;
+		interrupts = <17>; /* Bus error IRQ */
+		ranges = <0x00000000 0 0x61000000 /* config space */
+			0x61000000 0 0x00100000 /* 16 MiB @ 61000000 */
+			0x01000000 0 0x0 /* I/O space */
+			0x60000000 0 0x00100000 /* 16 MiB @ 60000000 */
+			0x02000000 0 0x00000000 /* non-prefectable memory */
+			0x40000000 0 0x10000000 /* 256 MiB @ 40000000 */
+			0x42000000 0 0x10000000 /* prefetchable memory */
+			0x50000000 0 0x10000000>; /* 256 MiB @ 50000000 */
+		interrupt-map-mask = <0xf800 0 0 0x7>;
+		interrupt-map = <
+		/* IDSEL 9 */
+		0x4800 0 0 1 &pic 13 /* INT A on slot 9 is irq 13 */
+		0x4800 0 0 2 &pic 14 /* INT B on slot 9 is irq 14 */
+		0x4800 0 0 3 &pic 15 /* INT C on slot 9 is irq 15 */
+		0x4800 0 0 4 &pic 16 /* INT D on slot 9 is irq 16 */
+		/* IDSEL 10 */
+		0x5000 0 0 1 &pic 14 /* INT A on slot 10 is irq 14 */
+		0x5000 0 0 2 &pic 15 /* INT B on slot 10 is irq 15 */
+		0x5000 0 0 3 &pic 16 /* INT C on slot 10 is irq 16 */
+		0x5000 0 0 4 &pic 13 /* INT D on slot 10 is irq 13 */
+		/* IDSEL 11 */
+		0x5800 0 0 1 &pic 15 /* INT A on slot 11 is irq 15 */
+		0x5800 0 0 2 &pic 16 /* INT B on slot 11 is irq 16 */
+		0x5800 0 0 3 &pic 13 /* INT C on slot 11 is irq 13 */
+		0x5800 0 0 4 &pic 14 /* INT D on slot 11 is irq 14 */
+		/* IDSEL 12 */
+		0x6000 0 0 1 &pic 16 /* INT A on slot 12 is irq 16 */
+		0x6000 0 0 2 &pic 13 /* INT B on slot 12 is irq 13 */
+		0x6000 0 0 3 &pic 14 /* INT C on slot 12 is irq 14 */
+		0x6000 0 0 4 &pic 15 /* INT D on slot 12 is irq 15 */
+		>;
+	};
+
+	fpga {
+		/*
+		 * The Integator/AP predates the idea to have magic numbers
+		 * identifying the PrimeCell in hardware, thus we have to
+		 * supply these from the device tree.
+		 */
+		rtc: rtc@15000000 {
+			compatible = "arm,pl030", "arm,primecell";
+			arm,primecell-periphid = <0x00041030>;
+		};
+
+		uart0: uart@16000000 {
+			compatible = "arm,pl010", "arm,primecell";
+			arm,primecell-periphid = <0x00041010>;
+		};
+
+		uart1: uart@17000000 {
+			compatible = "arm,pl010", "arm,primecell";
+			arm,primecell-periphid = <0x00041010>;
+		};
+
+		kmi0: kmi@18000000 {
+			compatible = "arm,pl050", "arm,primecell";
+			arm,primecell-periphid = <0x00041050>;
+		};
+
+		kmi1: kmi@19000000 {
+			compatible = "arm,pl050", "arm,primecell";
+			arm,primecell-periphid = <0x00041050>;
+		};
+	};
+};

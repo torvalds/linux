@@ -15,7 +15,7 @@
 
 #include <net/af_unix.h>
 
-static ctl_table unix_table[] = {
+static struct ctl_table unix_table[] = {
 	{
 		.procname	= "max_dgram_qlen",
 		.data		= &init_net.unx.sysctl_max_dgram_qlen,
@@ -33,6 +33,10 @@ int __net_init unix_sysctl_register(struct net *net)
 	table = kmemdup(unix_table, sizeof(unix_table), GFP_KERNEL);
 	if (table == NULL)
 		goto err_alloc;
+
+	/* Don't export sysctls to unprivileged users */
+	if (net->user_ns != &init_user_ns)
+		table[0].procname = NULL;
 
 	table[0].data = &net->unx.sysctl_max_dgram_qlen;
 	net->unx.ctl = register_net_sysctl(net, "net/unix", table);

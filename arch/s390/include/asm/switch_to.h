@@ -8,9 +8,10 @@
 #define __ASM_SWITCH_TO_H
 
 #include <linux/thread_info.h>
+#include <asm/ptrace.h>
 
 extern struct task_struct *__switch_to(void *, void *);
-extern void update_per_regs(struct task_struct *task);
+extern void update_cr_regs(struct task_struct *task);
 
 static inline void save_fp_regs(s390_fp_regs *fpregs)
 {
@@ -68,33 +69,35 @@ static inline void restore_fp_regs(s390_fp_regs *fpregs)
 
 static inline void save_access_regs(unsigned int *acrs)
 {
-	asm volatile("stam 0,15,%0" : "=Q" (*acrs));
+	typedef struct { int _[NUM_ACRS]; } acrstype;
+
+	asm volatile("stam 0,15,%0" : "=Q" (*(acrstype *)acrs));
 }
 
 static inline void restore_access_regs(unsigned int *acrs)
 {
-	asm volatile("lam 0,15,%0" : : "Q" (*acrs));
+	typedef struct { int _[NUM_ACRS]; } acrstype;
+
+	asm volatile("lam 0,15,%0" : : "Q" (*(acrstype *)acrs));
 }
 
 #define switch_to(prev,next,last) do {					\
 	if (prev->mm) {							\
 		save_fp_regs(&prev->thread.fp_regs);			\
 		save_access_regs(&prev->thread.acrs[0]);		\
+		save_ri_cb(prev->thread.ri_cb);				\
 	}								\
 	if (next->mm) {							\
 		restore_fp_regs(&next->thread.fp_regs);			\
 		restore_access_regs(&next->thread.acrs[0]);		\
-		update_per_regs(next);					\
+		restore_ri_cb(next->thread.ri_cb, prev->thread.ri_cb);	\
+		update_cr_regs(next);					\
 	}								\
 	prev = __switch_to(prev,next);					\
 } while (0)
 
-extern void account_vtime(struct task_struct *, struct task_struct *);
-extern void account_tick_vtime(struct task_struct *);
-
 #define finish_arch_switch(prev) do {					     \
 	set_fs(current->thread.mm_segment);				     \
-	account_vtime(prev, current);					     \
 } while (0)
 
 #endif /* __ASM_SWITCH_TO_H */

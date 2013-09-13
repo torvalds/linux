@@ -70,7 +70,6 @@ static void ax25_ds_timeout(unsigned long arg)
 {
 	ax25_dev *ax25_dev = (struct ax25_dev *) arg;
 	ax25_cb *ax25;
-	struct hlist_node *node;
 
 	if (ax25_dev == NULL || !ax25_dev->dama.slave)
 		return;			/* Yikes! */
@@ -81,7 +80,7 @@ static void ax25_ds_timeout(unsigned long arg)
 	}
 
 	spin_lock(&ax25_list_lock);
-	ax25_for_each(ax25, node, &ax25_list) {
+	ax25_for_each(ax25, &ax25_list) {
 		if (ax25->ax25_dev != ax25_dev || !(ax25->condition & AX25_COND_DAMA_MODE))
 			continue;
 

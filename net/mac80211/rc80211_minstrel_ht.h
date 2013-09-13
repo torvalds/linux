@@ -16,11 +16,6 @@
 #define MINSTREL_MAX_STREAMS	3
 #define MINSTREL_STREAM_GROUPS	4
 
-/* scaled fraction values */
-#define MINSTREL_SCALE	16
-#define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / div)
-#define MINSTREL_TRUNC(val) ((val) >> MINSTREL_SCALE)
-
 #define MCS_GROUP_RATES	8
 
 struct mcs_group {
@@ -70,6 +65,8 @@ struct minstrel_mcs_group_data {
 };
 
 struct minstrel_ht_sta {
+	struct ieee80211_sta *sta;
+
 	/* ampdu length (average, per sampling interval) */
 	unsigned int ampdu_len;
 	unsigned int ampdu_packets;
@@ -85,6 +82,7 @@ struct minstrel_ht_sta {
 
 	/* best probability rate */
 	unsigned int max_prob_rate;
+	unsigned int max_prob_streams;
 
 	/* time of last status update */
 	unsigned long stats_update;
@@ -107,8 +105,11 @@ struct minstrel_ht_sta {
 	/* current MCS group to be sampled */
 	u8 sample_group;
 
+	u8 cck_supported;
+	u8 cck_supported_short;
+
 	/* MCS rate group info and statistics */
-	struct minstrel_mcs_group_data groups[MINSTREL_MAX_STREAMS * MINSTREL_STREAM_GROUPS];
+	struct minstrel_mcs_group_data groups[MINSTREL_MAX_STREAMS * MINSTREL_STREAM_GROUPS + 1];
 };
 
 struct minstrel_ht_sta_priv {

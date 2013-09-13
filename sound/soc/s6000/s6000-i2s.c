@@ -436,7 +436,11 @@ static struct snd_soc_dai_driver s6000_i2s_dai = {
 	.ops = &s6000_i2s_dai_ops,
 };
 
-static int __devinit s6000_i2s_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver s6000_i2s_component = {
+	.name		= "s6000-i2s",
+};
+
+static int s6000_i2s_probe(struct platform_device *pdev)
 {
 	struct s6000_i2s_dev *dev;
 	struct resource *scbmem, *sifmem, *region, *dma1, *dma2;
@@ -543,7 +547,8 @@ static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 			 S6_I2S_INT_UNDERRUN |
 			 S6_I2S_INT_OVERRUN);
 
-	ret = snd_soc_register_dai(&pdev->dev, &s6000_i2s_dai);
+	ret = snd_soc_register_component(&pdev->dev, &s6000_i2s_component,
+					 &s6000_i2s_dai, 1);
 	if (ret)
 		goto err_release_dev;
 
@@ -566,13 +571,13 @@ err_release_none:
 	return ret;
 }
 
-static void __devexit s6000_i2s_remove(struct platform_device *pdev)
+static void s6000_i2s_remove(struct platform_device *pdev)
 {
 	struct s6000_i2s_dev *dev = dev_get_drvdata(&pdev->dev);
 	struct resource *region;
 	void __iomem *mmio = dev->scbbase;
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	s6000_i2s_stop_channel(dev, 0);
 	s6000_i2s_stop_channel(dev, 1);
@@ -597,7 +602,7 @@ static void __devexit s6000_i2s_remove(struct platform_device *pdev)
 
 static struct platform_driver s6000_i2s_driver = {
 	.probe  = s6000_i2s_probe,
-	.remove = __devexit_p(s6000_i2s_remove),
+	.remove = s6000_i2s_remove,
 	.driver = {
 		.name   = "s6000-i2s",
 		.owner  = THIS_MODULE,

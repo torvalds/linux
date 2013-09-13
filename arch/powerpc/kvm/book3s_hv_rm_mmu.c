@@ -27,12 +27,43 @@ static void *real_vmalloc_addr(void *x)
 	unsigned long addr = (unsigned long) x;
 	pte_t *p;
 
-	p = find_linux_pte(swapper_pg_dir, addr);
+	p = find_linux_pte_or_hugepte(swapper_pg_dir, addr, NULL);
 	if (!p || !pte_present(*p))
 		return NULL;
 	/* assume we don't have huge pages in vmalloc space... */
 	addr = (pte_pfn(*p) << PAGE_SHIFT) | (addr & ~PAGE_MASK);
 	return __va(addr);
+}
+
+/* Return 1 if we need to do a global tlbie, 0 if we can use tlbiel */
+static int global_invalidates(struct kvm *kvm, unsigned long flags)
+{
+	int global;
+
+	/*
+	 * If there is only one vcore, and it's currently running,
+	 * we can use tlbiel as long as we mark all other physical
+	 * cores as potentially having stale TLB entries for this lpid.
+	 * If we're not using MMU notifiers, we never take pages away
+	 * from the guest, so we can use tlbiel if requested.
+	 * Otherwise, don't use tlbiel.
+	 */
+	if (kvm->arch.online_vcores == 1 && local_paca->kvm_hstate.kvm_vcore)
+		global = 0;
+	else if (kvm->arch.using_mmu_notifiers)
+		global = 1;
+	else
+		global = !(flags & H_LOCAL);
+
+	if (!global) {
+		/* any other core might now have stale TLB entries... */
+		smp_wmb();
+		cpumask_setall(&kvm->arch.need_tlb_flush);
+		cpumask_clear_cpu(local_paca->kvm_hstate.kvm_vcore->pcpu,
+				  &kvm->arch.need_tlb_flush);
+	}
+
+	return global;
 }
 
 /*
@@ -59,10 +90,10 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 		head->back = pte_index;
 	} else {
 		rev->forw = rev->back = pte_index;
-		i = pte_index;
+		*rmap = (*rmap & ~KVMPPC_RMAP_INDEX) |
+			pte_index | KVMPPC_RMAP_PRESENT;
 	}
-	smp_wmb();
-	*rmap = i | KVMPPC_RMAP_REFERENCED | KVMPPC_RMAP_PRESENT; /* unlock */
+	unlock_rmap(rmap);
 }
 EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
@@ -81,10 +112,10 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	ptel = rev->guest_rpte |= rcbits;
 	gfn = hpte_rpn(ptel, hpte_page_size(hpte_v, ptel));
 	memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
-	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
+	if (!memslot)
 		return;
 
-	rmap = real_vmalloc_addr(&memslot->rmap[gfn - memslot->base_gfn]);
+	rmap = real_vmalloc_addr(&memslot->arch.rmap[gfn - memslot->base_gfn]);
 	lock_rmap(rmap);
 
 	head = *rmap & KVMPPC_RMAP_INDEX;
@@ -103,25 +134,23 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	unlock_rmap(rmap);
 }
 
-static pte_t lookup_linux_pte(struct kvm_vcpu *vcpu, unsigned long hva,
+static pte_t lookup_linux_pte(pgd_t *pgdir, unsigned long hva,
 			      int writing, unsigned long *pte_sizep)
 {
 	pte_t *ptep;
 	unsigned long ps = *pte_sizep;
-	unsigned int shift;
+	unsigned int hugepage_shift;
 
-	ptep = find_linux_pte_or_hugepte(vcpu->arch.pgdir, hva, &shift);
+	ptep = find_linux_pte_or_hugepte(pgdir, hva, &hugepage_shift);
 	if (!ptep)
 		return __pte(0);
-	if (shift)
-		*pte_sizep = 1ul << shift;
+	if (hugepage_shift)
+		*pte_sizep = 1ul << hugepage_shift;
 	else
 		*pte_sizep = PAGE_SIZE;
 	if (ps > *pte_sizep)
 		return __pte(0);
-	if (!pte_present(*ptep))
-		return __pte(0);
-	return kvmppc_read_update_linux_pte(ptep, writing);
+	return kvmppc_read_update_linux_pte(ptep, writing, hugepage_shift);
 }
 
 static inline void unlock_hpte(unsigned long *hpte, unsigned long hpte_v)
@@ -130,15 +159,15 @@ static inline void unlock_hpte(unsigned long *hpte, unsigned long hpte_v)
 	hpte[0] = hpte_v;
 }
 
-long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
-		    long pte_index, unsigned long pteh, unsigned long ptel)
+long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
+		       long pte_index, unsigned long pteh, unsigned long ptel,
+		       pgd_t *pgdir, bool realmode, unsigned long *pte_idx_ret)
 {
-	struct kvm *kvm = vcpu->kvm;
 	unsigned long i, pa, gpa, gfn, psize;
 	unsigned long slot_fn, hva;
 	unsigned long *hpte;
 	struct revmap_entry *rev;
-	unsigned long g_ptel = ptel;
+	unsigned long g_ptel;
 	struct kvm_memory_slot *memslot;
 	unsigned long *physp, pte_size;
 	unsigned long is_io;
@@ -147,13 +176,14 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned int writing;
 	unsigned long mmu_seq;
 	unsigned long rcbits;
-	bool realmode = vcpu->arch.vcore->vcore_state == VCORE_RUNNING;
 
 	psize = hpte_page_size(pteh, ptel);
 	if (!psize)
 		return H_PARAMETER;
 	writing = hpte_is_writable(ptel);
 	pteh &= ~(HPTE_V_HVLOCK | HPTE_V_ABSENT | HPTE_V_VALID);
+	ptel &= ~HPTE_GR_RESERVED;
+	g_ptel = ptel;
 
 	/* used later to detect if we might have been invalidated */
 	mmu_seq = kvm->mmu_notifier_seq;
@@ -180,10 +210,10 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (!slot_is_aligned(memslot, psize))
 		return H_PARAMETER;
 	slot_fn = gfn - memslot->base_gfn;
-	rmap = &memslot->rmap[slot_fn];
+	rmap = &memslot->arch.rmap[slot_fn];
 
 	if (!kvm->arch.using_mmu_notifiers) {
-		physp = kvm->arch.slot_phys[memslot->id];
+		physp = memslot->arch.slot_phys;
 		if (!physp)
 			return H_PARAMETER;
 		physp += slot_fn;
@@ -197,11 +227,11 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		pa &= PAGE_MASK;
 	} else {
 		/* Translate to host virtual address */
-		hva = gfn_to_hva_memslot(memslot, gfn);
+		hva = __gfn_to_hva_memslot(memslot, gfn);
 
 		/* Look up the Linux PTE for the backing page */
 		pte_size = psize;
-		pte = lookup_linux_pte(vcpu, hva, writing, &pte_size);
+		pte = lookup_linux_pte(pgdir, hva, writing, &pte_size);
 		if (pte_present(pte)) {
 			if (writing && !pte_write(pte))
 				/* make the actual HPTE be read-only */
@@ -210,6 +240,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 			pa = pte_pfn(pte) << PAGE_SHIFT;
 		}
 	}
+
 	if (pte_size < psize)
 		return H_PARAMETER;
 	if (pa && pte_size > psize)
@@ -287,8 +318,10 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	rev = &kvm->arch.revmap[pte_index];
 	if (realmode)
 		rev = real_vmalloc_addr(rev);
-	if (rev)
+	if (rev) {
 		rev->guest_rpte = g_ptel;
+		note_hpte_modification(kvm, rev);
+	}
 
 	/* Link HPTE into reverse-map chain */
 	if (pteh & HPTE_V_VALID) {
@@ -297,7 +330,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		lock_rmap(rmap);
 		/* Check for pending invalidations under the rmap chain lock */
 		if (kvm->arch.using_mmu_notifiers &&
-		    mmu_notifier_retry(vcpu, mmu_seq)) {
+		    mmu_notifier_retry(kvm, mmu_seq)) {
 			/* inval in progress, write a non-present HPTE */
 			pteh |= HPTE_V_ABSENT;
 			pteh &= ~HPTE_V_VALID;
@@ -318,12 +351,23 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	hpte[0] = pteh;
 	asm volatile("ptesync" : : : "memory");
 
-	vcpu->arch.gpr[4] = pte_index;
+	*pte_idx_ret = pte_index;
 	return H_SUCCESS;
 }
-EXPORT_SYMBOL_GPL(kvmppc_h_enter);
+EXPORT_SYMBOL_GPL(kvmppc_do_h_enter);
 
+long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
+		    long pte_index, unsigned long pteh, unsigned long ptel)
+{
+	return kvmppc_do_h_enter(vcpu->kvm, flags, pte_index, pteh, ptel,
+				 vcpu->arch.pgdir, true, &vcpu->arch.gpr[4]);
+}
+
+#ifdef __BIG_ENDIAN__
 #define LOCK_TOKEN	(*(u32 *)(&get_paca()->lock_token))
+#else
+#define LOCK_TOKEN	(*(u32 *)(&get_paca()->paca_index))
+#endif
 
 static inline int try_lock_tlbie(unsigned int *lock)
 {
@@ -343,11 +387,84 @@ static inline int try_lock_tlbie(unsigned int *lock)
 	return old == 0;
 }
 
-long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
-		     unsigned long pte_index, unsigned long avpn,
-		     unsigned long va)
+/*
+ * tlbie/tlbiel is a bit different on the PPC970 compared to later
+ * processors such as POWER7; the large page bit is in the instruction
+ * not RB, and the top 16 bits and the bottom 12 bits of the VA
+ * in RB must be 0.
+ */
+static void do_tlbies_970(struct kvm *kvm, unsigned long *rbvalues,
+			  long npages, int global, bool need_sync)
 {
-	struct kvm *kvm = vcpu->kvm;
+	long i;
+
+	if (global) {
+		while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
+			cpu_relax();
+		if (need_sync)
+			asm volatile("ptesync" : : : "memory");
+		for (i = 0; i < npages; ++i) {
+			unsigned long rb = rbvalues[i];
+
+			if (rb & 1)		/* large page */
+				asm volatile("tlbie %0,1" : :
+					     "r" (rb & 0x0000fffffffff000ul));
+			else
+				asm volatile("tlbie %0,0" : :
+					     "r" (rb & 0x0000fffffffff000ul));
+		}
+		asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+		kvm->arch.tlbie_lock = 0;
+	} else {
+		if (need_sync)
+			asm volatile("ptesync" : : : "memory");
+		for (i = 0; i < npages; ++i) {
+			unsigned long rb = rbvalues[i];
+
+			if (rb & 1)		/* large page */
+				asm volatile("tlbiel %0,1" : :
+					     "r" (rb & 0x0000fffffffff000ul));
+			else
+				asm volatile("tlbiel %0,0" : :
+					     "r" (rb & 0x0000fffffffff000ul));
+		}
+		asm volatile("ptesync" : : : "memory");
+	}
+}
+
+static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
+		      long npages, int global, bool need_sync)
+{
+	long i;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_201)) {
+		/* PPC970 tlbie instruction is a bit different */
+		do_tlbies_970(kvm, rbvalues, npages, global, need_sync);
+		return;
+	}
+	if (global) {
+		while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
+			cpu_relax();
+		if (need_sync)
+			asm volatile("ptesync" : : : "memory");
+		for (i = 0; i < npages; ++i)
+			asm volatile(PPC_TLBIE(%1,%0) : :
+				     "r" (rbvalues[i]), "r" (kvm->arch.lpid));
+		asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+		kvm->arch.tlbie_lock = 0;
+	} else {
+		if (need_sync)
+			asm volatile("ptesync" : : : "memory");
+		for (i = 0; i < npages; ++i)
+			asm volatile("tlbiel %0" : : "r" (rbvalues[i]));
+		asm volatile("ptesync" : : : "memory");
+	}
+}
+
+long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
+			unsigned long pte_index, unsigned long avpn,
+			unsigned long *hpret)
+{
 	unsigned long *hpte;
 	unsigned long v, r, rb;
 	struct revmap_entry *rev;
@@ -369,28 +486,25 @@ long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (v & HPTE_V_VALID) {
 		hpte[0] &= ~HPTE_V_VALID;
 		rb = compute_tlbie_rb(v, hpte[1], pte_index);
-		if (!(flags & H_LOCAL) && atomic_read(&kvm->online_vcpus) > 1) {
-			while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
-				cpu_relax();
-			asm volatile("ptesync" : : : "memory");
-			asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
-				     : : "r" (rb), "r" (kvm->arch.lpid));
-			asm volatile("ptesync" : : : "memory");
-			kvm->arch.tlbie_lock = 0;
-		} else {
-			asm volatile("ptesync" : : : "memory");
-			asm volatile("tlbiel %0" : : "r" (rb));
-			asm volatile("ptesync" : : : "memory");
-		}
+		do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags), true);
 		/* Read PTE low word after tlbie to get final R/C values */
 		remove_revmap_chain(kvm, pte_index, rev, v, hpte[1]);
 	}
-	r = rev->guest_rpte;
+	r = rev->guest_rpte & ~HPTE_GR_RESERVED;
+	note_hpte_modification(kvm, rev);
 	unlock_hpte(hpte, 0);
 
-	vcpu->arch.gpr[4] = v;
-	vcpu->arch.gpr[5] = r;
+	hpret[0] = v;
+	hpret[1] = r;
 	return H_SUCCESS;
+}
+EXPORT_SYMBOL_GPL(kvmppc_do_h_remove);
+
+long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
+		     unsigned long pte_index, unsigned long avpn)
+{
+	return kvmppc_do_h_remove(vcpu->kvm, flags, pte_index, avpn,
+				  &vcpu->arch.gpr[4]);
 }
 
 long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
@@ -400,12 +514,11 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 	unsigned long *hp, *hptes[4], tlbrb[4];
 	long int i, j, k, n, found, indexes[4];
 	unsigned long flags, req, pte_index, rcbits;
-	long int local = 0;
+	int global;
 	long int ret = H_SUCCESS;
 	struct revmap_entry *rev, *revs[4];
 
-	if (atomic_read(&kvm->online_vcpus) == 1)
-		local = 1;
+	global = global_invalidates(kvm, 0);
 	for (i = 0; i < 4 && ret == H_SUCCESS; ) {
 		n = 0;
 		for (; i < 4; ++i) {
@@ -459,6 +572,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 
 			args[j] = ((0x80 | flags) << 56) + pte_index;
 			rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+			note_hpte_modification(kvm, rev);
 
 			if (!(hp[0] & HPTE_V_VALID)) {
 				/* insert R and C bits from PTE */
@@ -480,22 +594,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 			break;
 
 		/* Now that we've collected a batch, do the tlbies */
-		if (!local) {
-			while(!try_lock_tlbie(&kvm->arch.tlbie_lock))
-				cpu_relax();
-			asm volatile("ptesync" : : : "memory");
-			for (k = 0; k < n; ++k)
-				asm volatile(PPC_TLBIE(%1,%0) : :
-					     "r" (tlbrb[k]),
-					     "r" (kvm->arch.lpid));
-			asm volatile("eieio; tlbsync; ptesync" : : : "memory");
-			kvm->arch.tlbie_lock = 0;
-		} else {
-			asm volatile("ptesync" : : : "memory");
-			for (k = 0; k < n; ++k)
-				asm volatile("tlbiel %0" : : "r" (tlbrb[k]));
-			asm volatile("ptesync" : : : "memory");
-		}
+		do_tlbies(kvm, tlbrb, n, global, true);
 
 		/* Read PTE low words after tlbie to get final R/C values */
 		for (k = 0; k < n; ++k) {
@@ -534,8 +633,6 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 		return H_NOT_FOUND;
 	}
 
-	if (atomic_read(&kvm->online_vcpus) == 1)
-		flags |= H_LOCAL;
 	v = hpte[0];
 	bits = (flags << 55) & HPTE_R_PP0;
 	bits |= (flags << 48) & HPTE_R_KEY_HI;
@@ -548,6 +645,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (rev) {
 		r = (rev->guest_rpte & ~mask) | bits;
 		rev->guest_rpte = r;
+		note_hpte_modification(kvm, rev);
 	}
 	r = (hpte[1] & ~mask) | bits;
 
@@ -555,18 +653,28 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (v & HPTE_V_VALID) {
 		rb = compute_tlbie_rb(v, r, pte_index);
 		hpte[0] = v & ~HPTE_V_VALID;
-		if (!(flags & H_LOCAL)) {
-			while(!try_lock_tlbie(&kvm->arch.tlbie_lock))
-				cpu_relax();
-			asm volatile("ptesync" : : : "memory");
-			asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
-				     : : "r" (rb), "r" (kvm->arch.lpid));
-			asm volatile("ptesync" : : : "memory");
-			kvm->arch.tlbie_lock = 0;
-		} else {
-			asm volatile("ptesync" : : : "memory");
-			asm volatile("tlbiel %0" : : "r" (rb));
-			asm volatile("ptesync" : : : "memory");
+		do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags), true);
+		/*
+		 * If the host has this page as readonly but the guest
+		 * wants to make it read/write, reduce the permissions.
+		 * Checking the host permissions involves finding the
+		 * memslot and then the Linux PTE for the page.
+		 */
+		if (hpte_is_writable(r) && kvm->arch.using_mmu_notifiers) {
+			unsigned long psize, gfn, hva;
+			struct kvm_memory_slot *memslot;
+			pgd_t *pgdir = vcpu->arch.pgdir;
+			pte_t pte;
+
+			psize = hpte_page_size(v, r);
+			gfn = ((r & HPTE_R_RPN) & ~(psize - 1)) >> PAGE_SHIFT;
+			memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
+			if (memslot) {
+				hva = __gfn_to_hva_memslot(memslot, gfn);
+				pte = lookup_linux_pte(pgdir, hva, 1, &psize);
+				if (pte_present(pte) && !pte_write(pte))
+					r = hpte_make_readonly(r);
+			}
 		}
 	}
 	hpte[1] = r;
@@ -599,8 +707,10 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 			v &= ~HPTE_V_ABSENT;
 			v |= HPTE_V_VALID;
 		}
-		if (v & HPTE_V_VALID)
+		if (v & HPTE_V_VALID) {
 			r = rev[i].guest_rpte | (r & (HPTE_R_R | HPTE_R_C));
+			r &= ~HPTE_GR_RESERVED;
+		}
 		vcpu->arch.gpr[4 + i * 2] = v;
 		vcpu->arch.gpr[5 + i * 2] = r;
 	}
@@ -614,13 +724,7 @@ void kvmppc_invalidate_hpte(struct kvm *kvm, unsigned long *hptep,
 
 	hptep[0] &= ~HPTE_V_VALID;
 	rb = compute_tlbie_rb(hptep[0], hptep[1], pte_index);
-	while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
-		cpu_relax();
-	asm volatile("ptesync" : : : "memory");
-	asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
-		     : : "r" (rb), "r" (kvm->arch.lpid));
-	asm volatile("ptesync" : : : "memory");
-	kvm->arch.tlbie_lock = 0;
+	do_tlbies(kvm, &rb, 1, 1, true);
 }
 EXPORT_SYMBOL_GPL(kvmppc_invalidate_hpte);
 
@@ -634,12 +738,7 @@ void kvmppc_clear_ref_hpte(struct kvm *kvm, unsigned long *hptep,
 	rbyte = (hptep[1] & ~HPTE_R_R) >> 8;
 	/* modify only the second-last byte, which contains the ref bit */
 	*((char *)hptep + 14) = rbyte;
-	while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
-		cpu_relax();
-	asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
-		     : : "r" (rb), "r" (kvm->arch.lpid));
-	asm volatile("ptesync" : : : "memory");
-	kvm->arch.tlbie_lock = 0;
+	do_tlbies(kvm, &rb, 1, 1, false);
 }
 EXPORT_SYMBOL_GPL(kvmppc_clear_ref_hpte);
 

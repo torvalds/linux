@@ -231,7 +231,7 @@ void uwb_rsv_backoff_win_increment(struct uwb_rc *rc)
 		return;
 
 	bow->window <<= 1;
-	bow->n = random32() & (bow->window - 1);
+	bow->n = prandom_u32() & (bow->window - 1);
 	dev_dbg(dev, "new_window=%d, n=%d\n: ", bow->window, bow->n);
 
 	/* reset the timer associated variables */
@@ -557,7 +557,7 @@ int uwb_rsv_establish(struct uwb_rsv *rsv)
 	if (ret)
 		goto out;
 
-	rsv->tiebreaker = random32() & 1;
+	rsv->tiebreaker = prandom_u32() & 1;
 	/* get available mas bitmap */
 	uwb_drp_available(rc, &available);
 
@@ -872,7 +872,7 @@ void uwb_rsv_queue_update(struct uwb_rc *rc)
  */
 void uwb_rsv_sched_update(struct uwb_rc *rc)
 {
-	spin_lock_bh(&rc->rsvs_lock);
+	spin_lock_irq(&rc->rsvs_lock);
 	if (!delayed_work_pending(&rc->rsv_update_work)) {
 		if (rc->set_drp_ie_pending > 0) {
 			rc->set_drp_ie_pending++;
@@ -881,7 +881,7 @@ void uwb_rsv_sched_update(struct uwb_rc *rc)
 		uwb_rsv_queue_update(rc);
 	}
 unlock:
-	spin_unlock_bh(&rc->rsvs_lock);
+	spin_unlock_irq(&rc->rsvs_lock);
 }
 
 /*

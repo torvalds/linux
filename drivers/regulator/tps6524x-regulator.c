@@ -502,15 +502,13 @@ static int set_current_limit(struct regulator_dev *rdev, int min_uA,
 	if (info->n_ilimsels == 1)
 		return -EINVAL;
 
-	for (i = 0; i < info->n_ilimsels; i++)
+	for (i = info->n_ilimsels - 1; i >= 0; i--) {
 		if (min_uA <= info->ilimsels[i] &&
 		    max_uA >= info->ilimsels[i])
-			break;
+			return write_field(hw, &info->ilimsel, i);
+	}
 
-	if (i >= info->n_ilimsels)
-		return -EINVAL;
-
-	return write_field(hw, &info->ilimsel, i);
+	return -EINVAL;
 }
 
 static int get_current_limit(struct regulator_dev *rdev)
@@ -574,6 +572,7 @@ static struct regulator_ops regulator_ops = {
 	.get_voltage_sel	= get_voltage_sel,
 	.set_voltage_sel	= set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_table,
+	.map_voltage		= regulator_map_voltage_ascend,
 	.set_current_limit	= set_current_limit,
 	.get_current_limit	= get_current_limit,
 };
@@ -586,15 +585,14 @@ static int pmic_remove(struct spi_device *spi)
 	if (!hw)
 		return 0;
 	for (i = 0; i < N_REGULATORS; i++) {
-		if (hw->rdev[i])
-			regulator_unregister(hw->rdev[i]);
+		regulator_unregister(hw->rdev[i]);
 		hw->rdev[i] = NULL;
 	}
 	spi_set_drvdata(spi, NULL);
 	return 0;
 }
 
-static int __devinit pmic_probe(struct spi_device *spi)
+static int pmic_probe(struct spi_device *spi)
 {
 	struct tps6524x *hw;
 	struct device *dev = &spi->dev;
@@ -603,7 +601,7 @@ static int __devinit pmic_probe(struct spi_device *spi)
 	struct regulator_config config = { };
 	int ret = 0, i;
 
-	init_data = dev->platform_data;
+	init_data = dev_get_platdata(dev);
 	if (!init_data) {
 		dev_err(dev, "could not find regulator platform data\n");
 		return -EINVAL;
@@ -651,7 +649,7 @@ fail:
 
 static struct spi_driver pmic_driver = {
 	.probe		= pmic_probe,
-	.remove		= __devexit_p(pmic_remove),
+	.remove		= pmic_remove,
 	.driver		= {
 		.name	= "tps6524x",
 		.owner	= THIS_MODULE,

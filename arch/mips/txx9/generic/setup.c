@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <asm/bootinfo.h>
+#include <asm/idle.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
 #include <asm/r4kcache.h>
@@ -118,7 +119,7 @@ EXPORT_SYMBOL(clk_put);
 
 /* GPIO support */
 
-#ifdef CONFIG_GENERIC_GPIO
+#ifdef CONFIG_GPIOLIB
 int gpio_to_irq(unsigned gpio)
 {
 	return -EINVAL;
@@ -349,7 +350,7 @@ static void __init select_board(void)
 	}
 
 	/* select "default" board */
-#ifdef CONFIG_CPU_TX39XX
+#ifdef CONFIG_TOSHIBA_JMR3927
 	txx9_board_vec = &jmr3927_vec;
 #endif
 #ifdef CONFIG_CPU_TX49XX
@@ -513,19 +514,19 @@ void __init txx9_sio_init(unsigned long baseaddr, int irq,
 }
 
 #ifdef CONFIG_EARLY_PRINTK
-static void __init null_prom_putchar(char c)
+static void null_prom_putchar(char c)
 {
 }
-void (*txx9_prom_putchar)(char c) __initdata = null_prom_putchar;
+void (*txx9_prom_putchar)(char c) = null_prom_putchar;
 
-void __init prom_putchar(char c)
+void prom_putchar(char c)
 {
 	txx9_prom_putchar(c);
 }
 
 static void __iomem *early_txx9_sio_port;
 
-static void __init early_txx9_sio_putchar(char c)
+static void early_txx9_sio_putchar(char c)
 {
 #define TXX9_SICISR	0x0c
 #define TXX9_SITFIFO	0x1c

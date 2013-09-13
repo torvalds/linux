@@ -1,0 +1,33 @@
+LEDs connected to tca6507
+
+Required properties:
+- compatible : should be : "ti,tca6507".
+
+Each led is represented as a sub-node of the ti,tca6507 device.
+
+LED sub-node properties:
+- label : (optional) see Documentation/devicetree/bindings/leds/common.txt
+- reg : number of LED line (could be from 0 to 6)
+- linux,default-trigger : (optional)
+   see Documentation/devicetree/bindings/leds/common.txt
+
+Examples:
+
+tca6507@45 {
+	compatible = "ti,tca6507";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	reg = <0x45>;
+
+	led0: red-aux@0 {
+		label = "red:aux";
+		reg = <0x0>;
+	};
+
+	led1: green-aux@1 {
+		label = "green:aux";
+		reg = <0x5>;
+		linux,default-trigger = "default-on";
+	};
+};
+

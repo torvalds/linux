@@ -135,7 +135,7 @@ static int add_class_attrs(struct class *cls)
 	int error = 0;
 
 	if (cls->class_attrs) {
-		for (i = 0; attr_name(cls->class_attrs[i]); i++) {
+		for (i = 0; cls->class_attrs[i].attr.name; i++) {
 			error = class_create_file(cls, &cls->class_attrs[i]);
 			if (error)
 				goto error;
@@ -154,7 +154,7 @@ static void remove_class_attrs(struct class *cls)
 	int i;
 
 	if (cls->class_attrs) {
-		for (i = 0; attr_name(cls->class_attrs[i]); i++)
+		for (i = 0; cls->class_attrs[i].attr.name; i++)
 			class_remove_file(cls, &cls->class_attrs[i]);
 	}
 }
@@ -420,8 +420,8 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  * code.  There's no locking restriction.
  */
 struct device *class_find_device(struct class *class, struct device *start,
-				 void *data,
-				 int (*match)(struct device *, void *))
+				 const void *data,
+				 int (*match)(struct device *, const void *))
 {
 	struct class_dev_iter iter;
 	struct device *dev;

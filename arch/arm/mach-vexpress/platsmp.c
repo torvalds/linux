@@ -12,17 +12,19 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/vexpress.h>
 
+#include <asm/mcpm.h>
 #include <asm/smp_scu.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 
 #include <mach/motherboard.h>
 
-#include "core.h"
+#include <plat/platsmp.h>
 
-extern void versatile_secondary_startup(void);
+#include "core.h"
 
 #if defined(CONFIG_OF)
 
@@ -127,8 +129,6 @@ static void __init vexpress_dt_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; ++i)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init vexpress_dt_smp_prepare_cpus(unsigned int max_cpus)
@@ -167,7 +167,7 @@ void __init vexpress_dt_smp_prepare_cpus(unsigned int max_cpus)
  * Initialise the CPU possible map early - this describes the CPUs
  * which may be present or become present in the system.
  */
-void __init smp_init_cpus(void)
+static void __init vexpress_smp_init_cpus(void)
 {
 	if (ct_desc)
 		ct_desc->init_cpu_map();
@@ -176,7 +176,7 @@ void __init smp_init_cpus(void)
 
 }
 
-void __init platform_smp_prepare_cpus(unsigned int max_cpus)
+static void __init vexpress_smp_prepare_cpus(unsigned int max_cpus)
 {
 	/*
 	 * Initialise the present map, which describes the set of CPUs
@@ -193,5 +193,33 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	v2m_flags_set(virt_to_phys(versatile_secondary_startup));
+	vexpress_flags_set(virt_to_phys(versatile_secondary_startup));
+}
+
+struct smp_operations __initdata vexpress_smp_ops = {
+	.smp_init_cpus		= vexpress_smp_init_cpus,
+	.smp_prepare_cpus	= vexpress_smp_prepare_cpus,
+	.smp_secondary_init	= versatile_secondary_init,
+	.smp_boot_secondary	= versatile_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= vexpress_cpu_die,
+#endif
+};
+
+bool __init vexpress_smp_init_ops(void)
+{
+#ifdef CONFIG_MCPM
+	/*
+	 * The best way to detect a multi-cluster configuration at the moment
+	 * is to look for the presence of a CCI in the system.
+	 * Override the default vexpress_smp_ops if so.
+	 */
+	struct device_node *node;
+	node = of_find_compatible_node(NULL, NULL, "arm,cci-400");
+	if (node && of_device_is_available(node)) {
+		mcpm_smp_set_ops();
+		return true;
+	}
+#endif
+	return false;
 }

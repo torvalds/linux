@@ -30,7 +30,7 @@
 
 /*
  * XXX: No kmalloc available when we do our crosstalk scan,
- * 	we should try to move it later in the boot process.
+ *	we should try to move it later in the boot process.
  */
 static struct bridge_controller bridges[MAX_PCI_BUSSES];
 
@@ -42,7 +42,7 @@ int irq_to_slot[MAX_PCI_BUSSES * MAX_DEVICES_PER_PCIBUS];
 
 extern struct pci_ops bridge_pci_ops;
 
-int __cpuinit bridge_probe(nasid_t nasid, int widget_id, int masterwid)
+int bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 {
 	unsigned long offset = NODE_OFFSET(nasid);
 	struct bridge_controller *bc;
@@ -103,7 +103,7 @@ int __cpuinit bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 	 * swap pio's to pci mem and io space (big windows)
 	 */
 	bridge->b_wid_control |= BRIDGE_CTRL_IO_SWAP |
-	                         BRIDGE_CTRL_MEM_SWAP;
+				 BRIDGE_CTRL_MEM_SWAP;
 #ifdef CONFIG_PAGE_SIZE_4KB
 	bridge->b_wid_control &= ~BRIDGE_CTRL_PAGE_SIZE;
 #else /* 16kB or larger */
@@ -123,7 +123,7 @@ int __cpuinit bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 		bridge->b_device[slot].reg |= BRIDGE_DEV_SWAP_DIR;
 		bc->pci_int[slot] = -1;
 	}
-	bridge->b_wid_tflush;     /* wait until Bridge PIO complete */
+	bridge->b_wid_tflush;	  /* wait until Bridge PIO complete */
 
 	bc->base = bridge;
 
@@ -143,7 +143,7 @@ int __cpuinit bridge_probe(nasid_t nasid, int widget_id, int masterwid)
  * A given PCI device, in general, should be able to intr any of the cpus
  * on any one of the hubs connected to its xbow.
  */
-int __devinit pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	return 0;
 }
@@ -184,7 +184,7 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 }
 
 /*
- * Device might live on a subordinate PCI bus.  XXX Walk up the chain of buses
+ * Device might live on a subordinate PCI bus.	XXX Walk up the chain of buses
  * to find the slot number in sense of the bridge device register.
  * XXX This also means multiple devices might rely on conflicting bridge
  * settings.
@@ -212,11 +212,12 @@ static inline void pci_enable_swapping(struct pci_dev *dev)
 	bridge->b_widget.w_tflush;	/* Flush */
 }
 
-static void __devinit pci_fixup_ioc3(struct pci_dev *d)
+static void pci_fixup_ioc3(struct pci_dev *d)
 {
 	pci_disable_swapping(d);
 }
 
+#ifdef CONFIG_NUMA
 int pcibus_to_node(struct pci_bus *bus)
 {
 	struct bridge_controller *bc = BRIDGE_CONTROLLER(bus);
@@ -224,6 +225,7 @@ int pcibus_to_node(struct pci_bus *bus)
 	return bc->nasid;
 }
 EXPORT_SYMBOL(pcibus_to_node);
+#endif /* CONFIG_NUMA */
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC3,
 	pci_fixup_ioc3);

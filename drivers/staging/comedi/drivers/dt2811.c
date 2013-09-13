@@ -18,10 +18,6 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 /*
 Driver: dt2811
@@ -45,12 +41,9 @@ Configuration options:
   [4] - D/A 1 range (same choices)
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
-
-static const char *driver_name = "dt2811";
 
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
@@ -226,8 +219,6 @@ struct dt2811_private {
 	unsigned int ao_readback[2];
 };
 
-#define devpriv ((struct dt2811_private *)dev->private)
-
 static const struct comedi_lrange *dac_range_types[] = {
 	&range_bipolar5,
 	&range_bipolar2_5,
@@ -242,6 +233,7 @@ static irqreturn_t dt2811_interrupt(int irq, void *d)
 	int lo, hi;
 	int data;
 	struct comedi_device *dev = d;
+	struct dt2811_private *devpriv = dev->private;
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
@@ -318,6 +310,7 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig *adtrig)
 static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct dt2811_private *devpriv = dev->private;
 	int i;
 	int chan;
 
@@ -337,6 +330,7 @@ static int dt2811_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct dt2811_private *devpriv = dev->private;
 	int i;
 	int chan;
 
@@ -397,21 +391,13 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* long flags; */
 
 	const struct dt2811_board *board = comedi_board(dev);
+	struct dt2811_private *devpriv;
 	int ret;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 
-	iobase = it->options[0];
-
-	printk(KERN_INFO "comedi%d: dt2811:base=0x%04lx\n", dev->minor, iobase);
-
-	if (!request_region(iobase, DT2811_SIZE, driver_name)) {
-		printk(KERN_ERR "I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
-	dev->board_name = board->name;
+	ret = comedi_request_region(dev, it->options[0], DT2811_SIZE);
+	if (ret)
+		return ret;
 
 #if 0
 	outb(0, dev->iobase + DT2811_ADCSR);
@@ -447,7 +433,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			i = inb(dev->iobase + DT2811_ADDATHI);
 			printk(KERN_INFO "(irq = %d)\n", irq);
 			ret = request_irq(irq, dt2811_interrupt, 0,
-					  driver_name, dev);
+					  dev->board_name, dev);
 			if (ret < 0)
 				return -EIO;
 			dev->irq = irq;
@@ -463,9 +449,9 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	ret = alloc_private(dev, sizeof(struct dt2811_private));
-	if (ret < 0)
-		return ret;
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
 
 	switch (it->options[2]) {
 	case 0:
@@ -510,7 +496,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	}
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* initialize the ADC subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
@@ -530,7 +516,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -542,7 +528,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->range_type_list[0] = dac_range_types[devpriv->dac_range[0]];
 	devpriv->range_type_list[1] = dac_range_types[devpriv->dac_range[1]];
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* di subdevice */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -551,7 +537,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* do subdevice */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -562,14 +548,6 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 
 	return 0;
-}
-
-static void dt2811_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, DT2811_SIZE);
 }
 
 static const struct dt2811_board boardtypes[] = {
@@ -590,7 +568,7 @@ static struct comedi_driver dt2811_driver = {
 	.driver_name	= "dt2811",
 	.module		= THIS_MODULE,
 	.attach		= dt2811_attach,
-	.detach		= dt2811_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boardtypes[0].name,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct dt2811_board),

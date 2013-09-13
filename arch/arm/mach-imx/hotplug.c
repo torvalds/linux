@@ -11,20 +11,16 @@
  */
 
 #include <linux/errno.h>
-#include <asm/cacheflush.h>
+#include <linux/jiffies.h>
 #include <asm/cp15.h>
-#include <mach/common.h>
+#include <asm/proc-fns.h>
 
-int platform_cpu_kill(unsigned int cpu)
-{
-	return 1;
-}
+#include "common.h"
 
 static inline void cpu_enter_lowpower(void)
 {
 	unsigned int v;
 
-	flush_cache_all();
 	asm volatile(
 		"mcr	p15, 0, %1, c7, c5, 0\n"
 	"	mcr	p15, 0, %1, c7, c10, 4\n"
@@ -47,21 +43,26 @@ static inline void cpu_enter_lowpower(void)
  *
  * Called with IRQs disabled
  */
-void platform_cpu_die(unsigned int cpu)
+void imx_cpu_die(unsigned int cpu)
 {
 	cpu_enter_lowpower();
-	imx_enable_cpu(cpu, false);
-
-	/* spin here until hardware takes it down */
-	while (1)
-		;
+	/*
+	 * We use the cpu jumping argument register to sync with
+	 * imx_cpu_kill() which is running on cpu0 and waiting for
+	 * the register being cleared to kill the cpu.
+	 */
+	imx_set_cpu_arg(cpu, ~0);
+	cpu_do_idle();
 }
 
-int platform_cpu_disable(unsigned int cpu)
+int imx_cpu_kill(unsigned int cpu)
 {
-	/*
-	 * we don't allow CPU 0 to be shutdown (it is still too special
-	 * e.g. clock tick interrupts)
-	 */
-	return cpu == 0 ? -EPERM : 0;
+	unsigned long timeout = jiffies + msecs_to_jiffies(50);
+
+	while (imx_get_cpu_arg(cpu) == 0)
+		if (time_after(jiffies, timeout))
+			return 0;
+	imx_enable_cpu(cpu, false);
+	imx_set_cpu_arg(cpu, 0);
+	return 1;
 }

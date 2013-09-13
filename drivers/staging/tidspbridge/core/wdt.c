@@ -25,7 +25,8 @@
 #include <dspbridge/host_os.h>
 
 
-#define OMAP34XX_WDT3_BASE 		(L4_PER_34XX_BASE + 0x30000)
+#define OMAP34XX_WDT3_BASE	(0x49000000 + 0x30000)
+#define INT_34XX_WDT3_IRQ	(36 + NR_IRQS)
 
 static struct dsp_wdt_setting dsp_wdt;
 
@@ -61,12 +62,16 @@ int dsp_wdt_init(void)
 
 	dsp_wdt.fclk = clk_get(NULL, "wdt3_fck");
 
-	if (dsp_wdt.fclk) {
+	if (!IS_ERR(dsp_wdt.fclk)) {
+		clk_prepare(dsp_wdt.fclk);
+
 		dsp_wdt.iclk = clk_get(NULL, "wdt3_ick");
-		if (!dsp_wdt.iclk) {
+		if (IS_ERR(dsp_wdt.iclk)) {
 			clk_put(dsp_wdt.fclk);
 			dsp_wdt.fclk = NULL;
 			ret = -EFAULT;
+		} else {
+			clk_prepare(dsp_wdt.iclk);
 		}
 	} else
 		ret = -EFAULT;
@@ -94,10 +99,14 @@ void dsp_wdt_exit(void)
 	free_irq(INT_34XX_WDT3_IRQ, &dsp_wdt);
 	tasklet_kill(&dsp_wdt.wdt3_tasklet);
 
-	if (dsp_wdt.fclk)
+	if (dsp_wdt.fclk) {
+		clk_unprepare(dsp_wdt.fclk);
 		clk_put(dsp_wdt.fclk);
-	if (dsp_wdt.iclk)
+	}
+	if (dsp_wdt.iclk) {
+		clk_unprepare(dsp_wdt.iclk);
 		clk_put(dsp_wdt.iclk);
+	}
 
 	dsp_wdt.fclk = NULL;
 	dsp_wdt.iclk = NULL;

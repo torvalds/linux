@@ -28,6 +28,8 @@
  */
 
 #include <linux/gfp.h>
+#include <linux/sched.h>
+#include <linux/sched/rt.h>
 #include "cpupri.h"
 
 /* Convert between a 140 based task->prio, and our 102 based cpupri */
@@ -60,7 +62,7 @@ static int convert_prio(int prio)
  * any discrepancies created by racing against the uncertainty of the current
  * priority configuration.
  *
- * Returns: (int)bool - CPUs were found
+ * Return: (int)bool - CPUs were found
  */
 int cpupri_find(struct cpupri *cp, struct task_struct *p,
 		struct cpumask *lowest_mask)
@@ -201,7 +203,7 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
  * cpupri_init - initialize the cpupri structure
  * @cp: The cpupri context
  *
- * Returns: -ENOMEM if memory fails.
+ * Return: -ENOMEM on memory allocation failure.
  */
 int cpupri_init(struct cpupri *cp)
 {

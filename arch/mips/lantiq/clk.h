@@ -27,12 +27,15 @@
 #define CLOCK_167M	166666667
 #define CLOCK_196_608M	196608000
 #define CLOCK_200M	200000000
+#define CLOCK_222M	222000000
+#define CLOCK_240M	240000000
 #define CLOCK_250M	250000000
 #define CLOCK_266M	266666666
 #define CLOCK_300M	300000000
 #define CLOCK_333M	333333333
 #define CLOCK_393M	393215332
 #define CLOCK_400M	400000000
+#define CLOCK_450M	450000000
 #define CLOCK_500M	500000000
 #define CLOCK_600M	600000000
 
@@ -64,15 +67,17 @@ struct clk {
 };
 
 extern void clkdev_add_static(unsigned long cpu, unsigned long fpi,
-				unsigned long io);
+				unsigned long io, unsigned long ppe);
 
 extern unsigned long ltq_danube_cpu_hz(void);
 extern unsigned long ltq_danube_fpi_hz(void);
+extern unsigned long ltq_danube_pp32_hz(void);
 
 extern unsigned long ltq_ar9_cpu_hz(void);
 extern unsigned long ltq_ar9_fpi_hz(void);
 
 extern unsigned long ltq_vr9_cpu_hz(void);
 extern unsigned long ltq_vr9_fpi_hz(void);
+extern unsigned long ltq_vr9_pp32_hz(void);
 
 #endif

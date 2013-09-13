@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ ACPI_MODULE_NAME("rsserial")
  * acpi_rs_convert_gpio
  *
  ******************************************************************************/
-struct acpi_rsconvert_info acpi_rs_convert_gpio[17] = {
+struct acpi_rsconvert_info acpi_rs_convert_gpio[18] = {
 	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_GPIO,
 	 ACPI_RS_SIZE(struct acpi_resource_gpio),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_gpio)},
@@ -75,9 +75,13 @@ struct acpi_rsconvert_info acpi_rs_convert_gpio[17] = {
 	 AML_OFFSET(gpio.flags),
 	 0},
 
-	{ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET(data.gpio.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.gpio.sharable),
 	 AML_OFFSET(gpio.int_flags),
 	 3},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.gpio.wake_capable),
+	 AML_OFFSET(gpio.int_flags),
+	 4},
 
 	{ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET(data.gpio.io_restriction),
 	 AML_OFFSET(gpio.int_flags),

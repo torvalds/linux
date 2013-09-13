@@ -4,7 +4,7 @@ Required properties:
 - compatible: Should be "cdns,[<chip>-]{macb|gem}"
   Use "cdns,at91sam9260-macb" Atmel at91sam9260 and at91sam9263 SoCs.
   Use "cdns,at32ap7000-macb" for other 10/100 usage or use the generic form: "cdns,macb".
-  Use "cnds,pc302-gem" for Picochip picoXcell pc302 and later devices based on
+  Use "cdns,pc302-gem" for Picochip picoXcell pc302 and later devices based on
   the Cadence GEM, or the generic form: "cdns,gem".
 - reg: Address and length of the register set for the device
 - interrupts: Should contain macb interrupt

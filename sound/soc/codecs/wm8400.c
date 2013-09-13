@@ -143,13 +143,8 @@ static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 }
 
 #define WM8400_OUTPGA_SINGLE_R_TLV(xname, reg, shift, max, invert, tlv_array) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-		SNDRV_CTL_ELEM_ACCESS_READWRITE,\
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw, \
-	.get = snd_soc_get_volsw, .put = wm8400_outpga_put_volsw_vu, \
-	.private_value = SOC_SINGLE_VALUE(reg, shift, max, invert) }
+	SOC_SINGLE_EXT_TLV(xname, reg, shift, max, invert, \
+		snd_soc_get_volsw, wm8400_outpga_put_volsw_vu, tlv_array)
 
 
 static const char *wm8400_digital_sidetone[] =
@@ -1373,7 +1368,7 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 	codec->control_data = priv->wm8400 = wm8400;
 	priv->codec = codec;
 
-	ret = regulator_bulk_get(wm8400->dev,
+	ret = devm_regulator_bulk_get(wm8400->dev,
 				 ARRAY_SIZE(power), &power[0]);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to get regulators: %d\n", ret);
@@ -1398,15 +1393,9 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8400_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));
 	snd_soc_write(codec, WM8400_RIGHT_OUTPUT_VOLUME, 0x50 | (1<<8));
 
-	if (!schedule_work(&priv->work)) {
-		ret = -EINVAL;
-		goto err_regulator;
-	}
+	if (!schedule_work(&priv->work))
+		return -EINVAL;
 	return 0;
-
-err_regulator:
-	regulator_bulk_free(ARRAY_SIZE(power), power);
-	return ret;
 }
 
 static int  wm8400_codec_remove(struct snd_soc_codec *codec)
@@ -1416,8 +1405,6 @@ static int  wm8400_codec_remove(struct snd_soc_codec *codec)
 	reg = snd_soc_read(codec, WM8400_POWER_MANAGEMENT_1);
 	snd_soc_write(codec, WM8400_POWER_MANAGEMENT_1,
 		     reg & (~WM8400_CODEC_ENA));
-
-	regulator_bulk_free(ARRAY_SIZE(power), power);
 
 	return 0;
 }
@@ -1439,13 +1426,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8400 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8400_dapm_routes),
 };
 
-static int __devinit wm8400_probe(struct platform_device *pdev)
+static int wm8400_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8400,
 			&wm8400_dai, 1);
 }
 
-static int __devexit wm8400_remove(struct platform_device *pdev)
+static int wm8400_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -1457,7 +1444,7 @@ static struct platform_driver wm8400_codec_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8400_probe,
-	.remove = __devexit_p(wm8400_remove),
+	.remove = wm8400_remove,
 };
 
 module_platform_driver(wm8400_codec_driver);

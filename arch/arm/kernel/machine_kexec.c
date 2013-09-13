@@ -8,11 +8,14 @@
 #include <linux/reboot.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/memblock.h>
 #include <asm/pgtable.h>
+#include <linux/of_fdt.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/mach-types.h>
+#include <asm/smp_plat.h>
 #include <asm/system_misc.h>
 
 extern const unsigned char relocate_new_kernel[];
@@ -32,6 +35,36 @@ static atomic_t waiting_for_crash_ipi;
 
 int machine_kexec_prepare(struct kimage *image)
 {
+	struct kexec_segment *current_segment;
+	__be32 header;
+	int i, err;
+
+	/*
+	 * Validate that if the current HW supports SMP, then the SW supports
+	 * and implements CPU hotplug for the current HW. If not, we won't be
+	 * able to kexec reliably, so fail the prepare operation.
+	 */
+	if (num_possible_cpus() > 1 && !platform_can_cpu_hotplug())
+		return -EINVAL;
+
+	/*
+	 * No segment at default ATAGs address. try to locate
+	 * a dtb using magic.
+	 */
+	for (i = 0; i < image->nr_segments; i++) {
+		current_segment = &image->segment[i];
+
+		if (!memblock_is_region_memory(current_segment->mem,
+					       current_segment->memsz))
+			return -EINVAL;
+
+		err = get_user(header, (__be32*)current_segment->buf);
+		if (err)
+			return err;
+
+		if (be32_to_cpu(header) == OF_DT_HEADER)
+			kexec_boot_atags = current_segment->mem;
+	}
 	return 0;
 }
 
@@ -49,6 +82,7 @@ void machine_crash_nonpanic_core(void *unused)
 	crash_save_cpu(&regs, smp_processor_id());
 	flush_cache_all();
 
+	set_cpu_online(smp_processor_id(), false);
 	atomic_dec(&waiting_for_crash_ipi);
 	while (1)
 		cpu_relax();
@@ -110,6 +144,13 @@ void machine_kexec(struct kimage *image)
 	unsigned long reboot_code_buffer_phys;
 	void *reboot_code_buffer;
 
+	/*
+	 * This can only happen if machine_shutdown() failed to disable some
+	 * CPU, and that can only happen if the checks in
+	 * machine_kexec_prepare() were not correct. If this fails, we can't
+	 * reliably kexec anyway, so BUG_ON is appropriate.
+	 */
+	BUG_ON(num_online_cpus() > 1);
 
 	page_list = image->head & PAGE_MASK;
 
@@ -122,7 +163,9 @@ void machine_kexec(struct kimage *image)
 	kexec_start_address = image->start;
 	kexec_indirection_page = page_list;
 	kexec_mach_type = machine_arch_type;
-	kexec_boot_atags = image->start - KEXEC_ARM_ZIMAGE_OFFSET + KEXEC_ARM_ATAGS_OFFSET;
+	if (!kexec_boot_atags)
+		kexec_boot_atags = image->start - KEXEC_ARM_ZIMAGE_OFFSET + KEXEC_ARM_ATAGS_OFFSET;
+
 
 	/* copy our kernel relocation code to the control code page */
 	memcpy(reboot_code_buffer,

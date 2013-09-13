@@ -4,7 +4,7 @@ Required properties:
 - compatible: Should be "atmel,<chip>-aic"
 - interrupt-controller: Identifies the node as an interrupt controller.
 - interrupt-parent: For single AIC system, it is an empty property.
-- #interrupt-cells: The number of cells to define the interrupts. It sould be 3.
+- #interrupt-cells: The number of cells to define the interrupts. It should be 3.
   The first cell is the IRQ number (aka "Peripheral IDentifier" on datasheet).
   The second cell is used to specify flags:
     bits[3:0] trigger type and level flags:

@@ -15,10 +15,6 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
     PCMCIA support code for this driver is adapted from the dummy_cs.c
     driver of the Linux PCMCIA Card Services package.
 
@@ -38,14 +34,16 @@ Status: experimental
 
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
-#include "../comedidev.h"
 #include <linux/delay.h>
+
+#include "../comedidev.h"
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
+#include "comedi_fc.h"
 #include "8253.h"
 
 #define DAS16CS_SIZE			18
@@ -87,8 +85,6 @@ struct das16cs_private {
 	unsigned short status1;
 	unsigned short status2;
 };
-
-static struct pcmcia_device *cur_dev;
 
 static const struct comedi_lrange das16cs_ai_range = {
 	4, {
@@ -169,112 +165,65 @@ static int das16cs_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	int tmp;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and
-	 * mutually compatible */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* note that mutual compatibility is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 #define MAX_SPEED	10000	/* in nanoseconds */
 #define MIN_SPEED	1000000000	/* in nanoseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < MAX_SPEED) {
-			cmd->scan_begin_arg = MAX_SPEED;
-			err++;
-		}
-		if (cmd->scan_begin_arg > MIN_SPEED) {
-			cmd->scan_begin_arg = MIN_SPEED;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 MAX_SPEED);
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						 MIN_SPEED);
 	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-		if (cmd->scan_begin_arg > 9) {
-			cmd->scan_begin_arg = 9;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < MAX_SPEED) {
-			cmd->convert_arg = MAX_SPEED;
-			err++;
-		}
-		if (cmd->convert_arg > MIN_SPEED) {
-			cmd->convert_arg = MIN_SPEED;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 MAX_SPEED);
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg,
+						 MIN_SPEED);
 	} else {
 		/* external trigger */
 		/* see above */
-		if (cmd->convert_arg > 9) {
-			cmd->convert_arg = 9;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 9);
 	}
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0x00ffffff) {
-			cmd->stop_arg = 0x00ffffff;
-			err++;
-		}
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -392,33 +341,22 @@ static int das16cs_dio_insn_bits(struct comedi_device *dev,
 
 static int das16cs_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct das16cs_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	int bits;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
 	if (chan < 4)
-		bits = 0x0f;
+		mask = 0x0f;
 	else
-		bits = 0xf0;
+		mask = 0xf0;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	devpriv->status2 &= ~0x00c0;
 	devpriv->status2 |= (s->io_bits & 0xf0) ? 0x0080 : 0;
@@ -429,56 +367,57 @@ static int das16cs_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const struct das16cs_board *das16cs_probe(struct comedi_device *dev,
-						 struct pcmcia_device *link)
+static const void *das16cs_find_boardinfo(struct comedi_device *dev,
+					  struct pcmcia_device *link)
 {
+	const struct das16cs_board *board;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(das16cs_boards); i++) {
-		if (das16cs_boards[i].device_id == link->card_id)
-			return das16cs_boards + i;
+		board = &das16cs_boards[i];
+		if (board->device_id == link->card_id)
+			return board;
 	}
-
-	dev_dbg(dev->class_dev, "unknown board!\n");
 
 	return NULL;
 }
 
-static int das16cs_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int das16cs_auto_attach(struct comedi_device *dev,
+			       unsigned long context)
 {
-	const struct das16cs_board *thisboard;
-	struct pcmcia_device *link;
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+	const struct das16cs_board *board;
+	struct das16cs_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	link = cur_dev;		/* XXX hack */
-	if (!link)
-		return -EIO;
+	board = das16cs_find_boardinfo(dev, link);
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
-	dev->board_ptr = das16cs_probe(dev, link);
-	if (!dev->board_ptr)
-		return -EIO;
-	thisboard = comedi_board(dev);
-
-	dev->board_name = thisboard->name;
-
+	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	ret = comedi_pcmcia_enable(dev, NULL);
+	if (ret)
+		return ret;
 	dev->iobase = link->resource[0]->start;
 
-	ret = request_irq(link->irq, das16cs_interrupt,
-			  IRQF_SHARED, "cb_das16_cs", dev);
-	if (ret < 0)
+	link->priv = dev;
+	ret = pcmcia_request_irq(link, das16cs_interrupt);
+	if (ret)
 		return ret;
 	dev->irq = link->irq;
 
-	if (alloc_private(dev, sizeof(struct das16cs_private)) < 0)
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
 		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type		= COMEDI_SUBD_AI;
@@ -491,12 +430,12 @@ static int das16cs_attach(struct comedi_device *dev,
 	s->do_cmd	= das16cs_ai_cmd;
 	s->do_cmdtest	= das16cs_ai_cmdtest;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
-	if (thisboard->n_ao_chans) {
+	if (board->n_ao_chans) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
-		s->n_chan	= thisboard->n_ao_chans;
+		s->n_chan	= board->n_ao_chans;
 		s->maxdata	= 0xffff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= &das16cs_ao_winsn;
@@ -505,7 +444,7 @@ static int das16cs_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
@@ -522,58 +461,16 @@ static int das16cs_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void das16cs_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-}
-
 static struct comedi_driver driver_das16cs = {
 	.driver_name	= "cb_das16_cs",
 	.module		= THIS_MODULE,
-	.attach		= das16cs_attach,
-	.detach		= das16cs_detach,
+	.auto_attach	= das16cs_auto_attach,
+	.detach		= comedi_pcmcia_disable,
 };
-
-static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
 
 static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 {
-	int ret;
-
-	/* Do we need to allocate an interrupt? */
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, das16cs_pcmcia_config_loop, NULL);
-	if (ret)
-		goto failed;
-
-	if (!link->irq)
-		goto failed;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		goto failed;
-
-	cur_dev = link;
-	return 0;
-
-failed:
-	pcmcia_disable_device(link);
-	return ret;
-}
-
-static void das16cs_pcmcia_detach(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
-	cur_dev = NULL;
+	return comedi_pcmcia_auto_config(link, &driver_das16cs);
 }
 
 static const struct pcmcia_device_id das16cs_id_table[] = {
@@ -586,35 +483,11 @@ MODULE_DEVICE_TABLE(pcmcia, das16cs_id_table);
 static struct pcmcia_driver das16cs_driver = {
 	.name		= "cb_das16_cs",
 	.owner		= THIS_MODULE,
-	.probe		= das16cs_pcmcia_attach,
-	.remove		= das16cs_pcmcia_detach,
 	.id_table	= das16cs_id_table,
+	.probe		= das16cs_pcmcia_attach,
+	.remove		= comedi_pcmcia_auto_unconfig,
 };
-
-static int __init das16cs_init(void)
-{
-	int ret;
-
-	ret = comedi_driver_register(&driver_das16cs);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(&das16cs_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(&driver_das16cs);
-		return ret;
-	}
-
-	return 0;
-}
-module_init(das16cs_init);
-
-static void __exit das16cs_exit(void)
-{
-	pcmcia_unregister_driver(&das16cs_driver);
-	comedi_driver_unregister(&driver_das16cs);
-}
-module_exit(das16cs_exit);
+module_comedi_pcmcia_driver(driver_das16cs, das16cs_driver);
 
 MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi driver for Computer Boards PC-CARD DAS16/16");

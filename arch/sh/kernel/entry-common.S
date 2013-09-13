@@ -139,7 +139,7 @@ work_pending:
 	! r8: current_thread_info
 	! t:  result of "tst	#_TIF_NEED_RESCHED, r0"
 	bf/s	work_resched
-	 tst	#_TIF_SIGPENDING, r0
+	 tst	#(_TIF_SIGPENDING | _TIF_NOTIFY_RESUME), r0
 work_notifysig:
 	bt/s	__restore_all
 	 mov	r15, r4
@@ -297,6 +297,19 @@ ret_from_fork:
 	 mov	r0, r4
 	bra	syscall_exit
 	 nop
+
+	.align	2
+	.globl	ret_from_kernel_thread
+ret_from_kernel_thread:
+	mov.l	1f, r8
+	jsr	@r8
+	 mov	r0, r4
+	mov.l	@(OFF_R5,r15), r5   ! fn
+	jsr	@r5
+	 mov.l	@(OFF_R4,r15), r4   ! arg
+	bra	syscall_exit
+	 nop
+
 	.align	2
 1:	.long	schedule_tail
 

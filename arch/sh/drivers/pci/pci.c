@@ -32,7 +32,7 @@ static struct pci_channel *hose_head, **hose_tail = &hose_head;
 
 static int pci_initialized;
 
-static void __devinit pcibios_scanbus(struct pci_channel *hose)
+static void pcibios_scanbus(struct pci_channel *hose)
 {
 	static int next_busno;
 	static int need_domain_info;
@@ -69,7 +69,6 @@ static void __devinit pcibios_scanbus(struct pci_channel *hose)
 
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
-		pci_enable_bridges(bus);
 	} else {
 		pci_free_resource_list(&resources);
 	}
@@ -82,7 +81,7 @@ static void __devinit pcibios_scanbus(struct pci_channel *hose)
 DEFINE_RAW_SPINLOCK(pci_config_lock);
 static DEFINE_MUTEX(pci_scan_mutex);
 
-int __devinit register_pci_controller(struct pci_channel *hose)
+int register_pci_controller(struct pci_channel *hose)
 {
 	int i;
 
@@ -156,7 +155,7 @@ subsys_initcall(pcibios_init);
  *  Called after each bus is probed, but before its children
  *  are examined.
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 }
 
@@ -190,11 +189,6 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	return pci_enable_resources(dev, mask);
-}
-
-void __init pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
 static void __init
@@ -324,7 +318,5 @@ EXPORT_SYMBOL(pci_iounmap);
 
 #endif /* CONFIG_GENERIC_IOMAP */
 
-#ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(PCIBIOS_MIN_IO);
 EXPORT_SYMBOL(PCIBIOS_MIN_MEM);
-#endif

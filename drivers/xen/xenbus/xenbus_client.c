@@ -30,6 +30,7 @@
  * IN THE SOFTWARE.
  */
 
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
@@ -490,8 +491,7 @@ static int xenbus_map_ring_valloc_pv(struct xenbus_device *dev,
 
 	op.host_addr = arbitrary_virt_to_machine(pte).maddr;
 
-	if (HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &op, 1))
-		BUG();
+	gnttab_batch_map(&op, 1);
 
 	if (op.status != GNTST_okay) {
 		free_vm_area(area);
@@ -534,7 +534,7 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 
 	err = xenbus_map_ring(dev, gnt_ref, &node->handle, addr);
 	if (err)
-		goto out_err;
+		goto out_err_free_ballooned_pages;
 
 	spin_lock(&xenbus_valloc_lock);
 	list_add(&node->next, &xenbus_valloc_pages);
@@ -543,8 +543,9 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 	*vaddr = addr;
 	return 0;
 
- out_err:
+ out_err_free_ballooned_pages:
 	free_xenballooned_pages(1, &node->page);
+ out_err:
 	kfree(node);
 	return err;
 }
@@ -572,8 +573,7 @@ int xenbus_map_ring(struct xenbus_device *dev, int gnt_ref,
 	gnttab_set_map_op(&op, (unsigned long)vaddr, GNTMAP_host_map, gnt_ref,
 			  dev->otherend_id);
 
-	if (HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &op, 1))
-		BUG();
+	gnttab_batch_map(&op, 1);
 
 	if (op.status != GNTST_okay) {
 		xenbus_dev_fatal(dev, op.status,

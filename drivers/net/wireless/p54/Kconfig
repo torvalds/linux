@@ -1,6 +1,6 @@
 config P54_COMMON
 	tristate "Softmac Prism54 support"
-	depends on MAC80211 && EXPERIMENTAL
+	depends on MAC80211
 	select FW_LOADER
 	select CRC_CCITT
 	---help---
@@ -41,7 +41,7 @@ config P54_PCI
 
 config P54_SPI
 	tristate "Prism54 SPI (stlc45xx) support"
-	depends on P54_COMMON && SPI_MASTER && GENERIC_HARDIRQS
+	depends on P54_COMMON && SPI_MASTER
 	---help---
 	  This driver is for stlc4550 or stlc4560 based wireless chips
 	  such as Nokia's N800/N810 Portable Internet Tablet.

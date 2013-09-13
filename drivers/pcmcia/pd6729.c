@@ -589,7 +589,7 @@ static int pd6729_check_irq(int irq)
 	return 0;
 }
 
-static u_int __devinit pd6729_isa_scan(void)
+static u_int pd6729_isa_scan(void)
 {
 	u_int mask0, mask = 0;
 	int i;
@@ -620,7 +620,7 @@ static u_int __devinit pd6729_isa_scan(void)
 	return mask;
 }
 
-static int __devinit pd6729_pci_probe(struct pci_dev *dev,
+static int pd6729_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id)
 {
 	int i, j, ret;
@@ -644,6 +644,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	if (!pci_resource_start(dev, 0)) {
 		dev_warn(&dev->dev, "refusing to load the driver as the "
 			"io_base is NULL.\n");
+		ret = -ENOMEM;
 		goto err_out_disable;
 	}
 
@@ -673,6 +674,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	mask = pd6729_isa_scan();
 	if (irq_mode == 0 && mask == 0) {
 		dev_warn(&dev->dev, "no ISA interrupt is available.\n");
+		ret = -ENODEV;
 		goto err_out_free_res;
 	}
 
@@ -739,7 +741,7 @@ err_out_free_mem:
 	return ret;
 }
 
-static void __devexit pd6729_pci_remove(struct pci_dev *dev)
+static void pd6729_pci_remove(struct pci_dev *dev)
 {
 	int i;
 	struct pd6729_socket *socket = pci_get_drvdata(dev);
@@ -772,7 +774,7 @@ static struct pci_driver pd6729_pci_driver = {
 	.name		= "pd6729",
 	.id_table	= pd6729_pci_ids,
 	.probe		= pd6729_pci_probe,
-	.remove		= __devexit_p(pd6729_pci_remove),
+	.remove		= pd6729_pci_remove,
 };
 
 static int pd6729_module_init(void)

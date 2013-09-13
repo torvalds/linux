@@ -18,7 +18,6 @@
 
 #include <linux/pci.h>
 #include <linux/of_platform.h>
-#include <linux/memblock.h>
 #include <asm/div64.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
@@ -107,42 +106,6 @@
 	(c2 << AD_COMP_2_SHIFT) | (c1 << AD_COMP_1_SHIFT) | \
 	(c0 << AD_COMP_0_SHIFT) | (size << AD_PIXEL_S_SHIFT))
 
-/**
- * p1022ds_get_pixel_format: return the Area Descriptor for a given pixel depth
- *
- * The Area Descriptor is a 32-bit value that determine which bits in each
- * pixel are to be used for each color.
- */
-static u32 p1022ds_get_pixel_format(enum fsl_diu_monitor_port port,
-				    unsigned int bits_per_pixel)
-{
-	switch (bits_per_pixel) {
-	case 32:
-		/* 0x88883316 */
-		return MAKE_AD(3, 2, 0, 1, 3, 8, 8, 8, 8);
-	case 24:
-		/* 0x88082219 */
-		return MAKE_AD(4, 0, 1, 2, 2, 0, 8, 8, 8);
-	case 16:
-		/* 0x65053118 */
-		return MAKE_AD(4, 2, 1, 0, 1, 5, 6, 5, 0);
-	default:
-		pr_err("fsl-diu: unsupported pixel depth %u\n", bits_per_pixel);
-		return 0;
-	}
-}
-
-/**
- * p1022ds_set_gamma_table: update the gamma table, if necessary
- *
- * On some boards, the gamma table for some ports may need to be modified.
- * This is not the case on the P1022DS, so we do nothing.
-*/
-static void p1022ds_set_gamma_table(enum fsl_diu_monitor_port port,
-				    char *gamma_table_base)
-{
-}
-
 struct fsl_law {
 	u32	lawbar;
 	u32	reserved1;
@@ -216,13 +179,13 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 	/* Map the global utilities registers. */
 	guts_node = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_node) {
-		pr_err("p1022ds: missing global utilties device node\n");
+		pr_err("p1022ds: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_node, 0);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilties device\n");
+		pr_err("p1022ds: could not map global utilities device\n");
 		goto exit;
 	}
 
@@ -250,7 +213,7 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 		goto exit;
 	}
 
-	iprop = of_get_property(law_node, "fsl,num-laws", 0);
+	iprop = of_get_property(law_node, "fsl,num-laws", NULL);
 	if (!iprop) {
 		pr_err("p1022ds: LAW node is missing fsl,num-laws property\n");
 		goto exit;
@@ -303,7 +266,7 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 		goto exit;
 	}
 	cs1_addr = lbc_br_to_phys(ecm, num_laws, br1);
-	if (!cs0_addr) {
+	if (!cs1_addr) {
 		pr_err("p1022ds: could not determine physical address for CS1"
 		       " (BR1=%08x)\n", br1);
 		goto exit;
@@ -417,14 +380,14 @@ void p1022ds_set_pixel_clock(unsigned int pixclock)
 	/* Map the global utilities registers. */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_np) {
-		pr_err("p1022ds: missing global utilties device node\n");
+		pr_err("p1022ds: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
 	of_node_put(guts_np);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilties device\n");
+		pr_err("p1022ds: could not map global utilities device\n");
 		return;
 	}
 
@@ -507,35 +470,10 @@ early_param("video", early_video_setup);
  */
 static void __init p1022_ds_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-	dma_addr_t max = 0xffffffff;
-
 	if (ppc_md.progress)
 		ppc_md.progress("p1022_ds_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,p1022-pcie") {
-		struct resource rsrc;
-		struct pci_controller *hose;
-
-		of_address_to_resource(np, 0, &rsrc);
-
-		if ((rsrc.start & 0xfffff) == 0x8000)
-			fsl_add_bridge(np, 1);
-		else
-			fsl_add_bridge(np, 0);
-
-		hose = pci_find_hose_for_OF_device(np);
-		max = min(max, hose->dma_window_base_cur +
-			  hose->dma_window_size);
-	}
-#endif
-
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-	diu_ops.get_pixel_format	= p1022ds_get_pixel_format;
-	diu_ops.set_gamma_table		= p1022ds_set_gamma_table;
 	diu_ops.set_monitor_port	= p1022ds_set_monitor_port;
 	diu_ops.set_pixel_clock		= p1022ds_set_pixel_clock;
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
@@ -563,7 +501,7 @@ static void __init p1022_ds_setup_arch(void)
 				};
 
 				/*
-				 * prom_update_property() is called before
+				 * of_update_property() is called before
 				 * kmalloc() is available, so the 'new' object
 				 * should be allocated in the global area.
 				 * The easiest way is to do that is to
@@ -572,7 +510,7 @@ static void __init p1022_ds_setup_arch(void)
 				 */
 				pr_info("p1022ds: disabling %s node",
 					np2->full_name);
-				prom_update_property(np2, &nor_status);
+				of_update_property(np2, &nor_status);
 				of_node_put(np2);
 			}
 
@@ -588,7 +526,7 @@ static void __init p1022_ds_setup_arch(void)
 
 				pr_info("p1022ds: disabling %s node",
 					np2->full_name);
-				prom_update_property(np2, &nand_status);
+				of_update_property(np2, &nand_status);
 				of_node_put(np2);
 			}
 
@@ -601,18 +539,14 @@ static void __init p1022_ds_setup_arch(void)
 
 	mpc85xx_smp_init();
 
-#ifdef CONFIG_SWIOTLB
-	if ((memblock_end_of_DRAM() - 1) > max) {
-		ppc_swiotlb_enable = 1;
-		set_pci_dma_ops(&swiotlb_dma_ops);
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
-	}
-#endif
+	fsl_pci_assign_primary();
+
+	swiotlb_detect_4g();
 
 	pr_info("Freescale P1022 DS reference board\n");
 }
 
-machine_device_initcall(p1022_ds, mpc85xx_common_publish_devices);
+machine_arch_initcall(p1022_ds, mpc85xx_common_publish_devices);
 
 machine_arch_initcall(p1022_ds, swiotlb_setup_bus_notifier);
 

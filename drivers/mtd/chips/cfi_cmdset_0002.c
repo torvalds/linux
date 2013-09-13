@@ -33,6 +33,8 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/cfi.h>
@@ -73,6 +75,10 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 
 static int cfi_atmel_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 static int cfi_atmel_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
+
+static int cfi_ppb_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
+static int cfi_ppb_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
+static int cfi_ppb_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 
 static struct mtd_chip_driver cfi_amdstd_chipdrv = {
 	.probe		= NULL, /* Not usable directly */
@@ -431,9 +437,72 @@ static void cfi_fixup_major_minor(struct cfi_private *cfi,
 	}
 }
 
+static int is_m29ew(struct cfi_private *cfi)
+{
+	if (cfi->mfr == CFI_MFR_INTEL &&
+	    ((cfi->device_type == CFI_DEVICETYPE_X8 && (cfi->id & 0xff) == 0x7e) ||
+	     (cfi->device_type == CFI_DEVICETYPE_X16 && cfi->id == 0x227e)))
+		return 1;
+	return 0;
+}
+
+/*
+ * From TN-13-07: Patching the Linux Kernel and U-Boot for M29 Flash, page 20:
+ * Some revisions of the M29EW suffer from erase suspend hang ups. In
+ * particular, it can occur when the sequence
+ * Erase Confirm -> Suspend -> Program -> Resume
+ * causes a lockup due to internal timing issues. The consequence is that the
+ * erase cannot be resumed without inserting a dummy command after programming
+ * and prior to resuming. [...] The work-around is to issue a dummy write cycle
+ * that writes an F0 command code before the RESUME command.
+ */
+static void cfi_fixup_m29ew_erase_suspend(struct map_info *map,
+					  unsigned long adr)
+{
+	struct cfi_private *cfi = map->fldrv_priv;
+	/* before resume, insert a dummy 0xF0 cycle for Micron M29EW devices */
+	if (is_m29ew(cfi))
+		map_write(map, CMD(0xF0), adr);
+}
+
+/*
+ * From TN-13-07: Patching the Linux Kernel and U-Boot for M29 Flash, page 22:
+ *
+ * Some revisions of the M29EW (for example, A1 and A2 step revisions)
+ * are affected by a problem that could cause a hang up when an ERASE SUSPEND
+ * command is issued after an ERASE RESUME operation without waiting for a
+ * minimum delay.  The result is that once the ERASE seems to be completed
+ * (no bits are toggling), the contents of the Flash memory block on which
+ * the erase was ongoing could be inconsistent with the expected values
+ * (typically, the array value is stuck to the 0xC0, 0xC4, 0x80, or 0x84
+ * values), causing a consequent failure of the ERASE operation.
+ * The occurrence of this issue could be high, especially when file system
+ * operations on the Flash are intensive.  As a result, it is recommended
+ * that a patch be applied.  Intensive file system operations can cause many
+ * calls to the garbage routine to free Flash space (also by erasing physical
+ * Flash blocks) and as a result, many consecutive SUSPEND and RESUME
+ * commands can occur.  The problem disappears when a delay is inserted after
+ * the RESUME command by using the udelay() function available in Linux.
+ * The DELAY value must be tuned based on the customer's platform.
+ * The maximum value that fixes the problem in all cases is 500us.
+ * But, in our experience, a delay of 30 µs to 50 µs is sufficient
+ * in most cases.
+ * We have chosen 500µs because this latency is acceptable.
+ */
+static void cfi_fixup_m29ew_delay_after_resume(struct cfi_private *cfi)
+{
+	/*
+	 * Resolving the Delay After Resume Issue see Micron TN-13-07
+	 * Worst case delay must be 500µs but 30-50µs should be ok as well
+	 */
+	if (is_m29ew(cfi))
+		cfi_udelay(500);
+}
+
 struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
+	struct device_node __maybe_unused *np = map->device_node;
 	struct mtd_info *mtd;
 	int i;
 
@@ -506,6 +575,17 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 #ifdef DEBUG_CFI_FEATURES
 			/* Tell the user about it in lots of lovely detail */
 			cfi_tell_features(extp);
+#endif
+
+#ifdef CONFIG_OF
+			if (np && of_property_read_bool(
+				    np, "use-advanced-sector-protection")
+			    && extp->BlkProtUnprot == 8) {
+				printk(KERN_INFO "  Advanced Sector Protection (PPB Locking) supported\n");
+				mtd->_lock = cfi_ppb_lock;
+				mtd->_unlock = cfi_ppb_unlock;
+				mtd->_is_locked = cfi_ppb_is_locked;
+			}
 #endif
 
 			bootloc = extp->TopBottom;
@@ -776,7 +856,10 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 
 	switch(chip->oldstate) {
 	case FL_ERASING:
+		cfi_fixup_m29ew_erase_suspend(map,
+			chip->in_progress_block_addr);
 		map_write(map, cfi->sector_erase_cmd, chip->in_progress_block_addr);
+		cfi_fixup_m29ew_delay_after_resume(cfi);
 		chip->oldstate = FL_READY;
 		chip->state = FL_ERASING;
 		break;
@@ -916,6 +999,8 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
 			/* Disallow XIP again */
 			local_irq_disable();
 
+			/* Correct Erase Suspend Hangups for M29EW */
+			cfi_fixup_m29ew_erase_suspend(map, adr);
 			/* Resume the write or erase operation */
 			map_write(map, cfi->sector_erase_cmd, adr);
 			chip->state = oldstate;
@@ -1469,13 +1554,25 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 		UDELAY(map, chip, adr, 1);
 	}
 
-	/* reset on all failures. */
-	map_write( map, CMD(0xF0), chip->start );
+	/*
+	 * Recovery from write-buffer programming failures requires
+	 * the write-to-buffer-reset sequence.  Since the last part
+	 * of the sequence also works as a normal reset, we can run
+	 * the same commands regardless of why we are here.
+	 * See e.g.
+	 * http://www.spansion.com/Support/Application%20Notes/MirrorBit_Write_Buffer_Prog_Page_Buffer_Read_AN.pdf
+	 */
+	cfi_send_gen_cmd(0xAA, cfi->addr_unlock1, chip->start, map, cfi,
+			 cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x55, cfi->addr_unlock2, chip->start, map, cfi,
+			 cfi->device_type, NULL);
+	cfi_send_gen_cmd(0xF0, cfi->addr_unlock1, chip->start, map, cfi,
+			 cfi->device_type, NULL);
 	xip_enable(map, chip, adr);
 	/* FIXME - should have reset delay before continuing */
 
-	printk(KERN_WARNING "MTD %s(): software timeout\n",
-	       __func__ );
+	printk(KERN_WARNING "MTD %s(): software timeout, address:0x%.8lx.\n",
+	       __func__, adr);
 
 	ret = -EIO;
  op_done:
@@ -2093,6 +2190,205 @@ static int cfi_atmel_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	return cfi_varsize_frob(mtd, do_atmel_unlock, ofs, len, NULL);
 }
 
+/*
+ * Advanced Sector Protection - PPB (Persistent Protection Bit) locking
+ */
+
+struct ppb_lock {
+	struct flchip *chip;
+	loff_t offset;
+	int locked;
+};
+
+#define MAX_SECTORS			512
+
+#define DO_XXLOCK_ONEBLOCK_LOCK		((void *)1)
+#define DO_XXLOCK_ONEBLOCK_UNLOCK	((void *)2)
+#define DO_XXLOCK_ONEBLOCK_GETLOCK	((void *)3)
+
+static int __maybe_unused do_ppb_xxlock(struct map_info *map,
+					struct flchip *chip,
+					unsigned long adr, int len, void *thunk)
+{
+	struct cfi_private *cfi = map->fldrv_priv;
+	unsigned long timeo;
+	int ret;
+
+	mutex_lock(&chip->mutex);
+	ret = get_chip(map, chip, adr + chip->start, FL_LOCKING);
+	if (ret) {
+		mutex_unlock(&chip->mutex);
+		return ret;
+	}
+
+	pr_debug("MTD %s(): XXLOCK 0x%08lx len %d\n", __func__, adr, len);
+
+	cfi_send_gen_cmd(0xAA, cfi->addr_unlock1, chip->start, map, cfi,
+			 cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x55, cfi->addr_unlock2, chip->start, map, cfi,
+			 cfi->device_type, NULL);
+	/* PPB entry command */
+	cfi_send_gen_cmd(0xC0, cfi->addr_unlock1, chip->start, map, cfi,
+			 cfi->device_type, NULL);
+
+	if (thunk == DO_XXLOCK_ONEBLOCK_LOCK) {
+		chip->state = FL_LOCKING;
+		map_write(map, CMD(0xA0), chip->start + adr);
+		map_write(map, CMD(0x00), chip->start + adr);
+	} else if (thunk == DO_XXLOCK_ONEBLOCK_UNLOCK) {
+		/*
+		 * Unlocking of one specific sector is not supported, so we
+		 * have to unlock all sectors of this device instead
+		 */
+		chip->state = FL_UNLOCKING;
+		map_write(map, CMD(0x80), chip->start);
+		map_write(map, CMD(0x30), chip->start);
+	} else if (thunk == DO_XXLOCK_ONEBLOCK_GETLOCK) {
+		chip->state = FL_JEDEC_QUERY;
+		/* Return locked status: 0->locked, 1->unlocked */
+		ret = !cfi_read_query(map, adr);
+	} else
+		BUG();
+
+	/*
+	 * Wait for some time as unlocking of all sectors takes quite long
+	 */
+	timeo = jiffies + msecs_to_jiffies(2000);	/* 2s max (un)locking */
+	for (;;) {
+		if (chip_ready(map, adr))
+			break;
+
+		if (time_after(jiffies, timeo)) {
+			printk(KERN_ERR "Waiting for chip to be ready timed out.\n");
+			ret = -EIO;
+			break;
+		}
+
+		UDELAY(map, chip, adr, 1);
+	}
+
+	/* Exit BC commands */
+	map_write(map, CMD(0x90), chip->start);
+	map_write(map, CMD(0x00), chip->start);
+
+	chip->state = FL_READY;
+	put_chip(map, chip, adr + chip->start);
+	mutex_unlock(&chip->mutex);
+
+	return ret;
+}
+
+static int __maybe_unused cfi_ppb_lock(struct mtd_info *mtd, loff_t ofs,
+				       uint64_t len)
+{
+	return cfi_varsize_frob(mtd, do_ppb_xxlock, ofs, len,
+				DO_XXLOCK_ONEBLOCK_LOCK);
+}
+
+static int __maybe_unused cfi_ppb_unlock(struct mtd_info *mtd, loff_t ofs,
+					 uint64_t len)
+{
+	struct mtd_erase_region_info *regions = mtd->eraseregions;
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct ppb_lock *sect;
+	unsigned long adr;
+	loff_t offset;
+	uint64_t length;
+	int chipnum;
+	int i;
+	int sectors;
+	int ret;
+
+	/*
+	 * PPB unlocking always unlocks all sectors of the flash chip.
+	 * We need to re-lock all previously locked sectors. So lets
+	 * first check the locking status of all sectors and save
+	 * it for future use.
+	 */
+	sect = kzalloc(MAX_SECTORS * sizeof(struct ppb_lock), GFP_KERNEL);
+	if (!sect)
+		return -ENOMEM;
+
+	/*
+	 * This code to walk all sectors is a slightly modified version
+	 * of the cfi_varsize_frob() code.
+	 */
+	i = 0;
+	chipnum = 0;
+	adr = 0;
+	sectors = 0;
+	offset = 0;
+	length = mtd->size;
+
+	while (length) {
+		int size = regions[i].erasesize;
+
+		/*
+		 * Only test sectors that shall not be unlocked. The other
+		 * sectors shall be unlocked, so lets keep their locking
+		 * status at "unlocked" (locked=0) for the final re-locking.
+		 */
+		if ((adr < ofs) || (adr >= (ofs + len))) {
+			sect[sectors].chip = &cfi->chips[chipnum];
+			sect[sectors].offset = offset;
+			sect[sectors].locked = do_ppb_xxlock(
+				map, &cfi->chips[chipnum], adr, 0,
+				DO_XXLOCK_ONEBLOCK_GETLOCK);
+		}
+
+		adr += size;
+		offset += size;
+		length -= size;
+
+		if (offset == regions[i].offset + size * regions[i].numblocks)
+			i++;
+
+		if (adr >> cfi->chipshift) {
+			adr = 0;
+			chipnum++;
+
+			if (chipnum >= cfi->numchips)
+				break;
+		}
+
+		sectors++;
+		if (sectors >= MAX_SECTORS) {
+			printk(KERN_ERR "Only %d sectors for PPB locking supported!\n",
+			       MAX_SECTORS);
+			kfree(sect);
+			return -EINVAL;
+		}
+	}
+
+	/* Now unlock the whole chip */
+	ret = cfi_varsize_frob(mtd, do_ppb_xxlock, ofs, len,
+			       DO_XXLOCK_ONEBLOCK_UNLOCK);
+	if (ret) {
+		kfree(sect);
+		return ret;
+	}
+
+	/*
+	 * PPB unlocking always unlocks all sectors of the flash chip.
+	 * We need to re-lock all previously locked sectors.
+	 */
+	for (i = 0; i < sectors; i++) {
+		if (sect[i].locked)
+			do_ppb_xxlock(map, sect[i].chip, sect[i].offset, 0,
+				      DO_XXLOCK_ONEBLOCK_LOCK);
+	}
+
+	kfree(sect);
+	return ret;
+}
+
+static int __maybe_unused cfi_ppb_is_locked(struct mtd_info *mtd, loff_t ofs,
+					    uint64_t len)
+{
+	return cfi_varsize_frob(mtd, do_ppb_xxlock, ofs, len,
+				DO_XXLOCK_ONEBLOCK_GETLOCK) ? 1 : 0;
+}
 
 static void cfi_amdstd_sync (struct mtd_info *mtd)
 {

@@ -37,6 +37,7 @@ struct fib6_config {
 	int		fc_ifindex;
 	u32		fc_flags;
 	u32		fc_protocol;
+	u32		fc_type;	/* only 8 bits are used */
 
 	struct in6_addr	fc_dst;
 	struct in6_addr	fc_src;
@@ -46,6 +47,8 @@ struct fib6_config {
 	unsigned long	fc_expires;
 	struct nlattr	*fc_mx;
 	int		fc_mx_len;
+	int		fc_mp_len;
+	struct nlattr	*fc_mp;
 
 	struct nl_info	fc_nlinfo;
 };
@@ -86,8 +89,6 @@ struct fib6_table;
 struct rt6_info {
 	struct dst_entry		dst;
 
-	struct neighbour		*n;
-
 	/*
 	 * Tail elements of dst_entry (__refcnt etc.)
 	 * and these elements (rarely used in hot path) are in
@@ -98,6 +99,14 @@ struct rt6_info {
 
 	struct in6_addr			rt6i_gateway;
 
+	/* Multipath routes:
+	 * siblings is a list of rt6_info that have the the same metric/weight,
+	 * destination, but not the same gateway. nsiblings is just a cache
+	 * to speed up lookup.
+	 */
+	struct list_head		rt6i_siblings;
+	unsigned int			rt6i_nsiblings;
+
 	atomic_t			rt6i_ref;
 
 	/* These are in a separate cache line. */
@@ -106,14 +115,12 @@ struct rt6_info {
 	struct rt6key			rt6i_src;
 	struct rt6key			rt6i_prefsrc;
 	u32				rt6i_metric;
-	u32				rt6i_peer_genid;
 
 	struct inet6_dev		*rt6i_idev;
 	unsigned long			_rt6i_peer;
 
-#ifdef CONFIG_XFRM
-	u32				rt6i_flow_cache_genid;
-#endif
+	u32				rt6i_genid;
+
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
 
@@ -157,50 +164,44 @@ static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 
 static inline void rt6_clean_expires(struct rt6_info *rt)
 {
-	if (!(rt->rt6i_flags & RTF_EXPIRES) && rt->dst.from)
-		dst_release(rt->dst.from);
-
 	rt->rt6i_flags &= ~RTF_EXPIRES;
-	rt->dst.from = NULL;
 }
 
 static inline void rt6_set_expires(struct rt6_info *rt, unsigned long expires)
 {
-	if (!(rt->rt6i_flags & RTF_EXPIRES) && rt->dst.from)
-		dst_release(rt->dst.from);
-
-	rt->rt6i_flags |= RTF_EXPIRES;
 	rt->dst.expires = expires;
+	rt->rt6i_flags |= RTF_EXPIRES;
 }
 
-static inline void rt6_update_expires(struct rt6_info *rt, int timeout)
+static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 {
-	if (!(rt->rt6i_flags & RTF_EXPIRES)) {
-		if (rt->dst.from)
-			dst_release(rt->dst.from);
-		/* dst_set_expires relies on expires == 0 
-		 * if it has not been set previously.
-		 */
-		rt->dst.expires = 0;
-	}
+	struct rt6_info *rt;
 
-	dst_set_expires(&rt->dst, timeout);
-	rt->rt6i_flags |= RTF_EXPIRES;
+	for (rt = rt0; rt && !(rt->rt6i_flags & RTF_EXPIRES);
+	     rt = (struct rt6_info *)rt->dst.from);
+	if (rt && rt != rt0)
+		rt0->dst.expires = rt->dst.expires;
+
+	dst_set_expires(&rt0->dst, timeout);
+	rt0->rt6i_flags |= RTF_EXPIRES;
 }
 
 static inline void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
 {
 	struct dst_entry *new = (struct dst_entry *) from;
 
-	if (!(rt->rt6i_flags & RTF_EXPIRES) && rt->dst.from) {
-		if (new == rt->dst.from)
-			return;
-		dst_release(rt->dst.from);
-	}
-
 	rt->rt6i_flags &= ~RTF_EXPIRES;
-	rt->dst.from = new;
 	dst_hold(new);
+	rt->dst.from = new;
+}
+
+static inline void ip6_rt_put(struct rt6_info *rt)
+{
+	/* dst_release() accepts a NULL parameter.
+	 * We rely on dst being first structure in struct rt6_info
+	 */
+	BUILD_BUG_ON(offsetof(struct rt6_info, dst) != 0);
+	dst_release(&rt->dst);
 }
 
 struct fib6_walker_t {
@@ -299,7 +300,7 @@ extern void			inet6_rt_notify(int event, struct rt6_info *rt,
 						struct nl_info *info);
 
 extern void			fib6_run_gc(unsigned long expires,
-					    struct net *net);
+					    struct net *net, bool force);
 
 extern void			fib6_gc_cleanup(void);
 

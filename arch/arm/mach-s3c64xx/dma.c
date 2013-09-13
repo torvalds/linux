@@ -23,14 +23,13 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/amba/pl080.h>
 
 #include <mach/dma.h>
 #include <mach/map.h>
 #include <mach/irqs.h>
 
-#include <mach/regs-sys.h>
-
-#include <asm/hardware/pl080.h>
+#include "regs-sys.h"
 
 /* dma channel state information */
 
@@ -510,6 +509,7 @@ int s3c2410_dma_request(enum dma_ch channel,
 	chan->client = client;
 	chan->in_use = 1;
 	chan->peripheral = channel;
+	chan->flags = 0;
 
 	local_irq_restore(flags);
 

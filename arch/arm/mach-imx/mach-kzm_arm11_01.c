@@ -36,12 +36,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/clock.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx3.h>
-
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 #define KZM_ARM11_IO_ADDRESS(x) (IOMEM(					\
 	IMX_IO_P2V_MODULE(x, MX31_CS4) ?:				\
@@ -259,13 +257,13 @@ static void __init kzm_board_init(void)
  */
 static struct map_desc kzm_io_desc[] __initdata = {
 	{
-		.virtual	= MX31_CS4_BASE_ADDR_VIRT,
+		.virtual	= (unsigned long)MX31_CS4_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(MX31_CS4_BASE_ADDR),
 		.length		= MX31_CS4_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= MX31_CS5_BASE_ADDR_VIRT,
+		.virtual	= (unsigned long)MX31_CS5_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(MX31_CS5_BASE_ADDR),
 		.length		= MX31_CS5_SIZE,
 		.type		= MT_DEVICE
@@ -286,17 +284,13 @@ static void __init kzm_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer kzm_timer = {
-	.init = kzm_timer_init,
-};
-
 MACHINE_START(KZM_ARM11_01, "Kyoto Microcomputer Co., Ltd. KZM-ARM11-01")
 	.atag_offset = 0x100,
 	.map_io = kzm_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &kzm_timer,
+	.init_time	= kzm_timer_init,
 	.init_machine = kzm_board_init,
 	.restart	= mxc_restart,
 MACHINE_END

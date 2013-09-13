@@ -17,6 +17,7 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 #include <asm/acpi.h>
+#include <asm/numa.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
@@ -32,6 +33,9 @@
 /* These are code, but not functions.  Defined in entry.S */
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
+#ifdef CONFIG_X86_64
+extern const char nmi[];
+#endif
 extern void xen_sysenter_target(void);
 extern void xen_syscall_target(void);
 extern void xen_syscall32_target(void);
@@ -214,13 +218,19 @@ static void __init xen_set_identity_and_release_chunk(
 	unsigned long pfn;
 
 	/*
-	 * If the PFNs are currently mapped, the VA mapping also needs
-	 * to be updated to be 1:1.
+	 * If the PFNs are currently mapped, clear the mappings
+	 * (except for the ISA region which must be 1:1 mapped) to
+	 * release the refcounts (in Xen) on the original frames.
 	 */
-	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++)
+	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++) {
+		pte_t pte = __pte_ma(0);
+
+		if (pfn < PFN_UP(ISA_END_ADDRESS))
+			pte = mfn_pte(pfn, PAGE_KERNEL_IO);
+
 		(void)HYPERVISOR_update_va_mapping(
-			(unsigned long)__va(pfn << PAGE_SHIFT),
-			mfn_pte(pfn, PAGE_KERNEL_IO), 0);
+			(unsigned long)__va(pfn << PAGE_SHIFT), pte, 0);
+	}
 
 	if (start_pfn < nr_pages)
 		*released += xen_release_chunk(
@@ -312,6 +322,17 @@ static void xen_align_and_add_e820_region(u64 start, u64 size, int type)
 	e820_add_region(start, end - start, type);
 }
 
+void xen_ignore_unusable(struct e820entry *list, size_t map_size)
+{
+	struct e820entry *entry;
+	unsigned int i;
+
+	for (i = 0, entry = list; i < map_size; i++, entry++) {
+		if (entry->type == E820_UNUSABLE)
+			entry->type = E820_RAM;
+	}
+}
+
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
  **/
@@ -351,6 +372,17 @@ char * __init xen_memory_setup(void)
 		rc = 0;
 	}
 	BUG_ON(rc);
+
+	/*
+	 * Xen won't allow a 1:1 mapping to be created to UNUSABLE
+	 * regions, so if we're using the machine memory map leave the
+	 * region as RAM as it is in the pseudo-physical map.
+	 *
+	 * UNUSABLE regions in domUs are not handled and will need
+	 * a patch in the future.
+	 */
+	if (xen_initial_domain())
+		xen_ignore_unusable(map, memmap.nr_entries);
 
 	/* Make sure the Xen-supplied memory map is well-ordered. */
 	sanitize_e820_map(map, memmap.nr_entries, &memmap.nr_entries);
@@ -431,6 +463,24 @@ char * __init xen_memory_setup(void)
 	 *  - mfn_list
 	 *  - xen_start_info
 	 * See comment above "struct start_info" in <xen/interface/xen.h>
+	 * We tried to make the the memblock_reserve more selective so
+	 * that it would be clear what region is reserved. Sadly we ran
+	 * in the problem wherein on a 64-bit hypervisor with a 32-bit
+	 * initial domain, the pt_base has the cr3 value which is not
+	 * neccessarily where the pagetable starts! As Jan put it: "
+	 * Actually, the adjustment turns out to be correct: The page
+	 * tables for a 32-on-64 dom0 get allocated in the order "first L1",
+	 * "first L2", "first L3", so the offset to the page table base is
+	 * indeed 2. When reading xen/include/public/xen.h's comment
+	 * very strictly, this is not a violation (since there nothing is said
+	 * that the first thing in the page table space is pointed to by
+	 * pt_base; I admit that this seems to be implied though, namely
+	 * do I think that it is implied that the page table space is the
+	 * range [pt_base, pt_base + nt_pt_frames), whereas that
+	 * range here indeed is [pt_base - 2, pt_base - 2 + nt_pt_frames),
+	 * which - without a priori knowledge - the kernel would have
+	 * difficulty to figure out)." - so lets just fall back to the
+	 * easy way and reserve the whole region.
 	 */
 	memblock_reserve(__pa(xen_start_info->mfn_list),
 			 xen_start_info->pt_base - xen_start_info->mfn_list);
@@ -456,7 +506,7 @@ static void __init fiddle_vdso(void)
 #endif
 }
 
-static int __cpuinit register_callback(unsigned type, const void *func)
+static int register_callback(unsigned type, const void *func)
 {
 	struct callback_register callback = {
 		.type = type,
@@ -467,7 +517,7 @@ static int __cpuinit register_callback(unsigned type, const void *func)
 	return HYPERVISOR_callback_op(CALLBACKOP_register, &callback);
 }
 
-void __cpuinit xen_enable_sysenter(void)
+void xen_enable_sysenter(void)
 {
 	int ret;
 	unsigned sysenter_feature;
@@ -486,7 +536,7 @@ void __cpuinit xen_enable_sysenter(void)
 		setup_clear_cpu_cap(sysenter_feature);
 }
 
-void __cpuinit xen_enable_syscall(void)
+void xen_enable_syscall(void)
 {
 #ifdef CONFIG_X86_64
 	int ret;
@@ -506,7 +556,13 @@ void __cpuinit xen_enable_syscall(void)
 	}
 #endif /* CONFIG_X86_64 */
 }
-
+void __cpuinit xen_enable_nmi(void)
+{
+#ifdef CONFIG_X86_64
+	if (register_callback(CALLBACKTYPE_nmi, nmi))
+		BUG();
+#endif
+}
 void __init xen_arch_setup(void)
 {
 	xen_panic_handler_init();
@@ -524,7 +580,7 @@ void __init xen_arch_setup(void)
 
 	xen_enable_sysenter();
 	xen_enable_syscall();
-
+	xen_enable_nmi();
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {
 		printk(KERN_INFO "ACPI in unprivileged domain disabled\n");
@@ -537,11 +593,11 @@ void __init xen_arch_setup(void)
 	       COMMAND_LINE_SIZE : MAX_GUEST_CMDLINE);
 
 	/* Set up idle, making sure it calls safe_halt() pvop */
-#ifdef CONFIG_X86_32
-	boot_cpu_data.hlt_works_ok = 1;
-#endif
 	disable_cpuidle();
 	disable_cpufreq();
-	WARN_ON(set_pm_idle_to_default());
+	WARN_ON(xen_set_default_idle());
 	fiddle_vdso();
+#ifdef CONFIG_NUMA
+	numa_off = 1;
+#endif
 }

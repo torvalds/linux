@@ -92,9 +92,9 @@ static int blink_set(struct led_classdev *cdev,
 	return 0;
 }
 
-static int __devinit asic3_led_probe(struct platform_device *pdev)
+static int asic3_led_probe(struct platform_device *pdev)
 {
-	struct asic3_led *led = pdev->dev.platform_data;
+	struct asic3_led *led = dev_get_platdata(&pdev->dev);
 	int ret;
 
 	ret = mfd_cell_enable(pdev);
@@ -125,15 +125,16 @@ out:
 	return ret;
 }
 
-static int __devexit asic3_led_remove(struct platform_device *pdev)
+static int asic3_led_remove(struct platform_device *pdev)
 {
-	struct asic3_led *led = pdev->dev.platform_data;
+	struct asic3_led *led = dev_get_platdata(&pdev->dev);
 
 	led_classdev_unregister(led->cdev);
 
 	return mfd_cell_disable(pdev);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int asic3_led_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -159,15 +160,13 @@ static int asic3_led_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
-static const struct dev_pm_ops asic3_led_pm_ops = {
-	.suspend	= asic3_led_suspend,
-	.resume		= asic3_led_resume,
-};
+static SIMPLE_DEV_PM_OPS(asic3_led_pm_ops, asic3_led_suspend, asic3_led_resume);
 
 static struct platform_driver asic3_led_driver = {
 	.probe		= asic3_led_probe,
-	.remove		= __devexit_p(asic3_led_remove),
+	.remove		= asic3_led_remove,
 	.driver		= {
 		.name	= "leds-asic3",
 		.owner	= THIS_MODULE,

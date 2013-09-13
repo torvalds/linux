@@ -33,7 +33,7 @@ static void pentium_machine_check(struct pt_regs *regs, long error_code)
 			smp_processor_id());
 	}
 
-	add_taint(TAINT_MACHINE_CHECK);
+	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 }
 
 /* Set up machine check reporting for processors with Intel style MCE: */

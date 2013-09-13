@@ -76,7 +76,6 @@ static struct hlist_head *pn_hash_list(u16 obj)
  */
 struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 {
-	struct hlist_node *node;
 	struct sock *sknode;
 	struct sock *rval = NULL;
 	u16 obj = pn_sockaddr_get_object(spn);
@@ -84,7 +83,7 @@ struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 	struct hlist_head *hlist = pn_hash_list(obj);
 
 	rcu_read_lock();
-	sk_for_each_rcu(sknode, node, hlist) {
+	sk_for_each_rcu(sknode, hlist) {
 		struct pn_sock *pn = pn_sk(sknode);
 		BUG_ON(!pn->sobject); /* unbound socket */
 
@@ -120,10 +119,9 @@ void pn_deliver_sock_broadcast(struct net *net, struct sk_buff *skb)
 
 	rcu_read_lock();
 	for (h = 0; h < PN_HASHSIZE; h++) {
-		struct hlist_node *node;
 		struct sock *sknode;
 
-		sk_for_each(sknode, node, hlist) {
+		sk_for_each(sknode, hlist) {
 			struct sk_buff *clone;
 
 			if (!net_eq(sock_net(sknode), net))
@@ -543,12 +541,11 @@ static struct sock *pn_sock_get_idx(struct seq_file *seq, loff_t pos)
 {
 	struct net *net = seq_file_net(seq);
 	struct hlist_head *hlist = pnsocks.hlist;
-	struct hlist_node *node;
 	struct sock *sknode;
 	unsigned int h;
 
 	for (h = 0; h < PN_HASHSIZE; h++) {
-		sk_for_each_rcu(sknode, node, hlist) {
+		sk_for_each_rcu(sknode, hlist) {
 			if (!net_eq(net, sock_net(sknode)))
 				continue;
 			if (!pos)
@@ -612,7 +609,8 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 			sk->sk_protocol, pn->sobject, pn->dobject,
 			pn->resource, sk->sk_state,
 			sk_wmem_alloc_get(sk), sk_rmem_alloc_get(sk),
-			sock_i_uid(sk), sock_i_ino(sk),
+			from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
+			sock_i_ino(sk),
 			atomic_read(&sk->sk_refcnt), sk,
 			atomic_read(&sk->sk_drops), &len);
 	}
@@ -795,8 +793,9 @@ static int pn_res_seq_show(struct seq_file *seq, void *v)
 		struct sock **psk = v;
 		struct sock *sk = *psk;
 
-		seq_printf(seq, "%02X %5d %lu%n",
-			   (int) (psk - pnres.sk), sock_i_uid(sk),
+		seq_printf(seq, "%02X %5u %lu%n",
+			   (int) (psk - pnres.sk),
+			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
 			   sock_i_ino(sk), &len);
 	}
 	seq_printf(seq, "%*s\n", 63 - len, "");

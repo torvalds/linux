@@ -47,7 +47,7 @@
 #define NCR5380_intr atari_scsi_intr
 #define NCR5380_queue_command atari_scsi_queue_command
 #define NCR5380_abort atari_scsi_abort
-#define NCR5380_proc_info atari_scsi_proc_info
+#define NCR5380_show_info atari_scsi_show_info
 #define NCR5380_dma_read_setup(inst,d,c) atari_scsi_dma_setup (inst, d, c, 0)
 #define NCR5380_dma_write_setup(inst,d,c) atari_scsi_dma_setup (inst, d, c, 1)
 #define NCR5380_dma_residual(inst) atari_scsi_dma_residual( inst )

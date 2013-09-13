@@ -895,7 +895,7 @@ static int ch_probe(struct device *dev)
 {
 	struct scsi_device *sd = to_scsi_device(dev);
 	struct device *class_dev;
-	int minor, ret = -ENOMEM;
+	int ret;
 	scsi_changer *ch;
 
 	if (sd->type != TYPE_MEDIUM_CHANGER)
@@ -905,22 +905,19 @@ static int ch_probe(struct device *dev)
 	if (NULL == ch)
 		return -ENOMEM;
 
-	if (!idr_pre_get(&ch_index_idr, GFP_KERNEL))
-		goto free_ch;
-
+	idr_preload(GFP_KERNEL);
 	spin_lock(&ch_index_lock);
-	ret = idr_get_new(&ch_index_idr, ch, &minor);
+	ret = idr_alloc(&ch_index_idr, ch, 0, CH_MAX_DEVS + 1, GFP_NOWAIT);
 	spin_unlock(&ch_index_lock);
+	idr_preload_end();
 
-	if (ret)
+	if (ret < 0) {
+		if (ret == -ENOSPC)
+			ret = -ENODEV;
 		goto free_ch;
-
-	if (minor > CH_MAX_DEVS) {
-		ret = -ENODEV;
-		goto remove_idr;
 	}
 
-	ch->minor = minor;
+	ch->minor = ret;
 	sprintf(ch->name,"ch%d",ch->minor);
 
 	class_dev = device_create(ch_sysfs_class, dev,
@@ -944,7 +941,7 @@ static int ch_probe(struct device *dev)
 
 	return 0;
 remove_idr:
-	idr_remove(&ch_index_idr, minor);
+	idr_remove(&ch_index_idr, ch->minor);
 free_ch:
 	kfree(ch);
 	return ret;

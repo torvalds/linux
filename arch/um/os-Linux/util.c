@@ -13,7 +13,7 @@
 #include <wait.h>
 #include <sys/mman.h>
 #include <sys/utsname.h>
-#include "os.h"
+#include <os.h>
 
 void stack_protections(unsigned long address)
 {
@@ -92,6 +92,16 @@ static inline void __attribute__ ((noreturn)) uml_abort(void)
 	for (;;)
 		if (kill(getpid(), SIGABRT) < 0)
 			exit(127);
+}
+
+/*
+ * UML helper threads must not handle SIGWINCH/INT/TERM
+ */
+void os_fix_helper_signals(void)
+{
+	signal(SIGWINCH, SIG_IGN);
+	signal(SIGINT, SIG_DFL);
+	signal(SIGTERM, SIG_DFL);
 }
 
 void os_dump_core(void)

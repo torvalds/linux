@@ -331,13 +331,9 @@ static void ati_remote_dump(struct device *dev, unsigned char *data,
 		if (data[0] != (unsigned char)0xff && data[0] != 0x00)
 			dev_warn(dev, "Weird byte 0x%02x\n", data[0]);
 	} else if (len == 4)
-		dev_warn(dev, "Weird key %02x %02x %02x %02x\n",
-		     data[0], data[1], data[2], data[3]);
+		dev_warn(dev, "Weird key %*ph\n", 4, data);
 	else
-		dev_warn(dev,
-			"Weird data, len=%d %02x %02x %02x %02x %02x %02x ...\n",
-			len, data[0], data[1], data[2], data[3], data[4],
-			data[5]);
+		dev_warn(dev, "Weird data, len=%d %*ph ...\n", len, 6, data);
 }
 
 /*
@@ -519,8 +515,7 @@ static void ati_remote_input_report(struct urb *urb)
 
 	if (data[1] != ((data[2] + data[3] + 0xd5) & 0xff)) {
 		dbginfo(&ati_remote->interface->dev,
-			"wrong checksum in input: %02x %02x %02x %02x\n",
-			data[0], data[1], data[2], data[3]);
+			"wrong checksum in input: %*ph\n", 4, data);
 		return;
 	}
 
@@ -789,7 +784,7 @@ static void ati_remote_rc_init(struct ati_remote *ati_remote)
 
 	rdev->priv = ati_remote;
 	rdev->driver_type = RC_DRIVER_SCANCODE;
-	rdev->allowed_protos = RC_TYPE_OTHER;
+	rdev->allowed_protos = RC_BIT_OTHER;
 	rdev->driver_name = "ati_remote";
 
 	rdev->open = ati_remote_rc_open;
@@ -877,11 +872,11 @@ static int ati_remote_probe(struct usb_interface *interface,
 	ati_remote = kzalloc(sizeof (struct ati_remote), GFP_KERNEL);
 	rc_dev = rc_allocate_device();
 	if (!ati_remote || !rc_dev)
-		goto fail1;
+		goto exit_free_dev_rdev;
 
 	/* Allocate URB buffers, URBs */
 	if (ati_remote_alloc_buffers(udev, ati_remote))
-		goto fail2;
+		goto exit_free_buffers;
 
 	ati_remote->endpoint_in = endpoint_in;
 	ati_remote->endpoint_out = endpoint_out;
@@ -929,12 +924,12 @@ static int ati_remote_probe(struct usb_interface *interface,
 	/* Device Hardware Initialization - fills in ati_remote->idev from udev. */
 	err = ati_remote_initialize(ati_remote);
 	if (err)
-		goto fail3;
+		goto exit_kill_urbs;
 
 	/* Set up and register rc device */
 	err = rc_register_device(ati_remote->rdev);
 	if (err)
-		goto fail3;
+		goto exit_kill_urbs;
 
 	/* use our delay for rc_dev */
 	ati_remote->rdev->input_dev->rep[REP_DELAY] = repeat_delay;
@@ -942,27 +937,34 @@ static int ati_remote_probe(struct usb_interface *interface,
 	/* Set up and register mouse input device */
 	if (mouse) {
 		input_dev = input_allocate_device();
-		if (!input_dev)
-			goto fail4;
+		if (!input_dev) {
+			err = -ENOMEM;
+			goto exit_unregister_device;
+		}
 
 		ati_remote->idev = input_dev;
 		ati_remote_input_init(ati_remote);
 		err = input_register_device(input_dev);
 
 		if (err)
-			goto fail5;
+			goto exit_free_input_device;
 	}
 
 	usb_set_intfdata(interface, ati_remote);
 	return 0;
 
- fail5:	input_free_device(input_dev);
- fail4:	rc_unregister_device(rc_dev);
+ exit_free_input_device:
+	input_free_device(input_dev);
+ exit_unregister_device:
+	rc_unregister_device(rc_dev);
 	rc_dev = NULL;
- fail3:	usb_kill_urb(ati_remote->irq_urb);
+ exit_kill_urbs:
+	usb_kill_urb(ati_remote->irq_urb);
 	usb_kill_urb(ati_remote->out_urb);
- fail2:	ati_remote_free_buffers(ati_remote);
- fail1:	rc_free_device(rc_dev);
+ exit_free_buffers:
+	ati_remote_free_buffers(ati_remote);
+ exit_free_dev_rdev:
+	 rc_free_device(rc_dev);
 	kfree(ati_remote);
 	return err;
 }

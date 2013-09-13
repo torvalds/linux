@@ -256,18 +256,6 @@ static void tmio_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	tmio_ioread16_rep(tmio->fcr + FCR_DATA, buf, len >> 1);
 }
 
-static int
-tmio_nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct tmio_nand *tmio = mtd_to_tmio(mtd);
-	u16				*p = (u16 *) buf;
-
-	for (len >>= 1; len; len--)
-		if (*(p++) != tmio_ioread16(tmio->fcr + FCR_DATA))
-			return -EFAULT;
-	return 0;
-}
-
 static void tmio_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 {
 	struct tmio_nand *tmio = mtd_to_tmio(mtd);
@@ -369,7 +357,7 @@ static void tmio_hw_stop(struct platform_device *dev, struct tmio_nand *tmio)
 
 static int tmio_probe(struct platform_device *dev)
 {
-	struct tmio_nand_data *data = dev->dev.platform_data;
+	struct tmio_nand_data *data = dev_get_platdata(&dev->dev);
 	struct resource *fcr = platform_get_resource(dev,
 			IORESOURCE_MEM, 0);
 	struct resource *ccr = platform_get_resource(dev,
@@ -424,7 +412,6 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->read_byte = tmio_nand_read_byte;
 	nand_chip->write_buf = tmio_nand_write_buf;
 	nand_chip->read_buf = tmio_nand_read_buf;
-	nand_chip->verify_buf = tmio_nand_verify_buf;
 
 	/* set eccmode using hardware ECC */
 	nand_chip->ecc.mode = NAND_ECC_HW;

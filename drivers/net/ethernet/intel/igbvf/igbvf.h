@@ -127,8 +127,8 @@ struct igbvf_buffer {
 		/* Tx */
 		struct {
 			unsigned long time_stamp;
+			union e1000_adv_tx_desc *next_to_watch;
 			u16 length;
-			u16 next_to_watch;
 			u16 mapped_as_page;
 		};
 		/* Rx */
@@ -295,7 +295,7 @@ struct igbvf_info {
 
 /* hardware capability, feature, and workaround flags */
 #define IGBVF_FLAG_RX_CSUM_DISABLED             (1 << 0)
-
+#define IGBVF_FLAG_RX_LB_VLAN_BSWAP		(1 << 1)
 #define IGBVF_RX_DESC_ADV(R, i)     \
 	(&((((R).desc))[i].rx_desc))
 #define IGBVF_TX_DESC_ADV(R, i)     \

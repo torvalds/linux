@@ -31,8 +31,7 @@
 #include <linux/omapfb.h>
 
 #include <video/omapdss.h>
-#include <plat/vram.h>
-#include <plat/vrfb.h>
+#include <video/omapvrfb.h>
 
 #include "omapfb.h"
 
@@ -1102,41 +1101,25 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct fb_fix_screeninfo *fix = &fbi->fix;
 	struct omapfb2_mem_region *rg;
-	unsigned long off;
 	unsigned long start;
 	u32 len;
-	int r = -EINVAL;
-
-	if (vma->vm_end - vma->vm_start == 0)
-		return 0;
-	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
-		return -EINVAL;
-	off = vma->vm_pgoff << PAGE_SHIFT;
+	int r;
 
 	rg = omapfb_get_mem_region(ofbi->region);
 
 	start = omapfb_get_region_paddr(ofbi);
 	len = fix->smem_len;
-	if (off >= len)
-		goto error;
-	if ((vma->vm_end - vma->vm_start + off) > len)
-		goto error;
 
-	off += start;
+	DBG("user mmap region start %lx, len %d, off %lx\n", start, len,
+			vma->vm_pgoff << PAGE_SHIFT);
 
-	DBG("user mmap region start %lx, len %d, off %lx\n", start, len, off);
-
-	vma->vm_pgoff = off >> PAGE_SHIFT;
-	vma->vm_flags |= VM_IO | VM_RESERVED;
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	vma->vm_ops = &mmap_user_ops;
 	vma->vm_private_data = rg;
-	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-			       vma->vm_end - vma->vm_start,
-			       vma->vm_page_prot)) {
-		r = -EAGAIN;
+
+	r = vm_iomap_memory(vma, start, len);
+	if (r)
 		goto error;
-	}
 
 	/* vm_ops.open won't be called for mmap itself. */
 	atomic_inc(&rg->map_count);
@@ -1145,7 +1128,7 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 
 	return 0;
 
- error:
+error:
 	omapfb_put_mem_region(ofbi->region);
 
 	return r;
@@ -1192,7 +1175,7 @@ static int _setcolreg(struct fb_info *fbi, u_int regno, u_int red, u_int green,
 			break;
 
 		if (regno < 16) {
-			u16 pal;
+			u32 pal;
 			pal = ((red >> (16 - var->red.length)) <<
 					var->red.offset) |
 				((green >> (16 - var->green.length)) <<
@@ -1258,11 +1241,10 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
-		if (display->state != OMAP_DSS_DISPLAY_SUSPENDED)
+		if (display->state == OMAP_DSS_DISPLAY_ACTIVE)
 			goto exit;
 
-		if (display->driver->resume)
-			r = display->driver->resume(display);
+		r = display->driver->enable(display);
 
 		if ((display->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) &&
 				d->update_mode == OMAPFB_AUTO_UPDATE &&
@@ -1283,8 +1265,7 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 		if (d->auto_update_work_enabled)
 			omapfb_stop_auto_update(fbdev, display);
 
-		if (display->driver->suspend)
-			r = display->driver->suspend(display);
+		display->driver->disable(display);
 
 		break;
 
@@ -1335,24 +1316,25 @@ static void omapfb_free_fbmem(struct fb_info *fbi)
 
 	rg = ofbi->region;
 
+	if (rg->token == NULL)
+		return;
+
 	WARN_ON(atomic_read(&rg->map_count));
-
-	if (rg->paddr)
-		if (omap_vram_free(rg->paddr, rg->size))
-			dev_err(fbdev->dev, "VRAM FREE failed\n");
-
-	if (rg->vaddr)
-		iounmap(rg->vaddr);
 
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
 		/* unmap the 0 angle rotation */
 		if (rg->vrfb.vaddr[0]) {
 			iounmap(rg->vrfb.vaddr[0]);
-			omap_vrfb_release_ctx(&rg->vrfb);
 			rg->vrfb.vaddr[0] = NULL;
 		}
+
+		omap_vrfb_release_ctx(&rg->vrfb);
 	}
 
+	dma_free_attrs(fbdev->dev, rg->size, rg->token, rg->dma_handle,
+			&rg->attrs);
+
+	rg->token = NULL;
 	rg->vaddr = NULL;
 	rg->paddr = 0;
 	rg->alloc = 0;
@@ -1387,7 +1369,9 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_device *fbdev = ofbi->fbdev;
 	struct omapfb2_mem_region *rg;
-	void __iomem *vaddr;
+	void *token;
+	DEFINE_DMA_ATTRS(attrs);
+	dma_addr_t dma_handle;
 	int r;
 
 	rg = ofbi->region;
@@ -1402,42 +1386,40 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 
 	size = PAGE_ALIGN(size);
 
-	if (!paddr) {
-		DBG("allocating %lu bytes for fb %d\n", size, ofbi->id);
-		r = omap_vram_alloc(size, &paddr);
-	} else {
-		DBG("reserving %lu bytes at %lx for fb %d\n", size, paddr,
-				ofbi->id);
-		r = omap_vram_reserve(paddr, size);
-	}
+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 
-	if (r) {
+	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+
+	DBG("allocating %lu bytes for fb %d\n", size, ofbi->id);
+
+	token = dma_alloc_attrs(fbdev->dev, size, &dma_handle,
+			GFP_KERNEL, &attrs);
+
+	if (token == NULL) {
 		dev_err(fbdev->dev, "failed to allocate framebuffer\n");
 		return -ENOMEM;
 	}
 
-	if (ofbi->rotation_type != OMAP_DSS_ROT_VRFB) {
-		vaddr = ioremap_wc(paddr, size);
+	DBG("allocated VRAM paddr %lx, vaddr %p\n",
+			(unsigned long)dma_handle, token);
 
-		if (!vaddr) {
-			dev_err(fbdev->dev, "failed to ioremap framebuffer\n");
-			omap_vram_free(paddr, size);
-			return -ENOMEM;
-		}
-
-		DBG("allocated VRAM paddr %lx, vaddr %p\n", paddr, vaddr);
-	} else {
+	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
 		r = omap_vrfb_request_ctx(&rg->vrfb);
 		if (r) {
+			dma_free_attrs(fbdev->dev, size, token, dma_handle,
+					&attrs);
 			dev_err(fbdev->dev, "vrfb create ctx failed\n");
 			return r;
 		}
-
-		vaddr = NULL;
 	}
 
-	rg->paddr = paddr;
-	rg->vaddr = vaddr;
+	rg->attrs = attrs;
+	rg->token = token;
+	rg->dma_handle = dma_handle;
+
+	rg->paddr = (unsigned long)dma_handle;
+	rg->vaddr = (void __iomem *)token;
 	rg->size = size;
 	rg->alloc = 1;
 
@@ -1531,6 +1513,9 @@ static int omapfb_parse_vram_param(const char *param, int max_entries,
 
 		}
 
+		WARN_ONCE(paddr,
+			"reserving memory at predefined address not supported\n");
+
 		paddrs[fbnum] = paddr;
 		sizes[fbnum] = size;
 
@@ -1592,11 +1577,24 @@ static int omapfb_allocate_all_fbs(struct omapfb2_device *fbdev)
 	return 0;
 }
 
+static void omapfb_clear_fb(struct fb_info *fbi)
+{
+	const struct fb_fillrect rect = {
+		.dx = 0,
+		.dy = 0,
+		.width = fbi->var.xres_virtual,
+		.height = fbi->var.yres_virtual,
+		.color = 0,
+		.rop = ROP_COPY,
+	};
+
+	cfb_fillrect(fbi, &rect);
+}
+
 int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_device *fbdev = ofbi->fbdev;
-	struct omap_dss_device *display = fb2display(fbi);
 	struct omapfb2_mem_region *rg = ofbi->region;
 	unsigned long old_size = rg->size;
 	unsigned long old_paddr = rg->paddr;
@@ -1610,9 +1608,6 @@ int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 
 	if (old_size == size && old_type == type)
 		return 0;
-
-	if (display && display->driver->sync)
-			display->driver->sync(display);
 
 	omapfb_free_fbmem(fbi);
 
@@ -1660,6 +1655,8 @@ int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 		if (r)
 			goto err;
 	}
+
+	omapfb_clear_fb(fbi);
 
 	return 0;
 err:
@@ -1856,6 +1853,8 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 		if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)
 			dssdev->driver->disable(dssdev);
 
+		dssdev->driver->disconnect(dssdev);
+
 		omap_dss_put_device(dssdev);
 	}
 
@@ -1866,7 +1865,6 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	}
 
 	dev_set_drvdata(fbdev->dev, NULL);
-	kfree(fbdev);
 }
 
 static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
@@ -1943,6 +1941,16 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 			dev_err(fbdev->dev, "failed to setup fb_info\n");
 			return r;
 		}
+	}
+
+	for (i = 0; i < fbdev->num_fbs; i++) {
+		struct fb_info *fbi = fbdev->fbs[i];
+		struct omapfb_info *ofbi = FB2OFB(fbi);
+
+		if (ofbi->region->size == 0)
+			continue;
+
+		omapfb_clear_fb(fbi);
 	}
 
 	DBG("fb_infos initialized\n");
@@ -2232,26 +2240,28 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 {
 	struct fb_monspecs *specs;
 	u8 *edid;
-	int r, i, best_xres, best_idx, len;
+	int r, i, best_idx, len;
 
 	if (!display->driver->read_edid)
 		return -ENODEV;
 
 	len = 0x80 * 2;
 	edid = kmalloc(len, GFP_KERNEL);
+	if (edid == NULL)
+		return -ENOMEM;
 
 	r = display->driver->read_edid(display, edid, len);
 	if (r < 0)
 		goto err1;
 
 	specs = kzalloc(sizeof(*specs), GFP_KERNEL);
+	if (specs == NULL) {
+		r = -ENOMEM;
+		goto err1;
+	}
 
 	fb_edid_to_monspecs(edid, specs);
 
-	if (edid[126] > 0)
-		fb_edid_add_monspecs(edid + 0x80, specs);
-
-	best_xres = 0;
 	best_idx = -1;
 
 	for (i = 0; i < specs->modedb_len; ++i) {
@@ -2267,16 +2277,20 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 		if (m->xres == 2880 || m->xres == 1440)
 			continue;
 
+		if (m->vmode & FB_VMODE_INTERLACED ||
+				m->vmode & FB_VMODE_DOUBLE)
+			continue;
+
 		fb_videomode_to_omap_timings(m, display, &t);
 
 		r = display->driver->check_timings(display, &t);
-		if (r == 0 && best_xres < m->xres) {
-			best_xres = m->xres;
+		if (r == 0) {
 			best_idx = i;
+			break;
 		}
 	}
 
-	if (best_xres == 0) {
+	if (best_idx == -1) {
 		r = -ENOENT;
 		goto err2;
 	}
@@ -2345,16 +2359,66 @@ static int omapfb_init_display(struct omapfb2_device *fbdev,
 	return 0;
 }
 
-static int __init omapfb_probe(struct platform_device *pdev)
+static int omapfb_init_connections(struct omapfb2_device *fbdev,
+		struct omap_dss_device *def_dssdev)
+{
+	int i, r;
+	struct omap_overlay_manager *mgr;
+
+	r = def_dssdev->driver->connect(def_dssdev);
+	if (r) {
+		dev_err(fbdev->dev, "failed to connect default display\n");
+		return r;
+	}
+
+	for (i = 0; i < fbdev->num_displays; ++i) {
+		struct omap_dss_device *dssdev = fbdev->displays[i].dssdev;
+
+		if (dssdev == def_dssdev)
+			continue;
+
+		/*
+		 * We don't care if the connect succeeds or not. We just want to
+		 * connect as many displays as possible.
+		 */
+		dssdev->driver->connect(dssdev);
+	}
+
+	mgr = omapdss_find_mgr_from_display(def_dssdev);
+
+	if (!mgr) {
+		dev_err(fbdev->dev, "no ovl manager for the default display\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < fbdev->num_overlays; i++) {
+		struct omap_overlay *ovl = fbdev->overlays[i];
+
+		if (ovl->manager)
+			ovl->unset_manager(ovl);
+
+		r = ovl->set_manager(ovl, mgr);
+		if (r)
+			dev_warn(fbdev->dev,
+					"failed to connect overlay %s to manager %s\n",
+					ovl->name, mgr->name);
+	}
+
+	return 0;
+}
+
+static int omapfb_probe(struct platform_device *pdev)
 {
 	struct omapfb2_device *fbdev = NULL;
 	int r = 0;
 	int i;
-	struct omap_overlay *ovl;
 	struct omap_dss_device *def_display;
 	struct omap_dss_device *dssdev;
 
 	DBG("omapfb_probe\n");
+
+	if (omapdss_is_initialized() == false)
+		return -EPROBE_DEFER;
 
 	if (pdev->num_resources != 0) {
 		dev_err(&pdev->dev, "probed for an unknown device\n");
@@ -2362,28 +2426,28 @@ static int __init omapfb_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	fbdev = kzalloc(sizeof(struct omapfb2_device), GFP_KERNEL);
+	fbdev = devm_kzalloc(&pdev->dev, sizeof(struct omapfb2_device),
+			GFP_KERNEL);
 	if (fbdev == NULL) {
 		r = -ENOMEM;
 		goto err0;
 	}
 
-	/* TODO : Replace cpu check with omap_has_vrfb once HAS_FEATURE
-	*	 available for OMAP2 and OMAP3
-	*/
-	if (def_vrfb && !cpu_is_omap24xx() && !cpu_is_omap34xx()) {
+	if (def_vrfb && !omap_vrfb_supported()) {
 		def_vrfb = 0;
 		dev_warn(&pdev->dev, "VRFB is not supported on this hardware, "
 				"ignoring the module parameter vrfb=y\n");
 	}
 
+	r = omapdss_compat_init();
+	if (r)
+		goto err0;
 
 	mutex_init(&fbdev->mtx);
 
 	fbdev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, fbdev);
 
-	r = 0;
 	fbdev->num_displays = 0;
 	dssdev = NULL;
 	for_each_dss_dev(dssdev) {
@@ -2406,12 +2470,9 @@ static int __init omapfb_probe(struct platform_device *pdev)
 			d->update_mode = OMAPFB_AUTO_UPDATE;
 	}
 
-	if (r)
-		goto cleanup;
-
 	if (fbdev->num_displays == 0) {
 		dev_err(&pdev->dev, "no displays\n");
-		r = -EINVAL;
+		r = -EPROBE_DEFER;
 		goto cleanup;
 	}
 
@@ -2423,14 +2484,33 @@ static int __init omapfb_probe(struct platform_device *pdev)
 	for (i = 0; i < fbdev->num_managers; i++)
 		fbdev->managers[i] = omap_dss_get_overlay_manager(i);
 
-	/* gfx overlay should be the default one. find a display
-	 * connected to that, and use it as default display */
-	ovl = omap_dss_get_overlay(0);
-	if (ovl->manager && ovl->manager->device) {
-		def_display = ovl->manager->device;
-	} else {
-		dev_warn(&pdev->dev, "cannot find default display\n");
-		def_display = NULL;
+	def_display = NULL;
+
+	for (i = 0; i < fbdev->num_displays; ++i) {
+		struct omap_dss_device *dssdev;
+		const char *def_name;
+
+		def_name = omapdss_get_default_display_name();
+
+		dssdev = fbdev->displays[i].dssdev;
+
+		if (def_name == NULL ||
+			(dssdev->name && strcmp(def_name, dssdev->name) == 0)) {
+			def_display = dssdev;
+			break;
+		}
+	}
+
+	if (def_display == NULL) {
+		dev_err(fbdev->dev, "failed to find default display\n");
+		r = -EPROBE_DEFER;
+		goto cleanup;
+	}
+
+	r = omapfb_init_connections(fbdev, def_display);
+	if (r) {
+		dev_err(fbdev->dev, "failed to init overlay connections\n");
+		goto cleanup;
 	}
 
 	if (def_mode && strlen(def_mode) > 0) {
@@ -2481,6 +2561,7 @@ static int __init omapfb_probe(struct platform_device *pdev)
 
 cleanup:
 	omapfb_free_resources(fbdev);
+	omapdss_compat_uninit();
 err0:
 	dev_err(&pdev->dev, "failed to setup omapfb\n");
 	return r;
@@ -2496,10 +2577,13 @@ static int __exit omapfb_remove(struct platform_device *pdev)
 
 	omapfb_free_resources(fbdev);
 
+	omapdss_compat_uninit();
+
 	return 0;
 }
 
 static struct platform_driver omapfb_driver = {
+	.probe		= omapfb_probe,
 	.remove         = __exit_p(omapfb_remove),
 	.driver         = {
 		.name   = "omapfb",
@@ -2507,36 +2591,13 @@ static struct platform_driver omapfb_driver = {
 	},
 };
 
-static int __init omapfb_init(void)
-{
-	DBG("omapfb_init\n");
-
-	if (platform_driver_probe(&omapfb_driver, omapfb_probe)) {
-		printk(KERN_ERR "failed to register omapfb driver\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void __exit omapfb_exit(void)
-{
-	DBG("omapfb_exit\n");
-	platform_driver_unregister(&omapfb_driver);
-}
-
 module_param_named(mode, def_mode, charp, 0);
 module_param_named(vram, def_vram, charp, 0);
 module_param_named(rotate, def_rotate, int, 0);
 module_param_named(vrfb, def_vrfb, bool, 0);
 module_param_named(mirror, def_mirror, bool, 0);
 
-/* late_initcall to let panel/ctrl drivers loaded first.
- * I guess better option would be a more dynamic approach,
- * so that omapfb reacts to new panels when they are loaded */
-late_initcall(omapfb_init);
-/*module_init(omapfb_init);*/
-module_exit(omapfb_exit);
+module_platform_driver(omapfb_driver);
 
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
 MODULE_DESCRIPTION("OMAP2/3 Framebuffer");

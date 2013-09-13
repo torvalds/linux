@@ -25,10 +25,10 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -83,7 +83,6 @@ static void __init add_device_nand(void)
  * MCI (SD/MMC)
  * det_pin, wp_pin and vcc_pin are not connected
  */
-#if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
 static struct mci_platform_data __initdata mmc_data = {
 	.slot[0] = {
 		.bus_width	= 4,
@@ -91,15 +90,6 @@ static struct mci_platform_data __initdata mmc_data = {
 		.wp_pin		= -1,
 	},
 };
-#else
-static struct at91_mmc_data __initdata mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 1,
-	.det_pin	= -EINVAL,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
-};
-#endif
 
 
 /*
@@ -198,6 +188,7 @@ static struct spi_board_info portuxg20_spi_devices[] = {
 static struct w1_gpio_platform_data w1_gpio_pdata = {
 	.pin		= AT91_PIN_PA29,
 	.is_open_drain	= 1,
+	.ext_pullup_enable_pin	= -EINVAL,
 };
 
 static struct platform_device w1_device = {
@@ -223,11 +214,7 @@ void __init stamp9g20_board_init(void)
 	/* NAND */
 	add_device_nand();
 	/* MMC */
-#if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
 	at91_add_device_mci(0, &mmc_data);
-#else
-	at91_add_device_mmc(0, &mmc_data);
-#endif
 	/* W1 */
 	add_w1();
 }
@@ -286,7 +273,7 @@ static void __init stamp9g20evb_board_init(void)
 
 MACHINE_START(PORTUXG20, "taskit PortuxG20")
 	/* Maintainer: taskit GmbH */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= stamp9g20_init_early,
@@ -296,7 +283,7 @@ MACHINE_END
 
 MACHINE_START(STAMP9G20, "taskit Stamp9G20")
 	/* Maintainer: taskit GmbH */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= stamp9g20_init_early,

@@ -9,7 +9,9 @@
  * for more details.
  */
 #include <linux/console.h>
+#include <linux/suspend.h>
 #include <mach/pm-rmobile.h>
+#include <mach/common.h>
 
 #ifdef CONFIG_PM
 static int r8a7740_pd_a4s_suspend(void)
@@ -21,14 +23,6 @@ static int r8a7740_pd_a4s_suspend(void)
 	return -EBUSY;
 }
 
-struct rmobile_pm_domain r8a7740_pd_a4s = {
-	.genpd.name	= "A4S",
-	.bit_shift	= 10,
-	.gov		= &pm_domain_always_on_gov,
-	.no_debug	= true,
-	.suspend	= r8a7740_pd_a4s_suspend,
-};
-
 static int r8a7740_pd_a3sp_suspend(void)
 {
 	/*
@@ -38,17 +32,51 @@ static int r8a7740_pd_a3sp_suspend(void)
 	return console_suspend_enabled ? 0 : -EBUSY;
 }
 
-struct rmobile_pm_domain r8a7740_pd_a3sp = {
-	.genpd.name	= "A3SP",
-	.bit_shift	= 11,
-	.gov		= &pm_domain_always_on_gov,
-	.no_debug	= true,
-	.suspend	= r8a7740_pd_a3sp_suspend,
+static struct rmobile_pm_domain r8a7740_pm_domains[] = {
+	{
+		.genpd.name	= "A4S",
+		.bit_shift	= 10,
+		.gov		= &pm_domain_always_on_gov,
+		.no_debug	= true,
+		.suspend	= r8a7740_pd_a4s_suspend,
+	},
+	{
+		.genpd.name	= "A3SP",
+		.bit_shift	= 11,
+		.gov		= &pm_domain_always_on_gov,
+		.no_debug	= true,
+		.suspend	= r8a7740_pd_a3sp_suspend,
+	},
+	{
+		.genpd.name	= "A4LC",
+		.bit_shift	= 1,
+	},
 };
 
-struct rmobile_pm_domain r8a7740_pd_a4lc = {
-	.genpd.name	= "A4LC",
-	.bit_shift	= 1,
-};
+void __init r8a7740_init_pm_domains(void)
+{
+	rmobile_init_domains(r8a7740_pm_domains, ARRAY_SIZE(r8a7740_pm_domains));
+	pm_genpd_add_subdomain_names("A4S", "A3SP");
+}
 
 #endif /* CONFIG_PM */
+
+#ifdef CONFIG_SUSPEND
+static int r8a7740_enter_suspend(suspend_state_t suspend_state)
+{
+	cpu_do_idle();
+	return 0;
+}
+
+static void r8a7740_suspend_init(void)
+{
+	shmobile_suspend_ops.enter = r8a7740_enter_suspend;
+}
+#else
+static void r8a7740_suspend_init(void) {}
+#endif
+
+void __init r8a7740_pm_init(void)
+{
+	r8a7740_suspend_init();
+}

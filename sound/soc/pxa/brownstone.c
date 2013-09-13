@@ -129,6 +129,7 @@ static struct snd_soc_dai_link brownstone_wm8994_dai[] = {
 /* audio machine driver */
 static struct snd_soc_card brownstone = {
 	.name         = "brownstone",
+	.owner        = THIS_MODULE,
 	.dai_link     = brownstone_wm8994_dai,
 	.num_links    = ARRAY_SIZE(brownstone_wm8994_dai),
 
@@ -140,7 +141,7 @@ static struct snd_soc_card brownstone = {
 	.num_dapm_routes = ARRAY_SIZE(brownstone_audio_map),
 };
 
-static int __devinit brownstone_probe(struct platform_device *pdev)
+static int brownstone_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -152,7 +153,7 @@ static int __devinit brownstone_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit brownstone_remove(struct platform_device *pdev)
+static int brownstone_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_card(&brownstone);
 	return 0;
@@ -164,7 +165,7 @@ static struct platform_driver mmp_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= brownstone_probe,
-	.remove		= __devexit_p(brownstone_remove),
+	.remove		= brownstone_remove,
 };
 
 module_platform_driver(mmp_driver);

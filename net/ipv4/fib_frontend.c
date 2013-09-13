@@ -112,7 +112,6 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 struct fib_table *fib_get_table(struct net *net, u32 id)
 {
 	struct fib_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	unsigned int h;
 
@@ -122,7 +121,7 @@ struct fib_table *fib_get_table(struct net *net, u32 id)
 
 	rcu_read_lock();
 	head = &net->ipv4.fib_table_hash[h];
-	hlist_for_each_entry_rcu(tb, node, head, tb_hlist) {
+	hlist_for_each_entry_rcu(tb, head, tb_hlist) {
 		if (tb->tb_id == id) {
 			rcu_read_unlock();
 			return tb;
@@ -137,18 +136,17 @@ static void fib_flush(struct net *net)
 {
 	int flushed = 0;
 	struct fib_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	unsigned int h;
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		head = &net->ipv4.fib_table_hash[h];
-		hlist_for_each_entry(tb, node, head, tb_hlist)
+		hlist_for_each_entry(tb, head, tb_hlist)
 			flushed += fib_table_flush(tb);
 	}
 
 	if (flushed)
-		rt_cache_flush(net, -1);
+		rt_cache_flush(net);
 }
 
 /*
@@ -218,7 +216,7 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 	scope = RT_SCOPE_UNIVERSE;
 	if (!ipv4_is_zeronet(ip_hdr(skb)->saddr)) {
 		fl4.flowi4_oif = 0;
-		fl4.flowi4_iif = net->loopback_dev->ifindex;
+		fl4.flowi4_iif = LOOPBACK_IFINDEX;
 		fl4.daddr = ip_hdr(skb)->saddr;
 		fl4.saddr = 0;
 		fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);
@@ -322,7 +320,8 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 {
 	int r = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
 
-	if (!r && !fib_num_tclassid_users(dev_net(dev))) {
+	if (!r && !fib_num_tclassid_users(dev_net(dev)) &&
+	    (dev->ifindex != oif || !IN_DEV_TX_REDIRECTS(idev))) {
 		*itag = 0;
 		return 0;
 	}
@@ -487,7 +486,7 @@ int ip_rt_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	switch (cmd) {
 	case SIOCADDRT:		/* Add a route */
 	case SIOCDELRT:		/* Delete a route */
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
 
 		if (copy_from_user(&rt, arg, sizeof(rt)))
@@ -557,7 +556,7 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 	cfg->fc_flags = rtm->rtm_flags;
 	cfg->fc_nlflags = nlh->nlmsg_flags;
 
-	cfg->fc_nlinfo.pid = NETLINK_CB(skb).pid;
+	cfg->fc_nlinfo.portid = NETLINK_CB(skb).portid;
 	cfg->fc_nlinfo.nlh = nlh;
 	cfg->fc_nlinfo.nl_net = net;
 
@@ -605,7 +604,7 @@ errout:
 	return err;
 }
 
-static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
@@ -627,7 +626,7 @@ errout:
 	return err;
 }
 
-static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
@@ -655,7 +654,6 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	int dumped = 0;
 
@@ -669,7 +667,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {
 		e = 0;
 		head = &net->ipv4.fib_table_hash[h];
-		hlist_for_each_entry(tb, node, head, tb_hlist) {
+		hlist_for_each_entry(tb, head, tb_hlist) {
 			if (e < s_e)
 				goto next;
 			if (dumped)
@@ -955,28 +953,28 @@ static void nl_fib_input(struct sk_buff *skb)
 	struct fib_result_nl *frn;
 	struct nlmsghdr *nlh;
 	struct fib_table *tb;
-	u32 pid;
+	u32 portid;
 
 	net = sock_net(skb->sk);
 	nlh = nlmsg_hdr(skb);
-	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
-	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn)))
+	if (skb->len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len ||
+	    nlmsg_len(nlh) < sizeof(*frn))
 		return;
 
-	skb = skb_clone(skb, GFP_KERNEL);
+	skb = netlink_skb_clone(skb, GFP_KERNEL);
 	if (skb == NULL)
 		return;
 	nlh = nlmsg_hdr(skb);
 
-	frn = (struct fib_result_nl *) NLMSG_DATA(nlh);
+	frn = (struct fib_result_nl *) nlmsg_data(nlh);
 	tb = fib_get_table(net, frn->tb_id_in);
 
 	nl_fib_lookup(frn, tb);
 
-	pid = NETLINK_CB(skb).pid;      /* pid of sending process */
-	NETLINK_CB(skb).pid = 0;        /* from kernel */
+	portid = NETLINK_CB(skb).portid;      /* netlink portid */
+	NETLINK_CB(skb).portid = 0;        /* from kernel */
 	NETLINK_CB(skb).dst_group = 0;  /* unicast */
-	netlink_unicast(net->ipv4.fibnl, skb, pid, MSG_DONTWAIT);
+	netlink_unicast(net->ipv4.fibnl, skb, portid, MSG_DONTWAIT);
 }
 
 static int __net_init nl_fib_lookup_init(struct net *net)
@@ -986,7 +984,7 @@ static int __net_init nl_fib_lookup_init(struct net *net)
 		.input	= nl_fib_input,
 	};
 
-	sk = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, THIS_MODULE, &cfg);
+	sk = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, &cfg);
 	if (sk == NULL)
 		return -EAFNOSUPPORT;
 	net->ipv4.fibnl = sk;
@@ -999,11 +997,11 @@ static void nl_fib_lookup_exit(struct net *net)
 	net->ipv4.fibnl = NULL;
 }
 
-static void fib_disable_ip(struct net_device *dev, int force, int delay)
+static void fib_disable_ip(struct net_device *dev, int force)
 {
 	if (fib_sync_down_dev(dev, force))
 		fib_flush(dev_net(dev));
-	rt_cache_flush(dev_net(dev), delay);
+	rt_cache_flush(dev_net(dev));
 	arp_ifdown(dev);
 }
 
@@ -1020,7 +1018,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 		fib_sync_up(dev);
 #endif
 		atomic_inc(&net->ipv4.dev_addr_genid);
-		rt_cache_flush(dev_net(dev), -1);
+		rt_cache_flush(dev_net(dev));
 		break;
 	case NETDEV_DOWN:
 		fib_del_ifaddr(ifa, NULL);
@@ -1029,9 +1027,9 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 			/* Last address was deleted from this interface.
 			 * Disable IP.
 			 */
-			fib_disable_ip(dev, 1, 0);
+			fib_disable_ip(dev, 1);
 		} else {
-			rt_cache_flush(dev_net(dev), -1);
+			rt_cache_flush(dev_net(dev));
 		}
 		break;
 	}
@@ -1040,18 +1038,17 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 
 static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
-	struct in_device *in_dev = __in_dev_get_rtnl(dev);
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 
 	if (event == NETDEV_UNREGISTER) {
-		fib_disable_ip(dev, 2, -1);
+		fib_disable_ip(dev, 2);
 		rt_flush_dev(dev);
 		return NOTIFY_DONE;
 	}
 
-	if (!in_dev)
-		return NOTIFY_DONE;
+	in_dev = __in_dev_get_rtnl(dev);
 
 	switch (event) {
 	case NETDEV_UP:
@@ -1062,16 +1059,14 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		fib_sync_up(dev);
 #endif
 		atomic_inc(&net->ipv4.dev_addr_genid);
-		rt_cache_flush(dev_net(dev), -1);
+		rt_cache_flush(net);
 		break;
 	case NETDEV_DOWN:
-		fib_disable_ip(dev, 0, 0);
+		fib_disable_ip(dev, 0);
 		break;
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGE:
-		rt_cache_flush(dev_net(dev), 0);
-		break;
-	case NETDEV_UNREGISTER_BATCH:
+		rt_cache_flush(net);
 		break;
 	}
 	return NOTIFY_DONE;
@@ -1119,11 +1114,11 @@ static void ip_fib_net_exit(struct net *net)
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++) {
 		struct fib_table *tb;
 		struct hlist_head *head;
-		struct hlist_node *node, *tmp;
+		struct hlist_node *tmp;
 
 		head = &net->ipv4.fib_table_hash[i];
-		hlist_for_each_entry_safe(tb, node, tmp, head, tb_hlist) {
-			hlist_del(node);
+		hlist_for_each_entry_safe(tb, tmp, head, tb_hlist) {
+			hlist_del(&tb->tb_hlist);
 			fib_table_flush(tb);
 			fib_free_table(tb);
 		}

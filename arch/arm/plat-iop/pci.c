@@ -192,30 +192,24 @@ int iop3xx_pci_setup(int nr, struct pci_sys_data *sys)
 	if (nr != 0)
 		return 0;
 
-	res = kzalloc(2 * sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		panic("PCI: unable to alloc resources");
 
-	res[0].start = IOP3XX_PCI_LOWER_IO_PA;
-	res[0].end   = IOP3XX_PCI_LOWER_IO_PA + IOP3XX_PCI_IO_WINDOW_SIZE - 1;
-	res[0].name  = "IOP3XX PCI I/O Space";
-	res[0].flags = IORESOURCE_IO;
-	request_resource(&ioport_resource, &res[0]);
-
-	res[1].start = IOP3XX_PCI_LOWER_MEM_PA;
-	res[1].end   = IOP3XX_PCI_LOWER_MEM_PA + IOP3XX_PCI_MEM_WINDOW_SIZE - 1;
-	res[1].name  = "IOP3XX PCI Memory Space";
-	res[1].flags = IORESOURCE_MEM;
-	request_resource(&iomem_resource, &res[1]);
+	res->start = IOP3XX_PCI_LOWER_MEM_PA;
+	res->end   = IOP3XX_PCI_LOWER_MEM_PA + IOP3XX_PCI_MEM_WINDOW_SIZE - 1;
+	res->name  = "IOP3XX PCI Memory Space";
+	res->flags = IORESOURCE_MEM;
+	request_resource(&iomem_resource, res);
 
 	/*
 	 * Use whatever translation is already setup.
 	 */
 	sys->mem_offset = IOP3XX_PCI_LOWER_MEM_PA - *IOP3XX_OMWTVR0;
-	sys->io_offset  = IOP3XX_PCI_LOWER_IO_PA - *IOP3XX_OIOWTVR;
 
-	pci_add_resource_offset(&sys->resources, &res[0], sys->io_offset);
-	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
+	pci_add_resource_offset(&sys->resources, res, sys->mem_offset);
+
+	pci_ioremap_io(0, IOP3XX_PCI_LOWER_IO_PA);
 
 	return 1;
 }
@@ -367,7 +361,6 @@ void __init iop3xx_pci_preinit_cond(void)
 
 void __init iop3xx_pci_preinit(void)
 {
-	pcibios_min_io = 0;
 	pcibios_min_mem = 0;
 
 	iop3xx_atu_disable();

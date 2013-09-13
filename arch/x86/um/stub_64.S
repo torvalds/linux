@@ -1,4 +1,4 @@
-#include "as-layout.h"
+#include <as-layout.h>
 
 	.globl syscall_stub
 .section .__syscall_stub, "ax"

@@ -1,0 +1,53 @@
+menuconfig POWER_RESET
+	bool "Board level reset or power off"
+	help
+	  Provides a number of drivers which either reset a complete board
+	  or shut it down, by manipulating the main power supply on the board.
+
+	  Say Y here to enable board reset and power off
+
+config POWER_RESET_GPIO
+	bool "GPIO power-off driver"
+	depends on OF_GPIO && POWER_RESET
+	help
+	  This driver supports turning off your board via a GPIO line.
+	  If your board needs a GPIO high/low to power down, say Y and
+	  create a binding in your devicetree.
+
+config POWER_RESET_MSM
+	bool "Qualcomm MSM power-off driver"
+	depends on POWER_RESET && ARCH_MSM
+	help
+	  Power off and restart support for Qualcomm boards.
+
+config POWER_RESET_QNAP
+	bool "QNAP power-off driver"
+	depends on OF_GPIO && POWER_RESET && PLAT_ORION
+	help
+	  This driver supports turning off QNAP NAS devices by sending
+	  commands to the microcontroller which controls the main power.
+
+	  Say Y if you have a QNAP NAS.
+
+config POWER_RESET_RESTART
+	bool "Restart power-off driver"
+	depends on ARM
+	help
+	  Some boards don't actually have the ability to power off.
+	  Instead they restart, and u-boot holds the SoC until the
+	  user presses a key. u-boot then boots into Linux.
+
+config POWER_RESET_VEXPRESS
+	bool "ARM Versatile Express power-off and reset driver"
+	depends on ARM || ARM64
+	depends on POWER_RESET && VEXPRESS_CONFIG
+	help
+	  Power off and reset support for the ARM Ltd. Versatile
+	  Express boards.
+
+config POWER_RESET_XGENE
+	bool "APM SoC X-Gene reset driver"
+	depends on ARM64
+	depends on POWER_RESET
+	help
+	  Reboot support for the APM SoC X-Gene Eval boards.

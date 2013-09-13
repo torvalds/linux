@@ -2,6 +2,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/module.h>
+#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -38,7 +39,7 @@ static ssize_t show_link_address(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct hci_conn *conn = to_hci_conn(dev);
-	return sprintf(buf, "%s\n", batostr(&conn->dst));
+	return sprintf(buf, "%pMR\n", &conn->dst);
 }
 
 static ssize_t show_link_features(struct device *dev,
@@ -47,10 +48,10 @@ static ssize_t show_link_features(struct device *dev,
 	struct hci_conn *conn = to_hci_conn(dev);
 
 	return sprintf(buf, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		       conn->features[0], conn->features[1],
-		       conn->features[2], conn->features[3],
-		       conn->features[4], conn->features[5],
-		       conn->features[6], conn->features[7]);
+		       conn->features[0][0], conn->features[0][1],
+		       conn->features[0][2], conn->features[0][3],
+		       conn->features[0][4], conn->features[0][5],
+		       conn->features[0][6], conn->features[0][7]);
 }
 
 #define LINK_ATTR(_name, _mode, _show, _store) \
@@ -145,7 +146,6 @@ void hci_conn_del_sysfs(struct hci_conn *conn)
 	}
 
 	device_del(&conn->dev);
-	put_device(&conn->dev);
 
 	hci_dev_put(hdev);
 }
@@ -224,7 +224,7 @@ static ssize_t show_address(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = to_hci_dev(dev);
-	return sprintf(buf, "%s\n", batostr(&hdev->bdaddr));
+	return sprintf(buf, "%pMR\n", &hdev->bdaddr);
 }
 
 static ssize_t show_features(struct device *dev,
@@ -233,10 +233,10 @@ static ssize_t show_features(struct device *dev,
 	struct hci_dev *hdev = to_hci_dev(dev);
 
 	return sprintf(buf, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		       hdev->features[0], hdev->features[1],
-		       hdev->features[2], hdev->features[3],
-		       hdev->features[4], hdev->features[5],
-		       hdev->features[6], hdev->features[7]);
+		       hdev->features[0][0], hdev->features[0][1],
+		       hdev->features[0][2], hdev->features[0][3],
+		       hdev->features[0][4], hdev->features[0][5],
+		       hdev->features[0][6], hdev->features[0][7]);
 }
 
 static ssize_t show_manufacturer(struct device *dev,
@@ -406,8 +406,8 @@ static int inquiry_cache_show(struct seq_file *f, void *p)
 
 	list_for_each_entry(e, &cache->all, all) {
 		struct inquiry_data *data = &e->data;
-		seq_printf(f, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
-			   batostr(&data->bdaddr),
+		seq_printf(f, "%pMR %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
+			   &data->bdaddr,
 			   data->pscan_rep_mode, data->pscan_period_mode,
 			   data->pscan_mode, data->dev_class[2],
 			   data->dev_class[1], data->dev_class[0],
@@ -440,7 +440,7 @@ static int blacklist_show(struct seq_file *f, void *p)
 	hci_dev_lock(hdev);
 
 	list_for_each_entry(b, &hdev->blacklist, list)
-		seq_printf(f, "%s\n", batostr(&b->bdaddr));
+		seq_printf(f, "%pMR\n", &b->bdaddr);
 
 	hci_dev_unlock(hdev);
 
@@ -461,19 +461,18 @@ static const struct file_operations blacklist_fops = {
 
 static void print_bt_uuid(struct seq_file *f, u8 *uuid)
 {
-	__be32 data0, data4;
-	__be16 data1, data2, data3, data5;
+	u32 data0, data5;
+	u16 data1, data2, data3, data4;
 
-	memcpy(&data0, &uuid[0], 4);
-	memcpy(&data1, &uuid[4], 2);
-	memcpy(&data2, &uuid[6], 2);
-	memcpy(&data3, &uuid[8], 2);
-	memcpy(&data4, &uuid[10], 4);
-	memcpy(&data5, &uuid[14], 2);
+	data5 = get_unaligned_le32(uuid);
+	data4 = get_unaligned_le16(uuid + 4);
+	data3 = get_unaligned_le16(uuid + 6);
+	data2 = get_unaligned_le16(uuid + 8);
+	data1 = get_unaligned_le16(uuid + 10);
+	data0 = get_unaligned_le32(uuid + 12);
 
-	seq_printf(f, "%.8x-%.4x-%.4x-%.4x-%.8x%.4x\n",
-		   ntohl(data0), ntohs(data1), ntohs(data2), ntohs(data3),
-		   ntohl(data4), ntohs(data5));
+	seq_printf(f, "%.8x-%.4x-%.4x-%.4x-%.4x%.8x\n",
+		   data0, data1, data2, data3, data4, data5);
 }
 
 static int uuids_show(struct seq_file *f, void *p)
@@ -590,10 +589,8 @@ int __init bt_sysfs_init(void)
 	bt_debugfs = debugfs_create_dir("bluetooth", NULL);
 
 	bt_class = class_create(THIS_MODULE, "bluetooth");
-	if (IS_ERR(bt_class))
-		return PTR_ERR(bt_class);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(bt_class);
 }
 
 void bt_sysfs_cleanup(void)

@@ -35,6 +35,8 @@
  *                              Turned xenfs into a loadable module.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/uio.h>
@@ -458,7 +460,7 @@ static ssize_t xenbus_file_write(struct file *filp,
 		goto out;
 
 	/* Can't write a xenbus message larger we can buffer */
-	if ((len + u->len) > sizeof(u->u.buffer)) {
+	if (len > sizeof(u->u.buffer) - u->len) {
 		/* On error, dump existing buffer */
 		u->len = 0;
 		rc = -EINVAL;
@@ -616,7 +618,7 @@ static int __init xenbus_init(void)
 
 	err = misc_register(&xenbus_dev);
 	if (err)
-		printk(KERN_ERR "Could not register xenbus frontend device\n");
+		pr_err("Could not register xenbus frontend device\n");
 	return err;
 }
 

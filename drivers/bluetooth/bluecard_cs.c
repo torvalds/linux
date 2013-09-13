@@ -681,7 +681,7 @@ static int bluecard_hci_send_frame(struct sk_buff *skb)
 	case HCI_SCODATA_PKT:
 		hdev->stat.sco_tx++;
 		break;
-	};
+	}
 
 	/* Prepend skb with frame type */
 	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
@@ -849,7 +849,7 @@ static int bluecard_probe(struct pcmcia_device *link)
 	bluecard_info_t *info;
 
 	/* Create new info device */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&link->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -864,10 +864,7 @@ static int bluecard_probe(struct pcmcia_device *link)
 
 static void bluecard_detach(struct pcmcia_device *link)
 {
-	bluecard_info_t *info = link->priv;
-
 	bluecard_release(link);
-	kfree(info);
 }
 
 
@@ -937,17 +934,4 @@ static struct pcmcia_driver bluecard_driver = {
 	.remove		= bluecard_detach,
 	.id_table	= bluecard_ids,
 };
-
-static int __init init_bluecard_cs(void)
-{
-	return pcmcia_register_driver(&bluecard_driver);
-}
-
-
-static void __exit exit_bluecard_cs(void)
-{
-	pcmcia_unregister_driver(&bluecard_driver);
-}
-
-module_init(init_bluecard_cs);
-module_exit(exit_bluecard_cs);
+module_pcmcia_driver(bluecard_driver);

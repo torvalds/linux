@@ -343,8 +343,7 @@ void Wb35Rx_destroy(struct hw_data *pHwData)
 	} while (pWb35Rx->EP3vm_state != VM_STOP);
 	msleep(10); /* Delay for waiting function exit */
 
-	if (pWb35Rx->RxUrb)
-		usb_free_urb(pWb35Rx->RxUrb);
+	usb_free_urb(pWb35Rx->RxUrb);
 	pr_debug("Wb35Rx_destroy OK\n");
 }
 

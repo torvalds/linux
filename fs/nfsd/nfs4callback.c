@@ -36,6 +36,8 @@
 #include <linux/slab.h>
 #include "nfsd.h"
 #include "state.h"
+#include "netns.h"
+#include "xdr4cb.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -51,30 +53,6 @@ enum {
 	NFSPROC4_CLNT_CB_RECALL,
 	NFSPROC4_CLNT_CB_SEQUENCE,
 };
-
-#define NFS4_MAXTAGLEN		20
-
-#define NFS4_enc_cb_null_sz		0
-#define NFS4_dec_cb_null_sz		0
-#define cb_compound_enc_hdr_sz		4
-#define cb_compound_dec_hdr_sz		(3 + (NFS4_MAXTAGLEN >> 2))
-#define sessionid_sz			(NFS4_MAX_SESSIONID_LEN >> 2)
-#define cb_sequence_enc_sz		(sessionid_sz + 4 +             \
-					1 /* no referring calls list yet */)
-#define cb_sequence_dec_sz		(op_dec_sz + sessionid_sz + 4)
-
-#define op_enc_sz			1
-#define op_dec_sz			2
-#define enc_nfs4_fh_sz			(1 + (NFS4_FHSIZE >> 2))
-#define enc_stateid_sz			(NFS4_STATEID_SIZE >> 2)
-#define NFS4_enc_cb_recall_sz		(cb_compound_enc_hdr_sz +       \
-					cb_sequence_enc_sz +            \
-					1 + enc_stateid_sz +            \
-					enc_nfs4_fh_sz)
-
-#define NFS4_dec_cb_recall_sz		(cb_compound_dec_hdr_sz  +      \
-					cb_sequence_dec_sz +            \
-					op_dec_sz)
 
 struct nfs4_cb_compound_hdr {
 	/* args */
@@ -625,20 +603,46 @@ static const struct rpc_program cb_program = {
 	.pipe_dir_name		= "nfsd4_cb",
 };
 
-static int max_cb_time(void)
+static int max_cb_time(struct net *net)
 {
-	return max(nfsd4_lease/10, (time_t)1) * HZ;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	return max(nn->nfsd4_lease/10, (time_t)1) * HZ;
 }
 
+static struct rpc_cred *callback_cred;
+
+int set_callback_cred(void)
+{
+	if (callback_cred)
+		return 0;
+	callback_cred = rpc_lookup_machine_cred("nfs");
+	if (!callback_cred)
+		return -ENOMEM;
+	return 0;
+}
+
+static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
+{
+	if (clp->cl_minorversion == 0) {
+		return get_rpccred(callback_cred);
+	} else {
+		struct rpc_auth *auth = client->cl_auth;
+		struct auth_cred acred = {};
+
+		acred.uid = ses->se_cb_sec.uid;
+		acred.gid = ses->se_cb_sec.gid;
+		return auth->au_ops->lookup_cred(client->cl_auth, &acred, 0);
+	}
+}
 
 static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn, struct nfsd4_session *ses)
 {
 	struct rpc_timeout	timeparms = {
-		.to_initval	= max_cb_time(),
+		.to_initval	= max_cb_time(clp->net),
 		.to_retries	= 0,
 	};
 	struct rpc_create_args args = {
-		.net		= &init_net,
+		.net		= clp->net,
 		.address	= (struct sockaddr *) &conn->cb_addr,
 		.addrsize	= conn->cb_addrlen,
 		.saddress	= (struct sockaddr *) &conn->cb_saddr,
@@ -648,6 +652,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
 	};
 	struct rpc_clnt *client;
+	struct rpc_cred *cred;
 
 	if (clp->cl_minorversion == 0) {
 		if (!clp->cl_cred.cr_principal &&
@@ -666,7 +671,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		args.bc_xprt = conn->cb_xprt;
 		args.prognumber = clp->cl_cb_session->se_cb_prog;
 		args.protocol = XPRT_TRANSPORT_BC_TCP;
-		args.authflavor = RPC_AUTH_UNIX;
+		args.authflavor = ses->se_cb_sec.flavor;
 	}
 	/* Create RPC client */
 	client = rpc_create(&args);
@@ -675,9 +680,14 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 			PTR_ERR(client));
 		return PTR_ERR(client);
 	}
+	cred = get_backchannel_cred(clp, client, ses);
+	if (IS_ERR(cred)) {
+		rpc_shutdown_client(client);
+		return PTR_ERR(cred);
+	}
 	clp->cl_cb_client = client;
+	clp->cl_cb_cred = cred;
 	return 0;
-
 }
 
 static void warn_no_callback_path(struct nfs4_client *clp, int reason)
@@ -714,18 +724,6 @@ static const struct rpc_call_ops nfsd4_cb_probe_ops = {
 	.rpc_call_done = nfsd4_cb_probe_done,
 };
 
-static struct rpc_cred *callback_cred;
-
-int set_callback_cred(void)
-{
-	if (callback_cred)
-		return 0;
-	callback_cred = rpc_lookup_machine_cred("nfs");
-	if (!callback_cred)
-		return -ENOMEM;
-	return 0;
-}
-
 static struct workqueue_struct *callback_wq;
 
 static void run_nfsd4_cb(struct nfsd4_callback *cb)
@@ -743,7 +741,6 @@ static void do_probe_callback(struct nfs4_client *clp)
 	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL];
 	cb->cb_msg.rpc_argp = NULL;
 	cb->cb_msg.rpc_resp = NULL;
-	cb->cb_msg.rpc_cred = callback_cred;
 
 	cb->cb_ops = &nfsd4_cb_probe_ops;
 
@@ -797,8 +794,7 @@ static bool nfsd41_cb_get_slot(struct nfs4_client *clp, struct rpc_task *task)
 static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
-	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
-	struct nfs4_client *clp = dp->dl_stid.sc_client;
+	struct nfs4_client *clp = cb->cb_clp;
 	u32 minorversion = clp->cl_minorversion;
 
 	cb->cb_minorversion = minorversion;
@@ -819,8 +815,7 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
-	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
-	struct nfs4_client *clp = dp->dl_stid.sc_client;
+	struct nfs4_client *clp = cb->cb_clp;
 
 	dprintk("%s: minorversion=%d\n", __func__,
 		clp->cl_minorversion);
@@ -843,7 +838,7 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
 	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
-	struct nfs4_client *clp = dp->dl_stid.sc_client;
+	struct nfs4_client *clp = cb->cb_clp;
 	struct rpc_clnt *current_rpc_client = clp->cl_cb_client;
 
 	nfsd4_cb_done(task, calldata);
@@ -962,6 +957,8 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	if (clp->cl_cb_client) {
 		rpc_shutdown_client(clp->cl_cb_client);
 		clp->cl_cb_client = NULL;
+		put_rpccred(clp->cl_cb_cred);
+		clp->cl_cb_cred = NULL;
 	}
 	if (clp->cl_cb_conn.cb_xprt) {
 		svc_xprt_put(clp->cl_cb_conn.cb_xprt);
@@ -995,7 +992,7 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 		run_nfsd4_cb(cb);
 }
 
-void nfsd4_do_callback_rpc(struct work_struct *w)
+static void nfsd4_do_callback_rpc(struct work_struct *w)
 {
 	struct nfsd4_callback *cb = container_of(w, struct nfsd4_callback, cb_work);
 	struct nfs4_client *clp = cb->cb_clp;
@@ -1010,8 +1007,14 @@ void nfsd4_do_callback_rpc(struct work_struct *w)
 		nfsd4_release_cb(cb);
 		return;
 	}
+	cb->cb_msg.rpc_cred = clp->cl_cb_cred;
 	rpc_call_async(clnt, &cb->cb_msg, RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
 			cb->cb_ops, cb);
+}
+
+void nfsd4_init_callback(struct nfsd4_callback *cb)
+{
+	INIT_WORK(&cb->cb_work, nfsd4_do_callback_rpc);
 }
 
 void nfsd4_cb_recall(struct nfs4_delegation *dp)
@@ -1025,10 +1028,8 @@ void nfsd4_cb_recall(struct nfs4_delegation *dp)
 	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL];
 	cb->cb_msg.rpc_argp = cb;
 	cb->cb_msg.rpc_resp = cb;
-	cb->cb_msg.rpc_cred = callback_cred;
 
 	cb->cb_ops = &nfsd4_cb_recall_ops;
-	dp->dl_retries = 1;
 
 	INIT_LIST_HEAD(&cb->cb_per_client);
 	cb->cb_done = true;

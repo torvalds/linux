@@ -1,6 +1,7 @@
 /* IRC extension for IP connection tracking, Version 1.21
  * (C) 2000-2002 by Harald Welte <laforge@gnumonks.org>
  * based on RR's ip_conntrack_ftp.c
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,6 +34,7 @@ static DEFINE_SPINLOCK(irc_buffer_lock);
 
 unsigned int (*nf_nat_irc_hook)(struct sk_buff *skb,
 				enum ip_conntrack_info ctinfo,
+				unsigned int protoff,
 				unsigned int matchoff,
 				unsigned int matchlen,
 				struct nf_conntrack_expect *exp) __read_mostly;
@@ -193,6 +195,8 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 
 			exp = nf_ct_expect_alloc(ct);
 			if (exp == NULL) {
+				nf_ct_helper_log(skb, ct,
+						 "cannot alloc expectation");
 				ret = NF_DROP;
 				goto out;
 			}
@@ -205,12 +209,15 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 
 			nf_nat_irc = rcu_dereference(nf_nat_irc_hook);
 			if (nf_nat_irc && ct->status & IPS_NAT_MASK)
-				ret = nf_nat_irc(skb, ctinfo,
+				ret = nf_nat_irc(skb, ctinfo, protoff,
 						 addr_beg_p - ib_ptr,
 						 addr_end_p - addr_beg_p,
 						 exp);
-			else if (nf_ct_expect_related(exp) != 0)
+			else if (nf_ct_expect_related(exp) != 0) {
+				nf_ct_helper_log(skb, ct,
+						 "cannot add expectation");
 				ret = NF_DROP;
+			}
 			nf_ct_expect_put(exp);
 			goto out;
 		}

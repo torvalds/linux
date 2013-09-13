@@ -13,6 +13,7 @@
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
+#include <linux/suspend.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
@@ -21,6 +22,7 @@
 #include <asm/reset.h>
 #include <asm/ipl.h>
 #include <asm/diag.h>
+#include <asm/elf.h>
 #include <asm/asm-offsets.h>
 #include <asm/os_info.h>
 
@@ -30,8 +32,6 @@ extern const unsigned char relocate_kernel[];
 extern const unsigned long long relocate_kernel_len;
 
 #ifdef CONFIG_CRASH_DUMP
-
-void *fill_cpu_elf_notes(void *ptr, struct save_area *sa);
 
 /*
  * Create ELF notes for one CPU
@@ -50,7 +50,7 @@ static void add_elf_notes(int cpu)
 /*
  * Initialize CPU ELF notes
  */
-void setup_regs(void)
+static void setup_regs(void)
 {
 	unsigned long sa = S390_lowcore.prefixreg_save_area + SAVE_AREA_BASE;
 	int cpu, this_cpu;
@@ -68,6 +68,35 @@ void setup_regs(void)
 	memcpy((void *) SAVE_AREA_BASE, (void *) sa, sizeof(struct save_area));
 }
 
+/*
+ * PM notifier callback for kdump
+ */
+static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
+			       void *ptr)
+{
+	switch (action) {
+	case PM_SUSPEND_PREPARE:
+	case PM_HIBERNATION_PREPARE:
+		if (crashk_res.start)
+			crash_map_reserved_pages();
+		break;
+	case PM_POST_SUSPEND:
+	case PM_POST_HIBERNATION:
+		if (crashk_res.start)
+			crash_unmap_reserved_pages();
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+	return NOTIFY_OK;
+}
+
+static int __init machine_kdump_pm_init(void)
+{
+	pm_notifier(machine_kdump_pm_cb, 0);
+	return 0;
+}
+arch_initcall(machine_kdump_pm_init);
 #endif
 
 /*
@@ -159,7 +188,7 @@ int machine_kexec_prepare(struct kimage *image)
 
 	/* Can't replace kernel image since it is read-only. */
 	if (ipl_flags & IPL_NSS_VALID)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	if (image->type == KEXEC_TYPE_CRASH)
 		return machine_kexec_prepare_kdump();
@@ -188,6 +217,10 @@ void arch_crash_save_vmcoreinfo(void)
 }
 
 void machine_shutdown(void)
+{
+}
+
+void machine_crash_shutdown(struct pt_regs *regs)
 {
 }
 

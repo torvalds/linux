@@ -16,7 +16,7 @@
 #define AD714x_SPI_CMD_PREFIX      0xE000   /* bits 15:11 */
 #define AD714x_SPI_READ            BIT(10)
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ad714x_spi_suspend(struct device *dev)
 {
 	return ad714x_disable(spi_get_drvdata(to_spi_device(dev)));
@@ -83,7 +83,7 @@ static int ad714x_spi_write(struct ad714x_chip *chip,
 	return 0;
 }
 
-static int __devinit ad714x_spi_probe(struct spi_device *spi)
+static int ad714x_spi_probe(struct spi_device *spi)
 {
 	struct ad714x_chip *chip;
 	int err;
@@ -103,7 +103,7 @@ static int __devinit ad714x_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit ad714x_spi_remove(struct spi_device *spi)
+static int ad714x_spi_remove(struct spi_device *spi)
 {
 	struct ad714x_chip *chip = spi_get_drvdata(spi);
 
@@ -120,7 +120,7 @@ static struct spi_driver ad714x_spi_driver = {
 		.pm	= &ad714x_spi_pm,
 	},
 	.probe		= ad714x_spi_probe,
-	.remove		= __devexit_p(ad714x_spi_remove),
+	.remove		= ad714x_spi_remove,
 };
 
 module_spi_driver(ad714x_spi_driver);

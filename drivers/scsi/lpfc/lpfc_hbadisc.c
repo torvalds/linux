@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -123,6 +123,10 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		"rport devlosscb: sid:x%x did:x%x flg:x%x",
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+			 "3181 dev_loss_callbk x%06x, rport %p flg x%x\n",
+			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
+
 	/* Don't defer this if we are in the process of deleting the vport
 	 * or unloading the driver. The unload will cleanup the node
 	 * appropriately we just need to cleanup the ndlp rport info here.
@@ -142,16 +146,26 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE)
 		return;
 
+	if (ndlp->nlp_type & NLP_FABRIC) {
+
+		/* If the WWPN of the rport and ndlp don't match, ignore it */
+		if (rport->port_name != wwn_to_u64(ndlp->nlp_portname.u.wwn)) {
+			put_device(&rport->dev);
+			return;
+		}
+	}
+
 	evtp = &ndlp->dev_loss_evt;
 
 	if (!list_empty(&evtp->evt_listp))
 		return;
 
+	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
+
 	spin_lock_irq(&phba->hbalock);
 	/* We need to hold the node by incrementing the reference
 	 * count until this queued work is done
 	 */
-	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
 	if (evtp->evt_arg1) {
 		evtp->evt = LPFC_EVT_DEV_LOSS;
 		list_add_tail(&evtp->evt_listp, &phba->work_list);
@@ -201,6 +215,10 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
 		"rport devlosstmo:did:x%x type:x%x id:x%x",
 		ndlp->nlp_DID, ndlp->nlp_type, rport->scsi_target_id);
+
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+			 "3182 dev_loss_tmo_handler x%06x, rport %p flg x%x\n",
+			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
 
 	/* Don't defer this if we are in the process of deleting the vport
 	 * or unloading the driver. The unload will cleanup the node
@@ -674,12 +692,15 @@ lpfc_work_done(struct lpfc_hba *phba)
 			/* Set the lpfc data pending flag */
 			set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
-			pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
-			lpfc_sli_handle_slow_ring_event(phba, pring,
-							(status &
-							 HA_RXMASK));
+			if (phba->link_state >= LPFC_LINK_UP) {
+				pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
+				lpfc_sli_handle_slow_ring_event(phba, pring,
+								(status &
+								HA_RXMASK));
+			}
 		}
-		if ((phba->sli_rev == LPFC_SLI_REV4) && pring->txq_cnt)
+		if ((phba->sli_rev == LPFC_SLI_REV4) &
+				 (!list_empty(&pring->txq)))
 			lpfc_drain_txq(phba);
 		/*
 		 * Turn on Ring interrupts
@@ -988,9 +1009,6 @@ lpfc_linkup(struct lpfc_hba *phba)
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
 			lpfc_linkup_port(vports[i]);
 	lpfc_destroy_vport_work_array(phba, vports);
-	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
-	    (phba->sli_rev < LPFC_SLI_REV4))
-		lpfc_issue_clear_la(phba, phba->pport);
 
 	return 0;
 }
@@ -1416,7 +1434,8 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 	if (phba->fcf.fcf_flag & FCF_REGISTERED) {
 		phba->fcf.fcf_flag |= (FCF_SCAN_DONE | FCF_IN_USE);
 		phba->hba_flag &= ~FCF_TS_INPROG;
-		if (phba->pport->port_state != LPFC_FLOGI) {
+		if (phba->pport->port_state != LPFC_FLOGI &&
+		    phba->pport->fc_flag & FC_FABRIC) {
 			phba->hba_flag |= FCF_RR_INPROG;
 			spin_unlock_irq(&phba->hbalock);
 			lpfc_initial_flogi(phba->pport);
@@ -1489,9 +1508,10 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		}
 	}
 
-	/* If FCF not available return 0 */
+	/* FCF not valid/available or solicitation in progress */
 	if (!bf_get(lpfc_fcf_record_fcf_avail, new_fcf_record) ||
-		!bf_get(lpfc_fcf_record_fcf_valid, new_fcf_record))
+	    !bf_get(lpfc_fcf_record_fcf_valid, new_fcf_record) ||
+	    bf_get(lpfc_fcf_record_fcf_sol, new_fcf_record))
 		return 0;
 
 	if (!(phba->hba_flag & HBA_FIP_SUPPORT)) {
@@ -1714,7 +1734,7 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
  * use through a sequence of @fcf_cnt eligible FCF records with equal
  * probability. To perform integer manunipulation of random numbers with
  * size unit32_t, the lower 16 bits of the 32-bit random number returned
- * from random32() are taken as the random random number generated.
+ * from prandom_u32() are taken as the random random number generated.
  *
  * Returns true when outcome is for the newly read FCF record should be
  * chosen; otherwise, return false when outcome is for keeping the previously
@@ -1726,7 +1746,7 @@ lpfc_sli4_new_fcf_random_select(struct lpfc_hba *phba, uint32_t fcf_cnt)
 	uint32_t rand_num;
 
 	/* Get 16-bit uniform random number */
-	rand_num = (0xFFFF & random32());
+	rand_num = 0xFFFF & prandom_u32();
 
 	/* Decision with probability 1/fcf_cnt */
 	if ((fcf_cnt * rand_num) < 0xFFFF)
@@ -1774,6 +1794,8 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	virt_addr = mboxq->sge_array->addr[0];
 
 	shdr = (union lpfc_sli4_cfg_shdr *)virt_addr;
+	lpfc_sli_pcimem_bcopy(shdr, shdr,
+			      sizeof(union lpfc_sli4_cfg_shdr));
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status) {
@@ -1825,6 +1847,7 @@ lpfc_sli4_log_fcf_record_info(struct lpfc_hba *phba,
 			"\tFCF_Index     : x%x\n"
 			"\tFCF_Avail     : x%x\n"
 			"\tFCF_Valid     : x%x\n"
+			"\tFCF_SOL       : x%x\n"
 			"\tFIP_Priority  : x%x\n"
 			"\tMAC_Provider  : x%x\n"
 			"\tLowest VLANID : x%x\n"
@@ -1835,6 +1858,7 @@ lpfc_sli4_log_fcf_record_info(struct lpfc_hba *phba,
 			bf_get(lpfc_fcf_record_fcf_index, fcf_record),
 			bf_get(lpfc_fcf_record_fcf_avail, fcf_record),
 			bf_get(lpfc_fcf_record_fcf_valid, fcf_record),
+			bf_get(lpfc_fcf_record_fcf_sol, fcf_record),
 			fcf_record->fip_priority,
 			bf_get(lpfc_fcf_record_mac_addr_prov, fcf_record),
 			vlan_id,
@@ -2168,12 +2192,14 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					       new_fcf_record));
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
 				"2781 FCF (x%x) failed connection "
-				"list check: (x%x/x%x)\n",
+				"list check: (x%x/x%x/%x)\n",
 				bf_get(lpfc_fcf_record_fcf_index,
 				       new_fcf_record),
 				bf_get(lpfc_fcf_record_fcf_avail,
 				       new_fcf_record),
 				bf_get(lpfc_fcf_record_fcf_valid,
+				       new_fcf_record),
+				bf_get(lpfc_fcf_record_fcf_sol,
 				       new_fcf_record));
 		if ((phba->fcf.fcf_flag & FCF_IN_USE) &&
 		    lpfc_sli4_fcf_record_match(phba, &phba->fcf.current_rec,
@@ -2243,8 +2269,11 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 				spin_unlock_irq(&phba->hbalock);
 				lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 						"2836 New FCF matches in-use "
-						"FCF (x%x)\n",
-						phba->fcf.current_rec.fcf_indx);
+						"FCF (x%x), port_state:x%x, "
+						"fc_flag:x%x\n",
+						phba->fcf.current_rec.fcf_indx,
+						phba->pport->port_state,
+						phba->pport->fc_flag);
 				goto out;
 			} else
 				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
@@ -2358,7 +2387,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->fcf.eligible_fcf_cnt = 1;
 		/* Seeding the random number generator for random selection */
 		seed = (uint32_t)(0xFFFFFFFF & jiffies);
-		srandom32(seed);
+		prandom_seed(seed);
 	}
 	spin_unlock_irq(&phba->hbalock);
 	goto read_next_fcf;
@@ -2769,7 +2798,19 @@ void
 lpfc_issue_init_vpi(struct lpfc_vport *vport)
 {
 	LPFC_MBOXQ_t *mboxq;
-	int rc;
+	int rc, vpi;
+
+	if ((vport->port_type != LPFC_PHYSICAL_PORT) && (!vport->vpi)) {
+		vpi = lpfc_alloc_vpi(vport->phba);
+		if (!vpi) {
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_MBOX,
+					 "3303 Failed to obtain vport vpi\n");
+			lpfc_vport_set_state(vport, FC_VPORT_FAILED);
+			return;
+		}
+		vport->vpi = vpi;
+	}
 
 	mboxq = mempool_alloc(vport->phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
@@ -2866,6 +2907,16 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out_free_mem;
 	}
+
+	/* If the VFI is already registered, there is nothing else to do
+	 * Unless this was a VFI update and we are in PT2PT mode, then
+	 * we should drop through to set the port state to ready.
+	 */
+	if (vport->fc_flag & FC_VFI_REGISTERED)
+		if (!(phba->sli_rev == LPFC_SLI_REV4 &&
+		      vport->fc_flag & FC_PT2PT))
+			goto out_free_mem;
+
 	/* The VPI is implicitly registered when the VFI is registered */
 	spin_lock_irq(shost->host_lock);
 	vport->vpi_state |= LPFC_VPI_REGISTERED;
@@ -2881,6 +2932,13 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		goto out_free_mem;
 	}
 
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
+			 "3313 cmpl reg vfi  port_state:%x fc_flag:%x myDid:%x "
+			 "alpacnt:%d LinkState:%x topology:%x\n",
+			 vport->port_state, vport->fc_flag, vport->fc_myDID,
+			 vport->phba->alpa_map[0],
+			 phba->link_state, phba->fc_topology);
+
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
 		/*
 		 * For private loop or for NPort pt2pt,
@@ -2893,7 +2951,10 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			/* Use loop map to make discovery list */
 			lpfc_disc_list_loopmap(vport);
 			/* Start discovery */
-			lpfc_disc_start(vport);
+			if (vport->fc_flag & FC_PT2PT)
+				vport->port_state = LPFC_VPORT_READY;
+			else
+				lpfc_disc_start(vport);
 		} else {
 			lpfc_start_fdiscs(phba);
 			lpfc_do_scr_ns_plogi(phba, vport);
@@ -2958,6 +3019,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	struct lpfc_dmabuf *mp;
 	int rc;
 	struct fcf_record *fcf_record;
+	uint32_t fc_flags = 0;
 
 	spin_lock_irq(&phba->hbalock);
 	switch (bf_get(lpfc_mbx_read_top_link_spd, la)) {
@@ -2972,6 +3034,15 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	default:
 		phba->fc_linkspeed = LPFC_LINK_SPEED_UNKNOWN;
 		break;
+	}
+
+	if (phba->fc_topology &&
+	    phba->fc_topology != bf_get(lpfc_mbx_read_top_topology, la)) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+				"3314 Toplogy changed was 0x%x is 0x%x\n",
+				phba->fc_topology,
+				bf_get(lpfc_mbx_read_top_topology, la));
+		phba->fc_topology_changed = 1;
 	}
 
 	phba->fc_topology = bf_get(lpfc_mbx_read_top_topology, la);
@@ -2989,11 +3060,8 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 				"1309 Link Up Event npiv not supported in loop "
 				"topology\n");
 				/* Get Loop Map information */
-		if (bf_get(lpfc_mbx_read_top_il, la)) {
-			spin_lock(shost->host_lock);
-			vport->fc_flag |= FC_LBIT;
-			spin_unlock(shost->host_lock);
-		}
+		if (bf_get(lpfc_mbx_read_top_il, la))
+			fc_flags |= FC_LBIT;
 
 		vport->fc_myDID = bf_get(lpfc_mbx_read_top_alpa_granted, la);
 		i = la->lilpBde64.tus.f.bdeSize;
@@ -3042,11 +3110,15 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 				phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
 		}
 		vport->fc_myDID = phba->fc_pref_DID;
-		spin_lock(shost->host_lock);
-		vport->fc_flag |= FC_LBIT;
-		spin_unlock(shost->host_lock);
+		fc_flags |= FC_LBIT;
 	}
 	spin_unlock_irq(&phba->hbalock);
+
+	if (fc_flags) {
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag |= fc_flags;
+		spin_unlock_irq(shost->host_lock);
+	}
 
 	lpfc_linkup(phba);
 	sparam_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -3215,8 +3287,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		vport->fc_flag &= ~FC_BYPASSED_MODE;
 	spin_unlock_irq(shost->host_lock);
 
-	if ((phba->fc_eventTag  < la->eventTag) ||
-	    (phba->fc_eventTag == la->eventTag)) {
+	if (phba->fc_eventTag <= la->eventTag) {
 		phba->fc_stat.LinkMultiEvent++;
 		if (bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP)
 			if (phba->fc_eventTag != 0)
@@ -3224,16 +3295,18 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	phba->fc_eventTag = la->eventTag;
-	spin_lock_irq(&phba->hbalock);
-	if (bf_get(lpfc_mbx_read_top_mm, la))
-		phba->sli.sli_flag |= LPFC_MENLO_MAINT;
-	else
-		phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
-	spin_unlock_irq(&phba->hbalock);
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		spin_lock_irq(&phba->hbalock);
+		if (bf_get(lpfc_mbx_read_top_mm, la))
+			phba->sli.sli_flag |= LPFC_MENLO_MAINT;
+		else
+			phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
+		spin_unlock_irq(&phba->hbalock);
+	}
 
 	phba->link_events++;
 	if ((bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP) &&
-	    (!bf_get(lpfc_mbx_read_top_mm, la))) {
+	    !(phba->sli.sli_flag & LPFC_MENLO_MAINT)) {
 		phba->fc_stat.LinkUp++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -3278,8 +3351,8 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				bf_get(lpfc_mbx_read_top_fa, la));
 		lpfc_mbx_issue_link_down(phba);
 	}
-	if ((bf_get(lpfc_mbx_read_top_mm, la)) &&
-	    (bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP)) {
+	if ((phba->sli.sli_flag & LPFC_MENLO_MAINT) &&
+	    ((bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP))) {
 		if (phba->link_state != LPFC_LINK_DOWN) {
 			phba->fc_stat.LinkDown++;
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -3307,8 +3380,9 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		}
 	}
 
-	if (bf_get(lpfc_mbx_read_top_fa, la)) {
-		if (bf_get(lpfc_mbx_read_top_mm, la))
+	if ((phba->sli_rev < LPFC_SLI_REV4) &&
+	    bf_get(lpfc_mbx_read_top_fa, la)) {
+		if (phba->sli.sli_flag & LPFC_MENLO_MAINT)
 			lpfc_issue_clear_la(phba, vport);
 		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
 				"1311 fa %d\n",
@@ -3492,7 +3566,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t *pmb = NULL;
 	MAILBOX_t *mb;
 	struct static_vport_info *vport_info;
-	int rc = 0, i;
+	int mbx_wait_rc = 0, i;
 	struct fc_vport_identifiers vport_id;
 	struct fc_vport *new_fc_vport;
 	struct Scsi_Host *shost;
@@ -3509,7 +3583,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 				" allocate mailbox memory\n");
 		return;
 	}
-
+	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
 	mb = &pmb->u.mb;
 
 	vport_info = kzalloc(sizeof(struct static_vport_info), GFP_KERNEL);
@@ -3523,24 +3597,31 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 	vport_buff = (uint8_t *) vport_info;
 	do {
+		/* free dma buffer from previous round */
+		if (pmb->context1) {
+			mp = (struct lpfc_dmabuf *)pmb->context1;
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
 		if (lpfc_dump_static_vport(phba, pmb, offset))
 			goto out;
 
 		pmb->vport = phba->pport;
-		rc = lpfc_sli_issue_mbox_wait(phba, pmb, LPFC_MBOX_TMO);
+		mbx_wait_rc = lpfc_sli_issue_mbox_wait(phba, pmb,
+							LPFC_MBOX_TMO);
 
-		if ((rc != MBX_SUCCESS) || mb->mbxStatus) {
+		if ((mbx_wait_rc != MBX_SUCCESS) || mb->mbxStatus) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"0544 lpfc_create_static_vport failed to"
 				" issue dump mailbox command ret 0x%x "
 				"status 0x%x\n",
-				rc, mb->mbxStatus);
+				mbx_wait_rc, mb->mbxStatus);
 			goto out;
 		}
 
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			byte_count = pmb->u.mqe.un.mb_words[5];
-			mp = (struct lpfc_dmabuf *) pmb->context2;
+			mp = (struct lpfc_dmabuf *)pmb->context1;
 			if (byte_count > sizeof(struct static_vport_info) -
 					offset)
 				byte_count = sizeof(struct static_vport_info)
@@ -3604,9 +3685,9 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 out:
 	kfree(vport_info);
-	if (rc != MBX_TIMEOUT) {
-		if (pmb->context2) {
-			mp = (struct lpfc_dmabuf *) pmb->context2;
+	if (mbx_wait_rc != MBX_TIMEOUT) {
+		if (pmb->context1) {
+			mp = (struct lpfc_dmabuf *)pmb->context1;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
 		}
@@ -3834,6 +3915,10 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (rport_ids.roles !=  FC_RPORT_ROLE_UNKNOWN)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
 
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+			 "3183 rport register x%06x, rport %p role x%x\n",
+			 ndlp->nlp_DID, rport, rport_ids.roles);
+
 	if ((rport->scsi_target_id != -1) &&
 	    (rport->scsi_target_id < LPFC_MAX_TARGET)) {
 		ndlp->nlp_sid = rport->scsi_target_id;
@@ -3849,6 +3934,10 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_RPORT,
 		"rport delete:    did:x%x flg:x%x type x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
+
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+			 "3184 rport unregister x%06x, rport %p\n",
+			 ndlp->nlp_DID, rport);
 
 	fc_remote_port_delete(rport);
 
@@ -3964,6 +4053,7 @@ lpfc_nlp_state_name(char *buffer, size_t size, int state)
 		[NLP_STE_ADISC_ISSUE] = "ADISC",
 		[NLP_STE_REG_LOGIN_ISSUE] = "REGLOGIN",
 		[NLP_STE_PRLI_ISSUE] = "PRLI",
+		[NLP_STE_LOGO_ISSUE] = "LOGO",
 		[NLP_STE_UNMAPPED_NODE] = "UNMAPPED",
 		[NLP_STE_MAPPED_NODE] = "MAPPED",
 		[NLP_STE_NPR_NODE] = "NPR",
@@ -4183,7 +4273,7 @@ lpfc_set_disctmo(struct lpfc_vport *vport)
 			tmo, vport->port_state, vport->fc_flag);
 	}
 
-	mod_timer(&vport->fc_disctmo, jiffies + HZ * tmo);
+	mod_timer(&vport->fc_disctmo, jiffies + msecs_to_jiffies(1000 * tmo));
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag |= FC_DISC_TMO;
 	spin_unlock_irq(shost->host_lock);
@@ -4316,7 +4406,6 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 					   with an error */
 					list_move_tail(&iocb->list,
 						       &completions);
-					pring->txq_cnt--;
 				}
 			}
 			spin_unlock_irq(&phba->hbalock);
@@ -4328,6 +4417,26 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 			      IOERR_SLI_ABORTED);
 
 	return 0;
+}
+
+/**
+ * lpfc_nlp_logo_unreg - Unreg mailbox completion handler before LOGO
+ * @phba: Pointer to HBA context object.
+ * @pmb: Pointer to mailbox object.
+ *
+ * This function will issue an ELS LOGO command after completing
+ * the UNREG_RPI.
+ **/
+void
+lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	struct lpfc_vport  *vport = pmb->vport;
+	struct lpfc_nodelist *ndlp;
+
+	ndlp = (struct lpfc_nodelist *)(pmb->context1);
+	if (!ndlp)
+		return;
+	lpfc_issue_els_logo(vport, ndlp, 0);
 }
 
 /*
@@ -4354,9 +4463,16 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			rpi = ndlp->nlp_rpi;
 			if (phba->sli_rev == LPFC_SLI_REV4)
 				rpi = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
+
 			lpfc_unreg_login(phba, vport->vpi, rpi, mbox);
 			mbox->vport = vport;
-			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+			if (ndlp->nlp_flag & NLP_ISSUE_LOGO) {
+				mbox->context1 = ndlp;
+				mbox->mbox_cmpl = lpfc_nlp_logo_unreg;
+			} else {
+				mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+			}
+
 			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 			if (rc == MBX_NOT_FINISHED)
 				mempool_free(mbox, phba->mbox_mem_pool);
@@ -4499,9 +4615,13 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		lpfc_disable_node(vport, ndlp);
 	}
 
+
+	/* Don't need to clean up REG_LOGIN64 cmds for Default RPI cleanup */
+
 	/* cleanup any ndlp on mbox q waiting for reglogin cmpl */
 	if ((mb = phba->sli.mbox_active)) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
+		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
 			mb->context2 = NULL;
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -4512,6 +4632,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	/* Cleanup REG_LOGIN completions which are not yet processed */
 	list_for_each_entry(mb, &phba->sli.mboxq_cmpl, list) {
 		if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) ||
+			(mb->mbox_flag & LPFC_MBX_IMED_UNREG) ||
 			(ndlp != (struct lpfc_nodelist *) mb->context2))
 			continue;
 
@@ -4521,6 +4642,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
+		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
 		    (ndlp == (struct lpfc_nodelist *) mb->context2)) {
 			mp = (struct lpfc_dmabuf *) (mb->context1);
 			if (mp) {
@@ -4585,7 +4707,7 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				mbox->mbox_flag |= LPFC_MBX_IMED_UNREG;
 				mbox->mbox_cmpl = lpfc_mbx_cmpl_dflt_rpi;
 				mbox->vport = vport;
-				mbox->context2 = NULL;
+				mbox->context2 = ndlp;
 				rc =lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 				if (rc == MBX_NOT_FINISHED) {
 					mempool_free(mbox, phba->mbox_mem_pool);
@@ -4865,8 +4987,12 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	uint32_t clear_la_pending;
 	int did_changed;
 
-	if (!lpfc_is_link_up(phba))
+	if (!lpfc_is_link_up(phba)) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
+				 "3315 Link is not up %x\n",
+				 phba->link_state);
 		return;
+	}
 
 	if (phba->link_state == LPFC_CLEAR_LA)
 		clear_la_pending = 1;
@@ -4899,11 +5025,13 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	if (num_sent)
 		return;
 
-	/* Register the VPI for SLI3, NON-NPIV only. */
+	/* Register the VPI for SLI3, NPIV only. */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 	    !(vport->fc_flag & FC_PT2PT) &&
 	    !(vport->fc_flag & FC_RSCN_MODE) &&
 	    (phba->sli_rev < LPFC_SLI_REV4)) {
+		if (vport->port_type == LPFC_PHYSICAL_PORT)
+			lpfc_issue_clear_la(phba, vport);
 		lpfc_issue_reg_vpi(phba, vport);
 		return;
 	}
@@ -4984,7 +5112,6 @@ lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		    (icmd->ulpCommand == CMD_XMIT_ELS_RSP64_CX)) {
 
 			list_move_tail(&iocb->list, &completions);
-			pring->txq_cnt--;
 		}
 	}
 
@@ -5327,7 +5454,8 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (vport->cfg_fdmi_on == 1)
 		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
 	else
-		mod_timer(&vport->fc_fdmitmo, jiffies + HZ * 60);
+		mod_timer(&vport->fc_fdmitmo,
+			  jiffies + msecs_to_jiffies(1000 * 60));
 
 	/* decrement the node reference count held for this callback
 	 * function.
@@ -5365,9 +5493,17 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	struct lpfc_nodelist *ndlp;
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (filter(ndlp, param))
+		if (filter(ndlp, param)) {
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+					 "3185 FIND node filter %p DID "
+					 "Data: x%p x%x x%x\n",
+					 filter, ndlp, ndlp->nlp_DID,
+					 ndlp->nlp_flag);
 			return ndlp;
+		}
 	}
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+			 "3186 FIND node filter %p NOT FOUND.\n", filter);
 	return NULL;
 }
 
@@ -5764,7 +5900,7 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 	struct lpfc_vport **vports;
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host *shost;
-	int i, rc;
+	int i = 0, rc;
 
 	/* Unregister RPIs */
 	if (lpfc_fcf_inuse(phba))
@@ -5792,6 +5928,20 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 			spin_unlock_irq(shost->host_lock);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
+	if (i == 0 && (!(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED))) {
+		ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
+		if (ndlp)
+			lpfc_cancel_retry_delay_tmo(phba->pport, ndlp);
+		lpfc_cleanup_pending_mbox(phba->pport);
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_unreg_all_rpis(phba->pport);
+		lpfc_mbx_unreg_vpi(phba->pport);
+		shost = lpfc_shost_from_vport(phba->pport);
+		spin_lock_irq(shost->host_lock);
+		phba->pport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+		phba->pport->vpi_state &= ~LPFC_VPI_REGISTERED;
+		spin_unlock_irq(shost->host_lock);
+	}
 
 	/* Cleanup any outstanding ELS commands */
 	lpfc_els_flush_all_cmd(phba);
@@ -6008,11 +6158,43 @@ lpfc_read_fcf_conn_tbl(struct lpfc_hba *phba,
 		memcpy(&conn_entry->conn_rec, &conn_rec[i],
 			sizeof(struct lpfc_fcf_conn_rec));
 		conn_entry->conn_rec.vlan_tag =
-			le16_to_cpu(conn_entry->conn_rec.vlan_tag) & 0xFFF;
+			conn_entry->conn_rec.vlan_tag;
 		conn_entry->conn_rec.flags =
-			le16_to_cpu(conn_entry->conn_rec.flags);
+			conn_entry->conn_rec.flags;
 		list_add_tail(&conn_entry->list,
 			&phba->fcf_conn_rec_list);
+	}
+
+	if (!list_empty(&phba->fcf_conn_rec_list)) {
+		i = 0;
+		list_for_each_entry(conn_entry, &phba->fcf_conn_rec_list,
+				    list) {
+			conn_rec = &conn_entry->conn_rec;
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3345 FCF connection list rec[%02d]: "
+					"flags:x%04x, vtag:x%04x, "
+					"fabric_name:x%02x:%02x:%02x:%02x:"
+					"%02x:%02x:%02x:%02x, "
+					"switch_name:x%02x:%02x:%02x:%02x:"
+					"%02x:%02x:%02x:%02x\n", i++,
+					conn_rec->flags, conn_rec->vlan_tag,
+					conn_rec->fabric_name[0],
+					conn_rec->fabric_name[1],
+					conn_rec->fabric_name[2],
+					conn_rec->fabric_name[3],
+					conn_rec->fabric_name[4],
+					conn_rec->fabric_name[5],
+					conn_rec->fabric_name[6],
+					conn_rec->fabric_name[7],
+					conn_rec->switch_name[0],
+					conn_rec->switch_name[1],
+					conn_rec->switch_name[2],
+					conn_rec->switch_name[3],
+					conn_rec->switch_name[4],
+					conn_rec->switch_name[5],
+					conn_rec->switch_name[6],
+					conn_rec->switch_name[7]);
+		}
 	}
 }
 

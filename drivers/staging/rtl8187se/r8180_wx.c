@@ -2,7 +2,7 @@
 	This file contains wireless extension handlers.
 
 	This is part of rtl8180 OpenSource driver.
-	Copyright (C) Andrea Merello 2004-2005  <andreamrl@tiscali.it>
+	Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
 	Released under the terms of GPL (General Public Licence)
 
 	Parts of this driver are based on the GPL part
@@ -58,8 +58,6 @@ int r8180_wx_set_key(struct net_device *dev, struct iw_request_info *info,
 
 	if (priv->ieee80211->bHwRadioOff)
 		return 0;
-
-	if (erq->flags & IW_ENCODE_DISABLED)
 
 	if (erq->length > 0) {
 		u32* tkey = (u32*) key;

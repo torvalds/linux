@@ -134,7 +134,7 @@ config KEYBOARD_QT1070
 
 config KEYBOARD_QT2160
 	tristate "Atmel AT42QT2160 Touch Sensor Chip"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	help
 	  If you say yes here you get support for Atmel AT42QT2160 Touch
 	  Sensor chip as a keyboard input.
@@ -175,7 +175,7 @@ config KEYBOARD_EP93XX
 
 config KEYBOARD_GPIO
 	tristate "GPIO Buttons"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  This driver implements support for buttons connected
 	  to GPIO pins of various CPUs (and some other chips).
@@ -190,7 +190,7 @@ config KEYBOARD_GPIO
 
 config KEYBOARD_GPIO_POLLED
 	tristate "Polled GPIO buttons"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select INPUT_POLLDEV
 	help
 	  This driver implements support for buttons connected
@@ -241,7 +241,7 @@ config KEYBOARD_TCA8418
 
 config KEYBOARD_MATRIX
 	tristate "GPIO driven matrix keypad support"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select INPUT_MATRIXKMAP
 	help
 	  Enable support for GPIO driven matrix keypad.
@@ -335,6 +335,7 @@ config KEYBOARD_LOCOMO
 config KEYBOARD_LPC32XX
 	tristate "LPC32XX matrix key scanner support"
 	depends on ARCH_LPC32XX && OF
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use NXP LPC32XX SoC key scanner interface,
 	  connected to a key matrix.
@@ -408,7 +409,7 @@ config KEYBOARD_NEWTON
 
 config KEYBOARD_NOMADIK
 	tristate "ST-Ericsson Nomadik SKE keyboard"
-	depends on PLAT_NOMADIK
+	depends on (ARCH_NOMADIK || ARCH_U8500)
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a keypad provided on the SKE controller
@@ -417,9 +418,19 @@ config KEYBOARD_NOMADIK
 	  To compile this driver as a module, choose M here: the
 	  module will be called nmk-ske-keypad.
 
+config KEYBOARD_NSPIRE
+	tristate "TI-NSPIRE built-in keyboard"
+	depends on ARCH_NSPIRE && OF
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use the built-in keypad on TI-NSPIRE.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nspire-keypad.
+
 config KEYBOARD_TEGRA
 	tristate "NVIDIA Tegra internal matrix keyboard controller support"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA && OF
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a matrix keyboard connected directly
@@ -430,6 +441,7 @@ config KEYBOARD_TEGRA
 
 config KEYBOARD_OPENCORES
 	tristate "OpenCores Keyboard Controller"
+	depends on HAS_IOMEM
 	help
 	  Say Y here if you want to use the OpenCores Keyboard Controller
 	  http://www.opencores.org/project,keyboardcontroller
@@ -440,6 +452,7 @@ config KEYBOARD_OPENCORES
 config KEYBOARD_PXA27x
 	tristate "PXA27x/PXA3xx keypad support"
 	depends on PXA27x || PXA3xx || ARCH_MMP
+	select INPUT_MATRIXKMAP
 	help
 	  Enable support for PXA27x/PXA3xx keypad controller.
 
@@ -477,6 +490,16 @@ config KEYBOARD_SAMSUNG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called samsung-keypad.
+
+config KEYBOARD_GOLDFISH_EVENTS
+	depends on GOLDFISH
+	tristate "Generic Input Event device for Goldfish"
+	help
+	  Say Y here to get an input event device for the Goldfish virtual
+	  device emulator.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called goldfish-events.
 
 config KEYBOARD_STOWAWAY
 	tristate "Stowaway keyboard"
@@ -533,7 +556,7 @@ config KEYBOARD_DAVINCI
 
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
-	depends on (ARCH_OMAP1 || ARCH_OMAP2)
+	depends on ARCH_OMAP1
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the OMAP keypad.
@@ -543,6 +566,7 @@ config KEYBOARD_OMAP
 
 config KEYBOARD_OMAP4
 	tristate "TI OMAP4+ keypad support"
+	depends on ARCH_OMAP2PLUS
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the OMAP4+ keypad.
@@ -615,5 +639,17 @@ config KEYBOARD_W90P910
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
+
+config KEYBOARD_CROS_EC
+	tristate "ChromeOS EC keyboard"
+	select INPUT_MATRIXKMAP
+	depends on MFD_CROS_EC
+	help
+	  Say Y here to enable the matrix keyboard used by ChromeOS devices
+	  and implemented on the ChromeOS EC. You must enable one bus option
+	  (MFD_CROS_EC_I2C or MFD_CROS_EC_SPI) to use this.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_keyb.
 
 endif

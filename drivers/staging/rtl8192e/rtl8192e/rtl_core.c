@@ -2,7 +2,7 @@
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
  * Based on the r8180 driver, which is:
- * Copyright 2004-2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2004-2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -82,7 +82,7 @@ static struct rtl819x_ops rtl819xp_ops = {
 	.RxCheckStuckHandler		= rtl8192_HalRxCheckStuck,
 };
 
-static struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
+static struct pci_device_id rtl8192_pci_id_tbl[] = {
 	{RTL_PCI_DEVICE(0x10ec, 0x8192, rtl819xp_ops)},
 	{RTL_PCI_DEVICE(0x07aa, 0x0044, rtl819xp_ops)},
 	{RTL_PCI_DEVICE(0x07aa, 0x0047, rtl819xp_ops)},
@@ -91,15 +91,16 @@ static struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, rtl8192_pci_id_tbl);
 
-static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
+static int rtl8192_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id);
-static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev);
+static void rtl8192_pci_disconnect(struct pci_dev *pdev);
+static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
 
 static struct pci_driver rtl8192_pci_driver = {
 	.name = DRV_NAME,	/* Driver name   */
 	.id_table = rtl8192_pci_id_tbl,	/* PCI_ID table  */
 	.probe	= rtl8192_pci_probe,	/* probe fn      */
-	.remove	 = __devexit_p(rtl8192_pci_disconnect),	/* remove fn */
+	.remove	 = rtl8192_pci_disconnect,	/* remove fn */
 	.suspend = rtl8192E_suspend,	/* PM suspend fn */
 	.resume = rtl8192E_resume,                 /* PM resume fn  */
 };
@@ -734,8 +735,7 @@ static void rtl8192_prepare_beacon(struct r8192_priv *priv)
 
 	ring = &priv->tx_ring[BEACON_QUEUE];
 	pskb = __skb_dequeue(&ring->queue);
-	if (pskb)
-		kfree_skb(pskb);
+	kfree_skb(pskb);
 
 	pnewskb = rtllib_get_beacon(priv->rtllib);
 	if (!pnewskb)
@@ -1325,7 +1325,7 @@ static short rtl8192_init(struct net_device *dev)
 		    (unsigned long)dev);
 
 	rtl8192_irq_disable(dev);
-	if (request_irq(dev->irq, (void *)rtl8192_interrupt_rsl, IRQF_SHARED,
+	if (request_irq(dev->irq, rtl8192_interrupt, IRQF_SHARED,
 	    dev->name, dev)) {
 		printk(KERN_ERR "Error allocating IRQ %d", dev->irq);
 		return -1;
@@ -2105,7 +2105,10 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 						  skb_tail_pointer_rsl(skb),
 						  priv->rxbuffersize,
 						  PCI_DMA_FROMDEVICE);
-
+			if (pci_dma_mapping_error(priv->pdev, *mapping)) {
+				dev_kfree_skb_any(skb);
+				return -1;
+			}
 			entry->BufferAddress = cpu_to_le32(*mapping);
 
 			entry->Length = priv->rxbuffersize;
@@ -2398,7 +2401,11 @@ static void rtl8192_rx_normal(struct net_device *dev)
 						    skb_tail_pointer_rsl(skb),
 						    priv->rxbuffersize,
 						    PCI_DMA_FROMDEVICE);
-
+			if (pci_dma_mapping_error(priv->pdev,
+						  *((dma_addr_t *)skb->cb))) {
+				dev_kfree_skb_any(skb);
+				return;
+			}
 		}
 done:
 		pdesc->BufferAddress = cpu_to_le32(*((dma_addr_t *)skb->cb));
@@ -2698,7 +2705,7 @@ out:
 }
 
 
-irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs)
+irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 {
 	struct net_device *dev = (struct net_device *) netdev;
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
@@ -2847,7 +2854,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_start_xmit = rtllib_xmit,
 };
 
-static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
+static int rtl8192_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id)
 {
 	unsigned long ioaddr = 0;
@@ -2956,10 +2963,9 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
 
-	register_netdev(dev);
+	if (register_netdev(dev))
+		goto err_free_irq;
 	RT_TRACE(COMP_INIT, "dev name: %s\n", dev->name);
-
-	rtl8192_proc_init_one(dev);
 
 	if (priv->polling_timer_on == 0)
 		check_rfctrl_gpio_timer((unsigned long)dev);
@@ -2982,7 +2988,7 @@ err_pci_disable:
 	return err;
 }
 
-static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
+static void rtl8192_pci_disconnect(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv ;
@@ -2996,7 +3002,6 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 		del_timer_sync(&priv->gpio_polling_timer);
 		cancel_delayed_work(&priv->gpio_change_rf_wq);
 		priv->polling_timer_on = 0;
-		rtl8192_proc_remove_one(dev);
 		rtl8192_down(dev, true);
 		deinit_hal_dm(dev);
 		if (priv->pFirmware) {
@@ -3086,7 +3091,6 @@ static int __init rtl8192_pci_module_init(void)
 	printk(KERN_INFO "\nLinux kernel driver for RTL8192E WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan Driver\n");
 
-	rtl8192_proc_module_init();
 	if (0 != pci_register_driver(&rtl8192_pci_driver)) {
 		DMESG("No device found");
 		/*pci_unregister_driver (&rtl8192_pci_driver);*/
@@ -3100,7 +3104,6 @@ static void __exit rtl8192_pci_module_exit(void)
 	pci_unregister_driver(&rtl8192_pci_driver);
 
 	RT_TRACE(COMP_DOWN, "Exiting");
-	rtl8192_proc_module_remove();
 }
 
 void check_rfctrl_gpio_timer(unsigned long data)
@@ -3125,6 +3128,9 @@ MODULE_DESCRIPTION("Linux driver for Realtek RTL819x WiFi cards");
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(RTL8192E_BOOT_IMG_FW);
+MODULE_FIRMWARE(RTL8192E_MAIN_IMG_FW);
+MODULE_FIRMWARE(RTL8192E_DATA_IMG_FW);
 
 module_param(ifname, charp, S_IRUGO|S_IWUSR);
 module_param(hwwep, int, S_IRUGO|S_IWUSR);

@@ -526,7 +526,7 @@ EXPORT_SYMBOL(mpc52xx_gpt_timer_period);
 
 #define WDT_IDENTITY	    "mpc52xx watchdog on GPT0"
 
-/* wdt_is_active stores wether or not the /dev/watchdog device is opened */
+/* wdt_is_active stores whether or not the /dev/watchdog device is opened */
 static unsigned long wdt_is_active;
 
 /* wdt-capable gpt */
@@ -669,7 +669,7 @@ static struct miscdevice mpc52xx_wdt_miscdev = {
 	.fops		= &mpc52xx_wdt_fops,
 };
 
-static int __devinit mpc52xx_gpt_wdt_init(void)
+static int mpc52xx_gpt_wdt_init(void)
 {
 	int err;
 
@@ -704,7 +704,7 @@ static int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
 
 #else
 
-static int __devinit mpc52xx_gpt_wdt_init(void)
+static int mpc52xx_gpt_wdt_init(void)
 {
 	return 0;
 }
@@ -720,7 +720,7 @@ static inline int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
 /* ---------------------------------------------------------------------
  * of_platform bus binding code
  */
-static int __devinit mpc52xx_gpt_probe(struct platform_device *ofdev)
+static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 {
 	struct mpc52xx_gpt_priv *gpt;
 

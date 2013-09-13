@@ -181,7 +181,8 @@ static int a3000_bus_reset(struct scsi_cmnd *cmd)
 static struct scsi_host_template amiga_a3000_scsi_template = {
 	.module			= THIS_MODULE,
 	.name			= "Amiga 3000 built-in SCSI",
-	.proc_info		= wd33c93_proc_info,
+	.show_info		= wd33c93_show_info,
+	.write_info		= wd33c93_write_info,
 	.proc_name		= "A3000",
 	.queuecommand		= wd33c93_queuecommand,
 	.eh_abort_handler	= wd33c93_abort,
@@ -279,18 +280,7 @@ static struct platform_driver amiga_a3000_scsi_driver = {
 	},
 };
 
-static int __init amiga_a3000_scsi_init(void)
-{
-	return platform_driver_probe(&amiga_a3000_scsi_driver,
-				     amiga_a3000_scsi_probe);
-}
-module_init(amiga_a3000_scsi_init);
-
-static void __exit amiga_a3000_scsi_exit(void)
-{
-	platform_driver_unregister(&amiga_a3000_scsi_driver);
-}
-module_exit(amiga_a3000_scsi_exit);
+module_platform_driver_probe(amiga_a3000_scsi_driver, amiga_a3000_scsi_probe);
 
 MODULE_DESCRIPTION("Amiga 3000 built-in SCSI");
 MODULE_LICENSE("GPL");

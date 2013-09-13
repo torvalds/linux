@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 
 #include <mach/hardware.h>
-#include <mach/ep93xx_keypad.h>
+#include <linux/platform_data/keypad-ep93xx.h>
 
 /*
  * Keypad Interface Register offsets
@@ -232,7 +232,7 @@ static int ep93xx_keypad_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ep93xx_keypad_pm_ops,
 			 ep93xx_keypad_suspend, ep93xx_keypad_resume);
 
-static int __devinit ep93xx_keypad_probe(struct platform_device *pdev)
+static int ep93xx_keypad_probe(struct platform_device *pdev)
 {
 	struct ep93xx_keypad *keypad;
 	const struct matrix_keymap_data *keymap_data;
@@ -329,8 +329,7 @@ static int __devinit ep93xx_keypad_probe(struct platform_device *pdev)
 	return 0;
 
 failed_free_irq:
-	free_irq(keypad->irq, pdev);
-	platform_set_drvdata(pdev, NULL);
+	free_irq(keypad->irq, keypad);
 failed_free_dev:
 	input_free_device(input_dev);
 failed_put_clk:
@@ -346,14 +345,12 @@ failed_free:
 	return err;
 }
 
-static int __devexit ep93xx_keypad_remove(struct platform_device *pdev)
+static int ep93xx_keypad_remove(struct platform_device *pdev)
 {
 	struct ep93xx_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	free_irq(keypad->irq, pdev);
-
-	platform_set_drvdata(pdev, NULL);
+	free_irq(keypad->irq, keypad);
 
 	if (keypad->enabled)
 		clk_disable(keypad->clk);
@@ -380,7 +377,7 @@ static struct platform_driver ep93xx_keypad_driver = {
 		.pm	= &ep93xx_keypad_pm_ops,
 	},
 	.probe		= ep93xx_keypad_probe,
-	.remove		= __devexit_p(ep93xx_keypad_remove),
+	.remove		= ep93xx_keypad_remove,
 };
 module_platform_driver(ep93xx_keypad_driver);
 

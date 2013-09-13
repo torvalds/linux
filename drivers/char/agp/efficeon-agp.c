@@ -343,8 +343,8 @@ static const struct agp_bridge_driver efficeon_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static int __devinit agp_efficeon_probe(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+static int agp_efficeon_probe(struct pci_dev *pdev,
+			      const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;
@@ -407,7 +407,7 @@ static int __devinit agp_efficeon_probe(struct pci_dev *pdev,
 	return agp_add_bridge(bridge);
 }
 
-static void __devexit agp_efficeon_remove(struct pci_dev *pdev)
+static void agp_efficeon_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 

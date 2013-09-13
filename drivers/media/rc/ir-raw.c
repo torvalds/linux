@@ -31,11 +31,6 @@ static DEFINE_MUTEX(ir_raw_handler_lock);
 static LIST_HEAD(ir_raw_handler_list);
 static u64 available_protocols;
 
-#ifdef MODULE
-/* Used to load the decoders */
-static struct work_struct wq_load;
-#endif
-
 static int ir_raw_event_thread(void *data)
 {
 	struct ir_raw_event ev;
@@ -157,7 +152,9 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
  * This routine (which may be called from an interrupt context) works
  * in similar manner to ir_raw_event_store_edge.
  * This routine is intended for devices with limited internal buffer
- * It automerges samples of same type, and handles timeouts
+ * It automerges samples of same type, and handles timeouts. Returns non-zero
+ * if the event was added, and zero if the event was ignored due to idle
+ * processing.
  */
 int ir_raw_event_store_with_filter(struct rc_dev *dev, struct ir_raw_event *ev)
 {
@@ -184,7 +181,7 @@ int ir_raw_event_store_with_filter(struct rc_dev *dev, struct ir_raw_event *ev)
 	    dev->raw->this_ev.duration >= dev->timeout)
 		ir_raw_event_set_idle(dev, true);
 
-	return 0;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_store_with_filter);
 
@@ -259,7 +256,7 @@ int ir_raw_event_register(struct rc_dev *dev)
 		return -ENOMEM;
 
 	dev->raw->dev = dev;
-	dev->raw->enabled_protocols = ~0;
+	dev->enabled_protocols = ~0;
 	rc = kfifo_alloc(&dev->raw->kfifo,
 			 sizeof(struct ir_raw_event) * MAX_IR_EVENT_SIZE,
 			 GFP_KERNEL);
@@ -345,8 +342,7 @@ void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
 
-#ifdef MODULE
-static void init_decoders(struct work_struct *work)
+void ir_raw_init(void)
 {
 	/* Load the decoder modules */
 
@@ -362,13 +358,4 @@ static void init_decoders(struct work_struct *work)
 	/* If needed, we may later add some init code. In this case,
 	   it is needed to change the CONFIG_MODULE test at rc-core.h
 	 */
-}
-#endif
-
-void ir_raw_init(void)
-{
-#ifdef MODULE
-	INIT_WORK(&wq_load, init_decoders);
-	schedule_work(&wq_load);
-#endif
 }

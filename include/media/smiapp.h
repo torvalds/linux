@@ -4,7 +4,7 @@
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
  * Copyright (C) 2011--2012 Nokia Corporation
- * Contact: Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>
+ * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -77,7 +77,6 @@ struct smiapp_platform_data {
 	struct smiapp_flash_strobe_parms *strobe_setup;
 
 	int (*set_xclk)(struct v4l2_subdev *sd, int hz);
-	char *ext_clk_name;
 	int xshutdown;			/* gpio or SMIAPP_NO_XSHUTDOWN */
 };
 

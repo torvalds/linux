@@ -322,7 +322,7 @@ static struct snd_soc_platform_driver alchemy_pcm_soc_platform = {
 	.pcm_free	= alchemy_pcm_free_dma_buffers,
 };
 
-static int __devinit alchemy_pcm_drvprobe(struct platform_device *pdev)
+static int alchemy_pcm_drvprobe(struct platform_device *pdev)
 {
 	struct alchemy_pcm_ctx *ctx;
 
@@ -335,7 +335,7 @@ static int __devinit alchemy_pcm_drvprobe(struct platform_device *pdev)
 	return snd_soc_register_platform(&pdev->dev, &alchemy_pcm_soc_platform);
 }
 
-static int __devexit alchemy_pcm_drvremove(struct platform_device *pdev)
+static int alchemy_pcm_drvremove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 
@@ -348,7 +348,7 @@ static struct platform_driver alchemy_pcmdma_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= alchemy_pcm_drvprobe,
-	.remove		= __devexit_p(alchemy_pcm_drvremove),
+	.remove		= alchemy_pcm_drvremove,
 };
 
 module_platform_driver(alchemy_pcmdma_driver);

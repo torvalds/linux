@@ -53,19 +53,19 @@ static struct fb_fix_screeninfo tridentfb_fix = {
 /* defaults which are normally overriden by user values */
 
 /* video mode */
-static char *mode_option __devinitdata = "640x480-8@60";
-static int bpp __devinitdata = 8;
+static char *mode_option = "640x480-8@60";
+static int bpp = 8;
 
-static int noaccel __devinitdata;
+static int noaccel;
 
 static int center;
 static int stretch;
 
-static int fp __devinitdata;
-static int crt __devinitdata;
+static int fp;
+static int crt;
 
-static int memsize __devinitdata;
-static int memdiff __devinitdata;
+static int memsize;
+static int memdiff;
 static int nativex;
 
 module_param(mode_option, charp, 0);
@@ -637,7 +637,7 @@ static inline void crtc_unlock(struct tridentfb_par *par)
 }
 
 /*  Return flat panel's maximum x resolution */
-static int __devinit get_nativex(struct tridentfb_par *par)
+static int get_nativex(struct tridentfb_par *par)
 {
 	int x, y, tmp;
 
@@ -771,7 +771,7 @@ static void set_number_of_lines(struct tridentfb_par *par, int lines)
  * If we see that FP is active we assume we have one.
  * Otherwise we have a CRT display. User can override.
  */
-static int __devinit is_flatpanel(struct tridentfb_par *par)
+static int is_flatpanel(struct tridentfb_par *par)
 {
 	if (fp)
 		return 1;
@@ -781,7 +781,7 @@ static int __devinit is_flatpanel(struct tridentfb_par *par)
 }
 
 /* Try detecting the video memory size */
-static unsigned int __devinit get_memsize(struct tridentfb_par *par)
+static unsigned int get_memsize(struct tridentfb_par *par)
 {
 	unsigned char tmp, tmp2;
 	unsigned int k;
@@ -1331,8 +1331,8 @@ static struct fb_ops tridentfb_ops = {
 	.fb_sync = tridentfb_sync,
 };
 
-static int __devinit trident_pci_probe(struct pci_dev *dev,
-				       const struct pci_device_id *id)
+static int trident_pci_probe(struct pci_dev *dev,
+			     const struct pci_device_id *id)
 {
 	int err;
 	unsigned char revision;
@@ -1543,7 +1543,7 @@ out_unmap1:
 	return err;
 }
 
-static void __devexit trident_pci_remove(struct pci_dev *dev)
+static void trident_pci_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct tridentfb_par *par = info->par;
@@ -1591,7 +1591,7 @@ static struct pci_driver tridentfb_pci_driver = {
 	.name = "tridentfb",
 	.id_table = trident_devices,
 	.probe = trident_pci_probe,
-	.remove = __devexit_p(trident_pci_remove)
+	.remove = trident_pci_remove,
 };
 
 /*

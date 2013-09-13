@@ -93,8 +93,7 @@ static void wl1251_spi_wake(struct wl1251 *wl)
 	memset(&t, 0, sizeof(t));
 	spi_message_init(&m);
 
-	/*
-	 * Set WSPI_INIT_COMMAND
+	/* Set WSPI_INIT_COMMAND
 	 * the data is being send from the MSB to LSB
 	 */
 	cmd[2] = 0xff;
@@ -237,7 +236,7 @@ static const struct wl1251_if_operations wl1251_spi_ops = {
 	.power = wl1251_spi_set_power,
 };
 
-static int __devinit wl1251_spi_probe(struct spi_device *spi)
+static int wl1251_spi_probe(struct spi_device *spi)
 {
 	struct wl12xx_platform_data *pdata;
 	struct ieee80211_hw *hw;
@@ -257,12 +256,13 @@ static int __devinit wl1251_spi_probe(struct spi_device *spi)
 	wl = hw->priv;
 
 	SET_IEEE80211_DEV(hw, &spi->dev);
-	dev_set_drvdata(&spi->dev, wl);
+	spi_set_drvdata(spi, wl);
 	wl->if_priv = spi;
 	wl->if_ops = &wl1251_spi_ops;
 
 	/* This is the only SPI value that we need to set here, the rest
-	 * comes from the board-peripherals file */
+	 * comes from the board-peripherals file
+	 */
 	spi->bits_per_word = 32;
 
 	ret = spi_setup(spi);
@@ -309,9 +309,9 @@ static int __devinit wl1251_spi_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int __devexit wl1251_spi_remove(struct spi_device *spi)
+static int wl1251_spi_remove(struct spi_device *spi)
 {
-	struct wl1251 *wl = dev_get_drvdata(&spi->dev);
+	struct wl1251 *wl = spi_get_drvdata(spi);
 
 	free_irq(wl->irq, wl);
 	wl1251_free_hw(wl);
@@ -326,32 +326,10 @@ static struct spi_driver wl1251_spi_driver = {
 	},
 
 	.probe		= wl1251_spi_probe,
-	.remove		= __devexit_p(wl1251_spi_remove),
+	.remove		= wl1251_spi_remove,
 };
 
-static int __init wl1251_spi_init(void)
-{
-	int ret;
-
-	ret = spi_register_driver(&wl1251_spi_driver);
-	if (ret < 0) {
-		wl1251_error("failed to register spi driver: %d", ret);
-		goto out;
-	}
-
-out:
-	return ret;
-}
-
-static void __exit wl1251_spi_exit(void)
-{
-	spi_unregister_driver(&wl1251_spi_driver);
-
-	wl1251_notice("unloaded");
-}
-
-module_init(wl1251_spi_init);
-module_exit(wl1251_spi_exit);
+module_spi_driver(wl1251_spi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kvalo@adurom.com>");

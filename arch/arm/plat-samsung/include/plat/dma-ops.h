@@ -18,7 +18,6 @@
 
 struct samsung_dma_req {
 	enum dma_transaction_type cap;
-	struct property *dt_dmach_prop;
 	struct s3c2410_dma_client *client;
 };
 
@@ -39,7 +38,8 @@ struct samsung_dma_config {
 };
 
 struct samsung_dma_ops {
-	unsigned (*request)(enum dma_ch ch, struct samsung_dma_req *param);
+	unsigned (*request)(enum dma_ch ch, struct samsung_dma_req *param,
+				struct device *dev, char *ch_name);
 	int (*release)(unsigned ch, void *param);
 	int (*config)(unsigned ch, struct samsung_dma_config *param);
 	int (*prepare)(unsigned ch, struct samsung_dma_prep *param);

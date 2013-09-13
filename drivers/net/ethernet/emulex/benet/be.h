@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -34,15 +34,15 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"4.4.31.0u"
+#define DRV_VER			"4.9.134.0u"
 #define DRV_NAME		"be2net"
-#define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
-#define BE3_NAME		"ServerEngines BladeEngine3 10Gbps NIC"
-#define OC_NAME			"Emulex OneConnect 10Gbps NIC"
+#define BE_NAME			"Emulex BladeEngine2"
+#define BE3_NAME		"Emulex BladeEngine3"
+#define OC_NAME			"Emulex OneConnect"
 #define OC_NAME_BE		OC_NAME	"(be3)"
 #define OC_NAME_LANCER		OC_NAME "(Lancer)"
 #define OC_NAME_SH		OC_NAME "(Skyhawk)"
-#define DRV_DESC		"ServerEngines BladeEngine 10Gbps NIC Driver"
+#define DRV_DESC		"Emulex OneConnect 10Gbps NIC Driver"
 
 #define BE_VENDOR_ID 		0x19a2
 #define EMULEX_VENDOR_ID	0x10df
@@ -53,6 +53,7 @@
 #define OC_DEVICE_ID3		0xe220	/* Device id for Lancer cards */
 #define OC_DEVICE_ID4           0xe228   /* Device id for VF in Lancer */
 #define OC_DEVICE_ID5		0x720	/* Device Id for Skyhawk cards */
+#define OC_DEVICE_ID6		0x728   /* Device id for VF in SkyHawk */
 #define OC_SUBSYS_DEVICE_ID1	0xE602
 #define OC_SUBSYS_DEVICE_ID2	0xE642
 #define OC_SUBSYS_DEVICE_ID3	0xE612
@@ -71,6 +72,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 	case BE_DEVICE_ID2:
 		return BE3_NAME;
 	case OC_DEVICE_ID5:
+	case OC_DEVICE_ID6:
 		return OC_NAME_SH;
 	default:
 		return BE_NAME;
@@ -97,19 +99,24 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MCC_Q_LEN		128	/* total size not to exceed 8 pages */
 #define MCC_CQ_LEN		256
 
-#define BE3_MAX_RSS_QS		8
 #define BE2_MAX_RSS_QS		4
-#define MAX_RSS_QS		BE3_MAX_RSS_QS
-#define MAX_RX_QS		(MAX_RSS_QS + 1) /* RSS qs + 1 def Rx */
+#define BE3_MAX_RSS_QS		16
+#define BE3_MAX_TX_QS		16
+#define BE3_MAX_EVT_QS		16
 
-#define MAX_TX_QS		8
+#define MAX_RX_QS		32
+#define MAX_EVT_QS		32
+#define MAX_TX_QS		32
+
 #define MAX_ROCE_EQS		5
-#define MAX_MSIX_VECTORS	(MAX_RSS_QS + MAX_ROCE_EQS) /* RSS qs + RoCE */
+#define MAX_MSIX_VECTORS	32
+#define MIN_MSIX_VECTORS	1
 #define BE_TX_BUDGET		256
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
 
+#define MAX_VFS			30 /* Max VFs supported by BE3 FW */
 #define FW_VER_LEN		32
 
 struct be_dma_mem {
@@ -186,7 +193,9 @@ struct be_eq_obj {
 	u32 cur_eqd;		/* in usecs */
 
 	u8 idx;			/* array index */
+	u8 msix_idx;
 	u16 tx_budget;
+	u16 spurious_intr;
 	struct napi_struct napi;
 	struct be_adapter *adapter;
 } ____cacheline_aligned_in_smp;
@@ -210,6 +219,7 @@ struct be_tx_stats {
 };
 
 struct be_tx_obj {
+	u32 db_offset;
 	struct be_queue_info q;
 	struct be_queue_info cq;
 	/* Remember the skbs that were transmitted */
@@ -257,6 +267,7 @@ struct be_rx_compl_info {
 	u8 ipv6;
 	u8 vtm;
 	u8 pkt_type;
+	u8 ip_frag;
 };
 
 struct be_rx_obj {
@@ -288,7 +299,7 @@ struct be_drv_stats {
 	u32 rx_in_range_errors;
 	u32 rx_out_range_errors;
 	u32 rx_frame_too_long;
-	u32 rx_address_mismatch_drops;
+	u32 rx_address_filtered;
 	u32 rx_dropped_too_small;
 	u32 rx_dropped_too_short;
 	u32 rx_dropped_header_too_small;
@@ -322,8 +333,13 @@ enum vf_state {
 
 #define BE_FLAGS_LINK_STATUS_INIT		1
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
+#define BE_FLAGS_NAPI_ENABLED			(1 << 9)
 #define BE_UC_PMAC_COUNT		30
 #define BE_VF_UC_PMAC_COUNT		2
+#define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
+
+/* Ethtool set_dump flags */
+#define LANCER_INITIATE_FW_DUMP			0x1
 
 struct phy_info {
 	u8 transceiver;
@@ -336,17 +352,28 @@ struct phy_info {
 	u16 auto_speeds_supported;
 	u16 fixed_speeds_supported;
 	int link_speed;
-	int forced_port_speed;
 	u32 dac_cable_len;
 	u32 advertising;
 	u32 supported;
+};
+
+struct be_resources {
+	u16 max_vfs;		/* Total VFs "really" supported by FW/HW */
+	u16 max_mcast_mac;
+	u16 max_tx_qs;
+	u16 max_rss_qs;
+	u16 max_rx_qs;
+	u16 max_uc_mac;		/* Max UC MACs programmable */
+	u16 max_vlans;		/* Number of vlans supported */
+	u16 max_evt_qs;
+	u32 if_cap_flags;
 };
 
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 
-	u8 __iomem *csr;
+	u8 __iomem *csr;	/* CSR BAR used only for BE2/3 */
 	u8 __iomem *db;		/* Door Bell */
 
 	struct mutex mbox_lock; /* For serializing mbox cmds to BE card */
@@ -359,26 +386,24 @@ struct be_adapter {
 	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
 	spinlock_t mcc_cq_lock;
 
-	u32 num_msix_vec;
-	u32 num_evt_qs;
-	struct be_eq_obj eq_obj[MAX_MSIX_VECTORS];
+	u16 cfg_num_qs;		/* configured via set-channels */
+	u16 num_evt_qs;
+	u16 num_msix_vec;
+	struct be_eq_obj eq_obj[MAX_EVT_QS];
 	struct msix_entry msix_entries[MAX_MSIX_VECTORS];
 	bool isr_registered;
 
 	/* TX Rings */
-	u32 num_tx_qs;
+	u16 num_tx_qs;
 	struct be_tx_obj tx_obj[MAX_TX_QS];
 
 	/* Rx rings */
-	u32 num_rx_qs;
+	u16 num_rx_qs;
 	struct be_rx_obj rx_obj[MAX_RX_QS];
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
-	u8 eq_next_idx;
 	struct be_drv_stats drv_stats;
-
 	u16 vlans_added;
-	u16 max_vlans;	/* Number of vlans supported */
 	u8 vlan_tag[VLAN_N_VID];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
 	u16 recommended_prio;	/* Recommended Priority */
@@ -391,8 +416,10 @@ struct be_adapter {
 
 	struct delayed_work func_recovery_work;
 	u32 flags;
+	u32 cmd_privileges;
 	/* Ethtool knobs and info */
 	char fw_ver[FW_VER_LEN];
+	char fw_on_flash[FW_VER_LEN];
 	int if_handle;		/* Used to configure filtering */
 	u32 *pmac_id;		/* MAC addr handle used by BE card */
 	u32 beacon_state;	/* for set_phys_id */
@@ -408,10 +435,8 @@ struct be_adapter {
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
 	bool stats_cmd_sent;
-	u8 generation;		/* BladeEngine ASIC generation */
 	u32 if_type;
 	struct {
-		u8 __iomem *base;	/* Door Bell */
 		u32 size;
 		u32 total_size;
 		u64 io_addr;
@@ -423,8 +448,8 @@ struct be_adapter {
 	u32 flash_status;
 	struct completion flash_compl;
 
-	u32 num_vfs;		/* Number of VFs provisioned by PF driver */
-	u32 dev_num_vfs;	/* Number of VFs supported by HW */
+	struct be_resources res;	/* resources available for the func */
+	u16 num_vfs;			/* Number of VFs provisioned by PF */
 	u8 virtfn;
 	struct be_vf_cfg *vf_cfg;
 	bool be3_native;
@@ -434,35 +459,62 @@ struct be_adapter {
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol;
-	u32 max_pmac_cnt;	/* Max secondary UC MACs programmable */
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
+	u16 asic_rev;
+	u16 qnq_vid;
 	u32 msg_enable;
 	int be_get_temp_freq;
+	u8 pf_number;
+	u64 rss_flags;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
 #define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
-#define	sriov_want(adapter)		(adapter->dev_num_vfs && num_vfs && \
+#define sriov_want(adapter)             (be_max_vfs(adapter) && num_vfs && \
 					 be_physfn(adapter))
 #define for_all_vfs(adapter, vf_cfg, i)					\
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
 		i++, vf_cfg++)
 
-/* BladeEngine Generation numbers */
-#define BE_GEN2 2
-#define BE_GEN3 3
-
 #define ON				1
 #define OFF				0
-#define lancer_chip(adapter)	((adapter->pdev->device == OC_DEVICE_ID3) || \
-				 (adapter->pdev->device == OC_DEVICE_ID4))
 
-#define skyhawk_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID5)
+#define be_max_vlans(adapter)		(adapter->res.max_vlans)
+#define be_max_uc(adapter)		(adapter->res.max_uc_mac)
+#define be_max_mc(adapter)		(adapter->res.max_mcast_mac)
+#define be_max_vfs(adapter)		(adapter->res.max_vfs)
+#define be_max_rss(adapter)		(adapter->res.max_rss_qs)
+#define be_max_txqs(adapter)		(adapter->res.max_tx_qs)
+#define be_max_prio_txqs(adapter)	(adapter->res.max_prio_tx_qs)
+#define be_max_rxqs(adapter)		(adapter->res.max_rx_qs)
+#define be_max_eqs(adapter)		(adapter->res.max_evt_qs)
+#define be_if_cap_flags(adapter)	(adapter->res.if_cap_flags)
 
+static inline u16 be_max_qs(struct be_adapter *adapter)
+{
+	/* If no RSS, need atleast the one def RXQ */
+	u16 num = max_t(u16, be_max_rss(adapter), 1);
 
-#define be_roce_supported(adapter) ((adapter->if_type == SLI_INTF_TYPE_3 || \
-				adapter->sli_family == SKYHAWK_SLI_FAMILY) && \
-				(adapter->function_mode & RDMA_ENABLED))
+	num = min(num, be_max_eqs(adapter));
+	return min_t(u16, num, num_online_cpus());
+}
+
+#define lancer_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID3 || \
+				 adapter->pdev->device == OC_DEVICE_ID4)
+
+#define skyhawk_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID5 || \
+				 adapter->pdev->device == OC_DEVICE_ID6)
+
+#define BE3_chip(adapter)	(adapter->pdev->device == BE_DEVICE_ID2 || \
+				 adapter->pdev->device == OC_DEVICE_ID2)
+
+#define BE2_chip(adapter)	(adapter->pdev->device == BE_DEVICE_ID1 || \
+				 adapter->pdev->device == OC_DEVICE_ID1)
+
+#define BEx_chip(adapter)	(BE3_chip(adapter) || BE2_chip(adapter))
+
+#define be_roce_supported(adapter)	(skyhawk_chip(adapter) && \
+					(adapter->function_mode & RDMA_ENABLED))
 
 extern const struct ethtool_ops be_ethtool_ops;
 
@@ -607,7 +659,7 @@ static inline bool be_error(struct be_adapter *adapter)
 	return adapter->eeh_error || adapter->hw_error || adapter->fw_timeout;
 }
 
-static inline bool be_crit_error(struct be_adapter *adapter)
+static inline bool be_hw_error(struct be_adapter *adapter)
 {
 	return adapter->eeh_error || adapter->hw_error;
 }
@@ -637,10 +689,9 @@ static inline bool be_is_wol_excluded(struct be_adapter *adapter)
 	}
 }
 
-static inline bool be_type_2_3(struct be_adapter *adapter)
+static inline int qnq_async_evt_rcvd(struct be_adapter *adapter)
 {
-	return (adapter->if_type == SLI_INTF_TYPE_2 ||
-		adapter->if_type == SLI_INTF_TYPE_3) ? true : false;
+	return adapter->flags & BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
 }
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
@@ -651,6 +702,8 @@ extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 extern bool be_is_wol_supported(struct be_adapter *adapter);
 extern bool be_pause_supported(struct be_adapter *adapter);
 extern u32 be_get_fw_log_level(struct be_adapter *adapter);
+int be_update_queues(struct be_adapter *adapter);
+int be_poll(struct napi_struct *napi, int budget);
 
 /*
  * internal function to initialize-cleanup roce device.

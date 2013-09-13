@@ -29,16 +29,16 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of_platform.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/phy.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
 #include <mach/map.h>
 
 #include "s3c-hsotg.h"
-
-#define DMA_ADDR_INVALID (~((dma_addr_t)0))
 
 static const char * const s3c_hsotg_supply_names[] = {
 	"vusb_d",		/* digital USB supply, 1.2V */
@@ -133,7 +133,9 @@ struct s3c_hsotg_ep {
  * struct s3c_hsotg - driver state.
  * @dev: The parent device supplied to the probe function
  * @driver: USB gadget driver
- * @plat: The platform specific configuration data.
+ * @phy: The otg phy transceiver structure for phy control.
+ * @plat: The platform specific configuration data. This can be removed once
+ * all SoCs support usb transceiver.
  * @regs: The memory area mapped for accessing registers.
  * @irq: The IRQ number we are using
  * @supplies: Definition of USB power supplies
@@ -153,6 +155,7 @@ struct s3c_hsotg_ep {
 struct s3c_hsotg {
 	struct device		 *dev;
 	struct usb_gadget_driver *driver;
+	struct usb_phy		*phy;
 	struct s3c_hsotg_plat	 *plat;
 
 	spinlock_t              lock;
@@ -401,7 +404,6 @@ static struct usb_request *s3c_hsotg_ep_alloc_request(struct usb_ep *ep,
 
 	INIT_LIST_HEAD(&req->queue);
 
-	req->req.dma = DMA_ADDR_INVALID;
 	return &req->req;
 }
 
@@ -431,24 +433,12 @@ static void s3c_hsotg_unmap_dma(struct s3c_hsotg *hsotg,
 				struct s3c_hsotg_req *hs_req)
 {
 	struct usb_request *req = &hs_req->req;
-	enum dma_data_direction dir;
-
-	dir = hs_ep->dir_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
 	/* ignore this if we're not moving any data */
 	if (hs_req->req.length == 0)
 		return;
 
-	if (hs_req->mapped) {
-		/* we mapped this, so unmap and remove the dma */
-
-		dma_unmap_single(hsotg->dev, req->dma, req->length, dir);
-
-		req->dma = DMA_ADDR_INVALID;
-		hs_req->mapped = 0;
-	} else {
-		dma_sync_single_for_cpu(hsotg->dev, req->dma, req->length, dir);
-	}
+	usb_gadget_unmap_request(&hsotg->gadget, req, hs_ep->dir_in);
 }
 
 /**
@@ -848,37 +838,16 @@ static int s3c_hsotg_map_dma(struct s3c_hsotg *hsotg,
 			     struct s3c_hsotg_ep *hs_ep,
 			     struct usb_request *req)
 {
-	enum dma_data_direction dir;
 	struct s3c_hsotg_req *hs_req = our_req(req);
-
-	dir = hs_ep->dir_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	int ret;
 
 	/* if the length is zero, ignore the DMA data */
 	if (hs_req->req.length == 0)
 		return 0;
 
-	if (req->dma == DMA_ADDR_INVALID) {
-		dma_addr_t dma;
-
-		dma = dma_map_single(hsotg->dev, req->buf, req->length, dir);
-
-		if (unlikely(dma_mapping_error(hsotg->dev, dma)))
-			goto dma_error;
-
-		if (dma & 3) {
-			dev_err(hsotg->dev, "%s: unaligned dma buffer\n",
-				__func__);
-
-			dma_unmap_single(hsotg->dev, dma, req->length, dir);
-			return -EINVAL;
-		}
-
-		hs_req->mapped = 1;
-		req->dma = dma;
-	} else {
-		dma_sync_single_for_cpu(hsotg->dev, req->dma, req->length, dir);
-		hs_req->mapped = 0;
-	}
+	ret = usb_gadget_map_request(&hsotg->gadget, req, hs_ep->dir_in);
+	if (ret)
+		goto dma_error;
 
 	return 0;
 
@@ -2197,7 +2166,7 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 	/* issue soft reset */
 	writel(GRSTCTL_CSftRst, hsotg->regs + GRSTCTL);
 
-	timeout = 1000;
+	timeout = 10000;
 	do {
 		grstctl = readl(hsotg->regs + GRSTCTL);
 	} while ((grstctl & GRSTCTL_CSftRst) && timeout-- > 0);
@@ -2207,7 +2176,7 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 		return -EINVAL;
 	}
 
-	timeout = 1000;
+	timeout = 10000;
 
 	while (1) {
 		u32 grstctl = readl(hsotg->regs + GRSTCTL);
@@ -2854,7 +2823,10 @@ static void s3c_hsotg_phy_enable(struct s3c_hsotg *hsotg)
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
 
 	dev_dbg(hsotg->dev, "pdev 0x%p\n", pdev);
-	if (hsotg->plat->phy_init)
+
+	if (hsotg->phy)
+		usb_phy_init(hsotg->phy);
+	else if (hsotg->plat->phy_init)
 		hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
 }
 
@@ -2869,7 +2841,9 @@ static void s3c_hsotg_phy_disable(struct s3c_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
 
-	if (hsotg->plat->phy_exit)
+	if (hsotg->phy)
+		usb_phy_shutdown(hsotg->phy);
+	else if (hsotg->plat->phy_exit)
 		hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
 }
 
@@ -2952,9 +2926,7 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 
 	driver->driver.bus = NULL;
 	hsotg->driver = driver;
-	hsotg->gadget.dev.driver = &driver->driver;
 	hsotg->gadget.dev.of_node = hsotg->dev->of_node;
-	hsotg->gadget.dev.dma_mask = hsotg->dev->dma_mask;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
@@ -2970,7 +2942,6 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 
 err:
 	hsotg->driver = NULL;
-	hsotg->gadget.dev.driver = NULL;
 	return ret;
 }
 
@@ -3005,7 +2976,6 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 
 	hsotg->driver = NULL;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
-	hsotg->gadget.dev.driver = NULL;
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
@@ -3055,7 +3025,7 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static struct usb_gadget_ops s3c_hsotg_gadget_ops = {
+static const struct usb_gadget_ops s3c_hsotg_gadget_ops = {
 	.get_frame	= s3c_hsotg_gadget_getframe,
 	.udc_start		= s3c_hsotg_udc_start,
 	.udc_stop		= s3c_hsotg_udc_stop,
@@ -3072,7 +3042,7 @@ static struct usb_gadget_ops s3c_hsotg_gadget_ops = {
  * creation) to give to the gadget driver. Setup the endpoint name, any
  * direction information and other state that may be required.
  */
-static void __devinit s3c_hsotg_initep(struct s3c_hsotg *hsotg,
+static void s3c_hsotg_initep(struct s3c_hsotg *hsotg,
 				       struct s3c_hsotg_ep *hs_ep,
 				       int epnum)
 {
@@ -3414,7 +3384,7 @@ static const struct file_operations ep_fops = {
  * with the same name as the device itself, in case we end up
  * with multiple blocks in future systems.
  */
-static void __devinit s3c_hsotg_create_debug(struct s3c_hsotg *hsotg)
+static void s3c_hsotg_create_debug(struct s3c_hsotg *hsotg)
 {
 	struct dentry *root;
 	unsigned epidx;
@@ -3460,7 +3430,7 @@ static void __devinit s3c_hsotg_create_debug(struct s3c_hsotg *hsotg)
  *
  * Cleanup (remove) the debugfs files for use on module exit.
  */
-static void __devexit s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
+static void s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 {
 	unsigned epidx;
 
@@ -3475,24 +3445,14 @@ static void __devexit s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 }
 
 /**
- * s3c_hsotg_release - release callback for hsotg device
- * @dev: Device to for which release is called
- */
-static void s3c_hsotg_release(struct device *dev)
-{
-	struct s3c_hsotg *hsotg = dev_get_drvdata(dev);
-
-	kfree(hsotg);
-}
-
-/**
  * s3c_hsotg_probe - probe function for hsotg driver
  * @pdev: The platform information for the driver
  */
 
-static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
+static int s3c_hsotg_probe(struct platform_device *pdev)
 {
-	struct s3c_hsotg_plat *plat = pdev->dev.platform_data;
+	struct s3c_hsotg_plat *plat = dev_get_platdata(&pdev->dev);
+	struct usb_phy *phy;
 	struct device *dev = &pdev->dev;
 	struct s3c_hsotg_ep *eps;
 	struct s3c_hsotg *hsotg;
@@ -3501,22 +3461,29 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	plat = pdev->dev.platform_data;
-	if (!plat) {
-		dev_err(&pdev->dev, "no platform data defined\n");
-		return -EINVAL;
-	}
-
 	hsotg = devm_kzalloc(&pdev->dev, sizeof(struct s3c_hsotg), GFP_KERNEL);
 	if (!hsotg) {
 		dev_err(dev, "cannot get memory\n");
 		return -ENOMEM;
 	}
 
-	hsotg->dev = dev;
-	hsotg->plat = plat;
+	phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	if (IS_ERR(phy)) {
+		/* Fallback for pdata */
+		plat = dev_get_platdata(&pdev->dev);
+		if (!plat) {
+			dev_err(&pdev->dev, "no platform data or transceiver defined\n");
+			return -EPROBE_DEFER;
+		} else {
+			hsotg->plat = plat;
+		}
+	} else {
+		hsotg->phy = phy;
+	}
 
-	hsotg->clk = clk_get(&pdev->dev, "otg");
+	hsotg->dev = dev;
+
+	hsotg->clk = devm_clk_get(&pdev->dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
 		dev_err(dev, "cannot get otg clock\n");
 		return PTR_ERR(hsotg->clk);
@@ -3526,10 +3493,9 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	hsotg->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!hsotg->regs) {
-		dev_err(dev, "cannot map registers\n");
-		ret = -ENXIO;
+	hsotg->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hsotg->regs)) {
+		ret = PTR_ERR(hsotg->regs);
 		goto err_clk;
 	}
 
@@ -3552,17 +3518,9 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	dev_info(dev, "regs %p, irq %d\n", hsotg->regs, hsotg->irq);
 
-	device_initialize(&hsotg->gadget.dev);
-
-	dev_set_name(&hsotg->gadget.dev, "gadget");
-
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &s3c_hsotg_gadget_ops;
 	hsotg->gadget.name = dev_name(dev);
-
-	hsotg->gadget.dev.parent = dev;
-	hsotg->gadget.dev.dma_mask = dev->dma_mask;
-	hsotg->gadget.dev.release = s3c_hsotg_release;
 
 	/* reset the system */
 
@@ -3573,7 +3531,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(hsotg->supplies); i++)
 		hsotg->supplies[i].supply = s3c_hsotg_supply_names[i];
 
-	ret = regulator_bulk_get(dev, ARRAY_SIZE(hsotg->supplies),
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(hsotg->supplies),
 				 hsotg->supplies);
 	if (ret) {
 		dev_err(dev, "failed to request supplies: %d\n", ret);
@@ -3599,6 +3557,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	if (hsotg->num_of_eps == 0) {
 		dev_err(dev, "wrong number of EPs (zero)\n");
+		ret = -EINVAL;
 		goto err_supplies;
 	}
 
@@ -3606,6 +3565,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 		      GFP_KERNEL);
 	if (!eps) {
 		dev_err(dev, "cannot get memory\n");
+		ret = -ENOMEM;
 		goto err_supplies;
 	}
 
@@ -3622,6 +3582,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 						     GFP_KERNEL);
 	if (!hsotg->ctrl_req) {
 		dev_err(dev, "failed to allocate ctrl req\n");
+		ret = -ENOMEM;
 		goto err_ep_mem;
 	}
 
@@ -3640,12 +3601,6 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	s3c_hsotg_phy_disable(hsotg);
 
-	ret = device_add(&hsotg->gadget.dev);
-	if (ret) {
-		put_device(&hsotg->gadget.dev);
-		goto err_ep_mem;
-	}
-
 	ret = usb_add_gadget_udc(&pdev->dev, &hsotg->gadget);
 	if (ret)
 		goto err_ep_mem;
@@ -3660,11 +3615,8 @@ err_ep_mem:
 	kfree(eps);
 err_supplies:
 	s3c_hsotg_phy_disable(hsotg);
-	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
-
 err_clk:
 	clk_disable_unprepare(hsotg->clk);
-	clk_put(hsotg->clk);
 
 	return ret;
 }
@@ -3673,7 +3625,7 @@ err_clk:
  * s3c_hsotg_remove - remove function for hsotg driver
  * @pdev: The platform information for the driver
  */
-static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
+static int s3c_hsotg_remove(struct platform_device *pdev)
 {
 	struct s3c_hsotg *hsotg = platform_get_drvdata(pdev);
 
@@ -3687,12 +3639,8 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 	}
 
 	s3c_hsotg_phy_disable(hsotg);
-	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
-
 	clk_disable_unprepare(hsotg->clk);
-	clk_put(hsotg->clk);
 
-	device_unregister(&hsotg->gadget.dev);
 	return 0;
 }
 
@@ -3701,13 +3649,22 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 #define s3c_hsotg_resume NULL
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id s3c_hsotg_of_ids[] = {
+	{ .compatible = "samsung,s3c6400-hsotg", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, s3c_hsotg_of_ids);
+#endif
+
 static struct platform_driver s3c_hsotg_driver = {
 	.driver		= {
 		.name	= "s3c-hsotg",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(s3c_hsotg_of_ids),
 	},
 	.probe		= s3c_hsotg_probe,
-	.remove		= __devexit_p(s3c_hsotg_remove),
+	.remove		= s3c_hsotg_remove,
 	.suspend	= s3c_hsotg_suspend,
 	.resume		= s3c_hsotg_resume,
 };

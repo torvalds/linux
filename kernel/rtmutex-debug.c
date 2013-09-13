@@ -17,6 +17,7 @@
  * See rt.c in preempt-rt for proper credits and further information
  */
 #include <linux/sched.h>
+#include <linux/sched/rt.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>

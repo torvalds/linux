@@ -30,11 +30,12 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at91_shdwc.h>
 
+
+#include "at91_aic.h"
+#include "at91_shdwc.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -56,11 +57,12 @@ static struct usba_platform_data __initdata ek_usba_udc_data = {
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata ek_mmc_data = {
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PA15,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PA15,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 
@@ -303,7 +305,7 @@ static void __init ek_board_init(void)
 	/* SPI */
 	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
 	/* MMC */
-	at91_add_device_mmc(0, &ek_mmc_data);
+	at91_add_device_mci(0, &mci0_data);
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* AC97 */
@@ -318,7 +320,7 @@ static void __init ek_board_init(void)
 
 MACHINE_START(AT91SAM9RLEK, "Atmel AT91SAM9RL-EK")
 	/* Maintainer: Atmel */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,

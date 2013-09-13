@@ -229,3 +229,5 @@ static void __exit bcm87xx_exit(void)
 		ARRAY_SIZE(bcm87xx_driver));
 }
 module_exit(bcm87xx_exit);
+
+MODULE_LICENSE("GPL");

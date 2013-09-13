@@ -272,6 +272,20 @@ config NET_SCH_FQ_CODEL
 
 	  If unsure, say N.
 
+config NET_SCH_FQ
+	tristate "Fair Queue"
+	help
+	  Say Y here if you want to use the FQ packet scheduling algorithm.
+
+	  FQ does flow separation, and is able to respect pacing requirements
+	  set by TCP stack into sk->sk_pacing_rate (for localy generated
+	  traffic)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_fq.
+
+	  If unsure, say N.
+
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
 	depends on NET_CLS_ACT
@@ -509,7 +523,7 @@ config NET_EMATCH_TEXT
 
 config NET_EMATCH_CANID
 	tristate "CAN Identifier"
-	depends on NET_EMATCH && CAN
+	depends on NET_EMATCH && (CAN=y || CAN=m)
 	---help---
 	  Say Y here if you want to be able to classify CAN frames based
 	  on CAN Identifier.

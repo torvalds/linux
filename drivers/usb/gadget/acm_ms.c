@@ -15,7 +15,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
+#include <linux/module.h>
 
 #include "u_serial.h"
 
@@ -40,16 +40,10 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-
-#include "composite.c"
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-#include "u_serial.c"
-#include "f_acm.c"
 #include "f_mass_storage.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
@@ -89,17 +83,11 @@ static const struct usb_descriptor_header *otg_desc[] = {
 	NULL,
 };
 
-
 /* string IDs are assigned dynamically */
-
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-
-static char manufacturer[50];
-
 static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer,
-	[STRING_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_SERIAL_IDX].s = "",
 	{  } /* end of list */
 };
 
@@ -121,7 +109,8 @@ FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
 static struct fsg_common fsg_common;
 
 /*-------------------------------------------------------------------------*/
-
+static struct usb_function *f_acm;
+static struct usb_function_instance *f_acm_inst;
 /*
  * We _always_ have both ACM and mass storage functions.
  */
@@ -134,16 +123,32 @@ static int __init acm_ms_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
+	f_acm_inst = usb_get_function_instance("acm");
+	if (IS_ERR(f_acm_inst))
+		return PTR_ERR(f_acm_inst);
 
-	status = acm_bind_config(c, 0);
+	f_acm = usb_get_function(f_acm_inst);
+	if (IS_ERR(f_acm)) {
+		status = PTR_ERR(f_acm);
+		goto err_func;
+	}
+
+	status = usb_add_function(c, f_acm);
 	if (status < 0)
-		return status;
+		goto err_conf;
 
 	status = fsg_bind_config(c->cdev, c, &fsg_common);
 	if (status < 0)
-		return status;
+		goto err_fsg;
 
 	return 0;
+err_fsg:
+	usb_remove_function(c, f_acm);
+err_conf:
+	usb_put_function(f_acm);
+err_func:
+	usb_put_function_instance(f_acm_inst);
+	return status;
 }
 
 static struct usb_configuration acm_ms_config_driver = {
@@ -157,61 +162,33 @@ static struct usb_configuration acm_ms_config_driver = {
 
 static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
 	void			*retp;
-
-	/* set up serial link layer */
-	status = gserial_setup(cdev->gadget, 1);
-	if (status < 0)
-		return status;
 
 	/* set up mass storage function */
 	retp = fsg_common_from_params(&fsg_common, cdev, &fsg_mod_data);
 	if (IS_ERR(retp)) {
 		status = PTR_ERR(retp);
-		goto fail0;
-	}
-
-	/* set bcdDevice */
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0) {
-		device_desc.bcdDevice = cpu_to_le16(0x0300 | gcnum);
-	} else {
-		WARNING(cdev, "controller '%s' not recognized; trying %s\n",
-				gadget->name,
-				acm_ms_config_driver.label);
-		device_desc.bcdDevice =
-			cpu_to_le16(0x0300 | 0x0099);
+		return PTR_ERR(retp);
 	}
 
 	/*
 	 * Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
-
-	/* device descriptor strings: manufacturer, product */
-	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
-		init_utsname()->sysname, init_utsname()->release,
-		gadget->name);
-	status = usb_string_id(cdev);
+	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		goto fail1;
-	strings_dev[STRING_MANUFACTURER_IDX].id = status;
-	device_desc.iManufacturer = status;
-
-	status = usb_string_id(cdev);
-	if (status < 0)
-		goto fail1;
-	strings_dev[STRING_PRODUCT_IDX].id = status;
-	device_desc.iProduct = status;
+	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
 	/* register our configuration */
 	status = usb_add_config(cdev, &acm_ms_config_driver, acm_ms_do_config);
 	if (status < 0)
 		goto fail1;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, "%s, version: " DRIVER_VERSION "\n",
 			DRIVER_DESC);
 	fsg_common_put(&fsg_common);
@@ -220,23 +197,22 @@ static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 	/* error recovery */
 fail1:
 	fsg_common_put(&fsg_common);
-fail0:
-	gserial_cleanup();
 	return status;
 }
 
 static int __exit acm_ms_unbind(struct usb_composite_dev *cdev)
 {
-	gserial_cleanup();
-
+	usb_put_function(f_acm);
+	usb_put_function_instance(f_acm_inst);
 	return 0;
 }
 
-static struct usb_composite_driver acm_ms_driver = {
+static __refdata struct usb_composite_driver acm_ms_driver = {
 	.name		= "g_acm_ms",
 	.dev		= &device_desc,
 	.max_speed	= USB_SPEED_SUPER,
 	.strings	= dev_strings,
+	.bind		= acm_ms_bind,
 	.unbind		= __exit_p(acm_ms_unbind),
 };
 
@@ -246,7 +222,7 @@ MODULE_LICENSE("GPL v2");
 
 static int __init init(void)
 {
-	return usb_composite_probe(&acm_ms_driver, acm_ms_bind);
+	return usb_composite_probe(&acm_ms_driver);
 }
 module_init(init);
 

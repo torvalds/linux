@@ -43,7 +43,6 @@
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
-#include <asm/abs_addr.h>
 #include <asm/cacheflush.h>
 #include <asm/ppc-pci.h>
 
@@ -74,11 +73,16 @@ static int dart_is_u4;
 
 #define DBG(...)
 
+static DEFINE_SPINLOCK(invalidate_lock);
+
 static inline void dart_tlb_invalidate_all(void)
 {
 	unsigned long l = 0;
 	unsigned int reg, inv_bit;
 	unsigned long limit;
+	unsigned long flags;
+
+	spin_lock_irqsave(&invalidate_lock, flags);
 
 	DBG("dart: flush\n");
 
@@ -111,12 +115,17 @@ retry:
 			panic("DART: TLB did not flush after waiting a long "
 			      "time. Buggy U3 ?");
 	}
+
+	spin_unlock_irqrestore(&invalidate_lock, flags);
 }
 
 static inline void dart_tlb_invalidate_one(unsigned long bus_rpn)
 {
 	unsigned int reg;
 	unsigned int l, limit;
+	unsigned long flags;
+
+	spin_lock_irqsave(&invalidate_lock, flags);
 
 	reg = DART_CNTL_U4_ENABLE | DART_CNTL_U4_IONE |
 		(bus_rpn & DART_CNTL_U4_IONE_MASK);
@@ -138,6 +147,8 @@ wait_more:
 			panic("DART: TLB did not flush after waiting a long "
 			      "time. Buggy U4 ?");
 	}
+
+	spin_unlock_irqrestore(&invalidate_lock, flags);
 }
 
 static void dart_flush(struct iommu_table *tbl)
@@ -167,7 +178,7 @@ static int dart_build(struct iommu_table *tbl, long index,
 	 */
 	l = npages;
 	while (l--) {
-		rpn = virt_to_abs(uaddr) >> DART_PAGE_SHIFT;
+		rpn = __pa(uaddr) >> DART_PAGE_SHIFT;
 
 		*(dp++) = DARTMAP_VALID | (rpn & DARTMAP_RPNMASK);
 
@@ -244,7 +255,7 @@ static int __init dart_init(struct device_node *dart_node)
 		panic("DART: Cannot map registers!");
 
 	/* Map in DART table */
-	dart_vbase = ioremap(virt_to_abs(dart_tablebase), dart_tablesize);
+	dart_vbase = ioremap(__pa(dart_tablebase), dart_tablesize);
 
 	/* Fill initial table */
 	for (i = 0; i < dart_tablesize/4; i++)
@@ -463,7 +474,7 @@ void __init alloc_dart_table(void)
 	 * will blow up an entire large page anyway in the kernel mapping
 	 */
 	dart_tablebase = (unsigned long)
-		abs_to_virt(memblock_alloc_base(1UL<<24, 1UL<<24, 0x80000000L));
+		__va(memblock_alloc_base(1UL<<24, 1UL<<24, 0x80000000L));
 
 	printk(KERN_INFO "DART table allocated at: %lx\n", dart_tablebase);
 }

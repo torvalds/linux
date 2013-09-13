@@ -23,8 +23,8 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
+#include <linux/mbus.h>
 #include <linux/mtd/physmap.h>
-#include <linux/mv643xx_eth.h>
 #include <linux/leds.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
@@ -96,14 +96,6 @@ static struct platform_device edmini_v2_nor_flash = {
 };
 
 /*****************************************************************************
- * Ethernet
- ****************************************************************************/
-
-static struct mv643xx_eth_platform_data edmini_v2_eth_data = {
-	.phy_addr	= 8,
-};
-
-/*****************************************************************************
  * RTC 5C372a on I2C bus
  ****************************************************************************/
 
@@ -112,69 +104,6 @@ static struct mv643xx_eth_platform_data edmini_v2_eth_data = {
 static struct i2c_board_info __initdata edmini_v2_i2c_rtc = {
 	I2C_BOARD_INFO("rs5c372a", 0x32),
 	.irq = 0,
-};
-
-/*****************************************************************************
- * Sata
- ****************************************************************************/
-
-static struct mv_sata_platform_data edmini_v2_sata_data = {
-	.n_ports	= 2,
-};
-
-/*****************************************************************************
- * GPIO LED (simple - doesn't use hardware blinking support)
- ****************************************************************************/
-
-#define EDMINI_V2_GPIO_LED_POWER	16
-
-static struct gpio_led edmini_v2_leds[] = {
-	{
-		.name = "power:blue",
-		.gpio = EDMINI_V2_GPIO_LED_POWER,
-		.active_low = 1,
-	},
-};
-
-static struct gpio_led_platform_data edmini_v2_led_data = {
-	.num_leds = ARRAY_SIZE(edmini_v2_leds),
-	.leds = edmini_v2_leds,
-};
-
-static struct platform_device edmini_v2_gpio_leds = {
-	.name           = "leds-gpio",
-	.id             = -1,
-	.dev            = {
-		.platform_data  = &edmini_v2_led_data,
-	},
-};
-
-/****************************************************************************
- * GPIO key
- ****************************************************************************/
-
-#define EDMINI_V2_GPIO_KEY_POWER	18
-
-static struct gpio_keys_button edmini_v2_buttons[] = {
-	{
-		.code		= KEY_POWER,
-		.gpio		= EDMINI_V2_GPIO_KEY_POWER,
-		.desc		= "Power Button",
-		.active_low	= 0,
-	},
-};
-
-static struct gpio_keys_platform_data edmini_v2_button_data = {
-	.buttons	= edmini_v2_buttons,
-	.nbuttons	= ARRAY_SIZE(edmini_v2_buttons),
-};
-
-static struct platform_device edmini_v2_gpio_buttons = {
-	.name		= "gpio-keys",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &edmini_v2_button_data,
-	},
 };
 
 /*****************************************************************************
@@ -207,29 +136,20 @@ static unsigned int edminiv2_mpp_modes[] __initdata = {
 	0,
 };
 
-static void __init edmini_v2_init(void)
+void __init edmini_v2_init(void)
 {
-	/*
-	 * Setup basic Orion functions. Need to be called early.
-	 */
-	orion5x_init();
-
 	orion5x_mpp_conf(edminiv2_mpp_modes);
 
 	/*
 	 * Configure peripherals.
 	 */
 	orion5x_ehci0_init();
-	orion5x_eth_init(&edmini_v2_eth_data);
-	orion5x_i2c_init();
-	orion5x_sata_init(&edmini_v2_sata_data);
-	orion5x_uart0_init();
 
-	orion5x_setup_dev_boot_win(EDMINI_V2_NOR_BOOT_BASE,
-				EDMINI_V2_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    EDMINI_V2_NOR_BOOT_BASE,
+				    EDMINI_V2_NOR_BOOT_SIZE);
 	platform_device_register(&edmini_v2_nor_flash);
-	platform_device_register(&edmini_v2_gpio_leds);
-	platform_device_register(&edmini_v2_gpio_buttons);
 
 	pr_notice("edmini_v2: USB device port, flash write and power-off "
 		  "are not yet supported.\n");
@@ -247,16 +167,3 @@ static void __init edmini_v2_init(void)
 
 	i2c_register_board_info(0, &edmini_v2_i2c_rtc, 1);
 }
-
-/* Warning: LaCie use a wrong mach-type (0x20e=526) in their bootloader. */
-MACHINE_START(EDMINI_V2, "LaCie Ethernet Disk mini V2")
-	/* Maintainer: Christopher Moore <moore@free.fr> */
-	.atag_offset	= 0x100,
-	.init_machine	= edmini_v2_init,
-	.map_io		= orion5x_map_io,
-	.init_early	= orion5x_init_early,
-	.init_irq	= orion5x_init_irq,
-	.timer		= &orion5x_timer,
-	.fixup		= tag_fixup_mem32,
-	.restart	= orion5x_restart,
-MACHINE_END

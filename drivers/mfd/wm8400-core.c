@@ -70,7 +70,7 @@ static int wm8400_register_codec(struct wm8400 *wm8400)
 		.pdata_size = sizeof(*wm8400),
 	};
 
-	return mfd_add_devices(wm8400->dev, -1, &cell, 1, NULL, 0);
+	return mfd_add_devices(wm8400->dev, -1, &cell, 1, NULL, 0, NULL);
 }
 
 /*
@@ -178,7 +178,7 @@ static int wm8400_i2c_probe(struct i2c_client *i2c,
 	wm8400->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, wm8400);
 
-	ret = wm8400_init(wm8400, i2c->dev.platform_data);
+	ret = wm8400_init(wm8400, dev_get_platdata(&i2c->dev));
 	if (ret != 0)
 		goto err;
 

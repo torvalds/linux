@@ -20,7 +20,10 @@ int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 {
 	int n = 0;
 	int i;
-	char r;
+
+	/* special case for one mds */
+	if (1 == m->m_max_mds && m->m_info[0].state > 0)
+		return 0;
 
 	/* count */
 	for (i = 0; i < m->m_max_mds; i++)
@@ -30,8 +33,7 @@ int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 		return -1;
 
 	/* pick */
-	get_random_bytes(&r, 1);
-	n = r % n;
+	n = prandom_u32() % n;
 	i = 0;
 	for (i = 0; n > 0; i++, n--)
 		while (m->m_info[i].state <= 0)
@@ -59,6 +61,10 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		return ERR_PTR(-ENOMEM);
 
 	ceph_decode_16_safe(p, end, version, bad);
+	if (version > 3) {
+		pr_warning("got mdsmap version %d > 3, failing", version);
+		goto bad;
+	}
 
 	ceph_decode_need(p, end, 8*sizeof(u32) + sizeof(u64), bad);
 	m->m_epoch = ceph_decode_32(p);
@@ -86,6 +92,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		u32 num_export_targets;
 		void *pexport_targets = NULL;
 		struct ceph_timespec laggy_since;
+		struct ceph_mds_info *info;
 
 		ceph_decode_need(p, end, sizeof(u64)*2 + 1 + sizeof(u32), bad);
 		global_id = ceph_decode_64(p);
@@ -120,37 +127,40 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		     i+1, n, global_id, mds, inc,
 		     ceph_pr_addr(&addr.in_addr),
 		     ceph_mds_state_name(state));
-		if (mds >= 0 && mds < m->m_max_mds && state > 0) {
-			m->m_info[mds].global_id = global_id;
-			m->m_info[mds].state = state;
-			m->m_info[mds].addr = addr;
-			m->m_info[mds].laggy =
-				(laggy_since.tv_sec != 0 ||
-				 laggy_since.tv_nsec != 0);
-			m->m_info[mds].num_export_targets = num_export_targets;
-			if (num_export_targets) {
-				m->m_info[mds].export_targets =
-					kcalloc(num_export_targets, sizeof(u32),
-						GFP_NOFS);
-				for (j = 0; j < num_export_targets; j++)
-					m->m_info[mds].export_targets[j] =
-					       ceph_decode_32(&pexport_targets);
-			} else {
-				m->m_info[mds].export_targets = NULL;
-			}
+
+		if (mds < 0 || mds >= m->m_max_mds || state <= 0)
+			continue;
+
+		info = &m->m_info[mds];
+		info->global_id = global_id;
+		info->state = state;
+		info->addr = addr;
+		info->laggy = (laggy_since.tv_sec != 0 ||
+			       laggy_since.tv_nsec != 0);
+		info->num_export_targets = num_export_targets;
+		if (num_export_targets) {
+			info->export_targets = kcalloc(num_export_targets,
+						       sizeof(u32), GFP_NOFS);
+			if (info->export_targets == NULL)
+				goto badmem;
+			for (j = 0; j < num_export_targets; j++)
+				info->export_targets[j] =
+				       ceph_decode_32(&pexport_targets);
+		} else {
+			info->export_targets = NULL;
 		}
 	}
 
 	/* pg_pools */
 	ceph_decode_32_safe(p, end, n, bad);
 	m->m_num_data_pg_pools = n;
-	m->m_data_pg_pools = kcalloc(n, sizeof(u32), GFP_NOFS);
+	m->m_data_pg_pools = kcalloc(n, sizeof(u64), GFP_NOFS);
 	if (!m->m_data_pg_pools)
 		goto badmem;
-	ceph_decode_need(p, end, sizeof(u32)*(n+1), bad);
+	ceph_decode_need(p, end, sizeof(u64)*(n+1), bad);
 	for (i = 0; i < n; i++)
-		m->m_data_pg_pools[i] = ceph_decode_32(p);
-	m->m_cas_pg_pool = ceph_decode_32(p);
+		m->m_data_pg_pools[i] = ceph_decode_64(p);
+	m->m_cas_pg_pool = ceph_decode_64(p);
 
 	/* ok, we don't care about the rest. */
 	dout("mdsmap_decode success epoch %u\n", m->m_epoch);
@@ -164,7 +174,7 @@ bad:
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       start, end - start, true);
 	ceph_mdsmap_destroy(m);
-	return ERR_PTR(-EINVAL);
+	return ERR_PTR(err);
 }
 
 void ceph_mdsmap_destroy(struct ceph_mdsmap *m)

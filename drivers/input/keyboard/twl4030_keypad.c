@@ -271,7 +271,7 @@ static irqreturn_t do_kp_irq(int irq, void *_kp)
 	return IRQ_HANDLED;
 }
 
-static int __devinit twl4030_kp_program(struct twl4030_keypad *kp)
+static int twl4030_kp_program(struct twl4030_keypad *kp)
 {
 	u8 reg;
 	int i;
@@ -328,7 +328,7 @@ static int __devinit twl4030_kp_program(struct twl4030_keypad *kp)
  * Registers keypad device with input subsystem
  * and configures TWL4030 keypad registers
  */
-static int __devinit twl4030_kp_probe(struct platform_device *pdev)
+static int twl4030_kp_probe(struct platform_device *pdev)
 {
 	struct twl4030_keypad_data *pdata = pdev->dev.platform_data;
 	const struct matrix_keymap_data *keymap_data;
@@ -422,7 +422,7 @@ static int __devinit twl4030_kp_probe(struct platform_device *pdev)
 err3:
 	/* mask all events - we don't care about the result */
 	(void) twl4030_kpwrite_u8(kp, 0xff, KEYP_IMR1);
-	free_irq(kp->irq, NULL);
+	free_irq(kp->irq, kp);
 err2:
 	input_unregister_device(input);
 	input = NULL;
@@ -432,13 +432,12 @@ err1:
 	return error;
 }
 
-static int __devexit twl4030_kp_remove(struct platform_device *pdev)
+static int twl4030_kp_remove(struct platform_device *pdev)
 {
 	struct twl4030_keypad *kp = platform_get_drvdata(pdev);
 
 	free_irq(kp->irq, kp);
 	input_unregister_device(kp->input);
-	platform_set_drvdata(pdev, NULL);
 	kfree(kp);
 
 	return 0;
@@ -452,7 +451,7 @@ static int __devexit twl4030_kp_remove(struct platform_device *pdev)
 
 static struct platform_driver twl4030_kp_driver = {
 	.probe		= twl4030_kp_probe,
-	.remove		= __devexit_p(twl4030_kp_remove),
+	.remove		= twl4030_kp_remove,
 	.driver		= {
 		.name	= "twl4030_keypad",
 		.owner	= THIS_MODULE,

@@ -118,6 +118,8 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	} else
 		ring->bf_enabled = true;
 
+	ring->hwtstamp_tx_type = priv->hwtstamp_config.tx_type;
+
 	return 0;
 
 err_map:
@@ -143,7 +145,6 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 		mlx4_bf_free(mdev->dev, &ring->bf);
 	mlx4_qp_remove(mdev->dev, &ring->qp);
 	mlx4_qp_free(mdev->dev, &ring->qp);
-	mlx4_qp_release_range(mdev->dev, ring->qpn, 1);
 	mlx4_en_unmap_buffer(&ring->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 	kfree(ring->bounce_buf);
@@ -190,11 +191,45 @@ void mlx4_en_deactivate_tx_ring(struct mlx4_en_priv *priv,
 		       MLX4_QP_STATE_RST, NULL, 0, 0, &ring->qp);
 }
 
+static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
+			      struct mlx4_en_tx_ring *ring, int index,
+			      u8 owner)
+{
+	__be32 stamp = cpu_to_be32(STAMP_VAL | (!!owner << STAMP_SHIFT));
+	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
+	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
+	void *end = ring->buf + ring->buf_size;
+	__be32 *ptr = (__be32 *)tx_desc;
+	int i;
+
+	/* Optimize the common case when there are no wraparounds */
+	if (likely((void *)tx_desc + tx_info->nr_txbb * TXBB_SIZE <= end)) {
+		/* Stamp the freed descriptor */
+		for (i = 0; i < tx_info->nr_txbb * TXBB_SIZE;
+		     i += STAMP_STRIDE) {
+			*ptr = stamp;
+			ptr += STAMP_DWORDS;
+		}
+	} else {
+		/* Stamp the freed descriptor */
+		for (i = 0; i < tx_info->nr_txbb * TXBB_SIZE;
+		     i += STAMP_STRIDE) {
+			*ptr = stamp;
+			ptr += STAMP_DWORDS;
+			if ((void *)ptr >= end) {
+				ptr = ring->buf;
+				stamp ^= cpu_to_be32(0x80000000);
+			}
+		}
+	}
+}
+
 
 static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				struct mlx4_en_tx_ring *ring,
-				int index, u8 owner)
+				int index, u8 owner, u64 timestamp)
 {
+	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
 	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
 	struct mlx4_wqe_data_seg *data = (void *) tx_desc + tx_info->data_offset;
@@ -203,8 +238,12 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	void *end = ring->buf + ring->buf_size;
 	int frags = skb_shinfo(skb)->nr_frags;
 	int i;
-	__be32 *ptr = (__be32 *)tx_desc;
-	__be32 stamp = cpu_to_be32(STAMP_VAL | (!!owner << STAMP_SHIFT));
+	struct skb_shared_hwtstamps hwts;
+
+	if (timestamp) {
+		mlx4_en_fill_hwtstamps(mdev, &hwts, timestamp);
+		skb_tstamp_tx(skb, &hwts);
+	}
 
 	/* Optimize the common case when there are no wraparounds */
 	if (likely((void *) tx_desc + tx_info->nr_txbb * TXBB_SIZE <= end)) {
@@ -224,12 +263,6 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 					skb_frag_size(frag), PCI_DMA_TODEVICE);
 			}
 		}
-		/* Stamp the freed descriptor */
-		for (i = 0; i < tx_info->nr_txbb * TXBB_SIZE; i += STAMP_STRIDE) {
-			*ptr = stamp;
-			ptr += STAMP_DWORDS;
-		}
-
 	} else {
 		if (!tx_info->inl) {
 			if ((void *) data >= end) {
@@ -255,16 +288,6 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				++data;
 			}
 		}
-		/* Stamp the freed descriptor */
-		for (i = 0; i < tx_info->nr_txbb * TXBB_SIZE; i += STAMP_STRIDE) {
-			*ptr = stamp;
-			ptr += STAMP_DWORDS;
-			if ((void *) ptr >= end) {
-				ptr = ring->buf;
-				stamp ^= cpu_to_be32(0x80000000);
-			}
-		}
-
 	}
 	dev_kfree_skb_any(skb);
 	return tx_info->nr_txbb;
@@ -290,10 +313,12 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	while (ring->cons != ring->prod) {
 		ring->last_nr_txbb = mlx4_en_free_tx_desc(priv, ring,
 						ring->cons & ring->size_mask,
-						!!(ring->cons & ring->size));
+						!!(ring->cons & ring->size), 0);
 		ring->cons += ring->last_nr_txbb;
 		cnt++;
 	}
+
+	netdev_tx_reset_queue(ring->tx_queue);
 
 	if (cnt)
 		en_dbg(DRV, priv, "Freed %d uncompleted tx descriptors\n", cnt);
@@ -308,21 +333,25 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 	struct mlx4_en_tx_ring *ring = &priv->tx_ring[cq->ring];
 	struct mlx4_cqe *cqe;
 	u16 index;
-	u16 new_index, ring_index;
+	u16 new_index, ring_index, stamp_index;
 	u32 txbbs_skipped = 0;
+	u32 txbbs_stamp = 0;
 	u32 cons_index = mcq->cons_index;
 	int size = cq->size;
 	u32 size_mask = ring->size_mask;
 	struct mlx4_cqe *buf = cq->buf;
 	u32 packets = 0;
 	u32 bytes = 0;
+	int factor = priv->cqe_factor;
+	u64 timestamp = 0;
 
 	if (!priv->port_up)
 		return;
 
 	index = cons_index & size_mask;
-	cqe = &buf[index];
+	cqe = &buf[(index << factor) + factor];
 	ring_index = ring->cons & size_mask;
+	stamp_index = ring_index;
 
 	/* Process all completed CQEs */
 	while (XNOR(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK,
@@ -333,24 +362,42 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 		 */
 		rmb();
 
+		if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
+			     MLX4_CQE_OPCODE_ERROR)) {
+			struct mlx4_err_cqe *cqe_err = (struct mlx4_err_cqe *)cqe;
+
+			en_err(priv, "CQE error - vendor syndrome: 0x%x syndrome: 0x%x\n",
+			       cqe_err->vendor_err_syndrome,
+			       cqe_err->syndrome);
+		}
+
 		/* Skip over last polled CQE */
 		new_index = be16_to_cpu(cqe->wqe_index) & size_mask;
 
 		do {
 			txbbs_skipped += ring->last_nr_txbb;
 			ring_index = (ring_index + ring->last_nr_txbb) & size_mask;
+			if (ring->tx_info[ring_index].ts_requested)
+				timestamp = mlx4_en_get_cqe_ts(cqe);
+
 			/* free next descriptor */
 			ring->last_nr_txbb = mlx4_en_free_tx_desc(
 					priv, ring, ring_index,
 					!!((ring->cons + txbbs_skipped) &
-							ring->size));
+					ring->size), timestamp);
+
+			mlx4_en_stamp_wqe(priv, ring, stamp_index,
+					  !!((ring->cons + txbbs_stamp) &
+						ring->size));
+			stamp_index = ring_index;
+			txbbs_stamp = txbbs_skipped;
 			packets++;
 			bytes += ring->tx_info[ring_index].nr_bytes;
 		} while (ring_index != new_index);
 
 		++cons_index;
 		index = cons_index & size_mask;
-		cqe = &buf[index];
+		cqe = &buf[(index << factor) + factor];
 	}
 
 
@@ -515,16 +562,12 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 		wmb();
 		inl->byte_count = cpu_to_be32(1 << 31 | (skb->len - spc));
 	}
-	tx_desc->ctrl.vlan_tag = cpu_to_be16(*vlan_tag);
-	tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN *
-		(!!vlan_tx_tag_present(skb));
-	tx_desc->ctrl.fence_size = (real_size / 16) & 0x3f;
 }
 
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	u16 rings_p_up = priv->mdev->profile.num_tx_rings_p_up;
+	u16 rings_p_up = priv->num_tx_rings_p_up;
 	u8 up = 0;
 
 	if (dev->num_tc)
@@ -533,7 +576,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 	if (vlan_tx_tag_present(skb))
 		up = vlan_tx_tag_get(skb) >> VLAN_PRIO_SHIFT;
 
-	return __skb_tx_hash(dev, skb, rings_p_up) + up * rings_p_up;
+	return __netdev_pick_tx(dev, skb) % rings_p_up + up * rings_p_up;
 }
 
 static void mlx4_bf_copy(void __iomem *dst, unsigned long *src, unsigned bytecnt)
@@ -545,17 +588,15 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct device *ddev = priv->ddev;
 	struct mlx4_en_tx_ring *ring;
 	struct mlx4_en_tx_desc *tx_desc;
 	struct mlx4_wqe_data_seg *data;
-	struct skb_frag_struct *frag;
 	struct mlx4_en_tx_info *tx_info;
-	struct ethhdr *ethh;
 	int tx_ind = 0;
 	int nr_txbb;
 	int desc_size;
 	int real_size;
-	dma_addr_t dma;
 	u32 index, bf_index;
 	__be32 op_own;
 	u16 vlan_tag = 0;
@@ -592,7 +633,21 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_tx_stop_queue(ring->tx_queue);
 		priv->port_stats.queue_stopped++;
 
-		return NETDEV_TX_BUSY;
+		/* If queue was emptied after the if, and before the
+		 * stop_queue - need to wake the queue, or else it will remain
+		 * stopped forever.
+		 * Need a memory barrier to make sure ring->cons was not
+		 * updated before queue was stopped.
+		 */
+		wmb();
+
+		if (unlikely(((int)(ring->prod - ring->cons)) <=
+			     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
+			netif_tx_wake_queue(ring->tx_queue);
+			priv->port_stats.wake_queue++;
+		} else {
+			return NETDEV_TX_BUSY;
+		}
 	}
 
 	/* Track current inflight packets for performance analysis */
@@ -617,6 +672,71 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info->skb = skb;
 	tx_info->nr_txbb = nr_txbb;
 
+	if (lso_header_size)
+		data = ((void *)&tx_desc->lso + ALIGN(lso_header_size + 4,
+						      DS_SIZE));
+	else
+		data = &tx_desc->data;
+
+	/* valid only for none inline segments */
+	tx_info->data_offset = (void *)data - (void *)tx_desc;
+
+	tx_info->linear = (lso_header_size < skb_headlen(skb) &&
+			   !is_inline(skb, NULL)) ? 1 : 0;
+
+	data += skb_shinfo(skb)->nr_frags + tx_info->linear - 1;
+
+	if (is_inline(skb, &fragptr)) {
+		tx_info->inl = 1;
+	} else {
+		/* Map fragments */
+		for (i = skb_shinfo(skb)->nr_frags - 1; i >= 0; i--) {
+			struct skb_frag_struct *frag;
+			dma_addr_t dma;
+
+			frag = &skb_shinfo(skb)->frags[i];
+			dma = skb_frag_dma_map(ddev, frag,
+					       0, skb_frag_size(frag),
+					       DMA_TO_DEVICE);
+			if (dma_mapping_error(ddev, dma))
+				goto tx_drop_unmap;
+
+			data->addr = cpu_to_be64(dma);
+			data->lkey = cpu_to_be32(mdev->mr.key);
+			wmb();
+			data->byte_count = cpu_to_be32(skb_frag_size(frag));
+			--data;
+		}
+
+		/* Map linear part */
+		if (tx_info->linear) {
+			u32 byte_count = skb_headlen(skb) - lso_header_size;
+			dma_addr_t dma;
+
+			dma = dma_map_single(ddev, skb->data +
+					     lso_header_size, byte_count,
+					     PCI_DMA_TODEVICE);
+			if (dma_mapping_error(ddev, dma))
+				goto tx_drop_unmap;
+
+			data->addr = cpu_to_be64(dma);
+			data->lkey = cpu_to_be32(mdev->mr.key);
+			wmb();
+			data->byte_count = cpu_to_be32(byte_count);
+		}
+		tx_info->inl = 0;
+	}
+
+	/*
+	 * For timestamping add flag to skb_shinfo and
+	 * set flag for further reference
+	 */
+	if (ring->hwtstamp_tx_type == HWTSTAMP_TX_ON &&
+	    skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		tx_info->ts_requested = 1;
+	}
+
 	/* Prepare ctrl segement apart opcode+ownership, which depends on
 	 * whether LSO is used */
 	tx_desc->ctrl.vlan_tag = cpu_to_be16(vlan_tag);
@@ -630,10 +750,17 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		ring->tx_csum++;
 	}
 
-	/* Copy dst mac address to wqe */
-	ethh = (struct ethhdr *)skb->data;
-	tx_desc->ctrl.srcrb_flags16[0] = get_unaligned((__be16 *)ethh->h_dest);
-	tx_desc->ctrl.imm = get_unaligned((__be32 *)(ethh->h_dest + 2));
+	if (priv->flags & MLX4_EN_FLAG_ENABLE_HW_LOOPBACK) {
+		struct ethhdr *ethh;
+
+		/* Copy dst mac address to wqe. This allows loopback in eSwitch,
+		 * so that VFs and PF can communicate with each other
+		 */
+		ethh = (struct ethhdr *)skb->data;
+		tx_desc->ctrl.srcrb_flags16[0] = get_unaligned((__be16 *)ethh->h_dest);
+		tx_desc->ctrl.imm = get_unaligned((__be32 *)(ethh->h_dest + 2));
+	}
+
 	/* Handle LSO (TSO) packets */
 	if (lso_header_size) {
 		/* Mark opcode as LSO */
@@ -648,8 +775,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Copy headers;
 		 * note that we already verified that it is linear */
 		memcpy(tx_desc->lso.header, skb->data, lso_header_size);
-		data = ((void *) &tx_desc->lso +
-			ALIGN(lso_header_size + 4, DS_SIZE));
 
 		priv->port_stats.tso_packets++;
 		i = ((skb->len - lso_header_size) / skb_shinfo(skb)->gso_size) +
@@ -661,7 +786,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		op_own = cpu_to_be32(MLX4_OPCODE_SEND) |
 			((ring->prod & ring->size) ?
 			 cpu_to_be32(MLX4_EN_BIT_DESC_OWN) : 0);
-		data = &tx_desc->data;
 		tx_info->nr_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
 		ring->packets++;
 
@@ -670,38 +794,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	netdev_tx_sent_queue(ring->tx_queue, tx_info->nr_bytes);
 	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, skb->len);
 
-
-	/* valid only for none inline segments */
-	tx_info->data_offset = (void *) data - (void *) tx_desc;
-
-	tx_info->linear = (lso_header_size < skb_headlen(skb) && !is_inline(skb, NULL)) ? 1 : 0;
-	data += skb_shinfo(skb)->nr_frags + tx_info->linear - 1;
-
-	if (!is_inline(skb, &fragptr)) {
-		/* Map fragments */
-		for (i = skb_shinfo(skb)->nr_frags - 1; i >= 0; i--) {
-			frag = &skb_shinfo(skb)->frags[i];
-			dma = skb_frag_dma_map(priv->ddev, frag,
-					       0, skb_frag_size(frag),
-					       DMA_TO_DEVICE);
-			data->addr = cpu_to_be64(dma);
-			data->lkey = cpu_to_be32(mdev->mr.key);
-			wmb();
-			data->byte_count = cpu_to_be32(skb_frag_size(frag));
-			--data;
-		}
-
-		/* Map linear part */
-		if (tx_info->linear) {
-			dma = dma_map_single(priv->ddev, skb->data + lso_header_size,
-					     skb_headlen(skb) - lso_header_size, PCI_DMA_TODEVICE);
-			data->addr = cpu_to_be64(dma);
-			data->lkey = cpu_to_be32(mdev->mr.key);
-			wmb();
-			data->byte_count = cpu_to_be32(skb_headlen(skb) - lso_header_size);
-		}
-		tx_info->inl = 0;
-	} else {
+	if (tx_info->inl) {
 		build_inline_wqe(tx_desc, skb, real_size, &vlan_tag, tx_ind, fragptr);
 		tx_info->inl = 1;
 	}
@@ -712,11 +805,9 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (bounce)
 		tx_desc = mlx4_en_bounce_to_desc(priv, ring, index, desc_size);
 
-	/* Run destructor before passing skb to HW */
-	if (likely(!skb_shared(skb)))
-		skb_orphan(skb);
+	skb_tx_timestamp(skb);
 
-	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !vlan_tag) {
+	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !vlan_tx_tag_present(skb)) {
 		*(__be32 *) (&tx_desc->ctrl.vlan_tag) |= cpu_to_be32(ring->doorbell_qpn);
 		op_own |= htonl((bf_index & 0xffff) << 8);
 		/* Ensure new descirptor hits memory
@@ -742,6 +833,16 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	return NETDEV_TX_OK;
+
+tx_drop_unmap:
+	en_err(priv, "DMA mapping error\n");
+
+	for (i++; i < skb_shinfo(skb)->nr_frags; i++) {
+		data++;
+		dma_unmap_page(ddev, (dma_addr_t) be64_to_cpu(data->addr),
+			       be32_to_cpu(data->byte_count),
+			       PCI_DMA_TODEVICE);
+	}
 
 tx_drop:
 	dev_kfree_skb_any(skb);

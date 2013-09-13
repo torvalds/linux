@@ -146,7 +146,7 @@ static umode_t p9mode2unixmode(struct v9fs_session_info *v9ses,
 		char type = 0, ext[32];
 		int major = -1, minor = -1;
 
-		strncpy(ext, stat->extension, sizeof(ext));
+		strlcpy(ext, stat->extension, sizeof(ext));
 		sscanf(ext, "%c %u %u", &type, &major, &minor);
 		switch (type) {
 		case 'c':
@@ -192,9 +192,6 @@ int v9fs_uflags2omode(int uflags, int extended)
 		break;
 	}
 
-	if (uflags & O_TRUNC)
-		ret |= P9_OTRUNC;
-
 	if (extended) {
 		if (uflags & O_EXCL)
 			ret |= P9_OEXCL;
@@ -228,9 +225,9 @@ v9fs_blank_wstat(struct p9_wstat *wstat)
 	wstat->uid = NULL;
 	wstat->gid = NULL;
 	wstat->muid = NULL;
-	wstat->n_uid = ~0;
-	wstat->n_gid = ~0;
-	wstat->n_muid = ~0;
+	wstat->n_uid = INVALID_UID;
+	wstat->n_gid = INVALID_GID;
+	wstat->n_muid = INVALID_UID;
 	wstat->extension = NULL;
 }
 
@@ -695,9 +692,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 				   "inode creation failed %d\n", err);
 			goto error;
 		}
-		err = v9fs_fid_add(dentry, fid);
-		if (err < 0)
-			goto error;
+		v9fs_fid_add(dentry, fid);
 		d_instantiate(dentry, inode);
 	}
 	return ofid;
@@ -793,7 +788,6 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct p9_fid *dfid, *fid;
 	struct inode *inode;
 	char *name;
-	int result = 0;
 
 	p9_debug(P9_DEBUG_VFS, "dir: %p dentry: (%s) %p flags: %x\n",
 		 dir, dentry->d_name.name, dentry, flags);
@@ -811,13 +805,11 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	name = (char *) dentry->d_name.name;
 	fid = p9_client_walk(dfid, 1, &name, 1);
 	if (IS_ERR(fid)) {
-		result = PTR_ERR(fid);
-		if (result == -ENOENT) {
-			inode = NULL;
-			goto inst_out;
+		if (fid == ERR_PTR(-ENOENT)) {
+			d_add(dentry, NULL);
+			return NULL;
 		}
-
-		return ERR_PTR(result);
+		return ERR_CAST(fid);
 	}
 	/*
 	 * Make sure we don't use a wrong inode due to parallel
@@ -829,14 +821,9 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	else
 		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
-		result = PTR_ERR(inode);
-		inode = NULL;
-		goto error;
+		p9_client_clunk(fid);
+		return ERR_CAST(inode);
 	}
-	result = v9fs_fid_add(dentry, fid);
-	if (result < 0)
-		goto error_iput;
-inst_out:
 	/*
 	 * If we had a rename on the server and a parallel lookup
 	 * for the new name, then make sure we instantiate with
@@ -845,15 +832,13 @@ inst_out:
 	 * k/b.
 	 */
 	res = d_materialise_unique(dentry, inode);
-	if (!IS_ERR(res))
-		return res;
-	result = PTR_ERR(res);
-error_iput:
-	iput(inode);
-error:
-	p9_client_clunk(fid);
-
-	return ERR_PTR(result);
+	if (!res)
+		v9fs_fid_add(dentry, fid);
+	else if (!IS_ERR(res))
+		v9fs_fid_add(res, fid);
+	else
+		p9_client_clunk(fid);
+	return res;
 }
 
 static int
@@ -1069,13 +1054,11 @@ static int
 v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		 struct kstat *stat)
 {
-	int err;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
 	struct p9_wstat *st;
 
 	p9_debug(P9_DEBUG_VFS, "dentry: %p\n", dentry);
-	err = -EPERM;
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
 		generic_fillattr(dentry->d_inode, stat);
@@ -1203,7 +1186,7 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 			 * this even with .u extension. So check
 			 * for non NULL stat->extension
 			 */
-			strncpy(ext, stat->extension, sizeof(ext));
+			strlcpy(ext, stat->extension, sizeof(ext));
 			/* HARDLINKCOUNT %u */
 			sscanf(ext, "%13s %u", tag_name, &i_nlink);
 			if (!strncmp(tag_name, "HARDLINKCOUNT", 13))
@@ -1276,12 +1259,12 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	}
 
 	/* copy extension buffer into buffer */
-	strncpy(buffer, st->extension, buflen);
+	retval = min(strlen(st->extension)+1, (size_t)buflen);
+	memcpy(buffer, st->extension, retval);
 
-	p9_debug(P9_DEBUG_VFS, "%s -> %s (%s)\n",
-		 dentry->d_name.name, st->extension, buffer);
+	p9_debug(P9_DEBUG_VFS, "%s -> %s (%.*s)\n",
+		 dentry->d_name.name, st->extension, buflen, buffer);
 
-	retval = strnlen(buffer, buflen);
 done:
 	p9stat_free(st);
 	kfree(st);

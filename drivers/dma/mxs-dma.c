@@ -23,10 +23,10 @@
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/fsl/mxs-dma.h>
 #include <linux/stmp_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_dma.h>
 
 #include <asm/irq.h>
 
@@ -101,14 +101,15 @@ struct mxs_dma_ccw {
 	u32		pio_words[MXS_PIO_WORDS];
 };
 
-#define NUM_CCW	(int)(PAGE_SIZE / sizeof(struct mxs_dma_ccw))
+#define CCW_BLOCK_SIZE	(4 * PAGE_SIZE)
+#define NUM_CCW	(int)(CCW_BLOCK_SIZE / sizeof(struct mxs_dma_ccw))
 
 struct mxs_dma_chan {
 	struct mxs_dma_engine		*mxs_dma;
 	struct dma_chan			chan;
 	struct dma_async_tx_descriptor	desc;
 	struct tasklet_struct		tasklet;
-	int				chan_irq;
+	unsigned int			chan_irq;
 	struct mxs_dma_ccw		*ccw;
 	dma_addr_t			ccw_phys;
 	int				desc_count;
@@ -138,6 +139,8 @@ struct mxs_dma_engine {
 	struct dma_device		dma_device;
 	struct device_dma_parameters	dma_parms;
 	struct mxs_dma_chan		mxs_chans[MXS_DMA_CHANNELS];
+	struct platform_device		*pdev;
+	unsigned int			nr_channels;
 };
 
 struct mxs_dma_type {
@@ -192,24 +195,6 @@ static struct mxs_dma_chan *to_mxs_dma_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct mxs_dma_chan, chan);
 }
-
-int mxs_dma_is_apbh(struct dma_chan *chan)
-{
-	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
-
-	return dma_is_apbh(mxs_dma);
-}
-EXPORT_SYMBOL_GPL(mxs_dma_is_apbh);
-
-int mxs_dma_is_apbx(struct dma_chan *chan)
-{
-	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
-
-	return !dma_is_apbh(mxs_dma);
-}
-EXPORT_SYMBOL_GPL(mxs_dma_is_apbx);
 
 static void mxs_dma_reset_chan(struct mxs_dma_chan *mxs_chan)
 {
@@ -345,23 +330,18 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-	struct mxs_dma_data *data = chan->private;
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
 	int ret;
 
-	if (!data)
-		return -EINVAL;
-
-	mxs_chan->chan_irq = data->chan_irq;
-
-	mxs_chan->ccw = dma_alloc_coherent(mxs_dma->dma_device.dev, PAGE_SIZE,
-				&mxs_chan->ccw_phys, GFP_KERNEL);
+	mxs_chan->ccw = dma_alloc_coherent(mxs_dma->dma_device.dev,
+				CCW_BLOCK_SIZE, &mxs_chan->ccw_phys,
+				GFP_KERNEL);
 	if (!mxs_chan->ccw) {
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
 
-	memset(mxs_chan->ccw, 0, PAGE_SIZE);
+	memset(mxs_chan->ccw, 0, CCW_BLOCK_SIZE);
 
 	if (mxs_chan->chan_irq != NO_IRQ) {
 		ret = request_irq(mxs_chan->chan_irq, mxs_dma_int_handler,
@@ -387,7 +367,7 @@ static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 err_clk:
 	free_irq(mxs_chan->chan_irq, mxs_dma);
 err_irq:
-	dma_free_coherent(mxs_dma->dma_device.dev, PAGE_SIZE,
+	dma_free_coherent(mxs_dma->dma_device.dev, CCW_BLOCK_SIZE,
 			mxs_chan->ccw, mxs_chan->ccw_phys);
 err_alloc:
 	return ret;
@@ -402,7 +382,7 @@ static void mxs_dma_free_chan_resources(struct dma_chan *chan)
 
 	free_irq(mxs_chan->chan_irq, mxs_dma);
 
-	dma_free_coherent(mxs_dma->dma_device.dev, PAGE_SIZE,
+	dma_free_coherent(mxs_dma->dma_device.dev, CCW_BLOCK_SIZE,
 			mxs_chan->ccw, mxs_chan->ccw_phys);
 
 	clk_disable_unprepare(mxs_dma->clk);
@@ -439,7 +419,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
 	struct mxs_dma_ccw *ccw;
 	struct scatterlist *sg;
-	int i, j;
+	u32 i, j;
 	u32 *pio;
 	bool append = flags & DMA_PREP_INTERRUPT;
 	int idx = append ? mxs_chan->desc_count : 0;
@@ -531,12 +511,12 @@ err_out:
 static struct dma_async_tx_descriptor *mxs_dma_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_len,
 		size_t period_len, enum dma_transfer_direction direction,
-		void *context)
+		unsigned long flags, void *context)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
-	int num_periods = buf_len / period_len;
-	int i = 0, buf = 0;
+	u32 num_periods = buf_len / period_len;
+	u32 i = 0, buf = 0;
 
 	if (mxs_chan->status == DMA_IN_PROGRESS)
 		return NULL;
@@ -619,10 +599,8 @@ static enum dma_status mxs_dma_tx_status(struct dma_chan *chan,
 			dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-	dma_cookie_t last_used;
 
-	last_used = chan->cookie;
-	dma_set_tx_state(txstate, chan->completed_cookie, last_used, 0);
+	dma_set_tx_state(txstate, chan->completed_cookie, chan->cookie, 0);
 
 	return mxs_chan->status;
 }
@@ -663,8 +641,55 @@ err_out:
 	return ret;
 }
 
+struct mxs_dma_filter_param {
+	struct device_node *of_node;
+	unsigned int chan_id;
+};
+
+static bool mxs_dma_filter_fn(struct dma_chan *chan, void *fn_param)
+{
+	struct mxs_dma_filter_param *param = fn_param;
+	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
+	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
+	int chan_irq;
+
+	if (mxs_dma->dma_device.dev->of_node != param->of_node)
+		return false;
+
+	if (chan->chan_id != param->chan_id)
+		return false;
+
+	chan_irq = platform_get_irq(mxs_dma->pdev, param->chan_id);
+	if (chan_irq < 0)
+		return false;
+
+	mxs_chan->chan_irq = chan_irq;
+
+	return true;
+}
+
+static struct dma_chan *mxs_dma_xlate(struct of_phandle_args *dma_spec,
+			       struct of_dma *ofdma)
+{
+	struct mxs_dma_engine *mxs_dma = ofdma->of_dma_data;
+	dma_cap_mask_t mask = mxs_dma->dma_device.cap_mask;
+	struct mxs_dma_filter_param param;
+
+	if (dma_spec->args_count != 1)
+		return NULL;
+
+	param.of_node = ofdma->of_node;
+	param.chan_id = dma_spec->args[0];
+
+	if (param.chan_id >= mxs_dma->nr_channels)
+		return NULL;
+
+	return dma_request_channel(mask, mxs_dma_filter_fn, &param);
+}
+
 static int __init mxs_dma_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	const struct platform_device_id *id_entry;
 	const struct of_device_id *of_id;
 	const struct mxs_dma_type *dma_type;
@@ -672,9 +697,15 @@ static int __init mxs_dma_probe(struct platform_device *pdev)
 	struct resource *iores;
 	int ret, i;
 
-	mxs_dma = kzalloc(sizeof(*mxs_dma), GFP_KERNEL);
+	mxs_dma = devm_kzalloc(&pdev->dev, sizeof(*mxs_dma), GFP_KERNEL);
 	if (!mxs_dma)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(np, "dma-channels", &mxs_dma->nr_channels);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to read dma-channels\n");
+		return ret;
+	}
 
 	of_id = of_match_device(mxs_dma_dt_ids, &pdev->dev);
 	if (of_id)
@@ -687,24 +718,13 @@ static int __init mxs_dma_probe(struct platform_device *pdev)
 	mxs_dma->dev_id = dma_type->id;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mxs_dma->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(mxs_dma->base))
+		return PTR_ERR(mxs_dma->base);
 
-	if (!request_mem_region(iores->start, resource_size(iores),
-				pdev->name)) {
-		ret = -EBUSY;
-		goto err_request_region;
-	}
-
-	mxs_dma->base = ioremap(iores->start, resource_size(iores));
-	if (!mxs_dma->base) {
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
-
-	mxs_dma->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(mxs_dma->clk)) {
-		ret = PTR_ERR(mxs_dma->clk);
-		goto err_clk;
-	}
+	mxs_dma->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mxs_dma->clk))
+		return PTR_ERR(mxs_dma->clk);
 
 	dma_cap_set(DMA_SLAVE, mxs_dma->dma_device.cap_mask);
 	dma_cap_set(DMA_CYCLIC, mxs_dma->dma_device.cap_mask);
@@ -730,8 +750,9 @@ static int __init mxs_dma_probe(struct platform_device *pdev)
 
 	ret = mxs_dma_init(mxs_dma);
 	if (ret)
-		goto err_init;
+		return ret;
 
+	mxs_dma->pdev = pdev;
 	mxs_dma->dma_device.dev = &pdev->dev;
 
 	/* mxs_dma gets 65535 bytes maximum sg size */
@@ -749,22 +770,19 @@ static int __init mxs_dma_probe(struct platform_device *pdev)
 	ret = dma_async_device_register(&mxs_dma->dma_device);
 	if (ret) {
 		dev_err(mxs_dma->dma_device.dev, "unable to register\n");
-		goto err_init;
+		return ret;
+	}
+
+	ret = of_dma_controller_register(np, mxs_dma_xlate, mxs_dma);
+	if (ret) {
+		dev_err(mxs_dma->dma_device.dev,
+			"failed to register controller\n");
+		dma_async_device_unregister(&mxs_dma->dma_device);
 	}
 
 	dev_info(mxs_dma->dma_device.dev, "initialized\n");
 
 	return 0;
-
-err_init:
-	clk_put(mxs_dma->clk);
-err_clk:
-	iounmap(mxs_dma->base);
-err_ioremap:
-	release_mem_region(iores->start, resource_size(iores));
-err_request_region:
-	kfree(mxs_dma);
-	return ret;
 }
 
 static struct platform_driver mxs_dma_driver = {

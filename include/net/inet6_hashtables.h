@@ -28,16 +28,16 @@
 
 struct inet_hashinfo;
 
-/* I have no idea if this is a good hash for v6 or not. -DaveM */
 static inline unsigned int inet6_ehashfn(struct net *net,
 				const struct in6_addr *laddr, const u16 lport,
 				const struct in6_addr *faddr, const __be16 fport)
 {
-	u32 ports = (lport ^ (__force u16)fport);
+	u32 ports = (((u32)lport) << 16) | (__force u32)fport;
 
 	return jhash_3words((__force u32)laddr->s6_addr32[3],
-			    (__force u32)faddr->s6_addr32[3],
-			    ports, inet_ehash_secret + net_hash_mix(net));
+			    ipv6_addr_jhash(faddr),
+			    ports,
+			    inet_ehash_secret + net_hash_mix(net));
 }
 
 static inline int inet6_sk_ehashfn(const struct sock *sk)
@@ -71,6 +71,8 @@ extern struct sock *__inet6_lookup_established(struct net *net,
 
 extern struct sock *inet6_lookup_listener(struct net *net,
 					  struct inet_hashinfo *hashinfo,
+					  const struct in6_addr *saddr,
+					  const __be16 sport,
 					  const struct in6_addr *daddr,
 					  const unsigned short hnum,
 					  const int dif);
@@ -88,7 +90,8 @@ static inline struct sock *__inet6_lookup(struct net *net,
 	if (sk)
 		return sk;
 
-	return inet6_lookup_listener(net, hashinfo, daddr, hnum, dif);
+	return inet6_lookup_listener(net, hashinfo, saddr, sport,
+				     daddr, hnum, dif);
 }
 
 static inline struct sock *__inet6_lookup_skb(struct inet_hashinfo *hashinfo,

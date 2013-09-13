@@ -30,7 +30,7 @@
 #include <crypto/ctr.h>
 
 #include <plat/cpu.h>
-#include <plat/dma.h>
+#include <mach/dma.h>
 
 #define _SBF(s, v)                      ((v) << (s))
 #define _BIT(b)                         _SBF(b, 1)
@@ -580,7 +580,7 @@ static int s5p_aes_probe(struct platform_device *pdev)
 				     resource_size(res), pdev->name))
 		return -EBUSY;
 
-	pdata->clk = clk_get(dev, "secss");
+	pdata->clk = devm_clk_get(dev, "secss");
 	if (IS_ERR(pdata->clk)) {
 		dev_err(dev, "failed to find secss clock source\n");
 		return -ENOENT;
@@ -626,7 +626,6 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	crypto_init_queue(&pdata->queue, CRYPTO_QUEUE_LEN);
 
 	for (i = 0; i < ARRAY_SIZE(algs); i++) {
-		INIT_LIST_HEAD(&algs[i].cra_list);
 		err = crypto_register_alg(&algs[i]);
 		if (err)
 			goto err_algs;
@@ -646,10 +645,8 @@ static int s5p_aes_probe(struct platform_device *pdev)
 
  err_irq:
 	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
 
 	s5p_dev = NULL;
-	platform_set_drvdata(pdev, NULL);
 
 	return err;
 }
@@ -668,10 +665,8 @@ static int s5p_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&pdata->tasklet);
 
 	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
 
 	s5p_dev = NULL;
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

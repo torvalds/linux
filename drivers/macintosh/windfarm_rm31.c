@@ -439,15 +439,15 @@ static void backside_setup_pid(void)
 
 /* Slots fan */
 static const struct wf_pid_param slots_param = {
-	.interval	= 5,
-	.history_len	= 2,
-	.gd		= 30 << 20,
-	.gp		= 5 << 20,
-	.gr		= 0,
-	.itarget	= 40 << 16,
-	.additive	= 1,
-	.min		= 300,
-	.max		= 4000,
+	.interval	= 1,
+	.history_len	= 20,
+	.gd		= 0,
+	.gp		= 0,
+	.gr		= 0x00100000,
+	.itarget	= 3200000,
+	.additive	= 0,
+	.min		= 20,
+	.max		= 100,
 };
 
 static void slots_fan_tick(void)
@@ -669,7 +669,7 @@ static int wf_rm31_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit wf_rm31_remove(struct platform_device *dev)
+static int wf_rm31_remove(struct platform_device *dev)
 {
 	wf_unregister_client(&rm31_events);
 
@@ -696,7 +696,7 @@ static int __init wf_rm31_init(void)
 
 	/* Count the number of CPU cores */
 	nr_chips = 0;
-	for (cpu = NULL; (cpu = of_find_node_by_type(cpu, "cpu")) != NULL; )
+	for_each_node_by_type(cpu, "cpu")
 		++nr_chips;
 	if (nr_chips > NR_CHIPS)
 		nr_chips = NR_CHIPS;

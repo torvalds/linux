@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #ifndef _8253_H
@@ -262,8 +257,10 @@ static inline int i8254_load(unsigned long base_address, unsigned int regshift,
 	return 0;
 }
 
-static inline int i8254_mm_load(void *base_address, unsigned int regshift,
-				unsigned int counter_number, unsigned int count,
+static inline int i8254_mm_load(void __iomem *base_address,
+				unsigned int regshift,
+				unsigned int counter_number,
+				unsigned int count,
 				unsigned int mode)
 {
 	unsigned int byte;
@@ -311,7 +308,8 @@ static inline int i8254_read(unsigned long base_address, unsigned int regshift,
 	return ret;
 }
 
-static inline int i8254_mm_read(void *base_address, unsigned int regshift,
+static inline int i8254_mm_read(void __iomem *base_address,
+				unsigned int regshift,
 				unsigned int counter_number)
 {
 	unsigned int byte;
@@ -348,7 +346,7 @@ static inline void i8254_write(unsigned long base_address,
 	outb(byte, base_address + (counter_number << regshift));
 }
 
-static inline void i8254_mm_write(void *base_address,
+static inline void i8254_mm_write(void __iomem *base_address,
 				  unsigned int regshift,
 				  unsigned int counter_number,
 				  unsigned int count)
@@ -390,7 +388,7 @@ static inline int i8254_set_mode(unsigned long base_address,
 	return 0;
 }
 
-static inline int i8254_mm_set_mode(void *base_address,
+static inline int i8254_mm_set_mode(void __iomem *base_address,
 				    unsigned int regshift,
 				    unsigned int counter_number,
 				    unsigned int mode)
@@ -419,7 +417,7 @@ static inline int i8254_status(unsigned long base_address,
 	return inb(base_address + (counter_number << regshift));
 }
 
-static inline int i8254_mm_status(void *base_address,
+static inline int i8254_mm_status(void __iomem *base_address,
 				  unsigned int regshift,
 				  unsigned int counter_number)
 {

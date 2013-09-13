@@ -6,7 +6,7 @@
  *  with various broken implementations of this HW.
  *
  *  Copyright (C) 2004 Benjamin Herrenschmidt, IBM Corp.
- *  Copyright 2010-2011 Freescale Semiconductor, Inc.
+ *  Copyright 2010-2012 Freescale Semiconductor, Inc.
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive
@@ -47,6 +47,12 @@
 #else
 #define DBG(fmt...)
 #endif
+
+struct bus_type mpic_subsys = {
+	.name = "mpic",
+	.dev_name = "mpic",
+};
+EXPORT_SYMBOL_GPL(mpic_subsys);
 
 static struct mpic *mpics;
 static struct mpic *mpic_primary;
@@ -221,24 +227,24 @@ static inline void _mpic_ipi_write(struct mpic *mpic, unsigned int ipi, u32 valu
 	_mpic_write(mpic->reg_type, &mpic->gregs, offset, value);
 }
 
+static inline unsigned int mpic_tm_offset(struct mpic *mpic, unsigned int tm)
+{
+	return (tm >> 2) * MPIC_TIMER_GROUP_STRIDE +
+	       (tm & 3) * MPIC_INFO(TIMER_STRIDE);
+}
+
 static inline u32 _mpic_tm_read(struct mpic *mpic, unsigned int tm)
 {
-	unsigned int offset = MPIC_INFO(TIMER_VECTOR_PRI) +
-			      ((tm & 3) * MPIC_INFO(TIMER_STRIDE));
-
-	if (tm >= 4)
-		offset += 0x1000 / 4;
+	unsigned int offset = mpic_tm_offset(mpic, tm) +
+			      MPIC_INFO(TIMER_VECTOR_PRI);
 
 	return _mpic_read(mpic->reg_type, &mpic->tmregs, offset);
 }
 
 static inline void _mpic_tm_write(struct mpic *mpic, unsigned int tm, u32 value)
 {
-	unsigned int offset = MPIC_INFO(TIMER_VECTOR_PRI) +
-			      ((tm & 3) * MPIC_INFO(TIMER_STRIDE));
-
-	if (tm >= 4)
-		offset += 0x1000 / 4;
+	unsigned int offset = mpic_tm_offset(mpic, tm) +
+			      MPIC_INFO(TIMER_VECTOR_PRI);
 
 	_mpic_write(mpic->reg_type, &mpic->tmregs, offset, value);
 }
@@ -836,7 +842,7 @@ int mpic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 			       mpic_physmask(mask));
 	}
 
-	return 0;
+	return IRQ_SET_MASK_OK;
 }
 
 static unsigned int mpic_type_to_vecpri(struct mpic *mpic, unsigned int type)
@@ -920,6 +926,22 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
 
+static int mpic_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	struct irq_desc *desc = container_of(d, struct irq_desc, irq_data);
+	struct mpic *mpic = mpic_from_irq_data(d);
+
+	if (!(mpic->flags & MPIC_FSL))
+		return -ENXIO;
+
+	if (on)
+		desc->action->flags |= IRQF_NO_SUSPEND;
+	else
+		desc->action->flags &= ~IRQF_NO_SUSPEND;
+
+	return 0;
+}
+
 void mpic_set_vector(unsigned int virq, unsigned int vector)
 {
 	struct mpic *mpic = mpic_from_irq(virq);
@@ -957,6 +979,7 @@ static struct irq_chip mpic_irq_chip = {
 	.irq_unmask	= mpic_unmask_irq,
 	.irq_eoi	= mpic_end_irq,
 	.irq_set_type	= mpic_set_irq_type,
+	.irq_set_wake	= mpic_irq_set_wake,
 };
 
 #ifdef CONFIG_SMP
@@ -971,6 +994,7 @@ static struct irq_chip mpic_tm_chip = {
 	.irq_mask	= mpic_mask_tm,
 	.irq_unmask	= mpic_unmask_tm,
 	.irq_eoi	= mpic_end_irq,
+	.irq_set_wake	= mpic_irq_set_wake,
 };
 
 #ifdef CONFIG_MPIC_U3_HT_IRQS
@@ -1001,8 +1025,12 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 
 	if (hw == mpic->spurious_vec)
 		return -EINVAL;
-	if (mpic->protected && test_bit(hw, mpic->protected))
-		return -EINVAL;
+	if (mpic->protected && test_bit(hw, mpic->protected)) {
+		pr_warning("mpic: Mapping of source 0x%x failed, "
+			   "source protected by firmware !\n",\
+			   (unsigned int)hw);
+		return -EPERM;
+	}
 
 #ifdef CONFIG_SMP
 	else if (hw >= mpic->ipi_vecs[0]) {
@@ -1026,8 +1054,15 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 		return 0;
 	}
 
-	if (hw >= mpic->num_sources)
+	if (mpic_map_error_int(mpic, virq, hw))
+		return 0;
+
+	if (hw >= mpic->num_sources) {
+		pr_warning("mpic: Mapping of source 0x%x failed, "
+			   "source out of range !\n",\
+			   (unsigned int)hw);
 		return -EINVAL;
+	}
 
 	mpic_msi_reserve_hwirq(mpic, hw);
 
@@ -1085,7 +1120,16 @@ static int mpic_host_xlate(struct irq_domain *h, struct device_node *ct,
 		 */
 		switch (intspec[2]) {
 		case 0:
-		case 1: /* no EISR/EIMR support for now, treat as shared IRQ */
+			break;
+		case 1:
+			if (!(mpic->flags & MPIC_FSL_HAS_EIMR))
+				break;
+
+			if (intspec[3] >= ARRAY_SIZE(mpic->err_int_vecs))
+				return -EINVAL;
+
+			*out_hwirq = mpic->err_int_vecs[intspec[3]];
+
 			break;
 		case 2:
 			if (intspec[0] >= ARRAY_SIZE(mpic->ipi_vecs))
@@ -1153,9 +1197,32 @@ static struct irq_domain_ops mpic_host_ops = {
 	.xlate = mpic_host_xlate,
 };
 
+static u32 fsl_mpic_get_version(struct mpic *mpic)
+{
+	u32 brr1;
+
+	if (!(mpic->flags & MPIC_FSL))
+		return 0;
+
+	brr1 = _mpic_read(mpic->reg_type, &mpic->thiscpuregs,
+			MPIC_FSL_BRR1);
+
+	return brr1 & MPIC_FSL_BRR1_VER;
+}
+
 /*
  * Exported functions
  */
+
+u32 fsl_mpic_primary_get_version(void)
+{
+	struct mpic *mpic = mpic_primary;
+
+	if (mpic)
+		return fsl_mpic_get_version(mpic);
+
+	return 0;
+}
 
 struct mpic * __init mpic_alloc(struct device_node *node,
 				phys_addr_t phys_addr,
@@ -1170,6 +1237,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	const char *vers;
 	const u32 *psrc;
 	u32 last_irq;
+	u32 fsl_version = 0;
 
 	/* Default MPIC search parameters */
 	static const struct of_device_id __initconst mpic_device_id[] = {
@@ -1300,6 +1368,58 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	/* Map the global registers */
 	mpic_map(mpic, mpic->paddr, &mpic->gregs, MPIC_INFO(GREG_BASE), 0x1000);
 	mpic_map(mpic, mpic->paddr, &mpic->tmregs, MPIC_INFO(TIMER_BASE), 0x1000);
+
+	if (mpic->flags & MPIC_FSL) {
+		int ret;
+
+		/*
+		 * Yes, Freescale really did put global registers in the
+		 * magic per-cpu area -- and they don't even show up in the
+		 * non-magic per-cpu copies that this driver normally uses.
+		 */
+		mpic_map(mpic, mpic->paddr, &mpic->thiscpuregs,
+			 MPIC_CPU_THISBASE, 0x1000);
+
+		fsl_version = fsl_mpic_get_version(mpic);
+
+		/* Error interrupt mask register (EIMR) is required for
+		 * handling individual device error interrupts. EIMR
+		 * was added in MPIC version 4.1.
+		 *
+		 * Over here we reserve vector number space for error
+		 * interrupt vectors. This space is stolen from the
+		 * global vector number space, as in case of ipis
+		 * and timer interrupts.
+		 *
+		 * Available vector space = intvec_top - 12, where 12
+		 * is the number of vectors which have been consumed by
+		 * ipis and timer interrupts.
+		 */
+		if (fsl_version >= 0x401) {
+			ret = mpic_setup_error_int(mpic, intvec_top - 12);
+			if (ret)
+				return NULL;
+		}
+
+	}
+
+	/*
+	 * EPR is only available starting with v4.0.  To support
+	 * platforms that don't know the MPIC version at compile-time,
+	 * such as qemu-e500, turn off coreint if this MPIC doesn't
+	 * support it.  Note that we never enable it if it wasn't
+	 * requested in the first place.
+	 *
+	 * This is done outside the MPIC_FSL check, so that we
+	 * also disable coreint if the MPIC node doesn't have
+	 * an "fsl,mpic" compatible at all.  This will be the case
+	 * with device trees generated by older versions of QEMU.
+	 * fsl_version will be zero if MPIC_FSL is not set.
+	 */
+	if (fsl_version < 0x400 && (flags & MPIC_ENABLE_COREINT)) {
+		WARN_ON(ppc_md.get_irq != mpic_get_coreint_irq);
+		ppc_md.get_irq = mpic_get_irq;
+	}
 
 	/* Reset */
 
@@ -1440,6 +1560,7 @@ void __init mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 void __init mpic_init(struct mpic *mpic)
 {
 	int i, cpu;
+	int num_timers = 4;
 
 	BUG_ON(mpic->num_sources == 0);
 
@@ -1448,15 +1569,32 @@ void __init mpic_init(struct mpic *mpic)
 	/* Set current processor priority to max */
 	mpic_cpu_write(MPIC_INFO(CPU_CURRENT_TASK_PRI), 0xf);
 
+	if (mpic->flags & MPIC_FSL) {
+		u32 version = fsl_mpic_get_version(mpic);
+
+		/*
+		 * Timer group B is present at the latest in MPIC 3.1 (e.g.
+		 * mpc8536).  It is not present in MPIC 2.0 (e.g. mpc8544).
+		 * I don't know about the status of intermediate versions (or
+		 * whether they even exist).
+		 */
+		if (version >= 0x0301)
+			num_timers = 8;
+	}
+
+	/* FSL mpic error interrupt intialization */
+	if (mpic->flags & MPIC_FSL_HAS_EIMR)
+		mpic_err_int_init(mpic, MPIC_FSL_ERR_INT);
+
 	/* Initialize timers to our reserved vectors and mask them for now */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < num_timers; i++) {
+		unsigned int offset = mpic_tm_offset(mpic, i);
+
 		mpic_write(mpic->tmregs,
-			   i * MPIC_INFO(TIMER_STRIDE) +
-			   MPIC_INFO(TIMER_DESTINATION),
+			   offset + MPIC_INFO(TIMER_DESTINATION),
 			   1 << hard_smp_processor_id());
 		mpic_write(mpic->tmregs,
-			   i * MPIC_INFO(TIMER_STRIDE) +
-			   MPIC_INFO(TIMER_VECTOR_PRI),
+			   offset + MPIC_INFO(TIMER_VECTOR_PRI),
 			   MPIC_VECPRI_MASK |
 			   (9 << MPIC_VECPRI_PRIORITY_SHIFT) |
 			   (mpic->timer_vecs[0] + i));
@@ -1607,7 +1745,7 @@ void mpic_setup_this_cpu(void)
 	 * it differently, then we should make sure we also change the default
 	 * values of irq_desc[].affinity in irq.c.
  	 */
-	if (distribute_irqs) {
+	if (distribute_irqs && !(mpic->flags & MPIC_SINGLE_DEST_CPU)) {
 	 	for (i = 0; i < mpic->num_sources ; i++)
 			mpic_irq_write(i, MPIC_INFO(IRQ_DESTINATION),
 				mpic_irq_read(i, MPIC_INFO(IRQ_DESTINATION)) | msk);
@@ -1796,7 +1934,7 @@ int __init smp_mpic_probe(void)
 	return nr_cpus;
 }
 
-void __devinit smp_mpic_setup_cpu(int cpu)
+void smp_mpic_setup_cpu(int cpu)
 {
 	mpic_setup_this_cpu();
 }
@@ -1903,6 +2041,8 @@ static struct syscore_ops mpic_syscore_ops = {
 static int mpic_init_sys(void)
 {
 	register_syscore_ops(&mpic_syscore_ops);
+	subsys_system_register(&mpic_subsys, NULL);
+
 	return 0;
 }
 

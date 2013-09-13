@@ -133,9 +133,9 @@ struct rts51x_chip;
 
 #define SCSI                    0x00	/* Interface ID                     */
 
-void scsi_show_command(struct scsi_cmnd *srb);
-void set_sense_type(struct rts51x_chip *chip, unsigned int lun, int sense_type);
-void set_sense_data(struct rts51x_chip *chip, unsigned int lun, u8 err_code,
+void rts51x_scsi_show_command(struct scsi_cmnd *srb);
+void rts51x_set_sense_type(struct rts51x_chip *chip, unsigned int lun, int sense_type);
+void rts51x_set_sense_data(struct rts51x_chip *chip, unsigned int lun, u8 err_code,
 		    u8 sense_key, u32 info, u8 asc, u8 ascq, u8 sns_key_info0,
 		    u16 sns_key_info1);
 
@@ -147,11 +147,8 @@ struct scsi_cmnd;
 
 int slave_alloc(struct scsi_device *sdev);
 int slave_configure(struct scsi_device *sdev);
-int proc_info(struct Scsi_Host *host, char *buffer,
-	      char **start, off_t offset, int length, int inout);
 int queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 int command_abort(struct scsi_cmnd *srb);
-int device_reset(struct scsi_cmnd *srb);
 int bus_reset(struct scsi_cmnd *srb);
 
 #endif /* __RTS51X_SCSI_H */

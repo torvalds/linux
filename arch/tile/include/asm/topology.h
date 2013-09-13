@@ -69,7 +69,6 @@ static inline const struct cpumask *cpumask_of_node(int node)
 				| 1*SD_BALANCE_FORK			\
 				| 0*SD_BALANCE_WAKE			\
 				| 0*SD_WAKE_AFFINE			\
-				| 0*SD_PREFER_LOCAL			\
 				| 0*SD_SHARE_CPUPOWER			\
 				| 0*SD_SHARE_PKG_RESOURCES		\
 				| 0*SD_SERIALIZE			\
@@ -90,9 +89,6 @@ static inline const struct cpumask *cpumask_of_node(int node)
 #define topology_core_id(cpu)                   (cpu)
 #define topology_core_cpumask(cpu)              ((void)(cpu), cpu_online_mask)
 #define topology_thread_cpumask(cpu)            cpumask_of(cpu)
-
-/* indicates that pointers to the topology struct cpumask maps are valid */
-#define arch_provides_topology_pointers         yes
 #endif
 
 #endif /* _ASM_TILE_TOPOLOGY_H */

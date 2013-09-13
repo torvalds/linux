@@ -5,11 +5,12 @@
 #include <linux/configfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
+#include <linux/percpu_ida.h>
 #include <scsi/scsi_cmnd.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
-#define TARGET_CORE_MOD_VERSION		"v4.1.0-rc2-ml"
+#define TARGET_CORE_MOD_VERSION		"v4.1.0"
 #define TARGET_CORE_VERSION		TARGET_CORE_MOD_VERSION
 
 /* Maximum Number of LUNs per Target Portal Group */
@@ -44,7 +45,7 @@
 /* Used by core_alua_store_tg_pt_gp_info() and target_core_alua_tg_pt_gp_show_attr_members() */
 #define TG_PT_GROUP_NAME_BUF			256
 /* Used to parse VPD into struct t10_vpd */
-#define VPD_TMP_BUF_SIZE			128
+#define VPD_TMP_BUF_SIZE			254
 /* Used by transport_generic_cmd_sequencer() */
 #define READ_BLOCK_LEN          		6
 #define READ_CAP_LEN            		8
@@ -62,20 +63,6 @@
 
 #define PYX_TRANSPORT_STATUS_INTERVAL		5 /* In seconds */
 
-/*
- * struct se_subsystem_dev->su_dev_flags
-*/
-#define SDF_FIRMWARE_VPD_UNIT_SERIAL		0x00000001
-#define SDF_EMULATED_VPD_UNIT_SERIAL		0x00000002
-#define SDF_USING_UDEV_PATH			0x00000004
-#define SDF_USING_ALIAS				0x00000008
-
-/*
- * struct se_device->dev_flags
- */
-#define DF_SPC2_RESERVATIONS			0x00000001
-#define DF_SPC2_RESERVATIONS_WITH_ISID		0x00000002
-
 /* struct se_dev_attrib sanity values */
 /* Default max_unmap_lba_count */
 #define DA_MAX_UNMAP_LBA_COUNT			0
@@ -85,8 +72,12 @@
 #define DA_UNMAP_GRANULARITY_DEFAULT		0
 /* Default unmap_granularity_alignment */
 #define DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT	0
+/* Default max_write_same_len, disabled by default */
+#define DA_MAX_WRITE_SAME_LEN			0
 /* Default max transfer length */
 #define DA_FABRIC_MAX_SECTORS			8192
+/* Use a model alias based on the configfs backend device name */
+#define DA_EMULATE_MODEL_ALIAS			0
 /* Emulation for Direct Page Out */
 #define DA_EMULATE_DPO				0
 /* Emulation for Forced Unit Access WRITEs */
@@ -106,8 +97,10 @@
  * block/blk-lib.c:blkdev_issue_discard()
  */
 #define DA_EMULATE_TPWS				0
-/* No Emulation for PSCSI by default */
-#define DA_EMULATE_RESERVATIONS			0
+/* Emulation for CompareAndWrite (AtomicTestandSet) by default */
+#define DA_EMULATE_CAW				1
+/* Emulation for 3rd Party Copy (ExtendedCopy) by default */
+#define DA_EMULATE_3PC				1
 /* No Emulation for PSCSI by default */
 #define DA_EMULATE_ALUA				0
 /* Enforce SCSI Initiator Port TransportID with 'ISID' for PR */
@@ -121,6 +114,7 @@
 
 #define SE_INQUIRY_BUF				512
 #define SE_MODE_PAGE_BUF			512
+#define SE_SENSE_BUF				96
 
 /* struct se_hba->hba_flags */
 enum hba_flags_table {
@@ -159,8 +153,6 @@ enum se_cmd_flags_table {
 	SCF_EMULATED_TASK_SENSE		= 0x00000004,
 	SCF_SCSI_DATA_CDB		= 0x00000008,
 	SCF_SCSI_TMR_CDB		= 0x00000010,
-	SCF_SCSI_CDB_EXCEPTION		= 0x00000020,
-	SCF_SCSI_RESERVATION_CONFLICT	= 0x00000040,
 	SCF_FUA				= 0x00000080,
 	SCF_SE_LUN_CMD			= 0x00000100,
 	SCF_BIDI			= 0x00000400,
@@ -171,6 +163,9 @@ enum se_cmd_flags_table {
 	SCF_ALUA_NON_OPTIMIZED		= 0x00008000,
 	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00020000,
 	SCF_ACK_KREF			= 0x00040000,
+	SCF_COMPARE_AND_WRITE		= 0x00080000,
+	SCF_COMPARE_AND_WRITE_POST	= 0x00100000,
+	SCF_CMD_XCOPY_PASSTHROUGH	= 0x00200000,
 };
 
 /* struct se_dev_entry->lun_flags and struct se_lun->lun_access */
@@ -181,38 +176,36 @@ enum transport_lunflags_table {
 	TRANSPORT_LUNFLAGS_READ_WRITE		= 0x04,
 };
 
-/* struct se_device->dev_status */
-enum transport_device_status_table {
-	TRANSPORT_DEVICE_ACTIVATED		= 0x01,
-	TRANSPORT_DEVICE_DEACTIVATED		= 0x02,
-	TRANSPORT_DEVICE_QUEUE_FULL		= 0x04,
-	TRANSPORT_DEVICE_SHUTDOWN		= 0x08,
-	TRANSPORT_DEVICE_OFFLINE_ACTIVATED	= 0x10,
-	TRANSPORT_DEVICE_OFFLINE_DEACTIVATED	= 0x20,
-};
-
 /*
- * Used by transport_send_check_condition_and_sense() and se_cmd->scsi_sense_reason
+ * Used by transport_send_check_condition_and_sense()
  * to signal which ASC/ASCQ sense payload should be built.
  */
+typedef unsigned __bitwise__ sense_reason_t;
+
 enum tcm_sense_reason_table {
-	TCM_NON_EXISTENT_LUN			= 0x01,
-	TCM_UNSUPPORTED_SCSI_OPCODE		= 0x02,
-	TCM_INCORRECT_AMOUNT_OF_DATA		= 0x03,
-	TCM_UNEXPECTED_UNSOLICITED_DATA		= 0x04,
-	TCM_SERVICE_CRC_ERROR			= 0x05,
-	TCM_SNACK_REJECTED			= 0x06,
-	TCM_SECTOR_COUNT_TOO_MANY		= 0x07,
-	TCM_INVALID_CDB_FIELD			= 0x08,
-	TCM_INVALID_PARAMETER_LIST		= 0x09,
-	TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE	= 0x0a,
-	TCM_UNKNOWN_MODE_PAGE			= 0x0b,
-	TCM_WRITE_PROTECTED			= 0x0c,
-	TCM_CHECK_CONDITION_ABORT_CMD		= 0x0d,
-	TCM_CHECK_CONDITION_UNIT_ATTENTION	= 0x0e,
-	TCM_CHECK_CONDITION_NOT_READY		= 0x0f,
-	TCM_RESERVATION_CONFLICT		= 0x10,
-	TCM_ADDRESS_OUT_OF_RANGE		= 0x11,
+#define R(x)	(__force sense_reason_t )(x)
+	TCM_NO_SENSE				= R(0x00),
+	TCM_NON_EXISTENT_LUN			= R(0x01),
+	TCM_UNSUPPORTED_SCSI_OPCODE		= R(0x02),
+	TCM_INCORRECT_AMOUNT_OF_DATA		= R(0x03),
+	TCM_UNEXPECTED_UNSOLICITED_DATA		= R(0x04),
+	TCM_SERVICE_CRC_ERROR			= R(0x05),
+	TCM_SNACK_REJECTED			= R(0x06),
+	TCM_SECTOR_COUNT_TOO_MANY		= R(0x07),
+	TCM_INVALID_CDB_FIELD			= R(0x08),
+	TCM_INVALID_PARAMETER_LIST		= R(0x09),
+	TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE	= R(0x0a),
+	TCM_UNKNOWN_MODE_PAGE			= R(0x0b),
+	TCM_WRITE_PROTECTED			= R(0x0c),
+	TCM_CHECK_CONDITION_ABORT_CMD		= R(0x0d),
+	TCM_CHECK_CONDITION_UNIT_ATTENTION	= R(0x0e),
+	TCM_CHECK_CONDITION_NOT_READY		= R(0x0f),
+	TCM_RESERVATION_CONFLICT		= R(0x10),
+	TCM_ADDRESS_OUT_OF_RANGE		= R(0x11),
+	TCM_OUT_OF_RESOURCES			= R(0x12),
+	TCM_PARAMETER_LIST_LENGTH_ERROR		= R(0x13),
+	TCM_MISCOMPARE_VERIFY			= R(0x14),
+#undef R
 };
 
 enum target_sc_flags_table {
@@ -230,44 +223,16 @@ enum tcm_tmreq_table {
 	TMR_LUN_RESET		= 5,
 	TMR_TARGET_WARM_RESET	= 6,
 	TMR_TARGET_COLD_RESET	= 7,
-	TMR_FABRIC_TMR		= 255,
 };
 
 /* fabric independent task management response values */
 enum tcm_tmrsp_table {
-	TMR_FUNCTION_COMPLETE		= 0,
-	TMR_TASK_DOES_NOT_EXIST		= 1,
-	TMR_LUN_DOES_NOT_EXIST		= 2,
-	TMR_TASK_STILL_ALLEGIANT	= 3,
-	TMR_TASK_FAILOVER_NOT_SUPPORTED	= 4,
-	TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED	= 5,
-	TMR_FUNCTION_AUTHORIZATION_FAILED = 6,
-	TMR_FUNCTION_REJECTED		= 255,
+	TMR_FUNCTION_COMPLETE		= 1,
+	TMR_TASK_DOES_NOT_EXIST		= 2,
+	TMR_LUN_DOES_NOT_EXIST		= 3,
+	TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED	= 4,
+	TMR_FUNCTION_REJECTED		= 5,
 };
-
-struct se_obj {
-	atomic_t obj_access_count;
-};
-
-/*
- * Used by TCM Core internally to signal if ALUA emulation is enabled or
- * disabled, or running in with TCM/pSCSI passthrough mode
- */
-typedef enum {
-	SPC_ALUA_PASSTHROUGH,
-	SPC2_ALUA_DISABLED,
-	SPC3_ALUA_EMULATED
-} t10_alua_index_t;
-
-/*
- * Used by TCM Core internally to signal if SAM Task Attribute emulation
- * is enabled or disabled, or running in with TCM/pSCSI passthrough mode
- */
-typedef enum {
-	SAM_TASK_ATTR_PASSTHROUGH,
-	SAM_TASK_ATTR_UNTAGGED,
-	SAM_TASK_ATTR_EMULATED
-} t10_task_attr_index_t;
 
 /*
  * Used for target SCSI statistics
@@ -282,17 +247,15 @@ typedef enum {
 struct se_cmd;
 
 struct t10_alua {
-	t10_alua_index_t alua_type;
 	/* ALUA Target Port Group ID */
 	u16	alua_tg_pt_gps_counter;
 	u32	alua_tg_pt_gps_count;
 	spinlock_t tg_pt_gps_lock;
-	struct se_subsystem_dev *t10_sub_dev;
+	struct se_device *t10_dev;
 	/* Used for default ALUA Target Port Group */
 	struct t10_alua_tg_pt_gp *default_tg_pt_gp;
 	/* Used for default ALUA Target Port Group ConfigFS group */
 	struct config_group alua_tg_pt_gps_group;
-	int (*alua_state_check)(struct se_cmd *, unsigned char *, u8 *);
 	struct list_head tg_pt_gps_list;
 };
 
@@ -334,7 +297,7 @@ struct t10_alua_tg_pt_gp {
 	atomic_t tg_pt_gp_ref_cnt;
 	spinlock_t tg_pt_gp_lock;
 	struct mutex tg_pt_gp_md_mutex;
-	struct se_subsystem_dev *tg_pt_gp_su_dev;
+	struct se_device *tg_pt_gp_dev;
 	struct config_group tg_pt_gp_group;
 	struct list_head tg_pt_gp_list;
 	struct list_head tg_pt_gp_mem_list;
@@ -365,22 +328,10 @@ struct t10_wwn {
 	char revision[4];
 	char unit_serial[INQUIRY_VPD_SERIAL_LEN];
 	spinlock_t t10_vpd_lock;
-	struct se_subsystem_dev *t10_sub_dev;
+	struct se_device *t10_dev;
 	struct config_group t10_wwn_group;
 	struct list_head t10_vpd_list;
 };
-
-
-/*
- * Used by TCM Core internally to signal if >= SPC-3 persistent reservations
- * emulation is enabled or disabled, or running in with TCM/pSCSI passthrough
- * mode
- */
-typedef enum {
-	SPC_PASSTHROUGH,
-	SPC2_RESERVATIONS,
-	SPC3_PERSISTENT_RESERVATIONS
-} t10_reservations_index_t;
 
 struct t10_pr_registration {
 	/* Used for fabrics that contain WWN+ISID */
@@ -394,8 +345,6 @@ struct t10_pr_registration {
 	/* Used during APTPL metadata reading */
 #define PR_APTPL_MAX_TPORT_LEN			256
 	unsigned char pr_tport[PR_APTPL_MAX_TPORT_LEN];
-	/* For writing out live meta data */
-	unsigned char *pr_aptpl_buf;
 	u16 pr_aptpl_rpti;
 	u16 pr_reg_tpgt;
 	/* Reservation effects all target ports */
@@ -423,29 +372,14 @@ struct t10_pr_registration {
 	struct list_head pr_reg_atp_mem_list;
 };
 
-/*
- * This set of function pointer ops is set based upon SPC3_PERSISTENT_RESERVATIONS,
- * SPC2_RESERVATIONS or SPC_PASSTHROUGH in drivers/target/target_core_pr.c:
- * core_setup_reservations()
- */
-struct t10_reservation_ops {
-	int (*t10_reservation_check)(struct se_cmd *, u32 *);
-	int (*t10_seq_non_holder)(struct se_cmd *, unsigned char *, u32);
-	int (*t10_pr_register)(struct se_cmd *);
-	int (*t10_pr_clear)(struct se_cmd *);
-};
-
 struct t10_reservation {
 	/* Reservation effects all target ports */
 	int pr_all_tg_pt;
 	/* Activate Persistence across Target Power Loss enabled
 	 * for SCSI device */
 	int pr_aptpl_active;
-	/* Used by struct t10_reservation->pr_aptpl_buf_len */
 #define PR_APTPL_BUF_LEN			8192
-	u32 pr_aptpl_buf_len;
 	u32 pr_generation;
-	t10_reservations_index_t res_type;
 	spinlock_t registration_lock;
 	spinlock_t aptpl_reg_lock;
 	/*
@@ -461,7 +395,6 @@ struct t10_reservation {
 	struct se_node_acl *pr_res_holder;
 	struct list_head registration_list;
 	struct list_head aptpl_reg_list;
-	struct t10_reservation_ops pr_ops;
 };
 
 struct se_tmr_req {
@@ -484,7 +417,6 @@ struct se_cmd {
 	u8			scsi_status;
 	u8			scsi_asc;
 	u8			scsi_ascq;
-	u8			scsi_sense_reason;
 	u16			scsi_sense_length;
 	/* Delay for ALUA Active/NonOptimized state access in milliseconds */
 	int			alua_nonop_delay;
@@ -492,10 +424,10 @@ struct se_cmd {
 	enum dma_data_direction	data_direction;
 	/* For SAM Task Attribute */
 	int			sam_task_attr;
+	/* Used for se_sess->sess_tag_pool */
+	unsigned int		map_tag;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
-	/* Used to signal cmd->se_tfo->check_release_cmd() usage per cmd */
-	unsigned		check_release:1;
 	unsigned		cmd_wait_set:1;
 	unsigned		unknown_data_length:1;
 	/* See se_cmd_flags_table */
@@ -522,18 +454,19 @@ struct se_cmd {
 	struct completion	cmd_wait_comp;
 	struct kref		cmd_kref;
 	struct target_core_fabric_ops *se_tfo;
-	int (*execute_cmd)(struct se_cmd *);
-	void (*transport_complete_callback)(struct se_cmd *);
+	sense_reason_t		(*execute_cmd)(struct se_cmd *);
+	sense_reason_t		(*execute_rw)(struct se_cmd *, struct scatterlist *,
+					      u32, enum dma_data_direction);
+	sense_reason_t (*transport_complete_callback)(struct se_cmd *);
 
 	unsigned char		*t_task_cdb;
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned long long	t_task_lba;
-	atomic_t		t_fe_count;
+	unsigned int		t_task_nolb;
 	unsigned int		transport_state;
 #define CMD_T_ABORTED		(1 << 0)
 #define CMD_T_ACTIVE		(1 << 1)
 #define CMD_T_COMPLETE		(1 << 2)
-#define CMD_T_QUEUED		(1 << 3)
 #define CMD_T_SENT		(1 << 4)
 #define CMD_T_STOP		(1 << 5)
 #define CMD_T_FAILED		(1 << 6)
@@ -550,7 +483,9 @@ struct se_cmd {
 	struct work_struct	work;
 
 	struct scatterlist	*t_data_sg;
+	struct scatterlist	*t_data_sg_orig;
 	unsigned int		t_data_nents;
+	unsigned int		t_data_nents_orig;
 	void			*t_data_vmap;
 	struct scatterlist	*t_bidi_data_sg;
 	unsigned int		t_bidi_data_nents;
@@ -580,6 +515,8 @@ struct se_node_acl {
 	bool			acl_stop:1;
 	u32			queue_depth;
 	u32			acl_index;
+#define MAX_ACL_TAG_SIZE 64
+	char			acl_tag[MAX_ACL_TAG_SIZE];
 	u64			num_cmds;
 	u64			read_bytes;
 	u64			write_bytes;
@@ -612,8 +549,11 @@ struct se_session {
 	struct list_head	sess_list;
 	struct list_head	sess_acl_list;
 	struct list_head	sess_cmd_list;
+	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
 	struct kref		sess_kref;
+	void			*sess_cmd_map;
+	struct percpu_ida	sess_tag_pool;
 };
 
 struct se_device;
@@ -640,12 +580,8 @@ struct se_dev_entry {
 	bool			def_pr_registered;
 	/* See transport_lunflags_table */
 	u32			lun_flags;
-	u32			deve_cmds;
 	u32			mapped_lun;
-	u32			average_bytes;
-	u32			last_byte_count;
 	u32			total_cmds;
-	u32			total_bytes;
 	u64			pr_res_key;
 	u64			creation_time;
 	u32			attach_count;
@@ -661,16 +597,8 @@ struct se_dev_entry {
 	struct list_head	ua_list;
 };
 
-struct se_dev_limits {
-	/* Max supported HW queue depth */
-	u32		hw_queue_depth;
-	/* Max supported virtual queue depth */
-	u32		queue_depth;
-	/* From include/linux/blkdev.h for the other HW/SW limits. */
-	struct queue_limits limits;
-};
-
 struct se_dev_attrib {
+	int		emulate_model_alias;
 	int		emulate_dpo;
 	int		emulate_fua_write;
 	int		emulate_fua_read;
@@ -679,8 +607,8 @@ struct se_dev_attrib {
 	int		emulate_tas;
 	int		emulate_tpu;
 	int		emulate_tpws;
-	int		emulate_reservations;
-	int		emulate_alua;
+	int		emulate_caw;
+	int		emulate_3pc;
 	int		enforce_pr_isids;
 	int		is_nonrot;
 	int		emulate_rest_reord;
@@ -695,7 +623,8 @@ struct se_dev_attrib {
 	u32		max_unmap_block_desc_count;
 	u32		unmap_granularity;
 	u32		unmap_granularity_alignment;
-	struct se_subsystem_dev *da_sub_dev;
+	u32		max_write_same_len;
+	struct se_device *da_dev;
 	struct config_group da_group;
 };
 
@@ -706,48 +635,25 @@ struct se_dev_stat_grps {
 	struct config_group scsi_lu_group;
 };
 
-struct se_subsystem_dev {
-/* Used for struct se_subsystem_dev-->se_dev_alias, must be less than PAGE_SIZE */
-#define SE_DEV_ALIAS_LEN		512
-	unsigned char	se_dev_alias[SE_DEV_ALIAS_LEN];
-/* Used for struct se_subsystem_dev->se_dev_udev_path[], must be less than PAGE_SIZE */
-#define SE_UDEV_PATH_LEN		512
-	unsigned char	se_dev_udev_path[SE_UDEV_PATH_LEN];
-	u32		su_dev_flags;
-	struct se_hba *se_dev_hba;
-	struct se_device *se_dev_ptr;
-	struct se_dev_attrib se_dev_attrib;
-	/* T10 Asymmetric Logical Unit Assignment for Target Ports */
-	struct t10_alua	t10_alua;
-	/* T10 Inquiry and VPD WWN Information */
-	struct t10_wwn	t10_wwn;
-	/* T10 SPC-2 + SPC-3 Reservations */
-	struct t10_reservation t10_pr;
-	spinlock_t      se_dev_lock;
-	void            *se_dev_su_ptr;
-	struct config_group se_dev_group;
-	/* For T10 Reservations */
-	struct config_group se_dev_pr_group;
-	/* For target_core_stat.c groups */
-	struct se_dev_stat_grps dev_stat_grps;
-};
-
 struct se_device {
+#define SE_DEV_LINK_MAGIC			0xfeeddeef
+	u32			dev_link_magic;
 	/* RELATIVE TARGET PORT IDENTIFER Counter */
 	u16			dev_rpti_counter;
 	/* Used for SAM Task Attribute ordering */
 	u32			dev_cur_ordered_id;
 	u32			dev_flags;
+#define DF_CONFIGURED				0x00000001
+#define DF_FIRMWARE_VPD_UNIT_SERIAL		0x00000002
+#define DF_EMULATED_VPD_UNIT_SERIAL		0x00000004
+#define DF_USING_UDEV_PATH			0x00000008
+#define DF_USING_ALIAS				0x00000010
 	u32			dev_port_count;
-	/* See transport_device_status_table */
-	u32			dev_status;
 	/* Physical device queue depth */
 	u32			queue_depth;
 	/* Used for SPC-2 reservations enforce of ISIDs */
 	u64			dev_res_bin_isid;
-	t10_task_attr_index_t	dev_task_attr_type;
 	/* Pointer to transport specific device structure */
-	void 			*dev_ptr;
 	u32			dev_index;
 	u64			creation_time;
 	u32			num_resets;
@@ -760,16 +666,17 @@ struct se_device {
 	atomic_t		dev_ordered_id;
 	atomic_t		dev_ordered_sync;
 	atomic_t		dev_qf_count;
-	struct se_obj		dev_obj;
-	struct se_obj		dev_access_obj;
-	struct se_obj		dev_export_obj;
+	int			export_count;
 	spinlock_t		delayed_cmd_lock;
 	spinlock_t		execute_task_lock;
 	spinlock_t		dev_reservation_lock;
-	spinlock_t		dev_status_lock;
+	unsigned int		dev_reservation_flags;
+#define DRF_SPC2_RESERVATIONS			0x00000001
+#define DRF_SPC2_RESERVATIONS_WITH_ISID		0x00000002
 	spinlock_t		se_port_lock;
 	spinlock_t		se_tmr_lock;
 	spinlock_t		qf_cmd_lock;
+	struct semaphore	caw_sem;
 	/* Used for legacy SPC-2 reservationsa */
 	struct se_node_acl	*dev_reserved_node_acl;
 	/* Used for ALUA Logical Unit Group membership */
@@ -783,9 +690,23 @@ struct se_device {
 	struct list_head	delayed_cmd_list;
 	struct list_head	state_list;
 	struct list_head	qf_cmd_list;
+	struct list_head	g_dev_node;
 	/* Pointer to associated SE HBA */
 	struct se_hba		*se_hba;
-	struct se_subsystem_dev *se_sub_dev;
+	/* T10 Inquiry and VPD WWN Information */
+	struct t10_wwn		t10_wwn;
+	/* T10 Asymmetric Logical Unit Assignment for Target Ports */
+	struct t10_alua		t10_alua;
+	/* T10 SPC-2 + SPC-3 Reservations */
+	struct t10_reservation	t10_pr;
+	struct se_dev_attrib	dev_attrib;
+	struct config_group	dev_group;
+	struct config_group	dev_pr_group;
+	struct se_dev_stat_grps dev_stat_grps;
+#define SE_DEV_ALIAS_LEN 512		/* must be less than PAGE_SIZE */
+	unsigned char		dev_alias[SE_DEV_ALIAS_LEN];
+#define SE_UDEV_PATH_LEN 512		/* must be less than PAGE_SIZE */
+	unsigned char		udev_path[SE_UDEV_PATH_LEN];
 	/* Pointer to template of function pointers for transport */
 	struct se_subsystem_api *transport;
 	/* Linked list for struct se_hba struct se_device list */
@@ -802,8 +723,6 @@ struct se_hba {
 	u32			hba_index;
 	/* Pointer to transport specific host structure. */
 	void			*hba_ptr;
-	/* Linked list for struct se_device */
-	struct list_head	hba_dev_list;
 	struct list_head	hba_node;
 	spinlock_t		device_lock;
 	struct config_group	hba_group;
@@ -819,6 +738,8 @@ struct se_port_stat_grps {
 };
 
 struct se_lun {
+#define SE_LUN_LINK_MAGIC			0xffff7771
+	u32			lun_link_magic;
 	/* See transport_lun_status_table */
 	enum transport_lun_status_table lun_status;
 	u32			lun_access;
@@ -893,11 +814,12 @@ struct se_portal_group {
 	struct target_core_fabric_ops *se_tpg_tfo;
 	struct se_wwn		*se_tpg_wwn;
 	struct config_group	tpg_group;
-	struct config_group	*tpg_default_groups[6];
+	struct config_group	*tpg_default_groups[7];
 	struct config_group	tpg_lun_group;
 	struct config_group	tpg_np_group;
 	struct config_group	tpg_acl_group;
 	struct config_group	tpg_attrib_group;
+	struct config_group	tpg_auth_group;
 	struct config_group	tpg_param_group;
 };
 

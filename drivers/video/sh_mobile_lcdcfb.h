@@ -94,6 +94,7 @@ struct sh_mobile_lcdc_chan {
 
 	/* Backlight */
 	struct backlight_device *bl;
+	unsigned int bl_brightness;
 
 	/* FB */
 	struct fb_info *info;

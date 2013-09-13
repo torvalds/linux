@@ -285,7 +285,7 @@ static struct buffer_head *qnx6_check_first_superblock(struct super_block *s,
 		if (fs32_to_cpu(sbi, sb->sb_magic) == QNX6_SUPER_MAGIC) {
 			/* we got a big endian fs */
 			QNX6DEBUG((KERN_INFO "qnx6: fs got different"
-					" endianess.\n"));
+					" endianness.\n"));
 			return bh;
 		} else
 			sbi->s_bytesex = BYTESEX_LE;
@@ -574,8 +574,8 @@ struct inode *qnx6_iget(struct super_block *sb, unsigned ino)
 	raw_inode = ((struct qnx6_inode_entry *)page_address(page)) + offs;
 
 	inode->i_mode    = fs16_to_cpu(sbi, raw_inode->di_mode);
-	inode->i_uid     = (uid_t)fs32_to_cpu(sbi, raw_inode->di_uid);
-	inode->i_gid     = (gid_t)fs32_to_cpu(sbi, raw_inode->di_gid);
+	i_uid_write(inode, (uid_t)fs32_to_cpu(sbi, raw_inode->di_uid));
+	i_gid_write(inode, (gid_t)fs32_to_cpu(sbi, raw_inode->di_gid));
 	inode->i_size    = fs64_to_cpu(sbi, raw_inode->di_size);
 	inode->i_mtime.tv_sec   = fs32_to_cpu(sbi, raw_inode->di_mtime);
 	inode->i_mtime.tv_nsec = 0;
@@ -651,6 +651,11 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(qnx6_inode_cachep);
 }
 
@@ -667,6 +672,7 @@ static struct file_system_type qnx6_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("qnx6");
 
 static int __init init_qnx6_fs(void)
 {

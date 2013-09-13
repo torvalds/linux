@@ -355,8 +355,7 @@ static void ds2760_battery_external_power_changed(struct power_supply *psy)
 
 	dev_dbg(di->dev, "%s\n", __func__);
 
-	cancel_delayed_work(&di->monitor_work);
-	queue_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ/10);
+	mod_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ/10);
 }
 
 
@@ -401,8 +400,7 @@ static void ds2760_battery_set_charged(struct power_supply *psy)
 
 	/* postpone the actual work by 20 secs. This is for debouncing GPIO
 	 * signals and to let the current value settle. See AN4188. */
-	cancel_delayed_work(&di->set_charged_work);
-	queue_delayed_work(di->monitor_wqueue, &di->set_charged_work, HZ * 20);
+	mod_delayed_work(di->monitor_wqueue, &di->set_charged_work, HZ * 20);
 }
 
 static int ds2760_battery_get_property(struct power_supply *psy,
@@ -514,7 +512,7 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 	int retval = 0;
 	struct ds2760_device_info *di;
 
-	di = kzalloc(sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
 	if (!di) {
 		retval = -ENOMEM;
 		goto di_alloc_failed;
@@ -578,7 +576,6 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 workqueue_failed:
 	power_supply_unregister(&di->bat);
 batt_failed:
-	kfree(di);
 di_alloc_failed:
 success:
 	return retval;
@@ -592,7 +589,6 @@ static int ds2760_battery_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&di->set_charged_work);
 	destroy_workqueue(di->monitor_wqueue);
 	power_supply_unregister(&di->bat);
-	kfree(di);
 
 	return 0;
 }
@@ -616,8 +612,7 @@ static int ds2760_battery_resume(struct platform_device *pdev)
 	di->charge_status = POWER_SUPPLY_STATUS_UNKNOWN;
 	power_supply_changed(&di->bat);
 
-	cancel_delayed_work(&di->monitor_work);
-	queue_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ);
+	mod_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ);
 
 	return 0;
 }

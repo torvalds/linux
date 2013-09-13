@@ -1,0 +1,180 @@
+/*
+ * Device Tree file for Marvell Armada XP development board
+ * (DB-MV784MP-GP)
+ *
+ * Copyright (C) 2013 Marvell
+ *
+ * Lior Amsalem <alior@marvell.com>
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "armada-xp-mv78460.dtsi"
+
+/ {
+	model = "Marvell Armada XP Development Board DB-MV784MP-GP";
+	compatible = "marvell,axp-gp", "marvell,armadaxp-mv78460", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		/*
+                 * 8 GB of plug-in RAM modules by default.The amount
+                 * of memory available can be changed by the
+                 * bootloader according the size of the module
+                 * actually plugged. Only 7GB are usable because
+                 * addresses from 0xC0000000 to 0xffffffff are used by
+                 * the internal registers of the SoC.
+		 */
+		reg = <0x00000000 0x00000000 0x00000000 0xC0000000>,
+		      <0x00000001 0x00000000 0x00000001 0x00000000>;
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
+			  MBUS_ID(0x01, 0x2f) 0 0 0xf0000000 0x1000000>;
+
+		devbus-bootcs {
+			status = "okay";
+
+			/* Device Bus parameters are required */
+
+			/* Read parameters */
+			devbus,bus-width    = <8>;
+			devbus,turn-off-ps  = <60000>;
+			devbus,badr-skew-ps = <0>;
+			devbus,acc-first-ps = <124000>;
+			devbus,acc-next-ps  = <248000>;
+			devbus,rd-setup-ps  = <0>;
+			devbus,rd-hold-ps   = <0>;
+
+			/* Write parameters */
+			devbus,sync-enable = <0>;
+			devbus,wr-high-ps  = <60000>;
+			devbus,wr-low-ps   = <60000>;
+			devbus,ale-wr-ps   = <60000>;
+
+			/* NOR 16 MiB */
+			nor@0 {
+				compatible = "cfi-flash";
+				reg = <0 0x1000000>;
+				bank-width = <2>;
+			};
+		};
+
+		pcie-controller {
+			status = "okay";
+
+			/*
+			 * The 3 slots are physically present as
+			 * standard PCIe slots on the board.
+			 */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+			pcie@9,0 {
+				/* Port 2, Lane 0 */
+				status = "okay";
+			};
+			pcie@10,0 {
+				/* Port 3, Lane 0 */
+				status = "okay";
+			};
+		};
+
+		internal-regs {
+			serial@12000 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12100 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12200 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12300 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+
+			sata@a0000 {
+				nr-ports = <2>;
+				status = "okay";
+			};
+
+			mdio {
+				phy0: ethernet-phy@0 {
+					reg = <16>;
+				};
+
+				phy1: ethernet-phy@1 {
+					reg = <17>;
+				};
+
+				phy2: ethernet-phy@2 {
+					reg = <18>;
+				};
+
+				phy3: ethernet-phy@3 {
+					reg = <19>;
+				};
+			};
+
+			ethernet@70000 {
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@74000 {
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@30000 {
+				status = "okay";
+				phy = <&phy2>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@34000 {
+				status = "okay";
+				phy = <&phy3>;
+				phy-mode = "rgmii-id";
+			};
+
+			/* Front-side USB slot */
+			usb@50000 {
+				status = "okay";
+			};
+
+			/* Back-side USB slot */
+			usb@51000 {
+				status = "okay";
+			};
+
+			spi0: spi@10600 {
+				status = "okay";
+
+				spi-flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "n25q128a13";
+					reg = <0>; /* Chip select 0 */
+					spi-max-frequency = <108000000>;
+				};
+			};
+		};
+	};
+};

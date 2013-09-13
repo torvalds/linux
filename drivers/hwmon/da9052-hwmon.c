@@ -12,7 +12,6 @@
  *
  */
 
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -44,47 +43,34 @@ static const char * const input_names[] = {
 };
 
 /* Conversion function for VDDOUT and VBAT */
-static inline int volt_reg_to_mV(int value)
+static inline int volt_reg_to_mv(int value)
 {
 	return DIV_ROUND_CLOSEST(value * 1000, 512) + 2500;
 }
 
 /* Conversion function for ADC channels 4, 5 and 6 */
-static inline int input_reg_to_mV(int value)
+static inline int input_reg_to_mv(int value)
 {
 	return DIV_ROUND_CLOSEST(value * 2500, 1023);
 }
 
 /* Conversion function for VBBAT */
-static inline int vbbat_reg_to_mV(int value)
+static inline int vbbat_reg_to_mv(int value)
 {
 	return DIV_ROUND_CLOSEST(value * 2500, 512);
 }
 
-static int da9052_enable_vddout_channel(struct da9052 *da9052)
+static inline int da9052_enable_vddout_channel(struct da9052 *da9052)
 {
-	int ret;
-
-	ret = da9052_reg_read(da9052, DA9052_ADC_CONT_REG);
-	if (ret < 0)
-		return ret;
-
-	ret |= DA9052_ADCCONT_AUTOVDDEN;
-
-	return da9052_reg_write(da9052, DA9052_ADC_CONT_REG, ret);
+	return da9052_reg_update(da9052, DA9052_ADC_CONT_REG,
+				 DA9052_ADCCONT_AUTOVDDEN,
+				 DA9052_ADCCONT_AUTOVDDEN);
 }
 
-static int da9052_disable_vddout_channel(struct da9052 *da9052)
+static inline int da9052_disable_vddout_channel(struct da9052 *da9052)
 {
-	int ret;
-
-	ret = da9052_reg_read(da9052, DA9052_ADC_CONT_REG);
-	if (ret < 0)
-		return ret;
-
-	ret &= ~DA9052_ADCCONT_AUTOVDDEN;
-
-	return da9052_reg_write(da9052, DA9052_ADC_CONT_REG, ret);
+	return da9052_reg_update(da9052, DA9052_ADC_CONT_REG,
+				 DA9052_ADCCONT_AUTOVDDEN, 0);
 }
 
 static ssize_t da9052_read_vddout(struct device *dev,
@@ -110,7 +96,7 @@ static ssize_t da9052_read_vddout(struct device *dev,
 		goto hwmon_err;
 
 	mutex_unlock(&hwmon->hwmon_lock);
-	return sprintf(buf, "%d\n", volt_reg_to_mV(vdd));
+	return sprintf(buf, "%d\n", volt_reg_to_mv(vdd));
 
 hwmon_err_release:
 	da9052_disable_vddout_channel(hwmon->da9052);
@@ -151,7 +137,7 @@ static ssize_t da9052_read_vbat(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", volt_reg_to_mV(ret));
+	return sprintf(buf, "%d\n", volt_reg_to_mv(ret));
 }
 
 static ssize_t da9052_read_misc_channel(struct device *dev,
@@ -166,7 +152,7 @@ static ssize_t da9052_read_misc_channel(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", input_reg_to_mV(ret));
+	return sprintf(buf, "%d\n", input_reg_to_mv(ret));
 }
 
 static ssize_t da9052_read_tjunc(struct device *dev,
@@ -201,7 +187,7 @@ static ssize_t da9052_read_vbbat(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", vbbat_reg_to_mV(ret));
+	return sprintf(buf, "%d\n", vbbat_reg_to_mv(ret));
 }
 
 static ssize_t da9052_hwmon_show_name(struct device *dev,
@@ -284,7 +270,7 @@ static struct attribute *da9052_attr[] = {
 
 static const struct attribute_group da9052_attr_group = {.attrs = da9052_attr};
 
-static int __devinit da9052_hwmon_probe(struct platform_device *pdev)
+static int da9052_hwmon_probe(struct platform_device *pdev)
 {
 	struct da9052_hwmon *hwmon;
 	int ret;
@@ -317,7 +303,7 @@ err_mem:
 	return ret;
 }
 
-static int __devexit da9052_hwmon_remove(struct platform_device *pdev)
+static int da9052_hwmon_remove(struct platform_device *pdev)
 {
 	struct da9052_hwmon *hwmon = platform_get_drvdata(pdev);
 
@@ -329,7 +315,7 @@ static int __devexit da9052_hwmon_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_hwmon_driver = {
 	.probe = da9052_hwmon_probe,
-	.remove = __devexit_p(da9052_hwmon_remove),
+	.remove = da9052_hwmon_remove,
 	.driver = {
 		.name = "da9052-hwmon",
 		.owner = THIS_MODULE,

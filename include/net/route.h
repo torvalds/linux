@@ -48,7 +48,8 @@ struct rtable {
 	int			rt_genid;
 	unsigned int		rt_flags;
 	__u16			rt_type;
-	__u16			rt_is_input;
+	__u8			rt_is_input;
+	__u8			rt_uses_gateway;
 
 	int			rt_iif;
 
@@ -108,7 +109,7 @@ extern struct ip_rt_acct __percpu *ip_rt_acct;
 
 struct in_device;
 extern int		ip_rt_init(void);
-extern void		rt_cache_flush(struct net *net, int how);
+extern void		rt_cache_flush(struct net *net);
 extern void		rt_flush_dev(struct net_device *dev);
 extern struct rtable *__ip_route_output_key(struct net *, struct flowi4 *flp);
 extern struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
@@ -197,10 +198,13 @@ struct in_ifaddr;
 extern void fib_add_ifaddr(struct in_ifaddr *);
 extern void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
 
-static inline void ip_rt_put(struct rtable * rt)
+static inline void ip_rt_put(struct rtable *rt)
 {
-	if (rt)
-		dst_release(&rt->dst);
+	/* dst_release() accepts a NULL parameter.
+	 * We rely on dst being first structure in struct rtable
+	 */
+	BUILD_BUG_ON(offsetof(struct rtable, dst) != 0);
+	dst_release(&rt->dst);
 }
 
 #define IPTOS_RT_MASK	(IPTOS_TOS_MASK & ~3)
@@ -311,6 +315,14 @@ static inline int ip4_dst_hoplimit(const struct dst_entry *dst)
 	if (hoplimit == 0)
 		hoplimit = sysctl_ip_default_ttl;
 	return hoplimit;
+}
+
+static inline int ip_skb_dst_mtu(struct sk_buff *skb)
+{
+	struct inet_sock *inet = skb->sk ? inet_sk(skb->sk) : NULL;
+
+	return (inet && inet->pmtudisc == IP_PMTUDISC_PROBE) ?
+	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
 }
 
 #endif	/* _ROUTE_H */

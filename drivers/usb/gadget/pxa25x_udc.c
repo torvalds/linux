@@ -29,11 +29,11 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
+#include <linux/platform_data/pxa2xx_udc.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
-#include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/io.h>
@@ -59,9 +59,6 @@
 #ifdef CONFIG_ARCH_LUBBOCK
 #include <mach/lubbock.h>
 #endif
-
-#include <asm/mach/udc_pxa2xx.h>
-
 
 /*
  * This driver handles the USB Device Controller (UDC) in Intel's PXA 25x
@@ -999,9 +996,10 @@ static int pxa25x_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	return -EOPNOTSUPP;
 }
 
-static int pxa25x_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int pxa25x_stop(struct usb_gadget_driver *driver);
+static int pxa25x_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int pxa25x_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops pxa25x_udc_ops = {
 	.get_frame	= pxa25x_udc_get_frame,
@@ -1009,8 +1007,8 @@ static const struct usb_gadget_ops pxa25x_udc_ops = {
 	.vbus_session	= pxa25x_udc_vbus_session,
 	.pullup		= pxa25x_udc_pullup,
 	.vbus_draw	= pxa25x_udc_vbus_draw,
-	.start		= pxa25x_start,
-	.stop		= pxa25x_stop,
+	.udc_start	= pxa25x_udc_start,
+	.udc_stop	= pxa25x_udc_stop,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1257,58 +1255,25 @@ static void udc_enable (struct pxa25x_udc *dev)
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-static int pxa25x_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int pxa25x_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct pxa25x_udc	*dev = the_controller;
+	struct pxa25x_udc	*dev = to_pxa25x(g);
 	int			retval;
-
-	if (!driver
-			|| driver->max_speed < USB_SPEED_FULL
-			|| !bind
-			|| !driver->disconnect
-			|| !driver->setup)
-		return -EINVAL;
-	if (!dev)
-		return -ENODEV;
-	if (dev->driver)
-		return -EBUSY;
 
 	/* first hook up the driver ... */
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 	dev->pullup = 1;
-
-	retval = device_add (&dev->gadget.dev);
-	if (retval) {
-fail:
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
-	}
-	retval = bind(&dev->gadget);
-	if (retval) {
-		DMSG("bind to driver %s --> error %d\n",
-				driver->driver.name, retval);
-		device_del (&dev->gadget.dev);
-		goto fail;
-	}
 
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
 	 */
-	DMSG("registered gadget driver '%s'\n", driver->driver.name);
-
 	/* connect to bus through transceiver */
 	if (!IS_ERR_OR_NULL(dev->transceiver)) {
 		retval = otg_set_peripheral(dev->transceiver->otg,
 						&dev->gadget);
-		if (retval) {
-			DMSG("can't bind to transceiver\n");
-			if (driver->unbind)
-				driver->unbind(&dev->gadget);
+		if (retval)
 			goto bind_fail;
-		}
 	}
 
 	pullup(dev);
@@ -1345,14 +1310,10 @@ stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
 	udc_reinit(dev);
 }
 
-static int pxa25x_stop(struct usb_gadget_driver *driver)
+static int pxa25x_udc_stop(struct usb_gadget*g,
+		struct usb_gadget_driver *driver)
 {
-	struct pxa25x_udc	*dev = the_controller;
-
-	if (!dev)
-		return -ENODEV;
-	if (!driver || driver != dev->driver || !driver->unbind)
-		return -EINVAL;
+	struct pxa25x_udc	*dev = to_pxa25x(g);
 
 	local_irq_disable();
 	dev->pullup = 0;
@@ -1363,14 +1324,10 @@ static int pxa25x_stop(struct usb_gadget_driver *driver)
 	if (!IS_ERR_OR_NULL(dev->transceiver))
 		(void) otg_set_peripheral(dev->transceiver->otg, NULL);
 
-	driver->unbind(&dev->gadget);
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
-	device_del (&dev->gadget.dev);
-
-	DMSG("unregistered gadget driver '%s'\n", driver->driver.name);
 	dump_state(dev);
+
 	return 0;
 }
 
@@ -2103,6 +2060,8 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	int retval, irq;
 	u32 chiprev;
 
+	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
+
 	/* insist on Intel/ARM/XScale */
 	asm("mrc%? p15, 0, %0, c0, c0" : "=r" (chiprev));
 	if ((chiprev & CP15R0_VENDOR_MASK) != CP15R0_XSCALE_VALUE) {
@@ -2158,7 +2117,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 
 	/* other non-static parts of init */
 	dev->dev = &pdev->dev;
-	dev->mach = pdev->dev.platform_data;
+	dev->mach = dev_get_platdata(&pdev->dev);
 
 	dev->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
@@ -2176,10 +2135,6 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	init_timer(&dev->timer);
 	dev->timer.function = udc_watchdog;
 	dev->timer.data = (unsigned long) dev;
-
-	device_initialize(&dev->gadget.dev);
-	dev->gadget.dev.parent = &pdev->dev;
-	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);
@@ -2252,10 +2207,10 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 {
 	struct pxa25x_udc *dev = platform_get_drvdata(pdev);
 
-	usb_del_gadget_udc(&dev->gadget);
 	if (dev->driver)
 		return -EBUSY;
 
+	usb_del_gadget_udc(&dev->gadget);
 	dev->pullup = 0;
 	pullup(dev);
 
@@ -2281,7 +2236,6 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 		dev->transceiver = NULL;
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	the_controller = NULL;
 	return 0;
 }
@@ -2349,18 +2303,7 @@ static struct platform_driver udc_driver = {
 	},
 };
 
-static int __init udc_init(void)
-{
-	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
-	return platform_driver_probe(&udc_driver, pxa25x_udc_probe);
-}
-module_init(udc_init);
-
-static void __exit udc_exit(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-module_exit(udc_exit);
+module_platform_driver_probe(udc_driver, pxa25x_udc_probe);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Frank Becker, Robert Schwebel, David Brownell");

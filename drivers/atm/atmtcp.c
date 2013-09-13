@@ -157,7 +157,6 @@ static int atmtcp_v_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 {
 	struct atm_cirange ci;
 	struct atm_vcc *vcc;
-	struct hlist_node *node;
 	struct sock *s;
 	int i;
 
@@ -171,7 +170,7 @@ static int atmtcp_v_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 	for(i = 0; i < VCC_HTABLE_SIZE; ++i) {
 		struct hlist_head *head = &vcc_hash[i];
 
-		sk_for_each(s, node, head) {
+		sk_for_each(s, head) {
 			vcc = atm_sk(s);
 			if (vcc->dev != dev)
 				continue;
@@ -264,12 +263,11 @@ static struct atm_vcc *find_vcc(struct atm_dev *dev, short vpi, int vci)
 {
         struct hlist_head *head;
         struct atm_vcc *vcc;
-        struct hlist_node *node;
         struct sock *s;
 
         head = &vcc_hash[vci & (VCC_HTABLE_SIZE -1)];
 
-        sk_for_each(s, node, head) {
+	sk_for_each(s, head) {
                 vcc = atm_sk(s);
                 if (vcc->dev == dev &&
                     vcc->vci == vci && vcc->vpi == vpi &&

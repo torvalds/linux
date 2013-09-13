@@ -188,12 +188,12 @@ static struct miscdevice mpc8xxx_wdt_miscdev = {
 };
 
 static const struct of_device_id mpc8xxx_wdt_match[];
-static int __devinit mpc8xxx_wdt_probe(struct platform_device *ofdev)
+static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 {
 	int ret;
 	const struct of_device_id *match;
 	struct device_node *np = ofdev->dev.of_node;
-	struct mpc8xxx_wdt_type *wdt_type;
+	const struct mpc8xxx_wdt_type *wdt_type;
 	u32 freq = fsl_get_sys_freq();
 	bool enabled;
 
@@ -245,7 +245,7 @@ err_unmap:
 	return ret;
 }
 
-static int __devexit mpc8xxx_wdt_remove(struct platform_device *ofdev)
+static int mpc8xxx_wdt_remove(struct platform_device *ofdev)
 {
 	mpc8xxx_wdt_pr_warn("watchdog removed");
 	del_timer_sync(&wdt_timer);
@@ -281,7 +281,7 @@ MODULE_DEVICE_TABLE(of, mpc8xxx_wdt_match);
 
 static struct platform_driver mpc8xxx_wdt_driver = {
 	.probe		= mpc8xxx_wdt_probe,
-	.remove		= __devexit_p(mpc8xxx_wdt_remove),
+	.remove		= mpc8xxx_wdt_remove,
 	.driver = {
 		.name = "mpc8xxx_wdt",
 		.owner = THIS_MODULE,

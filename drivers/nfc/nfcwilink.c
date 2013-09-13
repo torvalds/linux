@@ -109,7 +109,7 @@ enum {
 	NFCWILINK_FW_DOWNLOAD,
 };
 
-static int nfcwilink_send(struct sk_buff *skb);
+static int nfcwilink_send(struct nci_dev *ndev, struct sk_buff *skb);
 
 static inline struct sk_buff *nfcwilink_skb_alloc(unsigned int len, gfp_t how)
 {
@@ -156,8 +156,6 @@ static int nfcwilink_get_bts_file_name(struct nfcwilink *drv, char *file_name)
 		return -ENOMEM;
 	}
 
-	skb->dev = (void *)drv->ndev;
-
 	cmd = (struct nci_vs_nfcc_info_cmd *)
 			skb_put(skb, sizeof(struct nci_vs_nfcc_info_cmd));
 	cmd->gid = NCI_VS_NFCC_INFO_CMD_GID;
@@ -166,7 +164,7 @@ static int nfcwilink_get_bts_file_name(struct nfcwilink *drv, char *file_name)
 
 	drv->nfcc_info.plen = 0;
 
-	rc = nfcwilink_send(skb);
+	rc = nfcwilink_send(drv->ndev, skb);
 	if (rc)
 		return rc;
 
@@ -232,11 +230,9 @@ static int nfcwilink_send_bts_cmd(struct nfcwilink *drv, __u8 *data, int len)
 		return -ENOMEM;
 	}
 
-	skb->dev = (void *)drv->ndev;
-
 	memcpy(skb_put(skb, len), data, len);
 
-	rc = nfcwilink_send(skb);
+	rc = nfcwilink_send(drv->ndev, skb);
 	if (rc)
 		return rc;
 
@@ -352,8 +348,6 @@ static long nfcwilink_receive(void *priv_data, struct sk_buff *skb)
 	struct nfcwilink *drv = priv_data;
 	int rc;
 
-	nfc_dev_dbg(&drv->pdev->dev, "receive entry, len %d", skb->len);
-
 	if (!skb)
 		return -EFAULT;
 
@@ -361,6 +355,8 @@ static long nfcwilink_receive(void *priv_data, struct sk_buff *skb)
 		kfree_skb(skb);
 		return -EFAULT;
 	}
+
+	nfc_dev_dbg(&drv->pdev->dev, "receive entry, len %d", skb->len);
 
 	/* strip the ST header
 	(apart for the chnl byte, which is not received in the hdr) */
@@ -371,10 +367,8 @@ static long nfcwilink_receive(void *priv_data, struct sk_buff *skb)
 		return 0;
 	}
 
-	skb->dev = (void *) drv->ndev;
-
 	/* Forward skb to NCI core layer */
-	rc = nci_recv_frame(skb);
+	rc = nci_recv_frame(drv->ndev, skb);
 	if (rc < 0) {
 		nfc_dev_err(&drv->pdev->dev, "nci_recv_frame failed %d", rc);
 		return rc;
@@ -480,9 +474,8 @@ static int nfcwilink_close(struct nci_dev *ndev)
 	return rc;
 }
 
-static int nfcwilink_send(struct sk_buff *skb)
+static int nfcwilink_send(struct nci_dev *ndev, struct sk_buff *skb)
 {
-	struct nci_dev *ndev = (struct nci_dev *)skb->dev;
 	struct nfcwilink *drv = nci_get_drvdata(ndev);
 	struct nfcwilink_hdr hdr = {NFCWILINK_CHNL, NFCWILINK_OPCODE, 0x0000};
 	long len;
@@ -526,7 +519,7 @@ static int nfcwilink_probe(struct platform_device *pdev)
 
 	nfc_dev_dbg(&pdev->dev, "probe entry");
 
-	drv = kzalloc(sizeof(struct nfcwilink), GFP_KERNEL);
+	drv = devm_kzalloc(&pdev->dev, sizeof(struct nfcwilink), GFP_KERNEL);
 	if (!drv) {
 		rc = -ENOMEM;
 		goto exit;
@@ -547,7 +540,7 @@ static int nfcwilink_probe(struct platform_device *pdev)
 	if (!drv->ndev) {
 		nfc_dev_err(&pdev->dev, "nci_allocate_device failed");
 		rc = -ENOMEM;
-		goto free_exit;
+		goto exit;
 	}
 
 	nci_set_parent_dev(drv->ndev, &pdev->dev);
@@ -565,9 +558,6 @@ static int nfcwilink_probe(struct platform_device *pdev)
 
 free_dev_exit:
 	nci_free_device(drv->ndev);
-
-free_exit:
-	kfree(drv);
 
 exit:
 	return rc;
@@ -588,8 +578,6 @@ static int nfcwilink_remove(struct platform_device *pdev)
 	nci_unregister_device(ndev);
 	nci_free_device(ndev);
 
-	kfree(drv);
-
 	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
@@ -604,21 +592,7 @@ static struct platform_driver nfcwilink_driver = {
 	},
 };
 
-/* ------- Module Init/Exit interfaces ------ */
-static int __init nfcwilink_init(void)
-{
-	printk(KERN_INFO "NFC Driver for TI WiLink");
-
-	return platform_driver_register(&nfcwilink_driver);
-}
-
-static void __exit nfcwilink_exit(void)
-{
-	platform_driver_unregister(&nfcwilink_driver);
-}
-
-module_init(nfcwilink_init);
-module_exit(nfcwilink_exit);
+module_platform_driver(nfcwilink_driver);
 
 /* ------ Module Info ------ */
 

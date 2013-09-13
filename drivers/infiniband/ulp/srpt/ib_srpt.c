@@ -1269,7 +1269,6 @@ static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 		return ioctx;
 
 	BUG_ON(ioctx->ch != ch);
-	kref_init(&ioctx->kref);
 	spin_lock_init(&ioctx->spinlock);
 	ioctx->state = SRPT_STATE_NEW;
 	ioctx->n_rbuf = 0;
@@ -1288,39 +1287,6 @@ static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 	memset(&ioctx->sense_data, 0, sizeof(ioctx->sense_data));
 
 	return ioctx;
-}
-
-/**
- * srpt_put_send_ioctx() - Free up resources.
- */
-static void srpt_put_send_ioctx(struct srpt_send_ioctx *ioctx)
-{
-	struct srpt_rdma_ch *ch;
-	unsigned long flags;
-
-	BUG_ON(!ioctx);
-	ch = ioctx->ch;
-	BUG_ON(!ch);
-
-	WARN_ON(srpt_get_cmd_state(ioctx) != SRPT_STATE_DONE);
-
-	srpt_unmap_sg_to_ib_sge(ioctx->ch, ioctx);
-	transport_generic_free_cmd(&ioctx->cmd, 0);
-
-	if (ioctx->n_rbuf > 1) {
-		kfree(ioctx->rbufs);
-		ioctx->rbufs = NULL;
-		ioctx->n_rbuf = 0;
-	}
-
-	spin_lock_irqsave(&ch->spinlock, flags);
-	list_add(&ioctx->free_list, &ch->free_list);
-	spin_unlock_irqrestore(&ch->spinlock, flags);
-}
-
-static void srpt_put_send_ioctx_kref(struct kref *kref)
-{
-	srpt_put_send_ioctx(container_of(kref, struct srpt_send_ioctx, kref));
 }
 
 /**
@@ -1359,8 +1325,14 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	}
 	spin_unlock_irqrestore(&ioctx->spinlock, flags);
 
-	if (state == SRPT_STATE_DONE)
+	if (state == SRPT_STATE_DONE) {
+		struct srpt_rdma_ch *ch = ioctx->ch;
+
+		BUG_ON(ch->sess == NULL);
+
+		target_put_sess_cmd(ch->sess, &ioctx->cmd);
 		goto out;
+	}
 
 	pr_debug("Aborting cmd with state %d and tag %lld\n", state,
 		 ioctx->tag);
@@ -1395,14 +1367,14 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
 		ioctx->cmd.transport_state |= CMD_T_LUN_STOP;
 		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
-		kref_put(&ioctx->kref, srpt_put_send_ioctx_kref);
+		target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
 		break;
 	case SRPT_STATE_MGMT_RSP_SENT:
 		srpt_set_cmd_state(ioctx, SRPT_STATE_DONE);
-		kref_put(&ioctx->kref, srpt_put_send_ioctx_kref);
+		target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
 		break;
 	default:
-		WARN_ON("ERROR: unexpected command state");
+		WARN(1, "Unexpected command state (%d)", state);
 		break;
 	}
 
@@ -1457,11 +1429,13 @@ static void srpt_handle_send_comp(struct srpt_rdma_ch *ch,
 		    && state != SRPT_STATE_DONE))
 		pr_debug("state = %d\n", state);
 
-	if (state != SRPT_STATE_DONE)
-		kref_put(&ioctx->kref, srpt_put_send_ioctx_kref);
-	else
+	if (state != SRPT_STATE_DONE) {
+		srpt_unmap_sg_to_ib_sge(ch, ioctx);
+		transport_generic_free_cmd(&ioctx->cmd, 0);
+	} else {
 		printk(KERN_ERR "IB completion has been received too late for"
 		       " wr_id = %u.\n", ioctx->ioctx.index);
+	}
 }
 
 /**
@@ -1712,10 +1686,10 @@ out_err:
 
 static int srpt_check_stop_free(struct se_cmd *cmd)
 {
-	struct srpt_send_ioctx *ioctx;
+	struct srpt_send_ioctx *ioctx = container_of(cmd,
+				struct srpt_send_ioctx, cmd);
 
-	ioctx = container_of(cmd, struct srpt_send_ioctx, cmd);
-	return kref_put(&ioctx->kref, srpt_put_send_ioctx_kref);
+	return target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
 }
 
 /**
@@ -1730,12 +1704,12 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 	uint64_t unpacked_lun;
 	u64 data_len;
 	enum dma_data_direction dir;
-	int ret;
+	sense_reason_t ret;
+	int rc;
 
 	BUG_ON(!send_ioctx);
 
 	srp_cmd = recv_ioctx->ioctx.buf;
-	kref_get(&send_ioctx->kref);
 	cmd = &send_ioctx->cmd;
 	send_ioctx->tag = srp_cmd->tag;
 
@@ -1755,40 +1729,26 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 		break;
 	}
 
-	ret = srpt_get_desc_tbl(send_ioctx, srp_cmd, &dir, &data_len);
-	if (ret) {
+	if (srpt_get_desc_tbl(send_ioctx, srp_cmd, &dir, &data_len)) {
 		printk(KERN_ERR "0x%llx: parsing SRP descriptor table failed.\n",
 		       srp_cmd->tag);
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
+		ret = TCM_INVALID_CDB_FIELD;
 		goto send_sense;
 	}
 
-	cmd->data_length = data_len;
-	cmd->data_direction = dir;
 	unpacked_lun = srpt_unpack_lun((uint8_t *)&srp_cmd->lun,
 				       sizeof(srp_cmd->lun));
-	if (transport_lookup_cmd_lun(cmd, unpacked_lun) < 0) {
-		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
+	rc = target_submit_cmd(cmd, ch->sess, srp_cmd->cdb,
+			&send_ioctx->sense_data[0], unpacked_lun, data_len,
+			MSG_SIMPLE_TAG, dir, TARGET_SCF_ACK_KREF);
+	if (rc != 0) {
+		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		goto send_sense;
 	}
-	ret = target_setup_cmd_from_cdb(cmd, srp_cmd->cdb);
-	if (ret < 0) {
-		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
-		if (cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT) {
-			srpt_queue_status(cmd);
-			return 0;
-		} else
-			goto send_sense;
-	}
-
-	transport_handle_cdb_direct(cmd);
 	return 0;
 
 send_sense:
-	transport_send_check_condition_and_sense(cmd, cmd->scsi_sense_reason,
-						 0);
+	transport_send_check_condition_and_sense(cmd, ret, 0);
 	return -1;
 }
 
@@ -1865,9 +1825,11 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 {
 	struct srp_tsk_mgmt *srp_tsk;
 	struct se_cmd *cmd;
+	struct se_session *sess = ch->sess;
 	uint64_t unpacked_lun;
+	uint32_t tag = 0;
 	int tcm_tmr;
-	int res;
+	int rc;
 
 	BUG_ON(!send_ioctx);
 
@@ -1882,39 +1844,32 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 	send_ioctx->tag = srp_tsk->tag;
 	tcm_tmr = srp_tmr_to_tcm(srp_tsk->tsk_mgmt_func);
 	if (tcm_tmr < 0) {
-		send_ioctx->cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		send_ioctx->cmd.se_tmr_req->response =
 			TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED;
-		goto process_tmr;
+		goto fail;
 	}
-	res = core_tmr_alloc_req(cmd, NULL, tcm_tmr, GFP_KERNEL);
-	if (res < 0) {
-		send_ioctx->cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		send_ioctx->cmd.se_tmr_req->response = TMR_FUNCTION_REJECTED;
-		goto process_tmr;
-	}
-
 	unpacked_lun = srpt_unpack_lun((uint8_t *)&srp_tsk->lun,
 				       sizeof(srp_tsk->lun));
-	res = transport_lookup_tmr_lun(&send_ioctx->cmd, unpacked_lun);
-	if (res) {
-		pr_debug("rejecting TMR for LUN %lld\n", unpacked_lun);
-		send_ioctx->cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		send_ioctx->cmd.se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
-		goto process_tmr;
+
+	if (srp_tsk->tsk_mgmt_func == SRP_TSK_ABORT_TASK) {
+		rc = srpt_rx_mgmt_fn_tag(send_ioctx, srp_tsk->task_tag);
+		if (rc < 0) {
+			send_ioctx->cmd.se_tmr_req->response =
+					TMR_TASK_DOES_NOT_EXIST;
+			goto fail;
+		}
+		tag = srp_tsk->task_tag;
 	}
-
-	if (srp_tsk->tsk_mgmt_func == SRP_TSK_ABORT_TASK)
-		srpt_rx_mgmt_fn_tag(send_ioctx, srp_tsk->task_tag);
-
-process_tmr:
-	kref_get(&send_ioctx->kref);
-	if (!(send_ioctx->cmd.se_cmd_flags & SCF_SCSI_CDB_EXCEPTION))
-		transport_generic_handle_tmr(&send_ioctx->cmd);
-	else
-		transport_send_check_condition_and_sense(cmd,
-						cmd->scsi_sense_reason, 0);
-
+	rc = target_submit_tmr(&send_ioctx->cmd, sess, NULL, unpacked_lun,
+				srp_tsk, tcm_tmr, GFP_KERNEL, tag,
+				TARGET_SCF_ACK_KREF);
+	if (rc != 0) {
+		send_ioctx->cmd.se_tmr_req->response = TMR_FUNCTION_REJECTED;
+		goto fail;
+	}
+	return;
+fail:
+	transport_send_check_condition_and_sense(cmd, 0, 0); // XXX:
 }
 
 /**
@@ -1955,10 +1910,6 @@ static void srpt_handle_new_iu(struct srpt_rdma_ch *ch,
 			goto out;
 		}
 	}
-
-	transport_init_se_cmd(&send_ioctx->cmd, &srpt_target->tf_ops, ch->sess,
-			      0, DMA_NONE, MSG_SIMPLE_TAG,
-			      send_ioctx->sense_data);
 
 	switch (srp_cmd->opcode) {
 	case SRP_CMD:
@@ -2276,6 +2227,27 @@ static void srpt_close_ch(struct srpt_rdma_ch *ch)
 }
 
 /**
+ * srpt_shutdown_session() - Whether or not a session may be shut down.
+ */
+static int srpt_shutdown_session(struct se_session *se_sess)
+{
+	struct srpt_rdma_ch *ch = se_sess->fabric_sess_ptr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ch->spinlock, flags);
+	if (ch->in_shutdown) {
+		spin_unlock_irqrestore(&ch->spinlock, flags);
+		return true;
+	}
+
+	ch->in_shutdown = true;
+	target_sess_cmd_list_set_waiting(se_sess);
+	spin_unlock_irqrestore(&ch->spinlock, flags);
+
+	return true;
+}
+
+/**
  * srpt_drain_channel() - Drain a channel by resetting the IB queue pair.
  * @cm_id: Pointer to the CM ID of the channel to be drained.
  *
@@ -2313,6 +2285,9 @@ static void srpt_drain_channel(struct ib_cm_id *cm_id)
 	spin_unlock_irq(&sdev->spinlock);
 
 	if (do_reset) {
+		if (ch->sess)
+			srpt_shutdown_session(ch->sess);
+
 		ret = srpt_ch_qp_err(ch);
 		if (ret < 0)
 			printk(KERN_ERR "Setting queue pair in error state"
@@ -2365,6 +2340,7 @@ static void srpt_release_channel_work(struct work_struct *w)
 {
 	struct srpt_rdma_ch *ch;
 	struct srpt_device *sdev;
+	struct se_session *se_sess;
 
 	ch = container_of(w, struct srpt_rdma_ch, release_work);
 	pr_debug("ch = %p; ch->sess = %p; release_done = %p\n", ch, ch->sess,
@@ -2373,8 +2349,13 @@ static void srpt_release_channel_work(struct work_struct *w)
 	sdev = ch->sport->sdev;
 	BUG_ON(!sdev);
 
-	transport_deregister_session_configfs(ch->sess);
-	transport_deregister_session(ch->sess);
+	se_sess = ch->sess;
+	BUG_ON(!se_sess);
+
+	target_wait_for_sess_cmds(se_sess);
+
+	transport_deregister_session_configfs(se_sess);
+	transport_deregister_session(se_sess);
 	ch->sess = NULL;
 
 	srpt_destroy_ch_ib(ch);
@@ -3030,7 +3011,7 @@ static u8 tcm_to_srp_tsk_mgmt_status(const int tcm_mgmt_status)
  * Callback function called by the TCM core. Must not block since it can be
  * invoked on the context of the IB completion handler.
  */
-static int srpt_queue_response(struct se_cmd *cmd)
+static void srpt_queue_response(struct se_cmd *cmd)
 {
 	struct srpt_rdma_ch *ch;
 	struct srpt_send_ioctx *ioctx;
@@ -3040,8 +3021,6 @@ static int srpt_queue_response(struct se_cmd *cmd)
 	enum dma_data_direction dir;
 	int resp_len;
 	u8 srp_tm_status;
-
-	ret = 0;
 
 	ioctx = container_of(cmd, struct srpt_send_ioctx, cmd);
 	ch = ioctx->ch;
@@ -3068,7 +3047,7 @@ static int srpt_queue_response(struct se_cmd *cmd)
 		     || WARN_ON_ONCE(state == SRPT_STATE_CMD_RSP_SENT))) {
 		atomic_inc(&ch->req_lim_delta);
 		srpt_abort_cmd(ioctx);
-		goto out;
+		return;
 	}
 
 	dir = ioctx->cmd.data_direction;
@@ -3080,7 +3059,7 @@ static int srpt_queue_response(struct se_cmd *cmd)
 		if (ret) {
 			printk(KERN_ERR "xfer_data failed for tag %llu\n",
 			       ioctx->tag);
-			goto out;
+			return;
 		}
 	}
 
@@ -3099,11 +3078,19 @@ static int srpt_queue_response(struct se_cmd *cmd)
 		       ioctx->tag);
 		srpt_unmap_sg_to_ib_sge(ch, ioctx);
 		srpt_set_cmd_state(ioctx, SRPT_STATE_DONE);
-		kref_put(&ioctx->kref, srpt_put_send_ioctx_kref);
+		target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
 	}
+}
 
-out:
-	return ret;
+static int srpt_queue_data_in(struct se_cmd *cmd)
+{
+	srpt_queue_response(cmd);
+	return 0;
+}
+
+static void srpt_queue_tm_rsp(struct se_cmd *cmd)
+{
+	srpt_queue_response(cmd);
 }
 
 static int srpt_queue_status(struct se_cmd *cmd)
@@ -3116,7 +3103,8 @@ static int srpt_queue_status(struct se_cmd *cmd)
 	    (SCF_TRANSPORT_TASK_SENSE | SCF_EMULATED_TASK_SENSE))
 		WARN_ON(cmd->scsi_status != SAM_STAT_CHECK_CONDITION);
 	ioctx->queue_status_only = true;
-	return srpt_queue_response(cmd);
+	srpt_queue_response(cmd);
+	return 0;
 }
 
 static void srpt_refresh_port_work(struct work_struct *work)
@@ -3490,14 +3478,23 @@ static u32 srpt_tpg_get_inst_index(struct se_portal_group *se_tpg)
 
 static void srpt_release_cmd(struct se_cmd *se_cmd)
 {
-}
+	struct srpt_send_ioctx *ioctx = container_of(se_cmd,
+				struct srpt_send_ioctx, cmd);
+	struct srpt_rdma_ch *ch = ioctx->ch;
+	unsigned long flags;
 
-/**
- * srpt_shutdown_session() - Whether or not a session may be shut down.
- */
-static int srpt_shutdown_session(struct se_session *se_sess)
-{
-	return true;
+	WARN_ON(ioctx->state != SRPT_STATE_DONE);
+	WARN_ON(ioctx->mapped_sg_count != 0);
+
+	if (ioctx->n_rbuf > 1) {
+		kfree(ioctx->rbufs);
+		ioctx->rbufs = NULL;
+		ioctx->n_rbuf = 0;
+	}
+
+	spin_lock_irqsave(&ch->spinlock, flags);
+	list_add(&ioctx->free_list, &ch->free_list);
+	spin_unlock_irqrestore(&ch->spinlock, flags);
 }
 
 /**
@@ -3562,16 +3559,6 @@ static int srpt_get_tcm_cmd_state(struct se_cmd *se_cmd)
 
 	ioctx = container_of(se_cmd, struct srpt_send_ioctx, cmd);
 	return srpt_get_cmd_state(ioctx);
-}
-
-static u16 srpt_set_fabric_sense_len(struct se_cmd *cmd, u32 sense_length)
-{
-	return 0;
-}
-
-static u16 srpt_get_fabric_sense_len(void)
-{
-	return 0;
 }
 
 /**
@@ -3950,11 +3937,9 @@ static struct target_core_fabric_ops srpt_template = {
 	.set_default_node_attributes	= srpt_set_default_node_attrs,
 	.get_task_tag			= srpt_get_task_tag,
 	.get_cmd_state			= srpt_get_tcm_cmd_state,
-	.queue_data_in			= srpt_queue_response,
+	.queue_data_in			= srpt_queue_data_in,
 	.queue_status			= srpt_queue_status,
-	.queue_tm_rsp			= srpt_queue_response,
-	.get_fabric_sense_len		= srpt_get_fabric_sense_len,
-	.set_fabric_sense_len		= srpt_set_fabric_sense_len,
+	.queue_tm_rsp			= srpt_queue_tm_rsp,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c

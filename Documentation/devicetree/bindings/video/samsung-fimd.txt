@@ -1,0 +1,65 @@
+Device-Tree bindings for Samsung SoC display controller (FIMD)
+
+FIMD (Fully Interactive Mobile Display) is the Display Controller for the
+Samsung series of SoCs which transfers the image data from a video memory
+buffer to an external LCD interface.
+
+Required properties:
+- compatible: value should be one of the following
+		"samsung,s3c2443-fimd"; /* for S3C24XX SoCs */
+		"samsung,s3c6400-fimd"; /* for S3C64XX SoCs */
+		"samsung,s5p6440-fimd"; /* for S5P64X0 SoCs */
+		"samsung,s5pc100-fimd"; /* for S5PC100 SoC  */
+		"samsung,s5pv210-fimd"; /* for S5PV210 SoC */
+		"samsung,exynos4210-fimd"; /* for Exynos4 SoCs */
+		"samsung,exynos5250-fimd"; /* for Exynos5 SoCs */
+
+- reg: physical base address and length of the FIMD registers set.
+
+- interrupt-parent: should be the phandle of the fimd controller's
+		parent interrupt controller.
+
+- interrupts: should contain a list of all FIMD IP block interrupts in the
+		 order: FIFO Level, VSYNC, LCD_SYSTEM. The interrupt specifier
+		 format depends on the interrupt controller used.
+
+- interrupt-names: should contain the interrupt names: "fifo", "vsync",
+	"lcd_sys", in the same order as they were listed in the interrupts
+        property.
+
+- pinctrl-0: pin control group to be used for this controller.
+
+- pinctrl-names: must contain a "default" entry.
+
+- clocks: must include clock specifiers corresponding to entries in the
+         clock-names property.
+
+- clock-names: list of clock names sorted in the same order as the clocks
+               property. Must contain "sclk_fimd" and "fimd".
+
+Optional Properties:
+- samsung,power-domain: a phandle to FIMD power domain node.
+
+Example:
+
+SoC specific DT entry:
+
+	fimd@11c00000 {
+		compatible = "samsung,exynos4210-fimd";
+		interrupt-parent = <&combiner>;
+		reg = <0x11c00000 0x20000>;
+		interrupt-names = "fifo", "vsync", "lcd_sys";
+		interrupts = <11 0>, <11 1>, <11 2>;
+		clocks = <&clock 140>, <&clock 283>;
+		clock-names = "sclk_fimd", "fimd";
+		samsung,power-domain = <&pd_lcd0>;
+		status = "disabled";
+	};
+
+Board specific DT entry:
+
+	fimd@11c00000 {
+		pinctrl-0 = <&lcd_clk &lcd_data24 &pwm1_out>;
+		pinctrl-names = "default";
+		status = "okay";
+	};

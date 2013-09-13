@@ -33,47 +33,52 @@ TRACE_EVENT(i915_gem_object_create,
 	    TP_printk("obj=%p, size=%u", __entry->obj, __entry->size)
 );
 
-TRACE_EVENT(i915_gem_object_bind,
-	    TP_PROTO(struct drm_i915_gem_object *obj, bool mappable),
-	    TP_ARGS(obj, mappable),
+TRACE_EVENT(i915_vma_bind,
+	    TP_PROTO(struct i915_vma *vma, bool mappable),
+	    TP_ARGS(vma, mappable),
 
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
+			     __field(struct i915_address_space *, vm)
 			     __field(u32, offset)
 			     __field(u32, size)
 			     __field(bool, mappable)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->obj = obj;
-			   __entry->offset = obj->gtt_space->start;
-			   __entry->size = obj->gtt_space->size;
+			   __entry->obj = vma->obj;
+			   __entry->vm = vma->vm;
+			   __entry->offset = vma->node.start;
+			   __entry->size = vma->node.size;
 			   __entry->mappable = mappable;
 			   ),
 
-	    TP_printk("obj=%p, offset=%08x size=%x%s",
+	    TP_printk("obj=%p, offset=%08x size=%x%s vm=%p",
 		      __entry->obj, __entry->offset, __entry->size,
-		      __entry->mappable ? ", mappable" : "")
+		      __entry->mappable ? ", mappable" : "",
+		      __entry->vm)
 );
 
-TRACE_EVENT(i915_gem_object_unbind,
-	    TP_PROTO(struct drm_i915_gem_object *obj),
-	    TP_ARGS(obj),
+TRACE_EVENT(i915_vma_unbind,
+	    TP_PROTO(struct i915_vma *vma),
+	    TP_ARGS(vma),
 
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
+			     __field(struct i915_address_space *, vm)
 			     __field(u32, offset)
 			     __field(u32, size)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->obj = obj;
-			   __entry->offset = obj->gtt_space->start;
-			   __entry->size = obj->gtt_space->size;
+			   __entry->obj = vma->obj;
+			   __entry->vm = vma->vm;
+			   __entry->offset = vma->node.start;
+			   __entry->size = vma->node.size;
 			   ),
 
-	    TP_printk("obj=%p, offset=%08x size=%x",
-		      __entry->obj, __entry->offset, __entry->size)
+	    TP_printk("obj=%p, offset=%08x size=%x vm=%p",
+		      __entry->obj, __entry->offset, __entry->size, __entry->vm)
 );
 
 TRACE_EVENT(i915_gem_object_change_domain,
@@ -214,43 +219,41 @@ TRACE_EVENT(i915_gem_evict,
 );
 
 TRACE_EVENT(i915_gem_evict_everything,
-	    TP_PROTO(struct drm_device *dev, bool purgeable),
-	    TP_ARGS(dev, purgeable),
+	    TP_PROTO(struct drm_device *dev),
+	    TP_ARGS(dev),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(bool, purgeable)
 			    ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
-			   __entry->purgeable = purgeable;
 			  ),
 
-	    TP_printk("dev=%d%s",
-		      __entry->dev,
-		      __entry->purgeable ? ", purgeable only" : "")
+	    TP_printk("dev=%d", __entry->dev)
 );
 
 TRACE_EVENT(i915_gem_ring_dispatch,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno),
-	    TP_ARGS(ring, seqno),
+	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno, u32 flags),
+	    TP_ARGS(ring, seqno, flags),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
 			     __field(u32, seqno)
+			     __field(u32, flags)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = ring->dev->primary->index;
 			   __entry->ring = ring->id;
 			   __entry->seqno = seqno;
+			   __entry->flags = flags;
 			   i915_trace_irq_get(ring, seqno);
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u",
-		      __entry->dev, __entry->ring, __entry->seqno)
+	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",
+		      __entry->dev, __entry->ring, __entry->seqno, __entry->flags)
 );
 
 TRACE_EVENT(i915_gem_ring_flush,
@@ -408,10 +411,12 @@ TRACE_EVENT(i915_flip_complete,
 	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
 );
 
-TRACE_EVENT(i915_reg_rw,
-	TP_PROTO(bool write, u32 reg, u64 val, int len),
+TRACE_EVENT_CONDITION(i915_reg_rw,
+	TP_PROTO(bool write, u32 reg, u64 val, int len, bool trace),
 
-	TP_ARGS(write, reg, val, len),
+	TP_ARGS(write, reg, val, len, trace),
+
+	TP_CONDITION(trace),
 
 	TP_STRUCT__entry(
 		__field(u64, val)
@@ -432,6 +437,21 @@ TRACE_EVENT(i915_reg_rw,
 		__entry->reg, __entry->len,
 		(u32)(__entry->val & 0xffffffff),
 		(u32)(__entry->val >> 32))
+);
+
+TRACE_EVENT(intel_gpu_freq_change,
+	    TP_PROTO(u32 freq),
+	    TP_ARGS(freq),
+
+	    TP_STRUCT__entry(
+			     __field(u32, freq)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->freq = freq;
+			   ),
+
+	    TP_printk("new_freq=%u", __entry->freq)
 );
 
 #endif /* _I915_TRACE_H_ */

@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
@@ -38,7 +39,7 @@
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
 
-static pgd_t save_pgd __initdata;
+static pgd_t *save_pgd __initdata;
 static unsigned long efi_flags __initdata;
 
 static void __init early_code_mapping_set_exec(int executable)
@@ -61,12 +62,20 @@ static void __init early_code_mapping_set_exec(int executable)
 void __init efi_call_phys_prelog(void)
 {
 	unsigned long vaddress;
+	int pgd;
+	int n_pgds;
 
 	early_code_mapping_set_exec(1);
 	local_irq_save(efi_flags);
-	vaddress = (unsigned long)__va(0x0UL);
-	save_pgd = *pgd_offset_k(0x0UL);
-	set_pgd(pgd_offset_k(0x0UL), *pgd_offset_k(vaddress));
+
+	n_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT), PGDIR_SIZE);
+	save_pgd = kmalloc(n_pgds * sizeof(pgd_t), GFP_KERNEL);
+
+	for (pgd = 0; pgd < n_pgds; pgd++) {
+		save_pgd[pgd] = *pgd_offset_k(pgd * PGDIR_SIZE);
+		vaddress = (unsigned long)__va(pgd * PGDIR_SIZE);
+		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));
+	}
 	__flush_tlb_all();
 }
 
@@ -75,14 +84,18 @@ void __init efi_call_phys_epilog(void)
 	/*
 	 * After the lock is released, the original page table is restored.
 	 */
-	set_pgd(pgd_offset_k(0x0UL), save_pgd);
+	int pgd;
+	int n_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT) , PGDIR_SIZE);
+	for (pgd = 0; pgd < n_pgds; pgd++)
+		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), save_pgd[pgd]);
+	kfree(save_pgd);
 	__flush_tlb_all();
 	local_irq_restore(efi_flags);
 	early_code_mapping_set_exec(0);
 }
 
 void __iomem *__init efi_ioremap(unsigned long phys_addr, unsigned long size,
-				 u32 type)
+				 u32 type, u64 attribute)
 {
 	unsigned long last_map_pfn;
 
@@ -92,8 +105,11 @@ void __iomem *__init efi_ioremap(unsigned long phys_addr, unsigned long size,
 	last_map_pfn = init_memory_mapping(phys_addr, phys_addr + size);
 	if ((last_map_pfn << PAGE_SHIFT) < phys_addr + size) {
 		unsigned long top = last_map_pfn << PAGE_SHIFT;
-		efi_ioremap(top, size - (top - phys_addr), type);
+		efi_ioremap(top, size - (top - phys_addr), type, attribute);
 	}
+
+	if (!(attribute & EFI_MEMORY_WB))
+		efi_memory_uc((u64)(unsigned long)__va(phys_addr), size);
 
 	return (void __iomem *)__va(phys_addr);
 }

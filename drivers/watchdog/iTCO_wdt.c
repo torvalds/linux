@@ -37,6 +37,7 @@
  *	document number TBD                   : DH89xxCC
  *	document number TBD                   : Panther Point
  *	document number TBD                   : Lynx Point
+ *	document number TBD                   : Lynx Point-LP
  */
 
 /*
@@ -363,7 +364,7 @@ static struct watchdog_device iTCO_wdt_watchdog_dev = {
  *	Init & exit routines
  */
 
-static void __devexit iTCO_wdt_cleanup(void)
+static void iTCO_wdt_cleanup(void)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -389,7 +390,7 @@ static void __devexit iTCO_wdt_cleanup(void)
 	iTCO_wdt_private.gcs = NULL;
 }
 
-static int __devinit iTCO_wdt_probe(struct platform_device *dev)
+static int iTCO_wdt_probe(struct platform_device *dev)
 {
 	int ret = -ENODEV;
 	unsigned long val32;
@@ -532,7 +533,7 @@ out:
 	return ret;
 }
 
-static int __devexit iTCO_wdt_remove(struct platform_device *dev)
+static int iTCO_wdt_remove(struct platform_device *dev)
 {
 	if (iTCO_wdt_private.tco_res || iTCO_wdt_private.smi_res)
 		iTCO_wdt_cleanup();
@@ -547,7 +548,7 @@ static void iTCO_wdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver iTCO_wdt_driver = {
 	.probe          = iTCO_wdt_probe,
-	.remove         = __devexit_p(iTCO_wdt_remove),
+	.remove         = iTCO_wdt_remove,
 	.shutdown       = iTCO_wdt_shutdown,
 	.driver         = {
 		.owner  = THIS_MODULE,

@@ -44,25 +44,25 @@
 static inline int pciehp_readw(struct controller *ctrl, int reg, u16 *value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_read_config_word(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_read_word(dev, reg, value);
 }
 
 static inline int pciehp_readl(struct controller *ctrl, int reg, u32 *value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_read_config_dword(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_read_dword(dev, reg, value);
 }
 
 static inline int pciehp_writew(struct controller *ctrl, int reg, u16 value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_write_config_word(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_write_word(dev, reg, value);
 }
 
 static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_write_config_dword(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_write_dword(dev, reg, value);
 }
 
 /* Power Control Command */
@@ -749,6 +749,37 @@ static void pcie_disable_notification(struct controller *ctrl)
 		ctrl_warn(ctrl, "Cannot disable software notification\n");
 }
 
+/*
+ * pciehp has a 1:1 bus:slot relationship so we ultimately want a secondary
+ * bus reset of the bridge, but if the slot supports surprise removal we need
+ * to disable presence detection around the bus reset and clear any spurious
+ * events after.
+ */
+int pciehp_reset_slot(struct slot *slot, int probe)
+{
+	struct controller *ctrl = slot->ctrl;
+
+	if (probe)
+		return 0;
+
+	if (HP_SUPR_RM(ctrl)) {
+		pcie_write_cmd(ctrl, 0, PCI_EXP_SLTCTL_PDCE);
+		if (pciehp_poll_mode)
+			del_timer_sync(&ctrl->poll_timer);
+	}
+
+	pci_reset_bridge_secondary_bus(ctrl->pcie->port);
+
+	if (HP_SUPR_RM(ctrl)) {
+		pciehp_writew(ctrl, PCI_EXP_SLTSTA, PCI_EXP_SLTSTA_PDC);
+		pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PDCE, PCI_EXP_SLTCTL_PDCE);
+		if (pciehp_poll_mode)
+			int_poll_timeout(ctrl->poll_timer.data);
+	}
+
+	return 0;
+}
+
 int pcie_init_notification(struct controller *ctrl)
 {
 	if (pciehp_request_irq(ctrl))
@@ -778,18 +809,25 @@ static int pcie_init_slot(struct controller *ctrl)
 	if (!slot)
 		return -ENOMEM;
 
+	slot->wq = alloc_workqueue("pciehp-%u", 0, 0, PSN(ctrl));
+	if (!slot->wq)
+		goto abort;
+
 	slot->ctrl = ctrl;
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	ctrl->slot = slot;
 	return 0;
+abort:
+	kfree(slot);
+	return -ENOMEM;
 }
 
 static void pcie_cleanup_slot(struct controller *ctrl)
 {
 	struct slot *slot = ctrl->slot;
 	cancel_delayed_work(&slot->work);
-	flush_workqueue(pciehp_wq);
+	destroy_workqueue(slot->wq);
 	kfree(slot);
 }
 
@@ -855,10 +893,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 		goto abort;
 	}
 	ctrl->pcie = dev;
-	if (!pci_pcie_cap(pdev)) {
-		ctrl_err(ctrl, "Cannot find PCI Express capability\n");
-		goto abort_ctrl;
-	}
 	if (pciehp_readl(ctrl, PCI_EXP_SLTCAP, &slot_cap)) {
 		ctrl_err(ctrl, "Cannot read SLOTCAP register\n");
 		goto abort_ctrl;

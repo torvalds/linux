@@ -55,15 +55,14 @@ extern unsigned int kobjsize(const void *objp);
  */
 #define pgtable_cache_init()	do { } while (0)
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 /*
  * All 32bit addresses are effectively valid for vmalloc...
  * Sort of meaningless for non-VM targets.
  */
 #define	VMALLOC_START	0
 #define	VMALLOC_END	0xffffffff
+#define	KMAP_START	0
+#define	KMAP_END	0xffffffff
 
 #include <asm-generic/pgtable.h>
 

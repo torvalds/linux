@@ -175,9 +175,9 @@ static ssize_t ad7816_store_channel(struct device *dev,
 	unsigned long data;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &data);
+	ret = kstrtoul(buf, 10, &data);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	if (data > AD7816_CS_MAX && data != AD7816_CS_MASK) {
 		dev_err(&chip->spi_dev->dev, "Invalid channel id %lu for %s.\n",
@@ -290,7 +290,9 @@ static inline ssize_t ad7816_set_oti(struct device *dev,
 	u8 data;
 	int ret;
 
-	ret = strict_strtol(buf, 10, &value);
+	ret = kstrtol(buf, 10, &value);
+	if (ret)
+		return ret;
 
 	if (chip->channel_id > AD7816_CS_MAX) {
 		dev_err(dev, "Invalid oti channel id %d.\n", chip->channel_id);
@@ -341,7 +343,7 @@ static const struct iio_info ad7816_info = {
  * device probe and remove
  */
 
-static int __devinit ad7816_probe(struct spi_device *spi_dev)
+static int ad7816_probe(struct spi_device *spi_dev)
 {
 	struct ad7816_chip_info *chip;
 	struct iio_dev *indio_dev;
@@ -431,7 +433,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad7816_remove(struct spi_device *spi_dev)
+static int ad7816_remove(struct spi_device *spi_dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&spi_dev->dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
@@ -463,7 +465,7 @@ static struct spi_driver ad7816_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad7816_probe,
-	.remove = __devexit_p(ad7816_remove),
+	.remove = ad7816_remove,
 	.id_table = ad7816_id,
 };
 module_spi_driver(ad7816_driver);

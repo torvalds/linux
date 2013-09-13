@@ -1,0 +1,184 @@
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6282.dtsi"
+
+/ {
+	model = "Plat'Home OpenBlocksA6";
+	compatible = "plathome,openblocks-a6", "marvell,kirkwood-88f6283", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	ocp@f1000000 {
+		serial@12000 {
+			status = "ok";
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
+		};
+
+		serial@12100 {
+			status = "ok";
+			pinctrl-0 = <&pmx_uart1>;
+			pinctrl-names = "default";
+		};
+
+		nand@3000000 {
+			chip-delay = <25>;
+			status = "okay";
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x0 0x90000>;
+			};
+
+			partition@90000 {
+				label = "env";
+				reg = <0x90000 0x44000>;
+			};
+
+			partition@d4000 {
+				label = "test";
+				reg = <0xd4000 0x24000>;
+			};
+
+			partition@f4000 {
+				label = "conf";
+				reg = <0xf4000 0x400000>;
+			};
+
+			partition@4f4000 {
+				label = "linux";
+				reg = <0x4f4000 0x1d20000>;
+			};
+
+			partition@2214000 {
+				label = "user";
+				reg = <0x2214000 0x1dec000>;
+			};
+		};
+
+		sata@80000 {
+			nr-ports = <1>;
+			status = "okay";
+		};
+
+		i2c@11100 {
+			status = "okay";
+			pinctrl-0 = <&pmx_twsi1>;
+			pinctrl-names = "default";
+
+			s35390a: s35390a@30 {
+				compatible = "s35390a";
+				reg = <0x30>;
+			};
+		};
+
+		pinctrl: pinctrl@10000 {
+			pinctrl-0 = <&pmx_dip_switches &pmx_gpio_header>;
+			pinctrl-names = "default";
+
+			pmx_uart0: pmx-uart0 {
+				marvell,pins = "mpp10", "mpp11", "mpp15",
+					"mpp16";
+				marvell,function = "uart0";
+			};
+
+			pmx_uart1: pmx-uart1 {
+				marvell,pins = "mpp13", "mpp14", "mpp8",
+					"mpp9";
+				marvell,function = "uart1";
+			};
+
+			pmx_sysrst: pmx-sysrst {
+				marvell,pins = "mpp6";
+				marvell,function = "sysrst";
+			};
+
+			pmx_dip_switches: pmx-dip-switches {
+				marvell,pins = "mpp20", "mpp21", "mpp22", "mpp23";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_header: pmx-gpio-header {
+				marvell,pins = "mpp24", "mpp25", "mpp26", "mpp27",
+					       "mpp28", "mpp29", "mpp30", "mpp31";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_init: pmx-init {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+
+			pmx_usb_oc: pmx-usb-oc {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+
+			pmx_leds: pmx-leds {
+				marvell,pins = "mpp41", "mpp42", "mpp43";
+				marvell,function = "gpio";
+			};
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_leds>;
+		pinctrl-names = "default";
+
+		led-red {
+			label = "obsa6:red:stat";
+			gpios = <&gpio1 9 1>;
+		};
+
+		led-green {
+			label = "obsa6:green:stat";
+			gpios = <&gpio1 10 1>;
+		};
+
+		led-yellow {
+			label = "obsa6:yellow:stat";
+			gpios = <&gpio1 11 1>;
+		};
+        };
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pmx_gpio_init>;
+		pinctrl-names = "default";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			label = "Init Button";
+			linux,code = <116>;
+			gpios = <&gpio1 6 0>;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};

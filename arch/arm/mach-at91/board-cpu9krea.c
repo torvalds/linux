@@ -40,12 +40,12 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/at91sam9260_matrix.h>
 #include <mach/at91_matrix.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -254,8 +254,7 @@ static struct gpio_led cpu9krea_leds[] = {
 
 static struct i2c_board_info __initdata cpu9krea_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-ds1307", 0x68),
-		.type	= "ds1339",
+		I2C_BOARD_INFO("ds1339", 0x68),
 	},
 };
 
@@ -312,12 +311,12 @@ static void __init cpu9krea_add_device_buttons(void)
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata cpu9krea_mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PA29,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata cpu9krea_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PA29,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 static void __init cpu9krea_board_init(void)
@@ -359,7 +358,7 @@ static void __init cpu9krea_board_init(void)
 	/* Ethernet */
 	at91_add_device_eth(&cpu9krea_macb_data);
 	/* MMC */
-	at91_add_device_mmc(0, &cpu9krea_mmc_data);
+	at91_add_device_mci(0, &cpu9krea_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(cpu9krea_i2c_devices,
 		ARRAY_SIZE(cpu9krea_i2c_devices));
@@ -375,7 +374,7 @@ MACHINE_START(CPUAT9260, "Eukrea CPU9260")
 MACHINE_START(CPUAT9G20, "Eukrea CPU9G20")
 #endif
 	/* Maintainer: Eric Benard - EUKREA Electromatique */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= cpu9krea_init_early,

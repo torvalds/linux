@@ -178,11 +178,9 @@ static struct scatterlist *sep_alloc_sg_buf(
 		nbr_pages += 1;
 	}
 
-	sg = kmalloc((sizeof(struct scatterlist) * nbr_pages), GFP_ATOMIC);
-	if (!sg) {
-		dev_warn(&sep->pdev->dev, "Cannot allocate page for new sg\n");
+	sg = kmalloc_array(nbr_pages, sizeof(struct scatterlist), GFP_ATOMIC);
+	if (!sg)
 		return NULL;
-	}
 
 	sg_init_table(sg, nbr_pages);
 
@@ -1208,7 +1206,7 @@ static int sep_crypto_block_data(struct ablkcipher_request *req)
 
 		if (copy_result != crypto_ablkcipher_blocksize(tfm)) {
 			dev_warn(&ta_ctx->sep_used->pdev->dev,
-				"des block copy faild\n");
+				"des block copy failed\n");
 			return -ENOMEM;
 		}
 
@@ -1639,7 +1637,7 @@ static u32 crypto_post_op(struct sep_device *sep)
 					crypto_ablkcipher_blocksize(tfm)) {
 
 					dev_warn(&ta_ctx->sep_used->pdev->dev,
-						"des block copy faild\n");
+						"des block copy failed\n");
 					sep_crypto_release(sctx, ta_ctx,
 						-ENOMEM);
 					return -ENOMEM;
@@ -3908,13 +3906,9 @@ int sep_crypto_setup(void)
 		return -ENOMEM;
 	}
 
-	i = 0;
-	j = 0;
-
 	spin_lock_init(&queue_lock);
 
 	err = 0;
-
 	for (i = 0; i < ARRAY_SIZE(hash_algs); i++) {
 		err = crypto_register_ahash(&hash_algs[i]);
 		if (err)

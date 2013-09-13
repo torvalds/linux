@@ -26,7 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 
-#include <mach/nuc900_spi.h>
+#include <linux/platform_data/spi-nuc900.h>
 
 /* usi registers offset */
 #define USI_CNT		0x00
@@ -172,17 +172,6 @@ static void nuc900_spi_gobusy(struct nuc900_spi *hw)
 	__raw_writel(val, hw->regs + USI_CNT);
 
 	spin_unlock_irqrestore(&hw->lock, flags);
-}
-
-static int nuc900_spi_setupxfer(struct spi_device *spi,
-				 struct spi_transfer *t)
-{
-	return 0;
-}
-
-static int nuc900_spi_setup(struct spi_device *spi)
-{
-	return 0;
 }
 
 static inline unsigned int hw_txbyte(struct nuc900_spi *hw, int count)
@@ -346,7 +335,7 @@ static void nuc900_init_spi(struct nuc900_spi *hw)
 	nuc900_enable_int(hw);
 }
 
-static int __devinit nuc900_spi_probe(struct platform_device *pdev)
+static int nuc900_spi_probe(struct platform_device *pdev)
 {
 	struct nuc900_spi *hw;
 	struct spi_master *master;
@@ -361,7 +350,7 @@ static int __devinit nuc900_spi_probe(struct platform_device *pdev)
 
 	hw = spi_master_get_devdata(master);
 	hw->master = spi_master_get(master);
-	hw->pdata  = pdev->dev.platform_data;
+	hw->pdata  = dev_get_platdata(&pdev->dev);
 	hw->dev = &pdev->dev;
 
 	if (hw->pdata == NULL) {
@@ -373,14 +362,12 @@ static int __devinit nuc900_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hw);
 	init_completion(&hw->done);
 
-	master->mode_bits          = SPI_MODE_0;
+	master->mode_bits          = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->num_chipselect     = hw->pdata->num_cs;
 	master->bus_num            = hw->pdata->bus_num;
 	hw->bitbang.master         = hw->master;
-	hw->bitbang.setup_transfer = nuc900_spi_setupxfer;
 	hw->bitbang.chipselect     = nuc900_spi_chipsel;
 	hw->bitbang.txrx_bufs      = nuc900_spi_txrx;
-	hw->bitbang.master->setup  = nuc900_spi_setup;
 
 	hw->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (hw->res == NULL) {
@@ -453,13 +440,11 @@ err_nomem:
 	return err;
 }
 
-static int __devexit nuc900_spi_remove(struct platform_device *dev)
+static int nuc900_spi_remove(struct platform_device *dev)
 {
 	struct nuc900_spi *hw = platform_get_drvdata(dev);
 
 	free_irq(hw->irq, hw);
-
-	platform_set_drvdata(dev, NULL);
 
 	spi_bitbang_stop(&hw->bitbang);
 
@@ -477,7 +462,7 @@ static int __devexit nuc900_spi_remove(struct platform_device *dev)
 
 static struct platform_driver nuc900_spi_driver = {
 	.probe		= nuc900_spi_probe,
-	.remove		= __devexit_p(nuc900_spi_remove),
+	.remove		= nuc900_spi_remove,
 	.driver		= {
 		.name	= "nuc900-spi",
 		.owner	= THIS_MODULE,

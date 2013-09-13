@@ -13,7 +13,7 @@
 #include <asm/unaligned.h>
 
 #include <linux/iio/iio.h>
-#include "../ring_sw.h"
+#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
 #include "ade7758.h"
 
@@ -54,14 +54,13 @@ out:
 	return ret;
 }
 
-/* Whilst this makes a lot of calls to iio_sw_ring functions - it is to device
+/* Whilst this makes a lot of calls to iio_sw_ring functions - it is too device
  * specific to be rolled into the core.
  */
 static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	struct iio_buffer *ring = indio_dev->buffer;
 	struct ade7758_state *st = iio_priv(indio_dev);
 	s64 dat64[2];
 	u32 *dat32 = (u32 *)dat64;
@@ -74,7 +73,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		dat64[1] = pf->timestamp;
 
-	ring->access->store_to(ring, (u8 *)dat64, pf->timestamp);
+	iio_push_to_buffers(indio_dev, (u8 *)dat64);
 
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -120,7 +119,7 @@ static const struct iio_buffer_setup_ops ade7758_ring_setup_ops = {
 void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }
 
 int ade7758_configure_ring(struct iio_dev *indio_dev)
@@ -128,7 +127,7 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret = 0;
 
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
 	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		return ret;
@@ -144,7 +143,7 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 						 indio_dev->id);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
-		goto error_iio_sw_rb_free;
+		goto error_iio_kfifo_free;
 	}
 
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
@@ -184,8 +183,8 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 
 	return 0;
 
-error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->buffer);
+error_iio_kfifo_free:
+	iio_kfifo_free(indio_dev->buffer);
 	return ret;
 }
 

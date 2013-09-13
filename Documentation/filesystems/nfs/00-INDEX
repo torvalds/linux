@@ -20,3 +20,5 @@ rpc-cache.txt
 	- introduction to the caching mechanisms in the sunrpc layer.
 idmapper.txt
 	- information for configuring request-keys to be used by idmapper
+knfsd-rpcgss.txt
+	- Information on GSS authentication support in the NFS Server

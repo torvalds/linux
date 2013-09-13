@@ -28,13 +28,13 @@
 #ifndef __AST_DRV_H__
 #define __AST_DRV_H__
 
-#include "drm_fb_helper.h"
+#include <drm/drm_fb_helper.h>
 
-#include "ttm/ttm_bo_api.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_placement.h"
-#include "ttm/ttm_memory.h"
-#include "ttm/ttm_module.h"
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_memory.h>
+#include <drm/ttm/ttm_module.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -94,11 +94,12 @@ struct ast_private {
 		struct drm_global_reference mem_global_ref;
 		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
-		atomic_t validate_sequence;
 	} ttm;
 
 	struct drm_gem_object *cursor_cache;
 	uint64_t cursor_cache_gpu_addr;
+	/* Acces to this cache is protected by the crtc->mutex of the only crtc
+	 * we have. */
 	struct ttm_bo_kmap_obj cache_kmap;
 	int next_cursor;
 };
@@ -240,6 +241,8 @@ struct ast_fbdev {
 	void *sysram;
 	int size;
 	struct ttm_bo_kmap_obj mapping;
+	int x1, y1, x2, y2; /* dirty rect */
+	spinlock_t dirty_lock;
 };
 
 #define to_ast_crtc(x) container_of(x, struct ast_crtc, base)
@@ -319,9 +322,6 @@ ast_bo(struct ttm_buffer_object *bo)
 extern int ast_dumb_create(struct drm_file *file,
 			   struct drm_device *dev,
 			   struct drm_mode_create_dumb *args);
-extern int ast_dumb_destroy(struct drm_file *file,
-			    struct drm_device *dev,
-			    uint32_t handle);
 
 extern int ast_gem_init_object(struct drm_gem_object *obj);
 extern void ast_gem_free_object(struct drm_gem_object *obj);
@@ -345,8 +345,24 @@ int ast_gem_create(struct drm_device *dev,
 int ast_bo_pin(struct ast_bo *bo, u32 pl_flag, u64 *gpu_addr);
 int ast_bo_unpin(struct ast_bo *bo);
 
-int ast_bo_reserve(struct ast_bo *bo, bool no_wait);
-void ast_bo_unreserve(struct ast_bo *bo);
+static inline int ast_bo_reserve(struct ast_bo *bo, bool no_wait)
+{
+	int ret;
+
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	if (ret) {
+		if (ret != -ERESTARTSYS && ret != -EBUSY)
+			DRM_ERROR("reserve failed %p\n", bo);
+		return ret;
+	}
+	return 0;
+}
+
+static inline void ast_bo_unreserve(struct ast_bo *bo)
+{
+	ttm_bo_unreserve(&bo->bo);
+}
+
 void ast_ttm_placement(struct ast_bo *bo, int domain);
 int ast_bo_push_sysram(struct ast_bo *bo);
 int ast_mmap(struct file *filp, struct vm_area_struct *vma);

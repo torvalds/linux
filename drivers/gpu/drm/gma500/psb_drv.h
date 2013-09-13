@@ -23,11 +23,12 @@
 #include <linux/kref.h>
 
 #include <drm/drmP.h>
-#include "drm_global.h"
-#include "gem_glue.h"
-#include "gma_drm.h"
+#include <drm/drm_global.h>
+#include <drm/gma_drm.h>
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
+#include "gma_display.h"
+#include "intel_bios.h"
 #include "gtt.h"
 #include "power.h"
 #include "opregion.h"
@@ -46,6 +47,7 @@ enum {
 #define IS_PSB(dev) (((dev)->pci_device & 0xfffe) == 0x8108)
 #define IS_MRST(dev) (((dev)->pci_device & 0xfffc) == 0x4100)
 #define IS_MFLD(dev) (((dev)->pci_device & 0xfff8) == 0x0130)
+#define IS_CDV(dev) (((dev)->pci_device & 0xfff0) == 0x0be0)
 
 /*
  * Driver definitions
@@ -613,6 +615,8 @@ struct drm_psb_private {
 	 */
 	struct backlight_device *backlight_device;
 	struct drm_property *backlight_property;
+	bool backlight_enabled;
+	int backlight_level;
 	uint32_t blc_adj1;
 	uint32_t blc_adj2;
 
@@ -640,6 +644,19 @@ struct drm_psb_private {
 	int mdfld_panel_id;
 
 	bool dplla_96mhz;	/* DPLL data from the VBT */
+
+	struct {
+		int rate;
+		int lanes;
+		int preemphasis;
+		int vswing;
+
+		bool initialized;
+		bool support;
+		int bpp;
+		struct edp_power_seq pps;
+	} edp;
+	uint8_t panel_type;
 };
 
 
@@ -660,6 +677,7 @@ struct psb_ops {
 	/* Sub functions */
 	struct drm_crtc_helper_funcs const *crtc_helper;
 	struct drm_crtc_funcs const *crtc_funcs;
+	const struct gma_clock_funcs *clock_funcs;
 
 	/* Setup hooks */
 	int (*chip_setup)(struct drm_device *dev);
@@ -677,6 +695,8 @@ struct psb_ops {
 	int (*restore_regs)(struct drm_device *dev);
 	int (*power_up)(struct drm_device *dev);
 	int (*power_down)(struct drm_device *dev);
+	void (*update_wm)(struct drm_device *dev, struct drm_crtc *crtc);
+	void (*disable_sr)(struct drm_device *dev);
 
 	void (*lvds_bl_power)(struct drm_device *dev, bool on);
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
@@ -796,6 +816,9 @@ extern int psb_fbdev_init(struct drm_device *dev);
 /* backlight.c */
 int gma_backlight_init(struct drm_device *dev);
 void gma_backlight_exit(struct drm_device *dev);
+void gma_backlight_disable(struct drm_device *dev);
+void gma_backlight_enable(struct drm_device *dev);
+void gma_backlight_set(struct drm_device *dev, int v);
 
 /* oaktrail_crtc.c */
 extern const struct drm_crtc_helper_funcs oaktrail_helper_funcs;
@@ -820,8 +843,6 @@ extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);
 extern int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-extern int psb_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-			uint32_t handle);
 extern int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
 			uint32_t handle, uint64_t *offset);
 extern int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
@@ -858,7 +879,6 @@ extern const struct psb_ops cdv_chip_ops;
 #define PSB_D_MSVDX   (1 << 9)
 #define PSB_D_TOPAZ   (1 << 10)
 
-extern int drm_psb_no_fb;
 extern int drm_idle_check_interval;
 
 /*

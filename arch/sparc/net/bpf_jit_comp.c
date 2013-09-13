@@ -3,6 +3,7 @@
 #include <linux/netdevice.h>
 #include <linux/filter.h>
 #include <linux/cache.h>
+#include <linux/if_vlan.h>
 
 #include <asm/cacheflush.h>
 #include <asm/ptrace.h>
@@ -312,6 +313,12 @@ do {	*prog++ = BR_OPC | WDISP22(OFF);		\
 #define emit_addi(R1, IMM, R3) \
 	*prog++ = (ADD | IMMED | RS1(R1) | S13(IMM) | RD(R3))
 
+#define emit_and(R1, R2, R3) \
+	*prog++ = (AND | RS1(R1) | RS2(R2) | RD(R3))
+
+#define emit_andi(R1, IMM, R3) \
+	*prog++ = (AND | IMMED | RS1(R1) | S13(IMM) | RD(R3))
+
 #define emit_alloc_stack(SZ) \
 	*prog++ = (SUB | IMMED | RS1(SP) | S13(SZ) | RD(SP))
 
@@ -415,6 +422,8 @@ void bpf_jit_compile(struct sk_filter *fp)
 		case BPF_S_ANC_IFINDEX:
 		case BPF_S_ANC_MARK:
 		case BPF_S_ANC_RXHASH:
+		case BPF_S_ANC_VLAN_TAG:
+		case BPF_S_ANC_VLAN_TAG_PRESENT:
 		case BPF_S_ANC_CPU:
 		case BPF_S_ANC_QUEUE:
 		case BPF_S_LD_W_ABS:
@@ -464,7 +473,11 @@ void bpf_jit_compile(struct sk_filter *fp)
 				emit_alu_K(OR, K);
 				break;
 			case BPF_S_ANC_ALU_XOR_X: /* A ^= X; */
+			case BPF_S_ALU_XOR_X:
 				emit_alu_X(XOR);
+				break;
+			case BPF_S_ALU_XOR_K:	/* A ^= K */
+				emit_alu_K(XOR, K);
 				break;
 			case BPF_S_ALU_LSH_X:	/* A <<= X */
 				emit_alu_X(SLL);
@@ -595,6 +608,16 @@ void bpf_jit_compile(struct sk_filter *fp)
 				break;
 			case BPF_S_ANC_RXHASH:
 				emit_skb_load32(rxhash, r_A);
+				break;
+			case BPF_S_ANC_VLAN_TAG:
+			case BPF_S_ANC_VLAN_TAG_PRESENT:
+				emit_skb_load16(vlan_tci, r_A);
+				if (filter[i].code == BPF_S_ANC_VLAN_TAG) {
+					emit_andi(r_A, VLAN_VID_MASK, r_A);
+				} else {
+					emit_loadimm(VLAN_TAG_PRESENT, r_TMP);
+					emit_and(r_A, r_TMP, r_A);
+				}
 				break;
 
 			case BPF_S_LD_IMM:
@@ -762,9 +785,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 			break;
 		}
 		if (proglen == oldproglen) {
-			image = module_alloc(max_t(unsigned int,
-						   proglen,
-						   sizeof(struct work_struct)));
+			image = module_alloc(proglen);
 			if (!image)
 				goto out;
 		}
@@ -772,13 +793,9 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 	}
 
 	if (bpf_jit_enable > 1)
-		pr_err("flen=%d proglen=%u pass=%d image=%p\n",
-		       flen, proglen, pass, image);
+		bpf_jit_dump(flen, proglen, pass, image);
 
 	if (image) {
-		if (bpf_jit_enable > 1)
-			print_hex_dump(KERN_ERR, "JIT code: ", DUMP_PREFIX_ADDRESS,
-				       16, 1, image, proglen, false);
 		bpf_flush_icache(image, image + proglen);
 		fp->bpf_func = (void *)image;
 	}
@@ -787,20 +804,8 @@ out:
 	return;
 }
 
-static void jit_free_defer(struct work_struct *arg)
-{
-	module_free(NULL, arg);
-}
-
-/* run from softirq, we must use a work_struct to call
- * module_free() from process context
- */
 void bpf_jit_free(struct sk_filter *fp)
 {
-	if (fp->bpf_func != sk_run_filter) {
-		struct work_struct *work = (struct work_struct *)fp->bpf_func;
-
-		INIT_WORK(work, jit_free_defer);
-		schedule_work(work);
-	}
+	if (fp->bpf_func != sk_run_filter)
+		module_free(NULL, fp->bpf_func);
 }

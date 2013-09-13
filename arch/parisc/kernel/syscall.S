@@ -1,11 +1,34 @@
 /* 
  * Linux/PA-RISC Project (http://www.parisc-linux.org/)
  * 
- * System call entry code Copyright (c) Matthew Wilcox 1999 <willy@bofh.ai>
+ * System call entry code / Linux gateway page
+ * Copyright (c) Matthew Wilcox 1999 <willy@bofh.ai>
  * Licensed under the GNU GPL.
  * thanks to Philipp Rumpf, Mike Shaver and various others
  * sorry about the wall, puffin..
  */
+
+/*
+How does the Linux gateway page on PA-RISC work?
+------------------------------------------------
+The Linux gateway page on PA-RISC is "special".
+It actually has PAGE_GATEWAY bits set (this is linux terminology; in parisc
+terminology it's Execute, promote to PL0) in the page map.  So anything
+executing on this page executes with kernel level privilege (there's more to it
+than that: to have this happen, you also have to use a branch with a ,gate
+completer to activate the privilege promotion).  The upshot is that everything
+that runs on the gateway page runs at kernel privilege but with the current
+user process address space (although you have access to kernel space via %sr2).
+For the 0x100 syscall entry, we redo the space registers to point to the kernel
+address space (preserving the user address space in %sr3), move to wide mode if
+required, save the user registers and branch into the kernel syscall entry
+point.  For all the other functions, we execute at kernel privilege but don't
+flip address spaces. The basic upshot of this is that these code snippets are
+executed atomically (because the kernel can't be pre-empted) and they may
+perform architecturally forbidden (to PL3) operations (like setting control
+registers).
+*/
+
 
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
@@ -15,6 +38,7 @@
 #include <asm/thread_info.h>
 #include <asm/assembly.h>
 #include <asm/processor.h>
+#include <asm/cache.h>
 
 #include <linux/linkage.h>
 
@@ -156,7 +180,7 @@ linux_gateway_entry:
 	STREG	%r26, TASK_PT_GR26(%r1)	 	/* 1st argument */
 	STREG	%r27, TASK_PT_GR27(%r1)		/* user dp */
 	STREG   %r28, TASK_PT_GR28(%r1)         /* return value 0 */
-	STREG   %r28, TASK_PT_ORIG_R28(%r1)     /* return value 0 (saved for signals) */
+	STREG   %r0, TASK_PT_ORIG_R28(%r1)      /* don't prohibit restarts */
 	STREG	%r29, TASK_PT_GR29(%r1)		/* return value 1 */
 	STREG	%r31, TASK_PT_GR31(%r1)		/* preserve syscall return ptr */
 	
@@ -180,9 +204,10 @@ linux_gateway_entry:
 
 	/* Are we being ptraced? */
 	mfctl	%cr30, %r1
-	LDREG	TI_TASK(%r1),%r1
-	ldw	TASK_PTRACE(%r1), %r1
-	bb,<,n	%r1,31,.Ltracesys
+	LDREG	TI_FLAGS(%r1),%r1
+	ldi	_TIF_SYSCALL_TRACE_MASK, %r19
+	and,COND(=) %r1, %r19, %r0
+	b,n	.Ltracesys
 	
 	/* Note!  We cannot use the syscall table that is mapped
 	nearby since the gateway page is mapped execute-only. */
@@ -308,10 +333,13 @@ tracesys_next:
 	LDREG   TASK_PT_GR25(%r1), %r25
 	LDREG   TASK_PT_GR24(%r1), %r24
 	LDREG   TASK_PT_GR23(%r1), %r23
-#ifdef CONFIG_64BIT
 	LDREG   TASK_PT_GR22(%r1), %r22
 	LDREG   TASK_PT_GR21(%r1), %r21
+#ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
+#else
+	stw     %r22, -52(%r30)                 /* 5th argument */
+	stw     %r21, -56(%r30)                 /* 6th argument */
 #endif
 
 	comiclr,>>=	__NR_Linux_syscalls, %r20, %r0
@@ -639,7 +667,7 @@ ENTRY(end_linux_gateway_page)
 
 	.section .rodata,"a"
 
-	.align PAGE_SIZE
+	.align 8
 	/* Light-weight-syscall table */
 	/* Start of lws table. */
 ENTRY(lws_table)
@@ -648,13 +676,13 @@ ENTRY(lws_table)
 END(lws_table)
 	/* End of lws table */
 
-	.align PAGE_SIZE
+	.align 8
 ENTRY(sys_call_table)
 #include "syscall_table.S"
 END(sys_call_table)
 
 #ifdef CONFIG_64BIT
-	.align PAGE_SIZE
+	.align 8
 ENTRY(sys_call_table64)
 #define SYSCALL_TABLE_64BIT
 #include "syscall_table.S"
@@ -670,7 +698,7 @@ END(sys_call_table64)
 		with ldcw.
 	*/
 	.section .data
-	.align	PAGE_SIZE
+	.align	L1_CACHE_BYTES
 ENTRY(lws_lock_start)
 	/* lws locks */
 	.rept 16

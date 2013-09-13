@@ -1054,8 +1054,9 @@ w6692_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
+		cancel_work_sync(&bch->workq);
 		spin_lock_irqsave(&card->lock, flags);
-		mISDN_freebchannel(bch);
+		mISDN_clear_bchannel(bch);
 		w6692_mode(bc, ISDN_P_NONE);
 		spin_unlock_irqrestore(&card->lock, flags);
 		ch->protocol = ISDN_P_NONE;
@@ -1354,7 +1355,7 @@ error_setup:
 	return err;
 }
 
-static int __devinit
+static int
 w6692_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int		err = -ENOMEM;
@@ -1386,7 +1387,7 @@ w6692_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return err;
 }
 
-static void __devexit
+static void
 w6692_remove_pci(struct pci_dev *pdev)
 {
 	struct w6692_hw	*card = pci_get_drvdata(pdev);
@@ -1413,7 +1414,7 @@ MODULE_DEVICE_TABLE(pci, w6692_ids);
 static struct pci_driver w6692_driver = {
 	.name =  "w6692",
 	.probe = w6692_probe,
-	.remove = __devexit_p(w6692_remove_pci),
+	.remove = w6692_remove_pci,
 	.id_table = w6692_ids,
 };
 

@@ -20,17 +20,15 @@
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
 
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx51.h>
-
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include "common.h"
 #include "devices-imx51.h"
-#include "cpu_op-mx51.h"
+#include "hardware.h"
+#include "iomux-mx51.h"
 
 #define BABBAGE_USB_HUB_RESET	IMX_GPIO_NR(1, 7)
 #define BABBAGE_USBH1_STP	IMX_GPIO_NR(1, 27)
@@ -372,9 +370,6 @@ static void __init mx51_babbage_init(void)
 
 	imx51_soc_init();
 
-#if defined(CONFIG_CPU_FREQ_IMX)
-	get_cpu_op = mx51_get_cpu_op;
-#endif
 	imx51_babbage_common_init();
 
 	imx51_add_imx_uart(0, &uart_pdata);
@@ -419,10 +414,6 @@ static void __init mx51_babbage_timer_init(void)
 	mx51_clocks_init(32768, 24000000, 22579200, 0);
 }
 
-static struct sys_timer mx51_babbage_timer = {
-	.init = mx51_babbage_timer_init,
-};
-
 MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
 	/* Maintainer: Amit Kucheria <amit.kucheria@canonical.com> */
 	.atag_offset = 0x100,
@@ -430,7 +421,7 @@ MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
 	.handle_irq = imx51_handle_irq,
-	.timer = &mx51_babbage_timer,
+	.init_time	= mx51_babbage_timer_init,
 	.init_machine = mx51_babbage_init,
 	.init_late	= imx51_init_late,
 	.restart	= mxc_restart,

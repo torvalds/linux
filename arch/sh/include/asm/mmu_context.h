@@ -46,9 +46,9 @@
 #define MMU_VPN_MASK	0xfffff000
 
 #if defined(CONFIG_SUPERH32)
-#include "mmu_context_32.h"
+#include <asm/mmu_context_32.h>
 #else
-#include "mmu_context_64.h"
+#include <asm/mmu_context_64.h>
 #endif
 
 /*

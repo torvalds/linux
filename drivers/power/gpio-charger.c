@@ -68,7 +68,7 @@ static enum power_supply_property gpio_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
-static int __devinit gpio_charger_probe(struct platform_device *pdev)
+static int gpio_charger_probe(struct platform_device *pdev)
 {
 	const struct gpio_charger_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_charger *gpio_charger;
@@ -86,7 +86,8 @@ static int __devinit gpio_charger_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	gpio_charger = kzalloc(sizeof(*gpio_charger), GFP_KERNEL);
+	gpio_charger = devm_kzalloc(&pdev->dev, sizeof(*gpio_charger),
+					GFP_KERNEL);
 	if (!gpio_charger) {
 		dev_err(&pdev->dev, "Failed to alloc driver structure\n");
 		return -ENOMEM;
@@ -140,11 +141,10 @@ static int __devinit gpio_charger_probe(struct platform_device *pdev)
 err_gpio_free:
 	gpio_free(pdata->gpio);
 err_free:
-	kfree(gpio_charger);
 	return ret;
 }
 
-static int __devexit gpio_charger_remove(struct platform_device *pdev)
+static int gpio_charger_remove(struct platform_device *pdev)
 {
 	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
 
@@ -154,9 +154,6 @@ static int __devexit gpio_charger_remove(struct platform_device *pdev)
 	power_supply_unregister(&gpio_charger->charger);
 
 	gpio_free(gpio_charger->pdata->gpio);
-
-	platform_set_drvdata(pdev, NULL);
-	kfree(gpio_charger);
 
 	return 0;
 }
@@ -177,7 +174,7 @@ static SIMPLE_DEV_PM_OPS(gpio_charger_pm_ops, NULL, gpio_charger_resume);
 
 static struct platform_driver gpio_charger_driver = {
 	.probe = gpio_charger_probe,
-	.remove = __devexit_p(gpio_charger_remove),
+	.remove = gpio_charger_remove,
 	.driver = {
 		.name = "gpio-charger",
 		.owner = THIS_MODULE,

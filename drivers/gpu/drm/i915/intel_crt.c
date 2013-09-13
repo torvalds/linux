@@ -27,13 +27,12 @@
 #include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-#include "drm_edid.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
 #include "intel_drv.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 /* Here's the desired hotplug mode */
@@ -46,50 +45,78 @@
 
 struct intel_crt {
 	struct intel_encoder base;
+	/* DPMS state is stored in the connector, which we need in the
+	 * encoder's enable/disable callbacks */
+	struct intel_connector *connector;
 	bool force_hotplug_required;
+	u32 adpa_reg;
 };
+
+static struct intel_crt *intel_encoder_to_crt(struct intel_encoder *encoder)
+{
+	return container_of(encoder, struct intel_crt, base);
+}
 
 static struct intel_crt *intel_attached_crt(struct drm_connector *connector)
 {
-	return container_of(intel_attached_encoder(connector),
-			    struct intel_crt, base);
+	return intel_encoder_to_crt(intel_attached_encoder(connector));
 }
 
-static void pch_crt_dpms(struct drm_encoder *encoder, int mode)
+static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
+				   enum pipe *pipe)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 temp;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	u32 tmp;
 
-	temp = I915_READ(PCH_ADPA);
-	temp &= ~ADPA_DAC_ENABLE;
+	tmp = I915_READ(crt->adpa_reg);
 
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		temp |= ADPA_DAC_ENABLE;
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		/* Just leave port enable cleared */
-		break;
-	}
+	if (!(tmp & ADPA_DAC_ENABLE))
+		return false;
 
-	I915_WRITE(PCH_ADPA, temp);
+	if (HAS_PCH_CPT(dev))
+		*pipe = PORT_TO_PIPE_CPT(tmp);
+	else
+		*pipe = PORT_TO_PIPE(tmp);
+
+	return true;
 }
 
-static void gmch_crt_dpms(struct drm_encoder *encoder, int mode)
+static void intel_crt_get_config(struct intel_encoder *encoder,
+				 struct intel_crtc_config *pipe_config)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	u32 tmp, flags = 0;
+
+	tmp = I915_READ(crt->adpa_reg);
+
+	if (tmp & ADPA_HSYNC_ACTIVE_HIGH)
+		flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NHSYNC;
+
+	if (tmp & ADPA_VSYNC_ACTIVE_HIGH)
+		flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NVSYNC;
+
+	pipe_config->adjusted_mode.flags |= flags;
+}
+
+/* Note: The caller is required to filter out dpms modes not supported by the
+ * platform. */
+static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
+{
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	u32 temp;
 
-	temp = I915_READ(ADPA);
+	temp = I915_READ(crt->adpa_reg);
 	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
 	temp &= ~ADPA_DAC_ENABLE;
-
-	if (IS_VALLEYVIEW(dev) && mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -106,7 +133,66 @@ static void gmch_crt_dpms(struct drm_encoder *encoder, int mode)
 		break;
 	}
 
-	I915_WRITE(ADPA, temp);
+	I915_WRITE(crt->adpa_reg, temp);
+}
+
+static void intel_disable_crt(struct intel_encoder *encoder)
+{
+	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_OFF);
+}
+
+static void intel_enable_crt(struct intel_encoder *encoder)
+{
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+
+	intel_crt_set_dpms(encoder, crt->connector->base.dpms);
+}
+
+/* Special dpms function to support cloning between dvo/sdvo/crt. */
+static void intel_crt_dpms(struct drm_connector *connector, int mode)
+{
+	struct drm_device *dev = connector->dev;
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+	struct drm_crtc *crtc;
+	int old_dpms;
+
+	/* PCH platforms and VLV only support on/off. */
+	if (INTEL_INFO(dev)->gen >= 5 && mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
+	if (mode == connector->dpms)
+		return;
+
+	old_dpms = connector->dpms;
+	connector->dpms = mode;
+
+	/* Only need to change hw state when actually enabled */
+	crtc = encoder->base.crtc;
+	if (!crtc) {
+		encoder->connectors_active = false;
+		return;
+	}
+
+	/* We need the pipe to run for anything but OFF. */
+	if (mode == DRM_MODE_DPMS_OFF)
+		encoder->connectors_active = false;
+	else
+		encoder->connectors_active = true;
+
+	/* We call connector dpms manually below in case pipe dpms doesn't
+	 * change due to cloning. */
+	if (mode < old_dpms) {
+		/* From off to on, enable the pipe first. */
+		intel_crtc_update_dpms(crtc);
+
+		intel_crt_set_dpms(encoder, mode);
+	} else {
+		intel_crt_set_dpms(encoder, mode);
+
+		intel_crtc_update_dpms(crtc);
+	}
+
+	intel_modeset_check_state(connector->dev);
 }
 
 static int intel_crt_mode_valid(struct drm_connector *connector,
@@ -128,64 +214,63 @@ static int intel_crt_mode_valid(struct drm_connector *connector,
 	if (mode->clock > max_clock)
 		return MODE_CLOCK_HIGH;
 
+	/* The FDI receiver on LPT only supports 8bpc and only has 2 lanes. */
+	if (HAS_PCH_LPT(dev) &&
+	    (ironlake_get_lanes_required(mode->clock, 270000, 24) > 2))
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 
-static bool intel_crt_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
+static bool intel_crt_compute_config(struct intel_encoder *encoder,
+				     struct intel_crtc_config *pipe_config)
 {
+	struct drm_device *dev = encoder->base.dev;
+
+	if (HAS_PCH_SPLIT(dev))
+		pipe_config->has_pch_encoder = true;
+
+	/* LPT FDI RX only supports 8bpc. */
+	if (HAS_PCH_LPT(dev))
+		pipe_config->pipe_bpp = 24;
+
 	return true;
 }
 
-static void intel_crt_mode_set(struct drm_encoder *encoder,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode)
+static void intel_crt_mode_set(struct intel_encoder *encoder)
 {
 
-	struct drm_device *dev = encoder->dev;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_device *dev = encoder->base.dev;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int dpll_md_reg;
-	u32 adpa, dpll_md;
-	u32 adpa_reg;
-
-	dpll_md_reg = DPLL_MD(intel_crtc->pipe);
+	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
+	u32 adpa;
 
 	if (HAS_PCH_SPLIT(dev))
-		adpa_reg = PCH_ADPA;
+		adpa = ADPA_HOTPLUG_BITS;
 	else
-		adpa_reg = ADPA;
+		adpa = 0;
 
-	/*
-	 * Disable separate mode multiplier used when cloning SDVO to CRT
-	 * XXX this needs to be adjusted when we really are cloning
-	 */
-	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
-		dpll_md = I915_READ(dpll_md_reg);
-		I915_WRITE(dpll_md_reg,
-			   dpll_md & ~DPLL_MD_UDI_MULTIPLIER_MASK);
-	}
-
-	adpa = ADPA_HOTPLUG_BITS;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		adpa |= ADPA_HSYNC_ACTIVE_HIGH;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
 	/* For CPT allow 3 pipe config, for others just use A or B */
-	if (HAS_PCH_CPT(dev))
-		adpa |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
-	else if (intel_crtc->pipe == 0)
+	if (HAS_PCH_LPT(dev))
+		; /* Those bits don't exist here */
+	else if (HAS_PCH_CPT(dev))
+		adpa |= PORT_TRANS_SEL_CPT(crtc->pipe);
+	else if (crtc->pipe == 0)
 		adpa |= ADPA_PIPE_A_SELECT;
 	else
 		adpa |= ADPA_PIPE_B_SELECT;
 
 	if (!HAS_PCH_SPLIT(dev))
-		I915_WRITE(BCLRPAT(intel_crtc->pipe), 0);
+		I915_WRITE(BCLRPAT(crtc->pipe), 0);
 
-	I915_WRITE(adpa_reg, adpa);
+	I915_WRITE(crt->adpa_reg, adpa);
 }
 
 static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
@@ -203,27 +288,27 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 
 		crt->force_hotplug_required = 0;
 
-		save_adpa = adpa = I915_READ(PCH_ADPA);
+		save_adpa = adpa = I915_READ(crt->adpa_reg);
 		DRM_DEBUG_KMS("trigger hotplug detect cycle: adpa=0x%x\n", adpa);
 
 		adpa |= ADPA_CRT_HOTPLUG_FORCE_TRIGGER;
 		if (turn_off_dac)
 			adpa &= ~ADPA_DAC_ENABLE;
 
-		I915_WRITE(PCH_ADPA, adpa);
+		I915_WRITE(crt->adpa_reg, adpa);
 
-		if (wait_for((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
+		if (wait_for((I915_READ(crt->adpa_reg) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
 			     1000))
 			DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
 
 		if (turn_off_dac) {
-			I915_WRITE(PCH_ADPA, save_adpa);
-			POSTING_READ(PCH_ADPA);
+			I915_WRITE(crt->adpa_reg, save_adpa);
+			POSTING_READ(crt->adpa_reg);
 		}
 	}
 
 	/* Check the status to see if both blue and green are on now */
-	adpa = I915_READ(PCH_ADPA);
+	adpa = I915_READ(crt->adpa_reg);
 	if ((adpa & ADPA_CRT_HOTPLUG_MONITOR_MASK) != 0)
 		ret = true;
 	else
@@ -236,26 +321,27 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct intel_crt *crt = intel_attached_crt(connector);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 adpa;
 	bool ret;
 	u32 save_adpa;
 
-	save_adpa = adpa = I915_READ(ADPA);
+	save_adpa = adpa = I915_READ(crt->adpa_reg);
 	DRM_DEBUG_KMS("trigger hotplug detect cycle: adpa=0x%x\n", adpa);
 
 	adpa |= ADPA_CRT_HOTPLUG_FORCE_TRIGGER;
 
-	I915_WRITE(ADPA, adpa);
+	I915_WRITE(crt->adpa_reg, adpa);
 
-	if (wait_for((I915_READ(ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
+	if (wait_for((I915_READ(crt->adpa_reg) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
 		     1000)) {
 		DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
-		I915_WRITE(ADPA, save_adpa);
+		I915_WRITE(crt->adpa_reg, save_adpa);
 	}
 
 	/* Check the status to see if both blue and green are on now */
-	adpa = I915_READ(ADPA);
+	adpa = I915_READ(crt->adpa_reg);
 	if ((adpa & ADPA_CRT_HOTPLUG_MONITOR_MASK) != 0)
 		ret = true;
 	else
@@ -348,12 +434,16 @@ static int intel_crt_ddc_get_modes(struct drm_connector *connector,
 				struct i2c_adapter *adapter)
 {
 	struct edid *edid;
+	int ret;
 
 	edid = intel_crt_get_edid(connector, adapter);
 	if (!edid)
 		return 0;
 
-	return intel_connector_update_modes(connector, edid);
+	ret = intel_connector_update_modes(connector, edid);
+	kfree(edid);
+
+	return ret;
 }
 
 static bool intel_crt_detect_ddc(struct drm_connector *connector)
@@ -365,7 +455,7 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 
 	BUG_ON(crt->base.type != INTEL_OUTPUT_ANALOG);
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->crt_ddc_pin);
+	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
 	edid = intel_crt_get_edid(connector, i2c);
 
 	if (edid) {
@@ -519,6 +609,10 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status;
 	struct intel_load_detect_pipe tmp;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
+		      connector->base.id, drm_get_connector_name(connector),
+		      force);
+
 	if (I915_HAS_HOTPLUG(dev)) {
 		/* We can not rely on the HPD pin always being correctly wired
 		 * up, for example many KVM do not pass it through, and so
@@ -545,14 +639,12 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		return connector->status;
 
 	/* for pre-945g platforms use load detect */
-	if (intel_get_load_detect_pipe(&crt->base, connector, NULL,
-				       &tmp)) {
+	if (intel_get_load_detect_pipe(connector, NULL, &tmp)) {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
 		else
 			status = intel_crt_load_detect(crt);
-		intel_release_load_detect_pipe(&crt->base, connector,
-					       &tmp);
+		intel_release_load_detect_pipe(connector, &tmp);
 	} else
 		status = connector_status_unknown;
 
@@ -573,7 +665,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	int ret;
 	struct i2c_adapter *i2c;
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->crt_ddc_pin);
+	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
 	ret = intel_crt_ddc_get_modes(connector, i2c);
 	if (ret || !IS_G4X(dev))
 		return ret;
@@ -593,35 +685,31 @@ static int intel_crt_set_property(struct drm_connector *connector,
 static void intel_crt_reset(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_attached_crt(connector);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (INTEL_INFO(dev)->gen >= 5) {
+		u32 adpa;
+
+		adpa = I915_READ(crt->adpa_reg);
+		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
+		adpa |= ADPA_HOTPLUG_BITS;
+		I915_WRITE(crt->adpa_reg, adpa);
+		POSTING_READ(crt->adpa_reg);
+
+		DRM_DEBUG_KMS("pch crt adpa set to 0x%x\n", adpa);
 		crt->force_hotplug_required = 1;
+	}
+
 }
 
 /*
  * Routines for controlling stuff on the analog port
  */
 
-static const struct drm_encoder_helper_funcs pch_encoder_funcs = {
-	.mode_fixup = intel_crt_mode_fixup,
-	.prepare = intel_encoder_prepare,
-	.commit = intel_encoder_commit,
-	.mode_set = intel_crt_mode_set,
-	.dpms = pch_crt_dpms,
-};
-
-static const struct drm_encoder_helper_funcs gmch_encoder_funcs = {
-	.mode_fixup = intel_crt_mode_fixup,
-	.prepare = intel_encoder_prepare,
-	.commit = intel_encoder_commit,
-	.mode_set = intel_crt_mode_set,
-	.dpms = gmch_crt_dpms,
-};
-
 static const struct drm_connector_funcs intel_crt_connector_funcs = {
 	.reset = intel_crt_reset,
-	.dpms = drm_helper_connector_dpms,
+	.dpms = intel_crt_dpms,
 	.detect = intel_crt_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = intel_crt_destroy,
@@ -662,7 +750,6 @@ void intel_crt_init(struct drm_device *dev)
 	struct intel_crt *crt;
 	struct intel_connector *intel_connector;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct drm_encoder_helper_funcs *encoder_helper_funcs;
 
 	/* Skip machines without VGA that falsely report hotplug events */
 	if (dmi_check_system(intel_no_crt))
@@ -679,6 +766,7 @@ void intel_crt_init(struct drm_device *dev)
 	}
 
 	connector = &intel_connector->base;
+	crt->connector = intel_connector;
 	drm_connector_init(dev, &intel_connector->base,
 			   &intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
 
@@ -688,13 +776,11 @@ void intel_crt_init(struct drm_device *dev)
 	intel_connector_attach_encoder(intel_connector, &crt->base);
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
-	crt->base.clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT |
-				1 << INTEL_ANALOG_CLONE_BIT |
-				1 << INTEL_SDVO_LVDS_CLONE_BIT);
-	if (IS_HASWELL(dev))
+	crt->base.cloneable = true;
+	if (IS_I830(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else
-		crt->base.crtc_mask = (1 << 0) | (1 << 1);
+		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
 	if (IS_GEN2(dev))
 		connector->interlace_allowed = 0;
@@ -703,36 +789,46 @@ void intel_crt_init(struct drm_device *dev)
 	connector->doublescan_allowed = 0;
 
 	if (HAS_PCH_SPLIT(dev))
-		encoder_helper_funcs = &pch_encoder_funcs;
+		crt->adpa_reg = PCH_ADPA;
+	else if (IS_VALLEYVIEW(dev))
+		crt->adpa_reg = VLV_ADPA;
 	else
-		encoder_helper_funcs = &gmch_encoder_funcs;
+		crt->adpa_reg = ADPA;
 
-	drm_encoder_helper_add(&crt->base.base, encoder_helper_funcs);
+	crt->base.compute_config = intel_crt_compute_config;
+	crt->base.mode_set = intel_crt_mode_set;
+	crt->base.disable = intel_disable_crt;
+	crt->base.enable = intel_enable_crt;
+	crt->base.get_config = intel_crt_get_config;
+	if (I915_HAS_HOTPLUG(dev))
+		crt->base.hpd_pin = HPD_CRT;
+	if (HAS_DDI(dev))
+		crt->base.get_hw_state = intel_ddi_get_hw_state;
+	else
+		crt->base.get_hw_state = intel_crt_get_hw_state;
+	intel_connector->get_hw_state = intel_connector_get_hw_state;
+
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
 
 	drm_sysfs_connector_add(connector);
 
-	if (I915_HAS_HOTPLUG(dev))
-		connector->polled = DRM_CONNECTOR_POLL_HPD;
-	else
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	if (!I915_HAS_HOTPLUG(dev))
+		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
 	/*
 	 * Configure the automatic hotplug detection stuff
 	 */
 	crt->force_hotplug_required = 0;
-	if (HAS_PCH_SPLIT(dev)) {
-		u32 adpa;
 
-		adpa = I915_READ(PCH_ADPA);
-		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
-		adpa |= ADPA_HOTPLUG_BITS;
-		I915_WRITE(PCH_ADPA, adpa);
-		POSTING_READ(PCH_ADPA);
+	/*
+	 * TODO: find a proper way to discover whether we need to set the the
+	 * polarity and link reversal bits or not, instead of relying on the
+	 * BIOS.
+	 */
+	if (HAS_PCH_LPT(dev)) {
+		u32 fdi_config = FDI_RX_POLARITY_REVERSED_LPT |
+				 FDI_RX_LINK_REVERSAL_OVERRIDE;
 
-		DRM_DEBUG_KMS("pch crt adpa set to 0x%x\n", adpa);
-		crt->force_hotplug_required = 1;
+		dev_priv->fdi_rx_config = I915_READ(_FDI_RXA_CTL) & fdi_config;
 	}
-
-	dev_priv->hotplug_supported_mask |= CRT_HOTPLUG_INT_STATUS;
 }

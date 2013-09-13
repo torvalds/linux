@@ -99,7 +99,7 @@ static inline void hdlc_proto_stop(struct net_device *dev)
 static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	hdlc_device *hdlc;
 	unsigned long flags;
 	int on;
@@ -280,14 +280,13 @@ int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 	if (!try_module_get(proto->module))
 		return -ENOSYS;
 
-	if (size)
-		if ((dev_to_hdlc(dev)->state = kmalloc(size,
-						       GFP_KERNEL)) == NULL) {
-			netdev_warn(dev,
-				    "Memory squeeze on hdlc_proto_attach()\n");
+	if (size) {
+		dev_to_hdlc(dev)->state = kmalloc(size, GFP_KERNEL);
+		if (dev_to_hdlc(dev)->state == NULL) {
 			module_put(proto->module);
 			return -ENOBUFS;
 		}
+	}
 	dev_to_hdlc(dev)->proto = proto;
 	return 0;
 }

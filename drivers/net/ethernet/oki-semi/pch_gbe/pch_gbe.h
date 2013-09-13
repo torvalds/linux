@@ -582,6 +582,19 @@ struct pch_gbe_hw_stats {
 };
 
 /**
+ * struct pch_gbe_privdata - PCI Device ID driver data
+ * @phy_tx_clk_delay:		Bool, configure the PHY TX delay in software
+ * @phy_disable_hibernate:	Bool, disable PHY hibernation
+ * @platform_init:		Platform initialization callback, called from
+ *				probe, prior to PHY initialization.
+ */
+struct pch_gbe_privdata {
+	bool phy_tx_clk_delay;
+	bool phy_disable_hibernate;
+	int (*platform_init)(struct pci_dev *pdev);
+};
+
+/**
  * struct pch_gbe_adapter - board specific private data structure
  * @stats_lock:	Spinlock structure for status
  * @ethtool_lock:	Spinlock structure for ethtool
@@ -604,6 +617,7 @@ struct pch_gbe_hw_stats {
  * @rx_buffer_len:	Receive buffer length
  * @tx_queue_len:	Transmit queue length
  * @have_msi:		PCI MSI mode flag
+ * @pch_gbe_privdata:	PCI Device ID driver_data
  */
 
 struct pch_gbe_adapter {
@@ -631,7 +645,10 @@ struct pch_gbe_adapter {
 	int hwts_tx_en;
 	int hwts_rx_en;
 	struct pci_dev *ptp_pdev;
+	struct pch_gbe_privdata *pdata;
 };
+
+#define pch_gbe_hw_to_adapter(hw)	container_of(hw, struct pch_gbe_adapter, hw)
 
 extern const char pch_driver_version[];
 
@@ -649,7 +666,6 @@ extern void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
 extern void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 				       struct pch_gbe_rx_ring *rx_ring);
 extern void pch_gbe_update_stats(struct pch_gbe_adapter *adapter);
-#ifdef CONFIG_PCH_PTP
 extern u32 pch_ch_control_read(struct pci_dev *pdev);
 extern void pch_ch_control_write(struct pci_dev *pdev, u32 val);
 extern u32 pch_ch_event_read(struct pci_dev *pdev);
@@ -659,7 +675,6 @@ extern u32 pch_src_uuid_hi_read(struct pci_dev *pdev);
 extern u64 pch_rx_snap_read(struct pci_dev *pdev);
 extern u64 pch_tx_snap_read(struct pci_dev *pdev);
 extern int pch_set_station_address(u8 *addr, struct pci_dev *pdev);
-#endif
 
 /* pch_gbe_param.c */
 extern void pch_gbe_check_options(struct pch_gbe_adapter *adapter);

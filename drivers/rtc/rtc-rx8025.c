@@ -534,8 +534,8 @@ static void rx8025_sysfs_unregister(struct device *dev)
 	device_remove_file(dev, &dev_attr_clock_adjust_ppb);
 }
 
-static int __devinit rx8025_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int rx8025_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct rx8025_data *rx8025;
@@ -549,7 +549,7 @@ static int __devinit rx8025_probe(struct i2c_client *client,
 		goto errout;
 	}
 
-	rx8025 = kzalloc(sizeof(*rx8025), GFP_KERNEL);
+	rx8025 = devm_kzalloc(&client->dev, sizeof(*rx8025), GFP_KERNEL);
 	if (!rx8025) {
 		dev_err(&adapter->dev, "failed to alloc memory\n");
 		err = -ENOMEM;
@@ -562,7 +562,7 @@ static int __devinit rx8025_probe(struct i2c_client *client,
 
 	err = rx8025_init_client(client, &need_reset);
 	if (err)
-		goto errout_free;
+		goto errout;
 
 	if (need_reset) {
 		struct rtc_time tm;
@@ -572,12 +572,12 @@ static int __devinit rx8025_probe(struct i2c_client *client,
 		rx8025_set_time(&client->dev, &tm);
 	}
 
-	rx8025->rtc = rtc_device_register(client->name, &client->dev,
+	rx8025->rtc = devm_rtc_device_register(&client->dev, client->name,
 					  &rx8025_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rx8025->rtc)) {
 		err = PTR_ERR(rx8025->rtc);
 		dev_err(&client->dev, "unable to register the class device\n");
-		goto errout_free;
+		goto errout;
 	}
 
 	if (client->irq > 0) {
@@ -586,7 +586,7 @@ static int __devinit rx8025_probe(struct i2c_client *client,
 				  0, "rx8025", client);
 		if (err) {
 			dev_err(&client->dev, "unable to request IRQ\n");
-			goto errout_reg;
+			goto errout;
 		}
 	}
 
@@ -603,18 +603,12 @@ errout_irq:
 	if (client->irq > 0)
 		free_irq(client->irq, client);
 
-errout_reg:
-	rtc_device_unregister(rx8025->rtc);
-
-errout_free:
-	kfree(rx8025);
-
 errout:
 	dev_err(&adapter->dev, "probing for rx8025 failed\n");
 	return err;
 }
 
-static int __devexit rx8025_remove(struct i2c_client *client)
+static int rx8025_remove(struct i2c_client *client)
 {
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
 	struct mutex *lock = &rx8025->rtc->ops_lock;
@@ -629,8 +623,6 @@ static int __devexit rx8025_remove(struct i2c_client *client)
 	}
 
 	rx8025_sysfs_unregister(&client->dev);
-	rtc_device_unregister(rx8025->rtc);
-	kfree(rx8025);
 	return 0;
 }
 
@@ -640,7 +632,7 @@ static struct i2c_driver rx8025_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= rx8025_probe,
-	.remove		= __devexit_p(rx8025_remove),
+	.remove		= rx8025_remove,
 	.id_table	= rx8025_id,
 };
 

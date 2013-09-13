@@ -203,7 +203,7 @@ static unsigned _sp2d_min_pg(struct __stripe_pages_2d *sp2d)
 
 static unsigned _sp2d_max_pg(struct __stripe_pages_2d *sp2d)
 {
-	unsigned p;
+	int p;
 
 	for (p = sp2d->pages_in_unit - 1; p >= 0; --p) {
 		struct __1_page_stripe *_1ps = &sp2d->_1p_stripes[p];
@@ -432,7 +432,7 @@ static void _mark_read4write_pages_uptodate(struct ore_io_state *ios, int ret)
 		if (!bio)
 			continue;
 
-		__bio_for_each_segment(bv, bio, i, 0) {
+		bio_for_each_segment_all(bv, bio, i) {
 			struct page *page = bv->bv_page;
 
 			SetPageUptodate(page);

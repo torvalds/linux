@@ -432,7 +432,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg, int compat)
 			size = dev->ops->ioctl(dev, cmd, buf);
 		}
 		if (size < 0) {
-			error = (size == -ENOIOCTLCMD ? -EINVAL : size);
+			error = (size == -ENOIOCTLCMD ? -ENOTTY : size);
 			goto done;
 		}
 	}

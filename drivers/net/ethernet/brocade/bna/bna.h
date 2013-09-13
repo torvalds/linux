@@ -138,6 +138,8 @@ do {								\
 #define BNA_QE_INDX_ADD(_qe_idx, _qe_num, _q_depth)			\
 	((_qe_idx) = ((_qe_idx) + (_qe_num)) & ((_q_depth) - 1))
 
+#define BNA_QE_INDX_INC(_idx, _q_depth) BNA_QE_INDX_ADD(_idx, 1, _q_depth)
+
 #define BNA_Q_INDEX_CHANGE(_old_idx, _updated_idx, _q_depth)		\
 	(((_updated_idx) - (_old_idx)) & ((_q_depth) - 1))
 
@@ -452,6 +454,8 @@ void bna_bfi_rx_enet_stop_rsp(struct bna_rx *rx,
 			      struct bfi_msgq_mhdr *msghdr);
 void bna_bfi_rxf_cfg_rsp(struct bna_rxf *rxf, struct bfi_msgq_mhdr *msghdr);
 void bna_bfi_rxf_mcast_add_rsp(struct bna_rxf *rxf,
+			       struct bfi_msgq_mhdr *msghdr);
+void bna_bfi_rxf_ucast_set_rsp(struct bna_rxf *rxf,
 			       struct bfi_msgq_mhdr *msghdr);
 
 /* APIs for BNA */

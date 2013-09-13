@@ -41,7 +41,7 @@ void scu_enable(void __iomem *scu_base)
 
 #ifdef CONFIG_ARM_ERRATA_764369
 	/* Cortex-A9 only */
-	if ((read_cpuid(CPUID_ID) & 0xff0ffff0) == 0x410fc090) {
+	if ((read_cpuid_id() & 0xff0ffff0) == 0x410fc090) {
 		scu_ctrl = __raw_readl(scu_base + 0x30);
 		if (!(scu_ctrl & 1))
 			__raw_writel(scu_ctrl | 0x1, scu_base + 0x30);
@@ -75,7 +75,7 @@ void scu_enable(void __iomem *scu_base)
 int scu_power_mode(void __iomem *scu_base, unsigned int mode)
 {
 	unsigned int val;
-	int cpu = cpu_logical_map(smp_processor_id());
+	int cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(smp_processor_id()), 0);
 
 	if (mode > 3 || mode == 1 || cpu > 3)
 		return -EINVAL;

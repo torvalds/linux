@@ -74,7 +74,7 @@ static const int rpm_ranges[] = { 2000, 4000, 8000, 16000 };
 
 #define FAN_FROM_REG(val, rpm_range)	((val) == 0 || (val) == 255 ? \
 				0 : (rpm_ranges[rpm_range] * 30) / (val))
-#define TEMP_LIMIT_TO_REG(val)	SENSORS_LIMIT((val) / 1000, 0, 255)
+#define TEMP_LIMIT_TO_REG(val)	clamp_val((val) / 1000, 0, 255)
 
 /*
  * Client data (each client gets its own)
@@ -312,7 +312,7 @@ static ssize_t set_pwm(struct device *dev,
 	if (res)
 		return res;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm[attr->index] = (u8)(val * 120 / 255);
@@ -428,7 +428,7 @@ static int max6639_init_client(struct i2c_client *client)
 {
 	struct max6639_data *data = i2c_get_clientdata(client);
 	struct max6639_platform_data *max6639_info =
-		client->dev.platform_data;
+		dev_get_platdata(&client->dev);
 	int i;
 	int rpm_range = 1; /* default: 4000 RPM */
 	int err;

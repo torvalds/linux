@@ -37,22 +37,14 @@
 #define ADJD_S311_CAP_GREEN	0x07
 #define ADJD_S311_CAP_BLUE	0x08
 #define ADJD_S311_CAP_CLEAR	0x09
-#define ADJD_S311_INT_RED_LO	0x0a
-#define ADJD_S311_INT_RED_HI	0x0b
-#define ADJD_S311_INT_GREEN_LO	0x0c
-#define ADJD_S311_INT_GREEN_HI	0x0d
-#define ADJD_S311_INT_BLUE_LO	0x0e
-#define ADJD_S311_INT_BLUE_HI	0x0f
-#define ADJD_S311_INT_CLEAR_LO	0x10
-#define ADJD_S311_INT_CLEAR_HI	0x11
-#define ADJD_S311_DATA_RED_LO	0x40
-#define ADJD_S311_DATA_RED_HI	0x41
-#define ADJD_S311_DATA_GREEN_LO	0x42
-#define ADJD_S311_DATA_GREEN_HI	0x43
-#define ADJD_S311_DATA_BLUE_LO	0x44
-#define ADJD_S311_DATA_BLUE_HI	0x45
-#define ADJD_S311_DATA_CLEAR_LO	0x46
-#define ADJD_S311_DATA_CLEAR_HI	0x47
+#define ADJD_S311_INT_RED	0x0a
+#define ADJD_S311_INT_GREEN	0x0c
+#define ADJD_S311_INT_BLUE	0x0e
+#define ADJD_S311_INT_CLEAR	0x10
+#define ADJD_S311_DATA_RED	0x40
+#define ADJD_S311_DATA_GREEN	0x42
+#define ADJD_S311_DATA_BLUE	0x44
+#define ADJD_S311_DATA_CLEAR	0x46
 #define ADJD_S311_OFFSET_RED	0x48
 #define ADJD_S311_OFFSET_GREEN	0x49
 #define ADJD_S311_OFFSET_BLUE	0x4a
@@ -73,8 +65,8 @@ enum adjd_s311_channel_idx {
 	IDX_RED, IDX_GREEN, IDX_BLUE, IDX_CLEAR
 };
 
-#define ADJD_S311_DATA_REG(chan) (ADJD_S311_DATA_RED_LO + (chan) * 2)
-#define ADJD_S311_INT_REG(chan) (ADJD_S311_INT_RED_LO + (chan) * 2)
+#define ADJD_S311_DATA_REG(chan) (ADJD_S311_DATA_RED + (chan) * 2)
+#define ADJD_S311_INT_REG(chan) (ADJD_S311_INT_RED + (chan) * 2)
 #define ADJD_S311_CAP_REG(chan) (ADJD_S311_CAP_RED + (chan))
 
 static int adjd_s311_req_data(struct iio_dev *indio_dev)
@@ -164,7 +156,6 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adjd_s311_data *data = iio_priv(indio_dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
 	s64 time_ns = iio_get_time_ns();
 	int len = 0;
 	int i, j = 0;
@@ -187,7 +178,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data->buffer + ALIGN(len, sizeof(s64)))
 			= time_ns;
-	iio_push_to_buffer(buffer, (u8 *)data->buffer, time_ns);
+	iio_push_to_buffers(indio_dev, (u8 *)data->buffer);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -208,8 +199,8 @@ static const struct iio_chan_spec_ext_info adjd_s311_ext_info[] = {
 	.type = IIO_INTENSITY, \
 	.modified = 1, \
 	.address = (IDX_##_color), \
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT | \
-		IIO_CHAN_INFO_HARDWAREGAIN_SEPARATE_BIT, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
+		BIT(IIO_CHAN_INFO_HARDWAREGAIN), \
 	.channel2 = (IIO_MOD_LIGHT_##_color), \
 	.scan_index = (_scan_idx), \
 	.scan_type = IIO_ST('u', 10, 16, 0), \
@@ -233,7 +224,8 @@ static int adjd_s311_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = adjd_s311_read_data(indio_dev, chan->address, val);
+		ret = adjd_s311_read_data(indio_dev,
+			ADJD_S311_DATA_REG(chan->address), val);
 		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;
@@ -287,18 +279,17 @@ static const struct iio_info adjd_s311_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit adjd_s311_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int adjd_s311_probe(struct i2c_client *client,
+			   const struct i2c_device_id *id)
 {
 	struct adjd_s311_data *data;
 	struct iio_dev *indio_dev;
 	int err;
 
-	indio_dev = iio_device_alloc(sizeof(*data));
-	if (indio_dev == NULL) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	if (indio_dev == NULL)
+		return -ENOMEM;
+
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
@@ -313,7 +304,7 @@ static int __devinit adjd_s311_probe(struct i2c_client *client,
 	err = iio_triggered_buffer_setup(indio_dev, NULL,
 		adjd_s311_trigger_handler, NULL);
 	if (err < 0)
-		goto exit_free_device;
+		return err;
 
 	err = iio_device_register(indio_dev);
 	if (err)
@@ -325,13 +316,10 @@ static int __devinit adjd_s311_probe(struct i2c_client *client,
 
 exit_unreg_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
-exit_free_device:
-	iio_device_free(indio_dev);
-exit:
 	return err;
 }
 
-static int __devexit adjd_s311_remove(struct i2c_client *client)
+static int adjd_s311_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct adjd_s311_data *data = iio_priv(indio_dev);
@@ -339,7 +327,6 @@ static int __devexit adjd_s311_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	kfree(data->buffer);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -355,7 +342,7 @@ static struct i2c_driver adjd_s311_driver = {
 		.name	= ADJD_S311_DRV_NAME,
 	},
 	.probe		= adjd_s311_probe,
-	.remove		= __devexit_p(adjd_s311_remove),
+	.remove		= adjd_s311_remove,
 	.id_table	= adjd_s311_id,
 };
 module_i2c_driver(adjd_s311_driver);

@@ -27,8 +27,6 @@
 #include <linux/serial_reg.h>
 #include <linux/uaccess.h>
 
-static bool debug;
-
 /* default urb timeout for usb operations */
 #define QT2_USB_TIMEOUT USB_CTRL_SET_TIMEOUT
 
@@ -64,11 +62,10 @@ static bool debug;
 #define  MAX_BAUD_RATE              921600
 #define  DEFAULT_BAUD_RATE          9600
 
+#define QT2_READ_BUFFER_SIZE    512  /* size of read buffer */
 #define QT2_WRITE_BUFFER_SIZE   512  /* size of write buffer */
 #define QT2_WRITE_CONTROL_SIZE  5    /* control bytes used for a write */
 
-/* Version Information */
-#define DRIVER_VERSION "v0.1"
 #define DRIVER_DESC "Quatech 2nd gen USB to Serial Driver"
 
 #define	USB_VENDOR_ID_QUATECH	0x061d
@@ -116,24 +113,20 @@ struct qt2_serial_private {
 	unsigned char current_port;  /* current port for incoming data */
 
 	struct urb	*read_urb;   /* shared among all ports */
-	char		read_buffer[512];
+	char		*read_buffer;
 };
 
 struct qt2_port_private {
-	bool is_open;
 	u8   device_port;
 
 	spinlock_t urb_lock;
 	bool       urb_in_use;
 	struct urb *write_urb;
-	char       write_buffer[QT2_WRITE_BUFFER_SIZE];
+	char       *write_buffer;
 
 	spinlock_t  lock;
 	u8          shadowLSR;
 	u8          shadowMSR;
-
-	wait_queue_head_t   delta_msr_wait; /* Used for TIOCMIWAIT */
-	struct async_icount icount;
 
 	struct usb_serial_port *port;
 };
@@ -145,12 +138,13 @@ static void qt2_read_bulk_callback(struct urb *urb);
 
 static void qt2_release(struct usb_serial *serial)
 {
-	int i;
+	struct qt2_serial_private *serial_priv;
 
-	kfree(usb_get_serial_data(serial));
+	serial_priv = usb_get_serial_data(serial);
 
-	for (i = 0; i < serial->num_ports; i++)
-		kfree(usb_get_serial_port_data(serial->port[i]));
+	usb_free_urb(serial_priv->read_urb);
+	kfree(serial_priv->read_buffer);
+	kfree(serial_priv);
 }
 
 static inline int calc_baud_divisor(int baudrate)
@@ -275,7 +269,7 @@ static void qt2_set_termios(struct tty_struct *tty,
 {
 	struct usb_device *dev = port->serial->dev;
 	struct qt2_port_private *port_priv;
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	u16 baud;
 	unsigned int cflag = termios->c_cflag;
 	u16 new_lcr = 0;
@@ -351,7 +345,7 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 	int status;
 	unsigned long flags;
 
-	device_port = (u16) (port->number - port->serial->minor);
+	device_port = port->port_number;
 
 	serial = port->serial;
 
@@ -396,17 +390,15 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 	status = qt2_set_port_config(serial->dev, device_port,
 				     DEFAULT_BAUD_RATE, UART_LCR_WLEN8);
 	if (status < 0) {
-		dev_err(&port->dev,
-			"%s - initial setup failed for port %i (%i)\n",
-			__func__, port->number, device_port);
+		dev_err(&port->dev, "%s - initial setup failed (%i)\n",
+			__func__, device_port);
 		return status;
 	}
 
-	port_priv->is_open = true;
 	port_priv->device_port = (u8) device_port;
 
 	if (tty)
-		qt2_set_termios(tty, port, tty->termios);
+		qt2_set_termios(tty, port, &tty->termios);
 
 	return 0;
 
@@ -422,11 +414,8 @@ static void qt2_close(struct usb_serial_port *port)
 	serial = port->serial;
 	port_priv = usb_get_serial_port_data(port);
 
-	port_priv->is_open = false;
-
 	spin_lock_irqsave(&port_priv->urb_lock, flags);
-	if (port_priv->write_urb->status == -EINPROGRESS)
-		usb_kill_urb(port_priv->write_urb);
+	usb_kill_urb(port_priv->write_urb);
 	port_priv->urb_in_use = false;
 	spin_unlock_irqrestore(&port_priv->urb_lock, flags);
 
@@ -460,27 +449,13 @@ static void qt2_close(struct usb_serial_port *port)
 	if (i < 0)
 		dev_err(&port->dev, "%s - close port failed %i\n",
 			__func__, i);
-
 }
 
 static void qt2_disconnect(struct usb_serial *serial)
 {
 	struct qt2_serial_private *serial_priv = usb_get_serial_data(serial);
-	struct qt2_port_private *port_priv;
-	int i;
 
-	if (serial_priv->read_urb->status == -EINPROGRESS)
-		usb_kill_urb(serial_priv->read_urb);
-
-	usb_free_urb(serial_priv->read_urb);
-
-	for (i = 0; i < serial->num_ports; i++) {
-		port_priv = usb_get_serial_port_data(serial->port[i]);
-
-		if (port_priv->write_urb->status == -EINPROGRESS)
-			usb_kill_urb(port_priv->write_urb);
-		usb_free_urb(port_priv->write_urb);
-	}
+	usb_kill_urb(serial_priv->read_urb);
 }
 
 static int get_serial_info(struct usb_serial_port *port,
@@ -492,7 +467,7 @@ static int get_serial_info(struct usb_serial_port *port,
 		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
-	tmp.line		= port->serial->minor;
+	tmp.line		= port->minor;
 	tmp.port		= 0;
 	tmp.irq			= 0;
 	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
@@ -506,67 +481,6 @@ static int get_serial_info(struct usb_serial_port *port,
 	return 0;
 }
 
-static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
-{
-	struct qt2_port_private *priv = usb_get_serial_port_data(port);
-	struct async_icount prev, cur;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	prev = priv->icount;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	while (1) {
-		wait_event_interruptible(priv->delta_msr_wait,
-					 ((priv->icount.rng != prev.rng) ||
-					  (priv->icount.dsr != prev.dsr) ||
-					  (priv->icount.dcd != prev.dcd) ||
-					  (priv->icount.cts != prev.cts)));
-
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		cur = priv->icount;
-		spin_unlock_irqrestore(&priv->lock, flags);
-
-		if ((prev.rng == cur.rng) &&
-		    (prev.dsr == cur.dsr) &&
-		    (prev.dcd == cur.dcd) &&
-		    (prev.cts == cur.cts))
-			return -EIO;
-
-		if ((arg & TIOCM_RNG && (prev.rng != cur.rng)) ||
-		    (arg & TIOCM_DSR && (prev.dsr != cur.dsr)) ||
-		    (arg & TIOCM_CD && (prev.dcd != cur.dcd)) ||
-		    (arg & TIOCM_CTS && (prev.cts != cur.cts)))
-			return 0;
-	}
-	return 0;
-}
-
-static int qt2_get_icount(struct tty_struct *tty,
-			  struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct qt2_port_private *priv = usb_get_serial_port_data(port);
-	struct async_icount cnow = priv->icount;
-
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
-
-	return 0;
-}
-
 static int qt2_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg)
 {
@@ -576,10 +490,6 @@ static int qt2_ioctl(struct tty_struct *tty,
 	case TIOCGSERIAL:
 		return get_serial_info(port,
 				       (struct serial_struct __user *)arg);
-
-	case TIOCMIWAIT:
-		return wait_modem_info(port, arg);
-
 	default:
 		break;
 	}
@@ -614,13 +524,12 @@ static void qt2_process_flush(struct usb_serial_port *port, unsigned char *ch)
 	return;
 }
 
-void qt2_process_read_urb(struct urb *urb)
+static void qt2_process_read_urb(struct urb *urb)
 {
 	struct usb_serial *serial;
 	struct qt2_serial_private *serial_priv;
 	struct usb_serial_port *port;
 	struct qt2_port_private *port_priv;
-	struct tty_struct *tty;
 	bool escapeflag;
 	unsigned char *ch;
 	int i;
@@ -631,14 +540,10 @@ void qt2_process_read_urb(struct urb *urb)
 		return;
 
 	ch = urb->transfer_buffer;
-	tty = NULL;
 	serial = urb->context;
 	serial_priv = usb_get_serial_data(serial);
 	port = serial->port[serial_priv->current_port];
 	port_priv = usb_get_serial_port_data(port);
-
-	if (port_priv->is_open)
-		tty = tty_port_tty_get(&port->port);
 
 	for (i = 0; i < urb->actual_length; i++) {
 		ch = (unsigned char *)urb->transfer_buffer + i;
@@ -677,10 +582,7 @@ void qt2_process_read_urb(struct urb *urb)
 						 __func__);
 					break;
 				}
-				if (tty) {
-					tty_flip_buffer_push(tty);
-					tty_kref_put(tty);
-				}
+				tty_flip_buffer_push(&port->port);
 
 				newport = *(ch + 3);
 
@@ -694,10 +596,6 @@ void qt2_process_read_urb(struct urb *urb)
 				serial_priv->current_port = newport;
 				port = serial->port[serial_priv->current_port];
 				port_priv = usb_get_serial_port_data(port);
-				if (port_priv->is_open)
-					tty = tty_port_tty_get(&port->port);
-				else
-					tty = NULL;
 				i += 3;
 				escapeflag = true;
 				break;
@@ -708,8 +606,8 @@ void qt2_process_read_urb(struct urb *urb)
 				escapeflag = true;
 				break;
 			case QT2_CONTROL_ESCAPE:
-				tty_buffer_request_room(tty, 2);
-				tty_insert_flip_string(tty, ch, 2);
+				tty_buffer_request_room(&port->port, 2);
+				tty_insert_flip_string(&port->port, ch, 2);
 				i += 2;
 				escapeflag = true;
 				break;
@@ -723,16 +621,11 @@ void qt2_process_read_urb(struct urb *urb)
 				continue;
 		}
 
-		if (tty) {
-			tty_buffer_request_room(tty, 1);
-			tty_insert_flip_string(tty, ch, 1);
-		}
+		tty_buffer_request_room(&port->port, 1);
+		tty_insert_flip_string(&port->port, ch, 1);
 	}
 
-	if (tty) {
-		tty_flip_buffer_push(tty);
-		tty_kref_put(tty);
-	}
+	tty_flip_buffer_push(&port->port);
 }
 
 static void qt2_write_bulk_callback(struct urb *urb)
@@ -775,11 +668,9 @@ static void qt2_read_bulk_callback(struct urb *urb)
 
 static int qt2_setup_urbs(struct usb_serial *serial)
 {
-	struct usb_serial_port *port;
 	struct usb_serial_port *port0;
 	struct qt2_serial_private *serial_priv;
-	struct qt2_port_private *port_priv;
-	int pcount, status;
+	int status;
 
 	port0 = serial->port[0];
 
@@ -794,49 +685,24 @@ static int qt2_setup_urbs(struct usb_serial *serial)
 			  usb_rcvbulkpipe(serial->dev,
 					  port0->bulk_in_endpointAddress),
 			  serial_priv->read_buffer,
-			  sizeof(serial_priv->read_buffer),
+			  QT2_READ_BUFFER_SIZE,
 			  qt2_read_bulk_callback, serial);
-
-	/* setup write_urb for each port */
-	for (pcount = 0; pcount < serial->num_ports; pcount++) {
-
-		port = serial->port[pcount];
-		port_priv = usb_get_serial_port_data(port);
-
-		port_priv->write_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!port_priv->write_urb) {
-			dev_err(&serial->dev->dev,
-				"failed to alloc write_urb for port %i\n",
-				pcount);
-			return -ENOMEM;
-		}
-
-		usb_fill_bulk_urb(port_priv->write_urb,
-				  serial->dev,
-				  usb_sndbulkpipe(serial->dev,
-						  port0->
-						  bulk_out_endpointAddress),
-				  port_priv->write_buffer,
-				  sizeof(port_priv->write_buffer),
-				  qt2_write_bulk_callback, port);
-	}
 
 	status = usb_submit_urb(serial_priv->read_urb, GFP_KERNEL);
 	if (status != 0) {
 		dev_err(&serial->dev->dev,
 			"%s - submit read urb failed %i\n", __func__, status);
+		usb_free_urb(serial_priv->read_urb);
 		return status;
 	}
 
 	return 0;
-
 }
 
 static int qt2_attach(struct usb_serial *serial)
 {
 	struct qt2_serial_private *serial_priv;
-	struct qt2_port_private *port_priv;
-	int status, pcount;
+	int status;
 
 	/* power on unit */
 	status = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
@@ -854,27 +720,13 @@ static int qt2_attach(struct usb_serial *serial)
 		return -ENOMEM;
 	}
 
-	usb_set_serial_data(serial, serial_priv);
-
-	for (pcount = 0; pcount < serial->num_ports; pcount++) {
-		port_priv = kzalloc(sizeof(*port_priv), GFP_KERNEL);
-		if (!port_priv) {
-			dev_err(&serial->dev->dev,
-				"%s- kmalloc(%Zd) failed.\n", __func__,
-				sizeof(*port_priv));
-			pcount--;
-			status = -ENOMEM;
-			goto attach_failed;
-		}
-
-		spin_lock_init(&port_priv->lock);
-		spin_lock_init(&port_priv->urb_lock);
-		init_waitqueue_head(&port_priv->delta_msr_wait);
-
-		port_priv->port = serial->port[pcount];
-
-		usb_set_serial_port_data(serial->port[pcount], port_priv);
+	serial_priv->read_buffer = kmalloc(QT2_READ_BUFFER_SIZE, GFP_KERNEL);
+	if (!serial_priv->read_buffer) {
+		status = -ENOMEM;
+		goto err_buf;
 	}
+
+	usb_set_serial_data(serial, serial_priv);
 
 	status = qt2_setup_urbs(serial);
 	if (status != 0)
@@ -883,12 +735,61 @@ static int qt2_attach(struct usb_serial *serial)
 	return 0;
 
 attach_failed:
-	for (/* empty */; pcount >= 0; pcount--) {
-		port_priv = usb_get_serial_port_data(serial->port[pcount]);
-		kfree(port_priv);
-	}
+	kfree(serial_priv->read_buffer);
+err_buf:
 	kfree(serial_priv);
 	return status;
+}
+
+static int qt2_port_probe(struct usb_serial_port *port)
+{
+	struct usb_serial *serial = port->serial;
+	struct qt2_port_private *port_priv;
+	u8 bEndpointAddress;
+
+	port_priv = kzalloc(sizeof(*port_priv), GFP_KERNEL);
+	if (!port_priv)
+		return -ENOMEM;
+
+	spin_lock_init(&port_priv->lock);
+	spin_lock_init(&port_priv->urb_lock);
+	port_priv->port = port;
+
+	port_priv->write_buffer = kmalloc(QT2_WRITE_BUFFER_SIZE, GFP_KERNEL);
+	if (!port_priv->write_buffer)
+		goto err_buf;
+
+	port_priv->write_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!port_priv->write_urb)
+		goto err_urb;
+
+	bEndpointAddress = serial->port[0]->bulk_out_endpointAddress;
+	usb_fill_bulk_urb(port_priv->write_urb, serial->dev,
+				usb_sndbulkpipe(serial->dev, bEndpointAddress),
+				port_priv->write_buffer,
+				QT2_WRITE_BUFFER_SIZE,
+				qt2_write_bulk_callback, port);
+
+	usb_set_serial_port_data(port, port_priv);
+
+	return 0;
+err_urb:
+	kfree(port_priv->write_buffer);
+err_buf:
+	kfree(port_priv);
+	return -ENOMEM;
+}
+
+static int qt2_port_remove(struct usb_serial_port *port)
+{
+	struct qt2_port_private *port_priv;
+
+	port_priv = usb_get_serial_port_data(port);
+	usb_free_urb(port_priv->write_urb);
+	kfree(port_priv->write_buffer);
+	kfree(port_priv);
+
+	return 0;
 }
 
 static int qt2_tiocmget(struct tty_struct *tty)
@@ -941,12 +842,6 @@ static void qt2_break_ctl(struct tty_struct *tty, int break_state)
 
 	port_priv = usb_get_serial_port_data(port);
 
-	if (!port_priv->is_open) {
-		dev_err(&port->dev,
-			"%s - port is not open\n", __func__);
-		return;
-	}
-
 	val = (break_state == -1) ? 1 : 0;
 
 	status = qt2_control_msg(port->serial->dev, QT2_BREAK_CONTROL,
@@ -964,19 +859,17 @@ static void qt2_dtr_rts(struct usb_serial_port *port, int on)
 	struct usb_device *dev = port->serial->dev;
 	struct qt2_port_private *port_priv = usb_get_serial_port_data(port);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected) {
-		/* Disable flow control */
-		if (!on && qt2_setregister(dev, port_priv->device_port,
+	/* Disable flow control */
+	if (!on) {
+		if (qt2_setregister(dev, port_priv->device_port,
 					   UART_MCR, 0) < 0)
 			dev_warn(&port->dev, "error from flowcontrol urb\n");
-		/* drop RTS and DTR */
-		if (on)
-			update_mctrl(port_priv, TIOCM_DTR | TIOCM_RTS, 0);
-		else
-			update_mctrl(port_priv, 0, TIOCM_DTR | TIOCM_RTS);
 	}
-	mutex_unlock(&port->serial->disc_mutex);
+	/* drop RTS and DTR */
+	if (on)
+		update_mctrl(port_priv, TIOCM_DTR | TIOCM_RTS, 0);
+	else
+		update_mctrl(port_priv, 0, TIOCM_DTR | TIOCM_RTS);
 }
 
 static void qt2_update_msr(struct usb_serial_port *port, unsigned char *ch)
@@ -994,18 +887,15 @@ static void qt2_update_msr(struct usb_serial_port *port, unsigned char *ch)
 	if (newMSR & UART_MSR_ANY_DELTA) {
 		/* update input line counters */
 		if (newMSR & UART_MSR_DCTS)
-			port_priv->icount.cts++;
-
+			port->icount.cts++;
 		if (newMSR & UART_MSR_DDSR)
-			port_priv->icount.dsr++;
-
+			port->icount.dsr++;
 		if (newMSR & UART_MSR_DDCD)
-			port_priv->icount.dcd++;
-
+			port->icount.dcd++;
 		if (newMSR & UART_MSR_TERI)
-			port_priv->icount.rng++;
+			port->icount.rng++;
 
-		wake_up_interruptible(&port_priv->delta_msr_wait);
+		wake_up_interruptible(&port->port.delta_msr_wait);
 	}
 }
 
@@ -1025,7 +915,7 @@ static void qt2_update_lsr(struct usb_serial_port *port, unsigned char *ch)
 	port_priv->shadowLSR = newLSR;
 	spin_unlock_irqrestore(&port_priv->lock, flags);
 
-	icount = &port_priv->icount;
+	icount = &port->icount;
 
 	if (newLSR & UART_LSR_BRK_ERROR_BITS) {
 
@@ -1089,7 +979,7 @@ static int qt2_write(struct tty_struct *tty,
 	data = write_urb->transfer_buffer;
 	spin_lock_irqsave(&port_priv->urb_lock, flags);
 	if (port_priv->urb_in_use == true) {
-		printk(KERN_INFO "qt2_write - urb is in use\n");
+		dev_err(&port->dev, "qt2_write - urb is in use\n");
 		goto write_out;
 	}
 
@@ -1129,11 +1019,14 @@ static struct usb_serial_driver qt2_device = {
 	.attach              = qt2_attach,
 	.release             = qt2_release,
 	.disconnect          = qt2_disconnect,
+	.port_probe          = qt2_port_probe,
+	.port_remove         = qt2_port_remove,
 	.dtr_rts             = qt2_dtr_rts,
 	.break_ctl           = qt2_break_ctl,
 	.tiocmget            = qt2_tiocmget,
 	.tiocmset            = qt2_tiocmset,
-	.get_icount	     = qt2_get_icount,
+	.tiocmiwait          = usb_serial_generic_tiocmiwait,
+	.get_icount	     = usb_serial_generic_get_icount,
 	.ioctl               = qt2_ioctl,
 	.set_termios         = qt2_set_termios,
 };
@@ -1146,6 +1039,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

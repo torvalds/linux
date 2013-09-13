@@ -146,8 +146,8 @@ static const struct iio_info max517_info = {
 	.indexed = 1,					\
 	.output = 1,					\
 	.channel = (chan),				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-	IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
+	BIT(IIO_CHAN_INFO_SCALE),			\
 	.scan_type = IIO_ST('u', 8, 8, 0),		\
 }
 
@@ -156,7 +156,7 @@ static const struct iio_chan_spec max517_channels[] = {
 	MAX517_CHANNEL(1)
 };
 
-static int __devinit max517_probe(struct i2c_client *client,
+static int max517_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct max517_data *data;
@@ -164,11 +164,9 @@ static int __devinit max517_probe(struct i2c_client *client,
 	struct max517_platform_data *platform_data = client->dev.platform_data;
 	int err;
 
-	indio_dev = iio_device_alloc(sizeof(*data));
-	if (indio_dev == NULL) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	if (!indio_dev)
+		return -ENOMEM;
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
@@ -198,23 +196,16 @@ static int __devinit max517_probe(struct i2c_client *client,
 
 	err = iio_device_register(indio_dev);
 	if (err)
-		goto exit_free_device;
+		return err;
 
 	dev_info(&client->dev, "DAC registered\n");
 
 	return 0;
-
-exit_free_device:
-	iio_device_free(indio_dev);
-exit:
-	return err;
 }
 
-static int __devexit max517_remove(struct i2c_client *client)
+static int max517_remove(struct i2c_client *client)
 {
 	iio_device_unregister(i2c_get_clientdata(client));
-	iio_device_free(i2c_get_clientdata(client));
-
 	return 0;
 }
 
@@ -232,7 +223,7 @@ static struct i2c_driver max517_driver = {
 		.pm		= MAX517_PM_OPS,
 	},
 	.probe		= max517_probe,
-	.remove		=  __devexit_p(max517_remove),
+	.remove		= max517_remove,
 	.id_table	= max517_id,
 };
 module_i2c_driver(max517_driver);

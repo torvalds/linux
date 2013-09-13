@@ -46,11 +46,28 @@
 				wp-gpios = <&gpio0 28 0>;
 			};
 
+			ssp2: ssp@80014000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx28-spi";
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi2_pins_a>;
+				status = "okay";
+
+				flash: m25p80@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "sst,sst25vf016b";
+					spi-max-frequency = <40000000>;
+					reg = <0>;
+				};
+			};
+
 			pinctrl@80018000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&hog_pins_a>;
 
-				hog_pins_a: hog-gpios@0 {
+				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x20d3 /* MX28_PAD_SSP1_CMD__GPIO_2_13 */
@@ -59,9 +76,18 @@
 						0x20c3 /* MX28_PAD_SSP1_SCK__GPIO_2_12 */
 						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
 						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
-						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
 						0x3083 /* MX28_PAD_AUART2_RX__GPIO_3_8 */
 						0x3093 /* MX28_PAD_AUART2_TX__GPIO_3_9 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				led_pin_gpio3_5: led_gpio3_5@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -97,19 +123,46 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a
 					     &lcdif_pins_evk>;
-				panel-enable-gpios = <&gpio3 30 0>;
+				lcd-supply = <&reg_lcd_3v3>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <32>;
+					bus-width = <24>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <33500000>;
+							hactive = <800>;
+							vactive = <480>;
+							hback-porch = <89>;
+							hfront-porch = <164>;
+							vback-porch = <23>;
+							vfront-porch = <10>;
+							hsync-len = <10>;
+							vsync-len = <10>;
+							hsync-active = <0>;
+							vsync-active = <0>;
+							de-active = <1>;
+							pixelclk-active = <0>;
+						};
+					};
+				};
 			};
 
 			can0: can@80032000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&can0_pins_a>;
+				xceiver-supply = <&reg_can_3v3>;
 				status = "okay";
 			};
 
 			can1: can@80034000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&can1_pins_a>;
+				xceiver-supply = <&reg_can_3v3>;
 				status = "okay";
 			};
 		};
@@ -128,6 +181,10 @@
 				status = "okay";
 			};
 
+			lradc@80050000 {
+				status = "okay";
+			};
+
 			i2c0: i2c@80058000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins_a>;
@@ -138,7 +195,13 @@
 					reg = <0x0a>;
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
+					clocks = <&saif0>;
+				};
 
+				at24@51 {
+					compatible = "at24,24c32";
+					pagesize = <32>;
+					reg = <0x51>;
 				};
 			};
 
@@ -157,6 +220,7 @@
 			auart0: serial@8006a000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&auart0_pins_a>;
+				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
@@ -249,6 +313,25 @@
 			gpio = <&gpio3 8 0>;
 			enable-active-high;
 		};
+
+		reg_lcd_3v3: lcd-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "lcd-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio3 30 0>;
+			enable-active-high;
+		};
+
+		reg_can_3v3: can-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "can-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 13 0>;
+			enable-active-high;
+		};
+
 	};
 
 	sound {
@@ -261,6 +344,8 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pin_gpio3_5>;
 
 		user {
 			label = "Heartbeat";

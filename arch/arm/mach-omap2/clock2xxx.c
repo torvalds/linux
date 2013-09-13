@@ -22,33 +22,16 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/cpu.h>
-#include <plat/clock.h>
-
+#include "soc.h"
 #include "clock.h"
 #include "clock2xxx.h"
 #include "cm.h"
 #include "cm-regbits-24xx.h"
 
-struct clk *vclk, *sclk, *dclk;
-
+struct clk_hw *dclk_hw;
 /*
  * Omap24xx specific clock functions
  */
-
-/*
- * Set clocks for bypass mode for reboot to work.
- */
-void omap2xxx_clk_prepare_for_reboot(void)
-{
-	u32 rate;
-
-	if (vclk == NULL || sclk == NULL)
-		return;
-
-	rate = clk_get_rate(sclk);
-	clk_set_rate(vclk, rate);
-}
 
 /*
  * Switch the MPU rate if specified on cmdline.  We cannot do this
@@ -69,6 +52,6 @@ static int __init omap2xxx_clk_arch_init(void)
 	return ret;
 }
 
-arch_initcall(omap2xxx_clk_arch_init);
+omap_arch_initcall(omap2xxx_clk_arch_init);
 
 

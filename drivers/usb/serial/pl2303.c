@@ -4,6 +4,11 @@
  * Copyright (C) 2001-2007 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2003 IBM Corp.
  *
+ * Copyright (C) 2009, 2013 Frank Schäfer <fschaefer.oss@googlemail.com>
+ *  - fixes, improvements and documentation for the baud rate encoding methods
+ * Copyright (C) 2013 Reinhard Max <max@suse.de>
+ *  - fixes and improvements for the divisor based baud rate encoding method
+ *
  * Original driver for 2.2.x by anonymous
  *
  *	This program is free software; you can redistribute it and/or
@@ -29,14 +34,13 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#include <asm/unaligned.h>
 #include "pl2303.h"
 
 /*
  * Version Information
  */
 #define DRIVER_DESC "Prolific PL2303 USB to serial adaptor driver"
-
-static bool debug;
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID) },
@@ -130,17 +134,26 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 
 enum pl2303_type {
-	type_0,		/* don't know the difference between type 0 and */
-	type_1,		/* type 1, until someone from prolific tells us... */
-	HX,		/* HX version of the pl2303 chip */
+	type_0,		/* H version ? */
+	type_1,		/* H version ? */
+	HX_TA,		/* HX(A) / X(A) / TA version  */ /* TODO: improve */
+	HXD_EA_RA_SA,	/* HXD / EA / RA / SA version */ /* TODO: improve */
+	TB,		/* TB version */
+};
+/*
+ * NOTE: don't know the difference between type 0 and type 1,
+ * until someone from Prolific tells us...
+ * TODO: distinguish between X/HX, TA and HXD, EA, RA, SA variants
+ */
+
+struct pl2303_serial_private {
+	enum pl2303_type type;
 };
 
 struct pl2303_private {
 	spinlock_t lock;
-	wait_queue_head_t delta_msr_wait;
 	u8 line_control;
 	u8 line_status;
-	enum pl2303_type type;
 };
 
 static int pl2303_vendor_read(__u16 value, __u16 index,
@@ -149,7 +162,7 @@ static int pl2303_vendor_read(__u16 value, __u16 index,
 	int res = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			VENDOR_READ_REQUEST, VENDOR_READ_REQUEST_TYPE,
 			value, index, buf, 1, 100);
-	dev_dbg(&serial->dev->dev, "0x%x:0x%x:0x%x:0x%x  %d - %x\n",
+	dev_dbg(&serial->interface->dev, "0x%x:0x%x:0x%x:0x%x  %d - %x\n",
 		VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, value, index,
 		res, buf[0]);
 	return res;
@@ -161,7 +174,7 @@ static int pl2303_vendor_write(__u16 value, __u16 index,
 	int res = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			VENDOR_WRITE_REQUEST, VENDOR_WRITE_REQUEST_TYPE,
 			value, index, NULL, 0, 100);
-	dev_dbg(&serial->dev->dev, "0x%x:0x%x:0x%x:0x%x  %d\n",
+	dev_dbg(&serial->interface->dev, "0x%x:0x%x:0x%x:0x%x  %d\n",
 		VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, value, index,
 		res);
 	return res;
@@ -169,34 +182,56 @@ static int pl2303_vendor_write(__u16 value, __u16 index,
 
 static int pl2303_startup(struct usb_serial *serial)
 {
-	struct pl2303_private *priv;
+	struct pl2303_serial_private *spriv;
 	enum pl2303_type type = type_0;
+	char *type_str = "unknown (treating as type_0)";
 	unsigned char *buf;
-	int i;
 
-	buf = kmalloc(10, GFP_KERNEL);
-	if (buf == NULL)
+	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
+	if (!spriv)
 		return -ENOMEM;
 
-	if (serial->dev->descriptor.bDeviceClass == 0x02)
-		type = type_0;
-	else if (serial->dev->descriptor.bMaxPacketSize0 == 0x40)
-		type = HX;
-	else if (serial->dev->descriptor.bDeviceClass == 0x00)
-		type = type_1;
-	else if (serial->dev->descriptor.bDeviceClass == 0xFF)
-		type = type_1;
-	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		priv = kzalloc(sizeof(struct pl2303_private), GFP_KERNEL);
-		if (!priv)
-			goto cleanup;
-		spin_lock_init(&priv->lock);
-		init_waitqueue_head(&priv->delta_msr_wait);
-		priv->type = type;
-		usb_set_serial_port_data(serial->port[i], priv);
+	buf = kmalloc(10, GFP_KERNEL);
+	if (!buf) {
+		kfree(spriv);
+		return -ENOMEM;
 	}
+
+	if (serial->dev->descriptor.bDeviceClass == 0x02) {
+		type = type_0;
+		type_str = "type_0";
+	} else if (serial->dev->descriptor.bMaxPacketSize0 == 0x40) {
+		/*
+		 * NOTE: The bcdDevice version is the only difference between
+		 * the device descriptors of the X/HX, HXD, EA, RA, SA, TA, TB
+		 */
+		if (le16_to_cpu(serial->dev->descriptor.bcdDevice) == 0x300) {
+			type = HX_TA;
+			type_str = "X/HX/TA";
+		} else if (le16_to_cpu(serial->dev->descriptor.bcdDevice)
+								     == 0x400) {
+			type = HXD_EA_RA_SA;
+			type_str = "HXD/EA/RA/SA";
+		} else if (le16_to_cpu(serial->dev->descriptor.bcdDevice)
+								     == 0x500) {
+			type = TB;
+			type_str = "TB";
+		} else {
+			dev_info(&serial->interface->dev,
+					   "unknown/unsupported device type\n");
+			kfree(spriv);
+			kfree(buf);
+			return -ENODEV;
+		}
+	} else if (serial->dev->descriptor.bDeviceClass == 0x00
+		   || serial->dev->descriptor.bDeviceClass == 0xFF) {
+		type = type_1;
+		type_str = "type_1";
+	}
+	dev_dbg(&serial->interface->dev, "device type: %s\n", type_str);
+
+	spriv->type = type;
+	usb_set_serial_data(serial, spriv);
 
 	pl2303_vendor_read(0x8484, 0, serial, buf);
 	pl2303_vendor_write(0x0404, 0, serial);
@@ -208,79 +243,267 @@ static int pl2303_startup(struct usb_serial *serial)
 	pl2303_vendor_read(0x8383, 0, serial, buf);
 	pl2303_vendor_write(0, 1, serial);
 	pl2303_vendor_write(1, 0, serial);
-	if (type == HX)
-		pl2303_vendor_write(2, 0x44, serial);
-	else
+	if (type == type_0 || type == type_1)
 		pl2303_vendor_write(2, 0x24, serial);
+	else
+		pl2303_vendor_write(2, 0x44, serial);
 
 	kfree(buf);
 	return 0;
-
-cleanup:
-	kfree(buf);
-	for (--i; i >= 0; --i) {
-		priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(priv);
-		usb_set_serial_port_data(serial->port[i], NULL);
-	}
-	return -ENOMEM;
 }
 
-static int set_control_lines(struct usb_device *dev, u8 value)
+static void pl2303_release(struct usb_serial *serial)
 {
+	struct pl2303_serial_private *spriv;
+
+	spriv = usb_get_serial_data(serial);
+	kfree(spriv);
+}
+
+static int pl2303_port_probe(struct usb_serial_port *port)
+{
+	struct pl2303_private *priv;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	spin_lock_init(&priv->lock);
+
+	usb_set_serial_port_data(port, priv);
+
+	port->port.drain_delay = 256;
+
+	return 0;
+}
+
+static int pl2303_port_remove(struct usb_serial_port *port)
+{
+	struct pl2303_private *priv;
+
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
+}
+
+static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
+{
+	struct usb_device *dev = port->serial->dev;
 	int retval;
 
 	retval = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 				 SET_CONTROL_REQUEST, SET_CONTROL_REQUEST_TYPE,
 				 value, 0, NULL, 0, 100);
-	dev_dbg(&dev->dev, "%s - value = %d, retval = %d\n", __func__,
+	dev_dbg(&port->dev, "%s - value = %d, retval = %d\n", __func__,
 		value, retval);
 	return retval;
+}
+
+static int pl2303_baudrate_encode_direct(int baud, enum pl2303_type type,
+								      u8 buf[4])
+{
+	/*
+	 * NOTE: Only the values defined in baud_sup are supported !
+	 *       => if unsupported values are set, the PL2303 seems to
+	 *	    use 9600 baud (at least my PL2303X always does)
+	 */
+	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
+				 4800, 7200, 9600, 14400, 19200, 28800, 38400,
+				 57600, 115200, 230400, 460800, 614400, 921600,
+				 1228800, 2457600, 3000000, 6000000, 12000000 };
+	/*
+	 * NOTE: With the exception of type_0/1 devices, the following
+	 * additional baud rates are supported (tested with HX rev. 3A only):
+	 * 110*, 56000*, 128000, 134400, 161280, 201600, 256000*, 268800,
+	 * 403200, 806400.	(*: not HX)
+	 *
+	 * Maximum values: HXD, TB: 12000000; HX, TA: 6000000;
+	 *                 type_0+1: 1228800; RA: 921600; SA: 115200
+	 *
+	 * As long as we are not using this encoding method for anything else
+	 * than the type_0+1 and HX chips, there is no point in complicating
+	 * the code to support them.
+	 */
+	int i;
+
+	/* Set baudrate to nearest supported value */
+	for (i = 0; i < ARRAY_SIZE(baud_sup); ++i) {
+		if (baud_sup[i] > baud)
+			break;
+	}
+	if (i == ARRAY_SIZE(baud_sup))
+		baud = baud_sup[i - 1];
+	else if (i > 0 && (baud_sup[i] - baud) > (baud - baud_sup[i - 1]))
+		baud = baud_sup[i - 1];
+	else
+		baud = baud_sup[i];
+	/* Respect the chip type specific baud rate limits */
+	/*
+	 * FIXME: as long as we don't know how to distinguish between the
+	 * HXD, EA, RA, and SA chip variants, allow the max. value of 12M.
+	 */
+	if (type == HX_TA)
+		baud = min_t(int, baud, 6000000);
+	else if (type == type_0 || type == type_1)
+		baud = min_t(int, baud, 1228800);
+	/* Direct (standard) baud rate encoding method */
+	put_unaligned_le32(baud, buf);
+
+	return baud;
+}
+
+static int pl2303_baudrate_encode_divisor(int baud, enum pl2303_type type,
+								      u8 buf[4])
+{
+	/*
+	 * Divisor based baud rate encoding method
+	 *
+	 * NOTE: it's not clear if the type_0/1 chips support this method
+	 *
+	 * divisor = 12MHz * 32 / baudrate = 2^A * B
+	 *
+	 * with
+	 *
+	 * A = buf[1] & 0x0e
+	 * B = buf[0]  +  (buf[1] & 0x01) << 8
+	 *
+	 * Special cases:
+	 * => 8 < B < 16: device seems to work not properly
+	 * => B <= 8: device uses the max. value B = 512 instead
+	 */
+	unsigned int A, B;
+
+	/*
+	 * NOTE: The Windows driver allows maximum baud rates of 110% of the
+	 * specified maximium value.
+	 * Quick tests with early (2004) HX (rev. A) chips suggest, that even
+	 * higher baud rates (up to the maximum of 24M baud !) are working fine,
+	 * but that should really be tested carefully in "real life" scenarios
+	 * before removing the upper limit completely.
+	 * Baud rates smaller than the specified 75 baud are definitely working
+	 * fine.
+	 */
+	if (type == type_0 || type == type_1)
+		baud = min_t(int, baud, 1228800 * 1.1);
+	else if (type == HX_TA)
+		baud = min_t(int, baud, 6000000 * 1.1);
+	else if (type == HXD_EA_RA_SA)
+		/* HXD, EA: 12Mbps; RA: 1Mbps; SA: 115200 bps */
+		/*
+		 * FIXME: as long as we don't know how to distinguish between
+		 * these chip variants, allow the max. of these values
+		 */
+		baud = min_t(int, baud, 12000000 * 1.1);
+	else if (type == TB)
+		baud = min_t(int, baud, 12000000 * 1.1);
+	/* Determine factors A and B */
+	A = 0;
+	B = 12000000 * 32 / baud;  /* 12MHz */
+	B <<= 1; /* Add one bit for rounding */
+	while (B > (512 << 1) && A <= 14) {
+		A += 2;
+		B >>= 2;
+	}
+	if (A > 14) { /* max. divisor = min. baudrate reached */
+		A = 14;
+		B = 512;
+		/* => ~45.78 baud */
+	} else {
+		B = (B + 1) >> 1; /* Round the last bit */
+	}
+	/* Handle special cases */
+	if (B == 512)
+		B = 0; /* also: 1 to 8 */
+	else if (B < 16)
+		/*
+		 * NOTE: With the current algorithm this happens
+		 * only for A=0 and means that the min. divisor
+		 * (respectively: the max. baudrate) is reached.
+		 */
+		B = 16;		/* => 24 MBaud */
+	/* Encode the baud rate */
+	buf[3] = 0x80;     /* Select divisor encoding method */
+	buf[2] = 0;
+	buf[1] = (A & 0x0e);		/* A */
+	buf[1] |= ((B & 0x100) >> 8);	/* MSB of B */
+	buf[0] = B & 0xff;		/* 8 LSBs of B */
+	/* Calculate the actual/resulting baud rate */
+	if (B <= 8)
+		B = 512;
+	baud = 12000000 * 32 / ((1 << A) * B);
+
+	return baud;
+}
+
+static void pl2303_encode_baudrate(struct tty_struct *tty,
+					struct usb_serial_port *port,
+					enum pl2303_type type,
+					u8 buf[4])
+{
+	int baud;
+
+	baud = tty_get_baud_rate(tty);
+	dev_dbg(&port->dev, "baud requested = %d\n", baud);
+	if (!baud)
+		return;
+	/*
+	 * There are two methods for setting/encoding the baud rate
+	 * 1) Direct method: encodes the baud rate value directly
+	 *    => supported by all chip types
+	 * 2) Divisor based method: encodes a divisor to a base value (12MHz*32)
+	 *    => supported by HX chips (and likely not by type_0/1 chips)
+	 *
+	 * NOTE: Although the divisor based baud rate encoding method is much
+	 * more flexible, some of the standard baud rate values can not be
+	 * realized exactly. But the difference is very small (max. 0.2%) and
+	 * the device likely uses the same baud rate generator for both methods
+	 * so that there is likley no difference.
+	 */
+	if (type == type_0 || type == type_1)
+		baud = pl2303_baudrate_encode_direct(baud, type, buf);
+	else
+		baud = pl2303_baudrate_encode_divisor(baud, type, buf);
+	/* Save resulting baud rate */
+	tty_encode_baud_rate(tty, baud, baud);
+	dev_dbg(&port->dev, "baud set = %d\n", baud);
 }
 
 static void pl2303_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	unsigned int cflag;
 	unsigned char *buf;
-	int baud;
 	int i;
 	u8 control;
-	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
-	                         4800, 7200, 9600, 14400, 19200, 28800, 38400,
-	                         57600, 115200, 230400, 460800, 614400,
-	                         921600, 1228800, 2457600, 3000000, 6000000 };
-	int baud_floor, baud_ceil;
-	int k;
 
-	/* The PL2303 is reported to lose bytes if you change
-	   serial settings even to the same values as before. Thus
-	   we actually need to filter in this specific case */
-
-	if (!tty_termios_hw_change(tty->termios, old_termios))
+	/*
+	 * The PL2303 is reported to lose bytes if you change serial settings
+	 * even to the same values as before. Thus we actually need to filter
+	 * in this specific case.
+	 */
+	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
 		return;
-
-	cflag = tty->termios->c_cflag;
 
 	buf = kzalloc(7, GFP_KERNEL);
 	if (!buf) {
 		dev_err(&port->dev, "%s - out of memory.\n", __func__);
 		/* Report back no change occurred */
-		*tty->termios = *old_termios;
+		if (old_termios)
+			tty->termios = *old_termios;
 		return;
 	}
 
 	i = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			    GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
 			    0, 0, buf, 7, 100);
-	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %x %x %x %x %x %x %x\n", i,
-	    buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
+	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %7ph\n", i, buf);
 
-	if (cflag & CSIZE) {
-		switch (cflag & CSIZE) {
+	if (C_CSIZE(tty)) {
+		switch (C_CSIZE(tty)) {
 		case CS5:
 			buf[6] = 5;
 			break;
@@ -293,73 +516,22 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		default:
 		case CS8:
 			buf[6] = 8;
-			break;
 		}
 		dev_dbg(&port->dev, "data bits = %d\n", buf[6]);
 	}
 
-	/* For reference buf[0]:buf[3] baud rate value */
-	/* NOTE: Only the values defined in baud_sup are supported !
-	 *       => if unsupported values are set, the PL2303 seems to use
-	 *          9600 baud (at least my PL2303X always does)
-	 */
-	baud = tty_get_baud_rate(tty);
-	dev_dbg(&port->dev, "baud requested = %d\n", baud);
-	if (baud) {
-		/* Set baudrate to nearest supported value */
-		for (k=0; k<ARRAY_SIZE(baud_sup); k++) {
-			if (baud_sup[k] / baud) {
-				baud_ceil = baud_sup[k];
-				if (k==0) {
-					baud = baud_ceil;
-				} else {
-					baud_floor = baud_sup[k-1];
-					if ((baud_ceil % baud)
-					    > (baud % baud_floor))
-						baud = baud_floor;
-					else
-						baud = baud_ceil;
-				}
-				break;
-			}
-		}
-		if (baud > 1228800) {
-			/* type_0, type_1 only support up to 1228800 baud */
-			if (priv->type != HX)
-				baud = 1228800;
-			else if (baud > 6000000)
-				baud = 6000000;
-		}
-		dev_dbg(&port->dev, "baud set = %d\n", baud);
-		if (baud <= 115200) {
-			buf[0] = baud & 0xff;
-			buf[1] = (baud >> 8) & 0xff;
-			buf[2] = (baud >> 16) & 0xff;
-			buf[3] = (baud >> 24) & 0xff;
-		} else {
-			/* apparently the formula for higher speeds is:
-			 * baudrate = 12M * 32 / (2^buf[1]) / buf[0]
-			 */
-			unsigned tmp = 12*1000*1000*32 / baud;
-			buf[3] = 0x80;
-			buf[2] = 0;
-			buf[1] = (tmp >= 256);
-			while (tmp >= 256) {
-				tmp >>= 2;
-				buf[1] <<= 1;
-			}
-			buf[0] = tmp;
-		}
-	}
+	/* For reference:   buf[0]:buf[3] baud rate value */
+	pl2303_encode_baudrate(tty, port, spriv->type, buf);
 
 	/* For reference buf[4]=0 is 1 stop bits */
 	/* For reference buf[4]=1 is 1.5 stop bits */
 	/* For reference buf[4]=2 is 2 stop bits */
-	if (cflag & CSTOPB) {
-		/* NOTE: Comply with "real" UARTs / RS232:
+	if (C_CSTOPB(tty)) {
+		/*
+		 * NOTE: Comply with "real" UARTs / RS232:
 		 *       use 1.5 instead of 2 stop bits with 5 data bits
 		 */
-		if ((cflag & CSIZE) == CS5) {
+		if (C_CSIZE(tty) == CS5) {
 			buf[4] = 1;
 			dev_dbg(&port->dev, "stop bits = 1.5\n");
 		} else {
@@ -371,14 +543,14 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		dev_dbg(&port->dev, "stop bits = 1\n");
 	}
 
-	if (cflag & PARENB) {
+	if (C_PARENB(tty)) {
 		/* For reference buf[5]=0 is none parity */
 		/* For reference buf[5]=1 is odd parity */
 		/* For reference buf[5]=2 is even parity */
 		/* For reference buf[5]=3 is mark parity */
 		/* For reference buf[5]=4 is space parity */
-		if (cflag & PARODD) {
-			if (cflag & CMSPAR) {
+		if (C_PARODD(tty)) {
+			if (tty->termios.c_cflag & CMSPAR) {
 				buf[5] = 3;
 				dev_dbg(&port->dev, "parity = mark\n");
 			} else {
@@ -386,7 +558,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 				dev_dbg(&port->dev, "parity = odd\n");
 			}
 		} else {
-			if (cflag & CMSPAR) {
+			if (tty->termios.c_cflag & CMSPAR) {
 				buf[5] = 4;
 				dev_dbg(&port->dev, "parity = space\n");
 			} else {
@@ -407,38 +579,32 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	/* change control lines if we are switching to or from B0 */
 	spin_lock_irqsave(&priv->lock, flags);
 	control = priv->line_control;
-	if ((cflag & CBAUD) == B0)
+	if (C_BAUD(tty) == B0)
 		priv->line_control &= ~(CONTROL_DTR | CONTROL_RTS);
-	else if ((old_termios->c_cflag & CBAUD) == B0)
+	else if (old_termios && (old_termios->c_cflag & CBAUD) == B0)
 		priv->line_control |= (CONTROL_DTR | CONTROL_RTS);
 	if (control != priv->line_control) {
 		control = priv->line_control;
 		spin_unlock_irqrestore(&priv->lock, flags);
-		set_control_lines(serial->dev, control);
+		pl2303_set_control_lines(port, control);
 	} else {
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
-	buf[0] = buf[1] = buf[2] = buf[3] = buf[4] = buf[5] = buf[6] = 0;
-
+	memset(buf, 0, 7);
 	i = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			    GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
 			    0, 0, buf, 7, 100);
-	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %x %x %x %x %x %x %x\n", i,
-	     buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
+	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %7ph\n", i, buf);
 
-	if (cflag & CRTSCTS) {
-		if (priv->type == HX)
-			pl2303_vendor_write(0x0, 0x61, serial);
-		else
+	if (C_CRTSCTS(tty)) {
+		if (spriv->type == type_0 || spriv->type == type_1)
 			pl2303_vendor_write(0x0, 0x41, serial);
+		else
+			pl2303_vendor_write(0x0, 0x61, serial);
 	} else {
 		pl2303_vendor_write(0x0, 0x0, serial);
 	}
-
-	/* Save resulting baud rate */
-	if (baud)
-		tty_encode_baud_rate(tty, baud, baud);
 
 	kfree(buf);
 }
@@ -457,7 +623,7 @@ static void pl2303_dtr_rts(struct usb_serial_port *port, int on)
 		priv->line_control &= ~(CONTROL_DTR | CONTROL_RTS);
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	set_control_lines(port->serial->dev, control);
+	pl2303_set_control_lines(port, control);
 }
 
 static void pl2303_close(struct usb_serial_port *port)
@@ -468,12 +634,11 @@ static void pl2303_close(struct usb_serial_port *port)
 
 static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
-	struct pl2303_private *priv = usb_get_serial_port_data(port);
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	int result;
 
-	if (priv->type != HX) {
+	if (spriv->type == type_0 || spriv->type == type_1) {
 		usb_clear_halt(serial->dev, port->write_urb->pipe);
 		usb_clear_halt(serial->dev, port->read_urb->pipe);
 	} else {
@@ -484,7 +649,7 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* Setup termios */
 	if (tty)
-		pl2303_set_termios(tty, port, &tmp_termios);
+		pl2303_set_termios(tty, port, NULL);
 
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result) {
@@ -499,7 +664,6 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return result;
 	}
 
-	port->port.drain_delay = 256;
 	return 0;
 }
 
@@ -507,7 +671,6 @@ static int pl2303_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct usb_serial *serial = port->serial;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	u8 control;
@@ -525,14 +688,11 @@ static int pl2303_tiocmset(struct tty_struct *tty,
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	mutex_lock(&serial->disc_mutex);
-	if (!serial->disconnected)
-		ret = set_control_lines(serial->dev, control);
-	else
-		ret = -ENODEV;
-	mutex_unlock(&serial->disc_mutex);
+	ret = pl2303_set_control_lines(port, control);
+	if (ret)
+		return usb_translate_errors(ret);
 
-	return ret;
+	return 0;
 }
 
 static int pl2303_tiocmget(struct tty_struct *tty)
@@ -569,8 +729,9 @@ static int pl2303_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
+static int pl2303_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	unsigned int prevstatus;
@@ -582,10 +743,13 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	while (1) {
-		interruptible_sleep_on(&priv->delta_msr_wait);
+		interruptible_sleep_on(&port->port.delta_msr_wait);
 		/* see if a signal did it */
 		if (signal_pending(current))
 			return -ERESTARTSYS;
+
+		if (port->serial->disconnected)
+			return -EIO;
 
 		spin_lock_irqsave(&priv->lock, flags);
 		status = priv->line_status;
@@ -617,18 +781,14 @@ static int pl2303_ioctl(struct tty_struct *tty,
 	case TIOCGSERIAL:
 		memset(&ser, 0, sizeof ser);
 		ser.type = PORT_16654;
-		ser.line = port->serial->minor;
-		ser.port = port->number;
+		ser.line = port->minor;
+		ser.port = port->port_number;
 		ser.baud_base = 460800;
 
 		if (copy_to_user((void __user *)arg, &ser, sizeof ser))
 			return -EFAULT;
 
 		return 0;
-
-	case TIOCMIWAIT:
-		dev_dbg(&port->dev, "%s TIOCMIWAIT\n", __func__);
-		return wait_modem_info(port, arg);
 	default:
 		dev_dbg(&port->dev, "%s not supported = 0x%04x\n", __func__, cmd);
 		break;
@@ -655,17 +815,6 @@ static void pl2303_break_ctl(struct tty_struct *tty, int break_state)
 				 0, NULL, 0, 100);
 	if (result)
 		dev_err(&port->dev, "error sending break = %d\n", result);
-}
-
-static void pl2303_release(struct usb_serial *serial)
-{
-	int i;
-	struct pl2303_private *priv;
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(priv);
-	}
 }
 
 static void pl2303_update_line_status(struct usb_serial_port *port,
@@ -705,7 +854,7 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	spin_unlock_irqrestore(&priv->lock, flags);
 	if (priv->line_status & UART_BREAK_ERROR)
 		usb_serial_handle_break(port);
-	wake_up_interruptible(&priv->delta_msr_wait);
+	wake_up_interruptible(&port->port.delta_msr_wait);
 
 	tty = tty_port_tty_get(&port->port);
 	if (!tty)
@@ -741,7 +890,7 @@ static void pl2303_read_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
+	usb_serial_debug_data(&port->dev, __func__,
 			      urb->actual_length, urb->transfer_buffer);
 
 	pl2303_update_line_status(port, data, actual_length);
@@ -758,7 +907,6 @@ static void pl2303_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	char tty_flag = TTY_NORMAL;
 	unsigned long flags;
@@ -770,13 +918,9 @@ static void pl2303_process_read_urb(struct urb *urb)
 	line_status = priv->line_status;
 	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	wake_up_interruptible(&priv->delta_msr_wait);
+	wake_up_interruptible(&port->port.delta_msr_wait);
 
 	if (!urb->actual_length)
-		return;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
 		return;
 
 	/* break takes precedence over parity, */
@@ -787,23 +931,25 @@ static void pl2303_process_read_urb(struct urb *urb)
 		tty_flag = TTY_PARITY;
 	else if (line_status & UART_FRAME_ERROR)
 		tty_flag = TTY_FRAME;
-	dev_dbg(&port->dev, "%s - tty_flag = %d\n", __func__, tty_flag);
 
+	if (tty_flag != TTY_NORMAL)
+		dev_dbg(&port->dev, "%s - tty_flag = %d\n", __func__,
+								tty_flag);
 	/* overrun is special, not associated with a char */
 	if (line_status & UART_OVERRUN_ERROR)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 
 	if (port->port.console && port->sysrq) {
 		for (i = 0; i < urb->actual_length; ++i)
 			if (!usb_serial_handle_sysrq_char(port, data[i]))
-				tty_insert_flip_char(tty, data[i], tty_flag);
+				tty_insert_flip_char(&port->port, data[i],
+						tty_flag);
 	} else {
-		tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+		tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
 							urb->actual_length);
 	}
 
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 /* All of the device info needed for the PL2303 SIO serial converter */
@@ -825,10 +971,13 @@ static struct usb_serial_driver pl2303_device = {
 	.set_termios =		pl2303_set_termios,
 	.tiocmget =		pl2303_tiocmget,
 	.tiocmset =		pl2303_tiocmset,
+	.tiocmiwait =		pl2303_tiocmiwait,
 	.process_read_urb =	pl2303_process_read_urb,
 	.read_int_callback =	pl2303_read_int_callback,
 	.attach =		pl2303_startup,
 	.release =		pl2303_release,
+	.port_probe =		pl2303_port_probe,
+	.port_remove =		pl2303_port_remove,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -839,7 +988,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
-

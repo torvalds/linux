@@ -1,0 +1,45 @@
+#
+# Silicom device configuration
+#
+
+config NET_VENDOR_SILICOM
+	bool "Silicom devices"
+	default y
+	depends on PCI && NETDEVICES
+	---help---
+	  If you have a network card (Ethernet) belonging to this class,
+	  say Y.
+
+	  Note that the answer to this question does not directly affect
+	  the kernel: saying N will just case the configurator to skip all
+	  the questions regarding Silicom chipsets. If you say Y, you will be asked
+	  for your specific chipset/driver in the following questions.
+
+if NET_VENDOR_SILICOM
+
+config SBYPASS
+	tristate "Silicom BypassCTL library support"
+	depends on PCI
+	depends on m
+	---help---
+	  If you have a network (Ethernet) controller of this type, say Y
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called bypass.
+
+config BPCTL
+	tristate "Silicom BypassCTL net support"
+	depends on PCI
+	depends on m
+	select SBYPASS
+	select MII
+	---help---
+	  If you have a network (Ethernet) controller of this type, say Y
+	  or M and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called bpctl_mod.
+
+
+endif # NET_VENDOR_SILICOM

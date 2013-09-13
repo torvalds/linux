@@ -52,8 +52,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-static bool debug;
-
 /* Vendor and Product ID */
 #define AIRCABLE_VID		0x16CA
 #define AIRCABLE_USB_PID	0x1502
@@ -70,10 +68,6 @@ static bool debug;
 #define THROTTLED		0x01
 #define ACTUALLY_THROTTLED	0x02
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v2.0"
 #define DRIVER_AUTHOR "Naranjo, Manuel Francisco <naranjo.manuel@gmail.com>, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "AIRcable USB Driver"
 
@@ -125,9 +119,8 @@ static int aircable_probe(struct usb_serial *serial,
 	return 0;
 }
 
-static int aircable_process_packet(struct tty_struct *tty,
-			struct usb_serial_port *port, int has_headers,
-			char *packet, int len)
+static int aircable_process_packet(struct usb_serial_port *port,
+		int has_headers, char *packet, int len)
 {
 	if (has_headers) {
 		len -= HCI_HEADER_LENGTH;
@@ -138,7 +131,7 @@ static int aircable_process_packet(struct tty_struct *tty,
 		return 0;
 	}
 
-	tty_insert_flip_string(tty, packet, len);
+	tty_insert_flip_string(&port->port, packet, len);
 
 	return len;
 }
@@ -147,28 +140,22 @@ static void aircable_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	char *data = (char *)urb->transfer_buffer;
-	struct tty_struct *tty;
 	int has_headers;
 	int count;
 	int len;
 	int i;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
 
 	has_headers = (urb->actual_length > 2 && data[0] == RX_HEADER_0);
 
 	count = 0;
 	for (i = 0; i < urb->actual_length; i += HCI_COMPLETE_FRAME) {
 		len = min_t(int, urb->actual_length - i, HCI_COMPLETE_FRAME);
-		count += aircable_process_packet(tty, port, has_headers,
+		count += aircable_process_packet(port, has_headers,
 								&data[i], len);
 	}
 
 	if (count)
-		tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+		tty_flip_buffer_push(&port->port);
 }
 
 static struct usb_serial_driver aircable_device = {
@@ -194,8 +181,4 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

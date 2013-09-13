@@ -308,7 +308,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	return 0;
 }
 
-static int mtdblock_release(struct mtd_blktrans_dev *mbd)
+static void mtdblock_release(struct mtd_blktrans_dev *mbd)
 {
 	struct mtdblk_dev *mtdblk = container_of(mbd, struct mtdblk_dev, mbd);
 
@@ -333,8 +333,6 @@ static int mtdblock_release(struct mtd_blktrans_dev *mbd)
 	mutex_unlock(&mtdblks_lock);
 
 	pr_debug("ok\n");
-
-	return 0;
 }
 
 static int mtdblock_flush(struct mtd_blktrans_dev *dev)

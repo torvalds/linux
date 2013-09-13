@@ -10,9 +10,11 @@
 #include <linux/kthread.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/rt.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/freezer.h>
+#include <linux/stat.h>
 
 #include "rtmutex.h"
 
@@ -365,8 +367,8 @@ static ssize_t sysfs_test_status(struct device *dev, struct device_attribute *at
 	return curr - buf;
 }
 
-static DEVICE_ATTR(status, 0600, sysfs_test_status, NULL);
-static DEVICE_ATTR(command, 0600, NULL, sysfs_test_command);
+static DEVICE_ATTR(status, S_IRUSR, sysfs_test_status, NULL);
+static DEVICE_ATTR(command, S_IWUSR, NULL, sysfs_test_command);
 
 static struct bus_type rttest_subsys = {
 	.name = "rttest",

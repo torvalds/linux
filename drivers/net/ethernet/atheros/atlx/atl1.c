@@ -113,7 +113,7 @@ static const struct ethtool_ops atl1_ethtool_ops;
  *
  * Default Value: 100 (200us)
  */
-static int __devinitdata int_mod_timer[ATL1_MAX_NIC+1] = ATL1_PARAM_INIT;
+static int int_mod_timer[ATL1_MAX_NIC+1] = ATL1_PARAM_INIT;
 static unsigned int num_int_mod_timer;
 module_param_array_named(int_mod_timer, int_mod_timer, int,
 	&num_int_mod_timer, 0);
@@ -143,8 +143,8 @@ struct atl1_option {
 	} arg;
 };
 
-static int __devinit atl1_validate_option(int *value, struct atl1_option *opt,
-	struct pci_dev *pdev)
+static int atl1_validate_option(int *value, struct atl1_option *opt,
+				struct pci_dev *pdev)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -204,7 +204,7 @@ static int __devinit atl1_validate_option(int *value, struct atl1_option *opt,
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  */
-static void __devinit atl1_check_options(struct atl1_adapter *adapter)
+static void atl1_check_options(struct atl1_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	int bd = adapter->bd_number;
@@ -945,7 +945,7 @@ static void atl1_set_mac_addr(struct atl1_hw *hw)
  * Fields are initialized based on PCI device information and
  * OS network device settings (MTU size).
  */
-static int __devinit atl1_sw_init(struct atl1_adapter *adapter)
+static int atl1_sw_init(struct atl1_adapter *adapter)
 {
 	struct atl1_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
@@ -2024,7 +2024,7 @@ rrd_ok:
 					((rrd->vlan_tag & 7) << 13) |
 					((rrd->vlan_tag & 8) << 9);
 
-			__vlan_hwaccel_put_tag(skb, vlan_tag);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 		}
 		netif_receive_skb(skb);
 
@@ -2774,7 +2774,7 @@ static int atl1_close(struct net_device *netdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int atl1_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -2876,23 +2876,18 @@ static int atl1_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(atl1_pm_ops, atl1_suspend, atl1_resume);
-#define ATL1_PM_OPS	(&atl1_pm_ops)
-
-#else
-
-static int atl1_suspend(struct device *dev) { return 0; }
-
-#define ATL1_PM_OPS	NULL
-#endif
 
 static void atl1_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
+#ifdef CONFIG_PM_SLEEP
 	atl1_suspend(&pdev->dev);
+#endif
 	pci_wake_from_d3(pdev, adapter->wol);
 	pci_set_power_state(pdev, PCI_D3hot);
 }
@@ -2934,8 +2929,7 @@ static const struct net_device_ops atl1_netdev_ops = {
  * The OS initialization, configuring of the adapter private structure,
  * and a hardware reset occur.
  */
-static int __devinit atl1_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct atl1_adapter *adapter;
@@ -3024,10 +3018,10 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 
 	netdev->features = NETIF_F_HW_CSUM;
 	netdev->features |= NETIF_F_SG;
-	netdev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
+	netdev->features |= (NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX);
 
 	netdev->hw_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO |
-			      NETIF_F_HW_VLAN_RX;
+			      NETIF_F_HW_VLAN_CTAG_RX;
 
 	/* is this valid? see atl1_setup_mac_ctrl() */
 	netdev->features |= NETIF_F_RXCSUM;
@@ -3054,7 +3048,7 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	/* copy the MAC address out of the EEPROM */
 	if (atl1_read_mac_addr(&adapter->hw)) {
 		/* mark random mac */
-		netdev->addr_assign_type |= NET_ADDR_RANDOM;
+		netdev->addr_assign_type = NET_ADDR_RANDOM;
 	}
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
 
@@ -3113,7 +3107,7 @@ err_request_regions:
  * Hot-Plug event, or because the driver is going to be removed from
  * memory.
  */
-static void __devexit atl1_remove(struct pci_dev *pdev)
+static void atl1_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1_adapter *adapter;
@@ -3146,35 +3140,10 @@ static struct pci_driver atl1_driver = {
 	.name = ATLX_DRIVER_NAME,
 	.id_table = atl1_pci_tbl,
 	.probe = atl1_probe,
-	.remove = __devexit_p(atl1_remove),
+	.remove = atl1_remove,
 	.shutdown = atl1_shutdown,
-	.driver.pm = ATL1_PM_OPS,
+	.driver.pm = &atl1_pm_ops,
 };
-
-/**
- * atl1_exit_module - Driver Exit Cleanup Routine
- *
- * atl1_exit_module is called just before the driver is removed
- * from memory.
- */
-static void __exit atl1_exit_module(void)
-{
-	pci_unregister_driver(&atl1_driver);
-}
-
-/**
- * atl1_init_module - Driver Registration Routine
- *
- * atl1_init_module is the first routine called when the driver is
- * loaded. All it does is register with the PCI subsystem.
- */
-static int __init atl1_init_module(void)
-{
-	return pci_register_driver(&atl1_driver);
-}
-
-module_init(atl1_init_module);
-module_exit(atl1_exit_module);
 
 struct atl1_stats {
 	char stat_string[ETH_GSTRING_LEN];
@@ -3711,3 +3680,5 @@ static const struct ethtool_ops atl1_ethtool_ops = {
 	.get_ethtool_stats	= atl1_get_ethtool_stats,
 	.get_sset_count		= atl1_get_sset_count,
 };
+
+module_pci_driver(atl1_driver);

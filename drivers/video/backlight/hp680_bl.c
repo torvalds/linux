@@ -26,7 +26,7 @@
 #define HP680_DEFAULT_INTENSITY 10
 
 static int hp680bl_suspended;
-static int current_intensity = 0;
+static int current_intensity;
 static DEFINE_SPINLOCK(bl_lock);
 
 static void hp680bl_send_intensity(struct backlight_device *bd)
@@ -64,28 +64,27 @@ static void hp680bl_send_intensity(struct backlight_device *bd)
 }
 
 
-#ifdef CONFIG_PM
-static int hp680bl_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int hp680bl_suspend(struct device *dev)
 {
-	struct backlight_device *bd = platform_get_drvdata(pdev);
+	struct backlight_device *bd = dev_get_drvdata(dev);
 
 	hp680bl_suspended = 1;
 	hp680bl_send_intensity(bd);
 	return 0;
 }
 
-static int hp680bl_resume(struct platform_device *pdev)
+static int hp680bl_resume(struct device *dev)
 {
-	struct backlight_device *bd = platform_get_drvdata(pdev);
+	struct backlight_device *bd = dev_get_drvdata(dev);
 
 	hp680bl_suspended = 0;
 	hp680bl_send_intensity(bd);
 	return 0;
 }
-#else
-#define hp680bl_suspend	NULL
-#define hp680bl_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(hp680bl_pm_ops, hp680bl_suspend, hp680bl_resume);
 
 static int hp680bl_set_intensity(struct backlight_device *bd)
 {
@@ -103,7 +102,7 @@ static const struct backlight_ops hp680bl_ops = {
 	.update_status  = hp680bl_set_intensity,
 };
 
-static int __devinit hp680bl_probe(struct platform_device *pdev)
+static int hp680bl_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
 	struct backlight_device *bd;
@@ -140,10 +139,9 @@ static int hp680bl_remove(struct platform_device *pdev)
 static struct platform_driver hp680bl_driver = {
 	.probe		= hp680bl_probe,
 	.remove		= hp680bl_remove,
-	.suspend	= hp680bl_suspend,
-	.resume		= hp680bl_resume,
 	.driver		= {
 		.name	= "hp680-bl",
+		.pm	= &hp680bl_pm_ops,
 	},
 };
 
@@ -168,7 +166,7 @@ static int __init hp680bl_init(void)
 static void __exit hp680bl_exit(void)
 {
 	platform_device_unregister(hp680bl_device);
- 	platform_driver_unregister(&hp680bl_driver);
+	platform_driver_unregister(&hp680bl_driver);
 }
 
 module_init(hp680bl_init);

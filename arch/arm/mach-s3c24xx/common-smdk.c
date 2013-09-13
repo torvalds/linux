@@ -37,14 +37,15 @@
 #include <asm/irq.h>
 
 #include <mach/regs-gpio.h>
-#include <mach/leds-gpio.h>
+#include <linux/platform_data/leds-s3c24xx.h>
 
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 
-#include <plat/common-smdk.h>
 #include <plat/gpio-cfg.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
+
+#include "common-smdk.h"
 
 /* LED devices */
 

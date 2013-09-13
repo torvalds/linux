@@ -36,8 +36,9 @@ MODULE_LICENSE("GPL");
 
 /* IP101A/G - IP1001 */
 #define IP10XX_SPEC_CTRL_STATUS		16	/* Spec. Control Register */
+#define IP1001_RXPHASE_SEL		(1<<0)	/* Add delay on RX_CLK */
+#define IP1001_TXPHASE_SEL		(1<<1)	/* Add delay on TX_CLK */
 #define IP1001_SPEC_CTRL_STATUS_2	20	/* IP1001 Spec. Control Reg 2 */
-#define IP1001_PHASE_SEL_MASK		3	/* IP1001 RX/TXPHASE_SEL */
 #define IP1001_APS_ON			11	/* IP1001 APS Mode  bit */
 #define IP101A_G_APS_ON			2	/* IP101A/G APS Mode bit */
 #define IP101A_G_IRQ_CONF_STATUS	0x11	/* Conf Info IRQ & Status Reg */
@@ -138,19 +139,24 @@ static int ip1001_config_init(struct phy_device *phydev)
 	if (c < 0)
 		return c;
 
-	/* INTR pin used: speed/link/duplex will cause an interrupt */
-	c = phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, IP101A_G_IRQ_DEFAULT);
-	if (c < 0)
-		return c;
+	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
 
-	if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
-		/* Additional delay (2ns) used to adjust RX clock phase
-		 * at RGMII interface */
 		c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
 		if (c < 0)
 			return c;
 
-		c |= IP1001_PHASE_SEL_MASK;
+		c &= ~(IP1001_RXPHASE_SEL | IP1001_TXPHASE_SEL);
+
+		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
+			c |= (IP1001_RXPHASE_SEL | IP1001_TXPHASE_SEL);
+		else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
+			c |= IP1001_RXPHASE_SEL;
+		else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
+			c |= IP1001_TXPHASE_SEL;
+
 		c = phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
 		if (c < 0)
 			return c;
@@ -164,6 +170,11 @@ static int ip101a_g_config_init(struct phy_device *phydev)
 	int c;
 
 	c = ip1xx_reset(phydev);
+	if (c < 0)
+		return c;
+
+	/* INTR pin used: speed/link/duplex will cause an interrupt */
+	c = phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, IP101A_G_IRQ_DEFAULT);
 	if (c < 0)
 		return c;
 

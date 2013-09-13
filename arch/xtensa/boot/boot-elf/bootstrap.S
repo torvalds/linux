@@ -1,18 +1,77 @@
+/*
+ * arch/xtensa/boot/boot-elf/bootstrap.S
+ *
+ * Low-level exception handling
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * Copyright (C) 2004 - 2013 by Tensilica Inc.
+ *
+ * Chris Zankel <chris@zankel.net>
+ * Marc Gauthier <marc@tensilica.com>
+ * Piet Delaney <piet@tensilica.com>
+ */
 
 #include <asm/bootparam.h>
+#include <asm/processor.h>
+#include <asm/pgtable.h>
+#include <asm/page.h>
+#include <asm/cacheasm.h>
+#include <asm/initialize_mmu.h>
+#include <linux/linkage.h>
 
-
-/* ResetVector
- */
-	.section        .ResetVector.text, "ax"
+	.section	.ResetVector.text, "ax"
 	.global         _ResetVector
+	.global         reset
+
 _ResetVector:
-	_j reset
+	_j _SetupMMU
+
+	.begin  no-absolute-literals
+	.literal_position
+
 	.align 4
 RomInitAddr:
-	.word 0xd0001000
+#if defined(CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX) && \
+	XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+	.word 0x00003000
+#else
+	.word 0xd0003000
+#endif
 RomBootParam:
 	.word _bootparam
+_bootparam:
+	.short	BP_TAG_FIRST
+	.short	4
+	.long	BP_VERSION
+	.short	BP_TAG_LAST
+	.short	0
+	.long	0
+
+	.align  4
+_SetupMMU:
+	movi	a0, 0
+	wsr	a0, windowbase
+	rsync
+	movi	a0, 1
+	wsr	a0, windowstart
+	rsync
+	movi	a0, 0x1F
+	wsr	a0, ps
+	rsync
+
+	Offset = _SetupMMU - _ResetVector
+
+#ifndef CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	initialize_mmu
+#endif
+
+	.end    no-absolute-literals
+
+	rsil    a0, XCHAL_DEBUGLEVEL-1
+	rsync
 reset:
 	l32r    a0, RomInitAddr
 	l32r	a2, RomBootParam
@@ -21,13 +80,25 @@ reset:
 	jx      a0
 
 	.align 4
-	.section .bootstrap.data, "aw"
 
-	.globl _bootparam
-_bootparam:
-	.short	BP_TAG_FIRST
-	.short	4
-	.long	BP_VERSION
-	.short	BP_TAG_LAST
-	.short	0
-	.long	0
+	.section	.ResetVector.remapped_text, "x"
+	.global         _RemappedResetVector
+
+	/* Do org before literals */
+	.org 0
+
+_RemappedResetVector:
+	.begin  no-absolute-literals
+	.literal_position
+
+	_j	_RemappedSetupMMU
+
+	/* Position Remapped code at the same location as the original code */
+	. = _RemappedResetVector + Offset
+
+_RemappedSetupMMU:
+#ifndef CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	initialize_mmu
+#endif
+
+	.end    no-absolute-literals

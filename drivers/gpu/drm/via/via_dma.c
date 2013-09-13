@@ -34,9 +34,8 @@
  *    Thomas Hellstrom.
  */
 
-#include "drmP.h"
-#include "drm.h"
-#include "via_drm.h"
+#include <drm/drmP.h>
+#include <drm/via_drm.h>
 #include "via_drv.h"
 #include "via_3d_reg.h"
 
@@ -721,7 +720,7 @@ static int via_cmdbuf_size(struct drm_device *dev, void *data, struct drm_file *
 	return ret;
 }
 
-struct drm_ioctl_desc via_ioctls[] = {
+const struct drm_ioctl_desc via_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VIA_ALLOCMEM, via_mem_alloc, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(VIA_FREEMEM, via_mem_free, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(VIA_AGP_INIT, via_agp_init, DRM_AUTH|DRM_MASTER),

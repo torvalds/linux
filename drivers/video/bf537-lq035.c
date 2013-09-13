@@ -87,8 +87,8 @@ static void set_vcomm(void)
 		pr_err("i2c_smbus_write_byte_data fail: %d\n", nr);
 }
 
-static int __devinit ad5280_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int ad5280_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	int ret;
 	if (!i2c_check_functionality(client->adapter,
@@ -108,7 +108,7 @@ static int __devinit ad5280_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit ad5280_remove(struct i2c_client *client)
+static int ad5280_remove(struct i2c_client *client)
 {
 	ad5280_client = NULL;
 	return 0;
@@ -126,7 +126,7 @@ static struct i2c_driver ad5280_driver = {
 		.name = "bf537-lq035-ad5280",
 	},
 	.probe = ad5280_probe,
-	.remove = __devexit_p(ad5280_remove),
+	.remove = ad5280_remove,
 	.id_table = ad5280_id,
 };
 
@@ -360,7 +360,7 @@ static int config_dma(void)
 	return 0;
 }
 
-static int __devinit request_ports(void)
+static int request_ports(void)
 {
 	u16 tmr_req[] = TIMERS;
 
@@ -443,7 +443,7 @@ static struct fb_var_screeninfo bfin_lq035_fb_defined = {
 	.transp		= {0, 0, 0},
 };
 
-static struct fb_fix_screeninfo bfin_lq035_fb_fix __devinitdata = {
+static struct fb_fix_screeninfo bfin_lq035_fb_fix = {
 	.id		= KBUILD_MODNAME,
 	.smem_len	= ACTIVE_VIDEO_MEM_SIZE,
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -686,7 +686,7 @@ static struct lcd_ops bfin_lcd_ops = {
 
 static struct lcd_device *lcd_dev;
 
-static int __devinit bfin_lq035_probe(struct platform_device *pdev)
+static int bfin_lq035_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
 	dma_addr_t dma_handle;
@@ -760,18 +760,20 @@ static int __devinit bfin_lq035_probe(struct platform_device *pdev)
 	bfin_lq035_fb.flags = FBINFO_DEFAULT;
 
 
-	bfin_lq035_fb.pseudo_palette = kzalloc(sizeof(u32) * 16, GFP_KERNEL);
+	bfin_lq035_fb.pseudo_palette = devm_kzalloc(&pdev->dev,
+						    sizeof(u32) * 16,
+						    GFP_KERNEL);
 	if (bfin_lq035_fb.pseudo_palette == NULL) {
 		pr_err("failed to allocate pseudo_palette\n");
 		ret = -ENOMEM;
-		goto out_palette;
+		goto out_table;
 	}
 
 	if (fb_alloc_cmap(&bfin_lq035_fb.cmap, NBR_PALETTE, 0) < 0) {
 		pr_err("failed to allocate colormap (%d entries)\n",
 			NBR_PALETTE);
 		ret = -EFAULT;
-		goto out_cmap;
+		goto out_table;
 	}
 
 	if (register_framebuffer(&bfin_lq035_fb) < 0) {
@@ -804,9 +806,6 @@ out_lcd:
 	unregister_framebuffer(&bfin_lq035_fb);
 out_reg:
 	fb_dealloc_cmap(&bfin_lq035_fb.cmap);
-out_cmap:
-	kfree(bfin_lq035_fb.pseudo_palette);
-out_palette:
 out_table:
 	dma_free_coherent(NULL, TOTAL_VIDEO_MEM_SIZE, fb_buffer, 0);
 	fb_buffer = NULL;
@@ -817,7 +816,7 @@ out_ports:
 	return ret;
 }
 
-static int __devexit bfin_lq035_remove(struct platform_device *pdev)
+static int bfin_lq035_remove(struct platform_device *pdev)
 {
 	if (fb_buffer != NULL)
 		dma_free_coherent(NULL, TOTAL_VIDEO_MEM_SIZE, fb_buffer, 0);
@@ -834,7 +833,6 @@ static int __devexit bfin_lq035_remove(struct platform_device *pdev)
 	free_dma(CH_PPI);
 
 
-	kfree(bfin_lq035_fb.pseudo_palette);
 	fb_dealloc_cmap(&bfin_lq035_fb.cmap);
 
 
@@ -891,7 +889,7 @@ static int bfin_lq035_resume(struct platform_device *pdev)
 
 static struct platform_driver bfin_lq035_driver = {
 	.probe = bfin_lq035_probe,
-	.remove = __devexit_p(bfin_lq035_remove),
+	.remove = bfin_lq035_remove,
 	.suspend = bfin_lq035_suspend,
 	.resume = bfin_lq035_resume,
 	.driver = {

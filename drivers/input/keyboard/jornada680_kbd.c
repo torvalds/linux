@@ -179,7 +179,7 @@ static void jornadakbd680_poll(struct input_polled_dev *dev)
 	memcpy(jornadakbd->old_scan, jornadakbd->new_scan, JORNADA_SCAN_SIZE);
 }
 
-static int __devinit jornada680kbd_probe(struct platform_device *pdev)
+static int jornada680kbd_probe(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd;
 	struct input_polled_dev *poll_dev;
@@ -233,18 +233,16 @@ static int __devinit jornada680kbd_probe(struct platform_device *pdev)
  failed:
 	printk(KERN_ERR "Jornadakbd: failed to register driver, error: %d\n",
 		error);
-	platform_set_drvdata(pdev, NULL);
 	input_free_polled_device(poll_dev);
 	kfree(jornadakbd);
 	return error;
 
 }
 
-static int __devexit jornada680kbd_remove(struct platform_device *pdev)
+static int jornada680kbd_remove(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	input_unregister_polled_device(jornadakbd->poll_dev);
 	input_free_polled_device(jornadakbd->poll_dev);
 	kfree(jornadakbd);
@@ -258,7 +256,7 @@ static struct platform_driver jornada680kbd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= jornada680kbd_probe,
-	.remove	= __devexit_p(jornada680kbd_remove),
+	.remove	= jornada680kbd_remove,
 };
 module_platform_driver(jornada680kbd_driver);
 

@@ -2,9 +2,7 @@
  * Modern ConfigFS group context specific iSCSI statistics based on original
  * iscsi_target_mib.c code
  *
- * Copyright (c) 2011 Rising Tide Systems
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * Copyright (c) 2011-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -177,7 +175,7 @@ ISCSI_STAT_INSTANCE_ATTR_RO(description);
 static ssize_t iscsi_stat_instance_show_attr_vendor(
 	struct iscsi_wwn_stat_grps *igrps, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "RisingTide Systems iSCSI-Target\n");
+	return snprintf(page, PAGE_SIZE, "Datera, Inc. iSCSI-Target\n");
 }
 ISCSI_STAT_INSTANCE_ATTR_RO(vendor);
 
@@ -410,14 +408,16 @@ static ssize_t iscsi_stat_tgt_attr_show_attr_fail_intr_addr_type(
 	struct iscsi_tiqn *tiqn = container_of(igrps,
 			struct iscsi_tiqn, tiqn_stat_grps);
 	struct iscsi_login_stats *lstat = &tiqn->login_stats;
-	unsigned char buf[8];
+	int ret;
 
 	spin_lock(&lstat->lock);
-	snprintf(buf, 8, "%s", (lstat->last_intr_fail_ip_addr != NULL) ?
-				"ipv6" : "ipv4");
+	if (lstat->last_intr_fail_ip_family == AF_INET6)
+		ret = snprintf(page, PAGE_SIZE, "ipv6\n");
+	else
+		ret = snprintf(page, PAGE_SIZE, "ipv4\n");
 	spin_unlock(&lstat->lock);
 
-	return snprintf(page, PAGE_SIZE, "%s\n", buf);
+	return ret;
 }
 ISCSI_STAT_TGT_ATTR_RO(fail_intr_addr_type);
 
@@ -427,16 +427,13 @@ static ssize_t iscsi_stat_tgt_attr_show_attr_fail_intr_addr(
 	struct iscsi_tiqn *tiqn = container_of(igrps,
 			struct iscsi_tiqn, tiqn_stat_grps);
 	struct iscsi_login_stats *lstat = &tiqn->login_stats;
-	unsigned char buf[32];
+	int ret;
 
 	spin_lock(&lstat->lock);
-	if (lstat->last_intr_fail_ip_family == AF_INET6)
-		snprintf(buf, 32, "[%s]", lstat->last_intr_fail_ip_addr);
-	else
-		snprintf(buf, 32, "%s", lstat->last_intr_fail_ip_addr);
+	ret = snprintf(page, PAGE_SIZE, "%s\n", lstat->last_intr_fail_ip_addr);
 	spin_unlock(&lstat->lock);
 
-	return snprintf(page, PAGE_SIZE, "%s\n", buf);
+	return ret;
 }
 ISCSI_STAT_TGT_ATTR_RO(fail_intr_addr);
 

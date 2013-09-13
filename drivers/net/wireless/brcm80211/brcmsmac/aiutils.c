@@ -318,12 +318,6 @@
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-#ifdef DEBUG
-#define	SI_MSG(fmt, ...)	pr_debug(fmt, ##__VA_ARGS__)
-#else
-#define	SI_MSG(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
-#endif				/* DEBUG */
-
 #define	GOODCOREADDR(x, b) \
 	(((x) >= (b)) && ((x) < ((b) + SI_MAXCORES * SI_CORE_SIZE)) && \
 		IS_ALIGNED((x), SI_CORE_SIZE))
@@ -535,9 +529,6 @@ void ai_detach(struct si_pub *sih)
 {
 	struct si_info *sii;
 
-	struct si_pub *si_local = NULL;
-	memcpy(&si_local, &sih, sizeof(struct si_pub **));
-
 	sii = container_of(sih, struct si_info, pub);
 
 	if (sii == NULL)
@@ -688,27 +679,6 @@ bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 	return mode == BCMA_CLKMODE_FAST;
 }
 
-void ai_pci_up(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = container_of(sih, struct si_info, pub);
-
-	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
-		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, true);
-}
-
-/* Unconfigure and/or apply various WARs when going down */
-void ai_pci_down(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = container_of(sih, struct si_info, pub);
-
-	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
-		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
-}
-
 /* Enable BT-COEX & Ex-PA for 4313 */
 void ai_epa_4313war(struct si_pub *sih)
 {
@@ -724,7 +694,7 @@ void ai_epa_4313war(struct si_pub *sih)
 /* check if the device is removed */
 bool ai_deviceremoved(struct si_pub *sih)
 {
-	u32 w;
+	u32 w = 0;
 	struct si_info *sii;
 
 	sii = container_of(sih, struct si_info, pub);

@@ -28,7 +28,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <generated/utsrelease.h>
 #include <linux/utsname.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -104,6 +103,13 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	use_sg = !(remaining % 4);
 
 	while (remaining) {
+		struct fc_seq *seq = cmd->seq;
+
+		if (!seq) {
+			pr_debug("%s: Command aborted, xid 0x%x\n",
+				 __func__, ep->xid);
+			break;
+		}
 		if (!mem_len) {
 			sg = sg_next(sg);
 			mem_len = min((size_t)sg->length, remaining);
@@ -170,7 +176,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 			f_ctl |= FC_FC_END_SEQ;
 		fc_fill_fc_hdr(fp, FC_RCTL_DD_SOL_DATA, ep->did, ep->sid,
 			       FC_TYPE_FCP, f_ctl, fh_off);
-		error = lport->tt.seq_send(lport, cmd->seq, fp);
+		error = lport->tt.seq_send(lport, seq, fp);
 		if (error) {
 			/* XXX For now, initiator will retry */
 			pr_err_ratelimited("%s: Failed to send frame %p, "
@@ -328,11 +334,12 @@ drop:
  */
 void ft_invl_hw_context(struct ft_cmd *cmd)
 {
-	struct fc_seq *seq = cmd->seq;
+	struct fc_seq *seq;
 	struct fc_exch *ep = NULL;
 	struct fc_lport *lport = NULL;
 
 	BUG_ON(!cmd);
+	seq = cmd->seq;
 
 	/* Cleanup the DDP context in HW if DDP was setup */
 	if (cmd->was_ddp_setup && seq) {

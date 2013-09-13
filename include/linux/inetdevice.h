@@ -5,44 +5,12 @@
 
 #include <linux/bitmap.h>
 #include <linux/if.h>
+#include <linux/ip.h>
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
 #include <linux/timer.h>
 #include <linux/sysctl.h>
 #include <linux/rtnetlink.h>
-
-enum
-{
-	IPV4_DEVCONF_FORWARDING=1,
-	IPV4_DEVCONF_MC_FORWARDING,
-	IPV4_DEVCONF_PROXY_ARP,
-	IPV4_DEVCONF_ACCEPT_REDIRECTS,
-	IPV4_DEVCONF_SECURE_REDIRECTS,
-	IPV4_DEVCONF_SEND_REDIRECTS,
-	IPV4_DEVCONF_SHARED_MEDIA,
-	IPV4_DEVCONF_RP_FILTER,
-	IPV4_DEVCONF_ACCEPT_SOURCE_ROUTE,
-	IPV4_DEVCONF_BOOTP_RELAY,
-	IPV4_DEVCONF_LOG_MARTIANS,
-	IPV4_DEVCONF_TAG,
-	IPV4_DEVCONF_ARPFILTER,
-	IPV4_DEVCONF_MEDIUM_ID,
-	IPV4_DEVCONF_NOXFRM,
-	IPV4_DEVCONF_NOPOLICY,
-	IPV4_DEVCONF_FORCE_IGMP_VERSION,
-	IPV4_DEVCONF_ARP_ANNOUNCE,
-	IPV4_DEVCONF_ARP_IGNORE,
-	IPV4_DEVCONF_PROMOTE_SECONDARIES,
-	IPV4_DEVCONF_ARP_ACCEPT,
-	IPV4_DEVCONF_ARP_NOTIFY,
-	IPV4_DEVCONF_ACCEPT_LOCAL,
-	IPV4_DEVCONF_SRC_VMARK,
-	IPV4_DEVCONF_PROXY_ARP_PVLAN,
-	IPV4_DEVCONF_ROUTE_LOCALNET,
-	__IPV4_DEVCONF_MAX
-};
-
-#define IPV4_DEVCONF_MAX (__IPV4_DEVCONF_MAX - 1)
 
 struct ipv4_devconf {
 	void	*sysctl;
@@ -50,12 +18,17 @@ struct ipv4_devconf {
 	DECLARE_BITMAP(state, IPV4_DEVCONF_MAX);
 };
 
+#define MC_HASH_SZ_LOG 9
+
 struct in_device {
 	struct net_device	*dev;
 	atomic_t		refcnt;
 	int			dead;
 	struct in_ifaddr	*ifa_list;	/* IP ifaddr chain		*/
+
 	struct ip_mc_list __rcu	*mc_list;	/* IP multicast filter chain    */
+	struct ip_mc_list __rcu	* __rcu *mc_hash;
+
 	int			mc_count;	/* Number of installed mcasts	*/
 	spinlock_t		mc_tomb_lock;
 	struct ip_mc_list	*mc_tomb;
@@ -104,9 +77,14 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 #define IN_DEV_ANDCONF(in_dev, attr) \
 	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr) && \
 	 IN_DEV_CONF_GET((in_dev), attr))
-#define IN_DEV_ORCONF(in_dev, attr) \
-	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr) || \
+
+#define IN_DEV_NET_ORCONF(in_dev, net, attr) \
+	(IPV4_DEVCONF_ALL(net, attr) || \
 	 IN_DEV_CONF_GET((in_dev), attr))
+
+#define IN_DEV_ORCONF(in_dev, attr) \
+	IN_DEV_NET_ORCONF(in_dev, dev_net(in_dev->dev), attr)
+
 #define IN_DEV_MAXCONF(in_dev, attr) \
 	(max(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr), \
 	     IN_DEV_CONF_GET((in_dev), attr)))
@@ -133,6 +111,8 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 					IN_DEV_ORCONF((in_dev), \
 						      PROMOTE_SECONDARIES)
 #define IN_DEV_ROUTE_LOCALNET(in_dev)	IN_DEV_ORCONF(in_dev, ROUTE_LOCALNET)
+#define IN_DEV_NET_ROUTE_LOCALNET(in_dev, net)	\
+	IN_DEV_NET_ORCONF(in_dev, net, ROUTE_LOCALNET)
 
 #define IN_DEV_RX_REDIRECTS(in_dev) \
 	((IN_DEV_FORWARD(in_dev) && \
@@ -159,10 +139,19 @@ struct in_ifaddr {
 	unsigned char		ifa_flags;
 	unsigned char		ifa_prefixlen;
 	char			ifa_label[IFNAMSIZ];
+
+	/* In seconds, relative to tstamp. Expiry is at tstamp + HZ * lft. */
+	__u32			ifa_valid_lft;
+	__u32			ifa_preferred_lft;
+	unsigned long		ifa_cstamp; /* created timestamp */
+	unsigned long		ifa_tstamp; /* updated timestamp */
 };
 
 extern int register_inetaddr_notifier(struct notifier_block *nb);
 extern int unregister_inetaddr_notifier(struct notifier_block *nb);
+
+extern void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
+					struct ipv4_devconf *devconf);
 
 extern struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref);
 static inline struct net_device *ip_dev_find(struct net *net, __be32 addr)

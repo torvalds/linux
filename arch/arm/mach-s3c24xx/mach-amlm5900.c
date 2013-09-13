@@ -53,7 +53,7 @@
 #include <mach/regs-lcd.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/gpio-cfg.h>
@@ -62,6 +62,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
+
+#include <plat/samsung-time.h>
 
 #include "common.h"
 
@@ -160,6 +162,7 @@ static void __init amlm5900_map_io(void)
 	s3c24xx_init_io(amlm5900_iodesc, ARRAY_SIZE(amlm5900_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(amlm5900_uartcfgs, ARRAY_SIZE(amlm5900_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 #ifdef CONFIG_FB_S3C2410
@@ -235,8 +238,8 @@ static void __init amlm5900_init(void)
 MACHINE_START(AML_M5900, "AML_M5900")
 	.atag_offset	= 0x100,
 	.map_io		= amlm5900_map_io,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.init_machine	= amlm5900_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

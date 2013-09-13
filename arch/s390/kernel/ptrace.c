@@ -42,16 +42,41 @@ enum s390_regset {
 	REGSET_GENERAL,
 	REGSET_FP,
 	REGSET_LAST_BREAK,
+	REGSET_TDB,
 	REGSET_SYSTEM_CALL,
 	REGSET_GENERAL_EXTENDED,
 };
 
-void update_per_regs(struct task_struct *task)
+void update_cr_regs(struct task_struct *task)
 {
 	struct pt_regs *regs = task_pt_regs(task);
 	struct thread_struct *thread = &task->thread;
 	struct per_regs old, new;
 
+#ifdef CONFIG_64BIT
+	/* Take care of the enable/disable of transactional execution. */
+	if (MACHINE_HAS_TE) {
+		unsigned long cr[3], cr_new[3];
+
+		__ctl_store(cr, 0, 2);
+		cr_new[1] = cr[1];
+		/* Set or clear transaction execution TXC bit 8. */
+		if (task->thread.per_flags & PER_FLAG_NO_TE)
+			cr_new[0] = cr[0] & ~(1UL << 55);
+		else
+			cr_new[0] = cr[0] | (1UL << 55);
+		/* Set or clear transaction execution TDC bits 62 and 63. */
+		cr_new[2] = cr[2] & ~3UL;
+		if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND) {
+			if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND_TEND)
+				cr_new[2] |= 1UL;
+			else
+				cr_new[2] |= 2UL;
+		}
+		if (memcmp(&cr_new, &cr, sizeof(cr)))
+			__ctl_load(cr_new, 0, 2);
+	}
+#endif
 	/* Copy user specified PER registers */
 	new.control = thread->per_user.control;
 	new.start = thread->per_user.start;
@@ -60,6 +85,10 @@ void update_per_regs(struct task_struct *task)
 	/* merge TIF_SINGLE_STEP into user specified PER registers. */
 	if (test_tsk_thread_flag(task, TIF_SINGLE_STEP)) {
 		new.control |= PER_EVENT_IFETCH;
+#ifdef CONFIG_64BIT
+		new.control |= PER_CONTROL_SUSPENSION;
+		new.control |= PER_EVENT_TRANSACTION_END;
+#endif
 		new.start = 0;
 		new.end = PSW_ADDR_INSN;
 	}
@@ -79,14 +108,14 @@ void user_enable_single_step(struct task_struct *task)
 {
 	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
 	if (task == current)
-		update_per_regs(task);
+		update_cr_regs(task);
 }
 
 void user_disable_single_step(struct task_struct *task)
 {
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
 	if (task == current)
-		update_per_regs(task);
+		update_cr_regs(task);
 }
 
 /*
@@ -100,6 +129,7 @@ void ptrace_disable(struct task_struct *task)
 	memset(&task->thread.per_event, 0, sizeof(task->thread.per_event));
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
 	clear_tsk_thread_flag(task, TIF_PER_TRAP);
+	task->thread.per_flags = 0;
 }
 
 #ifndef CONFIG_64BIT
@@ -415,6 +445,36 @@ long arch_ptrace(struct task_struct *child, long request,
 	case PTRACE_GET_LAST_BREAK:
 		put_user(task_thread_info(child)->last_break,
 			 (unsigned long __user *) data);
+		return 0;
+	case PTRACE_ENABLE_TE:
+		if (!MACHINE_HAS_TE)
+			return -EIO;
+		child->thread.per_flags &= ~PER_FLAG_NO_TE;
+		return 0;
+	case PTRACE_DISABLE_TE:
+		if (!MACHINE_HAS_TE)
+			return -EIO;
+		child->thread.per_flags |= PER_FLAG_NO_TE;
+		child->thread.per_flags &= ~PER_FLAG_TE_ABORT_RAND;
+		return 0;
+	case PTRACE_TE_ABORT_RAND:
+		if (!MACHINE_HAS_TE || (child->thread.per_flags & PER_FLAG_NO_TE))
+			return -EIO;
+		switch (data) {
+		case 0UL:
+			child->thread.per_flags &= ~PER_FLAG_TE_ABORT_RAND;
+			break;
+		case 1UL:
+			child->thread.per_flags |= PER_FLAG_TE_ABORT_RAND;
+			child->thread.per_flags |= PER_FLAG_TE_ABORT_RAND_TEND;
+			break;
+		case 2UL:
+			child->thread.per_flags |= PER_FLAG_TE_ABORT_RAND;
+			child->thread.per_flags &= ~PER_FLAG_TE_ABORT_RAND_TEND;
+			break;
+		default:
+			return -EINVAL;
+		}
 		return 0;
 	default:
 		/* Removing high order bit from addr (only for 31 bit). */
@@ -903,6 +963,28 @@ static int s390_last_break_set(struct task_struct *target,
 	return 0;
 }
 
+static int s390_tdb_get(struct task_struct *target,
+			const struct user_regset *regset,
+			unsigned int pos, unsigned int count,
+			void *kbuf, void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	unsigned char *data;
+
+	if (!(regs->int_code & 0x200))
+		return -ENODATA;
+	data = target->thread.trap_tdb;
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, data, 0, 256);
+}
+
+static int s390_tdb_set(struct task_struct *target,
+			const struct user_regset *regset,
+			unsigned int pos, unsigned int count,
+			const void *kbuf, const void __user *ubuf)
+{
+	return 0;
+}
+
 #endif
 
 static int s390_system_call_get(struct task_struct *target,
@@ -950,6 +1032,14 @@ static const struct user_regset s390_regsets[] = {
 		.align = sizeof(long),
 		.get = s390_last_break_get,
 		.set = s390_last_break_set,
+	},
+	[REGSET_TDB] = {
+		.core_note_type = NT_S390_TDB,
+		.n = 1,
+		.size = 256,
+		.align = 1,
+		.get = s390_tdb_get,
+		.set = s390_tdb_set,
 	},
 #endif
 	[REGSET_SYSTEM_CALL] = {
@@ -1148,6 +1238,14 @@ static const struct user_regset s390_compat_regsets[] = {
 		.get = s390_compat_last_break_get,
 		.set = s390_compat_last_break_set,
 	},
+	[REGSET_TDB] = {
+		.core_note_type = NT_S390_TDB,
+		.n = 1,
+		.size = 256,
+		.align = 1,
+		.get = s390_tdb_get,
+		.set = s390_tdb_set,
+	},
 	[REGSET_SYSTEM_CALL] = {
 		.core_note_type = NT_S390_SYSTEM_CALL,
 		.n = 1,
@@ -1201,7 +1299,7 @@ int regs_query_register_offset(const char *name)
 
 	if (!name || *name != 'r')
 		return -EINVAL;
-	if (strict_strtoul(name + 1, 10, &offset))
+	if (kstrtoul(name + 1, 10, &offset))
 		return -EINVAL;
 	if (offset >= NUM_GPRS)
 		return -EINVAL;

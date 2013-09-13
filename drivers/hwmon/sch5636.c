@@ -402,19 +402,17 @@ static int sch5636_remove(struct platform_device *pdev)
 		device_remove_file(&pdev->dev,
 				   &sch5636_fan_attr[i].dev_attr);
 
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
-
 	return 0;
 }
 
-static int __devinit sch5636_probe(struct platform_device *pdev)
+static int sch5636_probe(struct platform_device *pdev)
 {
 	struct sch5636_data *data;
 	int i, err, val, revision[2];
 	char id[4];
 
-	data = kzalloc(sizeof(struct sch5636_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct sch5636_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 

@@ -11,6 +11,9 @@ else
 Kconfig := Kconfig
 endif
 
+# We need this, in case the user has it in its environment
+unexport CONFIG_
+
 xconfig: $(obj)/qconf
 	$< $(Kconfig)
 
@@ -76,10 +79,16 @@ PHONY += allnoconfig allyesconfig allmodconfig alldefconfig randconfig
 allnoconfig allyesconfig allmodconfig alldefconfig randconfig: $(obj)/conf
 	$< --$@ $(Kconfig)
 
-PHONY += listnewconfig oldnoconfig savedefconfig defconfig
+PHONY += listnewconfig olddefconfig oldnoconfig savedefconfig defconfig
 
-listnewconfig oldnoconfig: $(obj)/conf
+listnewconfig olddefconfig: $(obj)/conf
 	$< --$@ $(Kconfig)
+
+# oldnoconfig is an alias of olddefconfig, because people already are dependent
+# on its behavior(sets new symbols to their default value but not 'n') with the
+# counter-intuitive name.
+oldnoconfig: $(obj)/conf
+	$< --olddefconfig $(Kconfig)
 
 savedefconfig: $(obj)/conf
 	$< --$@=defconfig $(Kconfig)
@@ -114,7 +123,7 @@ help:
 	@echo  '  alldefconfig    - New config with all symbols set to default'
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  listnewconfig   - List new options'
-	@echo  '  oldnoconfig     - Same as silentoldconfig but sets new symbols to their default value'
+	@echo  '  olddefconfig	  - Same as silentoldconfig but sets new symbols to their default value'
 
 # lxdialog stuff
 check-lxdialog  := $(srctree)/$(src)/lxdialog/check-lxdialog.sh
@@ -210,7 +219,9 @@ HOSTCFLAGS_gconf.o	= `pkg-config --cflags gtk+-2.0 gmodule-2.0 libglade-2.0` \
 
 HOSTLOADLIBES_mconf   = $(shell $(CONFIG_SHELL) $(check-lxdialog) -ldflags $(HOSTCC))
 
-HOSTLOADLIBES_nconf	= -lmenu -lpanel -lncurses
+HOSTLOADLIBES_nconf	= $(shell \
+				pkg-config --libs menu panel ncurses 2>/dev/null \
+				|| echo "-lmenu -lpanel -lncurses"  )
 $(obj)/qconf.o: $(obj)/.tmp_qtcheck
 
 ifeq ($(qconf-target),1)

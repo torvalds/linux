@@ -21,6 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
+#include <linux/mfd/ab3100.h>
 #include <linux/mfd/abx500.h>
 
 /* These are the only registers inside AB3100 used in this main file */
@@ -490,7 +491,7 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 	char buf[32];
 	ssize_t buf_size;
 	int regp;
-	unsigned long user_reg;
+	u8 user_reg;
 	int err;
 	int i = 0;
 
@@ -513,34 +514,29 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 	/*
 	 * Advance pointer to end of string then terminate
 	 * the register string. This is needed to satisfy
-	 * the strict_strtoul() function.
+	 * the kstrtou8() function.
 	 */
 	while ((i < buf_size) && (buf[i] != ' '))
 		i++;
 	buf[i] = '\0';
 
-	err = strict_strtoul(&buf[regp], 16, &user_reg);
+	err = kstrtou8(&buf[regp], 16, &user_reg);
 	if (err)
 		return err;
-	if (user_reg > 0xff)
-		return -EINVAL;
 
 	/* Either we read or we write a register here */
 	if (!priv->mode) {
 		/* Reading */
-		u8 reg = (u8) user_reg;
 		u8 regvalue;
 
-		ab3100_get_register_interruptible(ab3100, reg, &regvalue);
+		ab3100_get_register_interruptible(ab3100, user_reg, &regvalue);
 
 		dev_info(ab3100->dev,
 			 "debug read AB3100 reg[0x%02x]: 0x%02x\n",
-			 reg, regvalue);
+			 user_reg, regvalue);
 	} else {
 		int valp;
-		unsigned long user_value;
-		u8 reg = (u8) user_reg;
-		u8 value;
+		u8 user_value;
 		u8 regvalue;
 
 		/*
@@ -556,20 +552,17 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 			i++;
 		buf[i] = '\0';
 
-		err = strict_strtoul(&buf[valp], 16, &user_value);
+		err = kstrtou8(&buf[valp], 16, &user_value);
 		if (err)
 			return err;
-		if (user_reg > 0xff)
-			return -EINVAL;
 
-		value = (u8) user_value;
-		ab3100_set_register_interruptible(ab3100, reg, value);
-		ab3100_get_register_interruptible(ab3100, reg, &regvalue);
+		ab3100_set_register_interruptible(ab3100, user_reg, user_value);
+		ab3100_get_register_interruptible(ab3100, user_reg, &regvalue);
 
 		dev_info(ab3100->dev,
 			 "debug write reg[0x%02x] with 0x%02x, "
 			 "after readback: 0x%02x\n",
-			 reg, value, regvalue);
+			 user_reg, user_value, regvalue);
 	}
 	return buf_size;
 }
@@ -660,8 +653,7 @@ struct ab3100_init_setting {
 	u8 setting;
 };
 
-static const struct ab3100_init_setting __devinitconst
-ab3100_init_settings[] = {
+static const struct ab3100_init_setting ab3100_init_settings[] = {
 	{
 		.abreg = AB3100_MCA,
 		.setting = 0x01
@@ -707,7 +699,7 @@ ab3100_init_settings[] = {
 	},
 };
 
-static int __devinit ab3100_setup(struct ab3100 *ab3100)
+static int ab3100_setup(struct ab3100 *ab3100)
 {
 	int err = 0;
 	int i;
@@ -753,6 +745,7 @@ static struct mfd_cell ab3100_devs[] = {
 	},
 	{
 		.name = "ab3100-regulators",
+		.of_compatible = "stericsson,ab3100-regulators",
 		.id = -1,
 	},
 	{
@@ -802,7 +795,7 @@ struct ab_family_id {
 	char	*name;
 };
 
-static const struct ab_family_id ids[] __devinitconst = {
+static const struct ab_family_id ids[] = {
 	/* AB3100 */
 	{
 		.id = 0xc0,
@@ -856,12 +849,12 @@ static const struct ab_family_id ids[] __devinitconst = {
 	},
 };
 
-static int __devinit ab3100_probe(struct i2c_client *client,
+static int ab3100_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct ab3100 *ab3100;
 	struct ab3100_platform_data *ab3100_plf_data =
-		client->dev.platform_data;
+		dev_get_platdata(&client->dev);
 	int err;
 	int i;
 
@@ -946,7 +939,7 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	}
 
 	err = mfd_add_devices(&client->dev, 0, ab3100_devs,
-		ARRAY_SIZE(ab3100_devs), NULL, 0);
+			      ARRAY_SIZE(ab3100_devs), NULL, 0, NULL);
 
 	ab3100_setup_debugfs(ab3100);
 
@@ -961,7 +954,7 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	return err;
 }
 
-static int __devexit ab3100_remove(struct i2c_client *client)
+static int ab3100_remove(struct i2c_client *client)
 {
 	struct ab3100 *ab3100 = i2c_get_clientdata(client);
 
@@ -985,7 +978,7 @@ static struct i2c_driver ab3100_driver = {
 	},
 	.id_table	= ab3100_id,
 	.probe		= ab3100_probe,
-	.remove		= __devexit_p(ab3100_remove),
+	.remove		= ab3100_remove,
 };
 
 static int __init ab3100_i2c_init(void)

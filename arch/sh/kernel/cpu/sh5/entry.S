@@ -933,7 +933,7 @@ ret_with_reschedule:
 
 	pta	restore_all, tr1
 
-	movi	_TIF_SIGPENDING, r8
+	movi	(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME), r8
 	and	r8, r7, r8
 	pta	work_notifysig, tr0
 	bne	r8, ZERO, tr0
@@ -1220,6 +1220,25 @@ ret_from_fork:
 	movi	schedule_tail,r5
 	ori	r5, 1, r5
 	ptabs	r5, tr0
+	blink	tr0, LINK
+
+	ld.q	SP, FRAME_S(FSPC), r2
+	addi	r2, 4, r2		/* Move PC, being pre-execution event */
+	st.q	SP, FRAME_S(FSPC), r2
+	pta	ret_from_syscall, tr0
+	blink	tr0, ZERO
+
+.global	ret_from_kernel_thread
+ret_from_kernel_thread:
+
+	movi	schedule_tail,r5
+	ori	r5, 1, r5
+	ptabs	r5, tr0
+	blink	tr0, LINK
+
+	ld.q	SP, FRAME_R(2), r2
+	ld.q	SP, FRAME_R(3), r3
+	ptabs	r3, tr0
 	blink	tr0, LINK
 
 	ld.q	SP, FRAME_S(FSPC), r2

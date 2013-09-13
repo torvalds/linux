@@ -15,11 +15,11 @@
 
 #include <drm/drm_fb_helper.h>
 
-#include "ttm/ttm_bo_api.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_placement.h"
-#include "ttm/ttm_memory.h"
-#include "ttm/ttm_module.h"
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_memory.h>
+#include <drm/ttm/ttm_module.h>
 
 #define DRIVER_AUTHOR		"Matthew Garrett"
 
@@ -143,7 +143,6 @@ struct cirrus_device {
 		struct drm_global_reference mem_global_ref;
 		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
-		atomic_t validate_sequence;
 	} ttm;
 	bool mm_inited;
 };
@@ -155,6 +154,8 @@ struct cirrus_fbdev {
 	struct list_head fbdev_list;
 	void *sysram;
 	int size;
+	int x1, y1, x2, y2; /* dirty rect */
+	spinlock_t dirty_lock;
 };
 
 struct cirrus_bo {
@@ -202,9 +203,6 @@ int cirrus_gem_create(struct drm_device *dev,
 int cirrus_dumb_create(struct drm_file *file,
 		    struct drm_device *dev,
 		       struct drm_mode_create_dumb *args);
-int cirrus_dumb_destroy(struct drm_file *file,
-		     struct drm_device *dev,
-			uint32_t handle);
 
 int cirrus_framebuffer_init(struct drm_device *dev,
 			   struct cirrus_framebuffer *gfb,
@@ -239,8 +237,25 @@ void cirrus_ttm_placement(struct cirrus_bo *bo, int domain);
 int cirrus_bo_create(struct drm_device *dev, int size, int align,
 		     uint32_t flags, struct cirrus_bo **pcirrusbo);
 int cirrus_mmap(struct file *filp, struct vm_area_struct *vma);
-int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait);
-void cirrus_bo_unreserve(struct cirrus_bo *bo);
+
+static inline int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait)
+{
+	int ret;
+
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	if (ret) {
+		if (ret != -ERESTARTSYS && ret != -EBUSY)
+			DRM_ERROR("reserve failed %p\n", bo);
+		return ret;
+	}
+	return 0;
+}
+
+static inline void cirrus_bo_unreserve(struct cirrus_bo *bo)
+{
+	ttm_bo_unreserve(&bo->bo);
+}
+
 int cirrus_bo_push_sysram(struct cirrus_bo *bo);
 int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr);
 #endif				/* __CIRRUS_DRV_H__ */

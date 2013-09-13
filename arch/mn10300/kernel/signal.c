@@ -32,59 +32,6 @@
 #define DEBUG_SIG 0
 
 /*
- * atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage long sys_sigsuspend(int history0, int history1, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-/*
- * set signal action syscall
- */
-asmlinkage long sys_sigaction(int sig,
-			      const struct old_sigaction __user *act,
-			      struct old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	if (act) {
-		old_sigset_t mask;
-		if (verify_area(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (verify_area(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
-}
-
-/*
- * set alternate signal stack syscall
- */
-asmlinkage long sys_sigaltstack(const stack_t __user *uss, stack_t *uoss)
-{
-	return do_sigaltstack(uss, uoss, current_frame()->sp);
-}
-
-/*
  * do a signal return; undo the signal stack.
  */
 static int restore_sigcontext(struct pt_regs *regs,
@@ -193,8 +140,7 @@ asmlinkage long sys_rt_sigreturn(void)
 	if (restore_sigcontext(current_frame(), &frame->uc.uc_mcontext, &d0))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, current_frame()->sp) ==
-	    -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return d0;
@@ -317,10 +263,6 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	regs->d0 = sig;
 	regs->d1 = (unsigned long) &frame->sc;
 
-	/* the tracer may want to single-step inside the handler */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver %d (%s:%d): sp=%p pc=%lx ra=%p\n",
 	       sig, current->comm, current->pid, frame, regs->pc,
@@ -363,9 +305,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* create the ucontext.  */
 	if (__put_user(0, &frame->uc.uc_flags) ||
 	    __put_user(0, &frame->uc.uc_link) ||
-	    __put_user((void *)current->sas_ss_sp, &frame->uc.uc_stack.ss_sp) ||
-	    __put_user(sas_ss_flags(regs->sp), &frame->uc.uc_stack.ss_flags) ||
-	    __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size) ||
+	    __save_altstack(&frame->uc.uc_stack, regs->sp) ||
 	    setup_sigcontext(&frame->uc.uc_mcontext,
 			     &frame->fpuctx, regs, set->sig[0]) ||
 	    __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set)))
@@ -397,10 +337,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->pc = (unsigned long) ka->sa.sa_handler;
 	regs->d0 = sig;
 	regs->d1 = (long) &frame->info;
-
-	/* the tracer may want to single-step inside the handler */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
 
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver %d (%s:%d): sp=%p pc=%lx ra=%p\n",
@@ -474,11 +410,6 @@ static void do_signal(struct pt_regs *regs)
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
-
-	/* we want the common case to go fast, which is why we may in certain
-	 * cases get here from kernel mode */
-	if (!user_mode(regs))
-		return;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {

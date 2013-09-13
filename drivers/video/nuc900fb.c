@@ -38,7 +38,7 @@
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-ldm.h>
-#include <mach/fb.h>
+#include <linux/platform_data/video-nuc900fb.h>
 
 #include "nuc900fb.h"
 
@@ -387,7 +387,7 @@ static int nuc900fb_init_registers(struct fb_info *info)
  *    The buffer should be a non-cached, non-buffered, memory region
  *    to allow palette and pixel writes without flushing the cache.
  */
-static int __init nuc900fb_map_video_memory(struct fb_info *info)
+static int nuc900fb_map_video_memory(struct fb_info *info)
 {
 	struct nuc900fb_info *fbi = info->par;
 	dma_addr_t map_dma;
@@ -499,7 +499,7 @@ static inline void nuc900fb_cpufreq_deregister(struct nuc900fb_info *info)
 
 static char driver_name[] = "nuc900fb";
 
-static int __devinit nuc900fb_probe(struct platform_device *pdev)
+static int nuc900fb_probe(struct platform_device *pdev)
 {
 	struct nuc900fb_info *fbi;
 	struct nuc900fb_display *display;
@@ -587,8 +587,7 @@ static int __devinit nuc900fb_probe(struct platform_device *pdev)
 	fbinfo->flags			= FBINFO_FLAG_DEFAULT;
 	fbinfo->pseudo_palette		= &fbi->pseudo_pal;
 
-	ret = request_irq(irq, nuc900fb_irqhandler, 0,
-			  pdev->name, fbinfo);
+	ret = request_irq(irq, nuc900fb_irqhandler, 0, pdev->name, fbi);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot register irq handler %d -err %d\n",
 			irq, ret);
@@ -707,7 +706,6 @@ static int nuc900fb_remove(struct platform_device *pdev)
 	release_resource(fbi->mem);
 	kfree(fbi->mem);
 
-	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);
 
 	return 0;

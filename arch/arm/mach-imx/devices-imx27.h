@@ -6,8 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/mx27.h>
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_fec_data imx27_fec_data;
 #define imx27_add_fec(pdata)	\
@@ -16,6 +15,10 @@ extern const struct imx_fec_data imx27_fec_data;
 extern const struct imx_fsl_usb2_udc_data imx27_fsl_usb2_udc_data;
 #define imx27_add_fsl_usb2_udc(pdata)	\
 	imx_add_fsl_usb2_udc(&imx27_fsl_usb2_udc_data, pdata)
+
+extern const struct imx_imx27_coda_data imx27_coda_data;
+#define imx27_add_coda()	\
+	imx_add_imx27_coda(&imx27_coda_data)
 
 extern const struct imx_imx2_wdt_data imx27_imx2_wdt_data;
 #define imx27_add_imx2_wdt()	\
@@ -50,8 +53,10 @@ extern const struct imx_imx_uart_1irq_data imx27_imx_uart_data[];
 extern const struct imx_mx2_camera_data imx27_mx2_camera_data;
 #define imx27_add_mx2_camera(pdata)	\
 	imx_add_mx2_camera(&imx27_mx2_camera_data, pdata)
+
+extern const struct imx_mx2_emma_data imx27_mx2_emmaprp_data;
 #define imx27_add_mx2_emmaprp()	\
-	imx_add_mx2_emmaprp(&imx27_mx2_camera_data)
+	imx_add_mx2_emmaprp(&imx27_mx2_emmaprp_data)
 
 extern const struct imx_mxc_ehci_data imx27_mxc_ehci_otg_data;
 #define imx27_add_mxc_ehci_otg(pdata)	\

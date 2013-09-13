@@ -18,12 +18,14 @@ BOOT_HEAP_SIZE := 0x400000
 # Disable Function Tracer
 KBUILD_CFLAGS := $(shell echo $(KBUILD_CFLAGS) | sed -e "s/-pg//")
 
+KBUILD_CFLAGS := $(filter-out -fstack-protector, $(KBUILD_CFLAGS))
+
 KBUILD_CFLAGS := $(LINUXINCLUDE) $(KBUILD_CFLAGS) -D__KERNEL__ \
 	-DBOOT_HEAP_SIZE=$(BOOT_HEAP_SIZE) -D"VMLINUX_LOAD_ADDRESS_ULL=$(VMLINUX_LOAD_ADDRESS)ull"
 
 KBUILD_AFLAGS := $(LINUXINCLUDE) $(KBUILD_AFLAGS) -D__ASSEMBLY__ \
 	-DBOOT_HEAP_SIZE=$(BOOT_HEAP_SIZE) \
-	-DKERNEL_ENTRY=0x$(shell $(NM) $(objtree)/$(KBUILD_IMAGE) 2>/dev/null | grep " kernel_entry" | cut -f1 -d \ )
+	-DKERNEL_ENTRY=$(VMLINUX_ENTRY_ADDRESS)
 
 targets := head.o decompress.o dbg.o uart-16550.o uart-alchemy.o
 
@@ -51,7 +53,7 @@ $(obj)/vmlinux.bin.z: $(obj)/vmlinux.bin FORCE
 
 targets += piggy.o
 OBJCOPYFLAGS_piggy.o := --add-section=.image=$(obj)/vmlinux.bin.z \
-                        --set-section-flags=.image=contents,alloc,load,readonly,data
+			--set-section-flags=.image=contents,alloc,load,readonly,data
 $(obj)/piggy.o: $(obj)/dummy.o $(obj)/vmlinux.bin.z FORCE
 	$(call if_changed,objcopy)
 
@@ -67,9 +69,9 @@ endif
 
 vmlinuzobjs-y += $(obj)/piggy.o
 
-quiet_cmd_zld = LD      $@
+quiet_cmd_zld = LD	$@
       cmd_zld = $(LD) $(LDFLAGS) -Ttext $(VMLINUZ_LOAD_ADDRESS) -T $< $(vmlinuzobjs-y) -o $@
-quiet_cmd_strip = STRIP   $@
+quiet_cmd_strip = STRIP	  $@
       cmd_strip = $(STRIP) -s $@
 vmlinuz: $(src)/ld.script $(vmlinuzobjs-y) $(obj)/calc_vmlinuz_load_addr
 	$(call cmd,zld)
@@ -96,7 +98,7 @@ quiet_cmd_32 = OBJCOPY $@
 vmlinuz.32: vmlinuz
 	$(call cmd,32)
 
-quiet_cmd_ecoff = ECOFF   $@
+quiet_cmd_ecoff = ECOFF	  $@
       cmd_ecoff = $< $(VMLINUZ) $@ $(e2eflag)
 vmlinuz.ecoff: $(obj)/../elf2ecoff $(VMLINUZ)
 	$(call cmd,ecoff)

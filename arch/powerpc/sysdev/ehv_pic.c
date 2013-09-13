@@ -81,7 +81,7 @@ int ehv_pic_set_affinity(struct irq_data *d, const struct cpumask *dest,
 	ev_int_set_config(src, config, prio, cpuid);
 	spin_unlock_irqrestore(&ehv_pic_lock, flags);
 
-	return 0;
+	return IRQ_SET_MASK_OK;
 }
 
 static unsigned int ehv_pic_type_to_vecpri(unsigned int type)

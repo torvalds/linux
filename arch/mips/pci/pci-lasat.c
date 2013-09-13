@@ -51,15 +51,15 @@ static int __init lasat_pci_setup(void)
 
 arch_initcall(lasat_pci_setup);
 
-#define LASAT_IRQ_ETH1   (LASAT_IRQ_BASE + 0)
-#define LASAT_IRQ_ETH0   (LASAT_IRQ_BASE + 1)
-#define LASAT_IRQ_HDC    (LASAT_IRQ_BASE + 2)
-#define LASAT_IRQ_COMP   (LASAT_IRQ_BASE + 3)
-#define LASAT_IRQ_HDLC   (LASAT_IRQ_BASE + 4)
-#define LASAT_IRQ_PCIA   (LASAT_IRQ_BASE + 5)
-#define LASAT_IRQ_PCIB   (LASAT_IRQ_BASE + 6)
-#define LASAT_IRQ_PCIC   (LASAT_IRQ_BASE + 7)
-#define LASAT_IRQ_PCID   (LASAT_IRQ_BASE + 8)
+#define LASAT_IRQ_ETH1	 (LASAT_IRQ_BASE + 0)
+#define LASAT_IRQ_ETH0	 (LASAT_IRQ_BASE + 1)
+#define LASAT_IRQ_HDC	 (LASAT_IRQ_BASE + 2)
+#define LASAT_IRQ_COMP	 (LASAT_IRQ_BASE + 3)
+#define LASAT_IRQ_HDLC	 (LASAT_IRQ_BASE + 4)
+#define LASAT_IRQ_PCIA	 (LASAT_IRQ_BASE + 5)
+#define LASAT_IRQ_PCIB	 (LASAT_IRQ_BASE + 6)
+#define LASAT_IRQ_PCIC	 (LASAT_IRQ_BASE + 7)
+#define LASAT_IRQ_PCID	 (LASAT_IRQ_BASE + 8)
 
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
@@ -69,13 +69,13 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	case 3:
 		return LASAT_IRQ_PCIA + (((slot-1) + (pin-1)) % 4);
 	case 4:
-		return LASAT_IRQ_ETH1;   /* Ethernet 1 (LAN 2) */
+		return LASAT_IRQ_ETH1;	 /* Ethernet 1 (LAN 2) */
 	case 5:
-		return LASAT_IRQ_ETH0;   /* Ethernet 0 (LAN 1) */
+		return LASAT_IRQ_ETH0;	 /* Ethernet 0 (LAN 1) */
 	case 6:
-		return LASAT_IRQ_HDC;    /* IDE controller */
+		return LASAT_IRQ_HDC;	 /* IDE controller */
 	default:
-		return 0xff;            /* Illegal */
+		return 0xff;		/* Illegal */
 	}
 
 	return -1;

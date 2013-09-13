@@ -174,10 +174,13 @@ int rs400_gart_enable(struct radeon_device *rdev)
 	/* FIXME: according to doc we should set HIDE_MMCFG_BAR=0,
 	 * AGPMODE30=0 & AGP30ENHANCED=0 in NB_CNTL */
 	if ((rdev->family == CHIP_RS690) || (rdev->family == CHIP_RS740)) {
-		WREG32_MC(RS480_MC_MISC_CNTL,
-			  (RS480_GART_INDEX_REG_EN | RS690_BLOCK_GFX_D3_EN));
+		tmp = RREG32_MC(RS480_MC_MISC_CNTL);
+		tmp |= RS480_GART_INDEX_REG_EN | RS690_BLOCK_GFX_D3_EN;
+		WREG32_MC(RS480_MC_MISC_CNTL, tmp);
 	} else {
-		WREG32_MC(RS480_MC_MISC_CNTL, RS480_GART_INDEX_REG_EN);
+		tmp = RREG32_MC(RS480_MC_MISC_CNTL);
+		tmp |= RS480_GART_INDEX_REG_EN;
+		WREG32_MC(RS480_MC_MISC_CNTL, tmp);
 	}
 	/* Enable gart */
 	WREG32_MC(RS480_AGP_ADDRESS_SPACE_SIZE, (RS480_GART_EN | size_reg));
@@ -242,7 +245,7 @@ int rs400_mc_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
-void rs400_gpu_init(struct radeon_device *rdev)
+static void rs400_gpu_init(struct radeon_device *rdev)
 {
 	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
@@ -252,7 +255,7 @@ void rs400_gpu_init(struct radeon_device *rdev)
 	}
 }
 
-void rs400_mc_init(struct radeon_device *rdev)
+static void rs400_mc_init(struct radeon_device *rdev)
 {
 	u64 base;
 
@@ -370,7 +373,7 @@ static int rs400_debugfs_pcie_gart_info_init(struct radeon_device *rdev)
 #endif
 }
 
-void rs400_mc_program(struct radeon_device *rdev)
+static void rs400_mc_program(struct radeon_device *rdev)
 {
 	struct r100_mc_save save;
 
@@ -417,6 +420,12 @@ static int rs400_startup(struct radeon_device *rdev)
 	}
 
 	/* Enable IRQ */
+	if (!rdev->irq.installed) {
+		r = radeon_irq_kms_init(rdev);
+		if (r)
+			return r;
+	}
+
 	r100_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
@@ -533,9 +542,6 @@ int rs400_init(struct radeon_device *rdev)
 	rs400_mc_init(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
-	if (r)
-		return r;
-	r = radeon_irq_kms_init(rdev);
 	if (r)
 		return r;
 	/* Memory manager */

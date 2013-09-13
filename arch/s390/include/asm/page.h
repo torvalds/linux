@@ -30,21 +30,17 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
+void storage_key_init_range(unsigned long start, unsigned long end);
+
 static inline void clear_page(void *page)
 {
-	if (MACHINE_HAS_PFMF) {
-		asm volatile(
-			"	.insn	rre,0xb9af0000,%0,%1"
-			: : "d" (0x10000), "a" (page) : "memory", "cc");
-	} else {
-		register unsigned long reg1 asm ("1") = 0;
-		register void *reg2 asm ("2") = page;
-		register unsigned long reg3 asm ("3") = 4096;
-		asm volatile(
-			"	mvcl	2,0"
-			: "+d" (reg2), "+d" (reg3) : "d" (reg1)
-			: "memory", "cc");
-	}
+	register unsigned long reg1 asm ("1") = 0;
+	register void *reg2 asm ("2") = page;
+	register unsigned long reg3 asm ("3") = 4096;
+	asm volatile(
+		"	mvcl	2,0"
+		: "+d" (reg2), "+d" (reg3) : "d" (reg1)
+		: "memory", "cc");
 }
 
 static inline void copy_page(void *to, void *from)
@@ -143,34 +139,6 @@ static inline int page_reset_referenced(unsigned long addr)
 #define _PAGE_REFERENCED	0x04	/* HW referenced bit		*/
 #define _PAGE_FP_BIT		0x08	/* HW fetch protection bit	*/
 #define _PAGE_ACC_BITS		0xf0	/* HW access control bits	*/
-
-/*
- * Test and clear dirty bit in storage key.
- * We can't clear the changed bit atomically. This is a potential
- * race against modification of the referenced bit. This function
- * should therefore only be called if it is not mapped in any
- * address space.
- */
-#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
-static inline int page_test_and_clear_dirty(unsigned long pfn, int mapped)
-{
-	unsigned char skey;
-
-	skey = page_get_storage_key(pfn << PAGE_SHIFT);
-	if (!(skey & _PAGE_CHANGED))
-		return 0;
-	page_set_storage_key(pfn << PAGE_SHIFT, skey & ~_PAGE_CHANGED, mapped);
-	return 1;
-}
-
-/*
- * Test and clear referenced bit in storage key.
- */
-#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
-static inline int page_test_and_clear_young(unsigned long pfn)
-{
-	return page_reset_referenced(pfn << PAGE_SHIFT);
-}
 
 struct page;
 void arch_free_page(struct page *page, int order);

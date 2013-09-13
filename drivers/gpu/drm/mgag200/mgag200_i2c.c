@@ -28,8 +28,7 @@
 #include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
 
 #include "mgag200_drv.h"
 
@@ -93,6 +92,7 @@ struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev)
 	int ret;
 	int data, clock;
 
+	WREG_DAC(MGA1064_GEN_IO_CTL2, 1);
 	WREG_DAC(MGA1064_GEN_IO_DATA, 0xff);
 	WREG_DAC(MGA1064_GEN_IO_CTL, 0);
 

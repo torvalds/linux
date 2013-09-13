@@ -133,6 +133,8 @@ struct adau1373 {
 #define ADAU1373_DAI_FORMAT_DSP		0x3
 
 #define ADAU1373_BCLKDIV_SOURCE		BIT(5)
+#define ADAU1373_BCLKDIV_SR_MASK	(0x07 << 2)
+#define ADAU1373_BCLKDIV_BCLK_MASK	0x03
 #define ADAU1373_BCLKDIV_32		0x03
 #define ADAU1373_BCLKDIV_64		0x02
 #define ADAU1373_BCLKDIV_128		0x01
@@ -937,7 +939,8 @@ static int adau1373_hw_params(struct snd_pcm_substream *substream,
 	adau1373_dai->enable_src = (div != 0);
 
 	snd_soc_update_bits(codec, ADAU1373_BCLKDIV(dai->id),
-		~ADAU1373_BCLKDIV_SOURCE, (div << 2) | ADAU1373_BCLKDIV_64);
+		ADAU1373_BCLKDIV_SR_MASK | ADAU1373_BCLKDIV_BCLK_MASK,
+		(div << 2) | ADAU1373_BCLKDIV_64);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -1353,8 +1356,8 @@ static struct snd_soc_codec_driver adau1373_codec_driver = {
 	.num_dapm_routes = ARRAY_SIZE(adau1373_dapm_routes),
 };
 
-static int __devinit adau1373_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int adau1373_i2c_probe(struct i2c_client *client,
+			      const struct i2c_device_id *id)
 {
 	struct adau1373 *adau1373;
 	int ret;
@@ -1370,7 +1373,7 @@ static int __devinit adau1373_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int __devexit adau1373_i2c_remove(struct i2c_client *client)
+static int adau1373_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1388,21 +1391,11 @@ static struct i2c_driver adau1373_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adau1373_i2c_probe,
-	.remove = __devexit_p(adau1373_i2c_remove),
+	.remove = adau1373_i2c_remove,
 	.id_table = adau1373_i2c_id,
 };
 
-static int __init adau1373_init(void)
-{
-	return i2c_add_driver(&adau1373_i2c_driver);
-}
-module_init(adau1373_init);
-
-static void __exit adau1373_exit(void)
-{
-	i2c_del_driver(&adau1373_i2c_driver);
-}
-module_exit(adau1373_exit);
+module_i2c_driver(adau1373_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC ADAU1373 driver");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");

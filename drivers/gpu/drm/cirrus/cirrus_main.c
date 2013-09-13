@@ -8,9 +8,8 @@
  * Authors: Matthew Garrett
  *          Dave Airlie
  */
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "cirrus_drv.h"
 
@@ -24,16 +23,8 @@ static void cirrus_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	kfree(fb);
 }
 
-static int cirrus_user_framebuffer_create_handle(struct drm_framebuffer *fb,
-						 struct drm_file *file_priv,
-						 unsigned int *handle)
-{
-	return 0;
-}
-
 static const struct drm_framebuffer_funcs cirrus_fb_funcs = {
 	.destroy = cirrus_user_framebuffer_destroy,
-	.create_handle = cirrus_user_framebuffer_create_handle,
 };
 
 int cirrus_framebuffer_init(struct drm_device *dev,
@@ -43,13 +34,13 @@ int cirrus_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 
+	drm_helper_mode_fill_fb_struct(&gfb->base, mode_cmd);
+	gfb->obj = obj;
 	ret = drm_framebuffer_init(dev, &gfb->base, &cirrus_fb_funcs);
 	if (ret) {
 		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);
 		return ret;
 	}
-	drm_helper_mode_fill_fb_struct(&gfb->base, mode_cmd);
-	gfb->obj = obj;
 	return 0;
 }
 
@@ -264,13 +255,6 @@ int cirrus_dumb_create(struct drm_file *file,
 	return 0;
 }
 
-int cirrus_dumb_destroy(struct drm_file *file,
-		     struct drm_device *dev,
-		     uint32_t handle)
-{
-	return drm_gem_handle_delete(file, handle);
-}
-
 int cirrus_gem_init_object(struct drm_gem_object *obj)
 {
 	BUG();
@@ -303,7 +287,7 @@ void cirrus_gem_free_object(struct drm_gem_object *obj)
 
 static inline u64 cirrus_bo_mmap_offset(struct cirrus_bo *bo)
 {
-	return bo->bo.addr_space_offset;
+	return drm_vma_node_offset_addr(&bo->bo.vma_node);
 }
 
 int

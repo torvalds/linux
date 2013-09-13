@@ -44,10 +44,6 @@ static void __init glantank_timer_init(void)
 	iop_init_time(200000000);
 }
 
-static struct sys_timer glantank_timer = {
-	.init		= glantank_timer_init,
-};
-
 
 /*
  * GLAN Tank I/O.
@@ -183,7 +179,7 @@ static struct i2c_board_info __initdata glantank_i2c_devices[] = {
 
 static void glantank_power_off(void)
 {
-	__raw_writeb(0x01, 0xfe8d0004);
+	__raw_writeb(0x01, IOMEM(0xfe8d0004));
 
 	while (1)
 		;
@@ -209,7 +205,7 @@ MACHINE_START(GLANTANK, "GLAN Tank")
 	.atag_offset	= 0x100,
 	.map_io		= glantank_map_io,
 	.init_irq	= iop32x_init_irq,
-	.timer		= &glantank_timer,
+	.init_time	= glantank_timer_init,
 	.init_machine	= glantank_init_machine,
 	.restart	= iop3xx_restart,
 MACHINE_END

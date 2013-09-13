@@ -2,10 +2,13 @@
 
 The Samsung's Watchdog controller is used for resuming system operation
 after a preset amount of time during which the WDT reset event has not
-occured.
+occurred.
 
 Required properties:
 - compatible : should be "samsung,s3c2410-wdt"
 - reg : base physical address of the controller and length of memory mapped
 	region.
 - interrupts : interrupt number to the cpu.
+
+Optional properties:
+- timeout-sec : contains the watchdog timeout in seconds.

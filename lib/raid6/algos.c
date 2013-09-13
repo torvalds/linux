@@ -45,11 +45,20 @@ const struct raid6_calls * const raid6_algos[] = {
 	&raid6_sse1x2,
 	&raid6_sse2x1,
 	&raid6_sse2x2,
+#ifdef CONFIG_AS_AVX2
+	&raid6_avx2x1,
+	&raid6_avx2x2,
+#endif
 #endif
 #if defined(__x86_64__) && !defined(__arch_um__)
 	&raid6_sse2x1,
 	&raid6_sse2x2,
 	&raid6_sse2x4,
+#ifdef CONFIG_AS_AVX2
+	&raid6_avx2x1,
+	&raid6_avx2x2,
+	&raid6_avx2x4,
+#endif
 #endif
 #ifdef CONFIG_ALTIVEC
 	&raid6_altivec1,
@@ -57,10 +66,19 @@ const struct raid6_calls * const raid6_algos[] = {
 	&raid6_altivec4,
 	&raid6_altivec8,
 #endif
+#if defined(CONFIG_TILEGX)
+	&raid6_tilegx8,
+#endif
 	&raid6_intx1,
 	&raid6_intx2,
 	&raid6_intx4,
 	&raid6_intx8,
+#ifdef CONFIG_KERNEL_MODE_NEON
+	&raid6_neonx1,
+	&raid6_neonx2,
+	&raid6_neonx4,
+	&raid6_neonx8,
+#endif
 	NULL
 };
 
@@ -72,6 +90,9 @@ EXPORT_SYMBOL_GPL(raid6_datap_recov);
 
 const struct raid6_recov_calls *const raid6_recov_algos[] = {
 #if (defined(__i386__) || defined(__x86_64__)) && !defined(__arch_um__)
+#ifdef CONFIG_AS_AVX2
+	&raid6_recov_avx2,
+#endif
 	&raid6_recov_ssse3,
 #endif
 	&raid6_recov_intx1,

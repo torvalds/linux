@@ -29,6 +29,7 @@
 #include <linux/average.h>
 #include <linux/leds.h>
 #include <net/mac80211.h>
+#include <net/cfg80211.h>
 
 /* RX/TX descriptor hw structs
  * TODO: Driver part should only see sw structs */
@@ -1331,7 +1332,6 @@ struct ath5k_hw {
 	unsigned int		nexttbtt;	/* next beacon time in TU */
 	struct ath5k_txq	*cabq;		/* content after beacon */
 
-	int			power_level;	/* Requested tx power in dBm */
 	bool			assoc;		/* associate state */
 	bool			enable_beacon;	/* true if beacons are on */
 
@@ -1425,6 +1425,7 @@ struct ath5k_hw {
 		/* Value in dB units */
 		s16		txp_cck_ofdm_pwr_delta;
 		bool		txp_setup;
+		int		txp_requested;	/* Requested tx power in dBm */
 	} ah_txpower;
 
 	struct ath5k_nfcal_hist ah_nfcal_hist;
@@ -1523,7 +1524,8 @@ int ath5k_hw_dma_stop(struct ath5k_hw *ah);
 /* EEPROM access functions */
 int ath5k_eeprom_init(struct ath5k_hw *ah);
 void ath5k_eeprom_detach(struct ath5k_hw *ah);
-
+int ath5k_eeprom_mode_from_channel(struct ath5k_hw *ah,
+		struct ieee80211_channel *channel);
 
 /* Protocol Control Unit Functions */
 /* Helpers */

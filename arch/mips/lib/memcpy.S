@@ -156,15 +156,15 @@
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 #define LDFIRST LOADR
-#define LDREST  LOADL
+#define LDREST	LOADL
 #define STFIRST STORER
-#define STREST  STOREL
+#define STREST	STOREL
 #define SHIFT_DISCARD SLLV
 #else
 #define LDFIRST LOADL
-#define LDREST  LOADR
+#define LDREST	LOADR
 #define STFIRST STOREL
-#define STREST  STORER
+#define STREST	STORER
 #define SHIFT_DISCARD SRLV
 #endif
 
@@ -235,7 +235,7 @@ __copy_user_common:
 	 * src and dst are aligned; need to compute rem
 	 */
 .Lboth_aligned:
-	 SRL	t0, len, LOG_NBYTES+3    # +3 for 8 units/iter
+	 SRL	t0, len, LOG_NBYTES+3	 # +3 for 8 units/iter
 	beqz	t0, .Lcleanup_both_aligned # len < 8*NBYTES
 	 and	rem, len, (8*NBYTES-1)	 # rem = len % (8*NBYTES)
 	PREF(	0, 3*32(src) )
@@ -313,7 +313,7 @@ EXC(	STORE	t0, 0(dst),		.Ls_exc_p1u)
 	/*
 	 * src and dst are aligned, need to copy rem bytes (rem < NBYTES)
 	 * A loop would do only a byte at a time with possible branch
-	 * mispredicts.  Can't do an explicit LOAD dst,mask,or,STORE
+	 * mispredicts.	 Can't do an explicit LOAD dst,mask,or,STORE
 	 * because can't assume read-access to dst.  Instead, use
 	 * STREST dst, which doesn't require read access to dst.
 	 *
@@ -327,7 +327,7 @@ EXC(	STORE	t0, 0(dst),		.Ls_exc_p1u)
 	li	bits, 8*NBYTES
 	SLL	rem, len, 3	# rem = number of bits to keep
 EXC(	LOAD	t0, 0(src),		.Ll_exc)
-	SUB	bits, bits, rem	# bits = number of bits to discard
+	SUB	bits, bits, rem # bits = number of bits to discard
 	SHIFT_DISCARD t0, t0, bits
 EXC(	STREST	t0, -1(t1),		.Ls_exc)
 	jr	ra
@@ -343,7 +343,7 @@ EXC(	STREST	t0, -1(t1),		.Ls_exc)
 	 * Set match = (src and dst have same alignment)
 	 */
 #define match rem
-EXC(	LDFIRST	t3, FIRST(0)(src),	.Ll_exc)
+EXC(	LDFIRST t3, FIRST(0)(src),	.Ll_exc)
 	ADD	t2, zero, NBYTES
 EXC(	LDREST	t3, REST(0)(src),	.Ll_exc_copy)
 	SUB	t2, t2, t1	# t2 = number of bytes copied
@@ -357,10 +357,10 @@ EXC(	STFIRST t3, FIRST(0)(dst),	.Ls_exc)
 	 ADD	src, src, t2
 
 .Lsrc_unaligned_dst_aligned:
-	SRL	t0, len, LOG_NBYTES+2    # +2 for 4 units/iter
+	SRL	t0, len, LOG_NBYTES+2	 # +2 for 4 units/iter
 	PREF(	0, 3*32(src) )
 	beqz	t0, .Lcleanup_src_unaligned
-	 and	rem, len, (4*NBYTES-1)   # rem = len % 4*NBYTES
+	 and	rem, len, (4*NBYTES-1)	 # rem = len % 4*NBYTES
 	PREF(	1, 3*32(dst) )
 1:
 /*
@@ -370,13 +370,13 @@ EXC(	STFIRST t3, FIRST(0)(dst),	.Ls_exc)
  * are to the same unit (unless src is aligned, but it's not).
  */
 	R10KCBARRIER(0(ra))
-EXC(	LDFIRST	t0, FIRST(0)(src),	.Ll_exc)
-EXC(	LDFIRST	t1, FIRST(1)(src),	.Ll_exc_copy)
-	SUB     len, len, 4*NBYTES
+EXC(	LDFIRST t0, FIRST(0)(src),	.Ll_exc)
+EXC(	LDFIRST t1, FIRST(1)(src),	.Ll_exc_copy)
+	SUB	len, len, 4*NBYTES
 EXC(	LDREST	t0, REST(0)(src),	.Ll_exc_copy)
 EXC(	LDREST	t1, REST(1)(src),	.Ll_exc_copy)
-EXC(	LDFIRST	t2, FIRST(2)(src),	.Ll_exc_copy)
-EXC(	LDFIRST	t3, FIRST(3)(src),	.Ll_exc_copy)
+EXC(	LDFIRST t2, FIRST(2)(src),	.Ll_exc_copy)
+EXC(	LDFIRST t3, FIRST(3)(src),	.Ll_exc_copy)
 EXC(	LDREST	t2, REST(2)(src),	.Ll_exc_copy)
 EXC(	LDREST	t3, REST(3)(src),	.Ll_exc_copy)
 	PREF(	0, 9*32(src) )		# 0 is PREF_LOAD  (not streamed)
@@ -388,7 +388,7 @@ EXC(	STORE	t0, UNIT(0)(dst),	.Ls_exc_p4u)
 EXC(	STORE	t1, UNIT(1)(dst),	.Ls_exc_p3u)
 EXC(	STORE	t2, UNIT(2)(dst),	.Ls_exc_p2u)
 EXC(	STORE	t3, UNIT(3)(dst),	.Ls_exc_p1u)
-	PREF(	1, 9*32(dst) )     	# 1 is PREF_STORE (not streamed)
+	PREF(	1, 9*32(dst) )		# 1 is PREF_STORE (not streamed)
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, 4*NBYTES
 	bne	len, rem, 1b
@@ -502,7 +502,7 @@ EXC(	lb	t1, 0(src),	.Ll_exc)
 
 
 #define SEXC(n)							\
-	.set	reorder;			/* DADDI_WAR */	\
+	.set	reorder;			/* DADDI_WAR */ \
 .Ls_exc_p ## n ## u:						\
 	ADD	len, len, n*NBYTES;				\
 	jr	ra;						\

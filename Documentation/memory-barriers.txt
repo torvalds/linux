@@ -251,12 +251,13 @@ And there are a number of things that _must_ or _must_not_ be assumed:
 
      And for:
 
-	*A = X; Y = *A;
+	*A = X; *(A + 4) = Y;
 
-     we may get either of:
+     we may get any of:
 
-	STORE *A = X; Y = LOAD *A;
-	STORE *A = Y = X;
+	STORE *A = X; STORE *(A + 4) = Y;
+	STORE *(A + 4) = Y; STORE *A = X;
+	STORE {*A, *(A + 4) } = {X, Y};
 
 
 =========================
@@ -530,9 +531,10 @@ dependency barrier to make it work correctly.  Consider the following bit of
 code:
 
 	q = &a;
-	if (p)
+	if (p) {
+		<data dependency barrier>
 		q = &b;
-	<data dependency barrier>
+	}
 	x = *q;
 
 This will not have the desired effect because there is no actual data
@@ -541,9 +543,10 @@ attempting to predict the outcome in advance.  In such a case what's actually
 required is:
 
 	q = &a;
-	if (p)
+	if (p) {
+		<read barrier>
 		q = &b;
-	<read barrier>
+	}
 	x = *q;
 
 
@@ -1684,6 +1687,7 @@ explicit lock operations, described later).  These include:
 
 	xchg();
 	cmpxchg();
+	atomic_xchg();
 	atomic_cmpxchg();
 	atomic_inc_return();
 	atomic_dec_return();

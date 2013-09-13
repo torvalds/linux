@@ -29,6 +29,8 @@
 #endif				/* PRINTK_HEADER */
 #define PRINTK_HEADER "dasd(fba):"
 
+#define FBA_DEFAULT_RETRIES 32
+
 #define DASD_FBA_CCW_WRITE 0x41
 #define DASD_FBA_CCW_READ 0x42
 #define DASD_FBA_CCW_LOCATE 0x43
@@ -78,7 +80,7 @@ static struct ccw_driver dasd_fba_driver = {
 	.freeze      = dasd_generic_pm_freeze,
 	.thaw	     = dasd_generic_restore_device,
 	.restore     = dasd_generic_restore_device,
-	.int_class   = IOINT_DAS,
+	.int_class   = IRQIO_DAS,
 };
 
 static void
@@ -167,6 +169,7 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	}
 
 	device->default_expires = DASD_EXPIRES;
+	device->default_retries = FBA_DEFAULT_RETRIES;
 	device->path_data.opm = LPM_ANYPATH;
 
 	readonly = dasd_device_is_ro(device);
@@ -369,8 +372,8 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 	cqr->memdev = memdev;
 	cqr->block = block;
 	cqr->expires = memdev->default_expires * HZ;	/* default 5 minutes */
-	cqr->retries = 32;
-	cqr->buildclk = get_clock();
+	cqr->retries = memdev->default_retries;
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 }
@@ -425,7 +428,10 @@ out:
 
 static void dasd_fba_handle_terminated_request(struct dasd_ccw_req *cqr)
 {
-	cqr->status = DASD_CQR_FILLED;
+	if (cqr->retries < 0)
+		cqr->status = DASD_CQR_FAILED;
+	else
+		cqr->status = DASD_CQR_FILLED;
 };
 
 static int
@@ -479,19 +485,19 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 			    "No memory to dump sense data");
 		return;
 	}
-	len = sprintf(page, KERN_ERR PRINTK_HEADER
+	len = sprintf(page, PRINTK_HEADER
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
-	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+	len += sprintf(page + len, PRINTK_HEADER
 		       " in req: %p CS: 0x%02X DS: 0x%02X\n", req,
 		       irb->scsw.cmd.cstat, irb->scsw.cmd.dstat);
-	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+	len += sprintf(page + len, PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       dev_name(&device->cdev->dev),
 		       (void *) (addr_t) irb->scsw.cmd.cpa);
 	if (irb->esw.esw0.erw.cons) {
 		for (sl = 0; sl < 4; sl++) {
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+			len += sprintf(page + len, PRINTK_HEADER
 				       " Sense(hex) %2d-%2d:",
 				       (8 * sl), ((8 * sl) + 7));
 
@@ -502,7 +508,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 			len += sprintf(page + len, "\n");
 		}
 	} else {
-	        len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " SORRY - NO VALID SENSE AVAILABLE\n");
 	}
 	printk(KERN_ERR "%s", page);
@@ -512,10 +518,9 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 	act = req->cpaddr;
         for (last = act; last->flags & (CCW_FLAG_CC | CCW_FLAG_DC); last++);
 	end = min(act + 8, last);
-	len = sprintf(page, KERN_ERR PRINTK_HEADER
-		      " Related CP in req: %p\n", req);
+	len = sprintf(page, PRINTK_HEADER " Related CP in req: %p\n", req);
 	while (act <= end) {
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " CCW %p: %08X %08X DAT:",
 			       act, ((int *) act)[0], ((int *) act)[1]);
 		for (count = 0; count < 32 && count < act->count;
@@ -533,11 +538,11 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 	len = 0;
 	if (act <  ((struct ccw1 *)(addr_t) irb->scsw.cmd.cpa) - 2) {
 		act = ((struct ccw1 *)(addr_t) irb->scsw.cmd.cpa) - 2;
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER "......\n");
+		len += sprintf(page + len, PRINTK_HEADER "......\n");
 	}
 	end = min((struct ccw1 *)(addr_t) irb->scsw.cmd.cpa + 2, last);
 	while (act <= end) {
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " CCW %p: %08X %08X DAT:",
 			       act, ((int *) act)[0], ((int *) act)[1]);
 		for (count = 0; count < 32 && count < act->count;
@@ -552,10 +557,10 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 	/* print last CCWs */
 	if (act <  last - 2) {
 		act = last - 2;
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER "......\n");
+		len += sprintf(page + len, PRINTK_HEADER "......\n");
 	}
 	while (act <= last) {
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " CCW %p: %08X %08X DAT:",
 			       act, ((int *) act)[0], ((int *) act)[1]);
 		for (count = 0; count < 32 && count < act->count;

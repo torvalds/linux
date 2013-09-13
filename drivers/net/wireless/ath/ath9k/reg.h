@@ -789,6 +789,7 @@
 #define AR_SREV_REVISION_9271_11	1
 #define AR_SREV_VERSION_9300		0x1c0
 #define AR_SREV_REVISION_9300_20	2 /* 2.0 and 2.1 */
+#define AR_SREV_REVISION_9300_22	3
 #define AR_SREV_VERSION_9330		0x200
 #define AR_SREV_REVISION_9330_10	0
 #define AR_SREV_REVISION_9330_11	1
@@ -797,10 +798,17 @@
 #define AR_SREV_REVISION_9485_10	0
 #define AR_SREV_REVISION_9485_11        1
 #define AR_SREV_VERSION_9340		0x300
+#define AR_SREV_REVISION_9340_10	0
+#define AR_SREV_REVISION_9340_11	1
+#define AR_SREV_REVISION_9340_12	2
+#define AR_SREV_REVISION_9340_13	3
 #define AR_SREV_VERSION_9580		0x1C0
 #define AR_SREV_REVISION_9580_10	4 /* AR9580 1.0 */
 #define AR_SREV_VERSION_9462		0x280
 #define AR_SREV_REVISION_9462_20	2
+#define AR_SREV_REVISION_9462_21	3
+#define AR_SREV_VERSION_9565            0x2C0
+#define AR_SREV_REVISION_9565_10        0
 #define AR_SREV_VERSION_9550		0x400
 
 #define AR_SREV_5416(_ah) \
@@ -867,6 +875,9 @@
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9300))
 #define AR_SREV_9300_20_OR_LATER(_ah) \
 	((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9300)
+#define AR_SREV_9300_22(_ah) \
+	(AR_SREV_9300(ah) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9300_22))
 
 #define AR_SREV_9330(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9330))
@@ -882,17 +893,18 @@
 
 #define AR_SREV_9485(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9485))
-#define AR_SREV_9485_10(_ah) \
-	(AR_SREV_9485(_ah) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9485_10))
-#define AR_SREV_9485_11(_ah) \
-	(AR_SREV_9485(_ah) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9485_11))
+#define AR_SREV_9485_11_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9485) && \
+	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9485_11))
 #define AR_SREV_9485_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9485))
 
 #define AR_SREV_9340(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9340))
+
+#define AR_SREV_9340_13_OR_LATER(_ah) \
+	(AR_SREV_9340((_ah)) && \
+	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9340_13))
 
 #define AR_SREV_9285E_20(_ah) \
     (AR_SREV_9285_12_OR_LATER(_ah) && \
@@ -900,14 +912,25 @@
 
 #define AR_SREV_9462(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462))
-
 #define AR_SREV_9462_20(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
-	((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_20))
-
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_20))
+#define AR_SREV_9462_21(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_21))
 #define AR_SREV_9462_20_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
-	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9462_20))
+	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9462_20))
+#define AR_SREV_9462_21_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
+	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9462_21))
+
+#define AR_SREV_9565(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565))
+
+#define AR_SREV_9565_10(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9565_10))
 
 #define AR_SREV_9550(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9550))
@@ -1000,6 +1023,8 @@ enum {
 				AR_INTR_SYNC_RADM_CPL_TIMEOUT |
 				AR_INTR_SYNC_LOCAL_TIMEOUT |
 				AR_INTR_SYNC_MAC_SLEEP_ACCESS),
+
+	AR9340_INTR_SYNC_LOCAL_TIMEOUT = 0x00000010,
 
 	AR_INTR_SYNC_SPURIOUS = 0xFFFFFFFF,
 
@@ -1487,9 +1512,6 @@ enum {
 #define AR9271_RADIO_RF_RST			0x20
 #define AR9271_GATE_MAC_CTL			0x4000
 
-#define AR_STA_ID0                 0x8000
-#define AR_STA_ID1                 0x8004
-#define AR_STA_ID1_SADH_MASK       0x0000FFFF
 #define AR_STA_ID1_STA_AP          0x00010000
 #define AR_STA_ID1_ADHOC           0x00020000
 #define AR_STA_ID1_PWR_SAV         0x00040000
@@ -1878,6 +1900,7 @@ enum {
 #define AR_PCU_TXBUF_CTRL_SIZE_MASK     0x7FF
 #define AR_PCU_TXBUF_CTRL_USABLE_SIZE   0x700
 #define AR_9285_PCU_TXBUF_CTRL_USABLE_SIZE   0x380
+#define AR_9340_PCU_TXBUF_CTRL_USABLE_SIZE   0x500
 
 #define AR_PCU_MISC_MODE2               0x8344
 #define AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE           0x00000002
@@ -2306,6 +2329,8 @@ enum {
 #define AR_BTCOEX_MAX_TXPWR(_x)				(0x18c0 + ((_x) << 2))
 #define AR_BTCOEX_WL_LNA				0x1940
 #define AR_BTCOEX_RFGAIN_CTRL				0x1944
+#define AR_BTCOEX_WL_LNA_TIMEOUT			0x003FFFFF
+#define AR_BTCOEX_WL_LNA_TIMEOUT_S			0
 
 #define AR_BTCOEX_CTRL2					0x1948
 #define AR_BTCOEX_CTRL2_TXPWR_THRESH			0x0007F800
@@ -2350,5 +2375,12 @@ enum {
 
 #define AR_GLB_SWREG_DISCONT_MODE         0x2002c
 #define AR_GLB_SWREG_DISCONT_EN_BT_WLAN   0x3
+
+#define AR_MCI_MISC                    0x1a74
+#define AR_MCI_MISC_HW_FIX_EN          0x00000001
+#define AR_MCI_MISC_HW_FIX_EN_S        0
+#define AR_MCI_DBG_CNT_CTRL            0x1a78
+#define AR_MCI_DBG_CNT_CTRL_ENABLE     0x00000001
+#define AR_MCI_DBG_CNT_CTRL_ENABLE_S   0
 
 #endif

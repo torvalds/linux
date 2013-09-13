@@ -21,10 +21,13 @@
 #include <asm/suspend.h>
 #include <asm/unified.h>
 #include <asm/cpuidle.h>
+#include <mach/regs-clock.h>
 #include <mach/regs-pmu.h>
-#include <mach/pmu.h>
 
 #include <plat/cpu.h>
+#include <plat/pm.h>
+
+#include "common.h"
 
 #define REG_DIRECTGO_ADDR	(samsung_rev() == EXYNOS4210_REV_1_1 ? \
 			S5P_INFORM7 : (samsung_rev() == EXYNOS4210_REV_1_0 ? \
@@ -39,24 +42,24 @@ static int exynos4_enter_lowpower(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index);
 
-static struct cpuidle_state exynos4_cpuidle_set[] __initdata = {
-	[0] = ARM_CPUIDLE_WFI_STATE,
-	[1] = {
-		.enter			= exynos4_enter_lowpower,
-		.exit_latency		= 300,
-		.target_residency	= 100000,
-		.flags			= CPUIDLE_FLAG_TIME_VALID,
-		.name			= "C1",
-		.desc			= "ARM power down",
-	},
-};
-
 static DEFINE_PER_CPU(struct cpuidle_device, exynos4_cpuidle_device);
 
 static struct cpuidle_driver exynos4_idle_driver = {
 	.name			= "exynos4_idle",
 	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
+	.states = {
+		[0] = ARM_CPUIDLE_WFI_STATE,
+		[1] = {
+			.enter			= exynos4_enter_lowpower,
+			.exit_latency		= 300,
+			.target_residency	= 100000,
+			.flags			= CPUIDLE_FLAG_TIME_VALID,
+			.name			= "C1",
+			.desc			= "ARM power down",
+		},
+	},
+	.state_count = 2,
+	.safe_state_index = 0,
 };
 
 /* Ext-GIC nIRQ/nFIQ is the only wakeup source in AFTR */
@@ -116,7 +119,8 @@ static int exynos4_enter_core0_aftr(struct cpuidle_device *dev,
 	cpu_suspend(0, idle_finisher);
 
 #ifdef CONFIG_SMP
-	scu_enable(S5P_VA_SCU);
+	if (!soc_is_exynos5250())
+		scu_enable(S5P_VA_SCU);
 #endif
 	cpu_pm_exit();
 
@@ -156,36 +160,67 @@ static int exynos4_enter_lowpower(struct cpuidle_device *dev,
 		return exynos4_enter_core0_aftr(dev, drv, new_index);
 }
 
+static void __init exynos5_core_down_clk(void)
+{
+	unsigned int tmp;
+
+	/*
+	 * Enable arm clock down (in idle) and set arm divider
+	 * ratios in WFI/WFE state.
+	 */
+	tmp = PWR_CTRL1_CORE2_DOWN_RATIO | \
+	      PWR_CTRL1_CORE1_DOWN_RATIO | \
+	      PWR_CTRL1_DIV2_DOWN_EN	 | \
+	      PWR_CTRL1_DIV1_DOWN_EN	 | \
+	      PWR_CTRL1_USE_CORE1_WFE	 | \
+	      PWR_CTRL1_USE_CORE0_WFE	 | \
+	      PWR_CTRL1_USE_CORE1_WFI	 | \
+	      PWR_CTRL1_USE_CORE0_WFI;
+	__raw_writel(tmp, EXYNOS5_PWR_CTRL1);
+
+	/*
+	 * Enable arm clock up (on exiting idle). Set arm divider
+	 * ratios when not in idle along with the standby duration
+	 * ratios.
+	 */
+	tmp = PWR_CTRL2_DIV2_UP_EN	 | \
+	      PWR_CTRL2_DIV1_UP_EN	 | \
+	      PWR_CTRL2_DUR_STANDBY2_VAL | \
+	      PWR_CTRL2_DUR_STANDBY1_VAL | \
+	      PWR_CTRL2_CORE2_UP_RATIO	 | \
+	      PWR_CTRL2_CORE1_UP_RATIO;
+	__raw_writel(tmp, EXYNOS5_PWR_CTRL2);
+}
+
 static int __init exynos4_init_cpuidle(void)
 {
-	int i, max_cpuidle_state, cpu_id;
+	int cpu_id, ret;
 	struct cpuidle_device *device;
-	struct cpuidle_driver *drv = &exynos4_idle_driver;
 
-	/* Setup cpuidle driver */
-	drv->state_count = (sizeof(exynos4_cpuidle_set) /
-				       sizeof(struct cpuidle_state));
-	max_cpuidle_state = drv->state_count;
-	for (i = 0; i < max_cpuidle_state; i++) {
-		memcpy(&drv->states[i], &exynos4_cpuidle_set[i],
-				sizeof(struct cpuidle_state));
+	if (soc_is_exynos5250())
+		exynos5_core_down_clk();
+
+	if (soc_is_exynos5440())
+		exynos4_idle_driver.state_count = 1;
+
+	ret = cpuidle_register_driver(&exynos4_idle_driver);
+	if (ret) {
+		printk(KERN_ERR "CPUidle failed to register driver\n");
+		return ret;
 	}
-	drv->safe_state_index = 0;
-	cpuidle_register_driver(&exynos4_idle_driver);
 
-	for_each_cpu(cpu_id, cpu_online_mask) {
+	for_each_online_cpu(cpu_id) {
 		device = &per_cpu(exynos4_cpuidle_device, cpu_id);
 		device->cpu = cpu_id;
 
-		if (cpu_id == 0)
-			device->state_count = (sizeof(exynos4_cpuidle_set) /
-					       sizeof(struct cpuidle_state));
-		else
-			device->state_count = 1;	/* Support IDLE only */
+		/* Support IDLE only */
+		if (cpu_id != 0)
+			device->state_count = 1;
 
-		if (cpuidle_register_device(device)) {
-			printk(KERN_ERR "CPUidle register device failed\n,");
-			return -EIO;
+		ret = cpuidle_register_device(device);
+		if (ret) {
+			printk(KERN_ERR "CPUidle register device failed\n");
+			return ret;
 		}
 	}
 

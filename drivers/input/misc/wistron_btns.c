@@ -46,7 +46,6 @@
 MODULE_AUTHOR("Miloslav Trmac <mitr@volny.cz>");
 MODULE_DESCRIPTION("Wistron laptop button driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.3");
 
 static bool force; /* = 0; */
 module_param(force, bool, 0);
@@ -170,7 +169,7 @@ static u16 bios_pop_queue(void)
 	return regs.eax;
 }
 
-static void __devinit bios_attach(void)
+static void bios_attach(void)
 {
 	struct regs regs;
 
@@ -190,7 +189,7 @@ static void bios_detach(void)
 	call_bios(&regs);
 }
 
-static u8 __devinit bios_get_cmos_address(void)
+static u8 bios_get_cmos_address(void)
 {
 	struct regs regs;
 
@@ -202,7 +201,7 @@ static u8 __devinit bios_get_cmos_address(void)
 	return regs.ecx;
 }
 
-static u16 __devinit bios_get_default_setting(u8 subsys)
+static u16 bios_get_default_setting(u8 subsys)
 {
 	struct regs regs;
 
@@ -563,7 +562,7 @@ static struct key_entry keymap_wistron_md96500[] __initdata = {
 	{ KE_KEY, 0x36, {KEY_WWW} },
 	{ KE_WIFI, 0x30 },
 	{ KE_BLUETOOTH, 0x44 },
-	{ KE_END, FE_UNTESTED }
+	{ KE_END, 0 }
 };
 
 static struct key_entry keymap_wistron_generic[] __initdata = {
@@ -635,7 +634,7 @@ static struct key_entry keymap_prestigio[] __initdata = {
  * a list of buttons and their key codes (reported when loading this module
  * with force=1) and the output of dmidecode to $MODULE_AUTHOR.
  */
-static const struct dmi_system_id __initconst dmi_ids[] = {
+static const struct dmi_system_id dmi_ids[] __initconst = {
 	{
 		/* Fujitsu-Siemens Amilo Pro V2000 */
 		.callback = dmi_matched,
@@ -972,6 +971,7 @@ static const struct dmi_system_id __initconst dmi_ids[] = {
 	},
 	{ NULL, }
 };
+MODULE_DEVICE_TABLE(dmi, dmi_ids);
 
 /* Copy the good keymap, as the original ones are free'd */
 static int __init copy_keymap(void)
@@ -1052,7 +1052,7 @@ static struct led_classdev wistron_wifi_led = {
 	.brightness_set		= wistron_wifi_led_set,
 };
 
-static void __devinit wistron_led_init(struct device *parent)
+static void wistron_led_init(struct device *parent)
 {
 	if (leds_present & FE_WIFI_LED) {
 		u16 wifi = bios_get_default_setting(WIFI);
@@ -1077,7 +1077,7 @@ static void __devinit wistron_led_init(struct device *parent)
 	}
 }
 
-static void __devexit wistron_led_remove(void)
+static void wistron_led_remove(void)
 {
 	if (leds_present & FE_MAIL_LED)
 		led_classdev_unregister(&wistron_mail_led);
@@ -1168,7 +1168,7 @@ static void wistron_poll(struct input_polled_dev *dev)
 		dev->poll_interval = POLL_INTERVAL_DEFAULT;
 }
 
-static int __devinit wistron_setup_keymap(struct input_dev *dev,
+static int wistron_setup_keymap(struct input_dev *dev,
 					  struct key_entry *entry)
 {
 	switch (entry->type) {
@@ -1199,7 +1199,7 @@ static int __devinit wistron_setup_keymap(struct input_dev *dev,
 	return 0;
 }
 
-static int __devinit setup_input_dev(void)
+static int setup_input_dev(void)
 {
 	struct input_dev *input_dev;
 	int error;
@@ -1237,7 +1237,7 @@ static int __devinit setup_input_dev(void)
 
 /* Driver core */
 
-static int __devinit wistron_probe(struct platform_device *dev)
+static int wistron_probe(struct platform_device *dev)
 {
 	int err;
 
@@ -1277,7 +1277,7 @@ static int __devinit wistron_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit wistron_remove(struct platform_device *dev)
+static int wistron_remove(struct platform_device *dev)
 {
 	wistron_led_remove();
 	input_unregister_polled_device(wistron_idev);
@@ -1334,7 +1334,7 @@ static struct platform_driver wistron_driver = {
 #endif
 	},
 	.probe		= wistron_probe,
-	.remove		= __devexit_p(wistron_remove),
+	.remove		= wistron_remove,
 };
 
 static int __init wb_module_init(void)

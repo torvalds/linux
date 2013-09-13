@@ -150,8 +150,4 @@ do {						\
  */
 #define ELF_PLATFORM  (NULL)
 
-#ifdef __KERNEL__
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX)
-#endif
-
 #endif /* _ASM_ELF_H */

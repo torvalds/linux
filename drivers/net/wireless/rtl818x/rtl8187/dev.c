@@ -2,10 +2,10 @@
  * Linux device driver for RTL8187
  *
  * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Based on the r8187 driver, which is:
- * Copyright 2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  *
  * The driver was extended to the RTL8187B in 2008 by:
  *	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
@@ -37,7 +37,7 @@
 #include "rfkill.h"
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
-MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
+MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
 MODULE_AUTHOR("Herton Ronaldo Krzesinski <herton@mandriva.com.br>");
 MODULE_AUTHOR("Hin-Tak Leung <htl10@users.sourceforge.net>");
 MODULE_AUTHOR("Larry Finger <Larry.Finger@lwfinger.net>");
@@ -228,7 +228,9 @@ static void rtl8187_tx_cb(struct urb *urb)
 	}
 }
 
-static void rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void rtl8187_tx(struct ieee80211_hw *dev,
+		       struct ieee80211_tx_control *control,
+		       struct sk_buff *skb)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -377,9 +379,9 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rate = (flags >> 20) & 0xF;
 	skb_trim(skb, flags & 0x0FFF);
 	rx_status.rate_idx = rate;
-	rx_status.freq = dev->conf.channel->center_freq;
-	rx_status.band = dev->conf.channel->band;
-	rx_status.flag |= RX_FLAG_MACTIME_MPDU;
+	rx_status.freq = dev->conf.chandef.chan->center_freq;
+	rx_status.band = dev->conf.chandef.chan->band;
+	rx_status.flag |= RX_FLAG_MACTIME_START;
 	if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
@@ -1076,7 +1078,7 @@ static void rtl8187_beacon_work(struct work_struct *work)
 	/* TODO: use actual beacon queue */
 	skb_set_queue_mapping(skb, 0);
 
-	rtl8187_tx(dev, skb);
+	rtl8187_tx(dev, NULL, skb);
 
 resched:
 	/*
@@ -1409,7 +1411,7 @@ static void rtl8187_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 	udelay(10);
 }
 
-static int __devinit rtl8187_probe(struct usb_interface *intf,
+static int rtl8187_probe(struct usb_interface *intf,
 				   const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -1637,7 +1639,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	return err;
 }
 
-static void __devexit rtl8187_disconnect(struct usb_interface *intf)
+static void rtl8187_disconnect(struct usb_interface *intf)
 {
 	struct ieee80211_hw *dev = usb_get_intfdata(intf);
 	struct rtl8187_priv *priv;
@@ -1662,7 +1664,7 @@ static struct usb_driver rtl8187_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rtl8187_table,
 	.probe		= rtl8187_probe,
-	.disconnect	= __devexit_p(rtl8187_disconnect),
+	.disconnect	= rtl8187_disconnect,
 	.disable_hub_initiated_lpm = 1,
 };
 

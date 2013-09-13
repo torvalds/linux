@@ -5,9 +5,11 @@ ifdef CONFIG_FUNCTION_TRACER
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst -pg,,$(ORIG_CFLAGS))
 
+ifdef CONFIG_FTRACE_SELFTEST
 # selftest needs instrumentation
 CFLAGS_trace_selftest_dynamic.o = -pg
 obj-y += trace_selftest_dynamic.o
+endif
 endif
 
 # If unlikely tracing is enabled, do not trace these files
@@ -17,11 +19,7 @@ endif
 
 CFLAGS_trace_events_filter.o := -I$(src)
 
-#
-# Make the trace clocks available generally: it's infrastructure
-# relied on by ptrace for example:
-#
-obj-y += trace_clock.o
+obj-$(CONFIG_TRACE_CLOCK) += trace_clock.o
 
 obj-$(CONFIG_FUNCTION_TRACER) += libftrace.o
 obj-$(CONFIG_RING_BUFFER) += ring_buffer.o

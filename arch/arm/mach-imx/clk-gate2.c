@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/string.h>
+#include "clk.h"
 
 /**
  * DOC: basic gatable clock which can gate and ungate it's ouput
@@ -112,7 +113,7 @@ struct clk *clk_register_gate2(struct device *dev, const char *name,
 
 	clk = clk_register(dev, &gate->hw);
 	if (IS_ERR(clk))
-		kfree(clk);
+		kfree(gate);
 
 	return clk;
 }

@@ -74,7 +74,7 @@ static struct ccw_driver ur_driver = {
 	.set_online	= ur_set_online,
 	.set_offline	= ur_set_offline,
 	.freeze		= ur_pm_suspend,
-	.int_class	= IOINT_VMR,
+	.int_class	= IRQIO_VMR,
 };
 
 static DEFINE_MUTEX(vmur_mutex);
@@ -89,7 +89,7 @@ static DEFINE_MUTEX(vmur_mutex);
  * urd references:
  * - ur_probe gets a urd reference, ur_remove drops the reference
  *   dev_get_drvdata(&cdev->dev)
- * - ur_open gets a urd reference, ur_relase drops the reference
+ * - ur_open gets a urd reference, ur_release drops the reference
  *   (urf->urd)
  *
  * cdev references:
@@ -703,7 +703,7 @@ static int ur_open(struct inode *inode, struct file *file)
 	 * We treat the minor number as the devno of the ur device
 	 * to find in the driver tree.
 	 */
-	devno = MINOR(file->f_dentry->d_inode->i_rdev);
+	devno = MINOR(file_inode(file)->i_rdev);
 
 	urd = urdev_get_from_devno(devno);
 	if (!urd) {

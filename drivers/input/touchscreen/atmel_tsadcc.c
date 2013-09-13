@@ -22,7 +22,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <mach/board.h>
+#include <linux/platform_data/atmel.h>
 #include <mach/cpu.h>
 
 /* Register definitions based on AT91SAM9RL64 preliminary draft datasheet */
@@ -177,15 +177,18 @@ static irqreturn_t atmel_tsadcc_interrupt(int irq, void *dev)
  * The functions for inserting/removing us as a module.
  */
 
-static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
+static int atmel_tsadcc_probe(struct platform_device *pdev)
 {
 	struct atmel_tsadcc	*ts_dev;
 	struct input_dev	*input_dev;
 	struct resource		*res;
 	struct at91_tsadcc_data *pdata = pdev->dev.platform_data;
-	int		err = 0;
+	int		err;
 	unsigned int	prsc;
 	unsigned int	reg;
+
+	if (!pdata)
+		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -265,9 +268,6 @@ static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
 	prsc = clk_get_rate(ts_dev->clk);
 	dev_info(&pdev->dev, "Master clock is set at: %d Hz\n", prsc);
 
-	if (!pdata)
-		goto err_fail;
-
 	if (!pdata->adc_clock)
 		pdata->adc_clock = ADC_DEFAULT_CLOCK;
 
@@ -323,9 +323,9 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit atmel_tsadcc_remove(struct platform_device *pdev)
+static int atmel_tsadcc_remove(struct platform_device *pdev)
 {
-	struct atmel_tsadcc *ts_dev = dev_get_drvdata(&pdev->dev);
+	struct atmel_tsadcc *ts_dev = platform_get_drvdata(pdev);
 	struct resource *res;
 
 	free_irq(ts_dev->irq, ts_dev);
@@ -346,7 +346,7 @@ static int __devexit atmel_tsadcc_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_tsadcc_driver = {
 	.probe		= atmel_tsadcc_probe,
-	.remove		= __devexit_p(atmel_tsadcc_remove),
+	.remove		= atmel_tsadcc_remove,
 	.driver		= {
 		.name	= "atmel_tsadcc",
 	},

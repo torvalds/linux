@@ -31,8 +31,10 @@
 #include <linux/nfs_fs.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
+#include <linux/sunrpc/addr.h>
 
 #include "internal.h"
+#include "nfs4session.h"
 #include "nfs4filelayout.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
@@ -149,28 +151,6 @@ _data_server_lookup_locked(const struct list_head *dsaddrs)
 }
 
 /*
- * Lookup DS by nfs_client pointer. Zero data server client pointer
- */
-void nfs4_ds_disconnect(struct nfs_client *clp)
-{
-	struct nfs4_pnfs_ds *ds;
-	struct nfs_client *found = NULL;
-
-	dprintk("%s clp %p\n", __func__, clp);
-	spin_lock(&nfs4_ds_cache_lock);
-	list_for_each_entry(ds, &nfs4_data_server_cache, ds_node)
-		if (ds->ds_clp && ds->ds_clp == clp) {
-			found = ds->ds_clp;
-			ds->ds_clp = NULL;
-		}
-	spin_unlock(&nfs4_ds_cache_lock);
-	if (found) {
-		set_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state);
-		nfs_put_client(clp);
-	}
-}
-
-/*
  * Create an rpc connection to the nfs4_pnfs_ds data server
  * Currently only supports IPv4 and IPv6 addresses
  */
@@ -183,8 +163,6 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 
 	dprintk("--> %s DS %s au_flavor %d\n", __func__, ds->ds_remotestr,
 		mds_srv->nfs_client->cl_rpcclient->cl_auth->au_flavor);
-
-	BUG_ON(list_empty(&ds->ds_addrs));
 
 	list_for_each_entry(da, &ds->ds_addrs, da_node) {
 		dprintk("%s: DS %s: trying address %s\n",
@@ -690,7 +668,10 @@ decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_fl
  * of available devices, and return it.
  */
 struct nfs4_file_layout_dsaddr *
-get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags)
+filelayout_get_device_info(struct inode *inode,
+		struct nfs4_deviceid *dev_id,
+		struct rpc_cred *cred,
+		gfp_t gfp_flags)
 {
 	struct pnfs_device *pdev = NULL;
 	u32 max_resp_sz;
@@ -730,8 +711,9 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_fla
 	pdev->pgbase = 0;
 	pdev->pglen = max_resp_sz;
 	pdev->mincount = 0;
+	pdev->maxcount = max_resp_sz - nfs41_maxgetdevinfo_overhead;
 
-	rc = nfs4_proc_getdeviceinfo(server, pdev);
+	rc = nfs4_proc_getdeviceinfo(server, pdev, cred);
 	dprintk("%s getdevice info returns %d\n", __func__, rc);
 	if (rc)
 		goto out_free;
@@ -797,6 +779,22 @@ nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j)
 	return flseg->fh_array[i];
 }
 
+static void nfs4_wait_ds_connect(struct nfs4_pnfs_ds *ds)
+{
+	might_sleep();
+	wait_on_bit(&ds->ds_state, NFS4DS_CONNECTING,
+			nfs_wait_bit_killable, TASK_KILLABLE);
+}
+
+static void nfs4_clear_ds_conn_bit(struct nfs4_pnfs_ds *ds)
+{
+	smp_mb__before_clear_bit();
+	clear_bit(NFS4DS_CONNECTING, &ds->ds_state);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&ds->ds_state, NFS4DS_CONNECTING);
+}
+
+
 struct nfs4_pnfs_ds *
 nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 {
@@ -804,28 +802,33 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 	struct nfs4_pnfs_ds *ds = dsaddr->ds_list[ds_idx];
 	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
 
-	if (filelayout_test_devid_invalid(devid))
+	if (filelayout_test_devid_unavailable(devid))
 		return NULL;
 
 	if (ds == NULL) {
 		printk(KERN_ERR "NFS: %s: No data server for offset index %d\n",
 			__func__, ds_idx);
-		goto mark_dev_invalid;
+		filelayout_mark_devid_invalid(devid);
+		return NULL;
 	}
+	if (ds->ds_clp)
+		return ds;
 
-	if (!ds->ds_clp) {
+	if (test_and_set_bit(NFS4DS_CONNECTING, &ds->ds_state) == 0) {
 		struct nfs_server *s = NFS_SERVER(lseg->pls_layout->plh_inode);
 		int err;
 
 		err = nfs4_ds_connect(s, ds);
-		if (err)
-			goto mark_dev_invalid;
+		if (err) {
+			nfs4_mark_deviceid_unavailable(devid);
+			ds = NULL;
+		}
+		nfs4_clear_ds_conn_bit(ds);
+	} else {
+		/* Either ds is connected, or ds is NULL */
+		nfs4_wait_ds_connect(ds);
 	}
 	return ds;
-
-mark_dev_invalid:
-	filelayout_mark_devid_invalid(devid);
-	return NULL;
 }
 
 module_param(dataserver_retrans, uint, 0644);

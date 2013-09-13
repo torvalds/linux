@@ -341,8 +341,8 @@ void hvsilib_establish(struct hvsi_priv *pv)
 
 	pr_devel("HVSI@%x:   ... waiting handshake\n", pv->termno);
 
-	/* Try for up to 200s */
-	for (timeout = 0; timeout < 20; timeout++) {
+	/* Try for up to 400ms */
+	for (timeout = 0; timeout < 40; timeout++) {
 		if (pv->established)
 			goto established;
 		if (!hvsi_get_packet(pv))
@@ -400,7 +400,7 @@ void hvsilib_close(struct hvsi_priv *pv, struct hvc_struct *hp)
 		spin_unlock_irqrestore(&hp->lock, flags);
 
 		/* Clear our own DTR */
-		if (!pv->tty || (pv->tty->termios->c_cflag & HUPCL))
+		if (!pv->tty || (pv->tty->termios.c_cflag & HUPCL))
 			hvsilib_write_mctrl(pv, 0);
 
 		/* Tear down the connection */

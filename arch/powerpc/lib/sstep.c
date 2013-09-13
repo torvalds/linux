@@ -100,8 +100,10 @@ static unsigned long __kprobes dform_ea(unsigned int instr, struct pt_regs *regs
 	ea = (signed short) instr;		/* sign-extend */
 	if (ra) {
 		ea += regs->gpr[ra];
-		if (instr & 0x04000000)		/* update forms */
-			regs->gpr[ra] = ea;
+		if (instr & 0x04000000) {		/* update forms */
+			if ((instr>>26) != 47) 		/* stmw is not an update form */
+				regs->gpr[ra] = ea;
+		}
 	}
 
 	return truncate_if_32bit(regs->msr, ea);
@@ -279,7 +281,7 @@ static int __kprobes write_mem_unaligned(unsigned long val, unsigned long ea,
 		err = write_mem_aligned(val >> (nb - c) * 8, ea, c);
 		if (err)
 			return err;
-		++ea;
+		ea += c;
 	}
 	return 0;
 }
@@ -566,7 +568,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 	unsigned long int ea;
 	unsigned int cr, mb, me, sh;
 	int err;
-	unsigned long old_ra;
+	unsigned long old_ra, val3;
 	long ival;
 
 	opcode = instr >> 26;
@@ -580,7 +582,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (instr & 1)
 			regs->link = regs->nip;
 		if (branch_taken(instr, regs))
-			regs->nip = imm;
+			regs->nip = truncate_if_32bit(regs->msr, imm);
 		return 1;
 #ifdef CONFIG_PPC64
 	case 17:	/* sc */
@@ -1486,9 +1488,41 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		goto ldst_done;
 
 	case 36:	/* stw */
-	case 37:	/* stwu */
 		val = regs->gpr[rd];
 		err = write_mem(val, dform_ea(instr, regs), 4, regs);
+		goto ldst_done;
+
+	case 37:	/* stwu */
+		val = regs->gpr[rd];
+		val3 = dform_ea(instr, regs);
+		/*
+		 * For PPC32 we always use stwu to change stack point with r1. So
+		 * this emulated store may corrupt the exception frame, now we
+		 * have to provide the exception frame trampoline, which is pushed
+		 * below the kprobed function stack. So we only update gpr[1] but
+		 * don't emulate the real store operation. We will do real store
+		 * operation safely in exception return code by checking this flag.
+		 */
+		if ((ra == 1) && !(regs->msr & MSR_PR) \
+			&& (val3 >= (regs->gpr[1] - STACK_INT_FRAME_SIZE))) {
+			/*
+			 * Check if we will touch kernel sack overflow
+			 */
+			if (val3 - STACK_INT_FRAME_SIZE <= current->thread.ksp_limit) {
+				printk(KERN_CRIT "Can't kprobe this since Kernel stack overflow.\n");
+				err = -EINVAL;
+				break;
+			}
+
+			/*
+			 * Check if we already set since that means we'll
+			 * lose the previous value.
+			 */
+			WARN_ON(test_thread_flag(TIF_EMULATE_STACK_STORE));
+			set_thread_flag(TIF_EMULATE_STACK_STORE);
+			err = 0;
+		} else
+			err = write_mem(val, val3, 4, regs);
 		goto ldst_done;
 
 	case 38:	/* stb */

@@ -42,39 +42,6 @@
  * (these are usually mapped into the 0x30-0xff vector range)
  */
 
-#ifdef CONFIG_X86_32
-/*
- * Note that on a 486, we don't want to do a SIGFPE on an irq13
- * as the irq is unreliable, and exception 16 works correctly
- * (ie as explained in the intel literature). On a 386, you
- * can't use exception 16 due to bad IBM design, so we have to
- * rely on the less exact irq13.
- *
- * Careful.. Not only is IRQ13 unreliable, but it is also
- * leads to races. IBM designers who came up with it should
- * be shot.
- */
-
-static irqreturn_t math_error_irq(int cpl, void *dev_id)
-{
-	outb(0, 0xF0);
-	if (ignore_fpu_irq || !boot_cpu_data.hard_math)
-		return IRQ_NONE;
-	math_error(get_irq_regs(), 0, X86_TRAP_MF);
-	return IRQ_HANDLED;
-}
-
-/*
- * New motherboards sometimes make IRQ 13 be a PCI interrupt,
- * so allow interrupt sharing.
- */
-static struct irqaction fpu_irq = {
-	.handler = math_error_irq,
-	.name = "fpu",
-	.flags = IRQF_NO_THREAD,
-};
-#endif
-
 /*
  * IRQ2 is cascade interrupt to second interrupt controller
  */
@@ -205,6 +172,10 @@ static void __init apic_intr_init(void)
 
 	/* IPI for X86 platform specific use */
 	alloc_intr_gate(X86_PLATFORM_IPI_VECTOR, x86_platform_ipi);
+#ifdef CONFIG_HAVE_KVM
+	/* IPI for KVM to deliver posted interrupt */
+	alloc_intr_gate(POSTED_INTR_VECTOR, kvm_posted_intr_ipi);
+#endif
 
 	/* IPI vectors for APIC spurious and error interrupts */
 	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
@@ -242,13 +213,6 @@ void __init native_init_IRQ(void)
 		setup_irq(2, &irq2);
 
 #ifdef CONFIG_X86_32
-	/*
-	 * External FPU? Set up irq13 if so, for
-	 * original braindamaged IBM FERR coupling.
-	 */
-	if (boot_cpu_data.hard_math && !cpu_has_fpu)
-		setup_irq(FPU_IRQ, &fpu_irq);
-
 	irq_ctx_init(smp_processor_id());
 #endif
 }

@@ -40,6 +40,8 @@ extern int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh, 
 extern void eth_header_cache_update(struct hh_cache *hh,
 				    const struct net_device *dev,
 				    const unsigned char *haddr);
+extern int eth_prepare_mac_addr_change(struct net_device *dev, void *p);
+extern void eth_commit_mac_addr_change(struct net_device *dev, void *p);
 extern int eth_mac_addr(struct net_device *dev, void *p);
 extern int eth_change_mtu(struct net_device *dev, int new_mtu);
 extern int eth_validate_addr(struct net_device *dev);
@@ -50,6 +52,26 @@ extern struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
 					    unsigned int rxqs);
 #define alloc_etherdev(sizeof_priv) alloc_etherdev_mq(sizeof_priv, 1)
 #define alloc_etherdev_mq(sizeof_priv, count) alloc_etherdev_mqs(sizeof_priv, count, count)
+
+/* Reserved Ethernet Addresses per IEEE 802.1Q */
+static const u8 eth_reserved_addr_base[ETH_ALEN] __aligned(2) =
+{ 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
+
+/**
+ * is_link_local_ether_addr - Determine if given Ethernet address is link-local
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Return true if address is link local reserved addr (01:80:c2:00:00:0X) per
+ * IEEE 802.1Q 8.6.3 Frame filtering.
+ */
+static inline bool is_link_local_ether_addr(const u8 *addr)
+{
+	__be16 *a = (__be16 *)addr;
+	static const __be16 *b = (const __be16 *)eth_reserved_addr_base;
+	static const __be16 m = cpu_to_be16(0xfff0);
+
+	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | ((a[2] ^ b[2]) & m)) == 0;
+}
 
 /**
  * is_zero_ether_addr - Determine if give Ethernet address is all zeros.
@@ -151,6 +173,17 @@ static inline void eth_broadcast_addr(u8 *addr)
 }
 
 /**
+ * eth_zero_addr - Assign zero address
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Assign the zero address to the given address array.
+ */
+static inline void eth_zero_addr(u8 *addr)
+{
+	memset(addr, 0x00, ETH_ALEN);
+}
+
+/**
  * eth_hw_addr_random - Generate software assigned random Ethernet and
  * set device flag
  * @dev: pointer to net_device structure
@@ -161,8 +194,23 @@ static inline void eth_broadcast_addr(u8 *addr)
  */
 static inline void eth_hw_addr_random(struct net_device *dev)
 {
-	dev->addr_assign_type |= NET_ADDR_RANDOM;
+	dev->addr_assign_type = NET_ADDR_RANDOM;
 	eth_random_addr(dev->dev_addr);
+}
+
+/**
+ * eth_hw_addr_inherit - Copy dev_addr from another net_device
+ * @dst: pointer to net_device to copy dev_addr to
+ * @src: pointer to net_device to copy dev_addr from
+ *
+ * Copy the Ethernet address from one net_device to another along with
+ * the address attributes (addr_assign_type).
+ */
+static inline void eth_hw_addr_inherit(struct net_device *dst,
+				       struct net_device *src)
+{
+	dst->addr_assign_type = src->addr_assign_type;
+	memcpy(dst->dev_addr, src->dev_addr, ETH_ALEN);
 }
 
 /**

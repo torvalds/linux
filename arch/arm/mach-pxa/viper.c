@@ -48,9 +48,9 @@
 
 #include <mach/pxa25x.h>
 #include <mach/audio.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 #include <mach/regs-uart.h>
-#include <mach/arcom-pcmcia.h>
+#include <linux/platform_data/pcmcia-pxa2xx_viper.h>
 #include <mach/viper.h>
 
 #include <asm/setup.h>
@@ -768,8 +768,7 @@ static unsigned long viper_tpm;
 
 static int __init viper_tpm_setup(char *str)
 {
-	strict_strtoul(str, 10, &viper_tpm);
-	return 1;
+	return strict_strtoul(str, 10, &viper_tpm) >= 0;
 }
 
 __setup("tpm=", viper_tpm_setup);
@@ -998,7 +997,7 @@ MACHINE_START(VIPER, "Arcom/Eurotech VIPER SBC")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= viper_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= viper_init,
 	.restart	= pxa_restart,
 MACHINE_END

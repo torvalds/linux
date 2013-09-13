@@ -24,7 +24,6 @@
 */
 
 enum dma_ch {
-	DMACH_DT_PROP = -1,	/* not yet supported, do not use */
 	DMACH_XD0 = 0,
 	DMACH_XD1,
 	DMACH_SDI,
@@ -88,7 +87,7 @@ enum s3c2410_dma_state {
  *
  * This represents the state of the DMA engine, wrt to the loaded / running
  * transfers. Since we don't have any way of knowing exactly the state of
- * the DMA transfers, we need to know the state to make decisions on wether
+ * the DMA transfers, we need to know the state to make decisions on whether
  * we can
  *
  * S3C2410_DMA_NONE

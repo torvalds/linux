@@ -3,6 +3,7 @@
 #
 
 menu "I2C Hardware Bus support"
+	depends on HAS_IOMEM
 
 comment "PC SMBus host controller drivers"
 	depends on PCI
@@ -21,7 +22,7 @@ config I2C_ALI1535
 
 config I2C_ALI1563
 	tristate "ALI 1563"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the SMB
 	  Host controller on Acer Labs Inc. (ALI) M1563 South Bridges.  The SMB
@@ -55,7 +56,7 @@ config I2C_AMD756
 
 config I2C_AMD756_S4882
 	tristate "SMBus multiplexing on the Tyan S4882"
-	depends on I2C_AMD756 && X86 && EXPERIMENTAL
+	depends on I2C_AMD756 && X86
 	help
 	  Enabling this option will add specific SMBus support for the Tyan
 	  S4882 motherboard.  On this 4-CPU board, the SMBus is multiplexed
@@ -104,6 +105,10 @@ config I2C_I801
 	    DH89xxCC (PCH)
 	    Panther Point (PCH)
 	    Lynx Point (PCH)
+	    Lynx Point-LP (PCH)
+	    Avoton (SOC)
+	    Wellsburg (PCH)
+	    Coleto Creek (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -118,6 +123,16 @@ config I2C_ISCH
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-isch.
+
+config I2C_ISMT
+	tristate "Intel iSMT SMBus Controller"
+	depends on PCI && X86
+	help
+	  If you say yes to this option, support will be included for the Intel
+	  iSMT SMBus host controller interface.
+
+	  This driver can also be built as a module.  If so, the module will be
+	  called i2c-ismt.
 
 config I2C_PIIX4
 	tristate "Intel PIIX4 and compatible (ATI/AMD/Serverworks/Broadcom/SMSC)"
@@ -136,6 +151,7 @@ config I2C_PIIX4
 	    ATI SB700/SP5100
 	    ATI SB800
 	    AMD Hudson-2
+	    AMD CZ
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6
@@ -162,7 +178,7 @@ config I2C_NFORCE2
 
 config I2C_NFORCE2_S4985
 	tristate "SMBus multiplexing on the Tyan S4985"
-	depends on I2C_NFORCE2 && X86 && EXPERIMENTAL
+	depends on I2C_NFORCE2 && X86
 	help
 	  Enabling this option will add specific SMBus support for the Tyan
 	  S4985 motherboard.  On this 4-CPU board, the SMBus is multiplexed
@@ -184,11 +200,11 @@ config I2C_SIS5595
 	  will be called i2c-sis5595.
 
 config I2C_SIS630
-	tristate "SiS 630/730"
+	tristate "SiS 630/730/964"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the
-	  SiS630 and SiS730 SMBus (a subset of I2C) interface.
+	  SiS630, SiS730 and SiS964 SMBus (a subset of I2C) interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sis630.
@@ -213,7 +229,7 @@ config I2C_SIS96X
 
 config I2C_VIA
 	tristate "VIA VT82C586B"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the VIA
@@ -223,7 +239,7 @@ config I2C_VIA
 	  will be called i2c-via.
 
 config I2C_VIAPRO
-	tristate "VIA VT82C596/82C686/82xx and CX700/VX8xx"
+	tristate "VIA VT82C596/82C686/82xx and CX700/VX8xx/VX900"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the VIA
@@ -239,6 +255,7 @@ config I2C_VIAPRO
 	    CX700
 	    VX800/VX820
 	    VX855/VX875
+	    VX900
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-viapro.
@@ -264,7 +281,7 @@ comment "Mac SMBus host controller drivers"
 
 config I2C_HYDRA
 	tristate "CHRP Apple Hydra Mac I/O I2C interface"
-	depends on PCI && PPC_CHRP && EXPERIMENTAL
+	depends on PCI && PPC_CHRP
 	select I2C_ALGOBIT
 	help
 	  This supports the use of the I2C interface in the Apple Hydra Mac
@@ -290,18 +307,21 @@ comment "I2C system bus drivers (mostly embedded / system-on-chip)"
 
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
-	depends on ARCH_AT91 && EXPERIMENTAL && BROKEN
+	depends on ARCH_AT91
 	help
 	  This supports the use of the I2C interface on Atmel AT91
 	  processors.
 
-	  This driver is BROKEN because the controller which it uses
-	  will easily trigger RX overrun and TX underrun errors.  Using
-	  low I2C clock rates may partially work around those issues
-	  on some systems.  Another serious problem is that there is no
-	  documented way to issue repeated START conditions, as needed
+	  A serious problem is that there is no documented way to issue
+	  repeated START conditions for more than two messages, as needed
 	  to support combined I2C messages.  Use the i2c-gpio driver
-	  unless your system can cope with those limitations.
+	  unless your system can cope with this limitation.
+
+	  Caution! at91rm9200, at91sam9261, at91sam9260, at91sam9263 devices
+	  don't have clock stretching in transmission mode. For that reason,
+	  you can encounter underrun issues causing premature stop sendings if
+	  the latency to fill the transmission register is too long. If you
+	  are facing this situation, use the i2c-gpio driver.
 
 config I2C_AU1550
 	tristate "Au1550/Au1200/Au1300 SMBus interface"
@@ -312,6 +332,18 @@ config I2C_AU1550
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.
+
+config I2C_BCM2835
+	tristate "Broadcom BCM2835 I2C controller"
+	depends on ARCH_BCM2835
+	help
+	  If you say yes to this option, support will be included for the
+	  BCM2835 I2C controller.
+
+	  If you don't know what to do here, say N.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-bcm2835.
 
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
@@ -331,6 +363,16 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 	help
 	  The unit of the TWI clock is kHz.
 
+config I2C_CBUS_GPIO
+	tristate "CBUS I2C driver"
+	depends on GPIOLIB
+	help
+	  Support for CBUS access using I2C API. Mostly relevant for Nokia
+	  Internet Tablets (770, N800 and N810).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-cbus-gpio.
+
 config I2C_CPM
 	tristate "Freescale CPM1 or CPM2 (MPC8xx/826x)"
 	depends on (CPM1 || CPM2) && OF_I2C
@@ -343,7 +385,7 @@ config I2C_CPM
 
 config I2C_DAVINCI
 	tristate "DaVinci I2C driver"
-	depends on ARCH_DAVINCI
+	depends on ARCH_DAVINCI || ARCH_KEYSTONE
 	help
 	  Support for TI DaVinci I2C controller driver.
 
@@ -354,9 +396,13 @@ config I2C_DAVINCI
 	  devices such as DaVinci NIC.
 	  For details please see http://www.ti.com/davinci
 
+config I2C_DESIGNWARE_CORE
+	tristate
+
 config I2C_DESIGNWARE_PLATFORM
 	tristate "Synopsys DesignWare Platform"
 	depends on HAVE_CLK
+	select I2C_DESIGNWARE_CORE
 	help
 	  If you say yes to this option, support will be included for the
 	  Synopsys DesignWare I2C adapter. Only master mode is supported.
@@ -367,6 +413,7 @@ config I2C_DESIGNWARE_PLATFORM
 config I2C_DESIGNWARE_PCI
 	tristate "Synopsys DesignWare PCI"
 	depends on PCI
+	select I2C_DESIGNWARE_CORE
 	help
 	  If you say yes to this option, support will be included for the
 	  Synopsys DesignWare I2C adapter. Only master mode is supported.
@@ -391,7 +438,7 @@ config I2C_EG20T
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select I2C_ALGOBIT
 	help
 	  This is a very simple bitbanging I2C driver utilizing the
@@ -429,16 +476,6 @@ config I2C_IMX
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-imx.
 
-config I2C_INTEL_MID
-	tristate "Intel Moorestown/Medfield Platform I2C controller"
-	depends on PCI
-	help
-	  Say Y here if you have an Intel Moorestown/Medfield platform I2C
-	  controller.
-
-	  This support is also available as a module. If so, the module
-	  will be called i2c-intel-mid.
-
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
 	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX || ARCH_IOP13XX
@@ -448,6 +485,16 @@ config I2C_IOP3XX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.
+
+config I2C_KEMPLD
+	tristate "Kontron COM I2C Controller"
+	depends on MFD_KEMPLD
+	help
+	  This enables support for the I2C bus interface on some Kontron ETX
+	  and COMexpress (ETXexpress) modules.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-kempld.
 
 config I2C_MPC
 	tristate "MPC107/824x/85xx/512x/52xx/83xx/86xx"
@@ -462,10 +509,11 @@ config I2C_MPC
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
-	depends on (MV64X60 || PLAT_ORION)
+	depends on (MV64X60 || PLAT_ORION || ARCH_SUNXI)
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Marvell 64xxx line of host bridges.
+	  This driver is also used for Allwinner SoCs I2C controllers.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mv64xxx.
@@ -498,7 +546,6 @@ config I2C_NUC900
 
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
-	depends on EXPERIMENTAL
 	help
 	  If you say yes to this option, support will be included for the
 	  OpenCores I2C controller. For details see
@@ -545,7 +592,7 @@ config I2C_PMCMSP
 
 config I2C_PNX
 	tristate "I2C bus support for Philips PNX and NXP LPC targets"
-	depends on ARCH_PNX4008 || ARCH_LPC32XX
+	depends on ARCH_LPC32XX
 	help
 	  This driver supports the Philips IP3204 I2C IP block master and/or
 	  slave controller
@@ -640,7 +687,7 @@ config I2C_SIMTEC
 
 config I2C_SIRF
 	tristate "CSR SiRFprimaII I2C interface"
-	depends on ARCH_PRIMA2
+	depends on ARCH_SIRF
 	help
 	  If you say yes to this option, support will be included for the
 	  CSR SiRFprimaII I2C interface.
@@ -679,9 +726,19 @@ config I2C_VERSATILE
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-versatile.
 
+config I2C_WMT
+	tristate "Wondermedia WM8xxx SoC I2C bus support"
+	depends on ARCH_VT8500
+	help
+	  Say yes if you want to support the I2C bus on Wondermedia 8xxx-series
+	  SoCs.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called i2c-wmt.
+
 config I2C_OCTEON
 	tristate "Cavium OCTEON I2C bus support"
-	depends on CPU_CAVIUM_OCTEON
+	depends on CAVIUM_OCTEON_SOC
 	help
 	  Say yes if you want to support the I2C serial bus on Cavium
 	  OCTEON SOC.
@@ -691,7 +748,7 @@ config I2C_OCTEON
 
 config I2C_XILINX
 	tristate "Xilinx I2C Controller"
-	depends on EXPERIMENTAL && HAS_IOMEM
+	depends on HAS_IOMEM
 	help
 	  If you say yes to this option, support will be included for the
 	  Xilinx I2C controller.
@@ -708,6 +765,16 @@ config I2C_XLR
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-xlr.
+
+config I2C_RCAR
+	tristate "Renesas R-Car I2C Controller"
+	depends on ARCH_SHMOBILE && I2C
+	help
+	  If you say yes to this option, support will be included for the
+	  R-Car I2C controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-rcar.
 
 comment "External I2C/SMBus adapter drivers"
 
@@ -772,7 +839,7 @@ config I2C_PARPORT_LIGHT
 
 config I2C_TAOS_EVM
 	tristate "TAOS evaluation module"
-	depends on EXPERIMENTAL
+	depends on TTY
 	select SERIO
 	select SERIO_SERPORT
 	default n
@@ -796,6 +863,16 @@ config I2C_TINY_USB
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-tiny-usb.
+
+config I2C_VIPERBOARD
+	tristate "Viperboard I2C master support"
+	depends on MFD_VIPERBOARD && USB
+	help
+	  Say yes here to access the I2C part of the Nano River
+	  Technologies Viperboard as I2C master.
+          See viperboard API specification and Nano
+          River Tech's viperboard.h for detailed meaning
+          of the module parameters.
 
 comment "Other I2C/SMBus bus drivers"
 
@@ -842,19 +919,6 @@ config I2C_SIBYTE
 	depends on SIBYTE_SB1xxx_SOC
 	help
 	  Supports the SiByte SOC on-chip I2C interfaces (2 channels).
-
-config I2C_STUB
-	tristate "I2C/SMBus Test Stub"
-	depends on EXPERIMENTAL && m
-	default 'n'
-	help
-	  This module may be useful to developers of SMBus client drivers,
-	  especially for certain kinds of sensor chips.
-
-	  If you do build this module, be sure to read the notes and warnings
-	  in <file:Documentation/i2c/i2c-stub>.
-
-	  If you don't know what to do here, definitely say N.
 
 config SCx200_I2C
 	tristate "NatSemi SCx200 I2C using GPIO pins (DEPRECATED)"

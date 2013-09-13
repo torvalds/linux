@@ -642,23 +642,17 @@ static void bfin_spi_pump_transfers(unsigned long data)
 	drv_data->cs_change = transfer->cs_change;
 
 	/* Bits per word setup */
-	bits_per_word = transfer->bits_per_word ? :
-		message->spi->bits_per_word ? : 8;
-	if (bits_per_word % 16 == 0) {
+	bits_per_word = transfer->bits_per_word;
+	if (bits_per_word == 16) {
 		drv_data->n_bytes = bits_per_word/8;
 		drv_data->len = (transfer->len) >> 1;
 		cr_width = BIT_CTL_WORDSIZE;
 		drv_data->ops = &bfin_bfin_spi_transfer_ops_u16;
-	} else if (bits_per_word % 8 == 0) {
+	} else if (bits_per_word == 8) {
 		drv_data->n_bytes = bits_per_word/8;
 		drv_data->len = transfer->len;
 		cr_width = 0;
 		drv_data->ops = &bfin_bfin_spi_transfer_ops_u8;
-	} else {
-		dev_err(&drv_data->pdev->dev, "transfer: unsupported bits_per_word\n");
-		message->status = -EINVAL;
-		bfin_spi_giveback(drv_data);
-		return;
 	}
 	cr = bfin_read(&drv_data->regs->ctl) & ~(BIT_CTL_TIMOD | BIT_CTL_WORDSIZE);
 	cr |= cr_width;
@@ -809,13 +803,13 @@ static void bfin_spi_pump_transfers(unsigned long data)
 			bfin_write(&drv_data->regs->tdbr, chip->idle_tx_val);
 		else {
 			int loop;
-			if (bits_per_word % 16 == 0) {
+			if (bits_per_word == 16) {
 				u16 *buf = (u16 *)drv_data->tx;
 				for (loop = 0; loop < bits_per_word / 16;
 						loop++) {
 					bfin_write(&drv_data->regs->tdbr, *buf++);
 				}
-			} else if (bits_per_word % 8 == 0) {
+			} else if (bits_per_word == 8) {
 				u8 *buf = (u8 *)drv_data->tx;
 				for (loop = 0; loop < bits_per_word / 8; loop++)
 					bfin_write(&drv_data->regs->tdbr, *buf++);
@@ -1032,12 +1026,6 @@ static int bfin_spi_setup(struct spi_device *spi)
 	} else {
 		/* force a default base state */
 		chip->ctl_reg &= bfin_ctl_reg;
-	}
-
-	if (spi->bits_per_word % 8) {
-		dev_err(&spi->dev, "%d bits_per_word is not supported\n",
-				spi->bits_per_word);
-		goto error;
 	}
 
 	/* translate common spi framework into our register */
@@ -1274,7 +1262,7 @@ static int bfin_spi_destroy_queue(struct bfin_spi_master_data *drv_data)
 	return 0;
 }
 
-static int __init bfin_spi_probe(struct platform_device *pdev)
+static int bfin_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct bfin5xx_spi_master *platform_info;
@@ -1283,7 +1271,7 @@ static int __init bfin_spi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int status = 0;
 
-	platform_info = dev->platform_data;
+	platform_info = dev_get_platdata(dev);
 
 	/* Allocate master with space for drv_data */
 	master = spi_alloc_master(dev, sizeof(*drv_data));
@@ -1300,7 +1288,7 @@ static int __init bfin_spi_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits supported by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
-
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;
 	master->cleanup = bfin_spi_cleanup;
@@ -1387,7 +1375,7 @@ out_error_get_res:
 }
 
 /* stop hardware and remove the driver */
-static int __devexit bfin_spi_remove(struct platform_device *pdev)
+static int bfin_spi_remove(struct platform_device *pdev)
 {
 	struct bfin_spi_master_data *drv_data = platform_get_drvdata(pdev);
 	int status = 0;
@@ -1418,9 +1406,6 @@ static int __devexit bfin_spi_remove(struct platform_device *pdev)
 	spi_unregister_master(drv_data->master);
 
 	peripheral_free_list(drv_data->pin_req);
-
-	/* Prevent double remove */
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -1477,7 +1462,7 @@ static struct platform_driver bfin_spi_driver = {
 	},
 	.suspend	= bfin_spi_suspend,
 	.resume		= bfin_spi_resume,
-	.remove		= __devexit_p(bfin_spi_remove),
+	.remove		= bfin_spi_remove,
 };
 
 static int __init bfin_spi_init(void)

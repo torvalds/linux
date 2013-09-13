@@ -32,6 +32,8 @@
 #include <linux/spi/ads7846.h>
 #include <linux/i2c/twl.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/musb.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 #include <linux/smsc911x.h>
 
 #include <linux/wl12xx.h>
@@ -39,24 +41,26 @@
 #include <linux/regulator/machine.h>
 #include <linux/mmc/host.h>
 #include <linux/export.h>
+#include <linux/usb/phy.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
-#include <plat/usb.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 #include "common.h"
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
+#include "soc.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
+#include "board-flash.h"
+
+#define	NAND_CS			0
 
 #define OMAP3_EVM_TS_GPIO	175
 #define OMAP3_EVM_EHCI_VBUS	22
@@ -75,13 +79,24 @@
 #define OMAP3EVM_GEN1_ETHR_GPIO_RST	64
 #define OMAP3EVM_GEN2_ETHR_GPIO_RST	7
 
+/*
+ * OMAP35x EVM revision
+ * Run time detection of EVM revision is done by reading Ethernet
+ * PHY ID -
+ *	GEN_1	= 0x01150000
+ *	GEN_2	= 0x92200000
+ */
+enum {
+	OMAP3EVM_BOARD_GEN_1 = 0,	/* EVM Rev between  A - D */
+	OMAP3EVM_BOARD_GEN_2,		/* EVM Rev >= Rev E */
+};
+
 static u8 omap3_evm_version;
 
-u8 get_omap3_evm_rev(void)
+static u8 get_omap3_evm_rev(void)
 {
 	return omap3_evm_version;
 }
-EXPORT_SYMBOL(get_omap3_evm_rev);
 
 static void __init omap3_evm_get_revision(void)
 {
@@ -108,7 +123,7 @@ static void __init omap3_evm_get_revision(void)
 }
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc-smsc911x.h"
 
 static struct omap_smsc911x_platform_data smsc911x_cfg = {
 	.cs             = OMAP3EVM_SMSC911X_CS,
@@ -140,112 +155,98 @@ static inline void __init omap3evm_init_smsc911x(void) { return; }
 #define OMAP3EVM_LCD_PANEL_LR		2
 #define OMAP3EVM_LCD_PANEL_UD		3
 #define OMAP3EVM_LCD_PANEL_INI		152
-#define OMAP3EVM_LCD_PANEL_ENVDD	153
 #define OMAP3EVM_LCD_PANEL_QVGA		154
 #define OMAP3EVM_LCD_PANEL_RESB		155
+
+#define OMAP3EVM_LCD_PANEL_ENVDD	153
 #define OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO	210
+
+/*
+ * OMAP3EVM DVI control signals
+ */
 #define OMAP3EVM_DVI_PANEL_EN_GPIO	199
 
-static struct gpio omap3_evm_dss_gpios[] __initdata = {
-	{ OMAP3EVM_LCD_PANEL_RESB,  GPIOF_OUT_INIT_HIGH, "lcd_panel_resb"  },
-	{ OMAP3EVM_LCD_PANEL_INI,   GPIOF_OUT_INIT_HIGH, "lcd_panel_ini"   },
-	{ OMAP3EVM_LCD_PANEL_QVGA,  GPIOF_OUT_INIT_LOW,  "lcd_panel_qvga"  },
-	{ OMAP3EVM_LCD_PANEL_LR,    GPIOF_OUT_INIT_HIGH, "lcd_panel_lr"    },
-	{ OMAP3EVM_LCD_PANEL_UD,    GPIOF_OUT_INIT_HIGH, "lcd_panel_ud"    },
-	{ OMAP3EVM_LCD_PANEL_ENVDD, GPIOF_OUT_INIT_LOW,  "lcd_panel_envdd" },
-};
-
-static int lcd_enabled;
-static int dvi_enabled;
-
+#ifdef CONFIG_BROKEN
 static void __init omap3_evm_display_init(void)
 {
 	int r;
 
-	r = gpio_request_array(omap3_evm_dss_gpios,
-			       ARRAY_SIZE(omap3_evm_dss_gpios));
+	r = gpio_request_one(OMAP3EVM_LCD_PANEL_ENVDD, GPIOF_OUT_INIT_LOW,
+				"lcd_panel_envdd");
 	if (r)
-		printk(KERN_ERR "failed to get lcd_panel_* gpios\n");
-}
+		pr_err("failed to get lcd_panel_envdd GPIO\n");
 
-static int omap3_evm_enable_lcd(struct omap_dss_device *dssdev)
-{
-	if (dvi_enabled) {
-		printk(KERN_ERR "cannot enable LCD, DVI is enabled\n");
-		return -EINVAL;
-	}
-	gpio_set_value(OMAP3EVM_LCD_PANEL_ENVDD, 0);
+	r = gpio_request_one(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO,
+				GPIOF_OUT_INIT_LOW, "lcd_panel_bklight");
+	if (r)
+		pr_err("failed to get lcd_panel_bklight GPIO\n");
 
 	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
 		gpio_set_value_cansleep(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
 	else
 		gpio_set_value_cansleep(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 1);
-
-	lcd_enabled = 1;
-	return 0;
 }
+#endif
 
-static void omap3_evm_disable_lcd(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(OMAP3EVM_LCD_PANEL_ENVDD, 1);
+static struct panel_sharp_ls037v7dw01_platform_data omap3_evm_lcd_pdata = {
+	.name                   = "lcd",
+	.source                 = "dpi.0",
 
-	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
-		gpio_set_value_cansleep(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 1);
-	else
-		gpio_set_value_cansleep(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
+	.data_lines		= 18,
 
-	lcd_enabled = 0;
-}
-
-static struct omap_dss_device omap3_evm_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "sharp_ls_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 18,
-	.platform_enable	= omap3_evm_enable_lcd,
-	.platform_disable	= omap3_evm_disable_lcd,
+	.resb_gpio		= OMAP3EVM_LCD_PANEL_RESB,
+	.ini_gpio		= OMAP3EVM_LCD_PANEL_INI,
+	.mo_gpio		= OMAP3EVM_LCD_PANEL_QVGA,
+	.lr_gpio		= OMAP3EVM_LCD_PANEL_LR,
+	.ud_gpio		= OMAP3EVM_LCD_PANEL_UD,
 };
 
-static int omap3_evm_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void omap3_evm_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
-static struct omap_dss_device omap3_evm_tv_device = {
-	.name			= "tv",
-	.driver_name		= "venc",
-	.type			= OMAP_DISPLAY_TYPE_VENC,
-	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable	= omap3_evm_enable_tv,
-	.platform_disable	= omap3_evm_disable_tv,
+static struct platform_device omap3_evm_lcd_device = {
+	.name                   = "panel-sharp-ls037v7dw01",
+	.id                     = 0,
+	.dev.platform_data      = &omap3_evm_lcd_pdata,
 };
 
-static struct tfp410_platform_data dvi_panel = {
-	.power_down_gpio	= OMAP3EVM_DVI_PANEL_EN_GPIO,
+static struct connector_dvi_platform_data omap3_evm_dvi_connector_pdata = {
+	.name                   = "dvi",
+	.source                 = "tfp410.0",
+	.i2c_bus_num            = -1,
 };
 
-static struct omap_dss_device omap3_evm_dvi_device = {
-	.name			= "dvi",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "tfp410",
-	.data			= &dvi_panel,
-	.phy.dpi.data_lines	= 24,
+static struct platform_device omap3_evm_dvi_connector_device = {
+	.name                   = "connector-dvi",
+	.id                     = 0,
+	.dev.platform_data      = &omap3_evm_dvi_connector_pdata,
 };
 
-static struct omap_dss_device *omap3_evm_dss_devices[] = {
-	&omap3_evm_lcd_device,
-	&omap3_evm_tv_device,
-	&omap3_evm_dvi_device,
+static struct encoder_tfp410_platform_data omap3_evm_tfp410_pdata = {
+	.name                   = "tfp410.0",
+	.source                 = "dpi.0",
+	.data_lines             = 24,
+	.power_down_gpio        = OMAP3EVM_DVI_PANEL_EN_GPIO,
+};
+
+static struct platform_device omap3_evm_tfp410_device = {
+	.name                   = "tfp410",
+	.id                     = 0,
+	.dev.platform_data      = &omap3_evm_tfp410_pdata,
+};
+
+static struct connector_atv_platform_data omap3_evm_tv_pdata = {
+	.name = "tv",
+	.source = "venc.0",
+	.connector_type = OMAP_DSS_VENC_TYPE_SVIDEO,
+	.invert_polarity = false,
+};
+
+static struct platform_device omap3_evm_tv_connector_device = {
+	.name                   = "connector-analog-tv",
+	.id                     = 0,
+	.dev.platform_data      = &omap3_evm_tv_pdata,
 };
 
 static struct omap_dss_board_info omap3_evm_dss_data = {
-	.num_devices	= ARRAY_SIZE(omap3_evm_dss_devices),
-	.devices	= omap3_evm_dss_devices,
-	.default_device	= &omap3_evm_lcd_device,
+	.default_display_name = "lcd",
 };
 
 static struct regulator_consumer_supply omap3evm_vmmc1_supply[] = {
@@ -294,7 +295,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_wp	= 63,
 		.deferred	= true,
 	},
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 	{
 		.name		= "wl1271",
 		.mmc		= 2,
@@ -377,9 +378,6 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data omap3evm_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= omap3evm_twl_gpio_setup,
 };
@@ -438,7 +436,7 @@ static struct regulator_init_data omap3evm_vio = {
 	.consumer_supplies	= omap3evm_vio_supply,
 };
 
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 
 #define OMAP3EVM_WLAN_PMENA_GPIO	(150)
 #define OMAP3EVM_WLAN_IRQ_GPIO		(149)
@@ -483,7 +481,7 @@ struct wl12xx_platform_data omap3evm_wlan_data __initdata = {
 static struct regulator_consumer_supply omap3evm_vaux2_supplies[] = {
 	REGULATOR_SUPPLY("VDD_CSIPHY1", "omap3isp"),	/* OMAP ISP */
 	REGULATOR_SUPPLY("VDD_CSIPHY2", "omap3isp"),	/* OMAP ISP */
-	REGULATOR_SUPPLY("hsusb1", "ehci-omap.0"),
+	REGULATOR_SUPPLY("vcc", "usb_phy_gen_xceiv.2"),	/* hsusb port 2 */
 	REGULATOR_SUPPLY("vaux2", NULL),
 };
 
@@ -526,20 +524,16 @@ static int __init omap3_evm_i2c_init(void)
 	return 0;
 }
 
-static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
+static struct usbhs_phy_data phy_data[] __initdata = {
+	{
+		.port = 2,
+		.reset_gpio = -1,	/* set at runtime */
+		.vcc_gpio = -EINVAL,
+	},
 };
 
-static struct usbhs_omap_board_data usbhs_bdata __initdata = {
-
-	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
+static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
-	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
-
-	.phy_reset  = true,
-	/* PHY reset GPIO will be runtime programmed based on EVM version */
-	.reset_gpio_port[0]  = -EINVAL,
-	.reset_gpio_port[1]  = -EINVAL,
-	.reset_gpio_port[2]  = -EINVAL
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -554,7 +548,7 @@ static struct omap_board_mux omap35x_board_mux[] __initdata = {
 				OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(GPMC_WAIT2, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP |
 				OMAP_PIN_OFF_NONE),
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 	/* WLAN IRQ - GPIO 149 */
 	OMAP3_MUX(UART1_RTS, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
 
@@ -592,7 +586,7 @@ static struct omap_board_mux omap36x_board_mux[] __initdata = {
 	OMAP3_MUX(SYS_BOOT4, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(SYS_BOOT5, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(SYS_BOOT6, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 	/* WLAN IRQ - GPIO 149 */
 	OMAP3_MUX(UART1_RTS, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
 
@@ -628,7 +622,7 @@ static struct gpio omap3_evm_ehci_gpios[] __initdata = {
 
 static void __init omap3_evm_wl12xx_init(void)
 {
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
+#ifdef CONFIG_WILINK_PLATFORM_DATA
 	int ret;
 
 	/* WL12xx WLAN Init */
@@ -688,9 +682,6 @@ static void __init omap3_evm_init(void)
 	obm = (cpu_is_omap3630()) ? omap36x_board_mux : omap35x_board_mux;
 	omap3_mux_init(obm, OMAP_PACKAGE_CBB);
 
-	omap_board_config = omap3_evm_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
-
 	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
 	omap_hsmmc_init(mmc);
 
@@ -700,6 +691,10 @@ static void __init omap3_evm_init(void)
 	omap3_evm_i2c_init();
 
 	omap_display_init(&omap3_evm_dss_data);
+	platform_device_register(&omap3_evm_lcd_device);
+	platform_device_register(&omap3_evm_tfp410_device);
+	platform_device_register(&omap3_evm_dvi_connector_device);
+	platform_device_register(&omap3_evm_tv_connector_device);
 
 	omap_serial_init();
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params, NULL);
@@ -718,7 +713,7 @@ static void __init omap3_evm_init(void)
 
 		/* setup EHCI phy reset config */
 		omap_mux_init_gpio(21, OMAP_PIN_INPUT_PULLUP);
-		usbhs_bdata.reset_gpio_port[1] = 21;
+		phy_data[0].reset_gpio = 21;
 
 		/* EVM REV >= E can supply 500mA with EXTVBUS programming */
 		musb_board_data.power = 500;
@@ -726,17 +721,24 @@ static void __init omap3_evm_init(void)
 	} else {
 		/* setup EHCI phy reset on MDC */
 		omap_mux_init_gpio(135, OMAP_PIN_OUTPUT);
-		usbhs_bdata.reset_gpio_port[1] = 135;
+		phy_data[0].reset_gpio = 135;
 	}
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(&musb_board_data);
+
+	usbhs_init_phys(phy_data, ARRAY_SIZE(phy_data));
 	usbhs_init(&usbhs_bdata);
-	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3evm_nand_partitions,
-			     ARRAY_SIZE(omap3evm_nand_partitions));
+	board_nand_init(omap3evm_nand_partitions,
+			ARRAY_SIZE(omap3evm_nand_partitions), NAND_CS,
+			NAND_BUSWIDTH_16, NULL);
 
 	omap_ads7846_init(1, OMAP3_EVM_TS_GPIO, 310, NULL);
 	omap3evm_init_smsc911x();
+#ifdef CONFIG_BROKEN
 	omap3_evm_display_init();
+#endif
 	omap3_evm_wl12xx_init();
+	omap_twl4030_audio_init("omap3evm", NULL);
 }
 
 MACHINE_START(OMAP3EVM, "OMAP3 EVM")
@@ -749,6 +751,6 @@ MACHINE_START(OMAP3EVM, "OMAP3 EVM")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap3_evm_init,
 	.init_late	= omap35xx_init_late,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END

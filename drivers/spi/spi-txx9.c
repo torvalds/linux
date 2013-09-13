@@ -26,7 +26,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 
 #define SPI_FIFO_SIZE 4
@@ -116,15 +116,10 @@ static void txx9spi_cs_func(struct spi_device *spi, struct txx9spi *c,
 static int txx9spi_setup(struct spi_device *spi)
 {
 	struct txx9spi *c = spi_master_get_devdata(spi->master);
-	u8 bits_per_word;
 
 	if (!spi->max_speed_hz
 			|| spi->max_speed_hz > c->max_speed_hz
 			|| spi->max_speed_hz < c->min_speed_hz)
-		return -EINVAL;
-
-	bits_per_word = spi->bits_per_word;
-	if (bits_per_word != 8 && bits_per_word != 16)
 		return -EINVAL;
 
 	if (gpio_direction_output(spi->chip_select,
@@ -189,9 +184,8 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 		unsigned int len = t->len;
 		unsigned int wsize;
 		u32 speed_hz = t->speed_hz ? : spi->max_speed_hz;
-		u8 bits_per_word = t->bits_per_word ? : spi->bits_per_word;
+		u8 bits_per_word = t->bits_per_word;
 
-		bits_per_word = bits_per_word ? : 8;
 		wsize = bits_per_word >> 3; /* in bytes */
 
 		if (prev_speed_hz != speed_hz
@@ -316,12 +310,9 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 	/* check each transfer's parameters */
 	list_for_each_entry (t, &m->transfers, transfer_list) {
 		u32 speed_hz = t->speed_hz ? : spi->max_speed_hz;
-		u8 bits_per_word = t->bits_per_word ? : spi->bits_per_word;
+		u8 bits_per_word = t->bits_per_word;
 
-		bits_per_word = bits_per_word ? : 8;
 		if (!t->tx_buf && !t->rx_buf && t->len)
-			return -EINVAL;
-		if (bits_per_word != 8 && bits_per_word != 16)
 			return -EINVAL;
 		if (t->len & ((bits_per_word >> 3) - 1))
 			return -EINVAL;
@@ -337,7 +328,7 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 	return 0;
 }
 
-static int __init txx9spi_probe(struct platform_device *dev)
+static int txx9spi_probe(struct platform_device *dev)
 {
 	struct spi_master *master;
 	struct txx9spi *c;
@@ -413,6 +404,7 @@ static int __init txx9spi_probe(struct platform_device *dev)
 	master->setup = txx9spi_setup;
 	master->transfer = txx9spi_transfer;
 	master->num_chipselect = (u16)UINT_MAX; /* any GPIO numbers */
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 
 	ret = spi_register_master(master);
 	if (ret)
@@ -427,18 +419,16 @@ exit:
 		clk_disable(c->clk);
 		clk_put(c->clk);
 	}
-	platform_set_drvdata(dev, NULL);
 	spi_master_put(master);
 	return ret;
 }
 
-static int __exit txx9spi_remove(struct platform_device *dev)
+static int txx9spi_remove(struct platform_device *dev)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(dev));
 	struct txx9spi *c = spi_master_get_devdata(master);
 
 	spi_unregister_master(master);
-	platform_set_drvdata(dev, NULL);
 	destroy_workqueue(c->workqueue);
 	clk_disable(c->clk);
 	clk_put(c->clk);
@@ -450,7 +440,7 @@ static int __exit txx9spi_remove(struct platform_device *dev)
 MODULE_ALIAS("platform:spi_txx9");
 
 static struct platform_driver txx9spi_driver = {
-	.remove = __exit_p(txx9spi_remove),
+	.remove = txx9spi_remove,
 	.driver = {
 		.name = "spi_txx9",
 		.owner = THIS_MODULE,

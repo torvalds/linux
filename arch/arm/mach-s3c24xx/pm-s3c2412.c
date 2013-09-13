@@ -21,18 +21,18 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
 
-#include <mach/regs-power.h>
+#include <mach/hardware.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-dsc.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
+#include <plat/wakeup-mask.h>
 
-#include <plat/s3c2412.h>
+#include "regs-dsc.h"
+#include "s3c2412-power.h"
 
 extern void s3c2412_sleep_enter(void);
 
@@ -48,11 +48,19 @@ static int s3c2412_cpu_suspend(unsigned long arg)
 
 	s3c2412_sleep_enter();
 
-	panic("sleep resumed to originator?");
+	pr_info("Failed to suspend the system\n");
+	return 1; /* Aborting suspend */
 }
+
+/* mapping of interrupts to parts of the wakeup mask */
+static struct samsung_wakeup_mask wake_irqs[] = {
+	{ .irq = IRQ_RTC,	.bit = S3C2412_PWRCFG_RTC_MASKIRQ, },
+};
 
 static void s3c2412_pm_prepare(void)
 {
+	samsung_sync_wakemask(S3C2412_PWRCFG,
+			      wake_irqs, ARRAY_SIZE(wake_irqs));
 }
 
 static int s3c2412_pm_add(struct device *dev, struct subsys_interface *sif)

@@ -47,37 +47,37 @@ static struct ot200_led leds[] = {
 	{
 		.name = "led_1",
 		.port = 0x49,
-		.mask = BIT(7),
+		.mask = BIT(6),
 	},
 	{
 		.name = "led_2",
 		.port = 0x49,
-		.mask = BIT(6),
+		.mask = BIT(5),
 	},
 	{
 		.name = "led_3",
 		.port = 0x49,
-		.mask = BIT(5),
+		.mask = BIT(4),
 	},
 	{
 		.name = "led_4",
 		.port = 0x49,
-		.mask = BIT(4),
+		.mask = BIT(3),
 	},
 	{
 		.name = "led_5",
 		.port = 0x49,
-		.mask = BIT(3),
+		.mask = BIT(2),
 	},
 	{
 		.name = "led_6",
 		.port = 0x49,
-		.mask = BIT(2),
+		.mask = BIT(1),
 	},
 	{
 		.name = "led_7",
 		.port = 0x49,
-		.mask = BIT(1),
+		.mask = BIT(0),
 	}
 };
 
@@ -115,7 +115,7 @@ static void ot200_led_brightness_set(struct led_classdev *led_cdev,
 	spin_unlock_irqrestore(&value_lock, flags);
 }
 
-static int __devinit ot200_led_probe(struct platform_device *pdev)
+static int ot200_led_probe(struct platform_device *pdev)
 {
 	int i;
 	int ret;
@@ -144,7 +144,7 @@ err:
 	return ret;
 }
 
-static int __devexit ot200_led_remove(struct platform_device *pdev)
+static int ot200_led_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -156,7 +156,7 @@ static int __devexit ot200_led_remove(struct platform_device *pdev)
 
 static struct platform_driver ot200_led_driver = {
 	.probe		= ot200_led_probe,
-	.remove		= __devexit_p(ot200_led_remove),
+	.remove		= ot200_led_remove,
 	.driver		= {
 		.name	= "leds-ot200",
 		.owner	= THIS_MODULE,

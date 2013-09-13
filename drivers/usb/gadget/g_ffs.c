@@ -13,8 +13,6 @@
 #define pr_fmt(fmt) "g_ffs: " fmt
 
 #include <linux/module.h>
-#include <linux/utsname.h>
-
 /*
  * kbuild is not very cooperative with respect to linking separately
  * compiled library objects into one module.  So for now we won't use
@@ -22,12 +20,6 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-
-#include "composite.c"
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-
 #if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS
 #  if defined USB_ETH_RNDIS
 #    undef USB_ETH_RNDIS
@@ -36,22 +28,28 @@
 #    define USB_ETH_RNDIS y
 #  endif
 
+#define USBF_ECM_INCLUDED
 #  include "f_ecm.c"
+#define USB_FSUBSET_INCLUDED
 #  include "f_subset.c"
 #  ifdef USB_ETH_RNDIS
+#    define USB_FRNDIS_INCLUDED
 #    include "f_rndis.c"
-#    include "rndis.c"
+#    include "rndis.h"
 #  endif
-#  include "u_ether.c"
+#  include "u_ether.h"
 
-static u8 gfs_hostaddr[ETH_ALEN];
+static u8 gfs_host_mac[ETH_ALEN];
+static struct eth_dev *the_dev;
 #  ifdef CONFIG_USB_FUNCTIONFS_ETH
-static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
+static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev);
 #  endif
 #else
-#  define gether_cleanup() do { } while (0)
-#  define gether_setup(gadget, hostaddr)   ((int)0)
-#  define gfs_hostaddr NULL
+#  define the_dev	NULL
+#  define gether_cleanup(dev) do { } while (0)
+#  define gfs_host_mac NULL
+struct eth_dev;
 #endif
 
 #include "f_fs.c"
@@ -75,6 +73,10 @@ struct gfs_ffs_obj {
 	bool desc_ready;
 	struct ffs_data *ffs_data;
 };
+
+USB_GADGET_COMPOSITE_OPTIONS();
+
+USB_ETHERNET_MODULE_PARAMETERS();
 
 static struct usb_device_descriptor gfs_dev_desc = {
 	.bLength		= sizeof gfs_dev_desc,
@@ -117,6 +119,9 @@ static const struct usb_descriptor_header *gfs_otg_desc[] = {
 
 /* String IDs are assigned dynamically */
 static struct usb_string gfs_strings[] = {
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_SERIAL_IDX].s = "",
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{ .s = "FunctionFS + RNDIS" },
 #endif
@@ -139,7 +144,8 @@ static struct usb_gadget_strings *gfs_dev_strings[] = {
 
 struct gfs_configuration {
 	struct usb_configuration c;
-	int (*eth)(struct usb_configuration *c, u8 *ethaddr);
+	int (*eth)(struct usb_configuration *c, u8 *ethaddr,
+			struct eth_dev *dev);
 } gfs_configurations[] = {
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{
@@ -163,13 +169,13 @@ static int gfs_bind(struct usb_composite_dev *cdev);
 static int gfs_unbind(struct usb_composite_dev *cdev);
 static int gfs_do_config(struct usb_configuration *c);
 
-static struct usb_composite_driver gfs_driver = {
+static __refdata struct usb_composite_driver gfs_driver = {
 	.name		= DRIVER_NAME,
 	.dev		= &gfs_dev_desc,
 	.strings	= gfs_dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= gfs_bind,
 	.unbind		= gfs_unbind,
-	.iProduct	= DRIVER_DESC,
 };
 
 static DEFINE_MUTEX(gfs_lock);
@@ -268,7 +274,7 @@ static int functionfs_ready_callback(struct ffs_data *ffs)
 	}
 	gfs_registered = true;
 
-	ret = usb_composite_probe(&gfs_driver, gfs_bind);
+	ret = usb_composite_probe(&gfs_driver);
 	if (unlikely(ret < 0))
 		gfs_registered = false;
 
@@ -348,17 +354,22 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 	if (missing_funcs)
 		return -ENODEV;
-
-	ret = gether_setup(cdev->gadget, gfs_hostaddr);
-	if (unlikely(ret < 0))
+#if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS
+	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, gfs_host_mac,
+			       qmult);
+#endif
+	if (IS_ERR(the_dev)) {
+		ret = PTR_ERR(the_dev);
 		goto error_quick;
+	}
 	gfs_ether_setup = true;
 
 	ret = usb_string_ids_tab(cdev, gfs_strings);
 	if (unlikely(ret < 0))
 		goto error;
+	gfs_dev_desc.iProduct = gfs_strings[USB_GADGET_PRODUCT_IDX].id;
 
-	for (i = func_num; --i; ) {
+	for (i = func_num; i--; ) {
 		ret = functionfs_bind(ffs_tab[i].ffs_data, cdev);
 		if (unlikely(ret < 0)) {
 			while (++i < func_num)
@@ -369,9 +380,10 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 	for (i = 0; i < ARRAY_SIZE(gfs_configurations); ++i) {
 		struct gfs_configuration *c = gfs_configurations + i;
+		int sid = USB_GADGET_FIRST_AVAIL_IDX + i;
 
-		c->c.label			= gfs_strings[i].s;
-		c->c.iConfiguration		= gfs_strings[i].id;
+		c->c.label			= gfs_strings[sid].s;
+		c->c.iConfiguration		= gfs_strings[sid].id;
 		c->c.bConfigurationValue	= 1 + i;
 		c->c.bmAttributes		= USB_CONFIG_ATT_SELFPOWER;
 
@@ -379,14 +391,14 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		if (unlikely(ret < 0))
 			goto error_unbind;
 	}
-
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	return 0;
 
 error_unbind:
 	for (i = 0; i < func_num; i++)
 		functionfs_unbind(ffs_tab[i].ffs_data);
 error:
-	gether_cleanup();
+	gether_cleanup(the_dev);
 error_quick:
 	gfs_ether_setup = false;
 	return ret;
@@ -410,10 +422,10 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 	 * do...?
 	 */
 	if (gfs_ether_setup)
-		gether_cleanup();
+		gether_cleanup(the_dev);
 	gfs_ether_setup = false;
 
-	for (i = func_num; --i; )
+	for (i = func_num; i--; )
 		if (ffs_tab[i].ffs_data)
 			functionfs_unbind(ffs_tab[i].ffs_data);
 
@@ -440,7 +452,7 @@ static int gfs_do_config(struct usb_configuration *c)
 	}
 
 	if (gc->eth) {
-		ret = gc->eth(c, gfs_hostaddr);
+		ret = gc->eth(c, gfs_host_mac, the_dev);
 		if (unlikely(ret < 0))
 			return ret;
 	}
@@ -469,11 +481,12 @@ static int gfs_do_config(struct usb_configuration *c)
 
 #ifdef CONFIG_USB_FUNCTIONFS_ETH
 
-static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev)
 {
 	return can_support_ecm(c->cdev->gadget)
-		? ecm_bind_config(c, ethaddr)
-		: geth_bind_config(c, ethaddr);
+		? ecm_bind_config(c, ethaddr, dev)
+		: geth_bind_config(c, ethaddr, dev);
 }
 
 #endif

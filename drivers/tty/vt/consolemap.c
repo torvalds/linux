@@ -194,8 +194,7 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedir *p, int 
 	q = p->inverse_translations[i];
 
 	if (!q) {
-		q = p->inverse_translations[i] = (unsigned char *) 
-			kmalloc(MAX_GLYPH, GFP_KERNEL);
+		q = p->inverse_translations[i] = kmalloc(MAX_GLYPH, GFP_KERNEL);
 		if (!q) return;
 	}
 	memset(q, 0, MAX_GLYPH);
@@ -410,10 +409,8 @@ static void con_release_unimap(struct uni_pagedir *p)
 		kfree(p->inverse_translations[i]);
 		p->inverse_translations[i] = NULL;
 	}
-	if (p->inverse_trans_unicode) {
-		kfree(p->inverse_trans_unicode);
-		p->inverse_trans_unicode = NULL;
-	}
+	kfree(p->inverse_trans_unicode);
+	p->inverse_trans_unicode = NULL;
 }
 
 /* Caller must hold the console lock */

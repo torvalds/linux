@@ -12,6 +12,7 @@
  * This file is licenced under the GPL.
  */
 
+#include <linux/err.h>
 #include <linux/signal.h>
 
 #include <linux/of.h>
@@ -27,7 +28,7 @@ static const struct hc_driver ehci_ppc_of_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -71,7 +72,7 @@ static const struct hc_driver ehci_ppc_of_hc_driver = {
  * Fix: Enable Break Memory Transfer (BMT) in INSNREG3
  */
 #define PPC440EPX_EHCI0_INSREG_BMT	(0x1 << 0)
-static int __devinit
+static int
 ppc44x_enable_bmt(struct device_node *dn)
 {
 	__iomem u32 *insreg_virt;
@@ -87,7 +88,7 @@ ppc44x_enable_bmt(struct device_node *dn)
 }
 
 
-static int __devinit ehci_hcd_ppc_of_probe(struct platform_device *op)
+static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
@@ -114,12 +115,6 @@ static int __devinit ehci_hcd_ppc_of_probe(struct platform_device *op)
 	hcd->rsrc_start = res.start;
 	hcd->rsrc_len = resource_size(&res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		printk(KERN_ERR "%s: request_mem_region failed\n", __FILE__);
-		rv = -EBUSY;
-		goto err_rmr;
-	}
-
 	irq = irq_of_parse_and_map(dn, 0);
 	if (irq == NO_IRQ) {
 		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
@@ -127,10 +122,9 @@ static int __devinit ehci_hcd_ppc_of_probe(struct platform_device *op)
 		goto err_irq;
 	}
 
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
-	if (!hcd->regs) {
-		printk(KERN_ERR "%s: ioremap failed\n", __FILE__);
-		rv = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&op->dev, &res);
+	if (IS_ERR(hcd->regs)) {
+		rv = PTR_ERR(hcd->regs);
 		goto err_ioremap;
 	}
 
@@ -139,8 +133,10 @@ static int __devinit ehci_hcd_ppc_of_probe(struct platform_device *op)
 	if (np != NULL) {
 		/* claim we really affected by usb23 erratum */
 		if (!of_address_to_resource(np, 0, &res))
-			ehci->ohci_hcctrl_reg = ioremap(res.start +
-					OHCI_HCCTRL_OFFSET, OHCI_HCCTRL_LEN);
+			ehci->ohci_hcctrl_reg =
+				devm_ioremap(&op->dev,
+					     res.start + OHCI_HCCTRL_OFFSET,
+					     OHCI_HCCTRL_LEN);
 		else
 			pr_debug("%s: no ohci offset in fdt\n", __FILE__);
 		if (!ehci->ohci_hcctrl_reg) {
@@ -169,19 +165,13 @@ static int __devinit ehci_hcd_ppc_of_probe(struct platform_device *op)
 
 	rv = usb_add_hcd(hcd, irq, 0);
 	if (rv)
-		goto err_ehci;
+		goto err_ioremap;
 
 	return 0;
 
-err_ehci:
-	if (ehci->has_amcc_usb23)
-		iounmap(ehci->ohci_hcctrl_reg);
-	iounmap(hcd->regs);
 err_ioremap:
 	irq_dispose_mapping(irq);
 err_irq:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-err_rmr:
 	usb_put_hcd(hcd);
 
 	return rv;
@@ -190,21 +180,17 @@ err_rmr:
 
 static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
 	struct device_node *np;
 	struct resource res;
 
-	dev_set_drvdata(&op->dev, NULL);
-
 	dev_dbg(&op->dev, "stopping PPC-OF USB Controller\n");
 
 	usb_remove_hcd(hcd);
 
-	iounmap(hcd->regs);
 	irq_dispose_mapping(hcd->irq);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 
 	/* use request_mem_region to test if the ohci driver is loaded.  if so
 	 * ensure the ohci core is operational.
@@ -222,21 +208,10 @@ static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 				pr_debug("%s: no ohci offset in fdt\n", __FILE__);
 			of_node_put(np);
 		}
-
-		iounmap(ehci->ohci_hcctrl_reg);
 	}
 	usb_put_hcd(hcd);
 
 	return 0;
-}
-
-
-static void ehci_hcd_ppc_of_shutdown(struct platform_device *op)
-{
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
 }
 
 
@@ -252,7 +227,7 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_ppc_of_match);
 static struct platform_driver ehci_hcd_ppc_of_driver = {
 	.probe		= ehci_hcd_ppc_of_probe,
 	.remove		= ehci_hcd_ppc_of_remove,
-	.shutdown	= ehci_hcd_ppc_of_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "ppc-of-ehci",
 		.owner = THIS_MODULE,

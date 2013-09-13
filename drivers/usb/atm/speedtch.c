@@ -718,7 +718,7 @@ static void speedtch_atm_stop(struct usbatm_data *usbatm, struct atm_dev *atm_de
 	del_timer_sync(&instance->resubmit_timer);
 	usb_free_urb(int_urb);
 
-	flush_work_sync(&instance->status_check_work);
+	flush_work(&instance->status_check_work);
 }
 
 static int speedtch_pre_reset(struct usb_interface *intf)
@@ -888,7 +888,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 		usb_fill_int_urb(instance->int_urb, usb_dev,
 				 usb_rcvintpipe(usb_dev, ENDPOINT_INT),
 				 instance->int_data, sizeof(instance->int_data),
-				 speedtch_handle_int, instance, 50);
+				 speedtch_handle_int, instance, 16);
 	else
 		usb_dbg(usbatm, "%s: no memory for interrupt urb!\n", __func__);
 

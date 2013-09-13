@@ -1,0 +1,18 @@
+# UAPI Header export list
+include include/uapi/asm-generic/Kbuild.asm
+
+header-y += byteorder.h
+header-y += fcntl.h
+header-y += hwcap.h
+header-y += ioctls.h
+header-y += kvm_para.h
+header-y += mman.h
+header-y += posix_types.h
+header-y += ptrace.h
+header-y += setup.h
+header-y += sigcontext.h
+header-y += signal.h
+header-y += stat.h
+header-y += statfs.h
+header-y += swab.h
+header-y += unistd.h

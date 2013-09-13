@@ -125,7 +125,6 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 		u8 d8[4];
 	} data[3];
 	int ret;
-	struct spi_message msg;
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = &data[0].d8[1],
@@ -144,10 +143,7 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 			      AD5791_ADDR(addr));
 	data[1].d32 = cpu_to_be32(AD5791_ADDR(AD5791_ADDR_NOOP));
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(spi, &msg);
+	ret = spi_sync_transfer(spi, xfers, ARRAY_SIZE(xfers));
 
 	*val = be32_to_cpu(data[2].d32);
 
@@ -306,9 +302,9 @@ static const struct iio_chan_spec_ext_info ad5791_ext_info[] = {
 	.indexed = 1,					\
 	.address = AD5791_ADDR_DAC0,			\
 	.channel = 0,					\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-		IIO_CHAN_INFO_SCALE_SHARED_BIT |	\
-		IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
+		BIT(IIO_CHAN_INFO_OFFSET),		\
 	.scan_type = IIO_ST('u', bits, 24, shift),	\
 	.ext_info = ad5791_ext_info,			\
 }
@@ -346,35 +342,41 @@ static const struct iio_info ad5791_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad5791_probe(struct spi_device *spi)
+static int ad5791_probe(struct spi_device *spi)
 {
 	struct ad5791_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
 	struct ad5791_state *st;
 	int ret, pos_voltage_uv = 0, neg_voltage_uv = 0;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	st = iio_priv(indio_dev);
-	st->reg_vdd = regulator_get(&spi->dev, "vdd");
+	st->reg_vdd = devm_regulator_get(&spi->dev, "vdd");
 	if (!IS_ERR(st->reg_vdd)) {
 		ret = regulator_enable(st->reg_vdd);
 		if (ret)
-			goto error_put_reg_pos;
+			return ret;
 
-		pos_voltage_uv = regulator_get_voltage(st->reg_vdd);
+		ret = regulator_get_voltage(st->reg_vdd);
+		if (ret < 0)
+			goto error_disable_reg_pos;
+
+		pos_voltage_uv = ret;
 	}
 
-	st->reg_vss = regulator_get(&spi->dev, "vss");
+	st->reg_vss = devm_regulator_get(&spi->dev, "vss");
 	if (!IS_ERR(st->reg_vss)) {
 		ret = regulator_enable(st->reg_vss);
 		if (ret)
-			goto error_put_reg_neg;
+			goto error_disable_reg_pos;
 
-		neg_voltage_uv = regulator_get_voltage(st->reg_vss);
+		ret = regulator_get_voltage(st->reg_vss);
+		if (ret < 0)
+			goto error_disable_reg_neg;
+
+		neg_voltage_uv = ret;
 	}
 
 	st->pwr_down = true;
@@ -424,37 +426,23 @@ static int __devinit ad5791_probe(struct spi_device *spi)
 error_disable_reg_neg:
 	if (!IS_ERR(st->reg_vss))
 		regulator_disable(st->reg_vss);
-error_put_reg_neg:
-	if (!IS_ERR(st->reg_vss))
-		regulator_put(st->reg_vss);
-
+error_disable_reg_pos:
 	if (!IS_ERR(st->reg_vdd))
 		regulator_disable(st->reg_vdd);
-error_put_reg_pos:
-	if (!IS_ERR(st->reg_vdd))
-		regulator_put(st->reg_vdd);
-	iio_device_free(indio_dev);
-error_ret:
-
 	return ret;
 }
 
-static int __devexit ad5791_remove(struct spi_device *spi)
+static int ad5791_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5791_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (!IS_ERR(st->reg_vdd)) {
+	if (!IS_ERR(st->reg_vdd))
 		regulator_disable(st->reg_vdd);
-		regulator_put(st->reg_vdd);
-	}
 
-	if (!IS_ERR(st->reg_vss)) {
+	if (!IS_ERR(st->reg_vss))
 		regulator_disable(st->reg_vss);
-		regulator_put(st->reg_vss);
-	}
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -475,7 +463,7 @@ static struct spi_driver ad5791_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = ad5791_probe,
-	.remove = __devexit_p(ad5791_remove),
+	.remove = ad5791_remove,
 	.id_table = ad5791_id,
 };
 module_spi_driver(ad5791_driver);

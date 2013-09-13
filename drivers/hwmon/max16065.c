@@ -22,7 +22,6 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/delay.h>
 #include <linux/jiffies.h>
 
 enum chips { max16065, max16066, max16067, max16068, max16070, max16071 };
@@ -119,7 +118,7 @@ static inline int LIMIT_TO_MV(int limit, int range)
 
 static inline int MV_TO_LIMIT(int mv, int range)
 {
-	return SENSORS_LIMIT(DIV_ROUND_CLOSEST(mv * 256, range), 0, 255);
+	return clamp_val(DIV_ROUND_CLOSEST(mv * 256, range), 0, 255);
 }
 
 static inline int ADC_TO_CURR(int adc, int gain)

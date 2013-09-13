@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/mach-h1940.c
- *
+/*
  * Copyright (c) 2003-2005 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
@@ -37,40 +36,36 @@
 #include <linux/mmc/host.h>
 #include <linux/export.h>
 
+#include <asm/irq.h>
+#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/hardware.h>
-#include <asm/irq.h>
-#include <asm/mach-types.h>
-
-#include <plat/regs-serial.h>
-#include <mach/regs-lcd.h>
-#include <mach/regs-clock.h>
-
-#include <mach/regs-gpio.h>
-#include <mach/gpio-fns.h>
-#include <mach/gpio-nrs.h>
-
-#include <mach/h1940.h>
-#include <mach/h1940-latch.h>
-#include <mach/fb.h>
-#include <plat/udc.h>
-#include <plat/iic.h>
-
-#include <plat/gpio-cfg.h>
-#include <plat/clock.h>
-#include <plat/devs.h>
-#include <plat/cpu.h>
-#include <plat/pll.h>
-#include <plat/pm.h>
-#include <plat/mci.h>
-#include <plat/ts.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/mmc-s3cmci.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
 
 #include <sound/uda1380.h>
 
+#include <mach/fb.h>
+#include <mach/hardware.h>
+#include <mach/regs-clock.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-lcd.h>
+
+#include <plat/clock.h>
+#include <plat/cpu.h>
+#include <plat/devs.h>
+#include <plat/gpio-cfg.h>
+#include <plat/pll.h>
+#include <plat/pm.h>
+#include <plat/regs-serial.h>
+#include <plat/samsung-time.h>
+
 #include "common.h"
+#include "h1940.h"
 
 #define H1940_LATCH		((void __force __iomem *)0xF8000000)
 
@@ -380,7 +375,7 @@ int h1940_led_blink_set(unsigned gpio, int state,
 	default:
 		blink_gpio = S3C2410_GPA(3);
 		check_gpio1 = S3C2410_GPA(1);
-		check_gpio1 = S3C2410_GPA(7);
+		check_gpio2 = S3C2410_GPA(7);
 		break;
 	}
 
@@ -460,7 +455,7 @@ static void h1940_set_mmc_power(unsigned char power_mode, unsigned short vdd)
 		break;
 	default:
 		break;
-	};
+	}
 }
 
 static struct s3c24xx_mci_pdata h1940_mmc_cfg __initdata = {
@@ -517,7 +512,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 static struct platform_device h1940_backlight = {
 	.name = "pwm-backlight",
 	.dev  = {
-		.parent = &s3c_device_timer[0].dev,
+		.parent = &samsung_device_pwm.dev,
 		.platform_data = &backlight_data,
 	},
 	.id   = -1,
@@ -632,13 +627,12 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
 	&s3c_device_iis,
-	&samsung_asoc_dma,
 	&s3c_device_usbgadget,
 	&h1940_device_leds,
 	&h1940_device_bluetooth,
 	&s3c_device_sdi,
 	&s3c_device_rtc,
-	&s3c_device_timer[0],
+	&samsung_device_pwm,
 	&h1940_backlight,
 	&h1940_lcd_powerdev,
 	&s3c_device_adc,
@@ -652,6 +646,7 @@ static void __init h1940_map_io(void)
 	s3c24xx_init_io(h1940_iodesc, ARRAY_SIZE(h1940_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(h1940_uartcfgs, ARRAY_SIZE(h1940_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	/* setup PM */
 
@@ -670,11 +665,6 @@ static void __init h1940_reserve(void)
 {
 	memblock_reserve(0x30003000, 0x1000);
 	memblock_reserve(0x30081000, 0x1000);
-}
-
-static void __init h1940_init_irq(void)
-{
-	s3c24xx_init_irq();
 }
 
 static void __init h1940_init(void)
@@ -745,8 +735,8 @@ MACHINE_START(H1940, "IPAQ-H1940")
 	.atag_offset	= 0x100,
 	.map_io		= h1940_map_io,
 	.reserve	= h1940_reserve,
-	.init_irq	= h1940_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.init_machine	= h1940_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

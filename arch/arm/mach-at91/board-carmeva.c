@@ -35,9 +35,9 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
 
 
@@ -71,12 +71,12 @@ static struct at91_udc_data __initdata carmeva_udc_data = {
 	// .vcc_pin	= -EINVAL,
 // };
 
-static struct at91_mmc_data __initdata carmeva_mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PB10,
-	.wp_pin		= AT91_PIN_PC14,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata carmeva_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PB10,
+		.wp_pin		= AT91_PIN_PC14,
+	},
 };
 
 static struct spi_board_info carmeva_spi_devices[] = {
@@ -150,14 +150,14 @@ static void __init carmeva_board_init(void)
 	/* Compact Flash */
 //	at91_add_device_cf(&carmeva_cf_data);
 	/* MMC */
-	at91_add_device_mmc(0, &carmeva_mmc_data);
+	at91_add_device_mci(0, &carmeva_mci0_data);
 	/* LEDs */
 	at91_gpio_leds(carmeva_leds, ARRAY_SIZE(carmeva_leds));
 }
 
 MACHINE_START(CARMEVA, "Carmeva")
 	/* Maintainer: Conitec Datasystems */
-	.timer		= &at91rm9200_timer,
+	.init_time	= at91rm9200_timer_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= carmeva_init_early,

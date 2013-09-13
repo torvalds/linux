@@ -17,6 +17,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ratelimit.h>
@@ -57,7 +58,7 @@ static inline u32 mc_readl(struct tegra20_mc *mc, u32 offs)
 
 	if (offs < 0x24)
 		val = readl(mc->regs[0] + offs);
-	if (offs < 0x400)
+	else if (offs < 0x400)
 		val = readl(mc->regs[1] + offs - 0x3c);
 
 	return val;
@@ -65,14 +66,10 @@ static inline u32 mc_readl(struct tegra20_mc *mc, u32 offs)
 
 static inline void mc_writel(struct tegra20_mc *mc, u32 val, u32 offs)
 {
-	if (offs < 0x24) {
+	if (offs < 0x24)
 		writel(val, mc->regs[0] + offs);
-		return;
-	}
-	if (offs < 0x400) {
+	else if (offs < 0x400)
 		writel(val, mc->regs[1] + offs - 0x3c);
-		return;
-	}
 }
 
 static const char * const tegra20_mc_client[] = {
@@ -181,7 +178,7 @@ static void tegra20_mc_decode(struct tegra20_mc *mc, int n)
 			    "carveout" : "trustzone") : "");
 }
 
-static const struct of_device_id tegra20_mc_of_match[] __devinitconst = {
+static const struct of_device_id tegra20_mc_of_match[] = {
 	{ .compatible = "nvidia,tegra20-mc", },
 	{},
 };
@@ -196,13 +193,16 @@ static irqreturn_t tegra20_mc_isr(int irq, void *data)
 	mask &= stat;
 	if (!mask)
 		return IRQ_NONE;
-	while ((bit = ffs(mask)) != 0)
+	while ((bit = ffs(mask)) != 0) {
 		tegra20_mc_decode(mc, bit - 1);
+		mask &= ~BIT(bit - 1);
+	}
+
 	mc_writel(mc, stat, MC_INTSTATUS);
 	return IRQ_HANDLED;
 }
 
-static int __devinit tegra20_mc_probe(struct platform_device *pdev)
+static int tegra20_mc_probe(struct platform_device *pdev)
 {
 	struct resource *irq;
 	struct tegra20_mc *mc;
@@ -218,11 +218,9 @@ static int __devinit tegra20_mc_probe(struct platform_device *pdev)
 		struct resource *res;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res)
-			return -ENODEV;
-		mc->regs[i] = devm_request_and_ioremap(&pdev->dev, res);
-		if (!mc->regs[i])
-			return -EBUSY;
+		mc->regs[i] = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(mc->regs[i]))
+			return PTR_ERR(mc->regs[i]);
 	}
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);

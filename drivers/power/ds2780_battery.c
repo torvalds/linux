@@ -755,12 +755,12 @@ static const struct attribute_group ds2780_attr_group = {
 	.attrs = ds2780_attributes,
 };
 
-static int __devinit ds2780_battery_probe(struct platform_device *pdev)
+static int ds2780_battery_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct ds2780_device_info *dev_info;
 
-	dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
+	dev_info = devm_kzalloc(&pdev->dev, sizeof(*dev_info), GFP_KERNEL);
 	if (!dev_info) {
 		ret = -ENOMEM;
 		goto fail;
@@ -779,7 +779,7 @@ static int __devinit ds2780_battery_probe(struct platform_device *pdev)
 	ret = power_supply_register(&pdev->dev, &dev_info->bat);
 	if (ret) {
 		dev_err(dev_info->dev, "failed to register battery\n");
-		goto fail_free_info;
+		goto fail;
 	}
 
 	ret = sysfs_create_group(&dev_info->bat.dev->kobj, &ds2780_attr_group);
@@ -813,13 +813,11 @@ fail_remove_group:
 	sysfs_remove_group(&dev_info->bat.dev->kobj, &ds2780_attr_group);
 fail_unregister:
 	power_supply_unregister(&dev_info->bat);
-fail_free_info:
-	kfree(dev_info);
 fail:
 	return ret;
 }
 
-static int __devexit ds2780_battery_remove(struct platform_device *pdev)
+static int ds2780_battery_remove(struct platform_device *pdev)
 {
 	struct ds2780_device_info *dev_info = platform_get_drvdata(pdev);
 
@@ -828,7 +826,6 @@ static int __devexit ds2780_battery_remove(struct platform_device *pdev)
 
 	power_supply_unregister(&dev_info->bat);
 
-	kfree(dev_info);
 	return 0;
 }
 
@@ -837,7 +834,7 @@ static struct platform_driver ds2780_battery_driver = {
 		.name = "ds2780-battery",
 	},
 	.probe	  = ds2780_battery_probe,
-	.remove   = __devexit_p(ds2780_battery_remove),
+	.remove   = ds2780_battery_remove,
 };
 
 module_platform_driver(ds2780_battery_driver);

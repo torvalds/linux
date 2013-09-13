@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -174,10 +174,13 @@ static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.sens = &iwl1000_sensitivity;
 }
 
-struct iwl_lib_ops iwl1000_lib = {
+const struct iwl_dvm_cfg iwl_dvm_1000_cfg = {
 	.set_hw_params = iwl1000_hw_set_hw_params,
 	.nic_config = iwl1000_nic_config,
 	.temperature = iwlagn_temperature,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
 };
 
 
@@ -232,16 +235,56 @@ static void iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.sens = &iwl2000_sensitivity;
 }
 
-struct iwl_lib_ops iwl2000_lib = {
+const struct iwl_dvm_cfg iwl_dvm_2000_cfg = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
 	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.hd_v2 = true,
+	.need_temp_offset_calib = true,
+	.temp_offset_v2 = true,
 };
 
-struct iwl_lib_ops iwl2030_lib = {
+const struct iwl_dvm_cfg iwl_dvm_105_cfg = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
 	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.hd_v2 = true,
+	.need_temp_offset_calib = true,
+	.temp_offset_v2 = true,
+	.adv_pm = true,
+};
+
+static const struct iwl_dvm_bt_params iwl2030_bt_params = {
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.advanced_bt_coexist = true,
+	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT32,
+	.bt_sco_disable = true,
+	.bt_session_2 = true,
+};
+
+const struct iwl_dvm_cfg iwl_dvm_2030_cfg = {
+	.set_hw_params = iwl2000_hw_set_hw_params,
+	.nic_config = iwl2000_nic_config,
+	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.hd_v2 = true,
+	.bt_params = &iwl2030_bt_params,
+	.need_temp_offset_calib = true,
+	.temp_offset_v2 = true,
+	.adv_pm = true,
 };
 
 /*
@@ -305,8 +348,8 @@ static s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
 {
 	u16 temperature, voltage;
 
-	temperature = le16_to_cpu(priv->eeprom_data->kelvin_temperature);
-	voltage = le16_to_cpu(priv->eeprom_data->kelvin_voltage);
+	temperature = le16_to_cpu(priv->nvm_data->kelvin_temperature);
+	voltage = le16_to_cpu(priv->nvm_data->kelvin_voltage);
 
 	/* offset = temp - volt / coeff */
 	return (s32)(temperature -
@@ -379,7 +422,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	};
 
 	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
-	ch = ch_switch->channel->hw_value;
+	ch = ch_switch->chandef.chan->hw_value;
 	IWL_DEBUG_11H(priv, "channel switch from %d to %d\n",
 		      ctx->active.channel, ch);
 	cmd.channel = cpu_to_le16(ch);
@@ -414,21 +457,29 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	}
 	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
 		      cmd.switch_time);
-	cmd.expect_beacon = ch_switch->channel->flags & IEEE80211_CHAN_RADAR;
+	cmd.expect_beacon =
+		ch_switch->chandef.chan->flags & IEEE80211_CHAN_RADAR;
 
 	return iwl_dvm_send_cmd(priv, &hcmd);
 }
 
-struct iwl_lib_ops iwl5000_lib = {
+const struct iwl_dvm_cfg iwl_dvm_5000_cfg = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwlagn_temperature,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.no_idle_support = true,
 };
 
-struct iwl_lib_ops iwl5150_lib = {
+const struct iwl_dvm_cfg iwl_dvm_5150_cfg = {
 	.set_hw_params = iwl5150_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwl5150_temperature,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.no_idle_support = true,
+	.no_xtal_calib = true,
 };
 
 
@@ -460,13 +511,13 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 		break;
 	case IWL_DEVICE_FAMILY_6050:
 		/* Indicate calibration version to uCode. */
-		if (priv->eeprom_data->calib_version >= 6)
+		if (priv->nvm_data->calib_version >= 6)
 			iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
 					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 		break;
 	case IWL_DEVICE_FAMILY_6150:
 		/* Indicate calibration version to uCode. */
-		if (priv->eeprom_data->calib_version >= 6)
+		if (priv->nvm_data->calib_version >= 6)
 			iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
 					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 		iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
@@ -518,7 +569,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	 * See iwlagn_mac_channel_switch.
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-	struct iwl6000_channel_switch_cmd cmd;
+	struct iwl6000_channel_switch_cmd *cmd;
 	u32 switch_time_in_usec, ucode_switch_time;
 	u16 ch;
 	u32 tsf_low;
@@ -527,18 +578,25 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	struct ieee80211_vif *vif = ctx->vif;
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
-		.len = { sizeof(cmd), },
+		.len = { sizeof(*cmd), },
 		.flags = CMD_SYNC,
-		.data = { &cmd, },
+		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
+	int err;
 
-	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
-	ch = ch_switch->channel->hw_value;
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	hcmd.data[0] = cmd;
+
+	cmd->band = priv->band == IEEE80211_BAND_2GHZ;
+	ch = ch_switch->chandef.chan->hw_value;
 	IWL_DEBUG_11H(priv, "channel switch from %u to %u\n",
 		      ctx->active.channel, ch);
-	cmd.channel = cpu_to_le16(ch);
-	cmd.rxon_flags = ctx->staging.flags;
-	cmd.rxon_filter_flags = ctx->staging.filter_flags;
+	cmd->channel = cpu_to_le16(ch);
+	cmd->rxon_flags = ctx->staging.flags;
+	cmd->rxon_filter_flags = ctx->staging.filter_flags;
 	switch_count = ch_switch->count;
 	tsf_low = ch_switch->timestamp & 0x0ffffffff;
 	/*
@@ -554,35 +612,81 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 			switch_count = 0;
 	}
 	if (switch_count <= 1)
-		cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+		cmd->switch_time = cpu_to_le32(priv->ucode_beacon_time);
 	else {
 		switch_time_in_usec =
 			vif->bss_conf.beacon_int * switch_count * TIME_UNIT;
 		ucode_switch_time = iwl_usecs_to_beacons(priv,
 							 switch_time_in_usec,
 							 beacon_interval);
-		cmd.switch_time = iwl_add_beacon_time(priv,
-						      priv->ucode_beacon_time,
-						      ucode_switch_time,
-						      beacon_interval);
+		cmd->switch_time = iwl_add_beacon_time(priv,
+						       priv->ucode_beacon_time,
+						       ucode_switch_time,
+						       beacon_interval);
 	}
 	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
-		      cmd.switch_time);
-	cmd.expect_beacon = ch_switch->channel->flags & IEEE80211_CHAN_RADAR;
+		      cmd->switch_time);
+	cmd->expect_beacon =
+		ch_switch->chandef.chan->flags & IEEE80211_CHAN_RADAR;
 
-	return iwl_dvm_send_cmd(priv, &hcmd);
+	err = iwl_dvm_send_cmd(priv, &hcmd);
+	kfree(cmd);
+	return err;
 }
 
-struct iwl_lib_ops iwl6000_lib = {
+const struct iwl_dvm_cfg iwl_dvm_6000_cfg = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
 	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
 };
 
-struct iwl_lib_ops iwl6030_lib = {
+const struct iwl_dvm_cfg iwl_dvm_6005_cfg = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
 	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.need_temp_offset_calib = true,
+};
+
+const struct iwl_dvm_cfg iwl_dvm_6050_cfg = {
+	.set_hw_params = iwl6000_hw_set_hw_params,
+	.set_channel_switch = iwl6000_hw_channel_switch,
+	.nic_config = iwl6000_nic_config,
+	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1500,
+};
+
+static const struct iwl_dvm_bt_params iwl6000_bt_params = {
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.advanced_bt_coexist = true,
+	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
+	.bt_sco_disable = true,
+};
+
+const struct iwl_dvm_cfg iwl_dvm_6030_cfg = {
+	.set_hw_params = iwl6000_hw_set_hw_params,
+	.set_channel_switch = iwl6000_hw_channel_switch,
+	.nic_config = iwl6000_nic_config,
+	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.bt_params = &iwl6000_bt_params,
+	.need_temp_offset_calib = true,
+	.adv_pm = true,
 };

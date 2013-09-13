@@ -73,7 +73,7 @@ MODULE_DEVICE_TABLE(pci, ixgb_pci_tbl);
 static int ixgb_init_module(void);
 static void ixgb_exit_module(void);
 static int ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
-static void __devexit ixgb_remove(struct pci_dev *pdev);
+static void ixgb_remove(struct pci_dev *pdev);
 static int ixgb_sw_init(struct ixgb_adapter *adapter);
 static int ixgb_open(struct net_device *netdev);
 static int ixgb_close(struct net_device *netdev);
@@ -101,8 +101,10 @@ static void ixgb_tx_timeout_task(struct work_struct *work);
 
 static void ixgb_vlan_strip_enable(struct ixgb_adapter *adapter);
 static void ixgb_vlan_strip_disable(struct ixgb_adapter *adapter);
-static int ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
-static int ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
+static int ixgb_vlan_rx_add_vid(struct net_device *netdev,
+				__be16 proto, u16 vid);
+static int ixgb_vlan_rx_kill_vid(struct net_device *netdev,
+				 __be16 proto, u16 vid);
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -115,7 +117,7 @@ static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
 static pci_ers_result_t ixgb_io_slot_reset (struct pci_dev *pdev);
 static void ixgb_io_resume (struct pci_dev *pdev);
 
-static struct pci_error_handlers ixgb_err_handler = {
+static const struct pci_error_handlers ixgb_err_handler = {
 	.error_detected = ixgb_io_error_detected,
 	.slot_reset = ixgb_io_slot_reset,
 	.resume = ixgb_io_resume,
@@ -125,7 +127,7 @@ static struct pci_driver ixgb_driver = {
 	.name     = ixgb_driver_name,
 	.id_table = ixgb_pci_tbl,
 	.probe    = ixgb_probe,
-	.remove   = __devexit_p(ixgb_remove),
+	.remove   = ixgb_remove,
 	.err_handler = &ixgb_err_handler
 };
 
@@ -332,8 +334,8 @@ ixgb_fix_features(struct net_device *netdev, netdev_features_t features)
 	 * Tx VLAN insertion does not work per HW design when Rx stripping is
 	 * disabled.
 	 */
-	if (!(features & NETIF_F_HW_VLAN_RX))
-		features &= ~NETIF_F_HW_VLAN_TX;
+	if (!(features & NETIF_F_HW_VLAN_CTAG_RX))
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -344,7 +346,7 @@ ixgb_set_features(struct net_device *netdev, netdev_features_t features)
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	netdev_features_t changed = features ^ netdev->features;
 
-	if (!(changed & (NETIF_F_RXCSUM|NETIF_F_HW_VLAN_RX)))
+	if (!(changed & (NETIF_F_RXCSUM|NETIF_F_HW_VLAN_CTAG_RX)))
 		return 0;
 
 	adapter->rx_csum = !!(features & NETIF_F_RXCSUM);
@@ -391,7 +393,7 @@ static const struct net_device_ops ixgb_netdev_ops = {
  * and a hardware reset occur.
  **/
 
-static int __devinit
+static int
 ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev = NULL;
@@ -479,10 +481,10 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->hw_features = NETIF_F_SG |
 			   NETIF_F_TSO |
 			   NETIF_F_HW_CSUM |
-			   NETIF_F_HW_VLAN_TX |
-			   NETIF_F_HW_VLAN_RX;
+			   NETIF_F_HW_VLAN_CTAG_TX |
+			   NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->features = netdev->hw_features |
-			   NETIF_F_HW_VLAN_FILTER;
+			   NETIF_F_HW_VLAN_CTAG_FILTER;
 	netdev->hw_features |= NETIF_F_RXCSUM;
 
 	if (pci_using_dac) {
@@ -500,9 +502,8 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	ixgb_get_ee_mac_addr(&adapter->hw, netdev->dev_addr);
-	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 
-	if (!is_valid_ether_addr(netdev->perm_addr)) {
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		netif_err(adapter, probe, adapter->netdev, "Invalid MAC Address\n");
 		err = -EIO;
 		goto err_eeprom;
@@ -558,7 +559,7 @@ err_dma_mask:
  * memory.
  **/
 
-static void __devexit
+static void
 ixgb_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -584,7 +585,7 @@ ixgb_remove(struct pci_dev *pdev)
  * OS network device settings (MTU size).
  **/
 
-static int __devinit
+static int
 ixgb_sw_init(struct ixgb_adapter *adapter)
 {
 	struct ixgb_hw *hw = &adapter->hw;
@@ -709,26 +710,20 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 
 	size = sizeof(struct ixgb_buffer) * txdr->count;
 	txdr->buffer_info = vzalloc(size);
-	if (!txdr->buffer_info) {
-		netif_err(adapter, probe, adapter->netdev,
-			  "Unable to allocate transmit descriptor ring memory\n");
+	if (!txdr->buffer_info)
 		return -ENOMEM;
-	}
 
 	/* round up to nearest 4K */
 
 	txdr->size = txdr->count * sizeof(struct ixgb_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
 
-	txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
-					GFP_KERNEL);
+	txdr->desc = dma_zalloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
+					 GFP_KERNEL);
 	if (!txdr->desc) {
 		vfree(txdr->buffer_info);
-		netif_err(adapter, probe, adapter->netdev,
-			  "Unable to allocate transmit descriptor memory\n");
 		return -ENOMEM;
 	}
-	memset(txdr->desc, 0, txdr->size);
 
 	txdr->next_to_use = 0;
 	txdr->next_to_clean = 0;
@@ -798,11 +793,8 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 
 	size = sizeof(struct ixgb_buffer) * rxdr->count;
 	rxdr->buffer_info = vzalloc(size);
-	if (!rxdr->buffer_info) {
-		netif_err(adapter, probe, adapter->netdev,
-			  "Unable to allocate receive descriptor ring\n");
+	if (!rxdr->buffer_info)
 		return -ENOMEM;
-	}
 
 	/* Round up to nearest 4K */
 
@@ -814,8 +806,6 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 
 	if (!rxdr->desc) {
 		vfree(rxdr->buffer_info);
-		netif_err(adapter, probe, adapter->netdev,
-			  "Unable to allocate receive descriptors\n");
 		return -ENOMEM;
 	}
 	memset(rxdr->desc, 0, rxdr->size);
@@ -1152,7 +1142,7 @@ ixgb_set_multi(struct net_device *netdev)
 	}
 
 alloc_failed:
-	if (netdev->features & NETIF_F_HW_VLAN_RX)
+	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
 		ixgb_vlan_strip_enable(adapter);
 	else
 		ixgb_vlan_strip_disable(adapter);
@@ -2092,8 +2082,8 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 
 		skb->protocol = eth_type_trans(skb, netdev);
 		if (status & IXGB_RX_DESC_STATUS_VP)
-			__vlan_hwaccel_put_tag(skb,
-					       le16_to_cpu(rx_desc->special));
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+				       le16_to_cpu(rx_desc->special));
 
 		netif_receive_skb(skb);
 
@@ -2166,6 +2156,10 @@ map_skb:
 		                                  skb->data,
 		                                  adapter->rx_buffer_len,
 						  DMA_FROM_DEVICE);
+		if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
+			adapter->alloc_rx_buff_failed++;
+			break;
+		}
 
 		rx_desc = IXGB_RX_DESC(*rx_ring, i);
 		rx_desc->buff_addr = cpu_to_le64(buffer_info->dma);
@@ -2175,7 +2169,8 @@ map_skb:
 		rx_desc->status = 0;
 
 
-		if (++i == rx_ring->count) i = 0;
+		if (++i == rx_ring->count)
+			i = 0;
 		buffer_info = &rx_ring->buffer_info[i];
 	}
 
@@ -2216,7 +2211,7 @@ ixgb_vlan_strip_disable(struct ixgb_adapter *adapter)
 }
 
 static int
-ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+ixgb_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	u32 vfta, index;
@@ -2233,7 +2228,7 @@ ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 }
 
 static int
-ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+ixgb_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	u32 vfta, index;
@@ -2255,7 +2250,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 	u16 vid;
 
 	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
-		ixgb_vlan_rx_add_vid(adapter->netdev, vid);
+		ixgb_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), vid);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

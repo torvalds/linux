@@ -5,7 +5,7 @@
 config NET_VENDOR_TI
 	bool "Texas Instruments (TI) devices"
 	default y
-	depends on PCI || EISA || AR7 || (ARM && (ARCH_DAVINCI || ARCH_OMAP3))
+	depends on PCI || EISA || AR7 || (ARM && (ARCH_DAVINCI || ARCH_OMAP3 || SOC_AM33XX))
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -32,7 +32,7 @@ config TI_DAVINCI_EMAC
 
 config TI_DAVINCI_MDIO
 	tristate "TI DaVinci MDIO Support"
-	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 || SOC_AM33XX )
 	select PHYLIB
 	---help---
 	  This driver supports TI's DaVinci MDIO module.
@@ -42,7 +42,7 @@ config TI_DAVINCI_MDIO
 
 config TI_DAVINCI_CPDMA
 	tristate "TI DaVinci CPDMA Support"
-	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 || SOC_AM33XX )
 	---help---
 	  This driver supports TI's DaVinci CPDMA dma engine.
 
@@ -59,6 +59,15 @@ config TI_CPSW
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called cpsw.
+
+config TI_CPTS
+	boolean "TI Common Platform Time Sync (CPTS) Support"
+	depends on TI_CPSW
+	select PTP_1588_CLOCK
+	---help---
+	  This driver supports the Common Platform Time Sync unit of
+	  the CPSW Ethernet Switch. The unit can time stamp PTP UDP/IPv4
+	  and Layer 2 packets, and the driver offers a PTP Hardware Clock.
 
 config TLAN
 	tristate "TI ThunderLAN support"
@@ -79,8 +88,8 @@ config TLAN
 	  Please email feedback to <torben.mathiasen@compaq.com>.
 
 config CPMAC
-	tristate "TI AR7 CPMAC Ethernet support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && AR7
+	tristate "TI AR7 CPMAC Ethernet support"
+	depends on AR7
 	select PHYLIB
 	---help---
 	  TI AR7 CPMAC Ethernet support

@@ -516,7 +516,7 @@ static int snd_vortex_spdif_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 }
 
 /* spdif controls */
-static struct snd_kcontrol_new snd_vortex_mixer_spdif[] __devinitdata = {
+static struct snd_kcontrol_new snd_vortex_mixer_spdif[] = {
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 		.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -585,7 +585,7 @@ static int snd_vortex_pcm_vol_put(struct snd_kcontrol *kcontrol,
 				case 4:
 					mixin = p->mixin[i];
 					break;
-				};
+				}
 				vol = p->vol[i];
 				vortex_mix_setinputvolumebyte(vortex,
 					vortex->mixplayb[i], mixin, vol);
@@ -598,7 +598,7 @@ static int snd_vortex_pcm_vol_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_MINMAX(vortex_pcm_vol_db_scale, -9600, 2400);
 
-static struct snd_kcontrol_new snd_vortex_pcm_vol __devinitdata = {
+static struct snd_kcontrol_new snd_vortex_pcm_vol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "PCM Playback Volume",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
@@ -611,7 +611,7 @@ static struct snd_kcontrol_new snd_vortex_pcm_vol __devinitdata = {
 };
 
 /* create a pcm device */
-static int __devinit snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
+static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 {
 	struct snd_pcm *pcm;
 	struct snd_kcontrol *kctl;
@@ -649,6 +649,29 @@ static int __devinit snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci_dev),
 					      0x10000, 0x10000);
+
+	switch (VORTEX_PCM_TYPE(pcm)) {
+	case VORTEX_PCM_ADB:
+		err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+					     snd_pcm_std_chmaps,
+					     VORTEX_IS_QUAD(chip) ? 4 : 2,
+					     0, NULL);
+		if (err < 0)
+			return err;
+		err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_CAPTURE,
+					     snd_pcm_std_chmaps, 2, 0, NULL);
+		if (err < 0)
+			return err;
+		break;
+#ifdef CHIP_AU8830
+	case VORTEX_PCM_A3D:
+		err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+					     snd_pcm_std_chmaps, 1, 0, NULL);
+		if (err < 0)
+			return err;
+		break;
+#endif
+	};
 
 	if (VORTEX_PCM_TYPE(pcm) == VORTEX_PCM_SPDIF) {
 		for (i = 0; i < ARRAY_SIZE(snd_vortex_mixer_spdif); i++) {

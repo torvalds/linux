@@ -31,7 +31,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/machdep.h>
-#include <asm/abs_addr.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
 #include <asm/tlbflush.h>
@@ -42,9 +41,16 @@
 #include <asm/smp.h>
 #include <asm/trace.h>
 #include <asm/firmware.h>
+#include <asm/plpar_wrappers.h>
 
-#include "plpar_wrappers.h"
 #include "pseries.h"
+
+/* Flag bits for H_BULK_REMOVE */
+#define HBR_REQUEST	0x4000000000000000UL
+#define HBR_RESPONSE	0x8000000000000000UL
+#define HBR_END		0xc000000000000000UL
+#define HBR_AVPN	0x0200000000000000UL
+#define HBR_ANDCOND	0x0100000000000000UL
 
 
 /* in hvCall.S */
@@ -62,8 +68,17 @@ void vpa_init(int cpu)
 	struct paca_struct *pp;
 	struct dtl_entry *dtl;
 
+	/*
+	 * The spec says it "may be problematic" if CPU x registers the VPA of
+	 * CPU y. We should never do that, but wail if we ever do.
+	 */
+	WARN_ON(cpu != smp_processor_id());
+
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		lppaca_of(cpu).vmxregs_in_use = 1;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		lppaca_of(cpu).ebb_regs_in_use = 1;
 
 	addr = __pa(&lppaca_of(cpu));
 	ret = register_vpa(hwcpu, addr);
@@ -97,7 +112,7 @@ void vpa_init(int cpu)
 		lppaca_of(cpu).dtl_idx = 0;
 
 		/* hypervisor reads buffer length from this field */
-		dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
+		dtl->enqueue_to_dispatch_time = cpu_to_be32(DISPATCH_LOG_BYTES);
 		ret = register_dtl(hwcpu, __pa(dtl));
 		if (ret)
 			pr_err("WARNING: DTL registration of cpu %d (hw %d) "
@@ -108,9 +123,9 @@ void vpa_init(int cpu)
 }
 
 static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
- 			      unsigned long va, unsigned long pa,
- 			      unsigned long rflags, unsigned long vflags,
-			      int psize, int ssize)
+				     unsigned long vpn, unsigned long pa,
+				     unsigned long rflags, unsigned long vflags,
+				     int psize, int apsize, int ssize)
 {
 	unsigned long lpar_rc;
 	unsigned long flags;
@@ -118,12 +133,12 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	unsigned long hpte_v, hpte_r;
 
 	if (!(vflags & HPTE_V_BOLTED))
-		pr_devel("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
-			 "rflags=%lx, vflags=%lx, psize=%d)\n",
-			 hpte_group, va, pa, rflags, vflags, psize);
+		pr_devel("hpte_insert(group=%lx, vpn=%016lx, "
+			 "pa=%016lx, rflags=%lx, vflags=%lx, psize=%d)\n",
+			 hpte_group, vpn,  pa, rflags, vflags, psize);
 
-	hpte_v = hpte_encode_v(va, psize, ssize) | vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(pa, psize) | rflags;
+	hpte_v = hpte_encode_v(vpn, psize, apsize, ssize) | vflags | HPTE_V_VALID;
+	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED))
 		pr_devel(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
@@ -137,7 +152,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	flags = 0;
 
 	/* Make pHyp happy */
-	if ((rflags & _PAGE_NO_CACHE) & !(rflags & _PAGE_WRITETHRU))
+	if ((rflags & _PAGE_NO_CACHE) && !(rflags & _PAGE_WRITETHRU))
 		hpte_r &= ~_PAGE_COHERENT;
 	if (firmware_has_feature(FW_FEATURE_XCMO) && !(hpte_r & HPTE_R_N))
 		flags |= H_COALESCE_CAND;
@@ -156,7 +171,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	 */
 	if (unlikely(lpar_rc != H_SUCCESS)) {
 		if (!(vflags & HPTE_V_BOLTED))
-			pr_devel(" lpar err %lu\n", lpar_rc);
+			pr_devel(" lpar err %ld\n", lpar_rc);
 		return -2;
 	}
 	if (!(vflags & HPTE_V_BOLTED))
@@ -187,7 +202,13 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 					   (0x1UL << 4), &dummy1, &dummy2);
 		if (lpar_rc == H_SUCCESS)
 			return i;
-		BUG_ON(lpar_rc != H_NOT_FOUND);
+
+		/*
+		 * The test for adjunct partition is performed before the
+		 * ANDCOND test.  H_RESOURCE may be returned, so we need to
+		 * check for that as well.
+		 */
+		BUG_ON(lpar_rc != H_NOT_FOUND && lpar_rc != H_RESOURCE);
 
 		slot_offset++;
 		slot_offset &= 0x7;
@@ -227,22 +248,6 @@ static void pSeries_lpar_hptab_clear(void)
 }
 
 /*
- * This computes the AVPN and B fields of the first dword of a HPTE,
- * for use when we want to match an existing PTE.  The bottom 7 bits
- * of the returned value are zero.
- */
-static inline unsigned long hpte_encode_avpn(unsigned long va, int psize,
-					     int ssize)
-{
-	unsigned long v;
-
-	v = (va >> 23) & ~(mmu_psize_defs[psize].avpnm);
-	v <<= HPTE_V_AVPN_SHIFT;
-	v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
-	return v;
-}
-
-/*
  * NOTE: for updatepp ops we are fortunate that the linux "newpp" bits and
  * the low 3 bits of flags happen to line up.  So no transform is needed.
  * We can probably optimize here and assume the high bits of newpp are
@@ -250,14 +255,15 @@ static inline unsigned long hpte_encode_avpn(unsigned long va, int psize,
  */
 static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       unsigned long newpp,
-				       unsigned long va,
-				       int psize, int ssize, int local)
+				       unsigned long vpn,
+				       int psize, int apsize,
+				       int ssize, int local)
 {
 	unsigned long lpar_rc;
 	unsigned long flags = (newpp & 7) | H_AVPN;
 	unsigned long want_v;
 
-	want_v = hpte_encode_avpn(va, psize, ssize);
+	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
 	pr_devel("    update: avpnv=%016lx, hash=%016lx, f=%lx, psize: %d ...",
 		 want_v, slot, flags, psize);
@@ -295,15 +301,15 @@ static unsigned long pSeries_lpar_hpte_getword0(unsigned long slot)
 	return dword0;
 }
 
-static long pSeries_lpar_hpte_find(unsigned long va, int psize, int ssize)
+static long pSeries_lpar_hpte_find(unsigned long vpn, int psize, int ssize)
 {
 	unsigned long hash;
 	unsigned long i;
 	long slot;
 	unsigned long want_v, hpte_v;
 
-	hash = hpt_hash(va, mmu_psize_defs[psize].shift, ssize);
-	want_v = hpte_encode_avpn(va, psize, ssize);
+	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
+	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
 	/* Bolted entries are always in the primary group */
 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
@@ -323,12 +329,13 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 					     unsigned long ea,
 					     int psize, int ssize)
 {
-	unsigned long lpar_rc, slot, vsid, va, flags;
+	unsigned long vpn;
+	unsigned long lpar_rc, slot, vsid, flags;
 
 	vsid = get_kernel_vsid(ea, ssize);
-	va = hpt_va(ea, vsid, ssize);
+	vpn = hpt_vpn(ea, vsid, ssize);
 
-	slot = pSeries_lpar_hpte_find(va, psize, ssize);
+	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
 	BUG_ON(slot == -1);
 
 	flags = newpp & 7;
@@ -337,17 +344,18 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
-static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
-					 int psize, int ssize, int local)
+static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
+					 int psize, int apsize,
+					 int ssize, int local)
 {
 	unsigned long want_v;
 	unsigned long lpar_rc;
 	unsigned long dummy1, dummy2;
 
-	pr_devel("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
-		 slot, va, psize, local);
+	pr_devel("    inval : slot=%lx, vpn=%016lx, psize: %d, local: %d\n",
+		 slot, vpn, psize, local);
 
-	want_v = hpte_encode_avpn(va, psize, ssize);
+	want_v = hpte_encode_avpn(vpn, psize, ssize);
 	lpar_rc = plpar_pte_remove(H_AVPN, slot, want_v, &dummy1, &dummy2);
 	if (lpar_rc == H_NOT_FOUND)
 		return;
@@ -355,26 +363,129 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
+/*
+ * Limit iterations holding pSeries_lpar_tlbie_lock to 3. We also need
+ * to make sure that we avoid bouncing the hypervisor tlbie lock.
+ */
+#define PPC64_HUGE_HPTE_BATCH 12
+
+static void __pSeries_lpar_hugepage_invalidate(unsigned long *slot,
+					     unsigned long *vpn, int count,
+					     int psize, int ssize)
+{
+	unsigned long param[8];
+	int i = 0, pix = 0, rc;
+	unsigned long flags = 0;
+	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
+
+	if (lock_tlbie)
+		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
+
+	for (i = 0; i < count; i++) {
+
+		if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
+			pSeries_lpar_hpte_invalidate(slot[i], vpn[i], psize, 0,
+						     ssize, 0);
+		} else {
+			param[pix] = HBR_REQUEST | HBR_AVPN | slot[i];
+			param[pix+1] = hpte_encode_avpn(vpn[i], psize, ssize);
+			pix += 2;
+			if (pix == 8) {
+				rc = plpar_hcall9(H_BULK_REMOVE, param,
+						  param[0], param[1], param[2],
+						  param[3], param[4], param[5],
+						  param[6], param[7]);
+				BUG_ON(rc != H_SUCCESS);
+				pix = 0;
+			}
+		}
+	}
+	if (pix) {
+		param[pix] = HBR_END;
+		rc = plpar_hcall9(H_BULK_REMOVE, param, param[0], param[1],
+				  param[2], param[3], param[4], param[5],
+				  param[6], param[7]);
+		BUG_ON(rc != H_SUCCESS);
+	}
+
+	if (lock_tlbie)
+		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);
+}
+
+static void pSeries_lpar_hugepage_invalidate(struct mm_struct *mm,
+				       unsigned char *hpte_slot_array,
+				       unsigned long addr, int psize)
+{
+	int ssize = 0, i, index = 0;
+	unsigned long s_addr = addr;
+	unsigned int max_hpte_count, valid;
+	unsigned long vpn_array[PPC64_HUGE_HPTE_BATCH];
+	unsigned long slot_array[PPC64_HUGE_HPTE_BATCH];
+	unsigned long shift, hidx, vpn = 0, vsid, hash, slot;
+
+	shift = mmu_psize_defs[psize].shift;
+	max_hpte_count = 1U << (PMD_SHIFT - shift);
+
+	for (i = 0; i < max_hpte_count; i++) {
+		valid = hpte_valid(hpte_slot_array, i);
+		if (!valid)
+			continue;
+		hidx =  hpte_hash_index(hpte_slot_array, i);
+
+		/* get the vpn */
+		addr = s_addr + (i * (1ul << shift));
+		if (!is_kernel_addr(addr)) {
+			ssize = user_segment_size(addr);
+			vsid = get_vsid(mm->context.id, addr, ssize);
+			WARN_ON(vsid == 0);
+		} else {
+			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
+			ssize = mmu_kernel_ssize;
+		}
+
+		vpn = hpt_vpn(addr, vsid, ssize);
+		hash = hpt_hash(vpn, shift, ssize);
+		if (hidx & _PTEIDX_SECONDARY)
+			hash = ~hash;
+
+		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot += hidx & _PTEIDX_GROUP_IX;
+
+		slot_array[index] = slot;
+		vpn_array[index] = vpn;
+		if (index == PPC64_HUGE_HPTE_BATCH - 1) {
+			/*
+			 * Now do a bluk invalidate
+			 */
+			__pSeries_lpar_hugepage_invalidate(slot_array,
+							   vpn_array,
+							   PPC64_HUGE_HPTE_BATCH,
+							   psize, ssize);
+			index = 0;
+		} else
+			index++;
+	}
+	if (index)
+		__pSeries_lpar_hugepage_invalidate(slot_array, vpn_array,
+						   index, psize, ssize);
+}
+
 static void pSeries_lpar_hpte_removebolted(unsigned long ea,
 					   int psize, int ssize)
 {
-	unsigned long slot, vsid, va;
+	unsigned long vpn;
+	unsigned long slot, vsid;
 
 	vsid = get_kernel_vsid(ea, ssize);
-	va = hpt_va(ea, vsid, ssize);
+	vpn = hpt_vpn(ea, vsid, ssize);
 
-	slot = pSeries_lpar_hpte_find(va, psize, ssize);
+	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
 	BUG_ON(slot == -1);
-
-	pSeries_lpar_hpte_invalidate(slot, va, psize, ssize, 0);
+	/*
+	 * lpar doesn't use the passed actual page size
+	 */
+	pSeries_lpar_hpte_invalidate(slot, vpn, psize, 0, ssize, 0);
 }
-
-/* Flag bits for H_BULK_REMOVE */
-#define HBR_REQUEST	0x4000000000000000UL
-#define HBR_RESPONSE	0x8000000000000000UL
-#define HBR_END		0xc000000000000000UL
-#define HBR_AVPN	0x0200000000000000UL
-#define HBR_ANDCOND	0x0100000000000000UL
 
 /*
  * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
@@ -382,12 +493,12 @@ static void pSeries_lpar_hpte_removebolted(unsigned long ea,
  */
 static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 {
+	unsigned long vpn;
 	unsigned long i, pix, rc;
 	unsigned long flags = 0;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long param[9];
-	unsigned long va;
 	unsigned long hash, index, shift, hidx, slot;
 	real_pte_t pte;
 	int psize, ssize;
@@ -399,21 +510,24 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 	ssize = batch->ssize;
 	pix = 0;
 	for (i = 0; i < number; i++) {
-		va = batch->vaddr[i];
+		vpn = batch->vpn[i];
 		pte = batch->pte[i];
-		pte_iterate_hashed_subpages(pte, psize, va, index, shift) {
-			hash = hpt_hash(va, shift, ssize);
+		pte_iterate_hashed_subpages(pte, psize, vpn, index, shift) {
+			hash = hpt_hash(vpn, shift, ssize);
 			hidx = __rpte_to_hidx(pte, index);
 			if (hidx & _PTEIDX_SECONDARY)
 				hash = ~hash;
 			slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 			slot += hidx & _PTEIDX_GROUP_IX;
 			if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
-				pSeries_lpar_hpte_invalidate(slot, va, psize,
-							     ssize, local);
+				/*
+				 * lpar doesn't use the passed actual page size
+				 */
+				pSeries_lpar_hpte_invalidate(slot, vpn, psize,
+							     0, ssize, local);
 			} else {
 				param[pix] = HBR_REQUEST | HBR_AVPN | slot;
-				param[pix+1] = hpte_encode_avpn(va, psize,
+				param[pix+1] = hpte_encode_avpn(vpn, psize,
 								ssize);
 				pix += 2;
 				if (pix == 8) {
@@ -461,6 +575,7 @@ void __init hpte_init_lpar(void)
 	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
 	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
 	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
+	ppc_md.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
 }
 
 #ifdef CONFIG_PPC_SMLPAR
@@ -615,7 +730,7 @@ int h_get_mpp(struct hvcall_mpp_data *mpp_data)
 
 	mpp_data->mem_weight = (retbuf[3] >> 7 * 8) & 0xff;
 	mpp_data->unallocated_mem_weight = (retbuf[3] >> 6 * 8) & 0xff;
-	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffff;
+	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffffUL;
 
 	mpp_data->pool_size = retbuf[4];
 	mpp_data->loan_request = retbuf[5];

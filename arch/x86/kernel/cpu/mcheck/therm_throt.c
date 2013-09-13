@@ -29,6 +29,7 @@
 #include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
+#include <asm/trace/irq_vectors.h>
 
 /* How long to wait between reporting thermal events */
 #define CHECK_INTERVAL		(300 * HZ)
@@ -54,11 +55,23 @@ struct thermal_state {
 	struct _thermal_state package_power_limit;
 	struct _thermal_state core_thresh0;
 	struct _thermal_state core_thresh1;
+	struct _thermal_state pkg_thresh0;
+	struct _thermal_state pkg_thresh1;
 };
 
 /* Callback to handle core threshold interrupts */
 int (*platform_thermal_notify)(__u64 msr_val);
 EXPORT_SYMBOL(platform_thermal_notify);
+
+/* Callback to handle core package threshold_interrupts */
+int (*platform_thermal_package_notify)(__u64 msr_val);
+EXPORT_SYMBOL_GPL(platform_thermal_package_notify);
+
+/* Callback support of rate control, return true, if
+ * callback has rate control */
+bool (*platform_thermal_package_rate_control)(void);
+EXPORT_SYMBOL_GPL(platform_thermal_package_rate_control);
+
 
 static DEFINE_PER_CPU(struct thermal_state, thermal_state);
 
@@ -181,20 +194,11 @@ static int therm_throt_process(bool new_event, int event, int level)
 				this_cpu,
 				level == CORE_LEVEL ? "Core" : "Package",
 				state->count);
-		else
-			printk(KERN_CRIT "CPU%d: %s power limit notification (total events = %lu)\n",
-				this_cpu,
-				level == CORE_LEVEL ? "Core" : "Package",
-				state->count);
 		return 1;
 	}
 	if (old_event) {
 		if (event == THERMAL_THROTTLING_EVENT)
 			printk(KERN_INFO "CPU%d: %s temperature/speed normal\n",
-				this_cpu,
-				level == CORE_LEVEL ? "Core" : "Package");
-		else
-			printk(KERN_INFO "CPU%d: %s power limit normal\n",
 				this_cpu,
 				level == CORE_LEVEL ? "Core" : "Package");
 		return 1;
@@ -203,26 +207,40 @@ static int therm_throt_process(bool new_event, int event, int level)
 	return 0;
 }
 
-static int thresh_event_valid(int event)
+static int thresh_event_valid(int level, int event)
 {
 	struct _thermal_state *state;
 	unsigned int this_cpu = smp_processor_id();
 	struct thermal_state *pstate = &per_cpu(thermal_state, this_cpu);
 	u64 now = get_jiffies_64();
 
-	state = (event == 0) ? &pstate->core_thresh0 : &pstate->core_thresh1;
+	if (level == PACKAGE_LEVEL)
+		state = (event == 0) ? &pstate->pkg_thresh0 :
+						&pstate->pkg_thresh1;
+	else
+		state = (event == 0) ? &pstate->core_thresh0 :
+						&pstate->core_thresh1;
 
 	if (time_before64(now, state->next_check))
 		return 0;
 
 	state->next_check = now + CHECK_INTERVAL;
+
 	return 1;
 }
 
+static bool int_pln_enable;
+static int __init int_pln_enable_setup(char *s)
+{
+	int_pln_enable = true;
+
+	return 1;
+}
+__setup("int_pln_enable", int_pln_enable_setup);
+
 #ifdef CONFIG_SYSFS
 /* Add/Remove thermal_throttle interface for CPU device: */
-static __cpuinit int thermal_throttle_add_dev(struct device *dev,
-				unsigned int cpu)
+static int thermal_throttle_add_dev(struct device *dev, unsigned int cpu)
 {
 	int err;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
@@ -231,7 +249,7 @@ static __cpuinit int thermal_throttle_add_dev(struct device *dev,
 	if (err)
 		return err;
 
-	if (cpu_has(c, X86_FEATURE_PLN))
+	if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
 		err = sysfs_add_file_to_group(&dev->kobj,
 					      &dev_attr_core_power_limit_count.attr,
 					      thermal_attr_group.name);
@@ -239,7 +257,7 @@ static __cpuinit int thermal_throttle_add_dev(struct device *dev,
 		err = sysfs_add_file_to_group(&dev->kobj,
 					      &dev_attr_package_throttle_count.attr,
 					      thermal_attr_group.name);
-		if (cpu_has(c, X86_FEATURE_PLN))
+		if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
 			err = sysfs_add_file_to_group(&dev->kobj,
 					&dev_attr_package_power_limit_count.attr,
 					thermal_attr_group.name);
@@ -248,7 +266,7 @@ static __cpuinit int thermal_throttle_add_dev(struct device *dev,
 	return err;
 }
 
-static __cpuinit void thermal_throttle_remove_dev(struct device *dev)
+static void thermal_throttle_remove_dev(struct device *dev)
 {
 	sysfs_remove_group(&dev->kobj, &thermal_attr_group);
 }
@@ -257,7 +275,7 @@ static __cpuinit void thermal_throttle_remove_dev(struct device *dev)
 static DEFINE_MUTEX(therm_cpu_lock);
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
-static __cpuinit int
+static int
 thermal_throttle_cpu_callback(struct notifier_block *nfb,
 			      unsigned long action,
 			      void *hcpu)
@@ -288,7 +306,7 @@ thermal_throttle_cpu_callback(struct notifier_block *nfb,
 	return notifier_from_errno(err);
 }
 
-static struct notifier_block thermal_throttle_cpu_notifier __cpuinitdata =
+static struct notifier_block thermal_throttle_cpu_notifier =
 {
 	.notifier_call = thermal_throttle_cpu_callback,
 };
@@ -321,6 +339,39 @@ device_initcall(thermal_throttle_init_device);
 
 #endif /* CONFIG_SYSFS */
 
+static void notify_package_thresholds(__u64 msr_val)
+{
+	bool notify_thres_0 = false;
+	bool notify_thres_1 = false;
+
+	if (!platform_thermal_package_notify)
+		return;
+
+	/* lower threshold check */
+	if (msr_val & THERM_LOG_THRESHOLD0)
+		notify_thres_0 = true;
+	/* higher threshold check */
+	if (msr_val & THERM_LOG_THRESHOLD1)
+		notify_thres_1 = true;
+
+	if (!notify_thres_0 && !notify_thres_1)
+		return;
+
+	if (platform_thermal_package_rate_control &&
+		platform_thermal_package_rate_control()) {
+		/* Rate control is implemented in callback */
+		platform_thermal_package_notify(msr_val);
+		return;
+	}
+
+	/* lower threshold reached */
+	if (notify_thres_0 && thresh_event_valid(PACKAGE_LEVEL, 0))
+		platform_thermal_package_notify(msr_val);
+	/* higher threshold reached */
+	if (notify_thres_1 && thresh_event_valid(PACKAGE_LEVEL, 1))
+		platform_thermal_package_notify(msr_val);
+}
+
 static void notify_thresholds(__u64 msr_val)
 {
 	/* check whether the interrupt handler is defined;
@@ -330,10 +381,12 @@ static void notify_thresholds(__u64 msr_val)
 		return;
 
 	/* lower threshold reached */
-	if ((msr_val & THERM_LOG_THRESHOLD0) &&	thresh_event_valid(0))
+	if ((msr_val & THERM_LOG_THRESHOLD0) &&
+			thresh_event_valid(CORE_LEVEL, 0))
 		platform_thermal_notify(msr_val);
 	/* higher threshold reached */
-	if ((msr_val & THERM_LOG_THRESHOLD1) && thresh_event_valid(1))
+	if ((msr_val & THERM_LOG_THRESHOLD1) &&
+			thresh_event_valid(CORE_LEVEL, 1))
 		platform_thermal_notify(msr_val);
 }
 
@@ -352,17 +405,19 @@ static void intel_thermal_interrupt(void)
 				CORE_LEVEL) != 0)
 		mce_log_therm_throt_event(msr_val);
 
-	if (this_cpu_has(X86_FEATURE_PLN))
+	if (this_cpu_has(X86_FEATURE_PLN) && int_pln_enable)
 		therm_throt_process(msr_val & THERM_STATUS_POWER_LIMIT,
 					POWER_LIMIT_EVENT,
 					CORE_LEVEL);
 
 	if (this_cpu_has(X86_FEATURE_PTS)) {
 		rdmsrl(MSR_IA32_PACKAGE_THERM_STATUS, msr_val);
+		/* check violations of package thermal thresholds */
+		notify_package_thresholds(msr_val);
 		therm_throt_process(msr_val & PACKAGE_THERM_STATUS_PROCHOT,
 					THERMAL_THROTTLING_EVENT,
 					PACKAGE_LEVEL);
-		if (this_cpu_has(X86_FEATURE_PLN))
+		if (this_cpu_has(X86_FEATURE_PLN) && int_pln_enable)
 			therm_throt_process(msr_val &
 					PACKAGE_THERM_STATUS_POWER_LIMIT,
 					POWER_LIMIT_EVENT,
@@ -378,15 +433,26 @@ static void unexpected_thermal_interrupt(void)
 
 static void (*smp_thermal_vector)(void) = unexpected_thermal_interrupt;
 
-asmlinkage void smp_thermal_interrupt(struct pt_regs *regs)
+static inline void __smp_thermal_interrupt(void)
 {
-	irq_enter();
-	exit_idle();
 	inc_irq_stat(irq_thermal_count);
 	smp_thermal_vector();
-	irq_exit();
-	/* Ack only at the end to avoid potential reentry */
-	ack_APIC_irq();
+}
+
+asmlinkage void smp_thermal_interrupt(struct pt_regs *regs)
+{
+	entering_irq();
+	__smp_thermal_interrupt();
+	exiting_ack_irq();
+}
+
+asmlinkage void smp_trace_thermal_interrupt(struct pt_regs *regs)
+{
+	entering_irq();
+	trace_thermal_apic_entry(THERMAL_APIC_VECTOR);
+	__smp_thermal_interrupt();
+	trace_thermal_apic_exit(THERMAL_APIC_VECTOR);
+	exiting_ack_irq();
 }
 
 /* Thermal monitoring depends on APIC, ACPI and clock modulation */
@@ -470,9 +536,13 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	apic_write(APIC_LVTTHMR, h);
 
 	rdmsr(MSR_IA32_THERM_INTERRUPT, l, h);
-	if (cpu_has(c, X86_FEATURE_PLN))
+	if (cpu_has(c, X86_FEATURE_PLN) && !int_pln_enable)
 		wrmsr(MSR_IA32_THERM_INTERRUPT,
-		      l | (THERM_INT_LOW_ENABLE
+			(l | (THERM_INT_LOW_ENABLE
+			| THERM_INT_HIGH_ENABLE)) & ~THERM_INT_PLN_ENABLE, h);
+	else if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
+		wrmsr(MSR_IA32_THERM_INTERRUPT,
+			l | (THERM_INT_LOW_ENABLE
 			| THERM_INT_HIGH_ENABLE | THERM_INT_PLN_ENABLE), h);
 	else
 		wrmsr(MSR_IA32_THERM_INTERRUPT,
@@ -480,9 +550,14 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 
 	if (cpu_has(c, X86_FEATURE_PTS)) {
 		rdmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT, l, h);
-		if (cpu_has(c, X86_FEATURE_PLN))
+		if (cpu_has(c, X86_FEATURE_PLN) && !int_pln_enable)
 			wrmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT,
-			      l | (PACKAGE_THERM_INT_LOW_ENABLE
+				(l | (PACKAGE_THERM_INT_LOW_ENABLE
+				| PACKAGE_THERM_INT_HIGH_ENABLE))
+				& ~PACKAGE_THERM_INT_PLN_ENABLE, h);
+		else if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
+			wrmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT,
+				l | (PACKAGE_THERM_INT_LOW_ENABLE
 				| PACKAGE_THERM_INT_HIGH_ENABLE
 				| PACKAGE_THERM_INT_PLN_ENABLE), h);
 		else

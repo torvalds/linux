@@ -105,7 +105,7 @@ config IP6_NF_MATCH_MH
 
 config IP6_NF_MATCH_RPFILTER
 	tristate '"rpfilter" reverse path filter match support'
-	depends on NETFILTER_ADVANCED
+	depends on NETFILTER_ADVANCED && (IP6_NF_MANGLE || IP6_NF_RAW)
 	---help---
 	  This option allows you to match packets whose replies would
 	  go out via the interface the packet came in.
@@ -153,6 +153,19 @@ config IP6_NF_TARGET_REJECT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP6_NF_TARGET_SYNPROXY
+	tristate "SYNPROXY target support"
+	depends on NF_CONNTRACK && NETFILTER_ADVANCED
+	select NETFILTER_SYNPROXY
+	select SYN_COOKIES
+	help
+	  The SYNPROXY target allows you to intercept TCP connections and
+	  establish them using syncookies before they are passed on to the
+	  server. This allows to avoid conntrack and server resource usage
+	  during SYN-flood attacks.
+
+	  To compile it as a module, choose M here. If unsure, say N.
+
 config IP6_NF_MANGLE
 	tristate "Packet mangling"
 	default m if NETFILTER_ADVANCED=n
@@ -181,8 +194,43 @@ config IP6_NF_SECURITY
        help
          This option adds a `security' table to iptables, for use
          with Mandatory Access Control (MAC) policy.
-        
+
          If unsure, say N.
+
+config NF_NAT_IPV6
+	tristate "IPv6 NAT"
+	depends on NF_CONNTRACK_IPV6
+	depends on NETFILTER_ADVANCED
+	select NF_NAT
+	help
+	  The IPv6 NAT option allows masquerading, port forwarding and other
+	  forms of full Network Address Port Translation. It is controlled by
+	  the `nat' table in ip6tables, see the man page for ip6tables(8).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+if NF_NAT_IPV6
+
+config IP6_NF_TARGET_MASQUERADE
+	tristate "MASQUERADE target support"
+	help
+	  Masquerading is a special case of NAT: all outgoing connections are
+	  changed to seem to come from a particular interface's address, and
+	  if the interface goes down, those connections are lost.  This is
+	  only useful for dialup accounts with dynamic IP address (ie. your IP
+	  address will be different on next dialup).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_TARGET_NPT
+	tristate "NPT (Network Prefix translation) target support"
+	help
+	  This option adds the `SNPT' and `DNPT' target, which perform
+	  stateless IPv6-to-IPv6 Network Prefix Translation per RFC 6296.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+endif # NF_NAT_IPV6
 
 endif # IP6_NF_IPTABLES
 

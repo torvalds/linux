@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -38,38 +38,41 @@
 
 struct e1000_hw;
 
-#define E1000_DEV_ID_82576                    0x10C9
-#define E1000_DEV_ID_82576_FIBER              0x10E6
-#define E1000_DEV_ID_82576_SERDES             0x10E7
-#define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
-#define E1000_DEV_ID_82576_QUAD_COPPER_ET2    0x1526
-#define E1000_DEV_ID_82576_NS                 0x150A
-#define E1000_DEV_ID_82576_NS_SERDES          0x1518
-#define E1000_DEV_ID_82576_SERDES_QUAD        0x150D
-#define E1000_DEV_ID_82575EB_COPPER           0x10A7
-#define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
-#define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
-#define E1000_DEV_ID_82580_COPPER             0x150E
-#define E1000_DEV_ID_82580_FIBER              0x150F
-#define E1000_DEV_ID_82580_SERDES             0x1510
-#define E1000_DEV_ID_82580_SGMII              0x1511
-#define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
-#define E1000_DEV_ID_82580_QUAD_FIBER         0x1527
-#define E1000_DEV_ID_DH89XXCC_SGMII           0x0438
-#define E1000_DEV_ID_DH89XXCC_SERDES          0x043A
-#define E1000_DEV_ID_DH89XXCC_BACKPLANE       0x043C
-#define E1000_DEV_ID_DH89XXCC_SFP             0x0440
-#define E1000_DEV_ID_I350_COPPER              0x1521
-#define E1000_DEV_ID_I350_FIBER               0x1522
-#define E1000_DEV_ID_I350_SERDES              0x1523
-#define E1000_DEV_ID_I350_SGMII               0x1524
+#define E1000_DEV_ID_82576			0x10C9
+#define E1000_DEV_ID_82576_FIBER		0x10E6
+#define E1000_DEV_ID_82576_SERDES		0x10E7
+#define E1000_DEV_ID_82576_QUAD_COPPER		0x10E8
+#define E1000_DEV_ID_82576_QUAD_COPPER_ET2	0x1526
+#define E1000_DEV_ID_82576_NS			0x150A
+#define E1000_DEV_ID_82576_NS_SERDES		0x1518
+#define E1000_DEV_ID_82576_SERDES_QUAD		0x150D
+#define E1000_DEV_ID_82575EB_COPPER		0x10A7
+#define E1000_DEV_ID_82575EB_FIBER_SERDES	0x10A9
+#define E1000_DEV_ID_82575GB_QUAD_COPPER	0x10D6
+#define E1000_DEV_ID_82580_COPPER		0x150E
+#define E1000_DEV_ID_82580_FIBER		0x150F
+#define E1000_DEV_ID_82580_SERDES		0x1510
+#define E1000_DEV_ID_82580_SGMII		0x1511
+#define E1000_DEV_ID_82580_COPPER_DUAL		0x1516
+#define E1000_DEV_ID_82580_QUAD_FIBER		0x1527
+#define E1000_DEV_ID_DH89XXCC_SGMII		0x0438
+#define E1000_DEV_ID_DH89XXCC_SERDES		0x043A
+#define E1000_DEV_ID_DH89XXCC_BACKPLANE		0x043C
+#define E1000_DEV_ID_DH89XXCC_SFP		0x0440
+#define E1000_DEV_ID_I350_COPPER		0x1521
+#define E1000_DEV_ID_I350_FIBER			0x1522
+#define E1000_DEV_ID_I350_SERDES		0x1523
+#define E1000_DEV_ID_I350_SGMII			0x1524
 #define E1000_DEV_ID_I210_COPPER		0x1533
-#define E1000_DEV_ID_I210_COPPER_OEM1		0x1534
-#define E1000_DEV_ID_I210_COPPER_IT		0x1535
 #define E1000_DEV_ID_I210_FIBER			0x1536
 #define E1000_DEV_ID_I210_SERDES		0x1537
 #define E1000_DEV_ID_I210_SGMII			0x1538
+#define E1000_DEV_ID_I210_COPPER_FLASHLESS	0x157B
+#define E1000_DEV_ID_I210_SERDES_FLASHLESS	0x157C
 #define E1000_DEV_ID_I211_COPPER		0x1539
+#define E1000_DEV_ID_I354_BACKPLANE_1GBPS	0x1F40
+#define E1000_DEV_ID_I354_SGMII			0x1F41
+#define E1000_DEV_ID_I354_BACKPLANE_2_5GBPS	0x1F45
 
 #define E1000_REVISION_2 2
 #define E1000_REVISION_4 4
@@ -90,6 +93,7 @@ enum e1000_mac_type {
 	e1000_82576,
 	e1000_82580,
 	e1000_i350,
+	e1000_i354,
 	e1000_i210,
 	e1000_i211,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
@@ -98,7 +102,8 @@ enum e1000_mac_type {
 enum e1000_media_type {
 	e1000_media_type_unknown = 0,
 	e1000_media_type_copper = 1,
-	e1000_media_type_internal_serdes = 2,
+	e1000_media_type_fiber = 2,
+	e1000_media_type_internal_serdes = 3,
 	e1000_num_media_types
 };
 
@@ -107,6 +112,7 @@ enum e1000_nvm_type {
 	e1000_nvm_none,
 	e1000_nvm_eeprom_spi,
 	e1000_nvm_flash_hw,
+	e1000_nvm_invm,
 	e1000_nvm_flash_sw
 };
 
@@ -325,6 +331,10 @@ struct e1000_mac_operations {
 	s32  (*get_speed_and_duplex)(struct e1000_hw *, u16 *, u16 *);
 	s32  (*acquire_swfw_sync)(struct e1000_hw *, u16);
 	void (*release_swfw_sync)(struct e1000_hw *, u16);
+#ifdef CONFIG_IGB_HWMON
+	s32 (*get_thermal_sensor_data)(struct e1000_hw *);
+	s32 (*init_thermal_sensor_thresh)(struct e1000_hw *);
+#endif
 
 };
 
@@ -342,6 +352,8 @@ struct e1000_phy_operations {
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
 	s32  (*write_reg)(struct e1000_hw *, u32, u16);
+	s32 (*read_i2c_byte)(struct e1000_hw *, u8, u8, u8 *);
+	s32 (*write_i2c_byte)(struct e1000_hw *, u8, u8, u8);
 };
 
 struct e1000_nvm_operations {
@@ -352,6 +364,19 @@ struct e1000_nvm_operations {
 	s32  (*update)(struct e1000_hw *);
 	s32  (*validate)(struct e1000_hw *);
 	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
+};
+
+#define E1000_MAX_SENSORS		3
+
+struct e1000_thermal_diode_data {
+	u8 location;
+	u8 temp;
+	u8 caution_thresh;
+	u8 max_op_thresh;
+};
+
+struct e1000_thermal_sensor_data {
+	struct e1000_thermal_diode_data sensor[E1000_MAX_SENSORS];
 };
 
 struct e1000_info {
@@ -399,6 +424,7 @@ struct e1000_mac_info {
 	bool report_tx_early;
 	bool serdes_has_link;
 	bool tx_pkt_filtering;
+	struct e1000_thermal_sensor_data thermal_sensor_data;
 };
 
 struct e1000_phy_info {
@@ -504,6 +530,9 @@ struct e1000_dev_spec_82575 {
 	bool sgmii_active;
 	bool global_device_reset;
 	bool eee_disable;
+	bool clear_semaphore_once;
+	struct e1000_sfp_flags eth_flags;
+	bool module_plugged;
 };
 
 struct e1000_hw {

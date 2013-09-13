@@ -1,9 +1,12 @@
 #ifndef _ASM_X86_SETUP_H
 #define _ASM_X86_SETUP_H
 
-#ifdef __KERNEL__
+#include <uapi/asm/setup.h>
+
 
 #define COMMAND_LINE_SIZE 2048
+
+#include <linux/linkage.h>
 
 #ifdef __i386__
 
@@ -107,11 +110,11 @@ void *extend_brk(size_t size, size_t align);
 extern void probe_roms(void);
 #ifdef __i386__
 
-void __init i386_start_kernel(void);
+asmlinkage void __init i386_start_kernel(void);
 
 #else
-void __init x86_64_start_kernel(char *real_mode);
-void __init x86_64_start_reservations(char *real_mode_data);
+asmlinkage void __init x86_64_start_kernel(char *real_mode);
+asmlinkage void __init x86_64_start_reservations(char *real_mode_data);
 
 #endif /* __i386__ */
 #endif /* _SETUP */
@@ -123,6 +126,4 @@ void __init x86_64_start_reservations(char *real_mode_data);
 	.size .brk.name,.-1b;				\
 	.popsection
 #endif /* __ASSEMBLY__ */
-#endif  /*  __KERNEL__  */
-
 #endif /* _ASM_X86_SETUP_H */

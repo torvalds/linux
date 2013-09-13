@@ -733,7 +733,7 @@ err_stop:
 	return result;
 }
 
-static int acpi_fujitsu_remove(struct acpi_device *device, int type)
+static int acpi_fujitsu_remove(struct acpi_device *device)
 {
 	struct fujitsu_t *fujitsu = acpi_driver_data(device);
 	struct input_dev *input = fujitsu->input;
@@ -773,8 +773,6 @@ static void acpi_fujitsu_notify(struct acpi_device *device, u32 event)
 				else
 					set_lcd_level(newb);
 			}
-			acpi_bus_generate_proc_event(fujitsu->dev,
-				ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS, 0);
 			keycode = KEY_BRIGHTNESSUP;
 		} else if (oldb > newb) {
 			if (disable_brightness_adjust != 1) {
@@ -783,8 +781,6 @@ static void acpi_fujitsu_notify(struct acpi_device *device, u32 event)
 				else
 					set_lcd_level(newb);
 			}
-			acpi_bus_generate_proc_event(fujitsu->dev,
-				ACPI_VIDEO_NOTIFY_DEC_BRIGHTNESS, 0);
 			keycode = KEY_BRIGHTNESSDOWN;
 		}
 		break;
@@ -938,7 +934,7 @@ err_stop:
 	return result;
 }
 
-static int acpi_fujitsu_hotkey_remove(struct acpi_device *device, int type)
+static int acpi_fujitsu_hotkey_remove(struct acpi_device *device)
 {
 	struct fujitsu_hotkey_t *fujitsu_hotkey = acpi_driver_data(device);
 	struct input_dev *input = fujitsu_hotkey->input;

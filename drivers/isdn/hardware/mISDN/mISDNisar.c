@@ -1302,7 +1302,7 @@ modeisar(struct isar_ch *ch, u32 bprotocol)
 						   &ch->is->Flags))
 				ch->dpath = 1;
 			else {
-				pr_info("modeisar both pathes in use\n");
+				pr_info("modeisar both paths in use\n");
 				return -EBUSY;
 			}
 			if (bprotocol == ISDN_P_B_HDLC)
@@ -1588,8 +1588,9 @@ isar_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
+		cancel_work_sync(&bch->workq);
 		spin_lock_irqsave(ich->is->hwlock, flags);
-		mISDN_freebchannel(bch);
+		mISDN_clear_bchannel(bch);
 		modeisar(ich, ISDN_P_NONE);
 		spin_unlock_irqrestore(ich->is->hwlock, flags);
 		ch->protocol = ISDN_P_NONE;

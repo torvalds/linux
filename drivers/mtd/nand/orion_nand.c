@@ -21,8 +21,7 @@
 #include <linux/err.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <mach/hardware.h>
-#include <plat/orion_nand.h>
+#include <linux/platform_data/mtd-orion_nand.h>
 
 static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
@@ -131,8 +130,9 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		if (!of_property_read_u32(pdev->dev.of_node,
 						"chip-delay", &val))
 			board->chip_delay = (u8)val;
-	} else
-		board = pdev->dev.platform_data;
+	} else {
+		board = dev_get_platdata(&pdev->dev);
+	}
 
 	mtd->priv = nc;
 	mtd->owner = THIS_MODULE;
@@ -187,7 +187,6 @@ no_dev:
 		clk_disable_unprepare(clk);
 		clk_put(clk);
 	}
-	platform_set_drvdata(pdev, NULL);
 	iounmap(io_base);
 no_res:
 	kfree(nc);
@@ -195,7 +194,7 @@ no_res:
 	return ret;
 }
 
-static int __devexit orion_nand_remove(struct platform_device *pdev)
+static int orion_nand_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct nand_chip *nc = mtd->priv;
@@ -224,7 +223,7 @@ static struct of_device_id orion_nand_of_match_table[] = {
 #endif
 
 static struct platform_driver orion_nand_driver = {
-	.remove		= __devexit_p(orion_nand_remove),
+	.remove		= orion_nand_remove,
 	.driver		= {
 		.name	= "orion_nand",
 		.owner	= THIS_MODULE,
@@ -232,18 +231,7 @@ static struct platform_driver orion_nand_driver = {
 	},
 };
 
-static int __init orion_nand_init(void)
-{
-	return platform_driver_probe(&orion_nand_driver, orion_nand_probe);
-}
-
-static void __exit orion_nand_exit(void)
-{
-	platform_driver_unregister(&orion_nand_driver);
-}
-
-module_init(orion_nand_init);
-module_exit(orion_nand_exit);
+module_platform_driver_probe(orion_nand_driver, orion_nand_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tzachi Perelstein");

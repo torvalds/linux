@@ -110,12 +110,12 @@ static int sk_diag_show_rqlen(struct sock *sk, struct sk_buff *nlskb)
 }
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
-		u32 pid, u32 seq, u32 flags, int sk_ino)
+		u32 portid, u32 seq, u32 flags, int sk_ino)
 {
 	struct nlmsghdr *nlh;
 	struct unix_diag_msg *rep;
 
-	nlh = nlmsg_put(skb, pid, seq, SOCK_DIAG_BY_FAMILY, sizeof(*rep),
+	nlh = nlmsg_put(skb, portid, seq, SOCK_DIAG_BY_FAMILY, sizeof(*rep),
 			flags);
 	if (!nlh)
 		return -EMSGSIZE;
@@ -151,6 +151,9 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 	    sock_diag_put_meminfo(sk, skb, UNIX_DIAG_MEMINFO))
 		goto out_nlmsg_trim;
 
+	if (nla_put_u8(skb, UNIX_DIAG_SHUTDOWN, sk->sk_shutdown))
+		goto out_nlmsg_trim;
+
 	return nlmsg_end(skb, nlh);
 
 out_nlmsg_trim:
@@ -159,7 +162,7 @@ out_nlmsg_trim:
 }
 
 static int sk_diag_dump(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
-		u32 pid, u32 seq, u32 flags)
+		u32 portid, u32 seq, u32 flags)
 {
 	int sk_ino;
 
@@ -170,7 +173,7 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 	if (!sk_ino)
 		return 0;
 
-	return sk_diag_fill(sk, skb, req, pid, seq, flags, sk_ino);
+	return sk_diag_fill(sk, skb, req, portid, seq, flags, sk_ino);
 }
 
 static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
@@ -189,10 +192,9 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	     slot < ARRAY_SIZE(unix_socket_table);
 	     s_num = 0, slot++) {
 		struct sock *sk;
-		struct hlist_node *node;
 
 		num = 0;
-		sk_for_each(sk, node, &unix_socket_table[slot]) {
+		sk_for_each(sk, &unix_socket_table[slot]) {
 			if (!net_eq(sock_net(sk), net))
 				continue;
 			if (num < s_num)
@@ -200,7 +202,7 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			if (!(req->udiag_states & (1 << sk->sk_state)))
 				goto next;
 			if (sk_diag_dump(sk, skb, req,
-					 NETLINK_CB(cb->skb).pid,
+					 NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq,
 					 NLM_F_MULTI) < 0)
 				goto done;
@@ -223,9 +225,7 @@ static struct sock *unix_lookup_by_ino(int ino)
 
 	spin_lock(&unix_table_lock);
 	for (i = 0; i < ARRAY_SIZE(unix_socket_table); i++) {
-		struct hlist_node *node;
-
-		sk_for_each(sk, node, &unix_socket_table[i])
+		sk_for_each(sk, &unix_socket_table[i])
 			if (ino == sock_i_ino(sk)) {
 				sock_hold(sk);
 				spin_unlock(&unix_table_lock);
@@ -267,7 +267,7 @@ again:
 	if (!rep)
 		goto out;
 
-	err = sk_diag_fill(sk, rep, req, NETLINK_CB(in_skb).pid,
+	err = sk_diag_fill(sk, rep, req, NETLINK_CB(in_skb).portid,
 			   nlh->nlmsg_seq, 0, req->udiag_ino);
 	if (err < 0) {
 		nlmsg_free(rep);
@@ -277,7 +277,7 @@ again:
 
 		goto again;
 	}
-	err = netlink_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).pid,
+	err = netlink_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid,
 			      MSG_DONTWAIT);
 	if (err > 0)
 		err = 0;

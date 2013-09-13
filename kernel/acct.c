@@ -193,7 +193,7 @@ static void acct_file_reopen(struct bsd_acct_struct *acct, struct file *file,
 	}
 }
 
-static int acct_on(char *name)
+static int acct_on(struct filename *pathname)
 {
 	struct file *file;
 	struct vfsmount *mnt;
@@ -201,11 +201,11 @@ static int acct_on(char *name)
 	struct bsd_acct_struct *acct = NULL;
 
 	/* Difference from BSD - they don't do O_APPEND */
-	file = filp_open(name, O_WRONLY|O_APPEND|O_LARGEFILE, 0);
+	file = file_open_name(pathname, O_WRONLY|O_APPEND|O_LARGEFILE, 0);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	if (!S_ISREG(file->f_path.dentry->d_inode->i_mode)) {
+	if (!S_ISREG(file_inode(file)->i_mode)) {
 		filp_close(file, NULL);
 		return -EACCES;
 	}
@@ -260,7 +260,7 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 		return -EPERM;
 
 	if (name) {
-		char *tmp = getname(name);
+		struct filename *tmp = getname(name);
 		if (IS_ERR(tmp))
 			return (PTR_ERR(tmp));
 		error = acct_on(tmp);
@@ -507,8 +507,8 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	do_div(elapsed, AHZ);
 	ac.ac_btime = get_seconds() - elapsed;
 	/* we really need to bite the bullet and change layout */
-	ac.ac_uid = orig_cred->uid;
-	ac.ac_gid = orig_cred->gid;
+	ac.ac_uid = from_kuid_munged(file->f_cred->user_ns, orig_cred->uid);
+	ac.ac_gid = from_kgid_munged(file->f_cred->user_ns, orig_cred->gid);
 #if ACCT_VERSION==2
 	ac.ac_ahz = AHZ;
 #endif
@@ -540,6 +540,12 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	ac.ac_swaps = encode_comp_t(0);
 
 	/*
+	 * Get freeze protection. If the fs is frozen, just skip the write
+	 * as we could deadlock the system otherwise.
+	 */
+	if (!file_start_write_trylock(file))
+		goto out;
+	/*
 	 * Kernel segment override to datasegment and write it
 	 * to the accounting file.
 	 */
@@ -554,6 +560,7 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 			       sizeof(acct_t), &file->f_pos);
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = flim;
 	set_fs(fs);
+	file_end_write(file);
 out:
 	revert_creds(orig_cred);
 }
@@ -566,6 +573,7 @@ out:
 void acct_collect(long exitcode, int group_dead)
 {
 	struct pacct_struct *pacct = &current->signal->pacct;
+	cputime_t utime, stime;
 	unsigned long vsize = 0;
 
 	if (group_dead && current->mm) {
@@ -593,8 +601,9 @@ void acct_collect(long exitcode, int group_dead)
 		pacct->ac_flag |= ACORE;
 	if (current->flags & PF_SIGNALED)
 		pacct->ac_flag |= AXSIG;
-	pacct->ac_utime += current->utime;
-	pacct->ac_stime += current->stime;
+	task_cputime(current, &utime, &stime);
+	pacct->ac_utime += utime;
+	pacct->ac_stime += stime;
 	pacct->ac_minflt += current->min_flt;
 	pacct->ac_majflt += current->maj_flt;
 	spin_unlock_irq(&current->sighand->siglock);

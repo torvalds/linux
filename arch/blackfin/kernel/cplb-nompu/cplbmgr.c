@@ -145,7 +145,7 @@ MGR_ATTR static int dcplb_miss(int cpu)
 	unsigned long addr = bfin_read_DCPLB_FAULT_ADDR();
 	int status = bfin_read_DCPLB_STATUS();
 	int idx;
-	unsigned long d_data, base, addr1, eaddr;
+	unsigned long d_data, base, addr1, eaddr, cplb_pagesize, cplb_pageflags;
 
 	nr_dcplb_miss[cpu]++;
 	if (unlikely(status & FAULT_USERSUPV))
@@ -167,18 +167,37 @@ MGR_ATTR static int dcplb_miss(int cpu)
 	if (unlikely(d_data == 0))
 		return CPLB_NO_ADDR_MATCH;
 
-	addr1 = addr & ~(SIZE_4M - 1);
 	addr &= ~(SIZE_1M - 1);
 	d_data |= PAGE_SIZE_1MB;
-	if (addr1 >= base && (addr1 + SIZE_4M) <= eaddr) {
+
+	/* BF60x support large than 4M CPLB page size */
+#ifdef PAGE_SIZE_16MB
+	cplb_pageflags = PAGE_SIZE_16MB;
+	cplb_pagesize = SIZE_16M;
+#else
+	cplb_pageflags = PAGE_SIZE_4MB;
+	cplb_pagesize = SIZE_4M;
+#endif
+
+find_pagesize:
+	addr1 = addr & ~(cplb_pagesize - 1);
+	if (addr1 >= base && (addr1 + cplb_pagesize) <= eaddr) {
 		/*
 		 * This works because
 		 * (PAGE_SIZE_4MB & PAGE_SIZE_1MB) == PAGE_SIZE_1MB.
 		 */
-		d_data |= PAGE_SIZE_4MB;
+		d_data |= cplb_pageflags;
 		addr = addr1;
+		goto found_pagesize;
+	} else {
+		if (cplb_pagesize > SIZE_4M) {
+			cplb_pageflags = PAGE_SIZE_4MB;
+			cplb_pagesize = SIZE_4M;
+			goto find_pagesize;
+		}
 	}
 
+found_pagesize:
 #ifdef CONFIG_BF60x
 	if ((addr >= ASYNC_BANK0_BASE)
 		&& (addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE))

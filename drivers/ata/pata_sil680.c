@@ -323,8 +323,7 @@ static u8 sil680_init_chip(struct pci_dev *pdev, int *try_mmio)
 	return tmpbyte & 0x30;
 }
 
-static int __devinit sil680_init_one(struct pci_dev *pdev,
-				     const struct pci_device_id *id)
+static int sil680_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info = {
 		.flags = ATA_FLAG_SLAVE_POSS,
@@ -408,7 +407,7 @@ use_ioports:
 #ifdef CONFIG_PM
 static int sil680_reinit_one(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	int try_mmio, rc;
 
 	rc = ata_pci_device_do_resume(pdev);

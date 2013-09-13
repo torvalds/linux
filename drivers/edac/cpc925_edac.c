@@ -789,7 +789,7 @@ static struct cpc925_dev_info cpc925_devs[] = {
 	.exit = cpc925_htlink_exit,
 	.check = cpc925_htlink_check,
 	},
-	{0}, /* Terminated by NULL */
+	{ }
 };
 
 /*
@@ -932,7 +932,7 @@ static int cpc925_mc_get_channels(void __iomem *vbase)
 	return dual;
 }
 
-static int __devinit cpc925_probe(struct platform_device *pdev)
+static int cpc925_probe(struct platform_device *pdev)
 {
 	static int edac_mc_idx;
 	struct mem_ctl_info *mci;

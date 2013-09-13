@@ -25,7 +25,7 @@ is treated as one entity. The load of a group is defined as the sum of the
 load of each of its member CPUs, and only when the load of a group becomes
 out of balance are tasks moved between groups.
 
-In kernel/sched.c, trigger_load_balance() is run periodically on each CPU
+In kernel/sched/core.c, trigger_load_balance() is run periodically on each CPU
 through scheduler_tick(). It raises a softirq after the next regularly scheduled
 rebalancing event for the current runqueue has arrived. The actual load
 balancing workhorse, run_rebalance_domains()->rebalance_domains(), is then run
@@ -62,7 +62,7 @@ struct sched_domain fields, SD_FLAG_*, SD_*_INIT to get an idea of
 the specifics and what to tune.
 
 Architectures may retain the regular override the default SD_*_INIT flags
-while using the generic domain builder in kernel/sched.c if they wish to
+while using the generic domain builder in kernel/sched/core.c if they wish to
 retain the traditional SMT->SMP->NUMA topology (or some subset of that). This
 can be done by #define'ing ARCH_HASH_SCHED_TUNE.
 

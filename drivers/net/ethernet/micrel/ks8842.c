@@ -705,7 +705,8 @@ static void ks8842_rx_frame(struct net_device *netdev,
 	ks8842_enable_bits(adapter, 0, 1 << 12, REG_QRFCR);
 }
 
-void ks8842_handle_rx(struct net_device *netdev, struct ks8842_adapter *adapter)
+static void ks8842_handle_rx(struct net_device *netdev,
+	struct ks8842_adapter *adapter)
 {
 	u16 rx_data = ks8842_read16(adapter, 16, REG_RXMIR) & 0x1fff;
 	netdev_dbg(netdev, "%s Entry - rx_data: %d\n", __func__, rx_data);
@@ -715,7 +716,8 @@ void ks8842_handle_rx(struct net_device *netdev, struct ks8842_adapter *adapter)
 	}
 }
 
-void ks8842_handle_tx(struct net_device *netdev, struct ks8842_adapter *adapter)
+static void ks8842_handle_tx(struct net_device *netdev,
+	struct ks8842_adapter *adapter)
 {
 	u16 sr = ks8842_read16(adapter, 16, REG_TXSR);
 	netdev_dbg(netdev, "%s - entry, sr: %x\n", __func__, sr);
@@ -724,7 +726,7 @@ void ks8842_handle_tx(struct net_device *netdev, struct ks8842_adapter *adapter)
 		netif_wake_queue(netdev);
 }
 
-void ks8842_handle_rx_overrun(struct net_device *netdev,
+static void ks8842_handle_rx_overrun(struct net_device *netdev,
 	struct ks8842_adapter *adapter)
 {
 	netdev_dbg(netdev, "%s: entry\n", __func__);
@@ -732,7 +734,7 @@ void ks8842_handle_rx_overrun(struct net_device *netdev,
 	netdev->stats.rx_fifo_errors++;
 }
 
-void ks8842_tasklet(unsigned long arg)
+static void ks8842_tasklet(unsigned long arg)
 {
 	struct net_device *netdev = (struct net_device *)arg;
 	struct ks8842_adapter *adapter = netdev_priv(netdev);
@@ -1080,7 +1082,6 @@ static int ks8842_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(netdev->dev_addr, mac, netdev->addr_len);
 
 	ks8842_write_mac_addr(adapter, mac);
@@ -1141,13 +1142,13 @@ static const struct ethtool_ops ks8842_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 };
 
-static int __devinit ks8842_probe(struct platform_device *pdev)
+static int ks8842_probe(struct platform_device *pdev)
 {
 	int err = -ENOMEM;
 	struct resource *iomem;
 	struct net_device *netdev;
 	struct ks8842_adapter *adapter;
-	struct ks8842_platform_data *pdata = pdev->dev.platform_data;
+	struct ks8842_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	u16 id;
 	unsigned i;
 
@@ -1240,7 +1241,7 @@ err_mem_region:
 	return err;
 }
 
-static int __devexit ks8842_remove(struct platform_device *pdev)
+static int ks8842_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = platform_get_drvdata(pdev);
 	struct ks8842_adapter *adapter = netdev_priv(netdev);
@@ -1251,7 +1252,6 @@ static int __devexit ks8842_remove(struct platform_device *pdev)
 	iounmap(adapter->hw_addr);
 	free_netdev(netdev);
 	release_mem_region(iomem->start, resource_size(iomem));
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -1262,7 +1262,7 @@ static struct platform_driver ks8842_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ks8842_probe,
-	.remove		= __devexit_p(ks8842_remove),
+	.remove		= ks8842_remove,
 };
 
 module_platform_driver(ks8842_platform_driver);

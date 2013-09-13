@@ -73,8 +73,6 @@ struct ti_hdmi_ip_ops {
 
 	int (*read_edid)(struct hdmi_ip_data *ip_data, u8 *edid, int len);
 
-	bool (*detect)(struct hdmi_ip_data *ip_data);
-
 	int (*pll_enable)(struct hdmi_ip_data *ip_data);
 
 	void (*pll_disable)(struct hdmi_ip_data *ip_data);
@@ -102,6 +100,8 @@ struct ti_hdmi_ip_ops {
 
 	int (*audio_config)(struct hdmi_ip_data *ip_data,
 		struct omap_dss_audio *audio);
+
+	int (*audio_get_dma_port)(u32 *offset, u32 *size);
 #endif
 
 };
@@ -153,19 +153,18 @@ struct hdmi_ip_data {
 	unsigned long	core_av_offset;
 	unsigned long	pll_offset;
 	unsigned long	phy_offset;
+	int		irq;
 	const struct ti_hdmi_ip_ops *ops;
 	struct hdmi_config cfg;
 	struct hdmi_pll_info pll_data;
 	struct hdmi_core_infoframe_avi avi_cfg;
 
 	/* ti_hdmi_4xxx_ip private data. These should be in a separate struct */
-	int hpd_gpio;
 	struct mutex lock;
 };
 int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data, u8 *edid, int len);
-bool ti_hdmi_4xxx_detect(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_wp_video_stop(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_pll_enable(struct hdmi_ip_data *ip_data);
@@ -183,5 +182,6 @@ int ti_hdmi_4xxx_audio_start(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_audio_stop(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_audio_config(struct hdmi_ip_data *ip_data,
 		struct omap_dss_audio *audio);
+int ti_hdmi_4xxx_audio_get_dma_port(u32 *offset, u32 *size);
 #endif
 #endif

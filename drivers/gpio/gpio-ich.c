@@ -41,12 +41,18 @@ enum GPIO_REG {
 	GPIO_USE_SEL = 0,
 	GPIO_IO_SEL,
 	GPIO_LVL,
+	GPO_BLINK
 };
 
-static const u8 ichx_regs[3][3] = {
+static const u8 ichx_regs[4][3] = {
 	{0x00, 0x30, 0x40},	/* USE_SEL[1-3] offsets */
 	{0x04, 0x34, 0x44},	/* IO_SEL[1-3] offsets */
 	{0x0c, 0x38, 0x48},	/* LVL[1-3] offsets */
+	{0x18, 0x18, 0x18},	/* BLINK offset */
+};
+
+static const u8 ichx_reglen[3] = {
+	0x30, 0x10, 0x10,
 };
 
 #define ICHX_WRITE(val, reg, base_res)	outl(val, (reg) + (base_res)->start)
@@ -75,6 +81,7 @@ static struct {
 	struct resource *pm_base;	/* Power Mangagment IO base */
 	struct ichx_desc *desc;	/* Pointer to chipset-specific description */
 	u32 orig_gpio_ctrl;	/* Orig CTRL value, used to restore on exit */
+	u8 use_gpio;		/* Which GPIO groups are usable */
 } ichx_priv;
 
 static int modparam_gpiobase = -1;	/* dynamic */
@@ -123,6 +130,11 @@ static int ichx_read_bit(int reg, unsigned nr)
 	return data & (1 << bit) ? 1 : 0;
 }
 
+static bool ichx_gpio_check_available(struct gpio_chip *gpio, unsigned nr)
+{
+	return !!(ichx_priv.use_gpio & (1 << (nr / 32)));
+}
+
 static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
 	/*
@@ -138,6 +150,10 @@ static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 					int val)
 {
+	/* Disable blink hardware which is available for GPIOs from 0 to 31. */
+	if (nr < 32)
+		ichx_write_bit(GPO_BLINK, nr, 0, 0);
+
 	/* Set GPIO output value. */
 	ichx_write_bit(GPIO_LVL, nr, val, 0);
 
@@ -185,6 +201,9 @@ static int ich6_gpio_get(struct gpio_chip *chip, unsigned nr)
 
 static int ichx_gpio_request(struct gpio_chip *chip, unsigned nr)
 {
+	if (!ichx_gpio_check_available(chip, nr))
+		return -ENXIO;
+
 	/*
 	 * Note we assume the BIOS properly set a bridge's USE value.  Some
 	 * chips (eg Intel 3100) have bogus USE values though, so first see if
@@ -192,7 +211,7 @@ static int ichx_gpio_request(struct gpio_chip *chip, unsigned nr)
 	 * If it can't be trusted, assume that the pin can be used as a GPIO.
 	 */
 	if (ichx_priv.desc->use_sel_ignore[nr / 32] & (1 << (nr & 0x1f)))
-		return 1;
+		return 0;
 
 	return ichx_read_bit(GPIO_USE_SEL, nr) ? 0 : -ENODEV;
 }
@@ -216,7 +235,7 @@ static void ichx_gpio_set(struct gpio_chip *chip, unsigned nr, int val)
 	ichx_write_bit(GPIO_LVL, nr, val, 0);
 }
 
-static void __devinit ichx_gpiolib_setup(struct gpio_chip *chip)
+static void ichx_gpiolib_setup(struct gpio_chip *chip)
 {
 	chip->owner = THIS_MODULE;
 	chip->label = DRV_NAME;
@@ -291,11 +310,51 @@ static struct ichx_desc intel5_desc = {
 	.ngpio = 76,
 };
 
-static int __devinit ichx_gpio_probe(struct platform_device *pdev)
+static int ichx_gpio_request_regions(struct resource *res_base,
+						const char *name, u8 use_gpio)
+{
+	int i;
+
+	if (!res_base || !res_base->start || !res_base->end)
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(ichx_regs[0]); i++) {
+		if (!(use_gpio & (1 << i)))
+			continue;
+		if (!request_region(res_base->start + ichx_regs[0][i],
+				    ichx_reglen[i], name))
+			goto request_err;
+	}
+	return 0;
+
+request_err:
+	/* Clean up: release already requested regions, if any */
+	for (i--; i >= 0; i--) {
+		if (!(use_gpio & (1 << i)))
+			continue;
+		release_region(res_base->start + ichx_regs[0][i],
+			       ichx_reglen[i]);
+	}
+	return -EBUSY;
+}
+
+static void ichx_gpio_release_regions(struct resource *res_base, u8 use_gpio)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ichx_regs[0]); i++) {
+		if (!(use_gpio & (1 << i)))
+			continue;
+		release_region(res_base->start + ichx_regs[0][i],
+			       ichx_reglen[i]);
+	}
+}
+
+static int ichx_gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res_base, *res_pm;
 	int err;
-	struct lpc_ich_info *ich_info = pdev->dev.platform_data;
+	struct lpc_ich_info *ich_info = dev_get_platdata(&pdev->dev);
 
 	if (!ich_info)
 		return -ENODEV;
@@ -328,13 +387,13 @@ static int __devinit ichx_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	spin_lock_init(&ichx_priv.lock);
 	res_base = platform_get_resource(pdev, IORESOURCE_IO, ICH_RES_GPIO);
-	if (!res_base || !res_base->start || !res_base->end)
-		return -ENODEV;
-
-	if (!request_region(res_base->start, resource_size(res_base),
-				pdev->name))
-		return -EBUSY;
+	ichx_priv.use_gpio = ich_info->use_gpio;
+	err = ichx_gpio_request_regions(res_base, pdev->name,
+					ichx_priv.use_gpio);
+	if (err)
+		return err;
 
 	ichx_priv.gpio_base = res_base;
 
@@ -374,15 +433,14 @@ init:
 	return 0;
 
 add_err:
-	release_region(ichx_priv.gpio_base->start,
-			resource_size(ichx_priv.gpio_base));
+	ichx_gpio_release_regions(ichx_priv.gpio_base, ichx_priv.use_gpio);
 	if (ichx_priv.pm_base)
 		release_region(ichx_priv.pm_base->start,
 				resource_size(ichx_priv.pm_base));
 	return err;
 }
 
-static int __devexit ichx_gpio_remove(struct platform_device *pdev)
+static int ichx_gpio_remove(struct platform_device *pdev)
 {
 	int err;
 
@@ -393,8 +451,7 @@ static int __devexit ichx_gpio_remove(struct platform_device *pdev)
 		return err;
 	}
 
-	release_region(ichx_priv.gpio_base->start,
-				resource_size(ichx_priv.gpio_base));
+	ichx_gpio_release_regions(ichx_priv.gpio_base, ichx_priv.use_gpio);
 	if (ichx_priv.pm_base)
 		release_region(ichx_priv.pm_base->start,
 				resource_size(ichx_priv.pm_base));
@@ -408,7 +465,7 @@ static struct platform_driver ichx_gpio_driver = {
 		.name	= DRV_NAME,
 	},
 	.probe		= ichx_gpio_probe,
-	.remove		= __devexit_p(ichx_gpio_remove),
+	.remove		= ichx_gpio_remove,
 };
 
 module_platform_driver(ichx_gpio_driver);

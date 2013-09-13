@@ -14,27 +14,70 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/clk-provider.h>
+#include <linux/clocksource.h>
+#include <linux/dma-mapping.h>
+#include <linux/irqchip.h>
 #include <linux/kexec.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/bridge-regs.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/irq.h>
+#include <plat/common.h>
 #include "common.h"
 
-static struct of_device_id kirkwood_dt_match_table[] __initdata = {
-	{ .compatible = "simple-bus", },
-	{ }
-};
+/*
+ * There are still devices that doesn't know about DT yet.  Get clock
+ * gates here and add a clock lookup alias, so that old platform
+ * devices still work.
+*/
 
-struct of_dev_auxdata kirkwood_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1010600, "orion_spi.0", NULL),
-	OF_DEV_AUXDATA("marvell,mv64xxx-i2c", 0xf1011000, "mv64xxx_i2c.0",
-		       NULL),
-	OF_DEV_AUXDATA("marvell,orion-wdt", 0xf1020300, "orion_wdt", NULL),
-	OF_DEV_AUXDATA("marvell,orion-sata", 0xf1080000, "sata_mv.0", NULL),
-	OF_DEV_AUXDATA("marvell,orion-nand", 0xf4000000, "orion_nand", NULL),
-	{},
-};
+static void __init kirkwood_legacy_clk_init(void)
+{
+
+	struct device_node *np = of_find_compatible_node(
+		NULL, NULL, "marvell,kirkwood-gating-clock");
+	struct of_phandle_args clkspec;
+	struct clk *clk;
+
+	clkspec.np = np;
+	clkspec.args_count = 1;
+
+	clkspec.args[0] = CGC_BIT_PEX0;
+	orion_clkdev_add("0", "pcie",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CGC_BIT_PEX1;
+	orion_clkdev_add("1", "pcie",
+			 of_clk_get_from_provider(&clkspec));
+
+	/*
+	 * The ethernet interfaces forget the MAC address assigned by
+	 * u-boot if the clocks are turned off. Until proper DT support
+	 * is available we always enable them for now.
+	 */
+	clkspec.args[0] = CGC_BIT_GE0;
+	clk = of_clk_get_from_provider(&clkspec);
+	clk_prepare_enable(clk);
+
+	clkspec.args[0] = CGC_BIT_GE1;
+	clk = of_clk_get_from_provider(&clkspec);
+	clk_prepare_enable(clk);
+}
+
+static void __init kirkwood_dt_time_init(void)
+{
+	of_clk_init(NULL);
+	clocksource_of_init();
+}
+
+static void __init kirkwood_dt_init_early(void)
+{
+	mvebu_mbus_init("marvell,kirkwood-mbus",
+			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
+			DDR_WINDOW_CPU_BASE, DDR_WINDOW_CPU_SZ);
+}
 
 static void __init kirkwood_dt_init(void)
 {
@@ -48,67 +91,38 @@ static void __init kirkwood_dt_init(void)
 	 */
 	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
 
-	kirkwood_setup_cpu_mbus();
+	BUG_ON(mvebu_mbus_dt_init());
+	kirkwood_setup_wins();
 
-#ifdef CONFIG_CACHE_FEROCEON_L2
 	kirkwood_l2_init();
-#endif
 
-	/* Setup root of clk tree */
-	kirkwood_clk_init();
+	kirkwood_cpufreq_init();
 
-	/* internal devices that every board has */
-	kirkwood_xor0_init();
-	kirkwood_xor1_init();
-	kirkwood_crypto_init();
+	/* Setup clocks for legacy devices */
+	kirkwood_legacy_clk_init();
+
+	kirkwood_cpuidle_init();
 
 #ifdef CONFIG_KEXEC
 	kexec_reinit = kirkwood_enable_pcie;
 #endif
 
-	if (of_machine_is_compatible("globalscale,dreamplug"))
-		dreamplug_init();
+	if (of_machine_is_compatible("marvell,mv88f6281gtw-ge"))
+		mv88f6281gtw_ge_init();
 
-	if (of_machine_is_compatible("dlink,dns-kirkwood"))
-		dnskw_init();
-
-	if (of_machine_is_compatible("iom,iconnect"))
-		iconnect_init();
-
-	if (of_machine_is_compatible("raidsonic,ib-nas62x0"))
-		ib62x0_init();
-
-	if (of_machine_is_compatible("qnap,ts219"))
-		qnap_dt_ts219_init();
-
-	if (of_machine_is_compatible("seagate,goflexnet"))
-		goflexnet_init();
-
-	if (of_machine_is_compatible("buffalo,lsxl"))
-		lsxl_init();
-
-	of_platform_populate(NULL, kirkwood_dt_match_table,
-			     kirkwood_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char *kirkwood_dt_board_compat[] = {
-	"globalscale,dreamplug",
-	"dlink,dns-320",
-	"dlink,dns-325",
-	"iom,iconnect",
-	"raidsonic,ib-nas62x0",
-	"qnap,ts219",
-	"seagate,goflexnet",
-	"buffalo,lsxl",
+static const char * const kirkwood_dt_board_compat[] = {
+	"marvell,kirkwood",
 	NULL
 };
 
 DT_MACHINE_START(KIRKWOOD_DT, "Marvell Kirkwood (Flattened Device Tree)")
 	/* Maintainer: Jason Cooper <jason@lakedaemon.net> */
 	.map_io		= kirkwood_map_io,
-	.init_early	= kirkwood_init_early,
-	.init_irq	= orion_dt_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_early	= kirkwood_dt_init_early,
+	.init_time	= kirkwood_dt_time_init,
 	.init_machine	= kirkwood_dt_init,
 	.restart	= kirkwood_restart,
 	.dt_compat	= kirkwood_dt_board_compat,

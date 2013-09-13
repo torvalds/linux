@@ -32,13 +32,13 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx27.h>
 #include <asm/mach/time.h>
-#include <mach/ulpi.h>
 
+#include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
+#include "iomux-mx27.h"
+#include "ulpi.h"
 
 #define OTG_PHY_CS_GPIO (GPIO_PORTB + 23)
 #define USBH2_PHY_CS_GPIO (GPIO_PORTB + 24)
@@ -398,8 +398,8 @@ static void __init pca100_init(void)
 		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 	}
 
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+	usbh2_pdata.otg = imx_otg_ulpi_create(
+			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
 	if (usbh2_pdata.otg)
 		imx27_add_mxc_ehci_hs(2, &usbh2_pdata);
@@ -416,10 +416,6 @@ static void __init pca100_timer_init(void)
 	mx27_clocks_init(26000000);
 }
 
-static struct sys_timer pca100_timer = {
-	.init = pca100_timer_init,
-};
-
 MACHINE_START(PCA100, "phyCARD-i.MX27")
 	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
@@ -427,6 +423,6 @@ MACHINE_START(PCA100, "phyCARD-i.MX27")
 	.init_irq = mx27_init_irq,
 	.handle_irq = imx27_handle_irq,
 	.init_machine = pca100_init,
-	.timer = &pca100_timer,
+	.init_time	= pca100_timer_init,
 	.restart	= mxc_restart,
 MACHINE_END

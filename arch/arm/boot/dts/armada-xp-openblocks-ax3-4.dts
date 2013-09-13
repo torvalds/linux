@@ -1,0 +1,190 @@
+/*
+ * Device Tree file for OpenBlocks AX3-4 board
+ *
+ * Copyright (C) 2012 Marvell
+ *
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "armada-xp-mv78260.dtsi"
+
+/ {
+	model = "PlatHome OpenBlocks AX3-4 board";
+	compatible = "plathome,openblocks-ax3-4", "marvell,armadaxp-mv78260", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x00000000 0 0xC0000000>; /* 3 GB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
+			  MBUS_ID(0x01, 0x2f) 0 0 0xf0000000 0x8000000>;
+
+		devbus-bootcs {
+			status = "okay";
+
+			/* Device Bus parameters are required */
+
+			/* Read parameters */
+			devbus,bus-width    = <8>;
+			devbus,turn-off-ps  = <60000>;
+			devbus,badr-skew-ps = <0>;
+			devbus,acc-first-ps = <124000>;
+			devbus,acc-next-ps  = <248000>;
+			devbus,rd-setup-ps  = <0>;
+			devbus,rd-hold-ps   = <0>;
+
+			/* Write parameters */
+			devbus,sync-enable = <0>;
+			devbus,wr-high-ps  = <60000>;
+			devbus,wr-low-ps   = <60000>;
+			devbus,ale-wr-ps   = <60000>;
+
+			/* NOR 128 MiB */
+			nor@0 {
+				compatible = "cfi-flash";
+				reg = <0 0x8000000>;
+				bank-width = <2>;
+			};
+		};
+
+		pcie-controller {
+			status = "okay";
+			/* Internal mini-PCIe connector */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+		};
+
+		internal-regs {
+			serial@12000 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12100 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			pinctrl {
+				led_pins: led-pins-0 {
+					marvell,pins = "mpp49", "mpp51", "mpp53";
+					marvell,function = "gpio";
+				};
+			};
+			leds {
+				compatible = "gpio-leds";
+				pinctrl-names = "default";
+				pinctrl-0 = <&led_pins>;
+
+				red_led {
+					label = "red_led";
+					gpios = <&gpio1 17 1>;
+					default-state = "off";
+				};
+
+				yellow_led {
+					label = "yellow_led";
+					gpios = <&gpio1 19 1>;
+					default-state = "off";
+				};
+
+				green_led {
+					label = "green_led";
+					gpios = <&gpio1 21 1>;
+					default-state = "off";
+					linux,default-trigger = "heartbeat";
+				};
+			};
+
+			gpio_keys {
+				compatible = "gpio-keys";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				button@1 {
+					label = "Init Button";
+					linux,code = <116>;
+					gpios = <&gpio1 28 0>;
+				};
+			};
+
+			mdio {
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+				};
+
+				phy1: ethernet-phy@1 {
+					reg = <1>;
+				};
+
+				phy2: ethernet-phy@2 {
+					reg = <2>;
+				};
+
+				phy3: ethernet-phy@3 {
+					reg = <3>;
+				};
+			};
+
+			ethernet@70000 {
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "sgmii";
+			};
+			ethernet@74000 {
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "sgmii";
+			};
+			ethernet@30000 {
+				status = "okay";
+				phy = <&phy2>;
+				phy-mode = "sgmii";
+			};
+			ethernet@34000 {
+				status = "okay";
+				phy = <&phy3>;
+				phy-mode = "sgmii";
+			};
+			i2c@11000 {
+				status = "okay";
+				clock-frequency = <400000>;
+			};
+			i2c@11100 {
+				status = "okay";
+				clock-frequency = <400000>;
+
+				s35390a: s35390a@30 {
+					compatible = "s35390a";
+					reg = <0x30>;
+				};
+			};
+			sata@a0000 {
+				nr-ports = <2>;
+				status = "okay";
+			};
+
+			/* Front side USB 0 */
+			usb@50000 {
+				status = "okay";
+			};
+
+			/* Front side USB 1 */
+			usb@51000 {
+				status = "okay";
+			};
+		};
+	};
+};

@@ -102,11 +102,11 @@ enum ad5360_type {
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
-		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |		\
-		IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |		\
-		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+		BIT(IIO_CHAN_INFO_SCALE) |				\
+		BIT(IIO_CHAN_INFO_OFFSET) |				\
+		BIT(IIO_CHAN_INFO_CALIBSCALE) |			\
+		BIT(IIO_CHAN_INFO_CALIBBIAS),			\
 	.scan_type = IIO_ST('u', (bits), 16, 16 - (bits))	\
 }
 
@@ -213,7 +213,6 @@ static int ad5360_read(struct iio_dev *indio_dev, unsigned int type,
 	unsigned int addr)
 {
 	struct ad5360_state *st = iio_priv(indio_dev);
-	struct spi_message m;
 	int ret;
 	struct spi_transfer t[] = {
 		{
@@ -226,10 +225,6 @@ static int ad5360_read(struct iio_dev *indio_dev, unsigned int type,
 		},
 	};
 
-	spi_message_init(&m);
-	spi_message_add_tail(&t[0], &m);
-	spi_message_add_tail(&t[1], &m);
-
 	mutex_lock(&indio_dev->mlock);
 
 	st->data[0].d32 = cpu_to_be32(AD5360_CMD(AD5360_CMD_SPECIAL_FUNCTION) |
@@ -237,7 +232,7 @@ static int ad5360_read(struct iio_dev *indio_dev, unsigned int type,
 		AD5360_READBACK_TYPE(type) |
 		AD5360_READBACK_ADDR(addr));
 
-	ret = spi_sync(st->spi, &m);
+	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret >= 0)
 		ret = be32_to_cpu(st->data[1].d32) & 0xffff;
 
@@ -433,7 +428,7 @@ static const char * const ad5360_vref_name[] = {
 	 "vref0", "vref1", "vref2"
 };
 
-static int __devinit ad5360_alloc_channels(struct iio_dev *indio_dev)
+static int ad5360_alloc_channels(struct iio_dev *indio_dev)
 {
 	struct ad5360_state *st = iio_priv(indio_dev);
 	struct iio_chan_spec *channels;
@@ -456,7 +451,7 @@ static int __devinit ad5360_alloc_channels(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int __devinit ad5360_probe(struct spi_device *spi)
+static int ad5360_probe(struct spi_device *spi)
 {
 	enum ad5360_type type = spi_get_device_id(spi)->driver_data;
 	struct iio_dev *indio_dev;
@@ -464,7 +459,7 @@ static int __devinit ad5360_probe(struct spi_device *spi)
 	unsigned int i;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
 		return  -ENOMEM;
@@ -485,13 +480,13 @@ static int __devinit ad5360_probe(struct spi_device *spi)
 	ret = ad5360_alloc_channels(indio_dev);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to allocate channel spec: %d\n", ret);
-		goto error_free;
+		return ret;
 	}
 
 	for (i = 0; i < st->chip_info->num_vrefs; ++i)
 		st->vref_reg[i].supply = ad5360_vref_name[i];
 
-	ret = regulator_bulk_get(&st->spi->dev, st->chip_info->num_vrefs,
+	ret = devm_regulator_bulk_get(&st->spi->dev, st->chip_info->num_vrefs,
 		st->vref_reg);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to request vref regulators: %d\n", ret);
@@ -501,7 +496,7 @@ static int __devinit ad5360_probe(struct spi_device *spi)
 	ret = regulator_bulk_enable(st->chip_info->num_vrefs, st->vref_reg);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to enable vref regulators: %d\n", ret);
-		goto error_free_reg;
+		goto error_free_channels;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -514,17 +509,13 @@ static int __devinit ad5360_probe(struct spi_device *spi)
 
 error_disable_reg:
 	regulator_bulk_disable(st->chip_info->num_vrefs, st->vref_reg);
-error_free_reg:
-	regulator_bulk_free(st->chip_info->num_vrefs, st->vref_reg);
 error_free_channels:
 	kfree(indio_dev->channels);
-error_free:
-	iio_device_free(indio_dev);
 
 	return ret;
 }
 
-static int __devexit ad5360_remove(struct spi_device *spi)
+static int ad5360_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5360_state *st = iio_priv(indio_dev);
@@ -534,9 +525,6 @@ static int __devexit ad5360_remove(struct spi_device *spi)
 	kfree(indio_dev->channels);
 
 	regulator_bulk_disable(st->chip_info->num_vrefs, st->vref_reg);
-	regulator_bulk_free(st->chip_info->num_vrefs, st->vref_reg);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -560,7 +548,7 @@ static struct spi_driver ad5360_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5360_probe,
-	.remove = __devexit_p(ad5360_remove),
+	.remove = ad5360_remove,
 	.id_table = ad5360_ids,
 };
 module_spi_driver(ad5360_driver);

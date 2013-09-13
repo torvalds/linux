@@ -39,11 +39,14 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
-#include <plat/dma.h>
-#include <plat/omap_hwmod.h>
 #include "omap-mcpdm.h"
-#include "omap-pcm.h"
+
+struct mcpdm_link_config {
+	u32 link_mask; /* channel mask for the direction */
+	u32 threshold; /* FIFO threshold */
+};
 
 struct omap_mcpdm {
 	struct device *dev;
@@ -53,37 +56,21 @@ struct omap_mcpdm {
 
 	struct mutex mutex;
 
-	/* channel data */
-	u32 dn_channels;
-	u32 up_channels;
-
-	/* McPDM FIFO thresholds */
-	u32 dn_threshold;
-	u32 up_threshold;
+	/* Playback/Capture configuration */
+	struct mcpdm_link_config config[2];
 
 	/* McPDM dn offsets for rx1, and 2 channels */
 	u32 dn_rx_offset;
+
+	/* McPDM needs to be restarted due to runtime reconfiguration */
+	bool restart;
+
+	struct snd_dmaengine_dai_dma_data dma_data[2];
 };
 
 /*
  * Stream DMA parameters
  */
-static struct omap_pcm_dma_data omap_mcpdm_dai_dma_params[] = {
-	{
-		.name = "Audio playback",
-		.dma_req = OMAP44XX_DMA_MCPDM_DL,
-		.data_type = OMAP_DMA_DATA_TYPE_S32,
-		.sync_mode = OMAP_DMA_SYNC_PACKET,
-		.port_addr = OMAP44XX_MCPDM_L3_BASE + MCPDM_REG_DN_DATA,
-	},
-	{
-		.name = "Audio capture",
-		.dma_req = OMAP44XX_DMA_MCPDM_UP,
-		.data_type = OMAP_DMA_DATA_TYPE_S32,
-		.sync_mode = OMAP_DMA_SYNC_PACKET,
-		.port_addr = OMAP44XX_MCPDM_L3_BASE + MCPDM_REG_UP_DATA,
-	},
-};
 
 static inline void omap_mcpdm_write(struct omap_mcpdm *mcpdm, u16 reg, u32 val)
 {
@@ -138,11 +125,12 @@ static void omap_mcpdm_reg_dump(struct omap_mcpdm *mcpdm) {}
 static void omap_mcpdm_start(struct omap_mcpdm *mcpdm)
 {
 	u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
+	u32 link_mask = mcpdm->config[0].link_mask | mcpdm->config[1].link_mask;
 
 	ctrl |= (MCPDM_SW_DN_RST | MCPDM_SW_UP_RST);
 	omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, ctrl);
 
-	ctrl |= mcpdm->dn_channels | mcpdm->up_channels;
+	ctrl |= link_mask;
 	omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, ctrl);
 
 	ctrl &= ~(MCPDM_SW_DN_RST | MCPDM_SW_UP_RST);
@@ -156,11 +144,12 @@ static void omap_mcpdm_start(struct omap_mcpdm *mcpdm)
 static void omap_mcpdm_stop(struct omap_mcpdm *mcpdm)
 {
 	u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
+	u32 link_mask = MCPDM_PDM_DN_MASK | MCPDM_PDM_UP_MASK;
 
 	ctrl |= (MCPDM_SW_DN_RST | MCPDM_SW_UP_RST);
 	omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, ctrl);
 
-	ctrl &= ~(mcpdm->dn_channels | mcpdm->up_channels);
+	ctrl &= ~(link_mask);
 	omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, ctrl);
 
 	ctrl &= ~(MCPDM_SW_DN_RST | MCPDM_SW_UP_RST);
@@ -196,8 +185,10 @@ static void omap_mcpdm_open_streams(struct omap_mcpdm *mcpdm)
 		omap_mcpdm_write(mcpdm, MCPDM_REG_DN_OFFSET, dn_offset);
 	}
 
-	omap_mcpdm_write(mcpdm, MCPDM_REG_FIFO_CTRL_DN, mcpdm->dn_threshold);
-	omap_mcpdm_write(mcpdm, MCPDM_REG_FIFO_CTRL_UP, mcpdm->up_threshold);
+	omap_mcpdm_write(mcpdm, MCPDM_REG_FIFO_CTRL_DN,
+			 mcpdm->config[SNDRV_PCM_STREAM_PLAYBACK].threshold);
+	omap_mcpdm_write(mcpdm, MCPDM_REG_FIFO_CTRL_UP,
+			 mcpdm->config[SNDRV_PCM_STREAM_CAPTURE].threshold);
 
 	omap_mcpdm_write(mcpdm, MCPDM_REG_DMAENABLE_SET,
 			MCPDM_DMA_DN_ENABLE | MCPDM_DMA_UP_ENABLE);
@@ -267,17 +258,15 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 	mutex_lock(&mcpdm->mutex);
 
 	if (!dai->active) {
-		/* Enable watch dog for ES above ES 1.0 to avoid saturation */
-		if (omap_rev() != OMAP4430_REV_ES1_0) {
-			u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
+		u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
 
-			omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL,
-					 ctrl | MCPDM_WD_EN);
-		}
+		omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, ctrl | MCPDM_WD_EN);
 		omap_mcpdm_open_streams(mcpdm);
 	}
-
 	mutex_unlock(&mcpdm->mutex);
+
+	snd_soc_dai_set_dma_data(dai, substream,
+				 &mcpdm->dma_data[substream->stream]);
 
 	return 0;
 }
@@ -293,6 +282,8 @@ static void omap_mcpdm_dai_shutdown(struct snd_pcm_substream *substream,
 		if (omap_mcpdm_active(mcpdm)) {
 			omap_mcpdm_stop(mcpdm);
 			omap_mcpdm_close_streams(mcpdm);
+			mcpdm->config[0].link_mask = 0;
+			mcpdm->config[1].link_mask = 0;
 		}
 	}
 
@@ -305,7 +296,8 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(dai);
 	int stream = substream->stream;
-	struct omap_pcm_dma_data *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
+	u32 threshold;
 	int channels;
 	int link_mask = 0;
 
@@ -333,19 +325,33 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	dma_data = &omap_mcpdm_dai_dma_params[stream];
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 
+	threshold = mcpdm->config[stream].threshold;
 	/* Configure McPDM channels, and DMA packet size */
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		mcpdm->dn_channels = link_mask << 3;
-		dma_data->packet_size =
-			(MCPDM_DN_THRES_MAX - mcpdm->dn_threshold) * channels;
+		link_mask <<= 3;
+
+		/* If capture is not running assume a stereo stream to come */
+		if (!mcpdm->config[!stream].link_mask)
+			mcpdm->config[!stream].link_mask = 0x3;
+
+		dma_data->maxburst =
+				(MCPDM_DN_THRES_MAX - threshold) * channels;
 	} else {
-		mcpdm->up_channels = link_mask << 0;
-		dma_data->packet_size = mcpdm->up_threshold * channels;
+		/* If playback is not running assume a stereo stream to come */
+		if (!mcpdm->config[!stream].link_mask)
+			mcpdm->config[!stream].link_mask = (0x3 << 3);
+
+		dma_data->maxburst = threshold * channels;
 	}
 
-	snd_soc_dai_set_dma_data(dai, substream, dma_data);
+	/* Check if we need to restart McPDM with this stream */
+	if (mcpdm->config[stream].link_mask &&
+	    mcpdm->config[stream].link_mask != link_mask)
+		mcpdm->restart = true;
+
+	mcpdm->config[stream].link_mask = link_mask;
 
 	return 0;
 }
@@ -357,6 +363,11 @@ static int omap_mcpdm_prepare(struct snd_pcm_substream *substream,
 
 	if (!omap_mcpdm_active(mcpdm)) {
 		omap_mcpdm_start(mcpdm);
+		omap_mcpdm_reg_dump(mcpdm);
+	} else if (mcpdm->restart) {
+		omap_mcpdm_stop(mcpdm);
+		omap_mcpdm_start(mcpdm);
+		mcpdm->restart = false;
 		omap_mcpdm_reg_dump(mcpdm);
 	}
 
@@ -381,7 +392,7 @@ static int omap_mcpdm_probe(struct snd_soc_dai *dai)
 	pm_runtime_get_sync(mcpdm->dev);
 	omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, 0x00);
 
-	ret = request_irq(mcpdm->irq, omap_mcpdm_irq_handler,
+	ret = devm_request_irq(mcpdm->dev, mcpdm->irq, omap_mcpdm_irq_handler,
 				0, "McPDM", (void *)mcpdm);
 
 	pm_runtime_put_sync(mcpdm->dev);
@@ -392,8 +403,9 @@ static int omap_mcpdm_probe(struct snd_soc_dai *dai)
 	}
 
 	/* Configure McPDM threshold values */
-	mcpdm->dn_threshold = 2;
-	mcpdm->up_threshold = MCPDM_UP_THRES_MAX - 3;
+	mcpdm->config[SNDRV_PCM_STREAM_PLAYBACK].threshold = 2;
+	mcpdm->config[SNDRV_PCM_STREAM_CAPTURE].threshold =
+							MCPDM_UP_THRES_MAX - 3;
 	return ret;
 }
 
@@ -401,7 +413,6 @@ static int omap_mcpdm_remove(struct snd_soc_dai *dai)
 {
 	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(dai);
 
-	free_irq(mcpdm->irq, (void *)mcpdm);
 	pm_runtime_disable(mcpdm->dev);
 
 	return 0;
@@ -432,6 +443,10 @@ static struct snd_soc_dai_driver omap_mcpdm_dai = {
 	.ops = &omap_mcpdm_dai_ops,
 };
 
+static const struct snd_soc_component_driver omap_mcpdm_component = {
+	.name		= "omap-mcpdm",
+};
+
 void omap_mcpdm_configure_dn_offsets(struct snd_soc_pcm_runtime *rtd,
 				    u8 rx1, u8 rx2)
 {
@@ -441,13 +456,12 @@ void omap_mcpdm_configure_dn_offsets(struct snd_soc_pcm_runtime *rtd,
 }
 EXPORT_SYMBOL_GPL(omap_mcpdm_configure_dn_offsets);
 
-static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
+static int asoc_mcpdm_probe(struct platform_device *pdev)
 {
 	struct omap_mcpdm *mcpdm;
 	struct resource *res;
-	int ret = 0;
 
-	mcpdm = kzalloc(sizeof(struct omap_mcpdm), GFP_KERNEL);
+	mcpdm = devm_kzalloc(&pdev->dev, sizeof(struct omap_mcpdm), GFP_KERNEL);
 	if (!mcpdm)
 		return -ENOMEM;
 
@@ -455,56 +469,34 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 
 	mutex_init(&mcpdm->mutex);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no resource\n");
-		goto err_res;
-	}
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dma");
+	if (res == NULL)
+		return -ENOMEM;
 
-	if (!request_mem_region(res->start, resource_size(res), "McPDM")) {
-		ret = -EBUSY;
-		goto err_res;
-	}
+	mcpdm->dma_data[0].addr = res->start + MCPDM_REG_DN_DATA;
+	mcpdm->dma_data[1].addr = res->start + MCPDM_REG_UP_DATA;
 
-	mcpdm->io_base = ioremap(res->start, resource_size(res));
-	if (!mcpdm->io_base) {
-		ret = -ENOMEM;
-		goto err_iomap;
-	}
+	mcpdm->dma_data[0].filter_data = "dn_link";
+	mcpdm->dma_data[1].filter_data = "up_link";
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
+	mcpdm->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mcpdm->io_base))
+		return PTR_ERR(mcpdm->io_base);
 
 	mcpdm->irq = platform_get_irq(pdev, 0);
-	if (mcpdm->irq < 0) {
-		ret = mcpdm->irq;
-		goto err_irq;
-	}
+	if (mcpdm->irq < 0)
+		return mcpdm->irq;
 
 	mcpdm->dev = &pdev->dev;
 
-	ret = snd_soc_register_dai(&pdev->dev, &omap_mcpdm_dai);
-	if (!ret)
-		return 0;
-
-err_irq:
-	iounmap(mcpdm->io_base);
-err_iomap:
-	release_mem_region(res->start, resource_size(res));
-err_res:
-	kfree(mcpdm);
-	return ret;
+	return snd_soc_register_component(&pdev->dev, &omap_mcpdm_component,
+					  &omap_mcpdm_dai, 1);
 }
 
-static int __devexit asoc_mcpdm_remove(struct platform_device *pdev)
+static int asoc_mcpdm_remove(struct platform_device *pdev)
 {
-	struct omap_mcpdm *mcpdm = platform_get_drvdata(pdev);
-	struct resource *res;
-
-	snd_soc_unregister_dai(&pdev->dev);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iounmap(mcpdm->io_base);
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(mcpdm);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 
@@ -522,7 +514,7 @@ static struct platform_driver asoc_mcpdm_driver = {
 	},
 
 	.probe	= asoc_mcpdm_probe,
-	.remove	= __devexit_p(asoc_mcpdm_remove),
+	.remove	= asoc_mcpdm_remove,
 };
 
 module_platform_driver(asoc_mcpdm_driver);

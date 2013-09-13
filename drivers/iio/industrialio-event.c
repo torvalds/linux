@@ -46,10 +46,11 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 {
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
 	struct iio_event_data ev;
+	unsigned long flags;
 	int copied;
 
 	/* Does anyone care? */
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irqsave(&ev_int->wait.lock, flags);
 	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
 
 		ev.id = ev_code;
@@ -59,7 +60,7 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 		if (copied != 0)
 			wake_up_locked_poll(&ev_int->wait, POLLIN);
 	}
-	spin_unlock(&ev_int->wait.lock);
+	spin_unlock_irqrestore(&ev_int->wait.lock, flags);
 
 	return 0;
 }
@@ -76,10 +77,10 @@ static unsigned int iio_event_poll(struct file *filep,
 
 	poll_wait(filep, &ev_int->wait, wait);
 
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irq(&ev_int->wait.lock);
 	if (!kfifo_is_empty(&ev_int->det_events))
 		events = POLLIN | POLLRDNORM;
-	spin_unlock(&ev_int->wait.lock);
+	spin_unlock_irq(&ev_int->wait.lock);
 
 	return events;
 }
@@ -96,14 +97,14 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	if (count < sizeof(struct iio_event_data))
 		return -EINVAL;
 
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irq(&ev_int->wait.lock);
 	if (kfifo_is_empty(&ev_int->det_events)) {
 		if (filep->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
 			goto error_unlock;
 		}
 		/* Blocking on device; waiting for something to be there */
-		ret = wait_event_interruptible_locked(ev_int->wait,
+		ret = wait_event_interruptible_locked_irq(ev_int->wait,
 					!kfifo_is_empty(&ev_int->det_events));
 		if (ret)
 			goto error_unlock;
@@ -113,7 +114,7 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	ret = kfifo_to_user(&ev_int->det_events, buf, count, &copied);
 
 error_unlock:
-	spin_unlock(&ev_int->wait.lock);
+	spin_unlock_irq(&ev_int->wait.lock);
 
 	return ret ? ret : copied;
 }
@@ -122,7 +123,7 @@ static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 {
 	struct iio_event_interface *ev_int = filep->private_data;
 
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irq(&ev_int->wait.lock);
 	__clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
 	/*
 	 * In order to maintain a clean state for reopening,
@@ -130,7 +131,7 @@ static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 	 * any new __iio_push_event calls running.
 	 */
 	kfifo_reset_out(&ev_int->det_events);
-	spin_unlock(&ev_int->wait.lock);
+	spin_unlock_irq(&ev_int->wait.lock);
 
 	return 0;
 }
@@ -151,18 +152,18 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 	if (ev_int == NULL)
 		return -ENODEV;
 
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irq(&ev_int->wait.lock);
 	if (__test_and_set_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
-		spin_unlock(&ev_int->wait.lock);
+		spin_unlock_irq(&ev_int->wait.lock);
 		return -EBUSY;
 	}
-	spin_unlock(&ev_int->wait.lock);
+	spin_unlock_irq(&ev_int->wait.lock);
 	fd = anon_inode_getfd("iio:event",
 				&iio_event_chrdev_fileops, ev_int, O_RDONLY);
 	if (fd < 0) {
-		spin_lock(&ev_int->wait.lock);
+		spin_lock_irq(&ev_int->wait.lock);
 		__clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
-		spin_unlock(&ev_int->wait.lock);
+		spin_unlock_irq(&ev_int->wait.lock);
 	}
 	return fd;
 }
@@ -239,13 +240,13 @@ static ssize_t iio_ev_value_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	unsigned long val;
+	int val;
 	int ret;
 
 	if (!indio_dev->info->write_event_value)
 		return -EINVAL;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoint(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -350,15 +351,10 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *indio_dev)
 		ret = iio_device_add_event_sysfs(indio_dev,
 						 &indio_dev->channels[j]);
 		if (ret < 0)
-			goto error_clear_attrs;
+			return ret;
 		attrcount += ret;
 	}
 	return attrcount;
-
-error_clear_attrs:
-	__iio_remove_event_config_attrs(indio_dev);
-
-	return ret;
 }
 
 static bool iio_check_for_dynamic_events(struct iio_dev *indio_dev)

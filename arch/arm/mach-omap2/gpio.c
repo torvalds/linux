@@ -21,10 +21,12 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
+#include <linux/platform_data/gpio-omap.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
-#include <plat/omap-pm.h>
+#include "soc.h"
+#include "omap_hwmod.h"
+#include "omap_device.h"
+#include "omap-pm.h"
 
 #include "powerdomain.h"
 
@@ -60,6 +62,7 @@ static int __init omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 	pdata->regs = kzalloc(sizeof(struct omap_gpio_reg_offs), GFP_KERNEL);
 	if (!pdata->regs) {
 		pr_err("gpio%d: Memory allocation failed\n", id);
+		kfree(pdata);
 		return -ENOMEM;
 	}
 
@@ -121,6 +124,7 @@ static int __init omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 		break;
 	default:
 		WARN(1, "Invalid gpio bank_type\n");
+		kfree(pdata->regs);
 		kfree(pdata);
 		return -EINVAL;
 	}
@@ -128,8 +132,7 @@ static int __init omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 	pwrdm = omap_hwmod_get_pwrdm(oh);
 	pdata->loses_context = pwrdm_can_ever_lose_context(pwrdm);
 
-	pdev = omap_device_build(name, id - 1, oh, pdata,
-				sizeof(*pdata),	NULL, 0, false);
+	pdev = omap_device_build(name, id - 1, oh, pdata, sizeof(*pdata));
 	kfree(pdata);
 
 	if (IS_ERR(pdev)) {
@@ -144,7 +147,7 @@ static int __init omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 /*
  * gpio_init needs to be done before
  * machine_init functions access gpio APIs.
- * Hence gpio_init is a postcore_initcall.
+ * Hence gpio_init is a omap_postcore_initcall.
  */
 static int __init omap2_gpio_init(void)
 {
@@ -154,4 +157,4 @@ static int __init omap2_gpio_init(void)
 
 	return omap_hwmod_for_each_by_class("gpio", omap2_gpio_dev_init, NULL);
 }
-postcore_initcall(omap2_gpio_init);
+omap_postcore_initcall(omap2_gpio_init);

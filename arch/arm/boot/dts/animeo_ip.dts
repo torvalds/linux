@@ -1,0 +1,182 @@
+/*
+ * animeo_ip.dts - Device Tree file for Somfy Animeo IP Boards
+ *
+ *  Copyright (C) 2011-2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * Licensed under GPLv2 only.
+ */
+
+/dts-v1/;
+#include "at91sam9260.dtsi"
+
+/ {
+	model = "Somfy Animeo IP";
+	compatible = "somfy,animeo-ip", "atmel,at91sam9260", "atmel,at91sam9";
+
+	aliases {
+		serial0 = &usart1;
+		serial1 = &usart2;
+		serial2 = &usart0;
+		serial3 = &dbgu;
+		serial4 = &usart3;
+		serial5 = &uart0;
+		serial6 = &uart1;
+	};
+
+	chosen {
+		linux,stdout-path = &usart2;
+	};
+
+	memory {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <18432000>;
+		};
+	};
+
+	ahb {
+		apb {
+			usart0: serial@fffb0000 {
+				pinctrl-0 = <&pinctrl_usart0 &pinctrl_usart0_rts>;
+				linux,rs485-enabled-at-boot-time;
+				status = "okay";
+			};
+
+			usart1: serial@fffb4000 {
+				pinctrl-0 = <&pinctrl_usart1 &pinctrl_usart1_rts>;
+				linux,rs485-enabled-at-boot-time;
+				status = "okay";
+			};
+
+			usart2: serial@fffb8000 {
+				pinctrl-0 = <&pinctrl_usart2>;
+				status = "okay";
+			};
+
+			macb0: ethernet@fffc4000 {
+				pinctrl-0 = <&pinctrl_macb_rmii &pinctrl_macb_rmii_mii>;
+				phy-mode = "mii";
+				status = "okay";
+			};
+
+			mmc0: mmc@fffa8000 {
+				pinctrl-0 = <&pinctrl_mmc0_clk
+					     &pinctrl_mmc0_slot1_cmd_dat0
+					     &pinctrl_mmc0_slot1_dat1_3>;
+				status = "okay";
+
+				slot@1 {
+					reg = <1>;
+					bus-width = <4>;
+				};
+			};
+
+			watchdog@fffffd40 {
+				status = "okay";
+			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt;
+			status = "okay";
+
+			at91bootstrap@0 {
+				label = "at91bootstrap";
+				reg = <0x0 0x8000>;
+			};
+
+			barebox@8000 {
+				label = "barebox";
+				reg = <0x8000 0x40000>;
+			};
+
+			bareboxenv@48000 {
+				label = "bareboxenv";
+				reg = <0x48000 0x8000>;
+			};
+
+			user_block@0x50000 {
+				label = "user_block";
+				reg = <0x50000 0xb0000>;
+			};
+
+			kernel@100000 {
+				label = "kernel";
+				reg = <0x100000 0x1b0000>;
+			};
+
+			root@2b0000 {
+				label = "root";
+				reg = <0x2b0000 0x1D50000>;
+			};
+		};
+
+		usb0: ohci@00500000 {
+			num-ports = <2>;
+			atmel,vbus-gpio = <&pioB 15 GPIO_ACTIVE_LOW>;
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		power_green {
+			label = "power_green";
+			gpios = <&pioC 17 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		power_red {
+			label = "power_red";
+			gpios = <&pioA 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		tx_green {
+			label = "tx_green";
+			gpios = <&pioC 19 GPIO_ACTIVE_HIGH>;
+		};
+
+		tx_red {
+			label = "tx_red";
+			gpios = <&pioC 18 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		keyswitch_in {
+			label = "keyswitch_in";
+			gpios = <&pioB 1 GPIO_ACTIVE_HIGH>;
+			linux,code = <28>;
+			gpio-key,wakeup;
+		};
+
+		error_in {
+			label = "error_in";
+			gpios = <&pioB 2 GPIO_ACTIVE_HIGH>;
+			linux,code = <29>;
+			gpio-key,wakeup;
+		};
+
+		btn {
+			label = "btn";
+			gpios = <&pioC 23 GPIO_ACTIVE_HIGH>;
+			linux,code = <31>;
+			gpio-key,wakeup;
+		};
+	};
+};

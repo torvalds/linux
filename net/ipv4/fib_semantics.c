@@ -169,7 +169,8 @@ static void free_nh_exceptions(struct fib_nh *nh)
 			
 			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
 
-			rt_fibinfo_free(&fnhe->fnhe_rth);
+			rt_fibinfo_free(&fnhe->fnhe_rth_input);
+			rt_fibinfo_free(&fnhe->fnhe_rth_output);
 
 			kfree(fnhe);
 
@@ -298,14 +299,13 @@ static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 static struct fib_info *fib_find_info(const struct fib_info *nfi)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct fib_info *fi;
 	unsigned int hash;
 
 	hash = fib_info_hashfn(nfi);
 	head = &fib_info_hash[hash];
 
-	hlist_for_each_entry(fi, node, head, fib_hash) {
+	hlist_for_each_entry(fi, head, fib_hash) {
 		if (!net_eq(fi->fib_net, nfi->fib_net))
 			continue;
 		if (fi->fib_nhs != nfi->fib_nhs)
@@ -314,6 +314,7 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 		    nfi->fib_scope == fi->fib_scope &&
 		    nfi->fib_prefsrc == fi->fib_prefsrc &&
 		    nfi->fib_priority == fi->fib_priority &&
+		    nfi->fib_type == fi->fib_type &&
 		    memcmp(nfi->fib_metrics, fi->fib_metrics,
 			   sizeof(u32) * RTAX_MAX) == 0 &&
 		    ((nfi->fib_flags ^ fi->fib_flags) & ~RTNH_F_DEAD) == 0 &&
@@ -330,7 +331,6 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 int ip_fib_check_default(__be32 gw, struct net_device *dev)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct fib_nh *nh;
 	unsigned int hash;
 
@@ -338,7 +338,7 @@ int ip_fib_check_default(__be32 gw, struct net_device *dev)
 
 	hash = fib_devindex_hashfn(dev->ifindex);
 	head = &fib_info_devhash[hash];
-	hlist_for_each_entry(nh, node, head, nh_hash) {
+	hlist_for_each_entry(nh, head, nh_hash) {
 		if (nh->nh_dev == dev &&
 		    nh->nh_gw == gw &&
 		    !(nh->nh_flags & RTNH_F_DEAD)) {
@@ -391,7 +391,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	if (skb == NULL)
 		goto errout;
 
-	err = fib_dump_info(skb, info->pid, seq, event, tb_id,
+	err = fib_dump_info(skb, info->portid, seq, event, tb_id,
 			    fa->fa_type, key, dst_len,
 			    fa->fa_tos, fa->fa_info, nlm_flags);
 	if (err < 0) {
@@ -400,7 +400,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, info->nl_net, info->pid, RTNLGRP_IPV4_ROUTE,
+	rtnl_notify(skb, info->nl_net, info->portid, RTNLGRP_IPV4_ROUTE,
 		    info->nlh, GFP_KERNEL);
 	return;
 errout:
@@ -720,10 +720,10 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 
 	for (i = 0; i < old_size; i++) {
 		struct hlist_head *head = &fib_info_hash[i];
-		struct hlist_node *node, *n;
+		struct hlist_node *n;
 		struct fib_info *fi;
 
-		hlist_for_each_entry_safe(fi, node, n, head, fib_hash) {
+		hlist_for_each_entry_safe(fi, n, head, fib_hash) {
 			struct hlist_head *dest;
 			unsigned int new_hash;
 
@@ -738,10 +738,10 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 
 	for (i = 0; i < old_size; i++) {
 		struct hlist_head *lhead = &fib_info_laddrhash[i];
-		struct hlist_node *node, *n;
+		struct hlist_node *n;
 		struct fib_info *fi;
 
-		hlist_for_each_entry_safe(fi, node, n, lhead, fib_lhash) {
+		hlist_for_each_entry_safe(fi, n, lhead, fib_lhash) {
 			struct hlist_head *ldest;
 			unsigned int new_hash;
 
@@ -802,7 +802,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		unsigned int bytes;
 
 		if (!new_size)
-			new_size = 1;
+			new_size = 16;
 		bytes = new_size * sizeof(struct hlist_head *);
 		new_info_hash = fib_info_hash_alloc(bytes);
 		new_laddrhash = fib_info_hash_alloc(bytes);
@@ -833,11 +833,14 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	fi->fib_flags = cfg->fc_flags;
 	fi->fib_priority = cfg->fc_priority;
 	fi->fib_prefsrc = cfg->fc_prefsrc;
+	fi->fib_type = cfg->fc_type;
 
 	fi->fib_nhs = nhs;
 	change_nexthops(fi) {
 		nexthop_nh->nh_parent = fi;
 		nexthop_nh->nh_pcpu_rth_output = alloc_percpu(struct rtable __rcu *);
+		if (!nexthop_nh->nh_pcpu_rth_output)
+			goto failure;
 	} endfor_nexthops(fi)
 
 	if (cfg->fc_mx) {
@@ -989,14 +992,14 @@ failure:
 	return ERR_PTR(err);
 }
 
-int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
+int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		  u32 tb_id, u8 type, __be32 dst, int dst_len, u8 tos,
 		  struct fib_info *fi, unsigned int flags)
 {
 	struct nlmsghdr *nlh;
 	struct rtmsg *rtm;
 
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*rtm), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*rtm), flags);
 	if (nlh == NULL)
 		return -EMSGSIZE;
 
@@ -1092,13 +1095,12 @@ int fib_sync_down_addr(struct net *net, __be32 local)
 	int ret = 0;
 	unsigned int hash = fib_laddr_hashfn(local);
 	struct hlist_head *head = &fib_info_laddrhash[hash];
-	struct hlist_node *node;
 	struct fib_info *fi;
 
 	if (fib_info_laddrhash == NULL || local == 0)
 		return 0;
 
-	hlist_for_each_entry(fi, node, head, fib_lhash) {
+	hlist_for_each_entry(fi, head, fib_lhash) {
 		if (!net_eq(fi->fib_net, net))
 			continue;
 		if (fi->fib_prefsrc == local) {
@@ -1116,13 +1118,12 @@ int fib_sync_down_dev(struct net_device *dev, int force)
 	struct fib_info *prev_fi = NULL;
 	unsigned int hash = fib_devindex_hashfn(dev->ifindex);
 	struct hlist_head *head = &fib_info_devhash[hash];
-	struct hlist_node *node;
 	struct fib_nh *nh;
 
 	if (force)
 		scope = -1;
 
-	hlist_for_each_entry(nh, node, head, nh_hash) {
+	hlist_for_each_entry(nh, head, nh_hash) {
 		struct fib_info *fi = nh->nh_parent;
 		int dead;
 
@@ -1228,7 +1229,6 @@ int fib_sync_up(struct net_device *dev)
 	struct fib_info *prev_fi;
 	unsigned int hash;
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct fib_nh *nh;
 	int ret;
 
@@ -1240,7 +1240,7 @@ int fib_sync_up(struct net_device *dev)
 	head = &fib_info_devhash[hash];
 	ret = 0;
 
-	hlist_for_each_entry(nh, node, head, nh_hash) {
+	hlist_for_each_entry(nh, head, nh_hash) {
 		struct fib_info *fi = nh->nh_parent;
 		int alive;
 

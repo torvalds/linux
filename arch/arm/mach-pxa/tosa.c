@@ -36,14 +36,15 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/i2c/pxa-i2c.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/reboot.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 
 #include <mach/pxa25x.h>
 #include <mach/reset.h>
-#include <mach/irda.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/mmc-pxamci.h>
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
 #include <mach/audio.h>
@@ -911,10 +912,10 @@ static struct platform_device *devices[] __initdata = {
 
 static void tosa_poweroff(void)
 {
-	pxa_restart('g', NULL);
+	pxa_restart(REBOOT_GPIO, NULL);
 }
 
-static void tosa_restart(char mode, const char *cmd)
+static void tosa_restart(enum reboot_mode mode, const char *cmd)
 {
 	uint32_t msc0 = __raw_readl(MSC0);
 
@@ -927,8 +928,6 @@ static void tosa_restart(char mode, const char *cmd)
 
 static void __init tosa_init(void)
 {
-	int dummy;
-
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_config));
 
 	pxa_set_ffuart_info(NULL);
@@ -946,10 +945,6 @@ static void __init tosa_init(void)
 
 	/* enable batt_fault */
 	PMCR = 0x01;
-
-	dummy = gpiochip_reserve(TOSA_SCOOP_GPIO_BASE, 12);
-	dummy = gpiochip_reserve(TOSA_SCOOP_JC_GPIO_BASE, 12);
-	dummy = gpiochip_reserve(TOSA_TC6393XB_GPIO_BASE, 16);
 
 	pxa_set_mci_info(&tosa_mci_platform_data);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
@@ -975,13 +970,12 @@ static void __init fixup_tosa(struct tag *tags, char **cmdline,
 }
 
 MACHINE_START(TOSA, "SHARP Tosa")
-	.restart_mode	= 'g',
 	.fixup          = fixup_tosa,
 	.map_io         = pxa25x_map_io,
 	.nr_irqs	= TOSA_NR_IRQS,
 	.init_irq       = pxa25x_init_irq,
 	.handle_irq       = pxa25x_handle_irq,
 	.init_machine   = tosa_init,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= tosa_restart,
 MACHINE_END

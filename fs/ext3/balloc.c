@@ -483,7 +483,7 @@ void ext3_discard_reservation(struct inode *inode)
  * ext3_free_blocks_sb() -- Free given blocks and update quota
  * @handle:			handle to this transaction
  * @sb:				super block
- * @block:			start physcial block to free
+ * @block:			start physical block to free
  * @count:			number of blocks to free
  * @pdquot_freed_blocks:	pointer to quota
  */
@@ -2101,8 +2101,9 @@ int ext3_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	end = start + (range->len >> sb->s_blocksize_bits) - 1;
 	minlen = range->minlen >> sb->s_blocksize_bits;
 
-	if (unlikely(minlen > EXT3_BLOCKS_PER_GROUP(sb)) ||
-	    unlikely(start >= max_blks))
+	if (minlen > EXT3_BLOCKS_PER_GROUP(sb) ||
+	    start >= max_blks ||
+	    range->len < sb->s_blocksize)
 		return -EINVAL;
 	if (end >= max_blks)
 		end = max_blks - 1;

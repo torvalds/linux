@@ -52,8 +52,9 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <plat/mux.h>
-#include <plat/omap7xx.h>	/* OMAP7XX_IO_CONF registers */
+#include <mach/mux.h>
+
+#include <mach/omap7xx.h>	/* OMAP7XX_IO_CONF registers */
 
 
 /* FIXME address is now a platform device resource,
@@ -475,7 +476,7 @@ static void uwire_off(struct uwire_spi *uwire)
 	spi_master_put(uwire->bitbang.master);
 }
 
-static int __init uwire_probe(struct platform_device *pdev)
+static int uwire_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	struct uwire_spi	*uwire;
@@ -494,7 +495,7 @@ static int __init uwire_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(&pdev->dev, uwire);
+	platform_set_drvdata(pdev, uwire);
 
 	uwire->ck = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(uwire->ck)) {
@@ -535,9 +536,9 @@ static int __init uwire_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int __exit uwire_remove(struct platform_device *pdev)
+static int uwire_remove(struct platform_device *pdev)
 {
-	struct uwire_spi	*uwire = dev_get_drvdata(&pdev->dev);
+	struct uwire_spi	*uwire = platform_get_drvdata(pdev);
 	int			status;
 
 	// FIXME remove all child devices, somewhere ...
@@ -556,7 +557,7 @@ static struct platform_driver uwire_driver = {
 		.name		= "omap_uwire",
 		.owner		= THIS_MODULE,
 	},
-	.remove		= __exit_p(uwire_remove),
+	.remove		= uwire_remove,
 	// suspend ... unuse ck
 	// resume ... use ck
 };

@@ -221,7 +221,7 @@ static void snd_opl3sa2_write(struct snd_opl3sa2 *chip, unsigned char reg, unsig
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
-static int __devinit snd_opl3sa2_detect(struct snd_card *card)
+static int snd_opl3sa2_detect(struct snd_card *card)
 {
 	struct snd_opl3sa2 *chip = card->private_data;
 	unsigned long port;
@@ -496,7 +496,7 @@ static void snd_opl3sa2_master_free(struct snd_kcontrol *kcontrol)
 	chip->master_volume = NULL;
 }
 
-static int __devinit snd_opl3sa2_mixer(struct snd_card *card)
+static int snd_opl3sa2_mixer(struct snd_card *card)
 {
 	struct snd_opl3sa2 *chip = card->private_data;
 	struct snd_ctl_elem_id id1, id2;
@@ -596,8 +596,8 @@ static int snd_opl3sa2_resume(struct snd_card *card)
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PNP
-static int __devinit snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
-				     struct pnp_dev *pdev)
+static int snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
+			   struct pnp_dev *pdev)
 {
 	if (pnp_activate_dev(pdev) < 0) {
 		snd_printk(KERN_ERR "PnP configure failure (out of resources?)\n");
@@ -647,7 +647,7 @@ static int snd_opl3sa2_card_new(int dev, struct snd_card **cardp)
 	return 0;
 }
 
-static int __devinit snd_opl3sa2_probe(struct snd_card *card, int dev)
+static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 {
 	int xirq, xdma1, xdma2;
 	struct snd_opl3sa2 *chip;
@@ -721,8 +721,8 @@ static int __devinit snd_opl3sa2_probe(struct snd_card *card, int dev)
 }
 
 #ifdef CONFIG_PNP
-static int __devinit snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
-					    const struct pnp_device_id *id)
+static int snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
+				  const struct pnp_device_id *id)
 {
 	static int dev;
 	int err;
@@ -754,10 +754,9 @@ static int __devinit snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
 	return 0;
 }
 
-static void __devexit snd_opl3sa2_pnp_remove(struct pnp_dev * pdev)
+static void snd_opl3sa2_pnp_remove(struct pnp_dev *pdev)
 {
 	snd_card_free(pnp_get_drvdata(pdev));
-	pnp_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -775,15 +774,15 @@ static struct pnp_driver opl3sa2_pnp_driver = {
 	.name = "snd-opl3sa2-pnpbios",
 	.id_table = snd_opl3sa2_pnpbiosids,
 	.probe = snd_opl3sa2_pnp_detect,
-	.remove = __devexit_p(snd_opl3sa2_pnp_remove),
+	.remove = snd_opl3sa2_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend = snd_opl3sa2_pnp_suspend,
 	.resume = snd_opl3sa2_pnp_resume,
 #endif
 };
 
-static int __devinit snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
-					     const struct pnp_card_device_id *id)
+static int snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
+				   const struct pnp_card_device_id *id)
 {
 	static int dev;
 	struct pnp_dev *pdev;
@@ -820,7 +819,7 @@ static int __devinit snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
 	return 0;
 }
 
-static void __devexit snd_opl3sa2_pnp_cremove(struct pnp_card_link * pcard)
+static void snd_opl3sa2_pnp_cremove(struct pnp_card_link *pcard)
 {
 	snd_card_free(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
@@ -842,7 +841,7 @@ static struct pnp_card_driver opl3sa2_pnpc_driver = {
 	.name = "snd-opl3sa2-cpnp",
 	.id_table = snd_opl3sa2_pnpids,
 	.probe = snd_opl3sa2_pnp_cdetect,
-	.remove = __devexit_p(snd_opl3sa2_pnp_cremove),
+	.remove = snd_opl3sa2_pnp_cremove,
 #ifdef CONFIG_PM
 	.suspend = snd_opl3sa2_pnp_csuspend,
 	.resume = snd_opl3sa2_pnp_cresume,
@@ -850,8 +849,8 @@ static struct pnp_card_driver opl3sa2_pnpc_driver = {
 };
 #endif /* CONFIG_PNP */
 
-static int __devinit snd_opl3sa2_isa_match(struct device *pdev,
-					   unsigned int dev)
+static int snd_opl3sa2_isa_match(struct device *pdev,
+				 unsigned int dev)
 {
 	if (!enable[dev])
 		return 0;
@@ -878,8 +877,8 @@ static int __devinit snd_opl3sa2_isa_match(struct device *pdev,
 	return 1;
 }
 
-static int __devinit snd_opl3sa2_isa_probe(struct device *pdev,
-					   unsigned int dev)
+static int snd_opl3sa2_isa_probe(struct device *pdev,
+				 unsigned int dev)
 {
 	struct snd_card *card;
 	int err;
@@ -896,11 +895,10 @@ static int __devinit snd_opl3sa2_isa_probe(struct device *pdev,
 	return 0;
 }
 
-static int __devexit snd_opl3sa2_isa_remove(struct device *devptr,
-					    unsigned int dev)
+static int snd_opl3sa2_isa_remove(struct device *devptr,
+				  unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
@@ -922,7 +920,7 @@ static int snd_opl3sa2_isa_resume(struct device *dev, unsigned int n)
 static struct isa_driver snd_opl3sa2_isa_driver = {
 	.match		= snd_opl3sa2_isa_match,
 	.probe		= snd_opl3sa2_isa_probe,
-	.remove		= __devexit_p(snd_opl3sa2_isa_remove),
+	.remove		= snd_opl3sa2_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_opl3sa2_isa_suspend,
 	.resume		= snd_opl3sa2_isa_resume,

@@ -144,6 +144,22 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 	}
 	seq_printf(s, "timing spec:\t%u (%s)\n", ios->timing, str);
 
+	switch (ios->signal_voltage) {
+	case MMC_SIGNAL_VOLTAGE_330:
+		str = "3.30 V";
+		break;
+	case MMC_SIGNAL_VOLTAGE_180:
+		str = "1.80 V";
+		break;
+	case MMC_SIGNAL_VOLTAGE_120:
+		str = "1.20 V";
+		break;
+	default:
+		str = "invalid";
+		break;
+	}
+	seq_printf(s, "signal voltage:\t%u (%s)\n", ios->chip_select, str);
+
 	return 0;
 }
 
@@ -242,13 +258,13 @@ static int mmc_dbg_card_status_get(void *data, u64 *val)
 	u32		status;
 	int		ret;
 
-	mmc_claim_host(card->host);
+	mmc_get_card(card);
 
 	ret = mmc_send_status(data, &status);
 	if (!ret)
 		*val = status;
 
-	mmc_release_host(card->host);
+	mmc_put_card(card);
 
 	return ret;
 }
@@ -275,13 +291,13 @@ static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
 		goto out_free;
 	}
 
-	mmc_claim_host(card->host);
+	mmc_get_card(card);
 	err = mmc_send_ext_csd(card, ext_csd);
-	mmc_release_host(card->host);
+	mmc_put_card(card);
 	if (err)
 		goto out_free;
 
-	for (i = 511; i >= 0; i--)
+	for (i = 0; i < 512; i++)
 		n += sprintf(buf + n, "%02x", ext_csd[i]);
 	n += sprintf(buf + n, "\n");
 	BUG_ON(n != EXT_CSD_STR_LEN);

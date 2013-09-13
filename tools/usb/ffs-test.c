@@ -38,7 +38,7 @@
 #include <unistd.h>
 #include <tools/le_byteshift.h>
 
-#include "../../include/linux/usb/functionfs.h"
+#include "../../include/uapi/linux/usb/functionfs.h"
 
 
 /******************** Little Endian Handling ********************************/

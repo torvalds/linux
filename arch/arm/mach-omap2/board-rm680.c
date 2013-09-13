@@ -1,5 +1,5 @@
 /*
- * Board support file for Nokia RM-680/696.
+ * Board support file for Nokia N950 (RM-680) / N9 (RM-696).
  *
  * Copyright (C) 2010 Nokia
  *
@@ -17,21 +17,20 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
+#include <linux/usb/phy.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <plat/i2c.h>
-#include <plat/mmc.h>
-#include <plat/usb.h>
-#include <plat/gpmc.h>
 #include "common.h"
-#include <plat/onenand.h>
-
 #include "mux.h"
+#include "gpmc.h"
+#include "mmc.h"
 #include "hsmmc.h"
 #include "sdram-nokia.h"
 #include "common-board-devices.h"
+#include "gpmc-onenand.h"
 
 static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
@@ -72,9 +71,6 @@ static struct platform_device *rm680_peripherals_devices[] __initdata = {
 
 /* TWL */
 static struct twl4030_gpio_platform_data rm680_gpio_data = {
-	.gpio_base		= OMAP_MAX_GPIO_LINES,
-	.irq_base		= TWL4030_GPIO_IRQ_BASE,
-	.irq_end		= TWL4030_GPIO_IRQ_END,
 	.pullups		= BIT(0),
 	.pulldowns		= BIT(1) | BIT(2) | BIT(8) | BIT(15),
 };
@@ -87,7 +83,7 @@ static struct twl4030_platform_data rm680_twl_data = {
 static void __init rm680_i2c_init(void)
 {
 	omap3_pmic_get_config(&rm680_twl_data, TWL_COMMON_PDATA_USB, 0);
-	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
+	omap_pmic_init(1, 2900, "twl5031", 7 + OMAP_INTC_START, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 }
@@ -139,6 +135,7 @@ static void __init rm680_init(void)
 	sdrc_params = nokia_get_sdram_timings();
 	omap_sdrc_init(sdrc_params, sdrc_params);
 
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	rm680_peripherals_init();
 }
@@ -152,8 +149,8 @@ MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= rm680_init,
 	.init_late	= omap3630_init_late,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(NOKIA_RM696, "Nokia RM-696 board")
@@ -165,6 +162,6 @@ MACHINE_START(NOKIA_RM696, "Nokia RM-696 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= rm680_init,
 	.init_late	= omap3630_init_late,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END

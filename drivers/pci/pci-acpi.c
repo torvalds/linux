@@ -17,9 +17,8 @@
 
 #include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_qos.h>
 #include "pci.h"
-
-static DEFINE_MUTEX(pci_acpi_pm_notify_mtx);
 
 /**
  * pci_acpi_wake_bus - Wake-up notification handler for root buses.
@@ -54,78 +53,18 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 		return;
 	}
 
-	if (!pci_dev->pm_cap || !pci_dev->pme_support
-	     || pci_check_pme_status(pci_dev)) {
-		if (pci_dev->pme_poll)
-			pci_dev->pme_poll = false;
+	/* Clear PME Status if set. */
+	if (pci_dev->pme_support)
+		pci_check_pme_status(pci_dev);
 
-		pci_wakeup_event(pci_dev);
-		pm_runtime_resume(&pci_dev->dev);
-	}
+	if (pci_dev->pme_poll)
+		pci_dev->pme_poll = false;
+
+	pci_wakeup_event(pci_dev);
+	pm_runtime_resume(&pci_dev->dev);
 
 	if (pci_dev->subordinate)
 		pci_pme_wakeup_bus(pci_dev->subordinate);
-}
-
-/**
- * add_pm_notifier - Register PM notifier for given ACPI device.
- * @dev: ACPI device to add the notifier for.
- * @context: PCI device or bus to check for PME status if an event is signaled.
- *
- * NOTE: @dev need not be a run-wake or wake-up device to be a valid source of
- * PM wake-up events.  For example, wake-up events may be generated for bridges
- * if one of the devices below the bridge is signaling PME, even if the bridge
- * itself doesn't have a wake-up GPE associated with it.
- */
-static acpi_status add_pm_notifier(struct acpi_device *dev,
-				   acpi_notify_handler handler,
-				   void *context)
-{
-	acpi_status status = AE_ALREADY_EXISTS;
-
-	mutex_lock(&pci_acpi_pm_notify_mtx);
-
-	if (dev->wakeup.flags.notifier_present)
-		goto out;
-
-	status = acpi_install_notify_handler(dev->handle,
-					     ACPI_SYSTEM_NOTIFY,
-					     handler, context);
-	if (ACPI_FAILURE(status))
-		goto out;
-
-	dev->wakeup.flags.notifier_present = true;
-
- out:
-	mutex_unlock(&pci_acpi_pm_notify_mtx);
-	return status;
-}
-
-/**
- * remove_pm_notifier - Unregister PM notifier from given ACPI device.
- * @dev: ACPI device to remove the notifier from.
- */
-static acpi_status remove_pm_notifier(struct acpi_device *dev,
-				      acpi_notify_handler handler)
-{
-	acpi_status status = AE_BAD_PARAMETER;
-
-	mutex_lock(&pci_acpi_pm_notify_mtx);
-
-	if (!dev->wakeup.flags.notifier_present)
-		goto out;
-
-	status = acpi_remove_notify_handler(dev->handle,
-					    ACPI_SYSTEM_NOTIFY,
-					    handler);
-	if (ACPI_FAILURE(status))
-		goto out;
-
-	dev->wakeup.flags.notifier_present = false;
-
- out:
-	mutex_unlock(&pci_acpi_pm_notify_mtx);
-	return status;
 }
 
 /**
@@ -136,7 +75,7 @@ static acpi_status remove_pm_notifier(struct acpi_device *dev,
 acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev,
 					 struct pci_bus *pci_bus)
 {
-	return add_pm_notifier(dev, pci_acpi_wake_bus, pci_bus);
+	return acpi_add_pm_notifier(dev, pci_acpi_wake_bus, pci_bus);
 }
 
 /**
@@ -145,7 +84,7 @@ acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev,
  */
 acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev)
 {
-	return remove_pm_notifier(dev, pci_acpi_wake_bus);
+	return acpi_remove_pm_notifier(dev, pci_acpi_wake_bus);
 }
 
 /**
@@ -156,7 +95,7 @@ acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev)
 acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
 				     struct pci_dev *pci_dev)
 {
-	return add_pm_notifier(dev, pci_acpi_wake_dev, pci_dev);
+	return acpi_add_pm_notifier(dev, pci_acpi_wake_dev, pci_dev);
 }
 
 /**
@@ -165,7 +104,7 @@ acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
  */
 acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
 {
-	return remove_pm_notifier(dev, pci_acpi_wake_dev);
+	return acpi_remove_pm_notifier(dev, pci_acpi_wake_dev);
 }
 
 phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
@@ -247,8 +186,8 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		[PCI_D0] = ACPI_STATE_D0,
 		[PCI_D1] = ACPI_STATE_D1,
 		[PCI_D2] = ACPI_STATE_D2,
-		[PCI_D3hot] = ACPI_STATE_D3,
-		[PCI_D3cold] = ACPI_STATE_D3
+		[PCI_D3hot] = ACPI_STATE_D3_COLD,
+		[PCI_D3cold] = ACPI_STATE_D3_COLD,
 	};
 	int error = -EINVAL;
 
@@ -257,17 +196,22 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		return -ENODEV;
 
 	switch (state) {
+	case PCI_D3cold:
+		if (dev_pm_qos_flags(&dev->dev, PM_QOS_FLAG_NO_POWER_OFF) ==
+				PM_QOS_FLAGS_ALL) {
+			error = -EBUSY;
+			break;
+		}
 	case PCI_D0:
 	case PCI_D1:
 	case PCI_D2:
 	case PCI_D3hot:
-	case PCI_D3cold:
 		error = acpi_bus_set_power(handle, state_conv[state]);
 	}
 
 	if (!error)
-		dev_info(&dev->dev, "power state changed by ACPI to %s\n",
-			 pci_power_name(state));
+		dev_dbg(&dev->dev, "power state changed by ACPI to %s\n",
+			 acpi_power_state_string(state_conv[state]));
 
 	return error;
 }
@@ -340,48 +284,90 @@ static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.choose_state = acpi_pci_choose_state,
-	.can_wakeup = acpi_pci_can_wakeup,
 	.sleep_wake = acpi_pci_sleep_wake,
 	.run_wake = acpi_pci_run_wake,
 };
 
+void acpi_pci_add_bus(struct pci_bus *bus)
+{
+	if (acpi_pci_disabled || !bus->bridge)
+		return;
+
+	acpi_pci_slot_enumerate(bus);
+	acpiphp_enumerate_slots(bus);
+}
+
+void acpi_pci_remove_bus(struct pci_bus *bus)
+{
+	if (acpi_pci_disabled || !bus->bridge)
+		return;
+
+	acpiphp_remove_slots(bus);
+	acpi_pci_slot_remove(bus);
+}
+
 /* ACPI bus type */
 static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 {
-	struct pci_dev * pci_dev;
-	u64	addr;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	bool is_bridge;
+	u64 addr;
 
-	pci_dev = to_pci_dev(dev);
+	/*
+	 * pci_is_bridge() is not suitable here, because pci_dev->subordinate
+	 * is set only after acpi_pci_find_device() has been called for the
+	 * given device.
+	 */
+	is_bridge = pci_dev->hdr_type == PCI_HEADER_TYPE_BRIDGE
+			|| pci_dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
 	/* Please ref to ACPI spec for the syntax of _ADR */
 	addr = (PCI_SLOT(pci_dev->devfn) << 16) | PCI_FUNC(pci_dev->devfn);
-	*handle = acpi_get_child(DEVICE_ACPI_HANDLE(dev->parent), addr);
+	*handle = acpi_find_child(ACPI_HANDLE(dev->parent), addr, is_bridge);
 	if (!*handle)
 		return -ENODEV;
 	return 0;
 }
 
-static int acpi_pci_find_root_bridge(struct device *dev, acpi_handle *handle)
+static void pci_acpi_setup(struct device *dev)
 {
-	int num;
-	unsigned int seg, bus;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
+	struct acpi_device *adev;
 
-	/*
-	 * The string should be the same as root bridge's name
-	 * Please look at 'pci_scan_bus_parented'
-	 */
-	num = sscanf(dev_name(dev), "pci%04x:%02x", &seg, &bus);
-	if (num != 2)
-		return -ENODEV;
-	*handle = acpi_get_pci_rootbridge_handle(seg, bus);
-	if (!*handle)
-		return -ENODEV;
-	return 0;
+	if (acpi_bus_get_device(handle, &adev) || !adev->wakeup.flags.valid)
+		return;
+
+	device_set_wakeup_capable(dev, true);
+	acpi_pci_sleep_wake(pci_dev, false);
+
+	pci_acpi_add_pm_notifier(adev, pci_dev);
+	if (adev->wakeup.flags.run_wake)
+		device_set_run_wake(dev, true);
+}
+
+static void pci_acpi_cleanup(struct device *dev)
+{
+	acpi_handle handle = ACPI_HANDLE(dev);
+	struct acpi_device *adev;
+
+	if (!acpi_bus_get_device(handle, &adev) && adev->wakeup.flags.valid) {
+		device_set_wakeup_capable(dev, false);
+		device_set_run_wake(dev, false);
+		pci_acpi_remove_pm_notifier(adev);
+	}
+}
+
+static bool pci_acpi_bus_match(struct device *dev)
+{
+	return dev->bus == &pci_bus_type;
 }
 
 static struct acpi_bus_type acpi_pci_bus = {
-	.bus = &pci_bus_type,
+	.name = "PCI",
+	.match = pci_acpi_bus_match,
 	.find_device = acpi_pci_find_device,
-	.find_bridge = acpi_pci_find_root_bridge,
+	.setup = pci_acpi_setup,
+	.cleanup = pci_acpi_cleanup,
 };
 
 static int __init acpi_pci_init(void)
@@ -389,19 +375,23 @@ static int __init acpi_pci_init(void)
 	int ret;
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_MSI) {
-		printk(KERN_INFO"ACPI FADT declares the system doesn't support MSI, so disable it\n");
+		pr_info("ACPI FADT declares the system doesn't support MSI, so disable it\n");
 		pci_no_msi();
 	}
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
-		printk(KERN_INFO"ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
+		pr_info("ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
 		pcie_no_aspm();
 	}
 
 	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;
+
 	pci_set_platform_pm(&acpi_pci_platform_pm);
+	acpi_pci_slot_init();
+	acpiphp_init();
+
 	return 0;
 }
 arch_initcall(acpi_pci_init);

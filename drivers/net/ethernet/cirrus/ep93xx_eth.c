@@ -710,8 +710,8 @@ static int ep93xx_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static void ep93xx_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_MODULE_NAME);
-	strcpy(info->version, DRV_MODULE_VERSION);
+	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
 static int ep93xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -783,7 +783,6 @@ static int ep93xx_eth_remove(struct platform_device *pdev)
 	dev = platform_get_drvdata(pdev);
 	if (dev == NULL)
 		return 0;
-	platform_set_drvdata(pdev, NULL);
 
 	ep = netdev_priv(dev);
 
@@ -815,7 +814,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 
 	if (pdev == NULL)
 		return -ENODEV;
-	data = pdev->dev.platform_data;
+	data = dev_get_platdata(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -887,18 +886,7 @@ static struct platform_driver ep93xx_eth_driver = {
 	},
 };
 
-static int __init ep93xx_eth_init_module(void)
-{
-	printk(KERN_INFO DRV_MODULE_NAME " version " DRV_MODULE_VERSION " loading\n");
-	return platform_driver_register(&ep93xx_eth_driver);
-}
+module_platform_driver(ep93xx_eth_driver);
 
-static void __exit ep93xx_eth_cleanup_module(void)
-{
-	platform_driver_unregister(&ep93xx_eth_driver);
-}
-
-module_init(ep93xx_eth_init_module);
-module_exit(ep93xx_eth_cleanup_module);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:ep93xx-eth");

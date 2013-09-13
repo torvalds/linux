@@ -75,7 +75,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 static void process_critical_error(struct nes_device *nesdev);
 static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number);
 static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode);
-static void nes_terminate_timeout(unsigned long context);
 static void nes_terminate_start_timer(struct nes_qp *nesqp);
 
 #ifdef CONFIG_INFINIBAND_NES_DEBUG
@@ -2679,11 +2678,9 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 			}
 		}
 		if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_SFP_D) {
-			if (nesdev->link_recheck)
-				cancel_delayed_work(&nesdev->work);
 			nesdev->link_recheck = 1;
-			schedule_delayed_work(&nesdev->work,
-					      NES_LINK_RECHECK_DELAY);
+			mod_delayed_work(system_wq, &nesdev->work,
+					 NES_LINK_RECHECK_DELAY);
 		}
 	}
 
@@ -2951,7 +2948,7 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 					nes_debug(NES_DBG_CQ, "%s: Reporting stripped VLAN packet. Tag = 0x%04X\n",
 							nesvnic->netdev->name, vlan_tag);
 
-					__vlan_hwaccel_put_tag(rx_skb, vlan_tag);
+					__vlan_hwaccel_put_tag(rx_skb, htons(ETH_P_8021Q), vlan_tag);
 				}
 				if (nes_use_lro)
 					lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
@@ -3522,7 +3519,7 @@ static void nes_terminate_received(struct nes_device *nesdev,
 }
 
 /* Timeout routine in case terminate fails to complete */
-static void nes_terminate_timeout(unsigned long context)
+void nes_terminate_timeout(unsigned long context)
 {
 	struct nes_qp *nesqp = (struct nes_qp *)(unsigned long)context;
 
@@ -3532,11 +3529,7 @@ static void nes_terminate_timeout(unsigned long context)
 /* Set a timer in case hw cannot complete the terminate sequence */
 static void nes_terminate_start_timer(struct nes_qp *nesqp)
 {
-	init_timer(&nesqp->terminate_timer);
-	nesqp->terminate_timer.function = nes_terminate_timeout;
-	nesqp->terminate_timer.expires = jiffies + HZ;
-	nesqp->terminate_timer.data = (unsigned long)nesqp;
-	add_timer(&nesqp->terminate_timer);
+	mod_timer(&nesqp->terminate_timer, (jiffies + HZ));
 }
 
 /**

@@ -16,6 +16,7 @@
 #define _ASM_TILE_HUGETLB_H
 
 #include <asm/page.h>
+#include <asm-generic/hugetlb.h>
 
 
 static inline int is_hugepage_only_range(struct mm_struct *mm,
@@ -103,6 +104,10 @@ static inline int arch_prepare_hugepage(struct page *page)
 }
 
 static inline void arch_release_hugepage(struct page *page)
+{
+}
+
+static inline void arch_clear_hugepage_flags(struct page *page)
 {
 }
 

@@ -61,7 +61,8 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, unsigned 
 
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
-	d_set_d_op(dentry, &simple_dentry_operations);
+	if (!dentry->d_sb->s_d_op)
+		d_set_d_op(dentry, &simple_dentry_operations);
 	d_add(dentry, NULL);
 	return NULL;
 }
@@ -81,11 +82,11 @@ int dcache_dir_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
+loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	mutex_lock(&dentry->d_inode->i_mutex);
-	switch (origin) {
+	switch (whence) {
 		case 1:
 			offset += file->f_pos;
 		case 0:
@@ -135,60 +136,40 @@ static inline unsigned char dt_type(struct inode *inode)
  * both impossible due to the lock on directory.
  */
 
-int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
+int dcache_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct dentry *dentry = filp->f_path.dentry;
-	struct dentry *cursor = filp->private_data;
+	struct dentry *dentry = file->f_path.dentry;
+	struct dentry *cursor = file->private_data;
 	struct list_head *p, *q = &cursor->d_u.d_child;
-	ino_t ino;
-	int i = filp->f_pos;
 
-	switch (i) {
-		case 0:
-			ino = dentry->d_inode->i_ino;
-			if (filldir(dirent, ".", 1, i, ino, DT_DIR) < 0)
-				break;
-			filp->f_pos++;
-			i++;
-			/* fallthrough */
-		case 1:
-			ino = parent_ino(dentry);
-			if (filldir(dirent, "..", 2, i, ino, DT_DIR) < 0)
-				break;
-			filp->f_pos++;
-			i++;
-			/* fallthrough */
-		default:
-			spin_lock(&dentry->d_lock);
-			if (filp->f_pos == 2)
-				list_move(q, &dentry->d_subdirs);
+	if (!dir_emit_dots(file, ctx))
+		return 0;
+	spin_lock(&dentry->d_lock);
+	if (ctx->pos == 2)
+		list_move(q, &dentry->d_subdirs);
 
-			for (p=q->next; p != &dentry->d_subdirs; p=p->next) {
-				struct dentry *next;
-				next = list_entry(p, struct dentry, d_u.d_child);
-				spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
-				if (!simple_positive(next)) {
-					spin_unlock(&next->d_lock);
-					continue;
-				}
+	for (p = q->next; p != &dentry->d_subdirs; p = p->next) {
+		struct dentry *next = list_entry(p, struct dentry, d_u.d_child);
+		spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
+		if (!simple_positive(next)) {
+			spin_unlock(&next->d_lock);
+			continue;
+		}
 
-				spin_unlock(&next->d_lock);
-				spin_unlock(&dentry->d_lock);
-				if (filldir(dirent, next->d_name.name, 
-					    next->d_name.len, filp->f_pos, 
-					    next->d_inode->i_ino, 
-					    dt_type(next->d_inode)) < 0)
-					return 0;
-				spin_lock(&dentry->d_lock);
-				spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
-				/* next is still alive */
-				list_move(q, p);
-				spin_unlock(&next->d_lock);
-				p = q;
-				filp->f_pos++;
-			}
-			spin_unlock(&dentry->d_lock);
+		spin_unlock(&next->d_lock);
+		spin_unlock(&dentry->d_lock);
+		if (!dir_emit(ctx, next->d_name.name, next->d_name.len,
+			      next->d_inode->i_ino, dt_type(next->d_inode)))
+			return 0;
+		spin_lock(&dentry->d_lock);
+		spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
+		/* next is still alive */
+		list_move(q, p);
+		spin_unlock(&next->d_lock);
+		p = q;
+		ctx->pos++;
 	}
+	spin_unlock(&dentry->d_lock);
 	return 0;
 }
 
@@ -202,7 +183,7 @@ const struct file_operations simple_dir_operations = {
 	.release	= dcache_dir_close,
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
-	.readdir	= dcache_readdir,
+	.iterate	= dcache_readdir,
 	.fsync		= noop_fsync,
 };
 
@@ -368,8 +349,6 @@ int simple_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = dentry->d_inode;
 	int error;
-
-	WARN_ON_ONCE(inode->i_op->truncate);
 
 	error = inode_change_ok(inode, iattr);
 	if (error)
@@ -874,7 +853,7 @@ struct dentry *generic_fh_to_dentry(struct super_block *sb, struct fid *fid,
 EXPORT_SYMBOL_GPL(generic_fh_to_dentry);
 
 /**
- * generic_fh_to_dentry - generic helper for the fh_to_parent export operation
+ * generic_fh_to_parent - generic helper for the fh_to_parent export operation
  * @sb:		filesystem to do the file handle conversion on
  * @fid:	file handle to convert
  * @fh_len:	length of the file handle in bytes

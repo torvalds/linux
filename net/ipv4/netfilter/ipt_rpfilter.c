@@ -66,6 +66,12 @@ static bool rpfilter_lookup_reverse(struct flowi4 *fl4,
 	return dev_match;
 }
 
+static bool rpfilter_is_local(const struct sk_buff *skb)
+{
+	const struct rtable *rt = skb_rtable(skb);
+	return rt && (rt->rt_flags & RTCF_LOCAL);
+}
+
 static bool rpfilter_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_rpfilter_info *info;
@@ -76,7 +82,7 @@ static bool rpfilter_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	info = par->matchinfo;
 	invert = info->flags & XT_RPFILTER_INVERT;
 
-	if (par->in->flags & IFF_LOOPBACK)
+	if (rpfilter_is_local(skb))
 		return true ^ invert;
 
 	iph = ip_hdr(skb);
@@ -85,7 +91,7 @@ static bool rpfilter_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			return ipv4_is_local_multicast(iph->daddr) ^ invert;
 		flow.flowi4_iif = 0;
 	} else {
-		flow.flowi4_iif = dev_net(par->in)->loopback_dev->ifindex;
+		flow.flowi4_iif = LOOPBACK_IFINDEX;
 	}
 
 	flow.daddr = iph->saddr;

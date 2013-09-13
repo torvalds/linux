@@ -103,7 +103,7 @@ typedef volatile struct au1xxx_ddma_desc {
 	 * Lets have some SW data following -- make sure it's 32 bytes.
 	 */
 	u32	sw_status;
-	u32 	sw_context;
+	u32	sw_context;
 	u32	sw_reserved[6];
 } au1x_ddma_desc_t;
 
@@ -123,7 +123,7 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_CMD0_CV		(0x1 << 2)	/* Clear Valid when done */
 #define DSCR_CMD0_ST_MASK	(0x3 << 0)	/* Status instruction */
 
-#define SW_STATUS_INUSE 	(1 << 0)
+#define SW_STATUS_INUSE		(1 << 0)
 
 /* Command 0 device IDs. */
 #define AU1550_DSCR_CMD0_UART0_TX	0
@@ -195,8 +195,8 @@ typedef volatile struct au1xxx_ddma_desc {
 #define AU1300_DSCR_CMD0_SDMS_RX0      9
 #define AU1300_DSCR_CMD0_SDMS_TX1      10
 #define AU1300_DSCR_CMD0_SDMS_RX1      11
-#define AU1300_DSCR_CMD0_AES_TX        12
-#define AU1300_DSCR_CMD0_AES_RX        13
+#define AU1300_DSCR_CMD0_AES_TX	       12
+#define AU1300_DSCR_CMD0_AES_RX	       13
 #define AU1300_DSCR_CMD0_PSC0_TX       14
 #define AU1300_DSCR_CMD0_PSC0_RX       15
 #define AU1300_DSCR_CMD0_PSC1_TX       16
@@ -205,12 +205,12 @@ typedef volatile struct au1xxx_ddma_desc {
 #define AU1300_DSCR_CMD0_PSC2_RX       19
 #define AU1300_DSCR_CMD0_PSC3_TX       20
 #define AU1300_DSCR_CMD0_PSC3_RX       21
-#define AU1300_DSCR_CMD0_LCD           22
+#define AU1300_DSCR_CMD0_LCD	       22
 #define AU1300_DSCR_CMD0_NAND_FLASH    23
 #define AU1300_DSCR_CMD0_SDMS_TX2      24
 #define AU1300_DSCR_CMD0_SDMS_RX2      25
 #define AU1300_DSCR_CMD0_CIM_SYNC      26
-#define AU1300_DSCR_CMD0_UDMA          27
+#define AU1300_DSCR_CMD0_UDMA	       27
 #define AU1300_DSCR_CMD0_DMA_REQ0      28
 #define AU1300_DSCR_CMD0_DMA_REQ1      29
 
@@ -298,7 +298,7 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_NXTPTR_MS		(1 << 27)
 
 /* The number of DBDMA channels. */
-#define NUM_DBDMA_CHANS	16
+#define NUM_DBDMA_CHANS 16
 
 /*
  * DDMA API definitions
@@ -316,7 +316,7 @@ typedef struct dbdma_device_table {
 
 
 typedef struct dbdma_chan_config {
-	spinlock_t      lock;
+	spinlock_t	lock;
 
 	u32			chan_flags;
 	u32			chan_index;

@@ -87,7 +87,7 @@ ieee754dp ieee754dp_sqrt(ieee754dp x)
 	if (xe > 512) {		/* x > 2**-512? */
 		xe -= 512;	/* x = x / 2**512 */
 		scalx += 256;
-	} else if (xe < -512) {	/* x < 2**-512? */
+	} else if (xe < -512) { /* x < 2**-512? */
 		xe += 512;	/* x = x * 2**512 */
 		scalx -= 256;
 	}
@@ -108,13 +108,13 @@ ieee754dp ieee754dp_sqrt(ieee754dp x)
 	y.bits &= 0xffffffff00000000LL;
 
 	/* triple to almost 56 sig. bits: y ~= sqrt(x) to within 1 ulp */
-	/* t=y*y; z=t;  pt[n0]+=0x00100000; t+=z; z=(x-z)*y; */
+	/* t=y*y; z=t;	pt[n0]+=0x00100000; t+=z; z=(x-z)*y; */
 	z = t = ieee754dp_mul(y, y);
 	t.parts.bexp += 0x001;
 	t = ieee754dp_add(t, z);
 	z = ieee754dp_mul(ieee754dp_sub(x, z), y);
 
-	/* t=z/(t+x) ;  pt[n0]+=0x00100000; y+=t; */
+	/* t=z/(t+x) ;	pt[n0]+=0x00100000; y+=t; */
 	t = ieee754dp_div(z, ieee754dp_add(t, x));
 	t.parts.bexp += 0x001;
 	y = ieee754dp_add(y, t);

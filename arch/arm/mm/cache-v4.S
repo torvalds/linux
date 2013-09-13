@@ -58,7 +58,7 @@ ENTRY(v4_flush_kern_cache_all)
 ENTRY(v4_flush_user_cache_range)
 #ifdef CONFIG_CPU_CP15
 	mov	ip, #0
-	mcreq	p15, 0, ip, c7, c7, 0		@ flush ID cache
+	mcr	p15, 0, ip, c7, c7, 0		@ flush ID cache
 	mov	pc, lr
 #else
 	/* FALLTHROUGH */
@@ -139,6 +139,9 @@ ENTRY(v4_dma_map_area)
 	mov	pc, lr
 ENDPROC(v4_dma_unmap_area)
 ENDPROC(v4_dma_map_area)
+
+	.globl	v4_flush_kern_cache_louis
+	.equ	v4_flush_kern_cache_louis, v4_flush_kern_cache_all
 
 	__INITDATA
 

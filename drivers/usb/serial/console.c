@@ -11,6 +11,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -19,8 +21,6 @@
 #include <linux/serial.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
-
-static int debug;
 
 struct usbcons_info {
 	int			magic;
@@ -68,8 +68,6 @@ static int usb_console_setup(struct console *co, char *options)
 	struct tty_struct *tty = NULL;
 	struct ktermios dummy;
 
-	dbg("%s", __func__);
-
 	if (options) {
 		baud = simple_strtoul(options, NULL, 10);
 		s = options;
@@ -110,19 +108,18 @@ static int usb_console_setup(struct console *co, char *options)
 	 * no need to check the index here: if the index is wrong, console
 	 * code won't call us
 	 */
-	serial = usb_serial_get_by_index(co->index);
-	if (serial == NULL) {
+	port = usb_serial_port_get_by_minor(co->index);
+	if (port == NULL) {
 		/* no device is connected yet, sorry :( */
-		printk(KERN_ERR "No USB device connected to ttyUSB%i\n",
-		       co->index);
+		pr_err("No USB device connected to ttyUSB%i\n", co->index);
 		return -ENODEV;
 	}
+	serial = port->serial;
 
 	retval = usb_autopm_get_interface(serial->interface);
 	if (retval)
 		goto error_get_interface;
 
-	port = serial->port[co->index - serial->minor];
 	tty_port_tty_set(&port->port, NULL);
 
 	info->port = port;
@@ -154,19 +151,15 @@ static int usb_console_setup(struct console *co, char *options)
 
 		/* only call the device specific open if this
 		 * is the first time the port is opened */
-		if (serial->type->open)
-			retval = serial->type->open(NULL, port);
-		else
-			retval = usb_serial_generic_open(NULL, port);
-
+		retval = serial->type->open(NULL, port);
 		if (retval) {
 			dev_err(&port->dev, "could not open USB console port\n");
 			goto fail;
 		}
 
 		if (serial->type->set_termios) {
-			tty->termios->c_cflag = cflag;
-			tty_termios_encode_baud_rate(tty->termios, baud, baud);
+			tty->termios.c_cflag = cflag;
+			tty_termios_encode_baud_rate(&tty->termios, baud, baud);
 			memset(&dummy, 0, sizeof(struct ktermios));
 			serial->type->set_termios(tty, port, &dummy);
 
@@ -213,10 +206,10 @@ static void usb_console_write(struct console *co,
 	if (count == 0)
 		return;
 
-	dbg("%s - port %d, %d byte(s)", __func__, port->number, count);
+	dev_dbg(&port->dev, "%s - %d byte(s)\n", __func__, count);
 
 	if (!port->port.console) {
-		dbg("%s - port not opened", __func__);
+		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
 		return;
 	}
 
@@ -233,21 +226,14 @@ static void usb_console_write(struct console *co,
 		}
 		/* pass on to the driver specific version of this function if
 		   it is available */
-		if (serial->type->write)
-			retval = serial->type->write(NULL, port, buf, i);
-		else
-			retval = usb_serial_generic_write(NULL, port, buf, i);
-		dbg("%s - return value : %d", __func__, retval);
+		retval = serial->type->write(NULL, port, buf, i);
+		dev_dbg(&port->dev, "%s - write: %d\n", __func__, retval);
 		if (lf) {
 			/* append CR after LF */
 			unsigned char cr = 13;
-			if (serial->type->write)
-				retval = serial->type->write(NULL,
-								port, &cr, 1);
-			else
-				retval = usb_serial_generic_write(NULL,
-								port, &cr, 1);
-			dbg("%s - return value : %d", __func__, retval);
+			retval = serial->type->write(NULL, port, &cr, 1);
+			dev_dbg(&port->dev, "%s - write cr: %d\n",
+							__func__, retval);
 		}
 		buf += i;
 		count -= i;
@@ -284,10 +270,8 @@ void usb_serial_console_disconnect(struct usb_serial *serial)
 	}
 }
 
-void usb_serial_console_init(int serial_debug, int minor)
+void usb_serial_console_init(int minor)
 {
-	debug = serial_debug;
-
 	if (minor == 0) {
 		/*
 		 * Call register_console() if this is the first device plugged
@@ -302,7 +286,7 @@ void usb_serial_console_init(int serial_debug, int minor)
 		 * register_console). console_write() is called immediately
 		 * from register_console iff CON_PRINTBUFFER is set in flags.
 		 */
-		dbg("registering the USB serial console.");
+		pr_debug("registering the USB serial console.\n");
 		register_console(&usbcons);
 	}
 }

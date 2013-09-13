@@ -14,34 +14,43 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/platform_device.h>
 #include <linux/memblock.h>
+#include <linux/of_irq.h>
+#include <linux/of_platform.h>
+#include <linux/export.h>
+#include <linux/irqchip/arm-gic.h>
+#include <linux/of_address.h>
+#include <linux/reboot.h>
 
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <asm/smp_twd.h>
 
-#include <plat/irqs.h>
-#include <plat/sram.h>
-#include <plat/omap-secure.h>
-#include <plat/mmc.h>
-
-#include <mach/hardware.h>
-#include <mach/omap-wakeupgen.h>
-
+#include "omap-wakeupgen.h"
+#include "soc.h"
+#include "iomap.h"
 #include "common.h"
+#include "mmc.h"
 #include "hsmmc.h"
+#include "prminst44xx.h"
+#include "prcm_mpu44xx.h"
 #include "omap4-sar-layout.h"
-#include <linux/export.h>
+#include "omap-secure.h"
+#include "sram.h"
 
 #ifdef CONFIG_CACHE_L2X0
 static void __iomem *l2cache_base;
 #endif
 
 static void __iomem *sar_ram_base;
+static void __iomem *gic_dist_base_addr;
+static void __iomem *twd_base;
+
+#define IRQ_LOCALTIMER		29
 
 #ifdef CONFIG_OMAP4_ERRATA_I688
 /* Used to implement memory barrier on DRAM path */
@@ -96,11 +105,13 @@ void __init omap_barriers_init(void)
 void __init gic_init_irq(void)
 {
 	void __iomem *omap_irq_base;
-	void __iomem *gic_dist_base_addr;
 
 	/* Static mapping, never released */
 	gic_dist_base_addr = ioremap(OMAP44XX_GIC_DIST_BASE, SZ_4K);
 	BUG_ON(!gic_dist_base_addr);
+
+	twd_base = ioremap(OMAP44XX_LOCAL_TWD_BASE, SZ_4K);
+	BUG_ON(!twd_base);
 
 	/* Static mapping, never released */
 	omap_irq_base = ioremap(OMAP44XX_GIC_CPU_BASE, SZ_512);
@@ -109,6 +120,38 @@ void __init gic_init_irq(void)
 	omap_wakeupgen_init();
 
 	gic_init(0, 29, gic_dist_base_addr, omap_irq_base);
+}
+
+void gic_dist_disable(void)
+{
+	if (gic_dist_base_addr)
+		__raw_writel(0x0, gic_dist_base_addr + GIC_DIST_CTRL);
+}
+
+bool gic_dist_disabled(void)
+{
+	return !(__raw_readl(gic_dist_base_addr + GIC_DIST_CTRL) & 0x1);
+}
+
+void gic_timer_retrigger(void)
+{
+	u32 twd_int = __raw_readl(twd_base + TWD_TIMER_INTSTAT);
+	u32 gic_int = __raw_readl(gic_dist_base_addr + GIC_DIST_PENDING_SET);
+	u32 twd_ctrl = __raw_readl(twd_base + TWD_TIMER_CONTROL);
+
+	if (twd_int && !(gic_int & BIT(IRQ_LOCALTIMER))) {
+		/*
+		 * The local timer interrupt got lost while the distributor was
+		 * disabled.  Ack the pending interrupt, and retrigger it.
+		 */
+		pr_warn("%s: lost localtimer interrupt\n", __func__);
+		__raw_writel(1, twd_base + TWD_TIMER_INTSTAT);
+		if (!(twd_ctrl & TWD_TIMER_CONTROL_PERIODIC)) {
+			__raw_writel(1, twd_base + TWD_TIMER_COUNTER);
+			twd_ctrl |= TWD_TIMER_CONTROL_ENABLE;
+			__raw_writel(twd_ctrl, twd_base + TWD_TIMER_CONTROL);
+		}
+	}
 }
 
 #ifdef CONFIG_CACHE_L2X0
@@ -171,7 +214,10 @@ static int __init omap_l2_cache_init(void)
 	/* Enable PL310 L2 Cache controller */
 	omap_smc1(0x102, 0x1);
 
-	l2x0_init(l2cache_base, aux_ctrl, L2X0_AUX_CTRL_MASK);
+	if (of_have_populated_dt())
+		l2x0_of_init(aux_ctrl, L2X0_AUX_CTRL_MASK);
+	else
+		l2x0_init(l2cache_base, aux_ctrl, L2X0_AUX_CTRL_MASK);
 
 	/*
 	 * Override default outer_cache.disable with a OMAP4
@@ -182,7 +228,7 @@ static int __init omap_l2_cache_init(void)
 
 	return 0;
 }
-early_initcall(omap_l2_cache_init);
+omap_early_initcall(omap_l2_cache_init);
 #endif
 
 void __iomem *omap4_get_sar_ram_base(void)
@@ -196,32 +242,47 @@ void __iomem *omap4_get_sar_ram_base(void)
  */
 static int __init omap4_sar_ram_init(void)
 {
+	unsigned long sar_base;
+
 	/*
 	 * To avoid code running on other OMAPs in
 	 * multi-omap builds
 	 */
-	if (!cpu_is_omap44xx())
+	if (cpu_is_omap44xx())
+		sar_base = OMAP44XX_SAR_RAM_BASE;
+	else if (soc_is_omap54xx())
+		sar_base = OMAP54XX_SAR_RAM_BASE;
+	else
 		return -ENOMEM;
 
 	/* Static mapping, never released */
-	sar_ram_base = ioremap(OMAP44XX_SAR_RAM_BASE, SZ_16K);
+	sar_ram_base = ioremap(sar_base, SZ_16K);
 	if (WARN_ON(!sar_ram_base))
 		return -ENOMEM;
 
 	return 0;
 }
-early_initcall(omap4_sar_ram_init);
-
-static struct of_device_id irq_match[] __initdata = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init, },
-	{ }
-};
+omap_early_initcall(omap4_sar_ram_init);
 
 void __init omap_gic_of_init(void)
 {
+	struct device_node *np;
+
+	/* Extract GIC distributor and TWD bases for OMAP4460 ROM Errata WA */
+	if (!cpu_is_omap446x())
+		goto skip_errata_init;
+
+	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-gic");
+	gic_dist_base_addr = of_iomap(np, 0);
+	WARN_ON(!gic_dist_base_addr);
+
+	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-twd-timer");
+	twd_base = of_iomap(np, 0);
+	WARN_ON(!twd_base);
+
+skip_errata_init:
 	omap_wakeupgen_init();
-	of_irq_init(irq_match);
+	irqchip_init();
 }
 
 #if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)

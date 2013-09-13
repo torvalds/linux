@@ -1,11 +1,9 @@
-#ifdef __KERNEL__
 # ifdef CONFIG_SUPERH32
-#  include "unistd_32.h"
+#  include <asm/unistd_32.h>
 # else
-#  include "unistd_64.h"
+#  include <asm/unistd_64.h>
 # endif
 
-# define __ARCH_WANT_SYS_RT_SIGSUSPEND
 # define __ARCH_WANT_OLD_READDIR
 # define __ARCH_WANT_OLD_STAT
 # define __ARCH_WANT_STAT64
@@ -28,20 +26,8 @@
 # define __ARCH_WANT_SYS_OLDUMOUNT
 # define __ARCH_WANT_SYS_SIGPENDING
 # define __ARCH_WANT_SYS_SIGPROCMASK
-# define __ARCH_WANT_SYS_RT_SIGACTION
+# define __ARCH_WANT_SYS_FORK
+# define __ARCH_WANT_SYS_VFORK
+# define __ARCH_WANT_SYS_CLONE
 
-/*
- * "Conditional" syscalls
- *
- * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
- * but it doesn't work on all toolchains, so we just do it by hand
- */
-# define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
-
-#else
-# ifdef __SH5__
-#  include "unistd_64.h"
-# else
-#  include "unistd_32.h"
-# endif
-#endif
+#include <uapi/asm/unistd.h>

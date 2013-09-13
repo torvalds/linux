@@ -172,20 +172,17 @@ static int wl1273_fm_set_volume(struct wl1273_core *core, unsigned int volume)
 
 static int wl1273_core_remove(struct i2c_client *client)
 {
-	struct wl1273_core *core = i2c_get_clientdata(client);
-
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	mfd_remove_devices(&client->dev);
-	kfree(core);
 
 	return 0;
 }
 
-static int __devinit wl1273_core_probe(struct i2c_client *client,
+static int wl1273_core_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
-	struct wl1273_fm_platform_data *pdata = client->dev.platform_data;
+	struct wl1273_fm_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct wl1273_core *core;
 	struct mfd_cell *cell;
 	int children = 0;
@@ -203,7 +200,7 @@ static int __devinit wl1273_core_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	core = kzalloc(sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc(&client->dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
 		return -ENOMEM;
 
@@ -241,7 +238,7 @@ static int __devinit wl1273_core_probe(struct i2c_client *client,
 		__func__, children);
 
 	r = mfd_add_devices(&client->dev, -1, core->cells,
-			    children, NULL, 0);
+			    children, NULL, 0, NULL);
 	if (r)
 		goto err;
 
@@ -249,7 +246,6 @@ static int __devinit wl1273_core_probe(struct i2c_client *client,
 
 err:
 	pdata->free_resources();
-	kfree(core);
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -262,7 +258,7 @@ static struct i2c_driver wl1273_core_driver = {
 	},
 	.probe = wl1273_core_probe,
 	.id_table = wl1273_driver_id_table,
-	.remove = __devexit_p(wl1273_core_remove),
+	.remove = wl1273_core_remove,
 };
 
 static int __init wl1273_core_init(void)

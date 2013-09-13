@@ -30,14 +30,14 @@ static struct regulator_init_data dummy_initdata;
 static struct regulator_ops dummy_ops;
 
 static struct regulator_desc dummy_desc = {
-	.name = "dummy",
+	.name = "regulator-dummy",
 	.id = -1,
 	.type = REGULATOR_VOLTAGE,
 	.owner = THIS_MODULE,
 	.ops = &dummy_ops,
 };
 
-static int __devinit dummy_regulator_probe(struct platform_device *pdev)
+static int dummy_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_config config = { };
 	int ret;

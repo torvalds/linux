@@ -89,7 +89,7 @@ config BLK_DEV_INTEGRITY
 
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
-	depends on BLK_CGROUP=y && EXPERIMENTAL
+	depends on BLK_CGROUP=y
 	default n
 	---help---
 	Block layer bio throttling support. It can be used to limit
@@ -98,6 +98,12 @@ config BLK_DEV_THROTTLING
 	cgroups and specifying per device IO rate policies.
 
 	See Documentation/cgroups/blkio-controller.txt for more information.
+
+config CMDLINE_PARSER
+	bool "Block device command line partition parser"
+	default n
+	---help---
+	Parsing command line, get the partitions information.
 
 menu "Partition Types"
 

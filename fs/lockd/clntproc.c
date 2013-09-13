@@ -125,14 +125,15 @@ static void nlmclnt_setlockargs(struct nlm_rqst *req, struct file_lock *fl)
 {
 	struct nlm_args	*argp = &req->a_args;
 	struct nlm_lock	*lock = &argp->lock;
+	char *nodename = req->a_host->h_rpcclnt->cl_nodename;
 
 	nlmclnt_next_cookie(&argp->cookie);
-	memcpy(&lock->fh, NFS_FH(fl->fl_file->f_path.dentry->d_inode), sizeof(struct nfs_fh));
-	lock->caller  = utsname()->nodename;
+	memcpy(&lock->fh, NFS_FH(file_inode(fl->fl_file)), sizeof(struct nfs_fh));
+	lock->caller  = nodename;
 	lock->oh.data = req->a_owner;
 	lock->oh.len  = snprintf(req->a_owner, sizeof(req->a_owner), "%u@%s",
 				(unsigned int)fl->fl_u.nfs_fl.owner->pid,
-				utsname()->nodename);
+				nodename);
 	lock->svid = fl->fl_u.nfs_fl.owner->pid;
 	lock->fl.fl_start = fl->fl_start;
 	lock->fl.fl_end = fl->fl_end;
@@ -141,7 +142,7 @@ static void nlmclnt_setlockargs(struct nlm_rqst *req, struct file_lock *fl)
 
 static void nlmclnt_release_lockargs(struct nlm_rqst *req)
 {
-	BUG_ON(req->a_args.lock.fl.fl_ops != NULL);
+	WARN_ON_ONCE(req->a_args.lock.fl.fl_ops != NULL);
 }
 
 /**
@@ -465,7 +466,6 @@ static const struct file_lock_operations nlmclnt_lock_ops = {
 
 static void nlmclnt_locks_init_private(struct file_lock *fl, struct nlm_host *host)
 {
-	BUG_ON(fl->fl_ops != NULL);
 	fl->fl_u.nfs_fl.state = 0;
 	fl->fl_u.nfs_fl.owner = nlm_find_lockowner(host, fl->fl_owner);
 	INIT_LIST_HEAD(&fl->fl_u.nfs_fl.list);
@@ -616,17 +616,15 @@ out_unlock:
  * RECLAIM: Try to reclaim a lock
  */
 int
-nlmclnt_reclaim(struct nlm_host *host, struct file_lock *fl)
+nlmclnt_reclaim(struct nlm_host *host, struct file_lock *fl,
+		struct nlm_rqst *req)
 {
-	struct nlm_rqst reqst, *req;
 	int		status;
 
-	req = &reqst;
 	memset(req, 0, sizeof(*req));
 	locks_init_lock(&req->a_args.lock.fl);
 	locks_init_lock(&req->a_res.lock.fl);
 	req->a_host  = host;
-	req->a_flags = 0;
 
 	/* Set up the argument struct */
 	nlmclnt_setlockargs(req, fl);

@@ -270,14 +270,14 @@ static inline void ehb(void)
 
 #define mftc0(rt,sel)							\
 ({									\
-	 unsigned long  __res;						\
+	 unsigned long	__res;						\
 									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	mips32r2				\n"	\
 	"	.set	noat					\n"	\
-	"	# mftc0	$1, $" #rt ", " #sel "			\n"	\
-	"	.word	0x41000800 | (" #rt " << 16) | " #sel "	\n"	\
+	"	# mftc0 $1, $" #rt ", " #sel "			\n"	\
+	"	.word	0x41000800 | (" #rt " << 16) | " #sel " \n"	\
 	"	move	%0, $1					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res));						\
@@ -334,7 +334,7 @@ do {									\
 	"	.set	noat					\n"	\
 	"	move	$1, %0					\n"	\
 	"	# mttc0 %0," #rd ", " #sel "			\n"	\
-	"	.word	0x41810000 | (" #rd " << 11) | " #sel "	\n"	\
+	"	.word	0x41810000 | (" #rd " << 11) | " #sel " \n"	\
 	"	.set	pop					\n"	\
 	:								\
 	: "r" (v));							\

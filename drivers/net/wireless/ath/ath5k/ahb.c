@@ -185,7 +185,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
  err_free_hw:
 	ieee80211_free_hw(hw);
-	platform_set_drvdata(pdev, NULL);
  err_iounmap:
         iounmap(mem);
  err_out:
@@ -221,7 +220,6 @@ static int ath_ahb_remove(struct platform_device *pdev)
 
 	ath5k_deinit_ah(ah);
 	iounmap(ah->iobase);
-	platform_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 
 	return 0;
@@ -236,17 +234,4 @@ static struct platform_driver ath_ahb_driver = {
 	},
 };
 
-static int __init
-ath5k_ahb_init(void)
-{
-	return platform_driver_register(&ath_ahb_driver);
-}
-
-static void __exit
-ath5k_ahb_exit(void)
-{
-	platform_driver_unregister(&ath_ahb_driver);
-}
-
-module_init(ath5k_ahb_init);
-module_exit(ath5k_ahb_exit);
+module_platform_driver(ath_ahb_driver);

@@ -20,12 +20,15 @@
 #define VPORT_NETDEV_H 1
 
 #include <linux/netdevice.h>
+#include <linux/rcupdate.h>
 
 #include "vport.h"
 
 struct vport *ovs_netdev_get_vport(struct net_device *dev);
 
 struct netdev_vport {
+	struct rcu_head rcu;
+
 	struct net_device *dev;
 };
 
@@ -36,7 +39,5 @@ netdev_vport_priv(const struct vport *vport)
 }
 
 const char *ovs_netdev_get_name(const struct vport *);
-const char *ovs_netdev_get_config(const struct vport *);
-int ovs_netdev_get_ifindex(const struct vport *);
 
 #endif /* vport_netdev.h */

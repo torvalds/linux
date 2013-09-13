@@ -27,9 +27,9 @@
 #include <linux/libata.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
+#include <linux/platform_data/atmel.h>
 
 #include <mach/at91sam9_smc.h>
-#include <mach/board.h>
 #include <asm/gpio.h>
 
 #define DRV_NAME		"pata_at91"
@@ -313,9 +313,9 @@ static struct ata_port_operations pata_at91_port_ops = {
 	.cable_detect	= ata_cable_40wire,
 };
 
-static int __devinit pata_at91_probe(struct platform_device *pdev)
+static int pata_at91_probe(struct platform_device *pdev)
 {
-	struct at91_cf_data *board = pdev->dev.platform_data;
+	struct at91_cf_data *board = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct at91_ide_info *info;
 	struct resource *mem_res;
@@ -420,9 +420,9 @@ err_put:
 	return ret;
 }
 
-static int __devexit pata_at91_remove(struct platform_device *pdev)
+static int pata_at91_remove(struct platform_device *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = platform_get_drvdata(pdev);
 	struct at91_ide_info *info;
 
 	if (!host)
@@ -441,7 +441,7 @@ static int __devexit pata_at91_remove(struct platform_device *pdev)
 
 static struct platform_driver pata_at91_driver = {
 	.probe		= pata_at91_probe,
-	.remove		= __devexit_p(pata_at91_remove),
+	.remove		= pata_at91_remove,
 	.driver		= {
 		.name		= DRV_NAME,
 		.owner		= THIS_MODULE,

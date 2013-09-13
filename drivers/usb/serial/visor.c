@@ -51,9 +51,6 @@ static int palm_os_3_probe(struct usb_serial *serial,
 static int palm_os_4_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 
-/* Parameters that may be passed into the module. */
-static bool debug;
-
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_VISOR_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_3_probe },
@@ -260,24 +257,18 @@ static void visor_close(struct usb_serial_port *port)
 {
 	unsigned char *transfer_buffer;
 
-	/* shutdown our urbs */
 	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected) {
-		/* Try to send shutdown message, unless the device is gone */
-		transfer_buffer =  kmalloc(0x12, GFP_KERNEL);
-		if (transfer_buffer) {
-			usb_control_msg(port->serial->dev,
+	transfer_buffer = kmalloc(0x12, GFP_KERNEL);
+	if (!transfer_buffer)
+		return;
+	usb_control_msg(port->serial->dev,
 					 usb_rcvctrlpipe(port->serial->dev, 0),
 					 VISOR_CLOSE_NOTIFICATION, 0xc2,
 					 0x0000, 0x0000,
 					 transfer_buffer, 0x12, 300);
-			kfree(transfer_buffer);
-		}
-	}
-	mutex_unlock(&port->serial->disc_mutex);
+	kfree(transfer_buffer);
 }
 
 static void visor_read_int_callback(struct urb *urb)
@@ -310,8 +301,8 @@ static void visor_read_int_callback(struct urb *urb)
 	 * Rumor has it this endpoint is used to notify when data
 	 * is ready to be read from the bulk ones.
 	 */
-	usb_serial_debug_data(debug, &port->dev, __func__,
-			      urb->actual_length, urb->transfer_buffer);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length,
+			      urb->transfer_buffer);
 
 exit:
 	result = usb_submit_urb(urb, GFP_ATOMIC);
@@ -443,8 +434,7 @@ static int palm_os_4_probe(struct usb_serial *serial,
 		dev_err(dev, "%s - error %d getting connection info\n",
 			__func__, retval);
 	else
-		usb_serial_debug_data(debug, &serial->dev->dev, __func__,
-				      retval, transfer_buffer);
+		usb_serial_debug_data(dev, __func__, retval, transfer_buffer);
 
 	kfree(transfer_buffer);
 	return 0;
@@ -570,10 +560,19 @@ static int treo_attach(struct usb_serial *serial)
 	*/
 #define COPY_PORT(dest, src)						\
 	do { \
+		int i;							\
+									\
+		for (i = 0; i < ARRAY_SIZE(src->read_urbs); ++i) {	\
+			dest->read_urbs[i] = src->read_urbs[i];		\
+			dest->read_urbs[i]->context = dest;		\
+			dest->bulk_in_buffers[i] = src->bulk_in_buffers[i]; \
+		}							\
 		dest->read_urb = src->read_urb;				\
 		dest->bulk_in_endpointAddress = src->bulk_in_endpointAddress;\
 		dest->bulk_in_buffer = src->bulk_in_buffer;		\
+		dest->bulk_in_size = src->bulk_in_size;			\
 		dest->interrupt_in_urb = src->interrupt_in_urb;		\
+		dest->interrupt_in_urb->context = dest;			\
 		dest->interrupt_in_endpointAddress = \
 					src->interrupt_in_endpointAddress;\
 		dest->interrupt_in_buffer = src->interrupt_in_buffer;	\
@@ -625,6 +624,3 @@ module_usb_serial_driver(serial_drivers, id_table_combined);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

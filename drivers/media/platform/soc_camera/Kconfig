@@ -1,0 +1,91 @@
+config SOC_CAMERA
+	tristate "SoC camera support"
+	depends on VIDEO_V4L2 && HAS_DMA && I2C
+	select VIDEOBUF_GEN
+	select VIDEOBUF2_CORE
+	help
+	  SoC Camera is a common API to several cameras, not connecting
+	  over a bus like PCI or USB. For example some i2c camera connected
+	  directly to the data bus of an SoC.
+
+config SOC_CAMERA_SCALE_CROP
+	tristate
+
+config SOC_CAMERA_PLATFORM
+	tristate "platform camera support"
+	depends on SOC_CAMERA
+	help
+	  This is a generic SoC camera platform driver, useful for testing
+
+config MX1_VIDEO
+	bool
+
+config VIDEO_MX1
+	tristate "i.MX1/i.MXL CMOS Sensor Interface driver"
+	depends on BROKEN
+	depends on VIDEO_DEV && ARCH_MX1 && SOC_CAMERA
+	select FIQ
+	select VIDEOBUF_DMA_CONTIG
+	select MX1_VIDEO
+	---help---
+	  This is a v4l2 driver for the i.MX1/i.MXL CMOS Sensor Interface
+
+config VIDEO_MX3
+	tristate "i.MX3x Camera Sensor Interface driver"
+	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
+	select VIDEOBUF2_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for the i.MX3x Camera Sensor Interface
+
+config VIDEO_PXA27x
+	tristate "PXA27x Quick Capture Interface driver"
+	depends on VIDEO_DEV && PXA27x && SOC_CAMERA
+	select VIDEOBUF_DMA_SG
+	---help---
+	  This is a v4l2 driver for the PXA27x Quick Capture Interface
+
+config VIDEO_RCAR_VIN
+	tristate "R-Car Video Input (VIN) support"
+	depends on VIDEO_DEV && SOC_CAMERA
+	select VIDEOBUF2_DMA_CONTIG
+	select SOC_CAMERA_SCALE_CROP
+	---help---
+	  This is a v4l2 driver for the R-Car VIN Interface
+
+config VIDEO_SH_MOBILE_CSI2
+	tristate "SuperH Mobile MIPI CSI-2 Interface driver"
+	depends on VIDEO_DEV && SOC_CAMERA && HAVE_CLK
+	---help---
+	  This is a v4l2 driver for the SuperH MIPI CSI-2 Interface
+
+config VIDEO_SH_MOBILE_CEU
+	tristate "SuperH Mobile CEU Interface driver"
+	depends on VIDEO_DEV && SOC_CAMERA && HAS_DMA && HAVE_CLK
+	select VIDEOBUF2_DMA_CONTIG
+	select SOC_CAMERA_SCALE_CROP
+	---help---
+	  This is a v4l2 driver for the SuperH Mobile CEU Interface
+
+config VIDEO_OMAP1
+	tristate "OMAP1 Camera Interface driver"
+	depends on VIDEO_DEV && ARCH_OMAP1 && SOC_CAMERA
+	select VIDEOBUF_DMA_CONTIG
+	select VIDEOBUF_DMA_SG
+	---help---
+	  This is a v4l2 driver for the TI OMAP1 camera interface
+
+config VIDEO_MX2
+	tristate "i.MX27 Camera Sensor Interface driver"
+	depends on VIDEO_DEV && SOC_CAMERA && MACH_MX27
+	select VIDEOBUF2_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for the i.MX27 Camera Sensor Interface
+
+config VIDEO_ATMEL_ISI
+	tristate "ATMEL Image Sensor Interface (ISI) support"
+	depends on VIDEO_DEV && SOC_CAMERA && ARCH_AT91
+	select VIDEOBUF2_DMA_CONTIG
+	---help---
+	  This module makes the ATMEL Image Sensor Interface available
+	  as a v4l2 device.
+

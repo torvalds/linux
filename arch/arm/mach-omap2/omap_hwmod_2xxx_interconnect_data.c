@@ -13,10 +13,10 @@
  */
 #include <asm/sizes.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/serial.h>
-#include <plat/l3_2xxx.h>
-#include <plat/l4_2xxx.h>
+#include "omap_hwmod.h"
+#include "l3_2xxx.h"
+#include "l4_2xxx.h"
+#include "serial.h"
 
 #include "omap_hwmod_common_data.h"
 
@@ -124,6 +124,33 @@ struct omap_hwmod_addr_space omap2xxx_mcbsp2_addrs[] = {
 		.name		= "mpu",
 		.pa_start	= 0x48076000,
 		.pa_end		= 0x480760ff,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_addr_space omap2_rng_addr_space[] = {
+	{
+		.pa_start	= 0x480a0000,
+		.pa_end		= 0x480a004f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_addr_space omap2xxx_sham_addrs[] = {
+	{
+		.pa_start	= 0x480a4000,
+		.pa_end		= 0x480a4000 + 0x64 - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_addr_space omap2xxx_aes_addrs[] = {
+	{
+		.pa_start	= 0x480a6000,
+		.pa_end		= 0x480a6000 + 0x50 - 1,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }
@@ -372,3 +399,29 @@ struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_venc = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* l4_core -> rng */
+struct omap_hwmod_ocp_if omap2xxx_l4_core__rng = {
+	.master		= &omap2xxx_l4_core_hwmod,
+	.slave		= &omap2xxx_rng_hwmod,
+	.clk		= "rng_ick",
+	.addr		= omap2_rng_addr_space,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* l4 core -> sham interface */
+struct omap_hwmod_ocp_if omap2xxx_l4_core__sham = {
+	.master		= &omap2xxx_l4_core_hwmod,
+	.slave		= &omap2xxx_sham_hwmod,
+	.clk		= "sha_ick",
+	.addr		= omap2xxx_sham_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* l4 core -> aes interface */
+struct omap_hwmod_ocp_if omap2xxx_l4_core__aes = {
+	.master		= &omap2xxx_l4_core_hwmod,
+	.slave		= &omap2xxx_aes_hwmod,
+	.clk		= "aes_ick",
+	.addr		= omap2xxx_aes_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};

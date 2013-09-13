@@ -6,11 +6,12 @@ config DEFCONFIG_LIST
 config UML
 	bool
 	default y
-	select HAVE_GENERIC_HARDIRQS
+	select HAVE_UID16
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select GENERIC_IO
 	select GENERIC_CLOCKEVENTS
+	select TTY # Needed for line.c
 
 config MMU
 	bool

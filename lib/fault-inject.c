@@ -122,7 +122,7 @@ bool should_fail(struct fault_attr *attr, ssize_t size)
 			return false;
 	}
 
-	if (attr->probability <= random32() % 100)
+	if (attr->probability <= prandom_u32() % 100)
 		return false;
 
 	if (!fail_stacktrace(attr))
@@ -181,27 +181,6 @@ static struct dentry *debugfs_create_stacktrace_depth(
 }
 
 #endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
-
-static int debugfs_atomic_t_set(void *data, u64 val)
-{
-	atomic_set((atomic_t *)data, val);
-	return 0;
-}
-
-static int debugfs_atomic_t_get(void *data, u64 *val)
-{
-	*val = atomic_read((atomic_t *)data);
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get,
-			debugfs_atomic_t_set, "%lld\n");
-
-static struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
-				struct dentry *parent, atomic_t *value)
-{
-	return debugfs_create_file(name, mode, parent, value, &fops_atomic_t);
-}
 
 struct dentry *fault_create_debugfs_attr(const char *name,
 			struct dentry *parent, struct fault_attr *attr)

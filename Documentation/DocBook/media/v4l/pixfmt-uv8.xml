@@ -1,0 +1,62 @@
+	<refentry id="V4L2-PIX-FMT-UV8">
+	  <refmeta>
+	    <refentrytitle>V4L2_PIX_FMT_UV8  ('UV8')</refentrytitle>
+	    &manvol;
+	  </refmeta>
+	  <refnamediv>
+	    <refname><constant>V4L2_PIX_FMT_UV8</constant></refname>
+	    <refpurpose>UV plane interleaved</refpurpose>
+	  </refnamediv>
+	  <refsect1>
+	    <title>Description</title>
+	    <para>In this format there is no Y plane, Only CbCr plane. ie
+	    (UV interleaved)</para>
+	    <example>
+	    <title>
+	      <constant>V4L2_PIX_FMT_UV8</constant>
+	       pixel image
+	    </title>
+
+	    <formalpara>
+	      <title>Byte Order.</title>
+	      <para>Each cell is one byte.
+	        <informaltable frame="none">
+	        <tgroup cols="5" align="center">
+		  <colspec align="left" colwidth="2*" />
+		  <tbody valign="top">
+		    <row>
+		      <entry>start&nbsp;+&nbsp;0:</entry>
+		      <entry>Cb<subscript>00</subscript></entry>
+		      <entry>Cr<subscript>00</subscript></entry>
+		      <entry>Cb<subscript>01</subscript></entry>
+		      <entry>Cr<subscript>01</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;4:</entry>
+		      <entry>Cb<subscript>10</subscript></entry>
+		      <entry>Cr<subscript>10</subscript></entry>
+		      <entry>Cb<subscript>11</subscript></entry>
+		      <entry>Cr<subscript>11</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;8:</entry>
+		      <entry>Cb<subscript>20</subscript></entry>
+		      <entry>Cr<subscript>20</subscript></entry>
+		      <entry>Cb<subscript>21</subscript></entry>
+		      <entry>Cr<subscript>21</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;12:</entry>
+		      <entry>Cb<subscript>30</subscript></entry>
+		      <entry>Cr<subscript>30</subscript></entry>
+		      <entry>Cb<subscript>31</subscript></entry>
+		      <entry>Cr<subscript>31</subscript></entry>
+		    </row>
+		  </tbody>
+		</tgroup>
+		</informaltable>
+	      </para>
+	      </formalpara>
+	    </example>
+	  </refsect1>
+	</refentry>

@@ -68,8 +68,7 @@ int wl1251_ps_elp_wakeup(struct wl1251 *wl)
 	unsigned long timeout, start;
 	u32 elp_reg;
 
-	if (delayed_work_pending(&wl->elp_work))
-		cancel_delayed_work(&wl->elp_work);
+	cancel_delayed_work(&wl->elp_work);
 
 	if (!wl->elp)
 		return 0;

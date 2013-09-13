@@ -32,6 +32,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+&board_lbc {
+	nor@0,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "cfi-flash";
+		reg = <0x0 0x0 0x800000>;
+		bank-width = <2>;
+		device-width = <1>;
+
+		partition@0 {
+			reg = <0x0 0x10000>;
+			label = "dtb-nor";
+		};
+
+		partition@20000 {
+			reg = <0x20000 0x30000>;
+			label = "diagnostic-nor";
+			read-only;
+		};
+
+		partition@200000 {
+			reg = <0x200000 0x200000>;
+			label = "dink-nor";
+			read-only;
+		};
+
+		partition@400000 {
+			reg = <0x400000 0x380000>;
+			label = "kernel-nor";
+		};
+
+		partition@780000 {
+			reg = <0x780000 0x80000>;
+			label = "u-boot-nor";
+			read-only;
+		};
+	};
+};
+
 &board_soc {
 	enet0: ethernet@24000 {
 		phy-handle = <&phy0>;

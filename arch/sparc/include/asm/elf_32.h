@@ -128,6 +128,4 @@ typedef struct {
 
 #define ELF_PLATFORM	(NULL)
 
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX)
-
 #endif /* !(__ASMSPARC_ELF_H) */

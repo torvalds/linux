@@ -1004,7 +1004,7 @@ static struct net_device_stats *ipg_nic_get_stats(struct net_device *dev)
 	/* Check to see if the NIC has been initialized via nic_open,
 	 * before trying to read statistic registers.
 	 */
-	if (!test_bit(__LINK_STATE_START, &dev->state))
+	if (!netif_running(dev))
 		return &sp->stats;
 
 	sp->stats.rx_packets += ipg_r32(IPG_FRAMESRCVDOK);
@@ -2167,7 +2167,7 @@ static const struct ethtool_ops ipg_ethtool_ops = {
 	.nway_reset   = ipg_nway_reset,
 };
 
-static void __devexit ipg_remove(struct pci_dev *pdev)
+static void ipg_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct ipg_nic_private *sp = netdev_priv(dev);
@@ -2199,8 +2199,7 @@ static const struct net_device_ops ipg_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit ipg_probe(struct pci_dev *pdev,
-			       const struct pci_device_id *id)
+static int ipg_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	unsigned int i = id->driver_data;
 	struct ipg_nic_private *sp;
@@ -2296,18 +2295,7 @@ static struct pci_driver ipg_pci_driver = {
 	.name		= IPG_DRIVER_NAME,
 	.id_table	= ipg_pci_tbl,
 	.probe		= ipg_probe,
-	.remove		= __devexit_p(ipg_remove),
+	.remove		= ipg_remove,
 };
 
-static int __init ipg_init_module(void)
-{
-	return pci_register_driver(&ipg_pci_driver);
-}
-
-static void __exit ipg_exit_module(void)
-{
-	pci_unregister_driver(&ipg_pci_driver);
-}
-
-module_init(ipg_init_module);
-module_exit(ipg_exit_module);
+module_pci_driver(ipg_pci_driver);

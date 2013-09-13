@@ -57,15 +57,32 @@ cifs_dump_mem(char *label, void *data, int length)
 	}
 }
 
+#ifdef CONFIG_CIFS_DEBUG
+void cifs_vfs_err(const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_ERR "CIFS VFS: %pV", &vaf);
+
+	va_end(args);
+}
+#endif
+
 void cifs_dump_detail(void *buf)
 {
 #ifdef CONFIG_CIFS_DEBUG2
 	struct smb_hdr *smb = (struct smb_hdr *)buf;
 
-	cERROR(1, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
-		  smb->Command, smb->Status.CifsError,
-		  smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
-	cERROR(1, "smb buf %p len %u", smb, smbCalcSize(smb));
+	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d\n",
+		 smb->Command, smb->Status.CifsError,
+		 smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
+	cifs_dbg(VFS, "smb buf %p len %u\n", smb, smbCalcSize(smb));
 #endif /* CONFIG_CIFS_DEBUG2 */
 }
 
@@ -78,25 +95,25 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 	if (server == NULL)
 		return;
 
-	cERROR(1, "Dump pending requests:");
+	cifs_dbg(VFS, "Dump pending requests:\n");
 	spin_lock(&GlobalMid_Lock);
 	list_for_each(tmp, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		cERROR(1, "State: %d Cmd: %d Pid: %d Cbdata: %p Mid %llu",
-			mid_entry->mid_state,
-			le16_to_cpu(mid_entry->command),
-			mid_entry->pid,
-			mid_entry->callback_data,
-			mid_entry->mid);
+		cifs_dbg(VFS, "State: %d Cmd: %d Pid: %d Cbdata: %p Mid %llu\n",
+			 mid_entry->mid_state,
+			 le16_to_cpu(mid_entry->command),
+			 mid_entry->pid,
+			 mid_entry->callback_data,
+			 mid_entry->mid);
 #ifdef CONFIG_CIFS_STATS2
-		cERROR(1, "IsLarge: %d buf: %p time rcv: %ld now: %ld",
-			mid_entry->large_buf,
-			mid_entry->resp_buf,
-			mid_entry->when_received,
-			jiffies);
+		cifs_dbg(VFS, "IsLarge: %d buf: %p time rcv: %ld now: %ld\n",
+			 mid_entry->large_buf,
+			 mid_entry->resp_buf,
+			 mid_entry->when_received,
+			 jiffies);
 #endif /* STATS2 */
-		cERROR(1, "IsMult: %d IsEnd: %d", mid_entry->multiRsp,
-			  mid_entry->multiEnd);
+		cifs_dbg(VFS, "IsMult: %d IsEnd: %d\n",
+			 mid_entry->multiRsp, mid_entry->multiEnd);
 		if (mid_entry->resp_buf) {
 			cifs_dump_detail(mid_entry->resp_buf);
 			cifs_dump_mem("existing buf: ",
@@ -196,7 +213,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 						   tcon->nativeFileSystem);
 				}
 				seq_printf(m, "DevInfo: 0x%x Attributes: 0x%x"
-					"\nPathComponentMax: %d Status: 0x%d",
+					"\n\tPathComponentMax: %d Status: 0x%d",
 					le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics),
 					le32_to_cpu(tcon->fsAttrInfo.Attributes),
 					le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength),
@@ -207,6 +224,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 					seq_puts(m, " type: CDROM ");
 				else
 					seq_printf(m, " type: %d ", dev_type);
+				if (server->ops->dump_share_caps)
+					server->ops->dump_share_caps(m, tcon);
 
 				if (tcon->need_reconnect)
 					seq_puts(m, "\tDISCONNECTED ");
@@ -578,9 +597,36 @@ static int cifs_security_flags_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, cifs_security_flags_proc_show, NULL);
 }
 
+/*
+ * Ensure that if someone sets a MUST flag, that we disable all other MAY
+ * flags except for the ones corresponding to the given MUST flag. If there are
+ * multiple MUST flags, then try to prefer more secure ones.
+ */
+static void
+cifs_security_flags_handle_must_flags(unsigned int *flags)
+{
+	unsigned int signflags = *flags & CIFSSEC_MUST_SIGN;
+
+	if ((*flags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
+		*flags = CIFSSEC_MUST_KRB5;
+	else if ((*flags & CIFSSEC_MUST_NTLMSSP) == CIFSSEC_MUST_NTLMSSP)
+		*flags = CIFSSEC_MUST_NTLMSSP;
+	else if ((*flags & CIFSSEC_MUST_NTLMV2) == CIFSSEC_MUST_NTLMV2)
+		*flags = CIFSSEC_MUST_NTLMV2;
+	else if ((*flags & CIFSSEC_MUST_NTLM) == CIFSSEC_MUST_NTLM)
+		*flags = CIFSSEC_MUST_NTLM;
+	else if ((*flags & CIFSSEC_MUST_LANMAN) == CIFSSEC_MUST_LANMAN)
+		*flags = CIFSSEC_MUST_LANMAN;
+	else if ((*flags & CIFSSEC_MUST_PLNTXT) == CIFSSEC_MUST_PLNTXT)
+		*flags = CIFSSEC_MUST_PLNTXT;
+
+	*flags |= signflags;
+}
+
 static ssize_t cifs_security_flags_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
+	int rc;
 	unsigned int flags;
 	char flags_string[12];
 	char c;
@@ -603,34 +649,43 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 			global_secflags = CIFSSEC_MAX;
 			return count;
 		} else if (!isdigit(c)) {
-			cERROR(1, "invalid flag %c", c);
+			cifs_dbg(VFS, "Invalid SecurityFlags: %s\n",
+					flags_string);
 			return -EINVAL;
 		}
 	}
+
 	/* else we have a number */
+	rc = kstrtouint(flags_string, 0, &flags);
+	if (rc) {
+		cifs_dbg(VFS, "Invalid SecurityFlags: %s\n",
+				flags_string);
+		return rc;
+	}
 
-	flags = simple_strtoul(flags_string, NULL, 0);
+	cifs_dbg(FYI, "sec flags 0x%x\n", flags);
 
-	cFYI(1, "sec flags 0x%x", flags);
-
-	if (flags <= 0)  {
-		cERROR(1, "invalid security flags %s", flags_string);
+	if (flags == 0)  {
+		cifs_dbg(VFS, "Invalid SecurityFlags: %s\n", flags_string);
 		return -EINVAL;
 	}
 
 	if (flags & ~CIFSSEC_MASK) {
-		cERROR(1, "attempt to set unsupported security flags 0x%x",
-			flags & ~CIFSSEC_MASK);
+		cifs_dbg(VFS, "Unsupported security flags: 0x%x\n",
+			 flags & ~CIFSSEC_MASK);
 		return -EINVAL;
 	}
+
+	cifs_security_flags_handle_must_flags(&flags);
+
 	/* flags look ok - update the global security flags for cifs module */
 	global_secflags = flags;
 	if (global_secflags & CIFSSEC_MUST_SIGN) {
 		/* requiring signing implies signing is allowed */
 		global_secflags |= CIFSSEC_MAY_SIGN;
-		cFYI(1, "packet signing now required");
+		cifs_dbg(FYI, "packet signing now required\n");
 	} else if ((global_secflags & CIFSSEC_MAY_SIGN) == 0) {
-		cFYI(1, "packet signing disabled");
+		cifs_dbg(FYI, "packet signing disabled\n");
 	}
 	/* BB should we turn on MAY flags for other MUST options? */
 	return count;

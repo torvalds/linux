@@ -1,0 +1,156 @@
+Chinese translated version of Documentation/arm64/booting.txt
+
+If you have any comment or update to the content, please contact the
+original document maintainer directly.  However, if you have a problem
+communicating in English you can also ask the Chinese maintainer for
+help.  Contact the Chinese maintainer if this translation is outdated
+or if there is a problem with the translation.
+
+Maintainer: Will Deacon <will.deacon@arm.com>
+Chinese maintainer: Fu Wei <tekkamanninja@gmail.com>
+---------------------------------------------------------------------
+Documentation/arm64/booting.txt 的中文翻译
+
+如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
+交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
+译存在问题，请联系中文版维护者。
+
+英文版维护者： Will Deacon <will.deacon@arm.com>
+中文版维护者： 傅炜  Fu Wei <tekkamanninja@gmail.com>
+中文版翻译者： 傅炜  Fu Wei <tekkamanninja@gmail.com>
+中文版校译者： 傅炜  Fu Wei <tekkamanninja@gmail.com>
+
+以下为正文
+---------------------------------------------------------------------
+			启动 AArch64 Linux
+			==================
+
+作者: Will Deacon <will.deacon@arm.com>
+日期: 2012 年 09 月 07 日
+
+本文档基于 Russell King 的 ARM 启动文档，且适用于所有公开发布的
+AArch64 Linux 内核代码。
+
+AArch64 异常模型由多个异常级别（EL0 - EL3）组成，对于 EL0 和 EL1
+异常级有对应的安全和非安全模式。EL2 是系统管理级，且仅存在于
+非安全模式下。EL3 是最高特权级，且仅存在于安全模式下。
+
+基于本文档的目的，我们将简单地使用‘引导装载程序’（‘boot loader’）
+这个术语来定义在将控制权交给 Linux 内核前 CPU 上执行的所有软件。
+这可能包含安全监控和系统管理代码，或者它可能只是一些用于准备最小启动
+环境的指令。
+
+基本上，引导装载程序（至少）应实现以下操作：
+
+1、设置和初始化 RAM
+2、设置设备树数据
+3、解压内核映像
+4、调用内核映像
+
+
+1、设置和初始化 RAM
+-----------------
+
+必要性: 强制
+
+引导装载程序应该找到并初始化系统中所有内核用于保持系统变量数据的 RAM。
+这个操作的执行是设备依赖的。（它可能使用内部算法来自动定位和计算所有
+RAM，或可能使用对这个设备已知的 RAM 信息，还可能使用任何引导装载程序
+设计者想到的匹配方法。）
+
+
+2、设置设备树数据
+---------------
+
+必要性: 强制
+
+设备树数据块（dtb）大小必须不大于 2 MB，且位于从内核映像起始算起第一个
+512MB 内的 2MB 边界上。这使得内核可以通过初始页表中的单个节描述符来
+映射此数据块。
+
+
+3、解压内核映像
+-------------
+
+必要性: 可选
+
+AArch64 内核当前没有提供自解压代码，因此如果使用了压缩内核映像文件
+（比如 Image.gz），则需要通过引导装载程序（使用 gzip 等）来进行解压。
+若引导装载程序没有实现这个需求，就要使用非压缩内核映像文件。
+
+
+4、调用内核映像
+-------------
+
+必要性: 强制
+
+已解压的内核映像包含一个 32 字节的头，内容如下：
+
+  u32 magic	= 0x14000008;	/* 跳转到 stext, 小端 */
+  u32 res0	= 0;		/* 保留 */
+  u64 text_offset;		/* 映像装载偏移 */
+  u64 res1	= 0;		/* 保留 */
+  u64 res2	= 0;		/* 保留 */
+
+映像必须位于系统 RAM 起始处的特定偏移（当前是 0x80000）。系统 RAM
+的起始地址必须是以 2MB 对齐的。
+
+在跳转入内核前，必须符合以下状态：
+
+- 停止所有 DMA 设备，这样内存数据就不会因为虚假网络包或磁盘数据而
+  被破坏。这可能可以节省你许多的调试时间。
+
+- 主 CPU 通用寄存器设置
+  x0 = 系统 RAM 中设备树数据块（dtb）的物理地址。
+  x1 = 0 (保留，将来可能使用)
+  x2 = 0 (保留，将来可能使用)
+  x3 = 0 (保留，将来可能使用)
+
+- CPU 模式
+  所有形式的中断必须在 PSTATE.DAIF 中被屏蔽（Debug、SError、IRQ
+  和 FIQ）。
+  CPU 必须处于 EL2（推荐，可访问虚拟化扩展）或非安全 EL1 模式下。
+
+- 高速缓存、MMU
+  MMU 必须关闭。
+  指令缓存开启或关闭都可以。
+  数据缓存必须关闭且无效。
+  外部高速缓存（如果存在）必须配置并禁用。
+
+- 架构计时器
+  CNTFRQ 必须设定为计时器的频率。
+  如果在 EL1 模式下进入内核，则 CNTHCTL_EL2 中的 EL1PCTEN (bit 0)
+  必须置位。
+
+- 一致性
+  通过内核启动的所有 CPU 在内核入口地址上必须处于相同的一致性域中。
+  这可能要根据具体实现来定义初始化过程，以使能每个CPU上对维护操作的
+  接收。
+
+- 系统寄存器
+  在进入内核映像的异常级中，所有构架中可写的系统寄存器必须通过软件
+  在一个更高的异常级别下初始化，以防止在 未知 状态下运行。
+
+引导装载程序必须在每个 CPU 处于以下状态时跳入内核入口：
+
+- 主 CPU 必须直接跳入内核映像的第一条指令。通过此 CPU 传递的设备树
+  数据块必须在每个 CPU 节点中包含以下内容：
+
+    1、‘enable-method’属性。目前，此字段支持的值仅为字符串“spin-table”。
+
+    2、‘cpu-release-addr’标识一个 64-bit、初始化为零的内存位置。
+
+  引导装载程序必须生成这些设备树属性，并在跳入内核入口之前将其插入
+  数据块。
+
+- 任何辅助 CPU 必须在内存保留区（通过设备树中的 /memreserve/ 域传递
+  给内核）中自旋于内核之外，轮询它们的 cpu-release-addr 位置（必须
+  包含在保留区中）。可通过插入 wfe 指令来降低忙循环开销，而主 CPU 将
+  发出 sev 指令。当对 cpu-release-addr 所指位置的读取操作返回非零值
+  时，CPU 必须直接跳入此值所指向的地址。
+
+- 辅助 CPU 通用寄存器设置
+  x0 = 0 (保留，将来可能使用)
+  x1 = 0 (保留，将来可能使用)
+  x2 = 0 (保留，将来可能使用)
+  x3 = 0 (保留，将来可能使用)

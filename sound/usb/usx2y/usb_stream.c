@@ -69,7 +69,6 @@ static void init_pipe_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
 	     ++u, transfer += transfer_length) {
 		struct urb *urb = urbs[u];
 		struct usb_iso_packet_descriptor *desc;
-		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = transfer;
 		urb->dev = dev;
 		urb->pipe = pipe;

@@ -12,6 +12,7 @@
 #include <linux/mod_devicetable.h>
 #include <asm/fcx.h>
 #include <asm/irq.h>
+#include <asm/schid.h>
 
 /* structs from asm/cio.h */
 struct irb;
@@ -219,12 +220,12 @@ extern void ccw_device_get_id(struct ccw_device *, struct ccw_dev_id *);
 #define to_ccwdrv(n) container_of(n, struct ccw_driver, driver)
 
 extern struct ccw_device *ccw_device_probe_console(void);
-extern int ccw_device_force_console(void);
+extern void ccw_device_wait_idle(struct ccw_device *);
+extern int ccw_device_force_console(struct ccw_device *);
 
 int ccw_device_siosl(struct ccw_device *);
 
-// FIXME: these have to go
-extern int _ccw_device_get_subchannel_number(struct ccw_device *);
+extern void ccw_device_get_schid(struct ccw_device *, struct subchannel_id *);
 
 extern void *ccw_device_get_chp_desc(struct ccw_device *, int);
 #endif /* _S390_CCWDEV_H_ */

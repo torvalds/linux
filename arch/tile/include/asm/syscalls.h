@@ -24,12 +24,6 @@
 #include <linux/types.h>
 #include <linux/compat.h>
 
-/* The array of function pointers for syscalls. */
-extern void *sys_call_table[];
-#ifdef CONFIG_COMPAT
-extern void *compat_sys_call_table[];
-#endif
-
 /*
  * Note that by convention, any syscall which requires the current
  * register set takes an additional "struct pt_regs *" pointer; a
@@ -51,8 +45,7 @@ long sys_cacheflush(unsigned long addr, unsigned long len,
 
 #ifndef __tilegx__
 /* mm/fault.c */
-long sys_cmpxchg_badaddr(unsigned long address, struct pt_regs *);
-long _sys_cmpxchg_badaddr(unsigned long address);
+long sys_cmpxchg_badaddr(unsigned long address);
 #endif
 
 #ifdef CONFIG_COMPAT
@@ -63,14 +56,14 @@ long sys_truncate64(const char __user *path, loff_t length);
 long sys_ftruncate64(unsigned int fd, loff_t length);
 #endif
 
+/* Provide versions of standard syscalls that use current_pt_regs(). */
+long sys_rt_sigreturn(void);
+#define sys_rt_sigreturn sys_rt_sigreturn
+
 /* These are the intvec*.S trampolines. */
-long _sys_sigaltstack(const stack_t __user *, stack_t __user *);
 long _sys_rt_sigreturn(void);
 long _sys_clone(unsigned long clone_flags, unsigned long newsp,
 		void __user *parent_tid, void __user *child_tid);
-long _sys_execve(const char __user *filename,
-		 const char __user *const __user *argv,
-		 const char __user *const __user *envp);
 
 #include <asm-generic/syscalls.h>
 

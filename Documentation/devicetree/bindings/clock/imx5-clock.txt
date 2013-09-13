@@ -1,0 +1,218 @@
+* Clock bindings for Freescale i.MX5
+
+Required properties:
+- compatible: Should be "fsl,<soc>-ccm" , where <soc> can be imx51 or imx53
+- reg: Address and length of the register set
+- interrupts: Should contain CCM interrupt
+- #clock-cells: Should be <1>
+
+The clock consumer should specify the desired clock by having the clock
+ID in its "clocks" phandle cell.  The following is a full list of i.MX5
+clocks and IDs.
+
+	Clock			ID
+	---------------------------
+	dummy			0
+	ckil			1
+	osc			2
+	ckih1			3
+	ckih2			4
+	ahb			5
+	ipg			6
+	axi_a			7
+	axi_b			8
+	uart_pred		9
+	uart_root		10
+	esdhc_a_pred		11
+	esdhc_b_pred		12
+	esdhc_c_s		13
+	esdhc_d_s		14
+	emi_sel			15
+	emi_slow_podf		16
+	nfc_podf		17
+	ecspi_pred		18
+	ecspi_podf		19
+	usboh3_pred		20
+	usboh3_podf		21
+	usb_phy_pred		22
+	usb_phy_podf		23
+	cpu_podf		24
+	di_pred			25
+	tve_s			27
+	uart1_ipg_gate		28
+	uart1_per_gate		29
+	uart2_ipg_gate		30
+	uart2_per_gate		31
+	uart3_ipg_gate		32
+	uart3_per_gate		33
+	i2c1_gate		34
+	i2c2_gate		35
+	gpt_ipg_gate		36
+	pwm1_ipg_gate		37
+	pwm1_hf_gate		38
+	pwm2_ipg_gate		39
+	pwm2_hf_gate		40
+	gpt_hf_gate		41
+	fec_gate		42
+	usboh3_per_gate		43
+	esdhc1_ipg_gate		44
+	esdhc2_ipg_gate		45
+	esdhc3_ipg_gate		46
+	esdhc4_ipg_gate		47
+	ssi1_ipg_gate		48
+	ssi2_ipg_gate		49
+	ssi3_ipg_gate		50
+	ecspi1_ipg_gate		51
+	ecspi1_per_gate		52
+	ecspi2_ipg_gate		53
+	ecspi2_per_gate		54
+	cspi_ipg_gate		55
+	sdma_gate		56
+	emi_slow_gate		57
+	ipu_s			58
+	ipu_gate		59
+	nfc_gate		60
+	ipu_di1_gate		61
+	vpu_s			62
+	vpu_gate		63
+	vpu_reference_gate	64
+	uart4_ipg_gate		65
+	uart4_per_gate		66
+	uart5_ipg_gate		67
+	uart5_per_gate		68
+	tve_gate		69
+	tve_pred		70
+	esdhc1_per_gate		71
+	esdhc2_per_gate		72
+	esdhc3_per_gate		73
+	esdhc4_per_gate		74
+	usb_phy_gate		75
+	hsi2c_gate		76
+	mipi_hsc1_gate		77
+	mipi_hsc2_gate		78
+	mipi_esc_gate		79
+	mipi_hsp_gate		80
+	ldb_di1_div_3_5		81
+	ldb_di1_div		82
+	ldb_di0_div_3_5		83
+	ldb_di0_div		84
+	ldb_di1_gate		85
+	can2_serial_gate	86
+	can2_ipg_gate		87
+	i2c3_gate		88
+	lp_apm			89
+	periph_apm		90
+	main_bus		91
+	ahb_max			92
+	aips_tz1		93
+	aips_tz2		94
+	tmax1			95
+	tmax2			96
+	tmax3			97
+	spba			98
+	uart_sel		99
+	esdhc_a_sel		100
+	esdhc_b_sel		101
+	esdhc_a_podf		102
+	esdhc_b_podf		103
+	ecspi_sel		104
+	usboh3_sel		105
+	usb_phy_sel		106
+	iim_gate		107
+	usboh3_gate		108
+	emi_fast_gate		109
+	ipu_di0_gate		110
+	gpc_dvfs		111
+	pll1_sw			112
+	pll2_sw			113
+	pll3_sw			114
+	ipu_di0_sel		115
+	ipu_di1_sel		116
+	tve_ext_sel		117
+	mx51_mipi		118
+	pll4_sw			119
+	ldb_di1_sel		120
+	di_pll4_podf		121
+	ldb_di0_sel		122
+	ldb_di0_gate		123
+	usb_phy1_gate		124
+	usb_phy2_gate		125
+	per_lp_apm		126
+	per_pred1		127
+	per_pred2		128
+	per_podf		129
+	per_root		130
+	ssi_apm			131
+	ssi1_root_sel		132
+	ssi2_root_sel		133
+	ssi3_root_sel		134
+	ssi_ext1_sel		135
+	ssi_ext2_sel		136
+	ssi_ext1_com_sel	137
+	ssi_ext2_com_sel	138
+	ssi1_root_pred		139
+	ssi1_root_podf		140
+	ssi2_root_pred		141
+	ssi2_root_podf		142
+	ssi_ext1_pred		143
+	ssi_ext1_podf		144
+	ssi_ext2_pred		145
+	ssi_ext2_podf		146
+	ssi1_root_gate		147
+	ssi2_root_gate		148
+	ssi3_root_gate		149
+	ssi_ext1_gate		150
+	ssi_ext2_gate		151
+	epit1_ipg_gate		152
+	epit1_hf_gate		153
+	epit2_ipg_gate		154
+	epit2_hf_gate		155
+	can_sel			156
+	can1_serial_gate	157
+	can1_ipg_gate		158
+	owire_gate		159
+	gpu3d_s			160
+	gpu2d_s			161
+	gpu3d_gate		162
+	gpu2d_gate		163
+	garb_gate		164
+	cko1_sel		165
+	cko1_podf		166
+	cko1			167
+	cko2_sel		168
+	cko2_podf		169
+	cko2			170
+	srtc_gate		171
+	pata_gate		172
+	sata_gate		173
+	spdif_xtal_sel		174
+	spdif0_sel		175
+	spdif1_sel		176
+	spdif0_pred		177
+	spdif0_podf		178
+	spdif1_pred		179
+	spdif1_podf		180
+	spdif0_com_sel		181
+	spdif1_com_sel		182
+	spdif0_gate		183
+	spdif1_gate		184
+	spdif_ipg_gate		185
+	ocram			186
+
+Examples (for mx53):
+
+clks: ccm@53fd4000{
+	compatible = "fsl,imx53-ccm";
+	reg = <0x53fd4000 0x4000>;
+	interrupts = <0 71 0x04 0 72 0x04>;
+	#clock-cells = <1>;
+};
+
+can1: can@53fc8000 {
+	compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
+	reg = <0x53fc8000 0x4000>;
+	interrupts = <82>;
+	clocks = <&clks 158>, <&clks 157>;
+	clock-names = "ipg", "per";
+	status = "disabled";
+};

@@ -15,8 +15,8 @@
 #include "lock.h"
 #include "user.h"
 
-static uint64_t			dlm_cb_seq;
-static spinlock_t		dlm_cb_seq_spin;
+static uint64_t dlm_cb_seq;
+static DEFINE_SPINLOCK(dlm_cb_seq_spin);
 
 static void dlm_dump_lkb_callbacks(struct dlm_lkb *lkb)
 {
@@ -267,10 +267,7 @@ void dlm_callback_work(struct work_struct *work)
 int dlm_callback_start(struct dlm_ls *ls)
 {
 	ls->ls_callback_wq = alloc_workqueue("dlm_callback",
-					     WQ_UNBOUND |
-					     WQ_MEM_RECLAIM |
-					     WQ_NON_REENTRANT,
-					     0);
+					     WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
 	if (!ls->ls_callback_wq) {
 		log_print("can't start dlm_callback workqueue");
 		return -ENOMEM;

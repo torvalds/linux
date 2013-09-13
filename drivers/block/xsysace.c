@@ -407,7 +407,7 @@ static void ace_dump_regs(struct ace_device *ace)
 		 ace_in32(ace, ACE_CFGLBA), ace_in(ace, ACE_FATSTAT));
 }
 
-void ace_fix_driveid(u16 *id)
+static void ace_fix_driveid(u16 *id)
 {
 #if defined(__BIG_ENDIAN)
 	int i;
@@ -463,7 +463,7 @@ static inline void ace_fsm_yieldirq(struct ace_device *ace)
 }
 
 /* Get the next read/write request; ending requests that we don't handle */
-struct request *ace_get_next_request(struct request_queue * q)
+static struct request *ace_get_next_request(struct request_queue *q)
 {
 	struct request *req;
 
@@ -915,7 +915,7 @@ static int ace_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
-static int ace_release(struct gendisk *disk, fmode_t mode)
+static void ace_release(struct gendisk *disk, fmode_t mode)
 {
 	struct ace_device *ace = disk->private_data;
 	unsigned long flags;
@@ -932,7 +932,6 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 	}
 	spin_unlock_irqrestore(&ace->lock, flags);
 	mutex_unlock(&xsysace_mutex);
-	return 0;
 }
 
 static int ace_getgeo(struct block_device *bdev, struct hd_geometry *geo)
@@ -961,7 +960,7 @@ static const struct block_device_operations ace_fops = {
 /* --------------------------------------------------------------------
  * SystemACE device setup/teardown code
  */
-static int __devinit ace_setup(struct ace_device *ace)
+static int ace_setup(struct ace_device *ace)
 {
 	u16 version;
 	u16 val;
@@ -1074,7 +1073,7 @@ err_ioremap:
 	return -ENOMEM;
 }
 
-static void __devexit ace_teardown(struct ace_device *ace)
+static void ace_teardown(struct ace_device *ace)
 {
 	if (ace->gd) {
 		del_gendisk(ace->gd);
@@ -1092,9 +1091,8 @@ static void __devexit ace_teardown(struct ace_device *ace)
 	iounmap(ace->baseaddr);
 }
 
-static int __devinit
-ace_alloc(struct device *dev, int id, resource_size_t physaddr,
-	  int irq, int bus_width)
+static int ace_alloc(struct device *dev, int id, resource_size_t physaddr,
+		     int irq, int bus_width)
 {
 	struct ace_device *ace;
 	int rc;
@@ -1135,7 +1133,7 @@ err_noreg:
 	return rc;
 }
 
-static void __devexit ace_free(struct device *dev)
+static void ace_free(struct device *dev)
 {
 	struct ace_device *ace = dev_get_drvdata(dev);
 	dev_dbg(dev, "ace_free(%p)\n", dev);
@@ -1151,7 +1149,7 @@ static void __devexit ace_free(struct device *dev)
  * Platform Bus Support
  */
 
-static int __devinit ace_probe(struct platform_device *dev)
+static int ace_probe(struct platform_device *dev)
 {
 	resource_size_t physaddr = 0;
 	int bus_width = ACE_BUS_WIDTH_16; /* FIXME: should not be hard coded */
@@ -1162,8 +1160,7 @@ static int __devinit ace_probe(struct platform_device *dev)
 	dev_dbg(&dev->dev, "ace_probe(%p)\n", dev);
 
 	/* device id and bus width */
-	of_property_read_u32(dev->dev.of_node, "port-number", &id);
-	if (id < 0)
+	if (of_property_read_u32(dev->dev.of_node, "port-number", &id))
 		id = 0;
 	if (of_find_property(dev->dev.of_node, "8-bit", NULL))
 		bus_width = ACE_BUS_WIDTH_8;
@@ -1182,7 +1179,7 @@ static int __devinit ace_probe(struct platform_device *dev)
 /*
  * Platform bus remove() method
  */
-static int __devexit ace_remove(struct platform_device *dev)
+static int ace_remove(struct platform_device *dev)
 {
 	ace_free(&dev->dev);
 	return 0;
@@ -1190,7 +1187,7 @@ static int __devexit ace_remove(struct platform_device *dev)
 
 #if defined(CONFIG_OF)
 /* Match table for of_platform binding */
-static const struct of_device_id ace_of_match[] __devinitconst = {
+static const struct of_device_id ace_of_match[] = {
 	{ .compatible = "xlnx,opb-sysace-1.00.b", },
 	{ .compatible = "xlnx,opb-sysace-1.00.c", },
 	{ .compatible = "xlnx,xps-sysace-1.00.a", },
@@ -1204,7 +1201,7 @@ MODULE_DEVICE_TABLE(of, ace_of_match);
 
 static struct platform_driver ace_platform_driver = {
 	.probe = ace_probe,
-	.remove = __devexit_p(ace_remove),
+	.remove = ace_remove,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "xsysace",

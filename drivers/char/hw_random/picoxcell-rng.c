@@ -33,7 +33,7 @@
 
 static void __iomem *rng_base;
 static struct clk *rng_clk;
-struct device *rng_dev;
+static struct device *rng_dev;
 
 static inline u32 picoxcell_trng_read_csr(void)
 {
@@ -151,7 +151,7 @@ err_enable:
 	return ret;
 }
 
-static int __devexit picoxcell_trng_remove(struct platform_device *pdev)
+static int picoxcell_trng_remove(struct platform_device *pdev)
 {
 	hwrng_unregister(&picoxcell_trng);
 	clk_disable(rng_clk);
@@ -181,7 +181,7 @@ static const struct dev_pm_ops picoxcell_trng_pm_ops = {
 
 static struct platform_driver picoxcell_trng_driver = {
 	.probe		= picoxcell_trng_probe,
-	.remove		= __devexit_p(picoxcell_trng_remove),
+	.remove		= picoxcell_trng_remove,
 	.driver		= {
 		.name	= "picoxcell-trng",
 		.owner	= THIS_MODULE,

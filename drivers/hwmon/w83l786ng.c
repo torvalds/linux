@@ -20,7 +20,7 @@
 /*
  * Supports following chips:
  *
- * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
+ * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
  * w83l786ng	3	2	2	2	0x7b	0x5ca3	yes	no
  */
 
@@ -33,6 +33,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/jiffies.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2e, 0x2f, I2C_CLIENT_END };
@@ -85,8 +86,8 @@ FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 #define FAN_FROM_REG(val, div)	((val) == 0   ? -1 : \
@@ -94,9 +95,8 @@ FAN_TO_REG(long rpm, int div)
 				1350000 / ((val) * (div))))
 
 /* for temp */
-#define TEMP_TO_REG(val)	(SENSORS_LIMIT(((val) < 0 ? \
-						(val) + 0x100 * 1000 \
-						: (val)) / 1000, 0, 0xff))
+#define TEMP_TO_REG(val)	(clamp_val(((val) < 0 ? (val) + 0x100 * 1000 \
+						      : (val)) / 1000, 0, 0xff))
 #define TEMP_FROM_REG(val)	(((val) & 0x80 ? \
 				  (val) - 0x100 : (val)) * 1000)
 
@@ -105,7 +105,7 @@ FAN_TO_REG(long rpm, int div)
  * in mV as would be measured on the chip input pin, need to just
  * multiply/divide by 8 to translate from/to register values.
  */
-#define IN_TO_REG(val)		(SENSORS_LIMIT((((val) + 4) / 8), 0, 255))
+#define IN_TO_REG(val)		(clamp_val((((val) + 4) / 8), 0, 255))
 #define IN_FROM_REG(val)	((val) * 8)
 
 #define DIV_FROM_REG(val)	(1 << (val))
@@ -114,7 +114,7 @@ static inline u8
 DIV_TO_REG(long val)
 {
 	int i;
-	val = SENSORS_LIMIT(val, 1, 128) >> 1;
+	val = clamp_val(val, 1, 128) >> 1;
 	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
@@ -480,7 +480,7 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm[nr] = val;
@@ -563,7 +563,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	tol_mask = w83l786ng_read_value(client,
 	    W83L786NG_REG_TOLERANCE) & ((nr == 1) ? 0x0f : 0xf0);
-	tol_tmp = SENSORS_LIMIT(val, 0, 15);
+	tol_tmp = clamp_val(val, 0, 15);
 	tol_tmp &= 0x0f;
 	data->tolerance[nr] = tol_tmp;
 	if (nr == 1)
@@ -668,11 +668,10 @@ w83l786ng_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int i, err = 0;
 	u8 reg_tmp;
 
-	data = kzalloc(sizeof(struct w83l786ng_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct w83l786ng_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -708,8 +707,6 @@ w83l786ng_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &w83l786ng_group);
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -720,8 +717,6 @@ w83l786ng_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &w83l786ng_group);
-
-	kfree(data);
 
 	return 0;
 }

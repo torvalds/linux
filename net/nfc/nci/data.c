@@ -80,8 +80,6 @@ static inline void nci_push_data_hdr(struct nci_dev *ndev,
 
 	nci_mt_set((__u8 *)hdr, NCI_MT_DATA_PKT);
 	nci_pbf_set((__u8 *)hdr, pbf);
-
-	skb->dev = (void *) ndev;
 }
 
 static int nci_queue_tx_data_frags(struct nci_dev *ndev,

@@ -13,6 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/irqchip/mmp.h>
 #include <linux/platform_device.h>
 
 #include <asm/hardware/cache-tauros2.h>
@@ -20,16 +22,15 @@
 #include <asm/mach/time.h>
 #include <mach/addr-map.h>
 #include <mach/regs-apbc.h>
-#include <mach/regs-apmu.h>
 #include <mach/cputype.h>
 #include <mach/irqs.h>
 #include <mach/dma.h>
 #include <mach/mfp.h>
 #include <mach/devices.h>
 #include <mach/mmp2.h>
+#include <mach/pm-mmp2.h>
 
 #include "common.h"
-#include "clock.h"
 
 #define MFPR_VIRT_BASE	(APB_VIRT_BASE + 0x1e000)
 
@@ -96,104 +97,44 @@ void mmp2_clear_pmic_int(void)
 void __init mmp2_init_irq(void)
 {
 	mmp2_init_icu();
+#ifdef CONFIG_PM
+	icu_irq_chip.irq_set_wake = mmp2_set_wake;
+#endif
 }
-
-static void sdhc_clk_enable(struct clk *clk)
-{
-	uint32_t clk_rst;
-
-	clk_rst  =  __raw_readl(clk->clk_rst);
-	clk_rst |= clk->enable_val;
-	__raw_writel(clk_rst, clk->clk_rst);
-}
-
-static void sdhc_clk_disable(struct clk *clk)
-{
-	uint32_t clk_rst;
-
-	clk_rst  =  __raw_readl(clk->clk_rst);
-	clk_rst &= ~clk->enable_val;
-	__raw_writel(clk_rst, clk->clk_rst);
-}
-
-struct clkops sdhc_clk_ops = {
-	.enable		= sdhc_clk_enable,
-	.disable	= sdhc_clk_disable,
-};
-
-/* APB peripheral clocks */
-static APBC_CLK(uart1, MMP2_UART1, 1, 26000000);
-static APBC_CLK(uart2, MMP2_UART2, 1, 26000000);
-static APBC_CLK(uart3, MMP2_UART3, 1, 26000000);
-static APBC_CLK(uart4, MMP2_UART4, 1, 26000000);
-static APBC_CLK(twsi1, MMP2_TWSI1, 0, 26000000);
-static APBC_CLK(twsi2, MMP2_TWSI2, 0, 26000000);
-static APBC_CLK(twsi3, MMP2_TWSI3, 0, 26000000);
-static APBC_CLK(twsi4, MMP2_TWSI4, 0, 26000000);
-static APBC_CLK(twsi5, MMP2_TWSI5, 0, 26000000);
-static APBC_CLK(twsi6, MMP2_TWSI6, 0, 26000000);
-static APBC_CLK(gpio, MMP2_GPIO, 0, 26000000);
-
-static APMU_CLK(nand, NAND, 0xbf, 100000000);
-static APMU_CLK_OPS(sdh0, SDH0, 0x1b, 200000000, &sdhc_clk_ops);
-static APMU_CLK_OPS(sdh1, SDH1, 0x1b, 200000000, &sdhc_clk_ops);
-static APMU_CLK_OPS(sdh2, SDH2, 0x1b, 200000000, &sdhc_clk_ops);
-static APMU_CLK_OPS(sdh3, SDH3, 0x1b, 200000000, &sdhc_clk_ops);
-
-static struct clk_lookup mmp2_clkregs[] = {
-	INIT_CLKREG(&clk_uart1, "pxa2xx-uart.0", NULL),
-	INIT_CLKREG(&clk_uart2, "pxa2xx-uart.1", NULL),
-	INIT_CLKREG(&clk_uart3, "pxa2xx-uart.2", NULL),
-	INIT_CLKREG(&clk_uart4, "pxa2xx-uart.3", NULL),
-	INIT_CLKREG(&clk_twsi1, "pxa2xx-i2c.0", NULL),
-	INIT_CLKREG(&clk_twsi2, "pxa2xx-i2c.1", NULL),
-	INIT_CLKREG(&clk_twsi3, "pxa2xx-i2c.2", NULL),
-	INIT_CLKREG(&clk_twsi4, "pxa2xx-i2c.3", NULL),
-	INIT_CLKREG(&clk_twsi5, "pxa2xx-i2c.4", NULL),
-	INIT_CLKREG(&clk_twsi6, "pxa2xx-i2c.5", NULL),
-	INIT_CLKREG(&clk_nand, "pxa3xx-nand", NULL),
-	INIT_CLKREG(&clk_gpio, "pxa-gpio", NULL),
-	INIT_CLKREG(&clk_sdh0, "sdhci-pxav3.0", "PXA-SDHCLK"),
-	INIT_CLKREG(&clk_sdh1, "sdhci-pxav3.1", "PXA-SDHCLK"),
-	INIT_CLKREG(&clk_sdh2, "sdhci-pxav3.2", "PXA-SDHCLK"),
-	INIT_CLKREG(&clk_sdh3, "sdhci-pxav3.3", "PXA-SDHCLK"),
-};
 
 static int __init mmp2_init(void)
 {
 	if (cpu_is_mmp2()) {
 #ifdef CONFIG_CACHE_TAUROS2
-		tauros2_init();
+		tauros2_init(0);
 #endif
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(mmp2_addr_map);
 		pxa_init_dma(IRQ_MMP2_DMA_RIQ, 16);
-		clkdev_add_table(ARRAY_AND_SIZE(mmp2_clkregs));
+		mmp2_clk_init();
 	}
 
 	return 0;
 }
 postcore_initcall(mmp2_init);
 
-static void __init mmp2_timer_init(void)
+#define APBC_TIMERS	APBC_REG(0x024)
+
+void __init mmp2_timer_init(void)
 {
 	unsigned long clk_rst;
 
-	__raw_writel(APBC_APBCLK | APBC_RST, APBC_MMP2_TIMERS);
+	__raw_writel(APBC_APBCLK | APBC_RST, APBC_TIMERS);
 
 	/*
 	 * enable bus/functional clock, enable 6.5MHz (divider 4),
 	 * release reset
 	 */
 	clk_rst = APBC_APBCLK | APBC_FNCLK | APBC_FNCLKSEL(1);
-	__raw_writel(clk_rst, APBC_MMP2_TIMERS);
+	__raw_writel(clk_rst, APBC_TIMERS);
 
 	timer_init(IRQ_MMP2_TIMER1);
 }
-
-struct sys_timer mmp2_timer = {
-	.init	= mmp2_timer_init,
-};
 
 /* on-chip devices */
 MMP2_DEVICE(uart1, "pxa2xx-uart", 0, UART1, 0xd4030000, 0x30, 4, 5);
@@ -229,7 +170,7 @@ struct resource mmp2_resource_gpio[] = {
 };
 
 struct platform_device mmp2_device_gpio = {
-	.name		= "pxa-gpio",
+	.name		= "mmp2-gpio",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(mmp2_resource_gpio),
 	.resource	= mmp2_resource_gpio,

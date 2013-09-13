@@ -14,8 +14,9 @@
 
 #include <stdint.h>
 
-#define USBIP_PORT 3240
-#define USBIP_PORT_STRING "3240"
+extern int usbip_port;
+extern char *usbip_port_string;
+void usbip_setup_port_number(char *arg);
 
 /* ---------------------------------------------------------------------- */
 /* Common header for all the kinds of PDUs. */
@@ -35,8 +36,8 @@ struct op_common {
 
 #define PACK_OP_COMMON(pack, op_common)  do {\
 	usbip_net_pack_uint16_t(pack, &(op_common)->version);\
-	usbip_net_pack_uint16_t(pack, &(op_common)->code   );\
-	usbip_net_pack_uint32_t(pack, &(op_common)->status );\
+	usbip_net_pack_uint16_t(pack, &(op_common)->code);\
+	usbip_net_pack_uint32_t(pack, &(op_common)->status);\
 } while (0)
 
 /* ---------------------------------------------------------------------- */

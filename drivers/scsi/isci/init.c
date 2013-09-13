@@ -156,7 +156,7 @@ static struct scsi_host_template isci_sht = {
 	.target_alloc			= sas_target_alloc,
 	.slave_configure		= sas_slave_configure,
 	.scan_finished			= isci_host_scan_finished,
-	.scan_start			= isci_host_scan_start,
+	.scan_start			= isci_host_start,
 	.change_queue_depth		= sas_change_queue_depth,
 	.change_queue_type		= sas_change_queue_type,
 	.bios_param			= sas_bios_param,
@@ -222,7 +222,7 @@ static struct sas_domain_function_template isci_transport_ops  = {
  * @isci_host: This parameter specifies the lldd specific wrapper for the
  *    libsas sas_ha struct.
  *
- * This method returns an error code indicating sucess or failure. The user
+ * This method returns an error code indicating success or failure. The user
  * should check for possible memory allocation error return otherwise, a zero
  * indicates success.
  */
@@ -282,7 +282,7 @@ static void isci_unregister(struct isci_host *isci_host)
 	scsi_host_put(shost);
 }
 
-static int __devinit isci_pci_init(struct pci_dev *pdev)
+static int isci_pci_init(struct pci_dev *pdev)
 {
 	int err, bar_num, bar_mask = 0;
 	void __iomem * const *iomap;
@@ -616,7 +616,7 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	return NULL;
 }
 
-static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct isci_pci_info *pci_info;
 	int err, i;
@@ -633,7 +633,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		return -ENOMEM;
 	pci_set_drvdata(pdev, pci_info);
 
-	if (efi_enabled)
+	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		orom = isci_get_efi_var(pdev);
 
 	if (!orom)
@@ -644,7 +644,6 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 						orom->hdr.version)) {
 			dev_warn(&pdev->dev,
 				 "[%d]: invalid oem parameters detected, falling back to firmware\n", i);
-			devm_kfree(&pdev->dev, orom);
 			orom = NULL;
 			break;
 		}
@@ -710,7 +709,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	return err;
 }
 
-static void __devexit isci_pci_remove(struct pci_dev *pdev)
+static void isci_pci_remove(struct pci_dev *pdev)
 {
 	struct isci_host *ihost;
 	int i;
@@ -722,11 +721,65 @@ static void __devexit isci_pci_remove(struct pci_dev *pdev)
 	}
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int isci_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct isci_host *ihost;
+	int i;
+
+	for_each_isci_host(i, ihost, pdev) {
+		sas_suspend_ha(&ihost->sas_ha);
+		isci_host_deinit(ihost);
+	}
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+
+	return 0;
+}
+
+static int isci_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct isci_host *ihost;
+	int rc, i;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	rc = pcim_enable_device(pdev);
+	if (rc) {
+		dev_err(&pdev->dev,
+			"enabling device failure after resume(%d)\n", rc);
+		return rc;
+	}
+
+	pci_set_master(pdev);
+
+	for_each_isci_host(i, ihost, pdev) {
+		sas_prep_resume_ha(&ihost->sas_ha);
+
+		isci_host_init(ihost);
+		isci_host_start(ihost->sas_ha.core.shost);
+		wait_for_start(ihost);
+
+		sas_resume_ha(&ihost->sas_ha);
+	}
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(isci_pm_ops, isci_suspend, isci_resume);
+
 static struct pci_driver isci_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= isci_id_table,
 	.probe		= isci_pci_probe,
-	.remove		= __devexit_p(isci_pci_remove),
+	.remove		= isci_pci_remove,
+	.driver.pm      = &isci_pm_ops,
 };
 
 static __init int isci_init(void)

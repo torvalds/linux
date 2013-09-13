@@ -40,7 +40,7 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 
 /**********************************************************************/
 /** \name PCI memory */
@@ -52,10 +52,8 @@
 drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t align)
 {
 	drm_dma_handle_t *dmah;
-#if 1
 	unsigned long addr;
 	size_t sz;
-#endif
 
 	/* pci_alloc_consistent only guarantees alignment to the smallest
 	 * PAGE_SIZE order which is greater than or equal to the requested size.
@@ -97,10 +95,8 @@ EXPORT_SYMBOL(drm_pci_alloc);
  */
 void __drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 {
-#if 1
 	unsigned long addr;
 	size_t sz;
-#endif
 
 	if (dmah->vaddr) {
 		/* XXX - Is virt_to_page() legal for consistent mem? */
@@ -152,7 +148,7 @@ static const char *drm_pci_get_name(struct drm_device *dev)
 	return pdriver->name;
 }
 
-int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
+static int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 {
 	int len, ret;
 	struct pci_driver *pdriver = dev->driver->kdriver.pci;
@@ -194,9 +190,9 @@ err:
 	return ret;
 }
 
-int drm_pci_set_unique(struct drm_device *dev,
-		       struct drm_master *master,
-		       struct drm_unique *u)
+static int drm_pci_set_unique(struct drm_device *dev,
+			      struct drm_master *master,
+			      struct drm_unique *u)
 {
 	int domain, bus, slot, func, ret;
 	const char *bus_name;
@@ -266,7 +262,7 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 	return 0;
 }
 
-int drm_pci_agp_init(struct drm_device *dev)
+static int drm_pci_agp_init(struct drm_device *dev)
 {
 	if (drm_core_has_AGP(dev)) {
 		if (drm_pci_device_is_agp(dev))
@@ -276,15 +272,24 @@ int drm_pci_agp_init(struct drm_device *dev)
 			DRM_ERROR("Cannot initialize the agpgart module.\n");
 			return -EINVAL;
 		}
-		if (drm_core_has_MTRR(dev)) {
-			if (dev->agp)
-				dev->agp->agp_mtrr =
-					mtrr_add(dev->agp->agp_info.aper_base,
-						 dev->agp->agp_info.aper_size *
-						 1024 * 1024, MTRR_TYPE_WRCOMB, 1);
+		if (dev->agp) {
+			dev->agp->agp_mtrr = arch_phys_wc_add(
+				dev->agp->agp_info.aper_base,
+				dev->agp->agp_info.aper_size *
+				1024 * 1024);
 		}
 	}
 	return 0;
+}
+
+static void drm_pci_agp_destroy(struct drm_device *dev)
+{
+	if (drm_core_has_AGP(dev) && dev->agp) {
+		arch_phys_wc_del(dev->agp->agp_mtrr);
+		drm_agp_clear(dev);
+		drm_agp_destroy(dev->agp);
+		dev->agp = NULL;
+	}
 }
 
 static struct drm_bus drm_pci_bus = {
@@ -295,6 +300,7 @@ static struct drm_bus drm_pci_bus = {
 	.set_unique = drm_pci_set_unique,
 	.irq_by_busid = drm_pci_irq_by_busid,
 	.agp_init = drm_pci_agp_init,
+	.agp_destroy = drm_pci_agp_destroy,
 };
 
 /**
@@ -348,6 +354,12 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 			goto err_g2;
 	}
 
+	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
+		ret = drm_get_minor(dev, &dev->render, DRM_MINOR_RENDER);
+		if (ret)
+			goto err_g21;
+	}
+
 	if ((ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY)))
 		goto err_g3;
 
@@ -377,6 +389,9 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 err_g4:
 	drm_put_minor(&dev->primary);
 err_g3:
+	if (dev->render)
+		drm_put_minor(&dev->render);
+err_g21:
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);
 err_g2:
@@ -439,6 +454,44 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	return 0;
 }
 
+int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
+{
+	struct pci_dev *root;
+	u32 lnkcap, lnkcap2;
+
+	*mask = 0;
+	if (!dev->pdev)
+		return -EINVAL;
+
+	root = dev->pdev->bus->self;
+
+	/* we've been informed via and serverworks don't make the cut */
+	if (root->vendor == PCI_VENDOR_ID_VIA ||
+	    root->vendor == PCI_VENDOR_ID_SERVERWORKS)
+		return -EINVAL;
+
+	pcie_capability_read_dword(root, PCI_EXP_LNKCAP, &lnkcap);
+	pcie_capability_read_dword(root, PCI_EXP_LNKCAP2, &lnkcap2);
+
+	if (lnkcap2) {	/* PCIe r3.0-compliant */
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_2_5GB)
+			*mask |= DRM_PCIE_SPEED_25;
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_5_0GB)
+			*mask |= DRM_PCIE_SPEED_50;
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_8_0GB)
+			*mask |= DRM_PCIE_SPEED_80;
+	} else {	/* pre-r3.0 */
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_2_5GB)
+			*mask |= DRM_PCIE_SPEED_25;
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_5_0GB)
+			*mask |= (DRM_PCIE_SPEED_25 | DRM_PCIE_SPEED_50);
+	}
+
+	DRM_INFO("probing gen 2 caps for device %x:%x = %x/%x\n", root->vendor, root->device, lnkcap, lnkcap2);
+	return 0;
+}
+EXPORT_SYMBOL(drm_pcie_get_speed_cap_mask);
+
 #else
 
 int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
@@ -465,52 +518,3 @@ void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 	DRM_INFO("Module unloaded\n");
 }
 EXPORT_SYMBOL(drm_pci_exit);
-
-int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
-{
-	struct pci_dev *root;
-	int pos;
-	u32 lnkcap, lnkcap2;
-
-	*mask = 0;
-	if (!dev->pdev)
-		return -EINVAL;
-
-	if (!pci_is_pcie(dev->pdev))
-		return -EINVAL;
-
-	root = dev->pdev->bus->self;
-
-	pos = pci_pcie_cap(root);
-	if (!pos)
-		return -EINVAL;
-
-	/* we've been informed via and serverworks don't make the cut */
-	if (root->vendor == PCI_VENDOR_ID_VIA ||
-	    root->vendor == PCI_VENDOR_ID_SERVERWORKS)
-		return -EINVAL;
-
-	pci_read_config_dword(root, pos + PCI_EXP_LNKCAP, &lnkcap);
-	pci_read_config_dword(root, pos + PCI_EXP_LNKCAP2, &lnkcap2);
-
-	lnkcap &= PCI_EXP_LNKCAP_SLS;
-	lnkcap2 &= 0xfe;
-
-	if (lnkcap2) { /* PCIE GEN 3.0 */
-		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_2_5GB)
-			*mask |= DRM_PCIE_SPEED_25;
-		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_5_0GB)
-			*mask |= DRM_PCIE_SPEED_50;
-		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_8_0GB)
-			*mask |= DRM_PCIE_SPEED_80;
-	} else {
-		if (lnkcap & 1)
-			*mask |= DRM_PCIE_SPEED_25;
-		if (lnkcap & 2)
-			*mask |= DRM_PCIE_SPEED_50;
-	}
-
-	DRM_INFO("probing gen 2 caps for device %x:%x = %x/%x\n", root->vendor, root->device, lnkcap, lnkcap2);
-	return 0;
-}
-EXPORT_SYMBOL(drm_pcie_get_speed_cap_mask);

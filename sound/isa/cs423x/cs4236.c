@@ -251,7 +251,7 @@ static struct pnp_card_device_id snd_cs423x_pnpids[] = {
 MODULE_DEVICE_TABLE(pnp_card, snd_cs423x_pnpids);
 
 /* WSS initialization */
-static int __devinit snd_cs423x_pnp_init_wss(int dev, struct pnp_dev *pdev)
+static int snd_cs423x_pnp_init_wss(int dev, struct pnp_dev *pdev)
 {
 	if (pnp_activate_dev(pdev) < 0) {
 		printk(KERN_ERR IDENT " WSS PnP configure failed for WSS (out of resources?)\n");
@@ -272,7 +272,7 @@ static int __devinit snd_cs423x_pnp_init_wss(int dev, struct pnp_dev *pdev)
 }
 
 /* CTRL initialization */
-static int __devinit snd_cs423x_pnp_init_ctrl(int dev, struct pnp_dev *pdev)
+static int snd_cs423x_pnp_init_ctrl(int dev, struct pnp_dev *pdev)
 {
 	if (pnp_activate_dev(pdev) < 0) {
 		printk(KERN_ERR IDENT " CTRL PnP configure failed for WSS (out of resources?)\n");
@@ -284,7 +284,7 @@ static int __devinit snd_cs423x_pnp_init_ctrl(int dev, struct pnp_dev *pdev)
 }
 
 /* MPU initialization */
-static int __devinit snd_cs423x_pnp_init_mpu(int dev, struct pnp_dev *pdev)
+static int snd_cs423x_pnp_init_mpu(int dev, struct pnp_dev *pdev)
 {
 	if (pnp_activate_dev(pdev) < 0) {
 		printk(KERN_ERR IDENT " MPU401 PnP configure failed for WSS (out of resources?)\n");
@@ -303,9 +303,9 @@ static int __devinit snd_cs423x_pnp_init_mpu(int dev, struct pnp_dev *pdev)
 	return 0;
 }
 
-static int __devinit snd_card_cs423x_pnp(int dev, struct snd_card_cs4236 *acard,
-					 struct pnp_dev *pdev,
-					 struct pnp_dev *cdev)
+static int snd_card_cs423x_pnp(int dev, struct snd_card_cs4236 *acard,
+			       struct pnp_dev *pdev,
+			       struct pnp_dev *cdev)
 {
 	acard->wss = pdev;
 	if (snd_cs423x_pnp_init_wss(dev, acard->wss) < 0)
@@ -317,9 +317,9 @@ static int __devinit snd_card_cs423x_pnp(int dev, struct snd_card_cs4236 *acard,
 	return 0;
 }
 
-static int __devinit snd_card_cs423x_pnpc(int dev, struct snd_card_cs4236 *acard,
-					  struct pnp_card_link *card,
-					  const struct pnp_card_device_id *id)
+static int snd_card_cs423x_pnpc(int dev, struct snd_card_cs4236 *acard,
+				struct pnp_card_link *card,
+				const struct pnp_card_device_id *id)
 {
 	acard->wss = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (acard->wss == NULL)
@@ -378,7 +378,7 @@ static int snd_cs423x_card_new(int dev, struct snd_card **cardp)
 	return 0;
 }
 
-static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
+static int snd_cs423x_probe(struct snd_card *card, int dev)
 {
 	struct snd_card_cs4236 *acard;
 	struct snd_pcm *pcm;
@@ -456,8 +456,8 @@ static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
 	return snd_card_register(card);
 }
 
-static int __devinit snd_cs423x_isa_match(struct device *pdev,
-					  unsigned int dev)
+static int snd_cs423x_isa_match(struct device *pdev,
+				unsigned int dev)
 {
 	if (!enable[dev] || is_isapnp_selected(dev))
 		return 0;
@@ -481,8 +481,8 @@ static int __devinit snd_cs423x_isa_match(struct device *pdev,
 	return 1;
 }
 
-static int __devinit snd_cs423x_isa_probe(struct device *pdev,
-					  unsigned int dev)
+static int snd_cs423x_isa_probe(struct device *pdev,
+				unsigned int dev)
 {
 	struct snd_card *card;
 	int err;
@@ -500,11 +500,10 @@ static int __devinit snd_cs423x_isa_probe(struct device *pdev,
 	return 0;
 }
 
-static int __devexit snd_cs423x_isa_remove(struct device *pdev,
-					   unsigned int dev)
+static int snd_cs423x_isa_remove(struct device *pdev,
+				 unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(pdev));
-	dev_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -540,7 +539,7 @@ static int snd_cs423x_isa_resume(struct device *dev, unsigned int n)
 static struct isa_driver cs423x_isa_driver = {
 	.match		= snd_cs423x_isa_match,
 	.probe		= snd_cs423x_isa_probe,
-	.remove		= __devexit_p(snd_cs423x_isa_remove),
+	.remove		= snd_cs423x_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs423x_isa_suspend,
 	.resume		= snd_cs423x_isa_resume,
@@ -552,8 +551,8 @@ static struct isa_driver cs423x_isa_driver = {
 
 
 #ifdef CONFIG_PNP
-static int __devinit snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
-					       const struct pnp_device_id *id)
+static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
+				     const struct pnp_device_id *id)
 {
 	static int dev;
 	int err;
@@ -597,10 +596,9 @@ static int __devinit snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 	return 0;
 }
 
-static void __devexit snd_cs423x_pnp_remove(struct pnp_dev *pdev)
+static void snd_cs423x_pnp_remove(struct pnp_dev *pdev)
 {
 	snd_card_free(pnp_get_drvdata(pdev));
-	pnp_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -619,15 +617,15 @@ static struct pnp_driver cs423x_pnp_driver = {
 	.name = "cs423x-pnpbios",
 	.id_table = snd_cs423x_pnpbiosids,
 	.probe = snd_cs423x_pnpbios_detect,
-	.remove = __devexit_p(snd_cs423x_pnp_remove),
+	.remove = snd_cs423x_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs423x_pnp_suspend,
 	.resume		= snd_cs423x_pnp_resume,
 #endif
 };
 
-static int __devinit snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
-					    const struct pnp_card_device_id *pid)
+static int snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
+				  const struct pnp_card_device_id *pid)
 {
 	static int dev;
 	struct snd_card *card;
@@ -659,7 +657,7 @@ static int __devinit snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 	return 0;
 }
 
-static void __devexit snd_cs423x_pnpc_remove(struct pnp_card_link * pcard)
+static void snd_cs423x_pnpc_remove(struct pnp_card_link *pcard)
 {
 	snd_card_free(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
@@ -682,7 +680,7 @@ static struct pnp_card_driver cs423x_pnpc_driver = {
 	.name = CS423X_ISAPNP_DRIVER,
 	.id_table = snd_cs423x_pnpids,
 	.probe = snd_cs423x_pnpc_detect,
-	.remove = __devexit_p(snd_cs423x_pnpc_remove),
+	.remove = snd_cs423x_pnpc_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs423x_pnpc_suspend,
 	.resume		= snd_cs423x_pnpc_resume,

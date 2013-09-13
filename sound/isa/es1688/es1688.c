@@ -90,13 +90,13 @@ MODULE_PARM_DESC(dma8, "8-bit DMA # for " CRD_NAME " driver.");
 #define is_isapnp_selected(dev)		0
 #endif
 
-static int __devinit snd_es1688_match(struct device *dev, unsigned int n)
+static int snd_es1688_match(struct device *dev, unsigned int n)
 {
 	return enable[n] && !is_isapnp_selected(n);
 }
 
-static int __devinit snd_es1688_legacy_create(struct snd_card *card,
-					struct device *dev, unsigned int n)
+static int snd_es1688_legacy_create(struct snd_card *card,
+				    struct device *dev, unsigned int n)
 {
 	struct snd_es1688 *chip = card->private_data;
 	static long possible_ports[] = {0x220, 0x240, 0x260};
@@ -134,7 +134,7 @@ static int __devinit snd_es1688_legacy_create(struct snd_card *card,
 	return error;
 }
 
-static int __devinit snd_es1688_probe(struct snd_card *card, unsigned int n)
+static int snd_es1688_probe(struct snd_card *card, unsigned int n)
 {
 	struct snd_es1688 *chip = card->private_data;
 	struct snd_opl3 *opl3;
@@ -182,7 +182,7 @@ static int __devinit snd_es1688_probe(struct snd_card *card, unsigned int n)
 	return snd_card_register(card);
 }
 
-static int __devinit snd_es1688_isa_probe(struct device *dev, unsigned int n)
+static int snd_es1688_isa_probe(struct device *dev, unsigned int n)
 {
 	struct snd_card *card;
 	int error;
@@ -210,17 +210,16 @@ out:
 	return error;
 }
 
-static int __devexit snd_es1688_isa_remove(struct device *dev, unsigned int n)
+static int snd_es1688_isa_remove(struct device *dev, unsigned int n)
 {
 	snd_card_free(dev_get_drvdata(dev));
-	dev_set_drvdata(dev, NULL);
 	return 0;
 }
 
 static struct isa_driver snd_es1688_driver = {
 	.match		= snd_es1688_match,
 	.probe		= snd_es1688_isa_probe,
-	.remove		= __devexit_p(snd_es1688_isa_remove),
+	.remove		= snd_es1688_isa_remove,
 #if 0	/* FIXME */
 	.suspend	= snd_es1688_suspend,
 	.resume		= snd_es1688_resume,
@@ -233,9 +232,9 @@ static struct isa_driver snd_es1688_driver = {
 static int snd_es968_pnp_is_probed;
 
 #ifdef CONFIG_PNP
-static int __devinit snd_card_es968_pnp(struct snd_card *card, unsigned int n,
-					struct pnp_card_link *pcard,
-					const struct pnp_card_device_id *pid)
+static int snd_card_es968_pnp(struct snd_card *card, unsigned int n,
+			      struct pnp_card_link *pcard,
+			      const struct pnp_card_device_id *pid)
 {
 	struct snd_es1688 *chip = card->private_data;
 	struct pnp_dev *pdev;
@@ -258,8 +257,8 @@ static int __devinit snd_card_es968_pnp(struct snd_card *card, unsigned int n,
 				 mpu_irq[n], dma8[n], ES1688_HW_AUTO);
 }
 
-static int __devinit snd_es968_pnp_detect(struct pnp_card_link *pcard,
-					  const struct pnp_card_device_id *pid)
+static int snd_es968_pnp_detect(struct pnp_card_link *pcard,
+				const struct pnp_card_device_id *pid)
 {
 	struct snd_card *card;
 	static unsigned int dev;
@@ -295,7 +294,7 @@ static int __devinit snd_es968_pnp_detect(struct pnp_card_link *pcard,
 	return 0;
 }
 
-static void __devexit snd_es968_pnp_remove(struct pnp_card_link * pcard)
+static void snd_es968_pnp_remove(struct pnp_card_link *pcard)
 {
 	snd_card_free(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
@@ -338,7 +337,7 @@ static struct pnp_card_driver es968_pnpc_driver = {
 	.name		= DEV_NAME " PnP",
 	.id_table	= snd_es968_pnpids,
 	.probe		= snd_es968_pnp_detect,
-	.remove		= __devexit_p(snd_es968_pnp_remove),
+	.remove		= snd_es968_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_es968_pnp_suspend,
 	.resume		= snd_es968_pnp_resume,

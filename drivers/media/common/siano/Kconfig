@@ -1,0 +1,33 @@
+#
+# Siano Mobile Silicon Digital TV device configuration
+#
+
+config SMS_SIANO_MDTV
+	tristate
+	depends on DVB_CORE && HAS_DMA
+	depends on !RC_CORE || RC_CORE
+	depends on SMS_USB_DRV || SMS_SDIO_DRV
+	default y
+
+config SMS_SIANO_RC
+	bool "Enable Remote Controller support for Siano devices"
+	depends on SMS_SIANO_MDTV && RC_CORE
+	depends on SMS_USB_DRV || SMS_SDIO_DRV
+	depends on MEDIA_COMMON_OPTIONS
+	default y
+	---help---
+	  Choose Y to select Remote Controller support for Siano driver.
+
+config SMS_SIANO_DEBUGFS
+	bool "Enable debugfs for smsdvb"
+	depends on SMS_SIANO_MDTV
+	depends on DEBUG_FS
+	depends on SMS_USB_DRV
+	depends on CONFIG_SMS_USB_DRV = CONFIG_SMS_SDIO_DRV
+
+	---help---
+	  Choose Y to enable visualizing a dump of the frontend
+	  statistics response packets via debugfs. Currently, works
+	  only with Siano USB devices.
+
+	  Useful only for developers. In doubt, say N.

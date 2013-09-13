@@ -1171,112 +1171,36 @@ printk("sym_user_command: data=%ld\n", uc->data);
 #endif	/* SYM_LINUX_USER_COMMAND_SUPPORT */
 
 
-#ifdef SYM_LINUX_USER_INFO_SUPPORT
-/*
- *  Informations through the proc file system.
- */
-struct info_str {
-	char *buffer;
-	int length;
-	int offset;
-	int pos;
-};
-
-static void copy_mem_info(struct info_str *info, char *data, int len)
-{
-	if (info->pos + len > info->length)
-		len = info->length - info->pos;
-
-	if (info->pos + len < info->offset) {
-		info->pos += len;
-		return;
-	}
-	if (info->pos < info->offset) {
-		data += (info->offset - info->pos);
-		len  -= (info->offset - info->pos);
-	}
-
-	if (len > 0) {
-		memcpy(info->buffer + info->pos, data, len);
-		info->pos += len;
-	}
-}
-
-static int copy_info(struct info_str *info, char *fmt, ...)
-{
-	va_list args;
-	char buf[81];
-	int len;
-
-	va_start(args, fmt);
-	len = vsprintf(buf, fmt, args);
-	va_end(args);
-
-	copy_mem_info(info, buf, len);
-	return len;
-}
-
 /*
  *  Copy formatted information into the input buffer.
  */
-static int sym_host_info(struct Scsi_Host *shost, char *ptr, off_t offset, int len)
+static int sym_show_info(struct seq_file *m, struct Scsi_Host *shost)
 {
+#ifdef SYM_LINUX_USER_INFO_SUPPORT
 	struct sym_data *sym_data = shost_priv(shost);
 	struct pci_dev *pdev = sym_data->pdev;
 	struct sym_hcb *np = sym_data->ncb;
-	struct info_str info;
 
-	info.buffer	= ptr;
-	info.length	= len;
-	info.offset	= offset;
-	info.pos	= 0;
-
-	copy_info(&info, "Chip " NAME53C "%s, device id 0x%x, "
-			 "revision id 0x%x\n", np->s.chip_name,
-			 pdev->device, pdev->revision);
-	copy_info(&info, "At PCI address %s, IRQ %u\n",
+	seq_printf(m, "Chip " NAME53C "%s, device id 0x%x, "
+		 "revision id 0x%x\n", np->s.chip_name,
+		 pdev->device, pdev->revision);
+	seq_printf(m, "At PCI address %s, IRQ %u\n",
 			 pci_name(pdev), pdev->irq);
-	copy_info(&info, "Min. period factor %d, %s SCSI BUS%s\n",
-			 (int) (np->minsync_dt ? np->minsync_dt : np->minsync),
-			 np->maxwide ? "Wide" : "Narrow",
-			 np->minsync_dt ? ", DT capable" : "");
+	seq_printf(m, "Min. period factor %d, %s SCSI BUS%s\n",
+		 (int) (np->minsync_dt ? np->minsync_dt : np->minsync),
+		 np->maxwide ? "Wide" : "Narrow",
+		 np->minsync_dt ? ", DT capable" : "");
 
-	copy_info(&info, "Max. started commands %d, "
-			 "max. commands per LUN %d\n",
-			 SYM_CONF_MAX_START, SYM_CONF_MAX_TAG);
+	seq_printf(m, "Max. started commands %d, "
+		 "max. commands per LUN %d\n",
+		 SYM_CONF_MAX_START, SYM_CONF_MAX_TAG);
 
-	return info.pos > info.offset? info.pos - info.offset : 0;
-}
+	return 0;
+#else
+	return -EINVAL;
 #endif /* SYM_LINUX_USER_INFO_SUPPORT */
-
-/*
- *  Entry point of the scsi proc fs of the driver.
- *  - func = 0 means read  (returns adapter infos)
- *  - func = 1 means write (not yet merget from sym53c8xx)
- */
-static int sym53c8xx_proc_info(struct Scsi_Host *shost, char *buffer,
-			char **start, off_t offset, int length, int func)
-{
-	int retv;
-
-	if (func) {
-#ifdef	SYM_LINUX_USER_COMMAND_SUPPORT
-		retv = sym_user_command(shost, buffer, length);
-#else
-		retv = -EINVAL;
-#endif
-	} else {
-		if (start)
-			*start = buffer;
-#ifdef SYM_LINUX_USER_INFO_SUPPORT
-		retv = sym_host_info(shost, buffer, offset, length);
-#else
-		retv = -EINVAL;
-#endif
-	}
-
-	return retv;
 }
+
 #endif /* SYM_LINUX_PROC_INFO_SUPPORT */
 
 /*
@@ -1284,8 +1208,7 @@ static int sym53c8xx_proc_info(struct Scsi_Host *shost, char *buffer,
  * sym_free_resources() should be used instead of this function after calling
  * sym_attach().
  */
-static void __devinit
-sym_iounmap_device(struct sym_device *device)
+static void sym_iounmap_device(struct sym_device *device)
 {
 	if (device->s.ioaddr)
 		pci_iounmap(device->pdev, device->s.ioaddr);
@@ -1325,8 +1248,8 @@ static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev,
  *  If all is OK, install interrupt handling and
  *  start the timer daemon.
  */
-static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
-		int unit, struct sym_device *dev)
+static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
+				    struct sym_device *dev)
 {
 	struct sym_data *sym_data;
 	struct sym_hcb *np = NULL;
@@ -1481,7 +1404,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
  *    Detect and try to read SYMBIOS and TEKRAM NVRAM.
  */
 #if SYM_CONF_NVRAM_SUPPORT
-static void __devinit sym_get_nvram(struct sym_device *devp, struct sym_nvram *nvp)
+static void sym_get_nvram(struct sym_device *devp, struct sym_nvram *nvp)
 {
 	devp->nvram = nvp;
 	nvp->type = 0;
@@ -1494,7 +1417,7 @@ static inline void sym_get_nvram(struct sym_device *devp, struct sym_nvram *nvp)
 }
 #endif	/* SYM_CONF_NVRAM_SUPPORT */
 
-static int __devinit sym_check_supported(struct sym_device *device)
+static int sym_check_supported(struct sym_device *device)
 {
 	struct sym_chip *chip;
 	struct pci_dev *pdev = device->pdev;
@@ -1531,7 +1454,7 @@ static int __devinit sym_check_supported(struct sym_device *device)
  * Ignore Symbios chips controlled by various RAID controllers.
  * These controllers set value 0x52414944 at RAM end - 16.
  */
-static int __devinit sym_check_raid(struct sym_device *device)
+static int sym_check_raid(struct sym_device *device)
 {
 	unsigned int ram_size, ram_val;
 
@@ -1552,7 +1475,7 @@ static int __devinit sym_check_raid(struct sym_device *device)
 	return -ENODEV;
 }
 
-static int __devinit sym_set_workarounds(struct sym_device *device)
+static int sym_set_workarounds(struct sym_device *device)
 {
 	struct sym_chip *chip = &device->chip;
 	struct pci_dev *pdev = device->pdev;
@@ -1602,8 +1525,7 @@ static int __devinit sym_set_workarounds(struct sym_device *device)
 /*
  * Map HBA registers and on-chip SRAM (if present).
  */
-static int __devinit
-sym_iomap_device(struct sym_device *device)
+static int sym_iomap_device(struct sym_device *device)
 {
 	struct pci_dev *pdev = device->pdev;
 	struct pci_bus_region bus_addr;
@@ -1744,15 +1666,17 @@ static struct scsi_host_template sym2_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.max_sectors		= 0xFFFF,
 #ifdef SYM_LINUX_PROC_INFO_SUPPORT
-	.proc_info		= sym53c8xx_proc_info,
+	.show_info		= sym_show_info,
+#ifdef	SYM_LINUX_USER_COMMAND_SUPPORT
+	.write_info		= sym_user_command,
+#endif
 	.proc_name		= NAME53C8XX,
 #endif
 };
 
 static int attach_count;
 
-static int __devinit sym2_probe(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int sym2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct sym_device sym_dev;
 	struct sym_nvram nvram;
@@ -2077,7 +2001,7 @@ static struct spi_function_template sym2_transport_functions = {
 	.get_signalling	= sym2_get_signalling,
 };
 
-static struct pci_device_id sym2_id_table[] __devinitdata = {
+static struct pci_device_id sym2_id_table[] = {
 	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_NCR_53C810,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_NCR_53C820,
@@ -2117,7 +2041,7 @@ static struct pci_device_id sym2_id_table[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, sym2_id_table);
 
-static struct pci_error_handlers sym2_err_handler = {
+static const struct pci_error_handlers sym2_err_handler = {
 	.error_detected	= sym2_io_error_detected,
 	.mmio_enabled	= sym2_io_slot_dump,
 	.slot_reset	= sym2_io_slot_reset,

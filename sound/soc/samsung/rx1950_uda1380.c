@@ -24,7 +24,7 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 
-#include <plat/regs-iis.h>
+#include "regs-iis.h"
 #include <asm/mach-types.h>
 
 #include "s3c24xx-i2s.h"
@@ -85,7 +85,7 @@ static struct snd_soc_dai_link rx1950_uda1380_dai[] = {
 		.cpu_dai_name	= "s3c24xx-iis",
 		.codec_dai_name	= "uda1380-hifi",
 		.init		= rx1950_uda1380_init,
-		.platform_name	= "samsung-audio",
+		.platform_name	= "s3c24xx-iis",
 		.codec_name	= "uda1380-codec.0-001a",
 		.ops		= &rx1950_ops,
 	},

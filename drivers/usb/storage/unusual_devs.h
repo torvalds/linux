@@ -53,6 +53,14 @@
  * as opposed to devices that do something strangely or wrongly.
  */
 
+/* In-kernel mode switching is deprecated.  Do not add new devices to
+ * this list for the sole purpose of switching them to a different
+ * mode.  Existing userspace solutions are superior.
+ *
+ * New mode switching devices should instead be added to the database
+ * maintained at http://www.draisberghof.de/usb_modeswitch/
+ */
+
 #if !defined(CONFIG_USB_STORAGE_SDDR09) && \
 		!defined(CONFIG_USB_STORAGE_SDDR09_MODULE)
 #define NO_SDDR09
@@ -488,6 +496,13 @@ UNUSUAL_DEV(  0x04e8, 0x5122, 0x0000, 0x9999,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64 | US_FL_BULK_IGNORE_TAG),
 
+/* Added by Dmitry Artamonow <mad_soft@inbox.ru> */
+UNUSUAL_DEV(  0x04e8, 0x5136, 0x0000, 0x9999,
+		"Samsung",
+		"YP-Z3",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64),
+
 /* Entry and supporting patch by Theodore Kilgore <kilgota@auburn.edu>.
  * Device uses standards-violating 32-byte Bulk Command Block Wrappers and
  * reports itself as "Proprietary SCSI Bulk." Cf. device entry 0x084d:0x0011.
@@ -649,6 +664,13 @@ UNUSUAL_DEV(  0x054c, 0x016a, 0x0000, 0x9999,
 		"PEG Mass Storage",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
+
+/* Submitted by Ren Bigcren <bigcren.ren@sonymobile.com> */
+UNUSUAL_DEV(  0x054c, 0x02a5, 0x0100, 0x0100,
+		"Sony Corp.",
+		"MicroVault Flash Drive",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_READ_CAPACITY_16 ),
 
 /* floppy reports multiple luns */
 UNUSUAL_DEV(  0x055d, 0x2020, 0x0000, 0x0210,
@@ -1003,6 +1025,12 @@ UNUSUAL_DEV( 0x07cf, 0x1001, 0x1000, 0x9999,
 		"QV DigitalCamera",
 		USB_SC_8070, USB_PR_CB, NULL,
 		US_FL_NEED_OVERRIDE | US_FL_FIX_INQUIRY ),
+
+/* Submitted by Oleksandr Chumachenko <ledest@gmail.com> */
+UNUSUAL_DEV( 0x07cf, 0x1167, 0x0100, 0x0100,
+		"Casio",
+		"EX-N1 DigitalCamera",
+		USB_SC_8070, USB_PR_DEVICE, NULL, 0),
 
 /* Submitted by Hartmut Wahl <hwahl@hwahl.de>*/
 UNUSUAL_DEV( 0x0839, 0x000a, 0x0001, 0x0001,
@@ -2038,25 +2066,25 @@ UNUSUAL_DEV( 0xed10, 0x7636, 0x0001, 0x0001,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
 
 /* Control/Bulk transport for all SubClass values */
-USUAL_DEV(USB_SC_RBC, USB_PR_CB, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_8020, USB_PR_CB, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_QIC, USB_PR_CB, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_UFI, USB_PR_CB, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_8070, USB_PR_CB, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_SCSI, USB_PR_CB, USB_US_TYPE_STOR),
+USUAL_DEV(USB_SC_RBC, USB_PR_CB),
+USUAL_DEV(USB_SC_8020, USB_PR_CB),
+USUAL_DEV(USB_SC_QIC, USB_PR_CB),
+USUAL_DEV(USB_SC_UFI, USB_PR_CB),
+USUAL_DEV(USB_SC_8070, USB_PR_CB),
+USUAL_DEV(USB_SC_SCSI, USB_PR_CB),
 
 /* Control/Bulk/Interrupt transport for all SubClass values */
-USUAL_DEV(USB_SC_RBC, USB_PR_CBI, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_8020, USB_PR_CBI, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_QIC, USB_PR_CBI, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_UFI, USB_PR_CBI, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_8070, USB_PR_CBI, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_SCSI, USB_PR_CBI, USB_US_TYPE_STOR),
+USUAL_DEV(USB_SC_RBC, USB_PR_CBI),
+USUAL_DEV(USB_SC_8020, USB_PR_CBI),
+USUAL_DEV(USB_SC_QIC, USB_PR_CBI),
+USUAL_DEV(USB_SC_UFI, USB_PR_CBI),
+USUAL_DEV(USB_SC_8070, USB_PR_CBI),
+USUAL_DEV(USB_SC_SCSI, USB_PR_CBI),
 
 /* Bulk-only transport for all SubClass values */
-USUAL_DEV(USB_SC_RBC, USB_PR_BULK, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_8020, USB_PR_BULK, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_QIC, USB_PR_BULK, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_UFI, USB_PR_BULK, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_8070, USB_PR_BULK, USB_US_TYPE_STOR),
-USUAL_DEV(USB_SC_SCSI, USB_PR_BULK, 0),
+USUAL_DEV(USB_SC_RBC, USB_PR_BULK),
+USUAL_DEV(USB_SC_8020, USB_PR_BULK),
+USUAL_DEV(USB_SC_QIC, USB_PR_BULK),
+USUAL_DEV(USB_SC_UFI, USB_PR_BULK),
+USUAL_DEV(USB_SC_8070, USB_PR_BULK),
+USUAL_DEV(USB_SC_SCSI, USB_PR_BULK),

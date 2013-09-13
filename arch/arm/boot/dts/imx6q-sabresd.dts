@@ -11,43 +11,15 @@
  */
 
 /dts-v1/;
-/include/ "imx6q.dtsi"
+
+#include "imx6q.dtsi"
+#include "imx6qdl-sabresd.dtsi"
 
 / {
-	model = "Freescale i.MX6Q SABRE Smart Device Board";
+	model = "Freescale i.MX6 Quad SABRE Smart Device Board";
 	compatible = "fsl,imx6q-sabresd", "fsl,imx6q";
+};
 
-	memory {
-		reg = <0x10000000 0x40000000>;
-	};
-
-	soc {
-
-		aips-bus@02000000 { /* AIPS1 */
-			spba-bus@02000000 {
-				uart1: serial@02020000 {
-					status = "okay";
-				};
-			};
-		};
-
-		aips-bus@02100000 { /* AIPS2 */
-			ethernet@02188000 {
-				phy-mode = "rgmii";
-				status = "okay";
-			};
-
-			usdhc@02194000 { /* uSDHC2 */
-				cd-gpios = <&gpio2 2 0>;
-				wp-gpios = <&gpio2 3 0>;
-				status = "okay";
-			};
-
-			usdhc@02198000 { /* uSDHC3 */
-				cd-gpios = <&gpio2 0 0>;
-				wp-gpios = <&gpio2 1 0>;
-				status = "okay";
-			};
-		};
-	};
+&sata {
+	status = "okay";
 };

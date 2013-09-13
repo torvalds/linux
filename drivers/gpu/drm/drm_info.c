@@ -34,7 +34,7 @@
  */
 
 #include <linux/seq_file.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 
 /**
  * Called when "/proc/dri/.../name" is read.
@@ -191,8 +191,9 @@ int drm_clients_info(struct seq_file *m, void *data)
 		seq_printf(m, "%c %3d %5d %5d %10u %10lu\n",
 			   priv->authenticated ? 'y' : 'n',
 			   priv->minor->index,
-			   priv->pid,
-			   priv->uid, priv->magic, priv->ioctl_count);
+			   pid_vnr(priv->pid),
+			   from_kuid_munged(seq_user_ns(m), priv->uid),
+			   priv->magic, priv->ioctl_count);
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
@@ -204,11 +205,9 @@ static int drm_gem_one_name_info(int id, void *ptr, void *data)
 	struct drm_gem_object *obj = ptr;
 	struct seq_file *m = data;
 
-	seq_printf(m, "name %d size %zd\n", obj->name, obj->size);
-
 	seq_printf(m, "%6d %8zd %7d %8d\n",
 		   obj->name, obj->size,
-		   atomic_read(&obj->handle_count),
+		   obj->handle_count,
 		   atomic_read(&obj->refcount.refcount));
 	return 0;
 }
@@ -219,7 +218,11 @@ int drm_gem_name_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 
 	seq_printf(m, "  name     size handles refcount\n");
+
+	mutex_lock(&dev->object_name_lock);
 	idr_for_each(&dev->object_name_idr, drm_gem_one_name_info, m);
+	mutex_unlock(&dev->object_name_lock);
+
 	return 0;
 }
 
@@ -238,7 +241,7 @@ int drm_vma_info(struct seq_file *m, void *data)
 	mutex_lock(&dev->struct_mutex);
 	seq_printf(m, "vma use count: %d, high_memory = %pK, 0x%pK\n",
 		   atomic_read(&dev->vma_count),
-		   high_memory, (void *)virt_to_phys(high_memory));
+		   high_memory, (void *)(unsigned long)virt_to_phys(high_memory));
 
 	list_for_each_entry(pt, &dev->vmalist, head) {
 		vma = pt->vma;

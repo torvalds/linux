@@ -312,7 +312,6 @@ static void ql_release_to_lrg_buf_free_list(struct ql3_adapter *qdev,
 		lrg_buf_cb->skb = netdev_alloc_skb(qdev->ndev,
 						   qdev->lrg_buffer_len);
 		if (unlikely(!lrg_buf_cb->skb)) {
-			netdev_err(qdev->ndev, "failed netdev_alloc_skb()\n");
 			qdev->lrg_buf_skb_check++;
 		} else {
 			/*
@@ -1920,7 +1919,6 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 {
 	struct ql_tx_buf_cb *tx_cb;
 	int i;
-	int retval = 0;
 
 	if (mac_rsp->flags & OB_MAC_IOCB_RSP_S) {
 		netdev_warn(qdev->ndev,
@@ -1935,7 +1933,6 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 			   "Frame too short to be legal, frame not sent\n");
 
 		qdev->ndev->stats.tx_errors++;
-		retval = -EIO;
 		goto frame_not_sent;
 	}
 
@@ -1944,7 +1941,6 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 			   mac_rsp->transaction_id);
 
 		qdev->ndev->stats.tx_errors++;
-		retval = -EIO;
 		goto invalid_seg_count;
 	}
 
@@ -2525,6 +2521,13 @@ static int ql_alloc_net_req_rsp_queues(struct ql3_adapter *qdev)
 	qdev->req_q_size =
 	    (u32) (NUM_REQ_Q_ENTRIES * sizeof(struct ob_mac_iocb_req));
 
+	qdev->rsp_q_size = NUM_RSP_Q_ENTRIES * sizeof(struct net_rsp_iocb);
+
+	/* The barrier is required to ensure request and response queue
+	 * addr writes to the registers.
+	 */
+	wmb();
+
 	qdev->req_q_virt_addr =
 	    pci_alloc_consistent(qdev->pdev,
 				 (size_t) qdev->req_q_size,
@@ -2535,8 +2538,6 @@ static int ql_alloc_net_req_rsp_queues(struct ql3_adapter *qdev)
 		netdev_err(qdev->ndev, "reqQ failed\n");
 		return -ENOMEM;
 	}
-
-	qdev->rsp_q_size = NUM_RSP_Q_ENTRIES * sizeof(struct net_rsp_iocb);
 
 	qdev->rsp_q_virt_addr =
 	    pci_alloc_consistent(qdev->pdev,
@@ -2589,13 +2590,11 @@ static int ql_alloc_buffer_queues(struct ql3_adapter *qdev)
 	else
 		qdev->lrg_buf_q_alloc_size = qdev->lrg_buf_q_size * 2;
 
-	qdev->lrg_buf =
-		kmalloc(qdev->num_large_buffers * sizeof(struct ql_rcv_buf_cb),
-			GFP_KERNEL);
-	if (qdev->lrg_buf == NULL) {
-		netdev_err(qdev->ndev, "qdev->lrg_buf alloc failed\n");
+	qdev->lrg_buf = kmalloc_array(qdev->num_large_buffers,
+				      sizeof(struct ql_rcv_buf_cb),
+				      GFP_KERNEL);
+	if (qdev->lrg_buf == NULL)
 		return -ENOMEM;
-	}
 
 	qdev->lrg_buf_q_alloc_virt_addr =
 		pci_alloc_consistent(qdev->pdev,
@@ -3767,8 +3766,8 @@ static const struct net_device_ops ql3xxx_netdev_ops = {
 	.ndo_tx_timeout		= ql3xxx_tx_timeout,
 };
 
-static int __devinit ql3xxx_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *pci_entry)
+static int ql3xxx_probe(struct pci_dev *pdev,
+			const struct pci_device_id *pci_entry)
 {
 	struct net_device *ndev = NULL;
 	struct ql3_adapter *qdev = NULL;
@@ -3865,7 +3864,6 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 		ndev->mtu = qdev->nvram_data.macCfg_port0.etherMtu_mac ;
 		ql_set_mac_addr(ndev, qdev->nvram_data.funcCfg_fn0.macAddress);
 	}
-	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 
 	ndev->tx_queue_len = NUM_REQ_Q_ENTRIES;
 
@@ -3923,7 +3921,7 @@ err_out:
 	return err;
 }
 
-static void __devexit ql3xxx_remove(struct pci_dev *pdev)
+static void ql3xxx_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql3_adapter *qdev = netdev_priv(ndev);
@@ -3950,18 +3948,7 @@ static struct pci_driver ql3xxx_driver = {
 	.name = DRV_NAME,
 	.id_table = ql3xxx_pci_tbl,
 	.probe = ql3xxx_probe,
-	.remove = __devexit_p(ql3xxx_remove),
+	.remove = ql3xxx_remove,
 };
 
-static int __init ql3xxx_init_module(void)
-{
-	return pci_register_driver(&ql3xxx_driver);
-}
-
-static void __exit ql3xxx_exit(void)
-{
-	pci_unregister_driver(&ql3xxx_driver);
-}
-
-module_init(ql3xxx_init_module);
-module_exit(ql3xxx_exit);
+module_pci_driver(ql3xxx_driver);

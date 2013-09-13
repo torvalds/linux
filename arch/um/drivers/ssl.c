@@ -3,19 +3,19 @@
  * Licensed under the GPL
  */
 
-#include "linux/fs.h"
-#include "linux/tty.h"
-#include "linux/tty_driver.h"
-#include "linux/major.h"
-#include "linux/mm.h"
-#include "linux/init.h"
-#include "linux/console.h"
-#include "asm/termbits.h"
-#include "asm/irq.h"
+#include <linux/fs.h>
+#include <linux/tty.h>
+#include <linux/tty_driver.h>
+#include <linux/major.h>
+#include <linux/mm.h>
+#include <linux/init.h>
+#include <linux/console.h>
+#include <asm/termbits.h>
+#include <asm/irq.h>
 #include "ssl.h"
 #include "chan.h"
-#include "init.h"
-#include "irq_user.h"
+#include <init.h>
+#include <irq_user.h>
 #include "mconsole_kern.h"
 
 static const int ssl_version = 1;
@@ -105,7 +105,6 @@ static const struct tty_operations ssl_ops = {
 	.throttle 		= line_throttle,
 	.unthrottle 		= line_unthrottle,
 	.install		= ssl_install,
-	.cleanup		= line_cleanup,
 	.hangup			= line_hangup,
 };
 

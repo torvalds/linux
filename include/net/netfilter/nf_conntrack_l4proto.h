@@ -121,11 +121,15 @@ extern struct nf_conntrack_l4proto *
 nf_ct_l4proto_find_get(u_int16_t l3proto, u_int8_t l4proto);
 extern void nf_ct_l4proto_put(struct nf_conntrack_l4proto *p);
 
-/* Protocol registration. */
-extern int nf_conntrack_l4proto_register(struct net *net,
+/* Protocol pernet registration. */
+extern int nf_ct_l4proto_pernet_register(struct net *net,
 					 struct nf_conntrack_l4proto *proto);
-extern void nf_conntrack_l4proto_unregister(struct net *net,
+extern void nf_ct_l4proto_pernet_unregister(struct net *net,
 					    struct nf_conntrack_l4proto *proto);
+
+/* Protocol global registration. */
+extern int nf_ct_l4proto_register(struct nf_conntrack_l4proto *proto);
+extern void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *proto);
 
 static inline void nf_ct_kfree_compat_sysctl_table(struct nf_proto_net *pn)
 {
@@ -144,16 +148,9 @@ extern int nf_ct_port_nlattr_tuple_size(void);
 extern const struct nla_policy nf_ct_port_nla_policy[];
 
 #ifdef CONFIG_SYSCTL
-#ifdef DEBUG_INVALID_PACKETS
 #define LOG_INVALID(net, proto)				\
 	((net)->ct.sysctl_log_invalid == (proto) ||	\
 	 (net)->ct.sysctl_log_invalid == IPPROTO_RAW)
-#else
-#define LOG_INVALID(net, proto)				\
-	(((net)->ct.sysctl_log_invalid == (proto) ||	\
-	  (net)->ct.sysctl_log_invalid == IPPROTO_RAW)	\
-	 && net_ratelimit())
-#endif
 #else
 static inline int LOG_INVALID(struct net *net, int proto) { return 0; }
 #endif /* CONFIG_SYSCTL */

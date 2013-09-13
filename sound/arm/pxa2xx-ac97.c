@@ -14,12 +14,14 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/dmaengine.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
 #include <sound/initval.h>
 #include <sound/pxa2xx-lib.h>
+#include <sound/dmaengine_pcm.h>
 
 #include <mach/regs-ac97.h>
 #include <mach/audio.h>
@@ -41,20 +43,20 @@ static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.reset	= pxa2xx_ac97_reset,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_out = {
-	.name			= "AC97 PCM out",
-	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMR(12),
-	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static unsigned long pxa2xx_ac97_pcm_out_req = 12;
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_out = {
+	.addr		= __PREG(PCDR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_ac97_pcm_out_req,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_in = {
-	.name			= "AC97 PCM in",
-	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMR(11),
-	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static unsigned long pxa2xx_ac97_pcm_in_req = 11;
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_in = {
+	.addr		= __PREG(PCDR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_ac97_pcm_in_req,
 };
 
 static struct snd_pcm *pxa2xx_ac97_pcm;
@@ -163,7 +165,7 @@ static int pxa2xx_ac97_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops, pxa2xx_ac97_suspend, pxa2xx_ac97_resume);
 #endif
 
-static int __devinit pxa2xx_ac97_probe(struct platform_device *dev)
+static int pxa2xx_ac97_probe(struct platform_device *dev)
 {
 	struct snd_card *card;
 	struct snd_ac97_bus *ac97_bus;
@@ -224,13 +226,12 @@ err_dev:
 	return ret;
 }
 
-static int __devexit pxa2xx_ac97_remove(struct platform_device *dev)
+static int pxa2xx_ac97_remove(struct platform_device *dev)
 {
 	struct snd_card *card = platform_get_drvdata(dev);
 
 	if (card) {
 		snd_card_free(card);
-		platform_set_drvdata(dev, NULL);
 		pxa2xx_ac97_hw_remove(dev);
 	}
 
@@ -239,7 +240,7 @@ static int __devexit pxa2xx_ac97_remove(struct platform_device *dev)
 
 static struct platform_driver pxa2xx_ac97_driver = {
 	.probe		= pxa2xx_ac97_probe,
-	.remove		= __devexit_p(pxa2xx_ac97_remove),
+	.remove		= pxa2xx_ac97_remove,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
 		.owner	= THIS_MODULE,

@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_PGTABLE_64_DEFS_H
 #define _ASM_X86_PGTABLE_64_DEFS_H
 
+#include <asm/sparsemem.h>
+
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 
@@ -59,5 +61,7 @@ typedef struct { pteval_t pte; } pte_t;
 #define MODULES_VADDR    _AC(0xffffffffa0000000, UL)
 #define MODULES_END      _AC(0xffffffffff000000, UL)
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
+
+#define EARLY_DYNAMIC_PAGE_TABLES	64
 
 #endif /* _ASM_X86_PGTABLE_64_DEFS_H */

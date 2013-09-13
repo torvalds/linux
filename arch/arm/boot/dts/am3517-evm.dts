@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "omap3.dtsi"
+#include "omap34xx.dtsi"
 
 / {
 	model = "TI AM3517 EVM (AM3517/05)";

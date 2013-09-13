@@ -54,12 +54,12 @@ struct powerdomain gfx_omap2_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 struct powerdomain wkup_omap2_pwrdm = {
 	.name		= "wkup_pwrdm",
 	.prcm_offs	= WKUP_MOD,
 	.pwrsts		= PWRSTS_ON,
-	.voltdm         = { .name = "wakeup" },
+	.voltdm		= { .name = "wakeup" },
 };

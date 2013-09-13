@@ -506,7 +506,7 @@ static void s3c24xx_spi_initialsetup(struct s3c24xx_spi *hw)
 	}
 }
 
-static int __devinit s3c24xx_spi_probe(struct platform_device *pdev)
+static int s3c24xx_spi_probe(struct platform_device *pdev)
 {
 	struct s3c2410_spi_info *pdata;
 	struct s3c24xx_spi *hw;
@@ -525,7 +525,7 @@ static int __devinit s3c24xx_spi_probe(struct platform_device *pdev)
 	memset(hw, 0, sizeof(struct s3c24xx_spi));
 
 	hw->master = spi_master_get(master);
-	hw->pdata = pdata = pdev->dev.platform_data;
+	hw->pdata = pdata = dev_get_platdata(&pdev->dev);
 	hw->dev = &pdev->dev;
 
 	if (pdata == NULL) {
@@ -611,6 +611,7 @@ static int __devinit s3c24xx_spi_probe(struct platform_device *pdev)
 	if (!pdata->set_cs) {
 		if (pdata->pin_cs < 0) {
 			dev_err(&pdev->dev, "No chipselect pin\n");
+			err = -EINVAL;
 			goto err_register;
 		}
 
@@ -662,11 +663,9 @@ static int __devinit s3c24xx_spi_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit s3c24xx_spi_remove(struct platform_device *dev)
+static int s3c24xx_spi_remove(struct platform_device *dev)
 {
 	struct s3c24xx_spi *hw = platform_get_drvdata(dev);
-
-	platform_set_drvdata(dev, NULL);
 
 	spi_bitbang_stop(&hw->bitbang);
 
@@ -691,7 +690,7 @@ static int __devexit s3c24xx_spi_remove(struct platform_device *dev)
 
 static int s3c24xx_spi_suspend(struct device *dev)
 {
-	struct s3c24xx_spi *hw = platform_get_drvdata(to_platform_device(dev));
+	struct s3c24xx_spi *hw = dev_get_drvdata(dev);
 
 	if (hw->pdata && hw->pdata->gpio_setup)
 		hw->pdata->gpio_setup(hw->pdata, 0);
@@ -702,7 +701,7 @@ static int s3c24xx_spi_suspend(struct device *dev)
 
 static int s3c24xx_spi_resume(struct device *dev)
 {
-	struct s3c24xx_spi *hw = platform_get_drvdata(to_platform_device(dev));
+	struct s3c24xx_spi *hw = dev_get_drvdata(dev);
 
 	s3c24xx_spi_initialsetup(hw);
 	return 0;
@@ -721,7 +720,7 @@ static const struct dev_pm_ops s3c24xx_spi_pmops = {
 MODULE_ALIAS("platform:s3c2410-spi");
 static struct platform_driver s3c24xx_spi_driver = {
 	.probe		= s3c24xx_spi_probe,
-	.remove		= __devexit_p(s3c24xx_spi_remove),
+	.remove		= s3c24xx_spi_remove,
 	.driver		= {
 		.name	= "s3c2410-spi",
 		.owner	= THIS_MODULE,

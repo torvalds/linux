@@ -10,6 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/platform_data/emif_plat.h>
@@ -18,13 +19,16 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/pm.h>
 #include <memory/jedec_ddr.h>
 #include "emif.h"
+#include "of_memory.h"
 
 /**
  * struct emif_data - Per device static data for driver's use
@@ -49,6 +53,7 @@
  *				frequency in effect at the moment)
  * @plat_data:			Pointer to saved platform data.
  * @debugfs_root:		dentry to the root folder for EMIF in debugfs
+ * @np_ddr:			Pointer to ddr device tree node
  */
 struct emif_data {
 	u8				duplicate;
@@ -63,6 +68,7 @@ struct emif_data {
 	struct emif_regs		*curr_regs;
 	struct emif_platform_data	*plat_data;
 	struct dentry			*debugfs_root;
+	struct device_node		*np_ddr;
 };
 
 static struct emif_data *emif1;
@@ -71,6 +77,7 @@ static unsigned long	irq_state;
 static u32		t_ck; /* DDR clock period in ps */
 static LIST_HEAD(device_list);
 
+#ifdef CONFIG_DEBUG_FS
 static void do_emif_regdump_show(struct seq_file *s, struct emif_data *emif,
 	struct emif_regs *regs)
 {
@@ -162,23 +169,23 @@ static int __init_or_module emif_debugfs_init(struct emif_data *emif)
 	int		ret;
 
 	dentry = debugfs_create_dir(dev_name(emif->dev), NULL);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err0;
 	}
 	emif->debugfs_root = dentry;
 
 	dentry = debugfs_create_file("regcache_dump", S_IRUGO,
 			emif->debugfs_root, emif, &emif_regdump_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
 	dentry = debugfs_create_file("mr4", S_IRUGO,
 			emif->debugfs_root, emif, &emif_mr4_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
@@ -194,6 +201,16 @@ static void __exit emif_debugfs_exit(struct emif_data *emif)
 	debugfs_remove_recursive(emif->debugfs_root);
 	emif->debugfs_root = NULL;
 }
+#else
+static inline int __init_or_module emif_debugfs_init(struct emif_data *emif)
+{
+	return 0;
+}
+
+static inline void __exit emif_debugfs_exit(struct emif_data *emif)
+{
+}
+#endif
 
 /*
  * Calculate the period of DDR clock from frequency value
@@ -239,6 +256,41 @@ static void set_lpmode(struct emif_data *emif, u8 lpmode)
 {
 	u32 temp;
 	void __iomem *base = emif->base;
+
+	/*
+	 * Workaround for errata i743 - LPDDR2 Power-Down State is Not
+	 * Efficient
+	 *
+	 * i743 DESCRIPTION:
+	 * The EMIF supports power-down state for low power. The EMIF
+	 * automatically puts the SDRAM into power-down after the memory is
+	 * not accessed for a defined number of cycles and the
+	 * EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field is set to 0x4.
+	 * As the EMIF supports automatic output impedance calibration, a ZQ
+	 * calibration long command is issued every time it exits active
+	 * power-down and precharge power-down modes. The EMIF waits and
+	 * blocks any other command during this calibration.
+	 * The EMIF does not allow selective disabling of ZQ calibration upon
+	 * exit of power-down mode. Due to very short periods of power-down
+	 * cycles, ZQ calibration overhead creates bandwidth issues and
+	 * increases overall system power consumption. On the other hand,
+	 * issuing ZQ calibration long commands when exiting self-refresh is
+	 * still required.
+	 *
+	 * WORKAROUND
+	 * Because there is no power consumption benefit of the power-down due
+	 * to the calibration and there is a performance risk, the guideline
+	 * is to not allow power-down state and, therefore, to not have set
+	 * the EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field to 0x4.
+	 */
+	if ((emif->plat_data->ip_rev == EMIF_4D) &&
+	    (EMIF_LP_MODE_PWR_DN == lpmode)) {
+		WARN_ONCE(1,
+			  "REG_LP_MODE = LP_MODE_PWR_DN(4) is prohibited by"
+			  "erratum i743 switch to LP_MODE_SELF_REFRESH(2)\n");
+		/* rollback LP_MODE to Self-refresh mode */
+		lpmode = EMIF_LP_MODE_SELF_REFRESH;
+	}
 
 	temp = readl(base + EMIF_POWER_MANAGEMENT_CONTROL);
 	temp &= ~LP_MODE_MASK;
@@ -699,6 +751,8 @@ static u32 get_pwr_mgmt_ctrl(u32 freq, struct emif_data *emif, u32 ip_rev)
 	u32 timeout_perf	= EMIF_LP_MODE_TIMEOUT_PERFORMANCE;
 	u32 timeout_pwr		= EMIF_LP_MODE_TIMEOUT_POWER;
 	u32 freq_threshold	= EMIF_LP_MODE_FREQ_THRESHOLD;
+	u32 mask;
+	u8 shift;
 
 	struct emif_custom_configs *cust_cfgs = emif->plat_data->custom_configs;
 
@@ -712,37 +766,59 @@ static u32 get_pwr_mgmt_ctrl(u32 freq, struct emif_data *emif, u32 ip_rev)
 	/* Timeout based on DDR frequency */
 	timeout = freq >= freq_threshold ? timeout_perf : timeout_pwr;
 
-	/* The value to be set in register is "log2(timeout) - 3" */
+	/*
+	 * The value to be set in register is "log2(timeout) - 3"
+	 * if timeout < 16 load 0 in register
+	 * if timeout is not a power of 2, round to next highest power of 2
+	 */
 	if (timeout < 16) {
 		timeout = 0;
 	} else {
-		timeout = __fls(timeout) - 3;
 		if (timeout & (timeout - 1))
-			timeout++;
+			timeout <<= 1;
+		timeout = __fls(timeout) - 3;
 	}
 
 	switch (lpmode) {
 	case EMIF_LP_MODE_CLOCK_STOP:
-		pwr_mgmt_ctrl = (timeout << CS_TIM_SHIFT) |
-					SR_TIM_MASK | PD_TIM_MASK;
+		shift = CS_TIM_SHIFT;
+		mask = CS_TIM_MASK;
 		break;
 	case EMIF_LP_MODE_SELF_REFRESH:
 		/* Workaround for errata i735 */
 		if (timeout < 6)
 			timeout = 6;
 
-		pwr_mgmt_ctrl = (timeout << SR_TIM_SHIFT) |
-					CS_TIM_MASK | PD_TIM_MASK;
+		shift = SR_TIM_SHIFT;
+		mask = SR_TIM_MASK;
 		break;
 	case EMIF_LP_MODE_PWR_DN:
-		pwr_mgmt_ctrl = (timeout << PD_TIM_SHIFT) |
-					CS_TIM_MASK | SR_TIM_MASK;
+		shift = PD_TIM_SHIFT;
+		mask = PD_TIM_MASK;
 		break;
 	case EMIF_LP_MODE_DISABLE:
 	default:
-		pwr_mgmt_ctrl = CS_TIM_MASK |
-					PD_TIM_MASK | SR_TIM_MASK;
+		mask = 0;
+		shift = 0;
+		break;
 	}
+	/* Round to maximum in case of overflow, BUT warn! */
+	if (lpmode != EMIF_LP_MODE_DISABLE && timeout > mask >> shift) {
+		pr_err("TIMEOUT Overflow - lpmode=%d perf=%d pwr=%d freq=%d\n",
+		       lpmode,
+		       timeout_perf,
+		       timeout_pwr,
+		       freq_threshold);
+		WARN(1, "timeout=0x%02x greater than 0x%02x. Using max\n",
+		     timeout, mask >> shift);
+		timeout = mask >> shift;
+	}
+
+	/* Setup required timing */
+	pwr_mgmt_ctrl = (timeout << shift) & mask;
+	/* setup a default mask for rest of the modes */
+	pwr_mgmt_ctrl |= (SR_TIM_MASK | CS_TIM_MASK | PD_TIM_MASK) &
+			  ~mask;
 
 	/* No CS_TIM in EMIF_4D5 */
 	if (ip_rev == EMIF_4D5)
@@ -799,6 +875,8 @@ static void setup_registers(struct emif_data *emif, struct emif_regs *regs)
 
 	writel(regs->sdram_tim2_shdw, base + EMIF_SDRAM_TIMING_2_SHDW);
 	writel(regs->phy_ctrl_1_shdw, base + EMIF_DDR_PHY_CTRL_1_SHDW);
+	writel(regs->pwr_mgmt_ctrl_shdw,
+	       base + EMIF_POWER_MANAGEMENT_CTRL_SHDW);
 
 	/* Settings specific for EMIF4D5 */
 	if (emif->plat_data->ip_rev != EMIF_4D5)
@@ -876,6 +954,7 @@ static irqreturn_t handle_temp_alert(void __iomem *base, struct emif_data *emif)
 {
 	u32		old_temp_level;
 	irqreturn_t	ret = IRQ_HANDLED;
+	struct emif_custom_configs *custom_configs;
 
 	spin_lock_irqsave(&emif_lock, irq_state);
 	old_temp_level = emif->temperature_level;
@@ -886,6 +965,29 @@ static irqreturn_t handle_temp_alert(void __iomem *base, struct emif_data *emif)
 	} else if (!emif->curr_regs) {
 		dev_err(emif->dev, "temperature alert before registers are calculated, not de-rating timings\n");
 		goto out;
+	}
+
+	custom_configs = emif->plat_data->custom_configs;
+
+	/*
+	 * IF we detect higher than "nominal rating" from DDR sensor
+	 * on an unsupported DDR part, shutdown system
+	 */
+	if (custom_configs && !(custom_configs->mask &
+				EMIF_CUSTOM_CONFIG_EXTENDED_TEMP_PART)) {
+		if (emif->temperature_level >= SDRAM_TEMP_HIGH_DERATE_REFRESH) {
+			dev_err(emif->dev,
+				"%s:NOT Extended temperature capable memory."
+				"Converting MR4=0x%02x as shutdown event\n",
+				__func__, emif->temperature_level);
+			/*
+			 * Temperature far too high - do kernel_power_off()
+			 * from thread context
+			 */
+			emif->temperature_level = SDRAM_TEMP_VERY_HIGH_SHUTDOWN;
+			ret = IRQ_WAKE_THREAD;
+			goto out;
+		}
 	}
 
 	if (emif->temperature_level < old_temp_level ||
@@ -949,7 +1051,14 @@ static irqreturn_t emif_threaded_isr(int irq, void *dev_id)
 
 	if (emif->temperature_level == SDRAM_TEMP_VERY_HIGH_SHUTDOWN) {
 		dev_emerg(emif->dev, "SDRAM temperature exceeds operating limit.. Needs shut down!!!\n");
-		kernel_power_off();
+
+		/* If we have Power OFF ability, use it, else try restarting */
+		if (pm_power_off) {
+			kernel_power_off();
+		} else {
+			WARN(1, "FIXME: NO pm_power_off!!! trying restart\n");
+			kernel_restart("SDRAM Over-temp Emergency restart");
+		}
 		return IRQ_HANDLED;
 	}
 
@@ -1148,6 +1257,172 @@ static int is_custom_config_valid(struct emif_custom_configs *cust_cfgs,
 	return valid;
 }
 
+#if defined(CONFIG_OF)
+static void __init_or_module of_get_custom_configs(struct device_node *np_emif,
+		struct emif_data *emif)
+{
+	struct emif_custom_configs	*cust_cfgs = NULL;
+	int				len;
+	const __be32			*lpmode, *poll_intvl;
+
+	lpmode = of_get_property(np_emif, "low-power-mode", &len);
+	poll_intvl = of_get_property(np_emif, "temp-alert-poll-interval", &len);
+
+	if (lpmode || poll_intvl)
+		cust_cfgs = devm_kzalloc(emif->dev, sizeof(*cust_cfgs),
+			GFP_KERNEL);
+
+	if (!cust_cfgs)
+		return;
+
+	if (lpmode) {
+		cust_cfgs->mask |= EMIF_CUSTOM_CONFIG_LPMODE;
+		cust_cfgs->lpmode = be32_to_cpup(lpmode);
+		of_property_read_u32(np_emif,
+				"low-power-mode-timeout-performance",
+				&cust_cfgs->lpmode_timeout_performance);
+		of_property_read_u32(np_emif,
+				"low-power-mode-timeout-power",
+				&cust_cfgs->lpmode_timeout_power);
+		of_property_read_u32(np_emif,
+				"low-power-mode-freq-threshold",
+				&cust_cfgs->lpmode_freq_threshold);
+	}
+
+	if (poll_intvl) {
+		cust_cfgs->mask |=
+				EMIF_CUSTOM_CONFIG_TEMP_ALERT_POLL_INTERVAL;
+		cust_cfgs->temp_alert_poll_interval_ms =
+						be32_to_cpup(poll_intvl);
+	}
+
+	if (of_find_property(np_emif, "extended-temp-part", &len))
+		cust_cfgs->mask |= EMIF_CUSTOM_CONFIG_EXTENDED_TEMP_PART;
+
+	if (!is_custom_config_valid(cust_cfgs, emif->dev)) {
+		devm_kfree(emif->dev, cust_cfgs);
+		return;
+	}
+
+	emif->plat_data->custom_configs = cust_cfgs;
+}
+
+static void __init_or_module of_get_ddr_info(struct device_node *np_emif,
+		struct device_node *np_ddr,
+		struct ddr_device_info *dev_info)
+{
+	u32 density = 0, io_width = 0;
+	int len;
+
+	if (of_find_property(np_emif, "cs1-used", &len))
+		dev_info->cs1_used = true;
+
+	if (of_find_property(np_emif, "cal-resistor-per-cs", &len))
+		dev_info->cal_resistors_per_cs = true;
+
+	if (of_device_is_compatible(np_ddr , "jedec,lpddr2-s4"))
+		dev_info->type = DDR_TYPE_LPDDR2_S4;
+	else if (of_device_is_compatible(np_ddr , "jedec,lpddr2-s2"))
+		dev_info->type = DDR_TYPE_LPDDR2_S2;
+
+	of_property_read_u32(np_ddr, "density", &density);
+	of_property_read_u32(np_ddr, "io-width", &io_width);
+
+	/* Convert from density in Mb to the density encoding in jedc_ddr.h */
+	if (density & (density - 1))
+		dev_info->density = 0;
+	else
+		dev_info->density = __fls(density) - 5;
+
+	/* Convert from io_width in bits to io_width encoding in jedc_ddr.h */
+	if (io_width & (io_width - 1))
+		dev_info->io_width = 0;
+	else
+		dev_info->io_width = __fls(io_width) - 1;
+}
+
+static struct emif_data * __init_or_module of_get_memory_device_details(
+		struct device_node *np_emif, struct device *dev)
+{
+	struct emif_data		*emif = NULL;
+	struct ddr_device_info		*dev_info = NULL;
+	struct emif_platform_data	*pd = NULL;
+	struct device_node		*np_ddr;
+	int				len;
+
+	np_ddr = of_parse_phandle(np_emif, "device-handle", 0);
+	if (!np_ddr)
+		goto error;
+	emif	= devm_kzalloc(dev, sizeof(struct emif_data), GFP_KERNEL);
+	pd	= devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	dev_info = devm_kzalloc(dev, sizeof(*dev_info), GFP_KERNEL);
+
+	if (!emif || !pd || !dev_info) {
+		dev_err(dev, "%s: Out of memory!!\n",
+			__func__);
+		goto error;
+	}
+
+	emif->plat_data		= pd;
+	pd->device_info		= dev_info;
+	emif->dev		= dev;
+	emif->np_ddr		= np_ddr;
+	emif->temperature_level	= SDRAM_TEMP_NOMINAL;
+
+	if (of_device_is_compatible(np_emif, "ti,emif-4d"))
+		emif->plat_data->ip_rev = EMIF_4D;
+	else if (of_device_is_compatible(np_emif, "ti,emif-4d5"))
+		emif->plat_data->ip_rev = EMIF_4D5;
+
+	of_property_read_u32(np_emif, "phy-type", &pd->phy_type);
+
+	if (of_find_property(np_emif, "hw-caps-ll-interface", &len))
+		pd->hw_caps |= EMIF_HW_CAPS_LL_INTERFACE;
+
+	of_get_ddr_info(np_emif, np_ddr, dev_info);
+	if (!is_dev_data_valid(pd->device_info->type, pd->device_info->density,
+			pd->device_info->io_width, pd->phy_type, pd->ip_rev,
+			emif->dev)) {
+		dev_err(dev, "%s: invalid device data!!\n", __func__);
+		goto error;
+	}
+	/*
+	 * For EMIF instances other than EMIF1 see if the devices connected
+	 * are exactly same as on EMIF1(which is typically the case). If so,
+	 * mark it as a duplicate of EMIF1. This will save some memory and
+	 * computation.
+	 */
+	if (emif1 && emif1->np_ddr == np_ddr) {
+		emif->duplicate = true;
+		goto out;
+	} else if (emif1) {
+		dev_warn(emif->dev, "%s: Non-symmetric DDR geometry\n",
+			__func__);
+	}
+
+	of_get_custom_configs(np_emif, emif);
+	emif->plat_data->timings = of_get_ddr_timings(np_ddr, emif->dev,
+					emif->plat_data->device_info->type,
+					&emif->plat_data->timings_arr_size);
+
+	emif->plat_data->min_tck = of_get_min_tck(np_ddr, emif->dev);
+	goto out;
+
+error:
+	return NULL;
+out:
+	return emif;
+}
+
+#else
+
+static struct emif_data * __init_or_module of_get_memory_device_details(
+		struct device_node *np_emif, struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static struct emif_data *__init_or_module get_device_details(
 		struct platform_device *pdev)
 {
@@ -1229,7 +1504,7 @@ static struct emif_data *__init_or_module get_device_details(
 	if (pd->timings) {
 		temp = devm_kzalloc(dev, size, GFP_KERNEL);
 		if (temp) {
-			memcpy(temp, pd->timings, sizeof(*pd->timings));
+			memcpy(temp, pd->timings, size);
 			pd->timings = temp;
 		} else {
 			dev_warn(dev, "%s:%d: allocation error\n", __func__,
@@ -1267,7 +1542,11 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 	struct resource		*res;
 	int			irq;
 
-	emif = get_device_details(pdev);
+	if (pdev->dev.of_node)
+		emif = of_get_memory_device_details(pdev->dev.of_node, &pdev->dev);
+	else
+		emif = get_device_details(pdev);
+
 	if (!emif) {
 		pr_err("%s: error getting device data\n", __func__);
 		goto error;
@@ -1281,18 +1560,9 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, emif);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(emif->dev, "%s: error getting memory resource\n",
-			__func__);
+	emif->base = devm_ioremap_resource(emif->dev, res);
+	if (IS_ERR(emif->base))
 		goto error;
-	}
-
-	emif->base = devm_request_and_ioremap(emif->dev, res);
-	if (!emif->base) {
-		dev_err(emif->dev, "%s: devm_request_and_ioremap() failed\n",
-			__func__);
-		goto error;
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -1644,26 +1914,26 @@ static void __attribute__((unused)) freq_post_notify_handling(void)
 	spin_unlock_irqrestore(&emif_lock, irq_state);
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id emif_of_match[] = {
+		{ .compatible = "ti,emif-4d" },
+		{ .compatible = "ti,emif-4d5" },
+		{},
+};
+MODULE_DEVICE_TABLE(of, emif_of_match);
+#endif
+
 static struct platform_driver emif_driver = {
 	.remove		= __exit_p(emif_remove),
 	.shutdown	= emif_shutdown,
 	.driver = {
 		.name = "emif",
+		.of_match_table = of_match_ptr(emif_of_match),
 	},
 };
 
-static int __init_or_module emif_register(void)
-{
-	return platform_driver_probe(&emif_driver, emif_probe);
-}
+module_platform_driver_probe(emif_driver, emif_probe);
 
-static void __exit emif_unregister(void)
-{
-	platform_driver_unregister(&emif_driver);
-}
-
-module_init(emif_register);
-module_exit(emif_unregister);
 MODULE_DESCRIPTION("TI EMIF SDRAM Controller Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:emif");

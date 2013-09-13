@@ -16,9 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/soc.h>
-#include <mach/kirkwood.h>
-#include <plat/audio.h>
-#include <asm/mach-types.h>
+#include <linux/platform_data/asoc-kirkwood.h>
 #include "../codecs/cs42l51.h"
 
 static int openrd_client_hw_params(struct snd_pcm_substream *substream,
@@ -54,8 +52,8 @@ static struct snd_soc_dai_link openrd_client_dai[] = {
 {
 	.name = "CS42L51",
 	.stream_name = "CS42L51 HiFi",
-	.cpu_dai_name = "kirkwood-i2s",
-	.platform_name = "kirkwood-pcm-audio",
+	.cpu_dai_name = "mvebu-audio",
+	.platform_name = "mvebu-audio",
 	.codec_dai_name = "cs42l51-hifi",
 	.codec_name = "cs42l51-codec.0-004a",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
@@ -71,7 +69,7 @@ static struct snd_soc_card openrd_client = {
 	.num_links = ARRAY_SIZE(openrd_client_dai),
 };
 
-static int __devinit openrd_probe(struct platform_device *pdev)
+static int openrd_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &openrd_client;
 	int ret;
@@ -85,7 +83,7 @@ static int __devinit openrd_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit openrd_remove(struct platform_device *pdev)
+static int openrd_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -99,7 +97,7 @@ static struct platform_driver openrd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= openrd_probe,
-	.remove		= __devexit_p(openrd_remove),
+	.remove		= openrd_remove,
 };
 
 module_platform_driver(openrd_driver);

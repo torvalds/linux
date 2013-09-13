@@ -40,7 +40,7 @@ static struct hard_trap_info {
 	{ 6, SIGBUS },		/* instruction bus error */
 	{ 7, SIGBUS },		/* data bus error */
 	{ 9, SIGTRAP },		/* break */
-/*	{ 11, SIGILL },	*/	/* CPU unusable */
+/*	{ 11, SIGILL }, */	/* CPU unusable */
 	{ 12, SIGFPE },		/* overflow */
 	{ 13, SIGTRAP },	/* trap */
 	{ 14, SIGSEGV },	/* virtual instruction cache coherency */
@@ -283,6 +283,15 @@ static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
 	struct pt_regs *regs = args->regs;
 	int trap = (regs->cp0_cause & 0x7c) >> 2;
 
+#ifdef CONFIG_KPROBES
+	/*
+	 * Return immediately if the kprobes fault notifier has set
+	 * DIE_PAGE_FAULT.
+	 */
+	if (cmd == DIE_PAGE_FAULT)
+		return NOTIFY_DONE;
+#endif /* CONFIG_KPROBES */
+
 	/* Userspace events, ignore. */
 	if (user_mode(regs))
 		return NOTIFY_DONE;
@@ -312,7 +321,7 @@ int kgdb_ll_trap(int cmd, const char *str,
 		.regs	= regs,
 		.str	= str,
 		.err	= err,
-		.trapnr	= trap,
+		.trapnr = trap,
 		.signr	= sig,
 
 	};
@@ -362,7 +371,7 @@ int kgdb_arch_init(void)
 	union mips_instruction insn = {
 		.r_format = {
 			.opcode = spec_op,
-			.func   = break_op,
+			.func	= break_op,
 		}
 	};
 	memcpy(arch_kgdb_ops.gdb_bpt_instr, insn.byte, BREAK_INSTR_SIZE);

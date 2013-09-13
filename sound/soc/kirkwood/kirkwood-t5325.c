@@ -15,9 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/soc.h>
-#include <mach/kirkwood.h>
-#include <plat/audio.h>
-#include <asm/mach-types.h>
+#include <linux/platform_data/asoc-kirkwood.h>
 #include "../codecs/alc5623.h"
 
 static int t5325_hw_params(struct snd_pcm_substream *substream,
@@ -70,8 +68,8 @@ static struct snd_soc_dai_link t5325_dai[] = {
 {
 	.name = "ALC5621",
 	.stream_name = "ALC5621 HiFi",
-	.cpu_dai_name = "kirkwood-i2s",
-	.platform_name = "kirkwood-pcm-audio",
+	.cpu_dai_name = "mvebu-audio",
+	.platform_name = "mvebu-audio",
 	.codec_dai_name = "alc5621-hifi",
 	.codec_name = "alc562x-codec.0-001a",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
@@ -92,7 +90,7 @@ static struct snd_soc_card t5325 = {
 	.num_dapm_routes = ARRAY_SIZE(t5325_route),
 };
 
-static int __devinit t5325_probe(struct platform_device *pdev)
+static int t5325_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &t5325;
 	int ret;
@@ -106,7 +104,7 @@ static int __devinit t5325_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit t5325_remove(struct platform_device *pdev)
+static int t5325_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -120,7 +118,7 @@ static struct platform_driver t5325_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= t5325_probe,
-	.remove		= __devexit_p(t5325_remove),
+	.remove		= t5325_remove,
 };
 
 module_platform_driver(t5325_driver);

@@ -1,6 +1,6 @@
 The Linux WatchDog Timer Driver Core kernel API.
 ===============================================
-Last reviewed: 22-May-2012
+Last reviewed: 12-Feb-2013
 
 Wim Van Sebroeck <wim@iguana.be>
 
@@ -212,3 +212,15 @@ driver specific data to and a pointer to the data itself.
 The watchdog_get_drvdata function allows you to retrieve driver specific data.
 The argument of this function is the watchdog device where you want to retrieve
 data from. The function returns the pointer to the driver specific data.
+
+To initialize the timeout field, the following function can be used:
+
+extern int watchdog_init_timeout(struct watchdog_device *wdd,
+                                  unsigned int timeout_parm, struct device *dev);
+
+The watchdog_init_timeout function allows you to initialize the timeout field
+using the module timeout parameter or by retrieving the timeout-sec property from
+the device tree (if the module timeout parameter is invalid). Best practice is
+to set the default timeout value as timeout value in the watchdog_device and
+then use this function to set the user "preferred" timeout value.
+This routine returns zero on success and a negative errno code for failure.

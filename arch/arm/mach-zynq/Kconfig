@@ -1,0 +1,17 @@
+config ARCH_ZYNQ
+	bool "Xilinx Zynq ARM Cortex A9 Platform" if ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select COMMON_CLK
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select ICST
+	select MIGHT_HAVE_CACHE_L2X0
+	select USE_OF
+	select HAVE_SMP
+	select SPARSE_IRQ
+	select CADENCE_TTC_TIMER
+	help
+	  Support for Xilinx Zynq ARM Cortex A9 Platform

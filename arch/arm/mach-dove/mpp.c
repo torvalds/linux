@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <plat/mpp.h>
 #include <mach/dove.h>
+#include <plat/orion-gpio.h>
 #include "mpp.h"
 
 struct dove_mpp_grp {
@@ -46,7 +47,7 @@ static const struct dove_mpp_grp dove_mpp_grp[] = {
 
 /* Enable gpio for a range of pins. mode should be a combination of
    GPIO_OUTPUT_OK | GPIO_INPUT_OK */
-static void dove_mpp_gpio_mode(int start, int end, int gpio_mode)
+static void __init dove_mpp_gpio_mode(int start, int end, int gpio_mode)
 {
 	int i;
 

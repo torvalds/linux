@@ -18,8 +18,12 @@
 	interrupt-parent = <&mic>;
 
 	cpus {
-		cpu@0 {
-			compatible = "arm,arm926ejs";
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			compatible = "arm,arm926ej-s";
+			device_type = "cpu";
 		};
 	};
 
@@ -180,6 +184,13 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				pnx,timeout = <0x64>;
+			};
+
+			mpwm: mpwm@400E8000 {
+				compatible = "nxp,lpc3220-motor-pwm";
+				reg = <0x400E8000 0x78>;
+				status = "disabled";
+				#pwm-cells = <2>;
 			};
 
 			i2cusb: i2c@31020300 {

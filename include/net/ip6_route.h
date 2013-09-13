@@ -1,9 +1,6 @@
 #ifndef _NET_IP6_ROUTE_H
 #define _NET_IP6_ROUTE_H
 
-#define IP6_RT_PRIO_USER	1024
-#define IP6_RT_PRIO_ADDRCONF	256
-
 struct route_info {
 	__u8			type;
 	__u8			length;
@@ -26,6 +23,7 @@ struct route_info {
 #include <net/sock.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/route.h>
 
 #define RT6_LOOKUP_F_IFACE		0x00000001
 #define RT6_LOOKUP_F_REACHABLE		0x00000002
@@ -105,7 +103,6 @@ extern struct rt6_info		*rt6_lookup(struct net *net,
 					    int oif, int flags);
 
 extern struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
-					 struct neighbour *neigh,
 					 struct flowi6 *fl6);
 extern int icmp6_dst_gc(void);
 
@@ -114,8 +111,6 @@ extern void fib6_force_start_gc(struct net *net);
 extern struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 					   const struct in6_addr *addr,
 					   bool anycast);
-
-extern int			ip6_dst_hoplimit(struct dst_entry *dst);
 
 /*
  *	support functions for ND
@@ -138,6 +133,8 @@ extern void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
 extern void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk,
 			       __be32 mtu);
 extern void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark);
+extern void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
+				   u32 mark);
 extern void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
 
 struct netlink_callback;
@@ -195,6 +192,13 @@ static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 
 	return (np && np->pmtudisc == IPV6_PMTUDISC_PROBE) ?
 	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
+}
+
+static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt, struct in6_addr *dest)
+{
+	if (rt->rt6i_flags & RTF_GATEWAY)
+		return &rt->rt6i_gateway;
+	return dest;
 }
 
 #endif

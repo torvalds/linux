@@ -36,7 +36,7 @@ static struct mtd_partition xlr_nor_parts[] = {
 	{
 		.name = "User FS",
 		.offset = 0x800000,
-		.size   = MTDPART_SIZ_FULL,
+		.size	= MTDPART_SIZ_FULL,
 	}
 };
 
@@ -46,13 +46,13 @@ static struct mtd_partition xlr_nor_parts[] = {
 static struct mtd_partition xlr_nand_parts[] = {
 	{
 		.name	= "Root Filesystem",
-		.offset	= 64 * 64 * 2048,
+		.offset = 64 * 64 * 2048,
 		.size	= 432 * 64 * 2048,
 	},
 	{
 		.name	= "Home Filesystem",
-		.offset	= MTDPART_OFS_APPEND,
-		.size   = MTDPART_SIZ_FULL,
+		.offset = MTDPART_OFS_APPEND,
+		.size	= MTDPART_SIZ_FULL,
 	},
 };
 
@@ -74,8 +74,8 @@ static struct platform_device xlr_nor_dev = {
 	.dev	= {
 		.platform_data	= &xlr_nor_data,
 	},
-	.num_resources  = ARRAY_SIZE(xlr_nor_res),
-	.resource       = xlr_nor_res,
+	.num_resources	= ARRAY_SIZE(xlr_nor_res),
+	.resource	= xlr_nor_res,
 };
 
 const char *xlr_part_probes[] = { "cmdlinepart", NULL };

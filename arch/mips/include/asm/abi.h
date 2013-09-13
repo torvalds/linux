@@ -14,12 +14,12 @@
 
 struct mips_abi {
 	int (* const setup_frame)(void *sig_return, struct k_sigaction *ka,
-	                          struct pt_regs *regs, int signr,
-	                          sigset_t *set);
+				  struct pt_regs *regs, int signr,
+				  sigset_t *set);
 	const unsigned long	signal_return_offset;
 	int (* const setup_rt_frame)(void *sig_return, struct k_sigaction *ka,
-	                       struct pt_regs *regs, int signr,
-	                       sigset_t *set, siginfo_t *info);
+			       struct pt_regs *regs, int signr,
+			       sigset_t *set, siginfo_t *info);
 	const unsigned long	rt_signal_return_offset;
 	const unsigned long	restart;
 };

@@ -16,9 +16,9 @@
 
 #define QBUFF_PER_PAGE		(PAGE_SIZE / sizeof(struct qdio_buffer))
 
-static bool enable_multibuffer;
+static bool enable_multibuffer = 1;
 module_param_named(datarouter, enable_multibuffer, bool, 0400);
-MODULE_PARM_DESC(datarouter, "Enable hardware data router support");
+MODULE_PARM_DESC(datarouter, "Enable hardware data router support (default on)");
 
 static int zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbal)
 {
@@ -68,7 +68,7 @@ static inline void zfcp_qdio_account(struct zfcp_qdio *qdio)
 	unsigned long long now, span;
 	int used;
 
-	now = get_clock_monotonic();
+	now = get_tod_clock_monotonic();
 	span = (now - qdio->req_q_time) >> 12;
 	used = QDIO_MAX_BUFFERS_PER_Q - atomic_read(&qdio->req_q_free);
 	qdio->req_q_util += used * span;
@@ -102,18 +102,22 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 {
 	struct zfcp_qdio *qdio = (struct zfcp_qdio *) parm;
 	struct zfcp_adapter *adapter = qdio->adapter;
-	struct qdio_buffer_element *sbale;
 	int sbal_no, sbal_idx;
-	void *pl[ZFCP_QDIO_MAX_SBALS_PER_REQ + 1];
-	u64 req_id;
-	u8 scount;
 
 	if (unlikely(qdio_err)) {
-		memset(pl, 0, ZFCP_QDIO_MAX_SBALS_PER_REQ * sizeof(void *));
 		if (zfcp_adapter_multi_buffer_active(adapter)) {
+			void *pl[ZFCP_QDIO_MAX_SBALS_PER_REQ + 1];
+			struct qdio_buffer_element *sbale;
+			u64 req_id;
+			u8 scount;
+
+			memset(pl, 0,
+			       ZFCP_QDIO_MAX_SBALS_PER_REQ * sizeof(void *));
 			sbale = qdio->res_q[idx]->element;
 			req_id = (u64) sbale->addr;
-			scount = sbale->scount + 1; /* incl. signaling SBAL */
+			scount = min(sbale->scount + 1,
+				     ZFCP_QDIO_MAX_SBALS_PER_REQ + 1);
+				     /* incl. signaling SBAL */
 
 			for (sbal_no = 0; sbal_no < scount; sbal_no++) {
 				sbal_idx = (idx + sbal_no) %
@@ -220,11 +224,9 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 
 static int zfcp_qdio_sbal_check(struct zfcp_qdio *qdio)
 {
-	spin_lock_irq(&qdio->req_q_lock);
 	if (atomic_read(&qdio->req_q_free) ||
 	    !(atomic_read(&qdio->adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP))
 		return 1;
-	spin_unlock_irq(&qdio->req_q_lock);
 	return 0;
 }
 
@@ -242,9 +244,8 @@ int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
 {
 	long ret;
 
-	spin_unlock_irq(&qdio->req_q_lock);
-	ret = wait_event_interruptible_timeout(qdio->req_q_wq,
-			       zfcp_qdio_sbal_check(qdio), 5 * HZ);
+	ret = wait_event_interruptible_lock_irq_timeout(qdio->req_q_wq,
+		       zfcp_qdio_sbal_check(qdio), qdio->req_q_lock, 5 * HZ);
 
 	if (!(atomic_read(&qdio->adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP))
 		return -EIO;
@@ -258,7 +259,6 @@ int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
 		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdsbg_1");
 	}
 
-	spin_lock_irq(&qdio->req_q_lock);
 	return -EIO;
 }
 

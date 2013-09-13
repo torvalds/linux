@@ -147,8 +147,6 @@ struct rspi_data {
 	unsigned char spsr;
 
 	/* for dmaengine */
-	struct sh_dmae_slave dma_tx;
-	struct sh_dmae_slave dma_rx;
 	struct dma_chan *chan_tx;
 	struct dma_chan *chan_rx;
 	int irq;
@@ -566,8 +564,12 @@ static void rspi_work(struct work_struct *work)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&rspi->lock, flags);
-	while (!list_empty(&rspi->queue)) {
+	while (1) {
+		spin_lock_irqsave(&rspi->lock, flags);
+		if (list_empty(&rspi->queue)) {
+			spin_unlock_irqrestore(&rspi->lock, flags);
+			break;
+		}
 		mesg = list_entry(rspi->queue.next, struct spi_message, queue);
 		list_del_init(&mesg->queue);
 		spin_unlock_irqrestore(&rspi->lock, flags);
@@ -597,8 +599,6 @@ static void rspi_work(struct work_struct *work)
 
 		mesg->status = 0;
 		mesg->complete(mesg->context);
-
-		spin_lock_irqsave(&rspi->lock, flags);
 	}
 
 	return;
@@ -663,20 +663,17 @@ static irqreturn_t rspi_irq(int irq, void *_sr)
 	return ret;
 }
 
-static bool rspi_filter(struct dma_chan *chan, void *filter_param)
+static int rspi_request_dma(struct rspi_data *rspi,
+				      struct platform_device *pdev)
 {
-	chan->private = filter_param;
-	return true;
-}
-
-static void __devinit rspi_request_dma(struct rspi_data *rspi,
-				       struct platform_device *pdev)
-{
-	struct rspi_plat_data *rspi_pd = pdev->dev.platform_data;
+	struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dma_cap_mask_t mask;
+	struct dma_slave_config cfg;
+	int ret;
 
-	if (!rspi_pd)
-		return;
+	if (!res || !rspi_pd)
+		return 0;	/* The driver assumes no error. */
 
 	rspi->dma_width_16bit = rspi_pd->dma_width_16bit;
 
@@ -684,24 +681,42 @@ static void __devinit rspi_request_dma(struct rspi_data *rspi,
 	if (rspi_pd->dma_rx_id && rspi_pd->dma_tx_id) {
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_SLAVE, mask);
-		rspi->dma_rx.slave_id = rspi_pd->dma_rx_id;
-		rspi->chan_rx = dma_request_channel(mask, rspi_filter,
-						    &rspi->dma_rx);
-		if (rspi->chan_rx)
-			dev_info(&pdev->dev, "Use DMA when rx.\n");
+		rspi->chan_rx = dma_request_channel(mask, shdma_chan_filter,
+						    (void *)rspi_pd->dma_rx_id);
+		if (rspi->chan_rx) {
+			cfg.slave_id = rspi_pd->dma_rx_id;
+			cfg.direction = DMA_DEV_TO_MEM;
+			cfg.dst_addr = 0;
+			cfg.src_addr = res->start + RSPI_SPDR;
+			ret = dmaengine_slave_config(rspi->chan_rx, &cfg);
+			if (!ret)
+				dev_info(&pdev->dev, "Use DMA when rx.\n");
+			else
+				return ret;
+		}
 	}
 	if (rspi_pd->dma_tx_id) {
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_SLAVE, mask);
-		rspi->dma_tx.slave_id = rspi_pd->dma_tx_id;
-		rspi->chan_tx = dma_request_channel(mask, rspi_filter,
-						    &rspi->dma_tx);
-		if (rspi->chan_tx)
-			dev_info(&pdev->dev, "Use DMA when tx\n");
+		rspi->chan_tx = dma_request_channel(mask, shdma_chan_filter,
+						    (void *)rspi_pd->dma_tx_id);
+		if (rspi->chan_tx) {
+			cfg.slave_id = rspi_pd->dma_tx_id;
+			cfg.direction = DMA_MEM_TO_DEV;
+			cfg.dst_addr = res->start + RSPI_SPDR;
+			cfg.src_addr = 0;
+			ret = dmaengine_slave_config(rspi->chan_tx, &cfg);
+			if (!ret)
+				dev_info(&pdev->dev, "Use DMA when tx\n");
+			else
+				return ret;
+		}
 	}
+
+	return 0;
 }
 
-static void __devexit rspi_release_dma(struct rspi_data *rspi)
+static void rspi_release_dma(struct rspi_data *rspi)
 {
 	if (rspi->chan_tx)
 		dma_release_channel(rspi->chan_tx);
@@ -709,9 +724,9 @@ static void __devexit rspi_release_dma(struct rspi_data *rspi)
 		dma_release_channel(rspi->chan_rx);
 }
 
-static int __devexit rspi_remove(struct platform_device *pdev)
+static int rspi_remove(struct platform_device *pdev)
 {
-	struct rspi_data *rspi = dev_get_drvdata(&pdev->dev);
+	struct rspi_data *rspi = spi_master_get(platform_get_drvdata(pdev));
 
 	spi_unregister_master(rspi->master);
 	rspi_release_dma(rspi);
@@ -723,7 +738,7 @@ static int __devexit rspi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit rspi_probe(struct platform_device *pdev)
+static int rspi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct spi_master *master;
@@ -751,7 +766,7 @@ static int __devinit rspi_probe(struct platform_device *pdev)
 	}
 
 	rspi = spi_master_get_devdata(master);
-	dev_set_drvdata(&pdev->dev, rspi);
+	platform_set_drvdata(pdev, rspi);
 
 	rspi->master = master;
 	rspi->addr = ioremap(res->start, resource_size(res));
@@ -788,7 +803,11 @@ static int __devinit rspi_probe(struct platform_device *pdev)
 	}
 
 	rspi->irq = irq;
-	rspi_request_dma(rspi, pdev);
+	ret = rspi_request_dma(rspi, pdev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "rspi_request_dma failed.\n");
+		goto error4;
+	}
 
 	ret = spi_register_master(master);
 	if (ret < 0) {
@@ -815,7 +834,7 @@ error1:
 
 static struct platform_driver rspi_driver = {
 	.probe =	rspi_probe,
-	.remove =	__devexit_p(rspi_remove),
+	.remove =	rspi_remove,
 	.driver		= {
 		.name = "rspi",
 		.owner	= THIS_MODULE,

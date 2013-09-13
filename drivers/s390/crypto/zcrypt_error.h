@@ -26,6 +26,8 @@
 #ifndef _ZCRYPT_ERROR_H_
 #define _ZCRYPT_ERROR_H_
 
+#include <linux/atomic.h>
+#include "zcrypt_debug.h"
 #include "zcrypt_api.h"
 
 /**
@@ -108,16 +110,27 @@ static inline int convert_error(struct zcrypt_device *zdev,
 		 * and then repeat the request.
 		 */
 		WARN_ON(1);
+		atomic_set(&zcrypt_rescan_req, 1);
 		zdev->online = 0;
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
+			       zdev->ap_dev->qid,
+			       zdev->online, ehdr->reply_code);
 		return -EAGAIN;
 	case REP82_ERROR_TRANSPORT_FAIL:
 	case REP82_ERROR_MACHINE_FAILURE:
 	//   REP88_ERROR_MODULE_FAILURE		// '10' CEX2A
 		/* If a card fails disable it and repeat the request. */
+		atomic_set(&zcrypt_rescan_req, 1);
 		zdev->online = 0;
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
+			       zdev->ap_dev->qid,
+			       zdev->online, ehdr->reply_code);
 		return -EAGAIN;
 	default:
 		zdev->online = 0;
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
+			       zdev->ap_dev->qid,
+			       zdev->online, ehdr->reply_code);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }

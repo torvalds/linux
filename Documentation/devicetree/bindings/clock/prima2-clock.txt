@@ -1,0 +1,73 @@
+* Clock bindings for CSR SiRFprimaII
+
+Required properties:
+- compatible: Should be "sirf,prima2-clkc"
+- reg: Address and length of the register set
+- interrupts: Should contain clock controller interrupt
+- #clock-cells: Should be <1>
+
+The clock consumer should specify the desired clock by having the clock
+ID in its "clocks" phandle cell.  The following is a full list of prima2
+clocks and IDs.
+
+	Clock			ID
+	---------------------------
+	rtc			0
+	osc             	1
+	pll1            	2
+	pll2            	3
+	pll3            	4
+	mem             	5
+	sys             	6
+	security        	7
+	dsp             	8
+	gps             	9
+	mf              	10
+	io              	11
+	cpu             	12
+	uart0           	13
+	uart1           	14
+	uart2           	15
+	tsc             	16
+	i2c0            	17
+	i2c1            	18
+	spi0            	19
+	spi1            	20
+	pwmc            	21
+	efuse           	22
+	pulse           	23
+	dmac0           	24
+	dmac1           	25
+	nand            	26
+	audio           	27
+	usp0            	28
+	usp1            	29
+	usp2            	30
+	vip             	31
+	gfx             	32
+	mm              	33
+	lcd             	34
+	vpp             	35
+	mmc01           	36
+	mmc23           	37
+	mmc45           	38
+	usbpll          	39
+	usb0            	40
+	usb1			41
+
+Examples:
+
+clks: clock-controller@88000000 {
+	compatible = "sirf,prima2-clkc";
+	reg = <0x88000000 0x1000>;
+	interrupts = <3>;
+	#clock-cells = <1>;
+};
+
+i2c0: i2c@b00e0000 {
+	cell-index = <0>;
+	compatible = "sirf,prima2-i2c";
+	reg = <0xb00e0000 0x10000>;
+	interrupts = <24>;
+	clocks = <&clks 17>;
+};

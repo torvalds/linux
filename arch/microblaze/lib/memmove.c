@@ -24,10 +24,10 @@
  * not any responsibility to update it.
  */
 
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/compiler.h>
-#include <linux/module.h>
 #include <linux/string.h>
 
 #ifdef __HAVE_ARCH_MEMMOVE
@@ -129,7 +129,8 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 
 			for (; c >= 4; c -= 4) {
 				value = *--i_src;
-				*--i_dst = buf_hold | ((value & 0xFFFFFF00)>>8);
+				*--i_dst = buf_hold |
+						((value & 0xFFFFFF00) >> 8);
 				buf_hold = (value  & 0xFF) << 24;
 			}
 #endif
@@ -155,7 +156,8 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 
 			for (; c >= 4; c -= 4) {
 				value = *--i_src;
-				*--i_dst = buf_hold | ((value & 0xFFFF0000)>>16);
+				*--i_dst = buf_hold |
+						((value & 0xFFFF0000) >> 16);
 				buf_hold = (value & 0xFFFF) << 16;
 			}
 #endif
@@ -181,7 +183,8 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 
 			for (; c >= 4; c -= 4) {
 				value = *--i_src;
-				*--i_dst = buf_hold | ((value & 0xFF000000)>> 24);
+				*--i_dst = buf_hold |
+						((value & 0xFF000000) >> 24);
 				buf_hold = (value & 0xFFFFFF) << 8;
 			}
 #endif

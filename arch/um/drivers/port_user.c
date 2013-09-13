@@ -10,9 +10,9 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include "chan_user.h"
-#include "os.h"
+#include <os.h>
 #include "port.h"
-#include "um_malloc.h"
+#include <um_malloc.h>
 
 struct port_chan {
 	int raw;

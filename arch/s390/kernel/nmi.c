@@ -214,10 +214,7 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 			: "0", "cc");
 #endif
 	/* Revalidate clock comparator register */
-	if (S390_lowcore.clock_comparator == -1)
-		set_clock_comparator(S390_lowcore.mcck_clock);
-	else
-		set_clock_comparator(S390_lowcore.clock_comparator);
+	set_clock_comparator(S390_lowcore.clock_comparator);
 	/* Check if old PSW is valid */
 	if (!mci->wp)
 		/*
@@ -254,7 +251,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	int umode;
 
 	nmi_enter();
-	kstat_cpu(smp_processor_id()).irqs[NMI_NMI]++;
+	inc_irq_stat(NMI_NMI);
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);
 	umode = user_mode(regs);
@@ -293,7 +290,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			 * retry this instruction.
 			 */
 			spin_lock(&ipd_lock);
-			tmp = get_clock();
+			tmp = get_tod_clock();
 			if (((tmp - last_ipd) >> 12) < MAX_IPD_TIME)
 				ipd_count++;
 			else

@@ -18,6 +18,8 @@
 #include <linux/types.h>
 #include <linux/sizes.h>
 
+#include <asm/cache.h>
+
 #ifdef CONFIG_NEED_MACH_MEMORY_H
 #include <mach/memory.h>
 #endif
@@ -36,23 +38,23 @@
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area
  */
 #define PAGE_OFFSET		UL(CONFIG_PAGE_OFFSET)
-#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(0x01000000))
-#define TASK_UNMAPPED_BASE	(UL(CONFIG_PAGE_OFFSET) / 3)
+#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M))
+#define TASK_UNMAPPED_BASE	ALIGN(TASK_SIZE / 3, SZ_16M)
 
 /*
  * The maximum size of a 26-bit user space task.
  */
-#define TASK_SIZE_26		UL(0x04000000)
+#define TASK_SIZE_26		(UL(1) << 26)
 
 /*
  * The module space lives between the addresses given by TASK_SIZE
  * and PAGE_OFFSET - it must be within 32MB of the kernel text.
  */
 #ifndef CONFIG_THUMB2_KERNEL
-#define MODULES_VADDR		(PAGE_OFFSET - 16*1024*1024)
+#define MODULES_VADDR		(PAGE_OFFSET - SZ_16M)
 #else
 /* smaller range for Thumb-2 symbols relocation (2^24)*/
-#define MODULES_VADDR		(PAGE_OFFSET - 8*1024*1024)
+#define MODULES_VADDR		(PAGE_OFFSET - SZ_8M)
 #endif
 
 #if TASK_SIZE > MODULES_VADDR
@@ -141,6 +143,20 @@
 #define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
 #define phys_to_page(phys)	(pfn_to_page(__phys_to_pfn(phys)))
 
+/*
+ * Minimum guaranted alignment in pgd_alloc().  The page table pointers passed
+ * around in head.S and proc-*.S are shifted by this amount, in order to
+ * leave spare high bits for systems with physical address extension.  This
+ * does not fully accomodate the 40-bit addressing capability of ARM LPAE, but
+ * gives us about 38-bits or so.
+ */
+#ifdef CONFIG_ARM_LPAE
+#define ARCH_PGD_SHIFT		L1_CACHE_SHIFT
+#else
+#define ARCH_PGD_SHIFT		0
+#endif
+#define ARCH_PGD_MASK		((1 << ARCH_PGD_SHIFT) - 1)
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -187,6 +203,7 @@ static inline unsigned long __phys_to_virt(unsigned long x)
 #define __phys_to_virt(x)	((x) - PHYS_OFFSET + PAGE_OFFSET)
 #endif
 #endif
+#endif /* __ASSEMBLY__ */
 
 #ifndef PHYS_OFFSET
 #ifdef PLAT_PHYS_OFFSET
@@ -196,6 +213,8 @@ static inline unsigned long __phys_to_virt(unsigned long x)
 #endif
 #endif
 
+#ifndef __ASSEMBLY__
+
 /*
  * PFNs are used to describe any physical page; this means
  * PFN 0 == physical address 0.
@@ -204,7 +223,7 @@ static inline unsigned long __phys_to_virt(unsigned long x)
  * direct-mapped view.  We assume this is the first page
  * of RAM in the mem_map as well.
  */
-#define PHYS_PFN_OFFSET	(PHYS_OFFSET >> PAGE_SHIFT)
+#define PHYS_PFN_OFFSET	((unsigned long)(PHYS_OFFSET >> PAGE_SHIFT))
 
 /*
  * These are *only* valid on the kernel direct mapped RAM memory.
@@ -242,6 +261,7 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define __bus_to_pfn(x)	__phys_to_pfn(x)
 #endif
 
+#ifdef CONFIG_VIRT_TO_BUS
 static inline __deprecated unsigned long virt_to_bus(void *x)
 {
 	return __virt_to_bus((unsigned long)x);
@@ -251,15 +271,10 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 {
 	return (void *)__bus_to_virt(x);
 }
+#endif
 
 /*
  * Conversion between a struct page and a physical address.
- *
- * Note: when converting an unknown physical address to a
- * struct page, the resulting pointer must be validated
- * using VALID_PAGE().  It must return an invalid struct page
- * for any physical address not corresponding to a system
- * RAM address.
  *
  *  page_to_pfn(page)	convert a struct page * to a PFN number
  *  pfn_to_page(pfn)	convert a _valid_ PFN number to struct page *
@@ -271,14 +286,6 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	((unsigned long)(kaddr) >= PAGE_OFFSET && (unsigned long)(kaddr) < (unsigned long)high_memory)
-
-/*
- * Optional coherency support.  Currently used only by selected
- * Intel XSC3-based systems.
- */
-#ifndef arch_is_coherent
-#define arch_is_coherent()		0
-#endif
 
 #endif
 

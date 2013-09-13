@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <crypto/aes.h>
 
@@ -38,13 +39,9 @@ static void gf_mulx(u8 *pad)
 static void aes_128_cmac_vector(struct crypto_cipher *tfm, size_t num_elem,
 				const u8 *addr[], const size_t *len, u8 *mac)
 {
-	u8 scratch[2 * AES_BLOCK_SIZE];
-	u8 *cbc, *pad;
+	u8 cbc[AES_BLOCK_SIZE], pad[AES_BLOCK_SIZE];
 	const u8 *pos, *end;
 	size_t i, e, left, total_len;
-
-	cbc = scratch;
-	pad = scratch + AES_BLOCK_SIZE;
 
 	memset(cbc, 0, AES_BLOCK_SIZE);
 
@@ -130,3 +127,20 @@ void ieee80211_aes_cmac_key_free(struct crypto_cipher *tfm)
 {
 	crypto_free_cipher(tfm);
 }
+
+void ieee80211_aes_cmac_calculate_k1_k2(struct ieee80211_key_conf *keyconf,
+					u8 *k1, u8 *k2)
+{
+	u8 l[AES_BLOCK_SIZE] = {};
+	struct ieee80211_key *key =
+		container_of(keyconf, struct ieee80211_key, conf);
+
+	crypto_cipher_encrypt_one(key->u.aes_cmac.tfm, l, l);
+
+	memcpy(k1, l, AES_BLOCK_SIZE);
+	gf_mulx(k1);
+
+	memcpy(k2, k1, AES_BLOCK_SIZE);
+	gf_mulx(k2);
+}
+EXPORT_SYMBOL(ieee80211_aes_cmac_calculate_k1_k2);

@@ -97,8 +97,6 @@ static u8 do_join(struct _adapter *padapter)
 				pmlmepriv->fw_state = WIFI_ADHOC_MASTER_STATE;
 				pibss = padapter->registrypriv.dev_network.
 					MacAddress;
-				memset(&pdev_network->Ssid, 0,
-					sizeof(struct ndis_802_11_ssid));
 				memcpy(&pdev_network->Ssid,
 					&pmlmepriv->assoc_ssid,
 					sizeof(struct ndis_802_11_ssid));
@@ -131,10 +129,7 @@ u8 r8712_set_802_11_bssid(struct _adapter *padapter, u8 *bssid)
 	u8 status = true;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	if ((bssid[0] == 0x00 && bssid[1] == 0x00 && bssid[2] == 0x00 &&
-	     bssid[3] == 0x00 && bssid[4] == 0x00 && bssid[5] == 0x00) ||
-	    (bssid[0] == 0xFF && bssid[1] == 0xFF && bssid[2] == 0xFF &&
-	     bssid[3] == 0xFF && bssid[4] == 0xFF && bssid[5] == 0xFF)) {
+	if (is_zero_ether_addr(bssid) || is_broadcast_ether_addr(bssid)) {
 		status = false;
 		return status;
 	}

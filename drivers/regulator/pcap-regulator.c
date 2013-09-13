@@ -236,14 +236,14 @@ static const struct regulator_desc pcap_regulators[] = {
 	VREG(VAUX4), VREG(VSIM), VREG(VSIM2), VREG(VVIB), VREG(SW1), VREG(SW2),
 };
 
-static int __devinit pcap_regulator_probe(struct platform_device *pdev)
+static int pcap_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev;
 	void *pcap = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
 
 	config.dev = &pdev->dev;
-	config.init_data = pdev->dev.platform_data;
+	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = pcap;
 
 	rdev = regulator_register(&pcap_regulators[pdev->id], &config);
@@ -255,12 +255,11 @@ static int __devinit pcap_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcap_regulator_remove(struct platform_device *pdev)
+static int pcap_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 
 	regulator_unregister(rdev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -271,7 +270,7 @@ static struct platform_driver pcap_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= pcap_regulator_probe,
-	.remove	= __devexit_p(pcap_regulator_remove),
+	.remove	= pcap_regulator_remove,
 };
 
 static int __init pcap_regulator_init(void)

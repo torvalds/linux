@@ -6,8 +6,8 @@
 #ifndef __KERN_UTIL_H__
 #define __KERN_UTIL_H__
 
-#include "sysdep/ptrace.h"
-#include "sysdep/faultinfo.h"
+#include <sysdep/ptrace.h>
+#include <sysdep/faultinfo.h>
 
 struct siginfo;
 

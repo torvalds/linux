@@ -26,16 +26,10 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Jon Grimm             <jgrimm@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -129,20 +123,20 @@ static const struct file_operations sctp_objcnt_ops = {
 };
 
 /* Initialize the objcount in the proc filesystem.  */
-void sctp_dbg_objcnt_init(void)
+void sctp_dbg_objcnt_init(struct net *net)
 {
 	struct proc_dir_entry *ent;
 
 	ent = proc_create("sctp_dbg_objcnt", 0,
-			  proc_net_sctp, &sctp_objcnt_ops);
+			  net->sctp.proc_net_sctp, &sctp_objcnt_ops);
 	if (!ent)
 		pr_warn("sctp_dbg_objcnt: Unable to create /proc entry.\n");
 }
 
 /* Cleanup the objcount entry in the proc filesystem.  */
-void sctp_dbg_objcnt_exit(void)
+void sctp_dbg_objcnt_exit(struct net *net)
 {
-	remove_proc_entry("sctp_dbg_objcnt", proc_net_sctp);
+	remove_proc_entry("sctp_dbg_objcnt", net->sctp.proc_net_sctp);
 }
 
 

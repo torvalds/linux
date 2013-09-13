@@ -10,10 +10,10 @@
 #endif
 
 	.text
-.global SYMBOL_NAME(memcpy)
+.global _memcpy
 
 ;;; void *memcpy(void *to, void *from, size_t n)
-SYMBOL_NAME_LABEL(memcpy)
+_memcpy:
 	mov.l	er2,er2
 	bne	1f
 	rts	

@@ -224,7 +224,7 @@ config CRYPTO_DEV_TALITOS
 
 config CRYPTO_DEV_IXP4XX
 	tristate "Driver for IXP4xx crypto hardware acceleration"
-	depends on ARCH_IXP4XX
+	depends on ARCH_IXP4XX && IXP4XX_QMGR && IXP4XX_NPE
 	select CRYPTO_DES
 	select CRYPTO_ALGAPI
 	select CRYPTO_AUTHENC
@@ -242,18 +242,22 @@ config CRYPTO_DEV_PPC4XX
 	  This option allows you to have support for AMCC crypto acceleration.
 
 config CRYPTO_DEV_OMAP_SHAM
-	tristate "Support for OMAP SHA1/MD5 hw accelerator"
-	depends on ARCH_OMAP2 || ARCH_OMAP3
+	tristate "Support for OMAP MD5/SHA1/SHA2 hw accelerator"
+	depends on ARCH_OMAP2PLUS
 	select CRYPTO_SHA1
 	select CRYPTO_MD5
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_HMAC
 	help
-	  OMAP processors have SHA1/MD5 hw accelerator. Select this if you
-	  want to use the OMAP module for SHA1/MD5 algorithms.
+	  OMAP processors have MD5/SHA1/SHA2 hw accelerator. Select this if you
+	  want to use the OMAP module for MD5/SHA1/SHA2 algorithms.
 
 config CRYPTO_DEV_OMAP_AES
 	tristate "Support for OMAP AES hw engine"
-	depends on ARCH_OMAP2 || ARCH_OMAP3
+	depends on ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP2PLUS
 	select CRYPTO_AES
+	select CRYPTO_BLKCIPHER2
 	help
 	  OMAP processors have AES module accelerator. Select this if you
 	  want to use the OMAP module for AES algorithms.
@@ -274,6 +278,26 @@ config CRYPTO_DEV_PICOXCELL
 	  and for 3gpp Layer 2 ciphering support.
 
 	  Saying m here will build a module named pipcoxcell_crypto.
+
+config CRYPTO_DEV_SAHARA
+	tristate "Support for SAHARA crypto accelerator"
+	depends on ARCH_MXC && OF
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_AES
+	select CRYPTO_ECB
+	help
+	  This option enables support for the SAHARA HW crypto accelerator
+	  found in some Freescale i.MX chips.
+
+config CRYPTO_DEV_DCP
+	tristate "Support for the DCP engine"
+	depends on ARCH_MXS && OF
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	help
+	  This options enables support for the hardware crypto-acceleration
+	  capabilities of the DCP co-processor
 
 config CRYPTO_DEV_S5P
 	tristate "Support for Samsung S5PV210 crypto accelerator"
@@ -298,21 +322,15 @@ config CRYPTO_DEV_TEGRA_AES
 	  will be called tegra-aes.
 
 config CRYPTO_DEV_NX
-	tristate "Support for Power7+ in-Nest cryptographic acceleration"
+	bool "Support for IBM Power7+ in-Nest cryptographic acceleration"
 	depends on PPC64 && IBMVIO
-	select CRYPTO_AES
-	select CRYPTO_CBC
-	select CRYPTO_ECB
-	select CRYPTO_CCM
-	select CRYPTO_GCM
-	select CRYPTO_AUTHENC
-	select CRYPTO_XCBC
-	select CRYPTO_SHA256
-	select CRYPTO_SHA512
+	default n
 	help
-	  Support for Power7+ in-Nest cryptographic acceleration. This
-	  module supports acceleration for AES and SHA2 algorithms. If you
-	  choose 'M' here, this module will be called nx_crypto.
+	  Support for Power7+ in-Nest cryptographic acceleration.
+
+if CRYPTO_DEV_NX
+	source "drivers/crypto/nx/Kconfig"
+endif
 
 config CRYPTO_DEV_UX500
 	tristate "Driver for ST-Ericsson UX500 crypto hardware acceleration"
@@ -340,7 +358,7 @@ config CRYPTO_DEV_ATMEL_AES
 	select CRYPTO_AES
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
-	select CONFIG_AT_HDMAC
+	select AT_HDMAC
 	help
 	  Some Atmel processors have AES hw accelerator.
 	  Select this if you want to use the Atmel module for
@@ -366,15 +384,17 @@ config CRYPTO_DEV_ATMEL_TDES
 	  will be called atmel-tdes.
 
 config CRYPTO_DEV_ATMEL_SHA
-	tristate "Support for Atmel SHA1/SHA256 hw accelerator"
+	tristate "Support for Atmel SHA hw accelerator"
 	depends on ARCH_AT91
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
+	select CRYPTO_SHA512
 	select CRYPTO_ALGAPI
 	help
-	  Some Atmel processors have SHA1/SHA256 hw accelerator.
+	  Some Atmel processors have SHA1/SHA224/SHA256/SHA384/SHA512
+	  hw accelerator.
 	  Select this if you want to use the Atmel module for
-	  SHA1/SHA256 algorithms.
+	  SHA1/SHA224/SHA256/SHA384/SHA512 algorithms.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-sha.

@@ -1,6 +1,6 @@
 /* bnx2x_fw_defs.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2012 Broadcom Corporation
+ * Copyright (c) 2007-2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,33 +23,38 @@
 	(IRO[159].base + ((funcId) * IRO[159].m1))
 #define CSTORM_FUNC_EN_OFFSET(funcId) \
 	(IRO[149].base + ((funcId) * IRO[149].m1))
+#define CSTORM_HC_SYNC_LINE_INDEX_E1X_OFFSET(hcIndex, sbId) \
+	(IRO[139].base + ((hcIndex) * IRO[139].m1) + ((sbId) * IRO[139].m2))
+#define CSTORM_HC_SYNC_LINE_INDEX_E2_OFFSET(hcIndex, sbId) \
+	(IRO[138].base + (((hcIndex)>>2) * IRO[138].m1) + (((hcIndex)&3) \
+	* IRO[138].m2) + ((sbId) * IRO[138].m3))
 #define CSTORM_IGU_MODE_OFFSET (IRO[157].base)
 #define CSTORM_ISCSI_CQ_SIZE_OFFSET(pfId) \
-	(IRO[316].base + ((pfId) * IRO[316].m1))
-#define CSTORM_ISCSI_CQ_SQN_SIZE_OFFSET(pfId) \
 	(IRO[317].base + ((pfId) * IRO[317].m1))
+#define CSTORM_ISCSI_CQ_SQN_SIZE_OFFSET(pfId) \
+	(IRO[318].base + ((pfId) * IRO[318].m1))
 #define CSTORM_ISCSI_EQ_CONS_OFFSET(pfId, iscsiEqId) \
-	(IRO[309].base + ((pfId) * IRO[309].m1) + ((iscsiEqId) * IRO[309].m2))
-#define CSTORM_ISCSI_EQ_NEXT_EQE_ADDR_OFFSET(pfId, iscsiEqId) \
-	(IRO[311].base + ((pfId) * IRO[311].m1) + ((iscsiEqId) * IRO[311].m2))
-#define CSTORM_ISCSI_EQ_NEXT_PAGE_ADDR_OFFSET(pfId, iscsiEqId) \
 	(IRO[310].base + ((pfId) * IRO[310].m1) + ((iscsiEqId) * IRO[310].m2))
-#define CSTORM_ISCSI_EQ_NEXT_PAGE_ADDR_VALID_OFFSET(pfId, iscsiEqId) \
+#define CSTORM_ISCSI_EQ_NEXT_EQE_ADDR_OFFSET(pfId, iscsiEqId) \
 	(IRO[312].base + ((pfId) * IRO[312].m1) + ((iscsiEqId) * IRO[312].m2))
-#define CSTORM_ISCSI_EQ_PROD_OFFSET(pfId, iscsiEqId) \
-	(IRO[308].base + ((pfId) * IRO[308].m1) + ((iscsiEqId) * IRO[308].m2))
-#define CSTORM_ISCSI_EQ_SB_INDEX_OFFSET(pfId, iscsiEqId) \
-	(IRO[314].base + ((pfId) * IRO[314].m1) + ((iscsiEqId) * IRO[314].m2))
-#define CSTORM_ISCSI_EQ_SB_NUM_OFFSET(pfId, iscsiEqId) \
+#define CSTORM_ISCSI_EQ_NEXT_PAGE_ADDR_OFFSET(pfId, iscsiEqId) \
+	(IRO[311].base + ((pfId) * IRO[311].m1) + ((iscsiEqId) * IRO[311].m2))
+#define CSTORM_ISCSI_EQ_NEXT_PAGE_ADDR_VALID_OFFSET(pfId, iscsiEqId) \
 	(IRO[313].base + ((pfId) * IRO[313].m1) + ((iscsiEqId) * IRO[313].m2))
+#define CSTORM_ISCSI_EQ_PROD_OFFSET(pfId, iscsiEqId) \
+	(IRO[309].base + ((pfId) * IRO[309].m1) + ((iscsiEqId) * IRO[309].m2))
+#define CSTORM_ISCSI_EQ_SB_INDEX_OFFSET(pfId, iscsiEqId) \
+	(IRO[315].base + ((pfId) * IRO[315].m1) + ((iscsiEqId) * IRO[315].m2))
+#define CSTORM_ISCSI_EQ_SB_NUM_OFFSET(pfId, iscsiEqId) \
+	(IRO[314].base + ((pfId) * IRO[314].m1) + ((iscsiEqId) * IRO[314].m2))
 #define CSTORM_ISCSI_HQ_SIZE_OFFSET(pfId) \
-	(IRO[315].base + ((pfId) * IRO[315].m1))
+	(IRO[316].base + ((pfId) * IRO[316].m1))
 #define CSTORM_ISCSI_NUM_OF_TASKS_OFFSET(pfId) \
-	(IRO[307].base + ((pfId) * IRO[307].m1))
+	(IRO[308].base + ((pfId) * IRO[308].m1))
 #define CSTORM_ISCSI_PAGE_SIZE_LOG_OFFSET(pfId) \
-	(IRO[306].base + ((pfId) * IRO[306].m1))
+	(IRO[307].base + ((pfId) * IRO[307].m1))
 #define CSTORM_ISCSI_PAGE_SIZE_OFFSET(pfId) \
-	(IRO[305].base + ((pfId) * IRO[305].m1))
+	(IRO[306].base + ((pfId) * IRO[306].m1))
 #define CSTORM_RECORD_SLOW_PATH_OFFSET(funcId) \
 	(IRO[151].base + ((funcId) * IRO[151].m1))
 #define CSTORM_SP_STATUS_BLOCK_DATA_OFFSET(pfId) \
@@ -88,9 +93,6 @@
 #define TSTORM_ASSERT_LIST_INDEX_OFFSET	(IRO[102].base)
 #define TSTORM_ASSERT_LIST_OFFSET(assertListEntry) \
 	(IRO[101].base + ((assertListEntry) * IRO[101].m1))
-#define TSTORM_COMMON_SAFC_WORKAROUND_ENABLE_OFFSET (IRO[107].base)
-#define TSTORM_COMMON_SAFC_WORKAROUND_TIMEOUT_10USEC_OFFSET \
-	(IRO[108].base)
 #define TSTORM_FUNCTION_COMMON_CONFIG_OFFSET(pfId) \
 	(IRO[201].base + ((pfId) * IRO[201].m1))
 #define TSTORM_FUNC_EN_OFFSET(funcId) \
@@ -112,7 +114,7 @@
 #define TSTORM_ISCSI_RQ_SIZE_OFFSET(pfId) \
 	(IRO[268].base + ((pfId) * IRO[268].m1))
 #define TSTORM_ISCSI_TCP_LOCAL_ADV_WND_OFFSET(pfId) \
-	(IRO[277].base + ((pfId) * IRO[277].m1))
+	(IRO[278].base + ((pfId) * IRO[278].m1))
 #define TSTORM_ISCSI_TCP_VARS_FLAGS_OFFSET(pfId) \
 	(IRO[264].base + ((pfId) * IRO[264].m1))
 #define TSTORM_ISCSI_TCP_VARS_LSB_LOCAL_MAC_ADDR_OFFSET(pfId) \
@@ -134,35 +136,32 @@
 #define USTORM_ASSERT_LIST_INDEX_OFFSET	(IRO[177].base)
 #define USTORM_ASSERT_LIST_OFFSET(assertListEntry) \
 	(IRO[176].base + ((assertListEntry) * IRO[176].m1))
-#define USTORM_CQE_PAGE_NEXT_OFFSET(portId, clientId) \
-	(IRO[205].base + ((portId) * IRO[205].m1) + ((clientId) * \
-	IRO[205].m2))
 #define USTORM_ETH_PAUSE_ENABLED_OFFSET(portId) \
 	(IRO[183].base + ((portId) * IRO[183].m1))
 #define USTORM_FCOE_EQ_PROD_OFFSET(pfId) \
-	(IRO[318].base + ((pfId) * IRO[318].m1))
+	(IRO[319].base + ((pfId) * IRO[319].m1))
 #define USTORM_FUNC_EN_OFFSET(funcId) \
 	(IRO[178].base + ((funcId) * IRO[178].m1))
 #define USTORM_ISCSI_CQ_SIZE_OFFSET(pfId) \
-	(IRO[282].base + ((pfId) * IRO[282].m1))
-#define USTORM_ISCSI_CQ_SQN_SIZE_OFFSET(pfId) \
 	(IRO[283].base + ((pfId) * IRO[283].m1))
-#define USTORM_ISCSI_ERROR_BITMAP_OFFSET(pfId) \
-	(IRO[287].base + ((pfId) * IRO[287].m1))
-#define USTORM_ISCSI_GLOBAL_BUF_PHYS_ADDR_OFFSET(pfId) \
+#define USTORM_ISCSI_CQ_SQN_SIZE_OFFSET(pfId) \
 	(IRO[284].base + ((pfId) * IRO[284].m1))
-#define USTORM_ISCSI_NUM_OF_TASKS_OFFSET(pfId) \
-	(IRO[280].base + ((pfId) * IRO[280].m1))
-#define USTORM_ISCSI_PAGE_SIZE_LOG_OFFSET(pfId) \
-	(IRO[279].base + ((pfId) * IRO[279].m1))
-#define USTORM_ISCSI_PAGE_SIZE_OFFSET(pfId) \
-	(IRO[278].base + ((pfId) * IRO[278].m1))
-#define USTORM_ISCSI_R2TQ_SIZE_OFFSET(pfId) \
-	(IRO[281].base + ((pfId) * IRO[281].m1))
-#define USTORM_ISCSI_RQ_BUFFER_SIZE_OFFSET(pfId) \
+#define USTORM_ISCSI_ERROR_BITMAP_OFFSET(pfId) \
+	(IRO[288].base + ((pfId) * IRO[288].m1))
+#define USTORM_ISCSI_GLOBAL_BUF_PHYS_ADDR_OFFSET(pfId) \
 	(IRO[285].base + ((pfId) * IRO[285].m1))
-#define USTORM_ISCSI_RQ_SIZE_OFFSET(pfId) \
+#define USTORM_ISCSI_NUM_OF_TASKS_OFFSET(pfId) \
+	(IRO[281].base + ((pfId) * IRO[281].m1))
+#define USTORM_ISCSI_PAGE_SIZE_LOG_OFFSET(pfId) \
+	(IRO[280].base + ((pfId) * IRO[280].m1))
+#define USTORM_ISCSI_PAGE_SIZE_OFFSET(pfId) \
+	(IRO[279].base + ((pfId) * IRO[279].m1))
+#define USTORM_ISCSI_R2TQ_SIZE_OFFSET(pfId) \
+	(IRO[282].base + ((pfId) * IRO[282].m1))
+#define USTORM_ISCSI_RQ_BUFFER_SIZE_OFFSET(pfId) \
 	(IRO[286].base + ((pfId) * IRO[286].m1))
+#define USTORM_ISCSI_RQ_SIZE_OFFSET(pfId) \
+	(IRO[287].base + ((pfId) * IRO[287].m1))
 #define USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(pfId) \
 	(IRO[182].base + ((pfId) * IRO[182].m1))
 #define USTORM_RECORD_SLOW_PATH_OFFSET(funcId) \
@@ -188,39 +187,39 @@
 #define XSTORM_FUNC_EN_OFFSET(funcId) \
 	(IRO[47].base + ((funcId) * IRO[47].m1))
 #define XSTORM_ISCSI_HQ_SIZE_OFFSET(pfId) \
-	(IRO[295].base + ((pfId) * IRO[295].m1))
-#define XSTORM_ISCSI_LOCAL_MAC_ADDR0_OFFSET(pfId) \
-	(IRO[298].base + ((pfId) * IRO[298].m1))
-#define XSTORM_ISCSI_LOCAL_MAC_ADDR1_OFFSET(pfId) \
-	(IRO[299].base + ((pfId) * IRO[299].m1))
-#define XSTORM_ISCSI_LOCAL_MAC_ADDR2_OFFSET(pfId) \
-	(IRO[300].base + ((pfId) * IRO[300].m1))
-#define XSTORM_ISCSI_LOCAL_MAC_ADDR3_OFFSET(pfId) \
-	(IRO[301].base + ((pfId) * IRO[301].m1))
-#define XSTORM_ISCSI_LOCAL_MAC_ADDR4_OFFSET(pfId) \
-	(IRO[302].base + ((pfId) * IRO[302].m1))
-#define XSTORM_ISCSI_LOCAL_MAC_ADDR5_OFFSET(pfId) \
-	(IRO[303].base + ((pfId) * IRO[303].m1))
-#define XSTORM_ISCSI_LOCAL_VLAN_OFFSET(pfId) \
-	(IRO[304].base + ((pfId) * IRO[304].m1))
-#define XSTORM_ISCSI_NUM_OF_TASKS_OFFSET(pfId) \
-	(IRO[294].base + ((pfId) * IRO[294].m1))
-#define XSTORM_ISCSI_PAGE_SIZE_LOG_OFFSET(pfId) \
-	(IRO[293].base + ((pfId) * IRO[293].m1))
-#define XSTORM_ISCSI_PAGE_SIZE_OFFSET(pfId) \
-	(IRO[292].base + ((pfId) * IRO[292].m1))
-#define XSTORM_ISCSI_R2TQ_SIZE_OFFSET(pfId) \
-	(IRO[297].base + ((pfId) * IRO[297].m1))
-#define XSTORM_ISCSI_SQ_SIZE_OFFSET(pfId) \
 	(IRO[296].base + ((pfId) * IRO[296].m1))
+#define XSTORM_ISCSI_LOCAL_MAC_ADDR0_OFFSET(pfId) \
+	(IRO[299].base + ((pfId) * IRO[299].m1))
+#define XSTORM_ISCSI_LOCAL_MAC_ADDR1_OFFSET(pfId) \
+	(IRO[300].base + ((pfId) * IRO[300].m1))
+#define XSTORM_ISCSI_LOCAL_MAC_ADDR2_OFFSET(pfId) \
+	(IRO[301].base + ((pfId) * IRO[301].m1))
+#define XSTORM_ISCSI_LOCAL_MAC_ADDR3_OFFSET(pfId) \
+	(IRO[302].base + ((pfId) * IRO[302].m1))
+#define XSTORM_ISCSI_LOCAL_MAC_ADDR4_OFFSET(pfId) \
+	(IRO[303].base + ((pfId) * IRO[303].m1))
+#define XSTORM_ISCSI_LOCAL_MAC_ADDR5_OFFSET(pfId) \
+	(IRO[304].base + ((pfId) * IRO[304].m1))
+#define XSTORM_ISCSI_LOCAL_VLAN_OFFSET(pfId) \
+	(IRO[305].base + ((pfId) * IRO[305].m1))
+#define XSTORM_ISCSI_NUM_OF_TASKS_OFFSET(pfId) \
+	(IRO[295].base + ((pfId) * IRO[295].m1))
+#define XSTORM_ISCSI_PAGE_SIZE_LOG_OFFSET(pfId) \
+	(IRO[294].base + ((pfId) * IRO[294].m1))
+#define XSTORM_ISCSI_PAGE_SIZE_OFFSET(pfId) \
+	(IRO[293].base + ((pfId) * IRO[293].m1))
+#define XSTORM_ISCSI_R2TQ_SIZE_OFFSET(pfId) \
+	(IRO[298].base + ((pfId) * IRO[298].m1))
+#define XSTORM_ISCSI_SQ_SIZE_OFFSET(pfId) \
+	(IRO[297].base + ((pfId) * IRO[297].m1))
 #define XSTORM_ISCSI_TCP_VARS_ADV_WND_SCL_OFFSET(pfId) \
-	(IRO[291].base + ((pfId) * IRO[291].m1))
+	(IRO[292].base + ((pfId) * IRO[292].m1))
 #define XSTORM_ISCSI_TCP_VARS_FLAGS_OFFSET(pfId) \
-	(IRO[290].base + ((pfId) * IRO[290].m1))
+	(IRO[291].base + ((pfId) * IRO[291].m1))
 #define XSTORM_ISCSI_TCP_VARS_TOS_OFFSET(pfId) \
-	(IRO[289].base + ((pfId) * IRO[289].m1))
+	(IRO[290].base + ((pfId) * IRO[290].m1))
 #define XSTORM_ISCSI_TCP_VARS_TTL_OFFSET(pfId) \
-	(IRO[288].base + ((pfId) * IRO[288].m1))
+	(IRO[289].base + ((pfId) * IRO[289].m1))
 #define XSTORM_RATE_SHAPING_PER_VN_VARS_OFFSET(pfId) \
 	(IRO[44].base + ((pfId) * IRO[44].m1))
 #define XSTORM_RECORD_SLOW_PATH_OFFSET(funcId) \
@@ -303,11 +302,9 @@
 #define MAX_VLAN_CREDIT_E1H 0 /* Per Chip */
 #define MAX_VLAN_CREDIT_E2 272 /* Per Path */
 
-
 /* Maximal aggregation queues supported */
 #define ETH_MAX_AGGREGATION_QUEUES_E1 32
 #define ETH_MAX_AGGREGATION_QUEUES_E1H_E2 64
-
 
 #define ETH_NUM_OF_MCAST_BINS 256
 #define ETH_NUM_OF_MCAST_ENGINES_E2 72
@@ -351,7 +348,6 @@
 /* max number of slow path commands per port */
 #define MAX_RAMRODS_PER_PORT 8
 
-
 /**** DEFINES FOR TIMERS/CLOCKS RESOLUTIONS ****/
 
 #define TIMERS_TICK_SIZE_CHIP (1e-3)
@@ -378,7 +374,6 @@
 	that is not mapped to priority*/
 #define LLFC_TRAFFIC_TYPE_TO_PRIORITY_UNMAPPED 0xFF
 
-
 #define C_ERES_PER_PAGE \
 	(PAGE_SIZE / BITS_TO_BYTES(STRUCT_SIZE(event_ring_elem)))
 #define C_ERE_PER_PAGE_MASK (C_ERES_PER_PAGE - 1)
@@ -389,8 +384,10 @@
 
 #define INVALID_VNIC_ID	0xFF
 
-
 #define UNDEF_IRO 0x80000000
 
+/* used for defining the amount of FCoE tasks supported for PF */
+#define MAX_FCOE_FUNCS_PER_ENGINE 2
+#define MAX_NUM_FCOE_TASKS_PER_ENGINE 4096
 
 #endif /* BNX2X_FW_DEFS_H */

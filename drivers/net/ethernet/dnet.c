@@ -72,7 +72,7 @@ static void __dnet_set_hwaddr(struct dnet *bp)
 	dnet_writew_mac(bp, DNET_INTERNAL_MAC_ADDR_2_REG, tmp);
 }
 
-static void __devinit dnet_get_hwaddr(struct dnet *bp)
+static void dnet_get_hwaddr(struct dnet *bp)
 {
 	u16 tmp;
 	u8 addr[6];
@@ -281,11 +281,11 @@ static int dnet_mii_probe(struct net_device *dev)
 	/* attach the mac to the phy */
 	if (bp->capabilities & DNET_HAS_RMII) {
 		phydev = phy_connect(dev, dev_name(&phydev->dev),
-				     &dnet_handle_link_change, 0,
+				     &dnet_handle_link_change,
 				     PHY_INTERFACE_MODE_RMII);
 	} else {
 		phydev = phy_connect(dev, dev_name(&phydev->dev),
-				     &dnet_handle_link_change, 0,
+				     &dnet_handle_link_change,
 				     PHY_INTERFACE_MODE_MII);
 	}
 
@@ -664,9 +664,6 @@ static int dnet_open(struct net_device *dev)
 	if (!bp->phy_dev)
 		return -EAGAIN;
 
-	if (!is_valid_ether_addr(dev->dev_addr))
-		return -EADDRNOTAVAIL;
-
 	napi_enable(&bp->napi);
 	dnet_init_hw(bp);
 
@@ -829,7 +826,7 @@ static const struct net_device_ops dnet_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 };
 
-static int __devinit dnet_probe(struct platform_device *pdev)
+static int dnet_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct net_device *dev;
@@ -945,7 +942,7 @@ err_out:
 	return err;
 }
 
-static int __devexit dnet_remove(struct platform_device *pdev)
+static int dnet_remove(struct platform_device *pdev)
 {
 
 	struct net_device *dev;
@@ -971,7 +968,7 @@ static int __devexit dnet_remove(struct platform_device *pdev)
 
 static struct platform_driver dnet_driver = {
 	.probe		= dnet_probe,
-	.remove		= __devexit_p(dnet_remove),
+	.remove		= dnet_remove,
 	.driver		= {
 		.name		= "dnet",
 	},

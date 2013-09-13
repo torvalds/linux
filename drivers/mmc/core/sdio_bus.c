@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/acpi.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -137,7 +138,7 @@ static int sdio_bus_probe(struct device *dev)
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0)
-			goto out;
+			goto disable_runtimepm;
 	}
 
 	/* Set the default block size so the driver is sure it's something
@@ -157,7 +158,6 @@ static int sdio_bus_probe(struct device *dev)
 disable_runtimepm:
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
 		pm_runtime_put_noidle(dev);
-out:
 	return ret;
 }
 
@@ -194,17 +194,24 @@ static int sdio_bus_remove(struct device *dev)
 
 #ifdef CONFIG_PM
 
+#ifdef CONFIG_PM_SLEEP
 static int pm_no_operation(struct device *dev)
 {
+	/*
+	 * Prevent the PM core from calling SDIO device drivers' suspend
+	 * callback routines, which it is not supposed to do, by using this
+	 * empty function as the bus type suspend callaback for SDIO.
+	 */
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops sdio_bus_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_no_operation, pm_no_operation)
 	SET_RUNTIME_PM_OPS(
 		pm_generic_runtime_suspend,
 		pm_generic_runtime_resume,
-		pm_generic_runtime_idle
+		NULL
 	)
 };
 
@@ -265,8 +272,7 @@ static void sdio_release_func(struct device *dev)
 
 	sdio_free_func_cis(func);
 
-	if (func->info)
-		kfree(func->info);
+	kfree(func->info);
 
 	kfree(func);
 }
@@ -293,6 +299,19 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 	return func;
 }
 
+#ifdef CONFIG_ACPI
+static void sdio_acpi_set_handle(struct sdio_func *func)
+{
+	struct mmc_host *host = func->card->host;
+	u64 addr = (host->slotno << 16) | func->num;
+
+	ACPI_HANDLE_SET(&func->dev,
+			acpi_get_child(ACPI_HANDLE(host->parent), addr));
+}
+#else
+static inline void sdio_acpi_set_handle(struct sdio_func *func) {}
+#endif
+
 /*
  * Register a new SDIO function with the driver model.
  */
@@ -302,9 +321,12 @@ int sdio_add_func(struct sdio_func *func)
 
 	dev_set_name(&func->dev, "%s:%d", mmc_card_id(func->card), func->num);
 
+	sdio_acpi_set_handle(func);
 	ret = device_add(&func->dev);
-	if (ret == 0)
+	if (ret == 0) {
 		sdio_func_set_present(func);
+		acpi_dev_pm_attach(&func->dev, false);
+	}
 
 	return ret;
 }
@@ -320,6 +342,7 @@ void sdio_remove_func(struct sdio_func *func)
 	if (!sdio_func_present(func))
 		return;
 
+	acpi_dev_pm_detach(&func->dev, false);
 	device_del(&func->dev);
 	put_device(&func->dev);
 }

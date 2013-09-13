@@ -73,8 +73,6 @@ static const unsigned int buck_voltage_map[] = {
 };
 
 #define BUCK_TARGET_VOL_MASK 0x3f
-#define BUCK_TARGET_VOL_MIN_IDX 0x01
-#define BUCK_TARGET_VOL_MAX_IDX 0x19
 
 #define LP3971_BUCK_RAMP_REG(x)	(buck_base_addr[x]+2)
 
@@ -140,7 +138,7 @@ static int lp3971_ldo_disable(struct regulator_dev *dev)
 	return lp3971_set_bits(lp3971, LP3971_LDO_ENABLE_REG, mask, 0);
 }
 
-static int lp3971_ldo_get_voltage(struct regulator_dev *dev)
+static int lp3971_ldo_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct lp3971 *lp3971 = rdev_get_drvdata(dev);
 	int ldo = rdev_get_id(dev) - LP3971_LDO1;
@@ -149,7 +147,7 @@ static int lp3971_ldo_get_voltage(struct regulator_dev *dev)
 	reg = lp3971_reg_read(lp3971, LP3971_LDO_VOL_CONTR_REG(ldo));
 	val = (reg >> LDO_VOL_CONTR_SHIFT(ldo)) & LDO_VOL_CONTR_MASK;
 
-	return dev->desc->volt_table[val];
+	return val;
 }
 
 static int lp3971_ldo_set_voltage_sel(struct regulator_dev *dev,
@@ -165,10 +163,11 @@ static int lp3971_ldo_set_voltage_sel(struct regulator_dev *dev,
 
 static struct regulator_ops lp3971_ldo_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3971_ldo_is_enabled,
 	.enable = lp3971_ldo_enable,
 	.disable = lp3971_ldo_disable,
-	.get_voltage = lp3971_ldo_get_voltage,
+	.get_voltage_sel = lp3971_ldo_get_voltage_sel,
 	.set_voltage_sel = lp3971_ldo_set_voltage_sel,
 };
 
@@ -201,24 +200,16 @@ static int lp3971_dcdc_disable(struct regulator_dev *dev)
 	return lp3971_set_bits(lp3971, LP3971_BUCK_VOL_ENABLE_REG, mask, 0);
 }
 
-static int lp3971_dcdc_get_voltage(struct regulator_dev *dev)
+static int lp3971_dcdc_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct lp3971 *lp3971 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - LP3971_DCDC1;
 	u16 reg;
-	int val;
 
 	reg = lp3971_reg_read(lp3971, LP3971_BUCK_TARGET_VOL1_REG(buck));
 	reg &= BUCK_TARGET_VOL_MASK;
 
-	if (reg <= BUCK_TARGET_VOL_MAX_IDX)
-		val = buck_voltage_map[reg];
-	else {
-		val = 0;
-		dev_warn(&dev->dev, "chip reported incorrect voltage value.\n");
-	}
-
-	return val;
+	return reg;
 }
 
 static int lp3971_dcdc_set_voltage_sel(struct regulator_dev *dev,
@@ -246,10 +237,11 @@ static int lp3971_dcdc_set_voltage_sel(struct regulator_dev *dev,
 
 static struct regulator_ops lp3971_dcdc_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3971_dcdc_is_enabled,
 	.enable = lp3971_dcdc_enable,
 	.disable = lp3971_dcdc_disable,
-	.get_voltage = lp3971_dcdc_get_voltage,
+	.get_voltage_sel = lp3971_dcdc_get_voltage_sel,
 	.set_voltage_sel = lp3971_dcdc_set_voltage_sel,
 };
 
@@ -386,7 +378,7 @@ static int lp3971_set_bits(struct lp3971 *lp3971, u8 reg, u16 mask, u16 val)
 	return ret;
 }
 
-static int __devinit setup_regulators(struct lp3971 *lp3971,
+static int setup_regulators(struct lp3971 *lp3971,
 				      struct lp3971_platform_data *pdata)
 {
 	int i, err;
@@ -429,11 +421,11 @@ err_nomem:
 	return err;
 }
 
-static int __devinit lp3971_i2c_probe(struct i2c_client *i2c,
+static int lp3971_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct lp3971 *lp3971;
-	struct lp3971_platform_data *pdata = i2c->dev.platform_data;
+	struct lp3971_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret;
 	u16 val;
 
@@ -442,7 +434,7 @@ static int __devinit lp3971_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
-	lp3971 = kzalloc(sizeof(struct lp3971), GFP_KERNEL);
+	lp3971 = devm_kzalloc(&i2c->dev, sizeof(struct lp3971), GFP_KERNEL);
 	if (lp3971 == NULL)
 		return -ENOMEM;
 
@@ -457,22 +449,18 @@ static int __devinit lp3971_i2c_probe(struct i2c_client *i2c,
 		ret = -ENODEV;
 	if (ret < 0) {
 		dev_err(&i2c->dev, "failed to detect device\n");
-		goto err_detect;
+		return ret;
 	}
 
 	ret = setup_regulators(lp3971, pdata);
 	if (ret < 0)
-		goto err_detect;
+		return ret;
 
 	i2c_set_clientdata(i2c, lp3971);
 	return 0;
-
-err_detect:
-	kfree(lp3971);
-	return ret;
 }
 
-static int __devexit lp3971_i2c_remove(struct i2c_client *i2c)
+static int lp3971_i2c_remove(struct i2c_client *i2c)
 {
 	struct lp3971 *lp3971 = i2c_get_clientdata(i2c);
 	int i;
@@ -481,7 +469,6 @@ static int __devexit lp3971_i2c_remove(struct i2c_client *i2c)
 		regulator_unregister(lp3971->rdev[i]);
 
 	kfree(lp3971->rdev);
-	kfree(lp3971);
 
 	return 0;
 }
@@ -498,7 +485,7 @@ static struct i2c_driver lp3971_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe    = lp3971_i2c_probe,
-	.remove   = __devexit_p(lp3971_i2c_remove),
+	.remove   = lp3971_i2c_remove,
 	.id_table = lp3971_i2c_id,
 };
 

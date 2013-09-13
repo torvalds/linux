@@ -62,9 +62,9 @@ static int smp_debug_lvl = 0;
 volatile struct task_struct *smp_init_current_idle_task;
 
 /* track which CPU is booting */
-static volatile int cpu_now_booting __cpuinitdata;
+static volatile int cpu_now_booting;
 
-static int parisc_max_cpus __cpuinitdata = 1;
+static int parisc_max_cpus = 1;
 
 static DEFINE_PER_CPU(spinlock_t, ipi_lock);
 
@@ -127,7 +127,7 @@ ipi_interrupt(int irq, void *dev_id)
 	unsigned long flags;
 
 	/* Count this now; we may make a call that never returns. */
-	p->ipi_count++;
+	inc_irq_stat(irq_call_count);
 
 	mb();	/* Order interrupt and bit testing. */
 
@@ -155,6 +155,7 @@ ipi_interrupt(int irq, void *dev_id)
 				
 			case IPI_RESCHEDULE:
 				smp_debug(100, KERN_DEBUG "CPU%d IPI_RESCHEDULE\n", this_cpu);
+				inc_irq_stat(irq_resched_count);
 				scheduler_ipi();
 				break;
 
@@ -263,17 +264,6 @@ void arch_send_call_function_single_ipi(int cpu)
 }
 
 /*
- * Flush all other CPU's tlb and then mine.  Do this with on_each_cpu()
- * as we want to ensure all TLB's flushed before proceeding.
- */
-
-void
-smp_flush_tlb_all(void)
-{
-	on_each_cpu(flush_tlb_all_local, NULL, 1);
-}
-
-/*
  * Called by secondaries to update state and initialize CPU registers.
  */
 static void __init
@@ -329,7 +319,7 @@ void __init smp_callin(void)
 
 	local_irq_enable();  /* Interrupts have been off until now */
 
-	cpu_idle();      /* Wait for timer to schedule some work */
+	cpu_startup_entry(CPUHP_ONLINE);
 
 	/* NOTREACHED */
 	panic("smp_callin() AAAAaaaaahhhh....\n");
@@ -338,7 +328,7 @@ void __init smp_callin(void)
 /*
  * Bring one cpu online.
  */
-int __cpuinit smp_boot_one_cpu(int cpuid, struct task_struct *idle)
+int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 {
 	const struct cpuinfo_parisc *p = &per_cpu(cpu_data, cpuid);
 	long timeout;
@@ -434,7 +424,7 @@ void smp_cpus_done(unsigned int cpu_max)
 }
 
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	if (cpu != 0 && cpu < parisc_max_cpus)
 		smp_boot_one_cpu(cpu, tidle);

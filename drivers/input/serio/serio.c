@@ -732,19 +732,20 @@ EXPORT_SYMBOL(serio_unregister_child_port);
  * Serio driver operations
  */
 
-static ssize_t serio_driver_show_description(struct device_driver *drv, char *buf)
+static ssize_t description_show(struct device_driver *drv, char *buf)
 {
 	struct serio_driver *driver = to_serio_driver(drv);
 	return sprintf(buf, "%s\n", driver->description ? driver->description : "(none)");
 }
+static DRIVER_ATTR_RO(description);
 
-static ssize_t serio_driver_show_bind_mode(struct device_driver *drv, char *buf)
+static ssize_t bind_mode_show(struct device_driver *drv, char *buf)
 {
 	struct serio_driver *serio_drv = to_serio_driver(drv);
 	return sprintf(buf, "%s\n", serio_drv->manual_bind ? "manual" : "auto");
 }
 
-static ssize_t serio_driver_set_bind_mode(struct device_driver *drv, const char *buf, size_t count)
+static ssize_t bind_mode_store(struct device_driver *drv, const char *buf, size_t count)
 {
 	struct serio_driver *serio_drv = to_serio_driver(drv);
 	int retval;
@@ -760,14 +761,14 @@ static ssize_t serio_driver_set_bind_mode(struct device_driver *drv, const char 
 
 	return retval;
 }
+static DRIVER_ATTR_RW(bind_mode);
 
-
-static struct driver_attribute serio_driver_attrs[] = {
-	__ATTR(description, S_IRUGO, serio_driver_show_description, NULL),
-	__ATTR(bind_mode, S_IWUSR | S_IRUGO,
-		serio_driver_show_bind_mode, serio_driver_set_bind_mode),
-	__ATTR_NULL
+static struct attribute *serio_driver_attrs[] = {
+	&driver_attr_description.attr,
+	&driver_attr_bind_mode.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(serio_driver);
 
 static int serio_driver_probe(struct device *dev)
 {
@@ -891,8 +892,6 @@ static int serio_bus_match(struct device *dev, struct device_driver *drv)
 	return serio_match_port(serio_drv->id_table, serio);
 }
 
-#ifdef CONFIG_HOTPLUG
-
 #define SERIO_ADD_UEVENT_VAR(fmt, val...)				\
 	do {								\
 		int err = add_uevent_var(env, fmt, val);		\
@@ -919,15 +918,6 @@ static int serio_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 #undef SERIO_ADD_UEVENT_VAR
-
-#else
-
-static int serio_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	return -ENODEV;
-}
-
-#endif /* CONFIG_HOTPLUG */
 
 #ifdef CONFIG_PM
 static int serio_suspend(struct device *dev)
@@ -1007,7 +997,7 @@ EXPORT_SYMBOL(serio_interrupt);
 static struct bus_type serio_bus = {
 	.name		= "serio",
 	.dev_attrs	= serio_device_attrs,
-	.drv_attrs	= serio_driver_attrs,
+	.drv_groups	= serio_driver_groups,
 	.match		= serio_bus_match,
 	.uevent		= serio_uevent,
 	.probe		= serio_driver_probe,

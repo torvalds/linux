@@ -13,11 +13,14 @@
 typedef void (*common_glue_func_t)(void *ctx, u8 *dst, const u8 *src);
 typedef void (*common_glue_cbc_func_t)(void *ctx, u128 *dst, const u128 *src);
 typedef void (*common_glue_ctr_func_t)(void *ctx, u128 *dst, const u128 *src,
-				       u128 *iv);
+				       le128 *iv);
+typedef void (*common_glue_xts_func_t)(void *ctx, u128 *dst, const u128 *src,
+				       le128 *iv);
 
 #define GLUE_FUNC_CAST(fn) ((common_glue_func_t)(fn))
 #define GLUE_CBC_FUNC_CAST(fn) ((common_glue_cbc_func_t)(fn))
 #define GLUE_CTR_FUNC_CAST(fn) ((common_glue_ctr_func_t)(fn))
+#define GLUE_XTS_FUNC_CAST(fn) ((common_glue_xts_func_t)(fn))
 
 struct common_glue_func_entry {
 	unsigned int num_blocks; /* number of blocks that @fn will process */
@@ -25,6 +28,7 @@ struct common_glue_func_entry {
 		common_glue_func_t ecb;
 		common_glue_cbc_func_t cbc;
 		common_glue_ctr_func_t ctr;
+		common_glue_xts_func_t xts;
 	} fn_u;
 };
 
@@ -71,23 +75,39 @@ static inline void glue_fpu_end(bool fpu_enabled)
 		kernel_fpu_end();
 }
 
-static inline void u128_to_be128(be128 *dst, const u128 *src)
+static inline void le128_to_be128(be128 *dst, const le128 *src)
 {
-	dst->a = cpu_to_be64(src->a);
-	dst->b = cpu_to_be64(src->b);
+	dst->a = cpu_to_be64(le64_to_cpu(src->a));
+	dst->b = cpu_to_be64(le64_to_cpu(src->b));
 }
 
-static inline void be128_to_u128(u128 *dst, const be128 *src)
+static inline void be128_to_le128(le128 *dst, const be128 *src)
 {
-	dst->a = be64_to_cpu(src->a);
-	dst->b = be64_to_cpu(src->b);
+	dst->a = cpu_to_le64(be64_to_cpu(src->a));
+	dst->b = cpu_to_le64(be64_to_cpu(src->b));
 }
 
-static inline void u128_inc(u128 *i)
+static inline void le128_inc(le128 *i)
 {
-	i->b++;
-	if (!i->b)
-		i->a++;
+	u64 a = le64_to_cpu(i->a);
+	u64 b = le64_to_cpu(i->b);
+
+	b++;
+	if (!b)
+		a++;
+
+	i->a = cpu_to_le64(a);
+	i->b = cpu_to_le64(b);
+}
+
+static inline void le128_gf128mul_x_ble(le128 *dst, const le128 *src)
+{
+	u64 a = le64_to_cpu(src->a);
+	u64 b = le64_to_cpu(src->b);
+	u64 _tt = ((s64)a >> 63) & 0x87;
+
+	dst->a = cpu_to_le64((a << 1) ^ (b >> 63));
+	dst->b = cpu_to_le64((b << 1) ^ _tt);
 }
 
 extern int glue_ecb_crypt_128bit(const struct common_glue_ctx *gctx,
@@ -111,5 +131,15 @@ extern int glue_ctr_crypt_128bit(const struct common_glue_ctx *gctx,
 				 struct blkcipher_desc *desc,
 				 struct scatterlist *dst,
 				 struct scatterlist *src, unsigned int nbytes);
+
+extern int glue_xts_crypt_128bit(const struct common_glue_ctx *gctx,
+				 struct blkcipher_desc *desc,
+				 struct scatterlist *dst,
+				 struct scatterlist *src, unsigned int nbytes,
+				 common_glue_func_t tweak_fn, void *tweak_ctx,
+				 void *crypt_ctx);
+
+extern void glue_xts_crypt_128bit_one(void *ctx, u128 *dst, const u128 *src,
+				      le128 *iv, common_glue_func_t fn);
 
 #endif /* _CRYPTO_GLUE_HELPER_H */

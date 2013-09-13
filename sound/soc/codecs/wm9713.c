@@ -652,7 +652,7 @@ static unsigned int ac97_read(struct snd_soc_codec *codec,
 	if (reg == AC97_RESET || reg == AC97_GPIO_STATUS ||
 		reg == AC97_VENDOR_ID1 || reg == AC97_VENDOR_ID2 ||
 		reg == AC97_CD)
-		return soc_ac97_ops.read(codec->ac97, reg);
+		return soc_ac97_ops->read(codec->ac97, reg);
 	else {
 		reg = reg >> 1;
 
@@ -668,7 +668,7 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u16 *cache = codec->reg_cache;
 	if (reg < 0x7c)
-		soc_ac97_ops.write(codec->ac97, reg, val);
+		soc_ac97_ops->write(codec->ac97, reg, val);
 	reg = reg >> 1;
 	if (reg < (ARRAY_SIZE(wm9713_reg)))
 		cache[reg] = val;
@@ -1095,15 +1095,15 @@ static struct snd_soc_dai_driver wm9713_dai[] = {
 
 int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 {
-	if (try_warm && soc_ac97_ops.warm_reset) {
-		soc_ac97_ops.warm_reset(codec->ac97);
+	if (try_warm && soc_ac97_ops->warm_reset) {
+		soc_ac97_ops->warm_reset(codec->ac97);
 		if (ac97_read(codec, 0) == wm9713_reg[0])
 			return 1;
 	}
 
-	soc_ac97_ops.reset(codec->ac97);
-	if (soc_ac97_ops.warm_reset)
-		soc_ac97_ops.warm_reset(codec->ac97);
+	soc_ac97_ops->reset(codec->ac97);
+	if (soc_ac97_ops->warm_reset)
+		soc_ac97_ops->warm_reset(codec->ac97);
 	if (ac97_read(codec, 0) != wm9713_reg[0])
 		return -EIO;
 	return 0;
@@ -1180,7 +1180,7 @@ static int wm9713_soc_resume(struct snd_soc_codec *codec)
 			if (i == AC97_POWERDOWN || i == AC97_EXTENDED_MID ||
 				i == AC97_EXTENDED_MSTATUS || i > 0x66)
 				continue;
-			soc_ac97_ops.write(codec->ac97, i, cache[i>>1]);
+			soc_ac97_ops->write(codec->ac97, i, cache[i>>1]);
 		}
 	}
 
@@ -1196,9 +1196,8 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	if (wm9713 == NULL)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, wm9713);
-	codec->control_data = wm9713;	/* we don't use regmap! */
 
-	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
+	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0)
 		goto codec_err;
 
@@ -1255,13 +1254,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 	.num_dapm_routes = ARRAY_SIZE(wm9713_audio_map),
 };
 
-static __devinit int wm9713_probe(struct platform_device *pdev)
+static int wm9713_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_wm9713, wm9713_dai, ARRAY_SIZE(wm9713_dai));
 }
 
-static int __devexit wm9713_remove(struct platform_device *pdev)
+static int wm9713_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -1274,7 +1273,7 @@ static struct platform_driver wm9713_codec_driver = {
 	},
 
 	.probe = wm9713_probe,
-	.remove = __devexit_p(wm9713_remove),
+	.remove = wm9713_remove,
 };
 
 module_platform_driver(wm9713_codec_driver);

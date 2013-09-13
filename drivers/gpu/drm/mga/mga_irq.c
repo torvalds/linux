@@ -31,9 +31,8 @@
  *    Eric Anholt <anholt@FreeBSD.org>
  */
 
-#include "drmP.h"
-#include "drm.h"
-#include "mga_drm.h"
+#include <drm/drmP.h>
+#include <drm/mga_drm.h>
 #include "mga_drv.h"
 
 u32 mga_get_vblank_counter(struct drm_device *dev, int crtc)

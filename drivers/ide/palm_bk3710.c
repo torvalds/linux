@@ -191,7 +191,7 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 static void palm_bk3710_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	int is_slave = drive->dn & 1;
-	void __iomem *base = (void *)hwif->dma_base;
+	void __iomem *base = (void __iomem *)hwif->dma_base;
 	const u8 xferspeed = drive->dma_mode;
 
 	if (xferspeed >= XFER_UDMA_0) {
@@ -209,7 +209,7 @@ static void palm_bk3710_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	unsigned int cycle_time;
 	int is_slave = drive->dn & 1;
 	ide_drive_t *mate;
-	void __iomem *base = (void *)hwif->dma_base;
+	void __iomem *base = (void __iomem *)hwif->dma_base;
 	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	/*
@@ -220,7 +220,7 @@ static void palm_bk3710_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	palm_bk3710_setpiomode(base, mate, is_slave, cycle_time, pio);
 }
 
-static void __devinit palm_bk3710_chipinit(void __iomem *base)
+static void palm_bk3710_chipinit(void __iomem *base)
 {
 	/*
 	 * REVISIT:  the ATA reset signal needs to be managed through a
@@ -282,8 +282,7 @@ static u8 palm_bk3710_cable_detect(ide_hwif_t *hwif)
 	return ATA_CBL_PATA80;
 }
 
-static int __devinit palm_bk3710_init_dma(ide_hwif_t *hwif,
-					  const struct ide_port_info *d)
+static int palm_bk3710_init_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 
@@ -301,7 +300,7 @@ static const struct ide_port_ops palm_bk3710_ports_ops = {
 	.cable_detect		= palm_bk3710_cable_detect,
 };
 
-static struct ide_port_info __devinitdata palm_bk3710_port_info = {
+static struct ide_port_info palm_bk3710_port_info = {
 	.init_dma		= palm_bk3710_init_dma,
 	.port_ops		= &palm_bk3710_ports_ops,
 	.dma_ops		= &sff_dma_ops,

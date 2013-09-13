@@ -46,19 +46,30 @@
  * @bearer: ptr to associated "generic" bearer structure
  * @dev: ptr to associated Ethernet network device
  * @tipc_packet_type: used in binding TIPC to Ethernet driver
+ * @setup: work item used when enabling bearer
  * @cleanup: work item used when disabling bearer
  */
 struct eth_bearer {
 	struct tipc_bearer *bearer;
 	struct net_device *dev;
 	struct packet_type tipc_packet_type;
+	struct work_struct setup;
 	struct work_struct cleanup;
 };
 
 static struct tipc_media eth_media_info;
 static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
 static int eth_started;
-static struct notifier_block notifier;
+
+static int recv_notification(struct notifier_block *nb, unsigned long evt,
+			     void *dv);
+/*
+ * Network device notifier info
+ */
+static struct notifier_block notifier = {
+	.notifier_call	= recv_notification,
+	.priority	= 0
+};
 
 /**
  * eth_media_addr_set - initialize Ethernet media address structure
@@ -66,12 +77,13 @@ static struct notifier_block notifier;
  * Media-dependent "value" field stores MAC address in first 6 bytes
  * and zeroes out the remaining bytes.
  */
-static void eth_media_addr_set(struct tipc_media_addr *a, char *mac)
+static void eth_media_addr_set(const struct tipc_bearer *tb_ptr,
+			       struct tipc_media_addr *a, char *mac)
 {
 	memcpy(a->value, mac, ETH_ALEN);
 	memset(a->value + ETH_ALEN, 0, sizeof(a->value) - ETH_ALEN);
 	a->media_id = TIPC_MEDIA_TYPE_ETH;
-	a->broadcast = !memcmp(mac, eth_media_info.bcast_addr.value, ETH_ALEN);
+	a->broadcast = !memcmp(mac, tb_ptr->bcast_addr.value, ETH_ALEN);
 }
 
 /**
@@ -99,6 +111,7 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 
 	skb_reset_network_header(clone);
 	clone->dev = dev;
+	clone->protocol = htons(ETH_P_TIPC);
 	dev_hard_header(clone, dev, ETH_P_TIPC, dest->value,
 			dev->dev_addr, clone->len);
 	dev_queue_xmit(clone);
@@ -134,12 +147,22 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 }
 
 /**
+ * setup_bearer - setup association between Ethernet bearer and interface
+ */
+static void setup_bearer(struct work_struct *work)
+{
+	struct eth_bearer *eb_ptr =
+		container_of(work, struct eth_bearer, setup);
+
+	dev_add_pack(&eb_ptr->tipc_packet_type);
+}
+
+/**
  * enable_bearer - attach TIPC bearer to an Ethernet interface
  */
 static int enable_bearer(struct tipc_bearer *tb_ptr)
 {
-	struct net_device *dev = NULL;
-	struct net_device *pdev = NULL;
+	struct net_device *dev;
 	struct eth_bearer *eb_ptr = &eth_bearers[0];
 	struct eth_bearer *stop = &eth_bearers[MAX_ETH_BEARERS];
 	char *driver_name = strchr((const char *)tb_ptr->name, ':') + 1;
@@ -154,15 +177,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	}
 
 	/* Find device with specified name */
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, pdev) {
-		if (!strncmp(pdev->name, driver_name, IFNAMSIZ)) {
-			dev = pdev;
-			dev_hold(dev);
-			break;
-		}
-	}
-	read_unlock(&dev_base_lock);
+	dev = dev_get_by_name(&init_net, driver_name);
 	if (!dev)
 		return -ENODEV;
 
@@ -173,14 +188,19 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	eb_ptr->tipc_packet_type.func = recv_msg;
 	eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
 	INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
-	dev_add_pack(&eb_ptr->tipc_packet_type);
+	INIT_WORK(&eb_ptr->setup, setup_bearer);
+	schedule_work(&eb_ptr->setup);
 
 	/* Associate TIPC bearer with Ethernet bearer */
 	eb_ptr->bearer = tb_ptr;
 	tb_ptr->usr_handle = (void *)eb_ptr;
+	memset(tb_ptr->bcast_addr.value, 0, sizeof(tb_ptr->bcast_addr.value));
+	memcpy(tb_ptr->bcast_addr.value, dev->broadcast, ETH_ALEN);
+	tb_ptr->bcast_addr.media_id = TIPC_MEDIA_TYPE_ETH;
+	tb_ptr->bcast_addr.broadcast = 1;
 	tb_ptr->mtu = dev->mtu;
 	tb_ptr->blocked = 0;
-	eth_media_addr_set(&tb_ptr->addr, (char *)dev->dev_addr);
+	eth_media_addr_set(tb_ptr, &tb_ptr->addr, (char *)dev->dev_addr);
 	return 0;
 }
 
@@ -222,9 +242,9 @@ static void disable_bearer(struct tipc_bearer *tb_ptr)
  * specified device.
  */
 static int recv_notification(struct notifier_block *nb, unsigned long evt,
-			     void *dv)
+			     void *ptr)
 {
-	struct net_device *dev = (struct net_device *)dv;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct eth_bearer *eb_ptr = &eth_bearers[0];
 	struct eth_bearer *stop = &eth_bearers[MAX_ETH_BEARERS];
 
@@ -279,25 +299,6 @@ static int eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 }
 
 /**
- * eth_str2addr - convert string to Ethernet address
- */
-static int eth_str2addr(struct tipc_media_addr *a, char *str_buf)
-{
-	char mac[ETH_ALEN];
-	int r;
-
-	r = sscanf(str_buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-		       (u32 *)&mac[0], (u32 *)&mac[1], (u32 *)&mac[2],
-		       (u32 *)&mac[3], (u32 *)&mac[4], (u32 *)&mac[5]);
-
-	if (r != ETH_ALEN)
-		return 1;
-
-	eth_media_addr_set(a, mac);
-	return 0;
-}
-
-/**
  * eth_str2addr - convert Ethernet address format to message header format
  */
 static int eth_addr2msg(struct tipc_media_addr *a, char *msg_area)
@@ -311,12 +312,13 @@ static int eth_addr2msg(struct tipc_media_addr *a, char *msg_area)
 /**
  * eth_str2addr - convert message header address format to Ethernet format
  */
-static int eth_msg2addr(struct tipc_media_addr *a, char *msg_area)
+static int eth_msg2addr(const struct tipc_bearer *tb_ptr,
+			struct tipc_media_addr *a, char *msg_area)
 {
 	if (msg_area[TIPC_MEDIA_TYPE_OFFSET] != TIPC_MEDIA_TYPE_ETH)
 		return 1;
 
-	eth_media_addr_set(a, msg_area + ETH_ADDR_OFFSET);
+	eth_media_addr_set(tb_ptr, a, msg_area + ETH_ADDR_OFFSET);
 	return 0;
 }
 
@@ -328,11 +330,8 @@ static struct tipc_media eth_media_info = {
 	.enable_bearer	= enable_bearer,
 	.disable_bearer	= disable_bearer,
 	.addr2str	= eth_addr2str,
-	.str2addr	= eth_str2addr,
 	.addr2msg	= eth_addr2msg,
 	.msg2addr	= eth_msg2addr,
-	.bcast_addr	= { { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
-			    TIPC_MEDIA_TYPE_ETH, 1 },
 	.priority	= TIPC_DEF_LINK_PRI,
 	.tolerance	= TIPC_DEF_LINK_TOL,
 	.window		= TIPC_DEF_LINK_WIN,
@@ -357,8 +356,6 @@ int tipc_eth_media_start(void)
 	if (res)
 		return res;
 
-	notifier.notifier_call = &recv_notification;
-	notifier.priority = 0;
 	res = register_netdevice_notifier(&notifier);
 	if (!res)
 		eth_started = 1;

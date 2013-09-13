@@ -14,10 +14,13 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 
 #include "u_ether.h"
+#include "u_ether_configfs.h"
+#include "u_ecm.h"
 
 
 /*
@@ -91,7 +94,7 @@ static inline unsigned ecm_bitrate(struct usb_gadget *g)
  * encapsulated commands (vendor-specific, using control-OUT).
  */
 
-#define LOG2_STATUS_INTERVAL_MSEC	5	/* 1 << 5 == 32 msec */
+#define ECM_STATUS_INTERVAL_MS		32
 #define ECM_STATUS_BYTECOUNT		16	/* 8 byte header + data */
 
 
@@ -192,7 +195,7 @@ static struct usb_endpoint_descriptor fs_ecm_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
-	.bInterval =		1 << LOG2_STATUS_INTERVAL_MSEC,
+	.bInterval =		ECM_STATUS_INTERVAL_MS,
 };
 
 static struct usb_endpoint_descriptor fs_ecm_in_desc = {
@@ -239,7 +242,7 @@ static struct usb_endpoint_descriptor hs_ecm_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
-	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(ECM_STATUS_INTERVAL_MS),
 };
 
 static struct usb_endpoint_descriptor hs_ecm_in_desc = {
@@ -288,7 +291,7 @@ static struct usb_endpoint_descriptor ss_ecm_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
-	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(ECM_STATUS_INTERVAL_MS),
 };
 
 static struct usb_ss_ep_comp_descriptor ss_ecm_intr_comp_desc = {
@@ -330,6 +333,7 @@ static struct usb_ss_ep_comp_descriptor ss_ecm_bulk_comp_desc = {
 
 static struct usb_descriptor_header *ecm_ss_function[] = {
 	/* CDC ECM control descriptors */
+	(struct usb_descriptor_header *) &ecm_iad_descriptor,
 	(struct usb_descriptor_header *) &ecm_control_intf,
 	(struct usb_descriptor_header *) &ecm_header_desc,
 	(struct usb_descriptor_header *) &ecm_union_desc,
@@ -353,7 +357,7 @@ static struct usb_descriptor_header *ecm_ss_function[] = {
 
 static struct usb_string ecm_string_defs[] = {
 	[0].s = "CDC Ethernet Control Model (ECM)",
-	[1].s = NULL /* DYNAMIC */,
+	[1].s = "",
 	[2].s = "CDC Ethernet Data",
 	[3].s = "CDC ECM",
 	{  } /* end of list */
@@ -683,8 +687,43 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_ecm		*ecm = func_to_ecm(f);
+	struct usb_string	*us;
 	int			status;
 	struct usb_ep		*ep;
+
+#ifndef USBF_ECM_INCLUDED
+	struct f_ecm_opts	*ecm_opts;
+
+	if (!can_support_ecm(cdev->gadget))
+		return -EINVAL;
+
+	ecm_opts = container_of(f->fi, struct f_ecm_opts, func_inst);
+
+	/*
+	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
+	 * configurations are bound in sequence with list_for_each_entry,
+	 * in each configuration its functions are bound in sequence
+	 * with list_for_each_entry, so we assume no race condition
+	 * with regard to ecm_opts->bound access
+	 */
+	if (!ecm_opts->bound) {
+		mutex_lock(&ecm_opts->lock);
+		gether_set_gadget(ecm_opts->net, cdev->gadget);
+		status = gether_register_netdev(ecm_opts->net);
+		mutex_unlock(&ecm_opts->lock);
+		if (status)
+			return status;
+		ecm_opts->bound = true;
+	}
+#endif
+	us = usb_gstrings_attach(cdev, ecm_strings,
+				 ARRAY_SIZE(ecm_string_defs));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+	ecm_control_intf.iInterface = us[0].id;
+	ecm_data_intf.iInterface = us[2].id;
+	ecm_desc.iMACAddress = us[1].id;
+	ecm_iad_descriptor.iFunction = us[3].id;
 
 	/* allocate instance-specific interface IDs */
 	status = usb_interface_id(c, f);
@@ -742,42 +781,24 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	ecm->notify_req->context = ecm;
 	ecm->notify_req->complete = ecm_notify_complete;
 
-	/* copy descriptors, and track endpoint copies */
-	f->descriptors = usb_copy_descriptors(ecm_fs_function);
-	if (!f->descriptors)
-		goto fail;
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		hs_ecm_in_desc.bEndpointAddress =
-				fs_ecm_in_desc.bEndpointAddress;
-		hs_ecm_out_desc.bEndpointAddress =
-				fs_ecm_out_desc.bEndpointAddress;
-		hs_ecm_notify_desc.bEndpointAddress =
-				fs_ecm_notify_desc.bEndpointAddress;
+	hs_ecm_in_desc.bEndpointAddress = fs_ecm_in_desc.bEndpointAddress;
+	hs_ecm_out_desc.bEndpointAddress = fs_ecm_out_desc.bEndpointAddress;
+	hs_ecm_notify_desc.bEndpointAddress =
+		fs_ecm_notify_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->hs_descriptors = usb_copy_descriptors(ecm_hs_function);
-		if (!f->hs_descriptors)
-			goto fail;
-	}
+	ss_ecm_in_desc.bEndpointAddress = fs_ecm_in_desc.bEndpointAddress;
+	ss_ecm_out_desc.bEndpointAddress = fs_ecm_out_desc.bEndpointAddress;
+	ss_ecm_notify_desc.bEndpointAddress =
+		fs_ecm_notify_desc.bEndpointAddress;
 
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		ss_ecm_in_desc.bEndpointAddress =
-				fs_ecm_in_desc.bEndpointAddress;
-		ss_ecm_out_desc.bEndpointAddress =
-				fs_ecm_out_desc.bEndpointAddress;
-		ss_ecm_notify_desc.bEndpointAddress =
-				fs_ecm_notify_desc.bEndpointAddress;
-
-		/* copy descriptors, and track endpoint copies */
-		f->ss_descriptors = usb_copy_descriptors(ecm_ss_function);
-		if (!f->ss_descriptors)
-			goto fail;
-	}
+	status = usb_assign_descriptors(f, ecm_fs_function, ecm_hs_function,
+			ecm_ss_function);
+	if (status)
+		goto fail;
 
 	/* NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code
@@ -795,11 +816,6 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	if (f->descriptors)
-		usb_free_descriptors(f->descriptors);
-	if (f->hs_descriptors)
-		usb_free_descriptors(f->hs_descriptors);
-
 	if (ecm->notify_req) {
 		kfree(ecm->notify_req->buf);
 		usb_ep_free_request(ecm->notify, ecm->notify_req);
@@ -808,9 +824,9 @@ fail:
 	/* we might as well release our claims on endpoints */
 	if (ecm->notify)
 		ecm->notify->driver_data = NULL;
-	if (ecm->port.out_ep->desc)
+	if (ecm->port.out_ep)
 		ecm->port.out_ep->driver_data = NULL;
-	if (ecm->port.in_ep->desc)
+	if (ecm->port.in_ep)
 		ecm->port.in_ep->driver_data = NULL;
 
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
@@ -818,23 +834,19 @@ fail:
 	return status;
 }
 
+#ifdef USBF_ECM_INCLUDED
+
 static void
-ecm_unbind(struct usb_configuration *c, struct usb_function *f)
+ecm_old_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_ecm		*ecm = func_to_ecm(f);
 
 	DBG(c->cdev, "ecm unbind\n");
 
-	if (gadget_is_superspeed(c->cdev->gadget))
-		usb_free_descriptors(f->ss_descriptors);
-	if (gadget_is_dualspeed(c->cdev->gadget))
-		usb_free_descriptors(f->hs_descriptors);
-	usb_free_descriptors(f->descriptors);
+	usb_free_all_descriptors(f);
 
 	kfree(ecm->notify_req->buf);
 	usb_ep_free_request(ecm->notify, ecm->notify_req);
-
-	ecm_string_defs[1].s = NULL;
 	kfree(ecm);
 }
 
@@ -843,6 +855,7 @@ ecm_unbind(struct usb_configuration *c, struct usb_function *f)
  * @c: the configuration to support the network link
  * @ethaddr: a buffer in which the ethernet address of the host side
  *	side of the link was recorded
+ * @dev: eth_dev structure
  * Context: single threaded during gadget setup
  *
  * Returns zero on success, else negative errno.
@@ -851,7 +864,8 @@ ecm_unbind(struct usb_configuration *c, struct usb_function *f)
  * for calling @gether_cleanup() before module unload.
  */
 int
-ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev)
 {
 	struct f_ecm	*ecm;
 	int		status;
@@ -859,54 +873,158 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	if (!can_support_ecm(c->cdev->gadget) || !ethaddr)
 		return -EINVAL;
 
-	/* maybe allocate device-global string IDs */
-	if (ecm_string_defs[0].id == 0) {
-
-		/* control interface label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[0].id = status;
-		ecm_control_intf.iInterface = status;
-
-		/* data interface label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[2].id = status;
-		ecm_data_intf.iInterface = status;
-
-		/* MAC address */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[1].id = status;
-		ecm_desc.iMACAddress = status;
-
-		/* IAD label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[3].id = status;
-		ecm_iad_descriptor.iFunction = status;
-	}
-
 	/* allocate and initialize one new instance */
 	ecm = kzalloc(sizeof *ecm, GFP_KERNEL);
 	if (!ecm)
 		return -ENOMEM;
 
 	/* export host's Ethernet address in CDC format */
-	snprintf(ecm->ethaddr, sizeof ecm->ethaddr,
-		"%02X%02X%02X%02X%02X%02X",
-		ethaddr[0], ethaddr[1], ethaddr[2],
-		ethaddr[3], ethaddr[4], ethaddr[5]);
+	snprintf(ecm->ethaddr, sizeof ecm->ethaddr, "%pm", ethaddr);
 	ecm_string_defs[1].s = ecm->ethaddr;
 
+	ecm->port.ioport = dev;
 	ecm->port.cdc_filter = DEFAULT_FILTER;
 
 	ecm->port.func.name = "cdc_ethernet";
-	ecm->port.func.strings = ecm_strings;
+	/* descriptors are per-instance copies */
+	ecm->port.func.bind = ecm_bind;
+	ecm->port.func.unbind = ecm_old_unbind;
+	ecm->port.func.set_alt = ecm_set_alt;
+	ecm->port.func.get_alt = ecm_get_alt;
+	ecm->port.func.setup = ecm_setup;
+	ecm->port.func.disable = ecm_disable;
+
+	status = usb_add_function(c, &ecm->port.func);
+	if (status)
+		kfree(ecm);
+	return status;
+}
+
+#else
+
+static inline struct f_ecm_opts *to_f_ecm_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_ecm_opts,
+			    func_inst.group);
+}
+
+/* f_ecm_item_ops */
+USB_ETHERNET_CONFIGFS_ITEM(ecm);
+
+/* f_ecm_opts_dev_addr */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_DEV_ADDR(ecm);
+
+/* f_ecm_opts_host_addr */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_HOST_ADDR(ecm);
+
+/* f_ecm_opts_qmult */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(ecm);
+
+/* f_ecm_opts_ifname */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(ecm);
+
+static struct configfs_attribute *ecm_attrs[] = {
+	&f_ecm_opts_dev_addr.attr,
+	&f_ecm_opts_host_addr.attr,
+	&f_ecm_opts_qmult.attr,
+	&f_ecm_opts_ifname.attr,
+	NULL,
+};
+
+static struct config_item_type ecm_func_type = {
+	.ct_item_ops	= &ecm_item_ops,
+	.ct_attrs	= ecm_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static void ecm_free_inst(struct usb_function_instance *f)
+{
+	struct f_ecm_opts *opts;
+
+	opts = container_of(f, struct f_ecm_opts, func_inst);
+	if (opts->bound)
+		gether_cleanup(netdev_priv(opts->net));
+	else
+		free_netdev(opts->net);
+	kfree(opts);
+}
+
+static struct usb_function_instance *ecm_alloc_inst(void)
+{
+	struct f_ecm_opts *opts;
+
+	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	if (!opts)
+		return ERR_PTR(-ENOMEM);
+	mutex_init(&opts->lock);
+	opts->func_inst.free_func_inst = ecm_free_inst;
+	opts->net = gether_setup_default();
+	if (IS_ERR(opts->net)) {
+		struct net_device *net = opts->net;
+		kfree(opts);
+		return ERR_CAST(net);
+	}
+
+	config_group_init_type_name(&opts->func_inst.group, "", &ecm_func_type);
+
+	return &opts->func_inst;
+}
+
+static void ecm_free(struct usb_function *f)
+{
+	struct f_ecm *ecm;
+	struct f_ecm_opts *opts;
+
+	ecm = func_to_ecm(f);
+	opts = container_of(f->fi, struct f_ecm_opts, func_inst);
+	kfree(ecm);
+	mutex_lock(&opts->lock);
+	opts->refcnt--;
+	mutex_unlock(&opts->lock);
+}
+
+static void ecm_unbind(struct usb_configuration *c, struct usb_function *f)
+{
+	struct f_ecm		*ecm = func_to_ecm(f);
+
+	DBG(c->cdev, "ecm unbind\n");
+
+	usb_free_all_descriptors(f);
+
+	kfree(ecm->notify_req->buf);
+	usb_ep_free_request(ecm->notify, ecm->notify_req);
+}
+
+struct usb_function *ecm_alloc(struct usb_function_instance *fi)
+{
+	struct f_ecm	*ecm;
+	struct f_ecm_opts *opts;
+	int status;
+
+	/* allocate and initialize one new instance */
+	ecm = kzalloc(sizeof(*ecm), GFP_KERNEL);
+	if (!ecm)
+		return ERR_PTR(-ENOMEM);
+
+	opts = container_of(fi, struct f_ecm_opts, func_inst);
+	mutex_lock(&opts->lock);
+	opts->refcnt++;
+
+	/* export host's Ethernet address in CDC format */
+	status = gether_get_host_addr_cdc(opts->net, ecm->ethaddr,
+					  sizeof(ecm->ethaddr));
+	if (status < 12) {
+		kfree(ecm);
+		mutex_unlock(&opts->lock);
+		return ERR_PTR(-EINVAL);
+	}
+	ecm_string_defs[1].s = ecm->ethaddr;
+
+	ecm->port.ioport = netdev_priv(opts->net);
+	mutex_unlock(&opts->lock);
+	ecm->port.cdc_filter = DEFAULT_FILTER;
+
+	ecm->port.func.name = "cdc_ethernet";
 	/* descriptors are per-instance copies */
 	ecm->port.func.bind = ecm_bind;
 	ecm->port.func.unbind = ecm_unbind;
@@ -914,11 +1032,13 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	ecm->port.func.get_alt = ecm_get_alt;
 	ecm->port.func.setup = ecm_setup;
 	ecm->port.func.disable = ecm_disable;
+	ecm->port.func.free_func = ecm_free;
 
-	status = usb_add_function(c, &ecm->port.func);
-	if (status) {
-		ecm_string_defs[1].s = NULL;
-		kfree(ecm);
-	}
-	return status;
+	return &ecm->port.func;
 }
+
+DECLARE_USB_FUNCTION_INIT(ecm, ecm_alloc_inst, ecm_alloc);
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("David Brownell");
+
+#endif

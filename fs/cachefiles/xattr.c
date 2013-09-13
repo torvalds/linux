@@ -109,13 +109,12 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object,
 	struct dentry *dentry = object->dentry;
 	int ret;
 
-	ASSERT(object->fscache.cookie);
 	ASSERT(dentry);
 
 	_enter("%p,#%d", object, auxdata->len);
 
 	/* attempt to install the cache metadata directly */
-	_debug("SET %s #%u", object->fscache.cookie->def->name, auxdata->len);
+	_debug("SET #%u", auxdata->len);
 
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
 			   &auxdata->type, auxdata->len,
@@ -138,13 +137,12 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 	struct dentry *dentry = object->dentry;
 	int ret;
 
-	ASSERT(object->fscache.cookie);
 	ASSERT(dentry);
 
 	_enter("%p,#%d", object, auxdata->len);
 
 	/* attempt to install the cache metadata directly */
-	_debug("SET %s #%u", object->fscache.cookie->def->name, auxdata->len);
+	_debug("SET #%u", auxdata->len);
 
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
 			   &auxdata->type, auxdata->len,
@@ -156,6 +154,42 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 
 	_leave(" = %d", ret);
 	return ret;
+}
+
+/*
+ * check the consistency between the backing cache and the FS-Cache cookie
+ */
+int cachefiles_check_auxdata(struct cachefiles_object *object)
+{
+	struct cachefiles_xattr *auxbuf;
+	struct dentry *dentry = object->dentry;
+	unsigned int dlen;
+	int ret;
+
+	ASSERT(dentry);
+	ASSERT(dentry->d_inode);
+	ASSERT(object->fscache.cookie->def->check_aux);
+
+	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, GFP_KERNEL);
+	if (!auxbuf)
+		return -ENOMEM;
+
+	auxbuf->len = vfs_getxattr(dentry, cachefiles_xattr_cache,
+				   &auxbuf->type, 512 + 1);
+	if (auxbuf->len < 1)
+		return -ESTALE;
+
+	if (auxbuf->type != object->fscache.cookie->def->type)
+		return -ESTALE;
+
+	dlen = auxbuf->len - 1;
+	ret = fscache_check_aux(&object->fscache, &auxbuf->data, dlen);
+
+	kfree(auxbuf);
+	if (ret != FSCACHE_CHECKAUX_OKAY)
+		return -ESTALE;
+
+	return 0;
 }
 
 /*
@@ -174,7 +208,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 	ASSERT(dentry);
 	ASSERT(dentry->d_inode);
 
-	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, GFP_KERNEL);
+	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, cachefiles_gfp);
 	if (!auxbuf) {
 		_leave(" = -ENOMEM");
 		return -ENOMEM;

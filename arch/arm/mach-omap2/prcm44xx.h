@@ -32,6 +32,17 @@
 #define OMAP4430_SCRM_PARTITION			4
 #define OMAP4430_PRCM_MPU_PARTITION		5
 
+#define OMAP54XX_PRM_PARTITION			1
+#define OMAP54XX_CM_CORE_AON_PARTITION		2
+#define OMAP54XX_CM_CORE_PARTITION		3
+#define OMAP54XX_SCRM_PARTITION			4
+#define OMAP54XX_PRCM_MPU_PARTITION		5
+
+#define DRA7XX_PRM_PARTITION                   1
+#define DRA7XX_CM_CORE_AON_PARTITION           2
+#define DRA7XX_CM_CORE_PARTITION               3
+#define DRA7XX_MPU_PRCM_PARTITION              5
+
 /*
  * OMAP4_MAX_PRCM_PARTITIONS: set to the highest value of the PRCM partition
  * IDs, plus one

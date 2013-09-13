@@ -95,7 +95,9 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 		CHECK_FULL_REGS(child->thread.regs);
 		if (index < PT_FPR0) {
-			tmp = ptrace_get_reg(child, index);
+			ret = ptrace_get_reg(child, index, &tmp);
+			if (ret)
+				break;
 		} else {
 			flush_fp_to_thread(child);
 			/*
@@ -148,7 +150,11 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			tmp = ((u64 *)child->thread.fpr)
 				[FPRINDEX_3264(numReg)];
 		} else { /* register within PT_REGS struct */
-			tmp = ptrace_get_reg(child, numReg);
+			unsigned long tmp2;
+			ret = ptrace_get_reg(child, numReg, &tmp2);
+			if (ret)
+				break;
+			tmp = tmp2;
 		} 
 		reg32bits = ((u32*)&tmp)[part];
 		ret = put_user(reg32bits, (u32 __user *)data);
@@ -232,7 +238,10 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			break;
 		CHECK_FULL_REGS(child->thread.regs);
 		if (numReg < PT_FPR0) {
-			unsigned long freg = ptrace_get_reg(child, numReg);
+			unsigned long freg;
+			ret = ptrace_get_reg(child, numReg, &freg);
+			if (ret)
+				break;
 			if (index % 2)
 				freg = (freg & ~0xfffffffful) | (data & 0xfffffffful);
 			else
@@ -252,6 +261,9 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 	}
 
 	case PTRACE_GET_DEBUGREG: {
+#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+		unsigned long dabr_fake;
+#endif
 		ret = -EINVAL;
 		/* We only support one DABR and no IABRS at the moment */
 		if (addr > 0)
@@ -259,7 +271,10 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		ret = put_user(child->thread.dac1, (u32 __user *)data);
 #else
-		ret = put_user(child->thread.dabr, (u32 __user *)data);
+		dabr_fake = (
+			(child->thread.hw_brk.address & (~HW_BRK_TYPE_DABR)) |
+			(child->thread.hw_brk.type & HW_BRK_TYPE_DABR));
+		ret = put_user(dabr_fake, (u32 __user *)data);
 #endif
 		break;
 	}

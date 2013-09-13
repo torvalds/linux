@@ -93,7 +93,7 @@ static struct notifier_block osiris_dvs_nb = {
 	.notifier_call	= osiris_dvs_notify,
 };
 
-static int __devinit osiris_dvs_probe(struct platform_device *pdev)
+static int osiris_dvs_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -126,7 +126,7 @@ err_nogpio:
 	return ret;
 }
 
-static int __devexit osiris_dvs_remove(struct platform_device *pdev)
+static int osiris_dvs_remove(struct platform_device *pdev)
 {
 	dev_info(&pdev->dev, "exiting\n");
 
@@ -167,7 +167,7 @@ static const struct dev_pm_ops osiris_dvs_pm = {
 
 static struct platform_driver osiris_dvs_driver = {
 	.probe		= osiris_dvs_probe,
-	.remove		= __devexit_p(osiris_dvs_remove),
+	.remove		= osiris_dvs_remove,
 	.driver		= {
 		.name	= "osiris-dvs",
 		.owner	= THIS_MODULE,
@@ -175,18 +175,7 @@ static struct platform_driver osiris_dvs_driver = {
 	},
 };
 
-static int __init osiris_dvs_init(void)
-{
-	return platform_driver_register(&osiris_dvs_driver);
-}
-
-static void __exit osiris_dvs_exit(void)
-{
-	platform_driver_unregister(&osiris_dvs_driver);
-}
-
-module_init(osiris_dvs_init);
-module_exit(osiris_dvs_exit);
+module_platform_driver(osiris_dvs_driver);
 
 MODULE_DESCRIPTION("Simtec OSIRIS DVS support");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");

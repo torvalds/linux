@@ -19,15 +19,14 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/dbx500-prcmu.h>
-
-#include <mach/hardware.h>
-#include <mach/msp.h>
+#include <linux/platform_data/asoc-ux500-msp.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 
 #include "ux500_msp_i2s.h"
 #include "ux500_msp_dai.h"
+#include "ux500_pcm.h"
 
 static int setup_pcm_multichan(struct snd_soc_dai *dai,
 			struct ux500_msp_config *msp_config)
@@ -398,11 +397,28 @@ static int ux500_msp_dai_startup(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* Enable clock */
-	dev_dbg(dai->dev, "%s: Enabling MSP-clock.\n", __func__);
-	clk_enable(drvdata->clk);
+	/* Prepare and enable clocks */
+	dev_dbg(dai->dev, "%s: Enabling MSP-clocks.\n", __func__);
+	ret = clk_prepare_enable(drvdata->pclk);
+	if (ret) {
+		dev_err(drvdata->msp->dev,
+			"%s: Failed to prepare/enable pclk!\n", __func__);
+		goto err_pclk;
+	}
 
-	return 0;
+	ret = clk_prepare_enable(drvdata->clk);
+	if (ret) {
+		dev_err(drvdata->msp->dev,
+			"%s: Failed to prepare/enable clk!\n", __func__);
+		goto err_clk;
+	}
+
+	return ret;
+err_clk:
+	clk_disable_unprepare(drvdata->pclk);
+err_pclk:
+	regulator_disable(drvdata->reg_vape);
+	return ret;
 }
 
 static void ux500_msp_dai_shutdown(struct snd_pcm_substream *substream,
@@ -428,8 +444,9 @@ static void ux500_msp_dai_shutdown(struct snd_pcm_substream *substream,
 			__func__, dai->id, snd_pcm_stream_str(substream));
 	}
 
-	/* Disable clock */
-	clk_disable(drvdata->clk);
+	/* Disable and unprepare clocks */
+	clk_disable_unprepare(drvdata->clk);
+	clk_disable_unprepare(drvdata->pclk);
 
 	/* Disable regulator */
 	ret = regulator_disable(drvdata->reg_vape);
@@ -641,14 +658,11 @@ static int ux500_msp_dai_probe(struct snd_soc_dai *dai)
 {
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(dai->dev);
 
-	drvdata->playback_dma_data.dma_cfg = drvdata->msp->dma_cfg_tx;
-	drvdata->capture_dma_data.dma_cfg = drvdata->msp->dma_cfg_rx;
+	dai->playback_dma_data = &drvdata->msp->playback_dma_data;
+	dai->capture_dma_data = &drvdata->msp->capture_dma_data;
 
-	dai->playback_dma_data = &drvdata->playback_dma_data;
-	dai->capture_dma_data = &drvdata->capture_dma_data;
-
-	drvdata->playback_dma_data.data_size = drvdata->slot_width;
-	drvdata->capture_dma_data.data_size = drvdata->slot_width;
+	drvdata->msp->playback_dma_data.data_size = drvdata->slot_width;
+	drvdata->msp->capture_dma_data.data_size = drvdata->slot_width;
 
 	return 0;
 }
@@ -749,7 +763,12 @@ static struct snd_soc_dai_driver ux500_msp_dai_drv[UX500_NBR_OF_DAI] = {
 	},
 };
 
-static int __devinit ux500_msp_drv_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver ux500_msp_component = {
+	.name		= "ux500-msp",
+};
+
+
+static int ux500_msp_drv_probe(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata;
 	int ret = 0;
@@ -760,6 +779,9 @@ static int __devinit ux500_msp_drv_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(&pdev->dev,
 				sizeof(struct ux500_msp_i2s_drvdata),
 				GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
+
 	drvdata->fmt = 0;
 	drvdata->slots = 1;
 	drvdata->tx_mask = 0x01;
@@ -776,6 +798,14 @@ static int __devinit ux500_msp_drv_probe(struct platform_device *pdev)
 		return ret;
 	}
 	prcmu_qos_add_requirement(PRCMU_QOS_APE_OPP, (char *)pdev->name, 50);
+
+	drvdata->pclk = clk_get(&pdev->dev, "apb_pclk");
+	if (IS_ERR(drvdata->pclk)) {
+		ret = (int)PTR_ERR(drvdata->pclk);
+		dev_err(&pdev->dev, "%s: ERROR: clk_get of pclk failed (%d)!\n",
+			__func__, ret);
+		goto err_pclk;
+	}
 
 	drvdata->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(drvdata->clk)) {
@@ -795,45 +825,65 @@ static int __devinit ux500_msp_drv_probe(struct platform_device *pdev)
 	}
 	dev_set_drvdata(&pdev->dev, drvdata);
 
-	ret = snd_soc_register_dai(&pdev->dev,
-				&ux500_msp_dai_drv[drvdata->msp->id]);
+	ret = snd_soc_register_component(&pdev->dev, &ux500_msp_component,
+					 &ux500_msp_dai_drv[drvdata->msp->id], 1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error: %s: Failed to register MSP%d!\n",
 			__func__, drvdata->msp->id);
 		goto err_init_msp;
 	}
 
+	ret = ux500_pcm_register_platform(pdev);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Error: %s: Failed to register PCM platform device!\n",
+			__func__);
+		goto err_reg_plat;
+	}
+
 	return 0;
 
+err_reg_plat:
+	snd_soc_unregister_component(&pdev->dev);
 err_init_msp:
 	clk_put(drvdata->clk);
-
 err_clk:
+	clk_put(drvdata->pclk);
+err_pclk:
 	devm_regulator_put(drvdata->reg_vape);
 
 	return ret;
 }
 
-static int __devexit ux500_msp_drv_remove(struct platform_device *pdev)
+static int ux500_msp_drv_remove(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(ux500_msp_dai_drv));
+	ux500_pcm_unregister_platform(pdev);
+
+	snd_soc_unregister_component(&pdev->dev);
 
 	devm_regulator_put(drvdata->reg_vape);
 	prcmu_qos_remove_requirement(PRCMU_QOS_APE_OPP, "ux500_msp_i2s");
 
 	clk_put(drvdata->clk);
+	clk_put(drvdata->pclk);
 
 	ux500_msp_i2s_cleanup_msp(pdev, drvdata->msp);
 
 	return 0;
 }
 
+static const struct of_device_id ux500_msp_i2s_match[] = {
+	{ .compatible = "stericsson,ux500-msp-i2s", },
+	{},
+};
+
 static struct platform_driver msp_i2s_driver = {
 	.driver = {
 		.name = "ux500-msp-i2s",
 		.owner = THIS_MODULE,
+		.of_match_table = ux500_msp_i2s_match,
 	},
 	.probe = ux500_msp_drv_probe,
 	.remove = ux500_msp_drv_remove,

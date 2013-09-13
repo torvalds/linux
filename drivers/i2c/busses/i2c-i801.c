@@ -52,6 +52,13 @@
   DH89xxCC (PCH)        0x2330     32     hard     yes     yes     yes
   Panther Point (PCH)   0x1e22     32     hard     yes     yes     yes
   Lynx Point (PCH)      0x8c22     32     hard     yes     yes     yes
+  Lynx Point-LP (PCH)   0x9c22     32     hard     yes     yes     yes
+  Avoton (SOC)          0x1f3c     32     hard     yes     yes     yes
+  Wellsburg (PCH)       0x8d22     32     hard     yes     yes     yes
+  Wellsburg (PCH) MS    0x8d7d     32     hard     yes     yes     yes
+  Wellsburg (PCH) MS    0x8d7e     32     hard     yes     yes     yes
+  Wellsburg (PCH) MS    0x8d7f     32     hard     yes     yes     yes
+  Coleto Creek (PCH)    0x23b0     32     hard     yes     yes     yes
 
   Features supported by this driver:
   Software PEC                     no
@@ -79,6 +86,14 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
+#include <linux/err.h>
+
+#if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
+		defined CONFIG_DMI
+#include <linux/gpio.h>
+#include <linux/i2c-mux-gpio.h>
+#include <linux/platform_device.h>
+#endif
 
 /* I801 SMBus address offsets */
 #define SMBHSTSTS(p)	(0 + (p)->smba)
@@ -152,9 +167,25 @@
 #define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1	0x1d71
 #define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2	0x1d72
 #define PCI_DEVICE_ID_INTEL_PANTHERPOINT_SMBUS	0x1e22
+#define PCI_DEVICE_ID_INTEL_AVOTON_SMBUS	0x1f3c
 #define PCI_DEVICE_ID_INTEL_DH89XXCC_SMBUS	0x2330
+#define PCI_DEVICE_ID_INTEL_COLETOCREEK_SMBUS	0x23b0
 #define PCI_DEVICE_ID_INTEL_5_3400_SERIES_SMBUS	0x3b30
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_SMBUS	0x8c22
+#define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS	0x8d22
+#define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS0	0x8d7d
+#define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS1	0x8d7e
+#define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS2	0x8d7f
+#define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_SMBUS	0x9c22
+
+struct i801_mux_config {
+	char *gpio_chip;
+	unsigned values[3];
+	int n_values;
+	unsigned classes[3];
+	unsigned gpios[2];		/* Relative to gpio_chip->base */
+	int n_gpios;
+};
 
 struct i801_priv {
 	struct i2c_adapter adapter;
@@ -173,6 +204,12 @@ struct i801_priv {
 	int count;
 	int len;
 	u8 *data;
+
+#if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
+		defined CONFIG_DMI
+	const struct i801_mux_config *mux_drvdata;
+	struct platform_device *mux_pdev;
+#endif
 };
 
 static struct pci_driver i801_driver;
@@ -195,7 +232,11 @@ static const char *i801_feature_names[] = {
 
 static unsigned int disable_features;
 module_param(disable_features, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(disable_features, "Disable selected driver features");
+MODULE_PARM_DESC(disable_features, "Disable selected driver features:\n"
+	"\t\t  0x01  disable SMBus PEC\n"
+	"\t\t  0x02  disable the block buffer\n"
+	"\t\t  0x08  disable the I2C block read functionality\n"
+	"\t\t  0x10  don't use interrupts ");
 
 /* Make sure the SMBus host is ready to start transmitting.
    Return 0 if it is, -EBUSY if it is not. */
@@ -771,6 +812,13 @@ static DEFINE_PCI_DEVICE_TABLE(i801_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_DH89XXCC_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PANTHERPOINT_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNXPOINT_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_AVOTON_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS1) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS2) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COLETOCREEK_SMBUS) },
 	{ 0, }
 };
 
@@ -814,14 +862,14 @@ struct dmi_onboard_device_info {
 	const char *i2c_type;
 };
 
-static struct dmi_onboard_device_info __devinitdata dmi_devices[] = {
+static const struct dmi_onboard_device_info dmi_devices[] = {
 	{ "Syleus", DMI_DEV_TYPE_OTHER, 0x73, "fscsyl" },
 	{ "Hermes", DMI_DEV_TYPE_OTHER, 0x73, "fscher" },
 	{ "Hades",  DMI_DEV_TYPE_OTHER, 0x73, "fschds" },
 };
 
-static void __devinit dmi_check_onboard_device(u8 type, const char *name,
-					       struct i2c_adapter *adap)
+static void dmi_check_onboard_device(u8 type, const char *name,
+				     struct i2c_adapter *adap)
 {
 	int i;
 	struct i2c_board_info info;
@@ -844,8 +892,7 @@ static void __devinit dmi_check_onboard_device(u8 type, const char *name,
 /* We use our own function to check for onboard devices instead of
    dmi_find_device() as some buggy BIOS's have the devices we are interested
    in marked as disabled */
-static void __devinit dmi_check_onboard_devices(const struct dmi_header *dm,
-						void *adap)
+static void dmi_check_onboard_devices(const struct dmi_header *dm, void *adap)
 {
 	int i, count;
 
@@ -874,7 +921,7 @@ static void __devinit dmi_check_onboard_devices(const struct dmi_header *dm,
 }
 
 /* Register optional slaves */
-static void __devinit i801_probe_optional_slaves(struct i801_priv *priv)
+static void i801_probe_optional_slaves(struct i801_priv *priv)
 {
 	/* Only register slaves on main SMBus channel */
 	if (priv->features & FEATURE_IDF)
@@ -894,11 +941,170 @@ static void __devinit i801_probe_optional_slaves(struct i801_priv *priv)
 }
 #else
 static void __init input_apanel_init(void) {}
-static void __devinit i801_probe_optional_slaves(struct i801_priv *priv) {}
+static void i801_probe_optional_slaves(struct i801_priv *priv) {}
 #endif	/* CONFIG_X86 && CONFIG_DMI */
 
-static int __devinit i801_probe(struct pci_dev *dev,
-				const struct pci_device_id *id)
+#if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
+		defined CONFIG_DMI
+static struct i801_mux_config i801_mux_config_asus_z8_d12 = {
+	.gpio_chip = "gpio_ich",
+	.values = { 0x02, 0x03 },
+	.n_values = 2,
+	.classes = { I2C_CLASS_SPD, I2C_CLASS_SPD },
+	.gpios = { 52, 53 },
+	.n_gpios = 2,
+};
+
+static struct i801_mux_config i801_mux_config_asus_z8_d18 = {
+	.gpio_chip = "gpio_ich",
+	.values = { 0x02, 0x03, 0x01 },
+	.n_values = 3,
+	.classes = { I2C_CLASS_SPD, I2C_CLASS_SPD, I2C_CLASS_SPD },
+	.gpios = { 52, 53 },
+	.n_gpios = 2,
+};
+
+static const struct dmi_system_id mux_dmi_table[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "Z8NA-D6(C)"),
+		},
+		.driver_data = &i801_mux_config_asus_z8_d12,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "Z8P(N)E-D12(X)"),
+		},
+		.driver_data = &i801_mux_config_asus_z8_d12,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "Z8NH-D12"),
+		},
+		.driver_data = &i801_mux_config_asus_z8_d12,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "Z8PH-D12/IFB"),
+		},
+		.driver_data = &i801_mux_config_asus_z8_d12,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "Z8NR-D12"),
+		},
+		.driver_data = &i801_mux_config_asus_z8_d12,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "Z8P(N)H-D12"),
+		},
+		.driver_data = &i801_mux_config_asus_z8_d12,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "Z8PG-D18"),
+		},
+		.driver_data = &i801_mux_config_asus_z8_d18,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "Z8PE-D18"),
+		},
+		.driver_data = &i801_mux_config_asus_z8_d18,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "Z8PS-D12"),
+		},
+		.driver_data = &i801_mux_config_asus_z8_d12,
+	},
+	{ }
+};
+
+/* Setup multiplexing if needed */
+static int i801_add_mux(struct i801_priv *priv)
+{
+	struct device *dev = &priv->adapter.dev;
+	const struct i801_mux_config *mux_config;
+	struct i2c_mux_gpio_platform_data gpio_data;
+	int err;
+
+	if (!priv->mux_drvdata)
+		return 0;
+	mux_config = priv->mux_drvdata;
+
+	/* Prepare the platform data */
+	memset(&gpio_data, 0, sizeof(struct i2c_mux_gpio_platform_data));
+	gpio_data.parent = priv->adapter.nr;
+	gpio_data.values = mux_config->values;
+	gpio_data.n_values = mux_config->n_values;
+	gpio_data.classes = mux_config->classes;
+	gpio_data.gpio_chip = mux_config->gpio_chip;
+	gpio_data.gpios = mux_config->gpios;
+	gpio_data.n_gpios = mux_config->n_gpios;
+	gpio_data.idle = I2C_MUX_GPIO_NO_IDLE;
+
+	/* Register the mux device */
+	priv->mux_pdev = platform_device_register_data(dev, "i2c-mux-gpio",
+				PLATFORM_DEVID_AUTO, &gpio_data,
+				sizeof(struct i2c_mux_gpio_platform_data));
+	if (IS_ERR(priv->mux_pdev)) {
+		err = PTR_ERR(priv->mux_pdev);
+		priv->mux_pdev = NULL;
+		dev_err(dev, "Failed to register i2c-mux-gpio device\n");
+		return err;
+	}
+
+	return 0;
+}
+
+static void i801_del_mux(struct i801_priv *priv)
+{
+	if (priv->mux_pdev)
+		platform_device_unregister(priv->mux_pdev);
+}
+
+static unsigned int i801_get_adapter_class(struct i801_priv *priv)
+{
+	const struct dmi_system_id *id;
+	const struct i801_mux_config *mux_config;
+	unsigned int class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	int i;
+
+	id = dmi_first_match(mux_dmi_table);
+	if (id) {
+		/* Remove branch classes from trunk */
+		mux_config = id->driver_data;
+		for (i = 0; i < mux_config->n_values; i++)
+			class &= ~mux_config->classes[i];
+
+		/* Remember for later */
+		priv->mux_drvdata = mux_config;
+	}
+
+	return class;
+}
+#else
+static inline int i801_add_mux(struct i801_priv *priv) { return 0; }
+static inline void i801_del_mux(struct i801_priv *priv) { }
+
+static inline unsigned int i801_get_adapter_class(struct i801_priv *priv)
+{
+	return I2C_CLASS_HWMON | I2C_CLASS_SPD;
+}
+#endif
+
+static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	unsigned char temp;
 	int err, i;
@@ -910,7 +1116,7 @@ static int __devinit i801_probe(struct pci_dev *dev,
 
 	i2c_set_adapdata(&priv->adapter, priv);
 	priv->adapter.owner = THIS_MODULE;
-	priv->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	priv->adapter.class = i801_get_adapter_class(priv);
 	priv->adapter.algo = &smbus_algorithm;
 
 	priv->pci_dev = dev;
@@ -918,10 +1124,14 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	case PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF0:
 	case PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1:
 	case PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2:
+	case PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS0:
+	case PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS1:
+	case PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS2:
 		priv->features |= FEATURE_IDF;
 		/* fall through */
 	default:
 		priv->features |= FEATURE_I2C_BLOCK_READ;
+		priv->features |= FEATURE_IRQ;
 		/* fall through */
 	case PCI_DEVICE_ID_INTEL_82801DB_3:
 		priv->features |= FEATURE_SMBUS_PEC;
@@ -933,16 +1143,6 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	case PCI_DEVICE_ID_INTEL_82801AA_3:
 		break;
 	}
-
-	/* IRQ processing tested on CougarPoint PCH, ICH5, ICH7-M and ICH10 */
-	if (dev->device == PCI_DEVICE_ID_INTEL_COUGARPOINT_SMBUS ||
-	    dev->device == PCI_DEVICE_ID_INTEL_82801EB_3 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH7_17 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH8_5 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH9_6 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH10_4 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH10_5)
-		priv->features |= FEATURE_IRQ;
 
 	/* Disable features on user request */
 	for (i = 0; i < ARRAY_SIZE(i801_feature_names); i++) {
@@ -1030,6 +1230,8 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	}
 
 	i801_probe_optional_slaves(priv);
+	/* We ignore errors - multiplexing is optional */
+	i801_add_mux(priv);
 
 	pci_set_drvdata(dev, priv);
 
@@ -1045,10 +1247,11 @@ exit:
 	return err;
 }
 
-static void __devexit i801_remove(struct pci_dev *dev)
+static void i801_remove(struct pci_dev *dev)
 {
 	struct i801_priv *priv = pci_get_drvdata(dev);
 
+	i801_del_mux(priv);
 	i2c_del_adapter(&priv->adapter);
 	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
 
@@ -1056,7 +1259,6 @@ static void __devexit i801_remove(struct pci_dev *dev)
 		free_irq(dev->irq, priv);
 	pci_release_region(dev, SMBBAR);
 
-	pci_set_drvdata(dev, NULL);
 	kfree(priv);
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on
@@ -1090,7 +1292,7 @@ static struct pci_driver i801_driver = {
 	.name		= "i801_smbus",
 	.id_table	= i801_ids,
 	.probe		= i801_probe,
-	.remove		= __devexit_p(i801_remove),
+	.remove		= i801_remove,
 	.suspend	= i801_suspend,
 	.resume		= i801_resume,
 };

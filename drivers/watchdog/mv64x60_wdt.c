@@ -253,7 +253,7 @@ static struct miscdevice mv64x60_wdt_miscdev = {
 	.fops = &mv64x60_wdt_fops,
 };
 
-static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
+static int mv64x60_wdt_probe(struct platform_device *dev)
 {
 	struct mv64x60_wdt_pdata *pdata = dev->dev.platform_data;
 	struct resource *r;
@@ -276,7 +276,7 @@ static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 	if (!r)
 		return -ENODEV;
 
-	mv64x60_wdt_regs = ioremap(r->start, resource_size(r));
+	mv64x60_wdt_regs = devm_ioremap(&dev->dev, r->start, resource_size(r));
 	if (mv64x60_wdt_regs == NULL)
 		return -ENOMEM;
 
@@ -287,20 +287,18 @@ static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 	return misc_register(&mv64x60_wdt_miscdev);
 }
 
-static int __devexit mv64x60_wdt_remove(struct platform_device *dev)
+static int mv64x60_wdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&mv64x60_wdt_miscdev);
 
 	mv64x60_wdt_handler_disable();
-
-	iounmap(mv64x60_wdt_regs);
 
 	return 0;
 }
 
 static struct platform_driver mv64x60_wdt_driver = {
 	.probe = mv64x60_wdt_probe,
-	.remove = __devexit_p(mv64x60_wdt_remove),
+	.remove = mv64x60_wdt_remove,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = MV64x60_WDT_NAME,

@@ -24,7 +24,7 @@ strip-flags   := $(addprefix --remove-section=,$(drop-sections))
 hostprogs-y := elf2ecoff
 
 targets := vmlinux.ecoff
-quiet_cmd_ecoff = ECOFF   $@
+quiet_cmd_ecoff = ECOFF	  $@
       cmd_ecoff = $(obj)/elf2ecoff $(VMLINUX) $@ $(e2eflag)
 $(obj)/vmlinux.ecoff: $(obj)/elf2ecoff $(VMLINUX) FORCE
 	$(call if_changed,ecoff)
@@ -40,3 +40,18 @@ quiet_cmd_srec = OBJCOPY $@
       cmd_srec = $(OBJCOPY) -S -O srec $(strip-flags) $(VMLINUX) $@
 $(obj)/vmlinux.srec: $(VMLINUX) FORCE
 	$(call if_changed,srec)
+
+UIMAGE_LOADADDR  = $(VMLINUX_LOAD_ADDRESS)
+UIMAGE_ENTRYADDR = $(VMLINUX_ENTRY_ADDRESS)
+
+$(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,gzip)
+
+targets += uImage.gz
+$(obj)/uImage.gz: $(obj)/vmlinux.bin.gz FORCE
+	$(call if_changed,uimage,gzip)
+
+targets += uImage
+$(obj)/uImage: $(obj)/uImage.gz FORCE
+	@ln -sf $(notdir $<) $@
+	@echo '  Image $@ is ready'

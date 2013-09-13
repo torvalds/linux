@@ -99,7 +99,7 @@ static irqreturn_t jornada720_ts_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit jornada720_ts_probe(struct platform_device *pdev)
+static int jornada720_ts_probe(struct platform_device *pdev)
 {
 	struct jornada_ts *jornada_ts;
 	struct input_dev *input_dev;
@@ -145,18 +145,16 @@ static int __devinit jornada720_ts_probe(struct platform_device *pdev)
  fail2:
 	free_irq(IRQ_GPIO9, pdev);
  fail1:
-	platform_set_drvdata(pdev, NULL);
 	input_free_device(input_dev);
 	kfree(jornada_ts);
 	return error;
 }
 
-static int __devexit jornada720_ts_remove(struct platform_device *pdev)
+static int jornada720_ts_remove(struct platform_device *pdev)
 {
 	struct jornada_ts *jornada_ts = platform_get_drvdata(pdev);
 
 	free_irq(IRQ_GPIO9, pdev);
-	platform_set_drvdata(pdev, NULL);
 	input_unregister_device(jornada_ts->dev);
 	kfree(jornada_ts);
 
@@ -168,7 +166,7 @@ MODULE_ALIAS("platform:jornada_ts");
 
 static struct platform_driver jornada720_ts_driver = {
 	.probe		= jornada720_ts_probe,
-	.remove		= __devexit_p(jornada720_ts_remove),
+	.remove		= jornada720_ts_remove,
 	.driver		= {
 		.name	= "jornada_ts",
 		.owner	= THIS_MODULE,

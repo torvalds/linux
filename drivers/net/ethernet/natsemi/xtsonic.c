@@ -197,14 +197,13 @@ static int __init sonic_probe1(struct net_device *dev)
 	 *  We also allocate extra space for a pointer to allow freeing
 	 *  this structure later on (in xtsonic_cleanup_module()).
 	 */
-	lp->descriptors =
-		dma_alloc_coherent(lp->device,
-			SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
-			&lp->descriptors_laddr, GFP_KERNEL);
-
+	lp->descriptors = dma_alloc_coherent(lp->device,
+					     SIZEOF_SONIC_DESC *
+					     SONIC_BUS_SCALE(lp->dma_bitmode),
+					     &lp->descriptors_laddr,
+					     GFP_KERNEL);
 	if (lp->descriptors == NULL) {
-		printk(KERN_ERR "%s: couldn't alloc DMA memory for "
-				" descriptors.\n", dev_name(lp->device));
+		err = -ENOMEM;
 		goto out;
 	}
 
@@ -248,7 +247,7 @@ out:
  * Actually probing is superfluous but we're paranoid.
  */
 
-int __devinit xtsonic_probe(struct platform_device *pdev)
+int xtsonic_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
@@ -296,7 +295,7 @@ MODULE_PARM_DESC(sonic_debug, "xtsonic debug level (1-4)");
 
 #include "sonic.c"
 
-static int __devexit xtsonic_device_remove (struct platform_device *pdev)
+static int xtsonic_device_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sonic_local *lp = netdev_priv(dev);
@@ -313,7 +312,7 @@ static int __devexit xtsonic_device_remove (struct platform_device *pdev)
 
 static struct platform_driver xtsonic_driver = {
 	.probe = xtsonic_probe,
-	.remove = __devexit_p(xtsonic_device_remove),
+	.remove = xtsonic_device_remove,
 	.driver = {
 		.name = xtsonic_string,
 	},

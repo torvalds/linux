@@ -38,6 +38,11 @@ static const unsigned int VIO_VSEL_table[] = {
 
 /* VSEL tables for TPS65910 specific LDOs and dcdc's */
 
+/* supported VRTC voltages in microvolts */
+static const unsigned int VRTC_VSEL_table[] = {
+	1800000,
+};
+
 /* supported VDD3 voltages in microvolts */
 static const unsigned int VDD3_VSEL_table[] = {
 	5000000,
@@ -95,6 +100,8 @@ static struct tps_info tps65910_regs[] = {
 	{
 		.name = "vrtc",
 		.vin_name = "vcc7",
+		.n_voltages = ARRAY_SIZE(VRTC_VSEL_table),
+		.voltage_table = VRTC_VSEL_table,
 		.enable_time_us = 2200,
 	},
 	{
@@ -741,6 +748,7 @@ static struct regulator_ops tps65910_ops_dcdc = {
 	.set_voltage_sel	= tps65910_set_voltage_dcdc_sel,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.list_voltage		= tps65910_list_voltage_dcdc,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static struct regulator_ops tps65910_ops_vdd3 = {
@@ -751,6 +759,7 @@ static struct regulator_ops tps65910_ops_vdd3 = {
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65910_get_voltage_vdd3,
 	.list_voltage		= regulator_list_voltage_table,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static struct regulator_ops tps65910_ops = {
@@ -762,6 +771,7 @@ static struct regulator_ops tps65910_ops = {
 	.get_voltage_sel	= tps65910_get_voltage_sel,
 	.set_voltage_sel	= tps65910_set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_table,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static struct regulator_ops tps65911_ops = {
@@ -773,6 +783,7 @@ static struct regulator_ops tps65911_ops = {
 	.get_voltage_sel	= tps65911_get_voltage_sel,
 	.set_voltage_sel	= tps65911_set_voltage_sel,
 	.list_voltage		= tps65911_list_voltage,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
@@ -957,8 +968,7 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 {
 	struct tps65910_board *pmic_plat_data;
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.parent->of_node;
-	struct device_node *regulators;
+	struct device_node *np, *regulators;
 	struct of_regulator_match *matches;
 	unsigned int prop;
 	int idx = 0, ret, count;
@@ -971,6 +981,7 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 		return NULL;
 	}
 
+	np = of_node_get(pdev->dev.parent->of_node);
 	regulators = of_find_node_by_name(np, "regulators");
 	if (!regulators) {
 		dev_err(&pdev->dev, "regulator node not found\n");
@@ -987,11 +998,13 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 		matches = tps65911_matches;
 		break;
 	default:
+		of_node_put(regulators);
 		dev_err(&pdev->dev, "Invalid tps chip version\n");
 		return NULL;
 	}
 
-	ret = of_regulator_match(pdev->dev.parent, regulators, matches, count);
+	ret = of_regulator_match(&pdev->dev, regulators, matches, count);
+	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
 			ret);
@@ -1026,7 +1039,7 @@ static inline struct tps65910_board *tps65910_parse_dt_reg_data(
 }
 #endif
 
-static __devinit int tps65910_probe(struct platform_device *pdev)
+static int tps65910_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
@@ -1184,7 +1197,7 @@ err_unregister_regulator:
 	return err;
 }
 
-static int __devexit tps65910_remove(struct platform_device *pdev)
+static int tps65910_remove(struct platform_device *pdev)
 {
 	struct tps65910_reg *pmic = platform_get_drvdata(pdev);
 	int i;
@@ -1231,7 +1244,7 @@ static struct platform_driver tps65910_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65910_probe,
-	.remove = __devexit_p(tps65910_remove),
+	.remove = tps65910_remove,
 	.shutdown = tps65910_shutdown,
 };
 

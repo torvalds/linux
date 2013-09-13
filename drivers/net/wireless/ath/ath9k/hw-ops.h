@@ -78,6 +78,16 @@ static inline void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	ath9k_hw_ops(ah)->antdiv_comb_conf_set(ah, antconf);
 }
 
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
+static inline void ath9k_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
+{
+	if (ath9k_hw_ops(ah)->set_bt_ant_diversity)
+		ath9k_hw_ops(ah)->set_bt_ant_diversity(ah, enable);
+}
+
+#endif
+
 /* Private hardware call ops */
 
 /* PHY ops */
@@ -92,22 +102,6 @@ static inline void ath9k_hw_spur_mitigate_freq(struct ath_hw *ah,
 					       struct ath9k_channel *chan)
 {
 	ath9k_hw_private_ops(ah)->spur_mitigate_freq(ah, chan);
-}
-
-static inline int ath9k_hw_rf_alloc_ext_banks(struct ath_hw *ah)
-{
-	if (!ath9k_hw_private_ops(ah)->rf_alloc_ext_banks)
-		return 0;
-
-	return ath9k_hw_private_ops(ah)->rf_alloc_ext_banks(ah);
-}
-
-static inline void ath9k_hw_rf_free_ext_banks(struct ath_hw *ah)
-{
-	if (!ath9k_hw_private_ops(ah)->rf_free_ext_banks)
-		return;
-
-	ath9k_hw_private_ops(ah)->rf_free_ext_banks(ah);
 }
 
 static inline bool ath9k_hw_set_rf_regs(struct ath_hw *ah,

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
  * All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
@@ -51,7 +52,7 @@ static u32 qib_6120_iblink_state(u64);
 
 /*
  * This file contains all the chip-specific register information and
- * access functions for the QLogic QLogic_IB PCI-Express chip.
+ * access functions for the Intel Intel_IB PCI-Express chip.
  *
  */
 
@@ -3463,6 +3464,13 @@ static int qib_6120_tempsense_rd(struct qib_devdata *dd, int regnum)
 	return -ENXIO;
 }
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+static int qib_6120_notify_dca(struct qib_devdata *dd, unsigned long event)
+{
+	return 0;
+}
+#endif
+
 /* Dummy function, as 6120 boards never disable EEPROM Write */
 static int qib_6120_eeprom_wen(struct qib_devdata *dd, int wen)
 {
@@ -3538,6 +3546,9 @@ struct qib_devdata *qib_init_iba6120_funcs(struct pci_dev *pdev,
 	dd->f_xgxs_reset        = qib_6120_xgxs_reset;
 	dd->f_writescratch      = writescratch;
 	dd->f_tempsense_rd	= qib_6120_tempsense_rd;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dd->f_notify_dca = qib_6120_notify_dca;
+#endif
 	/*
 	 * Do remaining pcie setup and save pcie values in dd.
 	 * Any error printing is already done by the init code.

@@ -312,8 +312,8 @@ struct inode *qnx4_iget(struct super_block *sb, unsigned long ino)
 	    (ino % QNX4_INODES_PER_BLOCK);
 
 	inode->i_mode    = le16_to_cpu(raw_inode->di_mode);
-	inode->i_uid     = (uid_t)le16_to_cpu(raw_inode->di_uid);
-	inode->i_gid     = (gid_t)le16_to_cpu(raw_inode->di_gid);
+	i_uid_write(inode, (uid_t)le16_to_cpu(raw_inode->di_uid));
+	i_gid_write(inode, (gid_t)le16_to_cpu(raw_inode->di_gid));
 	set_nlink(inode, le16_to_cpu(raw_inode->di_nlink));
 	inode->i_size    = le32_to_cpu(raw_inode->di_size);
 	inode->i_mtime.tv_sec   = le32_to_cpu(raw_inode->di_mtime);
@@ -391,6 +391,11 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(qnx4_inode_cachep);
 }
 
@@ -407,6 +412,7 @@ static struct file_system_type qnx4_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("qnx4");
 
 static int __init init_qnx4_fs(void)
 {

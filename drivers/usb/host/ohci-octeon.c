@@ -42,7 +42,7 @@ static void ohci_octeon_hw_stop(void)
 	octeon2_usb_clocks_stop();
 }
 
-static int __devinit ohci_octeon_start(struct usb_hcd *hcd)
+static int ohci_octeon_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
 	int ret;
@@ -195,8 +195,6 @@ static int ohci_octeon_drv_remove(struct platform_device *pdev)
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -23,7 +23,6 @@ config BFIN_MAC
 	tristate "Blackfin on-chip MAC support"
 	depends on (BF516 || BF518 || BF526 || BF527 || BF536 || BF537)
 	select CRC32
-	select NET_CORE
 	select MII
 	select PHYLIB
 	select BFIN_MAC_USE_L1 if DMA_UNCACHED_NONE
@@ -62,6 +61,7 @@ config BFIN_RX_DESC_NUM
 config BFIN_MAC_USE_HWSTAMP
 	bool "Use IEEE 1588 hwstamp"
 	depends on BFIN_MAC && BF518
+	select PTP_1588_CLOCK
 	default y
 	---help---
 	  To support the IEEE 1588 Precision Time Protocol (PTP), select y here

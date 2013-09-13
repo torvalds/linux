@@ -311,4 +311,6 @@ extern int dbAllocBottomUp(struct inode *ip, s64 blkno, s64 nblocks);
 extern int dbExtendFS(struct inode *ipbmap, s64 blkno, s64 nblocks);
 extern void dbFinalizeBmap(struct inode *ipbmap);
 extern s64 dbMapFileSizeToMapSize(struct inode *ipbmap);
+extern s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen);
+
 #endif				/* _H_JFS_DMAP */

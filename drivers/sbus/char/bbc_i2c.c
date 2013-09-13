@@ -282,7 +282,7 @@ static irqreturn_t bbc_i2c_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void __init reset_one_i2c(struct bbc_i2c_bus *bp)
+static void reset_one_i2c(struct bbc_i2c_bus *bp)
 {
 	writeb(I2C_PCF_PIN, bp->i2c_control_regs + 0x0);
 	writeb(bp->own, bp->i2c_control_regs + 0x1);
@@ -291,7 +291,7 @@ static void __init reset_one_i2c(struct bbc_i2c_bus *bp)
 	writeb(I2C_PCF_IDLE, bp->i2c_control_regs + 0x0);
 }
 
-static struct bbc_i2c_bus * __init attach_one_i2c(struct platform_device *op, int index)
+static struct bbc_i2c_bus * attach_one_i2c(struct platform_device *op, int index)
 {
 	struct bbc_i2c_bus *bp;
 	struct device_node *dp;
@@ -355,7 +355,7 @@ fail:
 extern int bbc_envctrl_init(struct bbc_i2c_bus *bp);
 extern void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp);
 
-static int __devinit bbc_i2c_probe(struct platform_device *op)
+static int bbc_i2c_probe(struct platform_device *op)
 {
 	struct bbc_i2c_bus *bp;
 	int err, index = 0;
@@ -379,7 +379,7 @@ static int __devinit bbc_i2c_probe(struct platform_device *op)
 	return err;
 }
 
-static int __devexit bbc_i2c_remove(struct platform_device *op)
+static int bbc_i2c_remove(struct platform_device *op)
 {
 	struct bbc_i2c_bus *bp = dev_get_drvdata(&op->dev);
 
@@ -413,7 +413,7 @@ static struct platform_driver bbc_i2c_driver = {
 		.of_match_table = bbc_i2c_match,
 	},
 	.probe		= bbc_i2c_probe,
-	.remove		= __devexit_p(bbc_i2c_remove),
+	.remove		= bbc_i2c_remove,
 };
 
 module_platform_driver(bbc_i2c_driver);

@@ -1,5 +1,4 @@
 
-%name-prefix "perf_pmu_"
 %parse-param {struct list_head *format}
 %parse-param {char *name}
 
@@ -86,8 +85,8 @@ PP_VALUE
 
 %%
 
-void perf_pmu_error(struct list_head *list __used,
-		    char *name __used,
-		    char const *msg __used)
+void perf_pmu_error(struct list_head *list __maybe_unused,
+		    char *name __maybe_unused,
+		    char const *msg __maybe_unused)
 {
 }

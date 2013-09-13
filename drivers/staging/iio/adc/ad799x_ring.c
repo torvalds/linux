@@ -35,15 +35,9 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad799x_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
 	s64 time_ns;
-	__u8 *rxbuf;
 	int b_sent;
 	u8 cmd;
-
-	rxbuf = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (rxbuf == NULL)
-		goto out;
 
 	switch (st->id) {
 	case ad7991:
@@ -67,20 +61,17 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 	}
 
 	b_sent = i2c_smbus_read_i2c_block_data(st->client,
-			cmd, bitmap_weight(indio_dev->active_scan_mask,
-					   indio_dev->masklength) * 2, rxbuf);
+			cmd, st->transfer_size, st->rx_buf);
 	if (b_sent < 0)
-		goto done;
+		goto out;
 
 	time_ns = iio_get_time_ns();
 
 	if (indio_dev->scan_timestamp)
-		memcpy(rxbuf + indio_dev->scan_bytes - sizeof(s64),
+		memcpy(st->rx_buf + indio_dev->scan_bytes - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 
-	ring->access->store_to(indio_dev->buffer, rxbuf, time_ns);
-done:
-	kfree(rxbuf);
+	iio_push_to_buffers(indio_dev, st->rx_buf);
 out:
 	iio_trigger_notify_done(indio_dev->trig);
 

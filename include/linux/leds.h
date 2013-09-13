@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/timer.h>
+#include <linux/workqueue.h>
 
 struct device;
 /*
@@ -68,6 +69,9 @@ struct led_classdev {
 	unsigned long		 blink_delay_on, blink_delay_off;
 	struct timer_list	 blink_timer;
 	int			 blink_brightness;
+
+	struct work_struct	set_brightness_work;
+	int			delayed_set_value;
 
 #ifdef CONFIG_LEDS_TRIGGERS
 	/* Protects the trigger data below */
@@ -138,6 +142,10 @@ extern void led_set_brightness(struct led_classdev *led_cdev,
 /*
  * LED Triggers
  */
+/* Registration functions for simple triggers */
+#define DEFINE_LED_TRIGGER(x)		static struct led_trigger *x;
+#define DEFINE_LED_TRIGGER_GLOBAL(x)	struct led_trigger *x;
+
 #ifdef CONFIG_LEDS_TRIGGERS
 
 #define TRIG_NAME_MAX 50
@@ -160,9 +168,6 @@ struct led_trigger {
 extern int led_trigger_register(struct led_trigger *trigger);
 extern void led_trigger_unregister(struct led_trigger *trigger);
 
-/* Registration functions for simple triggers */
-#define DEFINE_LED_TRIGGER(x)		static struct led_trigger *x;
-#define DEFINE_LED_TRIGGER_GLOBAL(x)	struct led_trigger *x;
 extern void led_trigger_register_simple(const char *name,
 				struct led_trigger **trigger);
 extern void led_trigger_unregister_simple(struct led_trigger *trigger);
@@ -175,23 +180,50 @@ extern void led_trigger_blink_oneshot(struct led_trigger *trigger,
 				      unsigned long *delay_on,
 				      unsigned long *delay_off,
 				      int invert);
+/**
+ * led_trigger_rename_static - rename a trigger
+ * @name: the new trigger name
+ * @trig: the LED trigger to rename
+ *
+ * Change a LED trigger name by copying the string passed in
+ * name into current trigger name, which MUST be large
+ * enough for the new string.
+ *
+ * Note that name must NOT point to the same string used
+ * during LED registration, as that could lead to races.
+ *
+ * This is meant to be used on triggers with statically
+ * allocated name.
+ */
+extern void led_trigger_rename_static(const char *name,
+				      struct led_trigger *trig);
 
 #else
 
-/* Triggers aren't active - null macros */
-#define DEFINE_LED_TRIGGER(x)
-#define DEFINE_LED_TRIGGER_GLOBAL(x)
-#define led_trigger_register_simple(x, y) do {} while(0)
-#define led_trigger_unregister_simple(x) do {} while(0)
-#define led_trigger_event(x, y) do {} while(0)
+/* Trigger has no members */
+struct led_trigger {};
 
-#endif
+/* Trigger inline empty functions */
+static inline void led_trigger_register_simple(const char *name,
+					struct led_trigger **trigger) {}
+static inline void led_trigger_unregister_simple(struct led_trigger *trigger) {}
+static inline void led_trigger_event(struct led_trigger *trigger,
+				enum led_brightness event) {}
+#endif /* CONFIG_LEDS_TRIGGERS */
 
 /* Trigger specific functions */
 #ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
 extern void ledtrig_ide_activity(void);
 #else
-#define ledtrig_ide_activity() do {} while(0)
+static inline void ledtrig_ide_activity(void) {}
+#endif
+
+#if defined(CONFIG_LEDS_TRIGGER_CAMERA) || defined(CONFIG_LEDS_TRIGGER_CAMERA_MODULE)
+extern void ledtrig_flash_ctrl(bool on);
+extern void ledtrig_torch_ctrl(bool on);
+#else
+static inline void ledtrig_flash_ctrl(bool on) {}
+static inline void ledtrig_torch_ctrl(bool on) {}
 #endif
 
 /*
@@ -236,5 +268,21 @@ struct gpio_led_platform_data {
 
 struct platform_device *gpio_led_register_device(
 		int id, const struct gpio_led_platform_data *pdata);
+
+enum cpu_led_event {
+	CPU_LED_IDLE_START,	/* CPU enters idle */
+	CPU_LED_IDLE_END,	/* CPU idle ends */
+	CPU_LED_START,		/* Machine starts, especially resume */
+	CPU_LED_STOP,		/* Machine stops, especially suspend */
+	CPU_LED_HALTED,		/* Machine shutdown */
+};
+#ifdef CONFIG_LEDS_TRIGGER_CPU
+extern void ledtrig_cpu(enum cpu_led_event evt);
+#else
+static inline void ledtrig_cpu(enum cpu_led_event evt)
+{
+	return;
+}
+#endif
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

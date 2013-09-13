@@ -4,7 +4,11 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/tty.h>
+#include <linux/gpio.h>
+#include <linux/leds.h>
+#include <linux/platform_device.h>
 
 #include <video/sa1100fb.h>
 
@@ -15,14 +19,10 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
-#include <mach/mcp.h>
+#include <linux/platform_data/mfd-mcp-sa11x0.h>
 #include <mach/irqs.h>
 
 #include "generic.h"
-
-
-#warning "include/asm/arch-sa1100/ide.h needs fixing for lart"
 
 static struct mcp_plat_data lart_mcp_data = {
 	.mccr0		= MCCR0_ADM,
@@ -126,6 +126,27 @@ static struct map_desc lart_io_desc[] __initdata = {
 	}
 };
 
+/* LEDs */
+struct gpio_led lart_gpio_leds[] = {
+	{
+		.name			= "lart:red",
+		.default_trigger	= "cpu0",
+		.gpio			= 23,
+	},
+};
+
+static struct gpio_led_platform_data lart_gpio_led_info = {
+	.leds		= lart_gpio_leds,
+	.num_leds	= ARRAY_SIZE(lart_gpio_leds),
+};
+
+static struct platform_device lart_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &lart_gpio_led_info,
+	}
+};
 static void __init lart_map_io(void)
 {
 	sa1100_map_io();
@@ -139,6 +160,8 @@ static void __init lart_map_io(void)
 	GPDR |= GPIO_UART_TXD;
 	GPDR &= ~GPIO_UART_RXD;
 	PPAR |= PPAR_UPR;
+
+	platform_device_register(&lart_leds);
 }
 
 MACHINE_START(LART, "LART")
@@ -148,6 +171,6 @@ MACHINE_START(LART, "LART")
 	.init_irq	= sa1100_init_irq,
 	.init_machine	= lart_init,
 	.init_late	= sa11x0_init_late,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.restart	= sa11x0_restart,
 MACHINE_END

@@ -361,12 +361,12 @@ static int read_exec(struct page_collect *pcol)
 	return 0;
 
 err:
-	if (!pcol->read_4_write)
-		_unlock_pcol_pages(pcol, ret, READ);
-
-	pcol_free(pcol);
-
+	if (!pcol_copy) /* Failed before ownership transfer */
+		pcol_copy = pcol;
+	_unlock_pcol_pages(pcol_copy, ret, READ);
+	pcol_free(pcol_copy);
 	kfree(pcol_copy);
+
 	return ret;
 }
 
@@ -676,8 +676,10 @@ static int write_exec(struct page_collect *pcol)
 	return 0;
 
 err:
-	_unlock_pcol_pages(pcol, ret, WRITE);
-	pcol_free(pcol);
+	if (!pcol_copy) /* Failed before ownership transfer */
+		pcol_copy = pcol;
+	_unlock_pcol_pages(pcol_copy, ret, WRITE);
+	pcol_free(pcol_copy);
 	kfree(pcol_copy);
 
 	return ret;
@@ -859,7 +861,7 @@ static int exofs_writepage(struct page *page, struct writeback_control *wbc)
 static void _write_failed(struct inode *inode, loff_t to)
 {
 	if (to > inode->i_size)
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 }
 
 int exofs_write_begin(struct file *file, struct address_space *mapping,
@@ -951,9 +953,11 @@ static int exofs_releasepage(struct page *page, gfp_t gfp)
 	return 0;
 }
 
-static void exofs_invalidatepage(struct page *page, unsigned long offset)
+static void exofs_invalidatepage(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
-	EXOFS_DBGMSG("page 0x%lx offset 0x%lx\n", page->index, offset);
+	EXOFS_DBGMSG("page 0x%lx offset 0x%x length 0x%x\n",
+		     page->index, offset, length);
 	WARN_ON(1);
 }
 
@@ -1172,8 +1176,8 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 
 	/* copy stuff from on-disk struct to in-memory struct */
 	inode->i_mode = le16_to_cpu(fcb.i_mode);
-	inode->i_uid = le32_to_cpu(fcb.i_uid);
-	inode->i_gid = le32_to_cpu(fcb.i_gid);
+	i_uid_write(inode, le32_to_cpu(fcb.i_uid));
+	i_gid_write(inode, le32_to_cpu(fcb.i_gid));
 	set_nlink(inode, le16_to_cpu(fcb.i_links_count));
 	inode->i_ctime.tv_sec = (signed)le32_to_cpu(fcb.i_ctime);
 	inode->i_atime.tv_sec = (signed)le32_to_cpu(fcb.i_atime);
@@ -1385,8 +1389,8 @@ static int exofs_update_inode(struct inode *inode, int do_sync)
 	fcb = &args->fcb;
 
 	fcb->i_mode = cpu_to_le16(inode->i_mode);
-	fcb->i_uid = cpu_to_le32(inode->i_uid);
-	fcb->i_gid = cpu_to_le32(inode->i_gid);
+	fcb->i_uid = cpu_to_le32(i_uid_read(inode));
+	fcb->i_gid = cpu_to_le32(i_gid_read(inode));
 	fcb->i_links_count = cpu_to_le16(inode->i_nlink);
 	fcb->i_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
 	fcb->i_atime = cpu_to_le32(inode->i_atime.tv_sec);

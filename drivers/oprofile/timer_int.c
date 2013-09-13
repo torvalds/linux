@@ -74,8 +74,8 @@ static void oprofile_hrtimer_stop(void)
 	put_online_cpus();
 }
 
-static int __cpuinit oprofile_cpu_notify(struct notifier_block *self,
-					 unsigned long action, void *hcpu)
+static int oprofile_cpu_notify(struct notifier_block *self,
+			       unsigned long action, void *hcpu)
 {
 	long cpu = (long) hcpu;
 

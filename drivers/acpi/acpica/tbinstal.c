@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -141,8 +141,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 		ACPI_BIOS_ERROR((AE_INFO,
 				 "Table has invalid signature [%4.4s] (0x%8.8X), "
 				 "must be SSDT or OEMx",
-				 acpi_ut_valid_acpi_name(*(u32 *)table_desc->
-							 pointer->
+				 acpi_ut_valid_acpi_name(table_desc->pointer->
 							 signature) ?
 				 table_desc->pointer->signature : "????",
 				 *(u32 *)table_desc->pointer->signature));
@@ -350,6 +349,7 @@ struct acpi_table_header *acpi_tb_table_override(struct acpi_table_header
 acpi_status acpi_tb_resize_root_table_list(void)
 {
 	struct acpi_table_desc *tables;
+	u32 table_count;
 
 	ACPI_FUNCTION_TRACE(tb_resize_root_table_list);
 
@@ -363,8 +363,13 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 	/* Increase the Table Array size */
 
-	tables = ACPI_ALLOCATE_ZEROED(((acpi_size) acpi_gbl_root_table_list.
-				       max_table_count +
+	if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
+		table_count = acpi_gbl_root_table_list.max_table_count;
+	} else {
+		table_count = acpi_gbl_root_table_list.current_table_count;
+	}
+
+	tables = ACPI_ALLOCATE_ZEROED(((acpi_size) table_count +
 				       ACPI_ROOT_TABLE_SIZE_INCREMENT) *
 				      sizeof(struct acpi_table_desc));
 	if (!tables) {
@@ -377,8 +382,8 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 	if (acpi_gbl_root_table_list.tables) {
 		ACPI_MEMCPY(tables, acpi_gbl_root_table_list.tables,
-			    (acpi_size) acpi_gbl_root_table_list.
-			    max_table_count * sizeof(struct acpi_table_desc));
+			    (acpi_size) table_count *
+			    sizeof(struct acpi_table_desc));
 
 		if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
 			ACPI_FREE(acpi_gbl_root_table_list.tables);
@@ -386,9 +391,9 @@ acpi_status acpi_tb_resize_root_table_list(void)
 	}
 
 	acpi_gbl_root_table_list.tables = tables;
-	acpi_gbl_root_table_list.max_table_count +=
-	    ACPI_ROOT_TABLE_SIZE_INCREMENT;
-	acpi_gbl_root_table_list.flags |= (u8)ACPI_ROOT_ORIGIN_ALLOCATED;
+	acpi_gbl_root_table_list.max_table_count =
+	    table_count + ACPI_ROOT_TABLE_SIZE_INCREMENT;
+	acpi_gbl_root_table_list.flags |= ACPI_ROOT_ORIGIN_ALLOCATED;
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -465,15 +470,19 @@ void acpi_tb_delete_table(struct acpi_table_desc *table_desc)
 	}
 	switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
 	case ACPI_TABLE_ORIGIN_MAPPED:
+
 		acpi_os_unmap_memory(table_desc->pointer, table_desc->length);
 		break;
+
 	case ACPI_TABLE_ORIGIN_ALLOCATED:
+
 		ACPI_FREE(table_desc->pointer);
 		break;
 
 		/* Not mapped or allocated, there is nothing we can do */
 
 	default:
+
 		return;
 	}
 
@@ -520,6 +529,8 @@ void acpi_tb_terminate(void)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "ACPI Tables freed\n"));
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+
+	return_VOID;
 }
 
 /*******************************************************************************

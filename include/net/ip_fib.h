@@ -51,11 +51,13 @@ struct rtable;
 
 struct fib_nh_exception {
 	struct fib_nh_exception __rcu	*fnhe_next;
+	int				fnhe_genid;
 	__be32				fnhe_daddr;
 	u32				fnhe_pmtu;
 	__be32				fnhe_gw;
 	unsigned long			fnhe_expires;
-	struct rtable __rcu		*fnhe_rth;
+	struct rtable __rcu		*fnhe_rth_input;
+	struct rtable __rcu		*fnhe_rth_output;
 	unsigned long			fnhe_stamp;
 };
 
@@ -102,6 +104,7 @@ struct fib_info {
 	unsigned char		fib_dead;
 	unsigned char		fib_protocol;
 	unsigned char		fib_scope;
+	unsigned char		fib_type;
 	__be32			fib_prefsrc;
 	u32			fib_priority;
 	u32			*fib_metrics;
@@ -151,18 +154,16 @@ struct fib_result_nl {
 };
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-
 #define FIB_RES_NH(res)		((res).fi->fib_nh[(res).nh_sel])
-
-#define FIB_TABLE_HASHSZ 2
-
 #else /* CONFIG_IP_ROUTE_MULTIPATH */
-
 #define FIB_RES_NH(res)		((res).fi->fib_nh[0])
-
-#define FIB_TABLE_HASHSZ 256
-
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
+
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+#define FIB_TABLE_HASHSZ 256
+#else
+#define FIB_TABLE_HASHSZ 2
+#endif
 
 extern __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
 
@@ -290,7 +291,6 @@ static inline int fib_num_tclassid_users(struct net *net)
 extern int ip_fib_check_default(__be32 gw, struct net_device *dev);
 extern int fib_sync_down_dev(struct net_device *dev, int force);
 extern int fib_sync_down_addr(struct net *net, __be32 local);
-extern void fib_update_nh_saddrs(struct net_device *dev);
 extern int fib_sync_up(struct net_device *dev);
 extern void fib_select_multipath(struct fib_result *res);
 

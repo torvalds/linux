@@ -12,6 +12,7 @@
 #include <linux/swap.h>
 #include <linux/hugetlb.h>
 
+#include <asm/cpu-features.h>
 #include <asm/pgtable.h>
 
 static inline pte_t gup_get_pte(pte_t *ptep)
@@ -152,6 +153,8 @@ static int gup_huge_pud(pud_t pud, unsigned long addr, unsigned long end,
 	do {
 		VM_BUG_ON(compound_head(page) != head);
 		pages[*nr] = page;
+		if (PageTail(page))
+			get_huge_page_tail(page);
 		(*nr)++;
 		page++;
 		refs++;
@@ -247,7 +250,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
  * @nr_pages:	number of pages from start to pin
  * @write:	whether pages will be written to
  * @pages:	array that receives pointers to the pages pinned.
- * 		Should be at least nr_pages long.
+ *		Should be at least nr_pages long.
  *
  * Attempt to pin user pages in memory without taking mm->mmap_sem.
  * If not successful, it will fall back to taking the lock and
@@ -271,7 +274,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	len = (unsigned long) nr_pages << PAGE_SHIFT;
 
 	end = start + len;
-	if (end < start)
+	if (end < start || cpu_has_dc_aliases)
 		goto slow_irqon;
 
 	/* XXX: batch / limit 'nr' */

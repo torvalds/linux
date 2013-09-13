@@ -490,7 +490,7 @@ receive_dmsg(struct hfc_pci *hc)
 		    (df->data[le16_to_cpu(zp->z1)])) {
 			if (dch->debug & DEBUG_HW)
 				printk(KERN_DEBUG
-				       "empty_fifo hfcpci paket inv. len "
+				       "empty_fifo hfcpci packet inv. len "
 				       "%d or crc %d\n",
 				       rcnt,
 				       df->data[le16_to_cpu(zp->z1)]);
@@ -1307,11 +1307,11 @@ mode_hfcpci(struct bchannel *bch, int bc, int protocol)
 		}
 		if (fifo2 & 2) {
 			hc->hw.fifo_en &= ~HFCPCI_FIFOEN_B2;
-			hc->hw.int_m1 &= ~(HFCPCI_INTS_B2TRANS +
+			hc->hw.int_m1 &= ~(HFCPCI_INTS_B2TRANS |
 					   HFCPCI_INTS_B2REC);
 		} else {
 			hc->hw.fifo_en &= ~HFCPCI_FIFOEN_B1;
-			hc->hw.int_m1 &= ~(HFCPCI_INTS_B1TRANS +
+			hc->hw.int_m1 &= ~(HFCPCI_INTS_B1TRANS |
 					   HFCPCI_INTS_B1REC);
 		}
 #ifdef REVERSE_BITORDER
@@ -1346,14 +1346,14 @@ mode_hfcpci(struct bchannel *bch, int bc, int protocol)
 		if (fifo2 & 2) {
 			hc->hw.fifo_en |= HFCPCI_FIFOEN_B2;
 			if (!tics)
-				hc->hw.int_m1 |= (HFCPCI_INTS_B2TRANS +
+				hc->hw.int_m1 |= (HFCPCI_INTS_B2TRANS |
 						  HFCPCI_INTS_B2REC);
 			hc->hw.ctmt |= 2;
 			hc->hw.conn &= ~0x18;
 		} else {
 			hc->hw.fifo_en |= HFCPCI_FIFOEN_B1;
 			if (!tics)
-				hc->hw.int_m1 |= (HFCPCI_INTS_B1TRANS +
+				hc->hw.int_m1 |= (HFCPCI_INTS_B1TRANS |
 						  HFCPCI_INTS_B1REC);
 			hc->hw.ctmt |= 1;
 			hc->hw.conn &= ~0x03;
@@ -1375,14 +1375,14 @@ mode_hfcpci(struct bchannel *bch, int bc, int protocol)
 		if (fifo2 & 2) {
 			hc->hw.last_bfifo_cnt[1] = 0;
 			hc->hw.fifo_en |= HFCPCI_FIFOEN_B2;
-			hc->hw.int_m1 |= (HFCPCI_INTS_B2TRANS +
+			hc->hw.int_m1 |= (HFCPCI_INTS_B2TRANS |
 					  HFCPCI_INTS_B2REC);
 			hc->hw.ctmt &= ~2;
 			hc->hw.conn &= ~0x18;
 		} else {
 			hc->hw.last_bfifo_cnt[0] = 0;
 			hc->hw.fifo_en |= HFCPCI_FIFOEN_B1;
-			hc->hw.int_m1 |= (HFCPCI_INTS_B1TRANS +
+			hc->hw.int_m1 |= (HFCPCI_INTS_B1TRANS |
 					  HFCPCI_INTS_B1REC);
 			hc->hw.ctmt &= ~1;
 			hc->hw.conn &= ~0x03;
@@ -2215,7 +2215,7 @@ static struct pci_device_id hfc_ids[] =
 	{},
 };
 
-static int __devinit
+static int
 hfc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int		err = -ENOMEM;
@@ -2246,7 +2246,7 @@ hfc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return err;
 }
 
-static void __devexit
+static void
 hfc_remove_pci(struct pci_dev *pdev)
 {
 	struct hfc_pci	*card = pci_get_drvdata(pdev);
@@ -2263,7 +2263,7 @@ hfc_remove_pci(struct pci_dev *pdev)
 static struct pci_driver hfc_driver = {
 	.name = "hfcpci",
 	.probe = hfc_probe,
-	.remove = __devexit_p(hfc_remove_pci),
+	.remove = hfc_remove_pci,
 	.id_table = hfc_ids,
 };
 

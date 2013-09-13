@@ -436,16 +436,17 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	wm831x_rtc->rtc = rtc_device_register("wm831x", &pdev->dev,
+	wm831x_rtc->rtc = devm_rtc_device_register(&pdev->dev, "wm831x",
 					      &wm831x_rtc_ops, THIS_MODULE);
 	if (IS_ERR(wm831x_rtc->rtc)) {
 		ret = PTR_ERR(wm831x_rtc->rtc);
 		goto err;
 	}
 
-	ret = request_threaded_irq(alm_irq, NULL, wm831x_alm_irq,
-				   IRQF_TRIGGER_RISING, "RTC alarm",
-				   wm831x_rtc);
+	ret = devm_request_threaded_irq(&pdev->dev, alm_irq, NULL,
+				wm831x_alm_irq,
+				IRQF_TRIGGER_RISING, "RTC alarm",
+				wm831x_rtc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request alarm IRQ %d: %d\n",
 			alm_irq, ret);
@@ -457,17 +458,6 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 
 err:
 	return ret;
-}
-
-static int __devexit wm831x_rtc_remove(struct platform_device *pdev)
-{
-	struct wm831x_rtc *wm831x_rtc = platform_get_drvdata(pdev);
-	int alm_irq = platform_get_irq_byname(pdev, "ALM");
-
-	free_irq(alm_irq, wm831x_rtc);
-	rtc_device_unregister(wm831x_rtc->rtc);
-
-	return 0;
 }
 
 static const struct dev_pm_ops wm831x_rtc_pm_ops = {
@@ -483,7 +473,6 @@ static const struct dev_pm_ops wm831x_rtc_pm_ops = {
 
 static struct platform_driver wm831x_rtc_driver = {
 	.probe = wm831x_rtc_probe,
-	.remove = __devexit_p(wm831x_rtc_remove),
 	.driver = {
 		.name = "wm831x-rtc",
 		.pm = &wm831x_rtc_pm_ops,

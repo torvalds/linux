@@ -25,7 +25,7 @@ static inline void __maybe_unused enable_mfgpt0_counter(void)
 #endif
 
 #define MFGPT_TICK_RATE 14318000
-#define COMPARE  ((MFGPT_TICK_RATE + HZ/2) / HZ)
+#define COMPARE	 ((MFGPT_TICK_RATE + HZ/2) / HZ)
 
 #define MFGPT_BASE	mfgpt_base
 #define MFGPT0_CMP2	(MFGPT_BASE + 2)

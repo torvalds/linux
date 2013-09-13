@@ -15,6 +15,11 @@
 
 /include/ "mpc5200b.dtsi"
 
+&gpt0 { fsl,has-wdt; };
+&gpt3 { gpio-controller; };
+&gpt4 { gpio-controller; };
+&gpt5 { gpio-controller; };
+
 / {
 	model = "anonymous,a4m072";
 	compatible = "anonymous,a4m072";
@@ -32,28 +37,6 @@
 			fsl,init-ext-48mhz-en = <0x0>;
 			fsl,init-fd-enable = <0x01>;
 			fsl,init-fd-counters = <0x3333>;
-		};
-
-		timer@600 {
-			fsl,has-wdt;
-		};
-
-		gpt3: timer@630 { /* General Purpose Timer in GPIO mode */
-			compatible = "fsl,mpc5200b-gpt-gpio","fsl,mpc5200-gpt-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt4: timer@640 { /* General Purpose Timer in GPIO mode */
-			compatible = "fsl,mpc5200b-gpt-gpio","fsl,mpc5200-gpt-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt5: timer@650 { /* General Purpose Timer in GPIO mode */
-			compatible = "fsl,mpc5200b-gpt-gpio","fsl,mpc5200-gpt-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
 		};
 
 		spi@f00 {

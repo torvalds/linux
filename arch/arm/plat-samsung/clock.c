@@ -119,7 +119,7 @@ void clk_disable(struct clk *clk)
 
 unsigned long clk_get_rate(struct clk *clk)
 {
-	if (IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return 0;
 
 	if (clk->rate != 0)
@@ -136,7 +136,7 @@ unsigned long clk_get_rate(struct clk *clk)
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	if (!IS_ERR(clk) && clk->ops && clk->ops->round_rate)
+	if (!IS_ERR_OR_NULL(clk) && clk->ops && clk->ops->round_rate)
 		return (clk->ops->round_rate)(clk, rate);
 
 	return rate;
@@ -144,9 +144,10 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
+	unsigned long flags;
 	int ret;
 
-	if (IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return -EINVAL;
 
 	/* We do not default just do a clk->rate = rate as
@@ -159,9 +160,9 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk->ops == NULL || clk->ops->set_rate == NULL)
 		return -EINVAL;
 
-	spin_lock(&clocks_lock);
+	spin_lock_irqsave(&clocks_lock, flags);
 	ret = (clk->ops->set_rate)(clk, rate);
-	spin_unlock(&clocks_lock);
+	spin_unlock_irqrestore(&clocks_lock, flags);
 
 	return ret;
 }
@@ -173,17 +174,18 @@ struct clk *clk_get_parent(struct clk *clk)
 
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
+	unsigned long flags;
 	int ret = 0;
 
-	if (IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk) || IS_ERR_OR_NULL(parent))
 		return -EINVAL;
 
-	spin_lock(&clocks_lock);
+	spin_lock_irqsave(&clocks_lock, flags);
 
 	if (clk->ops && clk->ops->set_parent)
 		ret = (clk->ops->set_parent)(clk, parent);
 
-	spin_unlock(&clocks_lock);
+	spin_unlock_irqrestore(&clocks_lock, flags);
 
 	return ret;
 }
@@ -387,6 +389,72 @@ int __init s3c24xx_register_baseclocks(unsigned long xtal)
 
 static struct dentry *clk_debugfs_root;
 
+static void clock_tree_show_one(struct seq_file *s, struct clk *c, int level)
+{
+	struct clk *child;
+	const char *state;
+	char buf[255] = { 0 };
+	int n = 0;
+
+	if (c->name)
+		n = snprintf(buf, sizeof(buf) - 1, "%s", c->name);
+
+	if (c->devname)
+		n += snprintf(buf + n, sizeof(buf) - 1 - n, ":%s", c->devname);
+
+	state = (c->usage > 0) ? "on" : "off";
+
+	seq_printf(s, "%*s%-*s %-6s %-3d %-10lu\n",
+		   level * 3 + 1, "",
+		   50 - level * 3, buf,
+		   state, c->usage, clk_get_rate(c));
+
+	list_for_each_entry(child, &clocks, list) {
+		if (child->parent != c)
+			continue;
+
+		clock_tree_show_one(s, child, level + 1);
+	}
+}
+
+static int clock_tree_show(struct seq_file *s, void *data)
+{
+	struct clk *c;
+	unsigned long flags;
+
+	seq_printf(s, " clock state ref rate\n");
+	seq_printf(s, "----------------------------------------------------\n");
+
+	spin_lock_irqsave(&clocks_lock, flags);
+
+	list_for_each_entry(c, &clocks, list)
+		if (c->parent == NULL)
+			clock_tree_show_one(s, c, 0);
+
+	spin_unlock_irqrestore(&clocks_lock, flags);
+	return 0;
+}
+
+static int clock_tree_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, clock_tree_show, inode->i_private);
+}
+
+static const struct file_operations clock_tree_fops = {
+	.open		= clock_tree_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int clock_rate_show(void *data, u64 *val)
+{
+	struct clk *c = data;
+	*val = clk_get_rate(c);
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(clock_rate_fops, clock_rate_show, NULL, "%llu\n");
+
 static int clk_debugfs_register_one(struct clk *c)
 {
 	int err;
@@ -409,7 +477,7 @@ static int clk_debugfs_register_one(struct clk *c)
 		goto err_out;
 	}
 
-	d = debugfs_create_u32("rate", S_IRUGO, c->dent, (u32 *)&c->rate);
+	d = debugfs_create_file("rate", S_IRUGO, c->dent, c, &clock_rate_fops);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;
@@ -444,12 +512,17 @@ static int __init clk_debugfs_init(void)
 {
 	struct clk *c;
 	struct dentry *d;
-	int err;
+	int err = -ENOMEM;
 
 	d = debugfs_create_dir("clock", NULL);
 	if (!d)
 		return -ENOMEM;
 	clk_debugfs_root = d;
+
+	d = debugfs_create_file("clock_tree", S_IRUGO, clk_debugfs_root, NULL,
+				 &clock_tree_fops);
+	if (!d)
+		goto err_out;
 
 	list_for_each_entry(c, &clocks, list) {
 		err = clk_debugfs_register(c);

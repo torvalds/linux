@@ -11,11 +11,14 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/etherdevice.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <asm/byteorder.h>
 #include <net/sock.h>
+#include "netlink_k.h"
 
 #if !defined(NLMSG_HDRLEN)
 #define NLMSG_HDRLEN	 ((int) NLMSG_ALIGN(sizeof(struct nlmsghdr)))
@@ -23,12 +26,12 @@
 
 #define ND_MAX_GROUP			30
 #define ND_IFINDEX_LEN			sizeof(int)
-#define ND_NLMSG_SPACE(len)		(NLMSG_SPACE(len) + ND_IFINDEX_LEN)
+#define ND_NLMSG_SPACE(len)		(nlmsg_total_size(len) + ND_IFINDEX_LEN)
 #define ND_NLMSG_DATA(nlh) \
-	((void *)((char *)NLMSG_DATA(nlh) + ND_IFINDEX_LEN))
+	((void *)((char *)nlmsg_data(nlh) + ND_IFINDEX_LEN))
 #define ND_NLMSG_S_LEN(len)		(len+ND_IFINDEX_LEN)
 #define ND_NLMSG_R_LEN(nlh)		(nlh->nlmsg_len-ND_IFINDEX_LEN)
-#define ND_NLMSG_IFIDX(nlh)		NLMSG_DATA(nlh)
+#define ND_NLMSG_IFIDX(nlh)		nlmsg_data(nlh)
 #define ND_MAX_MSG_LEN			8096
 
 #if defined(DEFINE_MUTEX)
@@ -49,13 +52,13 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 	void *msg;
 	int ifindex;
 
-	if (skb->len >= NLMSG_SPACE(0)) {
+	if (skb->len >= NLMSG_HDRLEN) {
 		nlh = (struct nlmsghdr *)skb->data;
 
 		if (skb->len < nlh->nlmsg_len ||
 		nlh->nlmsg_len > ND_MAX_MSG_LEN) {
-			printk(KERN_ERR "Invalid length (%d,%d)\n", skb->len,
-				nlh->nlmsg_len);
+			netdev_err(skb->dev, "Invalid length (%d,%d)\n",
+				   skb->len, nlh->nlmsg_len);
 			return;
 		}
 
@@ -69,10 +72,11 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 				rcv_cb(dev, nlh->nlmsg_type, msg, mlen);
 				dev_put(dev);
 			} else
-				printk(KERN_ERR "dev_get_by_index(%d) "
-					"is not found.\n", ifindex);
+				netdev_err(skb->dev,
+					   "dev_get_by_index(%d) is not found.\n",
+					   ifindex);
 		} else
-			printk(KERN_ERR "Unregistered Callback\n");
+			netdev_err(skb->dev, "Unregistered Callback\n");
 	}
 }
 
@@ -95,7 +99,7 @@ struct sock *netlink_init(int unit, void (*cb)(struct net_device *dev, u16 type,
 	init_MUTEX(&netlink_mutex);
 #endif
 
-	sock = netlink_kernel_create(&init_net, unit, THIS_MODULE, &cfg);
+	sock = netlink_kernel_create(&init_net, unit, &cfg);
 
 	if (sock)
 		rcv_cb = cb;
@@ -116,14 +120,14 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	int ret = 0;
 
 	if (group > ND_MAX_GROUP) {
-		printk(KERN_ERR "Group %d is invalied.\n", group);
-		printk(KERN_ERR "Valid group is 0 ~ %d.\n", ND_MAX_GROUP);
+		pr_err("Group %d is invalied.\n", group);
+		pr_err("Valid group is 0 ~ %d.\n", ND_MAX_GROUP);
 		return -EINVAL;
 	}
 
-	skb = alloc_skb(NLMSG_SPACE(len), GFP_ATOMIC);
+	skb = nlmsg_new(len, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_ERR "netlink_broadcast ret=%d\n", ret);
+		pr_err("netlink_broadcast ret=%d\n", ret);
 		return -ENOMEM;
 	}
 
@@ -135,7 +139,7 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	}
 	memcpy(nlmsg_data(nlh), msg, len);
 
-	NETLINK_CB(skb).pid = 0;
+	NETLINK_CB(skb).portid = 0;
 	NETLINK_CB(skb).dst_group = 0;
 
 	ret = netlink_broadcast(sock, skb, 0, group+1, GFP_ATOMIC);
@@ -144,8 +148,8 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 		return len;
 	else {
 		if (ret != -ESRCH) {
-			printk(KERN_ERR "netlink_broadcast g=%d, t=%d, l=%d, r=%d\n",
-				group, type, len, ret);
+			pr_err("netlink_broadcast g=%d, t=%d, l=%d, r=%d\n",
+			       group, type, len, ret);
 		}
 		ret = 0;
 	}

@@ -3,10 +3,7 @@
  *
  * This file contains generic Target Portal Group related functions.
  *
- * Copyright (c) 2002, 2003, 2004, 2005 PyX Technologies, Inc.
- * Copyright (c) 2005, 2006, 2007 SBE, Inc.
- * Copyright (c) 2007-2010 Rising Tide Systems
- * Copyright (c) 2008-2010 Linux-iSCSI.org
+ * (c) Copyright 2002-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -114,16 +111,10 @@ struct se_node_acl *core_tpg_get_initiator_node_acl(
 	struct se_node_acl *acl;
 
 	spin_lock_irq(&tpg->acl_node_lock);
-	list_for_each_entry(acl, &tpg->acl_node_list, acl_list) {
-		if (!strcmp(acl->initiatorname, initiatorname) &&
-		    !acl->dynamic_node_acl) {
-			spin_unlock_irq(&tpg->acl_node_lock);
-			return acl;
-		}
-	}
+	acl = __core_tpg_get_initiator_node_acl(tpg, initiatorname);
 	spin_unlock_irq(&tpg->acl_node_lock);
 
-	return NULL;
+	return acl;
 }
 
 /*	core_tpg_add_node_to_devs():
@@ -303,7 +294,7 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	}
 	/*
 	 * Here we only create demo-mode MappedLUNs from the active
-	 * TPG LUNs if the fabric is not explictly asking for
+	 * TPG LUNs if the fabric is not explicitly asking for
 	 * tpg_check_demo_mode_login_only() == 1.
 	 */
 	if ((tpg->se_tpg_tfo->tpg_check_demo_mode_login_only == NULL) ||
@@ -619,6 +610,29 @@ int core_tpg_set_initiator_node_queue_depth(
 }
 EXPORT_SYMBOL(core_tpg_set_initiator_node_queue_depth);
 
+/*	core_tpg_set_initiator_node_tag():
+ *
+ *	Initiator nodeacl tags are not used internally, but may be used by
+ *	userspace to emulate aliases or groups.
+ *	Returns length of newly-set tag or -EINVAL.
+ */
+int core_tpg_set_initiator_node_tag(
+	struct se_portal_group *tpg,
+	struct se_node_acl *acl,
+	const char *new_tag)
+{
+	if (strlen(new_tag) >= MAX_ACL_TAG_SIZE)
+		return -EINVAL;
+
+	if (!strncmp("NULL", new_tag, 4)) {
+		acl->acl_tag[0] = '\0';
+		return 0;
+	}
+
+	return snprintf(acl->acl_tag, MAX_ACL_TAG_SIZE, "%s", new_tag);
+}
+EXPORT_SYMBOL(core_tpg_set_initiator_node_tag);
+
 static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
 {
 	/* Set in core_dev_setup_virtual_lun0() */
@@ -672,6 +686,7 @@ int core_tpg_register(
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
 		lun = se_tpg->tpg_lun_list[i];
 		lun->unpacked_lun = i;
+		lun->lun_link_magic = SE_LUN_LINK_MAGIC;
 		lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 		atomic_set(&lun->lun_acl_count, 0);
 		init_completion(&lun->lun_shutdown_comp);
@@ -696,7 +711,8 @@ int core_tpg_register(
 
 	if (se_tpg->se_tpg_type == TRANSPORT_TPG_TYPE_NORMAL) {
 		if (core_tpg_setup_virtual_lun0(se_tpg) < 0) {
-			kfree(se_tpg);
+			array_free(se_tpg->tpg_lun_list,
+				   TRANSPORT_MAX_LUNS_PER_TPG);
 			return -ENOMEM;
 		}
 	}

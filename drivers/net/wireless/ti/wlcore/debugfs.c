@@ -62,11 +62,14 @@ void wl1271_debugfs_update_stats(struct wl1271 *wl)
 
 	mutex_lock(&wl->mutex);
 
+	if (unlikely(wl->state != WLCORE_STATE_ON))
+		goto out;
+
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
-	if (wl->state == WL1271_STATE_ON && !wl->plt &&
+	if (!wl->plt &&
 	    time_after(jiffies, wl->stats.fw_stats_update +
 		       msecs_to_jiffies(WL1271_DEBUGFS_STATS_LIFETIME))) {
 		wl1271_acx_statistics(wl, wl->stats.fw_stats);
@@ -286,7 +289,7 @@ static ssize_t dynamic_ps_timeout_write(struct file *file,
 
 	wl->conf.conn.dynamic_ps_timeout = value;
 
-	if (wl->state == WL1271_STATE_OFF)
+	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl);
@@ -353,7 +356,7 @@ static ssize_t forced_ps_write(struct file *file,
 
 	wl->conf.conn.forced_ps = value;
 
-	if (wl->state == WL1271_STATE_OFF)
+	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl);
@@ -486,7 +489,8 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_HEX(platform_quirks);
 	DRIVER_STATE_PRINT_HEX(chip.id);
 	DRIVER_STATE_PRINT_STR(chip.fw_ver_str);
-	DRIVER_STATE_PRINT_INT(sched_scanning);
+	DRIVER_STATE_PRINT_STR(chip.phy_fw_ver_str);
+	DRIVER_STATE_PRINT_INT(recovery_count);
 
 #undef DRIVER_STATE_PRINT_INT
 #undef DRIVER_STATE_PRINT_LONG
@@ -556,7 +560,6 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 		if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
 		    wlvif->bss_type == BSS_TYPE_IBSS) {
 			VIF_STATE_PRINT_INT(sta.hlid);
-			VIF_STATE_PRINT_INT(sta.ba_rx_bitmap);
 			VIF_STATE_PRINT_INT(sta.basic_rate_idx);
 			VIF_STATE_PRINT_INT(sta.ap_rate_idx);
 			VIF_STATE_PRINT_INT(sta.p2p_rate_idx);
@@ -573,6 +576,10 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 			VIF_STATE_PRINT_INT(ap.ucast_rate_idx[3]);
 		}
 		VIF_STATE_PRINT_INT(last_tx_hlid);
+		VIF_STATE_PRINT_INT(tx_queue_count[0]);
+		VIF_STATE_PRINT_INT(tx_queue_count[1]);
+		VIF_STATE_PRINT_INT(tx_queue_count[2]);
+		VIF_STATE_PRINT_INT(tx_queue_count[3]);
 		VIF_STATE_PRINT_LHEX(links_map[0]);
 		VIF_STATE_PRINT_NSTR(ssid, wlvif->ssid_len);
 		VIF_STATE_PRINT_INT(band);
@@ -585,15 +592,13 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 		VIF_STATE_PRINT_INT(beacon_int);
 		VIF_STATE_PRINT_INT(default_key);
 		VIF_STATE_PRINT_INT(aid);
-		VIF_STATE_PRINT_INT(session_counter);
 		VIF_STATE_PRINT_INT(psm_entry_retry);
 		VIF_STATE_PRINT_INT(power_level);
 		VIF_STATE_PRINT_INT(rssi_thold);
 		VIF_STATE_PRINT_INT(last_rssi_event);
 		VIF_STATE_PRINT_INT(ba_support);
 		VIF_STATE_PRINT_INT(ba_allowed);
-		VIF_STATE_PRINT_LLHEX(tx_security_seq);
-		VIF_STATE_PRINT_INT(tx_security_last_seq_lsb);
+		VIF_STATE_PRINT_LLHEX(total_freed_pkts);
 	}
 
 #undef VIF_STATE_PRINT_INT
@@ -989,7 +994,7 @@ static ssize_t sleep_auth_write(struct file *file,
 		return -EINVAL;
 	}
 
-	if (value < 0 || value > WL1271_PSM_MAX) {
+	if (value > WL1271_PSM_MAX) {
 		wl1271_warning("sleep_auth must be between 0 and %d",
 			       WL1271_PSM_MAX);
 		return -ERANGE;
@@ -999,7 +1004,7 @@ static ssize_t sleep_auth_write(struct file *file,
 
 	wl->conf.conn.sta_sleep_auth = value;
 
-	if (wl->state == WL1271_STATE_OFF) {
+	if (unlikely(wl->state != WLCORE_STATE_ON)) {
 		/* this will show up on "read" in case we are off */
 		wl->sleep_auth = value;
 		goto out;
@@ -1051,7 +1056,7 @@ static ssize_t dev_mem_read(struct file *file,
 		return -EINVAL;
 
 	memset(&part, 0, sizeof(part));
-	part.mem.start = file->f_pos;
+	part.mem.start = *ppos;
 	part.mem.size = bytes;
 
 	buf = kmalloc(bytes, GFP_KERNEL);
@@ -1060,14 +1065,16 @@ static ssize_t dev_mem_read(struct file *file,
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->state == WL1271_STATE_OFF) {
+	if (unlikely(wl->state == WLCORE_STATE_OFF)) {
 		ret = -EFAULT;
 		goto skip_read;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto skip_read;
+	/*
+	 * Don't fail if elp_wakeup returns an error, so the device's memory
+	 * could be read even if the FW crashed
+	 */
+	wl1271_ps_elp_wakeup(wl);
 
 	/* store current partition and switch partition */
 	memcpy(&old_part, &wl->curr_part, sizeof(old_part));
@@ -1130,7 +1137,7 @@ static ssize_t dev_mem_write(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 
 	memset(&part, 0, sizeof(part));
-	part.mem.start = file->f_pos;
+	part.mem.start = *ppos;
 	part.mem.size = bytes;
 
 	buf = kmalloc(bytes, GFP_KERNEL);
@@ -1145,14 +1152,16 @@ static ssize_t dev_mem_write(struct file *file, const char __user *user_buf,
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->state == WL1271_STATE_OFF) {
+	if (unlikely(wl->state == WLCORE_STATE_OFF)) {
 		ret = -EFAULT;
 		goto skip_write;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto skip_write;
+	/*
+	 * Don't fail if elp_wakeup returns an error, so the device's memory
+	 * could be read even if the FW crashed
+	 */
+	wl1271_ps_elp_wakeup(wl);
 
 	/* store current partition and switch partition */
 	memcpy(&old_part, &wl->curr_part, sizeof(old_part));

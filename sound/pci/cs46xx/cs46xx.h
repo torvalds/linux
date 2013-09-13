@@ -1721,7 +1721,7 @@ struct snd_cs46xx {
 	unsigned int play_ctl;
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u32 *saved_regs;
 #endif
 };

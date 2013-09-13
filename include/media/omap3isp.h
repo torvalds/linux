@@ -29,22 +29,12 @@
 struct i2c_board_info;
 struct isp_device;
 
-#define ISP_XCLK_NONE			0
-#define ISP_XCLK_A			1
-#define ISP_XCLK_B			2
-
 enum isp_interface_type {
 	ISP_INTERFACE_PARALLEL,
 	ISP_INTERFACE_CSI2A_PHY2,
 	ISP_INTERFACE_CCP2B_PHY1,
 	ISP_INTERFACE_CCP2B_PHY2,
 	ISP_INTERFACE_CSI2C_PHY1,
-};
-
-enum {
-	ISP_BRIDGE_DISABLE = 0,
-	ISP_BRIDGE_LITTLE_ENDIAN = 2,
-	ISP_BRIDGE_BIG_ENDIAN = 3,
 };
 
 enum {
@@ -67,17 +57,15 @@ enum {
  *		0 - Active high, 1 - Active low
  * @vs_pol: Vertical synchronization polarity
  *		0 - Active high, 1 - Active low
- * @bridge: CCDC Bridge input control
- *		ISP_BRIDGE_DISABLE - Disable
- *		ISP_BRIDGE_LITTLE_ENDIAN - Little endian
- *		ISP_BRIDGE_BIG_ENDIAN - Big endian
+ * @data_pol: Data polarity
+ *		0 - Normal, 1 - One's complement
  */
 struct isp_parallel_platform_data {
 	unsigned int data_lane_shift:2;
 	unsigned int clk_pol:1;
 	unsigned int hs_pol:1;
 	unsigned int vs_pol:1;
-	unsigned int bridge:2;
+	unsigned int data_pol:1;
 };
 
 enum {
@@ -161,7 +149,13 @@ struct isp_v4l2_subdevs_group {
 	} bus; /* gcc < 4.6.0 chokes on anonymous union initializers */
 };
 
+struct isp_platform_xclk {
+	const char *dev_id;
+	const char *con_id;
+};
+
 struct isp_platform_data {
+	struct isp_platform_xclk xclks[2];
 	struct isp_v4l2_subdevs_group *subdevs;
 	void (*set_constraints)(struct isp_device *isp, bool enable);
 };

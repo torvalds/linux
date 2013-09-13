@@ -85,7 +85,10 @@ static int as5011_i2c_write(struct i2c_client *client,
 {
 	uint8_t data[2] = { aregaddr, avalue };
 	struct i2c_msg msg = {
-		client->addr, I2C_M_IGNORE_NAK, 2, (uint8_t *)data
+		.addr = client->addr,
+		.flags = I2C_M_IGNORE_NAK,
+		.len = 2,
+		.buf = (uint8_t *)data
 	};
 	int error;
 
@@ -98,8 +101,18 @@ static int as5011_i2c_read(struct i2c_client *client,
 {
 	uint8_t data[2] = { aregaddr };
 	struct i2c_msg msg_set[2] = {
-		{ client->addr, I2C_M_REV_DIR_ADDR, 1, (uint8_t *)data },
-		{ client->addr, I2C_M_RD | I2C_M_NOSTART, 1, (uint8_t *)data }
+		{
+			.addr = client->addr,
+			.flags = I2C_M_REV_DIR_ADDR,
+			.len = 1,
+			.buf = (uint8_t *)data
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD | I2C_M_NOSTART,
+			.len = 1,
+			.buf = (uint8_t *)data
+		}
 	};
 	int error;
 
@@ -144,7 +157,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int __devinit as5011_configure_chip(struct as5011_device *as5011,
+static int as5011_configure_chip(struct as5011_device *as5011,
 				const struct as5011_platform_data *plat_dat)
 {
 	struct i2c_client *client = as5011->i2c_client;
@@ -212,8 +225,8 @@ static int __devinit as5011_configure_chip(struct as5011_device *as5011,
 	return 0;
 }
 
-static int __devinit as5011_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int as5011_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	const struct as5011_platform_data *plat_data;
 	struct as5011_device *as5011;
@@ -221,7 +234,7 @@ static int __devinit as5011_probe(struct i2c_client *client,
 	int irq;
 	int error;
 
-	plat_data = client->dev.platform_data;
+	plat_data = dev_get_platdata(&client->dev);
 	if (!plat_data)
 		return -EINVAL;
 
@@ -275,6 +288,7 @@ static int __devinit as5011_probe(struct i2c_client *client,
 	if (irq < 0) {
 		dev_err(&client->dev,
 			"Failed to get irq number for button gpio\n");
+		error = irq;
 		goto err_free_button_gpio;
 	}
 
@@ -328,7 +342,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit as5011_remove(struct i2c_client *client)
+static int as5011_remove(struct i2c_client *client)
 {
 	struct as5011_device *as5011 = i2c_get_clientdata(client);
 
@@ -353,7 +367,7 @@ static struct i2c_driver as5011_driver = {
 		.name = "as5011",
 	},
 	.probe		= as5011_probe,
-	.remove		= __devexit_p(as5011_remove),
+	.remove		= as5011_remove,
 	.id_table	= as5011_id,
 };
 

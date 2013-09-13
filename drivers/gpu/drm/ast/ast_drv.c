@@ -28,9 +28,8 @@
 #include <linux/module.h>
 #include <linux/console.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "ast_drv.h"
 
@@ -61,8 +60,7 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
-static int __devinit
-ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
@@ -96,9 +94,9 @@ static int ast_drm_thaw(struct drm_device *dev)
 	ast_post_gpu(dev);
 
 	drm_mode_config_reset(dev);
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	drm_helper_resume_force_mode(dev);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 
 	console_lock();
 	ast_fbdev_set_suspend(dev, 0);
@@ -192,12 +190,14 @@ static const struct file_operations ast_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = ast_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.read = drm_read,
 };
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_USE_MTRR | DRIVER_MODESET | DRIVER_GEM,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.dev_priv_size = 0,
 
 	.load = ast_driver_load,
@@ -215,7 +215,7 @@ static struct drm_driver driver = {
 	.gem_free_object = ast_gem_free_object,
 	.dumb_create = ast_dumb_create,
 	.dumb_map_offset = ast_dumb_mmap_offset,
-	.dumb_destroy = ast_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 
 };
 

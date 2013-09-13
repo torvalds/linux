@@ -30,7 +30,7 @@
 extern int init_atu;
 
 static int __init
-iq81340sc_atux_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
+iq81340sc_atux_map_irq(const struct pci_dev *dev, u8 idsel, u8 pin)
 {
 	WARN_ON(idsel < 1 || idsel > 2);
 
@@ -86,17 +86,13 @@ static void __init iq81340sc_timer_init(void)
 	iop_init_time(bus_freq);
 }
 
-static struct sys_timer iq81340sc_timer = {
-       .init       = iq81340sc_timer_init,
-};
-
 MACHINE_START(IQ81340SC, "Intel IQ81340SC")
 	/* Maintainer: Dan Williams <dan.j.williams@intel.com> */
 	.atag_offset    = 0x100,
 	.init_early     = iop13xx_init_early,
 	.map_io         = iop13xx_map_io,
 	.init_irq       = iop13xx_init_irq,
-	.timer          = &iq81340sc_timer,
+	.init_time	= iq81340sc_timer_init,
 	.init_machine   = iq81340sc_init,
 	.restart	= iop13xx_restart,
 MACHINE_END

@@ -18,22 +18,7 @@
 
 /* this file is part of ehci-hcd.c */
 
-#define ehci_dbg(ehci, fmt, args...) \
-	dev_dbg (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-#define ehci_err(ehci, fmt, args...) \
-	dev_err (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-#define ehci_info(ehci, fmt, args...) \
-	dev_info (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-#define ehci_warn(ehci, fmt, args...) \
-	dev_warn (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-
-#ifdef VERBOSE_DEBUG
-#	define ehci_vdbg ehci_dbg
-#else
-	static inline void ehci_vdbg(struct ehci_hcd *ehci, ...) {}
-#endif
-
-#ifdef	DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 
 /* check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
@@ -77,7 +62,7 @@ static inline void dbg_hcs_params (struct ehci_hcd *ehci, char *label) {}
 
 #endif
 
-#ifdef	DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 
 /* check the values in the HCCPARAMS register
  * (host controller _Capability_ parameters)
@@ -116,7 +101,7 @@ static inline void dbg_hcc_params (struct ehci_hcd *ehci, char *label) {}
 
 #endif
 
-#ifdef	DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 
 static void __maybe_unused
 dbg_qtd (const char *label, struct ehci_hcd *ehci, struct ehci_qtd *qtd)
@@ -316,7 +301,7 @@ static inline int __maybe_unused
 dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 { return 0; }
 
-#endif	/* DEBUG */
+#endif	/* DEBUG || CONFIG_DYNAMIC_DEBUG */
 
 /* functions have the "wrong" filename when they're output... */
 #define dbg_status(ehci, label, status) { \
@@ -351,12 +336,6 @@ static inline void remove_debug_files (struct ehci_hcd *bus) { }
 static int debug_async_open(struct inode *, struct file *);
 static int debug_periodic_open(struct inode *, struct file *);
 static int debug_registers_open(struct inode *, struct file *);
-static int debug_async_open(struct inode *, struct file *);
-static ssize_t debug_lpm_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-static ssize_t debug_lpm_write(struct file *file, const char __user *buffer,
-			      size_t count, loff_t *ppos);
-static int debug_lpm_close(struct inode *inode, struct file *file);
 
 static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
 static int debug_close(struct inode *, struct file *);
@@ -381,14 +360,6 @@ static const struct file_operations debug_registers_fops = {
 	.read		= debug_output,
 	.release	= debug_close,
 	.llseek		= default_llseek,
-};
-static const struct file_operations debug_lpm_fops = {
-	.owner		= THIS_MODULE,
-	.open		= simple_open,
-	.read		= debug_lpm_read,
-	.write		= debug_lpm_write,
-	.release	= debug_lpm_close,
-	.llseek		= noop_llseek,
 };
 
 static struct dentry *ehci_debug_root;
@@ -538,14 +509,16 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (qh = ehci->async->qh_next.qh; size > 0 && qh; qh = qh->qh_next.qh)
 		qh_lines (ehci, qh, &next, &size);
-	if (ehci->async_unlink && size > 0) {
+	if (!list_empty(&ehci->async_unlink) && size > 0) {
 		temp = scnprintf(next, size, "\nunlink =\n");
 		size -= temp;
 		next += temp;
 
-		for (qh = ehci->async_unlink; size > 0 && qh;
-				qh = qh->unlink_next)
-			qh_lines (ehci, qh, &next, &size);
+		list_for_each_entry(qh, &ehci->async_unlink, unlink_node) {
+			if (size <= 0)
+				break;
+			qh_lines(ehci, qh, &next, &size);
+		}
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
@@ -653,10 +626,8 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 						seen [seen_count++].qh = p.qh;
 				} else
 					temp = 0;
-				if (p.qh) {
-					tag = Q_NEXT_TYPE(ehci, hw->hw_next);
-					p = p.qh->qh_next;
-				}
+				tag = Q_NEXT_TYPE(ehci, hw->hw_next);
+				p = p.qh->qh_next;
 				break;
 			case Q_TYPE_FSTN:
 				temp = scnprintf (next, size,
@@ -844,9 +815,10 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		}
 	}
 
-	if (ehci->async_unlink) {
+	if (!list_empty(&ehci->async_unlink)) {
 		temp = scnprintf(next, size, "async unlink qh %p\n",
-				ehci->async_unlink);
+				list_first_entry(&ehci->async_unlink,
+						struct ehci_qh, unlink_node));
 		size -= temp;
 		next += temp;
 	}
@@ -973,86 +945,6 @@ static int debug_registers_open(struct inode *inode, struct file *file)
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_lpm_close(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static ssize_t debug_lpm_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos)
-{
-	/* TODO: show lpm stats */
-	return 0;
-}
-
-static ssize_t debug_lpm_write(struct file *file, const char __user *user_buf,
-			      size_t count, loff_t *ppos)
-{
-	struct usb_hcd		*hcd;
-	struct ehci_hcd		*ehci;
-	char buf[50];
-	size_t len;
-	u32 temp;
-	unsigned long port;
-	u32 __iomem	*portsc ;
-	u32 params;
-
-	hcd = bus_to_hcd(file->private_data);
-	ehci = hcd_to_ehci(hcd);
-
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-	if (len > 0 && buf[len - 1] == '\n')
-		buf[len - 1] = '\0';
-
-	if (strncmp(buf, "enable", 5) == 0) {
-		if (strict_strtoul(buf + 7, 10, &port))
-			return -EINVAL;
-		params = ehci_readl(ehci, &ehci->caps->hcs_params);
-		if (port > HCS_N_PORTS(params)) {
-			ehci_dbg(ehci, "ERR: LPM on bad port %lu\n", port);
-			return -ENODEV;
-		}
-		portsc = &ehci->regs->port_status[port-1];
-		temp = ehci_readl(ehci, portsc);
-		if (!(temp & PORT_DEV_ADDR)) {
-			ehci_dbg(ehci, "LPM: no device attached\n");
-			return -ENODEV;
-		}
-		temp |= PORT_LPM;
-		ehci_writel(ehci, temp, portsc);
-		printk(KERN_INFO "force enable LPM for port %lu\n", port);
-	} else if (strncmp(buf, "hird=", 5) == 0) {
-		unsigned long hird;
-		if (strict_strtoul(buf + 5, 16, &hird))
-			return -EINVAL;
-		printk(KERN_INFO "setting hird %s %lu\n", buf + 6, hird);
-		ehci->command = (ehci->command & ~CMD_HIRD) | (hird << 24);
-		ehci_writel(ehci, ehci->command, &ehci->regs->command);
-	} else if (strncmp(buf, "disable", 7) == 0) {
-		if (strict_strtoul(buf + 8, 10, &port))
-			return -EINVAL;
-		params = ehci_readl(ehci, &ehci->caps->hcs_params);
-		if (port > HCS_N_PORTS(params)) {
-			ehci_dbg(ehci, "ERR: LPM off bad port %lu\n", port);
-			return -ENODEV;
-		}
-		portsc = &ehci->regs->port_status[port-1];
-		temp = ehci_readl(ehci, portsc);
-		if (!(temp & PORT_DEV_ADDR)) {
-			ehci_dbg(ehci, "ERR: no device attached\n");
-			return -ENODEV;
-		}
-		temp &= ~PORT_LPM;
-		ehci_writel(ehci, temp, portsc);
-		printk(KERN_INFO "disabled LPM for port %lu\n", port);
-	} else
-		return -EOPNOTSUPP;
-	return count;
-}
-
 static inline void create_debug_files (struct ehci_hcd *ehci)
 {
 	struct usb_bus *bus = &ehci_to_hcd(ehci)->self;
@@ -1071,10 +963,6 @@ static inline void create_debug_files (struct ehci_hcd *ehci)
 
 	if (!debugfs_create_file("registers", S_IRUGO, ehci->debug_dir, bus,
 						    &debug_registers_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("lpm", S_IRUGO|S_IWUSR, ehci->debug_dir, bus,
-						    &debug_lpm_fops))
 		goto file_error;
 
 	return;

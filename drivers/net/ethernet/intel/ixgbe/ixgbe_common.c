@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -65,17 +65,42 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
  *  function check the device id to see if the associated phy supports
  *  autoneg flow control.
  **/
-static s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
+bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 {
+	bool supported = false;
+	ixgbe_link_speed speed;
+	bool link_up;
 
-	switch (hw->device_id) {
-	case IXGBE_DEV_ID_X540T:
-		return 0;
-	case IXGBE_DEV_ID_82599_T3_LOM:
-		return 0;
+	switch (hw->phy.media_type) {
+	case ixgbe_media_type_fiber_fixed:
+	case ixgbe_media_type_fiber:
+		hw->mac.ops.check_link(hw, &speed, &link_up, false);
+		/* if link is down, assume supported */
+		if (link_up)
+			supported = speed == IXGBE_LINK_SPEED_1GB_FULL ?
+				true : false;
+		else
+			supported = true;
+		break;
+	case ixgbe_media_type_backplane:
+		supported = true;
+		break;
+	case ixgbe_media_type_copper:
+		/* only some copper devices support flow control autoneg */
+		switch (hw->device_id) {
+		case IXGBE_DEV_ID_82599_T3_LOM:
+		case IXGBE_DEV_ID_X540T:
+		case IXGBE_DEV_ID_X540T1:
+			supported = true;
+			break;
+		default:
+			break;
+		}
 	default:
-		return IXGBE_ERR_FC_NOT_SUPPORTED;
+		break;
 	}
+
+	return supported;
 }
 
 /**
@@ -89,6 +114,7 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	s32 ret_val = 0;
 	u32 reg = 0, reg_bp = 0;
 	u16 reg_cu = 0;
+	bool got_lock = false;
 
 	/*
 	 * Validate the requested mode.  Strict IEEE mode does not allow
@@ -113,6 +139,7 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	 * we link at 10G, the 1G advertisement is harmless and vice versa.
 	 */
 	switch (hw->phy.media_type) {
+	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber:
 	case ixgbe_media_type_backplane:
 		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
@@ -209,10 +236,31 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	 *
 	 */
 	if (hw->phy.media_type == ixgbe_media_type_backplane) {
-		reg_bp |= IXGBE_AUTOC_AN_RESTART;
+		/* Need the SW/FW semaphore around AUTOC writes if 82599 and
+		 * LESM is on, likewise reset_pipeline requries the lock as
+		 * it also writes AUTOC.
+		 */
+		if ((hw->mac.type == ixgbe_mac_82599EB) &&
+		    ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+			ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+			if (ret_val)
+				goto out;
+
+			got_lock = true;
+		}
+
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, reg_bp);
+
+		if (hw->mac.type == ixgbe_mac_82599EB)
+			ixgbe_reset_pipeline_82599(hw);
+
+		if (got_lock)
+			hw->mac.ops.release_swfw_sync(hw,
+						      IXGBE_GSSR_MAC_CSR_SM);
+
 	} else if ((hw->phy.media_type == ixgbe_media_type_copper) &&
-		    (ixgbe_device_supports_autoneg_fc(hw) == 0)) {
+		    ixgbe_device_supports_autoneg_fc(hw)) {
 		hw->phy.ops.write_reg(hw, MDIO_AN_ADVERTISE,
 				      MDIO_MMD_AN, reg_cu);
 	}
@@ -570,6 +618,36 @@ s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr)
 	return 0;
 }
 
+enum ixgbe_bus_width ixgbe_convert_bus_width(u16 link_status)
+{
+	switch (link_status & IXGBE_PCI_LINK_WIDTH) {
+	case IXGBE_PCI_LINK_WIDTH_1:
+		return ixgbe_bus_width_pcie_x1;
+	case IXGBE_PCI_LINK_WIDTH_2:
+		return ixgbe_bus_width_pcie_x2;
+	case IXGBE_PCI_LINK_WIDTH_4:
+		return ixgbe_bus_width_pcie_x4;
+	case IXGBE_PCI_LINK_WIDTH_8:
+		return ixgbe_bus_width_pcie_x8;
+	default:
+		return ixgbe_bus_width_unknown;
+	}
+}
+
+enum ixgbe_bus_speed ixgbe_convert_bus_speed(u16 link_status)
+{
+	switch (link_status & IXGBE_PCI_LINK_SPEED) {
+	case IXGBE_PCI_LINK_SPEED_2500:
+		return ixgbe_bus_speed_2500;
+	case IXGBE_PCI_LINK_SPEED_5000:
+		return ixgbe_bus_speed_5000;
+	case IXGBE_PCI_LINK_SPEED_8000:
+		return ixgbe_bus_speed_8000;
+	default:
+		return ixgbe_bus_speed_unknown;
+	}
+}
+
 /**
  *  ixgbe_get_bus_info_generic - Generic set PCI bus info
  *  @hw: pointer to hardware structure
@@ -588,35 +666,8 @@ s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 	pci_read_config_word(adapter->pdev, IXGBE_PCI_LINK_STATUS,
 	                     &link_status);
 
-	switch (link_status & IXGBE_PCI_LINK_WIDTH) {
-	case IXGBE_PCI_LINK_WIDTH_1:
-		hw->bus.width = ixgbe_bus_width_pcie_x1;
-		break;
-	case IXGBE_PCI_LINK_WIDTH_2:
-		hw->bus.width = ixgbe_bus_width_pcie_x2;
-		break;
-	case IXGBE_PCI_LINK_WIDTH_4:
-		hw->bus.width = ixgbe_bus_width_pcie_x4;
-		break;
-	case IXGBE_PCI_LINK_WIDTH_8:
-		hw->bus.width = ixgbe_bus_width_pcie_x8;
-		break;
-	default:
-		hw->bus.width = ixgbe_bus_width_unknown;
-		break;
-	}
-
-	switch (link_status & IXGBE_PCI_LINK_SPEED) {
-	case IXGBE_PCI_LINK_SPEED_2500:
-		hw->bus.speed = ixgbe_bus_speed_2500;
-		break;
-	case IXGBE_PCI_LINK_SPEED_5000:
-		hw->bus.speed = ixgbe_bus_speed_5000;
-		break;
-	default:
-		hw->bus.speed = ixgbe_bus_speed_unknown;
-		break;
-	}
+	hw->bus.width = ixgbe_convert_bus_width(link_status);
+	hw->bus.speed = ixgbe_convert_bus_speed(link_status);
 
 	mac->ops.set_lan_id(hw);
 
@@ -1103,7 +1154,7 @@ s32 ixgbe_read_eerd_buffer_generic(struct ixgbe_hw *hw, u16 offset,
 	}
 
 	for (i = 0; i < words; i++) {
-		eerd = ((offset + i) << IXGBE_EEPROM_RW_ADDR_SHIFT) +
+		eerd = ((offset + i) << IXGBE_EEPROM_RW_ADDR_SHIFT) |
 		       IXGBE_EEPROM_RW_REG_START;
 
 		IXGBE_WRITE_REG(hw, IXGBE_EERD, eerd);
@@ -1761,30 +1812,6 @@ s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_validate_mac_addr - Validate MAC address
- *  @mac_addr: pointer to MAC address.
- *
- *  Tests a MAC address to ensure it is a valid Individual Address
- **/
-s32 ixgbe_validate_mac_addr(u8 *mac_addr)
-{
-	s32 status = 0;
-
-	/* Make sure it is not a multicast address */
-	if (IXGBE_IS_MULTICAST(mac_addr))
-		status = IXGBE_ERR_INVALID_MAC_ADDR;
-	/* Not a broadcast address */
-	else if (IXGBE_IS_BROADCAST(mac_addr))
-		status = IXGBE_ERR_INVALID_MAC_ADDR;
-	/* Reject the zero address */
-	else if (mac_addr[0] == 0 && mac_addr[1] == 0 && mac_addr[2] == 0 &&
-	         mac_addr[3] == 0 && mac_addr[4] == 0 && mac_addr[5] == 0)
-		status = IXGBE_ERR_INVALID_MAC_ADDR;
-
-	return status;
-}
-
-/**
  *  ixgbe_set_rar_generic - Set Rx address register
  *  @hw: pointer to hardware structure
  *  @index: Receive address register to write
@@ -1888,8 +1915,7 @@ s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw)
 	 * to the permanent address.
 	 * Otherwise, use the permanent address from the eeprom.
 	 */
-	if (ixgbe_validate_mac_addr(hw->mac.addr) ==
-	    IXGBE_ERR_INVALID_MAC_ADDR) {
+	if (!is_valid_ether_addr(hw->mac.addr)) {
 		/* Get the MAC address from the RAR0 for later reference */
 		hw->mac.ops.get_mac_addr(hw, hw->mac.addr);
 
@@ -2380,6 +2406,7 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 
 	switch (hw->phy.media_type) {
 	/* Autoneg flow control on fiber adapters */
+	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber:
 		if (speed == IXGBE_LINK_SPEED_1GB_FULL)
 			ret_val = ixgbe_fc_autoneg_fiber(hw);
@@ -2392,7 +2419,7 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 
 	/* Autoneg flow control on copper adapters */
 	case ixgbe_media_type_copper:
-		if (ixgbe_device_supports_autoneg_fc(hw) == 0)
+		if (ixgbe_device_supports_autoneg_fc(hw))
 			ret_val = ixgbe_fc_autoneg_copper(hw);
 		break;
 
@@ -2479,42 +2506,39 @@ out:
  **/
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask)
 {
-	u32 gssr;
+	u32 gssr = 0;
 	u32 swmask = mask;
 	u32 fwmask = mask << 5;
-	s32 timeout = 200;
+	u32 timeout = 200;
+	u32 i;
 
-	while (timeout) {
+	for (i = 0; i < timeout; i++) {
 		/*
-		 * SW EEPROM semaphore bit is used for access to all
-		 * SW_FW_SYNC/GSSR bits (not just EEPROM)
+		 * SW NVM semaphore bit is used for access to all
+		 * SW_FW_SYNC bits (not just NVM)
 		 */
 		if (ixgbe_get_eeprom_semaphore(hw))
 			return IXGBE_ERR_SWFW_SYNC;
 
 		gssr = IXGBE_READ_REG(hw, IXGBE_GSSR);
-		if (!(gssr & (fwmask | swmask)))
-			break;
-
-		/*
-		 * Firmware currently using resource (fwmask) or other software
-		 * thread currently using resource (swmask)
-		 */
-		ixgbe_release_eeprom_semaphore(hw);
-		usleep_range(5000, 10000);
-		timeout--;
+		if (!(gssr & (fwmask | swmask))) {
+			gssr |= swmask;
+			IXGBE_WRITE_REG(hw, IXGBE_GSSR, gssr);
+			ixgbe_release_eeprom_semaphore(hw);
+			return 0;
+		} else {
+			/* Resource is currently in use by FW or SW */
+			ixgbe_release_eeprom_semaphore(hw);
+			usleep_range(5000, 10000);
+		}
 	}
 
-	if (!timeout) {
-		hw_dbg(hw, "Driver can't access resource, SW_FW_SYNC timeout.\n");
-		return IXGBE_ERR_SWFW_SYNC;
-	}
+	/* If time expired clear the bits holding the lock and retry */
+	if (gssr & (fwmask | swmask))
+		ixgbe_release_swfw_sync(hw, gssr & (fwmask | swmask));
 
-	gssr |= swmask;
-	IXGBE_WRITE_REG(hw, IXGBE_GSSR, gssr);
-
-	ixgbe_release_eeprom_semaphore(hw);
-	return 0;
+	usleep_range(5000, 10000);
+	return IXGBE_ERR_SWFW_SYNC;
 }
 
 /**
@@ -2616,6 +2640,7 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	bool link_up = false;
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	s32 ret_val = 0;
 
 	/*
 	 * Link must be up to auto-blink the LEDs;
@@ -2624,10 +2649,28 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	hw->mac.ops.check_link(hw, &speed, &link_up, false);
 
 	if (!link_up) {
+		/* Need the SW/FW semaphore around AUTOC writes if 82599 and
+		 * LESM is on.
+		 */
+		bool got_lock = false;
+
+		if ((hw->mac.type == ixgbe_mac_82599EB) &&
+		    ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+			ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+			if (ret_val)
+				goto out;
+
+			got_lock = true;
+		}
 		autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 		autoc_reg |= IXGBE_AUTOC_FLU;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
 		IXGBE_WRITE_FLUSH(hw);
+
+		if (got_lock)
+			hw->mac.ops.release_swfw_sync(hw,
+						      IXGBE_GSSR_MAC_CSR_SM);
 		usleep_range(10000, 20000);
 	}
 
@@ -2636,7 +2679,8 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
 	IXGBE_WRITE_FLUSH(hw);
 
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
@@ -2648,10 +2692,31 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 {
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	s32 ret_val = 0;
+	bool got_lock = false;
+
+	/* Need the SW/FW semaphore around AUTOC writes if 82599 and
+	 * LESM is on.
+	 */
+	if ((hw->mac.type == ixgbe_mac_82599EB) &&
+	    ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+						IXGBE_GSSR_MAC_CSR_SM);
+		if (ret_val)
+			goto out;
+
+		got_lock = true;
+	}
 
 	autoc_reg &= ~IXGBE_AUTOC_FLU;
 	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
+
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		ixgbe_reset_pipeline_82599(hw);
+
+	if (got_lock)
+		hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
 
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);
 	led_reg &= ~IXGBE_LED_BLINK(index);
@@ -2659,7 +2724,8 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
 	IXGBE_WRITE_FLUSH(hw);
 
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
@@ -2674,13 +2740,19 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 static s32 ixgbe_get_san_mac_addr_offset(struct ixgbe_hw *hw,
                                         u16 *san_mac_offset)
 {
+	s32 ret_val;
+
 	/*
 	 * First read the EEPROM pointer to see if the MAC addresses are
 	 * available.
 	 */
-	hw->eeprom.ops.read(hw, IXGBE_SAN_MAC_ADDR_PTR, san_mac_offset);
+	ret_val = hw->eeprom.ops.read(hw, IXGBE_SAN_MAC_ADDR_PTR,
+				      san_mac_offset);
+	if (ret_val)
+		hw_err(hw, "eeprom read at offset %d failed\n",
+		       IXGBE_SAN_MAC_ADDR_PTR);
 
-	return 0;
+	return ret_val;
 }
 
 /**
@@ -2697,23 +2769,16 @@ s32 ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr)
 {
 	u16 san_mac_data, san_mac_offset;
 	u8 i;
+	s32 ret_val;
 
 	/*
 	 * First read the EEPROM pointer to see if the MAC addresses are
 	 * available.  If they're not, no point in calling set_lan_id() here.
 	 */
-	ixgbe_get_san_mac_addr_offset(hw, &san_mac_offset);
+	ret_val = ixgbe_get_san_mac_addr_offset(hw, &san_mac_offset);
+	if (ret_val || san_mac_offset == 0 || san_mac_offset == 0xFFFF)
 
-	if ((san_mac_offset == 0) || (san_mac_offset == 0xFFFF)) {
-		/*
-		 * No addresses available in this EEPROM.  It's not an
-		 * error though, so just wipe the local address and return.
-		 */
-		for (i = 0; i < 6; i++)
-			san_mac_addr[i] = 0xFF;
-
-		goto san_mac_addr_out;
-	}
+		goto san_mac_addr_clr;
 
 	/* make sure we know which port we need to program */
 	hw->mac.ops.set_lan_id(hw);
@@ -2721,14 +2786,26 @@ s32 ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr)
 	(hw->bus.func) ? (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT1_OFFSET) :
 	                 (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT0_OFFSET);
 	for (i = 0; i < 3; i++) {
-		hw->eeprom.ops.read(hw, san_mac_offset, &san_mac_data);
+		ret_val = hw->eeprom.ops.read(hw, san_mac_offset,
+					      &san_mac_data);
+		if (ret_val) {
+			hw_err(hw, "eeprom read at offset %d failed\n",
+			       san_mac_offset);
+			goto san_mac_addr_clr;
+		}
 		san_mac_addr[i * 2] = (u8)(san_mac_data);
 		san_mac_addr[i * 2 + 1] = (u8)(san_mac_data >> 8);
 		san_mac_offset++;
 	}
-
-san_mac_addr_out:
 	return 0;
+
+san_mac_addr_clr:
+	/* No addresses available in this EEPROM.  It's not necessarily an
+	 * error though, so just wipe the local address and return.
+	 */
+	for (i = 0; i < 6; i++)
+		san_mac_addr[i] = 0xFF;
+	return ret_val;
 }
 
 /**
@@ -3177,8 +3254,9 @@ s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
 	*wwpn_prefix = 0xFFFF;
 
 	/* check if alternative SAN MAC is supported */
-	hw->eeprom.ops.read(hw, IXGBE_ALT_SAN_MAC_ADDR_BLK_PTR,
-	                    &alt_san_mac_blk_offset);
+	offset = IXGBE_ALT_SAN_MAC_ADDR_BLK_PTR;
+	if (hw->eeprom.ops.read(hw, offset, &alt_san_mac_blk_offset))
+		goto wwn_prefix_err;
 
 	if ((alt_san_mac_blk_offset == 0) ||
 	    (alt_san_mac_blk_offset == 0xFFFF))
@@ -3186,18 +3264,25 @@ s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
 
 	/* check capability in alternative san mac address block */
 	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_CAPS_OFFSET;
-	hw->eeprom.ops.read(hw, offset, &caps);
+	if (hw->eeprom.ops.read(hw, offset, &caps))
+		goto wwn_prefix_err;
 	if (!(caps & IXGBE_ALT_SAN_MAC_ADDR_CAPS_ALTWWN))
 		goto wwn_prefix_out;
 
 	/* get the corresponding prefix for WWNN/WWPN */
 	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWNN_OFFSET;
-	hw->eeprom.ops.read(hw, offset, wwnn_prefix);
+	if (hw->eeprom.ops.read(hw, offset, wwnn_prefix))
+		hw_err(hw, "eeprom read at offset %d failed\n", offset);
 
 	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWPN_OFFSET;
-	hw->eeprom.ops.read(hw, offset, wwpn_prefix);
+	if (hw->eeprom.ops.read(hw, offset, wwpn_prefix))
+		goto wwn_prefix_err;
 
 wwn_prefix_out:
+	return 0;
+
+wwn_prefix_err:
+	hw_err(hw, "eeprom read at offset %d failed\n", offset);
 	return 0;
 }
 
@@ -3712,7 +3797,11 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw)
 		u8  sensor_index;
 		u8  sensor_location;
 
-		hw->eeprom.ops.read(hw, (ets_offset + 1 + i), &ets_sensor);
+		if (hw->eeprom.ops.read(hw, ets_offset + 1 + i, &ets_sensor)) {
+			hw_err(hw, "eeprom read at offset %d failed\n",
+			       ets_offset + 1 + i);
+			continue;
+		}
 		sensor_index = ((ets_sensor & IXGBE_ETS_DATA_INDEX_MASK) >>
 				IXGBE_ETS_DATA_INDEX_SHIFT);
 		sensor_location = ((ets_sensor & IXGBE_ETS_DATA_LOC_MASK) >>

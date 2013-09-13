@@ -544,7 +544,7 @@ static void irlap_recv_discovery_xid_cmd(struct irlap_cb *self,
 		/*
 		 *  We now have some discovery info to deliver!
 		 */
-		discovery = kmalloc(sizeof(discovery_t), GFP_ATOMIC);
+		discovery = kzalloc(sizeof(discovery_t), GFP_ATOMIC);
 		if (!discovery) {
 			IRDA_WARNING("%s: unable to malloc!\n", __func__);
 			return;

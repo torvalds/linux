@@ -75,7 +75,8 @@ static int chd_dec_disable_int(struct crystalhd_adp *adp)
 	return 0;
 }
 
-struct crystalhd_ioctl_data *chd_dec_alloc_iodata(struct crystalhd_adp *adp, bool isr)
+struct crystalhd_ioctl_data *chd_dec_alloc_iodata(struct crystalhd_adp *adp,
+					 bool isr)
 {
 	unsigned long flags = 0;
 	struct crystalhd_ioctl_data *temp;
@@ -95,8 +96,8 @@ struct crystalhd_ioctl_data *chd_dec_alloc_iodata(struct crystalhd_adp *adp, boo
 	return temp;
 }
 
-void chd_dec_free_iodata(struct crystalhd_adp *adp, struct crystalhd_ioctl_data *iodata,
-			 bool isr)
+void chd_dec_free_iodata(struct crystalhd_adp *adp,
+			 struct crystalhd_ioctl_data *iodata, bool isr)
 {
 	unsigned long flags = 0;
 
@@ -109,7 +110,8 @@ void chd_dec_free_iodata(struct crystalhd_adp *adp, struct crystalhd_ioctl_data 
 	spin_unlock_irqrestore(&adp->lock, flags);
 }
 
-static inline int crystalhd_user_data(unsigned long ud, void *dr, int size, int set)
+static inline int crystalhd_user_data(unsigned long ud, void *dr,
+			 int size, int set)
 {
 	int rc;
 
@@ -131,8 +133,8 @@ static inline int crystalhd_user_data(unsigned long ud, void *dr, int size, int 
 	return rc;
 }
 
-static int chd_dec_fetch_cdata(struct crystalhd_adp *adp, struct crystalhd_ioctl_data *io,
-			       uint32_t m_sz, unsigned long ua)
+static int chd_dec_fetch_cdata(struct crystalhd_adp *adp,
+	 struct crystalhd_ioctl_data *io, uint32_t m_sz, unsigned long ua)
 {
 	unsigned long ua_off;
 	int rc = 0;
@@ -163,7 +165,7 @@ static int chd_dec_fetch_cdata(struct crystalhd_adp *adp, struct crystalhd_ioctl
 }
 
 static int chd_dec_release_cdata(struct crystalhd_adp *adp,
-				 struct crystalhd_ioctl_data *io, unsigned long ua)
+			 struct crystalhd_ioctl_data *io, unsigned long ua)
 {
 	unsigned long ua_off;
 	int rc;
@@ -178,8 +180,9 @@ static int chd_dec_release_cdata(struct crystalhd_adp *adp,
 		rc = crystalhd_user_data(ua_off, io->add_cdata,
 					io->add_cdata_sz, 1);
 		if (rc) {
-			BCMLOG_ERR("failed to push add_cdata sz:%x ua_off:%x\n",
-				   io->add_cdata_sz, (unsigned int)ua_off);
+			BCMLOG_ERR(
+				"failed to push add_cdata sz:%x ua_off:%x\n",
+				 io->add_cdata_sz, (unsigned int)ua_off);
 			return -ENODATA;
 		}
 	}
@@ -252,10 +255,7 @@ static int chd_dec_api_cmd(struct crystalhd_adp *adp, unsigned long ua,
 		rc = chd_dec_proc_user_data(adp, temp, ua, 1);
 	}
 
-	if (temp) {
-		chd_dec_free_iodata(adp, temp, 0);
-		temp = NULL;
-	}
+	chd_dec_free_iodata(adp, temp, 0);
 
 	return rc;
 }
@@ -353,7 +353,7 @@ static const struct file_operations chd_dec_fops = {
 	.llseek = noop_llseek,
 };
 
-static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)
+static int chd_dec_init_chdev(struct crystalhd_adp *adp)
 {
 	struct crystalhd_ioctl_data *temp;
 	struct device *dev;
@@ -373,13 +373,15 @@ static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)
 	/* register crystalhd class */
 	crystalhd_class = class_create(THIS_MODULE, "crystalhd");
 	if (IS_ERR(crystalhd_class)) {
+		rc = PTR_ERR(crystalhd_class);
 		BCMLOG_ERR("failed to create class\n");
-		goto fail;
+		goto class_create_fail;
 	}
 
-	dev = device_create(crystalhd_class, NULL, MKDEV(adp->chd_dec_major, 0),
-			    NULL, "crystalhd");
+	dev = device_create(crystalhd_class, NULL,
+			 MKDEV(adp->chd_dec_major, 0), NULL, "crystalhd");
 	if (IS_ERR(dev)) {
+		rc = PTR_ERR(dev);
 		BCMLOG_ERR("failed to create device\n");
 		goto device_create_fail;
 	}
@@ -392,7 +394,8 @@ static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)
 
 	/* Allocate general purpose ioctl pool. */
 	for (i = 0; i < CHD_IODATA_POOL_SZ; i++) {
-		temp = kzalloc(sizeof(struct crystalhd_ioctl_data), GFP_KERNEL);
+		temp = kzalloc(sizeof(struct crystalhd_ioctl_data),
+					 GFP_KERNEL);
 		if (!temp) {
 			BCMLOG_ERR("ioctl data pool kzalloc failed\n");
 			rc = -ENOMEM;
@@ -410,11 +413,13 @@ elem_pool_fail:
 	device_destroy(crystalhd_class, MKDEV(adp->chd_dec_major, 0));
 device_create_fail:
 	class_destroy(crystalhd_class);
+class_create_fail:
+	unregister_chrdev(adp->chd_dec_major, CRYSTALHD_API_NAME);
 fail:
 	return rc;
 }
 
-static void __devexit chd_dec_release_chdev(struct crystalhd_adp *adp)
+static void chd_dec_release_chdev(struct crystalhd_adp *adp)
 {
 	struct crystalhd_ioctl_data *temp = NULL;
 	if (!adp)
@@ -439,7 +444,7 @@ static void __devexit chd_dec_release_chdev(struct crystalhd_adp *adp)
 	crystalhd_delete_elem_pool(adp);
 }
 
-static int __devinit chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
+static int chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
 {
 	int rc;
 	unsigned long bar2 = pci_resource_start(pinfo->pdev, 2);
@@ -492,7 +497,7 @@ static int __devinit chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
 	return 0;
 }
 
-static void __devexit chd_pci_release_mem(struct crystalhd_adp *pinfo)
+static void chd_pci_release_mem(struct crystalhd_adp *pinfo)
 {
 	if (!pinfo)
 		return;
@@ -507,7 +512,7 @@ static void __devexit chd_pci_release_mem(struct crystalhd_adp *pinfo)
 }
 
 
-static void __devexit chd_dec_pci_remove(struct pci_dev *pdev)
+static void chd_dec_pci_remove(struct pci_dev *pdev)
 {
 	struct crystalhd_adp *pinfo;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
@@ -533,15 +538,14 @@ static void __devexit chd_dec_pci_remove(struct pci_dev *pdev)
 	g_adp_info = NULL;
 }
 
-static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
+static int chd_dec_pci_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *entry)
 {
 	struct crystalhd_adp *pinfo;
 	int rc;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
 
-	BCMLOG(BCMLOG_DBG, "PCI_INFO: Vendor:0x%04x Device:0x%04x "
-	       "s_vendor:0x%04x s_device: 0x%04x\n",
+	BCMLOG(BCMLOG_DBG, "PCI_INFO: Vendor:0x%04x Device:0x%04x s_vendor:0x%04x s_device: 0x%04x\n",
 	       pdev->vendor, pdev->device, pdev->subsystem_vendor,
 	       pdev->subsystem_device);
 
@@ -707,7 +711,7 @@ MODULE_DEVICE_TABLE(pci, chd_dec_pci_id_table);
 static struct pci_driver bc_chd_70012_driver = {
 	.name     = "Broadcom 70012 Decoder",
 	.probe    = chd_dec_pci_probe,
-	.remove   = __devexit_p(chd_dec_pci_remove),
+	.remove   = chd_dec_pci_remove,
 	.id_table = chd_dec_pci_id_table,
 #ifdef CONFIG_PM
 	.suspend  = chd_dec_pci_suspend,

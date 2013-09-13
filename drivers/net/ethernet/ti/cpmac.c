@@ -636,7 +636,7 @@ static void cpmac_hw_stop(struct net_device *dev)
 {
 	int i;
 	struct cpmac_priv *priv = netdev_priv(dev);
-	struct plat_cpmac_data *pdata = priv->pdev->dev.platform_data;
+	struct plat_cpmac_data *pdata = dev_get_platdata(&priv->pdev->dev);
 
 	ar7_device_reset(pdata->reset_bit);
 	cpmac_write(priv->regs, CPMAC_RX_CONTROL,
@@ -659,7 +659,7 @@ static void cpmac_hw_start(struct net_device *dev)
 {
 	int i;
 	struct cpmac_priv *priv = netdev_priv(dev);
-	struct plat_cpmac_data *pdata = priv->pdev->dev.platform_data;
+	struct plat_cpmac_data *pdata = dev_get_platdata(&priv->pdev->dev);
 
 	ar7_device_reset(pdata->reset_bit);
 	for (i = 0; i < 8; i++) {
@@ -904,10 +904,9 @@ static int cpmac_set_ringparam(struct net_device *dev,
 static void cpmac_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "cpmac");
-	strcpy(info->version, CPMAC_VERSION);
-	info->fw_version[0] = '\0';
-	sprintf(info->bus_info, "%s", "cpmac");
+	strlcpy(info->driver, "cpmac", sizeof(info->driver));
+	strlcpy(info->version, CPMAC_VERSION, sizeof(info->version));
+	snprintf(info->bus_info, sizeof(info->bus_info), "%s", "cpmac");
 	info->regdump_len = 0;
 }
 
@@ -1110,7 +1109,7 @@ static const struct net_device_ops cpmac_netdev_ops = {
 
 static int external_switch;
 
-static int __devinit cpmac_probe(struct platform_device *pdev)
+static int cpmac_probe(struct platform_device *pdev)
 {
 	int rc, phy_id;
 	char mdio_bus_id[MII_BUS_ID_SIZE];
@@ -1119,7 +1118,7 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct plat_cpmac_data *pdata;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	if (external_switch || dumb_switch) {
 		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE); /* fixed phys bus */
@@ -1173,8 +1172,8 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT,
 						mdio_bus_id, phy_id);
 
-	priv->phy = phy_connect(dev, priv->phy_name, cpmac_adjust_link, 0,
-						PHY_INTERFACE_MODE_MII);
+	priv->phy = phy_connect(dev, priv->phy_name, cpmac_adjust_link,
+				PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(priv->phy)) {
 		if (netif_msg_drv(priv))
@@ -1204,7 +1203,7 @@ fail:
 	return rc;
 }
 
-static int __devexit cpmac_remove(struct platform_device *pdev)
+static int cpmac_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	unregister_netdev(dev);
@@ -1216,10 +1215,10 @@ static struct platform_driver cpmac_driver = {
 	.driver.name = "cpmac",
 	.driver.owner = THIS_MODULE,
 	.probe = cpmac_probe,
-	.remove = __devexit_p(cpmac_remove),
+	.remove = cpmac_remove,
 };
 
-int __devinit cpmac_init(void)
+int cpmac_init(void)
 {
 	u32 mask;
 	int i, res;
@@ -1290,7 +1289,7 @@ fail_alloc:
 	return res;
 }
 
-void __devexit cpmac_exit(void)
+void cpmac_exit(void)
 {
 	platform_driver_unregister(&cpmac_driver);
 	mdiobus_unregister(cpmac_mii);

@@ -432,9 +432,9 @@ static irqreturn_t spi_sh_irq(int irq, void *_ss)
 	return IRQ_HANDLED;
 }
 
-static int __devexit spi_sh_remove(struct platform_device *pdev)
+static int spi_sh_remove(struct platform_device *pdev)
 {
-	struct spi_sh_data *ss = dev_get_drvdata(&pdev->dev);
+	struct spi_sh_data *ss = platform_get_drvdata(pdev);
 
 	spi_unregister_master(ss->master);
 	destroy_workqueue(ss->workqueue);
@@ -444,7 +444,7 @@ static int __devexit spi_sh_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit spi_sh_probe(struct platform_device *pdev)
+static int spi_sh_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct spi_master *master;
@@ -471,7 +471,7 @@ static int __devinit spi_sh_probe(struct platform_device *pdev)
 	}
 
 	ss = spi_master_get_devdata(master);
-	dev_set_drvdata(&pdev->dev, ss);
+	platform_set_drvdata(pdev, ss);
 
 	switch (res->flags & IORESOURCE_MEM_TYPE_MASK) {
 	case IORESOURCE_MEM_8BIT:
@@ -539,7 +539,7 @@ static int __devinit spi_sh_probe(struct platform_device *pdev)
 
 static struct platform_driver spi_sh_driver = {
 	.probe = spi_sh_probe,
-	.remove = __devexit_p(spi_sh_remove),
+	.remove = spi_sh_remove,
 	.driver = {
 		.name = "sh_spi",
 		.owner = THIS_MODULE,

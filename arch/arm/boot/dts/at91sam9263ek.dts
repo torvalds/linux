@@ -6,7 +6,7 @@
  * Licensed under GPLv2 only
  */
 /dts-v1/;
-/include/ "at91sam9263.dtsi"
+#include "at91sam9263.dtsi"
 
 / {
 	model = "Atmel at91sam9263ek";
@@ -38,6 +38,10 @@
 			};
 
 			usart0: serial@fff8c000 {
+				pinctrl-0 = <
+					&pinctrl_usart0
+					&pinctrl_usart0_rts
+					&pinctrl_usart0_cts>;
 				status = "okay";
 			};
 
@@ -47,7 +51,46 @@
 			};
 
 			usb1: gadget@fff78000 {
-				atmel,vbus-gpio = <&pioA 25 0>;
+				atmel,vbus-gpio = <&pioA 25 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+
+			mmc0: mmc@fff80000 {
+				pinctrl-0 = <
+					&pinctrl_board_mmc0
+					&pinctrl_mmc0_clk
+					&pinctrl_mmc0_slot0_cmd_dat0
+					&pinctrl_mmc0_slot0_dat1_3>;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioE 18 GPIO_ACTIVE_HIGH>;
+					wp-gpios = <&pioE 19 GPIO_ACTIVE_HIGH>;
+				};
+			};
+
+			pinctrl@fffff200 {
+				mmc0 {
+					pinctrl_board_mmc0: mmc0-board {
+						atmel,pins =
+							<AT91_PIOE 18 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH 	/* PE18 gpio CD pin pull up and deglitch */
+							 AT91_PIOE 19 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PE19 gpio WP pin pull up */
+					};
+				};
+			};
+
+			spi0: spi@fffa4000 {
+				status = "okay";
+				cs-gpios = <&pioA 5 0>, <0>, <0>, <0>;
+				mtd_dataflash@0 {
+					compatible = "atmel,at45", "atmel,dataflash";
+					spi-max-frequency = <50000000>;
+					reg = <0>;
+				};
+			};
+
+			watchdog@fffffd40 {
 				status = "okay";
 			};
 		};
@@ -102,8 +145,8 @@
 		usb0: ohci@00a00000 {
 			num-ports = <2>;
 			status = "okay";
-			atmel,vbus-gpio = <&pioA 24 0
-					   &pioA 21 0
+			atmel,vbus-gpio = <&pioA 24 GPIO_ACTIVE_HIGH
+					   &pioA 21 GPIO_ACTIVE_HIGH
 					  >;
 		};
 	};
@@ -113,32 +156,30 @@
 
 		d3 {
 			label = "d3";
-			gpios = <&pioB 7 0>;
+			gpios = <&pioB 7 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		d2 {
 			label = "d2";
-			gpios = <&pioC 29 1>;
+			gpios = <&pioC 29 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
 		};
 	};
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		left_click {
 			label = "left_click";
-			gpios = <&pioC 5 1>;
+			gpios = <&pioC 5 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
 			gpio-key,wakeup;
 		};
 
 		right_click {
 			label = "right_click";
-			gpios = <&pioC 4 1>;
+			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;
 			gpio-key,wakeup;
 		};

@@ -406,12 +406,12 @@ static inline int isp1704_test_ulpi(struct isp1704_charger *isp)
 	return -ENODEV;
 }
 
-static int __devinit isp1704_charger_probe(struct platform_device *pdev)
+static int isp1704_charger_probe(struct platform_device *pdev)
 {
 	struct isp1704_charger	*isp;
 	int			ret = -ENODEV;
 
-	isp = kzalloc(sizeof *isp, GFP_KERNEL);
+	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
 		return -ENOMEM;
 
@@ -477,14 +477,12 @@ fail1:
 	isp1704_charger_set_power(isp, 0);
 	usb_put_phy(isp->phy);
 fail0:
-	kfree(isp);
-
 	dev_err(&pdev->dev, "failed to register isp1704 with error %d\n", ret);
 
 	return ret;
 }
 
-static int __devexit isp1704_charger_remove(struct platform_device *pdev)
+static int isp1704_charger_remove(struct platform_device *pdev)
 {
 	struct isp1704_charger *isp = platform_get_drvdata(pdev);
 
@@ -492,7 +490,6 @@ static int __devexit isp1704_charger_remove(struct platform_device *pdev)
 	power_supply_unregister(&isp->psy);
 	usb_put_phy(isp->phy);
 	isp1704_charger_set_power(isp, 0);
-	kfree(isp);
 
 	return 0;
 }
@@ -502,7 +499,7 @@ static struct platform_driver isp1704_charger_driver = {
 		.name = "isp1704_charger",
 	},
 	.probe = isp1704_charger_probe,
-	.remove = __devexit_p(isp1704_charger_remove),
+	.remove = isp1704_charger_remove,
 };
 
 module_platform_driver(isp1704_charger_driver);

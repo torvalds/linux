@@ -153,6 +153,9 @@ static int h4_recv(struct hci_uart *hu, void *data, int count)
 {
 	int ret;
 
+	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
+		return -EUNATCH;
+
 	ret = hci_recv_stream_fragment(hu->hdev, data, count);
 	if (ret < 0) {
 		BT_ERR("Frame Reassembly Failed");

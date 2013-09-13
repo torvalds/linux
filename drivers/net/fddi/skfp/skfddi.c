@@ -321,7 +321,7 @@ err_out1:
 /*
  * Called for each adapter board from pci_unregister_driver
  */
-static void __devexit skfp_remove_one(struct pci_dev *pdev)
+static void skfp_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *p = pci_get_drvdata(pdev);
 	struct s_smc *lp = netdev_priv(p);
@@ -2243,18 +2243,7 @@ static struct pci_driver skfddi_pci_driver = {
 	.name		= "skfddi",
 	.id_table	= skfddi_pci_tbl,
 	.probe		= skfp_init_one,
-	.remove		= __devexit_p(skfp_remove_one),
+	.remove		= skfp_remove_one,
 };
 
-static int __init skfd_init(void)
-{
-	return pci_register_driver(&skfddi_pci_driver);
-}
-
-static void __exit skfd_exit(void)
-{
-	pci_unregister_driver(&skfddi_pci_driver);
-}
-
-module_init(skfd_init);
-module_exit(skfd_exit);
+module_pci_driver(skfddi_pci_driver);

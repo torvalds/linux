@@ -5,3 +5,9 @@
 #define V2T_PERIPH 0xf8200000
 
 void vexpress_dt_smp_map_io(void);
+
+bool vexpress_smp_init_ops(void);
+
+extern struct smp_operations	vexpress_smp_ops;
+
+extern void vexpress_cpu_die(unsigned int cpu);

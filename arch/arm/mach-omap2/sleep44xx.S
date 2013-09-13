@@ -14,10 +14,10 @@
 #include <asm/memory.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include <plat/omap44xx.h>
-#include <mach/omap-secure.h>
+#include "omap-secure.h"
 
 #include "common.h"
+#include "omap44xx.h"
 #include "omap4-sar-layout.h"
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PM)
@@ -33,6 +33,8 @@ ppa_zero_params:
 
 ppa_por_params:
 	.word		1, 0
+
+#ifdef CONFIG_ARCH_OMAP4
 
 /*
  * =============================
@@ -326,7 +328,9 @@ skip_l2en:
 
 	b	cpu_resume			@ Jump to generic resume
 ENDPROC(omap4_cpu_resume)
-#endif
+#endif	/* CONFIG_ARCH_OMAP4 */
+
+#endif	/* defined(CONFIG_SMP) && defined(CONFIG_PM) */
 
 #ifndef CONFIG_OMAP4_ERRATA_I688
 ENTRY(omap_bus_sync)

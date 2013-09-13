@@ -86,11 +86,11 @@ static const struct iio_chan_spec ad5421_channels[] = {
 		.indexed = 1,
 		.output = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT |
-			IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
-			IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_CALIBSCALE) |
+			BIT(IIO_CHAN_INFO_CALIBBIAS),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_OFFSET),
 		.scan_type = IIO_ST('u', 16, 16, 0),
 		.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) |
 			IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING),
@@ -127,7 +127,6 @@ static int ad5421_write(struct iio_dev *indio_dev, unsigned int reg,
 static int ad5421_read(struct iio_dev *indio_dev, unsigned int reg)
 {
 	struct ad5421_state *st = iio_priv(indio_dev);
-	struct spi_message m;
 	int ret;
 	struct spi_transfer t[] = {
 		{
@@ -140,15 +139,11 @@ static int ad5421_read(struct iio_dev *indio_dev, unsigned int reg)
 		},
 	};
 
-	spi_message_init(&m);
-	spi_message_add_tail(&t[0], &m);
-	spi_message_add_tail(&t[1], &m);
-
 	mutex_lock(&indio_dev->mlock);
 
 	st->data[0].d32 = cpu_to_be32((1 << 23) | (reg << 16));
 
-	ret = spi_sync(st->spi, &m);
+	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret >= 0)
 		ret = be32_to_cpu(st->data[1].d32) & 0xffff;
 
@@ -449,14 +444,14 @@ static const struct iio_info ad5421_info = {
 	.driver_module =	THIS_MODULE,
 };
 
-static int __devinit ad5421_probe(struct spi_device *spi)
+static int ad5421_probe(struct spi_device *spi)
 {
 	struct ad5421_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct iio_dev *indio_dev;
 	struct ad5421_state *st;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
 		return  -ENOMEM;
@@ -489,41 +484,30 @@ static int __devinit ad5421_probe(struct spi_device *spi)
 	ad5421_update_ctrl(indio_dev, 0, 0);
 
 	if (spi->irq) {
-		ret = request_threaded_irq(spi->irq,
+		ret = devm_request_threaded_irq(&spi->dev, spi->irq,
 					   NULL,
 					   ad5421_fault_handler,
 					   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 					   "ad5421 fault",
 					   indio_dev);
 		if (ret)
-			goto error_free;
+			return ret;
 	}
 
 	ret = iio_device_register(indio_dev);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to register iio device: %d\n", ret);
-		goto error_free_irq;
+		return ret;
 	}
 
 	return 0;
-
-error_free_irq:
-	if (spi->irq)
-		free_irq(spi->irq, indio_dev);
-error_free:
-	iio_device_free(indio_dev);
-
-	return ret;
 }
 
-static int __devexit ad5421_remove(struct spi_device *spi)
+static int ad5421_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
 	iio_device_unregister(indio_dev);
-	if (spi->irq)
-		free_irq(spi->irq, indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -534,7 +518,7 @@ static struct spi_driver ad5421_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5421_probe,
-	.remove = __devexit_p(ad5421_remove),
+	.remove = ad5421_remove,
 };
 module_spi_driver(ad5421_driver);
 

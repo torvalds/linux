@@ -200,7 +200,7 @@ static int intel_menlow_memory_add(struct acpi_device *device)
 
 }
 
-static int intel_menlow_memory_remove(struct acpi_device *device, int type)
+static int intel_menlow_memory_remove(struct acpi_device *device)
 {
 	struct thermal_cooling_device *cdev = acpi_driver_data(device);
 

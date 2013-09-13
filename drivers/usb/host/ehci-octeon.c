@@ -51,7 +51,7 @@ static const struct hc_driver ehci_octeon_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -159,9 +159,6 @@ static int ehci_octeon_drv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, hcd);
 
-	/* root ports should always stay powered */
-	ehci_port_power(ehci, 1);
-
 	return 0;
 err3:
 	ehci_octeon_stop();
@@ -184,8 +181,6 @@ static int ehci_octeon_drv_remove(struct platform_device *pdev)
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

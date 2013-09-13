@@ -30,14 +30,14 @@
 
 #define	WIDTH 640
 
-static struct fb_var_screeninfo hitfb_var __devinitdata = {
+static struct fb_var_screeninfo hitfb_var = {
 	.activate	= FB_ACTIVATE_NOW,
 	.height		= -1,
 	.width		= -1,
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_fix_screeninfo hitfb_fix __devinitdata = {
+static struct fb_fix_screeninfo hitfb_fix = {
 	.id		= "Hitachi HD64461",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.accel		= FB_ACCEL_NONE,
@@ -324,7 +324,7 @@ static struct fb_ops hitfb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int __devinit hitfb_probe(struct platform_device *dev)
+static int hitfb_probe(struct platform_device *dev)
 {
 	unsigned short lcdclor, ldr3, ldvndr;
 	struct fb_info *info;
@@ -417,7 +417,7 @@ err_fb:
 	return ret;
 }
 
-static int __devexit hitfb_remove(struct platform_device *dev)
+static int hitfb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -462,7 +462,7 @@ static const struct dev_pm_ops hitfb_dev_pm_ops = {
 
 static struct platform_driver hitfb_driver = {
 	.probe		= hitfb_probe,
-	.remove		= __devexit_p(hitfb_remove),
+	.remove		= hitfb_remove,
 	.driver		= {
 		.name	= "hitfb",
 		.owner	= THIS_MODULE,

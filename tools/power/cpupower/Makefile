@@ -111,7 +111,7 @@ GMO_FILES = ${shell for HLANG in ${LANGUAGES}; do echo $(OUTPUT)po/$$HLANG.gmo; 
 export CROSS CC AR STRIP RANLIB CFLAGS LDFLAGS LIB_OBJS
 
 # check if compiler option is supported
-cc-supports = ${shell if $(CC) ${1} -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo "$(1)"; fi;}
+cc-supports = ${shell if $(CC) ${1} -S -o /dev/null -x c /dev/null > /dev/null 2>&1; then echo "$(1)"; fi;}
 
 # use '-Os' optimization if available, else use -O2
 OPTIMIZATION := $(call cc-supports,-Os,-O2)
@@ -128,10 +128,12 @@ UTIL_OBJS =  utils/helpers/amd.o utils/helpers/topology.o utils/helpers/msr.o \
 	utils/helpers/sysfs.o utils/helpers/misc.o utils/helpers/cpuid.o \
 	utils/helpers/pci.o utils/helpers/bitmask.o \
 	utils/idle_monitor/nhm_idle.o utils/idle_monitor/snb_idle.o \
+	utils/idle_monitor/hsw_ext_idle.o \
 	utils/idle_monitor/amd_fam14h_idle.o utils/idle_monitor/cpuidle_sysfs.o \
 	utils/idle_monitor/mperf_monitor.o utils/idle_monitor/cpupower-monitor.o \
 	utils/cpupower.o utils/cpufreq-info.o utils/cpufreq-set.o \
-	utils/cpupower-set.o utils/cpupower-info.o utils/cpuidle-info.o
+	utils/cpupower-set.o utils/cpupower-info.o utils/cpuidle-info.o \
+	utils/cpuidle-set.o
 
 UTIL_SRC := $(UTIL_OBJS:.o=.c)
 
@@ -253,7 +255,8 @@ clean:
 	 | xargs rm -f
 	-rm -f $(OUTPUT)cpupower
 	-rm -f $(OUTPUT)libcpupower.so*
-	-rm -rf $(OUTPUT)po/*.{gmo,pot}
+	-rm -rf $(OUTPUT)po/*.gmo
+	-rm -rf $(OUTPUT)po/*.pot
 	$(MAKE) -C bench O=$(OUTPUT) clean
 
 

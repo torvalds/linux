@@ -8,8 +8,8 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
-#include "kern_util.h"
-#include "os.h"
+#include <kern_util.h>
+#include <os.h>
 #include "internal.h"
 
 int set_interval(void)
@@ -79,7 +79,7 @@ long long os_nsecs(void)
 	return timeval_to_ns(&tv);
 }
 
-#ifdef UML_CONFIG_NO_HZ
+#ifdef UML_CONFIG_NO_HZ_COMMON
 static int after_sleep_interval(struct timespec *ts)
 {
 	return 0;
@@ -114,7 +114,7 @@ static void deliver_alarm(void)
 	skew += this_tick - last_tick;
 
 	while (skew >= one_tick) {
-		alarm_handler(SIGVTALRM, NULL);
+		alarm_handler(SIGVTALRM, NULL, NULL);
 		skew -= one_tick;
 	}
 

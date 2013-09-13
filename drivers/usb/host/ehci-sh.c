@@ -21,17 +21,10 @@ struct ehci_sh_priv {
 static int ehci_sh_reset(struct usb_hcd *hcd)
 {
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
-	int ret;
 
 	ehci->caps = hcd->regs;
 
-	ret = ehci_setup(hcd);
-	if (unlikely(ret))
-		return ret;
-
-	ehci_port_power(ehci, 0);
-
-	return ret;
+	return ehci_setup(hcd);
 }
 
 static const struct hc_driver ehci_sh_hc_driver = {
@@ -43,7 +36,7 @@ static const struct hc_driver ehci_sh_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq				= ehci_irq,
-	.flags				= HCD_USB2 | HCD_MEMORY,
+	.flags				= HCD_USB2 | HCD_MEMORY | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -84,7 +77,6 @@ static const struct hc_driver ehci_sh_hc_driver = {
 
 static int ehci_hcd_sh_probe(struct platform_device *pdev)
 {
-	const struct hc_driver *driver = &ehci_sh_hc_driver;
 	struct resource *res;
 	struct ehci_sh_priv *priv;
 	struct ehci_sh_platdata *pdata;
@@ -112,7 +104,7 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 		goto fail_create_hcd;
 	}
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	/* initialize hcd */
 	hcd = usb_create_hcd(&ehci_sh_hc_driver, &pdev->dev,
@@ -125,33 +117,26 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
-				driver->description)) {
-		dev_dbg(&pdev->dev, "controller already in use\n");
-		ret = -EBUSY;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		ret = PTR_ERR(hcd->regs);
 		goto fail_request_resource;
 	}
 
-	hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
-	if (hcd->regs == NULL) {
-		dev_dbg(&pdev->dev, "error mapping memory\n");
-		ret = -ENXIO;
-		goto fail_ioremap;
-	}
-
-	priv = kmalloc(sizeof(struct ehci_sh_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct ehci_sh_priv),
+			    GFP_KERNEL);
 	if (!priv) {
 		dev_dbg(&pdev->dev, "error allocating priv data\n");
 		ret = -ENOMEM;
-		goto fail_alloc;
+		goto fail_request_resource;
 	}
 
 	/* These are optional, we don't care if they fail */
-	priv->fclk = clk_get(&pdev->dev, "usb_fck");
+	priv->fclk = devm_clk_get(&pdev->dev, "usb_fck");
 	if (IS_ERR(priv->fclk))
 		priv->fclk = NULL;
 
-	priv->iclk = clk_get(&pdev->dev, "usb_ick");
+	priv->iclk = devm_clk_get(&pdev->dev, "usb_ick");
 	if (IS_ERR(priv->iclk))
 		priv->iclk = NULL;
 
@@ -176,14 +161,6 @@ fail_add_hcd:
 	clk_disable(priv->iclk);
 	clk_disable(priv->fclk);
 
-	clk_put(priv->iclk);
-	clk_put(priv->fclk);
-
-	kfree(priv);
-fail_alloc:
-	iounmap(hcd->regs);
-fail_ioremap:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 fail_request_resource:
 	usb_put_hcd(hcd);
 fail_create_hcd:
@@ -192,24 +169,16 @@ fail_create_hcd:
 	return ret;
 }
 
-static int __exit ehci_hcd_sh_remove(struct platform_device *pdev)
+static int ehci_hcd_sh_remove(struct platform_device *pdev)
 {
 	struct ehci_sh_priv *priv = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = priv->hcd;
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-	platform_set_drvdata(pdev, NULL);
 
 	clk_disable(priv->fclk);
 	clk_disable(priv->iclk);
-
-	clk_put(priv->fclk);
-	clk_put(priv->iclk);
-
-	kfree(priv);
 
 	return 0;
 }
@@ -225,7 +194,7 @@ static void ehci_hcd_sh_shutdown(struct platform_device *pdev)
 
 static struct platform_driver ehci_hcd_sh_driver = {
 	.probe		= ehci_hcd_sh_probe,
-	.remove		= __exit_p(ehci_hcd_sh_remove),
+	.remove		= ehci_hcd_sh_remove,
 	.shutdown	= ehci_hcd_sh_shutdown,
 	.driver		= {
 		.name	= "sh_ehci",

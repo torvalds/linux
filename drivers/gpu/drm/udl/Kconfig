@@ -1,6 +1,6 @@
 config DRM_UDL
 	tristate "DisplayLink"
-	depends on DRM && EXPERIMENTAL
+	depends on DRM
 	depends on USB_ARCH_HAS_HCD
 	select DRM_USB
 	select FB_SYS_FILLRECT

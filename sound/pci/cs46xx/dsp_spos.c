@@ -287,7 +287,7 @@ void  cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip)
 		if (ins->scbs[i].deleted) continue;
 
 		cs46xx_dsp_proc_free_scb_desc ( (ins->scbs + i) );
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 		kfree(ins->scbs[i].data);
 #endif
 	}
@@ -1019,7 +1019,7 @@ cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u32
 {
 	struct dsp_scb_descriptor * desc;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	/* copy the data for resume */
 	scb_data = kmemdup(scb_data, SCB_BYTES, GFP_KERNEL);
 	if (!scb_data)
@@ -1032,7 +1032,7 @@ cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u32
 		_dsp_create_scb(chip,scb_data,dest);
 	} else {
 		snd_printk(KERN_ERR "dsp_spos: failed to map SCB\n");
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 		kfree(scb_data);
 #endif
 	}
@@ -1937,7 +1937,7 @@ int cs46xx_dsp_set_iec958_volume (struct snd_cs46xx * chip, u16 left, u16 right)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 int cs46xx_dsp_resume(struct snd_cs46xx * chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;

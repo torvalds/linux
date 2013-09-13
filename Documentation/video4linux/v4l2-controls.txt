@@ -124,13 +124,22 @@ You add non-menu controls by calling v4l2_ctrl_new_std:
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 min, s32 max, u32 step, s32 def);
 
-Menu controls are added by calling v4l2_ctrl_new_std_menu:
+Menu and integer menu controls are added by calling v4l2_ctrl_new_std_menu:
 
 	struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 skip_mask, s32 def);
 
-Or alternatively for integer menu controls, by calling v4l2_ctrl_new_int_menu:
+Menu controls with a driver specific menu are added by calling
+v4l2_ctrl_new_std_menu_items:
+
+       struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(
+                       struct v4l2_ctrl_handler *hdl,
+                       const struct v4l2_ctrl_ops *ops, u32 id, s32 max,
+                       s32 skip_mask, s32 def, const char * const *qmenu);
+
+Integer menu controls with a driver specific menu can be added by calling
+v4l2_ctrl_new_int_menu:
 
 	struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
@@ -140,6 +149,12 @@ These functions are typically called right after the v4l2_ctrl_handler_init:
 
 	static const s64 exp_bias_qmenu[] = {
 	       -2, -1, 0, 1, 2
+	};
+	static const char * const test_pattern[] = {
+		"Disabled",
+		"Vertical Bars",
+		"Solid Black",
+		"Solid White",
 	};
 
 	v4l2_ctrl_handler_init(&foo->ctrl_handler, nr_of_controls);
@@ -156,6 +171,9 @@ These functions are typically called right after the v4l2_ctrl_handler_init:
 			ARRAY_SIZE(exp_bias_qmenu) - 1,
 			ARRAY_SIZE(exp_bias_qmenu) / 2 - 1,
 			exp_bias_qmenu);
+	v4l2_ctrl_new_std_menu_items(&foo->ctrl_handler, &foo_ctrl_ops,
+			V4L2_CID_TEST_PATTERN, ARRAY_SIZE(test_pattern) - 1, 0,
+			0, test_pattern);
 	...
 	if (foo->ctrl_handler.error) {
 		int err = foo->ctrl_handler.error;
@@ -184,6 +202,13 @@ control with driver-specific items in the menu. It differs from
 v4l2_ctrl_new_std_menu in that it doesn't have the mask argument and takes
 as the last argument an array of signed 64-bit integers that form an exact
 menu item list.
+
+The v4l2_ctrl_new_std_menu_items function is very similar to
+v4l2_ctrl_new_std_menu but takes an extra parameter qmenu, which is the driver
+specific menu for an otherwise standard menu control. A good example for this
+control is the test pattern control for capture/display/sensors devices that
+have the capability to generate test patterns. These test patterns are hardware
+specific, so the contents of the menu will vary from device to device.
 
 Note that if something fails, the function will return NULL or an error and
 set ctrl_handler->error to the error code. If ctrl_handler->error was already
@@ -594,7 +619,11 @@ handler and finally add the first handler to the second. For example:
 	v4l2_ctrl_new_std(&radio_ctrl_handler, &radio_ops, V4L2_CID_AUDIO_MUTE, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &video_ops, V4L2_CID_BRIGHTNESS, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &video_ops, V4L2_CID_CONTRAST, ...);
-	v4l2_ctrl_add_handler(&video_ctrl_handler, &radio_ctrl_handler);
+	v4l2_ctrl_add_handler(&video_ctrl_handler, &radio_ctrl_handler, NULL);
+
+The last argument to v4l2_ctrl_add_handler() is a filter function that allows
+you to filter which controls will be added. Set it to NULL if you want to add
+all controls.
 
 Or you can add specific controls to a handler:
 
@@ -687,14 +716,20 @@ a control of this type whenever the first control belonging to a new control
 class is added.
 
 
-Proposals for Extensions
-========================
+Adding Notify Callbacks
+=======================
 
-Some ideas for future extensions to the spec:
+Sometimes the platform or bridge driver needs to be notified when a control
+from a sub-device driver changes. You can set a notify callback by calling
+this function:
 
-1) Add a V4L2_CTRL_FLAG_HEX to have values shown as hexadecimal instead of
-decimal. Useful for e.g. video_mute_yuv.
+void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl,
+	void (*notify)(struct v4l2_ctrl *ctrl, void *priv), void *priv);
 
-2) It is possible to mark in the controls array which controls have been
-successfully written and which failed by for example adding a bit to the
-control ID. Not sure if it is worth the effort, though.
+Whenever the give control changes value the notify callback will be called
+with a pointer to the control and the priv pointer that was passed with
+v4l2_ctrl_notify. Note that the control's handler lock is held when the
+notify function is called.
+
+There can be only one notify function per control handler. Any attempt
+to set another notify function will cause a WARN_ON.

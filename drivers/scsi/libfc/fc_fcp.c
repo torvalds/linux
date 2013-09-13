@@ -851,7 +851,8 @@ static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 			fc_rp_info = (struct fcp_resp_rsp_info *)(rp_ex + 1);
 			if (flags & FCP_RSP_LEN_VAL) {
 				respl = ntohl(rp_ex->fr_rsp_len);
-				if (respl != sizeof(*fc_rp_info))
+				if ((respl != FCP_RESP_RSP_INFO_LEN4) &&
+				    (respl != FCP_RESP_RSP_INFO_LEN8))
 					goto len_err;
 				if (fsp->wait_for_comp) {
 					/* Abuse cdb_status for rsp code */
@@ -1380,10 +1381,10 @@ static void fc_fcp_timeout(unsigned long data)
 
 	fsp->state |= FC_SRB_FCP_PROCESSING_TMO;
 
-	if (fsp->state & FC_SRB_RCV_STATUS)
-		fc_fcp_complete_locked(fsp);
-	else if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
+	if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
 		fc_fcp_rec(fsp);
+	else if (fsp->state & FC_SRB_RCV_STATUS)
+		fc_fcp_complete_locked(fsp);
 	else
 		fc_fcp_recovery(fsp, FC_TIMED_OUT);
 	fsp->state &= ~FC_SRB_FCP_PROCESSING_TMO;
@@ -2042,7 +2043,7 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 		return SUCCESS;
 	}
-	/* grab a ref so the fsp and sc_cmd cannot be relased from under us */
+	/* grab a ref so the fsp and sc_cmd cannot be released from under us */
 	fc_fcp_pkt_hold(fsp);
 	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 

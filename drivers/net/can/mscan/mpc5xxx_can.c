@@ -40,17 +40,17 @@ struct mpc5xxx_can_data {
 	unsigned int type;
 	u32 (*get_clock)(struct platform_device *ofdev, const char *clock_name,
 			 int *mscan_clksrc);
+	void (*put_clock)(struct platform_device *ofdev);
 };
 
 #ifdef CONFIG_PPC_MPC52xx
-static struct of_device_id __devinitdata mpc52xx_cdm_ids[] = {
+static struct of_device_id mpc52xx_cdm_ids[] = {
 	{ .compatible = "fsl,mpc5200-cdm", },
 	{}
 };
 
-static u32 __devinit mpc52xx_can_get_clock(struct platform_device *ofdev,
-					   const char *clock_name,
-					   int *mscan_clksrc)
+static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
+				 const char *clock_name, int *mscan_clksrc)
 {
 	unsigned int pvr;
 	struct mpc52xx_cdm  __iomem *cdm;
@@ -101,9 +101,8 @@ static u32 __devinit mpc52xx_can_get_clock(struct platform_device *ofdev,
 	return freq;
 }
 #else /* !CONFIG_PPC_MPC52xx */
-static u32 __devinit mpc52xx_can_get_clock(struct platform_device *ofdev,
-					   const char *clock_name,
-					   int *mscan_clksrc)
+static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
+				 const char *clock_name, int *mscan_clksrc)
 {
 	return 0;
 }
@@ -124,14 +123,13 @@ struct mpc512x_clockctl {
 	u32 mccr[4];		/* MSCAN Clk Ctrl Reg 1-3 */
 };
 
-static struct of_device_id __devinitdata mpc512x_clock_ids[] = {
+static struct of_device_id mpc512x_clock_ids[] = {
 	{ .compatible = "fsl,mpc5121-clock", },
 	{}
 };
 
-static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
-					   const char *clock_name,
-					   int *mscan_clksrc)
+static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
+				 const char *clock_name, int *mscan_clksrc)
 {
 	struct mpc512x_clockctl __iomem *clockctl;
 	struct device_node *np_clock;
@@ -151,7 +149,10 @@ static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
 		goto exit_put;
 	}
 
-	/* Determine the MSCAN device index from the physical address */
+	/* Determine the MSCAN device index from the peripheral's
+	 * physical address. Register address offsets against the
+	 * IMMR base are:  0x1300, 0x1380, 0x2300, 0x2380
+	 */
 	pval = of_get_property(ofdev->dev.of_node, "reg", &plen);
 	BUG_ON(!pval || plen < sizeof(*pval));
 	clockidx = (*pval & 0x80) ? 1 : 0;
@@ -180,8 +181,8 @@ static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
 			clockdiv = 1;
 
 		if (!clock_name || !strcmp(clock_name, "sys")) {
-			sys_clk = clk_get(&ofdev->dev, "sys_clk");
-			if (!sys_clk) {
+			sys_clk = devm_clk_get(&ofdev->dev, "sys_clk");
+			if (IS_ERR(sys_clk)) {
 				dev_err(&ofdev->dev, "couldn't get sys_clk\n");
 				goto exit_unmap;
 			}
@@ -203,8 +204,8 @@ static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
 		}
 
 		if (clocksrc < 0) {
-			ref_clk = clk_get(&ofdev->dev, "ref_clk");
-			if (!ref_clk) {
+			ref_clk = devm_clk_get(&ofdev->dev, "ref_clk");
+			if (IS_ERR(ref_clk)) {
 				dev_err(&ofdev->dev, "couldn't get ref_clk\n");
 				goto exit_unmap;
 			}
@@ -239,16 +240,15 @@ exit_put:
 	return freq;
 }
 #else /* !CONFIG_PPC_MPC512x */
-static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
-					   const char *clock_name,
-					   int *mscan_clksrc)
+static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
+				 const char *clock_name, int *mscan_clksrc)
 {
 	return 0;
 }
 #endif /* CONFIG_PPC_MPC512x */
 
-static struct of_device_id mpc5xxx_can_table[];
-static int __devinit mpc5xxx_can_probe(struct platform_device *ofdev)
+static const struct of_device_id mpc5xxx_can_table[];
+static int mpc5xxx_can_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	const struct mpc5xxx_can_data *data;
@@ -281,6 +281,8 @@ static int __devinit mpc5xxx_can_probe(struct platform_device *ofdev)
 	dev = alloc_mscandev();
 	if (!dev)
 		goto exit_dispose_irq;
+	platform_set_drvdata(ofdev, dev);
+	SET_NETDEV_DEV(dev, &ofdev->dev);
 
 	priv = netdev_priv(dev);
 	priv->reg_base = base;
@@ -297,16 +299,12 @@ static int __devinit mpc5xxx_can_probe(struct platform_device *ofdev)
 		goto exit_free_mscan;
 	}
 
-	SET_NETDEV_DEV(dev, &ofdev->dev);
-
 	err = register_mscandev(dev, mscan_clksrc);
 	if (err) {
 		dev_err(&ofdev->dev, "registering %s failed (err=%d)\n",
 			DRV_NAME, err);
 		goto exit_free_mscan;
 	}
-
-	dev_set_drvdata(&ofdev->dev, dev);
 
 	dev_info(&ofdev->dev, "MSCAN at 0x%p, irq %d, clock %d Hz\n",
 		 priv->reg_base, dev->irq, priv->can.clock.freq);
@@ -323,14 +321,19 @@ exit_unmap_mem:
 	return err;
 }
 
-static int __devexit mpc5xxx_can_remove(struct platform_device *ofdev)
+static int mpc5xxx_can_remove(struct platform_device *ofdev)
 {
-	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
+	const struct of_device_id *match;
+	const struct mpc5xxx_can_data *data;
+	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct mscan_priv *priv = netdev_priv(dev);
 
-	dev_set_drvdata(&ofdev->dev, NULL);
+	match = of_match_device(mpc5xxx_can_table, &ofdev->dev);
+	data = match ? match->data : NULL;
 
 	unregister_mscandev(dev);
+	if (data && data->put_clock)
+		data->put_clock(ofdev);
 	iounmap(priv->reg_base);
 	irq_dispose_mapping(dev->irq);
 	free_candev(dev);
@@ -342,7 +345,7 @@ static int __devexit mpc5xxx_can_remove(struct platform_device *ofdev)
 static struct mscan_regs saved_regs;
 static int mpc5xxx_can_suspend(struct platform_device *ofdev, pm_message_t state)
 {
-	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct mscan_priv *priv = netdev_priv(dev);
 	struct mscan_regs *regs = (struct mscan_regs *)priv->reg_base;
 
@@ -353,7 +356,7 @@ static int mpc5xxx_can_suspend(struct platform_device *ofdev, pm_message_t state
 
 static int mpc5xxx_can_resume(struct platform_device *ofdev)
 {
-	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct mscan_priv *priv = netdev_priv(dev);
 	struct mscan_regs *regs = (struct mscan_regs *)priv->reg_base;
 
@@ -380,22 +383,23 @@ static int mpc5xxx_can_resume(struct platform_device *ofdev)
 }
 #endif
 
-static struct mpc5xxx_can_data __devinitdata mpc5200_can_data = {
+static const struct mpc5xxx_can_data mpc5200_can_data = {
 	.type = MSCAN_TYPE_MPC5200,
 	.get_clock = mpc52xx_can_get_clock,
 };
 
-static struct mpc5xxx_can_data __devinitdata mpc5121_can_data = {
+static const struct mpc5xxx_can_data mpc5121_can_data = {
 	.type = MSCAN_TYPE_MPC5121,
 	.get_clock = mpc512x_can_get_clock,
 };
 
-static struct of_device_id __devinitdata mpc5xxx_can_table[] = {
+static const struct of_device_id mpc5xxx_can_table[] = {
 	{ .compatible = "fsl,mpc5200-mscan", .data = &mpc5200_can_data, },
 	/* Note that only MPC5121 Rev. 2 (and later) is supported */
 	{ .compatible = "fsl,mpc5121-mscan", .data = &mpc5121_can_data, },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc5xxx_can_table);
 
 static struct platform_driver mpc5xxx_can_driver = {
 	.driver = {
@@ -404,7 +408,7 @@ static struct platform_driver mpc5xxx_can_driver = {
 		.of_match_table = mpc5xxx_can_table,
 	},
 	.probe = mpc5xxx_can_probe,
-	.remove = __devexit_p(mpc5xxx_can_remove),
+	.remove = mpc5xxx_can_remove,
 #ifdef CONFIG_PM
 	.suspend = mpc5xxx_can_suspend,
 	.resume = mpc5xxx_can_resume,

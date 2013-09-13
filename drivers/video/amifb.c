@@ -949,7 +949,6 @@ static int round_down_bpp = 1;	/* for mode probing */
 
 
 static int amifb_ilbm = 0;	/* interleaved or normal bitplanes */
-static int amifb_inverse = 0;
 
 static u32 amifb_hfmin __initdata;	/* monitor hfreq lower limit (Hz) */
 static u32 amifb_hfmax __initdata;	/* monitor hfreq upper limit (Hz) */
@@ -1182,7 +1181,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 	}
 
 	/*
-	 * FB_VMODE_SMOOTH_XPAN will be cleared, if one of the folloing
+	 * FB_VMODE_SMOOTH_XPAN will be cleared, if one of the following
 	 * checks failed and smooth scrolling is not possible
 	 */
 
@@ -2355,7 +2354,6 @@ static int __init amifb_setup(char *options)
 		if (!*this_opt)
 			continue;
 		if (!strcmp(this_opt, "inverse")) {
-			amifb_inverse = 1;
 			fb_invert_cmaps();
 		} else if (!strcmp(this_opt, "ilbm"))
 			amifb_ilbm = 1;
@@ -3790,19 +3788,7 @@ static struct platform_driver amifb_driver = {
 	},
 };
 
-static int __init amifb_init(void)
-{
-	return platform_driver_probe(&amifb_driver, amifb_probe);
-}
-
-module_init(amifb_init);
-
-static void __exit amifb_exit(void)
-{
-	platform_driver_unregister(&amifb_driver);
-}
-
-module_exit(amifb_exit);
+module_platform_driver_probe(amifb_driver, amifb_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:amiga-video");

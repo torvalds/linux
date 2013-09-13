@@ -437,8 +437,8 @@ static int au1000_mii_probe(struct net_device *dev)
 	/* now we are supposed to have a proper phydev, to attach to... */
 	BUG_ON(phydev->attached_dev);
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev), &au1000_adjust_link,
-			0, PHY_INTERFACE_MODE_MII);
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
+			     &au1000_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -587,10 +587,10 @@ au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	info->fw_version[0] = '\0';
-	sprintf(info->bus_info, "%s %d", DRV_NAME, aup->mac_id);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	snprintf(info->bus_info, sizeof(info->bus_info), "%s %d", DRV_NAME,
+		 aup->mac_id);
 	info->regdump_len = 0;
 }
 
@@ -727,7 +727,6 @@ static int au1000_rx(struct net_device *dev)
 			frmlen -= 4; /* Remove FCS */
 			skb = netdev_alloc_skb(dev, frmlen + 2);
 			if (skb == NULL) {
-				netdev_err(dev, "Memory squeeze, dropping packet.\n");
 				dev->stats.rx_dropped++;
 				continue;
 			}
@@ -1016,7 +1015,7 @@ static const struct net_device_ops au1000_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 };
 
-static int __devinit au1000_probe(struct platform_device *pdev)
+static int au1000_probe(struct platform_device *pdev)
 {
 	static unsigned version_printed;
 	struct au1000_private *aup = NULL;
@@ -1132,7 +1131,7 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	writel(0, aup->enable);
 	aup->mac_enabled = 0;
 
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
 		dev_info(&pdev->dev, "no platform_data passed,"
 					" PHY search on MAC0\n");
@@ -1174,8 +1173,10 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		pdev->name, aup->mac_id);
 	aup->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	if (aup->mii_bus->irq == NULL)
+	if (aup->mii_bus->irq == NULL) {
+		err = -ENOMEM;
 		goto err_out;
+	}
 
 	for (i = 0; i < PHY_MAX_ADDR; ++i)
 		aup->mii_bus->irq[i] = PHY_POLL;
@@ -1190,7 +1191,8 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 		goto err_mdiobus_reg;
 	}
 
-	if (au1000_mii_probe(dev) != 0)
+	err = au1000_mii_probe(dev);
+	if (err != 0)
 		goto err_out;
 
 	pDBfree = NULL;
@@ -1205,6 +1207,7 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	}
 	aup->pDBfree = pDBfree;
 
+	err = -ENODEV;
 	for (i = 0; i < NUM_RX_DMA; i++) {
 		pDB = au1000_GetFreeDB(aup);
 		if (!pDB)
@@ -1213,6 +1216,8 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 		aup->rx_dma_ring[i]->buff_stat = (unsigned)pDB->dma_addr;
 		aup->rx_db_inuse[i] = pDB;
 	}
+
+	err = -ENODEV;
 	for (i = 0; i < NUM_TX_DMA; i++) {
 		pDB = au1000_GetFreeDB(aup);
 		if (!pDB)
@@ -1289,14 +1294,12 @@ out:
 	return err;
 }
 
-static int __devexit au1000_remove(struct platform_device *pdev)
+static int au1000_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct au1000_private *aup = netdev_priv(dev);
 	int i;
 	struct resource *base, *macen;
-
-	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(dev);
 	mdiobus_unregister(aup->mii_bus);
@@ -1334,7 +1337,7 @@ static int __devexit au1000_remove(struct platform_device *pdev)
 
 static struct platform_driver au1000_eth_driver = {
 	.probe  = au1000_probe,
-	.remove = __devexit_p(au1000_remove),
+	.remove = au1000_remove,
 	.driver = {
 		.name   = "au1000-eth",
 		.owner  = THIS_MODULE,

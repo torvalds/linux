@@ -43,14 +43,8 @@ void *module_alloc(unsigned long size)
 {
 	void *ret;
 
-	/* We handle the zero case fine, unlike vmalloc */
-	if (size == 0)
-		return NULL;
-
 	ret = module_map(size);
-	if (!ret)
-		ret = ERR_PTR(-ENOMEM);
-	else
+	if (ret)
 		memset(ret, 0, size);
 
 	return ret;
@@ -116,6 +110,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 		v = sym->st_value + rel[i].r_addend;
 
 		switch (ELF_R_TYPE(rel[i].r_info) & 0xff) {
+		case R_SPARC_DISP32:
+			v -= (Elf_Addr) location;
+			*loc32 = v;
+			break;
 #ifdef CONFIG_SPARC64
 		case R_SPARC_64:
 			location[0] = v >> 56;
@@ -126,11 +124,6 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			location[5] = v >> 16;
 			location[6] = v >>  8;
 			location[7] = v >>  0;
-			break;
-
-		case R_SPARC_DISP32:
-			v -= (Elf_Addr) location;
-			*loc32 = v;
 			break;
 
 		case R_SPARC_WDISP19:

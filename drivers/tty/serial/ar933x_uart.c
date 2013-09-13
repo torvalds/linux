@@ -17,6 +17,8 @@
 #include <linux/sysrq.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
@@ -24,11 +26,19 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/clk.h>
+
+#include <asm/div64.h>
 
 #include <asm/mach-ath79/ar933x_uart.h>
-#include <asm/mach-ath79/ar933x_uart_platform.h>
 
 #define DRIVER_NAME "ar933x-uart"
+
+#define AR933X_UART_MAX_SCALE	0xff
+#define AR933X_UART_MAX_STEP	0xffff
+
+#define AR933X_UART_MIN_BAUD	300
+#define AR933X_UART_MAX_BAUD	3000000
 
 #define AR933X_DUMMY_STATUS_RD	0x01
 
@@ -37,7 +47,15 @@ static struct uart_driver ar933x_uart_driver;
 struct ar933x_uart_port {
 	struct uart_port	port;
 	unsigned int		ier;	/* shadow Interrupt Enable Register */
+	unsigned int		min_baud;
+	unsigned int		max_baud;
+	struct clk		*clk;
 };
+
+static inline bool ar933x_uart_console_enabled(void)
+{
+	return config_enabled(CONFIG_SERIAL_AR933X_CONSOLE);
+}
 
 static inline unsigned int ar933x_uart_read(struct ar933x_uart_port *up,
 					    int offset)
@@ -162,6 +180,57 @@ static void ar933x_uart_enable_ms(struct uart_port *port)
 {
 }
 
+/*
+ * baudrate = (clk / (scale + 1)) * (step * (1 / 2^17))
+ */
+static unsigned long ar933x_uart_get_baud(unsigned int clk,
+					  unsigned int scale,
+					  unsigned int step)
+{
+	u64 t;
+	u32 div;
+
+	div = (2 << 16) * (scale + 1);
+	t = clk;
+	t *= step;
+	t += (div / 2);
+	do_div(t, div);
+
+	return t;
+}
+
+static void ar933x_uart_get_scale_step(unsigned int clk,
+				       unsigned int baud,
+				       unsigned int *scale,
+				       unsigned int *step)
+{
+	unsigned int tscale;
+	long min_diff;
+
+	*scale = 0;
+	*step = 0;
+
+	min_diff = baud;
+	for (tscale = 0; tscale < AR933X_UART_MAX_SCALE; tscale++) {
+		u64 tstep;
+		int diff;
+
+		tstep = baud * (tscale + 1);
+		tstep *= (2 << 16);
+		do_div(tstep, clk);
+
+		if (tstep > AR933X_UART_MAX_STEP)
+			break;
+
+		diff = abs(ar933x_uart_get_baud(clk, tscale, tstep) - baud);
+		if (diff < min_diff) {
+			min_diff = diff;
+			*scale = tscale;
+			*step = tstep;
+		}
+	}
+}
+
 static void ar933x_uart_set_termios(struct uart_port *port,
 				    struct ktermios *new,
 				    struct ktermios *old)
@@ -169,7 +238,7 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
 	unsigned int cs;
 	unsigned long flags;
-	unsigned int baud, scale;
+	unsigned int baud, scale, step;
 
 	/* Only CS8 is supported */
 	new->c_cflag &= ~CSIZE;
@@ -191,14 +260,18 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 	/* Mark/space parity is not supported */
 	new->c_cflag &= ~CMSPAR;
 
-	baud = uart_get_baud_rate(port, new, old, 0, port->uartclk / 16);
-	scale = (port->uartclk / (16 * baud)) - 1;
+	baud = uart_get_baud_rate(port, new, old, up->min_baud, up->max_baud);
+	ar933x_uart_get_scale_step(port->uartclk, baud, &scale, &step);
 
 	/*
 	 * Ok, we're now changing the port state. Do it with
 	 * interrupts disabled.
 	 */
 	spin_lock_irqsave(&up->port.lock, flags);
+
+	/* disable the UART */
+	ar933x_uart_rmw_clear(up, AR933X_UART_CS_REG,
+		      AR933X_UART_CS_IF_MODE_M << AR933X_UART_CS_IF_MODE_S);
 
 	/* Update the per-port timeout. */
 	uart_update_timeout(port, new->c_cflag, baud);
@@ -210,7 +283,7 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 		up->port.ignore_status_mask |= AR933X_DUMMY_STATUS_RD;
 
 	ar933x_uart_write(up, AR933X_UART_CLOCK_REG,
-			  scale << AR933X_UART_CLOCK_SCALE_S | 8192);
+			  scale << AR933X_UART_CLOCK_SCALE_S | step);
 
 	/* setup configuration register */
 	ar933x_uart_rmw(up, AR933X_UART_CS_REG, AR933X_UART_CS_PARITY_M, cs);
@@ -218,6 +291,11 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 	/* enable host interrupt */
 	ar933x_uart_rmw_set(up, AR933X_UART_CS_REG,
 			    AR933X_UART_CS_HOST_INT_EN);
+
+	/* reenable the UART */
+	ar933x_uart_rmw(up, AR933X_UART_CS_REG,
+			AR933X_UART_CS_IF_MODE_M << AR933X_UART_CS_IF_MODE_S,
+			AR933X_UART_CS_IF_MODE_DCE << AR933X_UART_CS_IF_MODE_S);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 
@@ -227,10 +305,9 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 
 static void ar933x_uart_rx_chars(struct ar933x_uart_port *up)
 {
-	struct tty_struct *tty;
+	struct tty_port *port = &up->port.state->port;
 	int max_count = 256;
 
-	tty = tty_port_tty_get(&up->port.state->port);
 	do {
 		unsigned int rdata;
 		unsigned char ch;
@@ -243,11 +320,6 @@ static void ar933x_uart_rx_chars(struct ar933x_uart_port *up)
 		ar933x_uart_write(up, AR933X_UART_DATA_REG,
 				  AR933X_UART_DATA_RX_CSR);
 
-		if (!tty) {
-			/* discard the data if no tty available */
-			continue;
-		}
-
 		up->port.icount.rx++;
 		ch = rdata & AR933X_UART_DATA_TX_RX_MASK;
 
@@ -255,13 +327,12 @@ static void ar933x_uart_rx_chars(struct ar933x_uart_port *up)
 			continue;
 
 		if ((up->port.ignore_status_mask & AR933X_DUMMY_STATUS_RD) == 0)
-			tty_insert_flip_char(tty, ch, TTY_NORMAL);
+			tty_insert_flip_char(port, ch, TTY_NORMAL);
 	} while (max_count-- > 0);
 
-	if (tty) {
-		tty_flip_buffer_push(tty);
-		tty_kref_put(tty);
-	}
+	spin_unlock(&up->port.lock);
+	tty_flip_buffer_push(port);
+	spin_lock(&up->port.lock);
 }
 
 static void ar933x_uart_tx_chars(struct ar933x_uart_port *up)
@@ -401,6 +472,8 @@ static void ar933x_uart_config_port(struct uart_port *port, int flags)
 static int ar933x_uart_verify_port(struct uart_port *port,
 				   struct serial_struct *ser)
 {
+	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+
 	if (ser->type != PORT_UNKNOWN &&
 	    ser->type != PORT_AR933X)
 		return -EINVAL;
@@ -408,7 +481,8 @@ static int ar933x_uart_verify_port(struct uart_port *port,
 	if (ser->irq < 0 || ser->irq >= NR_IRQS)
 		return -EINVAL;
 
-	if (ser->baud_base < 28800)
+	if (ser->baud_base < up->min_baud ||
+	    ser->baud_base > up->max_baud)
 		return -EINVAL;
 
 	return 0;
@@ -432,8 +506,6 @@ static struct uart_ops ar933x_uart_ops = {
 	.config_port	= ar933x_uart_config_port,
 	.verify_port	= ar933x_uart_verify_port,
 };
-
-#ifdef CONFIG_SERIAL_AR933X_CONSOLE
 
 static struct ar933x_uart_port *
 ar933x_console_ports[CONFIG_SERIAL_AR933X_NR_UARTS];
@@ -533,53 +605,47 @@ static struct console ar933x_uart_console = {
 
 static void ar933x_uart_add_console_port(struct ar933x_uart_port *up)
 {
+	if (!ar933x_uart_console_enabled())
+		return;
+
 	ar933x_console_ports[up->port.line] = up;
 }
-
-#define AR933X_SERIAL_CONSOLE	(&ar933x_uart_console)
-
-#else
-
-static inline void ar933x_uart_add_console_port(struct ar933x_uart_port *up) {}
-
-#define AR933X_SERIAL_CONSOLE	NULL
-
-#endif /* CONFIG_SERIAL_AR933X_CONSOLE */
 
 static struct uart_driver ar933x_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= "ttyATH",
 	.nr		= CONFIG_SERIAL_AR933X_NR_UARTS,
-	.cons		= AR933X_SERIAL_CONSOLE,
+	.cons		= NULL, /* filled in runtime */
 };
 
-static int __devinit ar933x_uart_probe(struct platform_device *pdev)
+static int ar933x_uart_probe(struct platform_device *pdev)
 {
-	struct ar933x_uart_platform_data *pdata;
 	struct ar933x_uart_port *up;
 	struct uart_port *port;
 	struct resource *mem_res;
 	struct resource *irq_res;
+	struct device_node *np;
+	unsigned int baud;
 	int id;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata)
-		return -EINVAL;
-
-	id = pdev->id;
-	if (id == -1)
-		id = 0;
+	np = pdev->dev.of_node;
+	if (config_enabled(CONFIG_OF) && np) {
+		id = of_alias_get_id(np, "serial");
+		if (id < 0) {
+			dev_err(&pdev->dev, "unable to get alias id, err=%d\n",
+				id);
+			return id;
+		}
+	} else {
+		id = pdev->id;
+		if (id == -1)
+			id = 0;
+	}
 
 	if (id > CONFIG_SERIAL_AR933X_NR_UARTS)
 		return -EINVAL;
-
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(&pdev->dev, "no MEM resource\n");
-		return -EINVAL;
-	}
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
@@ -587,68 +653,94 @@ static int __devinit ar933x_uart_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	up = kzalloc(sizeof(struct ar933x_uart_port), GFP_KERNEL);
+	up = devm_kzalloc(&pdev->dev, sizeof(struct ar933x_uart_port),
+			  GFP_KERNEL);
 	if (!up)
 		return -ENOMEM;
 
-	port = &up->port;
-	port->mapbase = mem_res->start;
-
-	port->membase = ioremap(mem_res->start, AR933X_UART_REGS_SIZE);
-	if (!port->membase) {
-		ret = -ENOMEM;
-		goto err_free_up;
+	up->clk = devm_clk_get(&pdev->dev, "uart");
+	if (IS_ERR(up->clk)) {
+		dev_err(&pdev->dev, "unable to get UART clock\n");
+		return PTR_ERR(up->clk);
 	}
 
+	port = &up->port;
+
+	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	port->membase = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(port->membase))
+		return PTR_ERR(port->membase);
+
+	ret = clk_prepare_enable(up->clk);
+	if (ret)
+		return ret;
+
+	port->uartclk = clk_get_rate(up->clk);
+	if (!port->uartclk) {
+		ret = -EINVAL;
+		goto err_disable_clk;
+	}
+
+	port->mapbase = mem_res->start;
 	port->line = id;
 	port->irq = irq_res->start;
 	port->dev = &pdev->dev;
 	port->type = PORT_AR933X;
 	port->iotype = UPIO_MEM32;
-	port->uartclk = pdata->uartclk;
 
 	port->regshift = 2;
 	port->fifosize = AR933X_UART_FIFO_SIZE;
 	port->ops = &ar933x_uart_ops;
 
+	baud = ar933x_uart_get_baud(port->uartclk, AR933X_UART_MAX_SCALE, 1);
+	up->min_baud = max_t(unsigned int, baud, AR933X_UART_MIN_BAUD);
+
+	baud = ar933x_uart_get_baud(port->uartclk, 0, AR933X_UART_MAX_STEP);
+	up->max_baud = min_t(unsigned int, baud, AR933X_UART_MAX_BAUD);
+
 	ar933x_uart_add_console_port(up);
 
 	ret = uart_add_one_port(&ar933x_uart_driver, &up->port);
 	if (ret)
-		goto err_unmap;
+		goto err_disable_clk;
 
 	platform_set_drvdata(pdev, up);
 	return 0;
 
-err_unmap:
-	iounmap(up->port.membase);
-err_free_up:
-	kfree(up);
+err_disable_clk:
+	clk_disable_unprepare(up->clk);
 	return ret;
 }
 
-static int __devexit ar933x_uart_remove(struct platform_device *pdev)
+static int ar933x_uart_remove(struct platform_device *pdev)
 {
 	struct ar933x_uart_port *up;
 
 	up = platform_get_drvdata(pdev);
-	platform_set_drvdata(pdev, NULL);
 
 	if (up) {
 		uart_remove_one_port(&ar933x_uart_driver, &up->port);
-		iounmap(up->port.membase);
-		kfree(up);
+		clk_disable_unprepare(up->clk);
 	}
 
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id ar933x_uart_of_ids[] = {
+	{ .compatible = "qca,ar9330-uart" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ar933x_uart_of_ids);
+#endif
+
 static struct platform_driver ar933x_uart_platform_driver = {
 	.probe		= ar933x_uart_probe,
-	.remove		= __devexit_p(ar933x_uart_remove),
+	.remove		= ar933x_uart_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.owner		= THIS_MODULE,
+		.of_match_table = of_match_ptr(ar933x_uart_of_ids),
 	},
 };
 
@@ -656,7 +748,9 @@ static int __init ar933x_uart_init(void)
 {
 	int ret;
 
-	ar933x_uart_driver.nr = CONFIG_SERIAL_AR933X_NR_UARTS;
+	if (ar933x_uart_console_enabled())
+		ar933x_uart_driver.cons = &ar933x_uart_console;
+
 	ret = uart_register_driver(&ar933x_uart_driver);
 	if (ret)
 		goto err_out;

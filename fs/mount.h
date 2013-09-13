@@ -4,8 +4,11 @@
 
 struct mnt_namespace {
 	atomic_t		count;
+	unsigned int		proc_inum;
 	struct mount *	root;
 	struct list_head	list;
+	struct user_namespace	*user_ns;
+	u64			seq;	/* Sequence number to prevent loops */
 	wait_queue_head_t poll;
 	int event;
 };
@@ -13,6 +16,12 @@ struct mnt_namespace {
 struct mnt_pcp {
 	int mnt_count;
 	int mnt_writers;
+};
+
+struct mountpoint {
+	struct list_head m_hash;
+	struct dentry *m_dentry;
+	int m_count;
 };
 
 struct mount {
@@ -37,6 +46,7 @@ struct mount {
 	struct list_head mnt_slave;	/* slave list entry */
 	struct mount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
+	struct mountpoint *mnt_mp;	/* where is it mounted */
 #ifdef CONFIG_FSNOTIFY
 	struct hlist_head mnt_fsnotify_marks;
 	__u32 mnt_fsnotify_mask;

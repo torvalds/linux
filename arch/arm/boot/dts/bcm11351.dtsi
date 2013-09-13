@@ -1,0 +1,99 @@
+/*
+ * Copyright (C) 2012-2013 Broadcom Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation version 2.
+ *
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether express or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#include "skeleton.dtsi"
+
+/ {
+	model = "BCM11351 SoC";
+	compatible = "brcm,bcm11351";
+	interrupt-parent = <&gic>;
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+	};
+
+	gic: interrupt-controller@3ff00100 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <0x3ff01000 0x1000>,
+		      <0x3ff00100 0x100>;
+	};
+
+	smc@0x3404c000 {
+		compatible = "brcm,bcm11351-smc", "brcm,kona-smc";
+		reg = <0x3404c000 0x400>; /* 1 KiB in SRAM */
+	};
+
+	uart@3e000000 {
+		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
+		status = "disabled";
+		reg = <0x3e000000 0x1000>;
+		clock-frequency = <13000000>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+	L2: l2-cache {
+		compatible = "brcm,bcm11351-a2-pl310-cache";
+		reg = <0x3ff20000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	watchdog@35002f40 {
+		compatible = "brcm,bcm11351-wdt", "brcm,kona-wdt";
+		reg = <0x35002f40 0x6c>;
+	};
+
+	timer@35006000 {
+		compatible = "brcm,kona-timer";
+		reg = <0x35006000 0x1000>;
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <32768>;
+	};
+
+	sdio1: sdio@3f180000 {
+		compatible = "brcm,kona-sdhci";
+		reg = <0x3f180000 0x10000>;
+		interrupts = <0x0 77 0x4>;
+		status = "disabled";
+	};
+
+	sdio2: sdio@3f190000 {
+		compatible = "brcm,kona-sdhci";
+		reg = <0x3f190000 0x10000>;
+		interrupts = <0x0 76 0x4>;
+		status = "disabled";
+	};
+
+	sdio3: sdio@3f1a0000 {
+		compatible = "brcm,kona-sdhci";
+		reg = <0x3f1a0000 0x10000>;
+		interrupts = <0x0 74 0x4>;
+		status = "disabled";
+	};
+
+	sdio4: sdio@3f1b0000 {
+		compatible = "brcm,kona-sdhci";
+		reg = <0x3f1b0000 0x10000>;
+		interrupts = <0x0 73 0x4>;
+		status = "disabled";
+	};
+
+};

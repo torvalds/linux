@@ -320,7 +320,7 @@ static irqreturn_t gsta_gpio_handler(int irq, void *dev_id)
 	return ret;
 }
 
-static __devinit void gsta_alloc_irq_chip(struct gsta_gpio *chip)
+static void gsta_alloc_irq_chip(struct gsta_gpio *chip)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
@@ -353,7 +353,7 @@ static __devinit void gsta_alloc_irq_chip(struct gsta_gpio *chip)
 }
 
 /* The platform device used here is instantiated by the MFD device */
-static int __devinit gsta_probe(struct platform_device *dev)
+static int gsta_probe(struct platform_device *dev)
 {
 	int i, err;
 	struct pci_dev *pdev;
@@ -361,7 +361,7 @@ static int __devinit gsta_probe(struct platform_device *dev)
 	struct gsta_gpio *chip;
 	struct resource *res;
 
-	pdev = *(struct pci_dev **)(dev->dev.platform_data);
+	pdev = *(struct pci_dev **)dev_get_platdata(&dev->dev);
 	gpio_pdata = dev_get_platdata(&pdev->dev);
 
 	if (gpio_pdata == NULL)
@@ -371,8 +371,12 @@ static int __devinit gsta_probe(struct platform_device *dev)
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 
 	chip = devm_kzalloc(&dev->dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
 	chip->dev = &dev->dev;
-	chip->reg_base = devm_request_and_ioremap(&dev->dev, res);
+	chip->reg_base = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(chip->reg_base))
+		return PTR_ERR(chip->reg_base);
 
 	for (i = 0; i < GSTA_NR_BLOCKS; i++) {
 		chip->regs[i] = chip->reg_base + i * 4096;

@@ -550,7 +550,7 @@ static int dtl1_probe(struct pcmcia_device *link)
 	dtl1_info_t *info;
 
 	/* Create new info device */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&link->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -569,7 +569,6 @@ static void dtl1_detach(struct pcmcia_device *link)
 
 	dtl1_close(info);
 	pcmcia_disable_device(link);
-	kfree(info);
 }
 
 static int dtl1_confcheck(struct pcmcia_device *p_dev, void *priv_data)
@@ -629,17 +628,4 @@ static struct pcmcia_driver dtl1_driver = {
 	.remove		= dtl1_detach,
 	.id_table	= dtl1_ids,
 };
-
-static int __init init_dtl1_cs(void)
-{
-	return pcmcia_register_driver(&dtl1_driver);
-}
-
-
-static void __exit exit_dtl1_cs(void)
-{
-	pcmcia_unregister_driver(&dtl1_driver);
-}
-
-module_init(init_dtl1_cs);
-module_exit(exit_dtl1_cs);
+module_pcmcia_driver(dtl1_driver);

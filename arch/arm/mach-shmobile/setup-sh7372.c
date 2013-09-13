@@ -33,8 +33,8 @@
 #include <linux/sh_timer.h>
 #include <linux/pm_domain.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_data/sh_ipmmu.h>
 #include <mach/dma-register.h>
-#include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/sh7372.h>
 #include <mach/common.h>
@@ -58,12 +58,32 @@ static struct map_desc sh7372_io_desc[] __initdata = {
 void __init sh7372_map_io(void)
 {
 	iotable_init(sh7372_io_desc, ARRAY_SIZE(sh7372_io_desc));
+}
 
-	/*
-	 * DMA memory at 0xff200000 - 0xffdfffff. The default 2MB size isn't
-	 * enough to allocate the frame buffer memory.
-	 */
-	init_consistent_dma_size(12 << 20);
+/* PFC */
+static struct resource sh7372_pfc_resources[] = {
+	[0] = {
+		.start	= 0xe6050000,
+		.end	= 0xe6057fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 0xe605800c,
+		.end	= 0xe6058027,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device sh7372_pfc_device = {
+	.name		= "pfc-sh7372",
+	.id		= -1,
+	.resource	= sh7372_pfc_resources,
+	.num_resources	= ARRAY_SIZE(sh7372_pfc_resources),
+};
+
+void __init sh7372_pinmux_init(void)
+{
+	platform_device_register(&sh7372_pfc_device);
 }
 
 /* SCIFA0 */
@@ -407,6 +427,26 @@ static const struct sh_dmae_slave_config sh7372_dmae_slaves[] = {
 		.addr		= 0xe6c30060,
 		.chcr		= CHCR_RX(XMIT_SZ_8BIT),
 		.mid_rid	= 0x3e,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL0_TX,
+		.addr		= 0xe6a30050,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x83,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL0_RX,
+		.addr		= 0xe6a30050,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x83,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL1_TX,
+		.addr		= 0xe6a30060,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x87,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL1_RX,
+		.addr		= 0xe6a30060,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x87,
 	}, {
 		.slave_id	= SHDMA_SLAVE_SDHI0_TX,
 		.addr		= 0xe6850030,
@@ -968,6 +1008,43 @@ static struct platform_device spu1_device = {
 	.num_resources	= ARRAY_SIZE(spu1_resources),
 };
 
+/* IPMMUI (an IPMMU module for ICB/LMB) */
+static struct resource ipmmu_resources[] = {
+	[0] = {
+		.name	= "IPMMUI",
+		.start	= 0xfe951000,
+		.end	= 0xfe9510ff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static const char * const ipmmu_dev_names[] = {
+	"sh_mobile_lcdc_fb.0",
+	"sh_mobile_lcdc_fb.1",
+	"sh_mobile_ceu.0",
+	"uio_pdrv_genirq.0",
+	"uio_pdrv_genirq.1",
+	"uio_pdrv_genirq.2",
+	"uio_pdrv_genirq.3",
+	"uio_pdrv_genirq.4",
+	"uio_pdrv_genirq.5",
+};
+
+static struct shmobile_ipmmu_platform_data ipmmu_platform_data = {
+	.dev_names = ipmmu_dev_names,
+	.num_dev_names = ARRAY_SIZE(ipmmu_dev_names),
+};
+
+static struct platform_device ipmmu_device = {
+	.name           = "ipmmu",
+	.id             = -1,
+	.dev = {
+		.platform_data = &ipmmu_platform_data,
+	},
+	.resource       = ipmmu_resources,
+	.num_resources  = ARRAY_SIZE(ipmmu_resources),
+};
+
 static struct platform_device *sh7372_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -979,6 +1056,7 @@ static struct platform_device *sh7372_early_devices[] __initdata = {
 	&cmt2_device,
 	&tmu00_device,
 	&tmu01_device,
+	&ipmmu_device,
 };
 
 static struct platform_device *sh7372_late_devices[] __initdata = {
@@ -1001,21 +1079,34 @@ static struct platform_device *sh7372_late_devices[] __initdata = {
 
 void __init sh7372_add_standard_devices(void)
 {
-	rmobile_init_pm_domain(&sh7372_pd_a4lc);
-	rmobile_init_pm_domain(&sh7372_pd_a4mp);
-	rmobile_init_pm_domain(&sh7372_pd_d4);
-	rmobile_init_pm_domain(&sh7372_pd_a4r);
-	rmobile_init_pm_domain(&sh7372_pd_a3rv);
-	rmobile_init_pm_domain(&sh7372_pd_a3ri);
-	rmobile_init_pm_domain(&sh7372_pd_a4s);
-	rmobile_init_pm_domain(&sh7372_pd_a3sp);
-	rmobile_init_pm_domain(&sh7372_pd_a3sg);
+	struct pm_domain_device domain_devices[] = {
+		{ "A3RV", &vpu_device, },
+		{ "A4MP", &spu0_device, },
+		{ "A4MP", &spu1_device, },
+		{ "A3SP", &scif0_device, },
+		{ "A3SP", &scif1_device, },
+		{ "A3SP", &scif2_device, },
+		{ "A3SP", &scif3_device, },
+		{ "A3SP", &scif4_device, },
+		{ "A3SP", &scif5_device, },
+		{ "A3SP", &scif6_device, },
+		{ "A3SP", &iic1_device, },
+		{ "A3SP", &dma0_device, },
+		{ "A3SP", &dma1_device, },
+		{ "A3SP", &dma2_device, },
+		{ "A3SP", &usb_dma0_device, },
+		{ "A3SP", &usb_dma1_device, },
+		{ "A4R", &iic0_device, },
+		{ "A4R", &veu0_device, },
+		{ "A4R", &veu1_device, },
+		{ "A4R", &veu2_device, },
+		{ "A4R", &veu3_device, },
+		{ "A4R", &jpu_device, },
+		{ "A4R", &tmu00_device, },
+		{ "A4R", &tmu01_device, },
+	};
 
-	rmobile_pm_add_subdomain(&sh7372_pd_a4lc, &sh7372_pd_a3rv);
-	rmobile_pm_add_subdomain(&sh7372_pd_a4r, &sh7372_pd_a4lc);
-
-	rmobile_pm_add_subdomain(&sh7372_pd_a4s, &sh7372_pd_a3sg);
-	rmobile_pm_add_subdomain(&sh7372_pd_a4s, &sh7372_pd_a3sp);
+	sh7372_init_pm_domains();
 
 	platform_add_devices(sh7372_early_devices,
 			    ARRAY_SIZE(sh7372_early_devices));
@@ -1023,33 +1114,11 @@ void __init sh7372_add_standard_devices(void)
 	platform_add_devices(sh7372_late_devices,
 			    ARRAY_SIZE(sh7372_late_devices));
 
-	rmobile_add_device_to_domain(&sh7372_pd_a3rv, &vpu_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &spu0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &spu1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif2_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif3_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif4_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif5_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif6_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &iic1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &dma0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &dma1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &dma2_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usb_dma0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usb_dma1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &iic0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &veu0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &veu1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &veu2_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &veu3_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &jpu_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &tmu00_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &tmu01_device);
+	rmobile_add_devices_to_domains(domain_devices,
+				       ARRAY_SIZE(domain_devices));
 }
 
-static void __init sh7372_earlytimer_init(void)
+void __init sh7372_earlytimer_init(void)
 {
 	sh7372_clock_init();
 	shmobile_earlytimer_init();
@@ -1062,9 +1131,6 @@ void __init sh7372_add_early_devices(void)
 
 	/* setup early console here as well */
 	shmobile_setup_console();
-
-	/* override timer setup with soc-specific code */
-	shmobile_timer.init = sh7372_earlytimer_init;
 }
 
 #ifdef CONFIG_USE_OF
@@ -1080,10 +1146,6 @@ void __init sh7372_add_early_devices_dt(void)
 	shmobile_setup_console();
 }
 
-static const struct of_dev_auxdata sh7372_auxdata_lookup[] __initconst = {
-	{ }
-};
-
 void __init sh7372_add_standard_devices_dt(void)
 {
 	/* clocks are setup late during boot in the case of DT */
@@ -1092,8 +1154,7 @@ void __init sh7372_add_standard_devices_dt(void)
 	platform_add_devices(sh7372_early_devices,
 			    ARRAY_SIZE(sh7372_early_devices));
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     sh7372_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char *sh7372_boards_compat_dt[] __initdata = {
@@ -1108,7 +1169,6 @@ DT_MACHINE_START(SH7372_DT, "Generic SH7372 (Flattened Device Tree)")
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= sh7372_add_standard_devices_dt,
-	.timer		= &shmobile_timer,
 	.dt_compat	= sh7372_boards_compat_dt,
 MACHINE_END
 

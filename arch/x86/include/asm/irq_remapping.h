@@ -24,12 +24,18 @@
 
 #include <asm/io_apic.h>
 
-#ifdef CONFIG_IRQ_REMAP
+struct IO_APIC_route_entry;
+struct io_apic_irq_attr;
+struct irq_chip;
+struct msi_msg;
+struct pci_dev;
+struct irq_cfg;
 
-extern int irq_remapping_enabled;
+#ifdef CONFIG_IRQ_REMAP
 
 extern void setup_irq_remapping_ops(void);
 extern int irq_remapping_supported(void);
+extern void set_irq_remapping_broken(void);
 extern int irq_remapping_prepare(void);
 extern int irq_remapping_enable(void);
 extern void irq_remapping_disable(void);
@@ -40,24 +46,23 @@ extern int setup_ioapic_remapped_entry(int irq,
 				       unsigned int destination,
 				       int vector,
 				       struct io_apic_irq_attr *attr);
-extern int set_remapped_irq_affinity(struct irq_data *data,
-				     const struct cpumask *mask,
-				     bool force);
 extern void free_remapped_irq(int irq);
 extern void compose_remapped_msi_msg(struct pci_dev *pdev,
 				     unsigned int irq, unsigned int dest,
 				     struct msi_msg *msg, u8 hpet_id);
-extern int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec);
-extern int msi_setup_remapped_irq(struct pci_dev *pdev, unsigned int irq,
-				  int index, int sub_handle);
 extern int setup_hpet_msi_remapped(unsigned int irq, unsigned int id);
+extern void panic_if_irq_remap(const char *msg);
+extern bool setup_remapped_irq(int irq,
+			       struct irq_cfg *cfg,
+			       struct irq_chip *chip);
+
+void irq_remap_modify_chip_defaults(struct irq_chip *chip);
 
 #else  /* CONFIG_IRQ_REMAP */
 
-#define irq_remapping_enabled	0
-
 static inline void setup_irq_remapping_ops(void) { }
 static inline int irq_remapping_supported(void) { return 0; }
+static inline void set_irq_remapping_broken(void) { }
 static inline int irq_remapping_prepare(void) { return -ENODEV; }
 static inline int irq_remapping_enable(void) { return -ENODEV; }
 static inline void irq_remapping_disable(void) { }
@@ -71,30 +76,30 @@ static inline int setup_ioapic_remapped_entry(int irq,
 {
 	return -ENODEV;
 }
-static inline int set_remapped_irq_affinity(struct irq_data *data,
-					    const struct cpumask *mask,
-					    bool force)
-{
-	return 0;
-}
 static inline void free_remapped_irq(int irq) { }
 static inline void compose_remapped_msi_msg(struct pci_dev *pdev,
 					    unsigned int irq, unsigned int dest,
 					    struct msi_msg *msg, u8 hpet_id)
 {
 }
-static inline int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec)
-{
-	return -ENODEV;
-}
-static inline int msi_setup_remapped_irq(struct pci_dev *pdev, unsigned int irq,
-					 int index, int sub_handle)
-{
-	return -ENODEV;
-}
 static inline int setup_hpet_msi_remapped(unsigned int irq, unsigned int id)
 {
 	return -ENODEV;
+}
+
+static inline void panic_if_irq_remap(const char *msg)
+{
+}
+
+static inline void irq_remap_modify_chip_defaults(struct irq_chip *chip)
+{
+}
+
+static inline bool setup_remapped_irq(int irq,
+				      struct irq_cfg *cfg,
+				      struct irq_chip *chip)
+{
+	return false;
 }
 #endif /* CONFIG_IRQ_REMAP */
 

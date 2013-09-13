@@ -51,7 +51,7 @@
 #define CP_INTC_HOST_PRIO_VECTOR(n)	(0x1600 + (n << 2))
 #define CP_INTC_VECTOR_ADDR(n)		(0x2000 + (n << 2))
 
-void __init cp_intc_init(void);
-int __init cp_intc_of_init(struct device_node *, struct device_node *);
+void cp_intc_init(void);
+int cp_intc_of_init(struct device_node *, struct device_node *);
 
 #endif	/* __ASM_HARDWARE_CP_INTC_H */

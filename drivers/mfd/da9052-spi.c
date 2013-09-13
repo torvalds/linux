@@ -21,7 +21,7 @@
 
 #include <linux/mfd/da9052/da9052.h>
 
-static int __devinit da9052_spi_probe(struct spi_device *spi)
+static int da9052_spi_probe(struct spi_device *spi)
 {
 	int ret;
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -38,7 +38,7 @@ static int __devinit da9052_spi_probe(struct spi_device *spi)
 	da9052->dev = &spi->dev;
 	da9052->chip_irq = spi->irq;
 
-	dev_set_drvdata(&spi->dev, da9052);
+	spi_set_drvdata(spi, da9052);
 
 	da9052_regmap_config.read_flag_mask = 1;
 	da9052_regmap_config.write_flag_mask = 0;
@@ -58,9 +58,9 @@ static int __devinit da9052_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit da9052_spi_remove(struct spi_device *spi)
+static int da9052_spi_remove(struct spi_device *spi)
 {
-	struct da9052 *da9052 = dev_get_drvdata(&spi->dev);
+	struct da9052 *da9052 = spi_get_drvdata(spi);
 
 	da9052_device_exit(da9052);
 	return 0;
@@ -76,7 +76,7 @@ static struct spi_device_id da9052_spi_id[] = {
 
 static struct spi_driver da9052_spi_driver = {
 	.probe = da9052_spi_probe,
-	.remove = __devexit_p(da9052_spi_remove),
+	.remove = da9052_spi_remove,
 	.id_table = da9052_spi_id,
 	.driver = {
 		.name = "da9052",

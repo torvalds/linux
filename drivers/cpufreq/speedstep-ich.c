@@ -263,7 +263,6 @@ static int speedstep_target(struct cpufreq_policy *policy,
 {
 	unsigned int newstate = 0, policy_cpu;
 	struct cpufreq_freqs freqs;
-	int i;
 
 	if (cpufreq_frequency_table_target(policy, &speedstep_freqs[0],
 				target_freq, relation, &newstate))
@@ -272,7 +271,6 @@ static int speedstep_target(struct cpufreq_policy *policy,
 	policy_cpu = cpumask_any_and(policy->cpus, cpu_online_mask);
 	freqs.old = speedstep_get(policy_cpu);
 	freqs.new = speedstep_freqs[newstate].frequency;
-	freqs.cpu = policy->cpu;
 
 	pr_debug("transiting from %u to %u kHz\n", freqs.old, freqs.new);
 
@@ -280,18 +278,12 @@ static int speedstep_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return 0;
 
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	smp_call_function_single(policy_cpu, _speedstep_set_state, &newstate,
 				 true);
 
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }
@@ -386,7 +378,6 @@ static struct cpufreq_driver speedstep_driver = {
 	.init	= speedstep_cpu_init,
 	.exit	= speedstep_cpu_exit,
 	.get	= speedstep_get,
-	.owner	= THIS_MODULE,
 	.attr	= speedstep_attr,
 };
 

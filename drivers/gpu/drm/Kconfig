@@ -6,7 +6,8 @@
 #
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
-	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU
+	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU && HAS_DMA
+	select HDMI
 	select I2C
 	select I2C_ALGOBIT
 	select DMA_SHARED_BUFFER
@@ -22,7 +23,7 @@ menuconfig DRM
 config DRM_USB
 	tristate
 	depends on DRM
-	depends on USB_ARCH_HAS_HCD
+	depends on USB_SUPPORT && USB_ARCH_HAS_HCD
 	select USB
 
 config DRM_KMS_HELPER
@@ -54,6 +55,23 @@ config DRM_TTM
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
 
+config DRM_GEM_CMA_HELPER
+	bool
+	depends on DRM
+	help
+	  Choose this if you need the GEM CMA helper functions
+
+config DRM_KMS_CMA_HELPER
+	bool
+	select DRM_GEM_CMA_HELPER
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	help
+	  Choose this if you need the KMS CMA helper functions
+
+source "drivers/gpu/drm/i2c/Kconfig"
+
 config DRM_TDFX
 	tristate "3dfx Banshee/Voodoo3+"
 	depends on DRM && PCI
@@ -81,6 +99,7 @@ config DRM_RADEON
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
+	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
@@ -120,6 +139,7 @@ config DRM_I915
 	select BACKLIGHT_CLASS_DEVICE if ACPI
 	select VIDEO_OUTPUT_CONTROL if ACPI
 	select INPUT if ACPI
+	select THERMAL if ACPI
 	select ACPI_VIDEO if ACPI
 	select ACPI_BUTTON if ACPI
 	help
@@ -147,6 +167,17 @@ config DRM_I915_KMS
 	  userspaces with this enabled will cause pain.  Note that this causes
 	  the driver to bind to PCI devices, which precludes loading things
 	  like intelfb.
+
+config DRM_I915_PRELIMINARY_HW_SUPPORT
+	bool "Enable preliminary support for prerelease Intel hardware by default"
+	depends on DRM_I915
+	help
+	  Choose this option if you have prerelease Intel hardware and want the
+	  i915 driver to support it by default.  You can enable such support at
+	  runtime with the module option i915.preliminary_hw_support=1; this
+	  option changes the default for that module option.
+
+	  If in doubt, say "N".
 
 config DRM_MGA
 	tristate "Matrox g200/g400"
@@ -193,3 +224,15 @@ source "drivers/gpu/drm/ast/Kconfig"
 source "drivers/gpu/drm/mgag200/Kconfig"
 
 source "drivers/gpu/drm/cirrus/Kconfig"
+
+source "drivers/gpu/drm/rcar-du/Kconfig"
+
+source "drivers/gpu/drm/shmobile/Kconfig"
+
+source "drivers/gpu/drm/omapdrm/Kconfig"
+
+source "drivers/gpu/drm/tilcdc/Kconfig"
+
+source "drivers/gpu/drm/qxl/Kconfig"
+
+source "drivers/gpu/drm/msm/Kconfig"

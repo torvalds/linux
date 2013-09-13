@@ -10,15 +10,18 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <mach/common.h>
-#include <mach/mx28.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include "clk.h"
 
-#define CLKCTRL			MX28_IO_ADDRESS(MX28_CLKCTRL_BASE_ADDR)
+static void __iomem *clkctrl;
+#define CLKCTRL clkctrl
+
 #define PLL0CTRL0		(CLKCTRL + 0x0000)
 #define PLL1CTRL0		(CLKCTRL + 0x0020)
 #define PLL2CTRL0		(CLKCTRL + 0x0040)
@@ -52,7 +55,8 @@
 #define BP_FRAC0_IO1FRAC	16
 #define BP_FRAC0_IO0FRAC	24
 
-#define DIGCTRL			MX28_IO_ADDRESS(MX28_DIGCTL_BASE_ADDR)
+static void __iomem *digctrl;
+#define DIGCTRL digctrl
 #define BP_SAIF_CLKMUX		10
 
 /*
@@ -71,8 +75,8 @@ int mxs_saif_clkmux_select(unsigned int clkmux)
 	if (clkmux > 0x3)
 		return -EINVAL;
 
-	__mxs_clrl(0x3 << BP_SAIF_CLKMUX, DIGCTRL);
-	__mxs_setl(clkmux << BP_SAIF_CLKMUX, DIGCTRL);
+	writel_relaxed(0x3 << BP_SAIF_CLKMUX, DIGCTRL + CLR);
+	writel_relaxed(clkmux << BP_SAIF_CLKMUX, DIGCTRL + SET);
 
 	return 0;
 }
@@ -82,13 +86,13 @@ static void __init clk_misc_init(void)
 	u32 val;
 
 	/* Gate off cpu clock in WFI for power saving */
-	__mxs_setl(1 << BP_CPU_INTERRUPT_WAIT, CPU);
+	writel_relaxed(1 << BP_CPU_INTERRUPT_WAIT, CPU + SET);
 
 	/* 0 is a bad default value for a divider */
-	__mxs_setl(1 << BP_ENET_DIV_TIME, ENET);
+	writel_relaxed(1 << BP_ENET_DIV_TIME, ENET + SET);
 
 	/* Clear BYPASS for SAIF */
-	__mxs_clrl(0x3 << BP_CLKSEQ_BYPASS_SAIF0, CLKSEQ);
+	writel_relaxed(0x3 << BP_CLKSEQ_BYPASS_SAIF0, CLKSEQ + CLR);
 
 	/* SAIF has to use frac div for functional operation */
 	val = readl_relaxed(SAIF0);
@@ -108,7 +112,7 @@ static void __init clk_misc_init(void)
 	 * Source ssp clock from ref_io than ref_xtal,
 	 * as ref_xtal only provides 24 MHz as maximum.
 	 */
-	__mxs_clrl(0xf << BP_CLKSEQ_BYPASS_SSP0, CLKSEQ);
+	writel_relaxed(0xf << BP_CLKSEQ_BYPASS_SSP0, CLKSEQ + CLR);
 
 	/*
 	 * 480 MHz seems too high to be ssp clock source directly,
@@ -119,90 +123,6 @@ static void __init clk_misc_init(void)
 	val |= (30 << BP_FRAC0_IO0FRAC) | (30 << BP_FRAC0_IO1FRAC);
 	writel_relaxed(val, FRAC0);
 }
-
-static struct clk_lookup uart_lookups[] = {
-	{ .dev_id = "duart", },
-	{ .dev_id = "mxs-auart.0", },
-	{ .dev_id = "mxs-auart.1", },
-	{ .dev_id = "mxs-auart.2", },
-	{ .dev_id = "mxs-auart.3", },
-	{ .dev_id = "mxs-auart.4", },
-	{ .dev_id = "8006a000.serial", },
-	{ .dev_id = "8006c000.serial", },
-	{ .dev_id = "8006e000.serial", },
-	{ .dev_id = "80070000.serial", },
-	{ .dev_id = "80072000.serial", },
-	{ .dev_id = "80074000.serial", },
-};
-
-static struct clk_lookup hbus_lookups[] = {
-	{ .dev_id = "imx28-dma-apbh", },
-	{ .dev_id = "80004000.dma-apbh", },
-};
-
-static struct clk_lookup xbus_lookups[] = {
-	{ .dev_id = "duart", .con_id = "apb_pclk"},
-	{ .dev_id = "80074000.serial", .con_id = "apb_pclk"},
-	{ .dev_id = "imx28-dma-apbx", },
-	{ .dev_id = "80024000.dma-apbx", },
-};
-
-static struct clk_lookup ssp0_lookups[] = {
-	{ .dev_id = "imx28-mmc.0", },
-	{ .dev_id = "80010000.ssp", },
-};
-
-static struct clk_lookup ssp1_lookups[] = {
-	{ .dev_id = "imx28-mmc.1", },
-	{ .dev_id = "80012000.ssp", },
-};
-
-static struct clk_lookup ssp2_lookups[] = {
-	{ .dev_id = "imx28-mmc.2", },
-	{ .dev_id = "80014000.ssp", },
-};
-
-static struct clk_lookup ssp3_lookups[] = {
-	{ .dev_id = "imx28-mmc.3", },
-	{ .dev_id = "80016000.ssp", },
-};
-
-static struct clk_lookup lcdif_lookups[] = {
-	{ .dev_id = "imx28-fb", },
-	{ .dev_id = "80030000.lcdif", },
-};
-
-static struct clk_lookup gpmi_lookups[] = {
-	{ .dev_id = "imx28-gpmi-nand", },
-	{ .dev_id = "8000c000.gpmi-nand", },
-};
-
-static struct clk_lookup fec_lookups[] = {
-	{ .dev_id = "imx28-fec.0", },
-	{ .dev_id = "imx28-fec.1", },
-	{ .dev_id = "800f0000.ethernet", },
-	{ .dev_id = "800f4000.ethernet", },
-};
-
-static struct clk_lookup can0_lookups[] = {
-	{ .dev_id = "flexcan.0", },
-	{ .dev_id = "80032000.can", },
-};
-
-static struct clk_lookup can1_lookups[] = {
-	{ .dev_id = "flexcan.1", },
-	{ .dev_id = "80034000.can", },
-};
-
-static struct clk_lookup saif0_lookups[] = {
-	{ .dev_id = "mxs-saif.0", },
-	{ .dev_id = "80042000.saif", },
-};
-
-static struct clk_lookup saif1_lookups[] = {
-	{ .dev_id = "mxs-saif.1", },
-	{ .dev_id = "80046000.saif", },
-};
 
 static const char *sel_cpu[]  __initconst = { "ref_cpu", "ref_xtal", };
 static const char *sel_io0[]  __initconst = { "ref_io0", "ref_xtal", };
@@ -223,11 +143,12 @@ enum imx28_clk {
 	emi_xtal, lcdif_div, etm_div, ptp, saif0_div, saif1_div,
 	clk32k_div, rtc, lradc, spdif_div, clk32k, pwm, uart, ssp0,
 	ssp1, ssp2, ssp3, gpmi, spdif, emi, saif0, saif1, lcdif, etm,
-	fec, can0, can1, usb0, usb1, usb0_pwr, usb1_pwr, enet_out,
+	fec, can0, can1, usb0, usb1, usb0_phy, usb1_phy, enet_out,
 	clk_max
 };
 
 static struct clk *clks[clk_max];
+static struct clk_onecell_data clk_data;
 
 static enum imx28_clk clks_init_on[] __initdata = {
 	cpu, hbus, xbus, emi, uart,
@@ -235,7 +156,16 @@ static enum imx28_clk clks_init_on[] __initdata = {
 
 int __init mx28_clocks_init(void)
 {
-	int i;
+	struct device_node *np;
+	u32 i;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx28-digctl");
+	digctrl = of_iomap(np, 0);
+	WARN_ON(!digctrl);
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx28-clkctrl");
+	clkctrl = of_iomap(np, 0);
+	WARN_ON(!clkctrl);
 
 	clk_misc_init();
 
@@ -299,10 +229,10 @@ int __init mx28_clocks_init(void)
 	clks[fec] = mxs_clk_gate("fec", "hbus", ENET, 30);
 	clks[can0] = mxs_clk_gate("can0", "ref_xtal", FLEXCAN, 30);
 	clks[can1] = mxs_clk_gate("can1", "ref_xtal", FLEXCAN, 28);
-	clks[usb0] = mxs_clk_gate("usb0", "usb0_pwr", DIGCTRL, 2);
-	clks[usb1] = mxs_clk_gate("usb1", "usb1_pwr", DIGCTRL, 16);
-	clks[usb0_pwr] = clk_register_gate(NULL, "usb0_pwr", "pll0", 0, PLL0CTRL0, 18, 0, &mxs_lock);
-	clks[usb1_pwr] = clk_register_gate(NULL, "usb1_pwr", "pll1", 0, PLL1CTRL0, 18, 0, &mxs_lock);
+	clks[usb0] = mxs_clk_gate("usb0", "usb0_phy", DIGCTRL, 2);
+	clks[usb1] = mxs_clk_gate("usb1", "usb1_phy", DIGCTRL, 16);
+	clks[usb0_phy] = clk_register_gate(NULL, "usb0_phy", "pll0", 0, PLL0CTRL0, 18, 0, &mxs_lock);
+	clks[usb1_phy] = clk_register_gate(NULL, "usb1_phy", "pll1", 0, PLL1CTRL0, 18, 0, &mxs_lock);
 	clks[enet_out] = clk_register_gate(NULL, "enet_out", "pll2", 0, ENET, 18, 0, &mxs_lock);
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++)
@@ -312,32 +242,14 @@ int __init mx28_clocks_init(void)
 			return PTR_ERR(clks[i]);
 		}
 
-	clk_register_clkdev(clks[clk32k], NULL, "timrot");
+	clk_data.clks = clks;
+	clk_data.clk_num = ARRAY_SIZE(clks);
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+
 	clk_register_clkdev(clks[enet_out], NULL, "enet_out");
-	clk_register_clkdev(clks[pwm], NULL, "80064000.pwm");
-	clk_register_clkdevs(clks[hbus], hbus_lookups, ARRAY_SIZE(hbus_lookups));
-	clk_register_clkdevs(clks[xbus], xbus_lookups, ARRAY_SIZE(xbus_lookups));
-	clk_register_clkdevs(clks[uart], uart_lookups, ARRAY_SIZE(uart_lookups));
-	clk_register_clkdevs(clks[ssp0], ssp0_lookups, ARRAY_SIZE(ssp0_lookups));
-	clk_register_clkdevs(clks[ssp1], ssp1_lookups, ARRAY_SIZE(ssp1_lookups));
-	clk_register_clkdevs(clks[ssp2], ssp2_lookups, ARRAY_SIZE(ssp2_lookups));
-	clk_register_clkdevs(clks[ssp3], ssp3_lookups, ARRAY_SIZE(ssp3_lookups));
-	clk_register_clkdevs(clks[gpmi], gpmi_lookups, ARRAY_SIZE(gpmi_lookups));
-	clk_register_clkdevs(clks[saif0], saif0_lookups, ARRAY_SIZE(saif0_lookups));
-	clk_register_clkdevs(clks[saif1], saif1_lookups, ARRAY_SIZE(saif1_lookups));
-	clk_register_clkdevs(clks[lcdif], lcdif_lookups, ARRAY_SIZE(lcdif_lookups));
-	clk_register_clkdevs(clks[fec], fec_lookups, ARRAY_SIZE(fec_lookups));
-	clk_register_clkdevs(clks[can0], can0_lookups, ARRAY_SIZE(can0_lookups));
-	clk_register_clkdevs(clks[can1], can1_lookups, ARRAY_SIZE(can1_lookups));
-	clk_register_clkdev(clks[usb0_pwr], NULL, "8007c000.usbphy");
-	clk_register_clkdev(clks[usb1_pwr], NULL, "8007e000.usbphy");
-	clk_register_clkdev(clks[usb0], NULL, "80080000.usb");
-	clk_register_clkdev(clks[usb1], NULL, "80090000.usb");
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
-
-	mxs_timer_init(MX28_INT_TIMER0);
 
 	return 0;
 }

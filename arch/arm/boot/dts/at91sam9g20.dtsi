@@ -6,7 +6,7 @@
  * Licensed under GPLv2.
  */
 
-/include/ "at91sam9260.dtsi"
+#include "at91sam9260.dtsi"
 
 / {
 	model = "Atmel AT91SAM9G20 family SoC";
@@ -18,6 +18,10 @@
 
 	ahb {
 		apb {
+			i2c0: i2c@fffac000 {
+				compatible = "atmel,at91sam9g20-i2c";
+			};
+
 			adc0: adc@fffe0000 {
 				atmel,adc-startup-time = <40>;
 			};

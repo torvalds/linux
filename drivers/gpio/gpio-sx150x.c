@@ -311,11 +311,9 @@ static int sx150x_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 
 static void sx150x_irq_mask(struct irq_data *d)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned n;
 
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
 	n = d->irq - chip->irq_base;
 	chip->irq_masked |= (1 << n);
 	chip->irq_update = n;
@@ -323,27 +321,22 @@ static void sx150x_irq_mask(struct irq_data *d)
 
 static void sx150x_irq_unmask(struct irq_data *d)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned n;
 
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
 	n = d->irq - chip->irq_base;
-
 	chip->irq_masked &= ~(1 << n);
 	chip->irq_update = n;
 }
 
 static int sx150x_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned n, val = 0;
 
 	if (flow_type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
 		return -EINVAL;
 
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
 	n = d->irq - chip->irq_base;
 
 	if (flow_type & IRQ_TYPE_EDGE_RISING)
@@ -391,21 +384,15 @@ static irqreturn_t sx150x_irq_thread_fn(int irq, void *dev_id)
 
 static void sx150x_irq_bus_lock(struct irq_data *d)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
-
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 
 	mutex_lock(&chip->lock);
 }
 
 static void sx150x_irq_bus_sync_unlock(struct irq_data *d)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned n;
-
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
 
 	if (chip->irq_update == NO_UPDATE_PENDING)
 		goto out;
@@ -551,6 +538,7 @@ static int sx150x_install_irq_chip(struct sx150x_chip *chip,
 
 	for (n = 0; n < chip->dev_cfg->ngpios; ++n) {
 		irq = irq_base + n;
+		irq_set_chip_data(irq, chip);
 		irq_set_chip_and_handler(irq, &chip->irq_chip, handle_edge_irq);
 		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
@@ -560,7 +548,8 @@ static int sx150x_install_irq_chip(struct sx150x_chip *chip,
 #endif
 	}
 
-	err = request_threaded_irq(irq_summary,
+	err = devm_request_threaded_irq(&chip->client->dev,
+				irq_summary,
 				NULL,
 				sx150x_irq_thread_fn,
 				IRQF_SHARED | IRQF_TRIGGER_FALLING,
@@ -579,15 +568,13 @@ static void sx150x_remove_irq_chip(struct sx150x_chip *chip)
 	unsigned n;
 	unsigned irq;
 
-	free_irq(chip->irq_summary, chip);
-
 	for (n = 0; n < chip->dev_cfg->ngpios; ++n) {
 		irq = chip->irq_base + n;
 		irq_set_chip_and_handler(irq, NULL, NULL);
 	}
 }
 
-static int __devinit sx150x_probe(struct i2c_client *client,
+static int sx150x_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	static const u32 i2c_funcs = I2C_FUNC_SMBUS_BYTE_DATA |
@@ -596,25 +583,26 @@ static int __devinit sx150x_probe(struct i2c_client *client,
 	struct sx150x_chip *chip;
 	int rc;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (!pdata)
 		return -EINVAL;
 
 	if (!i2c_check_functionality(client->adapter, i2c_funcs))
 		return -ENOSYS;
 
-	chip = kzalloc(sizeof(struct sx150x_chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev,
+		sizeof(struct sx150x_chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
 	sx150x_init_chip(chip, client, id->driver_data, pdata);
 	rc = sx150x_init_hw(chip, pdata);
 	if (rc < 0)
-		goto probe_fail_pre_gpiochip_add;
+		return rc;
 
 	rc = gpiochip_add(&chip->gpio_chip);
-	if (rc < 0)
-		goto probe_fail_pre_gpiochip_add;
+	if (rc)
+		return rc;
 
 	if (pdata->irq_summary >= 0) {
 		rc = sx150x_install_irq_chip(chip,
@@ -629,12 +617,10 @@ static int __devinit sx150x_probe(struct i2c_client *client,
 	return 0;
 probe_fail_post_gpiochip_add:
 	WARN_ON(gpiochip_remove(&chip->gpio_chip) < 0);
-probe_fail_pre_gpiochip_add:
-	kfree(chip);
 	return rc;
 }
 
-static int __devexit sx150x_remove(struct i2c_client *client)
+static int sx150x_remove(struct i2c_client *client)
 {
 	struct sx150x_chip *chip;
 	int rc;
@@ -647,8 +633,6 @@ static int __devexit sx150x_remove(struct i2c_client *client)
 	if (chip->irq_summary >= 0)
 		sx150x_remove_irq_chip(chip);
 
-	kfree(chip);
-
 	return 0;
 }
 
@@ -658,7 +642,7 @@ static struct i2c_driver sx150x_driver = {
 		.owner = THIS_MODULE
 	},
 	.probe    = sx150x_probe,
-	.remove   = __devexit_p(sx150x_remove),
+	.remove   = sx150x_remove,
 	.id_table = sx150x_id,
 };
 

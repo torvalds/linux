@@ -83,14 +83,11 @@ PTE_BIT_FUNC(mkyoung, |= _PAGE_ACCESSED);
 #define ZERO_PAGE(vaddr)	virt_to_page(empty_zero_page)
 extern char empty_zero_page[];
 
-extern unsigned int kobjsize(const void *objp);
-
 #define swapper_pg_dir ((pgd_t *) 0)
 /*
  * No page table caches to initialise.
  */
 #define pgtable_cache_init()	do { } while (0)
-#define io_remap_pfn_range      remap_pfn_range
 
 /*
  * All 32bit addresses are effectively valid for vmalloc...

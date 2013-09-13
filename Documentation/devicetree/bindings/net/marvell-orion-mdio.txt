@@ -1,0 +1,39 @@
+* Marvell MDIO Ethernet Controller interface
+
+The Ethernet controllers of the Marvel Kirkwood, Dove, Orion5x,
+MV78xx0, Armada 370 and Armada XP have an identical unit that provides
+an interface with the MDIO bus. This driver handles this MDIO
+interface.
+
+Required properties:
+- compatible: "marvell,orion-mdio"
+- reg: address and length of the SMI register
+
+Optional properties:
+- interrupts: interrupt line number for the SMI error/done interrupt
+- clocks: Phandle to the clock control device and gate bit
+
+The child nodes of the MDIO driver are the individual PHY devices
+connected to this MDIO bus. They must have a "reg" property given the
+PHY address on the MDIO bus.
+
+Example at the SoC level:
+
+mdio {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "marvell,orion-mdio";
+	reg = <0xd0072004 0x4>;
+};
+
+And at the board level:
+
+mdio {
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+}

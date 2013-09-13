@@ -60,10 +60,9 @@ static struct sock *__l2tp_ip6_bind_lookup(struct net *net,
 					   struct in6_addr *laddr,
 					   int dif, u32 tunnel_id)
 {
-	struct hlist_node *node;
 	struct sock *sk;
 
-	sk_for_each_bound(sk, node, &l2tp_ip6_bind_table) {
+	sk_for_each_bound(sk, &l2tp_ip6_bind_table) {
 		struct in6_addr *addr = inet6_rcv_saddr(sk);
 		struct l2tp_ip6_sock *l2tp = l2tp_ip6_sk(sk);
 
@@ -242,9 +241,16 @@ static void l2tp_ip6_close(struct sock *sk, long timeout)
 
 static void l2tp_ip6_destroy_sock(struct sock *sk)
 {
+	struct l2tp_tunnel *tunnel = l2tp_sock_to_tunnel(sk);
+
 	lock_sock(sk);
 	ip6_flush_pending_frames(sk);
 	release_sock(sk);
+
+	if (tunnel) {
+		l2tp_tunnel_closeall(tunnel);
+		sock_put(sk);
+	}
 
 	inet6_destroy_sock(sk);
 }
@@ -554,8 +560,8 @@ static int l2tp_ip6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(struct ipv6_txoptions);
 
-		err = datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
-					&hlimit, &tclass, &dontfrag);
+		err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
+					    &hlimit, &tclass, &dontfrag);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
@@ -646,7 +652,7 @@ static int l2tp_ip6_recvmsg(struct kiocb *iocb, struct sock *sk,
 			    struct msghdr *msg, size_t len, int noblock,
 			    int flags, int *addr_len)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sockaddr_l2tpip6 *lsa = (struct sockaddr_l2tpip6 *)msg->msg_name;
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
@@ -684,12 +690,13 @@ static int l2tp_ip6_recvmsg(struct kiocb *iocb, struct sock *sk,
 		lsa->l2tp_addr = ipv6_hdr(skb)->saddr;
 		lsa->l2tp_flowinfo = 0;
 		lsa->l2tp_scope_id = 0;
+		lsa->l2tp_conn_id = 0;
 		if (ipv6_addr_type(&lsa->l2tp_addr) & IPV6_ADDR_LINKLOCAL)
 			lsa->l2tp_scope_id = IP6CB(skb)->iif;
 	}
 
-	if (inet->cmsg_flags)
-		ip_cmsg_recv(msg, skb);
+	if (np->rxopt.all)
+		ip6_datagram_recv_ctl(sk, msg, skb);
 
 	if (flags & MSG_TRUNC)
 		copied = skb->len;

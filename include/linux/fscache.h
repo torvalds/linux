@@ -135,14 +135,14 @@ struct fscache_cookie_def {
 	 */
 	void (*put_context)(void *cookie_netfs_data, void *context);
 
-	/* indicate pages that now have cache metadata retained
-	 * - this function should mark the specified pages as now being cached
-	 * - the pages will have been marked with PG_fscache before this is
+	/* indicate page that now have cache metadata retained
+	 * - this function should mark the specified page as now being cached
+	 * - the page will have been marked with PG_fscache before this is
 	 *   called, so this is optional
 	 */
-	void (*mark_pages_cached)(void *cookie_netfs_data,
-				  struct address_space *mapping,
-				  struct pagevec *cached_pvec);
+	void (*mark_page_cached)(void *cookie_netfs_data,
+				 struct address_space *mapping,
+				 struct page *page);
 
 	/* indicate the cookie is no longer cached
 	 * - this function is called when the backing store currently caching
@@ -183,8 +183,11 @@ extern struct fscache_cookie *__fscache_acquire_cookie(
 	const struct fscache_cookie_def *,
 	void *);
 extern void __fscache_relinquish_cookie(struct fscache_cookie *, int);
+extern int __fscache_check_consistency(struct fscache_cookie *);
 extern void __fscache_update_cookie(struct fscache_cookie *);
 extern int __fscache_attr_changed(struct fscache_cookie *);
+extern void __fscache_invalidate(struct fscache_cookie *);
+extern void __fscache_wait_on_invalidate(struct fscache_cookie *);
 extern int __fscache_read_or_alloc_page(struct fscache_cookie *,
 					struct page *,
 					fscache_rw_complete_t,
@@ -206,6 +209,8 @@ extern bool __fscache_maybe_release_page(struct fscache_cookie *, struct page *,
 					 gfp_t);
 extern void __fscache_uncache_all_inode_pages(struct fscache_cookie *,
 					      struct inode *);
+extern void __fscache_readpages_cancel(struct fscache_cookie *cookie,
+				       struct list_head *pages);
 
 /**
  * fscache_register_netfs - Register a filesystem as desiring caching services
@@ -324,6 +329,25 @@ void fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 }
 
 /**
+ * fscache_check_consistency - Request that if the cache is updated
+ * @cookie: The cookie representing the cache object
+ *
+ * Request an consistency check from fscache, which passes the request
+ * to the backing cache.
+ *
+ * Returns 0 if consistent and -ESTALE if inconsistent.  May also
+ * return -ENOMEM and -ERESTARTSYS.
+ */
+static inline
+int fscache_check_consistency(struct fscache_cookie *cookie)
+{
+	if (fscache_cookie_valid(cookie))
+		return __fscache_check_consistency(cookie);
+	else
+		return 0;
+}
+
+/**
  * fscache_update_cookie - Request that a cache object be updated
  * @cookie: The cookie representing the cache object
  *
@@ -387,6 +411,42 @@ int fscache_attr_changed(struct fscache_cookie *cookie)
 		return __fscache_attr_changed(cookie);
 	else
 		return -ENOBUFS;
+}
+
+/**
+ * fscache_invalidate - Notify cache that an object needs invalidation
+ * @cookie: The cookie representing the cache object
+ *
+ * Notify the cache that an object is needs to be invalidated and that it
+ * should abort any retrievals or stores it is doing on the cache.  The object
+ * is then marked non-caching until such time as the invalidation is complete.
+ *
+ * This can be called with spinlocks held.
+ *
+ * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * description.
+ */
+static inline
+void fscache_invalidate(struct fscache_cookie *cookie)
+{
+	if (fscache_cookie_valid(cookie))
+		__fscache_invalidate(cookie);
+}
+
+/**
+ * fscache_wait_on_invalidate - Wait for invalidation to complete
+ * @cookie: The cookie representing the cache object
+ *
+ * Wait for the invalidation of an object to complete.
+ *
+ * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * description.
+ */
+static inline
+void fscache_wait_on_invalidate(struct fscache_cookie *cookie)
+{
+	if (fscache_cookie_valid(cookie))
+		__fscache_wait_on_invalidate(cookie);
 }
 
 /**
@@ -529,6 +589,26 @@ int fscache_alloc_page(struct fscache_cookie *cookie,
 		return __fscache_alloc_page(cookie, page, gfp);
 	else
 		return -ENOBUFS;
+}
+
+/**
+ * fscache_readpages_cancel - Cancel read/alloc on pages
+ * @cookie: The cookie representing the inode's cache object.
+ * @pages: The netfs pages that we canceled write on in readpages()
+ *
+ * Uncache/unreserve the pages reserved earlier in readpages() via
+ * fscache_readpages_or_alloc() and similar.  In most successful caches in
+ * readpages() this doesn't do anything.  In cases when the underlying netfs's
+ * readahead failed we need to clean up the pagelist (unmark and uncache).
+ *
+ * This function may sleep as it may have to clean up disk state.
+ */
+static inline
+void fscache_readpages_cancel(struct fscache_cookie *cookie,
+			      struct list_head *pages)
+{
+	if (fscache_cookie_valid(cookie))
+		__fscache_readpages_cancel(cookie, pages);
 }
 
 /**

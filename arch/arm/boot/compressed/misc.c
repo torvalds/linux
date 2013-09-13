@@ -25,7 +25,7 @@ unsigned int __machine_arch_type;
 static void putstr(const char *ptr);
 extern void error(char *x);
 
-#include <mach/uncompress.h>
+#include CONFIG_UNCOMPRESS_INCLUDE
 
 #ifdef CONFIG_DEBUG_ICEDCC
 

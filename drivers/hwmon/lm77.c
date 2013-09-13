@@ -101,7 +101,7 @@ static struct i2c_driver lm77_driver = {
  */
 static inline s16 LM77_TEMP_TO_REG(int temp)
 {
-	int ntemp = SENSORS_LIMIT(temp, LM77_TEMP_MIN, LM77_TEMP_MAX);
+	int ntemp = clamp_val(temp, LM77_TEMP_MIN, LM77_TEMP_MAX);
 	return (ntemp / 500) * 8;
 }
 

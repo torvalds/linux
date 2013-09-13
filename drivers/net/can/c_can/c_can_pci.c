@@ -63,8 +63,8 @@ static void c_can_pci_write_reg_aligned_to_32bit(struct c_can_priv *priv,
 	writew(val, priv->base + 2 * priv->regs[index]);
 }
 
-static int __devinit c_can_pci_probe(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+static int c_can_pci_probe(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	struct c_can_pci_data *c_can_pci_data = (void *)ent->driver_data;
 	struct c_can_priv *priv;
@@ -120,10 +120,10 @@ static int __devinit c_can_pci_probe(struct pci_dev *pdev,
 
 	/* Configure CAN type */
 	switch (c_can_pci_data->type) {
-	case C_CAN_DEVTYPE:
+	case BOSCH_C_CAN:
 		priv->regs = reg_map_c_can;
 		break;
-	case D_CAN_DEVTYPE:
+	case BOSCH_D_CAN:
 		priv->regs = reg_map_d_can;
 		priv->can.ctrlmode_supported |= CAN_CTRLMODE_3_SAMPLES;
 		break;
@@ -174,7 +174,7 @@ out:
 	return ret;
 }
 
-static void __devexit c_can_pci_remove(struct pci_dev *pdev)
+static void c_can_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct c_can_priv *priv = netdev_priv(dev);
@@ -192,7 +192,7 @@ static void __devexit c_can_pci_remove(struct pci_dev *pdev)
 }
 
 static struct c_can_pci_data c_can_sta2x11= {
-	.type = C_CAN_DEVTYPE,
+	.type = BOSCH_C_CAN,
 	.reg_align = C_CAN_REG_ALIGN_32,
 	.freq = 52000000, /* 52 Mhz */
 };
@@ -210,7 +210,7 @@ static struct pci_driver c_can_pci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = c_can_pci_tbl,
 	.probe = c_can_pci_probe,
-	.remove = __devexit_p(c_can_pci_remove),
+	.remove = c_can_pci_remove,
 };
 
 module_pci_driver(c_can_pci_driver);

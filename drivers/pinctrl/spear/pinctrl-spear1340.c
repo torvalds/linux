@@ -213,7 +213,7 @@ static const struct pinctrl_pin_desc spear1340_pins[] = {
  * Pad multiplexing for making all pads as gpio's. This is done to override the
  * values passed from bootloader and start from scratch.
  */
-static const unsigned pads_as_gpio_pins[] = { 251 };
+static const unsigned pads_as_gpio_pins[] = { 12, 88, 89, 251 };
 static struct spear_muxreg pads_as_gpio_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_1,
@@ -1692,7 +1692,43 @@ static struct spear_pingroup clcd_pingroup = {
 	.nmodemuxs = ARRAY_SIZE(clcd_modemux),
 };
 
-static const char *const clcd_grps[] = { "clcd_grp" };
+/* Disable cld runtime to save panel damage */
+static struct spear_muxreg clcd_sleep_muxreg[] = {
+	{
+		.reg = PAD_SHARED_IP_EN_1,
+		.mask = ARM_TRACE_MASK | MIPHY_DBG_MASK,
+		.val = 0,
+	}, {
+		.reg = PAD_FUNCTION_EN_5,
+		.mask = CLCD_REG4_MASK | CLCD_AND_ARM_TRACE_REG4_MASK,
+		.val = 0x0,
+	}, {
+		.reg = PAD_FUNCTION_EN_6,
+		.mask = CLCD_AND_ARM_TRACE_REG5_MASK,
+		.val = 0x0,
+	}, {
+		.reg = PAD_FUNCTION_EN_7,
+		.mask = CLCD_AND_ARM_TRACE_REG6_MASK,
+		.val = 0x0,
+	},
+};
+
+static struct spear_modemux clcd_sleep_modemux[] = {
+	{
+		.muxregs = clcd_sleep_muxreg,
+		.nmuxregs = ARRAY_SIZE(clcd_sleep_muxreg),
+	},
+};
+
+static struct spear_pingroup clcd_sleep_pingroup = {
+	.name = "clcd_sleep_grp",
+	.pins = clcd_pins,
+	.npins = ARRAY_SIZE(clcd_pins),
+	.modemuxs = clcd_sleep_modemux,
+	.nmodemuxs = ARRAY_SIZE(clcd_sleep_modemux),
+};
+
+static const char *const clcd_grps[] = { "clcd_grp", "clcd_sleep_grp" };
 static struct spear_function clcd_function = {
 	.name = "clcd",
 	.groups = clcd_grps,
@@ -1893,6 +1929,7 @@ static struct spear_pingroup *spear1340_pingroups[] = {
 	&sdhci_pingroup,
 	&cf_pingroup,
 	&xd_pingroup,
+	&clcd_sleep_pingroup,
 	&clcd_pingroup,
 	&arm_trace_pingroup,
 	&miphy_dbg_pingroup,
@@ -1934,6 +1971,32 @@ static struct spear_function *spear1340_functions[] = {
 	&sata_function,
 };
 
+static void gpio_request_endisable(struct spear_pmx *pmx, int pin,
+		bool enable)
+{
+	unsigned int regoffset, regindex, bitoffset;
+	unsigned int val;
+
+	/* pin++ as gpio configuration starts from 2nd bit of base register */
+	pin++;
+
+	regindex = pin / 32;
+	bitoffset = pin % 32;
+
+	if (regindex <= 3)
+		regoffset = PAD_FUNCTION_EN_1 + regindex * sizeof(int *);
+	else
+		regoffset = PAD_FUNCTION_EN_5 + (regindex - 4) * sizeof(int *);
+
+	val = pmx_readl(pmx, regoffset);
+	if (enable)
+		val &= ~(0x1 << bitoffset);
+	else
+		val |= 0x1 << bitoffset;
+
+	pmx_writel(pmx, val, regoffset);
+}
+
 static struct spear_pinctrl_machdata spear1340_machdata = {
 	.pins = spear1340_pins,
 	.npins = ARRAY_SIZE(spear1340_pins),
@@ -1941,22 +2004,23 @@ static struct spear_pinctrl_machdata spear1340_machdata = {
 	.ngroups = ARRAY_SIZE(spear1340_pingroups),
 	.functions = spear1340_functions,
 	.nfunctions = ARRAY_SIZE(spear1340_functions),
+	.gpio_request_endisable = gpio_request_endisable,
 	.modes_supported = false,
 };
 
-static struct of_device_id spear1340_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id spear1340_pinctrl_of_match[] = {
 	{
 		.compatible = "st,spear1340-pinmux",
 	},
 	{},
 };
 
-static int __devinit spear1340_pinctrl_probe(struct platform_device *pdev)
+static int spear1340_pinctrl_probe(struct platform_device *pdev)
 {
 	return spear_pinctrl_probe(pdev, &spear1340_machdata);
 }
 
-static int __devexit spear1340_pinctrl_remove(struct platform_device *pdev)
+static int spear1340_pinctrl_remove(struct platform_device *pdev)
 {
 	return spear_pinctrl_remove(pdev);
 }
@@ -1968,7 +2032,7 @@ static struct platform_driver spear1340_pinctrl_driver = {
 		.of_match_table = spear1340_pinctrl_of_match,
 	},
 	.probe = spear1340_pinctrl_probe,
-	.remove = __devexit_p(spear1340_pinctrl_remove),
+	.remove = spear1340_pinctrl_remove,
 };
 
 static int __init spear1340_pinctrl_init(void)

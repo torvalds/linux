@@ -310,7 +310,7 @@ static int rv3029c2_rtc_i2c_set_alarm(struct i2c_client *client,
 		dev_dbg(&client->dev, "alarm IRQ armed\n");
 	} else {
 		/* disable AIE irq */
-		ret = rv3029c2_rtc_i2c_alarm_set_irq(client, 1);
+		ret = rv3029c2_rtc_i2c_alarm_set_irq(client, 0);
 		if (ret)
 			return ret;
 
@@ -385,8 +385,8 @@ static struct i2c_device_id rv3029c2_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rv3029c2_id);
 
-static int __devinit
-rv3029c2_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int rv3029c2_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
 {
 	struct rtc_device *rtc;
 	int rc = 0;
@@ -395,9 +395,8 @@ rv3029c2_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_EMUL))
 		return -ENODEV;
 
-	rtc = rtc_device_register(client->name,
-				&client->dev, &rv3029c2_rtc_ops,
-				THIS_MODULE);
+	rtc = devm_rtc_device_register(&client->dev, client->name,
+					&rv3029c2_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -407,22 +406,8 @@ rv3029c2_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	rc = rv3029c2_i2c_get_sr(client, buf);
 	if (rc < 0) {
 		dev_err(&client->dev, "reading status failed\n");
-		goto exit_unregister;
+		return rc;
 	}
-
-	return 0;
-
-exit_unregister:
-	rtc_device_unregister(rtc);
-
-	return rc;
-}
-
-static int __devexit rv3029c2_remove(struct i2c_client *client)
-{
-	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	rtc_device_unregister(rtc);
 
 	return 0;
 }
@@ -432,7 +417,6 @@ static struct i2c_driver rv3029c2_driver = {
 		.name = "rtc-rv3029c2",
 	},
 	.probe = rv3029c2_probe,
-	.remove = __devexit_p(rv3029c2_remove),
 	.id_table = rv3029c2_id,
 };
 

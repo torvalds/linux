@@ -26,11 +26,10 @@
 #include <linux/console.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
+#include <linux/dma/ipu-dma.h>
 
-#include <mach/dma.h>
-#include <mach/hardware.h>
-#include <mach/ipu.h>
-#include <mach/mx3fb.h>
+#include <linux/platform_data/dma-imx.h>
+#include <linux/platform_data/video-mx3fb.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -1307,7 +1306,7 @@ static int mx3fb_unmap_video_memory(struct fb_info *fbi)
 	dma_free_writecombine(fbi->device, fbi->fix.smem_len,
 			      fbi->screen_base, fbi->fix.smem_start);
 
-	fbi->screen_base = 0;
+	fbi->screen_base = NULL;
 	mutex_lock(&fbi->mm_lock);
 	fbi->fix.smem_start = 0;
 	fbi->fix.smem_len = 0;
@@ -1568,7 +1567,8 @@ static int mx3fb_remove(struct platform_device *dev)
 
 static struct platform_driver mx3fb_driver = {
 	.driver = {
-		   .name = MX3FB_NAME,
+		.name = MX3FB_NAME,
+		.owner = THIS_MODULE,
 	},
 	.probe = mx3fb_probe,
 	.remove = mx3fb_remove,

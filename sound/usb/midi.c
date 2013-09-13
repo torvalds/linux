@@ -116,6 +116,7 @@ struct snd_usb_midi {
 	struct list_head list;
 	struct timer_list error_timer;
 	spinlock_t disc_lock;
+	struct rw_semaphore disc_rwsem;
 	struct mutex mutex;
 	u32 usb_id;
 	int next_midi_device;
@@ -125,8 +126,9 @@ struct snd_usb_midi {
 		struct snd_usb_midi_in_endpoint *in;
 	} endpoints[MIDI_MAX_ENDPOINTS];
 	unsigned long input_triggered;
-	unsigned int opened;
+	unsigned int opened[2];
 	unsigned char disconnected;
+	unsigned char input_running;
 
 	struct snd_kcontrol *roland_load_ctl;
 };
@@ -1032,29 +1034,48 @@ static void update_roland_altsetting(struct snd_usb_midi* umidi)
 	snd_usbmidi_input_start(&umidi->list);
 }
 
-static void substream_open(struct snd_rawmidi_substream *substream, int open)
+static int substream_open(struct snd_rawmidi_substream *substream, int dir,
+			  int open)
 {
 	struct snd_usb_midi* umidi = substream->rmidi->private_data;
 	struct snd_kcontrol *ctl;
 
+	down_read(&umidi->disc_rwsem);
+	if (umidi->disconnected) {
+		up_read(&umidi->disc_rwsem);
+		return open ? -ENODEV : 0;
+	}
+
 	mutex_lock(&umidi->mutex);
 	if (open) {
-		if (umidi->opened++ == 0 && umidi->roland_load_ctl) {
-			ctl = umidi->roland_load_ctl;
-			ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-			snd_ctl_notify(umidi->card,
+		if (!umidi->opened[0] && !umidi->opened[1]) {
+			if (umidi->roland_load_ctl) {
+				ctl = umidi->roland_load_ctl;
+				ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+				snd_ctl_notify(umidi->card,
 				       SNDRV_CTL_EVENT_MASK_INFO, &ctl->id);
-			update_roland_altsetting(umidi);
+				update_roland_altsetting(umidi);
+			}
 		}
+		umidi->opened[dir]++;
+		if (umidi->opened[1])
+			snd_usbmidi_input_start(&umidi->list);
 	} else {
-		if (--umidi->opened == 0 && umidi->roland_load_ctl) {
-			ctl = umidi->roland_load_ctl;
-			ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-			snd_ctl_notify(umidi->card,
+		umidi->opened[dir]--;
+		if (!umidi->opened[1])
+			snd_usbmidi_input_stop(&umidi->list);
+		if (!umidi->opened[0] && !umidi->opened[1]) {
+			if (umidi->roland_load_ctl) {
+				ctl = umidi->roland_load_ctl;
+				ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+				snd_ctl_notify(umidi->card,
 				       SNDRV_CTL_EVENT_MASK_INFO, &ctl->id);
+			}
 		}
 	}
 	mutex_unlock(&umidi->mutex);
+	up_read(&umidi->disc_rwsem);
+	return 0;
 }
 
 static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
@@ -1062,7 +1083,6 @@ static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 	struct snd_usb_midi* umidi = substream->rmidi->private_data;
 	struct usbmidi_out_port* port = NULL;
 	int i, j;
-	int err;
 
 	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i)
 		if (umidi->endpoints[i].out)
@@ -1075,22 +1095,15 @@ static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 		snd_BUG();
 		return -ENXIO;
 	}
-	err = usb_autopm_get_interface(umidi->iface);
-	if (err < 0)
-		return -EIO;
+
 	substream->runtime->private_data = port;
 	port->state = STATE_UNKNOWN;
-	substream_open(substream, 1);
-	return 0;
+	return substream_open(substream, 0, 1);
 }
 
 static int snd_usbmidi_output_close(struct snd_rawmidi_substream *substream)
 {
-	struct snd_usb_midi* umidi = substream->rmidi->private_data;
-
-	substream_open(substream, 0);
-	usb_autopm_put_interface(umidi->iface);
-	return 0;
+	return substream_open(substream, 0, 0);
 }
 
 static void snd_usbmidi_output_trigger(struct snd_rawmidi_substream *substream, int up)
@@ -1143,14 +1156,12 @@ static void snd_usbmidi_output_drain(struct snd_rawmidi_substream *substream)
 
 static int snd_usbmidi_input_open(struct snd_rawmidi_substream *substream)
 {
-	substream_open(substream, 1);
-	return 0;
+	return substream_open(substream, 1, 1);
 }
 
 static int snd_usbmidi_input_close(struct snd_rawmidi_substream *substream)
 {
-	substream_open(substream, 0);
-	return 0;
+	return substream_open(substream, 1, 0);
 }
 
 static void snd_usbmidi_input_trigger(struct snd_rawmidi_substream *substream, int up)
@@ -1399,9 +1410,12 @@ void snd_usbmidi_disconnect(struct list_head* p)
 	 * a timer may submit an URB. To reliably break the cycle
 	 * a flag under lock must be used
 	 */
+	down_write(&umidi->disc_rwsem);
 	spin_lock_irq(&umidi->disc_lock);
 	umidi->disconnected = 1;
 	spin_unlock_irq(&umidi->disc_lock);
+	up_write(&umidi->disc_rwsem);
+
 	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i) {
 		struct snd_usb_midi_endpoint* ep = &umidi->endpoints[i];
 		if (ep->out)
@@ -1430,6 +1444,7 @@ void snd_usbmidi_disconnect(struct list_head* p)
 	}
 	del_timer_sync(&umidi->error_timer);
 }
+EXPORT_SYMBOL(snd_usbmidi_disconnect);
 
 static void snd_usbmidi_rawmidi_free(struct snd_rawmidi *rmidi)
 {
@@ -1440,10 +1455,9 @@ static void snd_usbmidi_rawmidi_free(struct snd_rawmidi *rmidi)
 static struct snd_rawmidi_substream *snd_usbmidi_find_substream(struct snd_usb_midi* umidi,
 								int stream, int number)
 {
-	struct list_head* list;
+	struct snd_rawmidi_substream *substream;
 
-	list_for_each(list, &umidi->rmidi->streams[stream].substreams) {
-		struct snd_rawmidi_substream *substream = list_entry(list, struct snd_rawmidi_substream, list);
+	list_for_each_entry(substream, &umidi->rmidi->streams[stream].substreams, list) {
 		if (substream->number == number)
 			return substream;
 	}
@@ -1561,8 +1575,41 @@ static struct port_info {
 	EXTERNAL_PORT(0x0582, 0x004d, 0, "%s MIDI"),
 	EXTERNAL_PORT(0x0582, 0x004d, 1, "%s 1"),
 	EXTERNAL_PORT(0x0582, 0x004d, 2, "%s 2"),
+	/* BOSS GT-PRO */
+	CONTROL_PORT(0x0582, 0x0089, 0, "%s Control"),
 	/* Edirol UM-3EX */
 	CONTROL_PORT(0x0582, 0x009a, 3, "%s Control"),
+	/* Roland VG-99 */
+	CONTROL_PORT(0x0582, 0x00b2, 0, "%s Control"),
+	EXTERNAL_PORT(0x0582, 0x00b2, 1, "%s MIDI"),
+	/* Cakewalk Sonar V-Studio 100 */
+	EXTERNAL_PORT(0x0582, 0x00eb, 0, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x00eb, 1, "%s Control"),
+	/* Roland VB-99 */
+	CONTROL_PORT(0x0582, 0x0102, 0, "%s Control"),
+	EXTERNAL_PORT(0x0582, 0x0102, 1, "%s MIDI"),
+	/* Roland A-PRO */
+	EXTERNAL_PORT(0x0582, 0x010f, 0, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x010f, 1, "%s 1"),
+	CONTROL_PORT(0x0582, 0x010f, 2, "%s 2"),
+	/* Roland SD-50 */
+	ROLAND_SYNTH_PORT(0x0582, 0x0114, 0, "%s Synth", 128),
+	EXTERNAL_PORT(0x0582, 0x0114, 1, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x0114, 2, "%s Control"),
+	/* Roland OCTA-CAPTURE */
+	EXTERNAL_PORT(0x0582, 0x0120, 0, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x0120, 1, "%s Control"),
+	EXTERNAL_PORT(0x0582, 0x0121, 0, "%s MIDI"),
+	CONTROL_PORT(0x0582, 0x0121, 1, "%s Control"),
+	/* Roland SPD-SX */
+	CONTROL_PORT(0x0582, 0x0145, 0, "%s Control"),
+	EXTERNAL_PORT(0x0582, 0x0145, 1, "%s MIDI"),
+	/* Roland A-Series */
+	CONTROL_PORT(0x0582, 0x0156, 0, "%s Keyboard"),
+	EXTERNAL_PORT(0x0582, 0x0156, 1, "%s MIDI"),
+	/* Roland INTEGRA-7 */
+	ROLAND_SYNTH_PORT(0x0582, 0x015b, 0, "%s Synth", 128),
+	CONTROL_PORT(0x0582, 0x015b, 1, "%s Control"),
 	/* M-Audio MidiSport 8x8 */
 	CONTROL_PORT(0x0763, 0x1031, 8, "%s Control"),
 	CONTROL_PORT(0x0763, 0x1033, 8, "%s Control"),
@@ -1934,6 +1981,44 @@ static int snd_usbmidi_detect_yamaha(struct snd_usb_midi* umidi,
 }
 
 /*
+ * Detects the endpoints and ports of Roland devices.
+ */
+static int snd_usbmidi_detect_roland(struct snd_usb_midi* umidi,
+				     struct snd_usb_midi_endpoint_info* endpoint)
+{
+	struct usb_interface* intf;
+	struct usb_host_interface *hostif;
+	u8* cs_desc;
+
+	intf = umidi->iface;
+	if (!intf)
+		return -ENOENT;
+	hostif = intf->altsetting;
+	/*
+	 * Some devices have a descriptor <06 24 F1 02 <inputs> <outputs>>,
+	 * some have standard class descriptors, or both kinds, or neither.
+	 */
+	for (cs_desc = hostif->extra;
+	     cs_desc < hostif->extra + hostif->extralen && cs_desc[0] >= 2;
+	     cs_desc += cs_desc[0]) {
+		if (cs_desc[0] >= 6 &&
+		    cs_desc[1] == USB_DT_CS_INTERFACE &&
+		    cs_desc[2] == 0xf1 &&
+		    cs_desc[3] == 0x02) {
+			endpoint->in_cables  = (1 << cs_desc[4]) - 1;
+			endpoint->out_cables = (1 << cs_desc[5]) - 1;
+			return snd_usbmidi_detect_endpoints(umidi, endpoint, 1);
+		} else if (cs_desc[0] >= 7 &&
+			   cs_desc[1] == USB_DT_CS_INTERFACE &&
+			   cs_desc[2] == UAC_HEADER) {
+			return snd_usbmidi_get_ms_info(umidi, endpoint);
+		}
+	}
+
+	return -ENODEV;
+}
+
+/*
  * Creates the endpoints and their ports for Midiman devices.
  */
 static int snd_usbmidi_create_endpoints_midiman(struct snd_usb_midi* umidi,
@@ -2056,13 +2141,17 @@ void snd_usbmidi_input_stop(struct list_head* p)
 	unsigned int i, j;
 
 	umidi = list_entry(p, struct snd_usb_midi, list);
+	if (!umidi->input_running)
+		return;
 	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i) {
 		struct snd_usb_midi_endpoint* ep = &umidi->endpoints[i];
 		if (ep->in)
 			for (j = 0; j < INPUT_URBS; ++j)
 				usb_kill_urb(ep->in->urbs[j]);
 	}
+	umidi->input_running = 0;
 }
+EXPORT_SYMBOL(snd_usbmidi_input_stop);
 
 static void snd_usbmidi_input_start_ep(struct snd_usb_midi_in_endpoint* ep)
 {
@@ -2086,9 +2175,13 @@ void snd_usbmidi_input_start(struct list_head* p)
 	int i;
 
 	umidi = list_entry(p, struct snd_usb_midi, list);
+	if (umidi->input_running || !umidi->opened[1])
+		return;
 	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i)
 		snd_usbmidi_input_start_ep(umidi->endpoints[i].in);
+	umidi->input_running = 1;
 }
+EXPORT_SYMBOL(snd_usbmidi_input_start);
 
 /*
  * Creates and registers everything needed for a MIDI streaming interface.
@@ -2113,6 +2206,7 @@ int snd_usbmidi_create(struct snd_card *card,
 	umidi->usb_protocol_ops = &snd_usbmidi_standard_ops;
 	init_timer(&umidi->error_timer);
 	spin_lock_init(&umidi->disc_lock);
+	init_rwsem(&umidi->disc_rwsem);
 	mutex_init(&umidi->mutex);
 	umidi->usb_id = USB_ID(le16_to_cpu(umidi->dev->descriptor.idVendor),
 			       le16_to_cpu(umidi->dev->descriptor.idProduct));
@@ -2138,6 +2232,9 @@ int snd_usbmidi_create(struct snd_card *card,
 		break;
 	case QUIRK_MIDI_YAMAHA:
 		err = snd_usbmidi_detect_yamaha(umidi, &endpoints[0]);
+		break;
+	case QUIRK_MIDI_ROLAND:
+		err = snd_usbmidi_detect_roland(umidi, &endpoints[0]);
 		break;
 	case QUIRK_MIDI_MIDIMAN:
 		umidi->usb_protocol_ops = &snd_usbmidi_midiman_ops;
@@ -2224,14 +2321,9 @@ int snd_usbmidi_create(struct snd_card *card,
 		return err;
 	}
 
-	list_add_tail(&umidi->list, midi_list);
+	usb_autopm_get_interface_no_resume(umidi->iface);
 
-	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i)
-		snd_usbmidi_input_start_ep(umidi->endpoints[i].in);
+	list_add_tail(&umidi->list, midi_list);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_usbmidi_create);
-EXPORT_SYMBOL(snd_usbmidi_input_stop);
-EXPORT_SYMBOL(snd_usbmidi_input_start);
-EXPORT_SYMBOL(snd_usbmidi_disconnect);

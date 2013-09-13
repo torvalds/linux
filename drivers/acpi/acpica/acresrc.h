@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -347,18 +347,21 @@ extern struct acpi_rsdump_info *acpi_gbl_dump_resource_dispatch[];
 extern struct acpi_rsdump_info *acpi_gbl_dump_serial_bus_dispatch[];
 
 /*
- * rsdump
+ * rsdumpinfo
  */
 extern struct acpi_rsdump_info acpi_rs_dump_irq[];
+extern struct acpi_rsdump_info acpi_rs_dump_prt[];
 extern struct acpi_rsdump_info acpi_rs_dump_dma[];
 extern struct acpi_rsdump_info acpi_rs_dump_start_dpf[];
 extern struct acpi_rsdump_info acpi_rs_dump_end_dpf[];
 extern struct acpi_rsdump_info acpi_rs_dump_io[];
+extern struct acpi_rsdump_info acpi_rs_dump_io_flags[];
 extern struct acpi_rsdump_info acpi_rs_dump_fixed_io[];
 extern struct acpi_rsdump_info acpi_rs_dump_vendor[];
 extern struct acpi_rsdump_info acpi_rs_dump_end_tag[];
 extern struct acpi_rsdump_info acpi_rs_dump_memory24[];
 extern struct acpi_rsdump_info acpi_rs_dump_memory32[];
+extern struct acpi_rsdump_info acpi_rs_dump_memory_flags[];
 extern struct acpi_rsdump_info acpi_rs_dump_fixed_memory32[];
 extern struct acpi_rsdump_info acpi_rs_dump_address16[];
 extern struct acpi_rsdump_info acpi_rs_dump_address32[];
@@ -372,6 +375,7 @@ extern struct acpi_rsdump_info acpi_rs_dump_common_serial_bus[];
 extern struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[];
 extern struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[];
 extern struct acpi_rsdump_info acpi_rs_dump_uart_serial_bus[];
+extern struct acpi_rsdump_info acpi_rs_dump_general_flags[];
 #endif
 
 #endif				/* __ACRESRC_H__ */

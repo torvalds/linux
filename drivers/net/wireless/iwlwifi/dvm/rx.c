@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portionhelp of the ieee80211 subsystem header files.
@@ -335,8 +335,7 @@ static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 	if (msecs < 99)
 		return;
 
-	if (iwlwifi_mod_params.plcp_check &&
-	    !iwlagn_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
+	if (!iwlagn_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
 		iwl_force_rf_reset(priv, false);
 }
 
@@ -631,8 +630,6 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 	     test_bit(STATUS_RF_KILL_HW, &priv->status)))
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
 			test_bit(STATUS_RF_KILL_HW, &priv->status));
-	else
-		wake_up(&priv->trans->wait_command_queue);
 	return 0;
 }
 
@@ -667,6 +664,7 @@ static int iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
 	priv->last_phy_res_valid = true;
+	priv->ampdu_ref++;
 	memcpy(&priv->last_phy_res, pkt->data,
 	       sizeof(struct iwl_rx_phy_res));
 	return 0;
@@ -791,7 +789,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
-	ieee80211_rx(priv->hw, skb);
+	ieee80211_rx_ni(priv->hw, skb);
 }
 
 static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
@@ -900,7 +898,7 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 			    struct iwl_device_cmd *cmd)
 {
 	struct ieee80211_hdr *header;
-	struct ieee80211_rx_status rx_status;
+	struct ieee80211_rx_status rx_status = {};
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
@@ -950,7 +948,7 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 
 	/* TSF isn't reliable. In order to allow smooth user experience,
 	 * this W/A doesn't propagate it to the mac80211 */
-	/*rx_status.flag |= RX_FLAG_MACTIME_MPDU;*/
+	/*rx_status.flag |= RX_FLAG_MACTIME_START;*/
 
 	priv->ucode_beacon_time = le32_to_cpu(phy_res->beacon_time_stamp);
 
@@ -980,6 +978,16 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	/* set the preamble flag if appropriate */
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
+
+	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_AGG_MSK) {
+		/*
+		 * We know which subframes of an A-MPDU belong
+		 * together since we get a single PHY response
+		 * from the firmware for all of them
+		 */
+		rx_status.flag |= RX_FLAG_AMPDU_DETAILS;
+		rx_status.ampdu_reference = priv->ampdu_ref;
+	}
 
 	/* Set up the HT phy flags */
 	if (rate_n_flags & RATE_MCS_HT_MSK)
@@ -1093,7 +1101,7 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	iwl_notification_wait_init(&priv->notif_wait);
 
 	/* Set up BT Rx handlers */
-	if (priv->cfg->bt_params)
+	if (priv->lib->bt_params)
 		iwlagn_bt_rx_handler_setup(priv);
 }
 
@@ -1111,32 +1119,17 @@ int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 	 */
 	iwl_notification_wait_notify(&priv->notif_wait, pkt);
 
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	/*
-	 * RX data may be forwarded to userspace in one
-	 * of two cases: the user owns the fw through testmode or when
-	 * the user requested to monitor the rx w/o affecting the regular flow.
-	 * In these cases the iwl_test object will handle forwarding the rx
-	 * data to user space.
-	 * Note that if the ownership flag != IWL_OWNERSHIP_TM the flow
-	 * continues.
-	 */
-	iwl_test_rx(&priv->tst, rxb);
-#endif
-
-	if (priv->ucode_owner != IWL_OWNERSHIP_TM) {
-		/* Based on type of command response or notification,
-		 *   handle those that need handling via function in
-		 *   rx_handlers table.  See iwl_setup_rx_handlers() */
-		if (priv->rx_handlers[pkt->hdr.cmd]) {
-			priv->rx_handlers_stats[pkt->hdr.cmd]++;
-			err = priv->rx_handlers[pkt->hdr.cmd] (priv, rxb, cmd);
-		} else {
-			/* No handling needed */
-			IWL_DEBUG_RX(priv, "No handler needed for %s, 0x%02x\n",
-				     iwl_dvm_get_cmd_string(pkt->hdr.cmd),
-				     pkt->hdr.cmd);
-		}
+	/* Based on type of command response or notification,
+	 *   handle those that need handling via function in
+	 *   rx_handlers table.  See iwl_setup_rx_handlers() */
+	if (priv->rx_handlers[pkt->hdr.cmd]) {
+		priv->rx_handlers_stats[pkt->hdr.cmd]++;
+		err = priv->rx_handlers[pkt->hdr.cmd] (priv, rxb, cmd);
+	} else {
+		/* No handling needed */
+		IWL_DEBUG_RX(priv, "No handler needed for %s, 0x%02x\n",
+			     iwl_dvm_get_cmd_string(pkt->hdr.cmd),
+			     pkt->hdr.cmd);
 	}
 	return err;
 }

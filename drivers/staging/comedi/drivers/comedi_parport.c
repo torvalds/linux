@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: comedi_parport
@@ -81,9 +76,11 @@ pin, which can be used to wake up tasks.
    or http://www.linux-magazin.de/ausgabe/1999/10/IO/io.html
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 #include <linux/interrupt.h>
-#include <linux/ioport.h>
+
+#include "comedi_fc.h"
 
 #define PARPORT_SIZE 3
 
@@ -96,11 +93,12 @@ struct parport_private {
 	unsigned int c_data;
 	int enable_irq;
 };
-#define devpriv ((struct parport_private *)(dev->private))
 
 static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct parport_private *devpriv = dev->private;
+
 	if (data[0]) {
 		devpriv->a_data &= ~data[0];
 		devpriv->a_data |= (data[0] & data[1]);
@@ -117,6 +115,8 @@ static int parport_insn_config_a(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct parport_private *devpriv = dev->private;
+
 	if (data[0]) {
 		s->io_bits = 0xff;
 		devpriv->c_data &= ~(1 << 5);
@@ -145,6 +145,8 @@ static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
 static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct parport_private *devpriv = dev->private;
+
 	data[0] &= 0x0f;
 	if (data[0]) {
 		devpriv->c_data &= ~data[0];
@@ -171,65 +173,31 @@ static int parport_intr_cmdtest(struct comedi_device *dev,
 				struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
 
-	/* step 1 */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_FOLLOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: ignored */
+	/* Step 2a : make sure trigger sources are unique */
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
 
-	/* step 3: */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-	if (cmd->scan_begin_arg != 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
-	if (cmd->convert_arg != 0) {
-		cmd->convert_arg = 0;
-		err++;
-	}
-	if (cmd->scan_end_arg != 1) {
-		cmd->scan_end_arg = 1;
-		err++;
-	}
-	if (cmd->stop_arg != 0) {
-		cmd->stop_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -245,6 +213,8 @@ static int parport_intr_cmdtest(struct comedi_device *dev,
 static int parport_intr_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct parport_private *devpriv = dev->private;
+
 	devpriv->c_data |= 0x10;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
 
@@ -256,7 +226,7 @@ static int parport_intr_cmd(struct comedi_device *dev,
 static int parport_intr_cancel(struct comedi_device *dev,
 			       struct comedi_subdevice *s)
 {
-	printk(KERN_DEBUG "parport_intr_cancel()\n");
+	struct parport_private *devpriv = dev->private;
 
 	devpriv->c_data &= ~0x10;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
@@ -269,12 +239,11 @@ static int parport_intr_cancel(struct comedi_device *dev,
 static irqreturn_t parport_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 3;
+	struct parport_private *devpriv = dev->private;
+	struct comedi_subdevice *s = &dev->subdevices[3];
 
-	if (!devpriv->enable_irq) {
-		printk(KERN_ERR "comedi_parport: bogus irq, ignored\n");
+	if (!devpriv->enable_irq)
 		return IRQ_NONE;
-	}
 
 	comedi_buf_put(s->async, 0);
 	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
@@ -286,41 +255,35 @@ static irqreturn_t parport_interrupt(int irq, void *d)
 static int parport_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	int ret;
-	unsigned int irq;
-	unsigned long iobase;
+	struct parport_private *devpriv;
 	struct comedi_subdevice *s;
+	unsigned int irq;
+	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: parport: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, PARPORT_SIZE, "parport (comedi)")) {
-		printk(KERN_ERR "I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], PARPORT_SIZE);
+	if (ret)
+		return ret;
 
 	irq = it->options[1];
 	if (irq) {
-		printk(KERN_INFO " irq=%u", irq);
-		ret = request_irq(irq, parport_interrupt, 0, "comedi_parport",
+		ret = request_irq(irq, parport_interrupt, 0, dev->board_name,
 				  dev);
 		if (ret < 0) {
-			printk(KERN_ERR " irq not available\n");
+			dev_err(dev->class_dev, "irq not available\n");
 			return -EINVAL;
 		}
 		dev->irq = irq;
 	}
-	dev->board_name = "parport";
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
-	ret = alloc_private(dev, sizeof(struct parport_private));
-	if (ret < 0)
-		return ret;
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 8;
@@ -329,7 +292,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->insn_bits = parport_insn_a;
 	s->insn_config = parport_insn_config_a;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 5;
@@ -337,7 +300,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = parport_insn_b;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 4;
@@ -345,7 +308,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = parport_insn_c;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	if (irq) {
 		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_DI;
@@ -366,23 +329,14 @@ static int parport_attach(struct comedi_device *dev,
 	devpriv->c_data = 0;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
 
-	printk(KERN_INFO "\n");
-	return 1;
-}
-
-static void parport_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, PARPORT_SIZE);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
+	return 0;
 }
 
 static struct comedi_driver parport_driver = {
 	.driver_name	= "comedi_parport",
 	.module		= THIS_MODULE,
 	.attach		= parport_attach,
-	.detach		= parport_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(parport_driver);
 

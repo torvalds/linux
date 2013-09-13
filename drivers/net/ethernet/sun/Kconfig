@@ -32,8 +32,8 @@ config HAPPYMEAL
 	  will be called sunhme.
 
 config SUNBMAC
-	tristate "Sun BigMAC 10/100baseT support (EXPERIMENTAL)"
-	depends on SBUS && EXPERIMENTAL
+	tristate "Sun BigMAC 10/100baseT support"
+	depends on SBUS
 	select CRC32
 	---help---
 	  This driver supports the "be" interface available as an Sbus option.
@@ -61,7 +61,7 @@ config SUNGEM
 	select SUNGEM_PHY
 	---help---
 	  Support for the Sun GEM chip, aka Sun GigabitEthernet/P 2.0.  See also
-	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/806-3985-10.pdf>.
+	  <http://docs.oracle.com/cd/E19455-01/806-3985-10/806-3985-10.pdf>.
 
 config CASSINI
 	tristate "Sun Cassini support"
@@ -69,7 +69,7 @@ config CASSINI
 	select CRC32
 	---help---
 	  Support for the Sun Cassini chip, aka Sun GigaSwift Ethernet. See also
-	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/817-4341-10.pdf>
+	  <http://docs.oracle.com/cd/E19113-01/giga.ether.pci/817-4341-10/817-4341-10.pdf>.
 
 config SUNVNET
 	tristate "Sun Virtual Network support"

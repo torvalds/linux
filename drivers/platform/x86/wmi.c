@@ -92,7 +92,7 @@ module_param(debug_dump_wdg, bool, 0444);
 MODULE_PARM_DESC(debug_dump_wdg,
 		 "Dump available WMI interfaces [0/1]");
 
-static int acpi_wmi_remove(struct acpi_device *device, int type);
+static int acpi_wmi_remove(struct acpi_device *device);
 static int acpi_wmi_add(struct acpi_device *device);
 static void acpi_wmi_notify(struct acpi_device *device, u32 event);
 
@@ -693,11 +693,13 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "wmi:%s\n", guid_string);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute wmi_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *wmi_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(wmi);
 
 static int wmi_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -732,7 +734,7 @@ static struct class wmi_class = {
 	.name = "wmi",
 	.dev_release = wmi_dev_free,
 	.dev_uevent = wmi_dev_uevent,
-	.dev_attrs = wmi_dev_attrs,
+	.dev_groups = wmi_groups,
 };
 
 static int wmi_create_device(const struct guid_block *gblock,
@@ -743,7 +745,7 @@ static int wmi_create_device(const struct guid_block *gblock,
 	wblock->dev.class = &wmi_class;
 
 	wmi_gtoa(gblock->guid, guid_string);
-	dev_set_name(&wblock->dev, guid_string);
+	dev_set_name(&wblock->dev, "%s", guid_string);
 
 	dev_set_drvdata(&wblock->dev, wblock);
 
@@ -917,7 +919,7 @@ static void acpi_wmi_notify(struct acpi_device *device, u32 event)
 	}
 }
 
-static int acpi_wmi_remove(struct acpi_device *device, int type)
+static int acpi_wmi_remove(struct acpi_device *device)
 {
 	acpi_remove_address_space_handler(device->handle,
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);

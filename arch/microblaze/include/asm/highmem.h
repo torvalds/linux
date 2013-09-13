@@ -71,7 +71,7 @@ static inline void kunmap(struct page *page)
 	kunmap_high(page);
 }
 
-static inline void *__kmap_atomic(struct page *page)
+static inline void *kmap_atomic(struct page *page)
 {
 	return kmap_atomic_prot(page, kmap_prot);
 }

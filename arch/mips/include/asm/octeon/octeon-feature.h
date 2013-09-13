@@ -35,7 +35,7 @@
 #include <asm/octeon/cvmx-rnm-defs.h>
 
 enum octeon_feature {
-        /* CN68XX uses port kinds for packet interface */
+	/* CN68XX uses port kinds for packet interface */
 	OCTEON_FEATURE_PKND,
 	/* CN68XX has different fields in word0 - word2 */
 	OCTEON_FEATURE_CN68XX_WQE,
@@ -51,7 +51,7 @@ enum octeon_feature {
 	OCTEON_FEATURE_DORM_CRYPTO,
 	/* Does this Octeon support PCI express? */
 	OCTEON_FEATURE_PCIE,
-        /* Does this Octeon support SRIOs */
+	/* Does this Octeon support SRIOs */
 	OCTEON_FEATURE_SRIO,
 	/*  Does this Octeon support Interlaken */
 	OCTEON_FEATURE_ILK,
@@ -75,7 +75,7 @@ enum octeon_feature {
 	/* Octeon MDIO block supports clause 45 transactions for 10
 	 * Gig support */
 	OCTEON_FEATURE_MDIO_CLAUSE_45,
-        /*
+	/*
 	 *  CN52XX and CN56XX used a block named NPEI for PCIe
 	 *  access. Newer chips replaced this with SLI+DPI.
 	 */
@@ -94,10 +94,10 @@ static inline int cvmx_fuse_read(int fuse);
  * be kept out of fast path code.
  *
  * @feature: Feature to check for. This should always be a constant so the
- *                compiler can remove the switch statement through optimization.
+ *		  compiler can remove the switch statement through optimization.
  *
  * Returns Non zero if the feature exists. Zero if the feature does not
- *         exist.
+ *	   exist.
  */
 static inline int octeon_has_feature(enum octeon_feature feature)
 {

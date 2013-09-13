@@ -22,6 +22,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/domain.h>
+#include <asm/opcodes-virt.h>
 
 #define IOMEM(x)	(x)
 
@@ -135,7 +136,11 @@
  * assumes FIQs are enabled, and that the processor is in SVC mode.
  */
 	.macro	save_and_disable_irqs, oldcpsr
+#ifdef CONFIG_CPU_V7M
+	mrs	\oldcpsr, primask
+#else
 	mrs	\oldcpsr, cpsr
+#endif
 	disable_irq
 	.endm
 
@@ -149,7 +154,11 @@
  * guarantee that this will preserve the flags.
  */
 	.macro	restore_irqs_notrace, oldcpsr
+#ifdef CONFIG_CPU_V7M
+	msr	primask, \oldcpsr
+#else
 	msr	cpsr_c, \oldcpsr
+#endif
 	.endm
 
 	.macro restore_irqs, oldcpsr
@@ -211,9 +220,9 @@
 #ifdef CONFIG_SMP
 #if __LINUX_ARM_ARCH__ >= 7
 	.ifeqs "\mode","arm"
-	ALT_SMP(dmb)
+	ALT_SMP(dmb	ish)
 	.else
-	ALT_SMP(W(dmb))
+	ALT_SMP(W(dmb)	ish)
 	.endif
 #elif __LINUX_ARM_ARCH__ == 6
 	ALT_SMP(mcr	p15, 0, r0, c7, c10, 5)	@ dmb
@@ -228,7 +237,14 @@
 #endif
 	.endm
 
-#ifdef CONFIG_THUMB2_KERNEL
+#if defined(CONFIG_CPU_V7M)
+	/*
+	 * setmode is used to assert to be in svc mode during boot. For v7-M
+	 * this is done in __v7m_setup, so setmode can be empty here.
+	 */
+	.macro	setmode, mode, reg
+	.endm
+#elif defined(CONFIG_THUMB2_KERNEL)
 	.macro	setmode, mode, reg
 	mov	\reg, #\mode
 	msr	cpsr_c, \reg
@@ -238,6 +254,38 @@
 	msr	cpsr_c, #\mode
 	.endm
 #endif
+
+/*
+ * Helper macro to enter SVC mode cleanly and mask interrupts. reg is
+ * a scratch register for the macro to overwrite.
+ *
+ * This macro is intended for forcing the CPU into SVC mode at boot time.
+ * you cannot return to the original mode.
+ */
+.macro safe_svcmode_maskall reg:req
+#if __LINUX_ARM_ARCH__ >= 6
+	mrs	\reg , cpsr
+	eor	\reg, \reg, #HYP_MODE
+	tst	\reg, #MODE_MASK
+	bic	\reg , \reg , #MODE_MASK
+	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT | SVC_MODE
+THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
+	bne	1f
+	orr	\reg, \reg, #PSR_A_BIT
+	adr	lr, BSYM(2f)
+	msr	spsr_cxsf, \reg
+	__MSR_ELR_HYP(14)
+	__ERET
+1:	msr	cpsr_c, \reg
+2:
+#else
+/*
+ * workaround for possibly broken pre-v6 hardware
+ * (akita, Sharp Zaurus C-1000, PXA270-based)
+ */
+	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, \reg
+#endif
+.endm
 
 /*
  * STRT/LDRT access macros with ARM and Thumb-2 variants
@@ -318,6 +366,14 @@
 \name:
 	.asciz "\string"
 	.size \name , . - \name
+	.endm
+
+	.macro check_uaccess, addr:req, size:req, limit:req, tmp:req, bad:req
+#ifndef CONFIG_CPU_USE_DOMAINS
+	adds	\tmp, \addr, #\size - 1
+	sbcccs	\tmp, \tmp, \limit
+	bcs	\bad
+#endif
 	.endm
 
 #endif /* __ASM_ASSEMBLER_H__ */

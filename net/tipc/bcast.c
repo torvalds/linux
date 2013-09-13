@@ -347,7 +347,7 @@ static void bclink_peek_nack(struct tipc_msg *msg)
 
 	tipc_node_lock(n_ptr);
 
-	if (n_ptr->bclink.supported &&
+	if (n_ptr->bclink.recv_permitted &&
 	    (n_ptr->bclink.last_in != n_ptr->bclink.last_sent) &&
 	    (n_ptr->bclink.last_in == msg_bcgap_after(msg)))
 		n_ptr->bclink.oos_state = 2;
@@ -429,7 +429,7 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 		goto exit;
 
 	tipc_node_lock(node);
-	if (unlikely(!node->bclink.supported))
+	if (unlikely(!node->bclink.recv_permitted))
 		goto unlock;
 
 	/* Handle broadcast protocol message */
@@ -564,7 +564,7 @@ exit:
 
 u32 tipc_bclink_acks_missing(struct tipc_node *n_ptr)
 {
-	return (n_ptr->bclink.supported &&
+	return (n_ptr->bclink.recv_permitted &&
 		(tipc_bclink_get_last_sent() != n_ptr->bclink.acked));
 }
 
@@ -578,14 +578,12 @@ u32 tipc_bclink_acks_missing(struct tipc_node *n_ptr)
  * Returns 0 (packet sent successfully) under all circumstances,
  * since the broadcast link's pseudo-bearer never blocks
  */
-static int tipc_bcbearer_send(struct sk_buff *buf,
-			      struct tipc_bearer *unused1,
+static int tipc_bcbearer_send(struct sk_buff *buf, struct tipc_bearer *unused1,
 			      struct tipc_media_addr *unused2)
 {
 	int bp_index;
 
-	/*
-	 * Prepare broadcast link message for reliable transmission,
+	/* Prepare broadcast link message for reliable transmission,
 	 * if first time trying to send it;
 	 * preparation is skipped for broadcast link protocol messages
 	 * since they are sent in an unreliable manner and don't need it
@@ -611,32 +609,43 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 	for (bp_index = 0; bp_index < MAX_BEARERS; bp_index++) {
 		struct tipc_bearer *p = bcbearer->bpairs[bp_index].primary;
 		struct tipc_bearer *s = bcbearer->bpairs[bp_index].secondary;
+		struct tipc_bearer *b = p;
+		struct sk_buff *tbuf;
 
 		if (!p)
-			break;	/* no more bearers to try */
+			break; /* No more bearers to try */
 
-		tipc_nmap_diff(&bcbearer->remains, &p->nodes, &bcbearer->remains_new);
-		if (bcbearer->remains_new.count == bcbearer->remains.count)
-			continue;	/* bearer pair doesn't add anything */
-
-		if (p->blocked ||
-		    p->media->send_msg(buf, p, &p->media->bcast_addr)) {
-			/* unable to send on primary bearer */
-			if (!s || s->blocked ||
-			    s->media->send_msg(buf, s,
-					       &s->media->bcast_addr)) {
-				/* unable to send on either bearer */
-				continue;
-			}
+		if (tipc_bearer_blocked(p)) {
+			if (!s || tipc_bearer_blocked(s))
+				continue; /* Can't use either bearer */
+			b = s;
 		}
 
+		tipc_nmap_diff(&bcbearer->remains, &b->nodes,
+			       &bcbearer->remains_new);
+		if (bcbearer->remains_new.count == bcbearer->remains.count)
+			continue; /* Nothing added by bearer pair */
+
+		if (bp_index == 0) {
+			/* Use original buffer for first bearer */
+			tipc_bearer_send(b, buf, &b->bcast_addr);
+		} else {
+			/* Avoid concurrent buffer access */
+			tbuf = pskb_copy(buf, GFP_ATOMIC);
+			if (!tbuf)
+				break;
+			tipc_bearer_send(b, tbuf, &b->bcast_addr);
+			kfree_skb(tbuf); /* Bearer keeps a clone */
+		}
+
+		/* Swap bearers for next packet */
 		if (s) {
 			bcbearer->bpairs[bp_index].primary = s;
 			bcbearer->bpairs[bp_index].secondary = p;
 		}
 
 		if (bcbearer->remains_new.count == 0)
-			break;	/* all targets reached */
+			break; /* All targets reached */
 
 		bcbearer->remains = bcbearer->remains_new;
 	}
@@ -731,8 +740,8 @@ int tipc_bclink_stats(char *buf, const u32 buf_size)
 			     "  TX naks:%u acks:%u dups:%u\n",
 			     s->sent_nacks, s->sent_acks, s->retransmitted);
 	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  Congestion bearer:%u link:%u  Send queue max:%u avg:%u\n",
-			     s->bearer_congs, s->link_congs, s->max_queue_sz,
+			     "  Congestion link:%u  Send queue max:%u avg:%u\n",
+			     s->link_congs, s->max_queue_sz,
 			     s->queue_sz_counts ?
 			     (s->accu_queue_sz / s->queue_sz_counts) : 0);
 
@@ -766,7 +775,6 @@ int tipc_bclink_set_queue_limits(u32 limit)
 
 void tipc_bclink_init(void)
 {
-	INIT_LIST_HEAD(&bcbearer->bearer.cong_links);
 	bcbearer->bearer.media = &bcbearer->media;
 	bcbearer->media.send_msg = tipc_bcbearer_send;
 	sprintf(bcbearer->media.name, "tipc-broadcast");
@@ -777,6 +785,7 @@ void tipc_bclink_init(void)
 	bcl->owner = &bclink->node;
 	bcl->max_pkt = MAX_PKT_DEFAULT_MCAST;
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);
+	spin_lock_init(&bcbearer->bearer.lock);
 	bcl->b_ptr = &bcbearer->bearer;
 	bcl->state = WORKING_WORKING;
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);

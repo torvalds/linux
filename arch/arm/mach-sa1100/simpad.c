@@ -9,6 +9,7 @@
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 #include <linux/pm.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
@@ -23,8 +24,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
-#include <mach/mcp.h>
+#include <linux/platform_data/mfd-mcp-sa11x0.h>
 #include <mach/simpad.h>
 #include <mach/irqs.h>
 
@@ -124,7 +124,7 @@ static struct map_desc simpad_io_desc[] __initdata = {
 		.length		= 0x00800000,
 		.type		= MT_DEVICE
 	}, {	/* Simpad CS3 */
-		.virtual	= CS3_BASE,
+		.virtual	= (unsigned long)CS3_BASE,
 		.pfn		= __phys_to_pfn(SA1100_CS3_PHYS),
 		.length		= 0x00100000,
 		.type		= MT_DEVICE
@@ -396,6 +396,6 @@ MACHINE_START(SIMPAD, "Simpad")
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.init_late	= sa11x0_init_late,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.restart	= sa11x0_restart,
 MACHINE_END

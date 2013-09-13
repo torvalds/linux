@@ -74,6 +74,7 @@ enum {
 	CPL_PASS_ESTABLISH    = 0x41,
 	CPL_RX_DATA_DDP       = 0x42,
 	CPL_PASS_ACCEPT_REQ   = 0x44,
+	CPL_TRACE_PKT_T5      = 0x48,
 
 	CPL_RDMA_READ_REQ     = 0x60,
 
@@ -157,6 +158,7 @@ union opcode_tid {
 };
 
 #define CPL_OPCODE(x) ((x) << 24)
+#define G_CPL_OPCODE(x) (((x) >> 24) & 0xFF)
 #define MK_OPCODE_TID(opcode, tid) (CPL_OPCODE(opcode) | (tid))
 #define OPCODE_TID(cmd) ((cmd)->ot.opcode_tid)
 #define GET_TID(cmd) (ntohl(OPCODE_TID(cmd)) & 0xFFFFFF)
@@ -193,7 +195,23 @@ struct work_request_hdr {
 	__be64 wr_lo;
 };
 
+/* wr_hi fields */
+#define S_WR_OP    24
+#define V_WR_OP(x) ((__u64)(x) << S_WR_OP)
+
 #define WR_HDR struct work_request_hdr wr
+
+/* option 0 fields */
+#define S_MSS_IDX    60
+#define M_MSS_IDX    0xF
+#define V_MSS_IDX(x) ((__u64)(x) << S_MSS_IDX)
+#define G_MSS_IDX(x) (((x) >> S_MSS_IDX) & M_MSS_IDX)
+
+/* option 2 fields */
+#define S_RSS_QUEUE    0
+#define M_RSS_QUEUE    0x3FF
+#define V_RSS_QUEUE(x) ((x) << S_RSS_QUEUE)
+#define G_RSS_QUEUE(x) (((x) >> S_RSS_QUEUE) & M_RSS_QUEUE)
 
 struct cpl_pass_open_req {
 	WR_HDR;
@@ -204,12 +222,14 @@ struct cpl_pass_open_req {
 	__be32 peer_ip;
 	__be64 opt0;
 #define TX_CHAN(x)    ((x) << 2)
+#define NO_CONG(x)    ((x) << 4)
 #define DELACK(x)     ((x) << 5)
 #define ULP_MODE(x)   ((x) << 8)
 #define RCV_BUFSIZ(x) ((x) << 12)
 #define DSCP(x)       ((x) << 22)
 #define SMAC_SEL(x)   ((u64)(x) << 28)
 #define L2T_IDX(x)    ((u64)(x) << 36)
+#define TCAM_BYPASS(x) ((u64)(x) << 48)
 #define NAGLE(x)      ((u64)(x) << 49)
 #define WND_SCALE(x)  ((u64)(x) << 50)
 #define KEEP_ALIVE(x) ((u64)(x) << 54)
@@ -247,8 +267,10 @@ struct cpl_pass_accept_rpl {
 #define RSS_QUEUE_VALID      (1 << 10)
 #define RX_COALESCE_VALID(x) ((x) << 11)
 #define RX_COALESCE(x)       ((x) << 12)
+#define PACE(x)	      ((x) << 16)
 #define TX_QUEUE(x)          ((x) << 23)
 #define RX_CHANNEL(x)        ((x) << 26)
+#define CCTRL_ECN(x)         ((x) << 27)
 #define WND_SCALE_EN(x)      ((x) << 28)
 #define TSTAMPS_EN(x)        ((x) << 29)
 #define SACK_EN(x)           ((x) << 30)
@@ -267,6 +289,23 @@ struct cpl_act_open_req {
 	__be32 opt2;
 };
 
+#define S_FILTER_TUPLE  24
+#define M_FILTER_TUPLE  0xFFFFFFFFFF
+#define V_FILTER_TUPLE(x) ((x) << S_FILTER_TUPLE)
+#define G_FILTER_TUPLE(x) (((x) >> S_FILTER_TUPLE) & M_FILTER_TUPLE)
+struct cpl_t5_act_open_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be32 local_ip;
+	__be32 peer_ip;
+	__be64 opt0;
+	__be32 rsvd;
+	__be32 opt2;
+	__be64 params;
+};
+
 struct cpl_act_open_req6 {
 	WR_HDR;
 	union opcode_tid ot;
@@ -281,6 +320,21 @@ struct cpl_act_open_req6 {
 	__be32 opt2;
 };
 
+struct cpl_t5_act_open_req6 {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be64 local_ip_hi;
+	__be64 local_ip_lo;
+	__be64 peer_ip_hi;
+	__be64 peer_ip_lo;
+	__be64 opt0;
+	__be32 rsvd;
+	__be32 opt2;
+	__be64 params;
+};
+
 struct cpl_act_open_rpl {
 	union opcode_tid ot;
 	__be32 atid_status;
@@ -292,6 +346,9 @@ struct cpl_pass_establish {
 	union opcode_tid ot;
 	__be32 rsvd;
 	__be32 tos_stid;
+#define PASS_OPEN_TID(x) ((x) << 0)
+#define PASS_OPEN_TOS(x) ((x) << 24)
+#define GET_PASS_OPEN_TID(x)	(((x) >> 0) & 0xFFFFFF)
 #define GET_POPEN_TID(x) ((x) & 0xffffff)
 #define GET_POPEN_TOS(x) (((x) >> 24) & 0xff)
 	__be16 mac_idx;
@@ -332,6 +389,7 @@ struct cpl_set_tcb_field {
 	__be16 word_cookie;
 #define TCB_WORD(x)   ((x) << 0)
 #define TCB_COOKIE(x) ((x) << 5)
+#define GET_TCB_COOKIE(x) (((x) >> 5) & 7)
 	__be64 mask;
 	__be64 val;
 };
@@ -362,7 +420,7 @@ struct cpl_close_listsvr_req {
 	WR_HDR;
 	union opcode_tid ot;
 	__be16 reply_ctrl;
-#define LISTSVR_IPV6 (1 << 14)
+#define LISTSVR_IPV6(x) ((x) << 14)
 	__be16 rsvd;
 };
 
@@ -536,6 +594,42 @@ struct cpl_rx_pkt {
 	__be16 err_vec;
 };
 
+/* rx_pkt.l2info fields */
+#define S_RX_ETHHDR_LEN    0
+#define M_RX_ETHHDR_LEN    0x1F
+#define V_RX_ETHHDR_LEN(x) ((x) << S_RX_ETHHDR_LEN)
+#define G_RX_ETHHDR_LEN(x) (((x) >> S_RX_ETHHDR_LEN) & M_RX_ETHHDR_LEN)
+
+#define S_RX_T5_ETHHDR_LEN    0
+#define M_RX_T5_ETHHDR_LEN    0x3F
+#define V_RX_T5_ETHHDR_LEN(x) ((x) << S_RX_T5_ETHHDR_LEN)
+#define G_RX_T5_ETHHDR_LEN(x) (((x) >> S_RX_T5_ETHHDR_LEN) & M_RX_T5_ETHHDR_LEN)
+
+#define S_RX_MACIDX    8
+#define M_RX_MACIDX    0x1FF
+#define V_RX_MACIDX(x) ((x) << S_RX_MACIDX)
+#define G_RX_MACIDX(x) (((x) >> S_RX_MACIDX) & M_RX_MACIDX)
+
+#define S_RXF_SYN    21
+#define V_RXF_SYN(x) ((x) << S_RXF_SYN)
+#define F_RXF_SYN    V_RXF_SYN(1U)
+
+#define S_RX_CHAN    28
+#define M_RX_CHAN    0xF
+#define V_RX_CHAN(x) ((x) << S_RX_CHAN)
+#define G_RX_CHAN(x) (((x) >> S_RX_CHAN) & M_RX_CHAN)
+
+/* rx_pkt.hdr_len fields */
+#define S_RX_TCPHDR_LEN    0
+#define M_RX_TCPHDR_LEN    0x3F
+#define V_RX_TCPHDR_LEN(x) ((x) << S_RX_TCPHDR_LEN)
+#define G_RX_TCPHDR_LEN(x) (((x) >> S_RX_TCPHDR_LEN) & M_RX_TCPHDR_LEN)
+
+#define S_RX_IPHDR_LEN    6
+#define M_RX_IPHDR_LEN    0x3FF
+#define V_RX_IPHDR_LEN(x) ((x) << S_RX_IPHDR_LEN)
+#define G_RX_IPHDR_LEN(x) (((x) >> S_RX_IPHDR_LEN) & M_RX_IPHDR_LEN)
+
 struct cpl_trace_pkt {
 	u8 opcode;
 	u8 intf;
@@ -555,6 +649,28 @@ struct cpl_trace_pkt {
 	__be16 rsvd;
 	__be16 len;
 	__be64 tstamp;
+};
+
+struct cpl_t5_trace_pkt {
+	__u8 opcode;
+	__u8 intf;
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8 runt:4;
+	__u8 filter_hit:4;
+	__u8:6;
+	__u8 err:1;
+	__u8 trunc:1;
+#else
+	__u8 filter_hit:4;
+	__u8 runt:4;
+	__u8 trunc:1;
+	__u8 err:1;
+	__u8:6;
+#endif
+	__be16 rsvd;
+	__be16 len;
+	__be64 tstamp;
+	__be64 rsvd1;
 };
 
 struct cpl_l2t_write_req {
@@ -586,6 +702,15 @@ struct cpl_sge_egr_update {
 #define EGR_QID(x) ((x) & 0x1FFFF)
 	__be16 cidx;
 	__be16 pidx;
+};
+
+/* cpl_fw*.type values */
+enum {
+	FW_TYPE_CMD_RPL = 0,
+	FW_TYPE_WR_RPL = 1,
+	FW_TYPE_CQE = 2,
+	FW_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+	FW_TYPE_RSSCPL = 4,
 };
 
 struct cpl_fw4_pld {
@@ -634,6 +759,18 @@ struct cpl_fw6_msg {
 /* cpl_fw6_msg.type values */
 enum {
 	FW6_TYPE_CMD_RPL = 0,
+	FW6_TYPE_WR_RPL = 1,
+	FW6_TYPE_CQE = 2,
+	FW6_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+	FW6_TYPE_RSSCPL = FW_TYPE_RSSCPL,
+};
+
+struct cpl_fw6_msg_ofld_connection_wr_rpl {
+	__u64   cookie;
+	__be32  tid;    /* or atid in case of active failure */
+	__u8    t_state;
+	__u8    retval;
+	__u8    rsvd[2];
 };
 
 enum {
@@ -658,6 +795,7 @@ struct ulptx_sgl {
 	__be32 cmd_nsge;
 #define ULPTX_CMD(x) ((x) << 24)
 #define ULPTX_NSGE(x) ((x) << 0)
+#define ULPTX_MORE (1U << 23)
 	__be32 len0;
 	__be64 addr0;
 	struct ulptx_sge_pair sge[0];
@@ -674,5 +812,13 @@ struct ulp_mem_io {
 #define ULP_MEMIO_ADDR(x) ((x) << 0)
 #define ULP_MEMIO_LOCK(x) ((x) << 31)
 };
+
+#define S_T5_ULP_MEMIO_IMM    23
+#define V_T5_ULP_MEMIO_IMM(x) ((x) << S_T5_ULP_MEMIO_IMM)
+#define F_T5_ULP_MEMIO_IMM    V_T5_ULP_MEMIO_IMM(1U)
+
+#define S_T5_ULP_MEMIO_ORDER    22
+#define V_T5_ULP_MEMIO_ORDER(x) ((x) << S_T5_ULP_MEMIO_ORDER)
+#define F_T5_ULP_MEMIO_ORDER    V_T5_ULP_MEMIO_ORDER(1U)
 
 #endif  /* __T4_MSG_H */

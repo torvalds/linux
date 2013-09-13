@@ -32,7 +32,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
-#include <mach/leds-netxbig.h>
+#include <linux/platform_data/leds-kirkwood-netxbig.h>
 #include "common.h"
 #include "mpp.h"
 #include "lacie_v2-common.h"
@@ -404,7 +404,7 @@ MACHINE_START(NET2BIG_V2, "LaCie 2Big Network v2")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif
@@ -416,7 +416,7 @@ MACHINE_START(NET5BIG_V2, "LaCie 5Big Network v2")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif

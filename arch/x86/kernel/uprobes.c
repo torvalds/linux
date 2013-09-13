@@ -41,6 +41,9 @@
 /* Adjust the return address of a call insn */
 #define UPROBE_FIX_CALL	0x2
 
+/* Instruction will modify TF, don't change it */
+#define UPROBE_FIX_SETF	0x4
+
 #define UPROBE_FIX_RIP_AX	0x8000
 #define UPROBE_FIX_RIP_CX	0x4000
 
@@ -239,6 +242,10 @@ static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
 	insn_get_opcode(insn);	/* should be a nop */
 
 	switch (OPCODE1(insn)) {
+	case 0x9d:
+		/* popf */
+		auprobe->fixups |= UPROBE_FIX_SETF;
+		break;
 	case 0xc3:		/* ret/lret */
 	case 0xcb:
 	case 0xc2:
@@ -471,6 +478,11 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	regs->ip = current->utask->xol_vaddr;
 	pre_xol_rip_insn(auprobe, regs, autask);
 
+	autask->saved_tf = !!(regs->flags & X86_EFLAGS_TF);
+	regs->flags |= X86_EFLAGS_TF;
+	if (test_tsk_thread_flag(current, TIF_BLOCKSTEP))
+		set_task_blockstep(current, false);
+
 	return 0;
 }
 
@@ -596,6 +608,16 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	if (auprobe->fixups & UPROBE_FIX_CALL)
 		result = adjust_ret_addr(regs->sp, correction);
 
+	/*
+	 * arch_uprobe_pre_xol() doesn't save the state of TIF_BLOCKSTEP
+	 * so we can get an extra SIGTRAP if we do not clear TF. We need
+	 * to examine the opcode to make it right.
+	 */
+	if (utask->autask.saved_tf)
+		send_sig(SIGTRAP, current, 0);
+	else if (!(auprobe->fixups & UPROBE_FIX_SETF))
+		regs->flags &= ~X86_EFLAGS_TF;
+
 	return result;
 }
 
@@ -640,36 +662,67 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	current->thread.trap_nr = utask->autask.saved_trap_nr;
 	handle_riprel_post_xol(auprobe, regs, NULL);
 	instruction_pointer_set(regs, utask->vaddr);
+
+	/* clear TF if it was set by us in arch_uprobe_pre_xol() */
+	if (!utask->autask.saved_tf)
+		regs->flags &= ~X86_EFLAGS_TF;
 }
 
 /*
  * Skip these instructions as per the currently known x86 ISA.
- * 0x66* { 0x90 | 0x0f 0x1f | 0x0f 0x19 | 0x87 0xc0 }
+ * rep=0x66*; nop=0x90
  */
-bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
+static bool __skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	int i;
 
 	for (i = 0; i < MAX_UINSN_BYTES; i++) {
-		if ((auprobe->insn[i] == 0x66))
+		if (auprobe->insn[i] == 0x66)
 			continue;
 
-		if (auprobe->insn[i] == 0x90)
+		if (auprobe->insn[i] == 0x90) {
+			regs->ip += i + 1;
 			return true;
-
-		if (i == (MAX_UINSN_BYTES - 1))
-			break;
-
-		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x1f))
-			return true;
-
-		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x19))
-			return true;
-
-		if ((auprobe->insn[i] == 0x87) && (auprobe->insn[i+1] == 0xc0))
-			return true;
+		}
 
 		break;
 	}
 	return false;
+}
+
+bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	bool ret = __skip_sstep(auprobe, regs);
+	if (ret && (regs->flags & X86_EFLAGS_TF))
+		send_sig(SIGTRAP, current, 0);
+	return ret;
+}
+
+unsigned long
+arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs *regs)
+{
+	int rasize, ncopied;
+	unsigned long orig_ret_vaddr = 0; /* clear high bits for 32-bit apps */
+
+	rasize = is_ia32_task() ? 4 : 8;
+	ncopied = copy_from_user(&orig_ret_vaddr, (void __user *)regs->sp, rasize);
+	if (unlikely(ncopied))
+		return -1;
+
+	/* check whether address has been already hijacked */
+	if (orig_ret_vaddr == trampoline_vaddr)
+		return orig_ret_vaddr;
+
+	ncopied = copy_to_user((void __user *)regs->sp, &trampoline_vaddr, rasize);
+	if (likely(!ncopied))
+		return orig_ret_vaddr;
+
+	if (ncopied != rasize) {
+		pr_err("uprobe: return address clobbered: pid=%d, %%sp=%#lx, "
+			"%%ip=%#lx\n", current->pid, regs->sp, regs->ip);
+
+		force_sig_info(SIGSEGV, SEND_SIG_FORCED, current);
+	}
+
+	return -1;
 }

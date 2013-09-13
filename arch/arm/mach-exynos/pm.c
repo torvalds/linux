@@ -30,11 +30,11 @@
 #include <plat/regs-srom.h>
 
 #include <mach/regs-irq.h>
-#include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-pmu.h>
 #include <mach/pm-core.h>
-#include <mach/pmu.h>
+
+#include "common.h"
 
 static struct sleep_save exynos4_set_clksrc[] = {
 	{ .reg = EXYNOS4_CLKSRC_MASK_TOP		, .val = 0x00000001, },
@@ -62,6 +62,10 @@ static struct sleep_save exynos4_vpll_save[] = {
 	SAVE_ITEM(EXYNOS4_VPLL_CON1),
 };
 
+static struct sleep_save exynos5_sys_save[] = {
+	SAVE_ITEM(EXYNOS5_SYS_I2C_CFG),
+};
+
 static struct sleep_save exynos_core_save[] = {
 	/* SROM side */
 	SAVE_ITEM(S5P_SROM_BW),
@@ -81,11 +85,14 @@ static int exynos_cpu_suspend(unsigned long arg)
 	outer_flush_all();
 #endif
 
+	if (soc_is_exynos5250())
+		flush_cache_all();
+
 	/* issue the standby signal into the pm unit. */
 	cpu_do_idle();
 
-	/* we should never get past here */
-	panic("sleep resumed to originator?");
+	pr_info("Failed to suspend the system\n");
+	return 1; /* Aborting suspend */
 }
 
 static void exynos_pm_prepare(void)
@@ -98,6 +105,7 @@ static void exynos_pm_prepare(void)
 		s3c_pm_do_save(exynos4_epll_save, ARRAY_SIZE(exynos4_epll_save));
 		s3c_pm_do_save(exynos4_vpll_save, ARRAY_SIZE(exynos4_vpll_save));
 	} else {
+		s3c_pm_do_save(exynos5_sys_save, ARRAY_SIZE(exynos5_sys_save));
 		/* Disable USE_RETENTION of JPEG_MEM_OPTION */
 		tmp = __raw_readl(EXYNOS5_JPEG_MEM_OPTION);
 		tmp &= ~EXYNOS5_OPTION_USE_RETENTION;
@@ -209,6 +217,9 @@ static __init int exynos_pm_drvinit(void)
 	struct clk *pll_base;
 	unsigned int tmp;
 
+	if (soc_is_exynos5440())
+		return 0;
+
 	s3c_pm_init();
 
 	/* All wakeup disable */
@@ -274,6 +285,8 @@ static void exynos_pm_resume(void)
 	if (!(tmp & S5P_CENTRAL_LOWPWR_CFG)) {
 		tmp |= S5P_CENTRAL_LOWPWR_CFG;
 		__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
+		/* clear the wakeup state register */
+		__raw_writel(0x0, S5P_WAKEUP_STAT);
 		/* No need to perform below restore code */
 		goto early_wakeup;
 	}
@@ -301,6 +314,10 @@ static void exynos_pm_resume(void)
 	__raw_writel((1 << 28), S5P_PAD_RET_EBIA_OPTION);
 	__raw_writel((1 << 28), S5P_PAD_RET_EBIB_OPTION);
 
+	if (soc_is_exynos5250())
+		s3c_pm_do_restore(exynos5_sys_save,
+			ARRAY_SIZE(exynos5_sys_save));
+
 	s3c_pm_do_restore_core(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
 	if (!soc_is_exynos5250()) {
@@ -312,6 +329,10 @@ static void exynos_pm_resume(void)
 	}
 
 early_wakeup:
+
+	/* Clear SLEEP mode set in INFORM1 */
+	__raw_writel(0x0, S5P_INFORM1);
+
 	return;
 }
 
@@ -322,6 +343,9 @@ static struct syscore_ops exynos_pm_syscore_ops = {
 
 static __init int exynos_pm_syscore_init(void)
 {
+	if (soc_is_exynos5440())
+		return 0;
+
 	register_syscore_ops(&exynos_pm_syscore_ops);
 	return 0;
 }

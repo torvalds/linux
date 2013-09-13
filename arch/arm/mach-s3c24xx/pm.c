@@ -38,13 +38,14 @@
 #include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-mem.h>
 #include <mach/regs-irq.h>
 
 #include <asm/mach/time.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/pm.h>
+
+#include "regs-mem.h"
 
 #define PFX "s3c24xx-pm: "
 
@@ -121,7 +122,7 @@ void s3c_pm_configure_extint(void)
 	int pin;
 
 	/* for each of the external interrupts (EINT0..EINT15) we
-	 * need to check wether it is an external interrupt source,
+	 * need to check whether it is an external interrupt source,
 	 * and then configure it as an input if it is not
 	*/
 

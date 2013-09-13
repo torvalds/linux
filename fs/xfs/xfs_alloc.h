@@ -120,9 +120,6 @@ typedef struct xfs_alloc_arg {
 	char		isfl;		/* set if is freelist blocks - !acctg */
 	char		userdata;	/* set if this is user data */
 	xfs_fsblock_t	firstblock;	/* io first block allocated */
-	struct completion *done;
-	struct work_struct work;
-	int		result;
 } xfs_alloc_arg_t;
 
 /*
@@ -233,5 +230,8 @@ xfs_alloc_get_rec(
 	xfs_agblock_t		*bno,	/* output: starting block of extent */
 	xfs_extlen_t		*len,	/* output: length of extent */
 	int			*stat);	/* output: success/failure */
+
+extern const struct xfs_buf_ops xfs_agf_buf_ops;
+extern const struct xfs_buf_ops xfs_agfl_buf_ops;
 
 #endif	/* __XFS_ALLOC_H__ */

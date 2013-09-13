@@ -75,9 +75,10 @@ folder:
 
 There is a special folder for debugging information:
 
-#  ls /sys/kernel/debug/batman_adv/bat0/
-# bla_claim_table    log                socket             transtable_local
-# gateways           originators        transtable_global  vis_data
+# ls /sys/kernel/debug/batman_adv/bat0/
+# bla_backbone_table  log                 transtable_global
+# bla_claim_table     originators         transtable_local
+# gateways            socket              vis_data
 
 Some of the files contain all sort of status information  regard-
 ing  the  mesh  network.  For  example, you can view the table of
@@ -202,7 +203,8 @@ abled  during run time. Following log_levels are defined:
 2 - Enable messages related to route added / changed / deleted
 4 - Enable messages related to translation table operations
 8 - Enable messages related to bridge loop avoidance
-15 - enable all messages
+16 - Enable messaged related to DAT, ARP snooping and parsing
+31 - Enable all messages
 
 The debug output can be changed at runtime  using  the  file
 /sys/class/net/bat0/mesh/log_level. e.g.

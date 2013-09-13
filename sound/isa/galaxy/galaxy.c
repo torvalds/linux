@@ -84,7 +84,7 @@ MODULE_PARM_DESC(dma2, "Capture DMA # for " CRD_NAME " driver.");
 
 #define DSP_COMMAND_GET_VERSION	0xe1
 
-static int __devinit dsp_get_byte(void __iomem *port, u8 *val)
+static int dsp_get_byte(void __iomem *port, u8 *val)
 {
 	int loops = 1000;
 
@@ -97,7 +97,7 @@ static int __devinit dsp_get_byte(void __iomem *port, u8 *val)
 	return 0;
 }
 
-static int __devinit dsp_reset(void __iomem *port)
+static int dsp_reset(void __iomem *port)
 {
 	u8 val;
 
@@ -111,7 +111,7 @@ static int __devinit dsp_reset(void __iomem *port)
 	return 0;
 }
 
-static int __devinit dsp_command(void __iomem *port, u8 cmd)
+static int dsp_command(void __iomem *port, u8 cmd)
 {
 	int loops = 1000;
 
@@ -124,7 +124,7 @@ static int __devinit dsp_command(void __iomem *port, u8 cmd)
 	return 0;
 }
 
-static int __devinit dsp_get_version(void __iomem *port, u8 *major, u8 *minor)
+static int dsp_get_version(void __iomem *port, u8 *major, u8 *minor)
 {
 	int err;
 
@@ -161,7 +161,7 @@ static int __devinit dsp_get_version(void __iomem *port, u8 *major, u8 *minor)
 
 #define WSS_SIGNATURE		4
 
-static int __devinit wss_detect(void __iomem *wss_port)
+static int wss_detect(void __iomem *wss_port)
 {
 	if ((ioread8(wss_port + WSS_PORT_SIGNATURE) & 0x3f) != WSS_SIGNATURE)
 		return -ENODEV;
@@ -204,7 +204,7 @@ struct snd_galaxy {
 static u32 config[SNDRV_CARDS];
 static u8 wss_config[SNDRV_CARDS];
 
-static int __devinit snd_galaxy_match(struct device *dev, unsigned int n)
+static int snd_galaxy_match(struct device *dev, unsigned int n)
 {
 	if (!enable[n])
 		return 0;
@@ -379,7 +379,7 @@ fm:
 	return 1;
 }
 
-static int __devinit galaxy_init(struct snd_galaxy *galaxy, u8 *type)
+static int galaxy_init(struct snd_galaxy *galaxy, u8 *type)
 {
 	u8 major;
 	u8 minor;
@@ -411,7 +411,7 @@ static int __devinit galaxy_init(struct snd_galaxy *galaxy, u8 *type)
 	return 0;
 }
 
-static int __devinit galaxy_set_mode(struct snd_galaxy *galaxy, u8 mode)
+static int galaxy_set_mode(struct snd_galaxy *galaxy, u8 mode)
 {
 	int err;
 
@@ -449,7 +449,7 @@ static void galaxy_set_config(struct snd_galaxy *galaxy, u32 config)
 	msleep(10);
 }
 
-static void __devinit galaxy_config(struct snd_galaxy *galaxy, u32 config)
+static void galaxy_config(struct snd_galaxy *galaxy, u32 config)
 {
 	int i;
 
@@ -461,7 +461,7 @@ static void __devinit galaxy_config(struct snd_galaxy *galaxy, u32 config)
 	galaxy_set_config(galaxy, config);
 }
 
-static int __devinit galaxy_wss_config(struct snd_galaxy *galaxy, u8 wss_config)
+static int galaxy_wss_config(struct snd_galaxy *galaxy, u8 wss_config)
 {
 	int err;
 
@@ -498,7 +498,7 @@ static void snd_galaxy_free(struct snd_card *card)
 	}
 }
 
-static int __devinit snd_galaxy_probe(struct device *dev, unsigned int n)
+static int snd_galaxy_probe(struct device *dev, unsigned int n)
 {
 	struct snd_galaxy *galaxy;
 	struct snd_wss *chip;
@@ -620,17 +620,16 @@ error:
 	return err;
 }
 
-static int __devexit snd_galaxy_remove(struct device *dev, unsigned int n)
+static int snd_galaxy_remove(struct device *dev, unsigned int n)
 {
 	snd_card_free(dev_get_drvdata(dev));
-	dev_set_drvdata(dev, NULL);
 	return 0;
 }
 
 static struct isa_driver snd_galaxy_driver = {
 	.match		= snd_galaxy_match,
 	.probe		= snd_galaxy_probe,
-	.remove		= __devexit_p(snd_galaxy_remove),
+	.remove		= snd_galaxy_remove,
 
 	.driver		= {
 		.name	= DEV_NAME

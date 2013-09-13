@@ -1298,7 +1298,7 @@ static ssize_t spacc_stat_irq_thresh_store(struct device *dev,
 	struct spacc_engine *engine = spacc_dev_to_engine(dev);
 	unsigned long thresh;
 
-	if (strict_strtoul(buf, 0, &thresh))
+	if (kstrtoul(buf, 0, &thresh))
 		return -EINVAL;
 
 	thresh = clamp(thresh, 1UL, engine->fifo_sz - 1);
@@ -1688,8 +1688,6 @@ static const struct of_device_id spacc_of_id_table[] = {
 	{ .compatible = "picochip,spacc-l2" },
 	{}
 };
-#else /* CONFIG_OF */
-#define spacc_of_id_table NULL
 #endif /* CONFIG_OF */
 
 static bool spacc_is_compatible(struct platform_device *pdev,
@@ -1708,7 +1706,7 @@ static bool spacc_is_compatible(struct platform_device *pdev,
 	return false;
 }
 
-static int __devinit spacc_probe(struct platform_device *pdev)
+static int spacc_probe(struct platform_device *pdev)
 {
 	int i, err, ret = -EINVAL;
 	struct resource *mem, *irq;
@@ -1841,7 +1839,7 @@ static int __devinit spacc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit spacc_remove(struct platform_device *pdev)
+static int spacc_remove(struct platform_device *pdev)
 {
 	struct spacc_alg *alg, *next;
 	struct spacc_engine *engine = platform_get_drvdata(pdev);
@@ -1863,17 +1861,18 @@ static int __devexit spacc_remove(struct platform_device *pdev)
 static const struct platform_device_id spacc_id_table[] = {
 	{ "picochip,spacc-ipsec", },
 	{ "picochip,spacc-l2", },
+	{ }
 };
 
 static struct platform_driver spacc_driver = {
 	.probe		= spacc_probe,
-	.remove		= __devexit_p(spacc_remove),
+	.remove		= spacc_remove,
 	.driver		= {
 		.name	= "picochip,spacc",
 #ifdef CONFIG_PM
 		.pm	= &spacc_pm_ops,
 #endif /* CONFIG_PM */
-		.of_match_table	= spacc_of_id_table,
+		.of_match_table	= of_match_ptr(spacc_of_id_table),
 	},
 	.id_table	= spacc_id_table,
 };

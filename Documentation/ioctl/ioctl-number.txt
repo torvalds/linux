@@ -72,6 +72,7 @@ Code  Seq#(hex)	Include File		Comments
 0x06	all	linux/lp.h
 0x09	all	linux/raid/md_u.h
 0x10	00-0F	drivers/char/s390/vmcp.h
+0x10	10-1F	arch/s390/include/uapi/sclp_ctl.h
 0x12	all	linux/fs.h
 		linux/blkpg.h
 0x1b	all	InfiniBand Subsystem	<http://infiniband.sourceforge.net/>
@@ -131,6 +132,7 @@ Code  Seq#(hex)	Include File		Comments
 'H'	40-4F	sound/hdspm.h		conflict!
 'H'	40-4F	sound/hdsp.h		conflict!
 'H'	90	sound/usb/usx2y/usb_stream.h
+'H'	A0	uapi/linux/usb/cdc-wdm.h
 'H'	C0-F0	net/bluetooth/hci.h	conflict!
 'H'	C0-DF	net/bluetooth/hidp/hidp.h	conflict!
 'H'	C0-DF	net/bluetooth/cmtp/cmtp.h	conflict!
@@ -178,9 +180,8 @@ Code  Seq#(hex)	Include File		Comments
 'V'	C0	linux/ivtv.h		conflict!
 'V'	C0	media/davinci/vpfe_capture.h	conflict!
 'V'	C0	media/si4713.h		conflict!
-'V'	C0-CF	drivers/media/video/mxb.h	conflict!
 'W'	00-1F	linux/watchdog.h	conflict!
-'W'	00-1F	linux/wanrouter.h	conflict!
+'W'	00-1F	linux/wanrouter.h	conflict!		(pre 3.9)
 'W'	00-3F	sound/asound.h		conflict!
 'X'	all	fs/xfs/xfs_fs.h		conflict!
 		and fs/xfs/linux-2.6/xfs_ioctl32.h
@@ -204,8 +205,6 @@ Code  Seq#(hex)	Include File		Comments
 'c'	A0-AF   arch/x86/include/asm/msr.h	conflict!
 'd'	00-FF	linux/char/drm/drm/h	conflict!
 'd'	02-40	pcmcia/ds.h		conflict!
-'d'	10-3F	drivers/media/video/dabusb.h	conflict!
-'d'	C0-CF	drivers/media/video/saa7191.h	conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
 'e'	00-1F	drivers/net/irda/irtty-sir.h	conflict!
@@ -267,9 +266,7 @@ Code  Seq#(hex)	Include File		Comments
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!
 'v'	00-0F	linux/sonypi.h		conflict!
-'v'	C0-DF	media/pwc-ioctl.h	conflict!
 'v'	C0-FF	linux/meye.h		conflict!
-'v'	D0-DF	drivers/media/video/cpia2/cpia2dev.h	conflict!
 'w'	all				CERN SCI driver
 'y'	00-1F				packet based user level communications
 					<mailto:zapman@interlan.net>

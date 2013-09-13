@@ -43,8 +43,8 @@
 
 #define DEFLECT_ALL_IDS   0xFFFFFFFF /* all drivers selected */
 
-typedef struct
-{ ulong drvid;     /* driver ids, bit mapped */
+typedef struct {
+	ulong drvid;     /* driver ids, bit mapped */
 	char my_msn[35]; /* desired msn, subaddr allowed */
 	char caller[35]; /* caller id, partial string with * + subaddr allowed */
 	char to_nr[35];  /* deflected to number incl. subaddress */
@@ -65,18 +65,18 @@ typedef struct
 	u_char waittime; /* maximum wait time for proceeding */
 } divert_rule;
 
-typedef union
-{ int drv_version; /* return of driver version */
-	struct
-	{ int drvid;		/* id of driver */
+typedef union {
+	int drv_version; /* return of driver version */
+	struct {
+		int drvid;		/* id of driver */
 		char drvnam[30];	/* name of driver */
 	} getid;
-	struct
-	{ int ruleidx;	/* index of rule */
+	struct {
+		int ruleidx;	/* index of rule */
 		divert_rule rule;	/* rule parms */
 	} getsetrule;
-	struct
-	{ u_char subcmd;  /* 0 = hangup/reject,
+	struct {
+		u_char subcmd;  /* 0 = hangup/reject,
 			     1 = alert,
 			     2 = deflect */
 		ulong callid;   /* id of call delivered by ascii output */
@@ -84,8 +84,8 @@ typedef union
 				   else uus1 string (maxlen 31),
 				   data from rule used if empty */
 	} fwd_ctrl;
-	struct
-	{ int drvid;      /* id of driver */
+	struct {
+		int drvid;      /* id of driver */
 		u_char cfproc;  /* cfu = 0, cfb = 1, cfnr = 2 */
 		ulong procid;   /* process id returned when no error */
 		u_char service; /* basically coded service, 0 = all */
@@ -104,8 +104,8 @@ typedef union
 /**************************************************/
 /* structure keeping ascii info for device output */
 /**************************************************/
-struct divert_info
-{ struct divert_info *next;
+struct divert_info {
+	struct divert_info *next;
 	ulong usage_cnt; /* number of files still to work */
 	char info_start[2]; /* info string start */
 };

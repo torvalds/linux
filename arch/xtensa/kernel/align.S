@@ -146,9 +146,9 @@
  *   a0:	trashed, original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original in DEPC
- *   a3:	dispatch table
+ *   a3:	a3
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
+ *   excsave_1:	dispatch table
  *
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
@@ -170,15 +170,14 @@ ENTRY(fast_unaligned)
 	s32i	a7, a2, PT_AREG7
 	s32i	a8, a2, PT_AREG8
 
-	rsr	a0, DEPC
-	xsr	a3, EXCSAVE_1
+	rsr	a0, depc
 	s32i	a0, a2, PT_AREG2
 	s32i	a3, a2, PT_AREG3
 
 	/* Keep value of SAR in a0 */
 
-	rsr	a0, SAR
-	rsr	a8, EXCVADDR		# load unaligned memory address
+	rsr	a0, sar
+	rsr	a8, excvaddr		# load unaligned memory address
 
 	/* Now, identify one of the following load/store instructions.
 	 *
@@ -197,7 +196,7 @@ ENTRY(fast_unaligned)
 
 	/* Extract the instruction that caused the unaligned access. */
 
-	rsr	a7, EPC_1	# load exception address
+	rsr	a7, epc1	# load exception address
 	movi	a3, ~3
 	and	a3, a3, a7	# mask lower bits
 
@@ -275,16 +274,16 @@ ENTRY(fast_unaligned)
 1:
 
 #if XCHAL_HAVE_LOOPS
-	rsr	a5, LEND		# check if we reached LEND
+	rsr	a5, lend		# check if we reached LEND
 	bne	a7, a5, 1f
-	rsr	a5, LCOUNT		# and LCOUNT != 0
+	rsr	a5, lcount		# and LCOUNT != 0
 	beqz	a5, 1f
 	addi	a5, a5, -1		# decrement LCOUNT and set
-	rsr	a7, LBEG		# set PC to LBEGIN
-	wsr	a5, LCOUNT
+	rsr	a7, lbeg		# set PC to LBEGIN
+	wsr	a5, lcount
 #endif
 
-1:	wsr	a7, EPC_1		# skip load instruction
+1:	wsr	a7, epc1		# skip load instruction
 	extui	a4, a4, INSN_T, 4	# extract target register
 	movi	a5, .Lload_table
 	addx8	a4, a4, a5
@@ -355,16 +354,16 @@ ENTRY(fast_unaligned)
 
 1:
 #if XCHAL_HAVE_LOOPS
-	rsr	a4, LEND		# check if we reached LEND
+	rsr	a4, lend		# check if we reached LEND
 	bne	a7, a4, 1f
-	rsr	a4, LCOUNT		# and LCOUNT != 0
+	rsr	a4, lcount		# and LCOUNT != 0
 	beqz	a4, 1f
 	addi	a4, a4, -1		# decrement LCOUNT and set
-	rsr	a7, LBEG		# set PC to LBEGIN
-	wsr	a4, LCOUNT
+	rsr	a7, lbeg		# set PC to LBEGIN
+	wsr	a4, lcount
 #endif
 
-1:	wsr	a7, EPC_1		# skip store instruction
+1:	wsr	a7, epc1		# skip store instruction
 	movi	a4, ~3
 	and	a4, a4, a8		# align memory address
 
@@ -406,7 +405,7 @@ ENTRY(fast_unaligned)
 
 .Lexit:
 	movi	a4, 0
-	rsr	a3, EXCSAVE_1
+	rsr	a3, excsave1
 	s32i	a4, a3, EXC_TABLE_FIXUP
 
 	/* Restore working register */
@@ -420,7 +419,7 @@ ENTRY(fast_unaligned)
 
 	/* restore SAR and return */
 
-	wsr	a0, SAR
+	wsr	a0, sar
 	l32i	a0, a2, PT_AREG0
 	l32i	a2, a2, PT_AREG2
 	rfe
@@ -438,11 +437,11 @@ ENTRY(fast_unaligned)
 	l32i	a6, a2, PT_AREG6
 	l32i	a5, a2, PT_AREG5
 	l32i	a4, a2, PT_AREG4
-	wsr	a0, SAR
+	wsr	a0, sar
 	mov	a1, a2
 
-	rsr	a0, PS
-        bbsi.l  a2, PS_UM_BIT, 1f     # jump if user mode
+	rsr	a0, ps
+	bbsi.l  a2, PS_UM_BIT, 1f     # jump if user mode
 
 	movi	a0, _kernel_exception
 	jx	a0
@@ -450,6 +449,6 @@ ENTRY(fast_unaligned)
 1:	movi	a0, _user_exception
 	jx	a0
 
+ENDPROC(fast_unaligned)
 
 #endif /* XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION */
-

@@ -1,0 +1,165 @@
+/*
+ * pm9g45.dts - Device Tree file for Ronetix pm9g45 board
+ *
+ *  Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * Licensed under GPLv2.
+ */
+/dts-v1/;
+#include "at91sam9g45.dtsi"
+
+/ {
+	model = "Ronetix pm9g45";
+	compatible = "ronetix,pm9g45", "atmel,at91sam9g45", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	memory {
+		reg = <0x70000000 0x8000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <12000000>;
+		};
+	};
+
+	ahb {
+		apb {
+			dbgu: serial@ffffee00 {
+				status = "okay";
+			};
+
+			pinctrl@fffff200 {
+
+				board {
+					pinctrl_board_nand: nand0-board {
+						atmel,pins =
+							<AT91_PIOD 3 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP	/* PD3 gpio RDY pin pull_up*/
+							 AT91_PIOC 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PC14 gpio enable pin pull_up */
+					};
+				};
+
+				mmc {
+					pinctrl_board_mmc: mmc0-board {
+						atmel,pins =
+							<AT91_PIOD 6 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PD6 gpio CD pin pull_up and deglitch */
+					};
+				};
+			};
+
+			mmc0: mmc@fff80000 {
+				pinctrl-0 = <
+					&pinctrl_board_mmc
+					&pinctrl_mmc0_slot0_clk_cmd_dat0
+					&pinctrl_mmc0_slot0_dat1_3>;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioD 6 GPIO_ACTIVE_HIGH>;
+				};
+			};
+
+			macb0: ethernet@fffbc000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt;
+			pinctrl-0 = <&pinctrl_board_nand>;
+
+			gpios = <&pioD 3 GPIO_ACTIVE_HIGH
+				 &pioC 14 GPIO_ACTIVE_HIGH
+				 0
+				>;
+
+			status = "okay";
+
+			at91bootstrap@0 {
+				label = "at91bootstrap";
+				reg = <0x0 0x20000>;
+			};
+
+			barebox@20000 {
+				label = "barebox";
+				reg = <0x20000 0x40000>;
+			};
+
+			bareboxenv@60000 {
+				label = "bareboxenv";
+				reg = <0x60000 0x1A0000>;
+			};
+
+			kernel@200000 {
+				label = "bareboxenv2";
+				reg = <0x200000 0x300000>;
+			};
+
+			kernel@500000 {
+				label = "root";
+				reg = <0x500000 0x400000>;
+			};
+
+			data@900000 {
+				label = "data";
+				reg = <0x900000 0x8340000>;
+			};
+		};
+
+		usb0: ohci@00700000 {
+			status = "okay";
+			num-ports = <2>;
+		};
+
+		usb1: ehci@00800000 {
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led0 {
+			label = "led0";
+			gpios = <&pioD 0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "nand-disk";
+		};
+
+		led1 {
+			label = "led1";
+			gpios = <&pioD 31 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		right {
+			label = "SW4";
+			gpios = <&pioE 7 GPIO_ACTIVE_LOW>;
+			linux,code = <106>;
+		};
+
+		up {
+			label = "SW3";
+			gpios = <&pioE 8 GPIO_ACTIVE_LOW>;
+			linux,code = <103>;
+		};
+	};
+};

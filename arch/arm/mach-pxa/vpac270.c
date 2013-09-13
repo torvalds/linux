@@ -33,12 +33,12 @@
 #include <mach/pxa27x.h>
 #include <mach/audio.h>
 #include <mach/vpac270.h>
-#include <mach/mmc.h>
-#include <mach/pxafb.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/udc.h>
-#include <mach/pata_pxa.h>
+#include <linux/platform_data/ata-pxa.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -719,7 +719,7 @@ MACHINE_START(VPAC270, "Voipac PXA270")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= vpac270_init,
 	.restart	= pxa_restart,
 MACHINE_END

@@ -17,8 +17,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * Author:       Ken Eppinett
- *               David Schleef <ds@schleef.org>
+ * Author:	 Ken Eppinett
+ *		 David Schleef <ds@schleef.org>
  */
 
 #include <linux/init.h>
@@ -153,7 +153,7 @@ struct resource non_dvr_calliope_resources[] __initdata =
 	 * End of Resource marker
 	 */
 	{
-		.flags  = 0,
+		.flags	= 0,
 	},
 };
 
@@ -260,7 +260,7 @@ struct resource non_dvr_vze_calliope_resources[] __initdata =
 	 * End of Resource marker
 	 */
 	{
-		.flags  = 0,
+		.flags	= 0,
 	},
 };
 
@@ -380,6 +380,6 @@ struct resource non_dvr_vzf_calliope_resources[] __initdata =
 	 * End of Resource marker
 	 */
 	{
-		.flags  = 0,
+		.flags	= 0,
 	},
 };

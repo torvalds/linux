@@ -91,24 +91,6 @@ config ACPI_EC_DEBUGFS
 	  Thus this option is a debug option that helps to write ACPI drivers
 	  and can be used to identify ACPI code or EC firmware bugs.
 
-config ACPI_PROC_EVENT
-	bool "Deprecated /proc/acpi/event support"
-	depends on PROC_FS
-	default y
-	help
-	  A user-space daemon, acpid, typically reads /proc/acpi/event
-	  and handles all ACPI-generated events.
-
-	  These events are now delivered to user-space either
-	  via the input layer or as netlink events.
-
-	  This build option enables the old code for legacy
-	  user-space implementation.  After some time, this will
-	  be moved under CONFIG_ACPI_PROCFS, and then deleted.
-
-	  Say Y here to retain the old behaviour.  Say N if your
-	  user-space is newer than kernel 2.6.23 (September 2007).
-
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86
@@ -176,7 +158,6 @@ config ACPI_FAN
 
 config ACPI_DOCK
 	bool "Dock"
-	depends on EXPERIMENTAL
 	help
 	  This driver supports ACPI-controlled docking stations and removable
 	  drive bays such as the IBM Ultrabay and the Dell Module Bay.
@@ -196,7 +177,7 @@ config ACPI_PROCESSOR
 	  the module will be called processor.
 config ACPI_IPMI
 	tristate "IPMI"
-	depends on EXPERIMENTAL && IPMI_SI && IPMI_HANDLER
+	depends on IPMI_SI && IPMI_HANDLER
 	default n
 	help
 	  This driver enables the ACPI to access the BMC controller. And it
@@ -208,14 +189,13 @@ config ACPI_IPMI
 
 config ACPI_HOTPLUG_CPU
 	bool
-	depends on EXPERIMENTAL && ACPI_PROCESSOR && HOTPLUG_CPU
+	depends on ACPI_PROCESSOR && HOTPLUG_CPU
 	select ACPI_CONTAINER
 	default y
 
 config ACPI_PROCESSOR_AGGREGATOR
 	tristate "Processor Aggregator"
 	depends on ACPI_PROCESSOR
-	depends on EXPERIMENTAL
 	depends on X86
 	help
 	  ACPI 4.0 defines processor Aggregator, which enables OS to perform
@@ -261,6 +241,16 @@ config ACPI_CUSTOM_DSDT
 	bool
 	default ACPI_CUSTOM_DSDT_FILE != ""
 
+config ACPI_INITRD_TABLE_OVERRIDE
+	bool "ACPI tables override via initrd"
+	depends on BLK_DEV_INITRD && X86
+	default n
+	help
+	  This option provides functionality to override arbitrary ACPI tables
+	  via initrd. No functional change if no ACPI tables are passed via
+	  initrd, therefore it's safe to say Y.
+	  See Documentation/acpi/initrd_table_override.txt for details
+
 config ACPI_BLACKLIST_YEAR
 	int "Disable ACPI for systems before Jan 1st this year" if X86_32
 	default 0
@@ -284,16 +274,8 @@ config ACPI_DEBUG
 	  Documentation/kernel-parameters.txt to control the type and
 	  amount of debug output.
 
-config ACPI_DEBUG_FUNC_TRACE
-	bool "Additionally enable ACPI function tracing"
-	default n
-	depends on ACPI_DEBUG
-	help
-	  ACPI Debug Statements slow down ACPI processing. Function trace
-	  is about half of the penalty and is rarely useful.
-
 config ACPI_PCI_SLOT
-	tristate "PCI slot detection driver"
+	bool "PCI slot detection driver"
 	depends on SYSFS
 	default n
 	help
@@ -301,9 +283,6 @@ config ACPI_PCI_SLOT
 	  slots in the system.  This can help correlate PCI bus addresses,
 	  i.e., segment/bus/device/function tuples, with physical slots in
 	  the system.  If you are unsure, say N.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called pci_slot.
 
 config X86_PM_TIMER
 	bool "Power Management Timer Support" if EXPERT
@@ -322,9 +301,8 @@ config X86_PM_TIMER
 	  systems require this timer. 
 
 config ACPI_CONTAINER
-	tristate "Container and Module Devices (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU || ACPI_HOTPLUG_IO)
+	bool "Container and Module Devices"
+	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU)
 	help
 	  This driver supports ACPI Container and Module devices (IDs
 	  ACPI0004, PNP0A05, and PNP0A06).
@@ -335,9 +313,8 @@ config ACPI_CONTAINER
 	  the module will be called container.
 
 config ACPI_HOTPLUG_MEMORY
-	tristate "Memory Hotplug"
+	bool "Memory Hotplug"
 	depends on MEMORY_HOTPLUG
-	default n
 	help
 	  This driver supports ACPI memory hotplug.  The driver
 	  fields notifications on ACPI memory devices (PNP0C80),
@@ -385,8 +362,8 @@ config ACPI_CUSTOM_METHOD
 	  to override that restriction).
 
 config ACPI_BGRT
-        tristate "Boottime Graphics Resource Table support"
-        default n
+	bool "Boottime Graphics Resource Table support"
+	depends on EFI && X86
         help
 	  This driver adds support for exposing the ACPI Boottime Graphics
 	  Resource Table, which allows the operating system to obtain

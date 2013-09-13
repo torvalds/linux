@@ -302,7 +302,7 @@ static inline bool llc_dgram_match(const struct llc_sap *sap,
 
      return sk->sk_type == SOCK_DGRAM &&
 	  llc->laddr.lsap == laddr->lsap &&
-	  llc_mac_match(llc->laddr.mac, laddr->mac);
+	  ether_addr_equal(llc->laddr.mac, laddr->mac);
 }
 
 /**
@@ -393,12 +393,11 @@ static void llc_sap_mcast(struct llc_sap *sap,
 {
 	int i = 0, count = 256 / sizeof(struct sock *);
 	struct sock *sk, *stack[count];
-	struct hlist_node *node;
 	struct llc_sock *llc;
 	struct hlist_head *dev_hb = llc_sk_dev_hash(sap, skb->dev->ifindex);
 
 	spin_lock_bh(&sap->sk_lock);
-	hlist_for_each_entry(llc, node, dev_hb, dev_hash_node) {
+	hlist_for_each_entry(llc, dev_hb, dev_hash_node) {
 
 		sk = &llc->sk;
 
@@ -426,7 +425,7 @@ void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb)
 	llc_pdu_decode_da(skb, laddr.mac);
 	llc_pdu_decode_dsap(skb, &laddr.lsap);
 
-	if (llc_mac_multicast(laddr.mac)) {
+	if (is_multicast_ether_addr(laddr.mac)) {
 		llc_sap_mcast(sap, &laddr, skb);
 		kfree_skb(skb);
 	} else {

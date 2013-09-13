@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2010 Cavium Networks
+ * Copyright (c) 2003-2012 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -152,8 +152,13 @@
 union cvmx_npi_base_addr_inputx {
 	uint64_t u64;
 	struct cvmx_npi_base_addr_inputx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t baddr:61;
 		uint64_t reserved_0_2:3;
+#else
+		uint64_t reserved_0_2:3;
+		uint64_t baddr:61;
+#endif
 	} s;
 	struct cvmx_npi_base_addr_inputx_s cn30xx;
 	struct cvmx_npi_base_addr_inputx_s cn31xx;
@@ -167,8 +172,13 @@ union cvmx_npi_base_addr_inputx {
 union cvmx_npi_base_addr_outputx {
 	uint64_t u64;
 	struct cvmx_npi_base_addr_outputx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t baddr:61;
 		uint64_t reserved_0_2:3;
+#else
+		uint64_t reserved_0_2:3;
+		uint64_t baddr:61;
+#endif
 	} s;
 	struct cvmx_npi_base_addr_outputx_s cn30xx;
 	struct cvmx_npi_base_addr_outputx_s cn31xx;
@@ -182,6 +192,7 @@ union cvmx_npi_base_addr_outputx {
 union cvmx_npi_bist_status {
 	uint64_t u64;
 	struct cvmx_npi_bist_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_20_63:44;
 		uint64_t csr_bs:1;
 		uint64_t dif_bs:1;
@@ -203,8 +214,32 @@ union cvmx_npi_bist_status {
 		uint64_t dob_bs:1;
 		uint64_t pdf_bs:1;
 		uint64_t dpi_bs:1;
+#else
+		uint64_t dpi_bs:1;
+		uint64_t pdf_bs:1;
+		uint64_t dob_bs:1;
+		uint64_t nus_bs:1;
+		uint64_t pos_bs:1;
+		uint64_t pof3_bs:1;
+		uint64_t pof2_bs:1;
+		uint64_t pof1_bs:1;
+		uint64_t pof0_bs:1;
+		uint64_t pig_bs:1;
+		uint64_t pgf_bs:1;
+		uint64_t rdnl_bs:1;
+		uint64_t pcad_bs:1;
+		uint64_t pcac_bs:1;
+		uint64_t rdn_bs:1;
+		uint64_t pcn_bs:1;
+		uint64_t pcnc_bs:1;
+		uint64_t rdp_bs:1;
+		uint64_t dif_bs:1;
+		uint64_t csr_bs:1;
+		uint64_t reserved_20_63:44;
+#endif
 	} s;
 	struct cvmx_npi_bist_status_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_20_63:44;
 		uint64_t csr_bs:1;
 		uint64_t dif_bs:1;
@@ -224,11 +259,33 @@ union cvmx_npi_bist_status {
 		uint64_t dob_bs:1;
 		uint64_t pdf_bs:1;
 		uint64_t dpi_bs:1;
+#else
+		uint64_t dpi_bs:1;
+		uint64_t pdf_bs:1;
+		uint64_t dob_bs:1;
+		uint64_t nus_bs:1;
+		uint64_t pos_bs:1;
+		uint64_t reserved_5_7:3;
+		uint64_t pof0_bs:1;
+		uint64_t pig_bs:1;
+		uint64_t pgf_bs:1;
+		uint64_t rdnl_bs:1;
+		uint64_t pcad_bs:1;
+		uint64_t pcac_bs:1;
+		uint64_t rdn_bs:1;
+		uint64_t pcn_bs:1;
+		uint64_t pcnc_bs:1;
+		uint64_t rdp_bs:1;
+		uint64_t dif_bs:1;
+		uint64_t csr_bs:1;
+		uint64_t reserved_20_63:44;
+#endif
 	} cn30xx;
 	struct cvmx_npi_bist_status_s cn31xx;
 	struct cvmx_npi_bist_status_s cn38xx;
 	struct cvmx_npi_bist_status_s cn38xxp2;
 	struct cvmx_npi_bist_status_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_20_63:44;
 		uint64_t csr_bs:1;
 		uint64_t dif_bs:1;
@@ -249,6 +306,28 @@ union cvmx_npi_bist_status {
 		uint64_t dob_bs:1;
 		uint64_t pdf_bs:1;
 		uint64_t dpi_bs:1;
+#else
+		uint64_t dpi_bs:1;
+		uint64_t pdf_bs:1;
+		uint64_t dob_bs:1;
+		uint64_t nus_bs:1;
+		uint64_t pos_bs:1;
+		uint64_t reserved_5_6:2;
+		uint64_t pof1_bs:1;
+		uint64_t pof0_bs:1;
+		uint64_t pig_bs:1;
+		uint64_t pgf_bs:1;
+		uint64_t rdnl_bs:1;
+		uint64_t pcad_bs:1;
+		uint64_t pcac_bs:1;
+		uint64_t rdn_bs:1;
+		uint64_t pcn_bs:1;
+		uint64_t pcnc_bs:1;
+		uint64_t rdp_bs:1;
+		uint64_t dif_bs:1;
+		uint64_t csr_bs:1;
+		uint64_t reserved_20_63:44;
+#endif
 	} cn50xx;
 	struct cvmx_npi_bist_status_s cn58xx;
 	struct cvmx_npi_bist_status_s cn58xxp1;
@@ -257,9 +336,15 @@ union cvmx_npi_bist_status {
 union cvmx_npi_buff_size_outputx {
 	uint64_t u64;
 	struct cvmx_npi_buff_size_outputx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_23_63:41;
 		uint64_t isize:7;
 		uint64_t bsize:16;
+#else
+		uint64_t bsize:16;
+		uint64_t isize:7;
+		uint64_t reserved_23_63:41;
+#endif
 	} s;
 	struct cvmx_npi_buff_size_outputx_s cn30xx;
 	struct cvmx_npi_buff_size_outputx_s cn31xx;
@@ -273,9 +358,15 @@ union cvmx_npi_buff_size_outputx {
 union cvmx_npi_comp_ctl {
 	uint64_t u64;
 	struct cvmx_npi_comp_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_10_63:54;
 		uint64_t pctl:5;
 		uint64_t nctl:5;
+#else
+		uint64_t nctl:5;
+		uint64_t pctl:5;
+		uint64_t reserved_10_63:54;
+#endif
 	} s;
 	struct cvmx_npi_comp_ctl_s cn50xx;
 	struct cvmx_npi_comp_ctl_s cn58xx;
@@ -285,6 +376,7 @@ union cvmx_npi_comp_ctl {
 union cvmx_npi_ctl_status {
 	uint64_t u64;
 	struct cvmx_npi_ctl_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_63_63:1;
 		uint64_t chip_rev:8;
 		uint64_t dis_pniw:1;
@@ -306,8 +398,32 @@ union cvmx_npi_ctl_status {
 		uint64_t max_word:5;
 		uint64_t reserved_10_31:22;
 		uint64_t timer:10;
+#else
+		uint64_t timer:10;
+		uint64_t reserved_10_31:22;
+		uint64_t max_word:5;
+		uint64_t reserved_37_39:3;
+		uint64_t wait_com:1;
+		uint64_t pci_wdis:1;
+		uint64_t ins0_64b:1;
+		uint64_t ins1_64b:1;
+		uint64_t ins2_64b:1;
+		uint64_t ins3_64b:1;
+		uint64_t ins0_enb:1;
+		uint64_t ins1_enb:1;
+		uint64_t ins2_enb:1;
+		uint64_t ins3_enb:1;
+		uint64_t out0_enb:1;
+		uint64_t out1_enb:1;
+		uint64_t out2_enb:1;
+		uint64_t out3_enb:1;
+		uint64_t dis_pniw:1;
+		uint64_t chip_rev:8;
+		uint64_t reserved_63_63:1;
+#endif
 	} s;
 	struct cvmx_npi_ctl_status_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_63_63:1;
 		uint64_t chip_rev:8;
 		uint64_t dis_pniw:1;
@@ -323,8 +439,26 @@ union cvmx_npi_ctl_status {
 		uint64_t max_word:5;
 		uint64_t reserved_10_31:22;
 		uint64_t timer:10;
+#else
+		uint64_t timer:10;
+		uint64_t reserved_10_31:22;
+		uint64_t max_word:5;
+		uint64_t reserved_37_39:3;
+		uint64_t wait_com:1;
+		uint64_t pci_wdis:1;
+		uint64_t ins0_64b:1;
+		uint64_t reserved_43_45:3;
+		uint64_t ins0_enb:1;
+		uint64_t reserved_47_49:3;
+		uint64_t out0_enb:1;
+		uint64_t reserved_51_53:3;
+		uint64_t dis_pniw:1;
+		uint64_t chip_rev:8;
+		uint64_t reserved_63_63:1;
+#endif
 	} cn30xx;
 	struct cvmx_npi_ctl_status_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_63_63:1;
 		uint64_t chip_rev:8;
 		uint64_t dis_pniw:1;
@@ -343,6 +477,26 @@ union cvmx_npi_ctl_status {
 		uint64_t max_word:5;
 		uint64_t reserved_10_31:22;
 		uint64_t timer:10;
+#else
+		uint64_t timer:10;
+		uint64_t reserved_10_31:22;
+		uint64_t max_word:5;
+		uint64_t reserved_37_39:3;
+		uint64_t wait_com:1;
+		uint64_t pci_wdis:1;
+		uint64_t ins0_64b:1;
+		uint64_t ins1_64b:1;
+		uint64_t reserved_44_45:2;
+		uint64_t ins0_enb:1;
+		uint64_t ins1_enb:1;
+		uint64_t reserved_48_49:2;
+		uint64_t out0_enb:1;
+		uint64_t out1_enb:1;
+		uint64_t reserved_52_53:2;
+		uint64_t dis_pniw:1;
+		uint64_t chip_rev:8;
+		uint64_t reserved_63_63:1;
+#endif
 	} cn31xx;
 	struct cvmx_npi_ctl_status_s cn38xx;
 	struct cvmx_npi_ctl_status_s cn38xxp2;
@@ -354,8 +508,13 @@ union cvmx_npi_ctl_status {
 union cvmx_npi_dbg_select {
 	uint64_t u64;
 	struct cvmx_npi_dbg_select_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_16_63:48;
 		uint64_t dbg_sel:16;
+#else
+		uint64_t dbg_sel:16;
+		uint64_t reserved_16_63:48;
+#endif
 	} s;
 	struct cvmx_npi_dbg_select_s cn30xx;
 	struct cvmx_npi_dbg_select_s cn31xx;
@@ -369,6 +528,7 @@ union cvmx_npi_dbg_select {
 union cvmx_npi_dma_control {
 	uint64_t u64;
 	struct cvmx_npi_dma_control_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_36_63:28;
 		uint64_t b0_lend:1;
 		uint64_t dwb_denb:1;
@@ -382,6 +542,21 @@ union cvmx_npi_dma_control {
 		uint64_t hp_enb:1;
 		uint64_t lp_enb:1;
 		uint64_t csize:14;
+#else
+		uint64_t csize:14;
+		uint64_t lp_enb:1;
+		uint64_t hp_enb:1;
+		uint64_t o_mode:1;
+		uint64_t o_es:2;
+		uint64_t o_ns:1;
+		uint64_t o_ro:1;
+		uint64_t o_add1:1;
+		uint64_t fpa_que:3;
+		uint64_t dwb_ichk:9;
+		uint64_t dwb_denb:1;
+		uint64_t b0_lend:1;
+		uint64_t reserved_36_63:28;
+#endif
 	} s;
 	struct cvmx_npi_dma_control_s cn30xx;
 	struct cvmx_npi_dma_control_s cn31xx;
@@ -395,9 +570,15 @@ union cvmx_npi_dma_control {
 union cvmx_npi_dma_highp_counts {
 	uint64_t u64;
 	struct cvmx_npi_dma_highp_counts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_39_63:25;
 		uint64_t fcnt:7;
 		uint64_t dbell:32;
+#else
+		uint64_t dbell:32;
+		uint64_t fcnt:7;
+		uint64_t reserved_39_63:25;
+#endif
 	} s;
 	struct cvmx_npi_dma_highp_counts_s cn30xx;
 	struct cvmx_npi_dma_highp_counts_s cn31xx;
@@ -411,9 +592,15 @@ union cvmx_npi_dma_highp_counts {
 union cvmx_npi_dma_highp_naddr {
 	uint64_t u64;
 	struct cvmx_npi_dma_highp_naddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_40_63:24;
 		uint64_t state:4;
 		uint64_t addr:36;
+#else
+		uint64_t addr:36;
+		uint64_t state:4;
+		uint64_t reserved_40_63:24;
+#endif
 	} s;
 	struct cvmx_npi_dma_highp_naddr_s cn30xx;
 	struct cvmx_npi_dma_highp_naddr_s cn31xx;
@@ -427,9 +614,15 @@ union cvmx_npi_dma_highp_naddr {
 union cvmx_npi_dma_lowp_counts {
 	uint64_t u64;
 	struct cvmx_npi_dma_lowp_counts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_39_63:25;
 		uint64_t fcnt:7;
 		uint64_t dbell:32;
+#else
+		uint64_t dbell:32;
+		uint64_t fcnt:7;
+		uint64_t reserved_39_63:25;
+#endif
 	} s;
 	struct cvmx_npi_dma_lowp_counts_s cn30xx;
 	struct cvmx_npi_dma_lowp_counts_s cn31xx;
@@ -443,9 +636,15 @@ union cvmx_npi_dma_lowp_counts {
 union cvmx_npi_dma_lowp_naddr {
 	uint64_t u64;
 	struct cvmx_npi_dma_lowp_naddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_40_63:24;
 		uint64_t state:4;
 		uint64_t addr:36;
+#else
+		uint64_t addr:36;
+		uint64_t state:4;
+		uint64_t reserved_40_63:24;
+#endif
 	} s;
 	struct cvmx_npi_dma_lowp_naddr_s cn30xx;
 	struct cvmx_npi_dma_lowp_naddr_s cn31xx;
@@ -459,8 +658,13 @@ union cvmx_npi_dma_lowp_naddr {
 union cvmx_npi_highp_dbell {
 	uint64_t u64;
 	struct cvmx_npi_highp_dbell_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_16_63:48;
 		uint64_t dbell:16;
+#else
+		uint64_t dbell:16;
+		uint64_t reserved_16_63:48;
+#endif
 	} s;
 	struct cvmx_npi_highp_dbell_s cn30xx;
 	struct cvmx_npi_highp_dbell_s cn31xx;
@@ -474,8 +678,13 @@ union cvmx_npi_highp_dbell {
 union cvmx_npi_highp_ibuff_saddr {
 	uint64_t u64;
 	struct cvmx_npi_highp_ibuff_saddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_36_63:28;
 		uint64_t saddr:36;
+#else
+		uint64_t saddr:36;
+		uint64_t reserved_36_63:28;
+#endif
 	} s;
 	struct cvmx_npi_highp_ibuff_saddr_s cn30xx;
 	struct cvmx_npi_highp_ibuff_saddr_s cn31xx;
@@ -489,6 +698,7 @@ union cvmx_npi_highp_ibuff_saddr {
 union cvmx_npi_input_control {
 	uint64_t u64;
 	struct cvmx_npi_input_control_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_23_63:41;
 		uint64_t pkt_rr:1;
 		uint64_t pbp_dhi:13;
@@ -499,8 +709,21 @@ union cvmx_npi_input_control {
 		uint64_t nsr:1;
 		uint64_t esr:2;
 		uint64_t ror:1;
+#else
+		uint64_t ror:1;
+		uint64_t esr:2;
+		uint64_t nsr:1;
+		uint64_t use_csr:1;
+		uint64_t d_ror:1;
+		uint64_t d_esr:2;
+		uint64_t d_nsr:1;
+		uint64_t pbp_dhi:13;
+		uint64_t pkt_rr:1;
+		uint64_t reserved_23_63:41;
+#endif
 	} s;
 	struct cvmx_npi_input_control_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_22_63:42;
 		uint64_t pbp_dhi:13;
 		uint64_t d_nsr:1;
@@ -510,6 +733,17 @@ union cvmx_npi_input_control {
 		uint64_t nsr:1;
 		uint64_t esr:2;
 		uint64_t ror:1;
+#else
+		uint64_t ror:1;
+		uint64_t esr:2;
+		uint64_t nsr:1;
+		uint64_t use_csr:1;
+		uint64_t d_ror:1;
+		uint64_t d_esr:2;
+		uint64_t d_nsr:1;
+		uint64_t pbp_dhi:13;
+		uint64_t reserved_22_63:42;
+#endif
 	} cn30xx;
 	struct cvmx_npi_input_control_cn30xx cn31xx;
 	struct cvmx_npi_input_control_s cn38xx;
@@ -522,6 +756,7 @@ union cvmx_npi_input_control {
 union cvmx_npi_int_enb {
 	uint64_t u64;
 	struct cvmx_npi_int_enb_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		uint64_t q1_a_f:1;
 		uint64_t q1_s_e:1;
@@ -585,8 +820,74 @@ union cvmx_npi_int_enb {
 		uint64_t pci_rsl:1;
 		uint64_t rml_wto:1;
 		uint64_t rml_rto:1;
+#else
+		uint64_t rml_rto:1;
+		uint64_t rml_wto:1;
+		uint64_t pci_rsl:1;
+		uint64_t po0_2sml:1;
+		uint64_t po1_2sml:1;
+		uint64_t po2_2sml:1;
+		uint64_t po3_2sml:1;
+		uint64_t i0_rtout:1;
+		uint64_t i1_rtout:1;
+		uint64_t i2_rtout:1;
+		uint64_t i3_rtout:1;
+		uint64_t i0_overf:1;
+		uint64_t i1_overf:1;
+		uint64_t i2_overf:1;
+		uint64_t i3_overf:1;
+		uint64_t p0_rtout:1;
+		uint64_t p1_rtout:1;
+		uint64_t p2_rtout:1;
+		uint64_t p3_rtout:1;
+		uint64_t p0_perr:1;
+		uint64_t p1_perr:1;
+		uint64_t p2_perr:1;
+		uint64_t p3_perr:1;
+		uint64_t g0_rtout:1;
+		uint64_t g1_rtout:1;
+		uint64_t g2_rtout:1;
+		uint64_t g3_rtout:1;
+		uint64_t p0_pperr:1;
+		uint64_t p1_pperr:1;
+		uint64_t p2_pperr:1;
+		uint64_t p3_pperr:1;
+		uint64_t p0_ptout:1;
+		uint64_t p1_ptout:1;
+		uint64_t p2_ptout:1;
+		uint64_t p3_ptout:1;
+		uint64_t i0_pperr:1;
+		uint64_t i1_pperr:1;
+		uint64_t i2_pperr:1;
+		uint64_t i3_pperr:1;
+		uint64_t win_rto:1;
+		uint64_t p_dperr:1;
+		uint64_t iobdma:1;
+		uint64_t fcr_s_e:1;
+		uint64_t fcr_a_f:1;
+		uint64_t pcr_s_e:1;
+		uint64_t pcr_a_f:1;
+		uint64_t q2_s_e:1;
+		uint64_t q2_a_f:1;
+		uint64_t q3_s_e:1;
+		uint64_t q3_a_f:1;
+		uint64_t com_s_e:1;
+		uint64_t com_a_f:1;
+		uint64_t pnc_s_e:1;
+		uint64_t pnc_a_f:1;
+		uint64_t rwx_s_e:1;
+		uint64_t rdx_s_e:1;
+		uint64_t pcf_p_e:1;
+		uint64_t pcf_p_f:1;
+		uint64_t pdf_p_e:1;
+		uint64_t pdf_p_f:1;
+		uint64_t q1_s_e:1;
+		uint64_t q1_a_f:1;
+		uint64_t reserved_62_63:2;
+#endif
 	} s;
 	struct cvmx_npi_int_enb_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		uint64_t q1_a_f:1;
 		uint64_t q1_s_e:1;
@@ -632,8 +933,56 @@ union cvmx_npi_int_enb {
 		uint64_t pci_rsl:1;
 		uint64_t rml_wto:1;
 		uint64_t rml_rto:1;
+#else
+		uint64_t rml_rto:1;
+		uint64_t rml_wto:1;
+		uint64_t pci_rsl:1;
+		uint64_t po0_2sml:1;
+		uint64_t reserved_4_6:3;
+		uint64_t i0_rtout:1;
+		uint64_t reserved_8_10:3;
+		uint64_t i0_overf:1;
+		uint64_t reserved_12_14:3;
+		uint64_t p0_rtout:1;
+		uint64_t reserved_16_18:3;
+		uint64_t p0_perr:1;
+		uint64_t reserved_20_22:3;
+		uint64_t g0_rtout:1;
+		uint64_t reserved_24_26:3;
+		uint64_t p0_pperr:1;
+		uint64_t reserved_28_30:3;
+		uint64_t p0_ptout:1;
+		uint64_t reserved_32_34:3;
+		uint64_t i0_pperr:1;
+		uint64_t reserved_36_38:3;
+		uint64_t win_rto:1;
+		uint64_t p_dperr:1;
+		uint64_t iobdma:1;
+		uint64_t fcr_s_e:1;
+		uint64_t fcr_a_f:1;
+		uint64_t pcr_s_e:1;
+		uint64_t pcr_a_f:1;
+		uint64_t q2_s_e:1;
+		uint64_t q2_a_f:1;
+		uint64_t q3_s_e:1;
+		uint64_t q3_a_f:1;
+		uint64_t com_s_e:1;
+		uint64_t com_a_f:1;
+		uint64_t pnc_s_e:1;
+		uint64_t pnc_a_f:1;
+		uint64_t rwx_s_e:1;
+		uint64_t rdx_s_e:1;
+		uint64_t pcf_p_e:1;
+		uint64_t pcf_p_f:1;
+		uint64_t pdf_p_e:1;
+		uint64_t pdf_p_f:1;
+		uint64_t q1_s_e:1;
+		uint64_t q1_a_f:1;
+		uint64_t reserved_62_63:2;
+#endif
 	} cn30xx;
 	struct cvmx_npi_int_enb_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		uint64_t q1_a_f:1;
 		uint64_t q1_s_e:1;
@@ -688,9 +1037,66 @@ union cvmx_npi_int_enb {
 		uint64_t pci_rsl:1;
 		uint64_t rml_wto:1;
 		uint64_t rml_rto:1;
+#else
+		uint64_t rml_rto:1;
+		uint64_t rml_wto:1;
+		uint64_t pci_rsl:1;
+		uint64_t po0_2sml:1;
+		uint64_t po1_2sml:1;
+		uint64_t reserved_5_6:2;
+		uint64_t i0_rtout:1;
+		uint64_t i1_rtout:1;
+		uint64_t reserved_9_10:2;
+		uint64_t i0_overf:1;
+		uint64_t i1_overf:1;
+		uint64_t reserved_13_14:2;
+		uint64_t p0_rtout:1;
+		uint64_t p1_rtout:1;
+		uint64_t reserved_17_18:2;
+		uint64_t p0_perr:1;
+		uint64_t p1_perr:1;
+		uint64_t reserved_21_22:2;
+		uint64_t g0_rtout:1;
+		uint64_t g1_rtout:1;
+		uint64_t reserved_25_26:2;
+		uint64_t p0_pperr:1;
+		uint64_t p1_pperr:1;
+		uint64_t reserved_29_30:2;
+		uint64_t p0_ptout:1;
+		uint64_t p1_ptout:1;
+		uint64_t reserved_33_34:2;
+		uint64_t i0_pperr:1;
+		uint64_t i1_pperr:1;
+		uint64_t reserved_37_38:2;
+		uint64_t win_rto:1;
+		uint64_t p_dperr:1;
+		uint64_t iobdma:1;
+		uint64_t fcr_s_e:1;
+		uint64_t fcr_a_f:1;
+		uint64_t pcr_s_e:1;
+		uint64_t pcr_a_f:1;
+		uint64_t q2_s_e:1;
+		uint64_t q2_a_f:1;
+		uint64_t q3_s_e:1;
+		uint64_t q3_a_f:1;
+		uint64_t com_s_e:1;
+		uint64_t com_a_f:1;
+		uint64_t pnc_s_e:1;
+		uint64_t pnc_a_f:1;
+		uint64_t rwx_s_e:1;
+		uint64_t rdx_s_e:1;
+		uint64_t pcf_p_e:1;
+		uint64_t pcf_p_f:1;
+		uint64_t pdf_p_e:1;
+		uint64_t pdf_p_f:1;
+		uint64_t q1_s_e:1;
+		uint64_t q1_a_f:1;
+		uint64_t reserved_62_63:2;
+#endif
 	} cn31xx;
 	struct cvmx_npi_int_enb_s cn38xx;
 	struct cvmx_npi_int_enb_cn38xxp2 {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_42_63:22;
 		uint64_t iobdma:1;
 		uint64_t p_dperr:1;
@@ -734,6 +1140,51 @@ union cvmx_npi_int_enb {
 		uint64_t pci_rsl:1;
 		uint64_t rml_wto:1;
 		uint64_t rml_rto:1;
+#else
+		uint64_t rml_rto:1;
+		uint64_t rml_wto:1;
+		uint64_t pci_rsl:1;
+		uint64_t po0_2sml:1;
+		uint64_t po1_2sml:1;
+		uint64_t po2_2sml:1;
+		uint64_t po3_2sml:1;
+		uint64_t i0_rtout:1;
+		uint64_t i1_rtout:1;
+		uint64_t i2_rtout:1;
+		uint64_t i3_rtout:1;
+		uint64_t i0_overf:1;
+		uint64_t i1_overf:1;
+		uint64_t i2_overf:1;
+		uint64_t i3_overf:1;
+		uint64_t p0_rtout:1;
+		uint64_t p1_rtout:1;
+		uint64_t p2_rtout:1;
+		uint64_t p3_rtout:1;
+		uint64_t p0_perr:1;
+		uint64_t p1_perr:1;
+		uint64_t p2_perr:1;
+		uint64_t p3_perr:1;
+		uint64_t g0_rtout:1;
+		uint64_t g1_rtout:1;
+		uint64_t g2_rtout:1;
+		uint64_t g3_rtout:1;
+		uint64_t p0_pperr:1;
+		uint64_t p1_pperr:1;
+		uint64_t p2_pperr:1;
+		uint64_t p3_pperr:1;
+		uint64_t p0_ptout:1;
+		uint64_t p1_ptout:1;
+		uint64_t p2_ptout:1;
+		uint64_t p3_ptout:1;
+		uint64_t i0_pperr:1;
+		uint64_t i1_pperr:1;
+		uint64_t i2_pperr:1;
+		uint64_t i3_pperr:1;
+		uint64_t win_rto:1;
+		uint64_t p_dperr:1;
+		uint64_t iobdma:1;
+		uint64_t reserved_42_63:22;
+#endif
 	} cn38xxp2;
 	struct cvmx_npi_int_enb_cn31xx cn50xx;
 	struct cvmx_npi_int_enb_s cn58xx;
@@ -743,6 +1194,7 @@ union cvmx_npi_int_enb {
 union cvmx_npi_int_sum {
 	uint64_t u64;
 	struct cvmx_npi_int_sum_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		uint64_t q1_a_f:1;
 		uint64_t q1_s_e:1;
@@ -806,8 +1258,74 @@ union cvmx_npi_int_sum {
 		uint64_t pci_rsl:1;
 		uint64_t rml_wto:1;
 		uint64_t rml_rto:1;
+#else
+		uint64_t rml_rto:1;
+		uint64_t rml_wto:1;
+		uint64_t pci_rsl:1;
+		uint64_t po0_2sml:1;
+		uint64_t po1_2sml:1;
+		uint64_t po2_2sml:1;
+		uint64_t po3_2sml:1;
+		uint64_t i0_rtout:1;
+		uint64_t i1_rtout:1;
+		uint64_t i2_rtout:1;
+		uint64_t i3_rtout:1;
+		uint64_t i0_overf:1;
+		uint64_t i1_overf:1;
+		uint64_t i2_overf:1;
+		uint64_t i3_overf:1;
+		uint64_t p0_rtout:1;
+		uint64_t p1_rtout:1;
+		uint64_t p2_rtout:1;
+		uint64_t p3_rtout:1;
+		uint64_t p0_perr:1;
+		uint64_t p1_perr:1;
+		uint64_t p2_perr:1;
+		uint64_t p3_perr:1;
+		uint64_t g0_rtout:1;
+		uint64_t g1_rtout:1;
+		uint64_t g2_rtout:1;
+		uint64_t g3_rtout:1;
+		uint64_t p0_pperr:1;
+		uint64_t p1_pperr:1;
+		uint64_t p2_pperr:1;
+		uint64_t p3_pperr:1;
+		uint64_t p0_ptout:1;
+		uint64_t p1_ptout:1;
+		uint64_t p2_ptout:1;
+		uint64_t p3_ptout:1;
+		uint64_t i0_pperr:1;
+		uint64_t i1_pperr:1;
+		uint64_t i2_pperr:1;
+		uint64_t i3_pperr:1;
+		uint64_t win_rto:1;
+		uint64_t p_dperr:1;
+		uint64_t iobdma:1;
+		uint64_t fcr_s_e:1;
+		uint64_t fcr_a_f:1;
+		uint64_t pcr_s_e:1;
+		uint64_t pcr_a_f:1;
+		uint64_t q2_s_e:1;
+		uint64_t q2_a_f:1;
+		uint64_t q3_s_e:1;
+		uint64_t q3_a_f:1;
+		uint64_t com_s_e:1;
+		uint64_t com_a_f:1;
+		uint64_t pnc_s_e:1;
+		uint64_t pnc_a_f:1;
+		uint64_t rwx_s_e:1;
+		uint64_t rdx_s_e:1;
+		uint64_t pcf_p_e:1;
+		uint64_t pcf_p_f:1;
+		uint64_t pdf_p_e:1;
+		uint64_t pdf_p_f:1;
+		uint64_t q1_s_e:1;
+		uint64_t q1_a_f:1;
+		uint64_t reserved_62_63:2;
+#endif
 	} s;
 	struct cvmx_npi_int_sum_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		uint64_t q1_a_f:1;
 		uint64_t q1_s_e:1;
@@ -853,8 +1371,56 @@ union cvmx_npi_int_sum {
 		uint64_t pci_rsl:1;
 		uint64_t rml_wto:1;
 		uint64_t rml_rto:1;
+#else
+		uint64_t rml_rto:1;
+		uint64_t rml_wto:1;
+		uint64_t pci_rsl:1;
+		uint64_t po0_2sml:1;
+		uint64_t reserved_4_6:3;
+		uint64_t i0_rtout:1;
+		uint64_t reserved_8_10:3;
+		uint64_t i0_overf:1;
+		uint64_t reserved_12_14:3;
+		uint64_t p0_rtout:1;
+		uint64_t reserved_16_18:3;
+		uint64_t p0_perr:1;
+		uint64_t reserved_20_22:3;
+		uint64_t g0_rtout:1;
+		uint64_t reserved_24_26:3;
+		uint64_t p0_pperr:1;
+		uint64_t reserved_28_30:3;
+		uint64_t p0_ptout:1;
+		uint64_t reserved_32_34:3;
+		uint64_t i0_pperr:1;
+		uint64_t reserved_36_38:3;
+		uint64_t win_rto:1;
+		uint64_t p_dperr:1;
+		uint64_t iobdma:1;
+		uint64_t fcr_s_e:1;
+		uint64_t fcr_a_f:1;
+		uint64_t pcr_s_e:1;
+		uint64_t pcr_a_f:1;
+		uint64_t q2_s_e:1;
+		uint64_t q2_a_f:1;
+		uint64_t q3_s_e:1;
+		uint64_t q3_a_f:1;
+		uint64_t com_s_e:1;
+		uint64_t com_a_f:1;
+		uint64_t pnc_s_e:1;
+		uint64_t pnc_a_f:1;
+		uint64_t rwx_s_e:1;
+		uint64_t rdx_s_e:1;
+		uint64_t pcf_p_e:1;
+		uint64_t pcf_p_f:1;
+		uint64_t pdf_p_e:1;
+		uint64_t pdf_p_f:1;
+		uint64_t q1_s_e:1;
+		uint64_t q1_a_f:1;
+		uint64_t reserved_62_63:2;
+#endif
 	} cn30xx;
 	struct cvmx_npi_int_sum_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		uint64_t q1_a_f:1;
 		uint64_t q1_s_e:1;
@@ -909,9 +1475,66 @@ union cvmx_npi_int_sum {
 		uint64_t pci_rsl:1;
 		uint64_t rml_wto:1;
 		uint64_t rml_rto:1;
+#else
+		uint64_t rml_rto:1;
+		uint64_t rml_wto:1;
+		uint64_t pci_rsl:1;
+		uint64_t po0_2sml:1;
+		uint64_t po1_2sml:1;
+		uint64_t reserved_5_6:2;
+		uint64_t i0_rtout:1;
+		uint64_t i1_rtout:1;
+		uint64_t reserved_9_10:2;
+		uint64_t i0_overf:1;
+		uint64_t i1_overf:1;
+		uint64_t reserved_13_14:2;
+		uint64_t p0_rtout:1;
+		uint64_t p1_rtout:1;
+		uint64_t reserved_17_18:2;
+		uint64_t p0_perr:1;
+		uint64_t p1_perr:1;
+		uint64_t reserved_21_22:2;
+		uint64_t g0_rtout:1;
+		uint64_t g1_rtout:1;
+		uint64_t reserved_25_26:2;
+		uint64_t p0_pperr:1;
+		uint64_t p1_pperr:1;
+		uint64_t reserved_29_30:2;
+		uint64_t p0_ptout:1;
+		uint64_t p1_ptout:1;
+		uint64_t reserved_33_34:2;
+		uint64_t i0_pperr:1;
+		uint64_t i1_pperr:1;
+		uint64_t reserved_37_38:2;
+		uint64_t win_rto:1;
+		uint64_t p_dperr:1;
+		uint64_t iobdma:1;
+		uint64_t fcr_s_e:1;
+		uint64_t fcr_a_f:1;
+		uint64_t pcr_s_e:1;
+		uint64_t pcr_a_f:1;
+		uint64_t q2_s_e:1;
+		uint64_t q2_a_f:1;
+		uint64_t q3_s_e:1;
+		uint64_t q3_a_f:1;
+		uint64_t com_s_e:1;
+		uint64_t com_a_f:1;
+		uint64_t pnc_s_e:1;
+		uint64_t pnc_a_f:1;
+		uint64_t rwx_s_e:1;
+		uint64_t rdx_s_e:1;
+		uint64_t pcf_p_e:1;
+		uint64_t pcf_p_f:1;
+		uint64_t pdf_p_e:1;
+		uint64_t pdf_p_f:1;
+		uint64_t q1_s_e:1;
+		uint64_t q1_a_f:1;
+		uint64_t reserved_62_63:2;
+#endif
 	} cn31xx;
 	struct cvmx_npi_int_sum_s cn38xx;
 	struct cvmx_npi_int_sum_cn38xxp2 {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_42_63:22;
 		uint64_t iobdma:1;
 		uint64_t p_dperr:1;
@@ -955,6 +1578,51 @@ union cvmx_npi_int_sum {
 		uint64_t pci_rsl:1;
 		uint64_t rml_wto:1;
 		uint64_t rml_rto:1;
+#else
+		uint64_t rml_rto:1;
+		uint64_t rml_wto:1;
+		uint64_t pci_rsl:1;
+		uint64_t po0_2sml:1;
+		uint64_t po1_2sml:1;
+		uint64_t po2_2sml:1;
+		uint64_t po3_2sml:1;
+		uint64_t i0_rtout:1;
+		uint64_t i1_rtout:1;
+		uint64_t i2_rtout:1;
+		uint64_t i3_rtout:1;
+		uint64_t i0_overf:1;
+		uint64_t i1_overf:1;
+		uint64_t i2_overf:1;
+		uint64_t i3_overf:1;
+		uint64_t p0_rtout:1;
+		uint64_t p1_rtout:1;
+		uint64_t p2_rtout:1;
+		uint64_t p3_rtout:1;
+		uint64_t p0_perr:1;
+		uint64_t p1_perr:1;
+		uint64_t p2_perr:1;
+		uint64_t p3_perr:1;
+		uint64_t g0_rtout:1;
+		uint64_t g1_rtout:1;
+		uint64_t g2_rtout:1;
+		uint64_t g3_rtout:1;
+		uint64_t p0_pperr:1;
+		uint64_t p1_pperr:1;
+		uint64_t p2_pperr:1;
+		uint64_t p3_pperr:1;
+		uint64_t p0_ptout:1;
+		uint64_t p1_ptout:1;
+		uint64_t p2_ptout:1;
+		uint64_t p3_ptout:1;
+		uint64_t i0_pperr:1;
+		uint64_t i1_pperr:1;
+		uint64_t i2_pperr:1;
+		uint64_t i3_pperr:1;
+		uint64_t win_rto:1;
+		uint64_t p_dperr:1;
+		uint64_t iobdma:1;
+		uint64_t reserved_42_63:22;
+#endif
 	} cn38xxp2;
 	struct cvmx_npi_int_sum_cn31xx cn50xx;
 	struct cvmx_npi_int_sum_s cn58xx;
@@ -964,8 +1632,13 @@ union cvmx_npi_int_sum {
 union cvmx_npi_lowp_dbell {
 	uint64_t u64;
 	struct cvmx_npi_lowp_dbell_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_16_63:48;
 		uint64_t dbell:16;
+#else
+		uint64_t dbell:16;
+		uint64_t reserved_16_63:48;
+#endif
 	} s;
 	struct cvmx_npi_lowp_dbell_s cn30xx;
 	struct cvmx_npi_lowp_dbell_s cn31xx;
@@ -979,8 +1652,13 @@ union cvmx_npi_lowp_dbell {
 union cvmx_npi_lowp_ibuff_saddr {
 	uint64_t u64;
 	struct cvmx_npi_lowp_ibuff_saddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_36_63:28;
 		uint64_t saddr:36;
+#else
+		uint64_t saddr:36;
+		uint64_t reserved_36_63:28;
+#endif
 	} s;
 	struct cvmx_npi_lowp_ibuff_saddr_s cn30xx;
 	struct cvmx_npi_lowp_ibuff_saddr_s cn31xx;
@@ -994,6 +1672,7 @@ union cvmx_npi_lowp_ibuff_saddr {
 union cvmx_npi_mem_access_subidx {
 	uint64_t u64;
 	struct cvmx_npi_mem_access_subidx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_38_63:26;
 		uint64_t shortl:1;
 		uint64_t nmerge:1;
@@ -1004,9 +1683,22 @@ union cvmx_npi_mem_access_subidx {
 		uint64_t ror:1;
 		uint64_t row:1;
 		uint64_t ba:28;
+#else
+		uint64_t ba:28;
+		uint64_t row:1;
+		uint64_t ror:1;
+		uint64_t nsw:1;
+		uint64_t nsr:1;
+		uint64_t esw:2;
+		uint64_t esr:2;
+		uint64_t nmerge:1;
+		uint64_t shortl:1;
+		uint64_t reserved_38_63:26;
+#endif
 	} s;
 	struct cvmx_npi_mem_access_subidx_s cn30xx;
 	struct cvmx_npi_mem_access_subidx_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_36_63:28;
 		uint64_t esr:2;
 		uint64_t esw:2;
@@ -1015,6 +1707,16 @@ union cvmx_npi_mem_access_subidx {
 		uint64_t ror:1;
 		uint64_t row:1;
 		uint64_t ba:28;
+#else
+		uint64_t ba:28;
+		uint64_t row:1;
+		uint64_t ror:1;
+		uint64_t nsw:1;
+		uint64_t nsr:1;
+		uint64_t esw:2;
+		uint64_t esr:2;
+		uint64_t reserved_36_63:28;
+#endif
 	} cn31xx;
 	struct cvmx_npi_mem_access_subidx_s cn38xx;
 	struct cvmx_npi_mem_access_subidx_cn31xx cn38xxp2;
@@ -1026,7 +1728,11 @@ union cvmx_npi_mem_access_subidx {
 union cvmx_npi_msi_rcv {
 	uint64_t u64;
 	struct cvmx_npi_msi_rcv_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t int_vec:64;
+#else
+		uint64_t int_vec:64;
+#endif
 	} s;
 	struct cvmx_npi_msi_rcv_s cn30xx;
 	struct cvmx_npi_msi_rcv_s cn31xx;
@@ -1040,8 +1746,13 @@ union cvmx_npi_msi_rcv {
 union cvmx_npi_num_desc_outputx {
 	uint64_t u64;
 	struct cvmx_npi_num_desc_outputx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
 		uint64_t size:32;
+#else
+		uint64_t size:32;
+		uint64_t reserved_32_63:32;
+#endif
 	} s;
 	struct cvmx_npi_num_desc_outputx_s cn30xx;
 	struct cvmx_npi_num_desc_outputx_s cn31xx;
@@ -1055,6 +1766,7 @@ union cvmx_npi_num_desc_outputx {
 union cvmx_npi_output_control {
 	uint64_t u64;
 	struct cvmx_npi_output_control_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_49_63:15;
 		uint64_t pkt_rr:1;
 		uint64_t p3_bmode:1;
@@ -1094,8 +1806,50 @@ union cvmx_npi_output_control {
 		uint64_t esr_sl0:2;
 		uint64_t nsr_sl0:1;
 		uint64_t ror_sl0:1;
+#else
+		uint64_t ror_sl0:1;
+		uint64_t nsr_sl0:1;
+		uint64_t esr_sl0:2;
+		uint64_t ror_sl1:1;
+		uint64_t nsr_sl1:1;
+		uint64_t esr_sl1:2;
+		uint64_t ror_sl2:1;
+		uint64_t nsr_sl2:1;
+		uint64_t esr_sl2:2;
+		uint64_t ror_sl3:1;
+		uint64_t nsr_sl3:1;
+		uint64_t esr_sl3:2;
+		uint64_t iptr_o0:1;
+		uint64_t iptr_o1:1;
+		uint64_t iptr_o2:1;
+		uint64_t iptr_o3:1;
+		uint64_t reserved_20_23:4;
+		uint64_t o0_csrm:1;
+		uint64_t o1_csrm:1;
+		uint64_t o2_csrm:1;
+		uint64_t o3_csrm:1;
+		uint64_t o0_ro:1;
+		uint64_t o0_ns:1;
+		uint64_t o0_es:2;
+		uint64_t o1_ro:1;
+		uint64_t o1_ns:1;
+		uint64_t o1_es:2;
+		uint64_t o2_ro:1;
+		uint64_t o2_ns:1;
+		uint64_t o2_es:2;
+		uint64_t o3_ro:1;
+		uint64_t o3_ns:1;
+		uint64_t o3_es:2;
+		uint64_t p0_bmode:1;
+		uint64_t p1_bmode:1;
+		uint64_t p2_bmode:1;
+		uint64_t p3_bmode:1;
+		uint64_t pkt_rr:1;
+		uint64_t reserved_49_63:15;
+#endif
 	} s;
 	struct cvmx_npi_output_control_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_45_63:19;
 		uint64_t p0_bmode:1;
 		uint64_t reserved_32_43:12;
@@ -1110,8 +1864,25 @@ union cvmx_npi_output_control {
 		uint64_t esr_sl0:2;
 		uint64_t nsr_sl0:1;
 		uint64_t ror_sl0:1;
+#else
+		uint64_t ror_sl0:1;
+		uint64_t nsr_sl0:1;
+		uint64_t esr_sl0:2;
+		uint64_t reserved_4_15:12;
+		uint64_t iptr_o0:1;
+		uint64_t reserved_17_23:7;
+		uint64_t o0_csrm:1;
+		uint64_t reserved_25_27:3;
+		uint64_t o0_ro:1;
+		uint64_t o0_ns:1;
+		uint64_t o0_es:2;
+		uint64_t reserved_32_43:12;
+		uint64_t p0_bmode:1;
+		uint64_t reserved_45_63:19;
+#endif
 	} cn30xx;
 	struct cvmx_npi_output_control_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_46_63:18;
 		uint64_t p1_bmode:1;
 		uint64_t p0_bmode:1;
@@ -1135,9 +1906,35 @@ union cvmx_npi_output_control {
 		uint64_t esr_sl0:2;
 		uint64_t nsr_sl0:1;
 		uint64_t ror_sl0:1;
+#else
+		uint64_t ror_sl0:1;
+		uint64_t nsr_sl0:1;
+		uint64_t esr_sl0:2;
+		uint64_t ror_sl1:1;
+		uint64_t nsr_sl1:1;
+		uint64_t esr_sl1:2;
+		uint64_t reserved_8_15:8;
+		uint64_t iptr_o0:1;
+		uint64_t iptr_o1:1;
+		uint64_t reserved_18_23:6;
+		uint64_t o0_csrm:1;
+		uint64_t o1_csrm:1;
+		uint64_t reserved_26_27:2;
+		uint64_t o0_ro:1;
+		uint64_t o0_ns:1;
+		uint64_t o0_es:2;
+		uint64_t o1_ro:1;
+		uint64_t o1_ns:1;
+		uint64_t o1_es:2;
+		uint64_t reserved_36_43:8;
+		uint64_t p0_bmode:1;
+		uint64_t p1_bmode:1;
+		uint64_t reserved_46_63:18;
+#endif
 	} cn31xx;
 	struct cvmx_npi_output_control_s cn38xx;
 	struct cvmx_npi_output_control_cn38xxp2 {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_48_63:16;
 		uint64_t p3_bmode:1;
 		uint64_t p2_bmode:1;
@@ -1176,8 +1973,49 @@ union cvmx_npi_output_control {
 		uint64_t esr_sl0:2;
 		uint64_t nsr_sl0:1;
 		uint64_t ror_sl0:1;
+#else
+		uint64_t ror_sl0:1;
+		uint64_t nsr_sl0:1;
+		uint64_t esr_sl0:2;
+		uint64_t ror_sl1:1;
+		uint64_t nsr_sl1:1;
+		uint64_t esr_sl1:2;
+		uint64_t ror_sl2:1;
+		uint64_t nsr_sl2:1;
+		uint64_t esr_sl2:2;
+		uint64_t ror_sl3:1;
+		uint64_t nsr_sl3:1;
+		uint64_t esr_sl3:2;
+		uint64_t iptr_o0:1;
+		uint64_t iptr_o1:1;
+		uint64_t iptr_o2:1;
+		uint64_t iptr_o3:1;
+		uint64_t reserved_20_23:4;
+		uint64_t o0_csrm:1;
+		uint64_t o1_csrm:1;
+		uint64_t o2_csrm:1;
+		uint64_t o3_csrm:1;
+		uint64_t o0_ro:1;
+		uint64_t o0_ns:1;
+		uint64_t o0_es:2;
+		uint64_t o1_ro:1;
+		uint64_t o1_ns:1;
+		uint64_t o1_es:2;
+		uint64_t o2_ro:1;
+		uint64_t o2_ns:1;
+		uint64_t o2_es:2;
+		uint64_t o3_ro:1;
+		uint64_t o3_ns:1;
+		uint64_t o3_es:2;
+		uint64_t p0_bmode:1;
+		uint64_t p1_bmode:1;
+		uint64_t p2_bmode:1;
+		uint64_t p3_bmode:1;
+		uint64_t reserved_48_63:16;
+#endif
 	} cn38xxp2;
 	struct cvmx_npi_output_control_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_49_63:15;
 		uint64_t pkt_rr:1;
 		uint64_t reserved_46_47:2;
@@ -1203,6 +2041,33 @@ union cvmx_npi_output_control {
 		uint64_t esr_sl0:2;
 		uint64_t nsr_sl0:1;
 		uint64_t ror_sl0:1;
+#else
+		uint64_t ror_sl0:1;
+		uint64_t nsr_sl0:1;
+		uint64_t esr_sl0:2;
+		uint64_t ror_sl1:1;
+		uint64_t nsr_sl1:1;
+		uint64_t esr_sl1:2;
+		uint64_t reserved_8_15:8;
+		uint64_t iptr_o0:1;
+		uint64_t iptr_o1:1;
+		uint64_t reserved_18_23:6;
+		uint64_t o0_csrm:1;
+		uint64_t o1_csrm:1;
+		uint64_t reserved_26_27:2;
+		uint64_t o0_ro:1;
+		uint64_t o0_ns:1;
+		uint64_t o0_es:2;
+		uint64_t o1_ro:1;
+		uint64_t o1_ns:1;
+		uint64_t o1_es:2;
+		uint64_t reserved_36_43:8;
+		uint64_t p0_bmode:1;
+		uint64_t p1_bmode:1;
+		uint64_t reserved_46_47:2;
+		uint64_t pkt_rr:1;
+		uint64_t reserved_49_63:15;
+#endif
 	} cn50xx;
 	struct cvmx_npi_output_control_s cn58xx;
 	struct cvmx_npi_output_control_s cn58xxp1;
@@ -1211,9 +2076,15 @@ union cvmx_npi_output_control {
 union cvmx_npi_px_dbpair_addr {
 	uint64_t u64;
 	struct cvmx_npi_px_dbpair_addr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_63_63:1;
 		uint64_t state:2;
 		uint64_t naddr:61;
+#else
+		uint64_t naddr:61;
+		uint64_t state:2;
+		uint64_t reserved_63_63:1;
+#endif
 	} s;
 	struct cvmx_npi_px_dbpair_addr_s cn30xx;
 	struct cvmx_npi_px_dbpair_addr_s cn31xx;
@@ -1227,8 +2098,13 @@ union cvmx_npi_px_dbpair_addr {
 union cvmx_npi_px_instr_addr {
 	uint64_t u64;
 	struct cvmx_npi_px_instr_addr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t state:3;
 		uint64_t naddr:61;
+#else
+		uint64_t naddr:61;
+		uint64_t state:3;
+#endif
 	} s;
 	struct cvmx_npi_px_instr_addr_s cn30xx;
 	struct cvmx_npi_px_instr_addr_s cn31xx;
@@ -1242,9 +2118,15 @@ union cvmx_npi_px_instr_addr {
 union cvmx_npi_px_instr_cnts {
 	uint64_t u64;
 	struct cvmx_npi_px_instr_cnts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_38_63:26;
 		uint64_t fcnt:6;
 		uint64_t avail:32;
+#else
+		uint64_t avail:32;
+		uint64_t fcnt:6;
+		uint64_t reserved_38_63:26;
+#endif
 	} s;
 	struct cvmx_npi_px_instr_cnts_s cn30xx;
 	struct cvmx_npi_px_instr_cnts_s cn31xx;
@@ -1258,9 +2140,15 @@ union cvmx_npi_px_instr_cnts {
 union cvmx_npi_px_pair_cnts {
 	uint64_t u64;
 	struct cvmx_npi_px_pair_cnts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_37_63:27;
 		uint64_t fcnt:5;
 		uint64_t avail:32;
+#else
+		uint64_t avail:32;
+		uint64_t fcnt:5;
+		uint64_t reserved_37_63:27;
+#endif
 	} s;
 	struct cvmx_npi_px_pair_cnts_s cn30xx;
 	struct cvmx_npi_px_pair_cnts_s cn31xx;
@@ -1274,9 +2162,15 @@ union cvmx_npi_px_pair_cnts {
 union cvmx_npi_pci_burst_size {
 	uint64_t u64;
 	struct cvmx_npi_pci_burst_size_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_14_63:50;
 		uint64_t wr_brst:7;
 		uint64_t rd_brst:7;
+#else
+		uint64_t rd_brst:7;
+		uint64_t wr_brst:7;
+		uint64_t reserved_14_63:50;
+#endif
 	} s;
 	struct cvmx_npi_pci_burst_size_s cn30xx;
 	struct cvmx_npi_pci_burst_size_s cn31xx;
@@ -1290,6 +2184,7 @@ union cvmx_npi_pci_burst_size {
 union cvmx_npi_pci_int_arb_cfg {
 	uint64_t u64;
 	struct cvmx_npi_pci_int_arb_cfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_13_63:51;
 		uint64_t hostmode:1;
 		uint64_t pci_ovr:4;
@@ -1297,12 +2192,28 @@ union cvmx_npi_pci_int_arb_cfg {
 		uint64_t en:1;
 		uint64_t park_mod:1;
 		uint64_t park_dev:3;
+#else
+		uint64_t park_dev:3;
+		uint64_t park_mod:1;
+		uint64_t en:1;
+		uint64_t reserved_5_7:3;
+		uint64_t pci_ovr:4;
+		uint64_t hostmode:1;
+		uint64_t reserved_13_63:51;
+#endif
 	} s;
 	struct cvmx_npi_pci_int_arb_cfg_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_5_63:59;
 		uint64_t en:1;
 		uint64_t park_mod:1;
 		uint64_t park_dev:3;
+#else
+		uint64_t park_dev:3;
+		uint64_t park_mod:1;
+		uint64_t en:1;
+		uint64_t reserved_5_63:59;
+#endif
 	} cn30xx;
 	struct cvmx_npi_pci_int_arb_cfg_cn30xx cn31xx;
 	struct cvmx_npi_pci_int_arb_cfg_cn30xx cn38xx;
@@ -1315,8 +2226,13 @@ union cvmx_npi_pci_int_arb_cfg {
 union cvmx_npi_pci_read_cmd {
 	uint64_t u64;
 	struct cvmx_npi_pci_read_cmd_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_11_63:53;
 		uint64_t cmd_size:11;
+#else
+		uint64_t cmd_size:11;
+		uint64_t reserved_11_63:53;
+#endif
 	} s;
 	struct cvmx_npi_pci_read_cmd_s cn30xx;
 	struct cvmx_npi_pci_read_cmd_s cn31xx;
@@ -1330,6 +2246,7 @@ union cvmx_npi_pci_read_cmd {
 union cvmx_npi_port32_instr_hdr {
 	uint64_t u64;
 	struct cvmx_npi_port32_instr_hdr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_44_63:20;
 		uint64_t pbp:1;
 		uint64_t rsv_f:5;
@@ -1343,6 +2260,21 @@ union cvmx_npi_port32_instr_hdr {
 		uint64_t rsv_b:1;
 		uint64_t skp_len:7;
 		uint64_t rsv_a:6;
+#else
+		uint64_t rsv_a:6;
+		uint64_t skp_len:7;
+		uint64_t rsv_b:1;
+		uint64_t par_mode:2;
+		uint64_t rsv_c:5;
+		uint64_t use_ihdr:1;
+		uint64_t rsv_d:6;
+		uint64_t rskp_len:7;
+		uint64_t rsv_e:1;
+		uint64_t rparmode:2;
+		uint64_t rsv_f:5;
+		uint64_t pbp:1;
+		uint64_t reserved_44_63:20;
+#endif
 	} s;
 	struct cvmx_npi_port32_instr_hdr_s cn30xx;
 	struct cvmx_npi_port32_instr_hdr_s cn31xx;
@@ -1356,6 +2288,7 @@ union cvmx_npi_port32_instr_hdr {
 union cvmx_npi_port33_instr_hdr {
 	uint64_t u64;
 	struct cvmx_npi_port33_instr_hdr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_44_63:20;
 		uint64_t pbp:1;
 		uint64_t rsv_f:5;
@@ -1369,6 +2302,21 @@ union cvmx_npi_port33_instr_hdr {
 		uint64_t rsv_b:1;
 		uint64_t skp_len:7;
 		uint64_t rsv_a:6;
+#else
+		uint64_t rsv_a:6;
+		uint64_t skp_len:7;
+		uint64_t rsv_b:1;
+		uint64_t par_mode:2;
+		uint64_t rsv_c:5;
+		uint64_t use_ihdr:1;
+		uint64_t rsv_d:6;
+		uint64_t rskp_len:7;
+		uint64_t rsv_e:1;
+		uint64_t rparmode:2;
+		uint64_t rsv_f:5;
+		uint64_t pbp:1;
+		uint64_t reserved_44_63:20;
+#endif
 	} s;
 	struct cvmx_npi_port33_instr_hdr_s cn31xx;
 	struct cvmx_npi_port33_instr_hdr_s cn38xx;
@@ -1381,6 +2329,7 @@ union cvmx_npi_port33_instr_hdr {
 union cvmx_npi_port34_instr_hdr {
 	uint64_t u64;
 	struct cvmx_npi_port34_instr_hdr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_44_63:20;
 		uint64_t pbp:1;
 		uint64_t rsv_f:5;
@@ -1394,6 +2343,21 @@ union cvmx_npi_port34_instr_hdr {
 		uint64_t rsv_b:1;
 		uint64_t skp_len:7;
 		uint64_t rsv_a:6;
+#else
+		uint64_t rsv_a:6;
+		uint64_t skp_len:7;
+		uint64_t rsv_b:1;
+		uint64_t par_mode:2;
+		uint64_t rsv_c:5;
+		uint64_t use_ihdr:1;
+		uint64_t rsv_d:6;
+		uint64_t rskp_len:7;
+		uint64_t rsv_e:1;
+		uint64_t rparmode:2;
+		uint64_t rsv_f:5;
+		uint64_t pbp:1;
+		uint64_t reserved_44_63:20;
+#endif
 	} s;
 	struct cvmx_npi_port34_instr_hdr_s cn38xx;
 	struct cvmx_npi_port34_instr_hdr_s cn38xxp2;
@@ -1404,6 +2368,7 @@ union cvmx_npi_port34_instr_hdr {
 union cvmx_npi_port35_instr_hdr {
 	uint64_t u64;
 	struct cvmx_npi_port35_instr_hdr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_44_63:20;
 		uint64_t pbp:1;
 		uint64_t rsv_f:5;
@@ -1417,6 +2382,21 @@ union cvmx_npi_port35_instr_hdr {
 		uint64_t rsv_b:1;
 		uint64_t skp_len:7;
 		uint64_t rsv_a:6;
+#else
+		uint64_t rsv_a:6;
+		uint64_t skp_len:7;
+		uint64_t rsv_b:1;
+		uint64_t par_mode:2;
+		uint64_t rsv_c:5;
+		uint64_t use_ihdr:1;
+		uint64_t rsv_d:6;
+		uint64_t rskp_len:7;
+		uint64_t rsv_e:1;
+		uint64_t rparmode:2;
+		uint64_t rsv_f:5;
+		uint64_t pbp:1;
+		uint64_t reserved_44_63:20;
+#endif
 	} s;
 	struct cvmx_npi_port35_instr_hdr_s cn38xx;
 	struct cvmx_npi_port35_instr_hdr_s cn38xxp2;
@@ -1427,9 +2407,15 @@ union cvmx_npi_port35_instr_hdr {
 union cvmx_npi_port_bp_control {
 	uint64_t u64;
 	struct cvmx_npi_port_bp_control_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_8_63:56;
 		uint64_t bp_on:4;
 		uint64_t enb:4;
+#else
+		uint64_t enb:4;
+		uint64_t bp_on:4;
+		uint64_t reserved_8_63:56;
+#endif
 	} s;
 	struct cvmx_npi_port_bp_control_s cn30xx;
 	struct cvmx_npi_port_bp_control_s cn31xx;
@@ -1443,6 +2429,7 @@ union cvmx_npi_port_bp_control {
 union cvmx_npi_rsl_int_blocks {
 	uint64_t u64;
 	struct cvmx_npi_rsl_int_blocks_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
 		uint64_t rint_31:1;
 		uint64_t iob:1;
@@ -1474,8 +2461,42 @@ union cvmx_npi_rsl_int_blocks {
 		uint64_t gmx1:1;
 		uint64_t gmx0:1;
 		uint64_t mio:1;
+#else
+		uint64_t mio:1;
+		uint64_t gmx0:1;
+		uint64_t gmx1:1;
+		uint64_t npi:1;
+		uint64_t key:1;
+		uint64_t fpa:1;
+		uint64_t dfa:1;
+		uint64_t zip:1;
+		uint64_t rint_8:1;
+		uint64_t ipd:1;
+		uint64_t pko:1;
+		uint64_t tim:1;
+		uint64_t pow:1;
+		uint64_t reserved_13_14:2;
+		uint64_t rint_15:1;
+		uint64_t l2c:1;
+		uint64_t lmc:1;
+		uint64_t spx0:1;
+		uint64_t spx1:1;
+		uint64_t pip:1;
+		uint64_t rint_21:1;
+		uint64_t asx0:1;
+		uint64_t asx1:1;
+		uint64_t rint_24:1;
+		uint64_t rint_25:1;
+		uint64_t rint_26:1;
+		uint64_t rint_27:1;
+		uint64_t reserved_28_29:2;
+		uint64_t iob:1;
+		uint64_t rint_31:1;
+		uint64_t reserved_32_63:32;
+#endif
 	} s;
 	struct cvmx_npi_rsl_int_blocks_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
 		uint64_t rint_31:1;
 		uint64_t iob:1;
@@ -1509,9 +2530,45 @@ union cvmx_npi_rsl_int_blocks {
 		uint64_t gmx1:1;
 		uint64_t gmx0:1;
 		uint64_t mio:1;
+#else
+		uint64_t mio:1;
+		uint64_t gmx0:1;
+		uint64_t gmx1:1;
+		uint64_t npi:1;
+		uint64_t key:1;
+		uint64_t fpa:1;
+		uint64_t dfa:1;
+		uint64_t zip:1;
+		uint64_t rint_8:1;
+		uint64_t ipd:1;
+		uint64_t pko:1;
+		uint64_t tim:1;
+		uint64_t pow:1;
+		uint64_t usb:1;
+		uint64_t rint_14:1;
+		uint64_t rint_15:1;
+		uint64_t l2c:1;
+		uint64_t lmc:1;
+		uint64_t spx0:1;
+		uint64_t spx1:1;
+		uint64_t pip:1;
+		uint64_t rint_21:1;
+		uint64_t asx0:1;
+		uint64_t asx1:1;
+		uint64_t rint_24:1;
+		uint64_t rint_25:1;
+		uint64_t rint_26:1;
+		uint64_t rint_27:1;
+		uint64_t rint_28:1;
+		uint64_t rint_29:1;
+		uint64_t iob:1;
+		uint64_t rint_31:1;
+		uint64_t reserved_32_63:32;
+#endif
 	} cn30xx;
 	struct cvmx_npi_rsl_int_blocks_cn30xx cn31xx;
 	struct cvmx_npi_rsl_int_blocks_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
 		uint64_t rint_31:1;
 		uint64_t iob:1;
@@ -1545,9 +2602,45 @@ union cvmx_npi_rsl_int_blocks {
 		uint64_t gmx1:1;
 		uint64_t gmx0:1;
 		uint64_t mio:1;
+#else
+		uint64_t mio:1;
+		uint64_t gmx0:1;
+		uint64_t gmx1:1;
+		uint64_t npi:1;
+		uint64_t key:1;
+		uint64_t fpa:1;
+		uint64_t dfa:1;
+		uint64_t zip:1;
+		uint64_t rint_8:1;
+		uint64_t ipd:1;
+		uint64_t pko:1;
+		uint64_t tim:1;
+		uint64_t pow:1;
+		uint64_t rint_13:1;
+		uint64_t rint_14:1;
+		uint64_t rint_15:1;
+		uint64_t l2c:1;
+		uint64_t lmc:1;
+		uint64_t spx0:1;
+		uint64_t spx1:1;
+		uint64_t pip:1;
+		uint64_t rint_21:1;
+		uint64_t asx0:1;
+		uint64_t asx1:1;
+		uint64_t rint_24:1;
+		uint64_t rint_25:1;
+		uint64_t rint_26:1;
+		uint64_t rint_27:1;
+		uint64_t rint_28:1;
+		uint64_t rint_29:1;
+		uint64_t iob:1;
+		uint64_t rint_31:1;
+		uint64_t reserved_32_63:32;
+#endif
 	} cn38xx;
 	struct cvmx_npi_rsl_int_blocks_cn38xx cn38xxp2;
 	struct cvmx_npi_rsl_int_blocks_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_31_63:33;
 		uint64_t iob:1;
 		uint64_t lmc1:1;
@@ -1577,6 +2670,37 @@ union cvmx_npi_rsl_int_blocks {
 		uint64_t gmx1:1;
 		uint64_t gmx0:1;
 		uint64_t mio:1;
+#else
+		uint64_t mio:1;
+		uint64_t gmx0:1;
+		uint64_t gmx1:1;
+		uint64_t npi:1;
+		uint64_t key:1;
+		uint64_t fpa:1;
+		uint64_t dfa:1;
+		uint64_t zip:1;
+		uint64_t reserved_8_8:1;
+		uint64_t ipd:1;
+		uint64_t pko:1;
+		uint64_t tim:1;
+		uint64_t pow:1;
+		uint64_t usb:1;
+		uint64_t rad:1;
+		uint64_t reserved_15_15:1;
+		uint64_t l2c:1;
+		uint64_t lmc:1;
+		uint64_t spx0:1;
+		uint64_t spx1:1;
+		uint64_t pip:1;
+		uint64_t reserved_21_21:1;
+		uint64_t asx0:1;
+		uint64_t asx1:1;
+		uint64_t reserved_24_27:4;
+		uint64_t agl:1;
+		uint64_t lmc1:1;
+		uint64_t iob:1;
+		uint64_t reserved_31_63:33;
+#endif
 	} cn50xx;
 	struct cvmx_npi_rsl_int_blocks_cn38xx cn58xx;
 	struct cvmx_npi_rsl_int_blocks_cn38xx cn58xxp1;
@@ -1585,8 +2709,13 @@ union cvmx_npi_rsl_int_blocks {
 union cvmx_npi_size_inputx {
 	uint64_t u64;
 	struct cvmx_npi_size_inputx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
 		uint64_t size:32;
+#else
+		uint64_t size:32;
+		uint64_t reserved_32_63:32;
+#endif
 	} s;
 	struct cvmx_npi_size_inputx_s cn30xx;
 	struct cvmx_npi_size_inputx_s cn31xx;
@@ -1600,8 +2729,13 @@ union cvmx_npi_size_inputx {
 union cvmx_npi_win_read_to {
 	uint64_t u64;
 	struct cvmx_npi_win_read_to_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
 		uint64_t time:32;
+#else
+		uint64_t time:32;
+		uint64_t reserved_32_63:32;
+#endif
 	} s;
 	struct cvmx_npi_win_read_to_s cn30xx;
 	struct cvmx_npi_win_read_to_s cn31xx;

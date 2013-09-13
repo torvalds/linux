@@ -27,8 +27,9 @@
 #define ALLOC_FWD_MAX	128
 #define ALLOC_M		1
 #define FNODE_RD_AHEAD	16
-#define ANODE_RD_AHEAD	16
-#define DNODE_RD_AHEAD	4
+#define ANODE_RD_AHEAD	0
+#define DNODE_RD_AHEAD	72
+#define COUNT_RD_AHEAD	62
 
 #define FREE_DNODES_ADD	58
 #define FREE_DNODES_DEL	29
@@ -63,8 +64,8 @@ struct hpfs_sb_info {
 	unsigned sb_dmap;		/* sector number of dnode bit map */
 	unsigned sb_n_free;		/* free blocks for statfs, or -1 */
 	unsigned sb_n_free_dnodes;	/* free dnodes for statfs, or -1 */
-	uid_t sb_uid;			/* uid from mount options */
-	gid_t sb_gid;			/* gid from mount options */
+	kuid_t sb_uid;			/* uid from mount options */
+	kgid_t sb_gid;			/* gid from mount options */
 	umode_t sb_mode;		/* mode from mount options */
 	unsigned sb_eas : 2;		/* eas: 0-ignore, 1-ro, 2-rw */
 	unsigned sb_err : 2;		/* on errs: 0-cont, 1-ro, 2-panic */
@@ -207,6 +208,7 @@ void hpfs_remove_fnode(struct super_block *, fnode_secno fno);
 
 /* buffer.c */
 
+void hpfs_prefetch_sectors(struct super_block *, unsigned, int);
 void *hpfs_map_sector(struct super_block *, unsigned, struct buffer_head **, int);
 void *hpfs_get_sector(struct super_block *, unsigned, struct buffer_head **);
 void *hpfs_map_4sectors(struct super_block *, unsigned, struct quad_buffer_head *, int);
@@ -252,6 +254,7 @@ void hpfs_set_ea(struct inode *, struct fnode *, const char *,
 /* file.c */
 
 int hpfs_file_fsync(struct file *, loff_t, loff_t, int);
+void hpfs_truncate(struct inode *);
 extern const struct file_operations hpfs_file_ops;
 extern const struct inode_operations hpfs_file_iops;
 extern const struct address_space_operations hpfs_aops;
@@ -270,6 +273,7 @@ void hpfs_evict_inode(struct inode *);
 
 __le32 *hpfs_map_dnode_bitmap(struct super_block *, struct quad_buffer_head *);
 __le32 *hpfs_map_bitmap(struct super_block *, unsigned, struct quad_buffer_head *, char *);
+void hpfs_prefetch_bitmap(struct super_block *, unsigned);
 unsigned char *hpfs_load_code_page(struct super_block *, secno);
 __le32 *hpfs_load_bitmap_directory(struct super_block *, secno bmp);
 struct fnode *hpfs_map_fnode(struct super_block *s, ino_t, struct buffer_head **);

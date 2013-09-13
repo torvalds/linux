@@ -25,7 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 
-#include <plat/lcd_mipid.h>
+#include <linux/platform_data/lcd-mipid.h>
 
 #include "omapfb.h"
 
@@ -606,7 +606,7 @@ static struct spi_driver mipid_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= mipid_spi_probe,
-	.remove	= __devexit_p(mipid_spi_remove),
+	.remove	= mipid_spi_remove,
 };
 
 module_spi_driver(mipid_spi_driver);
