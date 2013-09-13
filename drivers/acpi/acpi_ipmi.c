@@ -127,6 +127,7 @@ static struct ipmi_driver_data driver_data = {
 	.ipmi_hndlrs = {
 		.ipmi_recv_hndl = ipmi_msg_handler,
 	},
+	.ipmi_lock = __MUTEX_INITIALIZER(driver_data.ipmi_lock)
 };
 
 static struct acpi_ipmi_device *
@@ -591,13 +592,11 @@ out_msg:
 
 static int __init acpi_ipmi_init(void)
 {
-	int result = 0;
+	int result;
 	acpi_status status;
 
 	if (acpi_disabled)
-		return result;
-
-	mutex_init(&driver_data.ipmi_lock);
+		return 0;
 
 	status = acpi_install_address_space_handler(ACPI_ROOT_OBJECT,
 				ACPI_ADR_SPACE_IPMI, &acpi_ipmi_space_handler,
