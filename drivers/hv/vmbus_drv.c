@@ -131,7 +131,6 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
 	struct hv_device_info *device_info;
-	char alias_name[VMBUS_ALIAS_LEN + 1];
 	int ret = 0;
 
 	device_info = kzalloc(sizeof(struct hv_device_info), GFP_KERNEL);
@@ -144,9 +143,6 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 		ret = sprintf(buf, "{%pUl}\n", device_info->chn_type.b);
 	} else if (!strcmp(dev_attr->attr.name, "device_id")) {
 		ret = sprintf(buf, "{%pUl}\n", device_info->chn_instance.b);
-	} else if (!strcmp(dev_attr->attr.name, "modalias")) {
-		print_alias_name(hv_dev, alias_name);
-		ret = sprintf(buf, "vmbus:%s\n", alias_name);
 	} else if (!strcmp(dev_attr->attr.name, "out_intr_mask")) {
 		ret = sprintf(buf, "%d\n", device_info->outbound.int_mask);
 	} else if (!strcmp(dev_attr->attr.name, "out_read_index")) {
@@ -224,10 +220,22 @@ static ssize_t monitor_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(monitor_id);
 
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	char alias_name[VMBUS_ALIAS_LEN + 1];
+
+	print_alias_name(hv_dev, alias_name);
+	return sprintf(buf, "vmbus:%s\n", alias_name);
+}
+static DEVICE_ATTR_RO(modalias);
+
 static struct attribute *vmbus_attrs[] = {
 	&dev_attr_id.attr,
 	&dev_attr_state.attr,
 	&dev_attr_monitor_id.attr,
+	&dev_attr_modalias.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(vmbus);
@@ -236,7 +244,6 @@ ATTRIBUTE_GROUPS(vmbus);
 static struct device_attribute vmbus_device_attrs[] = {
 	__ATTR(class_id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(device_id, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(modalias, S_IRUGO, vmbus_show_device_attr, NULL),
 
 	__ATTR(server_monitor_pending, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(server_monitor_latency, S_IRUGO, vmbus_show_device_attr, NULL),
