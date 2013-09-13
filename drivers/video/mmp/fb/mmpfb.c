@@ -395,12 +395,18 @@ static int var_update(struct fb_info *info)
 static void mmpfb_set_win(struct fb_info *info)
 {
 	struct mmpfb_info *fbi = info->par;
+	struct fb_var_screeninfo *var = &info->var;
 	struct mmp_win win;
+	u32 stride;
 
 	memset(&win, 0, sizeof(win));
 	win.xsrc = win.xdst = fbi->mode.xres;
 	win.ysrc = win.ydst = fbi->mode.yres;
 	win.pix_fmt = fbi->pix_fmt;
+	stride = pixfmt_to_stride(win.pix_fmt);
+	win.pitch[0] = var->xres_virtual * stride;
+	win.pitch[1] = win.pitch[2] =
+		(stride == 1) ? (var->xres_virtual >> 1) : 0;
 	mmp_overlay_set_win(fbi->overlay, &win);
 }
 
