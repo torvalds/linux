@@ -53,7 +53,7 @@ static irqreturn_t ctrl_handle_irq(int irq, void *dev_id)
 		tmp = readl_relaxed(ctrl->reg_base + SPU_IRQ_ISR);
 		if (tmp & isr)
 			writel_relaxed(~isr, ctrl->reg_base + SPU_IRQ_ISR);
-	} while ((isr = readl(ctrl->reg_base + SPU_IRQ_ISR)) & imask);
+	} while ((isr = readl_relaxed(ctrl->reg_base + SPU_IRQ_ISR)) & imask);
 
 	return IRQ_HANDLED;
 }
@@ -372,20 +372,12 @@ static void path_set_default(struct mmp_path *path)
 	 * bus arbiter for faster read if not tv path;
 	 * 2.enable horizontal smooth filter;
 	 */
-	if (PATH_PN == path->id) {
-		mask = CFG_GRA_HSMOOTH_MASK | CFG_DMA_HSMOOTH_MASK
-			| CFG_ARBFAST_ENA(1);
-		tmp = readl_relaxed(ctrl_regs(path) + dma_ctrl(0, path->id));
-		tmp |= mask;
-		writel_relaxed(tmp, ctrl_regs(path) + dma_ctrl(0, path->id));
-	} else if (PATH_TV == path->id) {
-		mask = CFG_GRA_HSMOOTH_MASK | CFG_DMA_HSMOOTH_MASK
-			| CFG_ARBFAST_ENA(1);
-		tmp = readl_relaxed(ctrl_regs(path) + dma_ctrl(0, path->id));
-		tmp &= ~mask;
-		tmp |= CFG_GRA_HSMOOTH_MASK | CFG_DMA_HSMOOTH_MASK;
-		writel_relaxed(tmp, ctrl_regs(path) + dma_ctrl(0, path->id));
-	}
+	mask = CFG_GRA_HSMOOTH_MASK | CFG_DMA_HSMOOTH_MASK | CFG_ARBFAST_ENA(1);
+	tmp = readl_relaxed(ctrl_regs(path) + dma_ctrl(0, path->id));
+	tmp |= mask;
+	if (PATH_TV == path->id)
+		tmp &= ~CFG_ARBFAST_ENA(1);
+	writel_relaxed(tmp, ctrl_regs(path) + dma_ctrl(0, path->id));
 }
 
 static int path_init(struct mmphw_path_plat *path_plat,
