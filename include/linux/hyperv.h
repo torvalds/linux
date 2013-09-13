@@ -902,7 +902,6 @@ enum vmbus_channel_state {
 struct vmbus_channel_debug_info {
 	uuid_le interfacetype;
 	uuid_le interface_instance;
-	u32 monitorid;
 	u32 servermonitor_pending;
 	u32 servermonitor_latency;
 	u32 servermonitor_connectionid;

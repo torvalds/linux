@@ -77,8 +77,6 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 
 	monitorpage = (struct hv_monitor_page *)vmbus_connection.monitor_pages;
 
-	debuginfo->monitorid = channel->offermsg.monitorid;
-
 	debuginfo->servermonitor_pending =
 			monitorpage->trigger_group[monitor_group].pending;
 	debuginfo->servermonitor_latency =

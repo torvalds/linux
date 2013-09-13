@@ -50,7 +50,6 @@ struct hv_device_info {
 	uuid_le chn_type;
 	uuid_le chn_instance;
 
-	u32 monitor_id;
 	u32 server_monitor_pending;
 	u32 server_monitor_latency;
 	u32 server_monitor_conn_id;
@@ -85,8 +84,6 @@ static void get_channel_info(struct hv_device *device,
 	       sizeof(uuid_le));
 	memcpy(&info->chn_instance, &debug_info.interface_instance,
 	       sizeof(uuid_le));
-
-	info->monitor_id = debug_info.monitorid;
 
 	info->server_monitor_pending = debug_info.servermonitor_pending;
 	info->server_monitor_latency = debug_info.servermonitor_latency;
@@ -174,8 +171,6 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 	} else if (!strcmp(dev_attr->attr.name, "in_write_bytes_avail")) {
 		ret = sprintf(buf, "%d\n",
 			       device_info->inbound.bytes_avail_towrite);
-	} else if (!strcmp(dev_attr->attr.name, "monitor_id")) {
-		ret = sprintf(buf, "%d\n", device_info->monitor_id);
 	} else if (!strcmp(dev_attr->attr.name, "server_monitor_pending")) {
 		ret = sprintf(buf, "%d\n", device_info->server_monitor_pending);
 	} else if (!strcmp(dev_attr->attr.name, "server_monitor_latency")) {
@@ -218,9 +213,21 @@ static ssize_t state_show(struct device *dev, struct device_attribute *dev_attr,
 }
 static DEVICE_ATTR_RO(state);
 
+static ssize_t monitor_id_show(struct device *dev,
+			       struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", hv_dev->channel->offermsg.monitorid);
+}
+static DEVICE_ATTR_RO(monitor_id);
+
 static struct attribute *vmbus_attrs[] = {
 	&dev_attr_id.attr,
 	&dev_attr_state.attr,
+	&dev_attr_monitor_id.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(vmbus);
@@ -229,7 +236,6 @@ ATTRIBUTE_GROUPS(vmbus);
 static struct device_attribute vmbus_device_attrs[] = {
 	__ATTR(class_id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(device_id, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(monitor_id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(modalias, S_IRUGO, vmbus_show_device_attr, NULL),
 
 	__ATTR(server_monitor_pending, S_IRUGO, vmbus_show_device_attr, NULL),
