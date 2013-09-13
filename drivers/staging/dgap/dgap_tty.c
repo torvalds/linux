@@ -249,7 +249,7 @@ int dgap_tty_register(struct board_t *brd)
 
 	/*
 	 * If we're doing transparent print, we have to do all of the above
-	 * again, seperately so we don't get the LD confused about what major
+	 * again, separately so we don't get the LD confused about what major
 	 * we are when we get into the dgap_tty_open() routine.
 	 */
 	brd->PrintDriver = alloc_tty_driver(MAXPORTS);
@@ -1069,7 +1069,7 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 
 	DGAP_LOCK(brd->bd_lock, lock_flags);
 
-	/* The wait above should guarentee this cannot happen */
+	/* The wait above should guarantee this cannot happen */
 	if (brd->state != BOARD_READY) {
 		DGAP_UNLOCK(brd->bd_lock, lock_flags);
 		return -ENXIO;
