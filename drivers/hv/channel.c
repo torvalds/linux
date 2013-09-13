@@ -65,20 +65,6 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 void vmbus_get_debug_info(struct vmbus_channel *channel,
 			      struct vmbus_channel_debug_info *debuginfo)
 {
-	struct hv_monitor_page *monitorpage;
-	u8 monitor_group = (u8)channel->offermsg.monitorid / 32;
-	u8 monitor_offset = (u8)channel->offermsg.monitorid % 32;
-
-	monitorpage = vmbus_connection.monitor_pages[0];
-	debuginfo->servermonitor_connectionid =
-			monitorpage->parameter[monitor_group]
-					[monitor_offset].connectionid.u.id;
-
-	monitorpage = vmbus_connection.monitor_pages[1];
-	debuginfo->clientmonitor_connectionid =
-			monitorpage->parameter[monitor_group]
-					[monitor_offset].connectionid.u.id;
-
 	hv_ringbuffer_get_debuginfo(&channel->inbound, &debuginfo->inbound);
 	hv_ringbuffer_get_debuginfo(&channel->outbound, &debuginfo->outbound);
 }
