@@ -773,7 +773,7 @@ config HID_ZYDACRON
 
 config HID_SENSOR_HUB
 	tristate "HID Sensors framework support"
-	depends on HID && GENERIC_HARDIRQS
+	depends on HID
 	select MFD_CORE
 	default n
 	---help---
