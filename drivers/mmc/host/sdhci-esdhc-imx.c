@@ -524,8 +524,9 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 	while (host_clock / pre_div / div > clock && div < 16)
 		div++;
 
+	host->mmc->actual_clock = host_clock / pre_div / div;
 	dev_dbg(mmc_dev(host->mmc), "desired SD clock: %d, actual: %d\n",
-		clock, host_clock / pre_div / div);
+		clock, host->mmc->actual_clock);
 
 	pre_div >>= 1;
 	div--;
