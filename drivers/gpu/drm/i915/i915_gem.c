@@ -4225,16 +4225,13 @@ i915_gem_idle(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
-	if (dev_priv->ums.mm_suspended) {
-		mutex_unlock(&dev->struct_mutex);
+	if (dev_priv->ums.mm_suspended)
 		return 0;
-	}
 
 	ret = i915_gpu_idle(dev);
-	if (ret) {
-		mutex_unlock(&dev->struct_mutex);
+	if (ret)
 		return ret;
-	}
+
 	i915_gem_retire_requests(dev);
 
 	/* Under UMS, be paranoid and evict. */
