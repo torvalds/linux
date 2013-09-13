@@ -1435,7 +1435,7 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 				if (radeon_dp_getdpcd(radeon_connector))
 					ret = connector_status_connected;
 			} else {
-				/* try non-aux ddc (DP to DVI/HMDI/etc. adapter) */
+				/* try non-aux ddc (DP to DVI/HDMI/etc. adapter) */
 				if (radeon_ddc_probe(radeon_connector, false))
 					ret = connector_status_connected;
 			}
