@@ -1462,7 +1462,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 	for_each_ring(ring, dev_priv, i) {
 		if (ring->default_context) {
-			seq_printf(m, "HW default context %s ring ", ring->name);
+			seq_printf(m, "HW default context %s ", ring->name);
 			describe_obj(m, ring->default_context->obj);
 			seq_putc(m, '\n');
 		}
