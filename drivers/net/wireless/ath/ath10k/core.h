@@ -114,6 +114,7 @@ struct ath10k_wmi {
 	struct completion unified_ready;
 	atomic_t pending_tx_count;
 	wait_queue_head_t wq;
+	wait_queue_head_t tx_credits_wq;
 
 	struct sk_buff_head wmi_event_list;
 	struct work_struct wmi_event_work;

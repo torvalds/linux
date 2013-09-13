@@ -111,26 +111,29 @@ TRACE_EVENT(ath10k_log_dbg_dump,
 );
 
 TRACE_EVENT(ath10k_wmi_cmd,
-	TP_PROTO(int id, void *buf, size_t buf_len),
+	TP_PROTO(int id, void *buf, size_t buf_len, int ret),
 
-	TP_ARGS(id, buf, buf_len),
+	TP_ARGS(id, buf, buf_len, ret),
 
 	TP_STRUCT__entry(
 		__field(unsigned int, id)
 		__field(size_t, buf_len)
 		__dynamic_array(u8, buf, buf_len)
+		__field(int ret)
 	),
 
 	TP_fast_assign(
 		__entry->id = id;
 		__entry->buf_len = buf_len;
+		__entry->ret = ret;
 		memcpy(__get_dynamic_array(buf), buf, buf_len);
 	),
 
 	TP_printk(
-		"id %d len %zu",
+		"id %d len %zu ret %d",
 		__entry->id,
-		__entry->buf_len
+		__entry->buf_len,
+		__entry->ret
 	)
 );
 

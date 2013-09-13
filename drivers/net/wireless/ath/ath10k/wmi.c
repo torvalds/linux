@@ -90,13 +90,12 @@ static void ath10k_wmi_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 		wake_up(&ar->wmi.wq);
 }
 
-/* WMI command API */
-static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
-			       enum wmi_cmd_id cmd_id)
+static int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
+				      enum wmi_cmd_id cmd_id)
 {
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(skb);
 	struct wmi_cmd_hdr *cmd_hdr;
-	int status;
+	int ret;
 	u32 cmd = 0;
 
 	if (skb_push(skb, sizeof(struct wmi_cmd_hdr)) == NULL)
@@ -107,26 +106,40 @@ static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
 	cmd_hdr = (struct wmi_cmd_hdr *)skb->data;
 	cmd_hdr->cmd_id = __cpu_to_le32(cmd);
 
-	if (atomic_add_return(1, &ar->wmi.pending_tx_count) >
-	    WMI_MAX_PENDING_TX_COUNT) {
-		/* avoid using up memory when FW hangs */
-		dev_kfree_skb(skb);
-		atomic_dec(&ar->wmi.pending_tx_count);
-		return -EBUSY;
-	}
-
 	memset(skb_cb, 0, sizeof(*skb_cb));
+	ret = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb);
+	trace_ath10k_wmi_cmd(cmd_id, skb->data, skb->len, ret);
 
-	trace_ath10k_wmi_cmd(cmd_id, skb->data, skb->len);
-
-	status = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb);
-	if (status) {
-		dev_kfree_skb_any(skb);
-		atomic_dec(&ar->wmi.pending_tx_count);
-		return status;
-	}
+	if (ret)
+		goto err_pull;
 
 	return 0;
+
+err_pull:
+	skb_pull(skb, sizeof(struct wmi_cmd_hdr));
+	return ret;
+}
+
+static void ath10k_wmi_op_ep_tx_credits(struct ath10k *ar,
+					enum ath10k_htc_ep_id eid)
+{
+	wake_up(&ar->wmi.tx_credits_wq);
+}
+
+static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
+			       enum wmi_cmd_id cmd_id)
+{
+	int ret = -EINVAL;
+
+	wait_event_timeout(ar->wmi.tx_credits_wq, ({
+		ret = ath10k_wmi_cmd_send_nowait(ar, skb, cmd_id);
+		(ret != -EAGAIN);
+	}), 3*HZ);
+
+	if (ret)
+		dev_kfree_skb_any(skb);
+
+	return ret;
 }
 
 static int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb)
@@ -1168,7 +1181,6 @@ static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
 	/* some events require to be handled ASAP
 	 * thus can't be defered to a worker thread */
 	switch (event_id) {
-	case WMI_HOST_SWBA_EVENTID:
 	case WMI_MGMT_RX_EVENTID:
 		ath10k_wmi_event_process(ar, skb);
 		return;
@@ -1186,6 +1198,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 	init_completion(&ar->wmi.service_ready);
 	init_completion(&ar->wmi.unified_ready);
 	init_waitqueue_head(&ar->wmi.wq);
+	init_waitqueue_head(&ar->wmi.tx_credits_wq);
 
 	skb_queue_head_init(&ar->wmi.wmi_event_list);
 	INIT_WORK(&ar->wmi.wmi_event_work, ath10k_wmi_event_work);
@@ -1215,6 +1228,7 @@ int ath10k_wmi_connect_htc_service(struct ath10k *ar)
 	/* these fields are the same for all service endpoints */
 	conn_req.ep_ops.ep_tx_complete = ath10k_wmi_htc_tx_complete;
 	conn_req.ep_ops.ep_rx_complete = ath10k_wmi_process_rx;
+	conn_req.ep_ops.ep_tx_credits = ath10k_wmi_op_ep_tx_credits;
 
 	/* connect to control service */
 	conn_req.service_id = ATH10K_HTC_SVC_ID_WMI_CONTROL;
