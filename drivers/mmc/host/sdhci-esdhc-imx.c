@@ -34,6 +34,7 @@
 /* VENDOR SPEC register */
 #define ESDHC_VENDOR_SPEC		0xc0
 #define  ESDHC_VENDOR_SPEC_SDIO_QUIRK	(1 << 1)
+#define  ESDHC_VENDOR_SPEC_FRC_SDCLK_ON	(1 << 8)
 #define ESDHC_WTMK_LVL			0x44
 #define ESDHC_MIX_CTRL			0x48
 #define  ESDHC_MIX_CTRL_AC23EN		(1 << 7)
@@ -409,13 +410,20 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 					 unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 	unsigned int host_clock = clk_get_rate(pltfm_host->clk);
 	int pre_div = 2;
 	int div = 1;
-	u32 temp;
+	u32 temp, val;
 
-	if (clock == 0)
+	if (clock == 0) {
+		if (is_imx6q_usdhc(imx_data)) {
+			val = readl(host->ioaddr + ESDHC_VENDOR_SPEC);
+			writel(val & ~ESDHC_VENDOR_SPEC_FRC_SDCLK_ON,
+					host->ioaddr + ESDHC_VENDOR_SPEC);
+		}
 		goto out;
+	}
 
 	temp = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
 	temp &= ~(ESDHC_CLOCK_IPGEN | ESDHC_CLOCK_HCKEN | ESDHC_CLOCK_PEREN
@@ -439,6 +447,13 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 		| (div << ESDHC_DIVIDER_SHIFT)
 		| (pre_div << ESDHC_PREDIV_SHIFT));
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
+
+	if (is_imx6q_usdhc(imx_data)) {
+		val = readl(host->ioaddr + ESDHC_VENDOR_SPEC);
+		writel(val | ESDHC_VENDOR_SPEC_FRC_SDCLK_ON,
+		host->ioaddr + ESDHC_VENDOR_SPEC);
+	}
+
 	mdelay(1);
 out:
 	host->clock = clock;
