@@ -1055,7 +1055,7 @@ static int ath10k_wmi_ready_event_rx(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
-static void ath10k_wmi_event_process(struct ath10k *ar, struct sk_buff *skb)
+static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
 	enum wmi_event_id id;
@@ -1174,43 +1174,6 @@ static void ath10k_wmi_event_process(struct ath10k *ar, struct sk_buff *skb)
 	dev_kfree_skb(skb);
 }
 
-static void ath10k_wmi_event_work(struct work_struct *work)
-{
-	struct ath10k *ar = container_of(work, struct ath10k,
-					 wmi.wmi_event_work);
-	struct sk_buff *skb;
-
-	for (;;) {
-		skb = skb_dequeue(&ar->wmi.wmi_event_list);
-		if (!skb)
-			break;
-
-		ath10k_wmi_event_process(ar, skb);
-	}
-}
-
-static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
-{
-	struct wmi_cmd_hdr *cmd_hdr = (struct wmi_cmd_hdr *)skb->data;
-	enum wmi_event_id event_id;
-
-	event_id = MS(__le32_to_cpu(cmd_hdr->cmd_id), WMI_CMD_HDR_CMD_ID);
-
-	/* some events require to be handled ASAP
-	 * thus can't be defered to a worker thread */
-	switch (event_id) {
-	case WMI_MGMT_RX_EVENTID:
-	case WMI_HOST_SWBA_EVENTID:
-		ath10k_wmi_event_process(ar, skb);
-		return;
-	default:
-		break;
-	}
-
-	skb_queue_tail(&ar->wmi.wmi_event_list, skb);
-	queue_work(ar->workqueue, &ar->wmi.wmi_event_work);
-}
-
 /* WMI Initialization functions */
 int ath10k_wmi_attach(struct ath10k *ar)
 {
@@ -1218,16 +1181,11 @@ int ath10k_wmi_attach(struct ath10k *ar)
 	init_completion(&ar->wmi.unified_ready);
 	init_waitqueue_head(&ar->wmi.tx_credits_wq);
 
-	skb_queue_head_init(&ar->wmi.wmi_event_list);
-	INIT_WORK(&ar->wmi.wmi_event_work, ath10k_wmi_event_work);
-
 	return 0;
 }
 
 void ath10k_wmi_detach(struct ath10k *ar)
 {
-	cancel_work_sync(&ar->wmi.wmi_event_work);
-	skb_queue_purge(&ar->wmi.wmi_event_list);
 }
 
 int ath10k_wmi_connect_htc_service(struct ath10k *ar)
