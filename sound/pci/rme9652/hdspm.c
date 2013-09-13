@@ -3996,7 +3996,6 @@ static int hdspm_tco_sync_check(struct hdspm *hdspm)
 					return 1;
 			}
 			return 0;
-			break;
 		case AES32:
 			status = hdspm_read(hdspm, HDSPM_statusRegister);
 			if (status & HDSPM_tcoLockAes) {
@@ -4006,9 +4005,6 @@ static int hdspm_tco_sync_check(struct hdspm *hdspm)
 					return 1;
 			}
 			return 0;
-
-			break;
-
 		case RayDAT:
 		case AIO:
 			status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
@@ -4018,7 +4014,6 @@ static int hdspm_tco_sync_check(struct hdspm *hdspm)
 			if (status & 0x4000000)
 				return 1; /* Lock */
 			return 0; /* No signal */
-			break;
 
 		default:
 			break;
