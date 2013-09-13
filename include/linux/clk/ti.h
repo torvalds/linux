@@ -223,6 +223,8 @@ struct ti_clk_ll_ops {
 
 extern struct ti_clk_ll_ops *ti_clk_ll_ops;
 
+extern const struct clk_ops ti_clk_divider_ops;
+
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)
 
 void omap2_init_clk_hw_omap_clocks(struct clk *clk);

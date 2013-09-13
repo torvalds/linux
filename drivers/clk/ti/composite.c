@@ -31,7 +31,7 @@
 static unsigned long ti_composite_recalc_rate(struct clk_hw *hw,
 					      unsigned long parent_rate)
 {
-	return clk_divider_ops.recalc_rate(hw, parent_rate);
+	return ti_clk_divider_ops.recalc_rate(hw, parent_rate);
 }
 
 static long ti_composite_round_rate(struct clk_hw *hw, unsigned long rate,
