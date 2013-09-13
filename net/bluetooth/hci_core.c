@@ -607,6 +607,34 @@ static void hci_set_le_support(struct hci_request *req)
 			    &cp);
 }
 
+static void hci_set_event_mask_page_2(struct hci_request *req)
+{
+	struct hci_dev *hdev = req->hdev;
+	u8 events[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+	/* If Connectionless Slave Broadcast master role is supported
+	 * enable all necessary events for it.
+	 */
+	if (hdev->features[2][0] & 0x01) {
+		events[1] |= 0x40;	/* Triggered Clock Capture */
+		events[1] |= 0x80;	/* Synchronization Train Complete */
+		events[2] |= 0x10;	/* Slave Page Response Timeout */
+		events[2] |= 0x20;	/* CSB Channel Map Change */
+	}
+
+	/* If Connectionless Slave Broadcast slave role is supported
+	 * enable all necessary events for it.
+	 */
+	if (hdev->features[2][0] & 0x02) {
+		events[2] |= 0x01;	/* Synchronization Train Received */
+		events[2] |= 0x02;	/* CSB Receive */
+		events[2] |= 0x04;	/* CSB Timeout */
+		events[2] |= 0x08;	/* Truncated Page Complete */
+	}
+
+	hci_req_add(req, HCI_OP_SET_EVENT_MASK_PAGE_2, sizeof(events), events);
+}
+
 static void hci_init3_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
@@ -651,6 +679,10 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 static void hci_init4_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
+
+	/* Set event mask page 2 if the HCI command for it is supported */
+	if (hdev->commands[22] & 0x04)
+		hci_set_event_mask_page_2(req);
 
 	/* Check for Synchronization Train support */
 	if (hdev->features[2][0] & 0x04)
