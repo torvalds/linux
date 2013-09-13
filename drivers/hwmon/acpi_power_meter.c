@@ -996,7 +996,7 @@ static int __init acpi_power_meter_init(void)
 
 	result = acpi_bus_register_driver(&acpi_power_meter_driver);
 	if (result < 0)
-		return -ENODEV;
+		return result;
 
 	return 0;
 }
