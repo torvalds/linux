@@ -514,6 +514,13 @@ struct hv_context {
 
 extern struct hv_context hv_context;
 
+struct hv_ring_buffer_debug_info {
+	u32 current_interrupt_mask;
+	u32 current_read_index;
+	u32 current_write_index;
+	u32 bytes_avail_toread;
+	u32 bytes_avail_towrite;
+};
 
 /* Hv Interface */
 

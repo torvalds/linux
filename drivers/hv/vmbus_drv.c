@@ -47,8 +47,8 @@ static struct completion probe_event;
 static int irq;
 
 struct hv_device_info {
-	struct hv_dev_port_info inbound;
-	struct hv_dev_port_info outbound;
+	struct hv_ring_buffer_debug_info inbound;
+	struct hv_ring_buffer_debug_info outbound;
 };
 
 static int vmbus_exists(void)
@@ -63,26 +63,11 @@ static int vmbus_exists(void)
 static void get_channel_info(struct hv_device *device,
 			     struct hv_device_info *info)
 {
-	struct hv_ring_buffer_debug_info inbound;
-	struct hv_ring_buffer_debug_info outbound;
-
 	if (!device->channel)
 		return;
 
-	hv_ringbuffer_get_debuginfo(&device->channel->inbound, &inbound);
-	hv_ringbuffer_get_debuginfo(&device->channel->outbound, &outbound);
-
-	info->inbound.int_mask = inbound.current_interrupt_mask;
-	info->inbound.read_idx = inbound.current_read_index;
-	info->inbound.write_idx = inbound.current_write_index;
-	info->inbound.bytes_avail_toread = inbound.bytes_avail_toread;
-	info->inbound.bytes_avail_towrite = inbound.bytes_avail_towrite;
-
-	info->outbound.int_mask = outbound.current_interrupt_mask;
-	info->outbound.read_idx = outbound.current_read_index;
-	info->outbound.write_idx = outbound.current_write_index;
-	info->outbound.bytes_avail_toread = outbound.bytes_avail_toread;
-	info->outbound.bytes_avail_towrite = outbound.bytes_avail_towrite;
+	hv_ringbuffer_get_debuginfo(&device->channel->inbound, &info->inbound);
+	hv_ringbuffer_get_debuginfo(&device->channel->outbound, &info->outbound);
 }
 
 #define VMBUS_ALIAS_LEN ((sizeof((struct hv_vmbus_device_id *)0)->guid) * 2)
@@ -114,11 +99,11 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 	get_channel_info(hv_dev, device_info);
 
 	if (!strcmp(dev_attr->attr.name, "out_intr_mask")) {
-		ret = sprintf(buf, "%d\n", device_info->outbound.int_mask);
+		ret = sprintf(buf, "%d\n", device_info->outbound.current_interrupt_mask);
 	} else if (!strcmp(dev_attr->attr.name, "out_read_index")) {
-		ret = sprintf(buf, "%d\n", device_info->outbound.read_idx);
+		ret = sprintf(buf, "%d\n", device_info->outbound.current_read_index);
 	} else if (!strcmp(dev_attr->attr.name, "out_write_index")) {
-		ret = sprintf(buf, "%d\n", device_info->outbound.write_idx);
+		ret = sprintf(buf, "%d\n", device_info->outbound.current_write_index);
 	} else if (!strcmp(dev_attr->attr.name, "out_read_bytes_avail")) {
 		ret = sprintf(buf, "%d\n",
 			       device_info->outbound.bytes_avail_toread);
@@ -126,11 +111,11 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 		ret = sprintf(buf, "%d\n",
 			       device_info->outbound.bytes_avail_towrite);
 	} else if (!strcmp(dev_attr->attr.name, "in_intr_mask")) {
-		ret = sprintf(buf, "%d\n", device_info->inbound.int_mask);
+		ret = sprintf(buf, "%d\n", device_info->inbound.current_interrupt_mask);
 	} else if (!strcmp(dev_attr->attr.name, "in_read_index")) {
-		ret = sprintf(buf, "%d\n", device_info->inbound.read_idx);
+		ret = sprintf(buf, "%d\n", device_info->inbound.current_read_index);
 	} else if (!strcmp(dev_attr->attr.name, "in_write_index")) {
-		ret = sprintf(buf, "%d\n", device_info->inbound.write_idx);
+		ret = sprintf(buf, "%d\n", device_info->inbound.current_write_index);
 	} else if (!strcmp(dev_attr->attr.name, "in_read_bytes_avail")) {
 		ret = sprintf(buf, "%d\n",
 			       device_info->inbound.bytes_avail_toread);

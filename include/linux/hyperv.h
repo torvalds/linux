@@ -429,15 +429,6 @@ struct hv_ring_buffer_info {
 	u32 ring_data_startoffset;
 };
 
-struct hv_ring_buffer_debug_info {
-	u32 current_interrupt_mask;
-	u32 current_read_index;
-	u32 current_write_index;
-	u32 bytes_avail_toread;
-	u32 bytes_avail_towrite;
-};
-
-
 /*
  *
  * hv_get_ringbuffer_availbytes()
@@ -1165,14 +1156,6 @@ extern int vmbus_recvpacket_raw(struct vmbus_channel *channel,
 
 
 extern void vmbus_ontimer(unsigned long data);
-
-struct hv_dev_port_info {
-	u32 int_mask;
-	u32 read_idx;
-	u32 write_idx;
-	u32 bytes_avail_toread;
-	u32 bytes_avail_towrite;
-};
 
 /* Base driver object */
 struct hv_driver {
