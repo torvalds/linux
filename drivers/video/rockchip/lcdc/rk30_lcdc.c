@@ -41,29 +41,35 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 
 static int  rk30_lcdc_clk_enable(struct rk30_lcdc_device *lcdc_dev)
 {
+	if(!lcdc_dev->clk_on)
+	{
+		clk_enable(lcdc_dev->pd);
+		clk_enable(lcdc_dev->hclk);
+		clk_enable(lcdc_dev->dclk);
+		clk_enable(lcdc_dev->aclk);
 	
-	clk_enable(lcdc_dev->pd);
-	clk_enable(lcdc_dev->hclk);
-	clk_enable(lcdc_dev->dclk);
-	clk_enable(lcdc_dev->aclk);
-	
-	spin_lock(&lcdc_dev->reg_lock);
-	lcdc_dev->clk_on = 1;
-	spin_unlock(&lcdc_dev->reg_lock);
+		spin_lock(&lcdc_dev->reg_lock);
+		lcdc_dev->clk_on = 1;
+		spin_unlock(&lcdc_dev->reg_lock);
+	}
 	printk("rk30 lcdc%d clk enable...\n",lcdc_dev->id);
+	
 	return 0;
 }
 
 static int rk30_lcdc_clk_disable(struct rk30_lcdc_device *lcdc_dev)
 {
-	spin_lock(&lcdc_dev->reg_lock);
-	lcdc_dev->clk_on = 0;
-	spin_unlock(&lcdc_dev->reg_lock);
-	mdelay(30);
-	clk_disable(lcdc_dev->dclk);
-	clk_disable(lcdc_dev->hclk);
-	clk_disable(lcdc_dev->aclk);
-	clk_disable(lcdc_dev->pd);
+	if(lcdc_dev->clk_on)
+	{
+		spin_lock(&lcdc_dev->reg_lock);
+		lcdc_dev->clk_on = 0;
+		spin_unlock(&lcdc_dev->reg_lock);
+		mdelay(30);
+		clk_disable(lcdc_dev->dclk);
+		clk_disable(lcdc_dev->hclk);
+		clk_disable(lcdc_dev->aclk);
+		clk_disable(lcdc_dev->pd);
+	}
 	printk("rk30 lcdc%d clk disable...\n",lcdc_dev->id);
 	return 0;
 }
@@ -424,8 +430,6 @@ static int rk30_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id,in
 {
 	struct rk30_lcdc_device * lcdc_dev = container_of(lcdc_drv,struct rk30_lcdc_device ,driver);
 
-	printk(KERN_INFO "%s>>>>>%d\n",__func__, blank_mode);
-
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
 	{
@@ -444,6 +448,8 @@ static int rk30_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id,in
 		lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
+	
+	dev_info(lcdc_drv->dev,"blank mode:%d\n",blank_mode);
 	
     	return 0;
 }
@@ -1402,36 +1408,34 @@ int rk30_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	if(dev_drv->screen_ctr_info->io_enable) 		//power on
 		dev_drv->screen_ctr_info->io_enable();
 		
-	if(!lcdc_dev->clk_on)
-	{
-		rk30_lcdc_clk_enable(lcdc_dev);
-	}
-	memcpy((u8*)lcdc_dev->regs, (u8*)lcdc_dev->regsbak, 0xc4);  //resume reg
-
-	spin_lock(&lcdc_dev->reg_lock);
-	if(dev_drv->cur_screen->dsp_lut)			//resume dsp lut
-	{
-		lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(0));
-		lcdc_cfg_done(lcdc_dev);
-		mdelay(25);
-		for(i=0;i<256;i++)
-		{
-			v = dev_drv->cur_screen->dsp_lut[i];
-			c = lcdc_dev->dsp_lut_addr_base+i;
-			writel_relaxed(v,c);
-			
-		}
-		lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(1));
-	}
 	if(lcdc_dev->atv_layer_cnt)
 	{
+		rk30_lcdc_clk_enable(lcdc_dev);
+		
+		memcpy((u8*)lcdc_dev->regs, (u8*)lcdc_dev->regsbak, 0xc4);  //resume reg
+
+		spin_lock(&lcdc_dev->reg_lock);
+		if(dev_drv->cur_screen->dsp_lut)			//resume dsp lut
+		{
+			lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(0));
+			lcdc_cfg_done(lcdc_dev);
+			mdelay(25);
+			for(i=0;i<256;i++)
+			{
+				v = dev_drv->cur_screen->dsp_lut[i];
+				c = lcdc_dev->dsp_lut_addr_base+i;
+				writel_relaxed(v,c);
+				
+			}
+			lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(1));
+		}
+		
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL0,m_LCDC_STANDBY,v_LCDC_STANDBY(0));
 		lcdc_cfg_done(lcdc_dev);
-	}
-	spin_unlock(&lcdc_dev->reg_lock);
+		
+		spin_unlock(&lcdc_dev->reg_lock);
 
-	if(!lcdc_dev->atv_layer_cnt)
-		rk30_lcdc_clk_disable(lcdc_dev);
+	}
 	
 	if(dev_drv->screen0->standby)
 		dev_drv->screen0->standby(0);	      //screen wake up

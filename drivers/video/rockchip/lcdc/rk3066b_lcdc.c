@@ -45,15 +45,17 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 
 static int  rk3066b_lcdc_clk_enable(struct rk3066b_lcdc_device *lcdc_dev)
 {
+	if(!lcdc_dev->clk_on)
+	{
+		clk_enable(lcdc_dev->hclk);
+		clk_enable(lcdc_dev->dclk);
+		clk_enable(lcdc_dev->aclk);
+		clk_enable(lcdc_dev->pd);
 
-	clk_enable(lcdc_dev->hclk);
-	clk_enable(lcdc_dev->dclk);
-	clk_enable(lcdc_dev->aclk);
-	clk_enable(lcdc_dev->pd);
-
-	spin_lock(&lcdc_dev->reg_lock);
-	lcdc_dev->clk_on = 1;
-	spin_unlock(&lcdc_dev->reg_lock);
+		spin_lock(&lcdc_dev->reg_lock);
+		lcdc_dev->clk_on = 1;
+		spin_unlock(&lcdc_dev->reg_lock);
+	}
 	printk("rk3066b lcdc%d clk enable...\n",lcdc_dev->id);
 	
 	return 0;
@@ -61,14 +63,17 @@ static int  rk3066b_lcdc_clk_enable(struct rk3066b_lcdc_device *lcdc_dev)
 
 static int rk3066b_lcdc_clk_disable(struct rk3066b_lcdc_device *lcdc_dev)
 {
-	spin_lock(&lcdc_dev->reg_lock);
-	lcdc_dev->clk_on = 0;
-	spin_unlock(&lcdc_dev->reg_lock);
-	mdelay(25);
-	clk_disable(lcdc_dev->dclk);
-	clk_disable(lcdc_dev->hclk);
-	clk_disable(lcdc_dev->aclk);
-	clk_disable(lcdc_dev->pd);
+	if(lcdc_dev->clk_on)
+	{
+		spin_lock(&lcdc_dev->reg_lock);
+		lcdc_dev->clk_on = 0;
+		spin_unlock(&lcdc_dev->reg_lock);
+		mdelay(25);
+		clk_disable(lcdc_dev->dclk);
+		clk_disable(lcdc_dev->hclk);
+		clk_disable(lcdc_dev->aclk);
+		clk_disable(lcdc_dev->pd);
+	}
 	printk("rk3066b lcdc%d clk disable...\n",lcdc_dev->id);
 	
 	return 0;
@@ -438,9 +443,10 @@ static int rk3066b_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id
 				break;
 		}
 		LCDC_REG_CFG_DONE();
-		printk(KERN_INFO "%s>>>>>%d\n",__func__, blank_mode);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
+
+	dev_info(lcdc_drv->dev,"blank mode:%d\n",blank_mode);
 	
     	return 0;
 }
@@ -1069,12 +1075,7 @@ int rk3066b_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 		return 0;
 	}
 	
-		
-	mdelay(30);
-	clk_disable(lcdc_dev->dclk);
-	clk_disable(lcdc_dev->hclk);
-	clk_disable(lcdc_dev->aclk);
-	clk_disable(lcdc_dev->pd);
+	rk3066b_lcdc_clk_disable(lcdc_dev);
 
 	return 0;
 }
@@ -1090,47 +1091,40 @@ int rk3066b_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	if(dev_drv->screen_ctr_info->io_enable) 		//power on
 		dev_drv->screen_ctr_info->io_enable();
 	
-	if(!lcdc_dev->clk_on)
+	if(lcdc_dev->atv_layer_cnt) //only resume the lcdc that need to use
 	{
-		clk_enable(lcdc_dev->pd);
-		clk_enable(lcdc_dev->hclk);
-		clk_enable(lcdc_dev->dclk);
-		clk_enable(lcdc_dev->aclk);
-	}
-	mdelay(5);
-	memcpy((u8*)lcdc_dev->preg, (u8*)&lcdc_dev->regbak, 0x24);  //resume reg ,skip INT_STATUS reg
-	memcpy(((u8*)lcdc_dev->preg) + 0x28,((u8*)&lcdc_dev->regbak) + 0x28, 0x74);
+	
+		rk3066b_lcdc_clk_enable(lcdc_dev);
+		mdelay(5);
+		memcpy((u8*)lcdc_dev->preg, (u8*)&lcdc_dev->regbak, 0x24);  //resume reg ,skip INT_STATUS reg
+		memcpy(((u8*)lcdc_dev->preg) + 0x28,((u8*)&lcdc_dev->regbak) + 0x28, 0x74);
 
-	spin_lock(&lcdc_dev->reg_lock);
+		spin_lock(&lcdc_dev->reg_lock);
 
-	if(dev_drv->cur_screen->dsp_lut)			//resume dsp lut
-	{
-		LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(0));
-		LCDC_REG_CFG_DONE();
-
-		mdelay(25); //wait for dsp lut disabled
-		for(i=0;i<256;i++)
+		if(dev_drv->cur_screen->dsp_lut)			//resume dsp lut
 		{
-			v = dev_drv->cur_screen->dsp_lut[i];
-			c = lcdc_dev->dsp_lut_addr_base+i;
-			writel_relaxed(v,c);
+			LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(0));
+			LCDC_REG_CFG_DONE();
+
+			mdelay(25); //wait for dsp lut disabled
+			for(i=0;i<256;i++)
+			{
+				v = dev_drv->cur_screen->dsp_lut[i];
+				c = lcdc_dev->dsp_lut_addr_base+i;
+				writel_relaxed(v,c);
+			}
+			LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(1));//enable dsp lut
 		}
-		LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(1));//enable dsp lut
-	}
-	if(lcdc_dev->atv_layer_cnt)
-	{
 		LcdMskReg(lcdc_dev, SYS_CFG,m_LCDC_STANDBY,v_LCDC_STANDBY(0));
 		LcdMskReg(lcdc_dev, INT_STATUS, m_SCANNING_CLEAR | m_FRM_STARTCLEAR | m_HOR_STARTCLEAR |
 					m_SCANNING_MASK | m_HOR_STARTMASK | m_FRM_STARTMASK , 
 					v_SCANNING_CLEAR(1) | v_FRM_STARTCLEAR(1) | v_HOR_STARTCLEAR(1) | 
 					v_SCANNING_MASK(0) | v_FRM_STARTMASK(0) | v_HOR_STARTMASK(1));
 		LCDC_REG_CFG_DONE();
-	}
-	lcdc_dev->clk_on = 1;
-	spin_unlock(&lcdc_dev->reg_lock);
+		
+		spin_unlock(&lcdc_dev->reg_lock);
 
-	if(!lcdc_dev->atv_layer_cnt)
-		rk3066b_lcdc_clk_disable(lcdc_dev);
+	}
 	
 	if(dev_drv->screen0->standby)
 		dev_drv->screen0->standby(0);	      //screen wake up
