@@ -150,6 +150,9 @@ err:
 	ep->tx_credits += credits;
 	spin_unlock_bh(&htc->tx_lock);
 
+	if (ep->ep_ops.ep_tx_credits)
+		ep->ep_ops.ep_tx_credits(htc->ar);
+
 	/* this is the simplest way to handle out-of-resources for non-credit
 	 * based endpoints. credit based endpoints can still get -ENOSR, but
 	 * this is highly unlikely as credit reservation should prevent that */
@@ -301,6 +304,12 @@ ath10k_htc_process_credit_report(struct ath10k_htc *htc,
 
 		ep = &htc->endpoint[report->eid];
 		ep->tx_credits += report->credits;
+
+		if (ep->ep_ops.ep_tx_credits) {
+			spin_unlock_bh(&htc->tx_lock);
+			ep->ep_ops.ep_tx_credits(htc->ar);
+			spin_lock_bh(&htc->tx_lock);
+		}
 
 		if (ep->tx_credits && !skb_queue_empty(&ep->tx_queue))
 			queue_work(htc->ar->workqueue, &ep->send_work);
