@@ -1043,8 +1043,10 @@ int rs780_dpm_force_performance_level(struct radeon_device *rdev,
 		if (pi->voltage_control)
 			rs780_force_voltage(rdev, pi->max_voltage);
 
-		WREG32_P(FVTHROT_FBDIV_REG1, 0, ~FORCE_FEEDBACK_DIV);
-		rs780_clk_scaling_enable(rdev, true);
+		if (ps->sclk_high != ps->sclk_low) {
+			WREG32_P(FVTHROT_FBDIV_REG1, 0, ~FORCE_FEEDBACK_DIV);
+			rs780_clk_scaling_enable(rdev, true);
+		}
 
 		if (pi->voltage_control) {
 			rs780_voltage_scaling_enable(rdev, true);
