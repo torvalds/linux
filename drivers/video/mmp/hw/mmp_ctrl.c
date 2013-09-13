@@ -60,8 +60,7 @@ static irqreturn_t ctrl_handle_irq(int irq, void *dev_id)
 
 static u32 fmt_to_reg(struct mmp_overlay *overlay, int pix_fmt)
 {
-	u32 link_config = path_to_path_plat(overlay->path)->link_config;
-	u32 rbswap, uvswap = 0, yuvswap = 0,
+	u32 rbswap = 0, uvswap = 0, yuvswap = 0,
 		csc_en = 0, val = 0,
 		vid = overlay_is_vid(overlay);
 
@@ -71,27 +70,23 @@ static u32 fmt_to_reg(struct mmp_overlay *overlay, int pix_fmt)
 	case PIXFMT_RGB888PACK:
 	case PIXFMT_RGB888UNPACK:
 	case PIXFMT_RGBA888:
-		rbswap = !(link_config & 0x1);
+		rbswap = 1;
 		break;
 	case PIXFMT_VYUY:
 	case PIXFMT_YVU422P:
 	case PIXFMT_YVU420P:
-		rbswap = link_config & 0x1;
 		uvswap = 1;
 		break;
 	case PIXFMT_YUYV:
-		rbswap = link_config & 0x1;
 		yuvswap = 1;
 		break;
 	default:
-		rbswap = link_config & 0x1;
 		break;
 	}
 
 	switch (pix_fmt) {
 	case PIXFMT_RGB565:
 	case PIXFMT_BGR565:
-		val = 0;
 		break;
 	case PIXFMT_RGB1555:
 	case PIXFMT_BGR1555:
@@ -248,7 +243,8 @@ static void path_set_mode(struct mmp_path *path, struct mmp_mode *mode)
 {
 	struct lcd_regs *regs = path_regs(path);
 	u32 total_x, total_y, vsync_ctrl, tmp, sclk_src, sclk_div,
-		link_config = path_to_path_plat(path)->link_config;
+		link_config = path_to_path_plat(path)->link_config,
+		dsi_rbswap = path_to_path_plat(path)->link_config;
 
 	/* FIXME: assert videomode supported */
 	memcpy(&path->mode, mode, sizeof(struct mmp_mode));
@@ -262,6 +258,12 @@ static void path_set_mode(struct mmp_path *path, struct mmp_mode *mode)
 	tmp |= link_config & CFG_DUMBMODE_MASK;
 	tmp |= CFG_DUMB_ENA(1);
 	writel_relaxed(tmp, ctrl_regs(path) + intf_ctrl(path->id));
+
+	/* interface rb_swap setting */
+	tmp = readl_relaxed(ctrl_regs(path) + intf_rbswap_ctrl(path->id)) &
+		(~(CFG_INTFRBSWAP_MASK));
+	tmp |= dsi_rbswap & CFG_INTFRBSWAP_MASK;
+	writel_relaxed(tmp, ctrl_regs(path) + intf_rbswap_ctrl(path->id));
 
 	writel_relaxed((mode->yres << 16) | mode->xres, &regs->screen_active);
 	writel_relaxed((mode->left_margin << 16) | mode->right_margin,
@@ -419,6 +421,7 @@ static int path_init(struct mmphw_path_plat *path_plat,
 	path_plat->path = path;
 	path_plat->path_config = config->path_config;
 	path_plat->link_config = config->link_config;
+	path_plat->dsi_rbswap = config->dsi_rbswap;
 	path_set_default(path);
 
 	kfree(path_info);

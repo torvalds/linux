@@ -334,6 +334,7 @@ struct mmp_mach_path_config {
 	int output_type;
 	u32 path_config;
 	u32 link_config;
+	u32 dsi_rbswap;
 };
 
 struct mmp_mach_plat_info {
