@@ -47,7 +47,6 @@ static struct completion probe_event;
 static int irq;
 
 struct hv_device_info {
-	uuid_le chn_type;
 	uuid_le chn_instance;
 
 	u32 server_monitor_pending;
@@ -80,8 +79,6 @@ static void get_channel_info(struct hv_device *device,
 
 	vmbus_get_debug_info(device->channel, &debug_info);
 
-	memcpy(&info->chn_type, &debug_info.interfacetype,
-	       sizeof(uuid_le));
 	memcpy(&info->chn_instance, &debug_info.interface_instance,
 	       sizeof(uuid_le));
 
@@ -139,9 +136,7 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 
 	get_channel_info(hv_dev, device_info);
 
-	if (!strcmp(dev_attr->attr.name, "class_id")) {
-		ret = sprintf(buf, "{%pUl}\n", device_info->chn_type.b);
-	} else if (!strcmp(dev_attr->attr.name, "device_id")) {
+	if (!strcmp(dev_attr->attr.name, "device_id")) {
 		ret = sprintf(buf, "{%pUl}\n", device_info->chn_instance.b);
 	} else if (!strcmp(dev_attr->attr.name, "out_intr_mask")) {
 		ret = sprintf(buf, "%d\n", device_info->outbound.int_mask);
@@ -220,6 +215,18 @@ static ssize_t monitor_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(monitor_id);
 
+static ssize_t class_id_show(struct device *dev,
+			       struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "{%pUl}\n",
+		       hv_dev->channel->offermsg.offer.if_type.b);
+}
+static DEVICE_ATTR_RO(class_id);
+
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *dev_attr, char *buf)
 {
@@ -231,10 +238,12 @@ static ssize_t modalias_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(modalias);
 
+
 static struct attribute *vmbus_attrs[] = {
 	&dev_attr_id.attr,
 	&dev_attr_state.attr,
 	&dev_attr_monitor_id.attr,
+	&dev_attr_class_id.attr,
 	&dev_attr_modalias.attr,
 	NULL,
 };
@@ -242,7 +251,6 @@ ATTRIBUTE_GROUPS(vmbus);
 
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
 static struct device_attribute vmbus_device_attrs[] = {
-	__ATTR(class_id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(device_id, S_IRUGO, vmbus_show_device_attr, NULL),
 
 	__ATTR(server_monitor_pending, S_IRUGO, vmbus_show_device_attr, NULL),
