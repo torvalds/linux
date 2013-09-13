@@ -24,22 +24,9 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/delay.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/interrupt.h>
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/io.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/ipmi.h>
-#include <linux/device.h>
-#include <linux/pnp.h>
 #include <linux/spinlock.h>
 
 MODULE_AUTHOR("Zhao Yakui");
