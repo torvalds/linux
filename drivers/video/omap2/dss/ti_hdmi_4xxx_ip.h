@@ -168,6 +168,8 @@
 #define PLLCTRL_CFG1				0xC
 #define PLLCTRL_CFG2				0x10
 #define PLLCTRL_CFG3				0x14
+#define PLLCTRL_SSC_CFG1			0x18
+#define PLLCTRL_SSC_CFG2			0x1C
 #define PLLCTRL_CFG4				0x20
 
 /* HDMI PHY */
