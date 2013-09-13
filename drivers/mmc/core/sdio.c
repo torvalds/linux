@@ -593,23 +593,27 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *card;
 	int err;
 	int retries = 10;
+	u32 rocr = 0;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
+
+	/* to query card if 1.8V signalling is supported */
+	if (mmc_host_uhs(host))
+		ocr |= R4_18V_PRESENT;
 
 try_again:
 	if (!retries) {
 		pr_warning("%s: Skipping voltage switch\n",
 				mmc_hostname(host));
 		ocr &= ~R4_18V_PRESENT;
-		host->ocr &= ~R4_18V_PRESENT;
 	}
 
 	/*
 	 * Inform the card of the voltage
 	 */
 	if (!powered_resume) {
-		err = mmc_send_io_op_cond(host, host->ocr, &ocr);
+		err = mmc_send_io_op_cond(host, ocr, &rocr);
 		if (err)
 			goto err;
 	}
@@ -632,8 +636,8 @@ try_again:
 		goto err;
 	}
 
-	if ((ocr & R4_MEMORY_PRESENT) &&
-	    mmc_sd_get_cid(host, host->ocr & ocr, card->raw_cid, NULL) == 0) {
+	if ((rocr & R4_MEMORY_PRESENT) &&
+	    mmc_sd_get_cid(host, ocr & rocr, card->raw_cid, NULL) == 0) {
 		card->type = MMC_TYPE_SD_COMBO;
 
 		if (oldcard && (oldcard->type != MMC_TYPE_SD_COMBO ||
@@ -663,9 +667,9 @@ try_again:
 	 * systems that claim 1.8v signalling in fact do not support
 	 * it.
 	 */
-	if (!powered_resume && (ocr & R4_18V_PRESENT) && mmc_host_uhs(host)) {
+	if (!powered_resume && (rocr & ocr & R4_18V_PRESENT)) {
 		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180,
-					host->ocr);
+					ocr);
 		if (err == -EAGAIN) {
 			sdio_reset(host);
 			mmc_go_idle(host);
@@ -675,12 +679,10 @@ try_again:
 			goto try_again;
 		} else if (err) {
 			ocr &= ~R4_18V_PRESENT;
-			host->ocr &= ~R4_18V_PRESENT;
 		}
 		err = 0;
 	} else {
 		ocr &= ~R4_18V_PRESENT;
-		host->ocr &= ~R4_18V_PRESENT;
 	}
 
 	/*
@@ -1084,10 +1086,6 @@ static int mmc_sdio_power_restore(struct mmc_host *host)
 		goto out;
 	}
 
-	if (mmc_host_uhs(host))
-		/* to query card if 1.8V signalling is supported */
-		host->ocr |= R4_18V_PRESENT;
-
 	ret = mmc_sdio_init_card(host, host->ocr, host->card,
 				mmc_card_keep_power(host));
 	if (!ret && host->sdio_irqs)
@@ -1170,10 +1168,6 @@ int mmc_attach_sdio(struct mmc_host *host)
 	/*
 	 * Detect and init the card.
 	 */
-	if (mmc_host_uhs(host))
-		/* to query card if 1.8V signalling is supported */
-		host->ocr |= R4_18V_PRESENT;
-
 	err = mmc_sdio_init_card(host, host->ocr, NULL, 0);
 	if (err)
 		goto err;
