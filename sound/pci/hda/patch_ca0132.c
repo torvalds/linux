@@ -759,7 +759,7 @@ struct ca0132_spec {
 /*
  * CA0132 codec access
  */
-unsigned int codec_send_command(struct hda_codec *codec, hda_nid_t nid,
+static unsigned int codec_send_command(struct hda_codec *codec, hda_nid_t nid,
 		unsigned int verb, unsigned int parm, unsigned int *res)
 {
 	unsigned int response;
