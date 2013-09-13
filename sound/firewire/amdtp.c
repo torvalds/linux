@@ -268,7 +268,7 @@ static void amdtp_write_s32(struct amdtp_out_stream *s,
 
 	channels = s->pcm_channels;
 	src = (void *)runtime->dma_area +
-			s->pcm_buffer_pointer * (runtime->frame_bits / 8);
+			frames_to_bytes(runtime, s->pcm_buffer_pointer);
 	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
 	frame_step = s->data_block_quadlets - channels;
 
@@ -294,7 +294,7 @@ static void amdtp_write_s16(struct amdtp_out_stream *s,
 
 	channels = s->pcm_channels;
 	src = (void *)runtime->dma_area +
-			s->pcm_buffer_pointer * (runtime->frame_bits / 8);
+			frames_to_bytes(runtime, s->pcm_buffer_pointer);
 	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
 	frame_step = s->data_block_quadlets - channels;
 
