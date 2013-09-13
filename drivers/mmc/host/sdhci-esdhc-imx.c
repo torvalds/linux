@@ -53,6 +53,10 @@
 
 #define ESDHC_TUNING_BLOCK_PATTERN_LEN	64
 
+/* pinctrl state */
+#define ESDHC_PINCTRL_STATE_100MHZ	"state_100mhz"
+#define ESDHC_PINCTRL_STATE_200MHZ	"state_200mhz"
+
 /*
  * Our interpretation of the SDHCI_HOST_CONTROL register
  */
@@ -94,6 +98,9 @@ struct pltfm_imx_data {
 	u32 scratchpad;
 	enum imx_esdhc_type devtype;
 	struct pinctrl *pinctrl;
+	struct pinctrl_state *pins_default;
+	struct pinctrl_state *pins_100mhz;
+	struct pinctrl_state *pins_200mhz;
 	struct esdhc_platform_data boarddata;
 	struct clk *clk_ipg;
 	struct clk *clk_ahb;
@@ -693,6 +700,62 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 	return ret;
 }
 
+static int esdhc_change_pinstate(struct sdhci_host *host,
+						unsigned int uhs)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	struct pinctrl_state *pinctrl;
+
+	dev_dbg(mmc_dev(host->mmc), "change pinctrl state for uhs %d\n", uhs);
+
+	if (IS_ERR(imx_data->pinctrl) ||
+		IS_ERR(imx_data->pins_default) ||
+		IS_ERR(imx_data->pins_100mhz) ||
+		IS_ERR(imx_data->pins_200mhz))
+		return -EINVAL;
+
+	switch (uhs) {
+	case MMC_TIMING_UHS_SDR50:
+		pinctrl = imx_data->pins_100mhz;
+		break;
+	case MMC_TIMING_UHS_SDR104:
+		pinctrl = imx_data->pins_200mhz;
+		break;
+	default:
+		/* back to default state for other legacy timing */
+		pinctrl = imx_data->pins_default;
+	}
+
+	return pinctrl_select_state(imx_data->pinctrl, pinctrl);
+}
+
+static int esdhc_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+
+	switch (uhs) {
+	case MMC_TIMING_UHS_SDR12:
+		imx_data->uhs_mode = SDHCI_CTRL_UHS_SDR12;
+		break;
+	case MMC_TIMING_UHS_SDR25:
+		imx_data->uhs_mode = SDHCI_CTRL_UHS_SDR25;
+		break;
+	case MMC_TIMING_UHS_SDR50:
+		imx_data->uhs_mode = SDHCI_CTRL_UHS_SDR50;
+		break;
+	case MMC_TIMING_UHS_SDR104:
+		imx_data->uhs_mode = SDHCI_CTRL_UHS_SDR104;
+		break;
+	case MMC_TIMING_UHS_DDR50:
+		imx_data->uhs_mode = SDHCI_CTRL_UHS_DDR50;
+		break;
+	}
+
+	return esdhc_change_pinstate(host, uhs);
+}
+
 static const struct sdhci_ops sdhci_esdhc_ops = {
 	.read_l = esdhc_readl_le,
 	.read_w = esdhc_readw_le,
@@ -704,6 +767,7 @@ static const struct sdhci_ops sdhci_esdhc_ops = {
 	.get_min_clock = esdhc_pltfm_get_min_clock,
 	.get_ro = esdhc_pltfm_get_ro,
 	.platform_bus_width = esdhc_pltfm_bus_width,
+	.set_uhs_signaling = esdhc_set_uhs_signaling,
 	.platform_execute_tuning = esdhc_executing_tuning,
 };
 
@@ -745,6 +809,11 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 	of_property_read_u32(np, "bus-width", &boarddata->max_bus_width);
 
 	of_property_read_u32(np, "max-frequency", &boarddata->f_max);
+
+	if (of_find_property(np, "no-1-8-v", NULL))
+		boarddata->support_vsel = false;
+	else
+		boarddata->support_vsel = true;
 
 	return 0;
 }
@@ -808,9 +877,17 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	clk_prepare_enable(imx_data->clk_ipg);
 	clk_prepare_enable(imx_data->clk_ahb);
 
-	imx_data->pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	imx_data->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(imx_data->pinctrl)) {
 		err = PTR_ERR(imx_data->pinctrl);
+		goto disable_clk;
+	}
+
+	imx_data->pins_default = pinctrl_lookup_state(imx_data->pinctrl,
+						PINCTRL_STATE_DEFAULT);
+	if (IS_ERR(imx_data->pins_default)) {
+		err = PTR_ERR(imx_data->pins_default);
+		dev_err(mmc_dev(host->mmc), "could not get default state\n");
 		goto disable_clk;
 	}
 
@@ -888,6 +965,23 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	default:
 		host->quirks |= SDHCI_QUIRK_FORCE_1_BIT_DATA;
 		break;
+	}
+
+	/* sdr50 and sdr104 needs work on 1.8v signal voltage */
+	if ((boarddata->support_vsel) && is_imx6q_usdhc(imx_data)) {
+		imx_data->pins_100mhz = pinctrl_lookup_state(imx_data->pinctrl,
+						ESDHC_PINCTRL_STATE_100MHZ);
+		imx_data->pins_200mhz = pinctrl_lookup_state(imx_data->pinctrl,
+						ESDHC_PINCTRL_STATE_200MHZ);
+		if (IS_ERR(imx_data->pins_100mhz) ||
+				IS_ERR(imx_data->pins_200mhz)) {
+			dev_warn(mmc_dev(host->mmc),
+				"could not get ultra high speed state, work on normal mode\n");
+			/* fall back to not support uhs by specify no 1.8v quirk */
+			host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
+		}
+	} else {
+		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
 	}
 
 	err = sdhci_add_host(host);
