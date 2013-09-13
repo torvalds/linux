@@ -26,11 +26,12 @@
 #include <linux/stop_machine.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
-#include <asm/cacheflush.h>
-#include <asm/sections.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/hardirq.h>
+#include <asm/cacheflush.h>
+#include <asm/sections.h>
+#include <asm/dis.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
@@ -208,7 +209,7 @@ static void __kprobes copy_instruction(struct kprobe *p)
 	s64 disp, new_disp;
 	u64 addr, new_addr;
 
-	memcpy(p->ainsn.insn, p->addr, ((p->opcode >> 14) + 3) & -2);
+	memcpy(p->ainsn.insn, p->addr, insn_length(p->opcode >> 8));
 	if (!is_insn_relative_long(p->ainsn.insn))
 		return;
 	/*
@@ -608,7 +609,7 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 		ip += (unsigned long) p->addr - (unsigned long) p->ainsn.insn;
 
 	if (fixup & FIXUP_BRANCH_NOT_TAKEN) {
-		int ilen = ((p->ainsn.insn[0] >> 14) + 3) & -2;
+		int ilen = insn_length(p->ainsn.insn[0] >> 8);
 		if (ip - (unsigned long) p->ainsn.insn == ilen)
 			ip = (unsigned long) p->addr + ilen;
 	}
