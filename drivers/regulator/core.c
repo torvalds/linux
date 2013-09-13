@@ -53,7 +53,6 @@ static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
 static LIST_HEAD(regulator_ena_gpio_list);
 static bool has_full_constraints;
-static bool board_wants_dummy_regulator;
 
 static struct dentry *debugfs_root;
 
@@ -3614,22 +3613,6 @@ void regulator_has_full_constraints(void)
 	has_full_constraints = 1;
 }
 EXPORT_SYMBOL_GPL(regulator_has_full_constraints);
-
-/**
- * regulator_use_dummy_regulator - Provide a dummy regulator when none is found
- *
- * Calling this function will cause the regulator API to provide a
- * dummy regulator to consumers if no physical regulator is found,
- * allowing most consumers to proceed as though a regulator were
- * configured.  This allows systems such as those with software
- * controllable regulators for the CPU core only to be brought up more
- * readily.
- */
-void regulator_use_dummy_regulator(void)
-{
-	board_wants_dummy_regulator = true;
-}
-EXPORT_SYMBOL_GPL(regulator_use_dummy_regulator);
 
 /**
  * rdev_get_drvdata - get rdev regulator driver data
