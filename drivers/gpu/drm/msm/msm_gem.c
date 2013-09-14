@@ -159,7 +159,6 @@ out_unlock:
 out:
 	switch (ret) {
 	case -EAGAIN:
-		set_need_resched();
 	case 0:
 	case -ERESTARTSYS:
 	case -EINTR:
