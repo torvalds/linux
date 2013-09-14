@@ -357,15 +357,80 @@ static void dentry_unlink_inode(struct dentry * dentry)
 }
 
 /*
+ * The DCACHE_LRU_LIST bit is set whenever the 'd_lru' entry
+ * is in use - which includes both the "real" per-superblock
+ * LRU list _and_ the DCACHE_SHRINK_LIST use.
+ *
+ * The DCACHE_SHRINK_LIST bit is set whenever the dentry is
+ * on the shrink list (ie not on the superblock LRU list).
+ *
+ * The per-cpu "nr_dentry_unused" counters are updated with
+ * the DCACHE_LRU_LIST bit.
+ *
+ * These helper functions make sure we always follow the
+ * rules. d_lock must be held by the caller.
+ */
+#define D_FLAG_VERIFY(dentry,x) WARN_ON_ONCE(((dentry)->d_flags & (DCACHE_LRU_LIST | DCACHE_SHRINK_LIST)) != (x))
+static void d_lru_add(struct dentry *dentry)
+{
+	D_FLAG_VERIFY(dentry, 0);
+	dentry->d_flags |= DCACHE_LRU_LIST;
+	this_cpu_inc(nr_dentry_unused);
+	WARN_ON_ONCE(!list_lru_add(&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
+}
+
+static void d_lru_del(struct dentry *dentry)
+{
+	D_FLAG_VERIFY(dentry, DCACHE_LRU_LIST);
+	dentry->d_flags &= ~DCACHE_LRU_LIST;
+	this_cpu_dec(nr_dentry_unused);
+	WARN_ON_ONCE(!list_lru_del(&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
+}
+
+static void d_shrink_del(struct dentry *dentry)
+{
+	D_FLAG_VERIFY(dentry, DCACHE_SHRINK_LIST | DCACHE_LRU_LIST);
+	list_del_init(&dentry->d_lru);
+	dentry->d_flags &= ~(DCACHE_SHRINK_LIST | DCACHE_LRU_LIST);
+	this_cpu_dec(nr_dentry_unused);
+}
+
+static void d_shrink_add(struct dentry *dentry, struct list_head *list)
+{
+	D_FLAG_VERIFY(dentry, 0);
+	list_add(&dentry->d_lru, list);
+	dentry->d_flags |= DCACHE_SHRINK_LIST | DCACHE_LRU_LIST;
+	this_cpu_inc(nr_dentry_unused);
+}
+
+/*
+ * These can only be called under the global LRU lock, ie during the
+ * callback for freeing the LRU list. "isolate" removes it from the
+ * LRU lists entirely, while shrink_move moves it to the indicated
+ * private list.
+ */
+static void d_lru_isolate(struct dentry *dentry)
+{
+	D_FLAG_VERIFY(dentry, DCACHE_LRU_LIST);
+	dentry->d_flags &= ~DCACHE_LRU_LIST;
+	this_cpu_dec(nr_dentry_unused);
+	list_del_init(&dentry->d_lru);
+}
+
+static void d_lru_shrink_move(struct dentry *dentry, struct list_head *list)
+{
+	D_FLAG_VERIFY(dentry, DCACHE_LRU_LIST);
+	dentry->d_flags |= DCACHE_SHRINK_LIST;
+	list_move_tail(&dentry->d_lru, list);
+}
+
+/*
  * dentry_lru_(add|del)_list) must be called with d_lock held.
  */
 static void dentry_lru_add(struct dentry *dentry)
 {
-	if (unlikely(!(dentry->d_flags & DCACHE_LRU_LIST))) {
-		if (list_lru_add(&dentry->d_sb->s_dentry_lru, &dentry->d_lru))
-			this_cpu_inc(nr_dentry_unused);
-		dentry->d_flags |= DCACHE_LRU_LIST;
-	}
+	if (unlikely(!(dentry->d_flags & DCACHE_LRU_LIST)))
+		d_lru_add(dentry);
 }
 
 /*
@@ -377,15 +442,11 @@ static void dentry_lru_add(struct dentry *dentry)
  */
 static void dentry_lru_del(struct dentry *dentry)
 {
-	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
-		list_del_init(&dentry->d_lru);
-		dentry->d_flags &= ~DCACHE_SHRINK_LIST;
-		return;
+	if (dentry->d_flags & DCACHE_LRU_LIST) {
+		if (dentry->d_flags & DCACHE_SHRINK_LIST)
+			return d_shrink_del(dentry);
+		d_lru_del(dentry);
 	}
-
-	if (list_lru_del(&dentry->d_sb->s_dentry_lru, &dentry->d_lru))
-		this_cpu_dec(nr_dentry_unused);
-	dentry->d_flags &= ~DCACHE_LRU_LIST;
 }
 
 /**
@@ -837,6 +898,12 @@ static void shrink_dentry_list(struct list_head *list)
 		dentry = list_entry_rcu(list->prev, struct dentry, d_lru);
 		if (&dentry->d_lru == list)
 			break; /* empty */
+
+		/*
+		 * Get the dentry lock, and re-verify that the dentry is
+		 * this on the shrinking list. If it is, we know that
+		 * DCACHE_SHRINK_LIST and DCACHE_LRU_LIST are set.
+		 */
 		spin_lock(&dentry->d_lock);
 		if (dentry != list_entry(list->prev, struct dentry, d_lru)) {
 			spin_unlock(&dentry->d_lock);
@@ -848,8 +915,7 @@ static void shrink_dentry_list(struct list_head *list)
 		 * to the LRU here, so we can simply remove it from the list
 		 * here regardless of whether it is referenced or not.
 		 */
-		list_del_init(&dentry->d_lru);
-		dentry->d_flags &= ~DCACHE_SHRINK_LIST;
+		d_shrink_del(dentry);
 
 		/*
 		 * We found an inuse dentry which was not removed from
@@ -861,12 +927,20 @@ static void shrink_dentry_list(struct list_head *list)
 		}
 		rcu_read_unlock();
 
+		/*
+		 * If 'try_to_prune()' returns a dentry, it will
+		 * be the same one we passed in, and d_lock will
+		 * have been held the whole time, so it will not
+		 * have been added to any other lists. We failed
+		 * to get the inode lock.
+		 *
+		 * We just add it back to the shrink list.
+		 */
 		dentry = try_prune_one_dentry(dentry);
 
 		rcu_read_lock();
 		if (dentry) {
-			dentry->d_flags |= DCACHE_SHRINK_LIST;
-			list_add(&dentry->d_lru, list);
+			d_shrink_add(dentry, list);
 			spin_unlock(&dentry->d_lock);
 		}
 	}
@@ -894,7 +968,7 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
 	 * another pass through the LRU.
 	 */
 	if (dentry->d_lockref.count) {
-		list_del_init(&dentry->d_lru);
+		d_lru_isolate(dentry);
 		spin_unlock(&dentry->d_lock);
 		return LRU_REMOVED;
 	}
@@ -925,9 +999,7 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
 		return LRU_ROTATE;
 	}
 
-	dentry->d_flags |= DCACHE_SHRINK_LIST;
-	list_move_tail(&dentry->d_lru, freeable);
-	this_cpu_dec(nr_dentry_unused);
+	d_lru_shrink_move(dentry, freeable);
 	spin_unlock(&dentry->d_lock);
 
 	return LRU_REMOVED;
@@ -972,9 +1044,7 @@ static enum lru_status dentry_lru_isolate_shrink(struct list_head *item,
 	if (!spin_trylock(&dentry->d_lock))
 		return LRU_SKIP;
 
-	dentry->d_flags |= DCACHE_SHRINK_LIST;
-	list_move_tail(&dentry->d_lru, freeable);
-	this_cpu_dec(nr_dentry_unused);
+	d_lru_shrink_move(dentry, freeable);
 	spin_unlock(&dentry->d_lock);
 
 	return LRU_REMOVED;
@@ -1362,9 +1432,13 @@ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
 	if (dentry->d_lockref.count) {
 		dentry_lru_del(dentry);
 	} else if (!(dentry->d_flags & DCACHE_SHRINK_LIST)) {
-		dentry_lru_del(dentry);
-		list_add_tail(&dentry->d_lru, &data->dispose);
-		dentry->d_flags |= DCACHE_SHRINK_LIST;
+		/*
+		 * We can't use d_lru_shrink_move() because we
+		 * need to get the global LRU lock and do the
+		 * RLU accounting.
+		 */
+		d_lru_del(dentry);
+		d_shrink_add(dentry, &data->dispose);
 		data->found++;
 		ret = D_WALK_NORETRY;
 	}
