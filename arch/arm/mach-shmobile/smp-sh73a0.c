@@ -46,11 +46,6 @@ void __init sh73a0_register_twd(void)
 static int __cpuinit sh73a0_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned int lcpu = cpu_logical_map(cpu);
-	int ret;
-
-	ret = shmobile_smp_scu_boot_secondary(cpu, idle);
-	if (ret)
-		return ret;
 
 	if (((__raw_readl(PSTR) >> (4 * lcpu)) & 3) == 3)
 		__raw_writel(1 << lcpu, WUPCR);	/* wake up */
