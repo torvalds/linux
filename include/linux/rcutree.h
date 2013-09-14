@@ -90,6 +90,6 @@ extern void exit_rcu(void);
 extern void rcu_scheduler_starting(void);
 extern int rcu_scheduler_active __read_mostly;
 
-extern bool __rcu_is_watching(void);
+extern bool rcu_is_watching(void);
 
 #endif /* __LINUX_RCUTREE_H */
