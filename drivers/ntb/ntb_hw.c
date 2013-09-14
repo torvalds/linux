@@ -1296,6 +1296,32 @@ static void ntb_free_debugfs(struct ntb_device *ndev)
 	}
 }
 
+static void ntb_hw_link_up(struct ntb_device *ndev)
+{
+	if (ndev->conn_type == NTB_CONN_TRANSPARENT)
+		ntb_link_event(ndev, NTB_LINK_UP);
+	else
+		/* Let's bring the NTB link up */
+		writel(NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP,
+		       ndev->reg_ofs.lnk_cntl);
+}
+
+static void ntb_hw_link_down(struct ntb_device *ndev)
+{
+	u32 ntb_cntl;
+
+	if (ndev->conn_type == NTB_CONN_TRANSPARENT) {
+		ntb_link_event(ndev, NTB_LINK_DOWN);
+		return;
+	}
+
+	/* Bring NTB link down */
+	ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
+	ntb_cntl &= ~(NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP);
+	ntb_cntl |= NTB_CNTL_LINK_DISABLE;
+	writel(ntb_cntl, ndev->reg_ofs.lnk_cntl);
+}
+
 static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ntb_device *ndev;
@@ -1384,9 +1410,7 @@ static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		goto err6;
 
-	/* Let's bring the NTB link up */
-	writel(NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP,
-	       ndev->reg_ofs.lnk_cntl);
+	ntb_hw_link_up(ndev);
 
 	return 0;
 
@@ -1416,12 +1440,8 @@ static void ntb_pci_remove(struct pci_dev *pdev)
 {
 	struct ntb_device *ndev = pci_get_drvdata(pdev);
 	int i;
-	u32 ntb_cntl;
 
-	/* Bring NTB link down */
-	ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
-	ntb_cntl |= NTB_CNTL_LINK_DISABLE;
-	writel(ntb_cntl, ndev->reg_ofs.lnk_cntl);
+	ntb_hw_link_down(ndev);
 
 	ntb_transport_free(ndev->ntb_transport);
 
