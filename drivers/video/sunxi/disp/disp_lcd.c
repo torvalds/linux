@@ -227,7 +227,7 @@ Lcd_Panel_Parameter_Check(__u32 sel)
 			/* close all layer */
 			writel(reg_value & 0xfffff0ff, image_base_addr + 0x800);
 
-			LCD_delay_ms(2000);
+			msleep(2000);
 			/* set background color */
 			writel(0x00000000, image_base_addr + 0x804);
 			/* open layer */
@@ -647,15 +647,6 @@ LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 	}
 }
 
-void LCD_delay_ms(__u32 ms)
-{
-	__u32 timeout = ms * HZ / 1000;
-
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(timeout);
-}
-EXPORT_SYMBOL(LCD_delay_ms);
-
 void LCD_delay_us(__u32 us)
 {
 	udelay(us);
@@ -726,7 +717,7 @@ static __s32 pwm_write_reg(__u32 offset, __u32 value)
 	writel(value, gdisp.init_para.base_pwm + offset);
 
 	if (sunxi_is_sun4i())
-        	LCD_delay_ms(20);
+		msleep(20);
 
 	return 0;
 }

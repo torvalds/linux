@@ -33,7 +33,6 @@ __u32 tv_mode_to_height(__disp_tv_mode_t mode);
 __u32 vga_mode_to_width(__disp_vga_mode_t mode);
 __u32 vga_mode_to_height(__disp_vga_mode_t mode);
 
-void LCD_delay_ms(__u32 ms);
 void LCD_delay_us(__u32 ns);
 
 void TCON_open(__u32 sel);

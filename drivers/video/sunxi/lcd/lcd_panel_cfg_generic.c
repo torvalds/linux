@@ -138,7 +138,7 @@ LCD_SPI_Write(__u32 sel)
 			gpio_write_one_pin_value(lcd_spi_clk, 1, "lcd_spi_clk");
 			LCD_delay_us(CMD_WIRTE_DELAY);
 		}
-		LCD_delay_ms(50);
+		msleep(50);
 		gpio_write_one_pin_value(lcd_spi_cs, 0, "lcd_spi_cs");
 
 		lcd_spi_dbg("write data[8]:");

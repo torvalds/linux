@@ -107,9 +107,9 @@ static void kgm281i0_write_gram_origin(__u32 sel)
 static void kgm281i0_init(__u32 sel)
 {
 	kgm281i0_rs(sel, 1);
-	LCD_delay_ms(50);
+	msleep(50);
 	kgm281i0_rs(sel, 0);
-	LCD_delay_ms(50);
+	msleep(50);
 	kgm281i0_rs(sel, 1);
 
 	LCD_CPU_WR(sel, 0x0000, 0x0001);
@@ -127,15 +127,15 @@ static void kgm281i0_init(__u32 sel)
 	LCD_CPU_WR(sel, 0x0011, 0x0007);
 	LCD_CPU_WR(sel, 0x0012, 0x0000);
 	LCD_CPU_WR(sel, 0x0013, 0x0000);
-	LCD_delay_ms(50);
+	msleep(50);
 	LCD_CPU_WR(sel, 0x0010, 0x17B0);
 	LCD_CPU_WR(sel, 0x0011, 0x0001);
-	LCD_delay_ms(50);
+	msleep(50);
 	LCD_CPU_WR(sel, 0x0012, 0x013C);
-	LCD_delay_ms(50);
+	msleep(50);
 	LCD_CPU_WR(sel, 0x0013, 0x1300);
 	LCD_CPU_WR(sel, 0x0029, 0x0012);
-	LCD_delay_ms(50);
+	msleep(50);
 	LCD_CPU_WR(sel, 0x0020, 0x0000);
 	LCD_CPU_WR(sel, 0x0021, 0x0000);
 	LCD_CPU_WR(sel, 0x002B, 0x0020);
@@ -169,10 +169,10 @@ static void kgm281i0_init(__u32 sel)
 	LCD_CPU_WR(sel, 0x0097, 0x0000);
 	LCD_CPU_WR(sel, 0x0098, 0x0000);
 	LCD_CPU_WR(sel, 0x0007, 0x0001);
-	LCD_delay_ms(50);
+	msleep(50);
 	LCD_CPU_WR(sel, 0x0007, 0x0021);
 	LCD_CPU_WR(sel, 0x0007, 0x0023);
-	LCD_delay_ms(50);
+	msleep(50);
 	LCD_CPU_WR(sel, 0x0007, 0x0173);
 }
 
