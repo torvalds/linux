@@ -87,10 +87,6 @@ static int __cpuinit r8a7779_boot_secondary(unsigned int cpu, struct task_struct
 	unsigned int lcpu = cpu_logical_map(cpu);
 	int ret;
 
-	ret = shmobile_smp_scu_boot_secondary(cpu, idle);
-	if (ret)
-		return ret;
-
 	if (lcpu < ARRAY_SIZE(r8a7779_ch_cpu))
 		ch = r8a7779_ch_cpu[lcpu];
 
