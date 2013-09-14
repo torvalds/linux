@@ -1951,7 +1951,9 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 			if (bf_is_ampdu_not_probing(bf))
 				txq->axq_ampdu_depth++;
 
-			bf = bf->bf_lastbf->bf_next;
+			bf_last = bf->bf_lastbf;
+			bf = bf_last->bf_next;
+			bf_last->bf_next = NULL;
 		}
 	}
 }
