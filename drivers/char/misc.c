@@ -193,8 +193,8 @@ int misc_register(struct miscdevice * misc)
 	if (misc->minor == MISC_DYNAMIC_MINOR) {
 		int i = find_first_zero_bit(misc_minors, DYNAMIC_MINORS);
 		if (i >= DYNAMIC_MINORS) {
-			mutex_unlock(&misc_mtx);
-			return -EBUSY;
+			err = -EBUSY;
+			goto out;
 		}
 		misc->minor = DYNAMIC_MINORS - i - 1;
 		set_bit(i, misc_minors);
@@ -203,8 +203,8 @@ int misc_register(struct miscdevice * misc)
 
 		list_for_each_entry(c, &misc_list, list) {
 			if (c->minor == misc->minor) {
-				mutex_unlock(&misc_mtx);
-				return -EBUSY;
+				err = -EBUSY;
+				goto out;
 			}
 		}
 	}
