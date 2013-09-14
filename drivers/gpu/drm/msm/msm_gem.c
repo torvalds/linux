@@ -309,7 +309,17 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 
 int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint32_t *iova)
 {
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret;
+
+	/* this is safe right now because we don't unmap until the
+	 * bo is deleted:
+	 */
+	if (msm_obj->domain[id].iova) {
+		*iova = msm_obj->domain[id].iova;
+		return 0;
+	}
+
 	mutex_lock(&obj->dev->struct_mutex);
 	ret = msm_gem_get_iova_locked(obj, id, iova);
 	mutex_unlock(&obj->dev->struct_mutex);
@@ -379,8 +389,11 @@ void *msm_gem_vaddr(struct drm_gem_object *obj)
 	return ret;
 }
 
-int msm_gem_queue_inactive_work(struct drm_gem_object *obj,
-		struct work_struct *work)
+/* setup callback for when bo is no longer busy..
+ * TODO probably want to differentiate read vs write..
+ */
+int msm_gem_queue_inactive_cb(struct drm_gem_object *obj,
+		struct msm_fence_cb *cb)
 {
 	struct drm_device *dev = obj->dev;
 	struct msm_drm_private *priv = dev->dev_private;
@@ -388,12 +401,13 @@ int msm_gem_queue_inactive_work(struct drm_gem_object *obj,
 	int ret = 0;
 
 	mutex_lock(&dev->struct_mutex);
-	if (!list_empty(&work->entry)) {
+	if (!list_empty(&cb->work.entry)) {
 		ret = -EINVAL;
 	} else if (is_active(msm_obj)) {
-		list_add_tail(&work->entry, &msm_obj->inactive_work);
+		cb->fence = max(msm_obj->read_fence, msm_obj->write_fence);
+		list_add_tail(&cb->work.entry, &priv->fence_cbs);
 	} else {
-		queue_work(priv->wq, work);
+		queue_work(priv->wq, &cb->work);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -426,16 +440,6 @@ void msm_gem_move_to_inactive(struct drm_gem_object *obj)
 	msm_obj->write_fence = 0;
 	list_del_init(&msm_obj->mm_list);
 	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
-
-	while (!list_empty(&msm_obj->inactive_work)) {
-		struct work_struct *work;
-
-		work = list_first_entry(&msm_obj->inactive_work,
-				struct work_struct, entry);
-
-		list_del_init(&work->entry);
-		queue_work(priv->wq, work);
-	}
 }
 
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
@@ -604,7 +608,6 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	reservation_object_init(msm_obj->resv);
 
 	INIT_LIST_HEAD(&msm_obj->submit_entry);
-	INIT_LIST_HEAD(&msm_obj->inactive_work);
 	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
 
 	*obj = &msm_obj->base;

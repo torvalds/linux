@@ -73,6 +73,9 @@ struct msm_drm_private {
 
 	struct workqueue_struct *wq;
 
+	/* callbacks deferred until bo is inactive: */
+	struct list_head fence_cbs;
+
 	/* registered IOMMU domains: */
 	unsigned int num_iommus;
 	struct iommu_domain *iommus[NUM_DOMAINS];
@@ -96,6 +99,20 @@ struct msm_drm_private {
 struct msm_format {
 	uint32_t pixel_format;
 };
+
+/* callback from wq once fence has passed: */
+struct msm_fence_cb {
+	struct work_struct work;
+	uint32_t fence;
+	void (*func)(struct msm_fence_cb *cb);
+};
+
+void __msm_fence_worker(struct work_struct *work);
+
+#define INIT_FENCE_CB(_cb, _func)  do {                     \
+		INIT_WORK(&(_cb)->work, __msm_fence_worker); \
+		(_cb)->func = _func;                         \
+	} while (0)
 
 /* As there are different display controller blocks depending on the
  * snapdragon version, the kms support is split out and the appropriate
@@ -160,8 +177,8 @@ int msm_gem_prime_pin(struct drm_gem_object *obj);
 void msm_gem_prime_unpin(struct drm_gem_object *obj);
 void *msm_gem_vaddr_locked(struct drm_gem_object *obj);
 void *msm_gem_vaddr(struct drm_gem_object *obj);
-int msm_gem_queue_inactive_work(struct drm_gem_object *obj,
-		struct work_struct *work);
+int msm_gem_queue_inactive_cb(struct drm_gem_object *obj,
+		struct msm_fence_cb *cb);
 void msm_gem_move_to_active(struct drm_gem_object *obj,
 		struct msm_gpu *gpu, bool write, uint32_t fence);
 void msm_gem_move_to_inactive(struct drm_gem_object *obj);

@@ -51,7 +51,7 @@ struct mdp4_crtc {
 
 	/* if there is a pending flip, these will be non-null: */
 	struct drm_pending_vblank_event *event;
-	struct work_struct pageflip_work;
+	struct msm_fence_cb pageflip_cb;
 
 	/* the fb that we currently hold a scanout ref to: */
 	struct drm_framebuffer *fb;
@@ -132,10 +132,10 @@ static void crtc_flush(struct drm_crtc *crtc)
 	mdp4_write(mdp4_kms, REG_MDP4_OVERLAY_FLUSH, flush);
 }
 
-static void pageflip_worker(struct work_struct *work)
+static void pageflip_cb(struct msm_fence_cb *cb)
 {
 	struct mdp4_crtc *mdp4_crtc =
-		container_of(work, struct mdp4_crtc, pageflip_work);
+		container_of(cb, struct mdp4_crtc, pageflip_cb);
 	struct drm_crtc *crtc = &mdp4_crtc->base;
 
 	mdp4_plane_set_scanout(mdp4_crtc->plane, crtc->fb);
@@ -397,8 +397,7 @@ static int mdp4_crtc_page_flip(struct drm_crtc *crtc,
 	mdp4_crtc->event = event;
 	update_fb(crtc, true, new_fb);
 
-	return msm_gem_queue_inactive_work(obj,
-			&mdp4_crtc->pageflip_work);
+	return msm_gem_queue_inactive_cb(obj, &mdp4_crtc->pageflip_cb);
 }
 
 static int mdp4_crtc_set_property(struct drm_crtc *crtc,
@@ -702,7 +701,7 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	ret = drm_flip_work_init(&mdp4_crtc->unref_cursor_work, 64,
 			"unref cursor", unref_cursor_worker);
 
-	INIT_WORK(&mdp4_crtc->pageflip_work, pageflip_worker);
+	INIT_FENCE_CB(&mdp4_crtc->pageflip_cb, pageflip_cb);
 
 	drm_crtc_init(dev, crtc, &mdp4_crtc_funcs);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);

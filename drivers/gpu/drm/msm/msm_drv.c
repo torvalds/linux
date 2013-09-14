@@ -187,6 +187,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	init_waitqueue_head(&priv->fence_event);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
+	INIT_LIST_HEAD(&priv->fence_cbs);
 
 	drm_mode_config_init(dev);
 
@@ -539,15 +540,36 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 	return ret;
 }
 
-/* call under struct_mutex */
+/* called from workqueue */
 void msm_update_fence(struct drm_device *dev, uint32_t fence)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 
-	if (fence > priv->completed_fence) {
-		priv->completed_fence = fence;
-		wake_up_all(&priv->fence_event);
+	mutex_lock(&dev->struct_mutex);
+	priv->completed_fence = max(fence, priv->completed_fence);
+
+	while (!list_empty(&priv->fence_cbs)) {
+		struct msm_fence_cb *cb;
+
+		cb = list_first_entry(&priv->fence_cbs,
+				struct msm_fence_cb, work.entry);
+
+		if (cb->fence > priv->completed_fence)
+			break;
+
+		list_del_init(&cb->work.entry);
+		queue_work(priv->wq, &cb->work);
 	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	wake_up_all(&priv->fence_event);
+}
+
+void __msm_fence_worker(struct work_struct *work)
+{
+	struct msm_fence_cb *cb = container_of(work, struct msm_fence_cb, work);
+	cb->func(cb);
 }
 
 /*
