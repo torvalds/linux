@@ -51,14 +51,6 @@ void __init shmobile_smp_scu_prepare_cpus(unsigned int max_cpus)
 	register_cpu_notifier(&shmobile_smp_scu_notifier);
 }
 
-int shmobile_smp_scu_boot_secondary(unsigned int cpu, struct task_struct *idle)
-{
-	/* For this particular CPU register SCU boot vector */
-	shmobile_smp_hook(cpu, virt_to_phys(shmobile_boot_scu),
-			  (unsigned long)shmobile_scu_base);
-	return 0;
-}
-
 #ifdef CONFIG_HOTPLUG_CPU
 void shmobile_smp_scu_cpu_die(unsigned int cpu)
 {
