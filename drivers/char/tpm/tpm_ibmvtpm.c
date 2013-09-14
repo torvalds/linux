@@ -98,7 +98,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	if (count < len) {
 		dev_err(ibmvtpm->dev,
-			"Invalid size in recv: count=%ld, crq_size=%d\n",
+			"Invalid size in recv: count=%zd, crq_size=%d\n",
 			count, len);
 		return -EIO;
 	}
@@ -136,7 +136,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	if (count > ibmvtpm->rtce_size) {
 		dev_err(ibmvtpm->dev,
-			"Invalid size in send: count=%ld, rtce_size=%d\n",
+			"Invalid size in send: count=%zd, rtce_size=%d\n",
 			count, ibmvtpm->rtce_size);
 		return -EIO;
 	}
