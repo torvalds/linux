@@ -94,8 +94,21 @@ static void apmu_parse_cfg(void (*fn)(struct resource *res, int cpu, int bit))
 	u32 id;
 	int k;
 	int bit, index;
+	bool is_allowed;
 
 	for (k = 0; k < ARRAY_SIZE(apmu_config); k++) {
+		/* only enable the cluster that includes the boot CPU */
+		is_allowed = false;
+		for (bit = 0; bit < ARRAY_SIZE(apmu_config[k].cpus); bit++) {
+			id = apmu_config[k].cpus[bit];
+			if (id >= 0) {
+				if (id == cpu_logical_map(0))
+					is_allowed = true;
+			}
+		}
+		if (!is_allowed)
+			continue;
+
 		for (bit = 0; bit < ARRAY_SIZE(apmu_config[k].cpus); bit++) {
 			id = apmu_config[k].cpus[bit];
 			if (id >= 0) {
