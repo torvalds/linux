@@ -156,9 +156,9 @@ static void td043_spi_wr(__u32 sel, __u32 addr, __u32 value)
 		else
 			td043_spi_sda(sel, 0);
 		data <<= 1;
-		LCD_delay_us(10);
+		udelay(10);
 		td043_spi_scl(sel, 1);
-		LCD_delay_us(10);
+		udelay(10);
 		td043_spi_scl(sel, 0);
 	}
 	td043_spi_scen(sel, 1);

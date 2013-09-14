@@ -205,9 +205,9 @@ static __bool i2cB_clock(void)
 	__bool sample = 0;
 
 	IIC_SCLB_HIGH();
-	LCD_delay_us(10);
+	udelay(10);
 	IIC_SCLB_LOW();
-	LCD_delay_us(10);
+	udelay(10);
 	return sample;
 }
 
@@ -215,25 +215,25 @@ static __bool i2cB_ack(void)
 {
 	IIC_SCLB_HIGH();
 	IIC_SDAB_INPUT_SETUP();
-	LCD_delay_us(5);
-	LCD_delay_us(5);
+	udelay(5);
+	udelay(5);
 	if (CHECK_SDAB_HIGH()) {
-		LCD_delay_us(5);
+		udelay(5);
 		IIC_SDAB_OUTPUT_SETUP();
-		LCD_delay_us(5);
+		udelay(5);
 		IIC_SCLB_LOW();
-		LCD_delay_us(5);
+		udelay(5);
 		IIC_SDAB_HIGH();
-		LCD_delay_us(5);
+		udelay(5);
 		return 1;
 	} else {
-		LCD_delay_us(5);
+		udelay(5);
 		IIC_SDAB_OUTPUT_SETUP();
-		LCD_delay_us(5);
+		udelay(5);
 		IIC_SCLB_LOW();
-		LCD_delay_us(5);
+		udelay(5);
 		IIC_SDAB_HIGH();
-		LCD_delay_us(5);
+		udelay(5);
 		return 0;
 	}
 }
@@ -242,9 +242,9 @@ static void i2cBStartA(void)
 {
 	IIC_SCLB_HIGH();
 	IIC_SDAB_HIGH();
-	LCD_delay_us(10);
+	udelay(10);
 	IIC_SDAB_LOW();
-	LCD_delay_us(10);
+	udelay(10);
 	IIC_SCLB_LOW();
 }
 
@@ -252,7 +252,7 @@ static __bool i2cBStart(void)
 {
 	IIC_SDAB_HIGH();
 	IIC_SCLB_HIGH();
-	LCD_delay_us(10);
+	udelay(10);
 	IIC_SDAB_INPUT_SETUP();
 	if (CHECK_SDAB_HIGH()) {
 		IIC_SDAB_OUTPUT_SETUP();
@@ -266,18 +266,18 @@ static void i2cBStop(void)
 {
 	IIC_SDAB_OUTPUT_SETUP();
 	IIC_SDAB_LOW();
-	LCD_delay_us(5);
+	udelay(5);
 	IIC_SCLB_HIGH();
-	LCD_delay_us(5);
+	udelay(5);
 	IIC_SDAB_HIGH();
-	LCD_delay_us(5);
+	udelay(5);
 }
 
 static __bool i2cBTransmit(__u8 value)
 {
 	register __u8 i;
 	IIC_SDAB_OUTPUT_SETUP();
-	LCD_delay_us(5);
+	udelay(5);
 	for (i = 0; i < 8; i++) {
 		if ((value & 0x80) == 0x80)
 			IIC_SDAB_HIGH();
@@ -285,7 +285,7 @@ static __bool i2cBTransmit(__u8 value)
 			IIC_SDAB_LOW();
 
 		value = value << 1;
-		LCD_delay_us(10);
+		udelay(10);
 		i2cB_clock();
 
 	}
@@ -303,7 +303,7 @@ static __bool i2cBTransmitSubAddr(__u8 value)
 			IIC_SDAB_LOW();
 
 		value = value << 1;
-		LCD_delay_us(10);
+		udelay(10);
 		i2cB_clock();
 	}
 	return !i2cB_ack();
@@ -351,13 +351,13 @@ void i2cREAD(void)
 		value = value << 1;
 
 		//i2cB_clock();
-		LCD_delay_us(15);
+		udelay(15);
 		IIC_SCLB_HIGH();
-		LCD_delay_us(10);
+		udelay(10);
 		IIC_SCLB_LOW();
-		LCD_delay_us(10);
+		udelay(10);
 
-		LCD_delay_us(10);
+		udelay(10);
 
 		if (CHECK_SDAB_HIGH())
 			value = value + 1;

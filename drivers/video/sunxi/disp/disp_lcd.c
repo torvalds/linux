@@ -647,11 +647,6 @@ LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 	}
 }
 
-void LCD_delay_us(__u32 us)
-{
-	udelay(us);
-}
-EXPORT_SYMBOL(LCD_delay_us);
 
 void
 LCD_OPEN_FUNC(__u32 sel, LCD_FUNC func, __u32 delay)

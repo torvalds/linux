@@ -127,16 +127,16 @@ LCD_SPI_Write(__u32 sel)
 				else
 					lcd_spi_dbg("write[bit:%d]ERR", j);
 #endif
-				LCD_delay_us(CMD_WIRTE_DELAY);
+				udelay(CMD_WIRTE_DELAY);
 				gpio_write_one_pin_value(lcd_spi_clk, 1,
 							 "lcd_spi_clk");
-				LCD_delay_us(CMD_WIRTE_DELAY);
+				udelay(CMD_WIRTE_DELAY);
 			}
 
 			lcd_spi_dbg("\n");
 			gpio_write_one_pin_value(lcd_spi_cs, 1, "lcd_spi_cs");
 			gpio_write_one_pin_value(lcd_spi_clk, 1, "lcd_spi_clk");
-			LCD_delay_us(CMD_WIRTE_DELAY);
+			udelay(CMD_WIRTE_DELAY);
 		}
 		msleep(50);
 		gpio_write_one_pin_value(lcd_spi_cs, 0, "lcd_spi_cs");
@@ -155,15 +155,15 @@ LCD_SPI_Write(__u32 sel)
 			else
 				lcd_spi_dbg("write[bit:%d]ERR", j);
 #endif
-			LCD_delay_us(CMD_WIRTE_DELAY);
+			udelay(CMD_WIRTE_DELAY);
 			gpio_write_one_pin_value(lcd_spi_clk, 1, "lcd_spi_clk");
-			LCD_delay_us(CMD_WIRTE_DELAY);
+			udelay(CMD_WIRTE_DELAY);
 		}
 
 		lcd_spi_dbg("\n");
 		gpio_write_one_pin_value(lcd_spi_cs, 1, "lcd_spi_cs");
 		gpio_write_one_pin_value(lcd_spi_clk, 1, "lcd_spi_clk");
-		LCD_delay_us(CMD_WIRTE_DELAY);
+		udelay(CMD_WIRTE_DELAY);
 		lcd_spi_dbg("LCD SPI data translation finished\n");
 		break;
 	default:
