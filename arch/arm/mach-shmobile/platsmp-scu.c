@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -15,6 +16,26 @@
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 #include <mach/common.h>
+
+static int shmobile_smp_scu_notifier_call(struct notifier_block *nfb,
+					  unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (long)hcpu;
+
+	switch (action) {
+	case CPU_UP_PREPARE:
+		/* For this particular CPU register SCU SMP boot vector */
+		shmobile_smp_hook(cpu, virt_to_phys(shmobile_boot_scu),
+				  (unsigned long)shmobile_scu_base);
+		break;
+	};
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block shmobile_smp_scu_notifier = {
+	.notifier_call = shmobile_smp_scu_notifier_call,
+};
 
 void __init shmobile_smp_scu_prepare_cpus(unsigned int max_cpus)
 {
@@ -25,6 +46,9 @@ void __init shmobile_smp_scu_prepare_cpus(unsigned int max_cpus)
 	/* enable SCU and cache coherency on booting CPU */
 	scu_enable(shmobile_scu_base);
 	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
+
+	/* Use CPU notifier for reset vector control */
+	register_cpu_notifier(&shmobile_smp_scu_notifier);
 }
 
 int shmobile_smp_scu_boot_secondary(unsigned int cpu, struct task_struct *idle)
