@@ -275,7 +275,7 @@ static bool duty_mode_enabled(u8 pwm_enable)
 	case 3: /* Manual, speed mode */
 		return false;
 	default:
-		BUG();
+		WARN(1, "Unexpected pwm_enable value %d\n", pwm_enable);
 		return true;
 	}
 }
@@ -291,7 +291,7 @@ static bool auto_mode_enabled(u8 pwm_enable)
 	case 4: /* Auto, duty mode */
 		return true;
 	default:
-		BUG();
+		WARN(1, "Unexpected pwm_enable value %d\n", pwm_enable);
 		return false;
 	}
 }
