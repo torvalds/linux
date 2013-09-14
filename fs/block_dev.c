@@ -592,7 +592,7 @@ static struct block_device *bd_acquire(struct inode *inode)
 	return bdev;
 }
 
-static inline int sb_is_blkdev_sb(struct super_block *sb)
+int sb_is_blkdev_sb(struct super_block *sb)
 {
 	return sb == blockdev_superblock;
 }
