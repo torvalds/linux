@@ -24,6 +24,7 @@
 #include <linux/personality.h>
 #include <linux/random.h>
 #include <linux/export.h>
+#include <linux/context_tracking.h>
 
 #include <asm/uaccess.h>
 #include <asm/utrap.h>
@@ -496,6 +497,7 @@ asmlinkage unsigned long c_sys_nis_syscall(struct pt_regs *regs)
 
 asmlinkage void sparc_breakpoint(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
 
 	if (test_thread_flag(TIF_32BIT)) {
@@ -514,6 +516,7 @@ asmlinkage void sparc_breakpoint(struct pt_regs *regs)
 #ifdef DEBUG_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%lx nPC=%lx\n", regs->tpc, regs->tnpc);
 #endif
+	exception_exit(prev_state);
 }
 
 extern void check_pending(int signum);
