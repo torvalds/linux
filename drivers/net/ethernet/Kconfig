@@ -172,6 +172,7 @@ source "drivers/net/ethernet/sun/Kconfig"
 config SUNXI_EMAC
         tristate "Allwinner Ethernet MAC support"
         depends on ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I
+	default m
 	select MII
         ---help---
           Support for Allwinner sunxi Ethernet MAC chipset support.
