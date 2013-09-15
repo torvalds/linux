@@ -24,6 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/regulator/consumer.h>
 #include <linux/switch.h>
+#include <linux/fb.h>
 
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-device.h>
@@ -496,5 +497,34 @@ static inline void hdmi_read_bytes(struct hdmi_device *hdev, u32 reg_id,
 	for (i = 0; i < bytes; ++i)
 		buf[i] = readb(hdev->regs + reg_id + i * 4);
 }
+
+int hdmi_get_v4l2_dv_id(void);
+int hdmi_get_phy_mode(void);
+
+static struct edid_preset {
+	u32 preset;
+	u16 xres;
+	u16 yres;
+	u16 refresh;
+	u32 vmode;
+	char *name;
+	bool supported;
+} edid_presets[] = {
+	{ V4L2_DV_480P59_94,	720,  480,  59, FB_VMODE_NONINTERLACED, "480p@59.94" },
+	{ V4L2_DV_480P60,	720,  480,  60, FB_VMODE_NONINTERLACED, "480p@60" },
+	{ V4L2_DV_576P50,	720,  576,  50, FB_VMODE_NONINTERLACED, "576p@50" },
+	{ V4L2_DV_720P50,	1280, 720,  50, FB_VMODE_NONINTERLACED, "720p@50" },
+	{ V4L2_DV_720P59_94,	1280, 720,  59, FB_VMODE_NONINTERLACED, "720p@59.94" },
+	{ V4L2_DV_720P60,	1280, 720,  60, FB_VMODE_NONINTERLACED, "720p@60" },
+	{ V4L2_DV_1080P24,	1920, 1080, 24, FB_VMODE_NONINTERLACED, "1080p@24" },
+	{ V4L2_DV_1080P25,	1920, 1080, 25, FB_VMODE_NONINTERLACED, "1080p@25" },
+	{ V4L2_DV_1080P30,	1920, 1080, 30, FB_VMODE_NONINTERLACED, "1080p@30" },
+	{ V4L2_DV_1080P50,	1920, 1080, 50, FB_VMODE_NONINTERLACED, "1080p@50" },
+	{ V4L2_DV_1080P59_94,	1920, 1080, 59, FB_VMODE_NONINTERLACED, "1080p@59.94" },
+	{ V4L2_DV_1080P60,	1920, 1080, 60, FB_VMODE_NONINTERLACED, "1080p@60" },
+	{ V4L2_DV_1080I50,	1920, 1080, 50, FB_VMODE_INTERLACED, "1080i@50" },
+	{ V4L2_DV_1080I59_94,	1920, 1080, 59, FB_VMODE_INTERLACED, "1080i@59.94" },
+	{ V4L2_DV_1080I60,	1920, 1080, 60, FB_VMODE_INTERLACED, "1080i@60" },
+};
 
 #endif /* SAMSUNG_HDMI_H */

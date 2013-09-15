@@ -8,7 +8,7 @@
 obj-$(CONFIG_VIDEO_EXYNOS_HDMIPHY) += s5p-hdmiphy.o
 s5p-hdmiphy-y += hdmiphy_drv.o
 obj-$(CONFIG_VIDEO_EXYNOS_HDMI) += s5p-hdmi.o
-s5p-hdmi-y += hdcp_drv.o hdmi_drv.o hdmi_edid.o
+s5p-hdmi-y += hdcp_drv.o hdmi_drv.o hk_hdmi.o
 obj-$(CONFIG_VIDEO_EXYNOS_SDO) += s5p-sdo.o
 s5p-sdo-y += sdo_drv.o
 obj-$(CONFIG_VIDEO_EXYNOS_MIXER) += s5p-mixer.o

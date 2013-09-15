@@ -338,11 +338,11 @@ int hdmi_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 				switch_get_state(&hdev->hpd_switch));
 		break;
 	case V4L2_CID_TV_MAX_AUDIO_CHANNELS:
-		ctrl->value = edid_max_audio_channels(hdev);
+		ctrl->value = 2; //edid_max_audio_channels(hdev);
 		break;
-	case V4L2_CID_TV_SOURCE_PHY_ADDR:
+	/* case V4L2_CID_TV_SOURCE_PHY_ADDR:
 		ctrl->value = edid_source_phy_addr(hdev);
-		break;
+		break; */
 	default:
 		dev_err(dev, "invalid control id\n");
 		return -EINVAL;
@@ -413,14 +413,14 @@ static int hdmi_s_mbus_fmt(struct v4l2_subdev *sd,
 
 static int hdmi_enum_dv_presets(struct v4l2_subdev *sd,
 	struct v4l2_dv_enum_preset *enum_preset)
-{
-	struct hdmi_device *hdev = sd_to_hdmi_dev(sd);
+{	
+/*	struct hdmi_device *hdev = sd_to_hdmi_dev(sd);
 	u32 preset = edid_enum_presets(hdev, enum_preset->index);
 
 	if (preset == V4L2_DV_INVALID)
-		return -EINVAL;
+		return -EINVAL; */
 
-	return v4l_fill_dv_preset_info(preset, enum_preset);
+	return v4l_fill_dv_preset_info(edid_presets[enum_preset->index].preset, enum_preset);
 }
 
 static const struct v4l2_subdev_core_ops hdmi_sd_core_ops = {
@@ -678,17 +678,16 @@ static void hdmi_hpd_changed(struct hdmi_device *hdev, int state)
 		return;
 
 	if (state) {
-		ret = edid_update(hdev);
+		// we don't need to update, since data is static.
+/*		ret = edid_update(hdev);
 		if (ret == -ENODEV) {
 			dev_err(hdev->dev, "failed to update edid\n");
 			return;
-		}
+		} */ 
 
-		preset = edid_preferred_preset(hdev);
-		if (preset == V4L2_DV_INVALID)
-			preset = HDMI_DEFAULT_PRESET;
+		preset = hdmi_get_v4l2_dv_id();
 
-		hdev->dvi_mode = !edid_supports_hdmi(hdev);
+		hdev->dvi_mode = hdmi_get_phy_mode();
 		hdev->cur_preset = preset;
 		hdev->cur_conf = hdmi_preset2conf(preset);
 	}
