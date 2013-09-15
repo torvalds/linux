@@ -1218,6 +1218,7 @@ static int snd_sunxi_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 				play_prtd->state |= ST_RUNNING;
 				codec_play_start();
+				sunxi_pcm_enqueue(substream);
 				sunxi_dma_start(play_prtd->params);
 				if(substream->runtime->rate >=192000){
 				}else if(substream->runtime->rate > 22050){
@@ -1239,6 +1240,7 @@ static int snd_sunxi_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 				play_prtd->state &= ~ST_RUNNING;
 				sunxi_dma_stop(play_prtd->params);
+				play_prtd->dma_loaded = 0;
 				break;
 			default:
 				printk("error:%s,%d\n", __func__, __LINE__);
