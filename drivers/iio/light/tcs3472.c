@@ -55,11 +55,8 @@ struct tcs3472_data {
 	u8 enable;
 	u8 control;
 	u8 atime;
-	u16 buffer[4];
+	u16 buffer[8]; /* 4 16-bit channels + 64-bit timestamp */
 };
-
-/* 4 16-bit channels + timestamp = 16 bytes */
-#define TSL3472_BUFFER_SIZE 16
 
 #define TCS3472_CHANNEL(_color, _si, _addr) { \
 	.type = IIO_INTENSITY, \
