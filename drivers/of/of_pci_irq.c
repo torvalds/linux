@@ -85,9 +85,12 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 		pdev = ppdev;
 	}
 
+	out_irq->np = ppnode;
+	out_irq->args_count = 1;
+	out_irq->args[0] = lspec;
 	lspec_be = cpu_to_be32(lspec);
 	laddr[0] = cpu_to_be32((pdev->bus->number << 16) | (pdev->devfn << 8));
-	laddr[1]  = laddr[2] = cpu_to_be32(0);
-	return of_irq_parse_raw(ppnode, &lspec_be, 1, laddr, out_irq);
+	laddr[1] = laddr[2] = cpu_to_be32(0);
+	return of_irq_parse_raw(laddr, out_irq);
 }
 EXPORT_SYMBOL_GPL(of_irq_parse_pci);
