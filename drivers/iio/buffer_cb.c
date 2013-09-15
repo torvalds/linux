@@ -21,7 +21,7 @@ static int iio_buffer_cb_store_to(struct iio_buffer *buffer, u8 *data)
 	return cb_buff->cb(data, cb_buff->private);
 }
 
-static struct iio_buffer_access_funcs iio_cb_access = {
+static const struct iio_buffer_access_funcs iio_cb_access = {
 	.store_to = &iio_buffer_cb_store_to,
 };
 
