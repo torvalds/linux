@@ -165,6 +165,7 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 	led->led_current = pdata->led_config[chan].led_current;
 	led->max_current = pdata->led_config[chan].max_current;
 	led->chan_nr = pdata->led_config[chan].chan_nr;
+	led->cdev.default_trigger = pdata->led_config[chan].default_trigger;
 
 	if (led->chan_nr >= max_channel) {
 		dev_err(dev, "Use channel numbers between 0 and %d\n",
@@ -586,6 +587,8 @@ int lp55xx_of_populate_pdata(struct device *dev, struct device_node *np)
 		of_property_read_string(child, "chan-name", &cfg[i].name);
 		of_property_read_u8(child, "led-cur", &cfg[i].led_current);
 		of_property_read_u8(child, "max-cur", &cfg[i].max_current);
+		cfg[i].default_trigger =
+			of_get_property(child, "linux,default-trigger", NULL);
 
 		i++;
 	}
