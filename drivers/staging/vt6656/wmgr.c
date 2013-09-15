@@ -3095,7 +3095,7 @@ struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
  *
  *
  * Return Value:
- *    A ptr to frame or NULL on allocation failue
+ *    A ptr to frame or NULL on allocation failure
  *
 -*/
 
