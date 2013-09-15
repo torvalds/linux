@@ -93,10 +93,10 @@ static inline __le32 iwl_mvm_scan_max_out_time(struct ieee80211_vif *vif)
 
 static inline __le32 iwl_mvm_scan_suspend_time(struct ieee80211_vif *vif)
 {
-	if (vif->bss_conf.assoc)
-		return cpu_to_le32(vif->bss_conf.beacon_int);
-	else
+	if (!vif->bss_conf.assoc)
 		return 0;
+
+	return cpu_to_le32(ieee80211_tu_to_usec(vif->bss_conf.beacon_int));
 }
 
 static inline __le32
