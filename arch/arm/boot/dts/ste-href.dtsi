@@ -72,6 +72,7 @@
 				chan0 {
 					led-cur = /bits/ 8 <0x2f>;
 					max-cur = /bits/ 8 <0x5f>;
+					linux,default-trigger = "heartbeat";
 				};
 				chan1 {
 					led-cur = /bits/ 8 <0x2f>;
