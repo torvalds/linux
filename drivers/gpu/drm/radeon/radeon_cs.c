@@ -80,9 +80,11 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		p->relocs[i].lobj.bo = p->relocs[i].robj;
 		p->relocs[i].lobj.written = !!r->write_domain;
 
-		/* the first reloc of an UVD job is the
-		   msg and that must be in VRAM */
-		if (p->ring == R600_RING_TYPE_UVD_INDEX && i == 0) {
+		/* the first reloc of an UVD job is the msg and that must be in
+		   VRAM, also but everything into VRAM on AGP cards to avoid
+		   image corruptions */
+		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
+		    (i == 0 || p->rdev->flags & RADEON_IS_AGP)) {
 			/* TODO: is this still needed for NI+ ? */
 			p->relocs[i].lobj.domain =
 				RADEON_GEM_DOMAIN_VRAM;
