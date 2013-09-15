@@ -631,7 +631,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 		*timestamp = pf->timestamp;
 	}
 
-	iio_push_to_buffers(iio, (u8 *)lradc->buffer);
+	iio_push_to_buffers(iio, lradc->buffer);
 
 	iio_trigger_notify_done(iio->trig);
 

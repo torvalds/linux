@@ -676,7 +676,7 @@ static void ad5933_work(struct work_struct *work)
 		} else {
 			buf[0] = be16_to_cpu(buf[0]);
 		}
-		iio_push_to_buffers(indio_dev, (u8 *)buf);
+		iio_push_to_buffers(indio_dev, buf);
 	} else {
 		/* no data available - try again later */
 		schedule_delayed_work(&st->work, st->poll_time_jiffies);
