@@ -165,10 +165,7 @@ static int mei_release(struct inode *inode, struct file *file)
 
 	file->private_data = NULL;
 
-	if (cb) {
-		mei_io_cb_free(cb);
-		cb = NULL;
-	}
+	mei_io_cb_free(cb);
 
 	kfree(cl);
 out:
