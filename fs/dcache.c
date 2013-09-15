@@ -1435,7 +1435,7 @@ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
 		/*
 		 * We can't use d_lru_shrink_move() because we
 		 * need to get the global LRU lock and do the
-		 * RLU accounting.
+		 * LRU accounting.
 		 */
 		d_lru_del(dentry);
 		d_shrink_add(dentry, &data->dispose);
