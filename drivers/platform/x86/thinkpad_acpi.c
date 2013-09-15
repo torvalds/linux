@@ -369,7 +369,7 @@ struct tpacpi_led_classdev {
 	struct led_classdev led_classdev;
 	struct work_struct work;
 	enum led_status_t new_state;
-	unsigned int led;
+	int led;
 };
 
 /* brightness level capabilities */
@@ -5296,6 +5296,16 @@ static int __init led_init(struct ibm_init_struct *iibm)
 
 	led_supported = led_init_detect_mode();
 
+	if (led_supported != TPACPI_LED_NONE) {
+		useful_leds = tpacpi_check_quirks(led_useful_qtable,
+				ARRAY_SIZE(led_useful_qtable));
+
+		if (!useful_leds) {
+			led_handle = NULL;
+			led_supported = TPACPI_LED_NONE;
+		}
+	}
+
 	vdbg_printk(TPACPI_DBG_INIT, "LED commands are %s, mode %d\n",
 		str_supported(led_supported), led_supported);
 
@@ -5309,10 +5319,9 @@ static int __init led_init(struct ibm_init_struct *iibm)
 		return -ENOMEM;
 	}
 
-	useful_leds = tpacpi_check_quirks(led_useful_qtable,
-					  ARRAY_SIZE(led_useful_qtable));
-
 	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
+		tpacpi_leds[i].led = -1;
+
 		if (!tpacpi_is_led_restricted(i) &&
 		    test_bit(i, &useful_leds)) {
 			rc = tpacpi_init_led(i);
@@ -5370,8 +5379,12 @@ static int led_write(char *buf)
 		return -ENODEV;
 
 	while ((cmd = next_cmd(&buf))) {
-		if (sscanf(cmd, "%d", &led) != 1 || led < 0 || led > 15)
+		if (sscanf(cmd, "%d", &led) != 1)
 			return -EINVAL;
+
+		if (led < 0 || led > (TPACPI_LED_NUMLEDS - 1) ||
+				tpacpi_leds[led].led < 0)
+			return -ENODEV;
 
 		if (strstr(cmd, "off")) {
 			s = TPACPI_LED_OFF;
