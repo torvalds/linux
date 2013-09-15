@@ -1,5 +1,3 @@
-#define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
-
 /*
  *	IEEE 802.1Q Multiple Registration Protocol (MRP)
  *
@@ -219,51 +217,6 @@ mrp_tx_action_table[MRP_APPLICANT_MAX + 1] = {
 };
 
 
-// debug
-static char *
-mrp_event_str(enum mrp_event event) {
-    char *s = "unknown";
-    switch(event) {
-    case MRP_EVENT_NEW:        s = "NEW"; break;
-    case MRP_EVENT_JOIN:       s = "JOIN"; break;
-    case MRP_EVENT_LV:	       s = "LV"; break;
-    case MRP_EVENT_TX:	       s = "TX"; break;
-    case MRP_EVENT_R_NEW:      s = "R_NEW"; break;
-    case MRP_EVENT_R_JOIN_IN:  s = "R_JOIN_IN"; break;
-    case MRP_EVENT_R_IN:       s = "R_IN"; break;
-    case MRP_EVENT_R_JOIN_MT:  s = "R_JOIN_MT"; break;
-    case MRP_EVENT_R_MT:       s = "R_MT"; break;
-    case MRP_EVENT_R_LV:       s = "R_LV"; break;
-    case MRP_EVENT_R_LA:       s = "R_LA"; break;
-    case MRP_EVENT_REDECLARE:  s = "REDECLARE"; break;
-    case MRP_EVENT_PERIODIC:   s = "PERIODIC"; break;
-    case __MRP_EVENT_MAX:      break;
-    }
-    return s;
-}
-
-// debug
-static char *
-mrp_applicant_state_str(enum mrp_applicant_state state) {
-    char *s = "unknown";
-    switch(state) {
-    case MRP_APPLICANT_INVALID:  s = "INVALID"; break;
-    case MRP_APPLICANT_VO:       s = "VO"; break;
-    case MRP_APPLICANT_VP:       s = "VP"; break;
-    case MRP_APPLICANT_VN:       s = "VN"; break;
-    case MRP_APPLICANT_AN:       s = "AN"; break;
-    case MRP_APPLICANT_AA:       s = "AA"; break;
-    case MRP_APPLICANT_QA:       s = "QA"; break;
-    case MRP_APPLICANT_LA:       s = "LA"; break;
-    case MRP_APPLICANT_AO:       s = "AO"; break;
-    case MRP_APPLICANT_QO:       s = "QO"; break;
-    case MRP_APPLICANT_AP:       s = "AP"; break;
-    case MRP_APPLICANT_QP:       s = "QP"; break;
-    case __MRP_APPLICANT_MAX:    break;
-    }
-    return s;
-}
-
 static void mrp_attrvalue_inc(void *value, u8 len)
 {
 	u8 *v = (u8 *)value;
@@ -401,12 +354,6 @@ static void mrp_queue_xmit(struct mrp_applicant *app)
 
 	while ((skb = skb_dequeue(&app->queue))) {
 	    int xmit_err = dev_queue_xmit(skb);
-	    pr_debug("dev=%s len=%d dev_queue_xmit=%d carrier_ok=%d dormant=%d\n"
-		     ,skb->dev->name, (int)skb->len
-		     ,(int)xmit_err
-		     ,(int)netif_carrier_ok(skb->dev)
-		     ,(int)netif_dormant(skb->dev)
-		     );
 	}
 }
 
@@ -535,13 +482,6 @@ static void mrp_attr_event(struct mrp_applicant *app,
 		return;
 	}
 
-	pr_debug("attr_type=%d event=%s attr->state=%s new state=%s\n"
-		 ,(int)attr->type
-		 ,mrp_event_str(event)
-		 ,mrp_applicant_state_str(attr->state)
-		 ,mrp_applicant_state_str(state));
-
-
 	if (event == MRP_EVENT_TX) {
 		/* When appending the attribute fails, don't update its state
 		 * in order to retry at the next TX event.
@@ -589,8 +529,6 @@ int mrp_request_join(const struct net_device *dev,
 		port->applicants[appl->type]);
 	struct mrp_attr *attr;
 
-	pr_debug("dev->name=%s attr_type=%d\n", dev->name, (int)type);
-
 	if (sizeof(struct mrp_skb_cb) + len >
 	    FIELD_SIZEOF(struct sk_buff, cb))
 		return -ENOMEM;
@@ -615,8 +553,6 @@ void mrp_request_leave(const struct net_device *dev,
 	struct mrp_applicant *app = rtnl_dereference(
 		port->applicants[appl->type]);
 	struct mrp_attr *attr;
-
-	pr_debug("dev->name=%s attr_type=%d\n", dev->name, (int)type);
 
 	if (sizeof(struct mrp_skb_cb) + len >
 	    FIELD_SIZEOF(struct sk_buff, cb))
@@ -919,12 +855,9 @@ out:
 	return 0;
 }
 
-
 static int mrp_init_port(struct net_device *dev)
 {
 	struct mrp_port *port;
-
-	pr_debug("dev->name=%s\n", dev->name);
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
@@ -938,8 +871,6 @@ static void mrp_release_port(struct net_device *dev)
 	struct mrp_port *port = rtnl_dereference(dev->mrp_port);
 	unsigned int i;
 
-	pr_debug("dev->name=%s\n", dev->name);
-
 	for (i = 0; i <= MRP_APPLICATION_MAX; i++) {
 		if (rtnl_dereference(port->applicants[i]))
 			return;
@@ -952,8 +883,6 @@ int mrp_init_applicant(struct net_device *dev, struct mrp_application *appl)
 {
 	struct mrp_applicant *app;
 	int err;
-
-	pr_debug("dev->name=%s\n", dev->name);
 
 	ASSERT_RTNL();
 
@@ -999,8 +928,6 @@ void mrp_uninit_applicant(struct net_device *dev, struct mrp_application *appl)
 	struct mrp_applicant *app = rtnl_dereference(
 		port->applicants[appl->type]);
 
-	pr_debug("dev->name=%s\n", dev->name);
-
 	ASSERT_RTNL();
 
 	RCU_INIT_POINTER(port->applicants[appl->type], NULL);
@@ -1037,4 +964,3 @@ void mrp_unregister_application(struct mrp_application *appl)
 	dev_remove_pack(&appl->pkttype);
 }
 EXPORT_SYMBOL_GPL(mrp_unregister_application);
-
