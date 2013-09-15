@@ -1602,7 +1602,7 @@ endchoice
 
 config SLUB_CPU_PARTIAL
 	default y
-	depends on SLUB
+	depends on SLUB && SMP
 	bool "SLUB per cpu partial cache"
 	help
 	  Per cpu partial caches accellerate objects allocation and freeing
