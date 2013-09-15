@@ -110,6 +110,7 @@ static inline int ti_thermal_get_temp(struct thermal_zone_device *thermal,
 		} else {
 			dev_err(bgp->dev,
 				"Failed to read PCB state. Using defaults\n");
+			ret = 0;
 		}
 	}
 	*temp = ti_thermal_hotspot_temperature(tmp, slope, constant);
