@@ -647,7 +647,7 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 		 */
 		LASSERT(fid_is_zero(&minfo->mi_data.op_fid2));
 
-		/* XXX: No fid in reply, this is probaly cross-ref case.
+		/* XXX: No fid in reply, this is probably cross-ref case.
 		 * SA can't handle it yet. */
 		if (body->valid & OBD_MD_MDS)
 			GOTO(out, rc = -EAGAIN);
