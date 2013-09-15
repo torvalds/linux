@@ -95,7 +95,7 @@ static int iio_set_length_kfifo(struct iio_buffer *r, int length)
 }
 
 static int iio_store_to_kfifo(struct iio_buffer *r,
-			      u8 *data)
+			      const void *data)
 {
 	int ret;
 	struct iio_kfifo *kf = iio_to_kfifo(r);

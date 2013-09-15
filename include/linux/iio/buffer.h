@@ -36,7 +36,7 @@ struct iio_buffer;
  * any of them not existing.
  **/
 struct iio_buffer_access_funcs {
-	int (*store_to)(struct iio_buffer *buffer, u8 *data);
+	int (*store_to)(struct iio_buffer *buffer, const void *data);
 	int (*read_first_n)(struct iio_buffer *buffer,
 			    size_t n,
 			    char __user *buf);
@@ -81,7 +81,7 @@ struct iio_buffer {
 	bool					stufftoread;
 	const struct attribute_group *attrs;
 	struct list_head			demux_list;
-	unsigned char				*demux_bounce;
+	void					*demux_bounce;
 	struct list_head			buffer_list;
 };
 
@@ -120,7 +120,7 @@ int iio_scan_mask_set(struct iio_dev *indio_dev,
  * @indio_dev:		iio_dev structure for device.
  * @data:		Full scan.
  */
-int iio_push_to_buffers(struct iio_dev *indio_dev, unsigned char *data);
+int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data);
 
 int iio_update_demux(struct iio_dev *indio_dev);
 

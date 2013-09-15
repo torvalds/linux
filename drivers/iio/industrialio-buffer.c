@@ -769,8 +769,8 @@ struct iio_demux_table {
 	struct list_head l;
 };
 
-static unsigned char *iio_demux(struct iio_buffer *buffer,
-				 unsigned char *datain)
+static const void *iio_demux(struct iio_buffer *buffer,
+				 const void *datain)
 {
 	struct iio_demux_table *t;
 
@@ -783,9 +783,9 @@ static unsigned char *iio_demux(struct iio_buffer *buffer,
 	return buffer->demux_bounce;
 }
 
-static int iio_push_to_buffer(struct iio_buffer *buffer, unsigned char *data)
+static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data)
 {
-	unsigned char *dataout = iio_demux(buffer, data);
+	const void *dataout = iio_demux(buffer, data);
 
 	return buffer->access->store_to(buffer, dataout);
 }
@@ -800,7 +800,7 @@ static void iio_buffer_demux_free(struct iio_buffer *buffer)
 }
 
 
-int iio_push_to_buffers(struct iio_dev *indio_dev, unsigned char *data)
+int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data)
 {
 	int ret;
 	struct iio_buffer *buf;
