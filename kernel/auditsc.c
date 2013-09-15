@@ -943,8 +943,10 @@ int audit_alloc(struct task_struct *tsk)
 		return 0; /* Return if not auditing. */
 
 	state = audit_filter_task(tsk, &key);
-	if (state == AUDIT_DISABLED)
+	if (state == AUDIT_DISABLED) {
+		clear_tsk_thread_flag(tsk, TIF_SYSCALL_AUDIT);
 		return 0;
+	}
 
 	if (!(context = audit_alloc_context(state))) {
 		kfree(key);
