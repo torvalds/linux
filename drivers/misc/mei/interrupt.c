@@ -113,13 +113,13 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 
 		if (cb->response_buffer.size == 0 ||
 		    cb->response_buffer.data == NULL) {
-			dev_err(&dev->pdev->dev, "response buffer is not allocated.\n");
+			cl_err(dev, cl, "response buffer is not allocated.\n");
 			list_del(&cb->list);
 			return -ENOMEM;
 		}
 
 		if (cb->response_buffer.size < mei_hdr->length + cb->buf_idx) {
-			dev_dbg(&dev->pdev->dev, "message overflow. size %d len %d idx %ld\n",
+			cl_dbg(dev, cl, "message overflow. size %d len %d idx %ld\n",
 				cb->response_buffer.size,
 				mei_hdr->length, cb->buf_idx);
 			buffer = krealloc(cb->response_buffer.data,
@@ -127,7 +127,7 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 					  GFP_KERNEL);
 
 			if (!buffer) {
-				dev_err(&dev->pdev->dev, "allocation failed.\n");
+				cl_err(dev, cl, "allocation failed.\n");
 				list_del(&cb->list);
 				return -ENOMEM;
 			}
@@ -143,9 +143,7 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 		if (mei_hdr->msg_complete) {
 			cl->status = 0;
 			list_del(&cb->list);
-			dev_dbg(&dev->pdev->dev, "completed read H cl = %d, ME cl = %d, length = %lu\n",
-				cl->host_client_id,
-				cl->me_client_id,
+			cl_dbg(dev, cl, "completed read length = %lu\n",
 				cb->buf_idx);
 			list_add_tail(&cb->list, &complete_list->list);
 		}
@@ -423,12 +421,12 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		if (MEI_WRITING == cl->writing_state &&
 		    cb->fop_type == MEI_FOP_WRITE &&
 		    cl != &dev->iamthif_cl) {
-			dev_dbg(&dev->pdev->dev, "MEI WRITE COMPLETE\n");
+			cl_dbg(dev, cl, "MEI WRITE COMPLETE\n");
 			cl->writing_state = MEI_WRITE_COMPLETE;
 			list_add_tail(&cb->list, &cmpl_list->list);
 		}
 		if (cl == &dev->iamthif_cl) {
-			dev_dbg(&dev->pdev->dev, "check iamthif flow control.\n");
+			cl_dbg(dev, cl, "check iamthif flow control.\n");
 			if (dev->iamthif_flow_control_pending) {
 				ret = mei_amthif_irq_read(dev, &slots);
 				if (ret)
@@ -510,9 +508,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		if (cl == NULL)
 			continue;
 		if (mei_cl_flow_ctrl_creds(cl) <= 0) {
-			dev_dbg(&dev->pdev->dev,
-				"No flow control credentials for client %d, not sending.\n",
-				cl->host_client_id);
+			cl_dbg(dev, cl, "No flow control credentials, not sending.\n");
 			continue;
 		}
 
