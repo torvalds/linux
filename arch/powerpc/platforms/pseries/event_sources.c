@@ -59,8 +59,7 @@ void request_event_sources_irqs(struct device_node *np,
 		     index++) {
 			if (count > 15)
 				break;
-			virqs[count] = irq_create_of_mapping(oirq.np, oirq.args,
-							    oirq.args_count);
+			virqs[count] = irq_create_of_mapping(&oirq);
 			if (virqs[count] == NO_IRQ) {
 				pr_err("event-sources: Unable to allocate "
 				       "interrupt number for %s\n",

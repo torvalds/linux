@@ -334,7 +334,7 @@ static void hpcd_final_uli5288(struct pci_dev *dev)
 	laddr[0] = (hose->first_busno << 16) | (PCI_DEVFN(31, 0) << 8);
 	laddr[1] = laddr[2] = 0;
 	of_irq_parse_raw(hosenode, &pin, 1, laddr, &oirq);
-	dev->irq = irq_create_of_mapping(oirq.np, oirq.args, oirq.args_count);
+	dev->irq = irq_create_of_mapping(&oirq);
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x1575, hpcd_quirk_uli1575);

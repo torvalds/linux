@@ -33,7 +33,7 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 			slot, pin);
 		return 0;
 	}
-	irq = irq_create_of_mapping(dev_irq.np, dev_irq.args, dev_irq.args_count);
+	irq = irq_create_of_mapping(&dev_irq);
 	dev_info(&dev->dev, "SLOT:%d PIN:%d IRQ:%d\n", slot, pin, irq);
 	return irq;
 }

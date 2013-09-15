@@ -190,8 +190,7 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 		ret = -EINVAL;
 		pr_debug("  irq %d no 0x%x on %s\n", i, oirq.args[0],
 			 oirq.np->full_name);
-		spu->irqs[i] = irq_create_of_mapping(oirq.np,
-					oirq.args, oirq.args_count);
+		spu->irqs[i] = irq_create_of_mapping(&oirq);
 		if (spu->irqs[i] == NO_IRQ) {
 			pr_debug("spu_new: failed to map it !\n");
 			goto err;

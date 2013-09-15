@@ -120,7 +120,7 @@ static int x86_of_pci_irq_enable(struct pci_dev *dev)
 	if (ret)
 		return ret;
 
-	virq = irq_create_of_mapping(oirq.np, oirq.args, oirq.args_count);
+	virq = irq_create_of_mapping(&oirq);
 	if (virq == 0)
 		return -EINVAL;
 	dev->irq = virq;

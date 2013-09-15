@@ -37,9 +37,7 @@ extern int of_irq_parse_raw(struct device_node *parent, const __be32 *intspec,
 			  struct of_phandle_args *out_irq);
 extern int of_irq_parse_one(struct device_node *device, int index,
 			  struct of_phandle_args *out_irq);
-extern unsigned int irq_create_of_mapping(struct device_node *controller,
-					  const u32 *intspec,
-					  unsigned int intsize);
+extern unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data);
 extern int of_irq_to_resource(struct device_node *dev, int index,
 			      struct resource *r);
 extern int of_irq_count(struct device_node *dev);

@@ -246,7 +246,7 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 			 oirq.args_count, oirq.args[0], oirq.args[1],
 			 of_node_full_name(oirq.np));
 
-		virq = irq_create_of_mapping(oirq.np, oirq.args, oirq.args_count);
+		virq = irq_create_of_mapping(&oirq);
 	}
 	if (!virq) {
 		pr_debug(" Failed to map !\n");

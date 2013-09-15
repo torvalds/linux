@@ -654,7 +654,7 @@ static int __init mvebu_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	if (ret)
 		return ret;
 
-	return irq_create_of_mapping(oirq.np, oirq.args, oirq.args_count);
+	return irq_create_of_mapping(&oirq);
 }
 
 static struct pci_bus *mvebu_pcie_scan_bus(int nr, struct pci_sys_data *sys)

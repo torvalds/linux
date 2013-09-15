@@ -847,7 +847,7 @@ static int __init pci_v3_map_irq_dt(const struct pci_dev *dev, u8 slot, u8 pin)
 		return 0;
 	}
 
-	return irq_create_of_mapping(oirq.np, oirq.args, oirq.args_count);
+	return irq_create_of_mapping(&oirq);
 }
 
 static int __init pci_v3_dtprobe(struct platform_device *pdev,
