@@ -36,13 +36,12 @@
  */
 unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
 {
-	struct of_irq oirq;
+	struct of_phandle_args oirq;
 
 	if (of_irq_parse_one(dev, index, &oirq))
 		return 0;
 
-	return irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
+	return irq_create_of_mapping(oirq.np, oirq.args, oirq.args_count);
 }
 EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
@@ -94,7 +93,7 @@ struct device_node *of_irq_find_parent(struct device_node *child)
  * node exist for the parent.
  */
 int of_irq_parse_raw(struct device_node *parent, const __be32 *intspec,
-		   u32 ointsize, const __be32 *addr, struct of_irq *out_irq)
+		   u32 ointsize, const __be32 *addr, struct of_phandle_args *out_irq)
 {
 	struct device_node *ipar, *tnode, *old = NULL, *newpar = NULL;
 	const __be32 *tmp, *imap, *imask;
@@ -156,10 +155,10 @@ int of_irq_parse_raw(struct device_node *parent, const __be32 *intspec,
 				NULL) {
 			pr_debug(" -> got it !\n");
 			for (i = 0; i < intsize; i++)
-				out_irq->specifier[i] =
+				out_irq->args[i] =
 						of_read_number(intspec +i, 1);
-			out_irq->size = intsize;
-			out_irq->controller = ipar;
+			out_irq->args_count = intsize;
+			out_irq->np = ipar;
 			of_node_put(old);
 			return 0;
 		}
@@ -280,7 +279,7 @@ EXPORT_SYMBOL_GPL(of_irq_parse_raw);
  * This function resolves an interrupt, walking the tree, for a given
  * device-tree node. It's the high level pendant to of_irq_parse_raw().
  */
-int of_irq_parse_one(struct device_node *device, int index, struct of_irq *out_irq)
+int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_args *out_irq)
 {
 	struct device_node *p;
 	const __be32 *intspec, *tmp, *addr;

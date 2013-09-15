@@ -45,7 +45,7 @@ static int __init txx9_serial_init(void)
 	struct device_node *node;
 	int i;
 	struct uart_port req;
-	struct of_irq irq;
+	struct of_phandle_args irq;
 	struct resource res;
 
 	for_each_compatible_node(node, "serial", "toshiba,sio-scc") {
@@ -66,8 +66,7 @@ static int __init txx9_serial_init(void)
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
 			req.membase = ioremap(req.mapbase, 0x24);
 #endif
-			req.irq = irq_create_of_mapping(irq.controller,
-				irq.specifier, irq.size);
+			req.irq = irq_create_of_mapping(irq.np, irq.args, irq.args_count);
 			req.flags |= UPF_IOREMAP | UPF_BUGGY_UART
 				/*HAVE_CTS_LINE*/;
 			req.uartclk = 83300000;

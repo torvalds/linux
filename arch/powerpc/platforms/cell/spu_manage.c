@@ -177,7 +177,7 @@ out:
 
 static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 {
-	struct of_irq oirq;
+	struct of_phandle_args oirq;
 	int ret;
 	int i;
 
@@ -188,10 +188,10 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 			goto err;
 		}
 		ret = -EINVAL;
-		pr_debug("  irq %d no 0x%x on %s\n", i, oirq.specifier[0],
-			 oirq.controller->full_name);
-		spu->irqs[i] = irq_create_of_mapping(oirq.controller,
-					oirq.specifier, oirq.size);
+		pr_debug("  irq %d no 0x%x on %s\n", i, oirq.args[0],
+			 oirq.np->full_name);
+		spu->irqs[i] = irq_create_of_mapping(oirq.np,
+					oirq.args, oirq.args_count);
 		if (spu->irqs[i] == NO_IRQ) {
 			pr_debug("spu_new: failed to map it !\n");
 			goto err;
@@ -200,7 +200,7 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 	return 0;
 
 err:
-	pr_debug("failed to map irq %x for spu %s\n", *oirq.specifier,
+	pr_debug("failed to map irq %x for spu %s\n", *oirq.args,
 		spu->name);
 	for (; i >= 0; i--) {
 		if (spu->irqs[i] != NO_IRQ)
