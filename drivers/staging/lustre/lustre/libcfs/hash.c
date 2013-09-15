@@ -1965,7 +1965,7 @@ cfs_hash_rehash_worker(cfs_workitem_t *wi)
 	if (bkts != NULL)
 		cfs_hash_buckets_free(bkts, bsize, new_size, old_size);
 	if (rc != 0)
-		CDEBUG(D_INFO, "early quit of of rehashing: %d\n", rc);
+		CDEBUG(D_INFO, "early quit of rehashing: %d\n", rc);
 	/* return 1 only if cfs_wi_exit is called */
 	return rc == -ESRCH;
 }

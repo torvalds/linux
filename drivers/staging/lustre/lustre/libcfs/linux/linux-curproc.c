@@ -167,7 +167,7 @@ static int cfs_access_process_vm(struct task_struct *tsk, unsigned long addr,
 		return 0;
 
 	down_read(&mm->mmap_sem);
-	/* ignore errors, just check how much was sucessfully transfered */
+	/* ignore errors, just check how much was successfully transferred */
 	while (len) {
 		int bytes, rc, offset;
 		void *maddr;
