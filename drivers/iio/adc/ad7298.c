@@ -172,7 +172,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 			&time_ns, sizeof(time_ns));
 	}
 
-	iio_push_to_buffers(indio_dev, (u8 *)st->rx_buf);
+	iio_push_to_buffers(indio_dev, st->rx_buf);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);

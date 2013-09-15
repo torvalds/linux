@@ -195,7 +195,7 @@ static irqreturn_t tcs3472_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data->buffer + ALIGN(len, sizeof(s64)))
 			= iio_get_time_ns();
-	iio_push_to_buffers(indio_dev, (u8 *)data->buffer);
+	iio_push_to_buffers(indio_dev, data->buffer);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);

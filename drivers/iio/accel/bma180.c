@@ -490,7 +490,7 @@ static irqreturn_t bma180_trigger_handler(int irq, void *p)
 	}
 	mutex_unlock(&data->mutex);
 
-	iio_push_to_buffers(indio_dev, (u8 *)data->buff);
+	iio_push_to_buffers(indio_dev, data->buff);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
 
