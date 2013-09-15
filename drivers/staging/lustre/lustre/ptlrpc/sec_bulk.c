@@ -207,7 +207,7 @@ static void enc_pools_release_free_pages(long npages)
 			p_idx++;
 			g_idx = 0;
 		}
-	};
+	}
 
 	/* free unused pools */
 	while (p_idx_max1 < p_idx_max2) {
