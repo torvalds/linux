@@ -93,8 +93,13 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
  */
 
 struct RAID_CONTEXT {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+	u8	nseg:4;
+	u8	Type:4;
+#else
 	u8	Type:4;
 	u8	nseg:4;
+#endif
 	u8	resvd0;
 	u16     timeoutValue;
 	u8      regLockFlags;
@@ -298,8 +303,13 @@ struct MPI2_RAID_SCSI_IO_REQUEST {
  * MPT RAID MFA IO Descriptor.
  */
 struct MEGASAS_RAID_MFA_IO_REQUEST_DESCRIPTOR {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+	u32     MessageAddress1:24; /* bits 31:8*/
+	u32     RequestFlags:8;
+#else
 	u32     RequestFlags:8;
 	u32     MessageAddress1:24; /* bits 31:8*/
+#endif
 	u32     MessageAddress2;      /* bits 61:32 */
 };
 
@@ -518,6 +528,19 @@ struct MR_SPAN_BLOCK_INFO {
 
 struct MR_LD_RAID {
 	struct {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved4:7;
+		u32	fpNonRWCapable:1;
+		u32     fpReadAcrossStripe:1;
+		u32     fpWriteAcrossStripe:1;
+		u32     fpReadCapable:1;
+		u32     fpWriteCapable:1;
+		u32     encryptionType:8;
+		u32     pdPiMode:4;
+		u32     ldPiMode:4;
+		u32     reserved5:3;
+		u32     fpCapable:1;
+#else
 		u32     fpCapable:1;
 		u32     reserved5:3;
 		u32     ldPiMode:4;
@@ -527,7 +550,9 @@ struct MR_LD_RAID {
 		u32     fpReadCapable:1;
 		u32     fpWriteAcrossStripe:1;
 		u32     fpReadAcrossStripe:1;
-		u32     reserved4:8;
+		u32	fpNonRWCapable:1;
+		u32     reserved4:7;
+#endif
 	} capability;
 	u32     reserved6;
 	u64     size;
@@ -551,7 +576,9 @@ struct MR_LD_RAID {
 		u32 reserved:31;
 	} flags;
 
-	u8      reserved3[0x5C];
+	u8	LUN[8]; /* 0x24 8 byte LUN field used for SCSI IO's */
+	u8	fpIoTimeoutForLd;/*0x2C timeout value used by driver in FP IO*/
+	u8      reserved3[0x80-0x2D]; /* 0x2D */
 };
 
 struct MR_LD_SPAN_MAP {

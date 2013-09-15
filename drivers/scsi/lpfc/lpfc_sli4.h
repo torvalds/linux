@@ -523,7 +523,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_queue *hdr_rq; /* Slow-path Header Receive queue */
 	struct lpfc_queue *dat_rq; /* Slow-path Data Receive queue */
 
-	uint8_t fw_func_mode;	/* FW function protocol mode */
+	uint32_t fw_func_mode;	/* FW function protocol mode */
 	uint32_t ulp0_mode;	/* ULP0 protocol mode */
 	uint32_t ulp1_mode;	/* ULP1 protocol mode */
 
