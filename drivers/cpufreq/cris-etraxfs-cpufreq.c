@@ -75,19 +75,11 @@ static int cris_freq_target(struct cpufreq_policy *policy,
 
 static int cris_freq_cpu_init(struct cpufreq_policy *policy)
 {
-	int result;
-
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.transition_latency = 1000000;	/* 1ms */
 	policy->cur = cris_freq_get_cpu_frequency(0);
 
-	result = cpufreq_frequency_table_cpuinfo(policy, cris_freq_table);
-	if (result)
-		return (result);
-
-	cpufreq_frequency_table_get_attr(cris_freq_table, policy->cpu);
-
-	return 0;
+	return cpufreq_table_validate_and_show(policy, cris_freq_table);
 }
 
 static int cris_freq_cpu_exit(struct cpufreq_policy *policy)
