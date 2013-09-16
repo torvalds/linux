@@ -83,6 +83,7 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_DMA_ERROR]          = "DMA_ERROR",
 	[RESET_TYPE_TX_SKIP]            = "TX_SKIP",
 	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
+	[RESET_TYPE_MC_BIST]		= "MC_BIST",
 };
 
 /* Reset workqueue. If any NIC has a hardware failure then a reset will be
@@ -90,6 +91,12 @@ const char *const efx_reset_type_names[] = {
  * efx_reset_work() acquires the rtnl lock, so resets are naturally serialised.
  */
 static struct workqueue_struct *reset_workqueue;
+
+/* How often and how many times to poll for a reset while waiting for a
+ * BIST that another function started to complete.
+ */
+#define BIST_WAIT_DELAY_MS	100
+#define BIST_WAIT_DELAY_COUNT	100
 
 /**************************************************************************
  *
@@ -2389,6 +2396,24 @@ int efx_try_recovery(struct efx_nic *efx)
 	return 0;
 }
 
+static void efx_wait_for_bist_end(struct efx_nic *efx)
+{
+	int i;
+
+	for (i = 0; i < BIST_WAIT_DELAY_COUNT; ++i) {
+		if (efx_mcdi_poll_reboot(efx))
+			goto out;
+		msleep(BIST_WAIT_DELAY_MS);
+	}
+
+	netif_err(efx, drv, efx->net_dev, "Warning: No MC reboot after BIST mode\n");
+out:
+	/* Either way unset the BIST flag. If we found no reboot we probably
+	 * won't recover, but we should try.
+	 */
+	efx->mc_bist_for_other_fn = false;
+}
+
 /* The worker thread exists so that code that cannot sleep can
  * schedule a reset for later.
  */
@@ -2400,6 +2425,9 @@ static void efx_reset_work(struct work_struct *data)
 
 	pending = ACCESS_ONCE(efx->reset_pending);
 	method = fls(pending) - 1;
+
+	if (method == RESET_TYPE_MC_BIST)
+		efx_wait_for_bist_end(efx);
 
 	if ((method == RESET_TYPE_RECOVER_OR_DISABLE ||
 	     method == RESET_TYPE_RECOVER_OR_ALL) &&
@@ -2439,6 +2467,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	case RESET_TYPE_WORLD:
 	case RESET_TYPE_DISABLE:
 	case RESET_TYPE_RECOVER_OR_DISABLE:
+	case RESET_TYPE_MC_BIST:
 		method = type;
 		netif_dbg(efx, drv, efx->net_dev, "scheduling %s reset\n",
 			  RESET_TYPE(method));

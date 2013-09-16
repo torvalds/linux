@@ -14,6 +14,7 @@
 #include "mcdi_pcol.h"
 #include "nic.h"
 #include "workarounds.h"
+#include "selftest.h"
 #include <linux/in.h>
 #include <linux/jhash.h>
 #include <linux/wait.h>
@@ -3195,6 +3196,87 @@ static int efx_ef10_mac_reconfigure(struct efx_nic *efx)
 	return efx_mcdi_set_mac(efx);
 }
 
+static int efx_ef10_start_bist(struct efx_nic *efx, u32 bist_type)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_START_BIST_IN_LEN);
+
+	MCDI_SET_DWORD(inbuf, START_BIST_IN_TYPE, bist_type);
+	return efx_mcdi_rpc(efx, MC_CMD_START_BIST, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
+}
+
+/* MC BISTs follow a different poll mechanism to phy BISTs.
+ * The BIST is done in the poll handler on the MC, and the MCDI command
+ * will block until the BIST is done.
+ */
+static int efx_ef10_poll_bist(struct efx_nic *efx)
+{
+	int rc;
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_POLL_BIST_OUT_LEN);
+	size_t outlen;
+	u32 result;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_POLL_BIST, NULL, 0,
+			   outbuf, sizeof(outbuf), &outlen);
+	if (rc != 0)
+		return rc;
+
+	if (outlen < MC_CMD_POLL_BIST_OUT_LEN)
+		return -EIO;
+
+	result = MCDI_DWORD(outbuf, POLL_BIST_OUT_RESULT);
+	switch (result) {
+	case MC_CMD_POLL_BIST_PASSED:
+		netif_dbg(efx, hw, efx->net_dev, "BIST passed.\n");
+		return 0;
+	case MC_CMD_POLL_BIST_TIMEOUT:
+		netif_err(efx, hw, efx->net_dev, "BIST timed out\n");
+		return -EIO;
+	case MC_CMD_POLL_BIST_FAILED:
+		netif_err(efx, hw, efx->net_dev, "BIST failed.\n");
+		return -EIO;
+	default:
+		netif_err(efx, hw, efx->net_dev,
+			  "BIST returned unknown result %u", result);
+		return -EIO;
+	}
+}
+
+static int efx_ef10_run_bist(struct efx_nic *efx, u32 bist_type)
+{
+	int rc;
+
+	netif_dbg(efx, drv, efx->net_dev, "starting BIST type %u\n", bist_type);
+
+	rc = efx_ef10_start_bist(efx, bist_type);
+	if (rc != 0)
+		return rc;
+
+	return efx_ef10_poll_bist(efx);
+}
+
+static int
+efx_ef10_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
+{
+	int rc, rc2;
+
+	efx_reset_down(efx, RESET_TYPE_WORLD);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_ENABLE_OFFLINE_BIST,
+			  NULL, 0, NULL, 0, NULL);
+	if (rc != 0)
+		goto out;
+
+	tests->memory = efx_ef10_run_bist(efx, MC_CMD_MC_MEM_BIST) ? -1 : 1;
+	tests->registers = efx_ef10_run_bist(efx, MC_CMD_REG_BIST) ? -1 : 1;
+
+	rc = efx_mcdi_reset(efx, RESET_TYPE_WORLD);
+
+out:
+	rc2 = efx_reset_up(efx, RESET_TYPE_WORLD, rc == 0);
+	return rc ? rc : rc2;
+}
+
 #ifdef CONFIG_SFC_MTD
 
 struct efx_ef10_nvram_type_info {
@@ -3345,7 +3427,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.get_wol = efx_ef10_get_wol,
 	.set_wol = efx_ef10_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
-	/* TODO: test_chip */
+	.test_chip = efx_ef10_test_chip,
 	.test_nvram = efx_mcdi_nvram_test_all,
 	.mcdi_request = efx_ef10_mcdi_request,
 	.mcdi_poll_response = efx_ef10_mcdi_poll_response,

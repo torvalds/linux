@@ -543,6 +543,9 @@ int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
 	if (rc)
 		return rc;
 
+	if (efx->mc_bist_for_other_fn)
+		return -ENETDOWN;
+
 	efx_mcdi_acquire_sync(mcdi);
 	efx_mcdi_send_request(efx, cmd, inbuf, inlen);
 	return 0;
@@ -580,6 +583,9 @@ efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
 	rc = efx_mcdi_check_supported(efx, cmd, inlen);
 	if (rc)
 		return rc;
+
+	if (efx->mc_bist_for_other_fn)
+		return -ENETDOWN;
 
 	async = kmalloc(sizeof(*async) + ALIGN(max(inlen, outlen), 4),
 			GFP_ATOMIC);
@@ -834,6 +840,30 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 	spin_unlock(&mcdi->iface_lock);
 }
 
+/* The MC is going down in to BIST mode. set the BIST flag to block
+ * new MCDI, cancel any outstanding MCDI and and schedule a BIST-type reset
+ * (which doesn't actually execute a reset, it waits for the controlling
+ * function to reset it).
+ */
+static void efx_mcdi_ev_bist(struct efx_nic *efx)
+{
+	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+
+	spin_lock(&mcdi->iface_lock);
+	efx->mc_bist_for_other_fn = true;
+	if (efx_mcdi_complete_sync(mcdi)) {
+		if (mcdi->mode == MCDI_MODE_EVENTS) {
+			mcdi->resprc = -EIO;
+			mcdi->resp_hdr_len = 0;
+			mcdi->resp_data_len = 0;
+			++mcdi->credits;
+		}
+	}
+	mcdi->new_epoch = true;
+	efx_schedule_reset(efx, RESET_TYPE_MC_BIST);
+	spin_unlock(&mcdi->iface_lock);
+}
+
 /* Called from  falcon_process_eventq for MCDI events */
 void efx_mcdi_process_event(struct efx_channel *channel,
 			    efx_qword_t *event)
@@ -874,6 +904,10 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 	case MCDI_EVENT_CODE_MC_REBOOT:
 		netif_info(efx, hw, efx->net_dev, "MC Reboot\n");
 		efx_mcdi_ev_death(efx, -EIO);
+		break;
+	case MCDI_EVENT_CODE_MC_BIST:
+		netif_info(efx, hw, efx->net_dev, "MC entered BIST mode\n");
+		efx_mcdi_ev_bist(efx);
 		break;
 	case MCDI_EVENT_CODE_MAC_STATS_DMA:
 		/* MAC stats are gather lazily.  We can ignore this. */
