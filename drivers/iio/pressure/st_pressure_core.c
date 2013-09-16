@@ -254,7 +254,8 @@ int st_press_common_probe(struct iio_dev *indio_dev,
 
 	pdata->odr = pdata->sensor->odr.odr_avl[0].hz;
 
-	if (!plat_data)
+	/* Some devices don't support a data ready pin. */
+	if (!plat_data && pdata->sensor->drdy_irq.addr)
 		plat_data =
 			(struct st_sensors_platform_data *)&default_press_pdata;
 
