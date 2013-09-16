@@ -811,6 +811,6 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	if (signal)
 		vmbus_setevent(channel);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vmbus_recvpacket_raw);
