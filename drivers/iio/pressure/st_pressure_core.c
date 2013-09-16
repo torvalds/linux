@@ -23,6 +23,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/buffer.h>
+#include <linux/regulator/consumer.h>
 #include <asm/unaligned.h>
 
 #include <linux/iio/common/st_sensors.h>
@@ -313,6 +314,29 @@ static const struct iio_trigger_ops st_press_trigger_ops = {
 #define ST_PRESS_TRIGGER_OPS NULL
 #endif
 
+static void st_press_power_enable(struct iio_dev *indio_dev)
+{
+	struct st_sensor_data *pdata = iio_priv(indio_dev);
+	int err;
+
+	/* Regulators not mandatory, but if requested we should enable it. */
+	pdata->vdd = devm_regulator_get_optional(&indio_dev->dev, "vdd");
+	if (!IS_ERR(pdata->vdd)) {
+		err = regulator_enable(pdata->vdd);
+		if (err != 0)
+			dev_warn(&indio_dev->dev,
+				 "Failed to enable specified Vdd supply\n");
+	}
+}
+
+static void st_press_power_disable(struct iio_dev *indio_dev)
+{
+	struct st_sensor_data *pdata = iio_priv(indio_dev);
+
+	if (!IS_ERR(pdata->vdd))
+		regulator_disable(pdata->vdd);
+}
+
 int st_press_common_probe(struct iio_dev *indio_dev,
 				struct st_sensors_platform_data *plat_data)
 {
@@ -322,6 +346,8 @@ int st_press_common_probe(struct iio_dev *indio_dev,
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &press_info;
+
+	st_press_power_enable(indio_dev);
 
 	err = st_sensors_check_device_support(indio_dev,
 					      ARRAY_SIZE(st_press_sensors),
@@ -379,6 +405,8 @@ EXPORT_SYMBOL(st_press_common_probe);
 void st_press_common_remove(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
+
+	st_press_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	if (pdata->get_irq_data_ready(indio_dev) > 0)
