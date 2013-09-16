@@ -454,12 +454,10 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 		pr_info("PXA255 cpufreq using %s frequency table\n",
 			pxa255_turbo_table ? "turbo" : "run");
 
-		cpufreq_frequency_table_cpuinfo(policy, pxa255_freq_table);
-		cpufreq_frequency_table_get_attr(pxa255_freq_table, policy->cpu);
+		cpufreq_table_validate_and_show(policy, pxa255_freq_table);
 	}
 	else if (cpu_is_pxa27x()) {
-		cpufreq_frequency_table_cpuinfo(policy, pxa27x_freq_table);
-		cpufreq_frequency_table_get_attr(pxa27x_freq_table, policy->cpu);
+		cpufreq_table_validate_and_show(policy, pxa27x_freq_table);
 	}
 
 	printk(KERN_INFO "PXA CPU frequency change support initialized\n");
