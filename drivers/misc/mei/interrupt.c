@@ -513,11 +513,6 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		cl = cb->cl;
 		if (cl == NULL)
 			continue;
-		if (mei_cl_flow_ctrl_creds(cl) <= 0) {
-			cl_dbg(dev, cl, "No flow control credentials, not sending.\n");
-			continue;
-		}
-
 		if (cl == &dev->iamthif_cl)
 			ret = mei_amthif_irq_write_complete(cl, cb,
 						&slots, cmpl_list);

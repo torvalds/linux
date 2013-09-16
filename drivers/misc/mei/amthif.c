@@ -460,6 +460,15 @@ int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	u32 msg_slots = mei_data2slots(len);
 	int rets;
 
+	rets = mei_cl_flow_ctrl_creds(cl);
+	if (rets < 0)
+		return rets;
+
+	if (rets == 0) {
+		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
+		return 0;
+	}
+
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
 	mei_hdr.reserved = 0;

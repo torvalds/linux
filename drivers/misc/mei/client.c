@@ -702,11 +702,32 @@ err:
 int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 				     s32 *slots, struct mei_cl_cb *cmpl_list)
 {
-	struct mei_device *dev = cl->dev;
+	struct mei_device *dev;
+	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
-	size_t len = cb->request_buffer.size - cb->buf_idx;
-	u32 msg_slots = mei_data2slots(len);
+	size_t len;
+	u32 msg_slots;
 	int rets;
+
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	buf = &cb->request_buffer;
+
+	rets = mei_cl_flow_ctrl_creds(cl);
+	if (rets < 0)
+		return rets;
+
+	if (rets == 0) {
+		cl_dbg(dev, cl,	"No flow control credentials: not sending.\n");
+		return 0;
+	}
+
+	len = buf->size - cb->buf_idx;
+	msg_slots = mei_data2slots(len);
 
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
@@ -730,8 +751,7 @@ int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 			cb->request_buffer.size, cb->buf_idx);
 
 	*slots -=  msg_slots;
-	rets = mei_write_message(dev, &mei_hdr,
-			cb->request_buffer.data + cb->buf_idx);
+	rets = mei_write_message(dev, &mei_hdr, buf->data + cb->buf_idx);
 	if (rets) {
 		cl->status = rets;
 		list_move_tail(&cb->list, &cmpl_list->list);
