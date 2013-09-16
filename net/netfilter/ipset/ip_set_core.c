@@ -1489,8 +1489,7 @@ ip_set_utest(struct sock *ctnl, struct sk_buff *skb,
 	if (ret == -EAGAIN)
 		ret = 1;
 
-	return (ret < 0 && ret != -ENOTEMPTY) ? ret :
-		ret > 0 ? 0 : -IPSET_ERR_EXIST;
+	return ret > 0 ? 0 : -IPSET_ERR_EXIST;
 }
 
 /* Get headed data of a set */
