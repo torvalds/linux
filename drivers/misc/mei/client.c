@@ -318,7 +318,6 @@ int mei_cl_link(struct mei_cl *cl, int id)
 int mei_cl_unlink(struct mei_cl *cl)
 {
 	struct mei_device *dev;
-	struct mei_cl *pos, *next;
 
 	/* don't shout on error exit path */
 	if (!cl)
@@ -330,14 +329,10 @@ int mei_cl_unlink(struct mei_cl *cl)
 
 	dev = cl->dev;
 
-	list_for_each_entry_safe(pos, next, &dev->file_list, link) {
-		if (cl->host_client_id == pos->host_client_id) {
-			cl_dbg(dev, cl, "remove host client = %d, ME client = %d\n",
-				pos->host_client_id, pos->me_client_id);
-			list_del_init(&pos->link);
-			break;
-		}
-	}
+	cl_dbg(dev, cl, "unlink client");
+
+	list_del_init(&cl->link);
+
 	return 0;
 }
 
