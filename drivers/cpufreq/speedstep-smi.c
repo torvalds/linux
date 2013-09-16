@@ -329,13 +329,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	policy->cur = speed;
 
-	result = cpufreq_frequency_table_cpuinfo(policy, speedstep_freqs);
-	if (result)
-		return result;
-
-	cpufreq_frequency_table_get_attr(speedstep_freqs, policy->cpu);
-
-	return 0;
+	return cpufreq_table_validate_and_show(policy, speedstep_freqs);
 }
 
 static int speedstep_cpu_exit(struct cpufreq_policy *policy)

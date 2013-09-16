@@ -345,7 +345,6 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	struct cpuinfo_x86 *cpu = &cpu_data(policy->cpu);
 	unsigned freq;
 	unsigned l, h;
-	int ret;
 	int i;
 
 	/* Only Intel makes Enhanced Speedstep-capable CPUs */
@@ -402,15 +401,8 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 
 	pr_debug("centrino_cpu_init: cur=%dkHz\n", policy->cur);
 
-	ret = cpufreq_frequency_table_cpuinfo(policy,
+	return cpufreq_table_validate_and_show(policy,
 		per_cpu(centrino_model, policy->cpu)->op_points);
-	if (ret)
-		return (ret);
-
-	cpufreq_frequency_table_get_attr(
-		per_cpu(centrino_model, policy->cpu)->op_points, policy->cpu);
-
-	return 0;
 }
 
 static int centrino_cpu_exit(struct cpufreq_policy *policy)
