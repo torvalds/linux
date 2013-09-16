@@ -777,6 +777,12 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (sk->sk_state != BT_CONNECTED)
 		return -ENOTCONN;
 
+	lock_sock(sk);
+	err = bt_sock_wait_ready(sk, msg->msg_flags);
+	release_sock(sk);
+	if (err)
+		return err;
+
 	l2cap_chan_lock(chan);
 	err = l2cap_chan_send(chan, msg, len, sk->sk_priority);
 	l2cap_chan_unlock(chan);
