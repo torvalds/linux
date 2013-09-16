@@ -82,15 +82,31 @@ static inline int atomic_add_return(int i, atomic_t *v)
 	return __ATOMIC_LOOP(v, i, __ATOMIC_ADD) + i;
 }
 
-#define atomic_add(_i, _v)		atomic_add_return(_i, _v)
+static inline void atomic_add(int i, atomic_t *v)
+{
+#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
+	if (__builtin_constant_p(i) && (i > -129) && (i < 128)) {
+		asm volatile(
+			"asi	%0,%1\n"
+			: "+Q" (v->counter)
+			: "i" (i)
+			: "cc", "memory");
+	} else {
+		atomic_add_return(i, v);
+	}
+#else
+	atomic_add_return(i, v);
+#endif
+}
+
 #define atomic_add_negative(_i, _v)	(atomic_add_return(_i, _v) < 0)
-#define atomic_inc(_v)			atomic_add_return(1, _v)
+#define atomic_inc(_v)			atomic_add(1, _v)
 #define atomic_inc_return(_v)		atomic_add_return(1, _v)
 #define atomic_inc_and_test(_v)		(atomic_add_return(1, _v) == 0)
+#define atomic_sub(_i, _v)		atomic_add(-(int)(_i), _v)
 #define atomic_sub_return(_i, _v)	atomic_add_return(-(int)(_i), _v)
-#define atomic_sub(_i, _v)		atomic_sub_return(_i, _v)
 #define atomic_sub_and_test(_i, _v)	(atomic_sub_return(_i, _v) == 0)
-#define atomic_dec(_v)			atomic_sub_return(1, _v)
+#define atomic_dec(_v)			atomic_sub(1, _v)
 #define atomic_dec_return(_v)		atomic_sub_return(1, _v)
 #define atomic_dec_and_test(_v)		(atomic_sub_return(1, _v) == 0)
 
@@ -314,6 +330,23 @@ static inline void atomic64_clear_mask(unsigned long long mask, atomic64_t *v)
 
 #endif /* CONFIG_64BIT */
 
+static inline void atomic64_add(long long i, atomic64_t *v)
+{
+#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
+	if (__builtin_constant_p(i) && (i > -129) && (i < 128)) {
+		asm volatile(
+			"agsi	%0,%1\n"
+			: "+Q" (v->counter)
+			: "i" (i)
+			: "cc", "memory");
+	} else {
+		atomic64_add_return(i, v);
+	}
+#else
+	atomic64_add_return(i, v);
+#endif
+}
+
 static inline int atomic64_add_unless(atomic64_t *v, long long a, long long u)
 {
 	long long c, old;
@@ -347,15 +380,14 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
 	return dec;
 }
 
-#define atomic64_add(_i, _v)		atomic64_add_return(_i, _v)
 #define atomic64_add_negative(_i, _v)	(atomic64_add_return(_i, _v) < 0)
-#define atomic64_inc(_v)		atomic64_add_return(1, _v)
+#define atomic64_inc(_v)		atomic64_add(1, _v)
 #define atomic64_inc_return(_v)		atomic64_add_return(1, _v)
 #define atomic64_inc_and_test(_v)	(atomic64_add_return(1, _v) == 0)
 #define atomic64_sub_return(_i, _v)	atomic64_add_return(-(long long)(_i), _v)
-#define atomic64_sub(_i, _v)		atomic64_sub_return(_i, _v)
+#define atomic64_sub(_i, _v)		atomic64_add(-(long long)(_i), _v)
 #define atomic64_sub_and_test(_i, _v)	(atomic64_sub_return(_i, _v) == 0)
-#define atomic64_dec(_v)		atomic64_sub_return(1, _v)
+#define atomic64_dec(_v)		atomic64_sub(1, _v)
 #define atomic64_dec_return(_v)		atomic64_sub_return(1, _v)
 #define atomic64_dec_and_test(_v)	(atomic64_sub_return(1, _v) == 0)
 #define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
