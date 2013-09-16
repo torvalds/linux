@@ -4462,7 +4462,7 @@ error:
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_CREATE_CHAN_RSP,
 		       sizeof(rsp), &rsp);
 
-	return -EFAULT;
+	return 0;
 }
 
 static void l2cap_send_move_chan_req(struct l2cap_chan *chan, u8 dest_amp_id)
