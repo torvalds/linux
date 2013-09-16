@@ -1322,20 +1322,20 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_gem_stolen;
 
+	intel_init_power_well(dev);
+
+	/* Keep VGA alive until i915_disable_vga_mem() */
+	intel_display_power_get(dev, POWER_DOMAIN_VGA);
+
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
 	intel_modeset_init(dev);
 
 	ret = i915_gem_init(dev);
 	if (ret)
-		goto cleanup_irq;
+		goto cleanup_power;
 
 	INIT_WORK(&dev_priv->console_resume_work, intel_console_resume);
-
-	intel_init_power_well(dev);
-
-	/* Keep VGA alive until i915_disable_vga_mem() */
-	intel_display_power_get(dev, POWER_DOMAIN_VGA);
 
 	intel_modeset_gem_init(dev);
 
@@ -1387,7 +1387,8 @@ cleanup_gem:
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_aliasing_ppgtt(dev);
 	drm_mm_takedown(&dev_priv->gtt.base.mm);
-cleanup_irq:
+cleanup_power:
+	intel_display_power_put(dev, POWER_DOMAIN_VGA);
 	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
 	i915_gem_cleanup_stolen(dev);
