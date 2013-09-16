@@ -944,7 +944,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	struct perf_event *event = NULL;
 	void *at, *top;
 	u64 status = 0;
-	int bit, n;
+	int bit;
 
 	if (!x86_pmu.pebs_active)
 		return;
@@ -954,16 +954,16 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 
 	ds->pebs_index = ds->pebs_buffer_base;
 
-	n = (top - at) / x86_pmu.pebs_record_size;
-	if (n <= 0)
+	if (unlikely(at > top))
 		return;
 
 	/*
 	 * Should not happen, we program the threshold at 1 and do not
 	 * set a reset value.
 	 */
-	WARN_ONCE(n > x86_pmu.max_pebs_events,
-		  "Unexpected number of pebs records %d\n", n);
+	WARN_ONCE(top - at > x86_pmu.max_pebs_events * x86_pmu.pebs_record_size,
+		  "Unexpected number of pebs records %ld\n",
+		  (top - at) / x86_pmu.pebs_record_size);
 
 	for (; at < top; at += x86_pmu.pebs_record_size) {
 		struct pebs_record_nhm *p = at;
