@@ -79,8 +79,10 @@ int mei_amthif_host_init(struct mei_device *dev)
 
 	i = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
 	if (i < 0) {
-		dev_info(&dev->pdev->dev, "amthif: failed to find the client\n");
-		return -ENOENT;
+		ret = i;
+		dev_info(&dev->pdev->dev,
+			"amthif: failed to find the client %d\n", ret);
+		return ret;
 	}
 
 	cl->me_client_id = dev->me_clients[i].client_id;
@@ -107,8 +109,9 @@ int mei_amthif_host_init(struct mei_device *dev)
 	ret = mei_cl_link(cl, MEI_IAMTHIF_HOST_CLIENT_ID);
 
 	if (ret < 0) {
-		dev_err(&dev->pdev->dev, "amthif: failed link client\n");
-		return -ENOENT;
+		dev_err(&dev->pdev->dev,
+			"amthif: failed link client %d\n", ret);
+		return ret;
 	}
 
 	cl->state = MEI_FILE_CONNECTING;
