@@ -524,7 +524,8 @@ static void xhci_hub_report_usb3_link_state(u32 *status, u32 status_reg)
  * the compliance mode timer is deleted. A port won't enter
  * compliance mode if it has previously entered U0.
  */
-void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status, u16 wIndex)
+static void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status,
+				    u16 wIndex)
 {
 	u32 all_ports_seen_u0 = ((1 << xhci->num_usb3_ports)-1);
 	bool port_in_u0 = ((status & PORT_PLS_MASK) == XDEV_U0);
