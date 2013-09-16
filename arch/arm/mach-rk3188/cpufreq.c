@@ -37,6 +37,7 @@
 #include <mach/cpu.h>
 #include <mach/ddr.h>
 #include <mach/dvfs.h>
+#include <plat/efuse.h>
 
 #define VERSION "2.2"
 
@@ -494,7 +495,9 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	}
 	low_battery_freq = get_freq_from_table(low_battery_freq);
 	clk_enable_dvfs(cpu_clk);
-
+	if(rk_tflag()){
+		dvfs_clk_enable_limit(cpu_clk, 0, 1416 * 1000 * 1000);
+	}
 	freq_wq = alloc_workqueue("rk3188_cpufreqd", WQ_NON_REENTRANT | WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_FREEZABLE, 1);
 	rk3188_cpufreq_temp_limit_init(policy);
 #ifdef CPU_FREQ_DVFS_TST

@@ -19,6 +19,7 @@
 /* Interfaces to get efuse informations */
 void rk_efuse_init(void);
 int rk_pll_flag(void);
+int rk_tflag(void);
 int rk_leakage_val(void);
 int rk3028_version_val(void);
 
