@@ -129,10 +129,6 @@ extern u16 MTO_Frag_Th_Tbl[];
 
 void MTO_Init(struct wbsoft_priv *);
 void MTO_SetTxCount(struct wbsoft_priv *adapter, u8 t0, u8 index);
-extern void MTO_PeriodicTimerExpired(struct wbsoft_priv *);
-extern void MTO_SetDTORateRange(struct wbsoft_priv *, u8 *, u8);
-extern u8 MTO_GetTxRate(struct wbsoft_priv *adapter, u32 fpdu_len);
-extern u8 MTO_GetTxFallbackRate(struct wbsoft_priv *adapter);
 
 #endif /* __MTO_H__ */
 
