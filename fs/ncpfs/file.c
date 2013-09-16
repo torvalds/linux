@@ -107,8 +107,7 @@ ncp_file_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	void* freepage;
 	size_t freelen;
 
-	DPRINTK("ncp_file_read: enter %s/%s\n",
-		dentry->d_parent->d_name.name, dentry->d_name.name);
+	DPRINTK("ncp_file_read: enter %pd2\n", dentry);
 
 	pos = *ppos;
 
@@ -166,8 +165,7 @@ ncp_file_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	file_accessed(file);
 
-	DPRINTK("ncp_file_read: exit %s/%s\n",
-		dentry->d_parent->d_name.name, dentry->d_name.name);
+	DPRINTK("ncp_file_read: exit %pd2\n", dentry);
 outrel:
 	ncp_inode_close(inode);		
 	return already_read ? already_read : error;
@@ -184,8 +182,7 @@ ncp_file_write(struct file *file, const char __user *buf, size_t count, loff_t *
 	int errno;
 	void* bouncebuffer;
 
-	DPRINTK("ncp_file_write: enter %s/%s\n",
-		dentry->d_parent->d_name.name, dentry->d_name.name);
+	DPRINTK("ncp_file_write: enter %pd2\n", dentry);
 	if ((ssize_t) count < 0)
 		return -EINVAL;
 	pos = *ppos;
@@ -264,8 +261,7 @@ ncp_file_write(struct file *file, const char __user *buf, size_t count, loff_t *
 			i_size_write(inode, pos);
 		mutex_unlock(&inode->i_mutex);
 	}
-	DPRINTK("ncp_file_write: exit %s/%s\n",
-		dentry->d_parent->d_name.name, dentry->d_name.name);
+	DPRINTK("ncp_file_write: exit %pd2\n", dentry);
 outrel:
 	ncp_inode_close(inode);		
 	return already_written ? already_written : errno;
