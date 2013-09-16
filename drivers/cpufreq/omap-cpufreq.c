@@ -191,11 +191,9 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 
 	atomic_inc_return(&freq_table_users);
 
-	result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
+	result = cpufreq_table_validate_and_show(policy, freq_table);
 	if (result)
 		goto fail_table;
-
-	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
 
 	policy->cur = omap_getspeed(policy->cpu);
 
