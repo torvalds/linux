@@ -261,7 +261,10 @@ struct ecryptfs_inode_info {
  * vfsmount too. */
 struct ecryptfs_dentry_info {
 	struct path lower_path;
-	struct ecryptfs_crypt_stat *crypt_stat;
+	union {
+		struct ecryptfs_crypt_stat *crypt_stat;
+		struct rcu_head rcu;
+	};
 };
 
 /**
