@@ -184,6 +184,7 @@ config SUNXI_EMAC
           To compile this driver as a module, choose M here.  The module
           will be called sunxi_emac.
 
+source "drivers/net/ethernet/allwinner/gmac/Kconfig"
 source "drivers/net/ethernet/tehuti/Kconfig"
 source "drivers/net/ethernet/ti/Kconfig"
 source "drivers/net/ethernet/tile/Kconfig"

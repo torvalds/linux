@@ -1,0 +1,228 @@
+/*******************************************************************************
+  Copyright (C) 2012 Shuge
+		Author: shuge  <shugeLinux@gmail.com>
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms and conditions of the GNU General Public License,
+  version 2, as published by the Free Software Foundation.
+
+  This program is distributed in the hope it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+  more details.
+
+  You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+
+  The full GNU General Public License is included in this distribution in
+  the file called "COPYING".
+
+*******************************************************************************/
+
+#include <linux/mii.h>
+#include <linux/phy.h>
+#include <linux/slab.h>
+#include <asm/io.h>
+
+#include "sunxi_gmac.h"
+
+/**
+ * gmac_mdio_read
+ * @bus: points to the mii_bus structure
+ * @phyaddr: MII addr reg bits 15-11
+ * @phyreg: MII addr reg bits 10-6
+ * Description: it reads data from the MII register from within the phy device.
+ * For the 7111 GMAC, we must set the bit 0 in the MII address register while
+ * accessing the PHY registers.
+ * Fortunately, it seems this has no drawback for the 7109 MAC.
+ */
+static int gmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
+{
+	struct net_device *ndev = bus->priv;
+	struct gmac_priv *priv = netdev_priv(ndev);
+
+	u16 value = (((phyaddr << 11) & (0x0000F800)) |
+					((phyreg << 6) & (0x000007C0)));
+
+	value |= MII_BUSY | ((priv->plat->clk_csr & 7) << 2);
+
+	while (((readl(priv->ioaddr + GMAC_GMII_ADDR)) & MII_BUSY) == 1);
+	writel(value, priv->ioaddr + GMAC_GMII_ADDR);
+	while (((readl(priv->ioaddr + GMAC_GMII_ADDR)) & MII_BUSY) == 1);
+
+	return (int)readl(priv->ioaddr + GMAC_GMII_DATA);
+}
+
+/**
+ * gmac_mdio_write
+ * @bus: points to the mii_bus structure
+ * @phyaddr: MII addr reg bits 15-11
+ * @phyreg: MII addr reg bits 10-6
+ * @phydata: phy data
+ * Description: it writes the data into the MII register from within the device.
+ */
+static int gmac_mdio_write(struct mii_bus *bus, int phyaddr,
+							int phyreg, u16 data)
+{
+	struct net_device *ndev = bus->priv;
+	struct gmac_priv *priv = netdev_priv(ndev);
+
+	u16 value = (((phyaddr << 11) & (0x0000F800)) |
+		 ((phyreg << 6) & (0x000007C0))) | MII_WRITE;
+
+	value |= MII_BUSY | ((priv->plat->clk_csr & 7) << 2);
+
+
+	/* Wait until any existing MII operation is complete */
+	while (((readl(priv->ioaddr + GMAC_GMII_ADDR)) & MII_BUSY) == 1);
+
+	/* Set the MII address register to write */
+	writel(data, priv->ioaddr + GMAC_GMII_DATA);
+	writel(value, priv->ioaddr + GMAC_GMII_ADDR);
+
+	/* Wait until any existing MII operation is complete */
+	while (((readl(priv->ioaddr + GMAC_GMII_ADDR)) & MII_BUSY) == 1);
+
+	return 0;
+}
+
+/**
+ * gmac_mdio_reset
+ * @bus: points to the mii_bus structure
+ * Description: reset the MII bus
+ */
+static int gmac_mdio_reset(struct mii_bus *bus)
+{
+	struct net_device *ndev = bus->priv;
+	struct gmac_priv *priv = netdev_priv(ndev);
+
+	writel(0, priv->ioaddr + GMAC_GMII_ADDR);
+	return 0;
+}
+
+/**
+ * gmac_mdio_register
+ * @ndev: net device structure
+ * Description: it registers the MII bus
+ */
+int gmac_mdio_register(struct net_device *ndev)
+{
+	int err = 0;
+	struct mii_bus *new_bus;
+	int *irqlist;
+	struct gmac_priv *priv = netdev_priv(ndev);
+	struct gmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
+	int addr, found;
+
+	if (!mdio_bus_data)
+		return 0;
+
+	new_bus = mdiobus_alloc();
+	if (new_bus == NULL)
+		return -ENOMEM;
+
+	if (mdio_bus_data->irqs)
+		irqlist = mdio_bus_data->irqs;
+	else
+		irqlist = priv->mii_irq;
+
+	new_bus->name = "sunxi_gmac";
+	new_bus->read = &gmac_mdio_read;
+	new_bus->write = &gmac_mdio_write;
+	new_bus->reset = &gmac_mdio_reset;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		new_bus->name, mdio_bus_data->bus_id);
+	new_bus->priv = ndev;
+	new_bus->irq = irqlist;
+	new_bus->phy_mask = mdio_bus_data->phy_mask;
+	new_bus->parent = priv->device;
+	err = mdiobus_register(new_bus);
+	if (err != 0) {
+		printk(KERN_ERR "%s: Cannot register as MDIO bus\n", new_bus->name);
+		goto bus_register_fail;
+	}
+
+	priv->mii = new_bus;
+
+	found = 0;
+	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+		struct phy_device *phydev = new_bus->phy_map[addr];
+		if (phydev) {
+			int act = 0;
+			char irq_num[4];
+			char *irq_str;
+
+			/*
+			 * If an IRQ was provided to be assigned after
+			 * the bus probe, do it here.
+			 */
+			if ((mdio_bus_data->irqs == NULL) &&
+			    (mdio_bus_data->probed_phy_irq > 0)) {
+				irqlist[addr] = mdio_bus_data->probed_phy_irq;
+				phydev->irq = mdio_bus_data->probed_phy_irq;
+			}
+
+			/*
+			 * If we're  going to bind the MAC to this PHY bus,
+			 * and no PHY number was provided to the MAC,
+			 * use the one probed here.
+			 */
+			if ((priv->plat->bus_id == mdio_bus_data->bus_id) &&
+			    (priv->plat->phy_addr == -1))
+				priv->plat->phy_addr = addr;
+
+			act = (priv->plat->bus_id == mdio_bus_data->bus_id) &&
+				(priv->plat->phy_addr == addr);
+			switch (phydev->irq) {
+			case PHY_POLL:
+				irq_str = "POLL";
+				break;
+			case PHY_IGNORE_INTERRUPT:
+				irq_str = "IGNORE";
+				break;
+			default:
+				sprintf(irq_num, "%d", phydev->irq);
+				irq_str = irq_num;
+				break;
+			}
+			pr_info("%s: PHY ID %08x at %d IRQ %s (%s)%s\n",
+				ndev->name, phydev->phy_id, addr,
+				irq_str, dev_name(&phydev->dev),
+				act ? " active" : "");
+			found = 1;
+		}
+	}
+
+	if (!found){
+		printk(KERN_WARNING "%s: No PHY found\n", ndev->name);
+		err = -ENXIO;
+		goto out_err;
+	}
+
+	return 0;
+
+out_err:
+	mdiobus_unregister(new_bus);
+bus_register_fail:
+	mdiobus_free(new_bus);
+	priv->mii = NULL;
+	return err;
+}
+
+/**
+ * gmac_mdio_unregister
+ * @ndev: net device structure
+ * Description: it unregisters the MII bus
+ */
+int gmac_mdio_unregister(struct net_device *ndev)
+{
+	struct gmac_priv *priv = netdev_priv(ndev);
+
+	mdiobus_unregister(priv->mii);
+	priv->mii->priv = NULL;
+	mdiobus_free(priv->mii);
+	priv->mii = NULL;
+
+	return 0;
+}

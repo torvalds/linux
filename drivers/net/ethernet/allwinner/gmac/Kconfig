@@ -1,0 +1,47 @@
+config SUNXI_GMAC
+	tristate "Sunxi platform 10/100/1000Mbps Ethernet driver"
+	depends on HAS_IOMEM
+	select NET_CORE
+	select MII
+	select PHYLIB
+	select CRC32
+	---help---
+	  This is the driver for the Sunxi Ethernet.
+
+if SUNXI_GMAC
+
+config GMAC_SCRIPT_SYS
+	bool "Use sunxi platform script"
+	depends on SUNXI_GMAC
+	default y
+	---help---
+	 The GMAC gpio request and control by the script of sunxi platform.
+	 Select it, by script. If not, ioremap by drivers itself.
+
+config GMAC_CLK_SYS
+	bool "Clock use system interface"
+	depends on SUNXI_GMAC
+	default y
+	---help---
+	 It select the clock controler is system or the driver itself.
+	 If you want to use the system interface, select it. If not, the
+	 driver will control the clock by ioremap.
+
+choice
+	prompt "Select the DMA TX/RX descriptor operating modes"
+	depends on SUNXI_GMAC
+	---help---
+	  This driver supports DMA descriptor to operate both in dual buffer
+	  (RING) and linked-list(CHAINED) mode. In RING mode each descriptor
+	  points to two data buffer pointers whereas in CHAINED mode they
+	  points to only one data buffer pointer.
+
+config GMAC_RING
+	bool "Enable Descriptor Ring Mode"
+
+config GMAC_CHAINED
+	bool "Enable Descriptor Chained Mode"
+
+endchoice
+
+endif
