@@ -3884,13 +3884,13 @@ static int l2cap_connect_create_rsp(struct l2cap_conn *conn,
 	if (scid) {
 		chan = __l2cap_get_chan_by_scid(conn, scid);
 		if (!chan) {
-			err = -EFAULT;
+			err = -EBADSLT;
 			goto unlock;
 		}
 	} else {
 		chan = __l2cap_get_chan_by_ident(conn, cmd->ident);
 		if (!chan) {
-			err = -EFAULT;
+			err = -EBADSLT;
 			goto unlock;
 		}
 	}
@@ -3978,7 +3978,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn,
 
 	chan = l2cap_get_chan_by_scid(conn, dcid);
 	if (!chan)
-		return -ENOENT;
+		return -EBADSLT;
 
 	if (chan->state != BT_CONFIG && chan->state != BT_CONNECT2) {
 		struct l2cap_cmd_rej_cid rej;
@@ -4438,7 +4438,7 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 		hs_hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK, conn->dst);
 		if (!hs_hcon) {
 			hci_dev_put(hdev);
-			return -EFAULT;
+			return -EBADSLT;
 		}
 
 		BT_DBG("mgr %p bredr_chan %p hs_hcon %p", mgr, chan, hs_hcon);
