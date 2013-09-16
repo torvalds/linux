@@ -165,12 +165,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		/* remove entry if already in list */
 		dev_dbg(&dev->pdev->dev, "remove iamthif and wd from the file list.\n");
 		mei_cl_unlink(&dev->wd_cl);
-		if (dev->open_handle_count > 0)
-			dev->open_handle_count--;
 		mei_cl_unlink(&dev->iamthif_cl);
-		if (dev->open_handle_count > 0)
-			dev->open_handle_count--;
-
 		mei_amthif_reset_params(dev);
 		memset(&dev->wr_ext_msg, 0, sizeof(dev->wr_ext_msg));
 	}

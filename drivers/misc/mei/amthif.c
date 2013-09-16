@@ -58,6 +58,7 @@ void mei_amthif_reset_params(struct mei_device *dev)
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 	dev->iamthif_timer = 0;
 	dev->iamthif_stall_timer = 0;
+	dev->iamthif_open_count = 0;
 }
 
 /**
@@ -731,8 +732,8 @@ static bool mei_clear_lists(struct mei_device *dev, struct file *file)
 */
 int mei_amthif_release(struct mei_device *dev, struct file *file)
 {
-	if (dev->open_handle_count > 0)
-		dev->open_handle_count--;
+	if (dev->iamthif_open_count > 0)
+		dev->iamthif_open_count--;
 
 	if (dev->iamthif_file_object == file &&
 	    dev->iamthif_state != MEI_IAMTHIF_IDLE) {

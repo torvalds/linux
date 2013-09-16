@@ -275,6 +275,7 @@ struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
 int mei_cl_link(struct mei_cl *cl, int id)
 {
 	struct mei_device *dev;
+	long open_handle_count;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
@@ -291,7 +292,8 @@ int mei_cl_link(struct mei_cl *cl, int id)
 		return -EMFILE;
 	}
 
-	if (dev->open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
+	open_handle_count = dev->open_handle_count + dev->iamthif_open_count;
+	if (open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
 		dev_err(&dev->pdev->dev, "open_handle_count exceded %d",
 			MEI_MAX_OPEN_HANDLE_COUNT);
 		return -EMFILE;
@@ -337,6 +339,17 @@ int mei_cl_unlink(struct mei_cl *cl)
 
 	cl_dbg(dev, cl, "unlink client");
 
+	if (dev->open_handle_count > 0)
+		dev->open_handle_count--;
+
+	/* never clear the 0 bit */
+	if (cl->host_client_id)
+		clear_bit(cl->host_client_id, dev->host_clients_map);
+
+	list_del_init(&cl->link);
+
+	cl->state = MEI_FILE_INITIALIZING;
+
 	list_del_init(&cl->link);
 
 	return 0;
@@ -358,10 +371,8 @@ void mei_host_client_init(struct work_struct *work)
 	/*
 	 * Reserving the first three client IDs
 	 * 0: Reserved for MEI Bus Message communications
-	 * 1: Reserved for Watchdog
-	 * 2: Reserved for AMTHI
 	 */
-	bitmap_set(dev->host_clients_map, 0, 3);
+	bitmap_set(dev->host_clients_map, 0, 1);
 
 	for (i = 0; i < dev->me_clients_num; i++) {
 		client_props = &dev->me_clients[i].props;
