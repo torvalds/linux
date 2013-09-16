@@ -233,7 +233,7 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 	struct regulator_init_data *reg_data;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
-	int i, ret;
+	int i;
 
 	if (tps->dev->of_node)
 		pdata = tps65217_parse_dt(pdev);
@@ -269,34 +269,17 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 		if (tps->dev->of_node)
 			config.of_node = pdata->of_node[i];
 
-		rdev = regulator_register(&regulators[i], &config);
+		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps->dev, "failed to register %s regulator\n",
 				pdev->name);
-			ret = PTR_ERR(rdev);
-			goto err_unregister_regulator;
+			return PTR_ERR(rdev);
 		}
 
 		/* Save regulator for cleanup */
 		tps->rdev[i] = rdev;
 	}
-	return 0;
-
-err_unregister_regulator:
-	while (--i >= 0)
-		regulator_unregister(tps->rdev[i]);
-
-	return ret;
-}
-
-static int tps65217_regulator_remove(struct platform_device *pdev)
-{
-	struct tps65217 *tps = platform_get_drvdata(pdev);
-	unsigned int i;
-
-	for (i = 0; i < TPS65217_NUM_REGULATOR; i++)
-		regulator_unregister(tps->rdev[i]);
-
 	return 0;
 }
 
@@ -305,7 +288,6 @@ static struct platform_driver tps65217_regulator_driver = {
 		.name = "tps65217-pmic",
 	},
 	.probe = tps65217_regulator_probe,
-	.remove = tps65217_regulator_remove,
 };
 
 static int __init tps65217_regulator_init(void)

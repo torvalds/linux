@@ -461,7 +461,7 @@ static int tps65912_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct tps65912_reg *pmic;
 	struct tps65912_board *pmic_plat_data;
-	int i, err;
+	int i;
 
 	pmic_plat_data = dev_get_platdata(tps65912->dev);
 	if (!pmic_plat_data)
@@ -504,33 +504,18 @@ static int tps65912_probe(struct platform_device *pdev)
 		config.init_data = reg_data;
 		config.driver_data = pmic;
 
-		rdev = regulator_register(&pmic->desc[i], &config);
+		rdev = devm_regulator_register(&pdev->dev, &pmic->desc[i],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps65912->dev,
 				"failed to register %s regulator\n",
 				pdev->name);
-			err = PTR_ERR(rdev);
-			goto err;
+			return PTR_ERR(rdev);
 		}
 
 		/* Save regulator for cleanup */
 		pmic->rdev[i] = rdev;
 	}
-	return 0;
-
-err:
-	while (--i >= 0)
-		regulator_unregister(pmic->rdev[i]);
-	return err;
-}
-
-static int tps65912_remove(struct platform_device *pdev)
-{
-	struct tps65912_reg *tps65912_reg = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < TPS65912_NUM_REGULATOR; i++)
-		regulator_unregister(tps65912_reg->rdev[i]);
 	return 0;
 }
 
@@ -540,7 +525,6 @@ static struct platform_driver tps65912_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65912_probe,
-	.remove = tps65912_remove,
 };
 
 static int __init tps65912_init(void)

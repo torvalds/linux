@@ -219,20 +219,12 @@ static int wm8400_regulator_probe(struct platform_device *pdev)
 	config.driver_data = wm8400;
 	config.regmap = wm8400->regmap;
 
-	rdev = regulator_register(&regulators[pdev->id], &config);
+	rdev = devm_regulator_register(&pdev->dev, &regulators[pdev->id],
+				       &config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
 	platform_set_drvdata(pdev, rdev);
-
-	return 0;
-}
-
-static int wm8400_regulator_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-
-	regulator_unregister(rdev);
 
 	return 0;
 }
@@ -242,7 +234,6 @@ static struct platform_driver wm8400_regulator_driver = {
 		.name = "wm8400-regulator",
 	},
 	.probe = wm8400_regulator_probe,
-	.remove = wm8400_regulator_remove,
 };
 
 /**
