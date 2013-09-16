@@ -193,21 +193,12 @@ static int smdk_audio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, board);
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed:%d\n", ret);
 
 	return ret;
-}
-
-static int smdk_audio_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-
-	return 0;
 }
 
 static struct platform_driver smdk_audio_driver = {
@@ -217,7 +208,6 @@ static struct platform_driver smdk_audio_driver = {
 		.of_match_table = of_match_ptr(samsung_wm8994_of_match),
 	},
 	.probe		= smdk_audio_probe,
-	.remove		= smdk_audio_remove,
 };
 
 module_platform_driver(smdk_audio_driver);
