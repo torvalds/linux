@@ -95,7 +95,6 @@ nouveau_therm_update(struct nouveau_therm *therm, int mode)
 	int duty;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	nv_debug(therm, "FAN speed check\n");
 	if (mode < 0)
 		mode = priv->mode;
 	priv->mode = mode;
@@ -125,8 +124,6 @@ nouveau_therm_update(struct nouveau_therm *therm, int mode)
 done:
 	if (list_empty(&priv->alarm.head) && (mode == NOUVEAU_THERM_CTRL_AUTO))
 		ptimer->alarm(ptimer, 1000000000ULL, &priv->alarm);
-	else if (!list_empty(&priv->alarm.head))
-		nv_debug(therm, "therm fan alarm list is not empty\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
