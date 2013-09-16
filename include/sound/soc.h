@@ -369,6 +369,7 @@ int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
 
 int snd_soc_register_card(struct snd_soc_card *card);
 int snd_soc_unregister_card(struct snd_soc_card *card);
+int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card);
 int snd_soc_suspend(struct device *dev);
 int snd_soc_resume(struct device *dev);
 int snd_soc_poweroff(struct device *dev);

@@ -50,3 +50,37 @@ int devm_snd_soc_register_component(struct device *dev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_snd_soc_register_component);
+
+static void devm_card_release(struct device *dev, void *res)
+{
+	snd_soc_unregister_card(*(struct snd_soc_card **)res);
+}
+
+/**
+ * devm_snd_soc_register_card - resource managed card registration
+ * @dev: Device used to manage card
+ * @card: Card to register
+ *
+ * Register a card with automatic unregistration when the device is
+ * unregistered.
+ */
+int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card)
+{
+	struct device **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_card_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = snd_soc_register_card(card);
+	if (ret == 0) {
+		*ptr = dev;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_snd_soc_register_card);
