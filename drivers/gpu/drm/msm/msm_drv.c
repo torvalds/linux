@@ -199,7 +199,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		 * imx drm driver on iMX5
 		 */
 		dev_err(dev->dev, "failed to load kms\n");
-		ret = PTR_ERR(priv->kms);
+		ret = PTR_ERR(kms);
 		goto fail;
 	}
 
