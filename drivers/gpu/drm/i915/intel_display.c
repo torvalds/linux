@@ -10684,6 +10684,8 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 	if (force_restore) {
+		i915_redisable_vga(dev);
+
 		/*
 		 * We need to use raw interfaces for restoring state to avoid
 		 * checking (bogus) intermediate states.
@@ -10697,8 +10699,6 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		}
 		list_for_each_entry(plane, &dev->mode_config.plane_list, head)
 			intel_plane_restore(plane);
-
-		i915_redisable_vga(dev);
 	} else {
 		intel_modeset_update_staged_output_state(dev);
 	}
