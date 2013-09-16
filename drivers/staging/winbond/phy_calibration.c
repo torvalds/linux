@@ -1233,8 +1233,10 @@ u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 fre
 		b_2 = (rot_image_q_b * 32768) / rot_tone_i_b -
 			phw_data->iq_rsdl_phase_tx_d2;
 
-		PHY_DEBUG(("[CAL]    ** iq_rsdl_gain_tx_d2 = %d\n", phw_data->iq_rsdl_gain_tx_d2));
-		PHY_DEBUG(("[CAL]    ** iq_rsdl_phase_tx_d2= %d\n", phw_data->iq_rsdl_phase_tx_d2));
+		PHY_DEBUG(("[CAL]    ** iq_rsdl_gain_tx_d2 = %d\n",
+			   phw_data->iq_rsdl_gain_tx_d2));
+		PHY_DEBUG(("[CAL]    ** iq_rsdl_phase_tx_d2= %d\n",
+			   phw_data->iq_rsdl_phase_tx_d2));
 		PHY_DEBUG(("[CAL]    ***** EPSILON/2 = %d\n", a_2));
 		PHY_DEBUG(("[CAL]    ***** THETA/2   = %d\n", b_2));
 
@@ -1280,7 +1282,8 @@ u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 fre
 
 		/* e. */
 		pwr_tone = (iqcal_tone_i*iqcal_tone_i + iqcal_tone_q*iqcal_tone_q);
-		pwr_image = (iqcal_image_i*iqcal_image_i + iqcal_image_q*iqcal_image_q)*factor;
+		pwr_image = (iqcal_image_i*iqcal_image_i +
+			     iqcal_image_q*iqcal_image_q)*factor;
 
 		PHY_DEBUG(("[CAL]    ** pwr_tone  = %d\n", pwr_tone));
 		PHY_DEBUG(("[CAL]    ** pwr_image  = %d\n", pwr_image));
@@ -1577,7 +1580,8 @@ unsigned char adjust_TXVGA_for_iq_mag(struct hw_data *phw_data)
 
 		sqsum = iqcal_tone_i0*iqcal_tone_i0 + iqcal_tone_q0*iqcal_tone_q0;
 		iq_mag_0_tx = (s32) _sqrt(sqsum);
-		PHY_DEBUG(("[CAL]    ** auto_adjust_txvga_for_iq_mag_0_tx=%d\n", iq_mag_0_tx));
+		PHY_DEBUG(("[CAL]    ** auto_adjust_txvga_for_iq_mag_0_tx=%d\n",
+			   iq_mag_0_tx));
 
 		if (iq_mag_0_tx >= 700 && iq_mag_0_tx <= 1750)
 			break;
