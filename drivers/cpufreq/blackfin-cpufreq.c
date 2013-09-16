@@ -210,8 +210,7 @@ static int __bfin_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = 50000; /* 50us assumed */
 
 	policy->cur = cclk;
-	cpufreq_frequency_table_get_attr(bfin_freq_table, policy->cpu);
-	return cpufreq_frequency_table_cpuinfo(policy, bfin_freq_table);
+	return cpufreq_table_validate_and_show(policy, bfin_freq_table);
 }
 
 static struct freq_attr *bfin_freq_attr[] = {
