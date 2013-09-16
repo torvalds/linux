@@ -10279,8 +10279,6 @@ void i915_disable_vga_mem(struct drm_device *dev)
 
 void intel_modeset_init_hw(struct drm_device *dev)
 {
-	intel_init_power_well(dev);
-
 	intel_prepare_ddi(dev);
 
 	intel_init_clock_gating(dev);

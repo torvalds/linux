@@ -1332,6 +1332,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	INIT_WORK(&dev_priv->console_resume_work, intel_console_resume);
 
+	intel_init_power_well(dev);
+
 	intel_modeset_gem_init(dev);
 
 	/* Always safe in the mode setting case. */
