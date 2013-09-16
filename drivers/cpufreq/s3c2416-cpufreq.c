@@ -494,11 +494,9 @@ static int __init s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = (500 * 1000) +
 					     s3c_freq->regulator_latency;
 
-	ret = cpufreq_frequency_table_cpuinfo(policy, s3c_freq->freq_table);
+	ret = cpufreq_table_validate_and_show(policy, s3c_freq->freq_table);
 	if (ret)
 		goto err_freq_table;
-
-	cpufreq_frequency_table_get_attr(s3c_freq->freq_table, 0);
 
 	register_reboot_notifier(&s3c2416_cpufreq_reboot_notifier);
 
