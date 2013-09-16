@@ -26,4 +26,5 @@ struct omap_dss_dispc_dev_attr {
 	bool	has_framedonetv_irq;
 };
 
+int omap_init_drm(void);
 #endif

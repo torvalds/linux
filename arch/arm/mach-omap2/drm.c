@@ -26,8 +26,9 @@
 #include <linux/platform_data/omap_drm.h>
 
 #include "soc.h"
+#include "display.h"
 
-#if defined(CONFIG_DRM_OMAP) || (CONFIG_DRM_OMAP_MODULE)
+#if defined(CONFIG_DRM_OMAP) || defined(CONFIG_DRM_OMAP_MODULE)
 
 static struct omap_drm_platform_data platform_data;
 
@@ -40,14 +41,13 @@ static struct platform_device omap_drm_device = {
 	.id = 0,
 };
 
-static int __init omap_init_drm(void)
+int __init omap_init_drm(void)
 {
 	platform_data.omaprev = GET_OMAP_TYPE;
 
 	return platform_device_register(&omap_drm_device);
 
 }
-
-omap_arch_initcall(omap_init_drm);
-
+#else
+int __init omap_init_drm(void) { return 0; }
 #endif
