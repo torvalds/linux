@@ -1088,7 +1088,7 @@ void RFSynthesizer_initial(struct hw_data *pHwData)
 		msleep(5);
 
 		ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse((0x0F << 20) | 0xF01A0, 20);
-		Wb35Reg_WriteSync(pHwData, 0x0864, ltmp) ;
+		Wb35Reg_WriteSync(pHwData, 0x0864, ltmp);
 
 		Wb35Reg_WriteSync(pHwData, 0x105c, pHwData->reg.BB5C);
 		pHwData->reg.BB50 &= ~0x13; /* (MASK_IQCAL_MODE|MASK_CALIB_START); */
@@ -2096,7 +2096,7 @@ void Mxx_initial(struct hw_data *pHwData)
 	pltmp[5] = reg->M38_MacControl;
 
 	/* M3C */
-	tmp = (DEFAULT_PIFST << 26) | (DEFAULT_EIFST << 16) | (DEFAULT_DIFST << 8) | (DEFAULT_SIFST << 4) | DEFAULT_OSIFST ;
+	tmp = (DEFAULT_PIFST << 26) | (DEFAULT_EIFST << 16) | (DEFAULT_DIFST << 8) | (DEFAULT_SIFST << 4) | DEFAULT_OSIFST;
 	reg->M3C_MacControl = tmp;
 	pltmp[6] = tmp;
 
