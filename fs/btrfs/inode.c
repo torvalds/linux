@@ -8339,7 +8339,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	struct btrfs_file_extent_item *ei;
 	struct extent_buffer *leaf;
 
-	name_len = strlen(symname) + 1;
+	name_len = strlen(symname);
 	if (name_len > BTRFS_MAX_INLINE_DATA_SIZE(root))
 		return -ENAMETOOLONG;
 
@@ -8427,7 +8427,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	inode->i_mapping->a_ops = &btrfs_symlink_aops;
 	inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
 	inode_set_bytes(inode, name_len);
-	btrfs_i_size_write(inode, name_len - 1);
+	btrfs_i_size_write(inode, name_len);
 	err = btrfs_update_inode(trans, root, inode);
 	if (err)
 		drop_inode = 1;
