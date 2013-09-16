@@ -917,7 +917,7 @@ static int tegra_aes_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize the vde clock */
-	dd->aes_clk = clk_get(dev, "vde");
+	dd->aes_clk = devm_clk_get(dev, "vde");
 	if (IS_ERR(dd->aes_clk)) {
 		dev_err(dev, "iclock intialization failed.\n");
 		err = -ENODEV;
@@ -1026,8 +1026,6 @@ out:
 	if (dd->buf_out)
 		dma_free_coherent(dev, AES_HW_DMA_BUFFER_SIZE_BYTES,
 			dd->buf_out, dd->dma_buf_out);
-	if (!IS_ERR(dd->aes_clk))
-		clk_put(dd->aes_clk);
 	if (aes_wq)
 		destroy_workqueue(aes_wq);
 	spin_lock(&list_lock);
@@ -1061,7 +1059,6 @@ static int tegra_aes_remove(struct platform_device *pdev)
 			  dd->buf_in, dd->dma_buf_in);
 	dma_free_coherent(dev, AES_HW_DMA_BUFFER_SIZE_BYTES,
 			  dd->buf_out, dd->dma_buf_out);
-	clk_put(dd->aes_clk);
 	aes_dev = NULL;
 
 	return 0;
