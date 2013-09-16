@@ -27,6 +27,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -716,7 +718,7 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	u8 *dt;
 
 	if (!ctx || !dd) {
-		dev_err(dd->dev, "ctx=0x%x, dd=0x%x\n",
+		pr_err("ctx=0x%x, dd=0x%x\n",
 			(unsigned int)ctx, (unsigned int)dd);
 		return -EINVAL;
 	}
