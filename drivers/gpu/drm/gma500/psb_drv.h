@@ -672,6 +672,7 @@ struct psb_ops {
 	int sgx_offset;		/* Base offset of SGX device */
 	int hdmi_mask;		/* Mask of HDMI CRTCs */
 	int lvds_mask;		/* Mask of LVDS CRTCs */
+	int sdvo_mask;		/* Mask of SDVO CRTCs */
 	int cursor_needs_phys;  /* If cursor base reg need physical address */
 
 	/* Sub functions */

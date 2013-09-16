@@ -714,7 +714,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_ANALOG);
 			break;
 		case INTEL_OUTPUT_SDVO:
-			crtc_mask = ((1 << 0) | (1 << 1));
+			crtc_mask = dev_priv->ops->sdvo_mask;
 			clone_mask = (1 << INTEL_OUTPUT_SDVO);
 			break;
 		case INTEL_OUTPUT_LVDS:
