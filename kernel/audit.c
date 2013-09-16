@@ -715,7 +715,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			}
 			audit_log_common_recv_msg(&ab, msg_type);
 			if (msg_type != AUDIT_USER_TTY)
-				audit_log_format(ab, " msg='%.1024s'",
+				audit_log_format(ab, " msg='%.*s'",
+						 AUDIT_MESSAGE_TEXT_MAX,
 						 (char *)data);
 			else {
 				int size;

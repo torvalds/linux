@@ -358,6 +358,12 @@ enum {
 #define AUDIT_PERM_READ		4
 #define AUDIT_PERM_ATTR		8
 
+/* MAX_AUDIT_MESSAGE_LENGTH is set in audit:lib/libaudit.h as:
+ * 8970 // PATH_MAX*2+CONTEXT_SIZE*2+11+256+1
+ * max header+body+tailer: 44 + 29 + 32 + 262 + 7 + pad
+ */
+#define AUDIT_MESSAGE_TEXT_MAX	8560
+
 struct audit_status {
 	__u32		mask;		/* Bit mask for valid entries */
 	__u32		enabled;	/* 1 = enabled, 0 = disabled */
