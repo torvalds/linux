@@ -145,7 +145,7 @@ int bfin_pm_suspend_mem_enter(void)
 
 	unsigned char *memptr = kmalloc(L1_CODE_LENGTH + L1_DATA_A_LENGTH
 					 + L1_DATA_B_LENGTH + L1_SCRATCH_LENGTH,
-					  GFP_KERNEL);
+					  GFP_ATOMIC);
 
 	if (memptr == NULL) {
 		panic("bf53x_suspend_l1_mem malloc failed");
