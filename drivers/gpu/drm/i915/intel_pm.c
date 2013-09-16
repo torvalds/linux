@@ -5354,8 +5354,7 @@ void i915_request_power_well(void)
 		return;
 
 	spin_lock_irq(&hsw_pwr->lock);
-	if (!hsw_pwr->count++ &&
-			!hsw_pwr->i915_request)
+	if (!hsw_pwr->count++)
 		__intel_set_power_well(hsw_pwr->device, true);
 	spin_unlock_irq(&hsw_pwr->lock);
 }
@@ -5369,8 +5368,7 @@ void i915_release_power_well(void)
 
 	spin_lock_irq(&hsw_pwr->lock);
 	WARN_ON(!hsw_pwr->count);
-	if (!--hsw_pwr->count &&
-		       !hsw_pwr->i915_request)
+	if (!--hsw_pwr->count)
 		__intel_set_power_well(hsw_pwr->device, false);
 	spin_unlock_irq(&hsw_pwr->lock);
 }
@@ -5406,15 +5404,41 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 		return;
 
 	spin_lock_irq(&power_well->lock);
+
+	/*
+	 * This function will only ever contribute one
+	 * to the power well reference count. i915_request
+	 * is what tracks whether we have or have not
+	 * added the one to the reference count.
+	 */
+	if (power_well->i915_request == enable)
+		goto out;
+
 	power_well->i915_request = enable;
 
-	/* only reject "disable" power well request */
-	if (power_well->count && !enable) {
-		spin_unlock_irq(&power_well->lock);
-		return;
+	if (enable) {
+		if (!power_well->count++)
+			__intel_set_power_well(dev, true);
+	} else {
+		WARN_ON(!power_well->count);
+		if (!--power_well->count)
+			__intel_set_power_well(dev, false);
 	}
 
-	__intel_set_power_well(dev, enable);
+ out:
+	spin_unlock_irq(&power_well->lock);
+}
+
+void intel_resume_power_well(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_well *power_well = &dev_priv->power_well;
+
+	if (!HAS_POWER_WELL(dev))
+		return;
+
+	spin_lock_irq(&power_well->lock);
+	__intel_set_power_well(dev, power_well->count > 0);
 	spin_unlock_irq(&power_well->lock);
 }
 
@@ -5433,6 +5457,7 @@ void intel_init_power_well(struct drm_device *dev)
 
 	/* For now, we need the power well to be always enabled. */
 	intel_set_power_well(dev, true);
+	intel_resume_power_well(dev);
 
 	/* We're taking over the BIOS, so clear any requests made by it since
 	 * the driver is in charge now. */
