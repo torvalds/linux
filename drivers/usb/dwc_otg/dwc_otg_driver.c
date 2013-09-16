@@ -602,6 +602,55 @@ static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv, const char *_bu
     return _count;
 }
 static DRIVER_ATTR(dwc_otg_conn_en, S_IRUGO|S_IWUSR, dwc_otg_conn_en_show, dwc_otg_conn_en_store);
+
+#ifdef CONFIG_RK_USB_UART
+
+extern int get_gadget_connect_flag(void);
+extern int dwc_vbus_status(void);
+
+/*
+
+write 1 to /sys/bus/platform/drivers/usb20_otg/dwc_otg_force_uart 
+can stop check_vbus_timer and force usb_phy bypass to uart mode
+
+write 0 comes back to normal usb operate mode
+
+*/
+static ssize_t dwc_otg_force_uart_store(struct device_driver *_drv, const char *_buf,
+				     size_t _count)
+{
+    int enable = simple_strtoul(_buf, NULL, 10);
+    dwc_otg_device_t *otg_dev = g_otgdev;
+    dwc_otg_pcd_t *_pcd = otg_dev->pcd;
+    struct dwc_otg_platform_data *pldata = otg_dev->pldata;
+
+    if(1 == enable)
+    {
+        if(!get_gadget_connect_flag() && 
+            dwc_otg_is_device_mode(otg_dev->core_if))
+        {
+            disable_irq(IRQ_OTG_BVALID);
+            del_timer(&_pcd->check_vbus_timer);
+            pldata->phy_suspend(pldata,USB_PHY_SUSPEND);
+            pldata->dwc_otg_uart_mode(pldata,PHY_UART_MODE);
+            _pcd->vbus_status = 2;
+        }
+        else
+            printk("mode mismatch!\n");
+    }
+
+    if(0 == enable)
+    {
+        _pcd->vbus_status == 0;
+        _pcd->vbus_status = 0;
+        pldata->dwc_otg_uart_mode(pldata,PHY_USB_MODE);
+        dwc_otg_pcd_start_vbus_timer(_pcd);
+        enable_irq(IRQ_OTG_BVALID);
+    }
+    return _count;
+}
+static DRIVER_ATTR(dwc_otg_force_uart, S_IRUGO|S_IWUSR, NULL, dwc_otg_force_uart_store);
+#endif
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
 static ssize_t vbus_status_show(struct device_driver *_drv, char *_buf)
 {
@@ -1726,6 +1775,11 @@ static int __init dwc_otg_driver_init(void)
 	if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en))
 		pr_warning("DWC_OTG: Failed to create driver dwc_otg_conn_en file");
 #endif
+
+#ifdef CONFIG_RK_USB_UART
+if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_force_uart))
+    pr_warning("DWC_OTG: Failed to create driver dwc_otg_force_uart file");
+#endif    
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
 	if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_vbus_status))
 		pr_warning("DWC_OTG: Failed to create driver vbus status file");
@@ -1784,6 +1838,11 @@ static void __exit dwc_otg_driver_cleanup(void)
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
     driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en);
 #endif
+
+#ifdef CONFIG_RK_USB_UART
+    driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_force_uart);
+#endif
+
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
     driver_remove_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
 #endif
