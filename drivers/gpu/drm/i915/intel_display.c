@@ -10636,7 +10636,6 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
-	struct drm_plane *plane;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
 	int i;
@@ -10697,8 +10696,6 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 			__intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y,
 					 crtc->fb);
 		}
-		list_for_each_entry(plane, &dev->mode_config.plane_list, head)
-			intel_plane_restore(plane);
 	} else {
 		intel_modeset_update_staged_output_state(dev);
 	}
