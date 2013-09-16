@@ -2559,7 +2559,7 @@ retry:
 			break;
 	}
 	blk_finish_plug(&plug);
-	if (!ret && !cycled) {
+	if (!ret && !cycled && wbc->nr_to_write > 0) {
 		cycled = 1;
 		mpd.last_page = writeback_index - 1;
 		mpd.first_page = 0;
