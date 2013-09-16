@@ -2656,6 +2656,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	int acc_mode;
 	int create_error = 0;
 	struct dentry *const DENTRY_NOT_SET = (void *) -1UL;
+	bool excl;
 
 	BUG_ON(dentry->d_inode);
 
@@ -2669,10 +2670,9 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	if ((open_flag & O_CREAT) && !IS_POSIXACL(dir))
 		mode &= ~current_umask();
 
-	if ((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT)) {
+	excl = (open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT);
+	if (excl)
 		open_flag &= ~O_TRUNC;
-		*opened |= FILE_CREATED;
-	}
 
 	/*
 	 * Checking write permission is tricky, bacuse we don't know if we are
@@ -2726,7 +2726,11 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	}
 
 	acc_mode = op->acc_mode;
+	if (WARN_ON(excl && !(*opened & FILE_CREATED)))
+		*opened |= FILE_CREATED;
+
 	if (*opened & FILE_CREATED) {
+		WARN_ON(!(open_flag & O_CREAT));
 		fsnotify_create(dir, dentry);
 		acc_mode = MAY_OPEN;
 	}
@@ -2740,6 +2744,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 			dput(dentry);
 			dentry = file->f_path.dentry;
 		}
+		WARN_ON(!dentry->d_inode && (*opened & FILE_CREATED));
 		if (create_error && dentry->d_inode == NULL) {
 			error = create_error;
 			goto out;
