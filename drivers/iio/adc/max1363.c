@@ -1484,12 +1484,6 @@ done:
 	return IRQ_HANDLED;
 }
 
-static const struct iio_buffer_setup_ops max1363_buffered_setup_ops = {
-	.postenable = &iio_triggered_buffer_postenable,
-	.preenable = &iio_sw_buffer_preenable,
-	.predisable = &iio_triggered_buffer_predisable,
-};
-
 static int max1363_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1559,7 +1553,7 @@ static int max1363_probe(struct i2c_client *client,
 		goto error_disable_reg;
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-		&max1363_trigger_handler, &max1363_buffered_setup_ops);
+		&max1363_trigger_handler, NULL);
 	if (ret)
 		goto error_disable_reg;
 
