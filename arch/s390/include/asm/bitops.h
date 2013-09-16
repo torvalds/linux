@@ -15,6 +15,7 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
+#include <linux/typecheck.h>
 #include <linux/compiler.h>
 
 /*
@@ -54,8 +55,6 @@
  */
 
 /* bitmap tables from arch/s390/kernel/bitmap.c */
-extern const char _oi_bitmap[];
-extern const char _ni_bitmap[];
 extern const char _zb_findmap[];
 extern const char _sb_findmap[];
 
@@ -69,15 +68,15 @@ extern const char _sb_findmap[];
 ({								\
 	unsigned long __old, __new;				\
 								\
+	typecheck(unsigned long *, (__addr));			\
 	asm volatile(						\
 		"	l	%0,%2\n"			\
 		"0:	lr	%1,%0\n"			\
 		__op_string "	%1,%3\n"			\
 		"	cs	%0,%1,%2\n"			\
 		"	jl	0b"				\
-		: "=&d" (__old), "=&d" (__new),			\
-		  "=Q" (*(unsigned long *) __addr)		\
-		: "d" (__val), "Q" (*(unsigned long *) __addr)	\
+		: "=&d" (__old), "=&d" (__new), "+Q" (*(__addr))\
+		: "d" (__val)					\
 		: "cc");					\
 	__old;							\
 })
@@ -94,9 +93,10 @@ extern const char _sb_findmap[];
 ({								\
 	unsigned long __old;					\
 								\
+	typecheck(unsigned long *, (__addr));			\
 	asm volatile(						\
 		__op_string "	%0,%2,%1\n"			\
-		: "=d" (__old),	"+Q" (*(unsigned long *)__addr)	\
+		: "=d" (__old),	"+Q" (*(__addr))		\
 		: "d" (__val)					\
 		: "cc");					\
 	__old;							\
@@ -112,15 +112,15 @@ extern const char _sb_findmap[];
 ({								\
 	unsigned long __old, __new;				\
 								\
+	typecheck(unsigned long *, (__addr));			\
 	asm volatile(						\
 		"	lg	%0,%2\n"			\
 		"0:	lgr	%1,%0\n"			\
 		__op_string "	%1,%3\n"			\
 		"	csg	%0,%1,%2\n"			\
 		"	jl	0b"				\
-		: "=&d" (__old), "=&d" (__new),			\
-		  "=Q" (*(unsigned long *) __addr)		\
-		: "d" (__val), "Q" (*(unsigned long *) __addr)	\
+		: "=&d" (__old), "=&d" (__new), "+Q" (*(__addr))\
+		: "d" (__val)					\
 		: "cc");					\
 	__old;							\
 })
@@ -131,293 +131,147 @@ extern const char _sb_findmap[];
 
 #define __BITOPS_WORDS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
 
-#ifdef CONFIG_SMP
-/*
- * SMP safe set_bit routine based on compare and swap (CS)
- */
-static inline void set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
+static inline unsigned long *
+__bitops_word(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr, mask;
+	unsigned long addr;
 
-	addr = (unsigned long) ptr;
-	/* calculate address for CS */
-	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
-	/* make OR mask */
+	addr = (unsigned long)ptr + ((nr ^ (nr & (BITS_PER_LONG - 1))) >> 3);
+	return (unsigned long *)addr;
+}
+
+static inline unsigned char *
+__bitops_byte(unsigned long nr, volatile unsigned long *ptr)
+{
+	return ((unsigned char *)ptr) + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
+}
+
+static inline void set_bit(unsigned long nr, volatile unsigned long *ptr)
+{
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask;
+
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
-	/* Do the atomic update. */
 	__BITOPS_LOOP(addr, mask, __BITOPS_OR);
 }
 
-/*
- * SMP safe clear_bit routine based on compare and swap (CS)
- */
-static inline void clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
+static inline void clear_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr, mask;
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask;
 
-	addr = (unsigned long) ptr;
-	/* calculate address for CS */
-	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
-	/* make AND mask */
 	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
-	/* Do the atomic update. */
 	__BITOPS_LOOP(addr, mask, __BITOPS_AND);
 }
 
-/*
- * SMP safe change_bit routine based on compare and swap (CS)
- */
-static inline void change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
+static inline void change_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr, mask;
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask;
 
-	addr = (unsigned long) ptr;
-	/* calculate address for CS */
-	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
-	/* make XOR mask */
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
-	/* Do the atomic update. */
 	__BITOPS_LOOP(addr, mask, __BITOPS_XOR);
 }
 
-/*
- * SMP safe test_and_set_bit routine based on compare and swap (CS)
- */
 static inline int
-test_and_set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
+test_and_set_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr, old, mask;
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long old, mask;
 
-	addr = (unsigned long) ptr;
-	/* calculate address for CS */
-	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
-	/* make OR/test mask */
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
-	/* Do the atomic update. */
 	old = __BITOPS_LOOP(addr, mask, __BITOPS_OR);
 	barrier();
 	return (old & mask) != 0;
 }
 
-/*
- * SMP safe test_and_clear_bit routine based on compare and swap (CS)
- */
 static inline int
-test_and_clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
+test_and_clear_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr, old, mask;
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long old, mask;
 
-	addr = (unsigned long) ptr;
-	/* calculate address for CS */
-	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
-	/* make AND/test mask */
 	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
-	/* Do the atomic update. */
 	old = __BITOPS_LOOP(addr, mask, __BITOPS_AND);
 	barrier();
 	return (old & ~mask) != 0;
 }
 
-/*
- * SMP safe test_and_change_bit routine based on compare and swap (CS) 
- */
 static inline int
-test_and_change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
+test_and_change_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr, old, mask;
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long old, mask;
 
-	addr = (unsigned long) ptr;
-	/* calculate address for CS */
-	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
-	/* make XOR/test mask */
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
-	/* Do the atomic update. */
 	old = __BITOPS_LOOP(addr, mask, __BITOPS_XOR);
 	barrier();
 	return (old & mask) != 0;
 }
-#endif /* CONFIG_SMP */
 
-/*
- * fast, non-SMP set_bit routine
- */
 static inline void __set_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr;
+	unsigned char *addr = __bitops_byte(nr, ptr);
 
-	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	asm volatile(
-		"	oc	%O0(1,%R0),%1"
-		: "+Q" (*(char *) addr) : "Q" (_oi_bitmap[nr & 7]) : "cc");
+	*addr |= 1 << (nr & 7);
 }
 
-static inline void 
-__constant_set_bit(const unsigned long nr, volatile unsigned long *ptr)
-{
-	unsigned long addr;
-
-	addr = ((unsigned long) ptr) + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	*(unsigned char *) addr |= 1 << (nr & 7);
-}
-
-#define set_bit_simple(nr,addr) \
-(__builtin_constant_p((nr)) ? \
- __constant_set_bit((nr),(addr)) : \
- __set_bit((nr),(addr)) )
-
-/*
- * fast, non-SMP clear_bit routine
- */
 static inline void 
 __clear_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr;
+	unsigned char *addr = __bitops_byte(nr, ptr);
 
-	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	asm volatile(
-		"	nc	%O0(1,%R0),%1"
-		: "+Q" (*(char *) addr) : "Q" (_ni_bitmap[nr & 7]) : "cc");
+	*addr &= ~(1 << (nr & 7));
 }
 
-static inline void 
-__constant_clear_bit(const unsigned long nr, volatile unsigned long *ptr)
-{
-	unsigned long addr;
-
-	addr = ((unsigned long) ptr) + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	*(unsigned char *) addr &= ~(1 << (nr & 7));
-}
-
-#define clear_bit_simple(nr,addr) \
-(__builtin_constant_p((nr)) ? \
- __constant_clear_bit((nr),(addr)) : \
- __clear_bit((nr),(addr)) )
-
-/* 
- * fast, non-SMP change_bit routine 
- */
 static inline void __change_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr;
+	unsigned char *addr = __bitops_byte(nr, ptr);
 
-	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	asm volatile(
-		"	xc	%O0(1,%R0),%1"
-		: "+Q" (*(char *) addr) : "Q" (_oi_bitmap[nr & 7]) : "cc");
+	*addr ^= 1 << (nr & 7);
 }
 
-static inline void 
-__constant_change_bit(const unsigned long nr, volatile unsigned long *ptr) 
-{
-	unsigned long addr;
-
-	addr = ((unsigned long) ptr) + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	*(unsigned char *) addr ^= 1 << (nr & 7);
-}
-
-#define change_bit_simple(nr,addr) \
-(__builtin_constant_p((nr)) ? \
- __constant_change_bit((nr),(addr)) : \
- __change_bit((nr),(addr)) )
-
-/*
- * fast, non-SMP test_and_set_bit routine
- */
 static inline int
-test_and_set_bit_simple(unsigned long nr, volatile unsigned long *ptr)
+__test_and_set_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr;
+	unsigned char *addr = __bitops_byte(nr, ptr);
 	unsigned char ch;
 
-	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	ch = *(unsigned char *) addr;
-	asm volatile(
-		"	oc	%O0(1,%R0),%1"
-		: "+Q" (*(char *) addr)	: "Q" (_oi_bitmap[nr & 7])
-		: "cc", "memory");
+	ch = *addr;
+	*addr |= 1 << (nr & 7);
 	return (ch >> (nr & 7)) & 1;
 }
-#define __test_and_set_bit(X,Y)		test_and_set_bit_simple(X,Y)
 
-/*
- * fast, non-SMP test_and_clear_bit routine
- */
 static inline int
-test_and_clear_bit_simple(unsigned long nr, volatile unsigned long *ptr)
+__test_and_clear_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr;
+	unsigned char *addr = __bitops_byte(nr, ptr);
 	unsigned char ch;
 
-	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	ch = *(unsigned char *) addr;
-	asm volatile(
-		"	nc	%O0(1,%R0),%1"
-		: "+Q" (*(char *) addr)	: "Q" (_ni_bitmap[nr & 7])
-		: "cc", "memory");
+	ch = *addr;
+	*addr &= ~(1 << (nr & 7));
 	return (ch >> (nr & 7)) & 1;
 }
-#define __test_and_clear_bit(X,Y)	test_and_clear_bit_simple(X,Y)
 
-/*
- * fast, non-SMP test_and_change_bit routine
- */
 static inline int
-test_and_change_bit_simple(unsigned long nr, volatile unsigned long *ptr)
+__test_and_change_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned long addr;
+	unsigned char *addr = __bitops_byte(nr, ptr);
 	unsigned char ch;
 
-	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	ch = *(unsigned char *) addr;
-	asm volatile(
-		"	xc	%O0(1,%R0),%1"
-		: "+Q" (*(char *) addr)	: "Q" (_oi_bitmap[nr & 7])
-		: "cc", "memory");
-	return (ch >> (nr & 7)) & 1;
-}
-#define __test_and_change_bit(X,Y)	test_and_change_bit_simple(X,Y)
-
-#ifdef CONFIG_SMP
-#define set_bit             set_bit_cs
-#define clear_bit           clear_bit_cs
-#define change_bit          change_bit_cs
-#define test_and_set_bit    test_and_set_bit_cs
-#define test_and_clear_bit  test_and_clear_bit_cs
-#define test_and_change_bit test_and_change_bit_cs
-#else
-#define set_bit             set_bit_simple
-#define clear_bit           clear_bit_simple
-#define change_bit          change_bit_simple
-#define test_and_set_bit    test_and_set_bit_simple
-#define test_and_clear_bit  test_and_clear_bit_simple
-#define test_and_change_bit test_and_change_bit_simple
-#endif
-
-
-/*
- * This routine doesn't need to be atomic.
- */
-
-static inline int __test_bit(unsigned long nr, const volatile unsigned long *ptr)
-{
-	unsigned long addr;
-	unsigned char ch;
-
-	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
-	ch = *(volatile unsigned char *) addr;
+	ch = *addr;
+	*addr ^= 1 << (nr & 7);
 	return (ch >> (nr & 7)) & 1;
 }
 
-static inline int 
-__constant_test_bit(unsigned long nr, const volatile unsigned long *addr) {
-    return (((volatile char *) addr)
-	    [(nr^(BITS_PER_LONG-8))>>3] & (1<<(nr&7))) != 0;
-}
+static inline int test_bit(unsigned long nr, const volatile unsigned long *ptr)
+{
+	const volatile unsigned char *addr;
 
-#define test_bit(nr,addr) \
-(__builtin_constant_p((nr)) ? \
- __constant_test_bit((nr),(addr)) : \
- __test_bit((nr),(addr)) )
+	addr = ((const volatile unsigned char *)ptr);
+	addr += (nr ^ (BITS_PER_LONG - 8)) >> 3;
+	return (*addr >> (nr & 7)) & 1;
+}
 
 /*
  * Optimized find bit helper functions.
