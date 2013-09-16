@@ -2282,9 +2282,9 @@ uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz, struct ddr_freq_t ddr_fr
     deidle_port();
 #endif
 
-    ddr_dtt_check();
     /** 5. Issues a Mode Exit command   */
     DDR_RESTORE_SP(save_sp);
+    ddr_dtt_check();
     local_fiq_enable();
     local_irq_restore(flags);
 //    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);    
