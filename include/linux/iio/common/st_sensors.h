@@ -203,6 +203,7 @@ struct st_sensors {
  * @sensor: Pointer to the current sensor struct in use.
  * @current_fullscale: Maximum range of measure by the sensor.
  * @vdd: Pointer to sensor's Vdd power supply
+ * @vdd_io: Pointer to sensor's Vdd-IO power supply
  * @enabled: Status of the sensor (false->off, true->on).
  * @multiread_bit: Use or not particular bit for [I2C/SPI] multiread.
  * @buffer_data: Data used by buffer part.
@@ -219,6 +220,7 @@ struct st_sensor_data {
 	struct st_sensors *sensor;
 	struct st_sensor_fullscale_avl *current_fullscale;
 	struct regulator *vdd;
+	struct regulator *vdd_io;
 
 	bool enabled;
 	bool multiread_bit;

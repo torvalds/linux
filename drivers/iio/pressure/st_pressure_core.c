@@ -319,13 +319,21 @@ static void st_press_power_enable(struct iio_dev *indio_dev)
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
 	int err;
 
-	/* Regulators not mandatory, but if requested we should enable it. */
+	/* Regulators not mandatory, but if requested we should enable them. */
 	pdata->vdd = devm_regulator_get_optional(&indio_dev->dev, "vdd");
 	if (!IS_ERR(pdata->vdd)) {
 		err = regulator_enable(pdata->vdd);
 		if (err != 0)
 			dev_warn(&indio_dev->dev,
 				 "Failed to enable specified Vdd supply\n");
+	}
+
+	pdata->vdd_io = devm_regulator_get_optional(&indio_dev->dev, "vddio");
+	if (!IS_ERR(pdata->vdd_io)) {
+		err = regulator_enable(pdata->vdd_io);
+		if (err != 0)
+			dev_warn(&indio_dev->dev,
+				 "Failed to enable specified Vdd_IO supply\n");
 	}
 }
 
@@ -335,6 +343,9 @@ static void st_press_power_disable(struct iio_dev *indio_dev)
 
 	if (!IS_ERR(pdata->vdd))
 		regulator_disable(pdata->vdd);
+
+	if (!IS_ERR(pdata->vdd_io))
+		regulator_disable(pdata->vdd_io);
 }
 
 int st_press_common_probe(struct iio_dev *indio_dev,
