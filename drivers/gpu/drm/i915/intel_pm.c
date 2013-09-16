@@ -5345,6 +5345,69 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 	}
 }
 
+void intel_display_power_get(struct drm_device *dev,
+			     enum intel_display_power_domain domain)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_well *power_well = &dev_priv->power_well;
+
+	if (!HAS_POWER_WELL(dev))
+		return;
+
+	switch (domain) {
+	case POWER_DOMAIN_PIPE_A:
+	case POWER_DOMAIN_TRANSCODER_EDP:
+		return;
+	case POWER_DOMAIN_PIPE_B:
+	case POWER_DOMAIN_PIPE_C:
+	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
+	case POWER_DOMAIN_TRANSCODER_A:
+	case POWER_DOMAIN_TRANSCODER_B:
+	case POWER_DOMAIN_TRANSCODER_C:
+		spin_lock_irq(&power_well->lock);
+		if (!power_well->count++)
+			__intel_set_power_well(power_well->device, true);
+		spin_unlock_irq(&power_well->lock);
+		return;
+	default:
+		BUG();
+	}
+}
+
+void intel_display_power_put(struct drm_device *dev,
+			     enum intel_display_power_domain domain)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_well *power_well = &dev_priv->power_well;
+
+	if (!HAS_POWER_WELL(dev))
+		return;
+
+	switch (domain) {
+	case POWER_DOMAIN_PIPE_A:
+	case POWER_DOMAIN_TRANSCODER_EDP:
+		return;
+	case POWER_DOMAIN_PIPE_B:
+	case POWER_DOMAIN_PIPE_C:
+	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
+	case POWER_DOMAIN_TRANSCODER_A:
+	case POWER_DOMAIN_TRANSCODER_B:
+	case POWER_DOMAIN_TRANSCODER_C:
+		spin_lock_irq(&power_well->lock);
+		WARN_ON(!power_well->count);
+		if (!--power_well->count)
+			__intel_set_power_well(power_well->device, false);
+		spin_unlock_irq(&power_well->lock);
+		return;
+	default:
+		BUG();
+	}
+}
+
 static struct i915_power_well *hsw_pwr;
 
 /* Display audio driver power well request */

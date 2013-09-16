@@ -763,6 +763,10 @@ extern void i915_remove_power_well(struct drm_device *dev);
 
 extern bool intel_display_power_enabled(struct drm_device *dev,
 					enum intel_display_power_domain domain);
+extern void intel_display_power_get(struct drm_device *dev,
+				    enum intel_display_power_domain domain);
+extern void intel_display_power_put(struct drm_device *dev,
+				    enum intel_display_power_domain domain);
 extern void intel_init_power_well(struct drm_device *dev);
 extern void intel_set_power_well(struct drm_device *dev, bool enable);
 extern void intel_resume_power_well(struct drm_device *dev);
