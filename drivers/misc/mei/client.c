@@ -288,7 +288,13 @@ int mei_cl_link(struct mei_cl *cl, int id)
 
 	if (id >= MEI_CLIENTS_MAX) {
 		dev_err(&dev->pdev->dev, "id exceded %d", MEI_CLIENTS_MAX) ;
-		return -ENOENT;
+		return -EMFILE;
+	}
+
+	if (dev->open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
+		dev_err(&dev->pdev->dev, "open_handle_count exceded %d",
+			MEI_MAX_OPEN_HANDLE_COUNT);
+		return -EMFILE;
 	}
 
 	if (dev->open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {

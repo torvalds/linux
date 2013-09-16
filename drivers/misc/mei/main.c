@@ -60,48 +60,45 @@ static int mei_open(struct inode *inode, struct file *file)
 
 	int err;
 
-	err = -ENODEV;
 	if (!misc->parent)
-		goto out;
+		return -ENODEV;
 
 	pdev = container_of(misc->parent, struct pci_dev, dev);
 
 	dev = pci_get_drvdata(pdev);
 	if (!dev)
-		goto out;
+		return -ENODEV;
 
 	mutex_lock(&dev->device_lock);
-	err = -ENOMEM;
-	cl = mei_cl_allocate(dev);
-	if (!cl)
-		goto out_unlock;
+
+	cl = NULL;
 
 	err = -ENODEV;
 	if (dev->dev_state != MEI_DEV_ENABLED) {
 		dev_dbg(&dev->pdev->dev, "dev_state != MEI_ENABLED  dev_state = %s\n",
 		    mei_dev_state_str(dev->dev_state));
-		goto out_unlock;
-	}
-	err = -EMFILE;
-	if (dev->open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
-		dev_err(&dev->pdev->dev, "open_handle_count exceded %d",
-			MEI_MAX_OPEN_HANDLE_COUNT);
-		goto out_unlock;
+		goto err_unlock;
 	}
 
+	err = -ENOMEM;
+	cl = mei_cl_allocate(dev);
+	if (!cl)
+		goto err_unlock;
+
+	/* open_handle_count check is handled in the mei_cl_link */
 	err = mei_cl_link(cl, MEI_HOST_CLIENT_ID_ANY);
 	if (err)
-		goto out_unlock;
+		goto err_unlock;
 
 	file->private_data = cl;
+
 	mutex_unlock(&dev->device_lock);
 
 	return nonseekable_open(inode, file);
 
-out_unlock:
+err_unlock:
 	mutex_unlock(&dev->device_lock);
 	kfree(cl);
-out:
 	return err;
 }
 
