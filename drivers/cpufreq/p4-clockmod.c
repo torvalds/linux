@@ -230,7 +230,6 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 		else
 			p4clockmod_table[i].frequency = (stock_freq * i)/8;
 	}
-	cpufreq_frequency_table_get_attr(p4clockmod_table, policy->cpu);
 
 	/* cpuinfo and default policy values */
 
@@ -239,7 +238,7 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = 10000001;
 	policy->cur = stock_freq;
 
-	return cpufreq_frequency_table_cpuinfo(policy, &p4clockmod_table[0]);
+	return cpufreq_table_validate_and_show(policy, &p4clockmod_table[0]);
 }
 
 
