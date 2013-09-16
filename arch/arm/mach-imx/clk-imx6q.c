@@ -217,6 +217,11 @@ static const char *cko2_sels[] = {
 	"uart_serial", "spdif", "asrc", "hsi_tx",
 };
 static const char *cko_sels[] = { "cko1", "cko2", };
+static const char *lvds_sels[] = {
+	"dummy", "dummy", "dummy", "dummy", "dummy", "dummy",
+	"pll4_audio", "pll5_video", "pll8_mlb", "enet_ref",
+	"pcie_ref", "sata_ref",
+};
 
 enum mx6q_clks {
 	dummy, ckil, ckih, osc, pll2_pfd0_352m, pll2_pfd1_594m, pll2_pfd2_396m,
@@ -251,7 +256,8 @@ enum mx6q_clks {
 	ssi2_ipg, ssi3_ipg, rom, usbphy1, usbphy2, ldb_di0_div_3_5, ldb_di1_div_3_5,
 	sata_ref, sata_ref_100m, pcie_ref, pcie_ref_125m, enet_ref, usbphy1_gate,
 	usbphy2_gate, pll4_post_div, pll5_post_div, pll5_video_div, eim_slow,
-	spdif, cko2_sel, cko2_podf, cko2, cko, vdoa, pll4_audio_div, clk_max
+	spdif, cko2_sel, cko2_podf, cko2, cko, vdoa, pll4_audio_div,
+	lvds1_sel, lvds2_sel, lvds1_gate, lvds2_gate, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -341,6 +347,18 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	clk[enet_ref] = clk_register_divider_table(NULL, "enet_ref", "pll6_enet", 0,
 			base + 0xe0, 0, 2, 0, clk_enet_ref_table,
 			&imx_ccm_lock);
+
+	clk[lvds1_sel] = imx_clk_mux("lvds1_sel", base + 0x160, 0, 5, lvds_sels, ARRAY_SIZE(lvds_sels));
+	clk[lvds2_sel] = imx_clk_mux("lvds2_sel", base + 0x160, 5, 5, lvds_sels, ARRAY_SIZE(lvds_sels));
+
+	/*
+	 * lvds1_gate and lvds2_gate are pseudo-gates.  Both can be
+	 * independently configured as clock inputs or outputs.  We treat
+	 * the "output_enable" bit as a gate, even though it's really just
+	 * enabling clock output.
+	 */
+	clk[lvds1_gate] = imx_clk_gate("lvds1_gate", "dummy", base + 0x160, 10);
+	clk[lvds2_gate] = imx_clk_gate("lvds2_gate", "dummy", base + 0x160, 11);
 
 	/*                                name              parent_name        reg       idx */
 	clk[pll2_pfd0_352m] = imx_clk_pfd("pll2_pfd0_352m", "pll2_bus",     base + 0x100, 0);
