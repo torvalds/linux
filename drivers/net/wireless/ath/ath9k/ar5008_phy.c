@@ -631,9 +631,6 @@ static void ar5008_hw_override_ini(struct ath_hw *ah,
 		REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
 	}
 
-	REG_SET_BIT(ah, AR_PHY_CCK_DETECT,
-		    AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
-
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		return;
 	/*
