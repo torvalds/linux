@@ -584,7 +584,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (!IS_ERR(inode)) {
 		d = d_splice_alias(inode, dentry);
 		error = 0;
-		if (file && !IS_ERR(d)) {
+		if (file) {
 			if (d == NULL)
 				d = dentry;
 			if (S_ISREG(inode->i_mode))
@@ -593,8 +593,6 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 				error = finish_no_open(file, d);
 		}
 		gfs2_glock_dq_uninit(ghs);
-		if (IS_ERR(d))
-			return PTR_ERR(d);
 		return error;
 	} else if (error != -ENOENT) {
 		goto fail_gunlock;
