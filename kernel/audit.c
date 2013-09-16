@@ -462,8 +462,10 @@ static int kauditd_thread(void *dummy)
 		flush_hold_queue();
 
 		skb = skb_dequeue(&audit_skb_queue);
-		wake_up(&audit_backlog_wait);
+
 		if (skb) {
+			if (skb_queue_len(&audit_skb_queue) <= audit_backlog_limit)
+				wake_up(&audit_backlog_wait);
 			if (audit_pid)
 				kauditd_send_skb(skb);
 			else
