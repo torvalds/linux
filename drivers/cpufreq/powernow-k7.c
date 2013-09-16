@@ -680,9 +680,7 @@ static int powernow_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cur = powernow_get(0);
 
-	cpufreq_frequency_table_get_attr(powernow_table, policy->cpu);
-
-	return cpufreq_frequency_table_cpuinfo(policy, powernow_table);
+	return cpufreq_table_validate_and_show(policy, powernow_table);
 }
 
 static int powernow_cpu_exit(struct cpufreq_policy *policy)
