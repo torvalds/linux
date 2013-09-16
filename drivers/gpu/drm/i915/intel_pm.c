@@ -5345,6 +5345,19 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 	}
 }
 
+static void __intel_power_well_get(struct i915_power_well *power_well)
+{
+	if (!power_well->count++)
+		__intel_set_power_well(power_well->device, true);
+}
+
+static void __intel_power_well_put(struct i915_power_well *power_well)
+{
+	WARN_ON(!power_well->count);
+	if (!--power_well->count)
+		__intel_set_power_well(power_well->device, false);
+}
+
 void intel_display_power_get(struct drm_device *dev,
 			     enum intel_display_power_domain domain)
 {
@@ -5367,8 +5380,7 @@ void intel_display_power_get(struct drm_device *dev,
 	case POWER_DOMAIN_TRANSCODER_B:
 	case POWER_DOMAIN_TRANSCODER_C:
 		spin_lock_irq(&power_well->lock);
-		if (!power_well->count++)
-			__intel_set_power_well(power_well->device, true);
+		__intel_power_well_get(power_well);
 		spin_unlock_irq(&power_well->lock);
 		return;
 	default:
@@ -5398,9 +5410,7 @@ void intel_display_power_put(struct drm_device *dev,
 	case POWER_DOMAIN_TRANSCODER_B:
 	case POWER_DOMAIN_TRANSCODER_C:
 		spin_lock_irq(&power_well->lock);
-		WARN_ON(!power_well->count);
-		if (!--power_well->count)
-			__intel_set_power_well(power_well->device, false);
+		__intel_power_well_put(power_well);
 		spin_unlock_irq(&power_well->lock);
 		return;
 	default:
@@ -5417,8 +5427,7 @@ void i915_request_power_well(void)
 		return;
 
 	spin_lock_irq(&hsw_pwr->lock);
-	if (!hsw_pwr->count++)
-		__intel_set_power_well(hsw_pwr->device, true);
+	__intel_power_well_get(hsw_pwr);
 	spin_unlock_irq(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_request_power_well);
@@ -5430,9 +5439,7 @@ void i915_release_power_well(void)
 		return;
 
 	spin_lock_irq(&hsw_pwr->lock);
-	WARN_ON(!hsw_pwr->count);
-	if (!--hsw_pwr->count)
-		__intel_set_power_well(hsw_pwr->device, false);
+	__intel_power_well_put(hsw_pwr);
 	spin_unlock_irq(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
@@ -5479,14 +5486,10 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 
 	power_well->i915_request = enable;
 
-	if (enable) {
-		if (!power_well->count++)
-			__intel_set_power_well(dev, true);
-	} else {
-		WARN_ON(!power_well->count);
-		if (!--power_well->count)
-			__intel_set_power_well(dev, false);
-	}
+	if (enable)
+		__intel_power_well_get(power_well);
+	else
+		__intel_power_well_put(power_well);
 
  out:
 	spin_unlock_irq(&power_well->lock);
