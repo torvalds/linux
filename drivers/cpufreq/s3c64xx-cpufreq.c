@@ -257,6 +257,9 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 		       ret);
 		regulator_put(vddarm);
 		clk_put(armclk);
+	} else {
+		cpufreq_frequency_table_get_attr(s3c64xx_freq_table,
+				policy->cpu);
 	}
 
 	return ret;
