@@ -5311,12 +5311,16 @@ static __le16 l2cap_err_to_reason(int err)
 static inline void l2cap_le_sig_channel(struct l2cap_conn *conn,
 					struct sk_buff *skb)
 {
+	struct hci_conn *hcon = conn->hcon;
 	u8 *data = skb->data;
 	int len = skb->len;
 	struct l2cap_cmd_hdr cmd;
 	int err;
 
 	l2cap_raw_recv(conn, skb);
+
+	if (hcon->type != LE_LINK)
+		return;
 
 	while (len >= L2CAP_CMD_HDR_SIZE) {
 		u16 cmd_len;
@@ -5355,12 +5359,16 @@ static inline void l2cap_le_sig_channel(struct l2cap_conn *conn,
 static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 				     struct sk_buff *skb)
 {
+	struct hci_conn *hcon = conn->hcon;
 	u8 *data = skb->data;
 	int len = skb->len;
 	struct l2cap_cmd_hdr cmd;
 	int err;
 
 	l2cap_raw_recv(conn, skb);
+
+	if (hcon->type != ACL_LINK)
+		return;
 
 	while (len >= L2CAP_CMD_HDR_SIZE) {
 		u16 cmd_len;
