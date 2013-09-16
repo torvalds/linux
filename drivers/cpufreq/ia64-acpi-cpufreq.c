@@ -335,7 +335,7 @@ acpi_cpufreq_cpu_init (
 		}
 	}
 
-	result = cpufreq_frequency_table_cpuinfo(policy, data->freq_table);
+	result = cpufreq_table_validate_and_show(policy, data->freq_table);
 	if (result) {
 		goto err_freqfree;
 	}
@@ -355,8 +355,6 @@ acpi_cpufreq_cpu_init (
 			(u32) data->acpi_data.states[i].bus_master_latency,
 			(u32) data->acpi_data.states[i].status,
 			(u32) data->acpi_data.states[i].control);
-
-	cpufreq_frequency_table_get_attr(data->freq_table, policy->cpu);
 
 	/* the first call to ->target() should result in us actually
 	 * writing something to the appropriate registers. */
