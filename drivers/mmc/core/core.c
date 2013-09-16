@@ -1358,21 +1358,20 @@ u32 mmc_select_voltage(struct mmc_host *host, u32 ocr)
 	int bit;
 
 	ocr &= host->ocr_avail;
+	if (!ocr) {
+		dev_warn(mmc_dev(host), "no support for card's volts\n");
+		return 0;
+	}
 
-	bit = ffs(ocr);
-	if (bit) {
-		bit -= 1;
-
+	if (host->caps2 & MMC_CAP2_FULL_PWR_CYCLE) {
+		bit = ffs(ocr) - 1;
 		ocr &= 3 << bit;
-
-		mmc_host_clk_hold(host);
-		host->ios.vdd = bit;
-		mmc_set_ios(host);
-		mmc_host_clk_release(host);
+		mmc_power_cycle(host, ocr);
 	} else {
-		pr_warning("%s: host doesn't support card's voltages\n",
-				mmc_hostname(host));
-		ocr = 0;
+		bit = fls(ocr) - 1;
+		ocr &= 3 << bit;
+		if (bit != host->ios.vdd)
+			dev_warn(mmc_dev(host), "exceeding card's volts\n");
 	}
 
 	return ocr;
@@ -1570,14 +1569,6 @@ void mmc_power_off(struct mmc_host *host)
 
 	host->ios.clock = 0;
 	host->ios.vdd = 0;
-
-
-	/*
-	 * Reset ocr mask to be the highest possible voltage supported for
-	 * this card. This value will be used at next power up.
-	 */
-	if (host->card)
-		host->card->ocr = 1 << (fls(host->ocr_avail) - 1);
 
 	if (!mmc_host_is_spi(host)) {
 		host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;

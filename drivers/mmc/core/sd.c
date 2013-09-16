@@ -1103,7 +1103,6 @@ static int mmc_sd_resume(struct mmc_host *host)
 
 	mmc_claim_host(host);
 	mmc_power_up(host, host->card->ocr);
-	mmc_select_voltage(host, host->card->ocr);
 	err = mmc_sd_init_card(host, host->card->ocr, host->card);
 	mmc_release_host(host);
 

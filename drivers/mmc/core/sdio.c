@@ -987,7 +987,6 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	/* Restore power if needed */
 	if (!mmc_card_keep_power(host)) {
 		mmc_power_up(host, host->card->ocr);
-		mmc_select_voltage(host, host->card->ocr);
 		/*
 		 * Tell runtime PM core we just powered up the card,
 		 * since it still believes the card is powered off.
@@ -1045,7 +1044,6 @@ static int mmc_sdio_resume(struct mmc_host *host)
 static int mmc_sdio_power_restore(struct mmc_host *host)
 {
 	int ret;
-	u32 ocr, rocr;
 
 	BUG_ON(!host);
 	BUG_ON(!host->card);
@@ -1067,28 +1065,17 @@ static int mmc_sdio_power_restore(struct mmc_host *host)
 	 * for OLPC SD8686 (which expects a [CMD5,5,3,7] init sequence), and
 	 * harmless in other situations.
 	 *
-	 * With these steps taken, mmc_select_voltage() is also required to
-	 * restore the correct voltage setting of the card.
 	 */
 
 	sdio_reset(host);
 	mmc_go_idle(host);
 	mmc_send_if_cond(host, host->ocr_avail);
 
-	ret = mmc_send_io_op_cond(host, 0, &ocr);
+	ret = mmc_send_io_op_cond(host, 0, NULL);
 	if (ret)
 		goto out;
 
-	if (host->ocr_avail_sdio)
-		host->ocr_avail = host->ocr_avail_sdio;
-
-	rocr = mmc_select_voltage(host, ocr & ~0x7F);
-	if (!rocr) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = mmc_sdio_init_card(host, rocr, host->card,
+	ret = mmc_sdio_init_card(host, host->card->ocr, host->card,
 				mmc_card_keep_power(host));
 	if (!ret && host->sdio_irqs)
 		mmc_signal_sdio_irq(host);
