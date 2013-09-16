@@ -581,6 +581,8 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
 
+	intel_uncore_early_sanitize(dev);
+
 	intel_uncore_sanitize(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
