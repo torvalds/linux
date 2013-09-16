@@ -170,7 +170,7 @@ int mei_hbm_start_req(struct mei_device *dev)
 		dev_err(&dev->pdev->dev, "version message write failed\n");
 		dev->dev_state = MEI_DEV_RESETTING;
 		mei_reset(dev, 1);
-		return -ENODEV;
+		return -EIO;
 	}
 	dev->hbm_state = MEI_HBM_START;
 	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;

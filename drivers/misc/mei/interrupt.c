@@ -216,8 +216,10 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 			   s32 *slots, struct mei_cl_cb *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
-
 	u32 msg_slots = mei_data2slots(sizeof(struct hbm_flow_control));
+
+	int ret;
+
 
 	if (*slots < msg_slots) {
 		/* return the cancel routine */
@@ -227,12 +229,14 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	*slots -= msg_slots;
 
-	if (mei_hbm_cl_flow_control_req(dev, cl)) {
-		cl->status = -ENODEV;
+	ret = mei_hbm_cl_flow_control_req(dev, cl);
+	if (ret) {
+		cl->status = ret;
 		cb->buf_idx = 0;
 		list_move_tail(&cb->list, &cmpl_list->list);
-		return -ENODEV;
+		return ret;
 	}
+
 	list_move_tail(&cb->list, &dev->read_list.list);
 
 	return 0;
@@ -254,6 +258,7 @@ static int mei_cl_irq_ioctl(struct mei_cl *cl, struct mei_cl_cb *cb,
 			   s32 *slots, struct mei_cl_cb *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
+	int ret;
 
 	u32 msg_slots =
 		mei_data2slots(sizeof(struct hbm_client_connect_request));
@@ -268,11 +273,12 @@ static int mei_cl_irq_ioctl(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	cl->state = MEI_FILE_CONNECTING;
 
-	if (mei_hbm_cl_connect_req(dev, cl)) {
-		cl->status = -ENODEV;
+	ret = mei_hbm_cl_connect_req(dev, cl);
+	if (ret) {
+		cl->status = ret;
 		cb->buf_idx = 0;
 		list_del(&cb->list);
-		return -ENODEV;
+		return ret;
 	}
 
 	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);

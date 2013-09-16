@@ -312,13 +312,13 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 		mei_hdr.me_addr = dev->iamthif_cl.me_client_id;
 		mei_hdr.reserved = 0;
 		dev->iamthif_msg_buf_index += mei_hdr.length;
-		if (mei_write_message(dev, &mei_hdr,
-					(unsigned char *)dev->iamthif_msg_buf))
-			return -ENODEV;
+		ret = mei_write_message(dev, &mei_hdr, dev->iamthif_msg_buf);
+		if (ret)
+			return ret;
 
 		if (mei_hdr.msg_complete) {
 			if (mei_cl_flow_ctrl_reduce(&dev->iamthif_cl))
-				return -ENODEV;
+				return -EIO;
 			dev->iamthif_flow_control_pending = true;
 			dev->iamthif_state = MEI_IAMTHIF_FLOW_CONTROL;
 			dev_dbg(&dev->pdev->dev, "add amthif cb to write waiting list\n");
@@ -458,6 +458,7 @@ int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	struct mei_msg_hdr mei_hdr;
 	size_t len = dev->iamthif_msg_buf_size - dev->iamthif_msg_buf_index;
 	u32 msg_slots = mei_data2slots(len);
+	int rets;
 
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
@@ -480,16 +481,17 @@ int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT,  MEI_HDR_PRM(&mei_hdr));
 
 	*slots -=  msg_slots;
-	if (mei_write_message(dev, &mei_hdr,
-		dev->iamthif_msg_buf + dev->iamthif_msg_buf_index)) {
-			dev->iamthif_state = MEI_IAMTHIF_IDLE;
-			cl->status = -ENODEV;
-			list_del(&cb->list);
-			return -ENODEV;
+	rets = mei_write_message(dev, &mei_hdr,
+			dev->iamthif_msg_buf + dev->iamthif_msg_buf_index);
+	if (rets) {
+		dev->iamthif_state = MEI_IAMTHIF_IDLE;
+		cl->status = rets;
+		list_del(&cb->list);
+		return rets;
 	}
 
 	if (mei_cl_flow_ctrl_reduce(cl))
-		return -ENODEV;
+		return -EIO;
 
 	dev->iamthif_msg_buf_index += mei_hdr.length;
 	cl->status = 0;
