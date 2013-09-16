@@ -2498,6 +2498,10 @@ void rk_dump_clock_info(void)
 	}
 }
 #endif
+static struct clk def_ops_clk = {
+	.get_parent = clksel_get_parent,
+	.set_parent = clksel_set_parent,
+};
 
 #ifdef CONFIG_PROC_FS
 static void dump_clock(struct seq_file *s, struct clk *clk, int deep, const struct list_head *root_clocks)
@@ -2626,10 +2630,6 @@ void rk30_clk_dump_regs(void)
 
 }
 
-static struct clk def_ops_clk = {
-	.get_parent = clksel_get_parent,
-	.set_parent = clksel_set_parent,
-};
 #ifdef CONFIG_PROC_FS
 static void dump_clock(struct seq_file *s, struct clk *clk, int deep, const struct list_head *root_clocks);
 struct clk_dump_ops dump_ops = {
