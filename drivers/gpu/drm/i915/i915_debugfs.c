@@ -847,6 +847,8 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	if (IS_GEN5(dev)) {
 		u16 rgvswctl = I915_READ16(MEMSWCTL);
 		u16 rgvstat = I915_READ16(MEMSTAT_ILK);
@@ -1324,6 +1326,8 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 		seq_puts(m, "unsupported on this chipset\n");
 		return 0;
 	}
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
@@ -1940,6 +1944,8 @@ i915_max_freq_get(void *data, u64 *val)
 	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
@@ -1963,6 +1969,8 @@ i915_max_freq_set(void *data, u64 val)
 
 	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	DRM_DEBUG_DRIVER("Manually setting max freq to %llu\n", val);
 
@@ -2002,6 +2010,8 @@ i915_min_freq_get(void *data, u64 *val)
 	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
@@ -2025,6 +2035,8 @@ i915_min_freq_set(void *data, u64 val)
 
 	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	DRM_DEBUG_DRIVER("Manually setting min freq to %llu\n", val);
 
