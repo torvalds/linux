@@ -5283,6 +5283,7 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	case POWER_DOMAIN_PIPE_A:
 	case POWER_DOMAIN_TRANSCODER_EDP:
 		return true;
+	case POWER_DOMAIN_VGA:
 	case POWER_DOMAIN_PIPE_B:
 	case POWER_DOMAIN_PIPE_C:
 	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
@@ -5371,6 +5372,7 @@ void intel_display_power_get(struct drm_device *dev,
 	case POWER_DOMAIN_PIPE_A:
 	case POWER_DOMAIN_TRANSCODER_EDP:
 		return;
+	case POWER_DOMAIN_VGA:
 	case POWER_DOMAIN_PIPE_B:
 	case POWER_DOMAIN_PIPE_C:
 	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
@@ -5401,6 +5403,7 @@ void intel_display_power_put(struct drm_device *dev,
 	case POWER_DOMAIN_PIPE_A:
 	case POWER_DOMAIN_TRANSCODER_EDP:
 		return;
+	case POWER_DOMAIN_VGA:
 	case POWER_DOMAIN_PIPE_B:
 	case POWER_DOMAIN_PIPE_C:
 	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
