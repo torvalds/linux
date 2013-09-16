@@ -1619,7 +1619,7 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 		btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 		btrfs_release_path(path);
 
-		item = btrfs_item_nr(eb, slot);
+		item = btrfs_item_nr(slot);
 		iref = btrfs_item_ptr(eb, slot, struct btrfs_inode_ref);
 
 		for (cur = 0; cur < btrfs_item_size(eb, item); cur += len) {
