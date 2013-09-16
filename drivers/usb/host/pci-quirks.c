@@ -250,6 +250,18 @@ commit:
 }
 EXPORT_SYMBOL_GPL(usb_amd_find_chipset_info);
 
+int usb_hcd_amd_remote_wakeup_quirk(struct pci_dev *pdev)
+{
+	/* Make sure amd chipset type has already been initialized */
+	usb_amd_find_chipset_info();
+	if (amd_chipset.sb_type.gen != AMD_CHIPSET_YANGTZE)
+		return 0;
+
+	dev_dbg(&pdev->dev, "QUIRK: Enable AMD remote wakeup fix\n");
+	return 1;
+}
+EXPORT_SYMBOL_GPL(usb_hcd_amd_remote_wakeup_quirk);
+
 /*
  * The hardware normally enables the A-link power management feature, which
  * lets the system lower the power consumption in idle states.
