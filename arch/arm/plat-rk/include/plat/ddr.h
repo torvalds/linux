@@ -165,7 +165,7 @@ int ddr_get_datatraing_value_3168(bool end_flag,uint32_t dqstr_value,uint32_t mi
 #endif
 
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK3026)
-#if !defined(CONFIG_MACH_RK3188_FT)&&!defined(CONFIG_MACH_RK3168_FT)
+#if !defined(CONFIG_MACH_RK3188_FT)&&!defined(CONFIG_MACH_RK3168_FT) && !defined(CONFIG_MACH_RK3026_FT)
 #define DDR_CHANGE_FREQ_IN_LCDC_VSYNC
 #endif
 #endif
