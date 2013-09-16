@@ -62,9 +62,7 @@ static void rs780_get_pm_mode_parameters(struct radeon_device *rdev)
 			radeon_crtc = to_radeon_crtc(crtc);
 			pi->crtc_id = radeon_crtc->crtc_id;
 			if (crtc->mode.htotal && crtc->mode.vtotal)
-				pi->refresh_rate =
-					(crtc->mode.clock * 1000) /
-					(crtc->mode.htotal * crtc->mode.vtotal);
+				pi->refresh_rate = drm_mode_vrefresh(&crtc->mode);
 			break;
 		}
 	}
@@ -451,6 +449,12 @@ static int rs780_set_engine_clock_scaling(struct radeon_device *rdev,
 	if (ret)
 		return ret;
 
+	if ((min_dividers.ref_div != max_dividers.ref_div) ||
+	    (min_dividers.post_div != max_dividers.post_div) ||
+	    (max_dividers.ref_div != current_max_dividers.ref_div) ||
+	    (max_dividers.post_div != current_max_dividers.post_div))
+		return -EINVAL;
+
 	rs780_force_fbdiv(rdev, max_dividers.fb_div);
 
 	if (max_dividers.fb_div > min_dividers.fb_div) {
@@ -493,6 +497,9 @@ static void rs780_activate_engine_clk_scaling(struct radeon_device *rdev,
 
 	if ((new_state->sclk_high == old_state->sclk_high) &&
 	    (new_state->sclk_low == old_state->sclk_low))
+		return;
+
+	if (new_state->sclk_high == new_state->sclk_low)
 		return;
 
 	rs780_clk_scaling_enable(rdev, true);
@@ -1036,8 +1043,10 @@ int rs780_dpm_force_performance_level(struct radeon_device *rdev,
 		if (pi->voltage_control)
 			rs780_force_voltage(rdev, pi->max_voltage);
 
-		WREG32_P(FVTHROT_FBDIV_REG1, 0, ~FORCE_FEEDBACK_DIV);
-		rs780_clk_scaling_enable(rdev, true);
+		if (ps->sclk_high != ps->sclk_low) {
+			WREG32_P(FVTHROT_FBDIV_REG1, 0, ~FORCE_FEEDBACK_DIV);
+			rs780_clk_scaling_enable(rdev, true);
+		}
 
 		if (pi->voltage_control) {
 			rs780_voltage_scaling_enable(rdev, true);

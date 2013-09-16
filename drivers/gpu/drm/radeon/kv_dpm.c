@@ -1854,7 +1854,6 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 			     RADEON_CG_BLOCK_BIF |
 			     RADEON_CG_BLOCK_HDP), true);
 
-	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
 	return 0;
 }
 
