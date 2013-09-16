@@ -2200,7 +2200,13 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 #ifdef CONFIG_X86_64
 		VM_EXIT_HOST_ADDR_SPACE_SIZE |
 #endif
-		VM_EXIT_LOAD_IA32_PAT | VM_EXIT_SAVE_IA32_PAT;
+		VM_EXIT_LOAD_IA32_PAT | VM_EXIT_SAVE_IA32_PAT |
+		VM_EXIT_SAVE_VMX_PREEMPTION_TIMER;
+	if (!(nested_vmx_pinbased_ctls_high & PIN_BASED_VMX_PREEMPTION_TIMER) ||
+	    !(nested_vmx_exit_ctls_high & VM_EXIT_SAVE_VMX_PREEMPTION_TIMER)) {
+		nested_vmx_exit_ctls_high &= ~VM_EXIT_SAVE_VMX_PREEMPTION_TIMER;
+		nested_vmx_pinbased_ctls_high &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+	}
 	nested_vmx_exit_ctls_high |= (VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR |
 		VM_EXIT_LOAD_IA32_EFER | VM_EXIT_SAVE_IA32_EFER);
 
@@ -6724,6 +6730,27 @@ static void vmx_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
 	*info2 = vmcs_read32(VM_EXIT_INTR_INFO);
 }
 
+static void nested_adjust_preemption_timer(struct kvm_vcpu *vcpu)
+{
+	u64 delta_tsc_l1;
+	u32 preempt_val_l1, preempt_val_l2, preempt_scale;
+
+	if (!(get_vmcs12(vcpu)->pin_based_vm_exec_control &
+			PIN_BASED_VMX_PREEMPTION_TIMER))
+		return;
+	preempt_scale = native_read_msr(MSR_IA32_VMX_MISC) &
+			MSR_IA32_VMX_MISC_PREEMPTION_TIMER_SCALE;
+	preempt_val_l2 = vmcs_read32(VMX_PREEMPTION_TIMER_VALUE);
+	delta_tsc_l1 = vmx_read_l1_tsc(vcpu, native_read_tsc())
+		- vcpu->arch.last_guest_tsc;
+	preempt_val_l1 = delta_tsc_l1 >> preempt_scale;
+	if (preempt_val_l2 <= preempt_val_l1)
+		preempt_val_l2 = 0;
+	else
+		preempt_val_l2 -= preempt_val_l1;
+	vmcs_write32(VMX_PREEMPTION_TIMER_VALUE, preempt_val_l2);
+}
+
 /*
  * The guest has exited.  See if we can fix it or if we need userspace
  * assistance.
@@ -7134,6 +7161,8 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	atomic_switch_perf_msrs(vmx);
 	debugctlmsr = get_debugctlmsr();
 
+	if (is_guest_mode(vcpu) && !vmx->nested.nested_run_pending)
+		nested_adjust_preemption_timer(vcpu);
 	vmx->__launched = vmx->loaded_vmcs->launched;
 	asm(
 		/* Store host registers */
@@ -7543,6 +7572,7 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exec_control;
+	u32 exit_control;
 
 	vmcs_write16(GUEST_ES_SELECTOR, vmcs12->guest_es_selector);
 	vmcs_write16(GUEST_CS_SELECTOR, vmcs12->guest_cs_selector);
@@ -7716,7 +7746,10 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	 * we should use its exit controls. Note that VM_EXIT_LOAD_IA32_EFER
 	 * bits are further modified by vmx_set_efer() below.
 	 */
-	vmcs_write32(VM_EXIT_CONTROLS, vmcs_config.vmexit_ctrl);
+	exit_control = vmcs_config.vmexit_ctrl;
+	if (vmcs12->pin_based_vm_exec_control & PIN_BASED_VMX_PREEMPTION_TIMER)
+		exit_control |= VM_EXIT_SAVE_VMX_PREEMPTION_TIMER;
+	vmcs_write32(VM_EXIT_CONTROLS, exit_control);
 
 	/* vmcs12's VM_ENTRY_LOAD_IA32_EFER and VM_ENTRY_IA32E_MODE are
 	 * emulated by vmx_set_efer(), below.
@@ -8123,6 +8156,11 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
 	vmcs12->guest_pending_dbg_exceptions =
 		vmcs_readl(GUEST_PENDING_DBG_EXCEPTIONS);
+
+	if ((vmcs12->pin_based_vm_exec_control & PIN_BASED_VMX_PREEMPTION_TIMER) &&
+	    (vmcs12->vm_exit_controls & VM_EXIT_SAVE_VMX_PREEMPTION_TIMER))
+		vmcs12->vmx_preemption_timer_value =
+			vmcs_read32(VMX_PREEMPTION_TIMER_VALUE);
 
 	/*
 	 * In some cases (usually, nested EPT), L2 is allowed to change its
