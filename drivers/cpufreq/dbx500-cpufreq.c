@@ -87,10 +87,8 @@ static int dbx500_cpufreq_init(struct cpufreq_policy *policy)
 	int res;
 
 	/* get policy fields based on the table */
-	res = cpufreq_frequency_table_cpuinfo(policy, freq_table);
-	if (!res)
-		cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
-	else {
+	res = cpufreq_table_validate_and_show(policy, freq_table);
+	if (res) {
 		pr_err("dbx500-cpufreq: Failed to read policy table\n");
 		return res;
 	}
