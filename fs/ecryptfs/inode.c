@@ -361,8 +361,8 @@ static int ecryptfs_lookup_interpose(struct dentry *dentry,
 	BUG_ON(!d_count(lower_dentry));
 
 	ecryptfs_set_dentry_private(dentry, dentry_info);
-	ecryptfs_set_dentry_lower(dentry, lower_dentry);
-	ecryptfs_set_dentry_lower_mnt(dentry, lower_mnt);
+	dentry_info->lower_path.mnt = lower_mnt;
+	dentry_info->lower_path.dentry = lower_dentry;
 
 	if (!lower_dentry->d_inode) {
 		/* We want to add because we couldn't find in lower */
