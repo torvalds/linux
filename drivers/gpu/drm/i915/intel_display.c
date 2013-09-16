@@ -4302,28 +4302,6 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
-static int vlv_get_refclk(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int refclk = 27000; /* for DP & HDMI */
-
-	return 100000; /* only one validated so far */
-
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_ANALOG)) {
-		refclk = 96000;
-	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		if (intel_panel_use_ssc(dev_priv))
-			refclk = 100000;
-		else
-			refclk = 96000;
-	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
-		refclk = 100000;
-	}
-
-	return refclk;
-}
-
 static int i9xx_get_refclk(struct drm_crtc *crtc, int num_connectors)
 {
 	struct drm_device *dev = crtc->dev;
@@ -4331,7 +4309,7 @@ static int i9xx_get_refclk(struct drm_crtc *crtc, int num_connectors)
 	int refclk;
 
 	if (IS_VALLEYVIEW(dev)) {
-		refclk = vlv_get_refclk(crtc);
+		refclk = 100000;
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
 	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
 		refclk = dev_priv->vbt.lvds_ssc_freq * 1000;
