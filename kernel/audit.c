@@ -1216,7 +1216,7 @@ static unsigned long wait_for_auditd(unsigned long sleep_time)
 	unsigned long timeout = sleep_time;
 	DECLARE_WAITQUEUE(wait, current);
 	set_current_state(TASK_UNINTERRUPTIBLE);
-	add_wait_queue(&audit_backlog_wait, &wait);
+	add_wait_queue_exclusive(&audit_backlog_wait, &wait);
 
 	if (audit_backlog_limit &&
 	    skb_queue_len(&audit_skb_queue) > audit_backlog_limit)
