@@ -512,6 +512,9 @@ static void __init of_nomadik_pll_setup(struct device_node *np)
 	const char *parent_name;
 	u32 pll_id;
 
+	if (!src_base)
+		nomadik_src_init();
+
 	if (of_property_read_u32(np, "pll-id", &pll_id)) {
 		pr_err("%s: PLL \"%s\" missing pll-id property\n",
 			__func__, clk_name);
@@ -522,12 +525,17 @@ static void __init of_nomadik_pll_setup(struct device_node *np)
 	if (!IS_ERR(clk))
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
+CLK_OF_DECLARE(nomadik_pll_clk,
+	"st,nomadik-pll-clock", of_nomadik_pll_setup);
 
 static void __init of_nomadik_hclk_setup(struct device_node *np)
 {
 	struct clk *clk = ERR_PTR(-EINVAL);
 	const char *clk_name = np->name;
 	const char *parent_name;
+
+	if (!src_base)
+		nomadik_src_init();
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	/*
@@ -541,6 +549,8 @@ static void __init of_nomadik_hclk_setup(struct device_node *np)
 	if (!IS_ERR(clk))
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
+CLK_OF_DECLARE(nomadik_hclk_clk,
+	"st,nomadik-hclk-clock", of_nomadik_hclk_setup);
 
 static void __init of_nomadik_src_clk_setup(struct device_node *np)
 {
@@ -548,6 +558,9 @@ static void __init of_nomadik_src_clk_setup(struct device_node *np)
 	const char *clk_name = np->name;
 	const char *parent_name;
 	u32 clk_id;
+
+	if (!src_base)
+		nomadik_src_init();
 
 	if (of_property_read_u32(np, "clock-id", &clk_id)) {
 		pr_err("%s: SRC clock \"%s\" missing clock-id property\n",
@@ -559,33 +572,5 @@ static void __init of_nomadik_src_clk_setup(struct device_node *np)
 	if (!IS_ERR(clk))
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
-
-static const struct of_device_id nomadik_src_clk_match[] __initconst = {
-	{
-		.compatible = "fixed-clock",
-		.data = of_fixed_clk_setup,
-	},
-	{
-		.compatible = "fixed-factor-clock",
-		.data = of_fixed_factor_clk_setup,
-	},
-	{
-		.compatible = "st,nomadik-pll-clock",
-		.data = of_nomadik_pll_setup,
-	},
-	{
-		.compatible = "st,nomadik-hclk-clock",
-		.data = of_nomadik_hclk_setup,
-	},
-	{
-		.compatible = "st,nomadik-src-clock",
-		.data = of_nomadik_src_clk_setup,
-	},
-	{ /* sentinel */ }
-};
-
-void __init nomadik_clk_init(void)
-{
-	nomadik_src_init();
-	of_clk_init(nomadik_src_clk_match);
-}
+CLK_OF_DECLARE(nomadik_src_clk,
+	"st,nomadik-src-clock", of_nomadik_src_clk_setup);

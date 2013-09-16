@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
-#include <linux/platform_data/clk-nomadik.h>
+#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
@@ -115,8 +115,7 @@ static void cpu8815_restart(enum reboot_mode mode, const char *cmd)
 
 static void __init cpu8815_timer_init_of(void)
 {
-	/* We need this to be up now */
-	nomadik_clk_init();
+	of_clk_init(NULL);
 	clocksource_of_init();
 }
 
