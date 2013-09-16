@@ -590,6 +590,8 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
+	intel_init_power_well(dev);
+
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
 
@@ -604,8 +606,6 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 
 		/* We need working interrupts for modeset enabling ... */
 		drm_irq_install(dev);
-
-		intel_init_power_well(dev);
 
 		intel_modeset_init_hw(dev);
 
