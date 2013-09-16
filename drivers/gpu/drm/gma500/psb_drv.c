@@ -251,6 +251,12 @@ static int psb_driver_unload(struct drm_device *dev)
 			iounmap(dev_priv->sgx_reg);
 			dev_priv->sgx_reg = NULL;
 		}
+		if (dev_priv->aux_reg) {
+			iounmap(dev_priv->aux_reg);
+			dev_priv->aux_reg = NULL;
+		}
+		if (dev_priv->aux_pdev)
+			pci_dev_put(dev_priv->aux_pdev);
 
 		/* Destroy VBT data */
 		psb_intel_destroy_bios(dev);
@@ -266,7 +272,7 @@ static int psb_driver_unload(struct drm_device *dev)
 static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct drm_psb_private *dev_priv;
-	unsigned long resource_start;
+	unsigned long resource_start, resource_len;
 	unsigned long irqflags;
 	int ret = -ENOMEM;
 	struct drm_connector *connector;
@@ -295,6 +301,30 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 							PSB_SGX_SIZE);
 	if (!dev_priv->sgx_reg)
 		goto out_err;
+
+	if (IS_MRST(dev)) {
+		dev_priv->aux_pdev = pci_get_bus_and_slot(0, PCI_DEVFN(3, 0));
+
+		if (dev_priv->aux_pdev) {
+			resource_start = pci_resource_start(dev_priv->aux_pdev,
+							    PSB_AUX_RESOURCE);
+			resource_len = pci_resource_len(dev_priv->aux_pdev,
+							PSB_AUX_RESOURCE);
+			dev_priv->aux_reg = ioremap_nocache(resource_start,
+							    resource_len);
+			if (!dev_priv->aux_reg)
+				goto out_err;
+
+			DRM_DEBUG_KMS("Found aux vdc");
+		} else {
+			/* Couldn't find the aux vdc so map to primary vdc */
+			dev_priv->aux_reg = dev_priv->vdc_reg;
+			DRM_DEBUG_KMS("Couldn't find aux pci device");
+		}
+		dev_priv->gmbus_reg = dev_priv->aux_reg;
+	} else {
+		dev_priv->gmbus_reg = dev_priv->vdc_reg;
+	}
 
 	psb_intel_opregion_setup(dev);
 
