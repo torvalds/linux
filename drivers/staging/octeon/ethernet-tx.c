@@ -709,7 +709,7 @@ void cvm_oct_tx_initialize(void)
 
 	/* Disable the interrupt.  */
 	cvmx_write_csr(CVMX_CIU_TIMX(1), 0);
-	/* Register an IRQ hander for to receive CIU_TIMX(1) interrupts */
+	/* Register an IRQ handler to receive CIU_TIMX(1) interrupts */
 	i = request_irq(OCTEON_IRQ_TIMER1,
 			cvm_oct_tx_cleanup_watchdog, 0,
 			"Ethernet", cvm_oct_device);

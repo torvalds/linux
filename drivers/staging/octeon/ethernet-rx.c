@@ -72,7 +72,7 @@ struct cvm_oct_core_state {
 	int baseline_cores;
 	/*
 	 * The number of additional cores that could be processing
-	 * input packtes.
+	 * input packets.
 	 */
 	atomic_t available_cores;
 	cpumask_t cpu_state;
@@ -526,7 +526,7 @@ void cvm_oct_rx_initialize(void)
 			       cvm_oct_napi_poll, rx_napi_weight);
 		napi_enable(&cvm_oct_napi[i].napi);
 	}
-	/* Register an IRQ hander for to receive POW interrupts */
+	/* Register an IRQ handler to receive POW interrupts */
 	i = request_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group,
 			cvm_oct_do_interrupt, 0, "Ethernet", cvm_oct_device);
 
