@@ -81,8 +81,7 @@ static void ecryptfs_d_release(struct dentry *dentry)
 {
 	struct ecryptfs_dentry_info *p = dentry->d_fsdata;
 	if (p) {
-		if (p->lower_path.dentry)
-			path_put(&p->lower_path);
+		path_put(&p->lower_path);
 		call_rcu(&p->rcu, ecryptfs_dentry_free_rcu);
 	}
 }
