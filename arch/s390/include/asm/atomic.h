@@ -28,9 +28,11 @@
 #define __ATOMIC_LOOP(ptr, op_val, op_string)				\
 ({									\
 	int old_val;							\
+									\
+	typecheck(atomic_t *, ptr);					\
 	asm volatile(							\
 		op_string "	%0,%2,%1\n"				\
-		: "=d" (old_val), "+Q" (((atomic_t *)(ptr))->counter)	\
+		: "=d" (old_val), "+Q" ((ptr)->counter)			\
 		: "d" (op_val)						\
 		: "cc", "memory");					\
 	old_val;							\
@@ -45,15 +47,16 @@
 #define __ATOMIC_LOOP(ptr, op_val, op_string)				\
 ({									\
 	int old_val, new_val;						\
+									\
+	typecheck(atomic_t *, ptr);					\
 	asm volatile(							\
 		"	l	%0,%2\n"				\
 		"0:	lr	%1,%0\n"				\
 		op_string "	%1,%3\n"				\
 		"	cs	%0,%1,%2\n"				\
 		"	jl	0b"					\
-		: "=&d" (old_val), "=&d" (new_val),			\
-		  "=Q" (((atomic_t *)(ptr))->counter)			\
-		: "d" (op_val),	 "Q" (((atomic_t *)(ptr))->counter)	\
+		: "=&d" (old_val), "=&d" (new_val), "+Q" ((ptr)->counter)\
+		: "d" (op_val)						\
 		: "cc", "memory");					\
 	old_val;							\
 })
@@ -126,8 +129,8 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	asm volatile(
 		"	cs	%0,%2,%1"
-		: "+d" (old), "=Q" (v->counter)
-		: "d" (new), "Q" (v->counter)
+		: "+d" (old), "+Q" (v->counter)
+		: "d" (new)
 		: "cc", "memory");
 	return old;
 }
@@ -163,9 +166,11 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 #define __ATOMIC64_LOOP(ptr, op_val, op_string)				\
 ({									\
 	long long old_val;						\
+									\
+	typecheck(atomic64_t *, ptr);					\
 	asm volatile(							\
 		op_string "	%0,%2,%1\n"				\
-		: "=d" (old_val), "+Q" (((atomic_t *)(ptr))->counter)	\
+		: "=d" (old_val), "+Q" ((ptr)->counter)			\
 		: "d" (op_val)						\
 		: "cc", "memory");					\
 	old_val;							\
@@ -180,15 +185,16 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 #define __ATOMIC64_LOOP(ptr, op_val, op_string)				\
 ({									\
 	long long old_val, new_val;					\
+									\
+	typecheck(atomic64_t *, ptr);					\
 	asm volatile(							\
 		"	lg	%0,%2\n"				\
 		"0:	lgr	%1,%0\n"				\
 		op_string "	%1,%3\n"				\
 		"	csg	%0,%1,%2\n"				\
 		"	jl	0b"					\
-		: "=&d" (old_val), "=&d" (new_val),			\
-		  "=Q" (((atomic_t *)(ptr))->counter)			\
-		: "d" (op_val),	"Q" (((atomic_t *)(ptr))->counter)	\
+		: "=&d" (old_val), "=&d" (new_val), "+Q" ((ptr)->counter)\
+		: "d" (op_val)						\
 		: "cc", "memory");					\
 	old_val;							\
 })
@@ -234,8 +240,8 @@ static inline long long atomic64_cmpxchg(atomic64_t *v,
 {
 	asm volatile(
 		"	csg	%0,%2,%1"
-		: "+d" (old), "=Q" (v->counter)
-		: "d" (new), "Q" (v->counter)
+		: "+d" (old), "+Q" (v->counter)
+		: "d" (new)
 		: "cc", "memory");
 	return old;
 }
@@ -276,8 +282,8 @@ static inline long long atomic64_xchg(atomic64_t *v, long long new)
 		"	lm	%0,%N0,%1\n"
 		"0:	cds	%0,%2,%1\n"
 		"	jl	0b\n"
-		: "=&d" (rp_old), "=Q" (v->counter)
-		: "d" (rp_new), "Q" (v->counter)
+		: "=&d" (rp_old), "+Q" (v->counter)
+		: "d" (rp_new)
 		: "cc");
 	return rp_old.pair;
 }
@@ -290,8 +296,8 @@ static inline long long atomic64_cmpxchg(atomic64_t *v,
 
 	asm volatile(
 		"	cds	%0,%2,%1"
-		: "+&d" (rp_old), "=Q" (v->counter)
-		: "d" (rp_new), "Q" (v->counter)
+		: "+&d" (rp_old), "+Q" (v->counter)
+		: "d" (rp_new)
 		: "cc");
 	return rp_old.pair;
 }
@@ -347,7 +353,7 @@ static inline void atomic64_add(long long i, atomic64_t *v)
 #endif
 }
 
-static inline int atomic64_add_unless(atomic64_t *v, long long a, long long u)
+static inline int atomic64_add_unless(atomic64_t *v, long long i, long long u)
 {
 	long long c, old;
 
@@ -355,7 +361,7 @@ static inline int atomic64_add_unless(atomic64_t *v, long long a, long long u)
 	for (;;) {
 		if (unlikely(c == u))
 			break;
-		old = atomic64_cmpxchg(v, c, c + a);
+		old = atomic64_cmpxchg(v, c, c + i);
 		if (likely(old == c))
 			break;
 		c = old;
