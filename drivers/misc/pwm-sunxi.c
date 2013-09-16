@@ -48,11 +48,12 @@
 #include <linux/pwm.h> 
 #include <linux/ctype.h> 
 #include <linux/limits.h> 
-#include <pwm-sunxi.h> 
 #include <linux/pwm.h> 
 #include <linux/kdev_t.h> 
 #include <plat/system.h>
 #include <plat/sys_config.h>
+
+#include "pwm-sunxi.h" 
 /* 
  * Forward Declarations 
  */ 
