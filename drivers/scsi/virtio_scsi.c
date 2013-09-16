@@ -954,7 +954,7 @@ static void virtscsi_remove(struct virtio_device *vdev)
 	scsi_host_put(shost);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtscsi_freeze(struct virtio_device *vdev)
 {
 	virtscsi_remove_vqs(vdev);
@@ -988,7 +988,7 @@ static struct virtio_driver virtio_scsi_driver = {
 	.id_table = id_table,
 	.probe = virtscsi_probe,
 	.scan = virtscsi_scan,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.freeze = virtscsi_freeze,
 	.restore = virtscsi_restore,
 #endif
