@@ -29,7 +29,6 @@ static unsigned int mrp_periodic_time __read_mostly = 1000;
 module_param(mrp_periodic_time, uint, 0644);
 MODULE_PARM_DESC(mrp_periodic_time, "Periodic time in ms (default 1s)");
 
-
 MODULE_LICENSE("GPL");
 
 static const u8
@@ -216,7 +215,6 @@ mrp_tx_action_table[MRP_APPLICANT_MAX + 1] = {
 	[MRP_APPLICANT_QP] = MRP_TX_ACTION_S_IN_OPTIONAL,
 };
 
-
 static void mrp_attrvalue_inc(void *value, u8 len)
 {
 	u8 *v = (u8 *)value;
@@ -352,9 +350,8 @@ static void mrp_queue_xmit(struct mrp_applicant *app)
 {
 	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(&app->queue))) {
-	    int xmit_err = dev_queue_xmit(skb);
-	}
+	while ((skb = skb_dequeue(&app->queue)))
+		dev_queue_xmit(skb);
 }
 
 static int mrp_pdu_append_msg_hdr(struct mrp_applicant *app,
@@ -613,39 +610,20 @@ static void mrp_periodic_timer_arm(struct mrp_applicant *app)
 
 
 /*
-  Added periodic timer from [802.1Q-2011].  MRP used to lose messages
-  if it started too soon after the network interface was brought up.
-  The interface would come up, but still not be ready to transmit,
-  messages would be lost, and MRP would never retry.
+  Added periodic timer from [802.1Q-2011] to retry if MRP loses
+  messages.  MRP used to lose JoinIn messages and never retry if it
+  sent messages before the interface becomes ready.
 
   The periodic timer from the 802.1Q spec never turns off.  It fires
   every second, causing MRP to bounce from state QA to AA and back.
   You might think that would stop when the registrar responds with an
   JoinIn, but there's no state in the MRP state table to ignore the
-  periodic timer after the registrar responds.
+  periodic timer after getting a reply.  The result is MRP sends a
+  JoinIn message every second.  This may not be desirable, but it's
+  what the spec requires.
   
   [802.1Q-2011]
   http://standards.ieee.org/findstds/standard/802.1Q-2011.html
-
-  10.7.4.4 periodictimer
-
-  The Periodic Transmission timer, periodictimer, controls the
-  frequency with which the PeriodicTransmission state machine
-  generates periodic!  events. The timer is required on a per-Port
-  basis. The Periodic Transmission timer is set to one second when it
-  is started.
-
-  10.7.5.10 periodic!
-
-  This event indicates to the Applicant state machine that the timer
-  used to stimulate periodic transmission has expired.
-
-  10.7.5.23 periodictimer!
-
-  For an instance of the PeriodicTransmission state machine, the
-  periodictimer! event is deemed to have occurred when the
-  periodictimer associated with that state machine expires.
-
 */
 static void mrp_periodic_timer(unsigned long data)
 {
