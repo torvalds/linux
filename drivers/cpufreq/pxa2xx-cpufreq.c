@@ -453,13 +453,23 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 		find_freq_tables(&pxa255_freq_table, &pxa255_freqs);
 		pr_info("PXA255 cpufreq using %s frequency table\n",
 			pxa255_turbo_table ? "turbo" : "run");
+
 		cpufreq_frequency_table_cpuinfo(policy, pxa255_freq_table);
+		cpufreq_frequency_table_get_attr(pxa255_freq_table, policy->cpu);
 	}
-	else if (cpu_is_pxa27x())
+	else if (cpu_is_pxa27x()) {
 		cpufreq_frequency_table_cpuinfo(policy, pxa27x_freq_table);
+		cpufreq_frequency_table_get_attr(pxa27x_freq_table, policy->cpu);
+	}
 
 	printk(KERN_INFO "PXA CPU frequency change support initialized\n");
 
+	return 0;
+}
+
+static int pxa_cpufreq_exit(struct cpufreq_policy *policy)
+{
+	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
 }
 
@@ -467,6 +477,7 @@ static struct cpufreq_driver pxa_cpufreq_driver = {
 	.verify	= pxa_verify_policy,
 	.target	= pxa_set_target,
 	.init	= pxa_cpufreq_init,
+	.exit	= pxa_cpufreq_exit,
 	.get	= pxa_cpufreq_get,
 	.name	= "PXA2xx",
 };
