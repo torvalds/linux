@@ -605,6 +605,8 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		/* We need working interrupts for modeset enabling ... */
 		drm_irq_install(dev);
 
+		intel_init_power_well(dev);
+
 		intel_modeset_init_hw(dev);
 
 		drm_modeset_lock_all(dev);
