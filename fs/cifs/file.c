@@ -3379,6 +3379,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	return rc;
 }
 
+/*
+ * cifs_readpage_worker must be called with the page pinned
+ */
 static int cifs_readpage_worker(struct file *file, struct page *page,
 	loff_t *poffset)
 {
@@ -3390,7 +3393,6 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 	if (rc == 0)
 		goto read_complete;
 
-	page_cache_get(page);
 	read_data = kmap(page);
 	/* for reads over a certain size could initiate async read ahead */
 
@@ -3417,7 +3419,7 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 
 io_error:
 	kunmap(page);
-	page_cache_release(page);
+	unlock_page(page);
 
 read_complete:
 	return rc;
@@ -3441,8 +3443,6 @@ static int cifs_readpage(struct file *file, struct page *page)
 		 page, (int)offset, (int)offset);
 
 	rc = cifs_readpage_worker(file, page, &offset);
-
-	unlock_page(page);
 
 	free_xid(xid);
 	return rc;
@@ -3497,6 +3497,7 @@ static int cifs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
+	int oncethru = 0;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	loff_t offset = pos & (PAGE_CACHE_SIZE - 1);
 	loff_t page_start = pos & PAGE_MASK;
@@ -3506,6 +3507,7 @@ static int cifs_write_begin(struct file *file, struct address_space *mapping,
 
 	cifs_dbg(FYI, "write_begin from %lld len %d\n", (long long)pos, len);
 
+start:
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {
 		rc = -ENOMEM;
@@ -3547,13 +3549,16 @@ static int cifs_write_begin(struct file *file, struct address_space *mapping,
 		}
 	}
 
-	if ((file->f_flags & O_ACCMODE) != O_WRONLY) {
+	if ((file->f_flags & O_ACCMODE) != O_WRONLY && !oncethru) {
 		/*
 		 * might as well read a page, it is fast enough. If we get
 		 * an error, we don't need to return it. cifs_write_end will
 		 * do a sync write instead since PG_uptodate isn't set.
 		 */
 		cifs_readpage_worker(file, page, &page_start);
+		page_cache_release(page);
+		oncethru = 1;
+		goto start;
 	} else {
 		/* we could try using another file handle if there is one -
 		   but how would we lock it to prevent close of that handle
