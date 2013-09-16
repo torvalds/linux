@@ -3199,11 +3199,11 @@ megasas_get_pd_list(struct megasas_instance *instance)
 
 		for (pd_index = 0; pd_index < le32_to_cpu(ci->count); pd_index++) {
 
-			instance->pd_list[pd_addr->deviceId].tid	=
+			instance->pd_list[le16_to_cpu(pd_addr->deviceId)].tid	=
 				le16_to_cpu(pd_addr->deviceId);
-			instance->pd_list[pd_addr->deviceId].driveType	=
+			instance->pd_list[le16_to_cpu(pd_addr->deviceId)].driveType	=
 							pd_addr->scsiDevType;
-			instance->pd_list[pd_addr->deviceId].driveState	=
+			instance->pd_list[le16_to_cpu(pd_addr->deviceId)].driveState	=
 							MR_PD_STATE_SYSTEM;
 			pd_addr++;
 		}
@@ -3998,7 +3998,7 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 		 * values
 		 */
 		if ((prev_aen.members.class <= curr_aen.members.class) &&
-		    !((le16_to_cpu(prev_aen.members.locale) & curr_aen.members.locale) ^
+		    !((prev_aen.members.locale & curr_aen.members.locale) ^
 		      curr_aen.members.locale)) {
 			/*
 			 * Previously issued event registration includes
@@ -4006,7 +4006,7 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 			 */
 			return 0;
 		} else {
-			curr_aen.members.locale |= le16_to_cpu(prev_aen.members.locale);
+			curr_aen.members.locale |= prev_aen.members.locale;
 
 			if (prev_aen.members.class < curr_aen.members.class)
 				curr_aen.members.class = prev_aen.members.class;
@@ -4097,7 +4097,7 @@ static int megasas_start_aen(struct megasas_instance *instance)
 	class_locale.members.class = MR_EVT_CLASS_DEBUG;
 
 	return megasas_register_aen(instance,
-			le32_to_cpu(eli.newest_seq_num) + 1,
+			eli.newest_seq_num + 1,
 			class_locale.word);
 }
 
