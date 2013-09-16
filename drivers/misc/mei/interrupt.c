@@ -343,14 +343,14 @@ int mei_irq_read_handler(struct mei_device *dev,
 
 	/* decide where to read the message too */
 	if (!mei_hdr->host_addr) {
-		dev_dbg(&dev->pdev->dev, "call mei_irq_thread_read_bus_message.\n");
+		dev_dbg(&dev->pdev->dev, "call mei_hbm_dispatch.\n");
 		mei_hbm_dispatch(dev, mei_hdr);
-		dev_dbg(&dev->pdev->dev, "end mei_irq_thread_read_bus_message.\n");
+		dev_dbg(&dev->pdev->dev, "end mei_hbm_dispatch.\n");
 	} else if (mei_hdr->host_addr == dev->iamthif_cl.host_client_id &&
 		   (MEI_FILE_CONNECTED == dev->iamthif_cl.state) &&
 		   (dev->iamthif_state == MEI_IAMTHIF_READING)) {
 
-		dev_dbg(&dev->pdev->dev, "call mei_irq_thread_read_iamthif_message.\n");
+		dev_dbg(&dev->pdev->dev, "call mei_amthif_irq_read_msg.\n");
 		dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
 
 		ret = mei_amthif_irq_read_msg(dev, mei_hdr, cmpl_list);
