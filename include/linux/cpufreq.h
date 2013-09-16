@@ -410,5 +410,7 @@ extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;
 void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table,
 				      unsigned int cpu);
 void cpufreq_frequency_table_put_attr(unsigned int cpu);
+int cpufreq_table_validate_and_show(struct cpufreq_policy *policy,
+				      struct cpufreq_frequency_table *table);
 
 #endif /* _LINUX_CPUFREQ_H */
