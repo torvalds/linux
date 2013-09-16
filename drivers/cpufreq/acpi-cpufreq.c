@@ -837,7 +837,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	data->freq_table[valid_states].frequency = CPUFREQ_TABLE_END;
 	perf->state = 0;
 
-	result = cpufreq_frequency_table_cpuinfo(policy, data->freq_table);
+	result = cpufreq_table_validate_and_show(policy, data->freq_table);
 	if (result)
 		goto err_freqfree;
 
@@ -867,8 +867,6 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 			(u32) perf->states[i].core_frequency,
 			(u32) perf->states[i].power,
 			(u32) perf->states[i].transition_latency);
-
-	cpufreq_frequency_table_get_attr(data->freq_table, policy->cpu);
 
 	/*
 	 * the first call to ->target() should result in us actually
