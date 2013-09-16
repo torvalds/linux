@@ -29,4 +29,5 @@ struct omap_dss_dispc_dev_attr {
 int omap_init_drm(void);
 int omap_init_vrfb(void);
 int omap_init_fb(void);
+int omap_init_vout(void);
 #endif

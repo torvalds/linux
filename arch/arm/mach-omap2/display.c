@@ -437,6 +437,13 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 		return r;
 	}
 
+	/* create V4L2 display device */
+	r = omap_init_vout();
+	if (r < 0) {
+		pr_err("Unable to register omap_vout device\n");
+		return r;
+	}
+
 	return 0;
 }
 
