@@ -338,7 +338,8 @@ static int __init sa1110_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.min_freq = 59000;
 	policy->cpuinfo.max_freq = 287000;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-	return 0;
+
+	return cpufreq_table_validate_and_show(policy, sa11x0_freq_table);
 }
 
 /* sa1110_driver needs __refdata because it must remain after init registers

@@ -21,6 +21,7 @@ extern void sa1110_mb_disable(void);
 
 struct cpufreq_policy;
 
+extern struct cpufreq_frequency_table sa11x0_freq_table[];
 extern unsigned int sa11x0_freq_to_ppcr(unsigned int khz);
 extern int sa11x0_verify_speed(struct cpufreq_policy *policy);
 extern unsigned int sa11x0_getspeed(unsigned int cpu);
