@@ -665,7 +665,8 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 						     crtc);
 }
 
-static int intel_hpd_irq_event(struct drm_device *dev, struct drm_connector *connector)
+static bool intel_hpd_irq_event(struct drm_device *dev,
+				struct drm_connector *connector)
 {
 	enum drm_connector_status old_status;
 
@@ -673,11 +674,16 @@ static int intel_hpd_irq_event(struct drm_device *dev, struct drm_connector *con
 	old_status = connector->status;
 
 	connector->status = connector->funcs->detect(connector, false);
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+	if (old_status == connector->status)
+		return false;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 		      connector->base.id,
 		      drm_get_connector_name(connector),
-		      old_status, connector->status);
-	return (old_status != connector->status);
+		      drm_get_connector_status_name(old_status),
+		      drm_get_connector_status_name(connector->status));
+
+	return true;
 }
 
 /*
