@@ -5,6 +5,7 @@
 #include <linux/relay.h>
 #include <linux/compat.h>
 #include <uapi/linux/blktrace_api.h>
+#include <linux/list.h>
 
 #if defined(CONFIG_BLK_DEV_IO_TRACE)
 
@@ -23,6 +24,7 @@ struct blk_trace {
 	struct dentry *dir;
 	struct dentry *dropped_file;
 	struct dentry *msg_file;
+	struct list_head running_list;
 	atomic_t dropped;
 };
 
