@@ -508,7 +508,7 @@ static ssize_t pinconf_dbg_config_write(struct file *file,
 	int i;
 
 	/* Get userspace string and assure termination */
-	buf_size = min(count, (size_t)(sizeof(buf)-1));
+	buf_size = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
 	buf[buf_size] = 0;
