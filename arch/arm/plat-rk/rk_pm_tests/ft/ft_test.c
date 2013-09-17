@@ -126,6 +126,15 @@ const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*3,5*4,0,0};
 #define FT_CLIENT_READY_PIN    RK30_PIN1_PA2
 #define FT_CLIENT_IDLE_PIN     RK30_PIN3_PD4
 
+#elif defined(CONFIG_ARCH_RK3026)
+
+const static unsigned long arm_setups_rate[4] = {312 * MHZ, 816 * MHZ, 0, 0};
+const static unsigned long l1_tst_cnt[TST_SETUPS]={5 * 10, 5 * 10, 0, 0};
+const static unsigned long l2_cpy_cnt[TST_SETUPS]={5 * 3, 5 * 4, 0, 0};
+
+#define FT_CLIENT_READY_PIN    RK30_PIN2_PA7
+#define FT_CLIENT_IDLE_PIN     RK30_PIN0_PA3
+
 #else
 
 const static unsigned long arm_setups_rate[4]={552*MHZ,0,0,0};
@@ -540,7 +549,7 @@ void ft_cpu_test_type1(int steps)
 {
 	u32 temp=-1;
 	u32 cpu = smp_processor_id();
-	int i;
+	//int i;
 	
 	ft_printk_dbg("test typ1 step%d cpu=%d start\n",steps,cpu);	
 
@@ -591,6 +600,9 @@ int ft_cpu_test_type1_check(int steps,const char *str)
 
 		#ifdef ENABLE_FT_TEST_GPIO
 		// send msg to ctr board to up the volt
+		gpio_request(FT_CLIENT_READY_PIN, "client ready");
+		gpio_request(FT_CLIENT_IDLE_PIN, "client idle");
+
 		gpio_direction_output(FT_CLIENT_READY_PIN, GPIO_HIGH);
 		gpio_direction_input(FT_CLIENT_IDLE_PIN);
 		
@@ -705,7 +717,7 @@ void ft_test_flag_seting(void);
 
 static int rk_ft_tests_over(void)
 {
-	int cpu, ret = 0;
+	int ret = 0;
 
 	ft_cpu_test_type0_check(0,"KERENL");
 	
