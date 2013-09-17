@@ -132,7 +132,7 @@ static int simplefb_parse_dt(struct platform_device *pdev,
 static int simplefb_parse_pd(struct platform_device *pdev,
 			     struct simplefb_params *params)
 {
-	struct simplefb_platform_data *pd = pdev->dev.platform_data;
+	struct simplefb_platform_data *pd = dev_get_platdata(&pdev->dev);
 	int i;
 
 	params->width = pd->width;
@@ -167,7 +167,7 @@ static int simplefb_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	ret = -ENODEV;
-	if (pdev->dev.platform_data)
+	if (dev_get_platdata(&pdev->dev))
 		ret = simplefb_parse_pd(pdev, &params);
 	else if (pdev->dev.of_node)
 		ret = simplefb_parse_dt(pdev, &params);
