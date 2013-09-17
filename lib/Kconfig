@@ -337,6 +337,20 @@ config DQL
 config NLATTR
 	bool
 
+config HAVE_PIE
+        bool
+        help
+          See Documentation/pie.txt for details.
+
+config PIE
+	bool "Embedded position independant executables"
+	depends on HAVE_PIE
+	help
+	  This option adds support for embedding position indepentant (PIE)
+	  executables into the kernel. The PIEs can then be copied into
+	  genalloc regions such as SRAM and executed. Some platforms require
+	  this for suspend/resume support.
+
 #
 # Generic 64-bit atomic support is selected if needed
 #

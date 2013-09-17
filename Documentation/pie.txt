@@ -1,0 +1,167 @@
+Position Independent Executables (PIEs)
+=======================================
+
+About
+=====
+
+The PIE framework is designed to allow normal C code from the kernel to be
+embedded into the kernel, loaded at arbirary addresses, and executed.
+
+A PIE is a position independent executable is a piece of self contained code
+that can be relocated to any address. Before the code is run, a simple list
+of offset based relocations has to be performed.
+
+Copyright 2013 Texas Instruments, Inc
+	Russ Dill <russ.dill@ti.com>
+
+Motivation
+==========
+
+Without the PIE framework, the only way to support platforms that require
+code loaded to and run from arbitrary addresses was to write the code in
+assembly. For example, a platform may have suspend/resume steps that
+disable/enable SDRAM and must be run from on chip SRAM.
+
+In addition to the SRAM virtual address not being known at compile time
+for device tree platforms, the code must often run with the MMU enabled or
+disabled (physical vs virtual address).
+
+Design
+======
+
+The PIE code is separated into two main pieces. libpie satifies various
+function calls emitted by gcc. The kernel contains only one copy of libpie
+but whenever a PIE is loaded, a copy of libpie is copied along with the PIE
+code. The second piece is the PIE code and data marked with special PIE
+sections. At build time, libpie and the PIE sections are collected together
+into a single PIE executable:
+
+	+---------------------------------------+
+	| __pie_common_start			|
+	|	<libpie>			|
+	| __pie_common_end			|
+	+---------------------------------------+
+	| __pie_overlay_start			|
+	| +-----------------------------+	|
+	| | __pie_groupxyz_start	|	|
+	| |   <groupxyz functions/data>	|	|
+	| | __pie_groupxyz_end		|	|
+	| +-----------------------------+	|
+	| | __pie_groupabc_start	|	|
+	| |   <groupabc functions/data>	|	|
+	| | __pie_groupabc_end		|	|
+	| +-----------------------------+	|
+	| | __pie_groupijk_start	|	|
+	| |   <groupijk functions/data>	|	|
+	| | __pie_groupijk_end		|	|
+	| +-----------------------------+	|
+	| __pie_overlay_end			|
+	+---------------------------------------+
+	| <Architecture specific relocations>	|
+	+---------------------------------------+
+
+The PIE executable is then embedded into the kernel. Symbols are exported
+from the PIE executable and passed back into the kernel at link time. When
+the PIE is loaded, the memory layout then looks like the following:
+
+	+---------------------------------------+
+	| <libpie>				|
+	+---------------------------------------+
+	| <groupabc_functions/data>		|
+	+---------------------------------------+
+	| Tail (Arch specific data/relocations	|
+	+---------------------------------------+
+
+The architecture specific code is responsible for reading the relocations
+and performing the necessary fixups.
+
+Marking code/data
+=================
+
+Marking code and data for inclusing into a PIE group is done with the PIE
+section markers, __pie(<group>) and __pie_data(<group>). Any symbols that
+will be used outside of the PIE must be exported with EXPORT_PIE_SYMBOL:
+
+    static struct ddr_timings xyz_timings __pie_data(platformxyz) = {
+    	[...]
+    };
+    
+    void __pie(platformxyz) xyz_ddr_on(void *addr)
+    {
+    	[...]
+    }
+    EXPORT_PIE_SYMBOL(xyz_ddr_on);
+
+Loading PIEs
+============
+
+PIEs can be loaded into a genalloc pool (such as one backed by SRAM). The
+following functions are provided:
+
+ - pie_load_sections(pool, <group>)
+ - pie_load_sections_phys(pool, <group>)
+ - pie_free(chunk)
+
+pie_load_sections/pie_load_sections_phys load a PIE section group into the
+given pool. Any necessary fixups are peformed and a chunk identifier is
+returned. The first variant performs fixups such that the code can be run
+with the current address layout. The second (phys) variant performs fixups
+such that the code can be executed with the MMU disabled.
+
+The pie_free function unloads a PIE from a pool.
+
+Utilizing PIEs
+==============
+
+In order to translate between symbols and addresses within a loaded PIE, the
+following macros/functions are provided:
+
+ - kern_to_pie(chunk, sym)
+ - fn_to_pie(chunk, fn)
+ - pie_to_phys(chunk, addr)
+
+All three take as the first argument the chunk returned by pie_load_sections.
+Data symbols can be translated with kern_to_pie. The macro is made so that
+the type returned is the type passed:
+
+   kern_to_pie(chunk, xyz_struct_ptr)->foo = 15;
+   *kern_to_pie(chunk, &xyz_flags) = XYZ_DO_THE_THING;
+
+Because certain architectures require special handling of function pointers,
+a special varaint is provided:
+
+   ret = fn_to_pie(chunk, &xyz_ddr_on)(addr);
+   fnptr = fn_to_pie(chunk, &abc_fn);
+
+In the case that a PIE has been configured to run with the MMU disabled,
+physical addresses can be translated with pie_to_phys. For instance, if
+the resume ROM jumps to a given physical address:
+
+   trampoline = fn_to_pie(chunk, resume_trampoline);
+   writel(pie_to_phys(chunk, trampoline), XYZ_RESUME_ADDR_REG);
+
+On the Fly Fixup
+================
+
+The tail portion of the PIE can be used to store data necessary to perform
+on the fly fixups. This is necessary for code that needs to run from
+different address spaces at different times. Any on the fly fixup support
+is architecture specific.
+
+Architecture Requirements
+=========================
+
+Individual architectures must implement two functions:
+
+pie_arch_fill_tail - This function examines the architecture specific
+relocation entries and copies the ones necessary for the given PIE.
+
+pie_arch_fixup - This function performs fixups of the PIE code based
+on the tail data generated above.
+
+pie.lds - A linker script for the PIE executable must be provided.
+include/asm-generic/pie.lds.S provides a template.
+
+libpie.o - The architecture must also provide a library of functions that
+gcc may expect as a built-in, such as memcpy, memmove, etc. The list of
+functions is architecture specific.

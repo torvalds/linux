@@ -55,12 +55,16 @@ vmlinux_link()
 	if [ "${SRCARCH}" != "um" ]; then
 		${LD} ${LDFLAGS} ${LDFLAGS_vmlinux} -o ${2}                  \
 			-T ${lds} ${KBUILD_VMLINUX_INIT}                     \
-			--start-group ${KBUILD_VMLINUX_MAIN} --end-group ${1}
+			--start-group					     \
+				${KBUILD_VMLINUX_MAIN}			     \
+				${KBUILD_VMLINUX_PIE}			     \
+			--end-group ${1}
 	else
 		${CC} ${CFLAGS_vmlinux} -o ${2}                              \
 			-Wl,-T,${lds} ${KBUILD_VMLINUX_INIT}                 \
 			-Wl,--start-group                                    \
 				 ${KBUILD_VMLINUX_MAIN}                      \
+				 ${KBUILD_VMLINUX_PIE}                       \
 			-Wl,--end-group                                      \
 			-lutil ${1}
 		rm -f linux
@@ -145,9 +149,12 @@ esac
 #link vmlinux.o
 info LD vmlinux.o
 modpost_link vmlinux.o
-
 # modpost vmlinux.o to check for section mismatches
 ${MAKE} -f "${srctree}/scripts/Makefile.modpost" vmlinux.o
+
+if [ -n "${CONFIG_PIE}" ]; then
+	${MAKE} -f "${srctree}/scripts/Makefile.build" obj=pie
+fi
 
 # Update version
 info GEN .version

@@ -705,6 +705,7 @@
 	EXIT_CALL							\
 	*(.discard)							\
 	*(.discard.*)							\
+	*(.pie.*)							\
 	}
 
 /**

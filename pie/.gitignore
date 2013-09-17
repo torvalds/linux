@@ -1,0 +1,3 @@
+*.syms
+pie.lds
+pie.lds.S
