@@ -105,10 +105,6 @@ menu "Processor type and features"
 
 source "arch/c6x/platforms/Kconfig"
 
-config TMS320C6X_CACHES_ON
-	bool "L2 cache support"
-	default y
-
 config KERNEL_RAM_BASE_ADDRESS
 	hex "Virtual address of memory base"
 	default 0xe0000000 if SOC_TMS320C6455
