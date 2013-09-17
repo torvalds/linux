@@ -19,6 +19,13 @@
 #include <asm/unified.h>
 #include <asm/compiler.h>
 
+#if __LINUX_ARM_ARCH__ < 6
+#include <asm-generic/uaccess-unaligned.h>
+#else
+#define __get_user_unaligned __get_user
+#define __put_user_unaligned __put_user
+#endif
+
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
 
