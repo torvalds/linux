@@ -611,6 +611,8 @@ void hists__collapse_resort(struct hists *hists)
 	next = rb_first(root);
 
 	while (next) {
+		if (session_done())
+			break;
 		n = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&n->rb_node_in);
 
