@@ -768,8 +768,8 @@ static int mxs_saif_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "failed to init clocks\n");
 	}
 
-	ret = snd_soc_register_component(&pdev->dev, &mxs_saif_component,
-					 &mxs_saif_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev, &mxs_saif_component,
+					      &mxs_saif_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "register DAI failed\n");
 		return ret;
@@ -778,21 +778,15 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	ret = mxs_pcm_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
-		goto failed_pdev_alloc;
+		return ret;
 	}
 
 	return 0;
-
-failed_pdev_alloc:
-	snd_soc_unregister_component(&pdev->dev);
-
-	return ret;
 }
 
 static int mxs_saif_remove(struct platform_device *pdev)
 {
 	mxs_pcm_platform_unregister(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }
