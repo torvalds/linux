@@ -33,6 +33,7 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/dma-pl330.h>
+#include <linux/spinlock.h>
 
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
@@ -68,6 +69,7 @@ struct rk29_i2s_info {
 	
 	bool 	i2s_tx_status;//active = true;
 	bool 	i2s_rx_status;
+	spinlock_t spinlock_wr;//write read reg spin_lock
 };
 
 static struct rk29_dma_client rk29_dma_client_out = {
@@ -98,6 +100,7 @@ extern int hdmi_get_hotplug(void);
 static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 {
 	u32 opr,xfer,clr;
+	spin_lock(&i2s->spinlock_wr);
 	opr  = readl(&(pheadi2s->I2S_DMACR));
 	xfer = readl(&(pheadi2s->I2S_XFER));
 	clr  = readl(&(pheadi2s->I2S_CLR));
@@ -116,6 +119,7 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 			writel(xfer, &(pheadi2s->I2S_XFER));
 		}
 		i2s->i2s_tx_status = true;
+		spin_unlock(&i2s->spinlock_wr);
 	}
 	else
 	{
@@ -135,15 +139,19 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 			writel(xfer, &(pheadi2s->I2S_XFER));	
 			clr |= I2S_TX_CLEAR;
 			writel(clr, &(pheadi2s->I2S_CLR));
+			spin_unlock(&i2s->spinlock_wr);
 			udelay(1);
 			I2S_DBG("rockchip_snd_txctrl: stop xfer\n");			
-		}	
+		}
+		else
+			spin_unlock(&i2s->spinlock_wr);
 	}
 }
 
 static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 {
 	u32 opr,xfer,clr;
+	spin_lock(&i2s->spinlock_wr);
 	opr  = readl(&(pheadi2s->I2S_DMACR));
 	xfer = readl(&(pheadi2s->I2S_XFER));
 	clr  = readl(&(pheadi2s->I2S_CLR));
@@ -162,6 +170,7 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 			writel(xfer, &(pheadi2s->I2S_XFER));
 		}
 		i2s->i2s_rx_status = true;
+		spin_unlock(&i2s->spinlock_wr);
 #ifdef CONFIG_SND_SOC_RT5631
 //bard 7-16 s
 		schedule_delayed_work(&rt5631_delay_cap,HZ/4);
@@ -185,9 +194,12 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 			writel(xfer, &(pheadi2s->I2S_XFER));		
 			clr |= I2S_RX_CLEAR;
 			writel(clr, &(pheadi2s->I2S_CLR));
+			spin_unlock(&i2s->spinlock_wr);
 			udelay(1);
 			I2S_DBG("rockchip_snd_rxctrl: stop xfer\n");				
 		}
+		else
+			spin_unlock(&i2s->spinlock_wr);
 	}
 }
 
@@ -202,7 +214,7 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	u32 iis_ckr_value;//clock generation register
 	
 	I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
+    spin_lock(&i2s->spinlock_wr);
 	tx_ctl = readl(&(pheadi2s->I2S_TXCR));
 	iis_ckr_value = readl(&(pheadi2s->I2S_CKR));
 	
@@ -243,6 +255,7 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 
 	rx_ctl = tx_ctl & 0x00007FFF;
 	writel(rx_ctl, &(pheadi2s->I2S_RXCR));
+    spin_unlock(&i2s->spinlock_wr);
 	return 0;
 }
 
@@ -262,6 +275,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dai_set_dma_data(socdai, substream, i2s->dma_capture);
 
 	/* Working copies of register */
+    spin_lock(&i2s->spinlock_wr);
 	iismod = readl(&(pheadi2s->I2S_TXCR));
 	
 	iismod &= (~((1<<5)-1));
@@ -307,7 +321,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	iismod = iismod & 0x00007FFF;
 	writel(iismod, &(pheadi2s->I2S_RXCR));   
-
+    spin_unlock(&i2s->spinlock_wr);
 	return 0;
 }
 
@@ -372,6 +386,7 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	i2s = to_info(cpu_dai);
         
 	//stereo mode MCLK/SCK=4  
+    spin_lock(&i2s->spinlock_wr);
 	reg = readl(&(pheadi2s->I2S_CKR));
 
 	I2S_DBG("Enter:%s, %d, div_id=0x%08X, div=0x%08X\n", __FUNCTION__, __LINE__, div_id, div);
@@ -394,7 +409,7 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 			return -EINVAL;
 	}
 	writel(reg, &(pheadi2s->I2S_CKR));
-
+    spin_unlock(&i2s->spinlock_wr);
 	return 0;
 }
 
@@ -749,6 +764,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto err_i2sv2;
 
+	spin_lock_init(&i2s->spinlock_wr);
 	return 0;
 
 err_i2sv2:
