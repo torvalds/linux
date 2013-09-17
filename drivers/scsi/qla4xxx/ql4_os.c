@@ -2397,6 +2397,7 @@ static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
 	int buflen = 0;
 	struct iscsi_session *sess;
 	struct ddb_entry *ddb_entry;
+	struct ql4_chap_table chap_tbl;
 	struct iscsi_conn *conn;
 	char ip_addr[DDB_IPADDR_LEN];
 	uint16_t options = 0;
@@ -2404,6 +2405,7 @@ static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
 	sess = cls_sess->dd_data;
 	ddb_entry = sess->dd_data;
 	conn = cls_conn->dd_data;
+	memset(&chap_tbl, 0, sizeof(chap_tbl));
 
 	ddb_entry->chap_tbl_idx = le16_to_cpu(fw_ddb_entry->chap_tbl_idx);
 
@@ -2430,6 +2432,19 @@ static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
 			(char *)fw_ddb_entry->iscsi_name, buflen);
 	iscsi_set_param(cls_conn, ISCSI_PARAM_INITIATOR_NAME,
 			(char *)ha->name_string, buflen);
+
+	if (ddb_entry->chap_tbl_idx != INVALID_ENTRY) {
+		if (!qla4xxx_get_uni_chap_at_index(ha, chap_tbl.name,
+						   chap_tbl.secret,
+						   ddb_entry->chap_tbl_idx)) {
+			iscsi_set_param(cls_conn, ISCSI_PARAM_USERNAME,
+					(char *)chap_tbl.name,
+					strlen((char *)chap_tbl.name));
+			iscsi_set_param(cls_conn, ISCSI_PARAM_PASSWORD,
+					(char *)chap_tbl.secret,
+					chap_tbl.secret_len);
+		}
+	}
 }
 
 void qla4xxx_update_session_conn_fwddb_param(struct scsi_qla_host *ha,
@@ -5204,6 +5219,7 @@ static void qla4xxx_setup_flash_ddb_entry(struct scsi_qla_host *ha,
 	ddb_entry->ha = ha;
 	ddb_entry->unblock_sess = qla4xxx_unblock_flash_ddb;
 	ddb_entry->ddb_change = qla4xxx_flash_ddb_change;
+	ddb_entry->chap_tbl_idx = INVALID_ENTRY;
 
 	atomic_set(&ddb_entry->retry_relogin_timer, INVALID_ENTRY);
 	atomic_set(&ddb_entry->relogin_timer, 0);
