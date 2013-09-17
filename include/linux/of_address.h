@@ -60,13 +60,6 @@ extern struct of_pci_range *of_pci_range_parser_one(
 					struct of_pci_range_parser *parser,
 					struct of_pci_range *range);
 #else /* CONFIG_OF_ADDRESS */
-#ifndef of_address_to_resource
-static inline int of_address_to_resource(struct device_node *dev, int index,
-					 struct resource *r)
-{
-	return -EINVAL;
-}
-#endif
 static inline struct device_node *of_find_matching_node_by_address(
 					struct device_node *from,
 					const struct of_device_id *matches,
@@ -74,12 +67,7 @@ static inline struct device_node *of_find_matching_node_by_address(
 {
 	return NULL;
 }
-#ifndef of_iomap
-static inline void __iomem *of_iomap(struct device_node *device, int index)
-{
-	return NULL;
-}
-#endif
+
 static inline const __be32 *of_get_address(struct device_node *dev, int index,
 					u64 *size, unsigned int *flags)
 {
@@ -100,6 +88,22 @@ static inline struct of_pci_range *of_pci_range_parser_one(
 }
 #endif /* CONFIG_OF_ADDRESS */
 
+#ifdef CONFIG_OF
+extern int of_address_to_resource(struct device_node *dev, int index,
+				  struct resource *r);
+void __iomem *of_iomap(struct device_node *node, int index);
+#else
+static inline int of_address_to_resource(struct device_node *dev, int index,
+					 struct resource *r)
+{
+	return -EINVAL;
+}
+
+static inline void __iomem *of_iomap(struct device_node *device, int index)
+{
+	return NULL;
+}
+#endif
 
 #if defined(CONFIG_OF_ADDRESS) && defined(CONFIG_PCI)
 extern const __be32 *of_get_pci_address(struct device_node *dev, int bar_no,
