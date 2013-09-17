@@ -159,7 +159,7 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	data->card.dapm_widgets = imx_sgtl5000_dapm_widgets;
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_sgtl5000_dapm_widgets);
 
-	ret = snd_soc_register_card(&data->card);
+	ret = devm_snd_soc_register_card(&pdev->dev, &data->card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 		goto fail;
@@ -180,15 +180,6 @@ fail:
 	return ret;
 }
 
-static int imx_sgtl5000_remove(struct platform_device *pdev)
-{
-	struct imx_sgtl5000_data *data = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(&data->card);
-
-	return 0;
-}
-
 static const struct of_device_id imx_sgtl5000_dt_ids[] = {
 	{ .compatible = "fsl,imx-audio-sgtl5000", },
 	{ /* sentinel */ }
@@ -202,7 +193,6 @@ static struct platform_driver imx_sgtl5000_driver = {
 		.of_match_table = imx_sgtl5000_dt_ids,
 	},
 	.probe = imx_sgtl5000_probe,
-	.remove = imx_sgtl5000_remove,
 };
 module_platform_driver(imx_sgtl5000_driver);
 
