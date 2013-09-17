@@ -935,8 +935,8 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 
 	sinfo = info->par;
 
-	if (dev->platform_data) {
-		pdata_sinfo = (struct atmel_lcdfb_info *)dev->platform_data;
+	if (dev_get_platdata(dev)) {
+		pdata_sinfo = dev_get_platdata(dev);
 		sinfo->default_bpp = pdata_sinfo->default_bpp;
 		sinfo->default_dmacon = pdata_sinfo->default_dmacon;
 		sinfo->default_lcdcon2 = pdata_sinfo->default_lcdcon2;
