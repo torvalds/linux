@@ -257,31 +257,31 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 		return 0;
 
 	switch (field) {
-		case LPROCFS_FIELDS_FLAGS_CONFIG:
-			ret = header->lc_config;
-			break;
-		case LPROCFS_FIELDS_FLAGS_SUM:
-			ret = lc->lc_sum;
-			if ((flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0)
-				ret += lc->lc_sum_irq;
-			break;
-		case LPROCFS_FIELDS_FLAGS_MIN:
-			ret = lc->lc_min;
-			break;
-		case LPROCFS_FIELDS_FLAGS_MAX:
-			ret = lc->lc_max;
-			break;
-		case LPROCFS_FIELDS_FLAGS_AVG:
-			ret = (lc->lc_max - lc->lc_min) / 2;
-			break;
-		case LPROCFS_FIELDS_FLAGS_SUMSQUARE:
-			ret = lc->lc_sumsquare;
-			break;
-		case LPROCFS_FIELDS_FLAGS_COUNT:
-			ret = lc->lc_count;
-			break;
-		default:
-			break;
+	case LPROCFS_FIELDS_FLAGS_CONFIG:
+		ret = header->lc_config;
+		break;
+	case LPROCFS_FIELDS_FLAGS_SUM:
+		ret = lc->lc_sum;
+		if ((flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0)
+			ret += lc->lc_sum_irq;
+		break;
+	case LPROCFS_FIELDS_FLAGS_MIN:
+		ret = lc->lc_min;
+		break;
+	case LPROCFS_FIELDS_FLAGS_MAX:
+		ret = lc->lc_max;
+		break;
+	case LPROCFS_FIELDS_FLAGS_AVG:
+		ret = (lc->lc_max - lc->lc_min) / 2;
+		break;
+	case LPROCFS_FIELDS_FLAGS_SUMSQUARE:
+		ret = lc->lc_sumsquare;
+		break;
+	case LPROCFS_FIELDS_FLAGS_COUNT:
+		ret = lc->lc_count;
+		break;
+	default:
+		break;
 	};
 
 	return ret;
