@@ -411,6 +411,9 @@ static inline int
 cfg80211_can_add_interface(struct cfg80211_registered_device *rdev,
 			   enum nl80211_iftype iftype)
 {
+	if (rfkill_blocked(rdev->rfkill))
+		return -ERFKILL;
+
 	return cfg80211_can_change_interface(rdev, NULL, iftype);
 }
 
