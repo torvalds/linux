@@ -2008,6 +2008,47 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
+static void wlcore_pending_auth_complete_work(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+	struct wl1271 *wl;
+	struct wl12xx_vif *wlvif;
+	unsigned long time_spare;
+	int ret;
+
+	dwork = container_of(work, struct delayed_work, work);
+	wlvif = container_of(dwork, struct wl12xx_vif,
+			     pending_auth_complete_work);
+	wl = wlvif->wl;
+
+	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state != WLCORE_STATE_ON))
+		goto out;
+
+	/*
+	 * Make sure a second really passed since the last auth reply. Maybe
+	 * a second auth reply arrived while we were stuck on the mutex.
+	 * Check for a little less than the timeout to protect from scheduler
+	 * irregularities.
+	 */
+	time_spare = jiffies +
+			msecs_to_jiffies(WLCORE_PEND_AUTH_ROC_TIMEOUT - 50);
+	if (!time_after(time_spare, wlvif->pending_auth_reply_time))
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	/* cancel the ROC if active */
+	wlcore_update_inconn_sta(wl, wlvif, NULL, false);
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+}
+
 static int wl12xx_allocate_rate_policy(struct wl1271 *wl, u8 *idx)
 {
 	u8 policy = find_first_zero_bit(wl->rate_policies_map,
@@ -2159,6 +2200,8 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 			  wlcore_channel_switch_work);
 	INIT_DELAYED_WORK(&wlvif->connection_loss_work,
 			  wlcore_connection_loss_work);
+	INIT_DELAYED_WORK(&wlvif->pending_auth_complete_work,
+			  wlcore_pending_auth_complete_work);
 	INIT_LIST_HEAD(&wlvif->list);
 
 	setup_timer(&wlvif->rx_streaming_timer, wl1271_rx_streaming_timer,
@@ -2590,6 +2633,7 @@ unlock:
 	cancel_work_sync(&wlvif->rx_streaming_disable_work);
 	cancel_delayed_work_sync(&wlvif->connection_loss_work);
 	cancel_delayed_work_sync(&wlvif->channel_switch_work);
+	cancel_delayed_work_sync(&wlvif->pending_auth_complete_work);
 
 	mutex_lock(&wl->mutex);
 }
@@ -3969,6 +4013,13 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 			}
 		} else {
 			if (test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags)) {
+				/*
+				 * AP might be in ROC in case we have just
+				 * sent auth reply. handle it.
+				 */
+				if (test_bit(wlvif->role_id, wl->roc_map))
+					wl12xx_croc(wl, wlvif->role_id);
+
 				ret = wl12xx_cmd_role_stop_ap(wl, wlvif);
 				if (ret < 0)
 					goto out;
@@ -4656,29 +4707,49 @@ static void wlcore_roc_if_possible(struct wl1271 *wl,
 	wl12xx_roc(wl, wlvif, wlvif->role_id, wlvif->band, wlvif->channel);
 }
 
-static void wlcore_update_inconn_sta(struct wl1271 *wl,
-				     struct wl12xx_vif *wlvif,
-				     struct wl1271_station *wl_sta,
-				     bool in_connection)
+/*
+ * when wl_sta is NULL, we treat this call as if coming from a
+ * pending auth reply.
+ * wl->mutex must be taken and the FW must be awake when the call
+ * takes place.
+ */
+void wlcore_update_inconn_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			      struct wl1271_station *wl_sta, bool in_conn)
 {
-	if (in_connection) {
-		if (WARN_ON(wl_sta->in_connection))
+	if (in_conn) {
+		if (WARN_ON(wl_sta && wl_sta->in_connection))
 			return;
-		wl_sta->in_connection = true;
-		if (!wlvif->inconn_count++)
+
+		if (!wlvif->ap_pending_auth_reply &&
+		    !wlvif->inconn_count)
 			wlcore_roc_if_possible(wl, wlvif);
+
+		if (wl_sta) {
+			wl_sta->in_connection = true;
+			wlvif->inconn_count++;
+		} else {
+			wlvif->ap_pending_auth_reply = true;
+		}
 	} else {
-		if (!wl_sta->in_connection)
+		if (wl_sta && !wl_sta->in_connection)
 			return;
 
-		wl_sta->in_connection = false;
-		wlvif->inconn_count--;
-		if (WARN_ON(wlvif->inconn_count < 0))
+		if (WARN_ON(!wl_sta && !wlvif->ap_pending_auth_reply))
 			return;
 
-		if (!wlvif->inconn_count)
-			if (test_bit(wlvif->role_id, wl->roc_map))
-				wl12xx_croc(wl, wlvif->role_id);
+		if (WARN_ON(wl_sta && !wlvif->inconn_count))
+			return;
+
+		if (wl_sta) {
+			wl_sta->in_connection = false;
+			wlvif->inconn_count--;
+		} else {
+			wlvif->ap_pending_auth_reply = false;
+		}
+
+		if (!wlvif->inconn_count && !wlvif->ap_pending_auth_reply &&
+		    test_bit(wlvif->role_id, wl->roc_map))
+			wl12xx_croc(wl, wlvif->role_id);
 	}
 }
 
