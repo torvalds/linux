@@ -266,7 +266,7 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	data->card.late_probe = imx_wm8962_late_probe;
 	data->card.set_bias_level = imx_wm8962_set_bias_level;
 
-	ret = snd_soc_register_card(&data->card);
+	ret = devm_snd_soc_register_card(&pdev->dev, &data->card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 		goto clk_fail;
@@ -296,7 +296,6 @@ static int imx_wm8962_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(data->codec_clk))
 		clk_disable_unprepare(data->codec_clk);
-	snd_soc_unregister_card(&data->card);
 
 	return 0;
 }
