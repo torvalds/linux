@@ -1,4 +1,3 @@
-#include <linux/of.h>	/* linux/of.h gets to determine #include ordering */
 #ifndef _POWERPC_PROM_H
 #define _POWERPC_PROM_H
 #ifdef __KERNEL__
@@ -19,6 +18,13 @@
 #include <linux/types.h>
 #include <asm/irq.h>
 #include <linux/atomic.h>
+
+/* These includes should be removed once implicit includes are cleaned up. */
+#include <linux/of.h>
+#include <linux/of_fdt.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/platform_device.h>
 
 /*
  * OF address retreival & translation
@@ -124,15 +130,6 @@ struct of_drconf_cell {
  * followed by # option vectors - 1, followed by the option vectors.
  */
 extern unsigned char ibm_architecture_vec[];
-
-/* These includes are put at the bottom because they may contain things
- * that are overridden by this file.  Ideally they shouldn't be included
- * by this file, but there are a bunch of .c files that currently depend
- * on it.  Eventually they will be cleaned up. */
-#include <linux/of_fdt.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/platform_device.h>
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */
