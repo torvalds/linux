@@ -110,25 +110,38 @@ struct opregion_asle {
 	u32 epfm;       /* enabled panel fitting modes */
 	u8 plut[74];    /* panel LUT and identifier */
 	u32 pfmb;       /* PWM freq and min brightness */
-	u8 rsvd[102];
+	u32 cddv;       /* color correction default values */
+	u32 pcft;       /* power conservation features */
+	u32 srot;       /* supported rotation angles */
+	u32 iuer;       /* IUER events */
+	u8 rsvd[86];
 } __attribute__((packed));
 
 /* Driver readiness indicator */
 #define ASLE_ARDY_READY		(1 << 0)
 #define ASLE_ARDY_NOT_READY	(0 << 0)
 
-/* ASLE irq request bits */
-#define ASLE_SET_ALS_ILLUM     (1 << 0)
-#define ASLE_SET_BACKLIGHT     (1 << 1)
-#define ASLE_SET_PFIT          (1 << 2)
-#define ASLE_SET_PWM_FREQ      (1 << 3)
-#define ASLE_REQ_MSK           0xf
-
-/* response bits of ASLE irq request */
-#define ASLE_ALS_ILLUM_FAILED	(1<<10)
-#define ASLE_BACKLIGHT_FAILED	(1<<12)
-#define ASLE_PFIT_FAILED	(1<<14)
-#define ASLE_PWM_FREQ_FAILED	(1<<16)
+/* ASLE Interrupt Command (ASLC) bits */
+#define ASLC_SET_ALS_ILLUM		(1 << 0)
+#define ASLC_SET_BACKLIGHT		(1 << 1)
+#define ASLC_SET_PFIT			(1 << 2)
+#define ASLC_SET_PWM_FREQ		(1 << 3)
+#define ASLC_SUPPORTED_ROTATION_ANGLES	(1 << 4)
+#define ASLC_BUTTON_ARRAY		(1 << 5)
+#define ASLC_CONVERTIBLE_INDICATOR	(1 << 6)
+#define ASLC_DOCKING_INDICATOR		(1 << 7)
+#define ASLC_ISCT_STATE_CHANGE		(1 << 8)
+#define ASLC_REQ_MSK			0x1ff
+/* response bits */
+#define ASLC_ALS_ILLUM_FAILED		(1 << 10)
+#define ASLC_BACKLIGHT_FAILED		(1 << 12)
+#define ASLC_PFIT_FAILED		(1 << 14)
+#define ASLC_PWM_FREQ_FAILED		(1 << 16)
+#define ASLC_ROTATION_ANGLES_FAILED	(1 << 18)
+#define ASLC_BUTTON_ARRAY_FAILED	(1 << 20)
+#define ASLC_CONVERTIBLE_FAILED		(1 << 22)
+#define ASLC_DOCKING_FAILED		(1 << 24)
+#define ASLC_ISCT_STATE_FAILED		(1 << 26)
 
 /* Technology enabled indicator */
 #define ASLE_TCHE_ALS_EN	(1 << 0)
@@ -153,6 +166,15 @@ struct opregion_asle {
 #define ASLE_PFMB_PWM_VALID (1<<31)
 
 #define ASLE_CBLV_VALID         (1<<31)
+
+/* IUER */
+#define ASLE_IUER_DOCKING		(1 << 7)
+#define ASLE_IUER_CONVERTIBLE		(1 << 6)
+#define ASLE_IUER_ROTATION_LOCK_BTN	(1 << 4)
+#define ASLE_IUER_VOLUME_DOWN_BTN	(1 << 3)
+#define ASLE_IUER_VOLUME_UP_BTN		(1 << 2)
+#define ASLE_IUER_WINDOWS_BTN		(1 << 1)
+#define ASLE_IUER_POWER_BTN		(1 << 0)
 
 /* Software System Control Interrupt (SWSCI) */
 #define SWSCI_SCIC_INDICATOR		(1 << 0)
@@ -377,11 +399,11 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
 
 	if (!(bclp & ASLE_BCLP_VALID))
-		return ASLE_BACKLIGHT_FAILED;
+		return ASLC_BACKLIGHT_FAILED;
 
 	bclp &= ASLE_BCLP_MSK;
 	if (bclp > 255)
-		return ASLE_BACKLIGHT_FAILED;
+		return ASLC_BACKLIGHT_FAILED;
 
 	intel_panel_set_backlight(dev, bclp, 255);
 	iowrite32(DIV_ROUND_UP(bclp * 100, 255) | ASLE_CBLV_VALID, &asle->cblv);
@@ -394,13 +416,13 @@ static u32 asle_set_als_illum(struct drm_device *dev, u32 alsi)
 	/* alsi is the current ALS reading in lux. 0 indicates below sensor
 	   range, 0xffff indicates above sensor range. 1-0xfffe are valid */
 	DRM_DEBUG_DRIVER("Illum is not supported\n");
-	return ASLE_ALS_ILLUM_FAILED;
+	return ASLC_ALS_ILLUM_FAILED;
 }
 
 static u32 asle_set_pwm_freq(struct drm_device *dev, u32 pfmb)
 {
 	DRM_DEBUG_DRIVER("PWM freq is not supported\n");
-	return ASLE_PWM_FREQ_FAILED;
+	return ASLC_PWM_FREQ_FAILED;
 }
 
 static u32 asle_set_pfit(struct drm_device *dev, u32 pfit)
@@ -408,39 +430,106 @@ static u32 asle_set_pfit(struct drm_device *dev, u32 pfit)
 	/* Panel fitting is currently controlled by the X code, so this is a
 	   noop until modesetting support works fully */
 	DRM_DEBUG_DRIVER("Pfit is not supported\n");
-	return ASLE_PFIT_FAILED;
+	return ASLC_PFIT_FAILED;
+}
+
+static u32 asle_set_supported_rotation_angles(struct drm_device *dev, u32 srot)
+{
+	DRM_DEBUG_DRIVER("SROT is not supported\n");
+	return ASLC_ROTATION_ANGLES_FAILED;
+}
+
+static u32 asle_set_button_array(struct drm_device *dev, u32 iuer)
+{
+	if (!iuer)
+		DRM_DEBUG_DRIVER("Button array event is not supported (nothing)\n");
+	if (iuer & ASLE_IUER_ROTATION_LOCK_BTN)
+		DRM_DEBUG_DRIVER("Button array event is not supported (rotation lock)\n");
+	if (iuer & ASLE_IUER_VOLUME_DOWN_BTN)
+		DRM_DEBUG_DRIVER("Button array event is not supported (volume down)\n");
+	if (iuer & ASLE_IUER_VOLUME_UP_BTN)
+		DRM_DEBUG_DRIVER("Button array event is not supported (volume up)\n");
+	if (iuer & ASLE_IUER_WINDOWS_BTN)
+		DRM_DEBUG_DRIVER("Button array event is not supported (windows)\n");
+	if (iuer & ASLE_IUER_POWER_BTN)
+		DRM_DEBUG_DRIVER("Button array event is not supported (power)\n");
+
+	return ASLC_BUTTON_ARRAY_FAILED;
+}
+
+static u32 asle_set_convertible(struct drm_device *dev, u32 iuer)
+{
+	if (iuer & ASLE_IUER_CONVERTIBLE)
+		DRM_DEBUG_DRIVER("Convertible is not supported (clamshell)\n");
+	else
+		DRM_DEBUG_DRIVER("Convertible is not supported (slate)\n");
+
+	return ASLC_CONVERTIBLE_FAILED;
+}
+
+static u32 asle_set_docking(struct drm_device *dev, u32 iuer)
+{
+	if (iuer & ASLE_IUER_DOCKING)
+		DRM_DEBUG_DRIVER("Docking is not supported (docked)\n");
+	else
+		DRM_DEBUG_DRIVER("Docking is not supported (undocked)\n");
+
+	return ASLC_DOCKING_FAILED;
+}
+
+static u32 asle_isct_state(struct drm_device *dev)
+{
+	DRM_DEBUG_DRIVER("ISCT is not supported\n");
+	return ASLC_ISCT_STATE_FAILED;
 }
 
 void intel_opregion_asle_intr(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
-	u32 asle_stat = 0;
-	u32 asle_req;
+	u32 aslc_stat = 0;
+	u32 aslc_req;
 
 	if (!asle)
 		return;
 
-	asle_req = ioread32(&asle->aslc) & ASLE_REQ_MSK;
+	aslc_req = ioread32(&asle->aslc);
 
-	if (!asle_req) {
-		DRM_DEBUG_DRIVER("non asle set request??\n");
+	if (!(aslc_req & ASLC_REQ_MSK)) {
+		DRM_DEBUG_DRIVER("No request on ASLC interrupt 0x%08x\n",
+				 aslc_req);
 		return;
 	}
 
-	if (asle_req & ASLE_SET_ALS_ILLUM)
-		asle_stat |= asle_set_als_illum(dev, ioread32(&asle->alsi));
+	if (aslc_req & ASLC_SET_ALS_ILLUM)
+		aslc_stat |= asle_set_als_illum(dev, ioread32(&asle->alsi));
 
-	if (asle_req & ASLE_SET_BACKLIGHT)
-		asle_stat |= asle_set_backlight(dev, ioread32(&asle->bclp));
+	if (aslc_req & ASLC_SET_BACKLIGHT)
+		aslc_stat |= asle_set_backlight(dev, ioread32(&asle->bclp));
 
-	if (asle_req & ASLE_SET_PFIT)
-		asle_stat |= asle_set_pfit(dev, ioread32(&asle->pfit));
+	if (aslc_req & ASLC_SET_PFIT)
+		aslc_stat |= asle_set_pfit(dev, ioread32(&asle->pfit));
 
-	if (asle_req & ASLE_SET_PWM_FREQ)
-		asle_stat |= asle_set_pwm_freq(dev, ioread32(&asle->pfmb));
+	if (aslc_req & ASLC_SET_PWM_FREQ)
+		aslc_stat |= asle_set_pwm_freq(dev, ioread32(&asle->pfmb));
 
-	iowrite32(asle_stat, &asle->aslc);
+	if (aslc_req & ASLC_SUPPORTED_ROTATION_ANGLES)
+		aslc_stat |= asle_set_supported_rotation_angles(dev,
+							ioread32(&asle->srot));
+
+	if (aslc_req & ASLC_BUTTON_ARRAY)
+		aslc_stat |= asle_set_button_array(dev, ioread32(&asle->iuer));
+
+	if (aslc_req & ASLC_CONVERTIBLE_INDICATOR)
+		aslc_stat |= asle_set_convertible(dev, ioread32(&asle->iuer));
+
+	if (aslc_req & ASLC_DOCKING_INDICATOR)
+		aslc_stat |= asle_set_docking(dev, ioread32(&asle->iuer));
+
+	if (aslc_req & ASLC_ISCT_STATE_CHANGE)
+		aslc_stat |= asle_isct_state(dev);
+
+	iowrite32(aslc_stat, &asle->aslc);
 }
 
 #define ACPI_EV_DISPLAY_SWITCH (1<<0)
