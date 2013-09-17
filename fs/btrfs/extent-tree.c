@@ -4456,7 +4456,6 @@ static void block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 			space_info->bytes_may_use -= num_bytes;
 			trace_btrfs_space_reservation(fs_info, "space_info",
 					space_info->flags, num_bytes, 0);
-			space_info->reservation_progress++;
 			spin_unlock(&space_info->lock);
 		}
 	}
@@ -4657,7 +4656,6 @@ static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
 		sinfo->bytes_may_use -= num_bytes;
 		trace_btrfs_space_reservation(fs_info, "space_info",
 				      sinfo->flags, num_bytes, 0);
-		sinfo->reservation_progress++;
 		block_rsv->reserved = block_rsv->size;
 		block_rsv->full = 1;
 	}
@@ -5437,7 +5435,6 @@ static int btrfs_update_reserved_bytes(struct btrfs_block_group_cache *cache,
 			space_info->bytes_readonly += num_bytes;
 		cache->reserved -= num_bytes;
 		space_info->bytes_reserved -= num_bytes;
-		space_info->reservation_progress++;
 	}
 	spin_unlock(&cache->lock);
 	spin_unlock(&space_info->lock);

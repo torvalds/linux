@@ -1118,15 +1118,6 @@ struct btrfs_space_info {
 	 */
 	struct percpu_counter total_bytes_pinned;
 
-	/*
-	 * we bump reservation progress every time we decrement
-	 * bytes_reserved.  This way people waiting for reservations
-	 * know something good has happened and they can check
-	 * for progress.  The number here isn't to be trusted, it
-	 * just shows reclaim activity
-	 */
-	unsigned long reservation_progress;
-
 	unsigned int full:1;	/* indicates that we cannot allocate any more
 				   chunks for this space */
 	unsigned int chunk_alloc:1;	/* set if we are allocating a chunk */
