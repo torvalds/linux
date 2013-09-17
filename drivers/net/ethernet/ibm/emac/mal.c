@@ -27,6 +27,7 @@
 
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 
 #include "core.h"
 #include <asm/dcr-regs.h>

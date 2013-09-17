@@ -41,6 +41,8 @@
 #include <asm/irq.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #include "i2c-ibm_iic.h"

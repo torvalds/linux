@@ -21,6 +21,8 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/list.h>
 #include <linux/slab.h>

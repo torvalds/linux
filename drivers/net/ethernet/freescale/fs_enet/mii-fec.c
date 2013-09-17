@@ -31,6 +31,7 @@
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include <asm/pgtable.h>

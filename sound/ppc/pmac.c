@@ -28,6 +28,8 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <sound/core.h>
 #include "pmac.h"
 #include <sound/pcm_params.h>

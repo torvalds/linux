@@ -10,8 +10,9 @@
  * registers.
  */
 
-#include <asm/pmac_feature.h>
+#include <linux/of_irq.h>
 #include <linux/interrupt.h>
+#include <asm/pmac_feature.h>
 #include "../aoa.h"
 
 /* TODO: these are lots of global variables

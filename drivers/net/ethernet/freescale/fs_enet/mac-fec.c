@@ -31,7 +31,9 @@
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/gfp.h>
 
 #include <asm/irq.h>

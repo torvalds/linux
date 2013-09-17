@@ -22,6 +22,7 @@
 #include <linux/mii.h>
 #include <linux/platform_device.h>
 #include <linux/mdio-bitbang.h>
+#include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 

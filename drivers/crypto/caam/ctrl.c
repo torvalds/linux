@@ -5,6 +5,9 @@
  * Copyright 2008-2012 Freescale Semiconductor, Inc.
  */
 
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+
 #include "compat.h"
 #include "regs.h"
 #include "intern.h"

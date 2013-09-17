@@ -31,6 +31,8 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/spinlock.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <sysdev/fsl_soc.h>
 #include <linux/fsl-diu-fb.h>

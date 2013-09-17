@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #define DRIVER_NAME		"xilinx_ps2"

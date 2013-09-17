@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/stop_machine.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 #include <asm/machdep.h>
 #include <asm/cell-regs.h>
 
