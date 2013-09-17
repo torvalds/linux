@@ -2927,6 +2927,25 @@ static void wl1271_set_band_rate(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	wlvif->rate_set = wlvif->basic_rate_set;
 }
 
+static void wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				   bool idle)
+{
+	bool cur_idle = !test_bit(WLVIF_FLAG_ACTIVE, &wlvif->flags);
+
+	if (idle == cur_idle)
+		return;
+
+	if (idle) {
+		clear_bit(WLVIF_FLAG_ACTIVE, &wlvif->flags);
+	} else {
+		/* The current firmware only supports sched_scan in idle */
+		if (wl->sched_vif == wlvif)
+			wl->ops->sched_scan_stop(wl, wlvif);
+
+		set_bit(WLVIF_FLAG_ACTIVE, &wlvif->flags);
+	}
+}
+
 static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			     struct ieee80211_conf *conf, u32 changed)
 {
@@ -4178,6 +4197,9 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 
 		do_join = true;
 	}
+
+	if (changed & BSS_CHANGED_IDLE && !is_ibss)
+		wl1271_sta_handle_idle(wl, wlvif, bss_conf->idle);
 
 	if (changed & BSS_CHANGED_CQM) {
 		bool enable = false;
