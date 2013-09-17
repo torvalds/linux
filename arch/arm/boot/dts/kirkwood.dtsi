@@ -35,13 +35,22 @@
 		controller = <&mbusc>;
 		pcie-mem-aperture = <0xe0000000 0x10000000>; /* 256 MiB memory space */
 		pcie-io-aperture  = <0xf2000000 0x100000>;   /*   1 MiB    I/O space */
+
+		crypto@0301 {
+			compatible = "marvell,orion-crypto";
+			reg = <MBUS_ID(0xf0, 0x01) 0x30000 0x10000>,
+			      <MBUS_ID(0x03, 0x01) 0 0x800>;
+			reg-names = "regs", "sram";
+			interrupts = <22>;
+			clocks = <&gate_clk 17>;
+			status = "okay";
+		};
 	};
 
 	ocp@f1000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0xf1000000 0x0100000
-		          0xf4000000 0xf4000000 0x0000400
-		          0xf5000000 0xf5000000 0x0000400>;
+		          0xf4000000 0xf4000000 0x0000400>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -220,16 +229,6 @@
 			clock-frequency = <100000>;
 			clocks = <&gate_clk 7>;
 			status = "disabled";
-		};
-
-		crypto@30000 {
-			compatible = "marvell,orion-crypto";
-			reg = <0x30000 0x10000>,
-			      <0xf5000000 0x800>;
-			reg-names = "regs", "sram";
-			interrupts = <22>;
-			clocks = <&gate_clk 17>;
-			status = "okay";
 		};
 
 		mdio: mdio-bus@72004 {
