@@ -623,6 +623,18 @@ static const int wl18xx_rtable[REG_TABLE_LEN] = {
 	[REG_RAW_FW_STATUS_ADDR]	= WL18XX_FW_STATUS_ADDR,
 };
 
+static const struct wl18xx_clk_cfg wl18xx_clk_table_coex[NUM_CLOCK_CONFIGS] = {
+	[CLOCK_CONFIG_16_2_M]	= { 8,  121, 0, 0, false },
+	[CLOCK_CONFIG_16_368_M]	= { 8,  120, 0, 0, false },
+	[CLOCK_CONFIG_16_8_M]	= { 8,  117, 0, 0, false },
+	[CLOCK_CONFIG_19_2_M]	= { 10, 128, 0, 0, false },
+	[CLOCK_CONFIG_26_M]	= { 11, 104, 0, 0, false },
+	[CLOCK_CONFIG_32_736_M]	= { 8,  120, 0, 0, false },
+	[CLOCK_CONFIG_33_6_M]	= { 8,  117, 0, 0, false },
+	[CLOCK_CONFIG_38_468_M]	= { 10, 128, 0, 0, false },
+	[CLOCK_CONFIG_52_M]	= { 11, 104, 0, 0, false },
+};
+
 static const struct wl18xx_clk_cfg wl18xx_clk_table[NUM_CLOCK_CONFIGS] = {
 	[CLOCK_CONFIG_16_2_M]	= { 7,  104,  801, 4,  true },
 	[CLOCK_CONFIG_16_368_M]	= { 9,  132, 3751, 4,  true },
@@ -704,6 +716,23 @@ static int wl18xx_set_clk(struct wl1271 *wl)
 		     wl18xx_clk_table[clk_freq].p, wl18xx_clk_table[clk_freq].q,
 		     wl18xx_clk_table[clk_freq].swallow ? "swallow" : "spit");
 
+	/* coex PLL configuration */
+	ret = wl18xx_top_reg_write(wl, PLLSH_COEX_PLL_N,
+				   wl18xx_clk_table_coex[clk_freq].n);
+	if (ret < 0)
+		goto out;
+
+	ret = wl18xx_top_reg_write(wl, PLLSH_COEX_PLL_M,
+				   wl18xx_clk_table_coex[clk_freq].m);
+	if (ret < 0)
+		goto out;
+
+	/* bypass the swallowing logic */
+	ret = wl18xx_top_reg_write(wl, PLLSH_COEX_PLL_SWALLOW_EN,
+				   PLLSH_COEX_PLL_SWALLOW_EN_VAL1);
+	if (ret < 0)
+		goto out;
+
 	ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_N,
 				   wl18xx_clk_table[clk_freq].n);
 	if (ret < 0)
@@ -744,6 +773,30 @@ static int wl18xx_set_clk(struct wl1271 *wl)
 		ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_SWALLOW_EN,
 					   PLLSH_WCS_PLL_SWALLOW_EN_VAL2);
 	}
+
+	/* choose WCS PLL */
+	ret = wl18xx_top_reg_write(wl, PLLSH_WL_PLL_SEL,
+				   PLLSH_WL_PLL_SEL_WCS_PLL);
+	if (ret < 0)
+		goto out;
+
+	/* enable both PLLs */
+	ret = wl18xx_top_reg_write(wl, PLLSH_WL_PLL_EN, PLLSH_WL_PLL_EN_VAL1);
+	if (ret < 0)
+		goto out;
+
+	udelay(1000);
+
+	/* disable coex PLL */
+	ret = wl18xx_top_reg_write(wl, PLLSH_WL_PLL_EN, PLLSH_WL_PLL_EN_VAL2);
+	if (ret < 0)
+		goto out;
+
+	/* reset the swallowing logic */
+	ret = wl18xx_top_reg_write(wl, PLLSH_COEX_PLL_SWALLOW_EN,
+				   PLLSH_COEX_PLL_SWALLOW_EN_VAL2);
+	if (ret < 0)
+		goto out;
 
 out:
 	return ret;
