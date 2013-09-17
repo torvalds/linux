@@ -636,7 +636,6 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	struct snd_soc_dai_driver *dai;
 	int    ret;
 
-	spin_lock_init(&i2s->spinlock_wr);
 #if defined(CONFIG_SND_I2S_USE_18V)	
 	writel_relaxed(0x2000200,RK30_GRF_BASE + GRF_IO_CON4);//bit9: 1,1.8v;0,3.3v
 #elif defined(CONFIG_SND_I2S_USE_33V)
@@ -765,6 +764,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto err_i2sv2;
 
+	spin_lock_init(&i2s->spinlock_wr);
 	return 0;
 
 err_i2sv2:
