@@ -381,6 +381,15 @@ static int ci_get_platdata(struct device *dev,
 		return PTR_ERR(platdata->reg_vbus);
 	}
 
+	if (!platdata->phy_mode)
+		platdata->phy_mode = of_usb_get_phy_mode(dev->of_node);
+
+	if (!platdata->dr_mode)
+		platdata->dr_mode = of_usb_get_dr_mode(dev->of_node);
+
+	if (platdata->dr_mode == USB_DR_MODE_UNKNOWN)
+		platdata->dr_mode = USB_DR_MODE_OTG;
+
 	return 0;
 }
 
@@ -473,7 +482,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	void __iomem	*base;
 	int		ret;
 	enum usb_dr_mode dr_mode;
-	struct device_node *of_node = dev->of_node ?: dev->parent->of_node;
 
 	if (!dev->platform_data) {
 		dev_err(dev, "platform data missing\n");
@@ -514,16 +522,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	ci_get_otg_capable(ci);
 
-	if (!ci->platdata->phy_mode)
-		ci->platdata->phy_mode = of_usb_get_phy_mode(of_node);
-
 	hw_phymode_configure(ci);
-
-	if (!ci->platdata->dr_mode)
-		ci->platdata->dr_mode = of_usb_get_dr_mode(of_node);
-
-	if (ci->platdata->dr_mode == USB_DR_MODE_UNKNOWN)
-		ci->platdata->dr_mode = USB_DR_MODE_OTG;
 
 	dr_mode = ci->platdata->dr_mode;
 	/* initialize role(s) before the interrupt is requested */
