@@ -3087,8 +3087,8 @@ void pm8001_mpi_set_dev_state_resp(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_device *pm8001_dev = ccb->device;
 	u32 status = le32_to_cpu(pPayload->status);
 	u32 device_id = le32_to_cpu(pPayload->device_id);
-	u8 pds = le32_to_cpu(pPayload->pds_nds) | PDS_BITS;
-	u8 nds = le32_to_cpu(pPayload->pds_nds) | NDS_BITS;
+	u8 pds = le32_to_cpu(pPayload->pds_nds) & PDS_BITS;
+	u8 nds = le32_to_cpu(pPayload->pds_nds) & NDS_BITS;
 	PM8001_MSG_DBG(pm8001_ha, pm8001_printk("Set device id = 0x%x state "
 		"from 0x%x to 0x%x status = 0x%x!\n",
 		device_id, pds, nds, status));
@@ -4700,6 +4700,8 @@ int pm8001_chip_ssp_tm_req(struct pm8001_hba_info *pm8001_ha,
 	sspTMCmd.tmf = cpu_to_le32(tmf->tmf);
 	memcpy(sspTMCmd.lun, task->ssp_task.LUN, 8);
 	sspTMCmd.tag = cpu_to_le32(ccb->ccb_tag);
+	if (pm8001_ha->chip_id != chip_8001)
+		sspTMCmd.ds_ads_m = 0x08;
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &sspTMCmd, 0);
 	return ret;
