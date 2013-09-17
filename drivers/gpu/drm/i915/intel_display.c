@@ -7070,7 +7070,8 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	intel_crtc->cursor_width = width;
 	intel_crtc->cursor_height = height;
 
-	intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
+	if (intel_crtc->active)
+		intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
 
 	return 0;
 fail_unpin:
@@ -7089,7 +7090,8 @@ static int intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	intel_crtc->cursor_x = x;
 	intel_crtc->cursor_y = y;
 
-	intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
+	if (intel_crtc->active)
+		intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
 
 	return 0;
 }
