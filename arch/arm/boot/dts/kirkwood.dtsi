@@ -45,12 +45,25 @@
 			clocks = <&gate_clk 17>;
 			status = "okay";
 		};
+
+		nand: nand@012f {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			cle = <0>;
+			ale = <1>;
+			bank-width = <1>;
+			compatible = "marvell,orion-nand";
+			reg = <MBUS_ID(0x01, 0x2f) 0 0x400>;
+			chip-delay = <25>;
+			/* set partition map and/or chip-delay in board dts */
+			clocks = <&gate_clk 7>;
+			status = "disabled";
+		};
 	};
 
 	ocp@f1000000 {
 		compatible = "simple-bus";
-		ranges = <0x00000000 0xf1000000 0x0100000
-		          0xf4000000 0xf4000000 0x0000400>;
+		ranges = <0x00000000 0xf1000000 0x0100000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -204,20 +217,6 @@
 			interrupts = <19>;
 			clocks = <&gate_clk 3>;
 			status = "okay";
-		};
-
-		nand@3000000 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			cle = <0>;
-			ale = <1>;
-			bank-width = <1>;
-			compatible = "marvell,orion-nand";
-			reg = <0xf4000000 0x400>;
-			chip-delay = <25>;
-			/* set partition map and/or chip-delay in board dts */
-			clocks = <&gate_clk 7>;
-			status = "disabled";
 		};
 
 		i2c@11000 {

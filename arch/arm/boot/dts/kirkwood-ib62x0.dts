@@ -51,28 +51,6 @@
 			status = "okay";
 			nr-ports = <2>;
 		};
-
-		nand@3000000 {
-			status = "okay";
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x0100000 0x600000>;
-			};
-
-			partition@700000 {
-				label = "root";
-				reg = <0x0700000 0xf900000>;
-			};
-
-		};
 	};
 
 	gpio_keys {
@@ -120,6 +98,28 @@
 		gpios = <&gpio0 24 0>;
 	};
 
+
+};
+
+&nand {
+	status = "okay";
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x600000>;
+	};
+
+	partition@700000 {
+		label = "root";
+		reg = <0x0700000 0xf900000>;
+	};
 
 };
 

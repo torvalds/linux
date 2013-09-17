@@ -90,37 +90,6 @@
 			pinctrl-names = "default";
 		};
 
-		nand@3000000 {
-			status = "okay";
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x180000>;
-			};
-
-			partition@180000 {
-				label = "u-boot env";
-				reg = <0x0180000 0x20000>;
-			};
-
-			partition@200000 {
-				label = "uImage";
-				reg = <0x0200000 0x600000>;
-			};
-
-			partition@800000 {
-				label = "uInitrd";
-				reg = <0x0800000 0x1000000>;
-			};
-
-			partition@1800000 {
-				label = "rootfs";
-				reg = <0x1800000 0xe800000>;
-			};
-		};
-
 		sata@80000 {
 			status = "okay";
 			nr-ports = <1>;
@@ -201,6 +170,37 @@
 			regulator-boot-on;
 			gpio = <&gpio1 4 0>;
 		};
+	};
+};
+
+&nand {
+	status = "okay";
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x180000>;
+	};
+
+	partition@180000 {
+		label = "u-boot env";
+		reg = <0x0180000 0x20000>;
+	};
+
+	partition@200000 {
+		label = "uImage";
+		reg = <0x0200000 0x600000>;
+	};
+
+	partition@800000 {
+		label = "uInitrd";
+		reg = <0x0800000 0x1000000>;
+	};
+
+	partition@1800000 {
+		label = "rootfs";
+		reg = <0x1800000 0xe800000>;
 	};
 };
 
