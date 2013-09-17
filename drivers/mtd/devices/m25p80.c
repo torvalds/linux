@@ -168,12 +168,25 @@ static inline int write_disable(struct m25p *flash)
  */
 static inline int set_4byte(struct m25p *flash, u32 jedec_id, int enable)
 {
+	int status;
+	bool need_wren = false;
+
 	switch (JEDEC_MFR(jedec_id)) {
-	case CFI_MFR_MACRONIX:
 	case CFI_MFR_ST: /* Micron, actually */
+		/* Some Micron need WREN command; all will accept it */
+		need_wren = true;
+	case CFI_MFR_MACRONIX:
 	case 0xEF /* winbond */:
+		if (need_wren)
+			write_enable(flash);
+
 		flash->command[0] = enable ? OPCODE_EN4B : OPCODE_EX4B;
-		return spi_write(flash->spi, flash->command, 1);
+		status = spi_write(flash->spi, flash->command, 1);
+
+		if (need_wren)
+			write_disable(flash);
+
+		return status;
 	default:
 		/* Spansion style */
 		flash->command[0] = OPCODE_BRWR;
