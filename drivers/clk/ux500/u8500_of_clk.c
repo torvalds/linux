@@ -60,7 +60,7 @@ void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 	struct device_node *np = NULL;
 	struct device_node *child = NULL;
 	const char *sgaclk_parent = NULL;
-	struct clk *clk;
+	struct clk *clk, *rtc_clk;
 
 	if (of_have_populated_dt())
 		np = of_find_matching_node(NULL, u8500_clk_of_match);
@@ -84,7 +84,7 @@ void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 
 	/* FIXME: Add sys, ulp and int clocks here. */
 
-	clk = clk_register_fixed_rate(NULL, "rtc32k", "NULL",
+	rtc_clk = clk_register_fixed_rate(NULL, "rtc32k", "NULL",
 				CLK_IS_ROOT|CLK_IGNORE_UNUSED,
 				32768);
 
@@ -548,5 +548,8 @@ void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 
 		if (!of_node_cmp(child->name, "prcc-kernel-clock"))
 			of_clk_add_provider(child, ux500_twocell_get, prcc_kclk);
+
+		if (!of_node_cmp(child->name, "rtc32k-clock"))
+			of_clk_add_provider(child, of_clk_src_simple_get, rtc_clk);
 	}
 }
