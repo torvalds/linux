@@ -62,6 +62,7 @@ struct dp_stats_percpu {
  * ovs_mutex and RCU.
  * @stats_percpu: Per-CPU datapath statistics.
  * @net: Reference to net namespace.
+ * @last_rehash: Timestamp of last rehash.
  *
  * Context: See the comment on locking at the top of datapath.c for additional
  * locking information.
@@ -83,6 +84,7 @@ struct datapath {
 	/* Network namespace ref. */
 	struct net *net;
 #endif
+	unsigned long last_rehash;
 };
 
 /**

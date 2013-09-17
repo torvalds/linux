@@ -60,8 +60,6 @@
 
 
 #define REHASH_FLOW_INTERVAL (10 * 60 * HZ)
-static void rehash_flow_table(struct work_struct *work);
-static DECLARE_DELAYED_WORK(rehash_flow_wq, rehash_flow_table);
 
 int ovs_net_id __read_mostly;
 
@@ -1289,22 +1287,25 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 	/* Check if this is a duplicate flow */
 	flow = ovs_flow_lookup(table, &key);
 	if (!flow) {
+		struct flow_table *new_table = NULL;
 		struct sw_flow_mask *mask_p;
+
 		/* Bail out if we're not allowed to create a new flow. */
 		error = -ENOENT;
 		if (info->genlhdr->cmd == OVS_FLOW_CMD_SET)
 			goto err_unlock_ovs;
 
 		/* Expand table, if necessary, to make room. */
-		if (ovs_flow_tbl_need_to_expand(table)) {
-			struct flow_table *new_table;
-
+		if (ovs_flow_tbl_need_to_expand(table))
 			new_table = ovs_flow_tbl_expand(table);
-			if (!IS_ERR(new_table)) {
-				rcu_assign_pointer(dp->table, new_table);
-				ovs_flow_tbl_destroy(table, true);
-				table = ovsl_dereference(dp->table);
-			}
+		else if (time_after(jiffies, dp->last_rehash + REHASH_FLOW_INTERVAL))
+			new_table = ovs_flow_tbl_rehash(table);
+
+		if (new_table && !IS_ERR(new_table)) {
+			rcu_assign_pointer(dp->table, new_table);
+			ovs_flow_tbl_destroy(table, true);
+			table = ovsl_dereference(dp->table);
+			dp->last_rehash = jiffies;
 		}
 
 		/* Allocate flow. */
@@ -2336,32 +2337,6 @@ error:
 	return err;
 }
 
-static void rehash_flow_table(struct work_struct *work)
-{
-	struct datapath *dp;
-	struct net *net;
-
-	ovs_lock();
-	rtnl_lock();
-	for_each_net(net) {
-		struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
-
-		list_for_each_entry(dp, &ovs_net->dps, list_node) {
-			struct flow_table *old_table = ovsl_dereference(dp->table);
-			struct flow_table *new_table;
-
-			new_table = ovs_flow_tbl_rehash(old_table);
-			if (!IS_ERR(new_table)) {
-				rcu_assign_pointer(dp->table, new_table);
-				ovs_flow_tbl_destroy(old_table, true);
-			}
-		}
-	}
-	rtnl_unlock();
-	ovs_unlock();
-	schedule_delayed_work(&rehash_flow_wq, REHASH_FLOW_INTERVAL);
-}
-
 static int __net_init ovs_init_net(struct net *net)
 {
 	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
@@ -2419,8 +2394,6 @@ static int __init dp_init(void)
 	if (err < 0)
 		goto error_unreg_notifier;
 
-	schedule_delayed_work(&rehash_flow_wq, REHASH_FLOW_INTERVAL);
-
 	return 0;
 
 error_unreg_notifier:
@@ -2437,7 +2410,6 @@ error:
 
 static void dp_cleanup(void)
 {
-	cancel_delayed_work_sync(&rehash_flow_wq);
 	dp_unregister_genl(ARRAY_SIZE(dp_genl_families));
 	unregister_netdevice_notifier(&ovs_dp_device_notifier);
 	unregister_pernet_device(&ovs_net_ops);
