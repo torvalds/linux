@@ -36,7 +36,7 @@
 #define INFO(format, args...) printk(KERN_INFO "%s: " format, "G2D", ## args)
 
 #define MAX_G2D_MEM_INDEX	1000
-#define	INTC_IRQNO_DE_MIX	46
+#define	INTC_IRQNO_DE_MIX	SW_INT_IRQNO_MP
 
 struct info_mem
 {
