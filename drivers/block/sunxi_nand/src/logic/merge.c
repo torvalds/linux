@@ -120,10 +120,12 @@ __s32  _log2data_swap_merge(__u32 nlogical)
             return NAND_OP_FALSE;
         }
     }
-    /*move erased data block to free block*/
-    if (DataBlk.BlkEraseCnt < 0xffff)
-        DataBlk.BlkEraseCnt ++;
-    BMM_SetFreeBlk(&DataBlk);
+	else {
+		/*move erased data block to free block*/
+		if (DataBlk.BlkEraseCnt < 0xffff)
+			DataBlk.BlkEraseCnt ++;
+		BMM_SetFreeBlk(&DataBlk);
+	}
 
     /*clear page map table*/
     PMM_ClearCurMapTbl();
@@ -304,12 +306,14 @@ __s32  _free2log_move_merge(__u32 nlogical)
             return NAND_OP_FALSE;
         }
     }
-    /*move erased log block to free block*/
-    if(LogBlk.PhyBlk.BlkEraseCnt < 0xffff)
-    {
-        LogBlk.PhyBlk.BlkEraseCnt ++;
+	else {
+		/*move erased log block to free block*/
+		if(LogBlk.PhyBlk.BlkEraseCnt < 0xffff)
+		{
+			LogBlk.PhyBlk.BlkEraseCnt ++;
+		}
+		BMM_SetFreeBlk(&LogBlk.PhyBlk);
     }
-    BMM_SetFreeBlk(&LogBlk.PhyBlk);
 
     /*move free block to log block*/
     LogBlk.PhyBlk = FreeBlk;
@@ -403,10 +407,12 @@ __s32  _free2data_simple_merge(__u32 nlogical)
             return NAND_OP_FALSE;
         }
     }
-    /*move erased data block to free block*/
-    if (DataBlk.BlkEraseCnt < 0xffff)
-        DataBlk.BlkEraseCnt ++;
-    BMM_SetFreeBlk(&DataBlk);
+	else {
+		/*move erased data block to free block*/
+		if (DataBlk.BlkEraseCnt < 0xffff)
+			DataBlk.BlkEraseCnt ++;
+		BMM_SetFreeBlk(&DataBlk);
+	}
 
 
     /*move erased log block to free block*/
@@ -416,9 +422,11 @@ __s32  _free2data_simple_merge(__u32 nlogical)
             return NAND_OP_FALSE;
         }
     }
-    if (LogBlk.PhyBlk.BlkEraseCnt < 0xffff)
-        LogBlk.PhyBlk.BlkEraseCnt ++;
-    BMM_SetFreeBlk(&LogBlk.PhyBlk);
+	else {
+		if (LogBlk.PhyBlk.BlkEraseCnt < 0xffff)
+			LogBlk.PhyBlk.BlkEraseCnt ++;
+		BMM_SetFreeBlk(&LogBlk.PhyBlk);
+	}
     MEMSET(&LogBlk, 0xff, sizeof(struct __LogBlkType_t));
     BMM_SetLogBlk(nlogical, &LogBlk);
 
