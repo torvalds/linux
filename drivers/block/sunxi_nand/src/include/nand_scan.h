@@ -38,6 +38,7 @@
 #define INTEL_NAND              0x89                //Intel nand flash manufacture number
 #define SPANSION_NAND           0x01                //spansion nand flash manufacture number
 #define POWER_NAND              0x92                //power nand flash manufacture number
+#define SANDISK                 0x45                //sandisk nand flash manufacture number
 
 //==============================================================================
 //  define the function __s32erface for nand storage scan module
