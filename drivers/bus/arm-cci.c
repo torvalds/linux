@@ -26,6 +26,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/irq_regs.h>
+#include <asm/psci.h>
 #include <asm/pmu.h>
 #include <asm/smp_plat.h>
 
@@ -968,6 +969,11 @@ static int cci_probe(void)
 	struct resource res;
 	const char *match_str;
 	bool is_ace;
+
+	if (psci_probe() == 0) {
+		pr_debug("psci found. Aborting cci probe\n");
+		return -ENODEV;
+	}
 
 	np = of_find_matching_node(NULL, arm_cci_matches);
 	if (!np)
