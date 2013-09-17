@@ -151,6 +151,18 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long *addr = __bitops_word(nr, ptr);
 	unsigned long mask;
 
+#ifdef CONFIG_HAVE_MARCH_ZEC12_FEATURES
+	if (__builtin_constant_p(nr)) {
+		unsigned char *caddr = __bitops_byte(nr, ptr);
+
+		asm volatile(
+			"oi	%0,%b1\n"
+			: "+Q" (*caddr)
+			: "i" (1 << (nr & 7))
+			: "cc");
+		return;
+	}
+#endif
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	__BITOPS_LOOP(addr, mask, __BITOPS_OR);
 }
@@ -160,6 +172,18 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long *addr = __bitops_word(nr, ptr);
 	unsigned long mask;
 
+#ifdef CONFIG_HAVE_MARCH_ZEC12_FEATURES
+	if (__builtin_constant_p(nr)) {
+		unsigned char *caddr = __bitops_byte(nr, ptr);
+
+		asm volatile(
+			"ni	%0,%b1\n"
+			: "+Q" (*caddr)
+			: "i" (~(1 << (nr & 7)))
+			: "cc");
+		return;
+	}
+#endif
 	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
 	__BITOPS_LOOP(addr, mask, __BITOPS_AND);
 }
@@ -169,6 +193,18 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long *addr = __bitops_word(nr, ptr);
 	unsigned long mask;
 
+#ifdef CONFIG_HAVE_MARCH_ZEC12_FEATURES
+	if (__builtin_constant_p(nr)) {
+		unsigned char *caddr = __bitops_byte(nr, ptr);
+
+		asm volatile(
+			"xi	%0,%b1\n"
+			: "+Q" (*caddr)
+			: "i" (1 << (nr & 7))
+			: "cc");
+		return;
+	}
+#endif
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	__BITOPS_LOOP(addr, mask, __BITOPS_XOR);
 }
