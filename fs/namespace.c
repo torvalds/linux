@@ -1849,14 +1849,10 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		br_write_lock(&vfsmount_lock);
 		mnt_flags |= mnt->mnt.mnt_flags & MNT_PROPAGATION_MASK;
 		mnt->mnt.mnt_flags = mnt_flags;
-		br_write_unlock(&vfsmount_lock);
-	}
-	up_write(&sb->s_umount);
-	if (!err) {
-		br_write_lock(&vfsmount_lock);
 		touch_mnt_namespace(mnt->mnt_ns);
 		br_write_unlock(&vfsmount_lock);
 	}
+	up_write(&sb->s_umount);
 	return err;
 }
 
