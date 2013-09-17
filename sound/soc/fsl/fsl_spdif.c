@@ -1172,23 +1172,16 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	/* Register with ASoC */
 	dev_set_drvdata(&pdev->dev, spdif_priv);
 
-	ret = snd_soc_register_component(&pdev->dev, &fsl_spdif_component,
-					 &spdif_priv->cpu_dai_drv, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev, &fsl_spdif_component,
+					      &spdif_priv->cpu_dai_drv, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DAI: %d\n", ret);
 		return ret;
 	}
 
 	ret = imx_pcm_dma_init(pdev);
-	if (ret) {
+	if (ret)
 		dev_err(&pdev->dev, "imx_pcm_dma_init failed: %d\n", ret);
-		goto error_component;
-	}
-
-	return ret;
-
-error_component:
-	snd_soc_unregister_component(&pdev->dev);
 
 	return ret;
 }
@@ -1196,7 +1189,6 @@ error_component:
 static int fsl_spdif_remove(struct platform_device *pdev)
 {
 	imx_pcm_dma_exit(pdev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }
