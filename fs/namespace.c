@@ -2802,11 +2802,7 @@ void put_mnt_ns(struct mnt_namespace *ns)
 {
 	if (!atomic_dec_and_test(&ns->count))
 		return;
-	namespace_lock();
-	br_write_lock(&vfsmount_lock);
-	umount_tree(ns->root, 0);
-	br_write_unlock(&vfsmount_lock);
-	namespace_unlock();
+	drop_collected_mounts(&ns->root->mnt);
 	free_mnt_ns(ns);
 }
 
