@@ -317,6 +317,9 @@ typedef struct dhd_pub {
 #ifdef PNO_SUPPORT
 	void *pno_state;
 #endif
+#ifdef ROAM_AP_ENV_DETECTION
+	bool	roam_env_detection;
+#endif
 	bool	dongle_isolation;
 	bool	dongle_trap_occured;	/* flag for sending HANG event to upper layer */
 	int   hang_was_sent;
