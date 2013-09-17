@@ -967,6 +967,7 @@ pm80xx_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 regval;
 	u32 bootloader_state;
+	u32 ibutton0, ibutton1;
 
 	/* Check if MPI is in ready state to reset */
 	if (mpi_uninit_check(pm8001_ha) != 0) {
@@ -1025,7 +1026,27 @@ pm80xx_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 	if (-1 == check_fw_ready(pm8001_ha)) {
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("Firmware is not ready!\n"));
-		return -EBUSY;
+		/* check iButton feature support for motherboard controller */
+		if (pm8001_ha->pdev->subsystem_vendor !=
+			PCI_VENDOR_ID_ADAPTEC2 &&
+			pm8001_ha->pdev->subsystem_vendor != 0) {
+			ibutton0 = pm8001_cr32(pm8001_ha, 0,
+					MSGU_HOST_SCRATCH_PAD_6);
+			ibutton1 = pm8001_cr32(pm8001_ha, 0,
+					MSGU_HOST_SCRATCH_PAD_7);
+			if (!ibutton0 && !ibutton1) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("iButton Feature is"
+					" not Available!!!\n"));
+				return -EBUSY;
+			}
+			if (ibutton0 == 0xdeadbeef && ibutton1 == 0xdeadbeef) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("CRC Check for iButton"
+					" Feature Failed!!!\n"));
+				return -EBUSY;
+			}
+		}
 	}
 	PM8001_INIT_DBG(pm8001_ha,
 		pm8001_printk("SPCv soft reset Complete\n"));
