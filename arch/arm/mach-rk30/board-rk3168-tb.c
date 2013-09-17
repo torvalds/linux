@@ -1630,6 +1630,13 @@ static struct i2c_board_info __initdata i2c0_info[] = {
         },
 #endif
 
+#if defined (CONFIG_SND_SOC_CX2070X)
+        {
+                .type                   = "cx2070x",
+                .addr                   = 0x14,
+                .flags                  = 0,
+        },
+#endif
 
 #if defined (CONFIG_SND_SOC_RT5640) 
 	    {

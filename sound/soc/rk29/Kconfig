@@ -136,7 +136,15 @@ config SND_RK29_SOC_RT5512
 	select SND_SOC_RT5512
 	select SND_RK29_SOC_I2S
 	help
-		Say Y if you want to add support for SoC audio on the ODROID.
+	  Say Y if you want to add support for SoC audio on the rockchip.
+
+config SND_RK29_SOC_CX2070X
+	tristate "SoC I2S Audio support for rockchip - CX2070X"
+	depends on SND_RK29_SOC
+	select SND_SOC_CX2070X
+	select SND_RK29_SOC_I2S
+	help
+	  Say Y if you want to add support for SoC audio on the rockchip.
 
 config SND_RK29_SOC_RT5621
 	tristate "SoC I2S Audio support for rockchip - rt5621"

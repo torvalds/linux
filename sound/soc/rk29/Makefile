@@ -37,6 +37,7 @@ snd-soc-rk3026-objs := rk_rk3026.o
 snd-soc-hdmi-i2s-objs := rk_hdmi_i2s.o
 snd-soc-hdmi-spdif-objs := rk_hdmi_spdif.o
 snd-soc-rt5512-objs := rk29_rt5512.o
+snd-soc-cx2070x-objs := rk29_cx2070x.o
 
 obj-$(CONFIG_SND_RK29_SOC_WM8994) += snd-soc-wm8994.o
 obj-$(CONFIG_SND_RK29_SOC_WM8988) += snd-soc-wm8988.o
@@ -63,3 +64,4 @@ obj-$(CONFIG_SND_RK_SOC_RK2928) += snd-soc-rk2928.o
 obj-$(CONFIG_SND_RK29_SOC_ES8323) += snd-soc-es8323.o
 obj-$(CONFIG_SND_RK_SOC_RK3026) += snd-soc-rk3026.o
 obj-$(CONFIG_SND_RK29_SOC_RT5512) += snd-soc-rt5512.o
+obj-$(CONFIG_SND_RK29_SOC_CX2070X) += snd-soc-cx2070x.o
