@@ -436,6 +436,12 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		goto out;
 	}
 
+	/* Only 5 data registers! */
+	if (WARN_ON(send_bytes > 20 || recv_size > 20)) {
+		ret = -E2BIG;
+		goto out;
+	}
+
 	while ((aux_clock_divider = get_aux_clock_divider(intel_dp, clock++))) {
 		/* Must try at least 3 times according to DP spec */
 		for (try = 0; try < 5; try++) {
@@ -526,9 +532,10 @@ intel_dp_aux_native_write(struct intel_dp *intel_dp,
 	int msg_bytes;
 	uint8_t	ack;
 
+	if (WARN_ON(send_bytes > 16))
+		return -E2BIG;
+
 	intel_dp_check_edp(intel_dp);
-	if (send_bytes > 16)
-		return -1;
 	msg[0] = AUX_NATIVE_WRITE << 4;
 	msg[1] = address >> 8;
 	msg[2] = address & 0xff;
@@ -568,6 +575,9 @@ intel_dp_aux_native_read(struct intel_dp *intel_dp,
 	int reply_bytes;
 	uint8_t ack;
 	int ret;
+
+	if (WARN_ON(recv_bytes > 19))
+		return -E2BIG;
 
 	intel_dp_check_edp(intel_dp);
 	msg[0] = AUX_NATIVE_READ << 4;
