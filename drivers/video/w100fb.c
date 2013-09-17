@@ -680,7 +680,7 @@ int w100fb_probe(struct platform_device *pdev)
 	par = info->par;
 	platform_set_drvdata(pdev, info);
 
-	inf = pdev->dev.platform_data;
+	inf = dev_get_platdata(&pdev->dev);
 	par->chip_id = chip_id;
 	par->mach = inf;
 	par->fastpll_mode = 0;
