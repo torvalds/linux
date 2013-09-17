@@ -544,7 +544,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 
 static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 {
-	struct clcd_board *board = dev->dev.platform_data;
+	struct clcd_board *board = dev_get_platdata(&dev->dev);
 	struct clcd_fb *fb;
 	int ret;
 
