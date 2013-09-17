@@ -307,6 +307,7 @@ enum plt_mode {
 	PLT_OFF = 0,
 	PLT_ON = 1,
 	PLT_FEM_DETECT = 2,
+	PLT_CHIP_AWAKE = 3
 };
 
 struct wl12xx_rx_filter_field {
