@@ -274,6 +274,32 @@ static int gfs2_rbm_from_block(struct gfs2_rbm *rbm, u64 block)
 }
 
 /**
+ * gfs2_rbm_incr - increment an rbm structure
+ * @rbm: The rbm with rgd already set correctly
+ *
+ * This function takes an existing rbm structure and increments it to the next
+ * viable block offset.
+ *
+ * Returns: If incrementing the offset would cause the rbm to go past the
+ *          end of the rgrp, true is returned, otherwise false.
+ *
+ */
+
+static bool gfs2_rbm_incr(struct gfs2_rbm *rbm)
+{
+	if (rbm->offset + 1 < rbm_bi(rbm)->bi_blocks) { /* in the same bitmap */
+		rbm->offset++;
+		return false;
+	}
+	if (rbm->bii == rbm->rgd->rd_length - 1) /* at the last bitmap */
+		return true;
+
+	rbm->offset = 0;
+	rbm->bii++;
+	return false;
+}
+
+/**
  * gfs2_unaligned_extlen - Look for free blocks which are not byte aligned
  * @rbm: Position to search (value/result)
  * @n_unaligned: Number of unaligned blocks to check
@@ -284,7 +310,6 @@ static int gfs2_rbm_from_block(struct gfs2_rbm *rbm, u64 block)
 
 static bool gfs2_unaligned_extlen(struct gfs2_rbm *rbm, u32 n_unaligned, u32 *len)
 {
-	u64 block;
 	u32 n;
 	u8 res;
 
@@ -295,8 +320,7 @@ static bool gfs2_unaligned_extlen(struct gfs2_rbm *rbm, u32 n_unaligned, u32 *le
 		(*len)--;
 		if (*len == 0)
 			return true;
-		block = gfs2_rbm_to_block(rbm);
-		if (gfs2_rbm_from_block(rbm, block + 1))
+		if (gfs2_rbm_incr(rbm))
 			return true;
 	}
 
