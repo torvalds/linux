@@ -8,6 +8,10 @@ Required properties:
 
 - reg : SRAM iomem address range
 
+Optional properties:
+
+- map-exec: Map range to allow code execution
+
 Example:
 
 sram: sram@5c000000 {
