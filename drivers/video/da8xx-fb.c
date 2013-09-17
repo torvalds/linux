@@ -1314,7 +1314,7 @@ static struct fb_ops da8xx_fb_ops = {
 
 static struct fb_videomode *da8xx_fb_get_videomode(struct platform_device *dev)
 {
-	struct da8xx_lcdc_platform_data *fb_pdata = dev->dev.platform_data;
+	struct da8xx_lcdc_platform_data *fb_pdata = dev_get_platdata(&dev->dev);
 	struct fb_videomode *lcdc_info;
 	int i;
 
@@ -1336,7 +1336,7 @@ static struct fb_videomode *da8xx_fb_get_videomode(struct platform_device *dev)
 static int fb_probe(struct platform_device *device)
 {
 	struct da8xx_lcdc_platform_data *fb_pdata =
-						device->dev.platform_data;
+						dev_get_platdata(&device->dev);
 	static struct resource *lcdc_regs;
 	struct lcd_ctrl_config *lcd_cfg;
 	struct fb_videomode *lcdc_info;
