@@ -83,6 +83,10 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 	struct wl12xx_vif *wlvif;
 	u32 timeout;
 
+	/* We do not enter elp sleep in PLT mode */
+	if (wl->plt)
+		return;
+
 	if (wl->sleep_auth != WL1271_PSM_ELP)
 		return;
 
