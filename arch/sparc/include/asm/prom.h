@@ -43,10 +43,6 @@ extern int of_getintprop_default(struct device_node *np,
 				 const char *name,
 				 int def);
 extern int of_find_in_proplist(const char *list, const char *match, int len);
-#ifdef CONFIG_NUMA
-extern int of_node_to_nid(struct device_node *dp);
-#define of_node_to_nid of_node_to_nid
-#endif
 
 extern void prom_build_devicetree(void);
 extern void of_populate_present_mask(void);

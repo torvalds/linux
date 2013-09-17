@@ -42,13 +42,6 @@ extern void kdump_move_device_tree(void);
 /* cache lookup */
 struct device_node *of_find_next_cache_node(struct device_node *np);
 
-#ifdef CONFIG_NUMA
-extern int of_node_to_nid(struct device_node *device);
-#else
-static inline int of_node_to_nid(struct device_node *device) { return 0; }
-#endif
-#define of_node_to_nid of_node_to_nid
-
 extern void of_instantiate_rtc(void);
 
 extern int of_get_ibm_chip_id(struct device_node *np);
