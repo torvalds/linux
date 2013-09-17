@@ -129,8 +129,7 @@ static int xfrm_replay_check(struct xfrm_state *x,
 		return 0;
 
 	diff = x->replay.seq - seq;
-	if (diff >= min_t(unsigned int, x->props.replay_window,
-			  sizeof(x->replay.bitmap) * 8)) {
+	if (diff >= x->props.replay_window) {
 		x->stats.replay_window++;
 		goto err;
 	}
