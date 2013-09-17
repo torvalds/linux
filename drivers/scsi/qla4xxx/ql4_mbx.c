@@ -1530,8 +1530,20 @@ exit_get_chap:
 	return ret;
 }
 
-static int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username,
-			    char *password, uint16_t idx, int bidi)
+/**
+ * qla4xxx_set_chap - Make a chap entry at the given index
+ * @ha: pointer to adapter structure
+ * @username: CHAP username to set
+ * @password: CHAP password to set
+ * @idx: CHAP index at which to make the entry
+ * @bidi: type of chap entry (chap_in or chap_out)
+ *
+ * Create chap entry at the given index with the information provided.
+ *
+ * Note: Caller should acquire the chap lock before getting here.
+ **/
+int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
+		     uint16_t idx, int bidi)
 {
 	int ret = 0;
 	int rval = QLA_ERROR;
