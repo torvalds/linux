@@ -3492,8 +3492,6 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	else
 		pm8001_ha->smp_exp_mode = SMP_INDIRECT;
 
-	/* DIRECT MODE support only in spcv/ve */
-	pm8001_ha->smp_exp_mode = SMP_DIRECT;
 
 	tmp_addr = cpu_to_le64((u64)sg_dma_address(&task->smp_task.smp_req));
 	preq_dma_addr = (char *)phys_to_virt(tmp_addr);
@@ -3509,7 +3507,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		/* exclude top 4 bytes for SMP req header */
 		smp_cmd.long_smp_req.long_req_addr =
 			cpu_to_le64((u64)sg_dma_address
-				(&task->smp_task.smp_req) - 4);
+				(&task->smp_task.smp_req) + 4);
 		/* exclude 4 bytes for SMP req header and CRC */
 		smp_cmd.long_smp_req.long_req_size =
 			cpu_to_le32((u32)sg_dma_len(&task->smp_task.smp_req)-8);
