@@ -293,7 +293,7 @@ static const struct iio_info ad7266_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static unsigned long ad7266_available_scan_masks[] = {
+static const unsigned long ad7266_available_scan_masks[] = {
 	0x003,
 	0x00c,
 	0x030,
@@ -303,14 +303,14 @@ static unsigned long ad7266_available_scan_masks[] = {
 	0x000,
 };
 
-static unsigned long ad7266_available_scan_masks_diff[] = {
+static const unsigned long ad7266_available_scan_masks_diff[] = {
 	0x003,
 	0x00c,
 	0x030,
 	0x000,
 };
 
-static unsigned long ad7266_available_scan_masks_fixed[] = {
+static const unsigned long ad7266_available_scan_masks_fixed[] = {
 	0x003,
 	0x000,
 };
@@ -318,7 +318,7 @@ static unsigned long ad7266_available_scan_masks_fixed[] = {
 struct ad7266_chan_info {
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
-	unsigned long *scan_masks;
+	const unsigned long *scan_masks;
 };
 
 #define AD7266_CHAN_INFO_INDEX(_differential, _signed, _fixed) \
