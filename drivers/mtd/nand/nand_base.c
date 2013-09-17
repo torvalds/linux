@@ -2912,12 +2912,13 @@ static int nand_flash_detect_ext_param_page(struct mtd_info *mtd,
 	/* get the info we want. */
 	ecc = (struct onfi_ext_ecc_info *)cursor;
 
-	if (ecc->codeword_size) {
-		chip->ecc_strength_ds = ecc->ecc_bits;
-		chip->ecc_step_ds = 1 << ecc->codeword_size;
+	if (!ecc->codeword_size) {
+		pr_debug("Invalid codeword size\n");
+		goto ext_out;
 	}
 
-	pr_info("ONFI extended param page detected.\n");
+	chip->ecc_strength_ds = ecc->ecc_bits;
+	chip->ecc_step_ds = 1 << ecc->codeword_size;
 	ret = 0;
 
 ext_out:
