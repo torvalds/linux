@@ -37,7 +37,7 @@
 #define ECC_LIMIT 	10
 #define ERR_TIMEOUT 14
 #define READ_RETRY_MAX_TYPE_NUM 5
-#define READ_RETRY_MAX_REG_NUM	4
+#define READ_RETRY_MAX_REG_NUM	16
 #define READ_RETRY_MAX_CYCLE	10
 #define LSB_MODE_MAX_REG_NUM	8
 /* define various unit data input or output*/
