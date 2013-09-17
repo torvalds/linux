@@ -792,12 +792,12 @@ static inline void alias_74k_erratum(struct cpuinfo_mips *c)
 	 * aliases. In this case it is better to treat the cache as always
 	 * having aliases.
 	 */
-	if ((c->processor_id & 0xff) <= PRID_REV_ENCODE_332(2, 4, 0))
+	if ((c->processor_id & PRID_REV_MASK) <= PRID_REV_ENCODE_332(2, 4, 0))
 		c->dcache.flags |= MIPS_CACHE_VTAG;
-	if ((c->processor_id & 0xff) == PRID_REV_ENCODE_332(2, 4, 0))
+	if ((c->processor_id & PRID_REV_MASK) == PRID_REV_ENCODE_332(2, 4, 0))
 		write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
-	if (((c->processor_id & 0xff00) == PRID_IMP_1074K) &&
-	    ((c->processor_id & 0xff) <= PRID_REV_ENCODE_332(1, 1, 0))) {
+	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_1074K &&
+	    (c->processor_id & PRID_REV_MASK) <= PRID_REV_ENCODE_332(1, 1, 0)) {
 		c->dcache.flags |= MIPS_CACHE_VTAG;
 		write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
 	}
@@ -1031,7 +1031,8 @@ static void probe_pcache(void)
 	 * presumably no vendor is shipping his hardware in the "bad"
 	 * configuration.
 	 */
-	if ((prid & 0xff00) == PRID_IMP_R4000 && (prid & 0xff) < 0x40 &&
+	if ((prid & PRID_IMP_MASK) == PRID_IMP_R4000 &&
+	    (prid & PRID_REV_MASK) < PRID_REV_R4400 &&
 	    !(config & CONF_SC) && c->icache.linesz != 16 &&
 	    PAGE_SIZE <= 0x8000)
 		panic("Improper R4000SC processor configuration detected");
