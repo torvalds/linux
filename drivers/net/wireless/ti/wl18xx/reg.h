@@ -147,12 +147,15 @@
 #define WL18XX_REG_FUSE_DATA_1_3	0xA0260C
 #define WL18XX_PG_VER_MASK		0x70
 #define WL18XX_PG_VER_OFFSET		4
-#define WL18XX_ROM_VER_MASK		0x3
-#define WL18XX_ROM_VER_OFFSET		0
+#define WL18XX_ROM_VER_MASK		0x3e00
+#define WL18XX_ROM_VER_OFFSET		9
 #define WL18XX_METAL_VER_MASK		0xC
 #define WL18XX_METAL_VER_OFFSET		2
 #define WL18XX_NEW_METAL_VER_MASK	0x180
 #define WL18XX_NEW_METAL_VER_OFFSET	7
+
+#define WL18XX_PACKAGE_TYPE_OFFSET	13
+#define WL18XX_PACKAGE_TYPE_WSP		0
 
 #define WL18XX_REG_FUSE_DATA_2_3	0xA02614
 #define WL18XX_RDL_VER_MASK		0x1f00
@@ -214,24 +217,21 @@ enum {
 	NUM_BOARD_TYPES,
 };
 
-enum {
+enum wl18xx_rdl_num {
 	RDL_NONE	= 0,
 	RDL_1_HP	= 1,
 	RDL_2_SP	= 2,
 	RDL_3_HP	= 3,
 	RDL_4_SP	= 4,
+	RDL_5_SP	= 0x11,
+	RDL_6_SP	= 0x12,
+	RDL_7_SP	= 0x13,
+	RDL_8_SP	= 0x14,
 
 	_RDL_LAST,
 	RDL_MAX = _RDL_LAST - 1,
 };
 
-static const char * const rdl_names[] = {
-	[RDL_NONE]	= "",
-	[RDL_1_HP]	= "1853 SISO",
-	[RDL_2_SP]	= "1857 MIMO",
-	[RDL_3_HP]	= "1893 SISO",
-	[RDL_4_SP]	= "1897 MIMO",
-};
 
 /* FPGA_SPARE_1 register - used to change the PHY ATPG clock at boot time */
 #define WL18XX_PHY_FPGA_SPARE_1		0x8093CA40
