@@ -182,6 +182,7 @@
 			};
 
 			lradc@80050000 {
+				fsl,lradc-touchscreen-wires = <4>;
 				status = "okay";
 			};
 
