@@ -1764,9 +1764,6 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		ldata->lnext = 0;
 	}
 
-	if (canon_change && !L_ICANON(tty) && read_cnt(ldata))
-		wake_up_interruptible(&tty->read_wait);
-
 	ldata->icanon = (L_ICANON(tty) != 0);
 
 	if (I_ISTRIP(tty) || I_IUCLC(tty) || I_IGNCR(tty) ||
