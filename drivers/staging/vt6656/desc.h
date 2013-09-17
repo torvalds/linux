@@ -146,15 +146,6 @@
 /*
  * TX FIFO header
  */
-typedef struct tagSTxBufHead {
-	u32 adwTxKey[4];
-    u16    wFIFOCtl;
-    u16    wTimeStamp;
-    u16    wFragCtl;
-    u16    wReserved;
-} __attribute__ ((__packed__))
-STxBufHead, *PSTxBufHead;
-typedef const STxBufHead *PCSTxBufHead;
 
 typedef struct tagSTxShortBufHead {
     u16    wFIFOCtl;
