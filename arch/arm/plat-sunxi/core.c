@@ -186,10 +186,10 @@ static int __init reserve_fb_param(char *s)
 early_param("sunxi_fb_mem_reserve", reserve_fb_param);
 #endif
 
-#if defined CONFIG_SUN4I_G2D || defined CONFIG_SUN4I_G2D_MODULE
+#if IS_ENABLED(CONFIG_SUNXI_G2D)
 /* The G2D block is used by:
  *
- * - the G2D engine, drivers/char/sun4i_g2d
+ * - the G2D engine, drivers/char/sunxi_g2d
  */
 
 unsigned long g2d_start;
@@ -239,8 +239,8 @@ static void reserve_sys(void)
 	pr_reserve_info("SYS ", SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
 }
 
-#if defined RESERVE_VE_MEM || defined CONFIG_SUN4I_G2D || \
-	defined CONFIG_SUN4I_G2D_MODULE || defined CONFIG_FB_SUNXI_RESERVED_MEM
+#if defined RESERVE_VE_MEM || defined CONFIG_FB_SUNXI_RESERVED_MEM || \
+	IS_ENABLED(CONFIG_SUNXI_G2D)
 static void reserve_mem(unsigned long *start, unsigned long *size,
 			const char *desc)
 {
@@ -280,7 +280,7 @@ static void __init sw_core_reserve(void)
 #ifdef RESERVE_VE_MEM
 	reserve_mem(&ve_start, &ve_size, "VE  ");
 #endif
-#if defined CONFIG_SUN4I_G2D || defined CONFIG_SUN4I_G2D_MODULE
+#if IS_ENABLED(CONFIG_SUNXI_G2D)
 	reserve_mem(&g2d_start, &g2d_size, "G2D ");
 #endif
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM

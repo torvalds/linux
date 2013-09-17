@@ -1,7 +1,7 @@
 
-config SUN4I_G2D
+config SUNXI_G2D
 	depends on ARCH_SUN4I
-	tristate "SUN4I G2D"
+	tristate "SUNXI G2D"
 	default y
 #	depends on HAS_IOMEM
 	help

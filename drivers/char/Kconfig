@@ -629,7 +629,7 @@ config TILE_SROM
 	  device appear much like a simple EEPROM, and knows
 	  how to partition a single ROM for multiple purposes.
 
-source "drivers/char/sun4i_g2d/Kconfig"
+source "drivers/char/sunxi_g2d/Kconfig"
 
 endmenu
 
