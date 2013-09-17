@@ -8216,6 +8216,10 @@ static int __start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 
 		work = btrfs_alloc_delalloc_work(inode, 0, delay_iput);
 		if (unlikely(!work)) {
+			if (delay_iput)
+				btrfs_add_delayed_iput(inode);
+			else
+				iput(inode);
 			ret = -ENOMEM;
 			goto out;
 		}
