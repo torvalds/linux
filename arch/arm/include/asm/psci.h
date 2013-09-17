@@ -47,7 +47,7 @@ static inline bool psci_smp_available(void) { return false; }
 #endif
 
 #ifdef CONFIG_ARM_PSCI
-extern int __init psci_probe(void);
+extern int psci_probe(void);
 #else
 static inline int psci_probe(void)
 {
