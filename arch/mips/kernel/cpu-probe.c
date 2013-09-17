@@ -20,6 +20,7 @@
 
 #include <asm/bugs.h>
 #include <asm/cpu.h>
+#include <asm/cpu-type.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
 #include <asm/watch.h>
@@ -55,7 +56,7 @@ static inline void check_errata(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_34K:
 		/*
 		 * Erratum "RPS May Cause Incorrect Instruction Execution"

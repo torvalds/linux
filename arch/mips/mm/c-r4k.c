@@ -25,6 +25,7 @@
 #include <asm/cacheops.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/cpu-type.h>
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -814,7 +815,7 @@ static void probe_pcache(void)
 	unsigned long config1;
 	unsigned int lsize;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R4600:			/* QED style two way caches? */
 	case CPU_R4700:
 	case CPU_R5000:
@@ -1050,7 +1051,7 @@ static void probe_pcache(void)
 	 * normally they'd suffer from aliases but magic in the hardware deals
 	 * with that for us so we don't need to take care ourselves.
 	 */
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_20KC:
 	case CPU_25KF:
 	case CPU_SB1:
@@ -1070,7 +1071,7 @@ static void probe_pcache(void)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
-		if (c->cputype == CPU_74K)
+		if (current_cpu_type() == CPU_74K)
 			alias_74k_erratum(c);
 		if ((read_c0_config7() & (1 << 16))) {
 			/* effectively physically indexed dcache,
@@ -1083,7 +1084,7 @@ static void probe_pcache(void)
 			c->dcache.flags |= MIPS_CACHE_ALIASES;
 	}
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_20KC:
 		/*
 		 * Some older 20Kc chips doesn't have the 'VI' bit in
@@ -1212,7 +1213,7 @@ static void setup_scache(void)
 	 * processors don't have a S-cache that would be relevant to the
 	 * Linux memory management.
 	 */
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R4000SC:
 	case CPU_R4000MC:
 	case CPU_R4400SC:
@@ -1389,9 +1390,8 @@ static void r4k_cache_error_setup(void)
 {
 	extern char __weak except_vec2_generic;
 	extern char __weak except_vec2_sb1;
-	struct cpuinfo_mips *c = &current_cpu_data;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_SB1:
 	case CPU_SB1A:
 		set_uncached_handler(0x100, &except_vec2_sb1, 0x80);
