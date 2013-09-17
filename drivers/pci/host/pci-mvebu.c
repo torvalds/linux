@@ -693,17 +693,17 @@ static struct pci_bus *mvebu_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	return bus;
 }
 
-void mvebu_pcie_add_bus(struct pci_bus *bus)
+static void mvebu_pcie_add_bus(struct pci_bus *bus)
 {
 	struct mvebu_pcie *pcie = sys_to_pcie(bus->sysdata);
 	bus->msi = pcie->msi;
 }
 
-resource_size_t mvebu_pcie_align_resource(struct pci_dev *dev,
-					  const struct resource *res,
-					  resource_size_t start,
-					  resource_size_t size,
-					  resource_size_t align)
+static resource_size_t mvebu_pcie_align_resource(struct pci_dev *dev,
+						const struct resource *res,
+						resource_size_t start,
+						resource_size_t size,
+						resource_size_t align)
 {
 	if (dev->bus->number != 0)
 		return start;
