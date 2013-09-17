@@ -6,7 +6,6 @@
 
 / {
 	mbus {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 		pcie-controller {
 			status = "okay";
 

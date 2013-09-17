@@ -27,6 +27,11 @@
 		compatible = "marvell,kirkwood-mbus", "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
+		/* If a board file needs to change this ranges it must replace it completely */
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000	/* internal-regs */
+			  MBUS_ID(0x01, 0x2f) 0 0xf4000000 0x10000	/* nand flash */
+			  MBUS_ID(0x03, 0x01) 0 0xf5000000 0x10000	/* crypto sram */
+			  >;
 		controller = <&mbusc>;
 		pcie-mem-aperture = <0xe0000000 0x10000000>; /* 256 MiB memory space */
 		pcie-io-aperture  = <0xf2000000 0x100000>;   /*   1 MiB    I/O space */
