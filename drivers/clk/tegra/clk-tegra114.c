@@ -26,6 +26,7 @@
 #include <dt-bindings/clock/tegra114-car.h>
 
 #include "clk.h"
+#include "clk-id.h"
 
 #define RST_DFLL_DVCO			0x2F4
 #define CPU_FINETRIM_SELECT		0x4d4	/* override default prop dlys */
@@ -107,16 +108,6 @@
 #define PLLM_OUT 0x94
 #define PLLP_OUTA 0xa4
 #define PLLP_OUTB 0xa8
-#define PLLA_OUT 0xb4
-
-#define AUDIO_SYNC_CLK_I2S0 0x4a0
-#define AUDIO_SYNC_CLK_I2S1 0x4a4
-#define AUDIO_SYNC_CLK_I2S2 0x4a8
-#define AUDIO_SYNC_CLK_I2S3 0x4ac
-#define AUDIO_SYNC_CLK_I2S4 0x4b0
-#define AUDIO_SYNC_CLK_SPDIF 0x4b4
-
-#define AUDIO_SYNC_DOUBLER 0x49c
 
 #define PMC_CLK_OUT_CNTRL 0x1a8
 #define PMC_DPD_PADS_ORIDE 0x1c
@@ -272,7 +263,6 @@ static DEFINE_SPINLOCK(pll_d2_lock);
 static DEFINE_SPINLOCK(pll_u_lock);
 static DEFINE_SPINLOCK(pll_div_lock);
 static DEFINE_SPINLOCK(pll_re_lock);
-static DEFINE_SPINLOCK(clk_doubler_lock);
 static DEFINE_SPINLOCK(clk_out_lock);
 static DEFINE_SPINLOCK(sysrate_lock);
 
@@ -963,6 +953,186 @@ static const struct clk_div_table pll_re_div_table[] = {
 	{ .val = 0, .div = 0 },
 };
 
+static struct tegra_clk tegra114_clks[tegra_clk_max] __initdata = {
+	[tegra_clk_rtc] = { .dt_id = TEGRA114_CLK_RTC, .present = true },
+	[tegra_clk_timer] = { .dt_id = TEGRA114_CLK_TIMER, .present = true },
+	[tegra_clk_uarta] = { .dt_id = TEGRA114_CLK_UARTA, .present = true },
+	[tegra_clk_uartd] = { .dt_id = TEGRA114_CLK_UARTD, .present = true },
+	[tegra_clk_sdmmc2] = { .dt_id = TEGRA114_CLK_SDMMC2, .present = true },
+	[tegra_clk_i2s1] = { .dt_id = TEGRA114_CLK_I2S1, .present = true },
+	[tegra_clk_i2c1] = { .dt_id = TEGRA114_CLK_I2C1, .present = true },
+	[tegra_clk_ndflash] = { .dt_id = TEGRA114_CLK_NDFLASH, .present = true },
+	[tegra_clk_sdmmc1] = { .dt_id = TEGRA114_CLK_SDMMC1, .present = true },
+	[tegra_clk_sdmmc4] = { .dt_id = TEGRA114_CLK_SDMMC4, .present = true },
+	[tegra_clk_pwm] = { .dt_id = TEGRA114_CLK_PWM, .present = true },
+	[tegra_clk_i2s0] = { .dt_id = TEGRA114_CLK_I2S0, .present = true },
+	[tegra_clk_i2s2] = { .dt_id = TEGRA114_CLK_I2S2, .present = true },
+	[tegra_clk_epp_8] = { .dt_id = TEGRA114_CLK_EPP, .present = true },
+	[tegra_clk_gr2d_8] = { .dt_id = TEGRA114_CLK_GR2D, .present = true },
+	[tegra_clk_usbd] = { .dt_id = TEGRA114_CLK_USBD, .present = true },
+	[tegra_clk_isp] = { .dt_id = TEGRA114_CLK_ISP, .present = true },
+	[tegra_clk_gr3d_8] = { .dt_id = TEGRA114_CLK_GR3D, .present = true },
+	[tegra_clk_disp2] = { .dt_id = TEGRA114_CLK_DISP2, .present = true },
+	[tegra_clk_disp1] = { .dt_id = TEGRA114_CLK_DISP1, .present = true },
+	[tegra_clk_host1x_8] = { .dt_id = TEGRA114_CLK_HOST1X, .present = true },
+	[tegra_clk_vcp] = { .dt_id = TEGRA114_CLK_VCP, .present = true },
+	[tegra_clk_apbdma] = { .dt_id = TEGRA114_CLK_APBDMA, .present = true },
+	[tegra_clk_kbc] = { .dt_id = TEGRA114_CLK_KBC, .present = true },
+	[tegra_clk_kfuse] = { .dt_id = TEGRA114_CLK_KFUSE, .present = true },
+	[tegra_clk_sbc1_8] = { .dt_id = TEGRA114_CLK_SBC1, .present = true },
+	[tegra_clk_nor] = { .dt_id = TEGRA114_CLK_NOR, .present = true },
+	[tegra_clk_sbc2_8] = { .dt_id = TEGRA114_CLK_SBC2, .present = true },
+	[tegra_clk_sbc3_8] = { .dt_id = TEGRA114_CLK_SBC3, .present = true },
+	[tegra_clk_i2c5] = { .dt_id = TEGRA114_CLK_I2C5, .present = true },
+	[tegra_clk_dsia] = { .dt_id = TEGRA114_CLK_DSIA, .present = true },
+	[tegra_clk_mipi] = { .dt_id = TEGRA114_CLK_MIPI, .present = true },
+	[tegra_clk_hdmi] = { .dt_id = TEGRA114_CLK_HDMI, .present = true },
+	[tegra_clk_csi] = { .dt_id = TEGRA114_CLK_CSI, .present = true },
+	[tegra_clk_i2c2] = { .dt_id = TEGRA114_CLK_I2C2, .present = true },
+	[tegra_clk_uartc] = { .dt_id = TEGRA114_CLK_UARTC, .present = true },
+	[tegra_clk_mipi_cal] = { .dt_id = TEGRA114_CLK_MIPI_CAL, .present = true },
+	[tegra_clk_emc] = { .dt_id = TEGRA114_CLK_EMC, .present = true },
+	[tegra_clk_usb2] = { .dt_id = TEGRA114_CLK_USB2, .present = true },
+	[tegra_clk_usb3] = { .dt_id = TEGRA114_CLK_USB3, .present = true },
+	[tegra_clk_vde_8] = { .dt_id = TEGRA114_CLK_VDE, .present = true },
+	[tegra_clk_bsea] = { .dt_id = TEGRA114_CLK_BSEA, .present = true },
+	[tegra_clk_bsev] = { .dt_id = TEGRA114_CLK_BSEV, .present = true },
+	[tegra_clk_i2c3] = { .dt_id = TEGRA114_CLK_I2C3, .present = true },
+	[tegra_clk_sbc4_8] = { .dt_id = TEGRA114_CLK_SBC4, .present = true },
+	[tegra_clk_sdmmc3] = { .dt_id = TEGRA114_CLK_SDMMC3, .present = true },
+	[tegra_clk_owr] = { .dt_id = TEGRA114_CLK_OWR, .present = true },
+	[tegra_clk_csite] = { .dt_id = TEGRA114_CLK_CSITE, .present = true },
+	[tegra_clk_la] = { .dt_id = TEGRA114_CLK_LA, .present = true },
+	[tegra_clk_trace] = { .dt_id = TEGRA114_CLK_TRACE, .present = true },
+	[tegra_clk_soc_therm] = { .dt_id = TEGRA114_CLK_SOC_THERM, .present = true },
+	[tegra_clk_dtv] = { .dt_id = TEGRA114_CLK_DTV, .present = true },
+	[tegra_clk_ndspeed] = { .dt_id = TEGRA114_CLK_NDSPEED, .present = true },
+	[tegra_clk_i2cslow] = { .dt_id = TEGRA114_CLK_I2CSLOW, .present = true },
+	[tegra_clk_dsib] = { .dt_id = TEGRA114_CLK_DSIB, .present = true },
+	[tegra_clk_tsec] = { .dt_id = TEGRA114_CLK_TSEC, .present = true },
+	[tegra_clk_xusb_host] = { .dt_id = TEGRA114_CLK_XUSB_HOST, .present = true },
+	[tegra_clk_msenc] = { .dt_id = TEGRA114_CLK_MSENC, .present = true },
+	[tegra_clk_csus] = { .dt_id = TEGRA114_CLK_CSUS, .present = true },
+	[tegra_clk_mselect] = { .dt_id = TEGRA114_CLK_MSELECT, .present = true },
+	[tegra_clk_tsensor] = { .dt_id = TEGRA114_CLK_TSENSOR, .present = true },
+	[tegra_clk_i2s3] = { .dt_id = TEGRA114_CLK_I2S3, .present = true },
+	[tegra_clk_i2s4] = { .dt_id = TEGRA114_CLK_I2S4, .present = true },
+	[tegra_clk_i2c4] = { .dt_id = TEGRA114_CLK_I2C4, .present = true },
+	[tegra_clk_sbc5_8] = { .dt_id = TEGRA114_CLK_SBC5, .present = true },
+	[tegra_clk_sbc6_8] = { .dt_id = TEGRA114_CLK_SBC6, .present = true },
+	[tegra_clk_d_audio] = { .dt_id = TEGRA114_CLK_D_AUDIO, .present = true },
+	[tegra_clk_apbif] = { .dt_id = TEGRA114_CLK_APBIF, .present = true },
+	[tegra_clk_dam0] = { .dt_id = TEGRA114_CLK_DAM0, .present = true },
+	[tegra_clk_dam1] = { .dt_id = TEGRA114_CLK_DAM1, .present = true },
+	[tegra_clk_dam2] = { .dt_id = TEGRA114_CLK_DAM2, .present = true },
+	[tegra_clk_hda2codec_2x] = { .dt_id = TEGRA114_CLK_HDA2CODEC_2X, .present = true },
+	[tegra_clk_audio0_2x] = { .dt_id = TEGRA114_CLK_AUDIO0_2X, .present = true },
+	[tegra_clk_audio1_2x] = { .dt_id = TEGRA114_CLK_AUDIO1_2X, .present = true },
+	[tegra_clk_audio2_2x] = { .dt_id = TEGRA114_CLK_AUDIO2_2X, .present = true },
+	[tegra_clk_audio3_2x] = { .dt_id = TEGRA114_CLK_AUDIO3_2X, .present = true },
+	[tegra_clk_audio4_2x] = { .dt_id = TEGRA114_CLK_AUDIO4_2X, .present = true },
+	[tegra_clk_spdif_2x] = { .dt_id = TEGRA114_CLK_SPDIF_2X, .present = true },
+	[tegra_clk_actmon] = { .dt_id = TEGRA114_CLK_ACTMON, .present = true },
+	[tegra_clk_extern1] = { .dt_id = TEGRA114_CLK_EXTERN1, .present = true },
+	[tegra_clk_extern2] = { .dt_id = TEGRA114_CLK_EXTERN2, .present = true },
+	[tegra_clk_extern3] = { .dt_id = TEGRA114_CLK_EXTERN3, .present = true },
+	[tegra_clk_hda] = { .dt_id = TEGRA114_CLK_HDA, .present = true },
+	[tegra_clk_se] = { .dt_id = TEGRA114_CLK_SE, .present = true },
+	[tegra_clk_hda2hdmi] = { .dt_id = TEGRA114_CLK_HDA2HDMI, .present = true },
+	[tegra_clk_cilab] = { .dt_id = TEGRA114_CLK_CILAB, .present = true },
+	[tegra_clk_cilcd] = { .dt_id = TEGRA114_CLK_CILCD, .present = true },
+	[tegra_clk_cile] = { .dt_id = TEGRA114_CLK_CILE, .present = true },
+	[tegra_clk_dsialp] = { .dt_id = TEGRA114_CLK_DSIALP, .present = true },
+	[tegra_clk_dsiblp] = { .dt_id = TEGRA114_CLK_DSIBLP, .present = true },
+	[tegra_clk_dds] = { .dt_id = TEGRA114_CLK_DDS, .present = true },
+	[tegra_clk_dp2] = { .dt_id = TEGRA114_CLK_DP2, .present = true },
+	[tegra_clk_amx] = { .dt_id = TEGRA114_CLK_AMX, .present = true },
+	[tegra_clk_adx] = { .dt_id = TEGRA114_CLK_ADX, .present = true },
+	[tegra_clk_xusb_ss] = { .dt_id = TEGRA114_CLK_XUSB_SS, .present = true },
+	[tegra_clk_uartb] = { .dt_id = TEGRA114_CLK_UARTB, .present = true },
+	[tegra_clk_vfir] = { .dt_id = TEGRA114_CLK_VFIR, .present = true },
+	[tegra_clk_spdif_in] = { .dt_id = TEGRA114_CLK_SPDIF_IN, .present = true },
+	[tegra_clk_spdif_out] = { .dt_id = TEGRA114_CLK_SPDIF_OUT, .present = true },
+	[tegra_clk_vi_8] = { .dt_id = TEGRA114_CLK_VI, .present = true },
+	[tegra_clk_vi_sensor_8] = { .dt_id = TEGRA114_CLK_VI_SENSOR, .present = true },
+	[tegra_clk_fuse] = { .dt_id = TEGRA114_CLK_FUSE, .present = true },
+	[tegra_clk_fuse_burn] = { .dt_id = TEGRA114_CLK_FUSE_BURN, .present = true },
+	[tegra_clk_clk_32k] = { .dt_id = TEGRA114_CLK_CLK_32K, .present = true },
+	[tegra_clk_clk_m] = { .dt_id = TEGRA114_CLK_CLK_M, .present = true },
+	[tegra_clk_clk_m_div2] = { .dt_id = TEGRA114_CLK_CLK_M_DIV2, .present = true },
+	[tegra_clk_clk_m_div4] = { .dt_id = TEGRA114_CLK_CLK_M_DIV4, .present = true },
+	[tegra_clk_pll_ref] = { .dt_id = TEGRA114_CLK_PLL_REF, .present = true },
+	[tegra_clk_pll_c] = { .dt_id = TEGRA114_CLK_PLL_C, .present = true },
+	[tegra_clk_pll_c_out1] = { .dt_id = TEGRA114_CLK_PLL_C_OUT1, .present = true },
+	[tegra_clk_pll_c2] = { .dt_id = TEGRA114_CLK_PLL_C2, .present = true },
+	[tegra_clk_pll_c3] = { .dt_id = TEGRA114_CLK_PLL_C3, .present = true },
+	[tegra_clk_pll_m] = { .dt_id = TEGRA114_CLK_PLL_M, .present = true },
+	[tegra_clk_pll_m_out1] = { .dt_id = TEGRA114_CLK_PLL_M_OUT1, .present = true },
+	[tegra_clk_pll_p] = { .dt_id = TEGRA114_CLK_PLL_P, .present = true },
+	[tegra_clk_pll_p_out1] = { .dt_id = TEGRA114_CLK_PLL_P_OUT1, .present = true },
+	[tegra_clk_pll_p_out2_int] = { .dt_id = TEGRA114_CLK_PLL_P_OUT2, .present = true },
+	[tegra_clk_pll_p_out3] = { .dt_id = TEGRA114_CLK_PLL_P_OUT3, .present = true },
+	[tegra_clk_pll_p_out4] = { .dt_id = TEGRA114_CLK_PLL_P_OUT4, .present = true },
+	[tegra_clk_pll_a] = { .dt_id = TEGRA114_CLK_PLL_A, .present = true },
+	[tegra_clk_pll_a_out0] = { .dt_id = TEGRA114_CLK_PLL_A_OUT0, .present = true },
+	[tegra_clk_pll_d] = { .dt_id = TEGRA114_CLK_PLL_D, .present = true },
+	[tegra_clk_pll_d_out0] = { .dt_id = TEGRA114_CLK_PLL_D_OUT0, .present = true },
+	[tegra_clk_pll_d2] = { .dt_id = TEGRA114_CLK_PLL_D2, .present = true },
+	[tegra_clk_pll_d2_out0] = { .dt_id = TEGRA114_CLK_PLL_D2_OUT0, .present = true },
+	[tegra_clk_pll_u] = { .dt_id = TEGRA114_CLK_PLL_U, .present = true },
+	[tegra_clk_pll_u_480m] = { .dt_id = TEGRA114_CLK_PLL_U_480M, .present = true },
+	[tegra_clk_pll_u_60m] = { .dt_id = TEGRA114_CLK_PLL_U_60M, .present = true },
+	[tegra_clk_pll_u_48m] = { .dt_id = TEGRA114_CLK_PLL_U_48M, .present = true },
+	[tegra_clk_pll_u_12m] = { .dt_id = TEGRA114_CLK_PLL_U_12M, .present = true },
+	[tegra_clk_pll_x] = { .dt_id = TEGRA114_CLK_PLL_X, .present = true },
+	[tegra_clk_pll_x_out0] = { .dt_id = TEGRA114_CLK_PLL_X_OUT0, .present = true },
+	[tegra_clk_pll_re_vco] = { .dt_id = TEGRA114_CLK_PLL_RE_VCO, .present = true },
+	[tegra_clk_pll_re_out] = { .dt_id = TEGRA114_CLK_PLL_RE_OUT, .present = true },
+	[tegra_clk_pll_e_out0] = { .dt_id = TEGRA114_CLK_PLL_E_OUT0, .present = true },
+	[tegra_clk_spdif_in_sync] = { .dt_id = TEGRA114_CLK_SPDIF_IN_SYNC, .present = true },
+	[tegra_clk_i2s0_sync] = { .dt_id = TEGRA114_CLK_I2S0_SYNC, .present = true },
+	[tegra_clk_i2s1_sync] = { .dt_id = TEGRA114_CLK_I2S1_SYNC, .present = true },
+	[tegra_clk_i2s2_sync] = { .dt_id = TEGRA114_CLK_I2S2_SYNC, .present = true },
+	[tegra_clk_i2s3_sync] = { .dt_id = TEGRA114_CLK_I2S3_SYNC, .present = true },
+	[tegra_clk_i2s4_sync] = { .dt_id = TEGRA114_CLK_I2S4_SYNC, .present = true },
+	[tegra_clk_vimclk_sync] = { .dt_id = TEGRA114_CLK_VIMCLK_SYNC, .present = true },
+	[tegra_clk_audio0] = { .dt_id = TEGRA114_CLK_AUDIO0, .present = true },
+	[tegra_clk_audio1] = { .dt_id = TEGRA114_CLK_AUDIO1, .present = true },
+	[tegra_clk_audio2] = { .dt_id = TEGRA114_CLK_AUDIO2, .present = true },
+	[tegra_clk_audio3] = { .dt_id = TEGRA114_CLK_AUDIO3, .present = true },
+	[tegra_clk_audio4] = { .dt_id = TEGRA114_CLK_AUDIO4, .present = true },
+	[tegra_clk_spdif] = { .dt_id = TEGRA114_CLK_SPDIF, .present = true },
+	[tegra_clk_clk_out_1] = { .dt_id = TEGRA114_CLK_CLK_OUT_1, .present = true },
+	[tegra_clk_clk_out_2] = { .dt_id = TEGRA114_CLK_CLK_OUT_2, .present = true },
+	[tegra_clk_clk_out_3] = { .dt_id = TEGRA114_CLK_CLK_OUT_3, .present = true },
+	[tegra_clk_blink] = { .dt_id = TEGRA114_CLK_BLINK, .present = true },
+	[tegra_clk_xusb_host_src] = { .dt_id = TEGRA114_CLK_XUSB_HOST_SRC, .present = true },
+	[tegra_clk_xusb_falcon_src] = { .dt_id = TEGRA114_CLK_XUSB_FALCON_SRC, .present = true },
+	[tegra_clk_xusb_fs_src] = { .dt_id = TEGRA114_CLK_XUSB_FS_SRC, .present = true },
+	[tegra_clk_xusb_ss_src] = { .dt_id = TEGRA114_CLK_XUSB_SS_SRC, .present = true },
+	[tegra_clk_xusb_dev_src] = { .dt_id = TEGRA114_CLK_XUSB_DEV_SRC, .present = true },
+	[tegra_clk_xusb_dev] = { .dt_id = TEGRA114_CLK_XUSB_DEV, .present = true },
+	[tegra_clk_xusb_hs_src] = { .dt_id = TEGRA114_CLK_XUSB_HS_SRC, .present = true },
+	[tegra_clk_sclk] = { .dt_id = TEGRA114_CLK_SCLK, .present = true },
+	[tegra_clk_hclk] = { .dt_id = TEGRA114_CLK_HCLK, .present = true },
+	[tegra_clk_pclk] = { .dt_id = TEGRA114_CLK_PCLK, .present = true },
+	[tegra_clk_cclk_g] = { .dt_id = TEGRA114_CLK_CCLK_G, .present = true },
+	[tegra_clk_cclk_lp] = { .dt_id = TEGRA114_CLK_CCLK_LP, .present = true },
+	[tegra_clk_dfll_ref] = { .dt_id = TEGRA114_CLK_DFLL_REF, .present = true },
+	[tegra_clk_dfll_soc] = { .dt_id = TEGRA114_CLK_DFLL_SOC, .present = true },
+	[tegra_clk_audio0_mux] = { .dt_id = TEGRA114_CLK_AUDIO0_MUX, .present = true },
+	[tegra_clk_audio1_mux] = { .dt_id = TEGRA114_CLK_AUDIO1_MUX, .present = true },
+	[tegra_clk_audio2_mux] = { .dt_id = TEGRA114_CLK_AUDIO2_MUX, .present = true },
+	[tegra_clk_audio3_mux] = { .dt_id = TEGRA114_CLK_AUDIO3_MUX, .present = true },
+	[tegra_clk_audio4_mux] = { .dt_id = TEGRA114_CLK_AUDIO4_MUX, .present = true },
+	[tegra_clk_spdif_mux] = { .dt_id = TEGRA114_CLK_SPDIF_MUX, .present = true },
+	[tegra_clk_clk_out_1_mux] = { .dt_id = TEGRA114_CLK_CLK_OUT_1_MUX, .present = true },
+	[tegra_clk_clk_out_2_mux] = { .dt_id = TEGRA114_CLK_CLK_OUT_2_MUX, .present = true },
+	[tegra_clk_clk_out_3_mux] = { .dt_id = TEGRA114_CLK_CLK_OUT_3_MUX, .present = true },
+	[tegra_clk_dsia_mux] = { .dt_id = TEGRA114_CLK_DSIA_MUX, .present = true },
+	[tegra_clk_dsib_mux] = { .dt_id = TEGRA114_CLK_DSIB_MUX, .present = true },
+};
+
 static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "clk_m", .dt_id = TEGRA114_CLK_CLK_M },
 	{ .con_id = "pll_ref", .dt_id = TEGRA114_CLK_PLL_REF },
@@ -1324,20 +1494,6 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 					CLK_SET_RATE_PARENT, 1, 2);
 	clks[TEGRA114_CLK_PLL_D2_OUT0] = clk;
 
-	/* PLLA */
-	clk = tegra_clk_register_pll("pll_a", "pll_p_out1", clk_base, pmc, 0,
-			    &pll_a_params, NULL);
-	clks[TEGRA114_CLK_PLL_A] = clk;
-
-	/* PLLA_OUT0 */
-	clk = tegra_clk_register_divider("pll_a_out0_div", "pll_a",
-				clk_base + PLLA_OUT, 0, TEGRA_DIVIDER_ROUND_UP,
-				8, 8, 1, NULL);
-	clk = tegra_clk_register_pll_out("pll_a_out0", "pll_a_out0_div",
-				clk_base + PLLA_OUT, 1, 0, CLK_IGNORE_UNUSED |
-				CLK_SET_RATE_PARENT, 0, NULL);
-	clks[TEGRA114_CLK_PLL_A_OUT0] = clk;
-
 	/* PLLRE */
 	clk = tegra_clk_register_pllre("pll_re_vco", "pll_ref", clk_base, pmc,
 			     0, &pll_re_vco_params, &pll_re_lock, pll_ref_freq);
@@ -1354,10 +1510,6 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	clks[TEGRA114_CLK_PLL_E_OUT0] = clk;
 }
 
-static const char *mux_audio_sync_clk[] = { "spdif_in_sync", "i2s0_sync",
-	"i2s1_sync", "i2s2_sync", "i2s3_sync", "i2s4_sync", "vimclk_sync",
-};
-
 static const char *clk_out1_parents[] = { "clk_m", "clk_m_div2",
 	"clk_m_div4", "extern1",
 };
@@ -1369,184 +1521,6 @@ static const char *clk_out2_parents[] = { "clk_m", "clk_m_div2",
 static const char *clk_out3_parents[] = { "clk_m", "clk_m_div2",
 	"clk_m_div4", "extern3",
 };
-
-static void __init tegra114_audio_clk_init(void __iomem *clk_base)
-{
-	struct clk *clk;
-
-	/* spdif_in_sync */
-	clk = tegra_clk_register_sync_source("spdif_in_sync", 24000000,
-					     24000000);
-	clks[TEGRA114_CLK_SPDIF_IN_SYNC] = clk;
-
-	/* i2s0_sync */
-	clk = tegra_clk_register_sync_source("i2s0_sync", 24000000, 24000000);
-	clks[TEGRA114_CLK_I2S0_SYNC] = clk;
-
-	/* i2s1_sync */
-	clk = tegra_clk_register_sync_source("i2s1_sync", 24000000, 24000000);
-	clks[TEGRA114_CLK_I2S1_SYNC] = clk;
-
-	/* i2s2_sync */
-	clk = tegra_clk_register_sync_source("i2s2_sync", 24000000, 24000000);
-	clks[TEGRA114_CLK_I2S2_SYNC] = clk;
-
-	/* i2s3_sync */
-	clk = tegra_clk_register_sync_source("i2s3_sync", 24000000, 24000000);
-	clks[TEGRA114_CLK_I2S3_SYNC] = clk;
-
-	/* i2s4_sync */
-	clk = tegra_clk_register_sync_source("i2s4_sync", 24000000, 24000000);
-	clks[TEGRA114_CLK_I2S4_SYNC] = clk;
-
-	/* vimclk_sync */
-	clk = tegra_clk_register_sync_source("vimclk_sync", 24000000, 24000000);
-	clks[TEGRA114_CLK_VIMCLK_SYNC] = clk;
-
-	/* audio0 */
-	clk = clk_register_mux(NULL, "audio0_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk),
-			       CLK_SET_RATE_NO_REPARENT,
-			       clk_base + AUDIO_SYNC_CLK_I2S0, 0, 3, 0,
-			       NULL);
-	clks[TEGRA114_CLK_AUDIO0_MUX] = clk;
-	clk = clk_register_gate(NULL, "audio0", "audio0_mux", 0,
-				clk_base + AUDIO_SYNC_CLK_I2S0, 4,
-				CLK_GATE_SET_TO_DISABLE, NULL);
-	clks[TEGRA114_CLK_AUDIO0] = clk;
-
-	/* audio1 */
-	clk = clk_register_mux(NULL, "audio1_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk),
-			       CLK_SET_RATE_NO_REPARENT,
-			       clk_base + AUDIO_SYNC_CLK_I2S1, 0, 3, 0,
-			       NULL);
-	clks[TEGRA114_CLK_AUDIO1_MUX] = clk;
-	clk = clk_register_gate(NULL, "audio1", "audio1_mux", 0,
-				clk_base + AUDIO_SYNC_CLK_I2S1, 4,
-				CLK_GATE_SET_TO_DISABLE, NULL);
-	clks[TEGRA114_CLK_AUDIO1] = clk;
-
-	/* audio2 */
-	clk = clk_register_mux(NULL, "audio2_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk),
-			       CLK_SET_RATE_NO_REPARENT,
-			       clk_base + AUDIO_SYNC_CLK_I2S2, 0, 3, 0,
-			       NULL);
-	clks[TEGRA114_CLK_AUDIO2_MUX] = clk;
-	clk = clk_register_gate(NULL, "audio2", "audio2_mux", 0,
-				clk_base + AUDIO_SYNC_CLK_I2S2, 4,
-				CLK_GATE_SET_TO_DISABLE, NULL);
-	clks[TEGRA114_CLK_AUDIO2] = clk;
-
-	/* audio3 */
-	clk = clk_register_mux(NULL, "audio3_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk),
-			       CLK_SET_RATE_NO_REPARENT,
-			       clk_base + AUDIO_SYNC_CLK_I2S3, 0, 3, 0,
-			       NULL);
-	clks[TEGRA114_CLK_AUDIO3_MUX] = clk;
-	clk = clk_register_gate(NULL, "audio3", "audio3_mux", 0,
-				clk_base + AUDIO_SYNC_CLK_I2S3, 4,
-				CLK_GATE_SET_TO_DISABLE, NULL);
-	clks[TEGRA114_CLK_AUDIO3] = clk;
-
-	/* audio4 */
-	clk = clk_register_mux(NULL, "audio4_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk),
-			       CLK_SET_RATE_NO_REPARENT,
-			       clk_base + AUDIO_SYNC_CLK_I2S4, 0, 3, 0,
-			       NULL);
-	clks[TEGRA114_CLK_AUDIO4_MUX] = clk;
-	clk = clk_register_gate(NULL, "audio4", "audio4_mux", 0,
-				clk_base + AUDIO_SYNC_CLK_I2S4, 4,
-				CLK_GATE_SET_TO_DISABLE, NULL);
-	clks[TEGRA114_CLK_AUDIO4] = clk;
-
-	/* spdif */
-	clk = clk_register_mux(NULL, "spdif_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk),
-			       CLK_SET_RATE_NO_REPARENT,
-			       clk_base + AUDIO_SYNC_CLK_SPDIF, 0, 3, 0,
-			       NULL);
-	clks[TEGRA114_CLK_SPDIF_MUX] = clk;
-	clk = clk_register_gate(NULL, "spdif", "spdif_mux", 0,
-				clk_base + AUDIO_SYNC_CLK_SPDIF, 4,
-				CLK_GATE_SET_TO_DISABLE, NULL);
-	clks[TEGRA114_CLK_SPDIF] = clk;
-
-	/* audio0_2x */
-	clk = clk_register_fixed_factor(NULL, "audio0_doubler", "audio0",
-					CLK_SET_RATE_PARENT, 2, 1);
-	clk = tegra_clk_register_divider("audio0_div", "audio0_doubler",
-				clk_base + AUDIO_SYNC_DOUBLER, 0, 0, 24, 1,
-				0, &clk_doubler_lock);
-	clk = tegra_clk_register_periph_gate("audio0_2x", "audio0_div",
-				  TEGRA_PERIPH_NO_RESET, clk_base,
-				  CLK_SET_RATE_PARENT, 113,
-				  periph_clk_enb_refcnt);
-	clks[TEGRA114_CLK_AUDIO0_2X] = clk;
-
-	/* audio1_2x */
-	clk = clk_register_fixed_factor(NULL, "audio1_doubler", "audio1",
-					CLK_SET_RATE_PARENT, 2, 1);
-	clk = tegra_clk_register_divider("audio1_div", "audio1_doubler",
-				clk_base + AUDIO_SYNC_DOUBLER, 0, 0, 25, 1,
-				0, &clk_doubler_lock);
-	clk = tegra_clk_register_periph_gate("audio1_2x", "audio1_div",
-				  TEGRA_PERIPH_NO_RESET, clk_base,
-				  CLK_SET_RATE_PARENT, 114,
-				  periph_clk_enb_refcnt);
-	clks[TEGRA114_CLK_AUDIO1_2X] = clk;
-
-	/* audio2_2x */
-	clk = clk_register_fixed_factor(NULL, "audio2_doubler", "audio2",
-					CLK_SET_RATE_PARENT, 2, 1);
-	clk = tegra_clk_register_divider("audio2_div", "audio2_doubler",
-				clk_base + AUDIO_SYNC_DOUBLER, 0, 0, 26, 1,
-				0, &clk_doubler_lock);
-	clk = tegra_clk_register_periph_gate("audio2_2x", "audio2_div",
-				  TEGRA_PERIPH_NO_RESET, clk_base,
-				  CLK_SET_RATE_PARENT, 115,
-				  periph_clk_enb_refcnt);
-	clks[TEGRA114_CLK_AUDIO2_2X] = clk;
-
-	/* audio3_2x */
-	clk = clk_register_fixed_factor(NULL, "audio3_doubler", "audio3",
-					CLK_SET_RATE_PARENT, 2, 1);
-	clk = tegra_clk_register_divider("audio3_div", "audio3_doubler",
-				clk_base + AUDIO_SYNC_DOUBLER, 0, 0, 27, 1,
-				0, &clk_doubler_lock);
-	clk = tegra_clk_register_periph_gate("audio3_2x", "audio3_div",
-				  TEGRA_PERIPH_NO_RESET, clk_base,
-				  CLK_SET_RATE_PARENT, 116,
-				  periph_clk_enb_refcnt);
-	clks[TEGRA114_CLK_AUDIO3_2X] = clk;
-
-	/* audio4_2x */
-	clk = clk_register_fixed_factor(NULL, "audio4_doubler", "audio4",
-					CLK_SET_RATE_PARENT, 2, 1);
-	clk = tegra_clk_register_divider("audio4_div", "audio4_doubler",
-				clk_base + AUDIO_SYNC_DOUBLER, 0, 0, 28, 1,
-				0, &clk_doubler_lock);
-	clk = tegra_clk_register_periph_gate("audio4_2x", "audio4_div",
-				  TEGRA_PERIPH_NO_RESET, clk_base,
-				  CLK_SET_RATE_PARENT, 117,
-				  periph_clk_enb_refcnt);
-	clks[TEGRA114_CLK_AUDIO4_2X] = clk;
-
-	/* spdif_2x */
-	clk = clk_register_fixed_factor(NULL, "spdif_doubler", "spdif",
-					CLK_SET_RATE_PARENT, 2, 1);
-	clk = tegra_clk_register_divider("spdif_div", "spdif_doubler",
-				clk_base + AUDIO_SYNC_DOUBLER, 0, 0, 29, 1,
-				0, &clk_doubler_lock);
-	clk = tegra_clk_register_periph_gate("spdif_2x", "spdif_div",
-				  TEGRA_PERIPH_NO_RESET, clk_base,
-				  CLK_SET_RATE_PARENT, 118,
-				  periph_clk_enb_refcnt);
-	clks[TEGRA114_CLK_SPDIF_2X] = clk;
-}
 
 static void __init tegra114_pmc_clk_init(void __iomem *pmc_base)
 {
@@ -2194,7 +2168,7 @@ static void __init tegra114_clock_init(struct device_node *np)
 	tegra114_fixed_clk_init(clk_base);
 	tegra114_pll_init(clk_base, pmc_base);
 	tegra114_periph_clk_init(clk_base);
-	tegra114_audio_clk_init(clk_base);
+	tegra_audio_clk_init(clk_base, pmc_base, tegra114_clks, &pll_a_params);
 	tegra114_pmc_clk_init(pmc_base);
 	tegra114_super_clk_init(clk_base);
 

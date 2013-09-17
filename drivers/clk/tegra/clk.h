@@ -593,6 +593,10 @@ struct clk **tegra_lookup_dt_id(int clk_id, struct tegra_clk *tegra_clk);
 void tegra_add_of_provider(struct device_node *np);
 void tegra_register_devclks(struct tegra_devclk *dev_clks, int num);
 
+void tegra_audio_clk_init(void __iomem *clk_base,
+			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
+			struct tegra_clk_pll_params *pll_params);
+
 void tegra114_clock_tune_cpu_trimmers_high(void);
 void tegra114_clock_tune_cpu_trimmers_low(void);
 void tegra114_clock_tune_cpu_trimmers_init(void);
