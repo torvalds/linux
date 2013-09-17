@@ -467,6 +467,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: { "0" | "1" } (0 = disabled, 1 = enabled)
 			Default: unset
 			
+	audit_backlog_limit= [KNL] Set the audit queue size limit.
+			Format: <int> (must be >=0)
+			Default: 64
+
 	baycom_epp=	[HW,AX25]
 			Format: <io>,<mode>
 

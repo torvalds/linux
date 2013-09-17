@@ -1099,8 +1099,26 @@ static int __init audit_enable(char *str)
 
 	return 1;
 }
-
 __setup("audit=", audit_enable);
+
+/* Process kernel command-line parameter at boot time.
+ * audit_backlog_limit=<n> */
+static int __init audit_backlog_limit_set(char *str)
+{
+	long int audit_backlog_limit_arg;
+	pr_info("audit_backlog_limit: ");
+	if (kstrtol(str, 0, &audit_backlog_limit_arg)) {
+		printk("using default of %d, unable to parse %s\n",
+		       audit_backlog_limit, str);
+		return 1;
+	}
+	if (audit_backlog_limit_arg >= 0)
+		audit_backlog_limit = (int)audit_backlog_limit_arg;
+	printk("%d\n", audit_backlog_limit);
+
+	return 1;
+}
+__setup("audit_backlog_limit=", audit_backlog_limit_set);
 
 static void audit_buffer_free(struct audit_buffer *ab)
 {
