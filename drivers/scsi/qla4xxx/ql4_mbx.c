@@ -1611,7 +1611,7 @@ int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
 		goto exit_unlock_uni_chap;
 	}
 
-	if (!(chap_table->flags & BIT_6)) {
+	if (!(chap_table->flags & BIT_7)) {
 		ql4_printk(KERN_ERR, ha, "Unidirectional entry not set\n");
 		rval = QLA_ERROR;
 		goto exit_unlock_uni_chap;
