@@ -1868,6 +1868,13 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	if (unlikely(!t || !t->lldd_task || !t->dev))
 		return;
 	ts = &t->task_status;
+	/* Print sas address of IO failed device */
+	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
+		(status != IO_UNDERFLOW))
+		PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("SAS Address of IO Failure Drive:"
+			"%016llx", SAS_ADDR(t->dev->sas_addr)));
+
 	switch (status) {
 	case IO_SUCCESS:
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS"
@@ -2276,6 +2283,11 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 param;
 	u32 status;
 	u32 tag;
+	int i, j;
+	u8 sata_addr_low[4];
+	u32 temp_sata_addr_low;
+	u8 sata_addr_hi[4];
+	u32 temp_sata_addr_hi;
 	struct sata_completion_resp *psataPayload;
 	struct task_status_struct *ts;
 	struct ata_task_resp *resp ;
@@ -2325,7 +2337,46 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk("ts null\n"));
 		return;
 	}
-
+	/* Print sas address of IO failed device */
+	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
+		(status != IO_UNDERFLOW)) {
+		if (!((t->dev->parent) &&
+			(DEV_IS_EXPANDER(t->dev->parent->dev_type)))) {
+			for (i = 0 , j = 4; j <= 7 && i <= 3; i++ , j++)
+				sata_addr_low[i] = pm8001_ha->sas_addr[j];
+			for (i = 0 , j = 0; j <= 3 && i <= 3; i++ , j++)
+				sata_addr_hi[i] = pm8001_ha->sas_addr[j];
+			memcpy(&temp_sata_addr_low, sata_addr_low,
+				sizeof(sata_addr_low));
+			memcpy(&temp_sata_addr_hi, sata_addr_hi,
+				sizeof(sata_addr_hi));
+			temp_sata_addr_hi = (((temp_sata_addr_hi >> 24) & 0xff)
+						|((temp_sata_addr_hi << 8) &
+						0xff0000) |
+						((temp_sata_addr_hi >> 8)
+						& 0xff00) |
+						((temp_sata_addr_hi << 24) &
+						0xff000000));
+			temp_sata_addr_low = ((((temp_sata_addr_low >> 24)
+						& 0xff) |
+						((temp_sata_addr_low << 8)
+						& 0xff0000) |
+						((temp_sata_addr_low >> 8)
+						& 0xff00) |
+						((temp_sata_addr_low << 24)
+						& 0xff000000)) +
+						pm8001_dev->attached_phy +
+						0x10);
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("SAS Address of IO Failure Drive:"
+				"%08x%08x", temp_sata_addr_hi,
+					temp_sata_addr_low));
+		} else {
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("SAS Address of IO Failure Drive:"
+				"%016llx", SAS_ADDR(t->dev->sas_addr)));
+		}
+	}
 	switch (status) {
 	case IO_SUCCESS:
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS\n"));
