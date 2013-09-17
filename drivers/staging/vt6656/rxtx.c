@@ -99,9 +99,9 @@ static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
 static void *s_vGetFreeContext(struct vnt_private *pDevice);
 
 static void s_vGenerateTxParameter(struct vnt_private *pDevice,
-	u8 byPktType, u16 wCurrentRate,	void *pTxBufHead, void *pvRrvTime,
-	void *rts_cts, u32 cbFrameSize, int bNeedACK, u32 uDMAIdx,
-	struct ethhdr *psEthHeader, bool need_rts);
+	u8 byPktType, u16 wCurrentRate,	struct vnt_tx_buffer *tx_buffer,
+	void *pvRrvTime, void *rts_cts, u32 cbFrameSize, int bNeedACK,
+	u32 uDMAIdx, struct ethhdr *psEthHeader, bool need_rts);
 
 static u32 s_uFillDataHead(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate, void *pTxDataHead, u32 cbFrameLength,
@@ -840,12 +840,11 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 -*/
 
 static void s_vGenerateTxParameter(struct vnt_private *pDevice,
-	u8 byPktType, u16 wCurrentRate,	void *pTxBufHead, void *pvRrvTime,
-	void *rts_cts, u32 cbFrameSize, int bNeedACK, u32 uDMAIdx,
-	struct ethhdr *psEthHeader, bool need_rts)
+	u8 byPktType, u16 wCurrentRate,	struct vnt_tx_buffer *tx_buffer,
+	void *pvRrvTime, void *rts_cts, u32 cbFrameSize, int bNeedACK,
+	u32 uDMAIdx, struct ethhdr *psEthHeader, bool need_rts)
 {
-	struct vnt_tx_fifo_head *pFifoHead =
-				(struct vnt_tx_fifo_head *)pTxBufHead;
+	struct vnt_tx_fifo_head *pFifoHead = &tx_buffer->fifo_head;
 	union vnt_tx_data_head *head = rts_cts;
 	u32 cbMACHdLen = WLAN_HDR_ADDR3_LEN; /* 24 */
 	u16 wFifoCtl;
@@ -1237,7 +1236,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 
     //Fill FIFO,RrvTime,RTS,and CTS
     s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
-		(void *)pbyTxBufferAddr, pvRrvTime, rts_cts,
+		tx_buffer, pvRrvTime, rts_cts,
 		cbFrameSize, bNeedACK, uDMAIdx, psEthHeader, bRTS);
     //Fill DataHead
     uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, uDMAIdx, bNeedACK,
@@ -1639,7 +1638,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 
 	/* Fill FIFO,RrvTime,RTS,and CTS */
 	s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
-		pbyTxBufferAddr, pvRrvTime, rts_cts,
+		pTX_Buffer, pvRrvTime, rts_cts,
 		cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader, false);
 
     //Fill DataHead
@@ -2053,7 +2052,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 
 	/* Fill FIFO,RrvTime,RTS,and CTS */
 	s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
-		pbyTxBufferAddr, pvRrvTime, rts_cts,
+		pTX_Buffer, pvRrvTime, rts_cts,
 		cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader, false);
 
     //Fill DataHead
