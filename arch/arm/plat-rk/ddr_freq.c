@@ -302,8 +302,10 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 	cookie_pot = buf;
 
 	if (count < 1)
+		vfree(buf);
 		return count;
 	if (copy_from_user(cookie_pot, buffer, count)) {
+		vfree(buf);
 		return -EFAULT;
 	}
 
@@ -349,10 +351,12 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 		}
 		break;
 	default:
+		vfree(buf);
 		return -EINVAL;
 
 	}
 	ddr.video_state = state;
+	vfree(buf);
 	return count;
 }
 
