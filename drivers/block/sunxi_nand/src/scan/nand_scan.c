@@ -401,6 +401,8 @@ __s32  SCN_AnalyzeNandSystem(void)
 		NFC_ChangMode(&nand_info);
 	}
 
+	PHY_ChangeMode(1);
+
 	if(SUPPORT_READ_RETRY)
 	{
 	    PHY_DBG("NFC Read Retry Init. \n");
