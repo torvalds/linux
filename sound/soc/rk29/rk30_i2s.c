@@ -677,6 +677,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 		break;
 	}	
 
+	spin_lock_init(&i2s->spinlock_wr);
 	dai->playback.rates = SNDRV_PCM_RATE_8000_192000;
 	dai->playback.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |
 		SNDRV_PCM_FMTBIT_S24_LE| SNDRV_PCM_FMTBIT_S32_LE;
@@ -764,7 +765,6 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto err_i2sv2;
 
-	spin_lock_init(&i2s->spinlock_wr);
 	return 0;
 
 err_i2sv2:
