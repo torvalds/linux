@@ -563,12 +563,10 @@ static void imxdma_tasklet(unsigned long data)
 
 	if (list_empty(&imxdmac->ld_active)) {
 		/* Someone might have called terminate all */
-		goto out;
+		spin_unlock_irqrestore(&imxdma->lock, flags);
+		return;
 	}
 	desc = list_first_entry(&imxdmac->ld_active, struct imxdma_desc, node);
-
-	if (desc->desc.callback)
-		desc->desc.callback(desc->desc.callback_param);
 
 	/* If we are dealing with a cyclic descriptor keep it on ld_active
 	 * and dont mark the descripor as complete.
@@ -597,6 +595,10 @@ static void imxdma_tasklet(unsigned long data)
 	}
 out:
 	spin_unlock_irqrestore(&imxdma->lock, flags);
+
+	if (desc->desc.callback)
+		desc->desc.callback(desc->desc.callback_param);
+
 }
 
 static int imxdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
