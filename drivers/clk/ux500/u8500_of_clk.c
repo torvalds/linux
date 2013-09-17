@@ -7,6 +7,7 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
@@ -14,12 +15,26 @@
 #include <linux/platform_data/clk-ux500.h>
 #include "clk.h"
 
+static const struct of_device_id u8500_clk_of_match[] = {
+	{ .compatible = "stericsson,u8500-clks", },
+	{ },
+};
+
 void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 		       u32 clkrst5_base, u32 clkrst6_base)
 {
 	struct prcmu_fw_version *fw_version;
+	struct device_node *np = NULL;
+	struct device_node *child = NULL;
 	const char *sgaclk_parent = NULL;
 	struct clk *clk;
+
+	if (of_have_populated_dt())
+		np = of_find_matching_node(NULL, u8500_clk_of_match);
+	if (!np) {
+		pr_err("Either DT or U8500 Clock node not found\n");
+		return;
+	}
 
 	/* Clock sources */
 	clk = clk_reg_prcmu_gate("soc0_pll", NULL, PRCMU_PLLSOC0,
@@ -378,4 +393,8 @@ void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 	/* Periph6 */
 	clk = clk_reg_prcc_kclk("p3_rng_kclk", "rngclk",
 			clkrst6_base, BIT(0), CLK_SET_RATE_GATE);
+
+	for_each_child_of_node(np, child) {
+		/* Place holder for supported nodes. */
+	}
 }
