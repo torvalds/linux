@@ -2869,7 +2869,7 @@ bool fs_fully_visible(struct file_system_type *type)
 	if (unlikely(!ns))
 		return false;
 
-	namespace_lock();
+	down_read(&namespace_sem);
 	list_for_each_entry(mnt, &ns->list, mnt_list) {
 		struct mount *child;
 		if (mnt->mnt.mnt_sb->s_type != type)
@@ -2890,7 +2890,7 @@ bool fs_fully_visible(struct file_system_type *type)
 	next:	;
 	}
 found:
-	namespace_unlock();
+	up_read(&namespace_sem);
 	return visible;
 }
 
