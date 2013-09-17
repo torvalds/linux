@@ -1126,6 +1126,8 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	u16 template_id_2_4 = wl->scan_templ_id_2_4;
 	u16 template_id_5 = wl->scan_templ_id_5;
 
+	wl1271_debug(DEBUG_SCAN, "build probe request band %d", band);
+
 	skb = ieee80211_probereq_get(wl->hw, vif, ssid, ssid_len,
 				     ie_len);
 	if (!skb) {
@@ -1134,8 +1136,6 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	}
 	if (ie_len)
 		memcpy(skb_put(skb, ie_len), ie, ie_len);
-
-	wl1271_dump(DEBUG_SCAN, "PROBE REQ: ", skb->data, skb->len);
 
 	if (sched_scan &&
 	    (wl->quirks & WLCORE_QUIRK_DUAL_PROBE_TMPL)) {
@@ -1172,7 +1172,7 @@ struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 	if (!skb)
 		goto out;
 
-	wl1271_dump(DEBUG_SCAN, "AP PROBE REQ: ", skb->data, skb->len);
+	wl1271_debug(DEBUG_SCAN, "set ap probe request template");
 
 	rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[wlvif->band]);
 	if (wlvif->band == IEEE80211_BAND_2GHZ)
