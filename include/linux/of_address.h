@@ -34,6 +34,10 @@ static inline void of_pci_range_to_resource(struct of_pci_range *range,
 	res->name = np->full_name;
 }
 
+/* Translate a DMA address from device space to CPU space */
+extern u64 of_translate_dma_address(struct device_node *dev,
+				    const __be32 *in_addr);
+
 #ifdef CONFIG_OF_ADDRESS
 extern u64 of_translate_address(struct device_node *np, const __be32 *addr);
 extern bool of_can_translate_address(struct device_node *dev);

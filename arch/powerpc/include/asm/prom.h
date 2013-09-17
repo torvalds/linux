@@ -24,10 +24,6 @@
  * OF address retreival & translation
  */
 
-/* Translate a DMA address from device space to CPU space */
-extern u64 of_translate_dma_address(struct device_node *dev,
-				    const __be32 *in_addr);
-
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
  * size parameters.
  */
