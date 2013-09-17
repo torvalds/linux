@@ -400,10 +400,6 @@ void __init v2m_dt_map_io(void)
 		iotable_init(&v2m_rs1_io_desc, 1);
 	else
 		iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
-
-#if defined(CONFIG_SMP)
-	vexpress_dt_smp_map_io();
-#endif
 }
 
 void __init v2m_dt_init_early(void)
@@ -434,7 +430,7 @@ static const char * const v2m_dt_match[] __initconst = {
 
 DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.dt_compat	= v2m_dt_match,
-	.smp		= smp_ops(vexpress_smp_ops),
+	.smp		= smp_ops(vexpress_smp_dt_ops),
 	.smp_init	= smp_init_ops(vexpress_smp_init_ops),
 	.map_io		= v2m_dt_map_io,
 	.init_early	= v2m_dt_init_early,
