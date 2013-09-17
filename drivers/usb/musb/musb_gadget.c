@@ -1790,6 +1790,10 @@ int musb_gadget_setup(struct musb *musb)
 	musb->g.max_speed = USB_SPEED_HIGH;
 	musb->g.speed = USB_SPEED_UNKNOWN;
 
+	MUSB_DEV_MODE(musb);
+	musb->xceiv->otg->default_a = 0;
+	musb->xceiv->state = OTG_STATE_B_IDLE;
+
 	/* this "gadget" abstracts/virtualizes the controller */
 	musb->g.name = musb_driver_name;
 	musb->g.is_otg = 1;
