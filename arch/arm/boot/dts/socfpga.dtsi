@@ -446,14 +446,16 @@
 		dcan0: d_can@ffc00000 {
 			compatible = "bosch,d_can";
 			reg = <0xffc00000 0x1000>;
-			interrupts = <0 131 4>;
+			interrupts = <0 131 4>, <0 132 4>;
+			clocks = <&can0_clk>;
 			status = "disabled";
 		};
 
 		dcan1: d_can@ffc10000 {
 			compatible = "bosch,d_can";
 			reg = <0xffc10000 0x1000>;
-			interrupts = <0 135 4>;
+			interrupts = <0 135 4>, <0 136 4>;
+			clocks = <&can1_clk>;
 			status = "disabled";
 		};
 

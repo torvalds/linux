@@ -48,6 +48,10 @@
 			};
 		};
 
+		dcan0: d_can@ffc00000 {
+			status = "okay";
+		};
+
 		dwmmc0@ff704000 {
 			num-slots = <1>;
 			supports-highspeed;
