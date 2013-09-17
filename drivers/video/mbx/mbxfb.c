@@ -890,7 +890,7 @@ static int mbxfb_probe(struct platform_device *dev)
 
 	dev_dbg(&dev->dev, "mbxfb_probe\n");
 
-	pdata = dev->dev.platform_data;
+	pdata = dev_get_platdata(&dev->dev);
 	if (!pdata) {
 		dev_err(&dev->dev, "platform data is required\n");
 		return -EINVAL;
