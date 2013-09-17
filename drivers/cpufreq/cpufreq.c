@@ -952,8 +952,19 @@ static void update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu)
 	if (cpu == policy->cpu)
 		return;
 
+	/*
+	 * Take direct locks as lock_policy_rwsem_write wouldn't work here.
+	 * Also lock for last cpu is enough here as contention will happen only
+	 * after policy->cpu is changed and after it is changed, other threads
+	 * will try to acquire lock for new cpu. And policy is already updated
+	 * by then.
+	 */
+	down_write(&per_cpu(cpu_policy_rwsem, policy->cpu));
+
 	policy->last_cpu = policy->cpu;
 	policy->cpu = cpu;
+
+	up_write(&per_cpu(cpu_policy_rwsem, policy->last_cpu));
 
 #ifdef CONFIG_CPU_FREQ_TABLE
 	cpufreq_frequency_table_update_policy_cpu(policy);
@@ -1200,9 +1211,7 @@ static int __cpufreq_remove_dev_prepare(struct device *dev,
 
 		new_cpu = cpufreq_nominate_new_policy_cpu(policy, cpu, frozen);
 		if (new_cpu >= 0) {
-			WARN_ON(lock_policy_rwsem_write(cpu));
 			update_policy_cpu(policy, new_cpu);
-			unlock_policy_rwsem_write(cpu);
 
 			if (!frozen) {
 				pr_debug("%s: policy Kobject moved to cpu: %d "
