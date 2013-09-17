@@ -596,7 +596,7 @@ ULONG PhsDeleteSFRules(IN void *pvContext, IN B_UINT16 uiVcid)
  * 0 if successful,
  * >0 Error.
  */
-ULONG PhsCompress(IN void *pvContext,
+static ULONG PhsCompress(IN void *pvContext,
 		IN B_UINT16 uiVcid,
 		IN B_UINT16 uiClsId,
 		IN void *pvInputBuffer,
@@ -677,7 +677,7 @@ ULONG PhsCompress(IN void *pvContext,
  * 0 if successful,
  * >0 Error.
  */
-ULONG PhsDeCompress(IN void *pvContext,
+static ULONG PhsDeCompress(IN void *pvContext,
 		IN B_UINT16 uiVcid,
 		IN void *pvInputBuffer,
 		OUT void *pvOutputBuffer,
@@ -829,7 +829,7 @@ UINT GetServiceFlowEntry(IN struct bcm_phs_table *psServiceFlowTable,
 	return PHS_INVALID_TABLE_INDEX;
 }
 
-UINT GetClassifierEntry(IN struct bcm_phs_classifier_table *pstClassifierTable,
+static UINT GetClassifierEntry(IN struct bcm_phs_classifier_table *pstClassifierTable,
 			IN B_UINT32 uiClsid, enum bcm_phs_classifier_context eClsContext,
 			OUT struct bcm_phs_classifier_entry **ppstClassifierEntry)
 {
@@ -880,7 +880,7 @@ static UINT GetPhsRuleEntry(IN struct bcm_phs_classifier_table *pstClassifierTab
 	return PHS_INVALID_TABLE_INDEX;
 }
 
-UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid, IN B_UINT16  uiClsId,
+static UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid, IN B_UINT16  uiClsId,
 				IN struct bcm_phs_table *psServiceFlowTable,
 				struct bcm_phs_rule *psPhsRule,
 				B_UINT8 u8AssociatedPHSI)
@@ -913,7 +913,7 @@ UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid, IN B_UINT16  uiClsId,
 	return uiStatus;
 }
 
-UINT CreateClassiferToPHSRuleMapping(IN B_UINT16 uiVcid,
+static UINT CreateClassiferToPHSRuleMapping(IN B_UINT16 uiVcid,
 				IN B_UINT16 uiClsId,
 				IN struct bcm_phs_entry *pstServiceFlowEntry,
 				struct bcm_phs_rule *psPhsRule,
@@ -1239,7 +1239,7 @@ void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension)
  *			header.
  *	0	-If PHS rule is NULL.If PHSI is 0 indicateing packet as uncompressed.
  */
-int phs_decompress(unsigned char *in_buf,
+static int phs_decompress(unsigned char *in_buf,
 		unsigned char *out_buf,
 		struct bcm_phs_rule *decomp_phs_rules,
 		UINT *header_size)
