@@ -423,13 +423,22 @@ void hdmi_phy_disable(struct hdmi_phy_data *phy, struct hdmi_wp_data *wp);
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s);
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy);
 
+/* HDMI common funcs */
+const struct hdmi_config *hdmi_default_timing(void);
+const struct hdmi_config *hdmi_get_timings(int mode, int code);
+struct hdmi_cm hdmi_get_code(struct omap_video_timings *timing);
+
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
-int hdmi_compute_acr(u32 sample_freq, u32 *n, u32 *cts);
+int hdmi_compute_acr(u32 pclk, u32 sample_freq, u32 *n, u32 *cts);
 int hdmi_wp_audio_enable(struct hdmi_wp_data *wp, bool enable);
 int hdmi_wp_audio_core_req_enable(struct hdmi_wp_data *wp, bool enable);
 void hdmi_wp_audio_config_format(struct hdmi_wp_data *wp,
 		struct hdmi_audio_format *aud_fmt);
 void hdmi_wp_audio_config_dma(struct hdmi_wp_data *wp,
 		struct hdmi_audio_dma *aud_dma);
+static inline bool hdmi_mode_has_audio(int mode)
+{
+	return mode == HDMI_HDMI ? true : false;
+}
 #endif
 #endif

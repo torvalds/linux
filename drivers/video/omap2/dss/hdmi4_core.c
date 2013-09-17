@@ -789,7 +789,7 @@ static void hdmi_core_audio_infoframe_cfg(struct hdmi_core_data *core,
 }
 
 int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
-		struct omap_dss_audio *audio)
+		struct omap_dss_audio *audio, u32 pclk)
 {
 	struct hdmi_audio_format audio_format;
 	struct hdmi_audio_dma audio_dma;
@@ -856,7 +856,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 		return -EINVAL;
 	}
 
-	err = hdmi_compute_acr(fs_nr, &n, &cts);
+	err = hdmi_compute_acr(pclk, fs_nr, &n, &cts);
 
 	/* Audio clock regeneration settings */
 	acore.n = n;

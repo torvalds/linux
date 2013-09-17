@@ -269,7 +269,7 @@ int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core);
 int hdmi4_audio_start(struct hdmi_core_data *core, struct hdmi_wp_data *wp);
 void hdmi4_audio_stop(struct hdmi_core_data *core, struct hdmi_wp_data *wp);
 int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
-		struct omap_dss_audio *audio);
+		struct omap_dss_audio *audio, u32 pclk);
 int hdmi4_audio_get_dma_port(u32 *offset, u32 *size);
 #endif
 
