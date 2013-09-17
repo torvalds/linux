@@ -3,7 +3,7 @@
 #
 ccflags-y	:= -fpic -mno-single-pic-base -fno-builtin
 
-obj-y		:= empty.o
+obj-y		:= relocate.o empty.o
 obj-y		+= lib1funcs.o ashldi3.o string.o
 
 # string library code (-Os is enforced to keep it much smaller)

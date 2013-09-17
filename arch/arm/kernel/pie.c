@@ -12,10 +12,12 @@
 #include <linux/elf.h>
 
 #include <asm/elf.h>
+#include <asm/pie.h>
 
 extern char __pie_rel_dyn_start[];
 extern char __pie_rel_dyn_end[];
 extern char __pie_tail_offset[];
+extern char __pie_reloc_offset[];
 
 struct arm_pie_tail {
 	int count;
@@ -72,11 +74,18 @@ int pie_arch_fixup(struct pie_chunk *chunk, void *base, void *tail,
 						unsigned long offset)
 {
 	struct arm_pie_tail *pie_tail = tail;
+	void *reloc;
 	int i;
 
 	/* Perform relocation fixups for given offset */
 	for (i = 0; i < pie_tail->count; i++)
 		*((uintptr_t *) (pie_tail->offset[i] + base)) += offset;
+
+	/* Store the PIE offset to tail and recol func */
+	*kern_to_pie(chunk, (uintptr_t *) __pie_tail_offset) = tail - base;
+	reloc = kern_to_pie(chunk,
+				(void *) fnptr_to_addr(&__pie___pie_relocate));
+	*kern_to_pie(chunk, (uintptr_t *) __pie_reloc_offset) = reloc - base;
 
 	return 0;
 }
