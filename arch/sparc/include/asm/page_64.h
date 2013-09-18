@@ -121,6 +121,22 @@ typedef pte_t *pgtable_t;
 #define PAGE_OFFSET_BY_BITS(X)	(-(_AC(1,UL) << (X)))
 #define PAGE_OFFSET		PAGE_OFFSET_BY_BITS(MAX_SUPPORTED_PA_BITS)
 
+/* The "virtual" portion of PAGE_OFFSET, used to clip off the non-physical
+ * bits of a linear kernel address.
+ */
+#define PAGE_OFFSET_VA_BITS	(64 - MAX_SUPPORTED_PA_BITS)
+
+/* The actual number of physical memory address bits we support, this is
+ * used to size various tables used to manage kernel TLB misses.
+ */
+#define MAX_PHYS_ADDRESS_BITS	41
+
+/* These two shift counts are used when indexing sparc64_valid_addr_bitmap
+ * and kpte_linear_bitmap.
+ */
+#define ILOG2_4MB		22
+#define ILOG2_256MB		28
+
 #ifndef __ASSEMBLY__
 
 #define __pa(x)			((unsigned long)(x) - PAGE_OFFSET)
