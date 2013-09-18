@@ -42,7 +42,7 @@ static debug_info_t *eadm_debug;
 
 static void EADM_LOG_HEX(int level, void *data, int length)
 {
-	if (level > eadm_debug->level)
+	if (!debug_level_enabled(eadm_debug, level))
 		return;
 	while (length > 0) {
 		debug_event(eadm_debug, level, data, length);
