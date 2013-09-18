@@ -21,9 +21,54 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
+#include <linux/serial_sci.h>
 #include <mach/common.h>
+#include <mach/irqs.h>
 #include <mach/r7s72100.h>
 #include <asm/mach/arch.h>
+
+#define SCIF_DATA(index, baseaddr, irq)					\
+[index] = {								\
+	.type		= PORT_SCIF,					\
+	.regtype	= SCIx_SH2_SCIF_FIFODATA_REGTYPE,		\
+	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,		\
+	.scbrr_algo_id	= SCBRR_ALGO_2,					\
+	.scscr		= SCSCR_RIE | SCSCR_TIE | SCSCR_RE | SCSCR_TE |	\
+			  SCSCR_REIE,					\
+	.mapbase	= baseaddr,					\
+	.irqs		= { irq + 1, irq + 2, irq + 3, irq },		\
+}
+
+enum { SCIF0, SCIF1, SCIF2, SCIF3, SCIF4, SCIF5, SCIF6, SCIF7 };
+
+static const struct plat_sci_port scif[] __initconst = {
+	SCIF_DATA(SCIF0, 0xe8007000, gic_iid(221)), /* SCIF0 */
+	SCIF_DATA(SCIF1, 0xe8007800, gic_iid(225)), /* SCIF1 */
+	SCIF_DATA(SCIF2, 0xe8008000, gic_iid(229)), /* SCIF2 */
+	SCIF_DATA(SCIF3, 0xe8008800, gic_iid(233)), /* SCIF3 */
+	SCIF_DATA(SCIF4, 0xe8009000, gic_iid(237)), /* SCIF4 */
+	SCIF_DATA(SCIF5, 0xe8009800, gic_iid(241)), /* SCIF5 */
+	SCIF_DATA(SCIF6, 0xe800a000, gic_iid(245)), /* SCIF6 */
+	SCIF_DATA(SCIF7, 0xe800a800, gic_iid(249)), /* SCIF7 */
+};
+
+static inline void r7s72100_register_scif(int idx)
+{
+	platform_device_register_data(&platform_bus, "sh-sci", idx, &scif[idx],
+				      sizeof(struct plat_sci_port));
+}
+
+void __init r7s72100_add_dt_devices(void)
+{
+	r7s72100_register_scif(SCIF0);
+	r7s72100_register_scif(SCIF1);
+	r7s72100_register_scif(SCIF2);
+	r7s72100_register_scif(SCIF3);
+	r7s72100_register_scif(SCIF4);
+	r7s72100_register_scif(SCIF5);
+	r7s72100_register_scif(SCIF6);
+	r7s72100_register_scif(SCIF7);
+}
 
 void __init r7s72100_init_early(void)
 {
