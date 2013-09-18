@@ -180,7 +180,7 @@ static int au_hfsn_handle_event(struct fsnotify_group *group,
 	h_dir = event->to_tell;
 	h_inode = event->inode;
 #ifdef AuDbgHnotify
-	au_debug(1);
+	au_debug_on();
 	if (1 || h_child_qstr.len != sizeof(AUFS_XINO_FNAME) - 1
 	    || strncmp(h_child_qstr.name, AUFS_XINO_FNAME, h_child_qstr.len)) {
 		AuDbg("i%lu, mask 0x%x %s, hcname %.*s, hi%lu\n",
@@ -188,7 +188,7 @@ static int au_hfsn_handle_event(struct fsnotify_group *group,
 		      AuLNPair(&h_child_qstr), h_inode ? h_inode->i_ino : 0);
 		/* WARN_ON(1); */
 	}
-	au_debug(0);
+	au_debug_off();
 #endif
 
 	AuDebugOn(!inode_mark);
