@@ -913,6 +913,7 @@
 			interrupts = <0 15 IRQ_TYPE_LEVEL_HIGH>;
 
 			v-ape-supply = <&db8500_vape_reg>;
+			clocks = <&prcc_pclk 6 1>;
 		};
 
 		hash@a03c2000 {
