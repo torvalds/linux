@@ -970,6 +970,8 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 	if (test_and_set_bit(IIO_BUSY_BIT_POS, &indio_dev->flags))
 		return -EBUSY;
 
+	iio_device_get(indio_dev);
+
 	filp->private_data = indio_dev;
 
 	return 0;
@@ -983,6 +985,8 @@ static int iio_chrdev_release(struct inode *inode, struct file *filp)
 	struct iio_dev *indio_dev = container_of(inode->i_cdev,
 						struct iio_dev, chrdev);
 	clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
+	iio_device_put(indio_dev);
+
 	return 0;
 }
 
