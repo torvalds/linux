@@ -888,7 +888,7 @@
 		cpufreq-cooling {
 			compatible = "stericsson,db8500-cpufreq-cooling";
 			status = "disabled";
-		 };
+		};
 
 		vmmci: regulator-gpio {
 			compatible = "regulator-gpio";
