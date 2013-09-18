@@ -204,7 +204,8 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 
 	memcpy(dev_priv->l3_parity.remap_info[slice] + (offset/4), buf, count);
 
-	i915_gem_l3_remap(drm_dev, slice);
+	if (i915_gem_l3_remap(&dev_priv->ring[RCS], slice))
+		count = 0;
 
 	mutex_unlock(&drm_dev->struct_mutex);
 
