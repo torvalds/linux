@@ -330,12 +330,15 @@ static int tcs3472_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int tcs3472_suspend(struct device *dev)
 {
-	return tcs3472_powerdown(iio_priv(dev_to_iio_dev(dev)));
+	struct tcs3472_data *data = iio_priv(i2c_get_clientdata(
+		to_i2c_client(dev)));
+	return tcs3472_powerdown(data);
 }
 
 static int tcs3472_resume(struct device *dev)
 {
-	struct tcs3472_data *data = iio_priv(dev_to_iio_dev(dev));
+	struct tcs3472_data *data = iio_priv(i2c_get_clientdata(
+		to_i2c_client(dev)));
 	return i2c_smbus_write_byte_data(data->client, TCS3472_ENABLE,
 		data->enable | (TCS3472_ENABLE_AEN | TCS3472_ENABLE_PON));
 }
