@@ -4252,35 +4252,35 @@ i915_gem_idle(struct drm_device *dev)
 	return 0;
 }
 
-void i915_gem_l3_remap(struct drm_device *dev, int slice)
+int i915_gem_l3_remap(struct intel_ring_buffer *ring, int slice)
 {
+	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 reg_base = GEN7_L3LOG_BASE + (slice * 0x200);
 	u32 *remap_info = dev_priv->l3_parity.remap_info[slice];
-	u32 misccpctl;
-	int i;
+	int i, ret;
 
 	if (!HAS_L3_GPU_CACHE(dev) || !remap_info)
-		return;
+		return 0;
 
-	misccpctl = I915_READ(GEN7_MISCCPCTL);
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
-	POSTING_READ(GEN7_MISCCPCTL);
+	ret = intel_ring_begin(ring, GEN7_L3LOG_SIZE / 4 * 3);
+	if (ret)
+		return ret;
 
+	/*
+	 * Note: We do not worry about the concurrent register cacheline hang
+	 * here because no other code should access these registers other than
+	 * at initialization time.
+	 */
 	for (i = 0; i < GEN7_L3LOG_SIZE; i += 4) {
-		u32 remap = I915_READ(reg_base + i);
-		if (remap && remap != remap_info[i/4])
-			DRM_DEBUG("0x%x was already programmed to %x\n",
-				  reg_base + i, remap);
-		if (remap && !remap_info[i/4])
-			DRM_DEBUG_DRIVER("Clearing remapped register\n");
-		I915_WRITE(reg_base + i, remap_info[i/4]);
+		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit(ring, reg_base + i);
+		intel_ring_emit(ring, remap_info[i/4]);
 	}
 
-	/* Make sure all the writes land before disabling dop clock gating */
-	POSTING_READ(reg_base);
+	intel_ring_advance(ring);
 
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
+	return ret;
 }
 
 void i915_gem_init_swizzling(struct drm_device *dev)
@@ -4391,14 +4391,14 @@ i915_gem_init_hw(struct drm_device *dev)
 		I915_WRITE(GEN7_MSG_CTL, temp);
 	}
 
-	for (i = 0; i < NUM_L3_SLICES(dev); i++)
-		i915_gem_l3_remap(dev, i);
-
 	i915_gem_init_swizzling(dev);
 
 	ret = i915_gem_init_rings(dev);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < NUM_L3_SLICES(dev); i++)
+		i915_gem_l3_remap(&dev_priv->ring[RCS], i);
 
 	/*
 	 * XXX: There was some w/a described somewhere suggesting loading
