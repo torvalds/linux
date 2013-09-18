@@ -3610,7 +3610,8 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	struct ssp_ini_io_start_req ssp_cmd;
 	u32 tag = ccb->ccb_tag;
 	int ret;
-	u64 phys_addr;
+	u64 phys_addr, start_addr, end_addr;
+	u32 end_addr_high, end_addr_low;
 	struct inbound_queue_table *circularQ;
 	u32 q_index;
 	u32 opc = OPC_INB_SSPINIIOSTART;
@@ -3664,6 +3665,30 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 				cpu_to_le32(upper_32_bits(dma_addr));
 			ssp_cmd.enc_len = cpu_to_le32(task->total_xfer_len);
 			ssp_cmd.enc_esgl = 0;
+			/* Check 4G Boundary */
+			start_addr = cpu_to_le64(dma_addr);
+			end_addr = (start_addr + ssp_cmd.enc_len) - 1;
+			end_addr_low = cpu_to_le32(lower_32_bits(end_addr));
+			end_addr_high = cpu_to_le32(upper_32_bits(end_addr));
+			if (end_addr_high != ssp_cmd.enc_addr_high) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("The sg list address "
+					"start_addr=0x%016llx data_len=0x%x "
+					"end_addr_high=0x%08x end_addr_low="
+					"0x%08x has crossed 4G boundary\n",
+						start_addr, ssp_cmd.enc_len,
+						end_addr_high, end_addr_low));
+				pm8001_chip_make_sg(task->scatter, 1,
+					ccb->buf_prd);
+				phys_addr = ccb->ccb_dma_handle +
+					offsetof(struct pm8001_ccb_info,
+						buf_prd[0]);
+				ssp_cmd.enc_addr_low =
+					cpu_to_le32(lower_32_bits(phys_addr));
+				ssp_cmd.enc_addr_high =
+					cpu_to_le32(upper_32_bits(phys_addr));
+				ssp_cmd.enc_esgl = cpu_to_le32(1<<31);
+			}
 		} else if (task->num_scatter == 0) {
 			ssp_cmd.enc_addr_low = 0;
 			ssp_cmd.enc_addr_high = 0;
@@ -3699,6 +3724,30 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 				cpu_to_le32(upper_32_bits(dma_addr));
 			ssp_cmd.len = cpu_to_le32(task->total_xfer_len);
 			ssp_cmd.esgl = 0;
+			/* Check 4G Boundary */
+			start_addr = cpu_to_le64(dma_addr);
+			end_addr = (start_addr + ssp_cmd.len) - 1;
+			end_addr_low = cpu_to_le32(lower_32_bits(end_addr));
+			end_addr_high = cpu_to_le32(upper_32_bits(end_addr));
+			if (end_addr_high != ssp_cmd.addr_high) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("The sg list address "
+					"start_addr=0x%016llx data_len=0x%x "
+					"end_addr_high=0x%08x end_addr_low="
+					"0x%08x has crossed 4G boundary\n",
+						 start_addr, ssp_cmd.len,
+						 end_addr_high, end_addr_low));
+				pm8001_chip_make_sg(task->scatter, 1,
+					ccb->buf_prd);
+				phys_addr = ccb->ccb_dma_handle +
+					offsetof(struct pm8001_ccb_info,
+						 buf_prd[0]);
+				ssp_cmd.addr_low =
+					cpu_to_le32(lower_32_bits(phys_addr));
+				ssp_cmd.addr_high =
+					cpu_to_le32(upper_32_bits(phys_addr));
+				ssp_cmd.esgl = cpu_to_le32(1<<31);
+			}
 		} else if (task->num_scatter == 0) {
 			ssp_cmd.addr_low = 0;
 			ssp_cmd.addr_high = 0;
@@ -3723,7 +3772,8 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	u32 q_index;
 	struct sata_start_req sata_cmd;
 	u32 hdr_tag, ncg_tag = 0;
-	u64 phys_addr;
+	u64 phys_addr, start_addr, end_addr;
+	u32 end_addr_high, end_addr_low;
 	u32 ATAP = 0x0;
 	u32 dir;
 	struct inbound_queue_table *circularQ;
@@ -3792,6 +3842,31 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			sata_cmd.enc_addr_high = upper_32_bits(dma_addr);
 			sata_cmd.enc_len = cpu_to_le32(task->total_xfer_len);
 			sata_cmd.enc_esgl = 0;
+			/* Check 4G Boundary */
+			start_addr = cpu_to_le64(dma_addr);
+			end_addr = (start_addr + sata_cmd.enc_len) - 1;
+			end_addr_low = cpu_to_le32(lower_32_bits(end_addr));
+			end_addr_high = cpu_to_le32(upper_32_bits(end_addr));
+			if (end_addr_high != sata_cmd.enc_addr_high) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("The sg list address "
+					"start_addr=0x%016llx data_len=0x%x "
+					"end_addr_high=0x%08x end_addr_low"
+					"=0x%08x has crossed 4G boundary\n",
+						start_addr, sata_cmd.enc_len,
+						end_addr_high, end_addr_low));
+				pm8001_chip_make_sg(task->scatter, 1,
+					ccb->buf_prd);
+				phys_addr = ccb->ccb_dma_handle +
+						offsetof(struct pm8001_ccb_info,
+						buf_prd[0]);
+				sata_cmd.enc_addr_low =
+					lower_32_bits(phys_addr);
+				sata_cmd.enc_addr_high =
+					upper_32_bits(phys_addr);
+				sata_cmd.enc_esgl =
+					cpu_to_le32(1 << 31);
+			}
 		} else if (task->num_scatter == 0) {
 			sata_cmd.enc_addr_low = 0;
 			sata_cmd.enc_addr_high = 0;
@@ -3833,6 +3908,30 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			sata_cmd.addr_high = upper_32_bits(dma_addr);
 			sata_cmd.len = cpu_to_le32(task->total_xfer_len);
 			sata_cmd.esgl = 0;
+			/* Check 4G Boundary */
+			start_addr = cpu_to_le64(dma_addr);
+			end_addr = (start_addr + sata_cmd.len) - 1;
+			end_addr_low = cpu_to_le32(lower_32_bits(end_addr));
+			end_addr_high = cpu_to_le32(upper_32_bits(end_addr));
+			if (end_addr_high != sata_cmd.addr_high) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("The sg list address "
+					"start_addr=0x%016llx data_len=0x%x"
+					"end_addr_high=0x%08x end_addr_low="
+					"0x%08x has crossed 4G boundary\n",
+						start_addr, sata_cmd.len,
+						end_addr_high, end_addr_low));
+				pm8001_chip_make_sg(task->scatter, 1,
+					ccb->buf_prd);
+				phys_addr = ccb->ccb_dma_handle +
+					offsetof(struct pm8001_ccb_info,
+					buf_prd[0]);
+				sata_cmd.addr_low =
+					lower_32_bits(phys_addr);
+				sata_cmd.addr_high =
+					upper_32_bits(phys_addr);
+				sata_cmd.esgl = cpu_to_le32(1 << 31);
+			}
 		} else if (task->num_scatter == 0) {
 			sata_cmd.addr_low = 0;
 			sata_cmd.addr_high = 0;
