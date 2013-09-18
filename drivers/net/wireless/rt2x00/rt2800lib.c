@@ -5993,7 +5993,7 @@ static void rt2800_init_rfcsr_30xx(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 20, 0xba);
 	rt2800_rfcsr_write(rt2x00dev, 21, 0xdb);
 	rt2800_rfcsr_write(rt2x00dev, 24, 0x16);
-	rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
+	rt2800_rfcsr_write(rt2x00dev, 25, 0x03);
 	rt2800_rfcsr_write(rt2x00dev, 29, 0x1f);
 
 	if (rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070F)) {
