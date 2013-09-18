@@ -4735,12 +4735,13 @@ static void cik_vm_decode_fault(struct radeon_device *rdev,
 	u32 mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
 	u32 vmid = (status & FAULT_VMID_MASK) >> FAULT_VMID_SHIFT;
 	u32 protections = (status & PROTECTIONS_MASK) >> PROTECTIONS_SHIFT;
-	char *block = (char *)&mc_client;
+	char block[5] = { mc_client >> 24, (mc_client >> 16) & 0xff,
+		(mc_client >> 8) & 0xff, mc_client & 0xff, 0 };
 
-	printk("VM fault (0x%02x, vmid %d) at page %u, %s from %s (%d)\n",
+	printk("VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
 	       protections, vmid, addr,
 	       (status & MEMORY_CLIENT_RW_MASK) ? "write" : "read",
-	       block, mc_id);
+	       block, mc_client, mc_id);
 }
 
 /**
