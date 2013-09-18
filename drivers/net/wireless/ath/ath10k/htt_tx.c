@@ -117,7 +117,7 @@ int ath10k_htt_tx_attach(struct ath10k_htt *htt)
 
 static void ath10k_htt_tx_cleanup_pending(struct ath10k_htt *htt)
 {
-	struct sk_buff *txdesc;
+	struct htt_tx_done tx_done = {0};
 	int msdu_id;
 
 	/* No locks needed. Called after communication with the device has
@@ -127,18 +127,13 @@ static void ath10k_htt_tx_cleanup_pending(struct ath10k_htt *htt)
 		if (!test_bit(msdu_id, htt->used_msdu_ids))
 			continue;
 
-		txdesc = htt->pending_tx[msdu_id];
-		if (!txdesc)
-			continue;
-
 		ath10k_dbg(ATH10K_DBG_HTT, "force cleanup msdu_id %hu\n",
 			   msdu_id);
 
-		if (ATH10K_SKB_CB(txdesc)->htt.refcount > 0)
-			ATH10K_SKB_CB(txdesc)->htt.refcount = 1;
+		tx_done.discard = 1;
+		tx_done.msdu_id = msdu_id;
 
-		ATH10K_SKB_CB(txdesc)->htt.discard = true;
-		ath10k_txrx_tx_unref(htt, txdesc);
+		ath10k_txrx_tx_unref(htt, &tx_done);
 	}
 }
 
@@ -152,26 +147,7 @@ void ath10k_htt_tx_detach(struct ath10k_htt *htt)
 
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 {
-	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(skb);
-	struct ath10k_htt *htt = &ar->htt;
-
-	if (skb_cb->htt.is_conf) {
-		dev_kfree_skb_any(skb);
-		return;
-	}
-
-	if (skb_cb->is_aborted) {
-		skb_cb->htt.discard = true;
-
-		/* if the skbuff is aborted we need to make sure we'll free up
-		 * the tx resources, we can't simply run tx_unref() 2 times
-		 * because if htt tx completion came in earlier we'd access
-		 * unallocated memory */
-		if (skb_cb->htt.refcount > 1)
-			skb_cb->htt.refcount = 1;
-	}
-
-	ath10k_txrx_tx_unref(htt, skb);
+	dev_kfree_skb_any(skb);
 }
 
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
@@ -191,8 +167,6 @@ int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 	skb_put(skb, len);
 	cmd = (struct htt_cmd *)skb->data;
 	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_VERSION_REQ;
-
-	ATH10K_SKB_CB(skb)->htt.is_conf = true;
 
 	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
@@ -232,8 +206,6 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 	req->stat_type = HTT_STATS_REQ_CFG_STAT_TYPE_INVALID;
 	req->cookie_lsb = cpu_to_le32(cookie & 0xffffffff);
 	req->cookie_msb = cpu_to_le32((cookie & 0xffffffff00000000ULL) >> 32);
-
-	ATH10K_SKB_CB(skb)->htt.is_conf = true;
 
 	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
@@ -321,8 +293,6 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 
 #undef desc_offset
 
-	ATH10K_SKB_CB(skb)->htt.is_conf = true;
-
 	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
 		dev_kfree_skb_any(skb);
@@ -335,7 +305,6 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 {
 	struct device *dev = htt->ar->dev;
-	struct ath10k_skb_cb *skb_cb;
 	struct sk_buff *txdesc = NULL;
 	struct htt_cmd *cmd;
 	u8 vdev_id = ATH10K_SKB_CB(msdu)->htt.vdev_id;
@@ -364,7 +333,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		res = msdu_id;
 		goto err;
 	}
-	htt->pending_tx[msdu_id] = txdesc;
+	htt->pending_tx[msdu_id] = msdu;
 	spin_unlock_bh(&htt->tx_lock);
 
 	res = ath10k_skb_map(dev, msdu);
@@ -380,15 +349,6 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	cmd->mgmt_tx.vdev_id    = __cpu_to_le32(vdev_id);
 	memcpy(cmd->mgmt_tx.hdr, msdu->data,
 	       min_t(int, msdu->len, HTT_MGMT_FRM_HDR_DOWNLOAD_LEN));
-
-	/* refcount is decremented by HTC and HTT completions until it reaches
-	 * zero and is freed */
-	skb_cb = ATH10K_SKB_CB(txdesc);
-	skb_cb->htt.is_conf = false;
-	skb_cb->htt.msdu_id = msdu_id;
-	skb_cb->htt.refcount = 2;
-	skb_cb->htt.msdu = msdu;
-	skb_cb->htt.txfrag = NULL;
 
 	res = ath10k_htc_send(&htt->ar->htc, htt->eid, txdesc);
 	if (res)
@@ -417,7 +377,6 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	struct htt_cmd *cmd;
 	struct htt_data_tx_desc_frag *tx_frags;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)msdu->data;
-	struct ath10k_skb_cb *skb_cb;
 	struct sk_buff *txdesc = NULL;
 	struct sk_buff *txfrag = NULL;
 	u8 vdev_id = ATH10K_SKB_CB(msdu)->htt.vdev_id;
@@ -470,7 +429,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		res = msdu_id;
 		goto err;
 	}
-	htt->pending_tx[msdu_id] = txdesc;
+	htt->pending_tx[msdu_id] = msdu;
 	spin_unlock_bh(&htt->tx_lock);
 
 	res = ath10k_skb_map(dev, msdu);
@@ -552,15 +511,6 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	cmd->data_tx.peerid      = __cpu_to_le32(HTT_INVALID_PEERID);
 
 	memcpy(cmd->data_tx.prefetch, msdu->data, prefetch_len);
-
-	/* refcount is decremented by HTC and HTT completions until it reaches
-	 * zero and is freed */
-	skb_cb = ATH10K_SKB_CB(txdesc);
-	skb_cb->htt.is_conf = false;
-	skb_cb->htt.msdu_id = msdu_id;
-	skb_cb->htt.refcount = 2;
-	skb_cb->htt.txfrag = txfrag;
-	skb_cb->htt.msdu = msdu;
 
 	res = ath10k_htc_send(&htt->ar->htc, htt->eid, txdesc);
 	if (res)

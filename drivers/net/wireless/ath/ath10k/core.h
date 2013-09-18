@@ -52,18 +52,10 @@ struct ath10k_skb_cb {
 
 	struct {
 		u8 vdev_id;
-		u16 msdu_id;
 		u8 tid;
 		bool is_offchan;
-		bool is_conf;
-		bool discard;
-		bool no_ack;
-		u8 refcount;
 		struct sk_buff *txfrag;
-		struct sk_buff *msdu;
 	} __packed htt;
-
-	/* 4 bytes left on 64bit arch */
 } __packed;
 
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)

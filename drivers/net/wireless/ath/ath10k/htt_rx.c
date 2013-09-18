@@ -1140,7 +1140,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 			break;
 		}
 
-		ath10k_txrx_tx_completed(htt, &tx_done);
+		ath10k_txrx_tx_unref(htt, &tx_done);
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_TX_COMPL_IND: {
@@ -1174,7 +1174,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		for (i = 0; i < resp->data_tx_completion.num_msdus; i++) {
 			msdu_id = resp->data_tx_completion.msdus[i];
 			tx_done.msdu_id = __le16_to_cpu(msdu_id);
-			ath10k_txrx_tx_completed(htt, &tx_done);
+			ath10k_txrx_tx_unref(htt, &tx_done);
 		}
 		break;
 	}
