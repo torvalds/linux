@@ -96,19 +96,6 @@ static void __init hrefv60_init_machine(void)
 	regulator_has_full_constraints();
 }
 
-MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
-	/* Maintainer: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com> */
-	.atag_offset	= 0x100,
-	.smp		= smp_ops(ux500_smp_ops),
-	.map_io		= u8500_map_io,
-	.init_irq	= ux500_init_irq,
-	/* we re-use nomadik timer here */
-	.init_time	= ux500_timer_init,
-	.init_machine	= mop500_init_machine,
-	.restart        = ux500_restart,
-	.init_late	= NULL,
-MACHINE_END
-
 MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
 	.atag_offset	= 0x100,
 	.map_io		= u8500_map_io,
