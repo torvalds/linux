@@ -401,16 +401,15 @@ static int __init fsl_gtm_init(void)
 		gtm->clock = *clock;
 
 		for (i = 0; i < ARRAY_SIZE(gtm->timers); i++) {
-			int ret;
-			struct resource irq;
+			unsigned int irq;
 
-			ret = of_irq_to_resource(np, i, &irq);
-			if (ret == NO_IRQ) {
+			irq = irq_of_parse_and_map(np, i);
+			if (irq == NO_IRQ) {
 				pr_err("%s: not enough interrupts specified\n",
 				       np->full_name);
 				goto err;
 			}
-			gtm->timers[i].irq = irq.start;
+			gtm->timers[i].irq = irq;
 			gtm->timers[i].gtm = gtm;
 		}
 

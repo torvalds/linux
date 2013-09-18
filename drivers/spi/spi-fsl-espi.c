@@ -687,7 +687,7 @@ static int of_fsl_espi_probe(struct platform_device *ofdev)
 	struct device_node *np = ofdev->dev.of_node;
 	struct spi_master *master;
 	struct resource mem;
-	struct resource irq;
+	unsigned int irq;
 	int ret = -ENOMEM;
 
 	ret = of_mpc8xxx_spi_probe(ofdev);
@@ -702,13 +702,13 @@ static int of_fsl_espi_probe(struct platform_device *ofdev)
 	if (ret)
 		goto err;
 
-	ret = of_irq_to_resource(np, 0, &irq);
+	irq = irq_of_parse_and_map(np, 0);
 	if (!ret) {
 		ret = -EINVAL;
 		goto err;
 	}
 
-	master = fsl_espi_probe(dev, &mem, irq.start);
+	master = fsl_espi_probe(dev, &mem, irq);
 	if (IS_ERR(master)) {
 		ret = PTR_ERR(master);
 		goto err;

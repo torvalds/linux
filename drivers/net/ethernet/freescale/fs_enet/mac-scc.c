@@ -98,7 +98,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 {
 	struct platform_device *ofdev = to_platform_device(fep->dev);
 
-	fep->interrupt = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
+	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_node, 0);
 	if (fep->interrupt == NO_IRQ)
 		return -EINVAL;
 

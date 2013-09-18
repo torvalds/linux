@@ -1207,7 +1207,7 @@ static int cpm_uart_init_port(struct device_node *np,
 	pinfo->port.fifosize = pinfo->tx_nrfifos * pinfo->tx_fifosize;
 	spin_lock_init(&pinfo->port.lock);
 
-	pinfo->port.irq = of_irq_to_resource(np, 0, NULL);
+	pinfo->port.irq = irq_of_parse_and_map(np, 0);
 	if (pinfo->port.irq == NO_IRQ) {
 		ret = -EINVAL;
 		goto out_pram;

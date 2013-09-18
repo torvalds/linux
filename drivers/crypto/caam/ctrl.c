@@ -224,7 +224,7 @@ static int caam_probe(struct platform_device *pdev)
 	topregs = (struct caam_full __iomem *)ctrl;
 
 	/* Get the IRQ of the controller (for security violations only) */
-	ctrlpriv->secvio_irq = of_irq_to_resource(nprop, 0, NULL);
+	ctrlpriv->secvio_irq = irq_of_parse_and_map(nprop, 0);
 
 	/*
 	 * Enable DECO watchdogs and, if this is a PHYS_ADDR_T_64BIT kernel,
