@@ -1789,37 +1789,16 @@ static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 	return 0;
 }
 
-static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
-			    unsigned int sectors, u32 ei_lba)
+static void dif_copy_prot(struct scsi_cmnd *SCpnt, sector_t sector,
+			  unsigned int sectors)
 {
 	unsigned int i, resid;
 	struct scatterlist *psgl;
-	struct sd_dif_tuple *sdt;
-	sector_t sector;
 	void *paddr;
 	const void *dif_store_end = dif_storep + sdebug_store_sectors;
 
-	for (i = 0; i < sectors; i++) {
-		int ret;
-
-		sector = start_sec + i;
-		sdt = dif_store(sector);
-
-		if (sdt->app_tag == 0xffff)
-			continue;
-
-		ret = dif_verify(sdt, fake_store(sector), sector, ei_lba);
-		if (ret) {
-			dif_errors++;
-			return ret;
-		}
-
-		ei_lba++;
-	}
-
 	/* Bytes of protection data to copy into sgl */
 	resid = sectors * sizeof(*dif_storep);
-	sector = start_sec;
 
 	scsi_for_each_prot_sg(SCpnt, psgl, scsi_prot_sg_count(SCpnt), i) {
 		int len = min(psgl->length, resid);
@@ -1839,7 +1818,34 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 		resid -= len;
 		kunmap_atomic(paddr);
 	}
+}
 
+static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
+			    unsigned int sectors, u32 ei_lba)
+{
+	unsigned int i;
+	struct sd_dif_tuple *sdt;
+	sector_t sector;
+
+	for (i = 0; i < sectors; i++) {
+		int ret;
+
+		sector = start_sec + i;
+		sdt = dif_store(sector);
+
+		if (sdt->app_tag == 0xffff)
+			continue;
+
+		ret = dif_verify(sdt, fake_store(sector), sector, ei_lba);
+		if (ret) {
+			dif_errors++;
+			return ret;
+		}
+
+		ei_lba++;
+	}
+
+	dif_copy_prot(SCpnt, start_sec, sectors);
 	dix_reads++;
 
 	return 0;
