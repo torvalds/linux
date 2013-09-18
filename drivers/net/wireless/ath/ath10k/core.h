@@ -54,7 +54,9 @@ struct ath10k_skb_cb {
 		u8 vdev_id;
 		u8 tid;
 		bool is_offchan;
-		struct sk_buff *txfrag;
+
+		u8 frag_len;
+		u8 pad_len;
 	} __packed htt;
 } __packed;
 

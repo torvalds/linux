@@ -49,7 +49,8 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 {
 	struct device *dev = htt->ar->dev;
 	struct ieee80211_tx_info *info;
-	struct sk_buff *msdu, *txfrag;
+	struct ath10k_skb_cb *skb_cb;
+	struct sk_buff *msdu;
 	int ret;
 
 	ath10k_dbg(ATH10K_DBG_HTT, "htt tx completion msdu_id %u discard %d no_ack %d\n",
@@ -62,19 +63,14 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	}
 
 	msdu = htt->pending_tx[tx_done->msdu_id];
-	txfrag = ATH10K_SKB_CB(msdu)->htt.txfrag;
-
-	if (txfrag) {
-		ret = ath10k_skb_unmap(dev, txfrag);
-		if (ret)
-			ath10k_warn("txfrag unmap failed (%d)\n", ret);
-
-		dev_kfree_skb_any(txfrag);
-	}
+	skb_cb = ATH10K_SKB_CB(msdu);
 
 	ret = ath10k_skb_unmap(dev, msdu);
 	if (ret)
 		ath10k_warn("data skb unmap failed (%d)\n", ret);
+
+	if (skb_cb->htt.frag_len)
+		skb_pull(msdu, skb_cb->htt.frag_len + skb_cb->htt.pad_len);
 
 	ath10k_report_offchan_tx(htt->ar, msdu);
 

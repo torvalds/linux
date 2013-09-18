@@ -3342,6 +3342,10 @@ int ath10k_mac_register(struct ath10k *ar)
 			IEEE80211_HW_WANT_MONITOR_VIF |
 			IEEE80211_HW_AP_LINK_PS;
 
+	/* MSDU can have HTT TX fragment pushed in front. The additional 4
+	 * bytes is used for padding/alignment if necessary. */
+	ar->hw->extra_tx_headroom += sizeof(struct htt_data_tx_desc_frag)*2 + 4;
+
 	if (ar->ht_cap_info & WMI_HT_CAP_DYNAMIC_SMPS)
 		ar->hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS;
 
