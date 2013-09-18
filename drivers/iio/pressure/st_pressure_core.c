@@ -349,11 +349,11 @@ int st_press_common_probe(struct iio_dev *indio_dev,
 	if (err < 0)
 		return err;
 
-	if (irq > 0) {
-		err = st_press_allocate_ring(indio_dev);
-		if (err < 0)
-			return err;
+	err = st_press_allocate_ring(indio_dev);
+	if (err < 0)
+		return err;
 
+	if (irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						  ST_PRESS_TRIGGER_OPS);
 		if (err < 0)
@@ -370,8 +370,7 @@ st_press_device_register_error:
 	if (irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 st_press_probe_trigger_error:
-	if (irq > 0)
-		st_press_deallocate_ring(indio_dev);
+	st_press_deallocate_ring(indio_dev);
 
 	return err;
 }
@@ -382,10 +381,10 @@ void st_press_common_remove(struct iio_dev *indio_dev)
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (pdata->get_irq_data_ready(indio_dev) > 0) {
+	if (pdata->get_irq_data_ready(indio_dev) > 0)
 		st_sensors_deallocate_trigger(indio_dev);
-		st_press_deallocate_ring(indio_dev);
-	}
+
+	st_press_deallocate_ring(indio_dev);
 }
 EXPORT_SYMBOL(st_press_common_remove);
 
