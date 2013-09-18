@@ -54,24 +54,6 @@ struct ab8500_platform_data ab8500_platdata = {
 	.regulator	= &ab8500_regulator_plat_data,
 };
 
-static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
-	{
-		/* Light sensor Rohm BH1780GLI */
-		I2C_BOARD_INFO("bh1780", 0x29),
-	},
-};
-
-static int __init mop500_i2c_board_init(void)
-{
-	if (machine_is_u8500())
-		mop500_uib_i2c_add(0, mop500_i2c0_devices,
-				   ARRAY_SIZE(mop500_i2c0_devices));
-	mop500_uib_i2c_add(2, mop500_i2c2_devices,
-			   ARRAY_SIZE(mop500_i2c2_devices));
-	return 0;
-}
-device_initcall(mop500_i2c_board_init);
-
 static void __init mop500_i2c_init(struct device *parent)
 {
 	db8500_add_i2c0(parent, NULL);
