@@ -133,6 +133,17 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
+	if (IS_HASWELL(drm_dev)) {
+		if (dev_priv->l3_parity.remap_info)
+			memcpy(buf,
+			       dev_priv->l3_parity.remap_info + (offset/4),
+			       count);
+		else
+			memset(buf, 0, count);
+
+		goto out;
+	}
+
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
 
@@ -141,9 +152,10 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 
+out:
 	mutex_unlock(&drm_dev->struct_mutex);
 
-	return i;
+	return count;
 }
 
 static ssize_t
