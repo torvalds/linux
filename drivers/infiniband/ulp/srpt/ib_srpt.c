@@ -2373,6 +2373,8 @@ static void srpt_release_channel_work(struct work_struct *w)
 	transport_deregister_session(ch->sess);
 	ch->sess = NULL;
 
+	ib_destroy_cm_id(ch->cm_id);
+
 	srpt_destroy_ch_ib(ch);
 
 	srpt_free_ioctx_ring((struct srpt_ioctx **)ch->ioctx_ring,
@@ -2382,8 +2384,6 @@ static void srpt_release_channel_work(struct work_struct *w)
 	spin_lock_irq(&sdev->spinlock);
 	list_del(&ch->list);
 	spin_unlock_irq(&sdev->spinlock);
-
-	ib_destroy_cm_id(ch->cm_id);
 
 	if (ch->release_done)
 		complete(ch->release_done);
