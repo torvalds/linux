@@ -300,6 +300,13 @@
 				reg = <0x80157450 0xC>;
 			};
 
+			cpufreq {
+				compatible = "stericsson,cpufreq-ux500";
+				clocks = <&prcmu_clk PRCMU_ARMSS>;
+				clock-names = "armss";
+				status = "disabled";
+			};
+
 			thermal@801573c0 {
 				compatible = "stericsson,db8500-thermal";
 				reg = <0x801573c0 0x40>;
