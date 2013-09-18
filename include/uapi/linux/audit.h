@@ -376,6 +376,7 @@ struct audit_status {
 	__u32		backlog_limit;	/* waiting messages limit */
 	__u32		lost;		/* messages lost */
 	__u32		backlog;	/* messages waiting in queue */
+	__u32		version;	/* audit api version number */
 };
 
 struct audit_features {

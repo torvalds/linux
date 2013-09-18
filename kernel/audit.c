@@ -743,7 +743,6 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	u32			seq;
 	void			*data;
-	struct audit_status	*status_get, status_set;
 	int			err;
 	struct audit_buffer	*ab;
 	u16			msg_type = nlh->nlmsg_type;
@@ -769,34 +768,38 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	data = nlmsg_data(nlh);
 
 	switch (msg_type) {
-	case AUDIT_GET:
-		memset(&status_set, 0, sizeof(status_set));
-		status_set.enabled	 = audit_enabled;
-		status_set.failure	 = audit_failure;
-		status_set.pid		 = audit_pid;
-		status_set.rate_limit	 = audit_rate_limit;
-		status_set.backlog_limit = audit_backlog_limit;
-		status_set.lost		 = atomic_read(&audit_lost);
-		status_set.backlog	 = skb_queue_len(&audit_skb_queue);
+	case AUDIT_GET: {
+		struct audit_status	s;
+		memset(&s, 0, sizeof(s));
+		s.enabled		= audit_enabled;
+		s.failure		= audit_failure;
+		s.pid			= audit_pid;
+		s.rate_limit		= audit_rate_limit;
+		s.backlog_limit		= audit_backlog_limit;
+		s.lost			= atomic_read(&audit_lost);
+		s.backlog		= skb_queue_len(&audit_skb_queue);
+		s.version		= 1;
 		audit_send_reply(NETLINK_CB(skb).portid, seq, AUDIT_GET, 0, 0,
-				 &status_set, sizeof(status_set));
+				 &s, sizeof(s));
 		break;
-	case AUDIT_SET:
-		if (nlmsg_len(nlh) < sizeof(struct audit_status))
-			return -EINVAL;
-		status_get   = (struct audit_status *)data;
-		if (status_get->mask & AUDIT_STATUS_ENABLED) {
-			err = audit_set_enabled(status_get->enabled);
+	}
+	case AUDIT_SET: {
+		struct audit_status	s;
+		memset(&s, 0, sizeof(s));
+		/* guard against past and future API changes */
+		memcpy(&s, data, min_t(size_t, sizeof(s), nlmsg_len(nlh)));
+		if (s.mask & AUDIT_STATUS_ENABLED) {
+			err = audit_set_enabled(s.enabled);
 			if (err < 0)
 				return err;
 		}
-		if (status_get->mask & AUDIT_STATUS_FAILURE) {
-			err = audit_set_failure(status_get->failure);
+		if (s.mask & AUDIT_STATUS_FAILURE) {
+			err = audit_set_failure(s.failure);
 			if (err < 0)
 				return err;
 		}
-		if (status_get->mask & AUDIT_STATUS_PID) {
-			int new_pid = status_get->pid;
+		if (s.mask & AUDIT_STATUS_PID) {
+			int new_pid = s.pid;
 
 			if (audit_enabled != AUDIT_OFF)
 				audit_log_config_change("audit_pid", new_pid, audit_pid, 1);
@@ -804,14 +807,15 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			audit_nlk_portid = NETLINK_CB(skb).portid;
 			audit_sock = NETLINK_CB(skb).sk;
 		}
-		if (status_get->mask & AUDIT_STATUS_RATE_LIMIT) {
-			err = audit_set_rate_limit(status_get->rate_limit);
+		if (s.mask & AUDIT_STATUS_RATE_LIMIT) {
+			err = audit_set_rate_limit(s.rate_limit);
 			if (err < 0)
 				return err;
 		}
-		if (status_get->mask & AUDIT_STATUS_BACKLOG_LIMIT)
-			err = audit_set_backlog_limit(status_get->backlog_limit);
+		if (s.mask & AUDIT_STATUS_BACKLOG_LIMIT)
+			err = audit_set_backlog_limit(s.backlog_limit);
 		break;
+	}
 	case AUDIT_GET_FEATURE:
 		err = audit_get_feature(skb);
 		if (err)
