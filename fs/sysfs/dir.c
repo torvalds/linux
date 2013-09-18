@@ -789,27 +789,81 @@ void sysfs_remove_subdir(struct sysfs_dirent *sd)
 	remove_dir(sd);
 }
 
+static struct sysfs_dirent *sysfs_leftmost_descendant(struct sysfs_dirent *pos)
+{
+	struct sysfs_dirent *last;
+
+	while (true) {
+		struct rb_node *rbn;
+
+		last = pos;
+
+		if (sysfs_type(pos) != SYSFS_DIR)
+			break;
+
+		rbn = rb_first(&pos->s_dir.children);
+		if (!rbn)
+			break;
+
+		pos = to_sysfs_dirent(rbn);
+	}
+
+	return last;
+}
+
+/**
+ * sysfs_next_descendant_post - find the next descendant for post-order walk
+ * @pos: the current position (%NULL to initiate traversal)
+ * @root: sysfs_dirent whose descendants to walk
+ *
+ * Find the next descendant to visit for post-order traversal of @root's
+ * descendants.  @root is included in the iteration and the last node to be
+ * visited.
+ */
+static struct sysfs_dirent *sysfs_next_descendant_post(struct sysfs_dirent *pos,
+						       struct sysfs_dirent *root)
+{
+	struct rb_node *rbn;
+
+	lockdep_assert_held(&sysfs_mutex);
+
+	/* if first iteration, visit leftmost descendant which may be root */
+	if (!pos)
+		return sysfs_leftmost_descendant(root);
+
+	/* if we visited @root, we're done */
+	if (pos == root)
+		return NULL;
+
+	/* if there's an unvisited sibling, visit its leftmost descendant */
+	rbn = rb_next(&pos->s_rb);
+	if (rbn)
+		return sysfs_leftmost_descendant(to_sysfs_dirent(rbn));
+
+	/* no sibling left, visit parent */
+	return pos->s_parent;
+}
 
 static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
 {
 	struct sysfs_addrm_cxt acxt;
-	struct rb_node *pos;
+	struct sysfs_dirent *pos, *next;
 
 	if (!dir_sd)
 		return;
 
 	pr_debug("sysfs %s: removing dir\n", dir_sd->s_name);
 	sysfs_addrm_start(&acxt);
-	pos = rb_first(&dir_sd->s_dir.children);
-	while (pos) {
-		struct sysfs_dirent *sd = to_sysfs_dirent(pos);
-		pos = rb_next(pos);
-		if (sysfs_type(sd) != SYSFS_DIR)
-			sysfs_remove_one(&acxt, sd);
-	}
-	sysfs_addrm_finish(&acxt);
 
-	remove_dir(dir_sd);
+	next = NULL;
+	do {
+		pos = next;
+		next = sysfs_next_descendant_post(pos, dir_sd);
+		if (pos)
+			sysfs_remove_one(&acxt, pos);
+	} while (next);
+
+	sysfs_addrm_finish(&acxt);
 }
 
 /**
@@ -820,7 +874,6 @@ static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
  *	the directory before we remove the directory, and we've inlined
  *	what used to be sysfs_rmdir() below, instead of calling separately.
  */
-
 void sysfs_remove_dir(struct kobject *kobj)
 {
 	struct sysfs_dirent *sd = kobj->sd;
