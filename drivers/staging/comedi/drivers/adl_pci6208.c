@@ -1,42 +1,32 @@
 /*
-    comedi/drivers/adl_pci6208.c
+ * adl_pci6208.c
+ * Comedi driver for ADLink 6208 series cards
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    Hardware driver for ADLink 6208 series cards:
-	card	     | voltage output    | current output
-	-------------+-------------------+---------------
-	PCI-6208V    |  8 channels       | -
-	PCI-6216V    | 16 channels       | -
-	PCI-6208A    |  8 channels       | 8 channels
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: adl_pci6208
-Description: ADLink PCI-6208/6216 Series Multi-channel Analog Output Cards
-Devices: (ADLink) PCI-6208 [adl_pci6208]
-	 (ADLink) PCI-6216 [adl_pci6216]
-Author: nsyeow <nsyeow@pd.jaring.my>
-Updated: Fri, 30 Jan 2004 14:44:27 +0800
-Status: untested
-
-Configuration Options: not applicable, uses PCI auto config
-
-References:
-	- ni_660x.c
-	- adl_pci9111.c		copied the entire pci setup section
-	- adl_pci9118.c
-*/
+ * Driver: adl_pci6208
+ * Description: ADLink PCI-6208/6216 Series Multi-channel Analog Output Cards
+ * Devices: (ADLink) PCI-6208 [adl_pci6208]
+ *	    (ADLink) PCI-6216 [adl_pci6216]
+ * Author: nsyeow <nsyeow@pd.jaring.my>
+ * Updated: Fri, 30 Jan 2004 14:44:27 +0800
+ * Status: untested
+ *
+ * Configuration Options: not applicable, uses PCI auto config
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
