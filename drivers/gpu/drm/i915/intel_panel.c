@@ -659,7 +659,7 @@ intel_panel_detect(struct drm_device *dev)
 	}
 }
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+#if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
 static int intel_panel_update_status(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
