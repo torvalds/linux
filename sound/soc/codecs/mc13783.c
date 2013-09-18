@@ -30,15 +30,9 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/soc-dapm.h>
+#include <linux/regmap.h>
 
 #include "mc13783.h"
-
-#define MC13783_AUDIO_RX0	36
-#define MC13783_AUDIO_RX1	37
-#define MC13783_AUDIO_TX	38
-#define MC13783_SSI_NETWORK	39
-#define MC13783_AUDIO_CODEC	40
-#define MC13783_AUDIO_DAC	41
 
 #define AUDIO_RX0_ALSPEN		(1 << 5)
 #define AUDIO_RX0_ALSPSEL		(1 << 7)
@@ -95,40 +89,11 @@
 
 struct mc13783_priv {
 	struct mc13xxx *mc13xxx;
+	struct regmap *regmap;
 
 	enum mc13783_ssi_port adc_ssi_port;
 	enum mc13783_ssi_port dac_ssi_port;
 };
-
-static unsigned int mc13783_read(struct snd_soc_codec *codec,
-	unsigned int reg)
-{
-	struct mc13783_priv *priv = snd_soc_codec_get_drvdata(codec);
-	unsigned int value = 0;
-
-	mc13xxx_lock(priv->mc13xxx);
-
-	mc13xxx_reg_read(priv->mc13xxx, reg, &value);
-
-	mc13xxx_unlock(priv->mc13xxx);
-
-	return value;
-}
-
-static int mc13783_write(struct snd_soc_codec *codec,
-	unsigned int reg, unsigned int value)
-{
-	struct mc13783_priv *priv = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	mc13xxx_lock(priv->mc13xxx);
-
-	ret = mc13xxx_reg_write(priv->mc13xxx, reg, value);
-
-	mc13xxx_unlock(priv->mc13xxx);
-
-	return ret;
-}
 
 /* Mapping between sample rates and register value */
 static unsigned int mc13783_rates[] = {
@@ -583,8 +548,14 @@ static struct snd_kcontrol_new mc13783_control_list[] = {
 static int mc13783_probe(struct snd_soc_codec *codec)
 {
 	struct mc13783_priv *priv = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
-	mc13xxx_lock(priv->mc13xxx);
+	codec->control_data = dev_get_regmap(codec->dev->parent, NULL);
+	ret = snd_soc_codec_set_cache_io(codec, 8, 24, SND_SOC_REGMAP);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		return ret;
+	}
 
 	/* these are the reset values */
 	mc13xxx_reg_write(priv->mc13xxx, MC13783_AUDIO_RX0, 0x25893);
@@ -608,8 +579,6 @@ static int mc13783_probe(struct snd_soc_codec *codec)
 		mc13xxx_reg_rmw(priv->mc13xxx, MC13783_AUDIO_DAC,
 				0, AUDIO_SSI_SEL);
 
-	mc13xxx_unlock(priv->mc13xxx);
-
 	return 0;
 }
 
@@ -617,12 +586,8 @@ static int mc13783_remove(struct snd_soc_codec *codec)
 {
 	struct mc13783_priv *priv = snd_soc_codec_get_drvdata(codec);
 
-	mc13xxx_lock(priv->mc13xxx);
-
 	/* Make sure VAUDIOON is off */
 	mc13xxx_reg_rmw(priv->mc13xxx, MC13783_AUDIO_RX0, 0x3, 0);
-
-	mc13xxx_unlock(priv->mc13xxx);
 
 	return 0;
 }
@@ -713,8 +678,6 @@ static struct snd_soc_dai_driver mc13783_dai_sync[] = {
 static struct snd_soc_codec_driver soc_codec_dev_mc13783 = {
 	.probe		= mc13783_probe,
 	.remove		= mc13783_remove,
-	.read		= mc13783_read,
-	.write		= mc13783_write,
 	.controls	= mc13783_control_list,
 	.num_controls	= ARRAY_SIZE(mc13783_control_list),
 	.dapm_widgets	= mc13783_dapm_widgets,
