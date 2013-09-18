@@ -309,6 +309,39 @@ static ssize_t pm8001_ctl_aap_log_show(struct device *cdev,
 }
 static DEVICE_ATTR(aap_log, S_IRUGO, pm8001_ctl_aap_log_show, NULL);
 /**
+ * pm8001_ctl_bios_version_show - Bios version Display
+ * @cdev:pointer to embedded class device
+ * @buf:the buffer returned
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	char *str = buf;
+	void *virt_addr;
+	int bios_index;
+	DECLARE_COMPLETION_ONSTACK(completion);
+	struct pm8001_ioctl_payload payload;
+
+	pm8001_ha->nvmd_completion = &completion;
+	payload.minor_function = 7;
+	payload.offset = 0;
+	payload.length = 4096;
+	payload.func_specific = kzalloc(4096, GFP_KERNEL);
+	PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload);
+	wait_for_completion(&completion);
+	virt_addr = pm8001_ha->memoryMap.region[NVMD].virt_ptr;
+	for (bios_index = BIOSOFFSET; bios_index < BIOS_OFFSET_LIMIT;
+		bios_index++)
+		str += sprintf(str, "%c",
+			*((u8 *)((u8 *)virt_addr+bios_index)));
+	return str - buf;
+}
+static DEVICE_ATTR(bios_version, S_IRUGO, pm8001_ctl_bios_version_show, NULL);
+/**
  * pm8001_ctl_aap_log_show - IOP event log
  * @cdev: pointer to embedded class device
  * @buf: the buffer returned
@@ -609,6 +642,7 @@ struct device_attribute *pm8001_host_attrs[] = {
 	&dev_attr_sas_spec_support,
 	&dev_attr_logging_level,
 	&dev_attr_host_sas_address,
+	&dev_attr_bios_version,
 	NULL,
 };
 

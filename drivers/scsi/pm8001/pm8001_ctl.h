@@ -45,6 +45,8 @@
 #define HEADER_LEN			28
 #define SIZE_OFFSET			16
 
+#define BIOSOFFSET			56
+#define BIOS_OFFSET_LIMIT		61
 
 #define FLASH_OK                        0x000000
 #define FAIL_OPEN_BIOS_FILE             0x000100
