@@ -267,4 +267,14 @@ config SERIO_OLPC_APSP
 	  To compile this driver as a module, choose M here: the module will
 	  be called olpc_apsp.
 
+config HYPERV_KEYBOARD
+	tristate "Microsoft Synthetic Keyboard driver"
+	depends on HYPERV
+	default HYPERV
+	help
+	  Select this option to enable the Hyper-V Keyboard driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called hyperv_keyboard.
+
 endif
