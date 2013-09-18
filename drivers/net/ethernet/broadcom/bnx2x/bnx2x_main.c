@@ -13632,6 +13632,10 @@ void bnx2x_setup_cnic_info(struct bnx2x *bp)
 	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
 	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
 
+	DP(NETIF_MSG_IFUP, "BNX2X_1st_NON_L2_ETH_CID(bp) %x, cp->starting_cid %x, cp->fcoe_init_cid %x, cp->iscsi_l2_cid %x\n",
+	   BNX2X_1st_NON_L2_ETH_CID(bp), cp->starting_cid, cp->fcoe_init_cid,
+	   cp->iscsi_l2_cid);
+
 	if (NO_ISCSI_OOO(bp))
 		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;
 }

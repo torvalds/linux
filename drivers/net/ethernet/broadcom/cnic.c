@@ -5217,7 +5217,8 @@ static void cnic_init_rings(struct cnic_dev *dev)
 				"iSCSI CLIENT_SETUP did not complete\n");
 		cnic_spq_completion(dev, DRV_CTL_RET_L2_SPQ_CREDIT_CMD, 1);
 		cnic_ring_ctl(dev, cid, cli, 1);
-		*cid_ptr = cid;
+		*cid_ptr = cid >> 4;
+		*(cid_ptr + 1) = cid * bp->db_size;
 	}
 }
 
