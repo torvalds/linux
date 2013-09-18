@@ -10,6 +10,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/mfd/dbx500-prcmu.h>
 #include "skeleton.dtsi"
 
 / {
@@ -40,6 +41,14 @@
 		pmu {
 			compatible = "arm,cortex-a9-pmu";
 			interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		clocks {
+			compatible = "stericsson,u8500-clks";
+
+			prcmu_clk: prcmu-clock {
+				#clock-cells = <1>;
+			};
 		};
 
 		timer@a0410600 {
