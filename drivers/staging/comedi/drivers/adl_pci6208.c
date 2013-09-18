@@ -98,12 +98,13 @@ static int pci6208_ao_wait_for_data_send(struct comedi_device *dev,
 	return -ETIME;
 }
 
-static int pci6208_ao_winsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int pci6208_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct pci6208_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int val = devpriv->ao_readback[chan];
 	int ret;
 	int i;
@@ -204,7 +205,7 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 	s->n_chan	= boardinfo->ao_chans;
 	s->maxdata	= 0xffff;
 	s->range_table	= &range_bipolar10;
-	s->insn_write	= pci6208_ao_winsn;
+	s->insn_write	= pci6208_ao_insn_write;
 	s->insn_read	= pci6208_ao_rinsn;
 
 	s = &dev->subdevices[1];
