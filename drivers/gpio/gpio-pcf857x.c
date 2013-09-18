@@ -195,15 +195,19 @@ static irqreturn_t pcf857x_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int pcf857x_irq_domain_map(struct irq_domain *domain, unsigned int virq,
+static int pcf857x_irq_domain_map(struct irq_domain *domain, unsigned int irq,
 				 irq_hw_number_t hw)
 {
 	struct pcf857x *gpio = domain->host_data;
 
-	irq_set_chip_and_handler(virq,
+	irq_set_chip_and_handler(irq,
 				 &dummy_irq_chip,
 				 handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID);
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID);
+#else
+	irq_set_noprobe(irq);
+#endif
 	gpio->irq_mapped |= (1 << hw);
 
 	return 0;
