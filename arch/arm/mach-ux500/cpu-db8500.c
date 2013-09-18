@@ -219,7 +219,6 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
 	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
 	/* Requires DMA bindings. */
-	OF_DEV_AUXDATA("arm,pl022", 0x80002000, "ssp0",  &ssp0_plat),
 	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80123000,
 		       "ux500-msp-i2s.0", &msp0_platform_data),
 	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80124000,
