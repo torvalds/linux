@@ -786,20 +786,30 @@ static inline void rm7k_erratum31(void)
 
 static inline void alias_74k_erratum(struct cpuinfo_mips *c)
 {
+	unsigned int imp = c->processor_id & PRID_IMP_MASK;
+	unsigned int rev = c->processor_id & PRID_REV_MASK;
+
 	/*
 	 * Early versions of the 74K do not update the cache tags on a
 	 * vtag miss/ptag hit which can occur in the case of KSEG0/KUSEG
 	 * aliases. In this case it is better to treat the cache as always
 	 * having aliases.
 	 */
-	if ((c->processor_id & PRID_REV_MASK) <= PRID_REV_ENCODE_332(2, 4, 0))
-		c->dcache.flags |= MIPS_CACHE_VTAG;
-	if ((c->processor_id & PRID_REV_MASK) == PRID_REV_ENCODE_332(2, 4, 0))
-		write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
-	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_1074K &&
-	    (c->processor_id & PRID_REV_MASK) <= PRID_REV_ENCODE_332(1, 1, 0)) {
-		c->dcache.flags |= MIPS_CACHE_VTAG;
-		write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+	switch (imp) {
+	case PRID_IMP_74K:
+		if (rev <= PRID_REV_ENCODE_332(2, 4, 0))
+			c->dcache.flags |= MIPS_CACHE_VTAG;
+		if (rev == PRID_REV_ENCODE_332(2, 4, 0))
+			write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+		break;
+	case PRID_IMP_1074K:
+		if (rev <= PRID_REV_ENCODE_332(1, 1, 0)) {
+			c->dcache.flags |= MIPS_CACHE_VTAG;
+			write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+		}
+		break;
+	default:
+		BUG();
 	}
 }
 
