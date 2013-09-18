@@ -39,9 +39,6 @@ asmlinkage unsigned long sys_getpagesize(void)
 	return PAGE_SIZE;
 }
 
-#define VA_EXCLUDE_START (0x0000080000000000UL - (1UL << 32UL))
-#define VA_EXCLUDE_END   (0xfffff80000000000UL + (1UL << 32UL))
-
 /* Does addr --> addr+len fall within 4GB of the VA-space hole or
  * overflow past the end of the 64-bit address space?
  */
