@@ -191,6 +191,11 @@ config MACH_BOCKW_REFERENCE
 
 	   This is intended to aid developers
 
+config MACH_GENMAI
+	bool "Genmai board"
+	depends on ARCH_R7S72100
+	select USE_OF
+
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
