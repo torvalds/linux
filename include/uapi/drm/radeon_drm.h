@@ -1007,4 +1007,6 @@ struct drm_radeon_info {
 #define SI_TILE_MODE_DEPTH_STENCIL_2D_4AA	3
 #define SI_TILE_MODE_DEPTH_STENCIL_2D_8AA	2
 
+#define CIK_TILE_MODE_DEPTH_STENCIL_1D		5
+
 #endif
