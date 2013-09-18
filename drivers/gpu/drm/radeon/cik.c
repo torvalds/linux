@@ -2845,10 +2845,8 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		rdev->config.cik.tile_config |= (3 << 0);
 		break;
 	}
-	if ((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT)
-		rdev->config.cik.tile_config |= 1 << 4;
-	else
-		rdev->config.cik.tile_config |= 0 << 4;
+	rdev->config.cik.tile_config |=
+		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
 	rdev->config.cik.tile_config |=
 		((gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT) << 8;
 	rdev->config.cik.tile_config |=
