@@ -337,9 +337,9 @@ ARC_ENTRY EV_TLBProtV
 	;  vineetg: Mar 6th: Random Seg Fault issue #1
 	;  ecr and efa were not saved in case an Intr sneaks in
 	;  after fake rtie
-	;
+
 	lr  r2, [ecr]
-	lr  r1, [efa]	; Faulting Data address
+	lr  r0, [efa]	; Faulting Data address
 
 	; --------(4) Return from CPU Exception Mode ---------
 	;  Fake a rtie, but rtie to next label
@@ -347,6 +347,8 @@ ARC_ENTRY EV_TLBProtV
 	;  mode with further Exceptions enabled
 
 	FAKE_RET_FROM_EXCPN r9
+
+	mov   r1, sp
 
 	;------ (5) Type of Protection Violation? ----------
 	;
@@ -358,14 +360,11 @@ ARC_ENTRY EV_TLBProtV
 	bbit1 r2, ECR_C_BIT_PROTV_MISALIG_DATA, 4f
 
 	;========= (6a) Access Violation Processing ========
-	mov r0, sp              ; pt_regs
 	bl  do_page_fault
 	b   ret_from_exception
 
 	;========== (6b) Non aligned access ============
 4:
-	mov r0, r1
-	mov r1, sp              ; pt_regs
 
 #ifdef  CONFIG_ARC_MISALIGN_ACCESS
 	SAVE_CALLEE_SAVED_USER
