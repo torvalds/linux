@@ -307,7 +307,12 @@ static inline bool comedi_range_is_unipolar(struct comedi_subdevice *s,
 	return s->range_table->range[range].min >= 0;
 }
 
-/* some silly little inline functions */
+/* munge between offset binary and two's complement values */
+static inline unsigned int comedi_offset_munge(struct comedi_subdevice *s,
+					       unsigned int val)
+{
+	return val ^ s->maxdata ^ (s->maxdata >> 1);
+}
 
 static inline unsigned int bytes_per_sample(const struct comedi_subdevice *subd)
 {
