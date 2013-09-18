@@ -701,10 +701,7 @@ static int lm95234_probe(struct i2c_client *client,
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
 							   data,
 							   lm95234_groups);
-	if (IS_ERR(hwmon_dev))
-		return PTR_ERR(hwmon_dev);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 /* Driver data (common to all clients) */
