@@ -249,6 +249,8 @@ static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		}
 	}
 
+	cmr |= (tcbpwm->div & ATMEL_TC_TCCLKS);
+
 	__raw_writel(cmr, regs + ATMEL_TC_REG(group, CMR));
 
 	if (index == 0)
