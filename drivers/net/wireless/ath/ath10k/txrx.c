@@ -96,7 +96,7 @@ exit:
 	htt->pending_tx[ATH10K_SKB_CB(txdesc)->htt.msdu_id] = NULL;
 	ath10k_htt_tx_free_msdu_id(htt, ATH10K_SKB_CB(txdesc)->htt.msdu_id);
 	__ath10k_htt_tx_dec_pending(htt);
-	if (bitmap_empty(htt->used_msdu_ids, htt->max_num_pending_tx))
+	if (htt->num_pending_tx == 0)
 		wake_up(&htt->empty_tx_wq);
 	spin_unlock_bh(&htt->tx_lock);
 

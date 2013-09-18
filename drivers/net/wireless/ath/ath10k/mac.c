@@ -2853,8 +2853,7 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 			bool empty;
 
 			spin_lock_bh(&ar->htt.tx_lock);
-			empty = bitmap_empty(ar->htt.used_msdu_ids,
-					     ar->htt.max_num_pending_tx);
+			empty = (ar->htt.num_pending_tx == 0);
 			spin_unlock_bh(&ar->htt.tx_lock);
 
 			skip = (ar->state == ATH10K_STATE_WEDGED);
