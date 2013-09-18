@@ -8736,9 +8736,8 @@ F:	Documentation/hid/hiddev.txt
 F:	drivers/hid/usbhid/
 
 USB/IP DRIVERS
-M:	Matt Mooney <mfm@muteddisk.com>
 L:	linux-usb@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/staging/usbip/
 
 USB ISP116X DRIVER
