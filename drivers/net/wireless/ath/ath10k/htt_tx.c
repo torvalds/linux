@@ -384,9 +384,11 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	/* refcount is decremented by HTC and HTT completions until it reaches
 	 * zero and is freed */
 	skb_cb = ATH10K_SKB_CB(txdesc);
+	skb_cb->htt.is_conf = false;
 	skb_cb->htt.msdu_id = msdu_id;
 	skb_cb->htt.refcount = 2;
 	skb_cb->htt.msdu = msdu;
+	skb_cb->htt.txfrag = NULL;
 
 	res = ath10k_htc_send(&htt->ar->htc, htt->eid, txdesc);
 	if (res)
@@ -505,7 +507,6 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 
 	skb_put(txdesc, desc_len);
 	cmd = (struct htt_cmd *)txdesc->data;
-	memset(cmd, 0, desc_len);
 
 	tid = ATH10K_SKB_CB(msdu)->htt.tid;
 
@@ -555,6 +556,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	/* refcount is decremented by HTC and HTT completions until it reaches
 	 * zero and is freed */
 	skb_cb = ATH10K_SKB_CB(txdesc);
+	skb_cb->htt.is_conf = false;
 	skb_cb->htt.msdu_id = msdu_id;
 	skb_cb->htt.refcount = 2;
 	skb_cb->htt.txfrag = txfrag;

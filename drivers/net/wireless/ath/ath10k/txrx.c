@@ -75,7 +75,6 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt, struct sk_buff *txdesc)
 	ath10k_report_offchan_tx(htt->ar, msdu);
 
 	info = IEEE80211_SKB_CB(msdu);
-	memset(&info->status, 0, sizeof(info->status));
 
 	if (ATH10K_SKB_CB(txdesc)->htt.discard) {
 		ieee80211_free_txskb(htt->ar->hw, msdu);

@@ -1757,7 +1757,9 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 		ath10k_tx_h_seq_no(skb);
 	}
 
-	memset(ATH10K_SKB_CB(skb), 0, sizeof(*ATH10K_SKB_CB(skb)));
+	ATH10K_SKB_CB(skb)->is_mapped = false;
+	ATH10K_SKB_CB(skb)->is_aborted = false;
+	ATH10K_SKB_CB(skb)->htt.is_offchan = false;
 	ATH10K_SKB_CB(skb)->htt.vdev_id = vdev_id;
 	ATH10K_SKB_CB(skb)->htt.tid = tid;
 
