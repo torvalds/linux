@@ -276,7 +276,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *indio_dev,
 			goto error_ret;
 		}
 		if (chan->modified)
-			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel,
+			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel2,
 						  i/IIO_EV_DIR_MAX,
 						  i%IIO_EV_DIR_MAX);
 		else if (chan->differential)
