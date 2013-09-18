@@ -605,6 +605,8 @@ struct i915_hw_context {
 	struct intel_ring_buffer *ring;
 	struct drm_i915_gem_object *obj;
 	struct i915_ctx_hang_stats hang_stats;
+
+	struct list_head link;
 };
 
 struct i915_fbc {
@@ -1343,6 +1345,7 @@ typedef struct drm_i915_private {
 
 	bool hw_contexts_disabled;
 	uint32_t hw_context_size;
+	struct list_head context_list;
 
 	u32 fdi_rx_config;
 

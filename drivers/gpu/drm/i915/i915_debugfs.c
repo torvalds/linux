@@ -1442,6 +1442,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
+	struct i915_hw_context *ctx;
 	int ret, i;
 
 	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
@@ -1460,12 +1461,14 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		seq_putc(m, '\n');
 	}
 
-	for_each_ring(ring, dev_priv, i) {
-		if (ring->default_context) {
-			seq_printf(m, "HW default context %s ", ring->name);
-			describe_obj(m, ring->default_context->obj);
-			seq_putc(m, '\n');
-		}
+	list_for_each_entry(ctx, &dev_priv->context_list, link) {
+		seq_puts(m, "HW context ");
+		for_each_ring(ring, dev_priv, i)
+			if (ring->default_context == ctx)
+				seq_printf(m, "(default context %s) ", ring->name);
+
+		describe_obj(m, ctx->obj);
+		seq_putc(m, '\n');
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);

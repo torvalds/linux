@@ -129,6 +129,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	struct i915_hw_context *ctx = container_of(ctx_ref,
 						   typeof(*ctx), ref);
 
+	list_del(&ctx->link);
 	drm_gem_object_unreference(&ctx->obj->base);
 	kfree(ctx);
 }
@@ -147,6 +148,7 @@ create_hw_context(struct drm_device *dev,
 
 	kref_init(&ctx->ref);
 	ctx->obj = i915_gem_alloc_object(dev, dev_priv->hw_context_size);
+	INIT_LIST_HEAD(&ctx->link);
 	if (ctx->obj == NULL) {
 		kfree(ctx);
 		DRM_DEBUG_DRIVER("Context object allocated failed\n");
@@ -166,6 +168,7 @@ create_hw_context(struct drm_device *dev,
 	 * assertion in the context switch code.
 	 */
 	ctx->ring = &dev_priv->ring[RCS];
+	list_add_tail(&ctx->link, &dev_priv->context_list);
 
 	/* Default context will never have a file_priv */
 	if (file_priv == NULL)
