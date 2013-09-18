@@ -104,7 +104,6 @@ static int pci6208_ao_winsn(struct comedi_device *dev,
 {
 	struct pci6208_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
-	unsigned int invert = 1 << (16 - 1);
 	unsigned int val = devpriv->ao_readback[chan];
 	int ret;
 	int i;
@@ -117,7 +116,9 @@ static int pci6208_ao_winsn(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		outw(val ^ invert, dev->iobase + PCI6208_AO_CONTROL(chan));
+		/* the hardware expects two's complement values */
+		outw(comedi_offset_munge(s, val),
+		     dev->iobase + PCI6208_AO_CONTROL(chan));
 	}
 	devpriv->ao_readback[chan] = val;
 
