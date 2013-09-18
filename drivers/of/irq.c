@@ -373,9 +373,10 @@ EXPORT_SYMBOL_GPL(of_irq_to_resource);
  */
 int of_irq_count(struct device_node *dev)
 {
+	struct of_phandle_args irq;
 	int nr = 0;
 
-	while (of_irq_to_resource(dev, nr, NULL))
+	while (of_irq_parse_one(dev, nr, &irq) == 0)
 		nr++;
 
 	return nr;
