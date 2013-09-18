@@ -921,6 +921,7 @@
 			reg = <0xa03c2000 0x1000>;
 
 			v-ape-supply = <&db8500_vape_reg>;
+			clocks = <&prcc_pclk 6 2>;
 		};
 	};
 };
