@@ -293,6 +293,20 @@ static unsigned char ctrl_m_pg[] = {0xa, 10, 2, 0, 0, 0, 0, 0,
 static unsigned char iec_m_pg[] = {0x1c, 0xa, 0x08, 0, 0, 0, 0, 0,
 			           0, 0, 0x0, 0x0};
 
+static void *fake_store(unsigned long long lba)
+{
+	lba = do_div(lba, sdebug_store_sectors);
+
+	return fake_storep + lba * scsi_debug_sector_size;
+}
+
+static struct sd_dif_tuple *dif_store(sector_t sector)
+{
+	sector = do_div(sector, sdebug_store_sectors);
+
+	return dif_storep + sector;
+}
+
 static int sdebug_add_adapter(void);
 static void sdebug_remove_adapter(void);
 
@@ -1782,24 +1796,19 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 	struct scatterlist *psgl;
 	struct sd_dif_tuple *sdt;
 	sector_t sector;
-	sector_t tmp_sec = start_sec;
 	void *paddr;
+	const void *dif_store_end = dif_storep + sdebug_store_sectors;
 
-	start_sec = do_div(tmp_sec, sdebug_store_sectors);
-
-	sdt = dif_storep + start_sec;
-
-	for (i = 0 ; i < sectors ; i++) {
+	for (i = 0; i < sectors; i++) {
 		int ret;
 
-		if (sdt[i].app_tag == 0xffff)
+		sector = start_sec + i;
+		sdt = dif_store(sector);
+
+		if (sdt->app_tag == 0xffff)
 			continue;
 
-		sector = start_sec + i;
-
-		ret = dif_verify(&sdt[i],
-				 fake_storep + sector * scsi_debug_sector_size,
-				 sector, ei_lba);
+		ret = dif_verify(sdt, fake_store(sector), sector, ei_lba);
 		if (ret) {
 			dif_errors++;
 			return ret;
@@ -1814,16 +1823,19 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 	scsi_for_each_prot_sg(SCpnt, psgl, scsi_prot_sg_count(SCpnt), i) {
 		int len = min(psgl->length, resid);
+		void *start = dif_store(sector);
+		int rest = 0;
+
+		if (dif_store_end < start + len)
+			rest = start + len - dif_store_end;
 
 		paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
-		memcpy(paddr, dif_storep + sector, len);
+		memcpy(paddr, start, len - rest);
+
+		if (rest)
+			memcpy(paddr + len - rest, dif_storep, rest);
 
 		sector += len / sizeof(*dif_storep);
-		if (sector >= sdebug_store_sectors) {
-			/* Force wrap */
-			tmp_sec = sector;
-			sector = do_div(tmp_sec, sdebug_store_sectors);
-		}
 		resid -= len;
 		kunmap_atomic(paddr);
 	}
