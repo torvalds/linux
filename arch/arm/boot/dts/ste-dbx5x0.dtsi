@@ -43,6 +43,7 @@
 			interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+
 		clocks {
 			compatible = "stericsson,u8500-clks";
 
@@ -65,6 +66,16 @@
 			smp_twd_clk: smp-twd-clock {
 				#clock-cells = <0>;
 			};
+		};
+
+		mtu@a03c6000 {
+			/* Nomadik System Timer */
+			compatible = "st,nomadik-mtu";
+			reg = <0xa03c6000 0x1000>;
+			interrupts = <0 4 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&prcmu_clk PRCMU_TIMCLK>, <&prcc_pclk 6 6>;
+			clock-names = "timclk", "apb_pclk";
 		};
 
 		timer@a0410600 {
