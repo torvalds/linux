@@ -2802,7 +2802,7 @@ struct set_vf_state_cookie {
 	u8 state;
 };
 
-void bnx2x_set_vf_state(void *cookie)
+static void bnx2x_set_vf_state(void *cookie)
 {
 	struct set_vf_state_cookie *p = (struct set_vf_state_cookie *)cookie;
 
@@ -3222,8 +3222,9 @@ void bnx2x_disable_sriov(struct bnx2x *bp)
 	pci_disable_sriov(bp->pdev);
 }
 
-int bnx2x_vf_ndo_prep(struct bnx2x *bp, int vfidx, struct bnx2x_virtf **vf,
-			struct pf_vf_bulletin_content **bulletin)
+static int bnx2x_vf_ndo_prep(struct bnx2x *bp, int vfidx,
+			     struct bnx2x_virtf **vf,
+			     struct pf_vf_bulletin_content **bulletin)
 {
 	if (bp->state != BNX2X_STATE_OPEN) {
 		BNX2X_ERR("vf ndo called though PF is down\n");
