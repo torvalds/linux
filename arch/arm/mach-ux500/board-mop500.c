@@ -77,13 +77,6 @@ struct pl022_ssp_controller ssp0_plat = {
 	.num_chipselect = 5,
 };
 
-static void __init mop500_init_machine(void)
-{
-	/* This board has full regulator constraints */
-	regulator_has_full_constraints();
-}
-
-
 static void __init snowball_init_machine(void)
 {
 	/* This board has full regulator constraints */
@@ -95,16 +88,6 @@ static void __init hrefv60_init_machine(void)
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
 }
-
-MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
-	.atag_offset	= 0x100,
-	.map_io		= u8500_map_io,
-	.init_irq	= ux500_init_irq,
-	.init_time	= ux500_timer_init,
-	.init_machine	= mop500_init_machine,
-	.restart        = ux500_restart,
-	.init_late	= NULL,
-MACHINE_END
 
 MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
 	.atag_offset	= 0x100,
