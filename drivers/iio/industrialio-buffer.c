@@ -429,8 +429,8 @@ static const unsigned long *iio_scan_mask_match(const unsigned long *av_masks,
 	return NULL;
 }
 
-static int iio_compute_scan_bytes(struct iio_dev *indio_dev, const long *mask,
-				  bool timestamp)
+static int iio_compute_scan_bytes(struct iio_dev *indio_dev,
+				const unsigned long *mask, bool timestamp)
 {
 	const struct iio_chan_spec *ch;
 	unsigned bytes = 0;
