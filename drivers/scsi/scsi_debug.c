@@ -1745,25 +1745,22 @@ static int do_device_access(struct scsi_cmnd *scmd,
 	return ret;
 }
 
-static u16 dif_compute_csum(const void *buf, int len)
+static __be16 dif_compute_csum(const void *buf, int len)
 {
-	u16 csum;
+	__be16 csum;
 
-	switch (scsi_debug_guard) {
-	case 1:
-		csum = ip_compute_csum(buf, len);
-		break;
-	case 0:
+	if (scsi_debug_guard)
+		csum = (__force __be16)ip_compute_csum(buf, len);
+	else
 		csum = cpu_to_be16(crc_t10dif(buf, len));
-		break;
-	}
+
 	return csum;
 }
 
 static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 		      sector_t sector, u32 ei_lba)
 {
-	u16 csum = dif_compute_csum(data, scsi_debug_sector_size);
+	__be16 csum = dif_compute_csum(data, scsi_debug_sector_size);
 
 	if (sdt->guard_tag != csum) {
 		pr_err("%s: GUARD check failed on sector %lu rcvd 0x%04x, data 0x%04x\n",
@@ -1841,7 +1838,7 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 		sector = start_sec + i;
 		sdt = dif_store(sector);
 
-		if (sdt->app_tag == 0xffff)
+		if (sdt->app_tag == cpu_to_be16(0xffff))
 			continue;
 
 		ret = dif_verify(sdt, fake_store(sector), sector, ei_lba);
