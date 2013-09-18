@@ -661,7 +661,7 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 			ah->ah_txq_isr_txok_all |= AR5K_REG_MS(sisr1,
 						AR5K_SISR1_QCU_TXEOL);
 
-		/* Currently this is not much usefull since we treat
+		/* Currently this is not much useful since we treat
 		 * all queues the same way if we get a TXURN (update
 		 * tx trigger level) but we might need it later on*/
 		if (pisr & AR5K_ISR_TXURN)

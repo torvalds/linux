@@ -49,7 +49,7 @@ struct cma *dma_contiguous_default_area;
 
 /*
  * Default global CMA area size can be defined in kernel's .config.
- * This is usefull mainly for distro maintainers to create a kernel
+ * This is useful mainly for distro maintainers to create a kernel
  * that works correctly for most supported systems.
  * The size can be set in bytes or as a percentage of the total memory
  * in the system.
