@@ -1275,8 +1275,20 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	int err = 0, i;
 	struct inode *snapdir = NULL;
 	struct ceph_mds_request_head *rhead = req->r_request->front.iov_base;
-	u64 frag = le32_to_cpu(rhead->args.readdir.frag);
 	struct ceph_dentry_info *di;
+	u64 r_readdir_offset = req->r_readdir_offset;
+	u32 frag = le32_to_cpu(rhead->args.readdir.frag);
+
+	if (rinfo->dir_dir &&
+	    le32_to_cpu(rinfo->dir_dir->frag) != frag) {
+		dout("readdir_prepopulate got new frag %x -> %x\n",
+		     frag, le32_to_cpu(rinfo->dir_dir->frag));
+		frag = le32_to_cpu(rinfo->dir_dir->frag);
+		if (ceph_frag_is_leftmost(frag))
+			r_readdir_offset = 2;
+		else
+			r_readdir_offset = 0;
+	}
 
 	if (req->r_aborted)
 		return readdir_prepopulate_inodes_only(req, session);
@@ -1340,7 +1352,7 @@ retry_lookup:
 		}
 
 		di = dn->d_fsdata;
-		di->offset = ceph_make_fpos(frag, i + req->r_readdir_offset);
+		di->offset = ceph_make_fpos(frag, i + r_readdir_offset);
 
 		/* inode */
 		if (dn->d_inode) {
