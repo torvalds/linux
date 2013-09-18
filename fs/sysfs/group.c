@@ -111,7 +111,7 @@ static int internal_create_group(struct kobject *kobj, int update,
 	error = create_files(sd, kobj, grp, update);
 	if (error) {
 		if (grp->name)
-			sysfs_remove_subdir(sd);
+			sysfs_remove(sd);
 	}
 	sysfs_put(sd);
 	return error;
@@ -219,7 +219,7 @@ void sysfs_remove_group(struct kobject *kobj,
 
 	remove_files(sd, kobj, grp);
 	if (grp->name)
-		sysfs_remove_subdir(sd);
+		sysfs_remove(sd);
 
 	sysfs_put(sd);
 }

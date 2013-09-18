@@ -545,7 +545,8 @@ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
  *	LOCKING:
  *	Determined by sysfs_addrm_start().
  */
-void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+static void sysfs_remove_one(struct sysfs_addrm_cxt *acxt,
+			     struct sysfs_dirent *sd)
 {
 	struct sysfs_inode_attrs *ps_iattr;
 
@@ -775,20 +776,6 @@ const struct inode_operations sysfs_dir_inode_operations = {
 	.setxattr	= sysfs_setxattr,
 };
 
-static void remove_dir(struct sysfs_dirent *sd)
-{
-	struct sysfs_addrm_cxt acxt;
-
-	sysfs_addrm_start(&acxt);
-	sysfs_remove_one(&acxt, sd);
-	sysfs_addrm_finish(&acxt);
-}
-
-void sysfs_remove_subdir(struct sysfs_dirent *sd)
-{
-	remove_dir(sd);
-}
-
 static struct sysfs_dirent *sysfs_leftmost_descendant(struct sysfs_dirent *pos)
 {
 	struct sysfs_dirent *last;
@@ -844,25 +831,36 @@ static struct sysfs_dirent *sysfs_next_descendant_post(struct sysfs_dirent *pos,
 	return pos->s_parent;
 }
 
-static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
+void __sysfs_remove(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
-	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *pos, *next;
 
-	if (!dir_sd)
+	if (!sd)
 		return;
 
-	pr_debug("sysfs %s: removing dir\n", dir_sd->s_name);
-	sysfs_addrm_start(&acxt);
+	pr_debug("sysfs %s: removing\n", sd->s_name);
 
 	next = NULL;
 	do {
 		pos = next;
-		next = sysfs_next_descendant_post(pos, dir_sd);
+		next = sysfs_next_descendant_post(pos, sd);
 		if (pos)
-			sysfs_remove_one(&acxt, pos);
+			sysfs_remove_one(acxt, pos);
 	} while (next);
+}
 
+/**
+ * sysfs_remove - remove a sysfs_dirent recursively
+ * @sd: the sysfs_dirent to remove
+ *
+ * Remove @sd along with all its subdirectories and files.
+ */
+void sysfs_remove(struct sysfs_dirent *sd)
+{
+	struct sysfs_addrm_cxt acxt;
+
+	sysfs_addrm_start(&acxt);
+	__sysfs_remove(&acxt, sd);
 	sysfs_addrm_finish(&acxt);
 }
 
@@ -882,7 +880,10 @@ void sysfs_remove_dir(struct kobject *kobj)
 	kobj->sd = NULL;
 	spin_unlock(&sysfs_assoc_lock);
 
-	__sysfs_remove_dir(sd);
+	if (sd) {
+		WARN_ON_ONCE(sysfs_type(sd) != SYSFS_DIR);
+		sysfs_remove(sd);
+	}
 }
 
 int sysfs_rename(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent_sd,

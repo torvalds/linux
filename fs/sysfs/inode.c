@@ -330,7 +330,7 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name,
 
 	sd = sysfs_find_dirent(dir_sd, name, ns);
 	if (sd)
-		sysfs_remove_one(&acxt, sd);
+		__sysfs_remove(&acxt, sd);
 
 	sysfs_addrm_finish(&acxt);
 
