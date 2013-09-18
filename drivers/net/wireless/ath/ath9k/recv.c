@@ -868,10 +868,7 @@ static int ath9k_process_rate(struct ath_common *common,
 	if (rx_stats->rs_rate & 0x80) {
 		/* HT rate */
 		rxs->flag |= RX_FLAG_HT;
-		if (rx_stats->rs_flags & ATH9K_RX_2040)
-			rxs->flag |= RX_FLAG_40MHZ;
-		if (rx_stats->rs_flags & ATH9K_RX_GI)
-			rxs->flag |= RX_FLAG_SHORT_GI;
+		rxs->flag |= rx_stats->flag;
 		rxs->rate_idx = rx_stats->rs_rate & 0x7f;
 		return 0;
 	}
@@ -958,10 +955,10 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	if (rx_stats->rs_more)
 		return 0;
 
-	ath9k_process_rssi(common, hw, hdr, rx_stats);
-
 	if (ath9k_process_rate(common, hw, rx_stats, rx_status))
 		return -EINVAL;
+
+	ath9k_process_rssi(common, hw, hdr, rx_stats);
 
 	rx_status->band = hw->conf.chandef.chan->band;
 	rx_status->freq = hw->conf.chandef.chan->center_freq;

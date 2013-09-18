@@ -664,6 +664,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			if (test_bit(R5_ReadNoMerge, &sh->dev[i].flags))
 				bi->bi_rw |= REQ_FLUSH;
 
+			bi->bi_vcnt = 1;
 			bi->bi_io_vec[0].bv_len = STRIPE_SIZE;
 			bi->bi_io_vec[0].bv_offset = 0;
 			bi->bi_size = STRIPE_SIZE;
@@ -701,6 +702,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			else
 				rbi->bi_sector = (sh->sector
 						  + rrdev->data_offset);
+			rbi->bi_vcnt = 1;
 			rbi->bi_io_vec[0].bv_len = STRIPE_SIZE;
 			rbi->bi_io_vec[0].bv_offset = 0;
 			rbi->bi_size = STRIPE_SIZE;
@@ -3460,6 +3462,7 @@ static void handle_stripe(struct stripe_head *sh)
 		    test_and_clear_bit(STRIPE_SYNC_REQUESTED, &sh->state)) {
 			set_bit(STRIPE_SYNCING, &sh->state);
 			clear_bit(STRIPE_INSYNC, &sh->state);
+			clear_bit(STRIPE_REPLACED, &sh->state);
 		}
 		spin_unlock(&sh->stripe_lock);
 	}
@@ -3605,19 +3608,23 @@ static void handle_stripe(struct stripe_head *sh)
 			handle_parity_checks5(conf, sh, &s, disks);
 	}
 
-	if (s.replacing && s.locked == 0
-	    && !test_bit(STRIPE_INSYNC, &sh->state)) {
+	if ((s.replacing || s.syncing) && s.locked == 0
+	    && !test_bit(STRIPE_COMPUTE_RUN, &sh->state)
+	    && !test_bit(STRIPE_REPLACED, &sh->state)) {
 		/* Write out to replacement devices where possible */
 		for (i = 0; i < conf->raid_disks; i++)
-			if (test_bit(R5_UPTODATE, &sh->dev[i].flags) &&
-			    test_bit(R5_NeedReplace, &sh->dev[i].flags)) {
+			if (test_bit(R5_NeedReplace, &sh->dev[i].flags)) {
+				WARN_ON(!test_bit(R5_UPTODATE, &sh->dev[i].flags));
 				set_bit(R5_WantReplace, &sh->dev[i].flags);
 				set_bit(R5_LOCKED, &sh->dev[i].flags);
 				s.locked++;
 			}
-		set_bit(STRIPE_INSYNC, &sh->state);
+		if (s.replacing)
+			set_bit(STRIPE_INSYNC, &sh->state);
+		set_bit(STRIPE_REPLACED, &sh->state);
 	}
 	if ((s.syncing || s.replacing) && s.locked == 0 &&
+	    !test_bit(STRIPE_COMPUTE_RUN, &sh->state) &&
 	    test_bit(STRIPE_INSYNC, &sh->state)) {
 		md_done_sync(conf->mddev, STRIPE_SECTORS, 1);
 		clear_bit(STRIPE_SYNCING, &sh->state);
@@ -4922,7 +4929,7 @@ raid5_store_stripe_cache_size(struct mddev *mddev, const char *page, size_t len)
 	if (!conf)
 		return -ENODEV;
 
-	if (strict_strtoul(page, 10, &new))
+	if (kstrtoul(page, 10, &new))
 		return -EINVAL;
 	err = raid5_set_cache_size(mddev, new);
 	if (err)
@@ -4955,7 +4962,7 @@ raid5_store_preread_threshold(struct mddev *mddev, const char *page, size_t len)
 	if (!conf)
 		return -ENODEV;
 
-	if (strict_strtoul(page, 10, &new))
+	if (kstrtoul(page, 10, &new))
 		return -EINVAL;
 	if (new > conf->max_nr_stripes)
 		return -EINVAL;
@@ -5464,7 +5471,7 @@ static int run(struct mddev *mddev)
 		if (mddev->major_version == 0 &&
 		    mddev->minor_version > 90)
 			rdev->recovery_offset = reshape_offset;
-			
+
 		if (rdev->recovery_offset < reshape_offset) {
 			/* We need to check old and new layout */
 			if (!only_parity(rdev->raid_disk,
@@ -5586,6 +5593,8 @@ static int run(struct mddev *mddev)
 		 * guarantee discard_zerors_data
 		 */
 		mddev->queue->limits.discard_zeroes_data = 0;
+
+		blk_queue_max_write_same_sectors(mddev->queue, 0);
 
 		rdev_for_each(rdev, mddev) {
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
@@ -5910,7 +5919,7 @@ static int check_reshape(struct mddev *mddev)
 		return 0; /* nothing to do */
 	if (has_failed(conf))
 		return -EINVAL;
-	if (mddev->delta_disks < 0) {
+	if (mddev->delta_disks < 0 && mddev->reshape_position == MaxSector) {
 		/* We might be able to shrink, but the devices must
 		 * be made bigger first.
 		 * For raid6, 4 is the minimum size.

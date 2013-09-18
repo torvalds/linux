@@ -14,9 +14,11 @@ menu "SAMSUNG EXYNOS SoCs Support"
 config ARCH_EXYNOS4
 	bool "SAMSUNG EXYNOS4"
 	default y
+	select GIC_NON_BANKED
 	select HAVE_ARM_SCU if SMP
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select PINCTRL
 	help
 	  Samsung EXYNOS4 SoCs based systems
 
@@ -24,6 +26,7 @@ config ARCH_EXYNOS5
 	bool "SAMSUNG EXYNOS5"
 	select HAVE_ARM_SCU if SMP
 	select HAVE_SMP
+	select PINCTRL
 	help
 	  Samsung EXYNOS5 (Cortex-A15) SoC based systems
 
@@ -34,7 +37,8 @@ config CPU_EXYNOS4210
 	default y
 	depends on ARCH_EXYNOS4
 	select ARM_CPU_SUSPEND if PM
-	select PM_GENERIC_DOMAINS
+	select PINCTRL_EXYNOS
+	select PM_GENERIC_DOMAINS if PM
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
 	select SAMSUNG_DMADEV
@@ -45,6 +49,7 @@ config SOC_EXYNOS4212
 	bool "SAMSUNG EXYNOS4212"
 	default y
 	depends on ARCH_EXYNOS4
+	select PINCTRL_EXYNOS
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
 	select SAMSUNG_DMADEV
@@ -55,6 +60,7 @@ config SOC_EXYNOS4412
 	bool "SAMSUNG EXYNOS4412"
 	default y
 	depends on ARCH_EXYNOS4
+	select PINCTRL_EXYNOS
 	select SAMSUNG_DMADEV
 	help
 	  Enable EXYNOS4412 SoC support
@@ -63,6 +69,7 @@ config SOC_EXYNOS5250
 	bool "SAMSUNG EXYNOS5250"
 	default y
 	depends on ARCH_EXYNOS5
+	select PINCTRL_EXYNOS
 	select PM_GENERIC_DOMAINS if PM
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
@@ -71,352 +78,43 @@ config SOC_EXYNOS5250
 	help
 	  Enable EXYNOS5250 SoC support
 
+config SOC_EXYNOS5420
+	bool "SAMSUNG EXYNOS5420"
+	default y
+	depends on ARCH_EXYNOS5
+	select PM_GENERIC_DOMAINS if PM
+	select S5P_PM if PM
+	select S5P_SLEEP if PM
+	help
+	  Enable EXYNOS5420 SoC support
+
 config SOC_EXYNOS5440
 	bool "SAMSUNG EXYNOS5440"
 	default y
 	depends on ARCH_EXYNOS5
+	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 	select ARCH_HAS_OPP
-	select ARM_ARCH_TIMER
+	select HAVE_ARM_ARCH_TIMER
 	select AUTO_ZRELADDR
-	select PINCTRL
+	select MIGHT_HAVE_PCI
+	select PCI_DOMAINS if PCI
 	select PINCTRL_EXYNOS5440
 	select PM_OPP
 	help
 	  Enable EXYNOS5440 SoC support
 
-config EXYNOS_ATAGS
-	bool "ATAGS based boot for EXYNOS (deprecated)"
-	depends on !ARCH_MULTIPLATFORM
-	depends on ATAGS
-	default y
-	help
-	  The EXYNOS platform is moving towards being completely probed
-	  through device tree. This enables support for board files using
-	  the traditional ATAGS boot format.
-	  Note that this option is not available for multiplatform builds.
-
-if EXYNOS_ATAGS
-
-config EXYNOS_DEV_DMA
-	bool
-	help
-	  Compile in amba device definitions for DMA controller
-
-config EXYNOS4_DEV_AHCI
-	bool
-	help
-	  Compile in platform device definitions for AHCI
-
-config EXYNOS4_SETUP_FIMD0
-	bool
-	help
-	  Common setup code for FIMD0.
-
-config EXYNOS4_DEV_USB_OHCI
-	bool
-	help
-	  Compile in platform device definition for USB OHCI
-
-config EXYNOS4_SETUP_I2C1
-	bool
-	help
-	  Common setup code for i2c bus 1.
-
-config EXYNOS4_SETUP_I2C2
-	bool
-	help
-	  Common setup code for i2c bus 2.
-
-config EXYNOS4_SETUP_I2C3
-	bool
-	help
-	  Common setup code for i2c bus 3.
-
-config EXYNOS4_SETUP_I2C4
-	bool
-	help
-	  Common setup code for i2c bus 4.
-
-config EXYNOS4_SETUP_I2C5
-	bool
-	help
-	  Common setup code for i2c bus 5.
-
-config EXYNOS4_SETUP_I2C6
-	bool
-	help
-	  Common setup code for i2c bus 6.
-
-config EXYNOS4_SETUP_I2C7
-	bool
-	help
-	  Common setup code for i2c bus 7.
-
-config EXYNOS4_SETUP_KEYPAD
-	bool
-	help
-	  Common setup code for keypad.
-
-config EXYNOS4_SETUP_SDHCI
-	bool
-	select EXYNOS4_SETUP_SDHCI_GPIO
-	help
-	  Internal helper functions for EXYNOS4 based SDHCI systems.
-
-config EXYNOS4_SETUP_SDHCI_GPIO
-	bool
-	help
-	  Common setup code for SDHCI gpio.
-
-config EXYNOS4_SETUP_FIMC
-	bool
-	help
-	  Common setup code for the camera interfaces.
-
-config EXYNOS4_SETUP_USB_PHY
-	bool
-	help
-	  Common setup code for USB PHY controller
-
-config EXYNOS_SETUP_SPI
-	bool
-	help
-	  Common setup code for SPI GPIO configurations.
-
-# machine support
-
-if ARCH_EXYNOS4
-
-comment "EXYNOS4210 Boards"
-
-config MACH_SMDKC210
-	bool "SMDKC210"
-	select MACH_SMDKV310
-	help
-	  Machine support for Samsung SMDKC210
-
-config MACH_SMDKV310
-	bool "SMDKV310"
-	select CPU_EXYNOS4210
-	select EXYNOS4_DEV_AHCI
-	select EXYNOS4_DEV_USB_OHCI
-	select EXYNOS4_SETUP_FIMD0
-	select EXYNOS4_SETUP_I2C1
-	select EXYNOS4_SETUP_KEYPAD
-	select EXYNOS4_SETUP_SDHCI
-	select EXYNOS4_SETUP_USB_PHY
-	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_SYSMMU
-	select S3C24XX_PWM
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC1
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select S3C_DEV_I2C1
-	select S3C_DEV_RTC
-	select S3C_DEV_USB_HSOTG
-	select S3C_DEV_WDT
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_FIMC3
-	select S5P_DEV_FIMD0
-	select S5P_DEV_G2D
-	select S5P_DEV_I2C_HDMIPHY
-	select S5P_DEV_JPEG
-	select S5P_DEV_MFC
-	select S5P_DEV_TV
-	select S5P_DEV_USB_EHCI
-	select SAMSUNG_DEV_BACKLIGHT
-	select SAMSUNG_DEV_KEYPAD
-	select SAMSUNG_DEV_PWM
-	help
-	  Machine support for Samsung SMDKV310
-
-config MACH_ARMLEX4210
-	bool "ARMLEX4210"
-	select CPU_EXYNOS4210
-	select EXYNOS4_DEV_AHCI
-	select EXYNOS4_SETUP_SDHCI
-	select EXYNOS_DEV_DMA
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select S3C_DEV_RTC
-	select S3C_DEV_WDT
-	help
-	  Machine support for Samsung ARMLEX4210 based on EXYNOS4210
-
-config MACH_UNIVERSAL_C210
-	bool "Mobile UNIVERSAL_C210 Board"
-	select CLKSRC_MMIO
-	select CLKSRC_SAMSUNG_PWM
-	select CPU_EXYNOS4210
-	select EXYNOS4_SETUP_FIMC
-	select EXYNOS4_SETUP_FIMD0
-	select EXYNOS4_SETUP_I2C1
-	select EXYNOS4_SETUP_I2C3
-	select EXYNOS4_SETUP_I2C5
-	select EXYNOS4_SETUP_SDHCI
-	select EXYNOS4_SETUP_USB_PHY
-	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_SYSMMU
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select S3C_DEV_I2C1
-	select S3C_DEV_I2C3
-	select S3C_DEV_I2C5
-	select S3C_DEV_USB_HSOTG
-	select S5P_DEV_CSIS0
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_FIMC3
-	select S5P_DEV_FIMD0
-	select S5P_DEV_G2D
-	select S5P_DEV_I2C_HDMIPHY
-	select S5P_DEV_JPEG
-	select S5P_DEV_MFC
-	select S5P_DEV_ONENAND
-	select S5P_DEV_TV
-	select S5P_GPIO_INT
-	select S5P_SETUP_MIPIPHY
-	help
-	  Machine support for Samsung Mobile Universal S5PC210 Reference
-	  Board.
-
-config MACH_NURI
-	bool "Mobile NURI Board"
-	select CPU_EXYNOS4210
-	select EXYNOS4_SETUP_FIMC
-	select EXYNOS4_SETUP_FIMD0
-	select EXYNOS4_SETUP_I2C1
-	select EXYNOS4_SETUP_I2C3
-	select EXYNOS4_SETUP_I2C5
-	select EXYNOS4_SETUP_I2C6
-	select EXYNOS4_SETUP_SDHCI
-	select EXYNOS4_SETUP_USB_PHY
-	select EXYNOS_DEV_DMA
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select S3C_DEV_I2C1
-	select S3C_DEV_I2C3
-	select S3C_DEV_I2C5
-	select S3C_DEV_I2C6
-	select S3C_DEV_RTC
-	select S3C_DEV_USB_HSOTG
-	select S3C_DEV_WDT
-	select S5P_DEV_CSIS0
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_FIMC3
-	select S5P_DEV_FIMD0
-	select S5P_DEV_G2D
-	select S5P_DEV_JPEG
-	select S5P_DEV_MFC
-	select S5P_DEV_USB_EHCI
-	select S5P_GPIO_INT
-	select S5P_SETUP_MIPIPHY
-	select SAMSUNG_DEV_ADC
-	select SAMSUNG_DEV_PWM
-	help
-	  Machine support for Samsung Mobile NURI Board.
-
-config MACH_ORIGEN
-	bool "ORIGEN"
-	select CPU_EXYNOS4210
-	select EXYNOS4_DEV_USB_OHCI
-	select EXYNOS4_SETUP_FIMD0
-	select EXYNOS4_SETUP_SDHCI
-	select EXYNOS4_SETUP_USB_PHY
-	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_SYSMMU
-	select S3C24XX_PWM
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_RTC
-	select S3C_DEV_USB_HSOTG
-	select S3C_DEV_WDT
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_FIMC3
-	select S5P_DEV_FIMD0
-	select S5P_DEV_G2D
-	select S5P_DEV_I2C_HDMIPHY
-	select S5P_DEV_JPEG
-	select S5P_DEV_MFC
-	select S5P_DEV_TV
-	select S5P_DEV_USB_EHCI
-	select SAMSUNG_DEV_BACKLIGHT
-	select SAMSUNG_DEV_PWM
-	help
-	  Machine support for ORIGEN based on Samsung EXYNOS4210
-
-comment "EXYNOS4212 Boards"
-
-config MACH_SMDK4212
-	bool "SMDK4212"
-	select EXYNOS4_SETUP_FIMD0
-	select EXYNOS4_SETUP_I2C1
-	select EXYNOS4_SETUP_I2C3
-	select EXYNOS4_SETUP_I2C7
-	select EXYNOS4_SETUP_KEYPAD
-	select EXYNOS4_SETUP_SDHCI
-	select EXYNOS4_SETUP_USB_PHY
-	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_SYSMMU
-	select S3C24XX_PWM
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select S3C_DEV_I2C1
-	select S3C_DEV_I2C3
-	select S3C_DEV_I2C7
-	select S3C_DEV_RTC
-	select S3C_DEV_USB_HSOTG
-	select S3C_DEV_WDT
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_FIMC3
-	select S5P_DEV_FIMD0
-	select S5P_DEV_MFC
-	select SAMSUNG_DEV_BACKLIGHT
-	select SAMSUNG_DEV_KEYPAD
-	select SAMSUNG_DEV_PWM
-	select SOC_EXYNOS4212
-	help
-	  Machine support for Samsung SMDK4212
-
-comment "EXYNOS4412 Boards"
-
-config MACH_SMDK4412
-	bool "SMDK4412"
-	select MACH_SMDK4212
-	select SOC_EXYNOS4412
-	help
-	  Machine support for Samsung SMDK4412
-endif
-
-endif
-
 comment "Flattened Device Tree based board for EXYNOS SoCs"
 
 config MACH_EXYNOS4_DT
 	bool "Samsung Exynos4 Machine using device tree"
+	default y
 	depends on ARCH_EXYNOS4
 	select ARM_AMBA
 	select CLKSRC_OF
 	select CLKSRC_SAMSUNG_PWM if CPU_EXYNOS4210
 	select CPU_EXYNOS4210
 	select KEYBOARD_SAMSUNG if INPUT_KEYBOARD
-	select PINCTRL
-	select PINCTRL_EXYNOS
 	select S5P_DEV_MFC
-	select USE_OF
 	help
 	  Machine support for Samsung Exynos4 machine with device tree enabled.
 	  Select this if a fdt blob is available for the Exynos4 SoC based board.
@@ -429,27 +127,10 @@ config MACH_EXYNOS5_DT
 	depends on ARCH_EXYNOS5
 	select ARM_AMBA
 	select CLKSRC_OF
-	select USE_OF
+	select USB_ARCH_HAS_XHCI
 	help
 	  Machine support for Samsung EXYNOS5 machine with device tree enabled.
 	  Select this if a fdt blob is available for the EXYNOS5 SoC based board.
-
-if ARCH_EXYNOS4
-
-comment "Configuration for HSMMC 8-bit bus width"
-
-config EXYNOS4_SDHCI_CH0_8BIT
-	bool "Channel 0 with 8-bit bus"
-	help
-	  Support HSMMC Channel 0 8-bit bus.
-	  If selected, Channel 1 is disabled.
-
-config EXYNOS4_SDHCI_CH2_8BIT
-	bool "Channel 2 with 8-bit bus"
-	help
-	  Support HSMMC Channel 2 8-bit bus.
-	  If selected, Channel 3 is disabled.
-endif
 
 endmenu
 

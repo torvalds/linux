@@ -48,6 +48,23 @@
                       <0xf0000100 0x100>;
         };
 
+	irqpin0: irqpin@fe780010 {
+		compatible = "renesas,intc-irqpin";
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		reg = <0xfe78001c 4>,
+			<0xfe780010 4>,
+			<0xfe780024 4>,
+			<0xfe780044 4>,
+			<0xfe780064 4>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 27 0x4
+				0 28 0x4
+				0 29 0x4
+				0 30 0x4>;
+		sense-bitfield-width = <2>;
+	};
+
 	i2c0: i2c@0xffc70000 {
 		#address-cells = <1>;
 		#size-cells = <0>;

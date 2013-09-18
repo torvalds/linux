@@ -305,7 +305,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		 * return *ignored=0 i.e. ICMP and NF_DROP
 		 */
 		sched = rcu_dereference(svc->scheduler);
-		dest = sched->schedule(svc, skb);
+		dest = sched->schedule(svc, skb, iph);
 		if (!dest) {
 			IP_VS_DBG(1, "p-schedule: no dest found.\n");
 			kfree(param.pe_data);
@@ -452,7 +452,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	}
 
 	sched = rcu_dereference(svc->scheduler);
-	dest = sched->schedule(svc, skb);
+	dest = sched->schedule(svc, skb, iph);
 	if (dest == NULL) {
 		IP_VS_DBG(1, "Schedule: no dest found.\n");
 		return NULL;
@@ -1442,7 +1442,8 @@ ignore_ipip:
 
 	/* do the statistics and put it back */
 	ip_vs_in_stats(cp, skb);
-	if (IPPROTO_TCP == cih->protocol || IPPROTO_UDP == cih->protocol)
+	if (IPPROTO_TCP == cih->protocol || IPPROTO_UDP == cih->protocol ||
+	    IPPROTO_SCTP == cih->protocol)
 		offset += 2 * sizeof(__u16);
 	verdict = ip_vs_icmp_xmit(skb, cp, pp, offset, hooknum, &ciph);
 

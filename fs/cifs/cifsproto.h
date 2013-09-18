@@ -118,6 +118,8 @@ extern void header_assemble(struct smb_hdr *, char /* command */ ,
 extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				struct cifs_ses *ses,
 				void **request_buf);
+extern enum securityEnum select_sectype(struct TCP_Server_Info *server,
+				enum securityEnum requested);
 extern int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 			  const struct nls_table *nls_cp);
 extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
@@ -212,6 +214,7 @@ extern int cifs_negotiate_protocol(const unsigned int xid,
 				   struct cifs_ses *ses);
 extern int cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 			      struct nls_table *nls_info);
+extern int cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required);
 extern int CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses);
 
 extern int CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
@@ -430,9 +433,9 @@ extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *,
 			const struct nls_table *);
 extern int setup_ntlm_response(struct cifs_ses *, const struct nls_table *);
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
-extern int cifs_crypto_shash_allocate(struct TCP_Server_Info *);
 extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
 extern int calc_seckey(struct cifs_ses *);
+extern void generate_smb3signingkey(struct TCP_Server_Info *);
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern int calc_lanman_hash(const char *password, const char *cryptkey,
@@ -494,5 +497,7 @@ void cifs_writev_complete(struct work_struct *work);
 struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages,
 						work_func_t complete);
 void cifs_writedata_release(struct kref *refcount);
-
+int open_query_close_cifs_symlink(const unsigned char *path, char *pbuf,
+			unsigned int *pbytes_read, struct cifs_sb_info *cifs_sb,
+			unsigned int xid);
 #endif			/* _CIFSPROTO_H */

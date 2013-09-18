@@ -99,7 +99,7 @@ void __init generate_cplb_tables(void)
 }
 #endif
 
-void __cpuinit bfin_setup_caches(unsigned int cpu)
+void bfin_setup_caches(unsigned int cpu)
 {
 #ifdef CONFIG_BFIN_ICACHE
 	bfin_icache_init(icplb_tbl[cpu]);
@@ -165,7 +165,7 @@ void __cpuinit bfin_setup_caches(unsigned int cpu)
 #endif
 }
 
-void __cpuinit bfin_setup_cpudata(unsigned int cpu)
+void bfin_setup_cpudata(unsigned int cpu)
 {
 	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, cpu);
 

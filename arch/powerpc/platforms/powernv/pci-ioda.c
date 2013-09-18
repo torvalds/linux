@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -32,6 +33,7 @@
 #include <asm/iommu.h>
 #include <asm/tce.h>
 #include <asm/xics.h>
+#include <asm/debug.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -441,6 +443,17 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev
 	set_iommu_table_base(&pdev->dev, &pe->tce32_table);
 }
 
+static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		set_iommu_table_base(&dev->dev, &pe->tce32_table);
+		if (dev->subordinate)
+			pnv_ioda_setup_bus_dma(pe, dev->subordinate);
+	}
+}
+
 static void pnv_pci_ioda1_tce_invalidate(struct iommu_table *tbl,
 					 u64 *startp, u64 *endp)
 {
@@ -595,6 +608,12 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 			       TCE_PCI_SWINV_PAIR;
 	}
 	iommu_init_table(tbl, phb->hose->node);
+	iommu_register_group(tbl, pci_domain_nr(pe->pbus), pe->pe_number);
+
+	if (pe->pdev)
+		set_iommu_table_base(&pe->pdev->dev, tbl);
+	else
+		pnv_ioda_setup_bus_dma(pe, pe->pbus);
 
 	return;
  fail:
@@ -666,6 +685,11 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
 	}
 	iommu_init_table(tbl, phb->hose->node);
+
+	if (pe->pdev)
+		set_iommu_table_base(&pe->pdev->dev, tbl);
+	else
+		pnv_ioda_setup_bus_dma(pe, pe->pbus);
 
 	return;
 fail:
@@ -968,11 +992,38 @@ static void pnv_pci_ioda_setup_DMA(void)
 	}
 }
 
+static void pnv_pci_ioda_create_dbgfs(void)
+{
+#ifdef CONFIG_DEBUG_FS
+	struct pci_controller *hose, *tmp;
+	struct pnv_phb *phb;
+	char name[16];
+
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		phb = hose->private_data;
+
+		sprintf(name, "PCI%04x", hose->global_number);
+		phb->dbgfs = debugfs_create_dir(name, powerpc_debugfs_root);
+		if (!phb->dbgfs)
+			pr_warning("%s: Error on creating debugfs on PHB#%x\n",
+				__func__, hose->global_number);
+	}
+#endif /* CONFIG_DEBUG_FS */
+}
+
 static void pnv_pci_ioda_fixup(void)
 {
 	pnv_pci_ioda_setup_PEs();
 	pnv_pci_ioda_setup_seg();
 	pnv_pci_ioda_setup_DMA();
+
+	pnv_pci_ioda_create_dbgfs();
+
+#ifdef CONFIG_EEH
+	eeh_probe_mode_set(EEH_PROBE_MODE_DEV);
+	eeh_addr_cache_build();
+	eeh_init();
+#endif
 }
 
 /*
@@ -1049,7 +1100,8 @@ static void pnv_pci_ioda_shutdown(struct pnv_phb *phb)
 		       OPAL_ASSERT_RESET);
 }
 
-void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
+void __init pnv_pci_init_ioda_phb(struct device_node *np,
+				  u64 hub_id, int ioda_type)
 {
 	struct pci_controller *hose;
 	static int primary = 1;
@@ -1087,6 +1139,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 	hose->first_busno = 0;
 	hose->last_busno = 0xff;
 	hose->private_data = phb;
+	phb->hub_id = hub_id;
 	phb->opal_id = phb_id;
 	phb->type = ioda_type;
 
@@ -1172,6 +1225,9 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 		phb->ioda.io_size, phb->ioda.io_segsize);
 
 	phb->hose->ops = &pnv_pci_ops;
+#ifdef CONFIG_EEH
+	phb->eeh_ops = &ioda_eeh_ops;
+#endif
 
 	/* Setup RID -> PE mapping function */
 	phb->bdfn_to_pe = pnv_ioda_bdfn_to_pe;
@@ -1210,9 +1266,9 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 		opal_pci_set_pe(phb_id, 0, 0, 7, 1, 1 , OPAL_MAP_PE);
 }
 
-void pnv_pci_init_ioda2_phb(struct device_node *np)
+void __init pnv_pci_init_ioda2_phb(struct device_node *np)
 {
-	pnv_pci_init_ioda_phb(np, PNV_PHB_IODA2);
+	pnv_pci_init_ioda_phb(np, 0, PNV_PHB_IODA2);
 }
 
 void __init pnv_pci_init_ioda_hub(struct device_node *np)
@@ -1235,6 +1291,6 @@ void __init pnv_pci_init_ioda_hub(struct device_node *np)
 	for_each_child_of_node(np, phbn) {
 		/* Look for IODA1 PHBs */
 		if (of_device_is_compatible(phbn, "ibm,ioda-phb"))
-			pnv_pci_init_ioda_phb(phbn, PNV_PHB_IODA1);
+			pnv_pci_init_ioda_phb(phbn, hub_id, PNV_PHB_IODA1);
 	}
 }

@@ -159,6 +159,9 @@ static int syscon_probe(struct platform_device *pdev)
 
 static const struct platform_device_id syscon_ids[] = {
 	{ "syscon", },
+#ifdef CONFIG_ARCH_CLPS711X
+	{ "clps711x-syscon", },
+#endif
 	{ }
 };
 

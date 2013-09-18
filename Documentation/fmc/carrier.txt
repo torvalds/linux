@@ -1,0 +1,311 @@
+FMC Device
+**********
+
+Within the Linux bus framework, the FMC device is created and
+registered by the carrier driver. For example, the PCI driver for the
+SPEC card fills a data structure for each SPEC that it drives, and
+registers an associated FMC device for each card.  The SVEC driver can
+do exactly the same for the VME carrier (actually, it should do it
+twice, because the SVEC carries two FMC mezzanines).  Similarly, an
+Etherbone driver will be able to register its own FMC devices, offering
+communication primitives through frame exchange.
+
+The contents of the EEPROM within the FMC are used for identification
+purposes, i.e. for matching the device with its own driver. For this
+reason the device structure includes a complete copy of the EEPROM
+(actually, the carrier driver may choose whether or not to return it -
+for example we most likely won't have the whole EEPROM available for
+Etherbone devices.
+
+The following listing shows the current structure defining a device.
+Please note that all the machinery is in place but some details may
+still change in the future.  For this reason, there is a version field
+at the beginning of the structure.  As usual, the minor number will
+change for compatible changes (like a new flag) and the major number
+will increase when an incompatible change happens (for example, a
+change in layout of some fmc data structures).  Device writers should
+just set it to the value FMC_VERSION, and be ready to get back -EINVAL
+at registration time.
+
+     struct fmc_device {
+             unsigned long version;
+             unsigned long flags;
+             struct module *owner;           /* char device must pin it */
+             struct fmc_fru_id id;           /* for EEPROM-based match */
+             struct fmc_operations *op;      /* carrier-provided */
+             int irq;                        /* according to host bus. 0 == none */
+             int eeprom_len;                 /* Usually 8kB, may be less */
+             int eeprom_addr;                /* 0x50, 0x52 etc */
+             uint8_t *eeprom;                /* Full contents or leading part */
+             char *carrier_name;             /* "SPEC" or similar, for special use */
+             void *carrier_data;             /* "struct spec *" or equivalent */
+             __iomem void *fpga_base;        /* May be NULL (Etherbone) */
+             __iomem void *slot_base;        /* Set by the driver */
+             struct fmc_device **devarray;   /* Allocated by the bus */
+             int slot_id;                    /* Index in the slot array */
+             int nr_slots;                   /* Number of slots in this carrier */
+             unsigned long memlen;           /* Used for the char device */
+             struct device dev;              /* For Linux use */
+             struct device *hwdev;           /* The underlying hardware device */
+             unsigned long sdbfs_entry;
+             struct sdb_array *sdb;
+             uint32_t device_id;             /* Filled by the device */
+             char *mezzanine_name;           /* Defaults to ``fmc'' */
+             void *mezzanine_data;
+     };
+
+The meaning of most fields is summarized in the code comment above.
+
+The following fields must be filled by the carrier driver before
+registration:
+
+   * version: must be set to FMC_VERSION.
+
+   * owner: set to MODULE_OWNER.
+
+   * op: the operations to act on the device.
+
+   * irq: number for the mezzanine; may be zero.
+
+   * eeprom_len: length of the following array.
+
+   * eeprom_addr: 0x50 for first mezzanine and so on.
+
+   * eeprom: the full content of the I2C EEPROM.
+
+   * carrier_name.
+
+   * carrier_data: a unique pointer for the carrier.
+
+   * fpga_base: the I/O memory address (may be NULL).
+
+   * slot_id: the index of this slot (starting from zero).
+
+   * memlen: if fpga_base is valid, the length of I/O memory.
+
+   * hwdev: to be used in some dev_err() calls.
+
+   * device_id: a slot-specific unique integer number.
+
+
+Please note that the carrier should read its own EEPROM memory before
+registering the device, as well as fill all other fields listed above.
+
+The following fields should not be assigned, because they are filled
+later by either the bus or the device driver:
+
+   * flags.
+
+   * fru_id: filled by the bus, parsing the eeprom.
+
+   * slot_base: filled and used by the driver, if useful to it.
+
+   * devarray: an array og all mezzanines driven by a singe FPGA.
+
+   * nr_slots: set by the core at registration time.
+
+   * dev: used by Linux.
+
+   * sdb: FPGA contents, scanned according to driver's directions.
+
+   * sdbfs_entry: SDB entry point in EEPROM: autodetected.
+
+   * mezzanine_data: available for the driver.
+
+   * mezzanine_name: filled by fmc-bus during identification.
+
+
+Note: mezzanine_data may be redundant, because Linux offers the drvdata
+approach, so the field may be removed in later versions of this bus
+implementation.
+
+As I write this, she SPEC carrier is already completely functional in
+the fmc-bus environment, and is a good reference to look at.
+
+
+The API Offered by Carriers
+===========================
+
+The carrier provides a number of methods by means of the
+`fmc_operations' structure, which currently is defined like this
+(again, it is a moving target, please refer to the header rather than
+this document):
+
+     struct fmc_operations {
+             uint32_t (*readl)(struct fmc_device *fmc, int offset);
+             void (*writel)(struct fmc_device *fmc, uint32_t value, int offset);
+             int (*reprogram)(struct fmc_device *f, struct fmc_driver *d, char *gw);
+             int (*validate)(struct fmc_device *fmc, struct fmc_driver *drv);
+             int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
+                                char *name, int flags);
+             void (*irq_ack)(struct fmc_device *fmc);
+             int (*irq_free)(struct fmc_device *fmc);
+             int (*gpio_config)(struct fmc_device *fmc, struct fmc_gpio *gpio,
+                                int ngpio);
+             int (*read_ee)(struct fmc_device *fmc, int pos, void *d, int l);
+             int (*write_ee)(struct fmc_device *fmc, int pos, const void *d, int l);
+     };
+
+The individual methods perform the following tasks:
+
+`readl'
+`writel'
+     These functions access FPGA registers by whatever means the
+     carrier offers. They are not expected to fail, and most of the time
+     they will just make a memory access to the host bus. If the
+     carrier provides a fpga_base pointer, the driver may use direct
+     access through that pointer. For this reason the header offers the
+     inline functions fmc_readl and fmc_writel that access fpga_base if
+     the respective method is NULL. A driver that wants to be portable
+     and efficient should use fmc_readl and fmc_writel.  For Etherbone,
+     or other non-local carriers, error-management is still to be
+     defined.
+
+`validate'
+     Module parameters are used to manage different applications for
+     two or more boards of the same kind. Validation is based on the
+     busid module parameter, if provided, and returns the matching
+     index in the associated array. See *note Module Parameters:: in in
+     doubt. If no match is found, `-ENOENT' is returned; if the user
+     didn't pass `busid=', all devices will pass validation.  The value
+     returned by the validate method can be used as index into other
+     parameters (for example, some drivers use the `lm32=' parameter in
+     this way). Such "generic parameters" are documented in *note
+     Module Parameters::, below. The validate method is used by
+     `fmc-trivial.ko', described in *note fmc-trivial::.
+
+`reprogram'
+     The carrier enumerates FMC devices by loading a standard (or
+     golden) FPGA binary that allows EEPROM access. Each driver, then,
+     will need to reprogram the FPGA by calling this function.  If the
+     name argument is NULL, the carrier should reprogram the golden
+     binary. If the gateware name has been overridden through module
+     parameters (in a carrier-specific way) the file loaded will match
+     the parameters. Per-device gateware names can be specified using
+     the `gateware=' parameter, see *note Module Parameters::.  Note:
+     Clients should call rhe new helper, fmc_reprogram, which both
+     calls this method and parse the SDB tree of the FPGA.
+
+`irq_request'
+`irq_ack'
+`irq_free'
+     Interrupt management is carrier-specific, so it is abstracted as
+     operations. The interrupt number is listed in the device
+     structure, and for the mezzanine driver the number is only
+     informative.  The handler will receive the fmc pointer as dev_id;
+     the flags argument is passed to the Linux request_irq function,
+     but fmc-specific flags may be added in the future. You'll most
+     likely want to pass the `IRQF_SHARED' flag.
+
+`gpio_config'
+     The method allows to configure a GPIO pin in the carrier, and read
+     its current value if it is configured as input. See *note The GPIO
+     Abstraction:: for details.
+
+`read_ee'
+`write_ee'
+     Read or write the EEPROM. The functions are expected to be only
+     called before reprogramming and the carrier should refuse them
+     with `ENODEV' after reprogramming.  The offset is expected to be
+     within 8kB (the current size), but addresses up to 1MB are
+     reserved to fit bigger I2C devices in the future. Carriers may
+     offer access to other internal flash memories using these same
+     methods: for example the SPEC driver may define that its carrier
+     I2C memory is seen at offset 1M and the internal SPI flash is seen
+     at offset 16M.  This multiplexing of several flash memories in the
+     same address space is is carrier-specific and should only be used
+     by a driver that has verified the `carrier_name' field.
+
+
+
+The GPIO Abstraction
+====================
+
+Support for GPIO pins in the fmc-bus environment is not very
+straightforward and deserves special discussion.
+
+While the general idea of a carrier-independent driver seems to fly,
+configuration of specific signals within the carrier needs at least
+some knowledge of the carrier itself.  For this reason, the specific
+driver can request to configure carrier-specific GPIO pins, numbered
+from 0 to at most 4095.  Configuration is performed by passing a
+pointer to an array of struct fmc_gpio items, as well as the length of
+the array. This is the data structure:
+
+        struct fmc_gpio {
+                char *carrier_name;
+                int gpio;
+                int _gpio;      /* internal use by the carrier */
+                int mode;       /* GPIOF_DIR_OUT etc, from <linux/gpio.h> */
+                int irqmode;    /* IRQF_TRIGGER_LOW and so on */
+        };
+
+By specifying a carrier_name for each pin, the driver may access
+different pins in different carriers.  The gpio_config method is
+expected to return the number of pins successfully configured, ignoring
+requests for other carriers. However, if no pin is configured (because
+no structure at all refers to the current carrier_name), the operation
+returns an error so the caller will know that it is running under a
+yet-unsupported carrier.
+
+So, for example, a driver that has been developed and tested on both
+the SPEC and the SVEC may request configuration of two different GPIO
+pins, and expect one such configuration to succeed - if none succeeds
+it most likely means that the current carrier is a still-unknown one.
+
+If, however, your GPIO pin has a specific known role, you can pass a
+special number in the gpio field, using one of the following macros:
+
+        #define FMC_GPIO_RAW(x)         (x)             /* 4096 of them */
+        #define FMC_GPIO_IRQ(x)         ((x) + 0x1000)  /*  256 of them */
+        #define FMC_GPIO_LED(x)         ((x) + 0x1100)  /*  256 of them */
+        #define FMC_GPIO_KEY(x)         ((x) + 0x1200)  /*  256 of them */
+        #define FMC_GPIO_TP(x)          ((x) + 0x1300)  /*  256 of them */
+        #define FMC_GPIO_USER(x)        ((x) + 0x1400)  /*  256 of them */
+
+Use of virtual GPIO numbers (anything but FMC_GPIO_RAW) is allowed
+provided the carrier_name field in the data structure is left
+unspecified (NULL). Each carrier is responsible for providing a mapping
+between virtual and physical GPIO numbers. The carrier may then use the
+_gpio field to cache the result of this mapping.
+
+All carriers must map their I/O lines to the sets above starting from
+zero.  The SPEC, for example, maps interrupt pins 0 and 1, and test
+points 0 through 3 (even if the test points on the PCB are called
+5,6,7,8).
+
+If, for example, a driver requires a free LED and a test point (for a
+scope probe to be plugged at some point during development) it may ask
+for FMC_GPIO_LED(0) and FMC_GPIO_TP(0). Each carrier will provide
+suitable GPIO pins.  Clearly, the person running the drivers will know
+the order used by the specific carrier driver in assigning leds and
+testpoints, so to make a carrier-dependent use of the diagnostic tools.
+
+In theory, some form of autodetection should be possible: a driver like
+the wr-nic (which uses IRQ(1) on the SPEC card) should configure
+IRQ(0), make a test with software-generated interrupts and configure
+IRQ(1) if the test fails. This probing step should be used because even
+if the wr-nic gateware is known to use IRQ1 on the SPEC, the driver
+should be carrier-independent and thus use IRQ(0) as a first bet -
+actually, the knowledge that IRQ0 may fail is carrier-dependent
+information, but using it doesn't make the driver unsuitable for other
+carriers.
+
+The return value of gpio_config is defined as follows:
+
+   * If no pin in the array can be used by the carrier, `-ENODEV'.
+
+   * If at least one virtual GPIO number cannot be mapped, `-ENOENT'.
+
+   * On success, 0 or positive. The value returned is the number of
+     high input bits (if no input is configured, the value for success
+     is 0).
+
+While I admit the procedure is not completely straightforward, it
+allows configuration, input and output with a single carrier operation.
+Given the typical use case of FMC devices, GPIO operations are not
+expected to ever by in hot paths, and GPIO access so fare has only been
+used to configure the interrupt pin, mode and polarity. Especially
+reading inputs is not expected to be common. If your device has GPIO
+capabilities in the hot path, you should consider using the kernel's
+GPIO mechanisms.

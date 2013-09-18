@@ -153,7 +153,7 @@ static int cyttsp4_hw_reset(struct cyttsp4 *cd)
  */
 static int cyttsp4_bits_2_bytes(unsigned int nbits, size_t *max)
 {
-	*max = 1 << nbits;
+	*max = 1UL << nbits;
 	return (nbits + 7) / 8;
 }
 
@@ -1447,11 +1447,6 @@ static void cyttsp4_watchdog_work(struct work_struct *work)
 	u8 *mode;
 	int retval;
 
-	if (cd == NULL) {
-		dev_err(cd->dev, "%s: NULL context pointer\n", __func__);
-		return;
-	}
-
 	mutex_lock(&cd->system_lock);
 	retval = cyttsp4_load_status_regs(cd);
 	if (retval < 0) {
@@ -2027,7 +2022,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	if (!cd->xfer_buf) {
 		dev_err(dev, "%s: Error, kzalloc\n", __func__);
 		rc = -ENOMEM;
-		goto error_alloc_data;
+		goto error_free_cd;
 	}
 
 	/* Initialize device info */
@@ -2051,7 +2046,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	cd->irq = gpio_to_irq(cd->cpdata->irq_gpio);
 	if (cd->irq < 0) {
 		rc = -EINVAL;
-		goto error_gpio_irq;
+		goto error_free_xfer;
 	}
 
 	dev_set_drvdata(dev, cd);
@@ -2119,7 +2114,9 @@ error_request_irq:
 	if (cd->cpdata->init)
 		cd->cpdata->init(cd->cpdata, 0, dev);
 	dev_set_drvdata(dev, NULL);
-error_gpio_irq:
+error_free_xfer:
+	kfree(cd->xfer_buf);
+error_free_cd:
 	kfree(cd);
 error_alloc_data:
 error_no_pdata:

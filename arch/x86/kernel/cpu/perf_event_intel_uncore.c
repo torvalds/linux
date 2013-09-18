@@ -314,8 +314,8 @@ static struct uncore_event_desc snbep_uncore_imc_events[] = {
 static struct uncore_event_desc snbep_uncore_qpi_events[] = {
 	INTEL_UNCORE_EVENT_DESC(clockticks,       "event=0x14"),
 	INTEL_UNCORE_EVENT_DESC(txl_flits_active, "event=0x00,umask=0x06"),
-	INTEL_UNCORE_EVENT_DESC(drs_data,         "event=0x02,umask=0x08"),
-	INTEL_UNCORE_EVENT_DESC(ncb_data,         "event=0x03,umask=0x04"),
+	INTEL_UNCORE_EVENT_DESC(drs_data,         "event=0x102,umask=0x08"),
+	INTEL_UNCORE_EVENT_DESC(ncb_data,         "event=0x103,umask=0x04"),
 	{ /* end: all zeroes */ },
 };
 
@@ -536,7 +536,7 @@ __snbep_cbox_get_constraint(struct intel_uncore_box *box, struct perf_event *eve
 	if (!uncore_box_is_fake(box))
 		reg1->alloc |= alloc;
 
-	return 0;
+	return NULL;
 fail:
 	for (; i >= 0; i--) {
 		if (alloc & (0x1 << i))
@@ -644,7 +644,7 @@ snbep_pcu_get_constraint(struct intel_uncore_box *box, struct perf_event *event)
 	    (!uncore_box_is_fake(box) && reg1->alloc))
 		return NULL;
 again:
-	mask = 0xff << (idx * 8);
+	mask = 0xffULL << (idx * 8);
 	raw_spin_lock_irqsave(&er->lock, flags);
 	if (!__BITS_VALUE(atomic_read(&er->ref), idx, 8) ||
 	    !((config1 ^ er->config) & mask)) {
@@ -1923,7 +1923,7 @@ static u64 nhmex_mbox_alter_er(struct perf_event *event, int new_idx, bool modif
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
-	int idx, orig_idx = __BITS_VALUE(reg1->idx, 0, 8);
+	u64 idx, orig_idx = __BITS_VALUE(reg1->idx, 0, 8);
 	u64 config = reg1->config;
 
 	/* get the non-shared control bits and shift them */
@@ -2723,15 +2723,16 @@ static void uncore_put_event_constraint(struct intel_uncore_box *box, struct per
 static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int n)
 {
 	unsigned long used_mask[BITS_TO_LONGS(UNCORE_PMC_IDX_MAX)];
-	struct event_constraint *c, *constraints[UNCORE_PMC_IDX_MAX];
+	struct event_constraint *c;
 	int i, wmin, wmax, ret = 0;
 	struct hw_perf_event *hwc;
 
 	bitmap_zero(used_mask, UNCORE_PMC_IDX_MAX);
 
 	for (i = 0, wmin = UNCORE_PMC_IDX_MAX, wmax = 0; i < n; i++) {
+		hwc = &box->event_list[i]->hw;
 		c = uncore_get_event_constraint(box, box->event_list[i]);
-		constraints[i] = c;
+		hwc->constraint = c;
 		wmin = min(wmin, c->weight);
 		wmax = max(wmax, c->weight);
 	}
@@ -2739,7 +2740,7 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	/* fastpath, try to reuse previous register */
 	for (i = 0; i < n; i++) {
 		hwc = &box->event_list[i]->hw;
-		c = constraints[i];
+		c = hwc->constraint;
 
 		/* never assigned */
 		if (hwc->idx == -1)
@@ -2759,7 +2760,8 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	}
 	/* slow path */
 	if (i != n)
-		ret = perf_assign_events(constraints, n, wmin, wmax, assign);
+		ret = perf_assign_events(box->event_list, n,
+					 wmin, wmax, assign);
 
 	if (!assign || ret) {
 		for (i = 0; i < n; i++)
@@ -3295,7 +3297,7 @@ static void __init uncore_pci_exit(void)
 /* CPU hot plug/unplug are serialized by cpu_add_remove_lock mutex */
 static LIST_HEAD(boxes_to_free);
 
-static void __cpuinit uncore_kfree_boxes(void)
+static void uncore_kfree_boxes(void)
 {
 	struct intel_uncore_box *box;
 
@@ -3307,7 +3309,7 @@ static void __cpuinit uncore_kfree_boxes(void)
 	}
 }
 
-static void __cpuinit uncore_cpu_dying(int cpu)
+static void uncore_cpu_dying(int cpu)
 {
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu;
@@ -3326,7 +3328,7 @@ static void __cpuinit uncore_cpu_dying(int cpu)
 	}
 }
 
-static int __cpuinit uncore_cpu_starting(int cpu)
+static int uncore_cpu_starting(int cpu)
 {
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu;
@@ -3369,7 +3371,7 @@ static int __cpuinit uncore_cpu_starting(int cpu)
 	return 0;
 }
 
-static int __cpuinit uncore_cpu_prepare(int cpu, int phys_id)
+static int uncore_cpu_prepare(int cpu, int phys_id)
 {
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu;
@@ -3395,7 +3397,7 @@ static int __cpuinit uncore_cpu_prepare(int cpu, int phys_id)
 	return 0;
 }
 
-static void __cpuinit
+static void
 uncore_change_context(struct intel_uncore_type **uncores, int old_cpu, int new_cpu)
 {
 	struct intel_uncore_type *type;
@@ -3433,7 +3435,7 @@ uncore_change_context(struct intel_uncore_type **uncores, int old_cpu, int new_c
 	}
 }
 
-static void __cpuinit uncore_event_exit_cpu(int cpu)
+static void uncore_event_exit_cpu(int cpu)
 {
 	int i, phys_id, target;
 
@@ -3461,7 +3463,7 @@ static void __cpuinit uncore_event_exit_cpu(int cpu)
 	uncore_change_context(pci_uncores, cpu, target);
 }
 
-static void __cpuinit uncore_event_init_cpu(int cpu)
+static void uncore_event_init_cpu(int cpu)
 {
 	int i, phys_id;
 
@@ -3477,8 +3479,8 @@ static void __cpuinit uncore_event_init_cpu(int cpu)
 	uncore_change_context(pci_uncores, -1, cpu);
 }
 
-static int
- __cpuinit uncore_cpu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
+static int uncore_cpu_notifier(struct notifier_block *self,
+			       unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
 
@@ -3518,7 +3520,7 @@ static int
 	return NOTIFY_OK;
 }
 
-static struct notifier_block uncore_cpu_nb __cpuinitdata = {
+static struct notifier_block uncore_cpu_nb = {
 	.notifier_call	= uncore_cpu_notifier,
 	/*
 	 * to migrate uncore events, our notifier should be executed

@@ -107,8 +107,9 @@ struct kvmppc_vcpu_book3s {
 #define CONTEXT_GUEST		1
 #define CONTEXT_GUEST_END	2
 
-#define VSID_REAL	0x1fffffffffc00000ULL
-#define VSID_BAT	0x1fffffffffb00000ULL
+#define VSID_REAL	0x0fffffffffc00000ULL
+#define VSID_BAT	0x0fffffffffb00000ULL
+#define VSID_1T		0x1000000000000000ULL
 #define VSID_REAL_DR	0x2000000000000000ULL
 #define VSID_REAL_IR	0x4000000000000000ULL
 #define VSID_PR		0x8000000000000000ULL
@@ -123,6 +124,7 @@ extern void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu);
 extern void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu);
 extern int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte);
 extern int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr);
+extern void kvmppc_mmu_flush_segment(struct kvm_vcpu *vcpu, ulong eaddr, ulong seg_size);
 extern void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu);
 extern int kvmppc_book3s_hv_page_fault(struct kvm_run *run,
 			struct kvm_vcpu *vcpu, unsigned long addr,

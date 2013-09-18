@@ -246,6 +246,9 @@ static int mips_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		if (!plat_device_is_coherent(dev))
 			__dma_sync(sg_page(sg), sg->offset, sg->length,
 				   direction);
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		sg->dma_length = sg->length;
+#endif
 		sg->dma_address = plat_map_dma_mem_page(dev, sg_page(sg)) +
 				  sg->offset;
 	}

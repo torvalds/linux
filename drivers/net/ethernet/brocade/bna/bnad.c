@@ -2624,6 +2624,9 @@ bnad_stop(struct net_device *netdev)
 	bnad_destroy_tx(bnad, 0);
 	bnad_destroy_rx(bnad, 0);
 
+	/* These config flags are cleared in the hardware */
+	bnad->cfg_flags &= ~(BNAD_CF_ALLMULTI | BNAD_CF_PROMISC);
+
 	/* Synchronize mailbox IRQ */
 	bnad_mbox_irq_sync(bnad);
 

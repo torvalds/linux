@@ -10,9 +10,9 @@
  */
 
 /dts-v1/;
-/include/ "dbx5x0.dtsi"
-/include/ "href.dtsi"
-/include/ "stuib.dtsi"
+#include "dbx5x0.dtsi"
+#include "href.dtsi"
+#include "stuib.dtsi"
 
 / {
 	model = "ST-Ericsson HREF (pre-v60) platform with Device Tree";
@@ -24,7 +24,7 @@
 		};
 	};
 
-	soc-u9500 {
+	soc {
 		prcmu@80157000 {
 			ab8500@5 {
 				ab8500-gpio {
@@ -41,7 +41,7 @@
 		};
 
 		i2c@80110000 {
-			bu21013_tp@0x5c {
+			bu21013_tp@5c {
 				reset-gpio = <&tc3589x_gpio 13 0x4>;
 			};
 		};

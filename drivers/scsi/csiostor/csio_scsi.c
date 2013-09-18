@@ -1479,8 +1479,8 @@ csio_store_dbg_level(struct device *dev,
 }
 
 static DEVICE_ATTR(hw_state, S_IRUGO, csio_show_hw_state, NULL);
-static DEVICE_ATTR(device_reset, S_IRUGO | S_IWUSR, NULL, csio_device_reset);
-static DEVICE_ATTR(disable_port, S_IRUGO | S_IWUSR, NULL, csio_disable_port);
+static DEVICE_ATTR(device_reset, S_IWUSR, NULL, csio_device_reset);
+static DEVICE_ATTR(disable_port, S_IWUSR, NULL, csio_disable_port);
 static DEVICE_ATTR(dbg_level, S_IRUGO | S_IWUSR, csio_show_dbg_level,
 		  csio_store_dbg_level);
 

@@ -23,9 +23,9 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_data/davinci_asp.h>
+#include <linux/platform_data/edma.h>
 #include <linux/platform_data/keyscan-davinci.h>
 #include <mach/hardware.h>
-#include <mach/edma.h>
 
 #include <media/davinci/vpfe_capture.h>
 #include <media/davinci/vpif_types.h>
@@ -77,32 +77,32 @@ void davinci_map_sysmod(void);
 #define DM646X_ASYNC_EMIF_CS2_SPACE_BASE 0x42000000
 
 /* DM355 function declarations */
-void __init dm355_init(void);
+void dm355_init(void);
 void dm355_init_spi0(unsigned chipselect_mask,
 		const struct spi_board_info *info, unsigned len);
-void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata);
+void dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata);
 int dm355_init_video(struct vpfe_config *, struct vpbe_config *);
 
 /* DM365 function declarations */
-void __init dm365_init(void);
-void __init dm365_init_asp(struct snd_platform_data *pdata);
-void __init dm365_init_vc(struct snd_platform_data *pdata);
-void __init dm365_init_ks(struct davinci_ks_platform_data *pdata);
-void __init dm365_init_rtc(void);
+void dm365_init(void);
+void dm365_init_asp(struct snd_platform_data *pdata);
+void dm365_init_vc(struct snd_platform_data *pdata);
+void dm365_init_ks(struct davinci_ks_platform_data *pdata);
+void dm365_init_rtc(void);
 void dm365_init_spi0(unsigned chipselect_mask,
 			const struct spi_board_info *info, unsigned len);
 int dm365_init_video(struct vpfe_config *, struct vpbe_config *);
 
 /* DM644x function declarations */
-void __init dm644x_init(void);
-void __init dm644x_init_asp(struct snd_platform_data *pdata);
-int __init dm644x_init_video(struct vpfe_config *, struct vpbe_config *);
+void dm644x_init(void);
+void dm644x_init_asp(struct snd_platform_data *pdata);
+int dm644x_init_video(struct vpfe_config *, struct vpbe_config *);
 
 /* DM646x function declarations */
-void __init dm646x_init(void);
-void __init dm646x_init_mcasp0(struct snd_platform_data *pdata);
-void __init dm646x_init_mcasp1(struct snd_platform_data *pdata);
-int __init dm646x_init_edma(struct edma_rsv_info *rsv);
+void dm646x_init(void);
+void dm646x_init_mcasp0(struct snd_platform_data *pdata);
+void dm646x_init_mcasp1(struct snd_platform_data *pdata);
+int dm646x_init_edma(struct edma_rsv_info *rsv);
 void dm646x_video_init(void);
 void dm646x_setup_vpif(struct vpif_display_config *,
 		       struct vpif_capture_config *);

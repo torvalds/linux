@@ -2800,7 +2800,6 @@ static void snd_vt1724_remove(struct pci_dev *pci)
 	if (ice->card_info && ice->card_info->chip_exit)
 		ice->card_info->chip_exit(ice);
 	snd_card_free(card);
-	pci_set_drvdata(pci, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

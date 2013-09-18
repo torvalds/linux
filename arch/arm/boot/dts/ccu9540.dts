@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "dbx5x0.dtsi"
+#include "dbx5x0.dtsi"
 
 / {
 	model = "ST-Ericsson CCU9540 platform with Device Tree";
@@ -20,7 +20,7 @@
 		reg = <0x00000000 0x20000000>;
 	};
 
-	soc-u9500 {
+	soc {
 		uart@80120000 {
 			status = "okay";
 		};
@@ -52,7 +52,7 @@
 		// WLAN SDIO channel
 		sdi1_per2@80118000 {
 			arm,primecell-periphid = <0x10480180>;
-			max-frequency = <50000000>;
+			max-frequency = <100000000>;
 			bus-width = <4>;
 
 			status = "okay";

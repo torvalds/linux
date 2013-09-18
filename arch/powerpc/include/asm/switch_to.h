@@ -15,6 +15,15 @@ extern struct task_struct *__switch_to(struct task_struct *,
 struct thread_struct;
 extern struct task_struct *_switch(struct thread_struct *prev,
 				   struct thread_struct *next);
+#ifdef CONFIG_PPC_BOOK3S_64
+static inline void save_tar(struct thread_struct *prev)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		prev->tar = mfspr(SPRN_TAR);
+}
+#else
+static inline void save_tar(struct thread_struct *prev) {}
+#endif
 
 extern void giveup_fpu(struct task_struct *);
 extern void load_up_fpu(void);
@@ -66,5 +75,19 @@ static inline void flush_spe_to_thread(struct task_struct *t)
 {
 }
 #endif
+
+static inline void clear_task_ebb(struct task_struct *t)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+    /* EBB perf events are not inherited, so clear all EBB state. */
+    t->thread.bescr = 0;
+    t->thread.mmcr2 = 0;
+    t->thread.mmcr0 = 0;
+    t->thread.siar = 0;
+    t->thread.sdar = 0;
+    t->thread.sier = 0;
+    t->thread.used_ebb = 0;
+#endif
+}
 
 #endif /* _ASM_POWERPC_SWITCH_TO_H */

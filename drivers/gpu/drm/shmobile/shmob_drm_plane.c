@@ -166,7 +166,7 @@ void shmob_drm_plane_setup(struct drm_plane *plane)
 {
 	struct shmob_drm_plane *splane = to_shmob_plane(plane);
 
-	if (plane->fb == NULL || !plane->enabled)
+	if (plane->fb == NULL)
 		return;
 
 	__shmob_drm_plane_setup(splane, plane->fb);
@@ -221,11 +221,8 @@ static int shmob_drm_plane_disable(struct drm_plane *plane)
 
 static void shmob_drm_plane_destroy(struct drm_plane *plane)
 {
-	struct shmob_drm_plane *splane = to_shmob_plane(plane);
-
 	shmob_drm_plane_disable(plane);
 	drm_plane_cleanup(plane);
-	kfree(splane);
 }
 
 static const struct drm_plane_funcs shmob_drm_plane_funcs = {
@@ -251,7 +248,7 @@ int shmob_drm_plane_create(struct shmob_drm_device *sdev, unsigned int index)
 	struct shmob_drm_plane *splane;
 	int ret;
 
-	splane = kzalloc(sizeof(*splane), GFP_KERNEL);
+	splane = devm_kzalloc(sdev->dev, sizeof(*splane), GFP_KERNEL);
 	if (splane == NULL)
 		return -ENOMEM;
 
@@ -261,8 +258,6 @@ int shmob_drm_plane_create(struct shmob_drm_device *sdev, unsigned int index)
 	ret = drm_plane_init(sdev->ddev, &splane->plane, 1,
 			     &shmob_drm_plane_funcs, formats,
 			     ARRAY_SIZE(formats), false);
-	if (ret < 0)
-		kfree(splane);
 
 	return ret;
 }

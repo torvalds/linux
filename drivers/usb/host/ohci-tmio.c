@@ -287,8 +287,6 @@ static int ohci_hcd_tmio_drv_remove(struct platform_device *dev)
 	iounmap(tmio->ccr);
 	usb_put_hcd(hcd);
 
-	platform_set_drvdata(dev, NULL);
-
 	return 0;
 }
 

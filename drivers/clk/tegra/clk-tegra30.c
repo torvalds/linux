@@ -252,6 +252,9 @@
 #define CLK_RESET_CCLK_RUN_POLICY		2
 #define CLK_RESET_CCLK_BURST_POLICY_PLLX	8
 
+/* PLLM override registers */
+#define PMC_PLLM_WB0_OVERRIDE 0x1dc
+
 #ifdef CONFIG_PM_SLEEP
 static struct cpu_clk_suspend_context {
 	u32 pllx_misc;
@@ -563,6 +566,18 @@ static struct tegra_clk_pll_params pll_c_params = {
 	.lock_delay = 300,
 };
 
+static struct div_nmp pllm_nmp = {
+	.divn_shift = 8,
+	.divn_width = 10,
+	.override_divn_shift = 5,
+	.divm_shift = 0,
+	.divm_width = 5,
+	.override_divm_shift = 0,
+	.divp_shift = 20,
+	.divp_width = 3,
+	.override_divp_shift = 15,
+};
+
 static struct tegra_clk_pll_params pll_m_params = {
 	.input_min = 2000000,
 	.input_max = 31000000,
@@ -575,6 +590,9 @@ static struct tegra_clk_pll_params pll_m_params = {
 	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
+	.div_nmp = &pllm_nmp,
+	.pmc_divnm_reg = PMC_PLLM_WB0_OVERRIDE,
+	.pmc_divp_reg = PMC_PLLM_WB0_OVERRIDE,
 };
 
 static struct tegra_clk_pll_params pll_p_params = {
@@ -1223,7 +1241,7 @@ static void __init tegra30_pmc_clk_init(void)
 
 	/* clk_out_2 */
 	clk = clk_register_mux(NULL, "clk_out_2_mux", clk_out2_parents,
-			       ARRAY_SIZE(clk_out1_parents), 0,
+			       ARRAY_SIZE(clk_out2_parents), 0,
 			       pmc_base + PMC_CLK_OUT_CNTRL, 14, 3, 0,
 			       &clk_out_lock);
 	clk = clk_register_gate(NULL, "clk_out_2", "clk_out_2_mux", 0,
@@ -1234,7 +1252,7 @@ static void __init tegra30_pmc_clk_init(void)
 
 	/* clk_out_3 */
 	clk = clk_register_mux(NULL, "clk_out_3_mux", clk_out3_parents,
-			       ARRAY_SIZE(clk_out1_parents), 0,
+			       ARRAY_SIZE(clk_out3_parents), 0,
 			       pmc_base + PMC_CLK_OUT_CNTRL, 22, 3, 0,
 			       &clk_out_lock);
 	clk = clk_register_gate(NULL, "clk_out_3", "clk_out_3_mux", 0,
@@ -1598,6 +1616,12 @@ static void __init tegra30_periph_clk_init(void)
 	clk_register_clkdev(clk, "afi", "tegra-pcie");
 	clks[afi] = clk;
 
+	/* pciex */
+	clk = tegra_clk_register_periph_gate("pciex", "pll_e", 0, clk_base, 0,
+				    74, &periph_u_regs, periph_clk_enb_refcnt);
+	clk_register_clkdev(clk, "pciex", "tegra-pcie");
+	clks[pciex] = clk;
+
 	/* kfuse */
 	clk = tegra_clk_register_periph_gate("kfuse", "clk_m",
 				    TEGRA_PERIPH_ON_APB,
@@ -1716,11 +1740,6 @@ static void __init tegra30_fixed_clk_init(void)
 				1, 0, &cml_lock);
 	clk_register_clkdev(clk, "cml1", NULL);
 	clks[cml1] = clk;
-
-	/* pciex */
-	clk = clk_register_fixed_rate(NULL, "pciex", "pll_e", 0, 100000000);
-	clk_register_clkdev(clk, "pciex", NULL);
-	clks[pciex] = clk;
 }
 
 static void __init tegra30_osc_clk_init(void)
@@ -1953,7 +1972,7 @@ static const struct of_device_id pmc_match[] __initconst = {
 	{},
 };
 
-void __init tegra30_clock_init(struct device_node *np)
+static void __init tegra30_clock_init(struct device_node *np)
 {
 	struct device_node *node;
 	int i;
@@ -2004,3 +2023,4 @@ void __init tegra30_clock_init(struct device_node *np)
 
 	tegra_cpu_car_ops = &tegra30_cpu_car_ops;
 }
+CLK_OF_DECLARE(tegra30, "nvidia,tegra30-car", tegra30_clock_init);

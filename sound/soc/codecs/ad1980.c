@@ -108,7 +108,7 @@ static unsigned int ac97_read(struct snd_soc_codec *codec,
 	case AC97_EXTENDED_STATUS:
 	case AC97_VENDOR_ID1:
 	case AC97_VENDOR_ID2:
-		return soc_ac97_ops.read(codec->ac97, reg);
+		return soc_ac97_ops->read(codec->ac97, reg);
 	default:
 		reg = reg >> 1;
 
@@ -124,7 +124,7 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u16 *cache = codec->reg_cache;
 
-	soc_ac97_ops.write(codec->ac97, reg, val);
+	soc_ac97_ops->write(codec->ac97, reg, val);
 	reg = reg >> 1;
 	if (reg < ARRAY_SIZE(ad1980_reg))
 		cache[reg] = val;
@@ -154,13 +154,13 @@ static int ad1980_reset(struct snd_soc_codec *codec, int try_warm)
 	u16 retry_cnt = 0;
 
 retry:
-	if (try_warm && soc_ac97_ops.warm_reset) {
-		soc_ac97_ops.warm_reset(codec->ac97);
+	if (try_warm && soc_ac97_ops->warm_reset) {
+		soc_ac97_ops->warm_reset(codec->ac97);
 		if (ac97_read(codec, AC97_RESET) == 0x0090)
 			return 1;
 	}
 
-	soc_ac97_ops.reset(codec->ac97);
+	soc_ac97_ops->reset(codec->ac97);
 	/* Set bit 16slot in register 74h, then every slot will has only 16
 	 * bits. This command is sent out in 20bit mode, in which case the
 	 * first nibble of data is eaten by the addr. (Tag is always 16 bit)*/
@@ -186,7 +186,7 @@ static int ad1980_soc_probe(struct snd_soc_codec *codec)
 
 	printk(KERN_INFO "AD1980 SoC Audio Codec\n");
 
-	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
+	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0) {
 		printk(KERN_ERR "ad1980: failed to register AC97 codec\n");
 		return ret;

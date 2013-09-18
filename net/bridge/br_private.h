@@ -66,6 +66,20 @@ struct br_ip
 	__u16		vid;
 };
 
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+/* our own querier */
+struct bridge_mcast_query {
+	struct timer_list	timer;
+	u32			startup_sent;
+};
+
+/* other querier */
+struct bridge_mcast_querier {
+	struct timer_list		timer;
+	unsigned long			delay_time;
+};
+#endif
+
 struct net_port_vlans {
 	u16				port_idx;
 	u16				pvid;
@@ -112,6 +126,7 @@ struct net_bridge_mdb_entry
 	struct timer_list		timer;
 	struct br_ip			addr;
 	bool				mglist;
+	bool				timer_armed;
 };
 
 struct net_bridge_mdb_htable
@@ -157,12 +172,16 @@ struct net_bridge_port
 #define BR_ROOT_BLOCK		0x00000004
 #define BR_MULTICAST_FAST_LEAVE	0x00000008
 #define BR_ADMIN_COST		0x00000010
+#define BR_LEARNING		0x00000020
+#define BR_FLOOD		0x00000040
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	u32				multicast_startup_queries_sent;
+	struct bridge_mcast_query	ip4_query;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct bridge_mcast_query	ip6_query;
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 	unsigned char			multicast_router;
 	struct timer_list		multicast_router_timer;
-	struct timer_list		multicast_query_timer;
 	struct hlist_head		mglist;
 	struct hlist_node		rlist;
 #endif
@@ -249,12 +268,12 @@ struct net_bridge
 
 	u8				multicast_disabled:1;
 	u8				multicast_querier:1;
+	u8				multicast_query_use_ifaddr:1;
 
 	u32				hash_elasticity;
 	u32				hash_max;
 
 	u32				multicast_last_member_count;
-	u32				multicast_startup_queries_sent;
 	u32				multicast_startup_query_count;
 
 	unsigned long			multicast_last_member_interval;
@@ -269,8 +288,12 @@ struct net_bridge
 	struct hlist_head		router_list;
 
 	struct timer_list		multicast_router_timer;
-	struct timer_list		multicast_querier_timer;
-	struct timer_list		multicast_query_timer;
+	struct bridge_mcast_querier	ip4_querier;
+	struct bridge_mcast_query	ip4_query;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct bridge_mcast_querier	ip6_querier;
+	struct bridge_mcast_query	ip6_query;
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif
 
 	struct timer_list		hello_timer;
@@ -411,9 +434,10 @@ extern int br_dev_queue_push_xmit(struct sk_buff *skb);
 extern void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb, struct sk_buff *skb0);
 extern int br_forward_finish(struct sk_buff *skb);
-extern void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb);
+extern void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb,
+			     bool unicast);
 extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
-			     struct sk_buff *skb2);
+			     struct sk_buff *skb2, bool unicast);
 
 /* br_if.c */
 extern void br_port_carrier_check(struct net_bridge_port *p);
@@ -496,6 +520,29 @@ static inline bool br_multicast_is_router(struct net_bridge *br)
 	       (br->multicast_router == 1 &&
 		timer_pending(&br->multicast_router_timer));
 }
+
+static inline bool
+__br_multicast_querier_exists(struct net_bridge *br,
+			      struct bridge_mcast_querier *querier)
+{
+	return time_is_before_jiffies(querier->delay_time) &&
+	       (br->multicast_querier || timer_pending(&querier->timer));
+}
+
+static inline bool br_multicast_querier_exists(struct net_bridge *br,
+					       struct ethhdr *eth)
+{
+	switch (eth->h_proto) {
+	case (htons(ETH_P_IP)):
+		return __br_multicast_querier_exists(br, &br->ip4_querier);
+#if IS_ENABLED(CONFIG_IPV6)
+	case (htons(ETH_P_IPV6)):
+		return __br_multicast_querier_exists(br, &br->ip6_querier);
+#endif
+	default:
+		return false;
+	}
+}
 #else
 static inline int br_multicast_rcv(struct net_bridge *br,
 				   struct net_bridge_port *port,
@@ -551,6 +598,11 @@ static inline void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
 static inline bool br_multicast_is_router(struct net_bridge *br)
 {
 	return 0;
+}
+static inline bool br_multicast_querier_exists(struct net_bridge *br,
+					       struct ethhdr *eth)
+{
+	return false;
 }
 static inline void br_mdb_init(void)
 {

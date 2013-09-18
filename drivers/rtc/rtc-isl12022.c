@@ -16,6 +16,7 @@
 #include <linux/rtc.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/err.h>
 
 #define DRV_VERSION "0.1"
 
@@ -267,15 +268,7 @@ static int isl12022_probe(struct i2c_client *client,
 	isl12022->rtc = devm_rtc_device_register(&client->dev,
 					isl12022_driver.driver.name,
 					&isl12022_rtc_ops, THIS_MODULE);
-	if (IS_ERR(isl12022->rtc))
-		return PTR_ERR(isl12022->rtc);
-
-	return 0;
-}
-
-static int isl12022_remove(struct i2c_client *client)
-{
-	return 0;
+	return PTR_RET(isl12022->rtc);
 }
 
 static const struct i2c_device_id isl12022_id[] = {
@@ -289,7 +282,6 @@ static struct i2c_driver isl12022_driver = {
 		.name	= "rtc-isl12022",
 	},
 	.probe		= isl12022_probe,
-	.remove		= isl12022_remove,
 	.id_table	= isl12022_id,
 };
 

@@ -82,7 +82,6 @@ EXPORT_SYMBOL(max_mapnr);
 EXPORT_SYMBOL(mem_map);
 #endif
 
-unsigned long num_physpages;
 /*
  * A number of key systems in x86 including ioremap() rely on the assumption
  * that high_memory defines the upper bound on direct map memory, then end
@@ -92,7 +91,6 @@ unsigned long num_physpages;
  */
 void * high_memory;
 
-EXPORT_SYMBOL(num_physpages);
 EXPORT_SYMBOL(high_memory);
 
 /*
@@ -211,14 +209,15 @@ static int tlb_next_batch(struct mmu_gather *tlb)
  *	tear-down from @mm. The @fullmm argument is used when @mm is without
  *	users and we're going to destroy the full address space (exit/execve).
  */
-void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool fullmm)
+void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	tlb->mm = mm;
 
-	tlb->fullmm     = fullmm;
+	/* Is it from 0 to ~0? */
+	tlb->fullmm     = !(start | (end+1));
 	tlb->need_flush_all = 0;
-	tlb->start	= -1UL;
-	tlb->end	= 0;
+	tlb->start	= start;
+	tlb->end	= end;
 	tlb->need_flush = 0;
 	tlb->local.next = NULL;
 	tlb->local.nr   = 0;
@@ -258,8 +257,6 @@ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long e
 {
 	struct mmu_gather_batch *batch, *next;
 
-	tlb->start = start;
-	tlb->end   = end;
 	tlb_flush_mmu(tlb);
 
 	/* keep the page table cache within bounds */
@@ -1142,16 +1139,19 @@ again:
 				continue;
 			if (unlikely(details) && details->nonlinear_vma
 			    && linear_page_index(details->nonlinear_vma,
-						addr) != page->index)
-				set_pte_at(mm, addr, pte,
-					   pgoff_to_pte(page->index));
+						addr) != page->index) {
+				pte_t ptfile = pgoff_to_pte(page->index);
+				if (pte_soft_dirty(ptent))
+					pte_file_mksoft_dirty(ptfile);
+				set_pte_at(mm, addr, pte, ptfile);
+			}
 			if (PageAnon(page))
 				rss[MM_ANONPAGES]--;
 			else {
 				if (pte_dirty(ptent))
 					set_page_dirty(page);
 				if (pte_young(ptent) &&
-				    likely(!VM_SequentialReadHint(vma)))
+				    likely(!(vma->vm_flags & VM_SEQ_READ)))
 					mark_page_accessed(page);
 				rss[MM_FILEPAGES]--;
 			}
@@ -1203,13 +1203,23 @@ again:
 	 * and page-free while holding it.
 	 */
 	if (force_flush) {
+		unsigned long old_end;
+
 		force_flush = 0;
 
-#ifdef HAVE_GENERIC_MMU_GATHER
-		tlb->start = addr;
-		tlb->end = end;
-#endif
+		/*
+		 * Flush the TLB just for the previous segment,
+		 * then update the range to be the remaining
+		 * TLB range.
+		 */
+		old_end = tlb->end;
+		tlb->end = addr;
+
 		tlb_flush_mmu(tlb);
+
+		tlb->start = addr;
+		tlb->end = old_end;
+
 		if (addr != end)
 			goto again;
 	}
@@ -1396,7 +1406,7 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
 	unsigned long end = start + size;
 
 	lru_add_drain();
-	tlb_gather_mmu(&tlb, mm, 0);
+	tlb_gather_mmu(&tlb, mm, start, end);
 	update_hiwater_rss(mm);
 	mmu_notifier_invalidate_range_start(mm, start, end);
 	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
@@ -1422,7 +1432,7 @@ static void zap_page_range_single(struct vm_area_struct *vma, unsigned long addr
 	unsigned long end = address + size;
 
 	lru_add_drain();
-	tlb_gather_mmu(&tlb, mm, 0);
+	tlb_gather_mmu(&tlb, mm, address, end);
 	update_hiwater_rss(mm);
 	mmu_notifier_invalidate_range_start(mm, address, end);
 	unmap_single_vma(&tlb, vma, address, end, details);
@@ -2904,7 +2914,7 @@ static inline void unmap_mapping_range_tree(struct rb_root *root,
 			details->first_index, details->last_index) {
 
 		vba = vma->vm_pgoff;
-		vea = vba + ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) - 1;
+		vea = vba + vma_pages(vma) - 1;
 		/* Assume for now that PAGE_CACHE_SHIFT == PAGE_SHIFT */
 		zba = details->first_index;
 		if (zba < vba)
@@ -3114,6 +3124,8 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		exclusive = 1;
 	}
 	flush_icache_page(vma, page);
+	if (pte_swp_soft_dirty(orig_pte))
+		pte = pte_mksoft_dirty(pte);
 	set_pte_at(mm, address, page_table, pte);
 	if (page == swapcache)
 		do_page_add_anon_rmap(page, vma, address, exclusive);
@@ -3407,6 +3419,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		entry = mk_pte(page, vma->vm_page_prot);
 		if (flags & FAULT_FLAG_WRITE)
 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+		else if (pte_file(orig_pte) && pte_file_soft_dirty(orig_pte))
+			pte_mksoft_dirty(entry);
 		if (anon) {
 			inc_mm_counter_fast(mm, MM_ANONPAGES);
 			page_add_new_anon_rmap(page, vma, address);
@@ -4201,7 +4215,7 @@ void print_vma_addr(char *prefix, unsigned long ip)
 	up_read(&mm->mmap_sem);
 }
 
-#ifdef CONFIG_PROVE_LOCKING
+#if defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP)
 void might_fault(void)
 {
 	/*
@@ -4213,13 +4227,17 @@ void might_fault(void)
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return;
 
-	might_sleep();
 	/*
 	 * it would be nicer only to annotate paths which are not under
 	 * pagefault_disable, however that requires a larger audit and
 	 * providing helpers like get_user_atomic.
 	 */
-	if (!in_atomic() && current->mm)
+	if (in_atomic())
+		return;
+
+	__might_sleep(__FILE__, __LINE__, 0);
+
+	if (current->mm)
 		might_lock_read(&current->mm->mmap_sem);
 }
 EXPORT_SYMBOL(might_fault);

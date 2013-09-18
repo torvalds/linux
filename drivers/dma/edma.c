@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include <mach/edma.h>
+#include <linux/platform_data/edma.h>
 
 #include "dmaengine.h"
 #include "virt-dma.h"

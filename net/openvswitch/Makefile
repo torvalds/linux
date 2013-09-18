@@ -10,5 +10,6 @@ openvswitch-y := \
 	dp_notify.o \
 	flow.o \
 	vport.o \
+	vport-gre.o \
 	vport-internal_dev.o \
-	vport-netdev.o \
+	vport-netdev.o

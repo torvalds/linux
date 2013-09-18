@@ -377,8 +377,7 @@ rsc_init(struct cache_head *cnew, struct cache_head *ctmp)
 	new->handle.data = tmp->handle.data;
 	tmp->handle.data = NULL;
 	new->mechctx = NULL;
-	new->cred.cr_group_info = NULL;
-	new->cred.cr_principal = NULL;
+	init_svc_cred(&new->cred);
 }
 
 static void
@@ -392,9 +391,7 @@ update_rsc(struct cache_head *cnew, struct cache_head *ctmp)
 	memset(&new->seqdata, 0, sizeof(new->seqdata));
 	spin_lock_init(&new->seqdata.sd_lock);
 	new->cred = tmp->cred;
-	tmp->cred.cr_group_info = NULL;
-	new->cred.cr_principal = tmp->cred.cr_principal;
-	tmp->cred.cr_principal = NULL;
+	init_svc_cred(&tmp->cred);
 }
 
 static struct cache_head *
@@ -487,7 +484,7 @@ static int rsc_parse(struct cache_detail *cd,
 		len = qword_get(&mesg, buf, mlen);
 		if (len < 0)
 			goto out;
-		gm = gss_mech_get_by_name(buf);
+		gm = rsci.cred.cr_gss_mech = gss_mech_get_by_name(buf);
 		status = -EOPNOTSUPP;
 		if (!gm)
 			goto out;
@@ -517,7 +514,6 @@ static int rsc_parse(struct cache_detail *cd,
 	rscp = rsc_update(cd, &rsci, rscp);
 	status = 0;
 out:
-	gss_mech_put(gm);
 	rsc_free(&rsci);
 	if (rscp)
 		cache_put(&rscp->h, cd);
@@ -1184,6 +1180,7 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 		gm = gss_mech_get_by_OID(&ud->mech_oid);
 		if (!gm)
 			goto out;
+		rsci.cred.cr_gss_mech = gm;
 
 		status = -EINVAL;
 		/* mech-specific data: */
@@ -1199,7 +1196,6 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 	rscp = rsc_update(cd, &rsci, rscp);
 	status = 0;
 out:
-	gss_mech_put(gm);
 	rsc_free(&rsci);
 	if (rscp)
 		cache_put(&rscp->h, cd);
@@ -1330,7 +1326,7 @@ static int wait_for_gss_proxy(struct net *net, struct file *file)
 static ssize_t write_gssp(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = PDE_DATA(file->f_path.dentry->d_inode);
+	struct net *net = PDE_DATA(file_inode(file));
 	char tbuf[20];
 	unsigned long i;
 	int res;
@@ -1358,7 +1354,7 @@ static ssize_t write_gssp(struct file *file, const char __user *buf,
 static ssize_t read_gssp(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = PDE_DATA(file->f_path.dentry->d_inode);
+	struct net *net = PDE_DATA(file_inode(file));
 	unsigned long p = *ppos;
 	char tbuf[10];
 	size_t len;

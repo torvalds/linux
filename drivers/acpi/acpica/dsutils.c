@@ -240,7 +240,6 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 
 		case AML_IF_OP:
 		case AML_WHILE_OP:
-
 			/*
 			 * If we are executing the predicate AND this is the predicate op,
 			 * we will use the return value
@@ -254,7 +253,9 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			break;
 
 		default:
+
 			/* Ignore other control opcodes */
+
 			break;
 		}
 
@@ -263,7 +264,6 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		goto result_not_used;
 
 	case AML_CLASS_CREATE:
-
 		/*
 		 * These opcodes allow term_arg(s) as operands and therefore
 		 * the operands can be method calls. The result is used.
@@ -292,7 +292,6 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		goto result_not_used;
 
 	default:
-
 		/*
 		 * In all other cases. the parent will actually use the return
 		 * object, so keep it.

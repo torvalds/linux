@@ -103,6 +103,12 @@ int crypto_register_notifier(struct notifier_block *nb);
 int crypto_unregister_notifier(struct notifier_block *nb);
 int crypto_probing_notify(unsigned long val, void *v);
 
+static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
+{
+	atomic_inc(&alg->cra_refcnt);
+	return alg;
+}
+
 static inline void crypto_alg_put(struct crypto_alg *alg)
 {
 	if (atomic_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)

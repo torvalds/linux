@@ -148,7 +148,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
 		}
 		set_page_pfns(vb->pfns + vb->num_pfns, page);
 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
-		totalram_pages--;
+		adjust_managed_page_count(page, -1);
 	}
 
 	/* Did we get any? */
@@ -163,8 +163,9 @@ static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
 
 	/* Find pfns pointing at start of each page, get pages and free them. */
 	for (i = 0; i < num; i += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-		balloon_page_free(balloon_pfn_to_page(pfns[i]));
-		totalram_pages++;
+		struct page *page = balloon_pfn_to_page(pfns[i]);
+		balloon_page_free(page);
+		adjust_managed_page_count(page, 1);
 	}
 }
 
@@ -191,7 +192,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
 	 * is true, we *have* to do it in this order
 	 */
-	tell_host(vb, vb->deflate_vq);
+	if (vb->num_pfns != 0)
+		tell_host(vb, vb->deflate_vq);
 	mutex_unlock(&vb->balloon_lock);
 	release_pages_by_pfn(vb->pfns, vb->num_pfns);
 }

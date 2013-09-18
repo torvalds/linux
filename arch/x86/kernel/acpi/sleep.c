@@ -26,12 +26,12 @@ static char temp_stack[4096];
 #endif
 
 /**
- * acpi_suspend_lowlevel - save kernel state
+ * x86_acpi_suspend_lowlevel - save kernel state
  *
  * Create an identity mapped page table and copy the wakeup routine to
  * low memory.
  */
-int acpi_suspend_lowlevel(void)
+int x86_acpi_suspend_lowlevel(void)
 {
 	struct wakeup_header *header =
 		(struct wakeup_header *) __va(real_mode_header->wakeup_header);
@@ -48,9 +48,20 @@ int acpi_suspend_lowlevel(void)
 #ifndef CONFIG_64BIT
 	native_store_gdt((struct desc_ptr *)&header->pmode_gdt);
 
+	/*
+	 * We have to check that we can write back the value, and not
+	 * just read it.  At least on 90 nm Pentium M (Family 6, Model
+	 * 13), reading an invalid MSR is not guaranteed to trap, see
+	 * Erratum X4 in "Intel Pentium M Processor on 90 nm Process
+	 * with 2-MB L2 Cache and Intel® Processor A100 and A110 on 90
+	 * nm process with 512-KB L2 Cache Specification Update".
+	 */
 	if (!rdmsr_safe(MSR_EFER,
 			&header->pmode_efer_low,
-			&header->pmode_efer_high))
+			&header->pmode_efer_high) &&
+	    !wrmsr_safe(MSR_EFER,
+			header->pmode_efer_low,
+			header->pmode_efer_high))
 		header->pmode_behavior |= (1 << WAKEUP_BEHAVIOR_RESTORE_EFER);
 #endif /* !CONFIG_64BIT */
 
@@ -61,7 +72,10 @@ int acpi_suspend_lowlevel(void)
 	}
 	if (!rdmsr_safe(MSR_IA32_MISC_ENABLE,
 			&header->pmode_misc_en_low,
-			&header->pmode_misc_en_high))
+			&header->pmode_misc_en_high) &&
+	    !wrmsr_safe(MSR_IA32_MISC_ENABLE,
+			header->pmode_misc_en_low,
+			header->pmode_misc_en_high))
 		header->pmode_behavior |=
 			(1 << WAKEUP_BEHAVIOR_RESTORE_MISC_ENABLE);
 	header->realmode_flags = acpi_realmode_flags;

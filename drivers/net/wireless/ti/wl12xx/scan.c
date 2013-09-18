@@ -310,7 +310,7 @@ static void wl12xx_adjust_channels(struct wl1271_cmd_sched_scan_config *cmd,
 	memcpy(cmd->channels_2, cmd_channels->channels_2,
 	       sizeof(cmd->channels_2));
 	memcpy(cmd->channels_5, cmd_channels->channels_5,
-	       sizeof(cmd->channels_2));
+	       sizeof(cmd->channels_5));
 	/* channels_4 are not supported, so no need to copy them */
 }
 

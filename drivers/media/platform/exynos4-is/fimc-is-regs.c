@@ -89,8 +89,8 @@ int fimc_is_hw_set_param(struct fimc_is *is)
 	mcuctl_write(is->config_index, is, MCUCTL_REG_ISSR(2));
 
 	mcuctl_write(param_count, is, MCUCTL_REG_ISSR(3));
-	mcuctl_write(config->p_region_index1, is, MCUCTL_REG_ISSR(4));
-	mcuctl_write(config->p_region_index2, is, MCUCTL_REG_ISSR(5));
+	mcuctl_write(config->p_region_index[0], is, MCUCTL_REG_ISSR(4));
+	mcuctl_write(config->p_region_index[1], is, MCUCTL_REG_ISSR(5));
 
 	fimc_is_hw_set_intgr0_gd0(is);
 	return 0;
@@ -174,7 +174,7 @@ int fimc_is_hw_change_mode(struct fimc_is *is)
 		HIC_CAPTURE_STILL, HIC_CAPTURE_VIDEO,
 	};
 
-	if (WARN_ON(is->config_index > ARRAY_SIZE(cmd)))
+	if (WARN_ON(is->config_index >= ARRAY_SIZE(cmd)))
 		return -EINVAL;
 
 	mcuctl_write(cmd[is->config_index], is, MCUCTL_REG_ISSR(0));

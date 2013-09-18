@@ -15,6 +15,8 @@
 
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <linux/err.h>
+#include <linux/bug.h>
 
 struct module;
 struct device;
@@ -23,6 +25,7 @@ struct irq_domain;
 struct spi_device;
 struct regmap;
 struct regmap_range_cfg;
+struct regmap_field;
 
 /* An enum of all the supported cache types */
 enum regcache_type {
@@ -394,9 +397,14 @@ bool regmap_can_raw_write(struct regmap *map);
 int regcache_sync(struct regmap *map);
 int regcache_sync_region(struct regmap *map, unsigned int min,
 			 unsigned int max);
+int regcache_drop_region(struct regmap *map, unsigned int min,
+			 unsigned int max);
 void regcache_cache_only(struct regmap *map, bool enable);
 void regcache_cache_bypass(struct regmap *map, bool enable);
 void regcache_mark_dirty(struct regmap *map);
+
+bool regmap_check_range_table(struct regmap *map, unsigned int reg,
+			      const struct regmap_access_table *table);
 
 int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 			  int num_regs);
@@ -410,6 +418,36 @@ static inline bool regmap_reg_in_range(unsigned int reg,
 bool regmap_reg_in_ranges(unsigned int reg,
 			  const struct regmap_range *ranges,
 			  unsigned int nranges);
+
+/**
+ * Description of an register field
+ *
+ * @reg: Offset of the register within the regmap bank
+ * @lsb: lsb of the register field.
+ * @reg: msb of the register field.
+ */
+struct reg_field {
+	unsigned int reg;
+	unsigned int lsb;
+	unsigned int msb;
+};
+
+#define REG_FIELD(_reg, _lsb, _msb) {		\
+				.reg = _reg,	\
+				.lsb = _lsb,	\
+				.msb = _msb,	\
+				}
+
+struct regmap_field *regmap_field_alloc(struct regmap *regmap,
+		struct reg_field reg_field);
+void regmap_field_free(struct regmap_field *field);
+
+struct regmap_field *devm_regmap_field_alloc(struct device *dev,
+		struct regmap *regmap, struct reg_field reg_field);
+void devm_regmap_field_free(struct device *dev,	struct regmap_field *field);
+
+int regmap_field_read(struct regmap_field *field, unsigned int *val);
+int regmap_field_write(struct regmap_field *field, unsigned int val);
 
 /**
  * Description of an IRQ for the generic regmap irq_chip.
@@ -556,6 +594,13 @@ static inline int regcache_sync(struct regmap *map)
 }
 
 static inline int regcache_sync_region(struct regmap *map, unsigned int min,
+				       unsigned int max)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regcache_drop_region(struct regmap *map, unsigned int min,
 				       unsigned int max)
 {
 	WARN_ONCE(1, "regmap API is disabled");

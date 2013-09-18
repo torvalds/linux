@@ -169,6 +169,9 @@ static int kvmppc_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		vcpu->arch.shared->sprg3 = spr_val;
 		break;
 
+	/* PIR can legally be written, but we ignore it */
+	case SPRN_PIR: break;
+
 	default:
 		emulated = kvmppc_core_emulate_mtspr(vcpu, sprn,
 						     spr_val);

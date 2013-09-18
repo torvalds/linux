@@ -696,7 +696,7 @@ static int sc26xx_probe(struct platform_device *dev)
 	if (err)
 		goto out_remove_ports;
 
-	dev_set_drvdata(&dev->dev, up);
+	platform_set_drvdata(dev, up);
 	return 0;
 
 out_remove_ports:
@@ -716,7 +716,7 @@ out_free_port:
 
 static int __exit sc26xx_driver_remove(struct platform_device *dev)
 {
-	struct uart_sc26xx_port *up = dev_get_drvdata(&dev->dev);
+	struct uart_sc26xx_port *up = platform_get_drvdata(dev);
 
 	free_irq(up->port[0].irq, up);
 
@@ -728,7 +728,6 @@ static int __exit sc26xx_driver_remove(struct platform_device *dev)
 	kfree(up);
 	sc26xx_port = NULL;
 
-	dev_set_drvdata(&dev->dev, NULL);
 	return 0;
 }
 

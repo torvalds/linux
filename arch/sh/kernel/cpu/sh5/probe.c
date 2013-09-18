@@ -17,7 +17,7 @@
 #include <asm/cache.h>
 #include <asm/tlb.h>
 
-void __cpuinit cpu_probe(void)
+void cpu_probe(void)
 {
 	unsigned long long cir;
 

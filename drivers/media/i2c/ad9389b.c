@@ -32,7 +32,6 @@
 #include <linux/workqueue.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/ad9389b.h>
@@ -343,12 +342,6 @@ static const struct v4l2_ctrl_ops ad9389b_ctrl_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ad9389b_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->val = ad9389b_rd(sd, reg->reg & 0xff);
 	reg->size = 1;
 	return 0;
@@ -356,23 +349,10 @@ static int ad9389b_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int ad9389b_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	ad9389b_wr(sd, reg->reg & 0xff, reg->val & 0xff);
 	return 0;
 }
 #endif
-
-static int ad9389b_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_AD9389B, 0);
-}
 
 static int ad9389b_log_status(struct v4l2_subdev *sd)
 {
@@ -600,7 +580,6 @@ static int ad9389b_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 static const struct v4l2_subdev_core_ops ad9389b_core_ops = {
 	.log_status = ad9389b_log_status,
-	.g_chip_ident = ad9389b_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ad9389b_g_register,
 	.s_register = ad9389b_s_register,
@@ -1188,15 +1167,14 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	v4l_dbg(1, debug, client, "detecting ad9389b client on address 0x%x\n",
 			client->addr << 1);
 
-	state = kzalloc(sizeof(struct ad9389b_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
 	/* Platform data */
 	if (pdata == NULL) {
 		v4l_err(client, "No platform data!\n");
-		err = -ENODEV;
-		goto err_free;
+		return -ENODEV;
 	}
 	memcpy(&state->pdata, pdata, sizeof(state->pdata));
 
@@ -1251,12 +1229,14 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	state->edid_i2c_client = i2c_new_dummy(client->adapter, (0x7e>>1));
 	if (state->edid_i2c_client == NULL) {
 		v4l2_err(sd, "failed to register edid i2c client\n");
+		err = -ENOMEM;
 		goto err_entity;
 	}
 
 	state->work_queue = create_singlethread_workqueue(sd->name);
 	if (state->work_queue == NULL) {
 		v4l2_err(sd, "could not create workqueue\n");
+		err = -ENOMEM;
 		goto err_unreg;
 	}
 
@@ -1276,8 +1256,6 @@ err_entity:
 	media_entity_cleanup(&sd->entity);
 err_hdl:
 	v4l2_ctrl_handler_free(&state->hdl);
-err_free:
-	kfree(state);
 	return err;
 }
 
@@ -1302,15 +1280,14 @@ static int ad9389b_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	kfree(get_ad9389b_state(sd));
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_device_id ad9389b_id[] = {
-	{ "ad9389b", V4L2_IDENT_AD9389B },
-	{ "ad9889b", V4L2_IDENT_AD9389B },
+	{ "ad9389b", 0 },
+	{ "ad9889b", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad9389b_id);

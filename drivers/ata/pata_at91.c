@@ -422,7 +422,7 @@ err_put:
 
 static int pata_at91_remove(struct platform_device *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = platform_get_drvdata(pdev);
 	struct at91_ide_info *info;
 
 	if (!host)

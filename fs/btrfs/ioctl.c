@@ -555,6 +555,12 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	if (!root->ref_cows)
 		return -EINVAL;
 
+	ret = btrfs_start_delalloc_inodes(root, 0);
+	if (ret)
+		return ret;
+
+	btrfs_wait_ordered_extents(root, 0);
+
 	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
 	if (!pending_snapshot)
 		return -ENOMEM;
@@ -2354,14 +2360,6 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
-	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
-			1)) {
-		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
-		mnt_drop_write_file(file);
-		return -EINVAL;
-	}
-
-	mutex_lock(&root->fs_info->volume_mutex);
 	vol_args = memdup_user(arg, sizeof(*vol_args));
 	if (IS_ERR(vol_args)) {
 		ret = PTR_ERR(vol_args);
@@ -2369,12 +2367,20 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 	}
 
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
-	ret = btrfs_rm_device(root, vol_args->name);
 
-	kfree(vol_args);
-out:
+	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
+			1)) {
+		ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
+		goto out;
+	}
+
+	mutex_lock(&root->fs_info->volume_mutex);
+	ret = btrfs_rm_device(root, vol_args->name);
 	mutex_unlock(&root->fs_info->volume_mutex);
 	atomic_set(&root->fs_info->mutually_exclusive_operation_running, 0);
+
+out:
+	kfree(vol_args);
 	mnt_drop_write_file(file);
 	return ret;
 }
@@ -2480,6 +2486,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	int ret;
 	u64 len = olen;
 	u64 bs = root->fs_info->sb->s_blocksize;
+	int same_inode = 0;
 
 	/*
 	 * TODO:
@@ -2516,7 +2523,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 	ret = -EINVAL;
 	if (src == inode)
-		goto out_fput;
+		same_inode = 1;
 
 	/* the src must be open for reading */
 	if (!(src_file.file->f_mode & FMODE_READ))
@@ -2547,12 +2554,16 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	}
 	path->reada = 2;
 
-	if (inode < src) {
-		mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
-		mutex_lock_nested(&src->i_mutex, I_MUTEX_CHILD);
+	if (!same_inode) {
+		if (inode < src) {
+			mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
+			mutex_lock_nested(&src->i_mutex, I_MUTEX_CHILD);
+		} else {
+			mutex_lock_nested(&src->i_mutex, I_MUTEX_PARENT);
+			mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
+		}
 	} else {
-		mutex_lock_nested(&src->i_mutex, I_MUTEX_PARENT);
-		mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
+		mutex_lock(&src->i_mutex);
 	}
 
 	/* determine range to clone */
@@ -2569,6 +2580,12 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	if (!IS_ALIGNED(off, bs) || !IS_ALIGNED(off + len, bs) ||
 	    !IS_ALIGNED(destoff, bs))
 		goto out_unlock;
+
+	/* verify if ranges are overlapped within the same file */
+	if (same_inode) {
+		if (destoff + len > off && destoff < off + len)
+			goto out_unlock;
+	}
 
 	if (destoff > inode->i_size) {
 		ret = btrfs_cont_expand(inode, inode->i_size, destoff);
@@ -2846,7 +2863,8 @@ out:
 	unlock_extent(&BTRFS_I(src)->io_tree, off, off + len - 1);
 out_unlock:
 	mutex_unlock(&src->i_mutex);
-	mutex_unlock(&inode->i_mutex);
+	if (!same_inode)
+		mutex_unlock(&inode->i_mutex);
 	vfree(buf);
 	btrfs_free_path(path);
 out_fput:
@@ -2948,11 +2966,6 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	new_root = btrfs_read_fs_root_no_name(root->fs_info, &location);
 	if (IS_ERR(new_root)) {
 		ret = PTR_ERR(new_root);
-		goto out;
-	}
-
-	if (btrfs_root_refs(&new_root->root_item) == 0) {
-		ret = -ENOENT;
 		goto out;
 	}
 
@@ -3719,9 +3732,6 @@ static long btrfs_ioctl_quota_ctl(struct file *file, void __user *arg)
 		break;
 	}
 
-	if (copy_to_user(arg, sa, sizeof(*sa)))
-		ret = -EFAULT;
-
 	err = btrfs_commit_transaction(trans, root->fs_info->tree_root);
 	if (err && !ret)
 		ret = err;
@@ -3881,7 +3891,7 @@ drop_write:
 
 static long btrfs_ioctl_quota_rescan(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_ioctl_quota_rescan_args *qsa;
 	int ret;
 
@@ -3914,7 +3924,7 @@ drop_write:
 
 static long btrfs_ioctl_quota_rescan_status(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_ioctl_quota_rescan_args *qsa;
 	int ret = 0;
 
@@ -3935,6 +3945,16 @@ static long btrfs_ioctl_quota_rescan_status(struct file *file, void __user *arg)
 
 	kfree(qsa);
 	return ret;
+}
+
+static long btrfs_ioctl_quota_rescan_wait(struct file *file, void __user *arg)
+{
+	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	return btrfs_qgroup_wait_for_completion(root->fs_info);
 }
 
 static long btrfs_ioctl_set_received_subvol(struct file *file,
@@ -4020,7 +4040,7 @@ out:
 
 static int btrfs_ioctl_get_fslabel(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	const char *label = root->fs_info->super_copy->label;
 	size_t len = strnlen(label, BTRFS_LABEL_SIZE);
 	int ret;
@@ -4039,7 +4059,7 @@ static int btrfs_ioctl_get_fslabel(struct file *file, void __user *arg)
 
 static int btrfs_ioctl_set_fslabel(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
 	struct btrfs_super_block *super_block = root->fs_info->super_copy;
 	struct btrfs_trans_handle *trans;
 	char label[BTRFS_LABEL_SIZE];
@@ -4179,6 +4199,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_quota_rescan(file, argp);
 	case BTRFS_IOC_QUOTA_RESCAN_STATUS:
 		return btrfs_ioctl_quota_rescan_status(file, argp);
+	case BTRFS_IOC_QUOTA_RESCAN_WAIT:
+		return btrfs_ioctl_quota_rescan_wait(file, argp);
 	case BTRFS_IOC_DEV_REPLACE:
 		return btrfs_ioctl_dev_replace(root, argp);
 	case BTRFS_IOC_GET_FSLABEL:

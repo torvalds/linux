@@ -142,6 +142,8 @@ static void mei_nfc_free(struct mei_nfc_dev *ndev)
 		mei_cl_unlink(ndev->cl_info);
 		kfree(ndev->cl_info);
 	}
+
+	memset(ndev, 0, sizeof(struct mei_nfc_dev));
 }
 
 static int mei_nfc_build_bus_name(struct mei_nfc_dev *ndev)

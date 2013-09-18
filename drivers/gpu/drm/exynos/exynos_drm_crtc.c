@@ -76,16 +76,12 @@ static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 static void exynos_drm_crtc_prepare(struct drm_crtc *crtc)
 {
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	/* drm framework doesn't check NULL. */
 }
 
 static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 	exynos_plane_commit(exynos_crtc->plane);
@@ -97,8 +93,6 @@ exynos_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 			    const struct drm_display_mode *mode,
 			    struct drm_display_mode *adjusted_mode)
 {
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	/* drm framework doesn't check NULL */
 	return true;
 }
@@ -114,8 +108,6 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	unsigned int crtc_h;
 	int pipe = exynos_crtc->pipe;
 	int ret;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/*
 	 * copy the mode data adjusted by mode_fixup() into crtc->mode
@@ -139,7 +131,7 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	return 0;
 }
 
-static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+static int exynos_drm_crtc_mode_set_commit(struct drm_crtc *crtc, int x, int y,
 					  struct drm_framebuffer *old_fb)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
@@ -147,8 +139,6 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	unsigned int crtc_w;
 	unsigned int crtc_h;
 	int ret;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* when framebuffer changing is requested, crtc's dpms should be on */
 	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
@@ -169,17 +159,15 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
-static void exynos_drm_crtc_load_lut(struct drm_crtc *crtc)
+static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+					  struct drm_framebuffer *old_fb)
 {
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-	/* drm framework doesn't check NULL */
+	return exynos_drm_crtc_mode_set_commit(crtc, x, y, old_fb);
 }
 
 static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	exynos_plane_dpms(exynos_crtc->plane, DRM_MODE_DPMS_OFF);
 	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
@@ -192,7 +180,6 @@ static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.mode_fixup	= exynos_drm_crtc_mode_fixup,
 	.mode_set	= exynos_drm_crtc_mode_set,
 	.mode_set_base	= exynos_drm_crtc_mode_set_base,
-	.load_lut	= exynos_drm_crtc_load_lut,
 	.disable	= exynos_drm_crtc_disable,
 };
 
@@ -205,8 +192,6 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct drm_framebuffer *old_fb = crtc->fb;
 	int ret = -EINVAL;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* when the page flip is requested, crtc's dpms should be on */
 	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
@@ -237,7 +222,7 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		spin_unlock_irq(&dev->event_lock);
 
 		crtc->fb = fb;
-		ret = exynos_drm_crtc_mode_set_base(crtc, crtc->x, crtc->y,
+		ret = exynos_drm_crtc_mode_set_commit(crtc, crtc->x, crtc->y,
 						    NULL);
 		if (ret) {
 			crtc->fb = old_fb;
@@ -260,8 +245,6 @@ static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct exynos_drm_private *private = crtc->dev->dev_private;
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	private->crtc[exynos_crtc->pipe] = NULL;
 
 	drm_crtc_cleanup(crtc);
@@ -275,8 +258,6 @@ static int exynos_drm_crtc_set_property(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct exynos_drm_private *dev_priv = dev->dev_private;
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	if (property == dev_priv->crtc_mode_property) {
 		enum exynos_crtc_mode mode = val;
@@ -322,8 +303,6 @@ static void exynos_drm_crtc_attach_mode_property(struct drm_crtc *crtc)
 	struct exynos_drm_private *dev_priv = dev->dev_private;
 	struct drm_property *prop;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	prop = dev_priv->crtc_mode_property;
 	if (!prop) {
 		prop = drm_property_create_enum(dev, 0, "mode", mode_names,
@@ -342,8 +321,6 @@ int exynos_drm_crtc_create(struct drm_device *dev, unsigned int nr)
 	struct exynos_drm_crtc *exynos_crtc;
 	struct exynos_drm_private *private = dev->dev_private;
 	struct drm_crtc *crtc;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	exynos_crtc = kzalloc(sizeof(*exynos_crtc), GFP_KERNEL);
 	if (!exynos_crtc) {
@@ -379,8 +356,6 @@ int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int crtc)
 	struct exynos_drm_crtc *exynos_crtc =
 		to_exynos_crtc(private->crtc[crtc]);
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	if (exynos_crtc->dpms != DRM_MODE_DPMS_ON)
 		return -EPERM;
 
@@ -396,8 +371,6 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 	struct exynos_drm_crtc *exynos_crtc =
 		to_exynos_crtc(private->crtc[crtc]);
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	if (exynos_crtc->dpms != DRM_MODE_DPMS_ON)
 		return;
 
@@ -412,8 +385,6 @@ void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int crtc)
 	struct drm_crtc *drm_crtc = dev_priv->crtc[crtc];
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(drm_crtc);
 	unsigned long flags;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 

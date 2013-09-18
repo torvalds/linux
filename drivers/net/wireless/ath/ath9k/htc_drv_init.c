@@ -517,6 +517,9 @@ static void setup_ht_cap(struct ath9k_htc_priv *priv,
 	ath_dbg(common, CONFIG, "TX streams %d, RX streams: %d\n",
 		tx_streams, rx_streams);
 
+	if (tx_streams >= 2)
+		ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;
+
 	if (tx_streams != rx_streams) {
 		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
 		ht_info->mcs.tx_params |= ((tx_streams - 1) <<
@@ -698,6 +701,9 @@ static const struct ieee80211_iface_limit if_limits[] = {
 	{ .max = 2,	.types = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_P2P_CLIENT) },
 	{ .max = 2,	.types = BIT(NL80211_IFTYPE_AP) |
+#ifdef CONFIG_MAC80211_MESH
+				 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 };
 
@@ -712,6 +718,7 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 			       struct ieee80211_hw *hw)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct base_eep_header *pBase;
 
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_AMPDU_AGGREGATION |
@@ -721,6 +728,7 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		IEEE80211_HW_SUPPORTS_PS |
 		IEEE80211_HW_PS_NULLFUNC_STACK |
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
+		IEEE80211_HW_MFP_CAPABLE |
 		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
 
 	hw->wiphy->interface_modes =
@@ -728,7 +736,8 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_P2P_GO) |
-		BIT(NL80211_IFTYPE_P2P_CLIENT);
+		BIT(NL80211_IFTYPE_P2P_CLIENT) |
+		BIT(NL80211_IFTYPE_MESH_POINT);
 
 	hw->wiphy->iface_combinations = &if_comb;
 	hw->wiphy->n_iface_combinations = 1;
@@ -763,6 +772,12 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
 			setup_ht_cap(priv,
 				     &priv->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+	}
+
+	pBase = ath9k_htc_get_eeprom_base(priv);
+	if (pBase) {
+		hw->wiphy->available_antennas_rx = pBase->rxMask;
+		hw->wiphy->available_antennas_tx = pBase->txMask;
 	}
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
@@ -846,6 +861,7 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 	if (error != 0)
 		goto err_rx;
 
+	ath9k_hw_disable(priv->ah);
 #ifdef CONFIG_MAC80211_LEDS
 	/* must be initialized before ieee80211_register_hw */
 	priv->led_cdev.default_trigger = ieee80211_create_tpt_led_trigger(priv->hw,

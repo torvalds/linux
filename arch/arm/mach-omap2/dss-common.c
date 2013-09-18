@@ -42,7 +42,7 @@
 
 /* Using generic display panel */
 static struct tfp410_platform_data omap4_dvi_panel = {
-	.i2c_bus_num		= 3,
+	.i2c_bus_num		= 2,
 	.power_down_gpio	= PANDA_DVI_TFP410_POWER_DOWN_GPIO,
 };
 

@@ -86,22 +86,6 @@ config OMAP_MUX_WARNINGS
 	  to change the pin multiplexing setup.	 When there are no warnings
 	  printed, it's safe to deselect OMAP_MUX for your product.
 
-config OMAP_MBOX_FWK
-	tristate "Mailbox framework support"
-	depends on ARCH_OMAP && !ARCH_MULTIPLATFORM
-	help
-	  Say Y here if you want to use OMAP Mailbox framework support for
-	  DSP, IVA1.0 and IVA2 in OMAP1/2/3.
-
-config OMAP_MBOX_KFIFO_SIZE
-	int "Mailbox kfifo default buffer size (bytes)"
-	depends on OMAP_MBOX_FWK
-	default 256
-	help
-	  Specify the default size of mailbox's kfifo buffers (bytes).
-	  This can also be changed at runtime (via the mbox_kfifo_size
-	  module parameter).
-
 config OMAP_IOMMU_IVA2
 	bool
 

@@ -54,7 +54,7 @@
 #error "Unknown CPU"
 #endif
 
-unsigned int __cpuinit get_c0_compare_int(void)
+unsigned int get_c0_compare_int(void)
 {
 	return IRQ_TIMER;
 }

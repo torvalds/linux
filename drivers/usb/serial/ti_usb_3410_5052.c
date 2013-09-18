@@ -172,7 +172,8 @@ static struct usb_device_id ti_id_table_3410[15+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_4543_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454B_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454C_PRODUCT_ID) },
-	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_PRODUCT_ID) },
+	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_STEREO_PLUG_ID) },
+	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_STRIP_PORT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, FRI2_PRODUCT_ID) },
 };
 
@@ -370,7 +371,7 @@ static int ti_startup(struct usb_serial *serial)
 	usb_set_serial_data(serial, tdev);
 
 	/* determine device type */
-	if (usb_match_id(serial->interface, ti_id_table_3410))
+	if (serial->type == &ti_1port_device)
 		tdev->td_is_3410 = 1;
 	dev_dbg(&dev->dev, "%s - device type is %s\n", __func__,
 		tdev->td_is_3410 ? "3410" : "5052");
@@ -476,7 +477,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (mutex_lock_interruptible(&tdev->td_open_close_lock))
 		return -ERESTARTSYS;
 
-	port_number = port->number - port->serial->minor;
+	port_number = port->port_number;
 
 	tport->tp_msr = 0;
 	tport->tp_shadow_mcr |= (TI_MCR_RTS | TI_MCR_DTR);
@@ -618,7 +619,7 @@ static void ti_close(struct usb_serial_port *port)
 	kfifo_reset_out(&tport->write_fifo);
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
-	port_number = port->number - port->serial->minor;
+	port_number = port->port_number;
 
 	dev_dbg(&port->dev, "%s - sending TI_CLOSE_PORT\n", __func__);
 	status = ti_command_out_sync(tdev, TI_CLOSE_PORT,
@@ -776,7 +777,7 @@ static void ti_set_termios(struct tty_struct *tty,
 	tcflag_t cflag, iflag;
 	int baud;
 	int status;
-	int port_number = port->number - port->serial->minor;
+	int port_number = port->port_number;
 	unsigned int mcr;
 
 	cflag = tty->termios.c_cflag;
@@ -1262,7 +1263,7 @@ static int ti_get_lsr(struct ti_port *tport, u8 *lsr)
 	int size, status;
 	struct ti_device *tdev = tport->tp_tdev;
 	struct usb_serial_port *port = tport->tp_port;
-	int port_number = port->number - port->serial->minor;
+	int port_number = port->port_number;
 	struct ti_port_status *data;
 
 	size = sizeof(struct ti_port_status);
@@ -1308,8 +1309,8 @@ static int ti_get_serial_info(struct ti_port *tport,
 	memset(&ret_serial, 0, sizeof(ret_serial));
 
 	ret_serial.type = PORT_16550A;
-	ret_serial.line = port->serial->minor;
-	ret_serial.port = port->number - port->serial->minor;
+	ret_serial.line = port->minor;
+	ret_serial.port = port->port_number;
 	ret_serial.flags = tport->tp_flags;
 	ret_serial.xmit_fifo_size = TI_WRITE_BUF_SIZE;
 	ret_serial.baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
@@ -1535,14 +1536,15 @@ static int ti_download_firmware(struct ti_device *tdev)
 	char buf[32];
 
 	/* try ID specific firmware first, then try generic firmware */
-	sprintf(buf, "ti_usb-v%04x-p%04x.fw", dev->descriptor.idVendor,
-	    dev->descriptor.idProduct);
+	sprintf(buf, "ti_usb-v%04x-p%04x.fw",
+			le16_to_cpu(dev->descriptor.idVendor),
+			le16_to_cpu(dev->descriptor.idProduct));
 	status = request_firmware(&fw_p, buf, &dev->dev);
 
 	if (status != 0) {
 		buf[0] = '\0';
-		if (dev->descriptor.idVendor == MTS_VENDOR_ID) {
-			switch (dev->descriptor.idProduct) {
+		if (le16_to_cpu(dev->descriptor.idVendor) == MTS_VENDOR_ID) {
+			switch (le16_to_cpu(dev->descriptor.idProduct)) {
 			case MTS_CDMA_PRODUCT_ID:
 				strcpy(buf, "mts_cdma.fw");
 				break;

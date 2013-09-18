@@ -1,13 +1,13 @@
 /dts-v1/;
 
-/include/ "tegra30.dtsi"
+#include "tegra30.dtsi"
 
 / {
 	model = "NVIDIA Tegra30 Beaver evaluation board";
 	compatible = "nvidia,beaver", "nvidia,tegra30";
 
 	memory {
-		reg = <0x80000000 0x80000000>;
+		reg = <0x80000000 0x7ff00000>;
 	};
 
 	pinmux {
@@ -116,6 +116,15 @@
 		status = "okay";
 		clock-frequency = <100000>;
 
+		rt5640: rt5640 {
+			compatible = "realtek,rt5640";
+			reg = <0x1c>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(X, 3) GPIO_ACTIVE_HIGH>;
+			realtek,ldo1-en-gpios =
+				<&gpio TEGRA_GPIO(X, 2) GPIO_ACTIVE_HIGH>;
+		};
+
 		tps62361 {
 			compatible = "ti,tps62361";
 			reg = <0x60>;
@@ -133,7 +142,7 @@
 			compatible = "ti,tps65911";
 			reg = <0x2d>;
 
-			interrupts = <0 86 0x4>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			#interrupt-cells = <2>;
 			interrupt-controller;
 
@@ -264,9 +273,9 @@
 
 	sdhci@78000000 {
 		status = "okay";
-		cd-gpios = <&gpio 69 1>; /* gpio PI5 */
-		wp-gpios = <&gpio 155 0>; /* gpio PT3 */
-		power-gpios = <&gpio 31 0>; /* gpio PD7 */
+		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_GPIO(T, 3) GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio TEGRA_GPIO(D, 7) GPIO_ACTIVE_HIGH>;
 		bus-width = <4>;
 	};
 
@@ -312,7 +321,7 @@
 			regulator-boot-on;
 			regulator-always-on;
 			enable-active-high;
-			gpio = <&pmic 0 0>; /* PMIC TPS65911 GPIO0 */
+			gpio = <&pmic 0 GPIO_ACTIVE_HIGH>;
 		};
 
 		ddr_reg: regulator@2 {
@@ -324,7 +333,7 @@
 			regulator-always-on;
 			regulator-boot-on;
 			enable-active-high;
-			gpio = <&pmic 7 0>; /* PMIC TPS65911 GPIO7 */
+			gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
 			vin-supply = <&vdd_5v_in_reg>;
 		};
 
@@ -337,7 +346,7 @@
 			regulator-always-on;
 			regulator-boot-on;
 			enable-active-high;
-			gpio = <&gpio 30 0>; /* gpio PD6 */
+			gpio = <&gpio TEGRA_GPIO(D, 6) GPIO_ACTIVE_HIGH>;
 			vin-supply = <&vdd_5v_in_reg>;
 		};
 
@@ -348,7 +357,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 68 0>; /* GPIO PI4 */
+			gpio = <&gpio TEGRA_GPIO(I, 4) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&vdd_5v_in_reg>;
 		};
@@ -360,7 +369,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 63 0>; /* GPIO PH7 */
+			gpio = <&gpio TEGRA_GPIO(H, 7) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&vdd_5v_in_reg>;
 		};
@@ -374,7 +383,7 @@
 			regulator-always-on;
 			regulator-boot-on;
 			enable-active-high;
-			gpio = <&pmic 6 0>; /* PMIC TPS65911 GPIO6 */
+			gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
 			vin-supply = <&vdd_5v_in_reg>;
 		};
 
@@ -387,8 +396,41 @@
 			regulator-always-on;
 			regulator-boot-on;
 			enable-active-high;
-			gpio = <&gpio 95 0>; /* gpio PL7 */
+			gpio = <&gpio TEGRA_GPIO(L, 7) GPIO_ACTIVE_HIGH>;
 			vin-supply = <&sys_3v3_reg>;
 		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		gpled1 {
+			label = "LED1"; /* CR5A1 (blue) */
+			gpios = <&gpio TEGRA_GPIO(L, 1) GPIO_ACTIVE_HIGH>;
+		};
+		gpled2 {
+			label = "LED2"; /* CR4A2 (green) */
+			gpios = <&gpio TEGRA_GPIO(L, 0) GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-rt5640-beaver",
+			     "nvidia,tegra-audio-rt5640";
+		nvidia,model = "NVIDIA Tegra Beaver";
+
+		nvidia,audio-routing =
+			"Headphones", "HPOR",
+			"Headphones", "HPOL";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&rt5640>;
+
+		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_HIGH>;
+
+		clocks = <&tegra_car TEGRA30_CLK_PLL_A>,
+			 <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
+			 <&tegra_car TEGRA30_CLK_EXTERN1>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };

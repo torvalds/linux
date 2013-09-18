@@ -131,7 +131,7 @@ MODULE_PARM_DESC(vsfx,"set VSFX pci config bit "
 		 "[yet another chipset flaw workaround]");
 MODULE_PARM_DESC(latency,"pci latency timer");
 MODULE_PARM_DESC(card,"specify TV/grabber card model, see CARDLIST file for a list");
-MODULE_PARM_DESC(pll,"specify installed crystal (0=none, 28=28 MHz, 35=35 MHz)");
+MODULE_PARM_DESC(pll, "specify installed crystal (0=none, 28=28 MHz, 35=35 MHz, 14=14 MHz)");
 MODULE_PARM_DESC(tuner,"specify installed tuner type");
 MODULE_PARM_DESC(autoload, "obsolete option, please do not use anymore");
 MODULE_PARM_DESC(audiodev, "specify audio device:\n"
@@ -2705,7 +2705,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio      = 1,
 		.has_remote     = 1,
 	},
-		[BTTV_BOARD_VD012] = {
+	[BTTV_BOARD_VD012] = {
 		/* D.Heer@Phytec.de */
 		.name           = "PHYTEC VD-012 (bt878)",
 		.video_inputs   = 4,
@@ -2718,7 +2718,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
-		[BTTV_BOARD_VD012_X1] = {
+	[BTTV_BOARD_VD012_X1] = {
 		/* D.Heer@Phytec.de */
 		.name           = "PHYTEC VD-012-X1 (bt878)",
 		.video_inputs   = 4,
@@ -2731,7 +2731,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
-		[BTTV_BOARD_VD012_X2] = {
+	[BTTV_BOARD_VD012_X2] = {
 		/* D.Heer@Phytec.de */
 		.name           = "PHYTEC VD-012-X2 (bt878)",
 		.video_inputs   = 4,
@@ -2744,7 +2744,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
-		[BTTV_BOARD_GEOVISION_GV800S] = {
+	[BTTV_BOARD_GEOVISION_GV800S] = {
 		/* Bruno Christo <bchristo@inf.ufsm.br>
 		 *
 		 * GeoVision GV-800(S) has 4 Conexant Fusion 878A:
@@ -2771,7 +2771,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda7432	= 1,
 		.muxsel_hook    = gv800s_muxsel,
 	},
-		[BTTV_BOARD_GEOVISION_GV800S_SL] = {
+	[BTTV_BOARD_GEOVISION_GV800S_SL] = {
 		/* Bruno Christo <bchristo@inf.ufsm.br>
 		 *
 		 * GeoVision GV-800(S) has 4 Conexant Fusion 878A:
@@ -2808,6 +2808,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
+	/* ---- card 0xa0---------------------------------- */
 	[BTTV_BOARD_TVT_TD3116] = {
 		.name           = "Tongwei Video Technology TD-3116",
 		.video_inputs   = 16,
@@ -2824,6 +2825,35 @@ struct tvcard bttv_tvcards[] = {
 		.svhs           = NO_SVHS,
 		.muxsel         = MUXSEL(2, 3, 1, 0),
 		.tuner_type     = TUNER_ABSENT,
+	},
+	[BTTV_BOARD_ADLINK_MPG24] = {
+		/* Adlink MPG24 */
+		.name           = "Adlink MPG24",
+		.video_inputs   = 1,
+		/* .audio_inputs= 1, */
+		.svhs           = NO_SVHS,
+		.muxsel         = MUXSEL(2, 2, 2, 2),
+		.tuner_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.pll            = PLL_28,
+	},
+	[BTTV_BOARD_BT848_CAP_14] = {
+		.name		= "Bt848 Capture 14MHz",
+		.video_inputs	= 4,
+		.svhs		= 2,
+		.muxsel		= MUXSEL(2, 3, 1, 0),
+		.pll		= PLL_14,
+		.tuner_type	= TUNER_ABSENT,
+	},
+	[BTTV_BOARD_CYBERVISION_CV06] = {
+		.name		= "CyberVision CV06 (SV)",
+		.video_inputs	= 4,
+		/* .audio_inputs= 0, */
+		.svhs		= NO_SVHS,
+		.muxsel		= MUXSEL(2, 3, 1, 0),
+		.pll		= PLL_28,
+		.tuner_type	= TUNER_ABSENT,
+		.tuner_addr	= ADDR_UNSET,
 	},
 
 };
@@ -3390,6 +3420,10 @@ void bttv_init_card2(struct bttv *btv)
 			btv->pll.pll_ifreq=35468950;
 			btv->pll.pll_crystal=BT848_IFORM_XT1;
 		}
+		if (PLL_14 == bttv_tvcards[btv->c.type].pll) {
+			btv->pll.pll_ifreq = 14318181;
+			btv->pll.pll_crystal = BT848_IFORM_XT0;
+		}
 		/* insmod options can override */
 		switch (pll[btv->c.nr]) {
 		case 0: /* none */
@@ -3408,6 +3442,12 @@ void bttv_init_card2(struct bttv *btv)
 			btv->pll.pll_ifreq   = 35468950;
 			btv->pll.pll_ofreq   = 0;
 			btv->pll.pll_crystal = BT848_IFORM_XT1;
+			break;
+		case 3: /* 14 MHz */
+		case 14:
+			btv->pll.pll_ifreq   = 14318181;
+			btv->pll.pll_ofreq   = 0;
+			btv->pll.pll_crystal = BT848_IFORM_XT0;
 			break;
 		}
 	}

@@ -24,7 +24,6 @@
 
 #include <linux/kernel.h>
 #include <linux/bug.h>
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>

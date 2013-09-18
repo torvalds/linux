@@ -49,8 +49,6 @@ struct dev_cgroup {
 	struct cgroup_subsys_state css;
 	struct list_head exceptions;
 	enum devcg_behavior behavior;
-	/* temporary list for pending propagation operations */
-	struct list_head propagate_pending;
 };
 
 static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
@@ -241,7 +239,6 @@ static struct cgroup_subsys_state *devcgroup_css_alloc(struct cgroup *cgroup)
 	if (!dev_cgroup)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&dev_cgroup->exceptions);
-	INIT_LIST_HEAD(&dev_cgroup->propagate_pending);
 	dev_cgroup->behavior = DEVCG_DEFAULT_NONE;
 
 	return &dev_cgroup->css;
@@ -445,34 +442,6 @@ static void revalidate_active_exceptions(struct dev_cgroup *devcg)
 }
 
 /**
- * get_online_devcg - walks the cgroup tree and fills a list with the online
- * 		      groups
- * @root: cgroup used as starting point
- * @online: list that will be filled with online groups
- *
- * Must be called with devcgroup_mutex held. Grabs RCU lock.
- * Because devcgroup_mutex is held, no devcg will become online or offline
- * during the tree walk (see devcgroup_online, devcgroup_offline)
- * A separated list is needed because propagate_behavior() and
- * propagate_exception() need to allocate memory and can block.
- */
-static void get_online_devcg(struct cgroup *root, struct list_head *online)
-{
-	struct cgroup *pos;
-	struct dev_cgroup *devcg;
-
-	lockdep_assert_held(&devcgroup_mutex);
-
-	rcu_read_lock();
-	cgroup_for_each_descendant_pre(pos, root) {
-		devcg = cgroup_to_devcgroup(pos);
-		if (is_devcg_online(devcg))
-			list_add_tail(&devcg->propagate_pending, online);
-	}
-	rcu_read_unlock();
-}
-
-/**
  * propagate_exception - propagates a new exception to the children
  * @devcg_root: device cgroup that added a new exception
  * @ex: new exception to be propagated
@@ -482,15 +451,24 @@ static void get_online_devcg(struct cgroup *root, struct list_head *online)
 static int propagate_exception(struct dev_cgroup *devcg_root,
 			       struct dev_exception_item *ex)
 {
-	struct cgroup *root = devcg_root->css.cgroup;
-	struct dev_cgroup *devcg, *parent, *tmp;
+	struct cgroup *root = devcg_root->css.cgroup, *pos;
 	int rc = 0;
-	LIST_HEAD(pending);
 
-	get_online_devcg(root, &pending);
+	rcu_read_lock();
 
-	list_for_each_entry_safe(devcg, tmp, &pending, propagate_pending) {
-		parent = cgroup_to_devcgroup(devcg->css.cgroup->parent);
+	cgroup_for_each_descendant_pre(pos, root) {
+		struct dev_cgroup *devcg = cgroup_to_devcgroup(pos);
+
+		/*
+		 * Because devcgroup_mutex is held, no devcg will become
+		 * online or offline during the tree walk (see on/offline
+		 * methods), and online ones are safe to access outside RCU
+		 * read lock without bumping refcnt.
+		 */
+		if (!is_devcg_online(devcg))
+			continue;
+
+		rcu_read_unlock();
 
 		/*
 		 * in case both root's behavior and devcg is allow, a new
@@ -512,8 +490,10 @@ static int propagate_exception(struct dev_cgroup *devcg_root,
 		}
 		revalidate_active_exceptions(devcg);
 
-		list_del_init(&devcg->propagate_pending);
+		rcu_read_lock();
 	}
+
+	rcu_read_unlock();
 	return rc;
 }
 

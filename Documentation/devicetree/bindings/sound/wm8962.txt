@@ -8,9 +8,32 @@ Required properties:
 
   - reg : the I2C address of the device.
 
+Optional properties:
+  - spk-mono: This is a boolean property. If present, the SPK_MONO bit
+    of R51 (Class D Control 2) gets set, indicating that the speaker is
+    in mono mode.
+
+  - mic-cfg : Default register value for R48 (Additional Control 4).
+    If absent, the default should be the register default.
+
+  - gpio-cfg : A list of GPIO configuration register values. The list must
+    be 6 entries long. If absent, no configuration of these registers is
+    performed. And note that only the value within [0x0, 0xffff] is valid.
+    Any other value is regarded as setting the GPIO register by its reset
+    value 0x0.
+
 Example:
 
 codec: wm8962@1a {
 	compatible = "wlf,wm8962";
 	reg = <0x1a>;
+
+	gpio-cfg = <
+		0x0000 /* 0:Default */
+		0x0000 /* 1:Default */
+		0x0013 /* 2:FN_DMICCLK */
+		0x0000 /* 3:Default */
+		0x8014 /* 4:FN_DMICCDAT */
+		0x0000 /* 5:Default */
+	>;
 };

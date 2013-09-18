@@ -860,7 +860,7 @@ ENTRY(flush_dcache_page_asm)
 #endif
 
 	ldil		L%dcache_stride, %r1
-	ldw		R%dcache_stride(%r1), %r1
+	ldw		R%dcache_stride(%r1), r31
 
 #ifdef CONFIG_64BIT
 	depdi,z		1, 63-PAGE_SHIFT,1, %r25
@@ -868,26 +868,26 @@ ENTRY(flush_dcache_page_asm)
 	depwi,z		1, 31-PAGE_SHIFT,1, %r25
 #endif
 	add		%r28, %r25, %r25
-	sub		%r25, %r1, %r25
+	sub		%r25, r31, %r25
 
 
-1:      fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
+1:      fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
 	cmpb,COND(<<)		%r28, %r25,1b
-	fdc,m		%r1(%r28)
+	fdc,m		r31(%r28)
 
 	sync
 
@@ -936,7 +936,7 @@ ENTRY(flush_icache_page_asm)
 #endif
 
 	ldil		L%icache_stride, %r1
-	ldw		R%icache_stride(%r1), %r1
+	ldw		R%icache_stride(%r1), %r31
 
 #ifdef CONFIG_64BIT
 	depdi,z		1, 63-PAGE_SHIFT,1, %r25
@@ -944,28 +944,28 @@ ENTRY(flush_icache_page_asm)
 	depwi,z		1, 31-PAGE_SHIFT,1, %r25
 #endif
 	add		%r28, %r25, %r25
-	sub		%r25, %r1, %r25
+	sub		%r25, %r31, %r25
 
 
 	/* fic only has the type 26 form on PA1.1, requiring an
 	 * explicit space specification, so use %sr4 */
-1:      fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
+1:      fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
 	cmpb,COND(<<)	%r28, %r25,1b
-	fic,m		%r1(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
 
 	sync
 

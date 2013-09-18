@@ -183,6 +183,7 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	int create_options = CREATE_NOT_DIR;
 	FILE_ALL_INFO *buf;
 	struct TCP_Server_Info *server = tcon->ses->server;
+	struct cifs_open_parms oparms;
 
 	if (!server->ops->open)
 		return -ENOSYS;
@@ -224,9 +225,16 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
-	rc = server->ops->open(xid, tcon, full_path, disposition,
-			       desired_access, create_options, fid, oplock, buf,
-			       cifs_sb);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = desired_access;
+	oparms.create_options = create_options;
+	oparms.disposition = disposition;
+	oparms.path = full_path;
+	oparms.fid = fid;
+	oparms.reconnect = false;
+
+	rc = server->ops->open(xid, &oparms, oplock, buf);
 
 	if (rc)
 		goto out;
@@ -553,11 +561,10 @@ cifs_relock_file(struct cifsFileInfo *cfile)
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	int rc = 0;
 
-	/* we are going to update can_cache_brlcks here - need a write access */
-	down_write(&cinode->lock_sem);
+	down_read(&cinode->lock_sem);
 	if (cinode->can_cache_brlcks) {
-		/* can cache locks - no need to push them */
-		up_write(&cinode->lock_sem);
+		/* can cache locks - no need to relock */
+		up_read(&cinode->lock_sem);
 		return rc;
 	}
 
@@ -568,7 +575,7 @@ cifs_relock_file(struct cifsFileInfo *cfile)
 	else
 		rc = tcon->ses->server->ops->push_mand_locks(cfile);
 
-	up_write(&cinode->lock_sem);
+	up_read(&cinode->lock_sem);
 	return rc;
 }
 
@@ -587,7 +594,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 	int desired_access;
 	int disposition = FILE_OPEN;
 	int create_options = CREATE_NOT_DIR;
-	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 
 	xid = get_xid();
 	mutex_lock(&cfile->fh_mutex);
@@ -637,9 +644,10 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 
 		rc = cifs_posix_open(full_path, NULL, inode->i_sb,
 				     cifs_sb->mnt_file_mode /* ignored */,
-				     oflags, &oplock, &fid.netfid, xid);
+				     oflags, &oplock, &cfile->fid.netfid, xid);
 		if (rc == 0) {
 			cifs_dbg(FYI, "posix reopen succeeded\n");
+			oparms.reconnect = true;
 			goto reopen_success;
 		}
 		/*
@@ -654,7 +662,16 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
 	if (server->ops->get_lease_key)
-		server->ops->get_lease_key(inode, &fid);
+		server->ops->get_lease_key(inode, &cfile->fid);
+
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = desired_access;
+	oparms.create_options = create_options;
+	oparms.disposition = disposition;
+	oparms.path = full_path;
+	oparms.fid = &cfile->fid;
+	oparms.reconnect = true;
 
 	/*
 	 * Can not refresh inode by passing in file_info buf to be returned by
@@ -663,9 +680,14 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 	 * version of file size can be stale. If we knew for sure that inode was
 	 * not dirty locally we could do this.
 	 */
-	rc = server->ops->open(xid, tcon, full_path, disposition,
-			       desired_access, create_options, &fid, &oplock,
-			       NULL, cifs_sb);
+	rc = server->ops->open(xid, &oparms, &oplock, NULL);
+	if (rc == -ENOENT && oparms.reconnect == false) {
+		/* durable handle timeout is expired - open the file again */
+		rc = server->ops->open(xid, &oparms, &oplock, NULL);
+		/* indicate that we need to relock the file */
+		oparms.reconnect = true;
+	}
+
 	if (rc) {
 		mutex_unlock(&cfile->fh_mutex);
 		cifs_dbg(FYI, "cifs_reopen returned 0x%x\n", rc);
@@ -696,8 +718,9 @@ reopen_success:
 	 * to the server to get the new inode info.
 	 */
 
-	server->ops->set_fid(cfile, &fid, oplock);
-	cifs_relock_file(cfile);
+	server->ops->set_fid(cfile, &cfile->fid, oplock);
+	if (oparms.reconnect)
+		cifs_relock_file(cfile);
 
 reopen_error_exit:
 	kfree(full_path);
@@ -999,7 +1022,7 @@ try_again:
 		rc = wait_event_interruptible(flock->fl_wait, !flock->fl_next);
 		if (!rc)
 			goto try_again;
-		locks_delete_block(flock);
+		posix_unblock_lock(flock);
 	}
 	return rc;
 }
@@ -1092,6 +1115,7 @@ struct lock_to_push {
 static int
 cifs_push_posix_locks(struct cifsFileInfo *cfile)
 {
+	struct inode *inode = cfile->dentry->d_inode;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct file_lock *flock, **before;
 	unsigned int count = 0, i = 0;
@@ -1102,12 +1126,12 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 
 	xid = get_xid();
 
-	lock_flocks();
-	cifs_for_each_lock(cfile->dentry->d_inode, before) {
+	spin_lock(&inode->i_lock);
+	cifs_for_each_lock(inode, before) {
 		if ((*before)->fl_flags & FL_POSIX)
 			count++;
 	}
-	unlock_flocks();
+	spin_unlock(&inode->i_lock);
 
 	INIT_LIST_HEAD(&locks_to_send);
 
@@ -1126,8 +1150,8 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 	}
 
 	el = locks_to_send.next;
-	lock_flocks();
-	cifs_for_each_lock(cfile->dentry->d_inode, before) {
+	spin_lock(&inode->i_lock);
+	cifs_for_each_lock(inode, before) {
 		flock = *before;
 		if ((flock->fl_flags & FL_POSIX) == 0)
 			continue;
@@ -1152,7 +1176,7 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 		lck->offset = flock->fl_start;
 		el = el->next;
 	}
-	unlock_flocks();
+	spin_unlock(&inode->i_lock);
 
 	list_for_each_entry_safe(lck, tmp, &locks_to_send, llist) {
 		int stored_rc;
@@ -3546,11 +3570,12 @@ static int cifs_release_page(struct page *page, gfp_t gfp)
 	return cifs_fscache_release_page(page, gfp);
 }
 
-static void cifs_invalidate_page(struct page *page, unsigned long offset)
+static void cifs_invalidate_page(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
 	struct cifsInodeInfo *cifsi = CIFS_I(page->mapping->host);
 
-	if (offset == 0)
+	if (offset == 0 && length == PAGE_CACHE_SIZE)
 		cifs_fscache_invalidate_page(page, &cifsi->vfs_inode);
 }
 

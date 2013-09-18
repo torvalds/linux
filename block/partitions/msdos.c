@@ -23,6 +23,7 @@
 #include "check.h"
 #include "msdos.h"
 #include "efi.h"
+#include "aix.h"
 
 /*
  * Many architectures don't like unaligned accesses, while
@@ -90,7 +91,7 @@ static int aix_magic_present(struct parsed_partitions *state, unsigned char *p)
 		if (d[0] == '_' && d[1] == 'L' && d[2] == 'V' && d[3] == 'M')
 			ret = 1;
 		put_dev_sector(sect);
-	};
+	}
 	return ret;
 }
 
@@ -142,7 +143,7 @@ static void parse_extended(struct parsed_partitions *state,
 			return;
 
 		if (!msdos_magic_present(data + 510))
-			goto done; 
+			goto done;
 
 		p = (struct partition *) (data + 0x1be);
 
@@ -155,7 +156,7 @@ static void parse_extended(struct parsed_partitions *state,
 		 * and OS/2 seems to use all four entries.
 		 */
 
-		/* 
+		/*
 		 * First process the data partition(s)
 		 */
 		for (i=0; i<4; i++, p++) {
@@ -263,7 +264,7 @@ static void parse_solaris_x86(struct parsed_partitions *state,
 }
 
 #if defined(CONFIG_BSD_DISKLABEL)
-/* 
+/*
  * Create devices for BSD partitions listed in a disklabel, under a
  * dos-like partition. See parse_extended() for more information.
  */
@@ -294,7 +295,7 @@ static void parse_bsd(struct parsed_partitions *state,
 
 		if (state->next == state->limit)
 			break;
-		if (p->p_fstype == BSD_FS_UNUSED) 
+		if (p->p_fstype == BSD_FS_UNUSED)
 			continue;
 		bsd_start = le32_to_cpu(p->p_offset);
 		bsd_size = le32_to_cpu(p->p_size);
@@ -441,7 +442,7 @@ static struct {
 	{NEW_SOLARIS_X86_PARTITION, parse_solaris_x86},
 	{0, NULL},
 };
- 
+
 int msdos_partition(struct parsed_partitions *state)
 {
 	sector_t sector_size = bdev_logical_block_size(state->bdev) / 512;
@@ -462,8 +463,12 @@ int msdos_partition(struct parsed_partitions *state)
 	 */
 	if (aix_magic_present(state, data)) {
 		put_dev_sector(sect);
+#ifdef CONFIG_AIX_PARTITION
+		return aix_partition(state);
+#else
 		strlcat(state->pp_buf, " [AIX]", PAGE_SIZE);
 		return 0;
+#endif
 	}
 
 	if (!msdos_magic_present(data + 510)) {

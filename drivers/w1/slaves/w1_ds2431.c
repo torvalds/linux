@@ -310,3 +310,4 @@ module_exit(w1_f2d_fini);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bernhard Weirich <bernhard.weirich@riedel.net>");
 MODULE_DESCRIPTION("w1 family 2d driver for DS2431, 1kb EEPROM");
+MODULE_ALIAS("w1-family-" __stringify(W1_EEPROM_DS2431));

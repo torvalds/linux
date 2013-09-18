@@ -41,7 +41,7 @@
 #define CY_SPI_BITS_PER_WORD	8
 
 static int cyttsp_spi_xfer(struct device *dev, u8 *xfer_buf,
-			   u8 op, u8 reg, u8 *buf, int length)
+			   u8 op, u16 reg, u8 *buf, int length)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct spi_message msg;
@@ -126,14 +126,14 @@ static int cyttsp_spi_xfer(struct device *dev, u8 *xfer_buf,
 }
 
 static int cyttsp_spi_read_block_data(struct device *dev, u8 *xfer_buf,
-				      u8 addr, u8 length, void *data)
+				      u16 addr, u8 length, void *data)
 {
 	return cyttsp_spi_xfer(dev, xfer_buf, CY_SPI_RD_OP, addr, data,
 			length);
 }
 
 static int cyttsp_spi_write_block_data(struct device *dev, u8 *xfer_buf,
-				       u8 addr, u8 length, const void *data)
+				       u16 addr, u8 length, const void *data)
 {
 	return cyttsp_spi_xfer(dev, xfer_buf, CY_SPI_WR_OP, addr, (void *)data,
 			length);

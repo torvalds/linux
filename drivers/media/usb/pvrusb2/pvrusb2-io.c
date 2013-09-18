@@ -354,9 +354,9 @@ static int pvr2_stream_buffer_count(struct pvr2_stream *sp,unsigned int cnt)
 		if (scnt < sp->buffer_slot_count) {
 			struct pvr2_buffer **nb = NULL;
 			if (scnt) {
-				nb = kmalloc(scnt * sizeof(*nb),GFP_KERNEL);
+				nb = kmemdup(sp->buffers, scnt * sizeof(*nb),
+					     GFP_KERNEL);
 				if (!nb) return -ENOMEM;
-				memcpy(nb,sp->buffers,scnt * sizeof(*nb));
 			}
 			kfree(sp->buffers);
 			sp->buffers = nb;

@@ -867,18 +867,18 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_U1_TIMEOUT:
 			if (hcd->speed != HCD_USB3)
 				goto error;
-			temp = xhci_readl(xhci, port_array[wIndex] + 1);
+			temp = xhci_readl(xhci, port_array[wIndex] + PORTPMSC);
 			temp &= ~PORT_U1_TIMEOUT_MASK;
 			temp |= PORT_U1_TIMEOUT(timeout);
-			xhci_writel(xhci, temp, port_array[wIndex] + 1);
+			xhci_writel(xhci, temp, port_array[wIndex] + PORTPMSC);
 			break;
 		case USB_PORT_FEAT_U2_TIMEOUT:
 			if (hcd->speed != HCD_USB3)
 				goto error;
-			temp = xhci_readl(xhci, port_array[wIndex] + 1);
+			temp = xhci_readl(xhci, port_array[wIndex] + PORTPMSC);
 			temp &= ~PORT_U2_TIMEOUT_MASK;
 			temp |= PORT_U2_TIMEOUT(timeout);
-			xhci_writel(xhci, temp, port_array[wIndex] + 1);
+			xhci_writel(xhci, temp, port_array[wIndex] + PORTPMSC);
 			break;
 		default:
 			goto error;
@@ -1098,10 +1098,8 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 			__le32 __iomem *addr;
 			u32 tmp;
 
-			/* Add one to the port status register address to get
-			 * the port power control register address.
-			 */
-			addr = port_array[port_index] + 1;
+			/* Get the port power control register address. */
+			addr = port_array[port_index] + PORTPMSC;
 			tmp = xhci_readl(xhci, addr);
 			tmp |= PORT_RWE;
 			xhci_writel(xhci, tmp, addr);
@@ -1193,7 +1191,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			/* Add one to the port status register address to get
 			 * the port power control register address.
 			 */
-			addr = port_array[port_index] + 1;
+			addr = port_array[port_index] + PORTPMSC;
 			tmp = xhci_readl(xhci, addr);
 			tmp &= ~PORT_RWE;
 			xhci_writel(xhci, tmp, addr);

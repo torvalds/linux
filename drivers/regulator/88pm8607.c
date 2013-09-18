@@ -406,7 +406,6 @@ static int pm8607_regulator_remove(struct platform_device *pdev)
 {
 	struct pm8607_regulator_info *info = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	regulator_unregister(info->regulator);
 	return 0;
 }

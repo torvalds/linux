@@ -658,14 +658,11 @@ static int ux500_msp_dai_probe(struct snd_soc_dai *dai)
 {
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(dai->dev);
 
-	drvdata->playback_dma_data.dma_cfg = drvdata->msp->dma_cfg_tx;
-	drvdata->capture_dma_data.dma_cfg = drvdata->msp->dma_cfg_rx;
+	dai->playback_dma_data = &drvdata->msp->playback_dma_data;
+	dai->capture_dma_data = &drvdata->msp->capture_dma_data;
 
-	dai->playback_dma_data = &drvdata->playback_dma_data;
-	dai->capture_dma_data = &drvdata->capture_dma_data;
-
-	drvdata->playback_dma_data.data_size = drvdata->slot_width;
-	drvdata->capture_dma_data.data_size = drvdata->slot_width;
+	drvdata->msp->playback_dma_data.data_size = drvdata->slot_width;
+	drvdata->msp->capture_dma_data.data_size = drvdata->slot_width;
 
 	return 0;
 }

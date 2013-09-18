@@ -139,8 +139,7 @@ void btrfs_put_delayed_items(struct list_head *ins_list,
 			     struct list_head *del_list);
 int btrfs_should_delete_dir_index(struct list_head *del_list,
 				  u64 index);
-int btrfs_readdir_delayed_dir_index(struct file *filp, void *dirent,
-				    filldir_t filldir,
+int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 				    struct list_head *ins_list);
 
 /* for init */

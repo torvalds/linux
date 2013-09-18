@@ -3175,9 +3175,20 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 {
 	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
 	struct ath6kl *ar = ath6kl_priv(vif->ndev);
-	u32 id;
+	u32 id, freq;
 	const struct ieee80211_mgmt *mgmt;
 	bool more_data, queued;
+
+	/* default to the current channel, but use the one specified as argument
+	 * if any
+	 */
+	freq = vif->ch_hint;
+	if (chan)
+		freq = chan->center_freq;
+
+	/* never send freq zero to the firmware */
+	if (WARN_ON(freq == 0))
+		return -EINVAL;
 
 	mgmt = (const struct ieee80211_mgmt *) buf;
 	if (vif->nw_type == AP_NETWORK && test_bit(CONNECTED, &vif->flags) &&
@@ -3188,8 +3199,7 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 * command to allow the target to fill in the generic IEs.
 		 */
 		*cookie = 0; /* TX status not supported */
-		return ath6kl_send_go_probe_resp(vif, buf, len,
-						 chan->center_freq);
+		return ath6kl_send_go_probe_resp(vif, buf, len, freq);
 	}
 
 	id = vif->send_action_id++;
@@ -3205,17 +3215,14 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	/* AP mode Power saving processing */
 	if (vif->nw_type == AP_NETWORK) {
-		queued = ath6kl_mgmt_powersave_ap(vif,
-					id, chan->center_freq,
-					wait, buf,
-					len, &more_data, no_cck);
+		queued = ath6kl_mgmt_powersave_ap(vif, id, freq, wait, buf, len,
+						  &more_data, no_cck);
 		if (queued)
 			return 0;
 	}
 
-	return ath6kl_wmi_send_mgmt_cmd(ar->wmi, vif->fw_vif_idx, id,
-					chan->center_freq, wait,
-					buf, len, no_cck);
+	return ath6kl_wmi_send_mgmt_cmd(ar->wmi, vif->fw_vif_idx, id, freq,
+					wait, buf, len, no_cck);
 }
 
 static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
@@ -3679,6 +3686,20 @@ err:
 	return NULL;
 }
 
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support ath6kl_wowlan_support = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT |
+		 WIPHY_WOWLAN_DISCONNECT |
+		 WIPHY_WOWLAN_GTK_REKEY_FAILURE  |
+		 WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
+		 WIPHY_WOWLAN_EAP_IDENTITY_REQ   |
+		 WIPHY_WOWLAN_4WAY_HANDSHAKE,
+	.n_patterns = WOW_MAX_FILTERS_PER_LIST,
+	.pattern_min_len = 1,
+	.pattern_max_len = WOW_PATTERN_SIZE,
+};
+#endif
+
 int ath6kl_cfg80211_init(struct ath6kl *ar)
 {
 	struct wiphy *wiphy = ar->wiphy;
@@ -3772,15 +3793,7 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 	wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
 #ifdef CONFIG_PM
-	wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
-			      WIPHY_WOWLAN_DISCONNECT |
-			      WIPHY_WOWLAN_GTK_REKEY_FAILURE  |
-			      WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
-			      WIPHY_WOWLAN_EAP_IDENTITY_REQ   |
-			      WIPHY_WOWLAN_4WAY_HANDSHAKE;
-	wiphy->wowlan.n_patterns = WOW_MAX_FILTERS_PER_LIST;
-	wiphy->wowlan.pattern_min_len = 1;
-	wiphy->wowlan.pattern_max_len = WOW_PATTERN_SIZE;
+	wiphy->wowlan = &ath6kl_wowlan_support;
 #endif
 
 	wiphy->max_sched_scan_ssids = MAX_PROBED_SSIDS;

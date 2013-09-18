@@ -228,17 +228,15 @@ static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 	void *cmdbuf_page_addr = NULL;
 
 	/* pin & patch the relocs for one gather */
-	while (i < job->num_relocs) {
+	for (i = 0; i < job->num_relocs; i++) {
 		struct host1x_reloc *reloc = &job->relocarray[i];
 		u32 reloc_addr = (job->reloc_addr_phys[i] +
 			reloc->target_offset) >> reloc->shift;
 		u32 *target;
 
 		/* skip all other gathers */
-		if (!(reloc->cmdbuf && cmdbuf == reloc->cmdbuf)) {
-			i++;
+		if (cmdbuf != reloc->cmdbuf)
 			continue;
-		}
 
 		if (last_page != reloc->cmdbuf_offset >> PAGE_SHIFT) {
 			if (cmdbuf_page_addr)
@@ -257,9 +255,6 @@ static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 
 		target = cmdbuf_page_addr + (reloc->cmdbuf_offset & ~PAGE_MASK);
 		*target = reloc_addr;
-
-		/* mark this gather as handled */
-		reloc->cmdbuf = 0;
 	}
 
 	if (cmdbuf_page_addr)
@@ -268,15 +263,15 @@ static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 	return 0;
 }
 
-static int check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
+static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 		       unsigned int offset)
 {
 	offset *= sizeof(u32);
 
 	if (reloc->cmdbuf != cmdbuf || reloc->cmdbuf_offset != offset)
-		return -EINVAL;
+		return false;
 
-	return 0;
+	return true;
 }
 
 struct host1x_firewall {
@@ -307,10 +302,10 @@ static int check_mask(struct host1x_firewall *fw)
 
 		if (mask & 1) {
 			if (fw->job->is_addr_reg(fw->dev, fw->class, reg)) {
-				bool bad_reloc = check_reloc(fw->reloc,
-							     fw->cmdbuf_id,
-							     fw->offset);
-				if (!fw->num_relocs || bad_reloc)
+				if (!fw->num_relocs)
+					return -EINVAL;
+				if (!check_reloc(fw->reloc, fw->cmdbuf_id,
+						 fw->offset))
 					return -EINVAL;
 				fw->reloc++;
 				fw->num_relocs--;
@@ -330,14 +325,14 @@ static int check_incr(struct host1x_firewall *fw)
 	u32 count = fw->count;
 	u32 reg = fw->reg;
 
-	while (fw) {
+	while (count) {
 		if (fw->words == 0)
 			return -EINVAL;
 
 		if (fw->job->is_addr_reg(fw->dev, fw->class, reg)) {
-			bool bad_reloc = check_reloc(fw->reloc, fw->cmdbuf_id,
-						     fw->offset);
-			if (!fw->num_relocs || bad_reloc)
+			if (!fw->num_relocs)
+				return -EINVAL;
+			if (!check_reloc(fw->reloc, fw->cmdbuf_id, fw->offset))
 				return -EINVAL;
 			fw->reloc++;
 			fw->num_relocs--;
@@ -361,9 +356,9 @@ static int check_nonincr(struct host1x_firewall *fw)
 			return -EINVAL;
 
 		if (is_addr_reg) {
-			bool bad_reloc = check_reloc(fw->reloc, fw->cmdbuf_id,
-						     fw->offset);
-			if (!fw->num_relocs || bad_reloc)
+			if (!fw->num_relocs)
+				return -EINVAL;
+			if (!check_reloc(fw->reloc, fw->cmdbuf_id, fw->offset))
 				return -EINVAL;
 			fw->reloc++;
 			fw->num_relocs--;
@@ -376,69 +371,58 @@ static int check_nonincr(struct host1x_firewall *fw)
 	return 0;
 }
 
-static int validate(struct host1x_job *job, struct device *dev,
-		    struct host1x_job_gather *g)
+static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 {
-	u32 *cmdbuf_base;
+	u32 *cmdbuf_base = (u32 *)fw->job->gather_copy_mapped +
+		(g->offset / sizeof(u32));
 	int err = 0;
-	struct host1x_firewall fw;
 
-	fw.job = job;
-	fw.dev = dev;
-	fw.reloc = job->relocarray;
-	fw.num_relocs = job->num_relocs;
-	fw.cmdbuf_id = g->bo;
-
-	fw.offset = 0;
-	fw.class = 0;
-
-	if (!job->is_addr_reg)
+	if (!fw->job->is_addr_reg)
 		return 0;
 
-	cmdbuf_base = host1x_bo_mmap(g->bo);
-	if (!cmdbuf_base)
-		return -ENOMEM;
+	fw->words = g->words;
+	fw->cmdbuf_id = g->bo;
+	fw->offset = 0;
 
-	fw.words = g->words;
-	while (fw.words && !err) {
-		u32 word = cmdbuf_base[fw.offset];
+	while (fw->words && !err) {
+		u32 word = cmdbuf_base[fw->offset];
 		u32 opcode = (word & 0xf0000000) >> 28;
 
-		fw.mask = 0;
-		fw.reg = 0;
-		fw.count = 0;
-		fw.words--;
-		fw.offset++;
+		fw->mask = 0;
+		fw->reg = 0;
+		fw->count = 0;
+		fw->words--;
+		fw->offset++;
 
 		switch (opcode) {
 		case 0:
-			fw.class = word >> 6 & 0x3ff;
-			fw.mask = word & 0x3f;
-			fw.reg = word >> 16 & 0xfff;
-			err = check_mask(&fw);
+			fw->class = word >> 6 & 0x3ff;
+			fw->mask = word & 0x3f;
+			fw->reg = word >> 16 & 0xfff;
+			err = check_mask(fw);
 			if (err)
 				goto out;
 			break;
 		case 1:
-			fw.reg = word >> 16 & 0xfff;
-			fw.count = word & 0xffff;
-			err = check_incr(&fw);
+			fw->reg = word >> 16 & 0xfff;
+			fw->count = word & 0xffff;
+			err = check_incr(fw);
 			if (err)
 				goto out;
 			break;
 
 		case 2:
-			fw.reg = word >> 16 & 0xfff;
-			fw.count = word & 0xffff;
-			err = check_nonincr(&fw);
+			fw->reg = word >> 16 & 0xfff;
+			fw->count = word & 0xffff;
+			err = check_nonincr(fw);
 			if (err)
 				goto out;
 			break;
 
 		case 3:
-			fw.mask = word & 0xffff;
-			fw.reg = word >> 16 & 0xfff;
-			err = check_mask(&fw);
+			fw->mask = word & 0xffff;
+			fw->reg = word >> 16 & 0xfff;
+			err = check_mask(fw);
 			if (err)
 				goto out;
 			break;
@@ -453,20 +437,25 @@ static int validate(struct host1x_job *job, struct device *dev,
 	}
 
 	/* No relocs should remain at this point */
-	if (fw.num_relocs)
+	if (fw->num_relocs)
 		err = -EINVAL;
 
 out:
-	host1x_bo_munmap(g->bo, cmdbuf_base);
-
 	return err;
 }
 
 static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 {
+	struct host1x_firewall fw;
 	size_t size = 0;
 	size_t offset = 0;
 	int i;
+
+	fw.job = job;
+	fw.dev = dev;
+	fw.reloc = job->relocarray;
+	fw.num_relocs = job->num_relocs;
+	fw.class = 0;
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
@@ -488,14 +477,19 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 		struct host1x_job_gather *g = &job->gathers[i];
 		void *gather;
 
+		/* Copy the gather */
 		gather = host1x_bo_mmap(g->bo);
 		memcpy(job->gather_copy_mapped + offset, gather + g->offset,
 		       g->words * sizeof(u32));
 		host1x_bo_munmap(g->bo, gather);
 
+		/* Store the location in the buffer */
 		g->base = job->gather_copy;
 		g->offset = offset;
-		g->bo = NULL;
+
+		/* Validate the job */
+		if (validate(&fw, g))
+			return -EINVAL;
 
 		offset += g->words * sizeof(u32);
 	}
@@ -540,20 +534,11 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 			if (job->gathers[j].bo == g->bo)
 				job->gathers[j].handled = true;
 
-		err = 0;
-
-		if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
-			err = validate(job, dev, g);
-
+		err = do_relocs(job, g->bo);
 		if (err)
-			dev_err(dev, "Job invalid (err=%d)\n", err);
+			break;
 
-		if (!err)
-			err = do_relocs(job, g->bo);
-
-		if (!err)
-			err = do_waitchks(job, host, g->bo);
-
+		err = do_waitchks(job, host, g->bo);
 		if (err)
 			break;
 	}

@@ -301,20 +301,32 @@ static void sh_dmae_setup_xfer(struct shdma_chan *schan,
 	}
 }
 
+/*
+ * Find a slave channel configuration from the contoller list by either a slave
+ * ID in the non-DT case, or by a MID/RID value in the DT case
+ */
 static const struct sh_dmae_slave_config *dmae_find_slave(
-	struct sh_dmae_chan *sh_chan, int slave_id)
+	struct sh_dmae_chan *sh_chan, int match)
 {
 	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	const struct sh_dmae_slave_config *cfg;
 	int i;
 
-	if (slave_id >= SH_DMA_SLAVE_NUMBER)
-		return NULL;
+	if (!sh_chan->shdma_chan.dev->of_node) {
+		if (match >= SH_DMA_SLAVE_NUMBER)
+			return NULL;
 
-	for (i = 0, cfg = pdata->slave; i < pdata->slave_num; i++, cfg++)
-		if (cfg->slave_id == slave_id)
-			return cfg;
+		for (i = 0, cfg = pdata->slave; i < pdata->slave_num; i++, cfg++)
+			if (cfg->slave_id == match)
+				return cfg;
+	} else {
+		for (i = 0, cfg = pdata->slave; i < pdata->slave_num; i++, cfg++)
+			if (cfg->mid_rid == match) {
+				sh_chan->shdma_chan.slave_id = cfg->slave_id;
+				return cfg;
+			}
+	}
 
 	return NULL;
 }
@@ -388,8 +400,8 @@ static size_t sh_dmae_get_partial(struct shdma_chan *schan,
 						    shdma_chan);
 	struct sh_dmae_desc *sh_desc = container_of(sdesc,
 					struct sh_dmae_desc, shdma_desc);
-	return (sh_desc->hw.tcr - sh_dmae_readl(sh_chan, TCR)) <<
-		sh_chan->xmit_shift;
+	return sh_desc->hw.tcr -
+		(sh_dmae_readl(sh_chan, TCR) << sh_chan->xmit_shift);
 }
 
 /* Called from error IRQ or NMI */
@@ -729,7 +741,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 		goto eshdma;
 
 	/* platform data */
-	shdev->pdata = pdev->dev.platform_data;
+	shdev->pdata = pdata;
 
 	if (pdata->chcr_offset)
 		shdev->chcr_offset = pdata->chcr_offset;
@@ -920,11 +932,18 @@ static int sh_dmae_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id sh_dmae_of_match[] = {
+	{ .compatible = "renesas,shdma", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sh_dmae_of_match);
+
 static struct platform_driver sh_dmae_driver = {
 	.driver 	= {
 		.owner	= THIS_MODULE,
 		.pm	= &sh_dmae_pm,
 		.name	= SH_DMAE_DRV_NAME,
+		.of_match_table = sh_dmae_of_match,
 	},
 	.remove		= sh_dmae_remove,
 	.shutdown	= sh_dmae_shutdown,

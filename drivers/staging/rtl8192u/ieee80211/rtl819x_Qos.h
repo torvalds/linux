@@ -483,7 +483,7 @@ typedef struct _OCTET_STRING{
 typedef struct _STA_QOS{
 	//DECLARE_RT_OBJECT(STA_QOS);
 	u8				WMMIEBuf[MAX_WMMELE_LENGTH];
-	u8*				WMMIE;
+	u8				*WMMIE;
 
 	// Part 1. Self QoS Mode.
 	QOS_MODE			QosCapability; //QoS Capability, 2006-06-14 Isaiah
@@ -498,7 +498,7 @@ typedef struct _STA_QOS{
 	int				NumBcnBeforeTrigger;
 
 	// Part 2. EDCA Parameter (perAC)
-	u8 *				pWMMInfoEle;
+	u8				*pWMMInfoEle;
 	u8				WMMParamEle[WMM_PARAM_ELEMENT_SIZE];
 	u8				WMMPELength;
 
@@ -537,12 +537,12 @@ typedef struct _BSS_QOS{
 	QOS_MODE		bdQoSMode;
 
 	u8			bdWMMIEBuf[MAX_WMMELE_LENGTH];
-	u8*		bdWMMIE;
+	u8		*bdWMMIE;
 
 	QOS_ELE_SUBTYPE		EleSubType;
 
-	u8 *			pWMMInfoEle;
-	u8 *			pWMMParamEle;
+	u8			*pWMMInfoEle;
+	u8			*pWMMParamEle;
 
 	QOS_INFO_FIELD		QosInfoField;
 	AC_PARAM		AcParameter[4];

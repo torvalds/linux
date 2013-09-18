@@ -79,10 +79,9 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 			   &entry->var.DataSize, entry->var.Data);
 	size = entry->var.DataSize;
 
-	*cb_data->buf = kmalloc(size, GFP_KERNEL);
+	*cb_data->buf = kmemdup(entry->var.Data, size, GFP_KERNEL);
 	if (*cb_data->buf == NULL)
 		return -ENOMEM;
-	memcpy(*cb_data->buf, entry->var.Data, size);
 	return size;
 }
 
@@ -104,7 +103,7 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 
 static int efi_pstore_write(enum pstore_type_id type,
 		enum kmsg_dump_reason reason, u64 *id,
-		unsigned int part, int count, size_t size,
+		unsigned int part, int count, size_t hsize, size_t size,
 		struct pstore_info *psi)
 {
 	char name[DUMP_NAME_LEN];
@@ -236,7 +235,11 @@ static __init int efivars_pstore_init(void)
 	efi_pstore_info.bufsize = 1024;
 	spin_lock_init(&efi_pstore_info.buf_lock);
 
-	pstore_register(&efi_pstore_info);
+	if (pstore_register(&efi_pstore_info)) {
+		kfree(efi_pstore_info.buf);
+		efi_pstore_info.buf = NULL;
+		efi_pstore_info.bufsize = 0;
+	}
 
 	return 0;
 }

@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/init.h>
 #include <linux/spi/spi.h>
@@ -409,6 +410,16 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 			rec->command, rec->length);
 		len = rec->length + 8;
 
+		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
+		if (!xfer) {
+			dev_err(codec->dev, "Failed to allocate xfer\n");
+			ret = -ENOMEM;
+			goto abort;
+		}
+
+		xfer->codec = codec;
+		list_add_tail(&xfer->list, &xfer_list);
+
 		out = kzalloc(len, GFP_KERNEL);
 		if (!out) {
 			dev_err(codec->dev,
@@ -416,6 +427,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 			ret = -ENOMEM;
 			goto abort1;
 		}
+		xfer->t.rx_buf = out;
 
 		img = kzalloc(len, GFP_KERNEL);
 		if (!img) {
@@ -424,24 +436,13 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 			ret = -ENOMEM;
 			goto abort1;
 		}
+		xfer->t.tx_buf = img;
 
 		byte_swap_64((u64 *)&rec->command, img, len);
-
-		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
-		if (!xfer) {
-			dev_err(codec->dev, "Failed to allocate xfer\n");
-			ret = -ENOMEM;
-			goto abort1;
-		}
-
-		xfer->codec = codec;
-		list_add_tail(&xfer->list, &xfer_list);
 
 		spi_message_init(&xfer->m);
 		xfer->m.complete = wm0010_boot_xfer_complete;
 		xfer->m.context = xfer;
-		xfer->t.tx_buf = img;
-		xfer->t.rx_buf = out;
 		xfer->t.len = len;
 		xfer->t.bits_per_word = 8;
 
@@ -972,6 +973,13 @@ static int wm0010_spi_probe(struct spi_device *spi)
 	}
 	wm0010->irq = irq;
 
+	ret = irq_set_irq_wake(irq, 1);
+	if (ret) {
+		dev_err(wm0010->dev, "Failed to set IRQ %d as wake source: %d\n",
+			irq, ret);
+		return ret;
+	}
+
 	if (spi->max_speed_hz)
 		wm0010->board_max_spi_speed = spi->max_speed_hz;
 	else
@@ -994,6 +1002,8 @@ static int wm0010_spi_remove(struct spi_device *spi)
 
 	gpio_set_value_cansleep(wm0010->gpio_reset,
 				wm0010->gpio_reset_value);
+
+	irq_set_irq_wake(wm0010->irq, 0);
 
 	if (wm0010->irq)
 		free_irq(wm0010->irq, wm0010);

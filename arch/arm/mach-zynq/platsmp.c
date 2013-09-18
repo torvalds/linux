@@ -30,11 +30,11 @@
 /*
  * Store number of cores in the system
  * Because of scu_get_core_count() must be in __init section and can't
- * be called from zynq_cpun_start() because it is in __cpuinit section.
+ * be called from zynq_cpun_start() because it is not in __init section.
  */
 static int ncores;
 
-int __cpuinit zynq_cpun_start(u32 address, int cpu)
+int zynq_cpun_start(u32 address, int cpu)
 {
 	u32 trampoline_code_size = &zynq_secondary_trampoline_end -
 						&zynq_secondary_trampoline;
@@ -53,34 +53,34 @@ int __cpuinit zynq_cpun_start(u32 address, int cpu)
 						&zynq_secondary_trampoline;
 
 		zynq_slcr_cpu_stop(cpu);
-
-		if (__pa(PAGE_OFFSET)) {
-			zero = ioremap(0, trampoline_code_size);
-			if (!zero) {
-				pr_warn("BOOTUP jump vectors not accessible\n");
-				return -1;
+		if (address) {
+			if (__pa(PAGE_OFFSET)) {
+				zero = ioremap(0, trampoline_code_size);
+				if (!zero) {
+					pr_warn("BOOTUP jump vectors not accessible\n");
+					return -1;
+				}
+			} else {
+				zero = (__force u8 __iomem *)PAGE_OFFSET;
 			}
-		} else {
-			zero = (__force u8 __iomem *)PAGE_OFFSET;
+
+			/*
+			* This is elegant way how to jump to any address
+			* 0x0: Load address at 0x8 to r0
+			* 0x4: Jump by mov instruction
+			* 0x8: Jumping address
+			*/
+			memcpy((__force void *)zero, &zynq_secondary_trampoline,
+							trampoline_size);
+			writel(address, zero + trampoline_size);
+
+			flush_cache_all();
+			outer_flush_range(0, trampoline_code_size);
+			smp_wmb();
+
+			if (__pa(PAGE_OFFSET))
+				iounmap(zero);
 		}
-
-		/*
-		 * This is elegant way how to jump to any address
-		 * 0x0: Load address at 0x8 to r0
-		 * 0x4: Jump by mov instruction
-		 * 0x8: Jumping address
-		 */
-		memcpy((__force void *)zero, &zynq_secondary_trampoline,
-						trampoline_size);
-		writel(address, zero + trampoline_size);
-
-		flush_cache_all();
-		outer_flush_range(0, trampoline_code_size);
-		smp_wmb();
-
-		if (__pa(PAGE_OFFSET))
-			iounmap(zero);
-
 		zynq_slcr_cpu_start(cpu);
 
 		return 0;
@@ -92,7 +92,7 @@ int __cpuinit zynq_cpun_start(u32 address, int cpu)
 }
 EXPORT_SYMBOL(zynq_cpun_start);
 
-static int __cpuinit zynq_boot_secondary(unsigned int cpu,
+static int zynq_boot_secondary(unsigned int cpu,
 						struct task_struct *idle)
 {
 	return zynq_cpun_start(virt_to_phys(secondary_startup), cpu);

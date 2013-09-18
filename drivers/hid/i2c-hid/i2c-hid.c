@@ -108,6 +108,7 @@ static const struct i2c_hid_cmd hid_reset_cmd =		{ I2C_HID_CMD(0x01),
 static const struct i2c_hid_cmd hid_get_report_cmd =	{ I2C_HID_CMD(0x02) };
 static const struct i2c_hid_cmd hid_set_report_cmd =	{ I2C_HID_CMD(0x03) };
 static const struct i2c_hid_cmd hid_set_power_cmd =	{ I2C_HID_CMD(0x08) };
+static const struct i2c_hid_cmd hid_no_cmd =		{ .length = 0 };
 
 /*
  * These definitions are not used here, but are defined by the spec.
@@ -259,8 +260,11 @@ static int i2c_hid_set_report(struct i2c_client *client, u8 reportType,
 {
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	u8 *args = ihid->argsbuf;
+	const struct i2c_hid_cmd * hidcmd = &hid_set_report_cmd;
 	int ret;
 	u16 dataRegister = le16_to_cpu(ihid->hdesc.wDataRegister);
+	u16 outputRegister = le16_to_cpu(ihid->hdesc.wOutputRegister);
+	u16 maxOutputLength = le16_to_cpu(ihid->hdesc.wMaxOutputLength);
 
 	/* hidraw already checked that data_len < HID_MAX_BUFFER_SIZE */
 	u16 size =	2			/* size */ +
@@ -278,8 +282,18 @@ static int i2c_hid_set_report(struct i2c_client *client, u8 reportType,
 		reportID = 0x0F;
 	}
 
-	args[index++] = dataRegister & 0xFF;
-	args[index++] = dataRegister >> 8;
+	/*
+	 * use the data register for feature reports or if the device does not
+	 * support the output register
+	 */
+	if (reportType == 0x03 || maxOutputLength == 0) {
+		args[index++] = dataRegister & 0xFF;
+		args[index++] = dataRegister >> 8;
+	} else {
+		args[index++] = outputRegister & 0xFF;
+		args[index++] = outputRegister >> 8;
+		hidcmd = &hid_no_cmd;
+	}
 
 	args[index++] = size & 0xFF;
 	args[index++] = size >> 8;
@@ -289,7 +303,7 @@ static int i2c_hid_set_report(struct i2c_client *client, u8 reportType,
 
 	memcpy(&args[index], buf, data_len);
 
-	ret = __i2c_hid_command(client, &hid_set_report_cmd, reportID,
+	ret = __i2c_hid_command(client, hidcmd, reportID,
 		reportType, args, args_len, NULL, 0);
 	if (ret) {
 		dev_err(&client->dev, "failed to set a report to device.\n");

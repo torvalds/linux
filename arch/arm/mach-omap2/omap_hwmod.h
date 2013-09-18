@@ -95,6 +95,54 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type3;
 #define MODULEMODE_HWCTRL		1
 #define MODULEMODE_SWCTRL		2
 
+#define DEBUG_OMAP2UART1_FLAGS	0
+#define DEBUG_OMAP2UART2_FLAGS	0
+#define DEBUG_OMAP2UART3_FLAGS	0
+#define DEBUG_OMAP3UART3_FLAGS	0
+#define DEBUG_OMAP3UART4_FLAGS	0
+#define DEBUG_OMAP4UART3_FLAGS	0
+#define DEBUG_OMAP4UART4_FLAGS	0
+#define DEBUG_TI81XXUART1_FLAGS	0
+#define DEBUG_TI81XXUART2_FLAGS	0
+#define DEBUG_TI81XXUART3_FLAGS	0
+#define DEBUG_AM33XXUART1_FLAGS	0
+
+#define DEBUG_OMAPUART_FLAGS	(HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET)
+
+#if defined(CONFIG_DEBUG_OMAP2UART1)
+#undef DEBUG_OMAP2UART1_FLAGS
+#define DEBUG_OMAP2UART1_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_OMAP2UART2)
+#undef DEBUG_OMAP2UART2_FLAGS
+#define DEBUG_OMAP2UART2_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_OMAP2UART3)
+#undef DEBUG_OMAP2UART3_FLAGS
+#define DEBUG_OMAP2UART3_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_OMAP3UART3)
+#undef DEBUG_OMAP3UART3_FLAGS
+#define DEBUG_OMAP3UART3_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_OMAP3UART4)
+#undef DEBUG_OMAP3UART4_FLAGS
+#define DEBUG_OMAP3UART4_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_OMAP4UART3)
+#undef DEBUG_OMAP4UART3_FLAGS
+#define DEBUG_OMAP4UART3_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_OMAP4UART4)
+#undef DEBUG_OMAP4UART4_FLAGS
+#define DEBUG_OMAP4UART4_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_TI81XXUART1)
+#undef DEBUG_TI81XXUART1_FLAGS
+#define DEBUG_TI81XXUART1_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_TI81XXUART2)
+#undef DEBUG_TI81XXUART2_FLAGS
+#define DEBUG_TI81XXUART2_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_TI81XXUART3)
+#undef DEBUG_TI81XXUART3_FLAGS
+#define DEBUG_TI81XXUART3_FLAGS DEBUG_OMAPUART_FLAGS
+#elif defined(CONFIG_DEBUG_AM33XXUART1)
+#undef DEBUG_AM33XXUART1_FLAGS
+#define DEBUG_AM33XXUART1_FLAGS DEBUG_OMAPUART_FLAGS
+#endif
 
 /**
  * struct omap_hwmod_mux_info - hwmod specific mux configuration
@@ -568,6 +616,7 @@ struct omap_hwmod_link {
  * @voltdm: pointer to voltage domain (filled in at runtime)
  * @dev_attr: arbitrary device attributes that can be passed to the driver
  * @_sysc_cache: internal-use hwmod flags
+ * @mpu_rt_idx: index of device address space for register target (for DT boot)
  * @_mpu_rt_va: cached register target start address (internal use)
  * @_mpu_port: cached MPU register target slave (internal use)
  * @opt_clks_cnt: number of @opt_clks
@@ -617,6 +666,7 @@ struct omap_hwmod {
 	struct list_head		node;
 	struct omap_hwmod_ocp_if	*_mpu_port;
 	u16				flags;
+	u8				mpu_rt_idx;
 	u8				response_lat;
 	u8				rst_lines_cnt;
 	u8				opt_clks_cnt;
@@ -699,6 +749,7 @@ extern int omap2420_hwmod_init(void);
 extern int omap2430_hwmod_init(void);
 extern int omap3xxx_hwmod_init(void);
 extern int omap44xx_hwmod_init(void);
+extern int omap54xx_hwmod_init(void);
 extern int am33xx_hwmod_init(void);
 
 extern int __init omap_hwmod_register_links(struct omap_hwmod_ocp_if **ois);

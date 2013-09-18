@@ -30,6 +30,7 @@ config METAG
 	select OF
 	select OF_EARLY_FLATTREE
 	select SPARSE_IRQ
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config STACKTRACE_SUPPORT
 	def_bool y

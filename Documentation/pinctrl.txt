@@ -203,15 +203,8 @@ using a certain resistor value - pull up and pull down - so that the pin has a
 stable value when nothing is driving the rail it is connected to, or when it's
 unconnected.
 
-Pin configuration can be programmed either using the explicit APIs described
-immediately below, or by adding configuration entries into the mapping table;
-see section "Board/machine configuration" below.
-
-For example, a platform may do the following to pull up a pin to VDD:
-
-#include <linux/pinctrl/consumer.h>
-
-ret = pin_config_set("foo-dev", "FOO_GPIO_PIN", PLATFORM_X_PULL_UP);
+Pin configuration can be programmed by adding configuration entries into the
+mapping table; see section "Board/machine configuration" below.
 
 The format and meaning of the configuration parameter, PLATFORM_X_PULL_UP
 above, is entirely defined by the pin controller driver.
@@ -298,7 +291,7 @@ Since the pin controller subsystem have its pinspace local to the pin
 controller we need a mapping so that the pin control subsystem can figure out
 which pin controller handles control of a certain GPIO pin. Since a single
 pin controller may be muxing several GPIO ranges (typically SoCs that have
-one set of pins but internally several GPIO silicon blocks, each modeled as
+one set of pins but internally several GPIO silicon blocks, each modelled as
 a struct gpio_chip) any number of GPIO ranges can be added to a pin controller
 instance like this:
 
@@ -350,6 +343,23 @@ chip b:
  - GPIO range : [48 .. 55]
  - pin range  : [64 .. 71]
 
+The above examples assume the mapping between the GPIOs and pins is
+linear. If the mapping is sparse or haphazard, an array of arbitrary pin
+numbers can be encoded in the range like this:
+
+static const unsigned range_pins[] = { 14, 1, 22, 17, 10, 8, 6, 2 };
+
+static struct pinctrl_gpio_range gpio_range = {
+	.name = "chip",
+	.id = 0,
+	.base = 32,
+	.pins = &range_pins,
+	.npins = ARRAY_SIZE(range_pins),
+	.gc = &chip;
+};
+
+In this case the pin_base property will be ignored.
+
 When GPIO-specific functions in the pin control subsystem are called, these
 ranges will be used to look up the appropriate pin controller by inspecting
 and matching the pin to the pin ranges across all controllers. When a
@@ -357,9 +367,9 @@ pin controller handling the matching range is found, GPIO-specific functions
 will be called on that specific pin controller.
 
 For all functionalities dealing with pin biasing, pin muxing etc, the pin
-controller subsystem will subtract the range's .base offset from the passed
-in gpio number, and add the ranges's .pin_base offset to retrive a pin number.
-After that, the subsystem passes it on to the pin control driver, so the driver
+controller subsystem will look up the corresponding pin number from the passed
+in gpio number, and use the range's internals to retrive a pin number. After
+that, the subsystem passes it on to the pin control driver, so the driver
 will get an pin number into its handled number range. Further it is also passed
 the range ID value, so that the pin controller knows which range it should
 deal with.
@@ -367,6 +377,7 @@ deal with.
 Calling pinctrl_add_gpio_range from pinctrl driver is DEPRECATED. Please see
 section 2.1 of Documentation/devicetree/bindings/gpio/gpio.txt on how to bind
 pinctrl and gpio drivers.
+
 
 PINMUX interfaces
 =================
@@ -1226,8 +1237,8 @@ setting up the config and muxing for the pins right before the device is
 probing, nevertheless orthogonal to the GPIO subsystem.
 
 But there are also situations where it makes sense for the GPIO subsystem
-to communicate directly with with the pinctrl subsystem, using the latter
-as a back-end. This is when the GPIO driver may call out to the functions
+to communicate directly with the pinctrl subsystem, using the latter as a
+back-end. This is when the GPIO driver may call out to the functions
 described in the section "Pin control interaction with the GPIO subsystem"
 above. This only involves per-pin multiplexing, and will be completely
 hidden behind the gpio_*() function namespace. In this case, the driver

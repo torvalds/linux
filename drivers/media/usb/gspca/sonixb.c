@@ -1159,6 +1159,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			regs[0x01] = 0x44; /* Select 24 Mhz clock */
 			regs[0x12] = 0x02; /* Set hstart to 2 */
 		}
+		break;
+	case SENSOR_PAS202:
+		/* For some unknown reason we need to increase hstart by 1 on
+		   the sn9c103, otherwise we get wrong colors (bayer shift). */
+		if (sd->bridge == BRIDGE_103)
+			regs[0x12] += 1;
+		break;
 	}
 	/* Disable compression when the raw bayer format has been selected */
 	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_RAW)

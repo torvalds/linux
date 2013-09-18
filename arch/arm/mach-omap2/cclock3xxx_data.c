@@ -3329,11 +3329,7 @@ static struct omap_clk omap36xx_am35xx_omap3430es2plus_clks[] = {
 	CLK(NULL,	"cpefuse_fck",	&cpefuse_fck),
 	CLK(NULL,	"ts_fck",	&ts_fck),
 	CLK(NULL,	"usbtll_fck",	&usbtll_fck),
-	CLK("usbhs_omap",	"usbtll_fck",	&usbtll_fck),
-	CLK("usbhs_tll",	"usbtll_fck",	&usbtll_fck),
 	CLK(NULL,	"usbtll_ick",	&usbtll_ick),
-	CLK("usbhs_omap",	"usbtll_ick",	&usbtll_ick),
-	CLK("usbhs_tll",	"usbtll_ick",	&usbtll_ick),
 	CLK("omap_hsmmc.2",	"ick",	&mmchs3_ick),
 	CLK(NULL,	"mmchs3_ick",	&mmchs3_ick),
 	CLK(NULL,	"mmchs3_fck",	&mmchs3_fck),
@@ -3343,7 +3339,6 @@ static struct omap_clk omap36xx_am35xx_omap3430es2plus_clks[] = {
 	CLK(NULL,	"usbhost_120m_fck", &usbhost_120m_fck),
 	CLK(NULL,	"usbhost_48m_fck", &usbhost_48m_fck),
 	CLK(NULL,	"usbhost_ick",	&usbhost_ick),
-	CLK("usbhs_omap",	"usbhost_ick",	&usbhost_ick),
 };
 
 /*
@@ -3463,12 +3458,6 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"utmi_p2_gfclk",	&dummy_ck),
 	CLK(NULL,	"xclk60mhsp1_ck",	&dummy_ck),
 	CLK(NULL,	"xclk60mhsp2_ck",	&dummy_ck),
-	CLK(NULL,	"usb_host_hs_utmi_p1_clk",	&dummy_ck),
-	CLK(NULL,	"usb_host_hs_utmi_p2_clk",	&dummy_ck),
-	CLK("usbhs_omap",	"usb_tll_hs_usb_ch0_clk",	&dummy_ck),
-	CLK("usbhs_omap",	"usb_tll_hs_usb_ch1_clk",	&dummy_ck),
-	CLK("usbhs_tll",	"usb_tll_hs_usb_ch0_clk",	&dummy_ck),
-	CLK("usbhs_tll",	"usb_tll_hs_usb_ch1_clk",	&dummy_ck),
 	CLK(NULL,	"init_60m_fclk",	&dummy_ck),
 	CLK(NULL,	"gpt1_fck",	&gpt1_fck),
 	CLK(NULL,	"aes2_ick",	&aes2_ick),

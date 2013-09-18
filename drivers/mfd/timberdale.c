@@ -145,7 +145,6 @@ static struct spi_board_info timberdale_spi_8bit_board_info[] = {
 
 static struct xspi_platform_data timberdale_xspi_platform_data = {
 	.num_chipselect = 3,
-	.little_endian = true,
 	/* bits per word and devices will be filled in runtime depending
 	 * on the HW config
 	 */

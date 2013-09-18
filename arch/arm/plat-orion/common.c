@@ -666,14 +666,9 @@ void __init orion_xor0_init(unsigned long mapbase_low,
 	orion_xor0_shared_resources[3].start = irq_1;
 	orion_xor0_shared_resources[3].end = irq_1;
 
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
 	dma_cap_set(DMA_MEMCPY, orion_xor0_channels_data[0].cap_mask);
 	dma_cap_set(DMA_XOR, orion_xor0_channels_data[0].cap_mask);
 
-	dma_cap_set(DMA_MEMSET, orion_xor0_channels_data[1].cap_mask);
 	dma_cap_set(DMA_MEMCPY, orion_xor0_channels_data[1].cap_mask);
 	dma_cap_set(DMA_XOR, orion_xor0_channels_data[1].cap_mask);
 
@@ -732,14 +727,9 @@ void __init orion_xor1_init(unsigned long mapbase_low,
 	orion_xor1_shared_resources[3].start = irq_1;
 	orion_xor1_shared_resources[3].end = irq_1;
 
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
 	dma_cap_set(DMA_MEMCPY, orion_xor1_channels_data[0].cap_mask);
 	dma_cap_set(DMA_XOR, orion_xor1_channels_data[0].cap_mask);
 
-	dma_cap_set(DMA_MEMSET, orion_xor1_channels_data[1].cap_mask);
 	dma_cap_set(DMA_MEMCPY, orion_xor1_channels_data[1].cap_mask);
 	dma_cap_set(DMA_XOR, orion_xor1_channels_data[1].cap_mask);
 

@@ -184,7 +184,7 @@
 					reg = <0x0a>;
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
-
+					clocks = <&saif0>;
 				};
 
 				eeprom: eeprom@51 {
@@ -220,7 +220,19 @@
 
 			auart0: serial@8006a000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&auart0_2pins_a>;
+				pinctrl-0 = <&auart0_pins_a>;
+				status = "okay";
+			};
+
+			auart1: serial@8006c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&auart1_pins_a>;
+				status = "okay";
+			};
+
+			auart2: serial@8006e000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&auart2_2pins_b>;
 				status = "okay";
 			};
 		};

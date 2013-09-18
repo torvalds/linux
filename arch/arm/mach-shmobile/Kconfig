@@ -23,7 +23,7 @@ config ARCH_R8A73A4
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
-	select ARM_ARCH_TIMER
+	select HAVE_ARM_ARCH_TIMER
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
@@ -36,10 +36,13 @@ config ARCH_R8A7740
 	select RENESAS_INTC_IRQPIN
 
 config ARCH_R8A7778
-	bool "R-Car M1 (R8A77780)"
+	bool "R-Car M1A (R8A77781)"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select CPU_V7
 	select SH_CLK_CPG
 	select ARM_GIC
+	select USB_ARCH_HAS_EHCI
+	select USB_ARCH_HAS_OHCI
 
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
@@ -56,7 +59,7 @@ config ARCH_R8A7790
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
-	select ARM_ARCH_TIMER
+	select HAVE_ARM_ARCH_TIMER
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
@@ -67,27 +70,6 @@ config ARCH_EMEV2
 	select CPU_V7
 
 comment "SH-Mobile Board Type"
-
-config MACH_AP4EVB
-	bool "AP4EVB board"
-	depends on ARCH_SH7372
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SH_LCD_MIPI_DSI
-	select SND_SOC_AK4642 if SND_SIMPLE_CARD
-
-choice
-	prompt "AP4EVB LCD panel selection"
-	default AP4EVB_QHD
-	depends on MACH_AP4EVB
-
-config AP4EVB_QHD
-	bool "MIPI-DSI QHD (960x540)"
-
-config AP4EVB_WVGA
-	bool "Parallel WVGA (800x480)"
-
-endchoice
 
 config MACH_AG5EVM
 	bool "AG5EVM board"
@@ -115,12 +97,6 @@ config MACH_KOTA2
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
-config MACH_BONITO
-	bool "bonito board"
-	depends on ARCH_R8A7740
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
 config MACH_ARMADILLO800EVA
 	bool "Armadillo-800 EVA board"
 	depends on ARCH_R8A7740
@@ -128,6 +104,20 @@ config MACH_ARMADILLO800EVA
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 	select USE_OF
+
+config MACH_ARMADILLO800EVA_REFERENCE
+	bool "Armadillo-800 EVA board - Reference Device Tree Implementation"
+	depends on ARCH_R8A7740
+	select ARCH_REQUIRE_GPIOLIB
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SND_SOC_WM8978 if SND_SIMPLE_CARD
+	select USE_OF
+	---help---
+	   Use reference implementation of Aramdillo800 EVA board support
+	   which makes a greater use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
 
 config MACH_BOCKW
 	bool "BOCK-W platform"
@@ -169,6 +159,8 @@ config MACH_KZM9D
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
 	depends on ARCH_SH73A0
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
@@ -193,37 +185,6 @@ comment "SH-Mobile System Configuration"
 config CPU_HAS_INTEVT
         bool
 	default y
-
-menu "Memory configuration"
-
-config MEMORY_START
-	hex "Physical memory start address"
-	default "0x40000000" if MACH_AP4EVB || MACH_AG5EVM || \
-				MACH_MACKEREL || MACH_BONITO || \
-				MACH_ARMADILLO800EVA || MACH_APE6EVM || \
-				MACH_LAGER
-	default "0x41000000" if MACH_KOTA2
-	default "0x00000000"
-	---help---
-	  Tweak this only when porting to a new machine which does not
-	  already have a defconfig. Changing it from the known correct
-	  value on any of the known systems will only lead to disaster.
-
-config MEMORY_SIZE
-	hex "Physical memory size"
-	default "0x80000000" if MACH_LAGER
-	default "0x40000000" if MACH_APE6EVM
-	default "0x20000000" if MACH_AG5EVM || MACH_BONITO || \
-				MACH_ARMADILLO800EVA
-	default "0x1e000000" if MACH_KOTA2
-	default "0x10000000" if MACH_AP4EVB || MACH_MACKEREL
-	default "0x04000000"
-	help
-	  This sets the default memory size assumed by your kernel. It can
-	  be overridden as normal by the 'mem=' argument on the kernel command
-	  line.
-
-endmenu
 
 menu "Timer and clock configuration"
 

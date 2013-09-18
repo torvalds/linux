@@ -89,6 +89,7 @@ static struct msm_otg_platform_data msm_otg_pdata = {
 };
 
 static struct platform_device *devices[] __initdata = {
+	&msm_clock_8x50,
 	&msm_device_gpio_8x50,
 	&msm_device_uart3,
 	&msm_device_smd,
@@ -172,7 +173,6 @@ static void __init qsd8x50_init_mmc(void)
 static void __init qsd8x50_map_io(void)
 {
 	msm_map_qsd8x50_io();
-	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
 }
 
 static void __init qsd8x50_init_irq(void)

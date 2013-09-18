@@ -55,6 +55,7 @@ static struct iowa_bus *iowa_pci_find(unsigned long vaddr, unsigned long paddr)
 
 struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 {
+	unsigned hugepage_shift;
 	struct iowa_bus *bus;
 	int token;
 
@@ -70,11 +71,17 @@ struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 		if (vaddr < PHB_IO_BASE || vaddr >= PHB_IO_END)
 			return NULL;
 
-		ptep = find_linux_pte(init_mm.pgd, vaddr);
+		ptep = find_linux_pte_or_hugepte(init_mm.pgd, vaddr,
+						 &hugepage_shift);
 		if (ptep == NULL)
 			paddr = 0;
-		else
+		else {
+			/*
+			 * we don't have hugepages backing iomem
+			 */
+			WARN_ON(hugepage_shift);
 			paddr = pte_pfn(*ptep) << PAGE_SHIFT;
+		}
 		bus = iowa_pci_find(vaddr, paddr);
 
 		if (bus == NULL)

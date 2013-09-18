@@ -686,7 +686,8 @@ static int mvs_task_prep_ssp(struct mvs_info *mvi,
 	if (ssp_hdr->frame_type != SSP_TASK) {
 		buf_cmd[9] = fburst | task->ssp_task.task_attr |
 				(task->ssp_task.task_prio << 3);
-		memcpy(buf_cmd + 12, &task->ssp_task.cdb, 16);
+		memcpy(buf_cmd + 12, task->ssp_task.cmd->cmnd,
+		       task->ssp_task.cmd->cmd_len);
 	} else{
 		buf_cmd[10] = tmf->tmf;
 		switch (tmf->tmf) {
@@ -1856,11 +1857,16 @@ int mvs_slot_complete(struct mvs_info *mvi, u32 rx_desc, u32 flags)
 		goto out;
 	}
 
-	/* error info record present */
-	if (unlikely((rx_desc & RXQ_ERR) && (*(u64 *) slot->response))) {
+	/*
+	 * error info record present; slot->response is 32 bit aligned but may
+	 * not be 64 bit aligned, so check for zero in two 32 bit reads
+	 */
+	if (unlikely((rx_desc & RXQ_ERR)
+		     && (*((u32 *)slot->response)
+			 || *(((u32 *)slot->response) + 1)))) {
 		mv_dprintk("port %d slot %d rx_desc %X has error info"
 			"%016llX.\n", slot->port->sas_port.id, slot_idx,
-			 rx_desc, (u64)(*(u64 *)slot->response));
+			 rx_desc, get_unaligned_le64(slot->response));
 		tstat->stat = mvs_slot_err(mvi, task, slot_idx);
 		tstat->resp = SAS_TASK_COMPLETE;
 		goto out;

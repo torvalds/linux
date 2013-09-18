@@ -153,11 +153,6 @@ static const struct rtc_class_ops ds1672_rtc_ops = {
 	.set_mmss = ds1672_rtc_set_mmss,
 };
 
-static int ds1672_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static int ds1672_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -210,7 +205,6 @@ static struct i2c_driver ds1672_driver = {
 		   .name = "rtc-ds1672",
 		   },
 	.probe = &ds1672_probe,
-	.remove = &ds1672_remove,
 	.id_table = ds1672_id,
 };
 

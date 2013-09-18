@@ -12,7 +12,6 @@
 /* #define WANT_URB_PARANOIA */
 
 /* #define WANT_PRE_2_6_39 */
-#define WANT_EVENT_TRACE
 
 /* These defines determine what verbose trace is displayed. */
 #ifdef WANT_VERBOSE_TRACE

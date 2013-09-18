@@ -473,7 +473,6 @@ __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr)
 		crc = crc32c(crc, data, len);
 		consumed += len;
 	}
-	skb_abort_seq_read(&st);
 
 	return htonl(crc);
 }

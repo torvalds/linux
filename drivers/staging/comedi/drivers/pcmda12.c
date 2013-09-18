@@ -1,152 +1,130 @@
 /*
-    comedi/drivers/pcmda12.c
-    Driver for Winsystems PC-104 based PCM-D/A-12 8-channel AO board.
+ * pcmda12.c
+ * Driver for Winsystems PC-104 based PCM-D/A-12 8-channel AO board.
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2006 Calin A. Culianu <calin@ajvar.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2006 Calin A. Culianu <calin@ajvar.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
 /*
-Driver: pcmda12
-Description: A driver for the Winsystems PCM-D/A-12
-Devices: [Winsystems] PCM-D/A-12 (pcmda12)
-Author: Calin Culianu <calin@ajvar.org>
-Updated: Fri, 13 Jan 2006 12:01:01 -0500
-Status: works
-
-A driver for the relatively straightforward-to-program PCM-D/A-12.
-This board doesn't support commands, and the only way to set its
-analog output range is to jumper the board.  As such,
-comedi_data_write() ignores the range value specified.
-
-The board uses 16 consecutive I/O addresses starting at the I/O port
-base address.  Each address corresponds to the LSB then MSB of a
-particular channel from 0-7.
-
-Note that the board is not ISA-PNP capable and thus
-needs the I/O port comedi_config parameter.
-
-Note that passing a nonzero value as the second config option will
-enable "simultaneous xfer" mode for this board, in which AO writes
-will not take effect until a subsequent read of any AO channel.  This
-is so that one can speed up programming by preloading all AO registers
-with values before simultaneously setting them to take effect with one
-read command.
-
-Configuration Options:
-  [0] - I/O port base address
-  [1] - Do Simultaneous Xfer (see description)
-*/
+ * Driver: pcmda12
+ * Description: A driver for the Winsystems PCM-D/A-12
+ * Devices: (Winsystems) PCM-D/A-12 [pcmda12]
+ * Author: Calin Culianu <calin@ajvar.org>
+ * Updated: Fri, 13 Jan 2006 12:01:01 -0500
+ * Status: works
+ *
+ * A driver for the relatively straightforward-to-program PCM-D/A-12.
+ * This board doesn't support commands, and the only way to set its
+ * analog output range is to jumper the board. As such,
+ * comedi_data_write() ignores the range value specified.
+ *
+ * The board uses 16 consecutive I/O addresses starting at the I/O port
+ * base address. Each address corresponds to the LSB then MSB of a
+ * particular channel from 0-7.
+ *
+ * Note that the board is not ISA-PNP capable and thus needs the I/O
+ * port comedi_config parameter.
+ *
+ * Note that passing a nonzero value as the second config option will
+ * enable "simultaneous xfer" mode for this board, in which AO writes
+ * will not take effect until a subsequent read of any AO channel. This
+ * is so that one can speed up programming by preloading all AO registers
+ * with values before simultaneously setting them to take effect with one
+ * read command.
+ *
+ * Configuration Options:
+ *   [0] - I/O port base address
+ *   [1] - Do Simultaneous Xfer (see description)
+ */
 
 #include "../comedidev.h"
 
-#define CHANS 8
-#define IOSIZE 16
-#define LSB(x) ((unsigned char)((x) & 0xff))
-#define MSB(x) ((unsigned char)((((unsigned short)(x))>>8) & 0xff))
-#define LSB_PORT(chan) (dev->iobase + (chan)*2)
-#define MSB_PORT(chan) (LSB_PORT(chan)+1)
-#define BITS 12
-
-/* note these have no effect and are merely here for reference..
-   these are configured by jumpering the board! */
+/* AI range is not configurable, it's set by jumpers on the board */
 static const struct comedi_lrange pcmda12_ranges = {
-	3,
-	{
-	 UNI_RANGE(5), UNI_RANGE(10), BIP_RANGE(5)
-	 }
+	3, {
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5)
+	}
 };
 
 struct pcmda12_private {
-
-	unsigned int ao_readback[CHANS];
+	unsigned int ao_readback[8];
 	int simultaneous_xfer_mode;
 };
 
-static void zero_chans(struct comedi_device *dev)
-{				/* sets up an
-				   ASIC chip to defaults */
-	int i;
-	for (i = 0; i < CHANS; ++i) {
-/*      /\* do this as one instruction?? *\/ */
-/*      outw(0, LSB_PORT(chan)); */
-		outb(0, LSB_PORT(i));
-		outb(0, MSB_PORT(i));
-	}
-	inb(LSB_PORT(0));	/* update chans. */
-}
-
-static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int pcmda12_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct pcmda12_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = devpriv->ao_readback[chan];
+	unsigned long ioreg = dev->iobase + (chan * 2);
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; ++i) {
+		val = data[i];
+		outb(val & 0xff, ioreg);
+		outb((val >> 8) & 0xff, ioreg + 1);
 
-/*      /\* do this as one instruction?? *\/ */
-/*      outw(data[i], LSB_PORT(chan)); */
-
-		/* Need to do this as two instructions due to 8-bit bus?? */
-		/*  first, load the low byte */
-		outb(LSB(data[i]), LSB_PORT(chan));
-		/*  next, write the high byte */
-		outb(MSB(data[i]), MSB_PORT(chan));
-
-		/* save shadow register */
-		devpriv->ao_readback[chan] = data[i];
-
+		/*
+		 * Initiate transfer if not in simultaneaous xfer
+		 * mode by reading one of the AO registers.
+		 */
 		if (!devpriv->simultaneous_xfer_mode)
-			inb(LSB_PORT(chan));
+			inb(ioreg);
 	}
+	devpriv->ao_readback[chan] = val;
 
-	/* return the number of samples written */
-	return i;
+	return insn->n;
 }
 
-/* AO subdevices should have a read insn as well as a write insn.
-
-   Usually this means copying a value stored in devpriv->ao_readback.
-   However, since this driver supports simultaneous xfer then sometimes
-   this function actually accomplishes work.
-
-   Simultaneaous xfer mode is accomplished by loading ALL the values
-   you want for AO in all the channels, then READing off one of the AO
-   registers to initiate the instantaneous simultaneous update of all
-   DAC outputs, which makes all AO channels update simultaneously.
-   This is useful for some control applications, I would imagine.
-*/
-static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int pcmda12_ao_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pcmda12_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
-	for (i = 0; i < insn->n; i++) {
-		if (devpriv->simultaneous_xfer_mode)
-			inb(LSB_PORT(chan));
-		/* read back shadow register */
+	/*
+	 * Initiate simultaneaous xfer mode by reading one of the
+	 * AO registers. All analog outputs will then be updated.
+	 */
+	if (devpriv->simultaneous_xfer_mode)
+		inb(dev->iobase);
+
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
-	}
 
-	return i;
+	return insn->n;
+}
+
+static void pcmda12_ao_reset(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
+{
+	int i;
+
+	for (i = 0; i < s->n_chan; ++i) {
+		outb(0, dev->iobase + (i * 2));
+		outb(0, dev->iobase + (i * 2) + 1);
+	}
+	/* Initiate transfer by reading one of the AO registers. */
+	inb(dev->iobase);
 }
 
 static int pcmda12_attach(struct comedi_device *dev,
@@ -156,7 +134,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], IOSIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
@@ -172,18 +150,17 @@ static int pcmda12_attach(struct comedi_device *dev,
 		return ret;
 
 	s = &dev->subdevices[0];
-	s->private = NULL;
-	s->maxdata = (0x1 << BITS) - 1;
-	s->range_table = &pcmda12_ranges;
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = CHANS;
-	s->insn_write = &ao_winsn;
-	s->insn_read = &ao_rinsn;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &pcmda12_ranges;
+	s->insn_write	= pcmda12_ao_insn_write;
+	s->insn_read	= pcmda12_ao_insn_read;
 
-	zero_chans(dev);	/* clear out all the registers, basically */
+	pcmda12_ao_reset(dev, s);
 
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver pcmda12_driver = {

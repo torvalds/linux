@@ -177,8 +177,6 @@ int kvmppc_core_check_processor_compat(void)
 		r = 0;
 	else if (strcmp(cur_cpu_spec->cpu_name, "e5500") == 0)
 		r = 0;
-	else if (strcmp(cur_cpu_spec->cpu_name, "e6500") == 0)
-		r = 0;
 	else
 		r = -ENOTSUPP;
 

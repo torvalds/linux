@@ -237,47 +237,4 @@ static inline void srcu_read_unlock(struct srcu_struct *sp, int idx)
 	__srcu_read_unlock(sp, idx);
 }
 
-/**
- * srcu_read_lock_raw - register a new reader for an SRCU-protected structure.
- * @sp: srcu_struct in which to register the new reader.
- *
- * Enter an SRCU read-side critical section.  Similar to srcu_read_lock(),
- * but avoids the RCU-lockdep checking.  This means that it is legal to
- * use srcu_read_lock_raw() in one context, for example, in an exception
- * handler, and then have the matching srcu_read_unlock_raw() in another
- * context, for example in the task that took the exception.
- *
- * However, the entire SRCU read-side critical section must reside within a
- * single task.  For example, beware of using srcu_read_lock_raw() in
- * a device interrupt handler and srcu_read_unlock() in the interrupted
- * task:  This will not work if interrupts are threaded.
- */
-static inline int srcu_read_lock_raw(struct srcu_struct *sp)
-{
-	unsigned long flags;
-	int ret;
-
-	local_irq_save(flags);
-	ret =  __srcu_read_lock(sp);
-	local_irq_restore(flags);
-	return ret;
-}
-
-/**
- * srcu_read_unlock_raw - unregister reader from an SRCU-protected structure.
- * @sp: srcu_struct in which to unregister the old reader.
- * @idx: return value from corresponding srcu_read_lock_raw().
- *
- * Exit an SRCU read-side critical section without lockdep-RCU checking.
- * See srcu_read_lock_raw() for more details.
- */
-static inline void srcu_read_unlock_raw(struct srcu_struct *sp, int idx)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__srcu_read_unlock(sp, idx);
-	local_irq_restore(flags);
-}
-
 #endif

@@ -4,6 +4,15 @@
 
 menu "Bus devices"
 
+config IMX_WEIM
+	bool "Freescale EIM DRIVER"
+	depends on ARCH_MXC
+	help
+	  Driver for i.MX6 WEIM controller.
+	  The WEIM(Wireless External Interface Module) works like a bus.
+	  You can attach many different devices on it, such as NOR, onenand.
+	  But now, we only support the Parallel NOR.
+
 config MVEBU_MBUS
 	bool
 	depends on PLAT_ORION
@@ -26,4 +35,11 @@ config OMAP_INTERCONNECT
 
 	help
 	  Driver to enable OMAP interconnect error handling driver.
+
+config ARM_CCI
+	bool "ARM CCI driver support"
+	depends on ARM
+	help
+	  Driver supporting the CCI cache coherent interconnect for ARM
+	  platforms.
 endmenu

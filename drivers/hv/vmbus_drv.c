@@ -434,7 +434,7 @@ static void vmbus_on_msg_dpc(unsigned long data)
 		 * will not deliver any more messages since there is
 		 * no empty slot
 		 */
-		smp_mb();
+		mb();
 
 		if (msg->header.message_flags.msg_pending) {
 			/*
@@ -563,6 +563,9 @@ static int vmbus_bus_init(int irq)
 	 */
 	hv_register_vmbus_handler(irq, vmbus_isr);
 
+	ret = hv_synic_alloc();
+	if (ret)
+		goto err_alloc;
 	/*
 	 * Initialize the per-cpu interrupt state and
 	 * connect to the host.
@@ -570,13 +573,14 @@ static int vmbus_bus_init(int irq)
 	on_each_cpu(hv_synic_init, NULL, 1);
 	ret = vmbus_connect();
 	if (ret)
-		goto err_irq;
+		goto err_alloc;
 
 	vmbus_request_offers();
 
 	return 0;
 
-err_irq:
+err_alloc:
+	hv_synic_free();
 	free_irq(irq, hv_acpi_dev);
 
 err_unregister:
@@ -686,7 +690,7 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 	if (ret)
 		pr_err("Unable to register child device\n");
 	else
-		pr_info("child device %s registered\n",
+		pr_debug("child device %s registered\n",
 			dev_name(&child_device_obj->device));
 
 	return ret;
@@ -698,14 +702,14 @@ int vmbus_device_register(struct hv_device *child_device_obj)
  */
 void vmbus_device_unregister(struct hv_device *device_obj)
 {
+	pr_debug("child device %s unregistered\n",
+		dev_name(&device_obj->device));
+
 	/*
 	 * Kick off the process of unregistering the device.
 	 * This will call vmbus_remove() and eventually vmbus_device_release()
 	 */
 	device_unregister(&device_obj->device);
-
-	pr_info("child device %s unregistered\n",
-		dev_name(&device_obj->device));
 }
 
 

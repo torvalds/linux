@@ -36,6 +36,11 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, temperature family.");
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS18S20));
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS1822));
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS18B20));
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS1825));
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS28EA00));
 
 /* Allow the strong pullup to be disabled, but default to enabled.
  * If it was disabled a parasite powered device might not get the require

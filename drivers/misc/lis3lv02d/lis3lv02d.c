@@ -831,9 +831,11 @@ static ssize_t lis3lv02d_rate_set(struct device *dev,
 {
 	struct lis3lv02d *lis3 = dev_get_drvdata(dev);
 	unsigned long rate;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &rate))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &rate);
+	if (ret)
+		return ret;
 
 	lis3lv02d_sysfs_poweron(lis3);
 	if (lis3lv02d_set_odr(lis3, rate))

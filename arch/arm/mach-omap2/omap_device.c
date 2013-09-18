@@ -129,6 +129,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	const char *oh_name;
 	int oh_cnt, i, ret = 0;
+	bool device_active = false;
 
 	oh_cnt = of_property_count_strings(node, "ti,hwmods");
 	if (oh_cnt <= 0) {
@@ -152,6 +153,8 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 			goto odbfd_exit1;
 		}
 		hwmods[i] = oh;
+		if (oh->flags & HWMOD_INIT_NO_IDLE)
+			device_active = true;
 	}
 
 	od = omap_device_alloc(pdev, hwmods, oh_cnt);
@@ -170,10 +173,12 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 			r->name = dev_name(&pdev->dev);
 	}
 
-	if (of_get_property(node, "ti,no_idle_on_suspend", NULL))
-		omap_device_disable_idle_on_suspend(pdev);
-
 	pdev->dev.pm_domain = &omap_device_pm_domain;
+
+	if (device_active) {
+		omap_device_enable(pdev);
+		pm_runtime_set_active(&pdev->dev);
+	}
 
 odbfd_exit1:
 	kfree(hwmods);
@@ -591,11 +596,6 @@ static int _od_runtime_suspend(struct device *dev)
 	return ret;
 }
 
-static int _od_runtime_idle(struct device *dev)
-{
-	return pm_generic_runtime_idle(dev);
-}
-
 static int _od_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -621,8 +621,7 @@ static int _od_suspend_noirq(struct device *dev)
 
 	if (!ret && !pm_runtime_status_suspended(dev)) {
 		if (pm_generic_runtime_suspend(dev) == 0) {
-			if (!(od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND))
-				omap_device_idle(pdev);
+			omap_device_idle(pdev);
 			od->flags |= OMAP_DEVICE_SUSPENDED;
 		}
 	}
@@ -638,8 +637,7 @@ static int _od_resume_noirq(struct device *dev)
 	if ((od->flags & OMAP_DEVICE_SUSPENDED) &&
 	    !pm_runtime_status_suspended(dev)) {
 		od->flags &= ~OMAP_DEVICE_SUSPENDED;
-		if (!(od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND))
-			omap_device_enable(pdev);
+		omap_device_enable(pdev);
 		pm_generic_runtime_resume(dev);
 	}
 
@@ -653,7 +651,7 @@ static int _od_resume_noirq(struct device *dev)
 struct dev_pm_domain omap_device_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
-				   _od_runtime_idle)
+				   NULL)
 		USE_PLATFORM_PM_SLEEP_OPS
 		.suspend_noirq = _od_suspend_noirq,
 		.resume_noirq = _od_resume_noirq,
@@ -852,6 +850,7 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
+	int i;
 
 	if (!od)
 		return 0;
@@ -860,6 +859,15 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 	 * If omap_device state is enabled, but has no driver bound,
 	 * idle it.
 	 */
+
+	/*
+	 * Some devices (like memory controllers) are always kept
+	 * enabled, and should not be idled even with no drivers.
+	 */
+	for (i = 0; i < od->hwmods_cnt; i++)
+		if (od->hwmods[i]->flags & HWMOD_INIT_NO_IDLE)
+			return 0;
+
 	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER) {
 		if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
 			dev_warn(dev, "%s: enabled but no driver.  Idling\n",

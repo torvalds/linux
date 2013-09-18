@@ -81,7 +81,7 @@ static int r8a7779_platform_cpu_kill(unsigned int cpu)
 	return ret ? ret : 1;
 }
 
-static int __cpuinit r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	struct r8a7779_pm_ch *ch = NULL;
 	int ret = -EIO;
@@ -101,8 +101,10 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 {
 	scu_enable(shmobile_scu_base);
 
-	/* Map the reset vector (in headsmp-scu.S) */
-	__raw_writel(__pa(shmobile_secondary_vector_scu), AVECR);
+	/* Map the reset vector (in headsmp-scu.S, headsmp.S) */
+	__raw_writel(__pa(shmobile_boot_vector), AVECR);
+	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
+	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
 
 	/* enable cache coherency on booting CPU */
 	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);

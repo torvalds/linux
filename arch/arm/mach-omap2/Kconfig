@@ -1,8 +1,91 @@
 config ARCH_OMAP
 	bool
 
+config ARCH_OMAP2
+	bool "TI OMAP2"
+	depends on ARCH_MULTI_V6
+	select ARCH_OMAP2PLUS
+	select CPU_V6
+	select MULTI_IRQ_HANDLER
+	select SOC_HAS_OMAP2_SDRC
+	select COMMON_CLK
+
+config ARCH_OMAP3
+	bool "TI OMAP3"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
+	select ARM_CPU_SUSPEND if PM
+	select CPU_V7
+	select MULTI_IRQ_HANDLER
+	select OMAP_INTERCONNECT
+	select PM_OPP if PM
+	select PM_RUNTIME if CPU_IDLE
+	select SOC_HAS_OMAP2_SDRC
+	select COMMON_CLK
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+
+config ARCH_OMAP4
+	bool "TI OMAP4"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
+	select ARM_CPU_SUSPEND if PM
+	select ARM_ERRATA_720789
+	select ARM_GIC
+	select CACHE_L2X0
+	select CPU_V7
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
+	select LOCAL_TIMERS if SMP
+	select OMAP_INTERCONNECT
+	select PL310_ERRATA_588369
+	select PL310_ERRATA_727915
+	select PM_OPP if PM
+	select PM_RUNTIME if CPU_IDLE
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select COMMON_CLK
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+
+config SOC_OMAP5
+	bool "TI OMAP5"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARM_CPU_SUSPEND if PM
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
+	select COMMON_CLK
+	select HAVE_ARM_ARCH_TIMER
+	select ARM_ERRATA_798181 if SMP
+
+config SOC_AM33XX
+	bool "AM33XX support"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARM_CPU_SUSPEND if PM
+	select CPU_V7
+	select MULTI_IRQ_HANDLER
+	select COMMON_CLK
+
+config SOC_AM43XX
+	bool "TI AM43x"
+	depends on ARCH_MULTI_V7
+	select CPU_V7
+	select ARCH_OMAP2PLUS
+	select MULTI_IRQ_HANDLER
+	select ARM_GIC
+	select COMMON_CLK
+	select MACH_OMAP_GENERIC
+
 config ARCH_OMAP2PLUS
-	bool "TI OMAP2/3/4/5 SoCs with device tree support" if (ARCH_MULTI_V6 || ARCH_MULTI_V7)
+	bool
+	select ARCH_HAS_BANDGAP
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_OMAP
@@ -17,6 +100,7 @@ config ARCH_OMAP2PLUS
 	select PROC_DEVICETREE if PROC_FS
 	select SOC_BUS
 	select SPARSE_IRQ
+	select TI_PRIV_EDMA
 	select USE_OF
 	help
 	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
@@ -51,68 +135,6 @@ config SOC_HAS_REALTIME_COUNTER
 	depends on SOC_OMAP5
 	default y
 
-config ARCH_OMAP2
-	bool "TI OMAP2"
-	depends on ARCH_OMAP2PLUS
-	depends on ARCH_MULTI_V6
-	default y
-	select CPU_V6
-	select MULTI_IRQ_HANDLER
-	select SOC_HAS_OMAP2_SDRC
-	select COMMON_CLK
-
-config ARCH_OMAP3
-	bool "TI OMAP3"
-	depends on ARCH_OMAP2PLUS
-	depends on ARCH_MULTI_V7
-	default y
-	select ARCH_HAS_OPP
-	select ARM_CPU_SUSPEND if PM
-	select CPU_V7
-	select MULTI_IRQ_HANDLER
-	select OMAP_INTERCONNECT
-	select PM_OPP if PM
-	select PM_RUNTIME if CPU_IDLE
-	select SOC_HAS_OMAP2_SDRC
-	select COMMON_CLK
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-
-config ARCH_OMAP4
-	bool "TI OMAP4"
-	default y
-	depends on ARCH_OMAP2PLUS
-	depends on ARCH_MULTI_V7
-	select ARCH_HAS_OPP
-	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
-	select ARM_CPU_SUSPEND if PM
-	select ARM_ERRATA_720789
-	select ARM_GIC
-	select CACHE_L2X0
-	select CPU_V7
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if LOCAL_TIMERS
-	select HAVE_SMP
-	select LOCAL_TIMERS if SMP
-	select OMAP_INTERCONNECT
-	select PL310_ERRATA_588369
-	select PL310_ERRATA_727915
-	select PM_OPP if PM
-	select PM_RUNTIME if CPU_IDLE
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-	select COMMON_CLK
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_775420
-
-config SOC_OMAP5
-	bool "TI OMAP5"
-	depends on ARCH_MULTI_V7
-	select ARM_CPU_SUSPEND if PM
-	select ARM_GIC
-	select CPU_V7
-	select HAVE_SMP
-	select COMMON_CLK
-	select HAVE_ARM_ARCH_TIMER
-
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
 
@@ -140,15 +162,6 @@ config SOC_TI81XX
 	depends on ARCH_OMAP3
 	default y
 
-config SOC_AM33XX
-	bool "AM33XX support"
-	depends on ARCH_MULTI_V7
-	default y
-	select ARM_CPU_SUSPEND if PM
-	select CPU_V7
-	select MULTI_IRQ_HANDLER
-	select COMMON_CLK
-
 config OMAP_PACKAGE_ZAF
        bool
 
@@ -165,12 +178,6 @@ config OMAP_PACKAGE_CUS
        bool
 
 config OMAP_PACKAGE_CBP
-       bool
-
-config OMAP_PACKAGE_CBL
-       bool
-
-config OMAP_PACKAGE_CBS
        bool
 
 comment "OMAP Board Type"
@@ -377,22 +384,6 @@ config MACH_TI8148EVM
 	bool "TI8148 Evaluation Module"
 	depends on SOC_TI81XX
 	default y
-
-config MACH_OMAP_4430SDP
-	bool "OMAP 4430 SDP board"
-	default y
-	depends on ARCH_OMAP4
-	select OMAP_PACKAGE_CBL
-	select OMAP_PACKAGE_CBS
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
-config MACH_OMAP4_PANDA
-	bool "OMAP4 Panda Board"
-	default y
-	depends on ARCH_OMAP4
-	select OMAP_PACKAGE_CBL
-	select OMAP_PACKAGE_CBS
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"

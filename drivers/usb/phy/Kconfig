@@ -4,11 +4,17 @@
 menuconfig USB_PHY
 	bool "USB Physical Layer drivers"
 	help
-	  USB controllers (those which are host, device or DRD) need a
-	  device to handle the physical layer signalling, commonly called
-	  a PHY.
+	  Most USB controllers have the physical layer signalling part
+	  (commonly called a PHY) built in.  However, dual-role devices
+	  (a.k.a. USB on-the-go) which support being USB master or slave
+	  with the same connector often use an external PHY.
 
-	  The following drivers add support for such PHY devices.
+	  The drivers in this submenu add support for such PHY devices.
+	  They are not needed for standard master-only (or the vast
+	  majority of slave-only) USB interfaces.
+
+	  If you're not sure if this applies to you, it probably doesn't;
+	  say N here.
 
 if USB_PHY
 
@@ -86,7 +92,7 @@ config OMAP_USB3
 	  on/off the PHY.
 
 config SAMSUNG_USBPHY
-	tristate "Samsung USB PHY Driver"
+	tristate
 	help
 	  Enable this to support Samsung USB phy helper driver for Samsung SoCs.
 	  This driver provides common interface to interact, for Samsung USB 2.0 PHY
@@ -180,15 +186,15 @@ config USB_MXS_PHY
 	  MXS Phy is used by some of the i.MX SoCs, for example imx23/28/6x.
 
 config USB_RCAR_PHY
-	tristate "Renesas R-Car USB phy support"
+	tristate "Renesas R-Car USB PHY support"
 	depends on USB || USB_GADGET
 	help
-	  Say Y here to add support for the Renesas R-Car USB phy driver.
-	  This chip is typically used as USB phy for USB host, gadget.
-	  This driver supports: R8A7779
+	  Say Y here to add support for the Renesas R-Car USB common PHY driver.
+	  This chip is typically used as USB PHY for USB host, gadget.
+	  This driver supports R8A7778 and R8A7779.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called rcar-phy.
+	  module will be called phy-rcar-usb.
 
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"

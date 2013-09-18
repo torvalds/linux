@@ -287,6 +287,10 @@ struct iscsi_session {
 	char			*targetalias;
 	char			*ifacename;
 	char			*initiatorname;
+	char			*boot_root;
+	char			*boot_nic;
+	char			*boot_target;
+
 	/* control data */
 	struct iscsi_transport	*tt;
 	struct Scsi_Host	*host;

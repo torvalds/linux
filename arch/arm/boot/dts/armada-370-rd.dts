@@ -64,6 +64,7 @@
 				pinctrl-names = "default";
 				status = "okay";
 				/* No CD or WP GPIOs */
+				broken-cd;
 			};
 
 			usb@50000 {
@@ -82,6 +83,22 @@
 					label = "Software Button";
 					linux,code = <116>;
 					gpios = <&gpio0 6 1>;
+				};
+			};
+
+			pcie-controller {
+				status = "okay";
+
+				/* Internal mini-PCIe connector */
+				pcie@1,0 {
+					/* Port 0, Lane 0 */
+					status = "okay";
+				};
+
+				/* Internal mini-PCIe connector */
+				pcie@2,0 {
+					/* Port 1, Lane 0 */
+					status = "okay";
 				};
 			};
 		};

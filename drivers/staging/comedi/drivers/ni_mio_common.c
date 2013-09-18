@@ -15,11 +15,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 /*
@@ -4077,7 +4072,6 @@ static void mio_common_detach(struct comedi_device *dev)
 			ni_gpct_device_destroy(devpriv->counter_dev);
 		}
 	}
-	comedi_spriv_free(dev, NI_8255_DIO_SUBDEV);
 }
 
 static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)

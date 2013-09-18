@@ -142,6 +142,11 @@
  */
 #define CIFS_SESS_KEY_SIZE (16)
 
+/*
+ * Size of the smb3 signing key
+ */
+#define SMB3_SIGN_KEY_SIZE (16)
+
 #define CIFS_CLIENT_CHALLENGE_SIZE (8)
 #define CIFS_SERVER_CHALLENGE_SIZE (8)
 #define CIFS_HMAC_MD5_HASH_SIZE (16)
@@ -531,7 +536,7 @@ typedef struct lanman_neg_rsp {
 #define READ_RAW_ENABLE 1
 #define WRITE_RAW_ENABLE 2
 #define RAW_ENABLE (READ_RAW_ENABLE | WRITE_RAW_ENABLE)
-
+#define SMB1_CLIENT_GUID_SIZE (16)
 typedef struct negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
 	__le16 DialectIndex; /* 0xFFFF = no dialect acceptable */
@@ -553,7 +558,7 @@ typedef struct negotiate_rsp {
 		/* followed by 16 bytes of server GUID */
 		/* then security blob if cap_extended_security negotiated */
 		struct {
-			unsigned char GUID[16];
+			unsigned char GUID[SMB1_CLIENT_GUID_SIZE];
 			unsigned char SecurityBlob[1];
 		} __attribute__((packed)) extended_response;
 	} __attribute__((packed)) u;
@@ -1314,6 +1319,14 @@ typedef struct smb_com_ntransact_rsp {
 	/* __u8 Pad[3]; */
 	/* parms and data follow */
 } __attribute__((packed)) NTRANSACT_RSP;
+
+/* See MS-SMB 2.2.7.2.1.1 */
+struct srv_copychunk {
+	__le64 SourceOffset;
+	__le64 DestinationOffset;
+	__le32 CopyLength;
+	__u32  Reserved;
+} __packed;
 
 typedef struct smb_com_transaction_ioctl_req {
 	struct smb_hdr hdr;	/* wct = 23 */

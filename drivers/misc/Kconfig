@@ -135,7 +135,7 @@ config PHANTOM
 
 config INTEL_MID_PTI
 	tristate "Parallel Trace Interface for MIPI P1149.7 cJTAG standard"
-	depends on PCI && TTY
+	depends on PCI && TTY && (X86_INTEL_MID || COMPILE_TEST)
 	default n
 	help
 	  The PTI (Parallel Trace Interface) driver directs
@@ -480,6 +480,7 @@ config BMP085_SPI
 
 config PCH_PHUB
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
+	select GENERIC_NET_UTILS
 	depends on PCI
 	help
 	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of

@@ -19,7 +19,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/cputype.h>
-#include <mach/edma.h>
 #include <mach/psc.h>
 #include <mach/mux.h>
 #include <mach/irqs.h>
@@ -28,6 +27,7 @@
 #include <mach/common.h>
 #include <linux/platform_data/spi-davinci.h>
 #include <mach/gpio-davinci.h>
+#include <linux/platform_data/edma.h>
 
 #include "davinci.h"
 #include "clock.h"
@@ -569,7 +569,7 @@ static u8 dm355_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 
 /*----------------------------------------------------------------------*/
 
-static const s8
+static s8
 queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
 	{0, 0},
@@ -577,7 +577,7 @@ queue_tc_mapping[][2] = {
 	{-1, -1},
 };
 
-static const s8
+static s8
 queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 3},
@@ -860,7 +860,7 @@ static struct platform_device dm355_vpbe_display = {
 	},
 };
 
-struct venc_platform_data dm355_venc_pdata = {
+static struct venc_platform_data dm355_venc_pdata = {
 	.setup_pinmux	= dm355_vpbe_setup_pinmux,
 	.setup_clock	= dm355_venc_setup_clock,
 };

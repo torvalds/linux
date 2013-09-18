@@ -44,6 +44,20 @@
 static DEFINE_SPINLOCK(tegra_lp2_lock);
 void (*tegra_tear_down_cpu)(void);
 
+static void tegra_tear_down_cpu_init(void)
+{
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
+			tegra_tear_down_cpu = tegra20_tear_down_cpu;
+		break;
+	case TEGRA30:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC))
+			tegra_tear_down_cpu = tegra30_tear_down_cpu;
+		break;
+	}
+}
+
 /*
  * restore_cpu_complex
  *
@@ -91,8 +105,9 @@ static void suspend_cpu_complex(void)
 	flowctrl_cpu_suspend_enter(cpu);
 }
 
-void tegra_clear_cpu_in_lp2(int phy_cpu_id)
+void tegra_clear_cpu_in_lp2(void)
 {
+	int phy_cpu_id = cpu_logical_map(smp_processor_id());
 	u32 *cpu_in_lp2 = tegra_cpu_lp2_mask;
 
 	spin_lock(&tegra_lp2_lock);
@@ -103,8 +118,9 @@ void tegra_clear_cpu_in_lp2(int phy_cpu_id)
 	spin_unlock(&tegra_lp2_lock);
 }
 
-bool tegra_set_cpu_in_lp2(int phy_cpu_id)
+bool tegra_set_cpu_in_lp2(void)
 {
+	int phy_cpu_id = cpu_logical_map(smp_processor_id());
 	bool last_cpu = false;
 	cpumask_t *cpu_lp2_mask = tegra_cpu_lp2_mask;
 	u32 *cpu_in_lp2 = tegra_cpu_lp2_mask;
@@ -175,7 +191,7 @@ static const char *lp_state[TEGRA_MAX_SUSPEND_MODE] = {
 	[TEGRA_SUSPEND_LP0] = "LP0",
 };
 
-static int __cpuinit tegra_suspend_enter(suspend_state_t state)
+static int tegra_suspend_enter(suspend_state_t state)
 {
 	enum tegra_suspend_mode mode = tegra_pmc_get_suspend_mode();
 
@@ -192,7 +208,7 @@ static int __cpuinit tegra_suspend_enter(suspend_state_t state)
 	suspend_cpu_complex();
 	switch (mode) {
 	case TEGRA_SUSPEND_LP2:
-		tegra_set_cpu_in_lp2(0);
+		tegra_set_cpu_in_lp2();
 		break;
 	default:
 		break;
@@ -202,7 +218,7 @@ static int __cpuinit tegra_suspend_enter(suspend_state_t state)
 
 	switch (mode) {
 	case TEGRA_SUSPEND_LP2:
-		tegra_clear_cpu_in_lp2(0);
+		tegra_clear_cpu_in_lp2();
 		break;
 	default:
 		break;
@@ -224,6 +240,7 @@ void __init tegra_init_suspend(void)
 	if (tegra_pmc_get_suspend_mode() == TEGRA_SUSPEND_NONE)
 		return;
 
+	tegra_tear_down_cpu_init();
 	tegra_pmc_suspend_init();
 
 	suspend_set_ops(&tegra_suspend_ops);

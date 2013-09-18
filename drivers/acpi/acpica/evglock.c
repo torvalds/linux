@@ -128,6 +128,7 @@ acpi_status acpi_ev_remove_global_lock_handler(void)
 	status = acpi_remove_fixed_event_handler(ACPI_EVENT_GLOBAL,
 						 acpi_ev_global_lock_handler);
 
+	acpi_os_delete_lock(acpi_gbl_global_lock_pending_lock);
 	return_ACPI_STATUS(status);
 }
 

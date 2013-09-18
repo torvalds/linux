@@ -215,16 +215,21 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(REPLY_RX_PHY_CMD, iwl_mvm_rx_rx_phy_cmd, false),
 	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, false),
 	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, false),
+
+	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif, true),
+	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif, false),
+	RX_HANDLER(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics, true),
+
 	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_notif, false),
 
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, false),
 
-	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif, true),
-	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif, false),
-
 	RX_HANDLER(RADIO_VERSION_NOTIFICATION, iwl_mvm_rx_radio_ver, false),
 	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif, false),
+
+	RX_HANDLER(MISSED_BEACONS_NOTIFICATION, iwl_mvm_rx_missed_beacons_notif,
+		   false),
 
 	RX_HANDLER(REPLY_ERROR, iwl_mvm_rx_fw_error, false),
 };
@@ -288,11 +293,14 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(NET_DETECT_HOTSPOTS_CMD),
 	CMD(NET_DETECT_HOTSPOTS_QUERY_CMD),
 	CMD(CARD_STATE_NOTIFICATION),
+	CMD(MISSED_BEACONS_NOTIFICATION),
 	CMD(BT_COEX_PRIO_TABLE),
 	CMD(BT_COEX_PROT_ENV),
 	CMD(BT_PROFILE_NOTIFICATION),
 	CMD(BT_CONFIG),
 	CMD(MCAST_FILTER_CMD),
+	CMD(REPLY_BEACON_FILTERING_CMD),
+	CMD(REPLY_THERMAL_MNG_BACKOFF),
 };
 #undef CMD
 
@@ -393,10 +401,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (err)
 		goto out_free;
 
+	iwl_mvm_tt_initialize(mvm);
+
 	mutex_lock(&mvm->mutex);
 	err = iwl_run_init_mvm_ucode(mvm, true);
 	mutex_unlock(&mvm->mutex);
-	if (err && !iwlmvm_mod_params.init_dbg) {
+	/* returns 0 if successful, 1 if success but in rfkill */
+	if (err < 0 && !iwlmvm_mod_params.init_dbg) {
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
 		goto out_free;
 	}
@@ -439,9 +450,15 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 
 	iwl_mvm_leds_exit(mvm);
 
+	iwl_mvm_tt_exit(mvm);
+
 	ieee80211_unregister_hw(mvm->hw);
 
 	kfree(mvm->scan_cmd);
+
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
+	kfree(mvm->d3_resume_sram);
+#endif
 
 	iwl_trans_stop_hw(mvm->trans, true);
 
@@ -589,6 +606,16 @@ static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	ieee80211_wake_queue(mvm->hw, mq);
 }
 
+void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
+{
+	if (state)
+		set_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status);
+	else
+		clear_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status);
+
+	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, iwl_mvm_is_radio_killed(mvm));
+}
+
 static void iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
@@ -598,7 +625,7 @@ static void iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	else
 		clear_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
 
-	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, state);
+	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, iwl_mvm_is_radio_killed(mvm));
 }
 
 static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)

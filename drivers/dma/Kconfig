@@ -79,25 +79,7 @@ config INTEL_IOP_ADMA
 	help
 	  Enable support for the Intel(R) IOP Series RAID engines.
 
-config DW_DMAC
-	tristate "Synopsys DesignWare AHB DMA support"
-	depends on GENERIC_HARDIRQS
-	select DMA_ENGINE
-	default y if CPU_AT32AP7000
-	help
-	  Support the Synopsys DesignWare AHB DMA controller.  This
-	  can be integrated in chips such as the Atmel AT32ap7000.
-
-config DW_DMAC_BIG_ENDIAN_IO
-	bool "Use big endian I/O register access"
-	default y if AVR32
-	depends on DW_DMAC
-	help
-	  Say yes here to use big endian I/O access when reading and writing
-	  to the DMA controller registers. This is needed on some platforms,
-	  like the Atmel AVR32 architecture.
-
-	  If unsure, use the default setting.
+source "drivers/dma/dw/Kconfig"
 
 config AT_HDMAC
 	tristate "Atmel AHB DMA support"
@@ -212,8 +194,8 @@ config SIRF_DMA
 	  Enable support for the CSR SiRFprimaII DMA engine.
 
 config TI_EDMA
-	tristate "TI EDMA support"
-	depends on ARCH_DAVINCI
+	bool "TI EDMA support"
+	depends on ARCH_DAVINCI || ARCH_OMAP
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	default n
@@ -311,6 +293,12 @@ config MMP_PDMA
 	select DMA_ENGINE
 	help
 	  Support the MMP PDMA engine for PXA and MMP platfrom.
+
+config DMA_JZ4740
+	tristate "JZ4740 DMA support"
+	depends on MACH_JZ4740
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 
 config DMA_ENGINE
 	bool

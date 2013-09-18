@@ -4996,7 +4996,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 
 	snprintf(phba->wq_name, sizeof(phba->wq_name), "beiscsi_%02x_wq",
 		 phba->shost->host_no);
-	phba->wq = alloc_workqueue(phba->wq_name, WQ_MEM_RECLAIM, 1);
+	phba->wq = alloc_workqueue("%s", WQ_MEM_RECLAIM, 1, phba->wq_name);
 	if (!phba->wq) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 			    "BM_%d : beiscsi_dev_probe-"

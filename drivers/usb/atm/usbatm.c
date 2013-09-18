@@ -1020,7 +1020,7 @@ static int usbatm_heavy_init(struct usbatm_data *instance)
 {
 	struct task_struct *t;
 
-	t = kthread_create(usbatm_do_heavy_init, instance,
+	t = kthread_create(usbatm_do_heavy_init, instance, "%s",
 			instance->driver->driver_name);
 	if (IS_ERR(t)) {
 		usb_err(instance, "%s: failed to create kernel_thread (%ld)!\n",
@@ -1076,7 +1076,8 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	/* public fields */
 
 	instance->driver = driver;
-	snprintf(instance->driver_name, sizeof(instance->driver_name), driver->driver_name);
+	strlcpy(instance->driver_name, driver->driver_name,
+		sizeof(instance->driver_name));
 
 	instance->usb_dev = usb_dev;
 	instance->usb_intf = intf;

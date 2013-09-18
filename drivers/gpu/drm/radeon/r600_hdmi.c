@@ -133,14 +133,7 @@ static void r600_hdmi_update_avi_infoframe(struct drm_encoder *encoder,
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	uint32_t offset = dig->afmt->offset;
 	uint8_t *frame = buffer + 3;
-
-	/* Our header values (type, version, length) should be alright, Intel
-	 * is using the same. Checksum function also seems to be OK, it works
-	 * fine for audio infoframe. However calculated value is always lower
-	 * by 2 in comparison to fglrx. It breaks displaying anything in case
-	 * of TVs that strictly check the checksum. Hack it manually here to
-	 * workaround this issue. */
-	frame[0x0] += 2;
+	uint8_t *header = buffer;
 
 	WREG32(HDMI0_AVI_INFO0 + offset,
 		frame[0x0] | (frame[0x1] << 8) | (frame[0x2] << 16) | (frame[0x3] << 24));
@@ -149,7 +142,7 @@ static void r600_hdmi_update_avi_infoframe(struct drm_encoder *encoder,
 	WREG32(HDMI0_AVI_INFO2 + offset,
 		frame[0x8] | (frame[0x9] << 8) | (frame[0xA] << 16) | (frame[0xB] << 24));
 	WREG32(HDMI0_AVI_INFO3 + offset,
-		frame[0xC] | (frame[0xD] << 8));
+		frame[0xC] | (frame[0xD] << 8) | (header[1] << 24));
 }
 
 /*
@@ -233,9 +226,28 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	u32 base_rate = 24000;
+	u32 max_ratio = clock / base_rate;
+	u32 dto_phase;
+	u32 dto_modulo = clock;
+	u32 wallclock_ratio;
+	u32 dto_cntl;
 
 	if (!dig || !dig->afmt)
 		return;
+
+	if (max_ratio >= 8) {
+		dto_phase = 192 * 1000;
+		wallclock_ratio = 3;
+	} else if (max_ratio >= 4) {
+		dto_phase = 96 * 1000;
+		wallclock_ratio = 2;
+	} else if (max_ratio >= 2) {
+		dto_phase = 48 * 1000;
+		wallclock_ratio = 1;
+	} else {
+		dto_phase = 24 * 1000;
+		wallclock_ratio = 0;
+	}
 
 	/* there are two DTOs selected by DCCG_AUDIO_DTO_SELECT.
 	 * doesn't matter which one you use.  Just use the first one.
@@ -249,9 +261,21 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 		/* according to the reg specs, this should DCE3.2 only, but in
 		 * practice it seems to cover DCE3.0 as well.
 		 */
-		WREG32(DCCG_AUDIO_DTO0_PHASE, base_rate * 100);
-		WREG32(DCCG_AUDIO_DTO0_MODULE, clock * 100);
-		WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
+		if (dig->dig_encoder == 0) {
+			dto_cntl = RREG32(DCCG_AUDIO_DTO0_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
+			dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
+			WREG32(DCCG_AUDIO_DTO0_CNTL, dto_cntl);
+			WREG32(DCCG_AUDIO_DTO0_PHASE, dto_phase);
+			WREG32(DCCG_AUDIO_DTO0_MODULE, dto_modulo);
+			WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
+		} else {
+			dto_cntl = RREG32(DCCG_AUDIO_DTO1_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
+			dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
+			WREG32(DCCG_AUDIO_DTO1_CNTL, dto_cntl);
+			WREG32(DCCG_AUDIO_DTO1_PHASE, dto_phase);
+			WREG32(DCCG_AUDIO_DTO1_MODULE, dto_modulo);
+			WREG32(DCCG_AUDIO_DTO_SELECT, 1); /* select DTO1 */
+		}
 	} else {
 		/* according to the reg specs, this should be DCE2.0 and DCE3.0 */
 		WREG32(AUDIO_DTO, AUDIO_DTO_PHASE(base_rate / 10) |
@@ -272,6 +296,9 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
 	ssize_t err;
+
+	if (!dig || !dig->afmt)
+		return;
 
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (!dig->afmt->enabled)
@@ -454,6 +481,9 @@ void r600_hdmi_enable(struct drm_encoder *encoder, bool enable)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	u32 hdmi = HDMI0_ERROR_ACK;
+
+	if (!dig || !dig->afmt)
+		return;
 
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (enable && dig->afmt->enabled)

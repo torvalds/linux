@@ -22,10 +22,10 @@
 #define RAMEND CONFIG_BLKDEV_RESERVE_ADDRESS
 #endif
 	
-	.global SYMBOL_NAME(_start)
-	.global SYMBOL_NAME(command_line)
-	.global SYMBOL_NAME(_platform_gpio_table)
-	.global SYMBOL_NAME(_target_name)
+	.global __start
+	.global _command_line
+	.global __platform_gpio_table
+	.global __target_name
 	
 	.h8300h
 
@@ -33,7 +33,7 @@
 	.file	"crt0_ram.S"
 
 	/* CPU Reset entry */
-SYMBOL_NAME_LABEL(_start)
+__start:
 	mov.l	#RAMEND,sp
 	ldc	#0x80,ccr
 
@@ -59,13 +59,13 @@ SYMBOL_NAME_LABEL(_start)
 
 	/* copy kernel commandline */
 	mov.l	#COMMAND_START,er5
-	mov.l	#SYMBOL_NAME(command_line),er6
+	mov.l	#_command_line,er6
 	mov.w	#512,r4
 	eepmov.w
 
 	/* uClinux kernel start */
 	ldc	#0x90,ccr	/* running kernel */
-	mov.l	#SYMBOL_NAME(init_thread_union),sp
+	mov.l	#_init_thread_union,sp
 	add.l	#0x2000,sp
 	jsr	@_start_kernel
 _exit:
@@ -107,4 +107,4 @@ __target_name:
 	.asciz	"AE-3068"
 	
 	.section .bootvec,"ax"
-	jmp	@SYMBOL_NAME(_start)
+	jmp	@__start

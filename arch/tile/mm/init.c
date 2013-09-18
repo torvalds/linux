@@ -562,7 +562,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 			prot = ktext_set_nocache(prot);
 		}
 
-		BUG_ON(address != (unsigned long)_stext);
+		BUG_ON(address != (unsigned long)_text);
 		pte = NULL;
 		for (; address < (unsigned long)_einittext;
 		     pfn++, address += PAGE_SIZE) {
@@ -720,7 +720,7 @@ static void __init init_free_pfn_range(unsigned long start, unsigned long end)
 		}
 		init_page_count(page);
 		__free_pages(page, order);
-		totalram_pages += count;
+		adjust_managed_page_count(page, count);
 
 		page += count;
 		pfn += count;
@@ -821,7 +821,6 @@ static void __init set_max_mapnr_init(void)
 
 void __init mem_init(void)
 {
-	int codesize, datasize, initsize;
 	int i;
 #ifndef __tilegx__
 	void *last;
@@ -846,26 +845,14 @@ void __init mem_init(void)
 	set_max_mapnr_init();
 
 	/* this will put all bootmem onto the freelists */
-	totalram_pages += free_all_bootmem();
+	free_all_bootmem();
 
 #ifndef CONFIG_64BIT
 	/* count all remaining LOWMEM and give all HIGHMEM to page allocator */
 	set_non_bootmem_pages_init();
 #endif
 
-	codesize =  (unsigned long)&_etext - (unsigned long)&_text;
-	datasize =  (unsigned long)&_end - (unsigned long)&_sdata;
-	initsize =  (unsigned long)&_einittext - (unsigned long)&_sinittext;
-	initsize += (unsigned long)&_einitdata - (unsigned long)&_sinitdata;
-
-	pr_info("Memory: %luk/%luk available (%dk kernel code, %dk data, %dk init, %ldk highmem)\n",
-		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
-		num_physpages << (PAGE_SHIFT-10),
-		codesize >> 10,
-		datasize >> 10,
-		initsize >> 10,
-		(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10))
-	       );
+	mem_init_print_info(NULL);
 
 	/*
 	 * In debug mode, dump some interesting memory mappings.
@@ -1024,16 +1011,13 @@ static void free_init_pages(char *what, unsigned long begin, unsigned long end)
 			pte_clear(&init_mm, addr, ptep);
 			continue;
 		}
-		__ClearPageReserved(page);
-		init_page_count(page);
 		if (pte_huge(*ptep))
 			BUG_ON(!kdata_huge);
 		else
 			set_pte_at(&init_mm, addr, ptep,
 				   pfn_pte(pfn, PAGE_KERNEL));
 		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		free_page(addr);
-		totalram_pages++;
+		free_reserved_page(page);
 	}
 	pr_info("Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
 }

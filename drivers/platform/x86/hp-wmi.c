@@ -55,6 +55,7 @@ MODULE_ALIAS("wmi:5FB7F034-2C63-45e9-BE91-3D44E2C707E4");
 #define HPWMI_WIRELESS_QUERY 0x5
 #define HPWMI_HOTKEY_QUERY 0xc
 #define HPWMI_WIRELESS2_QUERY 0x1b
+#define HPWMI_POSTCODEERROR_QUERY 0x2a
 
 enum hp_wmi_radio {
 	HPWMI_WIFI = 0,
@@ -386,6 +387,16 @@ static int hp_wmi_rfkill2_refresh(void)
 	return 0;
 }
 
+static int hp_wmi_post_code_state(void)
+{
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_POSTCODEERROR_QUERY, 0, &state,
+				       sizeof(state), sizeof(state));
+	if (ret)
+		return -EINVAL;
+	return state;
+}
+
 static ssize_t show_display(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
@@ -431,6 +442,16 @@ static ssize_t show_tablet(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", value);
 }
 
+static ssize_t show_postcode(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	/* Get the POST error code of previous boot failure. */
+	int value = hp_wmi_post_code_state();
+	if (value < 0)
+		return -EINVAL;
+	return sprintf(buf, "0x%x\n", value);
+}
+
 static ssize_t set_als(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
@@ -443,11 +464,33 @@ static ssize_t set_als(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t set_postcode(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
+{
+	int ret;
+	u32 tmp;
+	long unsigned int tmp2;
+
+	ret = kstrtoul(buf, 10, &tmp2);
+	if (ret || tmp2 != 1)
+		return -EINVAL;
+
+	/* Clear the POST error code. It is kept until until cleared. */
+	tmp = (u32) tmp2;
+	ret = hp_wmi_perform_query(HPWMI_POSTCODEERROR_QUERY, 1, &tmp,
+				       sizeof(tmp), sizeof(tmp));
+	if (ret)
+		return -EINVAL;
+
+	return count;
+}
+
 static DEVICE_ATTR(display, S_IRUGO, show_display, NULL);
 static DEVICE_ATTR(hddtemp, S_IRUGO, show_hddtemp, NULL);
 static DEVICE_ATTR(als, S_IRUGO | S_IWUSR, show_als, set_als);
 static DEVICE_ATTR(dock, S_IRUGO, show_dock, NULL);
 static DEVICE_ATTR(tablet, S_IRUGO, show_tablet, NULL);
+static DEVICE_ATTR(postcode, S_IRUGO | S_IWUSR, show_postcode, set_postcode);
 
 static void hp_wmi_notify(u32 value, void *context)
 {
@@ -628,6 +671,7 @@ static void cleanup_sysfs(struct platform_device *device)
 	device_remove_file(&device->dev, &dev_attr_als);
 	device_remove_file(&device->dev, &dev_attr_dock);
 	device_remove_file(&device->dev, &dev_attr_tablet);
+	device_remove_file(&device->dev, &dev_attr_postcode);
 }
 
 static int hp_wmi_rfkill_setup(struct platform_device *device)
@@ -843,6 +887,9 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 	if (err)
 		goto add_sysfs_error;
 	err = device_create_file(&device->dev, &dev_attr_tablet);
+	if (err)
+		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_postcode);
 	if (err)
 		goto add_sysfs_error;
 	return 0;

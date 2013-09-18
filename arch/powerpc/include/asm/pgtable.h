@@ -198,9 +198,6 @@ extern void paging_init(void);
  */
 #define kern_addr_valid(addr)	(1)
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 #include <asm-generic/pgtable.h>
 
 
@@ -220,6 +217,12 @@ extern int gup_hugepd(hugepd_t *hugepd, unsigned pdshift, unsigned long addr,
 
 extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 		       unsigned long end, int write, struct page **pages, int *nr);
+#ifndef CONFIG_TRANSPARENT_HUGEPAGE
+#define pmd_large(pmd)		0
+#define has_transparent_hugepage() 0
+#endif
+pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+				 unsigned *shift);
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

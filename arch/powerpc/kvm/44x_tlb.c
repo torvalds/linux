@@ -441,6 +441,7 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	struct kvmppc_44x_tlbe *tlbe;
 	unsigned int gtlb_index;
+	int idx;
 
 	gtlb_index = kvmppc_get_gpr(vcpu, ra);
 	if (gtlb_index >= KVM44x_GUEST_TLB_SIZE) {
@@ -473,6 +474,8 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 		return EMULATE_FAIL;
 	}
 
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 	if (tlbe_is_host_safe(vcpu, tlbe)) {
 		gva_t eaddr;
 		gpa_t gpaddr;
@@ -488,6 +491,8 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 
 		kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlb_index);
 	}
+
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 	trace_kvm_gtlb_write(gtlb_index, tlbe->tid, tlbe->word0, tlbe->word1,
 			     tlbe->word2);

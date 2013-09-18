@@ -84,10 +84,8 @@ static int bL_cpufreq_set_target(struct cpufreq_policy *policy,
 	ret = clk_set_rate(clk[cur_cluster], freqs.new * 1000);
 	if (ret) {
 		pr_err("clk_set_rate failed: %d\n", ret);
-		return ret;
+		freqs.new = freqs.old;
 	}
-
-	policy->cur = freqs.new;
 
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 

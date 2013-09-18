@@ -643,7 +643,8 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode)->pnfs_curr_ld,
 				   NFS_SERVER(lo->plh_inode)->nfs_client, id);
 	if (d == NULL) {
-		dsaddr = filelayout_get_device_info(lo->plh_inode, id, gfp_flags);
+		dsaddr = filelayout_get_device_info(lo->plh_inode, id,
+				lo->plh_lc_cred, gfp_flags);
 		if (dsaddr == NULL)
 			goto out;
 	} else

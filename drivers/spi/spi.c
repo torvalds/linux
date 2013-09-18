@@ -223,7 +223,7 @@ static const struct dev_pm_ops spi_pm = {
 	SET_RUNTIME_PM_OPS(
 		pm_generic_runtime_suspend,
 		pm_generic_runtime_resume,
-		pm_generic_runtime_idle
+		NULL
 	)
 };
 
@@ -601,7 +601,7 @@ static int spi_init_queue(struct spi_master *master)
 
 	init_kthread_worker(&master->kworker);
 	master->kworker_task = kthread_run(kthread_worker_fn,
-					   &master->kworker,
+					   &master->kworker, "%s",
 					   dev_name(&master->dev));
 	if (IS_ERR(master->kworker_task)) {
 		dev_err(&master->dev, "failed to create message pump task\n");

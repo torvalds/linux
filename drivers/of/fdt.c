@@ -392,6 +392,8 @@ static void __unflatten_device_tree(struct boot_param_header *blob,
 	mem = (unsigned long)
 		dt_alloc(size + 4, __alignof__(struct device_node));
 
+	memset((void *)mem, 0, size);
+
 	((__be32 *)mem)[size / 4] = cpu_to_be32(0xdeadbeef);
 
 	pr_debug("  unflattening %lx...\n", mem);
@@ -709,7 +711,7 @@ void __init unflatten_device_tree(void)
 	__unflatten_device_tree(initial_boot_params, &of_allnodes,
 				early_init_dt_alloc_memory_arch);
 
-	/* Get pointer to "/chosen" and "/aliasas" nodes for use everywhere */
+	/* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
 	of_alias_scan(early_init_dt_alloc_memory_arch);
 }
 

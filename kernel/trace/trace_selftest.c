@@ -640,12 +640,19 @@ out:
  * Enable ftrace, sleep 1/10 second, and then read the trace
  * buffer to see if all is in order.
  */
-int
+__init int
 trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 {
 	int save_ftrace_enabled = ftrace_enabled;
 	unsigned long count;
 	int ret;
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+	if (ftrace_filter_param) {
+		printk(KERN_CONT " ... kernel command line filter set: force PASS ... ");
+		return 0;
+	}
+#endif
 
 	/* make sure msleep has been recorded */
 	msleep(1);
@@ -727,12 +734,19 @@ static int trace_graph_entry_watchdog(struct ftrace_graph_ent *trace)
  * Pretty much the same than for the function tracer from which the selftest
  * has been borrowed.
  */
-int
+__init int
 trace_selftest_startup_function_graph(struct tracer *trace,
 					struct trace_array *tr)
 {
 	int ret;
 	unsigned long count;
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+	if (ftrace_filter_param) {
+		printk(KERN_CONT " ... kernel command line filter set: force PASS ... ");
+		return 0;
+	}
+#endif
 
 	/*
 	 * Simulate the init() callback but we attach a watchdog callback

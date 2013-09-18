@@ -115,6 +115,9 @@ static struct vmbus_channel *alloc_channel(void)
 		return NULL;
 
 	spin_lock_init(&channel->inbound_lock);
+	spin_lock_init(&channel->sc_lock);
+
+	INIT_LIST_HEAD(&channel->sc_list);
 
 	channel->controlwq = create_workqueue("hv_vmbus_ctl");
 	if (!channel->controlwq) {
@@ -166,6 +169,7 @@ static void vmbus_process_rescind_offer(struct work_struct *work)
 						     struct vmbus_channel,
 						     work);
 	unsigned long flags;
+	struct vmbus_channel *primary_channel;
 	struct vmbus_channel_relid_released msg;
 
 	vmbus_device_unregister(channel->device_obj);
@@ -174,9 +178,16 @@ static void vmbus_process_rescind_offer(struct work_struct *work)
 	msg.header.msgtype = CHANNELMSG_RELID_RELEASED;
 	vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released));
 
-	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
-	list_del(&channel->listentry);
-	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+	if (channel->primary_channel == NULL) {
+		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
+		list_del(&channel->listentry);
+		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+	} else {
+		primary_channel = channel->primary_channel;
+		spin_lock_irqsave(&primary_channel->sc_lock, flags);
+		list_del(&channel->listentry);
+		spin_unlock_irqrestore(&primary_channel->sc_lock, flags);
+	}
 	free_channel(channel);
 }
 
@@ -228,6 +239,24 @@ static void vmbus_process_offer(struct work_struct *work)
 	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
 	if (!fnew) {
+		/*
+		 * Check to see if this is a sub-channel.
+		 */
+		if (newchannel->offermsg.offer.sub_channel_index != 0) {
+			/*
+			 * Process the sub-channel.
+			 */
+			newchannel->primary_channel = channel;
+			spin_lock_irqsave(&channel->sc_lock, flags);
+			list_add_tail(&newchannel->sc_list, &channel->sc_list);
+			spin_unlock_irqrestore(&channel->sc_lock, flags);
+			newchannel->state = CHANNEL_OPEN_STATE;
+			if (channel->sc_creation_callback != NULL)
+				channel->sc_creation_callback(newchannel);
+
+			return;
+		}
+
 		free_channel(newchannel);
 		return;
 	}
@@ -685,4 +714,86 @@ cleanup:
 	return ret;
 }
 
-/* eof */
+/*
+ * Retrieve the (sub) channel on which to send an outgoing request.
+ * When a primary channel has multiple sub-channels, we choose a
+ * channel whose VCPU binding is closest to the VCPU on which
+ * this call is being made.
+ */
+struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
+{
+	struct list_head *cur, *tmp;
+	int cur_cpu = hv_context.vp_index[smp_processor_id()];
+	struct vmbus_channel *cur_channel;
+	struct vmbus_channel *outgoing_channel = primary;
+	int cpu_distance, new_cpu_distance;
+
+	if (list_empty(&primary->sc_list))
+		return outgoing_channel;
+
+	list_for_each_safe(cur, tmp, &primary->sc_list) {
+		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
+		if (cur_channel->state != CHANNEL_OPENED_STATE)
+			continue;
+
+		if (cur_channel->target_vp == cur_cpu)
+			return cur_channel;
+
+		cpu_distance = ((outgoing_channel->target_vp > cur_cpu) ?
+				(outgoing_channel->target_vp - cur_cpu) :
+				(cur_cpu - outgoing_channel->target_vp));
+
+		new_cpu_distance = ((cur_channel->target_vp > cur_cpu) ?
+				(cur_channel->target_vp - cur_cpu) :
+				(cur_cpu - cur_channel->target_vp));
+
+		if (cpu_distance < new_cpu_distance)
+			continue;
+
+		outgoing_channel = cur_channel;
+	}
+
+	return outgoing_channel;
+}
+EXPORT_SYMBOL_GPL(vmbus_get_outgoing_channel);
+
+static void invoke_sc_cb(struct vmbus_channel *primary_channel)
+{
+	struct list_head *cur, *tmp;
+	struct vmbus_channel *cur_channel;
+
+	if (primary_channel->sc_creation_callback == NULL)
+		return;
+
+	list_for_each_safe(cur, tmp, &primary_channel->sc_list) {
+		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
+
+		primary_channel->sc_creation_callback(cur_channel);
+	}
+}
+
+void vmbus_set_sc_create_callback(struct vmbus_channel *primary_channel,
+				void (*sc_cr_cb)(struct vmbus_channel *new_sc))
+{
+	primary_channel->sc_creation_callback = sc_cr_cb;
+}
+EXPORT_SYMBOL_GPL(vmbus_set_sc_create_callback);
+
+bool vmbus_are_subchannels_present(struct vmbus_channel *primary)
+{
+	bool ret;
+
+	ret = !list_empty(&primary->sc_list);
+
+	if (ret) {
+		/*
+		 * Invoke the callback on sub-channel creation.
+		 * This will present a uniform interface to the
+		 * clients.
+		 */
+		invoke_sc_cb(primary);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vmbus_are_subchannels_present);

@@ -253,19 +253,7 @@ static struct pci_driver whci_driver = {
 	.remove   = whci_remove,
 };
 
-static int __init whci_init(void)
-{
-	return pci_register_driver(&whci_driver);
-}
-
-static void __exit whci_exit(void)
-{
-	pci_unregister_driver(&whci_driver);
-}
-
-module_init(whci_init);
-module_exit(whci_exit);
-
+module_pci_driver(whci_driver);
 MODULE_DESCRIPTION("WHCI UWB Multi-interface Controller enumerator");
 MODULE_AUTHOR("Cambridge Silicon Radio Ltd.");
 MODULE_LICENSE("GPL");

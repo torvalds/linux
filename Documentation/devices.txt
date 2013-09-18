@@ -100,8 +100,7 @@ Your cooperation is appreciated.
 		 10 = /dev/aio		Asynchronous I/O notification interface
 		 11 = /dev/kmsg		Writes to this come out as printk's, reads
 					export the buffered printk records.
-		 12 = /dev/oldmem	Used by crashdump kernels to access
-					the memory of the kernel that crashed.
+		 12 = /dev/oldmem	OBSOLETE - replaced by /proc/vmcore
 
   1 block	RAM disk
 		  0 = /dev/ram0		First RAM disk
@@ -498,12 +497,8 @@ Your cooperation is appreciated.
 
 		Each device type has 5 bits (32 minors).
 
- 13 block	8-bit MFM/RLL/IDE controller
-		  0 = /dev/xda		First XT disk whole disk
-		 64 = /dev/xdb		Second XT disk whole disk
-
-		Partitions are handled in the same way as IDE disks
-		(see major number 3).
+ 13 block	Previously used for the XT disk (/dev/xdN)
+		Deleted in kernel v3.9.
 
  14 char	Open Sound System (OSS)
 		  0 = /dev/mixer	Mixer control

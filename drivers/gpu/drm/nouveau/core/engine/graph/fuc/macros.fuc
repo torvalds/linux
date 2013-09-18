@@ -1,0 +1,89 @@
+/*
+ * Copyright 2013 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
+ */
+
+#include "os.h"
+
+#define GF100 0xc0
+#define GF117 0xd7
+#define GK100 0xe0
+#define GK110 0xf0
+
+#define NV_PGRAPH_FECS_SIGNAL                                          0x409400
+#if CHIPSET < GK110
+#define NV_PGRAPH_FECS_CC_SCRATCH_VAL(n)                    ((n) * 4 + 0x409800)
+#define NV_PGRAPH_FECS_CC_SCRATCH_SET(n)                    ((n) * 4 + 0x409820)
+#define NV_PGRAPH_FECS_CC_SCRATCH_CLR(n)                    ((n) * 4 + 0x409840)
+#else
+#define NV_PGRAPH_FECS_CC_SCRATCH_VAL(n)                    ((n) * 4 + 0x409800)
+#define NV_PGRAPH_FECS_CC_SCRATCH_CLR(n)                    ((n) * 4 + 0x409840)
+#define NV_PGRAPH_FECS_CC_SCRATCH_SET(n)                    ((n) * 4 + 0x4098c0)
+#endif
+#define NV_PGRAPH_FECS_INTR_UP_SET                                     0x409c1c
+
+#if CHIPSET < GK110
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(n)              ((n) * 4 + 0x41a800)
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_SET(n)              ((n) * 4 + 0x41a820)
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_CLR(n)              ((n) * 4 + 0x41a840)
+#else
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(n)              ((n) * 4 + 0x41a800)
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_CLR(n)              ((n) * 4 + 0x41a840)
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_SET(n)              ((n) * 4 + 0x41a8c0)
+#endif
+
+#define mmctx_data(r,c) .b32 (((c - 1) << 26) | r)
+#define queue_init      .skip 72 // (2 * 4) + ((8 * 4) * 2)
+
+#define T_WAIT    0
+#define T_MMCTX   1
+#define T_STRWAIT 2
+#define T_STRINIT 3
+#define T_AUTO    4
+#define T_CHAN    5
+#define T_LOAD    6
+#define T_SAVE    7
+#define T_LCHAN   8
+#define T_LCTXH   9
+
+#define nv_mkmm(rv,r) /*
+*/	movw rv  ((r) & 0x0000fffc) /*
+*/	sethi rv ((r) & 0x00ff0000)
+#define nv_mkio(rv,r,i) /*
+*/	nv_mkmm(rv, (((r) & 0xffc) << 6) | ((i) << 2))
+
+#define nv_iord(rv,r,i) /*
+*/	nv_mkio(rv,r,i) /*
+*/	iord rv I[rv]
+#define nv_iowr(r,i,rv) /*
+*/	nv_mkio($r0,r,i) /*
+*/	iowr I[$r0] rv /*
+*/	clear b32 $r0
+
+#define trace_set(bit) /*
+*/	clear b32 $r9 /*
+*/	bset $r9 bit /*
+*/	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_SET(7), 0, $r9)
+#define trace_clr(bit) /*
+*/	clear b32 $r9 /*
+*/	bset $r9 bit /*
+*/	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_CLR(7), 0, $r9)

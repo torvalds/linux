@@ -157,7 +157,6 @@ enum pl330_reqtype {
 #define PERIPH_REV_R0P0		0
 #define PERIPH_REV_R1P0		1
 #define PERIPH_REV_R1P1		2
-#define PCELL_ID		0xff0
 
 #define CR0_PERIPH_REQ_SET	(1 << 0)
 #define CR0_BOOT_EN_SET		(1 << 1)
@@ -192,8 +191,6 @@ enum pl330_reqtype {
 #define REVISION		0x0
 #define INTEG_CFG		0x0
 #define PERIPH_ID_VAL		((PART << 0) | (DESIGNER << 12))
-
-#define PCELL_ID_VAL		0xb105f00d
 
 #define PL330_STATE_STOPPED		(1 << 0)
 #define PL330_STATE_EXECUTING		(1 << 1)
@@ -292,7 +289,6 @@ static unsigned cmd_line;
 /* Populated by the PL330 core driver for DMA API driver's info */
 struct pl330_config {
 	u32	periph_id;
-	u32	pcell_id;
 #define DMAC_MODE_NS	(1 << 0)
 	unsigned int	mode;
 	unsigned int	data_bus_width:10; /* In number of bits */
@@ -505,7 +501,7 @@ struct pl330_dmac {
 	/* Maximum possible events/irqs */
 	int			events[32];
 	/* BUS address of MicroCode buffer */
-	u32			mcode_bus;
+	dma_addr_t		mcode_bus;
 	/* CPU address of MicroCode buffer */
 	void			*mcode_cpu;
 	/* List of all Channel threads */
@@ -648,19 +644,6 @@ static inline bool _manager_ns(struct pl330_thread *thrd)
 	struct pl330_dmac *pl330 = thrd->dmac;
 
 	return (pl330->pinfo->pcfg.mode & DMAC_MODE_NS) ? true : false;
-}
-
-static inline u32 get_id(struct pl330_info *pi, u32 off)
-{
-	void __iomem *regs = pi->base;
-	u32 id = 0;
-
-	id |= (readb(regs + off + 0x0) << 0);
-	id |= (readb(regs + off + 0x4) << 8);
-	id |= (readb(regs + off + 0x8) << 16);
-	id |= (readb(regs + off + 0xc) << 24);
-
-	return id;
 }
 
 static inline u32 get_revision(u32 periph_id)
@@ -1986,9 +1969,6 @@ static void read_dmac_config(struct pl330_info *pi)
 	pi->pcfg.num_events = val;
 
 	pi->pcfg.irq_ns = readl(regs + CR3);
-
-	pi->pcfg.periph_id = get_id(pi, PERIPH_ID);
-	pi->pcfg.pcell_id = get_id(pi, PCELL_ID);
 }
 
 static inline void _reset_thread(struct pl330_thread *thrd)
@@ -2098,10 +2078,8 @@ static int pl330_add(struct pl330_info *pi)
 	regs = pi->base;
 
 	/* Check if we can handle this DMAC */
-	if ((get_id(pi, PERIPH_ID) & 0xfffff) != PERIPH_ID_VAL
-	   || get_id(pi, PCELL_ID) != PCELL_ID_VAL) {
-		dev_err(pi->dev, "PERIPH_ID 0x%x, PCELL_ID 0x%x !\n",
-			get_id(pi, PERIPH_ID), get_id(pi, PCELL_ID));
+	if ((pi->pcfg.periph_id & 0xfffff) != PERIPH_ID_VAL) {
+		dev_err(pi->dev, "PERIPH_ID 0x%x !\n", pi->pcfg.periph_id);
 		return -EINVAL;
 	}
 
@@ -2485,9 +2463,9 @@ static void pl330_free_chan_resources(struct dma_chan *chan)
 	struct dma_pl330_chan *pch = to_pchan(chan);
 	unsigned long flags;
 
-	spin_lock_irqsave(&pch->lock, flags);
-
 	tasklet_kill(&pch->task);
+
+	spin_lock_irqsave(&pch->lock, flags);
 
 	pl330_release_channel(pch->pl330_chid);
 	pch->pl330_chid = NULL;
@@ -2527,6 +2505,10 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 	/* Assign cookies to all nodes */
 	while (!list_empty(&last->node)) {
 		desc = list_entry(last->node.next, struct dma_pl330_desc, node);
+		if (pch->cyclic) {
+			desc->txd.callback = last->txd.callback;
+			desc->txd.callback_param = last->txd.callback_param;
+		}
 
 		dma_cookie_assign(&desc->txd);
 
@@ -2710,45 +2692,82 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 		size_t period_len, enum dma_transfer_direction direction,
 		unsigned long flags, void *context)
 {
-	struct dma_pl330_desc *desc;
+	struct dma_pl330_desc *desc = NULL, *first = NULL;
 	struct dma_pl330_chan *pch = to_pchan(chan);
+	struct dma_pl330_dmac *pdmac = pch->dmac;
+	unsigned int i;
 	dma_addr_t dst;
 	dma_addr_t src;
 
-	desc = pl330_get_desc(pch);
-	if (!desc) {
-		dev_err(pch->dmac->pif.dev, "%s:%d Unable to fetch desc\n",
-			__func__, __LINE__);
+	if (len % period_len != 0)
 		return NULL;
-	}
 
-	switch (direction) {
-	case DMA_MEM_TO_DEV:
-		desc->rqcfg.src_inc = 1;
-		desc->rqcfg.dst_inc = 0;
-		desc->req.rqtype = MEMTODEV;
-		src = dma_addr;
-		dst = pch->fifo_addr;
-		break;
-	case DMA_DEV_TO_MEM:
-		desc->rqcfg.src_inc = 0;
-		desc->rqcfg.dst_inc = 1;
-		desc->req.rqtype = DEVTOMEM;
-		src = pch->fifo_addr;
-		dst = dma_addr;
-		break;
-	default:
+	if (!is_slave_direction(direction)) {
 		dev_err(pch->dmac->pif.dev, "%s:%d Invalid dma direction\n",
 		__func__, __LINE__);
 		return NULL;
 	}
 
-	desc->rqcfg.brst_size = pch->burst_sz;
-	desc->rqcfg.brst_len = 1;
+	for (i = 0; i < len / period_len; i++) {
+		desc = pl330_get_desc(pch);
+		if (!desc) {
+			dev_err(pch->dmac->pif.dev, "%s:%d Unable to fetch desc\n",
+				__func__, __LINE__);
+
+			if (!first)
+				return NULL;
+
+			spin_lock_irqsave(&pdmac->pool_lock, flags);
+
+			while (!list_empty(&first->node)) {
+				desc = list_entry(first->node.next,
+						struct dma_pl330_desc, node);
+				list_move_tail(&desc->node, &pdmac->desc_pool);
+			}
+
+			list_move_tail(&first->node, &pdmac->desc_pool);
+
+			spin_unlock_irqrestore(&pdmac->pool_lock, flags);
+
+			return NULL;
+		}
+
+		switch (direction) {
+		case DMA_MEM_TO_DEV:
+			desc->rqcfg.src_inc = 1;
+			desc->rqcfg.dst_inc = 0;
+			desc->req.rqtype = MEMTODEV;
+			src = dma_addr;
+			dst = pch->fifo_addr;
+			break;
+		case DMA_DEV_TO_MEM:
+			desc->rqcfg.src_inc = 0;
+			desc->rqcfg.dst_inc = 1;
+			desc->req.rqtype = DEVTOMEM;
+			src = pch->fifo_addr;
+			dst = dma_addr;
+			break;
+		default:
+			break;
+		}
+
+		desc->rqcfg.brst_size = pch->burst_sz;
+		desc->rqcfg.brst_len = 1;
+		fill_px(&desc->px, dst, src, period_len);
+
+		if (!first)
+			first = desc;
+		else
+			list_add_tail(&desc->node, &first->node);
+
+		dma_addr += period_len;
+	}
+
+	if (!desc)
+		return NULL;
 
 	pch->cyclic = true;
-
-	fill_px(&desc->px, dst, src, period_len);
+	desc->txd.flags = flags;
 
 	return &desc->txd;
 }
@@ -2916,6 +2935,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	if (ret)
 		return ret;
 
+	pi->pcfg.periph_id = adev->periphid;
 	ret = pl330_add(pi);
 	if (ret)
 		goto probe_err1;

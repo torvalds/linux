@@ -81,7 +81,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		slot += (old_pte & _PAGE_F_GIX) >> 12;
 
 		if (ppc_md.hpte_updatepp(slot, rflags, vpn, mmu_psize,
-					 ssize, local) == -1)
+					 mmu_psize, ssize, local) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 

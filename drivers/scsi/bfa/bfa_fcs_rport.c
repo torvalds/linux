@@ -189,8 +189,8 @@ bfa_fcs_rport_sm_uninit(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	case RPSM_EVENT_PLOGI_RCVD:
-		bfa_sm_set_state(rport, bfa_fcs_rport_sm_fc4_fcs_online);
-		bfa_fcs_rport_fcs_online_action(rport);
+		bfa_sm_set_state(rport, bfa_fcs_rport_sm_plogiacc_sending);
+		bfa_fcs_rport_send_plogiacc(rport, NULL);
 		break;
 
 	case RPSM_EVENT_PLOGI_COMP:
@@ -2577,7 +2577,7 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 
 		port->fabric->bb_credit = be16_to_cpu(plogi->csp.bbcred);
 		bfa_fcport_set_tx_bbcredit(port->fcs->bfa,
-					  port->fabric->bb_credit, 0);
+					  port->fabric->bb_credit);
 	}
 
 }
@@ -3430,9 +3430,10 @@ bfa_fcs_rpf_rpsc2_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		num_ents = be16_to_cpu(rpsc2_acc->num_pids);
 		bfa_trc(rport->fcs, num_ents);
 		if (num_ents > 0) {
-			WARN_ON(rpsc2_acc->port_info[0].pid == rport->pid);
+			WARN_ON(be32_to_cpu(rpsc2_acc->port_info[0].pid) !=
+						bfa_ntoh3b(rport->pid));
 			bfa_trc(rport->fcs,
-				be16_to_cpu(rpsc2_acc->port_info[0].pid));
+				be32_to_cpu(rpsc2_acc->port_info[0].pid));
 			bfa_trc(rport->fcs,
 				be16_to_cpu(rpsc2_acc->port_info[0].speed));
 			bfa_trc(rport->fcs,

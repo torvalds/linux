@@ -276,7 +276,7 @@ struct fsi_stream_handler {
 	int (*probe)(struct fsi_priv *fsi, struct fsi_stream *io, struct device *dev);
 	int (*transfer)(struct fsi_priv *fsi, struct fsi_stream *io);
 	int (*remove)(struct fsi_priv *fsi, struct fsi_stream *io);
-	void (*start_stop)(struct fsi_priv *fsi, struct fsi_stream *io,
+	int (*start_stop)(struct fsi_priv *fsi, struct fsi_stream *io,
 			   int enable);
 };
 #define fsi_stream_handler_call(io, func, args...)	\
@@ -1188,7 +1188,7 @@ static int fsi_pio_push(struct fsi_priv *fsi, struct fsi_stream *io)
 				  samples);
 }
 
-static void fsi_pio_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
+static int fsi_pio_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 			       int enable)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
@@ -1201,6 +1201,8 @@ static void fsi_pio_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 
 	if (fsi_is_clk_master(fsi))
 		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
+
+	return 0;
 }
 
 static int fsi_pio_push_init(struct fsi_priv *fsi, struct fsi_stream *io)
@@ -1409,7 +1411,7 @@ static int fsi_dma_transfer(struct fsi_priv *fsi, struct fsi_stream *io)
 	return 0;
 }
 
-static void fsi_dma_push_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
+static int fsi_dma_push_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 				 int start)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
@@ -1422,6 +1424,8 @@ static void fsi_dma_push_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 
 	if (fsi_is_clk_master(fsi))
 		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
+
+	return 0;
 }
 
 static int fsi_dma_probe(struct fsi_priv *fsi, struct fsi_stream *io, struct device *dev)

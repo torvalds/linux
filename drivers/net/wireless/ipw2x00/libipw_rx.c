@@ -1195,7 +1195,7 @@ static int libipw_parse_info_param(struct libipw_info_element
 #ifdef CONFIG_LIBIPW_DEBUG
 				p += snprintf(p, sizeof(rates_str) -
 					      (p - rates_str), "%02X ",
-					      network->rates[i]);
+					      network->rates_ex[i]);
 #endif
 				if (libipw_is_ofdm_rate
 				    (info_element->data[i])) {

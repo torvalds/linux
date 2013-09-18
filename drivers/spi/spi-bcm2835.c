@@ -331,10 +331,9 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 		goto out_master_put;
 	}
 
-	bs->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!bs->regs) {
-		dev_err(&pdev->dev, "could not request/map memory region\n");
-		err = -ENODEV;
+	bs->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(bs->regs)) {
+		err = PTR_ERR(bs->regs);
 		goto out_master_put;
 	}
 

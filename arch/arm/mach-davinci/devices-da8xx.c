@@ -16,6 +16,7 @@
 #include <linux/serial_8250.h>
 #include <linux/ahci_platform.h>
 #include <linux/clk.h>
+#include <linux/reboot.h>
 
 #include <mach/cputype.h>
 #include <mach/common.h>
@@ -105,27 +106,27 @@ struct platform_device da8xx_serial_device = {
 	},
 };
 
-static const s8 da8xx_queue_tc_mapping[][2] = {
+static s8 da8xx_queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
 	{0, 0},
 	{1, 1},
 	{-1, -1}
 };
 
-static const s8 da8xx_queue_priority_mapping[][2] = {
+static s8 da8xx_queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 3},
 	{1, 7},
 	{-1, -1}
 };
 
-static const s8 da850_queue_tc_mapping[][2] = {
+static s8 da850_queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
 	{0, 0},
 	{-1, -1}
 };
 
-static const s8 da850_queue_priority_mapping[][2] = {
+static s8 da850_queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 3},
 	{-1, -1}
@@ -366,7 +367,7 @@ static struct platform_device da8xx_wdt_device = {
 	.resource	= da8xx_watchdog_resources,
 };
 
-void da8xx_restart(char mode, const char *cmd)
+void da8xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device *dev;
 

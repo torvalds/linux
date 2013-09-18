@@ -69,7 +69,7 @@ static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
 extern void vide(void);
 __asm__(".align 4\nvide: ret");
 
-static void __cpuinit init_amd_k5(struct cpuinfo_x86 *c)
+static void init_amd_k5(struct cpuinfo_x86 *c)
 {
 /*
  * General Systems BIOSen alias the cpu frequency registers
@@ -87,10 +87,10 @@ static void __cpuinit init_amd_k5(struct cpuinfo_x86 *c)
 }
 
 
-static void __cpuinit init_amd_k6(struct cpuinfo_x86 *c)
+static void init_amd_k6(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
-	int mbytes = num_physpages >> (20-PAGE_SHIFT);
+	int mbytes = get_num_physpages() >> (20-PAGE_SHIFT);
 
 	if (c->x86_model < 6) {
 		/* Based on AMD doc 20734R - June 2000 */
@@ -179,7 +179,7 @@ static void __cpuinit init_amd_k6(struct cpuinfo_x86 *c)
 	}
 }
 
-static void __cpuinit amd_k7_smp_check(struct cpuinfo_x86 *c)
+static void amd_k7_smp_check(struct cpuinfo_x86 *c)
 {
 	/* calling is from identify_secondary_cpu() ? */
 	if (!c->cpu_index)
@@ -222,7 +222,7 @@ static void __cpuinit amd_k7_smp_check(struct cpuinfo_x86 *c)
 	add_taint(TAINT_UNSAFE_SMP, LOCKDEP_NOW_UNRELIABLE);
 }
 
-static void __cpuinit init_amd_k7(struct cpuinfo_x86 *c)
+static void init_amd_k7(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 
@@ -267,7 +267,7 @@ static void __cpuinit init_amd_k7(struct cpuinfo_x86 *c)
  * To workaround broken NUMA config.  Read the comment in
  * srat_detect_node().
  */
-static int __cpuinit nearby_node(int apicid)
+static int nearby_node(int apicid)
 {
 	int i, node;
 
@@ -292,7 +292,7 @@ static int __cpuinit nearby_node(int apicid)
  * (2) AMD processors supporting compute units
  */
 #ifdef CONFIG_X86_HT
-static void __cpuinit amd_get_topology(struct cpuinfo_x86 *c)
+static void amd_get_topology(struct cpuinfo_x86 *c)
 {
 	u32 nodes, cores_per_cu = 1;
 	u8 node_id;
@@ -342,7 +342,7 @@ static void __cpuinit amd_get_topology(struct cpuinfo_x86 *c)
  * On a AMD dual core setup the lower bits of the APIC id distingush the cores.
  * Assumes number of cores is a power of two.
  */
-static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
+static void amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_HT
 	unsigned bits;
@@ -369,7 +369,7 @@ u16 amd_get_nb_id(int cpu)
 }
 EXPORT_SYMBOL_GPL(amd_get_nb_id);
 
-static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
+static void srat_detect_node(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_NUMA
 	int cpu = smp_processor_id();
@@ -421,7 +421,7 @@ static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void __cpuinit early_init_amd_mc(struct cpuinfo_x86 *c)
+static void early_init_amd_mc(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_HT
 	unsigned bits, ecx;
@@ -447,7 +447,7 @@ static void __cpuinit early_init_amd_mc(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void __cpuinit bsp_init_amd(struct cpuinfo_x86 *c)
+static void bsp_init_amd(struct cpuinfo_x86 *c)
 {
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 
@@ -475,7 +475,7 @@ static void __cpuinit bsp_init_amd(struct cpuinfo_x86 *c)
 	}
 }
 
-static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
+static void early_init_amd(struct cpuinfo_x86 *c)
 {
 	early_init_amd_mc(c);
 
@@ -512,9 +512,9 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 
 static const int amd_erratum_383[];
 static const int amd_erratum_400[];
-static bool cpu_has_amd_erratum(const int *erratum);
+static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum);
 
-static void __cpuinit init_amd(struct cpuinfo_x86 *c)
+static void init_amd(struct cpuinfo_x86 *c)
 {
 	u32 dummy;
 	unsigned long long value;
@@ -729,19 +729,18 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		value &= ~(1ULL << 24);
 		wrmsrl_safe(MSR_AMD64_BU_CFG2, value);
 
-		if (cpu_has_amd_erratum(amd_erratum_383))
+		if (cpu_has_amd_erratum(c, amd_erratum_383))
 			set_cpu_bug(c, X86_BUG_AMD_TLB_MMATCH);
 	}
 
-	if (cpu_has_amd_erratum(amd_erratum_400))
+	if (cpu_has_amd_erratum(c, amd_erratum_400))
 		set_cpu_bug(c, X86_BUG_AMD_APIC_C1E);
 
 	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
 }
 
 #ifdef CONFIG_X86_32
-static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 *c,
-							unsigned int size)
+static unsigned int amd_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 {
 	/* AMD errata T13 (order #21922) */
 	if ((c->x86 == 6)) {
@@ -757,7 +756,7 @@ static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 *c,
 }
 #endif
 
-static void __cpuinit cpu_set_tlb_flushall_shift(struct cpuinfo_x86 *c)
+static void cpu_set_tlb_flushall_shift(struct cpuinfo_x86 *c)
 {
 	tlb_flushall_shift = 5;
 
@@ -765,7 +764,7 @@ static void __cpuinit cpu_set_tlb_flushall_shift(struct cpuinfo_x86 *c)
 		tlb_flushall_shift = 4;
 }
 
-static void __cpuinit cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
+static void cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 {
 	u32 ebx, eax, ecx, edx;
 	u16 mask = 0xfff;
@@ -820,7 +819,7 @@ static void __cpuinit cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 	cpu_set_tlb_flushall_shift(c);
 }
 
-static const struct cpu_dev __cpuinitconst amd_cpu_dev = {
+static const struct cpu_dev amd_cpu_dev = {
 	.c_vendor	= "AMD",
 	.c_ident	= { "AuthenticAMD" },
 #ifdef CONFIG_X86_32
@@ -879,22 +878,12 @@ static const int amd_erratum_400[] =
 static const int amd_erratum_383[] =
 	AMD_OSVW_ERRATUM(3, AMD_MODEL_RANGE(0x10, 0, 0, 0xff, 0xf));
 
-static bool cpu_has_amd_erratum(const int *erratum)
+
+static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum)
 {
-	struct cpuinfo_x86 *cpu = __this_cpu_ptr(&cpu_info);
 	int osvw_id = *erratum++;
 	u32 range;
 	u32 ms;
-
-	/*
-	 * If called early enough that current_cpu_data hasn't been initialized
-	 * yet, fall back to boot_cpu_data.
-	 */
-	if (cpu->x86 == 0)
-		cpu = &boot_cpu_data;
-
-	if (cpu->x86_vendor != X86_VENDOR_AMD)
-		return false;
 
 	if (osvw_id >= 0 && osvw_id < 65536 &&
 	    cpu_has(cpu, X86_FEATURE_OSVW)) {

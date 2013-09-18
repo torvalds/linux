@@ -127,7 +127,8 @@ static void kvp_acquire_lock(int pool)
 	fl.l_pid = getpid();
 
 	if (fcntl(kvp_file_info[pool].fd, F_SETLKW, &fl) == -1) {
-		syslog(LOG_ERR, "Failed to acquire the lock pool: %d", pool);
+		syslog(LOG_ERR, "Failed to acquire the lock pool: %d; error: %d %s", pool,
+				errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -138,8 +139,8 @@ static void kvp_release_lock(int pool)
 	fl.l_pid = getpid();
 
 	if (fcntl(kvp_file_info[pool].fd, F_SETLK, &fl) == -1) {
-		perror("fcntl");
-		syslog(LOG_ERR, "Failed to release the lock pool: %d", pool);
+		syslog(LOG_ERR, "Failed to release the lock pool: %d; error: %d %s", pool,
+				errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -157,8 +158,9 @@ static void kvp_update_file(int pool)
 
 	filep = fopen(kvp_file_info[pool].fname, "we");
 	if (!filep) {
+		syslog(LOG_ERR, "Failed to open file, pool: %d; error: %d %s", pool,
+				errno, strerror(errno));
 		kvp_release_lock(pool);
-		syslog(LOG_ERR, "Failed to open file, pool: %d", pool);
 		exit(EXIT_FAILURE);
 	}
 
@@ -188,8 +190,9 @@ static void kvp_update_mem_state(int pool)
 
 	filep = fopen(kvp_file_info[pool].fname, "re");
 	if (!filep) {
+		syslog(LOG_ERR, "Failed to open file, pool: %d; error: %d %s", pool,
+				errno, strerror(errno));
 		kvp_release_lock(pool);
-		syslog(LOG_ERR, "Failed to open file, pool: %d", pool);
 		exit(EXIT_FAILURE);
 	}
 	for (;;) {
@@ -240,7 +243,8 @@ static int kvp_file_init(void)
 
 	if (access(KVP_CONFIG_LOC, F_OK)) {
 		if (mkdir(KVP_CONFIG_LOC, 0755 /* rwxr-xr-x */)) {
-			syslog(LOG_ERR, " Failed to create %s", KVP_CONFIG_LOC);
+			syslog(LOG_ERR, "Failed to create '%s'; error: %d %s", KVP_CONFIG_LOC,
+					errno, strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -257,12 +261,15 @@ static int kvp_file_init(void)
 
 
 		filep = fopen(fname, "re");
-		if (!filep)
+		if (!filep) {
+			close(fd);
 			return 1;
+		}
 
 		record = malloc(alloc_unit * num_blocks);
 		if (record == NULL) {
 			fclose(filep);
+			close(fd);
 			return 1;
 		}
 		for (;;) {
@@ -286,6 +293,7 @@ static int kvp_file_init(void)
 						num_blocks);
 				if (record == NULL) {
 					fclose(filep);
+					close(fd);
 					return 1;
 				}
 				continue;
@@ -765,7 +773,9 @@ static void kvp_process_ipconfig_file(char *cmd,
 			break;
 
 		x = strchr(p, '\n');
-		*x = '\0';
+		if (x)
+			*x = '\0';
+
 		strcat(config_buf, p);
 		strcat(config_buf, ";");
 	}
@@ -1016,9 +1026,10 @@ kvp_get_ip_info(int family, char *if_name, int op,
 
 				if (sn_offset == 0)
 					strcpy(sn_str, cidr_mask);
-				else
+				else {
+					strcat((char *)ip_buffer->sub_net, ";");
 					strcat(sn_str, cidr_mask);
-				strcat((char *)ip_buffer->sub_net, ";");
+				}
 				sn_offset += strlen(sn_str) + 1;
 			}
 
@@ -1274,7 +1285,8 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	file = fopen(if_file, "w");
 
 	if (file == NULL) {
-		syslog(LOG_ERR, "Failed to open config file");
+		syslog(LOG_ERR, "Failed to open config file; error: %d %s",
+				errno, strerror(errno));
 		return HV_E_FAIL;
 	}
 
@@ -1441,7 +1453,8 @@ int main(void)
 
 	fd = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
 	if (fd < 0) {
-		syslog(LOG_ERR, "netlink socket creation failed; error:%d", fd);
+		syslog(LOG_ERR, "netlink socket creation failed; error: %d %s", errno,
+				strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	addr.nl_family = AF_NETLINK;
@@ -1452,12 +1465,18 @@ int main(void)
 
 	error = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
 	if (error < 0) {
-		syslog(LOG_ERR, "bind failed; error:%d", error);
+		syslog(LOG_ERR, "bind failed; error: %d %s", errno, strerror(errno));
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
 	nl_group = CN_KVP_IDX;
-	setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &nl_group, sizeof(nl_group));
+
+	if (setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &nl_group, sizeof(nl_group)) < 0) {
+		syslog(LOG_ERR, "setsockopt failed; error: %d %s", errno, strerror(errno));
+		close(fd);
+		exit(EXIT_FAILURE);
+	}
+
 	/*
 	 * Register ourselves with the kernel.
 	 */
@@ -1472,7 +1491,7 @@ int main(void)
 
 	len = netlink_send(fd, message);
 	if (len < 0) {
-		syslog(LOG_ERR, "netlink_send failed; error:%d", len);
+		syslog(LOG_ERR, "netlink_send failed; error: %d %s", errno, strerror(errno));
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
@@ -1484,7 +1503,16 @@ int main(void)
 		socklen_t addr_l = sizeof(addr);
 		pfd.events = POLLIN;
 		pfd.revents = 0;
-		poll(&pfd, 1, -1);
+
+		if (poll(&pfd, 1, -1) < 0) {
+			syslog(LOG_ERR, "poll failed; error: %d %s", errno, strerror(errno));
+			if (errno == EINVAL) {
+				close(fd);
+				exit(EXIT_FAILURE);
+			}
+			else
+				continue;
+		}
 
 		len = recvfrom(fd, kvp_recv_buffer, sizeof(kvp_recv_buffer), 0,
 				addr_p, &addr_l);
@@ -1695,7 +1723,8 @@ kvp_done:
 
 		len = netlink_send(fd, incoming_cn_msg);
 		if (len < 0) {
-			syslog(LOG_ERR, "net_link send failed; error:%d", len);
+			syslog(LOG_ERR, "net_link send failed; error: %d %s", errno,
+					strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}

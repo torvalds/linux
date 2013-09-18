@@ -44,6 +44,8 @@
 #include <linux/suspend.h>
 #include <acpi/video.h>
 
+#include "internal.h"
+
 #define PREFIX "ACPI: "
 
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
@@ -450,6 +452,14 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	},
 	{
 	 .callback = video_ignore_initial_backlight,
+	 .ident = "Fujitsu E753",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "FUJITSU"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E753"),
+		},
+	},
+	{
+	 .callback = video_ignore_initial_backlight,
 	 .ident = "HP Pavilion dm4",
 	 .matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
@@ -679,7 +689,7 @@ static int acpi_video_bqc_quirk(struct acpi_video_device *device,
 	 * Some systems always report current brightness level as maximum
 	 * through _BQC, we need to test another value for them.
 	 */
-	test_level = current_level == max_level ? br->levels[2] : max_level;
+	test_level = current_level == max_level ? br->levels[3] : max_level;
 
 	result = acpi_video_device_lcd_set_level(device, test_level);
 	if (result)
@@ -1532,14 +1542,20 @@ static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 
 /* acpi_video interface */
 
+/*
+ * Win8 requires setting bit2 of _DOS to let firmware know it shouldn't
+ * preform any automatic brightness change on receiving a notification.
+ */
 static int acpi_video_bus_start_devices(struct acpi_video_bus *video)
 {
-	return acpi_video_bus_DOS(video, 0, 0);
+	return acpi_video_bus_DOS(video, 0,
+				  acpi_video_backlight_quirks() ? 1 : 0);
 }
 
 static int acpi_video_bus_stop_devices(struct acpi_video_bus *video)
 {
-	return acpi_video_bus_DOS(video, 0, 1);
+	return acpi_video_bus_DOS(video, 0,
+				  acpi_video_backlight_quirks() ? 0 : 1);
 }
 
 static void acpi_video_bus_notify(struct acpi_device *device, u32 event)

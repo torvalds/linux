@@ -471,6 +471,9 @@ int mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 	unsigned int fcr31;
 	unsigned int bit;
 
+	if (!cpu_has_mmips)
+		return 0;
+
 	switch (insn.mm_i_format.opcode) {
 	case mm_pool32a_op:
 		if ((insn.mm_i_format.simmediate & MM_POOL32A_MINOR_MASK) ==
@@ -800,6 +803,32 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				dec_insn.next_pc_inc;
 		return 1;
 		break;
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+	case lwc2_op: /* This is bbit0 on Octeon */
+		if ((regs->regs[insn.i_format.rs] & (1ull<<insn.i_format.rt)) == 0)
+			*contpc = regs->cp0_epc + 4 + (insn.i_format.simmediate << 2);
+		else
+			*contpc = regs->cp0_epc + 8;
+		return 1;
+	case ldc2_op: /* This is bbit032 on Octeon */
+		if ((regs->regs[insn.i_format.rs] & (1ull<<(insn.i_format.rt + 32))) == 0)
+			*contpc = regs->cp0_epc + 4 + (insn.i_format.simmediate << 2);
+		else
+			*contpc = regs->cp0_epc + 8;
+		return 1;
+	case swc2_op: /* This is bbit1 on Octeon */
+		if (regs->regs[insn.i_format.rs] & (1ull<<insn.i_format.rt))
+			*contpc = regs->cp0_epc + 4 + (insn.i_format.simmediate << 2);
+		else
+			*contpc = regs->cp0_epc + 8;
+		return 1;
+	case sdc2_op: /* This is bbit132 on Octeon */
+		if (regs->regs[insn.i_format.rs] & (1ull<<(insn.i_format.rt + 32)))
+			*contpc = regs->cp0_epc + 4 + (insn.i_format.simmediate << 2);
+		else
+			*contpc = regs->cp0_epc + 8;
+		return 1;
+#endif
 	case cop0_op:
 	case cop1_op:
 	case cop2_op:

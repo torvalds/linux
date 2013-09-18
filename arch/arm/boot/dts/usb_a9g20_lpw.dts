@@ -1,0 +1,31 @@
+/*
+ * usb_a9g20_lpw.dts - Device Tree file for Caloa USB A9G20 Low Power board
+ *
+ *  Copyright (C) 2013 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/dts-v1/;
+#include "usb_a9g20_common.dtsi"
+
+/ {
+	model = "Calao USB A9G20 Low Power";
+	compatible = "calao,usb-a9g20-lpw", "calao,usb-a9g20", "atmel,at91sam9g20", "atmel,at91sam9";
+
+	ahb {
+		apb {
+			spi1: spi@fffcc000 {
+				cs-gpios = <&pioB 3 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+				mmc-slot@0 {
+					compatible = "mmc-spi-slot";
+					reg = <0>;
+					voltage-ranges = <3200 3400>;
+					spi-max-frequency = <25000000>;
+					interrupt-parent = <&pioC>;
+					interrupts = <4 IRQ_TYPE_EDGE_BOTH>;
+				};
+			};
+		};
+	};
+};

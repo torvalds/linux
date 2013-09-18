@@ -7,6 +7,7 @@
 #define ASM_OFFSETS_C
 
 #include <linux/kbuild.h>
+#include <linux/kvm_host.h>
 #include <linux/sched.h>
 #include <asm/cputime.h>
 #include <asm/vdso.h>
@@ -47,6 +48,7 @@ int main(void)
 	DEFINE(__PT_GPRS, offsetof(struct pt_regs, gprs));
 	DEFINE(__PT_ORIG_GPR2, offsetof(struct pt_regs, orig_gpr2));
 	DEFINE(__PT_INT_CODE, offsetof(struct pt_regs, int_code));
+	DEFINE(__PT_INT_PARM, offsetof(struct pt_regs, int_parm));
 	DEFINE(__PT_INT_PARM_LONG, offsetof(struct pt_regs, int_parm_long));
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
@@ -161,6 +163,8 @@ int main(void)
 	DEFINE(__LC_PGM_TDB, offsetof(struct _lowcore, pgm_tdb));
 	DEFINE(__THREAD_trap_tdb, offsetof(struct task_struct, thread.trap_tdb));
 	DEFINE(__GMAP_ASCE, offsetof(struct gmap, asce));
+	DEFINE(__SIE_PROG0C, offsetof(struct kvm_s390_sie_block, prog0c));
+	DEFINE(__SIE_PROG20, offsetof(struct kvm_s390_sie_block, prog20));
 #endif /* CONFIG_32BIT */
 	return 0;
 }

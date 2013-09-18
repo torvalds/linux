@@ -21,6 +21,8 @@
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
 
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/linkage.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -346,7 +348,7 @@ static void init_evtchn_cpu_bindings(void)
 
 	for_each_possible_cpu(i)
 		memset(per_cpu(cpu_evtchn_mask, i),
-		       (i == 0) ? ~0 : 0, sizeof(*per_cpu(cpu_evtchn_mask, i)));
+		       (i == 0) ? ~0 : 0, NR_EVENT_CHANNELS/8);
 }
 
 static inline void clear_evtchn(int port)
@@ -600,8 +602,7 @@ static unsigned int __startup_pirq(unsigned int irq)
 	rc = HYPERVISOR_event_channel_op(EVTCHNOP_bind_pirq, &bind_pirq);
 	if (rc != 0) {
 		if (!probing_irq(irq))
-			printk(KERN_INFO "Failed to obtain physical IRQ %d\n",
-			       irq);
+			pr_info("Failed to obtain physical IRQ %d\n", irq);
 		return 0;
 	}
 	evtchn = bind_pirq.port;
@@ -693,8 +694,8 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 
 	irq = xen_irq_from_gsi(gsi);
 	if (irq != -1) {
-		printk(KERN_INFO "xen_map_pirq_gsi: returning irq %d for gsi %u\n",
-		       irq, gsi);
+		pr_info("%s: returning irq %d for gsi %u\n",
+			__func__, irq, gsi);
 		goto out;
 	}
 
@@ -812,10 +813,10 @@ int xen_destroy_irq(int irq)
 		 * (free_domain_pirqs).
 		 */
 		if ((rc == -ESRCH && info->u.pirq.domid != DOMID_SELF))
-			printk(KERN_INFO "domain %d does not have %d anymore\n",
+			pr_info("domain %d does not have %d anymore\n",
 				info->u.pirq.domid, info->u.pirq.pirq);
 		else if (rc) {
-			printk(KERN_WARNING "unmap irq failed %d\n", rc);
+			pr_warn("unmap irq failed %d\n", rc);
 			goto out;
 		}
 	}
@@ -1492,8 +1493,10 @@ void rebind_evtchn_irq(int evtchn, int irq)
 /* Rebind an evtchn so that it gets delivered to a specific cpu */
 static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 {
+	struct shared_info *s = HYPERVISOR_shared_info;
 	struct evtchn_bind_vcpu bind_vcpu;
 	int evtchn = evtchn_from_irq(irq);
+	int masked;
 
 	if (!VALID_EVTCHN(evtchn))
 		return -1;
@@ -1510,12 +1513,21 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 	bind_vcpu.vcpu = tcpu;
 
 	/*
+	 * Mask the event while changing the VCPU binding to prevent
+	 * it being delivered on an unexpected VCPU.
+	 */
+	masked = sync_test_and_set_bit(evtchn, BM(s->evtchn_mask));
+
+	/*
 	 * If this fails, it usually just indicates that we're dealing with a
 	 * virq or IPI channel, which don't actually need to be rebound. Ignore
 	 * it, but don't do the xenlinux-level rebind in that case.
 	 */
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_vcpu, &bind_vcpu) >= 0)
 		bind_evtchn_to_cpu(evtchn, tcpu);
+
+	if (!masked)
+		unmask_evtchn(evtchn);
 
 	return 0;
 }
@@ -1621,8 +1633,8 @@ static void restore_pirqs(void)
 
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
 		if (rc) {
-			printk(KERN_WARNING "xen map irq failed gsi=%d irq=%d pirq=%d rc=%d\n",
-					gsi, irq, pirq, rc);
+			pr_warn("xen map irq failed gsi=%d irq=%d pirq=%d rc=%d\n",
+				gsi, irq, pirq, rc);
 			xen_free_irq(irq);
 			continue;
 		}
@@ -1844,13 +1856,11 @@ void xen_callback_vector(void)
 		callback_via = HVM_CALLBACK_VECTOR(HYPERVISOR_CALLBACK_VECTOR);
 		rc = xen_set_callback_via(callback_via);
 		if (rc) {
-			printk(KERN_ERR "Request for Xen HVM callback vector"
-					" failed.\n");
+			pr_err("Request for Xen HVM callback vector failed\n");
 			xen_have_vector_callback = 0;
 			return;
 		}
-		printk(KERN_INFO "Xen HVM callback vector for event delivery is "
-				"enabled\n");
+		pr_info("Xen HVM callback vector for event delivery is enabled\n");
 		/* in the restore case the vector has already been allocated */
 		if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
 			alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,

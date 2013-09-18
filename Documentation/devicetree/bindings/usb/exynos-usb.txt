@@ -48,3 +48,37 @@ Example:
 		clocks = <&clock 285>;
 		clock-names = "usbhost";
 	};
+
+DWC3
+Required properties:
+ - compatible: should be "samsung,exynos5250-dwusb3" for USB 3.0 DWC3
+	       controller.
+ - #address-cells, #size-cells : should be '1' if the device has sub-nodes
+				 with 'reg' property.
+ - ranges: allows valid 1:1 translation between child's address space and
+	   parent's address space
+ - clocks: Clock IDs array as required by the controller.
+ - clock-names: names of clocks correseponding to IDs in the clock property
+
+Sub-nodes:
+The dwc3 core should be added as subnode to Exynos dwc3 glue.
+- dwc3 :
+   The binding details of dwc3 can be found in:
+   Documentation/devicetree/bindings/usb/dwc3.txt
+
+Example:
+	usb@12000000 {
+		compatible = "samsung,exynos5250-dwusb3";
+		clocks = <&clock 286>;
+		clock-names = "usbdrd30";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		dwc3 {
+			compatible = "synopsys,dwc3";
+			reg = <0x12000000 0x10000>;
+			interrupts = <0 72 0>;
+			usb-phy = <&usb2_phy &usb3_phy>;
+		};
+	};

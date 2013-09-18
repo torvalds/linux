@@ -91,7 +91,15 @@ struct thread_struct {
 #endif
 };
 
-#define PER_FLAG_NO_TE		1UL	/* Flag to disable transactions. */
+/* Flag to disable transactions. */
+#define PER_FLAG_NO_TE			1UL
+/* Flag to enable random transaction aborts. */
+#define PER_FLAG_TE_ABORT_RAND		2UL
+/* Flag to specify random transaction abort mode:
+ * - abort each transaction at a random instruction before TEND if set.
+ * - abort random transactions at a random instruction if cleared.
+ */
+#define PER_FLAG_TE_ABORT_RAND_TEND	4UL
 
 typedef struct thread_struct thread_struct;
 

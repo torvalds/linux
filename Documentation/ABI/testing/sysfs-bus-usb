@@ -236,3 +236,30 @@ Description:
 		This attribute is to expose these information to user space.
 		The file will read "hotplug", "wired" and "not used" if the
 		information is available, and "unknown" otherwise.
+
+What:		/sys/bus/usb/devices/.../power/usb2_lpm_l1_timeout
+Date:		May 2013
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		USB 2.0 devices may support hardware link power management (LPM)
+		L1 sleep state. The usb2_lpm_l1_timeout attribute allows
+		tuning the timeout for L1 inactivity timer (LPM timer), e.g.
+		needed inactivity time before host requests the device to go to L1 sleep.
+		Useful for power management tuning.
+		Supported values are 0 - 65535 microseconds.
+
+What:		/sys/bus/usb/devices/.../power/usb2_lpm_besl
+Date:		May 2013
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		USB 2.0 devices that support hardware link power management (LPM)
+		L1 sleep state now use a best effort service latency value (BESL) to
+		indicate the best effort to resumption of service to the device after the
+		initiation of the resume event.
+		If the device does not have a preferred besl value then the host can select
+		one instead. This usb2_lpm_besl attribute allows to tune the host selected besl
+		value in order to tune power saving and service latency.
+
+		Supported values are 0 - 15.
+		More information on how besl values map to microseconds can be found in
+		USB 2.0 ECN Errata for Link Power Management, section 4.10)

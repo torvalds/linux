@@ -1183,7 +1183,6 @@ static int loopback_probe(struct platform_device *devptr)
 static int loopback_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
 

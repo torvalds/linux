@@ -197,7 +197,7 @@ netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		netif_napi_add(netdev, &sds_ring->napi,
-				netxen_nic_poll, NETXEN_NETDEV_WEIGHT);
+				netxen_nic_poll, NAPI_POLL_WEIGHT);
 	}
 
 	return 0;
@@ -592,48 +592,60 @@ static const struct net_device_ops netxen_netdev_ops = {
 #endif
 };
 
+static inline bool netxen_function_zero(struct pci_dev *pdev)
+{
+	return (PCI_FUNC(pdev->devfn) == 0) ? true : false;
+}
+
+static inline void netxen_set_interrupt_mode(struct netxen_adapter *adapter,
+					     u32 mode)
+{
+	NXWR32(adapter, NETXEN_INTR_MODE_REG, mode);
+}
+
+static inline u32 netxen_get_interrupt_mode(struct netxen_adapter *adapter)
+{
+	return NXRD32(adapter, NETXEN_INTR_MODE_REG);
+}
+
 static void
-netxen_setup_intr(struct netxen_adapter *adapter)
+netxen_initialize_interrupt_registers(struct netxen_adapter *adapter)
 {
 	struct netxen_legacy_intr_set *legacy_intrp;
-	struct pci_dev *pdev = adapter->pdev;
-	int err, num_msix;
-
-	if (adapter->rss_supported) {
-		num_msix = (num_online_cpus() >= MSIX_ENTRIES_PER_ADAPTER) ?
-			MSIX_ENTRIES_PER_ADAPTER : 2;
-	} else
-		num_msix = 1;
-
-	adapter->max_sds_rings = 1;
-
-	adapter->flags &= ~(NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED);
+	u32 tgt_status_reg, int_state_reg;
 
 	if (adapter->ahw.revision_id >= NX_P3_B0)
 		legacy_intrp = &legacy_intr[adapter->ahw.pci_func];
 	else
 		legacy_intrp = &legacy_intr[0];
 
+	tgt_status_reg = legacy_intrp->tgt_status_reg;
+	int_state_reg = ISR_INT_STATE_REG;
+
 	adapter->int_vec_bit = legacy_intrp->int_vec_bit;
-	adapter->tgt_status_reg = netxen_get_ioaddr(adapter,
-			legacy_intrp->tgt_status_reg);
+	adapter->tgt_status_reg = netxen_get_ioaddr(adapter, tgt_status_reg);
 	adapter->tgt_mask_reg = netxen_get_ioaddr(adapter,
-			legacy_intrp->tgt_mask_reg);
+						  legacy_intrp->tgt_mask_reg);
 	adapter->pci_int_reg = netxen_get_ioaddr(adapter,
-			legacy_intrp->pci_int_reg);
+						 legacy_intrp->pci_int_reg);
 	adapter->isr_int_vec = netxen_get_ioaddr(adapter, ISR_INT_VECTOR);
 
 	if (adapter->ahw.revision_id >= NX_P3_B1)
 		adapter->crb_int_state_reg = netxen_get_ioaddr(adapter,
-			ISR_INT_STATE_REG);
+							       int_state_reg);
 	else
 		adapter->crb_int_state_reg = netxen_get_ioaddr(adapter,
-			CRB_INT_VECTOR);
+							       CRB_INT_VECTOR);
+}
 
-	netxen_set_msix_bit(pdev, 0);
+static int netxen_setup_msi_interrupts(struct netxen_adapter *adapter,
+				       int num_msix)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	u32 value;
+	int err;
 
 	if (adapter->msix_supported) {
-
 		netxen_init_msix_entries(adapter, num_msix);
 		err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
 		if (err == 0) {
@@ -644,26 +656,59 @@ netxen_setup_intr(struct netxen_adapter *adapter)
 				adapter->max_sds_rings = num_msix;
 
 			dev_info(&pdev->dev, "using msi-x interrupts\n");
-			return;
+			return 0;
 		}
-
-		if (err > 0)
-			pci_disable_msix(pdev);
-
 		/* fall through for msi */
 	}
 
 	if (use_msi && !pci_enable_msi(pdev)) {
+		value = msi_tgt_status[adapter->ahw.pci_func];
 		adapter->flags |= NETXEN_NIC_MSI_ENABLED;
-		adapter->tgt_status_reg = netxen_get_ioaddr(adapter,
-				msi_tgt_status[adapter->ahw.pci_func]);
-		dev_info(&pdev->dev, "using msi interrupts\n");
+		adapter->tgt_status_reg = netxen_get_ioaddr(adapter, value);
 		adapter->msix_entries[0].vector = pdev->irq;
-		return;
+		dev_info(&pdev->dev, "using msi interrupts\n");
+		return 0;
 	}
 
-	dev_info(&pdev->dev, "using legacy interrupts\n");
-	adapter->msix_entries[0].vector = pdev->irq;
+	dev_err(&pdev->dev, "Failed to acquire MSI-X/MSI interrupt vector\n");
+	return -EIO;
+}
+
+static int netxen_setup_intr(struct netxen_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	int num_msix;
+
+	if (adapter->rss_supported)
+		num_msix = (num_online_cpus() >= MSIX_ENTRIES_PER_ADAPTER) ?
+			    MSIX_ENTRIES_PER_ADAPTER : 2;
+	else
+		num_msix = 1;
+
+	adapter->max_sds_rings = 1;
+	adapter->flags &= ~(NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED);
+
+	netxen_initialize_interrupt_registers(adapter);
+	netxen_set_msix_bit(pdev, 0);
+
+	if (netxen_function_zero(pdev)) {
+		if (!netxen_setup_msi_interrupts(adapter, num_msix))
+			netxen_set_interrupt_mode(adapter, NETXEN_MSI_MODE);
+		else
+			netxen_set_interrupt_mode(adapter, NETXEN_INTX_MODE);
+	} else {
+		if (netxen_get_interrupt_mode(adapter) == NETXEN_MSI_MODE &&
+		    netxen_setup_msi_interrupts(adapter, num_msix)) {
+			dev_err(&pdev->dev, "Co-existence of MSI-X/MSI and INTx interrupts is not supported\n");
+			return -EIO;
+		}
+	}
+
+	if (!NETXEN_IS_MSI_FAMILY(adapter)) {
+		adapter->msix_entries[0].vector = pdev->irq;
+		dev_info(&pdev->dev, "using legacy interrupts\n");
+	}
+	return 0;
 }
 
 static void
@@ -841,7 +886,9 @@ netxen_check_options(struct netxen_adapter *adapter)
 	}
 
 	if (adapter->portnum == 0) {
-		get_brd_name_by_type(adapter->ahw.board_type, brd_name);
+		if (netxen_nic_get_brd_name_by_type(adapter->ahw.board_type,
+						    brd_name))
+			strcpy(serial_num, "Unknown");
 
 		pr_info("%s: %s Board S/N %s  Chip rev 0x%x\n",
 				module_name(THIS_MODULE),
@@ -860,9 +907,9 @@ netxen_check_options(struct netxen_adapter *adapter)
 		adapter->ahw.cut_through = (i & 0x8000) ? 1 : 0;
 	}
 
-	dev_info(&pdev->dev, "firmware v%d.%d.%d [%s]\n",
-			fw_major, fw_minor, fw_build,
-			adapter->ahw.cut_through ? "cut-through" : "legacy");
+	dev_info(&pdev->dev, "Driver v%s, firmware v%d.%d.%d [%s]\n",
+		 NETXEN_NIC_LINUX_VERSIONID, fw_major, fw_minor, fw_build,
+		 adapter->ahw.cut_through ? "cut-through" : "legacy");
 
 	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222))
 		adapter->capabilities = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
@@ -1508,7 +1555,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netxen_nic_clear_stats(adapter);
 
-	netxen_setup_intr(adapter);
+	err = netxen_setup_intr(adapter);
+
+	if (err) {
+		dev_err(&adapter->pdev->dev,
+			"Failed to setup interrupts, error = %d\n", err);
+		goto err_out_disable_msi;
+	}
 
 	err = netxen_setup_netdev(adapter, netdev);
 	if (err)
@@ -1596,7 +1649,7 @@ static void netxen_nic_remove(struct pci_dev *pdev)
 	clear_bit(__NX_RESETTING, &adapter->state);
 
 	netxen_teardown_intr(adapter);
-
+	netxen_set_interrupt_mode(adapter, 0);
 	netxen_remove_diag_entries(adapter);
 
 	netxen_cleanup_pci_map(adapter);
@@ -2721,7 +2774,7 @@ netxen_store_bridged_mode(struct device *dev,
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
 		goto err_out;
 
-	if (strict_strtoul(buf, 2, &new))
+	if (kstrtoul(buf, 2, &new))
 		goto err_out;
 
 	if (!netxen_config_bridged_mode(adapter, !!new))
@@ -2760,7 +2813,7 @@ netxen_store_diag_mode(struct device *dev,
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	unsigned long new;
 
-	if (strict_strtoul(buf, 2, &new))
+	if (kstrtoul(buf, 2, &new))
 		return -EINVAL;
 
 	if (!!new != !!(adapter->flags & NETXEN_NIC_DIAG_ENABLED))
@@ -3311,7 +3364,7 @@ static int netxen_netdev_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	struct netxen_adapter *adapter;
-	struct net_device *dev = (struct net_device *)ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net_device *orig_dev = dev;
 	struct net_device *slave;
 

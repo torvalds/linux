@@ -2209,18 +2209,6 @@ MODULE_PARM_DESC(speed, "0:auto, 10:10Mbps, 100:100Mbps");
 module_param_named(duplex, options.duplex, int, 0);
 MODULE_PARM_DESC(duplex, "0:auto, 1:half, 2:full");
 
-static int __init tc35815_init_module(void)
-{
-	return pci_register_driver(&tc35815_pci_driver);
-}
-
-static void __exit tc35815_cleanup_module(void)
-{
-	pci_unregister_driver(&tc35815_pci_driver);
-}
-
-module_init(tc35815_init_module);
-module_exit(tc35815_cleanup_module);
-
+module_pci_driver(tc35815_pci_driver);
 MODULE_DESCRIPTION("TOSHIBA TC35815 PCI 10M/100M Ethernet driver");
 MODULE_LICENSE("GPL");

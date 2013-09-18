@@ -238,7 +238,7 @@ const struct file_operations spufs_context_fops = {
 	.release	= spufs_dir_close,
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
-	.readdir	= dcache_readdir,
+	.iterate	= dcache_readdir,
 	.fsync		= noop_fsync,
 };
 EXPORT_SYMBOL_GPL(spufs_context_fops);

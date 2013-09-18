@@ -582,10 +582,7 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 	    (strncmp(hard_iface->soft_iface->name, buff, IFNAMSIZ) == 0))
 		goto out;
 
-	if (!rtnl_trylock()) {
-		ret = -ERESTARTSYS;
-		goto out;
-	}
+	rtnl_lock();
 
 	if (status_tmp == BATADV_IF_NOT_IN_USE) {
 		batadv_hardif_disable_interface(hard_iface,

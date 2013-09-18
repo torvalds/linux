@@ -286,10 +286,9 @@ static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 	spin_unlock(&osb->osb_lock);
 
 	out += snprintf(buf + out, len - out,
-			"%10s => Pid: %d  Interval: %lu  Needs: %d\n", "Commit",
+			"%10s => Pid: %d  Interval: %lu\n", "Commit",
 			(osb->commit_task ? task_pid_nr(osb->commit_task) : -1),
-			osb->osb_commit_interval,
-			atomic_read(&osb->needs_checkpoint));
+			osb->osb_commit_interval);
 
 	out += snprintf(buf + out, len - out,
 			"%10s => State: %d  TxnId: %lu  NumTxns: %d\n",
@@ -1023,7 +1022,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *inode = NULL;
 	struct ocfs2_super *osb = NULL;
 	struct buffer_head *bh = NULL;
-	char nodestr[8];
+	char nodestr[12];
 	struct ocfs2_blockcheck_stats stats;
 
 	trace_ocfs2_fill_super(sb, data, silent);
@@ -2154,7 +2153,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 
 	init_waitqueue_head(&osb->checkpoint_event);
-	atomic_set(&osb->needs_checkpoint, 0);
 
 	osb->s_atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
 

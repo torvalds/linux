@@ -16,8 +16,8 @@
 #define BITS(_start, _end) ((BIT(_end) - BIT(_start)) + BIT(_end))
 
 #define PRCM_ACLK_MGT		(0x004)
-#define PRCM_SVACLK_MGT		(0x008)
-#define PRCM_SIACLK_MGT		(0x00C)
+#define PRCM_SVAMMCSPCLK_MGT	(0x008)
+#define PRCM_SIAMMDSPCLK_MGT	(0x00C)
 #define PRCM_SGACLK_MGT		(0x014)
 #define PRCM_UARTCLK_MGT	(0x018)
 #define PRCM_MSP02CLK_MGT	(0x01C)
@@ -32,6 +32,7 @@
 #define PRCM_PER7CLK_MGT	(0x040)
 #define PRCM_LCDCLK_MGT		(0x044)
 #define PRCM_BMLCLK_MGT		(0x04C)
+#define PRCM_BML8580CLK_MGT	(0x108)
 #define PRCM_HSITXCLK_MGT	(0x050)
 #define PRCM_HSIRXCLK_MGT	(0x054)
 #define PRCM_HDMICLK_MGT	(0x058)

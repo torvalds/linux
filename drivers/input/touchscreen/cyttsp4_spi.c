@@ -44,7 +44,7 @@
 #define CY_SPI_DATA_BUF_SIZE	(CY_SPI_CMD_BYTES + CY_SPI_DATA_SIZE)
 
 static int cyttsp_spi_xfer(struct device *dev, u8 *xfer_buf,
-			   u8 op, u8 reg, u8 *buf, int length)
+			   u8 op, u16 reg, u8 *buf, int length)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct spi_message msg;
@@ -63,14 +63,12 @@ static int cyttsp_spi_xfer(struct device *dev, u8 *xfer_buf,
 	memset(wr_buf, 0, CY_SPI_DATA_BUF_SIZE);
 	memset(rd_buf, 0, CY_SPI_CMD_BYTES);
 
-	if (reg > 255)
-		wr_buf[0] = op + CY_SPI_A8_BIT;
-	else
-		wr_buf[0] = op;
-	if (op == CY_SPI_WR_OP)
-		wr_buf[1] = reg % 256;
-	if (op == CY_SPI_WR_OP && length > 0)
-		memcpy(wr_buf + CY_SPI_CMD_BYTES, buf, length);
+	wr_buf[0] = op + (((reg >> 8) & 0x1) ? CY_SPI_A8_BIT : 0);
+	if (op == CY_SPI_WR_OP) {
+		wr_buf[1] = reg & 0xFF;
+		if (length > 0)
+			memcpy(wr_buf + CY_SPI_CMD_BYTES, buf, length);
+	}
 
 	memset(xfer, 0, sizeof(xfer));
 	spi_message_init(&msg);
@@ -130,7 +128,7 @@ static int cyttsp_spi_xfer(struct device *dev, u8 *xfer_buf,
 }
 
 static int cyttsp_spi_read_block_data(struct device *dev, u8 *xfer_buf,
-				      u8 addr, u8 length, void *data)
+				      u16 addr, u8 length, void *data)
 {
 	int rc;
 
@@ -143,7 +141,7 @@ static int cyttsp_spi_read_block_data(struct device *dev, u8 *xfer_buf,
 }
 
 static int cyttsp_spi_write_block_data(struct device *dev, u8 *xfer_buf,
-				       u8 addr, u8 length, const void *data)
+				       u16 addr, u8 length, const void *data)
 {
 	return cyttsp_spi_xfer(dev, xfer_buf, CY_SPI_WR_OP, addr, (void *)data,
 			length);

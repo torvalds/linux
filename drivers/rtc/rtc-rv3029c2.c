@@ -310,7 +310,7 @@ static int rv3029c2_rtc_i2c_set_alarm(struct i2c_client *client,
 		dev_dbg(&client->dev, "alarm IRQ armed\n");
 	} else {
 		/* disable AIE irq */
-		ret = rv3029c2_rtc_i2c_alarm_set_irq(client, 1);
+		ret = rv3029c2_rtc_i2c_alarm_set_irq(client, 0);
 		if (ret)
 			return ret;
 
@@ -412,17 +412,11 @@ static int rv3029c2_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int rv3029c2_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static struct i2c_driver rv3029c2_driver = {
 	.driver = {
 		.name = "rtc-rv3029c2",
 	},
 	.probe = rv3029c2_probe,
-	.remove = rv3029c2_remove,
 	.id_table = rv3029c2_id,
 };
 

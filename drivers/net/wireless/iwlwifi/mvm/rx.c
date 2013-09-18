@@ -363,3 +363,25 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 					rxb, &rx_status);
 	return 0;
 }
+
+/*
+ * iwl_mvm_rx_statistics - STATISTICS_NOTIFICATION handler
+ *
+ * TODO: This handler is implemented partially.
+ * It only gets the NIC's temperature.
+ */
+int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
+			  struct iwl_rx_cmd_buffer *rxb,
+			  struct iwl_device_cmd *cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_notif_statistics *stats = (void *)&pkt->data;
+	struct mvm_statistics_general_common *common = &stats->general.common;
+
+	if (mvm->temperature != le32_to_cpu(common->temperature)) {
+		mvm->temperature = le32_to_cpu(common->temperature);
+		iwl_mvm_tt_handler(mvm);
+	}
+
+	return 0;
+}

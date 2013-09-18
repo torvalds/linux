@@ -23,21 +23,55 @@
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/serial_sci.h>
+#include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/irq-renesas-irqc.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7790.h>
 #include <asm/mach/arch.h>
 
-static const struct resource pfc_resources[] = {
+static struct resource pfc_resources[] __initdata = {
 	DEFINE_RES_MEM(0xe6060000, 0x250),
-	DEFINE_RES_MEM(0xe6050000, 0x5050),
 };
+
+#define R8A7790_GPIO(idx)						\
+static struct resource r8a7790_gpio##idx##_resources[] __initdata = {	\
+	DEFINE_RES_MEM(0xe6050000 + 0x1000 * (idx), 0x50),		\
+	DEFINE_RES_IRQ(gic_spi(4 + (idx))),				\
+};									\
+									\
+static struct gpio_rcar_config r8a7790_gpio##idx##_platform_data __initdata = {	\
+	.gpio_base	= 32 * (idx),					\
+	.irq_base	= 0,						\
+	.number_of_pins	= 32,						\
+	.pctl_name	= "pfc-r8a7790",				\
+	.has_both_edge_trigger = 1,					\
+};									\
+
+R8A7790_GPIO(0);
+R8A7790_GPIO(1);
+R8A7790_GPIO(2);
+R8A7790_GPIO(3);
+R8A7790_GPIO(4);
+R8A7790_GPIO(5);
+
+#define r8a7790_register_gpio(idx)					\
+	platform_device_register_resndata(&platform_bus, "gpio_rcar", idx, \
+		r8a7790_gpio##idx##_resources,				\
+		ARRAY_SIZE(r8a7790_gpio##idx##_resources),		\
+		&r8a7790_gpio##idx##_platform_data,			\
+		sizeof(r8a7790_gpio##idx##_platform_data))
 
 void __init r8a7790_pinmux_init(void)
 {
 	platform_device_register_simple("pfc-r8a7790", -1, pfc_resources,
 					ARRAY_SIZE(pfc_resources));
+	r8a7790_register_gpio(0);
+	r8a7790_register_gpio(1);
+	r8a7790_register_gpio(2);
+	r8a7790_register_gpio(3);
+	r8a7790_register_gpio(4);
+	r8a7790_register_gpio(5);
 }
 
 #define SCIF_COMMON(scif_type, baseaddr, irq)			\
@@ -64,12 +98,20 @@ void __init r8a7790_pinmux_init(void)
 [index] = {						\
 	SCIF_COMMON(PORT_SCIF, baseaddr, irq),		\
 	.scbrr_algo_id	= SCBRR_ALGO_2,			\
-	.scscr = SCSCR_RE | SCSCR_TE | SCSCR_CKE1,	\
+	.scscr = SCSCR_RE | SCSCR_TE,	\
 }
 
-enum { SCIFA0, SCIFA1, SCIFB0, SCIFB1, SCIFB2, SCIFA2, SCIF0, SCIF1 };
+#define HSCIF_DATA(index, baseaddr, irq)		\
+[index] = {						\
+	SCIF_COMMON(PORT_HSCIF, baseaddr, irq),		\
+	.scbrr_algo_id	= SCBRR_ALGO_6,			\
+	.scscr = SCSCR_RE | SCSCR_TE,	\
+}
 
-static const struct plat_sci_port scif[] = {
+enum { SCIFA0, SCIFA1, SCIFB0, SCIFB1, SCIFB2, SCIFA2, SCIF0, SCIF1,
+       HSCIF0, HSCIF1 };
+
+static struct plat_sci_port scif[] __initdata = {
 	SCIFA_DATA(SCIFA0, 0xe6c40000, gic_spi(144)), /* SCIFA0 */
 	SCIFA_DATA(SCIFA1, 0xe6c50000, gic_spi(145)), /* SCIFA1 */
 	SCIFB_DATA(SCIFB0, 0xe6c20000, gic_spi(148)), /* SCIFB0 */
@@ -78,6 +120,8 @@ static const struct plat_sci_port scif[] = {
 	SCIFA_DATA(SCIFA2, 0xe6c60000, gic_spi(151)), /* SCIFA2 */
 	SCIF_DATA(SCIF0, 0xe6e60000, gic_spi(152)), /* SCIF0 */
 	SCIF_DATA(SCIF1, 0xe6e68000, gic_spi(153)), /* SCIF1 */
+	HSCIF_DATA(HSCIF0, 0xe62c0000, gic_spi(154)), /* HSCIF0 */
+	HSCIF_DATA(HSCIF1, 0xe62c8000, gic_spi(155)), /* HSCIF1 */
 };
 
 static inline void r8a7790_register_scif(int idx)
@@ -86,11 +130,11 @@ static inline void r8a7790_register_scif(int idx)
 				      sizeof(struct plat_sci_port));
 }
 
-static struct renesas_irqc_config irqc0_data = {
+static struct renesas_irqc_config irqc0_data __initdata = {
 	.irq_base = irq_pin(0), /* IRQ0 -> IRQ3 */
 };
 
-static struct resource irqc0_resources[] = {
+static struct resource irqc0_resources[] __initdata = {
 	DEFINE_RES_MEM(0xe61c0000, 0x200), /* IRQC Event Detector Block_0 */
 	DEFINE_RES_IRQ(gic_spi(0)), /* IRQ0 */
 	DEFINE_RES_IRQ(gic_spi(1)), /* IRQ1 */
@@ -115,6 +159,8 @@ void __init r8a7790_add_standard_devices(void)
 	r8a7790_register_scif(SCIFA2);
 	r8a7790_register_scif(SCIF0);
 	r8a7790_register_scif(SCIF1);
+	r8a7790_register_scif(HSCIF0);
+	r8a7790_register_scif(HSCIF1);
 	r8a7790_register_irqc(0);
 }
 

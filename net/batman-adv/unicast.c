@@ -326,7 +326,9 @@ static bool batadv_unicast_push_and_fill_skb(struct sk_buff *skb, int hdr_size,
  * @skb: the skb containing the payload to encapsulate
  * @orig_node: the destination node
  *
- * Returns false if the payload could not be encapsulated or true otherwise
+ * Returns false if the payload could not be encapsulated or true otherwise.
+ *
+ * This call might reallocate skb data.
  */
 static bool batadv_unicast_prepare_skb(struct sk_buff *skb,
 				       struct batadv_orig_node *orig_node)
@@ -343,7 +345,9 @@ static bool batadv_unicast_prepare_skb(struct sk_buff *skb,
  * @orig_node: the destination node
  * @packet_subtype: the batman 4addr packet subtype to use
  *
- * Returns false if the payload could not be encapsulated or true otherwise
+ * Returns false if the payload could not be encapsulated or true otherwise.
+ *
+ * This call might reallocate skb data.
  */
 bool batadv_unicast_4addr_prepare_skb(struct batadv_priv *bat_priv,
 				      struct sk_buff *skb,
@@ -401,7 +405,7 @@ int batadv_unicast_generic_send_skb(struct batadv_priv *bat_priv,
 	struct batadv_neigh_node *neigh_node;
 	int data_len = skb->len;
 	int ret = NET_RX_DROP;
-	unsigned int dev_mtu;
+	unsigned int dev_mtu, header_len;
 
 	/* get routing information */
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
@@ -428,11 +432,17 @@ find_router:
 
 	switch (packet_type) {
 	case BATADV_UNICAST:
-		batadv_unicast_prepare_skb(skb, orig_node);
+		if (!batadv_unicast_prepare_skb(skb, orig_node))
+			goto out;
+
+		header_len = sizeof(struct batadv_unicast_packet);
 		break;
 	case BATADV_UNICAST_4ADDR:
-		batadv_unicast_4addr_prepare_skb(bat_priv, skb, orig_node,
-						 packet_subtype);
+		if (!batadv_unicast_4addr_prepare_skb(bat_priv, skb, orig_node,
+						      packet_subtype))
+			goto out;
+
+		header_len = sizeof(struct batadv_unicast_4addr_packet);
 		break;
 	default:
 		/* this function supports UNICAST and UNICAST_4ADDR only. It
@@ -441,6 +451,7 @@ find_router:
 		goto out;
 	}
 
+	ethhdr = (struct ethhdr *)(skb->data + header_len);
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 
 	/* inform the destination node that we are still missing a correct route
@@ -464,7 +475,7 @@ find_router:
 		goto out;
 	}
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL))
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
 		ret = 0;
 
 out:

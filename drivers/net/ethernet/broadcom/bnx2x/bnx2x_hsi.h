@@ -1300,6 +1300,9 @@ struct drv_func_mb {
 
 	#define DRV_MSG_CODE_EEE_RESULTS_ACK            0xda000000
 
+	#define DRV_MSG_CODE_RMMOD                      0xdb000000
+	#define REQ_BC_VER_4_RMMOD_CMD                  0x0007080f
+
 	#define DRV_MSG_CODE_SET_MF_BW                  0xe0000000
 	#define REQ_BC_VER_4_SET_MF_BW                  0x00060202
 	#define DRV_MSG_CODE_SET_MF_BW_ACK              0xe1000000
@@ -1323,6 +1326,8 @@ struct drv_func_mb {
 	#define DRV_MSG_CODE_UNLOAD_SKIP_LINK_RESET     0x00000002
 
 	#define DRV_MSG_CODE_LOAD_REQ_WITH_LFA          0x0000100a
+	#define DRV_MSG_CODE_LOAD_REQ_FORCE_LFA         0x00002000
+
 	u32 fw_mb_header;
 	#define FW_MSG_CODE_MASK                        0xffff0000
 	#define FW_MSG_CODE_DRV_LOAD_COMMON             0x10100000
@@ -1369,6 +1374,8 @@ struct drv_func_mb {
 	#define FW_MSG_CODE_DRV_INFO_NACK               0xd9100000
 
 	#define FW_MSG_CODE_EEE_RESULS_ACK              0xda100000
+
+	#define FW_MSG_CODE_RMMOD_ACK                   0xdb100000
 
 	#define FW_MSG_CODE_SET_MF_BW_SENT              0xe0000000
 	#define FW_MSG_CODE_SET_MF_BW_DONE              0xe1000000
@@ -3816,7 +3823,8 @@ struct eth_fast_path_rx_cqe {
 	__le16 len_on_bd;
 	struct parsing_flags pars_flags;
 	union eth_sgl_or_raw_data sgl_or_raw_data;
-	__le32 reserved1[8];
+	__le32 reserved1[7];
+	u32 marker;
 };
 
 

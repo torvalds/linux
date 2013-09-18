@@ -76,10 +76,11 @@
 			};
 		};
 		pic: pic@4000 {
-			interrupt-controller;
+			compatible = "netlogic,xlp-pic";
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			reg = <0 0x4000 0x200>;
+			interrupt-controller;
 		};
 
 		nor_flash@1,0 {

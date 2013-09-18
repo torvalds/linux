@@ -25,6 +25,7 @@
 #include <linux/kdebug.h>
 #include <linux/delay.h>
 #include <linux/crash_dump.h>
+#include <linux/reboot.h>
 
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
@@ -36,7 +37,6 @@
 #include <asm/ipi.h>
 #include <asm/smp.h>
 #include <asm/x86_init.h>
-#include <asm/emergency-restart.h>
 #include <asm/nmi.h>
 
 /* BMC sets a bit this MMR non-zero before sending an NMI */
@@ -51,6 +51,8 @@ DEFINE_PER_CPU(int, x2apic_extra_bits);
 
 static enum uv_system_type uv_system_type;
 static u64 gru_start_paddr, gru_end_paddr;
+static u64 gru_dist_base, gru_first_node_paddr = -1LL, gru_last_node_paddr;
+static u64 gru_dist_lmask, gru_dist_umask;
 static union uvh_apicid uvh_apicid;
 int uv_min_hub_revision_id;
 EXPORT_SYMBOL_GPL(uv_min_hub_revision_id);
@@ -72,7 +74,20 @@ static unsigned long __init uv_early_read_mmr(unsigned long addr)
 
 static inline bool is_GRU_range(u64 start, u64 end)
 {
-	return start >= gru_start_paddr && end <= gru_end_paddr;
+	if (gru_dist_base) {
+		u64 su = start & gru_dist_umask; /* upper (incl pnode) bits */
+		u64 sl = start & gru_dist_lmask; /* base offset bits */
+		u64 eu = end & gru_dist_umask;
+		u64 el = end & gru_dist_lmask;
+
+		/* Must reside completely within a single GRU range */
+		return (sl == gru_dist_base && el == gru_dist_base &&
+			su >= gru_first_node_paddr &&
+			su <= gru_last_node_paddr &&
+			eu == su);
+	} else {
+		return start >= gru_start_paddr && end <= gru_end_paddr;
+	}
 }
 
 static bool uv_is_untracked_pat_range(u64 start, u64 end)
@@ -194,7 +209,7 @@ EXPORT_SYMBOL_GPL(uv_possible_blades);
 unsigned long sn_rtc_cycles_per_second;
 EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 
-static int __cpuinit uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
+static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 {
 #ifdef CONFIG_SMP
 	unsigned long val;
@@ -401,7 +416,7 @@ static struct apic __refdata apic_x2apic_uv_x = {
 	.safe_wait_icr_idle		= native_safe_x2apic_wait_icr_idle,
 };
 
-static __cpuinit void set_x2apic_extra_bits(int pnode)
+static void set_x2apic_extra_bits(int pnode)
 {
 	__this_cpu_write(x2apic_extra_bits, pnode << uvh_apicid.s.pnode_shift);
 }
@@ -463,11 +478,43 @@ static __init void map_high(char *id, unsigned long base, int pshift,
 		pr_info("UV: Map %s_HI base address NULL\n", id);
 		return;
 	}
-	pr_info("UV: Map %s_HI 0x%lx - 0x%lx\n", id, paddr, paddr + bytes);
+	pr_debug("UV: Map %s_HI 0x%lx - 0x%lx\n", id, paddr, paddr + bytes);
 	if (map_type == map_uc)
 		init_extra_mapping_uc(paddr, bytes);
 	else
 		init_extra_mapping_wb(paddr, bytes);
+}
+
+static __init void map_gru_distributed(unsigned long c)
+{
+	union uvh_rh_gam_gru_overlay_config_mmr_u gru;
+	u64 paddr;
+	unsigned long bytes;
+	int nid;
+
+	gru.v = c;
+	/* only base bits 42:28 relevant in dist mode */
+	gru_dist_base = gru.v & 0x000007fff0000000UL;
+	if (!gru_dist_base) {
+		pr_info("UV: Map GRU_DIST base address NULL\n");
+		return;
+	}
+	bytes = 1UL << UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR_BASE_SHFT;
+	gru_dist_lmask = ((1UL << uv_hub_info->m_val) - 1) & ~(bytes - 1);
+	gru_dist_umask = ~((1UL << uv_hub_info->m_val) - 1);
+	gru_dist_base &= gru_dist_lmask; /* Clear bits above M */
+	for_each_online_node(nid) {
+		paddr = ((u64)uv_node_to_pnode(nid) << uv_hub_info->m_val) |
+				gru_dist_base;
+		init_extra_mapping_wb(paddr, bytes);
+		gru_first_node_paddr = min(paddr, gru_first_node_paddr);
+		gru_last_node_paddr = max(paddr, gru_last_node_paddr);
+	}
+	/* Save upper (63:M) bits of address only for is_GRU_range */
+	gru_first_node_paddr &= gru_dist_umask;
+	gru_last_node_paddr &= gru_dist_umask;
+	pr_debug("UV: Map GRU_DIST base 0x%016llx  0x%016llx - 0x%016llx\n",
+		gru_dist_base, gru_first_node_paddr, gru_last_node_paddr);
 }
 
 static __init void map_gru_high(int max_pnode)
@@ -476,13 +523,18 @@ static __init void map_gru_high(int max_pnode)
 	int shift = UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR_BASE_SHFT;
 
 	gru.v = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR);
-	if (gru.s.enable) {
-		map_high("GRU", gru.s.base, shift, shift, max_pnode, map_wb);
-		gru_start_paddr = ((u64)gru.s.base << shift);
-		gru_end_paddr = gru_start_paddr + (1UL << shift) * (max_pnode + 1);
-	} else {
+	if (!gru.s.enable) {
 		pr_info("UV: GRU disabled\n");
+		return;
 	}
+
+	if (is_uv3_hub() && gru.s3.mode) {
+		map_gru_distributed(gru.v);
+		return;
+	}
+	map_high("GRU", gru.s.base, shift, shift, max_pnode, map_wb);
+	gru_start_paddr = ((u64)gru.s.base << shift);
+	gru_end_paddr = gru_start_paddr + (1UL << shift) * (max_pnode + 1);
 }
 
 static __init void map_mmr_high(int max_pnode)
@@ -683,7 +735,7 @@ static void uv_heartbeat(unsigned long ignored)
 	mod_timer_pinned(timer, jiffies + SCIR_CPU_HB_INTERVAL);
 }
 
-static void __cpuinit uv_heartbeat_enable(int cpu)
+static void uv_heartbeat_enable(int cpu)
 {
 	while (!uv_cpu_hub_info(cpu)->scir.enabled) {
 		struct timer_list *timer = &uv_cpu_hub_info(cpu)->scir.timer;
@@ -700,7 +752,7 @@ static void __cpuinit uv_heartbeat_enable(int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void __cpuinit uv_heartbeat_disable(int cpu)
+static void uv_heartbeat_disable(int cpu)
 {
 	if (uv_cpu_hub_info(cpu)->scir.enabled) {
 		uv_cpu_hub_info(cpu)->scir.enabled = 0;
@@ -712,8 +764,8 @@ static void __cpuinit uv_heartbeat_disable(int cpu)
 /*
  * cpu hotplug notifier
  */
-static __cpuinit int uv_scir_cpu_notify(struct notifier_block *self,
-				       unsigned long action, void *hcpu)
+static int uv_scir_cpu_notify(struct notifier_block *self, unsigned long action,
+			      void *hcpu)
 {
 	long cpu = (long)hcpu;
 
@@ -783,7 +835,7 @@ int uv_set_vga_state(struct pci_dev *pdev, bool decode,
  * Called on each cpu to initialize the per_cpu UV data area.
  * FIXME: hotplug not supported yet
  */
-void __cpuinit uv_cpu_init(void)
+void uv_cpu_init(void)
 {
 	/* CPU 0 initilization will be done via uv_system_init. */
 	if (!uv_blade_info)

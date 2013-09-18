@@ -282,8 +282,6 @@ static int vt8500_rtc_remove(struct platform_device *pdev)
 	/* Disable alarm matching */
 	writel(0, vt8500_rtc->regbase + VT8500_RTC_IS);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

@@ -62,17 +62,14 @@ static int may_change_ptraced_domain(struct task_struct *task,
 				     struct aa_profile *to_profile)
 {
 	struct task_struct *tracer;
-	const struct cred *cred = NULL;
 	struct aa_profile *tracerp = NULL;
 	int error = 0;
 
 	rcu_read_lock();
 	tracer = ptrace_parent(task);
-	if (tracer) {
+	if (tracer)
 		/* released below */
-		cred = get_task_cred(tracer);
-		tracerp = aa_cred_profile(cred);
-	}
+		tracerp = aa_get_task_profile(tracer);
 
 	/* not ptraced */
 	if (!tracer || unconfined(tracerp))
@@ -82,8 +79,7 @@ static int may_change_ptraced_domain(struct task_struct *task,
 
 out:
 	rcu_read_unlock();
-	if (cred)
-		put_cred(cred);
+	aa_put_profile(tracerp);
 
 	return error;
 }
@@ -360,7 +356,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	if (bprm->cred_prepared)
 		return 0;
 
-	cxt = bprm->cred->security;
+	cxt = cred_cxt(bprm->cred);
 	BUG_ON(!cxt);
 
 	profile = aa_get_profile(aa_newest_version(cxt->profile));
@@ -443,6 +439,8 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 			} else {
 				error = -ENOENT;
 				info = "profile not found";
+				/* remove MAY_EXEC to audit as failure */
+				perms.allow &= ~MAY_EXEC;
 			}
 		}
 	} else if (COMPLAIN_MODE(profile)) {
@@ -514,11 +512,7 @@ x_clear:
 	cxt->profile = new_profile;
 
 	/* clear out all temporary/transitional state from the context */
-	aa_put_profile(cxt->previous);
-	aa_put_profile(cxt->onexec);
-	cxt->previous = NULL;
-	cxt->onexec = NULL;
-	cxt->token = 0;
+	aa_clear_task_cxt_trans(cxt);
 
 audit:
 	error = aa_audit_file(profile, &perms, GFP_KERNEL, OP_EXEC, MAY_EXEC,
@@ -557,7 +551,7 @@ int apparmor_bprm_secureexec(struct linux_binprm *bprm)
 void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
 {
 	struct aa_profile *profile = __aa_current_profile();
-	struct aa_task_cxt *new_cxt = bprm->cred->security;
+	struct aa_task_cxt *new_cxt = cred_cxt(bprm->cred);
 
 	/* bail out if unconfined or not changing profile */
 	if ((new_cxt->profile == profile) ||
@@ -634,7 +628,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 
 	/* released below */
 	cred = get_current_cred();
-	cxt = cred->security;
+	cxt = cred_cxt(cred);
 	profile = aa_cred_profile(cred);
 	previous_profile = cxt->previous;
 
@@ -750,7 +744,6 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 		      bool permtest)
 {
 	const struct cred *cred;
-	struct aa_task_cxt *cxt;
 	struct aa_profile *profile, *target = NULL;
 	struct aa_namespace *ns = NULL;
 	struct file_perms perms = {};
@@ -770,7 +763,6 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 	}
 
 	cred = get_current_cred();
-	cxt = cred->security;
 	profile = aa_cred_profile(cred);
 
 	/*

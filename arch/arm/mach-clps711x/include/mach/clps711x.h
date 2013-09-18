@@ -21,6 +21,8 @@
 #ifndef __MACH_CLPS711X_H
 #define __MACH_CLPS711X_H
 
+#include <linux/mfd/syscon/clps711x.h>
+
 #define CLPS711X_PHYS_BASE	(0x80000000)
 
 #define PADR		(0x0000)
@@ -96,82 +98,8 @@
 #define RANDID2		(0x2708)
 #define RANDID3		(0x270c)
 
-/* common bits: SYSCON1 / SYSCON2 */
-#define SYSCON_UARTEN		(1 << 8)
-
-#define SYSCON1_KBDSCAN(x)	((x) & 15)
-#define SYSCON1_KBDSCANMASK	(15)
-#define SYSCON1_TC1M		(1 << 4)
-#define SYSCON1_TC1S		(1 << 5)
-#define SYSCON1_TC2M		(1 << 6)
-#define SYSCON1_TC2S		(1 << 7)
-#define SYSCON1_UART1EN		SYSCON_UARTEN
-#define SYSCON1_BZTOG		(1 << 9)
-#define SYSCON1_BZMOD		(1 << 10)
-#define SYSCON1_DBGEN		(1 << 11)
-#define SYSCON1_LCDEN		(1 << 12)
-#define SYSCON1_CDENTX		(1 << 13)
-#define SYSCON1_CDENRX		(1 << 14)
-#define SYSCON1_SIREN		(1 << 15)
-#define SYSCON1_ADCKSEL(x)	(((x) & 3) << 16)
-#define SYSCON1_ADCKSEL_MASK	(3 << 16)
-#define SYSCON1_EXCKEN		(1 << 18)
-#define SYSCON1_WAKEDIS		(1 << 19)
-#define SYSCON1_IRTXM		(1 << 20)
-
-/* common bits: SYSFLG1 / SYSFLG2 */
-#define SYSFLG_UBUSY		(1 << 11)
-#define SYSFLG_URXFE		(1 << 22)
-#define SYSFLG_UTXFF		(1 << 23)
-
-#define SYSFLG1_MCDR		(1 << 0)
-#define SYSFLG1_DCDET		(1 << 1)
-#define SYSFLG1_WUDR		(1 << 2)
-#define SYSFLG1_WUON		(1 << 3)
-#define SYSFLG1_CTS		(1 << 8)
-#define SYSFLG1_DSR		(1 << 9)
-#define SYSFLG1_DCD		(1 << 10)
-#define SYSFLG1_UBUSY		SYSFLG_UBUSY
-#define SYSFLG1_NBFLG		(1 << 12)
-#define SYSFLG1_RSTFLG		(1 << 13)
-#define SYSFLG1_PFFLG		(1 << 14)
-#define SYSFLG1_CLDFLG		(1 << 15)
-#define SYSFLG1_URXFE		SYSFLG_URXFE
-#define SYSFLG1_UTXFF		SYSFLG_UTXFF
-#define SYSFLG1_CRXFE		(1 << 24)
-#define SYSFLG1_CTXFF		(1 << 25)
-#define SYSFLG1_SSIBUSY		(1 << 26)
-#define SYSFLG1_ID		(1 << 29)
-#define SYSFLG1_VERID(x)	(((x) >> 30) & 3)
-#define SYSFLG1_VERID_MASK	(3 << 30)
-
-#define SYSFLG2_SSRXOF		(1 << 0)
-#define SYSFLG2_RESVAL		(1 << 1)
-#define SYSFLG2_RESFRM		(1 << 2)
-#define SYSFLG2_SS2RXFE		(1 << 3)
-#define SYSFLG2_SS2TXFF		(1 << 4)
-#define SYSFLG2_SS2TXUF		(1 << 5)
-#define SYSFLG2_CKMODE		(1 << 6)
-#define SYSFLG2_UBUSY		SYSFLG_UBUSY
-#define SYSFLG2_URXFE		SYSFLG_URXFE
-#define SYSFLG2_UTXFF		SYSFLG_UTXFF
-
 #define LCDCON_GSEN		(1 << 30)
 #define LCDCON_GSMD		(1 << 31)
-
-#define SYSCON2_SERSEL		(1 << 0)
-#define SYSCON2_KBD6		(1 << 1)
-#define SYSCON2_DRAMZ		(1 << 2)
-#define SYSCON2_KBWEN		(1 << 3)
-#define SYSCON2_SS2TXEN		(1 << 4)
-#define SYSCON2_PCCARD1		(1 << 5)
-#define SYSCON2_PCCARD2		(1 << 6)
-#define SYSCON2_SS2RXEN		(1 << 7)
-#define SYSCON2_UART2EN		SYSCON_UARTEN
-#define SYSCON2_SS2MAEN		(1 << 9)
-#define SYSCON2_OSTB		(1 << 12)
-#define SYSCON2_CLKENSL		(1 << 13)
-#define SYSCON2_BUZFREQ		(1 << 14)
 
 /* common bits: UARTDR1 / UARTDR2 */
 #define UARTDR_FRMERR		(1 << 8)
@@ -227,18 +155,6 @@
 #define DAI64FS_AUDIOCLKSRC	(1 << 2)
 #define DAI64FS_MCLK256EN	(1 << 3)
 #define DAI64FS_LOOPBACK	(1 << 5)
-
-#define SYSCON3_ADCCON		(1 << 0)
-#define SYSCON3_CLKCTL0		(1 << 1)
-#define SYSCON3_CLKCTL1		(1 << 2)
-#define SYSCON3_DAISEL		(1 << 3)
-#define SYSCON3_ADCCKNSEN	(1 << 4)
-#define SYSCON3_VERSN(x)	(((x) >> 5) & 7)
-#define SYSCON3_VERSN_MASK	(7 << 5)
-#define SYSCON3_FASTWAKE	(1 << 8)
-#define SYSCON3_DAIEN		(1 << 9)
-#define SYSCON3_128FS		SYSCON3_DAIEN
-#define SYSCON3_ENPD67		(1 << 10)
 
 #define SDCONF_ACTIVE		(1 << 10)
 #define SDCONF_CLKCTL		(1 << 9)

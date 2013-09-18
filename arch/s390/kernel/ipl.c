@@ -754,9 +754,9 @@ static struct bin_attribute sys_reipl_fcp_scp_data_attr = {
 	.write = reipl_fcp_scpdata_write,
 };
 
-DEFINE_IPL_ATTR_RW(reipl_fcp, wwpn, "0x%016llx\n", "%016llx\n",
+DEFINE_IPL_ATTR_RW(reipl_fcp, wwpn, "0x%016llx\n", "%llx\n",
 		   reipl_block_fcp->ipl_info.fcp.wwpn);
-DEFINE_IPL_ATTR_RW(reipl_fcp, lun, "0x%016llx\n", "%016llx\n",
+DEFINE_IPL_ATTR_RW(reipl_fcp, lun, "0x%016llx\n", "%llx\n",
 		   reipl_block_fcp->ipl_info.fcp.lun);
 DEFINE_IPL_ATTR_RW(reipl_fcp, bootprog, "%lld\n", "%lld\n",
 		   reipl_block_fcp->ipl_info.fcp.bootprog);
@@ -1323,9 +1323,9 @@ static struct shutdown_action __refdata reipl_action = {
 
 /* FCP dump device attributes */
 
-DEFINE_IPL_ATTR_RW(dump_fcp, wwpn, "0x%016llx\n", "%016llx\n",
+DEFINE_IPL_ATTR_RW(dump_fcp, wwpn, "0x%016llx\n", "%llx\n",
 		   dump_block_fcp->ipl_info.fcp.wwpn);
-DEFINE_IPL_ATTR_RW(dump_fcp, lun, "0x%016llx\n", "%016llx\n",
+DEFINE_IPL_ATTR_RW(dump_fcp, lun, "0x%016llx\n", "%llx\n",
 		   dump_block_fcp->ipl_info.fcp.lun);
 DEFINE_IPL_ATTR_RW(dump_fcp, bootprog, "%lld\n", "%lld\n",
 		   dump_block_fcp->ipl_info.fcp.bootprog);

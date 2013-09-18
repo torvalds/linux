@@ -180,7 +180,16 @@ struct platform_driver {
 	const struct platform_device_id *id_table;
 };
 
-extern int platform_driver_register(struct platform_driver *);
+#define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \
+				 driver))
+
+/*
+ * use a macro to avoid include chaining to get THIS_MODULE
+ */
+#define platform_driver_register(drv) \
+	__platform_driver_register(drv, THIS_MODULE)
+extern int __platform_driver_register(struct platform_driver *,
+					struct module *);
 extern void platform_driver_unregister(struct platform_driver *);
 
 /* non-hotpluggable platform devices may use this so that probe() and

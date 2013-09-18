@@ -1454,7 +1454,7 @@ static int su_probe(struct platform_device *op)
 			kfree(up);
 			return err;
 		}
-		dev_set_drvdata(&op->dev, up);
+		platform_set_drvdata(op, up);
 
 		nr_inst++;
 
@@ -1483,7 +1483,7 @@ static int su_probe(struct platform_device *op)
 	if (err)
 		goto out_unmap;
 
-	dev_set_drvdata(&op->dev, up);
+	platform_set_drvdata(op, up);
 
 	nr_inst++;
 
@@ -1496,7 +1496,7 @@ out_unmap:
 
 static int su_remove(struct platform_device *op)
 {
-	struct uart_sunsu_port *up = dev_get_drvdata(&op->dev);
+	struct uart_sunsu_port *up = platform_get_drvdata(op);
 	bool kbdms = false;
 
 	if (up->su_type == SU_PORT_MS ||
@@ -1515,8 +1515,6 @@ static int su_remove(struct platform_device *op)
 
 	if (kbdms)
 		kfree(up);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

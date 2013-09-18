@@ -446,7 +446,6 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 		break;
 
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
-
 		/*
 		 * Ensure that the bank_value is not beyond the capacity of
 		 * the register
@@ -488,7 +487,6 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 		break;
 
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
-
 		/*
 		 * Ensure that the index_value is not beyond the capacity of
 		 * the register

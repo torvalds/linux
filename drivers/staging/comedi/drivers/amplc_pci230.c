@@ -16,10 +16,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
   */
 /*
 Driver: amplc_pci230
@@ -2834,7 +2830,6 @@ static void pci230_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	comedi_spriv_free(dev, 2);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	comedi_pci_disable(dev);

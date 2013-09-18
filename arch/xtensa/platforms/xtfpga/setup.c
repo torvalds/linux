@@ -163,7 +163,7 @@ void platform_heartbeat(void)
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 
-void platform_calibrate_ccount(void)
+void __init platform_calibrate_ccount(void)
 {
 	long clk_freq = 0;
 #ifdef CONFIG_OF
@@ -179,8 +179,7 @@ void platform_calibrate_ccount(void)
 	if (!clk_freq)
 		clk_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
 
-	ccount_per_jiffy = clk_freq / HZ;
-	nsec_per_ccount = 1000000000UL / clk_freq;
+	ccount_freq = clk_freq;
 }
 
 #endif

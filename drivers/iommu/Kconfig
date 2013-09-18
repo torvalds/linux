@@ -261,4 +261,25 @@ config SHMOBILE_IOMMU_L1SIZE
 	default 256 if SHMOBILE_IOMMU_ADDRSIZE_64MB
 	default 128 if SHMOBILE_IOMMU_ADDRSIZE_32MB
 
+config SPAPR_TCE_IOMMU
+	bool "sPAPR TCE IOMMU Support"
+	depends on PPC_POWERNV || PPC_PSERIES
+	select IOMMU_API
+	help
+	  Enables bits of IOMMU API required by VFIO. The iommu_ops
+	  is not implemented as it is not necessary for VFIO.
+
+config ARM_SMMU
+	bool "ARM Ltd. System MMU (SMMU) Support"
+	depends on ARM64 || (ARM_LPAE && OF)
+	select IOMMU_API
+	select ARM_DMA_USE_IOMMU if ARM
+	help
+	  Support for implementations of the ARM System MMU architecture
+	  versions 1 and 2. The driver supports both v7l and v8l table
+	  formats with 4k and 64k page sizes.
+
+	  Say Y here if your SoC includes an IOMMU device implementing
+	  the ARM SMMU architecture.
+
 endif # IOMMU_SUPPORT

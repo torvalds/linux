@@ -25,6 +25,7 @@
 #include <linux/rcupdate.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/if_vlan.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
@@ -207,15 +208,19 @@ void __qdisc_run(struct Qdisc *q)
 
 unsigned long dev_trans_start(struct net_device *dev)
 {
-	unsigned long val, res = dev->trans_start;
+	unsigned long val, res;
 	unsigned int i;
 
+	if (is_vlan_dev(dev))
+		dev = vlan_dev_real_dev(dev);
+	res = dev->trans_start;
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		val = netdev_get_tx_queue(dev, i)->trans_start;
 		if (val && time_after(val, res))
 			res = val;
 	}
 	dev->trans_start = res;
+
 	return res;
 }
 EXPORT_SYMBOL(dev_trans_start);
@@ -901,37 +906,34 @@ void dev_shutdown(struct net_device *dev)
 void psched_ratecfg_precompute(struct psched_ratecfg *r,
 			       const struct tc_ratespec *conf)
 {
-	u64 factor;
-	u64 mult;
-	int shift;
-
 	memset(r, 0, sizeof(*r));
 	r->overhead = conf->overhead;
-	r->rate_bps = (u64)conf->rate << 3;
+	r->rate_bytes_ps = conf->rate;
+	r->linklayer = (conf->linklayer & TC_LINKLAYER_MASK);
 	r->mult = 1;
 	/*
-	 * Calibrate mult, shift so that token counting is accurate
-	 * for smallest packet size (64 bytes).  Token (time in ns) is
-	 * computed as (bytes * 8) * NSEC_PER_SEC / rate_bps.  It will
-	 * work as long as the smallest packet transfer time can be
-	 * accurately represented in nanosec.
+	 * The deal here is to replace a divide by a reciprocal one
+	 * in fast path (a reciprocal divide is a multiply and a shift)
+	 *
+	 * Normal formula would be :
+	 *  time_in_ns = (NSEC_PER_SEC * len) / rate_bps
+	 *
+	 * We compute mult/shift to use instead :
+	 *  time_in_ns = (len * mult) >> shift;
+	 *
+	 * We try to get the highest possible mult value for accuracy,
+	 * but have to make sure no overflows will ever happen.
 	 */
-	if (r->rate_bps > 0) {
-		/*
-		 * Higher shift gives better accuracy.  Find the largest
-		 * shift such that mult fits in 32 bits.
-		 */
-		for (shift = 0; shift < 16; shift++) {
-			r->shift = shift;
-			factor = 8LLU * NSEC_PER_SEC * (1 << r->shift);
-			mult = div64_u64(factor, r->rate_bps);
-			if (mult > UINT_MAX)
-				break;
-		}
+	if (r->rate_bytes_ps > 0) {
+		u64 factor = NSEC_PER_SEC;
 
-		r->shift = shift - 1;
-		factor = 8LLU * NSEC_PER_SEC * (1 << r->shift);
-		r->mult = div64_u64(factor, r->rate_bps);
+		for (;;) {
+			r->mult = div64_u64(factor, r->rate_bytes_ps);
+			if (r->mult & (1U << 31) || factor & (1ULL << 63))
+				break;
+			factor <<= 1;
+			r->shift++;
+		}
 	}
 }
 EXPORT_SYMBOL(psched_ratecfg_precompute);

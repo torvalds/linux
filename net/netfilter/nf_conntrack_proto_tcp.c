@@ -526,7 +526,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
 	__u32 seq, ack, sack, end, win, swin;
 	s16 receiver_offset;
-	bool res;
+	bool res, in_recv_win;
 
 	/*
 	 * Get the required data from the packet.
@@ -649,14 +649,18 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
 		 receiver->td_scale);
 
+	/* Is the ending sequence in the receive window (if available)? */
+	in_recv_win = !receiver->td_maxwin ||
+		      after(end, sender->td_end - receiver->td_maxwin - 1);
+
 	pr_debug("tcp_in_window: I=%i II=%i III=%i IV=%i\n",
 		 before(seq, sender->td_maxend + 1),
-		 after(end, sender->td_end - receiver->td_maxwin - 1),
+		 (in_recv_win ? 1 : 0),
 		 before(sack, receiver->td_end + 1),
 		 after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1));
 
 	if (before(seq, sender->td_maxend + 1) &&
-	    after(end, sender->td_end - receiver->td_maxwin - 1) &&
+	    in_recv_win &&
 	    before(sack, receiver->td_end + 1) &&
 	    after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1)) {
 		/*
@@ -725,7 +729,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
 			"nf_ct_tcp: %s ",
 			before(seq, sender->td_maxend + 1) ?
-			after(end, sender->td_end - receiver->td_maxwin - 1) ?
+			in_recv_win ?
 			before(sack, receiver->td_end + 1) ?
 			after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1) ? "BUG"
 			: "ACK is under the lower bound (possible overly delayed ACK)"
@@ -1043,6 +1047,12 @@ static int tcp_packet(struct nf_conn *ct,
 			nf_ct_kill_acct(ct, ctinfo, skb);
 			return NF_ACCEPT;
 		}
+		/* ESTABLISHED without SEEN_REPLY, i.e. mid-connection
+		 * pickup with loose=1. Avoid large ESTABLISHED timeout.
+		 */
+		if (new_state == TCP_CONNTRACK_ESTABLISHED &&
+		    timeout > timeouts[TCP_CONNTRACK_UNACK])
+			timeout = timeouts[TCP_CONNTRACK_UNACK];
 	} else if (!test_bit(IPS_ASSURED_BIT, &ct->status)
 		   && (old_state == TCP_CONNTRACK_SYN_RECV
 		       || old_state == TCP_CONNTRACK_ESTABLISHED)

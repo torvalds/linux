@@ -35,6 +35,10 @@ enum pstore_type_id {
 	PSTORE_TYPE_MCE		= 1,
 	PSTORE_TYPE_CONSOLE	= 2,
 	PSTORE_TYPE_FTRACE	= 3,
+	/* PPC64 partition types */
+	PSTORE_TYPE_PPC_RTAS	= 4,
+	PSTORE_TYPE_PPC_OF	= 5,
+	PSTORE_TYPE_PPC_COMMON	= 6,
 	PSTORE_TYPE_UNKNOWN	= 255
 };
 
@@ -54,12 +58,12 @@ struct pstore_info {
 			struct pstore_info *psi);
 	int		(*write)(enum pstore_type_id type,
 			enum kmsg_dump_reason reason, u64 *id,
-			unsigned int part, int count, size_t size,
-			struct pstore_info *psi);
+			unsigned int part, int count, size_t hsize,
+			size_t size, struct pstore_info *psi);
 	int		(*write_buf)(enum pstore_type_id type,
 			enum kmsg_dump_reason reason, u64 *id,
-			unsigned int part, const char *buf, size_t size,
-			struct pstore_info *psi);
+			unsigned int part, const char *buf, size_t hsize,
+			size_t size, struct pstore_info *psi);
 	int		(*erase)(enum pstore_type_id type, u64 id,
 			int count, struct timespec time,
 			struct pstore_info *psi);

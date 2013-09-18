@@ -59,7 +59,7 @@
 
 static const char dwc2_driver_name[] = "dwc2";
 
-static struct dwc2_core_params dwc2_module_params = {
+static const struct dwc2_core_params dwc2_module_params = {
 	.otg_cap			= -1,
 	.otg_ver			= -1,
 	.dma_enable			= -1,
@@ -101,8 +101,6 @@ static void dwc2_driver_remove(struct pci_dev *dev)
 {
 	struct dwc2_hsotg *hsotg = pci_get_drvdata(dev);
 
-	dev_dbg(&dev->dev, "%s(%p)\n", __func__, dev);
-
 	dwc2_hcd_remove(hsotg);
 	pci_disable_device(dev);
 }
@@ -125,18 +123,14 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 	struct dwc2_hsotg *hsotg;
 	int retval;
 
-	dev_dbg(&dev->dev, "%s(%p)\n", __func__, dev);
-
 	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);
 	if (!hsotg)
 		return -ENOMEM;
 
-	pci_set_power_state(dev, PCI_D0);
-
 	hsotg->dev = &dev->dev;
-	hsotg->regs = devm_request_and_ioremap(&dev->dev, &dev->resource[0]);
-	if (!hsotg->regs)
-		return -ENOMEM;
+	hsotg->regs = devm_ioremap_resource(&dev->dev, &dev->resource[0]);
+	if (IS_ERR(hsotg->regs))
+		return PTR_ERR(hsotg->regs);
 
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)pci_resource_start(dev, 0), hsotg->regs);
@@ -153,7 +147,6 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 	}
 
 	pci_set_drvdata(dev, hsotg);
-	dev_dbg(&dev->dev, "hsotg=%p\n", hsotg);
 
 	return retval;
 }
@@ -161,6 +154,10 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 static DEFINE_PCI_DEVICE_TABLE(dwc2_pci_ids) = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS, PCI_PRODUCT_ID_HAPS_HSOTG),
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_STMICRO,
+			   PCI_DEVICE_ID_STMICRO_USB_OTG),
 	},
 	{ /* end: all zeroes */ }
 };

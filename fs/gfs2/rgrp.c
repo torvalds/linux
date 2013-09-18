@@ -1288,13 +1288,15 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	minlen = max_t(u64, r.minlen,
 		       q->limits.discard_granularity) >> bs_shift;
 
-	rgd = gfs2_blk2rgrpd(sdp, start, 0);
-	rgd_end = gfs2_blk2rgrpd(sdp, end - 1, 0);
-
-	if (end <= start ||
-	    minlen > sdp->sd_max_rg_data ||
-	    start > rgd_end->rd_data0 + rgd_end->rd_data)
+	if (end <= start || minlen > sdp->sd_max_rg_data)
 		return -EINVAL;
+
+	rgd = gfs2_blk2rgrpd(sdp, start, 0);
+	rgd_end = gfs2_blk2rgrpd(sdp, end, 0);
+
+	if ((gfs2_rgrpd_get_first(sdp) == gfs2_rgrpd_get_next(rgd_end))
+	    && (start > rgd_end->rd_data0 + rgd_end->rd_data))
+		return -EINVAL; /* start is beyond the end of the fs */
 
 	while (1) {
 
@@ -1336,7 +1338,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	}
 
 out:
-	r.len = trimmed << 9;
+	r.len = trimmed << bs_shift;
 	if (copy_to_user(argp, &r, sizeof(r)))
 		return -EFAULT;
 

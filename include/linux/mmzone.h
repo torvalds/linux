@@ -474,10 +474,16 @@ struct zone {
 	 * frequently read in proximity to zone->lock.  It's good to
 	 * give them a chance of being in the same cacheline.
 	 *
-	 * Write access to present_pages and managed_pages at runtime should
-	 * be protected by lock_memory_hotplug()/unlock_memory_hotplug().
-	 * Any reader who can't tolerant drift of present_pages and
-	 * managed_pages should hold memory hotplug lock to get a stable value.
+	 * Write access to present_pages at runtime should be protected by
+	 * lock_memory_hotplug()/unlock_memory_hotplug().  Any reader who can't
+	 * tolerant drift of present_pages should hold memory hotplug lock to
+	 * get a stable value.
+	 *
+	 * Read access to managed_pages should be safe because it's unsigned
+	 * long. Write access to zone->managed_pages and totalram_pages are
+	 * protected by managed_page_count_lock at runtime. Idealy only
+	 * adjust_managed_page_count() should be used instead of directly
+	 * touching zone->managed_pages and totalram_pages.
 	 */
 	unsigned long		spanned_pages;
 	unsigned long		present_pages;
@@ -494,6 +500,13 @@ typedef enum {
 	ZONE_OOM_LOCKED,		/* zone is in OOM killer zonelist */
 	ZONE_CONGESTED,			/* zone has many dirty pages backed by
 					 * a congested BDI
+					 */
+	ZONE_TAIL_LRU_DIRTY,		/* reclaim scanning has recently found
+					 * many dirty file pages at the tail
+					 * of the LRU.
+					 */
+	ZONE_WRITEBACK,			/* reclaim scanning has recently found
+					 * many pages under writeback
 					 */
 } zone_flags_t;
 
@@ -515,6 +528,16 @@ static inline void zone_clear_flag(struct zone *zone, zone_flags_t flag)
 static inline int zone_is_reclaim_congested(const struct zone *zone)
 {
 	return test_bit(ZONE_CONGESTED, &zone->flags);
+}
+
+static inline int zone_is_reclaim_dirty(const struct zone *zone)
+{
+	return test_bit(ZONE_TAIL_LRU_DIRTY, &zone->flags);
+}
+
+static inline int zone_is_reclaim_writeback(const struct zone *zone)
+{
+	return test_bit(ZONE_WRITEBACK, &zone->flags);
 }
 
 static inline int zone_is_reclaim_locked(const struct zone *zone)
@@ -716,7 +739,10 @@ typedef struct pglist_data {
 	 * or node_spanned_pages stay constant.  Holding this will also
 	 * guarantee that any pfn_valid() stays that way.
 	 *
-	 * Nests above zone->lock and zone->size_seqlock.
+	 * pgdat_resize_lock() and pgdat_resize_unlock() are provided to
+	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG.
+	 *
+	 * Nests above zone->lock and zone->span_seqlock
 	 */
 	spinlock_t node_size_lock;
 #endif
@@ -843,11 +869,6 @@ static inline int is_highmem_idx(enum zone_type idx)
 #endif
 }
 
-static inline int is_normal_idx(enum zone_type idx)
-{
-	return (idx == ZONE_NORMAL);
-}
-
 /**
  * is_highmem - helper function to quickly check if a struct zone is a 
  *              highmem zone or not.  This is an attempt to keep references
@@ -861,29 +882,6 @@ static inline int is_highmem(struct zone *zone)
 	return zone_off == ZONE_HIGHMEM * sizeof(*zone) ||
 	       (zone_off == ZONE_MOVABLE * sizeof(*zone) &&
 		zone_movable_is_highmem());
-#else
-	return 0;
-#endif
-}
-
-static inline int is_normal(struct zone *zone)
-{
-	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
-}
-
-static inline int is_dma32(struct zone *zone)
-{
-#ifdef CONFIG_ZONE_DMA32
-	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
-#else
-	return 0;
-#endif
-}
-
-static inline int is_dma(struct zone *zone)
-{
-#ifdef CONFIG_ZONE_DMA
-	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
 #else
 	return 0;
 #endif
@@ -1111,6 +1109,10 @@ struct mem_section {
 	struct page_cgroup *page_cgroup;
 	unsigned long pad;
 #endif
+	/*
+	 * WARNING: mem_section must be a power-of-2 in size for the
+	 * calculation and use of SECTION_ROOT_MASK to make sense.
+	 */
 };
 
 #ifdef CONFIG_SPARSEMEM_EXTREME

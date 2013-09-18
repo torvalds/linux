@@ -29,6 +29,8 @@
 #endif				/* PRINTK_HEADER */
 #define PRINTK_HEADER "dasd(fba):"
 
+#define FBA_DEFAULT_RETRIES 32
+
 #define DASD_FBA_CCW_WRITE 0x41
 #define DASD_FBA_CCW_READ 0x42
 #define DASD_FBA_CCW_LOCATE 0x43
@@ -167,6 +169,7 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	}
 
 	device->default_expires = DASD_EXPIRES;
+	device->default_retries = FBA_DEFAULT_RETRIES;
 	device->path_data.opm = LPM_ANYPATH;
 
 	readonly = dasd_device_is_ro(device);
@@ -369,7 +372,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 	cqr->memdev = memdev;
 	cqr->block = block;
 	cqr->expires = memdev->default_expires * HZ;	/* default 5 minutes */
-	cqr->retries = 32;
+	cqr->retries = memdev->default_retries;
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
@@ -425,7 +428,10 @@ out:
 
 static void dasd_fba_handle_terminated_request(struct dasd_ccw_req *cqr)
 {
-	cqr->status = DASD_CQR_FILLED;
+	if (cqr->retries < 0)
+		cqr->status = DASD_CQR_FAILED;
+	else
+		cqr->status = DASD_CQR_FILLED;
 };
 
 static int

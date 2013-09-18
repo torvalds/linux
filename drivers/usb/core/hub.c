@@ -668,6 +668,15 @@ resubmit:
 static inline int
 hub_clear_tt_buffer (struct usb_device *hdev, u16 devinfo, u16 tt)
 {
+	/* Need to clear both directions for control ep */
+	if (((devinfo >> 11) & USB_ENDPOINT_XFERTYPE_MASK) ==
+			USB_ENDPOINT_XFER_CONTROL) {
+		int status = usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
+				HUB_CLEAR_TT_BUFFER, USB_RT_PORT,
+				devinfo ^ 0x8000, tt, NULL, 0, 1000);
+		if (status)
+			return status;
+	}
 	return usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
 			       HUB_CLEAR_TT_BUFFER, USB_RT_PORT, devinfo,
 			       tt, NULL, 0, 1000);
@@ -718,18 +727,18 @@ static void hub_tt_work(struct work_struct *work)
 
 /**
  * usb_hub_set_port_power - control hub port's power state
- * @hdev: target hub
+ * @hdev: USB device belonging to the usb hub
+ * @hub: target hub
  * @port1: port index
  * @set: expected status
  *
  * call this function to control port's power via setting or
  * clearing the port's PORT_POWER feature.
  */
-int usb_hub_set_port_power(struct usb_device *hdev, int port1,
-		bool set)
+int usb_hub_set_port_power(struct usb_device *hdev, struct usb_hub *hub,
+			   int port1, bool set)
 {
 	int ret;
-	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
 	struct usb_port *port_dev = hub->ports[port1 - 1];
 
 	if (set)
@@ -1769,15 +1778,17 @@ hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
 static int find_port_owner(struct usb_device *hdev, unsigned port1,
 		struct dev_state ***ppowner)
 {
+	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+
 	if (hdev->state == USB_STATE_NOTATTACHED)
 		return -ENODEV;
 	if (port1 == 0 || port1 > hdev->maxchild)
 		return -EINVAL;
 
-	/* This assumes that devices not managed by the hub driver
+	/* Devices not managed by the hub driver
 	 * will always have maxchild equal to 0.
 	 */
-	*ppowner = &(usb_hub_to_struct_hub(hdev)->ports[port1 - 1]->port_owner);
+	*ppowner = &(hub->ports[port1 - 1]->port_owner);
 	return 0;
 }
 
@@ -2846,6 +2857,15 @@ static int usb_disable_function_remotewakeup(struct usb_device *udev)
 				USB_CTRL_SET_TIMEOUT);
 }
 
+/* Count of wakeup-enabled devices at or below udev */
+static unsigned wakeup_enabled_descendants(struct usb_device *udev)
+{
+	struct usb_hub *hub = usb_hub_to_struct_hub(udev);
+
+	return udev->do_remote_wakeup +
+			(hub ? hub->wakeup_enabled_descendants : 0);
+}
+
 /*
  * usb_port_suspend - suspend a usb device's upstream port
  * @udev: device that's no longer in active use, not a root hub
@@ -2886,8 +2906,8 @@ static int usb_disable_function_remotewakeup(struct usb_device *udev)
  * Linux (2.6) currently has NO mechanisms to initiate that:  no khubd
  * timer, no SRP, no requests through sysfs.
  *
- * If Runtime PM isn't enabled or used, non-SuperSpeed devices really get
- * suspended only when their bus goes into global suspend (i.e., the root
+ * If Runtime PM isn't enabled or used, non-SuperSpeed devices may not get
+ * suspended until their bus goes into global suspend (i.e., the root
  * hub is suspended).  Nevertheless, we change @udev->state to
  * USB_STATE_SUSPENDED as this is the device's "logical" state.  The actual
  * upstream port setting is stored in @udev->port_is_suspended.
@@ -2958,15 +2978,21 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	/* see 7.1.7.6 */
 	if (hub_is_superspeed(hub->hdev))
 		status = hub_set_port_link_state(hub, port1, USB_SS_PORT_LS_U3);
-	else if (PMSG_IS_AUTO(msg))
-		status = set_port_feature(hub->hdev, port1,
-						USB_PORT_FEAT_SUSPEND);
+
 	/*
 	 * For system suspend, we do not need to enable the suspend feature
 	 * on individual USB-2 ports.  The devices will automatically go
 	 * into suspend a few ms after the root hub stops sending packets.
 	 * The USB 2.0 spec calls this "global suspend".
+	 *
+	 * However, many USB hubs have a bug: They don't relay wakeup requests
+	 * from a downstream port if the port's suspend feature isn't on.
+	 * Therefore we will turn on the suspend feature if udev or any of its
+	 * descendants is enabled for remote wakeup.
 	 */
+	else if (PMSG_IS_AUTO(msg) || wakeup_enabled_descendants(udev) > 0)
+		status = set_port_feature(hub->hdev, port1,
+				USB_PORT_FEAT_SUSPEND);
 	else {
 		really_suspend = false;
 		status = 0;
@@ -3001,15 +3027,16 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		if (!PMSG_IS_AUTO(msg))
 			status = 0;
 	} else {
-		/* device has up to 10 msec to fully suspend */
 		dev_dbg(&udev->dev, "usb %ssuspend, wakeup %d\n",
 				(PMSG_IS_AUTO(msg) ? "auto-" : ""),
 				udev->do_remote_wakeup);
-		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 		if (really_suspend) {
 			udev->port_is_suspended = 1;
+
+			/* device has up to 10 msec to fully suspend */
 			msleep(10);
 		}
+		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 	}
 
 	/*
@@ -3291,7 +3318,11 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 	unsigned		port1;
 	int			status;
 
-	/* Warn if children aren't already suspended */
+	/*
+	 * Warn if children aren't already suspended.
+	 * Also, add up the number of wakeup-enabled descendants.
+	 */
+	hub->wakeup_enabled_descendants = 0;
 	for (port1 = 1; port1 <= hdev->maxchild; port1++) {
 		struct usb_device	*udev;
 
@@ -3301,6 +3332,9 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 			if (PMSG_IS_AUTO(msg))
 				return -EBUSY;
 		}
+		if (udev)
+			hub->wakeup_enabled_descendants +=
+					wakeup_enabled_descendants(udev);
 	}
 
 	if (hdev->do_remote_wakeup && hub->quirk_check_port_auto_suspend) {
@@ -4764,7 +4798,8 @@ static void hub_events(void)
 					hub->ports[i - 1]->child;
 
 				dev_dbg(hub_dev, "warm reset port %d\n", i);
-				if (!udev) {
+				if (!udev || !(portstatus &
+						USB_PORT_STAT_CONNECTION)) {
 					status = hub_port_reset(hub, i,
 							NULL, HUB_BH_RESET_TIME,
 							true);
@@ -4774,8 +4809,8 @@ static void hub_events(void)
 					usb_lock_device(udev);
 					status = usb_reset_device(udev);
 					usb_unlock_device(udev);
+					connect_change = 0;
 				}
-				connect_change = 0;
 			}
 
 			if (connect_change)
@@ -5323,7 +5358,8 @@ void usb_set_hub_port_connect_type(struct usb_device *hdev, int port1,
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
 
-	hub->ports[port1 - 1]->connect_type = type;
+	if (hub)
+		hub->ports[port1 - 1]->connect_type = type;
 }
 
 /**
@@ -5338,6 +5374,9 @@ enum usb_port_connect_type
 usb_get_hub_port_connect_type(struct usb_device *hdev, int port1)
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+
+	if (!hub)
+		return USB_PORT_CONNECT_TYPE_UNKNOWN;
 
 	return hub->ports[port1 - 1]->connect_type;
 }
@@ -5396,6 +5435,9 @@ acpi_handle usb_get_hub_port_acpi_handle(struct usb_device *hdev,
 	int port1)
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+
+	if (!hub)
+		return NULL;
 
 	return DEVICE_ACPI_HANDLE(&hub->ports[port1 - 1]->dev);
 }

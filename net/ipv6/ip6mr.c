@@ -259,10 +259,12 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 {
 	struct mr6_table *mrt, *next;
 
+	rtnl_lock();
 	list_for_each_entry_safe(mrt, next, &net->ipv6.mr6_tables, list) {
 		list_del(&mrt->list);
 		ip6mr_free_table(mrt);
 	}
+	rtnl_unlock();
 	fib_rules_unregister(net->ipv6.mr6_rules_ops);
 }
 #else
@@ -289,7 +291,10 @@ static int __net_init ip6mr_rules_init(struct net *net)
 
 static void __net_exit ip6mr_rules_exit(struct net *net)
 {
+	rtnl_lock();
 	ip6mr_free_table(net->ipv6.mrt6);
+	net->ipv6.mrt6 = NULL;
+	rtnl_unlock();
 }
 #endif
 
@@ -1319,7 +1324,7 @@ static int ip6mr_mfc_delete(struct mr6_table *mrt, struct mf6cctl *mfc,
 static int ip6mr_device_event(struct notifier_block *this,
 			      unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct mr6_table *mrt;
 	struct mif_device *v;

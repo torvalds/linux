@@ -351,7 +351,6 @@ static int tps62360_probe(struct i2c_client *client,
 	int chip_id;
 
 	pdata = client->dev.platform_data;
-	chip_id = id->driver_data;
 
 	if (client->dev.of_node) {
 		const struct of_device_id *match;
@@ -364,6 +363,11 @@ static int tps62360_probe(struct i2c_client *client,
 		chip_id = (int)match->data;
 		if (!pdata)
 			pdata = of_get_tps62360_platform_data(&client->dev);
+	} else if (id) {
+		chip_id = id->driver_data;
+	} else {
+		dev_err(&client->dev, "No device tree match or id table match found\n");
+		return -ENODEV;
 	}
 
 	if (!pdata) {
@@ -402,7 +406,7 @@ static int tps62360_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	tps->desc.name = id->name;
+	tps->desc.name = client->name;
 	tps->desc.id = 0;
 	tps->desc.ops = &tps62360_dcdc_ops;
 	tps->desc.type = REGULATOR_VOLTAGE;

@@ -33,6 +33,8 @@
  *
  */
 
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/bootmem.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
@@ -202,8 +204,8 @@ retry:
 			order--;
 		}
 		if (order != get_order(bytes)) {
-			pr_warn("Warning: only able to allocate %ld MB "
-				"for software IO TLB\n", (PAGE_SIZE << order) >> 20);
+			pr_warn("Warning: only able to allocate %ld MB for software IO TLB\n",
+				(PAGE_SIZE << order) >> 20);
 			xen_io_tlb_nslabs = SLABS_PER_PAGE << order;
 			bytes = xen_io_tlb_nslabs << IO_TLB_SHIFT;
 		}
@@ -242,11 +244,11 @@ error:
 	if (repeat--) {
 		xen_io_tlb_nslabs = max(1024UL, /* Min is 2MB */
 					(xen_io_tlb_nslabs >> 1));
-		printk(KERN_INFO "Xen-SWIOTLB: Lowering to %luMB\n",
-		      (xen_io_tlb_nslabs << IO_TLB_SHIFT) >> 20);
+		pr_info("Lowering to %luMB\n",
+			(xen_io_tlb_nslabs << IO_TLB_SHIFT) >> 20);
 		goto retry;
 	}
-	pr_err("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
+	pr_err("%s (rc:%d)\n", xen_swiotlb_error(m_ret), rc);
 	if (early)
 		panic("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
 	else

@@ -54,7 +54,7 @@ it will use an allocated socket buffer as usual and the contents will be
  copied to the ring on transmission, nullifying most of the performance gains.
 Dumps of kernel databases automatically support memory mapped I/O.
 
-Conversion of the transmit path involves changing message contruction to
+Conversion of the transmit path involves changing message construction to
 use memory from the TX ring instead of (usually) a buffer declared on the
 stack and setting up the frame header approriately. Optionally poll() can
 be used to wait for free frames in the TX ring.
@@ -65,8 +65,8 @@ Structured and definitions for using memory mapped I/O are contained in
 RX and TX rings
 ----------------
 
-Each ring contains a number of continous memory blocks, containing frames of
-fixed size dependant on the parameters used for ring setup.
+Each ring contains a number of continuous memory blocks, containing frames of
+fixed size dependent on the parameters used for ring setup.
 
 Ring:	[ block 0 ]
 		[ frame 0 ]
@@ -80,7 +80,7 @@ Ring:	[ block 0 ]
 		[ frame 2 * n + 1 ]
 
 The blocks are only visible to the kernel, from the point of view of user-space
-the ring just contains the frames in a continous memory zone.
+the ring just contains the frames in a continuous memory zone.
 
 The ring parameters used for setting up the ring are defined as follows:
 
@@ -91,7 +91,7 @@ struct nl_mmap_req {
 	unsigned int	nm_frame_nr;
 };
 
-Frames are grouped into blocks, where each block is a continous region of memory
+Frames are grouped into blocks, where each block is a continuous region of memory
 and holds nm_block_size / nm_frame_size frames. The total number of frames in
 the ring is nm_frame_nr. The following invariants hold:
 
@@ -113,8 +113,8 @@ Some parameters are constrained, specifically:
 
 - nm_frame_nr must equal the actual number of frames as specified above.
 
-When the kernel can't allocate phsyically continous memory for a ring block,
-it will fall back to use physically discontinous memory. This might affect
+When the kernel can't allocate physically continuous memory for a ring block,
+it will fall back to use physically discontinuous memory. This might affect
 performance negatively, in order to avoid this the nm_frame_size parameter
 should be chosen to be as small as possible for the required frame size and
 the number of blocks should be increased instead.
@@ -274,9 +274,9 @@ This example assumes some ring parameters of the ring setup are available.
 			/* Get next frame header */
 			hdr = rx_ring + frame_offset;
 
-			if (hdr->nm_status == NL_MMAP_STATUS_VALID)
+			if (hdr->nm_status == NL_MMAP_STATUS_VALID) {
 				/* Regular memory mapped frame */
-				nlh = (void *hdr) + NL_MMAP_HDRLEN;
+				nlh = (void *)hdr + NL_MMAP_HDRLEN;
 				len = hdr->nm_len;
 
 				/* Release empty message immediately. May happen

@@ -6,7 +6,7 @@
 
 config PLAT_SAMSUNG
 	bool
-	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P
+	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P || ARCH_EXYNOS
 	default y
 	select GENERIC_IRQ_CHIP
 	select NO_IOPORT
@@ -15,12 +15,10 @@ config PLAT_SAMSUNG
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
+	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
 	default y
 	select ARCH_REQUIRE_GPIOLIB
-	select ARM_GIC if ARCH_EXYNOS
-	select ARM_VIC if !ARCH_EXYNOS
-	select GIC_NON_BANKED if ARCH_EXYNOS4
+	select ARM_VIC
 	select NO_IOPORT
 	select PLAT_SAMSUNG
 	select S3C_GPIO_TRACK
@@ -30,6 +28,13 @@ config PLAT_S5P
 	select SAMSUNG_IRQ_VIC_TIMER
 	help
 	  Base platform code for Samsung's S5P series SoC.
+
+config SAMSUNG_PM
+	bool
+	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX || ARCH_S5P64X0 || S5P_PM)
+	default y
+	help
+	  Base platform power management code for samsung code
 
 if PLAT_SAMSUNG
 
@@ -59,6 +64,20 @@ config S3C_LOWLEVEL_UART_PORT
 	  such as the `Uncompressing...` at start time. The value of
 	  this configuration should be between zero and two. The port
 	  must have been initialised by the boot-loader before use.
+
+config SAMSUNG_ATAGS
+	def_bool n
+	depends on !ARCH_MULTIPLATFORM
+	depends on ATAGS
+	help
+	   This option enables ATAGS based boot support code for
+	   Samsung platforms, including static platform devices, legacy
+	   clock, timer and interrupt initialization, etc.
+
+	   Platforms that support only DT based boot need not to select
+	   this option.
+
+if SAMSUNG_ATAGS
 
 # timer options
 
@@ -367,11 +386,6 @@ config S5P_DEV_JPEG
 	help
 	  Compile in platform device definitions for JPEG codec
 
-config S5P_DEV_MFC
-	bool
-	help
-	  Compile in setup memory (init) code for MFC
-
 config S5P_DEV_ONENAND
 	bool
 	help
@@ -412,6 +426,21 @@ config S3C_DMA
 	help
 	  Internal configuration for S3C DMA core
 
+config S5P_IRQ_PM
+	bool
+	default y if S5P_PM
+	help
+	  Legacy IRQ power management for S5P platforms
+
+config SAMSUNG_PM_GPIO
+	bool
+	default y if GPIO_SAMSUNG && PM
+	help
+	  Include legacy GPIO power management code for platforms not using
+	  pinctrl-samsung driver.
+
+endif
+
 config SAMSUNG_DMADEV
 	bool
 	select ARM_AMBA
@@ -420,6 +449,11 @@ config SAMSUNG_DMADEV
 					CPU_S5P6450 || CPU_S5P6440)
 	help
 	  Use DMA device engine for PL330 DMAC.
+
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in setup memory (init) code for MFC
 
 comment "Power management"
 
@@ -474,6 +508,12 @@ config SAMSUNG_WAKEMASK
 	  Compile support for wakeup-mask controls found on the S3C6400
 	  and above. This code allows a set of interrupt to wakeup-mask
 	  mappings. See <plat/wakeup-mask.h>
+
+config SAMSUNG_WDT_RESET
+	bool
+	help
+	  Compile support for system restart by triggering watchdog reset.
+	  Used on SoCs that do not provide dedicated reset control.
 
 config S5P_PM
 	bool

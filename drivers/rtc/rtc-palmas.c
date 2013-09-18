@@ -265,6 +265,7 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 
 	palmas_rtc->irq = platform_get_irq(pdev, 0);
 
+	device_init_wakeup(&pdev->dev, 1);
 	palmas_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				&palmas_rtc_ops, THIS_MODULE);
 	if (IS_ERR(palmas_rtc->rtc)) {
@@ -283,7 +284,6 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	device_set_wakeup_capable(&pdev->dev, 1);
 	return 0;
 }
 

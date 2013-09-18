@@ -1809,7 +1809,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		rma_size <<= PAGE_SHIFT;
 		rmls = lpcr_rmls(rma_size);
 		err = -EINVAL;
-		if (rmls < 0) {
+		if ((long)rmls < 0) {
 			pr_err("KVM: Can't use RMA of 0x%lx bytes\n", rma_size);
 			goto out_srcu;
 		}
@@ -1864,7 +1864,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 
  up_out:
 	up_read(&current->mm->mmap_sem);
-	goto out;
+	goto out_srcu;
 }
 
 int kvmppc_core_init_vm(struct kvm *kvm)
@@ -1874,7 +1874,7 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 	/* Allocate the guest's logical partition ID */
 
 	lpid = kvmppc_alloc_lpid();
-	if (lpid < 0)
+	if ((long)lpid < 0)
 		return -ENOMEM;
 	kvm->arch.lpid = lpid;
 

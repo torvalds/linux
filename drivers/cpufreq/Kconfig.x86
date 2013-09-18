@@ -132,6 +132,7 @@ config X86_POWERNOW_K8
 config X86_AMD_FREQ_SENSITIVITY
 	tristate "AMD frequency sensitivity feedback powersave bias"
 	depends on CPU_FREQ_GOV_ONDEMAND && X86_ACPI_CPUFREQ && CPU_SUP_AMD
+	select CPU_FREQ_TABLE
 	help
 	  This adds AMD-specific powersave bias function to the ondemand
 	  governor, which allows it to make more power-conscious frequency

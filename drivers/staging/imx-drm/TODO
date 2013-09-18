@@ -6,7 +6,6 @@ TODO:
 - Factor out more code to common helper functions
 - decide where to put the base driver. It is not specific to a subsystem
   and would be used by DRM/KMS and media/V4L2
-- convert irq driver to irq_domain_add_linear
 
 Missing features (not necessarily for moving out of staging):
 

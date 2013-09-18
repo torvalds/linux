@@ -683,7 +683,7 @@ static int ds1307_probe(struct i2c_client *client,
 	    && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
-	ds1307 = kzalloc(sizeof(struct ds1307), GFP_KERNEL);
+	ds1307 = devm_kzalloc(&client->dev, sizeof(struct ds1307), GFP_KERNEL);
 	if (!ds1307)
 		return -ENOMEM;
 
@@ -715,7 +715,7 @@ static int ds1307_probe(struct i2c_client *client,
 		if (tmp != 2) {
 			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
-			goto exit_free;
+			goto exit;
 		}
 
 		/* oscillator off?  turn it on, so clock can tick. */
@@ -754,7 +754,7 @@ static int ds1307_probe(struct i2c_client *client,
 		if (tmp != 2) {
 			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
-			goto exit_free;
+			goto exit;
 		}
 
 		/* oscillator off?  turn it on, so clock can tick. */
@@ -798,7 +798,7 @@ static int ds1307_probe(struct i2c_client *client,
 			if (tmp != 2) {
 				dev_dbg(&client->dev, "read error %d\n", tmp);
 				err = -EIO;
-				goto exit_free;
+				goto exit;
 			}
 
 			/* correct hour */
@@ -826,7 +826,7 @@ read_rtc:
 	if (tmp != 8) {
 		dev_dbg(&client->dev, "read error %d\n", tmp);
 		err = -EIO;
-		goto exit_free;
+		goto exit;
 	}
 
 	/*
@@ -868,7 +868,7 @@ read_rtc:
 		if (tmp < 0) {
 			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
-			goto exit_free;
+			goto exit;
 		}
 
 		/* oscillator fault?  clear flag, and warn */
@@ -927,13 +927,13 @@ read_rtc:
 				bin2bcd(tmp));
 	}
 
-	ds1307->rtc = rtc_device_register(client->name, &client->dev,
+	ds1307->rtc = devm_rtc_device_register(&client->dev, client->name,
 				&ds13xx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds1307->rtc)) {
 		err = PTR_ERR(ds1307->rtc);
 		dev_err(&client->dev,
 			"unable to register the class device\n");
-		goto exit_free;
+		goto exit;
 	}
 
 	if (want_irq) {
@@ -942,7 +942,7 @@ read_rtc:
 		if (err) {
 			dev_err(&client->dev,
 				"unable to request IRQ!\n");
-			goto exit_irq;
+			goto exit;
 		}
 
 		device_set_wakeup_capable(&client->dev, 1);
@@ -951,11 +951,12 @@ read_rtc:
 	}
 
 	if (chip->nvram_size) {
-		ds1307->nvram = kzalloc(sizeof(struct bin_attribute),
-							GFP_KERNEL);
+		ds1307->nvram = devm_kzalloc(&client->dev,
+					sizeof(struct bin_attribute),
+					GFP_KERNEL);
 		if (!ds1307->nvram) {
 			err = -ENOMEM;
-			goto exit_nvram;
+			goto exit;
 		}
 		ds1307->nvram->attr.name = "nvram";
 		ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
@@ -965,21 +966,15 @@ read_rtc:
 		ds1307->nvram->size = chip->nvram_size;
 		ds1307->nvram_offset = chip->nvram_offset;
 		err = sysfs_create_bin_file(&client->dev.kobj, ds1307->nvram);
-		if (err) {
-			kfree(ds1307->nvram);
-			goto exit_nvram;
-		}
+		if (err)
+			goto exit;
 		set_bit(HAS_NVRAM, &ds1307->flags);
 		dev_info(&client->dev, "%zu bytes nvram\n", ds1307->nvram->size);
 	}
 
 	return 0;
 
-exit_nvram:
-exit_irq:
-	rtc_device_unregister(ds1307->rtc);
-exit_free:
-	kfree(ds1307);
+exit:
 	return err;
 }
 
@@ -992,13 +987,9 @@ static int ds1307_remove(struct i2c_client *client)
 		cancel_work_sync(&ds1307->work);
 	}
 
-	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags)) {
+	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags))
 		sysfs_remove_bin_file(&client->dev.kobj, ds1307->nvram);
-		kfree(ds1307->nvram);
-	}
 
-	rtc_device_unregister(ds1307->rtc);
-	kfree(ds1307);
 	return 0;
 }
 

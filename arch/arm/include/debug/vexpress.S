@@ -16,6 +16,8 @@
 #define DEBUG_LL_PHYS_BASE_RS1		0x1c000000
 #define DEBUG_LL_UART_OFFSET_RS1	0x00090000
 
+#define DEBUG_LL_UART_PHYS_CRX		0xb0090000
+
 #define DEBUG_LL_VIRT_BASE		0xf8000000
 
 #if defined(CONFIG_DEBUG_VEXPRESS_UART0_DETECT)
@@ -63,6 +65,14 @@
 		mov	\rp, #DEBUG_LL_UART_OFFSET_RS1
 		orr	\rv, \rp, #DEBUG_LL_VIRT_BASE
 		orr	\rp, \rp, #DEBUG_LL_PHYS_BASE_RS1
+		.endm
+
+#include <asm/hardware/debug-pl01x.S>
+
+#elif defined(CONFIG_DEBUG_VEXPRESS_UART0_CRX)
+
+		.macro	addruart,rp,tmp,tmp2
+		ldr	\rp, =DEBUG_LL_UART_PHYS_CRX
 		.endm
 
 #include <asm/hardware/debug-pl01x.S>

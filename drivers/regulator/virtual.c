@@ -330,8 +330,6 @@ static int regulator_virtual_remove(struct platform_device *pdev)
 	if (drvdata->enabled)
 		regulator_disable(drvdata->regulator);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

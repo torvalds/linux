@@ -96,6 +96,8 @@ struct mmc_command {
  */
 
 	unsigned int		cmd_timeout_ms;	/* in milliseconds */
+	/* Set this flag only for blocking sanitize request */
+	bool			sanitize_busy;
 
 	struct mmc_data		*data;		/* data segment associated with cmd */
 	struct mmc_request	*mrq;		/* associated request */
@@ -187,6 +189,9 @@ extern unsigned int mmc_align_data_size(struct mmc_card *, unsigned int);
 extern int __mmc_claim_host(struct mmc_host *host, atomic_t *abort);
 extern void mmc_release_host(struct mmc_host *host);
 extern int mmc_try_claim_host(struct mmc_host *host);
+
+extern void mmc_get_card(struct mmc_card *card);
+extern void mmc_put_card(struct mmc_card *card);
 
 extern int mmc_flush_cache(struct mmc_card *);
 

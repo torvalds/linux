@@ -58,7 +58,7 @@ struct ssc_device *ssc_request(unsigned int ssc_num)
 	ssc->user++;
 	spin_unlock(&user_lock);
 
-	clk_enable(ssc->clk);
+	clk_prepare_enable(ssc->clk);
 
 	return ssc;
 }
@@ -66,14 +66,19 @@ EXPORT_SYMBOL(ssc_request);
 
 void ssc_free(struct ssc_device *ssc)
 {
+	bool disable_clk = true;
+
 	spin_lock(&user_lock);
-	if (ssc->user) {
+	if (ssc->user)
 		ssc->user--;
-		clk_disable(ssc->clk);
-	} else {
+	else {
+		disable_clk = false;
 		dev_dbg(&ssc->pdev->dev, "device already free\n");
 	}
 	spin_unlock(&user_lock);
+
+	if (disable_clk)
+		clk_disable_unprepare(ssc->clk);
 }
 EXPORT_SYMBOL(ssc_free);
 
@@ -167,10 +172,10 @@ static int ssc_probe(struct platform_device *pdev)
 	}
 
 	/* disable all interrupts */
-	clk_enable(ssc->clk);
+	clk_prepare_enable(ssc->clk);
 	ssc_writel(ssc->regs, IDR, -1);
 	ssc_readl(ssc->regs, SR);
-	clk_disable(ssc->clk);
+	clk_disable_unprepare(ssc->clk);
 
 	ssc->irq = platform_get_irq(pdev, 0);
 	if (!ssc->irq) {

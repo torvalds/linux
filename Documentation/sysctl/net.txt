@@ -1,4 +1,4 @@
-Documentation for /proc/sys/net/*	kernel version 2.4.0-test11-pre4
+Documentation for /proc/sys/net/*
 	(c) 1999		Terrehon Bowden <terrehon@pacbell.net>
 				Bodo Bauer <bb@ricochet.net>
 	(c) 2000		Jorge Nerin <comandante@zaralinux.com>
@@ -9,10 +9,10 @@ For general info and legal blurb, please look in README.
 ==============================================================
 
 This file contains the documentation for the sysctl files in
-/proc/sys/net and is valid for Linux kernel version 2.4.0-test11-pre4.
+/proc/sys/net
 
 The interface  to  the  networking  parts  of  the  kernel  is  located  in
-/proc/sys/net. The following table shows all possible subdirectories.You may
+/proc/sys/net. The following table shows all possible subdirectories.  You may
 see only some of them, depending on your kernel's configuration.
 
 
@@ -26,7 +26,7 @@ Table : Subdirectories in /proc/sys/net
  ipv4      IP version 4        x25        X.25 protocol
  ipx       IPX                 token-ring IBM token ring
  bridge    Bridging            decnet     DEC net
- ipv6      IP version 6
+ ipv6      IP version 6        tipc       TIPC
 ..............................................................................
 
 1. /proc/sys/net/core - Network core options
@@ -49,6 +49,30 @@ dev_weight
 The maximum number of packets that kernel can handle on a NAPI interrupt,
 it's a Per-CPU variable.
 Default: 64
+
+busy_read
+----------------
+Low latency busy poll timeout for socket reads. (needs CONFIG_NET_RX_BUSY_POLL)
+Approximate time in us to busy loop waiting for packets on the device queue.
+This sets the default value of the SO_BUSY_POLL socket option.
+Can be set or overridden per socket by setting socket option SO_BUSY_POLL,
+which is the preferred method of enabling. If you need to enable the feature
+globally via sysctl, a value of 50 is recommended.
+Will increase power usage.
+Default: 0 (off)
+
+busy_poll
+----------------
+Low latency busy poll timeout for poll and select. (needs CONFIG_NET_RX_BUSY_POLL)
+Approximate time in us to busy loop waiting for events.
+Recommended value depends on the number of sockets you poll on.
+For several sockets 50, for several hundreds 100.
+For more than that you probably want to use epoll.
+Note that only sockets with SO_BUSY_POLL set will be busy polled,
+so you want to either selectively set SO_BUSY_POLL on those sockets or set
+sysctl.net.busy_read globally.
+Will increase power usage.
+Default: 0 (off)
 
 rmem_default
 ------------
@@ -93,8 +117,7 @@ netdev_budget
 
 Maximum number of packets taken from all interfaces in one polling cycle (NAPI
 poll). In one polling cycle interfaces which are registered to polling are
-probed in a round-robin manner. The limit of packets in one such probe can be
-set per-device via sysfs class/net/<device>/weight .
+probed in a round-robin manner.
 
 netdev_max_backlog
 ------------------
@@ -201,3 +224,18 @@ IPX.
 The /proc/net/ipx_route  table  holds  a list of IPX routes. For each route it
 gives the  destination  network, the router node (or Directly) and the network
 address of the router (or Connected) for internal networks.
+
+6. TIPC
+-------------------------------------------------------
+
+The TIPC protocol now has a tunable for the receive memory, similar to the
+tcp_rmem - i.e. a vector of 3 INTEGERs: (min, default, max)
+
+    # cat /proc/sys/net/tipc/tipc_rmem
+    4252725 34021800        68043600
+    #
+
+The max value is set to CONN_OVERLOAD_LIMIT, and the default and min values
+are scaled (shifted) versions of that same value.  Note that the min value
+is not at this point in time used in any meaningful way, but the triplet is
+preserved in order to be consistent with things like tcp_rmem.

@@ -118,7 +118,7 @@ dns_resolver_instantiate(struct key *key, struct key_preparsed_payload *prep)
 				if (opt_vlen <= 0)
 					goto bad_option_value;
 
-				ret = strict_strtoul(eq, 10, &derrno);
+				ret = kstrtoul(eq, 10, &derrno);
 				if (ret < 0)
 					goto bad_option_value;
 

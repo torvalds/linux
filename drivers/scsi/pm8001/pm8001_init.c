@@ -912,14 +912,13 @@ static int pm8001_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct pm8001_hba_info *pm8001_ha;
-	int i , pos;
+	int i;
 	u32 device_state;
 	pm8001_ha = sha->lldd_ha;
 	flush_workqueue(pm8001_wq);
 	scsi_block_requests(pm8001_ha->shost);
-	pos = pci_find_capability(pdev, PCI_CAP_ID_PM);
-	if (pos == 0) {
-		printk(KERN_ERR " PCI PM not supported\n");
+	if (!pdev->pm_cap) {
+		dev_err(&pdev->dev, " PCI PM not supported\n");
 		return -ENODEV;
 	}
 	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0xFF);

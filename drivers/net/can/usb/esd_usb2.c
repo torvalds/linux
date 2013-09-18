@@ -412,10 +412,20 @@ static void esd_usb2_read_bulk_callback(struct urb *urb)
 
 		switch (msg->msg.hdr.cmd) {
 		case CMD_CAN_RX:
+			if (msg->msg.rx.net >= dev->net_count) {
+				dev_err(dev->udev->dev.parent, "format error\n");
+				break;
+			}
+
 			esd_usb2_rx_can_msg(dev->nets[msg->msg.rx.net], msg);
 			break;
 
 		case CMD_CAN_TX:
+			if (msg->msg.txdone.net >= dev->net_count) {
+				dev_err(dev->udev->dev.parent, "format error\n");
+				break;
+			}
+
 			esd_usb2_tx_done_msg(dev->nets[msg->msg.txdone.net],
 					     msg);
 			break;

@@ -112,21 +112,19 @@ extern const struct xattr_handler f2fs_xattr_trusted_handler;
 extern const struct xattr_handler f2fs_xattr_acl_access_handler;
 extern const struct xattr_handler f2fs_xattr_acl_default_handler;
 extern const struct xattr_handler f2fs_xattr_advise_handler;
+extern const struct xattr_handler f2fs_xattr_security_handler;
 
 extern const struct xattr_handler *f2fs_xattr_handlers[];
 
-extern int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
-		const void *value, size_t value_len);
-extern int f2fs_getxattr(struct inode *inode, int name_index, const char *name,
-		void *buffer, size_t buffer_size);
-extern ssize_t f2fs_listxattr(struct dentry *dentry, char *buffer,
-		size_t buffer_size);
-
+extern int f2fs_setxattr(struct inode *, int, const char *,
+				const void *, size_t, struct page *);
+extern int f2fs_getxattr(struct inode *, int, const char *, void *, size_t);
+extern ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
 #else
 
 #define f2fs_xattr_handlers	NULL
 static inline int f2fs_setxattr(struct inode *inode, int name_index,
-	const char *name, const void *value, size_t value_len)
+		const char *name, const void *value, size_t value_len)
 {
 	return -EOPNOTSUPP;
 }
@@ -142,4 +140,14 @@ static inline ssize_t f2fs_listxattr(struct dentry *dentry, char *buffer,
 }
 #endif
 
+#ifdef CONFIG_F2FS_FS_SECURITY
+extern int f2fs_init_security(struct inode *, struct inode *,
+				const struct qstr *, struct page *);
+#else
+static inline int f2fs_init_security(struct inode *inode, struct inode *dir,
+				const struct qstr *qstr, struct page *ipage)
+{
+	return 0;
+}
+#endif
 #endif /* __F2FS_XATTR_H__ */

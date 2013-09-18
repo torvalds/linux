@@ -1934,15 +1934,4 @@ static struct pci_driver sis190_pci_driver = {
 	.remove		= sis190_remove_one,
 };
 
-static int __init sis190_init_module(void)
-{
-	return pci_register_driver(&sis190_pci_driver);
-}
-
-static void __exit sis190_cleanup_module(void)
-{
-	pci_unregister_driver(&sis190_pci_driver);
-}
-
-module_init(sis190_init_module);
-module_exit(sis190_cleanup_module);
+module_pci_driver(sis190_pci_driver);

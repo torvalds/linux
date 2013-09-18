@@ -47,6 +47,8 @@ static struct od_ops od_ops;
 static struct cpufreq_governor cpufreq_gov_ondemand;
 #endif
 
+static unsigned int default_powersave_bias;
+
 static void ondemand_powersave_bias_init_cpu(int cpu)
 {
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
@@ -401,8 +403,8 @@ static ssize_t store_sampling_down_factor(struct dbs_data *dbs_data,
 	return count;
 }
 
-static ssize_t store_ignore_nice(struct dbs_data *dbs_data, const char *buf,
-		size_t count)
+static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
+		const char *buf, size_t count)
 {
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	unsigned int input;
@@ -417,10 +419,10 @@ static ssize_t store_ignore_nice(struct dbs_data *dbs_data, const char *buf,
 	if (input > 1)
 		input = 1;
 
-	if (input == od_tuners->ignore_nice) { /* nothing to do */
+	if (input == od_tuners->ignore_nice_load) { /* nothing to do */
 		return count;
 	}
-	od_tuners->ignore_nice = input;
+	od_tuners->ignore_nice_load = input;
 
 	/* we need to re-evaluate prev_cpu_idle */
 	for_each_online_cpu(j) {
@@ -428,7 +430,7 @@ static ssize_t store_ignore_nice(struct dbs_data *dbs_data, const char *buf,
 		dbs_info = &per_cpu(od_cpu_dbs_info, j);
 		dbs_info->cdbs.prev_cpu_idle = get_cpu_idle_time(j,
 			&dbs_info->cdbs.prev_cpu_wall, od_tuners->io_is_busy);
-		if (od_tuners->ignore_nice)
+		if (od_tuners->ignore_nice_load)
 			dbs_info->cdbs.prev_cpu_nice =
 				kcpustat_cpu(j).cpustat[CPUTIME_NICE];
 
@@ -459,7 +461,7 @@ show_store_one(od, sampling_rate);
 show_store_one(od, io_is_busy);
 show_store_one(od, up_threshold);
 show_store_one(od, sampling_down_factor);
-show_store_one(od, ignore_nice);
+show_store_one(od, ignore_nice_load);
 show_store_one(od, powersave_bias);
 declare_show_sampling_rate_min(od);
 
@@ -467,7 +469,7 @@ gov_sys_pol_attr_rw(sampling_rate);
 gov_sys_pol_attr_rw(io_is_busy);
 gov_sys_pol_attr_rw(up_threshold);
 gov_sys_pol_attr_rw(sampling_down_factor);
-gov_sys_pol_attr_rw(ignore_nice);
+gov_sys_pol_attr_rw(ignore_nice_load);
 gov_sys_pol_attr_rw(powersave_bias);
 gov_sys_pol_attr_ro(sampling_rate_min);
 
@@ -476,7 +478,7 @@ static struct attribute *dbs_attributes_gov_sys[] = {
 	&sampling_rate_gov_sys.attr,
 	&up_threshold_gov_sys.attr,
 	&sampling_down_factor_gov_sys.attr,
-	&ignore_nice_gov_sys.attr,
+	&ignore_nice_load_gov_sys.attr,
 	&powersave_bias_gov_sys.attr,
 	&io_is_busy_gov_sys.attr,
 	NULL
@@ -492,7 +494,7 @@ static struct attribute *dbs_attributes_gov_pol[] = {
 	&sampling_rate_gov_pol.attr,
 	&up_threshold_gov_pol.attr,
 	&sampling_down_factor_gov_pol.attr,
-	&ignore_nice_gov_pol.attr,
+	&ignore_nice_load_gov_pol.attr,
 	&powersave_bias_gov_pol.attr,
 	&io_is_busy_gov_pol.attr,
 	NULL
@@ -542,8 +544,8 @@ static int od_init(struct dbs_data *dbs_data)
 	}
 
 	tuners->sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR;
-	tuners->ignore_nice = 0;
-	tuners->powersave_bias = 0;
+	tuners->ignore_nice_load = 0;
+	tuners->powersave_bias = default_powersave_bias;
 	tuners->io_is_busy = should_io_be_busy();
 
 	dbs_data->tuners = tuners;
@@ -585,6 +587,7 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 	unsigned int cpu;
 	cpumask_t done;
 
+	default_powersave_bias = powersave_bias;
 	cpumask_clear(&done);
 
 	get_online_cpus();
@@ -593,11 +596,17 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 			continue;
 
 		policy = per_cpu(od_cpu_dbs_info, cpu).cdbs.cur_policy;
-		dbs_data = policy->governor_data;
-		od_tuners = dbs_data->tuners;
-		od_tuners->powersave_bias = powersave_bias;
+		if (!policy)
+			continue;
 
 		cpumask_or(&done, &done, policy->cpus);
+
+		if (policy->governor != &cpufreq_gov_ondemand)
+			continue;
+
+		dbs_data = policy->governor_data;
+		od_tuners = dbs_data->tuners;
+		od_tuners->powersave_bias = default_powersave_bias;
 	}
 	put_online_cpus();
 }

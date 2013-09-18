@@ -1,6 +1,6 @@
 menuconfig RT2X00
 	tristate "Ralink driver support"
-	depends on MAC80211
+	depends on MAC80211 && HAS_DMA
 	---help---
 	  This will enable the support for the Ralink drivers,
 	  developed in the rt2x00 project <http://rt2x00.serialmonkey.com>.

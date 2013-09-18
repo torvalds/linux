@@ -558,7 +558,6 @@ move_along:
 	}
 
 	rcd->head = l;
-	rcd->pkt_count += i;
 
 	/*
 	 * Iterate over all QPs waiting to respond.

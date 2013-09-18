@@ -172,7 +172,7 @@ int __init pxa168_add_usb_host(struct mv_usb_platform_data *pdata)
 	return platform_device_register(&pxa168_device_usb_host);
 }
 
-void pxa168_restart(char mode, const char *cmd)
+void pxa168_restart(enum reboot_mode mode, const char *cmd)
 {
 	soft_restart(0xffff0000);
 }

@@ -42,7 +42,6 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <acpi/video.h>
-#include <asm/pat.h>
 
 #define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
 
@@ -956,6 +955,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_BLT:
 		value = intel_ring_initialized(&dev_priv->ring[BCS]);
 		break;
+	case I915_PARAM_HAS_VEBOX:
+		value = intel_ring_initialized(&dev_priv->ring[VECS]);
+		break;
 	case I915_PARAM_HAS_RELAXED_FENCING:
 		value = 1;
 		break;
@@ -999,8 +1001,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 1;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
-				 param->param);
+		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
@@ -1359,8 +1360,10 @@ static int i915_load_modeset_init(struct drm_device *dev)
 cleanup_gem:
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
+	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_aliasing_ppgtt(dev);
+	drm_mm_takedown(&dev_priv->mm.gtt_space);
 cleanup_irq:
 	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
@@ -1397,29 +1400,6 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	master->driver_priv = NULL;
 }
 
-static void
-i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
-		unsigned long size)
-{
-	dev_priv->mm.gtt_mtrr = -1;
-
-#if defined(CONFIG_X86_PAT)
-	if (cpu_has_pat)
-		return;
-#endif
-
-	/* Set up a WC MTRR for non-PAT systems.  This is more common than
-	 * one would think, because the kernel disables PAT on first
-	 * generation Core chips because WC PAT gets overridden by a UC
-	 * MTRR if present.  Even if a UC MTRR isn't present.
-	 */
-	dev_priv->mm.gtt_mtrr = mtrr_add(base, size, MTRR_TYPE_WRCOMB, 1);
-	if (dev_priv->mm.gtt_mtrr < 0) {
-		DRM_INFO("MTRR allocation failed.  Graphics "
-			 "performance may suffer.\n");
-	}
-}
-
 static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 {
 	struct apertures_struct *ap;
@@ -1431,7 +1411,7 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 		return;
 
 	ap->ranges[0].base = dev_priv->gtt.mappable_base;
-	ap->ranges[0].size = dev_priv->gtt.mappable_end - dev_priv->gtt.start;
+	ap->ranges[0].size = dev_priv->gtt.mappable_end;
 
 	primary =
 		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
@@ -1445,15 +1425,19 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 {
 	const struct intel_device_info *info = dev_priv->info;
 
-#define DEV_INFO_FLAG(name) info->name ? #name "," : ""
-#define DEV_INFO_SEP ,
+#define PRINT_S(name) "%s"
+#define SEP_EMPTY
+#define PRINT_FLAG(name) info->name ? #name "," : ""
+#define SEP_COMMA ,
 	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x flags="
-			 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+			 DEV_INFO_FOR_EACH_FLAG(PRINT_S, SEP_EMPTY),
 			 info->gen,
 			 dev_priv->dev->pdev->device,
-			 DEV_INFO_FLAGS);
-#undef DEV_INFO_FLAG
-#undef DEV_INFO_SEP
+			 DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG, SEP_COMMA));
+#undef PRINT_S
+#undef SEP_EMPTY
+#undef PRINT_FLAG
+#undef SEP_COMMA
 }
 
 /**
@@ -1468,7 +1452,7 @@ static void intel_early_sanitize_regs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_HASWELL(dev))
+	if (HAS_FPGA_DBG_UNCLAIMED(dev))
 		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 }
 
@@ -1510,6 +1494,15 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->dev = dev;
 	dev_priv->info = info;
+
+	spin_lock_init(&dev_priv->irq_lock);
+	spin_lock_init(&dev_priv->gpu_error.lock);
+	spin_lock_init(&dev_priv->rps.lock);
+	spin_lock_init(&dev_priv->gt_lock);
+	spin_lock_init(&dev_priv->backlight.lock);
+	mutex_init(&dev_priv->dpio_lock);
+	mutex_init(&dev_priv->rps.hw_lock);
+	mutex_init(&dev_priv->modeset_restore_lock);
 
 	i915_dump_device_info(dev_priv);
 
@@ -1574,8 +1567,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_rmmap;
 	}
 
-	i915_mtrr_setup(dev_priv, dev_priv->gtt.mappable_base,
-			aperture_size);
+	dev_priv->mm.gtt_mtrr = arch_phys_wc_add(dev_priv->gtt.mappable_base,
+						 aperture_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -1601,6 +1594,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_detect_pch(dev);
 
 	intel_irq_init(dev);
+	intel_pm_init(dev);
+	intel_gt_sanitize(dev);
 	intel_gt_init(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
@@ -1626,14 +1621,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
 
-	spin_lock_init(&dev_priv->irq_lock);
-	spin_lock_init(&dev_priv->gpu_error.lock);
-	spin_lock_init(&dev_priv->rps.lock);
-	mutex_init(&dev_priv->dpio_lock);
-
-	mutex_init(&dev_priv->rps.hw_lock);
-	mutex_init(&dev_priv->modeset_restore_lock);
-
 	dev_priv->num_plane = 1;
 	if (IS_VALLEYVIEW(dev))
 		dev_priv->num_plane = 2;
@@ -1646,6 +1633,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
+
+	if (HAS_POWER_WELL(dev))
+		i915_init_power_well(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = i915_load_modeset_init(dev);
@@ -1679,12 +1669,7 @@ out_gem_unload:
 	intel_teardown_mchbar(dev);
 	destroy_workqueue(dev_priv->wq);
 out_mtrrfree:
-	if (dev_priv->mm.gtt_mtrr >= 0) {
-		mtrr_del(dev_priv->mm.gtt_mtrr,
-			 dev_priv->gtt.mappable_base,
-			 aperture_size);
-		dev_priv->mm.gtt_mtrr = -1;
-	}
+	arch_phys_wc_del(dev_priv->mm.gtt_mtrr);
 	io_mapping_free(dev_priv->gtt.mappable);
 	dev_priv->gtt.gtt_remove(dev);
 out_rmmap:
@@ -1703,6 +1688,9 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_gpu_ips_teardown();
 
+	if (HAS_POWER_WELL(dev))
+		i915_remove_power_well(dev);
+
 	i915_teardown_sysfs(dev);
 
 	if (dev_priv->mm.inactive_shrinker.shrink)
@@ -1719,12 +1707,7 @@ int i915_driver_unload(struct drm_device *dev)
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 
 	io_mapping_free(dev_priv->gtt.mappable);
-	if (dev_priv->mm.gtt_mtrr >= 0) {
-		mtrr_del(dev_priv->mm.gtt_mtrr,
-			 dev_priv->gtt.mappable_base,
-			 dev_priv->gtt.mappable_end);
-		dev_priv->mm.gtt_mtrr = -1;
-	}
+	arch_phys_wc_del(dev_priv->mm.gtt_mtrr);
 
 	acpi_video_unregister();
 
@@ -1737,10 +1720,10 @@ int i915_driver_unload(struct drm_device *dev)
 		 * free the memory space allocated for the child device
 		 * config parsed from VBT
 		 */
-		if (dev_priv->child_dev && dev_priv->child_dev_num) {
-			kfree(dev_priv->child_dev);
-			dev_priv->child_dev = NULL;
-			dev_priv->child_dev_num = 0;
+		if (dev_priv->vbt.child_dev && dev_priv->vbt.child_dev_num) {
+			kfree(dev_priv->vbt.child_dev);
+			dev_priv->vbt.child_dev = NULL;
+			dev_priv->vbt.child_dev_num = 0;
 		}
 
 		vga_switcheroo_unregister_client(dev->pdev);
@@ -1773,6 +1756,7 @@ int i915_driver_unload(struct drm_device *dev)
 			i915_free_hws(dev);
 	}
 
+	drm_mm_takedown(&dev_priv->mm.gtt_space);
 	if (dev_priv->regs != NULL)
 		pci_iounmap(dev->pdev, dev_priv->regs);
 
@@ -1781,6 +1765,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	destroy_workqueue(dev_priv->wq);
 	pm_qos_remove_request(&dev_priv->pm_qos);
+
+	dev_priv->gtt.gtt_remove(dev);
 
 	if (dev_priv->slab)
 		kmem_cache_destroy(dev_priv->slab);
@@ -1796,7 +1782,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv;
 
 	DRM_DEBUG_DRIVER("\n");
-	file_priv = kmalloc(sizeof(*file_priv), GFP_KERNEL);
+	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)
 		return -ENOMEM;
 

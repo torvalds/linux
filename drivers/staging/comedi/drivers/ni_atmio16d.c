@@ -12,11 +12,6 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
  */
 /*
 Driver: ni_atmio16d
@@ -767,7 +762,6 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 static void atmio16d_detach(struct comedi_device *dev)
 {
-	comedi_spriv_free(dev, 3);
 	reset_atmio16d(dev);
 	comedi_legacy_detach(dev);
 }

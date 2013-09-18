@@ -13,7 +13,7 @@
 */
 
 /dts-v1/;
-/include/ "exynos4412.dtsi"
+#include "exynos4412.dtsi"
 
 / {
 	model = "Insignal Origen evaluation board based on Exynos4412";
@@ -34,6 +34,72 @@
 		regulator-max-microvolt = <2800000>;
 		gpio = <&gpx1 1 0>;
 		enable-active-high;
+	};
+
+	pinctrl@11000000 {
+		keypad_rows: keypad-rows {
+			samsung,pins = "gpx2-0", "gpx2-1", "gpx2-2";
+			samsung,pin-function = <3>;
+			samsung,pin-pud = <3>;
+			samsung,pin-drv = <0>;
+		};
+
+		keypad_cols: keypad-cols {
+			samsung,pins = "gpx1-0", "gpx1-1";
+			samsung,pin-function = <3>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+	};
+
+	keypad@100A0000 {
+		samsung,keypad-num-rows = <3>;
+		samsung,keypad-num-columns = <2>;
+		linux,keypad-no-autorepeat;
+		linux,keypad-wakeup;
+		pinctrl-0 = <&keypad_rows &keypad_cols>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		key_home {
+			keypad,row = <0>;
+			keypad,column = <0>;
+			linux,code = <102>;
+		};
+
+		key_down {
+			keypad,row = <0>;
+			keypad,column = <1>;
+			linux,code = <108>;
+		};
+
+		key_up {
+			keypad,row = <1>;
+			keypad,column = <0>;
+			linux,code = <103>;
+		};
+
+		key_menu {
+			keypad,row = <1>;
+			keypad,column = <1>;
+			linux,code = <139>;
+		};
+
+		key_back {
+			keypad,row = <2>;
+			keypad,column = <0>;
+			linux,code = <158>;
+		};
+
+		key_enter {
+			keypad,row = <2>;
+			keypad,column = <1>;
+			linux,code = <28>;
+		};
+	};
+
+	g2d@10800000 {
+		status = "okay";
 	};
 
 	sdhci@12530000 {

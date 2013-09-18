@@ -485,7 +485,6 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
-	long timeout = mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT);
 	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -518,7 +517,7 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 	rets = wait_event_timeout(dev->wait_recvd_msg,
 				 (cl->state == MEI_FILE_CONNECTED ||
 				  cl->state == MEI_FILE_DISCONNECTED),
-				 timeout * HZ);
+				 mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
 	if (cl->state != MEI_FILE_CONNECTED) {
@@ -682,6 +681,68 @@ err:
 }
 
 /**
+ * mei_cl_irq_write_complete - write a message to device
+ *	from the interrupt thread context
+ *
+ * @cl: client
+ * @cb: callback block.
+ * @slots: free slots.
+ * @cmpl_list: complete list.
+ *
+ * returns 0, OK; otherwise error.
+ */
+int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
+				     s32 *slots, struct mei_cl_cb *cmpl_list)
+{
+	struct mei_device *dev = cl->dev;
+	struct mei_msg_hdr mei_hdr;
+	size_t len = cb->request_buffer.size - cb->buf_idx;
+	u32 msg_slots = mei_data2slots(len);
+
+	mei_hdr.host_addr = cl->host_client_id;
+	mei_hdr.me_addr = cl->me_client_id;
+	mei_hdr.reserved = 0;
+
+	if (*slots >= msg_slots) {
+		mei_hdr.length = len;
+		mei_hdr.msg_complete = 1;
+	/* Split the message only if we can write the whole host buffer */
+	} else if (*slots == dev->hbuf_depth) {
+		msg_slots = *slots;
+		len = (*slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
+		mei_hdr.length = len;
+		mei_hdr.msg_complete = 0;
+	} else {
+		/* wait for next time the host buffer is empty */
+		return 0;
+	}
+
+	dev_dbg(&dev->pdev->dev, "buf: size = %d idx = %lu\n",
+			cb->request_buffer.size, cb->buf_idx);
+	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(&mei_hdr));
+
+	*slots -=  msg_slots;
+	if (mei_write_message(dev, &mei_hdr,
+			cb->request_buffer.data + cb->buf_idx)) {
+		cl->status = -ENODEV;
+		list_move_tail(&cb->list, &cmpl_list->list);
+		return -ENODEV;
+	}
+
+	cl->status = 0;
+	cl->writing_state = MEI_WRITING;
+	cb->buf_idx += mei_hdr.length;
+
+	if (mei_hdr.msg_complete) {
+		if (mei_cl_flow_ctrl_reduce(cl))
+			return -ENODEV;
+		list_move_tail(&cb->list, &dev->write_waiting_list.list);
+	}
+
+	return 0;
+}
+
+/**
  * mei_cl_write - submit a write cb to mei device
 	assumes device_lock is locked
  *
@@ -723,7 +784,6 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 		cb->buf_idx = 0;
 		/* unseting complete will enqueue the cb for write */
 		mei_hdr.msg_complete = 0;
-		cl->writing_state = MEI_WRITING;
 		rets = buf->size;
 		goto out;
 	}
@@ -784,6 +844,32 @@ err:
 	return rets;
 }
 
+
+/**
+ * mei_cl_complete - processes completed operation for a client
+ *
+ * @cl: private data of the file object.
+ * @cb: callback block.
+ */
+void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
+{
+	if (cb->fop_type == MEI_FOP_WRITE) {
+		mei_io_cb_free(cb);
+		cb = NULL;
+		cl->writing_state = MEI_WRITE_COMPLETE;
+		if (waitqueue_active(&cl->tx_wait))
+			wake_up_interruptible(&cl->tx_wait);
+
+	} else if (cb->fop_type == MEI_FOP_READ &&
+			MEI_READING == cl->reading_state) {
+		cl->reading_state = MEI_READ_COMPLETE;
+		if (waitqueue_active(&cl->rx_wait))
+			wake_up_interruptible(&cl->rx_wait);
+		else
+			mei_cl_bus_rx_event(cl);
+
+	}
+}
 
 
 /**

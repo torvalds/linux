@@ -16,10 +16,32 @@
 	};
 };
 
+&ecspi1 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio3 19 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1_1 &pinctrl_ecspi1_sabreauto>;
+	status = "disabled"; /* pin conflict with WEIM NOR */
+
+	flash: m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "st,m25p32";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet_2>;
 	phy-mode = "rgmii";
+	status = "okay";
+};
+
+&gpmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpmi_nand_1>;
 	status = "okay";
 };
 
@@ -35,4 +57,23 @@
 	cd-gpios = <&gpio6 15 0>;
 	wp-gpios = <&gpio1 13 0>;
 	status = "okay";
+};
+
+&weim {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim_nor_1 &pinctrl_weim_cs0_1>;
+	#address-cells = <2>;
+	#size-cells = <1>;
+	ranges = <0 0 0x08000000 0x08000000>;
+	status = "disabled"; /* pin conflict with SPI NOR */
+
+	nor@0,0 {
+		compatible = "cfi-flash";
+		reg = <0 0 0x02000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <2>;
+		fsl,weim-cs-timing = <0x00620081 0x00000001 0x1c022000
+				0x0000c000 0x1404a38e 0x00000000>;
+	};
 };

@@ -273,17 +273,6 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		 */
 		user_prt->length = (sizeof(struct acpi_pci_routing_table) - 4);
 
-		/* Each element of the top-level package must also be a package */
-
-		if ((*top_object_list)->common.type != ACPI_TYPE_PACKAGE) {
-			ACPI_ERROR((AE_INFO,
-				    "(PRT[%u]) Need sub-package, found %s",
-				    index,
-				    acpi_ut_get_object_type_name
-				    (*top_object_list)));
-			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
-		}
-
 		/* Each sub-package must be of length 4 */
 
 		if ((*top_object_list)->package.count != 4) {
@@ -325,22 +314,6 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		}
 
 		user_prt->pin = (u32) obj_desc->integer.value;
-
-		/*
-		 * If the BIOS has erroneously reversed the _PRT source_name (index 2)
-		 * and the source_index (index 3), fix it. _PRT is important enough to
-		 * workaround this BIOS error. This also provides compatibility with
-		 * other ACPI implementations.
-		 */
-		obj_desc = sub_object_list[3];
-		if (!obj_desc || (obj_desc->common.type != ACPI_TYPE_INTEGER)) {
-			sub_object_list[3] = sub_object_list[2];
-			sub_object_list[2] = obj_desc;
-
-			ACPI_WARNING((AE_INFO,
-				      "(PRT[%X].Source) SourceName and SourceIndex are reversed, fixed",
-				      index));
-		}
 
 		/*
 		 * 3) Third subobject: Dereference the PRT.source_name

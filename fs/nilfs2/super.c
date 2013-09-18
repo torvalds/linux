@@ -554,8 +554,10 @@ int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 	if (err)
 		goto failed_bh;
 
-	atomic_set(&root->inodes_count, le64_to_cpu(raw_cp->cp_inodes_count));
-	atomic_set(&root->blocks_count, le64_to_cpu(raw_cp->cp_blocks_count));
+	atomic64_set(&root->inodes_count,
+			le64_to_cpu(raw_cp->cp_inodes_count));
+	atomic64_set(&root->blocks_count,
+			le64_to_cpu(raw_cp->cp_blocks_count));
 
 	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
 
@@ -609,6 +611,7 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	unsigned long overhead;
 	unsigned long nrsvblocks;
 	sector_t nfreeblocks;
+	u64 nmaxinodes, nfreeinodes;
 	int err;
 
 	/*
@@ -633,14 +636,34 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (unlikely(err))
 		return err;
 
+	err = nilfs_ifile_count_free_inodes(root->ifile,
+					    &nmaxinodes, &nfreeinodes);
+	if (unlikely(err)) {
+		printk(KERN_WARNING
+			"NILFS warning: fail to count free inodes: err %d.\n",
+			err);
+		if (err == -ERANGE) {
+			/*
+			 * If nilfs_palloc_count_max_entries() returns
+			 * -ERANGE error code then we simply treat
+			 * curent inodes count as maximum possible and
+			 * zero as free inodes value.
+			 */
+			nmaxinodes = atomic64_read(&root->inodes_count);
+			nfreeinodes = 0;
+			err = 0;
+		} else
+			return err;
+	}
+
 	buf->f_type = NILFS_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = blocks - overhead;
 	buf->f_bfree = nfreeblocks;
 	buf->f_bavail = (buf->f_bfree >= nrsvblocks) ?
 		(buf->f_bfree - nrsvblocks) : 0;
-	buf->f_files = atomic_read(&root->inodes_count);
-	buf->f_ffree = 0; /* nilfs_count_free_inodes(sb); */
+	buf->f_files = nmaxinodes;
+	buf->f_ffree = nfreeinodes;
 	buf->f_namelen = NILFS_NAME_LEN;
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
@@ -973,7 +996,7 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 
 static int nilfs_tree_was_touched(struct dentry *root_dentry)
 {
-	return root_dentry->d_count > 1;
+	return d_count(root_dentry) > 1;
 }
 
 /**

@@ -141,8 +141,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 		ACPI_BIOS_ERROR((AE_INFO,
 				 "Table has invalid signature [%4.4s] (0x%8.8X), "
 				 "must be SSDT or OEMx",
-				 acpi_ut_valid_acpi_name(*(u32 *)table_desc->
-							 pointer->
+				 acpi_ut_valid_acpi_name(table_desc->pointer->
 							 signature) ?
 				 table_desc->pointer->signature : "????",
 				 *(u32 *)table_desc->pointer->signature));
@@ -471,15 +470,19 @@ void acpi_tb_delete_table(struct acpi_table_desc *table_desc)
 	}
 	switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
 	case ACPI_TABLE_ORIGIN_MAPPED:
+
 		acpi_os_unmap_memory(table_desc->pointer, table_desc->length);
 		break;
+
 	case ACPI_TABLE_ORIGIN_ALLOCATED:
+
 		ACPI_FREE(table_desc->pointer);
 		break;
 
 		/* Not mapped or allocated, there is nothing we can do */
 
 	default:
+
 		return;
 	}
 

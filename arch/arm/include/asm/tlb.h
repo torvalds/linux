@@ -43,6 +43,7 @@ struct mmu_gather {
 	struct mm_struct	*mm;
 	unsigned int		fullmm;
 	struct vm_area_struct	*vma;
+	unsigned long		start, end;
 	unsigned long		range_start;
 	unsigned long		range_end;
 	unsigned int		nr;
@@ -107,10 +108,12 @@ static inline void tlb_flush_mmu(struct mmu_gather *tlb)
 }
 
 static inline void
-tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int fullmm)
+tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	tlb->mm = mm;
-	tlb->fullmm = fullmm;
+	tlb->fullmm = !(start | (end+1));
+	tlb->start = start;
+	tlb->end = end;
 	tlb->vma = NULL;
 	tlb->max = ARRAY_SIZE(tlb->local);
 	tlb->pages = tlb->local;
@@ -202,6 +205,12 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 	tlb_add_flush(tlb, addr);
 	tlb_remove_page(tlb, virt_to_page(pmdp));
 #endif
+}
+
+static inline void
+tlb_remove_pmd_tlb_entry(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr)
+{
+	tlb_add_flush(tlb, addr);
 }
 
 #define pte_free_tlb(tlb, ptep, addr)	__pte_free_tlb(tlb, ptep, addr)

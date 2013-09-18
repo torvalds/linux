@@ -220,6 +220,33 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 }
 
 
+int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
+			enum pci_mmap_state mmap_state, int write_combine)
+{
+	unsigned long prot;
+
+	/*
+	 * I/O space can be accessed via normal processor loads and stores on
+	 * this platform but for now we elect not to do this and portable
+	 * drivers should not do this anyway.
+	 */
+	if (mmap_state == pci_mmap_io)
+		return -EINVAL;
+
+	if (write_combine)
+		return -EINVAL;
+
+	/*
+	 * Ignore write-combine; for now only return uncached mappings.
+	 */
+	prot = pgprot_val(vma->vm_page_prot);
+	prot |= _PAGE_NO_CACHE;
+	vma->vm_page_prot = __pgprot(prot);
+
+	return remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
+		vma->vm_end - vma->vm_start, vma->vm_page_prot);
+}
+
 /*
  * A driver is enabling the device.  We make sure that all the appropriate
  * bits are set to allow the device to operate as the driver is expecting.

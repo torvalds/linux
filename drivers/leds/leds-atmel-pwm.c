@@ -129,7 +129,6 @@ static int pwmled_remove(struct platform_device *pdev)
 		pwm_channel_free(&led->pwmc);
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

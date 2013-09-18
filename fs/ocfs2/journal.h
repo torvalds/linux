@@ -200,7 +200,6 @@ void ocfs2_complete_quota_recovery(struct ocfs2_super *osb);
 
 static inline void ocfs2_start_checkpoint(struct ocfs2_super *osb)
 {
-	atomic_set(&osb->needs_checkpoint, 1);
 	wake_up(&osb->checkpoint_event);
 }
 

@@ -279,6 +279,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
+#include <net/busy_poll.h>
 
 int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
 
@@ -435,6 +436,8 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	unsigned int mask;
 	struct sock *sk = sock->sk;
 	const struct tcp_sock *tp = tcp_sk(sk);
+
+	sock_rps_record_flow(sk);
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 	if (sk->sk_state == TCP_LISTEN)
@@ -1118,6 +1121,13 @@ new_segment:
 					goto wait_for_memory;
 
 				/*
+				 * All packets are restored as if they have
+				 * already been sent.
+				 */
+				if (tp->repair)
+					TCP_SKB_CB(skb)->when = tcp_time_stamp;
+
+				/*
 				 * Check whether we can use HW checksum.
 				 */
 				if (sk->sk_route_caps & NETIF_F_ALL_CSUM)
@@ -1550,6 +1560,10 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	bool copied_early = false;
 	struct sk_buff *skb;
 	u32 urg_hole = 0;
+
+	if (sk_can_busy_loop(sk) && skb_queue_empty(&sk->sk_receive_queue) &&
+	    (sk->sk_state == TCP_ESTABLISHED))
+		sk_busy_loop(sk, nonblock);
 
 	lock_sock(sk);
 
@@ -2875,249 +2889,9 @@ int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
 EXPORT_SYMBOL(compat_tcp_getsockopt);
 #endif
 
-struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
-	netdev_features_t features)
-{
-	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	struct tcphdr *th;
-	unsigned int thlen;
-	unsigned int seq;
-	__be32 delta;
-	unsigned int oldlen;
-	unsigned int mss;
-	struct sk_buff *gso_skb = skb;
-	__sum16 newcheck;
-	bool ooo_okay, copy_destructor;
-
-	if (!pskb_may_pull(skb, sizeof(*th)))
-		goto out;
-
-	th = tcp_hdr(skb);
-	thlen = th->doff * 4;
-	if (thlen < sizeof(*th))
-		goto out;
-
-	if (!pskb_may_pull(skb, thlen))
-		goto out;
-
-	oldlen = (u16)~skb->len;
-	__skb_pull(skb, thlen);
-
-	mss = skb_shinfo(skb)->gso_size;
-	if (unlikely(skb->len <= mss))
-		goto out;
-
-	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
-		/* Packet is from an untrusted source, reset gso_segs. */
-		int type = skb_shinfo(skb)->gso_type;
-
-		if (unlikely(type &
-			     ~(SKB_GSO_TCPV4 |
-			       SKB_GSO_DODGY |
-			       SKB_GSO_TCP_ECN |
-			       SKB_GSO_TCPV6 |
-			       SKB_GSO_GRE |
-			       SKB_GSO_UDP_TUNNEL |
-			       0) ||
-			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
-			goto out;
-
-		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
-
-		segs = NULL;
-		goto out;
-	}
-
-	copy_destructor = gso_skb->destructor == tcp_wfree;
-	ooo_okay = gso_skb->ooo_okay;
-	/* All segments but the first should have ooo_okay cleared */
-	skb->ooo_okay = 0;
-
-	segs = skb_segment(skb, features);
-	if (IS_ERR(segs))
-		goto out;
-
-	/* Only first segment might have ooo_okay set */
-	segs->ooo_okay = ooo_okay;
-
-	delta = htonl(oldlen + (thlen + mss));
-
-	skb = segs;
-	th = tcp_hdr(skb);
-	seq = ntohl(th->seq);
-
-	newcheck = ~csum_fold((__force __wsum)((__force u32)th->check +
-					       (__force u32)delta));
-
-	do {
-		th->fin = th->psh = 0;
-		th->check = newcheck;
-
-		if (skb->ip_summed != CHECKSUM_PARTIAL)
-			th->check =
-			     csum_fold(csum_partial(skb_transport_header(skb),
-						    thlen, skb->csum));
-
-		seq += mss;
-		if (copy_destructor) {
-			skb->destructor = gso_skb->destructor;
-			skb->sk = gso_skb->sk;
-			/* {tcp|sock}_wfree() use exact truesize accounting :
-			 * sum(skb->truesize) MUST be exactly be gso_skb->truesize
-			 * So we account mss bytes of 'true size' for each segment.
-			 * The last segment will contain the remaining.
-			 */
-			skb->truesize = mss;
-			gso_skb->truesize -= mss;
-		}
-		skb = skb->next;
-		th = tcp_hdr(skb);
-
-		th->seq = htonl(seq);
-		th->cwr = 0;
-	} while (skb->next);
-
-	/* Following permits TCP Small Queues to work well with GSO :
-	 * The callback to TCP stack will be called at the time last frag
-	 * is freed at TX completion, and not right now when gso_skb
-	 * is freed by GSO engine
-	 */
-	if (copy_destructor) {
-		swap(gso_skb->sk, skb->sk);
-		swap(gso_skb->destructor, skb->destructor);
-		swap(gso_skb->truesize, skb->truesize);
-	}
-
-	delta = htonl(oldlen + (skb->tail - skb->transport_header) +
-		      skb->data_len);
-	th->check = ~csum_fold((__force __wsum)((__force u32)th->check +
-				(__force u32)delta));
-	if (skb->ip_summed != CHECKSUM_PARTIAL)
-		th->check = csum_fold(csum_partial(skb_transport_header(skb),
-						   thlen, skb->csum));
-
-out:
-	return segs;
-}
-EXPORT_SYMBOL(tcp_tso_segment);
-
-struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
-{
-	struct sk_buff **pp = NULL;
-	struct sk_buff *p;
-	struct tcphdr *th;
-	struct tcphdr *th2;
-	unsigned int len;
-	unsigned int thlen;
-	__be32 flags;
-	unsigned int mss = 1;
-	unsigned int hlen;
-	unsigned int off;
-	int flush = 1;
-	int i;
-
-	off = skb_gro_offset(skb);
-	hlen = off + sizeof(*th);
-	th = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, hlen)) {
-		th = skb_gro_header_slow(skb, hlen, off);
-		if (unlikely(!th))
-			goto out;
-	}
-
-	thlen = th->doff * 4;
-	if (thlen < sizeof(*th))
-		goto out;
-
-	hlen = off + thlen;
-	if (skb_gro_header_hard(skb, hlen)) {
-		th = skb_gro_header_slow(skb, hlen, off);
-		if (unlikely(!th))
-			goto out;
-	}
-
-	skb_gro_pull(skb, thlen);
-
-	len = skb_gro_len(skb);
-	flags = tcp_flag_word(th);
-
-	for (; (p = *head); head = &p->next) {
-		if (!NAPI_GRO_CB(p)->same_flow)
-			continue;
-
-		th2 = tcp_hdr(p);
-
-		if (*(u32 *)&th->source ^ *(u32 *)&th2->source) {
-			NAPI_GRO_CB(p)->same_flow = 0;
-			continue;
-		}
-
-		goto found;
-	}
-
-	goto out_check_final;
-
-found:
-	flush = NAPI_GRO_CB(p)->flush;
-	flush |= (__force int)(flags & TCP_FLAG_CWR);
-	flush |= (__force int)((flags ^ tcp_flag_word(th2)) &
-		  ~(TCP_FLAG_CWR | TCP_FLAG_FIN | TCP_FLAG_PSH));
-	flush |= (__force int)(th->ack_seq ^ th2->ack_seq);
-	for (i = sizeof(*th); i < thlen; i += 4)
-		flush |= *(u32 *)((u8 *)th + i) ^
-			 *(u32 *)((u8 *)th2 + i);
-
-	mss = skb_shinfo(p)->gso_size;
-
-	flush |= (len - 1) >= mss;
-	flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
-
-	if (flush || skb_gro_receive(head, skb)) {
-		mss = 1;
-		goto out_check_final;
-	}
-
-	p = *head;
-	th2 = tcp_hdr(p);
-	tcp_flag_word(th2) |= flags & (TCP_FLAG_FIN | TCP_FLAG_PSH);
-
-out_check_final:
-	flush = len < mss;
-	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
-					TCP_FLAG_RST | TCP_FLAG_SYN |
-					TCP_FLAG_FIN));
-
-	if (p && (!NAPI_GRO_CB(skb)->same_flow || flush))
-		pp = head;
-
-out:
-	NAPI_GRO_CB(skb)->flush |= flush;
-
-	return pp;
-}
-EXPORT_SYMBOL(tcp_gro_receive);
-
-int tcp_gro_complete(struct sk_buff *skb)
-{
-	struct tcphdr *th = tcp_hdr(skb);
-
-	skb->csum_start = skb_transport_header(skb) - skb->head;
-	skb->csum_offset = offsetof(struct tcphdr, check);
-	skb->ip_summed = CHECKSUM_PARTIAL;
-
-	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
-
-	if (th->cwr)
-		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
-
-	return 0;
-}
-EXPORT_SYMBOL(tcp_gro_complete);
-
 #ifdef CONFIG_TCP_MD5SIG
-static unsigned long tcp_md5sig_users;
-static struct tcp_md5sig_pool __percpu *tcp_md5sig_pool;
-static DEFINE_SPINLOCK(tcp_md5sig_pool_lock);
+static struct tcp_md5sig_pool __percpu *tcp_md5sig_pool __read_mostly;
+static DEFINE_MUTEX(tcp_md5sig_mutex);
 
 static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool __percpu *pool)
 {
@@ -3132,30 +2906,14 @@ static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool __percpu *pool)
 	free_percpu(pool);
 }
 
-void tcp_free_md5sig_pool(void)
-{
-	struct tcp_md5sig_pool __percpu *pool = NULL;
-
-	spin_lock_bh(&tcp_md5sig_pool_lock);
-	if (--tcp_md5sig_users == 0) {
-		pool = tcp_md5sig_pool;
-		tcp_md5sig_pool = NULL;
-	}
-	spin_unlock_bh(&tcp_md5sig_pool_lock);
-	if (pool)
-		__tcp_free_md5sig_pool(pool);
-}
-EXPORT_SYMBOL(tcp_free_md5sig_pool);
-
-static struct tcp_md5sig_pool __percpu *
-__tcp_alloc_md5sig_pool(struct sock *sk)
+static void __tcp_alloc_md5sig_pool(void)
 {
 	int cpu;
 	struct tcp_md5sig_pool __percpu *pool;
 
 	pool = alloc_percpu(struct tcp_md5sig_pool);
 	if (!pool)
-		return NULL;
+		return;
 
 	for_each_possible_cpu(cpu) {
 		struct crypto_hash *hash;
@@ -3166,53 +2924,27 @@ __tcp_alloc_md5sig_pool(struct sock *sk)
 
 		per_cpu_ptr(pool, cpu)->md5_desc.tfm = hash;
 	}
-	return pool;
+	/* before setting tcp_md5sig_pool, we must commit all writes
+	 * to memory. See ACCESS_ONCE() in tcp_get_md5sig_pool()
+	 */
+	smp_wmb();
+	tcp_md5sig_pool = pool;
+	return;
 out_free:
 	__tcp_free_md5sig_pool(pool);
-	return NULL;
 }
 
-struct tcp_md5sig_pool __percpu *tcp_alloc_md5sig_pool(struct sock *sk)
+bool tcp_alloc_md5sig_pool(void)
 {
-	struct tcp_md5sig_pool __percpu *pool;
-	bool alloc = false;
+	if (unlikely(!tcp_md5sig_pool)) {
+		mutex_lock(&tcp_md5sig_mutex);
 
-retry:
-	spin_lock_bh(&tcp_md5sig_pool_lock);
-	pool = tcp_md5sig_pool;
-	if (tcp_md5sig_users++ == 0) {
-		alloc = true;
-		spin_unlock_bh(&tcp_md5sig_pool_lock);
-	} else if (!pool) {
-		tcp_md5sig_users--;
-		spin_unlock_bh(&tcp_md5sig_pool_lock);
-		cpu_relax();
-		goto retry;
-	} else
-		spin_unlock_bh(&tcp_md5sig_pool_lock);
+		if (!tcp_md5sig_pool)
+			__tcp_alloc_md5sig_pool();
 
-	if (alloc) {
-		/* we cannot hold spinlock here because this may sleep. */
-		struct tcp_md5sig_pool __percpu *p;
-
-		p = __tcp_alloc_md5sig_pool(sk);
-		spin_lock_bh(&tcp_md5sig_pool_lock);
-		if (!p) {
-			tcp_md5sig_users--;
-			spin_unlock_bh(&tcp_md5sig_pool_lock);
-			return NULL;
-		}
-		pool = tcp_md5sig_pool;
-		if (pool) {
-			/* oops, it has already been assigned. */
-			spin_unlock_bh(&tcp_md5sig_pool_lock);
-			__tcp_free_md5sig_pool(p);
-		} else {
-			tcp_md5sig_pool = pool = p;
-			spin_unlock_bh(&tcp_md5sig_pool_lock);
-		}
+		mutex_unlock(&tcp_md5sig_mutex);
 	}
-	return pool;
+	return tcp_md5sig_pool != NULL;
 }
 EXPORT_SYMBOL(tcp_alloc_md5sig_pool);
 
@@ -3229,27 +2961,14 @@ struct tcp_md5sig_pool *tcp_get_md5sig_pool(void)
 	struct tcp_md5sig_pool __percpu *p;
 
 	local_bh_disable();
-
-	spin_lock(&tcp_md5sig_pool_lock);
-	p = tcp_md5sig_pool;
+	p = ACCESS_ONCE(tcp_md5sig_pool);
 	if (p)
-		tcp_md5sig_users++;
-	spin_unlock(&tcp_md5sig_pool_lock);
-
-	if (p)
-		return this_cpu_ptr(p);
+		return __this_cpu_ptr(p);
 
 	local_bh_enable();
 	return NULL;
 }
 EXPORT_SYMBOL(tcp_get_md5sig_pool);
-
-void tcp_put_md5sig_pool(void)
-{
-	local_bh_enable();
-	tcp_free_md5sig_pool();
-}
-EXPORT_SYMBOL(tcp_put_md5sig_pool);
 
 int tcp_md5_hash_header(struct tcp_md5sig_pool *hp,
 			const struct tcphdr *th)

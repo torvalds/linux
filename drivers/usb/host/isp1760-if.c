@@ -118,7 +118,7 @@ static int of_isp1760_probe(struct platform_device *dev)
 		goto free_gpio;
 	}
 
-	dev_set_drvdata(&dev->dev, drvdata);
+	platform_set_drvdata(dev, drvdata);
 	return ret;
 
 free_gpio:
@@ -133,9 +133,7 @@ free_data:
 
 static int of_isp1760_remove(struct platform_device *dev)
 {
-	struct isp1760 *drvdata = dev_get_drvdata(&dev->dev);
-
-	dev_set_drvdata(&dev->dev, NULL);
+	struct isp1760 *drvdata = platform_get_drvdata(dev);
 
 	usb_remove_hcd(drvdata->hcd);
 	iounmap(drvdata->hcd->regs);
@@ -398,7 +396,7 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 			       irqflags, -ENOENT,
 			       &pdev->dev, dev_name(&pdev->dev), devflags);
 
-	dev_set_drvdata(&pdev->dev, hcd);
+	platform_set_drvdata(pdev, hcd);
 
 	if (IS_ERR(hcd)) {
 		pr_warning("isp1760: Failed to register the HCD device\n");
@@ -419,7 +417,7 @@ static int isp1760_plat_remove(struct platform_device *pdev)
 {
 	struct resource *mem_res;
 	resource_size_t mem_size;
-	struct usb_hcd *hcd = dev_get_drvdata(&pdev->dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
 

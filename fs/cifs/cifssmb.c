@@ -367,6 +367,185 @@ vt2_err:
 	return -EINVAL;
 }
 
+static int
+decode_ext_sec_blob(struct cifs_ses *ses, NEGOTIATE_RSP *pSMBr)
+{
+	int	rc = 0;
+	u16	count;
+	char	*guid = pSMBr->u.extended_response.GUID;
+	struct TCP_Server_Info *server = ses->server;
+
+	count = get_bcc(&pSMBr->hdr);
+	if (count < SMB1_CLIENT_GUID_SIZE)
+		return -EIO;
+
+	spin_lock(&cifs_tcp_ses_lock);
+	if (server->srv_count > 1) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		if (memcmp(server->server_GUID, guid, SMB1_CLIENT_GUID_SIZE) != 0) {
+			cifs_dbg(FYI, "server UID changed\n");
+			memcpy(server->server_GUID, guid, SMB1_CLIENT_GUID_SIZE);
+		}
+	} else {
+		spin_unlock(&cifs_tcp_ses_lock);
+		memcpy(server->server_GUID, guid, SMB1_CLIENT_GUID_SIZE);
+	}
+
+	if (count == SMB1_CLIENT_GUID_SIZE) {
+		server->sec_ntlmssp = true;
+	} else {
+		count -= SMB1_CLIENT_GUID_SIZE;
+		rc = decode_negTokenInit(
+			pSMBr->u.extended_response.SecurityBlob, count, server);
+		if (rc != 1)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+int
+cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required)
+{
+	bool srv_sign_required = server->sec_mode & server->vals->signing_required;
+	bool srv_sign_enabled = server->sec_mode & server->vals->signing_enabled;
+	bool mnt_sign_enabled = global_secflags & CIFSSEC_MAY_SIGN;
+
+	/*
+	 * Is signing required by mnt options? If not then check
+	 * global_secflags to see if it is there.
+	 */
+	if (!mnt_sign_required)
+		mnt_sign_required = ((global_secflags & CIFSSEC_MUST_SIGN) ==
+						CIFSSEC_MUST_SIGN);
+
+	/*
+	 * If signing is required then it's automatically enabled too,
+	 * otherwise, check to see if the secflags allow it.
+	 */
+	mnt_sign_enabled = mnt_sign_required ? mnt_sign_required :
+				(global_secflags & CIFSSEC_MAY_SIGN);
+
+	/* If server requires signing, does client allow it? */
+	if (srv_sign_required) {
+		if (!mnt_sign_enabled) {
+			cifs_dbg(VFS, "Server requires signing, but it's disabled in SecurityFlags!");
+			return -ENOTSUPP;
+		}
+		server->sign = true;
+	}
+
+	/* If client requires signing, does server allow it? */
+	if (mnt_sign_required) {
+		if (!srv_sign_enabled) {
+			cifs_dbg(VFS, "Server does not support signing!");
+			return -ENOTSUPP;
+		}
+		server->sign = true;
+	}
+
+	return 0;
+}
+
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+static int
+decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
+{
+	__s16 tmp;
+	struct lanman_neg_rsp *rsp = (struct lanman_neg_rsp *)pSMBr;
+
+	if (server->dialect != LANMAN_PROT && server->dialect != LANMAN2_PROT)
+		return -EOPNOTSUPP;
+
+	server->sec_mode = le16_to_cpu(rsp->SecurityMode);
+	server->maxReq = min_t(unsigned int,
+			       le16_to_cpu(rsp->MaxMpxCount),
+			       cifs_max_pending);
+	set_credits(server, server->maxReq);
+	server->maxBuf = le16_to_cpu(rsp->MaxBufSize);
+	server->max_vcs = le16_to_cpu(rsp->MaxNumberVcs);
+	/* even though we do not use raw we might as well set this
+	accurately, in case we ever find a need for it */
+	if ((le16_to_cpu(rsp->RawMode) & RAW_ENABLE) == RAW_ENABLE) {
+		server->max_rw = 0xFF00;
+		server->capabilities = CAP_MPX_MODE | CAP_RAW_MODE;
+	} else {
+		server->max_rw = 0;/* do not need to use raw anyway */
+		server->capabilities = CAP_MPX_MODE;
+	}
+	tmp = (__s16)le16_to_cpu(rsp->ServerTimeZone);
+	if (tmp == -1) {
+		/* OS/2 often does not set timezone therefore
+		 * we must use server time to calc time zone.
+		 * Could deviate slightly from the right zone.
+		 * Smallest defined timezone difference is 15 minutes
+		 * (i.e. Nepal).  Rounding up/down is done to match
+		 * this requirement.
+		 */
+		int val, seconds, remain, result;
+		struct timespec ts, utc;
+		utc = CURRENT_TIME;
+		ts = cnvrtDosUnixTm(rsp->SrvTime.Date,
+				    rsp->SrvTime.Time, 0);
+		cifs_dbg(FYI, "SrvTime %d sec since 1970 (utc: %d) diff: %d\n",
+			 (int)ts.tv_sec, (int)utc.tv_sec,
+			 (int)(utc.tv_sec - ts.tv_sec));
+		val = (int)(utc.tv_sec - ts.tv_sec);
+		seconds = abs(val);
+		result = (seconds / MIN_TZ_ADJ) * MIN_TZ_ADJ;
+		remain = seconds % MIN_TZ_ADJ;
+		if (remain >= (MIN_TZ_ADJ / 2))
+			result += MIN_TZ_ADJ;
+		if (val < 0)
+			result = -result;
+		server->timeAdj = result;
+	} else {
+		server->timeAdj = (int)tmp;
+		server->timeAdj *= 60; /* also in seconds */
+	}
+	cifs_dbg(FYI, "server->timeAdj: %d seconds\n", server->timeAdj);
+
+
+	/* BB get server time for time conversions and add
+	code to use it and timezone since this is not UTC */
+
+	if (rsp->EncryptionKeyLength ==
+			cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
+		memcpy(server->cryptkey, rsp->EncryptionKey,
+			CIFS_CRYPTO_KEY_SIZE);
+	} else if (server->sec_mode & SECMODE_PW_ENCRYPT) {
+		return -EIO; /* need cryptkey unless plain text */
+	}
+
+	cifs_dbg(FYI, "LANMAN negotiated\n");
+	return 0;
+}
+#else
+static inline int
+decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
+{
+	cifs_dbg(VFS, "mount failed, cifs module not built with CIFS_WEAK_PW_HASH support\n");
+	return -EOPNOTSUPP;
+}
+#endif
+
+static bool
+should_set_ext_sec_flag(enum securityEnum sectype)
+{
+	switch (sectype) {
+	case RawNTLMSSP:
+	case Kerberos:
+		return true;
+	case Unspecified:
+		if (global_secflags &
+		    (CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_NTLMSSP))
+			return true;
+		/* Fallthrough */
+	default:
+		return false;
+	}
+}
+
 int
 CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 {
@@ -375,41 +554,24 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	int rc = 0;
 	int bytes_returned;
 	int i;
-	struct TCP_Server_Info *server;
+	struct TCP_Server_Info *server = ses->server;
 	u16 count;
-	unsigned int secFlags;
 
-	if (ses->server)
-		server = ses->server;
-	else {
-		rc = -EIO;
-		return rc;
+	if (!server) {
+		WARN(1, "%s: server is NULL!\n", __func__);
+		return -EIO;
 	}
+
 	rc = smb_init(SMB_COM_NEGOTIATE, 0, NULL /* no tcon yet */ ,
 		      (void **) &pSMB, (void **) &pSMBr);
 	if (rc)
 		return rc;
 
-	/* if any of auth flags (ie not sign or seal) are overriden use them */
-	if (ses->overrideSecFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
-		secFlags = ses->overrideSecFlg;  /* BB FIXME fix sign flags? */
-	else /* if override flags set only sign/seal OR them with global auth */
-		secFlags = global_secflags | ses->overrideSecFlg;
-
-	cifs_dbg(FYI, "secFlags 0x%x\n", secFlags);
-
 	pSMB->hdr.Mid = get_next_mid(server);
 	pSMB->hdr.Flags2 |= (SMBFLG2_UNICODE | SMBFLG2_ERR_STATUS);
 
-	if ((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
-		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
-	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_KRB5) {
-		cifs_dbg(FYI, "Kerberos only mechanism, enable extended security\n");
-		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
-	} else if ((secFlags & CIFSSEC_MUST_NTLMSSP) == CIFSSEC_MUST_NTLMSSP)
-		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
-	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_NTLMSSP) {
-		cifs_dbg(FYI, "NTLMSSP only mechanism, enable extended security\n");
+	if (should_set_ext_sec_flag(ses->sectype)) {
+		cifs_dbg(FYI, "Requesting extended security.");
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	}
 
@@ -436,126 +598,20 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 		could not negotiate a common dialect */
 		rc = -EOPNOTSUPP;
 		goto neg_err_exit;
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-	} else if ((pSMBr->hdr.WordCount == 13)
-			&& ((server->dialect == LANMAN_PROT)
-				|| (server->dialect == LANMAN2_PROT))) {
-		__s16 tmp;
-		struct lanman_neg_rsp *rsp = (struct lanman_neg_rsp *)pSMBr;
-
-		if ((secFlags & CIFSSEC_MAY_LANMAN) ||
-			(secFlags & CIFSSEC_MAY_PLNTXT))
-			server->secType = LANMAN;
-		else {
-			cifs_dbg(VFS, "mount failed weak security disabled in /proc/fs/cifs/SecurityFlags\n");
-			rc = -EOPNOTSUPP;
-			goto neg_err_exit;
-		}
-		server->sec_mode = le16_to_cpu(rsp->SecurityMode);
-		server->maxReq = min_t(unsigned int,
-				       le16_to_cpu(rsp->MaxMpxCount),
-				       cifs_max_pending);
-		set_credits(server, server->maxReq);
-		server->maxBuf = le16_to_cpu(rsp->MaxBufSize);
-		server->max_vcs = le16_to_cpu(rsp->MaxNumberVcs);
-		/* even though we do not use raw we might as well set this
-		accurately, in case we ever find a need for it */
-		if ((le16_to_cpu(rsp->RawMode) & RAW_ENABLE) == RAW_ENABLE) {
-			server->max_rw = 0xFF00;
-			server->capabilities = CAP_MPX_MODE | CAP_RAW_MODE;
-		} else {
-			server->max_rw = 0;/* do not need to use raw anyway */
-			server->capabilities = CAP_MPX_MODE;
-		}
-		tmp = (__s16)le16_to_cpu(rsp->ServerTimeZone);
-		if (tmp == -1) {
-			/* OS/2 often does not set timezone therefore
-			 * we must use server time to calc time zone.
-			 * Could deviate slightly from the right zone.
-			 * Smallest defined timezone difference is 15 minutes
-			 * (i.e. Nepal).  Rounding up/down is done to match
-			 * this requirement.
-			 */
-			int val, seconds, remain, result;
-			struct timespec ts, utc;
-			utc = CURRENT_TIME;
-			ts = cnvrtDosUnixTm(rsp->SrvTime.Date,
-					    rsp->SrvTime.Time, 0);
-			cifs_dbg(FYI, "SrvTime %d sec since 1970 (utc: %d) diff: %d\n",
-				 (int)ts.tv_sec, (int)utc.tv_sec,
-				 (int)(utc.tv_sec - ts.tv_sec));
-			val = (int)(utc.tv_sec - ts.tv_sec);
-			seconds = abs(val);
-			result = (seconds / MIN_TZ_ADJ) * MIN_TZ_ADJ;
-			remain = seconds % MIN_TZ_ADJ;
-			if (remain >= (MIN_TZ_ADJ / 2))
-				result += MIN_TZ_ADJ;
-			if (val < 0)
-				result = -result;
-			server->timeAdj = result;
-		} else {
-			server->timeAdj = (int)tmp;
-			server->timeAdj *= 60; /* also in seconds */
-		}
-		cifs_dbg(FYI, "server->timeAdj: %d seconds\n", server->timeAdj);
-
-
-		/* BB get server time for time conversions and add
-		code to use it and timezone since this is not UTC */
-
-		if (rsp->EncryptionKeyLength ==
-				cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
-			memcpy(ses->server->cryptkey, rsp->EncryptionKey,
-				CIFS_CRYPTO_KEY_SIZE);
-		} else if (server->sec_mode & SECMODE_PW_ENCRYPT) {
-			rc = -EIO; /* need cryptkey unless plain text */
-			goto neg_err_exit;
-		}
-
-		cifs_dbg(FYI, "LANMAN negotiated\n");
-		/* we will not end up setting signing flags - as no signing
-		was in LANMAN and server did not return the flags on */
-		goto signing_check;
-#else /* weak security disabled */
 	} else if (pSMBr->hdr.WordCount == 13) {
-		cifs_dbg(VFS, "mount failed, cifs module not built with CIFS_WEAK_PW_HASH support\n");
-		rc = -EOPNOTSUPP;
-#endif /* WEAK_PW_HASH */
-		goto neg_err_exit;
+		server->negflavor = CIFS_NEGFLAVOR_LANMAN;
+		rc = decode_lanman_negprot_rsp(server, pSMBr);
+		goto signing_check;
 	} else if (pSMBr->hdr.WordCount != 17) {
 		/* unknown wct */
 		rc = -EOPNOTSUPP;
 		goto neg_err_exit;
 	}
-	/* else wct == 17 NTLM */
+	/* else wct == 17, NTLM or better */
+
 	server->sec_mode = pSMBr->SecurityMode;
 	if ((server->sec_mode & SECMODE_USER) == 0)
 		cifs_dbg(FYI, "share mode security\n");
-
-	if ((server->sec_mode & SECMODE_PW_ENCRYPT) == 0)
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-		if ((secFlags & CIFSSEC_MAY_PLNTXT) == 0)
-#endif /* CIFS_WEAK_PW_HASH */
-			cifs_dbg(VFS, "Server requests plain text password but client support disabled\n");
-
-	if ((secFlags & CIFSSEC_MUST_NTLMV2) == CIFSSEC_MUST_NTLMV2)
-		server->secType = NTLMv2;
-	else if (secFlags & CIFSSEC_MAY_NTLM)
-		server->secType = NTLM;
-	else if (secFlags & CIFSSEC_MAY_NTLMV2)
-		server->secType = NTLMv2;
-	else if (secFlags & CIFSSEC_MAY_KRB5)
-		server->secType = Kerberos;
-	else if (secFlags & CIFSSEC_MAY_NTLMSSP)
-		server->secType = RawNTLMSSP;
-	else if (secFlags & CIFSSEC_MAY_LANMAN)
-		server->secType = LANMAN;
-	else {
-		rc = -EOPNOTSUPP;
-		cifs_dbg(VFS, "Invalid security type\n");
-		goto neg_err_exit;
-	}
-	/* else ... any others ...? */
 
 	/* one byte, so no need to convert this or EncryptionKeyLen from
 	   little endian */
@@ -569,90 +625,26 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
 	server->timeAdj = (int)(__s16)le16_to_cpu(pSMBr->ServerTimeZone);
 	server->timeAdj *= 60;
+
 	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
+		server->negflavor = CIFS_NEGFLAVOR_UNENCAP;
 		memcpy(ses->server->cryptkey, pSMBr->u.EncryptionKey,
 		       CIFS_CRYPTO_KEY_SIZE);
 	} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC ||
 			server->capabilities & CAP_EXTENDED_SECURITY) &&
 				(pSMBr->EncryptionKeyLength == 0)) {
-		/* decode security blob */
-		count = get_bcc(&pSMBr->hdr);
-		if (count < 16) {
-			rc = -EIO;
-			goto neg_err_exit;
-		}
-		spin_lock(&cifs_tcp_ses_lock);
-		if (server->srv_count > 1) {
-			spin_unlock(&cifs_tcp_ses_lock);
-			if (memcmp(server->server_GUID,
-				   pSMBr->u.extended_response.
-				   GUID, 16) != 0) {
-				cifs_dbg(FYI, "server UID changed\n");
-				memcpy(server->server_GUID,
-					pSMBr->u.extended_response.GUID,
-					16);
-			}
-		} else {
-			spin_unlock(&cifs_tcp_ses_lock);
-			memcpy(server->server_GUID,
-			       pSMBr->u.extended_response.GUID, 16);
-		}
-
-		if (count == 16) {
-			server->secType = RawNTLMSSP;
-		} else {
-			rc = decode_negTokenInit(pSMBr->u.extended_response.
-						 SecurityBlob, count - 16,
-						 server);
-			if (rc == 1)
-				rc = 0;
-			else
-				rc = -EINVAL;
-			if (server->secType == Kerberos) {
-				if (!server->sec_kerberos &&
-						!server->sec_mskerberos)
-					rc = -EOPNOTSUPP;
-			} else if (server->secType == RawNTLMSSP) {
-				if (!server->sec_ntlmssp)
-					rc = -EOPNOTSUPP;
-			} else
-					rc = -EOPNOTSUPP;
-		}
+		server->negflavor = CIFS_NEGFLAVOR_EXTENDED;
+		rc = decode_ext_sec_blob(ses, pSMBr);
 	} else if (server->sec_mode & SECMODE_PW_ENCRYPT) {
 		rc = -EIO; /* no crypt key only if plain text pwd */
-		goto neg_err_exit;
-	} else
-		server->capabilities &= ~CAP_EXTENDED_SECURITY;
-
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-signing_check:
-#endif
-	if ((secFlags & CIFSSEC_MAY_SIGN) == 0) {
-		/* MUST_SIGN already includes the MAY_SIGN FLAG
-		   so if this is zero it means that signing is disabled */
-		cifs_dbg(FYI, "Signing disabled\n");
-		if (server->sec_mode & SECMODE_SIGN_REQUIRED) {
-			cifs_dbg(VFS, "Server requires packet signing to be enabled in /proc/fs/cifs/SecurityFlags\n");
-			rc = -EOPNOTSUPP;
-		}
-		server->sec_mode &=
-			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-	} else if ((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
-		/* signing required */
-		cifs_dbg(FYI, "Must sign - secFlags 0x%x\n", secFlags);
-		if ((server->sec_mode &
-			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
-			cifs_dbg(VFS, "signing required but server lacks support\n");
-			rc = -EOPNOTSUPP;
-		} else
-			server->sec_mode |= SECMODE_SIGN_REQUIRED;
 	} else {
-		/* signing optional ie CIFSSEC_MAY_SIGN */
-		if ((server->sec_mode & SECMODE_SIGN_REQUIRED) == 0)
-			server->sec_mode &=
-				~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+		server->negflavor = CIFS_NEGFLAVOR_UNENCAP;
+		server->capabilities &= ~CAP_EXTENDED_SECURITY;
 	}
 
+signing_check:
+	if (!rc)
+		rc = cifs_enable_signing(server, ses->sign);
 neg_err_exit:
 	cifs_buf_release(pSMB);
 
@@ -777,9 +769,8 @@ CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses)
 
 	pSMB->hdr.Mid = get_next_mid(ses->server);
 
-	if (ses->server->sec_mode &
-		   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-			pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
+	if (ses->server->sign)
+		pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 
 	pSMB->hdr.Uid = ses->Suid;
 
@@ -1540,8 +1531,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	switch (mid->mid_state) {
 	case MID_RESPONSE_RECEIVED:
 		/* result already set, check signature */
-		if (server->sec_mode &
-		    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
+		if (server->sign) {
 			int rc = 0;
 
 			rc = cifs_verify_signature(&rqst, server,
@@ -3940,6 +3930,7 @@ QFileInfoRetry:
 	pSMB->Pad = 0;
 	pSMB->Fid = netfid;
 	inc_rfc1001_len(pSMB, byte_count);
+	pSMB->t2.ByteCount = cpu_to_le16(byte_count);
 
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
@@ -4108,6 +4099,7 @@ UnixQFileInfoRetry:
 	pSMB->Pad = 0;
 	pSMB->Fid = netfid;
 	inc_rfc1001_len(pSMB, byte_count);
+	pSMB->t2.ByteCount = cpu_to_le16(byte_count);
 
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
@@ -4794,11 +4786,8 @@ getDFSRetry:
 		strncpy(pSMB->RequestFileName, search_name, name_len);
 	}
 
-	if (ses->server) {
-		if (ses->server->sec_mode &
-		   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-			pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
-	}
+	if (ses->server && ses->server->sign)
+		pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 
 	pSMB->hdr.Uid = ses->Suid;
 

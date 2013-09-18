@@ -9,12 +9,16 @@
  * published by the Free Software Foundation.
 */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	compatible = "samsung,exynos5440";
 
 	interrupt-parent = <&gic>;
+
+	aliases {
+		spi0 = &spi_0;
+	};
 
 	clock: clock-controller@0x160000 {
 		compatible = "samsung,exynos5440-clock";
@@ -38,18 +42,22 @@
 		#size-cells = <0>;
 
 		cpu@0 {
+			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0>;
 		};
 		cpu@1 {
+			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <1>;
 		};
 		cpu@2 {
+			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <2>;
 		};
 		cpu@3 {
+			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <3>;
 		};
@@ -79,8 +87,13 @@
 		interrupts = <0 57 0>;
 		operating-points = <
 				/* KHz	  uV */
+				1500000 1100000
+				1400000 1075000
+				1300000 1050000
 				1200000 1025000
+				1100000 1000000
 				1000000 975000
+				900000  950000
 				800000  925000
 		>;
 	};
@@ -101,19 +114,19 @@
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
-	spi {
-		compatible = "samsung,exynos4210-spi";
-		reg = <0xD0000 0x1000>;
+	spi_0: spi@D0000 {
+		compatible = "samsung,exynos5440-spi";
+		reg = <0xD0000 0x100>;
 		interrupts = <0 4 0>;
-		tx-dma-channel = <&pdma0 5>; /* preliminary */
-		rx-dma-channel = <&pdma0 4>; /* preliminary */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		samsung,spi-src-clk = <0>;
+		num-cs = <1>;
 		clocks = <&clock 21>, <&clock 16>;
 		clock-names = "spi", "spi_busclk0";
 	};
 
-	pinctrl {
+	pin_ctrl: pinctrl {
 		compatible = "samsung,exynos5440-pinctrl";
 		reg = <0xE0000 0x1000>;
 		interrupts = <0 37 0>, <0 38 0>, <0 39 0>, <0 40 0>,
@@ -184,28 +197,6 @@
 		compatible = "arm,amba-bus";
 		interrupt-parent = <&gic>;
 		ranges;
-
-		pdma0: pdma@00121000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x121000 0x1000>;
-			interrupts = <0 46 0>;
-			clocks = <&clock 8>;
-			clock-names = "apb_pclk";
-			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
-		};
-
-		pdma1: pdma@00120000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x120000 0x1000>;
-			interrupts = <0 47 0>;
-			clocks = <&clock 8>;
-			clock-names = "apb_pclk";
-			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
-		};
 	};
 
 	rtc {
@@ -214,6 +205,67 @@
 		interrupts = <0 17 0>, <0 16 0>;
 		clocks = <&clock 21>;
 		clock-names = "rtc";
-		status = "disabled";
+	};
+
+	sata@210000 {
+		compatible = "snps,exynos5440-ahci";
+		reg = <0x210000 0x10000>;
+		interrupts = <0 30 0>;
+		clocks = <&clock 23>;
+		clock-names = "sata";
+	};
+
+	ohci@220000 {
+		compatible = "samsung,exynos5440-ohci";
+		reg = <0x220000 0x1000>;
+		interrupts = <0 29 0>;
+		clocks = <&clock 24>;
+		clock-names = "usbhost";
+	};
+
+	ehci@221000 {
+		compatible = "samsung,exynos5440-ehci";
+		reg = <0x221000 0x1000>;
+		interrupts = <0 29 0>;
+		clocks = <&clock 24>;
+		clock-names = "usbhost";
+	};
+
+	pcie@290000 {
+		compatible = "samsung,exynos5440-pcie", "snps,dw-pcie";
+		reg = <0x290000 0x1000
+			0x270000 0x1000
+			0x271000 0x40>;
+		interrupts = <0 20 0>, <0 21 0>, <0 22 0>;
+		clocks = <&clock 28>, <&clock 27>;
+		clock-names = "pcie", "pcie_bus";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x00000800 0 0x40000000 0x40000000 0 0x00001000   /* configuration space */
+			  0x81000000 0 0	  0x40001000 0 0x00010000   /* downstream I/O */
+			  0x82000000 0 0x40011000 0x40011000 0 0x1ffef000>; /* non-prefetchable memory */
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0x0 0 &gic 53>;
+	};
+
+	pcie@2a0000 {
+		compatible = "samsung,exynos5440-pcie", "snps,dw-pcie";
+		reg = <0x2a0000 0x1000
+			0x272000 0x1000
+			0x271040 0x40>;
+		interrupts = <0 23 0>, <0 24 0>, <0 25 0>;
+		clocks = <&clock 29>, <&clock 27>;
+		clock-names = "pcie", "pcie_bus";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x00000800 0 0x60000000 0x60000000 0 0x00001000   /* configuration space */
+			  0x81000000 0 0	  0x60001000 0 0x00010000   /* downstream I/O */
+			  0x82000000 0 0x60011000 0x60011000 0 0x1ffef000>; /* non-prefetchable memory */
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0x0 0 &gic 56>;
 	};
 };

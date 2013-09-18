@@ -60,5 +60,5 @@ void s3c2410_cpufreq_setrefresh(struct s3c_cpufreq_config *cfg)
  */
 void s3c2410_set_fvco(struct s3c_cpufreq_config *cfg)
 {
-	__raw_writel(cfg->pll.index, S3C2410_MPLLCON);
+	__raw_writel(cfg->pll.driver_data, S3C2410_MPLLCON);
 }

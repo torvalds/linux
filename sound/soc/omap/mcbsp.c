@@ -1012,27 +1012,32 @@ int omap_mcbsp_init(struct platform_device *pdev)
 		}
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
-	if (!res) {
-		dev_err(&pdev->dev, "invalid rx DMA channel\n");
-		return -ENODEV;
-	}
-	/* RX DMA request number, and port address configuration */
-	mcbsp->dma_req[1] = res->start;
-	mcbsp->dma_data[1].filter_data = &mcbsp->dma_req[1];
-	mcbsp->dma_data[1].addr = omap_mcbsp_dma_reg_params(mcbsp, 1);
-	mcbsp->dma_data[1].maxburst = 4;
+	if (!pdev->dev.of_node) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
+		if (!res) {
+			dev_err(&pdev->dev, "invalid tx DMA channel\n");
+			return -ENODEV;
+		}
+		mcbsp->dma_req[0] = res->start;
+		mcbsp->dma_data[0].filter_data = &mcbsp->dma_req[0];
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
-	if (!res) {
-		dev_err(&pdev->dev, "invalid tx DMA channel\n");
-		return -ENODEV;
+		res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
+		if (!res) {
+			dev_err(&pdev->dev, "invalid rx DMA channel\n");
+			return -ENODEV;
+		}
+		mcbsp->dma_req[1] = res->start;
+		mcbsp->dma_data[1].filter_data = &mcbsp->dma_req[1];
+	} else {
+		mcbsp->dma_data[0].filter_data = "tx";
+		mcbsp->dma_data[1].filter_data = "rx";
 	}
-	/* TX DMA request number, and port address configuration */
-	mcbsp->dma_req[0] = res->start;
-	mcbsp->dma_data[0].filter_data = &mcbsp->dma_req[0];
+
 	mcbsp->dma_data[0].addr = omap_mcbsp_dma_reg_params(mcbsp, 0);
 	mcbsp->dma_data[0].maxburst = 4;
+
+	mcbsp->dma_data[1].addr = omap_mcbsp_dma_reg_params(mcbsp, 1);
+	mcbsp->dma_data[1].maxburst = 4;
 
 	mcbsp->fclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(mcbsp->fclk)) {

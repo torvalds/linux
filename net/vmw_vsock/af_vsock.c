@@ -144,18 +144,18 @@ EXPORT_SYMBOL_GPL(vm_sockets_get_local_cid);
  * VSOCK_HASH_SIZE + 1 so that vsock_bind_table[0] through
  * vsock_bind_table[VSOCK_HASH_SIZE - 1] are for bound sockets and
  * vsock_bind_table[VSOCK_HASH_SIZE] is for unbound sockets.  The hash function
- * mods with VSOCK_HASH_SIZE - 1 to ensure this.
+ * mods with VSOCK_HASH_SIZE to ensure this.
  */
 #define VSOCK_HASH_SIZE         251
 #define MAX_PORT_RETRIES        24
 
-#define VSOCK_HASH(addr)        ((addr)->svm_port % (VSOCK_HASH_SIZE - 1))
+#define VSOCK_HASH(addr)        ((addr)->svm_port % VSOCK_HASH_SIZE)
 #define vsock_bound_sockets(addr) (&vsock_bind_table[VSOCK_HASH(addr)])
 #define vsock_unbound_sockets     (&vsock_bind_table[VSOCK_HASH_SIZE])
 
 /* XXX This can probably be implemented in a better way. */
 #define VSOCK_CONN_HASH(src, dst)				\
-	(((src)->svm_cid ^ (dst)->svm_port) % (VSOCK_HASH_SIZE - 1))
+	(((src)->svm_cid ^ (dst)->svm_port) % VSOCK_HASH_SIZE)
 #define vsock_connected_sockets(src, dst)		\
 	(&vsock_connected_table[VSOCK_CONN_HASH(src, dst)])
 #define vsock_connected_sockets_vsk(vsk)				\
@@ -164,6 +164,18 @@ EXPORT_SYMBOL_GPL(vm_sockets_get_local_cid);
 static struct list_head vsock_bind_table[VSOCK_HASH_SIZE + 1];
 static struct list_head vsock_connected_table[VSOCK_HASH_SIZE];
 static DEFINE_SPINLOCK(vsock_table_lock);
+
+/* Autobind this socket to the local address if necessary. */
+static int vsock_auto_bind(struct vsock_sock *vsk)
+{
+	struct sock *sk = sk_vsock(vsk);
+	struct sockaddr_vm local_addr;
+
+	if (vsock_addr_bound(&vsk->local_addr))
+		return 0;
+	vsock_addr_init(&local_addr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
+	return __vsock_bind(sk, &local_addr);
+}
 
 static void vsock_init_tables(void)
 {
@@ -335,7 +347,7 @@ void vsock_for_each_connected_socket(void (*fn)(struct sock *sk))
 	for (i = 0; i < ARRAY_SIZE(vsock_connected_table); i++) {
 		struct vsock_sock *vsk;
 		list_for_each_entry(vsk, &vsock_connected_table[i],
-				    connected_table);
+				    connected_table)
 			fn(sk_vsock(vsk));
 	}
 
@@ -956,15 +968,10 @@ static int vsock_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	lock_sock(sk);
 
-	if (!vsock_addr_bound(&vsk->local_addr)) {
-		struct sockaddr_vm local_addr;
+	err = vsock_auto_bind(vsk);
+	if (err)
+		goto out;
 
-		vsock_addr_init(&local_addr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
-		err = __vsock_bind(sk, &local_addr);
-		if (err != 0)
-			goto out;
-
-	}
 
 	/* If the provided message contains an address, use that.  Otherwise
 	 * fall back on the socket's remote handle (if it has been connected).
@@ -1038,15 +1045,9 @@ static int vsock_dgram_connect(struct socket *sock,
 
 	lock_sock(sk);
 
-	if (!vsock_addr_bound(&vsk->local_addr)) {
-		struct sockaddr_vm local_addr;
-
-		vsock_addr_init(&local_addr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
-		err = __vsock_bind(sk, &local_addr);
-		if (err != 0)
-			goto out;
-
-	}
+	err = vsock_auto_bind(vsk);
+	if (err)
+		goto out;
 
 	if (!transport->dgram_allow(remote_addr->svm_cid,
 				    remote_addr->svm_port)) {
@@ -1163,17 +1164,9 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 		memcpy(&vsk->remote_addr, remote_addr,
 		       sizeof(vsk->remote_addr));
 
-		/* Autobind this socket to the local address if necessary. */
-		if (!vsock_addr_bound(&vsk->local_addr)) {
-			struct sockaddr_vm local_addr;
-
-			vsock_addr_init(&local_addr, VMADDR_CID_ANY,
-					VMADDR_PORT_ANY);
-			err = __vsock_bind(sk, &local_addr);
-			if (err != 0)
-				goto out;
-
-		}
+		err = vsock_auto_bind(vsk);
+		if (err)
+			goto out;
 
 		sk->sk_state = SS_CONNECTING;
 

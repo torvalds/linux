@@ -177,7 +177,7 @@ err:
 
 static int pata_imx_remove(struct platform_device *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = platform_get_drvdata(pdev);
 	struct pata_imx_priv *priv = host->private_data;
 
 	ata_host_detach(host);
@@ -237,6 +237,7 @@ static const struct of_device_id imx_pata_dt_ids[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, imx_pata_dt_ids);
 
 static struct platform_driver pata_imx_driver = {
 	.probe		= pata_imx_probe,

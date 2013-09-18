@@ -563,6 +563,12 @@ enum be_if_flags {
 	BE_IF_FLAGS_MULTICAST = 0x1000
 };
 
+#define BE_IF_CAP_FLAGS_WANT (BE_IF_FLAGS_RSS | BE_IF_FLAGS_PROMISCUOUS |\
+			 BE_IF_FLAGS_BROADCAST | BE_IF_FLAGS_VLAN_PROMISCUOUS |\
+			 BE_IF_FLAGS_VLAN | BE_IF_FLAGS_MCAST_PROMISCUOUS |\
+			 BE_IF_FLAGS_PASS_L3L4_ERRORS | BE_IF_FLAGS_MULTICAST |\
+			 BE_IF_FLAGS_UNTAGGED)
+
 /* An RX interface is an object with one or more MAC addresses and
  * filtering capabilities. */
 struct be_cmd_req_if_create {
@@ -1937,6 +1943,9 @@ extern int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 					  struct be_dma_mem *cmd,
 					  struct be_fat_conf_params *cfgs);
 extern int lancer_wait_ready(struct be_adapter *adapter);
+extern int lancer_physdev_ctrl(struct be_adapter *adapter, u32 mask);
+extern int lancer_initiate_dump(struct be_adapter *adapter);
+extern bool dump_present(struct be_adapter *adapter);
 extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 extern int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
 extern int be_cmd_get_func_config(struct be_adapter *adapter);

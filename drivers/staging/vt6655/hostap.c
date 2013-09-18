@@ -80,7 +80,7 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Enabling hostapd mode\n", dev->name);
 
-	pDevice->apdev = kzalloc(sizeof(struct net_device), GFP_KERNEL);
+	pDevice->apdev = alloc_etherdev(sizeof(*apdev_priv));
 	if (pDevice->apdev == NULL)
 		return -ENOMEM;
 
@@ -104,6 +104,8 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 	if (ret) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: register_netdevice(AP) failed!\n",
 			dev->name);
+		free_netdev(pDevice->apdev);
+		pDevice->apdev = NULL;
 		return -1;
 	}
 
@@ -141,7 +143,7 @@ static int hostap_disable_hostapd(PSDevice pDevice, int rtnl_locked)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Netdevice %s unregistered\n",
 			pDevice->dev->name, pDevice->apdev->name);
 	}
-	kfree(pDevice->apdev);
+	free_netdev(pDevice->apdev);
 	pDevice->apdev = NULL;
 	pDevice->bEnable8021x = false;
 	pDevice->bEnableHostWEP = false;

@@ -1018,13 +1018,18 @@ static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
 		hdmi_non_intrinsic_event(codec, res);
 }
 
-static void haswell_verify_pin_D0(struct hda_codec *codec, hda_nid_t nid)
+static void haswell_verify_pin_D0(struct hda_codec *codec,
+		hda_nid_t cvt_nid, hda_nid_t nid)
 {
 	int pwr, lamp, ramp;
 
-	pwr = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_POWER_STATE, 0);
-	pwr = (pwr & AC_PWRST_ACTUAL) >> AC_PWRST_ACTUAL_SHIFT;
-	if (pwr != AC_PWRST_D0) {
+	/* For Haswell, the converter 1/2 may keep in D3 state after bootup,
+	 * thus pins could only choose converter 0 for use. Make sure the
+	 * converters are in correct power state */
+	if (!snd_hda_check_power_state(codec, cvt_nid, AC_PWRST_D0))
+		snd_hda_codec_write(codec, cvt_nid, 0, AC_VERB_SET_POWER_STATE, AC_PWRST_D0);
+
+	if (!snd_hda_check_power_state(codec, nid, AC_PWRST_D0)) {
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_POWER_STATE,
 				    AC_PWRST_D0);
 		msleep(40);
@@ -1068,7 +1073,7 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	int new_pinctl = 0;
 
 	if (codec->vendor_id == 0x80862807)
-		haswell_verify_pin_D0(codec, pin_nid);
+		haswell_verify_pin_D0(codec, cvt_nid, pin_nid);
 
 	if (snd_hda_query_pin_caps(codec, pin_nid) & AC_PINCAP_HBR) {
 		pinctl = snd_hda_codec_read(codec, pin_nid, 0,
@@ -1101,26 +1106,15 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	return 0;
 }
 
-/*
- * HDA PCM callbacks
- */
-static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
-			 struct hda_codec *codec,
-			 struct snd_pcm_substream *substream)
+static int hdmi_choose_cvt(struct hda_codec *codec,
+			int pin_idx, int *cvt_id, int *mux_id)
 {
 	struct hdmi_spec *spec = codec->spec;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int pin_idx, cvt_idx, mux_idx = 0;
 	struct hdmi_spec_per_pin *per_pin;
-	struct hdmi_eld *eld;
 	struct hdmi_spec_per_cvt *per_cvt = NULL;
+	int cvt_idx, mux_idx = 0;
 
-	/* Validate hinfo */
-	pin_idx = hinfo_to_pin_index(spec, hinfo);
-	if (snd_BUG_ON(pin_idx < 0))
-		return -EINVAL;
 	per_pin = get_pin(spec, pin_idx);
-	eld = &per_pin->sink_eld;
 
 	/* Dynamically assign converter to stream */
 	for (cvt_idx = 0; cvt_idx < spec->num_cvts; cvt_idx++) {
@@ -1138,17 +1132,89 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 			continue;
 		break;
 	}
+
 	/* No free converters */
 	if (cvt_idx == spec->num_cvts)
 		return -ENODEV;
 
+	if (cvt_id)
+		*cvt_id = cvt_idx;
+	if (mux_id)
+		*mux_id = mux_idx;
+
+	return 0;
+}
+
+static void haswell_config_cvts(struct hda_codec *codec,
+			int pin_id, int mux_id)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_spec_per_pin *per_pin;
+	int pin_idx, mux_idx;
+	int curr;
+	int err;
+
+	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+		per_pin = get_pin(spec, pin_idx);
+
+		if (pin_idx == pin_id)
+			continue;
+
+		curr = snd_hda_codec_read(codec, per_pin->pin_nid, 0,
+					  AC_VERB_GET_CONNECT_SEL, 0);
+
+		/* Choose another unused converter */
+		if (curr == mux_id) {
+			err = hdmi_choose_cvt(codec, pin_idx, NULL, &mux_idx);
+			if (err < 0)
+				return;
+			snd_printdd("HDMI: choose converter %d for pin %d\n", mux_idx, pin_idx);
+			snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
+					    AC_VERB_SET_CONNECT_SEL,
+					    mux_idx);
+		}
+	}
+}
+
+/*
+ * HDA PCM callbacks
+ */
+static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
+			 struct hda_codec *codec,
+			 struct snd_pcm_substream *substream)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	int pin_idx, cvt_idx, mux_idx = 0;
+	struct hdmi_spec_per_pin *per_pin;
+	struct hdmi_eld *eld;
+	struct hdmi_spec_per_cvt *per_cvt = NULL;
+	int err;
+
+	/* Validate hinfo */
+	pin_idx = hinfo_to_pin_index(spec, hinfo);
+	if (snd_BUG_ON(pin_idx < 0))
+		return -EINVAL;
+	per_pin = get_pin(spec, pin_idx);
+	eld = &per_pin->sink_eld;
+
+	err = hdmi_choose_cvt(codec, pin_idx, &cvt_idx, &mux_idx);
+	if (err < 0)
+		return err;
+
+	per_cvt = get_cvt(spec, cvt_idx);
 	/* Claim converter */
 	per_cvt->assigned = 1;
 	hinfo->nid = per_cvt->cvt_nid;
 
-	snd_hda_codec_write(codec, per_pin->pin_nid, 0,
+	snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
 			    AC_VERB_SET_CONNECT_SEL,
 			    mux_idx);
+
+	/* configure unused pins to choose other converters */
+	if (codec->vendor_id == 0x80862807)
+		haswell_config_cvts(codec, pin_idx, mux_idx);
+
 	snd_hda_spdif_ctls_assign(codec, pin_idx, per_cvt->cvt_nid);
 
 	/* Initially set the converter's capabilities */
@@ -1715,6 +1781,9 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 		struct snd_pcm_chmap *chmap;
 		struct snd_kcontrol *kctl;
 		int i;
+
+		if (!codec->pcm_info[pin_idx].pcm)
+			break;
 		err = snd_pcm_add_chmap_ctls(codec->pcm_info[pin_idx].pcm,
 					     SNDRV_PCM_STREAM_PLAYBACK,
 					     NULL, 0, pin_idx, &chmap);
@@ -1798,12 +1867,33 @@ static void generic_hdmi_free(struct hda_codec *codec)
 	kfree(spec);
 }
 
+#ifdef CONFIG_PM
+static int generic_hdmi_resume(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	int pin_idx;
+
+	generic_hdmi_init(codec);
+	snd_hda_codec_resume_amp(codec);
+	snd_hda_codec_resume_cache(codec);
+
+	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
+		hdmi_present_sense(per_pin, 1);
+	}
+	return 0;
+}
+#endif
+
 static const struct hda_codec_ops generic_hdmi_patch_ops = {
 	.init			= generic_hdmi_init,
 	.free			= generic_hdmi_free,
 	.build_pcms		= generic_hdmi_build_pcms,
 	.build_controls		= generic_hdmi_build_controls,
 	.unsol_event		= hdmi_unsol_event,
+#ifdef CONFIG_PM
+	.resume			= generic_hdmi_resume,
+#endif
 };
 
 
@@ -1821,7 +1911,6 @@ static void intel_haswell_fixup_connect_list(struct hda_codec *codec,
 
 	/* override pins connection list */
 	snd_printdd("hdmi: haswell: override pin connection 0x%x\n", nid);
-	nconns = max(spec->num_cvts, 4);
 	snd_hda_override_conn_list(codec, nid, spec->num_cvts, spec->cvt_nids);
 }
 
@@ -2536,6 +2625,7 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x10de0043, .name = "GPU 43 HDMI/DP",	.patch = patch_generic_hdmi },
 { .id = 0x10de0044, .name = "GPU 44 HDMI/DP",	.patch = patch_generic_hdmi },
 { .id = 0x10de0051, .name = "GPU 51 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0060, .name = "GPU 60 HDMI/DP",	.patch = patch_generic_hdmi },
 { .id = 0x10de0067, .name = "MCP67 HDMI",	.patch = patch_nvhdmi_2ch },
 { .id = 0x10de8001, .name = "MCP73 HDMI",	.patch = patch_nvhdmi_2ch },
 { .id = 0x11069f80, .name = "VX900 HDMI/DP",	.patch = patch_via_hdmi },
@@ -2588,6 +2678,7 @@ MODULE_ALIAS("snd-hda-codec-id:10de0042");
 MODULE_ALIAS("snd-hda-codec-id:10de0043");
 MODULE_ALIAS("snd-hda-codec-id:10de0044");
 MODULE_ALIAS("snd-hda-codec-id:10de0051");
+MODULE_ALIAS("snd-hda-codec-id:10de0060");
 MODULE_ALIAS("snd-hda-codec-id:10de0067");
 MODULE_ALIAS("snd-hda-codec-id:10de8001");
 MODULE_ALIAS("snd-hda-codec-id:11069f80");

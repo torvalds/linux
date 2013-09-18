@@ -610,7 +610,15 @@ static void ar5008_hw_override_ini(struct ath_hw *ah,
 	REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 
 	if (AR_SREV_9280_20_OR_LATER(ah)) {
-		val = REG_READ(ah, AR_PCU_MISC_MODE2);
+		/*
+		 * For AR9280 and above, there is a new feature that allows
+		 * Multicast search based on both MAC Address and Key ID.
+		 * By default, this feature is enabled. But since the driver
+		 * is not using this feature, we switch it off; otherwise
+		 * multicast search based on MAC addr only will fail.
+		 */
+		val = REG_READ(ah, AR_PCU_MISC_MODE2) &
+			(~AR_ADHOC_MCAST_KEYID_ENABLE);
 
 		if (!AR_SREV_9271(ah))
 			val &= ~AR_PCU_MISC_MODE2_HWWAR1;
@@ -931,7 +939,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
-	struct ar5416AniState *aniState = &chan->ani;
+	struct ar5416AniState *aniState = &ah->ani;
 	s32 value, value2;
 
 	switch (cmd & ah->ani_function) {
@@ -1207,7 +1215,7 @@ static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
-	struct ar5416AniState *aniState = &chan->ani;
+	struct ar5416AniState *aniState = &ah->ani;
 	struct ath9k_ani_default *iniDef;
 	u32 val;
 
@@ -1251,7 +1259,7 @@ static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	/* these levels just got reset to defaults by the INI */
 	aniState->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL;
 	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;
-	aniState->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
+	aniState->ofdmWeakSigDetect = true;
 	aniState->mrcCCK = false; /* not available on pre AR9003 */
 }
 

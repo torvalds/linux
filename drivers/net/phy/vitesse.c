@@ -44,18 +44,19 @@
 #define MII_VSC8244_ISTAT_DUPLEX	0x1000
 
 /* Vitesse Auxiliary Control/Status Register */
-#define MII_VSC8244_AUX_CONSTAT        	0x1c
-#define MII_VSC8244_AUXCONSTAT_INIT    	0x0000
-#define MII_VSC8244_AUXCONSTAT_DUPLEX  	0x0020
-#define MII_VSC8244_AUXCONSTAT_SPEED   	0x0018
-#define MII_VSC8244_AUXCONSTAT_GBIT    	0x0010
-#define MII_VSC8244_AUXCONSTAT_100     	0x0008
+#define MII_VSC8244_AUX_CONSTAT		0x1c
+#define MII_VSC8244_AUXCONSTAT_INIT	0x0000
+#define MII_VSC8244_AUXCONSTAT_DUPLEX	0x0020
+#define MII_VSC8244_AUXCONSTAT_SPEED	0x0018
+#define MII_VSC8244_AUXCONSTAT_GBIT	0x0010
+#define MII_VSC8244_AUXCONSTAT_100	0x0008
 
 #define MII_VSC8221_AUXCONSTAT_INIT	0x0004 /* need to set this bit? */
 #define MII_VSC8221_AUXCONSTAT_RESERVED	0x0004
 
 #define PHY_ID_VSC8244			0x000fc6c0
 #define PHY_ID_VSC8221			0x000fc550
+#define PHY_ID_VSC8211			0x000fc4b0
 
 MODULE_DESCRIPTION("Vitesse PHY driver");
 MODULE_AUTHOR("Kriston Carson");
@@ -100,9 +101,8 @@ static int vsc824x_config_init(struct phy_device *phydev)
 static int vsc824x_ack_interrupt(struct phy_device *phydev)
 {
 	int err = 0;
-	
-	/*
-	 * Don't bother to ACK the interrupts if interrupts
+
+	/* Don't bother to ACK the interrupts if interrupts
 	 * are disabled.  The 824x cannot clear the interrupts
 	 * if they are disabled.
 	 */
@@ -122,8 +122,7 @@ static int vsc82xx_config_intr(struct phy_device *phydev)
 				MII_VSC8244_IMASK_MASK :
 				MII_VSC8221_IMASK_MASK);
 	else {
-		/*
-		 * The Vitesse PHY cannot clear the interrupt
+		/* The Vitesse PHY cannot clear the interrupt
 		 * once it has disabled them, so we clear them first
 		 */
 		err = phy_read(phydev, MII_VSC8244_ISTAT);
@@ -146,7 +145,8 @@ static int vsc8221_config_init(struct phy_device *phydev)
 	return err;
 
 	/* Perhaps we should set EXT_CON1 based on the interface?
-	   Options are 802.3Z SerDes or SGMII */
+	 * Options are 802.3Z SerDes or SGMII
+	 */
 }
 
 /* Vitesse 824x */
@@ -176,6 +176,19 @@ static struct phy_driver vsc82xx_driver[] = {
 	.ack_interrupt	= &vsc824x_ack_interrupt,
 	.config_intr	= &vsc82xx_config_intr,
 	.driver		= { .owner = THIS_MODULE,},
+}, {
+	/* Vitesse 8211 */
+	.phy_id		= PHY_ID_VSC8211,
+	.phy_id_mask	= 0x000ffff0,
+	.name		= "Vitesse VSC8211",
+	.features	= PHY_GBIT_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
+	.config_init	= &vsc8221_config_init,
+	.config_aneg	= &genphy_config_aneg,
+	.read_status	= &genphy_read_status,
+	.ack_interrupt	= &vsc824x_ack_interrupt,
+	.config_intr	= &vsc82xx_config_intr,
+	.driver		= { .owner = THIS_MODULE,},
 } };
 
 static int __init vsc82xx_init(void)
@@ -196,6 +209,7 @@ module_exit(vsc82xx_exit);
 static struct mdio_device_id __maybe_unused vitesse_tbl[] = {
 	{ PHY_ID_VSC8244, 0x000fffc0 },
 	{ PHY_ID_VSC8221, 0x000ffff0 },
+	{ PHY_ID_VSC8211, 0x000ffff0 },
 	{ }
 };
 

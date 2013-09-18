@@ -14,7 +14,7 @@
 #include <linux/namei.h>
 #include <linux/slab.h>
 
-static bool fuse_use_readdirplus(struct inode *dir, struct file *filp)
+static bool fuse_use_readdirplus(struct inode *dir, struct dir_context *ctx)
 {
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	struct fuse_inode *fi = get_fuse_inode(dir);
@@ -25,7 +25,7 @@ static bool fuse_use_readdirplus(struct inode *dir, struct file *filp)
 		return true;
 	if (test_and_clear_bit(FUSE_I_ADVISE_RDPLUS, &fi->state))
 		return true;
-	if (filp->f_pos == 0)
+	if (ctx->pos == 0)
 		return true;
 	return false;
 }
@@ -1165,25 +1165,23 @@ static int fuse_permission(struct inode *inode, int mask)
 }
 
 static int parse_dirfile(char *buf, size_t nbytes, struct file *file,
-			 void *dstbuf, filldir_t filldir)
+			 struct dir_context *ctx)
 {
 	while (nbytes >= FUSE_NAME_OFFSET) {
 		struct fuse_dirent *dirent = (struct fuse_dirent *) buf;
 		size_t reclen = FUSE_DIRENT_SIZE(dirent);
-		int over;
 		if (!dirent->namelen || dirent->namelen > FUSE_NAME_MAX)
 			return -EIO;
 		if (reclen > nbytes)
 			break;
 
-		over = filldir(dstbuf, dirent->name, dirent->namelen,
-			       file->f_pos, dirent->ino, dirent->type);
-		if (over)
+		if (!dir_emit(ctx, dirent->name, dirent->namelen,
+			       dirent->ino, dirent->type))
 			break;
 
 		buf += reclen;
 		nbytes -= reclen;
-		file->f_pos = dirent->off;
+		ctx->pos = dirent->off;
 	}
 
 	return 0;
@@ -1225,18 +1223,38 @@ static int fuse_direntplus_link(struct file *file,
 		if (name.name[1] == '.' && name.len == 2)
 			return 0;
 	}
+
+	if (invalid_nodeid(o->nodeid))
+		return -EIO;
+	if (!fuse_valid_type(o->attr.mode))
+		return -EIO;
+
 	fc = get_fuse_conn(dir);
 
 	name.hash = full_name_hash(name.name, name.len);
 	dentry = d_lookup(parent, &name);
-	if (dentry && dentry->d_inode) {
+	if (dentry) {
 		inode = dentry->d_inode;
-		if (get_node_id(inode) == o->nodeid) {
+		if (!inode) {
+			d_drop(dentry);
+		} else if (get_node_id(inode) != o->nodeid ||
+			   ((o->attr.mode ^ inode->i_mode) & S_IFMT)) {
+			err = d_invalidate(dentry);
+			if (err)
+				goto out;
+		} else if (is_bad_inode(inode)) {
+			err = -EIO;
+			goto out;
+		} else {
 			struct fuse_inode *fi;
 			fi = get_fuse_inode(inode);
 			spin_lock(&fc->lock);
 			fi->nlookup++;
 			spin_unlock(&fc->lock);
+
+			fuse_change_attributes(inode, &o->attr,
+					       entry_attr_timeout(o),
+					       attr_version);
 
 			/*
 			 * The other branch to 'found' comes via fuse_iget()
@@ -1244,11 +1262,7 @@ static int fuse_direntplus_link(struct file *file,
 			 */
 			goto found;
 		}
-		err = d_invalidate(dentry);
-		if (err)
-			goto out;
 		dput(dentry);
-		dentry = NULL;
 	}
 
 	dentry = d_alloc(parent, &name);
@@ -1261,30 +1275,35 @@ static int fuse_direntplus_link(struct file *file,
 	if (!inode)
 		goto out;
 
-	alias = d_materialise_unique(dentry, inode);
-	err = PTR_ERR(alias);
-	if (IS_ERR(alias))
-		goto out;
+	if (S_ISDIR(inode->i_mode)) {
+		mutex_lock(&fc->inst_mutex);
+		alias = fuse_d_add_directory(dentry, inode);
+		mutex_unlock(&fc->inst_mutex);
+		err = PTR_ERR(alias);
+		if (IS_ERR(alias)) {
+			iput(inode);
+			goto out;
+		}
+	} else {
+		alias = d_splice_alias(inode, dentry);
+	}
+
 	if (alias) {
 		dput(dentry);
 		dentry = alias;
 	}
 
 found:
-	fuse_change_attributes(inode, &o->attr, entry_attr_timeout(o),
-			       attr_version);
-
 	fuse_change_entry_timeout(dentry, o);
 
 	err = 0;
 out:
-	if (dentry)
-		dput(dentry);
+	dput(dentry);
 	return err;
 }
 
 static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
-			     void *dstbuf, filldir_t filldir, u64 attr_version)
+			     struct dir_context *ctx, u64 attr_version)
 {
 	struct fuse_direntplus *direntplus;
 	struct fuse_dirent *dirent;
@@ -1309,10 +1328,9 @@ static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
 			   we need to send a FORGET for each of those
 			   which we did not link.
 			*/
-			over = filldir(dstbuf, dirent->name, dirent->namelen,
-				       file->f_pos, dirent->ino,
-				       dirent->type);
-			file->f_pos = dirent->off;
+			over = !dir_emit(ctx, dirent->name, dirent->namelen,
+				       dirent->ino, dirent->type);
+			ctx->pos = dirent->off;
 		}
 
 		buf += reclen;
@@ -1326,7 +1344,7 @@ static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
 	return 0;
 }
 
-static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
+static int fuse_readdir(struct file *file, struct dir_context *ctx)
 {
 	int plus, err;
 	size_t nbytes;
@@ -1349,17 +1367,17 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 		return -ENOMEM;
 	}
 
-	plus = fuse_use_readdirplus(inode, file);
+	plus = fuse_use_readdirplus(inode, ctx);
 	req->out.argpages = 1;
 	req->num_pages = 1;
 	req->pages[0] = page;
 	req->page_descs[0].length = PAGE_SIZE;
 	if (plus) {
 		attr_version = fuse_get_attr_version(fc);
-		fuse_read_fill(req, file, file->f_pos, PAGE_SIZE,
+		fuse_read_fill(req, file, ctx->pos, PAGE_SIZE,
 			       FUSE_READDIRPLUS);
 	} else {
-		fuse_read_fill(req, file, file->f_pos, PAGE_SIZE,
+		fuse_read_fill(req, file, ctx->pos, PAGE_SIZE,
 			       FUSE_READDIR);
 	}
 	fuse_request_send(fc, req);
@@ -1369,11 +1387,11 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	if (!err) {
 		if (plus) {
 			err = parse_dirplusfile(page_address(page), nbytes,
-						file, dstbuf, filldir,
+						file, ctx,
 						attr_version);
 		} else {
 			err = parse_dirfile(page_address(page), nbytes, file,
-					    dstbuf, filldir);
+					    ctx);
 		}
 	}
 
@@ -1886,7 +1904,7 @@ static const struct inode_operations fuse_dir_inode_operations = {
 static const struct file_operations fuse_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= fuse_readdir,
+	.iterate	= fuse_readdir,
 	.open		= fuse_dir_open,
 	.release	= fuse_dir_release,
 	.fsync		= fuse_dir_fsync,

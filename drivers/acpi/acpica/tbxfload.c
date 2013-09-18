@@ -53,8 +53,6 @@ ACPI_MODULE_NAME("tbxfload")
 /* Local prototypes */
 static acpi_status acpi_tb_load_namespace(void);
 
-static int no_auto_ssdt;
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_load_tables
@@ -180,8 +178,16 @@ static acpi_status acpi_tb_load_namespace(void)
 			continue;
 		}
 
-		if (no_auto_ssdt) {
-			printk(KERN_WARNING "ACPI: SSDT ignored due to \"acpi_no_auto_ssdt\"\n");
+		/*
+		 * Optionally do not load any SSDTs from the RSDT/XSDT. This can
+		 * be useful for debugging ACPI problems on some machines.
+		 */
+		if (acpi_gbl_disable_ssdt_table_load) {
+			ACPI_INFO((AE_INFO, "Ignoring %4.4s at %p",
+				   acpi_gbl_root_table_list.tables[i].signature.
+				   ascii, ACPI_CAST_PTR(void,
+							acpi_gbl_root_table_list.
+							tables[i].address)));
 			continue;
 		}
 
@@ -376,14 +382,3 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_unload_parent_table)
-
-static int __init acpi_no_auto_ssdt_setup(char *s) {
-
-        printk(KERN_NOTICE "ACPI: SSDT auto-load disabled\n");
-
-        no_auto_ssdt = 1;
-
-        return 1;
-}
-
-__setup("acpi_no_auto_ssdt", acpi_no_auto_ssdt_setup);

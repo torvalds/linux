@@ -633,7 +633,7 @@ config SCSI_BUSLOGIC
 
 config SCSI_FLASHPOINT
 	bool "FlashPoint support"
-	depends on SCSI_BUSLOGIC && PCI && X86_32
+	depends on SCSI_BUSLOGIC && PCI
 	help
 	  This option allows you to add FlashPoint support to the
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
@@ -1353,7 +1353,6 @@ config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
 	depends on PCI && SCSI
 	select SCSI_FC_ATTRS
-	select GENERIC_CSUM
 	select CRC_T10DIF
 	help
           This lpfc driver supports the Emulex LightPulse

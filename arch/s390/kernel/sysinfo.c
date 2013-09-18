@@ -418,7 +418,7 @@ void s390_adjust_jiffies(void)
 /*
  * calibrate the delay loop
  */
-void __cpuinit calibrate_delay(void)
+void calibrate_delay(void)
 {
 	s390_adjust_jiffies();
 	/* Print the good old Bogomips line .. */

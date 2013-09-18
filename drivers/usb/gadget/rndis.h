@@ -16,6 +16,7 @@
 #define _LINUX_RNDIS_H
 
 #include <linux/rndis.h>
+#include "u_ether.h"
 #include "ndis.h"
 
 #define RNDIS_MAXIMUM_FRAME_SIZE	1518
@@ -215,8 +216,5 @@ int  rndis_signal_connect (int configNr);
 int  rndis_signal_disconnect (int configNr);
 int  rndis_state (int configNr);
 extern void rndis_set_host_mac (int configNr, const u8 *addr);
-
-int rndis_init(void);
-void rndis_exit (void);
 
 #endif  /* _LINUX_RNDIS_H */

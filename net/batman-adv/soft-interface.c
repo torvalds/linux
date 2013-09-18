@@ -154,7 +154,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 						    0x00, 0x00};
 	unsigned int header_len = 0;
 	int data_len = skb->len, ret;
-	short vid __maybe_unused = -1;
+	unsigned short vid __maybe_unused = BATADV_NO_FLAGS;
 	bool do_bcast = false;
 	uint32_t seqno;
 	unsigned long brd_delay = 1;
@@ -179,6 +179,9 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 	if (batadv_bla_tx(bat_priv, skb, vid))
 		goto dropped;
+
+	/* skb->data might have been reallocated by batadv_bla_tx() */
+	ethhdr = (struct ethhdr *)skb->data;
 
 	/* Register the client MAC in the transtable */
 	if (!is_multicast_ether_addr(ethhdr->h_source))
@@ -220,6 +223,10 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		default:
 			break;
 		}
+
+		/* reminder: ethhdr might have become unusable from here on
+		 * (batadv_gw_is_dhcp_target() might have reallocated skb data)
+		 */
 	}
 
 	/* ethernet packet should be broadcasted */
@@ -266,7 +273,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	/* unicast packet */
 	} else {
 		if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_OFF) {
-			ret = batadv_gw_out_of_range(bat_priv, skb, ethhdr);
+			ret = batadv_gw_out_of_range(bat_priv, skb);
 			if (ret)
 				goto dropped;
 		}
@@ -303,7 +310,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
 	struct batadv_header *batadv_header = (struct batadv_header *)skb->data;
-	short vid __maybe_unused = -1;
+	unsigned short vid __maybe_unused = BATADV_NO_FLAGS;
 	__be16 ethertype = __constant_htons(ETH_P_BATMAN);
 	bool is_bcast;
 
@@ -316,7 +323,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	skb_pull_rcsum(skb, hdr_size);
 	skb_reset_mac_header(skb);
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_8021Q:

@@ -360,6 +360,8 @@ struct inode_operations {
 	int (*removexattr) (struct dentry *, const char *);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *,
+	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+} ____cacheline_aligned;
 				struct file *, unsigned open_flag,
 				umode_t create_mode, int *opened);
 };
@@ -472,6 +474,9 @@ otherwise noted.
   	component is negative or needs lookup.  Cached positive dentries are
   	still handled by f_op->open().
 
+  tmpfile: called in the end of O_TMPFILE open().  Optional, equivalent to
+	atomically creating, opening and unlinking a file in given directory.
+
 The Address Space Object
 ========================
 
@@ -549,12 +554,11 @@ struct address_space_operations
 -------------------------------
 
 This describes how the VFS can manipulate mapping of a file to page cache in
-your filesystem. As of kernel 2.6.22, the following members are defined:
+your filesystem. The following members are defined:
 
 struct address_space_operations {
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
 	int (*readpage)(struct file *, struct page *);
-	int (*sync_page)(struct page *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
 	int (*set_page_dirty)(struct page *page);
 	int (*readpages)(struct file *filp, struct address_space *mapping,
@@ -566,7 +570,7 @@ struct address_space_operations {
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
-	int (*invalidatepage) (struct page *, unsigned long);
+	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
@@ -576,6 +580,9 @@ struct address_space_operations {
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
 	int (*launder_page) (struct page *);
+	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
+					unsigned long);
+	void (*is_dirty_writeback) (struct page *, bool *, bool *);
 	int (*error_remove_page) (struct mapping *mapping, struct page *page);
 	int (*swap_activate)(struct file *);
 	int (*swap_deactivate)(struct file *);
@@ -606,13 +613,6 @@ struct address_space_operations {
        some reason, it can do so, and then return AOP_TRUNCATED_PAGE.
        In this case, the page will be relocated, relocked and if
        that all succeeds, ->readpage will be called again.
-
-  sync_page: called by the VM to notify the backing store to perform all
-  	queued I/O operations for a page. I/O operations for other pages
-	associated with this address_space object may also be performed.
-
-	This function is optional and is called only for pages with
-  	PG_Writeback set while waiting for the writeback to complete.
 
   writepages: called by the VM to write out pages associated with the
   	address_space object.  If wbc->sync_mode is WBC_SYNC_ALL, then
@@ -685,14 +685,14 @@ struct address_space_operations {
   invalidatepage: If a page has PagePrivate set, then invalidatepage
         will be called when part or all of the page is to be removed
 	from the address space.  This generally corresponds to either a
-	truncation or a complete invalidation of the address space
-	(in the latter case 'offset' will always be 0).
-	Any private data associated with the page should be updated
-	to reflect this truncation.  If offset is 0, then
-	the private data should be released, because the page
-	must be able to be completely discarded.  This may be done by
-        calling the ->releasepage function, but in this case the
-        release MUST succeed.
+	truncation, punch hole  or a complete invalidation of the address
+	space (in the latter case 'offset' will always be 0 and 'length'
+	will be PAGE_CACHE_SIZE). Any private data associated with the page
+	should be updated to reflect this truncation.  If offset is 0 and
+	length is PAGE_CACHE_SIZE, then the private data should be released,
+	because the page must be able to be completely discarded.  This may
+	be done by calling the ->releasepage function, but in this case the
+	release MUST succeed.
 
   releasepage: releasepage is called on PagePrivate pages to indicate
         that the page should be freed if possible.  ->releasepage
@@ -742,6 +742,20 @@ struct address_space_operations {
   	prevent redirtying the page, it is kept locked during the whole
 	operation.
 
+  is_partially_uptodate: Called by the VM when reading a file through the
+	pagecache when the underlying blocksize != pagesize. If the required
+	block is up to date then the read can complete without needing the IO
+	to bring the whole page up to date.
+
+  is_dirty_writeback: Called by the VM when attempting to reclaim a page.
+	The VM uses dirty and writeback information to determine if it needs
+	to stall to allow flushers a chance to complete some IO. Ordinarily
+	it can use PageDirty and PageWriteback but some filesystems have
+	more complex state (unstable pages in NFS prevent reclaim) or
+	do not set those flags due to locking problems (jbd). This callback
+	allows a filesystem to indicate to the VM if a page should be
+	treated as dirty or writeback for the purposes of stalling.
+
   error_remove_page: normally set to generic_error_remove_page if truncation
 	is ok for this address space. Used for memory failure handling.
 	Setting this implies you deal with pages going away under you,
@@ -777,7 +791,7 @@ struct file_operations {
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
-	int (*readdir) (struct file *, void *, filldir_t);
+	int (*iterate) (struct file *, struct dir_context *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
@@ -815,7 +829,7 @@ otherwise noted.
 
   aio_write: called by io_submit(2) and other asynchronous I/O operations
 
-  readdir: called when the VFS needs to read the directory contents
+  iterate: called when the VFS needs to read the directory contents
 
   poll: called by the VFS when a process wants to check if there is
 	activity on this file and (optionally) go to sleep until there
@@ -901,10 +915,8 @@ defined:
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
-	int (*d_hash)(const struct dentry *, const struct inode *,
-			struct qstr *);
-	int (*d_compare)(const struct dentry *, const struct inode *,
-			const struct dentry *, const struct inode *,
+	int (*d_hash)(const struct dentry *, struct qstr *);
+	int (*d_compare)(const struct dentry *, const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(const struct dentry *);
 	void (*d_release)(struct dentry *);
@@ -949,25 +961,24 @@ struct dentry_operations {
 
   d_hash: called when the VFS adds a dentry to the hash table. The first
 	dentry passed to d_hash is the parent directory that the name is
-	to be hashed into. The inode is the dentry's inode.
+	to be hashed into.
 
 	Same locking and synchronisation rules as d_compare regarding
 	what is safe to dereference etc.
 
   d_compare: called to compare a dentry name with a given name. The first
 	dentry is the parent of the dentry to be compared, the second is
-	the parent's inode, then the dentry and inode (may be NULL) of the
-	child dentry. len and name string are properties of the dentry to be
-	compared. qstr is the name to compare it with.
+	the child dentry. len and name string are properties of the dentry
+	to be compared. qstr is the name to compare it with.
 
 	Must be constant and idempotent, and should not take locks if
-	possible, and should not or store into the dentry or inodes.
-	Should not dereference pointers outside the dentry or inodes without
+	possible, and should not or store into the dentry.
+	Should not dereference pointers outside the dentry without
 	lots of care (eg.  d_parent, d_inode, d_name should not be used).
 
 	However, our vfsmount is pinned, and RCU held, so the dentries and
 	inodes won't disappear, neither will our sb or filesystem module.
-	->i_sb and ->d_sb may be used.
+	->d_sb may be used.
 
 	It is a tricky calling convention because it needs to be called under
 	"rcu-walk", ie. without any locks or references on things.

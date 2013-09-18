@@ -506,9 +506,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 #endif
 
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 #define pgprot_noncached(prot) __pgprot(pgprot_val(prot) | _PAGE_NO_CACHE)
 
 /* We provide our own get_unmapped_area to provide cache coherency */

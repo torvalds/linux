@@ -134,7 +134,8 @@ static const char * const mc5_mce_desc[] = {
 	"Physical register file AG0 port",
 	"Physical register file AG1 port",
 	"Flag register file",
-	"DE error occurred"
+	"DE error occurred",
+	"Retire status queue"
 };
 
 static bool f12h_mc0_mce(u16 ec, u8 xec)
@@ -624,7 +625,7 @@ static void decode_mc5_mce(struct mce *m)
 
 	if (xec == 0x0 || xec == 0xc)
 		pr_cont("%s.\n", mc5_mce_desc[xec]);
-	else if (xec < 0xd)
+	else if (xec <= 0xd)
 		pr_cont("%s parity error.\n", mc5_mce_desc[xec]);
 	else
 		goto wrong_mc5_mce;

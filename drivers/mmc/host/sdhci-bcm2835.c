@@ -148,7 +148,7 @@ static int bcm2835_sdhci_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	int ret;
 
-	host = sdhci_pltfm_init(pdev, &bcm2835_sdhci_pdata);
+	host = sdhci_pltfm_init(pdev, &bcm2835_sdhci_pdata, 0);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 

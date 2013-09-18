@@ -320,10 +320,8 @@ static void xfrm_queue_purge(struct sk_buff_head *list)
 {
 	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(list)) != NULL) {
-		dev_put(skb->dev);
+	while ((skb = skb_dequeue(list)) != NULL)
 		kfree_skb(skb);
-	}
 }
 
 /* Rule must be locked. Release descentant resources, announce
@@ -1758,7 +1756,6 @@ static void xfrm_policy_queue_process(unsigned long arg)
 	struct sk_buff *skb;
 	struct sock *sk;
 	struct dst_entry *dst;
-	struct net_device *dev;
 	struct xfrm_policy *pol = (struct xfrm_policy *)arg;
 	struct xfrm_policy_queue *pq = &pol->polq;
 	struct flowi fl;
@@ -1805,7 +1802,6 @@ static void xfrm_policy_queue_process(unsigned long arg)
 		dst = xfrm_lookup(xp_net(pol), skb_dst(skb)->path,
 				  &fl, skb->sk, 0);
 		if (IS_ERR(dst)) {
-			dev_put(skb->dev);
 			kfree_skb(skb);
 			continue;
 		}
@@ -1814,9 +1810,7 @@ static void xfrm_policy_queue_process(unsigned long arg)
 		skb_dst_drop(skb);
 		skb_dst_set(skb, dst);
 
-		dev = skb->dev;
 		err = dst_output(skb);
-		dev_put(dev);
 	}
 
 	return;
@@ -1839,7 +1833,6 @@ static int xdst_queue_output(struct sk_buff *skb)
 	}
 
 	skb_dst_force(skb);
-	dev_hold(skb->dev);
 
 	spin_lock_bh(&pq->hold_queue.lock);
 
@@ -2785,7 +2778,7 @@ static void __net_init xfrm_dst_ops_init(struct net *net)
 
 static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_DOWN:

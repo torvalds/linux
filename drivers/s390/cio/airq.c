@@ -9,142 +9,87 @@
  */
 
 #include <linux/init.h>
+#include <linux/irq.h>
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/rculist.h>
 #include <linux/slab.h>
-#include <linux/rcupdate.h>
 
 #include <asm/airq.h>
 #include <asm/isc.h>
 
 #include "cio.h"
 #include "cio_debug.h"
+#include "ioasm.h"
 
-#define NR_AIRQS		32
-#define NR_AIRQS_PER_WORD	sizeof(unsigned long)
-#define NR_AIRQ_WORDS		(NR_AIRQS / NR_AIRQS_PER_WORD)
-
-union indicator_t {
-	unsigned long word[NR_AIRQ_WORDS];
-	unsigned char byte[NR_AIRQS];
-} __attribute__((packed));
-
-struct airq_t {
-	adapter_int_handler_t handler;
-	void *drv_data;
-};
-
-static union indicator_t indicators[MAX_ISC+1];
-static struct airq_t *airqs[MAX_ISC+1][NR_AIRQS];
-
-static int register_airq(struct airq_t *airq, u8 isc)
-{
-	int i;
-
-	for (i = 0; i < NR_AIRQS; i++)
-		if (!cmpxchg(&airqs[isc][i], NULL, airq))
-			return i;
-	return -ENOMEM;
-}
+static DEFINE_SPINLOCK(airq_lists_lock);
+static struct hlist_head airq_lists[MAX_ISC+1];
 
 /**
- * s390_register_adapter_interrupt() - register adapter interrupt handler
- * @handler: adapter handler to be registered
- * @drv_data: driver data passed with each call to the handler
- * @isc: isc for which the handler should be called
+ * register_adapter_interrupt() - register adapter interrupt handler
+ * @airq: pointer to adapter interrupt descriptor
  *
- * Returns:
- *  Pointer to the indicator to be used on success
- *  ERR_PTR() if registration failed
+ * Returns 0 on success, or -EINVAL.
  */
-void *s390_register_adapter_interrupt(adapter_int_handler_t handler,
-				      void *drv_data, u8 isc)
+int register_adapter_interrupt(struct airq_struct *airq)
 {
-	struct airq_t *airq;
-	char dbf_txt[16];
-	int ret;
+	char dbf_txt[32];
 
-	if (isc > MAX_ISC)
-		return ERR_PTR(-EINVAL);
-	airq = kmalloc(sizeof(struct airq_t), GFP_KERNEL);
-	if (!airq) {
-		ret = -ENOMEM;
-		goto out;
+	if (!airq->handler || airq->isc > MAX_ISC)
+		return -EINVAL;
+	if (!airq->lsi_ptr) {
+		airq->lsi_ptr = kzalloc(1, GFP_KERNEL);
+		if (!airq->lsi_ptr)
+			return -ENOMEM;
+		airq->flags |= AIRQ_PTR_ALLOCATED;
 	}
-	airq->handler = handler;
-	airq->drv_data = drv_data;
-
-	ret = register_airq(airq, isc);
-out:
-	snprintf(dbf_txt, sizeof(dbf_txt), "rairq:%d", ret);
+	if (!airq->lsi_mask)
+		airq->lsi_mask = 0xff;
+	snprintf(dbf_txt, sizeof(dbf_txt), "rairq:%p", airq);
 	CIO_TRACE_EVENT(4, dbf_txt);
-	if (ret < 0) {
-		kfree(airq);
-		return ERR_PTR(ret);
-	} else
-		return &indicators[isc].byte[ret];
+	isc_register(airq->isc);
+	spin_lock(&airq_lists_lock);
+	hlist_add_head_rcu(&airq->list, &airq_lists[airq->isc]);
+	spin_unlock(&airq_lists_lock);
+	return 0;
 }
-EXPORT_SYMBOL(s390_register_adapter_interrupt);
+EXPORT_SYMBOL(register_adapter_interrupt);
 
 /**
- * s390_unregister_adapter_interrupt - unregister adapter interrupt handler
- * @ind: indicator for which the handler is to be unregistered
- * @isc: interruption subclass
+ * unregister_adapter_interrupt - unregister adapter interrupt handler
+ * @airq: pointer to adapter interrupt descriptor
  */
-void s390_unregister_adapter_interrupt(void *ind, u8 isc)
+void unregister_adapter_interrupt(struct airq_struct *airq)
 {
-	struct airq_t *airq;
-	char dbf_txt[16];
-	int i;
+	char dbf_txt[32];
 
-	i = (int) ((addr_t) ind) - ((addr_t) &indicators[isc].byte[0]);
-	snprintf(dbf_txt, sizeof(dbf_txt), "urairq:%d", i);
+	if (hlist_unhashed(&airq->list))
+		return;
+	snprintf(dbf_txt, sizeof(dbf_txt), "urairq:%p", airq);
 	CIO_TRACE_EVENT(4, dbf_txt);
-	indicators[isc].byte[i] = 0;
-	airq = xchg(&airqs[isc][i], NULL);
-	/*
-	 * Allow interrupts to complete. This will ensure that the airq handle
-	 * is no longer referenced by any interrupt handler.
-	 */
-	synchronize_sched();
-	kfree(airq);
+	spin_lock(&airq_lists_lock);
+	hlist_del_rcu(&airq->list);
+	spin_unlock(&airq_lists_lock);
+	synchronize_rcu();
+	isc_unregister(airq->isc);
+	if (airq->flags & AIRQ_PTR_ALLOCATED) {
+		kfree(airq->lsi_ptr);
+		airq->lsi_ptr = NULL;
+		airq->flags &= ~AIRQ_PTR_ALLOCATED;
+	}
 }
-EXPORT_SYMBOL(s390_unregister_adapter_interrupt);
-
-#define INDICATOR_MASK	(0xffUL << ((NR_AIRQS_PER_WORD - 1) * 8))
+EXPORT_SYMBOL(unregister_adapter_interrupt);
 
 void do_adapter_IO(u8 isc)
 {
-	int w;
-	int i;
-	unsigned long word;
-	struct airq_t *airq;
+	struct airq_struct *airq;
+	struct hlist_head *head;
 
-	/*
-	 * Access indicator array in word-sized chunks to minimize storage
-	 * fetch operations.
-	 */
-	for (w = 0; w < NR_AIRQ_WORDS; w++) {
-		word = indicators[isc].word[w];
-		i = w * NR_AIRQS_PER_WORD;
-		/*
-		 * Check bytes within word for active indicators.
-		 */
-		while (word) {
-			if (word & INDICATOR_MASK) {
-				airq = airqs[isc][i];
-				/* Make sure gcc reads from airqs only once. */
-				barrier();
-				if (likely(airq))
-					airq->handler(&indicators[isc].byte[i],
-						      airq->drv_data);
-				else
-					/*
-					 * Reset ill-behaved indicator.
-					 */
-					indicators[isc].byte[i] = 0;
-			}
-			word <<= 8;
-			i++;
-		}
-	}
+	head = &airq_lists[isc];
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(airq, head, list)
+		if ((*airq->lsi_ptr & airq->lsi_mask) != 0)
+			airq->handler(airq);
+	rcu_read_unlock();
 }

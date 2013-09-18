@@ -226,7 +226,7 @@ static ssize_t ad799x_write_frequency(struct device *dev,
 	int ret, i;
 	u8 t;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -337,7 +337,7 @@ static ssize_t ad799x_write_channel_config(struct device *dev,
 	long val;
 	int ret;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 

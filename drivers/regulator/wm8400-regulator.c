@@ -250,7 +250,6 @@ static int wm8400_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	regulator_unregister(rdev);
 
 	return 0;

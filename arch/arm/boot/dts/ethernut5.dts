@@ -6,7 +6,7 @@
  * Licensed under GPLv2.
  */
 /dts-v1/;
-/include/ "at91sam9260.dtsi"
+#include "at91sam9260.dtsi"
 
 / {
 	model = "Ethernut 5";
@@ -40,7 +40,7 @@
 			};
 
 			usb1: gadget@fffa4000 {
-				atmel,vbus-gpio = <&pioC 5 0>;
+				atmel,vbus-gpio = <&pioC 5 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 		};
@@ -52,7 +52,7 @@
 			status = "okay";
 
 			gpios = <0
-				 &pioC 14 0
+				 &pioC 14 GPIO_ACTIVE_HIGH
 				 0
 				>;
 

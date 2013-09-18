@@ -916,6 +916,21 @@ static int vpbe_display_s_fmt(struct file *file, void *priv,
 	other video window */
 
 	layer->pix_fmt = *pixfmt;
+	if (pixfmt->pixelformat == V4L2_PIX_FMT_NV12) {
+		struct vpbe_layer *otherlayer;
+
+		otherlayer = _vpbe_display_get_other_win_layer(disp_dev, layer);
+		/* if other layer is available, only
+		 * claim it, do not configure it
+		 */
+		ret = osd_device->ops.request_layer(osd_device,
+						    otherlayer->layer_info.id);
+		if (ret < 0) {
+			v4l2_err(&vpbe_dev->v4l2_dev,
+				 "Display Manager failed to allocate layer\n");
+			return -EBUSY;
+		}
+	}
 
 	/* Get osd layer config */
 	osd_device->ops.get_layer_config(osd_device,
@@ -929,7 +944,7 @@ static int vpbe_display_s_fmt(struct file *file, void *priv,
 	cfg->interlaced = vpbe_dev->current_timings.interlaced;
 
 	if (V4L2_PIX_FMT_UYVY == pixfmt->pixelformat)
-		cfg->pixfmt = PIXFMT_YCbCrI;
+		cfg->pixfmt = PIXFMT_YCBCRI;
 
 	/* Change of the default pixel format for both video windows */
 	if (V4L2_PIX_FMT_NV12 == pixfmt->pixelformat) {
@@ -1578,31 +1593,6 @@ static int vpbe_display_release(struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int vpbe_display_g_register(struct file *file, void *priv,
-			struct v4l2_dbg_register *reg)
-{
-	struct v4l2_dbg_match *match = &reg->match;
-	struct vpbe_fh *fh = file->private_data;
-	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
-
-	if (match->type >= 2) {
-		v4l2_subdev_call(vpbe_dev->venc,
-				 core,
-				 g_register,
-				 reg);
-	}
-
-	return 0;
-}
-
-static int vpbe_display_s_register(struct file *file, void *priv,
-			const struct v4l2_dbg_register *reg)
-{
-	return 0;
-}
-#endif
-
 /* vpbe capture ioctl operations */
 static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_querycap	 = vpbe_display_querycap,
@@ -1629,10 +1619,6 @@ static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_s_dv_timings	 = vpbe_display_s_dv_timings,
 	.vidioc_g_dv_timings	 = vpbe_display_g_dv_timings,
 	.vidioc_enum_dv_timings	 = vpbe_display_enum_dv_timings,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register	 = vpbe_display_g_register,
-	.vidioc_s_register	 = vpbe_display_s_register,
-#endif
 };
 
 static struct v4l2_file_operations vpbe_fops = {

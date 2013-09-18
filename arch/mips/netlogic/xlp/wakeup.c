@@ -77,12 +77,28 @@ static int xlp_wakeup_core(uint64_t sysbase, int node, int core)
 	return count != 0;
 }
 
+static int wait_for_cpus(int cpu, int bootcpu)
+{
+	volatile uint32_t *cpu_ready = nlm_get_boot_data(BOOT_CPU_READY);
+	int i, count, notready;
+
+	count = 0x20000000;
+	do {
+		notready = nlm_threads_per_core;
+		for (i = 0; i < nlm_threads_per_core; i++)
+			if (cpu_ready[cpu + i] || cpu == bootcpu)
+				--notready;
+	} while (notready != 0 && --count > 0);
+
+	return count != 0;
+}
+
 static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 {
 	struct nlm_soc_info *nodep;
 	uint64_t syspcibase;
 	uint32_t syscoremask;
-	int core, n, cpu, count, val;
+	int core, n, cpu;
 
 	for (n = 0; n < NLM_NR_NODES; n++) {
 		syspcibase = nlm_get_sys_pcibase(n);
@@ -122,11 +138,8 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 			/* core is up */
 			nodep->coremask |= 1u << core;
 
-			/* spin until the first hw thread sets its ready */
-			count = 0x20000000;
-			do {
-				val = *(volatile int *)&nlm_cpu_ready[cpu];
-			} while (val == 0 && --count > 0);
+			/* spin until the hw threads sets their ready */
+			wait_for_cpus(cpu, 0);
 		}
 	}
 }
@@ -138,6 +151,7 @@ void xlp_wakeup_secondary_cpus()
 	 * first wakeup core 0 threads
 	 */
 	xlp_boot_core0_siblings();
+	wait_for_cpus(0, 0);
 
 	/* now get other cores out of reset */
 	xlp_enable_secondary_cores(&nlm_cpumask);

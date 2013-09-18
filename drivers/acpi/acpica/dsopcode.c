@@ -636,6 +636,7 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_AML_BAD_OPCODE);
 	}
 

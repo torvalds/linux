@@ -182,8 +182,8 @@ static void pl08x_put_signal(const struct pl08x_channel_data *cd, int ch)
 static struct pl08x_platform_data pl08x_pd = {
 	.slave_channels = &pl08x_slave_channels[0],
 	.num_slave_channels = ARRAY_SIZE(pl08x_slave_channels),
-	.get_signal = pl08x_get_signal,
-	.put_signal = pl08x_put_signal,
+	.get_xfer_signal = pl08x_get_signal,
+	.put_xfer_signal = pl08x_put_signal,
 	.lli_buses = PL08X_AHB1,
 	.mem_buses = PL08X_AHB1,
 };

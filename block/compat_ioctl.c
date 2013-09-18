@@ -59,6 +59,7 @@ static int compat_hdio_getgeo(struct gendisk *disk, struct block_device *bdev,
 	if (!disk->fops->getgeo)
 		return -ENOTTY;
 
+	memset(&geo, 0, sizeof(geo));
 	/*
 	 * We need to set the startsect first, the driver may
 	 * want to override it.

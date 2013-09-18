@@ -85,6 +85,12 @@ static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
 	return p;
 }
 
+static bool page_empty(void *ptr)
+{
+	struct page *ptr_page = virt_to_page(ptr);
+	return page_count(ptr_page) == 1;
+}
+
 static void clear_pud_entry(struct kvm *kvm, pud_t *pud, phys_addr_t addr)
 {
 	pmd_t *pmd_table = pmd_offset(pud, 0);
@@ -103,12 +109,6 @@ static void clear_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr)
 	put_page(virt_to_page(pmd));
 }
 
-static bool pmd_empty(pmd_t *pmd)
-{
-	struct page *pmd_page = virt_to_page(pmd);
-	return page_count(pmd_page) == 1;
-}
-
 static void clear_pte_entry(struct kvm *kvm, pte_t *pte, phys_addr_t addr)
 {
 	if (pte_present(*pte)) {
@@ -116,12 +116,6 @@ static void clear_pte_entry(struct kvm *kvm, pte_t *pte, phys_addr_t addr)
 		put_page(virt_to_page(pte));
 		kvm_tlb_flush_vmid_ipa(kvm, addr);
 	}
-}
-
-static bool pte_empty(pte_t *pte)
-{
-	struct page *pte_page = virt_to_page(pte);
-	return page_count(pte_page) == 1;
 }
 
 static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
@@ -132,37 +126,37 @@ static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long long addr = start, end = start + size;
-	u64 range;
+	u64 next;
 
 	while (addr < end) {
 		pgd = pgdp + pgd_index(addr);
 		pud = pud_offset(pgd, addr);
 		if (pud_none(*pud)) {
-			addr += PUD_SIZE;
+			addr = pud_addr_end(addr, end);
 			continue;
 		}
 
 		pmd = pmd_offset(pud, addr);
 		if (pmd_none(*pmd)) {
-			addr += PMD_SIZE;
+			addr = pmd_addr_end(addr, end);
 			continue;
 		}
 
 		pte = pte_offset_kernel(pmd, addr);
 		clear_pte_entry(kvm, pte, addr);
-		range = PAGE_SIZE;
+		next = addr + PAGE_SIZE;
 
 		/* If we emptied the pte, walk back up the ladder */
-		if (pte_empty(pte)) {
+		if (page_empty(pte)) {
 			clear_pmd_entry(kvm, pmd, addr);
-			range = PMD_SIZE;
-			if (pmd_empty(pmd)) {
+			next = pmd_addr_end(addr, end);
+			if (page_empty(pmd) && !page_empty(pud)) {
 				clear_pud_entry(kvm, pud, addr);
-				range = PUD_SIZE;
+				next = pud_addr_end(addr, end);
 			}
 		}
 
-		addr += range;
+		addr = next;
 	}
 }
 
@@ -381,9 +375,6 @@ int kvm_alloc_stage2_pgd(struct kvm *kvm)
 	pgd = (pgd_t *)__get_free_pages(GFP_KERNEL, S2_PGD_ORDER);
 	if (!pgd)
 		return -ENOMEM;
-
-	/* stage-2 pgd must be aligned to its size */
-	VM_BUG_ON((unsigned long)pgd & (S2_PGD_SIZE - 1));
 
 	memset(pgd, 0, PTRS_PER_S2_PGD * sizeof(pgd_t));
 	kvm_clean_pgd(pgd);

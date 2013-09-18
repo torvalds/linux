@@ -119,7 +119,7 @@ static inline u32 osd_modify(struct osd_state *sd, u32 mask, u32 val,
 #define is_rgb_pixfmt(pixfmt) \
 	(((pixfmt) == PIXFMT_RGB565) || ((pixfmt) == PIXFMT_RGB888))
 #define is_yc_pixfmt(pixfmt) \
-	(((pixfmt) == PIXFMT_YCbCrI) || ((pixfmt) == PIXFMT_YCrCbI) || \
+	(((pixfmt) == PIXFMT_YCBCRI) || ((pixfmt) == PIXFMT_YCRCBI) || \
 	((pixfmt) == PIXFMT_NV12))
 #define MAX_WIN_SIZE OSD_VIDWIN0XP_V0X
 #define MAX_LINE_LENGTH (OSD_VIDWIN0OFST_V0LO << 5)
@@ -360,8 +360,8 @@ static void _osd_enable_color_key(struct osd_state *sd,
 			osd_write(sd, colorkey & OSD_TRANSPVALL_RGBL,
 				  OSD_TRANSPVALL);
 		break;
-	case PIXFMT_YCbCrI:
-	case PIXFMT_YCrCbI:
+	case PIXFMT_YCBCRI:
+	case PIXFMT_YCRCBI:
 		if (sd->vpbe_type == VPBE_VERSION_3)
 			osd_modify(sd, OSD_TRANSPVALU_Y, colorkey,
 				   OSD_TRANSPVALU);
@@ -813,8 +813,8 @@ static int try_layer_config(struct osd_state *sd, enum osd_layer layer,
 		if (osd->vpbe_type == VPBE_VERSION_1)
 			bad_config = !is_vid_win(layer);
 		break;
-	case PIXFMT_YCbCrI:
-	case PIXFMT_YCrCbI:
+	case PIXFMT_YCBCRI:
+	case PIXFMT_YCRCBI:
 		bad_config = !is_vid_win(layer);
 		break;
 	case PIXFMT_RGB888:
@@ -950,9 +950,9 @@ static void _osd_set_cbcr_order(struct osd_state *sd,
 	 * The caller must ensure that all windows using YC pixfmt use the same
 	 * Cb/Cr order.
 	 */
-	if (pixfmt == PIXFMT_YCbCrI)
+	if (pixfmt == PIXFMT_YCBCRI)
 		osd_clear(sd, OSD_MODE_CS, OSD_MODE);
-	else if (pixfmt == PIXFMT_YCrCbI)
+	else if (pixfmt == PIXFMT_YCRCBI)
 		osd_set(sd, OSD_MODE_CS, OSD_MODE);
 }
 
@@ -981,8 +981,8 @@ static void _osd_set_layer_config(struct osd_state *sd, enum osd_layer layer,
 				winmd |= (2 << OSD_OSDWIN0MD_BMP0MD_SHIFT);
 				_osd_enable_rgb888_pixblend(sd, OSDWIN_OSD0);
 				break;
-			case PIXFMT_YCbCrI:
-			case PIXFMT_YCrCbI:
+			case PIXFMT_YCBCRI:
+			case PIXFMT_YCRCBI:
 				winmd |= (3 << OSD_OSDWIN0MD_BMP0MD_SHIFT);
 				break;
 			default:
@@ -1128,8 +1128,8 @@ static void _osd_set_layer_config(struct osd_state *sd, enum osd_layer layer,
 					_osd_enable_rgb888_pixblend(sd,
 							OSDWIN_OSD1);
 					break;
-				case PIXFMT_YCbCrI:
-				case PIXFMT_YCrCbI:
+				case PIXFMT_YCBCRI:
+				case PIXFMT_YCRCBI:
 					winmd |=
 					    (3 << OSD_OSDWIN1MD_BMP1MD_SHIFT);
 					break;
@@ -1508,7 +1508,7 @@ static int osd_initialize(struct osd_state *osd)
 	_osd_init(osd);
 
 	/* set default Cb/Cr order */
-	osd->yc_pixfmt = PIXFMT_YCbCrI;
+	osd->yc_pixfmt = PIXFMT_YCBCRI;
 
 	if (osd->vpbe_type == VPBE_VERSION_3) {
 		/*

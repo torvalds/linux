@@ -144,6 +144,7 @@ struct bond_params {
 	u8 num_peer_notif;
 	int arp_interval;
 	int arp_validate;
+	int arp_all_targets;
 	int use_carrier;
 	int fail_over_mac;
 	int updelay;
@@ -179,6 +180,7 @@ struct slave {
 	int    delay;
 	unsigned long jiffies;
 	unsigned long last_arp_rx;
+	unsigned long target_last_arp_rx[BOND_MAX_ARP_TARGETS];
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     new_link;
 	u8     backup:1,   /* indicates backup slave. Value corresponds with
@@ -224,14 +226,12 @@ struct bonding {
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
 	u8	 send_peer_notif;
-	s8	 setup_by_slave;
-	s8       igmp_retrans;
+	u8       igmp_retrans;
 #ifdef CONFIG_PROC_FS
 	struct   proc_dir_entry *proc_entry;
 	char     proc_file_name[IFNAMSIZ];
 #endif /* CONFIG_PROC_FS */
 	struct   list_head bond_list;
-	struct   netdev_hw_addr_list mc_list;
 	int      (*xmit_hash_policy)(struct sk_buff *, int);
 	u16      rr_tx_counter;
 	struct   ad_bond_info ad_info;
@@ -248,7 +248,6 @@ struct bonding {
 	/* debugging support via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
-	bool	dev_addr_from_first;
 };
 
 static inline bool bond_vlan_used(struct bonding *bond)
@@ -323,6 +322,9 @@ static inline bool bond_is_active_slave(struct slave *slave)
 #define BOND_FOM_ACTIVE			1
 #define BOND_FOM_FOLLOW			2
 
+#define BOND_ARP_TARGETS_ANY		0
+#define BOND_ARP_TARGETS_ALL		1
+
 #define BOND_ARP_VALIDATE_NONE		0
 #define BOND_ARP_VALIDATE_ACTIVE	(1 << BOND_STATE_ACTIVE)
 #define BOND_ARP_VALIDATE_BACKUP	(1 << BOND_STATE_BACKUP)
@@ -335,11 +337,31 @@ static inline int slave_do_arp_validate(struct bonding *bond,
 	return bond->params.arp_validate & (1 << bond_slave_state(slave));
 }
 
+/* Get the oldest arp which we've received on this slave for bond's
+ * arp_targets.
+ */
+static inline unsigned long slave_oldest_target_arp_rx(struct bonding *bond,
+						       struct slave *slave)
+{
+	int i = 1;
+	unsigned long ret = slave->target_last_arp_rx[0];
+
+	for (; (i < BOND_MAX_ARP_TARGETS) && bond->params.arp_targets[i]; i++)
+		if (time_before(slave->target_last_arp_rx[i], ret))
+			ret = slave->target_last_arp_rx[i];
+
+	return ret;
+}
+
 static inline unsigned long slave_last_rx(struct bonding *bond,
 					struct slave *slave)
 {
-	if (slave_do_arp_validate(bond, slave))
-		return slave->last_arp_rx;
+	if (slave_do_arp_validate(bond, slave)) {
+		if (bond->params.arp_all_targets == BOND_ARP_TARGETS_ALL)
+			return slave_oldest_target_arp_rx(bond, slave);
+		else
+			return slave->last_arp_rx;
+	}
 
 	return slave->dev->last_rx;
 }
@@ -465,12 +487,29 @@ static inline struct slave *bond_slave_has_mac(struct bonding *bond,
 	return NULL;
 }
 
+/* Check if the ip is present in arp ip list, or first free slot if ip == 0
+ * Returns -1 if not found, index if found
+ */
+static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
+{
+	int i;
+
+	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
+		if (targets[i] == ip)
+			return i;
+		else if (targets[i] == 0)
+			break;
+
+	return -1;
+}
+
 /* exported from bond_main.c */
 extern int bond_net_id;
 extern const struct bond_parm_tbl bond_lacp_tbl[];
 extern const struct bond_parm_tbl bond_mode_tbl[];
 extern const struct bond_parm_tbl xmit_hashtype_tbl[];
 extern const struct bond_parm_tbl arp_validate_tbl[];
+extern const struct bond_parm_tbl arp_all_targets_tbl[];
 extern const struct bond_parm_tbl fail_over_mac_tbl[];
 extern const struct bond_parm_tbl pri_reselect_tbl[];
 extern struct bond_parm_tbl ad_select_tbl[];

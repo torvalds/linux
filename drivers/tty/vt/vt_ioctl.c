@@ -289,13 +289,10 @@ static int vt_disallocate(unsigned int vc_num)
 	struct vc_data *vc = NULL;
 	int ret = 0;
 
-	if (!vc_num)
-		return 0;
-
 	console_lock();
 	if (VT_BUSY(vc_num))
 		ret = -EBUSY;
-	else
+	else if (vc_num)
 		vc = vc_deallocate(vc_num);
 	console_unlock();
 

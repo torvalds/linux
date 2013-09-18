@@ -203,13 +203,6 @@ static void omap_aes_write_n(struct omap_aes_dev *dd, u32 offset,
 
 static int omap_aes_hw_init(struct omap_aes_dev *dd)
 {
-	/*
-	 * clocks are enabled when request starts and disabled when finished.
-	 * It may be long delays between requests.
-	 * Device might go to off mode to save power.
-	 */
-	pm_runtime_get_sync(dd->dev);
-
 	if (!(dd->flags & FLAGS_INIT)) {
 		dd->flags |= FLAGS_INIT;
 		dd->err = 0;
@@ -636,7 +629,6 @@ static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
 
 	pr_debug("err: %d\n", err);
 
-	pm_runtime_put(dd->dev);
 	dd->flags &= ~FLAGS_BUSY;
 
 	req->base.complete(&req->base, err);
@@ -837,8 +829,16 @@ static int omap_aes_ctr_decrypt(struct ablkcipher_request *req)
 
 static int omap_aes_cra_init(struct crypto_tfm *tfm)
 {
-	pr_debug("enter\n");
+	struct omap_aes_dev *dd = NULL;
 
+	/* Find AES device, currently picks the first device */
+	spin_lock_bh(&list_lock);
+	list_for_each_entry(dd, &dev_list, list) {
+		break;
+	}
+	spin_unlock_bh(&list_lock);
+
+	pm_runtime_get_sync(dd->dev);
 	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_aes_reqctx);
 
 	return 0;
@@ -846,7 +846,16 @@ static int omap_aes_cra_init(struct crypto_tfm *tfm)
 
 static void omap_aes_cra_exit(struct crypto_tfm *tfm)
 {
-	pr_debug("enter\n");
+	struct omap_aes_dev *dd = NULL;
+
+	/* Find AES device, currently picks the first device */
+	spin_lock_bh(&list_lock);
+	list_for_each_entry(dd, &dev_list, list) {
+		break;
+	}
+	spin_unlock_bh(&list_lock);
+
+	pm_runtime_put_sync(dd->dev);
 }
 
 /* ********************** ALGS ************************************ */
@@ -1125,10 +1134,9 @@ static int omap_aes_probe(struct platform_device *pdev)
 	if (err)
 		goto err_res;
 
-	dd->io_base = devm_request_and_ioremap(dev, &res);
-	if (!dd->io_base) {
-		dev_err(dev, "can't ioremap\n");
-		err = -ENOMEM;
+	dd->io_base = devm_ioremap_resource(dev, &res);
+	if (IS_ERR(dd->io_base)) {
+		err = PTR_ERR(dd->io_base);
 		goto err_res;
 	}
 	dd->phys_base = res.start;

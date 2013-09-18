@@ -138,6 +138,7 @@ config PPC
 	select ARCH_USE_BUILTIN_BSWAP
 	select OLD_SIGSUSPEND
 	select OLD_SIGACTION if PPC32
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config EARLY_PRINTK
 	bool
@@ -298,7 +299,7 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || E200 || PPC_MPC832x || E500
+	depends on 4xx || 8xx || PPC_MPC832x || BOOKE
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -307,6 +308,10 @@ config MATH_EMULATION
 	  unit, which will allow programs that use floating-point
 	  instructions to run.
 
+	  This is also useful to emulate missing (optional) instructions
+	  such as fsqrt on cores that do have an FPU but do not implement
+	  them (such as Freescale BookE).
+
 config PPC_TRANSACTIONAL_MEM
        bool "Transactional Memory support for POWERPC"
        depends on PPC_BOOK3S_64
@@ -314,17 +319,6 @@ config PPC_TRANSACTIONAL_MEM
        default n
        ---help---
          Support user-mode Transactional Memory on POWERPC.
-
-config 8XX_MINIMAL_FPEMU
-	bool "Minimal math emulation for 8xx"
-	depends on 8xx && !MATH_EMULATION
-	help
-	  Older arch/ppc kernels still emulated a few floating point
-	  instructions such as load and store, even when full math
-	  emulation is disabled.  Say "Y" here if you want to preserve
-	  this behavior.
-
-	  It is recommended that you build a soft-float userspace instead.
 
 config IOMMU_HELPER
 	def_bool PPC64
@@ -341,7 +335,7 @@ config SWIOTLB
 
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
-	depends on SMP && HOTPLUG && (PPC_PSERIES || \
+	depends on SMP && (PPC_PSERIES || \
 	PPC_PMAC || PPC_POWERNV || (PPC_85xx && !PPC_E500MC))
 	---help---
 	  Say Y here to be able to disable and re-enable individual
@@ -572,7 +566,7 @@ config SCHED_SMT
 config PPC_DENORMALISATION
 	bool "PowerPC denormalisation exception handling"
 	depends on PPC_BOOK3S_64
-	default "n"
+	default "y" if PPC_POWERNV
 	---help---
 	  Add support for handling denormalisation of single precision
 	  values.  Useful for bare metal only.  If unsure say Y here.
@@ -674,7 +668,6 @@ config SBUS
 
 config FSL_SOC
 	bool
-	select HAVE_CAN_FLEXCAN if NET && CAN
 
 config FSL_PCI
  	bool
@@ -986,6 +979,7 @@ config RELOCATABLE
 	  must live at a different physical address than the primary
 	  kernel.
 
+# This value must have zeroes in the bottom 60 bits otherwise lots will break
 config PAGE_OFFSET
 	hex
 	default "0xc000000000000000"

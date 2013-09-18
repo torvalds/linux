@@ -178,25 +178,41 @@ union acpi_aml_operands {
 };
 
 /*
- * Structure used to pass object evaluation parameters.
+ * Structure used to pass object evaluation information and parameters.
  * Purpose is to reduce CPU stack use.
  */
 struct acpi_evaluate_info {
-	struct acpi_namespace_node *prefix_node;
-	char *pathname;
-	union acpi_operand_object *obj_desc;
-	union acpi_operand_object **parameters;
-	struct acpi_namespace_node *resolved_node;
-	union acpi_operand_object *return_object;
-	u8 param_count;
-	u8 pass_number;
-	u8 return_object_type;
-	u8 flags;
+	/* The first 3 elements are passed by the caller to acpi_ns_evaluate */
+
+	struct acpi_namespace_node *prefix_node;	/* Input: starting node */
+	char *relative_pathname;	/* Input: path relative to prefix_node */
+	union acpi_operand_object **parameters;	/* Input: argument list */
+
+	struct acpi_namespace_node *node;	/* Resolved node (prefix_node:relative_pathname) */
+	union acpi_operand_object *obj_desc;	/* Object attached to the resolved node */
+	char *full_pathname;	/* Full pathname of the resolved node */
+
+	const union acpi_predefined_info *predefined;	/* Used if Node is a predefined name */
+	union acpi_operand_object *return_object;	/* Object returned from the evaluation */
+	union acpi_operand_object *parent_package;	/* Used if return object is a Package */
+
+	u32 return_flags;	/* Used for return value analysis */
+	u32 return_btype;	/* Bitmapped type of the returned object */
+	u16 param_count;	/* Count of the input argument list */
+	u8 pass_number;		/* Parser pass number */
+	u8 return_object_type;	/* Object type of the returned object */
+	u8 node_flags;		/* Same as Node->Flags */
+	u8 flags;		/* General flags */
 };
 
 /* Values for Flags above */
 
-#define ACPI_IGNORE_RETURN_VALUE        1
+#define ACPI_IGNORE_RETURN_VALUE    1
+
+/* Defines for return_flags field above */
+
+#define ACPI_OBJECT_REPAIRED        1
+#define ACPI_OBJECT_WRAPPED         2
 
 /* Info used by acpi_ns_initialize_devices */
 

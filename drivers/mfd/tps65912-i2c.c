@@ -77,7 +77,8 @@ static int tps65912_i2c_probe(struct i2c_client *i2c,
 {
 	struct tps65912 *tps65912;
 
-	tps65912 = kzalloc(sizeof(struct tps65912), GFP_KERNEL);
+	tps65912 = devm_kzalloc(&i2c->dev,
+				sizeof(struct tps65912), GFP_KERNEL);
 	if (tps65912 == NULL)
 		return -ENOMEM;
 

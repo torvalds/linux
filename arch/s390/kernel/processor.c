@@ -21,7 +21,7 @@ static DEFINE_PER_CPU(struct cpuid, cpu_id);
 /*
  * cpu_init - initializes state that is per-CPU.
  */
-void __cpuinit cpu_init(void)
+void cpu_init(void)
 {
 	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
 	struct cpuid *id = &__get_cpu_var(cpu_id);

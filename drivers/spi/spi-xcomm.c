@@ -76,7 +76,7 @@ static int spi_xcomm_setup_transfer(struct spi_xcomm *spi_xcomm,
 {
 	unsigned int speed;
 
-	if ((t->bits_per_word && t->bits_per_word != 8) || t->len > 62)
+	if (t->len > 62)
 		return -EINVAL;
 
 	speed = t->speed_hz ? t->speed_hz : spi->max_speed_hz;
@@ -209,14 +209,6 @@ static int spi_xcomm_transfer_one(struct spi_master *master,
 	return status;
 }
 
-static int spi_xcomm_setup(struct spi_device *spi)
-{
-	if (spi->bits_per_word != 8)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int spi_xcomm_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
 {
@@ -233,8 +225,8 @@ static int spi_xcomm_probe(struct i2c_client *i2c,
 
 	master->num_chipselect = 16;
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_3WIRE;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->flags = SPI_MASTER_HALF_DUPLEX;
-	master->setup = spi_xcomm_setup;
 	master->transfer_one_message = spi_xcomm_transfer_one;
 	master->dev.of_node = i2c->dev.of_node;
 	i2c_set_clientdata(i2c, master);

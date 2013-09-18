@@ -86,6 +86,9 @@ extern int			ipv6_dev_get_saddr(struct net *net,
 					       const struct in6_addr *daddr,
 					       unsigned int srcprefs,
 					       struct in6_addr *saddr);
+extern int			__ipv6_get_lladdr(struct inet6_dev *idev,
+						  struct in6_addr *addr,
+						  unsigned char banned_flags);
 extern int			ipv6_get_lladdr(struct net_device *dev,
 						struct in6_addr *addr,
 						unsigned char banned_flags);
@@ -155,6 +158,7 @@ extern bool ipv6_chk_mcast_addr(struct net_device *dev,
 				const struct in6_addr *group,
 				const struct in6_addr *src_addr);
 
+extern void ipv6_mc_dad_complete(struct inet6_dev *idev);
 /*
  * identify MLD packets for MLD filter exceptions
  */

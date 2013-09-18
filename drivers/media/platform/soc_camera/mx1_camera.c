@@ -104,7 +104,6 @@ struct mx1_buffer {
  */
 struct mx1_camera_dev {
 	struct soc_camera_host		soc_host;
-	struct soc_camera_device	*icd;
 	struct mx1_camera_pdata		*pdata;
 	struct mx1_buffer		*active;
 	struct resource			*res;
@@ -220,7 +219,7 @@ out:
 static int mx1_camera_setup_dma(struct mx1_camera_dev *pcdev)
 {
 	struct videobuf_buffer *vbuf = &pcdev->active->vb;
-	struct device *dev = pcdev->icd->parent;
+	struct device *dev = pcdev->soc_host.icd->parent;
 	int ret;
 
 	if (unlikely(!pcdev->active)) {
@@ -331,7 +330,7 @@ static void mx1_camera_wakeup(struct mx1_camera_dev *pcdev,
 static void mx1_camera_dma_irq(int channel, void *data)
 {
 	struct mx1_camera_dev *pcdev = data;
-	struct device *dev = pcdev->icd->parent;
+	struct device *dev = pcdev->soc_host.icd->parent;
 	struct mx1_buffer *buf;
 	struct videobuf_buffer *vb;
 	unsigned long flags;
@@ -389,7 +388,7 @@ static int mclk_get_divisor(struct mx1_camera_dev *pcdev)
 	 */
 	div = (lcdclk + 2 * mclk - 1) / (2 * mclk) - 1;
 
-	dev_dbg(pcdev->icd->parent,
+	dev_dbg(pcdev->soc_host.icd->parent,
 		"System clock %lukHz, target freq %dkHz, divisor %lu\n",
 		lcdclk / 1000, mclk / 1000, div);
 
@@ -400,7 +399,7 @@ static void mx1_camera_activate(struct mx1_camera_dev *pcdev)
 {
 	unsigned int csicr1 = CSICR1_EN;
 
-	dev_dbg(pcdev->icd->parent, "Activate device\n");
+	dev_dbg(pcdev->soc_host.v4l2_dev.dev, "Activate device\n");
 
 	clk_prepare_enable(pcdev->clk);
 
@@ -416,7 +415,7 @@ static void mx1_camera_activate(struct mx1_camera_dev *pcdev)
 
 static void mx1_camera_deactivate(struct mx1_camera_dev *pcdev)
 {
-	dev_dbg(pcdev->icd->parent, "Deactivate device\n");
+	dev_dbg(pcdev->soc_host.v4l2_dev.dev, "Deactivate device\n");
 
 	/* Disable all CSI interface */
 	__raw_writel(0x00, pcdev->base + CSICR1);
@@ -424,35 +423,37 @@ static void mx1_camera_deactivate(struct mx1_camera_dev *pcdev)
 	clk_disable_unprepare(pcdev->clk);
 }
 
-/*
- * The following two functions absolutely depend on the fact, that
- * there can be only one camera on i.MX1/i.MXL camera sensor interface
- */
 static int mx1_camera_add_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct mx1_camera_dev *pcdev = ici->priv;
-
-	if (pcdev->icd)
-		return -EBUSY;
-
 	dev_info(icd->parent, "MX1 Camera driver attached to camera %d\n",
 		 icd->devnum);
-
-	mx1_camera_activate(pcdev);
-
-	pcdev->icd = icd;
 
 	return 0;
 }
 
 static void mx1_camera_remove_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	dev_info(icd->parent, "MX1 Camera driver detached from camera %d\n",
+		 icd->devnum);
+}
+
+/*
+ * The following two functions absolutely depend on the fact, that
+ * there can be only one camera on i.MX1/i.MXL camera sensor interface
+ */
+static int mx1_camera_clock_start(struct soc_camera_host *ici)
+{
+	struct mx1_camera_dev *pcdev = ici->priv;
+
+	mx1_camera_activate(pcdev);
+
+	return 0;
+}
+
+static void mx1_camera_clock_stop(struct soc_camera_host *ici)
+{
 	struct mx1_camera_dev *pcdev = ici->priv;
 	unsigned int csicr1;
-
-	BUG_ON(icd != pcdev->icd);
 
 	/* disable interrupts */
 	csicr1 = __raw_readl(pcdev->base + CSICR1) & ~CSI_IRQ_MASK;
@@ -461,12 +462,7 @@ static void mx1_camera_remove_device(struct soc_camera_device *icd)
 	/* Stop DMA engine */
 	imx_dma_disable(pcdev->dma_chan);
 
-	dev_info(icd->parent, "MX1 Camera driver detached from camera %d\n",
-		 icd->devnum);
-
 	mx1_camera_deactivate(pcdev);
-
-	pcdev->icd = NULL;
 }
 
 static int mx1_camera_set_bus_param(struct soc_camera_device *icd)
@@ -679,6 +675,8 @@ static struct soc_camera_host_ops mx1_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= mx1_camera_add_device,
 	.remove		= mx1_camera_remove_device,
+	.clock_start	= mx1_camera_clock_start,
+	.clock_stop	= mx1_camera_clock_stop,
 	.set_bus_param	= mx1_camera_set_bus_param,
 	.set_fmt	= mx1_camera_set_fmt,
 	.try_fmt	= mx1_camera_try_fmt,

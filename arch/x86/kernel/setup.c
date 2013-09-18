@@ -170,7 +170,7 @@ static struct resource bss_resource = {
 
 #ifdef CONFIG_X86_32
 /* cpu data as detected by the assembly code in head.S */
-struct cpuinfo_x86 new_cpu_data __cpuinitdata = {
+struct cpuinfo_x86 new_cpu_data = {
 	.wp_works_ok = -1,
 };
 /* common cpu data for all cpus */
@@ -1040,8 +1040,6 @@ void __init setup_arch(char **cmdline_p)
 	/* max_low_pfn get updated here */
 	find_low_pfn_range();
 #else
-	num_physpages = max_pfn;
-
 	check_x2apic();
 
 	/* How many end-of-memory variables you have, grandma! */

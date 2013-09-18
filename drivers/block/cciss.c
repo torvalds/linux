@@ -168,8 +168,6 @@ static irqreturn_t do_cciss_msix_intr(int irq, void *dev_id);
 static int cciss_open(struct block_device *bdev, fmode_t mode);
 static int cciss_unlocked_open(struct block_device *bdev, fmode_t mode);
 static void cciss_release(struct gendisk *disk, fmode_t mode);
-static int do_ioctl(struct block_device *bdev, fmode_t mode,
-		    unsigned int cmd, unsigned long arg);
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg);
 static int cciss_getgeo(struct block_device *bdev, struct hd_geometry *geo);
@@ -235,7 +233,7 @@ static const struct block_device_operations cciss_fops = {
 	.owner = THIS_MODULE,
 	.open = cciss_unlocked_open,
 	.release = cciss_release,
-	.ioctl = do_ioctl,
+	.ioctl = cciss_ioctl,
 	.getgeo = cciss_getgeo,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = cciss_compat_ioctl,
@@ -1143,16 +1141,6 @@ static void cciss_release(struct gendisk *disk, fmode_t mode)
 	mutex_unlock(&cciss_mutex);
 }
 
-static int do_ioctl(struct block_device *bdev, fmode_t mode,
-		    unsigned cmd, unsigned long arg)
-{
-	int ret;
-	mutex_lock(&cciss_mutex);
-	ret = cciss_ioctl(bdev, mode, cmd, arg);
-	mutex_unlock(&cciss_mutex);
-	return ret;
-}
-
 #ifdef CONFIG_COMPAT
 
 static int cciss_ioctl32_passthru(struct block_device *bdev, fmode_t mode,
@@ -1179,7 +1167,7 @@ static int cciss_compat_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_REGNEWD:
 	case CCISS_RESCANDISK:
 	case CCISS_GETLUNINFO:
-		return do_ioctl(bdev, mode, cmd, arg);
+		return cciss_ioctl(bdev, mode, cmd, arg);
 
 	case CCISS_PASSTHRU32:
 		return cciss_ioctl32_passthru(bdev, mode, cmd, arg);
@@ -1219,7 +1207,7 @@ static int cciss_ioctl32_passthru(struct block_device *bdev, fmode_t mode,
 	if (err)
 		return -EFAULT;
 
-	err = do_ioctl(bdev, mode, CCISS_PASSTHRU, (unsigned long)p);
+	err = cciss_ioctl(bdev, mode, CCISS_PASSTHRU, (unsigned long)p);
 	if (err)
 		return err;
 	err |=
@@ -1261,7 +1249,7 @@ static int cciss_ioctl32_big_passthru(struct block_device *bdev, fmode_t mode,
 	if (err)
 		return -EFAULT;
 
-	err = do_ioctl(bdev, mode, CCISS_BIG_PASSTHRU, (unsigned long)p);
+	err = cciss_ioctl(bdev, mode, CCISS_BIG_PASSTHRU, (unsigned long)p);
 	if (err)
 		return err;
 	err |=
@@ -1311,11 +1299,14 @@ static int cciss_getpciinfo(ctlr_info_t *h, void __user *argp)
 static int cciss_getintinfo(ctlr_info_t *h, void __user *argp)
 {
 	cciss_coalint_struct intinfo;
+	unsigned long flags;
 
 	if (!argp)
 		return -EINVAL;
+	spin_lock_irqsave(&h->lock, flags);
 	intinfo.delay = readl(&h->cfgtable->HostWrite.CoalIntDelay);
 	intinfo.count = readl(&h->cfgtable->HostWrite.CoalIntCount);
+	spin_unlock_irqrestore(&h->lock, flags);
 	if (copy_to_user
 	    (argp, &intinfo, sizeof(cciss_coalint_struct)))
 		return -EFAULT;
@@ -1356,12 +1347,15 @@ static int cciss_setintinfo(ctlr_info_t *h, void __user *argp)
 static int cciss_getnodename(ctlr_info_t *h, void __user *argp)
 {
 	NodeName_type NodeName;
+	unsigned long flags;
 	int i;
 
 	if (!argp)
 		return -EINVAL;
+	spin_lock_irqsave(&h->lock, flags);
 	for (i = 0; i < 16; i++)
 		NodeName[i] = readb(&h->cfgtable->ServerName[i]);
+	spin_unlock_irqrestore(&h->lock, flags);
 	if (copy_to_user(argp, NodeName, sizeof(NodeName_type)))
 		return -EFAULT;
 	return 0;
@@ -1398,10 +1392,13 @@ static int cciss_setnodename(ctlr_info_t *h, void __user *argp)
 static int cciss_getheartbeat(ctlr_info_t *h, void __user *argp)
 {
 	Heartbeat_type heartbeat;
+	unsigned long flags;
 
 	if (!argp)
 		return -EINVAL;
+	spin_lock_irqsave(&h->lock, flags);
 	heartbeat = readl(&h->cfgtable->HeartBeat);
+	spin_unlock_irqrestore(&h->lock, flags);
 	if (copy_to_user(argp, &heartbeat, sizeof(Heartbeat_type)))
 		return -EFAULT;
 	return 0;
@@ -1410,10 +1407,13 @@ static int cciss_getheartbeat(ctlr_info_t *h, void __user *argp)
 static int cciss_getbustypes(ctlr_info_t *h, void __user *argp)
 {
 	BusTypes_type BusTypes;
+	unsigned long flags;
 
 	if (!argp)
 		return -EINVAL;
+	spin_lock_irqsave(&h->lock, flags);
 	BusTypes = readl(&h->cfgtable->BusTypes);
+	spin_unlock_irqrestore(&h->lock, flags);
 	if (copy_to_user(argp, &BusTypes, sizeof(BusTypes_type)))
 		return -EFAULT;
 	return 0;

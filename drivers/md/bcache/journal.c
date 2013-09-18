@@ -9,6 +9,8 @@
 #include "debug.h"
 #include "request.h"
 
+#include <trace/events/bcache.h>
+
 /*
  * Journal replay/recovery:
  *
@@ -182,9 +184,14 @@ bsearch:
 		pr_debug("starting binary search, l %u r %u", l, r);
 
 		while (l + 1 < r) {
-			m = (l + r) >> 1;
+			seq = list_entry(list->prev, struct journal_replay,
+					 list)->j.seq;
 
-			if (read_bucket(m))
+			m = (l + r) >> 1;
+			read_bucket(m);
+
+			if (seq != list_entry(list->prev, struct journal_replay,
+					      list)->j.seq)
 				l = m;
 			else
 				r = m;
@@ -300,7 +307,8 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list,
 		for (k = i->j.start;
 		     k < end(&i->j);
 		     k = bkey_next(k)) {
-			pr_debug("%s", pkey(k));
+			trace_bcache_journal_replay_key(k);
+
 			bkey_copy(op->keys.top, k);
 			bch_keylist_push(&op->keys);
 
@@ -384,7 +392,7 @@ out:
 		return;
 found:
 	if (btree_node_dirty(best))
-		bch_btree_write(best, true, NULL);
+		bch_btree_node_write(best, NULL);
 	rw_unlock(true, best);
 }
 
@@ -617,7 +625,7 @@ static void journal_write_unlocked(struct closure *cl)
 		bio_reset(bio);
 		bio->bi_sector	= PTR_OFFSET(k, i);
 		bio->bi_bdev	= ca->bdev;
-		bio->bi_rw	= REQ_WRITE|REQ_SYNC|REQ_META|REQ_FLUSH;
+		bio->bi_rw	= REQ_WRITE|REQ_SYNC|REQ_META|REQ_FLUSH|REQ_FUA;
 		bio->bi_size	= sectors << 9;
 
 		bio->bi_end_io	= journal_write_endio;
@@ -712,7 +720,8 @@ void bch_journal(struct closure *cl)
 	spin_lock(&c->journal.lock);
 
 	if (journal_full(&c->journal)) {
-		/* XXX: tracepoint */
+		trace_bcache_journal_full(c);
+
 		closure_wait(&c->journal.wait, cl);
 
 		journal_reclaim(c);
@@ -728,13 +737,15 @@ void bch_journal(struct closure *cl)
 
 	if (b * c->sb.block_size > PAGE_SECTORS << JSET_BITS ||
 	    b > c->journal.blocks_free) {
-		/* XXX: If we were inserting so many keys that they won't fit in
+		trace_bcache_journal_entry_full(c);
+
+		/*
+		 * XXX: If we were inserting so many keys that they won't fit in
 		 * an _empty_ journal write, we'll deadlock. For now, handle
 		 * this in bch_keylist_realloc() - but something to think about.
 		 */
 		BUG_ON(!w->data->keys);
 
-		/* XXX: tracepoint */
 		BUG_ON(!closure_wait(&w->wait, cl));
 
 		closure_flush(&c->journal.io);

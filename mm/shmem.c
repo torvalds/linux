@@ -1798,10 +1798,8 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
 		}
 	}
 
-	if (offset >= 0 && offset != file->f_pos) {
-		file->f_pos = offset;
-		file->f_version = 0;
-	}
+	if (offset >= 0)
+		offset = vfs_setpos(file, offset, MAX_LFS_FILESIZE);
 	mutex_unlock(&inode->i_mutex);
 	return offset;
 }
@@ -1939,8 +1937,42 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 
 	inode = shmem_get_inode(dir->i_sb, dir, mode, dev, VM_NORESERVE);
 	if (inode) {
+#ifdef CONFIG_TMPFS_POSIX_ACL
+		error = generic_acl_init(inode, dir);
+		if (error) {
+			iput(inode);
+			return error;
+		}
+#endif
 		error = security_inode_init_security(inode, dir,
 						     &dentry->d_name,
+						     shmem_initxattrs, NULL);
+		if (error) {
+			if (error != -EOPNOTSUPP) {
+				iput(inode);
+				return error;
+			}
+		}
+
+		error = 0;
+		dir->i_size += BOGO_DIRENT_SIZE;
+		dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+		d_instantiate(dentry, inode);
+		dget(dentry); /* Extra count - pin the dentry in core */
+	}
+	return error;
+}
+
+static int
+shmem_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	struct inode *inode;
+	int error = -ENOSPC;
+
+	inode = shmem_get_inode(dir->i_sb, dir, mode, 0, VM_NORESERVE);
+	if (inode) {
+		error = security_inode_init_security(inode, dir,
+						     NULL,
 						     shmem_initxattrs, NULL);
 		if (error) {
 			if (error != -EOPNOTSUPP) {
@@ -1957,10 +1989,7 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 #else
 		error = 0;
 #endif
-		dir->i_size += BOGO_DIRENT_SIZE;
-		dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-		d_instantiate(dentry, inode);
-		dget(dentry); /* Extra count - pin the dentry in core */
+		d_tmpfile(dentry, inode);
 	}
 	return error;
 }
@@ -2723,6 +2752,7 @@ static const struct inode_operations shmem_dir_inode_operations = {
 	.rmdir		= shmem_rmdir,
 	.mknod		= shmem_mknod,
 	.rename		= shmem_rename,
+	.tmpfile	= shmem_tmpfile,
 #endif
 #ifdef CONFIG_TMPFS_XATTR
 	.setxattr	= shmem_setxattr,
@@ -2879,14 +2909,8 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 /* common code */
 
-static char *shmem_dname(struct dentry *dentry, char *buffer, int buflen)
-{
-	return dynamic_dname(dentry, buffer, buflen, "/%s (deleted)",
-				dentry->d_name.name);
-}
-
 static struct dentry_operations anon_ops = {
-	.d_dname = shmem_dname
+	.d_dname = simple_dname
 };
 
 /**

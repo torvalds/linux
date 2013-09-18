@@ -309,23 +309,20 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_obex		*obex = func_to_obex(f);
+	struct usb_string	*us;
 	int			status;
 	struct usb_ep		*ep;
 
 	if (!can_support_obex(c))
 		return -EINVAL;
 
-	if (obex_string_defs[OBEX_CTRL_IDX].id == 0) {
-		status = usb_string_ids_tab(c->cdev, obex_string_defs);
-		if (status < 0)
-			return status;
-		obex_control_intf.iInterface =
-			obex_string_defs[OBEX_CTRL_IDX].id;
-
-		status = obex_string_defs[OBEX_DATA_IDX].id;
-		obex_data_nop_intf.iInterface = status;
-		obex_data_intf.iInterface = status;
-	}
+	us = usb_gstrings_attach(cdev, obex_strings,
+				 ARRAY_SIZE(obex_string_defs));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+	obex_control_intf.iInterface = us[OBEX_CTRL_IDX].id;
+	obex_data_nop_intf.iInterface = us[OBEX_DATA_IDX].id;
+	obex_data_intf.iInterface = us[OBEX_DATA_IDX].id;
 
 	/* allocate instance-specific interface IDs, and patch descriptors */
 
@@ -405,57 +402,6 @@ fail:
 
 	return status;
 }
-
-#ifdef USBF_OBEX_INCLUDED
-
-static void
-obex_old_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	obex_string_defs[OBEX_CTRL_IDX].id = 0;
-	usb_free_all_descriptors(f);
-	kfree(func_to_obex(f));
-}
-
-/**
- * obex_bind_config - add a CDC OBEX function to a configuration
- * @c: the configuration to support the CDC OBEX instance
- * @port_num: /dev/ttyGS* port this interface will use
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- */
-int __init obex_bind_config(struct usb_configuration *c, u8 port_num)
-{
-	struct f_obex	*obex;
-	int		status;
-
-	/* allocate and initialize one new instance */
-	obex = kzalloc(sizeof *obex, GFP_KERNEL);
-	if (!obex)
-		return -ENOMEM;
-
-	obex->port_num = port_num;
-
-	obex->port.connect = obex_connect;
-	obex->port.disconnect = obex_disconnect;
-
-	obex->port.func.name = "obex";
-	obex->port.func.strings = obex_strings;
-	/* descriptors are per-instance copies */
-	obex->port.func.bind = obex_bind;
-	obex->port.func.unbind = obex_old_unbind;
-	obex->port.func.set_alt = obex_set_alt;
-	obex->port.func.get_alt = obex_get_alt;
-	obex->port.func.disable = obex_disable;
-
-	status = usb_add_function(c, &obex->port.func);
-	if (status)
-		kfree(obex);
-
-	return status;
-}
-
-#else
 
 static inline struct f_serial_opts *to_f_serial_opts(struct config_item *item)
 {
@@ -550,7 +496,6 @@ static void obex_free(struct usb_function *f)
 
 static void obex_unbind(struct usb_configuration *c, struct usb_function *f)
 {
-	obex_string_defs[OBEX_CTRL_IDX].id = 0;
 	usb_free_all_descriptors(f);
 }
 
@@ -572,7 +517,6 @@ struct usb_function *obex_alloc(struct usb_function_instance *fi)
 	obex->port.disconnect = obex_disconnect;
 
 	obex->port.func.name = "obex";
-	obex->port.func.strings = obex_strings;
 	/* descriptors are per-instance copies */
 	obex->port.func.bind = obex_bind;
 	obex->port.func.unbind = obex_unbind;
@@ -585,8 +529,5 @@ struct usb_function *obex_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(obex, obex_alloc_inst, obex_alloc);
-
-#endif
-
 MODULE_AUTHOR("Felipe Balbi");
 MODULE_LICENSE("GPL");

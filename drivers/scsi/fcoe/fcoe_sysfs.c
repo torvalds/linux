@@ -507,7 +507,7 @@ static const struct attribute_group *fcoe_fcf_attr_groups[] = {
 	NULL,
 };
 
-struct bus_type fcoe_bus_type;
+static struct bus_type fcoe_bus_type;
 
 static int fcoe_bus_match(struct device *dev,
 			  struct device_driver *drv)
@@ -541,25 +541,25 @@ static void fcoe_fcf_device_release(struct device *dev)
 	kfree(fcf);
 }
 
-struct device_type fcoe_ctlr_device_type = {
+static struct device_type fcoe_ctlr_device_type = {
 	.name = "fcoe_ctlr",
 	.groups = fcoe_ctlr_attr_groups,
 	.release = fcoe_ctlr_device_release,
 };
 
-struct device_type fcoe_fcf_device_type = {
+static struct device_type fcoe_fcf_device_type = {
 	.name = "fcoe_fcf",
 	.groups = fcoe_fcf_attr_groups,
 	.release = fcoe_fcf_device_release,
 };
 
-struct bus_attribute fcoe_bus_attr_group[] = {
+static struct bus_attribute fcoe_bus_attr_group[] = {
 	__ATTR(ctlr_create, S_IWUSR, NULL, fcoe_ctlr_create_store),
 	__ATTR(ctlr_destroy, S_IWUSR, NULL, fcoe_ctlr_destroy_store),
 	__ATTR_NULL
 };
 
-struct bus_type fcoe_bus_type = {
+static struct bus_type fcoe_bus_type = {
 	.name = "fcoe",
 	.match = &fcoe_bus_match,
 	.bus_attrs = fcoe_bus_attr_group,
@@ -569,7 +569,7 @@ struct bus_type fcoe_bus_type = {
  * fcoe_ctlr_device_flush_work() - Flush a FIP ctlr's workqueue
  * @ctlr: Pointer to the FIP ctlr whose workqueue is to be flushed
  */
-void fcoe_ctlr_device_flush_work(struct fcoe_ctlr_device *ctlr)
+static void fcoe_ctlr_device_flush_work(struct fcoe_ctlr_device *ctlr)
 {
 	if (!fcoe_ctlr_work_q(ctlr)) {
 		printk(KERN_ERR
@@ -590,8 +590,8 @@ void fcoe_ctlr_device_flush_work(struct fcoe_ctlr_device *ctlr)
  * Return value:
  *	1 on success / 0 already queued / < 0 for error
  */
-int fcoe_ctlr_device_queue_work(struct fcoe_ctlr_device *ctlr,
-			       struct work_struct *work)
+static int fcoe_ctlr_device_queue_work(struct fcoe_ctlr_device *ctlr,
+				       struct work_struct *work)
 {
 	if (unlikely(!fcoe_ctlr_work_q(ctlr))) {
 		printk(KERN_ERR
@@ -609,7 +609,7 @@ int fcoe_ctlr_device_queue_work(struct fcoe_ctlr_device *ctlr,
  * fcoe_ctlr_device_flush_devloss() - Flush a FIP ctlr's devloss workqueue
  * @ctlr: Pointer to FIP ctlr whose workqueue is to be flushed
  */
-void fcoe_ctlr_device_flush_devloss(struct fcoe_ctlr_device *ctlr)
+static void fcoe_ctlr_device_flush_devloss(struct fcoe_ctlr_device *ctlr)
 {
 	if (!fcoe_ctlr_devloss_work_q(ctlr)) {
 		printk(KERN_ERR
@@ -631,9 +631,9 @@ void fcoe_ctlr_device_flush_devloss(struct fcoe_ctlr_device *ctlr)
  * Return value:
  *	1 on success / 0 already queued / < 0 for error
  */
-int fcoe_ctlr_device_queue_devloss_work(struct fcoe_ctlr_device *ctlr,
-				       struct delayed_work *work,
-				       unsigned long delay)
+static int fcoe_ctlr_device_queue_devloss_work(struct fcoe_ctlr_device *ctlr,
+					       struct delayed_work *work,
+					       unsigned long delay)
 {
 	if (unlikely(!fcoe_ctlr_devloss_work_q(ctlr))) {
 		printk(KERN_ERR

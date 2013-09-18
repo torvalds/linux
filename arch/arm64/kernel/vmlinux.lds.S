@@ -17,6 +17,19 @@ ENTRY(stext)
 
 jiffies = jiffies_64;
 
+#define HYPERVISOR_TEXT					\
+	/*						\
+	 * Force the alignment to be compatible with	\
+	 * the vectors requirements			\
+	 */						\
+	. = ALIGN(2048);				\
+	VMLINUX_SYMBOL(__hyp_idmap_text_start) = .;	\
+	*(.hyp.idmap.text)				\
+	VMLINUX_SYMBOL(__hyp_idmap_text_end) = .;	\
+	VMLINUX_SYMBOL(__hyp_text_start) = .;		\
+	*(.hyp.text)					\
+	VMLINUX_SYMBOL(__hyp_text_end) = .;
+
 SECTIONS
 {
 	/*
@@ -49,6 +62,7 @@ SECTIONS
 			TEXT_TEXT
 			SCHED_TEXT
 			LOCK_TEXT
+			HYPERVISOR_TEXT
 			*(.fixup)
 			*(.gnu.warning)
 		. = ALIGN(16);
@@ -56,7 +70,7 @@ SECTIONS
 	}
 
 	RO_DATA(PAGE_SIZE)
-
+	EXCEPTION_TABLE(8)
 	_etext = .;			/* End of text and rodata section */
 
 	. = ALIGN(PAGE_SIZE);
@@ -99,14 +113,6 @@ SECTIONS
 		READ_MOSTLY_DATA(64)
 
 		/*
-		 * The exception fixup table (might need resorting at runtime)
-		 */
-		. = ALIGN(32);
-		__start___ex_table = .;
-		*(__ex_table)
-		__stop___ex_table = .;
-
-		/*
 		 * and the usual data section
 		 */
 		DATA_DATA
@@ -124,3 +130,9 @@ SECTIONS
 	STABS_DEBUG
 	.comment 0 : { *(.comment) }
 }
+
+/*
+ * The HYP init code can't be more than a page long.
+ */
+ASSERT(((__hyp_idmap_text_start + PAGE_SIZE) > __hyp_idmap_text_end),
+       "HYP init code too big")

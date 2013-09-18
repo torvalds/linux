@@ -167,7 +167,6 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 exit:
-	platform_set_drvdata(pdev, NULL);
 	pdev->dev.platform_data = NULL;
 	return err;
 }
@@ -175,7 +174,6 @@ exit:
 static int ep93xx_rtc_remove(struct platform_device *pdev)
 {
 	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
-	platform_set_drvdata(pdev, NULL);
 	pdev->dev.platform_data = NULL;
 
 	return 0;

@@ -33,7 +33,7 @@
 				board {
 					pinctrl_qt1070_irq: qt1070_irq {
 						atmel,pins =
-							<4 31 0x0 0x5>; /* PE31 GPIO with pull up deglith */
+							<AT91_PIOE 31 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>; /* PE31 GPIO with pull up deglith */
 					};
 				};
 			};

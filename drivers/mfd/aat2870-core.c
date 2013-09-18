@@ -312,8 +312,9 @@ static ssize_t aat2870_reg_write_file(struct file *file,
 	while (*start == ' ')
 		start++;
 
-	if (strict_strtoul(start, 16, &val))
-		return -EINVAL;
+	ret = kstrtoul(start, 16, &val);
+	if (ret)
+		return ret;
 
 	ret = aat2870->write(aat2870, (u8)addr, (u8)val);
 	if (ret)

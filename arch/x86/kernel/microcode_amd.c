@@ -31,47 +31,11 @@
 #include <asm/microcode.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
+#include <asm/microcode_amd.h>
 
 MODULE_DESCRIPTION("AMD Microcode Update Driver");
 MODULE_AUTHOR("Peter Oruba");
 MODULE_LICENSE("GPL v2");
-
-#define UCODE_MAGIC                0x00414d44
-#define UCODE_EQUIV_CPU_TABLE_TYPE 0x00000000
-#define UCODE_UCODE_TYPE           0x00000001
-
-struct equiv_cpu_entry {
-	u32	installed_cpu;
-	u32	fixed_errata_mask;
-	u32	fixed_errata_compare;
-	u16	equiv_cpu;
-	u16	res;
-} __attribute__((packed));
-
-struct microcode_header_amd {
-	u32	data_code;
-	u32	patch_id;
-	u16	mc_patch_data_id;
-	u8	mc_patch_data_len;
-	u8	init_flag;
-	u32	mc_patch_data_checksum;
-	u32	nb_dev_id;
-	u32	sb_dev_id;
-	u16	processor_rev_id;
-	u8	nb_rev_id;
-	u8	sb_rev_id;
-	u8	bios_api_rev;
-	u8	reserved1[3];
-	u32	match_reg[8];
-} __attribute__((packed));
-
-struct microcode_amd {
-	struct microcode_header_amd	hdr;
-	unsigned int			mpb[0];
-};
-
-#define SECTION_HDR_SIZE	8
-#define CONTAINER_HDR_SZ	12
 
 static struct equiv_cpu_entry *equiv_cpu_table;
 
@@ -84,21 +48,10 @@ struct ucode_patch {
 
 static LIST_HEAD(pcache);
 
-static u16 find_equiv_id(unsigned int cpu)
+static u16 __find_equiv_id(unsigned int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	int i = 0;
-
-	if (!equiv_cpu_table)
-		return 0;
-
-	while (equiv_cpu_table[i].installed_cpu != 0) {
-		if (uci->cpu_sig.sig == equiv_cpu_table[i].installed_cpu)
-			return equiv_cpu_table[i].equiv_cpu;
-
-		i++;
-	}
-	return 0;
+	return find_equiv_id(equiv_cpu_table, uci->cpu_sig.sig);
 }
 
 static u32 find_cpu_family_by_equiv_cpu(u16 equiv_cpu)
@@ -163,7 +116,7 @@ static struct ucode_patch *find_patch(unsigned int cpu)
 {
 	u16 equiv_id;
 
-	equiv_id = find_equiv_id(cpu);
+	equiv_id = __find_equiv_id(cpu);
 	if (!equiv_id)
 		return NULL;
 
@@ -173,18 +126,28 @@ static struct ucode_patch *find_patch(unsigned int cpu)
 static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	struct ucode_patch *p;
 
 	csig->sig = cpuid_eax(0x00000001);
 	csig->rev = c->microcode;
+
+	/*
+	 * a patch could have been loaded early, set uci->mc so that
+	 * mc_bp_resume() can call apply_microcode()
+	 */
+	p = find_patch(cpu);
+	if (p && (p->patch_id == csig->rev))
+		uci->mc = p->data;
+
 	pr_info("CPU%d: patch_level=0x%08x\n", cpu, csig->rev);
 
 	return 0;
 }
 
-static unsigned int verify_patch_size(int cpu, u32 patch_size,
+static unsigned int verify_patch_size(u8 family, u32 patch_size,
 				      unsigned int size)
 {
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	u32 max_size;
 
 #define F1XH_MPB_MAX_SIZE 2048
@@ -192,7 +155,7 @@ static unsigned int verify_patch_size(int cpu, u32 patch_size,
 #define F15H_MPB_MAX_SIZE 4096
 #define F16H_MPB_MAX_SIZE 3458
 
-	switch (c->x86) {
+	switch (family) {
 	case 0x14:
 		max_size = F14H_MPB_MAX_SIZE;
 		break;
@@ -215,7 +178,21 @@ static unsigned int verify_patch_size(int cpu, u32 patch_size,
 	return patch_size;
 }
 
-static int apply_microcode_amd(int cpu)
+int __apply_microcode_amd(struct microcode_amd *mc_amd)
+{
+	u32 rev, dummy;
+
+	wrmsrl(MSR_AMD64_PATCH_LOADER, (u64)(long)&mc_amd->hdr.data_code);
+
+	/* verify patch application was successful */
+	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+	if (rev != mc_amd->hdr.patch_id)
+		return -1;
+
+	return 0;
+}
+
+int apply_microcode_amd(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct microcode_amd *mc_amd;
@@ -242,19 +219,16 @@ static int apply_microcode_amd(int cpu)
 		return 0;
 	}
 
-	wrmsrl(MSR_AMD64_PATCH_LOADER, (u64)(long)&mc_amd->hdr.data_code);
-
-	/* verify patch application was successful */
-	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
-	if (rev != mc_amd->hdr.patch_id) {
+	if (__apply_microcode_amd(mc_amd)) {
 		pr_err("CPU%d: update failed for patch_level=0x%08x\n",
-		       cpu, mc_amd->hdr.patch_id);
+			cpu, mc_amd->hdr.patch_id);
 		return -1;
 	}
+	pr_info("CPU%d: new patch_level=0x%08x\n", cpu,
+		mc_amd->hdr.patch_id);
 
-	pr_info("CPU%d: new patch_level=0x%08x\n", cpu, rev);
-	uci->cpu_sig.rev = rev;
-	c->microcode = rev;
+	uci->cpu_sig.rev = mc_amd->hdr.patch_id;
+	c->microcode = mc_amd->hdr.patch_id;
 
 	return 0;
 }
@@ -302,9 +276,8 @@ static void cleanup(void)
  * driver cannot continue functioning normally. In such cases, we tear
  * down everything we've used up so far and exit.
  */
-static int verify_and_add_patch(unsigned int cpu, u8 *fw, unsigned int leftover)
+static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 {
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct microcode_header_amd *mc_hdr;
 	struct ucode_patch *patch;
 	unsigned int patch_size, crnt_size, ret;
@@ -324,7 +297,7 @@ static int verify_and_add_patch(unsigned int cpu, u8 *fw, unsigned int leftover)
 
 	/* check if patch is for the current family */
 	proc_fam = ((proc_fam >> 8) & 0xf) + ((proc_fam >> 20) & 0xff);
-	if (proc_fam != c->x86)
+	if (proc_fam != family)
 		return crnt_size;
 
 	if (mc_hdr->nb_dev_id || mc_hdr->sb_dev_id) {
@@ -333,7 +306,7 @@ static int verify_and_add_patch(unsigned int cpu, u8 *fw, unsigned int leftover)
 		return crnt_size;
 	}
 
-	ret = verify_patch_size(cpu, patch_size, leftover);
+	ret = verify_patch_size(family, patch_size, leftover);
 	if (!ret) {
 		pr_err("Patch-ID 0x%08x: size mismatch.\n", mc_hdr->patch_id);
 		return crnt_size;
@@ -364,7 +337,8 @@ static int verify_and_add_patch(unsigned int cpu, u8 *fw, unsigned int leftover)
 	return crnt_size;
 }
 
-static enum ucode_state load_microcode_amd(int cpu, const u8 *data, size_t size)
+static enum ucode_state __load_microcode_amd(u8 family, const u8 *data,
+					     size_t size)
 {
 	enum ucode_state ret = UCODE_ERROR;
 	unsigned int leftover;
@@ -387,7 +361,7 @@ static enum ucode_state load_microcode_amd(int cpu, const u8 *data, size_t size)
 	}
 
 	while (leftover) {
-		crnt_size = verify_and_add_patch(cpu, fw, leftover);
+		crnt_size = verify_and_add_patch(family, fw, leftover);
 		if (crnt_size < 0)
 			return ret;
 
@@ -396,6 +370,32 @@ static enum ucode_state load_microcode_amd(int cpu, const u8 *data, size_t size)
 	}
 
 	return UCODE_OK;
+}
+
+enum ucode_state load_microcode_amd(u8 family, const u8 *data, size_t size)
+{
+	enum ucode_state ret;
+
+	/* free old equiv table */
+	free_equiv_cpu_table();
+
+	ret = __load_microcode_amd(family, data, size);
+
+	if (ret != UCODE_OK)
+		cleanup();
+
+#if defined(CONFIG_MICROCODE_AMD_EARLY) && defined(CONFIG_X86_32)
+	/* save BSP's matching patch for early load */
+	if (cpu_data(smp_processor_id()).cpu_index == boot_cpu_data.cpu_index) {
+		struct ucode_patch *p = find_patch(smp_processor_id());
+		if (p) {
+			memset(amd_bsp_mpb, 0, MPB_MAX_SIZE);
+			memcpy(amd_bsp_mpb, p->data, min_t(u32, ksize(p->data),
+							   MPB_MAX_SIZE));
+		}
+	}
+#endif
+	return ret;
 }
 
 /*
@@ -440,12 +440,7 @@ static enum ucode_state request_microcode_amd(int cpu, struct device *device,
 		goto fw_release;
 	}
 
-	/* free old equiv table */
-	free_equiv_cpu_table();
-
-	ret = load_microcode_amd(cpu, fw->data, fw->size);
-	if (ret != UCODE_OK)
-		cleanup();
+	ret = load_microcode_amd(c->x86, fw->data, fw->size);
 
  fw_release:
 	release_firmware(fw);

@@ -1029,10 +1029,10 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.supports_gmii = 1;
 
 	dev->net->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			      NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_TSO;
+			      NETIF_F_RXCSUM;
 
 	dev->net->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				 NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_TSO;
+				 NETIF_F_RXCSUM;
 
 	/* Enable checksum offload */
 	*tmp = AX_RXCOE_IP | AX_RXCOE_TCP | AX_RXCOE_UDP |
@@ -1173,7 +1173,6 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	if (((skb->len + 8) % frame_size) == 0)
 		tx_hdr2 |= 0x80008000;	/* Enable padding */
 
-	skb_linearize(skb);
 	headroom = skb_headroom(skb);
 	tailroom = skb_tailroom(skb);
 
@@ -1317,10 +1316,10 @@ static int ax88179_reset(struct usbnet *dev)
 			  1, 1, tmp);
 
 	dev->net->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			      NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_TSO;
+			      NETIF_F_RXCSUM;
 
 	dev->net->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				 NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_TSO;
+				 NETIF_F_RXCSUM;
 
 	/* Enable checksum offload */
 	*tmp = AX_RXCOE_IP | AX_RXCOE_TCP | AX_RXCOE_UDP |
@@ -1371,7 +1370,7 @@ static int ax88179_stop(struct usbnet *dev)
 }
 
 static const struct driver_info ax88179_info = {
-	.description = "ASIX AX88179 USB 3.0 Gigibit Ethernet",
+	.description = "ASIX AX88179 USB 3.0 Gigabit Ethernet",
 	.bind = ax88179_bind,
 	.unbind = ax88179_unbind,
 	.status = ax88179_status,
@@ -1384,7 +1383,7 @@ static const struct driver_info ax88179_info = {
 };
 
 static const struct driver_info ax88178a_info = {
-	.description = "ASIX AX88178A USB 2.0 Gigibit Ethernet",
+	.description = "ASIX AX88178A USB 2.0 Gigabit Ethernet",
 	.bind = ax88179_bind,
 	.unbind = ax88179_unbind,
 	.status = ax88179_status,
@@ -1433,6 +1432,7 @@ static struct usb_driver ax88179_178a_driver = {
 	.probe =	usbnet_probe,
 	.suspend =	ax88179_suspend,
 	.resume =	ax88179_resume,
+	.reset_resume =	ax88179_resume,
 	.disconnect =	usbnet_disconnect,
 	.supports_autosuspend = 1,
 	.disable_hub_initiated_lpm = 1,

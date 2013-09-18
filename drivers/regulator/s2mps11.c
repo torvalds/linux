@@ -12,7 +12,6 @@
  */
 
 #include <linux/bug.h>
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
@@ -43,7 +42,7 @@ static int get_ramp_delay(int ramp_delay)
 {
 	unsigned char cnt = 0;
 
-	ramp_delay /= 6;
+	ramp_delay /= 6250;
 
 	while (true) {
 		ramp_delay = ramp_delay >> 1;
@@ -114,6 +113,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.min_uV		= S2MPS11_BUCK_MIN1,			\
 	.uV_step	= S2MPS11_BUCK_STEP1,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
+	.ramp_delay	= S2MPS11_RAMP_DELAY,			\
 	.vsel_reg	= S2MPS11_REG_B1CTRL2 + (num - 1) * 2,	\
 	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B1CTRL1 + (num - 1) * 2,	\
@@ -129,6 +129,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.min_uV		= S2MPS11_BUCK_MIN1,			\
 	.uV_step	= S2MPS11_BUCK_STEP1,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
+	.ramp_delay	= S2MPS11_RAMP_DELAY,			\
 	.vsel_reg	= S2MPS11_REG_B5CTRL2,			\
 	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B5CTRL1,			\
@@ -144,6 +145,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.min_uV		= S2MPS11_BUCK_MIN1,			\
 	.uV_step	= S2MPS11_BUCK_STEP1,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
+	.ramp_delay	= S2MPS11_RAMP_DELAY,			\
 	.vsel_reg	= S2MPS11_REG_B6CTRL2 + (num - 6) * 2,	\
 	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B6CTRL1 + (num - 6) * 2,	\
@@ -159,6 +161,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.min_uV		= S2MPS11_BUCK_MIN3,			\
 	.uV_step	= S2MPS11_BUCK_STEP3,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
+	.ramp_delay	= S2MPS11_RAMP_DELAY,			\
 	.vsel_reg	= S2MPS11_REG_B9CTRL2,			\
 	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B9CTRL1,			\
@@ -174,6 +177,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.min_uV		= S2MPS11_BUCK_MIN2,			\
 	.uV_step	= S2MPS11_BUCK_STEP2,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
+	.ramp_delay	= S2MPS11_RAMP_DELAY,			\
 	.vsel_reg	= S2MPS11_REG_B10CTRL2,			\
 	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B10CTRL1,			\

@@ -86,7 +86,8 @@ static int debug = TRANZPORT_DEBUG;
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 
-/* All interrupt in transfers are collected in a ring buffer to
+/*
+ * All interrupt in transfers are collected in a ring buffer to
  * avoid racing conditions and get better performance of the driver.
  */
 
@@ -95,7 +96,8 @@ static int ring_buffer_size = RING_BUFFER_SIZE;
 module_param(ring_buffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_buffer_size, "Read ring buffer size in reports");
 
-/* The write_buffer can one day contain more than one interrupt out transfer.
+/*
+ * The write_buffer can one day contain more than one interrupt out transfer.
  */
 static int write_buffer_size = WRITE_BUFFER_SIZE;
 module_param(write_buffer_size, int, S_IRUGO);
@@ -565,9 +567,9 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer,
 			newwheel = (*dev->ring_buffer)[next_tail].cmd[6];
 			oldwheel = (*dev->ring_buffer)[dev->ring_tail].cmd[6];
 			/* if both are wheel events, and
-			   no buttons have changes (FIXME, do I have to check?),
-			   and we are the same sign, we can compress +- 7F
-			*/
+			 * no buttons have changes (FIXME, do I have to check?),
+			 * and we are the same sign, we can compress +- 7F
+			 */
 			dbg_info(&dev->intf->dev,
 				"%s: trying to compress: "
 				"%02x%02x%02x%02x%02x%02x%02x%02x\n",
@@ -729,7 +731,7 @@ static ssize_t usb_tranzport_write(struct file *file,
 	}
 
 	if (dev->interrupt_out_endpoint == NULL) {
-		dev_err(&dev->intf->dev, "Endpoint should not be be null!\n");
+		dev_err(&dev->intf->dev, "Endpoint should not be null!\n");
 		goto unlock_exit;
 	}
 
@@ -842,8 +844,10 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 		ring_buffer_size = RING_BUFFER_SIZE;
 	true_size = min(ring_buffer_size, RING_BUFFER_SIZE);
 
-	/* FIXME - there are more usb_alloc routines for dma correctness.
-	   Needed? */
+	/*
+	 * FIXME - there are more usb_alloc routines for dma correctness.
+	 * Needed?
+	 */
 
 	dev->ring_buffer =
 	    kmalloc((true_size * sizeof(struct tranzport_cmd)) + 8, GFP_KERNEL);

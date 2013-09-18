@@ -133,6 +133,16 @@ config MAX1363
 	  max11646, max11647) Provides direct access via sysfs and buffered
 	  data via the iio dev interface.
 
+config MCP320X
+	tristate "Microchip Technology MCP3204/08"
+	depends on SPI
+	help
+	  Say yes here to build support for Microchip Technology's MCP3204 or
+	  MCP3208 analog to digital converter.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mcp320x.
+
 config TI_ADC081C
 	tristate "Texas Instruments ADC081C021/027"
 	depends on I2C

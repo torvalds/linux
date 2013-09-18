@@ -1047,11 +1047,12 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_shadow_vcpu;
 
+	err = -ENOMEM;
 	p = __get_free_page(GFP_KERNEL|__GFP_ZERO);
-	/* the real shared page fills the last 4k of our page */
-	vcpu->arch.shared = (void*)(p + PAGE_SIZE - 4096);
 	if (!p)
 		goto uninit_vcpu;
+	/* the real shared page fills the last 4k of our page */
+	vcpu->arch.shared = (void *)(p + PAGE_SIZE - 4096);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* default to book3s_64 (970fx) */
@@ -1239,8 +1240,7 @@ out:
 #ifdef CONFIG_PPC64
 int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
 {
-	/* No flags */
-	info->flags = 0;
+	info->flags = KVM_PPC_1T_SEGMENTS;
 
 	/* SLB is always 64 entries */
 	info->slb_size = 64;

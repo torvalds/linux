@@ -13,7 +13,6 @@ ozwpan-y := \
 	ozproto.o \
 	ozcdev.o \
 	ozurbparanoia.o \
-	oztrace.o \
-	ozevent.o
+	oztrace.o
 
 

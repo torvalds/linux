@@ -61,7 +61,7 @@
 #define MCJ_CTX_IRQ		0x2  /* inject context: IRQ */
 #define MCJ_NMI_BROADCAST	0x4  /* do NMI broadcasting */
 #define MCJ_EXCEPTION		0x8  /* raise as exception */
-#define MCJ_IRQ_BRAODCAST	0x10 /* do IRQ broadcasting */
+#define MCJ_IRQ_BROADCAST	0x10 /* do IRQ broadcasting */
 
 #define MCE_OVERFLOW 0		/* bit 0 in flags means overflow */
 
@@ -213,6 +213,13 @@ void mce_log_therm_throt_event(__u64 status);
 
 /* Interrupt Handler for core thermal thresholds */
 extern int (*platform_thermal_notify)(__u64 msr_val);
+
+/* Interrupt Handler for package thermal thresholds */
+extern int (*platform_thermal_package_notify)(__u64 msr_val);
+
+/* Callback support of rate control, return true, if
+ * callback has rate control */
+extern bool (*platform_thermal_package_rate_control)(void);
 
 #ifdef CONFIG_X86_THERMAL_VECTOR
 extern void mcheck_intel_therm_init(void);

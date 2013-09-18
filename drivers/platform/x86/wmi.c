@@ -743,7 +743,7 @@ static int wmi_create_device(const struct guid_block *gblock,
 	wblock->dev.class = &wmi_class;
 
 	wmi_gtoa(gblock->guid, guid_string);
-	dev_set_name(&wblock->dev, guid_string);
+	dev_set_name(&wblock->dev, "%s", guid_string);
 
 	dev_set_drvdata(&wblock->dev, wblock);
 

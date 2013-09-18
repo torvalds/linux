@@ -34,6 +34,7 @@ config ARC
 	select OF
 	select OF_EARLY_FLATTREE
 	select PERF_USE_VMALLOC
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -184,6 +185,7 @@ config ARC_CACHE_PAGES
 
 config ARC_CACHE_VIPT_ALIASING
 	bool "Support VIPT Aliasing D$"
+	depends on ARC_HAS_DCACHE
 	default n
 
 endif	#ARC_CACHE
@@ -360,13 +362,6 @@ config ARC_MISALIGN_ACCESS
 	  This enables misaligned 16 & 32 bit memory access from user space.
 	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide
 	  potential bugs in code
-
-config ARC_STACK_NONEXEC
-	bool "Make stack non-executable"
-	default n
-	help
-	  To disable the execute permissions of stack/heap of processes
-	  which are enabled by default.
 
 config HZ
 	int "Timer Frequency"

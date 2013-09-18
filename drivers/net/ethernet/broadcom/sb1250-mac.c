@@ -2197,7 +2197,7 @@ static const struct net_device_ops sbmac_netdev_ops = {
 
 static int sbmac_init(struct platform_device *pldev, long long base)
 {
-	struct net_device *dev = dev_get_drvdata(&pldev->dev);
+	struct net_device *dev = platform_get_drvdata(pldev);
 	int idx = pldev->id;
 	struct sbmac_softc *sc = netdev_priv(dev);
 	unsigned char *eaddr;
@@ -2275,7 +2275,7 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 		       dev->name);
 		goto free_mdio;
 	}
-	dev_set_drvdata(&pldev->dev, sc->mii_bus);
+	platform_set_drvdata(pldev, sc->mii_bus);
 
 	err = register_netdev(dev);
 	if (err) {
@@ -2300,7 +2300,6 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	return 0;
 unreg_mdio:
 	mdiobus_unregister(sc->mii_bus);
-	dev_set_drvdata(&pldev->dev, NULL);
 free_mdio:
 	mdiobus_free(sc->mii_bus);
 uninit_ctx:
@@ -2624,7 +2623,7 @@ static int sbmac_probe(struct platform_device *pldev)
 		goto out_unmap;
 	}
 
-	dev_set_drvdata(&pldev->dev, dev);
+	platform_set_drvdata(pldev, dev);
 	SET_NETDEV_DEV(dev, &pldev->dev);
 
 	sc = netdev_priv(dev);
@@ -2649,7 +2648,7 @@ out_out:
 
 static int __exit sbmac_remove(struct platform_device *pldev)
 {
-	struct net_device *dev = dev_get_drvdata(&pldev->dev);
+	struct net_device *dev = platform_get_drvdata(pldev);
 	struct sbmac_softc *sc = netdev_priv(dev);
 
 	unregister_netdev(dev);

@@ -66,7 +66,8 @@ struct lppaca {
 
 	u8	reserved6[48];
 	u8	cede_latency_hint;
-	u8	reserved7[7];
+	u8	ebb_regs_in_use;
+	u8	reserved7[6];
 	u8	dtl_enable_mask;	/* Dispatch Trace Log mask */
 	u8	donate_dedicated_cpu;	/* Donate dedicated CPU cycles */
 	u8	fpregs_in_use;

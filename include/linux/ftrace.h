@@ -566,10 +566,6 @@ static inline ssize_t ftrace_filter_write(struct file *file, const char __user *
 			    size_t cnt, loff_t *ppos) { return -ENODEV; }
 static inline ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos) { return -ENODEV; }
-static inline loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int whence)
-{
-	return -ENODEV;
-}
 static inline int
 ftrace_regex_release(struct inode *inode, struct file *file) { return -ENODEV; }
 #endif /* CONFIG_DYNAMIC_FTRACE */
@@ -828,10 +824,15 @@ enum ftrace_dump_mode;
 
 extern enum ftrace_dump_mode ftrace_dump_on_oops;
 
+extern void disable_trace_on_warning(void);
+extern int __disable_trace_on_warning;
+
 #ifdef CONFIG_PREEMPT
 #define INIT_TRACE_RECURSION		.trace_recursion = 0,
 #endif
 
+#else /* CONFIG_TRACING */
+static inline void  disable_trace_on_warning(void) { }
 #endif /* CONFIG_TRACING */
 
 #ifndef INIT_TRACE_RECURSION

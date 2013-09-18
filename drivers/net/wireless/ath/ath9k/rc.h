@@ -231,7 +231,7 @@ static inline void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
 }
 #endif
 
-#ifdef CONFIG_ATH9K_RATE_CONTROL
+#ifdef CONFIG_ATH9K_LEGACY_RATE_CONTROL
 int ath_rate_control_register(void);
 void ath_rate_control_unregister(void);
 #else

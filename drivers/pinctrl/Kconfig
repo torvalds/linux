@@ -58,6 +58,18 @@ config PINCTRL_AT91
 	help
 	  Say Y here to enable the at91 pinctrl driver
 
+config PINCTRL_BAYTRAIL
+	bool "Intel Baytrail GPIO pin control"
+	depends on GPIOLIB && ACPI && X86
+        select IRQ_DOMAIN
+	help
+	  driver for memory mapped GPIO functionality on Intel Baytrail
+	  platforms. Supports 3 banks with 102, 28 and 44 gpios.
+	  Most pins are usually muxed to some other functionality by firmware,
+	  so only a small amount is available for gpio use.
+
+	  Requires ACPI device enumeration code to set up a platform device.
+
 config PINCTRL_BCM2835
 	bool
 	select PINMUX
@@ -108,6 +120,14 @@ config PINCTRL_IMX6SL
 	help
 	  Say Y here to enable the imx6sl pinctrl driver
 
+config PINCTRL_VF610
+	bool "Freescale Vybrid VF610 pinctrl driver"
+	depends on OF
+	depends on SOC_VF610
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the Freescale Vybrid VF610 pinctrl driver
+
 config PINCTRL_LANTIQ
 	bool
 	depends on LANTIQ
@@ -150,6 +170,12 @@ config PINCTRL_DB8540
 	bool "DB8540 pin controller driver"
 	depends on PINCTRL_NOMADIK && ARCH_U8500
 
+config PINCTRL_ROCKCHIP
+	bool
+	select PINMUX
+	select GENERIC_PINCONF
+	select GENERIC_IRQ_CHIP
+
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
 	depends on OF
@@ -169,6 +195,12 @@ config PINCTRL_SUNXI
 	select PINMUX
 	select GENERIC_PINCONF
 
+config PINCTRL_ST
+	bool
+	depends on OF
+	select PINMUX
+	select PINCONF
+
 config PINCTRL_TEGRA
 	bool
 	select PINMUX
@@ -185,6 +217,18 @@ config PINCTRL_TEGRA30
 config PINCTRL_TEGRA114
 	bool
 	select PINCTRL_TEGRA
+
+config PINCTRL_TZ1090
+	bool "Toumaz Xenif TZ1090 pin control driver"
+	depends on SOC_TZ1090
+	select PINMUX
+	select GENERIC_PINCONF
+
+config PINCTRL_TZ1090_PDC
+	bool "Toumaz Xenif TZ1090 PDC pin control driver"
+	depends on SOC_TZ1090
+	select PINMUX
+	select PINCONF
 
 config PINCTRL_U300
 	bool "U300 pin controller driver"
@@ -207,14 +251,20 @@ config PINCTRL_SAMSUNG
 	select PINCONF
 
 config PINCTRL_EXYNOS
-	bool "Pinctrl driver data for Samsung EXYNOS SoCs"
-	depends on OF && GPIOLIB
+	bool "Pinctrl driver data for Samsung EXYNOS SoCs other than 5440"
+	depends on OF && GPIOLIB && ARCH_EXYNOS
 	select PINCTRL_SAMSUNG
 
 config PINCTRL_EXYNOS5440
 	bool "Samsung EXYNOS5440 SoC pinctrl driver"
+	depends on SOC_EXYNOS5440
 	select PINMUX
 	select PINCONF
+
+config PINCTRL_S3C24XX
+	bool "Samsung S3C24XX SoC pinctrl driver"
+	depends on ARCH_S3C24XX
+	select PINCTRL_SAMSUNG
 
 config PINCTRL_S3C64XX
 	bool "Samsung S3C64XX SoC pinctrl driver"

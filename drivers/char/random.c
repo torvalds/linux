@@ -1381,10 +1381,10 @@ static char sysctl_bootid[16];
  * as an ASCII string in the standard UUID format.  If accesses via the
  * sysctl system call, it is returned as 16 bytes of binary data.
  */
-static int proc_do_uuid(ctl_table *table, int write,
+static int proc_do_uuid(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	ctl_table fake_table;
+	struct ctl_table fake_table;
 	unsigned char buf[64], tmp_uuid[16], *uuid;
 
 	uuid = table->data;
@@ -1409,8 +1409,8 @@ static int proc_do_uuid(ctl_table *table, int write,
 }
 
 static int sysctl_poolsize = INPUT_POOL_WORDS * 32;
-extern ctl_table random_table[];
-ctl_table random_table[] = {
+extern struct ctl_table random_table[];
+struct ctl_table random_table[] = {
 	{
 		.procname	= "poolsize",
 		.data		= &sysctl_poolsize,

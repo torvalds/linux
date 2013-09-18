@@ -24,11 +24,11 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyPS1,115200 earlyprintk";
+		bootargs = "console=ttyPS0,115200 earlyprintk";
 	};
 
 };
 
-&ps_clk {
-	clock-frequency = <33333330>;
+&uart1 {
+	status = "okay";
 };

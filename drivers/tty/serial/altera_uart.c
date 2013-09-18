@@ -604,7 +604,6 @@ static int altera_uart_remove(struct platform_device *pdev)
 
 	if (port) {
 		uart_remove_one_port(&altera_uart_driver, port);
-		platform_set_drvdata(pdev, NULL);
 		port->mapbase = 0;
 	}
 

@@ -127,7 +127,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	char *s;
 	int ret = 0;
 
-	clnt->proto_version = p9_proto_2000u;
+	clnt->proto_version = p9_proto_2000L;
 	clnt->msize = 8192;
 
 	if (!opts)
@@ -204,6 +204,17 @@ free_and_return:
 	return ret;
 }
 
+struct p9_fcall *p9_fcall_alloc(int alloc_msize)
+{
+	struct p9_fcall *fc;
+	fc = kmalloc(sizeof(struct p9_fcall) + alloc_msize, GFP_NOFS);
+	if (!fc)
+		return NULL;
+	fc->capacity = alloc_msize;
+	fc->sdata = (char *) fc + sizeof(struct p9_fcall);
+	return fc;
+}
+
 /**
  * p9_tag_alloc - lookup/allocate a request by tag
  * @c: client session to lookup tag within
@@ -256,31 +267,19 @@ p9_tag_alloc(struct p9_client *c, u16 tag, unsigned int max_size)
 	col = tag % P9_ROW_MAXTAG;
 
 	req = &c->reqs[row][col];
-	if (!req->tc) {
+	if (!req->wq) {
 		req->wq = kmalloc(sizeof(wait_queue_head_t), GFP_NOFS);
-		if (!req->wq) {
-			pr_err("Couldn't grow tag array\n");
-			return ERR_PTR(-ENOMEM);
-		}
+		if (!req->wq)
+			goto grow_failed;
 		init_waitqueue_head(req->wq);
-		req->tc = kmalloc(sizeof(struct p9_fcall) + alloc_msize,
-				  GFP_NOFS);
-		req->rc = kmalloc(sizeof(struct p9_fcall) + alloc_msize,
-				  GFP_NOFS);
-		if ((!req->tc) || (!req->rc)) {
-			pr_err("Couldn't grow tag array\n");
-			kfree(req->tc);
-			kfree(req->rc);
-			kfree(req->wq);
-			req->tc = req->rc = NULL;
-			req->wq = NULL;
-			return ERR_PTR(-ENOMEM);
-		}
-		req->tc->capacity = alloc_msize;
-		req->rc->capacity = alloc_msize;
-		req->tc->sdata = (char *) req->tc + sizeof(struct p9_fcall);
-		req->rc->sdata = (char *) req->rc + sizeof(struct p9_fcall);
 	}
+
+	if (!req->tc)
+		req->tc = p9_fcall_alloc(alloc_msize);
+	if (!req->rc)
+		req->rc = p9_fcall_alloc(alloc_msize);
+	if (!req->tc || !req->rc)
+		goto grow_failed;
 
 	p9pdu_reset(req->tc);
 	p9pdu_reset(req->rc);
@@ -288,7 +287,16 @@ p9_tag_alloc(struct p9_client *c, u16 tag, unsigned int max_size)
 	req->tc->tag = tag-1;
 	req->status = REQ_STATUS_ALLOC;
 
-	return &c->reqs[row][col];
+	return req;
+
+grow_failed:
+	pr_err("Couldn't grow tag array\n");
+	kfree(req->tc);
+	kfree(req->rc);
+	kfree(req->wq);
+	req->tc = req->rc = NULL;
+	req->wq = NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 /**
@@ -562,36 +570,19 @@ static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
 
 	if (!p9_is_proto_dotl(c)) {
 		/* Error is reported in string format */
-		uint16_t len;
-		/* 7 = header size for RERROR, 2 is the size of string len; */
-		int inline_len = in_hdrlen - (7 + 2);
+		int len;
+		/* 7 = header size for RERROR; */
+		int inline_len = in_hdrlen - 7;
 
-		/* Read the size of error string */
-		err = p9pdu_readf(req->rc, c->proto_version, "w", &len);
-		if (err)
-			goto out_err;
-
-		ename = kmalloc(len + 1, GFP_NOFS);
-		if (!ename) {
-			err = -ENOMEM;
+		len =  req->rc->size - req->rc->offset;
+		if (len > (P9_ZC_HDR_SZ - 7)) {
+			err = -EFAULT;
 			goto out_err;
 		}
-		if (len <= inline_len) {
-			/* We have error in protocol buffer itself */
-			if (pdu_read(req->rc, ename, len)) {
-				err = -EFAULT;
-				goto out_free;
 
-			}
-		} else {
-			/*
-			 *  Part of the data is in user space buffer.
-			 */
-			if (pdu_read(req->rc, ename, inline_len)) {
-				err = -EFAULT;
-				goto out_free;
-
-			}
+		ename = &req->rc->sdata[req->rc->offset];
+		if (len > inline_len) {
+			/* We have error in external buffer */
 			if (kern_buf) {
 				memcpy(ename + inline_len, uidata,
 				       len - inline_len);
@@ -600,19 +591,19 @@ static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
 						     uidata, len - inline_len);
 				if (err) {
 					err = -EFAULT;
-					goto out_free;
+					goto out_err;
 				}
 			}
 		}
-		ename[len] = 0;
-		if (p9_is_proto_dotu(c)) {
-			/* For dotu we also have error code */
-			err = p9pdu_readf(req->rc,
-					  c->proto_version, "d", &ecode);
-			if (err)
-				goto out_free;
+		ename = NULL;
+		err = p9pdu_readf(req->rc, c->proto_version, "s?d",
+				  &ename, &ecode);
+		if (err)
+			goto out_err;
+
+		if (p9_is_proto_dotu(c))
 			err = -ecode;
-		}
+
 		if (!err || !IS_ERR_VALUE(err)) {
 			err = p9_errstr2errno(ename, strlen(ename));
 
@@ -628,8 +619,6 @@ static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
 	}
 	return err;
 
-out_free:
-	kfree(ename);
 out_err:
 	p9_debug(P9_DEBUG_ERROR, "couldn't parse error%d\n", err);
 	return err;
@@ -667,12 +656,20 @@ static int p9_client_flush(struct p9_client *c, struct p9_req_t *oldreq)
 		return PTR_ERR(req);
 
 
-	/* if we haven't received a response for oldreq,
-	   remove it from the list. */
+	/*
+	 * if we haven't received a response for oldreq,
+	 * remove it from the list, and notify the transport
+	 * layer that the reply will never arrive.
+	 */
 	spin_lock(&c->lock);
-	if (oldreq->status == REQ_STATUS_FLSH)
+	if (oldreq->status == REQ_STATUS_FLSH) {
 		list_del(&oldreq->req_list);
-	spin_unlock(&c->lock);
+		spin_unlock(&c->lock);
+		if (c->trans_mod->cancelled)
+			c->trans_mod->cancelled(c, req);
+	} else {
+		spin_unlock(&c->lock);
+	}
 
 	p9_free_req(c, req);
 	return 0;
@@ -1013,6 +1010,9 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	err = parse_opts(options, clnt);
 	if (err < 0)
 		goto destroy_tagpool;
+
+	if (!clnt->trans_mod)
+		clnt->trans_mod = v9fs_get_trans_by_name("virtio");
 
 	if (!clnt->trans_mod)
 		clnt->trans_mod = v9fs_get_default_trans();

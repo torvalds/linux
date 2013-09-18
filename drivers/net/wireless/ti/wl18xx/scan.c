@@ -34,7 +34,7 @@ static void wl18xx_adjust_channels(struct wl18xx_cmd_scan_params *cmd,
 	memcpy(cmd->channels_2, cmd_channels->channels_2,
 	       sizeof(cmd->channels_2));
 	memcpy(cmd->channels_5, cmd_channels->channels_5,
-	       sizeof(cmd->channels_2));
+	       sizeof(cmd->channels_5));
 	/* channels_4 are not supported, so no need to copy them */
 }
 

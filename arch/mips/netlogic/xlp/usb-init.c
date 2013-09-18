@@ -119,7 +119,7 @@ static u64 xlp_usb_dmamask = ~(u32)0;
 static void nlm_usb_fixup_final(struct pci_dev *dev)
 {
 	dev->dev.dma_mask		= &xlp_usb_dmamask;
-	dev->dev.coherent_dma_mask	= DMA_BIT_MASK(64);
+	dev->dev.coherent_dma_mask	= DMA_BIT_MASK(32);
 	switch (dev->devfn) {
 	case 0x10:
 		dev->irq = PIC_EHCI_0_IRQ;

@@ -19,7 +19,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
 	select SND_SOC_AD73311
 	select SND_SOC_ADAU1373 if I2C
-	select SND_SOC_ADAV80X
+	select SND_SOC_ADAV80X if SND_SOC_I2C_AND_SPI
 	select SND_SOC_ADS117X
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
@@ -40,7 +40,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA7213 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
-	select SND_SOC_DFBMCS320
+	select SND_SOC_BT_SCO
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
 	select SND_SOC_LM4857 if I2C
@@ -53,13 +53,15 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
-	select SND_SOC_OMAP_HDMI_CODEC if OMAP4_DSS_HDMI
+	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM3008
 	select SND_SOC_RT5631 if I2C
+	select SND_SOC_RT5640 if I2C
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SN95031 if INTEL_SCU_IPC
 	select SND_SOC_SPDIF
+	select SND_SOC_SSM2518 if I2C
 	select SND_SOC_SSM2602 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_STA32X if I2C
 	select SND_SOC_STA529 if I2C
@@ -263,7 +265,7 @@ config SND_SOC_DA732X
 config SND_SOC_DA9055
 	tristate
 
-config SND_SOC_DFBMCS320
+config SND_SOC_BT_SCO
 	tristate
 
 config SND_SOC_DMIC
@@ -287,13 +289,16 @@ config SND_SOC_MAX98095
 config SND_SOC_MAX9850
 	tristate
 
-config SND_SOC_OMAP_HDMI_CODEC
+config SND_SOC_HDMI_CODEC
        tristate
 
 config SND_SOC_PCM3008
        tristate
 
 config SND_SOC_RT5631
+	tristate
+
+config SND_SOC_RT5640
 	tristate
 
 #Freescale sgtl5000 codec
@@ -311,6 +316,9 @@ config SND_SOC_SN95031
 	tristate
 
 config SND_SOC_SPDIF
+	tristate
+
+config SND_SOC_SSM2518
 	tristate
 
 config SND_SOC_SSM2602

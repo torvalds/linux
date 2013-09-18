@@ -827,6 +827,7 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 	}
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		struct resource *res = dev->resource + i;
+		struct pci_bus_region reg;
 		if (!res->flags)
 			continue;
 
@@ -835,8 +836,9 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 		 * at 0 as unset as well, except if PCI_PROBE_ONLY is also set
 		 * since in that case, we don't want to re-assign anything
 		 */
+		pcibios_resource_to_bus(dev, &reg, res);
 		if (pci_has_flag(PCI_REASSIGN_ALL_RSRC) ||
-		    (res->start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
+		    (reg.start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
 			/* Only print message if not re-assigning */
 			if (!pci_has_flag(PCI_REASSIGN_ALL_RSRC))
 				pr_debug("PCI:%s Resource %d %016llx-%016llx [%x] "
@@ -992,7 +994,7 @@ void pcibios_setup_bus_self(struct pci_bus *bus)
 		ppc_md.pci_dma_bus_setup(bus);
 }
 
-void pcibios_setup_device(struct pci_dev *dev)
+static void pcibios_setup_device(struct pci_dev *dev)
 {
 	/* Fixup NUMA node as it may not be setup yet by the generic
 	 * code and is needed by the DMA init
@@ -1011,6 +1013,17 @@ void pcibios_setup_device(struct pci_dev *dev)
 	pci_read_irq_line(dev);
 	if (ppc_md.pci_irq_fixup)
 		ppc_md.pci_irq_fixup(dev);
+}
+
+int pcibios_add_device(struct pci_dev *dev)
+{
+	/*
+	 * We can only call pcibios_setup_device() after bus setup is complete,
+	 * since some of the platform specific DMA setup code depends on it.
+	 */
+	if (dev->bus->is_added)
+		pcibios_setup_device(dev);
+	return 0;
 }
 
 void pcibios_setup_bus_devices(struct pci_bus *bus)
@@ -1449,6 +1462,8 @@ void pcibios_finish_adding_to_bus(struct pci_bus *bus)
 	/* Allocate bus and devices resources */
 	pcibios_allocate_bus_resources(bus);
 	pcibios_claim_one_bus(bus);
+	if (!pci_has_flag(PCI_PROBE_ONLY))
+		pci_assign_unassigned_bus_resources(bus);
 
 	/* Fixup EEH */
 	eeh_add_device_tree_late(bus);
@@ -1466,10 +1481,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	if (ppc_md.pcibios_enable_device_hook)
 		if (ppc_md.pcibios_enable_device_hook(dev))
 			return -EINVAL;
-
-	/* avoid pcie irq fix up impact on cardbus */
-	if (dev->hdr_type != PCI_HEADER_TYPE_CARDBUS)
-		pcibios_setup_device(dev);
 
 	return pci_enable_resources(dev, mask);
 }

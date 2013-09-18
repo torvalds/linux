@@ -18,6 +18,7 @@ chrp	Common Hardware Reference Platform
 cirrus	Cirrus Logic, Inc.
 cortina	Cortina Systems, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
+davicom	DAVICOM Semiconductor, Inc.
 denx	Denx Software Engineering
 emmicro	EM Microelectronic
 epson	Seiko Epson Corp.
@@ -25,12 +26,14 @@ est	ESTeem Wireless Modems
 fsl	Freescale Semiconductor
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+hisilicon	Hisilicon Limited.
 hp	Hewlett Packard
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
 img	Imagination Technologies Ltd.
 intercontrol	Inter Control Group
 linux	Linux-specific binding
+lsi	LSI Corp. (LSI Logic)
 marvell	Marvell Technology Group Ltd.
 maxim	Maxim Integrated Products
 mosaixtech	Mosaix Technologies, Inc.
@@ -41,6 +44,7 @@ nxp	NXP Semiconductors
 onnn	ON Semiconductor Corp.
 picochip	Picochip Ltd
 powervr	PowerVR (deprecated, use img)
+qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm, Inc.
 ralink	Mediatek/Ralink Technology Corp.
 ramtron	Ramtron International
@@ -57,8 +61,10 @@ snps 	Synopsys, Inc.
 st	STMicroelectronics
 ste	ST-Ericsson
 stericsson	ST-Ericsson
+toumaz	Toumaz
 ti	Texas Instruments
 toshiba	Toshiba Corporation
+v3	V3 Semiconductor
 via	VIA Technologies, Inc.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.

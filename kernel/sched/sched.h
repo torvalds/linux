@@ -10,7 +10,15 @@
 #include "cpupri.h"
 #include "cpuacct.h"
 
+struct rq;
+
 extern __read_mostly int scheduler_running;
+
+extern unsigned long calc_load_update;
+extern atomic_long_t calc_load_tasks;
+
+extern long calc_load_fold_active(struct rq *this_rq);
+extern void update_cpu_load_active(struct rq *this_rq);
 
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
@@ -140,9 +148,10 @@ struct task_group {
 	struct cfs_rq **cfs_rq;
 	unsigned long shares;
 
-	atomic_t load_weight;
-	atomic64_t load_avg;
+#ifdef	CONFIG_SMP
+	atomic_long_t load_avg;
 	atomic_t runnable_avg;
+#endif
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -261,26 +270,21 @@ struct cfs_rq {
 #endif
 
 #ifdef CONFIG_SMP
-/*
- * Load-tracking only depends on SMP, FAIR_GROUP_SCHED dependency below may be
- * removed when useful for applications beyond shares distribution (e.g.
- * load-balance).
- */
-#ifdef CONFIG_FAIR_GROUP_SCHED
 	/*
 	 * CFS Load tracking
 	 * Under CFS, load is tracked on a per-entity basis and aggregated up.
 	 * This allows for the description of both thread and group usage (in
 	 * the FAIR_GROUP_SCHED case).
 	 */
-	u64 runnable_load_avg, blocked_load_avg;
-	atomic64_t decay_counter, removed_load;
+	unsigned long runnable_load_avg, blocked_load_avg;
+	atomic64_t decay_counter;
 	u64 last_decay;
-#endif /* CONFIG_FAIR_GROUP_SCHED */
-/* These always depend on CONFIG_FAIR_GROUP_SCHED */
+	atomic_long_t removed_load;
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
+	/* Required to track per-cpu representation of a task_group */
 	u32 tg_runnable_contrib;
-	u64 tg_load_contrib;
+	unsigned long tg_load_contrib;
 #endif /* CONFIG_FAIR_GROUP_SCHED */
 
 	/*
@@ -353,7 +357,6 @@ struct rt_rq {
 	unsigned long rt_nr_boosted;
 
 	struct rq *rq;
-	struct list_head leaf_rt_rq_list;
 	struct task_group *tg;
 #endif
 };
@@ -539,6 +542,16 @@ DECLARE_PER_CPU(struct rq, runqueues);
 #define task_rq(p)		cpu_rq(task_cpu(p))
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define raw_rq()		(&__raw_get_cpu_var(runqueues))
+
+static inline u64 rq_clock(struct rq *rq)
+{
+	return rq->clock;
+}
+
+static inline u64 rq_clock_task(struct rq *rq)
+{
+	return rq->clock_task;
+}
 
 #ifdef CONFIG_SMP
 
@@ -884,24 +897,6 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 #define WF_FORK		0x02		/* child wakeup after fork */
 #define WF_MIGRATED	0x4		/* internal use, task got migrated */
 
-static inline void update_load_add(struct load_weight *lw, unsigned long inc)
-{
-	lw->weight += inc;
-	lw->inv_weight = 0;
-}
-
-static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
-{
-	lw->weight -= dec;
-	lw->inv_weight = 0;
-}
-
-static inline void update_load_set(struct load_weight *lw, unsigned long w)
-{
-	lw->weight = w;
-	lw->inv_weight = 0;
-}
-
 /*
  * To aid in avoiding the subversion of "niceness" due to uneven distribution
  * of tasks with abnormal "nice" values across CPUs the contribution that
@@ -1028,17 +1023,8 @@ extern void update_group_power(struct sched_domain *sd, int cpu);
 extern void trigger_load_balance(struct rq *rq, int cpu);
 extern void idle_balance(int this_cpu, struct rq *this_rq);
 
-/*
- * Only depends on SMP, FAIR_GROUP_SCHED may be removed when runnable_avg
- * becomes useful in lb
- */
-#if defined(CONFIG_FAIR_GROUP_SCHED)
 extern void idle_enter_fair(struct rq *this_rq);
 extern void idle_exit_fair(struct rq *this_rq);
-#else
-static inline void idle_enter_fair(struct rq *this_rq) {}
-static inline void idle_exit_fair(struct rq *this_rq) {}
-#endif
 
 #else	/* CONFIG_SMP */
 
@@ -1051,7 +1037,6 @@ static inline void idle_balance(int cpu, struct rq *rq)
 extern void sysrq_sched_debug_show(void);
 extern void sched_init_granularity(void);
 extern void update_max_interval(void);
-extern int update_runtime(struct notifier_block *nfb, unsigned long action, void *hcpu);
 extern void init_sched_rt_class(void);
 extern void init_sched_fair_class(void);
 
@@ -1062,6 +1047,8 @@ extern struct rt_bandwidth def_rt_bandwidth;
 extern void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime);
 
 extern void update_idle_cpu_load(struct rq *this_rq);
+
+extern void init_task_runnable_average(struct task_struct *p);
 
 #ifdef CONFIG_PARAVIRT
 static inline u64 steal_ticks(u64 steal)

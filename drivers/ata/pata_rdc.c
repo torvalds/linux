@@ -364,7 +364,7 @@ static int rdc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 static void rdc_remove_one(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	struct rdc_host_priv *hpriv = host->private_data;
 
 	pci_write_config_dword(pdev, 0x54, hpriv->saved_iocfg);

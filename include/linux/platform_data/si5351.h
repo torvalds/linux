@@ -79,6 +79,23 @@ enum si5351_drive_strength {
 };
 
 /**
+ * enum si5351_disable_state - Si5351 clock output disable state
+ * @SI5351_DISABLE_DEFAULT: default, do not change eeprom config
+ * @SI5351_DISABLE_LOW: CLKx is set to a LOW state when disabled
+ * @SI5351_DISABLE_HIGH: CLKx is set to a HIGH state when disabled
+ * @SI5351_DISABLE_FLOATING: CLKx is set to a FLOATING state when
+ *				disabled
+ * @SI5351_DISABLE_NEVER: CLKx is NEVER disabled
+ */
+enum si5351_disable_state {
+	SI5351_DISABLE_DEFAULT = 0,
+	SI5351_DISABLE_LOW,
+	SI5351_DISABLE_HIGH,
+	SI5351_DISABLE_FLOATING,
+	SI5351_DISABLE_NEVER,
+};
+
+/**
  * struct si5351_clkout_config - Si5351 clock output configuration
  * @clkout: clkout number
  * @multisynth_src: multisynth source clock
@@ -91,6 +108,7 @@ struct si5351_clkout_config {
 	enum si5351_multisynth_src multisynth_src;
 	enum si5351_clkout_src clkout_src;
 	enum si5351_drive_strength drive;
+	enum si5351_disable_state disable_state;
 	bool pll_master;
 	unsigned long rate;
 };

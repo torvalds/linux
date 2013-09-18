@@ -10,11 +10,16 @@ Required properties:
 	  mapped region.
 
   - interrupts : G2D interrupt number to the CPU.
+  - clocks : from common clock binding: handle to G2D clocks.
+  - clock-names : from common clock binding: must contain "sclk_fimg2d" and
+		  "fimg2d", corresponding to entries in the clocks property.
 
 Example:
 	g2d@12800000 {
 		compatible = "samsung,s5pv210-g2d";
 		reg = <0x12800000 0x1000>;
 		interrupts = <0 89 0>;
+		clocks = <&clock 177>, <&clock 277>;
+		clock-names = "sclk_fimg2d", "fimg2d";
 		status = "disabled";
 	};

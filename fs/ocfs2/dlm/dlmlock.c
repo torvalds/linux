@@ -178,6 +178,7 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 				     lock->ml.node);
 			}
 		} else {
+			status = DLM_NORMAL;
 			dlm_lock_get(lock);
 			list_add_tail(&lock->list, &res->blocked);
 			kick_thread = 1;

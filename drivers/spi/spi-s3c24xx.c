@@ -667,8 +667,6 @@ static int s3c24xx_spi_remove(struct platform_device *dev)
 {
 	struct s3c24xx_spi *hw = platform_get_drvdata(dev);
 
-	platform_set_drvdata(dev, NULL);
-
 	spi_bitbang_stop(&hw->bitbang);
 
 	clk_disable(hw->clk);
