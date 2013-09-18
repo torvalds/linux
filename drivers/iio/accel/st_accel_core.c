@@ -481,11 +481,11 @@ int st_accel_common_probe(struct iio_dev *indio_dev,
 	if (err < 0)
 		return err;
 
-	if (irq > 0) {
-		err = st_accel_allocate_ring(indio_dev);
-		if (err < 0)
-			return err;
+	err = st_accel_allocate_ring(indio_dev);
+	if (err < 0)
+		return err;
 
+	if (irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						 ST_ACCEL_TRIGGER_OPS);
 		if (err < 0)
@@ -502,8 +502,7 @@ st_accel_device_register_error:
 	if (irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 st_accel_probe_trigger_error:
-	if (irq > 0)
-		st_accel_deallocate_ring(indio_dev);
+	st_accel_deallocate_ring(indio_dev);
 
 	return err;
 }
@@ -514,10 +513,10 @@ void st_accel_common_remove(struct iio_dev *indio_dev)
 	struct st_sensor_data *adata = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (adata->get_irq_data_ready(indio_dev) > 0) {
+	if (adata->get_irq_data_ready(indio_dev) > 0)
 		st_sensors_deallocate_trigger(indio_dev);
-		st_accel_deallocate_ring(indio_dev);
-	}
+
+	st_accel_deallocate_ring(indio_dev);
 }
 EXPORT_SYMBOL(st_accel_common_remove);
 
