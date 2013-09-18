@@ -406,22 +406,19 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 /**
  *	sysfs_addrm_start - prepare for sysfs_dirent add/remove
  *	@acxt: pointer to sysfs_addrm_cxt to be used
- *	@parent_sd: parent sysfs_dirent
  *
- *	This function is called when the caller is about to add or
- *	remove sysfs_dirent under @parent_sd.  This function acquires
- *	sysfs_mutex.  @acxt is used to keep and pass context to
- *	other addrm functions.
+ *	This function is called when the caller is about to add or remove
+ *	sysfs_dirent.  This function acquires sysfs_mutex.  @acxt is used
+ *	to keep and pass context to other addrm functions.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).  sysfs_mutex is locked on
  *	return.
  */
-void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
-		       struct sysfs_dirent *parent_sd)
+void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt)
+	__acquires(sysfs_mutex)
 {
 	memset(acxt, 0, sizeof(*acxt));
-	acxt->parent_sd = parent_sd;
 
 	mutex_lock(&sysfs_mutex);
 }
@@ -430,10 +427,11 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
  *	__sysfs_add_one - add sysfs_dirent to parent without warning
  *	@acxt: addrm context to use
  *	@sd: sysfs_dirent to be added
+ *	@parent_sd: the parent sysfs_dirent to add @sd to
  *
- *	Get @acxt->parent_sd and set sd->s_parent to it and increment
- *	nlink of parent inode if @sd is a directory and link into the
- *	children list of the parent.
+ *	Get @parent_sd and set @sd->s_parent to it and increment nlink of
+ *	the parent inode if @sd is a directory and link into the children
+ *	list of the parent.
  *
  *	This function should be called between calls to
  *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
@@ -446,20 +444,21 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
  *	0 on success, -EEXIST if entry with the given name already
  *	exists.
  */
-int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
+		    struct sysfs_dirent *parent_sd)
 {
 	struct sysfs_inode_attrs *ps_iattr;
 	int ret;
 
 	sd->s_hash = sysfs_name_hash(sd->s_name, sd->s_ns);
-	sd->s_parent = sysfs_get(acxt->parent_sd);
+	sd->s_parent = sysfs_get(parent_sd);
 
 	ret = sysfs_link_sibling(sd);
 	if (ret)
 		return ret;
 
 	/* Update timestamps on the parent */
-	ps_iattr = acxt->parent_sd->s_iattr;
+	ps_iattr = parent_sd->s_iattr;
 	if (ps_iattr) {
 		struct iattr *ps_iattrs = &ps_iattr->ia_iattr;
 		ps_iattrs->ia_ctime = ps_iattrs->ia_mtime = CURRENT_TIME;
@@ -493,10 +492,11 @@ static char *sysfs_pathname(struct sysfs_dirent *sd, char *path)
  *	sysfs_add_one - add sysfs_dirent to parent
  *	@acxt: addrm context to use
  *	@sd: sysfs_dirent to be added
+ *	@parent_sd: the parent sysfs_dirent to add @sd to
  *
- *	Get @acxt->parent_sd and set sd->s_parent to it and increment
- *	nlink of parent inode if @sd is a directory and link into the
- *	children list of the parent.
+ *	Get @parent_sd and set @sd->s_parent to it and increment nlink of
+ *	the parent inode if @sd is a directory and link into the children
+ *	list of the parent.
  *
  *	This function should be called between calls to
  *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
@@ -509,17 +509,18 @@ static char *sysfs_pathname(struct sysfs_dirent *sd, char *path)
  *	0 on success, -EEXIST if entry with the given name already
  *	exists.
  */
-int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
+		  struct sysfs_dirent *parent_sd)
 {
 	int ret;
 
-	ret = __sysfs_add_one(acxt, sd);
+	ret = __sysfs_add_one(acxt, sd, parent_sd);
 	if (ret == -EEXIST) {
 		char *path = kzalloc(PATH_MAX, GFP_KERNEL);
 		WARN(1, KERN_WARNING
 		     "sysfs: cannot create duplicate filename '%s'\n",
 		     (path == NULL) ? sd->s_name
-				    : (sysfs_pathname(acxt->parent_sd, path),
+				    : (sysfs_pathname(parent_sd, path),
 				       strlcat(path, "/", PATH_MAX),
 				       strlcat(path, sd->s_name, PATH_MAX),
 				       path));
@@ -553,7 +554,7 @@ void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 	sysfs_unlink_sibling(sd);
 
 	/* Update timestamps on the parent */
-	ps_iattr = acxt->parent_sd->s_iattr;
+	ps_iattr = sd->s_parent->s_iattr;
 	if (ps_iattr) {
 		struct iattr *ps_iattrs = &ps_iattr->ia_iattr;
 		ps_iattrs->ia_ctime = ps_iattrs->ia_mtime = CURRENT_TIME;
@@ -576,6 +577,7 @@ void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
  *	sysfs_mutex is released.
  */
 void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
+	__releases(sysfs_mutex)
 {
 	/* release resources acquired by sysfs_addrm_start() */
 	mutex_unlock(&sysfs_mutex);
@@ -678,8 +680,8 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	sd->s_dir.kobj = kobj;
 
 	/* link in */
-	sysfs_addrm_start(&acxt, parent_sd);
-	rc = sysfs_add_one(&acxt, sd);
+	sysfs_addrm_start(&acxt);
+	rc = sysfs_add_one(&acxt, sd, parent_sd);
 	sysfs_addrm_finish(&acxt);
 
 	if (rc == 0)
@@ -772,7 +774,7 @@ static void remove_dir(struct sysfs_dirent *sd)
 {
 	struct sysfs_addrm_cxt acxt;
 
-	sysfs_addrm_start(&acxt, sd->s_parent);
+	sysfs_addrm_start(&acxt);
 	sysfs_remove_one(&acxt, sd);
 	sysfs_addrm_finish(&acxt);
 }
@@ -792,7 +794,7 @@ static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
 		return;
 
 	pr_debug("sysfs %s: removing dir\n", dir_sd->s_name);
-	sysfs_addrm_start(&acxt, dir_sd);
+	sysfs_addrm_start(&acxt);
 	pos = rb_first(&dir_sd->s_dir.children);
 	while (pos) {
 		struct sysfs_dirent *sd = to_sysfs_dirent(pos);

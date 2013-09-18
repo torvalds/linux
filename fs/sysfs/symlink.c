@@ -53,11 +53,11 @@ static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
 	sd->s_symlink.target_sd = target_sd;
 	target_sd = NULL;	/* reference is now owned by the symlink */
 
-	sysfs_addrm_start(&acxt, parent_sd);
+	sysfs_addrm_start(&acxt);
 	if (warn)
-		error = sysfs_add_one(&acxt, sd);
+		error = sysfs_add_one(&acxt, sd, parent_sd);
 	else
-		error = __sysfs_add_one(&acxt, sd);
+		error = __sysfs_add_one(&acxt, sd, parent_sd);
 	sysfs_addrm_finish(&acxt);
 
 	if (error)

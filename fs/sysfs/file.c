@@ -502,8 +502,8 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 	sd->s_attr.attr = (void *)attr;
 	sysfs_dirent_init_lockdep(sd);
 
-	sysfs_addrm_start(&acxt, dir_sd);
-	rc = sysfs_add_one(&acxt, sd);
+	sysfs_addrm_start(&acxt);
+	rc = sysfs_add_one(&acxt, sd, dir_sd);
 	sysfs_addrm_finish(&acxt);
 
 	if (rc)
