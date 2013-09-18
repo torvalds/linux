@@ -32,7 +32,6 @@
 #include "irqs.h"
 
 #include "devices-db8500.h"
-#include "ste-dma40-db8500.h"
 #include "db8500-regs.h"
 #include "board-mop500.h"
 #include "id.h"
@@ -134,7 +133,6 @@ static struct platform_device db8500_pmu_device = {
 };
 
 static struct platform_device *platform_devs[] __initdata = {
-	&u8500_dma40_device,
 	&db8500_pmu_device,
 };
 

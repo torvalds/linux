@@ -92,7 +92,6 @@ extern struct amba_pl011_data uart0_plat;
 extern struct amba_pl011_data uart1_plat;
 extern struct amba_pl011_data uart2_plat;
 extern struct pl022_ssp_controller ssp0_plat;
-extern struct stedma40_platform_data dma40_plat_data;
 
 void __init mop500_u8500uib_init(void);
 void __init mop500_stuib_init(void);

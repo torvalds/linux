@@ -11,7 +11,6 @@
 #include <linux/io.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
-#include <linux/platform_data/dma-ste-dma40.h>
 #include <linux/mfd/dbx500-prcmu.h>
 
 #include "setup.h"
@@ -19,42 +18,6 @@
 
 #include "db8500-regs.h"
 #include "devices-db8500.h"
-#include "ste-dma40-db8500.h"
-
-static struct resource dma40_resources[] = {
-	[0] = {
-		.start = U8500_DMA_BASE,
-		.end   = U8500_DMA_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-		.name  = "base",
-	},
-	[1] = {
-		.start = U8500_DMA_LCPA_BASE,
-		.end   = U8500_DMA_LCPA_BASE + 2 * SZ_1K - 1,
-		.flags = IORESOURCE_MEM,
-		.name  = "lcpa",
-	},
-	[2] = {
-		.start = IRQ_DB8500_DMA,
-		.end   = IRQ_DB8500_DMA,
-		.flags = IORESOURCE_IRQ,
-	}
-};
-
-struct stedma40_platform_data dma40_plat_data = {
-	.disabled_channels = {-1},
-};
-
-struct platform_device u8500_dma40_device = {
-	.dev = {
-		.platform_data = &dma40_plat_data,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-	.name = "dma40",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(dma40_resources),
-	.resource = dma40_resources
-};
 
 struct prcmu_pdata db8500_prcmu_pdata = {
 	.ab_platdata	= &ab8500_platdata,
