@@ -8,7 +8,6 @@
 #ifndef __DEVICES_DB8500_H
 #define __DEVICES_DB8500_H
 
-#include <linux/platform_data/usb-musb-ux500.h>
 #include "irqs.h"
 #include "db8500-regs.h"
 #include "devices-common.h"
@@ -29,10 +28,6 @@ db8500_add_ssp(struct device *parent, const char *name, resource_size_t base,
 
 #define db8500_add_rtc(parent) \
 	dbx500_add_rtc(parent, U8500_RTC_BASE, IRQ_DB8500_RTC);
-
-#define db8500_add_usb(parent, rx_cfg, tx_cfg) \
-	ux500_add_usb(parent, U8500_USBOTG_BASE, \
-		      IRQ_DB8500_USBOTG, rx_cfg, tx_cfg)
 
 #define db8500_add_ssp0(parent, pdata) \
 	db8500_add_ssp(parent, "ssp0", U8500_SSP0_BASE, \

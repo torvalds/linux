@@ -162,17 +162,6 @@ static void __init db8500_add_gpios(struct device *parent)
 	dbx500_add_pinctrl(parent, "pinctrl-db8500", U8500_PRCMU_BASE);
 }
 
-static int usb_db8500_dma_cfg[] = {
-	DB8500_DMA_DEV38_USB_OTG_IEP_AND_OEP_1_9,
-	DB8500_DMA_DEV37_USB_OTG_IEP_AND_OEP_2_10,
-	DB8500_DMA_DEV36_USB_OTG_IEP_AND_OEP_3_11,
-	DB8500_DMA_DEV19_USB_OTG_IEP_AND_OEP_4_12,
-	DB8500_DMA_DEV18_USB_OTG_IEP_AND_OEP_5_13,
-	DB8500_DMA_DEV17_USB_OTG_IEP_AND_OEP_6_14,
-	DB8500_DMA_DEV16_USB_OTG_IEP_AND_OEP_7_15,
-	DB8500_DMA_DEV39_USB_OTG_IEP_AND_OEP_8
-};
-
 static const char *db8500_read_soc_id(void)
 {
 	void __iomem *uid = __io_address(U8500_BB_UID_BASE);
@@ -204,7 +193,6 @@ struct device * __init u8500_init_devices(void)
 
 	db8500_add_rtc(parent);
 	db8500_add_gpios(parent);
-	db8500_add_usb(parent, usb_db8500_dma_cfg, usb_db8500_dma_cfg);
 
 	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
 		platform_devs[i]->dev.parent = parent;
