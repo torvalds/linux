@@ -171,6 +171,10 @@
 		};
 
 		prcmu@80157000 {
+			cpufreq {
+				status = "okay";
+			};
+
 			thermal@801573c0 {
 				num-trips = <4>;
 
