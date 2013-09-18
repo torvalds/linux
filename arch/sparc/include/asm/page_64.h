@@ -117,7 +117,9 @@ typedef pte_t *pgtable_t;
 /* We used to stick this into a hard-coded global register (%g4)
  * but that does not make sense anymore.
  */
-#define PAGE_OFFSET		_AC(0xFFFFF80000000000,UL)
+#define MAX_SUPPORTED_PA_BITS	43
+#define PAGE_OFFSET_BY_BITS(X)	(-(_AC(1,UL) << (X)))
+#define PAGE_OFFSET		PAGE_OFFSET_BY_BITS(MAX_SUPPORTED_PA_BITS)
 
 #ifndef __ASSEMBLY__
 
