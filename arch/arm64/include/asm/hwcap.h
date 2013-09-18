@@ -44,6 +44,6 @@
 extern unsigned int compat_elf_hwcap;
 #endif
 
-extern unsigned int elf_hwcap;
+extern unsigned long elf_hwcap;
 #endif
 #endif
