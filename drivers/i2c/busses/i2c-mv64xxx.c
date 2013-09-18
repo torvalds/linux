@@ -234,9 +234,9 @@ static int mv64xxx_i2c_offload_msg(struct mv64xxx_i2c_data *drv_data)
 		ctrl_reg |= MV64XXX_I2C_BRIDGE_CONTROL_WR |
 		    (msg->len - 1) << MV64XXX_I2C_BRIDGE_CONTROL_TX_SIZE_SHIFT;
 
-		writel_relaxed(data_reg_lo,
+		writel(data_reg_lo,
 			drv_data->reg_base + MV64XXX_I2C_REG_TX_DATA_LO);
-		writel_relaxed(data_reg_hi,
+		writel(data_reg_hi,
 			drv_data->reg_base + MV64XXX_I2C_REG_TX_DATA_HI);
 
 	} else {
