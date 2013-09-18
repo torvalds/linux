@@ -235,9 +235,6 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 	val = (val & PCI6208_DIO_DO_MASK) >> PCI6208_DIO_DO_SHIFT;
 	s->state	= val;
 
-	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx\n",
-		dev->driver->driver_name, dev->board_name, dev->iobase);
-
 	return 0;
 }
 
