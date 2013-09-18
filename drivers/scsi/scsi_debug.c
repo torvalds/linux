@@ -1790,7 +1790,7 @@ static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 }
 
 static void dif_copy_prot(struct scsi_cmnd *SCpnt, sector_t sector,
-			  unsigned int sectors)
+			  unsigned int sectors, bool read)
 {
 	unsigned int i, resid;
 	struct scatterlist *psgl;
@@ -1809,10 +1809,18 @@ static void dif_copy_prot(struct scsi_cmnd *SCpnt, sector_t sector,
 			rest = start + len - dif_store_end;
 
 		paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
-		memcpy(paddr, start, len - rest);
 
-		if (rest)
-			memcpy(paddr + len - rest, dif_storep, rest);
+		if (read)
+			memcpy(paddr, start, len - rest);
+		else
+			memcpy(start, paddr, len - rest);
+
+		if (rest) {
+			if (read)
+				memcpy(paddr + len - rest, dif_storep, rest);
+			else
+				memcpy(dif_storep, paddr + len - rest, rest);
+		}
 
 		sector += len / sizeof(*dif_storep);
 		resid -= len;
@@ -1845,7 +1853,7 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 		ei_lba++;
 	}
 
-	dif_copy_prot(SCpnt, start_sec, sectors);
+	dif_copy_prot(SCpnt, start_sec, sectors, true);
 	dix_reads++;
 
 	return 0;
@@ -1928,14 +1936,11 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 {
 	int i, j, ret;
 	struct sd_dif_tuple *sdt;
-	struct scatterlist *dsgl = scsi_sglist(SCpnt);
+	struct scatterlist *dsgl;
 	struct scatterlist *psgl = scsi_prot_sglist(SCpnt);
 	void *daddr, *paddr;
-	sector_t tmp_sec = start_sec;
-	sector_t sector;
+	sector_t sector = start_sec;
 	int ppage_offset;
-
-	sector = do_div(tmp_sec, sdebug_store_sectors);
 
 	BUG_ON(scsi_sg_count(SCpnt) == 0);
 	BUG_ON(scsi_prot_sg_count(SCpnt) == 0);
@@ -1964,25 +1969,13 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 			sdt = paddr + ppage_offset;
 
-			ret = dif_verify(sdt, daddr + j, start_sec, ei_lba);
+			ret = dif_verify(sdt, daddr + j, sector, ei_lba);
 			if (ret) {
 				dump_sector(daddr + j, scsi_debug_sector_size);
 				goto out;
 			}
 
-			/* Would be great to copy this in bigger
-			 * chunks.  However, for the sake of
-			 * correctness we need to verify each sector
-			 * before writing it to "stable" storage
-			 */
-			memcpy(dif_storep + sector, sdt, sizeof(*sdt));
-
 			sector++;
-
-			if (sector == sdebug_store_sectors)
-				sector = 0;	/* Force wrap */
-
-			start_sec++;
 			ei_lba++;
 			ppage_offset += sizeof(struct sd_dif_tuple);
 		}
@@ -1991,6 +1984,7 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 		kunmap_atomic(daddr);
 	}
 
+	dif_copy_prot(SCpnt, start_sec, sectors, false);
 	dix_writes++;
 
 	return 0;
