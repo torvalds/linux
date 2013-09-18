@@ -39,6 +39,7 @@ References:
 */
 
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -82,6 +83,21 @@ struct pci6208_private {
 	unsigned int ao_readback[PCI6208_MAX_AO_CHANNELS];
 };
 
+static int pci6208_ao_wait_for_data_send(struct comedi_device *dev,
+					 unsigned int timeout)
+{
+	unsigned int status;
+
+	while (timeout--) {
+		status = inw(dev->iobase + PCI6208_AO_STATUS);
+		if ((status & PCI6208_AO_STATUS_DATA_SEND) == 0)
+			return 0;
+		udelay(1);
+	}
+
+	return -ETIME;
+}
+
 static int pci6208_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -90,15 +106,16 @@ static int pci6208_ao_winsn(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned int invert = 1 << (16 - 1);
 	unsigned int val = devpriv->ao_readback[chan];
-	unsigned short status;
+	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 
-		do {
-			status = inw(dev->iobase + PCI6208_AO_STATUS);
-		} while (status & PCI6208_AO_STATUS_DATA_SEND);
+		/* D/A transfer rate is 2.2us, wait up to 10us */
+		ret = pci6208_ao_wait_for_data_send(dev, 10);
+		if (ret)
+			return ret;
 
 		outw(val ^ invert, dev->iobase + PCI6208_AO_CONTROL(chan));
 	}
