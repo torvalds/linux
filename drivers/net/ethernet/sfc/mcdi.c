@@ -800,9 +800,6 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 	} else {
 		int count;
 
-		/* Nobody was waiting for an MCDI request, so trigger a reset */
-		efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
-
 		/* Consume the status word since efx_mcdi_rpc_finish() won't */
 		for (count = 0; count < MCDI_STATUS_DELAY_COUNT; ++count) {
 			if (efx_mcdi_poll_reboot(efx))
@@ -810,6 +807,9 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 			udelay(MCDI_STATUS_DELAY_US);
 		}
 		mcdi->new_epoch = true;
+
+		/* Nobody was waiting for an MCDI request, so trigger a reset */
+		efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
 	}
 
 	spin_unlock(&mcdi->iface_lock);
