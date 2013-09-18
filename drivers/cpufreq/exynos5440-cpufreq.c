@@ -457,7 +457,7 @@ err_free_table:
 	opp_free_cpufreq_table(dvfs_info->dev, &dvfs_info->freq_table);
 err_put_node:
 	of_node_put(np);
-	dev_err(dvfs_info->dev, "%s: failed initialization\n", __func__);
+	dev_err(&pdev->dev, "%s: failed initialization\n", __func__);
 	return ret;
 }
 
