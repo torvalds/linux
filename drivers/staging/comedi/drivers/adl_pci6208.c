@@ -126,12 +126,13 @@ static int pci6208_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci6208_ao_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int pci6208_ao_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pci6208_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
 
 	for (i = 0; i < insn->n; i++)
@@ -206,7 +207,7 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 0xffff;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= pci6208_ao_insn_write;
-	s->insn_read	= pci6208_ao_rinsn;
+	s->insn_read	= pci6208_ao_insn_read;
 
 	s = &dev->subdevices[1];
 	/* digital input subdevice */
