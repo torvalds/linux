@@ -182,17 +182,6 @@ static void mop500_prox_deactivate(struct device *dev)
 	regulator_put(prox_regulator);
 }
 
-static struct stedma40_chan_cfg u8500_hash_dma_cfg_tx = {
-		.dir = DMA_MEM_TO_DEV,
-		.dev_type = DB8500_DMA_DEV50_HAC1_TX,
-		.mode = STEDMA40_MODE_LOGICAL,
-};
-
-static struct hash_platform_data u8500_hash1_platform_data = {
-		.mem_to_engine = &u8500_hash_dma_cfg_tx,
-		.dma_filter = stedma40_filter,
-};
-
 /* add any platform devices here - TODO */
 static struct platform_device *mop500_platform_devs[] __initdata = {
 	&mop500_gpio_keys_device,
@@ -302,11 +291,6 @@ static void __init mop500_uart_init(struct device *parent)
 	db8500_add_uart2(parent, &uart2_plat);
 }
 
-static void __init u8500_cryp1_hash1_init(struct device *parent)
-{
-	db8500_add_hash1(parent, &u8500_hash1_platform_data);
-}
-
 static void __init mop500_init_machine(void)
 {
 	struct device *parent = NULL;
@@ -328,7 +312,6 @@ static void __init mop500_init_machine(void)
 	mop500_sdi_init(parent);
 	mop500_spi_init(parent);
 	mop500_uart_init(parent);
-	u8500_cryp1_hash1_init(parent);
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
@@ -348,8 +331,6 @@ static void __init snowball_init_machine(void)
 	snowball_sdi_init(parent);
 	mop500_spi_init(parent);
 	mop500_uart_init(parent);
-
-	u8500_cryp1_hash1_init(parent);
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();

@@ -64,30 +64,6 @@ dbx500_add_rtc(struct device *parent, resource_size_t base, int irq)
 				0, NULL, 0);
 }
 
-struct hash_platform_data;
-
-static inline struct platform_device *
-dbx500_add_hash1(struct device *parent, int id, resource_size_t base,
-		struct hash_platform_data *pdata)
-{
-	struct resource res[] = {
-			DEFINE_RES_MEM(base, SZ_4K),
-	};
-
-	struct platform_device_info pdevinfo = {
-			.parent = parent,
-			.name = "hash1",
-			.id = id,
-			.res = res,
-			.num_res = ARRAY_SIZE(res),
-			.data = pdata,
-			.size_data = sizeof(*pdata),
-			.dma_mask = DMA_BIT_MASK(32),
-	};
-
-	return platform_device_register_full(&pdevinfo);
-}
-
 struct nmk_gpio_platform_data;
 
 void dbx500_add_gpios(struct device *parent, resource_size_t *base, int num,
