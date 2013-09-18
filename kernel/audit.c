@@ -334,6 +334,12 @@ static int audit_set_backlog_limit(int limit)
 	return audit_do_config_change("audit_backlog_limit", &audit_backlog_limit, limit);
 }
 
+static int audit_set_backlog_wait_time(int timeout)
+{
+	return audit_do_config_change("audit_backlog_wait_time",
+				      &audit_backlog_wait_time, timeout);
+}
+
 static int audit_set_enabled(int state)
 {
 	int rc;
@@ -778,7 +784,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		s.backlog_limit		= audit_backlog_limit;
 		s.lost			= atomic_read(&audit_lost);
 		s.backlog		= skb_queue_len(&audit_skb_queue);
-		s.version		= 1;
+		s.version		= 2;
+		s.backlog_wait_time	= audit_backlog_wait_time;
 		audit_send_reply(NETLINK_CB(skb).portid, seq, AUDIT_GET, 0, 0,
 				 &s, sizeof(s));
 		break;
@@ -812,8 +819,28 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			if (err < 0)
 				return err;
 		}
-		if (s.mask & AUDIT_STATUS_BACKLOG_LIMIT)
+		if (s.mask & AUDIT_STATUS_BACKLOG_LIMIT) {
 			err = audit_set_backlog_limit(s.backlog_limit);
+			if (err < 0)
+				return err;
+		}
+		switch (s.version) {
+		/* add future vers # cases immediately below and allow
+		 * to fall through */
+		case 2:
+			if (s.mask & AUDIT_STATUS_BACKLOG_WAIT_TIME) {
+				if (sizeof(s) > (size_t)nlh->nlmsg_len)
+					return -EINVAL;
+				if (s.backlog_wait_time < 0 ||
+				    s.backlog_wait_time > 10*AUDIT_BACKLOG_WAIT_TIME)
+					return -EINVAL;
+				err = audit_set_backlog_wait_time(s.backlog_wait_time);
+				if (err < 0)
+					return err;
+			}
+		default:
+			break;
+		}
 		break;
 	}
 	case AUDIT_GET_FEATURE:
