@@ -641,7 +641,7 @@ static int io_init(struct ubi_device *ubi, int max_beb_per1024)
 	dbg_gen("sizeof(struct ubi_ainf_peb) %zu", sizeof(struct ubi_ainf_peb));
 	dbg_gen("sizeof(struct ubi_wl_entry) %zu", sizeof(struct ubi_wl_entry));
 
-	if (ubi->mtd->numeraseregions != 0) {
+	if (ubi->mtd->numeraseregions > 1) {
 		/*
 		 * Some flashes have several erase regions. Different regions
 		 * may have different eraseblock size and other
