@@ -549,7 +549,12 @@ void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
 	struct sysfs_inode_attrs *ps_iattr;
 
-	BUG_ON(sd->s_flags & SYSFS_FLAG_REMOVED);
+	/*
+	 * Removal can be called multiple times on the same node.  Only the
+	 * first invocation is effective and puts the base ref.
+	 */
+	if (sd->s_flags & SYSFS_FLAG_REMOVED)
+		return;
 
 	sysfs_unlink_sibling(sd);
 

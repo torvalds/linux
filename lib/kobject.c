@@ -76,6 +76,13 @@ static int create_dir(struct kobject *kobj)
 		if (error)
 			sysfs_remove_dir(kobj);
 	}
+
+	/*
+	 * @kobj->sd may be deleted by an ancestor going away.  Hold an
+	 * extra reference so that it stays until @kobj is gone.
+	 */
+	sysfs_get(kobj->sd);
+
 	return error;
 }
 
@@ -532,10 +539,15 @@ out:
  */
 void kobject_del(struct kobject *kobj)
 {
+	struct sysfs_dirent *sd;
+
 	if (!kobj)
 		return;
 
+	sd = kobj->sd;
 	sysfs_remove_dir(kobj);
+	sysfs_put(sd);
+
 	kobj->state_in_sysfs = 0;
 	kobj_kset_leave(kobj);
 	kobject_put(kobj->parent);
