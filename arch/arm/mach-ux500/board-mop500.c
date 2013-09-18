@@ -83,23 +83,6 @@ static void __init snowball_init_machine(void)
 	regulator_has_full_constraints();
 }
 
-static void __init hrefv60_init_machine(void)
-{
-	/* This board has full regulator constraints */
-	regulator_has_full_constraints();
-}
-
-MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
-	.atag_offset	= 0x100,
-	.smp		= smp_ops(ux500_smp_ops),
-	.map_io		= u8500_map_io,
-	.init_irq	= ux500_init_irq,
-	.init_time	= ux500_timer_init,
-	.init_machine	= hrefv60_init_machine,
-	.restart        = ux500_restart,
-	.init_late	= NULL,
-MACHINE_END
-
 MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 	.atag_offset	= 0x100,
 	.smp		= smp_ops(ux500_smp_ops),
