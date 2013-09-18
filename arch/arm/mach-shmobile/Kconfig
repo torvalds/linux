@@ -113,6 +113,12 @@ config ARCH_EMEV2
 	select ARM_GIC
 	select CPU_V7
 
+config ARCH_R7S72100
+	bool "RZ/A1H (R7S72100)"
+	select ARM_GIC
+	select CPU_V7
+	select SH_CLK_CPG
+
 comment "SH-Mobile Board Type"
 
 config MACH_APE6EVM

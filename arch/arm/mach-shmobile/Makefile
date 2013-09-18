@@ -18,6 +18,7 @@ obj-$(CONFIG_ARCH_R8A7790)	+= setup-r8a7790.o
 obj-$(CONFIG_ARCH_R8A7790)	+= setup-r8a7790.o setup-rcar-gen2.o
 obj-$(CONFIG_ARCH_R8A7791)	+= setup-r8a7791.o setup-rcar-gen2.o
 obj-$(CONFIG_ARCH_EMEV2)	+= setup-emev2.o
+obj-$(CONFIG_ARCH_R7S72100)	+= setup-r7s72100.o
 
 # Clock objects
 ifndef CONFIG_COMMON_CLK
@@ -31,6 +32,7 @@ obj-$(CONFIG_ARCH_R8A7779)	+= clock-r8a7779.o
 obj-$(CONFIG_ARCH_R8A7790)	+= clock-r8a7790.o
 obj-$(CONFIG_ARCH_R8A7791)	+= clock-r8a7791.o
 obj-$(CONFIG_ARCH_EMEV2)	+= clock-emev2.o
+obj-$(CONFIG_ARCH_R7S72100)	+= clock-r7s72100.o
 endif
 
 # SMP objects
