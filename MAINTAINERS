@@ -1857,7 +1857,7 @@ S:	Supported
 F:	drivers/net/wireless/brcm80211/
 
 BROADCOM BNX2FC 10 GIGABIT FCOE DRIVER
-M:	Bhanu Prakash Gollapudi <bprakash@broadcom.com>
+M:	Eddie Wai <eddie.wai@broadcom.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/bnx2fc/
