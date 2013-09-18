@@ -33,9 +33,4 @@ dbx500_add_uart(struct device *parent, const char *name, resource_size_t base,
 	return amba_ahb_device_add(parent, name, base, SZ_4K, irq, 0, pdata, 0);
 }
 
-struct nmk_gpio_platform_data;
-
-void dbx500_add_gpios(struct device *parent, resource_size_t *base, int num,
-		      int irq, struct nmk_gpio_platform_data *pdata);
-
 #endif

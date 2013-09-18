@@ -9,7 +9,6 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/platform_data/dma-ste-dma40.h>

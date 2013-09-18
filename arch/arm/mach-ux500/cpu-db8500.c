@@ -138,29 +138,6 @@ static struct platform_device *platform_devs[] __initdata = {
 	&db8500_pmu_device,
 };
 
-static resource_size_t __initdata db8500_gpio_base[] = {
-	U8500_GPIOBANK0_BASE,
-	U8500_GPIOBANK1_BASE,
-	U8500_GPIOBANK2_BASE,
-	U8500_GPIOBANK3_BASE,
-	U8500_GPIOBANK4_BASE,
-	U8500_GPIOBANK5_BASE,
-	U8500_GPIOBANK6_BASE,
-	U8500_GPIOBANK7_BASE,
-	U8500_GPIOBANK8_BASE,
-};
-
-static void __init db8500_add_gpios(struct device *parent)
-{
-	struct nmk_gpio_platform_data pdata = {
-		.supports_sleepmode = true,
-	};
-
-	dbx500_add_gpios(parent, db8500_gpio_base,
-			 ARRAY_SIZE(db8500_gpio_base),
-			 IRQ_DB8500_GPIO0, &pdata);
-}
-
 static const char *db8500_read_soc_id(void)
 {
 	void __iomem *uid = __io_address(U8500_BB_UID_BASE);
@@ -189,8 +166,6 @@ struct device * __init u8500_init_devices(void)
 	int i;
 
 	parent = db8500_soc_device_init();
-
-	db8500_add_gpios(parent);
 
 	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
 		platform_devs[i]->dev.parent = parent;

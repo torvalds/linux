@@ -15,7 +15,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/platform_data/db8500_thermal.h>
-#include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/amba/serial.h>
@@ -25,7 +24,6 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/driver.h>
 #include <linux/mfd/tps6105x.h>
-#include <linux/mfd/abx500/ab8500-gpio.h>
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/input.h>
 #include <linux/delay.h>
