@@ -626,10 +626,6 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
 	while (ath10k_ce_completed_send_next(ce_state, &transfer_context,
 					     &ce_data, &nbytes,
 					     &transfer_id) == 0) {
-		spin_lock_bh(&pipe_info->pipe_lock);
-		pipe_info->num_sends_allowed++;
-		spin_unlock_bh(&pipe_info->pipe_lock);
-
 		compl = get_free_compl(pipe_info);
 		if (!compl)
 			break;
