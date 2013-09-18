@@ -366,7 +366,6 @@ ARC_ENTRY EV_TLBProtV
 	;========== (6b) Non aligned access ============
 4:
 
-#ifdef  CONFIG_ARC_MISALIGN_ACCESS
 	SAVE_CALLEE_SAVED_USER
 	mov r2, sp              ; callee_regs
 
@@ -375,9 +374,6 @@ ARC_ENTRY EV_TLBProtV
 	; TBD: optimize - do this only if a callee reg was involved
 	; either a dst of emulated LD/ST or src with address-writeback
 	RESTORE_CALLEE_SAVED_USER
-#else
-	bl  do_misaligned_error
-#endif
 
 	b   ret_from_exception
 
