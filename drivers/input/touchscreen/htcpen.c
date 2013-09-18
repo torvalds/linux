@@ -186,8 +186,6 @@ static int htcpen_isa_remove(struct device *dev, unsigned int id)
 	release_region(HTCPEN_PORT_INIT, 1);
 	release_region(HTCPEN_PORT_IRQ_CLEAR, 1);
 
-	dev_set_drvdata(dev, NULL);
-
 	return 0;
 }
 
