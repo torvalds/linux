@@ -584,7 +584,7 @@ static DEVICE_ATTR(enabled, S_IRUGO, tpm_show_enabled, NULL);
 static DEVICE_ATTR(active, S_IRUGO, tpm_show_active, NULL);
 static DEVICE_ATTR(owned, S_IRUGO, tpm_show_owned, NULL);
 static DEVICE_ATTR(temp_deactivated, S_IRUGO, tpm_show_temp_deactivated, NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps_1_2, NULL);
+static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
 static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
 
 static struct attribute *stm_tpm_attrs[] = {

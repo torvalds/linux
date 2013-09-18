@@ -59,8 +59,6 @@ extern ssize_t tpm_show_pcrs(struct device *, struct device_attribute *attr,
 				char *);
 extern ssize_t tpm_show_caps(struct device *, struct device_attribute *attr,
 				char *);
-extern ssize_t tpm_show_caps_1_2(struct device *, struct device_attribute *attr,
-				char *);
 extern ssize_t tpm_store_cancel(struct device *, struct device_attribute *attr,
 				const char *, size_t);
 extern ssize_t tpm_show_enabled(struct device *, struct device_attribute *attr,

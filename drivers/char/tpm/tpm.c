@@ -1020,43 +1020,33 @@ ssize_t tpm_show_caps(struct device *dev, struct device_attribute *attr,
 	str += sprintf(str, "Manufacturer: 0x%x\n",
 		       be32_to_cpu(cap.manufacturer_id));
 
-	rc = tpm_getcap(dev, CAP_VERSION_1_1, &cap,
-		        "attempting to determine the 1.1 version");
-	if (rc)
-		return 0;
-	str += sprintf(str,
-		       "TCG version: %d.%d\nFirmware version: %d.%d\n",
-		       cap.tpm_version.Major, cap.tpm_version.Minor,
-		       cap.tpm_version.revMajor, cap.tpm_version.revMinor);
+	/* Try to get a TPM version 1.2 TPM_CAP_VERSION_INFO */
+	rc = tpm_getcap(dev, CAP_VERSION_1_2, &cap,
+			 "attempting to determine the 1.2 version");
+	if (!rc) {
+		str += sprintf(str,
+			       "TCG version: %d.%d\nFirmware version: %d.%d\n",
+			       cap.tpm_version_1_2.Major,
+			       cap.tpm_version_1_2.Minor,
+			       cap.tpm_version_1_2.revMajor,
+			       cap.tpm_version_1_2.revMinor);
+	} else {
+		/* Otherwise just use TPM_STRUCT_VER */
+		rc = tpm_getcap(dev, CAP_VERSION_1_1, &cap,
+				"attempting to determine the 1.1 version");
+		if (rc)
+			return 0;
+		str += sprintf(str,
+			       "TCG version: %d.%d\nFirmware version: %d.%d\n",
+			       cap.tpm_version.Major,
+			       cap.tpm_version.Minor,
+			       cap.tpm_version.revMajor,
+			       cap.tpm_version.revMinor);
+	}
+
 	return str - buf;
 }
 EXPORT_SYMBOL_GPL(tpm_show_caps);
-
-ssize_t tpm_show_caps_1_2(struct device * dev,
-			  struct device_attribute * attr, char *buf)
-{
-	cap_t cap;
-	ssize_t rc;
-	char *str = buf;
-
-	rc = tpm_getcap(dev, TPM_CAP_PROP_MANUFACTURER, &cap,
-			"attempting to determine the manufacturer");
-	if (rc)
-		return 0;
-	str += sprintf(str, "Manufacturer: 0x%x\n",
-		       be32_to_cpu(cap.manufacturer_id));
-	rc = tpm_getcap(dev, CAP_VERSION_1_2, &cap,
-			 "attempting to determine the 1.2 version");
-	if (rc)
-		return 0;
-	str += sprintf(str,
-		       "TCG version: %d.%d\nFirmware version: %d.%d\n",
-		       cap.tpm_version_1_2.Major, cap.tpm_version_1_2.Minor,
-		       cap.tpm_version_1_2.revMajor,
-		       cap.tpm_version_1_2.revMinor);
-	return str - buf;
-}
-EXPORT_SYMBOL_GPL(tpm_show_caps_1_2);
 
 ssize_t tpm_show_durations(struct device *dev, struct device_attribute *attr,
 			  char *buf)
