@@ -88,21 +88,21 @@ static int pci6208_ao_winsn(struct comedi_device *dev,
 {
 	struct pci6208_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
-	unsigned long invert = 1 << (16 - 1);
-	unsigned long value = 0;
+	unsigned int invert = 1 << (16 - 1);
+	unsigned int val = devpriv->ao_readback[chan];
 	unsigned short status;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		value = data[i] ^ invert;
+		val = data[i];
 
 		do {
 			status = inw(dev->iobase + PCI6208_AO_STATUS);
 		} while (status & PCI6208_AO_STATUS_DATA_SEND);
 
-		outw(value, dev->iobase + PCI6208_AO_CONTROL(chan));
+		outw(val ^ invert, dev->iobase + PCI6208_AO_CONTROL(chan));
 	}
-	devpriv->ao_readback[chan] = value;
+	devpriv->ao_readback[chan] = val;
 
 	return insn->n;
 }
