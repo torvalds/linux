@@ -98,7 +98,6 @@ extern struct stedma40_platform_data dma40_plat_data;
 extern void mop500_sdi_init(struct device *parent);
 extern void snowball_sdi_init(struct device *parent);
 extern void hrefv60_sdi_init(struct device *parent);
-extern void mop500_sdi_tc35892_init(struct device *parent);
 void __init mop500_u8500uib_init(void);
 void __init mop500_stuib_init(void);
 void __init mop500_pinmaps_init(void);

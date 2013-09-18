@@ -71,12 +71,6 @@ static void sdi0_configure(struct device *parent)
 	db8500_add_sdi0(parent, &mop500_sdi0_data, U8500_SDI_V2_PERIPHID);
 }
 
-void mop500_sdi_tc35892_init(struct device *parent)
-{
-	mop500_sdi0_data.gpio_cd = GPIO_SDMMC_CD;
-	sdi0_configure(parent);
-}
-
 /*
  * SDI1 (SDIO WLAN)
  */
@@ -185,12 +179,6 @@ void __init mop500_sdi_init(struct device *parent)
 	db8500_add_sdi2(parent, &mop500_sdi2_data, U8500_SDI_V2_PERIPHID);
 	/* On-board eMMC */
 	db8500_add_sdi4(parent, &mop500_sdi4_data, U8500_SDI_V2_PERIPHID);
-
-	/*
-	 * On boards with the TC35892 GPIO expander, sdi0 will finally
-	 * be added when the TC35892 initializes and calls
-	 * mop500_sdi_tc35892_init() above.
-	 */
 }
 
 void __init snowball_sdi_init(struct device *parent)

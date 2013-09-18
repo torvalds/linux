@@ -26,7 +26,6 @@
 #include <linux/regulator/ab8500.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/driver.h>
-#include <linux/mfd/tc3589x.h>
 #include <linux/mfd/tps6105x.h>
 #include <linux/mfd/abx500/ab8500-gpio.h>
 #include <linux/platform_data/leds-lp55xx.h>
@@ -53,40 +52,6 @@
 struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
 	.regulator	= &ab8500_regulator_plat_data,
-};
-
-/*
- * TC35892
- */
-
-static void mop500_tc35892_init(struct tc3589x *tc3589x, unsigned int base)
-{
-	struct device *parent = NULL;
-#if 0
-	/* FIXME: Is the sdi actually part of tc3589x? */
-	parent = tc3589x->dev;
-#endif
-	mop500_sdi_tc35892_init(parent);
-}
-
-static struct tc3589x_gpio_platform_data mop500_tc35892_gpio_data = {
-	.gpio_base	= MOP500_EGPIO(0),
-	.setup		= mop500_tc35892_init,
-};
-
-static struct tc3589x_platform_data mop500_tc35892_data = {
-	.block		= TC3589x_BLOCK_GPIO,
-	.gpio		= &mop500_tc35892_gpio_data,
-	.irq_base	= MOP500_EGPIO_IRQ_BASE,
-};
-
-/* I2C0 devices only available on the first HREF/MOP500 */
-static struct i2c_board_info __initdata mop500_i2c0_devices[] = {
-	{
-		I2C_BOARD_INFO("tc3589x", 0x42),
-		.irq		= NOMADIK_GPIO_TO_IRQ(217),
-		.platform_data  = &mop500_tc35892_data,
-	},
 };
 
 static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
