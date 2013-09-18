@@ -296,10 +296,7 @@ static int max6642_probe(struct i2c_client *client,
 	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
 							   client->name, data,
 							   max6642_groups);
-	if (IS_ERR(hwmon_dev))
-		return PTR_ERR(hwmon_dev);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 /*
