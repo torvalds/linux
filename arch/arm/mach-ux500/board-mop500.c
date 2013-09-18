@@ -265,56 +265,6 @@ static struct tc3589x_platform_data mop500_tc35892_data = {
 	.irq_base	= MOP500_EGPIO_IRQ_BASE,
 };
 
-static struct lp55xx_led_config lp5521_pri_led[] = {
-       [0] = {
-	       .chan_nr = 0,
-	       .led_current = 0x2f,
-	       .max_current = 0x5f,
-       },
-       [1] = {
-	       .chan_nr = 1,
-	       .led_current = 0x2f,
-	       .max_current = 0x5f,
-       },
-       [2] = {
-	       .chan_nr = 2,
-	       .led_current = 0x2f,
-	       .max_current = 0x5f,
-       },
-};
-
-static struct lp55xx_platform_data __initdata lp5521_pri_data = {
-       .label = "lp5521_pri",
-       .led_config     = &lp5521_pri_led[0],
-       .num_channels   = 3,
-       .clock_mode     = LP55XX_CLOCK_EXT,
-};
-
-static struct lp55xx_led_config lp5521_sec_led[] = {
-       [0] = {
-	       .chan_nr = 0,
-	       .led_current = 0x2f,
-	       .max_current = 0x5f,
-       },
-       [1] = {
-	       .chan_nr = 1,
-	       .led_current = 0x2f,
-	       .max_current = 0x5f,
-       },
-       [2] = {
-	       .chan_nr = 2,
-	       .led_current = 0x2f,
-	       .max_current = 0x5f,
-       },
-};
-
-static struct lp55xx_platform_data __initdata lp5521_sec_data = {
-       .label = "lp5521_sec",
-       .led_config     = &lp5521_sec_led[0],
-       .num_channels   = 3,
-       .clock_mode     = LP55XX_CLOCK_EXT,
-};
-
 /* I2C0 devices only available on the first HREF/MOP500 */
 static struct i2c_board_info __initdata mop500_i2c0_devices[] = {
 	{
@@ -325,16 +275,6 @@ static struct i2c_board_info __initdata mop500_i2c0_devices[] = {
 };
 
 static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
-	{
-		/* lp5521 LED driver, 1st device */
-		I2C_BOARD_INFO("lp5521", 0x33),
-		.platform_data = &lp5521_pri_data,
-	},
-	{
-		/* lp5521 LED driver, 2st device */
-		I2C_BOARD_INFO("lp5521", 0x34),
-		.platform_data = &lp5521_sec_data,
-	},
 	{
 		/* Light sensor Rohm BH1780GLI */
 		I2C_BOARD_INFO("bh1780", 0x29),
