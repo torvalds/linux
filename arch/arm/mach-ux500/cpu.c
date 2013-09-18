@@ -104,11 +104,6 @@ void __init ux500_init_irq(void)
 	}
 }
 
-void __init ux500_init_late(void)
-{
-	mop500_uib_init();
-}
-
 static const char * __init ux500_get_machine(void)
 {
 	return kasprintf(GFP_KERNEL, "DB%4x", dbx500_partnumber());
