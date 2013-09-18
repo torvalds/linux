@@ -31,7 +31,7 @@
 #define NVRW_CNT 0x20
 
 /*
- * Set oops header version to distingush between old and new format header.
+ * Set oops header version to distinguish between old and new format header.
  * lnx,oops-log partition max size is 4000, header version > 4000 will
  * help in identifying new header.
  */
