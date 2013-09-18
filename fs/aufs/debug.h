@@ -25,6 +25,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/atomic.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/sysrq.h>
@@ -33,22 +34,28 @@
 #define AuDebugOn(a)		BUG_ON(a)
 
 /* module parameter */
-extern int aufs_debug;
-static inline void au_debug(int n)
+extern atomic_t aufs_debug;
+static inline void au_debug_on(void)
 {
-	aufs_debug = n;
-	smp_mb();
+	atomic_inc(&aufs_debug);
+}
+static inline void au_debug_off(void)
+{
+	atomic_dec_if_positive(&aufs_debug);
 }
 
 static inline int au_debug_test(void)
 {
-	return aufs_debug;
+	return atomic_read(&aufs_debug) > 0;
 }
 #else
 #define AuDebugOn(a)		do {} while (0)
-AuStubVoid(au_debug, int n)
+AuStubVoid(au_debug_on, void)
+AuStubVoid(au_debug_off, void)
 AuStubInt0(au_debug_test, void)
 #endif /* CONFIG_AUFS_DEBUG */
+
+#define param_check_atomic_t(name, p) __param_check(name, p, atomic_t)
 
 /* ---------------------------------------------------------------------- */
 
