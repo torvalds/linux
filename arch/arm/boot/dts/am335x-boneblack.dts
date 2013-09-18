@@ -9,3 +9,9 @@
 
 #include "am33xx.dtsi"
 #include "am335x-bone-common.dtsi"
+
+&ldo3_reg {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-always-on;
+};
