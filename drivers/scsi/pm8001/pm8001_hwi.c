@@ -4831,6 +4831,16 @@ int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 		    cpu_to_le32(pm8001_ha->memoryMap.region[NVMD].phys_addr_lo);
 		break;
 	}
+	case IOP_RDUMP: {
+		nvmd_req.len_ir_vpdd = cpu_to_le32(IPMode | IOP_RDUMP);
+		nvmd_req.resp_len = cpu_to_le32(ioctl_payload->length);
+		nvmd_req.vpd_offset = cpu_to_le32(ioctl_payload->offset);
+		nvmd_req.resp_addr_hi =
+		cpu_to_le32(pm8001_ha->memoryMap.region[NVMD].phys_addr_hi);
+		nvmd_req.resp_addr_lo =
+		cpu_to_le32(pm8001_ha->memoryMap.region[NVMD].phys_addr_lo);
+		break;
+	}
 	default:
 		break;
 	}

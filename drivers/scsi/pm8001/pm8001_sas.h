@@ -632,7 +632,8 @@ struct pm8001_device *pm8001_find_dev(struct pm8001_hba_info *pm8001_ha,
 int pm80xx_set_thermal_config(struct pm8001_hba_info *pm8001_ha);
 
 int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
-
+void pm8001_set_phy_profile(struct pm8001_hba_info *pm8001_ha,
+	u32 length, u8 *buf);
 /* ctl shared API */
 extern struct device_attribute *pm8001_host_attrs[];
 

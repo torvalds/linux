@@ -170,6 +170,10 @@
 #define LINKRATE_60			(0x06 << 8)
 #define LINKRATE_120			(0x08 << 8)
 
+/* phy_profile */
+#define SAS_PHY_ANALOG_SETTINGS_PAGE	0x04
+#define PHY_DWORD_LENGTH		0xC
+
 /* Thermal related */
 #define	THERMAL_ENABLE			0x1
 #define	THERMAL_LOG_ENABLE		0x1

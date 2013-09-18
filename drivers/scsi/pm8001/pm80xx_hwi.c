@@ -3183,9 +3183,27 @@ static int mpi_flash_op_ext_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 static int mpi_set_phy_profile_resp(struct pm8001_hba_info *pm8001_ha,
 			void *piomb)
 {
-	PM8001_MSG_DBG(pm8001_ha,
-			pm8001_printk(" pm80xx_addition_functionality\n"));
+	u8 page_code;
+	struct set_phy_profile_resp *pPayload =
+		(struct set_phy_profile_resp *)(piomb + 4);
+	u32 ppc_phyid = le32_to_cpu(pPayload->ppc_phyid);
+	u32 status = le32_to_cpu(pPayload->status);
 
+	page_code = (u8)((ppc_phyid & 0xFF00) >> 8);
+	if (status) {
+		/* status is FAILED */
+		PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("PhyProfile command failed  with status "
+			"0x%08X \n", status));
+		return -1;
+	} else {
+		if (page_code != SAS_PHY_ANALOG_SETTINGS_PAGE) {
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("Invalid page code 0x%X\n",
+					page_code));
+			return -1;
+		}
+	}
 	return 0;
 }
 
@@ -4281,6 +4299,45 @@ pm80xx_chip_isr(struct pm8001_hba_info *pm8001_ha, u8 vec)
 	return IRQ_HANDLED;
 }
 
+void mpi_set_phy_profile_req(struct pm8001_hba_info *pm8001_ha,
+	u32 operation, u32 phyid, u32 length, u32 *buf)
+{
+	u32 tag , i, j = 0;
+	int rc;
+	struct set_phy_profile_req payload;
+	struct inbound_queue_table *circularQ;
+	u32 opc = OPC_INB_SET_PHY_PROFILE;
+
+	memset(&payload, 0, sizeof(payload));
+	rc = pm8001_tag_alloc(pm8001_ha, &tag);
+	if (rc)
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk("Invalid tag\n"));
+	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+	payload.tag = cpu_to_le32(tag);
+	payload.ppc_phyid = (((operation & 0xF) << 8) | (phyid  & 0xFF));
+	PM8001_INIT_DBG(pm8001_ha,
+		pm8001_printk(" phy profile command for phy %x ,length is %d\n",
+			payload.ppc_phyid, length));
+	for (i = length; i < (length + PHY_DWORD_LENGTH - 1); i++) {
+		payload.reserved[j] =  cpu_to_le32(*((u32 *)buf + i));
+		j++;
+	}
+	pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload, 0);
+}
+
+void pm8001_set_phy_profile(struct pm8001_hba_info *pm8001_ha,
+	u32 length, u8 *buf)
+{
+	u32 page_code, i;
+
+	page_code = SAS_PHY_ANALOG_SETTINGS_PAGE;
+	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
+		mpi_set_phy_profile_req(pm8001_ha,
+			SAS_PHY_ANALOG_SETTINGS_PAGE, i, length, (u32 *)buf);
+		length = length + PHY_DWORD_LENGTH;
+	}
+	PM8001_INIT_DBG(pm8001_ha, pm8001_printk("phy settings completed\n"));
+}
 const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.name			= "pmc80xx",
 	.chip_init		= pm80xx_chip_init,
