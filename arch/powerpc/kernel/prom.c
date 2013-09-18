@@ -778,7 +778,7 @@ struct device_node *of_find_next_cache_node(struct device_node *np)
 		handle = of_get_property(np, "next-level-cache", NULL);
 
 	if (handle)
-		return of_find_node_by_phandle(*handle);
+		return of_find_node_by_phandle(be32_to_cpup(handle));
 
 	/* OF on pmac has nodes instead of properties named "l2-cache"
 	 * beneath CPU nodes.
