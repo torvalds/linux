@@ -2641,6 +2641,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	/* default, set to non-periodic */
 	hs_ep->isochronous = 0;
 	hs_ep->periodic = 0;
+	hs_ep->halted = 0;
 	hs_ep->interval = desc->bInterval;
 
 	if (hs_ep->interval > 1 && hs_ep->mc > 1)
@@ -2841,6 +2842,8 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 	}
 
 	writel(epctl, hs->regs + epreg);
+
+	hs_ep->halted = value;
 
 	return 0;
 }
