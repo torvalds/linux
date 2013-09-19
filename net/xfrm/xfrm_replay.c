@@ -61,9 +61,9 @@ static void xfrm_replay_notify(struct xfrm_state *x, int event)
 
 	switch (event) {
 	case XFRM_REPLAY_UPDATE:
-		if (x->replay_maxdiff &&
-		    (x->replay.seq - x->preplay.seq < x->replay_maxdiff) &&
-		    (x->replay.oseq - x->preplay.oseq < x->replay_maxdiff)) {
+		if (!x->replay_maxdiff ||
+		    ((x->replay.seq - x->preplay.seq < x->replay_maxdiff) &&
+		    (x->replay.oseq - x->preplay.oseq < x->replay_maxdiff))) {
 			if (x->xflags & XFRM_TIME_DEFER)
 				event = XFRM_REPLAY_TIMEOUT;
 			else
@@ -301,9 +301,10 @@ static void xfrm_replay_notify_bmp(struct xfrm_state *x, int event)
 
 	switch (event) {
 	case XFRM_REPLAY_UPDATE:
-		if (x->replay_maxdiff &&
-		    (replay_esn->seq - preplay_esn->seq < x->replay_maxdiff) &&
-		    (replay_esn->oseq - preplay_esn->oseq < x->replay_maxdiff)) {
+		if (!x->replay_maxdiff ||
+		    ((replay_esn->seq - preplay_esn->seq < x->replay_maxdiff) &&
+		    (replay_esn->oseq - preplay_esn->oseq
+		     < x->replay_maxdiff))) {
 			if (x->xflags & XFRM_TIME_DEFER)
 				event = XFRM_REPLAY_TIMEOUT;
 			else
@@ -352,27 +353,29 @@ static void xfrm_replay_notify_esn(struct xfrm_state *x, int event)
 
 	switch (event) {
 	case XFRM_REPLAY_UPDATE:
-		if (!x->replay_maxdiff)
-			break;
-
-		if (replay_esn->seq_hi == preplay_esn->seq_hi)
-			seq_diff = replay_esn->seq - preplay_esn->seq;
-		else
-			seq_diff = ~preplay_esn->seq + replay_esn->seq + 1;
-
-		if (replay_esn->oseq_hi == preplay_esn->oseq_hi)
-			oseq_diff = replay_esn->oseq - preplay_esn->oseq;
-		else
-			oseq_diff = ~preplay_esn->oseq + replay_esn->oseq + 1;
-
-		if (seq_diff < x->replay_maxdiff &&
-		    oseq_diff < x->replay_maxdiff) {
-
-			if (x->xflags & XFRM_TIME_DEFER)
-				event = XFRM_REPLAY_TIMEOUT;
+		if (x->replay_maxdiff) {
+			if (replay_esn->seq_hi == preplay_esn->seq_hi)
+				seq_diff = replay_esn->seq - preplay_esn->seq;
 			else
-				return;
+				seq_diff = ~preplay_esn->seq + replay_esn->seq
+					   + 1;
+
+			if (replay_esn->oseq_hi == preplay_esn->oseq_hi)
+				oseq_diff = replay_esn->oseq
+					    - preplay_esn->oseq;
+			else
+				oseq_diff = ~preplay_esn->oseq
+					    + replay_esn->oseq + 1;
+
+			if (seq_diff >= x->replay_maxdiff ||
+			    oseq_diff >= x->replay_maxdiff)
+				break;
 		}
+
+		if (x->xflags & XFRM_TIME_DEFER)
+			event = XFRM_REPLAY_TIMEOUT;
+		else
+			return;
 
 		break;
 
