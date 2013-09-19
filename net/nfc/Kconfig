@@ -14,6 +14,18 @@ menuconfig NFC
 	  To compile this support as a module, choose M here: the module will
 	  be called nfc.
 
+config NFC_DIGITAL
+	depends on NFC
+	tristate "NFC Digital Protocol stack support"
+	default n
+	help
+	  Say Y if you want to build NFC digital protocol stack support.
+	  This is needed by NFC chipsets whose firmware only implement
+	  the NFC analog layer.
+
+	  To compile this support as a module, choose M here: the module will
+	  be called nfc_digital.
+
 source "net/nfc/nci/Kconfig"
 source "net/nfc/hci/Kconfig"
 
