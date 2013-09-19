@@ -69,11 +69,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 		if (ade7758_spi_read_burst(indio_dev) >= 0)
 			*dat32 = get_unaligned_be32(&st->rx_buf[5]) & 0xFFFFFF;
 
-	/* Guaranteed to be aligned with 8 byte boundary */
-	if (indio_dev->scan_timestamp)
-		dat64[1] = pf->timestamp;
-
-	iio_push_to_buffers(indio_dev, dat64);
+	iio_push_to_buffers_with_timestamp(indio_dev, dat64, pf->timestamp);
 
 	iio_trigger_notify_done(indio_dev->trig);
 
