@@ -2219,6 +2219,17 @@ struct target_type *dm_get_immutable_target_type(struct mapped_device *md)
 }
 
 /*
+ * The queue_limits are only valid as long as you have a reference
+ * count on 'md'.
+ */
+struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
+{
+	BUG_ON(!atomic_read(&md->holders));
+	return &md->queue->limits;
+}
+EXPORT_SYMBOL_GPL(dm_get_queue_limits);
+
+/*
  * Fully initialize a request-based queue (->elevator, ->request_fn, etc).
  */
 static int dm_init_request_based_queue(struct mapped_device *md)
