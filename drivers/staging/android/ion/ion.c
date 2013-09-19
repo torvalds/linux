@@ -471,7 +471,7 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 	struct ion_heap *heap;
 	int ret;
 
-	pr_debug("%s: len %d align %d heap_id_mask %u flags %x\n", __func__,
+	pr_debug("%s: len %zu align %zu heap_id_mask %u flags %x\n", __func__,
 		 len, align, heap_id_mask, flags);
 	/*
 	 * traverse the list of heaps available in this system in priority
@@ -688,7 +688,7 @@ static int ion_debug_client_show(struct seq_file *s, void *unused)
 	for (i = 0; i < ION_NUM_HEAP_IDS; i++) {
 		if (!names[i])
 			continue;
-		seq_printf(s, "%16.16s: %16u\n", names[i], sizes[i]);
+		seq_printf(s, "%16.16s: %16zu\n", names[i], sizes[i]);
 	}
 	return 0;
 }
@@ -1336,10 +1336,10 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 			char task_comm[TASK_COMM_LEN];
 
 			get_task_comm(task_comm, client->task);
-			seq_printf(s, "%16.s %16u %16u\n", task_comm,
+			seq_printf(s, "%16.s %16u %16zu\n", task_comm,
 				   client->pid, size);
 		} else {
-			seq_printf(s, "%16.s %16u %16u\n", client->name,
+			seq_printf(s, "%16.s %16u %16zu\n", client->name,
 				   client->pid, size);
 		}
 	}
@@ -1354,19 +1354,20 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 			continue;
 		total_size += buffer->size;
 		if (!buffer->handle_count) {
-			seq_printf(s, "%16.s %16u %16u %d %d\n", buffer->task_comm,
-				   buffer->pid, buffer->size, buffer->kmap_cnt,
+			seq_printf(s, "%16.s %16u %16zu %d %d\n",
+				   buffer->task_comm, buffer->pid,
+				   buffer->size, buffer->kmap_cnt,
 				   atomic_read(&buffer->ref.refcount));
 			total_orphaned_size += buffer->size;
 		}
 	}
 	mutex_unlock(&dev->buffer_lock);
 	seq_printf(s, "----------------------------------------------------\n");
-	seq_printf(s, "%16.s %16u\n", "total orphaned",
+	seq_printf(s, "%16.s %16zu\n", "total orphaned",
 		   total_orphaned_size);
-	seq_printf(s, "%16.s %16u\n", "total ", total_size);
+	seq_printf(s, "%16.s %16zu\n", "total ", total_size);
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
-		seq_printf(s, "%16.s %16u\n", "deferred free",
+		seq_printf(s, "%16.s %16zu\n", "deferred free",
 				heap->free_list_size);
 	seq_printf(s, "----------------------------------------------------\n");
 
@@ -1522,11 +1523,11 @@ void __init ion_reserve(struct ion_platform_data *data)
 			int ret = memblock_reserve(data->heaps[i].base,
 					       data->heaps[i].size);
 			if (ret)
-				pr_err("memblock reserve of %x@%lx failed\n",
+				pr_err("memblock reserve of %zx@%lx failed\n",
 				       data->heaps[i].size,
 				       data->heaps[i].base);
 		}
-		pr_info("%s: %s reserved base %lx size %d\n", __func__,
+		pr_info("%s: %s reserved base %lx size %zu\n", __func__,
 			data->heaps[i].name,
 			data->heaps[i].base,
 			data->heaps[i].size);
