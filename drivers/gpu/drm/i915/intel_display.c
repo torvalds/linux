@@ -3346,6 +3346,14 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 	 * for a vblank, so all we need to do here is to enable the IPS bit. */
 	assert_plane_enabled(dev_priv, crtc->plane);
 	I915_WRITE(IPS_CTL, IPS_ENABLE);
+
+	/* The bit only becomes 1 in the next vblank, so this wait here is
+	 * essentially intel_wait_for_vblank. If we don't have this and don't
+	 * wait for vblanks until the end of crtc_enable, then the HW state
+	 * readout code will complain that the expected IPS_CTL value is not the
+	 * one we read. */
+	if (wait_for(I915_READ_NOTRACE(IPS_CTL) & IPS_ENABLE, 50))
+		DRM_ERROR("Timed out waiting for IPS enable\n");
 }
 
 void hsw_disable_ips(struct intel_crtc *crtc)
