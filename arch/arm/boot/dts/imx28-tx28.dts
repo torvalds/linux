@@ -1,5 +1,5 @@
 /dts-v1/;
-/include/ "imx28.dtsi"
+#include "imx28.dtsi"
 
 / {
 	model = "Ka-Ro electronics TX28 module";

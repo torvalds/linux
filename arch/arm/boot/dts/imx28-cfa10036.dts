@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx28.dtsi"
+#include "imx28.dtsi"
 
 / {
 	model = "Crystalfontz CFA-10036 Board";
@@ -26,7 +26,7 @@
 				ssd1306_cfa10036: ssd1306-10036@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x2073 /* MX28_PAD_SSP0_D7__GPIO_2_7 */
+						MX28_PAD_SSP0_DATA7__GPIO_2_7
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -36,7 +36,7 @@
 				led_pins_cfa10036: leds-10036@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x3043 /* MX28_PAD_AUART1_RX__GPIO_3_4 */
+						MX28_PAD_AUART1_RX__GPIO_3_4
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -46,7 +46,7 @@
 				usb0_otg_cfa10036: otg-10036@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0142 /* MX28_PAD_GPMI_READY0__USB0_ID */
+						MX28_PAD_GPMI_RDY0__USB0_ID
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
