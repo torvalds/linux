@@ -177,6 +177,7 @@ config TI_ADC081C
 config TI_AM335X_ADC
 	tristate "TI's AM335X ADC driver"
 	depends on MFD_TI_AM335X_TSCADC
+	select IIO_KFIFO_BUF
 	help
 	  Say yes here to build support for Texas Instruments ADC
 	  driver which is also a MFD client.
