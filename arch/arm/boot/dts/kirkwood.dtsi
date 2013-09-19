@@ -168,7 +168,7 @@
 		xor@60900 {
 			compatible = "marvell,orion-xor";
 			reg = <0x60900 0x100
-			       0xd0B00 0x100>;
+			       0x60B00 0x100>;
 			status = "okay";
 			clocks = <&gate_clk 16>;
 
