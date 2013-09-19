@@ -96,9 +96,8 @@ static irqreturn_t ad7266_trigger_handler(int irq, void *p)
 
 	ret = spi_read(st->spi, st->data, 4);
 	if (ret == 0) {
-		if (indio_dev->scan_timestamp)
-			((s64 *)st->data)[1] = pf->timestamp;
-		iio_push_to_buffers(indio_dev, st->data);
+		iio_push_to_buffers_with_timestamp(indio_dev, st->data,
+			    pf->timestamp);
 	}
 
 	iio_trigger_notify_done(indio_dev->trig);
