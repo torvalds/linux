@@ -1590,12 +1590,12 @@ intel_tv_init(struct drm_device *dev)
 	    (tv_dac_off & TVDAC_STATE_CHG_EN) != 0)
 		return;
 
-	intel_tv = kzalloc(sizeof(struct intel_tv), GFP_KERNEL);
+	intel_tv = kzalloc(sizeof(*intel_tv), GFP_KERNEL);
 	if (!intel_tv) {
 		return;
 	}
 
-	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
 		kfree(intel_tv);
 		return;

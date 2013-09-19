@@ -2156,7 +2156,7 @@ drm_add_fake_info_node(struct drm_minor *minor,
 {
 	struct drm_info_node *node;
 
-	node = kmalloc(sizeof(struct drm_info_node), GFP_KERNEL);
+	node = kmalloc(sizeof(*node), GFP_KERNEL);
 	if (node == NULL) {
 		debugfs_remove(ent);
 		return -ENOMEM;

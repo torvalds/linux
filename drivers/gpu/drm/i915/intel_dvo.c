@@ -448,11 +448,11 @@ void intel_dvo_init(struct drm_device *dev)
 	int i;
 	int encoder_type = DRM_MODE_ENCODER_NONE;
 
-	intel_dvo = kzalloc(sizeof(struct intel_dvo), GFP_KERNEL);
+	intel_dvo = kzalloc(sizeof(*intel_dvo), GFP_KERNEL);
 	if (!intel_dvo)
 		return;
 
-	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
 		kfree(intel_dvo);
 		return;

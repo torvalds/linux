@@ -1053,7 +1053,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		return ret;
 	}
 
-	params = kmalloc(sizeof(struct put_image_params), GFP_KERNEL);
+	params = kmalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
 
@@ -1320,7 +1320,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	if (!HAS_OVERLAY(dev))
 		return;
 
-	overlay = kzalloc(sizeof(struct intel_overlay), GFP_KERNEL);
+	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
 	if (!overlay)
 		return;
 
