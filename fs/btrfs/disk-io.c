@@ -1229,14 +1229,18 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	atomic_set(&root->refs, 1);
 	root->log_transid = 0;
 	root->last_log_commit = 0;
-	extent_io_tree_init(&root->dirty_log_pages,
-			     fs_info->btree_inode->i_mapping);
+	if (fs_info)
+		extent_io_tree_init(&root->dirty_log_pages,
+				     fs_info->btree_inode->i_mapping);
 
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
 	memset(&root->root_kobj, 0, sizeof(root->root_kobj));
-	root->defrag_trans_start = fs_info->generation;
+	if (fs_info)
+		root->defrag_trans_start = fs_info->generation;
+	else
+		root->defrag_trans_start = 0;
 	init_completion(&root->kobj_unregister);
 	root->defrag_running = 0;
 	root->root_key.objectid = objectid;
@@ -1252,6 +1256,22 @@ static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info)
 		root->fs_info = fs_info;
 	return root;
 }
+
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+/* Should only be used by the testing infrastructure */
+struct btrfs_root *btrfs_alloc_dummy_root(void)
+{
+	struct btrfs_root *root;
+
+	root = btrfs_alloc_root(NULL);
+	if (!root)
+		return ERR_PTR(-ENOMEM);
+	__setup_root(4096, 4096, 4096, 4096, root, NULL, 1);
+	root->dummy_root = 1;
+
+	return root;
+}
+#endif
 
 struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				     struct btrfs_fs_info *fs_info,
@@ -3670,10 +3690,20 @@ int btrfs_set_buffer_uptodate(struct extent_buffer *buf)
 
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 {
-	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
+	struct btrfs_root *root;
 	u64 transid = btrfs_header_generation(buf);
 	int was_dirty;
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+	/*
+	 * This is a fast path so only do this check if we have sanity tests
+	 * enabled.  Normal people shouldn't be marking dummy buffers as dirty
+	 * outside of the sanity tests.
+	 */
+	if (unlikely(test_bit(EXTENT_BUFFER_DUMMY, &buf->bflags)))
+		return;
+#endif
+	root = BTRFS_I(buf->pages[0]->mapping->host)->root;
 	btrfs_assert_tree_locked(buf);
 	if (transid != root->fs_info->generation)
 		WARN(1, KERN_CRIT "btrfs transid mismatch buffer %llu, "

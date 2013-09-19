@@ -1789,7 +1789,12 @@ static void btrfs_print_info(void)
 
 static int btrfs_run_sanity_tests(void)
 {
-	return btrfs_test_free_space_cache();
+	int ret;
+
+	ret = btrfs_test_free_space_cache();
+	if (ret)
+		return ret;
+	return btrfs_test_extent_buffer_operations();
 }
 
 static int __init init_btrfs_fs(void)

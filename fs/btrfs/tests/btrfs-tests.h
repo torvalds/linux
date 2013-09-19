@@ -24,8 +24,13 @@
 #define test_msg(fmt, ...) pr_info("btrfs: selftest: " fmt, ##__VA_ARGS__)
 
 int btrfs_test_free_space_cache(void);
+int btrfs_test_extent_buffer_operations(void);
 #else
 static inline int btrfs_test_free_space_cache(void)
+{
+	return 0;
+}
+static inline int btrfs_test_extent_buffer_operations(void)
 {
 	return 0;
 }
