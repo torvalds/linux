@@ -118,9 +118,8 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
-	uint32_t misccpctl;
 	int slice = (int)(uintptr_t)attr->private;
-	int i, ret;
+	int ret;
 
 	count = round_down(count, 4);
 
@@ -134,26 +133,13 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	if (IS_HASWELL(drm_dev)) {
-		if (dev_priv->l3_parity.remap_info[slice])
-			memcpy(buf,
-			       dev_priv->l3_parity.remap_info[slice] + (offset/4),
-			       count);
-		else
-			memset(buf, 0, count);
+	if (dev_priv->l3_parity.remap_info[slice])
+		memcpy(buf,
+		       dev_priv->l3_parity.remap_info[slice] + (offset/4),
+		       count);
+	else
+		memset(buf, 0, count);
 
-		goto out;
-	}
-
-	misccpctl = I915_READ(GEN7_MISCCPCTL);
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
-
-	for (i = 0; i < count; i += 4)
-		*((uint32_t *)(&buf[i])) = I915_READ(GEN7_L3LOG_BASE + offset + i);
-
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
-
-out:
 	mutex_unlock(&drm_dev->struct_mutex);
 
 	return count;
@@ -168,6 +154,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	struct i915_hw_context *ctx;
 	u32 *temp = NULL; /* Just here to make handling failures easy */
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
@@ -175,6 +162,9 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	ret = l3_access_valid(drm_dev, offset);
 	if (ret)
 		return ret;
+
+	if (dev_priv->hw_contexts_disabled)
+		return -ENXIO;
 
 	ret = i915_mutex_lock_interruptible(drm_dev);
 	if (ret)
@@ -204,8 +194,9 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 
 	memcpy(dev_priv->l3_parity.remap_info[slice] + (offset/4), buf, count);
 
-	if (i915_gem_l3_remap(&dev_priv->ring[RCS], slice))
-		count = 0;
+	/* NB: We defer the remapping until we switch to the context */
+	list_for_each_entry(ctx, &dev_priv->context_list, link)
+		ctx->remap_slice |= (1<<slice);
 
 	mutex_unlock(&drm_dev->struct_mutex);
 

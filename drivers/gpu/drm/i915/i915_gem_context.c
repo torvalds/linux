@@ -181,6 +181,10 @@ create_hw_context(struct drm_device *dev,
 
 	ctx->file_priv = file_priv;
 	ctx->id = ret;
+	/* NB: Mark all slices as needing a remap so that when the context first
+	 * loads it will restore whatever remap state already exists. If there
+	 * is no remap info, it will be a NOP. */
+	ctx->remap_slice = (1 << NUM_L3_SLICES(dev)) - 1;
 
 	return ctx;
 
@@ -394,11 +398,11 @@ static int do_switch(struct i915_hw_context *to)
 	struct intel_ring_buffer *ring = to->ring;
 	struct i915_hw_context *from = ring->last_context;
 	u32 hw_flags = 0;
-	int ret;
+	int ret, i;
 
 	BUG_ON(from != NULL && from->obj != NULL && from->obj->pin_count == 0);
 
-	if (from == to)
+	if (from == to && !to->remap_slice)
 		return 0;
 
 	ret = i915_gem_obj_ggtt_pin(to->obj, CONTEXT_ALIGN, false, false);
@@ -421,13 +425,23 @@ static int do_switch(struct i915_hw_context *to)
 
 	if (!to->is_initialized || is_default_context(to))
 		hw_flags |= MI_RESTORE_INHIBIT;
-	else if (WARN_ON_ONCE(from == to)) /* not yet expected */
-		hw_flags |= MI_FORCE_RESTORE;
 
 	ret = mi_set_context(ring, to, hw_flags);
 	if (ret) {
 		i915_gem_object_unpin(to->obj);
 		return ret;
+	}
+
+	for (i = 0; i < MAX_L3_SLICES; i++) {
+		if (!(to->remap_slice & (1<<i)))
+			continue;
+
+		ret = i915_gem_l3_remap(ring, i);
+		/* If it failed, try again next round */
+		if (ret)
+			DRM_DEBUG_DRIVER("L3 remapping failed\n");
+		else
+			to->remap_slice &= ~(1<<i);
 	}
 
 	/* The backing object for the context is done after switching to the

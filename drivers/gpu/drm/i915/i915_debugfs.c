@@ -145,6 +145,13 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (%s)", obj->ring->name);
 }
 
+static void describe_ctx(struct seq_file *m, struct i915_hw_context *ctx)
+{
+	seq_putc(m, ctx->is_initialized ? 'I' : 'i');
+	seq_putc(m, ctx->remap_slice ? 'R' : 'r');
+	seq_putc(m, ' ');
+}
+
 static int i915_gem_object_list_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -1463,6 +1470,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 	list_for_each_entry(ctx, &dev_priv->context_list, link) {
 		seq_puts(m, "HW context ");
+		describe_ctx(m, ctx);
 		for_each_ring(ring, dev_priv, i)
 			if (ring->default_context == ctx)
 				seq_printf(m, "(default context %s) ", ring->name);
