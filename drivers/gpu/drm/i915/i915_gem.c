@@ -4252,16 +4252,15 @@ i915_gem_idle(struct drm_device *dev)
 	return 0;
 }
 
-void i915_gem_l3_remap(struct drm_device *dev)
+void i915_gem_l3_remap(struct drm_device *dev, int slice)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 reg_base = GEN7_L3LOG_BASE + (slice * 0x200);
+	u32 *remap_info = dev_priv->l3_parity.remap_info[slice];
 	u32 misccpctl;
 	int i;
 
-	if (!HAS_L3_GPU_CACHE(dev))
-		return;
-
-	if (!dev_priv->l3_parity.remap_info)
+	if (!HAS_L3_GPU_CACHE(dev) || !remap_info)
 		return;
 
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
@@ -4269,17 +4268,17 @@ void i915_gem_l3_remap(struct drm_device *dev)
 	POSTING_READ(GEN7_MISCCPCTL);
 
 	for (i = 0; i < GEN7_L3LOG_SIZE; i += 4) {
-		u32 remap = I915_READ(GEN7_L3LOG_BASE + i);
-		if (remap && remap != dev_priv->l3_parity.remap_info[i/4])
+		u32 remap = I915_READ(reg_base + i);
+		if (remap && remap != remap_info[i/4])
 			DRM_DEBUG("0x%x was already programmed to %x\n",
-				  GEN7_L3LOG_BASE + i, remap);
-		if (remap && !dev_priv->l3_parity.remap_info[i/4])
+				  reg_base + i, remap);
+		if (remap && !remap_info[i/4])
 			DRM_DEBUG_DRIVER("Clearing remapped register\n");
-		I915_WRITE(GEN7_L3LOG_BASE + i, dev_priv->l3_parity.remap_info[i/4]);
+		I915_WRITE(reg_base + i, remap_info[i/4]);
 	}
 
 	/* Make sure all the writes land before disabling dop clock gating */
-	POSTING_READ(GEN7_L3LOG_BASE);
+	POSTING_READ(reg_base);
 
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 }
@@ -4373,7 +4372,7 @@ int
 i915_gem_init_hw(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
+	int ret, i;
 
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
 		return -EIO;
@@ -4392,7 +4391,8 @@ i915_gem_init_hw(struct drm_device *dev)
 		I915_WRITE(GEN7_MSG_CTL, temp);
 	}
 
-	i915_gem_l3_remap(dev);
+	for (i = 0; i < NUM_L3_SLICES(dev); i++)
+		i915_gem_l3_remap(dev, i);
 
 	i915_gem_init_swizzling(dev);
 

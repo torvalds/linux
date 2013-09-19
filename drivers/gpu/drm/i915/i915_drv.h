@@ -917,9 +917,11 @@ struct i915_ums_state {
 	int mm_suspended;
 };
 
+#define MAX_L3_SLICES 2
 struct intel_l3_parity {
-	u32 *remap_info;
+	u32 *remap_info[MAX_L3_SLICES];
 	struct work_struct error_work;
+	int which_slice;
 };
 
 struct i915_gem_mm {
@@ -1686,6 +1688,7 @@ struct drm_i915_file_private {
 #define HAS_FORCE_WAKE(dev) (INTEL_INFO(dev)->has_force_wake)
 
 #define HAS_L3_GPU_CACHE(dev) (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
+#define NUM_L3_SLICES(dev) (IS_HSW_GT3(dev) ? 2 : HAS_L3_GPU_CACHE(dev))
 
 #define GT_FREQUENCY_MULTIPLIER 50
 
@@ -1946,7 +1949,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
 int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
-void i915_gem_l3_remap(struct drm_device *dev);
+void i915_gem_l3_remap(struct drm_device *dev, int slice);
 void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);

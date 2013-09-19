@@ -888,9 +888,10 @@ static void ivybridge_parity_work(struct work_struct *work)
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
 						    l3_parity.error_work);
 	u32 error_status, row, bank, subbank;
-	char *parity_event[5];
+	char *parity_event[6];
 	uint32_t misccpctl;
 	unsigned long flags;
+	uint8_t slice = 0;
 
 	/* We must turn off DOP level clock gating to access the L3 registers.
 	 * In order to prevent a get/put style interface, acquire struct mutex
@@ -898,45 +899,64 @@ static void ivybridge_parity_work(struct work_struct *work)
 	 */
 	mutex_lock(&dev_priv->dev->struct_mutex);
 
+	/* If we've screwed up tracking, just let the interrupt fire again */
+	if (WARN_ON(!dev_priv->l3_parity.which_slice))
+		goto out;
+
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
 	POSTING_READ(GEN7_MISCCPCTL);
 
-	error_status = I915_READ(GEN7_L3CDERRST1);
-	row = GEN7_PARITY_ERROR_ROW(error_status);
-	bank = GEN7_PARITY_ERROR_BANK(error_status);
-	subbank = GEN7_PARITY_ERROR_SUBBANK(error_status);
+	while ((slice = ffs(dev_priv->l3_parity.which_slice)) != 0) {
+		u32 reg;
 
-	I915_WRITE(GEN7_L3CDERRST1, GEN7_PARITY_ERROR_VALID |
-				    GEN7_L3CDERRST1_ENABLE);
-	POSTING_READ(GEN7_L3CDERRST1);
+		slice--;
+		if (WARN_ON_ONCE(slice >= NUM_L3_SLICES(dev_priv->dev)))
+			break;
+
+		dev_priv->l3_parity.which_slice &= ~(1<<slice);
+
+		reg = GEN7_L3CDERRST1 + (slice * 0x200);
+
+		error_status = I915_READ(reg);
+		row = GEN7_PARITY_ERROR_ROW(error_status);
+		bank = GEN7_PARITY_ERROR_BANK(error_status);
+		subbank = GEN7_PARITY_ERROR_SUBBANK(error_status);
+
+		I915_WRITE(reg, GEN7_PARITY_ERROR_VALID | GEN7_L3CDERRST1_ENABLE);
+		POSTING_READ(reg);
+
+		parity_event[0] = I915_L3_PARITY_UEVENT "=1";
+		parity_event[1] = kasprintf(GFP_KERNEL, "ROW=%d", row);
+		parity_event[2] = kasprintf(GFP_KERNEL, "BANK=%d", bank);
+		parity_event[3] = kasprintf(GFP_KERNEL, "SUBBANK=%d", subbank);
+		parity_event[4] = kasprintf(GFP_KERNEL, "SLICE=%d", slice);
+		parity_event[5] = NULL;
+
+		kobject_uevent_env(&dev_priv->dev->primary->kdev.kobj,
+				   KOBJ_CHANGE, parity_event);
+
+		DRM_DEBUG("Parity error: Slice = %d, Row = %d, Bank = %d, Sub bank = %d.\n",
+			  slice, row, bank, subbank);
+
+		kfree(parity_event[4]);
+		kfree(parity_event[3]);
+		kfree(parity_event[2]);
+		kfree(parity_event[1]);
+	}
 
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 
+out:
+	WARN_ON(dev_priv->l3_parity.which_slice);
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	ilk_enable_gt_irq(dev_priv, GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
+	ilk_enable_gt_irq(dev_priv, GT_PARITY_ERROR(dev_priv->dev));
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
-
-	parity_event[0] = I915_L3_PARITY_UEVENT "=1";
-	parity_event[1] = kasprintf(GFP_KERNEL, "ROW=%d", row);
-	parity_event[2] = kasprintf(GFP_KERNEL, "BANK=%d", bank);
-	parity_event[3] = kasprintf(GFP_KERNEL, "SUBBANK=%d", subbank);
-	parity_event[4] = NULL;
-
-	kobject_uevent_env(&dev_priv->dev->primary->kdev.kobj,
-			   KOBJ_CHANGE, parity_event);
-
-	DRM_DEBUG("Parity error: Row = %d, Bank = %d, Sub bank = %d.\n",
-		  row, bank, subbank);
-
-	kfree(parity_event[3]);
-	kfree(parity_event[2]);
-	kfree(parity_event[1]);
 }
 
-static void ivybridge_parity_error_irq_handler(struct drm_device *dev)
+static void ivybridge_parity_error_irq_handler(struct drm_device *dev, u32 iir)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
@@ -944,8 +964,15 @@ static void ivybridge_parity_error_irq_handler(struct drm_device *dev)
 		return;
 
 	spin_lock(&dev_priv->irq_lock);
-	ilk_disable_gt_irq(dev_priv, GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
+	ilk_disable_gt_irq(dev_priv, GT_PARITY_ERROR(dev));
 	spin_unlock(&dev_priv->irq_lock);
+
+	iir &= GT_PARITY_ERROR(dev);
+	if (iir & GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1)
+		dev_priv->l3_parity.which_slice |= 1 << 1;
+
+	if (iir & GT_RENDER_L3_PARITY_ERROR_INTERRUPT)
+		dev_priv->l3_parity.which_slice |= 1 << 0;
 
 	queue_work(dev_priv->wq, &dev_priv->l3_parity.error_work);
 }
@@ -981,8 +1008,8 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 		i915_handle_error(dev, false);
 	}
 
-	if (gt_iir & GT_RENDER_L3_PARITY_ERROR_INTERRUPT)
-		ivybridge_parity_error_irq_handler(dev);
+	if (gt_iir & GT_PARITY_ERROR(dev))
+		ivybridge_parity_error_irq_handler(dev, gt_iir);
 }
 
 #define HPD_STORM_DETECT_PERIOD 1000
@@ -2267,8 +2294,8 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 	dev_priv->gt_irq_mask = ~0;
 	if (HAS_L3_GPU_CACHE(dev)) {
 		/* L3 parity interrupt is always unmasked. */
-		dev_priv->gt_irq_mask = ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-		gt_irqs |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
+		dev_priv->gt_irq_mask = ~GT_PARITY_ERROR(dev);
+		gt_irqs |= GT_PARITY_ERROR(dev);
 	}
 
 	gt_irqs |= GT_RENDER_USER_INTERRUPT;

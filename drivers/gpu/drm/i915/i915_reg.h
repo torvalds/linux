@@ -927,6 +927,7 @@
 #define GT_BLT_USER_INTERRUPT			(1 << 22)
 #define GT_BSD_CS_ERROR_INTERRUPT		(1 << 15)
 #define GT_BSD_USER_INTERRUPT			(1 << 12)
+#define GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1	(1 << 11) /* hsw+; rsvd on snb, ivb, vlv */
 #define GT_RENDER_L3_PARITY_ERROR_INTERRUPT	(1 <<  5) /* !snb */
 #define GT_RENDER_PIPECTL_NOTIFY_INTERRUPT	(1 <<  4)
 #define GT_RENDER_CS_MASTER_ERROR_INTERRUPT	(1 <<  3)
@@ -936,6 +937,10 @@
 
 #define PM_VEBOX_CS_ERROR_INTERRUPT		(1 << 12) /* hsw+ */
 #define PM_VEBOX_USER_INTERRUPT			(1 << 10) /* hsw+ */
+
+#define GT_PARITY_ERROR(dev) \
+	(GT_RENDER_L3_PARITY_ERROR_INTERRUPT | \
+	 IS_HASWELL(dev) ? GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1 : 0)
 
 /* These are all the "old" interrupts */
 #define ILK_BSD_USER_INTERRUPT				(1<<5)
@@ -4751,6 +4756,7 @@
 
 /* IVYBRIDGE DPF */
 #define GEN7_L3CDERRST1			0xB008 /* L3CD Error Status 1 */
+#define HSW_L3CDERRST11			0xB208 /* L3CD Error Status register 1 slice 1 */
 #define   GEN7_L3CDERRST1_ROW_MASK	(0x7ff<<14)
 #define   GEN7_PARITY_ERROR_VALID	(1<<13)
 #define   GEN7_L3CDERRST1_BANK_MASK	(3<<11)
@@ -4764,6 +4770,7 @@
 #define   GEN7_L3CDERRST1_ENABLE	(1<<7)
 
 #define GEN7_L3LOG_BASE			0xB070
+#define HSW_L3LOG_BASE_SLICE1		0xB270
 #define GEN7_L3LOG_SIZE			0x80
 
 #define GEN7_HALF_SLICE_CHICKEN1	0xe100 /* IVB GT1 + VLV */
