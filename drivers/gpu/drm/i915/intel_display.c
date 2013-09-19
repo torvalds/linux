@@ -8331,6 +8331,17 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 	return bpp;
 }
 
+static void intel_dump_crtc_timings(const struct drm_display_mode *mode)
+{
+	DRM_DEBUG_KMS("crtc timings: %d %d %d %d %d %d %d %d %d, "
+			"type: 0x%x flags: 0x%x\n",
+		mode->clock,
+		mode->crtc_hdisplay, mode->crtc_hsync_start,
+		mode->crtc_hsync_end, mode->crtc_htotal,
+		mode->crtc_vdisplay, mode->crtc_vsync_start,
+		mode->crtc_vsync_end, mode->crtc_vtotal, mode->type, mode->flags);
+}
+
 static void intel_dump_pipe_config(struct intel_crtc *crtc,
 				   struct intel_crtc_config *pipe_config,
 				   const char *context)
@@ -8356,6 +8367,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	drm_mode_debug_printmodeline(&pipe_config->requested_mode);
 	DRM_DEBUG_KMS("adjusted mode:\n");
 	drm_mode_debug_printmodeline(&pipe_config->adjusted_mode);
+	intel_dump_crtc_timings(&pipe_config->adjusted_mode);
 	DRM_DEBUG_KMS("port clock: %d\n", pipe_config->port_clock);
 	DRM_DEBUG_KMS("pipe src size: %dx%d\n",
 		      pipe_config->pipe_src_w, pipe_config->pipe_src_h);
