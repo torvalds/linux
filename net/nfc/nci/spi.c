@@ -129,6 +129,7 @@ struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
 	nspi->acknowledge_mode = acknowledge_mode;
 	nspi->xfer_udelay = delay;
 
+	nspi->spi = spi;
 	nspi->ndev = ndev;
 
 	return nspi;
