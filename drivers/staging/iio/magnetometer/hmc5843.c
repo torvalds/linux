@@ -51,15 +51,11 @@ enum hmc5843_ids {
 #define HMC5843_RANGE_GAIN_DEFAULT		0x01
 #define HMC5843_RANGE_GAIN_MAX			0x07
 
-/*
- * Device status
- */
+/* Device status */
 #define HMC5843_DATA_READY			0x01
 #define HMC5843_DATA_OUTPUT_LOCK		0x02
 
-/*
- * Mode register configuration
- */
+/* Mode register configuration */
 #define HMC5843_MODE_CONVERSION_CONTINUOUS	0x00
 #define HMC5843_MODE_CONVERSION_SINGLE		0x01
 #define HMC5843_MODE_IDLE			0x02
@@ -75,18 +71,14 @@ enum hmc5843_ids {
 #define HMC5843_RATE_BITMASK			0x1C
 #define HMC5843_RATE_NOT_USED			0x07
 
-/*
- * Device measurement configuration
- */
+/* Device measurement configuration */
 #define HMC5843_MEAS_CONF_NORMAL		0x00
 #define HMC5843_MEAS_CONF_POSITIVE_BIAS		0x01
 #define HMC5843_MEAS_CONF_NEGATIVE_BIAS		0x02
 #define HMC5843_MEAS_CONF_NOT_USED		0x03
 #define HMC5843_MEAS_CONF_MASK			0x03
 
-/*
- * Scaling factors: 10000000/Gain
- */
+/* Scaling factors: 10000000/Gain */
 static const int hmc5843_regval_to_nanoscale[] = {
 	6173, 7692, 10309, 12821, 18868, 21739, 25641, 35714
 };
