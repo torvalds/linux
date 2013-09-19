@@ -249,6 +249,7 @@
 		reg = <0x48>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+		ti,system-power-controller;
 
 		extcon_usb3: palmas_usb {
 			compatible = "ti,palmas-usb-vid";
