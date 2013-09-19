@@ -3386,6 +3386,7 @@ static void hsw_disable_ips(struct intel_crtc *crtc)
 
 	assert_plane_enabled(dev_priv, crtc->plane);
 	I915_WRITE(IPS_CTL, 0);
+	POSTING_READ(IPS_CTL);
 
 	/* We need to wait for a vblank before we can disable the plane. */
 	intel_wait_for_vblank(dev, crtc->pipe);
