@@ -341,9 +341,9 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
 
-	psched_ratecfg_precompute(&q->rate, &rtab->rate);
+	psched_ratecfg_precompute(&q->rate, &rtab->rate, 0);
 	if (ptab) {
-		psched_ratecfg_precompute(&q->peak, &ptab->rate);
+		psched_ratecfg_precompute(&q->peak, &ptab->rate, 0);
 		q->peak_present = true;
 	} else {
 		q->peak_present = false;

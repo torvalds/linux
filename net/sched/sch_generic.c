@@ -910,11 +910,12 @@ void dev_shutdown(struct net_device *dev)
 }
 
 void psched_ratecfg_precompute(struct psched_ratecfg *r,
-			       const struct tc_ratespec *conf)
+			       const struct tc_ratespec *conf,
+			       u64 rate64)
 {
 	memset(r, 0, sizeof(*r));
 	r->overhead = conf->overhead;
-	r->rate_bytes_ps = conf->rate;
+	r->rate_bytes_ps = max_t(u64, conf->rate, rate64);
 	r->linklayer = (conf->linklayer & TC_LINKLAYER_MASK);
 	r->mult = 1;
 	/*

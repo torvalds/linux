@@ -1491,8 +1491,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			cl->prio = TC_HTB_NUMPRIO - 1;
 	}
 
-	psched_ratecfg_precompute(&cl->rate, &hopt->rate);
-	psched_ratecfg_precompute(&cl->ceil, &hopt->ceil);
+	psched_ratecfg_precompute(&cl->rate, &hopt->rate, 0);
+	psched_ratecfg_precompute(&cl->ceil, &hopt->ceil, 0);
 
 	cl->buffer = PSCHED_TICKS2NS(hopt->buffer);
 	cl->cbuffer = PSCHED_TICKS2NS(hopt->cbuffer);
