@@ -2104,7 +2104,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 	if (cpufreq_driver) {
 		write_unlock_irqrestore(&cpufreq_driver_lock, flags);
-		return -EBUSY;
+		return -EEXIST;
 	}
 	cpufreq_driver = driver_data;
 	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
