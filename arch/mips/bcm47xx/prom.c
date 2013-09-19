@@ -37,32 +37,19 @@
 
 static int cfe_cons_handle;
 
-static u16 get_chip_id(void)
-{
-	switch (bcm47xx_bus_type) {
-#ifdef CONFIG_BCM47XX_SSB
-	case BCM47XX_BUS_TYPE_SSB:
-		return bcm47xx_bus.ssb.chip_id;
-#endif
-#ifdef CONFIG_BCM47XX_BCMA
-	case BCM47XX_BUS_TYPE_BCMA:
-		return bcm47xx_bus.bcma.bus.chipinfo.id;
-#endif
-	}
-	return 0;
-}
+static char bcm47xx_system_type[20] = "Broadcom BCM47XX";
 
 const char *get_system_type(void)
 {
-	static char buf[50];
-	u16 chip_id = get_chip_id();
+	return bcm47xx_system_type;
+}
 
-	snprintf(buf, sizeof(buf),
-		 (chip_id > 0x9999) ? "Broadcom BCM%d (%s)" :
-				      "Broadcom BCM%04X (%s)",
-		 chip_id, bcm47xx_board_get_name());
-
-	return buf;
+__init void bcm47xx_set_system_type(u16 chip_id)
+{
+	snprintf(bcm47xx_system_type, sizeof(bcm47xx_system_type),
+		 (chip_id > 0x9999) ? "Broadcom BCM%d" :
+				      "Broadcom BCM%04X",
+		 chip_id);
 }
 
 void prom_putchar(char c)

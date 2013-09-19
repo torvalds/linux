@@ -210,12 +210,14 @@ void __init plat_mem_setup(void)
 #ifdef CONFIG_BCM47XX_BCMA
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
 		bcm47xx_register_bcma();
+		bcm47xx_set_system_type(bcm47xx_bus.bcma.bus.chipinfo.id);
 #endif
 	} else {
 		printk(KERN_INFO "bcm47xx: using ssb bus\n");
 #ifdef CONFIG_BCM47XX_SSB
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_SSB;
 		bcm47xx_register_ssb();
+		bcm47xx_set_system_type(bcm47xx_bus.ssb.chip_id);
 #endif
 	}
 
