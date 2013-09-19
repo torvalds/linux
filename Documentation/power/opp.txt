@@ -358,14 +358,14 @@ accessed by various functions as described above. However, the structures
 representing the actual OPPs and domains are internal to the OPP library itself
 to allow for suitable abstraction reusable across systems.
 
-struct opp - The internal data structure of OPP library which is used to
+struct dev_pm_opp - The internal data structure of OPP library which is used to
 	represent an OPP. In addition to the freq, voltage, availability
 	information, it also contains internal book keeping information required
 	for the OPP library to operate on.  Pointer to this structure is
 	provided back to the users such as SoC framework to be used as a
 	identifier for OPP in the interactions with OPP layer.
 
-	WARNING: The struct opp pointer should not be parsed or modified by the
+	WARNING: The struct dev_pm_opp pointer should not be parsed or modified by the
 	users. The defaults of for an instance is populated by dev_pm_opp_add, but the
 	availability of the OPP can be modified by dev_pm_opp_enable/disable functions.
 

@@ -639,7 +639,7 @@ static int exynos4_bus_target(struct device *dev, unsigned long *_freq,
 	struct platform_device *pdev = container_of(dev, struct platform_device,
 						    dev);
 	struct busfreq_data *data = platform_get_drvdata(pdev);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long freq;
 	unsigned long old_freq = data->curr_oppinfo.rate;
 	struct busfreq_opp_info	new_oppinfo;
@@ -956,7 +956,7 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 {
 	struct busfreq_data *data = container_of(this, struct busfreq_data,
 						 pm_notifier);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	struct busfreq_opp_info	new_oppinfo;
 	unsigned long maxfreq = ULONG_MAX;
 	int err = 0;
@@ -1020,7 +1020,7 @@ unlock:
 static int exynos4_busfreq_probe(struct platform_device *pdev)
 {
 	struct busfreq_data *data;
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	struct device *dev = &pdev->dev;
 	int err = 0;
 

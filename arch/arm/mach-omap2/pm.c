@@ -131,7 +131,7 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 {
 	struct voltagedomain *voltdm;
 	struct clk *clk;
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long freq, bootup_volt;
 	struct device *dev;
 

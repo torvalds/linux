@@ -42,7 +42,7 @@
  */
 
 /**
- * struct opp - Generic OPP description structure
+ * struct dev_pm_opp - Generic OPP description structure
  * @node:	opp list node. The nodes are maintained throughout the lifetime
  *		of boot. It is expected only an optimal set of OPPs are
  *		added to the library by the SoC framework.
@@ -59,7 +59,7 @@
  *
  * This structure stores the OPP information for a given device.
  */
-struct opp {
+struct dev_pm_opp {
 	struct list_head node;
 
 	bool available;
@@ -150,9 +150,9 @@ static struct device_opp *find_device_opp(struct device *dev)
  * prior to unlocking with rcu_read_unlock() to maintain the integrity of the
  * pointer.
  */
-unsigned long dev_pm_opp_get_voltage(struct opp *opp)
+unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 {
-	struct opp *tmp_opp;
+	struct dev_pm_opp *tmp_opp;
 	unsigned long v = 0;
 
 	tmp_opp = rcu_dereference(opp);
@@ -180,9 +180,9 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_voltage);
  * prior to unlocking with rcu_read_unlock() to maintain the integrity of the
  * pointer.
  */
-unsigned long dev_pm_opp_get_freq(struct opp *opp)
+unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 {
-	struct opp *tmp_opp;
+	struct dev_pm_opp *tmp_opp;
 	unsigned long f = 0;
 
 	tmp_opp = rcu_dereference(opp);
@@ -209,7 +209,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
 int dev_pm_opp_get_opp_count(struct device *dev)
 {
 	struct device_opp *dev_opp;
-	struct opp *temp_opp;
+	struct dev_pm_opp *temp_opp;
 	int count = 0;
 
 	dev_opp = find_device_opp(dev);
@@ -254,11 +254,12 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
  * under the locked area. The pointer returned must be used prior to unlocking
  * with rcu_read_unlock() to maintain the integrity of the pointer.
  */
-struct opp *dev_pm_opp_find_freq_exact(struct device *dev, unsigned long freq,
-				bool available)
+struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
+					      unsigned long freq,
+					      bool available)
 {
 	struct device_opp *dev_opp;
-	struct opp *temp_opp, *opp = ERR_PTR(-ERANGE);
+	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
@@ -300,10 +301,11 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact);
  * under the locked area. The pointer returned must be used prior to unlocking
  * with rcu_read_unlock() to maintain the integrity of the pointer.
  */
-struct opp *dev_pm_opp_find_freq_ceil(struct device *dev, unsigned long *freq)
+struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
+					     unsigned long *freq)
 {
 	struct device_opp *dev_opp;
-	struct opp *temp_opp, *opp = ERR_PTR(-ERANGE);
+	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
@@ -347,10 +349,11 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
  * under the locked area. The pointer returned must be used prior to unlocking
  * with rcu_read_unlock() to maintain the integrity of the pointer.
  */
-struct opp *dev_pm_opp_find_freq_floor(struct device *dev, unsigned long *freq)
+struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
+					      unsigned long *freq)
 {
 	struct device_opp *dev_opp;
-	struct opp *temp_opp, *opp = ERR_PTR(-ERANGE);
+	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
@@ -396,11 +399,11 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_floor);
 int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 {
 	struct device_opp *dev_opp = NULL;
-	struct opp *opp, *new_opp;
+	struct dev_pm_opp *opp, *new_opp;
 	struct list_head *head;
 
 	/* allocate new OPP node */
-	new_opp = kzalloc(sizeof(struct opp), GFP_KERNEL);
+	new_opp = kzalloc(sizeof(*new_opp), GFP_KERNEL);
 	if (!new_opp) {
 		dev_warn(dev, "%s: Unable to create new OPP node\n", __func__);
 		return -ENOMEM;
@@ -485,11 +488,11 @@ static int opp_set_availability(struct device *dev, unsigned long freq,
 		bool availability_req)
 {
 	struct device_opp *tmp_dev_opp, *dev_opp = ERR_PTR(-ENODEV);
-	struct opp *new_opp, *tmp_opp, *opp = ERR_PTR(-ENODEV);
+	struct dev_pm_opp *new_opp, *tmp_opp, *opp = ERR_PTR(-ENODEV);
 	int r = 0;
 
 	/* keep the node allocated */
-	new_opp = kmalloc(sizeof(struct opp), GFP_KERNEL);
+	new_opp = kmalloc(sizeof(*new_opp), GFP_KERNEL);
 	if (!new_opp) {
 		dev_warn(dev, "%s: Unable to create OPP\n", __func__);
 		return -ENOMEM;
@@ -623,7 +626,7 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 			    struct cpufreq_frequency_table **table)
 {
 	struct device_opp *dev_opp;
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	struct cpufreq_frequency_table *freq_table;
 	int i = 0;
 

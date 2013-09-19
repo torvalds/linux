@@ -132,7 +132,7 @@ static int exynos5_busfreq_int_target(struct device *dev, unsigned long *_freq,
 	struct platform_device *pdev = container_of(dev, struct platform_device,
 						    dev);
 	struct busfreq_data_int *data = platform_get_drvdata(pdev);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long old_freq, freq;
 	unsigned long volt;
 
@@ -262,7 +262,7 @@ static int exynos5_busfreq_int_pm_notifier_event(struct notifier_block *this,
 {
 	struct busfreq_data_int *data = container_of(this,
 					struct busfreq_data_int, pm_notifier);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long maxfreq = ULONG_MAX;
 	unsigned long freq;
 	unsigned long volt;
@@ -316,7 +316,7 @@ unlock:
 static int exynos5_busfreq_int_probe(struct platform_device *pdev)
 {
 	struct busfreq_data_int *data;
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	struct device *dev = &pdev->dev;
 	struct device_node *np;
 	unsigned long initial_freq;

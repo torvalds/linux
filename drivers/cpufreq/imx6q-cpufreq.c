@@ -49,7 +49,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq, unsigned int relation)
 {
 	struct cpufreq_freqs freqs;
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long freq_hz, volt, volt_old;
 	unsigned int index;
 	int ret;
@@ -199,7 +199,7 @@ static struct cpufreq_driver imx6q_cpufreq_driver = {
 static int imx6q_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long min_volt, max_volt;
 	int num, ret;
 

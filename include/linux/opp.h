@@ -18,27 +18,30 @@
 #include <linux/cpufreq.h>
 #include <linux/notifier.h>
 
-struct opp;
+struct dev_pm_opp;
 struct device;
 
-enum opp_event {
+enum dev_pm_opp_event {
 	OPP_EVENT_ADD, OPP_EVENT_ENABLE, OPP_EVENT_DISABLE,
 };
 
 #if defined(CONFIG_PM_OPP)
 
-unsigned long dev_pm_opp_get_voltage(struct opp *opp);
+unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp);
 
-unsigned long dev_pm_opp_get_freq(struct opp *opp);
+unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp);
 
 int dev_pm_opp_get_opp_count(struct device *dev);
 
-struct opp *dev_pm_opp_find_freq_exact(struct device *dev, unsigned long freq,
-				bool available);
+struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
+					      unsigned long freq,
+					      bool available);
 
-struct opp *dev_pm_opp_find_freq_floor(struct device *dev, unsigned long *freq);
+struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
+					      unsigned long *freq);
 
-struct opp *dev_pm_opp_find_freq_ceil(struct device *dev, unsigned long *freq);
+struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
+					     unsigned long *freq);
 
 int dev_pm_opp_add(struct device *dev, unsigned long freq,
 		   unsigned long u_volt);
@@ -49,12 +52,12 @@ int dev_pm_opp_disable(struct device *dev, unsigned long freq);
 
 struct srcu_notifier_head *dev_pm_opp_get_notifier(struct device *dev);
 #else
-static inline unsigned long dev_pm_opp_get_voltage(struct opp *opp)
+static inline unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 {
 	return 0;
 }
 
-static inline unsigned long dev_pm_opp_get_freq(struct opp *opp)
+static inline unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 {
 	return 0;
 }
@@ -64,19 +67,19 @@ static inline int dev_pm_opp_get_opp_count(struct device *dev)
 	return 0;
 }
 
-static inline struct opp *dev_pm_opp_find_freq_exact(struct device *dev,
+static inline struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 					unsigned long freq, bool available)
 {
 	return ERR_PTR(-EINVAL);
 }
 
-static inline struct opp *dev_pm_opp_find_freq_floor(struct device *dev,
+static inline struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 					unsigned long *freq)
 {
 	return ERR_PTR(-EINVAL);
 }
 
-static inline struct opp *dev_pm_opp_find_freq_ceil(struct device *dev,
+static inline struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 					unsigned long *freq)
 {
 	return ERR_PTR(-EINVAL);

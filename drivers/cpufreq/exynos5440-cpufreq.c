@@ -118,7 +118,7 @@ static int init_div_table(void)
 	struct cpufreq_frequency_table *freq_tbl = dvfs_info->freq_table;
 	unsigned int tmp, clk_div, ema_div, freq, volt_id;
 	int i = 0;
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 
 	rcu_read_lock();
 	for (i = 0; freq_tbl[i].frequency != CPUFREQ_TABLE_END; i++) {
