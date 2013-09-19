@@ -9591,7 +9591,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	struct intel_crtc *intel_crtc;
 	int i;
 
-	intel_crtc = kzalloc(sizeof(struct intel_crtc) + (INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)), GFP_KERNEL);
+	intel_crtc = kzalloc(sizeof(*intel_crtc), GFP_KERNEL);
 	if (intel_crtc == NULL)
 		return;
 
