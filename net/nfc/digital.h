@@ -56,8 +56,9 @@ struct sk_buff *digital_skb_alloc(struct nfc_digital_dev *ddev,
 				  unsigned int len);
 
 int digital_send_cmd(struct nfc_digital_dev *ddev, u8 cmd_type,
-		     struct sk_buff *skb, u16 timeout,
-		     nfc_digital_cmd_complete_t cmd_cb, void *cb_context);
+		     struct sk_buff *skb, struct digital_tg_mdaa_params *params,
+		     u16 timeout, nfc_digital_cmd_complete_t cmd_cb,
+		     void *cb_context);
 
 int digital_in_configure_hw(struct nfc_digital_dev *ddev, int type, int param);
 static inline int digital_in_send_cmd(struct nfc_digital_dev *ddev,
@@ -65,8 +66,8 @@ static inline int digital_in_send_cmd(struct nfc_digital_dev *ddev,
 				      nfc_digital_cmd_complete_t cmd_cb,
 				      void *cb_context)
 {
-	return digital_send_cmd(ddev, DIGITAL_CMD_IN_SEND, skb, timeout, cmd_cb,
-				cb_context);
+	return digital_send_cmd(ddev, DIGITAL_CMD_IN_SEND, skb, NULL, timeout,
+				cmd_cb, cb_context);
 }
 
 void digital_poll_next_tech(struct nfc_digital_dev *ddev);
@@ -85,6 +86,36 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
 			    struct nfc_target *target, struct sk_buff *skb,
 			    struct digital_data_exch *data_exch);
+
+int digital_tg_configure_hw(struct nfc_digital_dev *ddev, int type, int param);
+static inline int digital_tg_send_cmd(struct nfc_digital_dev *ddev,
+			struct sk_buff *skb, u16 timeout,
+			nfc_digital_cmd_complete_t cmd_cb, void *cb_context)
+{
+	return digital_send_cmd(ddev, DIGITAL_CMD_TG_SEND, skb, NULL, timeout,
+				cmd_cb, cb_context);
+}
+
+void digital_tg_recv_sens_req(struct nfc_digital_dev *ddev, void *arg,
+			      struct sk_buff *resp);
+
+void digital_tg_recv_sensf_req(struct nfc_digital_dev *ddev, void *arg,
+			       struct sk_buff *resp);
+
+static inline int digital_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
+				    nfc_digital_cmd_complete_t cb, void *arg)
+{
+	return digital_send_cmd(ddev, DIGITAL_CMD_TG_LISTEN, NULL, NULL,
+				timeout, cb, arg);
+}
+
+void digital_tg_recv_atr_req(struct nfc_digital_dev *ddev, void *arg,
+			     struct sk_buff *resp);
+
+int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb);
+
+int digital_tg_listen_nfca(struct nfc_digital_dev *ddev, u8 rf_tech);
+int digital_tg_listen_nfcf(struct nfc_digital_dev *ddev, u8 rf_tech);
 
 typedef u16 (*crc_func_t)(u16, const u8 *, size_t);
 

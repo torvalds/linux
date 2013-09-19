@@ -32,6 +32,7 @@ struct digital_cmd {
 	u16 timeout;
 	struct sk_buff *req;
 	struct sk_buff *resp;
+	struct digital_tg_mdaa_params *mdaa_params;
 
 	nfc_digital_cmd_complete_t cmd_cb;
 	void *cb_context;
@@ -131,6 +132,7 @@ static void digital_wq_cmd_complete(struct work_struct *work)
 
 	cmd->cmd_cb(ddev, cmd->cb_context, cmd->resp);
 
+	kfree(cmd->mdaa_params);
 	kfree(cmd);
 
 	schedule_work(&ddev->cmd_work);
@@ -150,6 +152,7 @@ static void digital_wq_cmd(struct work_struct *work)
 {
 	int rc;
 	struct digital_cmd *cmd;
+	struct digital_tg_mdaa_params *params;
 	struct nfc_digital_dev *ddev = container_of(work,
 						    struct nfc_digital_dev,
 						    cmd_work);
@@ -174,6 +177,24 @@ static void digital_wq_cmd(struct work_struct *work)
 		rc = ddev->ops->in_send_cmd(ddev, cmd->req, cmd->timeout,
 					    digital_send_cmd_complete, cmd);
 		break;
+
+	case DIGITAL_CMD_TG_SEND:
+		rc = ddev->ops->tg_send_cmd(ddev, cmd->req, cmd->timeout,
+					    digital_send_cmd_complete, cmd);
+		break;
+
+	case DIGITAL_CMD_TG_LISTEN:
+		rc = ddev->ops->tg_listen(ddev, cmd->timeout,
+					  digital_send_cmd_complete, cmd);
+		break;
+
+	case DIGITAL_CMD_TG_LISTEN_MDAA:
+		params = cmd->mdaa_params;
+
+		rc = ddev->ops->tg_listen_mdaa(ddev, params, cmd->timeout,
+					       digital_send_cmd_complete, cmd);
+		break;
+
 	default:
 		PR_ERR("Unknown cmd type %d", cmd->type);
 		return;
@@ -189,14 +210,16 @@ static void digital_wq_cmd(struct work_struct *work)
 	mutex_unlock(&ddev->cmd_lock);
 
 	kfree_skb(cmd->req);
+	kfree(cmd->mdaa_params);
 	kfree(cmd);
 
 	schedule_work(&ddev->cmd_work);
 }
 
 int digital_send_cmd(struct nfc_digital_dev *ddev, u8 cmd_type,
-		     struct sk_buff *skb, u16 timeout,
-		     nfc_digital_cmd_complete_t cmd_cb, void *cb_context)
+		     struct sk_buff *skb, struct digital_tg_mdaa_params *params,
+		     u16 timeout, nfc_digital_cmd_complete_t cmd_cb,
+		     void *cb_context)
 {
 	struct digital_cmd *cmd;
 
@@ -207,6 +230,7 @@ int digital_send_cmd(struct nfc_digital_dev *ddev, u8 cmd_type,
 	cmd->type = cmd_type;
 	cmd->timeout = timeout;
 	cmd->req = skb;
+	cmd->mdaa_params = params;
 	cmd->cmd_cb = cmd_cb;
 	cmd->cb_context = cb_context;
 	INIT_LIST_HEAD(&cmd->queue);
@@ -229,6 +253,38 @@ int digital_in_configure_hw(struct nfc_digital_dev *ddev, int type, int param)
 		PR_ERR("in_configure_hw failed: %d", rc);
 
 	return rc;
+}
+
+int digital_tg_configure_hw(struct nfc_digital_dev *ddev, int type, int param)
+{
+	int rc;
+
+	rc = ddev->ops->tg_configure_hw(ddev, type, param);
+	if (rc)
+		PR_ERR("tg_configure_hw failed: %d", rc);
+
+	return rc;
+}
+
+static int digital_tg_listen_mdaa(struct nfc_digital_dev *ddev, u8 rf_tech)
+{
+	struct digital_tg_mdaa_params *params;
+
+	params = kzalloc(sizeof(struct digital_tg_mdaa_params), GFP_KERNEL);
+	if (!params)
+		return -ENOMEM;
+
+	params->sens_res = DIGITAL_SENS_RES_NFC_DEP;
+	get_random_bytes(params->nfcid1, sizeof(params->nfcid1));
+	params->sel_res = DIGITAL_SEL_RES_NFC_DEP;
+
+	params->nfcid2[0] = DIGITAL_SENSF_NFCID2_NFC_DEP_B1;
+	params->nfcid2[1] = DIGITAL_SENSF_NFCID2_NFC_DEP_B2;
+	get_random_bytes(params->nfcid2 + 2, NFC_NFCID2_MAXSIZE - 2);
+	params->sc = DIGITAL_SENSF_FELICA_SC;
+
+	return digital_send_cmd(ddev, DIGITAL_CMD_TG_LISTEN_MDAA, NULL, params,
+				500, digital_tg_recv_atr_req, NULL);
 }
 
 int digital_target_found(struct nfc_digital_dev *ddev,
@@ -412,6 +468,22 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 				      digital_in_send_sensf_req);
 	}
 
+	if (tm_protocols & NFC_PROTO_NFC_DEP_MASK) {
+		if (ddev->ops->tg_listen_mdaa) {
+			digital_add_poll_tech(ddev, 0,
+					      digital_tg_listen_mdaa);
+		} else {
+			digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_106A,
+					      digital_tg_listen_nfca);
+
+			digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_212F,
+					      digital_tg_listen_nfcf);
+
+			digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_424F,
+					      digital_tg_listen_nfcf);
+		}
+	}
+
 	if (!ddev->poll_tech_count) {
 		PR_ERR("Unsupported protocols: im=0x%x, tm=0x%x",
 		       matching_im_protocols, matching_tm_protocols);
@@ -496,7 +568,9 @@ static void digital_deactivate_target(struct nfc_dev *nfc_dev,
 
 static int digital_tg_send(struct nfc_dev *dev, struct sk_buff *skb)
 {
-	return -EOPNOTSUPP;
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(dev);
+
+	return digital_tg_send_dep_res(ddev, skb);
 }
 
 static void digital_in_send_complete(struct nfc_digital_dev *ddev, void *arg,
@@ -654,6 +728,7 @@ void nfc_digital_unregister_device(struct nfc_digital_dev *ddev)
 
 	list_for_each_entry_safe(cmd, n, &ddev->cmd_queue, queue) {
 		list_del(&cmd->queue);
+		kfree(cmd->mdaa_params);
 		kfree(cmd);
 	}
 }
