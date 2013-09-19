@@ -17,11 +17,22 @@
 #include <linux/of_address.h>
 
 #include "clk.h"
-#include "clk-pll.h"
 
+#define APLL_LOCK		0x0
+#define APLL_CON0		0x100
 #define SRC_CPU			0x200
 #define DIV_CPU0		0x500
+#define MPLL_LOCK		0x4000
+#define MPLL_CON0		0x4100
 #define SRC_CORE1		0x4204
+#define CPLL_LOCK		0x10020
+#define EPLL_LOCK		0x10030
+#define VPLL_LOCK		0x10040
+#define GPLL_LOCK		0x10050
+#define CPLL_CON0		0x10120
+#define EPLL_CON0		0x10130
+#define VPLL_CON0		0x10140
+#define GPLL_CON0		0x10150
 #define SRC_TOP0		0x10210
 #define SRC_TOP2		0x10218
 #define SRC_GSCL		0x10220
@@ -59,9 +70,18 @@
 #define GATE_IP_FSYS		0x10944
 #define GATE_IP_PERIC		0x10950
 #define GATE_IP_PERIS		0x10960
+#define BPLL_LOCK		0x20010
+#define BPLL_CON0		0x20110
 #define SRC_CDREX		0x20200
 #define PLL_DIV2_SEL		0x20a24
 #define GATE_IP_DISP1		0x10928
+#define GATE_IP_ACP		0x10000
+
+/* list of PLLs to be registered */
+enum exynos5250_plls {
+	apll, mpll, cpll, epll, vpll, gpll, bpll,
+	nr_plls			/* number of PLLs */
+};
 
 /*
  * Let each supported clock get a unique id. This id is used to lookup the clock
@@ -79,7 +99,8 @@ enum exynos5250_clks {
 	none,
 
 	/* core clocks */
-	fin_pll,
+	fin_pll, fout_apll, fout_mpll, fout_bpll, fout_gpll, fout_cpll,
+	fout_epll, fout_vpll,
 
 	/* gate for special clocks (sclk) */
 	sclk_cam_bayer = 128, sclk_cam0, sclk_cam1, sclk_gscl_wa, sclk_gscl_wb,
@@ -87,7 +108,7 @@ enum exynos5250_clks {
 	sclk_mmc0, sclk_mmc1, sclk_mmc2, sclk_mmc3, sclk_sata, sclk_usb3,
 	sclk_jpeg, sclk_uart0, sclk_uart1, sclk_uart2, sclk_uart3, sclk_pwm,
 	sclk_audio1, sclk_audio2, sclk_spdif, sclk_spi0, sclk_spi1, sclk_spi2,
-	div_i2s1, div_i2s2,
+	div_i2s1, div_i2s2, sclk_hdmiphy,
 
 	/* gate clocks */
 	gscl0 = 256, gscl1, gscl2, gscl3, gscl_wa, gscl_wb, smmu_gscl0,
@@ -99,7 +120,10 @@ enum exynos5250_clks {
 	spi2, i2s1, i2s2, pcm1, pcm2, pwm, spdif, ac97, hsi2c0, hsi2c1, hsi2c2,
 	hsi2c3, chipid, sysreg, pmu, cmu_top, cmu_core, cmu_mem, tzpc0, tzpc1,
 	tzpc2, tzpc3, tzpc4, tzpc5, tzpc6, tzpc7, tzpc8, tzpc9, hdmi_cec, mct,
-	wdt, rtc, tmu, fimd1, mie1, dsim0, dp, mixer, hdmi,
+	wdt, rtc, tmu, fimd1, mie1, dsim0, dp, mixer, hdmi, g2d,
+
+	/* mux clocks */
+	mout_hdmi = 1024,
 
 	nr_clks,
 };
@@ -108,7 +132,7 @@ enum exynos5250_clks {
  * list of controller registers to be saved and restored during a
  * suspend/resume cycle.
  */
-static __initdata unsigned long exynos5250_clk_regs[] = {
+static unsigned long exynos5250_clk_regs[] __initdata = {
 	SRC_CPU,
 	DIV_CPU0,
 	SRC_CORE1,
@@ -152,6 +176,7 @@ static __initdata unsigned long exynos5250_clk_regs[] = {
 	SRC_CDREX,
 	PLL_DIV2_SEL,
 	GATE_IP_DISP1,
+	GATE_IP_ACP,
 };
 
 /* list of all parent clock list */
@@ -191,31 +216,34 @@ PNAME(mout_spdif_p)	= { "sclk_audio0", "sclk_audio1", "sclk_audio2",
 				"spdif_extclk" };
 
 /* fixed rate clocks generated outside the soc */
-struct samsung_fixed_rate_clock exynos5250_fixed_rate_ext_clks[] __initdata = {
+static struct samsung_fixed_rate_clock exynos5250_fixed_rate_ext_clks[] __initdata = {
 	FRATE(fin_pll, "fin_pll", NULL, CLK_IS_ROOT, 0),
 };
 
 /* fixed rate clocks generated inside the soc */
-struct samsung_fixed_rate_clock exynos5250_fixed_rate_clks[] __initdata = {
-	FRATE(none, "sclk_hdmiphy", NULL, CLK_IS_ROOT, 24000000),
+static struct samsung_fixed_rate_clock exynos5250_fixed_rate_clks[] __initdata = {
+	FRATE(sclk_hdmiphy, "sclk_hdmiphy", NULL, CLK_IS_ROOT, 24000000),
 	FRATE(none, "sclk_hdmi27m", NULL, CLK_IS_ROOT, 27000000),
 	FRATE(none, "sclk_dptxphy", NULL, CLK_IS_ROOT, 24000000),
 	FRATE(none, "sclk_uhostphy", NULL, CLK_IS_ROOT, 48000000),
 };
 
-struct samsung_fixed_factor_clock exynos5250_fixed_factor_clks[] __initdata = {
+static struct samsung_fixed_factor_clock exynos5250_fixed_factor_clks[] __initdata = {
 	FFACTOR(none, "fout_mplldiv2", "fout_mpll", 1, 2, 0),
 	FFACTOR(none, "fout_bplldiv2", "fout_bpll", 1, 2, 0),
 };
 
-struct samsung_mux_clock exynos5250_mux_clks[] __initdata = {
+static struct samsung_mux_clock exynos5250_pll_pmux_clks[] __initdata = {
+	MUX(none, "mout_vpllsrc", mout_vpllsrc_p, SRC_TOP2, 0, 1),
+};
+
+static struct samsung_mux_clock exynos5250_mux_clks[] __initdata = {
 	MUX_A(none, "mout_apll", mout_apll_p, SRC_CPU, 0, 1, "mout_apll"),
 	MUX_A(none, "mout_cpu", mout_cpu_p, SRC_CPU, 16, 1, "mout_cpu"),
 	MUX(none, "mout_mpll_fout", mout_mpll_fout_p, PLL_DIV2_SEL, 4, 1),
 	MUX_A(none, "sclk_mpll", mout_mpll_p, SRC_CORE1, 8, 1, "mout_mpll"),
 	MUX(none, "mout_bpll_fout", mout_bpll_fout_p, PLL_DIV2_SEL, 0, 1),
 	MUX(none, "sclk_bpll", mout_bpll_p, SRC_CDREX, 0, 1),
-	MUX(none, "mout_vpllsrc", mout_vpllsrc_p, SRC_TOP2, 0, 1),
 	MUX(none, "sclk_vpll", mout_vpll_p, SRC_TOP2, 16, 1),
 	MUX(none, "sclk_epll", mout_epll_p, SRC_TOP2, 12, 1),
 	MUX(none, "sclk_cpll", mout_cpll_p, SRC_TOP2, 8, 1),
@@ -232,7 +260,7 @@ struct samsung_mux_clock exynos5250_mux_clks[] __initdata = {
 	MUX(none, "mout_fimd1", mout_group1_p, SRC_DISP1_0, 0, 4),
 	MUX(none, "mout_mipi1", mout_group1_p, SRC_DISP1_0, 12, 4),
 	MUX(none, "mout_dp", mout_group1_p, SRC_DISP1_0, 16, 4),
-	MUX(none, "mout_hdmi", mout_hdmi_p, SRC_DISP1_0, 20, 1),
+	MUX(mout_hdmi, "mout_hdmi", mout_hdmi_p, SRC_DISP1_0, 20, 1),
 	MUX(none, "mout_audio0", mout_audio0_p, SRC_MAU, 0, 4),
 	MUX(none, "mout_mmc0", mout_group1_p, SRC_FSYS, 0, 4),
 	MUX(none, "mout_mmc1", mout_group1_p, SRC_FSYS, 4, 4),
@@ -254,7 +282,7 @@ struct samsung_mux_clock exynos5250_mux_clks[] __initdata = {
 	MUX(none, "mout_spi2", mout_group1_p, SRC_PERIC1, 24, 4),
 };
 
-struct samsung_div_clock exynos5250_div_clks[] __initdata = {
+static struct samsung_div_clock exynos5250_div_clks[] __initdata = {
 	DIV(none, "div_arm", "mout_cpu", DIV_CPU0, 0, 3),
 	DIV(none, "sclk_apll", "mout_apll", DIV_CPU0, 24, 3),
 	DIV(none, "aclk66_pre", "sclk_mpll_user", DIV_TOP1, 24, 3),
@@ -314,7 +342,7 @@ struct samsung_div_clock exynos5250_div_clks[] __initdata = {
 			DIV_PERIC2, 8, 8, CLK_SET_RATE_PARENT, 0),
 };
 
-struct samsung_gate_clock exynos5250_gate_clks[] __initdata = {
+static struct samsung_gate_clock exynos5250_gate_clks[] __initdata = {
 	GATE(gscl0, "gscl0", "none", GATE_IP_GSCL, 0, 0, 0),
 	GATE(gscl1, "gscl1", "none", GATE_IP_GSCL, 1, 0, 0),
 	GATE(gscl2, "gscl2", "aclk266", GATE_IP_GSCL, 2, 0, 0),
@@ -461,20 +489,60 @@ struct samsung_gate_clock exynos5250_gate_clks[] __initdata = {
 	GATE(mie1, "mie1", "aclk200", GATE_IP_DISP1, 1, 0, 0),
 	GATE(dsim0, "dsim0", "aclk200", GATE_IP_DISP1, 3, 0, 0),
 	GATE(dp, "dp", "aclk200", GATE_IP_DISP1, 4, 0, 0),
-	GATE(mixer, "mixer", "aclk200", GATE_IP_DISP1, 5, 0, 0),
-	GATE(hdmi, "hdmi", "aclk200", GATE_IP_DISP1, 6, 0, 0),
+	GATE(mixer, "mixer", "mout_aclk200_disp1", GATE_IP_DISP1, 5, 0, 0),
+	GATE(hdmi, "hdmi", "mout_aclk200_disp1", GATE_IP_DISP1, 6, 0, 0),
+	GATE(g2d, "g2d", "aclk200", GATE_IP_ACP, 3, 0, 0),
 };
 
-static __initdata struct of_device_id ext_clk_match[] = {
+static struct samsung_pll_rate_table vpll_24mhz_tbl[] __initdata = {
+	/* sorted in descending order */
+	/* PLL_36XX_RATE(rate, m, p, s, k) */
+	PLL_36XX_RATE(266000000, 266, 3, 3, 0),
+	/* Not in UM, but need for eDP on snow */
+	PLL_36XX_RATE(70500000, 94, 2, 4, 0),
+	{ },
+};
+
+static struct samsung_pll_rate_table epll_24mhz_tbl[] __initdata = {
+	/* sorted in descending order */
+	/* PLL_36XX_RATE(rate, m, p, s, k) */
+	PLL_36XX_RATE(192000000, 64, 2, 2, 0),
+	PLL_36XX_RATE(180633600, 90, 3, 2, 20762),
+	PLL_36XX_RATE(180000000, 90, 3, 2, 0),
+	PLL_36XX_RATE(73728000, 98, 2, 4, 19923),
+	PLL_36XX_RATE(67737600, 90, 2, 4, 20762),
+	PLL_36XX_RATE(49152000, 98, 3, 4, 19923),
+	PLL_36XX_RATE(45158400, 90, 3, 4, 20762),
+	PLL_36XX_RATE(32768000, 131, 3, 5, 4719),
+	{ },
+};
+
+static struct samsung_pll_clock exynos5250_plls[nr_plls] __initdata = {
+	[apll] = PLL_A(pll_35xx, fout_apll, "fout_apll", "fin_pll", APLL_LOCK,
+		APLL_CON0, "fout_apll", NULL),
+	[mpll] = PLL_A(pll_35xx, fout_mpll, "fout_mpll", "fin_pll", MPLL_LOCK,
+		MPLL_CON0, "fout_mpll", NULL),
+	[bpll] = PLL(pll_35xx, fout_bpll, "fout_bpll", "fin_pll", BPLL_LOCK,
+		BPLL_CON0, NULL),
+	[gpll] = PLL(pll_35xx, fout_gpll, "fout_gpll", "fin_pll", GPLL_LOCK,
+		GPLL_CON0, NULL),
+	[cpll] = PLL(pll_35xx, fout_cpll, "fout_cpll", "fin_pll", CPLL_LOCK,
+		CPLL_CON0, NULL),
+	[epll] = PLL(pll_36xx, fout_epll, "fout_epll", "fin_pll", EPLL_LOCK,
+		EPLL_CON0, NULL),
+	[vpll] = PLL(pll_36xx, fout_vpll, "fout_vpll", "mout_vpllsrc",
+		VPLL_LOCK, VPLL_CON0, NULL),
+};
+
+static struct of_device_id ext_clk_match[] __initdata = {
 	{ .compatible = "samsung,clock-xxti", .data = (void *)0, },
 	{ },
 };
 
 /* register exynox5250 clocks */
-void __init exynos5250_clk_init(struct device_node *np)
+static void __init exynos5250_clk_init(struct device_node *np)
 {
 	void __iomem *reg_base;
-	struct clk *apll, *mpll, *epll, *vpll, *bpll, *gpll, *cpll;
 
 	if (np) {
 		reg_base = of_iomap(np, 0);
@@ -490,22 +558,17 @@ void __init exynos5250_clk_init(struct device_node *np)
 	samsung_clk_of_register_fixed_ext(exynos5250_fixed_rate_ext_clks,
 			ARRAY_SIZE(exynos5250_fixed_rate_ext_clks),
 			ext_clk_match);
+	samsung_clk_register_mux(exynos5250_pll_pmux_clks,
+				ARRAY_SIZE(exynos5250_pll_pmux_clks));
 
-	apll = samsung_clk_register_pll35xx("fout_apll", "fin_pll",
-			reg_base + 0x100);
-	mpll = samsung_clk_register_pll35xx("fout_mpll", "fin_pll",
-			reg_base + 0x4100);
-	bpll = samsung_clk_register_pll35xx("fout_bpll", "fin_pll",
-			reg_base + 0x20110);
-	gpll = samsung_clk_register_pll35xx("fout_gpll", "fin_pll",
-			reg_base + 0x10150);
-	cpll = samsung_clk_register_pll35xx("fout_cpll", "fin_pll",
-			reg_base + 0x10120);
-	epll = samsung_clk_register_pll36xx("fout_epll", "fin_pll",
-			reg_base + 0x10130);
-	vpll = samsung_clk_register_pll36xx("fout_vpll", "mout_vpllsrc",
-			reg_base + 0x10140);
+	if (_get_rate("fin_pll") == 24 * MHZ)
+		exynos5250_plls[epll].rate_table = epll_24mhz_tbl;
 
+	if (_get_rate("mout_vpllsrc") == 24 * MHZ)
+		exynos5250_plls[vpll].rate_table =  vpll_24mhz_tbl;
+
+	samsung_clk_register_pll(exynos5250_plls, ARRAY_SIZE(exynos5250_plls),
+					reg_base);
 	samsung_clk_register_fixed_rate(exynos5250_fixed_rate_clks,
 			ARRAY_SIZE(exynos5250_fixed_rate_clks));
 	samsung_clk_register_fixed_factor(exynos5250_fixed_factor_clks,

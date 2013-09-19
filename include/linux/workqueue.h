@@ -295,7 +295,12 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
  * Documentation/workqueue.txt.
  */
 enum {
-	WQ_NON_REENTRANT	= 1 << 0, /* guarantee non-reentrance */
+	/*
+	 * All wqs are now non-reentrant making the following flag
+	 * meaningless.  Will be removed.
+	 */
+	WQ_NON_REENTRANT	= 1 << 0, /* DEPRECATED */
+
 	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
 	WQ_FREEZABLE		= 1 << 2, /* freeze during suspend */
 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */

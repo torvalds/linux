@@ -30,10 +30,9 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
  *
  */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
 
 #include "comedi_fc.h"
 #include "8255.h"
@@ -577,15 +576,19 @@ static int atmio16d_dio_insn_config(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	struct atmio16d_private *devpriv = dev->private;
-	int i;
-	int mask;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
-	for (i = 0; i < insn->n; i++) {
-		mask = (CR_CHAN(insn->chanspec) < 4) ? 0x0f : 0xf0;
-		s->io_bits &= ~mask;
-		if (data[i])
-			s->io_bits |= mask;
-	}
+	if (chan < 4)
+		mask = 0x0f;
+	else
+		mask = 0xf0;
+
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
+
 	devpriv->com_reg_2_state &= ~(COMREG2_DOUTEN0 | COMREG2_DOUTEN1);
 	if (s->io_bits & 0x0f)
 		devpriv->com_reg_2_state |= COMREG2_DOUTEN0;
@@ -593,7 +596,7 @@ static int atmio16d_dio_insn_config(struct comedi_device *dev,
 		devpriv->com_reg_2_state |= COMREG2_DOUTEN1;
 	outw(devpriv->com_reg_2_state, dev->iobase + COM_REG_2);
 
-	return i;
+	return insn->n;
 }
 
 /*
@@ -645,10 +648,9 @@ static int atmio16d_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* reset the atmio16d hardware */
 	reset_atmio16d(dev);

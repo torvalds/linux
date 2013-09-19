@@ -138,7 +138,7 @@ static void hpfs_write_failed(struct address_space *mapping, loff_t to)
 	hpfs_lock(inode->i_sb);
 
 	if (to > inode->i_size) {
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 		hpfs_truncate(inode);
 	}
 

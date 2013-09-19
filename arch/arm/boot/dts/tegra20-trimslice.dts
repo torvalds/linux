@@ -302,7 +302,7 @@
 	};
 
 	pmc {
-		nvidia,suspend-mode = <2>;
+		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <5000>;
 		nvidia,cpu-pwr-off-time = <5000>;
 		nvidia,core-pwr-good-time = <3845 3845>;
@@ -310,9 +310,18 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
+	pcie-controller {
+		status = "okay";
+		pex-clk-supply = <&pci_clk_reg>;
+		vdd-supply = <&pci_vdd_reg>;
+
+		pci@1,0 {
+			status = "okay";
+		};
+	};
+
 	usb@c5000000 {
 		status = "okay";
-		nvidia,vbus-gpio = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
 	};
 
 	usb-phy@c5000000 {
@@ -411,9 +420,27 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 170 0>; /* PV2 */
+			gpio = <&gpio TEGRA_GPIO(V, 2) 0>;
 			regulator-always-on;
 			regulator-boot-on;
+		};
+
+		pci_clk_reg: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "pci_clk";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		pci_vdd_reg: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "pci_vdd";
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
+			regulator-always-on;
 		};
 	};
 

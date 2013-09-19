@@ -72,6 +72,7 @@ Configuration Options:
 	leave out if you don't need this feature)
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
@@ -309,68 +310,27 @@ static int pcmmio_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* The input or output configuration of each digital line is
- * configured by a special insn_config instruction.  chanspec
- * contains the channel to be changed, and data[0] contains the
- * value COMEDI_INPUT or COMEDI_OUTPUT. */
 static int pcmmio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec), byte_no = chan / 8, bit_no =
-	    chan % 8;
-	unsigned long ioaddr;
-	unsigned char byte;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int byte_no = chan / 8;
+	int bit_no = chan % 8;
+	int ret;
 
-	/* Compute ioaddr for this channel */
-	ioaddr = subpriv->iobases[byte_no];
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
-	/* NOTE:
-	   writing a 0 an IO channel's bit sets the channel to INPUT
-	   and pulls the line high as well
+	if (data[0] == INSN_CONFIG_DIO_INPUT) {
+		unsigned long ioaddr = subpriv->iobases[byte_no];
+		unsigned char val;
 
-	   writing a 1 to an IO channel's  bit pulls the line low
-
-	   All channels are implicitly always in OUTPUT mode -- but when
-	   they are high they can be considered to be in INPUT mode..
-
-	   Thus, we only force channels low if the config request was INPUT,
-	   otherwise we do nothing to the hardware.    */
-
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		/* save to io_bits -- don't actually do anything since
-		   all input channels are also output channels... */
-		s->io_bits |= 1 << chan;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		/* write a 0 to the actual register representing the channel
-		   to set it to 'input'.  0 means "float high". */
-		byte = inb(ioaddr);
-		byte &= ~(1 << bit_no);
-				/**< set input channel to '0' */
-
-		/*
-		 * write out byte -- this is the only time we actually affect
-		 * the hardware as all channels are implicitly output
-		 * -- but input channels are set to float-high
-		 */
-		outb(byte, ioaddr);
-
-		/* save to io_bits */
-		s->io_bits &= ~(1 << chan);
-		break;
-
-	case INSN_CONFIG_DIO_QUERY:
-		/* retrieve from shadow register */
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-
-	default:
-		return -EINVAL;
-		break;
+		val = inb(ioaddr);
+		val &= ~(1 << bit_no);
+		outb(val, ioaddr);
 	}
 
 	return insn->n;
@@ -1039,10 +999,9 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		devpriv->asics[asic].num = asic;
@@ -1197,12 +1156,13 @@ static void pcmmio_detach(struct comedi_device *dev)
 	struct pcmmio_private *devpriv = dev->private;
 	int i;
 
-	for (i = 0; i < MAX_ASICS; ++i) {
-		if (devpriv && devpriv->asics[i].irq)
-			free_irq(devpriv->asics[i].irq, dev);
-	}
-	if (devpriv && devpriv->sprivs)
+	if (devpriv) {
+		for (i = 0; i < MAX_ASICS; ++i) {
+			if (devpriv->asics[i].irq)
+				free_irq(devpriv->asics[i].irq, dev);
+		}
 		kfree(devpriv->sprivs);
+	}
 	comedi_legacy_detach(dev);
 }
 

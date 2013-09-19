@@ -1897,12 +1897,13 @@ static void rtl8169_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			     void *p)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-
-	if (regs->len > R8169_REGS_SIZE)
-		regs->len = R8169_REGS_SIZE;
+	u32 __iomem *data = tp->mmio_addr;
+	u32 *dw = p;
+	int i;
 
 	rtl_lock_work(tp);
-	memcpy_fromio(p, tp->mmio_addr, regs->len);
+	for (i = 0; i < R8169_REGS_SIZE; i += 4)
+		memcpy_fromio(dw++, data++, 4);
 	rtl_unlock_work(tp);
 }
 

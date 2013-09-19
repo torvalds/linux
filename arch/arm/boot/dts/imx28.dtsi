@@ -15,6 +15,8 @@
 	interrupt-parent = <&icoll>;
 
 	aliases {
+		ethernet0 = &mac0;
+		ethernet1 = &mac1;
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
@@ -27,8 +29,8 @@
 		serial2 = &auart2;
 		serial3 = &auart3;
 		serial4 = &auart4;
-		ethernet0 = &mac0;
-		ethernet1 = &mac1;
+		spi0 = &ssp1;
+		spi1 = &ssp2;
 	};
 
 	cpus {
@@ -62,9 +64,9 @@
 				reg = <0x80000000 0x2000>;
 			};
 
-			hsadc@80002000 {
+			hsadc: hsadc@80002000 {
 				reg = <0x80002000 0x2000>;
-				interrupts = <13 87>;
+				interrupts = <13>;
 				dmas = <&dma_apbh 12>;
 				dma-names = "rx";
 				status = "disabled";
@@ -86,25 +88,24 @@
 				clocks = <&clks 25>;
 			};
 
-			perfmon@80006000 {
+			perfmon: perfmon@80006000 {
 				reg = <0x80006000 0x800>;
 				interrupts = <27>;
 				status = "disabled";
 			};
 
-			gpmi-nand@8000c000 {
+			gpmi: gpmi-nand@8000c000 {
 				compatible = "fsl,imx28-gpmi-nand";
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0x8000c000 0x2000>, <0x8000a000 0x2000>;
 				reg-names = "gpmi-nand", "bch";
-				interrupts = <88>, <41>;
-				interrupt-names = "gpmi-dma", "bch";
+				interrupts = <41>;
+				interrupt-names = "bch";
 				clocks = <&clks 50>;
 				clock-names = "gpmi_io";
 				dmas = <&dma_apbh 4>;
 				dma-names = "rx-tx";
-				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
 
@@ -112,11 +113,10 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80010000 0x2000>;
-				interrupts = <96 82>;
+				interrupts = <96>;
 				clocks = <&clks 46>;
 				dmas = <&dma_apbh 0>;
 				dma-names = "rx-tx";
-				fsl,ssp-dma-channel = <0>;
 				status = "disabled";
 			};
 
@@ -124,11 +124,10 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80012000 0x2000>;
-				interrupts = <97 83>;
+				interrupts = <97>;
 				clocks = <&clks 47>;
 				dmas = <&dma_apbh 1>;
 				dma-names = "rx-tx";
-				fsl,ssp-dma-channel = <1>;
 				status = "disabled";
 			};
 
@@ -136,11 +135,10 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80014000 0x2000>;
-				interrupts = <98 84>;
+				interrupts = <98>;
 				clocks = <&clks 48>;
 				dmas = <&dma_apbh 2>;
 				dma-names = "rx-tx";
-				fsl,ssp-dma-channel = <2>;
 				status = "disabled";
 			};
 
@@ -148,15 +146,14 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80016000 0x2000>;
-				interrupts = <99 85>;
+				interrupts = <99>;
 				clocks = <&clks 49>;
 				dmas = <&dma_apbh 3>;
 				dma-names = "rx-tx";
-				fsl,ssp-dma-channel = <3>;
 				status = "disabled";
 			};
 
-			pinctrl@80018000 {
+			pinctrl: pinctrl@80018000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx28-pinctrl", "simple-bus";
@@ -521,6 +518,18 @@
 					fsl,pull-up = <1>;
 				};
 
+				saif0_pins_b: saif0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						0x3150 /* MX28_PAD_SAIF0_LRCLK__SAIF0_LRCLK */
+						0x3160 /* MX28_PAD_SAIF0_BITCLK__SAIF0_BITCLK */
+						0x3170 /* MX28_PAD_SAIF0_SDATA0__SAIF0_SDATA0 */
+					>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
 				saif1_pins_a: saif1@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -639,6 +648,19 @@
 					fsl,pull-up = <0>;
 				};
 
+				lcdif_sync_pins_a: lcdif-sync@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
+						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
+						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
+						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				can0_pins_a: can0@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -674,6 +696,21 @@
 					fsl,pull-up = <1>;
 				};
 
+				spi3_pins_a: spi3@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3082 /* MX28_PAD_AUART2_RX__SSP3_D4 */
+						0x3092 /* MX28_PAD_AUART2_TX__SSP3_D5 */
+						0x2180 /* MX28_PAD_SSP3_SCK__SSP3_SCK */
+						0x2190 /* MX28_PAD_SSP3_MOSI__SSP3_CMD */
+						0x21A0 /* MX28_PAD_SSP3_MISO__SSP3_D0 */
+						0x21B0 /* MX28_PAD_SSP3_SS0__SSP3_D3 */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				usbphy0_pins_a: usbphy0@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -705,14 +742,14 @@
 				};
 			};
 
-			digctl@8001c000 {
+			digctl: digctl@8001c000 {
 				compatible = "fsl,imx28-digctl", "fsl,imx23-digctl";
 				reg = <0x8001c000 0x2000>;
 				interrupts = <89>;
 				status = "disabled";
 			};
 
-			etm@80022000 {
+			etm: etm@80022000 {
 				reg = <0x80022000 0x2000>;
 				status = "disabled";
 			};
@@ -733,19 +770,19 @@
 				clocks = <&clks 26>;
 			};
 
-			dcp@80028000 {
+			dcp: dcp@80028000 {
 				reg = <0x80028000 0x2000>;
 				interrupts = <52 53 54>;
 				compatible = "fsl-dcp";
 			};
 
-			pxp@8002a000 {
+			pxp: pxp@8002a000 {
 				reg = <0x8002a000 0x2000>;
 				interrupts = <39>;
 				status = "disabled";
 			};
 
-			ocotp@8002c000 {
+			ocotp: ocotp@8002c000 {
 				compatible = "fsl,ocotp";
 				reg = <0x8002c000 0x2000>;
 				status = "disabled";
@@ -756,10 +793,10 @@
 				status = "disabled";
 			};
 
-			lcdif@80030000 {
+			lcdif: lcdif@80030000 {
 				compatible = "fsl,imx28-lcdif";
 				reg = <0x80030000 0x2000>;
-				interrupts = <38 86>;
+				interrupts = <38>;
 				clocks = <&clks 55>;
 				dmas = <&dma_apbh 13>;
 				dma-names = "rx";
@@ -784,41 +821,41 @@
 				status = "disabled";
 			};
 
-			simdbg@8003c000 {
+			simdbg: simdbg@8003c000 {
 				reg = <0x8003c000 0x200>;
 				status = "disabled";
 			};
 
-			simgpmisel@8003c200 {
+			simgpmisel: simgpmisel@8003c200 {
 				reg = <0x8003c200 0x100>;
 				status = "disabled";
 			};
 
-			simsspsel@8003c300 {
+			simsspsel: simsspsel@8003c300 {
 				reg = <0x8003c300 0x100>;
 				status = "disabled";
 			};
 
-			simmemsel@8003c400 {
+			simmemsel: simmemsel@8003c400 {
 				reg = <0x8003c400 0x100>;
 				status = "disabled";
 			};
 
-			gpiomon@8003c500 {
+			gpiomon: gpiomon@8003c500 {
 				reg = <0x8003c500 0x100>;
 				status = "disabled";
 			};
 
-			simenet@8003c700 {
+			simenet: simenet@8003c700 {
 				reg = <0x8003c700 0x100>;
 				status = "disabled";
 			};
 
-			armjtag@8003c800 {
+			armjtag: armjtag@8003c800 {
 				reg = <0x8003c800 0x100>;
 				status = "disabled";
 			};
-                };
+		};
 
 		apbx@80040000 {
 			compatible = "simple-bus";
@@ -836,16 +873,15 @@
 			saif0: saif@80042000 {
 				compatible = "fsl,imx28-saif";
 				reg = <0x80042000 0x2000>;
-				interrupts = <59 80>;
+				interrupts = <59>;
 				#clock-cells = <0>;
 				clocks = <&clks 53>;
 				dmas = <&dma_apbx 4>;
 				dma-names = "rx-tx";
-				fsl,saif-dma-channel = <4>;
 				status = "disabled";
 			};
 
-			power@80044000 {
+			power: power@80044000 {
 				reg = <0x80044000 0x2000>;
 				status = "disabled";
 			};
@@ -853,15 +889,14 @@
 			saif1: saif@80046000 {
 				compatible = "fsl,imx28-saif";
 				reg = <0x80046000 0x2000>;
-				interrupts = <58 81>;
+				interrupts = <58>;
 				clocks = <&clks 54>;
 				dmas = <&dma_apbx 5>;
 				dma-names = "rx-tx";
-				fsl,saif-dma-channel = <5>;
 				status = "disabled";
 			};
 
-			lradc@80050000 {
+			lradc: lradc@80050000 {
 				compatible = "fsl,imx28-lradc";
 				reg = <0x80050000 0x2000>;
 				interrupts = <10 14 15 16 17 18 19
@@ -869,15 +904,15 @@
 				status = "disabled";
 			};
 
-			spdif@80054000 {
+			spdif: spdif@80054000 {
 				reg = <0x80054000 0x2000>;
-				interrupts = <45 66>;
+				interrupts = <45>;
 				dmas = <&dma_apbx 2>;
 				dma-names = "tx";
 				status = "disabled";
 			};
 
-			rtc@80056000 {
+			mxs_rtc: rtc@80056000 {
 				compatible = "fsl,imx28-rtc", "fsl,stmp3xxx-rtc";
 				reg = <0x80056000 0x2000>;
 				interrupts = <29>;
@@ -888,11 +923,10 @@
 				#size-cells = <0>;
 				compatible = "fsl,imx28-i2c";
 				reg = <0x80058000 0x2000>;
-				interrupts = <111 68>;
+				interrupts = <111>;
 				clock-frequency = <100000>;
 				dmas = <&dma_apbx 6>;
 				dma-names = "rx-tx";
-				fsl,i2c-dma-channel = <6>;
 				status = "disabled";
 			};
 
@@ -901,11 +935,10 @@
 				#size-cells = <0>;
 				compatible = "fsl,imx28-i2c";
 				reg = <0x8005a000 0x2000>;
-				interrupts = <110 69>;
+				interrupts = <110>;
 				clock-frequency = <100000>;
 				dmas = <&dma_apbx 7>;
 				dma-names = "rx-tx";
-				fsl,i2c-dma-channel = <7>;
 				status = "disabled";
 			};
 
@@ -918,7 +951,7 @@
 				status = "disabled";
 			};
 
-			timrot@80068000 {
+			timer: timrot@80068000 {
 				compatible = "fsl,imx28-timrot", "fsl,timrot";
 				reg = <0x80068000 0x2000>;
 				interrupts = <48 49 50 51>;
@@ -928,10 +961,9 @@
 			auart0: serial@8006a000 {
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006a000 0x2000>;
-				interrupts = <112 70 71>;
+				interrupts = <112>;
 				dmas = <&dma_apbx 8>, <&dma_apbx 9>;
 				dma-names = "rx", "tx";
-				fsl,auart-dma-channel = <8 9>;
 				clocks = <&clks 45>;
 				status = "disabled";
 			};
@@ -939,7 +971,7 @@
 			auart1: serial@8006c000 {
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006c000 0x2000>;
-				interrupts = <113 72 73>;
+				interrupts = <113>;
 				dmas = <&dma_apbx 10>, <&dma_apbx 11>;
 				dma-names = "rx", "tx";
 				clocks = <&clks 45>;
@@ -949,7 +981,7 @@
 			auart2: serial@8006e000 {
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006e000 0x2000>;
-				interrupts = <114 74 75>;
+				interrupts = <114>;
 				dmas = <&dma_apbx 12>, <&dma_apbx 13>;
 				dma-names = "rx", "tx";
 				clocks = <&clks 45>;
@@ -959,7 +991,7 @@
 			auart3: serial@80070000 {
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80070000 0x2000>;
-				interrupts = <115 76 77>;
+				interrupts = <115>;
 				dmas = <&dma_apbx 14>, <&dma_apbx 15>;
 				dma-names = "rx", "tx";
 				clocks = <&clks 45>;
@@ -969,7 +1001,7 @@
 			auart4: serial@80072000 {
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80072000 0x2000>;
-				interrupts = <116 78 79>;
+				interrupts = <116>;
 				dmas = <&dma_apbx 0>, <&dma_apbx 1>;
 				dma-names = "rx", "tx";
 				clocks = <&clks 45>;
@@ -1026,7 +1058,7 @@
 			status = "disabled";
 		};
 
-		dflpt@800c0000 {
+		dflpt: dflpt@800c0000 {
 			reg = <0x800c0000 0x10000>;
 			status = "disabled";
 		};
@@ -1049,10 +1081,9 @@
 			status = "disabled";
 		};
 
-		switch@800f8000 {
+		etn_switch: switch@800f8000 {
 			reg = <0x800f8000 0x8000>;
 			status = "disabled";
 		};
-
 	};
 };

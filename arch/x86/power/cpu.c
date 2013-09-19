@@ -25,10 +25,10 @@
 #include <asm/cpu.h>
 
 #ifdef CONFIG_X86_32
-unsigned long saved_context_ebx;
-unsigned long saved_context_esp, saved_context_ebp;
-unsigned long saved_context_esi, saved_context_edi;
-unsigned long saved_context_eflags;
+__visible unsigned long saved_context_ebx;
+__visible unsigned long saved_context_esp, saved_context_ebp;
+__visible unsigned long saved_context_esi, saved_context_edi;
+__visible unsigned long saved_context_eflags;
 #endif
 struct saved_context saved_context;
 

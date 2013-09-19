@@ -1147,7 +1147,7 @@ static struct net_device *atarilance_dev;
 static int __init atarilance_module_init(void)
 {
 	atarilance_dev = atarilance_probe(-1);
-	return PTR_RET(atarilance_dev);
+	return PTR_ERR_OR_ZERO(atarilance_dev);
 }
 
 static void __exit atarilance_module_exit(void)

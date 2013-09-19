@@ -232,6 +232,7 @@ struct cg_proto;
   *	@sk_napi_id: id of the last napi context to receive data for sk
   *	@sk_ll_usec: usecs to busypoll when there is no data
   *	@sk_allocation: allocation mode
+  *	@sk_pacing_rate: Pacing rate (if supported by transport/packet scheduler)
   *	@sk_sndbuf: size of send buffer in bytes
   *	@sk_flags: %SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
   *		   %SO_OOBINLINE settings, %SO_TIMESTAMPING settings
@@ -361,6 +362,7 @@ struct sock {
 	kmemcheck_bitfield_end(flags);
 	int			sk_wmem_queued;
 	gfp_t			sk_allocation;
+	u32			sk_pacing_rate; /* bytes per second */
 	netdev_features_t	sk_route_caps;
 	netdev_features_t	sk_route_nocaps;
 	int			sk_gso_type;
@@ -746,11 +748,6 @@ static inline int sk_stream_wspace(const struct sock *sk)
 
 extern void sk_stream_write_space(struct sock *sk);
 
-static inline bool sk_stream_memory_free(const struct sock *sk)
-{
-	return sk->sk_wmem_queued < sk->sk_sndbuf;
-}
-
 /* OOB backlog add */
 static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
@@ -950,6 +947,7 @@ struct proto {
 	unsigned int		inuse_idx;
 #endif
 
+	bool			(*stream_memory_free)(const struct sock *sk);
 	/* Memory pressure */
 	void			(*enter_memory_pressure)(struct sock *sk);
 	atomic_long_t		*memory_allocated;	/* Current allocated memory. */
@@ -1087,6 +1085,21 @@ static inline struct cg_proto *parent_cg_proto(struct proto *proto,
 	return NULL;
 }
 #endif
+
+static inline bool sk_stream_memory_free(const struct sock *sk)
+{
+	if (sk->sk_wmem_queued >= sk->sk_sndbuf)
+		return false;
+
+	return sk->sk_prot->stream_memory_free ?
+		sk->sk_prot->stream_memory_free(sk) : true;
+}
+
+static inline bool sk_stream_is_writeable(const struct sock *sk)
+{
+	return sk_stream_wspace(sk) >= sk_stream_min_wspace(sk) &&
+	       sk_stream_memory_free(sk);
+}
 
 
 static inline bool sk_has_memory_pressure(const struct sock *sk)
@@ -1509,6 +1522,7 @@ extern struct sk_buff		*sock_rmalloc(struct sock *sk,
 					      unsigned long size, int force,
 					      gfp_t priority);
 extern void			sock_wfree(struct sk_buff *skb);
+extern void			skb_orphan_partial(struct sk_buff *skb);
 extern void			sock_rfree(struct sk_buff *skb);
 extern void			sock_edemux(struct sk_buff *skb);
 
@@ -1527,7 +1541,8 @@ extern struct sk_buff		*sock_alloc_send_pskb(struct sock *sk,
 						      unsigned long header_len,
 						      unsigned long data_len,
 						      int noblock,
-						      int *errcode);
+						      int *errcode,
+						      int max_page_order);
 extern void *sock_kmalloc(struct sock *sk, int size,
 			  gfp_t priority);
 extern void sock_kfree_s(struct sock *sk, void *mem, int size);
@@ -2249,6 +2264,8 @@ static inline struct sock *skb_steal_sock(struct sk_buff *skb)
 extern void sock_enable_timestamp(struct sock *sk, int flag);
 extern int sock_get_timestamp(struct sock *, struct timeval __user *);
 extern int sock_get_timestampns(struct sock *, struct timespec __user *);
+extern int sock_recv_errqueue(struct sock *sk, struct msghdr *msg, int len,
+			      int level, int type);
 
 /*
  *	Enable debug/info messages

@@ -10,6 +10,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_vma_manager.h>
 
 #include <linux/shmem_fs.h>
 #include <drm/exynos_drm.h>
@@ -17,6 +18,7 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_buf.h"
+#include "exynos_drm_iommu.h"
 
 static unsigned int convert_to_vm_err_msg(int msg)
 {
@@ -135,7 +137,7 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 	obj = &exynos_gem_obj->base;
 	buf = exynos_gem_obj->buffer;
 
-	DRM_DEBUG_KMS("handle count = %d\n", atomic_read(&obj->handle_count));
+	DRM_DEBUG_KMS("handle count = %d\n", obj->handle_count);
 
 	/*
 	 * do not release memory region from exporter.
@@ -152,8 +154,7 @@ out:
 	exynos_drm_fini_buf(obj->dev, buf);
 	exynos_gem_obj->buffer = NULL;
 
-	if (obj->map_list.map)
-		drm_gem_free_mmap_offset(obj);
+	drm_gem_free_mmap_offset(obj);
 
 	/* release file pointer to gem object. */
 	drm_gem_object_release(obj);
@@ -191,10 +192,8 @@ struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 	int ret;
 
 	exynos_gem_obj = kzalloc(sizeof(*exynos_gem_obj), GFP_KERNEL);
-	if (!exynos_gem_obj) {
-		DRM_ERROR("failed to allocate exynos gem object\n");
+	if (!exynos_gem_obj)
 		return NULL;
-	}
 
 	exynos_gem_obj->size = size;
 	obj = &exynos_gem_obj->base;
@@ -668,6 +667,18 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 
 	exynos_gem_obj = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG |
 						EXYNOS_BO_WC, args->size);
+	/*
+	 * If physically contiguous memory allocation fails and if IOMMU is
+	 * supported then try to get buffer from non physically contiguous
+	 * memory area.
+	 */
+	if (IS_ERR(exynos_gem_obj) && is_drm_iommu_supported(dev)) {
+		dev_warn(dev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
+		exynos_gem_obj = exynos_drm_gem_create(dev,
+					EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC,
+					args->size);
+	}
+
 	if (IS_ERR(exynos_gem_obj))
 		return PTR_ERR(exynos_gem_obj);
 
@@ -703,13 +714,11 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 		goto unlock;
 	}
 
-	if (!obj->map_list.map) {
-		ret = drm_gem_create_mmap_offset(obj);
-		if (ret)
-			goto out;
-	}
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto out;
 
-	*offset = (u64)obj->map_list.hash.key << PAGE_SHIFT;
+	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 	DRM_DEBUG_KMS("offset = 0x%lx\n", (unsigned long)*offset);
 
 out:
@@ -717,26 +726,6 @@ out:
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
-}
-
-int exynos_drm_gem_dumb_destroy(struct drm_file *file_priv,
-				struct drm_device *dev,
-				unsigned int handle)
-{
-	int ret;
-
-	/*
-	 * obj->refcount and obj->handle_count are decreased and
-	 * if both them are 0 then exynos_drm_gem_free_object()
-	 * would be called by callback to release resources.
-	 */
-	ret = drm_gem_handle_delete(file_priv, handle);
-	if (ret < 0) {
-		DRM_ERROR("failed to delete drm_gem_handle.\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)

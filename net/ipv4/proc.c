@@ -111,7 +111,7 @@ static const struct snmp_mib snmp4_ipstats_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-/* Following RFC4293 items are displayed in /proc/net/netstat */
+/* Following items are displayed in /proc/net/netstat */
 static const struct snmp_mib snmp4_ipextstats_list[] = {
 	SNMP_MIB_ITEM("InNoRoutes", IPSTATS_MIB_INNOROUTES),
 	SNMP_MIB_ITEM("InTruncatedPkts", IPSTATS_MIB_INTRUNCATEDPKTS),
@@ -125,7 +125,12 @@ static const struct snmp_mib snmp4_ipextstats_list[] = {
 	SNMP_MIB_ITEM("OutMcastOctets", IPSTATS_MIB_OUTMCASTOCTETS),
 	SNMP_MIB_ITEM("InBcastOctets", IPSTATS_MIB_INBCASTOCTETS),
 	SNMP_MIB_ITEM("OutBcastOctets", IPSTATS_MIB_OUTBCASTOCTETS),
+	/* Non RFC4293 fields */
 	SNMP_MIB_ITEM("InCsumErrors", IPSTATS_MIB_CSUMERRORS),
+	SNMP_MIB_ITEM("InNoECTPkts", IPSTATS_MIB_NOECTPKTS),
+	SNMP_MIB_ITEM("InECT1Pkts", IPSTATS_MIB_ECT1PKTS),
+	SNMP_MIB_ITEM("InECT0Pkts", IPSTATS_MIB_ECT0PKTS),
+	SNMP_MIB_ITEM("InCEPkts", IPSTATS_MIB_CEPKTS),
 	SNMP_MIB_SENTINEL
 };
 

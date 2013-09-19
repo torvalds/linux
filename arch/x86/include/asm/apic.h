@@ -715,4 +715,6 @@ static inline void exiting_ack_irq(void)
 	ack_APIC_irq();
 }
 
+extern void ioapic_zap_locks(void);
+
 #endif /* _ASM_X86_APIC_H */

@@ -69,4 +69,25 @@ struct brcmf_fil_bss_enable_le {
 	__le32 enable;
 };
 
+/**
+ * struct tdls_iovar - common structure for tdls iovars.
+ *
+ * @ea: ether address of peer station.
+ * @mode: mode value depending on specific tdls iovar.
+ * @chanspec: channel specification.
+ * @pad: unused (for future use).
+ */
+struct brcmf_tdls_iovar_le {
+	u8 ea[ETH_ALEN];		/* Station address */
+	u8 mode;			/* mode: depends on iovar */
+	__le16 chanspec;
+	__le32 pad;			/* future */
+};
+
+enum brcmf_tdls_manual_ep_ops {
+	BRCMF_TDLS_MANUAL_EP_CREATE = 1,
+	BRCMF_TDLS_MANUAL_EP_DELETE = 3,
+	BRCMF_TDLS_MANUAL_EP_DISCOVERY = 6
+};
+
 #endif /* FWIL_TYPES_H_ */

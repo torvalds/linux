@@ -67,6 +67,7 @@ EXPORT_SYMBOL(acpi_pci_disabled);
 int acpi_lapic;
 int acpi_ioapic;
 int acpi_strict;
+int acpi_disable_cmcff;
 
 u8 acpi_sci_flags __initdata;
 int acpi_sci_override_gsi __initdata;
@@ -141,16 +142,8 @@ static u32 irq_to_gsi(int irq)
 }
 
 /*
- * Temporarily use the virtual area starting from FIX_IO_APIC_BASE_END,
- * to map the target physical address. The problem is that set_fixmap()
- * provides a single page, and it is possible that the page is not
- * sufficient.
- * By using this area, we can map up to MAX_IO_APICS pages temporarily,
- * i.e. until the next __va_range() call.
- *
- * Important Safety Note:  The fixed I/O APIC page numbers are *subtracted*
- * from the fixed base.  That's why we start at FIX_IO_APIC_BASE_END and
- * count idx down while incrementing the phys address.
+ * This is just a simple wrapper around early_ioremap(),
+ * with sanity checks for phys == 0 and size == 0.
  */
 char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 {
@@ -160,6 +153,7 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 
 	return early_ioremap(phys, size);
 }
+
 void __init __acpi_unmap_table(char *map, unsigned long size)
 {
 	if (!map || !size)
@@ -199,7 +193,7 @@ static void acpi_register_lapic(int id, u8 enabled)
 {
 	unsigned int ver = 0;
 
-	if (id >= (MAX_LOCAL_APIC-1)) {
+	if (id >= MAX_LOCAL_APIC) {
 		printk(KERN_INFO PREFIX "skipped apicid that is too big\n");
 		return;
 	}
@@ -1120,6 +1114,7 @@ int mp_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 	int ioapic;
 	int ioapic_pin;
 	struct io_apic_irq_attr irq_attr;
+	int ret;
 
 	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
 		return gsi;
@@ -1149,7 +1144,9 @@ int mp_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 	set_io_apic_irq_attr(&irq_attr, ioapic, ioapic_pin,
 			     trigger == ACPI_EDGE_SENSITIVE ? 0 : 1,
 			     polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
-	io_apic_set_pci_routing(dev, gsi_to_irq(gsi), &irq_attr);
+	ret = io_apic_set_pci_routing(dev, gsi_to_irq(gsi), &irq_attr);
+	if (ret < 0)
+		gsi = INT_MIN;
 
 	return gsi;
 }
@@ -1626,6 +1623,10 @@ static int __init parse_acpi(char *arg)
 	/* "acpi=copy_dsdt" copys DSDT */
 	else if (strcmp(arg, "copy_dsdt") == 0) {
 		acpi_gbl_copy_dsdt_locally = 1;
+	}
+	/* "acpi=nocmcff" disables FF mode for corrected errors */
+	else if (strcmp(arg, "nocmcff") == 0) {
+		acpi_disable_cmcff = 1;
 	} else {
 		/* Core will printk when we return error. */
 		return -EINVAL;

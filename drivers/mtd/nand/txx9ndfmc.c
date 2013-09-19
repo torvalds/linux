@@ -87,7 +87,7 @@ static struct platform_device *mtd_to_platdev(struct mtd_info *mtd)
 static void __iomem *ndregaddr(struct platform_device *dev, unsigned int reg)
 {
 	struct txx9ndfmc_drvdata *drvdata = platform_get_drvdata(dev);
-	struct txx9ndfmc_platform_data *plat = dev->dev.platform_data;
+	struct txx9ndfmc_platform_data *plat = dev_get_platdata(&dev->dev);
 
 	return drvdata->base + (reg << plat->shift);
 }
@@ -138,7 +138,7 @@ static void txx9ndfmc_cmd_ctrl(struct mtd_info *mtd, int cmd,
 	struct nand_chip *chip = mtd->priv;
 	struct txx9ndfmc_priv *txx9_priv = chip->priv;
 	struct platform_device *dev = txx9_priv->dev;
-	struct txx9ndfmc_platform_data *plat = dev->dev.platform_data;
+	struct txx9ndfmc_platform_data *plat = dev_get_platdata(&dev->dev);
 
 	if (ctrl & NAND_CTRL_CHANGE) {
 		u32 mcr = txx9ndfmc_read(dev, TXX9_NDFMCR);
@@ -225,7 +225,7 @@ static void txx9ndfmc_enable_hwecc(struct mtd_info *mtd, int mode)
 
 static void txx9ndfmc_initialize(struct platform_device *dev)
 {
-	struct txx9ndfmc_platform_data *plat = dev->dev.platform_data;
+	struct txx9ndfmc_platform_data *plat = dev_get_platdata(&dev->dev);
 	struct txx9ndfmc_drvdata *drvdata = platform_get_drvdata(dev);
 	int tmout = 100;
 
@@ -274,19 +274,17 @@ static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
 
 static int __init txx9ndfmc_probe(struct platform_device *dev)
 {
-	struct txx9ndfmc_platform_data *plat = dev->dev.platform_data;
+	struct txx9ndfmc_platform_data *plat = dev_get_platdata(&dev->dev);
 	int hold, spw;
 	int i;
 	struct txx9ndfmc_drvdata *drvdata;
 	unsigned long gbusclk = plat->gbus_clock;
 	struct resource *res;
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
 	drvdata = devm_kzalloc(&dev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	drvdata->base = devm_ioremap_resource(&dev->dev, res);
 	if (IS_ERR(drvdata->base))
 		return PTR_ERR(drvdata->base);
@@ -387,7 +385,6 @@ static int __exit txx9ndfmc_remove(struct platform_device *dev)
 	struct txx9ndfmc_drvdata *drvdata = platform_get_drvdata(dev);
 	int i;
 
-	platform_set_drvdata(dev, NULL);
 	if (!drvdata)
 		return 0;
 	for (i = 0; i < MAX_TXX9NDFMC_DEV; i++) {

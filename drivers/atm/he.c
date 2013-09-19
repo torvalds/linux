@@ -1088,15 +1088,8 @@ static int he_start(struct atm_dev *dev)
 	for (i = 0; i < 6; ++i)
 		dev->esi[i] = read_prom_byte(he_dev, MAC_ADDR + i);
 
-	hprintk("%s%s, %x:%x:%x:%x:%x:%x\n",
-				he_dev->prod_id,
-					he_dev->media & 0x40 ? "SM" : "MM",
-						dev->esi[0],
-						dev->esi[1],
-						dev->esi[2],
-						dev->esi[3],
-						dev->esi[4],
-						dev->esi[5]);
+	hprintk("%s%s, %pM\n", he_dev->prod_id,
+		he_dev->media & 0x40 ? "SM" : "MM", dev->esi);
 	he_dev->atm_dev->link_rate = he_is622(he_dev) ?
 						ATM_OC12_PCR : ATM_OC3_PCR;
 

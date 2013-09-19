@@ -7779,6 +7779,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&ioc->sas_hba.sas_port_list);
 	INIT_LIST_HEAD(&ioc->delayed_tr_list);
 	INIT_LIST_HEAD(&ioc->delayed_tr_volume_list);
+	INIT_LIST_HEAD(&ioc->reply_queue_list);
 
 	/* init shost parameters */
 	shost->max_cmd_len = 32;

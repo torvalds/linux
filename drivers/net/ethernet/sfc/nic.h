@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2011 Solarflare Communications Inc.
+ * Copyright 2006-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -16,17 +16,13 @@
 #include "net_driver.h"
 #include "efx.h"
 #include "mcdi.h"
-#include "spi.h"
-
-/*
- * Falcon hardware control
- */
 
 enum {
 	EFX_REV_FALCON_A0 = 0,
 	EFX_REV_FALCON_A1 = 1,
 	EFX_REV_FALCON_B0 = 2,
 	EFX_REV_SIENA_A0 = 3,
+	EFX_REV_HUNT_A0 = 4,
 };
 
 static inline int efx_nic_rev(struct efx_nic *efx)
@@ -34,12 +30,71 @@ static inline int efx_nic_rev(struct efx_nic *efx)
 	return efx->type->revision;
 }
 
-extern u32 efx_nic_fpga_ver(struct efx_nic *efx);
+extern u32 efx_farch_fpga_ver(struct efx_nic *efx);
 
 /* NIC has two interlinked PCI functions for the same port. */
 static inline bool efx_nic_is_dual_func(struct efx_nic *efx)
 {
 	return efx_nic_rev(efx) < EFX_REV_FALCON_B0;
+}
+
+/* Read the current event from the event queue */
+static inline efx_qword_t *efx_event(struct efx_channel *channel,
+				     unsigned int index)
+{
+	return ((efx_qword_t *) (channel->eventq.buf.addr)) +
+		(index & channel->eventq_mask);
+}
+
+/* See if an event is present
+ *
+ * We check both the high and low dword of the event for all ones.  We
+ * wrote all ones when we cleared the event, and no valid event can
+ * have all ones in either its high or low dwords.  This approach is
+ * robust against reordering.
+ *
+ * Note that using a single 64-bit comparison is incorrect; even
+ * though the CPU read will be atomic, the DMA write may not be.
+ */
+static inline int efx_event_present(efx_qword_t *event)
+{
+	return !(EFX_DWORD_IS_ALL_ONES(event->dword[0]) |
+		  EFX_DWORD_IS_ALL_ONES(event->dword[1]));
+}
+
+/* Returns a pointer to the specified transmit descriptor in the TX
+ * descriptor queue belonging to the specified channel.
+ */
+static inline efx_qword_t *
+efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
+{
+	return ((efx_qword_t *) (tx_queue->txd.buf.addr)) + index;
+}
+
+/* Decide whether to push a TX descriptor to the NIC vs merely writing
+ * the doorbell.  This can reduce latency when we are adding a single
+ * descriptor to an empty queue, but is otherwise pointless.  Further,
+ * Falcon and Siena have hardware bugs (SF bug 33851) that may be
+ * triggered if we don't check this.
+ */
+static inline bool efx_nic_may_push_tx_desc(struct efx_tx_queue *tx_queue,
+					    unsigned int write_count)
+{
+	unsigned empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
+
+	if (empty_read_count == 0)
+		return false;
+
+	tx_queue->empty_read_count = 0;
+	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0
+		&& tx_queue->write_count - write_count == 1;
+}
+
+/* Returns a pointer to the specified descriptor in the RX descriptor queue */
+static inline efx_qword_t *
+efx_rx_desc(struct efx_rx_queue *rx_queue, unsigned int index)
+{
+	return ((efx_qword_t *) (rx_queue->rxd.buf.addr)) + index;
 }
 
 enum {
@@ -58,9 +113,6 @@ enum {
 	((1 << LOOPBACK_XGMII) |		\
 	 (1 << LOOPBACK_XGXS) |			\
 	 (1 << LOOPBACK_XAUI))
-
-#define FALCON_GMAC_LOOPBACKS			\
-	(1 << LOOPBACK_GMAC)
 
 /* Alignment of PCIe DMA boundaries (4KB) */
 #define EFX_PAGE_SIZE	4096
@@ -105,13 +157,96 @@ struct falcon_board {
 };
 
 /**
+ * struct falcon_spi_device - a Falcon SPI (Serial Peripheral Interface) device
+ * @device_id:		Controller's id for the device
+ * @size:		Size (in bytes)
+ * @addr_len:		Number of address bytes in read/write commands
+ * @munge_address:	Flag whether addresses should be munged.
+ *	Some devices with 9-bit addresses (e.g. AT25040A EEPROM)
+ *	use bit 3 of the command byte as address bit A8, rather
+ *	than having a two-byte address.  If this flag is set, then
+ *	commands should be munged in this way.
+ * @erase_command:	Erase command (or 0 if sector erase not needed).
+ * @erase_size:		Erase sector size (in bytes)
+ *	Erase commands affect sectors with this size and alignment.
+ *	This must be a power of two.
+ * @block_size:		Write block size (in bytes).
+ *	Write commands are limited to blocks with this size and alignment.
+ */
+struct falcon_spi_device {
+	int device_id;
+	unsigned int size;
+	unsigned int addr_len;
+	unsigned int munge_address:1;
+	u8 erase_command;
+	unsigned int erase_size;
+	unsigned int block_size;
+};
+
+static inline bool falcon_spi_present(const struct falcon_spi_device *spi)
+{
+	return spi->size != 0;
+}
+
+enum {
+	FALCON_STAT_tx_bytes,
+	FALCON_STAT_tx_packets,
+	FALCON_STAT_tx_pause,
+	FALCON_STAT_tx_control,
+	FALCON_STAT_tx_unicast,
+	FALCON_STAT_tx_multicast,
+	FALCON_STAT_tx_broadcast,
+	FALCON_STAT_tx_lt64,
+	FALCON_STAT_tx_64,
+	FALCON_STAT_tx_65_to_127,
+	FALCON_STAT_tx_128_to_255,
+	FALCON_STAT_tx_256_to_511,
+	FALCON_STAT_tx_512_to_1023,
+	FALCON_STAT_tx_1024_to_15xx,
+	FALCON_STAT_tx_15xx_to_jumbo,
+	FALCON_STAT_tx_gtjumbo,
+	FALCON_STAT_tx_non_tcpudp,
+	FALCON_STAT_tx_mac_src_error,
+	FALCON_STAT_tx_ip_src_error,
+	FALCON_STAT_rx_bytes,
+	FALCON_STAT_rx_good_bytes,
+	FALCON_STAT_rx_bad_bytes,
+	FALCON_STAT_rx_packets,
+	FALCON_STAT_rx_good,
+	FALCON_STAT_rx_bad,
+	FALCON_STAT_rx_pause,
+	FALCON_STAT_rx_control,
+	FALCON_STAT_rx_unicast,
+	FALCON_STAT_rx_multicast,
+	FALCON_STAT_rx_broadcast,
+	FALCON_STAT_rx_lt64,
+	FALCON_STAT_rx_64,
+	FALCON_STAT_rx_65_to_127,
+	FALCON_STAT_rx_128_to_255,
+	FALCON_STAT_rx_256_to_511,
+	FALCON_STAT_rx_512_to_1023,
+	FALCON_STAT_rx_1024_to_15xx,
+	FALCON_STAT_rx_15xx_to_jumbo,
+	FALCON_STAT_rx_gtjumbo,
+	FALCON_STAT_rx_bad_lt64,
+	FALCON_STAT_rx_bad_gtjumbo,
+	FALCON_STAT_rx_overflow,
+	FALCON_STAT_rx_symbol_error,
+	FALCON_STAT_rx_align_error,
+	FALCON_STAT_rx_length_error,
+	FALCON_STAT_rx_internal_error,
+	FALCON_STAT_rx_nodesc_drop_cnt,
+	FALCON_STAT_COUNT
+};
+
+/**
  * struct falcon_nic_data - Falcon NIC state
  * @pci_dev2: Secondary function of Falcon A
  * @board: Board state and functions
+ * @stats: Hardware statistics
  * @stats_disable_count: Nest count for disabling statistics fetches
  * @stats_pending: Is there a pending DMA of MAC statistics.
  * @stats_timer: A timer for regularly fetching MAC statistics.
- * @stats_dma_done: Pointer to the flag which indicates DMA completion.
  * @spi_flash: SPI flash device
  * @spi_eeprom: SPI EEPROM device
  * @spi_lock: SPI bus lock
@@ -121,12 +256,12 @@ struct falcon_board {
 struct falcon_nic_data {
 	struct pci_dev *pci_dev2;
 	struct falcon_board board;
+	u64 stats[FALCON_STAT_COUNT];
 	unsigned int stats_disable_count;
 	bool stats_pending;
 	struct timer_list stats_timer;
-	u32 *stats_dma_done;
-	struct efx_spi_device spi_flash;
-	struct efx_spi_device spi_eeprom;
+	struct falcon_spi_device spi_flash;
+	struct falcon_spi_device spi_eeprom;
 	struct mutex spi_lock;
 	struct mutex mdio_lock;
 	bool xmac_poll_required;
@@ -138,29 +273,148 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 	return &data->board;
 }
 
-/**
- * struct siena_nic_data - Siena NIC state
- * @mcdi: Management-Controller-to-Driver Interface
- * @wol_filter_id: Wake-on-LAN packet filter id
- * @hwmon: Hardware monitor state
- */
-struct siena_nic_data {
-	struct efx_mcdi_iface mcdi;
-	int wol_filter_id;
-#ifdef CONFIG_SFC_MCDI_MON
-	struct efx_mcdi_mon hwmon;
-#endif
+enum {
+	SIENA_STAT_tx_bytes,
+	SIENA_STAT_tx_good_bytes,
+	SIENA_STAT_tx_bad_bytes,
+	SIENA_STAT_tx_packets,
+	SIENA_STAT_tx_bad,
+	SIENA_STAT_tx_pause,
+	SIENA_STAT_tx_control,
+	SIENA_STAT_tx_unicast,
+	SIENA_STAT_tx_multicast,
+	SIENA_STAT_tx_broadcast,
+	SIENA_STAT_tx_lt64,
+	SIENA_STAT_tx_64,
+	SIENA_STAT_tx_65_to_127,
+	SIENA_STAT_tx_128_to_255,
+	SIENA_STAT_tx_256_to_511,
+	SIENA_STAT_tx_512_to_1023,
+	SIENA_STAT_tx_1024_to_15xx,
+	SIENA_STAT_tx_15xx_to_jumbo,
+	SIENA_STAT_tx_gtjumbo,
+	SIENA_STAT_tx_collision,
+	SIENA_STAT_tx_single_collision,
+	SIENA_STAT_tx_multiple_collision,
+	SIENA_STAT_tx_excessive_collision,
+	SIENA_STAT_tx_deferred,
+	SIENA_STAT_tx_late_collision,
+	SIENA_STAT_tx_excessive_deferred,
+	SIENA_STAT_tx_non_tcpudp,
+	SIENA_STAT_tx_mac_src_error,
+	SIENA_STAT_tx_ip_src_error,
+	SIENA_STAT_rx_bytes,
+	SIENA_STAT_rx_good_bytes,
+	SIENA_STAT_rx_bad_bytes,
+	SIENA_STAT_rx_packets,
+	SIENA_STAT_rx_good,
+	SIENA_STAT_rx_bad,
+	SIENA_STAT_rx_pause,
+	SIENA_STAT_rx_control,
+	SIENA_STAT_rx_unicast,
+	SIENA_STAT_rx_multicast,
+	SIENA_STAT_rx_broadcast,
+	SIENA_STAT_rx_lt64,
+	SIENA_STAT_rx_64,
+	SIENA_STAT_rx_65_to_127,
+	SIENA_STAT_rx_128_to_255,
+	SIENA_STAT_rx_256_to_511,
+	SIENA_STAT_rx_512_to_1023,
+	SIENA_STAT_rx_1024_to_15xx,
+	SIENA_STAT_rx_15xx_to_jumbo,
+	SIENA_STAT_rx_gtjumbo,
+	SIENA_STAT_rx_bad_gtjumbo,
+	SIENA_STAT_rx_overflow,
+	SIENA_STAT_rx_false_carrier,
+	SIENA_STAT_rx_symbol_error,
+	SIENA_STAT_rx_align_error,
+	SIENA_STAT_rx_length_error,
+	SIENA_STAT_rx_internal_error,
+	SIENA_STAT_rx_nodesc_drop_cnt,
+	SIENA_STAT_COUNT
 };
 
-#ifdef CONFIG_SFC_MCDI_MON
-static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
-{
-	struct siena_nic_data *nic_data;
-	EFX_BUG_ON_PARANOID(efx_nic_rev(efx) < EFX_REV_SIENA_A0);
-	nic_data = efx->nic_data;
-	return &nic_data->hwmon;
-}
-#endif
+/**
+ * struct siena_nic_data - Siena NIC state
+ * @wol_filter_id: Wake-on-LAN packet filter id
+ * @stats: Hardware statistics
+ */
+struct siena_nic_data {
+	int wol_filter_id;
+	u64 stats[SIENA_STAT_COUNT];
+};
+
+enum {
+	EF10_STAT_tx_bytes,
+	EF10_STAT_tx_packets,
+	EF10_STAT_tx_pause,
+	EF10_STAT_tx_control,
+	EF10_STAT_tx_unicast,
+	EF10_STAT_tx_multicast,
+	EF10_STAT_tx_broadcast,
+	EF10_STAT_tx_lt64,
+	EF10_STAT_tx_64,
+	EF10_STAT_tx_65_to_127,
+	EF10_STAT_tx_128_to_255,
+	EF10_STAT_tx_256_to_511,
+	EF10_STAT_tx_512_to_1023,
+	EF10_STAT_tx_1024_to_15xx,
+	EF10_STAT_tx_15xx_to_jumbo,
+	EF10_STAT_rx_bytes,
+	EF10_STAT_rx_bytes_minus_good_bytes,
+	EF10_STAT_rx_good_bytes,
+	EF10_STAT_rx_bad_bytes,
+	EF10_STAT_rx_packets,
+	EF10_STAT_rx_good,
+	EF10_STAT_rx_bad,
+	EF10_STAT_rx_pause,
+	EF10_STAT_rx_control,
+	EF10_STAT_rx_unicast,
+	EF10_STAT_rx_multicast,
+	EF10_STAT_rx_broadcast,
+	EF10_STAT_rx_lt64,
+	EF10_STAT_rx_64,
+	EF10_STAT_rx_65_to_127,
+	EF10_STAT_rx_128_to_255,
+	EF10_STAT_rx_256_to_511,
+	EF10_STAT_rx_512_to_1023,
+	EF10_STAT_rx_1024_to_15xx,
+	EF10_STAT_rx_15xx_to_jumbo,
+	EF10_STAT_rx_gtjumbo,
+	EF10_STAT_rx_bad_gtjumbo,
+	EF10_STAT_rx_overflow,
+	EF10_STAT_rx_align_error,
+	EF10_STAT_rx_length_error,
+	EF10_STAT_rx_nodesc_drops,
+	EF10_STAT_COUNT
+};
+
+/**
+ * struct efx_ef10_nic_data - EF10 architecture NIC state
+ * @mcdi_buf: DMA buffer for MCDI
+ * @warm_boot_count: Last seen MC warm boot count
+ * @vi_base: Absolute index of first VI in this function
+ * @n_allocated_vis: Number of VIs allocated to this function
+ * @must_realloc_vis: Flag: VIs have yet to be reallocated after MC reboot
+ * @must_restore_filters: Flag: filters have yet to be restored after MC reboot
+ * @rx_rss_context: Firmware handle for our RSS context
+ * @stats: Hardware statistics
+ * @workaround_35388: Flag: firmware supports workaround for bug 35388
+ * @datapath_caps: Capabilities of datapath firmware (FLAGS1 field of
+ *	%MC_CMD_GET_CAPABILITIES response)
+ */
+struct efx_ef10_nic_data {
+	struct efx_buffer mcdi_buf;
+	u16 warm_boot_count;
+	unsigned int vi_base;
+	unsigned int n_allocated_vis;
+	bool must_realloc_vis;
+	bool must_restore_filters;
+	u32 rx_rss_context;
+	u64 stats[EF10_STAT_COUNT];
+	bool workaround_35388;
+	u32 datapath_caps;
+};
 
 /*
  * On the SFC9000 family each port is associated with 1 PCI physical
@@ -263,6 +517,7 @@ extern void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
 extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
 extern const struct efx_nic_type siena_a0_nic_type;
+extern const struct efx_nic_type efx_hunt_a0_nic_type;
 
 /**************************************************************************
  *
@@ -274,35 +529,123 @@ extern const struct efx_nic_type siena_a0_nic_type;
 extern int falcon_probe_board(struct efx_nic *efx, u16 revision_info);
 
 /* TX data path */
-extern int efx_nic_probe_tx(struct efx_tx_queue *tx_queue);
-extern void efx_nic_init_tx(struct efx_tx_queue *tx_queue);
-extern void efx_nic_fini_tx(struct efx_tx_queue *tx_queue);
-extern void efx_nic_remove_tx(struct efx_tx_queue *tx_queue);
-extern void efx_nic_push_buffers(struct efx_tx_queue *tx_queue);
+static inline int efx_nic_probe_tx(struct efx_tx_queue *tx_queue)
+{
+	return tx_queue->efx->type->tx_probe(tx_queue);
+}
+static inline void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
+{
+	tx_queue->efx->type->tx_init(tx_queue);
+}
+static inline void efx_nic_remove_tx(struct efx_tx_queue *tx_queue)
+{
+	tx_queue->efx->type->tx_remove(tx_queue);
+}
+static inline void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
+{
+	tx_queue->efx->type->tx_write(tx_queue);
+}
 
 /* RX data path */
-extern int efx_nic_probe_rx(struct efx_rx_queue *rx_queue);
-extern void efx_nic_init_rx(struct efx_rx_queue *rx_queue);
-extern void efx_nic_fini_rx(struct efx_rx_queue *rx_queue);
-extern void efx_nic_remove_rx(struct efx_rx_queue *rx_queue);
-extern void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue);
-extern void efx_nic_generate_fill_event(struct efx_rx_queue *rx_queue);
+static inline int efx_nic_probe_rx(struct efx_rx_queue *rx_queue)
+{
+	return rx_queue->efx->type->rx_probe(rx_queue);
+}
+static inline void efx_nic_init_rx(struct efx_rx_queue *rx_queue)
+{
+	rx_queue->efx->type->rx_init(rx_queue);
+}
+static inline void efx_nic_remove_rx(struct efx_rx_queue *rx_queue)
+{
+	rx_queue->efx->type->rx_remove(rx_queue);
+}
+static inline void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue)
+{
+	rx_queue->efx->type->rx_write(rx_queue);
+}
+static inline void efx_nic_generate_fill_event(struct efx_rx_queue *rx_queue)
+{
+	rx_queue->efx->type->rx_defer_refill(rx_queue);
+}
 
 /* Event data path */
-extern int efx_nic_probe_eventq(struct efx_channel *channel);
-extern void efx_nic_init_eventq(struct efx_channel *channel);
-extern void efx_nic_fini_eventq(struct efx_channel *channel);
-extern void efx_nic_remove_eventq(struct efx_channel *channel);
-extern int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota);
-extern void efx_nic_eventq_read_ack(struct efx_channel *channel);
-extern bool efx_nic_event_present(struct efx_channel *channel);
+static inline int efx_nic_probe_eventq(struct efx_channel *channel)
+{
+	return channel->efx->type->ev_probe(channel);
+}
+static inline int efx_nic_init_eventq(struct efx_channel *channel)
+{
+	return channel->efx->type->ev_init(channel);
+}
+static inline void efx_nic_fini_eventq(struct efx_channel *channel)
+{
+	channel->efx->type->ev_fini(channel);
+}
+static inline void efx_nic_remove_eventq(struct efx_channel *channel)
+{
+	channel->efx->type->ev_remove(channel);
+}
+static inline int
+efx_nic_process_eventq(struct efx_channel *channel, int quota)
+{
+	return channel->efx->type->ev_process(channel, quota);
+}
+static inline void efx_nic_eventq_read_ack(struct efx_channel *channel)
+{
+	channel->efx->type->ev_read_ack(channel);
+}
+extern void efx_nic_event_test_start(struct efx_channel *channel);
 
-/* MAC/PHY */
-extern void falcon_drain_tx_fifo(struct efx_nic *efx);
-extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
-extern bool falcon_xmac_check_fault(struct efx_nic *efx);
-extern int falcon_reconfigure_xmac(struct efx_nic *efx);
-extern void falcon_update_stats_xmac(struct efx_nic *efx);
+/* Falcon/Siena queue operations */
+extern int efx_farch_tx_probe(struct efx_tx_queue *tx_queue);
+extern void efx_farch_tx_init(struct efx_tx_queue *tx_queue);
+extern void efx_farch_tx_fini(struct efx_tx_queue *tx_queue);
+extern void efx_farch_tx_remove(struct efx_tx_queue *tx_queue);
+extern void efx_farch_tx_write(struct efx_tx_queue *tx_queue);
+extern int efx_farch_rx_probe(struct efx_rx_queue *rx_queue);
+extern void efx_farch_rx_init(struct efx_rx_queue *rx_queue);
+extern void efx_farch_rx_fini(struct efx_rx_queue *rx_queue);
+extern void efx_farch_rx_remove(struct efx_rx_queue *rx_queue);
+extern void efx_farch_rx_write(struct efx_rx_queue *rx_queue);
+extern void efx_farch_rx_defer_refill(struct efx_rx_queue *rx_queue);
+extern int efx_farch_ev_probe(struct efx_channel *channel);
+extern int efx_farch_ev_init(struct efx_channel *channel);
+extern void efx_farch_ev_fini(struct efx_channel *channel);
+extern void efx_farch_ev_remove(struct efx_channel *channel);
+extern int efx_farch_ev_process(struct efx_channel *channel, int quota);
+extern void efx_farch_ev_read_ack(struct efx_channel *channel);
+extern void efx_farch_ev_test_generate(struct efx_channel *channel);
+
+/* Falcon/Siena filter operations */
+extern int efx_farch_filter_table_probe(struct efx_nic *efx);
+extern void efx_farch_filter_table_restore(struct efx_nic *efx);
+extern void efx_farch_filter_table_remove(struct efx_nic *efx);
+extern void efx_farch_filter_update_rx_scatter(struct efx_nic *efx);
+extern s32 efx_farch_filter_insert(struct efx_nic *efx,
+				   struct efx_filter_spec *spec, bool replace);
+extern int efx_farch_filter_remove_safe(struct efx_nic *efx,
+					enum efx_filter_priority priority,
+					u32 filter_id);
+extern int efx_farch_filter_get_safe(struct efx_nic *efx,
+				     enum efx_filter_priority priority,
+				     u32 filter_id, struct efx_filter_spec *);
+extern void efx_farch_filter_clear_rx(struct efx_nic *efx,
+				      enum efx_filter_priority priority);
+extern u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
+					  enum efx_filter_priority priority);
+extern u32 efx_farch_filter_get_rx_id_limit(struct efx_nic *efx);
+extern s32 efx_farch_filter_get_rx_ids(struct efx_nic *efx,
+				       enum efx_filter_priority priority,
+				       u32 *buf, u32 size);
+#ifdef CONFIG_RFS_ACCEL
+extern s32 efx_farch_filter_rfs_insert(struct efx_nic *efx,
+				       struct efx_filter_spec *spec);
+extern bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
+					    unsigned int index);
+#endif
+extern void efx_farch_filter_sync_rx_mode(struct efx_nic *efx);
+
+extern bool efx_nic_event_present(struct efx_channel *channel);
 
 /* Some statistics are computed as A - B where A and B each increase
  * linearly with some hardware counter(s) and the counters are read
@@ -322,16 +665,18 @@ static inline void efx_update_diff_stat(u64 *stat, u64 diff)
 		*stat = diff;
 }
 
-/* Interrupts and test events */
+/* Interrupts */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
-extern void efx_nic_enable_interrupts(struct efx_nic *efx);
-extern void efx_nic_event_test_start(struct efx_channel *channel);
 extern void efx_nic_irq_test_start(struct efx_nic *efx);
-extern void efx_nic_disable_interrupts(struct efx_nic *efx);
 extern void efx_nic_fini_interrupt(struct efx_nic *efx);
-extern irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx);
-extern irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id);
-extern void falcon_irq_ack_a1(struct efx_nic *efx);
+
+/* Falcon/Siena interrupts */
+extern void efx_farch_irq_enable_master(struct efx_nic *efx);
+extern void efx_farch_irq_test_generate(struct efx_nic *efx);
+extern void efx_farch_irq_disable_master(struct efx_nic *efx);
+extern irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id);
+extern irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id);
+extern irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx);
 
 static inline int efx_nic_event_test_irq_cpu(struct efx_channel *channel)
 {
@@ -345,69 +690,47 @@ static inline int efx_nic_irq_test_irq_cpu(struct efx_nic *efx)
 /* Global Resources */
 extern int efx_nic_flush_queues(struct efx_nic *efx);
 extern void siena_prepare_flush(struct efx_nic *efx);
+extern int efx_farch_fini_dmaq(struct efx_nic *efx);
 extern void siena_finish_flush(struct efx_nic *efx);
 extern void falcon_start_nic_stats(struct efx_nic *efx);
 extern void falcon_stop_nic_stats(struct efx_nic *efx);
-extern void falcon_setup_xaui(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
-extern void
-efx_nic_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
-extern void efx_nic_init_common(struct efx_nic *efx);
-extern void efx_nic_push_rx_indir_table(struct efx_nic *efx);
+extern void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
+extern void efx_farch_init_common(struct efx_nic *efx);
+extern void efx_ef10_handle_drain_event(struct efx_nic *efx);
+static inline void efx_nic_push_rx_indir_table(struct efx_nic *efx)
+{
+	efx->type->rx_push_indir_table(efx);
+}
+extern void efx_farch_rx_push_indir_table(struct efx_nic *efx);
 
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
-			 unsigned int len);
+			 unsigned int len, gfp_t gfp_flags);
 void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer);
 
 /* Tests */
-struct efx_nic_register_test {
+struct efx_farch_register_test {
 	unsigned address;
 	efx_oword_t mask;
 };
-extern int efx_nic_test_registers(struct efx_nic *efx,
-				  const struct efx_nic_register_test *regs,
-				  size_t n_regs);
+extern int efx_farch_test_registers(struct efx_nic *efx,
+				    const struct efx_farch_register_test *regs,
+				    size_t n_regs);
 
 extern size_t efx_nic_get_regs_len(struct efx_nic *efx);
 extern void efx_nic_get_regs(struct efx_nic *efx, void *buf);
 
-/**************************************************************************
- *
- * Falcon MAC stats
- *
- **************************************************************************
- */
+extern size_t
+efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
+		       const unsigned long *mask, u8 *names);
+extern void
+efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
+		     const unsigned long *mask,
+		     u64 *stats, const void *dma_buf, bool accumulate);
 
-#define FALCON_STAT_OFFSET(falcon_stat) EFX_VAL(falcon_stat, offset)
-#define FALCON_STAT_WIDTH(falcon_stat) EFX_VAL(falcon_stat, WIDTH)
+#define EFX_MAX_FLUSH_TIME 5000
 
-/* Retrieve statistic from statistics block */
-#define FALCON_STAT(efx, falcon_stat, efx_stat) do {		\
-	if (FALCON_STAT_WIDTH(falcon_stat) == 16)		\
-		(efx)->mac_stats.efx_stat += le16_to_cpu(	\
-			*((__force __le16 *)				\
-			  (efx->stats_buffer.addr +		\
-			   FALCON_STAT_OFFSET(falcon_stat))));	\
-	else if (FALCON_STAT_WIDTH(falcon_stat) == 32)		\
-		(efx)->mac_stats.efx_stat += le32_to_cpu(	\
-			*((__force __le32 *)				\
-			  (efx->stats_buffer.addr +		\
-			   FALCON_STAT_OFFSET(falcon_stat))));	\
-	else							\
-		(efx)->mac_stats.efx_stat += le64_to_cpu(	\
-			*((__force __le64 *)				\
-			  (efx->stats_buffer.addr +		\
-			   FALCON_STAT_OFFSET(falcon_stat))));	\
-	} while (0)
-
-#define FALCON_MAC_STATS_SIZE 0x100
-
-#define MAC_DATA_LBN 0
-#define MAC_DATA_WIDTH 32
-
-extern void efx_generate_event(struct efx_nic *efx, unsigned int evq,
-			       efx_qword_t *event);
-
-extern void falcon_poll_xmac(struct efx_nic *efx);
+extern void efx_farch_generate_event(struct efx_nic *efx, unsigned int evq,
+				     efx_qword_t *event);
 
 #endif /* EFX_NIC_H */

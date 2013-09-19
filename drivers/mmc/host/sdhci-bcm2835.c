@@ -119,7 +119,7 @@ static u8 bcm2835_sdhci_readb(struct sdhci_host *host, int reg)
 	return byte;
 }
 
-unsigned int bcm2835_sdhci_get_min_clock(struct sdhci_host *host)
+static unsigned int bcm2835_sdhci_get_min_clock(struct sdhci_host *host)
 {
 	return MIN_FREQ;
 }

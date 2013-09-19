@@ -250,11 +250,11 @@ rpcauth_list_flavors(rpc_authflavor_t *array, int size)
 EXPORT_SYMBOL_GPL(rpcauth_list_flavors);
 
 struct rpc_auth *
-rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
+rpcauth_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	struct rpc_auth		*auth;
 	const struct rpc_authops *ops;
-	u32			flavor = pseudoflavor_to_flavor(pseudoflavor);
+	u32			flavor = pseudoflavor_to_flavor(args->pseudoflavor);
 
 	auth = ERR_PTR(-EINVAL);
 	if (flavor >= RPC_AUTH_MAXFLAVOR)
@@ -269,7 +269,7 @@ rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
 		goto out;
 	}
 	spin_unlock(&rpc_authflavor_lock);
-	auth = ops->create(clnt, pseudoflavor);
+	auth = ops->create(args, clnt);
 	module_put(ops->owner);
 	if (IS_ERR(auth))
 		return auth;
@@ -343,6 +343,27 @@ out_nocache:
 EXPORT_SYMBOL_GPL(rpcauth_init_credcache);
 
 /*
+ * Setup a credential key lifetime timeout notification
+ */
+int
+rpcauth_key_timeout_notify(struct rpc_auth *auth, struct rpc_cred *cred)
+{
+	if (!cred->cr_auth->au_ops->key_timeout)
+		return 0;
+	return cred->cr_auth->au_ops->key_timeout(auth, cred);
+}
+EXPORT_SYMBOL_GPL(rpcauth_key_timeout_notify);
+
+bool
+rpcauth_cred_key_to_expire(struct rpc_cred *cred)
+{
+	if (!cred->cr_ops->crkey_to_expire)
+		return false;
+	return cred->cr_ops->crkey_to_expire(cred);
+}
+EXPORT_SYMBOL_GPL(rpcauth_cred_key_to_expire);
+
+/*
  * Destroy a list of credentials
  */
 static inline
@@ -413,12 +434,13 @@ EXPORT_SYMBOL_GPL(rpcauth_destroy_credcache);
 /*
  * Remove stale credentials. Avoid sleeping inside the loop.
  */
-static int
+static long
 rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 {
 	spinlock_t *cache_lock;
 	struct rpc_cred *cred, *next;
 	unsigned long expired = jiffies - RPC_AUTH_EXPIRY_MORATORIUM;
+	long freed = 0;
 
 	list_for_each_entry_safe(cred, next, &cred_unused, cr_lru) {
 
@@ -430,10 +452,11 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 		 */
 		if (time_in_range(cred->cr_expire, expired, jiffies) &&
 		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0)
-			return 0;
+			break;
 
 		list_del_init(&cred->cr_lru);
 		number_cred_unused--;
+		freed++;
 		if (atomic_read(&cred->cr_count) != 0)
 			continue;
 
@@ -446,29 +469,39 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 		}
 		spin_unlock(cache_lock);
 	}
-	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
+	return freed;
 }
 
 /*
  * Run memory cache shrinker.
  */
-static int
-rpcauth_cache_shrinker(struct shrinker *shrink, struct shrink_control *sc)
+static unsigned long
+rpcauth_cache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+
 {
 	LIST_HEAD(free);
-	int res;
-	int nr_to_scan = sc->nr_to_scan;
-	gfp_t gfp_mask = sc->gfp_mask;
+	unsigned long freed;
 
-	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
-		return (nr_to_scan == 0) ? 0 : -1;
+	if ((sc->gfp_mask & GFP_KERNEL) != GFP_KERNEL)
+		return SHRINK_STOP;
+
+	/* nothing left, don't come back */
 	if (list_empty(&cred_unused))
-		return 0;
+		return SHRINK_STOP;
+
 	spin_lock(&rpc_credcache_lock);
-	res = rpcauth_prune_expired(&free, nr_to_scan);
+	freed = rpcauth_prune_expired(&free, sc->nr_to_scan);
 	spin_unlock(&rpc_credcache_lock);
 	rpcauth_destroy_credlist(&free);
-	return res;
+
+	return freed;
+}
+
+static unsigned long
+rpcauth_cache_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
+
+{
+	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
 }
 
 /*
@@ -784,7 +817,8 @@ rpcauth_uptodatecred(struct rpc_task *task)
 }
 
 static struct shrinker rpc_cred_shrinker = {
-	.shrink = rpcauth_cache_shrinker,
+	.count_objects = rpcauth_cache_shrink_count,
+	.scan_objects = rpcauth_cache_shrink_scan,
 	.seeks = DEFAULT_SEEKS,
 };
 

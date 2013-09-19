@@ -142,8 +142,6 @@ static inline void ldlm_flock_blocking_unlink(struct ldlm_lock *req)
 static inline void
 ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
 {
-	ENTRY;
-
 	LDLM_DEBUG(lock, "ldlm_flock_destroy(mode: %d, flags: 0x%llx)",
 		   mode, flags);
 
@@ -162,7 +160,6 @@ ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
 	}
 
 	ldlm_lock_destroy_nolock(lock);
-	EXIT;
 }
 
 /**
@@ -198,6 +195,7 @@ ldlm_flock_deadlock(struct ldlm_lock *req, struct ldlm_lock *bl_lock)
 		if (lock == NULL)
 			break;
 
+		LASSERT(req != lock);
 		flock = &lock->l_policy_data.l_flock;
 		LASSERT(flock->owner == bl_owner);
 		bl_owner = flock->blocking_owner;
@@ -253,7 +251,6 @@ ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
 	int splitted = 0;
 	const struct ldlm_callback_suite null_cbs = { NULL };
 	int rc;
-	ENTRY;
 
 	CDEBUG(D_DLMTRACE, "flags %#llx owner "LPU64" pid %u mode %u start "
 	       LPU64" end "LPU64"\n", *flags,
@@ -308,12 +305,12 @@ reprocess:
 				continue;
 
 			if (!first_enq)
-				RETURN(LDLM_ITER_CONTINUE);
+				return LDLM_ITER_CONTINUE;
 
 			if (*flags & LDLM_FL_BLOCK_NOWAIT) {
 				ldlm_flock_destroy(req, mode, *flags);
 				*err = -EAGAIN;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 
 			if (*flags & LDLM_FL_TEST_LOCK) {
@@ -326,24 +323,27 @@ reprocess:
 				req->l_policy_data.l_flock.end =
 					lock->l_policy_data.l_flock.end;
 				*flags |= LDLM_FL_LOCK_CHANGED;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 
-			if (ldlm_flock_deadlock(req, lock)) {
-				ldlm_flock_destroy(req, mode, *flags);
-				*err = -EDEADLK;
-				RETURN(LDLM_ITER_STOP);
-			}
-
+			/* add lock to blocking list before deadlock
+			 * check to prevent race */
 			rc = ldlm_flock_blocking_link(req, lock);
 			if (rc) {
 				ldlm_flock_destroy(req, mode, *flags);
 				*err = rc;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
+			if (ldlm_flock_deadlock(req, lock)) {
+				ldlm_flock_blocking_unlink(req);
+				ldlm_flock_destroy(req, mode, *flags);
+				*err = -EDEADLK;
+				return LDLM_ITER_STOP;
+			}
+
 			ldlm_resource_add_lock(res, &res->lr_waiting, req);
 			*flags |= LDLM_FL_BLOCK_GRANTED;
-			RETURN(LDLM_ITER_STOP);
+			return LDLM_ITER_STOP;
 		}
 	}
 
@@ -351,7 +351,7 @@ reprocess:
 		ldlm_flock_destroy(req, mode, *flags);
 		req->l_req_mode = LCK_NL;
 		*flags |= LDLM_FL_LOCK_CHANGED;
-		RETURN(LDLM_ITER_STOP);
+		return LDLM_ITER_STOP;
 	}
 
 	/* In case we had slept on this lock request take it off of the
@@ -463,7 +463,7 @@ reprocess:
 				ldlm_flock_destroy(req, lock->l_granted_mode,
 						   *flags);
 				*err = -ENOLCK;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 			goto reprocess;
 		}
@@ -530,7 +530,7 @@ reprocess:
 		ldlm_flock_destroy(req, mode, *flags);
 
 	ldlm_resource_dump(D_INFO, res);
-	RETURN(LDLM_ITER_CONTINUE);
+	return LDLM_ITER_CONTINUE;
 }
 
 struct ldlm_flock_wait_data {
@@ -542,7 +542,6 @@ static void
 ldlm_flock_interrupted_wait(void *data)
 {
 	struct ldlm_lock *lock;
-	ENTRY;
 
 	lock = ((struct ldlm_flock_wait_data *)data)->fwd_lock;
 
@@ -553,8 +552,6 @@ ldlm_flock_interrupted_wait(void *data)
 	/* client side - set flag to prevent lock from being put on LRU list */
 	lock->l_flags |= LDLM_FL_CBPENDING;
 	unlock_res_and_lock(lock);
-
-	EXIT;
 }
 
 /**
@@ -577,7 +574,6 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	struct l_wait_info	      lwi;
 	ldlm_error_t		    err;
 	int			     rc = 0;
-	ENTRY;
 
 	CDEBUG(D_DLMTRACE, "flags: 0x%llx data: %p getlk: %p\n",
 	       flags, data, getlk);
@@ -595,7 +591,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 
 		/* Need to wake up the waiter if we were evicted */
 		wake_up(&lock->l_waitq);
-		RETURN(0);
+		return 0;
 	}
 
 	LASSERT(flags != LDLM_FL_WAIT_NOREPROC);
@@ -607,7 +603,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 			goto granted;
 		/* CP AST RPC: lock get granted, wake it up */
 		wake_up(&lock->l_waitq);
-		RETURN(0);
+		return 0;
 	}
 
 	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, "
@@ -633,26 +629,26 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	if (rc) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
 			   rc);
-		RETURN(rc);
+		return rc;
 	}
 
 granted:
 	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT, 10);
 
-	if (lock->l_destroyed) {
+	if (lock->l_flags & LDLM_FL_DESTROYED) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: destroyed");
-		RETURN(0);
+		return 0;
 	}
 
 	if (lock->l_flags & LDLM_FL_FAILED) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed");
-		RETURN(-EIO);
+		return -EIO;
 	}
 
 	if (rc) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
 			   rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	LDLM_DEBUG(lock, "client-side enqueue granted");
@@ -694,15 +690,13 @@ granted:
 		ldlm_process_flock_lock(lock, &noreproc, 1, &err, NULL);
 	}
 	unlock_res_and_lock(lock);
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ldlm_flock_completion_ast);
 
 int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			    void *data, int flag)
 {
-	ENTRY;
-
 	LASSERT(lock);
 	LASSERT(flag == LDLM_CB_CANCELING);
 
@@ -710,7 +704,7 @@ int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 	lock_res_and_lock(lock);
 	ldlm_flock_blocking_unlink(lock);
 	unlock_res_and_lock(lock);
-	RETURN(0);
+	return 0;
 }
 
 void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
@@ -831,19 +825,17 @@ int ldlm_init_flock_export(struct obd_export *exp)
 				&ldlm_export_flock_ops,
 				CFS_HASH_DEFAULT | CFS_HASH_NBLK_CHANGE);
 	if (!exp->exp_flock_hash)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ldlm_init_flock_export);
 
 void ldlm_destroy_flock_export(struct obd_export *exp)
 {
-	ENTRY;
 	if (exp->exp_flock_hash) {
 		cfs_hash_putref(exp->exp_flock_hash);
 		exp->exp_flock_hash = NULL;
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_destroy_flock_export);

@@ -1,31 +1,17 @@
 #ifndef _PERF_UTIL_TRACE_EVENT_H
 #define _PERF_UTIL_TRACE_EVENT_H
 
+#include <traceevent/event-parse.h>
 #include "parse-events.h"
-#include "event-parse.h"
 #include "session.h"
 
 struct machine;
 struct perf_sample;
 union perf_event;
 struct perf_tool;
+struct thread;
 
-extern int header_page_size_size;
-extern int header_page_ts_size;
-extern int header_page_data_offset;
-
-extern bool latency_format;
 extern struct pevent *perf_pevent;
-
-enum {
-	RINGBUF_TYPE_PADDING		= 29,
-	RINGBUF_TYPE_TIME_EXTEND	= 30,
-	RINGBUF_TYPE_TIME_STAMP		= 31,
-};
-
-#ifndef TS_SHIFT
-#define TS_SHIFT		27
-#endif
 
 int bigendian(void);
 
@@ -83,7 +69,8 @@ struct scripting_ops {
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
 			       struct machine *machine,
-			       struct addr_location *al);
+			       struct thread *thread,
+				   struct addr_location *al);
 	int (*generate_script) (struct pevent *pevent, const char *outfile);
 };
 

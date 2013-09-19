@@ -1,0 +1,37 @@
+* Freescale MXS Application UART (AUART)
+
+Required properties:
+- compatible : Should be "fsl,<soc>-auart". The supported SoCs include
+  imx23 and imx28.
+- reg : Address and length of the register set for the device
+- interrupts : Should contain the auart interrupt numbers
+- dmas: DMA specifier, consisting of a phandle to DMA controller node
+  and AUART DMA channel ID.
+  Refer to dma.txt and fsl-mxs-dma.txt for details.
+- dma-names: "rx" for RX channel, "tx" for TX channel.
+
+Optional properties:
+- fsl,uart-has-rtscts : Indicate the UART has RTS and CTS lines,
+	it also means you enable the DMA support for this UART.
+
+Example:
+auart0: serial@8006a000 {
+	compatible = "fsl,imx28-auart", "fsl,imx23-auart";
+	reg = <0x8006a000 0x2000>;
+	interrupts = <112>;
+	dmas = <&dma_apbx 8>, <&dma_apbx 9>;
+	dma-names = "rx", "tx";
+};
+
+Note: Each auart port should have an alias correctly numbered in "aliases"
+node.
+
+Example:
+
+aliases {
+	serial0 = &auart0;
+	serial1 = &auart1;
+	serial2 = &auart2;
+	serial3 = &auart3;
+	serial4 = &auart4;
+};

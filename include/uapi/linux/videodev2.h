@@ -348,6 +348,8 @@ struct v4l2_pix_format {
 /* two non contiguous planes - one Y, one Cr + Cb interleaved  */
 #define V4L2_PIX_FMT_NV12M   v4l2_fourcc('N', 'M', '1', '2') /* 12  Y/CbCr 4:2:0  */
 #define V4L2_PIX_FMT_NV21M   v4l2_fourcc('N', 'M', '2', '1') /* 21  Y/CrCb 4:2:0  */
+#define V4L2_PIX_FMT_NV16M   v4l2_fourcc('N', 'M', '1', '6') /* 16  Y/CbCr 4:2:2  */
+#define V4L2_PIX_FMT_NV61M   v4l2_fourcc('N', 'M', '6', '1') /* 16  Y/CrCb 4:2:2  */
 #define V4L2_PIX_FMT_NV12MT  v4l2_fourcc('T', 'M', '1', '2') /* 12  Y/CbCr 4:2:0 64x32 macroblocks */
 #define V4L2_PIX_FMT_NV12MT_16X16 v4l2_fourcc('V', 'M', '1', '2') /* 12  Y/CbCr 4:2:0 16x16 macroblocks */
 
@@ -1055,6 +1057,16 @@ struct v4l2_bt_timings {
    or used depends on the hardware. */
 #define V4L2_DV_FL_HALF_LINE			(1 << 3)
 
+/* A few useful defines to calculate the total blanking and frame sizes */
+#define V4L2_DV_BT_BLANKING_WIDTH(bt) \
+	(bt->hfrontporch + bt->hsync + bt->hbackporch)
+#define V4L2_DV_BT_FRAME_WIDTH(bt) \
+	(bt->width + V4L2_DV_BT_BLANKING_WIDTH(bt))
+#define V4L2_DV_BT_BLANKING_HEIGHT(bt) \
+	(bt->vfrontporch + bt->vsync + bt->vbackporch + \
+	 bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch)
+#define V4L2_DV_BT_FRAME_HEIGHT(bt) \
+	(bt->height + V4L2_DV_BT_BLANKING_HEIGHT(bt))
 
 /** struct v4l2_dv_timings - DV timings
  * @type:	the type of the timings

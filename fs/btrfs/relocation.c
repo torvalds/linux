@@ -335,7 +335,7 @@ static void backref_tree_panic(struct rb_node *rb_node, int errno, u64 bytenr)
 	if (bnode->root)
 		fs_info = bnode->root->fs_info;
 	btrfs_panic(fs_info, errno, "Inconsistency in backref cache "
-		    "found at offset %llu\n", (unsigned long long)bytenr);
+		    "found at offset %llu\n", bytenr);
 }
 
 /*
@@ -641,6 +641,11 @@ int find_inline_backref(struct extent_buffer *leaf, int slot,
 		WARN_ON(item_size < sizeof(*ei) + sizeof(*bi));
 		return 1;
 	}
+	if (key.type == BTRFS_METADATA_ITEM_KEY &&
+	    item_size <= sizeof(*ei)) {
+		WARN_ON(item_size < sizeof(*ei));
+		return 1;
+	}
 
 	if (key.type == BTRFS_EXTENT_ITEM_KEY) {
 		bi = (struct btrfs_tree_block_info *)(ei + 1);
@@ -691,6 +696,7 @@ struct backref_node *build_backref_tree(struct reloc_control *rc,
 	int cowonly;
 	int ret;
 	int err = 0;
+	bool need_check = true;
 
 	path1 = btrfs_alloc_path();
 	path2 = btrfs_alloc_path();
@@ -914,6 +920,7 @@ again:
 			cur->bytenr);
 
 		lower = cur;
+		need_check = true;
 		for (; level < BTRFS_MAX_LEVEL; level++) {
 			if (!path2->nodes[level]) {
 				BUG_ON(btrfs_root_bytenr(&root->root_item) !=
@@ -957,14 +964,12 @@ again:
 
 				/*
 				 * add the block to pending list if we
-				 * need check its backrefs. only block
-				 * at 'cur->level + 1' is added to the
-				 * tail of pending list. this guarantees
-				 * we check backrefs from lower level
-				 * blocks to upper level blocks.
+				 * need check its backrefs, we only do this once
+				 * while walking up a tree as we will catch
+				 * anything else later on.
 				 */
-				if (!upper->checked &&
-				    level == cur->level + 1) {
+				if (!upper->checked && need_check) {
+					need_check = false;
 					list_add_tail(&edge->list[UPPER],
 						      &list);
 				} else
@@ -2314,8 +2319,13 @@ again:
 			BUG_ON(root->reloc_root != reloc_root);
 
 			ret = merge_reloc_root(rc, root);
-			if (ret)
+			if (ret) {
+				__update_reloc_root(reloc_root, 1);
+				free_extent_buffer(reloc_root->node);
+				free_extent_buffer(reloc_root->commit_root);
+				kfree(reloc_root);
 				goto out;
+			}
 		} else {
 			list_del_init(&reloc_root->root_list);
 		}
@@ -2342,9 +2352,6 @@ again:
 			root = read_fs_root(rc->extent_root->fs_info,
 					    objectid);
 			if (IS_ERR(root))
-				continue;
-
-			if (btrfs_root_refs(&root->root_item) == 0)
 				continue;
 
 			trans = btrfs_join_transaction(root);
@@ -3628,7 +3635,7 @@ int add_data_references(struct reloc_control *rc,
 	unsigned long ptr;
 	unsigned long end;
 	u32 blocksize = btrfs_level_size(rc->extent_root, 0);
-	int ret;
+	int ret = 0;
 	int err = 0;
 
 	eb = path->nodes[0];
@@ -3654,6 +3661,10 @@ int add_data_references(struct reloc_control *rc,
 						   eb, dref, blocks);
 		} else {
 			BUG();
+		}
+		if (ret) {
+			err = ret;
+			goto out;
 		}
 		ptr += btrfs_extent_inline_ref_size(key.type);
 	}
@@ -3700,6 +3711,7 @@ int add_data_references(struct reloc_control *rc,
 		}
 		path->slots[0]++;
 	}
+out:
 	btrfs_release_path(path);
 	if (err)
 		free_block_list(blocks);
@@ -4219,8 +4231,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	}
 
 	printk(KERN_INFO "btrfs: relocating block group %llu flags %llu\n",
-	       (unsigned long long)rc->block_group->key.objectid,
-	       (unsigned long long)rc->block_group->flags);
+	       rc->block_group->key.objectid, rc->block_group->flags);
 
 	ret = btrfs_start_all_delalloc_inodes(fs_info, 0);
 	if (ret < 0) {
@@ -4242,7 +4253,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 			break;
 
 		printk(KERN_INFO "btrfs: found %llu extents\n",
-			(unsigned long long)rc->extents_found);
+			rc->extents_found);
 
 		if (rc->stage == MOVE_DATA_EXTENTS && rc->found_file_extent) {
 			btrfs_wait_ordered_range(rc->data_inode, 0, (u64)-1);

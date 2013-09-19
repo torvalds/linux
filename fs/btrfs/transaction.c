@@ -837,7 +837,7 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
  * them in one of two extent_io trees.  This is used to make sure all of
  * those extents are on disk for transaction or log commit
  */
-int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
+static int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 				struct extent_io_tree *dirty_pages, int mark)
 {
 	int ret;
@@ -1225,8 +1225,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		btrfs_set_root_stransid(new_root_item, 0);
 		btrfs_set_root_rtransid(new_root_item, 0);
 	}
-	new_root_item->otime.sec = cpu_to_le64(cur_time.tv_sec);
-	new_root_item->otime.nsec = cpu_to_le32(cur_time.tv_nsec);
+	btrfs_set_stack_timespec_sec(&new_root_item->otime, cur_time.tv_sec);
+	btrfs_set_stack_timespec_nsec(&new_root_item->otime, cur_time.tv_nsec);
 	btrfs_set_root_otransid(new_root_item, trans->transid);
 
 	old = btrfs_lock_root_node(root);
@@ -1311,8 +1311,26 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 					 dentry->d_name.len * 2);
 	parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode_fallback(trans, parent_root, parent_inode);
-	if (ret)
+	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
+		goto fail;
+	}
+	ret = btrfs_uuid_tree_add(trans, fs_info->uuid_root, new_uuid.b,
+				  BTRFS_UUID_KEY_SUBVOL, objectid);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		goto fail;
+	}
+	if (!btrfs_is_empty_uuid(new_root_item->received_uuid)) {
+		ret = btrfs_uuid_tree_add(trans, fs_info->uuid_root,
+					  new_root_item->received_uuid,
+					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
+					  objectid);
+		if (ret && ret != -EEXIST) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto fail;
+		}
+	}
 fail:
 	pending->error = ret;
 dir_item_existed:
@@ -1362,6 +1380,8 @@ static void update_super_roots(struct btrfs_root *root)
 	super->root_level = root_item->level;
 	if (btrfs_test_opt(root, SPACE_CACHE))
 		super->cache_generation = root_item->generation;
+	if (root->fs_info->update_uuid_tree_gen)
+		super->uuid_tree_generation = root_item->generation;
 }
 
 int btrfs_transaction_in_commit(struct btrfs_fs_info *info)
@@ -1928,8 +1948,7 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	list_del_init(&root->root_list);
 	spin_unlock(&fs_info->trans_lock);
 
-	pr_debug("btrfs: cleaner removing %llu\n",
-			(unsigned long long)root->objectid);
+	pr_debug("btrfs: cleaner removing %llu\n", root->objectid);
 
 	btrfs_kill_all_delayed_nodes(root);
 
@@ -1942,6 +1961,5 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	 * If we encounter a transaction abort during snapshot cleaning, we
 	 * don't want to crash here
 	 */
-	BUG_ON(ret < 0 && ret != -EAGAIN && ret != -EROFS);
-	return 1;
+	return (ret < 0) ? 0 : 1;
 }

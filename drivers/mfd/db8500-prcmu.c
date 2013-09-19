@@ -465,7 +465,7 @@ static DEFINE_SPINLOCK(clk_mgt_lock);
 
 #define CLK_MGT_ENTRY(_name, _branch, _clk38div)[PRCMU_##_name] = \
 	{ (PRCM_##_name##_MGT), 0 , _branch, _clk38div}
-struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
+static struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
 	CLK_MGT_ENTRY(SGACLK, PLL_DIV, false),
 	CLK_MGT_ENTRY(UARTCLK, PLL_FIX, true),
 	CLK_MGT_ENTRY(MSP02CLK, PLL_FIX, true),
@@ -2319,7 +2319,7 @@ unlock_and_return:
 /**
  * prcmu_ac_sleep_req - called when ARM no longer needs to talk to modem
  */
-void prcmu_ac_sleep_req()
+void prcmu_ac_sleep_req(void)
 {
 	u32 val;
 
@@ -3092,6 +3092,10 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 		.of_compatible = "stericsson,cpufreq-ux500",
 		.platform_data = &db8500_cpufreq_table,
 		.pdata_size = sizeof(db8500_cpufreq_table),
+	},
+	{
+		.name = "cpuidle-dbx500",
+		.of_compatible = "stericsson,cpuidle-dbx500",
 	},
 	{
 		.name = "db8500-thermal",

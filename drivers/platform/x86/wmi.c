@@ -693,11 +693,13 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "wmi:%s\n", guid_string);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute wmi_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *wmi_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(wmi);
 
 static int wmi_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -732,7 +734,7 @@ static struct class wmi_class = {
 	.name = "wmi",
 	.dev_release = wmi_dev_free,
 	.dev_uevent = wmi_dev_uevent,
-	.dev_attrs = wmi_dev_attrs,
+	.dev_groups = wmi_groups,
 };
 
 static int wmi_create_device(const struct guid_block *gblock,
@@ -778,7 +780,7 @@ static bool guid_already_parsed(const char *guid_string)
 /*
  * Parse the _WDG method for the GUID data blocks
  */
-static acpi_status parse_wdg(acpi_handle handle)
+static int parse_wdg(acpi_handle handle)
 {
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *obj;
@@ -810,7 +812,7 @@ static acpi_status parse_wdg(acpi_handle handle)
 
 		wblock = kzalloc(sizeof(struct wmi_block), GFP_KERNEL);
 		if (!wblock)
-			return AE_NO_MEMORY;
+			return -ENOMEM;
 
 		wblock->handle = handle;
 		wblock->gblock = gblock[i];

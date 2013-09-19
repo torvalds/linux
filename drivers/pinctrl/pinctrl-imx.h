@@ -18,29 +18,35 @@
 struct platform_device;
 
 /**
+ * struct imx_pin_group - describes a single i.MX pin
+ * @pin: the pin_id of this pin
+ * @mux_mode: the mux mode for this pin.
+ * @input_reg: the select input register offset for this pin if any
+ *	0 if no select input setting needed.
+ * @input_val: the select input value for this pin.
+ * @configs: the config for this pin.
+ */
+struct imx_pin {
+	unsigned int pin;
+	unsigned int mux_mode;
+	u16 input_reg;
+	unsigned int input_val;
+	unsigned long config;
+};
+
+/**
  * struct imx_pin_group - describes an IMX pin group
  * @name: the name of this specific pin group
- * @pins: an array of discrete physical pins used in this group, taken
- *	from the driver-local pin enumeration space
  * @npins: the number of pins in this group array, i.e. the number of
  *	elements in .pins so we can iterate over that array
- * @mux_mode: the mux mode for each pin in this group. The size of this
- *	array is the same as pins.
- * @input_reg: select input register offset for this mux if any
- *	0 if no select input setting needed.
- * @input_val: the select input value for each pin in this group. The size of
- *	this array is the same as pins.
- * @configs: the config for each pin in this group. The size of this
- *	array is the same as pins.
+ * @pin_ids: array of pin_ids. pinctrl forces us to maintain such an array
+ * @pins: array of pins
  */
 struct imx_pin_group {
 	const char *name;
-	unsigned int *pins;
 	unsigned npins;
-	unsigned int *mux_mode;
-	u16 *input_reg;
-	unsigned int *input_val;
-	unsigned long *configs;
+	unsigned int *pin_ids;
+	struct imx_pin *pins;
 };
 
 /**

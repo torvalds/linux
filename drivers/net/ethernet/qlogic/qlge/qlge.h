@@ -2149,7 +2149,7 @@ struct ql_adapter {
 	struct timer_list timer;
 	atomic_t lb_count;
 	/* Keep local copy of current mac address. */
-	char current_mac_addr[6];
+	char current_mac_addr[ETH_ALEN];
 };
 
 /*

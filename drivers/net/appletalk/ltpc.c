@@ -1243,7 +1243,7 @@ static int __init ltpc_module_init(void)
 		       "ltpc: Autoprobing is not recommended for modules\n");
 
 	dev_ltpc = ltpc_probe();
-	return PTR_RET(dev_ltpc);
+	return PTR_ERR_OR_ZERO(dev_ltpc);
 }
 module_init(ltpc_module_init);
 #endif

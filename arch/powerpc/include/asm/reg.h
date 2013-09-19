@@ -115,10 +115,10 @@
 #define MSR_64BIT	MSR_SF
 
 /* Server variant */
-#define MSR_		MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV
-#define MSR_KERNEL	MSR_ | MSR_64BIT
-#define MSR_USER32	MSR_ | MSR_PR | MSR_EE
-#define MSR_USER64	MSR_USER32 | MSR_64BIT
+#define MSR_		(MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV)
+#define MSR_KERNEL	(MSR_ | MSR_64BIT)
+#define MSR_USER32	(MSR_ | MSR_PR | MSR_EE)
+#define MSR_USER64	(MSR_USER32 | MSR_64BIT)
 #elif defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_8xx)
 /* Default MSR for kernel mode. */
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR)
@@ -258,8 +258,8 @@
 #define FSCR_TAR_LG	8	/* Enable Target Address Register */
 #define FSCR_EBB_LG	7	/* Enable Event Based Branching */
 #define FSCR_TM_LG	5	/* Enable Transactional Memory */
-#define FSCR_PM_LG	4	/* Enable prob/priv access to PMU SPRs */
-#define FSCR_BHRB_LG	3	/* Enable Branch History Rolling Buffer*/
+#define FSCR_BHRB_LG	4	/* Enable Branch History Rolling Buffer*/
+#define FSCR_PM_LG	3	/* Enable prob/priv access to PMU SPRs */
 #define FSCR_DSCR_LG	2	/* Enable Data Stream Control Register */
 #define FSCR_VECVSX_LG	1	/* Enable VMX/VSX  */
 #define FSCR_FP_LG	0	/* Enable Floating Point */
@@ -1126,10 +1126,10 @@
 				     : "memory")
 
 #ifdef __powerpc64__
-#ifdef CONFIG_PPC_CELL
+#if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)
 #define mftb()		({unsigned long rval;				\
 			asm volatile(					\
-				"90:	mftb %0;\n"			\
+				"90:	mfspr %0, %2;\n"		\
 				"97:	cmpwi %0,0;\n"			\
 				"	beq- 90b;\n"			\
 				"99:\n"					\
@@ -1143,18 +1143,23 @@
 				"	.llong 0\n"			\
 				"	.llong 0\n"			\
 				".previous"				\
-			: "=r" (rval) : "i" (CPU_FTR_CELL_TB_BUG)); rval;})
+			: "=r" (rval) \
+			: "i" (CPU_FTR_CELL_TB_BUG), "i" (SPRN_TBRL)); \
+			rval;})
 #else
 #define mftb()		({unsigned long rval;	\
-			asm volatile("mftb %0" : "=r" (rval)); rval;})
+			asm volatile("mfspr %0, %1" : \
+				     "=r" (rval) : "i" (SPRN_TBRL)); rval;})
 #endif /* !CONFIG_PPC_CELL */
 
 #else /* __powerpc64__ */
 
 #define mftbl()		({unsigned long rval;	\
-			asm volatile("mftbl %0" : "=r" (rval)); rval;})
+			asm volatile("mfspr %0, %1" : "=r" (rval) : \
+				"i" (SPRN_TBRL)); rval;})
 #define mftbu()		({unsigned long rval;	\
-			asm volatile("mftbu %0" : "=r" (rval)); rval;})
+			asm volatile("mfspr %0, %1" : "=r" (rval) : \
+				"i" (SPRN_TBRU)); rval;})
 #endif /* !__powerpc64__ */
 
 #define mttbl(v)	asm volatile("mttbl %0":: "r"(v))

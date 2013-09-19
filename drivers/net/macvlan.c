@@ -118,8 +118,6 @@ static int macvlan_broadcast_one(struct sk_buff *skb,
 				 const struct ethhdr *eth, bool local)
 {
 	struct net_device *dev = vlan->dev;
-	if (!skb)
-		return NET_RX_DROP;
 
 	if (local)
 		return vlan->forward(dev, skb);
@@ -171,9 +169,13 @@ static void macvlan_broadcast(struct sk_buff *skb,
 			hash = mc_hash(vlan, eth->h_dest);
 			if (!test_bit(hash, vlan->mc_filter))
 				continue;
+
+			err = NET_RX_DROP;
 			nskb = skb_clone(skb, GFP_ATOMIC);
-			err = macvlan_broadcast_one(nskb, vlan, eth,
-					 mode == MACVLAN_MODE_BRIDGE);
+			if (likely(nskb))
+				err = macvlan_broadcast_one(
+					nskb, vlan, eth,
+					mode == MACVLAN_MODE_BRIDGE);
 			macvlan_count_rx(vlan, skb->len + ETH_HLEN,
 					 err == NET_RX_SUCCESS, 1);
 		}
@@ -600,6 +602,9 @@ static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	if (!vlan->port->passthru)
 		return -EOPNOTSUPP;
 
+	if (flags & NLM_F_REPLACE)
+		return -EOPNOTSUPP;
+
 	if (is_unicast_ether_addr(addr))
 		err = dev_uc_add_excl(dev, addr);
 	else if (is_multicast_ether_addr(addr))
@@ -683,7 +688,7 @@ void macvlan_common_setup(struct net_device *dev)
 	dev->priv_flags	       |= IFF_UNICAST_FLT;
 	dev->netdev_ops		= &macvlan_netdev_ops;
 	dev->destructor		= free_netdev;
-	dev->header_ops		= &macvlan_hard_header_ops,
+	dev->header_ops		= &macvlan_hard_header_ops;
 	dev->ethtool_ops	= &macvlan_ethtool_ops;
 }
 EXPORT_SYMBOL_GPL(macvlan_common_setup);
@@ -820,7 +825,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		if (port->count)
 			return -EINVAL;
 		port->passthru = true;
-		memcpy(dev->dev_addr, lowerdev->dev_addr, ETH_ALEN);
+		eth_hw_addr_inherit(dev, lowerdev);
 	}
 
 	err = netdev_upper_dev_link(lowerdev, dev);

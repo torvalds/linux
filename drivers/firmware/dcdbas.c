@@ -535,11 +535,12 @@ static struct attribute *dcdbas_dev_attrs[] = {
 
 static struct attribute_group dcdbas_attr_group = {
 	.attrs = dcdbas_dev_attrs,
+	.bin_attrs = dcdbas_bin_attrs,
 };
 
 static int dcdbas_probe(struct platform_device *dev)
 {
-	int i, error;
+	int error;
 
 	host_control_action = HC_ACTION_NONE;
 	host_control_smi_type = HC_SMITYPE_NONE;
@@ -555,18 +556,6 @@ static int dcdbas_probe(struct platform_device *dev)
 	if (error)
 		return error;
 
-	for (i = 0; dcdbas_bin_attrs[i]; i++) {
-		error = sysfs_create_bin_file(&dev->dev.kobj,
-					      dcdbas_bin_attrs[i]);
-		if (error) {
-			while (--i >= 0)
-				sysfs_remove_bin_file(&dev->dev.kobj,
-						      dcdbas_bin_attrs[i]);
-			sysfs_remove_group(&dev->dev.kobj, &dcdbas_attr_group);
-			return error;
-		}
-	}
-
 	register_reboot_notifier(&dcdbas_reboot_nb);
 
 	dev_info(&dev->dev, "%s (version %s)\n",
@@ -577,11 +566,7 @@ static int dcdbas_probe(struct platform_device *dev)
 
 static int dcdbas_remove(struct platform_device *dev)
 {
-	int i;
-
 	unregister_reboot_notifier(&dcdbas_reboot_nb);
-	for (i = 0; dcdbas_bin_attrs[i]; i++)
-		sysfs_remove_bin_file(&dev->dev.kobj, dcdbas_bin_attrs[i]);
 	sysfs_remove_group(&dev->dev.kobj, &dcdbas_attr_group);
 
 	return 0;

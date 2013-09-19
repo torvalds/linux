@@ -16,6 +16,16 @@
 #include <linux/uaccess.h>
 #include <asm/disasm.h>
 
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define BE		1
+#define FIRST_BYTE_16	"swap %1, %1\n swape %1, %1\n"
+#define FIRST_BYTE_32	"swape %1, %1\n"
+#else
+#define BE		0
+#define FIRST_BYTE_16
+#define FIRST_BYTE_32
+#endif
+
 #define __get8_unaligned_check(val, addr, err)		\
 	__asm__(					\
 	"1:	ldb.ab	%1, [%2, 1]\n"			\
@@ -36,9 +46,9 @@
 	do {						\
 		unsigned int err = 0, v, a = addr;	\
 		__get8_unaligned_check(v, a, err);	\
-		val =  v ;				\
+		val =  v << ((BE) ? 8 : 0);		\
 		__get8_unaligned_check(v, a, err);	\
-		val |= v << 8;				\
+		val |= v << ((BE) ? 0 : 8);		\
 		if (err)				\
 			goto fault;			\
 	} while (0)
@@ -47,13 +57,13 @@
 	do {						\
 		unsigned int err = 0, v, a = addr;	\
 		__get8_unaligned_check(v, a, err);	\
-		val =  v << 0;				\
+		val =  v << ((BE) ? 24 : 0);		\
 		__get8_unaligned_check(v, a, err);	\
-		val |= v << 8;				\
+		val |= v << ((BE) ? 16 : 8);		\
 		__get8_unaligned_check(v, a, err);	\
-		val |= v << 16;				\
+		val |= v << ((BE) ? 8 : 16);		\
 		__get8_unaligned_check(v, a, err);	\
-		val |= v << 24;				\
+		val |= v << ((BE) ? 0 : 24);		\
 		if (err)				\
 			goto fault;			\
 	} while (0)
@@ -63,6 +73,7 @@
 		unsigned int err = 0, v = val, a = addr;\
 							\
 		__asm__(				\
+		FIRST_BYTE_16				\
 		"1:	stb.ab	%1, [%2, 1]\n"		\
 		"	lsr %1, %1, 8\n"		\
 		"2:	stb	%1, [%2]\n"		\
@@ -87,8 +98,9 @@
 #define put32_unaligned_check(val, addr)		\
 	do {						\
 		unsigned int err = 0, v = val, a = addr;\
-		__asm__(				\
 							\
+		__asm__(				\
+		FIRST_BYTE_32				\
 		"1:	stb.ab	%1, [%2, 1]\n"		\
 		"	lsr %1, %1, 8\n"		\
 		"2:	stb.ab	%1, [%2, 1]\n"		\

@@ -1601,18 +1601,17 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
 
+	/*
+	 * DTO fix - version 2.10a and below, and only if internal DMA
+	 * is configured.
+	 */
+	if (host->quirks & DW_MCI_QUIRK_IDMAC_DTO) {
+		if (!pending &&
+		    ((mci_readl(host, STATUS) >> 17) & 0x1fff))
+			pending |= SDMMC_INT_DATA_OVER;
+	}
+
 	if (pending) {
-
-		/*
-		 * DTO fix - version 2.10a and below, and only if internal DMA
-		 * is configured.
-		 */
-		if (host->quirks & DW_MCI_QUIRK_IDMAC_DTO) {
-			if (!pending &&
-			    ((mci_readl(host, STATUS) >> 17) & 0x1fff))
-				pending |= SDMMC_INT_DATA_OVER;
-		}
-
 		if (pending & DW_MCI_CMD_ERROR_FLAGS) {
 			mci_writel(host, RINTSTS, DW_MCI_CMD_ERROR_FLAGS);
 			host->cmd_status = pending;
@@ -2231,7 +2230,7 @@ int dw_mci_probe(struct dw_mci *host)
 		}
 	}
 
-	host->vmmc = devm_regulator_get(host->dev, "vmmc");
+	host->vmmc = devm_regulator_get_optional(host->dev, "vmmc");
 	if (IS_ERR(host->vmmc)) {
 		ret = PTR_ERR(host->vmmc);
 		if (ret == -EPROBE_DEFER)

@@ -49,7 +49,6 @@
 #include <linux/hdreg.h>
 #include <linux/uaccess.h>
 #include <linux/suspend.h>
-#include <linux/pm_qos.h>
 #include <asm/unaligned.h>
 
 #include "libata.h"
@@ -3100,12 +3099,25 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 	buf = page_address(sg_page(scsi_sglist(scmd)));
 	size = ata_set_lba_range_entries(buf, 512, block, n_block);
 
-	tf->protocol = ATA_PROT_DMA;
-	tf->hob_feature = 0;
-	tf->feature = ATA_DSM_TRIM;
-	tf->hob_nsect = (size / 512) >> 8;
-	tf->nsect = size / 512;
-	tf->command = ATA_CMD_DSM;
+	if (ata_ncq_enabled(dev) && ata_fpdma_dsm_supported(dev)) {
+		/* Newer devices support queued TRIM commands */
+		tf->protocol = ATA_PROT_NCQ;
+		tf->command = ATA_CMD_FPDMA_SEND;
+		tf->hob_nsect = ATA_SUBCMD_FPDMA_SEND_DSM & 0x1f;
+		tf->nsect = qc->tag << 3;
+		tf->hob_feature = (size / 512) >> 8;
+		tf->feature = size / 512;
+
+		tf->auxiliary = 1;
+	} else {
+		tf->protocol = ATA_PROT_DMA;
+		tf->hob_feature = 0;
+		tf->feature = ATA_DSM_TRIM;
+		tf->hob_nsect = (size / 512) >> 8;
+		tf->nsect = size / 512;
+		tf->command = ATA_CMD_DSM;
+	}
+
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48 |
 		     ATA_TFLAG_WRITE;
 
@@ -3667,9 +3679,7 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			if (!IS_ERR(sdev)) {
 				dev->sdev = sdev;
 				scsi_device_put(sdev);
-				if (zpodd_dev_enabled(dev))
-					dev_pm_qos_expose_flags(
-							&sdev->sdev_gendev, 0);
+				ata_scsi_acpi_bind(dev);
 			} else {
 				dev->sdev = NULL;
 			}
@@ -3757,6 +3767,8 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	struct scsi_device *sdev;
 	unsigned long flags;
 
+	ata_scsi_acpi_unbind(dev);
+
 	/* Alas, we need to grab scan_mutex to ensure SCSI device
 	 * state doesn't change underneath us and thus
 	 * scsi_device_get() always succeeds.  The mutex locking can
@@ -3765,9 +3777,6 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	 */
 	mutex_lock(&ap->scsi_host->scan_mutex);
 	spin_lock_irqsave(ap->lock, flags);
-
-	if (zpodd_dev_enabled(dev))
-		zpodd_exit(dev);
 
 	/* clearing dev->sdev is protected by host lock */
 	sdev = dev->sdev;
@@ -3817,6 +3826,9 @@ static void ata_scsi_handle_link_detach(struct ata_link *link)
 		spin_lock_irqsave(ap->lock, flags);
 		dev->flags &= ~ATA_DFLAG_DETACHED;
 		spin_unlock_irqrestore(ap->lock, flags);
+
+		if (zpodd_dev_enabled(dev))
+			zpodd_exit(dev);
 
 		ata_scsi_remove_dev(dev);
 	}

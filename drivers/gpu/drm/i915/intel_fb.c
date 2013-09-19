@@ -139,11 +139,11 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	info->apertures->ranges[0].base = dev->mode_config.fb_base;
 	info->apertures->ranges[0].size = dev_priv->gtt.mappable_end;
 
-	info->fix.smem_start = dev->mode_config.fb_base + obj->gtt_offset;
+	info->fix.smem_start = dev->mode_config.fb_base + i915_gem_obj_ggtt_offset(obj);
 	info->fix.smem_len = size;
 
 	info->screen_base =
-		ioremap_wc(dev_priv->gtt.mappable_base + obj->gtt_offset,
+		ioremap_wc(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
 			   size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
@@ -166,9 +166,9 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
+	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08lx, bo %p\n",
 		      fb->width, fb->height,
-		      obj->gtt_offset, obj);
+		      i915_gem_obj_ggtt_offset(obj), obj);
 
 
 	mutex_unlock(&dev->struct_mutex);
@@ -193,26 +193,21 @@ static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 static void intel_fbdev_destroy(struct drm_device *dev,
 				struct intel_fbdev *ifbdev)
 {
-	struct fb_info *info;
-	struct intel_framebuffer *ifb = &ifbdev->ifb;
-
 	if (ifbdev->helper.fbdev) {
-		info = ifbdev->helper.fbdev;
+		struct fb_info *info = ifbdev->helper.fbdev;
+
 		unregister_framebuffer(info);
 		iounmap(info->screen_base);
 		if (info->cmap.len)
 			fb_dealloc_cmap(&info->cmap);
+
 		framebuffer_release(info);
 	}
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
-	drm_framebuffer_unregister_private(&ifb->base);
-	drm_framebuffer_cleanup(&ifb->base);
-	if (ifb->obj) {
-		drm_gem_object_unreference_unlocked(&ifb->obj->base);
-		ifb->obj = NULL;
-	}
+	drm_framebuffer_unregister_private(&ifbdev->ifb.base);
+	intel_framebuffer_fini(&ifbdev->ifb);
 }
 
 int intel_fbdev_init(struct drm_device *dev)

@@ -406,7 +406,7 @@ static int __init pps_init(void)
 		pr_err("failed to allocate class\n");
 		return PTR_ERR(pps_class);
 	}
-	pps_class->dev_attrs = pps_attrs;
+	pps_class->dev_groups = pps_groups;
 
 	err = alloc_chrdev_region(&pps_devt, 0, PPS_MAX_SOURCES, "pps");
 	if (err < 0) {

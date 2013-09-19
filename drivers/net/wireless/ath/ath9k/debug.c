@@ -88,90 +88,6 @@ static const struct file_operations fops_debug = {
 
 #define DMA_BUF_LEN 1024
 
-static ssize_t read_file_tx_chainmask(struct file *file, char __user *user_buf,
-			     size_t count, loff_t *ppos)
-{
-	struct ath_softc *sc = file->private_data;
-	struct ath_hw *ah = sc->sc_ah;
-	char buf[32];
-	unsigned int len;
-
-	len = sprintf(buf, "0x%08x\n", ah->txchainmask);
-	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-}
-
-static ssize_t write_file_tx_chainmask(struct file *file, const char __user *user_buf,
-			     size_t count, loff_t *ppos)
-{
-	struct ath_softc *sc = file->private_data;
-	struct ath_hw *ah = sc->sc_ah;
-	unsigned long mask;
-	char buf[32];
-	ssize_t len;
-
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &mask))
-		return -EINVAL;
-
-	ah->txchainmask = mask;
-	ah->caps.tx_chainmask = mask;
-	return count;
-}
-
-static const struct file_operations fops_tx_chainmask = {
-	.read = read_file_tx_chainmask,
-	.write = write_file_tx_chainmask,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-
-static ssize_t read_file_rx_chainmask(struct file *file, char __user *user_buf,
-			     size_t count, loff_t *ppos)
-{
-	struct ath_softc *sc = file->private_data;
-	struct ath_hw *ah = sc->sc_ah;
-	char buf[32];
-	unsigned int len;
-
-	len = sprintf(buf, "0x%08x\n", ah->rxchainmask);
-	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-}
-
-static ssize_t write_file_rx_chainmask(struct file *file, const char __user *user_buf,
-			     size_t count, loff_t *ppos)
-{
-	struct ath_softc *sc = file->private_data;
-	struct ath_hw *ah = sc->sc_ah;
-	unsigned long mask;
-	char buf[32];
-	ssize_t len;
-
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &mask))
-		return -EINVAL;
-
-	ah->rxchainmask = mask;
-	ah->caps.rx_chainmask = mask;
-	return count;
-}
-
-static const struct file_operations fops_rx_chainmask = {
-	.read = read_file_rx_chainmask,
-	.write = write_file_rx_chainmask,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
 
 static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -270,25 +186,29 @@ static const struct file_operations fops_ani = {
 	.llseek = default_llseek,
 };
 
-static ssize_t read_file_ant_diversity(struct file *file, char __user *user_buf,
-				       size_t count, loff_t *ppos)
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
+static ssize_t read_file_bt_ant_diversity(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "%d\n", common->antenna_diversity);
+	len = sprintf(buf, "%d\n", common->bt_ant_diversity);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static ssize_t write_file_ant_diversity(struct file *file,
-					const char __user *user_buf,
-					size_t count, loff_t *ppos)
+static ssize_t write_file_bt_ant_diversity(struct file *file,
+					   const char __user *user_buf,
+					   size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	unsigned long antenna_diversity;
+	struct ath9k_hw_capabilities *pCap = &sc->sc_ah->caps;
+	unsigned long bt_ant_diversity;
 	char buf[32];
 	ssize_t len;
 
@@ -296,26 +216,147 @@ static ssize_t write_file_ant_diversity(struct file *file,
 	if (copy_from_user(buf, user_buf, len))
 		return -EFAULT;
 
-	if (!AR_SREV_9565(sc->sc_ah))
+	if (!(pCap->hw_caps & ATH9K_HW_CAP_BT_ANT_DIV))
 		goto exit;
 
 	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &antenna_diversity))
+	if (kstrtoul(buf, 0, &bt_ant_diversity))
 		return -EINVAL;
 
-	common->antenna_diversity = !!antenna_diversity;
+	common->bt_ant_diversity = !!bt_ant_diversity;
 	ath9k_ps_wakeup(sc);
-	ath_ant_comb_update(sc);
-	ath_dbg(common, CONFIG, "Antenna diversity: %d\n",
-		common->antenna_diversity);
+	ath9k_hw_set_bt_ant_diversity(sc->sc_ah, common->bt_ant_diversity);
+	ath_dbg(common, CONFIG, "Enable WLAN/BT RX Antenna diversity: %d\n",
+		common->bt_ant_diversity);
 	ath9k_ps_restore(sc);
 exit:
 	return count;
 }
 
-static const struct file_operations fops_ant_diversity = {
-	.read = read_file_ant_diversity,
-	.write = write_file_ant_diversity,
+static const struct file_operations fops_bt_ant_diversity = {
+	.read = read_file_bt_ant_diversity,
+	.write = write_file_bt_ant_diversity,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+#endif
+
+void ath9k_debug_stat_ant(struct ath_softc *sc,
+			  struct ath_hw_antcomb_conf *div_ant_conf,
+			  int main_rssi_avg, int alt_rssi_avg)
+{
+	struct ath_antenna_stats *as_main = &sc->debug.stats.ant_stats[ANT_MAIN];
+	struct ath_antenna_stats *as_alt = &sc->debug.stats.ant_stats[ANT_ALT];
+
+	as_main->lna_attempt_cnt[div_ant_conf->main_lna_conf]++;
+	as_alt->lna_attempt_cnt[div_ant_conf->alt_lna_conf]++;
+
+	as_main->rssi_avg = main_rssi_avg;
+	as_alt->rssi_avg = alt_rssi_avg;
+}
+
+static ssize_t read_file_antenna_diversity(struct file *file,
+					   char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
+	struct ath_antenna_stats *as_main = &sc->debug.stats.ant_stats[ANT_MAIN];
+	struct ath_antenna_stats *as_alt = &sc->debug.stats.ant_stats[ANT_ALT];
+	struct ath_hw_antcomb_conf div_ant_conf;
+	unsigned int len = 0, size = 1024;
+	ssize_t retval = 0;
+	char *buf;
+	char *lna_conf_str[4] = {"LNA1_MINUS_LNA2",
+				 "LNA2",
+				 "LNA1",
+				 "LNA1_PLUS_LNA2"};
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	if (!(pCap->hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)) {
+		len += snprintf(buf + len, size - len, "%s\n",
+				"Antenna Diversity Combining is disabled");
+		goto exit;
+	}
+
+	ath9k_ps_wakeup(sc);
+	ath9k_hw_antdiv_comb_conf_get(ah, &div_ant_conf);
+	len += snprintf(buf + len, size - len, "Current MAIN config : %s\n",
+			lna_conf_str[div_ant_conf.main_lna_conf]);
+	len += snprintf(buf + len, size - len, "Current ALT config  : %s\n",
+			lna_conf_str[div_ant_conf.alt_lna_conf]);
+	len += snprintf(buf + len, size - len, "Average MAIN RSSI   : %d\n",
+			as_main->rssi_avg);
+	len += snprintf(buf + len, size - len, "Average ALT RSSI    : %d\n\n",
+			as_alt->rssi_avg);
+	ath9k_ps_restore(sc);
+
+	len += snprintf(buf + len, size - len, "Packet Receive Cnt:\n");
+	len += snprintf(buf + len, size - len, "-------------------\n");
+
+	len += snprintf(buf + len, size - len, "%30s%15s\n",
+			"MAIN", "ALT");
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"TOTAL COUNT",
+			as_main->recv_cnt,
+			as_alt->recv_cnt);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA1",
+			as_main->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1],
+			as_alt->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA2",
+			as_main->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA2],
+			as_alt->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA2]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA1 + LNA2",
+			as_main->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2],
+			as_alt->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA1 - LNA2",
+			as_main->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2],
+			as_alt->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2]);
+
+	len += snprintf(buf + len, size - len, "\nLNA Config Attempts:\n");
+	len += snprintf(buf + len, size - len, "--------------------\n");
+
+	len += snprintf(buf + len, size - len, "%30s%15s\n",
+			"MAIN", "ALT");
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA1",
+			as_main->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1],
+			as_alt->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA2",
+			as_main->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA2],
+			as_alt->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA2]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA1 + LNA2",
+			as_main->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2],
+			as_alt->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA1 - LNA2",
+			as_main->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2],
+			as_alt->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2]);
+
+exit:
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+static const struct file_operations fops_antenna_diversity = {
+	.read = read_file_antenna_diversity,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -607,6 +648,28 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	return retval;
 }
 
+static ssize_t print_queue(struct ath_softc *sc, struct ath_txq *txq,
+			   char *buf, ssize_t size)
+{
+	ssize_t len = 0;
+
+	ath_txq_lock(sc, txq);
+
+	len += snprintf(buf + len, size - len, "%s: %d ",
+			"qnum", txq->axq_qnum);
+	len += snprintf(buf + len, size - len, "%s: %2d ",
+			"qdepth", txq->axq_depth);
+	len += snprintf(buf + len, size - len, "%s: %2d ",
+			"ampdu-depth", txq->axq_ampdu_depth);
+	len += snprintf(buf + len, size - len, "%s: %3d ",
+			"pending", txq->pending_frames);
+	len += snprintf(buf + len, size - len, "%s: %d\n",
+			"stopped", txq->stopped);
+
+	ath_txq_unlock(sc, txq);
+	return len;
+}
+
 static ssize_t read_file_queues(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
@@ -624,23 +687,12 @@ static ssize_t read_file_queues(struct file *file, char __user *user_buf,
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		txq = sc->tx.txq_map[i];
-		len += snprintf(buf + len, size - len, "(%s): ", qname[i]);
-
-		ath_txq_lock(sc, txq);
-
-		len += snprintf(buf + len, size - len, "%s: %d ",
-				"qnum", txq->axq_qnum);
-		len += snprintf(buf + len, size - len, "%s: %2d ",
-				"qdepth", txq->axq_depth);
-		len += snprintf(buf + len, size - len, "%s: %2d ",
-				"ampdu-depth", txq->axq_ampdu_depth);
-		len += snprintf(buf + len, size - len, "%s: %3d ",
-				"pending", txq->pending_frames);
-		len += snprintf(buf + len, size - len, "%s: %d\n",
-				"stopped", txq->stopped);
-
-		ath_txq_unlock(sc, txq);
+		len += snprintf(buf + len, size - len, "(%s):  ", qname[i]);
+		len += print_queue(sc, txq, buf + len, size - len);
 	}
+
+	len += snprintf(buf + len, size - len, "(CAB): ");
+	len += print_queue(sc, sc->beacon.cabq, buf + len, size - len);
 
 	if (len > size)
 		len = size;
@@ -1589,17 +1641,7 @@ void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
 			   struct dentry *dir)
 {
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
-	an->node_stat = debugfs_create_file("node_stat", S_IRUGO,
-					    dir, an, &fops_node_stat);
-}
-
-void ath9k_sta_remove_debugfs(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta,
-			      struct dentry *dir)
-{
-	struct ath_node *an = (struct ath_node *)sta->drv_priv;
-	debugfs_remove(an->node_stat);
+	debugfs_create_file("node_stat", S_IRUGO, dir, an, &fops_node_stat);
 }
 
 /* Ethtool support for get-stats */
@@ -1770,10 +1812,10 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_reset);
 	debugfs_create_file("recv", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_recv);
-	debugfs_create_file("rx_chainmask", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_rx_chainmask);
-	debugfs_create_file("tx_chainmask", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_tx_chainmask);
+	debugfs_create_u8("rx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
+			  &ah->rxchainmask);
+	debugfs_create_u8("tx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
+			  &ah->txchainmask);
 	debugfs_create_file("ani", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc, &fops_ani);
 	debugfs_create_bool("paprd", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
@@ -1814,9 +1856,11 @@ int ath9k_init_debug(struct ath_hw *ah)
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
 	debugfs_create_u32("gpio_val", S_IRUSR | S_IWUSR,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
-	debugfs_create_file("diversity", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_ant_diversity);
+	debugfs_create_file("antenna_diversity", S_IRUSR,
+			    sc->debug.debugfs_phy, sc, &fops_antenna_diversity);
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	debugfs_create_file("bt_ant_diversity", S_IRUSR | S_IWUSR,
+			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
 	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_btcoex);
 #endif

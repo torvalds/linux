@@ -807,7 +807,7 @@ static int gsm_dlci_data_output(struct gsm_mux *gsm, struct gsm_dlci *dlci)
 	int h = dlci->adaption - 1;
 
 	total_size = 0;
-	while(1) {
+	while (1) {
 		len = kfifo_len(dlci->fifo);
 		if (len == 0)
 			return total_size;
@@ -827,8 +827,8 @@ static int gsm_dlci_data_output(struct gsm_mux *gsm, struct gsm_dlci *dlci)
 		switch (dlci->adaption) {
 		case 1:	/* Unstructured */
 			break;
-		case 2:	/* Unstructed with modem bits. Always one byte as we never
-			   send inline break data */
+		case 2:	/* Unstructed with modem bits.
+		Always one byte as we never send inline break data */
 			*dp++ = gsm_encode_modem(dlci);
 			break;
 		}
@@ -968,7 +968,7 @@ static void gsm_dlci_data_kick(struct gsm_dlci *dlci)
 	unsigned long flags;
 	int sweep;
 
-	if (dlci->constipated) 
+	if (dlci->constipated)
 		return;
 
 	spin_lock_irqsave(&dlci->gsm->tx_lock, flags);
@@ -981,7 +981,7 @@ static void gsm_dlci_data_kick(struct gsm_dlci *dlci)
 			gsm_dlci_data_output(dlci->gsm, dlci);
 	}
 	if (sweep)
- 		gsm_dlci_data_sweep(dlci->gsm);
+		gsm_dlci_data_sweep(dlci->gsm);
 	spin_unlock_irqrestore(&dlci->gsm->tx_lock, flags);
 }
 
@@ -1138,7 +1138,7 @@ static void gsm_control_modem(struct gsm_mux *gsm, u8 *data, int clen)
 static void gsm_control_rls(struct gsm_mux *gsm, u8 *data, int clen)
 {
 	struct tty_port *port;
-	unsigned int addr = 0 ;
+	unsigned int addr = 0;
 	u8 bits;
 	int len = clen;
 	u8 *dp = data;
@@ -1740,10 +1740,11 @@ static void gsm_queue(struct gsm_mux *gsm)
 
 	if ((gsm->control & ~PF) == UI)
 		gsm->fcs = gsm_fcs_add_block(gsm->fcs, gsm->buf, gsm->len);
-	if (gsm->encoding == 0){
-		/* WARNING: gsm->received_fcs is used for gsm->encoding = 0 only.
-		            In this case it contain the last piece of data
-		            required to generate final CRC */
+	if (gsm->encoding == 0) {
+		/* WARNING: gsm->received_fcs is used for
+		gsm->encoding = 0 only.
+		In this case it contain the last piece of data
+		required to generate final CRC */
 		gsm->fcs = gsm_fcs_add(gsm->fcs, gsm->received_fcs);
 	}
 	if (gsm->fcs != GOOD_FCS) {
@@ -2904,9 +2905,11 @@ static int gsmtty_install(struct tty_driver *driver, struct tty_struct *tty)
 	gsm = gsm_mux[mux];
 	if (gsm->dead)
 		return -EL2HLT;
-	/* If DLCI 0 is not yet fully open return an error. This is ok from a locking
-	   perspective as we don't have to worry about this if DLCI0 is lost */
-	if (gsm->dlci[0] && gsm->dlci[0]->state != DLCI_OPEN) 
+	/* If DLCI 0 is not yet fully open return an error.
+	This is ok from a locking
+	perspective as we don't have to worry about this
+	if DLCI0 is lost */
+	if (gsm->dlci[0] && gsm->dlci[0]->state != DLCI_OPEN)
 		return -EL2NSYNC;
 	dlci = gsm->dlci[line];
 	if (dlci == NULL) {

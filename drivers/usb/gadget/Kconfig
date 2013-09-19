@@ -144,7 +144,6 @@ config USB_AT91
 config USB_LPC32XX
 	tristate "LPC32XX USB Peripheral Controller"
 	depends on ARCH_LPC32XX
-	depends on USB_PHY
 	select USB_ISP1301
 	help
 	   This option selects the USB device controller in the LPC32xx SoC.
@@ -188,7 +187,7 @@ config USB_FSL_USB2
 
 config USB_FUSB300
 	tristate "Faraday FUSB300 USB Peripheral Controller"
-	depends on !PHYS_ADDR_T_64BIT
+	depends on !PHYS_ADDR_T_64BIT && HAS_DMA
 	help
 	   Faraday usb device controller FUSB300 driver
 
@@ -206,7 +205,6 @@ config USB_FOTG210_UDC
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
-	depends on USB_PHY
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_H4_OTG
 	help
 	   Many Texas Instruments OMAP processors have flexible full
@@ -246,6 +244,7 @@ config USB_PXA25X_SMALL
 
 config USB_R8A66597
 	tristate "Renesas R8A66597 USB Peripheral Controller"
+	depends on HAS_DMA
 	help
 	   R8A66597 is a discrete USB host and peripheral controller chip that
 	   supports both full and high speed USB 2.0 data transfers.
@@ -287,21 +286,6 @@ config USB_S3C_HSOTG
 	  The Samsung S3C64XX USB2.0 high-speed gadget controller
 	  integrated into the S3C64XX series SoC.
 
-config USB_IMX
-	tristate "Freescale i.MX1 USB Peripheral Controller"
-	depends on ARCH_MXC
-	depends on BROKEN
-	help
-	   Freescale's i.MX1 includes an integrated full speed
-	   USB 1.1 device controller.
-
-	   It has Six fixed-function endpoints, as well as endpoint
-	   zero (for control transfers).
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "imx_udc" and force all
-	   gadget drivers to also be dynamically linked.
-
 config USB_S3C2410
 	tristate "S3C2410 USB Device Controller"
 	depends on ARCH_S3C24XX
@@ -329,7 +313,7 @@ config USB_S3C_HSUDC
 
 config USB_MV_UDC
 	tristate "Marvell USB2.0 Device Controller"
-	depends on GENERIC_HARDIRQS && HAS_DMA
+	depends on HAS_DMA
 	help
 	  Marvell Socs (including PXA and MMP series) include a high speed
 	  USB2.0 OTG controller, which can be configured as high speed or
@@ -402,7 +386,7 @@ config USB_NET2272
 
 config USB_NET2272_DMA
 	boolean "Support external DMA controller"
-	depends on USB_NET2272
+	depends on USB_NET2272 && HAS_DMA
 	help
 	  The NET2272 part can optionally support an external DMA
 	  controller, but your board has to have support in the
@@ -441,7 +425,7 @@ config USB_GOKU
 
 config USB_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
-	depends on PCI && GENERIC_HARDIRQS
+	depends on PCI
 	help
 	  This is a USB device driver for EG20T PCH.
 	  EG20T PCH is the platform controller hub that is used in Intel's
@@ -572,7 +556,7 @@ config USB_CONFIGFS
 	  specified simply by creating appropriate directories in configfs.
 	  Associating functions with configurations is done by creating
 	  appropriate symbolic links.
-	  For more information see Documentation/usb/gadget-configfs.txt.
+	  For more information see Documentation/usb/gadget_configfs.txt.
 
 config USB_CONFIGFS_SERIAL
 	boolean "Generic serial bulk in/out"

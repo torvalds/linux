@@ -387,6 +387,27 @@ int gxio_mpipe_link_close_aux(gxio_mpipe_context_t * context, int mac)
 
 EXPORT_SYMBOL(gxio_mpipe_link_close_aux);
 
+struct link_set_attr_aux_param {
+	int mac;
+	uint32_t attr;
+	int64_t val;
+};
+
+int gxio_mpipe_link_set_attr_aux(gxio_mpipe_context_t * context, int mac,
+				 uint32_t attr, int64_t val)
+{
+	struct link_set_attr_aux_param temp;
+	struct link_set_attr_aux_param *params = &temp;
+
+	params->mac = mac;
+	params->attr = attr;
+	params->val = val;
+
+	return hv_dev_pwrite(context->fd, 0, (HV_VirtAddr) params,
+			     sizeof(*params), GXIO_MPIPE_OP_LINK_SET_ATTR_AUX);
+}
+
+EXPORT_SYMBOL(gxio_mpipe_link_set_attr_aux);
 
 struct get_timestamp_aux_param {
 	uint64_t sec;
@@ -453,6 +474,51 @@ int gxio_mpipe_adjust_timestamp_aux(gxio_mpipe_context_t * context,
 }
 
 EXPORT_SYMBOL(gxio_mpipe_adjust_timestamp_aux);
+
+struct adjust_timestamp_freq_param {
+	int32_t ppb;
+};
+
+int gxio_mpipe_adjust_timestamp_freq(gxio_mpipe_context_t * context,
+				     int32_t ppb)
+{
+	struct adjust_timestamp_freq_param temp;
+	struct adjust_timestamp_freq_param *params = &temp;
+
+	params->ppb = ppb;
+
+	return hv_dev_pwrite(context->fd, 0, (HV_VirtAddr) params,
+			     sizeof(*params),
+			     GXIO_MPIPE_OP_ADJUST_TIMESTAMP_FREQ);
+}
+
+EXPORT_SYMBOL(gxio_mpipe_adjust_timestamp_freq);
+
+struct config_edma_ring_blks_param {
+	unsigned int ering;
+	unsigned int max_blks;
+	unsigned int min_snf_blks;
+	unsigned int db;
+};
+
+int gxio_mpipe_config_edma_ring_blks(gxio_mpipe_context_t * context,
+				     unsigned int ering, unsigned int max_blks,
+				     unsigned int min_snf_blks, unsigned int db)
+{
+	struct config_edma_ring_blks_param temp;
+	struct config_edma_ring_blks_param *params = &temp;
+
+	params->ering = ering;
+	params->max_blks = max_blks;
+	params->min_snf_blks = min_snf_blks;
+	params->db = db;
+
+	return hv_dev_pwrite(context->fd, 0, (HV_VirtAddr) params,
+			     sizeof(*params),
+			     GXIO_MPIPE_OP_CONFIG_EDMA_RING_BLKS);
+}
+
+EXPORT_SYMBOL(gxio_mpipe_config_edma_ring_blks);
 
 struct arm_pollfd_param {
 	union iorpc_pollfd pollfd;

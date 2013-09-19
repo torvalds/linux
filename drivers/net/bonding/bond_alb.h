@@ -53,7 +53,6 @@ struct slave;
 
 
 #define TLB_NULL_INDEX		0xffffffff
-#define MAX_LP_BURST		3
 
 /* rlb defs */
 #define RLB_HASH_TABLE_SIZE	256
@@ -126,7 +125,6 @@ struct rlb_client_info {
 	u8  assigned;		/* checking whether this entry is assigned */
 	u8  ntt;		/* flag - need to transmit client info */
 	struct slave *slave;	/* the slave assigned to this client */
-	u8 tag;			/* flag - need to tag skb */
 	unsigned short vlan_id;	/* VLAN tag associated with IP address */
 };
 
@@ -170,7 +168,6 @@ struct alb_bond_info {
 						 * rx traffic should be
 						 * rebalanced
 						 */
-	struct vlan_entry	*current_alb_vlan;
 };
 
 int bond_alb_initialize(struct bonding *bond, int rlb_enabled);

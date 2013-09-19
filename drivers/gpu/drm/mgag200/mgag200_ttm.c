@@ -148,7 +148,9 @@ mgag200_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 
 static int mgag200_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct mgag200_bo *mgabo = mgag200_bo(bo);
+
+	return drm_vma_node_verify_access(&mgabo->gem.vma_node, filp);
 }
 
 static int mgag200_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -321,7 +323,6 @@ int mgag200_bo_create(struct drm_device *dev, int size, int align,
 		return ret;
 	}
 
-	mgabo->gem.driver_private = NULL;
 	mgabo->bo.bdev = &mdev->ttm.bdev;
 	mgabo->bo.bdev->dev_mapping = dev->dev_mapping;
 

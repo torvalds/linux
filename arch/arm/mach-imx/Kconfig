@@ -1,6 +1,7 @@
 config ARCH_MXC
 	bool "Freescale i.MX family" if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7
 	select ARCH_REQUIRE_GPIOLIB
+	select ARM_CPU_SUSPEND if PM
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR if !ZBOOT_ROM
 	select CLKDEV_LOOKUP
@@ -8,6 +9,7 @@ config ARCH_MXC
 	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
+	select MIGHT_HAVE_CACHE_L2X0 if ARCH_MULTI_V6_V7
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	select USE_OF
@@ -785,7 +787,6 @@ config SOC_IMX6Q
 	bool "i.MX6 Quad/DualLite support"
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
-	select ARM_CPU_SUSPEND if PM
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
 	select ARM_ERRATA_775420
@@ -793,7 +794,7 @@ config SOC_IMX6Q
 	select COMMON_CLK
 	select CPU_V7
 	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_ARM_TWD if SMP
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC

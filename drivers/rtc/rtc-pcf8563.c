@@ -264,7 +264,7 @@ static int pcf8563_probe(struct i2c_client *client,
 				pcf8563_driver.driver.name,
 				&pcf8563_rtc_ops, THIS_MODULE);
 
-	return PTR_RET(pcf8563->rtc);
+	return PTR_ERR_OR_ZERO(pcf8563->rtc);
 }
 
 static const struct i2c_device_id pcf8563_id[] = {

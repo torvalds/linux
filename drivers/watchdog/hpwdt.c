@@ -162,7 +162,8 @@ extern asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
 #define HPWDT_ARCH	32
 
 asm(".text                          \n\t"
-    ".align 4                       \n"
+    ".align 4                       \n\t"
+    ".globl asminline_call	    \n"
     "asminline_call:                \n\t"
     "pushl       %ebp               \n\t"
     "movl        %esp, %ebp         \n\t"
@@ -352,7 +353,8 @@ static int detect_cru_service(void)
 #define HPWDT_ARCH	64
 
 asm(".text                      \n\t"
-    ".align 4                   \n"
+    ".align 4                   \n\t"
+    ".globl asminline_call	\n"
     "asminline_call:            \n\t"
     "pushq      %rbp            \n\t"
     "movq       %rsp, %rbp      \n\t"

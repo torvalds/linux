@@ -20,7 +20,7 @@
 #include <linux/intel_pmic_gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>

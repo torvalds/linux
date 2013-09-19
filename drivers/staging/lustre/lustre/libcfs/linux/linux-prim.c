@@ -81,22 +81,21 @@ add_wait_queue_exclusive_head(wait_queue_head_t *waitq, wait_queue_t *link)
 EXPORT_SYMBOL(add_wait_queue_exclusive_head);
 
 void
-waitq_wait(wait_queue_t *link, cfs_task_state_t state)
+waitq_wait(wait_queue_t *link, long state)
 {
 	schedule();
 }
 EXPORT_SYMBOL(waitq_wait);
 
 int64_t
-waitq_timedwait(wait_queue_t *link, cfs_task_state_t state,
-		    int64_t timeout)
+waitq_timedwait(wait_queue_t *link, long state, int64_t timeout)
 {
 	return schedule_timeout(timeout);
 }
 EXPORT_SYMBOL(waitq_timedwait);
 
 void
-schedule_timeout_and_set_state(cfs_task_state_t state, int64_t timeout)
+schedule_timeout_and_set_state(long state, int64_t timeout)
 {
 	set_current_state(state);
 	schedule_timeout(timeout);
@@ -112,13 +111,13 @@ cfs_pause(cfs_duration_t ticks)
 }
 EXPORT_SYMBOL(cfs_pause);
 
-void cfs_init_timer(timer_list_t *t)
+void cfs_init_timer(struct timer_list *t)
 {
 	init_timer(t);
 }
 EXPORT_SYMBOL(cfs_init_timer);
 
-void cfs_timer_init(timer_list_t *t, cfs_timer_func_t *func, void *arg)
+void cfs_timer_init(struct timer_list *t, cfs_timer_func_t *func, void *arg)
 {
 	init_timer(t);
 	t->function = func;
@@ -126,31 +125,31 @@ void cfs_timer_init(timer_list_t *t, cfs_timer_func_t *func, void *arg)
 }
 EXPORT_SYMBOL(cfs_timer_init);
 
-void cfs_timer_done(timer_list_t *t)
+void cfs_timer_done(struct timer_list *t)
 {
 	return;
 }
 EXPORT_SYMBOL(cfs_timer_done);
 
-void cfs_timer_arm(timer_list_t *t, cfs_time_t deadline)
+void cfs_timer_arm(struct timer_list *t, cfs_time_t deadline)
 {
 	mod_timer(t, deadline);
 }
 EXPORT_SYMBOL(cfs_timer_arm);
 
-void cfs_timer_disarm(timer_list_t *t)
+void cfs_timer_disarm(struct timer_list *t)
 {
 	del_timer(t);
 }
 EXPORT_SYMBOL(cfs_timer_disarm);
 
-int  cfs_timer_is_armed(timer_list_t *t)
+int  cfs_timer_is_armed(struct timer_list *t)
 {
 	return timer_pending(t);
 }
 EXPORT_SYMBOL(cfs_timer_is_armed);
 
-cfs_time_t cfs_timer_deadline(timer_list_t *t)
+cfs_time_t cfs_timer_deadline(struct timer_list *t)
 {
 	return t->expires;
 }

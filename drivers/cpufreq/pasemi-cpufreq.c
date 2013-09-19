@@ -297,7 +297,6 @@ static int pas_cpufreq_target(struct cpufreq_policy *policy,
 
 static struct cpufreq_driver pas_cpufreq_driver = {
 	.name		= "pas-cpufreq",
-	.owner		= THIS_MODULE,
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= pas_cpufreq_cpu_init,
 	.exit		= pas_cpufreq_cpu_exit,

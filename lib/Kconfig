@@ -48,6 +48,16 @@ config STMP_DEVICE
 config PERCPU_RWSEM
 	boolean
 
+config ARCH_USE_CMPXCHG_LOCKREF
+	bool
+
+config CMPXCHG_LOCKREF
+	def_bool y if ARCH_USE_CMPXCHG_LOCKREF
+	depends on SMP
+	depends on !GENERIC_LOCKBREAK
+	depends on !DEBUG_SPINLOCK
+	depends on !DEBUG_LOCK_ALLOC
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -66,6 +76,8 @@ config CRC16
 
 config CRC_T10DIF
 	tristate "CRC calculation for the T10 Data Integrity Field"
+	select CRYPTO
+	select CRYPTO_CRCT10DIF
 	help
 	  This option is only needed if a module that's not in the
 	  kernel tree needs to calculate CRC checks for use with the

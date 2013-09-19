@@ -250,7 +250,7 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				       &da9052_rtc_ops, THIS_MODULE);
-	return PTR_RET(rtc->rtc);
+	return PTR_ERR_OR_ZERO(rtc->rtc);
 }
 
 static struct platform_driver da9052_rtc_driver = {

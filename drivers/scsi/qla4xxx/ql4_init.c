@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -107,7 +107,7 @@ int qla4xxx_init_rings(struct scsi_qla_host *ha)
 		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->rsp_q_in);
 		writel(0,
 		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->rsp_q_out);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		writel(0,
 		       (unsigned long __iomem *)&ha->qla4_83xx_reg->req_q_in);
 		writel(0,
@@ -940,7 +940,7 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha, int is_reset)
 	 * while switching from polling to interrupt mode. IOCB interrupts are
 	 * enabled via isp_ops->enable_intrs.
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		qla4_83xx_enable_mbox_intrs(ha);
 
 	if (qla4xxx_about_firmware(ha) == QLA_ERROR)

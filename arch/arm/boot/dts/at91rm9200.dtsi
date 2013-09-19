@@ -120,6 +120,7 @@
 				interrupts = <10 IRQ_TYPE_LEVEL_HIGH 0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				pinctrl-names = "default";
 				status = "disabled";
 			};
 

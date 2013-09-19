@@ -45,7 +45,7 @@ static int kgdboc_reset_connect(struct input_handler *handler,
 {
 	input_reset_device(dev);
 
-	/* Retrun an error - we do not want to bind, just to reset */
+	/* Return an error - we do not want to bind, just to reset */
 	return -ENODEV;
 }
 

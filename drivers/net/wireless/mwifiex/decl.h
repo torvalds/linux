@@ -26,6 +26,7 @@
 #include <linux/wait.h>
 #include <linux/timer.h>
 #include <linux/ieee80211.h>
+#include <uapi/linux/if_arp.h>
 #include <net/mac80211.h>
 
 
@@ -75,7 +76,8 @@
 #define MWIFIEX_BUF_FLAG_REQUEUED_PKT      BIT(0)
 #define MWIFIEX_BUF_FLAG_BRIDGED_PKT	   BIT(1)
 
-#define MWIFIEX_BRIDGED_PKTS_THRESHOLD     1024
+#define MWIFIEX_BRIDGED_PKTS_THR_HIGH      1024
+#define MWIFIEX_BRIDGED_PKTS_THR_LOW        128
 
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
@@ -150,5 +152,13 @@ struct mwifiex_types_wmm_info {
 	u8 qos_info;
 	u8 reserved;
 	struct ieee_types_wmm_ac_parameters ac_params[IEEE80211_NUM_ACS];
+} __packed;
+
+struct mwifiex_arp_eth_header {
+	struct arphdr hdr;
+	u8 ar_sha[ETH_ALEN];
+	u8 ar_sip[4];
+	u8 ar_tha[ETH_ALEN];
+	u8 ar_tip[4];
 } __packed;
 #endif /* !_MWIFIEX_DECL_H_ */

@@ -166,6 +166,12 @@ config RT2800USB_RT35XX
 	  rt2800usb driver.
 	  Supported chips: RT3572
 
+config RT2800USB_RT3573
+	bool "rt2800usb - Include support for rt3573 devices (EXPERIMENTAL)"
+	---help---
+	  This enables support for RT3573 chipset based wireless USB devices
+	  in the rt2800usb driver.
+
 config RT2800USB_RT53XX
        bool "rt2800usb - Include support for rt53xx devices (EXPERIMENTAL)"
        ---help---

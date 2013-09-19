@@ -61,28 +61,25 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 	lpfn = placement->lpfn;
 	if (!lpfn)
 		lpfn = man->size;
-	do {
-		ret = drm_mm_pre_get(mm);
-		if (unlikely(ret))
-			return ret;
 
-		spin_lock(&rman->lock);
-		node = drm_mm_search_free_in_range(mm,
-					mem->num_pages, mem->page_alignment,
-					placement->fpfn, lpfn, 1);
-		if (unlikely(node == NULL)) {
-			spin_unlock(&rman->lock);
-			return 0;
-		}
-		node = drm_mm_get_block_atomic_range(node, mem->num_pages,
-						     mem->page_alignment,
-						     placement->fpfn,
-						     lpfn);
-		spin_unlock(&rman->lock);
-	} while (node == NULL);
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
 
-	mem->mm_node = node;
-	mem->start = node->start;
+	spin_lock(&rman->lock);
+	ret = drm_mm_insert_node_in_range(mm, node, mem->num_pages,
+					  mem->page_alignment,
+					  placement->fpfn, lpfn,
+					  DRM_MM_SEARCH_BEST);
+	spin_unlock(&rman->lock);
+
+	if (unlikely(ret)) {
+		kfree(node);
+	} else {
+		mem->mm_node = node;
+		mem->start = node->start;
+	}
+
 	return 0;
 }
 
@@ -93,8 +90,10 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 
 	if (mem->mm_node) {
 		spin_lock(&rman->lock);
-		drm_mm_put_block(mem->mm_node);
+		drm_mm_remove_node(mem->mm_node);
 		spin_unlock(&rman->lock);
+
+		kfree(mem->mm_node);
 		mem->mm_node = NULL;
 	}
 }

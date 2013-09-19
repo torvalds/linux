@@ -35,6 +35,7 @@
 #include <linux/freezer.h>
 
 #include "xfs_sb.h"
+#include "xfs_trans_resv.h"
 #include "xfs_log.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
@@ -80,54 +81,6 @@ xfs_buf_vmap_len(
 }
 
 /*
- * xfs_buf_lru_add - add a buffer to the LRU.
- *
- * The LRU takes a new reference to the buffer so that it will only be freed
- * once the shrinker takes the buffer off the LRU.
- */
-STATIC void
-xfs_buf_lru_add(
-	struct xfs_buf	*bp)
-{
-	struct xfs_buftarg *btp = bp->b_target;
-
-	spin_lock(&btp->bt_lru_lock);
-	if (list_empty(&bp->b_lru)) {
-		atomic_inc(&bp->b_hold);
-		list_add_tail(&bp->b_lru, &btp->bt_lru);
-		btp->bt_lru_nr++;
-		bp->b_lru_flags &= ~_XBF_LRU_DISPOSE;
-	}
-	spin_unlock(&btp->bt_lru_lock);
-}
-
-/*
- * xfs_buf_lru_del - remove a buffer from the LRU
- *
- * The unlocked check is safe here because it only occurs when there are not
- * b_lru_ref counts left on the inode under the pag->pag_buf_lock. it is there
- * to optimise the shrinker removing the buffer from the LRU and calling
- * xfs_buf_free(). i.e. it removes an unnecessary round trip on the
- * bt_lru_lock.
- */
-STATIC void
-xfs_buf_lru_del(
-	struct xfs_buf	*bp)
-{
-	struct xfs_buftarg *btp = bp->b_target;
-
-	if (list_empty(&bp->b_lru))
-		return;
-
-	spin_lock(&btp->bt_lru_lock);
-	if (!list_empty(&bp->b_lru)) {
-		list_del_init(&bp->b_lru);
-		btp->bt_lru_nr--;
-	}
-	spin_unlock(&btp->bt_lru_lock);
-}
-
-/*
  * When we mark a buffer stale, we remove the buffer from the LRU and clear the
  * b_lru_ref count so that the buffer is freed immediately when the buffer
  * reference count falls to zero. If the buffer is already on the LRU, we need
@@ -150,20 +103,14 @@ xfs_buf_stale(
 	 */
 	bp->b_flags &= ~_XBF_DELWRI_Q;
 
-	atomic_set(&(bp)->b_lru_ref, 0);
-	if (!list_empty(&bp->b_lru)) {
-		struct xfs_buftarg *btp = bp->b_target;
+	spin_lock(&bp->b_lock);
+	atomic_set(&bp->b_lru_ref, 0);
+	if (!(bp->b_state & XFS_BSTATE_DISPOSE) &&
+	    (list_lru_del(&bp->b_target->bt_lru, &bp->b_lru)))
+		atomic_dec(&bp->b_hold);
 
-		spin_lock(&btp->bt_lru_lock);
-		if (!list_empty(&bp->b_lru) &&
-		    !(bp->b_lru_flags & _XBF_LRU_DISPOSE)) {
-			list_del_init(&bp->b_lru);
-			btp->bt_lru_nr--;
-			atomic_dec(&bp->b_hold);
-		}
-		spin_unlock(&btp->bt_lru_lock);
-	}
 	ASSERT(atomic_read(&bp->b_hold) >= 1);
+	spin_unlock(&bp->b_lock);
 }
 
 static int
@@ -227,6 +174,7 @@ _xfs_buf_alloc(
 	INIT_LIST_HEAD(&bp->b_list);
 	RB_CLEAR_NODE(&bp->b_rbnode);
 	sema_init(&bp->b_sema, 0); /* held, no waiters */
+	spin_lock_init(&bp->b_lock);
 	XB_SET_OWNER(bp);
 	bp->b_target = target;
 	bp->b_flags = flags;
@@ -303,7 +251,7 @@ _xfs_buf_free_pages(
  *	Releases the specified buffer.
  *
  * 	The modification state of any associated pages is left unchanged.
- * 	The buffer most not be on any hash - use xfs_buf_rele instead for
+ * 	The buffer must not be on any hash - use xfs_buf_rele instead for
  * 	hashed and refcounted buffers
  */
 void
@@ -916,12 +864,33 @@ xfs_buf_rele(
 
 	ASSERT(atomic_read(&bp->b_hold) > 0);
 	if (atomic_dec_and_lock(&bp->b_hold, &pag->pag_buf_lock)) {
-		if (!(bp->b_flags & XBF_STALE) &&
-			   atomic_read(&bp->b_lru_ref)) {
-			xfs_buf_lru_add(bp);
+		spin_lock(&bp->b_lock);
+		if (!(bp->b_flags & XBF_STALE) && atomic_read(&bp->b_lru_ref)) {
+			/*
+			 * If the buffer is added to the LRU take a new
+			 * reference to the buffer for the LRU and clear the
+			 * (now stale) dispose list state flag
+			 */
+			if (list_lru_add(&bp->b_target->bt_lru, &bp->b_lru)) {
+				bp->b_state &= ~XFS_BSTATE_DISPOSE;
+				atomic_inc(&bp->b_hold);
+			}
+			spin_unlock(&bp->b_lock);
 			spin_unlock(&pag->pag_buf_lock);
 		} else {
-			xfs_buf_lru_del(bp);
+			/*
+			 * most of the time buffers will already be removed from
+			 * the LRU, so optimise that case by checking for the
+			 * XFS_BSTATE_DISPOSE flag indicating the last list the
+			 * buffer was on was the disposal list
+			 */
+			if (!(bp->b_state & XFS_BSTATE_DISPOSE)) {
+				list_lru_del(&bp->b_target->bt_lru, &bp->b_lru);
+			} else {
+				ASSERT(list_empty(&bp->b_lru));
+			}
+			spin_unlock(&bp->b_lock);
+
 			ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 			rb_erase(&bp->b_rbnode, &pag->pag_buf_tree);
 			spin_unlock(&pag->pag_buf_lock);
@@ -1501,83 +1470,121 @@ xfs_buf_iomove(
  * returned. These buffers will have an elevated hold count, so wait on those
  * while freeing all the buffers only held by the LRU.
  */
+static enum lru_status
+xfs_buftarg_wait_rele(
+	struct list_head	*item,
+	spinlock_t		*lru_lock,
+	void			*arg)
+
+{
+	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
+	struct list_head	*dispose = arg;
+
+	if (atomic_read(&bp->b_hold) > 1) {
+		/* need to wait, so skip it this pass */
+		trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
+		return LRU_SKIP;
+	}
+	if (!spin_trylock(&bp->b_lock))
+		return LRU_SKIP;
+
+	/*
+	 * clear the LRU reference count so the buffer doesn't get
+	 * ignored in xfs_buf_rele().
+	 */
+	atomic_set(&bp->b_lru_ref, 0);
+	bp->b_state |= XFS_BSTATE_DISPOSE;
+	list_move(item, dispose);
+	spin_unlock(&bp->b_lock);
+	return LRU_REMOVED;
+}
+
 void
 xfs_wait_buftarg(
 	struct xfs_buftarg	*btp)
 {
-	struct xfs_buf		*bp;
+	LIST_HEAD(dispose);
+	int loop = 0;
 
-restart:
-	spin_lock(&btp->bt_lru_lock);
-	while (!list_empty(&btp->bt_lru)) {
-		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
-		if (atomic_read(&bp->b_hold) > 1) {
-			trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
-			list_move_tail(&bp->b_lru, &btp->bt_lru);
-			spin_unlock(&btp->bt_lru_lock);
-			delay(100);
-			goto restart;
+	/* loop until there is nothing left on the lru list. */
+	while (list_lru_count(&btp->bt_lru)) {
+		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
+			      &dispose, LONG_MAX);
+
+		while (!list_empty(&dispose)) {
+			struct xfs_buf *bp;
+			bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
+			list_del_init(&bp->b_lru);
+			xfs_buf_rele(bp);
 		}
-		/*
-		 * clear the LRU reference count so the buffer doesn't get
-		 * ignored in xfs_buf_rele().
-		 */
-		atomic_set(&bp->b_lru_ref, 0);
-		spin_unlock(&btp->bt_lru_lock);
-		xfs_buf_rele(bp);
-		spin_lock(&btp->bt_lru_lock);
+		if (loop++ != 0)
+			delay(100);
 	}
-	spin_unlock(&btp->bt_lru_lock);
 }
 
-int
-xfs_buftarg_shrink(
+static enum lru_status
+xfs_buftarg_isolate(
+	struct list_head	*item,
+	spinlock_t		*lru_lock,
+	void			*arg)
+{
+	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
+	struct list_head	*dispose = arg;
+
+	/*
+	 * we are inverting the lru lock/bp->b_lock here, so use a trylock.
+	 * If we fail to get the lock, just skip it.
+	 */
+	if (!spin_trylock(&bp->b_lock))
+		return LRU_SKIP;
+	/*
+	 * Decrement the b_lru_ref count unless the value is already
+	 * zero. If the value is already zero, we need to reclaim the
+	 * buffer, otherwise it gets another trip through the LRU.
+	 */
+	if (!atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
+		spin_unlock(&bp->b_lock);
+		return LRU_ROTATE;
+	}
+
+	bp->b_state |= XFS_BSTATE_DISPOSE;
+	list_move(item, dispose);
+	spin_unlock(&bp->b_lock);
+	return LRU_REMOVED;
+}
+
+static unsigned long
+xfs_buftarg_shrink_scan(
 	struct shrinker		*shrink,
 	struct shrink_control	*sc)
 {
 	struct xfs_buftarg	*btp = container_of(shrink,
 					struct xfs_buftarg, bt_shrinker);
-	struct xfs_buf		*bp;
-	int nr_to_scan = sc->nr_to_scan;
 	LIST_HEAD(dispose);
+	unsigned long		freed;
+	unsigned long		nr_to_scan = sc->nr_to_scan;
 
-	if (!nr_to_scan)
-		return btp->bt_lru_nr;
-
-	spin_lock(&btp->bt_lru_lock);
-	while (!list_empty(&btp->bt_lru)) {
-		if (nr_to_scan-- <= 0)
-			break;
-
-		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
-
-		/*
-		 * Decrement the b_lru_ref count unless the value is already
-		 * zero. If the value is already zero, we need to reclaim the
-		 * buffer, otherwise it gets another trip through the LRU.
-		 */
-		if (!atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
-			list_move_tail(&bp->b_lru, &btp->bt_lru);
-			continue;
-		}
-
-		/*
-		 * remove the buffer from the LRU now to avoid needing another
-		 * lock round trip inside xfs_buf_rele().
-		 */
-		list_move(&bp->b_lru, &dispose);
-		btp->bt_lru_nr--;
-		bp->b_lru_flags |= _XBF_LRU_DISPOSE;
-	}
-	spin_unlock(&btp->bt_lru_lock);
+	freed = list_lru_walk_node(&btp->bt_lru, sc->nid, xfs_buftarg_isolate,
+				       &dispose, &nr_to_scan);
 
 	while (!list_empty(&dispose)) {
+		struct xfs_buf *bp;
 		bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
 		list_del_init(&bp->b_lru);
 		xfs_buf_rele(bp);
 	}
 
-	return btp->bt_lru_nr;
+	return freed;
+}
+
+static unsigned long
+xfs_buftarg_shrink_count(
+	struct shrinker		*shrink,
+	struct shrink_control	*sc)
+{
+	struct xfs_buftarg	*btp = container_of(shrink,
+					struct xfs_buftarg, bt_shrinker);
+	return list_lru_count_node(&btp->bt_lru, sc->nid);
 }
 
 void
@@ -1586,6 +1593,7 @@ xfs_free_buftarg(
 	struct xfs_buftarg	*btp)
 {
 	unregister_shrinker(&btp->bt_shrinker);
+	list_lru_destroy(&btp->bt_lru);
 
 	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_blkdev_issue_flush(btp);
@@ -1621,7 +1629,7 @@ xfs_setsize_buftarg_flags(
 /*
  *	When allocating the initial buffer target we have not yet
  *	read in the superblock, so don't know what sized sectors
- *	are being used is at this early stage.  Play safe.
+ *	are being used at this early stage.  Play safe.
  */
 STATIC int
 xfs_setsize_buftarg_early(
@@ -1659,12 +1667,16 @@ xfs_alloc_buftarg(
 	if (!btp->bt_bdi)
 		goto error;
 
-	INIT_LIST_HEAD(&btp->bt_lru);
-	spin_lock_init(&btp->bt_lru_lock);
 	if (xfs_setsize_buftarg_early(btp, bdev))
 		goto error;
-	btp->bt_shrinker.shrink = xfs_buftarg_shrink;
+
+	if (list_lru_init(&btp->bt_lru))
+		goto error;
+
+	btp->bt_shrinker.count_objects = xfs_buftarg_shrink_count;
+	btp->bt_shrinker.scan_objects = xfs_buftarg_shrink_scan;
 	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
+	btp->bt_shrinker.flags = SHRINKER_NUMA_AWARE;
 	register_shrinker(&btp->bt_shrinker);
 	return btp;
 

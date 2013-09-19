@@ -1859,7 +1859,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 
-	ht = kzalloc(size, GFP_NOFS);
+	ht = kzalloc(size, GFP_NOFS | __GFP_NOWARN);
 	if (ht == NULL)
 		ht = vzalloc(size);
 	if (!ht)

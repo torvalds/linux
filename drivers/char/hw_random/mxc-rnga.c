@@ -164,7 +164,9 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	clk_prepare_enable(mxc_rng->clk);
+	err = clk_prepare_enable(mxc_rng->clk);
+	if (err)
+		goto out;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mxc_rng->mem = devm_ioremap_resource(&pdev->dev, res);

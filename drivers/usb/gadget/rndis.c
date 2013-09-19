@@ -1142,7 +1142,7 @@ static struct proc_dir_entry *rndis_connect_state [RNDIS_MAX_CONFIGS];
 #endif /* CONFIG_USB_GADGET_DEBUG_FILES */
 
 
-int rndis_init(void)
+static int rndis_init(void)
 {
 	u8 i;
 
@@ -1176,7 +1176,7 @@ int rndis_init(void)
 }
 module_init(rndis_init);
 
-void rndis_exit(void)
+static void rndis_exit(void)
 {
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
 	u8 i;

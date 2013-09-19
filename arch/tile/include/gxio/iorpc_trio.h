@@ -30,6 +30,7 @@
 
 #define GXIO_TRIO_OP_ALLOC_MEMORY_MAPS IORPC_OPCODE(IORPC_FORMAT_NONE, 0x1404)
 
+#define GXIO_TRIO_OP_ALLOC_SCATTER_QUEUES IORPC_OPCODE(IORPC_FORMAT_NONE, 0x140e)
 #define GXIO_TRIO_OP_ALLOC_PIO_REGIONS IORPC_OPCODE(IORPC_FORMAT_NONE, 0x1412)
 
 #define GXIO_TRIO_OP_INIT_PIO_REGION_AUX IORPC_OPCODE(IORPC_FORMAT_NONE, 0x1414)
@@ -53,6 +54,10 @@ int gxio_trio_alloc_memory_maps(gxio_trio_context_t * context,
 				unsigned int count, unsigned int first,
 				unsigned int flags);
 
+
+int gxio_trio_alloc_scatter_queues(gxio_trio_context_t * context,
+				   unsigned int count, unsigned int first,
+				   unsigned int flags);
 
 int gxio_trio_alloc_pio_regions(gxio_trio_context_t * context,
 				unsigned int count, unsigned int first,

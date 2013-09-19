@@ -106,10 +106,8 @@ pte_t *get_prealloc_pte(unsigned long pfn)
  */
 static int initial_heap_home(void)
 {
-#if CHIP_HAS_CBOX_HOME_MAP()
 	if (hash_default)
 		return PAGE_HOME_HASH;
-#endif
 	return smp_processor_id();
 }
 
@@ -190,14 +188,11 @@ static void __init page_table_range_init(unsigned long start,
 }
 
 
-#if CHIP_HAS_CBOX_HOME_MAP()
-
 static int __initdata ktext_hash = 1;  /* .text pages */
 static int __initdata kdata_hash = 1;  /* .data and .bss pages */
 int __write_once hash_default = 1;     /* kernel allocator pages */
 EXPORT_SYMBOL(hash_default);
 int __write_once kstack_hash = 1;      /* if no homecaching, use h4h */
-#endif /* CHIP_HAS_CBOX_HOME_MAP */
 
 /*
  * CPUs to use to for striping the pages of kernel data.  If hash-for-home
@@ -215,14 +210,12 @@ int __write_once kdata_huge;       /* if no homecaching, small pages */
 static pgprot_t __init construct_pgprot(pgprot_t prot, int home)
 {
 	prot = pte_set_home(prot, home);
-#if CHIP_HAS_CBOX_HOME_MAP()
 	if (home == PAGE_HOME_IMMUTABLE) {
 		if (ktext_hash)
 			prot = hv_pte_set_mode(prot, HV_PTE_MODE_CACHE_HASH_L3);
 		else
 			prot = hv_pte_set_mode(prot, HV_PTE_MODE_CACHE_NO_L3);
 	}
-#endif
 	return prot;
 }
 
@@ -234,22 +227,17 @@ static pgprot_t __init init_pgprot(ulong address)
 {
 	int cpu;
 	unsigned long page;
-	enum { CODE_DELTA = MEM_SV_INTRPT - PAGE_OFFSET };
+	enum { CODE_DELTA = MEM_SV_START - PAGE_OFFSET };
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 	/* For kdata=huge, everything is just hash-for-home. */
 	if (kdata_huge)
 		return construct_pgprot(PAGE_KERNEL, PAGE_HOME_HASH);
-#endif
 
 	/* We map the aliased pages of permanent text inaccessible. */
 	if (address < (ulong) _sinittext - CODE_DELTA)
 		return PAGE_NONE;
 
-	/*
-	 * We map read-only data non-coherent for performance.  We could
-	 * use neighborhood caching on TILE64, but it's not clear it's a win.
-	 */
+	/* We map read-only data non-coherent for performance. */
 	if ((address >= (ulong) __start_rodata &&
 	     address < (ulong) __end_rodata) ||
 	    address == (ulong) empty_zero_page) {
@@ -257,11 +245,9 @@ static pgprot_t __init init_pgprot(ulong address)
 	}
 
 #ifndef __tilegx__
-#if !ATOMIC_LOCKS_FOUND_VIA_TABLE()
 	/* Force the atomic_locks[] array page to be hash-for-home. */
 	if (address == (ulong) atomic_locks)
 		return construct_pgprot(PAGE_KERNEL, PAGE_HOME_HASH);
-#endif
 #endif
 
 	/*
@@ -280,19 +266,9 @@ static pgprot_t __init init_pgprot(ulong address)
 	if (address >= (ulong) _end || address < (ulong) _einitdata)
 		return construct_pgprot(PAGE_KERNEL, initial_heap_home());
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 	/* Use hash-for-home if requested for data/bss. */
 	if (kdata_hash)
 		return construct_pgprot(PAGE_KERNEL, PAGE_HOME_HASH);
-#endif
-
-	/*
-	 * Make the w1data homed like heap to start with, to avoid
-	 * making it part of the page-striped data area when we're just
-	 * going to convert it to read-only soon anyway.
-	 */
-	if (address >= (ulong)__w1data_begin && address < (ulong)__w1data_end)
-		return construct_pgprot(PAGE_KERNEL, initial_heap_home());
 
 	/*
 	 * Otherwise we just hand out consecutive cpus.  To avoid
@@ -301,7 +277,7 @@ static pgprot_t __init init_pgprot(ulong address)
 	 * the requested address, while walking cpu home around kdata_mask.
 	 * This is typically no more than a dozen or so iterations.
 	 */
-	page = (((ulong)__w1data_end) + PAGE_SIZE - 1) & PAGE_MASK;
+	page = (((ulong)__end_rodata) + PAGE_SIZE - 1) & PAGE_MASK;
 	BUG_ON(address < page || address >= (ulong)_end);
 	cpu = cpumask_first(&kdata_mask);
 	for (; page < address; page += PAGE_SIZE) {
@@ -311,10 +287,8 @@ static pgprot_t __init init_pgprot(ulong address)
 		if (page == (ulong)empty_zero_page)
 			continue;
 #ifndef __tilegx__
-#if !ATOMIC_LOCKS_FOUND_VIA_TABLE()
 		if (page == (ulong)atomic_locks)
 			continue;
-#endif
 #endif
 		cpu = cpumask_next(cpu, &kdata_mask);
 		if (cpu == NR_CPUS)
@@ -358,7 +332,7 @@ static int __init setup_ktext(char *str)
 
 	ktext_arg_seen = 1;
 
-	/* Default setting on Tile64: use a huge page */
+	/* Default setting: use a huge page */
 	if (strcmp(str, "huge") == 0)
 		pr_info("ktext: using one huge locally cached page\n");
 
@@ -404,10 +378,8 @@ static inline pgprot_t ktext_set_nocache(pgprot_t prot)
 {
 	if (!ktext_nocache)
 		prot = hv_pte_set_nc(prot);
-#if CHIP_HAS_NC_AND_NOALLOC_BITS()
 	else
 		prot = hv_pte_set_no_alloc_l2(prot);
-#endif
 	return prot;
 }
 
@@ -440,7 +412,6 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	struct cpumask kstripe_mask;
 	int rc, i;
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 	if (ktext_arg_seen && ktext_hash) {
 		pr_warning("warning: \"ktext\" boot argument ignored"
 			   " if \"kcache_hash\" sets up text hash-for-home\n");
@@ -457,7 +428,6 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 			  " kcache_hash=all or =allbutstack\n");
 		kdata_huge = 0;
 	}
-#endif
 
 	/*
 	 * Set up a mask for cpus to use for kernel striping.
@@ -538,7 +508,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 		}
 	}
 
-	address = MEM_SV_INTRPT;
+	address = MEM_SV_START;
 	pmd = get_pmd(pgtables, address);
 	pfn = 0;  /* code starts at PA 0 */
 	if (ktext_small) {
@@ -585,13 +555,11 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	} else {
 		pte_t pteval = pfn_pte(0, PAGE_KERNEL_EXEC);
 		pteval = pte_mkhuge(pteval);
-#if CHIP_HAS_CBOX_HOME_MAP()
 		if (ktext_hash) {
 			pteval = hv_pte_set_mode(pteval,
 						 HV_PTE_MODE_CACHE_HASH_L3);
 			pteval = ktext_set_nocache(pteval);
 		} else
-#endif /* CHIP_HAS_CBOX_HOME_MAP() */
 		if (cpumask_weight(&ktext_mask) == 1) {
 			pteval = set_remote_cache_cpu(pteval,
 					      cpumask_first(&ktext_mask));
@@ -777,10 +745,7 @@ void __init paging_init(void)
 
 	kernel_physical_mapping_init(pgd_base);
 
-	/*
-	 * Fixed mappings, only the page table structure has to be
-	 * created - mappings will be set by set_fixmap():
-	 */
+	/* Fixed mappings, only the page table structure has to be created. */
 	page_table_range_init(fix_to_virt(__end_of_fixed_addresses - 1),
 			      FIXADDR_TOP, pgd_base);
 
@@ -941,26 +906,6 @@ void __init pgtable_cache_init(void)
 		panic("pgtable_cache_init(): Cannot create pgd cache");
 }
 
-#if !CHIP_HAS_COHERENT_LOCAL_CACHE()
-/*
- * The __w1data area holds data that is only written during initialization,
- * and is read-only and thus freely cacheable thereafter.  Fix the page
- * table entries that cover that region accordingly.
- */
-static void mark_w1data_ro(void)
-{
-	/* Loop over page table entries */
-	unsigned long addr = (unsigned long)__w1data_begin;
-	BUG_ON((addr & (PAGE_SIZE-1)) != 0);
-	for (; addr <= (unsigned long)__w1data_end - 1; addr += PAGE_SIZE) {
-		unsigned long pfn = kaddr_to_pfn((void *)addr);
-		pte_t *ptep = virt_to_pte(NULL, addr);
-		BUG_ON(pte_huge(*ptep));   /* not relevant for kdata_huge */
-		set_pte_at(&init_mm, addr, ptep, pfn_pte(pfn, PAGE_KERNEL_RO));
-	}
-}
-#endif
-
 #ifdef CONFIG_DEBUG_PAGEALLOC
 static long __write_once initfree;
 #else
@@ -1000,7 +945,7 @@ static void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		 */
 		int pfn = kaddr_to_pfn((void *)addr);
 		struct page *page = pfn_to_page(pfn);
-		pte_t *ptep = virt_to_pte(NULL, addr);
+		pte_t *ptep = virt_to_kpte(addr);
 		if (!initfree) {
 			/*
 			 * If debugging page accesses then do not free
@@ -1024,15 +969,11 @@ static void free_init_pages(char *what, unsigned long begin, unsigned long end)
 
 void free_initmem(void)
 {
-	const unsigned long text_delta = MEM_SV_INTRPT - PAGE_OFFSET;
+	const unsigned long text_delta = MEM_SV_START - PAGE_OFFSET;
 
 	/*
-	 * Evict the dirty initdata on the boot cpu, evict the w1data
-	 * wherever it's homed, and evict all the init code everywhere.
-	 * We are guaranteed that no one will touch the init pages any
-	 * more, and although other cpus may be touching the w1data,
-	 * we only actually change the caching on tile64, which won't
-	 * be keeping local copies in the other tiles' caches anyway.
+	 * Evict the cache on all cores to avoid incoherence.
+	 * We are guaranteed that no one will touch the init pages any more.
 	 */
 	homecache_evict(&cpu_cacheable_map);
 
@@ -1043,26 +984,11 @@ void free_initmem(void)
 
 	/*
 	 * Free the pages mapped from 0xc0000000 that correspond to code
-	 * pages from MEM_SV_INTRPT that we won't use again after init.
+	 * pages from MEM_SV_START that we won't use again after init.
 	 */
 	free_init_pages("unused kernel text",
 			(unsigned long)_sinittext - text_delta,
 			(unsigned long)_einittext - text_delta);
-
-#if !CHIP_HAS_COHERENT_LOCAL_CACHE()
-	/*
-	 * Upgrade the .w1data section to globally cached.
-	 * We don't do this on tilepro, since the cache architecture
-	 * pretty much makes it irrelevant, and in any case we end
-	 * up having racing issues with other tiles that may touch
-	 * the data after we flush the cache but before we update
-	 * the PTEs and flush the TLBs, causing sharer shootdowns
-	 * later.  Even though this is to clean data, it seems like
-	 * an unnecessary complication.
-	 */
-	mark_w1data_ro();
-#endif
-
 	/* Do a global TLB flush so everyone sees the changes. */
 	flush_tlb_all();
 }

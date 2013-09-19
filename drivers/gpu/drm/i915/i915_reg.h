@@ -33,21 +33,6 @@
 #define _MASKED_BIT_ENABLE(a) (((a) << 16) | (a))
 #define _MASKED_BIT_DISABLE(a) ((a) << 16)
 
-/*
- * The Bridge device's PCI config space has information about the
- * fb aperture size and the amount of pre-reserved memory.
- * This is all handled in the intel-gtt.ko module. i915.ko only
- * cares about the vga bit for the vga rbiter.
- */
-#define INTEL_GMCH_CTRL		0x52
-#define INTEL_GMCH_VGA_DISABLE  (1 << 1)
-#define SNB_GMCH_CTRL		0x50
-#define    SNB_GMCH_GGMS_SHIFT	8 /* GTT Graphics Memory Size */
-#define    SNB_GMCH_GGMS_MASK	0x3
-#define    SNB_GMCH_GMS_SHIFT   3 /* Graphics Mode Select */
-#define    SNB_GMCH_GMS_MASK    0x1f
-
-
 /* PCI config space */
 
 #define HPLLCC	0xc0 /* 855 only */
@@ -61,6 +46,12 @@
 #define   GC_LOW_FREQUENCY_ENABLE	(1 << 7)
 #define   GC_DISPLAY_CLOCK_190_200_MHZ	(0 << 4)
 #define   GC_DISPLAY_CLOCK_333_MHZ	(4 << 4)
+#define   GC_DISPLAY_CLOCK_267_MHZ_PNV	(0 << 4)
+#define   GC_DISPLAY_CLOCK_333_MHZ_PNV	(1 << 4)
+#define   GC_DISPLAY_CLOCK_444_MHZ_PNV	(2 << 4)
+#define   GC_DISPLAY_CLOCK_200_MHZ_PNV	(5 << 4)
+#define   GC_DISPLAY_CLOCK_133_MHZ_PNV	(6 << 4)
+#define   GC_DISPLAY_CLOCK_167_MHZ_PNV	(7 << 4)
 #define   GC_DISPLAY_CLOCK_MASK		(7 << 4)
 #define   GM45_GC_RENDER_CLOCK_MASK	(0xf << 0)
 #define   GM45_GC_RENDER_CLOCK_266_MHZ	(8 << 0)
@@ -239,6 +230,7 @@
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*x-1)
+#define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*x-1)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
 #define   MI_INVALIDATE_TLB		(1<<18)
@@ -363,6 +355,7 @@
 #define PUNIT_REG_GPU_LFM			0xd3
 #define PUNIT_REG_GPU_FREQ_REQ			0xd4
 #define PUNIT_REG_GPU_FREQ_STS			0xd8
+#define   GENFREQSTATUS				(1<<0)
 #define PUNIT_REG_MEDIA_TURBO_FREQ_REQ		0xdc
 
 #define PUNIT_FUSE_BUS2				0xf6 /* bits 47:40 */
@@ -680,11 +673,29 @@
 #define   ERR_INT_FIFO_UNDERRUN_C	(1<<6)
 #define   ERR_INT_FIFO_UNDERRUN_B	(1<<3)
 #define   ERR_INT_FIFO_UNDERRUN_A	(1<<0)
+#define   ERR_INT_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
 #define FPGA_DBG		0x42300
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
 
 #define DERRMR		0x44050
+#define   DERRMR_PIPEA_SCANLINE		(1<<0)
+#define   DERRMR_PIPEA_PRI_FLIP_DONE	(1<<1)
+#define   DERRMR_PIPEA_SPR_FLIP_DONE	(1<<2)
+#define   DERRMR_PIPEA_VBLANK		(1<<3)
+#define   DERRMR_PIPEA_HBLANK		(1<<5)
+#define   DERRMR_PIPEB_SCANLINE 	(1<<8)
+#define   DERRMR_PIPEB_PRI_FLIP_DONE	(1<<9)
+#define   DERRMR_PIPEB_SPR_FLIP_DONE	(1<<10)
+#define   DERRMR_PIPEB_VBLANK		(1<<11)
+#define   DERRMR_PIPEB_HBLANK		(1<<13)
+/* Note that PIPEC is not a simple translation of PIPEA/PIPEB */
+#define   DERRMR_PIPEC_SCANLINE		(1<<14)
+#define   DERRMR_PIPEC_PRI_FLIP_DONE	(1<<15)
+#define   DERRMR_PIPEC_SPR_FLIP_DONE	(1<<20)
+#define   DERRMR_PIPEC_VBLANK		(1<<21)
+#define   DERRMR_PIPEC_HBLANK		(1<<22)
+
 
 /* GM45+ chicken bits -- debug workaround bits that may be required
  * for various sorts of correct behavior.  The top 16 bits of each are
@@ -1127,7 +1138,8 @@
 #define _DPLL_B	(dev_priv->info->display_mmio_offset + 0x6018)
 #define DPLL(pipe) _PIPE(pipe, _DPLL_A, _DPLL_B)
 #define   DPLL_VCO_ENABLE		(1 << 31)
-#define   DPLL_DVO_HIGH_SPEED		(1 << 30)
+#define   DPLL_SDVO_HIGH_SPEED		(1 << 30)
+#define   DPLL_DVO_2X_MODE		(1 << 30)
 #define   DPLL_EXT_BUFFER_ENABLE_VLV	(1 << 30)
 #define   DPLL_SYNCLOCK_ENABLE		(1 << 29)
 #define   DPLL_REFA_CLK_ENABLE_VLV	(1 << 29)
@@ -1440,6 +1452,8 @@
 #define   MCH_SSKPD_WM0_MASK		0x3f
 #define   MCH_SSKPD_WM0_VAL		0xc
 
+#define MCH_SECP_NRG_STTS		(MCHBAR_MIRROR_BASE_SNB + 0x592c)
+
 /* Clocking configuration register */
 #define CLKCFG			0x10c00
 #define CLKCFG_FSB_400					(5 << 0)	/* hrawclk 100 */
@@ -1696,15 +1710,26 @@
  */
 #define CCID			0x2180
 #define   CCID_EN		(1<<0)
+/*
+ * Notes on SNB/IVB/VLV context size:
+ * - Power context is saved elsewhere (LLC or stolen)
+ * - Ring/execlist context is saved on SNB, not on IVB
+ * - Extended context size already includes render context size
+ * - We always need to follow the extended context size.
+ *   SNB BSpec has comments indicating that we should use the
+ *   render context size instead if execlists are disabled, but
+ *   based on empirical testing that's just nonsense.
+ * - Pipelined/VF state is saved on SNB/IVB respectively
+ * - GT1 size just indicates how much of render context
+ *   doesn't need saving on GT1
+ */
 #define CXT_SIZE		0x21a0
 #define GEN6_CXT_POWER_SIZE(cxt_reg)	((cxt_reg >> 24) & 0x3f)
 #define GEN6_CXT_RING_SIZE(cxt_reg)	((cxt_reg >> 18) & 0x3f)
 #define GEN6_CXT_RENDER_SIZE(cxt_reg)	((cxt_reg >> 12) & 0x3f)
 #define GEN6_CXT_EXTENDED_SIZE(cxt_reg)	((cxt_reg >> 6) & 0x3f)
 #define GEN6_CXT_PIPELINE_SIZE(cxt_reg)	((cxt_reg >> 0) & 0x3f)
-#define GEN6_CXT_TOTAL_SIZE(cxt_reg)	(GEN6_CXT_POWER_SIZE(cxt_reg) + \
-					GEN6_CXT_RING_SIZE(cxt_reg) + \
-					GEN6_CXT_RENDER_SIZE(cxt_reg) + \
+#define GEN6_CXT_TOTAL_SIZE(cxt_reg)	(GEN6_CXT_RING_SIZE(cxt_reg) + \
 					GEN6_CXT_EXTENDED_SIZE(cxt_reg) + \
 					GEN6_CXT_PIPELINE_SIZE(cxt_reg))
 #define GEN7_CXT_SIZE		0x21a8
@@ -1714,11 +1739,7 @@
 #define GEN7_CXT_EXTENDED_SIZE(ctx_reg)	((ctx_reg >> 9) & 0x7f)
 #define GEN7_CXT_GT1_SIZE(ctx_reg)	((ctx_reg >> 6) & 0x7)
 #define GEN7_CXT_VFSTATE_SIZE(ctx_reg)	((ctx_reg >> 0) & 0x3f)
-#define GEN7_CXT_TOTAL_SIZE(ctx_reg)	(GEN7_CXT_POWER_SIZE(ctx_reg) + \
-					 GEN7_CXT_RING_SIZE(ctx_reg) + \
-					 GEN7_CXT_RENDER_SIZE(ctx_reg) + \
-					 GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
-					 GEN7_CXT_GT1_SIZE(ctx_reg) + \
+#define GEN7_CXT_TOTAL_SIZE(ctx_reg)	(GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
 					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
 /* Haswell does have the CXT_SIZE register however it does not appear to be
  * valid. Now, docs explain in dwords what is in the context object. The full
@@ -1777,6 +1798,71 @@
 #define VSYNC(trans) _TRANSCODER(trans, _VSYNC_A, _VSYNC_B)
 #define BCLRPAT(pipe) _PIPE(pipe, _BCLRPAT_A, _BCLRPAT_B)
 #define VSYNCSHIFT(trans) _TRANSCODER(trans, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
+
+/* HSW eDP PSR registers */
+#define EDP_PSR_CTL				0x64800
+#define   EDP_PSR_ENABLE			(1<<31)
+#define   EDP_PSR_LINK_DISABLE			(0<<27)
+#define   EDP_PSR_LINK_STANDBY			(1<<27)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_MASK	(3<<25)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES	(0<<25)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_4_LINES	(1<<25)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_2_LINES	(2<<25)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_0_LINES	(3<<25)
+#define   EDP_PSR_MAX_SLEEP_TIME_SHIFT		20
+#define   EDP_PSR_SKIP_AUX_EXIT			(1<<12)
+#define   EDP_PSR_TP1_TP2_SEL			(0<<11)
+#define   EDP_PSR_TP1_TP3_SEL			(1<<11)
+#define   EDP_PSR_TP2_TP3_TIME_500us		(0<<8)
+#define   EDP_PSR_TP2_TP3_TIME_100us		(1<<8)
+#define   EDP_PSR_TP2_TP3_TIME_2500us		(2<<8)
+#define   EDP_PSR_TP2_TP3_TIME_0us		(3<<8)
+#define   EDP_PSR_TP1_TIME_500us		(0<<4)
+#define   EDP_PSR_TP1_TIME_100us		(1<<4)
+#define   EDP_PSR_TP1_TIME_2500us		(2<<4)
+#define   EDP_PSR_TP1_TIME_0us			(3<<4)
+#define   EDP_PSR_IDLE_FRAME_SHIFT		0
+
+#define EDP_PSR_AUX_CTL			0x64810
+#define EDP_PSR_AUX_DATA1		0x64814
+#define   EDP_PSR_DPCD_COMMAND		0x80060000
+#define EDP_PSR_AUX_DATA2		0x64818
+#define   EDP_PSR_DPCD_NORMAL_OPERATION	(1<<24)
+#define EDP_PSR_AUX_DATA3		0x6481c
+#define EDP_PSR_AUX_DATA4		0x64820
+#define EDP_PSR_AUX_DATA5		0x64824
+
+#define EDP_PSR_STATUS_CTL			0x64840
+#define   EDP_PSR_STATUS_STATE_MASK		(7<<29)
+#define   EDP_PSR_STATUS_STATE_IDLE		(0<<29)
+#define   EDP_PSR_STATUS_STATE_SRDONACK		(1<<29)
+#define   EDP_PSR_STATUS_STATE_SRDENT		(2<<29)
+#define   EDP_PSR_STATUS_STATE_BUFOFF		(3<<29)
+#define   EDP_PSR_STATUS_STATE_BUFON		(4<<29)
+#define   EDP_PSR_STATUS_STATE_AUXACK		(5<<29)
+#define   EDP_PSR_STATUS_STATE_SRDOFFACK	(6<<29)
+#define   EDP_PSR_STATUS_LINK_MASK		(3<<26)
+#define   EDP_PSR_STATUS_LINK_FULL_OFF		(0<<26)
+#define   EDP_PSR_STATUS_LINK_FULL_ON		(1<<26)
+#define   EDP_PSR_STATUS_LINK_STANDBY		(2<<26)
+#define   EDP_PSR_STATUS_MAX_SLEEP_TIMER_SHIFT	20
+#define   EDP_PSR_STATUS_MAX_SLEEP_TIMER_MASK	0x1f
+#define   EDP_PSR_STATUS_COUNT_SHIFT		16
+#define   EDP_PSR_STATUS_COUNT_MASK		0xf
+#define   EDP_PSR_STATUS_AUX_ERROR		(1<<15)
+#define   EDP_PSR_STATUS_AUX_SENDING		(1<<12)
+#define   EDP_PSR_STATUS_SENDING_IDLE		(1<<9)
+#define   EDP_PSR_STATUS_SENDING_TP2_TP3	(1<<8)
+#define   EDP_PSR_STATUS_SENDING_TP1		(1<<4)
+#define   EDP_PSR_STATUS_IDLE_MASK		0xf
+
+#define EDP_PSR_PERF_CNT		0x64844
+#define   EDP_PSR_PERF_CNT_MASK		0xffffff
+
+#define EDP_PSR_DEBUG_CTL		0x64860
+#define   EDP_PSR_DEBUG_MASK_LPSP	(1<<27)
+#define   EDP_PSR_DEBUG_MASK_MEMUP	(1<<26)
+#define   EDP_PSR_DEBUG_MASK_HPD	(1<<25)
 
 /* VGA port control */
 #define ADPA			0x61100
@@ -2053,6 +2139,7 @@
  * (Haswell and newer) to see which VIDEO_DIP_DATA byte corresponds to each byte
  * of the infoframe structure specified by CEA-861. */
 #define   VIDEO_DIP_DATA_SIZE	32
+#define   VIDEO_DIP_VSC_DATA_SIZE	36
 #define VIDEO_DIP_CTL		0x61170
 /* Pre HSW: */
 #define   VIDEO_DIP_ENABLE		(1 << 31)
@@ -2200,6 +2287,8 @@
 #define BLC_PWM_CPU_CTL2	0x48250
 #define BLC_PWM_CPU_CTL		0x48254
 
+#define HSW_BLC_PWM2_CTL	0x48350
+
 /* PCH CTL1 is totally different, all but the below bits are reserved. CTL2 is
  * like the normal CTL from gen4 and earlier. Hooray for confusing naming. */
 #define BLC_PWM_PCH_CTL1	0xc8250
@@ -2207,6 +2296,12 @@
 #define   BLM_PCH_OVERRIDE_ENABLE		(1 << 30)
 #define   BLM_PCH_POLARITY			(1 << 29)
 #define BLC_PWM_PCH_CTL2	0xc8254
+
+#define UTIL_PIN_CTL		0x48400
+#define   UTIL_PIN_ENABLE	(1 << 31)
+
+#define PCH_GTC_CTL		0xe7000
+#define   PCH_GTC_ENABLE	(1 << 31)
 
 /* TV port control */
 #define TV_CTL			0x68000
@@ -3121,9 +3216,6 @@
 #define  MLTR_WM2_SHIFT		8
 /* the unit of memory self-refresh latency time is 0.5us */
 #define  ILK_SRLT_MASK		0x3f
-#define ILK_LATENCY(shift)	(I915_READ(MLTR_ILK) >> (shift) & ILK_SRLT_MASK)
-#define ILK_READ_WM1_LATENCY()	ILK_LATENCY(MLTR_WM1_SHIFT)
-#define ILK_READ_WM2_LATENCY()	ILK_LATENCY(MLTR_WM2_SHIFT)
 
 /* define the fifo size on Ironlake */
 #define ILK_DISPLAY_FIFO	128
@@ -3169,12 +3261,6 @@
 #define SSKPD_WM1_SHIFT		8
 #define SSKPD_WM2_SHIFT		16
 #define SSKPD_WM3_SHIFT		24
-
-#define SNB_LATENCY(shift)	(I915_READ(MCHBAR_MIRROR_BASE_SNB + SSKPD) >> (shift) & SSKPD_WM_MASK)
-#define SNB_READ_WM0_LATENCY()		SNB_LATENCY(SSKPD_WM0_SHIFT)
-#define SNB_READ_WM1_LATENCY()		SNB_LATENCY(SSKPD_WM1_SHIFT)
-#define SNB_READ_WM2_LATENCY()		SNB_LATENCY(SSKPD_WM2_SHIFT)
-#define SNB_READ_WM3_LATENCY()		SNB_LATENCY(SSKPD_WM3_SHIFT)
 
 /*
  * The two pipe frame counter registers are not synchronized, so
@@ -3227,6 +3313,7 @@
 #define   MCURSOR_PIPE_A	0x00
 #define   MCURSOR_PIPE_B	(1 << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
+#define   CURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
 #define _CURABASE		(dev_priv->info->display_mmio_offset + 0x70084)
 #define _CURAPOS		(dev_priv->info->display_mmio_offset + 0x70088)
 #define   CURSOR_POS_MASK       0x007FF
@@ -3726,6 +3813,9 @@
 #define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
 #define DE_PIPEA_VBLANK_IVB		(1<<0)
 
+#define DE_PIPE_VBLANK_ILK(pipe)	(1 << ((pipe * 8) + 7))
+#define DE_PIPE_VBLANK_IVB(pipe)	(1 << (pipe * 5))
+
 #define VLV_MASTER_IER			0x4400c /* Gunit master IER */
 #define   MASTER_INTERRUPT_ENABLE	(1<<31)
 
@@ -3888,6 +3978,7 @@
 #define  SERR_INT_TRANS_C_FIFO_UNDERRUN	(1<<6)
 #define  SERR_INT_TRANS_B_FIFO_UNDERRUN	(1<<3)
 #define  SERR_INT_TRANS_A_FIFO_UNDERRUN	(1<<0)
+#define  SERR_INT_TRANS_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
 /* digital port hotplug */
 #define PCH_PORT_HOTPLUG        0xc4030		/* SHOTPLUG_CTL */
@@ -4081,12 +4172,21 @@
 	 _TRANSCODER(trans, HSW_VIDEO_DIP_CTL_A, HSW_VIDEO_DIP_CTL_B)
 #define HSW_TVIDEO_DIP_AVI_DATA(trans) \
 	 _TRANSCODER(trans, HSW_VIDEO_DIP_AVI_DATA_A, HSW_VIDEO_DIP_AVI_DATA_B)
+#define HSW_TVIDEO_DIP_VS_DATA(trans) \
+	 _TRANSCODER(trans, HSW_VIDEO_DIP_VS_DATA_A, HSW_VIDEO_DIP_VS_DATA_B)
 #define HSW_TVIDEO_DIP_SPD_DATA(trans) \
 	 _TRANSCODER(trans, HSW_VIDEO_DIP_SPD_DATA_A, HSW_VIDEO_DIP_SPD_DATA_B)
 #define HSW_TVIDEO_DIP_GCP(trans) \
 	_TRANSCODER(trans, HSW_VIDEO_DIP_GCP_A, HSW_VIDEO_DIP_GCP_B)
 #define HSW_TVIDEO_DIP_VSC_DATA(trans) \
 	 _TRANSCODER(trans, HSW_VIDEO_DIP_VSC_DATA_A, HSW_VIDEO_DIP_VSC_DATA_B)
+
+#define HSW_STEREO_3D_CTL_A	0x70020
+#define   S3D_ENABLE		(1<<31)
+#define HSW_STEREO_3D_CTL_B	0x71020
+
+#define HSW_STEREO_3D_CTL(trans) \
+	_TRANSCODER(trans, HSW_STEREO_3D_CTL_A, HSW_STEREO_3D_CTL_A)
 
 #define _PCH_TRANS_HTOTAL_B          0xe1000
 #define _PCH_TRANS_HBLANK_B          0xe1004
@@ -4476,6 +4576,10 @@
 #define  GT_FIFO_FREE_ENTRIES			0x120008
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
 
+#define  HSW_IDICR				0x9008
+#define    IDIHASHMSK(x)			(((x) & 0x3f) << 16)
+#define  HSW_EDRAM_PRESENT			0x120010
+
 #define GEN6_UCGCTL1				0x9400
 # define GEN6_BLBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
 # define GEN6_CSUNIT_CLOCK_GATE_DISABLE			(1 << 7)
@@ -4744,8 +4848,8 @@
 #define HSW_PWR_WELL_DRIVER			0x45404 /* CTL2 */
 #define HSW_PWR_WELL_KVMR			0x45408 /* CTL3 */
 #define HSW_PWR_WELL_DEBUG			0x4540C /* CTL4 */
-#define   HSW_PWR_WELL_ENABLE			(1<<31)
-#define   HSW_PWR_WELL_STATE			(1<<30)
+#define   HSW_PWR_WELL_ENABLE_REQUEST		(1<<31)
+#define   HSW_PWR_WELL_STATE_ENABLED		(1<<30)
 #define HSW_PWR_WELL_CTL5			0x45410
 #define   HSW_PWR_WELL_ENABLE_SINGLE_STEP	(1<<31)
 #define   HSW_PWR_WELL_PWR_GATE_OVERRIDE	(1<<20)
@@ -4866,7 +4970,8 @@
 #define  SBI_SSCAUXDIV6				0x0610
 #define   SBI_SSCAUXDIV_FINALDIV2SEL(x)		((x)<<4)
 #define  SBI_DBUFF0				0x2a00
-#define   SBI_DBUFF0_ENABLE			(1<<0)
+#define  SBI_GEN0				0x1f00
+#define   SBI_GEN0_CFG_BUFFENABLE_DISABLE	(1<<0)
 
 /* LPT PIXCLK_GATE */
 #define PIXCLK_GATE			0xC6020
@@ -4932,7 +5037,14 @@
 #define  LCPLL_CLK_FREQ_450		(0<<26)
 #define  LCPLL_CD_CLOCK_DISABLE		(1<<25)
 #define  LCPLL_CD2X_CLOCK_DISABLE	(1<<23)
+#define  LCPLL_POWER_DOWN_ALLOW		(1<<22)
 #define  LCPLL_CD_SOURCE_FCLK		(1<<21)
+#define  LCPLL_CD_SOURCE_FCLK_DONE	(1<<19)
+
+#define D_COMP				(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)
+#define  D_COMP_RCOMP_IN_PROGRESS	(1<<9)
+#define  D_COMP_COMP_FORCE		(1<<8)
+#define  D_COMP_COMP_DISABLE		(1<<0)
 
 /* Pipe WM_LINETIME - watermark line time */
 #define PIPE_WM_LINETIME_A		0x45270

@@ -12,41 +12,30 @@
  *   more details.
  *
  * A code-rewriter that enables instruction single-stepping.
- * Derived from iLib's single-stepping code.
  */
 
-#ifndef __tilegx__   /* Hardware support for single step unavailable. */
-
-/* These functions are only used on the TILE platform */
+#include <linux/smp.h>
+#include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/thread_info.h>
 #include <linux/uaccess.h>
 #include <linux/mman.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/prctl.h>
 #include <asm/cacheflush.h>
+#include <asm/traps.h>
+#include <asm/uaccess.h>
 #include <asm/unaligned.h>
 #include <arch/abi.h>
+#include <arch/spr_def.h>
 #include <arch/opcode.h>
+
+
+#ifndef __tilegx__   /* Hardware support for single step unavailable. */
 
 #define signExtend17(val) sign_extend((val), 17)
 #define TILE_X1_MASK (0xffffffffULL << 31)
-
-int unaligned_printk;
-
-static int __init setup_unaligned_printk(char *str)
-{
-	long val;
-	if (strict_strtol(str, 0, &val) != 0)
-		return 0;
-	unaligned_printk = val;
-	pr_info("Printk for each unaligned data accesses is %s\n",
-		unaligned_printk ? "enabled" : "disabled");
-	return 1;
-}
-__setup("unaligned_printk=", setup_unaligned_printk);
-
-unsigned int unaligned_fixup_count;
 
 enum mem_op {
 	MEMOP_NONE,
@@ -56,12 +45,13 @@ enum mem_op {
 	MEMOP_STORE_POSTINCR
 };
 
-static inline tile_bundle_bits set_BrOff_X1(tile_bundle_bits n, s32 offset)
+static inline tilepro_bundle_bits set_BrOff_X1(tilepro_bundle_bits n,
+	s32 offset)
 {
-	tile_bundle_bits result;
+	tilepro_bundle_bits result;
 
 	/* mask out the old offset */
-	tile_bundle_bits mask = create_BrOff_X1(-1);
+	tilepro_bundle_bits mask = create_BrOff_X1(-1);
 	result = n & (~mask);
 
 	/* or in the new offset */
@@ -70,10 +60,11 @@ static inline tile_bundle_bits set_BrOff_X1(tile_bundle_bits n, s32 offset)
 	return result;
 }
 
-static inline tile_bundle_bits move_X1(tile_bundle_bits n, int dest, int src)
+static inline tilepro_bundle_bits move_X1(tilepro_bundle_bits n, int dest,
+	int src)
 {
-	tile_bundle_bits result;
-	tile_bundle_bits op;
+	tilepro_bundle_bits result;
+	tilepro_bundle_bits op;
 
 	result = n & (~TILE_X1_MASK);
 
@@ -87,13 +78,13 @@ static inline tile_bundle_bits move_X1(tile_bundle_bits n, int dest, int src)
 	return result;
 }
 
-static inline tile_bundle_bits nop_X1(tile_bundle_bits n)
+static inline tilepro_bundle_bits nop_X1(tilepro_bundle_bits n)
 {
 	return move_X1(n, TREG_ZERO, TREG_ZERO);
 }
 
-static inline tile_bundle_bits addi_X1(
-	tile_bundle_bits n, int dest, int src, int imm)
+static inline tilepro_bundle_bits addi_X1(
+	tilepro_bundle_bits n, int dest, int src, int imm)
 {
 	n &= ~TILE_X1_MASK;
 
@@ -107,15 +98,26 @@ static inline tile_bundle_bits addi_X1(
 	return n;
 }
 
-static tile_bundle_bits rewrite_load_store_unaligned(
+static tilepro_bundle_bits rewrite_load_store_unaligned(
 	struct single_step_state *state,
-	tile_bundle_bits bundle,
+	tilepro_bundle_bits bundle,
 	struct pt_regs *regs,
 	enum mem_op mem_op,
 	int size, int sign_ext)
 {
 	unsigned char __user *addr;
 	int val_reg, addr_reg, err, val;
+	int align_ctl;
+
+	align_ctl = unaligned_fixup;
+	switch (task_thread_info(current)->align_ctl) {
+	case PR_UNALIGN_NOPRINT:
+		align_ctl = 1;
+		break;
+	case PR_UNALIGN_SIGBUS:
+		align_ctl = 0;
+		break;
+	}
 
 	/* Get address and value registers */
 	if (bundle & TILEPRO_BUNDLE_Y_ENCODING_MASK) {
@@ -160,7 +162,7 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 	 * tilepro hardware would be doing, if it could provide us with the
 	 * actual bad address in an SPR, which it doesn't.
 	 */
-	if (unaligned_fixup == 0) {
+	if (align_ctl == 0) {
 		siginfo_t info = {
 			.si_signo = SIGBUS,
 			.si_code = BUS_ADRALN,
@@ -209,14 +211,14 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 
 	if (err) {
 		siginfo_t info = {
-			.si_signo = SIGSEGV,
-			.si_code = SEGV_MAPERR,
+			.si_signo = SIGBUS,
+			.si_code = BUS_ADRALN,
 			.si_addr = addr
 		};
-		trace_unhandled_signal("segfault", regs,
-				       (unsigned long)addr, SIGSEGV);
+		trace_unhandled_signal("bad address for unaligned fixup", regs,
+				       (unsigned long)addr, SIGBUS);
 		force_sig_info(info.si_signo, &info, current);
-		return (tile_bundle_bits) 0;
+		return (tilepro_bundle_bits) 0;
 	}
 
 	if (unaligned_printk || unaligned_fixup_count == 0) {
@@ -285,7 +287,7 @@ void single_step_execve(void)
 	ti->step_state = NULL;
 }
 
-/**
+/*
  * single_step_once() - entry point when single stepping has been triggered.
  * @regs: The machine register state
  *
@@ -304,20 +306,31 @@ void single_step_execve(void)
  */
 void single_step_once(struct pt_regs *regs)
 {
-	extern tile_bundle_bits __single_step_ill_insn;
-	extern tile_bundle_bits __single_step_j_insn;
-	extern tile_bundle_bits __single_step_addli_insn;
-	extern tile_bundle_bits __single_step_auli_insn;
+	extern tilepro_bundle_bits __single_step_ill_insn;
+	extern tilepro_bundle_bits __single_step_j_insn;
+	extern tilepro_bundle_bits __single_step_addli_insn;
+	extern tilepro_bundle_bits __single_step_auli_insn;
 	struct thread_info *info = (void *)current_thread_info();
 	struct single_step_state *state = info->step_state;
 	int is_single_step = test_ti_thread_flag(info, TIF_SINGLESTEP);
-	tile_bundle_bits __user *buffer, *pc;
-	tile_bundle_bits bundle;
+	tilepro_bundle_bits __user *buffer, *pc;
+	tilepro_bundle_bits bundle;
 	int temp_reg;
 	int target_reg = TREG_LR;
 	int err;
 	enum mem_op mem_op = MEMOP_NONE;
 	int size = 0, sign_ext = 0;  /* happy compiler */
+	int align_ctl;
+
+	align_ctl = unaligned_fixup;
+	switch (task_thread_info(current)->align_ctl) {
+	case PR_UNALIGN_NOPRINT:
+		align_ctl = 1;
+		break;
+	case PR_UNALIGN_SIGBUS:
+		align_ctl = 0;
+		break;
+	}
 
 	asm(
 "    .pushsection .rodata.single_step\n"
@@ -390,7 +403,7 @@ void single_step_once(struct pt_regs *regs)
 	if (regs->faultnum == INT_SWINT_1)
 		regs->pc -= 8;
 
-	pc = (tile_bundle_bits __user *)(regs->pc);
+	pc = (tilepro_bundle_bits __user *)(regs->pc);
 	if (get_user(bundle, pc) != 0) {
 		pr_err("Couldn't read instruction at %p trying to step\n", pc);
 		return;
@@ -533,7 +546,6 @@ void single_step_once(struct pt_regs *regs)
 			}
 			break;
 
-#if CHIP_HAS_WH64()
 		/* postincrement operations */
 		case IMM_0_OPCODE_X1:
 			switch (get_ImmOpcodeExtension_X1(bundle)) {
@@ -568,7 +580,6 @@ void single_step_once(struct pt_regs *regs)
 				break;
 			}
 			break;
-#endif /* CHIP_HAS_WH64() */
 		}
 
 		if (state->update) {
@@ -627,9 +638,9 @@ void single_step_once(struct pt_regs *regs)
 
 	/*
 	 * Check if we need to rewrite an unaligned load/store.
-	 * Returning zero is a special value meaning we need to SIGSEGV.
+	 * Returning zero is a special value meaning we generated a signal.
 	 */
-	if (mem_op != MEMOP_NONE && unaligned_fixup >= 0) {
+	if (mem_op != MEMOP_NONE && align_ctl >= 0) {
 		bundle = rewrite_load_store_unaligned(state, bundle, regs,
 						      mem_op, size, sign_ext);
 		if (bundle == 0)
@@ -668,9 +679,9 @@ void single_step_once(struct pt_regs *regs)
 		}
 
 		/* End with a jump back to the next instruction */
-		delta = ((regs->pc + TILE_BUNDLE_SIZE_IN_BYTES) -
+		delta = ((regs->pc + TILEPRO_BUNDLE_SIZE_IN_BYTES) -
 			(unsigned long)buffer) >>
-			TILE_LOG2_BUNDLE_ALIGNMENT_IN_BYTES;
+			TILEPRO_LOG2_BUNDLE_ALIGNMENT_IN_BYTES;
 		bundle = __single_step_j_insn;
 		bundle |= create_JOffLong_X1(delta);
 		err |= __put_user(bundle, buffer++);
@@ -698,9 +709,6 @@ void single_step_once(struct pt_regs *regs)
 }
 
 #else
-#include <linux/smp.h>
-#include <linux/ptrace.h>
-#include <arch/spr_def.h>
 
 static DEFINE_PER_CPU(unsigned long, ss_saved_pc);
 
@@ -743,10 +751,10 @@ void gx_singlestep_handle(struct pt_regs *regs, int fault_num)
 	} else if ((*ss_pc != regs->pc) ||
 		   (!(control & SPR_SINGLE_STEP_CONTROL_1__CANCELED_MASK))) {
 
-		ptrace_notify(SIGTRAP);
 		control |= SPR_SINGLE_STEP_CONTROL_1__CANCELED_MASK;
 		control |= SPR_SINGLE_STEP_CONTROL_1__INHIBIT_MASK;
 		__insn_mtspr(SPR_SINGLE_STEP_CONTROL_K, control);
+		send_sigtrap(current, regs);
 	}
 }
 

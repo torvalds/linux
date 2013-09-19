@@ -374,9 +374,9 @@
 #define S5P_FIMV_NUM_PIXELS_IN_MB_COL_V6	16
 
 /* Buffer size requirements defined by hardware */
-#define S5P_FIMV_TMV_BUFFER_SIZE_V6(w, h)	(((w) + 1) * ((h) + 1) * 8)
+#define S5P_FIMV_TMV_BUFFER_SIZE_V6(w, h)	(((w) + 1) * ((h) + 3) * 8)
 #define S5P_FIMV_ME_BUFFER_SIZE_V6(imw, imh, mbw, mbh) \
-	((DIV_ROUND_UP(imw, 64) *  DIV_ROUND_UP(imh, 64) * 256) + \
+	(((((imw + 127) / 64) * 16) *  DIV_ROUND_UP(imh, 64) * 256) + \
 	 (DIV_ROUND_UP((mbw) * (mbh), 32) * 16))
 #define S5P_FIMV_SCRATCH_BUF_SIZE_H264_DEC_V6(w, h)	(((w) * 192) + 64)
 #define S5P_FIMV_SCRATCH_BUF_SIZE_MPEG4_DEC_V6(w, h) \

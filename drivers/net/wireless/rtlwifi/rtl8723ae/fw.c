@@ -330,7 +330,7 @@ static void _rtl8723ae_fill_h2c_command(struct ieee80211_hw *hw,
 			wait_h2c_limmit--;
 			if (wait_h2c_limmit == 0) {
 				RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD,
-					 "Wating too long for FW read clear HMEBox(%d)!\n",
+					 "Waiting too long for FW read clear HMEBox(%d)!\n",
 					 boxnum);
 				break;
 			}
@@ -340,7 +340,7 @@ static void _rtl8723ae_fill_h2c_command(struct ieee80211_hw *hw,
 			isfw_rd = rtl8723ae_check_fw_read_last_h2c(hw, boxnum);
 			u1tmp = rtl_read_byte(rtlpriv, 0x1BF);
 			RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD,
-				 "Wating for FW read clear HMEBox(%d)!!! "
+				 "Waiting for FW read clear HMEBox(%d)!!! "
 				 "0x1BF = %2x\n", boxnum, u1tmp);
 		}
 

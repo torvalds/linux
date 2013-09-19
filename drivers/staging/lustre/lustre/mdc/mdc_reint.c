@@ -75,7 +75,6 @@ int mdc_resource_get_unused(struct obd_export *exp, struct lu_fid *fid,
 	struct ldlm_res_id res_id;
 	struct ldlm_resource *res;
 	int count;
-	ENTRY;
 
 	/* Return, i.e. cancel nothing, only if ELC is supported (flag in
 	 * export) but disabled through procfs (flag in NS).
@@ -84,13 +83,13 @@ int mdc_resource_get_unused(struct obd_export *exp, struct lu_fid *fid,
 	 * when we still want to cancel locks in advance and just cancel them
 	 * locally, without sending any RPC. */
 	if (exp_connect_cancelset(exp) && !ns_connect_cancelset(ns))
-		RETURN(0);
+		return 0;
 
 	fid_build_reg_res_name(fid, &res_id);
 	res = ldlm_resource_get(exp->exp_obd->obd_namespace,
 				NULL, &res_id, 0, 0);
 	if (res == NULL)
-		RETURN(0);
+		return 0;
 	LDLM_RESOURCE_ADDREF(res);
 	/* Initialize ibits lock policy. */
 	policy.l_inodebits.bits = bits;
@@ -98,7 +97,7 @@ int mdc_resource_get_unused(struct obd_export *exp, struct lu_fid *fid,
 					   mode, 0, 0, NULL);
 	LDLM_RESOURCE_DELREF(res);
 	ldlm_resource_putref(res);
-	RETURN(count);
+	return count;
 }
 
 int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
@@ -111,7 +110,6 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = exp->exp_obd;
 	int count = 0, rc;
 	__u64 bits;
-	ENTRY;
 
 	LASSERT(op_data != NULL);
 
@@ -127,7 +125,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 				   &RQF_MDS_REINT_SETATTR);
 	if (req == NULL) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	if ((op_data->op_flags & (MF_SOM_CHANGE | MF_EPOCH_OPEN)) == 0)
@@ -140,7 +138,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
 	if (rc) {
 		ptlrpc_request_free(req);
-		RETURN(rc);
+		return rc;
 	}
 
 	rpc_lock = obd->u.cli.cl_rpc_lock;
@@ -203,7 +201,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 		obd_mod_put(*mod);
 		req->rq_commit_cb(req);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 int mdc_create(struct obd_export *exp, struct md_op_data *op_data,
@@ -217,7 +215,6 @@ int mdc_create(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_import *import = exp->exp_obd->u.cli.cl_import;
 	int generation = import->imp_generation;
 	LIST_HEAD(cancels);
-	ENTRY;
 
 	/* For case if upper layer did not alloc fid, do it now. */
 	if (!fid_is_sane(&op_data->op_fid2)) {
@@ -228,7 +225,7 @@ int mdc_create(struct obd_export *exp, struct md_op_data *op_data,
 		rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
 		if (rc < 0) {
 			CERROR("Can't alloc new fid, rc %d\n", rc);
-			RETURN(rc);
+			return rc;
 		}
 	}
 
@@ -244,7 +241,7 @@ rebuild:
 				   &RQF_MDS_REINT_CREATE_RMT_ACL);
 	if (req == NULL) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
@@ -255,7 +252,7 @@ rebuild:
 	rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
 	if (rc) {
 		ptlrpc_request_free(req);
-		RETURN(rc);
+		return rc;
 	}
 
 	/*
@@ -298,7 +295,7 @@ rebuild:
 			goto rebuild;
 		} else {
 			CDEBUG(D_HA, "resend cross eviction\n");
-			RETURN(-EIO);
+			return -EIO;
 		}
 	} else if (rc == 0) {
 		struct mdt_body *body;
@@ -315,7 +312,7 @@ rebuild:
 	}
 
 	*request = req;
-	RETURN(rc);
+	return rc;
 }
 
 int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
@@ -325,7 +322,6 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = class_exp2obd(exp);
 	struct ptlrpc_request *req = *request;
 	int count = 0, rc;
-	ENTRY;
 
 	LASSERT(req == NULL);
 
@@ -345,7 +341,7 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 				   &RQF_MDS_REINT_UNLINK);
 	if (req == NULL) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
@@ -354,7 +350,7 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
 	if (rc) {
 		ptlrpc_request_free(req);
-		RETURN(rc);
+		return rc;
 	}
 
 	mdc_unlink_pack(req, op_data);
@@ -370,7 +366,7 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	rc = mdc_reint(req, obd->u.cli.cl_rpc_lock, LUSTRE_IMP_FULL);
 	if (rc == -ERESTARTSYS)
 		rc = 0;
-	RETURN(rc);
+	return rc;
 }
 
 int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
@@ -380,7 +376,6 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = exp->exp_obd;
 	struct ptlrpc_request *req;
 	int count = 0, rc;
-	ENTRY;
 
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID2) &&
 	    (fid_is_sane(&op_data->op_fid2)))
@@ -396,7 +391,7 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_MDS_REINT_LINK);
 	if (req == NULL) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	mdc_set_capa_size(req, &RMF_CAPA2, op_data->op_capa2);
@@ -406,7 +401,7 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
 	if (rc) {
 		ptlrpc_request_free(req);
-		RETURN(rc);
+		return rc;
 	}
 
 	mdc_link_pack(req, op_data);
@@ -417,7 +412,7 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc == -ERESTARTSYS)
 		rc = 0;
 
-	RETURN(rc);
+	return rc;
 }
 
 int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
@@ -428,7 +423,6 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = exp->exp_obd;
 	struct ptlrpc_request *req;
 	int count = 0, rc;
-	ENTRY;
 
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID1) &&
 	    (fid_is_sane(&op_data->op_fid1)))
@@ -455,7 +449,7 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 				   &RQF_MDS_REINT_RENAME);
 	if (req == NULL) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
@@ -466,7 +460,7 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 	rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
 	if (rc) {
 		ptlrpc_request_free(req);
-		RETURN(rc);
+		return rc;
 	}
 
 	if (exp_connect_cancelset(exp) && req)
@@ -485,5 +479,5 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc == -ERESTARTSYS)
 		rc = 0;
 
-	RETURN(rc);
+	return rc;
 }

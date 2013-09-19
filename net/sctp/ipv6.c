@@ -27,10 +27,7 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Le Yanqun		    <yanqun.le@nokia.com>
@@ -42,9 +39,6 @@
  *
  * Based on:
  *	linux/net/ipv6/tcp_ipv6.c
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -351,7 +345,7 @@ out:
 
 		rt = (struct rt6_info *)dst;
 		t->dst = dst;
-
+		t->dst_cookie = rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
 		pr_debug("rt6_dst:%pI6 rt6_src:%pI6\n", &rt->rt6i_dst.addr,
 			 &fl6->saddr);
 	} else {
