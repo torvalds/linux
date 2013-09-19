@@ -356,24 +356,42 @@ static IIO_DEVICE_ATTR(meas_conf,
 			hmc5843_set_measurement_configuration,
 			0);
 
+static ssize_t hmc5843_show_int_plus_micros(char *buf,
+	const int (*vals)[2], int n)
+{
+	size_t len = 0;
+	int i;
+
+	for (i = 0; i < n; i++)
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+			"%d.%d ", vals[i][0], vals[i][1]);
+
+	/* replace trailing space by newline */
+	buf[len - 1] = '\n';
+
+	return len;
+}
+
+static int hmc5843_check_int_plus_micros(const int (*vals)[2], int n,
+					int val, int val2)
+{
+	int i;
+
+	for (i = 0; i < n; i++) {
+		if (val == vals[i][0] && val2 == vals[i][1])
+			return i;
+	}
+
+	return -EINVAL;
+}
+
 static ssize_t hmc5843_show_samp_freq_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct hmc5843_data *data = iio_priv(dev_to_iio_dev(dev));
-	ssize_t total_n = 0;
-	int i;
 
-	for (i = 0; i < HMC5843_RATE_NOT_USED; i++) {
-		ssize_t n = sprintf(buf, "%d.%d ",
-			data->variant->regval_to_samp_freq[i][0],
-			data->variant->regval_to_samp_freq[i][1]);
-		buf += n;
-		total_n += n;
-	}
-	/* replace trailing space by newline */
-	buf[-1] = '\n';
-
-	return total_n;
+	return hmc5843_show_int_plus_micros(buf,
+		data->variant->regval_to_samp_freq, HMC5843_RATE_NOT_USED);
 }
 
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(hmc5843_show_samp_freq_avail);
@@ -389,15 +407,9 @@ static s32 hmc5843_set_rate(struct hmc5843_data *data, u8 rate)
 static int hmc5843_check_samp_freq(struct hmc5843_data *data,
 				   int val, int val2)
 {
-	int i;
-
-	for (i = 0; i < HMC5843_RATE_NOT_USED; i++) {
-		if (val == data->variant->regval_to_samp_freq[i][0] &&
-		    val2 == data->variant->regval_to_samp_freq[i][1])
-			return i;
-	}
-
-	return -EINVAL;
+	return hmc5843_check_int_plus_micros(
+		data->variant->regval_to_samp_freq, HMC5843_RATE_NOT_USED,
+		val, val2);
 }
 
 static ssize_t hmc5843_show_range_gain(struct device *dev,
