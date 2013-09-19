@@ -21,7 +21,7 @@
 #include <linux/list.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/of.h>
 #include <linux/export.h>
 

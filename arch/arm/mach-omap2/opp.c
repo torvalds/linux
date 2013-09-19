@@ -17,7 +17,7 @@
  * GNU General Public License for more details.
  */
 #include <linux/module.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/cpu.h>
 
 #include "omap_device.h"

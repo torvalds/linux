@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/err.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/export.h>
 #include <linux/suspend.h>
 #include <linux/cpu.h>

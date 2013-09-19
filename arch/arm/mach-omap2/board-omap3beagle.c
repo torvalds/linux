@@ -25,7 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/cpu.h>
 
 #include <linux/mtd/mtd.h>

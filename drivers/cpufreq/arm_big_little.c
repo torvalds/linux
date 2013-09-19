@@ -25,7 +25,7 @@
 #include <linux/cpumask.h>
 #include <linux/export.h>
 #include <linux/of_platform.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/topology.h>
 #include <linux/types.h>
