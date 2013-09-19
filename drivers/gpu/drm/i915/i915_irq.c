@@ -1421,7 +1421,6 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 de_iir, gt_iir, de_ier, sde_ier = 0;
 	irqreturn_t ret = IRQ_NONE;
-	bool err_int_reenable = false;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -1443,17 +1442,6 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		sde_ier = I915_READ(SDEIER);
 		I915_WRITE(SDEIER, 0);
 		POSTING_READ(SDEIER);
-	}
-
-	/* On Haswell, also mask ERR_INT because we don't want to risk
-	 * generating "unclaimed register" interrupts from inside the interrupt
-	 * handler. */
-	if (IS_HASWELL(dev)) {
-		spin_lock(&dev_priv->irq_lock);
-		err_int_reenable = ~dev_priv->irq_mask & DE_ERR_INT_IVB;
-		if (err_int_reenable)
-			ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
-		spin_unlock(&dev_priv->irq_lock);
 	}
 
 	gt_iir = I915_READ(GTIIR);
@@ -1483,13 +1471,6 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 			I915_WRITE(GEN6_PMIIR, pm_iir);
 			ret = IRQ_HANDLED;
 		}
-	}
-
-	if (err_int_reenable) {
-		spin_lock(&dev_priv->irq_lock);
-		if (ivb_can_enable_err_int(dev))
-			ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
-		spin_unlock(&dev_priv->irq_lock);
 	}
 
 	I915_WRITE(DEIER, de_ier);
