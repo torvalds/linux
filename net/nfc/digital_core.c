@@ -17,24 +17,319 @@
 
 #include "digital.h"
 
+#define DIGITAL_PROTO_NFCA_RF_TECH \
+	(NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK)
+
+struct digital_cmd {
+	struct list_head queue;
+
+	u8 type;
+	u8 pending;
+
+	u16 timeout;
+	struct sk_buff *req;
+	struct sk_buff *resp;
+
+	nfc_digital_cmd_complete_t cmd_cb;
+	void *cb_context;
+};
+
+struct sk_buff *digital_skb_alloc(struct nfc_digital_dev *ddev,
+				  unsigned int len)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_skb(len + ddev->tx_headroom + ddev->tx_tailroom,
+			GFP_KERNEL);
+	if (skb)
+		skb_reserve(skb, ddev->tx_headroom);
+
+	return skb;
+}
+
+static inline void digital_switch_rf(struct nfc_digital_dev *ddev, bool on)
+{
+	ddev->ops->switch_rf(ddev, on);
+}
+
+static inline void digital_abort_cmd(struct nfc_digital_dev *ddev)
+{
+	ddev->ops->abort_cmd(ddev);
+}
+
+static void digital_wq_cmd_complete(struct work_struct *work)
+{
+	struct digital_cmd *cmd;
+	struct nfc_digital_dev *ddev = container_of(work,
+						    struct nfc_digital_dev,
+						    cmd_complete_work);
+
+	mutex_lock(&ddev->cmd_lock);
+
+	cmd = list_first_entry_or_null(&ddev->cmd_queue, struct digital_cmd,
+				       queue);
+	if (!cmd) {
+		mutex_unlock(&ddev->cmd_lock);
+		return;
+	}
+
+	list_del(&cmd->queue);
+
+	mutex_unlock(&ddev->cmd_lock);
+
+	if (!IS_ERR(cmd->resp))
+		print_hex_dump_debug("DIGITAL RX: ", DUMP_PREFIX_NONE, 16, 1,
+				     cmd->resp->data, cmd->resp->len, false);
+
+	cmd->cmd_cb(ddev, cmd->cb_context, cmd->resp);
+
+	kfree(cmd);
+
+	schedule_work(&ddev->cmd_work);
+}
+
+static void digital_send_cmd_complete(struct nfc_digital_dev *ddev,
+				      void *arg, struct sk_buff *resp)
+{
+	struct digital_cmd *cmd = arg;
+
+	cmd->resp = resp;
+
+	schedule_work(&ddev->cmd_complete_work);
+}
+
+static void digital_wq_cmd(struct work_struct *work)
+{
+	int rc;
+	struct digital_cmd *cmd;
+	struct nfc_digital_dev *ddev = container_of(work,
+						    struct nfc_digital_dev,
+						    cmd_work);
+
+	mutex_lock(&ddev->cmd_lock);
+
+	cmd = list_first_entry_or_null(&ddev->cmd_queue, struct digital_cmd,
+				       queue);
+	if (!cmd || cmd->pending) {
+		mutex_unlock(&ddev->cmd_lock);
+		return;
+	}
+
+	mutex_unlock(&ddev->cmd_lock);
+
+	if (cmd->req)
+		print_hex_dump_debug("DIGITAL TX: ", DUMP_PREFIX_NONE, 16, 1,
+				     cmd->req->data, cmd->req->len, false);
+
+	switch (cmd->type) {
+	case DIGITAL_CMD_IN_SEND:
+		rc = ddev->ops->in_send_cmd(ddev, cmd->req, cmd->timeout,
+					    digital_send_cmd_complete, cmd);
+		break;
+	default:
+		PR_ERR("Unknown cmd type %d", cmd->type);
+		return;
+	}
+
+	if (!rc)
+		return;
+
+	PR_ERR("in_send_command returned err %d", rc);
+
+	mutex_lock(&ddev->cmd_lock);
+	list_del(&cmd->queue);
+	mutex_unlock(&ddev->cmd_lock);
+
+	kfree_skb(cmd->req);
+	kfree(cmd);
+
+	schedule_work(&ddev->cmd_work);
+}
+
+int digital_send_cmd(struct nfc_digital_dev *ddev, u8 cmd_type,
+		     struct sk_buff *skb, u16 timeout,
+		     nfc_digital_cmd_complete_t cmd_cb, void *cb_context)
+{
+	struct digital_cmd *cmd;
+
+	cmd = kzalloc(sizeof(struct digital_cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->type = cmd_type;
+	cmd->timeout = timeout;
+	cmd->req = skb;
+	cmd->cmd_cb = cmd_cb;
+	cmd->cb_context = cb_context;
+	INIT_LIST_HEAD(&cmd->queue);
+
+	mutex_lock(&ddev->cmd_lock);
+	list_add_tail(&cmd->queue, &ddev->cmd_queue);
+	mutex_unlock(&ddev->cmd_lock);
+
+	schedule_work(&ddev->cmd_work);
+
+	return 0;
+}
+
+int digital_in_configure_hw(struct nfc_digital_dev *ddev, int type, int param)
+{
+	int rc;
+
+	rc = ddev->ops->in_configure_hw(ddev, type, param);
+	if (rc)
+		PR_ERR("in_configure_hw failed: %d", rc);
+
+	return rc;
+}
+
+void digital_poll_next_tech(struct nfc_digital_dev *ddev)
+{
+	digital_switch_rf(ddev, 0);
+
+	mutex_lock(&ddev->poll_lock);
+
+	if (!ddev->poll_tech_count) {
+		mutex_unlock(&ddev->poll_lock);
+		return;
+	}
+
+	ddev->poll_tech_index = (ddev->poll_tech_index + 1) %
+				ddev->poll_tech_count;
+
+	mutex_unlock(&ddev->poll_lock);
+
+	schedule_work(&ddev->poll_work);
+}
+
+static void digital_wq_poll(struct work_struct *work)
+{
+	int rc;
+	struct digital_poll_tech *poll_tech;
+	struct nfc_digital_dev *ddev = container_of(work,
+						    struct nfc_digital_dev,
+						    poll_work);
+	mutex_lock(&ddev->poll_lock);
+
+	if (!ddev->poll_tech_count) {
+		mutex_unlock(&ddev->poll_lock);
+		return;
+	}
+
+	poll_tech = &ddev->poll_techs[ddev->poll_tech_index];
+
+	mutex_unlock(&ddev->poll_lock);
+
+	rc = poll_tech->poll_func(ddev, poll_tech->rf_tech);
+	if (rc)
+		digital_poll_next_tech(ddev);
+}
+
+static void digital_add_poll_tech(struct nfc_digital_dev *ddev, u8 rf_tech,
+				  digital_poll_t poll_func)
+{
+	struct digital_poll_tech *poll_tech;
+
+	if (ddev->poll_tech_count >= NFC_DIGITAL_POLL_MODE_COUNT_MAX)
+		return;
+
+	poll_tech = &ddev->poll_techs[ddev->poll_tech_count++];
+
+	poll_tech->rf_tech = rf_tech;
+	poll_tech->poll_func = poll_func;
+}
+
+/**
+ * start_poll operation
+ *
+ * For every supported protocol, the corresponding polling function is added
+ * to the table of polling technologies (ddev->poll_techs[]) using
+ * digital_add_poll_tech().
+ * When a polling function fails (by timeout or protocol error) the next one is
+ * schedule by digital_poll_next_tech() on the poll workqueue (ddev->poll_work).
+ */
 static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 			      __u32 tm_protocols)
 {
-	return -EOPNOTSUPP;
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+	u32 matching_im_protocols, matching_tm_protocols;
+
+	PR_DBG("protocols: im 0x%x, tm 0x%x, supported 0x%x", im_protocols,
+	       tm_protocols, ddev->protocols);
+
+	matching_im_protocols = ddev->protocols & im_protocols;
+	matching_tm_protocols = ddev->protocols & tm_protocols;
+
+	if (!matching_im_protocols && !matching_tm_protocols) {
+		PR_ERR("No known protocol");
+		return -EINVAL;
+	}
+
+	if (ddev->poll_tech_count) {
+		PR_ERR("Already polling");
+		return -EBUSY;
+	}
+
+	if (ddev->curr_protocol) {
+		PR_ERR("A target is already active");
+		return -EBUSY;
+	}
+
+	ddev->poll_tech_count = 0;
+	ddev->poll_tech_index = 0;
+
+	if (matching_im_protocols & DIGITAL_PROTO_NFCA_RF_TECH)
+		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_106A,
+				      digital_in_send_sens_req);
+
+	if (!ddev->poll_tech_count) {
+		PR_ERR("Unsupported protocols: im=0x%x, tm=0x%x",
+		       matching_im_protocols, matching_tm_protocols);
+		return -EINVAL;
+	}
+
+	schedule_work(&ddev->poll_work);
+
+	return 0;
 }
 
 static void digital_stop_poll(struct nfc_dev *nfc_dev)
 {
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+
+	mutex_lock(&ddev->poll_lock);
+
+	if (!ddev->poll_tech_count) {
+		PR_ERR("Polling operation was not running");
+		mutex_unlock(&ddev->poll_lock);
+		return;
+	}
+
+	ddev->poll_tech_count = 0;
+
+	mutex_unlock(&ddev->poll_lock);
+
+	cancel_work_sync(&ddev->poll_work);
+
+	digital_abort_cmd(ddev);
 }
 
 static int digital_dev_up(struct nfc_dev *nfc_dev)
 {
-	return -EOPNOTSUPP;
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+
+	digital_switch_rf(ddev, 1);
+
+	return 0;
 }
 
 static int digital_dev_down(struct nfc_dev *nfc_dev)
 {
-	return -EOPNOTSUPP;
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+
+	digital_switch_rf(ddev, 0);
+
+	return 0;
 }
 
 static int digital_dep_link_up(struct nfc_dev *nfc_dev,
@@ -52,12 +347,15 @@ static int digital_dep_link_down(struct nfc_dev *nfc_dev)
 static int digital_activate_target(struct nfc_dev *nfc_dev,
 				   struct nfc_target *target, __u32 protocol)
 {
-	return -EOPNOTSUPP;
+	return 0;
 }
 
 static void digital_deactivate_target(struct nfc_dev *nfc_dev,
 				      struct nfc_target *target)
 {
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+
+	ddev->curr_protocol = 0;
 }
 
 static int digital_tg_send(struct nfc_dev *dev, struct sk_buff *skb)
@@ -106,8 +404,22 @@ struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
 	ddev->driver_capabilities = driver_capabilities;
 	ddev->ops = ops;
 
-	ddev->tx_headroom = tx_headroom;
-	ddev->tx_tailroom = tx_tailroom;
+	mutex_init(&ddev->cmd_lock);
+	INIT_LIST_HEAD(&ddev->cmd_queue);
+
+	INIT_WORK(&ddev->cmd_work, digital_wq_cmd);
+	INIT_WORK(&ddev->cmd_complete_work, digital_wq_cmd_complete);
+
+	mutex_init(&ddev->poll_lock);
+	INIT_WORK(&ddev->poll_work, digital_wq_poll);
+
+	if (supported_protocols & NFC_PROTO_JEWEL_MASK)
+		ddev->protocols |= NFC_PROTO_JEWEL_MASK;
+	if (supported_protocols & NFC_PROTO_MIFARE_MASK)
+		ddev->protocols |= NFC_PROTO_MIFARE_MASK;
+
+	ddev->tx_headroom = tx_headroom + DIGITAL_MAX_HEADER_LEN;
+	ddev->tx_tailroom = tx_tailroom + DIGITAL_CRC_LEN;
 
 	ddev->nfc_dev = nfc_allocate_device(&digital_nfc_ops, ddev->protocols,
 					    ddev->tx_headroom,
@@ -131,7 +443,6 @@ EXPORT_SYMBOL(nfc_digital_allocate_device);
 void nfc_digital_free_device(struct nfc_digital_dev *ddev)
 {
 	nfc_free_device(ddev->nfc_dev);
-
 	kfree(ddev);
 }
 EXPORT_SYMBOL(nfc_digital_free_device);
@@ -144,7 +455,22 @@ EXPORT_SYMBOL(nfc_digital_register_device);
 
 void nfc_digital_unregister_device(struct nfc_digital_dev *ddev)
 {
+	struct digital_cmd *cmd, *n;
+
 	nfc_unregister_device(ddev->nfc_dev);
+
+	mutex_lock(&ddev->poll_lock);
+	ddev->poll_tech_count = 0;
+	mutex_unlock(&ddev->poll_lock);
+
+	cancel_work_sync(&ddev->poll_work);
+	cancel_work_sync(&ddev->cmd_work);
+	cancel_work_sync(&ddev->cmd_complete_work);
+
+	list_for_each_entry_safe(cmd, n, &ddev->cmd_queue, queue) {
+		list_del(&cmd->queue);
+		kfree(cmd);
+	}
 }
 EXPORT_SYMBOL(nfc_digital_unregister_device);
 

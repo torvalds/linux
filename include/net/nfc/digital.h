@@ -146,6 +146,15 @@ struct nfc_digital_ops {
 	void (*abort_cmd)(struct nfc_digital_dev *ddev);
 };
 
+#define NFC_DIGITAL_POLL_MODE_COUNT_MAX	6 /* 106A, 212F, and 424F in & tg */
+
+typedef int (*digital_poll_t)(struct nfc_digital_dev *ddev, u8 rf_tech);
+
+struct digital_poll_tech {
+	u8 rf_tech;
+	digital_poll_t poll_func;
+};
+
 /**
  * Driver capabilities - bit mask made of the following values
  *
@@ -168,6 +177,22 @@ struct nfc_digital_dev {
 
 	u32 driver_capabilities;
 	void *driver_data;
+
+	struct digital_poll_tech poll_techs[NFC_DIGITAL_POLL_MODE_COUNT_MAX];
+	u8 poll_tech_count;
+	u8 poll_tech_index;
+	struct mutex poll_lock;
+
+	struct work_struct cmd_work;
+	struct work_struct cmd_complete_work;
+	struct list_head cmd_queue;
+	struct mutex cmd_lock;
+
+	struct work_struct poll_work;
+
+	u8 curr_protocol;
+	u8 curr_rf_tech;
+	u8 curr_nfc_dep_pni;
 };
 
 struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
