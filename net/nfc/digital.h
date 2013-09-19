@@ -35,6 +35,13 @@
 #define DIGITAL_MAX_HEADER_LEN 7
 #define DIGITAL_CRC_LEN        2
 
+#define DIGITAL_SENSF_NFCID2_NFC_DEP_B1 0x01
+#define DIGITAL_SENSF_NFCID2_NFC_DEP_B2 0xFE
+
+#define DIGITAL_SENS_RES_NFC_DEP 0x0100
+#define DIGITAL_SEL_RES_NFC_DEP  0x40
+#define DIGITAL_SENSF_FELICA_SC  0xFFFF
+
 #define DIGITAL_DRV_CAPS_IN_CRC(ddev) \
 	((ddev)->driver_capabilities & NFC_DIGITAL_DRV_CAPS_IN_CRC)
 #define DIGITAL_DRV_CAPS_TG_CRC(ddev) \
@@ -71,6 +78,13 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 			 struct nfc_target *target, u8 protocol);
 
 int digital_in_recv_mifare_res(struct sk_buff *resp);
+
+int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
+			    struct nfc_target *target, __u8 comm_mode, __u8 *gb,
+			    size_t gb_len);
+int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
+			    struct nfc_target *target, struct sk_buff *skb,
+			    struct digital_data_exch *data_exch);
 
 typedef u16 (*crc_func_t)(u16, const u8 *, size_t);
 

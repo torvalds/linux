@@ -28,6 +28,7 @@
 
 #define DIGITAL_SEL_RES_NFCID1_COMPLETE(sel_res) (!((sel_res) & 0x04))
 #define DIGITAL_SEL_RES_IS_T2T(sel_res) (!((sel_res) & 0x60))
+#define DIGITAL_SEL_RES_IS_NFC_DEP(sel_res) ((sel_res) & 0x40)
 
 #define DIGITAL_SENS_RES_IS_T1T(sens_res) (((sens_res) & 0x000C) == 0x000C)
 #define DIGITAL_SENS_RES_IS_VALID(sens_res) \
@@ -121,6 +122,8 @@ static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 
 	if (DIGITAL_SEL_RES_IS_T2T(sel_res)) {
 		nfc_proto = NFC_PROTO_MIFARE;
+	} else if (DIGITAL_SEL_RES_IS_NFC_DEP(sel_res)) {
+		nfc_proto = NFC_PROTO_NFC_DEP;
 	} else {
 		rc = -EOPNOTSUPP;
 		goto exit;
@@ -379,6 +382,7 @@ static void digital_in_recv_sensf_res(struct nfc_digital_dev *ddev, void *arg,
 				   struct sk_buff *resp)
 {
 	int rc;
+	u8 proto;
 	struct nfc_target target;
 	struct digital_sensf_res *sensf_res;
 
@@ -413,7 +417,13 @@ static void digital_in_recv_sensf_res(struct nfc_digital_dev *ddev, void *arg,
 	memcpy(target.nfcid2, sensf_res->nfcid2, NFC_NFCID2_MAXSIZE);
 	target.nfcid2_len = NFC_NFCID2_MAXSIZE;
 
-	rc = digital_target_found(ddev, &target, NFC_PROTO_FELICA);
+	if (target.nfcid2[0] == DIGITAL_SENSF_NFCID2_NFC_DEP_B1 &&
+	    target.nfcid2[1] == DIGITAL_SENSF_NFCID2_NFC_DEP_B2)
+		proto = NFC_PROTO_NFC_DEP;
+	else
+		proto = NFC_PROTO_FELICA;
+
+	rc = digital_target_found(ddev, &target, proto);
 
 exit:
 	dev_kfree_skb(resp);

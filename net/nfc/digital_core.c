@@ -18,9 +18,10 @@
 #include "digital.h"
 
 #define DIGITAL_PROTO_NFCA_RF_TECH \
-	(NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK)
+	(NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK | NFC_PROTO_NFC_DEP_MASK)
 
-#define DIGITAL_PROTO_NFCF_RF_TECH (NFC_PROTO_FELICA_MASK)
+#define DIGITAL_PROTO_NFCF_RF_TECH \
+	(NFC_PROTO_FELICA_MASK | NFC_PROTO_NFC_DEP_MASK)
 
 struct digital_cmd {
 	struct list_head queue;
@@ -260,6 +261,18 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		add_crc = digital_skb_add_crc_f;
 		break;
 
+	case NFC_PROTO_NFC_DEP:
+		if (rf_tech == NFC_DIGITAL_RF_TECH_106A) {
+			framing = NFC_DIGITAL_FRAMING_NFCA_NFC_DEP;
+			check_crc = digital_skb_check_crc_a;
+			add_crc = digital_skb_add_crc_a;
+		} else {
+			framing = NFC_DIGITAL_FRAMING_NFCF_NFC_DEP;
+			check_crc = digital_skb_check_crc_f;
+			add_crc = digital_skb_add_crc_f;
+		}
+		break;
+
 	default:
 		PR_ERR("Invalid protocol %d", protocol);
 		return -EINVAL;
@@ -453,12 +466,18 @@ static int digital_dep_link_up(struct nfc_dev *nfc_dev,
 			       struct nfc_target *target,
 			       __u8 comm_mode, __u8 *gb, size_t gb_len)
 {
-	return -EOPNOTSUPP;
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+
+	return digital_in_send_atr_req(ddev, target, comm_mode, gb, gb_len);
 }
 
 static int digital_dep_link_down(struct nfc_dev *nfc_dev)
 {
-	return -EOPNOTSUPP;
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+
+	ddev->curr_protocol = 0;
+
+	return 0;
 }
 
 static int digital_activate_target(struct nfc_dev *nfc_dev,
@@ -523,6 +542,9 @@ static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	data_exch->cb = cb;
 	data_exch->cb_context = cb_context;
 
+	if (ddev->curr_protocol == NFC_PROTO_NFC_DEP)
+		return digital_in_send_dep_req(ddev, target, skb, data_exch);
+
 	ddev->skb_add_crc(skb);
 
 	return digital_in_send_cmd(ddev, skb, 500, digital_in_send_complete,
@@ -578,6 +600,8 @@ struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
 		ddev->protocols |= NFC_PROTO_MIFARE_MASK;
 	if (supported_protocols & NFC_PROTO_FELICA_MASK)
 		ddev->protocols |= NFC_PROTO_FELICA_MASK;
+	if (supported_protocols & NFC_PROTO_NFC_DEP_MASK)
+		ddev->protocols |= NFC_PROTO_NFC_DEP_MASK;
 
 	ddev->tx_headroom = tx_headroom + DIGITAL_MAX_HEADER_LEN;
 	ddev->tx_tailroom = tx_tailroom + DIGITAL_CRC_LEN;
