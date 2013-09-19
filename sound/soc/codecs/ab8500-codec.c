@@ -2601,7 +2601,7 @@ static int ab8500_codec_driver_probe(struct platform_device *pdev)
 
 static int ab8500_codec_driver_remove(struct platform_device *pdev)
 {
-	dev_info(&pdev->dev, "%s Enter.\n", __func__);
+	dev_dbg(&pdev->dev, "%s Enter.\n", __func__);
 
 	snd_soc_unregister_codec(&pdev->dev);
 
