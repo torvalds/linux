@@ -1691,8 +1691,9 @@ struct drm_i915_file_private {
 
 #define HAS_FORCE_WAKE(dev) (INTEL_INFO(dev)->has_force_wake)
 
-#define HAS_L3_GPU_CACHE(dev) (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
-#define NUM_L3_SLICES(dev) (IS_HSW_GT3(dev) ? 2 : HAS_L3_GPU_CACHE(dev))
+/* DPF == dynamic parity feature */
+#define HAS_L3_DPF(dev) (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
+#define NUM_L3_SLICES(dev) (IS_HSW_GT3(dev) ? 2 : HAS_L3_DPF(dev))
 
 #define GT_FREQUENCY_MULTIPLIER 50
 
