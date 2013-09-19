@@ -1115,6 +1115,7 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 	bool set = (ctrl->bRequest == USB_REQ_SET_FEATURE);
 	struct s3c_hsotg_ep *ep;
 	int ret;
+	bool halted;
 
 	dev_dbg(hsotg->dev, "%s: %s_FEATURE\n",
 		__func__, set ? "SET" : "CLEAR");
@@ -1129,6 +1130,8 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 
 		switch (le16_to_cpu(ctrl->wValue)) {
 		case USB_ENDPOINT_HALT:
+			halted = ep->halted;
+
 			s3c_hsotg_ep_sethalt(&ep->ep, set);
 
 			ret = s3c_hsotg_send_reply(hsotg, ep0, NULL, 0);
@@ -1138,7 +1141,12 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 				return ret;
 			}
 
-			if (!set) {
+			/*
+			 * we have to complete all requests for ep if it was
+			 * halted, and the halt was cleared by CLEAR_FEATURE
+			 */
+
+			if (!set && halted) {
 				/*
 				 * If we have request in progress,
 				 * then complete it
