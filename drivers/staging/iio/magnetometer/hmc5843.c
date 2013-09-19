@@ -29,16 +29,11 @@
 #define HMC5843_CONFIG_REG_B			0x01
 #define HMC5843_MODE_REG			0x02
 #define HMC5843_DATA_OUT_X_MSB_REG		0x03
-#define HMC5843_DATA_OUT_X_LSB_REG		0x04
 #define HMC5843_DATA_OUT_Y_MSB_REG		0x05
-#define HMC5843_DATA_OUT_Y_LSB_REG		0x06
 #define HMC5843_DATA_OUT_Z_MSB_REG		0x07
-#define HMC5843_DATA_OUT_Z_LSB_REG		0x08
 /* Beware: Y and Z are exchanged on HMC5883 */
 #define HMC5883_DATA_OUT_Z_MSB_REG		0x05
-#define HMC5883_DATA_OUT_Z_LSB_REG		0x06
 #define HMC5883_DATA_OUT_Y_MSB_REG		0x07
-#define HMC5883_DATA_OUT_Y_LSB_REG		0x08
 #define HMC5843_STATUS_REG			0x09
 
 enum hmc5843_ids {
@@ -61,8 +56,6 @@ enum hmc5843_ids {
  */
 #define HMC5843_DATA_READY			0x01
 #define HMC5843_DATA_OUTPUT_LOCK		0x02
-/* Does not exist on HMC5883, not used */
-#define HMC5843_VOLTAGE_REGULATOR_ENABLED	0x04
 
 /*
  * Mode register configuration
