@@ -1436,7 +1436,6 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1363_state *st = iio_priv(indio_dev);
-	s64 time_ns;
 	__u8 *rxbuf;
 	int b_sent;
 	size_t d_size;
@@ -1470,11 +1469,7 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	if (b_sent < 0)
 		goto done_free;
 
-	time_ns = iio_get_time_ns();
-
-	if (indio_dev->scan_timestamp)
-		memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
-	iio_push_to_buffers(indio_dev, rxbuf);
+	iio_push_to_buffers_with_timestamp(indio_dev, rxbuf, iio_get_time_ns());
 
 done_free:
 	kfree(rxbuf);
