@@ -25,6 +25,10 @@
 #include <netinet/tcp.h>
 #include <unistd.h>
 
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#endif
+
 #include "usbip_common.h"
 #include "usbip_network.h"
 
