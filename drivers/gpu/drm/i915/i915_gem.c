@@ -4630,7 +4630,7 @@ static int i915_gem_init_phys_object(struct drm_device *dev,
 	if (dev_priv->mm.phys_objs[id - 1] || !size)
 		return 0;
 
-	phys_obj = kzalloc(sizeof(struct drm_i915_gem_phys_object), GFP_KERNEL);
+	phys_obj = kzalloc(sizeof(*phys_obj), GFP_KERNEL);
 	if (!phys_obj)
 		return -ENOMEM;
 

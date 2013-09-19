@@ -1343,11 +1343,11 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct intel_connector *hdmi_connector = NULL;
 	struct intel_connector *dp_connector = NULL;
 
-	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
+	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
 	if (!intel_dig_port)
 		return;
 
-	dp_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	dp_connector = kzalloc(sizeof(*dp_connector), GFP_KERNEL);
 	if (!dp_connector) {
 		kfree(intel_dig_port);
 		return;
@@ -1387,7 +1387,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	}
 
 	if (intel_encoder->type != INTEL_OUTPUT_EDP) {
-		hdmi_connector = kzalloc(sizeof(struct intel_connector),
+		hdmi_connector = kzalloc(sizeof(*hdmi_connector),
 					 GFP_KERNEL);
 		if (!hdmi_connector) {
 			return;

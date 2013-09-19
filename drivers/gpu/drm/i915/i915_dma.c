@@ -649,7 +649,7 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 
 	if (batch->num_cliprects) {
 		cliprects = kcalloc(batch->num_cliprects,
-				    sizeof(struct drm_clip_rect),
+				    sizeof(*cliprects),
 				    GFP_KERNEL);
 		if (cliprects == NULL)
 			return -ENOMEM;
@@ -711,7 +711,7 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 
 	if (cmdbuf->num_cliprects) {
 		cliprects = kcalloc(cmdbuf->num_cliprects,
-				    sizeof(struct drm_clip_rect), GFP_KERNEL);
+				    sizeof(*cliprects), GFP_KERNEL);
 		if (cliprects == NULL) {
 			ret = -ENOMEM;
 			goto fail_batch_free;
@@ -1488,7 +1488,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->types[8] = _DRM_STAT_SECONDARY;
 	dev->types[9] = _DRM_STAT_DMA;
 
-	dev_priv = kzalloc(sizeof(drm_i915_private_t), GFP_KERNEL);
+	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
 

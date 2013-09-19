@@ -3649,11 +3649,11 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 
-	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
+	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
 	if (!intel_dig_port)
 		return;
 
-	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
 		kfree(intel_dig_port);
 		return;
