@@ -119,7 +119,7 @@ TRACE_EVENT(ath10k_wmi_cmd,
 		__field(unsigned int, id)
 		__field(size_t, buf_len)
 		__dynamic_array(u8, buf, buf_len)
-		__field(int ret)
+		__field(int, ret)
 	),
 
 	TP_fast_assign(
