@@ -1166,6 +1166,7 @@ static int pm860x_i2s_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int pm860x_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	struct pm860x_priv *pm860x = snd_soc_codec_get_drvdata(codec);
 	int data;
 
 	switch (level) {
@@ -1179,17 +1180,17 @@ static int pm860x_set_bias_level(struct snd_soc_codec *codec,
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Enable Audio PLL & Audio section */
 			data = AUDIO_PLL | AUDIO_SECTION_ON;
-			pm860x_reg_write(codec->control_data, REG_MISC2, data);
+			pm860x_reg_write(pm860x->i2c, REG_MISC2, data);
 			udelay(300);
 			data = AUDIO_PLL | AUDIO_SECTION_RESET
 				| AUDIO_SECTION_ON;
-			pm860x_reg_write(codec->control_data, REG_MISC2, data);
+			pm860x_reg_write(pm860x->i2c, REG_MISC2, data);
 		}
 		break;
 
 	case SND_SOC_BIAS_OFF:
 		data = AUDIO_PLL | AUDIO_SECTION_RESET | AUDIO_SECTION_ON;
-		pm860x_set_bits(codec->control_data, REG_MISC2, data, 0);
+		pm860x_set_bits(pm860x->i2c, REG_MISC2, data, 0);
 		break;
 	}
 	codec->dapm.bias_level = level;
@@ -1319,17 +1320,17 @@ int pm860x_hs_jack_detect(struct snd_soc_codec *codec,
 	pm860x->det.lo_shrt = lo_shrt;
 
 	if (det & SND_JACK_HEADPHONE)
-		pm860x_set_bits(codec->control_data, REG_HS_DET,
+		pm860x_set_bits(pm860x->i2c, REG_HS_DET,
 				EN_HS_DET, EN_HS_DET);
 	/* headset short detect */
 	if (hs_shrt) {
 		data = CLR_SHORT_HS2 | CLR_SHORT_HS1;
-		pm860x_set_bits(codec->control_data, REG_SHORTS, data, data);
+		pm860x_set_bits(pm860x->i2c, REG_SHORTS, data, data);
 	}
 	/* Lineout short detect */
 	if (lo_shrt) {
 		data = CLR_SHORT_LO2 | CLR_SHORT_LO1;
-		pm860x_set_bits(codec->control_data, REG_SHORTS, data, data);
+		pm860x_set_bits(pm860x->i2c, REG_SHORTS, data, data);
 	}
 
 	/* sync status */
@@ -1347,7 +1348,7 @@ int pm860x_mic_jack_detect(struct snd_soc_codec *codec,
 	pm860x->det.mic_det = det;
 
 	if (det & SND_JACK_MICROPHONE)
-		pm860x_set_bits(codec->control_data, REG_MIC_DET,
+		pm860x_set_bits(pm860x->i2c, REG_MIC_DET,
 				MICDET_MASK, MICDET_MASK);
 
 	/* sync status */
@@ -1377,7 +1378,7 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 
 	pm860x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	ret = pm860x_bulk_read(codec->control_data, REG_CACHE_BASE,
+	ret = pm860x_bulk_read(pm860x->i2c, REG_CACHE_BASE,
 			       REG_CACHE_SIZE, codec->reg_cache);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to fill register cache: %d\n",
