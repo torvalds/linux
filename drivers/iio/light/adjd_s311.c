@@ -138,10 +138,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 		len += 2;
 	}
 
-	if (indio_dev->scan_timestamp)
-		*(s64 *)((u8 *)data->buffer + ALIGN(len, sizeof(s64)))
-			= time_ns;
-	iio_push_to_buffers(indio_dev, data->buffer);
+	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer, time_ns);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
