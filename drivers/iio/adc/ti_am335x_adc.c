@@ -122,7 +122,7 @@ static int tiadc_channel_init(struct iio_dev *indio_dev, int channels)
 		chan->datasheet_name = chan_name_ain[chan->channel];
 		chan->scan_type.sign = 'u';
 		chan->scan_type.realbits = 12;
-		chan->scan_type.storagebits = 32;
+		chan->scan_type.storagebits = 16;
 	}
 
 	indio_dev->channels = chan_array;
@@ -186,7 +186,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 		if (stepid == map_val) {
 			read = read & FIFOREAD_DATA_MASK;
 			found = true;
-			*val = read;
+			*val = (u16) read;
 		}
 	}
 
