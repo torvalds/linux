@@ -47,6 +47,51 @@ struct sk_buff *digital_skb_alloc(struct nfc_digital_dev *ddev,
 	return skb;
 }
 
+void digital_skb_add_crc(struct sk_buff *skb, crc_func_t crc_func, u16 init,
+			 u8 bitwise_inv, u8 msb_first)
+{
+	u16 crc;
+
+	crc = crc_func(init, skb->data, skb->len);
+
+	if (bitwise_inv)
+		crc = ~crc;
+
+	if (msb_first)
+		crc = __fswab16(crc);
+
+	*skb_put(skb, 1) = crc & 0xFF;
+	*skb_put(skb, 1) = (crc >> 8) & 0xFF;
+}
+
+int digital_skb_check_crc(struct sk_buff *skb, crc_func_t crc_func,
+			  u16 crc_init, u8 bitwise_inv, u8 msb_first)
+{
+	int rc;
+	u16 crc;
+
+	if (skb->len <= 2)
+		return -EIO;
+
+	crc = crc_func(crc_init, skb->data, skb->len - 2);
+
+	if (bitwise_inv)
+		crc = ~crc;
+
+	if (msb_first)
+		crc = __swab16(crc);
+
+	rc = (skb->data[skb->len - 2] - (crc & 0xFF)) +
+	     (skb->data[skb->len - 1] - ((crc >> 8) & 0xFF));
+
+	if (rc)
+		return -EIO;
+
+	skb_trim(skb, skb->len - 2);
+
+	return 0;
+}
+
 static inline void digital_switch_rf(struct nfc_digital_dev *ddev, bool on)
 {
 	ddev->ops->switch_rf(ddev, on);
@@ -181,6 +226,62 @@ int digital_in_configure_hw(struct nfc_digital_dev *ddev, int type, int param)
 		PR_ERR("in_configure_hw failed: %d", rc);
 
 	return rc;
+}
+
+int digital_target_found(struct nfc_digital_dev *ddev,
+			 struct nfc_target *target, u8 protocol)
+{
+	int rc;
+	u8 framing;
+	u8 rf_tech;
+	int (*check_crc)(struct sk_buff *skb);
+	void (*add_crc)(struct sk_buff *skb);
+
+	rf_tech = ddev->poll_techs[ddev->poll_tech_index].rf_tech;
+
+	switch (protocol) {
+	case NFC_PROTO_JEWEL:
+		framing = NFC_DIGITAL_FRAMING_NFCA_T1T;
+		check_crc = digital_skb_check_crc_b;
+		add_crc = digital_skb_add_crc_b;
+		break;
+
+	case NFC_PROTO_MIFARE:
+		framing = NFC_DIGITAL_FRAMING_NFCA_T2T;
+		check_crc = digital_skb_check_crc_a;
+		add_crc = digital_skb_add_crc_a;
+		break;
+
+	default:
+		PR_ERR("Invalid protocol %d", protocol);
+		return -EINVAL;
+	}
+
+	PR_DBG("rf_tech=%d, protocol=%d", rf_tech, protocol);
+
+	ddev->curr_rf_tech = rf_tech;
+	ddev->curr_protocol = protocol;
+
+	if (DIGITAL_DRV_CAPS_IN_CRC(ddev)) {
+		ddev->skb_add_crc = digital_skb_add_crc_none;
+		ddev->skb_check_crc = digital_skb_check_crc_none;
+	} else {
+		ddev->skb_add_crc = add_crc;
+		ddev->skb_check_crc = check_crc;
+	}
+
+	rc = digital_in_configure_hw(ddev, NFC_DIGITAL_CONFIG_FRAMING, framing);
+	if (rc)
+		return rc;
+
+	target->supported_protocols = (1 << protocol);
+	rc = nfc_targets_found(ddev->nfc_dev, target, 1);
+	if (rc)
+		return rc;
+
+	ddev->poll_tech_count = 0;
+
+	return 0;
 }
 
 void digital_poll_next_tech(struct nfc_digital_dev *ddev)
@@ -363,11 +464,53 @@ static int digital_tg_send(struct nfc_dev *dev, struct sk_buff *skb)
 	return -EOPNOTSUPP;
 }
 
+static void digital_in_send_complete(struct nfc_digital_dev *ddev, void *arg,
+				     struct sk_buff *resp)
+{
+	struct digital_data_exch *data_exch = arg;
+	int rc;
+
+	if (IS_ERR(resp)) {
+		rc = PTR_ERR(resp);
+		goto done;
+	}
+
+	if (ddev->curr_protocol == NFC_PROTO_MIFARE)
+		rc = digital_in_recv_mifare_res(resp);
+	else
+		rc = ddev->skb_check_crc(resp);
+
+	if (rc) {
+		kfree_skb(resp);
+		resp = NULL;
+	}
+
+done:
+	data_exch->cb(data_exch->cb_context, resp, rc);
+
+	kfree(data_exch);
+}
+
 static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			   struct sk_buff *skb, data_exchange_cb_t cb,
 			   void *cb_context)
 {
-	return -EOPNOTSUPP;
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+	struct digital_data_exch *data_exch;
+
+	data_exch = kzalloc(sizeof(struct digital_data_exch), GFP_KERNEL);
+	if (!data_exch) {
+		PR_ERR("Failed to allocate data_exch struct");
+		return -ENOMEM;
+	}
+
+	data_exch->cb = cb;
+	data_exch->cb_context = cb_context;
+
+	ddev->skb_add_crc(skb);
+
+	return digital_in_send_cmd(ddev, skb, 500, digital_in_send_complete,
+				   data_exch);
 }
 
 static struct nfc_ops digital_nfc_ops = {

@@ -193,6 +193,9 @@ struct nfc_digital_dev {
 	u8 curr_protocol;
 	u8 curr_rf_tech;
 	u8 curr_nfc_dep_pni;
+
+	int (*skb_check_crc)(struct sk_buff *skb);
+	void (*skb_add_crc)(struct sk_buff *skb);
 };
 
 struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
