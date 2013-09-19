@@ -94,3 +94,28 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 	return of_irq_parse_raw(laddr, out_irq);
 }
 EXPORT_SYMBOL_GPL(of_irq_parse_pci);
+
+/**
+ * of_irq_parse_and_map_pci() - Decode a PCI irq from the device tree and map to a virq
+ * @dev: The pci device needing an irq
+ * @slot: PCI slot number; passed when used as map_irq callback. Unused
+ * @pin: PCI irq pin number; passed when used as map_irq callback. Unused
+ *
+ * @slot and @pin are unused, but included in the function so that this
+ * function can be used directly as the map_irq callback to pci_fixup_irqs().
+ */
+int of_irq_parse_and_map_pci(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	struct of_phandle_args oirq;
+	int ret;
+
+	ret = of_irq_parse_pci(dev, &oirq);
+	if (ret) {
+		dev_err(&dev->dev, "of_irq_parse_pci() failed with rc=%d\n", ret);
+		return 0; /* Proper return code 0 == NO_IRQ */
+	}
+
+	return irq_create_of_mapping(&oirq);
+}
+EXPORT_SYMBOL_GPL(of_irq_parse_and_map_pci);
+

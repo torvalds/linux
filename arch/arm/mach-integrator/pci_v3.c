@@ -835,21 +835,6 @@ static struct hw_pci pci_v3 __initdata = {
 
 #ifdef CONFIG_OF
 
-static int __init pci_v3_map_irq_dt(const struct pci_dev *dev, u8 slot, u8 pin)
-{
-	struct of_phandle_args oirq;
-	int ret;
-
-	ret = of_irq_parse_pci(dev, &oirq);
-	if (ret) {
-		dev_err(&dev->dev, "of_irq_parse_pci() %d\n", ret);
-		/* Proper return code 0 == NO_IRQ */
-		return 0;
-	}
-
-	return irq_create_of_mapping(&oirq);
-}
-
 static int __init pci_v3_dtprobe(struct platform_device *pdev,
 				struct device_node *np)
 {
@@ -918,7 +903,7 @@ static int __init pci_v3_dtprobe(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	pci_v3.map_irq = pci_v3_map_irq_dt;
+	pci_v3.map_irq = of_irq_parse_and_map_pci;
 	pci_common_init_dev(&pdev->dev, &pci_v3);
 
 	return 0;
