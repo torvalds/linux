@@ -333,7 +333,7 @@ static void hpcd_final_uli5288(struct pci_dev *dev)
 
 	laddr[0] = (hose->first_busno << 16) | (PCI_DEVFN(31, 0) << 8);
 	laddr[1] = laddr[2] = 0;
-	of_irq_map_raw(hosenode, &pin, 1, laddr, &oirq);
+	of_irq_parse_raw(hosenode, &pin, 1, laddr, &oirq);
 	virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 				     oirq.size);
 	dev->irq = virq;

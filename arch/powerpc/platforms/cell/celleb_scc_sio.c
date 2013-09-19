@@ -53,7 +53,7 @@ static int __init txx9_serial_init(void)
 			if (!(txx9_serial_bitmap & (1<<i)))
 				continue;
 
-			if (of_irq_map_one(node, i, &irq))
+			if (of_irq_parse_one(node, i, &irq))
 				continue;
 			if (of_address_to_resource(node,
 				txx9_scc_tab[i].index, &res))

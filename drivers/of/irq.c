@@ -31,14 +31,14 @@
  * @dev: Device node of the device whose interrupt is to be mapped
  * @index: Index of the interrupt to map
  *
- * This function is a wrapper that chains of_irq_map_one() and
+ * This function is a wrapper that chains of_irq_parse_one() and
  * irq_create_of_mapping() to make things easier to callers
  */
 unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
 {
 	struct of_irq oirq;
 
-	if (of_irq_map_one(dev, index, &oirq))
+	if (of_irq_parse_one(dev, index, &oirq))
 		return 0;
 
 	return irq_create_of_mapping(oirq.controller, oirq.specifier,
@@ -79,7 +79,7 @@ struct device_node *of_irq_find_parent(struct device_node *child)
 }
 
 /**
- * of_irq_map_raw - Low level interrupt tree parsing
+ * of_irq_parse_raw - Low level interrupt tree parsing
  * @parent:	the device interrupt parent
  * @intspec:	interrupt specifier ("interrupts" property of the device)
  * @ointsize:   size of the passed in interrupt specifier
@@ -93,7 +93,7 @@ struct device_node *of_irq_find_parent(struct device_node *child)
  * properties, for example when resolving PCI interrupts when no device
  * node exist for the parent.
  */
-int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
+int of_irq_parse_raw(struct device_node *parent, const __be32 *intspec,
 		   u32 ointsize, const __be32 *addr, struct of_irq *out_irq)
 {
 	struct device_node *ipar, *tnode, *old = NULL, *newpar = NULL;
@@ -101,7 +101,7 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
 	int imaplen, match, i;
 
-	pr_debug("of_irq_map_raw: par=%s,intspec=[0x%08x 0x%08x...],ointsize=%d\n",
+	pr_debug("of_irq_parse_raw: par=%s,intspec=[0x%08x 0x%08x...],ointsize=%d\n",
 		 of_node_full_name(parent), be32_to_cpup(intspec),
 		 be32_to_cpup(intspec + 1), ointsize);
 
@@ -126,7 +126,7 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 		goto fail;
 	}
 
-	pr_debug("of_irq_map_raw: ipar=%s, size=%d\n", of_node_full_name(ipar), intsize);
+	pr_debug("of_irq_parse_raw: ipar=%s, size=%d\n", of_node_full_name(ipar), intsize);
 
 	if (ointsize != intsize)
 		return -EINVAL;
@@ -269,29 +269,29 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(of_irq_map_raw);
+EXPORT_SYMBOL_GPL(of_irq_parse_raw);
 
 /**
- * of_irq_map_one - Resolve an interrupt for a device
+ * of_irq_parse_one - Resolve an interrupt for a device
  * @device: the device whose interrupt is to be resolved
  * @index: index of the interrupt to resolve
  * @out_irq: structure of_irq filled by this function
  *
  * This function resolves an interrupt, walking the tree, for a given
- * device-tree node. It's the high level pendant to of_irq_map_raw().
+ * device-tree node. It's the high level pendant to of_irq_parse_raw().
  */
-int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq)
+int of_irq_parse_one(struct device_node *device, int index, struct of_irq *out_irq)
 {
 	struct device_node *p;
 	const __be32 *intspec, *tmp, *addr;
 	u32 intsize, intlen;
 	int res = -EINVAL;
 
-	pr_debug("of_irq_map_one: dev=%s, index=%d\n", of_node_full_name(device), index);
+	pr_debug("of_irq_parse_one: dev=%s, index=%d\n", of_node_full_name(device), index);
 
 	/* OldWorld mac stuff is "special", handle out of line */
 	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
-		return of_irq_map_oldworld(device, index, out_irq);
+		return of_irq_parse_oldworld(device, index, out_irq);
 
 	/* Get the interrupts property */
 	intspec = of_get_property(device, "interrupts", &intlen);
@@ -322,13 +322,13 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 		goto out;
 
 	/* Get new specifier and map it */
-	res = of_irq_map_raw(p, intspec + index * intsize, intsize,
+	res = of_irq_parse_raw(p, intspec + index * intsize, intsize,
 			     addr, out_irq);
  out:
 	of_node_put(p);
 	return res;
 }
-EXPORT_SYMBOL_GPL(of_irq_map_one);
+EXPORT_SYMBOL_GPL(of_irq_parse_one);
 
 /**
  * of_irq_to_resource - Decode a node's IRQ and return it as a resource

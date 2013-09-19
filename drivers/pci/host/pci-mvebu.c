@@ -650,7 +650,7 @@ static int __init mvebu_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	struct of_irq oirq;
 	int ret;
 
-	ret = of_irq_map_pci(dev, &oirq);
+	ret = of_irq_parse_pci(dev, &oirq);
 	if (ret)
 		return ret;
 

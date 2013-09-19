@@ -532,12 +532,12 @@ static u64 __of_translate_address(struct device_node *dev,
 		pbus->count_cells(dev, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
 			printk(KERN_ERR "prom_parse: Bad cell count for %s\n",
-			       dev->full_name);
+			       of_node_full_name(dev));
 			break;
 		}
 
 		pr_debug("OF: parent bus is %s (na=%d, ns=%d) on %s\n",
-		    pbus->name, pna, pns, parent->full_name);
+		    pbus->name, pna, pns, of_node_full_name(parent));
 
 		/* Apply bus translation */
 		if (of_translate_one(dev, bus, pbus, addr, na, ns, pna, rprop))

@@ -587,7 +587,7 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	int err;
 	int irq;
 
-	err = of_irq_map_pci(dev, &dev_irq);
+	err = of_irq_parse_pci(dev, &dev_irq);
 	if (err) {
 		pr_err("pci %s: unable to get irq map, err=%d\n",
 		       pci_name((struct pci_dev *) dev), err);

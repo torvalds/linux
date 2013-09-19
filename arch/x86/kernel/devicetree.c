@@ -116,7 +116,7 @@ static int x86_of_pci_irq_enable(struct pci_dev *dev)
 	if (!pin)
 		return 0;
 
-	ret = of_irq_map_pci(dev, &oirq);
+	ret = of_irq_parse_pci(dev, &oirq);
 	if (ret)
 		return ret;
 

@@ -217,7 +217,7 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 	memset(&oirq, 0xff, sizeof(oirq));
 #endif
 	/* Try to get a mapping from the device-tree */
-	if (of_irq_map_pci(pci_dev, &oirq)) {
+	if (of_irq_parse_pci(pci_dev, &oirq)) {
 		u8 line, pin;
 
 		/* If that fails, lets fallback to what is in the config

@@ -55,7 +55,7 @@ void request_event_sources_irqs(struct device_node *np,
 	/* Else use normal interrupt tree parsing */
 	else {
 		/* First try to do a proper OF tree parsing */
-		for (index = 0; of_irq_map_one(np, index, &oirq) == 0;
+		for (index = 0; of_irq_parse_one(np, index, &oirq) == 0;
 		     index++) {
 			if (count > 15)
 				break;

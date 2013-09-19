@@ -28,7 +28,7 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	struct of_irq dev_irq;
 	int irq;
 
-	if (of_irq_map_pci(dev, &dev_irq)) {
+	if (of_irq_parse_pci(dev, &dev_irq)) {
 		dev_err(&dev->dev, "trying to map irq for unknown slot:%d pin:%d\n",
 			slot, pin);
 		return 0;

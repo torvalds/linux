@@ -182,7 +182,7 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 	int i;
 
 	for (i=0; i < 3; i++) {
-		ret = of_irq_map_one(np, i, &oirq);
+		ret = of_irq_parse_one(np, i, &oirq);
 		if (ret) {
 			pr_debug("spu_new: failed to get irq %d\n", i);
 			goto err;

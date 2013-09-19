@@ -63,7 +63,7 @@ static int mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 		pr_debug("mpic: mapping hwirqs for %s\n", np->full_name);
 
 		index = 0;
-		while (of_irq_map_one(np, index++, &oirq) == 0) {
+		while (of_irq_parse_one(np, index++, &oirq) == 0) {
 			ops->xlate(mpic->irqhost, NULL, oirq.specifier,
 						oirq.size, &hwirq, &flags);
 			msi_bitmap_reserve_hwirq(&mpic->msi_bitmap, hwirq);

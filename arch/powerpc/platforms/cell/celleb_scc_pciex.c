@@ -507,7 +507,7 @@ static __init int celleb_setup_pciex(struct device_node *node,
 	phb->ops = &scc_pciex_pci_ops;
 
 	/* internal interrupt handler */
-	if (of_irq_map_one(node, 1, &oirq)) {
+	if (of_irq_parse_one(node, 1, &oirq)) {
 		pr_err("PCIEXC:Failed to map irq\n");
 		goto error;
 	}

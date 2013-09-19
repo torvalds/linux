@@ -5,7 +5,7 @@
 #include <asm/prom.h>
 
 /**
- * of_irq_map_pci - Resolve the interrupt for a PCI device
+ * of_irq_parse_pci - Resolve the interrupt for a PCI device
  * @pdev:       the device whose interrupt is to be resolved
  * @out_irq:    structure of_irq filled by this function
  *
@@ -15,7 +15,7 @@
  * PCI tree until an device-node is found, at which point it will finish
  * resolving using the OF tree walking.
  */
-int of_irq_map_pci(const struct pci_dev *pdev, struct of_irq *out_irq)
+int of_irq_parse_pci(const struct pci_dev *pdev, struct of_irq *out_irq)
 {
 	struct device_node *dn, *ppnode;
 	struct pci_dev *ppdev;
@@ -30,7 +30,7 @@ int of_irq_map_pci(const struct pci_dev *pdev, struct of_irq *out_irq)
 	 */
 	dn = pci_device_to_OF_node(pdev);
 	if (dn) {
-		rc = of_irq_map_one(dn, 0, out_irq);
+		rc = of_irq_parse_one(dn, 0, out_irq);
 		if (!rc)
 			return rc;
 	}
@@ -88,6 +88,6 @@ int of_irq_map_pci(const struct pci_dev *pdev, struct of_irq *out_irq)
 	lspec_be = cpu_to_be32(lspec);
 	laddr[0] = cpu_to_be32((pdev->bus->number << 16) | (pdev->devfn << 8));
 	laddr[1]  = laddr[2] = cpu_to_be32(0);
-	return of_irq_map_raw(ppnode, &lspec_be, 1, laddr, out_irq);
+	return of_irq_parse_raw(ppnode, &lspec_be, 1, laddr, out_irq);
 }
-EXPORT_SYMBOL_GPL(of_irq_map_pci);
+EXPORT_SYMBOL_GPL(of_irq_parse_pci);

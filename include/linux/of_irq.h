@@ -35,12 +35,12 @@ typedef int (*of_irq_init_cb_t)(struct device_node *, struct device_node *);
 #if defined(CONFIG_PPC32) && defined(CONFIG_PPC_PMAC)
 extern unsigned int of_irq_workarounds;
 extern struct device_node *of_irq_dflt_pic;
-extern int of_irq_map_oldworld(struct device_node *device, int index,
+extern int of_irq_parse_oldworld(struct device_node *device, int index,
 			       struct of_irq *out_irq);
 #else /* CONFIG_PPC32 && CONFIG_PPC_PMAC */
 #define of_irq_workarounds (0)
 #define of_irq_dflt_pic (NULL)
-static inline int of_irq_map_oldworld(struct device_node *device, int index,
+static inline int of_irq_parse_oldworld(struct device_node *device, int index,
 				      struct of_irq *out_irq)
 {
 	return -EINVAL;
@@ -48,10 +48,10 @@ static inline int of_irq_map_oldworld(struct device_node *device, int index,
 #endif /* CONFIG_PPC32 && CONFIG_PPC_PMAC */
 
 
-extern int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
+extern int of_irq_parse_raw(struct device_node *parent, const __be32 *intspec,
 			  u32 ointsize, const __be32 *addr,
 			  struct of_irq *out_irq);
-extern int of_irq_map_one(struct device_node *device, int index,
+extern int of_irq_parse_one(struct device_node *device, int index,
 			  struct of_irq *out_irq);
 extern unsigned int irq_create_of_mapping(struct device_node *controller,
 					  const u32 *intspec,
