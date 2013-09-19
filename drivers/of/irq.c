@@ -102,7 +102,7 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 	int imaplen, match, i;
 
 	pr_debug("of_irq_map_raw: par=%s,intspec=[0x%08x 0x%08x...],ointsize=%d\n",
-		 parent->full_name, be32_to_cpup(intspec),
+		 of_node_full_name(parent), be32_to_cpup(intspec),
 		 be32_to_cpup(intspec + 1), ointsize);
 
 	ipar = of_node_get(parent);
@@ -126,7 +126,7 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 		goto fail;
 	}
 
-	pr_debug("of_irq_map_raw: ipar=%s, size=%d\n", ipar->full_name, intsize);
+	pr_debug("of_irq_map_raw: ipar=%s, size=%d\n", of_node_full_name(ipar), intsize);
 
 	if (ointsize != intsize)
 		return -EINVAL;
@@ -287,7 +287,7 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 	u32 intsize, intlen;
 	int res = -EINVAL;
 
-	pr_debug("of_irq_map_one: dev=%s, index=%d\n", device->full_name, index);
+	pr_debug("of_irq_map_one: dev=%s, index=%d\n", of_node_full_name(device), index);
 
 	/* OldWorld mac stuff is "special", handle out of line */
 	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
@@ -355,7 +355,7 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 
 		r->start = r->end = irq;
 		r->flags = IORESOURCE_IRQ;
-		r->name = name ? name : dev->full_name;
+		r->name = name ? name : of_node_full_name(dev);
 	}
 
 	return irq;
