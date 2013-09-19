@@ -988,13 +988,8 @@ static irqreturn_t gp2ap020a00f_trigger_handler(int irq, void *data)
 		}
 	}
 
-	if (indio_dev->scan_timestamp) {
-		s64 *timestamp = (s64 *)((u8 *)priv->buffer +
-						ALIGN(d_size, sizeof(s64)));
-		*timestamp = pf->timestamp;
-	}
-
-	iio_push_to_buffers(indio_dev, priv->buffer);
+	iio_push_to_buffers_with_timestamp(indio_dev, priv->buffer,
+		pf->timestamp);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 
