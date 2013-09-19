@@ -488,6 +488,7 @@ int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	/* Drop queue, since streamoff returns device to the same state as after
 	 * calling reqbufs. */
 	INIT_LIST_HEAD(&q_ctx->rdy_queue);
+	q_ctx->num_rdy = 0;
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 
 	if (m2m_dev->curr_ctx == m2m_ctx) {
