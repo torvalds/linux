@@ -307,11 +307,136 @@ unsigned long find_first_bit_left(const unsigned long *addr, unsigned long size)
 unsigned long find_next_bit_left(const unsigned long *addr, unsigned long size,
 				 unsigned long offset);
 
+#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
+
+/**
+ * __flogr - find leftmost one
+ * @word - The word to search
+ *
+ * Returns the bit number of the most significant bit set,
+ * where the most significant bit has bit number 0.
+ * If no bit is set this function returns 64.
+ */
+static inline unsigned char __flogr(unsigned long word)
+{
+	if (__builtin_constant_p(word)) {
+		unsigned long bit = 0;
+
+		if (!word)
+			return 64;
+		if (!(word & 0xffffffff00000000UL)) {
+			word <<= 32;
+			bit += 32;
+		}
+		if (!(word & 0xffff000000000000UL)) {
+			word <<= 16;
+			bit += 16;
+		}
+		if (!(word & 0xff00000000000000UL)) {
+			word <<= 8;
+			bit += 8;
+		}
+		if (!(word & 0xf000000000000000UL)) {
+			word <<= 4;
+			bit += 4;
+		}
+		if (!(word & 0xc000000000000000UL)) {
+			word <<= 2;
+			bit += 2;
+		}
+		if (!(word & 0x8000000000000000UL)) {
+			word <<= 1;
+			bit += 1;
+		}
+		return bit;
+	} else {
+		register unsigned long bit asm("4") = word;
+		register unsigned long out asm("5");
+
+		asm volatile(
+			"       flogr   %[bit],%[bit]\n"
+			: [bit] "+d" (bit), [out] "=d" (out) : : "cc");
+		return bit;
+	}
+}
+
+/**
+ * __ffs - find first bit in word.
+ * @word: The word to search
+ *
+ * Undefined if no bit exists, so code should check against 0 first.
+ */
+static inline unsigned long __ffs(unsigned long word)
+{
+	return __flogr(-word & word) ^ (BITS_PER_LONG - 1);
+}
+
+/**
+ * ffs - find first bit set
+ * @word: the word to search
+ *
+ * This is defined the same way as the libc and
+ * compiler builtin ffs routines (man ffs).
+ */
+static inline int ffs(int word)
+{
+	unsigned long mask = 2 * BITS_PER_LONG - 1;
+	unsigned int val = (unsigned int)word;
+
+	return (1 + (__flogr(-val & val) ^ (BITS_PER_LONG - 1))) & mask;
+}
+
+/**
+ * __fls - find last (most-significant) set bit in a long word
+ * @word: the word to search
+ *
+ * Undefined if no set bit exists, so code should check against 0 first.
+ */
+static inline unsigned long __fls(unsigned long word)
+{
+	return __flogr(word) ^ (BITS_PER_LONG - 1);
+}
+
+/**
+ * fls64 - find last set bit in a 64-bit word
+ * @word: the word to search
+ *
+ * This is defined in a similar way as the libc and compiler builtin
+ * ffsll, but returns the position of the most significant set bit.
+ *
+ * fls64(value) returns 0 if value is 0 or the position of the last
+ * set bit if value is nonzero. The last (most significant) bit is
+ * at position 64.
+ */
+static inline int fls64(unsigned long word)
+{
+	unsigned long mask = 2 * BITS_PER_LONG - 1;
+
+	return (1 + (__flogr(word) ^ (BITS_PER_LONG - 1))) & mask;
+}
+
+/**
+ * fls - find last (most-significant) bit set
+ * @word: the word to search
+ *
+ * This is defined the same way as ffs.
+ * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
+ */
+static inline int fls(int word)
+{
+	return fls64((unsigned int)word);
+}
+
+#else /* CONFIG_HAVE_MARCH_Z9_109_FEATURES */
+
 #include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/ffs.h>
 #include <asm-generic/bitops/__fls.h>
 #include <asm-generic/bitops/fls.h>
 #include <asm-generic/bitops/fls64.h>
+
+#endif /* CONFIG_HAVE_MARCH_Z9_109_FEATURES */
+
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/hweight.h>
