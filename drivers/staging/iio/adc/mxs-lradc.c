@@ -625,13 +625,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 		j++;
 	}
 
-	if (iio->scan_timestamp) {
-		s64 *timestamp = (s64 *)((u8 *)lradc->buffer +
-					ALIGN(j, sizeof(s64)));
-		*timestamp = pf->timestamp;
-	}
-
-	iio_push_to_buffers(iio, lradc->buffer);
+	iio_push_to_buffers_with_timestamp(iio, lradc->buffer, pf->timestamp);
 
 	iio_trigger_notify_done(iio->trig);
 
