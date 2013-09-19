@@ -291,6 +291,17 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	return config4 & MIPS_CONF_M;
 }
 
+static inline unsigned int decode_config5(struct cpuinfo_mips *c)
+{
+	unsigned int config5;
+
+	config5 = read_c0_config5();
+	config5 &= ~MIPS_CONF5_UFR;
+	write_c0_config5(config5);
+
+	return config5 & MIPS_CONF_M;
+}
+
 static void decode_configs(struct cpuinfo_mips *c)
 {
 	int ok;
@@ -311,6 +322,8 @@ static void decode_configs(struct cpuinfo_mips *c)
 		ok = decode_config3(c);
 	if (ok)
 		ok = decode_config4(c);
+	if (ok)
+		ok = decode_config5(c);
 
 	mips_probe_watch_registers(c);
 
