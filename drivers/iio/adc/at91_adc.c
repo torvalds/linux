@@ -83,13 +83,7 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 		j++;
 	}
 
-	if (idev->scan_timestamp) {
-		s64 *timestamp = (s64 *)((u8 *)st->buffer +
-					ALIGN(j, sizeof(s64)));
-		*timestamp = pf->timestamp;
-	}
-
-	iio_push_to_buffers(idev, st->buffer);
+	iio_push_to_buffers_with_timestamp(idev, st->buffer, pf->timestamp);
 
 	iio_trigger_notify_done(idev->trig);
 
