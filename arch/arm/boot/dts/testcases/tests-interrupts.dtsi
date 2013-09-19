@@ -27,6 +27,12 @@
 						<4 &test_intc2 15 16>;
 			};
 
+			test_intmap1: intmap1 {
+				#interrupt-cells = <2>;
+				#address-cells = <0>;
+				interrupt-map = <1 2 &test_intc0 15>;
+			};
+
 			interrupts0 {
 				interrupt-parent = <&test_intc0>;
 				interrupts = <1>, <2>, <3>, <4>;
@@ -35,6 +41,16 @@
 			interrupts1 {
 				interrupt-parent = <&test_intmap0>;
 				interrupts = <1>, <2>, <3>, <4>;
+			};
+
+			interrupts-extended0 {
+				interrupts-extended = <&test_intc0 1>,
+						      <&test_intc1 2 3 4>,
+						      <&test_intc2 5 6>,
+						      <&test_intmap0 1>,
+						      <&test_intmap0 2>,
+						      <&test_intmap0 3>,
+						      <&test_intmap1 1 2>;
 			};
 		};
 	};
