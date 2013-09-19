@@ -25,8 +25,6 @@
 #include "ion.h"
 #include "ion_priv.h"
 
-#include <asm/mach/map.h>
-
 struct ion_chunk_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
