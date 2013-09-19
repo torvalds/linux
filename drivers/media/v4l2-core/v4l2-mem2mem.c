@@ -480,7 +480,8 @@ int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	m2m_dev = m2m_ctx->m2m_dev;
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags_job);
 	/* We should not be scheduled anymore, since we're dropping a queue. */
-	INIT_LIST_HEAD(&m2m_ctx->queue);
+	if (m2m_ctx->job_flags & TRANS_QUEUED)
+		list_del(&m2m_ctx->queue);
 	m2m_ctx->job_flags = 0;
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
