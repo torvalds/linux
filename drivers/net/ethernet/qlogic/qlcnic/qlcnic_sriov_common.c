@@ -1561,6 +1561,7 @@ static int qlcnic_sriov_vf_reinit_driver(struct qlcnic_adapter *adapter)
 {
 	int err;
 
+	adapter->need_fw_reset = 0;
 	qlcnic_83xx_reinit_mbx_work(adapter->ahw->mailbox);
 	qlcnic_83xx_enable_mbx_interrupt(adapter);
 
