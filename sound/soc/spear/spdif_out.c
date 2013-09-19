@@ -280,7 +280,6 @@ static int spdif_out_probe(struct platform_device *pdev)
 	struct spdif_out_dev *host;
 	struct spear_spdif_platform_data *pdata;
 	struct resource *res;
-	int ret;
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host) {
@@ -307,9 +306,8 @@ static int spdif_out_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, host);
 
-	ret = devm_snd_soc_register_component(&pdev->dev, &spdif_out_component,
-					      &spdif_out_dai, 1);
-	return ret;
+	return devm_snd_soc_register_component(&pdev->dev, &spdif_out_component,
+					       &spdif_out_dai, 1);
 }
 
 #ifdef CONFIG_PM
