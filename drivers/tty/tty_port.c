@@ -140,6 +140,10 @@ EXPORT_SYMBOL(tty_port_destroy);
 static void tty_port_destructor(struct kref *kref)
 {
 	struct tty_port *port = container_of(kref, struct tty_port, kref);
+
+	/* check if last port ref was dropped before tty release */
+	if (WARN_ON(port->itty))
+		return;
 	if (port->xmit_buf)
 		free_page((unsigned long)port->xmit_buf);
 	tty_port_destroy(port);
