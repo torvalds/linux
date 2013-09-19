@@ -1164,6 +1164,8 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 	return 1;
 }
 
+static void s3c_hsotg_enqueue_setup(struct s3c_hsotg *hsotg);
+
 /**
  * s3c_hsotg_process_control - process a control request
  * @hsotg: The device state
@@ -1263,10 +1265,14 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 		 * don't believe we need to anything more to get the EP
 		 * to reply with a STALL packet
 		 */
+
+		 /*
+		  * complete won't be called, so we enqueue
+		  * setup request here
+		  */
+		 s3c_hsotg_enqueue_setup(hsotg);
 	}
 }
-
-static void s3c_hsotg_enqueue_setup(struct s3c_hsotg *hsotg);
 
 /**
  * s3c_hsotg_complete_setup - completion of a setup transfer
