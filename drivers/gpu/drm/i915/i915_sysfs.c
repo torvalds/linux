@@ -97,7 +97,7 @@ static struct attribute_group rc6_attr_group = {
 
 static int l3_access_valid(struct drm_device *dev, loff_t offset)
 {
-	if (!HAS_L3_GPU_CACHE(dev))
+	if (!HAS_L3_DPF(dev))
 		return -EPERM;
 
 	if (offset % 4 != 0)
@@ -525,7 +525,7 @@ void i915_setup_sysfs(struct drm_device *dev)
 			DRM_ERROR("RC6 residency sysfs setup failed\n");
 	}
 #endif
-	if (HAS_L3_GPU_CACHE(dev)) {
+	if (HAS_L3_DPF(dev)) {
 		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
 		if (ret)
 			DRM_ERROR("l3 parity sysfs setup failed\n");

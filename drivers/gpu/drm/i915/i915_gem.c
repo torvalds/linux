@@ -4260,7 +4260,7 @@ int i915_gem_l3_remap(struct intel_ring_buffer *ring, int slice)
 	u32 *remap_info = dev_priv->l3_parity.remap_info[slice];
 	int i, ret;
 
-	if (!HAS_L3_GPU_CACHE(dev) || !remap_info)
+	if (!HAS_L3_DPF(dev) || !remap_info)
 		return 0;
 
 	ret = intel_ring_begin(ring, GEN7_L3LOG_SIZE / 4 * 3);

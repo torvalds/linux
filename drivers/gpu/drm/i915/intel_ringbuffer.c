@@ -569,7 +569,7 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 	if (INTEL_INFO(dev)->gen >= 6)
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
-	if (HAS_L3_GPU_CACHE(dev))
+	if (HAS_L3_DPF(dev))
 		I915_WRITE_IMR(ring, ~GT_PARITY_ERROR(dev));
 
 	return ret;
@@ -997,7 +997,7 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
-		if (HAS_L3_GPU_CACHE(dev) && ring->id == RCS)
+		if (HAS_L3_DPF(dev) && ring->id == RCS)
 			I915_WRITE_IMR(ring,
 				       ~(ring->irq_enable_mask |
 					 GT_PARITY_ERROR(dev)));
@@ -1019,7 +1019,7 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0) {
-		if (HAS_L3_GPU_CACHE(dev) && ring->id == RCS)
+		if (HAS_L3_DPF(dev) && ring->id == RCS)
 			I915_WRITE_IMR(ring, ~GT_PARITY_ERROR(dev));
 		else
 			I915_WRITE_IMR(ring, ~0);

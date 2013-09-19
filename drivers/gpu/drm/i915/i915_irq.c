@@ -960,7 +960,7 @@ static void ivybridge_parity_error_irq_handler(struct drm_device *dev, u32 iir)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
-	if (!HAS_L3_GPU_CACHE(dev))
+	if (!HAS_L3_DPF(dev))
 		return;
 
 	spin_lock(&dev_priv->irq_lock);
@@ -2292,7 +2292,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 	pm_irqs = gt_irqs = 0;
 
 	dev_priv->gt_irq_mask = ~0;
-	if (HAS_L3_GPU_CACHE(dev)) {
+	if (HAS_L3_DPF(dev)) {
 		/* L3 parity interrupt is always unmasked. */
 		dev_priv->gt_irq_mask = ~GT_PARITY_ERROR(dev);
 		gt_irqs |= GT_PARITY_ERROR(dev);
