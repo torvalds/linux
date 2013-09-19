@@ -2433,9 +2433,13 @@ irq_retry:
 
 	if (gintsts & (GINTSTS_OEPInt | GINTSTS_IEPInt)) {
 		u32 daint = readl(hsotg->regs + DAINT);
-		u32 daint_out = daint >> DAINT_OutEP_SHIFT;
-		u32 daint_in = daint & ~(daint_out << DAINT_OutEP_SHIFT);
+		u32 daintmsk = readl(hsotg->regs + DAINTMSK);
+		u32 daint_out, daint_in;
 		int ep;
+
+		daint &= daintmsk;
+		daint_out = daint >> DAINT_OutEP_SHIFT;
+		daint_in = daint & ~(daint_out << DAINT_OutEP_SHIFT);
 
 		dev_dbg(hsotg->dev, "%s: daint=%08x\n", __func__, daint);
 
