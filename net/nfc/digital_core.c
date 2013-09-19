@@ -20,6 +20,8 @@
 #define DIGITAL_PROTO_NFCA_RF_TECH \
 	(NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK)
 
+#define DIGITAL_PROTO_NFCF_RF_TECH (NFC_PROTO_FELICA_MASK)
+
 struct digital_cmd {
 	struct list_head queue;
 
@@ -252,6 +254,12 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		add_crc = digital_skb_add_crc_a;
 		break;
 
+	case NFC_PROTO_FELICA:
+		framing = NFC_DIGITAL_FRAMING_NFCF_T3T;
+		check_crc = digital_skb_check_crc_f;
+		add_crc = digital_skb_add_crc_f;
+		break;
+
 	default:
 		PR_ERR("Invalid protocol %d", protocol);
 		return -EINVAL;
@@ -382,6 +390,14 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 	if (matching_im_protocols & DIGITAL_PROTO_NFCA_RF_TECH)
 		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_106A,
 				      digital_in_send_sens_req);
+
+	if (im_protocols & DIGITAL_PROTO_NFCF_RF_TECH) {
+		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_212F,
+				      digital_in_send_sensf_req);
+
+		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_424F,
+				      digital_in_send_sensf_req);
+	}
 
 	if (!ddev->poll_tech_count) {
 		PR_ERR("Unsupported protocols: im=0x%x, tm=0x%x",
@@ -560,6 +576,8 @@ struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
 		ddev->protocols |= NFC_PROTO_JEWEL_MASK;
 	if (supported_protocols & NFC_PROTO_MIFARE_MASK)
 		ddev->protocols |= NFC_PROTO_MIFARE_MASK;
+	if (supported_protocols & NFC_PROTO_FELICA_MASK)
+		ddev->protocols |= NFC_PROTO_FELICA_MASK;
 
 	ddev->tx_headroom = tx_headroom + DIGITAL_MAX_HEADER_LEN;
 	ddev->tx_tailroom = tx_tailroom + DIGITAL_CRC_LEN;

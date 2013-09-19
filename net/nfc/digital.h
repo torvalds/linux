@@ -20,6 +20,7 @@
 #include <net/nfc/digital.h>
 
 #include <linux/crc-ccitt.h>
+#include <linux/crc-itu-t.h>
 
 #define PR_DBG(fmt, ...)  pr_debug("%s: " fmt "\n", __func__, ##__VA_ARGS__)
 #define PR_ERR(fmt, ...)  pr_err("%s: " fmt "\n", __func__, ##__VA_ARGS__)
@@ -64,6 +65,7 @@ static inline int digital_in_send_cmd(struct nfc_digital_dev *ddev,
 void digital_poll_next_tech(struct nfc_digital_dev *ddev);
 
 int digital_in_send_sens_req(struct nfc_digital_dev *ddev, u8 rf_tech);
+int digital_in_send_sensf_req(struct nfc_digital_dev *ddev, u8 rf_tech);
 
 int digital_target_found(struct nfc_digital_dev *ddev,
 			 struct nfc_target *target, u8 protocol);
@@ -74,6 +76,7 @@ typedef u16 (*crc_func_t)(u16, const u8 *, size_t);
 
 #define CRC_A_INIT 0x6363
 #define CRC_B_INIT 0xFFFF
+#define CRC_F_INIT 0x0000
 
 void digital_skb_add_crc(struct sk_buff *skb, crc_func_t crc_func, u16 init,
 			 u8 bitwise_inv, u8 msb_first);
@@ -86,6 +89,11 @@ static inline void digital_skb_add_crc_a(struct sk_buff *skb)
 static inline void digital_skb_add_crc_b(struct sk_buff *skb)
 {
 	digital_skb_add_crc(skb, crc_ccitt, CRC_B_INIT, 1, 0);
+}
+
+static inline void digital_skb_add_crc_f(struct sk_buff *skb)
+{
+	digital_skb_add_crc(skb, crc_itu_t, CRC_F_INIT, 0, 1);
 }
 
 static inline void digital_skb_add_crc_none(struct sk_buff *skb)
@@ -104,6 +112,11 @@ static inline int digital_skb_check_crc_a(struct sk_buff *skb)
 static inline int digital_skb_check_crc_b(struct sk_buff *skb)
 {
 	return digital_skb_check_crc(skb, crc_ccitt, CRC_B_INIT, 1, 0);
+}
+
+static inline int digital_skb_check_crc_f(struct sk_buff *skb)
+{
+	return digital_skb_check_crc(skb, crc_itu_t, CRC_F_INIT, 0, 1);
 }
 
 static inline int digital_skb_check_crc_none(struct sk_buff *skb)
