@@ -732,14 +732,12 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 
 	if (exit_reason >= 0) {
 		rc = 0;
-	} else {
-		if (kvm_is_ucontrol(vcpu->kvm)) {
-			rc = SIE_INTERCEPT_UCONTROL;
-		} else {
-			VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
-			trace_kvm_s390_sie_fault(vcpu);
-			rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		}
+	} else if (kvm_is_ucontrol(vcpu->kvm)) {
+		vcpu->run->exit_reason = KVM_EXIT_S390_UCONTROL;
+		vcpu->run->s390_ucontrol.trans_exc_code =
+						current->thread.gmap_addr;
+		vcpu->run->s390_ucontrol.pgm_code = 0x10;
+		rc = -EREMOTE;
 	}
 
 	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
@@ -832,16 +830,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		rc = -EINTR;
 	}
-
-#ifdef CONFIG_KVM_S390_UCONTROL
-	if (rc == SIE_INTERCEPT_UCONTROL) {
-		kvm_run->exit_reason = KVM_EXIT_S390_UCONTROL;
-		kvm_run->s390_ucontrol.trans_exc_code =
-			current->thread.gmap_addr;
-		kvm_run->s390_ucontrol.pgm_code = 0x10;
-		rc = 0;
-	}
-#endif
 
 	if (rc == -EOPNOTSUPP) {
 		/* intercept cannot be handled in-kernel, prepare kvm-run */
