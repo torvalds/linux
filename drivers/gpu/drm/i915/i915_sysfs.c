@@ -119,6 +119,7 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
 	uint32_t misccpctl;
+	int slice = (int)(uintptr_t)attr->private;
 	int i, ret;
 
 	count = round_down(count, 4);
@@ -134,9 +135,9 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 		return ret;
 
 	if (IS_HASWELL(drm_dev)) {
-		if (dev_priv->l3_parity.remap_info)
+		if (dev_priv->l3_parity.remap_info[slice])
 			memcpy(buf,
-			       dev_priv->l3_parity.remap_info + (offset/4),
+			       dev_priv->l3_parity.remap_info[slice] + (offset/4),
 			       count);
 		else
 			memset(buf, 0, count);
@@ -168,6 +169,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
 	u32 *temp = NULL; /* Just here to make handling failures easy */
+	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
 	ret = l3_access_valid(drm_dev, offset);
@@ -178,7 +180,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	if (!dev_priv->l3_parity.remap_info) {
+	if (!dev_priv->l3_parity.remap_info[slice]) {
 		temp = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
 		if (!temp) {
 			mutex_unlock(&drm_dev->struct_mutex);
@@ -198,11 +200,11 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	 * at this point it is left as a TODO.
 	*/
 	if (temp)
-		dev_priv->l3_parity.remap_info = temp;
+		dev_priv->l3_parity.remap_info[slice] = temp;
 
-	memcpy(dev_priv->l3_parity.remap_info + (offset/4), buf, count);
+	memcpy(dev_priv->l3_parity.remap_info[slice] + (offset/4), buf, count);
 
-	i915_gem_l3_remap(drm_dev);
+	i915_gem_l3_remap(drm_dev, slice);
 
 	mutex_unlock(&drm_dev->struct_mutex);
 
@@ -214,7 +216,17 @@ static struct bin_attribute dpf_attrs = {
 	.size = GEN7_L3LOG_SIZE,
 	.read = i915_l3_read,
 	.write = i915_l3_write,
-	.mmap = NULL
+	.mmap = NULL,
+	.private = (void *)0
+};
+
+static struct bin_attribute dpf_attrs_1 = {
+	.attr = {.name = "l3_parity_slice_1", .mode = (S_IRUSR | S_IWUSR)},
+	.size = GEN7_L3LOG_SIZE,
+	.read = i915_l3_read,
+	.write = i915_l3_write,
+	.mmap = NULL,
+	.private = (void *)1
 };
 
 static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
@@ -525,6 +537,13 @@ void i915_setup_sysfs(struct drm_device *dev)
 		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
 		if (ret)
 			DRM_ERROR("l3 parity sysfs setup failed\n");
+
+		if (NUM_L3_SLICES(dev) > 1) {
+			ret = device_create_bin_file(&dev->primary->kdev,
+						     &dpf_attrs_1);
+			if (ret)
+				DRM_ERROR("l3 parity slice 1 setup failed\n");
+		}
 	}
 
 	ret = 0;
@@ -548,6 +567,7 @@ void i915_teardown_sysfs(struct drm_device *dev)
 		sysfs_remove_files(&dev->primary->kdev.kobj, vlv_attrs);
 	else
 		sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
+	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs_1);
 	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
 #ifdef CONFIG_PM
 	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
