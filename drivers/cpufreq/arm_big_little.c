@@ -98,7 +98,7 @@ static void put_cluster_clk_and_freq_table(struct device *cpu_dev)
 
 	if (!atomic_dec_return(&cluster_usage[cluster])) {
 		clk_put(clk[cluster]);
-		opp_free_cpufreq_table(cpu_dev, &freq_table[cluster]);
+		dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table[cluster]);
 		dev_dbg(cpu_dev, "%s: cluster: %d\n", __func__, cluster);
 	}
 }
@@ -119,7 +119,7 @@ static int get_cluster_clk_and_freq_table(struct device *cpu_dev)
 		goto atomic_dec;
 	}
 
-	ret = opp_init_cpufreq_table(cpu_dev, &freq_table[cluster]);
+	ret = dev_pm_opp_init_cpufreq_table(cpu_dev, &freq_table[cluster]);
 	if (ret) {
 		dev_err(cpu_dev, "%s: failed to init cpufreq table, cpu: %d, err: %d\n",
 				__func__, cpu_dev->id, ret);
@@ -138,7 +138,7 @@ static int get_cluster_clk_and_freq_table(struct device *cpu_dev)
 	dev_err(cpu_dev, "%s: Failed to get clk for cpu: %d, cluster: %d\n",
 			__func__, cpu_dev->id, cluster);
 	ret = PTR_ERR(clk[cluster]);
-	opp_free_cpufreq_table(cpu_dev, &freq_table[cluster]);
+	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table[cluster]);
 
 atomic_dec:
 	atomic_dec(&cluster_usage[cluster]);

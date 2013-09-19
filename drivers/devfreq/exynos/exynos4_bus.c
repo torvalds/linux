@@ -650,8 +650,8 @@ static int exynos4_bus_target(struct device *dev, unsigned long *_freq,
 		rcu_read_unlock();
 		return PTR_ERR(opp);
 	}
-	new_oppinfo.rate = opp_get_freq(opp);
-	new_oppinfo.volt = opp_get_voltage(opp);
+	new_oppinfo.rate = dev_pm_opp_get_freq(opp);
+	new_oppinfo.volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
 	freq = new_oppinfo.rate;
 
@@ -873,7 +873,7 @@ static int exynos4210_init_tables(struct busfreq_data *data)
 		exynos4210_busclk_table[i].volt = exynos4210_asv_volt[mgrp][i];
 
 	for (i = LV_0; i < EX4210_LV_NUM; i++) {
-		err = opp_add(data->dev, exynos4210_busclk_table[i].clk,
+		err = dev_pm_opp_add(data->dev, exynos4210_busclk_table[i].clk,
 			      exynos4210_busclk_table[i].volt);
 		if (err) {
 			dev_err(data->dev, "Cannot add opp entries.\n");
@@ -940,7 +940,7 @@ static int exynos4x12_init_tables(struct busfreq_data *data)
 	}
 
 	for (i = 0; i < EX4x12_LV_NUM; i++) {
-		ret = opp_add(data->dev, exynos4x12_mifclk_table[i].clk,
+		ret = dev_pm_opp_add(data->dev, exynos4x12_mifclk_table[i].clk,
 			      exynos4x12_mifclk_table[i].volt);
 		if (ret) {
 			dev_err(data->dev, "Fail to add opp entries.\n");
@@ -969,7 +969,7 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 		data->disabled = true;
 
 		rcu_read_lock();
-		opp = opp_find_freq_floor(data->dev, &maxfreq);
+		opp = dev_pm_opp_find_freq_floor(data->dev, &maxfreq);
 		if (IS_ERR(opp)) {
 			rcu_read_unlock();
 			dev_err(data->dev, "%s: unable to find a min freq\n",
@@ -977,8 +977,8 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 			mutex_unlock(&data->lock);
 			return PTR_ERR(opp);
 		}
-		new_oppinfo.rate = opp_get_freq(opp);
-		new_oppinfo.volt = opp_get_voltage(opp);
+		new_oppinfo.rate = dev_pm_opp_get_freq(opp);
+		new_oppinfo.volt = dev_pm_opp_get_voltage(opp);
 		rcu_read_unlock();
 
 		err = exynos4_bus_setvolt(data, &new_oppinfo,
@@ -1065,15 +1065,16 @@ static int exynos4_busfreq_probe(struct platform_device *pdev)
 	}
 
 	rcu_read_lock();
-	opp = opp_find_freq_floor(dev, &exynos4_devfreq_profile.initial_freq);
+	opp = dev_pm_opp_find_freq_floor(dev,
+					 &exynos4_devfreq_profile.initial_freq);
 	if (IS_ERR(opp)) {
 		rcu_read_unlock();
 		dev_err(dev, "Invalid initial frequency %lu kHz.\n",
 			exynos4_devfreq_profile.initial_freq);
 		return PTR_ERR(opp);
 	}
-	data->curr_oppinfo.rate = opp_get_freq(opp);
-	data->curr_oppinfo.volt = opp_get_voltage(opp);
+	data->curr_oppinfo.rate = dev_pm_opp_get_freq(opp);
+	data->curr_oppinfo.volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
 
 	platform_set_drvdata(pdev, data);

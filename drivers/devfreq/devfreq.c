@@ -908,7 +908,7 @@ static ssize_t available_frequencies_show(struct device *d,
 
 	rcu_read_lock();
 	do {
-		opp = opp_find_freq_ceil(dev, &freq);
+		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
 		if (IS_ERR(opp))
 			break;
 
@@ -1036,18 +1036,18 @@ struct opp *devfreq_recommended_opp(struct device *dev, unsigned long *freq,
 
 	if (flags & DEVFREQ_FLAG_LEAST_UPPER_BOUND) {
 		/* The freq is an upper bound. opp should be lower */
-		opp = opp_find_freq_floor(dev, freq);
+		opp = dev_pm_opp_find_freq_floor(dev, freq);
 
 		/* If not available, use the closest opp */
 		if (opp == ERR_PTR(-ERANGE))
-			opp = opp_find_freq_ceil(dev, freq);
+			opp = dev_pm_opp_find_freq_ceil(dev, freq);
 	} else {
 		/* The freq is an lower bound. opp should be higher */
-		opp = opp_find_freq_ceil(dev, freq);
+		opp = dev_pm_opp_find_freq_ceil(dev, freq);
 
 		/* If not available, use the closest opp */
 		if (opp == ERR_PTR(-ERANGE))
-			opp = opp_find_freq_floor(dev, freq);
+			opp = dev_pm_opp_find_freq_floor(dev, freq);
 	}
 
 	return opp;
@@ -1066,7 +1066,7 @@ int devfreq_register_opp_notifier(struct device *dev, struct devfreq *devfreq)
 	int ret = 0;
 
 	rcu_read_lock();
-	nh = opp_get_notifier(dev);
+	nh = dev_pm_opp_get_notifier(dev);
 	if (IS_ERR(nh))
 		ret = PTR_ERR(nh);
 	rcu_read_unlock();
@@ -1092,7 +1092,7 @@ int devfreq_unregister_opp_notifier(struct device *dev, struct devfreq *devfreq)
 	int ret = 0;
 
 	rcu_read_lock();
-	nh = opp_get_notifier(dev);
+	nh = dev_pm_opp_get_notifier(dev);
 	if (IS_ERR(nh))
 		ret = PTR_ERR(nh);
 	rcu_read_unlock();
