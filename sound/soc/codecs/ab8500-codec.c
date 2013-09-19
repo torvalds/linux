@@ -2527,12 +2527,10 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Override HW-defaults */
-	ab8500_codec_write_reg(codec,
-				AB8500_ANACONF5,
-				BIT(AB8500_ANACONF5_HSAUTOEN));
-	ab8500_codec_write_reg(codec,
-				AB8500_SHORTCIRCONF,
-				BIT(AB8500_SHORTCIRCONF_HSZCDDIS));
+	snd_soc_write(codec, AB8500_ANACONF5,
+		      BIT(AB8500_ANACONF5_HSAUTOEN));
+	snd_soc_write(codec, AB8500_SHORTCIRCONF,
+		      BIT(AB8500_SHORTCIRCONF_HSZCDDIS));
 
 	/* Add filter controls */
 	status = snd_soc_add_codec_controls(codec, ab8500_filter_controls,
