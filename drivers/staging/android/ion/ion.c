@@ -432,22 +432,16 @@ static bool ion_handle_validate(struct ion_client *client, struct ion_handle *ha
 
 static int ion_handle_add(struct ion_client *client, struct ion_handle *handle)
 {
-	int rc;
+	int id;
 	struct rb_node **p = &client->handles.rb_node;
 	struct rb_node *parent = NULL;
 	struct ion_handle *entry;
 
-	do {
-		int id;
-		rc = idr_pre_get(&client->idr, GFP_KERNEL);
-		if (!rc)
-			return -ENOMEM;
-		rc = idr_get_new_above(&client->idr, handle, 1, &id);
-		handle->id = id;
-	} while (rc == -EAGAIN);
+	id = idr_alloc(&client->idr, handle, 1, 0, GFP_KERNEL);
+	if (id < 0)
+		return id;
 
-	if (rc < 0)
-		return rc;
+	handle->id = id;
 
 	while (*p) {
 		parent = *p;
@@ -786,7 +780,6 @@ void ion_client_destroy(struct ion_client *client)
 		ion_handle_destroy(&handle->ref);
 	}
 
-	idr_remove_all(&client->idr);
 	idr_destroy(&client->idr);
 
 	down_write(&dev->lock);
