@@ -841,6 +841,9 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 
 	dev_dbg(hsotg->dev, "%s: DxEPCTL=0x%08x\n",
 		__func__, readl(hsotg->regs + epctrl_reg));
+
+	/* enable ep interrupts */
+	s3c_hsotg_ctrl_epint(hsotg, hs_ep->index, hs_ep->dir_in, 1);
 }
 
 /**
@@ -1814,8 +1817,16 @@ static int s3c_hsotg_trytx(struct s3c_hsotg *hsotg,
 {
 	struct s3c_hsotg_req *hs_req = hs_ep->req;
 
-	if (!hs_ep->dir_in || !hs_req)
+	if (!hs_ep->dir_in || !hs_req) {
+		/**
+		 * if request is not enqueued, we disable interrupts
+		 * for endpoints, excepting ep0
+		 */
+		if (hs_ep->index != 0)
+			s3c_hsotg_ctrl_epint(hsotg, hs_ep->index,
+					     hs_ep->dir_in, 0);
 		return 0;
+	}
 
 	if (hs_req->req.actual < hs_req->req.length) {
 		dev_dbg(hsotg->dev, "trying to write more for ep%d\n",
