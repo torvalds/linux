@@ -48,15 +48,15 @@ eb_create(struct drm_i915_gem_execbuffer2 *args, struct i915_address_space *vm)
 	struct eb_vmas *eb = NULL;
 
 	if (args->flags & I915_EXEC_HANDLE_LUT) {
-		int size = args->buffer_count;
+		unsigned size = args->buffer_count;
 		size *= sizeof(struct i915_vma *);
 		size += sizeof(struct eb_vmas);
 		eb = kmalloc(size, GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
 	}
 
 	if (eb == NULL) {
-		int size = args->buffer_count;
-		int count = PAGE_SIZE / sizeof(struct hlist_head) / 2;
+		unsigned size = args->buffer_count;
+		unsigned count = PAGE_SIZE / sizeof(struct hlist_head) / 2;
 		BUILD_BUG_ON_NOT_POWER_OF_2(PAGE_SIZE / sizeof(struct hlist_head));
 		while (count > 2*size)
 			count >>= 1;
@@ -667,7 +667,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	bool need_relocs;
 	int *reloc_offset;
 	int i, total, ret;
-	int count = args->buffer_count;
+	unsigned count = args->buffer_count;
 
 	if (WARN_ON(list_empty(&eb->vmas)))
 		return 0;
@@ -818,8 +818,8 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 		   int count)
 {
 	int i;
-	int relocs_total = 0;
-	int relocs_max = INT_MAX / sizeof(struct drm_i915_gem_relocation_entry);
+	unsigned relocs_total = 0;
+	unsigned relocs_max = UINT_MAX / sizeof(struct drm_i915_gem_relocation_entry);
 
 	for (i = 0; i < count; i++) {
 		char __user *ptr = to_user_ptr(exec[i].relocs_ptr);
