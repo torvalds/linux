@@ -58,7 +58,7 @@
 #include <net/ipv6.h>
 #include <net/ip.h>
 #include <net/dsa.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 __setup("ether=", netdev_boot_setup);
 
@@ -133,7 +133,7 @@ int eth_rebuild_header(struct sk_buff *skb)
 		return arp_find(eth->h_dest, skb);
 #endif
 	default:
-		printk(KERN_DEBUG
+		netdev_dbg(dev,
 		       "%s: unable to resolve type %X addresses.\n",
 		       dev->name, ntohs(eth->h_proto));
 
@@ -178,7 +178,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 *      seems to set IFF_PROMISC.
 	 */
 
-	else if (1 /*dev->flags&IFF_PROMISC */ ) {
+	else if (1 /*dev->flags&IFF_PROMISC */) {
 		if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
 						      dev->dev_addr)))
 			skb->pkt_type = PACKET_OTHERHOST;
