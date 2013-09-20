@@ -93,6 +93,13 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	int r = 0;
 	int hpsize = MMU_PAGE_4K;
 	bool writable;
+	unsigned long mmu_seq;
+	struct kvm *kvm = vcpu->kvm;
+	struct hpte_cache *cpte;
+
+	/* used to check for invalidations in progress */
+	mmu_seq = kvm->mmu_notifier_seq;
+	smp_rmb();
 
 	/* Get host physical address for gpa */
 	hpaddr = kvmppc_gfn_to_pfn(vcpu, orig_pte->raddr >> PAGE_SHIFT,
@@ -143,6 +150,14 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 
 	hash = hpt_hash(vpn, mmu_psize_defs[hpsize].shift, MMU_SEGSIZE_256M);
 
+	cpte = kvmppc_mmu_hpte_cache_next(vcpu);
+
+	spin_lock(&kvm->mmu_lock);
+	if (!cpte || mmu_notifier_retry(kvm, mmu_seq)) {
+		r = -EAGAIN;
+		goto out_unlock;
+	}
+
 map_again:
 	hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
@@ -150,7 +165,7 @@ map_again:
 	if (attempt > 1)
 		if (ppc_md.hpte_remove(hpteg) < 0) {
 			r = -1;
-			goto out;
+			goto out_unlock;
 		}
 
 	ret = ppc_md.hpte_insert(hpteg, vpn, hpaddr, rflags, vflags,
@@ -163,8 +178,6 @@ map_again:
 		attempt++;
 		goto map_again;
 	} else {
-		struct hpte_cache *pte = kvmppc_mmu_hpte_cache_next(vcpu);
-
 		trace_kvm_book3s_64_mmu_map(rflags, hpteg,
 					    vpn, hpaddr, orig_pte);
 
@@ -175,15 +188,21 @@ map_again:
 			hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 		}
 
-		pte->slot = hpteg + (ret & 7);
-		pte->host_vpn = vpn;
-		pte->pte = *orig_pte;
-		pte->pfn = hpaddr >> PAGE_SHIFT;
-		pte->pagesize = hpsize;
+		cpte->slot = hpteg + (ret & 7);
+		cpte->host_vpn = vpn;
+		cpte->pte = *orig_pte;
+		cpte->pfn = hpaddr >> PAGE_SHIFT;
+		cpte->pagesize = hpsize;
 
-		kvmppc_mmu_hpte_cache_map(vcpu, pte);
+		kvmppc_mmu_hpte_cache_map(vcpu, cpte);
+		cpte = NULL;
 	}
+
+out_unlock:
+	spin_unlock(&kvm->mmu_lock);
 	kvm_release_pfn_clean(hpaddr >> PAGE_SHIFT);
+	if (cpte)
+		kvmppc_mmu_hpte_cache_free(cpte);
 
 out:
 	return r;

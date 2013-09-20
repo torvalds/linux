@@ -142,6 +142,7 @@ extern long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr,
 
 extern void kvmppc_mmu_hpte_cache_map(struct kvm_vcpu *vcpu, struct hpte_cache *pte);
 extern struct hpte_cache *kvmppc_mmu_hpte_cache_next(struct kvm_vcpu *vcpu);
+extern void kvmppc_mmu_hpte_cache_free(struct hpte_cache *pte);
 extern void kvmppc_mmu_hpte_destroy(struct kvm_vcpu *vcpu);
 extern int kvmppc_mmu_hpte_init(struct kvm_vcpu *vcpu);
 extern void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte);

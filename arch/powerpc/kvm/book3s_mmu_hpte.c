@@ -98,6 +98,8 @@ void kvmppc_mmu_hpte_cache_map(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 			   &vcpu3s->hpte_hash_vpte_64k[index]);
 #endif
 
+	vcpu3s->hpte_cache_count++;
+
 	spin_unlock(&vcpu3s->mmu_lock);
 }
 
@@ -131,10 +133,10 @@ static void invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 #ifdef CONFIG_PPC_BOOK3S_64
 	hlist_del_init_rcu(&pte->list_vpte_64k);
 #endif
+	vcpu3s->hpte_cache_count--;
 
 	spin_unlock(&vcpu3s->mmu_lock);
 
-	vcpu3s->hpte_cache_count--;
 	call_rcu(&pte->rcu_head, free_pte_rcu);
 }
 
@@ -331,13 +333,17 @@ struct hpte_cache *kvmppc_mmu_hpte_cache_next(struct kvm_vcpu *vcpu)
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	struct hpte_cache *pte;
 
-	pte = kmem_cache_zalloc(hpte_cache, GFP_KERNEL);
-	vcpu3s->hpte_cache_count++;
-
 	if (vcpu3s->hpte_cache_count == HPTEG_CACHE_NUM)
 		kvmppc_mmu_pte_flush_all(vcpu);
 
+	pte = kmem_cache_zalloc(hpte_cache, GFP_KERNEL);
+
 	return pte;
+}
+
+void kvmppc_mmu_hpte_cache_free(struct hpte_cache *pte)
+{
+	kmem_cache_free(hpte_cache, pte);
 }
 
 void kvmppc_mmu_hpte_destroy(struct kvm_vcpu *vcpu)
