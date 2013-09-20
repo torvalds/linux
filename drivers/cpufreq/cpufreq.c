@@ -1460,6 +1460,9 @@ unsigned int cpufreq_get(unsigned int cpu)
 {
 	unsigned int ret_freq = 0;
 
+	if (cpufreq_disabled() || !cpufreq_driver)
+		return -ENOENT;
+
 	if (!down_read_trylock(&cpufreq_rwsem))
 		return 0;
 
