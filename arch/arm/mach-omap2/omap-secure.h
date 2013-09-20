@@ -65,6 +65,7 @@ extern int omap_secure_ram_reserve_memblock(void);
 extern u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
 				  u32 arg1, u32 arg2, u32 arg3, u32 arg4);
 extern u32 rx51_secure_update_aux_cr(u32 set_bits, u32 clear_bits);
+extern u32 rx51_secure_rng_call(u32 ptr, u32 count, u32 flag);
 
 #ifdef CONFIG_OMAP4_ERRATA_I688
 extern int omap_barrier_reserve_memblock(void);

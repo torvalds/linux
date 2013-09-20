@@ -3275,6 +3275,7 @@ static struct omap_clk omap36xx_clks[] = {
 static struct omap_clk omap34xx_omap36xx_clks[] = {
 	CLK(NULL,	"aes1_ick",	&aes1_ick),
 	CLK("omap_rng",	"ick",		&rng_ick),
+	CLK("omap3-rom-rng",	"ick",	&rng_ick),
 	CLK(NULL,	"sha11_ick",	&sha11_ick),
 	CLK(NULL,	"des1_ick",	&des1_ick),
 	CLK(NULL,	"cam_mclk",	&cam_mclk),

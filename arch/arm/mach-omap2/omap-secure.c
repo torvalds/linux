@@ -135,3 +135,14 @@ u32 rx51_secure_update_aux_cr(u32 set_bits, u32 clear_bits)
 				      FLAG_START_CRITICAL,
 				      1, acr, 0, 0, 0);
 }
+
+/**
+ * rx51_secure_rng_call: Routine for HW random generator
+ */
+u32 rx51_secure_rng_call(u32 ptr, u32 count, u32 flag)
+{
+	return rx51_secure_dispatcher(RX51_PPA_HWRNG,
+				      0,
+				      NO_FLAG,
+				      3, ptr, count, flag, 0);
+}
