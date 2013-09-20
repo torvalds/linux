@@ -150,24 +150,48 @@ int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 }
 
 /************* MMU Notifiers *************/
+static void do_kvm_unmap_hva(struct kvm *kvm, unsigned long start,
+			     unsigned long end)
+{
+	long i;
+	struct kvm_vcpu *vcpu;
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *memslot;
+
+	slots = kvm_memslots(kvm);
+	kvm_for_each_memslot(memslot, slots) {
+		unsigned long hva_start, hva_end;
+		gfn_t gfn, gfn_end;
+
+		hva_start = max(start, memslot->userspace_addr);
+		hva_end = min(end, memslot->userspace_addr +
+					(memslot->npages << PAGE_SHIFT));
+		if (hva_start >= hva_end)
+			continue;
+		/*
+		 * {gfn(page) | page intersects with [hva_start, hva_end)} =
+		 * {gfn, gfn+1, ..., gfn_end-1}.
+		 */
+		gfn = hva_to_gfn_memslot(hva_start, memslot);
+		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
+		kvm_for_each_vcpu(i, vcpu, kvm)
+			kvmppc_mmu_pte_pflush(vcpu, gfn << PAGE_SHIFT,
+					      gfn_end << PAGE_SHIFT);
+	}
+}
 
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
 {
 	trace_kvm_unmap_hva(hva);
 
-	/*
-	 * Flush all shadow tlb entries everywhere. This is slow, but
-	 * we are 100% sure that we catch the to be unmapped page
-	 */
-	kvm_flush_remote_tlbs(kvm);
+	do_kvm_unmap_hva(kvm, hva, hva + PAGE_SIZE);
 
 	return 0;
 }
 
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
 {
-	/* kvm_unmap_hva flushes everything anyways */
-	kvm_unmap_hva(kvm, start);
+	do_kvm_unmap_hva(kvm, start, end);
 
 	return 0;
 }
@@ -187,7 +211,7 @@ int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 {
 	/* The page will get remapped properly on its next fault */
-	kvm_unmap_hva(kvm, hva);
+	do_kvm_unmap_hva(kvm, hva, hva + PAGE_SIZE);
 }
 
 /*****************************************/
