@@ -200,203 +200,6 @@ extern void kvm_return_point(void);
 #include <asm/kvm_book3s_64.h>
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_PR
-
-static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
-{
-	return to_book3s(vcpu)->hior;
-}
-
-static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
-			unsigned long pending_now, unsigned long old_pending)
-{
-	if (pending_now)
-		vcpu->arch.shared->int_pending = 1;
-	else if (old_pending)
-		vcpu->arch.shared->int_pending = 0;
-}
-
-static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
-{
-	if ( num < 14 ) {
-		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-		svcpu->gpr[num] = val;
-		svcpu_put(svcpu);
-		to_book3s(vcpu)->shadow_vcpu->gpr[num] = val;
-	} else
-		vcpu->arch.gpr[num] = val;
-}
-
-static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
-{
-	if ( num < 14 ) {
-		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-		ulong r = svcpu->gpr[num];
-		svcpu_put(svcpu);
-		return r;
-	} else
-		return vcpu->arch.gpr[num];
-}
-
-static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	svcpu->cr = val;
-	svcpu_put(svcpu);
-	to_book3s(vcpu)->shadow_vcpu->cr = val;
-}
-
-static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	u32 r;
-	r = svcpu->cr;
-	svcpu_put(svcpu);
-	return r;
-}
-
-static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	svcpu->xer = val;
-	to_book3s(vcpu)->shadow_vcpu->xer = val;
-	svcpu_put(svcpu);
-}
-
-static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	u32 r;
-	r = svcpu->xer;
-	svcpu_put(svcpu);
-	return r;
-}
-
-static inline void kvmppc_set_ctr(struct kvm_vcpu *vcpu, ulong val)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	svcpu->ctr = val;
-	svcpu_put(svcpu);
-}
-
-static inline ulong kvmppc_get_ctr(struct kvm_vcpu *vcpu)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	ulong r;
-	r = svcpu->ctr;
-	svcpu_put(svcpu);
-	return r;
-}
-
-static inline void kvmppc_set_lr(struct kvm_vcpu *vcpu, ulong val)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	svcpu->lr = val;
-	svcpu_put(svcpu);
-}
-
-static inline ulong kvmppc_get_lr(struct kvm_vcpu *vcpu)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	ulong r;
-	r = svcpu->lr;
-	svcpu_put(svcpu);
-	return r;
-}
-
-static inline void kvmppc_set_pc(struct kvm_vcpu *vcpu, ulong val)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	svcpu->pc = val;
-	svcpu_put(svcpu);
-}
-
-static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	ulong r;
-	r = svcpu->pc;
-	svcpu_put(svcpu);
-	return r;
-}
-
-static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
-{
-	ulong pc = kvmppc_get_pc(vcpu);
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	u32 r;
-
-	/* Load the instruction manually if it failed to do so in the
-	 * exit path */
-	if (svcpu->last_inst == KVM_INST_FETCH_FAILED)
-		kvmppc_ld(vcpu, &pc, sizeof(u32), &svcpu->last_inst, false);
-
-	r = svcpu->last_inst;
-	svcpu_put(svcpu);
-	return r;
-}
-
-/*
- * Like kvmppc_get_last_inst(), but for fetching a sc instruction.
- * Because the sc instruction sets SRR0 to point to the following
- * instruction, we have to fetch from pc - 4.
- */
-static inline u32 kvmppc_get_last_sc(struct kvm_vcpu *vcpu)
-{
-	ulong pc = kvmppc_get_pc(vcpu) - 4;
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	u32 r;
-
-	/* Load the instruction manually if it failed to do so in the
-	 * exit path */
-	if (svcpu->last_inst == KVM_INST_FETCH_FAILED)
-		kvmppc_ld(vcpu, &pc, sizeof(u32), &svcpu->last_inst, false);
-
-	r = svcpu->last_inst;
-	svcpu_put(svcpu);
-	return r;
-}
-
-static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
-{
-	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	ulong r;
-	r = svcpu->fault_dar;
-	svcpu_put(svcpu);
-	return r;
-}
-
-static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
-{
-	ulong crit_raw = vcpu->arch.shared->critical;
-	ulong crit_r1 = kvmppc_get_gpr(vcpu, 1);
-	bool crit;
-
-	/* Truncate crit indicators in 32 bit mode */
-	if (!(vcpu->arch.shared->msr & MSR_SF)) {
-		crit_raw &= 0xffffffff;
-		crit_r1 &= 0xffffffff;
-	}
-
-	/* Critical section when crit == r1 */
-	crit = (crit_raw == crit_r1);
-	/* ... and we're in supervisor mode */
-	crit = crit && !(vcpu->arch.shared->msr & MSR_PR);
-
-	return crit;
-}
-#else /* CONFIG_KVM_BOOK3S_PR */
-
-static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
-{
-	return 0;
-}
-
-static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
-			unsigned long pending_now, unsigned long old_pending)
-{
-}
-
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
 	vcpu->arch.gpr[num] = val;
@@ -489,6 +292,53 @@ static inline u32 kvmppc_get_last_sc(struct kvm_vcpu *vcpu)
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault_dar;
+}
+
+#ifdef CONFIG_KVM_BOOK3S_PR
+
+static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
+{
+	return to_book3s(vcpu)->hior;
+}
+
+static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
+			unsigned long pending_now, unsigned long old_pending)
+{
+	if (pending_now)
+		vcpu->arch.shared->int_pending = 1;
+	else if (old_pending)
+		vcpu->arch.shared->int_pending = 0;
+}
+
+static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
+{
+	ulong crit_raw = vcpu->arch.shared->critical;
+	ulong crit_r1 = kvmppc_get_gpr(vcpu, 1);
+	bool crit;
+
+	/* Truncate crit indicators in 32 bit mode */
+	if (!(vcpu->arch.shared->msr & MSR_SF)) {
+		crit_raw &= 0xffffffff;
+		crit_r1 &= 0xffffffff;
+	}
+
+	/* Critical section when crit == r1 */
+	crit = (crit_raw == crit_r1);
+	/* ... and we're in supervisor mode */
+	crit = crit && !(vcpu->arch.shared->msr & MSR_PR);
+
+	return crit;
+}
+#else /* CONFIG_KVM_BOOK3S_PR */
+
+static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
+static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
+			unsigned long pending_now, unsigned long old_pending)
+{
 }
 
 static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)

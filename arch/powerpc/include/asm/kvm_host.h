@@ -463,6 +463,7 @@ struct kvm_vcpu_arch {
 	ulong dabr;
 	ulong cfar;
 	ulong ppr;
+	ulong shadow_srr1;
 #endif
 	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;

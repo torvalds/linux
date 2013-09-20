@@ -101,17 +101,12 @@ TRACE_EVENT(kvm_exit,
 	),
 
 	TP_fast_assign(
-#ifdef CONFIG_KVM_BOOK3S_PR
-		struct kvmppc_book3s_shadow_vcpu *svcpu;
-#endif
 		__entry->exit_nr	= exit_nr;
 		__entry->pc		= kvmppc_get_pc(vcpu);
 		__entry->dar		= kvmppc_get_fault_dar(vcpu);
 		__entry->msr		= vcpu->arch.shared->msr;
 #ifdef CONFIG_KVM_BOOK3S_PR
-		svcpu = svcpu_get(vcpu);
-		__entry->srr1		= svcpu->shadow_srr1;
-		svcpu_put(svcpu);
+		__entry->srr1		= vcpu->arch.shadow_srr1;
 #endif
 		__entry->last_inst	= vcpu->arch.last_inst;
 	),

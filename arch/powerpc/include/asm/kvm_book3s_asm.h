@@ -109,14 +109,14 @@ struct kvmppc_book3s_shadow_vcpu {
 	ulong gpr[14];
 	u32 cr;
 	u32 xer;
-
-	u32 fault_dsisr;
-	u32 last_inst;
 	ulong ctr;
 	ulong lr;
 	ulong pc;
+
 	ulong shadow_srr1;
 	ulong fault_dar;
+	u32 fault_dsisr;
+	u32 last_inst;
 
 #ifdef CONFIG_PPC_BOOK3S_32
 	u32     sr[16];			/* Guest SRs */
