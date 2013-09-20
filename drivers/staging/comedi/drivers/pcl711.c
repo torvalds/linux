@@ -65,10 +65,7 @@ supported.
 /*
  * I/O port register map
  */
-#define PCL711_CTR0		0x00
-#define PCL711_CTR1		0x01
-#define PCL711_CTR2		0x02
-#define PCL711_CTRCTL		0x03
+#define PCL711_TIMER_BASE	0x00
 #define PCL711_AI_LSB_REG	0x04
 #define PCL711_AI_MSB_REG	0x05
 #define PCL711_AI_MSB_DRDY	(1 << 4)
@@ -380,27 +377,15 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	pcl711_set_changain(dev, s, cmd->chanlist[0]);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/*
-		 *  Set timers
-		 *      timer chip is an 8253, with timers 1 and 2
-		 *      cascaded
-		 *  0x74 = Select Counter 1 | LSB/MSB | Mode=2 | Binary
-		 *        Mode 2 = Rate generator
-		 *
-		 *  0xb4 = Select Counter 2 | LSB/MSB | Mode=2 | Binary
-		 */
-
 		timer1 = timer2 = 0;
 		i8253_cascade_ns_to_timer(i8253_osc_base, &timer1, &timer2,
 					  &cmd->scan_begin_arg,
 					  TRIG_ROUND_NEAREST);
 
-		outb(0x74, dev->iobase + PCL711_CTRCTL);
-		outb(timer1 & 0xff, dev->iobase + PCL711_CTR1);
-		outb((timer1 >> 8) & 0xff, dev->iobase + PCL711_CTR1);
-		outb(0xb4, dev->iobase + PCL711_CTRCTL);
-		outb(timer2 & 0xff, dev->iobase + PCL711_CTR2);
-		outb((timer2 >> 8) & 0xff, dev->iobase + PCL711_CTR2);
+		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
+			   1, timer1, I8254_MODE2 | I8254_BINARY);
+		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
+			   2, timer2, I8254_MODE2 | I8254_BINARY);
 
 		/* clear pending interrupts (just in case) */
 		outb(0, dev->iobase + PCL711_CLRINTR);
