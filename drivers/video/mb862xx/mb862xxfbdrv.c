@@ -781,7 +781,6 @@ rel_reg:
 irqdisp:
 	irq_dispose_mapping(par->irq);
 fbrel:
-	dev_set_drvdata(dev, NULL);
 	framebuffer_release(info);
 	return ret;
 }
@@ -814,7 +813,6 @@ static int of_platform_mb862xx_remove(struct platform_device *ofdev)
 	iounmap(par->mmio_base);
 	iounmap(par->fb_base);
 
-	dev_set_drvdata(&ofdev->dev, NULL);
 	release_mem_region(par->res->start, res_size);
 	framebuffer_release(fbi);
 	return 0;
