@@ -38,10 +38,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include "../comedidev.h"
-
 #include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "comedi_fc.h"
 #include "8253.h"
