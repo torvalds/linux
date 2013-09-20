@@ -427,6 +427,13 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 			(features->type == WACOM_21UX2))
 		return 1;
 
+	/* Range Report */
+	if ((data[1] & 0xfe) == 0x20) {
+		input_report_key(input, BTN_TOUCH, 0);
+		input_report_abs(input, ABS_PRESSURE, 0);
+		input_report_abs(input, ABS_DISTANCE, wacom->features.distance_max);
+	}
+
 	/* Exit report */
 	if ((data[1] & 0xfe) == 0x80) {
 		if (features->quirks == WACOM_QUIRK_MULTI_INPUT)
