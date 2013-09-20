@@ -3197,8 +3197,7 @@ again:
 		if (ret)
 			goto out_put;
 
-		ret = btrfs_truncate_free_space_cache(root, trans, path,
-						      inode);
+		ret = btrfs_truncate_free_space_cache(root, trans, inode);
 		if (ret)
 			goto out_put;
 	}

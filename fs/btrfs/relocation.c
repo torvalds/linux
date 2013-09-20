@@ -3407,7 +3407,6 @@ static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
 				    struct inode *inode, u64 ino)
 {
 	struct btrfs_key key;
-	struct btrfs_path *path;
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
@@ -3432,22 +3431,14 @@ truncate:
 	if (ret)
 		goto out;
 
-	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans)) {
-		btrfs_free_path(path);
 		ret = PTR_ERR(trans);
 		goto out;
 	}
 
-	ret = btrfs_truncate_free_space_cache(root, trans, path, inode);
+	ret = btrfs_truncate_free_space_cache(root, trans, inode);
 
-	btrfs_free_path(path);
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root);
 out:
