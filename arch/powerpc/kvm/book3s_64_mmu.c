@@ -257,6 +257,8 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 	pgsize = slbe->large ? MMU_PAGE_16M : MMU_PAGE_4K;
 
+	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
+
 do_second:
 	ptegp = kvmppc_mmu_book3s_64_get_pteg(vcpu_book3s, slbe, eaddr, second);
 	if (kvm_is_error_hva(ptegp))
@@ -332,30 +334,37 @@ do_second:
 
 	/* Update PTE R and C bits, so the guest's swapper knows we used the
 	 * page */
-	if (gpte->may_read) {
-		/* Set the accessed flag */
+	if (gpte->may_read && !(r & HPTE_R_R)) {
+		/*
+		 * Set the accessed flag.
+		 * We have to write this back with a single byte write
+		 * because another vcpu may be accessing this on
+		 * non-PAPR platforms such as mac99, and this is
+		 * what real hardware does.
+		 */
+		char __user *addr = (char __user *) &pteg[i+1];
 		r |= HPTE_R_R;
+		put_user(r >> 8, addr + 6);
 	}
-	if (data && gpte->may_write) {
+	if (data && gpte->may_write && !(r & HPTE_R_C)) {
 		/* Set the dirty flag -- XXX even if not writing */
+		/* Use a single byte write */
+		char __user *addr = (char __user *) &pteg[i+1];
 		r |= HPTE_R_C;
+		put_user(r, addr + 7);
 	}
 
-	/* Write back into the PTEG */
-	if (pteg[i+1] != r) {
-		pteg[i+1] = r;
-		copy_to_user((void __user *)ptegp, pteg, sizeof(pteg));
-	}
+	mutex_unlock(&vcpu->kvm->arch.hpt_mutex);
 
 	if (!gpte->may_read)
 		return -EPERM;
 	return 0;
 
 no_page_found:
+	mutex_unlock(&vcpu->kvm->arch.hpt_mutex);
 	return -ENOENT;
 
 no_seg_found:
-
 	dprintk("KVM MMU: Trigger segment fault\n");
 	return -EINVAL;
 }
@@ -520,6 +529,8 @@ static void kvmppc_mmu_book3s_64_tlbie(struct kvm_vcpu *vcpu, ulong va,
 				       bool large)
 {
 	u64 mask = 0xFFFFFFFFFULL;
+	long i;
+	struct kvm_vcpu *v;
 
 	dprintk("KVM MMU: tlbie(0x%lx)\n", va);
 
@@ -542,7 +553,9 @@ static void kvmppc_mmu_book3s_64_tlbie(struct kvm_vcpu *vcpu, ulong va,
 		if (large)
 			mask = 0xFFFFFF000ULL;
 	}
-	kvmppc_mmu_pte_vflush(vcpu, va >> 12, mask);
+	/* flush this VA on all vcpus */
+	kvm_for_each_vcpu(i, v, vcpu->kvm)
+		kvmppc_mmu_pte_vflush(v, va >> 12, mask);
 }
 
 #ifdef CONFIG_PPC_64K_PAGES

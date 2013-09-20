@@ -48,6 +48,7 @@ static int kvmppc_h_pr_enter(struct kvm_vcpu *vcpu)
 	pte_index &= ~7UL;
 	pteg_addr = get_pteg_addr(vcpu, pte_index);
 
+	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
 	copy_from_user(pteg, (void __user *)pteg_addr, sizeof(pteg));
 	hpte = pteg;
 
@@ -74,6 +75,7 @@ static int kvmppc_h_pr_enter(struct kvm_vcpu *vcpu)
 	ret = H_SUCCESS;
 
  done:
+	mutex_unlock(&vcpu->kvm->arch.hpt_mutex);
 	kvmppc_set_gpr(vcpu, 3, ret);
 
 	return EMULATE_DONE;
@@ -86,25 +88,30 @@ static int kvmppc_h_pr_remove(struct kvm_vcpu *vcpu)
 	unsigned long avpn = kvmppc_get_gpr(vcpu, 6);
 	unsigned long v = 0, pteg, rb;
 	unsigned long pte[2];
+	long int ret;
 
 	pteg = get_pteg_addr(vcpu, pte_index);
+	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
 	copy_from_user(pte, (void __user *)pteg, sizeof(pte));
 
+	ret = H_NOT_FOUND;
 	if ((pte[0] & HPTE_V_VALID) == 0 ||
 	    ((flags & H_AVPN) && (pte[0] & ~0x7fUL) != avpn) ||
-	    ((flags & H_ANDCOND) && (pte[0] & avpn) != 0)) {
-		kvmppc_set_gpr(vcpu, 3, H_NOT_FOUND);
-		return EMULATE_DONE;
-	}
+	    ((flags & H_ANDCOND) && (pte[0] & avpn) != 0))
+		goto done;
 
 	copy_to_user((void __user *)pteg, &v, sizeof(v));
 
 	rb = compute_tlbie_rb(pte[0], pte[1], pte_index);
 	vcpu->arch.mmu.tlbie(vcpu, rb, rb & 1 ? true : false);
 
-	kvmppc_set_gpr(vcpu, 3, H_SUCCESS);
+	ret = H_SUCCESS;
 	kvmppc_set_gpr(vcpu, 4, pte[0]);
 	kvmppc_set_gpr(vcpu, 5, pte[1]);
+
+ done:
+	mutex_unlock(&vcpu->kvm->arch.hpt_mutex);
+	kvmppc_set_gpr(vcpu, 3, ret);
 
 	return EMULATE_DONE;
 }
@@ -133,6 +140,7 @@ static int kvmppc_h_pr_bulk_remove(struct kvm_vcpu *vcpu)
 	int paramnr = 4;
 	int ret = H_SUCCESS;
 
+	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
 	for (i = 0; i < H_BULK_REMOVE_MAX_BATCH; i++) {
 		unsigned long tsh = kvmppc_get_gpr(vcpu, paramnr+(2*i));
 		unsigned long tsl = kvmppc_get_gpr(vcpu, paramnr+(2*i)+1);
@@ -181,6 +189,7 @@ static int kvmppc_h_pr_bulk_remove(struct kvm_vcpu *vcpu)
 		}
 		kvmppc_set_gpr(vcpu, paramnr+(2*i), tsh);
 	}
+	mutex_unlock(&vcpu->kvm->arch.hpt_mutex);
 	kvmppc_set_gpr(vcpu, 3, ret);
 
 	return EMULATE_DONE;
@@ -193,15 +202,16 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 	unsigned long avpn = kvmppc_get_gpr(vcpu, 6);
 	unsigned long rb, pteg, r, v;
 	unsigned long pte[2];
+	long int ret;
 
 	pteg = get_pteg_addr(vcpu, pte_index);
+	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
 	copy_from_user(pte, (void __user *)pteg, sizeof(pte));
 
+	ret = H_NOT_FOUND;
 	if ((pte[0] & HPTE_V_VALID) == 0 ||
-	    ((flags & H_AVPN) && (pte[0] & ~0x7fUL) != avpn)) {
-		kvmppc_set_gpr(vcpu, 3, H_NOT_FOUND);
-		return EMULATE_DONE;
-	}
+	    ((flags & H_AVPN) && (pte[0] & ~0x7fUL) != avpn))
+		goto done;
 
 	v = pte[0];
 	r = pte[1];
@@ -216,8 +226,11 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 	rb = compute_tlbie_rb(v, r, pte_index);
 	vcpu->arch.mmu.tlbie(vcpu, rb, rb & 1 ? true : false);
 	copy_to_user((void __user *)pteg, pte, sizeof(pte));
+	ret = H_SUCCESS;
 
-	kvmppc_set_gpr(vcpu, 3, H_SUCCESS);
+ done:
+	mutex_unlock(&vcpu->kvm->arch.hpt_mutex);
+	kvmppc_set_gpr(vcpu, 3, ret);
 
 	return EMULATE_DONE;
 }

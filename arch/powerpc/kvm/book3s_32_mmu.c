@@ -271,19 +271,22 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	/* Update PTE C and A bits, so the guest's swapper knows we used the
 	   page */
 	if (found) {
-		u32 oldpte = pteg[i+1];
+		u32 pte_r = pteg[i+1];
+		char __user *addr = (char __user *) &pteg[i+1];
 
-		if (pte->may_read)
-			pteg[i+1] |= PTEG_FLAG_ACCESSED;
-		if (pte->may_write)
-			pteg[i+1] |= PTEG_FLAG_DIRTY;
-		else
-			dprintk_pte("KVM: Mapping read-only page!\n");
-
-		/* Write back into the PTEG */
-		if (pteg[i+1] != oldpte)
-			copy_to_user((void __user *)ptegp, pteg, sizeof(pteg));
-
+		/*
+		 * Use single-byte writes to update the HPTE, to
+		 * conform to what real hardware does.
+		 */
+		if (pte->may_read && !(pte_r & PTEG_FLAG_ACCESSED)) {
+			pte_r |= PTEG_FLAG_ACCESSED;
+			put_user(pte_r >> 8, addr + 2);
+		}
+		if (pte->may_write && !(pte_r & PTEG_FLAG_DIRTY)) {
+			/* XXX should only set this for stores */
+			pte_r |= PTEG_FLAG_DIRTY;
+			put_user(pte_r, addr + 3);
+		}
 		return 0;
 	}
 
@@ -348,7 +351,12 @@ static void kvmppc_mmu_book3s_32_mtsrin(struct kvm_vcpu *vcpu, u32 srnum,
 
 static void kvmppc_mmu_book3s_32_tlbie(struct kvm_vcpu *vcpu, ulong ea, bool large)
 {
-	kvmppc_mmu_pte_flush(vcpu, ea, 0x0FFFF000);
+	int i;
+	struct kvm_vcpu *v;
+
+	/* flush this VA on all cpus */
+	kvm_for_each_vcpu(i, v, vcpu->kvm)
+		kvmppc_mmu_pte_flush(v, ea, 0x0FFFF000);
 }
 
 static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
