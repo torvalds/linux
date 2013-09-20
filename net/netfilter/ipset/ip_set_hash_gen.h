@@ -142,11 +142,16 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 }
 
 #ifdef IP_SET_HASH_WITH_NETS
+#if IPSET_NET_COUNT > 1
+#define __CIDR(cidr, i)		(cidr[i])
+#else
+#define __CIDR(cidr, i)		(cidr)
+#endif
 #ifdef IP_SET_HASH_WITH_NETS_PACKED
 /* When cidr is packed with nomatch, cidr - 1 is stored in the entry */
-#define CIDR(cidr)		(cidr + 1)
+#define CIDR(cidr, i)		(__CIDR(cidr, i) + 1)
 #else
-#define CIDR(cidr)		(cidr)
+#define CIDR(cidr, i)		(__CIDR(cidr, i))
 #endif
 
 #define SET_HOST_MASK(family)	(family == AF_INET ? 32 : 128)
@@ -210,6 +215,7 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #define mtype_do_data_match(d)	1
 #endif
 #define mtype_data_set_flags	IPSET_TOKEN(MTYPE, _data_set_flags)
+#define mtype_data_reset_elem	IPSET_TOKEN(MTYPE, _data_reset_elem)
 #define mtype_data_reset_flags	IPSET_TOKEN(MTYPE, _data_reset_flags)
 #define mtype_data_netmask	IPSET_TOKEN(MTYPE, _data_netmask)
 #define mtype_data_list		IPSET_TOKEN(MTYPE, _data_list)
@@ -461,6 +467,9 @@ mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 	struct mtype_elem *data;
 	u32 i;
 	int j;
+#ifdef IP_SET_HASH_WITH_NETS
+	u8 k;
+#endif
 
 	rcu_read_lock_bh();
 	t = rcu_dereference_bh(h->table);
@@ -471,8 +480,9 @@ mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 			if (ip_set_timeout_expired(ext_timeout(data, set))) {
 				pr_debug("expired %u/%u\n", i, j);
 #ifdef IP_SET_HASH_WITH_NETS
-				mtype_del_cidr(h, CIDR(data->cidr),
-					       nets_length, 0);
+				for (k = 0; k < IPSET_NET_COUNT; k++)
+					mtype_del_cidr(h, CIDR(data->cidr, k),
+						       nets_length, k);
 #endif
 				ip_set_ext_destroy(set, data);
 				if (j != n->pos - 1)
@@ -658,8 +668,12 @@ reuse_slot:
 		/* Fill out reused slot */
 		data = ahash_data(n, j, set->dsize);
 #ifdef IP_SET_HASH_WITH_NETS
-		mtype_del_cidr(h, CIDR(data->cidr), NLEN(set->family), 0);
-		mtype_add_cidr(h, CIDR(d->cidr), NLEN(set->family), 0);
+		for (i = 0; i < IPSET_NET_COUNT; i++) {
+			mtype_del_cidr(h, CIDR(data->cidr, i),
+				       NLEN(set->family), i);
+			mtype_add_cidr(h, CIDR(d->cidr, i),
+				       NLEN(set->family), i);
+		}
 #endif
 		ip_set_ext_destroy(set, data);
 	} else {
@@ -673,7 +687,9 @@ reuse_slot:
 		}
 		data = ahash_data(n, n->pos++, set->dsize);
 #ifdef IP_SET_HASH_WITH_NETS
-		mtype_add_cidr(h, CIDR(d->cidr), NLEN(set->family), 0);
+		for (i = 0; i < IPSET_NET_COUNT; i++)
+			mtype_add_cidr(h, CIDR(d->cidr, i), NLEN(set->family),
+				       i);
 #endif
 		h->elements++;
 	}
@@ -704,6 +720,9 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	struct mtype_elem *data;
 	struct hbucket *n;
 	int i, ret = -IPSET_ERR_EXIST;
+#ifdef IP_SET_HASH_WITH_NETS
+	u8 j;
+#endif
 	u32 key, multi = 0;
 
 	rcu_read_lock_bh();
@@ -725,7 +744,9 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		n->pos--;
 		h->elements--;
 #ifdef IP_SET_HASH_WITH_NETS
-		mtype_del_cidr(h, CIDR(d->cidr), NLEN(set->family), 0);
+		for (j = 0; j < IPSET_NET_COUNT; j++)
+			mtype_del_cidr(h, CIDR(d->cidr, j), NLEN(set->family),
+				       j);
 #endif
 		ip_set_ext_destroy(set, data);
 		if (n->pos + AHASH_INIT_SIZE < n->size) {
@@ -772,13 +793,26 @@ mtype_test_cidrs(struct ip_set *set, struct mtype_elem *d,
 	struct htable *t = rcu_dereference_bh(h->table);
 	struct hbucket *n;
 	struct mtype_elem *data;
+#if IPSET_NET_COUNT == 2
+	struct mtype_elem orig = *d;
+	int i, j = 0, k;
+#else
 	int i, j = 0;
+#endif
 	u32 key, multi = 0;
 	u8 nets_length = NLEN(set->family);
 
 	pr_debug("test by nets\n");
 	for (; j < nets_length && h->nets[j].nets[0] && !multi; j++) {
+#if IPSET_NET_COUNT == 2
+		mtype_data_reset_elem(d, &orig);
+		mtype_data_netmask(d, h->nets[j].cidr[0], false);
+		for (k = 0; k < nets_length && h->nets[k].nets[1] && !multi;
+		     k++) {
+			mtype_data_netmask(d, h->nets[k].cidr[1], true);
+#else
 		mtype_data_netmask(d, h->nets[j].cidr[0]);
+#endif
 		key = HKEY(d, h->initval, t->htable_bits);
 		n = hbucket(t, key);
 		for (i = 0; i < n->pos; i++) {
@@ -798,6 +832,9 @@ mtype_test_cidrs(struct ip_set *set, struct mtype_elem *d,
 				return mtype_data_match(data, ext,
 							mext, set, flags);
 		}
+#if IPSET_NET_COUNT == 2
+		}
+#endif
 	}
 	return 0;
 }
@@ -821,7 +858,10 @@ mtype_test(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 #ifdef IP_SET_HASH_WITH_NETS
 	/* If we test an IP address and not a network address,
 	 * try all possible network sizes */
-	if (CIDR(d->cidr) == SET_HOST_MASK(set->family)) {
+	for (i = 0; i < IPSET_NET_COUNT; i++)
+		if (CIDR(d->cidr, i) != SET_HOST_MASK(set->family))
+			break;
+	if (i == IPSET_NET_COUNT) {
 		ret = mtype_test_cidrs(set, d, ext, mext, flags);
 		goto out;
 	}
