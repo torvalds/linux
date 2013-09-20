@@ -13,6 +13,8 @@
  *
  */
 
+#define pr_fmt(fmt) "digital: %s: " fmt, __func__
+
 #include "digital.h"
 
 #define DIGITAL_NFC_DEP_FRAME_DIR_OUT 0xD4
@@ -313,7 +315,7 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		break;
 
 	case DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU:
-		PR_ERR("Received a ACK/NACK PDU");
+		pr_err("Received a ACK/NACK PDU");
 		rc = -EIO;
 		goto error;
 
@@ -332,7 +334,7 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 	}
 
 	if (DIGITAL_NFC_DEP_MI_BIT_SET(pfb)) {
-		PR_ERR("MI bit set. Chained PDU not supported.");
+		pr_err("MI bit set. Chained PDU not supported.");
 		rc = -EIO;
 		goto error;
 	}
@@ -424,16 +426,16 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 
 	switch (DIGITAL_NFC_DEP_PFB_TYPE(dep_req->pfb)) {
 	case DIGITAL_NFC_DEP_PFB_I_PDU:
-		PR_DBG("DIGITAL_NFC_DEP_PFB_I_PDU");
+		pr_debug("DIGITAL_NFC_DEP_PFB_I_PDU");
 		ddev->curr_nfc_dep_pni = DIGITAL_NFC_DEP_PFB_PNI(dep_req->pfb);
 		break;
 	case DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU:
-		PR_ERR("Received a ACK/NACK PDU");
+		pr_err("Received a ACK/NACK PDU");
 		rc = -EINVAL;
 		goto exit;
 		break;
 	case DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU:
-		PR_ERR("Received a SUPERVISOR PDU");
+		pr_err("Received a SUPERVISOR PDU");
 		rc = -EINVAL;
 		goto exit;
 		break;
@@ -561,7 +563,7 @@ static void digital_tg_recv_psl_req(struct nfc_digital_dev *ddev, void *arg,
 		rf_tech = NFC_DIGITAL_RF_TECH_424F;
 		break;
 	default:
-		PR_ERR("Unsuported dsi value %d", dsi);
+		pr_err("Unsuported dsi value %d", dsi);
 		goto exit;
 	}
 

@@ -13,6 +13,8 @@
  *
  */
 
+#define pr_fmt(fmt) "digital: %s: " fmt, __func__
+
 #include "digital.h"
 
 #define DIGITAL_CMD_SENS_REQ    0x26
@@ -258,7 +260,7 @@ static int digital_in_send_sdd_req(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, 2);
 	if (!skb) {
-		PR_ERR("alloc_skb failed");
+		pr_err("alloc_skb failed");
 		return -ENOMEM;
 	}
 

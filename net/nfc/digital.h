@@ -22,10 +22,8 @@
 #include <linux/crc-ccitt.h>
 #include <linux/crc-itu-t.h>
 
-#define PR_DBG(fmt, ...)  pr_debug("%s: " fmt "\n", __func__, ##__VA_ARGS__)
-#define PR_ERR(fmt, ...)  pr_err("%s: " fmt "\n", __func__, ##__VA_ARGS__)
-#define PROTOCOL_ERR(req) pr_err("%s:%d: NFC Digital Protocol error: %s\n", \
-				 __func__, __LINE__, req)
+#define PROTOCOL_ERR(req) pr_err("%d: NFC Digital Protocol error: %s\n", \
+				 __LINE__, req)
 
 #define DIGITAL_CMD_IN_SEND        0
 #define DIGITAL_CMD_TG_SEND        1
