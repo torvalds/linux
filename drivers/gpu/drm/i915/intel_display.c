@@ -9052,7 +9052,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	unsigned disable_pipes, prepare_pipes, modeset_pipes;
 	int ret = 0;
 
-	saved_mode = kmalloc(2 * sizeof(*saved_mode), GFP_KERNEL);
+	saved_mode = kcalloc(2, sizeof(*saved_mode), GFP_KERNEL);
 	if (!saved_mode)
 		return -ENOMEM;
 	saved_hwmode = saved_mode + 1;

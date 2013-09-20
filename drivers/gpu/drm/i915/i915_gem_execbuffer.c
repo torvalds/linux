@@ -1047,7 +1047,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			return -EINVAL;
 		}
 
-		cliprects = kmalloc(args->num_cliprects * sizeof(*cliprects),
+		cliprects = kcalloc(args->num_cliprects,
+				    sizeof(*cliprects),
 				    GFP_KERNEL);
 		if (cliprects == NULL) {
 			ret = -ENOMEM;

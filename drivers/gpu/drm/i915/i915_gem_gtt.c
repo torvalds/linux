@@ -336,7 +336,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
 	ppgtt->base.scratch = dev_priv->gtt.base.scratch;
-	ppgtt->pt_pages = kzalloc(sizeof(struct page *)*ppgtt->num_pd_entries,
+	ppgtt->pt_pages = kcalloc(ppgtt->num_pd_entries, sizeof(struct page *),
 				  GFP_KERNEL);
 	if (!ppgtt->pt_pages)
 		return -ENOMEM;
@@ -347,7 +347,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 			goto err_pt_alloc;
 	}
 
-	ppgtt->pt_dma_addr = kzalloc(sizeof(dma_addr_t) *ppgtt->num_pd_entries,
+	ppgtt->pt_dma_addr = kcalloc(ppgtt->num_pd_entries, sizeof(dma_addr_t),
 				     GFP_KERNEL);
 	if (!ppgtt->pt_dma_addr)
 		goto err_pt_alloc;
