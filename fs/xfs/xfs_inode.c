@@ -1663,6 +1663,58 @@ xfs_release(
 }
 
 /*
+ * xfs_inactive_truncate
+ *
+ * Called to perform a truncate when an inode becomes unlinked.
+ */
+STATIC int
+xfs_inactive_truncate(
+	struct xfs_inode *ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+
+	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
+	if (error) {
+		ASSERT(XFS_FORCED_SHUTDOWN(mp));
+		xfs_trans_cancel(tp, 0);
+		return error;
+	}
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
+
+	/*
+	 * Log the inode size first to prevent stale data exposure in the event
+	 * of a system crash before the truncate completes. See the related
+	 * comment in xfs_setattr_size() for details.
+	 */
+	ip->i_d.di_size = 0;
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+
+	error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, 0);
+	if (error)
+		goto error_trans_cancel;
+
+	ASSERT(ip->i_d.di_nextents == 0);
+
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	if (error)
+		goto error_unlock;
+
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	return 0;
+
+error_trans_cancel:
+	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
+error_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	return error;
+}
+
+/*
  * xfs_inactive
  *
  * This is called when the vnode reference count for the vnode
@@ -1679,7 +1731,6 @@ xfs_inactive(
 	int			committed;
 	struct xfs_trans	*tp;
 	struct xfs_mount	*mp;
-	struct xfs_trans_res	*resp;
 	int			error;
 	int			truncate = 0;
 
@@ -1724,35 +1775,12 @@ xfs_inactive(
 	if (error)
 		return VN_INACTIVE_CACHE;
 
-	if (S_ISLNK(ip->i_d.di_mode)) {
+	if (S_ISLNK(ip->i_d.di_mode))
 		error = xfs_inactive_symlink(ip);
-		if (error)
-			goto out;
-	}
-
-	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-	resp = truncate ? &M_RES(mp)->tr_itruncate : &M_RES(mp)->tr_ifree;
-
-	error = xfs_trans_reserve(tp, resp, 0, 0);
-	if (error) {
-		ASSERT(XFS_FORCED_SHUTDOWN(mp));
-		xfs_trans_cancel(tp, 0);
-		return VN_INACTIVE_CACHE;
-	}
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, 0);
-
-	if (truncate) {
-		ip->i_d.di_size = 0;
-		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-
-		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, 0);
-		if (error)
-			goto out_cancel;
-
-		ASSERT(ip->i_d.di_nextents == 0);
-	}
+	else if (truncate)
+		error = xfs_inactive_truncate(ip);
+	if (error)
+		goto out;
 
 	/*
 	 * If there are attributes associated with the file then blow them away
@@ -1763,31 +1791,26 @@ xfs_inactive(
 	if (ip->i_d.di_anextents > 0) {
 		ASSERT(ip->i_d.di_forkoff != 0);
 
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-		if (error)
-			goto out_unlock;
-
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-
 		error = xfs_attr_inactive(ip);
 		if (error)
 			goto out;
-
-		tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ifree, 0, 0);
-		if (error) {
-			xfs_trans_cancel(tp, 0);
-			goto out;
-		}
-
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		xfs_trans_ijoin(tp, ip, 0);
 	}
 
 	if (ip->i_afp)
 		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
 
 	ASSERT(ip->i_d.di_anextents == 0);
+
+	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ifree, 0, 0);
+	if (error) {
+		ASSERT(XFS_FORCED_SHUTDOWN(mp));
+		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES);
+		goto out;
+	}
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
 
 	/*
 	 * Free the inode.
@@ -1831,13 +1854,9 @@ xfs_inactive(
 	 * Release the dquots held by inode, if any.
 	 */
 	xfs_qm_dqdetach(ip);
-out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out:
 	return VN_INACTIVE_CACHE;
-out_cancel:
-	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
-	goto out_unlock;
 }
 
 /*
