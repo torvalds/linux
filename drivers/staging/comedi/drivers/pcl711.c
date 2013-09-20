@@ -431,17 +431,17 @@ static int pcl711_ao_insn_write(struct comedi_device *dev,
 
 static int pcl711_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct pcl711_private *devpriv = dev->private;
-	int n;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_readback[chan];
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_readback[chan];
 
-	return n;
-
+	return insn->n;
 }
 
 /* Digital port read - Untested on 8112 */
