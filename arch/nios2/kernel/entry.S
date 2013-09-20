@@ -464,8 +464,8 @@ ENTRY(sys_sigreturn)
 	ret
 
 ENTRY(sys_rt_sigreturn)
-	SAVE_SWITCH_STACK
 	mov	r4, sp
+	SAVE_SWITCH_STACK
 	call	do_rt_sigreturn
 	RESTORE_SWITCH_STACK
 	addi	ra, ra, (end_translate_rc_and_ret - translate_rc_and_ret)
