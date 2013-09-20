@@ -78,7 +78,10 @@ supported.
 #define PCL711_DI_HI		0x07
 #define PCL711_CLRINTR		0x08
 #define PCL711_GAIN		0x09
-#define PCL711_MUX		0x0a
+#define PCL711_MUX_REG		0x0a
+#define PCL711_MUX_CHAN(x)	(((x) & 0xf) << 0)
+#define PCL711_MUX_CS0		(1 << 4)
+#define PCL711_MUX_CS1		(1 << 5)
 #define PCL711_MODE		0x0b
 #define PCL711_SOFTTRIG		0x0c
 #define PCL711_DO_LO		0x0d
@@ -220,32 +223,24 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void pcl711_set_changain(struct comedi_device *dev, int chan)
+static void pcl711_set_changain(struct comedi_device *dev,
+				unsigned int chanspec)
 {
 	const struct pcl711_board *board = comedi_board(dev);
-	int chan_register;
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int mux = 0;
 
-	outb(CR_RANGE(chan), dev->iobase + PCL711_GAIN);
-
-	chan_register = CR_CHAN(chan);
+	outb(range, dev->iobase + PCL711_GAIN);
 
 	if (board->is_8112) {
-
-		/*
-		 *  Set the correct channel.  The two channel banks are switched
-		 *  using the mask value.
-		 *  NB: To use differential channels, you should use
-		 *  mask = 0x30, but I haven't written the support for this
-		 *  yet. /JJ
-		 */
-
-		if (chan_register >= 8)
-			chan_register = 0x20 | (chan_register & 0x7);
+		/* Select the correct MPC508A chip */
+		if (chan < 8)
+			mux |= PCL711_MUX_CS0;
 		else
-			chan_register |= 0x10;
-	} else {
-		outb(chan_register, dev->iobase + PCL711_MUX);
+			mux |= PCL711_MUX_CS1;
 	}
+	outb(mux | PCL711_MUX_CHAN(chan), dev->iobase + PCL711_MUX_REG);
 }
 
 static int pcl711_ai_wait_for_eoc(struct comedi_device *dev,
