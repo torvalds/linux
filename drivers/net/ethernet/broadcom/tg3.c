@@ -17068,10 +17068,6 @@ static int tg3_test_dma(struct tg3 *tp)
 
 	tw32(TG3PCI_DMA_RW_CTRL, tp->dma_rwctrl);
 
-#if 0
-	/* Unneeded, already done by tg3_get_invariants.  */
-	tg3_switch_clocks(tp);
-#endif
 
 	if (tg3_asic_rev(tp) != ASIC_REV_5700 &&
 	    tg3_asic_rev(tp) != ASIC_REV_5701)
@@ -17099,20 +17095,6 @@ static int tg3_test_dma(struct tg3 *tp)
 			break;
 		}
 
-#if 0
-		/* validate data reached card RAM correctly. */
-		for (i = 0; i < TEST_BUFFER_SIZE / sizeof(u32); i++) {
-			u32 val;
-			tg3_read_mem(tp, 0x2100 + (i*4), &val);
-			if (le32_to_cpu(val) != p[i]) {
-				dev_err(&tp->pdev->dev,
-					"%s: Buffer corrupted on device! "
-					"(%d != %d)\n", __func__, val, i);
-				/* ret = -ENODEV here? */
-			}
-			p[i] = 0;
-		}
-#endif
 		/* Now read it back. */
 		ret = tg3_do_test_dma(tp, buf, buf_dma, TEST_BUFFER_SIZE, false);
 		if (ret) {
