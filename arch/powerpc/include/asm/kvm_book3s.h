@@ -66,6 +66,7 @@ struct hpte_cache {
 	u64 pfn;
 	ulong slot;
 	struct kvmppc_pte pte;
+	int pagesize;
 };
 
 struct kvmppc_vcpu_book3s {
@@ -113,8 +114,9 @@ struct kvmppc_vcpu_book3s {
 #define CONTEXT_GUEST		1
 #define CONTEXT_GUEST_END	2
 
-#define VSID_REAL	0x0fffffffffc00000ULL
-#define VSID_BAT	0x0fffffffffb00000ULL
+#define VSID_REAL	0x07ffffffffc00000ULL
+#define VSID_BAT	0x07ffffffffb00000ULL
+#define VSID_64K	0x0800000000000000ULL
 #define VSID_1T		0x1000000000000000ULL
 #define VSID_REAL_DR	0x2000000000000000ULL
 #define VSID_REAL_IR	0x4000000000000000ULL

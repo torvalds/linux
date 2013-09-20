@@ -542,6 +542,16 @@ static void kvmppc_mmu_book3s_64_tlbie(struct kvm_vcpu *vcpu, ulong va,
 	kvmppc_mmu_pte_vflush(vcpu, va >> 12, mask);
 }
 
+#ifdef CONFIG_PPC_64K_PAGES
+static int segment_contains_magic_page(struct kvm_vcpu *vcpu, ulong esid)
+{
+	ulong mp_ea = vcpu->arch.magic_page_ea;
+
+	return mp_ea && !(vcpu->arch.shared->msr & MSR_PR) &&
+		(mp_ea >> SID_SHIFT) == esid;
+}
+#endif
+
 static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid)
 {
@@ -549,11 +559,13 @@ static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 	struct kvmppc_slb *slb;
 	u64 gvsid = esid;
 	ulong mp_ea = vcpu->arch.magic_page_ea;
+	int pagesize = MMU_PAGE_64K;
 
 	if (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
 		slb = kvmppc_mmu_book3s_64_find_slbe(vcpu, ea);
 		if (slb) {
 			gvsid = slb->vsid;
+			pagesize = slb->base_page_size;
 			if (slb->tb) {
 				gvsid <<= SID_SHIFT_1T - SID_SHIFT;
 				gvsid |= esid & ((1ul << (SID_SHIFT_1T - SID_SHIFT)) - 1);
@@ -564,28 +576,41 @@ static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 
 	switch (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
 	case 0:
-		*vsid = VSID_REAL | esid;
+		gvsid = VSID_REAL | esid;
 		break;
 	case MSR_IR:
-		*vsid = VSID_REAL_IR | gvsid;
+		gvsid |= VSID_REAL_IR;
 		break;
 	case MSR_DR:
-		*vsid = VSID_REAL_DR | gvsid;
+		gvsid |= VSID_REAL_DR;
 		break;
 	case MSR_DR|MSR_IR:
 		if (!slb)
 			goto no_slb;
 
-		*vsid = gvsid;
 		break;
 	default:
 		BUG();
 		break;
 	}
 
-	if (vcpu->arch.shared->msr & MSR_PR)
-		*vsid |= VSID_PR;
+#ifdef CONFIG_PPC_64K_PAGES
+	/*
+	 * Mark this as a 64k segment if the host is using
+	 * 64k pages, the host MMU supports 64k pages and
+	 * the guest segment page size is >= 64k,
+	 * but not if this segment contains the magic page.
+	 */
+	if (pagesize >= MMU_PAGE_64K &&
+	    mmu_psize_defs[MMU_PAGE_64K].shift &&
+	    !segment_contains_magic_page(vcpu, esid))
+		gvsid |= VSID_64K;
+#endif
 
+	if (vcpu->arch.shared->msr & MSR_PR)
+		gvsid |= VSID_PR;
+
+	*vsid = gvsid;
 	return 0;
 
 no_slb:

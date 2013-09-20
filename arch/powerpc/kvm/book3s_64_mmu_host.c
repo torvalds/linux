@@ -34,7 +34,7 @@
 void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
 	ppc_md.hpte_invalidate(pte->slot, pte->host_vpn,
-			       MMU_PAGE_4K, MMU_PAGE_4K, MMU_SEGSIZE_256M,
+			       pte->pagesize, pte->pagesize, MMU_SEGSIZE_256M,
 			       false);
 }
 
@@ -90,6 +90,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 	int attempt = 0;
 	struct kvmppc_sid_map *map;
 	int r = 0;
+	int hpsize = MMU_PAGE_4K;
 
 	/* Get host physical address for gpa */
 	hpaddr = kvmppc_gfn_to_pfn(vcpu, orig_pte->raddr >> PAGE_SHIFT);
@@ -99,7 +100,6 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 		goto out;
 	}
 	hpaddr <<= PAGE_SHIFT;
-	hpaddr |= orig_pte->raddr & (~0xfffULL & ~PAGE_MASK);
 
 	/* and write the mapping ea -> hpa into the pt */
 	vcpu->arch.mmu.esid_to_vsid(vcpu, orig_pte->eaddr >> SID_SHIFT, &vsid);
@@ -117,8 +117,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 		goto out;
 	}
 
-	vsid = map->host_vsid;
-	vpn = hpt_vpn(orig_pte->eaddr, vsid, MMU_SEGSIZE_256M);
+	vpn = hpt_vpn(orig_pte->eaddr, map->host_vsid, MMU_SEGSIZE_256M);
 
 	if (!orig_pte->may_write)
 		rflags |= HPTE_R_PP;
@@ -130,7 +129,16 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 	else
 		kvmppc_mmu_flush_icache(hpaddr >> PAGE_SHIFT);
 
-	hash = hpt_hash(vpn, PTE_SIZE, MMU_SEGSIZE_256M);
+	/*
+	 * Use 64K pages if possible; otherwise, on 64K page kernels,
+	 * we need to transfer 4 more bits from guest real to host real addr.
+	 */
+	if (vsid & VSID_64K)
+		hpsize = MMU_PAGE_64K;
+	else
+		hpaddr |= orig_pte->raddr & (~0xfffULL & ~PAGE_MASK);
+
+	hash = hpt_hash(vpn, mmu_psize_defs[hpsize].shift, MMU_SEGSIZE_256M);
 
 map_again:
 	hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
@@ -143,7 +151,7 @@ map_again:
 		}
 
 	ret = ppc_md.hpte_insert(hpteg, vpn, hpaddr, rflags, vflags,
-				 MMU_PAGE_4K, MMU_PAGE_4K, MMU_SEGSIZE_256M);
+				 hpsize, hpsize, MMU_SEGSIZE_256M);
 
 	if (ret < 0) {
 		/* If we couldn't map a primary PTE, try a secondary */
@@ -168,6 +176,7 @@ map_again:
 		pte->host_vpn = vpn;
 		pte->pte = *orig_pte;
 		pte->pfn = hpaddr >> PAGE_SHIFT;
+		pte->pagesize = hpsize;
 
 		kvmppc_mmu_hpte_cache_map(vcpu, pte);
 	}
@@ -290,6 +299,12 @@ int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr)
 	slb_vsid |= (map->host_vsid << 12);
 	slb_vsid &= ~SLB_VSID_KP;
 	slb_esid |= slb_index;
+
+#ifdef CONFIG_PPC_64K_PAGES
+	/* Set host segment base page size to 64K if possible */
+	if (gvsid & VSID_64K)
+		slb_vsid |= mmu_psize_defs[MMU_PAGE_64K].sllp;
+#endif
 
 	svcpu->slb[slb_index].esid = slb_esid;
 	svcpu->slb[slb_index].vsid = slb_vsid;

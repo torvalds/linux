@@ -308,6 +308,7 @@ static int kvmppc_mmu_book3s_32_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	ulong mp_ea = vcpu->arch.magic_page_ea;
 
 	pte->eaddr = eaddr;
+	pte->page_size = MMU_PAGE_4K;
 
 	/* Magic page override */
 	if (unlikely(mp_ea) &&

@@ -422,6 +422,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		pte.raddr = eaddr & KVM_PAM;
 		pte.eaddr = eaddr;
 		pte.vpage = eaddr >> 12;
+		pte.page_size = MMU_PAGE_64K;
 	}
 
 	switch (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
