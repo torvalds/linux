@@ -563,7 +563,6 @@ static void bt878_remove(struct pci_dev *pci_dev)
 	bt->shutdown = 1;
 	bt878_mem_free(bt);
 
-	pci_set_drvdata(pci_dev, NULL);
 	pci_disable_device(pci_dev);
 	return;
 }
