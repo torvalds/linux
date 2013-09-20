@@ -112,6 +112,7 @@ struct mrp_applicant {
 	struct mrp_application	*app;
 	struct net_device	*dev;
 	struct timer_list	join_timer;
+	struct timer_list	periodic_timer;
 
 	spinlock_t		lock;
 	struct sk_buff_head	queue;
