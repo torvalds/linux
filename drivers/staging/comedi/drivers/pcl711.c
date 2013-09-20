@@ -278,27 +278,29 @@ static int pcl711_ai_wait_for_eoc(struct comedi_device *dev,
 	return -ETIME;
 }
 
-static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int pcl711_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	int ret;
-	int n;
+	int i;
 
 	pcl711_set_changain(dev, insn->chanspec);
 
 	pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
 		outb(PCL711_SOFTTRIG, dev->iobase + PCL711_SOFTTRIG_REG);
 
 		ret = pcl711_ai_wait_for_eoc(dev, 100);
 		if (ret)
 			return ret;
 
-		data[n] = pcl711_ai_get_sample(dev, s);
+		data[i] = pcl711_ai_get_sample(dev, s);
 	}
 
-	return n;
+	return insn->n;
 }
 
 static int pcl711_ai_cmdtest(struct comedi_device *dev,
@@ -530,7 +532,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan	= board->n_aichan;
 	s->maxdata	= 0xfff;
 	s->range_table	= board->ai_range_type;
-	s->insn_read	= pcl711_ai_insn;
+	s->insn_read	= pcl711_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags	|= SDF_CMD_READ;
