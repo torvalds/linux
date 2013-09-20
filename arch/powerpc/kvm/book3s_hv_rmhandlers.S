@@ -509,7 +509,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	beq	20b
 
 	/* Set LPCR and RMOR. */
-10:	ld	r8,KVM_LPCR(r9)
+10:	ld	r8,VCORE_LPCR(r5)
 	mtspr	SPRN_LPCR,r8
 	ld	r8,KVM_RMOR(r9)
 	mtspr	SPRN_RMOR,r8
@@ -571,7 +571,8 @@ toc_tlbie_lock:
 	bne	24b
 	isync
 
-	ld	r7,KVM_LPCR(r9)		/* use kvm->arch.lpcr to store HID4 */
+	ld	r5,HSTATE_KVM_VCORE(r13)
+	ld	r7,VCORE_LPCR(r5)	/* use vcore->lpcr to store HID4 */
 	li	r0,0x18f
 	rotldi	r0,r0,HID4_LPID5_SH	/* all lpid bits in HID4 = 1 */
 	or	r0,r7,r0

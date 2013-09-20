@@ -172,6 +172,8 @@ extern long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 			unsigned long *hpret);
 extern long kvmppc_hv_get_dirty_log(struct kvm *kvm,
 			struct kvm_memory_slot *memslot, unsigned long *map);
+extern void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr,
+			unsigned long mask);
 
 extern void kvmppc_entry_trampoline(void);
 extern void kvmppc_hv_entry_trampoline(void);

@@ -1512,9 +1512,8 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 
 				kvm->arch.vrma_slb_v = senc | SLB_VSID_B_1T |
 					(VRMA_VSID << SLB_VSID_SHIFT_1T);
-				lpcr = kvm->arch.lpcr & ~LPCR_VRMASD;
-				lpcr |= senc << (LPCR_VRMASD_SH - 4);
-				kvm->arch.lpcr = lpcr;
+				lpcr = senc << (LPCR_VRMASD_SH - 4);
+				kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
 				rma_setup = 1;
 			}
 			++i;

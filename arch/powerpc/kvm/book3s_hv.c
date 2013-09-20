@@ -195,7 +195,7 @@ void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 		pr_err("  ESID = %.16llx VSID = %.16llx\n",
 		       vcpu->arch.slb[r].orige, vcpu->arch.slb[r].origv);
 	pr_err("lpcr = %.16lx sdr1 = %.16lx last_inst = %.8x\n",
-	       vcpu->kvm->arch.lpcr, vcpu->kvm->arch.sdr1,
+	       vcpu->arch.vcore->lpcr, vcpu->kvm->arch.sdr1,
 	       vcpu->arch.last_inst);
 }
 
@@ -723,6 +723,21 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static void kvmppc_set_lpcr(struct kvm_vcpu *vcpu, u64 new_lpcr)
+{
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	u64 mask;
+
+	spin_lock(&vc->lock);
+	/*
+	 * Userspace can only modify DPFD (default prefetch depth),
+	 * ILE (interrupt little-endian) and TC (translation control).
+	 */
+	mask = LPCR_DPFD | LPCR_ILE | LPCR_TC;
+	vc->lpcr = (vc->lpcr & ~mask) | (new_lpcr & mask);
+	spin_unlock(&vc->lock);
+}
+
 int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 {
 	int r = 0;
@@ -804,6 +819,9 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 		break;
 	case KVM_REG_PPC_TB_OFFSET:
 		*val = get_reg_val(id, vcpu->arch.vcore->tb_offset);
+		break;
+	case KVM_REG_PPC_LPCR:
+		*val = get_reg_val(id, vcpu->arch.vcore->lpcr);
 		break;
 	default:
 		r = -EINVAL;
@@ -909,6 +927,9 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 		vcpu->arch.vcore->tb_offset =
 			ALIGN(set_reg_val(id, *val), 1UL << 24);
 		break;
+	case KVM_REG_PPC_LPCR:
+		kvmppc_set_lpcr(vcpu, set_reg_val(id, *val));
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -969,6 +990,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 			spin_lock_init(&vcore->lock);
 			init_waitqueue_head(&vcore->wq);
 			vcore->preempt_tb = TB_NIL;
+			vcore->lpcr = kvm->arch.lpcr;
 		}
 		kvm->arch.vcores[core] = vcore;
 		kvm->arch.online_vcores++;
@@ -1758,6 +1780,32 @@ void kvmppc_core_commit_memory_region(struct kvm *kvm,
 	}
 }
 
+/*
+ * Update LPCR values in kvm->arch and in vcores.
+ * Caller must hold kvm->lock.
+ */
+void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr, unsigned long mask)
+{
+	long int i;
+	u32 cores_done = 0;
+
+	if ((kvm->arch.lpcr & mask) == lpcr)
+		return;
+
+	kvm->arch.lpcr = (kvm->arch.lpcr & ~mask) | lpcr;
+
+	for (i = 0; i < KVM_MAX_VCORES; ++i) {
+		struct kvmppc_vcore *vc = kvm->arch.vcores[i];
+		if (!vc)
+			continue;
+		spin_lock(&vc->lock);
+		vc->lpcr = (vc->lpcr & ~mask) | lpcr;
+		spin_unlock(&vc->lock);
+		if (++cores_done >= kvm->arch.online_vcores)
+			break;
+	}
+}
+
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 {
 	int err = 0;
@@ -1766,7 +1814,8 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	unsigned long hva;
 	struct kvm_memory_slot *memslot;
 	struct vm_area_struct *vma;
-	unsigned long lpcr, senc;
+	unsigned long lpcr = 0, senc;
+	unsigned long lpcr_mask = 0;
 	unsigned long psize, porder;
 	unsigned long rma_size;
 	unsigned long rmls;
@@ -1831,9 +1880,9 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		senc = slb_pgsize_encoding(psize);
 		kvm->arch.vrma_slb_v = senc | SLB_VSID_B_1T |
 			(VRMA_VSID << SLB_VSID_SHIFT_1T);
-		lpcr = kvm->arch.lpcr & ~LPCR_VRMASD;
-		lpcr |= senc << (LPCR_VRMASD_SH - 4);
-		kvm->arch.lpcr = lpcr;
+		lpcr_mask = LPCR_VRMASD;
+		/* the -4 is to account for senc values starting at 0x10 */
+		lpcr = senc << (LPCR_VRMASD_SH - 4);
 
 		/* Create HPTEs in the hash page table for the VRMA */
 		kvmppc_map_vrma(vcpu, memslot, porder);
@@ -1854,23 +1903,21 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		kvm->arch.rma = ri;
 
 		/* Update LPCR and RMOR */
-		lpcr = kvm->arch.lpcr;
 		if (cpu_has_feature(CPU_FTR_ARCH_201)) {
 			/* PPC970; insert RMLS value (split field) in HID4 */
-			lpcr &= ~((1ul << HID4_RMLS0_SH) |
-				  (3ul << HID4_RMLS2_SH));
-			lpcr |= ((rmls >> 2) << HID4_RMLS0_SH) |
+			lpcr_mask = (1ul << HID4_RMLS0_SH) |
+				(3ul << HID4_RMLS2_SH) | HID4_RMOR;
+			lpcr = ((rmls >> 2) << HID4_RMLS0_SH) |
 				((rmls & 3) << HID4_RMLS2_SH);
 			/* RMOR is also in HID4 */
 			lpcr |= ((ri->base_pfn >> (26 - PAGE_SHIFT)) & 0xffff)
 				<< HID4_RMOR_SH;
 		} else {
 			/* POWER7 */
-			lpcr &= ~(LPCR_VPM0 | LPCR_VRMA_L);
-			lpcr |= rmls << LPCR_RMLS_SH;
+			lpcr_mask = LPCR_VPM0 | LPCR_VRMA_L | LPCR_RMLS;
+			lpcr = rmls << LPCR_RMLS_SH;
 			kvm->arch.rmor = ri->base_pfn << PAGE_SHIFT;
 		}
-		kvm->arch.lpcr = lpcr;
 		pr_info("KVM: Using RMO at %lx size %lx (LPCR = %lx)\n",
 			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
 
@@ -1888,6 +1935,8 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 			spin_unlock(&kvm->arch.slot_phys_lock);
 		}
 	}
+
+	kvmppc_update_lpcr(kvm, lpcr, lpcr_mask);
 
 	/* Order updates to kvm->arch.lpcr etc. vs. rma_setup_done */
 	smp_wmb();
