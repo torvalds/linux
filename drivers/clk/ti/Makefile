@@ -7,4 +7,5 @@ obj-$(CONFIG_ARCH_OMAP3)		+= $(clk-common) interface.o clk-3xxx.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(clk-common) clk-44xx.o
 obj-$(CONFIG_SOC_OMAP5)			+= $(clk-common) clk-54xx.o
 obj-$(CONFIG_SOC_DRA7XX)		+= $(clk-common) clk-7xx.o
+obj-$(CONFIG_SOC_AM43XX)		+= $(clk-common) clk-43xx.o
 endif
