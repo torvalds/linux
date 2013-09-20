@@ -337,6 +337,11 @@ static DEFINE_PCI_DEVICE_TABLE(tg3_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_5762)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_5725)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_5727)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57764)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57767)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57787)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57782)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57786)},
 	{PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, PCI_DEVICE_ID_SYSKONNECT_9DXX)},
 	{PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, PCI_DEVICE_ID_SYSKONNECT_9MXX)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ALTIMA, PCI_DEVICE_ID_ALTIMA_AC1000)},
@@ -15761,9 +15766,12 @@ static void tg3_detect_asic_rev(struct tg3 *tp, u32 misc_ctrl_reg)
 		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 ||
 		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5719 ||
 		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5720 ||
+		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_57767 ||
+		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_57764 ||
 		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5762 ||
 		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5725 ||
-		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5727)
+		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5727 ||
+		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_57787)
 			reg = TG3PCI_GEN2_PRODID_ASICREV;
 		else if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_57781 ||
 			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57785 ||
@@ -17411,9 +17419,12 @@ static int tg3_init_one(struct pci_dev *pdev,
 	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 ||
 	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5719 ||
 	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5720 ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_57767 ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_57764 ||
 	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5762 ||
 	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5725 ||
-	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5727) {
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5727 ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_57787) {
 		tg3_flag_set(tp, ENABLE_APE);
 		tp->aperegs = pci_ioremap_bar(pdev, BAR_2);
 		if (!tp->aperegs) {
