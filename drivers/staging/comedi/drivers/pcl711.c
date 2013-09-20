@@ -142,7 +142,6 @@ static const int i8253_osc_base = 500;	/* 2 Mhz */
 struct pcl711_board {
 	const char *name;
 	unsigned int is_pcl711b:1;
-	unsigned int is_8112:1;
 	int n_aichan;
 	int n_aochan;
 	int maxirq;
@@ -164,14 +163,12 @@ static const struct pcl711_board boardtypes[] = {
 		.ai_range_type	= &range_pcl711b_ai,
 	}, {
 		.name		= "acl8112hg",
-		.is_8112	= 1,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
 		.maxirq		= 15,
 		.ai_range_type	= &range_acl8112hg_ai,
 	}, {
 		.name		= "acl8112dg",
-		.is_8112	= 1,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
 		.maxirq		= 15,
@@ -239,9 +236,9 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 }
 
 static void pcl711_set_changain(struct comedi_device *dev,
+				struct comedi_subdevice *s,
 				unsigned int chanspec)
 {
-	const struct pcl711_board *board = comedi_board(dev);
 	unsigned int chan = CR_CHAN(chanspec);
 	unsigned int range = CR_RANGE(chanspec);
 	unsigned int aref = CR_AREF(chanspec);
@@ -249,7 +246,7 @@ static void pcl711_set_changain(struct comedi_device *dev,
 
 	outb(range, dev->iobase + PCL711_GAIN);
 
-	if (board->is_8112) {
+	if (s->n_chan > 8) {
 		/* Select the correct MPC508A chip */
 		if (aref == AREF_DIFF) {
 			chan &= 0x7;
@@ -286,7 +283,7 @@ static int pcl711_ai_insn_read(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	pcl711_set_changain(dev, insn->chanspec);
+	pcl711_set_changain(dev, s, insn->chanspec);
 
 	pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
 
@@ -381,7 +378,7 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int timer1, timer2;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	pcl711_set_changain(dev, cmd->chanlist[0]);
+	pcl711_set_changain(dev, s, cmd->chanlist[0]);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/*
@@ -527,7 +524,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
-	if (board->is_8112)
+	if (board->n_aichan > 8)
 		s->subdev_flags	|= SDF_DIFF;
 	s->n_chan	= board->n_aichan;
 	s->maxdata	= 0xfff;
