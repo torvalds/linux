@@ -3268,7 +3268,6 @@ fail_free:
 	pci_disable_device(pdev);
 
 	DMESG("wlan driver load failed\n");
-	pci_set_drvdata(pdev, NULL);
 	return ret;
 }
 
