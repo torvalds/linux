@@ -298,6 +298,8 @@ do_second:
 	v = pteg[i];
 	r = pteg[i+1];
 	pp = (r & HPTE_R_PP) | key;
+	if (r & HPTE_R_PP0)
+		pp |= 8;
 
 	gpte->eaddr = eaddr;
 	gpte->vpage = kvmppc_mmu_book3s_64_ea_to_vp(vcpu, eaddr, data);
@@ -319,6 +321,7 @@ do_second:
 	case 3:
 	case 5:
 	case 7:
+	case 10:
 		gpte->may_read = true;
 		break;
 	}
