@@ -198,14 +198,14 @@ static void digital_wq_cmd(struct work_struct *work)
 		break;
 
 	default:
-		pr_err("Unknown cmd type %d", cmd->type);
+		pr_err("Unknown cmd type %d\n", cmd->type);
 		return;
 	}
 
 	if (!rc)
 		return;
 
-	pr_err("in_send_command returned err %d", rc);
+	pr_err("in_send_command returned err %d\n", rc);
 
 	mutex_lock(&ddev->cmd_lock);
 	list_del(&cmd->queue);
@@ -252,7 +252,7 @@ int digital_in_configure_hw(struct nfc_digital_dev *ddev, int type, int param)
 
 	rc = ddev->ops->in_configure_hw(ddev, type, param);
 	if (rc)
-		pr_err("in_configure_hw failed: %d", rc);
+		pr_err("in_configure_hw failed: %d\n", rc);
 
 	return rc;
 }
@@ -263,7 +263,7 @@ int digital_tg_configure_hw(struct nfc_digital_dev *ddev, int type, int param)
 
 	rc = ddev->ops->tg_configure_hw(ddev, type, param);
 	if (rc)
-		pr_err("tg_configure_hw failed: %d", rc);
+		pr_err("tg_configure_hw failed: %d\n", rc);
 
 	return rc;
 }
@@ -332,11 +332,11 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		break;
 
 	default:
-		pr_err("Invalid protocol %d", protocol);
+		pr_err("Invalid protocol %d\n", protocol);
 		return -EINVAL;
 	}
 
-	pr_debug("rf_tech=%d, protocol=%d", rf_tech, protocol);
+	pr_debug("rf_tech=%d, protocol=%d\n", rf_tech, protocol);
 
 	ddev->curr_rf_tech = rf_tech;
 	ddev->curr_protocol = protocol;
@@ -434,24 +434,24 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
 	u32 matching_im_protocols, matching_tm_protocols;
 
-	pr_debug("protocols: im 0x%x, tm 0x%x, supported 0x%x", im_protocols,
+	pr_debug("protocols: im 0x%x, tm 0x%x, supported 0x%x\n", im_protocols,
 		 tm_protocols, ddev->protocols);
 
 	matching_im_protocols = ddev->protocols & im_protocols;
 	matching_tm_protocols = ddev->protocols & tm_protocols;
 
 	if (!matching_im_protocols && !matching_tm_protocols) {
-		pr_err("No known protocol");
+		pr_err("Unknown protocol\n");
 		return -EINVAL;
 	}
 
 	if (ddev->poll_tech_count) {
-		pr_err("Already polling");
+		pr_err("Already polling\n");
 		return -EBUSY;
 	}
 
 	if (ddev->curr_protocol) {
-		pr_err("A target is already active");
+		pr_err("A target is already active\n");
 		return -EBUSY;
 	}
 
@@ -487,7 +487,7 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 	}
 
 	if (!ddev->poll_tech_count) {
-		pr_err("Unsupported protocols: im=0x%x, tm=0x%x",
+		pr_err("Unsupported protocols: im=0x%x, tm=0x%x\n",
 		       matching_im_protocols, matching_tm_protocols);
 		return -EINVAL;
 	}
@@ -504,7 +504,7 @@ static void digital_stop_poll(struct nfc_dev *nfc_dev)
 	mutex_lock(&ddev->poll_lock);
 
 	if (!ddev->poll_tech_count) {
-		pr_err("Polling operation was not running");
+		pr_err("Polling operation was not running\n");
 		mutex_unlock(&ddev->poll_lock);
 		return;
 	}
@@ -611,7 +611,7 @@ static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 
 	data_exch = kzalloc(sizeof(struct digital_data_exch), GFP_KERNEL);
 	if (!data_exch) {
-		pr_err("Failed to allocate data_exch struct");
+		pr_err("Failed to allocate data_exch struct\n");
 		return -ENOMEM;
 	}
 
@@ -653,10 +653,8 @@ struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
 		return NULL;
 
 	ddev = kzalloc(sizeof(struct nfc_digital_dev), GFP_KERNEL);
-	if (!ddev) {
-		pr_err("kzalloc failed");
+	if (!ddev)
 		return NULL;
-	}
 
 	ddev->driver_capabilities = driver_capabilities;
 	ddev->ops = ops;
@@ -686,7 +684,7 @@ struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
 					    ddev->tx_headroom,
 					    ddev->tx_tailroom);
 	if (!ddev->nfc_dev) {
-		pr_err("nfc_allocate_device failed");
+		pr_err("nfc_allocate_device failed\n");
 		goto free_dev;
 	}
 

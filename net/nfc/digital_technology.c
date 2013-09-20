@@ -259,10 +259,8 @@ static int digital_in_send_sdd_req(struct nfc_digital_dev *ddev,
 		return rc;
 
 	skb = digital_skb_alloc(ddev, 2);
-	if (!skb) {
-		pr_err("alloc_skb failed");
+	if (!skb)
 		return -ENOMEM;
-	}
 
 	if (target->nfcid1_len == 0)
 		sel_cmd = DIGITAL_CMD_SEL_REQ_CL1;
