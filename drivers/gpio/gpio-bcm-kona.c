@@ -468,18 +468,22 @@ MODULE_DEVICE_TABLE(of, bcm_kona_gpio_of_match);
  */
 static struct lock_class_key gpio_lock_class;
 
-static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int virq,
+static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 				 irq_hw_number_t hwirq)
 {
 	int ret;
 
-	ret = irq_set_chip_data(virq, d->host_data);
+	ret = irq_set_chip_data(irq, d->host_data);
 	if (ret < 0)
 		return ret;
-	irq_set_lockdep_class(virq, &gpio_lock_class);
-	irq_set_chip_and_handler(virq, &bcm_gpio_irq_chip, handle_simple_irq);
-	irq_set_nested_thread(virq, 1);
-	set_irq_flags(virq, IRQF_VALID);
+	irq_set_lockdep_class(irq, &gpio_lock_class);
+	irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip, handle_simple_irq);
+	irq_set_nested_thread(irq, 1);
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID);
+#else
+	irq_set_noprobe(irq);
+#endif
 
 	return 0;
 }
@@ -598,7 +602,11 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 		irq_set_lockdep_class(irq, &gpio_lock_class);
 		irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip,
 					 handle_simple_irq);
+#ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
+#else
+		irq_set_noprobe(irq);
+#endif
 	}
 	for (i = 0; i < kona_gpio->num_bank; i++) {
 		bank = &kona_gpio->banks[i];
