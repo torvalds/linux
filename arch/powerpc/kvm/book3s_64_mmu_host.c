@@ -96,20 +96,21 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	unsigned long mmu_seq;
 	struct kvm *kvm = vcpu->kvm;
 	struct hpte_cache *cpte;
+	unsigned long gfn = orig_pte->raddr >> PAGE_SHIFT;
+	unsigned long pfn;
 
 	/* used to check for invalidations in progress */
 	mmu_seq = kvm->mmu_notifier_seq;
 	smp_rmb();
 
 	/* Get host physical address for gpa */
-	hpaddr = kvmppc_gfn_to_pfn(vcpu, orig_pte->raddr >> PAGE_SHIFT,
-				   iswrite, &writable);
-	if (is_error_noslot_pfn(hpaddr)) {
-		printk(KERN_INFO "Couldn't get guest page for gfn %lx!\n", orig_pte->eaddr);
+	pfn = kvmppc_gfn_to_pfn(vcpu, gfn, iswrite, &writable);
+	if (is_error_noslot_pfn(pfn)) {
+		printk(KERN_INFO "Couldn't get guest page for gfn %lx!\n", gfn);
 		r = -EINVAL;
 		goto out;
 	}
-	hpaddr <<= PAGE_SHIFT;
+	hpaddr = pfn << PAGE_SHIFT;
 
 	/* and write the mapping ea -> hpa into the pt */
 	vcpu->arch.mmu.esid_to_vsid(vcpu, orig_pte->eaddr >> SID_SHIFT, &vsid);
@@ -129,15 +130,18 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 
 	vpn = hpt_vpn(orig_pte->eaddr, map->host_vsid, MMU_SEGSIZE_256M);
 
+	kvm_set_pfn_accessed(pfn);
 	if (!orig_pte->may_write || !writable)
-		rflags |= HPTE_R_PP;
-	else
-		mark_page_dirty(vcpu->kvm, orig_pte->raddr >> PAGE_SHIFT);
+		rflags |= PP_RXRX;
+	else {
+		mark_page_dirty(vcpu->kvm, gfn);
+		kvm_set_pfn_dirty(pfn);
+	}
 
 	if (!orig_pte->may_execute)
 		rflags |= HPTE_R_N;
 	else
-		kvmppc_mmu_flush_icache(hpaddr >> PAGE_SHIFT);
+		kvmppc_mmu_flush_icache(pfn);
 
 	/*
 	 * Use 64K pages if possible; otherwise, on 64K page kernels,
@@ -191,7 +195,7 @@ map_again:
 		cpte->slot = hpteg + (ret & 7);
 		cpte->host_vpn = vpn;
 		cpte->pte = *orig_pte;
-		cpte->pfn = hpaddr >> PAGE_SHIFT;
+		cpte->pfn = pfn;
 		cpte->pagesize = hpsize;
 
 		kvmppc_mmu_hpte_cache_map(vcpu, cpte);
@@ -200,7 +204,7 @@ map_again:
 
 out_unlock:
 	spin_unlock(&kvm->mmu_lock);
-	kvm_release_pfn_clean(hpaddr >> PAGE_SHIFT);
+	kvm_release_pfn_clean(pfn);
 	if (cpte)
 		kvmppc_mmu_hpte_cache_free(cpte);
 
