@@ -135,8 +135,6 @@ struct pcl711_board {
 	const char *name;
 	int is_pcl711b;
 	int is_8112;
-	int is_dg;
-	int n_ranges;
 	int n_aichan;
 	int n_aochan;
 	int maxirq;
@@ -146,14 +144,12 @@ struct pcl711_board {
 static const struct pcl711_board boardtypes[] = {
 	{
 		.name		= "pcl711",
-		.n_ranges	= 5,
 		.n_aichan	= 8,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_bipolar5,
 	}, {
 		.name		= "pcl711b",
 		.is_pcl711b	= 1,
-		.n_ranges	= 5,
 		.n_aichan	= 8,
 		.n_aochan	= 1,
 		.maxirq		= 7,
@@ -161,7 +157,6 @@ static const struct pcl711_board boardtypes[] = {
 	}, {
 		.name		= "acl8112hg",
 		.is_8112	= 1,
-		.n_ranges	= 12,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
 		.maxirq		= 15,
@@ -169,8 +164,6 @@ static const struct pcl711_board boardtypes[] = {
 	}, {
 		.name		= "acl8112dg",
 		.is_8112	= 1,
-		.is_dg		= 1,
-		.n_ranges	= 9,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
 		.maxirq		= 15,
