@@ -511,6 +511,11 @@ static inline void fscache_end_io(struct fscache_retrieval *op,
 	op->end_io_func(page, op->context, error);
 }
 
+static inline void __fscache_use_cookie(struct fscache_cookie *cookie)
+{
+	atomic_inc(&cookie->n_active);
+}
+
 /**
  * fscache_use_cookie - Request usage of cookie attached to an object
  * @object: Object description
@@ -524,6 +529,16 @@ static inline bool fscache_use_cookie(struct fscache_object *object)
 	return atomic_inc_not_zero(&cookie->n_active) != 0;
 }
 
+static inline bool __fscache_unuse_cookie(struct fscache_cookie *cookie)
+{
+	return atomic_dec_and_test(&cookie->n_active);
+}
+
+static inline void __fscache_wake_unused_cookie(struct fscache_cookie *cookie)
+{
+	wake_up_atomic_t(&cookie->n_active);
+}
+
 /**
  * fscache_unuse_cookie - Cease usage of cookie attached to an object
  * @object: Object description
@@ -534,8 +549,8 @@ static inline bool fscache_use_cookie(struct fscache_object *object)
 static inline void fscache_unuse_cookie(struct fscache_object *object)
 {
 	struct fscache_cookie *cookie = object->cookie;
-	if (atomic_dec_and_test(&cookie->n_active))
-		wake_up_atomic_t(&cookie->n_active);
+	if (__fscache_unuse_cookie(cookie))
+		__fscache_wake_unused_cookie(cookie);
 }
 
 /*
