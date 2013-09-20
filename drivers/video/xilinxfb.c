@@ -369,7 +369,6 @@ err_fbmem:
 
 err_region:
 	kfree(drvdata);
-	dev_set_drvdata(dev, NULL);
 
 	return rc;
 }
@@ -404,7 +403,6 @@ static int xilinxfb_release(struct device *dev)
 #endif
 
 	kfree(drvdata);
-	dev_set_drvdata(dev, NULL);
 
 	return 0;
 }
