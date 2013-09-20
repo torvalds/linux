@@ -27,10 +27,10 @@
 
 /* A reboot/assertion causes the MCDI status word to be set after the
  * command word is set or a REBOOT event is sent. If we notice a reboot
- * via these mechanisms then wait 20ms for the status word to be set.
+ * via these mechanisms then wait 250ms for the status word to be set.
  */
 #define MCDI_STATUS_DELAY_US		100
-#define MCDI_STATUS_DELAY_COUNT		200
+#define MCDI_STATUS_DELAY_COUNT		2500
 #define MCDI_STATUS_SLEEP_MS						\
 	(MCDI_STATUS_DELAY_US * MCDI_STATUS_DELAY_COUNT / 1000)
 
