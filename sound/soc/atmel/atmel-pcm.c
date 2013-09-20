@@ -50,7 +50,7 @@ static int atmel_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 	buf->area = dma_alloc_coherent(pcm->card->dev, size,
 			&buf->addr, GFP_KERNEL);
 	pr_debug("atmel-pcm: alloc dma buffer: area=%p, addr=%p, size=%zu\n",
-			(void *)buf->area, (void *)buf->addr, size);
+			(void *)buf->area, (void *)(long)buf->addr, size);
 
 	if (!buf->area)
 		return -ENOMEM;
