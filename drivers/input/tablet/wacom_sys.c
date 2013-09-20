@@ -978,14 +978,17 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	case INTUOS5S:
 	case INTUOS5:
 	case INTUOS5L:
-		wacom->led.select[0] = 0;
-		wacom->led.select[1] = 0;
-		wacom->led.llv = 32;
-		wacom->led.hlv = 0;
-		wacom->led.img_lum = 0;
+		if (wacom->wacom_wac.features.device_type == BTN_TOOL_PEN) {
+			wacom->led.select[0] = 0;
+			wacom->led.select[1] = 0;
+			wacom->led.llv = 32;
+			wacom->led.hlv = 0;
+			wacom->led.img_lum = 0;
 
-		error = sysfs_create_group(&wacom->intf->dev.kobj,
-					   &intuos5_led_attr_group);
+			error = sysfs_create_group(&wacom->intf->dev.kobj,
+						  &intuos5_led_attr_group);
+		} else
+			return 0;
 		break;
 
 	default:
@@ -1021,8 +1024,9 @@ static void wacom_destroy_leds(struct wacom *wacom)
 	case INTUOS5S:
 	case INTUOS5:
 	case INTUOS5L:
-		sysfs_remove_group(&wacom->intf->dev.kobj,
-				   &intuos5_led_attr_group);
+		if (wacom->wacom_wac.features.device_type == BTN_TOOL_PEN)
+			sysfs_remove_group(&wacom->intf->dev.kobj,
+					   &intuos5_led_attr_group);
 		break;
 	}
 }
