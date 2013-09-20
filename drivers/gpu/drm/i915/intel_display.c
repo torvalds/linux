@@ -5032,6 +5032,34 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 			I915_READ(LVDS) & LVDS_BORDER_ENABLE;
 }
 
+static void vlv_crtc_clock_get(struct intel_crtc *crtc,
+			       struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = pipe_config->cpu_transcoder;
+	intel_clock_t clock;
+	u32 mdiv;
+	int refclk = 100000, fastclk, update_rate;
+
+	mutex_lock(&dev_priv->dpio_lock);
+	mdiv = vlv_dpio_read(dev_priv, DPIO_DIV(pipe));
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	clock.m1 = (mdiv >> DPIO_M1DIV_SHIFT) & 7;
+	clock.m2 = mdiv & DPIO_M2DIV_MASK;
+	clock.n = (mdiv >> DPIO_N_SHIFT) & 0xf;
+	clock.p1 = (mdiv >> DPIO_P1_SHIFT) & 7;
+	clock.p2 = (mdiv >> DPIO_P2_SHIFT) & 0x1f;
+
+	update_rate = refclk / clock.n;
+	clock.vco = update_rate * clock.m1 * clock.m2;
+	fastclk = clock.vco / clock.p1 / clock.p2;
+	clock.dot = (2 * fastclk);
+
+	pipe_config->adjusted_mode.clock = clock.dot / 10;
+}
+
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 				 struct intel_crtc_config *pipe_config)
 {
@@ -9849,7 +9877,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.update_plane = ironlake_update_plane;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
-		dev_priv->display.get_clock = i9xx_crtc_clock_get;
+		dev_priv->display.get_clock = vlv_crtc_clock_get;
 		dev_priv->display.crtc_mode_set = i9xx_crtc_mode_set;
 		dev_priv->display.crtc_enable = valleyview_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
