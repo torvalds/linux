@@ -477,29 +477,18 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl711_board *board = comedi_board(dev);
 	struct pcl711_private *devpriv;
 	int ret;
-	unsigned int irq;
 	struct comedi_subdevice *s;
 
 	ret = comedi_request_region(dev, it->options[0], PCL711_SIZE);
 	if (ret)
 		return ret;
 
-	/* grab our IRQ */
-	irq = it->options[1];
-	if (irq > board->maxirq) {
-		printk(KERN_ERR "irq out of range\n");
-		return -EINVAL;
+	if (it->options[1] && it->options[1] <= board->maxirq) {
+		ret = request_irq(it->options[1], pcl711_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
-	if (irq) {
-		if (request_irq(irq, pcl711_interrupt, 0, dev->board_name,
-			        dev)) {
-			printk(KERN_ERR "unable to allocate irq %u\n", irq);
-			return -EINVAL;
-		} else {
-			printk(KERN_INFO "( irq = %u )\n", irq);
-		}
-	}
-	dev->irq = irq;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -518,7 +507,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 1;
 	s->range_table = board->ai_range_type;
 	s->insn_read = pcl711_ai_insn;
-	if (irq) {
+	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
 		s->do_cmdtest = pcl711_ai_cmdtest;
