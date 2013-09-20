@@ -70,13 +70,11 @@ supported.
 #define PCL711_CTR2		0x02
 #define PCL711_CTRCTL		0x03
 #define PCL711_AD_LO		0x04
-#define PCL711_DA0_LO		0x04
 #define PCL711_AD_HI		0x05
-#define PCL711_DA0_HI		0x05
+#define PCL711_AO_LSB_REG(x)	(0x04 + ((x) * 2))
+#define PCL711_AO_MSB_REG(x)	(0x05 + ((x) * 2))
 #define PCL711_DI_LO		0x06
-#define PCL711_DA1_LO		0x06
 #define PCL711_DI_HI		0x07
-#define PCL711_DA1_HI		0x07
 #define PCL711_CLRINTR		0x08
 #define PCL711_GAIN		0x09
 #define PCL711_MUX		0x0a
@@ -405,26 +403,30 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/*
-   analog output
-*/
-static int pcl711_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static void pcl711_ao_write(struct comedi_device *dev,
+			    unsigned int chan, unsigned int val)
+{
+	outb(val & 0xff, dev->iobase + PCL711_AO_LSB_REG(chan));
+	outb((val >> 8) & 0xff, dev->iobase + PCL711_AO_MSB_REG(chan));
+}
+
+static int pcl711_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pcl711_private *devpriv = dev->private;
-	int n;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = devpriv->ao_readback[chan];
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
-		outb((data[n] & 0xff),
-		     dev->iobase + (chan ? PCL711_DA1_LO : PCL711_DA0_LO));
-		outb((data[n] >> 8),
-		     dev->iobase + (chan ? PCL711_DA1_HI : PCL711_DA0_HI));
-
-		devpriv->ao_readback[chan] = data[n];
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		pcl711_ao_write(dev, chan, val);
 	}
+	devpriv->ao_readback[chan] = val;
 
-	return n;
+	return insn->n;
 }
 
 static int pcl711_ao_insn_read(struct comedi_device *dev,
@@ -530,7 +532,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan	= board->n_aochan;
 	s->maxdata	= 0xfff;
 	s->range_table	= &range_bipolar5;
-	s->insn_write	= pcl711_ao_insn;
+	s->insn_write	= pcl711_ao_insn_write;
 	s->insn_read	= pcl711_ao_insn_read;
 
 	/* Digital Input subdevice */
@@ -552,12 +554,8 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_bits	= pcl711_do_insn_bits;
 
 	/* clear DAC */
-	outb(0, dev->iobase + PCL711_DA0_LO);
-	outb(0, dev->iobase + PCL711_DA0_HI);
-	outb(0, dev->iobase + PCL711_DA1_LO);
-	outb(0, dev->iobase + PCL711_DA1_HI);
-
-	printk(KERN_INFO "\n");
+	pcl711_ao_write(dev, 0, 0x0);
+	pcl711_ao_write(dev, 1, 0x0);
 
 	return 0;
 }
