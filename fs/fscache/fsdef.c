@@ -59,6 +59,7 @@ struct fscache_cookie fscache_fsdef_index = {
 	.lock		= __SPIN_LOCK_UNLOCKED(fscache_fsdef_index.lock),
 	.backing_objects = HLIST_HEAD_INIT,
 	.def		= &fscache_fsdef_index_def,
+	.flags		= 1 << FSCACHE_COOKIE_ENABLED,
 };
 EXPORT_SYMBOL(fscache_fsdef_index);
 

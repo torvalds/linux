@@ -39,7 +39,7 @@ void nfs_fscache_get_client_cookie(struct nfs_client *clp)
 	/* create a cache index for looking up filehandles */
 	clp->fscache = fscache_acquire_cookie(nfs_fscache_netfs.primary_index,
 					      &nfs_fscache_server_index_def,
-					      clp);
+					      clp, true);
 	dfprintk(FSCACHE, "NFS: get client cookie (0x%p/0x%p)\n",
 		 clp, clp->fscache);
 }
@@ -139,7 +139,7 @@ void nfs_fscache_get_super_cookie(struct super_block *sb, const char *uniq, int 
 	/* create a cache index for looking up filehandles */
 	nfss->fscache = fscache_acquire_cookie(nfss->nfs_client->fscache,
 					       &nfs_fscache_super_index_def,
-					       nfss);
+					       nfss, true);
 	dfprintk(FSCACHE, "NFS: get superblock cookie (0x%p/0x%p)\n",
 		 nfss, nfss->fscache);
 	return;
@@ -200,7 +200,7 @@ static void nfs_fscache_enable_inode_cookie(struct inode *inode)
 		nfsi->fscache = fscache_acquire_cookie(
 			NFS_SB(sb)->fscache,
 			&nfs_fscache_inode_object_def,
-			nfsi);
+			nfsi, true);
 
 		dfprintk(FSCACHE, "NFS: get FH cookie (0x%p/0x%p/0x%p)\n",
 			 sb, nfsi, nfsi->fscache);
@@ -327,7 +327,7 @@ void nfs_fscache_reset_inode_cookie(struct inode *inode)
 		nfsi->fscache = fscache_acquire_cookie(
 			nfss->nfs_client->fscache,
 			&nfs_fscache_inode_object_def,
-			nfsi);
+			nfsi, true);
 
 		dfprintk(FSCACHE,
 			 "NFS: revalidation new cookie (0x%p/0x%p/0x%p/0x%p)\n",

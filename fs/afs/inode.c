@@ -259,7 +259,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 #ifdef CONFIG_AFS_FSCACHE
 	vnode->cache = fscache_acquire_cookie(vnode->volume->cache,
 					      &afs_vnode_cache_index_def,
-					      vnode);
+					      vnode, true);
 #endif
 
 	ret = afs_inode_map_status(vnode, key);
