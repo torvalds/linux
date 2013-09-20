@@ -71,6 +71,7 @@ supported.
 #define PCL711_CTRCTL		0x03
 #define PCL711_AI_LSB_REG	0x04
 #define PCL711_AI_MSB_REG	0x05
+#define PCL711_AI_MSB_DRDY	(1 << 4)
 #define PCL711_AO_LSB_REG(x)	(0x04 + ((x) * 2))
 #define PCL711_AO_MSB_REG(x)	(0x05 + ((x) * 2))
 #define PCL711_DI_LO		0x06
@@ -123,13 +124,6 @@ static const struct comedi_lrange range_acl8112dg_ai = {
 		BIP_RANGE(10)
 	}
 };
-
-/*
- * flags
- */
-
-#define PCL711_TIMEOUT 100
-#define PCL711_DRDY 0x10
 
 static const int i8253_osc_base = 500;	/* 2 Mhz */
 
@@ -254,12 +248,26 @@ static void pcl711_set_changain(struct comedi_device *dev, int chan)
 	}
 }
 
+static int pcl711_ai_wait_for_eoc(struct comedi_device *dev,
+				  unsigned int timeout)
+{
+	unsigned int msb;
+
+	while (timeout--) {
+		msb = inb(dev->iobase + PCL711_AI_MSB_REG);
+		if ((msb & PCL711_AI_MSB_DRDY) == 0)
+			return 0;
+		udelay(1);
+	}
+	return -ETIME;
+}
+
 static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	const struct pcl711_board *board = comedi_board(dev);
-	int i, n;
-	int hi;
+	int ret;
+	int n;
 
 	pcl711_set_changain(dev, insn->chanspec);
 
@@ -273,17 +281,10 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (!board->is_8112)
 			outb(0, dev->iobase + PCL711_SOFTTRIG);
 
-		i = PCL711_TIMEOUT;
-		while (--i) {
-			hi = inb(dev->iobase + PCL711_AI_MSB_REG);
-			if (!(hi & PCL711_DRDY))
-				goto ok;
-			udelay(1);
-		}
-		printk(KERN_ERR "comedi%d: pcl711: A/D timeout\n", dev->minor);
-		return -ETIME;
+		ret = pcl711_ai_wait_for_eoc(dev, 100);
+		if (ret)
+			return ret;
 
-ok:
 		data[n] = pcl711_ai_get_sample(dev, s);
 	}
 
