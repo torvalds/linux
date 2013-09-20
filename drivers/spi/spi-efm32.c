@@ -467,7 +467,6 @@ err_disable_clk:
 		clk_disable_unprepare(ddata->clk);
 err:
 		spi_master_put(master);
-		kfree(master);
 	}
 
 	return ret;
@@ -484,7 +483,6 @@ static int efm32_spi_remove(struct platform_device *pdev)
 	free_irq(ddata->rxirq, ddata);
 	clk_disable_unprepare(ddata->clk);
 	spi_master_put(master);
-	kfree(master);
 
 	return 0;
 }
