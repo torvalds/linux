@@ -131,7 +131,7 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	count = min_t(int, GEN7_L3LOG_SIZE-offset, count);
+	count = min_t(size_t, GEN7_L3LOG_SIZE - offset, count);
 
 	ret = i915_mutex_lock_interruptible(drm_dev);
 	if (ret)
