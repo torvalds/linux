@@ -68,10 +68,12 @@ extern void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 #define HPTEG_HASH_BITS_PTE_LONG	12
 #define HPTEG_HASH_BITS_VPTE		13
 #define HPTEG_HASH_BITS_VPTE_LONG	5
+#define HPTEG_HASH_BITS_VPTE_64K	11
 #define HPTEG_HASH_NUM_PTE		(1 << HPTEG_HASH_BITS_PTE)
 #define HPTEG_HASH_NUM_PTE_LONG		(1 << HPTEG_HASH_BITS_PTE_LONG)
 #define HPTEG_HASH_NUM_VPTE		(1 << HPTEG_HASH_BITS_VPTE)
 #define HPTEG_HASH_NUM_VPTE_LONG	(1 << HPTEG_HASH_BITS_VPTE_LONG)
+#define HPTEG_HASH_NUM_VPTE_64K		(1 << HPTEG_HASH_BITS_VPTE_64K)
 
 /* Physical Address Mask - allowed range of real mode RAM access */
 #define KVM_PAM			0x0fffffffffffffffULL
@@ -327,6 +329,7 @@ struct kvmppc_pte {
 	bool may_read		: 1;
 	bool may_write		: 1;
 	bool may_execute	: 1;
+	u8 page_size;		/* MMU_PAGE_xxx */
 };
 
 struct kvmppc_mmu {
@@ -359,6 +362,7 @@ struct kvmppc_slb {
 	bool large	: 1;	/* PTEs are 16MB */
 	bool tb		: 1;	/* 1TB segment */
 	bool class	: 1;
+	u8 base_page_size;	/* MMU_PAGE_xxx */
 };
 
 # ifdef CONFIG_PPC_FSL_BOOK3E

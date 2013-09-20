@@ -107,9 +107,20 @@ static u64 kvmppc_mmu_book3s_64_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
 	return kvmppc_slb_calc_vpn(slb, eaddr);
 }
 
+static int mmu_pagesize(int mmu_pg)
+{
+	switch (mmu_pg) {
+	case MMU_PAGE_64K:
+		return 16;
+	case MMU_PAGE_16M:
+		return 24;
+	}
+	return 12;
+}
+
 static int kvmppc_mmu_book3s_64_get_pagesize(struct kvmppc_slb *slbe)
 {
-	return slbe->large ? 24 : 12;
+	return mmu_pagesize(slbe->base_page_size);
 }
 
 static u32 kvmppc_mmu_book3s_64_get_page(struct kvmppc_slb *slbe, gva_t eaddr)
@@ -166,12 +177,32 @@ static u64 kvmppc_mmu_book3s_64_get_avpn(struct kvmppc_slb *slbe, gva_t eaddr)
 	avpn = kvmppc_mmu_book3s_64_get_page(slbe, eaddr);
 	avpn |= slbe->vsid << (kvmppc_slb_sid_shift(slbe) - p);
 
-	if (p < 24)
-		avpn >>= ((80 - p) - 56) - 8;
+	if (p < 16)
+		avpn >>= ((80 - p) - 56) - 8;	/* 16 - p */
 	else
-		avpn <<= 8;
+		avpn <<= p - 16;
 
 	return avpn;
+}
+
+/*
+ * Return page size encoded in the second word of a HPTE, or
+ * -1 for an invalid encoding for the base page size indicated by
+ * the SLB entry.  This doesn't handle mixed pagesize segments yet.
+ */
+static int decode_pagesize(struct kvmppc_slb *slbe, u64 r)
+{
+	switch (slbe->base_page_size) {
+	case MMU_PAGE_64K:
+		if ((r & 0xf000) == 0x1000)
+			return MMU_PAGE_64K;
+		break;
+	case MMU_PAGE_16M:
+		if ((r & 0xff000) == 0)
+			return MMU_PAGE_16M;
+		break;
+	}
+	return -1;
 }
 
 static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
@@ -189,6 +220,7 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	u8 pp, key = 0;
 	bool found = false;
 	bool second = false;
+	int pgsize;
 	ulong mp_ea = vcpu->arch.magic_page_ea;
 
 	/* Magic page override */
@@ -202,6 +234,7 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 		gpte->may_execute = true;
 		gpte->may_read = true;
 		gpte->may_write = true;
+		gpte->page_size = MMU_PAGE_4K;
 
 		return 0;
 	}
@@ -222,6 +255,8 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	v_mask = SLB_VSID_B | HPTE_V_AVPN | HPTE_V_LARGE | HPTE_V_VALID |
 		HPTE_V_SECONDARY;
 
+	pgsize = slbe->large ? MMU_PAGE_16M : MMU_PAGE_4K;
+
 do_second:
 	ptegp = kvmppc_mmu_book3s_64_get_pteg(vcpu_book3s, slbe, eaddr, second);
 	if (kvm_is_error_hva(ptegp))
@@ -240,6 +275,13 @@ do_second:
 	for (i=0; i<16; i+=2) {
 		/* Check all relevant fields of 1st dword */
 		if ((pteg[i] & v_mask) == v_val) {
+			/* If large page bit is set, check pgsize encoding */
+			if (slbe->large &&
+			    (vcpu->arch.hflags & BOOK3S_HFLAG_MULTI_PGSIZE)) {
+				pgsize = decode_pagesize(slbe, pteg[i+1]);
+				if (pgsize < 0)
+					continue;
+			}
 			found = true;
 			break;
 		}
@@ -256,13 +298,13 @@ do_second:
 	v = pteg[i];
 	r = pteg[i+1];
 	pp = (r & HPTE_R_PP) | key;
-	eaddr_mask = 0xFFF;
 
 	gpte->eaddr = eaddr;
 	gpte->vpage = kvmppc_mmu_book3s_64_ea_to_vp(vcpu, eaddr, data);
-	if (slbe->large)
-		eaddr_mask = 0xFFFFFF;
+
+	eaddr_mask = (1ull << mmu_pagesize(pgsize)) - 1;
 	gpte->raddr = (r & HPTE_R_RPN & ~eaddr_mask) | (eaddr & eaddr_mask);
+	gpte->page_size = pgsize;
 	gpte->may_execute = ((r & HPTE_R_N) ? false : true);
 	gpte->may_read = false;
 	gpte->may_write = false;
@@ -344,6 +386,21 @@ static void kvmppc_mmu_book3s_64_slbmte(struct kvm_vcpu *vcpu, u64 rs, u64 rb)
 	slbe->Kp    = (rs & SLB_VSID_KP) ? 1 : 0;
 	slbe->nx    = (rs & SLB_VSID_N) ? 1 : 0;
 	slbe->class = (rs & SLB_VSID_C) ? 1 : 0;
+
+	slbe->base_page_size = MMU_PAGE_4K;
+	if (slbe->large) {
+		if (vcpu->arch.hflags & BOOK3S_HFLAG_MULTI_PGSIZE) {
+			switch (rs & SLB_VSID_LP) {
+			case SLB_VSID_LP_00:
+				slbe->base_page_size = MMU_PAGE_16M;
+				break;
+			case SLB_VSID_LP_01:
+				slbe->base_page_size = MMU_PAGE_64K;
+				break;
+			}
+		} else
+			slbe->base_page_size = MMU_PAGE_16M;
+	}
 
 	slbe->orige = rb & (ESID_MASK | SLB_ESID_V);
 	slbe->origv = rs;
@@ -463,8 +520,25 @@ static void kvmppc_mmu_book3s_64_tlbie(struct kvm_vcpu *vcpu, ulong va,
 
 	dprintk("KVM MMU: tlbie(0x%lx)\n", va);
 
-	if (large)
-		mask = 0xFFFFFF000ULL;
+	/*
+	 * The tlbie instruction changed behaviour starting with
+	 * POWER6.  POWER6 and later don't have the large page flag
+	 * in the instruction but in the RB value, along with bits
+	 * indicating page and segment sizes.
+	 */
+	if (vcpu->arch.hflags & BOOK3S_HFLAG_NEW_TLBIE) {
+		/* POWER6 or later */
+		if (va & 1) {		/* L bit */
+			if ((va & 0xf000) == 0x1000)
+				mask = 0xFFFFFFFF0ULL;	/* 64k page */
+			else
+				mask = 0xFFFFFF000ULL;	/* 16M page */
+		}
+	} else {
+		/* older processors, e.g. PPC970 */
+		if (large)
+			mask = 0xFFFFFF000ULL;
+	}
 	kvmppc_mmu_pte_vflush(vcpu, va >> 12, mask);
 }
 

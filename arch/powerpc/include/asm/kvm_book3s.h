@@ -58,6 +58,9 @@ struct hpte_cache {
 	struct hlist_node list_pte_long;
 	struct hlist_node list_vpte;
 	struct hlist_node list_vpte_long;
+#ifdef CONFIG_PPC_BOOK3S_64
+	struct hlist_node list_vpte_64k;
+#endif
 	struct rcu_head rcu_head;
 	u64 host_vpn;
 	u64 pfn;
@@ -99,6 +102,9 @@ struct kvmppc_vcpu_book3s {
 	struct hlist_head hpte_hash_pte_long[HPTEG_HASH_NUM_PTE_LONG];
 	struct hlist_head hpte_hash_vpte[HPTEG_HASH_NUM_VPTE];
 	struct hlist_head hpte_hash_vpte_long[HPTEG_HASH_NUM_VPTE_LONG];
+#ifdef CONFIG_PPC_BOOK3S_64
+	struct hlist_head hpte_hash_vpte_64k[HPTEG_HASH_NUM_VPTE_64K];
+#endif
 	int hpte_cache_count;
 	spinlock_t mmu_lock;
 };

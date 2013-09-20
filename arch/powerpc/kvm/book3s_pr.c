@@ -306,6 +306,23 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 	if (!strcmp(cur_cpu_spec->platform, "ppc-cell-be"))
 		to_book3s(vcpu)->msr_mask &= ~(MSR_FE0 | MSR_FE1);
 
+	/*
+	 * If they're asking for POWER6 or later, set the flag
+	 * indicating that we can do multiple large page sizes
+	 * and 1TB segments.
+	 * Also set the flag that indicates that tlbie has the large
+	 * page bit in the RB operand instead of the instruction.
+	 */
+	switch (PVR_VER(pvr)) {
+	case PVR_POWER6:
+	case PVR_POWER7:
+	case PVR_POWER7p:
+	case PVR_POWER8:
+		vcpu->arch.hflags |= BOOK3S_HFLAG_MULTI_PGSIZE |
+			BOOK3S_HFLAG_NEW_TLBIE;
+		break;
+	}
+
 #ifdef CONFIG_PPC_BOOK3S_32
 	/* 32 bit Book3S always has 32 byte dcbz */
 	vcpu->arch.hflags |= BOOK3S_HFLAG_DCBZ32;
@@ -1130,8 +1147,14 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	vcpu->arch.shared = (void *)(p + PAGE_SIZE - 4096);
 
 #ifdef CONFIG_PPC_BOOK3S_64
-	/* default to book3s_64 (970fx) */
+	/*
+	 * Default to the same as the host if we're on sufficiently
+	 * recent machine that we have 1TB segments;
+	 * otherwise default to PPC970FX.
+	 */
 	vcpu->arch.pvr = 0x3C0301;
+	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
+		vcpu->arch.pvr = mfspr(SPRN_PVR);
 #else
 	/* default to book3s_32 (750) */
 	vcpu->arch.pvr = 0x84202;
@@ -1317,7 +1340,10 @@ out:
 #ifdef CONFIG_PPC64
 int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
 {
-	info->flags = KVM_PPC_1T_SEGMENTS;
+	long int i;
+	struct kvm_vcpu *vcpu;
+
+	info->flags = 0;
 
 	/* SLB is always 64 entries */
 	info->slb_size = 64;
@@ -1328,11 +1354,31 @@ int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
 	info->sps[0].enc[0].page_shift = 12;
 	info->sps[0].enc[0].pte_enc = 0;
 
+	/*
+	 * 64k large page size.
+	 * We only want to put this in if the CPUs we're emulating
+	 * support it, but unfortunately we don't have a vcpu easily
+	 * to hand here to test.  Just pick the first vcpu, and if
+	 * that doesn't exist yet, report the minimum capability,
+	 * i.e., no 64k pages.
+	 * 1T segment support goes along with 64k pages.
+	 */
+	i = 1;
+	vcpu = kvm_get_vcpu(kvm, 0);
+	if (vcpu && (vcpu->arch.hflags & BOOK3S_HFLAG_MULTI_PGSIZE)) {
+		info->flags = KVM_PPC_1T_SEGMENTS;
+		info->sps[i].page_shift = 16;
+		info->sps[i].slb_enc = SLB_VSID_L | SLB_VSID_LP_01;
+		info->sps[i].enc[0].page_shift = 16;
+		info->sps[i].enc[0].pte_enc = 1;
+		++i;
+	}
+
 	/* Standard 16M large page size segment */
-	info->sps[1].page_shift = 24;
-	info->sps[1].slb_enc = SLB_VSID_L;
-	info->sps[1].enc[0].page_shift = 24;
-	info->sps[1].enc[0].pte_enc = 0;
+	info->sps[i].page_shift = 24;
+	info->sps[i].slb_enc = SLB_VSID_L;
+	info->sps[i].enc[0].page_shift = 24;
+	info->sps[i].enc[0].pte_enc = 0;
 
 	return 0;
 }
