@@ -2641,7 +2641,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	ret = mv643xx_eth_shared_of_probe(pdev);
 	if (ret)
 		return ret;
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 
 	msp->tx_csum_limit = (pd != NULL && pd->tx_csum_limit) ?
 					pd->tx_csum_limit : 9 * 1024;
@@ -2833,7 +2833,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 	if (pd == NULL) {
 		dev_err(&pdev->dev, "no mv643xx_eth_platform_data\n");
 		return -ENODEV;

@@ -34,9 +34,9 @@
 #include <linux/of_device.h>
 #include <linux/if_vlan.h>
 
-#include <linux/platform_data/cpsw.h>
 #include <linux/pinctrl/consumer.h>
 
+#include "cpsw.h"
 #include "cpsw_ale.h"
 #include "cpts.h"
 #include "davinci_cpdma.h"
@@ -82,6 +82,8 @@ do {								\
 
 #define CPSW_VERSION_1		0x19010a
 #define CPSW_VERSION_2		0x19010c
+#define CPSW_VERSION_3		0x19010f
+#define CPSW_VERSION_4		0x190112
 
 #define HOST_PORT_NUM		0
 #define SLIVER_SIZE		0x40
@@ -91,6 +93,7 @@ do {								\
 #define CPSW1_SLAVE_SIZE	0x040
 #define CPSW1_CPDMA_OFFSET	0x100
 #define CPSW1_STATERAM_OFFSET	0x200
+#define CPSW1_HW_STATS		0x400
 #define CPSW1_CPTS_OFFSET	0x500
 #define CPSW1_ALE_OFFSET	0x600
 #define CPSW1_SLIVER_OFFSET	0x700
@@ -99,6 +102,7 @@ do {								\
 #define CPSW2_SLAVE_OFFSET	0x200
 #define CPSW2_SLAVE_SIZE	0x100
 #define CPSW2_CPDMA_OFFSET	0x800
+#define CPSW2_HW_STATS		0x900
 #define CPSW2_STATERAM_OFFSET	0xa00
 #define CPSW2_CPTS_OFFSET	0xc00
 #define CPSW2_ALE_OFFSET	0xd00
@@ -299,6 +303,44 @@ struct cpsw_sliver_regs {
 	u32	rx_pri_map;
 };
 
+struct cpsw_hw_stats {
+	u32	rxgoodframes;
+	u32	rxbroadcastframes;
+	u32	rxmulticastframes;
+	u32	rxpauseframes;
+	u32	rxcrcerrors;
+	u32	rxaligncodeerrors;
+	u32	rxoversizedframes;
+	u32	rxjabberframes;
+	u32	rxundersizedframes;
+	u32	rxfragments;
+	u32	__pad_0[2];
+	u32	rxoctets;
+	u32	txgoodframes;
+	u32	txbroadcastframes;
+	u32	txmulticastframes;
+	u32	txpauseframes;
+	u32	txdeferredframes;
+	u32	txcollisionframes;
+	u32	txsinglecollframes;
+	u32	txmultcollframes;
+	u32	txexcessivecollisions;
+	u32	txlatecollisions;
+	u32	txunderrun;
+	u32	txcarriersenseerrors;
+	u32	txoctets;
+	u32	octetframes64;
+	u32	octetframes65t127;
+	u32	octetframes128t255;
+	u32	octetframes256t511;
+	u32	octetframes512t1023;
+	u32	octetframes1024tup;
+	u32	netoctets;
+	u32	rxsofoverruns;
+	u32	rxmofoverruns;
+	u32	rxdmaoverruns;
+};
+
 struct cpsw_slave {
 	void __iomem			*regs;
 	struct cpsw_sliver_regs __iomem	*sliver;
@@ -332,6 +374,7 @@ struct cpsw_priv {
 	struct cpsw_platform_data	data;
 	struct cpsw_ss_regs __iomem	*regs;
 	struct cpsw_wr_regs __iomem	*wr_regs;
+	u8 __iomem			*hw_stats;
 	struct cpsw_host_regs __iomem	*host_port_regs;
 	u32				msg_enable;
 	u32				version;
@@ -353,6 +396,94 @@ struct cpsw_priv {
 	struct cpts *cpts;
 	u32 emac_port;
 };
+
+struct cpsw_stats {
+	char stat_string[ETH_GSTRING_LEN];
+	int type;
+	int sizeof_stat;
+	int stat_offset;
+};
+
+enum {
+	CPSW_STATS,
+	CPDMA_RX_STATS,
+	CPDMA_TX_STATS,
+};
+
+#define CPSW_STAT(m)		CPSW_STATS,				\
+				sizeof(((struct cpsw_hw_stats *)0)->m), \
+				offsetof(struct cpsw_hw_stats, m)
+#define CPDMA_RX_STAT(m)	CPDMA_RX_STATS,				   \
+				sizeof(((struct cpdma_chan_stats *)0)->m), \
+				offsetof(struct cpdma_chan_stats, m)
+#define CPDMA_TX_STAT(m)	CPDMA_TX_STATS,				   \
+				sizeof(((struct cpdma_chan_stats *)0)->m), \
+				offsetof(struct cpdma_chan_stats, m)
+
+static const struct cpsw_stats cpsw_gstrings_stats[] = {
+	{ "Good Rx Frames", CPSW_STAT(rxgoodframes) },
+	{ "Broadcast Rx Frames", CPSW_STAT(rxbroadcastframes) },
+	{ "Multicast Rx Frames", CPSW_STAT(rxmulticastframes) },
+	{ "Pause Rx Frames", CPSW_STAT(rxpauseframes) },
+	{ "Rx CRC Errors", CPSW_STAT(rxcrcerrors) },
+	{ "Rx Align/Code Errors", CPSW_STAT(rxaligncodeerrors) },
+	{ "Oversize Rx Frames", CPSW_STAT(rxoversizedframes) },
+	{ "Rx Jabbers", CPSW_STAT(rxjabberframes) },
+	{ "Undersize (Short) Rx Frames", CPSW_STAT(rxundersizedframes) },
+	{ "Rx Fragments", CPSW_STAT(rxfragments) },
+	{ "Rx Octets", CPSW_STAT(rxoctets) },
+	{ "Good Tx Frames", CPSW_STAT(txgoodframes) },
+	{ "Broadcast Tx Frames", CPSW_STAT(txbroadcastframes) },
+	{ "Multicast Tx Frames", CPSW_STAT(txmulticastframes) },
+	{ "Pause Tx Frames", CPSW_STAT(txpauseframes) },
+	{ "Deferred Tx Frames", CPSW_STAT(txdeferredframes) },
+	{ "Collisions", CPSW_STAT(txcollisionframes) },
+	{ "Single Collision Tx Frames", CPSW_STAT(txsinglecollframes) },
+	{ "Multiple Collision Tx Frames", CPSW_STAT(txmultcollframes) },
+	{ "Excessive Collisions", CPSW_STAT(txexcessivecollisions) },
+	{ "Late Collisions", CPSW_STAT(txlatecollisions) },
+	{ "Tx Underrun", CPSW_STAT(txunderrun) },
+	{ "Carrier Sense Errors", CPSW_STAT(txcarriersenseerrors) },
+	{ "Tx Octets", CPSW_STAT(txoctets) },
+	{ "Rx + Tx 64 Octet Frames", CPSW_STAT(octetframes64) },
+	{ "Rx + Tx 65-127 Octet Frames", CPSW_STAT(octetframes65t127) },
+	{ "Rx + Tx 128-255 Octet Frames", CPSW_STAT(octetframes128t255) },
+	{ "Rx + Tx 256-511 Octet Frames", CPSW_STAT(octetframes256t511) },
+	{ "Rx + Tx 512-1023 Octet Frames", CPSW_STAT(octetframes512t1023) },
+	{ "Rx + Tx 1024-Up Octet Frames", CPSW_STAT(octetframes1024tup) },
+	{ "Net Octets", CPSW_STAT(netoctets) },
+	{ "Rx Start of Frame Overruns", CPSW_STAT(rxsofoverruns) },
+	{ "Rx Middle of Frame Overruns", CPSW_STAT(rxmofoverruns) },
+	{ "Rx DMA Overruns", CPSW_STAT(rxdmaoverruns) },
+	{ "Rx DMA chan: head_enqueue", CPDMA_RX_STAT(head_enqueue) },
+	{ "Rx DMA chan: tail_enqueue", CPDMA_RX_STAT(tail_enqueue) },
+	{ "Rx DMA chan: pad_enqueue", CPDMA_RX_STAT(pad_enqueue) },
+	{ "Rx DMA chan: misqueued", CPDMA_RX_STAT(misqueued) },
+	{ "Rx DMA chan: desc_alloc_fail", CPDMA_RX_STAT(desc_alloc_fail) },
+	{ "Rx DMA chan: pad_alloc_fail", CPDMA_RX_STAT(pad_alloc_fail) },
+	{ "Rx DMA chan: runt_receive_buf", CPDMA_RX_STAT(runt_receive_buff) },
+	{ "Rx DMA chan: runt_transmit_buf", CPDMA_RX_STAT(runt_transmit_buff) },
+	{ "Rx DMA chan: empty_dequeue", CPDMA_RX_STAT(empty_dequeue) },
+	{ "Rx DMA chan: busy_dequeue", CPDMA_RX_STAT(busy_dequeue) },
+	{ "Rx DMA chan: good_dequeue", CPDMA_RX_STAT(good_dequeue) },
+	{ "Rx DMA chan: requeue", CPDMA_RX_STAT(requeue) },
+	{ "Rx DMA chan: teardown_dequeue", CPDMA_RX_STAT(teardown_dequeue) },
+	{ "Tx DMA chan: head_enqueue", CPDMA_TX_STAT(head_enqueue) },
+	{ "Tx DMA chan: tail_enqueue", CPDMA_TX_STAT(tail_enqueue) },
+	{ "Tx DMA chan: pad_enqueue", CPDMA_TX_STAT(pad_enqueue) },
+	{ "Tx DMA chan: misqueued", CPDMA_TX_STAT(misqueued) },
+	{ "Tx DMA chan: desc_alloc_fail", CPDMA_TX_STAT(desc_alloc_fail) },
+	{ "Tx DMA chan: pad_alloc_fail", CPDMA_TX_STAT(pad_alloc_fail) },
+	{ "Tx DMA chan: runt_receive_buf", CPDMA_TX_STAT(runt_receive_buff) },
+	{ "Tx DMA chan: runt_transmit_buf", CPDMA_TX_STAT(runt_transmit_buff) },
+	{ "Tx DMA chan: empty_dequeue", CPDMA_TX_STAT(empty_dequeue) },
+	{ "Tx DMA chan: busy_dequeue", CPDMA_TX_STAT(busy_dequeue) },
+	{ "Tx DMA chan: good_dequeue", CPDMA_TX_STAT(good_dequeue) },
+	{ "Tx DMA chan: requeue", CPDMA_TX_STAT(requeue) },
+	{ "Tx DMA chan: teardown_dequeue", CPDMA_TX_STAT(teardown_dequeue) },
+};
+
+#define CPSW_STATS_LEN	ARRAY_SIZE(cpsw_gstrings_stats)
 
 #define napi_to_priv(napi)	container_of(napi, struct cpsw_priv, napi)
 #define for_each_slave(priv, func, arg...)				\
@@ -723,6 +854,69 @@ static int cpsw_set_coalesce(struct net_device *ndev,
 	return 0;
 }
 
+static int cpsw_get_sset_count(struct net_device *ndev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return CPSW_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void cpsw_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
+{
+	u8 *p = data;
+	int i;
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < CPSW_STATS_LEN; i++) {
+			memcpy(p, cpsw_gstrings_stats[i].stat_string,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		break;
+	}
+}
+
+static void cpsw_get_ethtool_stats(struct net_device *ndev,
+				    struct ethtool_stats *stats, u64 *data)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpdma_chan_stats rx_stats;
+	struct cpdma_chan_stats tx_stats;
+	u32 val;
+	u8 *p;
+	int i;
+
+	/* Collect Davinci CPDMA stats for Rx and Tx Channel */
+	cpdma_chan_get_stats(priv->rxch, &rx_stats);
+	cpdma_chan_get_stats(priv->txch, &tx_stats);
+
+	for (i = 0; i < CPSW_STATS_LEN; i++) {
+		switch (cpsw_gstrings_stats[i].type) {
+		case CPSW_STATS:
+			val = readl(priv->hw_stats +
+				    cpsw_gstrings_stats[i].stat_offset);
+			data[i] = val;
+			break;
+
+		case CPDMA_RX_STATS:
+			p = (u8 *)&rx_stats +
+				cpsw_gstrings_stats[i].stat_offset;
+			data[i] = *(u32 *)p;
+			break;
+
+		case CPDMA_TX_STATS:
+			p = (u8 *)&tx_stats +
+				cpsw_gstrings_stats[i].stat_offset;
+			data[i] = *(u32 *)p;
+			break;
+		}
+	}
+}
+
 static inline int __show_stat(char *buf, int maxlen, const char *name, u32 val)
 {
 	static char *leader = "........................................";
@@ -799,6 +993,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		slave_write(slave, TX_PRIORITY_MAPPING, CPSW1_TX_PRI_MAP);
 		break;
 	case CPSW_VERSION_2:
+	case CPSW_VERSION_3:
+	case CPSW_VERSION_4:
 		slave_write(slave, TX_PRIORITY_MAPPING, CPSW2_TX_PRI_MAP);
 		break;
 	}
@@ -1232,6 +1428,33 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 
 }
 
+static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct sockaddr *addr = (struct sockaddr *)p;
+	int flags = 0;
+	u16 vid = 0;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	if (priv->data.dual_emac) {
+		vid = priv->slaves[priv->emac_port].port_vlan;
+		flags = ALE_VLAN;
+	}
+
+	cpsw_ale_del_ucast(priv->ale, priv->mac_addr, priv->host_port,
+			   flags, vid);
+	cpsw_ale_add_ucast(priv->ale, addr->sa_data, priv->host_port,
+			   flags, vid);
+
+	memcpy(priv->mac_addr, addr->sa_data, ETH_ALEN);
+	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
+	for_each_slave(priv, cpsw_set_slave_mac, priv);
+
+	return 0;
+}
+
 static struct net_device_stats *cpsw_ndo_get_stats(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -1326,6 +1549,7 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_stop		= cpsw_ndo_stop,
 	.ndo_start_xmit		= cpsw_ndo_start_xmit,
 	.ndo_change_rx_flags	= cpsw_ndo_change_rx_flags,
+	.ndo_set_mac_address	= cpsw_ndo_set_mac_address,
 	.ndo_do_ioctl		= cpsw_ndo_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
@@ -1416,6 +1640,29 @@ static int cpsw_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
 		return -EOPNOTSUPP;
 }
 
+static void cpsw_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	int slave_no = cpsw_slave_index(priv);
+
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (priv->slaves[slave_no].phy)
+		phy_ethtool_get_wol(priv->slaves[slave_no].phy, wol);
+}
+
+static int cpsw_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	int slave_no = cpsw_slave_index(priv);
+
+	if (priv->slaves[slave_no].phy)
+		return phy_ethtool_set_wol(priv->slaves[slave_no].phy, wol);
+	else
+		return -EOPNOTSUPP;
+}
+
 static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_drvinfo	= cpsw_get_drvinfo,
 	.get_msglevel	= cpsw_get_msglevel,
@@ -1426,6 +1673,11 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.set_settings	= cpsw_set_settings,
 	.get_coalesce	= cpsw_get_coalesce,
 	.set_coalesce	= cpsw_set_coalesce,
+	.get_sset_count		= cpsw_get_sset_count,
+	.get_strings		= cpsw_get_strings,
+	.get_ethtool_stats	= cpsw_get_ethtool_stats,
+	.get_wol	= cpsw_get_wol,
+	.set_wol	= cpsw_set_wol,
 };
 
 static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
@@ -1623,6 +1875,7 @@ static int cpsw_probe_dual_emac(struct platform_device *pdev,
 	priv_sl2->host_port = priv->host_port;
 	priv_sl2->host_port_regs = priv->host_port_regs;
 	priv_sl2->wr_regs = priv->wr_regs;
+	priv_sl2->hw_stats = priv->hw_stats;
 	priv_sl2->dma = priv->dma;
 	priv_sl2->txch = priv->txch;
 	priv_sl2->rxch = priv->rxch;
@@ -1780,7 +2033,8 @@ static int cpsw_probe(struct platform_device *pdev)
 	switch (priv->version) {
 	case CPSW_VERSION_1:
 		priv->host_port_regs = ss_regs + CPSW1_HOST_PORT_OFFSET;
-		priv->cpts->reg       = ss_regs + CPSW1_CPTS_OFFSET;
+		priv->cpts->reg      = ss_regs + CPSW1_CPTS_OFFSET;
+		priv->hw_stats	     = ss_regs + CPSW1_HW_STATS;
 		dma_params.dmaregs   = ss_regs + CPSW1_CPDMA_OFFSET;
 		dma_params.txhdp     = ss_regs + CPSW1_STATERAM_OFFSET;
 		ale_params.ale_regs  = ss_regs + CPSW1_ALE_OFFSET;
@@ -1790,8 +2044,11 @@ static int cpsw_probe(struct platform_device *pdev)
 		dma_params.desc_mem_phys = 0;
 		break;
 	case CPSW_VERSION_2:
+	case CPSW_VERSION_3:
+	case CPSW_VERSION_4:
 		priv->host_port_regs = ss_regs + CPSW2_HOST_PORT_OFFSET;
-		priv->cpts->reg       = ss_regs + CPSW2_CPTS_OFFSET;
+		priv->cpts->reg      = ss_regs + CPSW2_CPTS_OFFSET;
+		priv->hw_stats	     = ss_regs + CPSW2_HW_STATS;
 		dma_params.dmaregs   = ss_regs + CPSW2_CPDMA_OFFSET;
 		dma_params.txhdp     = ss_regs + CPSW2_STATERAM_OFFSET;
 		ale_params.ale_regs  = ss_regs + CPSW2_ALE_OFFSET;

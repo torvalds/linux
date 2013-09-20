@@ -21,24 +21,7 @@ static inline int init_new_context(struct task_struct *tsk,
 #ifdef CONFIG_64BIT
 	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
 #endif
-	if (current->mm && current->mm->context.alloc_pgste) {
-		/*
-		 * alloc_pgste indicates, that any NEW context will be created
-		 * with extended page tables. The old context is unchanged. The
-		 * page table allocation and the page table operations will
-		 * look at has_pgste to distinguish normal and extended page
-		 * tables. The only way to create extended page tables is to
-		 * set alloc_pgste and then create a new context (e.g. dup_mm).
-		 * The page table allocation is called after init_new_context
-		 * and if has_pgste is set, it will create extended page
-		 * tables.
-		 */
-		mm->context.has_pgste = 1;
-		mm->context.alloc_pgste = 1;
-	} else {
-		mm->context.has_pgste = 0;
-		mm->context.alloc_pgste = 0;
-	}
+	mm->context.has_pgste = 0;
 	mm->context.asce_limit = STACK_TOP_MAX;
 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
 	return 0;

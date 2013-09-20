@@ -286,15 +286,11 @@ usb11_setup_oc_fail:
 	gpio_free(DA850_USB1_VBUS_PIN);
 }
 
-static struct davinci_uart_config omapl138_hawk_uart_config __initdata = {
-	.enabled_uarts = 0x7,
-};
-
 static __init void omapl138_hawk_init(void)
 {
 	int ret;
 
-	davinci_serial_init(&omapl138_hawk_uart_config);
+	davinci_serial_init(da8xx_serial_device);
 
 	omapl138_hawk_config_emac();
 

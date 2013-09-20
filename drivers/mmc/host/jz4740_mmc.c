@@ -713,7 +713,7 @@ static int jz4740_mmc_request_gpios(struct mmc_host *mmc,
 		mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
 	if (gpio_is_valid(pdata->gpio_card_detect)) {
-		ret = mmc_gpio_request_cd(mmc, pdata->gpio_card_detect);
+		ret = mmc_gpio_request_cd(mmc, pdata->gpio_card_detect, 0);
 		if (ret)
 			return ret;
 	}
@@ -783,9 +783,8 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!host->base) {
-		ret = -EBUSY;
-		dev_err(&pdev->dev, "Failed to ioremap base memory\n");
+	if (IS_ERR(host->base)) {
+		ret = PTR_ERR(host->base);
 		goto err_free_host;
 	}
 

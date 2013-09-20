@@ -1009,7 +1009,7 @@ static ssize_t ll_file_read(struct file *file, char *buf, size_t count,
 	local_iov->iov_len = count;
 	init_sync_kiocb(kiocb, file);
 	kiocb->ki_pos = *ppos;
-	kiocb->ki_left = count;
+	kiocb->ki_nbytes = count;
 
 	result = ll_file_aio_read(kiocb, local_iov, 1, kiocb->ki_pos);
 	*ppos = kiocb->ki_pos;
@@ -1068,7 +1068,7 @@ static ssize_t ll_file_write(struct file *file, const char *buf, size_t count,
 	local_iov->iov_len = count;
 	init_sync_kiocb(kiocb, file);
 	kiocb->ki_pos = *ppos;
-	kiocb->ki_left = count;
+	kiocb->ki_nbytes = count;
 
 	result = ll_file_aio_write(kiocb, local_iov, 1, kiocb->ki_pos);
 	*ppos = kiocb->ki_pos;

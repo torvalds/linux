@@ -1547,61 +1547,36 @@ static int osd_probe(struct platform_device *pdev)
 	const struct platform_device_id *pdev_id;
 	struct osd_state *osd;
 	struct resource *res;
-	int ret = 0;
 
-	osd = kzalloc(sizeof(struct osd_state), GFP_KERNEL);
+	pdev_id = platform_get_device_id(pdev);
+	if (!pdev_id)
+		return -EINVAL;
+
+	osd = devm_kzalloc(&pdev->dev, sizeof(struct osd_state), GFP_KERNEL);
 	if (osd == NULL)
 		return -ENOMEM;
 
-	pdev_id = platform_get_device_id(pdev);
-	if (!pdev_id) {
-		ret = -EINVAL;
-		goto free_mem;
-	}
 
 	osd->dev = &pdev->dev;
 	osd->vpbe_type = pdev_id->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(osd->dev, "Unable to get OSD register address map\n");
-		ret = -ENODEV;
-		goto free_mem;
-	}
+	osd->osd_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(osd->osd_base))
+		return PTR_ERR(osd->osd_base);
+
 	osd->osd_base_phys = res->start;
 	osd->osd_size = resource_size(res);
-	if (!request_mem_region(osd->osd_base_phys, osd->osd_size,
-				MODULE_NAME)) {
-		dev_err(osd->dev, "Unable to reserve OSD MMIO region\n");
-		ret = -ENODEV;
-		goto free_mem;
-	}
-	osd->osd_base = ioremap_nocache(res->start, osd->osd_size);
-	if (!osd->osd_base) {
-		dev_err(osd->dev, "Unable to map the OSD region\n");
-		ret = -ENODEV;
-		goto release_mem_region;
-	}
 	spin_lock_init(&osd->lock);
 	osd->ops = osd_ops;
 	platform_set_drvdata(pdev, osd);
 	dev_notice(osd->dev, "OSD sub device probe success\n");
-	return ret;
 
-release_mem_region:
-	release_mem_region(osd->osd_base_phys, osd->osd_size);
-free_mem:
-	kfree(osd);
-	return ret;
+	return 0;
 }
 
 static int osd_remove(struct platform_device *pdev)
 {
-	struct osd_state *osd = platform_get_drvdata(pdev);
-
-	iounmap((void *)osd->osd_base);
-	release_mem_region(osd->osd_base_phys, osd->osd_size);
-	kfree(osd);
 	return 0;
 }
 

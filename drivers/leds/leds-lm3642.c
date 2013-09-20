@@ -316,7 +316,7 @@ static const struct regmap_config lm3642_regmap = {
 static int lm3642_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct lm3642_platform_data *pdata = client->dev.platform_data;
+	struct lm3642_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct lm3642_chip_data *chip;
 
 	int err;

@@ -59,7 +59,7 @@ static ssize_t arvo_sysfs_set_mode_key(struct device *dev,
 	unsigned long state;
 	int retval;
 
-	retval = strict_strtoul(buf, 10, &state);
+	retval = kstrtoul(buf, 10, &state);
 	if (retval)
 		return retval;
 
@@ -109,7 +109,7 @@ static ssize_t arvo_sysfs_set_key_mask(struct device *dev,
 	unsigned long key_mask;
 	int retval;
 
-	retval = strict_strtoul(buf, 10, &key_mask);
+	retval = kstrtoul(buf, 10, &key_mask);
 	if (retval)
 		return retval;
 
@@ -163,7 +163,7 @@ static ssize_t arvo_sysfs_set_actual_profile(struct device *dev,
 	unsigned long profile;
 	int retval;
 
-	retval = strict_strtoul(buf, 10, &profile);
+	retval = kstrtoul(buf, 10, &profile);
 	if (retval)
 		return retval;
 

@@ -32,8 +32,8 @@ MODULE_DESCRIPTION("Display Output Switcher Lowlevel Control Abstraction");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luming Yu <luming.yu@intel.com>");
 
-static ssize_t video_output_show_state(struct device *dev,
-				       struct device_attribute *attr, char *buf)
+static ssize_t state_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	ssize_t ret_size = 0;
 	struct output_device *od = to_output_device(dev);
@@ -42,9 +42,8 @@ static ssize_t video_output_show_state(struct device *dev,
 	return ret_size;
 }
 
-static ssize_t video_output_store_state(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf,size_t count)
+static ssize_t state_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf,size_t count)
 {
 	char *endp;
 	struct output_device *od = to_output_device(dev);
@@ -62,6 +61,7 @@ static ssize_t video_output_store_state(struct device *dev,
 	}
 	return count;
 }
+static DEVICE_ATTR_RW(state);
 
 static void video_output_release(struct device *dev)
 {
@@ -69,16 +69,16 @@ static void video_output_release(struct device *dev)
 	kfree(od);
 }
 
-static struct device_attribute video_output_attributes[] = {
-	__ATTR(state, 0644, video_output_show_state, video_output_store_state),
-	__ATTR_NULL,
+static struct attribute *video_output_attrs[] = {
+	&dev_attr_state.attr,
+	NULL,
 };
-
+ATTRIBUTE_GROUPS(video_output);
 
 static struct class video_output_class = {
 	.name = "video_output",
 	.dev_release = video_output_release,
-	.dev_attrs = video_output_attributes,
+	.dev_groups = video_output_groups,
 };
 
 struct output_device *video_output_register(const char *name,

@@ -32,7 +32,6 @@
 #include "cm1_54xx.h"
 #include "cm2_54xx.h"
 #include "prm54xx.h"
-#include "prm-regbits-54xx.h"
 #include "i2c.h"
 #include "mmc.h"
 #include "wd_timer.h"
@@ -736,6 +735,39 @@ static struct omap_hwmod omap54xx_kbd_hwmod = {
 			.clkctrl_offs = OMAP54XX_CM_WKUPAON_KBD_CLKCTRL_OFFSET,
 			.context_offs = OMAP54XX_RM_WKUPAON_KBD_CONTEXT_OFFSET,
 			.modulemode   = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+/*
+ * 'mailbox' class
+ * mailbox module allowing communication between the on-chip processors using a
+ * queued mailbox-interrupt mechanism.
+ */
+
+static struct omap_hwmod_class_sysconfig omap54xx_mailbox_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.sysc_flags	= (SYSC_HAS_RESET_STATUS | SYSC_HAS_SIDLEMODE |
+			   SYSC_HAS_SOFTRESET),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type2,
+};
+
+static struct omap_hwmod_class omap54xx_mailbox_hwmod_class = {
+	.name	= "mailbox",
+	.sysc	= &omap54xx_mailbox_sysc,
+};
+
+/* mailbox */
+static struct omap_hwmod omap54xx_mailbox_hwmod = {
+	.name		= "mailbox",
+	.class		= &omap54xx_mailbox_hwmod_class,
+	.clkdm_name	= "l4cfg_clkdm",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = OMAP54XX_CM_L4CFG_MAILBOX_CLKCTRL_OFFSET,
+			.context_offs = OMAP54XX_RM_L4CFG_MAILBOX_CONTEXT_OFFSET,
 		},
 	},
 };
@@ -1808,6 +1840,14 @@ static struct omap_hwmod_ocp_if omap54xx_l4_wkup__kbd = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* l4_cfg -> mailbox */
+static struct omap_hwmod_ocp_if omap54xx_l4_cfg__mailbox = {
+	.master		= &omap54xx_l4_cfg_hwmod,
+	.slave		= &omap54xx_mailbox_hwmod,
+	.clk		= "l4_root_clk_div",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 /* l4_abe -> mcbsp1 */
 static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp1 = {
 	.master		= &omap54xx_l4_abe_hwmod,
@@ -2108,6 +2148,7 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l4_per__i2c4,
 	&omap54xx_l4_per__i2c5,
 	&omap54xx_l4_wkup__kbd,
+	&omap54xx_l4_cfg__mailbox,
 	&omap54xx_l4_abe__mcbsp1,
 	&omap54xx_l4_abe__mcbsp2,
 	&omap54xx_l4_abe__mcbsp3,

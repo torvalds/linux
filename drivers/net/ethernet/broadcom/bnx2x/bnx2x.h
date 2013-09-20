@@ -825,15 +825,13 @@ static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
 #define BD_UNMAP_LEN(bd)		(le16_to_cpu((bd)->nbytes))
 
 #define BNX2X_DB_MIN_SHIFT		3	/* 8 bytes */
-#define BNX2X_DB_SHIFT			7	/* 128 bytes*/
+#define BNX2X_DB_SHIFT			3	/* 8 bytes*/
 #if (BNX2X_DB_SHIFT < BNX2X_DB_MIN_SHIFT)
 #error "Min DB doorbell stride is 8"
 #endif
-#define DPM_TRIGER_TYPE			0x40
 #define DOORBELL(bp, cid, val) \
 	do { \
-		writel((u32)(val), bp->doorbells + (bp->db_size * (cid)) + \
-		       DPM_TRIGER_TYPE); \
+		writel((u32)(val), bp->doorbells + (bp->db_size * (cid))); \
 	} while (0)
 
 /* TX CSUM helpers */
@@ -1100,12 +1098,26 @@ struct bnx2x_port {
 extern struct workqueue_struct *bnx2x_wq;
 
 #define BNX2X_MAX_NUM_OF_VFS	64
-#define BNX2X_VF_CID_WND	0
+#define BNX2X_VF_CID_WND	4 /* log num of queues per VF. HW config. */
 #define BNX2X_CIDS_PER_VF	(1 << BNX2X_VF_CID_WND)
-#define BNX2X_CLIENTS_PER_VF	1
-#define BNX2X_FIRST_VF_CID	256
+
+/* We need to reserve doorbell addresses for all VF and queue combinations */
 #define BNX2X_VF_CIDS		(BNX2X_MAX_NUM_OF_VFS * BNX2X_CIDS_PER_VF)
+
+/* The doorbell is configured to have the same number of CIDs for PFs and for
+ * VFs. For this reason the PF CID zone is as large as the VF zone.
+ */
+#define BNX2X_FIRST_VF_CID	BNX2X_VF_CIDS
+#define BNX2X_MAX_NUM_VF_QUEUES	64
 #define BNX2X_VF_ID_INVALID	0xFF
+
+/* the number of VF CIDS multiplied by the amount of bytes reserved for each
+ * cid must not exceed the size of the VF doorbell
+ */
+#define BNX2X_VF_BAR_SIZE	512
+#if (BNX2X_VF_BAR_SIZE < BNX2X_CIDS_PER_VF * (1 << BNX2X_DB_SHIFT))
+#error "VF doorbell bar size is 512"
+#endif
 
 /*
  * The total number of L2 queues, MSIX vectors and HW contexts (CIDs) is
@@ -1331,7 +1343,7 @@ enum {
 	BNX2X_SP_RTNL_ENABLE_SRIOV,
 	BNX2X_SP_RTNL_VFPF_MCAST,
 	BNX2X_SP_RTNL_VFPF_CHANNEL_DOWN,
-	BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
+	BNX2X_SP_RTNL_RX_MODE,
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 	BNX2X_SP_RTNL_TX_STOP,
 	BNX2X_SP_RTNL_TX_RESUME,
@@ -1650,10 +1662,10 @@ struct bnx2x {
 	dma_addr_t			fw_stats_data_mapping;
 	int				fw_stats_data_sz;
 
-	/* For max 196 cids (64*3 + non-eth), 32KB ILT page size and 1KB
+	/* For max 1024 cids (VF RSS), 32KB ILT page size and 1KB
 	 * context size we need 8 ILT entries.
 	 */
-#define ILT_MAX_L2_LINES	8
+#define ILT_MAX_L2_LINES	32
 	struct hw_context	context[ILT_MAX_L2_LINES];
 
 	struct bnx2x_ilt	*ilt;
@@ -1869,7 +1881,7 @@ extern int num_queues;
 #define FUNC_FLG_TPA		0x0008
 #define FUNC_FLG_SPQ		0x0010
 #define FUNC_FLG_LEADING	0x0020	/* PF only */
-
+#define FUNC_FLG_LEADING_STATS	0x0040
 struct bnx2x_func_init_params {
 	/* dma */
 	dma_addr_t	fw_stat_map;	/* valid iff FUNC_FLG_STATS */
@@ -2069,9 +2081,8 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 			    bool is_pf);
 
-#define BNX2X_ILT_ZALLOC(x, y, size)				\
-	x = dma_alloc_coherent(&bp->pdev->dev, size, y,		\
-			       GFP_KERNEL | __GFP_ZERO)
+#define BNX2X_ILT_ZALLOC(x, y, size)					\
+	x = dma_zalloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL)
 
 #define BNX2X_ILT_FREE(x, y, size) \
 	do { \

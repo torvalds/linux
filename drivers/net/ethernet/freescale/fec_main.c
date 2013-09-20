@@ -69,7 +69,6 @@ static void set_multicast_list(struct net_device *ndev);
 #endif
 
 #define DRIVER_NAME	"fec"
-#define FEC_NAPI_WEIGHT	64
 
 /* Pause frame feild and FIFO threshold */
 #define FEC_ENET_FCE	(1 << 5)
@@ -239,22 +238,57 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 
 static int mii_cnt;
 
-static struct bufdesc *fec_enet_get_nextdesc(struct bufdesc *bdp, int is_ex)
+static inline
+struct bufdesc *fec_enet_get_nextdesc(struct bufdesc *bdp, struct fec_enet_private *fep)
 {
-	struct bufdesc_ex *ex = (struct bufdesc_ex *)bdp;
-	if (is_ex)
-		return (struct bufdesc *)(ex + 1);
+	struct bufdesc *new_bd = bdp + 1;
+	struct bufdesc_ex *ex_new_bd = (struct bufdesc_ex *)bdp + 1;
+	struct bufdesc_ex *ex_base;
+	struct bufdesc *base;
+	int ring_size;
+
+	if (bdp >= fep->tx_bd_base) {
+		base = fep->tx_bd_base;
+		ring_size = fep->tx_ring_size;
+		ex_base = (struct bufdesc_ex *)fep->tx_bd_base;
+	} else {
+		base = fep->rx_bd_base;
+		ring_size = fep->rx_ring_size;
+		ex_base = (struct bufdesc_ex *)fep->rx_bd_base;
+	}
+
+	if (fep->bufdesc_ex)
+		return (struct bufdesc *)((ex_new_bd >= (ex_base + ring_size)) ?
+			ex_base : ex_new_bd);
 	else
-		return bdp + 1;
+		return (new_bd >= (base + ring_size)) ?
+			base : new_bd;
 }
 
-static struct bufdesc *fec_enet_get_prevdesc(struct bufdesc *bdp, int is_ex)
+static inline
+struct bufdesc *fec_enet_get_prevdesc(struct bufdesc *bdp, struct fec_enet_private *fep)
 {
-	struct bufdesc_ex *ex = (struct bufdesc_ex *)bdp;
-	if (is_ex)
-		return (struct bufdesc *)(ex - 1);
+	struct bufdesc *new_bd = bdp - 1;
+	struct bufdesc_ex *ex_new_bd = (struct bufdesc_ex *)bdp - 1;
+	struct bufdesc_ex *ex_base;
+	struct bufdesc *base;
+	int ring_size;
+
+	if (bdp >= fep->tx_bd_base) {
+		base = fep->tx_bd_base;
+		ring_size = fep->tx_ring_size;
+		ex_base = (struct bufdesc_ex *)fep->tx_bd_base;
+	} else {
+		base = fep->rx_bd_base;
+		ring_size = fep->rx_ring_size;
+		ex_base = (struct bufdesc_ex *)fep->rx_bd_base;
+	}
+
+	if (fep->bufdesc_ex)
+		return (struct bufdesc *)((ex_new_bd < ex_base) ?
+			(ex_new_bd + ring_size) : ex_new_bd);
 	else
-		return bdp - 1;
+		return (new_bd < base) ? (new_bd + ring_size) : new_bd;
 }
 
 static void *swap_buffer(void *bufaddr, int len)
@@ -380,7 +414,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		}
 	}
 
-	bdp_pre = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
+	bdp_pre = fec_enet_get_prevdesc(bdp, fep);
 	if ((id_entry->driver_data & FEC_QUIRK_ERR006358) &&
 	    !(bdp_pre->cbd_sc & BD_ENET_TX_READY)) {
 		fep->delay_work.trig_tx = true;
@@ -389,10 +423,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	/* If this was the last BD in the ring, start at the beginning again. */
-	if (status & BD_ENET_TX_WRAP)
-		bdp = fep->tx_bd_base;
-	else
-		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+	bdp = fec_enet_get_nextdesc(bdp, fep);
 
 	fep->cur_tx = bdp;
 
@@ -417,18 +448,18 @@ static void fec_enet_bd_init(struct net_device *dev)
 
 	/* Initialize the receive buffer descriptors. */
 	bdp = fep->rx_bd_base;
-	for (i = 0; i < RX_RING_SIZE; i++) {
+	for (i = 0; i < fep->rx_ring_size; i++) {
 
 		/* Initialize the BD for every fragment in the page. */
 		if (bdp->cbd_bufaddr)
 			bdp->cbd_sc = BD_ENET_RX_EMPTY;
 		else
 			bdp->cbd_sc = 0;
-		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+		bdp = fec_enet_get_nextdesc(bdp, fep);
 	}
 
 	/* Set the last buffer to wrap */
-	bdp = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
+	bdp = fec_enet_get_prevdesc(bdp, fep);
 	bdp->cbd_sc |= BD_SC_WRAP;
 
 	fep->cur_rx = fep->rx_bd_base;
@@ -436,7 +467,7 @@ static void fec_enet_bd_init(struct net_device *dev)
 	/* ...and the same for transmit */
 	bdp = fep->tx_bd_base;
 	fep->cur_tx = bdp;
-	for (i = 0; i < TX_RING_SIZE; i++) {
+	for (i = 0; i < fep->tx_ring_size; i++) {
 
 		/* Initialize the BD for every fragment in the page. */
 		bdp->cbd_sc = 0;
@@ -445,11 +476,11 @@ static void fec_enet_bd_init(struct net_device *dev)
 			fep->tx_skbuff[i] = NULL;
 		}
 		bdp->cbd_bufaddr = 0;
-		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+		bdp = fec_enet_get_nextdesc(bdp, fep);
 	}
 
 	/* Set the last buffer to wrap */
-	bdp = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
+	bdp = fec_enet_get_prevdesc(bdp, fep);
 	bdp->cbd_sc |= BD_SC_WRAP;
 	fep->dirty_tx = bdp;
 }
@@ -510,10 +541,10 @@ fec_restart(struct net_device *ndev, int duplex)
 	writel(fep->bd_dma, fep->hwp + FEC_R_DES_START);
 	if (fep->bufdesc_ex)
 		writel((unsigned long)fep->bd_dma + sizeof(struct bufdesc_ex)
-			* RX_RING_SIZE, fep->hwp + FEC_X_DES_START);
+			* fep->rx_ring_size, fep->hwp + FEC_X_DES_START);
 	else
 		writel((unsigned long)fep->bd_dma + sizeof(struct bufdesc)
-			* RX_RING_SIZE,	fep->hwp + FEC_X_DES_START);
+			* fep->rx_ring_size,	fep->hwp + FEC_X_DES_START);
 
 
 	for (i = 0; i <= TX_RING_MOD_MASK; i++) {
@@ -727,10 +758,7 @@ fec_enet_tx(struct net_device *ndev)
 	bdp = fep->dirty_tx;
 
 	/* get next bdp of dirty_tx */
-	if (bdp->cbd_sc & BD_ENET_TX_WRAP)
-		bdp = fep->tx_bd_base;
-	else
-		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+	bdp = fec_enet_get_nextdesc(bdp, fep);
 
 	while (((status = bdp->cbd_sc) & BD_ENET_TX_READY) == 0) {
 
@@ -800,10 +828,7 @@ fec_enet_tx(struct net_device *ndev)
 		fep->dirty_tx = bdp;
 
 		/* Update pointer to next buffer descriptor to be transmitted */
-		if (status & BD_ENET_TX_WRAP)
-			bdp = fep->tx_bd_base;
-		else
-			bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+		bdp = fec_enet_get_nextdesc(bdp, fep);
 
 		/* Since we have freed up a buffer, the ring is no longer full
 		 */
@@ -993,10 +1018,8 @@ rx_processing_done:
 		}
 
 		/* Update BD pointer to next entry */
-		if (status & BD_ENET_RX_WRAP)
-			bdp = fep->rx_bd_base;
-		else
-			bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+		bdp = fec_enet_get_nextdesc(bdp, fep);
+
 		/* Doing this here will keep the FEC running while we process
 		 * incoming frames.  On a heavily loaded network, we should be
 		 * able to keep up at the expense of system resources.
@@ -1059,7 +1082,7 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 static void fec_get_mac(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct fec_platform_data *pdata = fep->pdev->dev.platform_data;
+	struct fec_platform_data *pdata = dev_get_platdata(&fep->pdev->dev);
 	unsigned char *iap, tmpaddr[ETH_ALEN];
 
 	/*
@@ -1099,10 +1122,10 @@ static void fec_get_mac(struct net_device *ndev)
 	 * 4) FEC mac registers set by bootloader
 	 */
 	if (!is_valid_ether_addr(iap)) {
-		*((unsigned long *) &tmpaddr[0]) =
-			be32_to_cpu(readl(fep->hwp + FEC_ADDR_LOW));
-		*((unsigned short *) &tmpaddr[4]) =
-			be16_to_cpu(readl(fep->hwp + FEC_ADDR_HIGH) >> 16);
+		*((__be32 *) &tmpaddr[0]) =
+			cpu_to_be32(readl(fep->hwp + FEC_ADDR_LOW));
+		*((__be16 *) &tmpaddr[4]) =
+			cpu_to_be16(readl(fep->hwp + FEC_ADDR_HIGH) >> 16);
 		iap = &tmpaddr[0];
 	}
 
@@ -1662,7 +1685,7 @@ static void fec_enet_free_buffers(struct net_device *ndev)
 	struct bufdesc	*bdp;
 
 	bdp = fep->rx_bd_base;
-	for (i = 0; i < RX_RING_SIZE; i++) {
+	for (i = 0; i < fep->rx_ring_size; i++) {
 		skb = fep->rx_skbuff[i];
 
 		if (bdp->cbd_bufaddr)
@@ -1670,11 +1693,11 @@ static void fec_enet_free_buffers(struct net_device *ndev)
 					FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
 		if (skb)
 			dev_kfree_skb(skb);
-		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+		bdp = fec_enet_get_nextdesc(bdp, fep);
 	}
 
 	bdp = fep->tx_bd_base;
-	for (i = 0; i < TX_RING_SIZE; i++)
+	for (i = 0; i < fep->tx_ring_size; i++)
 		kfree(fep->tx_bounce[i]);
 }
 
@@ -1686,7 +1709,7 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 	struct bufdesc	*bdp;
 
 	bdp = fep->rx_bd_base;
-	for (i = 0; i < RX_RING_SIZE; i++) {
+	for (i = 0; i < fep->rx_ring_size; i++) {
 		skb = netdev_alloc_skb(ndev, FEC_ENET_RX_FRSIZE);
 		if (!skb) {
 			fec_enet_free_buffers(ndev);
@@ -1703,15 +1726,15 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 			ebdp->cbd_esc = BD_ENET_RX_INT;
 		}
 
-		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+		bdp = fec_enet_get_nextdesc(bdp, fep);
 	}
 
 	/* Set the last buffer to wrap. */
-	bdp = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
+	bdp = fec_enet_get_prevdesc(bdp, fep);
 	bdp->cbd_sc |= BD_SC_WRAP;
 
 	bdp = fep->tx_bd_base;
-	for (i = 0; i < TX_RING_SIZE; i++) {
+	for (i = 0; i < fep->tx_ring_size; i++) {
 		fep->tx_bounce[i] = kmalloc(FEC_ENET_TX_FRSIZE, GFP_KERNEL);
 
 		bdp->cbd_sc = 0;
@@ -1722,11 +1745,11 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 			ebdp->cbd_esc = BD_ENET_TX_INT;
 		}
 
-		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+		bdp = fec_enet_get_nextdesc(bdp, fep);
 	}
 
 	/* Set the last buffer to wrap. */
-	bdp = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
+	bdp = fec_enet_get_prevdesc(bdp, fep);
 	bdp->cbd_sc |= BD_SC_WRAP;
 
 	return 0;
@@ -1966,13 +1989,17 @@ static int fec_enet_init(struct net_device *ndev)
 	/* Get the Ethernet address */
 	fec_get_mac(ndev);
 
+	/* init the tx & rx ring size */
+	fep->tx_ring_size = TX_RING_SIZE;
+	fep->rx_ring_size = RX_RING_SIZE;
+
 	/* Set receive and transmit descriptor base. */
 	fep->rx_bd_base = cbd_base;
 	if (fep->bufdesc_ex)
 		fep->tx_bd_base = (struct bufdesc *)
-			(((struct bufdesc_ex *)cbd_base) + RX_RING_SIZE);
+			(((struct bufdesc_ex *)cbd_base) + fep->rx_ring_size);
 	else
-		fep->tx_bd_base = cbd_base + RX_RING_SIZE;
+		fep->tx_bd_base = cbd_base + fep->rx_ring_size;
 
 	/* The FEC Ethernet specific entries in the device structure */
 	ndev->watchdog_timeo = TX_TIMEOUT;
@@ -1980,7 +2007,7 @@ static int fec_enet_init(struct net_device *ndev)
 	ndev->ethtool_ops = &fec_enet_ethtool_ops;
 
 	writel(FEC_RX_DISABLED_IMASK, fep->hwp + FEC_IMASK);
-	netif_napi_add(ndev, &fep->napi, fec_enet_rx_napi, FEC_NAPI_WEIGHT);
+	netif_napi_add(ndev, &fep->napi, fec_enet_rx_napi, NAPI_POLL_WEIGHT);
 
 	if (id_entry->driver_data & FEC_QUIRK_HAS_VLAN) {
 		/* enable hw VLAN support */
@@ -2055,10 +2082,6 @@ fec_probe(struct platform_device *pdev)
 	if (of_id)
 		pdev->id_entry = of_id->data;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
-		return -ENXIO;
-
 	/* Init network device */
 	ndev = alloc_etherdev(sizeof(struct fec_enet_private));
 	if (!ndev)
@@ -2076,6 +2099,7 @@ fec_probe(struct platform_device *pdev)
 		fep->pause_flag |= FEC_PAUSE_FLAG_AUTONEG;
 #endif
 
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	fep->hwp = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(fep->hwp)) {
 		ret = PTR_ERR(fep->hwp);
@@ -2091,7 +2115,7 @@ fec_probe(struct platform_device *pdev)
 
 	ret = of_get_phy_mode(pdev->dev.of_node);
 	if (ret < 0) {
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 		if (pdata)
 			fep->phy_interface = pdata->phy;
 		else
@@ -2125,10 +2149,25 @@ fec_probe(struct platform_device *pdev)
 		fep->bufdesc_ex = 0;
 	}
 
-	clk_prepare_enable(fep->clk_ahb);
-	clk_prepare_enable(fep->clk_ipg);
-	clk_prepare_enable(fep->clk_enet_out);
-	clk_prepare_enable(fep->clk_ptp);
+	ret = clk_prepare_enable(fep->clk_ahb);
+	if (ret)
+		goto failed_clk;
+
+	ret = clk_prepare_enable(fep->clk_ipg);
+	if (ret)
+		goto failed_clk_ipg;
+
+	if (fep->clk_enet_out) {
+		ret = clk_prepare_enable(fep->clk_enet_out);
+		if (ret)
+			goto failed_clk_enet_out;
+	}
+
+	if (fep->clk_ptp) {
+		ret = clk_prepare_enable(fep->clk_ptp);
+		if (ret)
+			goto failed_clk_ptp;
+	}
 
 	fep->reg_phy = devm_regulator_get(&pdev->dev, "phy");
 	if (!IS_ERR(fep->reg_phy)) {
@@ -2159,14 +2198,10 @@ fec_probe(struct platform_device *pdev)
 			ret = irq;
 			goto failed_irq;
 		}
-		ret = request_irq(irq, fec_enet_interrupt, IRQF_DISABLED, pdev->name, ndev);
-		if (ret) {
-			while (--i >= 0) {
-				irq = platform_get_irq(pdev, i);
-				free_irq(irq, ndev);
-			}
+		ret = devm_request_irq(&pdev->dev, irq, fec_enet_interrupt,
+				       IRQF_DISABLED, pdev->name, ndev);
+		if (ret)
 			goto failed_irq;
-		}
 	}
 
 	ret = fec_enet_mii_init(pdev);
@@ -2190,19 +2225,19 @@ failed_register:
 	fec_enet_mii_remove(fep);
 failed_mii_init:
 failed_irq:
-	for (i = 0; i < FEC_IRQ_NUM; i++) {
-		irq = platform_get_irq(pdev, i);
-		if (irq > 0)
-			free_irq(irq, ndev);
-	}
 failed_init:
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
 failed_regulator:
-	clk_disable_unprepare(fep->clk_ahb);
+	if (fep->clk_ptp)
+		clk_disable_unprepare(fep->clk_ptp);
+failed_clk_ptp:
+	if (fep->clk_enet_out)
+		clk_disable_unprepare(fep->clk_enet_out);
+failed_clk_enet_out:
 	clk_disable_unprepare(fep->clk_ipg);
-	clk_disable_unprepare(fep->clk_enet_out);
-	clk_disable_unprepare(fep->clk_ptp);
+failed_clk_ipg:
+	clk_disable_unprepare(fep->clk_ahb);
 failed_clk:
 failed_ioremap:
 	free_netdev(ndev);
@@ -2215,25 +2250,21 @@ fec_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	int i;
 
 	cancel_delayed_work_sync(&(fep->delay_work.delay_work));
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
 	del_timer_sync(&fep->time_keep);
-	for (i = 0; i < FEC_IRQ_NUM; i++) {
-		int irq = platform_get_irq(pdev, i);
-		if (irq > 0)
-			free_irq(irq, ndev);
-	}
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
-	clk_disable_unprepare(fep->clk_ptp);
+	if (fep->clk_ptp)
+		clk_disable_unprepare(fep->clk_ptp);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
-	clk_disable_unprepare(fep->clk_enet_out);
-	clk_disable_unprepare(fep->clk_ahb);
+	if (fep->clk_enet_out)
+		clk_disable_unprepare(fep->clk_enet_out);
 	clk_disable_unprepare(fep->clk_ipg);
+	clk_disable_unprepare(fep->clk_ahb);
 	free_netdev(ndev);
 
 	return 0;
@@ -2250,9 +2281,12 @@ fec_suspend(struct device *dev)
 		fec_stop(ndev);
 		netif_device_detach(ndev);
 	}
-	clk_disable_unprepare(fep->clk_enet_out);
-	clk_disable_unprepare(fep->clk_ahb);
+	if (fep->clk_ptp)
+		clk_disable_unprepare(fep->clk_ptp);
+	if (fep->clk_enet_out)
+		clk_disable_unprepare(fep->clk_enet_out);
 	clk_disable_unprepare(fep->clk_ipg);
+	clk_disable_unprepare(fep->clk_ahb);
 
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
@@ -2273,15 +2307,44 @@ fec_resume(struct device *dev)
 			return ret;
 	}
 
-	clk_prepare_enable(fep->clk_enet_out);
-	clk_prepare_enable(fep->clk_ahb);
-	clk_prepare_enable(fep->clk_ipg);
+	ret = clk_prepare_enable(fep->clk_ahb);
+	if (ret)
+		goto failed_clk_ahb;
+
+	ret = clk_prepare_enable(fep->clk_ipg);
+	if (ret)
+		goto failed_clk_ipg;
+
+	if (fep->clk_enet_out) {
+		ret = clk_prepare_enable(fep->clk_enet_out);
+		if (ret)
+			goto failed_clk_enet_out;
+	}
+
+	if (fep->clk_ptp) {
+		ret = clk_prepare_enable(fep->clk_ptp);
+		if (ret)
+			goto failed_clk_ptp;
+	}
+
 	if (netif_running(ndev)) {
 		fec_restart(ndev, fep->full_duplex);
 		netif_device_attach(ndev);
 	}
 
 	return 0;
+
+failed_clk_ptp:
+	if (fep->clk_enet_out)
+		clk_disable_unprepare(fep->clk_enet_out);
+failed_clk_enet_out:
+	clk_disable_unprepare(fep->clk_ipg);
+failed_clk_ipg:
+	clk_disable_unprepare(fep->clk_ahb);
+failed_clk_ahb:
+	if (fep->reg_phy)
+		regulator_disable(fep->reg_phy);
+	return ret;
 }
 #endif /* CONFIG_PM_SLEEP */
 

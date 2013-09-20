@@ -2,7 +2,7 @@
  * w83792d.c - Part of lm_sensors, Linux kernel modules for hardware
  *	       monitoring
  * Copyright (C) 2004, 2005 Winbond Electronics Corp.
- *			    Chunhao Huang <DZShen@Winbond.com.tw>,
+ *			    Shane Huang,
  *			    Rudolf Marek <r.marek@assembler.cz>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1665,6 +1665,6 @@ static void w83792d_print_debug(struct w83792d_data *data, struct device *dev)
 
 module_i2c_driver(w83792d_driver);
 
-MODULE_AUTHOR("Chunhao Huang @ Winbond <DZShen@Winbond.com.tw>");
+MODULE_AUTHOR("Shane Huang (Winbond)");
 MODULE_DESCRIPTION("W83792AD/D driver for linux-2.6");
 MODULE_LICENSE("GPL");

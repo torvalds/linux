@@ -15,12 +15,13 @@
 #ifndef _ASM_TILE_TRAPS_H
 #define _ASM_TILE_TRAPS_H
 
+#ifndef __ASSEMBLY__
 #include <arch/chip.h>
 
 /* mm/fault.c */
 void do_page_fault(struct pt_regs *, int fault_num,
 		   unsigned long address, unsigned long write);
-#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
+#if CHIP_HAS_TILE_DMA()
 void do_async_page_fault(struct pt_regs *);
 #endif
 
@@ -69,6 +70,16 @@ void gx_singlestep_handle(struct pt_regs *, int fault_num);
 
 /* kernel/intvec_64.S */
 void fill_ra_stack(void);
+
+/* Handle unalign data fixup. */
+extern void do_unaligned(struct pt_regs *regs, int vecnum);
+#endif
+
+#endif /* __ASSEMBLY__ */
+
+#ifdef __tilegx__
+/* 128 byte JIT per unalign fixup. */
+#define UNALIGN_JIT_SHIFT    7
 #endif
 
 #endif /* _ASM_TILE_TRAPS_H */

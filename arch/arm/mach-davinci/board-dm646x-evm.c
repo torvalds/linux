@@ -750,10 +750,6 @@ static void __init davinci_map_io(void)
 	cdce_clk_init();
 }
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 #define DM646X_EVM_PHY_ID		"davinci_mdio-0:01"
 /*
  * The following EDMA channels/slots are not being used by drivers (for
@@ -793,7 +789,7 @@ static __init void evm_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	evm_init_i2c();
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm646x_serial_device);
 	dm646x_init_mcasp0(&dm646x_evm_snd_data[0]);
 	dm646x_init_mcasp1(&dm646x_evm_snd_data[1]);
 

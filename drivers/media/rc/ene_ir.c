@@ -476,7 +476,7 @@ select_timeout:
 }
 
 /* Enable the device for receive */
-static void ene_rx_enable(struct ene_device *dev)
+static void ene_rx_enable_hw(struct ene_device *dev)
 {
 	u8 reg_value;
 
@@ -504,11 +504,17 @@ static void ene_rx_enable(struct ene_device *dev)
 
 	/* enter idle mode */
 	ir_raw_event_set_idle(dev->rdev, true);
+}
+
+/* Enable the device for receive - wrapper to track the state*/
+static void ene_rx_enable(struct ene_device *dev)
+{
+	ene_rx_enable_hw(dev);
 	dev->rx_enabled = true;
 }
 
 /* Disable the device receiver */
-static void ene_rx_disable(struct ene_device *dev)
+static void ene_rx_disable_hw(struct ene_device *dev)
 {
 	/* disable inputs */
 	ene_rx_enable_cir_engine(dev, false);
@@ -516,8 +522,13 @@ static void ene_rx_disable(struct ene_device *dev)
 
 	/* disable hardware IRQ and firmware flag */
 	ene_clear_reg_mask(dev, ENE_FW1, ENE_FW1_ENABLE | ENE_FW1_IRQ);
-
 	ir_raw_event_set_idle(dev->rdev, true);
+}
+
+/* Disable the device receiver - wrapper to track the state */
+static void ene_rx_disable(struct ene_device *dev)
+{
+	ene_rx_disable_hw(dev);
 	dev->rx_enabled = false;
 }
 
@@ -1022,6 +1033,8 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	spin_lock_init(&dev->hw_lock);
 
 	dev->hw_io = pnp_port_start(pnp_dev, 0);
+	dev->irq = pnp_irq(pnp_dev, 0);
+
 
 	pnp_set_drvdata(pnp_dev, dev);
 	dev->pnp_dev = pnp_dev;
@@ -1085,7 +1098,6 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		goto exit_unregister_device;
 	}
 
-	dev->irq = pnp_irq(pnp_dev, 0);
 	if (request_irq(dev->irq, ene_isr,
 			IRQF_SHARED, ENE_DRIVER_NAME, (void *)dev)) {
 		goto exit_release_hw_io;
@@ -1123,9 +1135,8 @@ static void ene_remove(struct pnp_dev *pnp_dev)
 }
 
 /* enable wake on IR (wakes on specific button on original remote) */
-static void ene_enable_wake(struct ene_device *dev, int enable)
+static void ene_enable_wake(struct ene_device *dev, bool enable)
 {
-	enable = enable && device_may_wakeup(&dev->pnp_dev->dev);
 	dbg("wake on IR %s", enable ? "enabled" : "disabled");
 	ene_set_clear_reg_mask(dev, ENE_FW1, ENE_FW1_WAKE, enable);
 }
@@ -1134,9 +1145,12 @@ static void ene_enable_wake(struct ene_device *dev, int enable)
 static int ene_suspend(struct pnp_dev *pnp_dev, pm_message_t state)
 {
 	struct ene_device *dev = pnp_get_drvdata(pnp_dev);
-	ene_enable_wake(dev, true);
+	bool wake = device_may_wakeup(&dev->pnp_dev->dev);
 
-	/* TODO: add support for wake pattern */
+	if (!wake && dev->rx_enabled)
+		ene_rx_disable_hw(dev);
+
+	ene_enable_wake(dev, wake);
 	return 0;
 }
 

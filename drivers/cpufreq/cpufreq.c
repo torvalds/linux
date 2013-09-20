@@ -280,13 +280,6 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 	switch (state) {
 
 	case CPUFREQ_PRECHANGE:
-		if (WARN(policy->transition_ongoing ==
-					cpumask_weight(policy->cpus),
-				"In middle of another frequency transition\n"))
-			return;
-
-		policy->transition_ongoing++;
-
 		/* detect if the driver reported a value as "old frequency"
 		 * which is not equal to what the cpufreq core thinks is
 		 * "old frequency".
@@ -306,12 +299,6 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 		break;
 
 	case CPUFREQ_POSTCHANGE:
-		if (WARN(!policy->transition_ongoing,
-				"No frequency transition in progress\n"))
-			return;
-
-		policy->transition_ongoing--;
-
 		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
 		pr_debug("FREQ: %lu - CPU: %lu", (unsigned long)freqs->new,
 			(unsigned long)freqs->cpu);
@@ -437,7 +424,7 @@ static int __cpufreq_set_policy(struct cpufreq_policy *policy,
 static ssize_t store_##file_name					\
 (struct cpufreq_policy *policy, const char *buf, size_t count)		\
 {									\
-	unsigned int ret;						\
+	int ret;							\
 	struct cpufreq_policy new_policy;				\
 									\
 	ret = cpufreq_get_policy(&new_policy, policy->cpu);		\
@@ -490,7 +477,7 @@ static ssize_t show_scaling_governor(struct cpufreq_policy *policy, char *buf)
 static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 					const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret;
 	char	str_governor[16];
 	struct cpufreq_policy new_policy;
 
@@ -694,8 +681,13 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
 
+	get_online_cpus();
+
+	if (!cpu_online(policy->cpu))
+		goto unlock;
+
 	if (!down_read_trylock(&cpufreq_rwsem))
-		goto exit;
+		goto unlock;
 
 	if (lock_policy_rwsem_write(policy->cpu) < 0)
 		goto up_read;
@@ -709,7 +701,9 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 
 up_read:
 	up_read(&cpufreq_rwsem);
-exit:
+unlock:
+	put_online_cpus();
+
 	return ret;
 }
 
@@ -912,11 +906,11 @@ static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
 	struct cpufreq_policy *policy;
 	unsigned long flags;
 
-	write_lock_irqsave(&cpufreq_driver_lock, flags);
+	read_lock_irqsave(&cpufreq_driver_lock, flags);
 
 	policy = per_cpu(cpufreq_cpu_data_fallback, cpu);
 
-	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
+	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
 	return policy;
 }
@@ -951,6 +945,21 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 	free_cpumask_var(policy->related_cpus);
 	free_cpumask_var(policy->cpus);
 	kfree(policy);
+}
+
+static void update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu)
+{
+	if (cpu == policy->cpu)
+		return;
+
+	policy->last_cpu = policy->cpu;
+	policy->cpu = cpu;
+
+#ifdef CONFIG_CPU_FREQ_TABLE
+	cpufreq_frequency_table_update_policy_cpu(policy);
+#endif
+	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
+			CPUFREQ_UPDATE_POLICY_CPU, policy);
 }
 
 static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
@@ -1006,7 +1015,18 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 	if (!policy)
 		goto nomem_out;
 
-	policy->cpu = cpu;
+
+	/*
+	 * In the resume path, since we restore a saved policy, the assignment
+	 * to policy->cpu is like an update of the existing policy, rather than
+	 * the creation of a brand new one. So we need to perform this update
+	 * by invoking update_policy_cpu().
+	 */
+	if (frozen && cpu != policy->cpu)
+		update_policy_cpu(policy, cpu);
+	else
+		policy->cpu = cpu;
+
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	cpumask_copy(policy->cpus, cpumask_of(cpu));
 
@@ -1098,18 +1118,6 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	return __cpufreq_add_dev(dev, sif, false);
 }
 
-static void update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu)
-{
-	policy->last_cpu = policy->cpu;
-	policy->cpu = cpu;
-
-#ifdef CONFIG_CPU_FREQ_TABLE
-	cpufreq_frequency_table_update_policy_cpu(policy);
-#endif
-	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
-			CPUFREQ_UPDATE_POLICY_CPU, policy);
-}
-
 static int cpufreq_nominate_new_policy_cpu(struct cpufreq_policy *policy,
 					   unsigned int old_cpu, bool frozen)
 {
@@ -1141,22 +1149,14 @@ static int cpufreq_nominate_new_policy_cpu(struct cpufreq_policy *policy,
 	return cpu_dev->id;
 }
 
-/**
- * __cpufreq_remove_dev - remove a CPU device
- *
- * Removes the cpufreq interface for a CPU device.
- * Caller should already have policy_rwsem in write mode for this CPU.
- * This routine frees the rwsem before returning.
- */
-static int __cpufreq_remove_dev(struct device *dev,
-				struct subsys_interface *sif, bool frozen)
+static int __cpufreq_remove_dev_prepare(struct device *dev,
+					struct subsys_interface *sif,
+					bool frozen)
 {
 	unsigned int cpu = dev->id, cpus;
 	int new_cpu, ret;
 	unsigned long flags;
 	struct cpufreq_policy *policy;
-	struct kobject *kobj;
-	struct completion *cmp;
 
 	pr_debug("%s: unregistering CPU %u\n", __func__, cpu);
 
@@ -1196,8 +1196,9 @@ static int __cpufreq_remove_dev(struct device *dev,
 		cpumask_clear_cpu(cpu, policy->cpus);
 	unlock_policy_rwsem_write(cpu);
 
-	if (cpu != policy->cpu && !frozen) {
-		sysfs_remove_link(&dev->kobj, "cpufreq");
+	if (cpu != policy->cpu) {
+		if (!frozen)
+			sysfs_remove_link(&dev->kobj, "cpufreq");
 	} else if (cpus > 1) {
 
 		new_cpu = cpufreq_nominate_new_policy_cpu(policy, cpu, frozen);
@@ -1212,6 +1213,33 @@ static int __cpufreq_remove_dev(struct device *dev,
 			}
 		}
 	}
+
+	return 0;
+}
+
+static int __cpufreq_remove_dev_finish(struct device *dev,
+				       struct subsys_interface *sif,
+				       bool frozen)
+{
+	unsigned int cpu = dev->id, cpus;
+	int ret;
+	unsigned long flags;
+	struct cpufreq_policy *policy;
+	struct kobject *kobj;
+	struct completion *cmp;
+
+	read_lock_irqsave(&cpufreq_driver_lock, flags);
+	policy = per_cpu(cpufreq_cpu_data, cpu);
+	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+	if (!policy) {
+		pr_debug("%s: No cpu_data found\n", __func__);
+		return -EINVAL;
+	}
+
+	lock_policy_rwsem_read(cpu);
+	cpus = cpumask_weight(policy->cpus);
+	unlock_policy_rwsem_read(cpu);
 
 	/* If cpu is last user of policy, free policy */
 	if (cpus == 1) {
@@ -1270,6 +1298,27 @@ static int __cpufreq_remove_dev(struct device *dev,
 
 	per_cpu(cpufreq_cpu_data, cpu) = NULL;
 	return 0;
+}
+
+/**
+ * __cpufreq_remove_dev - remove a CPU device
+ *
+ * Removes the cpufreq interface for a CPU device.
+ * Caller should already have policy_rwsem in write mode for this CPU.
+ * This routine frees the rwsem before returning.
+ */
+static inline int __cpufreq_remove_dev(struct device *dev,
+				       struct subsys_interface *sif,
+				       bool frozen)
+{
+	int ret;
+
+	ret = __cpufreq_remove_dev_prepare(dev, sif, frozen);
+
+	if (!ret)
+		ret = __cpufreq_remove_dev_finish(dev, sif, frozen);
+
+	return ret;
 }
 
 static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
@@ -1610,8 +1659,6 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 
 	if (cpufreq_disabled())
 		return -ENODEV;
-	if (policy->transition_ongoing)
-		return -EBUSY;
 
 	/* Make sure that target_freq is within supported range */
 	if (target_freq > policy->max)
@@ -1692,8 +1739,9 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 						policy->cpu, event);
 
 	mutex_lock(&cpufreq_governor_lock);
-	if ((!policy->governor_enabled && (event == CPUFREQ_GOV_STOP)) ||
-	    (policy->governor_enabled && (event == CPUFREQ_GOV_START))) {
+	if ((policy->governor_enabled && event == CPUFREQ_GOV_START)
+	    || (!policy->governor_enabled
+	    && (event == CPUFREQ_GOV_LIMITS || event == CPUFREQ_GOV_STOP))) {
 		mutex_unlock(&cpufreq_governor_lock);
 		return -EBUSY;
 	}
@@ -1994,7 +2042,11 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 			break;
 
 		case CPU_DOWN_PREPARE:
-			__cpufreq_remove_dev(dev, NULL, frozen);
+			__cpufreq_remove_dev_prepare(dev, NULL, frozen);
+			break;
+
+		case CPU_POST_DEAD:
+			__cpufreq_remove_dev_finish(dev, NULL, frozen);
 			break;
 
 		case CPU_DOWN_FAILED:

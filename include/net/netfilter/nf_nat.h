@@ -13,15 +13,6 @@ enum nf_nat_manip_type {
 #define HOOK2MANIP(hooknum) ((hooknum) != NF_INET_POST_ROUTING && \
 			     (hooknum) != NF_INET_LOCAL_IN)
 
-/* NAT sequence number modifications */
-struct nf_nat_seq {
-	/* position of the last TCP sequence number modification (if any) */
-	u_int32_t correction_pos;
-
-	/* sequence number offset before and after last modification */
-	int16_t offset_before, offset_after;
-};
-
 #include <linux/list.h>
 #include <linux/netfilter/nf_conntrack_pptp.h>
 #include <net/netfilter/nf_conntrack_extend.h>
@@ -39,7 +30,6 @@ struct nf_conn;
 /* The structure embedded in the conntrack structure. */
 struct nf_conn_nat {
 	struct hlist_node bysource;
-	struct nf_nat_seq seq[IP_CT_DIR_MAX];
 	struct nf_conn *ct;
 	union nf_conntrack_nat_help help;
 #if defined(CONFIG_IP_NF_TARGET_MASQUERADE) || \

@@ -73,7 +73,7 @@ The main requirements are:
 
 Design
 
-The new API shares a number of concepts with with the PCM API for flow
+The new API shares a number of concepts with the PCM API for flow
 control. Start, pause, resume, drain and stop commands have the same
 semantics no matter what the content is.
 
@@ -130,7 +130,7 @@ the settings should remain the exception.
 The timestamp becomes a multiple field structure. It lists the number
 of bytes transferred, the number of samples processed and the number
 of samples rendered/grabbed. All these values can be used to determine
-the avarage bitrate, figure out if the ring buffer needs to be
+the average bitrate, figure out if the ring buffer needs to be
 refilled or the delay due to decoding/encoding/io on the DSP.
 
 Note that the list of codecs/profiles/modes was derived from the

@@ -161,7 +161,8 @@ static const struct net_device_ops ax88172a_netdev_ops = {
 	.ndo_set_rx_mode        = asix_set_multicast,
 };
 
-int ax88172a_get_settings(struct net_device *net, struct ethtool_cmd *cmd)
+static int ax88172a_get_settings(struct net_device *net,
+				 struct ethtool_cmd *cmd)
 {
 	if (!net->phydev)
 		return -ENODEV;
@@ -169,7 +170,8 @@ int ax88172a_get_settings(struct net_device *net, struct ethtool_cmd *cmd)
 	return phy_ethtool_gset(net->phydev, cmd);
 }
 
-int ax88172a_set_settings(struct net_device *net, struct ethtool_cmd *cmd)
+static int ax88172a_set_settings(struct net_device *net,
+				 struct ethtool_cmd *cmd)
 {
 	if (!net->phydev)
 		return -ENODEV;
@@ -177,7 +179,7 @@ int ax88172a_set_settings(struct net_device *net, struct ethtool_cmd *cmd)
 	return phy_ethtool_sset(net->phydev, cmd);
 }
 
-int ax88172a_nway_reset(struct net_device *net)
+static int ax88172a_nway_reset(struct net_device *net)
 {
 	if (!net->phydev)
 		return -ENODEV;

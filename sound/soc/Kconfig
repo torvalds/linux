@@ -26,12 +26,9 @@ if SND_SOC
 config SND_SOC_AC97_BUS
 	bool
 
-config SND_SOC_DMAENGINE_PCM
-	bool
-
 config SND_SOC_GENERIC_DMAENGINE_PCM
 	bool
-	select SND_SOC_DMAENGINE_PCM
+	select SND_DMAENGINE_PCM
 
 # All the supported SoCs
 source "sound/soc/atmel/Kconfig"

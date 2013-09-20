@@ -38,6 +38,97 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
+
+/* *************    Register Documentation   *******************************************************
+ *
+ * Work in progress! Documentation is based on the code in this file.
+ *
+ * --------- HDSPM_controlRegister ---------
+ * :7654.3210:7654.3210:7654.3210:7654.3210: bit number per byte
+ * :||||.||||:||||.||||:||||.||||:||||.||||:
+ * :3322.2222:2222.1111:1111.1100:0000.0000: bit number
+ * :1098.7654:3210.9876:5432.1098:7654.3210: 0..31
+ * :||||.||||:||||.||||:||||.||||:||||.||||:
+ * :8421.8421:8421.8421:8421.8421:8421.8421: hex digit
+ * :    .    :    .    :    .    :  x .    :  HDSPM_AudioInterruptEnable \_ setting both bits
+ * :    .    :    .    :    .    :    .   x:  HDSPM_Start                /  enables audio IO
+ * :    .    :    .    :    .    :   x.    :  HDSPM_ClockModeMaster - 1: Master, 0: Slave
+ * :    .    :    .    :    .    :    .210 :  HDSPM_LatencyMask - 3 Bit value for latency
+ * :    .    :    .    :    .    :    .    :      0:64, 1:128, 2:256, 3:512,
+ * :    .    :    .    :    .    :    .    :      4:1024, 5:2048, 6:4096, 7:8192
+ * :x   .    :    .    :    .   x:xx  .    :  HDSPM_FrequencyMask
+ * :    .    :    .    :    .    :10  .    :  HDSPM_Frequency1|HDSPM_Frequency0: 1=32K,2=44.1K,3=48K,0=??
+ * :    .    :    .    :    .   x:    .    :  <MADI> HDSPM_DoubleSpeed
+ * :x   .    :    .    :    .    :    .    :  <MADI> HDSPM_QuadSpeed
+ * :    .  3 :    .  10:  2 .    :    .    :  HDSPM_SyncRefMask :
+ * :    .    :    .   x:    .    :    .    :  HDSPM_SyncRef0
+ * :    .    :    .  x :    .    :    .    :  HDSPM_SyncRef1
+ * :    .    :    .    :  x .    :    .    :  <AES32> HDSPM_SyncRef2
+ * :    .  x :    .    :    .    :    .    :  <AES32> HDSPM_SyncRef3
+ * :    .    :    .  10:    .    :    .    :  <MADI> sync ref: 0:WC, 1:Madi, 2:TCO, 3:SyncIn
+ * :    .  3 :    .  10:  2 .    :    .    :  <AES32>  0:WC, 1:AES1 ... 8:AES8, 9: TCO, 10:SyncIn?
+ * :    .  x :    .    :    .    :    .    :  <MADIe> HDSPe_FLOAT_FORMAT
+ * :    .    :    .    : x  .    :    .    :  <MADI> HDSPM_InputSelect0 : 0=optical,1=coax
+ * :    .    :    .    :x   .    :    .    :  <MADI> HDSPM_InputSelect1
+ * :    .    :    .x   :    .    :    .    :  <MADI> HDSPM_clr_tms
+ * :    .    :    .    :    . x  :    .    :  <MADI> HDSPM_TX_64ch
+ * :    .    :    .    :    . x  :    .    :  <AES32> HDSPM_Emphasis
+ * :    .    :    .    :    .x   :    .    :  <MADI> HDSPM_AutoInp
+ * :    .    :    . x  :    .    :    .    :  <MADI> HDSPM_SMUX
+ * :    .    :    .x   :    .    :    .    :  <MADI> HDSPM_clr_tms
+ * :    .    :   x.    :    .    :    .    :  <MADI> HDSPM_taxi_reset
+ * :    .   x:    .    :    .    :    .    :  <MADI> HDSPM_LineOut
+ * :    .   x:    .    :    .    :    .    :  <AES32> ??????????????????
+ * :    .    :   x.    :    .    :    .    :  <AES32> HDSPM_WCK48
+ * :    .    :    .    :    .x   :    .    :  <AES32> HDSPM_Dolby
+ * :    .    : x  .    :    .    :    .    :  HDSPM_Midi0InterruptEnable
+ * :    .    :x   .    :    .    :    .    :  HDSPM_Midi1InterruptEnable
+ * :    .    :  x .    :    .    :    .    :  HDSPM_Midi2InterruptEnable
+ * :    . x  :    .    :    .    :    .    :  <MADI> HDSPM_Midi3InterruptEnable
+ * :    . x  :    .    :    .    :    .    :  <AES32> HDSPM_DS_DoubleWire
+ * :    .x   :    .    :    .    :    .    :  <AES32> HDSPM_QS_DoubleWire
+ * :   x.    :    .    :    .    :    .    :  <AES32> HDSPM_QS_QuadWire
+ * :    .    :    .    :    .  x :    .    :  <AES32> HDSPM_Professional
+ * : x  .    :    .    :    .    :    .    :  HDSPM_wclk_sel
+ * :    .    :    .    :    .    :    .    :
+ * :7654.3210:7654.3210:7654.3210:7654.3210: bit number per byte
+ * :||||.||||:||||.||||:||||.||||:||||.||||:
+ * :3322.2222:2222.1111:1111.1100:0000.0000: bit number
+ * :1098.7654:3210.9876:5432.1098:7654.3210: 0..31
+ * :||||.||||:||||.||||:||||.||||:||||.||||:
+ * :8421.8421:8421.8421:8421.8421:8421.8421:hex digit
+ *
+ *
+ *
+ * AIO / RayDAT only
+ *
+ * ------------ HDSPM_WR_SETTINGS ----------
+ * :3322.2222:2222.1111:1111.1100:0000.0000: bit number per byte
+ * :1098.7654:3210.9876:5432.1098:7654.3210:
+ * :||||.||||:||||.||||:||||.||||:||||.||||: bit number
+ * :7654.3210:7654.3210:7654.3210:7654.3210: 0..31
+ * :||||.||||:||||.||||:||||.||||:||||.||||:
+ * :8421.8421:8421.8421:8421.8421:8421.8421: hex digit
+ * :    .    :    .    :    .    :    .   x: HDSPM_c0Master 1: Master, 0: Slave
+ * :    .    :    .    :    .    :    .  x : HDSPM_c0_SyncRef0
+ * :    .    :    .    :    .    :    . x  : HDSPM_c0_SyncRef1
+ * :    .    :    .    :    .    :    .x   : HDSPM_c0_SyncRef2
+ * :    .    :    .    :    .    :   x.    : HDSPM_c0_SyncRef3
+ * :    .    :    .    :    .    :   3.210 : HDSPM_c0_SyncRefMask:
+ * :    .    :    .    :    .    :    .    :  RayDat: 0:WC, 1:AES, 2:SPDIF, 3..6: ADAT1..4,
+ * :    .    :    .    :    .    :    .    :          9:TCO, 10:SyncIn
+ * :    .    :    .    :    .    :    .    :  AIO: 0:WC, 1:AES, 2: SPDIF, 3: ATAT,
+ * :    .    :    .    :    .    :    .    :          9:TCO, 10:SyncIn
+ * :    .    :    .    :    .    :    .    :
+ * :    .    :    .    :    .    :    .    :
+ * :3322.2222:2222.1111:1111.1100:0000.0000: bit number per byte
+ * :1098.7654:3210.9876:5432.1098:7654.3210:
+ * :||||.||||:||||.||||:||||.||||:||||.||||: bit number
+ * :7654.3210:7654.3210:7654.3210:7654.3210: 0..31
+ * :||||.||||:||||.||||:||||.||||:||||.||||:
+ * :8421.8421:8421.8421:8421.8421:8421.8421: hex digit
+ *
+ */
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -95,7 +186,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_controlRegister	     64
 #define HDSPM_interruptConfirmation  96
 #define HDSPM_control2Reg	     256  /* not in specs ???????? */
-#define HDSPM_freqReg                256  /* for AES32 */
+#define HDSPM_freqReg                256  /* for setting arbitrary clock values (DDS feature) */
 #define HDSPM_midiDataOut0	     352  /* just believe in old code */
 #define HDSPM_midiDataOut1	     356
 #define HDSPM_eeprom_wr		     384  /* for AES32 */
@@ -258,6 +349,25 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 
 #define HDSPM_wclk_sel (1<<30)
 
+/* additional control register bits for AIO*/
+#define HDSPM_c0_Wck48				0x20 /* also RayDAT */
+#define HDSPM_c0_Input0				0x1000
+#define HDSPM_c0_Input1				0x2000
+#define HDSPM_c0_Spdif_Opt			0x4000
+#define HDSPM_c0_Pro				0x8000
+#define HDSPM_c0_clr_tms			0x10000
+#define HDSPM_c0_AEB1				0x20000
+#define HDSPM_c0_AEB2				0x40000
+#define HDSPM_c0_LineOut			0x80000
+#define HDSPM_c0_AD_GAIN0			0x100000
+#define HDSPM_c0_AD_GAIN1			0x200000
+#define HDSPM_c0_DA_GAIN0			0x400000
+#define HDSPM_c0_DA_GAIN1			0x800000
+#define HDSPM_c0_PH_GAIN0			0x1000000
+#define HDSPM_c0_PH_GAIN1			0x2000000
+#define HDSPM_c0_Sym6db				0x4000000
+
+
 /* --- bit helper defines */
 #define HDSPM_LatencyMask    (HDSPM_Latency0|HDSPM_Latency1|HDSPM_Latency2)
 #define HDSPM_FrequencyMask  (HDSPM_Frequency0|HDSPM_Frequency1|\
@@ -341,11 +451,11 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_madiLock           (1<<3)	/* MADI Locked =1, no=0 */
 #define HDSPM_madiSync          (1<<18) /* MADI is in sync */
 
-#define HDSPM_tcoLock    0x00000020 /* Optional TCO locked status FOR HDSPe MADI! */
-#define HDSPM_tcoSync    0x10000000 /* Optional TCO sync status */
+#define HDSPM_tcoLockMadi    0x00000020 /* Optional TCO locked status for HDSPe MADI*/
+#define HDSPM_tcoSync    0x10000000 /* Optional TCO sync status for HDSPe MADI and AES32!*/
 
-#define HDSPM_syncInLock 0x00010000 /* Sync In lock status FOR HDSPe MADI! */
-#define HDSPM_syncInSync 0x00020000 /* Sync In sync status FOR HDSPe MADI! */
+#define HDSPM_syncInLock 0x00010000 /* Sync In lock status for HDSPe MADI! */
+#define HDSPM_syncInSync 0x00020000 /* Sync In sync status for HDSPe MADI! */
 
 #define HDSPM_BufferPositionMask 0x000FFC0 /* Bit 6..15 : h/w buffer pointer */
 			/* since 64byte accurate, last 6 bits are not used */
@@ -363,7 +473,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 					 * Interrupt
 					 */
 #define HDSPM_tco_detect         0x08000000
-#define HDSPM_tco_lock	         0x20000000
+#define HDSPM_tcoLockAes         0x20000000 /* Optional TCO locked status for HDSPe AES */
 
 #define HDSPM_s2_tco_detect      0x00000040
 #define HDSPM_s2_AEBO_D          0x00000080
@@ -461,7 +571,9 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_AES32_AUTOSYNC_FROM_AES6 6
 #define HDSPM_AES32_AUTOSYNC_FROM_AES7 7
 #define HDSPM_AES32_AUTOSYNC_FROM_AES8 8
-#define HDSPM_AES32_AUTOSYNC_FROM_NONE 9
+#define HDSPM_AES32_AUTOSYNC_FROM_TCO 9
+#define HDSPM_AES32_AUTOSYNC_FROM_SYNC_IN 10
+#define HDSPM_AES32_AUTOSYNC_FROM_NONE 11
 
 /*  status2 */
 /* HDSPM_LockAES_bit is given by HDSPM_LockAES >> (AES# - 1) */
@@ -537,36 +649,39 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 /* names for speed modes */
 static char *hdspm_speed_names[] = { "single", "double", "quad" };
 
-static char *texts_autosync_aes_tco[] = { "Word Clock",
+static const char *const texts_autosync_aes_tco[] = { "Word Clock",
 					  "AES1", "AES2", "AES3", "AES4",
 					  "AES5", "AES6", "AES7", "AES8",
-					  "TCO" };
-static char *texts_autosync_aes[] = { "Word Clock",
+					  "TCO", "Sync In"
+};
+static const char *const texts_autosync_aes[] = { "Word Clock",
 				      "AES1", "AES2", "AES3", "AES4",
-				      "AES5", "AES6", "AES7", "AES8" };
-static char *texts_autosync_madi_tco[] = { "Word Clock",
+				      "AES5", "AES6", "AES7", "AES8",
+				      "Sync In"
+};
+static const char *const texts_autosync_madi_tco[] = { "Word Clock",
 					   "MADI", "TCO", "Sync In" };
-static char *texts_autosync_madi[] = { "Word Clock",
+static const char *const texts_autosync_madi[] = { "Word Clock",
 				       "MADI", "Sync In" };
 
-static char *texts_autosync_raydat_tco[] = {
+static const char *const texts_autosync_raydat_tco[] = {
 	"Word Clock",
 	"ADAT 1", "ADAT 2", "ADAT 3", "ADAT 4",
 	"AES", "SPDIF", "TCO", "Sync In"
 };
-static char *texts_autosync_raydat[] = {
+static const char *const texts_autosync_raydat[] = {
 	"Word Clock",
 	"ADAT 1", "ADAT 2", "ADAT 3", "ADAT 4",
 	"AES", "SPDIF", "Sync In"
 };
-static char *texts_autosync_aio_tco[] = {
+static const char *const texts_autosync_aio_tco[] = {
 	"Word Clock",
 	"ADAT", "AES", "SPDIF", "TCO", "Sync In"
 };
-static char *texts_autosync_aio[] = { "Word Clock",
+static const char *const texts_autosync_aio[] = { "Word Clock",
 				      "ADAT", "AES", "SPDIF", "Sync In" };
 
-static char *texts_freq[] = {
+static const char *const texts_freq[] = {
 	"No Lock",
 	"32 kHz",
 	"44.1 kHz",
@@ -629,7 +744,8 @@ static char *texts_ports_aio_in_ss[] = {
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
 	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4", "ADAT.5", "ADAT.6",
-	"ADAT.7", "ADAT.8"
+	"ADAT.7", "ADAT.8",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_out_ss[] = {
@@ -638,14 +754,16 @@ static char *texts_ports_aio_out_ss[] = {
 	"SPDIF.L", "SPDIF.R",
 	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4", "ADAT.5", "ADAT.6",
 	"ADAT.7", "ADAT.8",
-	"Phone.L", "Phone.R"
+	"Phone.L", "Phone.R",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_in_ds[] = {
 	"Analogue.L", "Analogue.R",
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
-	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4"
+	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_out_ds[] = {
@@ -653,14 +771,16 @@ static char *texts_ports_aio_out_ds[] = {
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
 	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
-	"Phone.L", "Phone.R"
+	"Phone.L", "Phone.R",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_in_qs[] = {
 	"Analogue.L", "Analogue.R",
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
-	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4"
+	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_out_qs[] = {
@@ -668,7 +788,8 @@ static char *texts_ports_aio_out_qs[] = {
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
 	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
-	"Phone.L", "Phone.R"
+	"Phone.L", "Phone.R",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aes32[] = {
@@ -745,8 +866,8 @@ static char channel_map_aio_in_ss[HDSPM_MAX_CHANNELS] = {
 	8, 9,			/* aes in, */
 	10, 11,			/* spdif in */
 	12, 13, 14, 15, 16, 17, 18, 19,	/* ADAT in */
-	-1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -760,7 +881,8 @@ static char channel_map_aio_out_ss[HDSPM_MAX_CHANNELS] = {
 	10, 11,			/* spdif out */
 	12, 13, 14, 15, 16, 17, 18, 19,	/* ADAT out */
 	6, 7,			/* phone out */
-	-1, -1, -1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -773,7 +895,8 @@ static char channel_map_aio_in_ds[HDSPM_MAX_CHANNELS] = {
 	8, 9,			/* aes in */
 	10, 11,			/* spdif in */
 	12, 14, 16, 18,		/* adat in */
-	-1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -788,7 +911,7 @@ static char channel_map_aio_out_ds[HDSPM_MAX_CHANNELS] = {
 	10, 11,			/* spdif out */
 	12, 14, 16, 18,		/* adat out */
 	6, 7,			/* phone out */
-	-1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -802,7 +925,8 @@ static char channel_map_aio_in_qs[HDSPM_MAX_CHANNELS] = {
 	8, 9,			/* aes in */
 	10, 11,			/* spdif in */
 	12, 16,			/* adat in */
-	-1, -1, -1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -817,7 +941,8 @@ static char channel_map_aio_out_qs[HDSPM_MAX_CHANNELS] = {
 	10, 11,			/* spdif out */
 	12, 16,			/* adat out */
 	6, 7,			/* phone out */
-	-1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -856,11 +981,11 @@ struct hdspm_midi {
 };
 
 struct hdspm_tco {
-	int input;
-	int framerate;
-	int wordclock;
-	int samplerate;
-	int pull;
+	int input; /* 0: LTC, 1:Video, 2: WC*/
+	int framerate; /* 0=24, 1=25, 2=29.97, 3=29.97d, 4=30, 5=30d */
+	int wordclock; /* 0=1:1, 1=44.1->48, 2=48->44.1 */
+	int samplerate; /* 0=44.1, 1=48, 2= freq from app */
+	int pull; /*   0=0, 1=+0.1%, 2=-0.1%, 3=+4%, 4=-4%*/
 	int term; /* 0 = off, 1 = on */
 };
 
@@ -879,7 +1004,7 @@ struct hdspm {
 
 	u32 control_register;	/* cached value */
 	u32 control2_register;	/* cached value */
-	u32 settings_register;
+	u32 settings_register;  /* cached value for AIO / RayDat (sync reference, master/slave) */
 
 	struct hdspm_midi midi[4];
 	struct tasklet_struct midi_tasklet;
@@ -941,7 +1066,7 @@ struct hdspm {
 
 	struct hdspm_tco *tco;  /* NULL if no TCO detected */
 
-	char **texts_autosync;
+	const char *const *texts_autosync;
 	int texts_autosync_items;
 
 	cycles_t last_interrupt;
@@ -976,11 +1101,23 @@ static inline void snd_hdspm_initialize_midi_flush(struct hdspm *hdspm);
 static inline int hdspm_get_pll_freq(struct hdspm *hdspm);
 static int hdspm_update_simple_mixer_controls(struct hdspm *hdspm);
 static int hdspm_autosync_ref(struct hdspm *hdspm);
+static int hdspm_set_toggle_setting(struct hdspm *hdspm, u32 regmask, int out);
 static int snd_hdspm_set_defaults(struct hdspm *hdspm);
 static int hdspm_system_clock_mode(struct hdspm *hdspm);
 static void hdspm_set_sgbuf(struct hdspm *hdspm,
 			    struct snd_pcm_substream *substream,
 			     unsigned int reg, int channels);
+
+static int hdspm_aes_sync_check(struct hdspm *hdspm, int idx);
+static int hdspm_wc_sync_check(struct hdspm *hdspm);
+static int hdspm_tco_sync_check(struct hdspm *hdspm);
+static int hdspm_sync_in_sync_check(struct hdspm *hdspm);
+
+static int hdspm_get_aes_sample_rate(struct hdspm *hdspm, int index);
+static int hdspm_get_tco_sample_rate(struct hdspm *hdspm);
+static int hdspm_get_wc_sample_rate(struct hdspm *hdspm);
+
+
 
 static inline int HDSPM_bit2freq(int n)
 {
@@ -991,6 +1128,12 @@ static inline int HDSPM_bit2freq(int n)
 		return 0;
 	return bit2freq_tab[n];
 }
+
+static bool hdspm_is_raydat_or_aio(struct hdspm *hdspm)
+{
+	return ((AIO == hdspm->io_type) || (RayDAT == hdspm->io_type));
+}
+
 
 /* Write/read to/from HDSPM with Adresses in Bytes
    not words but only 32Bit writes are allowed */
@@ -1107,14 +1250,11 @@ static int hdspm_rate_multiplier(struct hdspm *hdspm, int rate)
 		else if (hdspm->control_register &
 				HDSPM_DoubleSpeed)
 			return rate * 2;
-	};
+	}
 	return rate;
 }
 
-static int hdspm_tco_sync_check(struct hdspm *hdspm);
-static int hdspm_sync_in_sync_check(struct hdspm *hdspm);
-
-/* check for external sample rate */
+/* check for external sample rate, returns the sample rate in Hz*/
 static int hdspm_external_sample_rate(struct hdspm *hdspm)
 {
 	unsigned int status, status2, timecode;
@@ -1127,17 +1267,36 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 		timecode = hdspm_read(hdspm, HDSPM_timecodeRegister);
 
 		syncref = hdspm_autosync_ref(hdspm);
+		switch (syncref) {
+		case HDSPM_AES32_AUTOSYNC_FROM_WORD:
+		/* Check WC sync and get sample rate */
+			if (hdspm_wc_sync_check(hdspm))
+				return HDSPM_bit2freq(hdspm_get_wc_sample_rate(hdspm));
+			break;
 
-		if (syncref == HDSPM_AES32_AUTOSYNC_FROM_WORD &&
-				status & HDSPM_AES32_wcLock)
-			return HDSPM_bit2freq((status >> HDSPM_AES32_wcFreq_bit) & 0xF);
+		case HDSPM_AES32_AUTOSYNC_FROM_AES1:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES2:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES3:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES4:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES5:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES6:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES7:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES8:
+		/* Check AES sync and get sample rate */
+			if (hdspm_aes_sync_check(hdspm, syncref - HDSPM_AES32_AUTOSYNC_FROM_AES1))
+				return HDSPM_bit2freq(hdspm_get_aes_sample_rate(hdspm,
+							syncref - HDSPM_AES32_AUTOSYNC_FROM_AES1));
+			break;
 
-		if (syncref >= HDSPM_AES32_AUTOSYNC_FROM_AES1 &&
-				syncref <= HDSPM_AES32_AUTOSYNC_FROM_AES8 &&
-				status2 & (HDSPM_LockAES >>
-				(syncref - HDSPM_AES32_AUTOSYNC_FROM_AES1)))
-			return HDSPM_bit2freq((timecode >> (4*(syncref-HDSPM_AES32_AUTOSYNC_FROM_AES1))) & 0xF);
-		return 0;
+
+		case HDSPM_AES32_AUTOSYNC_FROM_TCO:
+		/* Check TCO sync and get sample rate */
+			if (hdspm_tco_sync_check(hdspm))
+				return HDSPM_bit2freq(hdspm_get_tco_sample_rate(hdspm));
+			break;
+		default:
+			return 0;
+		} /* end switch(syncref) */
 		break;
 
 	case MADIface:
@@ -2129,6 +2288,9 @@ static int hdspm_get_wc_sample_rate(struct hdspm *hdspm)
 		status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
 		return (status >> 16) & 0xF;
 		break;
+	case AES32:
+		status = hdspm_read(hdspm, HDSPM_statusRegister);
+		return (status >> HDSPM_AES32_wcFreq_bit) & 0xF;
 	default:
 		break;
 	}
@@ -2152,6 +2314,9 @@ static int hdspm_get_tco_sample_rate(struct hdspm *hdspm)
 			status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
 			return (status >> 20) & 0xF;
 			break;
+		case AES32:
+			status = hdspm_read(hdspm, HDSPM_statusRegister);
+			return (status >> 1) & 0xF;
 		default:
 			break;
 		}
@@ -2183,6 +2348,23 @@ static int hdspm_get_sync_in_sample_rate(struct hdspm *hdspm)
 	return 0;
 }
 
+/**
+ * Returns the AES sample rate class for the given card.
+ **/
+static int hdspm_get_aes_sample_rate(struct hdspm *hdspm, int index)
+{
+	int timecode;
+
+	switch (hdspm->io_type) {
+	case AES32:
+		timecode = hdspm_read(hdspm, HDSPM_timecodeRegister);
+		return (timecode >> (4*index)) & 0xF;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
 
 /**
  * Returns the sample rate class for input source <idx> for
@@ -2196,15 +2378,23 @@ static int hdspm_get_s1_sample_rate(struct hdspm *hdspm, unsigned int idx)
 }
 
 #define ENUMERATED_CTL_INFO(info, texts) \
-{ \
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED; \
-	uinfo->count = 1; \
-	uinfo->value.enumerated.items = ARRAY_SIZE(texts); \
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items) \
-		uinfo->value.enumerated.item =	uinfo->value.enumerated.items - 1; \
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]); \
-}
+	snd_ctl_enum_info(info, 1, ARRAY_SIZE(texts), texts)
 
+
+/* Helper function to query the external sample rate and return the
+ * corresponding enum to be returned to userspace.
+ */
+static int hdspm_external_rate_to_enum(struct hdspm *hdspm)
+{
+	int rate = hdspm_external_sample_rate(hdspm);
+	int i, selected_rate = 0;
+	for (i = 1; i < 10; i++)
+		if (HDSPM_bit2freq(i) == rate) {
+			selected_rate = i;
+			break;
+		}
+	return selected_rate;
+}
 
 
 #define HDSPM_AUTOSYNC_SAMPLE_RATE(xname, xindex) \
@@ -2270,7 +2460,7 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 		default:
 			ucontrol->value.enumerated.item[0] =
 				hdspm_get_s1_sample_rate(hdspm,
-						ucontrol->id.index-1);
+						kcontrol->private_value-1);
 		}
 		break;
 
@@ -2289,28 +2479,24 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 			ucontrol->value.enumerated.item[0] =
 				hdspm_get_sync_in_sample_rate(hdspm);
 			break;
+		case 11: /* External Rate */
+			ucontrol->value.enumerated.item[0] =
+				hdspm_external_rate_to_enum(hdspm);
+			break;
 		default: /* AES1 to AES8 */
 			ucontrol->value.enumerated.item[0] =
-				hdspm_get_s1_sample_rate(hdspm,
-						kcontrol->private_value-1);
+				hdspm_get_aes_sample_rate(hdspm,
+						kcontrol->private_value -
+						HDSPM_AES32_AUTOSYNC_FROM_AES1);
 			break;
 		}
 		break;
 
 	case MADI:
 	case MADIface:
-		{
-			int rate = hdspm_external_sample_rate(hdspm);
-			int i, selected_rate = 0;
-			for (i = 1; i < 10; i++)
-				if (HDSPM_bit2freq(i) == rate) {
-					selected_rate = i;
-					break;
-				}
-			ucontrol->value.enumerated.item[0] = selected_rate;
-		}
+		ucontrol->value.enumerated.item[0] =
+			hdspm_external_rate_to_enum(hdspm);
 		break;
-
 	default:
 		break;
 	}
@@ -2359,33 +2545,17 @@ static int hdspm_system_clock_mode(struct hdspm *hdspm)
  **/
 static void hdspm_set_system_clock_mode(struct hdspm *hdspm, int mode)
 {
-	switch (hdspm->io_type) {
-	case AIO:
-	case RayDAT:
-		if (0 == mode)
-			hdspm->settings_register |= HDSPM_c0Master;
-		else
-			hdspm->settings_register &= ~HDSPM_c0Master;
-
-		hdspm_write(hdspm, HDSPM_WR_SETTINGS, hdspm->settings_register);
-		break;
-
-	default:
-		if (0 == mode)
-			hdspm->control_register |= HDSPM_ClockModeMaster;
-		else
-			hdspm->control_register &= ~HDSPM_ClockModeMaster;
-
-		hdspm_write(hdspm, HDSPM_controlRegister,
-				hdspm->control_register);
-	}
+	hdspm_set_toggle_setting(hdspm,
+			(hdspm_is_raydat_or_aio(hdspm)) ?
+			HDSPM_c0Master : HDSPM_ClockModeMaster,
+			(0 == mode));
 }
 
 
 static int snd_hdspm_info_system_clock_mode(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "Master", "AutoSync" };
+	static const char *const texts[] = { "Master", "AutoSync" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -2809,16 +2979,7 @@ static int snd_hdspm_info_pref_sync_ref(struct snd_kcontrol *kcontrol,
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = hdspm->texts_autosync_items;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-			hdspm->texts_autosync[uinfo->value.enumerated.item]);
+	snd_ctl_enum_info(uinfo, 1, hdspm->texts_autosync_items, hdspm->texts_autosync);
 
 	return 0;
 }
@@ -2873,19 +3034,20 @@ static int snd_hdspm_put_pref_sync_ref(struct snd_kcontrol *kcontrol,
 
 static int hdspm_autosync_ref(struct hdspm *hdspm)
 {
+	/* This looks at the autosync selected sync reference */
 	if (AES32 == hdspm->io_type) {
-		unsigned int status = hdspm_read(hdspm, HDSPM_statusRegister);
-		unsigned int syncref =
-			(status >> HDSPM_AES32_syncref_bit) & 0xF;
-		if (syncref == 0)
-			return HDSPM_AES32_AUTOSYNC_FROM_WORD;
-		if (syncref <= 8)
-			return syncref;
-		return HDSPM_AES32_AUTOSYNC_FROM_NONE;
-	} else if (MADI == hdspm->io_type) {
-		/* This looks at the autosync selected sync reference */
-		unsigned int status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 
+		unsigned int status = hdspm_read(hdspm, HDSPM_statusRegister);
+		unsigned int syncref = (status >> HDSPM_AES32_syncref_bit) & 0xF;
+		if ((syncref >= HDSPM_AES32_AUTOSYNC_FROM_WORD) &&
+				(syncref <= HDSPM_AES32_AUTOSYNC_FROM_SYNC_IN)) {
+			return syncref;
+		}
+		return HDSPM_AES32_AUTOSYNC_FROM_NONE;
+
+	} else if (MADI == hdspm->io_type) {
+
+		unsigned int status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 		switch (status2 & HDSPM_SelSyncRefMask) {
 		case HDSPM_SelSyncRef_WORD:
 			return HDSPM_AUTOSYNC_FROM_WORD;
@@ -2898,7 +3060,7 @@ static int hdspm_autosync_ref(struct hdspm *hdspm)
 		case HDSPM_SelSyncRef_NVALID:
 			return HDSPM_AUTOSYNC_FROM_NONE;
 		default:
-			return 0;
+			return HDSPM_AUTOSYNC_FROM_NONE;
 		}
 
 	}
@@ -2912,31 +3074,15 @@ static int snd_hdspm_info_autosync_ref(struct snd_kcontrol *kcontrol,
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
 	if (AES32 == hdspm->io_type) {
-		static char *texts[] = { "WordClock", "AES1", "AES2", "AES3",
-			"AES4",	"AES5", "AES6", "AES7", "AES8", "None"};
+		static const char *const texts[] = { "WordClock", "AES1", "AES2", "AES3",
+			"AES4",	"AES5", "AES6", "AES7", "AES8", "TCO", "Sync In", "None"};
 
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-		uinfo->count = 1;
-		uinfo->value.enumerated.items = 10;
-		if (uinfo->value.enumerated.item >=
-		    uinfo->value.enumerated.items)
-			uinfo->value.enumerated.item =
-				uinfo->value.enumerated.items - 1;
-		strcpy(uinfo->value.enumerated.name,
-				texts[uinfo->value.enumerated.item]);
+		ENUMERATED_CTL_INFO(uinfo, texts);
 	} else if (MADI == hdspm->io_type) {
-		static char *texts[] = {"Word Clock", "MADI", "TCO",
+		static const char *const texts[] = {"Word Clock", "MADI", "TCO",
 			"Sync In", "None" };
 
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-		uinfo->count = 1;
-		uinfo->value.enumerated.items = 5;
-		if (uinfo->value.enumerated.item >=
-				uinfo->value.enumerated.items)
-			uinfo->value.enumerated.item =
-				uinfo->value.enumerated.items - 1;
-		strcpy(uinfo->value.enumerated.name,
-				texts[uinfo->value.enumerated.item]);
+		ENUMERATED_CTL_INFO(uinfo, texts);
 	}
 	return 0;
 }
@@ -2964,7 +3110,7 @@ static int snd_hdspm_get_autosync_ref(struct snd_kcontrol *kcontrol,
 static int snd_hdspm_info_tco_video_input_format(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"No video", "NTSC", "PAL"};
+	static const char *const texts[] = {"No video", "NTSC", "PAL"};
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -3010,7 +3156,7 @@ static int snd_hdspm_get_tco_video_input_format(struct snd_kcontrol *kcontrol,
 static int snd_hdspm_info_tco_ltc_frames(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"No lock", "24 fps", "25 fps", "29.97 fps",
+	static const char *const texts[] = {"No lock", "24 fps", "25 fps", "29.97 fps",
 				"30 fps"};
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
@@ -3027,19 +3173,19 @@ static int hdspm_tco_ltc_frames(struct hdspm *hdspm)
 					HDSPM_TCO1_LTC_Format_MSB)) {
 		case 0:
 			/* 24 fps */
-			ret = 1;
+			ret = fps_24;
 			break;
 		case HDSPM_TCO1_LTC_Format_LSB:
 			/* 25 fps */
-			ret = 2;
+			ret = fps_25;
 			break;
 		case HDSPM_TCO1_LTC_Format_MSB:
-			/* 25 fps */
-			ret = 3;
+			/* 29.97 fps */
+			ret = fps_2997;
 			break;
 		default:
 			/* 30 fps */
-			ret = 4;
+			ret = fps_30;
 			break;
 		}
 	}
@@ -3067,16 +3213,35 @@ static int snd_hdspm_get_tco_ltc_frames(struct snd_kcontrol *kcontrol,
 
 static int hdspm_toggle_setting(struct hdspm *hdspm, u32 regmask)
 {
-	return (hdspm->control_register & regmask) ? 1 : 0;
+	u32 reg;
+
+	if (hdspm_is_raydat_or_aio(hdspm))
+		reg = hdspm->settings_register;
+	else
+		reg = hdspm->control_register;
+
+	return (reg & regmask) ? 1 : 0;
 }
 
 static int hdspm_set_toggle_setting(struct hdspm *hdspm, u32 regmask, int out)
 {
+	u32 *reg;
+	u32 target_reg;
+
+	if (hdspm_is_raydat_or_aio(hdspm)) {
+		reg = &(hdspm->settings_register);
+		target_reg = HDSPM_WR_SETTINGS;
+	} else {
+		reg = &(hdspm->control_register);
+		target_reg = HDSPM_controlRegister;
+	}
+
 	if (out)
-		hdspm->control_register |= regmask;
+		*reg |= regmask;
 	else
-		hdspm->control_register &= ~regmask;
-	hdspm_write(hdspm, HDSPM_controlRegister, hdspm->control_register);
+		*reg &= ~regmask;
+
+	hdspm_write(hdspm, target_reg, *reg);
 
 	return 0;
 }
@@ -3141,7 +3306,7 @@ static int hdspm_set_input_select(struct hdspm * hdspm, int out)
 static int snd_hdspm_info_input_select(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "optical", "coaxial" };
+	static const char *const texts[] = { "optical", "coaxial" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -3203,7 +3368,7 @@ static int hdspm_set_ds_wire(struct hdspm * hdspm, int ds)
 static int snd_hdspm_info_ds_wire(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "Single", "Double" };
+	static const char *const texts[] = { "Single", "Double" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -3276,7 +3441,7 @@ static int hdspm_set_qs_wire(struct hdspm * hdspm, int mode)
 static int snd_hdspm_info_qs_wire(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "Single", "Double", "Quad" };
+	static const char *const texts[] = { "Single", "Double", "Quad" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -3309,6 +3474,84 @@ static int snd_hdspm_put_qs_wire(struct snd_kcontrol *kcontrol,
 	spin_lock_irq(&hdspm->lock);
 	change = val != hdspm_qs_wire(hdspm);
 	hdspm_set_qs_wire(hdspm, val);
+	spin_unlock_irq(&hdspm->lock);
+	return change;
+}
+
+#define HDSPM_CONTROL_TRISTATE(xname, xindex) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.private_value = xindex, \
+	.info = snd_hdspm_info_tristate, \
+	.get = snd_hdspm_get_tristate, \
+	.put = snd_hdspm_put_tristate \
+}
+
+static int hdspm_tristate(struct hdspm *hdspm, u32 regmask)
+{
+	u32 reg = hdspm->settings_register & (regmask * 3);
+	return reg / regmask;
+}
+
+static int hdspm_set_tristate(struct hdspm *hdspm, int mode, u32 regmask)
+{
+	hdspm->settings_register &= ~(regmask * 3);
+	hdspm->settings_register |= (regmask * mode);
+	hdspm_write(hdspm, HDSPM_WR_SETTINGS, hdspm->settings_register);
+
+	return 0;
+}
+
+static int snd_hdspm_info_tristate(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
+{
+	u32 regmask = kcontrol->private_value;
+
+	static const char *const texts_spdif[] = { "Optical", "Coaxial", "Internal" };
+	static const char *const texts_levels[] = { "Hi Gain", "+4 dBu", "-10 dBV" };
+
+	switch (regmask) {
+	case HDSPM_c0_Input0:
+		ENUMERATED_CTL_INFO(uinfo, texts_spdif);
+		break;
+	default:
+		ENUMERATED_CTL_INFO(uinfo, texts_levels);
+		break;
+	}
+	return 0;
+}
+
+static int snd_hdspm_get_tristate(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	u32 regmask = kcontrol->private_value;
+
+	spin_lock_irq(&hdspm->lock);
+	ucontrol->value.enumerated.item[0] = hdspm_tristate(hdspm, regmask);
+	spin_unlock_irq(&hdspm->lock);
+	return 0;
+}
+
+static int snd_hdspm_put_tristate(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	u32 regmask = kcontrol->private_value;
+	int change;
+	int val;
+
+	if (!snd_hdspm_use_is_exclusive(hdspm))
+		return -EBUSY;
+	val = ucontrol->value.integer.value[0];
+	if (val < 0)
+		val = 0;
+	if (val > 2)
+		val = 2;
+
+	spin_lock_irq(&hdspm->lock);
+	change = val != hdspm_tristate(hdspm, regmask);
+	hdspm_set_tristate(hdspm, val, regmask);
 	spin_unlock_irq(&hdspm->lock);
 	return change;
 }
@@ -3352,7 +3595,7 @@ static int hdspm_set_madi_speedmode(struct hdspm *hdspm, int mode)
 static int snd_hdspm_info_madi_speedmode(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "Single", "Double", "Quad" };
+	static const char *const texts[] = { "Single", "Double", "Quad" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -3587,7 +3830,7 @@ static int snd_hdspm_put_playback_mixer(struct snd_kcontrol *kcontrol,
 static int snd_hdspm_info_sync_check(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "No Lock", "Lock", "Sync", "N/A" };
+	static const char *const texts[] = { "No Lock", "Lock", "Sync", "N/A" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -3595,7 +3838,7 @@ static int snd_hdspm_info_sync_check(struct snd_kcontrol *kcontrol,
 static int snd_hdspm_tco_info_lock_check(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "No Lock", "Lock" };
+	static const char *const texts[] = { "No Lock", "Lock" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -3745,9 +3988,18 @@ static int hdspm_tco_sync_check(struct hdspm *hdspm)
 	if (hdspm->tco) {
 		switch (hdspm->io_type) {
 		case MADI:
+			status = hdspm_read(hdspm, HDSPM_statusRegister);
+			if (status & HDSPM_tcoLockMadi) {
+				if (status & HDSPM_tcoSync)
+					return 2;
+				else
+					return 1;
+			}
+			return 0;
+			break;
 		case AES32:
 			status = hdspm_read(hdspm, HDSPM_statusRegister);
-			if (status & HDSPM_tcoLock) {
+			if (status & HDSPM_tcoLockAes) {
 				if (status & HDSPM_tcoSync)
 					return 2;
 				else
@@ -3807,7 +4059,8 @@ static int snd_hdspm_get_sync_check(struct snd_kcontrol *kcontrol,
 		case 5: /* SYNC IN */
 			val = hdspm_sync_in_sync_check(hdspm); break;
 		default:
-			val = hdspm_s1_sync_check(hdspm, ucontrol->id.index-1);
+			val = hdspm_s1_sync_check(hdspm,
+					kcontrol->private_value-1);
 		}
 		break;
 
@@ -3975,7 +4228,8 @@ static void hdspm_tco_write(struct hdspm *hdspm)
 static int snd_hdspm_info_tco_sample_rate(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "44.1 kHz", "48 kHz" };
+	/* TODO freq from app could be supported here, see tco->samplerate */
+	static const char *const texts[] = { "44.1 kHz", "48 kHz" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -4021,7 +4275,8 @@ static int snd_hdspm_put_tco_sample_rate(struct snd_kcontrol *kcontrol,
 static int snd_hdspm_info_tco_pull(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "0", "+ 0.1 %", "- 0.1 %", "+ 4 %", "- 4 %" };
+	static const char *const texts[] = { "0", "+ 0.1 %", "- 0.1 %",
+		"+ 4 %", "- 4 %" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -4066,7 +4321,7 @@ static int snd_hdspm_put_tco_pull(struct snd_kcontrol *kcontrol,
 static int snd_hdspm_info_tco_wck_conversion(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "1:1", "44.1 -> 48", "48 -> 44.1" };
+	static const char *const texts[] = { "1:1", "44.1 -> 48", "48 -> 44.1" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -4112,7 +4367,7 @@ static int snd_hdspm_put_tco_wck_conversion(struct snd_kcontrol *kcontrol,
 static int snd_hdspm_info_tco_frame_rate(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "24 fps", "25 fps", "29.97fps",
+	static const char *const texts[] = { "24 fps", "25 fps", "29.97fps",
 		"29.97 dfps", "30 fps", "30 dfps" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
@@ -4159,7 +4414,7 @@ static int snd_hdspm_put_tco_frame_rate(struct snd_kcontrol *kcontrol,
 static int snd_hdspm_info_tco_sync_source(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "LTC", "Video", "WCK" };
+	static const char *const texts[] = { "LTC", "Video", "WCK" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -4284,7 +4539,6 @@ static struct snd_kcontrol_new snd_hdspm_controls_aio[] = {
 	HDSPM_INTERNAL_CLOCK("Internal Clock", 0),
 	HDSPM_SYSTEM_CLOCK_MODE("System Clock Mode", 0),
 	HDSPM_PREF_SYNC_REF("Preferred Sync Reference", 0),
-	HDSPM_AUTOSYNC_REF("AutoSync Reference", 0),
 	HDSPM_SYSTEM_SAMPLE_RATE("System Sample Rate", 0),
 	HDSPM_AUTOSYNC_SAMPLE_RATE("External Rate", 0),
 	HDSPM_SYNC_CHECK("WC SyncCheck", 0),
@@ -4298,7 +4552,16 @@ static struct snd_kcontrol_new snd_hdspm_controls_aio[] = {
 	HDSPM_AUTOSYNC_SAMPLE_RATE("SPDIF Frequency", 2),
 	HDSPM_AUTOSYNC_SAMPLE_RATE("ADAT Frequency", 3),
 	HDSPM_AUTOSYNC_SAMPLE_RATE("TCO Frequency", 4),
-	HDSPM_AUTOSYNC_SAMPLE_RATE("SYNC IN Frequency", 5)
+	HDSPM_AUTOSYNC_SAMPLE_RATE("SYNC IN Frequency", 5),
+	HDSPM_CONTROL_TRISTATE("S/PDIF Input", HDSPM_c0_Input0),
+	HDSPM_TOGGLE_SETTING("S/PDIF Out Optical", HDSPM_c0_Spdif_Opt),
+	HDSPM_TOGGLE_SETTING("S/PDIF Out Professional", HDSPM_c0_Pro),
+	HDSPM_TOGGLE_SETTING("ADAT internal (AEB/TEB)", HDSPM_c0_AEB1),
+	HDSPM_TOGGLE_SETTING("XLR Breakout Cable", HDSPM_c0_Sym6db),
+	HDSPM_TOGGLE_SETTING("Single Speed WordClock Out", HDSPM_c0_Wck48),
+	HDSPM_CONTROL_TRISTATE("Input Level", HDSPM_c0_AD_GAIN0),
+	HDSPM_CONTROL_TRISTATE("Output Level", HDSPM_c0_DA_GAIN0),
+	HDSPM_CONTROL_TRISTATE("Phones Level", HDSPM_c0_PH_GAIN0)
 
 		/*
 		   HDSPM_INPUT_SELECT("Input Select", 0),
@@ -4335,7 +4598,9 @@ static struct snd_kcontrol_new snd_hdspm_controls_raydat[] = {
 	HDSPM_AUTOSYNC_SAMPLE_RATE("ADAT3 Frequency", 5),
 	HDSPM_AUTOSYNC_SAMPLE_RATE("ADAT4 Frequency", 6),
 	HDSPM_AUTOSYNC_SAMPLE_RATE("TCO Frequency", 7),
-	HDSPM_AUTOSYNC_SAMPLE_RATE("SYNC IN Frequency", 8)
+	HDSPM_AUTOSYNC_SAMPLE_RATE("SYNC IN Frequency", 8),
+	HDSPM_TOGGLE_SETTING("S/PDIF Out Professional", HDSPM_c0_Pro),
+	HDSPM_TOGGLE_SETTING("Single Speed WordClock Out", HDSPM_c0_Wck48)
 };
 
 static struct snd_kcontrol_new snd_hdspm_controls_aes32[] = {
@@ -4345,7 +4610,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_aes32[] = {
 	HDSPM_PREF_SYNC_REF("Preferred Sync Reference", 0),
 	HDSPM_AUTOSYNC_REF("AutoSync Reference", 0),
 	HDSPM_SYSTEM_SAMPLE_RATE("System Sample Rate", 0),
-	HDSPM_AUTOSYNC_SAMPLE_RATE("External Rate", 0),
+	HDSPM_AUTOSYNC_SAMPLE_RATE("External Rate", 11),
 	HDSPM_SYNC_CHECK("WC Sync Check", 0),
 	HDSPM_SYNC_CHECK("AES1 Sync Check", 1),
 	HDSPM_SYNC_CHECK("AES2 Sync Check", 2),
@@ -4501,77 +4766,22 @@ static int snd_hdspm_create_controls(struct snd_card *card,
  ------------------------------------------------------------*/
 
 static void
-snd_hdspm_proc_read_madi(struct snd_info_entry * entry,
-			 struct snd_info_buffer *buffer)
+snd_hdspm_proc_read_tco(struct snd_info_entry *entry,
+					struct snd_info_buffer *buffer)
 {
 	struct hdspm *hdspm = entry->private_data;
-	unsigned int status, status2, control, freq;
-
-	char *pref_sync_ref;
-	char *autosync_ref;
-	char *system_clock_mode;
-	char *insel;
-	int x, x2;
-
-	/* TCO stuff */
+	unsigned int status, control;
 	int a, ltc, frames, seconds, minutes, hours;
 	unsigned int period;
 	u64 freq_const = 0;
 	u32 rate;
 
+	snd_iprintf(buffer, "--- TCO ---\n");
+
 	status = hdspm_read(hdspm, HDSPM_statusRegister);
-	status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 	control = hdspm->control_register;
-	freq = hdspm_read(hdspm, HDSPM_timecodeRegister);
 
-	snd_iprintf(buffer, "%s (Card #%d) Rev.%x Status2first3bits: %x\n",
-			hdspm->card_name, hdspm->card->number + 1,
-			hdspm->firmware_rev,
-			(status2 & HDSPM_version0) |
-			(status2 & HDSPM_version1) | (status2 &
-				HDSPM_version2));
 
-	snd_iprintf(buffer, "HW Serial: 0x%06x%06x\n",
-			(hdspm_read(hdspm, HDSPM_midiStatusIn1)>>8) & 0xFFFFFF,
-			hdspm->serial);
-
-	snd_iprintf(buffer, "IRQ: %d Registers bus: 0x%lx VM: 0x%lx\n",
-			hdspm->irq, hdspm->port, (unsigned long)hdspm->iobase);
-
-	snd_iprintf(buffer, "--- System ---\n");
-
-	snd_iprintf(buffer,
-		"IRQ Pending: Audio=%d, MIDI0=%d, MIDI1=%d, IRQcount=%d\n",
-		status & HDSPM_audioIRQPending,
-		(status & HDSPM_midi0IRQPending) ? 1 : 0,
-		(status & HDSPM_midi1IRQPending) ? 1 : 0,
-		hdspm->irq_count);
-	snd_iprintf(buffer,
-		"HW pointer: id = %d, rawptr = %d (%d->%d) "
-		"estimated= %ld (bytes)\n",
-		((status & HDSPM_BufferID) ? 1 : 0),
-		(status & HDSPM_BufferPositionMask),
-		(status & HDSPM_BufferPositionMask) %
-		(2 * (int)hdspm->period_bytes),
-		((status & HDSPM_BufferPositionMask) - 64) %
-		(2 * (int)hdspm->period_bytes),
-		(long) hdspm_hw_pointer(hdspm) * 4);
-
-	snd_iprintf(buffer,
-		"MIDI FIFO: Out1=0x%x, Out2=0x%x, In1=0x%x, In2=0x%x \n",
-		hdspm_read(hdspm, HDSPM_midiStatusOut0) & 0xFF,
-		hdspm_read(hdspm, HDSPM_midiStatusOut1) & 0xFF,
-		hdspm_read(hdspm, HDSPM_midiStatusIn0) & 0xFF,
-		hdspm_read(hdspm, HDSPM_midiStatusIn1) & 0xFF);
-	snd_iprintf(buffer,
-		"MIDIoverMADI FIFO: In=0x%x, Out=0x%x \n",
-		hdspm_read(hdspm, HDSPM_midiStatusIn2) & 0xFF,
-		hdspm_read(hdspm, HDSPM_midiStatusOut2) & 0xFF);
-	snd_iprintf(buffer,
-		"Register: ctrl1=0x%x, ctrl2=0x%x, status1=0x%x, "
-		"status2=0x%x\n",
-		hdspm->control_register, hdspm->control2_register,
-		status, status2);
 	if (status & HDSPM_tco_detect) {
 		snd_iprintf(buffer, "TCO module detected.\n");
 		a = hdspm_read(hdspm, HDSPM_RD_TCO+4);
@@ -4665,6 +4875,75 @@ snd_hdspm_proc_read_madi(struct snd_info_entry * entry,
 	} else {
 		snd_iprintf(buffer, "No TCO module detected.\n");
 	}
+}
+
+static void
+snd_hdspm_proc_read_madi(struct snd_info_entry *entry,
+			 struct snd_info_buffer *buffer)
+{
+	struct hdspm *hdspm = entry->private_data;
+	unsigned int status, status2, control, freq;
+
+	char *pref_sync_ref;
+	char *autosync_ref;
+	char *system_clock_mode;
+	char *insel;
+	int x, x2;
+
+	status = hdspm_read(hdspm, HDSPM_statusRegister);
+	status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
+	control = hdspm->control_register;
+	freq = hdspm_read(hdspm, HDSPM_timecodeRegister);
+
+	snd_iprintf(buffer, "%s (Card #%d) Rev.%x Status2first3bits: %x\n",
+			hdspm->card_name, hdspm->card->number + 1,
+			hdspm->firmware_rev,
+			(status2 & HDSPM_version0) |
+			(status2 & HDSPM_version1) | (status2 &
+				HDSPM_version2));
+
+	snd_iprintf(buffer, "HW Serial: 0x%06x%06x\n",
+			(hdspm_read(hdspm, HDSPM_midiStatusIn1)>>8) & 0xFFFFFF,
+			hdspm->serial);
+
+	snd_iprintf(buffer, "IRQ: %d Registers bus: 0x%lx VM: 0x%lx\n",
+			hdspm->irq, hdspm->port, (unsigned long)hdspm->iobase);
+
+	snd_iprintf(buffer, "--- System ---\n");
+
+	snd_iprintf(buffer,
+		"IRQ Pending: Audio=%d, MIDI0=%d, MIDI1=%d, IRQcount=%d\n",
+		status & HDSPM_audioIRQPending,
+		(status & HDSPM_midi0IRQPending) ? 1 : 0,
+		(status & HDSPM_midi1IRQPending) ? 1 : 0,
+		hdspm->irq_count);
+	snd_iprintf(buffer,
+		"HW pointer: id = %d, rawptr = %d (%d->%d) "
+		"estimated= %ld (bytes)\n",
+		((status & HDSPM_BufferID) ? 1 : 0),
+		(status & HDSPM_BufferPositionMask),
+		(status & HDSPM_BufferPositionMask) %
+		(2 * (int)hdspm->period_bytes),
+		((status & HDSPM_BufferPositionMask) - 64) %
+		(2 * (int)hdspm->period_bytes),
+		(long) hdspm_hw_pointer(hdspm) * 4);
+
+	snd_iprintf(buffer,
+		"MIDI FIFO: Out1=0x%x, Out2=0x%x, In1=0x%x, In2=0x%x \n",
+		hdspm_read(hdspm, HDSPM_midiStatusOut0) & 0xFF,
+		hdspm_read(hdspm, HDSPM_midiStatusOut1) & 0xFF,
+		hdspm_read(hdspm, HDSPM_midiStatusIn0) & 0xFF,
+		hdspm_read(hdspm, HDSPM_midiStatusIn1) & 0xFF);
+	snd_iprintf(buffer,
+		"MIDIoverMADI FIFO: In=0x%x, Out=0x%x \n",
+		hdspm_read(hdspm, HDSPM_midiStatusIn2) & 0xFF,
+		hdspm_read(hdspm, HDSPM_midiStatusOut2) & 0xFF);
+	snd_iprintf(buffer,
+		"Register: ctrl1=0x%x, ctrl2=0x%x, status1=0x%x, "
+		"status2=0x%x\n",
+		hdspm->control_register, hdspm->control2_register,
+		status, status2);
+
 
 	snd_iprintf(buffer, "--- Settings ---\n");
 
@@ -4767,6 +5046,9 @@ snd_hdspm_proc_read_madi(struct snd_info_entry * entry,
 		(status & HDSPM_AB_int) ? "Coax" : "Optical",
 		(status & HDSPM_RX_64ch) ? "64 channels" :
 		"56 channels");
+
+	/* call readout function for TCO specific status */
+	snd_hdspm_proc_read_tco(entry, buffer);
 
 	snd_iprintf(buffer, "\n");
 }
@@ -4909,10 +5191,17 @@ snd_hdspm_proc_read_aes32(struct snd_info_entry * entry,
 		autosync_ref = "AES7"; break;
 	case HDSPM_AES32_AUTOSYNC_FROM_AES8:
 		autosync_ref = "AES8"; break;
+	case HDSPM_AES32_AUTOSYNC_FROM_TCO:
+		autosync_ref = "TCO"; break;
+	case HDSPM_AES32_AUTOSYNC_FROM_SYNC_IN:
+		autosync_ref = "Sync In"; break;
 	default:
 		autosync_ref = "---"; break;
 	}
 	snd_iprintf(buffer, "AutoSync ref = %s\n", autosync_ref);
+
+	/* call readout function for TCO specific status */
+	snd_hdspm_proc_read_tco(entry, buffer);
 
 	snd_iprintf(buffer, "\n");
 }
@@ -5097,7 +5386,7 @@ static int snd_hdspm_set_defaults(struct hdspm * hdspm)
 
 	case AES32:
 		hdspm->control_register =
-			HDSPM_ClockModeMaster |	/* Master Cloack Mode on */
+			HDSPM_ClockModeMaster |	/* Master Clock Mode on */
 			hdspm_encode_latency(7) | /* latency max=8192samples */
 			HDSPM_SyncRef0 |	/* AES1 is syncclock */
 			HDSPM_LineOut |	/* Analog output in */
@@ -5123,9 +5412,8 @@ static int snd_hdspm_set_defaults(struct hdspm * hdspm)
 
 	all_in_all_mixer(hdspm, 0 * UNITY_GAIN);
 
-	if (hdspm->io_type == AIO || hdspm->io_type == RayDAT) {
+	if (hdspm_is_raydat_or_aio(hdspm))
 		hdspm_write(hdspm, HDSPM_WR_SETTINGS, hdspm->settings_register);
-	}
 
 	/* set a default rate so that the channel map is set up. */
 	hdspm_set_rate(hdspm, 48000, 1);
@@ -5369,6 +5657,16 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 	   params_rate(params), params_channels(params),
 	   params_buffer_size(params));
 	   */
+
+
+	/*  For AES cards, the float format bit is the same as the
+	 *  preferred sync reference. Since we don't want to break
+	 *  sync settings, we have to skip the remaining part of this
+	 *  function.
+	 */
+	if (hdspm->io_type == AES32) {
+		return 0;
+	}
 
 
 	/* Switch to native float format if requested */
@@ -6013,7 +6311,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 				ltc.format = fps_2997;
 				break;
 			default:
-				ltc.format = 30;
+				ltc.format = fps_30;
 				break;
 			}
 			if (i & HDSPM_TCO1_set_drop_frame_flag) {
@@ -6479,16 +6777,26 @@ static int snd_hdspm_create(struct snd_card *card,
 		break;
 
 	case AIO:
-		if (0 == (hdspm_read(hdspm, HDSPM_statusRegister2) & HDSPM_s2_AEBI_D)) {
-			snd_printk(KERN_INFO "HDSPM: AEB input board found, but not supported\n");
-		}
-
 		hdspm->ss_in_channels = AIO_IN_SS_CHANNELS;
 		hdspm->ds_in_channels = AIO_IN_DS_CHANNELS;
 		hdspm->qs_in_channels = AIO_IN_QS_CHANNELS;
 		hdspm->ss_out_channels = AIO_OUT_SS_CHANNELS;
 		hdspm->ds_out_channels = AIO_OUT_DS_CHANNELS;
 		hdspm->qs_out_channels = AIO_OUT_QS_CHANNELS;
+
+		if (0 == (hdspm_read(hdspm, HDSPM_statusRegister2) & HDSPM_s2_AEBI_D)) {
+			snd_printk(KERN_INFO "HDSPM: AEB input board found\n");
+			hdspm->ss_in_channels += 4;
+			hdspm->ds_in_channels += 4;
+			hdspm->qs_in_channels += 4;
+		}
+
+		if (0 == (hdspm_read(hdspm, HDSPM_statusRegister2) & HDSPM_s2_AEBO_D)) {
+			snd_printk(KERN_INFO "HDSPM: AEB output board found\n");
+			hdspm->ss_out_channels += 4;
+			hdspm->ds_out_channels += 4;
+			hdspm->qs_out_channels += 4;
+		}
 
 		hdspm->channel_map_out_ss = channel_map_aio_out_ss;
 		hdspm->channel_map_out_ds = channel_map_aio_out_ds;
@@ -6558,6 +6866,7 @@ static int snd_hdspm_create(struct snd_card *card,
 		break;
 
 	case MADI:
+	case AES32:
 		if (hdspm_read(hdspm, HDSPM_statusRegister) & HDSPM_tco_detect) {
 			hdspm->midiPorts++;
 			hdspm->tco = kzalloc(sizeof(struct hdspm_tco),
@@ -6565,7 +6874,7 @@ static int snd_hdspm_create(struct snd_card *card,
 			if (NULL != hdspm->tco) {
 				hdspm_tco_write(hdspm);
 			}
-			snd_printk(KERN_INFO "HDSPM: MADI TCO module found\n");
+			snd_printk(KERN_INFO "HDSPM: MADI/AES TCO module found\n");
 		} else {
 			hdspm->tco = NULL;
 		}
@@ -6580,10 +6889,12 @@ static int snd_hdspm_create(struct snd_card *card,
 	case AES32:
 		if (hdspm->tco) {
 			hdspm->texts_autosync = texts_autosync_aes_tco;
-			hdspm->texts_autosync_items = 10;
+			hdspm->texts_autosync_items =
+				ARRAY_SIZE(texts_autosync_aes_tco);
 		} else {
 			hdspm->texts_autosync = texts_autosync_aes;
-			hdspm->texts_autosync_items = 9;
+			hdspm->texts_autosync_items =
+				ARRAY_SIZE(texts_autosync_aes);
 		}
 		break;
 

@@ -30,6 +30,8 @@
 
 #include <mach/hardware.h>
 
+struct regmap;
+
 /*
  * Register values.
  */
@@ -113,6 +115,7 @@ struct davinci_vc {
 
 	/* Memory resources */
 	void __iomem *base;
+	struct regmap *regmap;
 
 	/* MFD cells */
 	struct mfd_cell cells[DAVINCI_VC_CELLS];

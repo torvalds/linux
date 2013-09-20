@@ -38,8 +38,9 @@ extern unsigned long pci_address_to_pio(phys_addr_t address);
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
  * size parameters.
  */
-void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
-		unsigned long *busno, unsigned long *phys, unsigned long *size);
+void of_parse_dma_window(struct device_node *dn, const __be32 *dma_window,
+			 unsigned long *busno, unsigned long *phys,
+			 unsigned long *size);
 
 extern void kdump_move_device_tree(void);
 
@@ -54,6 +55,8 @@ static inline int of_node_to_nid(struct device_node *device) { return 0; }
 #define of_node_to_nid of_node_to_nid
 
 extern void of_instantiate_rtc(void);
+
+extern int of_get_ibm_chip_id(struct device_node *np);
 
 /* The of_drconf_cell struct defines the layout of the LMB array
  * specified in the device tree property

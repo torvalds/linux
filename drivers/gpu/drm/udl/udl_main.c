@@ -41,8 +41,8 @@ static int udl_parse_vendor_descriptor(struct drm_device *dev,
 	total_len = usb_get_descriptor(usbdev, 0x5f, /* vendor specific */
 				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
 	if (total_len > 5) {
-		DRM_INFO("vendor descriptor length:%x data:%*ph\n",
-			total_len, 11, desc);
+		DRM_INFO("vendor descriptor length:%x data:%11ph\n",
+			total_len, desc);
 
 		if ((desc[0] != total_len) || /* descriptor length */
 		    (desc[1] != 0x5f) ||   /* vendor descriptor type */

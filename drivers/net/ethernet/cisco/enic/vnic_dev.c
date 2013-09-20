@@ -175,6 +175,7 @@ unsigned int vnic_dev_get_res_count(struct vnic_dev *vdev,
 {
 	return vdev->res[type].count;
 }
+EXPORT_SYMBOL(vnic_dev_get_res_count);
 
 void __iomem *vnic_dev_get_res(struct vnic_dev *vdev, enum vnic_res_type type,
 	unsigned int index)
@@ -193,6 +194,7 @@ void __iomem *vnic_dev_get_res(struct vnic_dev *vdev, enum vnic_res_type type,
 		return (char __iomem *)vdev->res[type].vaddr;
 	}
 }
+EXPORT_SYMBOL(vnic_dev_get_res);
 
 static unsigned int vnic_dev_desc_ring_size(struct vnic_dev_ring *ring,
 	unsigned int desc_count, unsigned int desc_size)
@@ -942,6 +944,7 @@ void vnic_dev_unregister(struct vnic_dev *vdev)
 		kfree(vdev);
 	}
 }
+EXPORT_SYMBOL(vnic_dev_unregister);
 
 struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar,
@@ -969,6 +972,13 @@ err_out:
 	vnic_dev_unregister(vdev);
 	return NULL;
 }
+EXPORT_SYMBOL(vnic_dev_register);
+
+struct pci_dev *vnic_dev_get_pdev(struct vnic_dev *vdev)
+{
+	return vdev->pdev;
+}
+EXPORT_SYMBOL(vnic_dev_get_pdev);
 
 int vnic_dev_init_prov2(struct vnic_dev *vdev, u8 *buf, u32 len)
 {

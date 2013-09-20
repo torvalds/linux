@@ -87,6 +87,17 @@ static void print_pll(struct device *dev, struct smiapp_pll *pll)
 	dev_dbg(dev, "vt_pix_clk_freq_hz \t%d\n", pll->vt_pix_clk_freq_hz);
 }
 
+/*
+ * Heuristically guess the PLL tree for a given common multiplier and
+ * divisor. Begin with the operational timing and continue to video
+ * timing once operational timing has been verified.
+ *
+ * @mul is the PLL multiplier and @div is the common divisor
+ * (pre_pll_clk_div and op_sys_clk_div combined). The final PLL
+ * multiplier will be a multiple of @mul.
+ *
+ * @return Zero on success, error code on error.
+ */
 static int __smiapp_pll_calculate(struct device *dev,
 				  const struct smiapp_pll_limits *limits,
 				  struct smiapp_pll *pll, uint32_t mul,
@@ -95,6 +106,12 @@ static int __smiapp_pll_calculate(struct device *dev,
 	uint32_t sys_div;
 	uint32_t best_pix_div = INT_MAX >> 1;
 	uint32_t vt_op_binning_div;
+	/*
+	 * Higher multipliers (and divisors) are often required than
+	 * necessitated by the external clock and the output clocks.
+	 * There are limits for all values in the clock tree. These
+	 * are the minimum and maximum multiplier for mul.
+	 */
 	uint32_t more_mul_min, more_mul_max;
 	uint32_t more_mul_factor;
 	uint32_t min_vt_div, max_vt_div, vt_div;

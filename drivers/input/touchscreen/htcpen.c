@@ -221,7 +221,7 @@ static struct isa_driver htcpen_isa_driver = {
 	}
 };
 
-static struct dmi_system_id __initdata htcshift_dmi_table[] = {
+static struct dmi_system_id htcshift_dmi_table[] __initdata = {
 	{
 		.ident = "Shift",
 		.matches = {

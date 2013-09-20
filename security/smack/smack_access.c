@@ -325,6 +325,25 @@ void smack_log(char *subject_label, char *object_label, int request,
 
 DEFINE_MUTEX(smack_known_lock);
 
+struct hlist_head smack_known_hash[SMACK_HASH_SLOTS];
+
+/**
+ * smk_insert_entry - insert a smack label into a hash map,
+ *
+ * this function must be called under smack_known_lock
+ */
+void smk_insert_entry(struct smack_known *skp)
+{
+	unsigned int hash;
+	struct hlist_head *head;
+
+	hash = full_name_hash(skp->smk_known, strlen(skp->smk_known));
+	head = &smack_known_hash[hash & (SMACK_HASH_SLOTS - 1)];
+
+	hlist_add_head_rcu(&skp->smk_hashed, head);
+	list_add_rcu(&skp->list, &smack_known_list);
+}
+
 /**
  * smk_find_entry - find a label on the list, return the list entry
  * @string: a text string that might be a Smack label
@@ -334,12 +353,16 @@ DEFINE_MUTEX(smack_known_lock);
  */
 struct smack_known *smk_find_entry(const char *string)
 {
+	unsigned int hash;
+	struct hlist_head *head;
 	struct smack_known *skp;
 
-	list_for_each_entry_rcu(skp, &smack_known_list, list) {
+	hash = full_name_hash(string, strlen(string));
+	head = &smack_known_hash[hash & (SMACK_HASH_SLOTS - 1)];
+
+	hlist_for_each_entry_rcu(skp, head, smk_hashed)
 		if (strcmp(skp->smk_known, string) == 0)
 			return skp;
-	}
 
 	return NULL;
 }
@@ -475,7 +498,7 @@ struct smack_known *smk_import_entry(const char *string, int len)
 		 * Make sure that the entry is actually
 		 * filled before putting it on the list.
 		 */
-		list_add_rcu(&skp->list, &smack_known_list);
+		smk_insert_entry(skp);
 		goto unlockout;
 	}
 	/*

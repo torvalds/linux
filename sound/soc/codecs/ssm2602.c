@@ -561,8 +561,9 @@ static int ssm2602_suspend(struct snd_soc_codec *codec)
 
 static int ssm2602_resume(struct snd_soc_codec *codec)
 {
-	snd_soc_cache_sync(codec);
+	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 
+	regcache_sync(ssm2602->regmap);
 	ssm2602_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;

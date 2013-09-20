@@ -716,13 +716,14 @@ int bioset_integrity_create(struct bio_set *bs, int pool_size)
 		return 0;
 
 	bs->bio_integrity_pool = mempool_create_slab_pool(pool_size, bip_slab);
-
-	bs->bvec_integrity_pool = biovec_create_pool(bs, pool_size);
-	if (!bs->bvec_integrity_pool)
-		return -1;
-
 	if (!bs->bio_integrity_pool)
 		return -1;
+
+	bs->bvec_integrity_pool = biovec_create_pool(bs, pool_size);
+	if (!bs->bvec_integrity_pool) {
+		mempool_destroy(bs->bio_integrity_pool);
+		return -1;
+	}
 
 	return 0;
 }

@@ -67,7 +67,7 @@ static void ordered_data_tree_panic(struct inode *inode, int errno,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	btrfs_panic(fs_info, errno, "Inconsistency in ordered tree at offset "
-		    "%llu\n", (unsigned long long)offset);
+		    "%llu\n", offset);
 }
 
 /*
@@ -205,6 +205,7 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	entry->bytes_left = len;
 	entry->inode = igrab(inode);
 	entry->compress_type = compress_type;
+	entry->truncated_len = (u64)-1;
 	if (type != BTRFS_ORDERED_IO_DONE && type != BTRFS_ORDERED_COMPLETE)
 		set_bit(type, &entry->flags);
 
@@ -336,14 +337,12 @@ int btrfs_dec_test_first_ordered_pending(struct inode *inode,
 	*file_offset = dec_end;
 	if (dec_start > dec_end) {
 		printk(KERN_CRIT "bad ordering dec_start %llu end %llu\n",
-		       (unsigned long long)dec_start,
-		       (unsigned long long)dec_end);
+		       dec_start, dec_end);
 	}
 	to_dec = dec_end - dec_start;
 	if (to_dec > entry->bytes_left) {
 		printk(KERN_CRIT "bad ordered accounting left %llu size %llu\n",
-		       (unsigned long long)entry->bytes_left,
-		       (unsigned long long)to_dec);
+		       entry->bytes_left, to_dec);
 	}
 	entry->bytes_left -= to_dec;
 	if (!uptodate)
@@ -403,8 +402,7 @@ have_entry:
 
 	if (io_size > entry->bytes_left) {
 		printk(KERN_CRIT "bad ordered accounting left %llu size %llu\n",
-		       (unsigned long long)entry->bytes_left,
-		       (unsigned long long)io_size);
+		       entry->bytes_left, io_size);
 	}
 	entry->bytes_left -= io_size;
 	if (!uptodate)
@@ -671,7 +669,7 @@ int btrfs_run_ordered_operations(struct btrfs_trans_handle *trans,
 	INIT_LIST_HEAD(&splice);
 	INIT_LIST_HEAD(&works);
 
-	mutex_lock(&root->fs_info->ordered_operations_mutex);
+	mutex_lock(&root->fs_info->ordered_extent_flush_mutex);
 	spin_lock(&root->fs_info->ordered_root_lock);
 	list_splice_init(&cur_trans->ordered_operations, &splice);
 	while (!list_empty(&splice)) {
@@ -718,7 +716,7 @@ out:
 		list_del_init(&work->list);
 		btrfs_wait_and_free_delalloc_work(work);
 	}
-	mutex_unlock(&root->fs_info->ordered_operations_mutex);
+	mutex_unlock(&root->fs_info->ordered_extent_flush_mutex);
 	return ret;
 }
 
@@ -923,12 +921,16 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 	struct btrfs_ordered_extent *test;
 	int ret = 1;
 
-	if (ordered)
-		offset = entry_end(ordered);
-	else
-		offset = ALIGN(offset, BTRFS_I(inode)->root->sectorsize);
-
 	spin_lock_irq(&tree->lock);
+	if (ordered) {
+		offset = entry_end(ordered);
+		if (test_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags))
+			offset = min(offset,
+				     ordered->file_offset +
+				     ordered->truncated_len);
+	} else {
+		offset = ALIGN(offset, BTRFS_I(inode)->root->sectorsize);
+	}
 	disk_i_size = BTRFS_I(inode)->disk_i_size;
 
 	/* truncate file */

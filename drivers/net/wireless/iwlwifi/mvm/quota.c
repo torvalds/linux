@@ -131,23 +131,22 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 {
-	struct iwl_time_quota_cmd cmd;
-	int i, idx, ret, num_active_bindings, quota, quota_rem;
+	struct iwl_time_quota_cmd cmd = {};
+	int i, idx, ret, num_active_macs, quota, quota_rem;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
 		.new_vif = newvif,
 	};
 
+	lockdep_assert_held(&mvm->mutex);
+
 	/* update all upon completion */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		return 0;
 
-	BUILD_BUG_ON(data.colors[MAX_BINDINGS - 1] != -1);
-
-	lockdep_assert_held(&mvm->mutex);
-
-	memset(&cmd, 0, sizeof(cmd));
+	/* iterator data above must match */
+	BUILD_BUG_ON(MAX_BINDINGS != 4);
 
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -162,18 +161,17 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 	 * IWL_MVM_MAX_QUOTA fragments. Divide these fragments
 	 * equally between all the bindings that require quota
 	 */
-	num_active_bindings = 0;
+	num_active_macs = 0;
 	for (i = 0; i < MAX_BINDINGS; i++) {
 		cmd.quotas[i].id_and_color = cpu_to_le32(FW_CTXT_INVALID);
-		if (data.n_interfaces[i] > 0)
-			num_active_bindings++;
+		num_active_macs += data.n_interfaces[i];
 	}
 
 	quota = 0;
 	quota_rem = 0;
-	if (num_active_bindings) {
-		quota = IWL_MVM_MAX_QUOTA / num_active_bindings;
-		quota_rem = IWL_MVM_MAX_QUOTA % num_active_bindings;
+	if (num_active_macs) {
+		quota = IWL_MVM_MAX_QUOTA / num_active_macs;
+		quota_rem = IWL_MVM_MAX_QUOTA % num_active_macs;
 	}
 
 	for (idx = 0, i = 0; i < MAX_BINDINGS; i++) {
@@ -187,7 +185,8 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 			cmd.quotas[idx].quota = cpu_to_le32(0);
 			cmd.quotas[idx].max_duration = cpu_to_le32(0);
 		} else {
-			cmd.quotas[idx].quota = cpu_to_le32(quota);
+			cmd.quotas[idx].quota =
+				cpu_to_le32(quota * data.n_interfaces[i]);
 			cmd.quotas[idx].max_duration =
 				cpu_to_le32(IWL_MVM_MAX_QUOTA);
 		}

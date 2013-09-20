@@ -1842,7 +1842,7 @@ static int snd_ensoniq_create_gameport(struct ensoniq *ensoniq, int dev)
 
 	default:
 		if (!request_region(io_port, 8, "ens137x: gameport")) {
-			printk(KERN_WARNING "ens137x: gameport io port 0x%#x in use\n",
+			printk(KERN_WARNING "ens137x: gameport io port %#x in use\n",
 			       io_port);
 			return -EBUSY;
 		}

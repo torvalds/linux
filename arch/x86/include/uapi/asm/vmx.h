@@ -65,6 +65,7 @@
 #define EXIT_REASON_EOI_INDUCED         45
 #define EXIT_REASON_EPT_VIOLATION       48
 #define EXIT_REASON_EPT_MISCONFIG       49
+#define EXIT_REASON_INVEPT              50
 #define EXIT_REASON_PREEMPTION_TIMER    52
 #define EXIT_REASON_WBINVD              54
 #define EXIT_REASON_XSETBV              55
@@ -106,12 +107,13 @@
 	{ EXIT_REASON_APIC_ACCESS,           "APIC_ACCESS" }, \
 	{ EXIT_REASON_EPT_VIOLATION,         "EPT_VIOLATION" }, \
 	{ EXIT_REASON_EPT_MISCONFIG,         "EPT_MISCONFIG" }, \
+	{ EXIT_REASON_INVEPT,                "INVEPT" }, \
+	{ EXIT_REASON_PREEMPTION_TIMER,      "PREEMPTION_TIMER" }, \
 	{ EXIT_REASON_WBINVD,                "WBINVD" }, \
 	{ EXIT_REASON_APIC_WRITE,            "APIC_WRITE" }, \
 	{ EXIT_REASON_EOI_INDUCED,           "EOI_INDUCED" }, \
 	{ EXIT_REASON_INVALID_STATE,         "INVALID_STATE" }, \
 	{ EXIT_REASON_INVD,                  "INVD" }, \
-	{ EXIT_REASON_INVPCID,               "INVPCID" }, \
-	{ EXIT_REASON_PREEMPTION_TIMER,      "PREEMPTION_TIMER" }
+	{ EXIT_REASON_INVPCID,               "INVPCID" }
 
 #endif /* _UAPIVMX_H */

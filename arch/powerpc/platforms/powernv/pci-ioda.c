@@ -1104,16 +1104,16 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 				  u64 hub_id, int ioda_type)
 {
 	struct pci_controller *hose;
-	static int primary = 1;
 	struct pnv_phb *phb;
 	unsigned long size, m32map_off, iomap_off, pemap_off;
 	const u64 *prop64;
 	const u32 *prop32;
+	int len;
 	u64 phb_id;
 	void *aux;
 	long rc;
 
-	pr_info(" Initializing IODA%d OPAL PHB %s\n", ioda_type, np->full_name);
+	pr_info("Initializing IODA%d OPAL PHB %s\n", ioda_type, np->full_name);
 
 	prop64 = of_get_property(np, "ibm,opal-phbid", NULL);
 	if (!prop64) {
@@ -1124,20 +1124,31 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	pr_debug("  PHB-ID  : 0x%016llx\n", phb_id);
 
 	phb = alloc_bootmem(sizeof(struct pnv_phb));
-	if (phb) {
-		memset(phb, 0, sizeof(struct pnv_phb));
-		phb->hose = hose = pcibios_alloc_controller(np);
+	if (!phb) {
+		pr_err("  Out of memory !\n");
+		return;
 	}
-	if (!phb || !phb->hose) {
-		pr_err("PCI: Failed to allocate PCI controller for %s\n",
+
+	/* Allocate PCI controller */
+	memset(phb, 0, sizeof(struct pnv_phb));
+	phb->hose = hose = pcibios_alloc_controller(np);
+	if (!phb->hose) {
+		pr_err("  Can't allocate PCI controller for %s\n",
 		       np->full_name);
+		free_bootmem((unsigned long)phb, sizeof(struct pnv_phb));
 		return;
 	}
 
 	spin_lock_init(&phb->lock);
-	/* XXX Use device-tree */
-	hose->first_busno = 0;
-	hose->last_busno = 0xff;
+	prop32 = of_get_property(np, "bus-range", &len);
+	if (prop32 && len == 8) {
+		hose->first_busno = prop32[0];
+		hose->last_busno = prop32[1];
+	} else {
+		pr_warn("  Broken <bus-range> on %s\n", np->full_name);
+		hose->first_busno = 0;
+		hose->last_busno = 0xff;
+	}
 	hose->private_data = phb;
 	phb->hub_id = hub_id;
 	phb->opal_id = phb_id;
@@ -1152,8 +1163,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		phb->model = PNV_PHB_MODEL_UNKNOWN;
 
 	/* Parse 32-bit and IO ranges (if any) */
-	pci_process_bridge_OF_ranges(phb->hose, np, primary);
-	primary = 0;
+	pci_process_bridge_OF_ranges(hose, np, !hose->global_number);
 
 	/* Get registers */
 	phb->regs = of_iomap(np, 0);
@@ -1177,22 +1187,23 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	phb->ioda.io_segsize = phb->ioda.io_size / phb->ioda.total_pe;
 	phb->ioda.io_pci_base = 0; /* XXX calculate this ? */
 
-	/* Allocate aux data & arrays
-	 *
-	 * XXX TODO: Don't allocate io segmap on PHB3
-	 */
+	/* Allocate aux data & arrays. We don't have IO ports on PHB3 */
 	size = _ALIGN_UP(phb->ioda.total_pe / 8, sizeof(unsigned long));
 	m32map_off = size;
 	size += phb->ioda.total_pe * sizeof(phb->ioda.m32_segmap[0]);
 	iomap_off = size;
-	size += phb->ioda.total_pe * sizeof(phb->ioda.io_segmap[0]);
+	if (phb->type == PNV_PHB_IODA1) {
+		iomap_off = size;
+		size += phb->ioda.total_pe * sizeof(phb->ioda.io_segmap[0]);
+	}
 	pemap_off = size;
 	size += phb->ioda.total_pe * sizeof(struct pnv_ioda_pe);
 	aux = alloc_bootmem(size);
 	memset(aux, 0, size);
 	phb->ioda.pe_alloc = aux;
 	phb->ioda.m32_segmap = aux + m32map_off;
-	phb->ioda.io_segmap = aux + iomap_off;
+	if (phb->type == PNV_PHB_IODA1)
+		phb->ioda.io_segmap = aux + iomap_off;
 	phb->ioda.pe_array = aux + pemap_off;
 	set_bit(0, phb->ioda.pe_alloc);
 

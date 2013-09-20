@@ -92,7 +92,7 @@ int ath10k_htt_tx_attach(struct ath10k_htt *htt)
 
 	/* At the beginning free queue number should hint us the maximum
 	 * queue length */
-	pipe = htt->ar->htc->endpoint[htt->eid].ul_pipe_id;
+	pipe = htt->ar->htc.endpoint[htt->eid].ul_pipe_id;
 	htt->max_num_pending_tx = ath10k_hif_get_free_queue_number(htt->ar,
 								   pipe);
 
@@ -153,7 +153,7 @@ void ath10k_htt_tx_detach(struct ath10k_htt *htt)
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(skb);
-	struct ath10k_htt *htt = ar->htt;
+	struct ath10k_htt *htt = &ar->htt;
 
 	if (skb_cb->htt.is_conf) {
 		dev_kfree_skb_any(skb);
@@ -194,7 +194,7 @@ int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 
 	ATH10K_SKB_CB(skb)->htt.is_conf = true;
 
-	ret = ath10k_htc_send(htt->ar->htc, htt->eid, skb);
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
 		dev_kfree_skb_any(skb);
 		return ret;
@@ -281,7 +281,7 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 
 	ATH10K_SKB_CB(skb)->htt.is_conf = true;
 
-	ret = ath10k_htc_send(htt->ar->htc, htt->eid, skb);
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
 		dev_kfree_skb_any(skb);
 		return ret;
@@ -346,7 +346,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	skb_cb->htt.refcount = 2;
 	skb_cb->htt.msdu = msdu;
 
-	res = ath10k_htc_send(htt->ar->htc, htt->eid, txdesc);
+	res = ath10k_htc_send(&htt->ar->htc, htt->eid, txdesc);
 	if (res)
 		goto err;
 
@@ -465,6 +465,8 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	flags1  = 0;
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);
 	flags1 |= SM((u16)tid, HTT_DATA_TX_DESC_FLAGS1_EXT_TID);
+	flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L3_OFFLOAD;
+	flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L4_OFFLOAD;
 
 	frags_paddr = ATH10K_SKB_CB(txfrag)->paddr;
 
@@ -486,7 +488,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	skb_cb->htt.txfrag = txfrag;
 	skb_cb->htt.msdu = msdu;
 
-	res = ath10k_htc_send(htt->ar->htc, htt->eid, txdesc);
+	res = ath10k_htc_send(&htt->ar->htc, htt->eid, txdesc);
 	if (res)
 		goto err;
 

@@ -255,16 +255,16 @@ static void _rtl8723ae_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
 
-	packet_matchbssid = ((IEEE80211_FTYPE_CTL != type) &&
-			    (!compare_ether_addr(mac->bssid,
-			    (le16_to_cpu(fc) & IEEE80211_FCTL_TODS) ?
-			    hdr->addr1 : (le16_to_cpu(fc) &
-			    IEEE80211_FCTL_FROMDS) ?
-			    hdr->addr2 : hdr->addr3)) && (!pstatus->hwerror) &&
-			    (!pstatus->crc) && (!pstatus->icv));
+	packet_matchbssid =
+		((IEEE80211_FTYPE_CTL != type) &&
+		 ether_addr_equal(mac->bssid,
+				  (le16_to_cpu(fc) & IEEE80211_FCTL_TODS) ? hdr->addr1 :
+				  (le16_to_cpu(fc) & IEEE80211_FCTL_FROMDS) ? hdr->addr2 :
+				  hdr->addr3) &&
+		 (!pstatus->hwerror) && (!pstatus->crc) && (!pstatus->icv));
 
-	packet_toself = packet_matchbssid &&
-	    (!compare_ether_addr(praddr, rtlefuse->dev_addr));
+	packet_toself = (packet_matchbssid &&
+			 ether_addr_equal(praddr, rtlefuse->dev_addr));
 
 	if (ieee80211_is_beacon(fc))
 		packet_beacon = true;

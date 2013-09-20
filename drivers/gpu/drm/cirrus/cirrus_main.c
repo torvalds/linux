@@ -255,13 +255,6 @@ int cirrus_dumb_create(struct drm_file *file,
 	return 0;
 }
 
-int cirrus_dumb_destroy(struct drm_file *file,
-		     struct drm_device *dev,
-		     uint32_t handle)
-{
-	return drm_gem_handle_delete(file, handle);
-}
-
 int cirrus_gem_init_object(struct drm_gem_object *obj)
 {
 	BUG();
@@ -294,7 +287,7 @@ void cirrus_gem_free_object(struct drm_gem_object *obj)
 
 static inline u64 cirrus_bo_mmap_offset(struct cirrus_bo *bo)
 {
-	return bo->bo.addr_space_offset;
+	return drm_vma_node_offset_addr(&bo->bo.vma_node);
 }
 
 int

@@ -701,7 +701,7 @@ static int twl4030_madc_set_power(struct twl4030_madc_data *madc, int on)
 static int twl4030_madc_probe(struct platform_device *pdev)
 {
 	struct twl4030_madc_data *madc;
-	struct twl4030_madc_platform_data *pdata = pdev->dev.platform_data;
+	struct twl4030_madc_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int ret;
 	u8 regval;
 

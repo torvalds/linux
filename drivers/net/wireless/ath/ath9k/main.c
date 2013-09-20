@@ -237,9 +237,6 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		ath_restart_work(sc);
 	}
 
-	if ((ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) && sc->ant_rx != 3)
-		ath_ant_comb_update(sc);
-
 	ieee80211_wake_queues(sc->hw);
 
 	return true;
@@ -965,6 +962,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	struct ath_node *an = &avp->mcast_node;
 
 	mutex_lock(&sc->mutex);
 
@@ -977,6 +976,12 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
+
+	an->sc = sc;
+	an->sta = NULL;
+	an->vif = vif;
+	an->no_ps_filter = true;
+	ath_tx_node_init(sc, an);
 
 	mutex_unlock(&sc->mutex);
 	return 0;
@@ -1015,6 +1020,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
 
 	ath_dbg(common, CONFIG, "Detach Interface\n");
 
@@ -1025,9 +1031,14 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_remove_slot(sc, vif);
 
+	if (sc->csa_vif == vif)
+		sc->csa_vif = NULL;
+
 	ath9k_ps_wakeup(sc);
 	ath9k_calculate_summary_state(hw, NULL);
 	ath9k_ps_restore(sc);
+
+	ath_tx_node_cleanup(sc, &avp->mcast_node);
 
 	mutex_unlock(&sc->mutex);
 }
@@ -1192,8 +1203,6 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) || reset_channel) {
 		struct ieee80211_channel *curchan = hw->conf.chandef.chan;
-		enum nl80211_channel_type channel_type =
-			cfg80211_get_chandef_type(&conf->chandef);
 		int pos = curchan->hw_value;
 		int old_pos = -1;
 		unsigned long flags;
@@ -1201,8 +1210,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		if (ah->curchan)
 			old_pos = ah->curchan - &ah->channels[0];
 
-		ath_dbg(common, CONFIG, "Set channel: %d MHz type: %d\n",
-			curchan->center_freq, channel_type);
+		ath_dbg(common, CONFIG, "Set channel: %d MHz width: %d\n",
+			curchan->center_freq, hw->conf.chandef.width);
 
 		/* update survey stats for the old channel before switching */
 		spin_lock_irqsave(&common->cc_lock, flags);
@@ -1210,7 +1219,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		spin_unlock_irqrestore(&common->cc_lock, flags);
 
 		ath9k_cmn_update_ichannel(&sc->sc_ah->channels[pos],
-					  curchan, channel_type);
+					  &conf->chandef);
 
 		/*
 		 * If the operating channel changes, change the survey in-use flags
@@ -1372,9 +1381,6 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_node *an = (struct ath_node *) sta->drv_priv;
-
-	if (!sta->ht_cap.ht_supported)
-		return;
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
@@ -2093,7 +2099,7 @@ static void ath9k_wow_add_pattern(struct ath_softc *sc,
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_wow_pattern *wow_pattern = NULL;
-	struct cfg80211_wowlan_trig_pkt_pattern *patterns = wowlan->patterns;
+	struct cfg80211_pkt_pattern *patterns = wowlan->patterns;
 	int mask_len;
 	s8 i = 0;
 
@@ -2314,6 +2320,19 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	clear_bit(SC_OP_SCANNING, &sc->sc_flags);
 }
 
+static void ath9k_channel_switch_beacon(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct cfg80211_chan_def *chandef)
+{
+	struct ath_softc *sc = hw->priv;
+
+	/* mac80211 does not support CSA in multi-if cases (yet) */
+	if (WARN_ON(sc->csa_vif))
+		return;
+
+	sc->csa_vif = vif;
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2358,8 +2377,8 @@ struct ieee80211_ops ath9k_ops = {
 
 #if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
 	.sta_add_debugfs    = ath9k_sta_add_debugfs,
-	.sta_remove_debugfs = ath9k_sta_remove_debugfs,
 #endif
 	.sw_scan_start	    = ath9k_sw_scan_start,
 	.sw_scan_complete   = ath9k_sw_scan_complete,
+	.channel_switch_beacon     = ath9k_channel_switch_beacon,
 };

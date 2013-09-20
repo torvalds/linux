@@ -269,13 +269,12 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 			if (ah->config.pcie_waen & AR_WA_D3_L1_DISABLE)
 				val |= AR_WA_D3_L1_DISABLE;
 		} else {
-			if (((AR_SREV_9285(ah) ||
-			      AR_SREV_9271(ah) ||
-			      AR_SREV_9287(ah)) &&
-			     (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)) ||
-			    (AR_SREV_9280(ah) &&
-			     (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE))) {
-				val |= AR_WA_D3_L1_DISABLE;
+			if (AR_SREV_9285(ah) || AR_SREV_9271(ah) || AR_SREV_9287(ah)) {
+				if (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)
+					val |= AR_WA_D3_L1_DISABLE;
+			} else if (AR_SREV_9280(ah)) {
+				if (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE)
+					val |= AR_WA_D3_L1_DISABLE;
 			}
 		}
 
@@ -297,24 +296,18 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 	} else {
 		if (ah->config.pcie_waen) {
 			val = ah->config.pcie_waen;
-			if (!power_off)
-				val &= (~AR_WA_D3_L1_DISABLE);
+			val &= (~AR_WA_D3_L1_DISABLE);
 		} else {
-			if (AR_SREV_9285(ah) ||
-			    AR_SREV_9271(ah) ||
-			    AR_SREV_9287(ah)) {
+			if (AR_SREV_9285(ah) || AR_SREV_9271(ah) || AR_SREV_9287(ah)) {
 				val = AR9285_WA_DEFAULT;
-				if (!power_off)
-					val &= (~AR_WA_D3_L1_DISABLE);
-			}
-			else if (AR_SREV_9280(ah)) {
+				val &= (~AR_WA_D3_L1_DISABLE);
+			} else if (AR_SREV_9280(ah)) {
 				/*
 				 * For AR9280 chips, bit 22 of 0x4004
 				 * needs to be set.
 				 */
 				val = AR9280_WA_DEFAULT;
-				if (!power_off)
-					val &= (~AR_WA_D3_L1_DISABLE);
+				val &= (~AR_WA_D3_L1_DISABLE);
 			} else {
 				val = AR_WA_DEFAULT;
 			}

@@ -134,12 +134,6 @@ struct ext4_ext_path {
  */
 
 /*
- * Maximum number of logical blocks in a file; ext4_extent's ee_block is
- * __le32.
- */
-#define EXT_MAX_BLOCKS	0xffffffff
-
-/*
  * EXT_INIT_MAX_LEN is the maximum number of blocks we can have in an
  * initialized extent. This is 2^15 and not (2^16 - 1), since we use the
  * MSB of ee_len field in the extent datastructure to signify if this

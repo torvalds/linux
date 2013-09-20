@@ -16,6 +16,7 @@
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 #include "xattr.h"
+#include "acl.h"
 
 static inline void hfsplus_instantiate(struct dentry *dentry,
 				       struct inode *inode, u32 cnid)
@@ -529,6 +530,9 @@ const struct inode_operations hfsplus_dir_inode_operations = {
 	.getxattr		= generic_getxattr,
 	.listxattr		= hfsplus_listxattr,
 	.removexattr		= hfsplus_removexattr,
+#ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
+	.get_acl		= hfsplus_get_posix_acl,
+#endif
 };
 
 const struct file_operations hfsplus_dir_operations = {

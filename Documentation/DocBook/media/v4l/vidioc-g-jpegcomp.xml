@@ -92,8 +92,8 @@ to add them.</para>
 	    <entry>int</entry>
 	    <entry><structfield>quality</structfield></entry>
 	    <entry>Deprecated. If <link linkend="jpeg-quality-control"><constant>
-	    V4L2_CID_JPEG_IMAGE_QUALITY</constant></link> control is exposed by
-	    a driver applications should use it instead and ignore this field.
+	    V4L2_CID_JPEG_COMPRESSION_QUALITY</constant></link> control is exposed
+	    by a driver applications should use it instead and ignore this field.
 	    </entry>
 	  </row>
 	  <row>
