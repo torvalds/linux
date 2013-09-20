@@ -1455,6 +1455,7 @@ static int video_release(struct file *file)
 
 	/* stop video capture */
 	if (res_check(fh, RESOURCE_VIDEO)) {
+		pm_qos_remove_request(&dev->qos_request);
 		videobuf_streamoff(&fh->cap);
 		res_free(dev,fh,RESOURCE_VIDEO);
 	}
