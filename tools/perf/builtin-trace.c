@@ -940,8 +940,15 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 		     field = field->next, ++arg.idx, bit <<= 1) {
 			if (arg.mask & bit)
 				continue;
-
-			if (args[arg.idx] == 0)
+			/*
+ 			 * Suppress this argument if its value is zero and
+ 			 * and we don't have a string associated in an
+ 			 * strarray for it.
+ 			 */
+			if (args[arg.idx] == 0 &&
+			    !(sc->arg_scnprintf &&
+			      sc->arg_scnprintf[arg.idx] == SCA_STRARRAY &&
+			      sc->arg_parm[arg.idx]))
 				continue;
 
 			printed += scnprintf(bf + printed, size - printed,
