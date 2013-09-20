@@ -445,6 +445,7 @@ struct x86_pmu {
 	int		lbr_nr;			   /* hardware stack size */
 	u64		lbr_sel_mask;		   /* LBR_SELECT valid bits */
 	const int	*lbr_sel_map;		   /* lbr_select mappings */
+	bool		lbr_double_abort;	   /* duplicated lbr aborts */
 
 	/*
 	 * Extra registers for events

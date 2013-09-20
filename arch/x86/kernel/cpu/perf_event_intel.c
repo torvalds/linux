@@ -2519,6 +2519,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.hw_config = hsw_hw_config;
 		x86_pmu.get_event_constraints = hsw_get_event_constraints;
 		x86_pmu.cpu_events = hsw_events_attrs;
+		x86_pmu.lbr_double_abort = true;
 		pr_cont("Haswell events, ");
 		break;
 
