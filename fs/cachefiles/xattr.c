@@ -162,8 +162,9 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 int cachefiles_check_auxdata(struct cachefiles_object *object)
 {
 	struct cachefiles_xattr *auxbuf;
+	enum fscache_checkaux validity;
 	struct dentry *dentry = object->dentry;
-	unsigned int dlen;
+	ssize_t xlen;
 	int ret;
 
 	ASSERT(dentry);
@@ -174,22 +175,22 @@ int cachefiles_check_auxdata(struct cachefiles_object *object)
 	if (!auxbuf)
 		return -ENOMEM;
 
-	auxbuf->len = vfs_getxattr(dentry, cachefiles_xattr_cache,
-				   &auxbuf->type, 512 + 1);
-	if (auxbuf->len < 1)
-		return -ESTALE;
+	xlen = vfs_getxattr(dentry, cachefiles_xattr_cache,
+			    &auxbuf->type, 512 + 1);
+	ret = -ESTALE;
+	if (xlen < 1 ||
+	    auxbuf->type != object->fscache.cookie->def->type)
+		goto error;
 
-	if (auxbuf->type != object->fscache.cookie->def->type)
-		return -ESTALE;
+	xlen--;
+	validity = fscache_check_aux(&object->fscache, &auxbuf->data, xlen);
+	if (validity != FSCACHE_CHECKAUX_OKAY)
+		goto error;
 
-	dlen = auxbuf->len - 1;
-	ret = fscache_check_aux(&object->fscache, &auxbuf->data, dlen);
-
+	ret = 0;
+error:
 	kfree(auxbuf);
-	if (ret != FSCACHE_CHECKAUX_OKAY)
-		return -ESTALE;
-
-	return 0;
+	return ret;
 }
 
 /*
