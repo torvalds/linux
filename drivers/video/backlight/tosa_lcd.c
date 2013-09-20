@@ -198,7 +198,7 @@ static int tosa_lcd_probe(struct spi_device *spi)
 	ret = devm_gpio_request_one(&spi->dev, TOSA_GPIO_TG_ON,
 				GPIOF_OUT_INIT_LOW, "tg #pwr");
 	if (ret < 0)
-		goto err_gpio_tg;
+		return ret;
 
 	mdelay(60);
 
@@ -219,8 +219,6 @@ static int tosa_lcd_probe(struct spi_device *spi)
 
 err_register:
 	tosa_lcd_tg_off(data);
-err_gpio_tg:
-	spi_set_drvdata(spi, NULL);
 	return ret;
 }
 
@@ -234,8 +232,6 @@ static int tosa_lcd_remove(struct spi_device *spi)
 		i2c_unregister_device(data->i2c);
 
 	tosa_lcd_tg_off(data);
-
-	spi_set_drvdata(spi, NULL);
 
 	return 0;
 }
