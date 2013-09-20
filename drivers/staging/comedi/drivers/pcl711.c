@@ -496,53 +496,49 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* AI subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = board->n_aichan;
-	s->maxdata = 0xfff;
-	s->len_chanlist = 1;
-	s->range_table = board->ai_range_type;
-	s->insn_read = pcl711_ai_insn;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	s->n_chan	= board->n_aichan;
+	s->maxdata	= 0xfff;
+	s->range_table	= board->ai_range_type;
+	s->insn_read	= pcl711_ai_insn;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->do_cmdtest = pcl711_ai_cmdtest;
-		s->do_cmd = pcl711_ai_cmd;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= 1;
+		s->do_cmdtest	= pcl711_ai_cmdtest;
+		s->do_cmd	= pcl711_ai_cmd;
 	}
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	/* AO subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = board->n_aochan;
-	s->maxdata = 0xfff;
-	s->len_chanlist = 1;
-	s->range_table = &range_bipolar5;
-	s->insn_write = pcl711_ao_insn;
-	s->insn_read = pcl711_ao_insn_read;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= board->n_aochan;
+	s->maxdata	= 0xfff;
+	s->range_table	= &range_bipolar5;
+	s->insn_write	= pcl711_ao_insn;
+	s->insn_read	= pcl711_ao_insn_read;
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	/* 16-bit digital input */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->len_chanlist = 16;
-	s->range_table = &range_digital;
-	s->insn_bits = pcl711_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl711_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	/* 16-bit digital out */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->len_chanlist = 16;
-	s->range_table = &range_digital;
-	s->state = 0;
-	s->insn_bits = pcl711_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl711_do_insn_bits;
 
 	/*
 	   this is the "base value" for the mode register, which is
