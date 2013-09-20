@@ -519,6 +519,7 @@ int main(void)
 	DEFINE(VCPU_TRAP, offsetof(struct kvm_vcpu, arch.trap));
 	DEFINE(VCPU_PTID, offsetof(struct kvm_vcpu, arch.ptid));
 	DEFINE(VCPU_CFAR, offsetof(struct kvm_vcpu, arch.cfar));
+	DEFINE(VCPU_PPR, offsetof(struct kvm_vcpu, arch.ppr));
 	DEFINE(VCORE_ENTRY_EXIT, offsetof(struct kvmppc_vcore, entry_exit_count));
 	DEFINE(VCORE_NAP_COUNT, offsetof(struct kvmppc_vcore, nap_count));
 	DEFINE(VCORE_IN_GUEST, offsetof(struct kvmppc_vcore, in_guest));
@@ -604,6 +605,7 @@ int main(void)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	HSTATE_FIELD(HSTATE_CFAR, cfar);
+	HSTATE_FIELD(HSTATE_PPR, ppr);
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 #else /* CONFIG_PPC_BOOK3S */

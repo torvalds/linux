@@ -204,6 +204,10 @@ do_kvm_##n:								\
 	ld	r10,area+EX_CFAR(r13);					\
 	std	r10,HSTATE_CFAR(r13);					\
 	END_FTR_SECTION_NESTED(CPU_FTR_CFAR,CPU_FTR_CFAR,947);		\
+	BEGIN_FTR_SECTION_NESTED(948)					\
+	ld	r10,area+EX_PPR(r13);					\
+	std	r10,HSTATE_PPR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
 	ld	r10,area+EX_R10(r13);					\
 	stw	r9,HSTATE_SCRATCH1(r13);				\
 	ld	r9,area+EX_R9(r13);					\
@@ -217,6 +221,10 @@ do_kvm_##n:								\
 	ld	r10,area+EX_R10(r13);					\
 	beq	89f;							\
 	stw	r9,HSTATE_SCRATCH1(r13);			\
+	BEGIN_FTR_SECTION_NESTED(948)					\
+	ld	r9,area+EX_PPR(r13);					\
+	std	r9,HSTATE_PPR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
 	ld	r9,area+EX_R9(r13);					\
 	std	r12,HSTATE_SCRATCH0(r13);			\
 	li	r12,n;							\

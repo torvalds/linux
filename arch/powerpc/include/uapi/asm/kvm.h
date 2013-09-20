@@ -534,6 +534,7 @@ struct kvm_get_htab_header {
 
 #define KVM_REG_PPC_VRSAVE	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0xb4)
 #define KVM_REG_PPC_LPCR	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0xb5)
+#define KVM_REG_PPC_PPR		(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xb6)
 
 /* Transactional Memory checkpointed state:
  * This is all GPRs, all VSX regs and a subset of SPRs

@@ -101,6 +101,7 @@ struct kvmppc_host_state {
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	u64 cfar;
+	u64 ppr;
 #endif
 };
 

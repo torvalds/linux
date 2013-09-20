@@ -823,6 +823,9 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 	case KVM_REG_PPC_LPCR:
 		*val = get_reg_val(id, vcpu->arch.vcore->lpcr);
 		break;
+	case KVM_REG_PPC_PPR:
+		*val = get_reg_val(id, vcpu->arch.ppr);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -929,6 +932,9 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 		break;
 	case KVM_REG_PPC_LPCR:
 		kvmppc_set_lpcr(vcpu, set_reg_val(id, *val));
+		break;
+	case KVM_REG_PPC_PPR:
+		vcpu->arch.ppr = set_reg_val(id, *val);
 		break;
 	default:
 		r = -EINVAL;
