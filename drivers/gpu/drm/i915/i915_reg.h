@@ -1848,7 +1848,8 @@
 #define VSYNCSHIFT(trans) _TRANSCODER(trans, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
 
 /* HSW eDP PSR registers */
-#define EDP_PSR_CTL				0x64800
+#define EDP_PSR_BASE(dev)			0x64800
+#define EDP_PSR_CTL(dev)			(EDP_PSR_BASE(dev) + 0)
 #define   EDP_PSR_ENABLE			(1<<31)
 #define   EDP_PSR_LINK_DISABLE			(0<<27)
 #define   EDP_PSR_LINK_STANDBY			(1<<27)
@@ -1871,16 +1872,16 @@
 #define   EDP_PSR_TP1_TIME_0us			(3<<4)
 #define   EDP_PSR_IDLE_FRAME_SHIFT		0
 
-#define EDP_PSR_AUX_CTL			0x64810
-#define EDP_PSR_AUX_DATA1		0x64814
+#define EDP_PSR_AUX_CTL(dev)			(EDP_PSR_BASE(dev) + 0x10)
+#define EDP_PSR_AUX_DATA1(dev)			(EDP_PSR_BASE(dev) + 0x14)
 #define   EDP_PSR_DPCD_COMMAND		0x80060000
-#define EDP_PSR_AUX_DATA2		0x64818
+#define EDP_PSR_AUX_DATA2(dev)			(EDP_PSR_BASE(dev) + 0x18)
 #define   EDP_PSR_DPCD_NORMAL_OPERATION	(1<<24)
-#define EDP_PSR_AUX_DATA3		0x6481c
-#define EDP_PSR_AUX_DATA4		0x64820
-#define EDP_PSR_AUX_DATA5		0x64824
+#define EDP_PSR_AUX_DATA3(dev)			(EDP_PSR_BASE(dev) + 0x1c)
+#define EDP_PSR_AUX_DATA4(dev)			(EDP_PSR_BASE(dev) + 0x20)
+#define EDP_PSR_AUX_DATA5(dev)			(EDP_PSR_BASE(dev) + 0x24)
 
-#define EDP_PSR_STATUS_CTL			0x64840
+#define EDP_PSR_STATUS_CTL(dev)			(EDP_PSR_BASE(dev) + 0x40)
 #define   EDP_PSR_STATUS_STATE_MASK		(7<<29)
 #define   EDP_PSR_STATUS_STATE_IDLE		(0<<29)
 #define   EDP_PSR_STATUS_STATE_SRDONACK		(1<<29)
@@ -1904,10 +1905,10 @@
 #define   EDP_PSR_STATUS_SENDING_TP1		(1<<4)
 #define   EDP_PSR_STATUS_IDLE_MASK		0xf
 
-#define EDP_PSR_PERF_CNT		0x64844
+#define EDP_PSR_PERF_CNT(dev)		(EDP_PSR_BASE(dev) + 0x44)
 #define   EDP_PSR_PERF_CNT_MASK		0xffffff
 
-#define EDP_PSR_DEBUG_CTL		0x64860
+#define EDP_PSR_DEBUG_CTL(dev)		(EDP_PSR_BASE(dev) + 0x60)
 #define   EDP_PSR_DEBUG_MASK_LPSP	(1<<27)
 #define   EDP_PSR_DEBUG_MASK_MEMUP	(1<<26)
 #define   EDP_PSR_DEBUG_MASK_HPD	(1<<25)
