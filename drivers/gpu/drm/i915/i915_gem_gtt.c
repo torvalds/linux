@@ -269,7 +269,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	/* ppgtt PDEs reside in the global gtt pagetable, which has 512*1024
 	 * entries. For aliasing ppgtt support we just steal them at the end for
 	 * now. */
-       first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
+	first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
 
 	if (IS_HASWELL(dev)) {
 		ppgtt->pte_encode = hsw_pte_encode;
