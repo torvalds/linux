@@ -1922,7 +1922,6 @@ static void cx8800_finidev(struct pci_dev *pci_dev)
 
 	free_irq(pci_dev->irq, dev);
 	cx8800_unregister_video(dev);
-	pci_set_drvdata(pci_dev, NULL);
 
 	/* free memory */
 	btcx_riscmem_free(dev->pci,&dev->vidq.stopper);

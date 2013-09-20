@@ -520,7 +520,6 @@ static void cx8802_fini_common(struct cx8802_dev *dev)
 
 	/* unregister stuff */
 	free_irq(dev->pci->irq, dev);
-	pci_set_drvdata(dev->pci, NULL);
 
 	/* free memory */
 	btcx_riscmem_free(dev->pci,&dev->mpegq.stopper);

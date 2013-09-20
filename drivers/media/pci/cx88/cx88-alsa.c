@@ -935,8 +935,6 @@ static void cx88_audio_finidev(struct pci_dev *pci)
 
 	snd_card_free((void *)card);
 
-	pci_set_drvdata(pci, NULL);
-
 	devno--;
 }
 
