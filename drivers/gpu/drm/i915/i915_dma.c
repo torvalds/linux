@@ -1334,13 +1334,18 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_init_power_well(dev);
 
+	/* Keep VGA alive until i915_disable_vga_mem() */
+	intel_display_power_get(dev, POWER_DOMAIN_VGA);
+
 	intel_modeset_gem_init(dev);
 
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = 1;
-	if (INTEL_INFO(dev)->num_pipes == 0)
+	if (INTEL_INFO(dev)->num_pipes == 0) {
+		intel_display_power_put(dev, POWER_DOMAIN_VGA);
 		return 0;
+	}
 
 	ret = intel_fbdev_init(dev);
 	if (ret)
@@ -1366,6 +1371,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * vgacon_save_screen() works during the handover.
 	 */
 	i915_disable_vga_mem(dev);
+	intel_display_power_put(dev, POWER_DOMAIN_VGA);
 
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	dev_priv->enable_hotplug_processing = true;
