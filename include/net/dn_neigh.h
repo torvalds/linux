@@ -16,12 +16,12 @@ struct dn_neigh {
 	__u8 priority;
 };
 
-extern void dn_neigh_init(void);
-extern void dn_neigh_cleanup(void);
-extern int dn_neigh_router_hello(struct sk_buff *skb);
-extern int dn_neigh_endnode_hello(struct sk_buff *skb);
-extern void dn_neigh_pointopoint_hello(struct sk_buff *skb);
-extern int dn_neigh_elist(struct net_device *dev, unsigned char *ptr, int n);
+void dn_neigh_init(void);
+void dn_neigh_cleanup(void);
+int dn_neigh_router_hello(struct sk_buff *skb);
+int dn_neigh_endnode_hello(struct sk_buff *skb);
+void dn_neigh_pointopoint_hello(struct sk_buff *skb);
+int dn_neigh_elist(struct net_device *dev, unsigned char *ptr, int n);
 
 extern struct neigh_table dn_neigh_table;
 
