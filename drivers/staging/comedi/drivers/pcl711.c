@@ -71,10 +71,12 @@ supported.
 #define PCL711_AI_MSB_DRDY	(1 << 4)
 #define PCL711_AO_LSB_REG(x)	(0x04 + ((x) * 2))
 #define PCL711_AO_MSB_REG(x)	(0x05 + ((x) * 2))
-#define PCL711_DI_LO		0x06
-#define PCL711_DI_HI		0x07
-#define PCL711_CLRINTR		0x08
-#define PCL711_GAIN		0x09
+#define PCL711_DI_LSB_REG	0x06
+#define PCL711_DI_MSB_REG	0x07
+#define PCL711_INT_STAT_REG	0x08
+#define PCL711_INT_STAT_CLR	(0 << 0)  /* any value will work */
+#define PCL711_AI_GAIN_REG	0x09
+#define PCL711_AI_GAIN(x)	(((x) & 0xf) << 0)
 #define PCL711_MUX_REG		0x0a
 #define PCL711_MUX_CHAN(x)	(((x) & 0xf) << 0)
 #define PCL711_MUX_CS0		(1 << 4)
@@ -90,8 +92,8 @@ supported.
 #define PCL711_MODE_IRQ(x)	(((x) & 0x7) << 4)
 #define PCL711_SOFTTRIG_REG	0x0c
 #define PCL711_SOFTTRIG		(0 << 0)  /* any value will work */
-#define PCL711_DO_LO		0x0d
-#define PCL711_DO_HI		0x0e
+#define PCL711_DO_LSB_REG	0x0d
+#define PCL711_DO_MSB_REG	0x0e
 
 static const struct comedi_lrange range_pcl711b_ai = {
 	5, {
@@ -217,7 +219,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 	data = pcl711_ai_get_sample(dev, s);
 
-	outb(0, dev->iobase + PCL711_CLRINTR);
+	outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
 
 	/* FIXME! Nothing else sets ntrig! */
 	if (!(--devpriv->ntrig)) {
@@ -238,7 +240,7 @@ static void pcl711_set_changain(struct comedi_device *dev,
 	unsigned int aref = CR_AREF(chanspec);
 	unsigned int mux = 0;
 
-	outb(range, dev->iobase + PCL711_GAIN);
+	outb(PCL711_AI_GAIN(range), dev->iobase + PCL711_AI_GAIN_REG);
 
 	if (s->n_chan > 8) {
 		/* Select the correct MPC508A chip */
@@ -379,8 +381,7 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
 			   2, devpriv->divisor2, I8254_MODE2 | I8254_BINARY);
 
-		/* clear pending interrupts (just in case) */
-		outb(0, dev->iobase + PCL711_CLRINTR);
+		outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
 
 		pcl711_ai_set_mode(dev, PCL711_MODE_PACER_IRQ);
 	} else {
@@ -431,13 +432,17 @@ static int pcl711_ao_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* Digital port read - Untested on 8112 */
 static int pcl711_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	data[1] = inb(dev->iobase + PCL711_DI_LO) |
-	    (inb(dev->iobase + PCL711_DI_HI) << 8);
+	unsigned int val;
+
+	val = inb(dev->iobase + PCL711_DI_LSB_REG);
+	val |= (inb(dev->iobase + PCL711_DI_MSB_REG) << 8);
+
+	data[1] = val;
 
 	return insn->n;
 }
@@ -452,9 +457,9 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 	mask = comedi_dio_update_state(s, data);
 	if (mask) {
 		if (mask & 0x00ff)
-			outb(s->state & 0xff, dev->iobase + PCL711_DO_LO);
+			outb(s->state & 0xff, dev->iobase + PCL711_DO_LSB_REG);
 		if (mask & 0xff00)
-			outb((s->state >> 8), dev->iobase + PCL711_DO_HI);
+			outb((s->state >> 8), dev->iobase + PCL711_DO_MSB_REG);
 	}
 
 	data[1] = s->state;
