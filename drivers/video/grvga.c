@@ -496,7 +496,6 @@ static int grvga_probe(struct platform_device *dev)
 	return 0;
 
 free_mem:
-	dev_set_drvdata(&dev->dev, NULL);
 	if (grvga_fix_addr)
 		iounmap((void *)virtual_start);
 	else
@@ -530,7 +529,6 @@ static int grvga_remove(struct platform_device *device)
 			kfree((void *)info->screen_base);
 
 		framebuffer_release(info);
-		dev_set_drvdata(&device->dev, NULL);
 	}
 
 	return 0;
