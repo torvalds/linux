@@ -214,7 +214,6 @@ static unsigned int pcl711_ai_get_sample(struct comedi_device *dev,
 static irqreturn_t pcl711_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	const struct pcl711_board *board = comedi_board(dev);
 	struct pcl711_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int data;
@@ -230,10 +229,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 	/* FIXME! Nothing else sets ntrig! */
 	if (!(--devpriv->ntrig)) {
-		if (board->is_8112)
-			pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
-		else
-			pcl711_ai_set_mode(dev, PCL711_MODE_DEFAULT);
+		pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
 
 		s->async->events |= COMEDI_CB_EOA;
 	}
