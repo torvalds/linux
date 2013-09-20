@@ -62,25 +62,28 @@ supported.
 #include "comedi_fc.h"
 #include "8253.h"
 
-#define PCL711_CTR0 0
-#define PCL711_CTR1 1
-#define PCL711_CTR2 2
-#define PCL711_CTRCTL 3
-#define PCL711_AD_LO 4
-#define PCL711_DA0_LO 4
-#define PCL711_AD_HI 5
-#define PCL711_DA0_HI 5
-#define PCL711_DI_LO 6
-#define PCL711_DA1_LO 6
-#define PCL711_DI_HI 7
-#define PCL711_DA1_HI 7
-#define PCL711_CLRINTR 8
-#define PCL711_GAIN 9
-#define PCL711_MUX 10
-#define PCL711_MODE 11
-#define PCL711_SOFTTRIG 12
-#define PCL711_DO_LO 13
-#define PCL711_DO_HI 14
+/*
+ * I/O port register map
+ */
+#define PCL711_CTR0		0x00
+#define PCL711_CTR1		0x01
+#define PCL711_CTR2		0x02
+#define PCL711_CTRCTL		0x03
+#define PCL711_AD_LO		0x04
+#define PCL711_DA0_LO		0x04
+#define PCL711_AD_HI		0x05
+#define PCL711_DA0_HI		0x05
+#define PCL711_DI_LO		0x06
+#define PCL711_DA1_LO		0x06
+#define PCL711_DI_HI		0x07
+#define PCL711_DA1_HI		0x07
+#define PCL711_CLRINTR		0x08
+#define PCL711_GAIN		0x09
+#define PCL711_MUX		0x0a
+#define PCL711_MODE		0x0b
+#define PCL711_SOFTTRIG		0x0c
+#define PCL711_DO_LO		0x0d
+#define PCL711_DO_HI		0x0e
 
 static const struct comedi_lrange range_pcl711b_ai = {
 	5, {
