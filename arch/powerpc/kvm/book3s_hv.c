@@ -709,8 +709,8 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		printk(KERN_EMERG "trap=0x%x | pc=0x%lx | msr=0x%llx\n",
 			vcpu->arch.trap, kvmppc_get_pc(vcpu),
 			vcpu->arch.shregs.msr);
+		run->hw.hardware_exit_reason = vcpu->arch.trap;
 		r = RESUME_HOST;
-		BUG();
 		break;
 	}
 
