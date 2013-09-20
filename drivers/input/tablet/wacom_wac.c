@@ -477,7 +477,7 @@ static void wacom_intuos_general(struct wacom_wac *wacom)
 	/* general pen packet */
 	if ((data[1] & 0xb8) == 0xa0) {
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
-		if (features->type >= INTUOS4S && features->type <= WACOM_24HD) {
+		if (features->type >= INTUOS4S && features->type <= CINTIQ_HYBRID) {
 			t = (t << 1) | (data[1] & 1);
 		}
 		input_report_abs(input, ABS_PRESSURE, t);
@@ -621,6 +621,22 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			} else {
 				input_report_abs(input, ABS_MISC, 0);
 			}
+		} else if (features->type == CINTIQ_HYBRID) {
+			/*
+			 * Do not send hardware buttons under Android. They
+			 * are already sent to the system through GPIO (and
+			 * have different meaning).
+			 */
+			input_report_key(input, BTN_1, (data[4] & 0x01));
+			input_report_key(input, BTN_2, (data[4] & 0x02));
+			input_report_key(input, BTN_3, (data[4] & 0x04));
+			input_report_key(input, BTN_4, (data[4] & 0x08));
+
+			input_report_key(input, BTN_5, (data[4] & 0x10));  /* Right  */
+			input_report_key(input, BTN_6, (data[4] & 0x20));  /* Up     */
+			input_report_key(input, BTN_7, (data[4] & 0x40));  /* Left   */
+			input_report_key(input, BTN_8, (data[4] & 0x80));  /* Down   */
+			input_report_key(input, BTN_0, (data[3] & 0x01));  /* Center */
 		} else if (features->type >= INTUOS5S && features->type <= INTUOS5L) {
 			int i;
 
@@ -1327,6 +1343,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case WACOM_22HD:
 	case WACOM_24HD:
 	case DTK:
+	case CINTIQ_HYBRID:
 		sync = wacom_intuos_irq(wacom_wac);
 		break;
 
@@ -1765,6 +1782,24 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 					      0, 0);
 		}
 		break;
+
+	case CINTIQ_HYBRID:
+		__set_bit(BTN_1, input_dev->keybit);
+		__set_bit(BTN_2, input_dev->keybit);
+		__set_bit(BTN_3, input_dev->keybit);
+		__set_bit(BTN_4, input_dev->keybit);
+
+		__set_bit(BTN_5, input_dev->keybit);
+		__set_bit(BTN_6, input_dev->keybit);
+		__set_bit(BTN_7, input_dev->keybit);
+		__set_bit(BTN_8, input_dev->keybit);
+		__set_bit(BTN_0, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
+		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+
+		wacom_setup_cintiq(wacom_wac);
+		break;
 	}
 	return 0;
 }
@@ -2125,6 +2160,13 @@ static const struct wacom_features wacom_features_0x301 =
 static const struct wacom_features wacom_features_0x6004 =
 	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800,  8000,  255,
 	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x0307 =
+	{ "Wacom ISDv5 307", WACOM_PKGLEN_INTUOS,  59552,  33848, 2047,
+	  63, CINTIQ_HYBRID, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x309 };
+static const struct wacom_features wacom_features_0x0309 =
+	{ "Wacom ISDv5 309", .type = WACOM_24HDT, /* Touch */
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x0307, .touch_max = 10 };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
@@ -2257,6 +2299,8 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xF8) },
 	{ USB_DEVICE_DETAILED(0xF6, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0xFA) },
+	{ USB_DEVICE_WACOM(0x0307) },
+	{ USB_DEVICE_DETAILED(0x0309, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };

@@ -548,7 +548,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 			/* MT Tablet PC touch */
 			return wacom_set_device_mode(intf, 3, 4, 4);
 		}
-		else if (features->type == WACOM_24HDT) {
+		else if (features->type == WACOM_24HDT || features->type == CINTIQ_HYBRID) {
 			return wacom_set_device_mode(intf, 18, 3, 2);
 		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
