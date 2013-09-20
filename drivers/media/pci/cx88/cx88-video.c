@@ -2039,17 +2039,4 @@ static struct pci_driver cx8800_pci_driver = {
 #endif
 };
 
-static int __init cx8800_init(void)
-{
-	printk(KERN_INFO "cx88/0: cx2388x v4l2 driver version %s loaded\n",
-	       CX88_VERSION);
-	return pci_register_driver(&cx8800_pci_driver);
-}
-
-static void __exit cx8800_fini(void)
-{
-	pci_unregister_driver(&cx8800_pci_driver);
-}
-
-module_init(cx8800_init);
-module_exit(cx8800_fini);
+module_pci_driver(cx8800_pci_driver);
