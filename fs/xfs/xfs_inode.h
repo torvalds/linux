@@ -316,7 +316,7 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
 
 
 int		xfs_release(struct xfs_inode *ip);
-int		xfs_inactive(struct xfs_inode *ip);
+void		xfs_inactive(struct xfs_inode *ip);
 int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
 int		xfs_create(struct xfs_inode *dp, struct xfs_name *name,
