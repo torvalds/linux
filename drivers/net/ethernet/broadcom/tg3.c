@@ -9203,10 +9203,7 @@ static int tg3_halt(struct tg3 *tp, int kind, bool silent)
 		memset(tp->hw_stats, 0, sizeof(struct tg3_hw_stats));
 	}
 
-	if (err)
-		return err;
-
-	return 0;
+	return err;
 }
 
 static int tg3_set_mac_addr(struct net_device *dev, void *p)
