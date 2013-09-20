@@ -134,8 +134,6 @@ static const struct comedi_lrange range_acl8112dg_ai = {
 	}
 };
 
-static const int i8253_osc_base = 500;	/* 2 Mhz */
-
 struct pcl711_board {
 	const char *name;
 	int n_aichan;
@@ -378,7 +376,8 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		timer1 = timer2 = 0;
-		i8253_cascade_ns_to_timer(i8253_osc_base, &timer1, &timer2,
+		i8253_cascade_ns_to_timer(500,		/* 2 Mhz */
+					  &timer1, &timer2,
 					  &cmd->scan_begin_arg,
 					  TRIG_ROUND_NEAREST);
 
