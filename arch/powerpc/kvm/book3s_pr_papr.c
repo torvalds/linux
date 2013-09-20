@@ -21,6 +21,8 @@
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 
+#define HPTE_SIZE	16		/* bytes per HPT entry */
+
 static unsigned long get_pteg_addr(struct kvm_vcpu *vcpu, long pte_index)
 {
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
@@ -40,32 +42,39 @@ static int kvmppc_h_pr_enter(struct kvm_vcpu *vcpu)
 	long pte_index = kvmppc_get_gpr(vcpu, 5);
 	unsigned long pteg[2 * 8];
 	unsigned long pteg_addr, i, *hpte;
+	long int ret;
 
+	i = pte_index & 7;
 	pte_index &= ~7UL;
 	pteg_addr = get_pteg_addr(vcpu, pte_index);
 
 	copy_from_user(pteg, (void __user *)pteg_addr, sizeof(pteg));
 	hpte = pteg;
 
+	ret = H_PTEG_FULL;
 	if (likely((flags & H_EXACT) == 0)) {
-		pte_index &= ~7UL;
 		for (i = 0; ; ++i) {
 			if (i == 8)
-				return H_PTEG_FULL;
+				goto done;
 			if ((*hpte & HPTE_V_VALID) == 0)
 				break;
 			hpte += 2;
 		}
 	} else {
-		i = kvmppc_get_gpr(vcpu, 5) & 7UL;
 		hpte += i * 2;
+		if (*hpte & HPTE_V_VALID)
+			goto done;
 	}
 
 	hpte[0] = kvmppc_get_gpr(vcpu, 6);
 	hpte[1] = kvmppc_get_gpr(vcpu, 7);
-	copy_to_user((void __user *)pteg_addr, pteg, sizeof(pteg));
-	kvmppc_set_gpr(vcpu, 3, H_SUCCESS);
+	pteg_addr += i * HPTE_SIZE;
+	copy_to_user((void __user *)pteg_addr, hpte, HPTE_SIZE);
 	kvmppc_set_gpr(vcpu, 4, pte_index | i);
+	ret = H_SUCCESS;
+
+ done:
+	kvmppc_set_gpr(vcpu, 3, ret);
 
 	return EMULATE_DONE;
 }
