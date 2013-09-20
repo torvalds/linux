@@ -182,7 +182,9 @@ struct ip_callchain {
 struct branch_flags {
 	u64 mispred:1;
 	u64 predicted:1;
-	u64 reserved:62;
+	u64 in_tx:1;
+	u64 abort:1;
+	u64 reserved:60;
 };
 
 struct branch_entry {

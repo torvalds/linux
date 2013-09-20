@@ -112,7 +112,8 @@ Default is to monitor all CPUS.
 
 -s::
 --sort::
-	Sort by key(s): pid, comm, dso, symbol, parent, srcline, weight, local_weight.
+	Sort by key(s): pid, comm, dso, symbol, parent, srcline, weight,
+	local_weight, abort, in_tx
 
 -n::
 --show-nr-samples::

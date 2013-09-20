@@ -71,7 +71,7 @@ OPTIONS
 	entries are displayed as "[other]".
 	- cpu: cpu number the task ran at the time of sample
 	- srcline: filename and line number executed at the time of sample.  The
-	DWARF debuggin info must be provided.
+	DWARF debugging info must be provided.
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)
@@ -85,6 +85,8 @@ OPTIONS
 	- symbol_from: name of function branched from
 	- symbol_to: name of function branched to
 	- mispredict: "N" for predicted branch, "Y" for mispredicted branch
+	- in_tx: branch in TSX transaction
+	- abort: TSX transaction abort.
 
 	And default sort keys are changed to comm, dso_from, symbol_from, dso_to
 	and symbol_to, see '--branch-stack'.
