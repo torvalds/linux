@@ -70,8 +70,6 @@ struct hpte_cache {
 };
 
 struct kvmppc_vcpu_book3s {
-	struct kvm_vcpu vcpu;
-	struct kvmppc_book3s_shadow_vcpu *shadow_vcpu;
 	struct kvmppc_sid_map sid_map[SID_MAP_NUM];
 	struct {
 		u64 esid;
@@ -194,7 +192,7 @@ extern int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd);
 
 static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 {
-	return container_of(vcpu, struct kvmppc_vcpu_book3s, vcpu);
+	return vcpu->arch.book3s;
 }
 
 extern void kvm_return_point(void);

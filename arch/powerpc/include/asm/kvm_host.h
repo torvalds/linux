@@ -86,6 +86,9 @@ struct lppaca;
 struct slb_shadow;
 struct dtl_entry;
 
+struct kvmppc_vcpu_book3s;
+struct kvmppc_book3s_shadow_vcpu;
+
 struct kvm_vm_stat {
 	u32 remote_tlb_flush;
 };
@@ -408,6 +411,10 @@ struct kvm_vcpu_arch {
 	int slb_max;		/* 1 + index of last valid entry in slb[] */
 	int slb_nr;		/* total number of entries in SLB */
 	struct kvmppc_mmu mmu;
+	struct kvmppc_vcpu_book3s *book3s;
+#endif
+#ifdef CONFIG_PPC_BOOK3S_32
+	struct kvmppc_book3s_shadow_vcpu *shadow_vcpu;
 #endif
 
 	ulong gpr[32];

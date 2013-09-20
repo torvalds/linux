@@ -66,7 +66,7 @@ void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 #endif
 	vcpu->cpu = smp_processor_id();
 #ifdef CONFIG_PPC_BOOK3S_32
-	current->thread.kvm_shadow_vcpu = to_book3s(vcpu)->shadow_vcpu;
+	current->thread.kvm_shadow_vcpu = vcpu->arch.shadow_vcpu;
 #endif
 }
 
@@ -1125,17 +1125,22 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	int err = -ENOMEM;
 	unsigned long p;
 
-	vcpu_book3s = vzalloc(sizeof(struct kvmppc_vcpu_book3s));
-	if (!vcpu_book3s)
+	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
+	if (!vcpu)
 		goto out;
 
-#ifdef CONFIG_KVM_BOOK3S_32
-	vcpu_book3s->shadow_vcpu =
-		kzalloc(sizeof(*vcpu_book3s->shadow_vcpu), GFP_KERNEL);
-	if (!vcpu_book3s->shadow_vcpu)
+	vcpu_book3s = vzalloc(sizeof(struct kvmppc_vcpu_book3s));
+	if (!vcpu_book3s)
 		goto free_vcpu;
+	vcpu->arch.book3s = vcpu_book3s;
+
+#ifdef CONFIG_KVM_BOOK3S_32
+	vcpu->arch.shadow_vcpu =
+		kzalloc(sizeof(*vcpu->arch.shadow_vcpu), GFP_KERNEL);
+	if (!vcpu->arch.shadow_vcpu)
+		goto free_vcpu3s;
 #endif
-	vcpu = &vcpu_book3s->vcpu;
+
 	err = kvm_vcpu_init(vcpu, kvm, id);
 	if (err)
 		goto free_shadow_vcpu;
@@ -1175,10 +1180,12 @@ uninit_vcpu:
 	kvm_vcpu_uninit(vcpu);
 free_shadow_vcpu:
 #ifdef CONFIG_KVM_BOOK3S_32
-	kfree(vcpu_book3s->shadow_vcpu);
-free_vcpu:
+	kfree(vcpu->arch.shadow_vcpu);
+free_vcpu3s:
 #endif
 	vfree(vcpu_book3s);
+free_vcpu:
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 out:
 	return ERR_PTR(err);
 }
@@ -1189,8 +1196,11 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 
 	free_page((unsigned long)vcpu->arch.shared & PAGE_MASK);
 	kvm_vcpu_uninit(vcpu);
-	kfree(vcpu_book3s->shadow_vcpu);
+#ifdef CONFIG_KVM_BOOK3S_32
+	kfree(vcpu->arch.shadow_vcpu);
+#endif
 	vfree(vcpu_book3s);
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 }
 
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
@@ -1452,8 +1462,7 @@ static int kvmppc_book3s_init(void)
 {
 	int r;
 
-	r = kvm_init(NULL, sizeof(struct kvmppc_vcpu_book3s), 0,
-		     THIS_MODULE);
+	r = kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 
 	if (r)
 		return r;

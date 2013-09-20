@@ -130,11 +130,11 @@ static u32 kvmppc_mmu_book3s_64_get_page(struct kvmppc_slb *slbe, gva_t eaddr)
 	return ((eaddr & kvmppc_slb_offset_mask(slbe)) >> p);
 }
 
-static hva_t kvmppc_mmu_book3s_64_get_pteg(
-				struct kvmppc_vcpu_book3s *vcpu_book3s,
+static hva_t kvmppc_mmu_book3s_64_get_pteg(struct kvm_vcpu *vcpu,
 				struct kvmppc_slb *slbe, gva_t eaddr,
 				bool second)
 {
+	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 	u64 hash, pteg, htabsize;
 	u32 ssize;
 	hva_t r;
@@ -159,10 +159,10 @@ static hva_t kvmppc_mmu_book3s_64_get_pteg(
 
 	/* When running a PAPR guest, SDR1 contains a HVA address instead
            of a GPA */
-	if (vcpu_book3s->vcpu.arch.papr_enabled)
+	if (vcpu->arch.papr_enabled)
 		r = pteg;
 	else
-		r = gfn_to_hva(vcpu_book3s->vcpu.kvm, pteg >> PAGE_SHIFT);
+		r = gfn_to_hva(vcpu->kvm, pteg >> PAGE_SHIFT);
 
 	if (kvm_is_error_hva(r))
 		return r;
@@ -208,7 +208,6 @@ static int decode_pagesize(struct kvmppc_slb *slbe, u64 r)
 static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 				struct kvmppc_pte *gpte, bool data)
 {
-	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 	struct kvmppc_slb *slbe;
 	hva_t ptegp;
 	u64 pteg[16];
@@ -260,7 +259,7 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
 
 do_second:
-	ptegp = kvmppc_mmu_book3s_64_get_pteg(vcpu_book3s, slbe, eaddr, second);
+	ptegp = kvmppc_mmu_book3s_64_get_pteg(vcpu, slbe, eaddr, second);
 	if (kvm_is_error_hva(ptegp))
 		goto no_page_found;
 

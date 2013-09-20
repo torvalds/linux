@@ -111,10 +111,11 @@ static void kvmppc_mmu_book3s_32_reset_msr(struct kvm_vcpu *vcpu)
 	kvmppc_set_msr(vcpu, 0);
 }
 
-static hva_t kvmppc_mmu_book3s_32_get_pteg(struct kvmppc_vcpu_book3s *vcpu_book3s,
+static hva_t kvmppc_mmu_book3s_32_get_pteg(struct kvm_vcpu *vcpu,
 				      u32 sre, gva_t eaddr,
 				      bool primary)
 {
+	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 	u32 page, hash, pteg, htabmask;
 	hva_t r;
 
@@ -132,7 +133,7 @@ static hva_t kvmppc_mmu_book3s_32_get_pteg(struct kvmppc_vcpu_book3s *vcpu_book3
 		kvmppc_get_pc(&vcpu_book3s->vcpu), eaddr, vcpu_book3s->sdr1, pteg,
 		sr_vsid(sre));
 
-	r = gfn_to_hva(vcpu_book3s->vcpu.kvm, pteg >> PAGE_SHIFT);
+	r = gfn_to_hva(vcpu->kvm, pteg >> PAGE_SHIFT);
 	if (kvm_is_error_hva(r))
 		return r;
 	return r | (pteg & ~PAGE_MASK);
@@ -203,7 +204,6 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 				     struct kvmppc_pte *pte, bool data,
 				     bool primary)
 {
-	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 	u32 sre;
 	hva_t ptegp;
 	u32 pteg[16];
@@ -218,7 +218,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 	pte->vpage = kvmppc_mmu_book3s_32_ea_to_vp(vcpu, eaddr, data);
 
-	ptegp = kvmppc_mmu_book3s_32_get_pteg(vcpu_book3s, sre, eaddr, primary);
+	ptegp = kvmppc_mmu_book3s_32_get_pteg(vcpu, sre, eaddr, primary);
 	if (kvm_is_error_hva(ptegp)) {
 		printk(KERN_INFO "KVM: Invalid PTEG!\n");
 		goto no_page_found;
