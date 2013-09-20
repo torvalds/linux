@@ -21,57 +21,6 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	ocp {
-		uart0: serial@44e09000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_pins>;
-
-			status = "okay";
-		};
-
-		musb: usb@47400000 {
-			status = "okay";
-
-			control@44e10000 {
-				status = "okay";
-			};
-
-			usb-phy@47401300 {
-				status = "okay";
-			};
-
-			usb-phy@47401b00 {
-				status = "okay";
-			};
-
-			usb@47401000 {
-				status = "okay";
-			};
-
-			usb@47401800 {
-				status = "okay";
-				dr_mode = "host";
-			};
-
-			dma-controller@07402000  {
-				status = "okay";
-			};
-		};
-
-		i2c0: i2c@44e0b000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins>;
-
-			status = "okay";
-			clock-frequency = <400000>;
-
-			tps: tps@24 {
-				reg = <0x24>;
-			};
-
-		};
-	};
-
 	leds {
 		pinctrl-names = "default";
 		pinctrl-0 = <&user_leds_s0>;
@@ -215,6 +164,55 @@
 			0x1c (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad7.mmc1_dat7 */
 		>;
 	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+
+	status = "okay";
+};
+
+&usb {
+	status = "okay";
+
+	control@44e10000 {
+		status = "okay";
+	};
+
+	usb-phy@47401300 {
+		status = "okay";
+	};
+
+	usb-phy@47401b00 {
+		status = "okay";
+	};
+
+	usb@47401000 {
+		status = "okay";
+	};
+
+	usb@47401800 {
+		status = "okay";
+		dr_mode = "host";
+	};
+
+	dma-controller@07402000  {
+		status = "okay";
+	};
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tps: tps@24 {
+		reg = <0x24>;
+	};
+
 };
 
 /include/ "tps65217.dtsi"

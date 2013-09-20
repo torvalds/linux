@@ -24,197 +24,6 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	ocp {
-		uart0: serial@44e09000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_pins>;
-
-			status = "okay";
-		};
-
-		i2c0: i2c@44e0b000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins>;
-
-			status = "okay";
-			clock-frequency = <400000>;
-
-			tps: tps@2d {
-				reg = <0x2d>;
-			};
-		};
-
-		musb: usb@47400000 {
-			status = "okay";
-
-			control@44e10000 {
-				status = "okay";
-			};
-
-			usb-phy@47401300 {
-				status = "okay";
-			};
-
-			usb-phy@47401b00 {
-				status = "okay";
-			};
-
-			usb@47401000 {
-				status = "okay";
-			};
-
-			usb@47401800 {
-				status = "okay";
-				dr_mode = "host";
-			};
-
-			dma-controller@07402000  {
-				status = "okay";
-			};
-		};
-
-		i2c1: i2c@4802a000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c1_pins>;
-
-			status = "okay";
-			clock-frequency = <100000>;
-
-			lis331dlh: lis331dlh@18 {
-				compatible = "st,lis331dlh", "st,lis3lv02d";
-				reg = <0x18>;
-				Vdd-supply = <&lis3_reg>;
-				Vdd_IO-supply = <&lis3_reg>;
-
-				st,click-single-x;
-				st,click-single-y;
-				st,click-single-z;
-				st,click-thresh-x = <10>;
-				st,click-thresh-y = <10>;
-				st,click-thresh-z = <10>;
-				st,irq1-click;
-				st,irq2-click;
-				st,wakeup-x-lo;
-				st,wakeup-x-hi;
-				st,wakeup-y-lo;
-				st,wakeup-y-hi;
-				st,wakeup-z-lo;
-				st,wakeup-z-hi;
-				st,min-limit-x = <120>;
-				st,min-limit-y = <120>;
-				st,min-limit-z = <140>;
-				st,max-limit-x = <550>;
-				st,max-limit-y = <550>;
-				st,max-limit-z = <750>;
-			};
-
-			tsl2550: tsl2550@39 {
-				compatible = "taos,tsl2550";
-				reg = <0x39>;
-			};
-
-			tmp275: tmp275@48 {
-				compatible = "ti,tmp275";
-				reg = <0x48>;
-			};
-		};
-
-		elm: elm@48080000 {
-			status = "okay";
-		};
-
-		epwmss0: epwmss@48300000 {
-			status = "okay";
-
-			ecap0: ecap@48300100 {
-				status = "okay";
-				pinctrl-names = "default";
-				pinctrl-0 = <&ecap0_pins>;
-			};
-		};
-
-		gpmc: gpmc@50000000 {
-			status = "okay";
-			pinctrl-names = "default";
-			pinctrl-0 = <&nandflash_pins_s0>;
-			ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
-			nand@0,0 {
-				reg = <0 0 0>; /* CS0, offset 0 */
-				nand-bus-width = <8>;
-				ti,nand-ecc-opt = "bch8";
-				gpmc,device-nand = "true";
-				gpmc,device-width = <1>;
-				gpmc,sync-clk-ps = <0>;
-				gpmc,cs-on-ns = <0>;
-				gpmc,cs-rd-off-ns = <44>;
-				gpmc,cs-wr-off-ns = <44>;
-				gpmc,adv-on-ns = <6>;
-				gpmc,adv-rd-off-ns = <34>;
-				gpmc,adv-wr-off-ns = <44>;
-				gpmc,we-on-ns = <0>;
-				gpmc,we-off-ns = <40>;
-				gpmc,oe-on-ns = <0>;
-				gpmc,oe-off-ns = <54>;
-				gpmc,access-ns = <64>;
-				gpmc,rd-cycle-ns = <82>;
-				gpmc,wr-cycle-ns = <82>;
-				gpmc,wait-on-read = "true";
-				gpmc,wait-on-write = "true";
-				gpmc,bus-turnaround-ns = <0>;
-				gpmc,cycle2cycle-delay-ns = <0>;
-				gpmc,clk-activation-ns = <0>;
-				gpmc,wait-monitoring-ns = <0>;
-				gpmc,wr-access-ns = <40>;
-				gpmc,wr-data-mux-bus-ns = <0>;
-
-				#address-cells = <1>;
-				#size-cells = <1>;
-				elm_id = <&elm>;
-
-				/* MTD partition table */
-				partition@0 {
-					label = "SPL1";
-					reg = <0x00000000 0x000020000>;
-				};
-
-				partition@1 {
-					label = "SPL2";
-					reg = <0x00020000 0x00020000>;
-				};
-
-				partition@2 {
-					label = "SPL3";
-					reg = <0x00040000 0x00020000>;
-				};
-
-				partition@3 {
-					label = "SPL4";
-					reg = <0x00060000 0x00020000>;
-				};
-
-				partition@4 {
-					label = "U-boot";
-					reg = <0x00080000 0x001e0000>;
-				};
-
-				partition@5 {
-					label = "environment";
-					reg = <0x00260000 0x00020000>;
-				};
-
-				partition@6 {
-					label = "Kernel";
-					reg = <0x00280000 0x00500000>;
-				};
-
-				partition@7 {
-					label = "File-System";
-					reg = <0x00780000 0x0F880000>;
-				};
-			};
-		};
-	};
-
 	vbat: fixedregulator@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
@@ -402,6 +211,195 @@
 			0x148 (PIN_INPUT_PULLDOWN | MUX_MODE7)
 			0x14c (PIN_INPUT_PULLDOWN | MUX_MODE7)
 		>;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tps: tps@2d {
+		reg = <0x2d>;
+	};
+};
+
+&usb {
+	status = "okay";
+
+	control@44e10000 {
+		status = "okay";
+	};
+
+	usb-phy@47401300 {
+		status = "okay";
+	};
+
+	usb-phy@47401b00 {
+		status = "okay";
+	};
+
+	usb@47401000 {
+		status = "okay";
+	};
+
+	usb@47401800 {
+		status = "okay";
+		dr_mode = "host";
+	};
+
+	dma-controller@07402000  {
+		status = "okay";
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+
+	status = "okay";
+	clock-frequency = <100000>;
+
+	lis331dlh: lis331dlh@18 {
+		compatible = "st,lis331dlh", "st,lis3lv02d";
+		reg = <0x18>;
+		Vdd-supply = <&lis3_reg>;
+		Vdd_IO-supply = <&lis3_reg>;
+
+		st,click-single-x;
+		st,click-single-y;
+		st,click-single-z;
+		st,click-thresh-x = <10>;
+		st,click-thresh-y = <10>;
+		st,click-thresh-z = <10>;
+		st,irq1-click;
+		st,irq2-click;
+		st,wakeup-x-lo;
+		st,wakeup-x-hi;
+		st,wakeup-y-lo;
+		st,wakeup-y-hi;
+		st,wakeup-z-lo;
+		st,wakeup-z-hi;
+		st,min-limit-x = <120>;
+		st,min-limit-y = <120>;
+		st,min-limit-z = <140>;
+		st,max-limit-x = <550>;
+		st,max-limit-y = <550>;
+		st,max-limit-z = <750>;
+	};
+
+	tsl2550: tsl2550@39 {
+		compatible = "taos,tsl2550";
+		reg = <0x39>;
+	};
+
+	tmp275: tmp275@48 {
+		compatible = "ti,tmp275";
+		reg = <0x48>;
+	};
+};
+
+&elm {
+	status = "okay";
+};
+
+&epwmss0 {
+	status = "okay";
+
+	ecap0: ecap@48300100 {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ecap0_pins>;
+	};
+};
+
+&gpmc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&nandflash_pins_s0>;
+	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
+	nand@0,0 {
+		reg = <0 0 0>; /* CS0, offset 0 */
+		nand-bus-width = <8>;
+		ti,nand-ecc-opt = "bch8";
+		gpmc,device-nand = "true";
+		gpmc,device-width = <1>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-on-ns = <0>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wait-on-read = "true";
+		gpmc,wait-on-write = "true";
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		elm_id = <&elm>;
+
+		/* MTD partition table */
+		partition@0 {
+			label = "SPL1";
+			reg = <0x00000000 0x000020000>;
+		};
+
+		partition@1 {
+			label = "SPL2";
+			reg = <0x00020000 0x00020000>;
+		};
+
+		partition@2 {
+			label = "SPL3";
+			reg = <0x00040000 0x00020000>;
+		};
+
+		partition@3 {
+			label = "SPL4";
+			reg = <0x00060000 0x00020000>;
+		};
+
+		partition@4 {
+			label = "U-boot";
+			reg = <0x00080000 0x001e0000>;
+		};
+
+		partition@5 {
+			label = "environment";
+			reg = <0x00260000 0x00020000>;
+		};
+
+		partition@6 {
+			label = "Kernel";
+			reg = <0x00280000 0x00500000>;
+		};
+
+		partition@7 {
+			label = "File-System";
+			reg = <0x00780000 0x0F880000>;
+		};
 	};
 };
 

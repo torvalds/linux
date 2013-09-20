@@ -31,81 +31,6 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	ocp {
-		uart0: serial@44e09000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_pins>;
-
-			status = "okay";
-		};
-
-		i2c0: i2c@44e0b000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins>;
-
-			status = "okay";
-			clock-frequency = <400000>;
-
-			tps: tps@2d {
-				reg = <0x2d>;
-			};
-
-			lis331dlh: lis331dlh@18 {
-				compatible = "st,lis331dlh", "st,lis3lv02d";
-				reg = <0x18>;
-				Vdd-supply = <&lis3_reg>;
-				Vdd_IO-supply = <&lis3_reg>;
-
-				st,click-single-x;
-				st,click-single-y;
-				st,click-single-z;
-				st,click-thresh-x = <10>;
-				st,click-thresh-y = <10>;
-				st,click-thresh-z = <10>;
-				st,irq1-click;
-				st,irq2-click;
-				st,wakeup-x-lo;
-				st,wakeup-x-hi;
-				st,wakeup-y-lo;
-				st,wakeup-y-hi;
-				st,wakeup-z-lo;
-				st,wakeup-z-hi;
-				st,min-limit-x = <120>;
-				st,min-limit-y = <120>;
-				st,min-limit-z = <140>;
-				st,max-limit-x = <550>;
-				st,max-limit-y = <550>;
-				st,max-limit-z = <750>;
-			};
-		};
-
-		musb: usb@47400000 {
-			status = "okay";
-
-			control@44e10000 {
-				status = "okay";
-			};
-
-			usb-phy@47401300 {
-				status = "okay";
-			};
-
-			usb@47401000 {
-				status = "okay";
-			};
-		};
-
-		epwmss2: epwmss@48304000 {
-			status = "okay";
-
-			ecap2: ecap@48304100 {
-				status = "okay";
-				pinctrl-names = "default";
-				pinctrl-0 = <&ecap2_pins>;
-			};
-		};
-	};
-
 	vbat: fixedregulator@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
@@ -318,6 +243,79 @@
 			0x148 (PIN_INPUT_PULLDOWN | MUX_MODE7)
 			0x14c (PIN_INPUT_PULLDOWN | MUX_MODE7)
 		>;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tps: tps@2d {
+		reg = <0x2d>;
+	};
+
+	lis331dlh: lis331dlh@18 {
+		compatible = "st,lis331dlh", "st,lis3lv02d";
+		reg = <0x18>;
+		Vdd-supply = <&lis3_reg>;
+		Vdd_IO-supply = <&lis3_reg>;
+
+		st,click-single-x;
+		st,click-single-y;
+		st,click-single-z;
+		st,click-thresh-x = <10>;
+		st,click-thresh-y = <10>;
+		st,click-thresh-z = <10>;
+		st,irq1-click;
+		st,irq2-click;
+		st,wakeup-x-lo;
+		st,wakeup-x-hi;
+		st,wakeup-y-lo;
+		st,wakeup-y-hi;
+		st,wakeup-z-lo;
+		st,wakeup-z-hi;
+		st,min-limit-x = <120>;
+		st,min-limit-y = <120>;
+		st,min-limit-z = <140>;
+		st,max-limit-x = <550>;
+		st,max-limit-y = <550>;
+		st,max-limit-z = <750>;
+	};
+};
+
+&usb {
+	status = "okay";
+
+	control@44e10000 {
+		status = "okay";
+	};
+
+	usb-phy@47401300 {
+		status = "okay";
+	};
+
+	usb@47401000 {
+		status = "okay";
+	};
+};
+
+&epwmss2 {
+	status = "okay";
+
+	ecap2: ecap@48304100 {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ecap2_pins>;
 	};
 };
 
