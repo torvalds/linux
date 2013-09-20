@@ -654,7 +654,12 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 		break;
 	}
 
-	for (retry = 0; retry < 5; retry++) {
+	/*
+	 * DP1.2 sections 2.7.7.1.5.6.1 and 2.7.7.1.6.6.1: A DP Source device is
+	 * required to retry at least seven times upon receiving AUX_DEFER
+	 * before giving up the AUX transaction.
+	 */
+	for (retry = 0; retry < 7; retry++) {
 		ret = intel_dp_aux_ch(intel_dp,
 				      msg, msg_bytes,
 				      reply, reply_bytes);
