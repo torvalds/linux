@@ -474,8 +474,12 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl711_board *board = comedi_board(dev);
 	struct pcl711_private *devpriv;
-	int ret;
 	struct comedi_subdevice *s;
+	int ret;
+
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
@@ -484,17 +488,21 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (it->options[1] && it->options[1] <= board->maxirq) {
 		ret = request_irq(it->options[1], pcl711_interrupt, 0,
 				  dev->board_name, dev);
-		if (ret == 0)
+		if (ret == 0) {
 			dev->irq = it->options[1];
+
+			/*
+			 * The PCL711b needs the irq number in the
+			 * mode register.
+			 */
+			if (board->is_pcl711b)
+				devpriv->mode = (dev->irq << 4);
+		}
 	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
@@ -539,13 +547,6 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_bits	= pcl711_do_insn_bits;
-
-	/*
-	   this is the "base value" for the mode register, which is
-	   used for the irq on the PCL711
-	 */
-	if (board->is_pcl711b)
-		devpriv->mode = (dev->irq << 4);
 
 	/* clear DAC */
 	outb(0, dev->iobase + PCL711_DA0_LO);
