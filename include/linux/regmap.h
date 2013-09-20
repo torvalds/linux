@@ -70,6 +70,8 @@ struct regmap_range {
 	unsigned int range_max;
 };
 
+#define regmap_reg_range(low, high) { .range_min = low, .range_max = high, }
+
 /*
  * A table of ranges including some yes ranges and some no ranges.
  * If a register belongs to a no_range, the corresponding check function
