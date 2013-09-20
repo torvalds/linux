@@ -1326,6 +1326,12 @@ static int tg3_phy_toggle_auxctl_smdsp(struct tg3 *tp, bool enable)
 	return err;
 }
 
+static int tg3_phy_shdw_write(struct tg3 *tp, int reg, u32 val)
+{
+	return tg3_writephy(tp, MII_TG3_MISC_SHDW,
+			    reg | val | MII_TG3_MISC_SHDW_WREN);
+}
+
 static int tg3_bmcr_reset(struct tg3 *tp)
 {
 	u32 phy_control;
@@ -2218,25 +2224,21 @@ static void tg3_phy_toggle_apd(struct tg3 *tp, bool enable)
 		return;
 	}
 
-	reg = MII_TG3_MISC_SHDW_WREN |
-	      MII_TG3_MISC_SHDW_SCR5_SEL |
-	      MII_TG3_MISC_SHDW_SCR5_LPED |
+	reg = MII_TG3_MISC_SHDW_SCR5_LPED |
 	      MII_TG3_MISC_SHDW_SCR5_DLPTLM |
 	      MII_TG3_MISC_SHDW_SCR5_SDTL |
 	      MII_TG3_MISC_SHDW_SCR5_C125OE;
 	if (tg3_asic_rev(tp) != ASIC_REV_5784 || !enable)
 		reg |= MII_TG3_MISC_SHDW_SCR5_DLLAPD;
 
-	tg3_writephy(tp, MII_TG3_MISC_SHDW, reg);
+	tg3_phy_shdw_write(tp, MII_TG3_MISC_SHDW_SCR5_SEL, reg);
 
 
-	reg = MII_TG3_MISC_SHDW_WREN |
-	      MII_TG3_MISC_SHDW_APD_SEL |
-	      MII_TG3_MISC_SHDW_APD_WKTM_84MS;
+	reg = MII_TG3_MISC_SHDW_APD_WKTM_84MS;
 	if (enable)
 		reg |= MII_TG3_MISC_SHDW_APD_ENABLE;
 
-	tg3_writephy(tp, MII_TG3_MISC_SHDW, reg);
+	tg3_phy_shdw_write(tp, MII_TG3_MISC_SHDW_APD_SEL, reg);
 }
 
 static void tg3_phy_toggle_automdix(struct tg3 *tp, bool enable)
