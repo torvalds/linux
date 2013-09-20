@@ -503,7 +503,7 @@ again:
 	}
 	btrfs_free_reserved_data_space(inode, prealloc);
 
-	ret = btrfs_write_out_ino_cache(root, trans, path);
+	ret = btrfs_write_out_ino_cache(root, trans, path, inode);
 out_put:
 	iput(inode);
 out_release:

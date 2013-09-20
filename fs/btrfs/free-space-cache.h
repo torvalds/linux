@@ -76,7 +76,8 @@ int load_free_ino_cache(struct btrfs_fs_info *fs_info,
 			struct btrfs_root *root);
 int btrfs_write_out_ino_cache(struct btrfs_root *root,
 			      struct btrfs_trans_handle *trans,
-			      struct btrfs_path *path);
+			      struct btrfs_path *path,
+			      struct inode *inode);
 
 void btrfs_init_free_space_ctl(struct btrfs_block_group_cache *block_group);
 int __btrfs_add_free_space(struct btrfs_free_space_ctl *ctl,
