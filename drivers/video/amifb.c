@@ -3748,7 +3748,6 @@ default_chipset:
 	return 0;
 
 unset_drvdata:
-	dev_set_drvdata(&pdev->dev, NULL);
 	fb_dealloc_cmap(&info->cmap);
 free_irq:
 	free_irq(IRQ_AMIGA_COPPER, info->par);
@@ -3768,7 +3767,6 @@ static int __exit amifb_remove(struct platform_device *pdev)
 	struct fb_info *info = dev_get_drvdata(&pdev->dev);
 
 	unregister_framebuffer(info);
-	dev_set_drvdata(&pdev->dev, NULL);
 	fb_dealloc_cmap(&info->cmap);
 	free_irq(IRQ_AMIGA_COPPER, info->par);
 	custom.dmacon = DMAF_ALL | DMAF_MASTER;
