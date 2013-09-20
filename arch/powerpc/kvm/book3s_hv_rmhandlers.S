@@ -33,30 +33,6 @@
 #error Need to fix lppaca and SLB shadow accesses in little endian mode
 #endif
 
-/*****************************************************************************
- *                                                                           *
- *        Real Mode handlers that need to be in the linear mapping           *
- *                                                                           *
- ****************************************************************************/
-
-	.globl	kvmppc_skip_interrupt
-kvmppc_skip_interrupt:
-	mfspr	r13,SPRN_SRR0
-	addi	r13,r13,4
-	mtspr	SPRN_SRR0,r13
-	GET_SCRATCH0(r13)
-	rfid
-	b	.
-
-	.globl	kvmppc_skip_Hinterrupt
-kvmppc_skip_Hinterrupt:
-	mfspr	r13,SPRN_HSRR0
-	addi	r13,r13,4
-	mtspr	SPRN_HSRR0,r13
-	GET_SCRATCH0(r13)
-	hrfid
-	b	.
-
 /*
  * Call kvmppc_hv_entry in real mode.
  * Must be called with interrupts hard-disabled.
