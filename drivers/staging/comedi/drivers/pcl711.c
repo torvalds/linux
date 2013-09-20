@@ -175,11 +175,7 @@ static const struct pcl711_board boardtypes[] = {
 };
 
 struct pcl711_private {
-
-	int board;
-	int adchan;
 	int ntrig;
-	int aip[8];
 	unsigned int ao_readback[2];
 	unsigned int divisor1;
 	unsigned int divisor2;
