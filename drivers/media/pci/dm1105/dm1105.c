@@ -1178,7 +1178,6 @@ err_pci_release_regions:
 err_pci_disable_device:
 	pci_disable_device(pdev);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	kfree(dev);
 	return ret;
 }
@@ -1211,7 +1210,6 @@ static void dm1105_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, dev->io_mem);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	dm1105_devcount--;
 	kfree(dev);
 }
