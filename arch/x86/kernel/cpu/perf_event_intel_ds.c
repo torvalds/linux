@@ -206,6 +206,8 @@ union hsw_tsx_tuning {
 	u64	    value;
 };
 
+#define PEBS_HSW_TSX_FLAGS	0xff00000000ULL
+
 void init_debug_store_on_cpu(int cpu)
 {
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
@@ -807,6 +809,16 @@ static inline u64 intel_hsw_weight(struct pebs_record_hsw *pebs)
 	return 0;
 }
 
+static inline u64 intel_hsw_transaction(struct pebs_record_hsw *pebs)
+{
+	u64 txn = (pebs->tsx_tuning & PEBS_HSW_TSX_FLAGS) >> 32;
+
+	/* For RTM XABORTs also log the abort code from AX */
+	if ((txn & PERF_TXN_TRANSACTION) && (pebs->ax & 1))
+		txn |= ((pebs->ax >> 24) & 0xff) << PERF_TXN_ABORT_SHIFT;
+	return txn;
+}
+
 static void __intel_pmu_pebs_event(struct perf_event *event,
 				   struct pt_regs *iregs, void *__pebs)
 {
@@ -885,10 +897,14 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	    x86_pmu.intel_cap.pebs_format >= 1)
 		data.addr = pebs->dla;
 
-	/* Only set the TSX weight when no memory weight was requested. */
-	if ((event->attr.sample_type & PERF_SAMPLE_WEIGHT) && !fll &&
-	    (x86_pmu.intel_cap.pebs_format >= 2))
-		data.weight = intel_hsw_weight(pebs);
+	if (x86_pmu.intel_cap.pebs_format >= 2) {
+		/* Only set the TSX weight when no memory weight. */
+		if ((event->attr.sample_type & PERF_SAMPLE_WEIGHT) && !fll)
+			data.weight = intel_hsw_weight(pebs);
+
+		if (event->attr.sample_type & PERF_SAMPLE_TRANSACTION)
+			data.txn = intel_hsw_transaction(pebs);
+	}
 
 	if (has_branch_stack(event))
 		data.br_stack = &cpuc->lbr_stack;
