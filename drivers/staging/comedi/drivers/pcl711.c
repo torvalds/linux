@@ -133,8 +133,8 @@ static const int i8253_osc_base = 500;	/* 2 Mhz */
 
 struct pcl711_board {
 	const char *name;
-	int is_pcl711b;
-	int is_8112;
+	unsigned int is_pcl711b:1;
+	unsigned int is_8112:1;
 	int n_aichan;
 	int n_aochan;
 	int maxirq;
