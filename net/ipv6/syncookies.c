@@ -24,15 +24,18 @@
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
 
-/* Table must be sorted. */
+/* RFC 2460, Section 8.3:
+ * [ipv6 tcp] MSS must be computed as the maximum packet size minus 60 [..]
+ *
+ * Due to IPV6_MIN_MTU=1280 the lowest possible MSS is 1220, which allows
+ * using higher values than ipv4 tcp syncookies.
+ * The other values are chosen based on ethernet (1500 and 9k MTU), plus
+ * one that accounts for common encap (PPPoe) overhead. Table must be sorted.
+ */
 static __u16 const msstab[] = {
-	64,
-	512,
-	536,
-	1280 - 60,
+	1280 - 60, /* IPV6_MIN_MTU - 60 */
 	1480 - 60,
 	1500 - 60,
-	4460 - 60,
 	9000 - 60,
 };
 
