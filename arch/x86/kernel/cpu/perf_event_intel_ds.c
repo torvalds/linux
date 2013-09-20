@@ -963,7 +963,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	 */
 	WARN_ONCE(top - at > x86_pmu.max_pebs_events * x86_pmu.pebs_record_size,
 		  "Unexpected number of pebs records %ld\n",
-		  (top - at) / x86_pmu.pebs_record_size);
+		  (long)(top - at) / x86_pmu.pebs_record_size);
 
 	for (; at < top; at += x86_pmu.pebs_record_size) {
 		struct pebs_record_nhm *p = at;
