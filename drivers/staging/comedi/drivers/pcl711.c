@@ -69,8 +69,8 @@ supported.
 #define PCL711_CTR1		0x01
 #define PCL711_CTR2		0x02
 #define PCL711_CTRCTL		0x03
-#define PCL711_AD_LO		0x04
-#define PCL711_AD_HI		0x05
+#define PCL711_AI_LSB_REG	0x04
+#define PCL711_AI_MSB_REG	0x05
 #define PCL711_AO_LSB_REG(x)	(0x04 + ((x) * 2))
 #define PCL711_AO_MSB_REG(x)	(0x05 + ((x) * 2))
 #define PCL711_DI_LO		0x06
@@ -185,25 +185,33 @@ struct pcl711_private {
 	unsigned int divisor2;
 };
 
+static unsigned int pcl711_ai_get_sample(struct comedi_device *dev,
+					 struct comedi_subdevice *s)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + PCL711_AI_MSB_REG) << 8;
+	val |= inb(dev->iobase + PCL711_AI_LSB_REG);
+
+	return val & s->maxdata;
+}
+
 static irqreturn_t pcl711_interrupt(int irq, void *d)
 {
-	int lo, hi;
-	int data;
 	struct comedi_device *dev = d;
 	const struct pcl711_board *board = comedi_board(dev);
 	struct pcl711_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
+	unsigned int data;
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
 		return IRQ_HANDLED;
 	}
 
-	hi = inb(dev->iobase + PCL711_AD_HI);
-	lo = inb(dev->iobase + PCL711_AD_LO);
-	outb(0, dev->iobase + PCL711_CLRINTR);
+	data = pcl711_ai_get_sample(dev, s);
 
-	data = (hi << 8) | lo;
+	outb(0, dev->iobase + PCL711_CLRINTR);
 
 	/* FIXME! Nothing else sets ntrig! */
 	if (!(--devpriv->ntrig)) {
@@ -251,7 +259,7 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	const struct pcl711_board *board = comedi_board(dev);
 	int i, n;
-	int hi, lo;
+	int hi;
 
 	pcl711_set_changain(dev, insn->chanspec);
 
@@ -267,7 +275,7 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		i = PCL711_TIMEOUT;
 		while (--i) {
-			hi = inb(dev->iobase + PCL711_AD_HI);
+			hi = inb(dev->iobase + PCL711_AI_MSB_REG);
 			if (!(hi & PCL711_DRDY))
 				goto ok;
 			udelay(1);
@@ -276,9 +284,7 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 		return -ETIME;
 
 ok:
-		lo = inb(dev->iobase + PCL711_AD_LO);
-
-		data[n] = ((hi & 0xf) << 8) | lo;
+		data[n] = pcl711_ai_get_sample(dev, s);
 	}
 
 	return n;
