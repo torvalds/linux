@@ -62,8 +62,6 @@ supported.
 #include "comedi_fc.h"
 #include "8253.h"
 
-#define PCL711_SIZE 16
-
 #define PCL711_CTR0 0
 #define PCL711_CTR1 1
 #define PCL711_CTR2 2
@@ -479,7 +477,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 	struct comedi_subdevice *s;
 
-	ret = comedi_request_region(dev, it->options[0], PCL711_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
