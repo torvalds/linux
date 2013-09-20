@@ -331,7 +331,6 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	} else {
 #define MAX_SPEED 1000
-#define TIMER_BASE 100
 		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 						 MAX_SPEED);
 	}
@@ -352,11 +351,11 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-					       &devpriv->divisor1,
-					       &devpriv->divisor2,
-					       &cmd->scan_begin_arg,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(500,		/* 2 Mhz */
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &cmd->scan_begin_arg,
+					  cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -369,22 +368,16 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 
 static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	int timer1, timer2;
+	struct pcl711_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	pcl711_set_changain(dev, s, cmd->chanlist[0]);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		timer1 = timer2 = 0;
-		i8253_cascade_ns_to_timer(500,		/* 2 Mhz */
-					  &timer1, &timer2,
-					  &cmd->scan_begin_arg,
-					  TRIG_ROUND_NEAREST);
-
 		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
-			   1, timer1, I8254_MODE2 | I8254_BINARY);
+			   1, devpriv->divisor1, I8254_MODE2 | I8254_BINARY);
 		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
-			   2, timer2, I8254_MODE2 | I8254_BINARY);
+			   2, devpriv->divisor2, I8254_MODE2 | I8254_BINARY);
 
 		/* clear pending interrupts (just in case) */
 		outb(0, dev->iobase + PCL711_CLRINTR);
