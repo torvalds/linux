@@ -933,7 +933,6 @@ static void smtcfb_pci_remove(struct pci_dev *pdev)
 	struct smtcfb_info *sfb;
 
 	sfb = pci_get_drvdata(pdev);
-	pci_set_drvdata(pdev, NULL);
 	smtc_unmap_smem(sfb);
 	smtc_unmap_mmio(sfb);
 	unregister_framebuffer(&sfb->fb);
