@@ -401,6 +401,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			    ulong eaddr, int vec)
 {
 	bool data = (vec == BOOK3S_INTERRUPT_DATA_STORAGE);
+	bool iswrite = false;
 	int r = RESUME_GUEST;
 	int relocated;
 	int page_found = 0;
@@ -411,10 +412,12 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	u64 vsid;
 
 	relocated = data ? dr : ir;
+	if (data && (vcpu->arch.fault_dsisr & DSISR_ISSTORE))
+		iswrite = true;
 
 	/* Resolve real address if translation turned on */
 	if (relocated) {
-		page_found = vcpu->arch.mmu.xlate(vcpu, eaddr, &pte, data);
+		page_found = vcpu->arch.mmu.xlate(vcpu, eaddr, &pte, data, iswrite);
 	} else {
 		pte.may_execute = true;
 		pte.may_read = true;
@@ -475,12 +478,20 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_book3s_queue_irqprio(vcpu, vec + 0x80);
 	} else if (!is_mmio &&
 		   kvmppc_visible_gfn(vcpu, pte.raddr >> PAGE_SHIFT)) {
+		if (data && !(vcpu->arch.fault_dsisr & DSISR_NOHPTE)) {
+			/*
+			 * There is already a host HPTE there, presumably
+			 * a read-only one for a page the guest thinks
+			 * is writable, so get rid of it first.
+			 */
+			kvmppc_mmu_unmap_page(vcpu, &pte);
+		}
 		/* The guest's PTE is not mapped yet. Map on the host */
-		kvmppc_mmu_map_page(vcpu, &pte);
+		kvmppc_mmu_map_page(vcpu, &pte, iswrite);
 		if (data)
 			vcpu->stat.sp_storage++;
 		else if (vcpu->arch.mmu.is_dcbz32(vcpu) &&
-			(!(vcpu->arch.hflags & BOOK3S_HFLAG_DCBZ32)))
+			 (!(vcpu->arch.hflags & BOOK3S_HFLAG_DCBZ32)))
 			kvmppc_patch_dcbz(vcpu, &pte);
 	} else {
 		/* MMIO */
@@ -732,7 +743,9 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		/* only care about PTEG not found errors, but leave NX alone */
 		if (shadow_srr1 & 0x40000000) {
+			int idx = srcu_read_lock(&vcpu->kvm->srcu);
 			r = kvmppc_handle_pagefault(run, vcpu, kvmppc_get_pc(vcpu), exit_nr);
+			srcu_read_unlock(&vcpu->kvm->srcu, idx);
 			vcpu->stat.sp_instruc++;
 		} else if (vcpu->arch.mmu.is_dcbz32(vcpu) &&
 			  (!(vcpu->arch.hflags & BOOK3S_HFLAG_DCBZ32))) {
@@ -774,9 +787,15 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		}
 #endif
 
-		/* The only case we need to handle is missing shadow PTEs */
-		if (fault_dsisr & DSISR_NOHPTE) {
+		/*
+		 * We need to handle missing shadow PTEs, and
+		 * protection faults due to us mapping a page read-only
+		 * when the guest thinks it is writable.
+		 */
+		if (fault_dsisr & (DSISR_NOHPTE | DSISR_PROTFAULT)) {
+			int idx = srcu_read_lock(&vcpu->kvm->srcu);
 			r = kvmppc_handle_pagefault(run, vcpu, dar, exit_nr);
+			srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		} else {
 			vcpu->arch.shared->dar = dar;
 			vcpu->arch.shared->dsisr = fault_dsisr;

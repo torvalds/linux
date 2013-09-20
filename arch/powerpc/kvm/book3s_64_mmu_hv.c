@@ -451,7 +451,7 @@ static unsigned long kvmppc_mmu_get_real_addr(unsigned long v, unsigned long r,
 }
 
 static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
-			struct kvmppc_pte *gpte, bool data)
+			struct kvmppc_pte *gpte, bool data, bool iswrite)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvmppc_slb *slbe;

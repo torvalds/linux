@@ -84,7 +84,8 @@ static inline bool sr_nx(u32 sr_raw)
 }
 
 static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
-					  struct kvmppc_pte *pte, bool data);
+					  struct kvmppc_pte *pte, bool data,
+					  bool iswrite);
 static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid);
 
@@ -99,7 +100,7 @@ static u64 kvmppc_mmu_book3s_32_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
 	u64 vsid;
 	struct kvmppc_pte pte;
 
-	if (!kvmppc_mmu_book3s_32_xlate_bat(vcpu, eaddr, &pte, data))
+	if (!kvmppc_mmu_book3s_32_xlate_bat(vcpu, eaddr, &pte, data, false))
 		return pte.vpage;
 
 	kvmppc_mmu_book3s_32_esid_to_vsid(vcpu, eaddr >> SID_SHIFT, &vsid);
@@ -146,7 +147,8 @@ static u32 kvmppc_mmu_book3s_32_get_ptem(u32 sre, gva_t eaddr, bool primary)
 }
 
 static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
-					  struct kvmppc_pte *pte, bool data)
+					  struct kvmppc_pte *pte, bool data,
+					  bool iswrite)
 {
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 	struct kvmppc_bat *bat;
@@ -187,8 +189,7 @@ static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 				printk(KERN_INFO "BAT is not readable!\n");
 				continue;
 			}
-			if (!pte->may_write) {
-				/* let's treat r/o BATs as not-readable for now */
+			if (iswrite && !pte->may_write) {
 				dprintk_pte("BAT is read-only!\n");
 				continue;
 			}
@@ -202,7 +203,7 @@ static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 				     struct kvmppc_pte *pte, bool data,
-				     bool primary)
+				     bool iswrite, bool primary)
 {
 	u32 sre;
 	hva_t ptegp;
@@ -258,9 +259,6 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 					break;
 			}
 
-			if ( !pte->may_read )
-				continue;
-
 			dprintk_pte("MMU: Found PTE -> %x %x - %x\n",
 				    pteg[i], pteg[i+1], pp);
 			found = 1;
@@ -282,11 +280,12 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 			pte_r |= PTEG_FLAG_ACCESSED;
 			put_user(pte_r >> 8, addr + 2);
 		}
-		if (pte->may_write && !(pte_r & PTEG_FLAG_DIRTY)) {
-			/* XXX should only set this for stores */
+		if (iswrite && pte->may_write && !(pte_r & PTEG_FLAG_DIRTY)) {
 			pte_r |= PTEG_FLAG_DIRTY;
 			put_user(pte_r, addr + 3);
 		}
+		if (!pte->may_read || (iswrite && !pte->may_write))
+			return -EPERM;
 		return 0;
 	}
 
@@ -305,7 +304,8 @@ no_page_found:
 }
 
 static int kvmppc_mmu_book3s_32_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
-				      struct kvmppc_pte *pte, bool data)
+				      struct kvmppc_pte *pte, bool data,
+				      bool iswrite)
 {
 	int r;
 	ulong mp_ea = vcpu->arch.magic_page_ea;
@@ -327,11 +327,13 @@ static int kvmppc_mmu_book3s_32_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 		return 0;
 	}
 
-	r = kvmppc_mmu_book3s_32_xlate_bat(vcpu, eaddr, pte, data);
+	r = kvmppc_mmu_book3s_32_xlate_bat(vcpu, eaddr, pte, data, iswrite);
 	if (r < 0)
-	       r = kvmppc_mmu_book3s_32_xlate_pte(vcpu, eaddr, pte, data, true);
+		r = kvmppc_mmu_book3s_32_xlate_pte(vcpu, eaddr, pte,
+						   data, iswrite, true);
 	if (r < 0)
-	       r = kvmppc_mmu_book3s_32_xlate_pte(vcpu, eaddr, pte, data, false);
+		r = kvmppc_mmu_book3s_32_xlate_pte(vcpu, eaddr, pte,
+						   data, iswrite, false);
 
 	return r;
 }

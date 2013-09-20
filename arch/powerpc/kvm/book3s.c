@@ -286,7 +286,8 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn)
+pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn, bool writing,
+			bool *writable)
 {
 	ulong mp_pa = vcpu->arch.magic_page_pa;
 
@@ -302,20 +303,22 @@ pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn)
 
 		pfn = (pfn_t)virt_to_phys((void*)shared_page) >> PAGE_SHIFT;
 		get_page(pfn_to_page(pfn));
+		if (writable)
+			*writable = true;
 		return pfn;
 	}
 
-	return gfn_to_pfn(vcpu->kvm, gfn);
+	return gfn_to_pfn_prot(vcpu->kvm, gfn, writing, writable);
 }
 
 static int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, bool data,
-			 struct kvmppc_pte *pte)
+			bool iswrite, struct kvmppc_pte *pte)
 {
 	int relocated = (vcpu->arch.shared->msr & (data ? MSR_DR : MSR_IR));
 	int r;
 
 	if (relocated) {
-		r = vcpu->arch.mmu.xlate(vcpu, eaddr, pte, data);
+		r = vcpu->arch.mmu.xlate(vcpu, eaddr, pte, data, iswrite);
 	} else {
 		pte->eaddr = eaddr;
 		pte->raddr = eaddr & KVM_PAM;
@@ -361,7 +364,7 @@ int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 
 	vcpu->stat.st++;
 
-	if (kvmppc_xlate(vcpu, *eaddr, data, &pte))
+	if (kvmppc_xlate(vcpu, *eaddr, data, true, &pte))
 		return -ENOENT;
 
 	*eaddr = pte.raddr;
@@ -383,7 +386,7 @@ int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 
 	vcpu->stat.ld++;
 
-	if (kvmppc_xlate(vcpu, *eaddr, data, &pte))
+	if (kvmppc_xlate(vcpu, *eaddr, data, false, &pte))
 		goto nopte;
 
 	*eaddr = pte.raddr;

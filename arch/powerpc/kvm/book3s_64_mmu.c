@@ -206,7 +206,8 @@ static int decode_pagesize(struct kvmppc_slb *slbe, u64 r)
 }
 
 static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
-				struct kvmppc_pte *gpte, bool data)
+				      struct kvmppc_pte *gpte, bool data,
+				      bool iswrite)
 {
 	struct kvmppc_slb *slbe;
 	hva_t ptegp;
@@ -345,8 +346,8 @@ do_second:
 		r |= HPTE_R_R;
 		put_user(r >> 8, addr + 6);
 	}
-	if (data && gpte->may_write && !(r & HPTE_R_C)) {
-		/* Set the dirty flag -- XXX even if not writing */
+	if (iswrite && gpte->may_write && !(r & HPTE_R_C)) {
+		/* Set the dirty flag */
 		/* Use a single byte write */
 		char __user *addr = (char __user *) &pteg[i+1];
 		r |= HPTE_R_C;
@@ -355,7 +356,7 @@ do_second:
 
 	mutex_unlock(&vcpu->kvm->arch.hpt_mutex);
 
-	if (!gpte->may_read)
+	if (!gpte->may_read || (iswrite && !gpte->may_write))
 		return -EPERM;
 	return 0;
 

@@ -78,7 +78,8 @@ static struct kvmppc_sid_map *find_sid_vsid(struct kvm_vcpu *vcpu, u64 gvsid)
 	return NULL;
 }
 
-int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
+int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
+			bool iswrite)
 {
 	unsigned long vpn;
 	pfn_t hpaddr;
@@ -91,9 +92,11 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 	struct kvmppc_sid_map *map;
 	int r = 0;
 	int hpsize = MMU_PAGE_4K;
+	bool writable;
 
 	/* Get host physical address for gpa */
-	hpaddr = kvmppc_gfn_to_pfn(vcpu, orig_pte->raddr >> PAGE_SHIFT);
+	hpaddr = kvmppc_gfn_to_pfn(vcpu, orig_pte->raddr >> PAGE_SHIFT,
+				   iswrite, &writable);
 	if (is_error_noslot_pfn(hpaddr)) {
 		printk(KERN_INFO "Couldn't get guest page for gfn %lx!\n", orig_pte->eaddr);
 		r = -EINVAL;
@@ -119,7 +122,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 
 	vpn = hpt_vpn(orig_pte->eaddr, map->host_vsid, MMU_SEGSIZE_256M);
 
-	if (!orig_pte->may_write)
+	if (!orig_pte->may_write || !writable)
 		rflags |= HPTE_R_PP;
 	else
 		mark_page_dirty(vcpu->kvm, orig_pte->raddr >> PAGE_SHIFT);
@@ -184,6 +187,17 @@ map_again:
 
 out:
 	return r;
+}
+
+void kvmppc_mmu_unmap_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
+{
+	u64 mask = 0xfffffffffULL;
+	u64 vsid;
+
+	vcpu->arch.mmu.esid_to_vsid(vcpu, pte->eaddr >> SID_SHIFT, &vsid);
+	if (vsid & VSID_64K)
+		mask = 0xffffffff0ULL;
+	kvmppc_mmu_pte_vflush(vcpu, pte->vpage, mask);
 }
 
 static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
