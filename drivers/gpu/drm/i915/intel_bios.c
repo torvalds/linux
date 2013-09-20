@@ -477,15 +477,13 @@ static void
 parse_driver_features(struct drm_i915_private *dev_priv,
 		       struct bdb_header *bdb)
 {
-	struct drm_device *dev = dev_priv->dev;
 	struct bdb_driver_features *driver;
 
 	driver = find_section(bdb, BDB_DRIVER_FEATURES);
 	if (!driver)
 		return;
 
-	if (SUPPORTS_EDP(dev) &&
-	    driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
+	if (driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
 		dev_priv->vbt.edp_support = 1;
 
 	if (driver->dual_frequency)
@@ -501,7 +499,7 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
-		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->vbt.edp_support)
+		if (dev_priv->vbt.edp_support)
 			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported.\n");
 		return;
 	}
