@@ -1461,8 +1461,8 @@ static void init_imstt(struct fb_info *info)
 	}
 
 	tmp = (read_reg_le32(par->dc_regs, SSTATUS) & 0x0f00) >> 8;
-	printk("fb%u: %s frame buffer; %uMB vram; chip version %u\n",
-		info->node, info->fix.id, info->fix.smem_len >> 20, tmp);
+	fb_info(info, "%s frame buffer; %uMB vram; chip version %u\n",
+		info->fix.id, info->fix.smem_len >> 20, tmp);
 }
 
 static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

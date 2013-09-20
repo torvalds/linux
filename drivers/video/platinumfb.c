@@ -403,7 +403,7 @@ try_again:
 	if (rc < 0)
 		return rc;
 
-	printk(KERN_INFO "fb%d: Apple Platinum frame buffer device\n", info->node);
+	fb_info(info, "Apple Platinum frame buffer device\n");
 
 	return 0;
 }

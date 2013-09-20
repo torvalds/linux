@@ -781,8 +781,7 @@ static int tmiofb_probe(struct platform_device *dev)
 	if (retval < 0)
 		goto err_register_framebuffer;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-				info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 
 	return 0;
 

@@ -2027,8 +2027,8 @@ static int aty128_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (register_framebuffer(info) < 0)
 		return 0;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device on %s\n",
-	       info->node, info->fix.id, video_card);
+	fb_info(info, "%s frame buffer device on %s\n",
+		info->fix.id, video_card);
 
 	return 1;	/* success! */
 }

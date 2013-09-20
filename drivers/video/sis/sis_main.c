@@ -6478,8 +6478,8 @@ error_3:	vfree(ivideo->bios_abase);
 									"disabled");
 
 
-		printk(KERN_INFO "fb%d: %s frame buffer device version %d.%d.%d\n",
-			sis_fb_info->node, ivideo->myid, VER_MAJOR, VER_MINOR, VER_LEVEL);
+		fb_info(sis_fb_info, "%s frame buffer device version %d.%d.%d\n",
+			ivideo->myid, VER_MAJOR, VER_MINOR, VER_LEVEL);
 
 		printk(KERN_INFO "sisfb: Copyright (C) 2001-2005 Thomas Winischhofer\n");
 

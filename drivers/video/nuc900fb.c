@@ -647,8 +647,7 @@ static int nuc900fb_probe(struct platform_device *pdev)
 		goto free_cpufreq;
 	}
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-		fbinfo->node, fbinfo->fix.id);
+	fb_info(fbinfo, "%s frame buffer device\n", fbinfo->fix.id);
 
 	return 0;
 

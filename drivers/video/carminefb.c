@@ -585,8 +585,7 @@ static int alloc_carmine_fb(void __iomem *regs, void __iomem *smem_base,
 	if (ret < 0)
 		goto err_dealloc_cmap;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
-			info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 
 	*rinfo = info;
 	return 0;

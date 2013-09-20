@@ -2104,8 +2104,7 @@ static int neofb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err < 0)
 		goto err_reg_fb;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-	       info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 
 	/*
 	 * Our driver data

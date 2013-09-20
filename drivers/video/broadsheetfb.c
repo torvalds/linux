@@ -1167,9 +1167,8 @@ static int broadsheetfb_probe(struct platform_device *dev)
 	if (retval < 0)
 		goto err_unreg_fb;
 
-	printk(KERN_INFO
-	       "fb%d: Broadsheet frame buffer, using %dK of video memory\n",
-	       info->node, videomemorysize >> 10);
+	fb_info(info, "Broadsheet frame buffer, using %dK of video memory\n",
+		videomemorysize >> 10);
 
 
 	return 0;

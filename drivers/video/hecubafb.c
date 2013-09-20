@@ -261,9 +261,8 @@ static int hecubafb_probe(struct platform_device *dev)
 		goto err_fbreg;
 	platform_set_drvdata(dev, info);
 
-	printk(KERN_INFO
-	       "fb%d: Hecuba frame buffer device, using %dK of video memory\n",
-	       info->node, videomemorysize >> 10);
+	fb_info(info, "Hecuba frame buffer device, using %dK of video memory\n",
+		videomemorysize >> 10);
 
 	/* this inits the dpy */
 	retval = par->board->init(par);

@@ -761,10 +761,9 @@ int w100fb_probe(struct platform_device *pdev)
 	err |= device_create_file(&pdev->dev, &dev_attr_flip);
 
 	if (err != 0)
-		printk(KERN_WARNING "fb%d: failed to register attributes (%d)\n",
-				info->node, err);
+		fb_warn(info, "failed to register attributes (%d)\n", err);
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	return 0;
 out:
 	if (info) {

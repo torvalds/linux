@@ -212,8 +212,8 @@ static int pmagbafb_probe(struct device *dev)
 
 	get_device(dev);
 
-	pr_info("fb%d: %s frame buffer device at %s\n",
-		info->node, info->fix.id, dev_name(dev));
+	fb_info(info, "%s frame buffer device at %s\n",
+		info->fix.id, dev_name(dev));
 
 	return 0;
 

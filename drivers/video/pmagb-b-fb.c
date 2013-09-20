@@ -328,11 +328,10 @@ static int pmagbbfb_probe(struct device *dev)
 	snprintf(freq1, sizeof(freq1), "%u.%03uMHz",
 		 par->osc1 / 1000, par->osc1 % 1000);
 
-	pr_info("fb%d: %s frame buffer device at %s\n",
-		info->node, info->fix.id, dev_name(dev));
-	pr_info("fb%d: Osc0: %s, Osc1: %s, Osc%u selected\n",
-		info->node, freq0, par->osc1 ? freq1 : "disabled",
-		par->osc1 != 0);
+	fb_info(info, "%s frame buffer device at %s\n",
+		info->fix.id, dev_name(dev));
+	fb_info(info, "Osc0: %s, Osc1: %s, Osc%u selected\n",
+		freq0, par->osc1 ? freq1 : "disabled", par->osc1 != 0);
 
 	return 0;
 

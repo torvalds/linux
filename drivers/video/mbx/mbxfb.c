@@ -976,7 +976,7 @@ static int mbxfb_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, fbi);
 
-	printk(KERN_INFO "fb%d: mbx frame buffer device\n", fbi->node);
+	fb_info(fbi, "mbx frame buffer device\n");
 
 	if (mfbi->platform_probe)
 		mfbi->platform_probe(fbi);

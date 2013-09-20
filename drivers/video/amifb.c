@@ -3742,8 +3742,8 @@ default_chipset:
 	if (err)
 		goto unset_drvdata;
 
-	printk("fb%d: %s frame buffer device, using %dK of video memory\n",
-	       info->node, info->fix.id, info->fix.smem_len>>10);
+	fb_info(info, "%s frame buffer device, using %dK of video memory\n",
+		info->fix.id, info->fix.smem_len>>10);
 
 	return 0;
 

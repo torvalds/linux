@@ -368,8 +368,7 @@ static int cobalt_lcdfb_probe(struct platform_device *dev)
 
 	lcd_clear(info);
 
-	printk(KERN_INFO "fb%d: Cobalt server LCD frame buffer device\n",
-		info->node);
+	fb_info(info, "Cobalt server LCD frame buffer device\n");
 
 	return 0;
 }

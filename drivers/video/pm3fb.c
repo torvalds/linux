@@ -1445,8 +1445,7 @@ static int pm3fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		retval = -EINVAL;
 		goto err_exit_all;
 	}
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
-	   info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	pci_set_drvdata(dev, info);
 	return 0;
 

@@ -735,10 +735,10 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (register_framebuffer(info) < 0)
 		goto out_unmap;
 
-	printk("fb%d: %s frame buffer device, at %dx%d@%d using %ldk/%ldk of VRAM\n",
-	       info->node, info->fix.id, info->var.xres,
-	       info->var.yres, info->var.bits_per_pixel, size >> 10,
-	       (unsigned long)info->fix.smem_len >> 10);
+	fb_info(info, "%s frame buffer device, at %dx%d@%d using %ldk/%ldk of VRAM\n",
+		info->fix.id,
+		info->var.xres, info->var.yres, info->var.bits_per_pixel,
+		size >> 10, (unsigned long)info->fix.smem_len >> 10);
 
 	pci_set_drvdata(pdev, info);
 

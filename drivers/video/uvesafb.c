@@ -1770,13 +1770,11 @@ static int uvesafb_probe(struct platform_device *dev)
 			"using %dk, total %dk\n", info->fix.smem_start,
 			info->screen_base, info->fix.smem_len/1024,
 			par->vbe_ib.total_memory * 64);
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
-			info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 
 	err = sysfs_create_group(&dev->dev.kobj, &uvesafb_dev_attgrp);
 	if (err != 0)
-		printk(KERN_WARNING "fb%d: failed to register attributes\n",
-			info->node);
+		fb_warn(info, "failed to register attributes\n");
 
 	return 0;
 
