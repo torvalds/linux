@@ -1,56 +1,40 @@
 /*
-   comedi/drivers/pcl711.c
-   hardware driver for PC-LabCard PCL-711 and AdSys ACL-8112
-   and compatibles
-
-   COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 1998 David A. Schleef <ds@schleef.org>
-   Janne Jalkanen <jalkanen@cs.hut.fi>
-   Eric Bunn <ebu@cs.hut.fi>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * pcl711.c
+ * Comedi driver for PC-LabCard PCL-711 and AdSys ACL-8112 and compatibles
+ * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
+ *		      Janne Jalkanen <jalkanen@cs.hut.fi>
+ *		      Eric Bunn <ebu@cs.hut.fi>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
-/*
-Driver: pcl711
-Description: Advantech PCL-711 and 711b, ADLink ACL-8112
-Author: ds, Janne Jalkanen <jalkanen@cs.hut.fi>, Eric Bunn <ebu@cs.hut.fi>
-Status: mostly complete
-Devices: [Advantech] PCL-711 (pcl711), PCL-711B (pcl711b),
-  [AdLink] ACL-8112HG (acl8112hg), ACL-8112DG (acl8112dg)
-
-Since these boards do not have DMA or FIFOs, only immediate mode is
-supported.
-
-*/
 
 /*
-   Dave Andruczyk <dave@tech.buffalostate.edu> also wrote a
-   driver for the PCL-711.  I used a few ideas from his driver
-   here.  His driver also has more comments, if you are
-   interested in understanding how this driver works.
-   http://tech.buffalostate.edu/~dave/driver/
-
-   The ACL-8112 driver was hacked from the sources of the PCL-711
-   driver (the 744 chip used on the 8112 is almost the same as
-   the 711b chip, but it has more I/O channels) by
-   Janne Jalkanen (jalkanen@cs.hut.fi) and
-   Erik Bunn (ebu@cs.hut.fi).  Remerged with the PCL-711 driver
-   by ds.
-
-   [acl-8112]
-   This driver supports both TRIGNOW and TRIGCLK,
-   but does not yet support DMA transfers.  It also supports
-   both high (HG) and low (DG) versions of the card, though
-   the HG version has been untested.
-
+ * Driver: pcl711
+ * Description: Advantech PCL-711 and 711b, ADLink ACL-8112
+ * Devices: (Advantech) PCL-711 [pcl711]
+ *	    (Advantech) PCL-711B [pcl711b]
+ *	    (AdLink) ACL-8112HG [acl8112hg]
+ *	    (AdLink) ACL-8112DG [acl8112dg]
+ * Author: David A. Schleef <ds@schleef.org>
+ *	   Janne Jalkanen <jalkanen@cs.hut.fi>
+ *	   Eric Bunn <ebu@cs.hut.fi>
+ * Updated:
+ * Status: mostly complete
+ *
+ * Configuration Options:
+ *   [0] - I/O port base
+ *   [1] - IRQ, optional
  */
 
 #include <linux/module.h>
