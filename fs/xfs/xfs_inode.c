@@ -1724,9 +1724,14 @@ xfs_inactive(
 	if (error)
 		return VN_INACTIVE_CACHE;
 
+	if (S_ISLNK(ip->i_d.di_mode)) {
+		error = xfs_inactive_symlink(ip);
+		if (error)
+			goto out;
+	}
+
 	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-	resp = (truncate || S_ISLNK(ip->i_d.di_mode)) ?
-		&M_RES(mp)->tr_itruncate : &M_RES(mp)->tr_ifree;
+	resp = truncate ? &M_RES(mp)->tr_itruncate : &M_RES(mp)->tr_ifree;
 
 	error = xfs_trans_reserve(tp, resp, 0, 0);
 	if (error) {
@@ -1738,11 +1743,7 @@ xfs_inactive(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	if (S_ISLNK(ip->i_d.di_mode)) {
-		error = xfs_inactive_symlink(ip, &tp);
-		if (error)
-			goto out_cancel;
-	} else if (truncate) {
+	if (truncate) {
 		ip->i_d.di_size = 0;
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
