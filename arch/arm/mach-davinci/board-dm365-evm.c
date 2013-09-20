@@ -176,7 +176,7 @@ static struct at24_platform_data eeprom_info = {
 	.context	= (void *)0x7f00,
 };
 
-static struct snd_platform_data dm365_evm_snd_data = {
+static struct snd_platform_data dm365_evm_snd_data __maybe_unused = {
 	.asp_chan_q = EVENTQ_3,
 };
 
