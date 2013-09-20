@@ -559,8 +559,6 @@ static int nfcwilink_remove(struct platform_device *pdev)
 	nci_unregister_device(ndev);
 	nci_free_device(ndev);
 
-	dev_set_drvdata(&pdev->dev, NULL);
-
 	return 0;
 }
 
