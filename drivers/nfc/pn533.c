@@ -2905,12 +2905,12 @@ static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf)
 	return rc;
 }
 
-int pn533_dev_up(struct nfc_dev *nfc_dev)
+static int pn533_dev_up(struct nfc_dev *nfc_dev)
 {
 	return pn533_rf_field(nfc_dev, 1);
 }
 
-int pn533_dev_down(struct nfc_dev *nfc_dev)
+static int pn533_dev_down(struct nfc_dev *nfc_dev)
 {
 	return pn533_rf_field(nfc_dev, 0);
 }
