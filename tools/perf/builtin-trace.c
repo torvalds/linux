@@ -232,6 +232,9 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct sysc
 
 #define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
 
+static const char *epoll_ctl_ops[] = { [1] = "ADD", "DEL", "MOD", };
+static DEFINE_STRARRAY(epoll_ctl_ops);
+
 static const char *itimers[] = { "REAL", "VIRTUAL", "PROF", };
 static DEFINE_STRARRAY(itimers);
 
@@ -543,6 +546,9 @@ static struct syscall_fmt {
 	{ .name	    = "brk",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* brk */ }, },
 	{ .name	    = "connect",    .errmsg = true, },
+	{ .name	    = "epoll_ctl",  .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_STRARRAY, /* op */ },
+	  .arg_parm	 = { [1] = &strarray__epoll_ctl_ops, /* op */ }, },
 	{ .name	    = "eventfd2",   .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_EFD_FLAGS, /* flags */ }, },
 	{ .name	    = "fcntl",	    .errmsg = true,
