@@ -542,5 +542,5 @@ static struct comedi_driver pcl711_driver = {
 module_comedi_driver(pcl711_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for PCL-711 compatible boards");
 MODULE_LICENSE("GPL");
