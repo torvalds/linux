@@ -295,7 +295,6 @@ static void fmr2_remove(struct fmr2 *fmr2)
 static int fmr2_isa_remove(struct device *pdev, unsigned int ndev)
 {
 	fmr2_remove(dev_get_drvdata(pdev));
-	dev_set_drvdata(pdev, NULL);
 
 	return 0;
 }
