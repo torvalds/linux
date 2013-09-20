@@ -91,7 +91,8 @@ supported.
 #define PCL711_MODE_PACER	(4 << 0)
 #define PCL711_MODE_PACER_IRQ	(6 << 0)
 #define PCL711_MODE_IRQ(x)	(((x) & 0x7) << 4)
-#define PCL711_SOFTTRIG		0x0c
+#define PCL711_SOFTTRIG_REG	0x0c
+#define PCL711_SOFTTRIG		(0 << 0)  /* any value will work */
 #define PCL711_DO_LO		0x0d
 #define PCL711_DO_HI		0x0e
 
@@ -280,17 +281,15 @@ static int pcl711_ai_wait_for_eoc(struct comedi_device *dev,
 static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	const struct pcl711_board *board = comedi_board(dev);
 	int ret;
 	int n;
 
 	pcl711_set_changain(dev, insn->chanspec);
 
-	for (n = 0; n < insn->n; n++) {
-		pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
+	pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
 
-		if (!board->is_8112)
-			outb(0, dev->iobase + PCL711_SOFTTRIG);
+	for (n = 0; n < insn->n; n++) {
+		outb(PCL711_SOFTTRIG, dev->iobase + PCL711_SOFTTRIG_REG);
 
 		ret = pcl711_ai_wait_for_eoc(dev, 100);
 		if (ret)
