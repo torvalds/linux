@@ -3494,6 +3494,35 @@ static void haswell_crtc_disable_planes(struct drm_crtc *crtc)
 	intel_disable_plane(dev_priv, plane, pipe);
 }
 
+/*
+ * This implements the workaround described in the "notes" section of the mode
+ * set sequence documentation. When going from no pipes or single pipe to
+ * multiple pipes, and planes are enabled after the pipe, we need to wait at
+ * least 2 vblanks on the first pipe before enabling planes on the second pipe.
+ */
+static void haswell_mode_set_planes_workaround(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_crtc *crtc_it, *other_active_crtc = NULL;
+
+	/* We want to get the other_active_crtc only if there's only 1 other
+	 * active crtc. */
+	list_for_each_entry(crtc_it, &dev->mode_config.crtc_list, base.head) {
+		if (!crtc_it->active || crtc_it == crtc)
+			continue;
+
+		if (other_active_crtc)
+			return;
+
+		other_active_crtc = crtc_it;
+	}
+	if (!other_active_crtc)
+		return;
+
+	intel_wait_for_vblank(dev, other_active_crtc->pipe);
+	intel_wait_for_vblank(dev, other_active_crtc->pipe);
+}
+
 static void haswell_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3545,6 +3574,9 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 		intel_opregion_notify_encoder(encoder, true);
 	}
 
+	/* If we change the relative order between pipe/planes enabling, we need
+	 * to change the workaround. */
+	haswell_mode_set_planes_workaround(intel_crtc);
 	haswell_crtc_enable_planes(crtc);
 
 	/*
