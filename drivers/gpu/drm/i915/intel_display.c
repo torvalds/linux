@@ -5072,6 +5072,34 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 			I915_READ(LVDS) & LVDS_BORDER_ENABLE;
 }
 
+static void vlv_crtc_clock_get(struct intel_crtc *crtc,
+			       struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = pipe_config->cpu_transcoder;
+	intel_clock_t clock;
+	u32 mdiv;
+	int refclk = 100000, fastclk, update_rate;
+
+	mutex_lock(&dev_priv->dpio_lock);
+	mdiv = vlv_dpio_read(dev_priv, pipe, DPIO_DIV(pipe));
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	clock.m1 = (mdiv >> DPIO_M1DIV_SHIFT) & 7;
+	clock.m2 = mdiv & DPIO_M2DIV_MASK;
+	clock.n = (mdiv >> DPIO_N_SHIFT) & 0xf;
+	clock.p1 = (mdiv >> DPIO_P1_SHIFT) & 7;
+	clock.p2 = (mdiv >> DPIO_P2_SHIFT) & 0x1f;
+
+	update_rate = refclk / clock.n;
+	clock.vco = update_rate * clock.m1 * clock.m2;
+	fastclk = clock.vco / clock.p1 / clock.p2;
+	clock.dot = (2 * fastclk);
+
+	pipe_config->port_clock = clock.dot / 10;
+}
+
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 				 struct intel_crtc_config *pipe_config)
 {
@@ -5137,7 +5165,10 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 						     DPLL_PORTB_READY_MASK);
 	}
 
-	i9xx_crtc_clock_get(crtc, pipe_config);
+	if (IS_VALLEYVIEW(dev))
+		vlv_crtc_clock_get(crtc, pipe_config);
+	else
+		i9xx_crtc_clock_get(crtc, pipe_config);
 
 	return true;
 }
