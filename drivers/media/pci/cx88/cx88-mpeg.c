@@ -903,20 +903,8 @@ static struct pci_driver cx8802_pci_driver = {
 	.remove   = cx8802_remove,
 };
 
-static int __init cx8802_init(void)
-{
-	printk(KERN_INFO "cx88/2: cx2388x MPEG-TS Driver Manager version %s loaded\n",
-	       CX88_VERSION);
-	return pci_register_driver(&cx8802_pci_driver);
-}
+module_pci_driver(cx8802_pci_driver);
 
-static void __exit cx8802_fini(void)
-{
-	pci_unregister_driver(&cx8802_pci_driver);
-}
-
-module_init(cx8802_init);
-module_exit(cx8802_fini);
 EXPORT_SYMBOL(cx8802_buf_prepare);
 EXPORT_SYMBOL(cx8802_buf_queue);
 EXPORT_SYMBOL(cx8802_cancel_buffers);
