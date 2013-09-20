@@ -132,7 +132,6 @@ static const struct comedi_lrange range_acl8112dg_ai = { 9, {
 static const int i8253_osc_base = 500;	/* 2 Mhz */
 
 struct pcl711_board {
-
 	const char *name;
 	int is_pcl711b;
 	int is_8112;
@@ -142,6 +141,50 @@ struct pcl711_board {
 	int n_aochan;
 	int maxirq;
 	const struct comedi_lrange *ai_range_type;
+};
+
+static const struct pcl711_board boardtypes[] = {
+	{
+		.name		= "pcl711",
+		.is_pcl711b	= 0,
+		.is_8112	= 0,
+		.is_dg		= 0,
+		.n_ranges	= 5,
+		.n_aichan	= 8,
+		.n_aochan	= 1,
+		.maxirq		= 0,
+		.ai_range_type	= &range_bipolar5,
+	}, {
+		.name		= "pcl711b",
+		.is_pcl711b	= 1,
+		.is_8112	= 0,
+		.is_dg		= 0,
+		.n_ranges	= 5,
+		.n_aichan	= 8,
+		.n_aochan	= 1,
+		.maxirq		= 7,
+		.ai_range_type	= &range_pcl711b_ai,
+	}, {
+		.name		= "acl8112hg",
+		.is_pcl711b	= 0,
+		.is_8112	= 1,
+		.is_dg		= 0,
+		.n_ranges	= 12,
+		.n_aichan	= 16,
+		.n_aochan	= 2,
+		.maxirq		= 15,
+		.ai_range_type	= &range_acl8112hg_ai,
+	}, {
+		.name		= "acl8112dg",
+		.is_pcl711b	= 0,
+		.is_8112	= 1,
+		.is_dg		= 1,
+		.n_ranges	= 9,
+		.n_aichan	= 16,
+		.n_aochan	= 2,
+		.maxirq		= 15,
+		.ai_range_type	= &range_acl8112dg_ai,
+	},
 };
 
 struct pcl711_private {
@@ -544,13 +587,6 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	return 0;
 }
-
-static const struct pcl711_board boardtypes[] = {
-	{ "pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5 },
-	{ "pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai },
-	{ "acl8112hg", 0, 1, 0, 12, 16, 2, 15, &range_acl8112hg_ai },
-	{ "acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai },
-};
 
 static struct comedi_driver pcl711_driver = {
 	.driver_name	= "pcl711",
