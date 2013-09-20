@@ -13,6 +13,7 @@
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "marvell,feroceon";
+			reg = <0>;
 			clocks = <&core_clk 1>, <&core_clk 3>, <&gate_clk 11>;
 			clock-names = "cpu_clk", "ddrclk", "powersave";
 		};
@@ -167,7 +168,7 @@
 		xor@60900 {
 			compatible = "marvell,orion-xor";
 			reg = <0x60900 0x100
-			       0xd0B00 0x100>;
+			       0x60B00 0x100>;
 			status = "okay";
 			clocks = <&gate_clk 16>;
 
