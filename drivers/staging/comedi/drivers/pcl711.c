@@ -83,7 +83,14 @@ supported.
 #define PCL711_MUX_CS0		(1 << 4)
 #define PCL711_MUX_CS1		(1 << 5)
 #define PCL711_MUX_DIFF		(PCL711_MUX_CS0 | PCL711_MUX_CS1)
-#define PCL711_MODE		0x0b
+#define PCL711_MODE_REG		0x0b
+#define PCL711_MODE_DEFAULT	(0 << 0)
+#define PCL711_MODE_SOFTTRIG	(1 << 0)
+#define PCL711_MODE_EXT		(2 << 0)
+#define PCL711_MODE_EXT_IRQ	(3 << 0)
+#define PCL711_MODE_PACER	(4 << 0)
+#define PCL711_MODE_PACER_IRQ	(6 << 0)
+#define PCL711_MODE_IRQ(x)	(((x) & 0x7) << 4)
 #define PCL711_SOFTTRIG		0x0c
 #define PCL711_DO_LO		0x0d
 #define PCL711_DO_HI		0x0e
@@ -183,6 +190,16 @@ struct pcl711_private {
 	unsigned int divisor2;
 };
 
+static void pcl711_ai_set_mode(struct comedi_device *dev, unsigned int mode)
+{
+	struct pcl711_private *devpriv = dev->private;
+
+	if (mode == PCL711_MODE_EXT_IRQ || mode == PCL711_MODE_PACER_IRQ)
+		mode |= devpriv->mode;
+
+	outb(mode, dev->iobase + PCL711_MODE_REG);
+}
+
 static unsigned int pcl711_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
@@ -214,9 +231,9 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 	/* FIXME! Nothing else sets ntrig! */
 	if (!(--devpriv->ntrig)) {
 		if (board->is_8112)
-			outb(1, dev->iobase + PCL711_MODE);
+			pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
 		else
-			outb(0, dev->iobase + PCL711_MODE);
+			pcl711_ai_set_mode(dev, PCL711_MODE_DEFAULT);
 
 		s->async->events |= COMEDI_CB_EOA;
 	}
@@ -274,11 +291,7 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	pcl711_set_changain(dev, insn->chanspec);
 
 	for (n = 0; n < insn->n; n++) {
-		/*
-		 *  Write the correct mode (software polling) and start polling
-		 *  by writing to the trigger register
-		 */
-		outb(1, dev->iobase + PCL711_MODE);
+		pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
 
 		if (!board->is_8112)
 			outb(0, dev->iobase + PCL711_SOFTTRIG);
@@ -368,7 +381,6 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 
 static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct pcl711_private *devpriv = dev->private;
 	int timer1, timer2;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
@@ -400,13 +412,9 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* clear pending interrupts (just in case) */
 		outb(0, dev->iobase + PCL711_CLRINTR);
 
-		/*
-		 *  Set mode to IRQ transfer
-		 */
-		outb(devpriv->mode | 6, dev->iobase + PCL711_MODE);
+		pcl711_ai_set_mode(dev, PCL711_MODE_PACER_IRQ);
 	} else {
-		/* external trigger */
-		outb(devpriv->mode | 3, dev->iobase + PCL711_MODE);
+		pcl711_ai_set_mode(dev, PCL711_MODE_EXT_IRQ);
 	}
 
 	return 0;
@@ -510,7 +518,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			 * mode register.
 			 */
 			if (board->is_pcl711b)
-				devpriv->mode = (dev->irq << 4);
+				devpriv->mode = PCL711_MODE_IRQ(dev->irq);
 		}
 	}
 
