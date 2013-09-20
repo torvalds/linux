@@ -1288,7 +1288,7 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 
 	if (id == NULL) {
 		pr_err("get() with no identifier\n");
-		return regulator;
+		return ERR_PTR(-EINVAL);
 	}
 
 	if (dev)
