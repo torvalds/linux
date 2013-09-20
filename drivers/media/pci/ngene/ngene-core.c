@@ -1648,7 +1648,6 @@ void ngene_remove(struct pci_dev *pdev)
 		cxd_detach(dev);
 	ngene_stop(dev);
 	ngene_release_buffers(dev);
-	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 }
 
@@ -1702,6 +1701,5 @@ fail1:
 	ngene_release_buffers(dev);
 fail0:
 	pci_disable_device(pci_dev);
-	pci_set_drvdata(pci_dev, NULL);
 	return stat;
 }
