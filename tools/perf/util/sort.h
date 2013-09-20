@@ -85,6 +85,7 @@ struct hist_entry {
 	struct map_symbol	ms;
 	struct thread		*thread;
 	u64			ip;
+	u64			transaction;
 	s32			cpu;
 
 	struct hist_entry_diff	diff;
@@ -145,6 +146,7 @@ enum sort_type {
 	SORT_SRCLINE,
 	SORT_LOCAL_WEIGHT,
 	SORT_GLOBAL_WEIGHT,
+	SORT_TRANSACTION,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,

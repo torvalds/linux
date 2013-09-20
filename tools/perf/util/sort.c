@@ -907,6 +907,78 @@ struct sort_entry sort_in_tx = {
 	.se_width_idx	= HISTC_IN_TX,
 };
 
+static int64_t
+sort__transaction_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return left->transaction - right->transaction;
+}
+
+static inline char *add_str(char *p, const char *str)
+{
+	strcpy(p, str);
+	return p + strlen(str);
+}
+
+static struct txbit {
+	unsigned flag;
+	const char *name;
+	int skip_for_len;
+} txbits[] = {
+	{ PERF_TXN_ELISION,        "EL ",        0 },
+	{ PERF_TXN_TRANSACTION,    "TX ",        1 },
+	{ PERF_TXN_SYNC,           "SYNC ",      1 },
+	{ PERF_TXN_ASYNC,          "ASYNC ",     0 },
+	{ PERF_TXN_RETRY,          "RETRY ",     0 },
+	{ PERF_TXN_CONFLICT,       "CON ",       0 },
+	{ PERF_TXN_CAPACITY_WRITE, "CAP-WRITE ", 1 },
+	{ PERF_TXN_CAPACITY_READ,  "CAP-READ ",  0 },
+	{ 0, NULL, 0 }
+};
+
+int hist_entry__transaction_len(void)
+{
+	int i;
+	int len = 0;
+
+	for (i = 0; txbits[i].name; i++) {
+		if (!txbits[i].skip_for_len)
+			len += strlen(txbits[i].name);
+	}
+	len += 4; /* :XX<space> */
+	return len;
+}
+
+static int hist_entry__transaction_snprintf(struct hist_entry *self, char *bf,
+					    size_t size, unsigned int width)
+{
+	u64 t = self->transaction;
+	char buf[128];
+	char *p = buf;
+	int i;
+
+	buf[0] = 0;
+	for (i = 0; txbits[i].name; i++)
+		if (txbits[i].flag & t)
+			p = add_str(p, txbits[i].name);
+	if (t && !(t & (PERF_TXN_SYNC|PERF_TXN_ASYNC)))
+		p = add_str(p, "NEITHER ");
+	if (t & PERF_TXN_ABORT_MASK) {
+		sprintf(p, ":%" PRIx64,
+			(t & PERF_TXN_ABORT_MASK) >>
+			PERF_TXN_ABORT_SHIFT);
+		p += strlen(p);
+	}
+
+	return repsep_snprintf(bf, size, "%-*s", width, buf);
+}
+
+struct sort_entry sort_transaction = {
+	.se_header	= "Transaction                ",
+	.se_cmp		= sort__transaction_cmp,
+	.se_snprintf	= hist_entry__transaction_snprintf,
+	.se_width_idx	= HISTC_TRANSACTION,
+};
+
 struct sort_dimension {
 	const char		*name;
 	struct sort_entry	*entry;
@@ -925,6 +997,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_SRCLINE, "srcline", sort_srcline),
 	DIM(SORT_LOCAL_WEIGHT, "local_weight", sort_local_weight),
 	DIM(SORT_GLOBAL_WEIGHT, "weight", sort_global_weight),
+	DIM(SORT_TRANSACTION, "transaction", sort_transaction),
 };
 
 #undef DIM
