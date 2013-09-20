@@ -2982,7 +2982,6 @@ err_rel_rtllib:
 	free_rtllib(dev);
 
 	DMESG("wlan driver load failed\n");
-	pci_set_drvdata(pdev, NULL);
 err_pci_disable:
 	pci_disable_device(pdev);
 	return err;
