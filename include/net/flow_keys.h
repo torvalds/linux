@@ -13,5 +13,5 @@ struct flow_keys {
 	u8 ip_proto;
 };
 
-extern bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow);
+bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow);
 #endif
