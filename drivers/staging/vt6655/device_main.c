@@ -1153,10 +1153,6 @@ static void device_free_info(PSDevice pDevice) {
 		pci_release_regions(pDevice->pcid);
 	if (dev)
 		free_netdev(dev);
-
-	if (pDevice->pcid) {
-		pci_set_drvdata(pDevice->pcid, NULL);
-	}
 }
 
 static bool device_init_rings(PSDevice pDevice) {
