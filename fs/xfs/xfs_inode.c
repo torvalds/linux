@@ -1715,6 +1715,74 @@ error_unlock:
 }
 
 /*
+ * xfs_inactive_ifree()
+ *
+ * Perform the inode free when an inode is unlinked.
+ */
+STATIC int
+xfs_inactive_ifree(
+	struct xfs_inode *ip)
+{
+	xfs_bmap_free_t		free_list;
+	xfs_fsblock_t		first_block;
+	int			committed;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+
+	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ifree, 0, 0);
+	if (error) {
+		ASSERT(XFS_FORCED_SHUTDOWN(mp));
+		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES);
+		return error;
+	}
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
+
+	xfs_bmap_init(&free_list, &first_block);
+	error = xfs_ifree(tp, ip, &free_list);
+	if (error) {
+		/*
+		 * If we fail to free the inode, shut down.  The cancel
+		 * might do that, we need to make sure.  Otherwise the
+		 * inode might be lost for a long time or forever.
+		 */
+		if (!XFS_FORCED_SHUTDOWN(mp)) {
+			xfs_notice(mp, "%s: xfs_ifree returned error %d",
+				__func__, error);
+			xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+		}
+		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		return error;
+	}
+
+	/*
+	 * Credit the quota account(s). The inode is gone.
+	 */
+	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_ICOUNT, -1);
+
+	/*
+	 * Just ignore errors at this point.  There is nothing we can
+	 * do except to try to keep going. Make sure it's not a silent
+	 * error.
+	 */
+	error = xfs_bmap_finish(&tp,  &free_list, &committed);
+	if (error)
+		xfs_notice(mp, "%s: xfs_bmap_finish returned error %d",
+			__func__, error);
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	if (error)
+		xfs_notice(mp, "%s: xfs_trans_commit returned error %d",
+			__func__, error);
+
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	return 0;
+}
+
+/*
  * xfs_inactive
  *
  * This is called when the vnode reference count for the vnode
@@ -1726,10 +1794,6 @@ int
 xfs_inactive(
 	xfs_inode_t	*ip)
 {
-	xfs_bmap_free_t		free_list;
-	xfs_fsblock_t		first_block;
-	int			committed;
-	struct xfs_trans	*tp;
 	struct xfs_mount	*mp;
 	int			error;
 	int			truncate = 0;
@@ -1801,60 +1865,17 @@ xfs_inactive(
 
 	ASSERT(ip->i_d.di_anextents == 0);
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ifree, 0, 0);
-	if (error) {
-		ASSERT(XFS_FORCED_SHUTDOWN(mp));
-		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES);
-		goto out;
-	}
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, 0);
-
 	/*
 	 * Free the inode.
 	 */
-	xfs_bmap_init(&free_list, &first_block);
-	error = xfs_ifree(tp, ip, &free_list);
-	if (error) {
-		/*
-		 * If we fail to free the inode, shut down.  The cancel
-		 * might do that, we need to make sure.  Otherwise the
-		 * inode might be lost for a long time or forever.
-		 */
-		if (!XFS_FORCED_SHUTDOWN(mp)) {
-			xfs_notice(mp, "%s: xfs_ifree returned error %d",
-				__func__, error);
-			xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
-		}
-		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
-	} else {
-		/*
-		 * Credit the quota account(s). The inode is gone.
-		 */
-		xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_ICOUNT, -1);
-
-		/*
-		 * Just ignore errors at this point.  There is nothing we can
-		 * do except to try to keep going. Make sure it's not a silent
-		 * error.
-		 */
-		error = xfs_bmap_finish(&tp,  &free_list, &committed);
-		if (error)
-			xfs_notice(mp, "%s: xfs_bmap_finish returned error %d",
-				__func__, error);
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-		if (error)
-			xfs_notice(mp, "%s: xfs_trans_commit returned error %d",
-				__func__, error);
-	}
+	error = xfs_inactive_ifree(ip);
+	if (error)
+		goto out;
 
 	/*
 	 * Release the dquots held by inode, if any.
 	 */
 	xfs_qm_dqdetach(ip);
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out:
 	return VN_INACTIVE_CACHE;
 }
