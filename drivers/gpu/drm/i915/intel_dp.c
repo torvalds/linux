@@ -1496,10 +1496,10 @@ static bool intel_edp_is_psr_enabled(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!IS_HASWELL(dev))
+	if (!HAS_PSR(dev))
 		return false;
 
-	return I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
+	return I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
 }
 
 static void intel_edp_psr_write_vsc(struct intel_dp *intel_dp,
@@ -1549,7 +1549,7 @@ static void intel_edp_psr_setup(struct intel_dp *intel_dp)
 	intel_edp_psr_write_vsc(intel_dp, &psr_vsc);
 
 	/* Avoid continuous PSR exit by masking memup and hpd */
-	I915_WRITE(EDP_PSR_DEBUG_CTL, EDP_PSR_DEBUG_MASK_MEMUP |
+	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
 		   EDP_PSR_DEBUG_MASK_HPD);
 
 	intel_dp->psr_setup_done = true;
@@ -1574,9 +1574,9 @@ static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 					    DP_PSR_MAIN_LINK_ACTIVE);
 
 	/* Setup AUX registers */
-	I915_WRITE(EDP_PSR_AUX_DATA1, EDP_PSR_DPCD_COMMAND);
-	I915_WRITE(EDP_PSR_AUX_DATA2, EDP_PSR_DPCD_NORMAL_OPERATION);
-	I915_WRITE(EDP_PSR_AUX_CTL,
+	I915_WRITE(EDP_PSR_AUX_DATA1(dev), EDP_PSR_DPCD_COMMAND);
+	I915_WRITE(EDP_PSR_AUX_DATA2(dev), EDP_PSR_DPCD_NORMAL_OPERATION);
+	I915_WRITE(EDP_PSR_AUX_CTL(dev),
 		   DP_AUX_CH_CTL_TIME_OUT_400us |
 		   (msg_size << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 		   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
@@ -1599,7 +1599,7 @@ static void intel_edp_psr_enable_source(struct intel_dp *intel_dp)
 	} else
 		val |= EDP_PSR_LINK_DISABLE;
 
-	I915_WRITE(EDP_PSR_CTL, val |
+	I915_WRITE(EDP_PSR_CTL(dev), val |
 		   EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES |
 		   max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT |
 		   idle_frames << EDP_PSR_IDLE_FRAME_SHIFT |
@@ -1616,7 +1616,7 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 	struct drm_i915_gem_object *obj = to_intel_framebuffer(crtc->fb)->obj;
 	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
 
-	if (!IS_HASWELL(dev)) {
+	if (!HAS_PSR(dev)) {
 		DRM_DEBUG_KMS("PSR not supported on this platform\n");
 		dev_priv->no_psr_reason = PSR_NO_SOURCE;
 		return false;
@@ -1720,10 +1720,11 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp)
 	if (!intel_edp_is_psr_enabled(dev))
 		return;
 
-	I915_WRITE(EDP_PSR_CTL, I915_READ(EDP_PSR_CTL) & ~EDP_PSR_ENABLE);
+	I915_WRITE(EDP_PSR_CTL(dev),
+		   I915_READ(EDP_PSR_CTL(dev)) & ~EDP_PSR_ENABLE);
 
 	/* Wait till PSR is idle */
-	if (_wait_for((I915_READ(EDP_PSR_STATUS_CTL) &
+	if (_wait_for((I915_READ(EDP_PSR_STATUS_CTL(dev)) &
 		       EDP_PSR_STATUS_STATE_MASK) == 0, 2000, 10))
 		DRM_ERROR("Timed out waiting for PSR Idle State\n");
 }

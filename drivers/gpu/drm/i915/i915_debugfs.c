@@ -1668,9 +1668,10 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 psrstat, psrperf;
 
-	if (!IS_HASWELL(dev)) {
+	if (!HAS_PSR(dev)) {
 		seq_puts(m, "PSR not supported on this platform\n");
-	} else if (IS_HASWELL(dev) && I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE) {
+	} else if (HAS_PSR(dev) &&
+		   I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE) {
 		seq_puts(m, "PSR enabled\n");
 	} else {
 		seq_puts(m, "PSR disabled: ");
@@ -1712,7 +1713,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		return 0;
 	}
 
-	psrstat = I915_READ(EDP_PSR_STATUS_CTL);
+	psrstat = I915_READ(EDP_PSR_STATUS_CTL(dev));
 
 	seq_puts(m, "PSR Current State: ");
 	switch (psrstat & EDP_PSR_STATUS_STATE_MASK) {
@@ -1784,7 +1785,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	seq_printf(m, "Idle Count: %u\n",
 		   psrstat & EDP_PSR_STATUS_IDLE_MASK);
 
-	psrperf = (I915_READ(EDP_PSR_PERF_CNT)) & EDP_PSR_PERF_CNT_MASK;
+	psrperf = (I915_READ(EDP_PSR_PERF_CNT(dev))) & EDP_PSR_PERF_CNT_MASK;
 	seq_printf(m, "Performance Counter: %u\n", psrperf);
 
 	return 0;
