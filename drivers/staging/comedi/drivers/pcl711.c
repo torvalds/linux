@@ -82,6 +82,7 @@ supported.
 #define PCL711_MUX_CHAN(x)	(((x) & 0xf) << 0)
 #define PCL711_MUX_CS0		(1 << 4)
 #define PCL711_MUX_CS1		(1 << 5)
+#define PCL711_MUX_DIFF		(PCL711_MUX_CS0 | PCL711_MUX_CS1)
 #define PCL711_MODE		0x0b
 #define PCL711_SOFTTRIG		0x0c
 #define PCL711_DO_LO		0x0d
@@ -229,16 +230,22 @@ static void pcl711_set_changain(struct comedi_device *dev,
 	const struct pcl711_board *board = comedi_board(dev);
 	unsigned int chan = CR_CHAN(chanspec);
 	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
 	unsigned int mux = 0;
 
 	outb(range, dev->iobase + PCL711_GAIN);
 
 	if (board->is_8112) {
 		/* Select the correct MPC508A chip */
-		if (chan < 8)
-			mux |= PCL711_MUX_CS0;
-		else
-			mux |= PCL711_MUX_CS1;
+		if (aref == AREF_DIFF) {
+			chan &= 0x7;
+			mux |= PCL711_MUX_DIFF;
+		} else {
+			if (chan < 8)
+				mux |= PCL711_MUX_CS0;
+			else
+				mux |= PCL711_MUX_CS1;
+		}
 	}
 	outb(mux | PCL711_MUX_CHAN(chan), dev->iobase + PCL711_MUX_REG);
 }
@@ -515,6 +522,8 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	if (board->is_8112)
+		s->subdev_flags	|= SDF_DIFF;
 	s->n_chan	= board->n_aichan;
 	s->maxdata	= 0xfff;
 	s->range_table	= board->ai_range_type;
