@@ -201,7 +201,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	const struct pcl711_board *board = comedi_board(dev);
 	struct pcl711_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int data;
 
 	if (!dev->attached) {
