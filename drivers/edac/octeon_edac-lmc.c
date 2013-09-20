@@ -92,6 +92,8 @@ static int octeon_lmc_edac_probe(struct platform_device *pdev)
 	struct edac_mc_layer layers[1];
 	int mc = pdev->id;
 
+	opstate_init();
+
 	layers[0].type = EDAC_MC_LAYER_CHANNEL;
 	layers[0].size = 1;
 	layers[0].is_virt_csrow = false;
