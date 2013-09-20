@@ -141,7 +141,6 @@ static const int i8253_osc_base = 500;	/* 2 Mhz */
 
 struct pcl711_board {
 	const char *name;
-	unsigned int is_pcl711b:1;
 	int n_aichan;
 	int n_aochan;
 	int maxirq;
@@ -156,7 +155,6 @@ static const struct pcl711_board boardtypes[] = {
 		.ai_range_type	= &range_bipolar5,
 	}, {
 		.name		= "pcl711b",
-		.is_pcl711b	= 1,
 		.n_aichan	= 8,
 		.n_aochan	= 1,
 		.maxirq		= 7,
@@ -182,7 +180,6 @@ struct pcl711_private {
 	int adchan;
 	int ntrig;
 	int aip[8];
-	int mode;
 	unsigned int ao_readback[2];
 	unsigned int divisor1;
 	unsigned int divisor2;
@@ -190,10 +187,16 @@ struct pcl711_private {
 
 static void pcl711_ai_set_mode(struct comedi_device *dev, unsigned int mode)
 {
-	struct pcl711_private *devpriv = dev->private;
-
+	/*
+	 * The pcl711b board uses bits in the mode register to select the
+	 * interrupt. The other boards supported by this driver all use
+	 * jumpers on the board.
+	 *
+	 * Enables the interrupt when needed on the pcl711b board. These
+	 * bits do nothing on the other boards.
+	 */
 	if (mode == PCL711_MODE_EXT_IRQ || mode == PCL711_MODE_PACER_IRQ)
-		mode |= devpriv->mode;
+		mode |= PCL711_MODE_IRQ(dev->irq);
 
 	outb(mode, dev->iobase + PCL711_MODE_REG);
 }
@@ -504,16 +507,8 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (it->options[1] && it->options[1] <= board->maxirq) {
 		ret = request_irq(it->options[1], pcl711_interrupt, 0,
 				  dev->board_name, dev);
-		if (ret == 0) {
+		if (ret == 0)
 			dev->irq = it->options[1];
-
-			/*
-			 * The PCL711b needs the irq number in the
-			 * mode register.
-			 */
-			if (board->is_pcl711b)
-				devpriv->mode = PCL711_MODE_IRQ(dev->irq);
-		}
 	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
