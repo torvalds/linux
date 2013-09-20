@@ -637,7 +637,7 @@ exit:
 	dev_kfree_skb(resp);
 }
 
-int digital_tg_send_sensf_res(struct nfc_digital_dev *ddev,
+static int digital_tg_send_sensf_res(struct nfc_digital_dev *ddev,
 			      struct digital_sensf_req *sensf_req)
 {
 	struct sk_buff *skb;
