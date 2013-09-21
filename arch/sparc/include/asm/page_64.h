@@ -112,24 +112,16 @@ typedef pte_t *pgtable_t;
 
 #include <asm-generic/memory_model.h>
 
+#define PAGE_OFFSET_BY_BITS(X)	(-(_AC(1,UL) << (X)))
+extern unsigned long PAGE_OFFSET;
+
 #endif /* !(__ASSEMBLY__) */
 
-/* We used to stick this into a hard-coded global register (%g4)
- * but that does not make sense anymore.
+/* The maximum number of physical memory address bits we support, this
+ * is used to size various tables used to manage kernel TLB misses and
+ * also the sparsemem code.
  */
-#define MAX_SUPPORTED_PA_BITS	43
-#define PAGE_OFFSET_BY_BITS(X)	(-(_AC(1,UL) << (X)))
-#define PAGE_OFFSET		PAGE_OFFSET_BY_BITS(MAX_SUPPORTED_PA_BITS)
-
-/* The "virtual" portion of PAGE_OFFSET, used to clip off the non-physical
- * bits of a linear kernel address.
- */
-#define PAGE_OFFSET_VA_BITS	(64 - MAX_SUPPORTED_PA_BITS)
-
-/* The actual number of physical memory address bits we support, this is
- * used to size various tables used to manage kernel TLB misses.
- */
-#define MAX_PHYS_ADDRESS_BITS	41
+#define MAX_PHYS_ADDRESS_BITS	47
 
 /* These two shift counts are used when indexing sparc64_valid_addr_bitmap
  * and kpte_linear_bitmap.

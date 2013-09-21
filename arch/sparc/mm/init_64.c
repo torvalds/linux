@@ -1557,6 +1557,96 @@ unsigned long __init find_ecache_flush_span(unsigned long size)
 	return ~0UL;
 }
 
+unsigned long PAGE_OFFSET;
+EXPORT_SYMBOL(PAGE_OFFSET);
+
+static void __init page_offset_shift_patch_one(unsigned int *insn, unsigned long phys_bits)
+{
+	unsigned long final_shift;
+	unsigned int val = *insn;
+	unsigned int cnt;
+
+	/* We are patching in ilog2(max_supported_phys_address), and
+	 * we are doing so in a manner similar to a relocation addend.
+	 * That is, we are adding the shift value to whatever value
+	 * is in the shift instruction count field already.
+	 */
+	cnt = (val & 0x3f);
+	val &= ~0x3f;
+
+	/* If we are trying to shift >= 64 bits, clear the destination
+	 * register.  This can happen when phys_bits ends up being equal
+	 * to MAX_PHYS_ADDRESS_BITS.
+	 */
+	final_shift = (cnt + (64 - phys_bits));
+	if (final_shift >= 64) {
+		unsigned int rd = (val >> 25) & 0x1f;
+
+		val = 0x80100000 | (rd << 25);
+	} else {
+		val |= final_shift;
+	}
+	*insn = val;
+
+	__asm__ __volatile__("flush	%0"
+			     : /* no outputs */
+			     : "r" (insn));
+}
+
+static void __init page_offset_shift_patch(unsigned long phys_bits)
+{
+	extern unsigned int __page_offset_shift_patch;
+	extern unsigned int __page_offset_shift_patch_end;
+	unsigned int *p;
+
+	p = &__page_offset_shift_patch;
+	while (p < &__page_offset_shift_patch_end) {
+		unsigned int *insn = (unsigned int *)(unsigned long)*p;
+
+		page_offset_shift_patch_one(insn, phys_bits);
+
+		p++;
+	}
+}
+
+static void __init setup_page_offset(void)
+{
+	unsigned long max_phys_bits = 40;
+
+	if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+		max_phys_bits = 42;
+	} else if (tlb_type == hypervisor) {
+		switch (sun4v_chip_type) {
+		case SUN4V_CHIP_NIAGARA1:
+		case SUN4V_CHIP_NIAGARA2:
+			max_phys_bits = 39;
+			break;
+		case SUN4V_CHIP_NIAGARA3:
+			max_phys_bits = 43;
+			break;
+		case SUN4V_CHIP_NIAGARA4:
+		case SUN4V_CHIP_NIAGARA5:
+		case SUN4V_CHIP_SPARC64X:
+		default:
+			max_phys_bits = 47;
+			break;
+		}
+	}
+
+	if (max_phys_bits > MAX_PHYS_ADDRESS_BITS) {
+		prom_printf("MAX_PHYS_ADDRESS_BITS is too small, need %lu\n",
+			    max_phys_bits);
+		prom_halt();
+	}
+
+	PAGE_OFFSET = PAGE_OFFSET_BY_BITS(max_phys_bits);
+
+	pr_info("PAGE_OFFSET is 0x%016lx (max_phys_bits == %lu)\n",
+		PAGE_OFFSET, max_phys_bits);
+
+	page_offset_shift_patch(max_phys_bits);
+}
+
 static void __init tsb_phys_patch(void)
 {
 	struct tsb_ldquad_phys_patch_entry *pquad;
@@ -1762,6 +1852,8 @@ void __init paging_init(void)
 	unsigned long end_pfn, shift, phys_base;
 	unsigned long real_end, i;
 	int node;
+
+	setup_page_offset();
 
 	/* These build time checkes make sure that the dcache_dirty_cpu()
 	 * page->flags usage will work.
