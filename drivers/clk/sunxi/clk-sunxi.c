@@ -617,6 +617,31 @@ static void __init of_sunxi_table_clock_setup(const struct of_device_id *clk_mat
 	}
 }
 
+/**
+ * System clock protection
+ *
+ * By enabling these critical clocks, we prevent their accidental gating
+ * by the framework
+ */
+static void __init sunxi_clock_protect(void)
+{
+	struct clk *clk;
+
+	/* memory bus clock - sun5i+ */
+	clk = clk_get(NULL, "mbus");
+	if (!IS_ERR(clk)) {
+		clk_prepare_enable(clk);
+		clk_put(clk);
+	}
+
+	/* DDR clock - sun4i+ */
+	clk = clk_get(NULL, "pll5_ddr");
+	if (!IS_ERR(clk)) {
+		clk_prepare_enable(clk);
+		clk_put(clk);
+	}
+}
+
 void __init sunxi_init_clocks(void)
 {
 	/* Register all the simple and basic clocks on DT */
@@ -633,4 +658,7 @@ void __init sunxi_init_clocks(void)
 
 	/* Register gate clocks */
 	of_sunxi_table_clock_setup(clk_gates_match, sunxi_gates_clk_setup);
+
+	/* Enable core system clocks */
+	sunxi_clock_protect();
 }
