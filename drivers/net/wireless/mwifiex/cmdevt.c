@@ -1155,7 +1155,7 @@ int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 	uint32_t conditions = le32_to_cpu(phs_cfg->params.hs_config.conditions);
 
 	if (phs_cfg->action == cpu_to_le16(HS_ACTIVATE) &&
-	    adapter->iface_type == MWIFIEX_SDIO) {
+	    adapter->iface_type != MWIFIEX_USB) {
 		mwifiex_hs_activated_event(priv, true);
 		return 0;
 	} else {
@@ -1167,8 +1167,7 @@ int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 	}
 	if (conditions != HS_CFG_CANCEL) {
 		adapter->is_hs_configured = true;
-		if (adapter->iface_type == MWIFIEX_USB ||
-		    adapter->iface_type == MWIFIEX_PCIE)
+		if (adapter->iface_type == MWIFIEX_USB)
 			mwifiex_hs_activated_event(priv, true);
 	} else {
 		adapter->is_hs_configured = false;
