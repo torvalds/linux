@@ -496,7 +496,10 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 		return err;
 
 	priv->extclk = devm_clk_get(&pdev->dev, "extclk");
-	if (!IS_ERR(priv->extclk)) {
+	if (IS_ERR(priv->extclk)) {
+		if (PTR_ERR(priv->extclk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+	} else {
 		if (priv->extclk == priv->clk) {
 			devm_clk_put(&pdev->dev, priv->extclk);
 			priv->extclk = ERR_PTR(-EINVAL);
