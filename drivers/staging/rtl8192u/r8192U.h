@@ -409,14 +409,10 @@ typedef struct rx_drvinfo_819x_usb {
 #define	USB_HWDESC_HEADER_LEN		sizeof(tx_desc_819x_usb)
 #define TX_PACKET_SHIFT_BYTES		(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
-#ifdef RTL8192U
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 #define MAX_TRANSMIT_BUFFER_SIZE			32000
 #else
 #define MAX_TRANSMIT_BUFFER_SIZE			8000
-#endif
-#else
-#define MAX_TRANSMIT_BUFFER_SIZE	(1600+(MAX_802_11_HEADER_LENGTH+ENCRYPTION_MAX_OVERHEAD)*MAX_FRAGMENT_COUNT)
 #endif
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 #define TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES (sizeof(tx_desc_819x_usb_aggr_subframe) + sizeof(tx_fwinfo_819x_usb))
