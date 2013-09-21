@@ -44,6 +44,10 @@ static struct of_device_id zynq_of_bus_ids[] __initdata = {
 	{}
 };
 
+static struct platform_device zynq_cpuidle_device = {
+	.name = "cpuidle-zynq",
+};
+
 /**
  * zynq_init_machine - System specific initialization, intended to be
  *		       called from board specific initialization.
@@ -56,6 +60,8 @@ static void __init zynq_init_machine(void)
 	l2x0_of_init(0x02060000, 0xF0F0FFFF);
 
 	of_platform_bus_probe(NULL, zynq_of_bus_ids, NULL);
+
+	platform_device_register(&zynq_cpuidle_device);
 }
 
 static void __init zynq_timer_init(void)
