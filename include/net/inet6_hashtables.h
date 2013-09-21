@@ -53,7 +53,7 @@ static inline int inet6_sk_ehashfn(const struct sock *sk)
 	return inet6_ehashfn(net, laddr, lport, faddr, fport);
 }
 
-extern int __inet6_hash(struct sock *sk, struct inet_timewait_sock *twp);
+int __inet6_hash(struct sock *sk, struct inet_timewait_sock *twp);
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
@@ -61,21 +61,19 @@ extern int __inet6_hash(struct sock *sk, struct inet_timewait_sock *twp);
  *
  * The sockhash lock must be held as a reader here.
  */
-extern struct sock *__inet6_lookup_established(struct net *net,
-					   struct inet_hashinfo *hashinfo,
-					   const struct in6_addr *saddr,
-					   const __be16 sport,
-					   const struct in6_addr *daddr,
-					   const u16 hnum,
-					   const int dif);
+struct sock *__inet6_lookup_established(struct net *net,
+					struct inet_hashinfo *hashinfo,
+					const struct in6_addr *saddr,
+					const __be16 sport,
+					const struct in6_addr *daddr,
+					const u16 hnum, const int dif);
 
-extern struct sock *inet6_lookup_listener(struct net *net,
-					  struct inet_hashinfo *hashinfo,
-					  const struct in6_addr *saddr,
-					  const __be16 sport,
-					  const struct in6_addr *daddr,
-					  const unsigned short hnum,
-					  const int dif);
+struct sock *inet6_lookup_listener(struct net *net,
+				   struct inet_hashinfo *hashinfo,
+				   const struct in6_addr *saddr,
+				   const __be16 sport,
+				   const struct in6_addr *daddr,
+				   const unsigned short hnum, const int dif);
 
 static inline struct sock *__inet6_lookup(struct net *net,
 					  struct inet_hashinfo *hashinfo,
@@ -110,9 +108,9 @@ static inline struct sock *__inet6_lookup_skb(struct inet_hashinfo *hashinfo,
 			      inet6_iif(skb));
 }
 
-extern struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
-				 const struct in6_addr *saddr, const __be16 sport,
-				 const struct in6_addr *daddr, const __be16 dport,
-				 const int dif);
+struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
+			  const struct in6_addr *saddr, const __be16 sport,
+			  const struct in6_addr *daddr, const __be16 dport,
+			  const int dif);
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif /* _INET6_HASHTABLES_H */

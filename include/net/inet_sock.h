@@ -199,11 +199,11 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 }
 #endif
 
-extern int inet_sk_rebuild_header(struct sock *sk);
+int inet_sk_rebuild_header(struct sock *sk);
 
 extern u32 inet_ehash_secret;
 extern u32 ipv6_hash_secret;
-extern void build_ehash_secret(void);
+void build_ehash_secret(void);
 
 static inline unsigned int inet_ehashfn(struct net *net,
 					const __be32 laddr, const __u16 lport,
