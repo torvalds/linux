@@ -536,8 +536,8 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry)
 		 * a reference at this point.
 		 */
 		BUG_ON(!IS_ROOT(dentry) && dentry->d_parent != parent);
-		BUG_ON(!parent->d_count);
-		parent->d_count++;
+		BUG_ON(!parent->d_lockref.count);
+		parent->d_lockref.count++;
 		spin_unlock(&dentry->d_lock);
 	}
 	spin_unlock(&parent->d_lock);
@@ -3327,7 +3327,7 @@ void dentry_unhash(struct dentry *dentry)
 {
 	shrink_dcache_parent(dentry);
 	spin_lock(&dentry->d_lock);
-	if (dentry->d_count == 1)
+	if (dentry->d_lockref.count == 1)
 		__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
 }
@@ -3671,11 +3671,15 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 	if ((flags & ~(AT_SYMLINK_FOLLOW | AT_EMPTY_PATH)) != 0)
 		return -EINVAL;
 	/*
-	 * Using empty names is equivalent to using AT_SYMLINK_FOLLOW
-	 * on /proc/self/fd/<fd>.
+	 * To use null names we require CAP_DAC_READ_SEARCH
+	 * This ensures that not everyone will be able to create
+	 * handlink using the passed filedescriptor.
 	 */
-	if (flags & AT_EMPTY_PATH)
+	if (flags & AT_EMPTY_PATH) {
+		if (!capable(CAP_DAC_READ_SEARCH))
+			return -ENOENT;
 		how = LOOKUP_EMPTY;
+	}
 
 	if (flags & AT_SYMLINK_FOLLOW)
 		how |= LOOKUP_FOLLOW;
