@@ -483,6 +483,7 @@ void napi_hash_del(struct napi_struct *napi);
  */
 static inline void napi_disable(struct napi_struct *n)
 {
+	might_sleep();
 	set_bit(NAPI_STATE_DISABLE, &n->state);
 	while (test_and_set_bit(NAPI_STATE_SCHED, &n->state))
 		msleep(1);
