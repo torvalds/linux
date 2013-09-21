@@ -367,7 +367,7 @@ config USB_OHCI_HCD
 if USB_OHCI_HCD
 
 config USB_OHCI_HCD_OMAP1
-	bool "OHCI support for OMAP1/2 chips"
+	tristate "OHCI support for OMAP1/2 chips"
 	depends on ARCH_OMAP1
 	default y
 	---help---
