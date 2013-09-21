@@ -122,9 +122,15 @@
 		samsung,i2c-max-bus-freq = <66000>;
 		status = "okay";
 
-		hdmiphy@38 {
+		hdmiphy: hdmiphy@38 {
 			compatible = "samsung,exynos4212-hdmiphy";
 			reg = <0x38>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			phy-power-control {
+				reg = <0x10040700 0x04>;
+			};
 		};
 	};
 
@@ -198,6 +204,7 @@
 
 	hdmi {
 		hpd-gpio = <&gpx3 7 0>;
+		phy = <&hdmiphy>;
 	};
 
 	codec@11000000 {

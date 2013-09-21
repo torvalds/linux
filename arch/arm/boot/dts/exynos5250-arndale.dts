@@ -387,9 +387,16 @@
 		samsung,i2c-max-bus-freq = <66000>;
 		samsung,i2c-slave-addr = <0x38>;
 
-		hdmiphy@38 {
+		hdmiphy: hdmiphy@38 {
 			compatible = "samsung,exynos4212-hdmiphy";
 			reg = <0x38>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			phy-power-control {
+				reg = <0x10040700 0x04>;
+			};
 		};
 	};
 
@@ -486,6 +493,7 @@
 		vdd_osc-supply = <&ldo10_reg>;
 		vdd_pll-supply = <&ldo8_reg>;
 		vdd-supply = <&ldo8_reg>;
+		phy = <&hdmiphy>;
 	};
 
 	regulators {
