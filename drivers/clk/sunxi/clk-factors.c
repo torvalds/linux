@@ -40,7 +40,7 @@ struct clk_factors {
 
 #define to_clk_factors(_hw) container_of(_hw, struct clk_factors, hw)
 
-#define SETMASK(len, pos)		(((-1U) >> (31-len))  << (pos))
+#define SETMASK(len, pos)		(((1U << (len)) - 1) << (pos))
 #define CLRMASK(len, pos)		(~(SETMASK(len, pos)))
 #define FACTOR_GET(bit, len, reg)	(((reg) & SETMASK(len, bit)) >> (bit))
 
