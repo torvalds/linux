@@ -15,6 +15,7 @@
 
 struct hdmiphy_context {
 	/* hdmiphy resources */
+	void __iomem		*phy_pow_ctrl_reg;
 	void __iomem		*regs;
 	struct exynos_hdmiphy_ops	*ops;
 	struct hdmiphy_config	*confs;

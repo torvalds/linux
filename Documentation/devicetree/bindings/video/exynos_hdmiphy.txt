@@ -5,11 +5,17 @@ Required properties:
 	1) "samsung,exynos5-hdmiphy" <DEPRECATED>
 	2) "samsung,exynos4210-hdmiphy".
 	3) "samsung,exynos4212-hdmiphy".
-- reg: I2C address of the hdmiphy device.
+- reg: Physical address of the hdmiphy device.
+- phy-power-control: this child node represents phy power control
+	register which is inside the pmu block (power management unit).
 
 Example:
 
 	hdmiphy {
 		compatible = "samsung,exynos4210-hdmiphy";
 		reg = <0x38>;
+
+		phy-power-control {
+			reg = <0x10040700 0x04>;
+		};
 	};

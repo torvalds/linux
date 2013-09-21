@@ -160,6 +160,47 @@ static struct hdmiphy_config *hdmiphy_find_conf(struct hdmiphy_context *hdata,
 	return NULL;
 }
 
+static int hdmiphy_dt_parse_power_control(struct platform_device *pdev)
+{
+	struct device_node *phy_pow_ctrl_node;
+	struct hdmiphy_context *hdata = platform_get_drvdata(pdev);
+	u32 buf[2];
+	int ret = 0;
+
+	phy_pow_ctrl_node = of_get_child_by_name(pdev->dev.of_node,
+			"phy-power-control");
+	if (!phy_pow_ctrl_node) {
+		DRM_ERROR("Failed to find phy power control node\n");
+		return -ENODEV;
+	}
+
+	/* reg property holds two informations: addr of pmu register, size */
+	if (of_property_read_u32_array(phy_pow_ctrl_node, "reg", buf, 2)) {
+		DRM_ERROR("faild to get phy power control reg\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdata->phy_pow_ctrl_reg = devm_ioremap(&pdev->dev, buf[0], buf[1]);
+	if (!hdata->phy_pow_ctrl_reg) {
+		DRM_ERROR("failed to ioremap phy pmu reg\n");
+		ret = -ENOMEM;
+	}
+
+out:
+	of_node_put(phy_pow_ctrl_node);
+	return ret;
+}
+
+static void hdmiphy_pow_ctrl_reg_writemask(
+			struct hdmiphy_context *hdata,
+			u32 value, u32 mask)
+{
+	u32 old = readl(hdata->phy_pow_ctrl_reg);
+	value = (value & mask) | (old & ~mask);
+	writel(value, hdata->phy_pow_ctrl_reg);
+}
+
 static int hdmiphy_reg_writeb(struct hdmiphy_context *hdata,
 			u32 reg_offset, u8 value)
 {
@@ -252,9 +293,16 @@ static void hdmiphy_enable(struct device *dev, int enable)
 
 static void hdmiphy_poweron(struct device *dev, int mode)
 {
+	struct hdmiphy_context *hdata = dev_get_drvdata(dev);
 
 	DRM_DEBUG_KMS("[%d]\n", __LINE__);
 
+	if (mode)
+		hdmiphy_pow_ctrl_reg_writemask(hdata, PMU_HDMI_PHY_ENABLE,
+			PMU_HDMI_PHY_CONTROL_MASK);
+	else
+		hdmiphy_pow_ctrl_reg_writemask(hdata, PMU_HDMI_PHY_DISABLE,
+			PMU_HDMI_PHY_CONTROL_MASK);
 }
 
 struct exynos_hdmiphy_ops *exynos_hdmiphy_platform_device_get_ops
@@ -298,6 +346,7 @@ static int hdmiphy_platform_device_probe(struct platform_device *pdev)
 	struct hdmiphy_drv_data *drv;
 	struct resource *res;
 	const struct of_device_id *match;
+	int ret;
 
 	DRM_DEBUG_KMS("[%d]\n", __LINE__);
 
@@ -333,6 +382,12 @@ static int hdmiphy_platform_device_probe(struct platform_device *pdev)
 	hdata->ops = &phy_ops;
 
 	platform_set_drvdata(pdev, hdata);
+	ret = hdmiphy_dt_parse_power_control(pdev);
+	if (ret) {
+		DRM_ERROR("failed to map hdmiphy pow control reg.\n");
+		return ret;
+	}
+
 	return 0;
 }
 
