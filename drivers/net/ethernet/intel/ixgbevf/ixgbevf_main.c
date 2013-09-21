@@ -648,6 +648,12 @@ static int ixgbevf_busy_poll_recv(struct napi_struct *napi)
 
 	ixgbevf_for_each_ring(ring, q_vector->rx) {
 		found = ixgbevf_clean_rx_irq(q_vector, ring, 4);
+#ifdef BP_EXTENDED_STATS
+		if (found)
+			ring->bp_cleaned += found;
+		else
+			ring->bp_misses++;
+#endif
 		if (found)
 			break;
 	}

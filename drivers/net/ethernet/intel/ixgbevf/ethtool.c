@@ -74,6 +74,14 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 						zero_base)},
 	{"tx_csum_offload_ctxt", IXGBEVF_STAT(hw_csum_tx_good, zero_base,
 					      zero_base)},
+#ifdef BP_EXTENDED_STATS
+	{"rx_bp_poll_yield", IXGBEVF_STAT(bp_rx_yields, zero_base, zero_base)},
+	{"rx_bp_cleaned", IXGBEVF_STAT(bp_rx_cleaned, zero_base, zero_base)},
+	{"rx_bp_misses", IXGBEVF_STAT(bp_rx_missed, zero_base, zero_base)},
+	{"tx_bp_napi_yield", IXGBEVF_STAT(bp_tx_yields, zero_base, zero_base)},
+	{"tx_bp_cleaned", IXGBEVF_STAT(bp_tx_cleaned, zero_base, zero_base)},
+	{"tx_bp_misses", IXGBEVF_STAT(bp_tx_missed, zero_base, zero_base)},
+#endif
 };
 
 #define IXGBE_QUEUE_STATS_LEN 0
@@ -391,6 +399,30 @@ static void ixgbevf_get_ethtool_stats(struct net_device *netdev,
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	int i;
+#ifdef BP_EXTENDED_STATS
+	u64 rx_yields = 0, rx_cleaned = 0, rx_missed = 0,
+	    tx_yields = 0, tx_cleaned = 0, tx_missed = 0;
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		rx_yields += adapter->rx_ring[i].bp_yields;
+		rx_cleaned += adapter->rx_ring[i].bp_cleaned;
+		rx_yields += adapter->rx_ring[i].bp_yields;
+	}
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		tx_yields += adapter->tx_ring[i].bp_yields;
+		tx_cleaned += adapter->tx_ring[i].bp_cleaned;
+		tx_yields += adapter->tx_ring[i].bp_yields;
+	}
+
+	adapter->bp_rx_yields = rx_yields;
+	adapter->bp_rx_cleaned = rx_cleaned;
+	adapter->bp_rx_missed = rx_missed;
+
+	adapter->bp_tx_yields = tx_yields;
+	adapter->bp_tx_cleaned = tx_cleaned;
+	adapter->bp_tx_missed = tx_missed;
+#endif
 
 	ixgbevf_update_stats(adapter);
 	for (i = 0; i < IXGBE_GLOBAL_STATS_LEN; i++) {
