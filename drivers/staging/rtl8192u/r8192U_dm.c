@@ -100,14 +100,6 @@ static	void	dm_check_txpower_tracking(struct net_device *dev);
 //static	void	dm_txpower_reset_recovery(struct net_device *dev);
 
 
-// DM --> BB init gain restore
-#ifndef RTL8192U
-static	void	dm_bb_initialgain_restore(struct net_device *dev);
-
-
-// DM --> BB init gain backup
-static	void	dm_bb_initialgain_backup(struct net_device *dev);
-#endif
 // DM --> Dynamic Init Gain by RSSI
 static	void	dm_dig_init(struct net_device *dev);
 static	void	dm_ctrl_initgain_byrssi(struct net_device *dev);
