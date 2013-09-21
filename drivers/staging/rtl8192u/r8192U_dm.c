@@ -632,11 +632,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			mdelay(1);
 			continue;
 		}
-#ifdef RTL8190P
-		read_nic_word(dev, 0x1bc, &Avg_TSSI_Meas);
-#else
 		read_nic_word(dev, 0x13c, &Avg_TSSI_Meas);
-#endif
 		if(Avg_TSSI_Meas == 0)
 		{
 			write_nic_byte(dev, 0x1ba, 0);
@@ -645,14 +641,10 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 
 		for(k = 0;k < 5; k++)
 		{
-#ifdef RTL8190P
-			read_nic_byte(dev, 0x1d8+k, &tmp_report[k]);
-#else
 			if(k !=4)
 				read_nic_byte(dev, 0x134+k, &tmp_report[k]);
 			else
 				read_nic_byte(dev, 0x13e, &tmp_report[k]);
-#endif
 			RT_TRACE(COMP_POWER_TRACKING, "TSSI_report_value = %d\n", tmp_report[k]);
 		}
 
@@ -699,10 +691,6 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			RT_TRACE(COMP_POWER_TRACKING, "tx power track is done\n");
 			RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex = %d\n", priv->rfa_txpowertrackingindex);
 			RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex_real = %d\n", priv->rfa_txpowertrackingindex_real);
-#ifdef RTL8190P
-			RT_TRACE(COMP_POWER_TRACKING, "priv->rfc_txpowertrackingindex = %d\n", priv->rfc_txpowertrackingindex);
-			RT_TRACE(COMP_POWER_TRACKING, "priv->rfc_txpowertrackingindex_real = %d\n", priv->rfc_txpowertrackingindex_real);
-#endif
 			RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation_difference = %d\n", priv->cck_present_attentuation_difference);
 			RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation = %d\n", priv->cck_present_attentuation);
 			return;
@@ -711,11 +699,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 		{
 			if(Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK)
 			{
-				if((priv->rfa_txpowertrackingindex > 0)
-#ifdef RTL8190P
-					&&(priv->rfc_txpowertrackingindex > 0)
-#endif
-				)
+				if (priv->rfa_txpowertrackingindex > 0)
 				{
 					priv->rfa_txpowertrackingindex--;
 					if(priv->rfa_txpowertrackingindex_real > 4)
@@ -723,33 +707,16 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 						priv->rfa_txpowertrackingindex_real--;
 						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
 					}
-#ifdef RTL8190P
-					priv->rfc_txpowertrackingindex--;
-					if(priv->rfc_txpowertrackingindex_real > 4)
-					{
-						priv->rfc_txpowertrackingindex_real--;
-						rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
-					}
-#endif
 				}
 			}
 			else
 			{
-				if((priv->rfa_txpowertrackingindex < 36)
-#ifdef RTL8190P
-					&&(priv->rfc_txpowertrackingindex < 36)
-#endif
-					)
+				if (priv->rfa_txpowertrackingindex < 36)
 				{
 					priv->rfa_txpowertrackingindex++;
 					priv->rfa_txpowertrackingindex_real++;
 					rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
 
-#ifdef RTL8190P
-					priv->rfc_txpowertrackingindex++;
-					priv->rfc_txpowertrackingindex_real++;
-					rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
-#endif
 				}
 			}
 			priv->cck_present_attentuation_difference
@@ -779,10 +746,6 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			}
 		RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex = %d\n", priv->rfa_txpowertrackingindex);
 		RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex_real = %d\n", priv->rfa_txpowertrackingindex_real);
-#ifdef RTL8190P
-		RT_TRACE(COMP_POWER_TRACKING, "priv->rfc_txpowertrackingindex = %d\n", priv->rfc_txpowertrackingindex);
-		RT_TRACE(COMP_POWER_TRACKING, "priv->rfc_txpowertrackingindex_real = %d\n", priv->rfc_txpowertrackingindex_real);
-#endif
 		RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation_difference = %d\n", priv->cck_present_attentuation_difference);
 		RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation = %d\n", priv->cck_present_attentuation);
 
@@ -928,14 +891,10 @@ extern	void	dm_txpower_trackingcallback(struct work_struct *work)
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,txpower_tracking_wq);
        struct net_device *dev = priv->ieee80211->dev;
 
-#ifdef RTL8190P
-	dm_TXPowerTrackingCallback_TSSI(dev);
-#else
 	if(priv->bDcut == TRUE)
 		dm_TXPowerTrackingCallback_TSSI(dev);
 	else
 		dm_TXPowerTrackingCallback_ThermalMeter(dev);
-#endif
 }
 
 
@@ -1463,14 +1422,10 @@ static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 void dm_initialize_txpower_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-#ifdef RTL8190P
-	dm_InitializeTXPowerTracking_TSSI(dev);
-#else
 	if(priv->bDcut == TRUE)
 		dm_InitializeTXPowerTracking_TSSI(dev);
 	else
 		dm_InitializeTXPowerTracking_ThermalMeter(dev);
-#endif
 }// dm_InitializeTXPowerTracking
 
 
@@ -1668,14 +1623,10 @@ extern void dm_cck_txpower_adjust(
 {	// dm_CCKTxPowerAdjust
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
-#ifdef RTL8190P
-	dm_CCKTxPowerAdjust_TSSI(dev, binch14);
-#else
 	if(priv->bDcut == TRUE)
 		dm_CCKTxPowerAdjust_TSSI(dev, binch14);
 	else
 		dm_CCKTxPowerAdjust_ThermalMeter(dev, binch14);
-#endif
 }
 
 
@@ -2185,11 +2136,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		{
 			/* 2008/01/11 MH 40MHZ 90/92 register are not the same. */
 			// 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
-			#ifdef RTL8190P
-				write_nic_byte(dev, rOFDM0_RxDetector1, 0x40);
-			#else
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
-			#endif
+			write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
 			/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 				write_nic_byte(pAdapter, rOFDM0_RxDetector1, 0x40);
 			*/
@@ -2256,11 +2203,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		{
 			/* 2008/01/11 MH 40MHZ 90/92 register are not the same. */
 			// 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
-			#ifdef RTL8190P
-				write_nic_byte(dev, rOFDM0_RxDetector1, 0x42);
-			#else
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
-			#endif
+			write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
 			/*
 			else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 				write_nic_byte(dev, rOFDM0_RxDetector1, 0x42);
@@ -2333,11 +2276,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 		// 3.1 Higher PD_TH for OFDM for high power state.
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
 		{
-			#ifdef RTL8190P
-				write_nic_byte(dev, rOFDM0_RxDetector1, 0x41);
-			#else
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x10);
-			#endif
+			write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x10);
 
 			/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 				write_nic_byte(dev, rOFDM0_RxDetector1, 0x41);
@@ -2361,11 +2300,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 			// 3.2 Recover PD_TH for OFDM for normal power region.
 			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
 			{
-				#ifdef RTL8190P
-					write_nic_byte(dev, rOFDM0_RxDetector1, 0x42);
-				#else
-					write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
-				#endif
+				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
 				/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 					write_nic_byte(dev, rOFDM0_RxDetector1, 0x42);
 				*/
@@ -2507,11 +2442,7 @@ static void dm_pd_th(
 				{
 					/* 2008/01/11 MH 40MHZ 90/92 register are not the same. */
 					// 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
-					#ifdef RTL8190P
-						write_nic_byte(dev, rOFDM0_RxDetector1, 0x40);
-					#else
-						write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
-					#endif
+					write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
 					/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 						write_nic_byte(dev, rOFDM0_RxDetector1, 0x40);
 					*/
@@ -2526,11 +2457,7 @@ static void dm_pd_th(
 				{
 					/* 2008/01/11 MH 40MHZ 90/92 register are not the same. */
 					// 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
-					#ifdef RTL8190P
-						write_nic_byte(dev, rOFDM0_RxDetector1, 0x42);
-					#else
-						write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
-					#endif
+					write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
 					/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 						write_nic_byte(dev, rOFDM0_RxDetector1, 0x42);
 					*/
@@ -2543,11 +2470,7 @@ static void dm_pd_th(
 				// Higher PD_TH for OFDM for high power state.
 				if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
 				{
-					#ifdef RTL8190P
-						write_nic_byte(dev, rOFDM0_RxDetector1, 0x41);
-					#else
-						write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x10);
-					#endif
+					write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x10);
 					/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 						write_nic_byte(dev, rOFDM0_RxDetector1, 0x41);
 					*/
@@ -3207,11 +3130,7 @@ static void dm_init_fsync (struct net_device *dev)
 	priv->ieee80211->fsync_time_interval = 500;
 	priv->ieee80211->fsync_rate_bitmap = 0x0f000800;
 	priv->ieee80211->fsync_rssi_threshold = 30;
-#ifdef RTL8190P
-	priv->ieee80211->bfsync_enable = true;
-#else
 	priv->ieee80211->bfsync_enable = false;
-#endif
 	priv->ieee80211->fsync_multiple_timeinterval = 3;
 	priv->ieee80211->fsync_firstdiff_ratethreshold= 100;
 	priv->ieee80211->fsync_seconddiff_ratethreshold= 200;
@@ -3294,20 +3213,12 @@ extern void dm_fsync_timer_callback(unsigned long data)
 			priv->bswitch_fsync = !priv->bswitch_fsync;
 			if(priv->bswitch_fsync)
 			{
-			#ifdef RTL8190P
-				write_nic_byte(dev, 0xC36, 0x00);
-			#else
 				write_nic_byte(dev,0xC36, 0x1c);
-			#endif
 				write_nic_byte(dev, 0xC3e, 0x90);
 			}
 			else
 			{
-			#ifdef RTL8190P
-				write_nic_byte(dev, 0xC36, 0x40);
-			#else
 				write_nic_byte(dev, 0xC36, 0x5c);
-			#endif
 				write_nic_byte(dev, 0xC3e, 0x96);
 			}
 		}
@@ -3316,11 +3227,7 @@ extern void dm_fsync_timer_callback(unsigned long data)
 			if(priv->bswitch_fsync)
 			{
 				priv->bswitch_fsync  = false;
-			#ifdef RTL8190P
-				write_nic_byte(dev, 0xC36, 0x40);
-			#else
 				write_nic_byte(dev, 0xC36, 0x5c);
-			#endif
 				write_nic_byte(dev, 0xC3e, 0x96);
 			}
 		}
@@ -3343,19 +3250,11 @@ extern void dm_fsync_timer_callback(unsigned long data)
 		if(priv->bswitch_fsync)
 		{
 			priv->bswitch_fsync  = false;
-		#ifdef RTL8190P
-			write_nic_byte(dev, 0xC36, 0x40);
-		#else
 			write_nic_byte(dev, 0xC36, 0x5c);
-		#endif
 			write_nic_byte(dev, 0xC3e, 0x96);
 		}
 		priv->ContinueDiffCount = 0;
-	#ifdef RTL8190P
-		write_nic_dword(dev, rOFDM0_RxDetector2, 0x164052cd);
-	#else
 		write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
-	#endif
 	}
 	RT_TRACE(COMP_HALDM, "ContinueDiffCount %d\n", priv->ContinueDiffCount);
 	RT_TRACE(COMP_HALDM, "rateRecord %d rateCount %d, rateCountdiff %d bSwitchFsync %d\n", priv->rate_record, rate_count, rate_count_diff , priv->bswitch_fsync);
@@ -3380,11 +3279,7 @@ static void dm_EndSWFsync(struct net_device *dev)
 	{
 		priv->bswitch_fsync  = false;
 
-		#ifdef RTL8190P
-			write_nic_byte(dev, 0xC36, 0x40);
-		#else
-			write_nic_byte(dev, 0xC36, 0x5c);
-		#endif
+		write_nic_byte(dev, 0xC36, 0x5c);
 
 		write_nic_byte(dev, 0xC3e, 0x96);
 	}
@@ -3502,11 +3397,7 @@ void dm_check_fsync(struct net_device *dev)
 		{
 			if(reg_c38_State != RegC38_Fsync_AP_BCM)
 			{	//For broadcom AP we write different default value
-				#ifdef RTL8190P
-					write_nic_byte(dev, rOFDM0_RxDetector3, 0x15);
-				#else
-					write_nic_byte(dev, rOFDM0_RxDetector3, 0x95);
-				#endif
+				write_nic_byte(dev, rOFDM0_RxDetector3, 0x95);
 
 				reg_c38_State = RegC38_Fsync_AP_BCM;
 			}
@@ -3537,11 +3428,7 @@ void dm_check_fsync(struct net_device *dev)
 				{
 					if(reg_c38_State != RegC38_NonFsync_Other_AP)
 					{
-						#ifdef RTL8190P
-							write_nic_byte(dev, rOFDM0_RxDetector3, 0x10);
-						#else
-							write_nic_byte(dev, rOFDM0_RxDetector3, 0x90);
-						#endif
+						write_nic_byte(dev, rOFDM0_RxDetector3, 0x90);
 
 						reg_c38_State = RegC38_NonFsync_Other_AP;
 					}
