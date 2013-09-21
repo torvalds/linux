@@ -99,7 +99,7 @@ int hdmi_get_v4l2_dv_id()
 */
 int hdmi_get_phy_mode() 
 {
-	if(strcmp(hdmiphy_mode, "dvi") == 0) 
+	if(strcmp(vout_mode, "dvi") == 0) 
 		return 1;
 	else
 		return 0;
