@@ -53,6 +53,9 @@
  * DPR((fmt, args, ...));	Only prints if DGAP_TRACER is defined at
  *				  compile time and dgap_debug!=0
  */
+#define	DG_NAME		"dgap-1.3-16"
+#define	DG_PART		"40002347_C"
+
 #define	PROCSTR		"dgap"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgap"		/* /dev entries		 */
 #define	DRVSTR		"dgap"			/* Driver name string 
