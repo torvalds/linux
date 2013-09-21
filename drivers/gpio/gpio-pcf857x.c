@@ -26,6 +26,8 @@
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -48,6 +50,27 @@ static const struct i2c_device_id pcf857x_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf857x_id);
+
+#ifdef CONFIG_OF
+static const struct of_device_id pcf857x_of_table[] = {
+	{ .compatible = "nxp,pcf8574" },
+	{ .compatible = "nxp,pcf8574a" },
+	{ .compatible = "nxp,pca8574" },
+	{ .compatible = "nxp,pca9670" },
+	{ .compatible = "nxp,pca9672" },
+	{ .compatible = "nxp,pca9674" },
+	{ .compatible = "nxp,pcf8575" },
+	{ .compatible = "nxp,pca8575" },
+	{ .compatible = "nxp,pca9671" },
+	{ .compatible = "nxp,pca9673" },
+	{ .compatible = "nxp,pca9675" },
+	{ .compatible = "maxim,max7328" },
+	{ .compatible = "maxim,max7329" },
+	{ .compatible = "ti,tca9554" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, pcf857x_of_table);
+#endif
 
 /*
  * The pcf857x, pca857x, and pca967x chips only expose one read and one
@@ -260,14 +283,18 @@ fail:
 static int pcf857x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct pcf857x_platform_data	*pdata;
+	struct pcf857x_platform_data	*pdata = dev_get_platdata(&client->dev);
+	struct device_node		*np = client->dev.of_node;
 	struct pcf857x			*gpio;
+	unsigned int			n_latch = 0;
 	int				status;
 
-	pdata = dev_get_platdata(&client->dev);
-	if (!pdata) {
+	if (IS_ENABLED(CONFIG_OF) && np)
+		of_property_read_u32(np, "lines-initial-states", &n_latch);
+	else if (pdata)
+		n_latch = pdata->n_latch;
+	else
 		dev_dbg(&client->dev, "no platform data\n");
-	}
 
 	/* Allocate, initialize, and register this gpio_chip. */
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
@@ -360,11 +387,11 @@ static int pcf857x_probe(struct i2c_client *client,
 	 * may cause transient glitching since it can't know the last value
 	 * written (some pins may need to be driven low).
 	 *
-	 * Using pdata->n_latch avoids that trouble.  When left initialized
-	 * to zero, our software copy of the "latch" then matches the chip's
-	 * all-ones reset state.  Otherwise it flags pins to be driven low.
+	 * Using n_latch avoids that trouble.  When left initialized to zero,
+	 * our software copy of the "latch" then matches the chip's all-ones
+	 * reset state.  Otherwise it flags pins to be driven low.
 	 */
-	gpio->out = pdata ? ~pdata->n_latch : ~0;
+	gpio->out = ~n_latch;
 	gpio->status = gpio->out;
 
 	status = gpiochip_add(&gpio->chip);
@@ -426,6 +453,7 @@ static struct i2c_driver pcf857x_driver = {
 	.driver = {
 		.name	= "pcf857x",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(pcf857x_of_table),
 	},
 	.probe	= pcf857x_probe,
 	.remove	= pcf857x_remove,
