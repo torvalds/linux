@@ -34,6 +34,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/of_platform.h>
 #include <linux/hdmi.h>
 
 #include <drm/exynos_drm.h>
@@ -42,6 +43,7 @@
 #include "exynos_drm_hdmi.h"
 
 #include "exynos_hdmi.h"
+#include "exynos_hdmiphy.h"
 
 #include <linux/gpio.h>
 #include <media/s5p_hdmi.h>
@@ -70,7 +72,6 @@ struct hdmi_resources {
 	struct clk			*sclk_hdmi;
 	struct clk			*sclk_pixel;
 	struct clk			*sclk_hdmiphy;
-	struct clk			*hdmiphy;
 	struct clk			*mout_hdmi;
 	struct regulator_bulk_data	*regul_bulk;
 	int				regul_count;
@@ -181,9 +182,10 @@ struct hdmi_context {
 	int				irq;
 
 	struct i2c_client		*ddc_port;
-	struct i2c_client		*hdmiphy_port;
+	struct device			*phy_dev;
+	struct exynos_hdmiphy_ops		*phy_ops;
 
-	/* current hdmiphy conf regs */
+	/* current hdmi ip configuration registers. */
 	struct hdmi_conf_regs		mode_conf;
 
 	struct hdmi_resources		res;
@@ -193,178 +195,9 @@ struct hdmi_context {
 	enum hdmi_type			type;
 };
 
-struct hdmiphy_config {
-	int pixel_clock;
-	u8 conf[32];
-};
-
-/* list of phy config settings */
-static const struct hdmiphy_config hdmiphy_v13_configs[] = {
-	{
-		.pixel_clock = 27000000,
-		.conf = {
-			0x01, 0x05, 0x00, 0xD8, 0x10, 0x1C, 0x30, 0x40,
-			0x6B, 0x10, 0x02, 0x51, 0xDF, 0xF2, 0x54, 0x87,
-			0x84, 0x00, 0x30, 0x38, 0x00, 0x08, 0x10, 0xE0,
-			0x22, 0x40, 0xE3, 0x26, 0x00, 0x00, 0x00, 0x00,
-		},
-	},
-	{
-		.pixel_clock = 27027000,
-		.conf = {
-			0x01, 0x05, 0x00, 0xD4, 0x10, 0x9C, 0x09, 0x64,
-			0x6B, 0x10, 0x02, 0x51, 0xDF, 0xF2, 0x54, 0x87,
-			0x84, 0x00, 0x30, 0x38, 0x00, 0x08, 0x10, 0xE0,
-			0x22, 0x40, 0xE3, 0x26, 0x00, 0x00, 0x00, 0x00,
-		},
-	},
-	{
-		.pixel_clock = 74176000,
-		.conf = {
-			0x01, 0x05, 0x00, 0xD8, 0x10, 0x9C, 0xef, 0x5B,
-			0x6D, 0x10, 0x01, 0x51, 0xef, 0xF3, 0x54, 0xb9,
-			0x84, 0x00, 0x30, 0x38, 0x00, 0x08, 0x10, 0xE0,
-			0x22, 0x40, 0xa5, 0x26, 0x01, 0x00, 0x00, 0x00,
-		},
-	},
-	{
-		.pixel_clock = 74250000,
-		.conf = {
-			0x01, 0x05, 0x00, 0xd8, 0x10, 0x9c, 0xf8, 0x40,
-			0x6a, 0x10, 0x01, 0x51, 0xff, 0xf1, 0x54, 0xba,
-			0x84, 0x00, 0x10, 0x38, 0x00, 0x08, 0x10, 0xe0,
-			0x22, 0x40, 0xa4, 0x26, 0x01, 0x00, 0x00, 0x00,
-		},
-	},
-	{
-		.pixel_clock = 148500000,
-		.conf = {
-			0x01, 0x05, 0x00, 0xD8, 0x10, 0x9C, 0xf8, 0x40,
-			0x6A, 0x18, 0x00, 0x51, 0xff, 0xF1, 0x54, 0xba,
-			0x84, 0x00, 0x10, 0x38, 0x00, 0x08, 0x10, 0xE0,
-			0x22, 0x40, 0xa4, 0x26, 0x02, 0x00, 0x00, 0x00,
-		},
-	},
-};
-
-static const struct hdmiphy_config hdmiphy_v14_configs[] = {
-	{
-		.pixel_clock = 25200000,
-		.conf = {
-			0x01, 0x51, 0x2A, 0x75, 0x40, 0x01, 0x00, 0x08,
-			0x82, 0x80, 0xfc, 0xd8, 0x45, 0xa0, 0xac, 0x80,
-			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0xf4, 0x24, 0x00, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 27000000,
-		.conf = {
-			0x01, 0xd1, 0x22, 0x51, 0x40, 0x08, 0xfc, 0x20,
-			0x98, 0xa0, 0xcb, 0xd8, 0x45, 0xa0, 0xac, 0x80,
-			0x06, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0xe4, 0x24, 0x00, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 27027000,
-		.conf = {
-			0x01, 0xd1, 0x2d, 0x72, 0x40, 0x64, 0x12, 0x08,
-			0x43, 0xa0, 0x0e, 0xd9, 0x45, 0xa0, 0xac, 0x80,
-			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0xe3, 0x24, 0x00, 0x00, 0x00, 0x01, 0x00,
-		},
-	},
-	{
-		.pixel_clock = 36000000,
-		.conf = {
-			0x01, 0x51, 0x2d, 0x55, 0x40, 0x01, 0x00, 0x08,
-			0x82, 0x80, 0x0e, 0xd9, 0x45, 0xa0, 0xac, 0x80,
-			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0xab, 0x24, 0x00, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 40000000,
-		.conf = {
-			0x01, 0x51, 0x32, 0x55, 0x40, 0x01, 0x00, 0x08,
-			0x82, 0x80, 0x2c, 0xd9, 0x45, 0xa0, 0xac, 0x80,
-			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0x9a, 0x24, 0x00, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 65000000,
-		.conf = {
-			0x01, 0xd1, 0x36, 0x34, 0x40, 0x1e, 0x0a, 0x08,
-			0x82, 0xa0, 0x45, 0xd9, 0x45, 0xa0, 0xac, 0x80,
-			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0xbd, 0x24, 0x01, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 74176000,
-		.conf = {
-			0x01, 0xd1, 0x3e, 0x35, 0x40, 0x5b, 0xde, 0x08,
-			0x82, 0xa0, 0x73, 0xd9, 0x45, 0xa0, 0xac, 0x80,
-			0x56, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0xa6, 0x24, 0x01, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 74250000,
-		.conf = {
-			0x01, 0xd1, 0x1f, 0x10, 0x40, 0x40, 0xf8, 0x08,
-			0x81, 0xa0, 0xba, 0xd8, 0x45, 0xa0, 0xac, 0x80,
-			0x3c, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0xa5, 0x24, 0x01, 0x00, 0x00, 0x01, 0x00,
-		},
-	},
-	{
-		.pixel_clock = 83500000,
-		.conf = {
-			0x01, 0xd1, 0x23, 0x11, 0x40, 0x0c, 0xfb, 0x08,
-			0x85, 0xa0, 0xd1, 0xd8, 0x45, 0xa0, 0xac, 0x80,
-			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0x93, 0x24, 0x01, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 106500000,
-		.conf = {
-			0x01, 0xd1, 0x2c, 0x12, 0x40, 0x0c, 0x09, 0x08,
-			0x84, 0xa0, 0x0a, 0xd9, 0x45, 0xa0, 0xac, 0x80,
-			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0x73, 0x24, 0x01, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 108000000,
-		.conf = {
-			0x01, 0x51, 0x2d, 0x15, 0x40, 0x01, 0x00, 0x08,
-			0x82, 0x80, 0x0e, 0xd9, 0x45, 0xa0, 0xac, 0x80,
-			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0xc7, 0x25, 0x03, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 146250000,
-		.conf = {
-			0x01, 0xd1, 0x3d, 0x15, 0x40, 0x18, 0xfd, 0x08,
-			0x83, 0xa0, 0x6e, 0xd9, 0x45, 0xa0, 0xac, 0x80,
-			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0x50, 0x25, 0x03, 0x00, 0x00, 0x01, 0x80,
-		},
-	},
-	{
-		.pixel_clock = 148500000,
-		.conf = {
-			0x01, 0xd1, 0x1f, 0x00, 0x40, 0x40, 0xf8, 0x08,
-			0x81, 0xa0, 0xba, 0xd8, 0x45, 0xa0, 0xac, 0x80,
-			0x3c, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
-			0x54, 0x4b, 0x25, 0x03, 0x00, 0x00, 0x01, 0x00,
-		},
-	},
+struct hdmi_drv_data {
+	enum hdmi_type	type;
+	bool		i2c_hdmiphy;
 };
 
 static inline u32 hdmi_reg_read(struct hdmi_context *hdata, u32 reg_id)
@@ -755,28 +588,6 @@ static struct edid *hdmi_get_edid(void *ctx, struct drm_connector *connector)
 	return raw_edid;
 }
 
-static int hdmi_find_phy_conf(struct hdmi_context *hdata, u32 pixel_clock)
-{
-	const struct hdmiphy_config *confs;
-	int count, i;
-
-	if (hdata->type == HDMI_TYPE13) {
-		confs = hdmiphy_v13_configs;
-		count = ARRAY_SIZE(hdmiphy_v13_configs);
-	} else if (hdata->type == HDMI_TYPE14) {
-		confs = hdmiphy_v14_configs;
-		count = ARRAY_SIZE(hdmiphy_v14_configs);
-	} else
-		return -EINVAL;
-
-	for (i = 0; i < count; i++)
-		if (confs[i].pixel_clock == pixel_clock)
-			return i;
-
-	DRM_DEBUG_KMS("Could not find phy config for %d\n", pixel_clock);
-	return -EINVAL;
-}
-
 static int hdmi_check_mode(void *ctx, struct drm_display_mode *mode)
 {
 	struct hdmi_context *hdata = ctx;
@@ -787,7 +598,7 @@ static int hdmi_check_mode(void *ctx, struct drm_display_mode *mode)
 		(mode->flags & DRM_MODE_FLAG_INTERLACE) ? true :
 		false, mode->clock * 1000);
 
-	ret = hdmi_find_phy_conf(hdata, mode->clock * 1000);
+	ret = hdata->phy_ops->check_mode(hdata->phy_dev, mode);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -1288,19 +1099,13 @@ static void hdmi_mode_apply(struct hdmi_context *hdata)
 
 static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 {
-	u8 buffer[2];
 	u32 reg;
 
 	clk_disable_unprepare(hdata->res.sclk_hdmi);
 	clk_set_parent(hdata->res.mout_hdmi, hdata->res.sclk_pixel);
 	clk_prepare_enable(hdata->res.sclk_hdmi);
 
-	/* operation mode */
-	buffer[0] = 0x1f;
-	buffer[1] = 0x00;
-
-	if (hdata->hdmiphy_port)
-		i2c_master_send(hdata->hdmiphy_port, buffer, 2);
+	hdata->phy_ops->enable(hdata->phy_dev, 0);
 
 	if (hdata->type == HDMI_TYPE13)
 		reg = HDMI_V13_PHY_RSTOUT;
@@ -1319,76 +1124,24 @@ static void hdmiphy_poweron(struct hdmi_context *hdata)
 	if (hdata->type == HDMI_TYPE14)
 		hdmi_reg_writemask(hdata, HDMI_PHY_CON_0, 0,
 			HDMI_PHY_POWER_OFF_EN);
+
+	hdata->phy_ops->poweron(hdata->phy_dev, 1);
 }
 
 static void hdmiphy_poweroff(struct hdmi_context *hdata)
 {
+	hdata->phy_ops->poweron(hdata->phy_dev, 0);
+
 	if (hdata->type == HDMI_TYPE14)
 		hdmi_reg_writemask(hdata, HDMI_PHY_CON_0, ~0,
 			HDMI_PHY_POWER_OFF_EN);
 }
 
-static void hdmiphy_conf_apply(struct hdmi_context *hdata)
-{
-	const u8 *hdmiphy_data;
-	u8 buffer[32];
-	u8 operation[2];
-	u8 read_buffer[32] = {0, };
-	int ret;
-	int i;
-
-	if (!hdata->hdmiphy_port) {
-		DRM_ERROR("hdmiphy is not attached\n");
-		return;
-	}
-
-	/* pixel clock */
-	i = hdmi_find_phy_conf(hdata, hdata->mode_conf.pixel_clock);
-	if (i < 0) {
-		DRM_ERROR("failed to find hdmiphy conf\n");
-		return;
-	}
-
-	if (hdata->type == HDMI_TYPE13)
-		hdmiphy_data = hdmiphy_v13_configs[i].conf;
-	else
-		hdmiphy_data = hdmiphy_v14_configs[i].conf;
-
-	memcpy(buffer, hdmiphy_data, 32);
-	ret = i2c_master_send(hdata->hdmiphy_port, buffer, 32);
-	if (ret != 32) {
-		DRM_ERROR("failed to configure HDMIPHY via I2C\n");
-		return;
-	}
-
-	usleep_range(10000, 12000);
-
-	/* operation mode */
-	operation[0] = 0x1f;
-	operation[1] = 0x80;
-
-	ret = i2c_master_send(hdata->hdmiphy_port, operation, 2);
-	if (ret != 2) {
-		DRM_ERROR("failed to enable hdmiphy\n");
-		return;
-	}
-
-	ret = i2c_master_recv(hdata->hdmiphy_port, read_buffer, 32);
-	if (ret < 0) {
-		DRM_ERROR("failed to read hdmiphy config\n");
-		return;
-	}
-
-	for (i = 0; i < ret; i++)
-		DRM_DEBUG_KMS("hdmiphy[0x%02x] write[0x%02x] - "
-			"recv [0x%02x]\n", i, buffer[i], read_buffer[i]);
-}
-
 static void hdmi_conf_apply(struct hdmi_context *hdata)
 {
 	hdmiphy_conf_reset(hdata);
-	hdmiphy_conf_apply(hdata);
-
+	hdata->phy_ops->commit(hdata->phy_dev);
+	hdata->phy_ops->enable(hdata->phy_dev, 1);
 	mutex_lock(&hdata->hdmi_mutex);
 	hdmi_conf_reset(hdata);
 	hdmi_conf_init(hdata);
@@ -1632,6 +1385,8 @@ static void hdmi_mode_set(void *ctx, struct drm_display_mode *mode)
 		hdmi_v13_mode_set(hdata, mode);
 	else
 		hdmi_v14_mode_set(hdata, mode);
+
+	hdata->phy_ops->mode_set(hdata->phy_dev, mode);
 }
 
 static void hdmi_get_max_resol(void *ctx, unsigned int *width,
@@ -1672,7 +1427,6 @@ static void hdmi_poweron(struct hdmi_context *hdata)
 	if (regulator_bulk_enable(res->regul_count, res->regul_bulk))
 		DRM_DEBUG_KMS("failed to enable regulator bulk\n");
 
-	clk_prepare_enable(res->hdmiphy);
 	clk_prepare_enable(res->hdmi);
 	clk_prepare_enable(res->sclk_hdmi);
 
@@ -1697,7 +1451,6 @@ static void hdmi_poweroff(struct hdmi_context *hdata)
 
 	clk_disable_unprepare(res->sclk_hdmi);
 	clk_disable_unprepare(res->hdmi);
-	clk_disable_unprepare(res->hdmiphy);
 	regulator_bulk_disable(res->regul_count, res->regul_bulk);
 
 	mutex_lock(&hdata->hdmi_mutex);
@@ -1796,11 +1549,6 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 		DRM_ERROR("failed to get clock 'sclk_hdmiphy'\n");
 		goto fail;
 	}
-	res->hdmiphy = devm_clk_get(dev, "hdmiphy");
-	if (IS_ERR(res->hdmiphy)) {
-		DRM_ERROR("failed to get clock 'hdmiphy'\n");
-		goto fail;
-	}
 	res->mout_hdmi = devm_clk_get(dev, "mout_hdmi");
 	if (IS_ERR(res->mout_hdmi)) {
 		DRM_ERROR("failed to get clock 'mout_hdmi'\n");
@@ -1830,18 +1578,12 @@ fail:
 	return -ENODEV;
 }
 
-static struct i2c_client *hdmi_ddc, *hdmi_hdmiphy;
+static struct i2c_client *hdmi_ddc;
 
 void hdmi_attach_ddc_client(struct i2c_client *ddc)
 {
 	if (ddc)
 		hdmi_ddc = ddc;
-}
-
-void hdmi_attach_hdmiphy_client(struct i2c_client *hdmiphy)
-{
-	if (hdmiphy)
-		hdmi_hdmiphy = hdmiphy;
 }
 
 static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
@@ -1868,13 +1610,83 @@ err_data:
 	return NULL;
 }
 
+static int hdmi_register_phy_device(struct hdmi_context *hdata, bool i2c_dev)
+{
+	struct device_node *np;
+	struct i2c_client *client;
+	struct platform_device *pdev;
+	int ret;
+
+	/* register hdmiphy driver */
+	if (i2c_dev)
+		ret = exynos_hdmiphy_i2c_driver_register();
+	else
+		ret = exynos_hdmiphy_platform_driver_register();
+	if (ret) {
+		DRM_ERROR("failed to register phy driver. ret %d.\n", ret);
+		goto err;
+	}
+
+	np = of_parse_phandle(hdata->dev->of_node, "phy", 0);
+	if (!np) {
+		DRM_ERROR("Could not find 'phy' property\n");
+		ret = -ENOENT;
+		goto err;
+	}
+
+	if (i2c_dev) {
+		/* find hdmi phy on i2c bus */
+		client = of_find_i2c_device_by_node(np);
+		if (!client) {
+			DRM_ERROR("Could not find i2c 'phy' device\n");
+			ret = -ENODEV;
+			goto err;
+		}
+		hdata->phy_dev = &client->dev;
+		hdata->phy_ops = exynos_hdmiphy_i2c_device_get_ops(
+					hdata->phy_dev);
+	} else {
+		/* find hdmi phy on platform bus */
+		pdev = of_find_device_by_node(np);
+		if (!pdev) {
+			DRM_ERROR("Could not find platform 'phy' device\n");
+			ret = -ENODEV;
+			goto err;
+		}
+		hdata->phy_dev = &pdev->dev;
+		hdata->phy_ops = exynos_hdmiphy_platform_device_get_ops(
+					hdata->phy_dev);
+	}
+
+	if (!hdata->phy_ops) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	of_node_put(np);
+	return 0;
+err:
+	of_node_put(np);
+	return ret;
+}
+
+static struct hdmi_drv_data exynos5250_hdmi_drv_data = {
+	.type = HDMI_TYPE14,
+	.i2c_hdmiphy = 1,
+};
+
+static struct hdmi_drv_data exynos5420_hdmi_drv_data = {
+	.type = HDMI_TYPE14,
+	.i2c_hdmiphy = 0,
+};
+
 static struct of_device_id hdmi_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmi",
-		.data	= (void	*)HDMI_TYPE14,
+		.data	= &exynos5250_hdmi_drv_data,
 	}, {
 		.compatible = "samsung,exynos4212-hdmi",
-		.data	= (void	*)HDMI_TYPE14,
+		.data	= &exynos5250_hdmi_drv_data,
 	}, {
 		/* end node */
 	}
@@ -1887,6 +1699,7 @@ static int hdmi_probe(struct platform_device *pdev)
 	struct hdmi_context *hdata;
 	struct s5p_hdmi_platform_data *pdata;
 	struct resource *res;
+	struct hdmi_drv_data *drv;
 	const struct of_device_id *match;
 	int ret;
 
@@ -1915,8 +1728,9 @@ static int hdmi_probe(struct platform_device *pdev)
 	match = of_match_node(hdmi_match_types, dev->of_node);
 	if (!match)
 		return -ENODEV;
-	hdata->type = (enum hdmi_type)match->data;
+	drv = (struct hdmi_drv_data *)match->data;
 
+	hdata->type = drv->type;
 	hdata->hpd_gpio = pdata->hpd_gpio;
 	hdata->dev = dev;
 
@@ -1945,14 +1759,12 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	hdata->ddc_port = hdmi_ddc;
 
-	/* hdmiphy i2c driver */
-	if (i2c_add_driver(&hdmiphy_driver)) {
-		DRM_ERROR("failed to register hdmiphy i2c driver\n");
-		ret = -ENOENT;
+	/* hdmiphy driver */
+	ret = hdmi_register_phy_device(hdata, drv->i2c_hdmiphy);
+	if (ret) {
+		DRM_ERROR("failed to get hdmiphy device. ret %d.\n", ret);
 		goto err_ddc;
 	}
-
-	hdata->hdmiphy_port = hdmi_hdmiphy;
 
 	hdata->irq = gpio_to_irq(hdata->hpd_gpio);
 	if (hdata->irq < 0) {
@@ -1983,7 +1795,7 @@ static int hdmi_probe(struct platform_device *pdev)
 	return 0;
 
 err_hdmiphy:
-	i2c_del_driver(&hdmiphy_driver);
+	exynos_hdmiphy_i2c_driver_unregister();
 err_ddc:
 	i2c_del_driver(&ddc_driver);
 	return ret;
@@ -1992,11 +1804,13 @@ err_ddc:
 static int hdmi_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct exynos_drm_hdmi_context *ctx = get_hdmi_context(dev);
+	struct hdmi_context *hdata = ctx->ctx;
 
 	pm_runtime_disable(dev);
 
 	/* hdmiphy i2c driver */
-	i2c_del_driver(&hdmiphy_driver);
+	exynos_hdmiphy_i2c_driver_unregister();
 	/* DDC i2c driver */
 	i2c_del_driver(&ddc_driver);
 
