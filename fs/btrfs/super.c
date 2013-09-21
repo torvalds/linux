@@ -1383,6 +1383,16 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 			pr_warn("btrfs: failed to resume dev_replace\n");
 			goto restore;
 		}
+
+		if (!fs_info->uuid_root) {
+			pr_info("btrfs: creating UUID tree\n");
+			ret = btrfs_create_uuid_tree(fs_info);
+			if (ret) {
+				pr_warn("btrfs: failed to create the uuid tree"
+					"%d\n", ret);
+				goto restore;
+			}
+		}
 		sb->s_flags &= ~MS_RDONLY;
 	}
 out:
