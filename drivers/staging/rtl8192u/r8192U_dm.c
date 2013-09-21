@@ -122,9 +122,6 @@ static	void dm_init_ctstoself(struct net_device *dev);
 // DM --> EDCA turbo mode control
 static	void	dm_check_edca_turbo(struct net_device *dev);
 
-// DM --> HW RF control
-static	void	dm_check_rfctrl_gpio(struct net_device *dev);
-
 #ifndef RTL8190P
 //static	void	dm_gpio_change_rf(struct net_device *dev);
 #endif
@@ -269,7 +266,6 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 	dm_ctrl_initgain_byrssi(dev);
 	dm_check_edca_turbo(dev);
 	dm_bandwidth_autoswitch(dev);
-	dm_check_rfctrl_gpio(dev);
 	dm_check_rx_path_selection(dev);
 	dm_check_fsync(dev);
 
@@ -2817,44 +2813,6 @@ static void dm_ctstoself(struct net_device *dev)
 		lastRxOkCnt = priv->stats.rxbytesunicast;
 	}
 }
-
-
-/*-----------------------------------------------------------------------------
- * Function:	dm_check_rfctrl_gpio()
- *
- * Overview:	Copy 8187B template for 9xseries.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/28/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static void dm_check_rfctrl_gpio(struct net_device *dev)
-{
-	//struct r8192_priv *priv = ieee80211_priv(dev);
-
-	// Work around for DTM test, we will not enable HW - radio on/off because r/w
-	// page 1 register before extra bus is enabled causing system failures when resuming
-	// from S4. 20080218, Emily
-
-	// Stop to execute workitem to prevent S3/S4 bug.
-#ifdef RTL8190P
-	return;
-#endif
-#ifdef RTL8192U
-	return;
-#endif
-#ifdef RTL8192E
-		queue_delayed_work(priv->priv_wq,&priv->gpio_change_rf_wq,0);
-#endif
-
-}	/* dm_CheckRfCtrlGPIO */
 
 /*-----------------------------------------------------------------------------
  * Function:	dm_check_pbc_gpio()
