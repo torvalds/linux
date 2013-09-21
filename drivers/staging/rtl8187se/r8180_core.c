@@ -1704,7 +1704,7 @@ short rtl8180_tx(struct net_device *dev, u8 *txbuf, int len, int priority,
 	u16			RtsDur = 0;
 	u16			ThisFrameTime = 0;
 	u16			TxDescDuration = 0;
-	u8			ownbit_flag = false;
+	bool			ownbit_flag = false;
 
 	switch (priority) {
 	case MANAGE_PRIORITY:
