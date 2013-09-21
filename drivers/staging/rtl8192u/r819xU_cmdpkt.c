@@ -60,33 +60,6 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 }
 
 /*-----------------------------------------------------------------------------
- * Function:	cmpk_message_handle_tx()
- *
- * Overview:	Driver internal module can call the API to send message to
- *		firmware side. For example, you can send a debug command packet.
- *		Or you can send a request for FW to modify RLX4181 LBUS HW bank.
- *		Otherwise, you can change MAC/PHT/RF register by firmware at
- *		run time. We do not support message more than one segment now.
- *
- * Input:	NONE
- *
- * Output:	NONE
- *
- * Return:	NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/06/2008	amy		porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-extern rt_status cmpk_message_handle_tx(struct net_device *dev,
-					u8 *codevirtualaddress,
-					u32 packettype, u32 buffer_len)
-{
-	return true;
-}
-
-/*-----------------------------------------------------------------------------
  * Function:    cmpk_counttxstatistic()
  *
  * Overview:

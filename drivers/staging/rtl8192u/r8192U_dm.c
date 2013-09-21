@@ -620,16 +620,11 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 	tx_cmd.Op		= TXCMD_SET_TX_PWR_TRACKING;
 	tx_cmd.Length	= 4;
 	tx_cmd.Value		= Value;
-#ifdef RTL8192U
 	rtStatus = SendTxCommandPacket(dev, &tx_cmd, 12);
 	if (rtStatus == RT_STATUS_FAILURE)
 	{
 		RT_TRACE(COMP_POWER_TRACKING, "Set configuration with tx cmd queue fail!\n");
 	}
-#else
-	cmpk_message_handle_tx(dev, (u8 *)&tx_cmd,
-								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
-#endif
 	mdelay(1);
 	//DbgPrint("hi, vivi, strange\n");
 	for(i = 0;i <= 30; i++)
@@ -3885,9 +3880,6 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 	tx_cmd.Op		= TXCMD_SET_RX_RSSI;
 	tx_cmd.Length	= 4;
 	tx_cmd.Value		= priv->undecorated_smoothed_pwdb;
-
-	cmpk_message_handle_tx(dev, (u8 *)&tx_cmd,
-								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
 }
 
 /*---------------------------Define function prototype------------------------*/
