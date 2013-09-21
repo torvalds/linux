@@ -34,6 +34,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/hdmi.h>
 
@@ -1688,6 +1689,9 @@ static struct of_device_id hdmi_match_types[] = {
 		.compatible = "samsung,exynos4212-hdmi",
 		.data	= &exynos5250_hdmi_drv_data,
 	}, {
+		.compatible = "samsung,exynos5420-hdmi",
+		.data	= &exynos5420_hdmi_drv_data,
+	}, {
 		/* end node */
 	}
 };
@@ -1795,7 +1799,10 @@ static int hdmi_probe(struct platform_device *pdev)
 	return 0;
 
 err_hdmiphy:
-	exynos_hdmiphy_i2c_driver_unregister();
+	if (drv->i2c_hdmiphy)
+		exynos_hdmiphy_i2c_driver_unregister();
+	else
+		exynos_hdmiphy_platform_driver_unregister();
 err_ddc:
 	i2c_del_driver(&ddc_driver);
 	return ret;
@@ -1809,8 +1816,12 @@ static int hdmi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 
-	/* hdmiphy i2c driver */
-	exynos_hdmiphy_i2c_driver_unregister();
+	/* hdmiphy driver */
+	if (i2c_verify_client(hdata->phy_dev))
+		exynos_hdmiphy_i2c_driver_unregister();
+	else
+		exynos_hdmiphy_platform_driver_unregister();
+
 	/* DDC i2c driver */
 	i2c_del_driver(&ddc_driver);
 
