@@ -2832,7 +2832,6 @@ static void dm_ctstoself(struct net_device *dev)
  *---------------------------------------------------------------------------*/
 static	void	dm_check_pbc_gpio(struct net_device *dev)
 {
-#ifdef RTL8192U
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 tmp1byte;
 
@@ -2848,7 +2847,6 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 		RT_TRACE(COMP_IO, "CheckPbcGPIO - PBC is pressed\n");
 		priv->bpbc_pressed = true;
 	}
-#endif
 
 }
 
@@ -3798,10 +3796,8 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		SetTxPowerLevel8190(Adapter,pHalData->CurrentChannel);
 #endif
 
-#ifdef RTL8192U
 		rtl8192_phy_setTxPower(dev,priv->ieee80211->current_network.channel);
 		//pHalData->bStartTxCtrlByTPCNFR = FALSE;    //Clear th flag of Set TX Power from Sitesurvey
-#endif
 	}
 	priv->bLastDTPFlag_High = priv->bDynamicTxHighPower;
 	priv->bLastDTPFlag_Low = priv->bDynamicTxLowPower;
