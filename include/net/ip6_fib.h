@@ -280,10 +280,6 @@ struct fib6_node *fib6_locate(struct fib6_node *root,
 			      const struct in6_addr *daddr, int dst_len,
 			      const struct in6_addr *saddr, int src_len);
 
-void fib6_clean_all_ro(struct net *net,
-		       int (*func)(struct rt6_info *, void *arg),
-		       int prune, void *arg);
-
 void fib6_clean_all(struct net *net, int (*func)(struct rt6_info *, void *arg),
 		    int prune, void *arg);
 
@@ -298,6 +294,8 @@ void fib6_run_gc(unsigned long expires, struct net *net, bool force);
 void fib6_gc_cleanup(void);
 
 int fib6_init(void);
+
+int ipv6_route_open(struct inode *inode, struct file *file);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 int fib6_rules_init(void);
