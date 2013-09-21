@@ -454,8 +454,8 @@ config USB_OHCI_SH
 	  If you use the PCI OHCI controller, this option is not necessary.
 
 config USB_OHCI_EXYNOS
-	boolean "OHCI support for Samsung EXYNOS SoC Series"
-	depends on ARCH_EXYNOS
+	tristate "OHCI support for Samsung S5P/EXYNOS SoC Series"
+	depends on PLAT_S5P || ARCH_EXYNOS
 	help
 	 Enable support for the Samsung Exynos SOC's on-chip OHCI controller.
 
