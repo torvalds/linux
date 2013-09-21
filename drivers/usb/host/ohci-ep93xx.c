@@ -25,50 +25,23 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/signal.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/signal.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
+
+#include "ohci.h"
+
+#define DRIVER_DESC "OHCI EP93xx driver"
+
+static const char hcd_name[] = "ohci-ep93xx";
+
+static struct hc_driver __read_mostly ohci_ep93xx_hc_driver;
 
 static struct clk *usb_host_clock;
-
-static int ohci_ep93xx_start(struct usb_hcd *hcd)
-{
-	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
-	int ret;
-
-	if ((ret = ohci_init(ohci)) < 0)
-		return ret;
-
-	if ((ret = ohci_run(ohci)) < 0) {
-		dev_err(hcd->self.controller, "can't start %s\n",
-			hcd->self.bus_name);
-		ohci_stop(hcd);
-		return ret;
-	}
-
-	return 0;
-}
-
-static struct hc_driver ohci_ep93xx_hc_driver = {
-	.description		= hcd_name,
-	.product_desc		= "EP93xx OHCI",
-	.hcd_priv_size		= sizeof(struct ohci_hcd),
-	.irq			= ohci_irq,
-	.flags			= HCD_USB11 | HCD_MEMORY,
-	.start			= ohci_ep93xx_start,
-	.stop			= ohci_stop,
-	.shutdown		= ohci_shutdown,
-	.urb_enqueue		= ohci_urb_enqueue,
-	.urb_dequeue		= ohci_urb_dequeue,
-	.endpoint_disable	= ohci_endpoint_disable,
-	.get_frame_number	= ohci_get_frame,
-	.hub_status_data	= ohci_hub_status_data,
-	.hub_control		= ohci_hub_control,
-#ifdef CONFIG_PM
-	.bus_suspend		= ohci_bus_suspend,
-	.bus_resume		= ohci_bus_resume,
-#endif
-	.start_port_reset	= ohci_start_port_reset,
-};
 
 static int ohci_hcd_ep93xx_drv_probe(struct platform_device *pdev)
 {
@@ -108,8 +81,6 @@ static int ohci_hcd_ep93xx_drv_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(usb_host_clock);
-
-	ohci_hcd_init(hcd_to_ohci(hcd));
 
 	ret = usb_add_hcd(hcd, irq, 0);
 	if (ret)
@@ -166,7 +137,6 @@ static int ohci_hcd_ep93xx_drv_resume(struct platform_device *pdev)
 }
 #endif
 
-
 static struct platform_driver ohci_hcd_ep93xx_driver = {
 	.probe		= ohci_hcd_ep93xx_drv_probe,
 	.remove		= ohci_hcd_ep93xx_drv_remove,
@@ -181,4 +151,24 @@ static struct platform_driver ohci_hcd_ep93xx_driver = {
 	},
 };
 
+static int __init ohci_ep93xx_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ohci_init_driver(&ohci_ep93xx_hc_driver, NULL);
+	return platform_driver_register(&ohci_hcd_ep93xx_driver);
+}
+module_init(ohci_ep93xx_init);
+
+static void __exit ohci_ep93xx_cleanup(void)
+{
+	platform_driver_unregister(&ohci_hcd_ep93xx_driver);
+}
+module_exit(ohci_ep93xx_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:ep93xx-ohci");

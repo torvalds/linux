@@ -397,6 +397,14 @@ config USB_OHCI_HCD_LPC32XX
           Enables support for the on-chip OHCI controller on
           NXP chips.
 
+config USB_OHCI_HCD_EP93XX
+	tristate "Support for EP93XX on-chip OHCI USB controller"
+	depends on USB_OHCI_HCD && ARCH_EP93XX
+	default y
+	---help---
+	  Enables support for the on-chip OHCI controller on
+	  EP93XX chips.
+
 config USB_OHCI_HCD_AT91
         tristate "Support for Atmel on-chip OHCI USB controller"
         depends on USB_OHCI_HCD && ARCH_AT91
