@@ -122,9 +122,7 @@ static	void dm_init_ctstoself(struct net_device *dev);
 // DM --> EDCA turbo mode control
 static	void	dm_check_edca_turbo(struct net_device *dev);
 
-#ifndef RTL8190P
 //static	void	dm_gpio_change_rf(struct net_device *dev);
-#endif
 // DM --> Check PBC
 static	void dm_check_pbc_gpio(struct net_device *dev);
 
@@ -3285,9 +3283,7 @@ static void dm_EndSWFsync(struct net_device *dev)
 	}
 
 	priv->ContinueDiffCount = 0;
-#ifndef RTL8190P
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
-#endif
 
 }
 
@@ -3326,9 +3322,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 	priv->fsync_timer.expires = jiffies + MSECS(priv->ieee80211->fsync_time_interval);
 	add_timer(&priv->fsync_timer);
 
-#ifndef RTL8190P
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cd);
-#endif
 
 }
 
