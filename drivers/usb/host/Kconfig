@@ -389,6 +389,14 @@ config USB_OHCI_HCD_S3C2410
           Enables support for the on-chip OHCI controller on
           S3C24xx/S3C64xx chips.
 
+config USB_OHCI_HCD_LPC32XX
+	tristate "Support for LPC on-chip OHCI USB controller"
+	depends on USB_OHCI_HCD && ARCH_LPC32XX
+	default y
+	---help---
+          Enables support for the on-chip OHCI controller on
+          NXP chips.
+
 config USB_OHCI_HCD_AT91
         tristate "Support for Atmel on-chip OHCI USB controller"
         depends on USB_OHCI_HCD && ARCH_AT91
