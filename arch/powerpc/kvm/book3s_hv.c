@@ -166,6 +166,35 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 	vcpu->arch.pvr = pvr;
 }
 
+int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
+{
+	unsigned long pcr = 0;
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+
+	if (arch_compat) {
+		if (!cpu_has_feature(CPU_FTR_ARCH_206))
+			return -EINVAL;	/* 970 has no compat mode support */
+
+		switch (arch_compat) {
+		case PVR_ARCH_205:
+			pcr = PCR_ARCH_205;
+			break;
+		case PVR_ARCH_206:
+		case PVR_ARCH_206p:
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	spin_lock(&vc->lock);
+	vc->arch_compat = arch_compat;
+	vc->pcr = pcr;
+	spin_unlock(&vc->lock);
+
+	return 0;
+}
+
 void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 {
 	int r;
@@ -826,6 +855,9 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 	case KVM_REG_PPC_PPR:
 		*val = get_reg_val(id, vcpu->arch.ppr);
 		break;
+	case KVM_REG_PPC_ARCH_COMPAT:
+		*val = get_reg_val(id, vcpu->arch.vcore->arch_compat);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -935,6 +967,9 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 		break;
 	case KVM_REG_PPC_PPR:
 		vcpu->arch.ppr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_ARCH_COMPAT:
+		r = kvmppc_set_arch_compat(vcpu, set_reg_val(id, *val));
 		break;
 	default:
 		r = -EINVAL;

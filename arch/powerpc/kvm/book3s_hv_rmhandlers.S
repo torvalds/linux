@@ -499,7 +499,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	addis	r8,r8,0x100	/* if so, increment upper 40 bits */
 	mtspr	SPRN_TBU40,r8
 
-37:	li	r0,1
+	/* Load guest PCR value to select appropriate compat mode */
+37:	ld	r7, VCORE_PCR(r5)
+	cmpdi	r7, 0
+	beq	38f
+	mtspr	SPRN_PCR, r7
+38:
+	li	r0,1
 	stb	r0,VCORE_IN_GUEST(r5)	/* signal secondaries to continue */
 	b	10f
 
@@ -1094,8 +1100,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	addis	r8,r8,0x100		/* if so, increment upper 40 bits */
 	mtspr	SPRN_TBU40,r8
 
+	/* Reset PCR */
+17:	ld	r0, VCORE_PCR(r5)
+	cmpdi	r0, 0
+	beq	18f
+	li	r0, 0
+	mtspr	SPRN_PCR, r0
+18:
 	/* Signal secondary CPUs to continue */
-17:	li	r0,0
 	stb	r0,VCORE_IN_GUEST(r5)
 	lis	r8,0x7fff		/* MAX_INT@h */
 	mtspr	SPRN_HDEC,r8

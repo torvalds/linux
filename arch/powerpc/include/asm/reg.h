@@ -314,6 +314,10 @@
 #define   LPID_RSVD	0x3ff		/* Reserved LPID for partn switching */
 #define	SPRN_HMER	0x150	/* Hardware m? error recovery */
 #define	SPRN_HMEER	0x151	/* Hardware m? enable error recovery */
+#define SPRN_PCR	0x152	/* Processor compatibility register */
+#define   PCR_VEC_DIS	(1ul << (63-0))	/* Vec. disable (bit NA since POWER8) */
+#define   PCR_VSX_DIS	(1ul << (63-1))	/* VSX disable (bit NA since POWER8) */
+#define   PCR_ARCH_205	0x2		/* Architecture 2.05 */
 #define	SPRN_HEIR	0x153	/* Hypervisor Emulated Instruction Register */
 #define SPRN_TLBINDEXR	0x154	/* P7 TLB control register */
 #define SPRN_TLBVPNR	0x155	/* P7 TLB control register */
@@ -1105,6 +1109,13 @@
 #define PVR_POWER8	0x004D
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090
+
+/* "Logical" PVR values defined in PAPR, representing architecture levels */
+#define PVR_ARCH_204	0x0f000001
+#define PVR_ARCH_205	0x0f000002
+#define PVR_ARCH_206	0x0f000003
+#define PVR_ARCH_206p	0x0f100003
+#define PVR_ARCH_207	0x0f000004
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__
