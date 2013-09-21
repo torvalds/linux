@@ -1552,6 +1552,8 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 		root->fs_info->running_transaction = NULL;
 	spin_unlock(&root->fs_info->trans_lock);
 
+	if (trans->type & __TRANS_FREEZABLE)
+		sb_end_intwrite(root->fs_info->sb);
 	put_transaction(cur_trans);
 	put_transaction(cur_trans);
 
