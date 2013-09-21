@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/cpu_pm.h>
 #include <linux/cpuidle.h>
+#include <linux/platform_device.h>
 #include <asm/proc-fns.h>
 #include <asm/cpuidle.h>
 
@@ -69,11 +70,19 @@ static struct cpuidle_driver zynq_idle_driver = {
 };
 
 /* Initialize CPU idle by registering the idle states */
-static int __init zynq_cpuidle_init(void)
+static int zynq_cpuidle_probe(struct platform_device *pdev)
 {
 	pr_info("Xilinx Zynq CpuIdle Driver started\n");
 
 	return cpuidle_register(&zynq_idle_driver, NULL);
 }
 
-device_initcall(zynq_cpuidle_init);
+static struct platform_driver zynq_cpuidle_driver = {
+	.driver = {
+		.name = "cpuidle-zynq",
+		.owner = THIS_MODULE,
+	},
+	.probe = zynq_cpuidle_probe,
+};
+
+module_platform_driver(zynq_cpuidle_driver);
