@@ -1177,11 +1177,6 @@ MODULE_LICENSE ("GPL");
 #define SA1111_DRIVER		ohci_hcd_sa1111_driver
 #endif
 
-#if defined(CONFIG_ARCH_S3C24XX) || defined(CONFIG_ARCH_S3C64XX)
-#include "ohci-s3c2410.c"
-#define S3C2410_PLATFORM_DRIVER	ohci_hcd_s3c2410_driver
-#endif
-
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #include "ohci-pxa27x.c"
 #define PLATFORM_DRIVER		ohci_hcd_pxa27x_driver
@@ -1293,12 +1288,6 @@ static int __init ohci_hcd_mod_init(void)
 		goto error_tmio;
 #endif
 
-#ifdef S3C2410_PLATFORM_DRIVER
-	retval = platform_driver_register(&S3C2410_PLATFORM_DRIVER);
-	if (retval < 0)
-		goto error_s3c2410;
-#endif
-
 #ifdef EP93XX_PLATFORM_DRIVER
 	retval = platform_driver_register(&EP93XX_PLATFORM_DRIVER);
 	if (retval < 0)
@@ -1331,10 +1320,6 @@ static int __init ohci_hcd_mod_init(void)
 #ifdef EP93XX_PLATFORM_DRIVER
 	platform_driver_unregister(&EP93XX_PLATFORM_DRIVER);
  error_ep93xx:
-#endif
-#ifdef S3C2410_PLATFORM_DRIVER
-	platform_driver_unregister(&S3C2410_PLATFORM_DRIVER);
- error_s3c2410:
 #endif
 #ifdef TMIO_OHCI_DRIVER
 	platform_driver_unregister(&TMIO_OHCI_DRIVER);
@@ -1381,9 +1366,6 @@ static void __exit ohci_hcd_mod_exit(void)
 #endif
 #ifdef EP93XX_PLATFORM_DRIVER
 	platform_driver_unregister(&EP93XX_PLATFORM_DRIVER);
-#endif
-#ifdef S3C2410_PLATFORM_DRIVER
-	platform_driver_unregister(&S3C2410_PLATFORM_DRIVER);
 #endif
 #ifdef TMIO_OHCI_DRIVER
 	platform_driver_unregister(&TMIO_OHCI_DRIVER);

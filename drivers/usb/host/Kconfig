@@ -381,6 +381,14 @@ config USB_OHCI_HCD_SPEAR
           Enables support for the on-chip OHCI controller on
           ST SPEAr chips.
 
+config USB_OHCI_HCD_S3C2410
+        tristate "OHCI support for Samsung S3C24xx/S3C64xx SoC series"
+        depends on USB_OHCI_HCD && (ARCH_S3C24XX || ARCH_S3C64XX)
+        default y
+        ---help---
+          Enables support for the on-chip OHCI controller on
+          S3C24xx/S3C64xx chips.
+
 config USB_OHCI_HCD_AT91
         tristate "Support for Atmel on-chip OHCI USB controller"
         depends on USB_OHCI_HCD && ARCH_AT91
