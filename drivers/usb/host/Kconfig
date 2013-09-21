@@ -224,7 +224,7 @@ config USB_EHCI_MV
 	  on-chip EHCI USB controller" for those.
 
 config USB_W90X900_EHCI
-	bool "W90X900(W90P910) EHCI support"
+	tristate "W90X900(W90P910) EHCI support"
 	depends on ARCH_W90X900
 	---help---
 		Enables support for the W90X900 USB controller
