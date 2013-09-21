@@ -64,6 +64,16 @@ config COMMON_CLK_SI5351
 	  This driver supports Silicon Labs 5351A/B/C programmable clock
 	  generators.
 
+config COMMON_CLK_SI570
+	tristate "Clock driver for SiLabs 570 and compatible devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports Silicon Labs 570/571/598/599 programmable
+	  clock generators.
+
 config COMMON_CLK_S2MPS11
 	tristate "Clock driver for S2MPS11 MFD"
 	depends on MFD_SEC_CORE
