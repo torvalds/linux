@@ -51,12 +51,17 @@ static struct of_device_id hdmiddc_match_types[] = {
 	}
 };
 
+static struct i2c_device_id ddc_idtable[] = {
+	{ },
+};
+
 struct i2c_driver ddc_driver = {
 	.driver = {
 		.name = "exynos-hdmiddc",
 		.owner = THIS_MODULE,
 		.of_match_table = hdmiddc_match_types,
 	},
+	.id_table	= ddc_idtable,
 	.probe		= s5p_ddc_probe,
 	.remove		= s5p_ddc_remove,
 	.command		= NULL,
