@@ -3891,15 +3891,13 @@ static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 {
 	int q_idx;
 
-	local_bh_disable(); /* for ixgbe_qv_lock_napi() */
 	for (q_idx = 0; q_idx < adapter->num_q_vectors; q_idx++) {
 		napi_disable(&adapter->q_vector[q_idx]->napi);
-		while (!ixgbe_qv_lock_napi(adapter->q_vector[q_idx])) {
+		while (!ixgbe_qv_disable(adapter->q_vector[q_idx])) {
 			pr_info("QV %d locked\n", q_idx);
-			mdelay(1);
+			usleep_range(1000, 20000);
 		}
 	}
-	local_bh_enable();
 }
 
 #ifdef CONFIG_IXGBE_DCB

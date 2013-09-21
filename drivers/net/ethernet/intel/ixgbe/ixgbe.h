@@ -369,11 +369,13 @@ struct ixgbe_q_vector {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
 #define IXGBE_QV_STATE_IDLE        0
-#define IXGBE_QV_STATE_NAPI	   1    /* NAPI owns this QV */
-#define IXGBE_QV_STATE_POLL	   2    /* poll owns this QV */
-#define IXGBE_QV_LOCKED (IXGBE_QV_STATE_NAPI | IXGBE_QV_STATE_POLL)
-#define IXGBE_QV_STATE_NAPI_YIELD  4    /* NAPI yielded this QV */
-#define IXGBE_QV_STATE_POLL_YIELD  8    /* poll yielded this QV */
+#define IXGBE_QV_STATE_NAPI	   1     /* NAPI owns this QV */
+#define IXGBE_QV_STATE_POLL	   2     /* poll owns this QV */
+#define IXGBE_QV_STATE_DISABLED	   4     /* QV is disabled */
+#define IXGBE_QV_OWNED (IXGBE_QV_STATE_NAPI | IXGBE_QV_STATE_POLL)
+#define IXGBE_QV_LOCKED (IXGBE_QV_OWNED | IXGBE_QV_STATE_DISABLED)
+#define IXGBE_QV_STATE_NAPI_YIELD  8     /* NAPI yielded this QV */
+#define IXGBE_QV_STATE_POLL_YIELD  16    /* poll yielded this QV */
 #define IXGBE_QV_YIELD (IXGBE_QV_STATE_NAPI_YIELD | IXGBE_QV_STATE_POLL_YIELD)
 #define IXGBE_QV_USER_PEND (IXGBE_QV_STATE_POLL | IXGBE_QV_STATE_POLL_YIELD)
 	spinlock_t lock;
@@ -394,7 +396,7 @@ static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
 static inline bool ixgbe_qv_lock_napi(struct ixgbe_q_vector *q_vector)
 {
 	int rc = true;
-	spin_lock(&q_vector->lock);
+	spin_lock_bh(&q_vector->lock);
 	if (q_vector->state & IXGBE_QV_LOCKED) {
 		WARN_ON(q_vector->state & IXGBE_QV_STATE_NAPI);
 		q_vector->state |= IXGBE_QV_STATE_NAPI_YIELD;
@@ -405,7 +407,7 @@ static inline bool ixgbe_qv_lock_napi(struct ixgbe_q_vector *q_vector)
 	} else
 		/* we don't care if someone yielded */
 		q_vector->state = IXGBE_QV_STATE_NAPI;
-	spin_unlock(&q_vector->lock);
+	spin_unlock_bh(&q_vector->lock);
 	return rc;
 }
 
@@ -413,14 +415,15 @@ static inline bool ixgbe_qv_lock_napi(struct ixgbe_q_vector *q_vector)
 static inline bool ixgbe_qv_unlock_napi(struct ixgbe_q_vector *q_vector)
 {
 	int rc = false;
-	spin_lock(&q_vector->lock);
+	spin_lock_bh(&q_vector->lock);
 	WARN_ON(q_vector->state & (IXGBE_QV_STATE_POLL |
 			       IXGBE_QV_STATE_NAPI_YIELD));
 
 	if (q_vector->state & IXGBE_QV_STATE_POLL_YIELD)
 		rc = true;
-	q_vector->state = IXGBE_QV_STATE_IDLE;
-	spin_unlock(&q_vector->lock);
+	/* will reset state to idle, unless QV is disabled */
+	q_vector->state &= IXGBE_QV_STATE_DISABLED;
+	spin_unlock_bh(&q_vector->lock);
 	return rc;
 }
 
@@ -451,7 +454,8 @@ static inline bool ixgbe_qv_unlock_poll(struct ixgbe_q_vector *q_vector)
 
 	if (q_vector->state & IXGBE_QV_STATE_POLL_YIELD)
 		rc = true;
-	q_vector->state = IXGBE_QV_STATE_IDLE;
+	/* will reset state to idle, unless QV is disabled */
+	q_vector->state &= IXGBE_QV_STATE_DISABLED;
 	spin_unlock_bh(&q_vector->lock);
 	return rc;
 }
@@ -459,9 +463,23 @@ static inline bool ixgbe_qv_unlock_poll(struct ixgbe_q_vector *q_vector)
 /* true if a socket is polling, even if it did not get the lock */
 static inline bool ixgbe_qv_busy_polling(struct ixgbe_q_vector *q_vector)
 {
-	WARN_ON(!(q_vector->state & IXGBE_QV_LOCKED));
+	WARN_ON(!(q_vector->state & IXGBE_QV_OWNED));
 	return q_vector->state & IXGBE_QV_USER_PEND;
 }
+
+/* false if QV is currently owned */
+static inline bool ixgbe_qv_disable(struct ixgbe_q_vector *q_vector)
+{
+	int rc = true;
+	spin_lock_bh(&q_vector->lock);
+	if (q_vector->state & IXGBE_QV_OWNED)
+		rc = false;
+	q_vector->state |= IXGBE_QV_STATE_DISABLED;
+	spin_unlock_bh(&q_vector->lock);
+
+	return rc;
+}
+
 #else /* CONFIG_NET_RX_BUSY_POLL */
 static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
 {
@@ -491,6 +509,12 @@ static inline bool ixgbe_qv_busy_polling(struct ixgbe_q_vector *q_vector)
 {
 	return false;
 }
+
+static inline bool ixgbe_qv_disable(struct ixgbe_q_vector *q_vector)
+{
+	return true;
+}
+
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
 #ifdef CONFIG_IXGBE_HWMON
