@@ -61,20 +61,14 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 		/* Allocate skb buffer to contain firmware info and tx descriptor info
 		 * add 4 to avoid packet appending overflow.
 		 * */
-		#ifdef RTL8192U
 		skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + frag_length + 4);
-		#else
-		skb  = dev_alloc_skb(frag_length + 4);
-		#endif
 		memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
 		tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
 
-		#ifdef RTL8192U
 		skb_reserve(skb, USB_HWDESC_HEADER_LEN);
-		#endif
 		seg_ptr = skb->data;
 		/*
 		 * Transform from little endian to big endian
