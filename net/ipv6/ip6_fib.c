@@ -1771,6 +1771,7 @@ struct ipv6_route_iter {
 	struct fib6_walker_t w;
 	loff_t skip;
 	struct fib6_table *tbl;
+	__u32 sernum;
 };
 
 static int ipv6_route_seq_show(struct seq_file *seq, void *v)
@@ -1823,6 +1824,7 @@ static void ipv6_route_seq_setup_walk(struct ipv6_route_iter *iter)
 	iter->w.state = FWS_INIT;
 	iter->w.node = iter->w.root;
 	iter->w.args = iter;
+	iter->sernum = iter->w.root->fn_sernum;
 	INIT_LIST_HEAD(&iter->w.lh);
 	fib6_walker_link(&iter->w);
 }
@@ -1848,6 +1850,17 @@ static struct fib6_table *ipv6_route_seq_next_table(struct fib6_table *tbl,
 	return hlist_entry_safe(node, struct fib6_table, tb6_hlist);
 }
 
+static void ipv6_route_check_sernum(struct ipv6_route_iter *iter)
+{
+	if (iter->sernum != iter->w.root->fn_sernum) {
+		iter->sernum = iter->w.root->fn_sernum;
+		iter->w.state = FWS_INIT;
+		iter->w.node = iter->w.root;
+		WARN_ON(iter->w.skip);
+		iter->w.skip = iter->w.count;
+	}
+}
+
 static void *ipv6_route_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	int r;
@@ -1865,6 +1878,7 @@ static void *ipv6_route_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	}
 
 iter_table:
+	ipv6_route_check_sernum(iter);
 	read_lock(&iter->tbl->tb6_lock);
 	r = fib6_walk_continue(&iter->w);
 	read_unlock(&iter->tbl->tb6_lock);
