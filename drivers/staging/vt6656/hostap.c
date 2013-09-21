@@ -414,7 +414,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 	int ret = 0;
 	s32 iNodeIndex = -1;
 	int ii;
-	int bKeyTableFull = false;
+	bool bKeyTableFull = false;
 	u16 wKeyCtl = 0;
 
 	param->u.crypt.err = 0;
