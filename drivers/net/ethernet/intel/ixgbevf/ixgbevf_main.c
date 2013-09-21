@@ -410,9 +410,9 @@ static inline void ixgbevf_irq_enable_queues(struct ixgbevf_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, qmask);
 }
 
-static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
-				 struct ixgbevf_ring *rx_ring,
-				 int budget)
+static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
+				struct ixgbevf_ring *rx_ring,
+				int budget)
 {
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	struct pci_dev *pdev = adapter->pdev;
@@ -540,7 +540,7 @@ next_desc:
 	q_vector->rx.total_packets += total_rx_packets;
 	q_vector->rx.total_bytes += total_rx_bytes;
 
-	return !!budget;
+	return total_rx_packets;
 }
 
 /**
@@ -572,8 +572,9 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 
 	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
 	ixgbevf_for_each_ring(ring, q_vector->rx)
-		clean_complete &= ixgbevf_clean_rx_irq(q_vector, ring,
-						       per_ring_budget);
+		clean_complete &= (ixgbevf_clean_rx_irq(q_vector, ring,
+							per_ring_budget)
+				   < per_ring_budget);
 	adapter->flags &= ~IXGBE_FLAG_IN_NETPOLL;
 
 	/* If all work not completed, return budget and keep polling */
