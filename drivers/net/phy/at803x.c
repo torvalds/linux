@@ -163,8 +163,8 @@ static struct phy_driver at803x_driver[] = {
 	.get_wol	= at803x_get_wol,
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
-	.config_aneg	= &genphy_config_aneg,
-	.read_status	= &genphy_read_status,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
 	.driver		= {
 		.owner = THIS_MODULE,
 	},
@@ -178,8 +178,8 @@ static struct phy_driver at803x_driver[] = {
 	.get_wol	= at803x_get_wol,
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
-	.config_aneg	= &genphy_config_aneg,
-	.read_status	= &genphy_read_status,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
 	.driver		= {
 		.owner = THIS_MODULE,
 	},
@@ -193,8 +193,8 @@ static struct phy_driver at803x_driver[] = {
 	.get_wol	= at803x_get_wol,
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
-	.config_aneg	= &genphy_config_aneg,
-	.read_status	= &genphy_read_status,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
 	.driver		= {
 		.owner = THIS_MODULE,
 	},
