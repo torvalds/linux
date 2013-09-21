@@ -300,6 +300,20 @@ static void ixgbevf_receive_skb(struct ixgbevf_q_vector *q_vector,
 }
 
 /**
+ * ixgbevf_rx_skb - Helper function to determine proper Rx method
+ * @q_vector: structure containing interrupt and ring information
+ * @skb: packet to send up
+ * @status: hardware indication of status of receive
+ * @rx_desc: rx descriptor
+ **/
+static void ixgbevf_rx_skb(struct ixgbevf_q_vector *q_vector,
+			   struct sk_buff *skb, u8 status,
+			   union ixgbe_adv_rx_desc *rx_desc)
+{
+	ixgbevf_receive_skb(q_vector, skb, status, rx_desc);
+}
+
+/**
  * ixgbevf_rx_checksum - indicate in skb if hw indicated a good cksum
  * @ring: pointer to Rx descriptor ring structure
  * @status_err: hardware indication of status of receive
@@ -494,7 +508,7 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 			goto next_desc;
 		}
 
-		ixgbevf_receive_skb(q_vector, skb, staterr, rx_desc);
+		ixgbevf_rx_skb(q_vector, skb, staterr, rx_desc);
 
 next_desc:
 		rx_desc->wb.upper.status_error = 0;
