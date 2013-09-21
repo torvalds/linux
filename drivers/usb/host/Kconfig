@@ -373,6 +373,14 @@ config USB_OHCI_HCD_OMAP1
 	---help---
 	  Enables support for the OHCI controller on OMAP1/2 chips.
 
+config USB_OHCI_HCD_SPEAR
+        tristate "Support for ST SPEAr on-chip OHCI USB controller"
+        depends on USB_OHCI_HCD && PLAT_SPEAR
+        default y
+        ---help---
+          Enables support for the on-chip OHCI controller on
+          ST SPEAr chips.
+
 config USB_OHCI_HCD_OMAP3
 	tristate "OHCI support for OMAP3 and later chips"
 	depends on (ARCH_OMAP3 || ARCH_OMAP4)

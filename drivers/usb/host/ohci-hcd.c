@@ -1212,11 +1212,6 @@ MODULE_LICENSE ("GPL");
 #define OF_PLATFORM_DRIVER	ohci_hcd_ppc_of_driver
 #endif
 
-#ifdef CONFIG_PLAT_SPEAR
-#include "ohci-spear.c"
-#define SPEAR_PLATFORM_DRIVER	spear_ohci_hcd_driver
-#endif
-
 #ifdef CONFIG_PPC_PS3
 #include "ohci-ps3.c"
 #define PS3_SYSTEM_BUS_DRIVER	ps3_ohci_driver
@@ -1333,19 +1328,9 @@ static int __init ohci_hcd_mod_init(void)
 		goto error_davinci;
 #endif
 
-#ifdef SPEAR_PLATFORM_DRIVER
-	retval = platform_driver_register(&SPEAR_PLATFORM_DRIVER);
-	if (retval < 0)
-		goto error_spear;
-#endif
-
 	return retval;
 
 	/* Error path */
-#ifdef SPEAR_PLATFORM_DRIVER
-	platform_driver_unregister(&SPEAR_PLATFORM_DRIVER);
- error_spear:
-#endif
 #ifdef DAVINCI_PLATFORM_DRIVER
 	platform_driver_unregister(&DAVINCI_PLATFORM_DRIVER);
  error_davinci:
@@ -1403,9 +1388,6 @@ module_init(ohci_hcd_mod_init);
 
 static void __exit ohci_hcd_mod_exit(void)
 {
-#ifdef SPEAR_PLATFORM_DRIVER
-	platform_driver_unregister(&SPEAR_PLATFORM_DRIVER);
-#endif
 #ifdef DAVINCI_PLATFORM_DRIVER
 	platform_driver_unregister(&DAVINCI_PLATFORM_DRIVER);
 #endif
