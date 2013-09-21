@@ -436,16 +436,16 @@ struct entropy_store {
 	__u32 *pool;
 	const char *name;
 	struct entropy_store *pull;
-	int limit;
 
 	/* read-write data: */
 	spinlock_t lock;
-	unsigned add_ptr;
-	unsigned input_rotate;
+	unsigned short add_ptr;
+	unsigned short input_rotate;
 	int entropy_count;
 	int entropy_total;
 	unsigned int initialized:1;
-	bool last_data_init;
+	unsigned int limit:1;
+	unsigned int last_data_init:1;
 	__u8 last_data[EXTRACT_SIZE];
 };
 
@@ -513,7 +513,7 @@ static void _mix_pool_bytes(struct entropy_store *r, const void *in,
 
 	/* mix one byte at a time to simplify size handling and churn faster */
 	while (nbytes--) {
-		w = rol32(*bytes++, input_rotate & 31);
+		w = rol32(*bytes++, input_rotate);
 		i = (i - 1) & wordmask;
 
 		/* XOR in the various taps */
@@ -533,7 +533,7 @@ static void _mix_pool_bytes(struct entropy_store *r, const void *in,
 		 * rotation, so that successive passes spread the
 		 * input bits across the pool evenly.
 		 */
-		input_rotate += i ? 7 : 14;
+		input_rotate = (input_rotate + (i ? 7 : 14)) & 31;
 	}
 
 	ACCESS_ONCE(r->input_rotate) = input_rotate;
@@ -1049,7 +1049,7 @@ static ssize_t extract_entropy(struct entropy_store *r, void *buf,
 	if (fips_enabled) {
 		spin_lock_irqsave(&r->lock, flags);
 		if (!r->last_data_init) {
-			r->last_data_init = true;
+			r->last_data_init = 1;
 			spin_unlock_irqrestore(&r->lock, flags);
 			trace_extract_entropy(r->name, EXTRACT_SIZE,
 					      ENTROPY_BITS(r), _RET_IP_);
@@ -1189,7 +1189,7 @@ static void init_std_data(struct entropy_store *r)
 
 	r->entropy_count = 0;
 	r->entropy_total = 0;
-	r->last_data_init = false;
+	r->last_data_init = 0;
 	mix_pool_bytes(r, &now, sizeof(now), NULL);
 	for (i = r->poolinfo->poolbytes; i > 0; i -= sizeof(rv)) {
 		if (!arch_get_random_long(&rv))
