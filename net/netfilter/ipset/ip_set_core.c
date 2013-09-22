@@ -315,6 +315,7 @@ ip_set_get_ipaddr6(struct nlattr *nla, union nf_inet_addr *ipaddr)
 }
 EXPORT_SYMBOL_GPL(ip_set_get_ipaddr6);
 
+typedef void (*destroyer)(void *);
 /* ipset data extension types, in size order */
 
 const struct ip_set_ext_type ip_set_extensions[] = {
@@ -328,6 +329,13 @@ const struct ip_set_ext_type ip_set_extensions[] = {
 		.type	= IPSET_EXT_TIMEOUT,
 		.len	= sizeof(unsigned long),
 		.align	= __alignof__(unsigned long),
+	},
+	[IPSET_EXT_ID_COMMENT] = {
+		.type	 = IPSET_EXT_COMMENT | IPSET_EXT_DESTROY,
+		.flag	 = IPSET_FLAG_WITH_COMMENT,
+		.len	 = sizeof(struct ip_set_comment),
+		.align	 = __alignof__(struct ip_set_comment),
+		.destroy = (destroyer) ip_set_comment_free,
 	},
 };
 EXPORT_SYMBOL_GPL(ip_set_extensions);
@@ -380,6 +388,12 @@ ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 			ext->packets = be64_to_cpu(nla_get_be64(
 						   tb[IPSET_ATTR_PACKETS]));
 	}
+	if (tb[IPSET_ATTR_COMMENT]) {
+		if (!(set->extensions & IPSET_EXT_COMMENT))
+			return -IPSET_ERR_COMMENT;
+		ext->comment = ip_set_comment_uget(tb[IPSET_ATTR_COMMENT]);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ip_set_get_extensions);
