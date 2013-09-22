@@ -65,6 +65,11 @@
 				compatible = "sirf,prima2-rsc";
 				reg = <0x88020000 0x1000>;
 			};
+
+			cphifbg@88030000 {
+				compatible = "sirf,prima2-cphifbg";
+				reg = <0x88030000 0x1000>;
+			};
 		};
 
 		mem-iobg {
