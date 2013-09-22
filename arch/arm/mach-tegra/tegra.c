@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 #include <linux/usb/tegra_usb_phy.h>
+#include <linux/clk-provider.h>
 #include <linux/clk/tegra.h>
 
 #include <asm/mach-types.h>
@@ -44,12 +45,15 @@
 #include "common.h"
 #include "fuse.h"
 #include "iomap.h"
+#include "pmc.h"
 
 static void __init tegra_dt_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
 	struct device *parent = NULL;
+
+	tegra_pmc_init();
 
 	tegra_clocks_apply_init_table();
 
@@ -78,6 +82,12 @@ static void __init tegra_dt_init(void)
 	 */
 out:
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
+}
+
+static void __init tegra_dt_init_time(void)
+{
+	of_clk_init(NULL);
+	clocksource_of_init();
 }
 
 static void __init paz00_init(void)
@@ -119,7 +129,7 @@ DT_MACHINE_START(TEGRA_DT, "NVIDIA Tegra SoC (Flattened Device Tree)")
 	.smp		= smp_ops(tegra_smp_ops),
 	.init_early	= tegra_init_early,
 	.init_irq	= tegra_dt_init_irq,
-	.init_time	= clocksource_of_init,
+	.init_time	= tegra_dt_init_time,
 	.init_machine	= tegra_dt_init,
 	.init_late	= tegra_dt_init_late,
 	.restart	= tegra_assert_system_reset,
