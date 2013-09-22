@@ -148,7 +148,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 	struct drm_minor *minor;
 	int minor_id = iminor(inode);
 	int err = -ENODEV;
-	const struct file_operations *old_fops;
+	const struct file_operations *new_fops;
 
 	DRM_DEBUG("\n");
 
@@ -163,18 +163,13 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 	if (drm_device_is_unplugged(dev))
 		goto out;
 
-	old_fops = filp->f_op;
-	filp->f_op = fops_get(dev->driver->fops);
-	if (filp->f_op == NULL) {
-		filp->f_op = old_fops;
+	new_fops = fops_get(dev->driver->fops);
+	if (!new_fops)
 		goto out;
-	}
-	if (filp->f_op->open && (err = filp->f_op->open(inode, filp))) {
-		fops_put(filp->f_op);
-		filp->f_op = fops_get(old_fops);
-	}
-	fops_put(old_fops);
 
+	replace_fops(filp, new_fops);
+	if (filp->f_op->open)
+		err = filp->f_op->open(inode, filp);
 out:
 	mutex_unlock(&drm_global_mutex);
 	return err;
