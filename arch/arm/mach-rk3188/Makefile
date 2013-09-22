@@ -33,3 +33,4 @@ board-$(CONFIG_MACH_RK3188M_TB)  += board-rk3188m-tb.o
 board-$(CONFIG_MACH_RK3188M_F304)  += board-rk3188m-f304.o
 obj-$(CONFIG_SOC_RK3188) += board.o
 board-$(CONFIG_MACH_RK3188_FAC) += board-rk3188-fac.o
+board-$(CONFIG_MACH_RK3188_AC)  += board-rk3188-ac.o

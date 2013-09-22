@@ -48,6 +48,8 @@ config MACH_RK3188_RK618
 
 config MACH_RK3188_FT
 	bool "RK3188 FT Board"
+config MACH_RK3188_AC
+        bool "RK3188 android computer board"
 
 endchoice
 
@@ -59,6 +61,6 @@ config MACH_RK3188M_TB
 	bool "RK3188m Top Board"
 	
 config MACH_RK3188M_F304
-	bool "RK3188m F304 Board"	
+	bool "RK3188m F304 Board"
 
 endchoice
