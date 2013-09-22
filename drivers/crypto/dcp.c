@@ -733,12 +733,7 @@ static int dcp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "failed to get IORESOURCE_MEM\n");
-		return -ENXIO;
-	}
-	dev->dcp_regs_base = devm_ioremap(&pdev->dev, r->start,
-					  resource_size(r));
+	dev->dcp_regs_base = devm_ioremap_resource(&pdev->dev, r);
 
 	dcp_set(dev, DCP_CTRL_SFRST, DCP_REG_CTRL);
 	udelay(10);
