@@ -741,7 +741,7 @@ static void disable_sched(struct cppi41_dd *cdd)
 	cppi_writel(0, cdd->sched_mem + DMA_SCHED_CTRL);
 }
 
-static void deinit_cpii41(struct device *dev, struct cppi41_dd *cdd)
+static void deinit_cppi41(struct device *dev, struct cppi41_dd *cdd)
 {
 	disable_sched(cdd);
 
@@ -835,7 +835,7 @@ static int init_cppi41(struct device *dev, struct cppi41_dd *cdd)
 	init_sched(cdd);
 	return 0;
 err_td:
-	deinit_cpii41(dev, cdd);
+	deinit_cppi41(dev, cdd);
 	return ret;
 }
 
@@ -1009,7 +1009,7 @@ err_irq:
 	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	cleanup_chans(cdd);
 err_chans:
-	deinit_cpii41(&pdev->dev, cdd);
+	deinit_cppi41(&pdev->dev, cdd);
 err_init_cppi:
 	pm_runtime_put(&pdev->dev);
 err_get_sync:
@@ -1033,7 +1033,7 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	free_irq(cdd->irq, cdd);
 	cleanup_chans(cdd);
-	deinit_cpii41(&pdev->dev, cdd);
+	deinit_cppi41(&pdev->dev, cdd);
 	iounmap(cdd->usbss_mem);
 	iounmap(cdd->ctrl_mem);
 	iounmap(cdd->sched_mem);
