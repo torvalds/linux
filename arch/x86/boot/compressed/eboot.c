@@ -733,10 +733,16 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 	 * address, relocate it.
 	 */
 	if (hdr->pref_address != hdr->code32_start) {
-		status = relocate_kernel(hdr);
-
+		unsigned long bzimage_addr = hdr->code32_start;
+		status = efi_relocate_kernel(sys_table, &bzimage_addr,
+					     hdr->init_size, hdr->init_size,
+					     hdr->pref_address,
+					     hdr->kernel_alignment);
 		if (status != EFI_SUCCESS)
 			goto fail;
+
+		hdr->pref_address = hdr->code32_start;
+		hdr->code32_start = bzimage_addr;
 	}
 
 	status = exit_boot(boot_params, handle);
