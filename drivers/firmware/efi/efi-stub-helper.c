@@ -255,6 +255,9 @@ static void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
 {
 	unsigned long nr_pages;
 
+	if (!size)
+		return;
+
 	nr_pages = round_up(size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
 	efi_call_phys2(sys_table_arg->boottime->free_pages, addr, nr_pages);
 }
