@@ -20,6 +20,7 @@
 #include "check-integrity.h"
 #include "locking.h"
 #include "rcu-string.h"
+#include "backref.h"
 
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
@@ -4062,6 +4063,19 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 	return NULL;
 }
 
+static noinline int count_ext_ref(u64 inum, u64 offset, u64 root_id, void *ctx)
+{
+	unsigned long cnt = *((unsigned long *)ctx);
+
+	cnt++;
+	*((unsigned long *)ctx) = cnt;
+
+	/* Now we're sure that the extent is shared. */
+	if (cnt > 1)
+		return 1;
+	return 0;
+}
+
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len, get_extent_t *get_extent)
 {
@@ -4128,7 +4142,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		last = found_key.offset;
 		last_for_get_extent = last + 1;
 	}
-	btrfs_free_path(path);
+	btrfs_release_path(path);
 
 	/*
 	 * we might have some extents allocated but more delalloc past those
@@ -4198,7 +4212,24 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			flags |= (FIEMAP_EXTENT_DELALLOC |
 				  FIEMAP_EXTENT_UNKNOWN);
 		} else {
+			unsigned long ref_cnt = 0;
+
 			disko = em->block_start + offset_in_extent;
+
+			/*
+			 * As btrfs supports shared space, this information
+			 * can be exported to userspace tools via
+			 * flag FIEMAP_EXTENT_SHARED.
+			 */
+			ret = iterate_inodes_from_logical(
+					em->block_start,
+					BTRFS_I(inode)->root->fs_info,
+					path, count_ext_ref, &ref_cnt);
+			if (ret < 0 && ret != -ENOENT)
+				goto out_free;
+
+			if (ref_cnt > 1)
+				flags |= FIEMAP_EXTENT_SHARED;
 		}
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;
@@ -4230,6 +4261,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 out_free:
 	free_extent_map(em);
 out:
+	btrfs_free_path(path);
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, start, start + len - 1,
 			     &cached_state, GFP_NOFS);
 	return ret;
