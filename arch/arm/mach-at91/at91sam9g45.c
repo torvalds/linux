@@ -26,6 +26,7 @@
 #include "generic.h"
 #include "clock.h"
 #include "sam9_smc.h"
+#include "pm.h"
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -379,6 +380,8 @@ static void __init at91sam9g45_initialize(void)
 
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9g45_gpio, 5);
+
+	at91_pm_set_standby(at91sam9g45_standby);
 }
 
 /* --------------------------------------------------------------------

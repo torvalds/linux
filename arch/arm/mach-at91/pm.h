@@ -11,8 +11,12 @@
 #ifndef __ARCH_ARM_MACH_AT91_PM
 #define __ARCH_ARM_MACH_AT91_PM
 
+#include <asm/proc-fns.h>
+
 #include <mach/at91_ramc.h>
 #include <mach/at91rm9200_sdramc.h>
+
+extern void at91_pm_set_standby(void (*at91_standby)(void));
 
 /*
  * The AT91RM9200 goes into self-refresh mode with this command, and will
