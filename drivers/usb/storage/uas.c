@@ -804,6 +804,13 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	struct usb_device *udev = devinfo->udev;
 	int err;
 
+	err = usb_lock_device_for_reset(udev, devinfo->intf);
+	if (err) {
+		shost_printk(KERN_ERR, sdev->host,
+			     "%s FAILED to get lock err %d\n", __func__, err);
+		return FAILED;
+	}
+
 	shost_printk(KERN_INFO, sdev->host, "%s start\n", __func__);
 	devinfo->resetting = 1;
 	uas_abort_work(devinfo);
@@ -816,6 +823,8 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	if (!err)
 		uas_configure_endpoints(devinfo);
 	devinfo->resetting = 0;
+
+	usb_unlock_device(udev);
 
 	if (err) {
 		shost_printk(KERN_INFO, sdev->host, "%s FAILED\n", __func__);
