@@ -86,9 +86,16 @@
 
 			memory-controller@90000000 {
 				compatible = "sirf,prima2-memc";
-				reg = <0x90000000 0x10000>;
+				reg = <0x90000000 0x2000>;
 				interrupts = <27>;
 				clocks = <&clks 5>;
+			};
+
+			memc-monitor {
+				compatible = "sirf,prima2-memcmon";
+				reg = <0x90002000 0x200>;
+				interrupts = <4>;
+				clocks = <&clks 32>;
 			};
 		};
 
