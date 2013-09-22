@@ -47,6 +47,14 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/page.h>
 
+/* SKB control block overlay is used to store useful information when
+ * doing guest RX.
+ */
+struct skb_cb_overlay {
+	int meta_slots_used;
+	int peek_slots_count;
+};
+
 /* Provide an option to disable split event channels at load time as
  * event channels are limited resource. Split event channels are
  * enabled by default.
@@ -212,49 +220,6 @@ static bool start_new_rx_buffer(int offset, unsigned long size, int head)
 	return false;
 }
 
-struct xenvif_count_slot_state {
-	unsigned long copy_off;
-	bool head;
-};
-
-unsigned int xenvif_count_frag_slots(struct xenvif *vif,
-				     unsigned long offset, unsigned long size,
-				     struct xenvif_count_slot_state *state)
-{
-	unsigned count = 0;
-
-	offset &= ~PAGE_MASK;
-
-	while (size > 0) {
-		unsigned long bytes;
-
-		bytes = PAGE_SIZE - offset;
-
-		if (bytes > size)
-			bytes = size;
-
-		if (start_new_rx_buffer(state->copy_off, bytes, state->head)) {
-			count++;
-			state->copy_off = 0;
-		}
-
-		if (state->copy_off + bytes > MAX_BUFFER_OFFSET)
-			bytes = MAX_BUFFER_OFFSET - state->copy_off;
-
-		state->copy_off += bytes;
-
-		offset += bytes;
-		size -= bytes;
-
-		if (offset == PAGE_SIZE)
-			offset = 0;
-
-		state->head = false;
-	}
-
-	return count;
-}
-
 /*
  * Figure out how many ring slots we're going to need to send @skb to
  * the guest. This function is essentially a dry run of
@@ -262,40 +227,53 @@ unsigned int xenvif_count_frag_slots(struct xenvif *vif,
  */
 unsigned int xenvif_count_skb_slots(struct xenvif *vif, struct sk_buff *skb)
 {
-	struct xenvif_count_slot_state state;
 	unsigned int count;
-	unsigned char *data;
-	unsigned i;
+	int i, copy_off;
+	struct skb_cb_overlay *sco;
 
-	state.head = true;
-	state.copy_off = 0;
+	count = DIV_ROUND_UP(skb_headlen(skb), PAGE_SIZE);
 
-	/* Slot for the first (partial) page of data. */
-	count = 1;
+	copy_off = skb_headlen(skb) % PAGE_SIZE;
 
-	/* Need a slot for the GSO prefix for GSO extra data? */
 	if (skb_shinfo(skb)->gso_size)
 		count++;
-
-	data = skb->data;
-	while (data < skb_tail_pointer(skb)) {
-		unsigned long offset = offset_in_page(data);
-		unsigned long size = PAGE_SIZE - offset;
-
-		if (data + size > skb_tail_pointer(skb))
-			size = skb_tail_pointer(skb) - data;
-
-		count += xenvif_count_frag_slots(vif, offset, size, &state);
-
-		data += size;
-	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		unsigned long size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
 		unsigned long offset = skb_shinfo(skb)->frags[i].page_offset;
+		unsigned long bytes;
 
-		count += xenvif_count_frag_slots(vif, offset, size, &state);
+		offset &= ~PAGE_MASK;
+
+		while (size > 0) {
+			BUG_ON(offset >= PAGE_SIZE);
+			BUG_ON(copy_off > MAX_BUFFER_OFFSET);
+
+			bytes = PAGE_SIZE - offset;
+
+			if (bytes > size)
+				bytes = size;
+
+			if (start_new_rx_buffer(copy_off, bytes, 0)) {
+				count++;
+				copy_off = 0;
+			}
+
+			if (copy_off + bytes > MAX_BUFFER_OFFSET)
+				bytes = MAX_BUFFER_OFFSET - copy_off;
+
+			copy_off += bytes;
+
+			offset += bytes;
+			size -= bytes;
+
+			if (offset == PAGE_SIZE)
+				offset = 0;
+		}
 	}
+
+	sco = (struct skb_cb_overlay *)skb->cb;
+	sco->peek_slots_count = count;
 	return count;
 }
 
@@ -327,14 +305,11 @@ static struct xenvif_rx_meta *get_next_rx_buffer(struct xenvif *vif,
 	return meta;
 }
 
-/*
- * Set up the grant operations for this fragment. If it's a flipping
- * interface, we also set up the unmap request from here.
- */
+/* Set up the grant operations for this fragment. */
 static void xenvif_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 				 struct netrx_pending_operations *npo,
 				 struct page *page, unsigned long size,
-				 unsigned long offset, int *head)
+				 unsigned long offset, int head, int *first)
 {
 	struct gnttab_copy *copy_gop;
 	struct xenvif_rx_meta *meta;
@@ -358,12 +333,12 @@ static void xenvif_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 		if (bytes > size)
 			bytes = size;
 
-		if (start_new_rx_buffer(npo->copy_off, bytes, *head)) {
+		if (start_new_rx_buffer(npo->copy_off, bytes, head)) {
 			/*
 			 * Netfront requires there to be some data in the head
 			 * buffer.
 			 */
-			BUG_ON(*head);
+			BUG_ON(*first);
 
 			meta = get_next_rx_buffer(vif, npo);
 		}
@@ -397,10 +372,10 @@ static void xenvif_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 		}
 
 		/* Leave a gap for the GSO descriptor. */
-		if (*head && skb_shinfo(skb)->gso_size && !vif->gso_prefix)
+		if (*first && skb_shinfo(skb)->gso_size && !vif->gso_prefix)
 			vif->rx.req_cons++;
 
-		*head = 0; /* There must be something in this buffer now. */
+		*first = 0; /* There must be something in this buffer now. */
 
 	}
 }
@@ -426,7 +401,7 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 	struct xen_netif_rx_request *req;
 	struct xenvif_rx_meta *meta;
 	unsigned char *data;
-	int head = 1;
+	int first = 1;
 	int old_meta_prod;
 
 	old_meta_prod = npo->meta_prod;
@@ -462,7 +437,7 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 			len = skb_tail_pointer(skb) - data;
 
 		xenvif_gop_frag_copy(vif, skb, npo,
-				     virt_to_page(data), len, offset, &head);
+				     virt_to_page(data), len, offset, 1, &first);
 		data += len;
 	}
 
@@ -471,7 +446,7 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 				     skb_frag_page(&skb_shinfo(skb)->frags[i]),
 				     skb_frag_size(&skb_shinfo(skb)->frags[i]),
 				     skb_shinfo(skb)->frags[i].page_offset,
-				     &head);
+				     0, &first);
 	}
 
 	return npo->meta_prod - old_meta_prod;
@@ -529,10 +504,6 @@ static void xenvif_add_frag_responses(struct xenvif *vif, int status,
 	}
 }
 
-struct skb_cb_overlay {
-	int meta_slots_used;
-};
-
 static void xenvif_kick_thread(struct xenvif *vif)
 {
 	wake_up(&vif->wq);
@@ -563,19 +534,26 @@ void xenvif_rx_action(struct xenvif *vif)
 	count = 0;
 
 	while ((skb = skb_dequeue(&vif->rx_queue)) != NULL) {
+		RING_IDX old_rx_req_cons;
+
 		vif = netdev_priv(skb->dev);
 		nr_frags = skb_shinfo(skb)->nr_frags;
 
+		old_rx_req_cons = vif->rx.req_cons;
 		sco = (struct skb_cb_overlay *)skb->cb;
 		sco->meta_slots_used = xenvif_gop_skb(skb, &npo);
 
-		count += nr_frags + 1;
+		count += vif->rx.req_cons - old_rx_req_cons;
 
 		__skb_queue_tail(&rxq, skb);
 
+		skb = skb_peek(&vif->rx_queue);
+		if (skb == NULL)
+			break;
+		sco = (struct skb_cb_overlay *)skb->cb;
+
 		/* Filled the batch queue? */
-		/* XXX FIXME: RX path dependent on MAX_SKB_FRAGS */
-		if (count + MAX_SKB_FRAGS >= XEN_NETIF_RX_RING_SIZE)
+		if (count + sco->peek_slots_count >= XEN_NETIF_RX_RING_SIZE)
 			break;
 	}
 
