@@ -281,6 +281,11 @@ static struct snd_soc_jack_gpio hs_jack_gpios[] = {
 
 #endif //CONFIG_SND_CX2070X_GPIO_JACKSENSE
 
+void codec_set_spk(bool on)
+{	
+}
+EXPORT_SYMBOL(codec_set_spk);
+
 #if defined(CONFIG_SND_CX2070X_LOAD_FW)
 int I2cWrite( struct snd_soc_codec *codec, unsigned char ChipAddr, unsigned long cbBuf, unsigned char* pBuf);
 int I2cWriteThenRead( struct snd_soc_codec *codec, unsigned char ChipAddr, unsigned long cbBuf,
