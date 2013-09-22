@@ -23,8 +23,6 @@
 #include <linux/init.h>
 #include <linux/spi/spi.h>
 
-#define DAC7512_DRV_NAME	"dac7512"
-
 static ssize_t dac7512_store_val(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
@@ -76,7 +74,7 @@ static int dac7512_remove(struct spi_device *spi)
 
 static struct spi_driver dac7512_driver = {
 	.driver = {
-		.name	= DAC7512_DRV_NAME,
+		.name	= "dac7512",
 		.owner	= THIS_MODULE,
 	},
 	.probe	= dac7512_probe,
