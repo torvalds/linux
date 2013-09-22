@@ -39,9 +39,7 @@
 #define RT_CANNOT_IO(hw)		false
 #define HIGHPOWER_RADIOA_ARRAYLEN	22
 
-#define IQK_ADDA_REG_NUM		16
 #define MAX_TOLERANCE			5
-#define	IQK_DELAY_TIME			1
 
 #define	APK_BB_REG_NUM			5
 #define	APK_AFE_REG_NUM			16

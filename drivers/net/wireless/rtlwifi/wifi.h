@@ -192,8 +192,6 @@ enum hardware_type {
 (IS_HARDWARE_TYPE_8192DE(rtlhal) || IS_HARDWARE_TYPE_8192DU(rtlhal))
 #define	IS_HARDWARE_TYPE_8723(rtlhal)			\
 (IS_HARDWARE_TYPE_8723E(rtlhal) || IS_HARDWARE_TYPE_8723U(rtlhal))
-#define IS_HARDWARE_TYPE_8723U(rtlhal)			\
-	(rtlhal->hw_type == HARDWARE_TYPE_RTL8723U)
 
 #define RX_HAL_IS_CCK_RATE(_pdesc)\
 	(_pdesc->rxmcs == DESC92_RATE1M ||		\
