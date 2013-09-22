@@ -453,13 +453,13 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 	status = efi_call_phys3(sys_table->boottime->handle_protocol,
 				handle, &proto, (void *)&image);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
+		efi_printk(sys_table, "Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
 		return NULL;
 	}
 
-	status = low_alloc(0x4000, 1, (unsigned long *)&boot_params);
+	status = low_alloc(sys_table, 0x4000, 1, (unsigned long *)&boot_params);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc lowmem for boot params\n");
+		efi_printk(sys_table, "Failed to alloc lowmem for boot params\n");
 		return NULL;
 	}
 
@@ -503,9 +503,10 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 
 			options_size++;	/* NUL termination */
 
-			status = low_alloc(options_size, 1, &cmdline);
+			status = low_alloc(sys_table, options_size, 1,
+					   &cmdline);
 			if (status != EFI_SUCCESS) {
-				efi_printk("Failed to alloc mem for cmdline\n");
+				efi_printk(sys_table, "Failed to alloc mem for cmdline\n");
 				goto fail;
 			}
 
@@ -529,16 +530,16 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 
 	memset(sdt, 0, sizeof(*sdt));
 
-	status = handle_ramdisks(image, hdr);
+	status = handle_ramdisks(sys_table, image, hdr);
 	if (status != EFI_SUCCESS)
 		goto fail2;
 
 	return boot_params;
 fail2:
 	if (options_size)
-		low_free(options_size, hdr->cmd_line_ptr);
+		low_free(sys_table, options_size, hdr->cmd_line_ptr);
 fail:
-	low_free(0x4000, (unsigned long)boot_params);
+	low_free(sys_table, 0x4000, (unsigned long)boot_params);
 	return NULL;
 }
 
@@ -561,7 +562,7 @@ static efi_status_t exit_boot(struct boot_params *boot_params,
 again:
 	size += sizeof(*mem_map) * 2;
 	_size = size;
-	status = low_alloc(size, 1, (unsigned long *)&mem_map);
+	status = low_alloc(sys_table, size, 1, (unsigned long *)&mem_map);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -569,7 +570,7 @@ get_map:
 	status = efi_call_phys5(sys_table->boottime->get_memory_map, &size,
 				mem_map, &key, &desc_size, &desc_version);
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		low_free(_size, (unsigned long)mem_map);
+		low_free(sys_table, _size, (unsigned long)mem_map);
 		goto again;
 	}
 
@@ -671,7 +672,7 @@ get_map:
 	return EFI_SUCCESS;
 
 free_mem_map:
-	low_free(_size, (unsigned long)mem_map);
+	low_free(sys_table, _size, (unsigned long)mem_map);
 	return status;
 }
 
@@ -694,10 +695,10 @@ static efi_status_t relocate_kernel(struct setup_header *hdr)
 				EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
 				nr_pages, &start);
 	if (status != EFI_SUCCESS) {
-		status = low_alloc(hdr->init_size, hdr->kernel_alignment,
-				   &start);
+		status = low_alloc(sys_table, hdr->init_size,
+				   hdr->kernel_alignment, &start);
 		if (status != EFI_SUCCESS)
-			efi_printk("Failed to alloc mem for kernel\n");
+			efi_printk(sys_table, "Failed to alloc mem for kernel\n");
 	}
 
 	if (status == EFI_SUCCESS)
@@ -737,14 +738,15 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 				EFI_LOADER_DATA, sizeof(*gdt),
 				(void **)&gdt);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc mem for gdt structure\n");
+		efi_printk(sys_table, "Failed to alloc mem for gdt structure\n");
 		goto fail;
 	}
 
 	gdt->size = 0x800;
-	status = low_alloc(gdt->size, 8, (unsigned long *)&gdt->address);
+	status = low_alloc(sys_table, gdt->size, 8,
+			   (unsigned long *)&gdt->address);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc mem for gdt\n");
+		efi_printk(sys_table, "Failed to alloc mem for gdt\n");
 		goto fail;
 	}
 
@@ -752,7 +754,7 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 				EFI_LOADER_DATA, sizeof(*idt),
 				(void **)&idt);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc mem for idt structure\n");
+		efi_printk(sys_table, "Failed to alloc mem for idt structure\n");
 		goto fail;
 	}
 
