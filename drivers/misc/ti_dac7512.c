@@ -72,6 +72,12 @@ static int dac7512_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct spi_device_id dac7512_id_table[] = {
+	{ "dac7512", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, dac7512_id_table);
+
 static struct spi_driver dac7512_driver = {
 	.driver = {
 		.name	= "dac7512",
@@ -79,6 +85,7 @@ static struct spi_driver dac7512_driver = {
 	},
 	.probe	= dac7512_probe,
 	.remove	= dac7512_remove,
+	.id_table = dac7512_id_table,
 };
 
 module_spi_driver(dac7512_driver);
