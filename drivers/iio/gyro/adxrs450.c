@@ -354,7 +354,6 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-		break;
 	case IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW:
 		ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_QUAD1, &t);
 		if (ret)

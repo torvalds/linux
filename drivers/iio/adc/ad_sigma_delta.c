@@ -368,10 +368,6 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 
 	memset(data, 0x00, 16);
 
-	/* Guaranteed to be aligned with 8 byte boundary */
-	if (indio_dev->scan_timestamp)
-		((s64 *)data)[1] = pf->timestamp;
-
 	reg_size = indio_dev->channels[0].scan_type.realbits +
 			indio_dev->channels[0].scan_type.shift;
 	reg_size = DIV_ROUND_UP(reg_size, 8);
@@ -391,7 +387,7 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 		break;
 	}
 
-	iio_push_to_buffers(indio_dev, (uint8_t *)data);
+	iio_push_to_buffers_with_timestamp(indio_dev, data, pf->timestamp);
 
 	iio_trigger_notify_done(indio_dev->trig);
 	sigma_delta->irq_dis = false;

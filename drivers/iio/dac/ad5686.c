@@ -213,7 +213,6 @@ static int ad5686_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = ret;
 		return IIO_VAL_INT;
-		break;
 	case IIO_CHAN_INFO_SCALE:
 		scale_uv = (st->vref_mv * 100000)
 			>> (chan->scan_type.realbits);
@@ -265,8 +264,9 @@ static const struct iio_chan_spec_ext_info ad5686_ext_info[] = {
 		.name = "powerdown",
 		.read = ad5686_read_dac_powerdown,
 		.write = ad5686_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", false, &ad5686_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &ad5686_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5686_powerdown_mode_enum),
 	{ },
 };

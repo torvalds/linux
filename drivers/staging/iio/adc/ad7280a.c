@@ -835,8 +835,9 @@ static int ad7280_probe(struct spi_device *spi)
 	int ret;
 	const unsigned short tACQ_ns[4] = {465, 1010, 1460, 1890};
 	const unsigned short nAVG[4] = {1, 2, 4, 8};
-	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
+	struct iio_dev *indio_dev;
 
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -860,7 +861,7 @@ static int ad7280_probe(struct spi_device *spi)
 
 	ret = ad7280_chain_setup(st);
 	if (ret < 0)
-		goto error_free_device;
+		return ret;
 
 	st->slave_num = ret;
 	st->scan_cnt = (st->slave_num + 1) * AD7280A_NUM_CH;
@@ -891,7 +892,7 @@ static int ad7280_probe(struct spi_device *spi)
 
 	ret = ad7280_channel_init(st);
 	if (ret < 0)
-		goto error_free_device;
+		return ret;
 
 	indio_dev->num_channels = ret;
 	indio_dev->channels = st->channels;
@@ -940,9 +941,6 @@ error_free_attr:
 error_free_channels:
 	kfree(st->channels);
 
-error_free_device:
-	iio_device_free(indio_dev);
-
 	return ret;
 }
 
@@ -960,7 +958,6 @@ static int ad7280_remove(struct spi_device *spi)
 
 	kfree(st->channels);
 	kfree(st->iio_attr);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

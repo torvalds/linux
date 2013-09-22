@@ -7,6 +7,7 @@
 #include <linux/mutex.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/sched.h>
+#include <linux/poll.h>
 
 struct iio_kfifo {
 	struct iio_buffer buffer;
@@ -94,7 +95,7 @@ static int iio_set_length_kfifo(struct iio_buffer *r, int length)
 }
 
 static int iio_store_to_kfifo(struct iio_buffer *r,
-			      u8 *data)
+			      const void *data)
 {
 	int ret;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
@@ -102,7 +103,7 @@ static int iio_store_to_kfifo(struct iio_buffer *r,
 	if (ret != 1)
 		return -EBUSY;
 	r->stufftoread = true;
-	wake_up_interruptible(&r->pollq);
+	wake_up_interruptible_poll(&r->pollq, POLLIN | POLLRDNORM);
 
 	return 0;
 }

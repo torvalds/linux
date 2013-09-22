@@ -550,7 +550,7 @@ prox_poll_err:
 static void tsl2x7x_defaults(struct tsl2X7X_chip *chip)
 {
 	/* If Operational settings defined elsewhere.. */
-	if (chip->pdata && chip->pdata->platform_default_settings != 0)
+	if (chip->pdata && chip->pdata->platform_default_settings)
 		memcpy(&(chip->tsl2x7x_settings),
 			chip->pdata->platform_default_settings,
 			sizeof(tsl2x7x_default_settings));
@@ -951,7 +951,6 @@ static ssize_t tsl2x7x_gain_available_show(struct device *dev,
 	case tsl2771:
 	case tmd2771:
 		return snprintf(buf, PAGE_SIZE, "%s\n", "1 8 16 128");
-	break;
 	}
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", "1 8 16 120");
@@ -1346,7 +1345,6 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 		break;
 	case IIO_CHAN_INFO_RAW:
@@ -1366,7 +1364,6 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
@@ -1419,7 +1416,6 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 				case tsl2772:
 				case tmd2772:
 					return -EINVAL;
-				break;
 				}
 				chip->tsl2x7x_settings.als_gain = 3;
 				break;
@@ -1431,7 +1427,6 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 				case tsl2771:
 				case tmd2771:
 					return -EINVAL;
-				break;
 				}
 				chip->tsl2x7x_settings.als_gain = 3;
 				break;
@@ -1508,18 +1503,15 @@ static int tsl2x7x_device_id(unsigned char *id, int target)
 	case tsl2671:
 	case tsl2771:
 		return ((*id & 0xf0) == TRITON_ID);
-	break;
 	case tmd2671:
 	case tmd2771:
 		return ((*id & 0xf0) == HALIBUT_ID);
-	break;
 	case tsl2572:
 	case tsl2672:
 	case tmd2672:
 	case tsl2772:
 	case tmd2772:
 		return ((*id & 0xf0) == SWORDFISH_ID);
-	break;
 	}
 
 	return -EINVAL;
@@ -1851,7 +1843,7 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 	struct iio_dev *indio_dev;
 	struct tsl2X7X_chip *chip;
 
-	indio_dev = iio_device_alloc(sizeof(*chip));
+	indio_dev = devm_iio_device_alloc(&clientp->dev, sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -1862,22 +1854,21 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 	ret = tsl2x7x_i2c_read(chip->client,
 		TSL2X7X_CHIPID, &device_id);
 	if (ret < 0)
-		goto fail1;
+		return ret;
 
 	if ((!tsl2x7x_device_id(&device_id, id->driver_data)) ||
 		(tsl2x7x_device_id(&device_id, id->driver_data) == -EINVAL)) {
 		dev_info(&chip->client->dev,
 				"%s: i2c device found does not match expected id\n",
 				__func__);
-		ret = -EINVAL;
-		goto fail1;
+		return -EINVAL;
 	}
 
 	ret = i2c_smbus_write_byte(clientp, (TSL2X7X_CMD_REG | TSL2X7X_CNTRL));
 	if (ret < 0) {
 		dev_err(&clientp->dev, "%s: write to cmd reg failed. err = %d\n",
 				__func__, ret);
-		goto fail1;
+		return ret;
 	}
 
 	/* ALS and PROX functions can be invoked via user space poll
@@ -1899,16 +1890,17 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 	indio_dev->num_channels = chip->chip_info->chan_table_elements;
 
 	if (clientp->irq) {
-		ret = request_threaded_irq(clientp->irq,
-					   NULL,
-					   &tsl2x7x_event_handler,
-					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					   "TSL2X7X_event",
-					   indio_dev);
+		ret = devm_request_threaded_irq(&clientp->dev, clientp->irq,
+						NULL,
+						&tsl2x7x_event_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_ONESHOT,
+						"TSL2X7X_event",
+						indio_dev);
 		if (ret) {
 			dev_err(&clientp->dev,
 				"%s: irq request failed", __func__);
-			goto fail1;
+			return ret;
 		}
 	}
 
@@ -1921,20 +1913,12 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 	if (ret) {
 		dev_err(&clientp->dev,
 			"%s: iio registration failed\n", __func__);
-		goto fail2;
+		return ret;
 	}
 
 	dev_info(&clientp->dev, "%s Light sensor found.\n", id->name);
 
 	return 0;
-
-fail2:
-	if (clientp->irq)
-		free_irq(clientp->irq, indio_dev);
-fail1:
-	iio_device_free(indio_dev);
-
-	return ret;
 }
 
 static int tsl2x7x_suspend(struct device *dev)
@@ -1980,10 +1964,6 @@ static int tsl2x7x_remove(struct i2c_client *client)
 	tsl2x7x_chip_off(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (client->irq)
-		free_irq(client->irq, indio_dev);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

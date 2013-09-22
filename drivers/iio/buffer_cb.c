@@ -7,12 +7,12 @@
 
 struct iio_cb_buffer {
 	struct iio_buffer buffer;
-	int (*cb)(u8 *data, void *private);
+	int (*cb)(const void *data, void *private);
 	void *private;
 	struct iio_channel *channels;
 };
 
-static int iio_buffer_cb_store_to(struct iio_buffer *buffer, u8 *data)
+static int iio_buffer_cb_store_to(struct iio_buffer *buffer, const void *data)
 {
 	struct iio_cb_buffer *cb_buff = container_of(buffer,
 						     struct iio_cb_buffer,
@@ -21,12 +21,12 @@ static int iio_buffer_cb_store_to(struct iio_buffer *buffer, u8 *data)
 	return cb_buff->cb(data, cb_buff->private);
 }
 
-static struct iio_buffer_access_funcs iio_cb_access = {
+static const struct iio_buffer_access_funcs iio_cb_access = {
 	.store_to = &iio_buffer_cb_store_to,
 };
 
 struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
-					     int (*cb)(u8 *data,
+					     int (*cb)(const void *data,
 						       void *private),
 					     void *private)
 {

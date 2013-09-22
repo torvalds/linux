@@ -386,6 +386,7 @@ static const struct iio_chan_spec_ext_info ad5755_ext_info[] = {
 		.name = "powerdown",
 		.read = ad5755_read_powerdown,
 		.write = ad5755_write_powerdown,
+		.shared = IIO_SEPARATE,
 	},
 	{ },
 };

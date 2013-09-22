@@ -36,7 +36,7 @@ struct iio_buffer;
  * any of them not existing.
  **/
 struct iio_buffer_access_funcs {
-	int (*store_to)(struct iio_buffer *buffer, u8 *data);
+	int (*store_to)(struct iio_buffer *buffer, const void *data);
 	int (*read_first_n)(struct iio_buffer *buffer,
 			    size_t n,
 			    char __user *buf);
@@ -81,7 +81,7 @@ struct iio_buffer {
 	bool					stufftoread;
 	const struct attribute_group *attrs;
 	struct list_head			demux_list;
-	unsigned char				*demux_bounce;
+	void					*demux_bounce;
 	struct list_head			buffer_list;
 };
 
@@ -120,7 +120,32 @@ int iio_scan_mask_set(struct iio_dev *indio_dev,
  * @indio_dev:		iio_dev structure for device.
  * @data:		Full scan.
  */
-int iio_push_to_buffers(struct iio_dev *indio_dev, unsigned char *data);
+int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data);
+
+/*
+ * iio_push_to_buffers_with_timestamp() - push data and timestamp to buffers
+ * @indio_dev:		iio_dev structure for device.
+ * @data:		sample data
+ * @timestamp:		timestamp for the sample data
+ *
+ * Pushes data to the IIO device's buffers. If timestamps are enabled for the
+ * device the function will store the supplied timestamp as the last element in
+ * the sample data buffer before pushing it to the device buffers. The sample
+ * data buffer needs to be large enough to hold the additional timestamp
+ * (usually the buffer should be indio->scan_bytes bytes large).
+ *
+ * Returns 0 on success, a negative error code otherwise.
+ */
+static inline int iio_push_to_buffers_with_timestamp(struct iio_dev *indio_dev,
+	void *data, int64_t timestamp)
+{
+	if (indio_dev->scan_timestamp) {
+		size_t ts_offset = indio_dev->scan_bytes / sizeof(int64_t) - 1;
+		((int64_t *)data)[ts_offset] = timestamp;
+	}
+
+	return iio_push_to_buffers(indio_dev, data);
+}
 
 int iio_update_demux(struct iio_dev *indio_dev);
 

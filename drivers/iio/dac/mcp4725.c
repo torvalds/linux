@@ -195,8 +195,9 @@ static const struct iio_chan_spec_ext_info mcp4725_ext_info[] = {
 		.name = "powerdown",
 		.read = mcp4725_read_powerdown,
 		.write = mcp4725_write_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", false, &mcp4725_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &mcp4725_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &mcp4725_powerdown_mode_enum),
 	{ },
 };

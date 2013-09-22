@@ -36,6 +36,14 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_PHASE,
 	IIO_CHAN_INFO_HARDWAREGAIN,
 	IIO_CHAN_INFO_HYSTERESIS,
+	IIO_CHAN_INFO_INT_TIME,
+};
+
+enum iio_shared_by {
+	IIO_SEPARATE,
+	IIO_SHARED_BY_TYPE,
+	IIO_SHARED_BY_DIR,
+	IIO_SHARED_BY_ALL
 };
 
 enum iio_endian {
@@ -57,7 +65,7 @@ struct iio_dev;
  */
 struct iio_chan_spec_ext_info {
 	const char *name;
-	bool shared;
+	enum iio_shared_by shared;
 	ssize_t (*read)(struct iio_dev *, uintptr_t private,
 			struct iio_chan_spec const *, char *buf);
 	ssize_t (*write)(struct iio_dev *, uintptr_t private,
@@ -125,7 +133,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 #define IIO_ENUM_AVAILABLE(_name, _e) \
 { \
 	.name = (_name "_available"), \
-	.shared = true, \
+	.shared = IIO_SHARED_BY_TYPE, \
 	.read = iio_enum_available_read, \
 	.private = (uintptr_t)(_e), \
 }
@@ -146,12 +154,14 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  *			shift:		Shift right by this before masking out
  *					realbits.
  *			endianness:	little or big endian
- * @info_mask:		What information is to be exported about this channel.
- *			This includes calibbias, scale etc.
  * @info_mask_separate: What information is to be exported that is specific to
  *			this channel.
  * @info_mask_shared_by_type: What information is to be exported that is shared
-*			by all channels of the same type.
+ *			by all channels of the same type.
+ * @info_mask_shared_by_dir: What information is to be exported that is shared
+ *			by all channels of the same direction.
+ * @info_mask_shared_by_all: What information is to be exported that is shared
+ *			by all channels.
  * @event_mask:		What events can this channel produce.
  * @ext_info:		Array of extended info attributes for this channel.
  *			The array is NULL terminated, the last element should
@@ -186,9 +196,10 @@ struct iio_chan_spec {
 		u8	shift;
 		enum iio_endian endianness;
 	} scan_type;
-	long			info_mask;
 	long			info_mask_separate;
 	long			info_mask_shared_by_type;
+	long			info_mask_shared_by_dir;
+	long			info_mask_shared_by_all;
 	long			event_mask;
 	const struct iio_chan_spec_ext_info *ext_info;
 	const char		*extend_name;
@@ -212,7 +223,9 @@ static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
 	enum iio_chan_info_enum type)
 {
 	return (chan->info_mask_separate & BIT(type)) |
-	       (chan->info_mask_shared_by_type & BIT(type));
+		(chan->info_mask_shared_by_type & BIT(type)) |
+		(chan->info_mask_shared_by_dir & BIT(type)) |
+		(chan->info_mask_shared_by_all & BIT(type));
 }
 
 #define IIO_ST(si, rb, sb, sh)						\
@@ -457,7 +470,7 @@ static inline void iio_device_put(struct iio_dev *indio_dev)
 {
 	if (indio_dev)
 		put_device(&indio_dev->dev);
-};
+}
 
 /**
  * dev_to_iio_dev() - Get IIO device struct from a device struct
@@ -593,7 +606,7 @@ static inline bool iio_buffer_enabled(struct iio_dev *indio_dev)
 {
 	return indio_dev->currentmode
 		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE);
-};
+}
 
 /**
  * iio_get_debugfs_dentry() - helper function to get the debugfs_dentry
@@ -603,12 +616,12 @@ static inline bool iio_buffer_enabled(struct iio_dev *indio_dev)
 static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 {
 	return indio_dev->debugfs_dentry;
-};
+}
 #else
 static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 {
 	return NULL;
-};
+}
 #endif
 
 int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,

@@ -287,11 +287,12 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 static const struct iio_chan_spec_ext_info ad5791_ext_info[] = {
 	{
 		.name = "powerdown",
-		.shared = true,
+		.shared = IIO_SHARED_BY_TYPE,
 		.read = ad5791_read_dac_powerdown,
 		.write = ad5791_write_dac_powerdown,
 	},
-	IIO_ENUM("powerdown_mode", true, &ad5791_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE,
+		 &ad5791_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5791_powerdown_mode_enum),
 	{ },
 };

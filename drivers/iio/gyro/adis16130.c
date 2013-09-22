@@ -103,7 +103,6 @@ static int adis16130_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-		break;
 	case IIO_CHAN_INFO_OFFSET:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
@@ -115,7 +114,6 @@ static int adis16130_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-		break;
 	}
 
 	return -EINVAL;

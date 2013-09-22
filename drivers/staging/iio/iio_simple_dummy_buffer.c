@@ -82,11 +82,8 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 			len += 2;
 		}
 	}
-	/* Store the timestamp at an 8 byte aligned offset */
-	if (indio_dev->scan_timestamp)
-		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
-			= iio_get_time_ns();
-	iio_push_to_buffers(indio_dev, (u8 *)data);
+
+	iio_push_to_buffers_with_timestamp(indio_dev, data, iio_get_time_ns());
 
 	kfree(data);
 

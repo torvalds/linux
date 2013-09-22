@@ -625,13 +625,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 		j++;
 	}
 
-	if (iio->scan_timestamp) {
-		s64 *timestamp = (s64 *)((u8 *)lradc->buffer +
-					ALIGN(j, sizeof(s64)));
-		*timestamp = pf->timestamp;
-	}
-
-	iio_push_to_buffers(iio, (u8 *)lradc->buffer);
+	iio_push_to_buffers_with_timestamp(iio, lradc->buffer, pf->timestamp);
 
 	iio_trigger_notify_done(iio->trig);
 
@@ -987,7 +981,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	/* Register the touchscreen input device. */
 	ret = mxs_lradc_ts_register(lradc);
 	if (ret)
-		goto err_dev;
+		goto err_ts_register;
 
 	/* Register IIO device. */
 	ret = iio_device_register(iio);
@@ -1000,6 +994,8 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 
 err_ts:
 	mxs_lradc_ts_unregister(lradc);
+err_ts_register:
+	mxs_lradc_hw_stop(lradc);
 err_dev:
 	mxs_lradc_trigger_remove(iio);
 err_trig:
@@ -1012,13 +1008,11 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 	struct iio_dev *iio = platform_get_drvdata(pdev);
 	struct mxs_lradc *lradc = iio_priv(iio);
 
-	mxs_lradc_ts_unregister(lradc);
-
-	mxs_lradc_hw_stop(lradc);
-
 	iio_device_unregister(iio);
-	iio_triggered_buffer_cleanup(iio);
+	mxs_lradc_ts_unregister(lradc);
+	mxs_lradc_hw_stop(lradc);
 	mxs_lradc_trigger_remove(iio);
+	iio_triggered_buffer_cleanup(iio);
 
 	return 0;
 }
@@ -1038,3 +1032,4 @@ module_platform_driver(mxs_lradc_driver);
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
 MODULE_DESCRIPTION("Freescale i.MX28 LRADC driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:" DRIVER_NAME);

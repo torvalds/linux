@@ -132,8 +132,9 @@ static const struct iio_chan_spec_ext_info ad5446_ext_info_powerdown[] = {
 		.name = "powerdown",
 		.read = ad5446_read_dac_powerdown,
 		.write = ad5446_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", false, &ad5446_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &ad5446_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5446_powerdown_mode_enum),
 	{ },
 };
