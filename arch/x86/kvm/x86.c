@@ -4789,8 +4789,8 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 
 static void init_decode_cache(struct x86_emulate_ctxt *ctxt)
 {
-	memset(&ctxt->twobyte, 0,
-	       (void *)&ctxt->_regs - (void *)&ctxt->twobyte);
+	memset(&ctxt->opcode_len, 0,
+	       (void *)&ctxt->_regs - (void *)&ctxt->opcode_len);
 
 	ctxt->fetch.start = 0;
 	ctxt->fetch.end = 0;

@@ -279,8 +279,12 @@ struct x86_emulate_ctxt {
 	bool have_exception;
 	struct x86_exception exception;
 
-	/* decode cache */
-	u8 twobyte;
+	/*
+	 * decode cache
+	 */
+
+	/* current opcode length in bytes */
+	u8 opcode_len;
 	u8 b;
 	u8 intercept;
 	u8 lock_prefix;
