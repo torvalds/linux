@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/spi/spi.h>
+#include <linux/of.h>
 
 static ssize_t dac7512_store_val(struct device *dev,
 				 struct device_attribute *attr,
@@ -78,10 +79,19 @@ static const struct spi_device_id dac7512_id_table[] = {
 };
 MODULE_DEVICE_TABLE(spi, dac7512_id_table);
 
+#ifdef CONFIG_OF
+static const struct of_device_id dac7512_of_match[] = {
+	{ .compatible = "ti,dac7512", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, dac7512_of_match);
+#endif
+
 static struct spi_driver dac7512_driver = {
 	.driver = {
 		.name	= "dac7512",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(dac7512_of_match),
 	},
 	.probe	= dac7512_probe,
 	.remove	= dac7512_remove,
