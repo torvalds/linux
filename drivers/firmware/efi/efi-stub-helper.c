@@ -49,7 +49,9 @@ static void efi_printk(efi_system_table_t *sys_table_arg, char *str)
 static efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
 				       efi_memory_desc_t **map,
 				       unsigned long *map_size,
-				       unsigned long *desc_size)
+				       unsigned long *desc_size,
+				       u32 *desc_ver,
+				       unsigned long *key_ptr)
 {
 	efi_memory_desc_t *m = NULL;
 	efi_status_t status;
@@ -77,6 +79,10 @@ again:
 
 	if (status != EFI_SUCCESS)
 		efi_call_phys1(sys_table_arg->boottime->free_pool, m);
+	if (key_ptr && status == EFI_SUCCESS)
+		*key_ptr = key;
+	if (desc_ver && status == EFI_SUCCESS)
+		*desc_ver = desc_version;
 
 fail:
 	*map = m;
@@ -97,7 +103,8 @@ static efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
 	u64 max_addr = 0;
 	int i;
 
-	status = efi_get_memory_map(sys_table_arg, &map, &map_size, &desc_size);
+	status = efi_get_memory_map(sys_table_arg, &map, &map_size, &desc_size,
+				    NULL, NULL);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
@@ -183,7 +190,8 @@ static efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 	unsigned long nr_pages;
 	int i;
 
-	status = efi_get_memory_map(sys_table_arg, &map, &map_size, &desc_size);
+	status = efi_get_memory_map(sys_table_arg, &map, &map_size, &desc_size,
+				    NULL, NULL);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
