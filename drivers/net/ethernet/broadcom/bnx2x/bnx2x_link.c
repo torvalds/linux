@@ -175,6 +175,7 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 #define EDC_MODE_LINEAR				0x0022
 #define EDC_MODE_LIMITING				0x0044
 #define EDC_MODE_PASSIVE_DAC			0x0055
+#define EDC_MODE_ACTIVE_DAC			0x0066
 
 /* ETS defines*/
 #define DCBX_INVALID_COS					(0xFF)
@@ -8110,7 +8111,10 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		if (copper_module_type &
 		    SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_ACTIVE) {
 			DP(NETIF_MSG_LINK, "Active Copper cable detected\n");
-			check_limiting_mode = 1;
+			if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT)
+				*edc_mode = EDC_MODE_ACTIVE_DAC;
+			else
+				check_limiting_mode = 1;
 		} else if (copper_module_type &
 			SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE) {
 				DP(NETIF_MSG_LINK,
@@ -8585,6 +8589,7 @@ static void bnx2x_warpcore_set_limiting_mode(struct link_params *params,
 		mode = MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_DEFAULT;
 		break;
 	case EDC_MODE_PASSIVE_DAC:
+	case EDC_MODE_ACTIVE_DAC:
 		mode = MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_SFP_DAC;
 		break;
 	default:
