@@ -323,7 +323,6 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
 	int i, map_val;
 	unsigned int fifo1count, read, stepid;
-	u32 step = UINT_MAX;
 	bool found = false;
 	u32 step_en;
 	unsigned long timeout = jiffies + usecs_to_jiffies
@@ -352,15 +351,6 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 	 * leading to 3 unwanted data.
 	 * Hence we need to flush out this data.
 	 */
-
-	for (i = 0; i < ARRAY_SIZE(adc_dev->channel_step); i++) {
-		if (chan->channel == adc_dev->channel_line[i]) {
-			step = adc_dev->channel_step[i];
-			break;
-		}
-	}
-	if (WARN_ON_ONCE(step == UINT_MAX))
-		return -EINVAL;
 
 	fifo1count = tiadc_readl(adc_dev, REG_FIFO1CNT);
 	for (i = 0; i < fifo1count; i++) {
