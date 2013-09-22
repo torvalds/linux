@@ -842,6 +842,8 @@ err_unregister:
 	for (j = 0; j < i; j++)
 		crypto_unregister_alg(&algs[j]);
 err_free_key_iv:
+	tasklet_kill(&dev->done_task);
+	tasklet_kill(&dev->queue_task);
 	dma_free_coherent(&pdev->dev, 2 * AES_KEYSIZE_128, dev->payload_base,
 			dev->payload_base_dma);
 err_free_hw_packet:
@@ -858,20 +860,20 @@ static int dcp_remove(struct platform_device *pdev)
 	int j;
 	dev = platform_get_drvdata(pdev);
 
-	dma_free_coherent(&pdev->dev,
-			DCP_MAX_PKG * sizeof(struct dcp_hw_packet),
-			dev->hw_pkg[0],	dev->hw_phys_pkg);
-
-	dma_free_coherent(&pdev->dev, 2 * AES_KEYSIZE_128, dev->payload_base,
-			dev->payload_base_dma);
-
-	tasklet_kill(&dev->done_task);
-	tasklet_kill(&dev->queue_task);
+	misc_deregister(&dev->dcp_bootstream_misc);
 
 	for (j = 0; j < ARRAY_SIZE(algs); j++)
 		crypto_unregister_alg(&algs[j]);
 
-	misc_deregister(&dev->dcp_bootstream_misc);
+	tasklet_kill(&dev->done_task);
+	tasklet_kill(&dev->queue_task);
+
+	dma_free_coherent(&pdev->dev, 2 * AES_KEYSIZE_128, dev->payload_base,
+			dev->payload_base_dma);
+
+	dma_free_coherent(&pdev->dev,
+			DCP_MAX_PKG * sizeof(struct dcp_hw_packet),
+			dev->hw_pkg[0],	dev->hw_phys_pkg);
 
 	return 0;
 }
