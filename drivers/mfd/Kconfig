@@ -1151,6 +1151,16 @@ config MFD_WM8994
 	  core support for the WM8994, in order to use the actual
 	  functionaltiy of the device other drivers must be enabled.
 
+config MFD_STW481X
+	bool "Support for ST Microelectronics STw481x"
+	depends on I2C && ARCH_NOMADIK
+	select REGMAP_I2C
+	select MFD_CORE
+	help
+	  Select this option to enable the STw481x chip driver used
+	  in various ST Microelectronics and ST-Ericsson embedded
+	  Nomadik series.
+
 endmenu
 endif
 
