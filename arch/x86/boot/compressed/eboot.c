@@ -435,11 +435,10 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 	struct efi_info *efi;
 	efi_loaded_image_t *image;
 	void *options;
-	u32 load_options_size;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
 	efi_status_t status;
-	unsigned long cmdline;
+	char *cmdline_ptr;
 	u16 *s2;
 	u8 *s1;
 	int i;
@@ -487,41 +486,11 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 	hdr->type_of_loader = 0x21;
 
 	/* Convert unicode cmdline to ascii */
-	options = image->load_options;
-	load_options_size = image->load_options_size / 2; /* ASCII */
-	cmdline = 0;
-	s2 = (u16 *)options;
-
-	if (s2) {
-		while (*s2 && *s2 != '\n' && options_size < load_options_size) {
-			s2++;
-			options_size++;
-		}
-
-		if (options_size) {
-			if (options_size > hdr->cmdline_size)
-				options_size = hdr->cmdline_size;
-
-			options_size++;	/* NUL termination */
-
-			status = efi_low_alloc(sys_table, options_size, 1,
-					   &cmdline);
-			if (status != EFI_SUCCESS) {
-				efi_printk(sys_table, "Failed to alloc mem for cmdline\n");
-				goto fail;
-			}
-
-			s1 = (u8 *)(unsigned long)cmdline;
-			s2 = (u16 *)options;
-
-			for (i = 0; i < options_size - 1; i++)
-				*s1++ = *s2++;
-
-			*s1 = '\0';
-		}
-	}
-
-	hdr->cmd_line_ptr = cmdline;
+	cmdline_ptr = efi_convert_cmdline_to_ascii(sys_table, image,
+						   &options_size);
+	if (!cmdline_ptr)
+		goto fail;
+	hdr->cmd_line_ptr = (unsigned long)cmdline_ptr;
 
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
