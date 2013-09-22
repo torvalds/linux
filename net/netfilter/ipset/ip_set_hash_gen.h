@@ -701,6 +701,8 @@ reuse_slot:
 		ip_set_timeout_set(ext_timeout(data, set), ext->timeout);
 	if (SET_WITH_COUNTER(set))
 		ip_set_init_counter(ext_counter(data, set), ext);
+	if (SET_WITH_COMMENT(set))
+		ip_set_init_comment(ext_comment(data, set), ext);
 
 out:
 	rcu_read_unlock_bh();
@@ -908,12 +910,9 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 		goto nla_put_failure;
 #endif
 	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1)) ||
-	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
-	    ((set->extensions & IPSET_EXT_TIMEOUT) &&
-	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(set->timeout))) ||
-	    ((set->extensions & IPSET_EXT_COUNTER) &&
-	     nla_put_net32(skb, IPSET_ATTR_CADT_FLAGS,
-			   htonl(IPSET_FLAG_WITH_COUNTERS))))
+	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)))
+		goto nla_put_failure;
+	if (unlikely(ip_set_put_flags(skb, set)))
 		goto nla_put_failure;
 	ipset_nest_end(skb, nested);
 
@@ -969,6 +968,9 @@ mtype_list(const struct ip_set *set,
 				goto nla_put_failure;
 			if (SET_WITH_COUNTER(set) &&
 			    ip_set_put_counter(skb, ext_counter(e, set)))
+				goto nla_put_failure;
+			if (SET_WITH_COMMENT(set) &&
+			    ip_set_put_comment(skb, ext_comment(e, set)))
 				goto nla_put_failure;
 			ipset_nest_end(skb, nested);
 		}
