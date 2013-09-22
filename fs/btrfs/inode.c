@@ -4688,11 +4688,11 @@ static void inode_tree_add(struct inode *inode)
 	struct btrfs_inode *entry;
 	struct rb_node **p;
 	struct rb_node *parent;
+	struct rb_node *new = &BTRFS_I(inode)->rb_node;
 	u64 ino = btrfs_ino(inode);
 
 	if (inode_unhashed(inode))
 		return;
-again:
 	parent = NULL;
 	spin_lock(&root->inode_lock);
 	p = &root->inode_tree.rb_node;
@@ -4707,14 +4707,14 @@ again:
 		else {
 			WARN_ON(!(entry->vfs_inode.i_state &
 				  (I_WILL_FREE | I_FREEING)));
-			rb_erase(parent, &root->inode_tree);
+			rb_replace_node(parent, new, &root->inode_tree);
 			RB_CLEAR_NODE(parent);
 			spin_unlock(&root->inode_lock);
-			goto again;
+			return;
 		}
 	}
-	rb_link_node(&BTRFS_I(inode)->rb_node, parent, p);
-	rb_insert_color(&BTRFS_I(inode)->rb_node, &root->inode_tree);
+	rb_link_node(new, parent, p);
+	rb_insert_color(new, &root->inode_tree);
 	spin_unlock(&root->inode_lock);
 }
 
@@ -8216,6 +8216,10 @@ static int __start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 
 		work = btrfs_alloc_delalloc_work(inode, 0, delay_iput);
 		if (unlikely(!work)) {
+			if (delay_iput)
+				btrfs_add_delayed_iput(inode);
+			else
+				iput(inode);
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -8613,11 +8617,13 @@ static const struct inode_operations btrfs_dir_inode_operations = {
 	.removexattr	= btrfs_removexattr,
 	.permission	= btrfs_permission,
 	.get_acl	= btrfs_get_acl,
+	.update_time	= btrfs_update_time,
 };
 static const struct inode_operations btrfs_dir_ro_inode_operations = {
 	.lookup		= btrfs_lookup,
 	.permission	= btrfs_permission,
 	.get_acl	= btrfs_get_acl,
+	.update_time	= btrfs_update_time,
 };
 
 static const struct file_operations btrfs_dir_file_operations = {
