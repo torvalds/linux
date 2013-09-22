@@ -757,7 +757,8 @@ static int dcp_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 	dev->dcp_vmi_irq = r->start;
-	ret = request_irq(dev->dcp_vmi_irq, dcp_vmi_irq, 0, "dcp", dev);
+	ret = devm_request_irq(&pdev->dev, dev->dcp_vmi_irq, dcp_vmi_irq, 0,
+			       "dcp", dev);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "can't request_irq (0)\n");
 		return -EIO;
@@ -766,15 +767,14 @@ static int dcp_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
 	if (!r) {
 		dev_err(&pdev->dev, "can't get IRQ resource (1)\n");
-		ret = -EIO;
-		goto err_free_irq0;
+		return -EIO;
 	}
 	dev->dcp_irq = r->start;
-	ret = request_irq(dev->dcp_irq, dcp_irq, 0, "dcp", dev);
+	ret = devm_request_irq(&pdev->dev, dev->dcp_irq, dcp_irq, 0, "dcp",
+			       dev);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "can't request_irq (1)\n");
-		ret = -EIO;
-		goto err_free_irq0;
+		return -EIO;
 	}
 
 	dev->hw_pkg[0] = dma_alloc_coherent(&pdev->dev,
@@ -783,8 +783,7 @@ static int dcp_probe(struct platform_device *pdev)
 			GFP_KERNEL);
 	if (!dev->hw_pkg[0]) {
 		dev_err(&pdev->dev, "Could not allocate hw descriptors\n");
-		ret = -ENOMEM;
-		goto err_free_irq1;
+		return -ENOMEM;
 	}
 
 	for (i = 1; i < DCP_MAX_PKG; i++) {
@@ -849,10 +848,6 @@ err_free_hw_packet:
 	dma_free_coherent(&pdev->dev, DCP_MAX_PKG *
 		sizeof(struct dcp_hw_packet), dev->hw_pkg[0],
 		dev->hw_phys_pkg);
-err_free_irq1:
-	free_irq(dev->dcp_irq, dev);
-err_free_irq0:
-	free_irq(dev->dcp_vmi_irq, dev);
 
 	return ret;
 }
@@ -869,9 +864,6 @@ static int dcp_remove(struct platform_device *pdev)
 
 	dma_free_coherent(&pdev->dev, 2 * AES_KEYSIZE_128, dev->payload_base,
 			dev->payload_base_dma);
-
-	free_irq(dev->dcp_irq, dev);
-	free_irq(dev->dcp_vmi_irq, dev);
 
 	tasklet_kill(&dev->done_task);
 	tasklet_kill(&dev->queue_task);
