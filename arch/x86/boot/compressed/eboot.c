@@ -442,6 +442,8 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 	u16 *s2;
 	u8 *s1;
 	int i;
+	unsigned long ramdisk_addr;
+	unsigned long ramdisk_size;
 
 	sys_table = _table;
 
@@ -500,9 +502,14 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 
 	memset(sdt, 0, sizeof(*sdt));
 
-	status = handle_ramdisks(sys_table, image, hdr);
+	status = handle_cmdline_files(sys_table, image,
+				      (char *)(unsigned long)hdr->cmd_line_ptr,
+				      "initrd=", hdr->initrd_addr_max,
+				      &ramdisk_addr, &ramdisk_size);
 	if (status != EFI_SUCCESS)
 		goto fail2;
+	hdr->ramdisk_image = ramdisk_addr;
+	hdr->ramdisk_size = ramdisk_size;
 
 	return boot_params;
 fail2:
