@@ -40,7 +40,7 @@
 #define IOASIC_FLOPPY	(11*IOASIC_SLOT_SIZE)	/* FDC (maxine) */
 #define IOASIC_SCSI	(12*IOASIC_SLOT_SIZE)	/* ASC SCSI */
 #define IOASIC_FDC_DMA	(13*IOASIC_SLOT_SIZE)	/* FDC DMA (maxine) */
-#define IOASIC_SCSI_DMA (14*IOASIC_SLOT_SIZE)	/* ??? */
+#define IOASIC_SCSI_DMA	(14*IOASIC_SLOT_SIZE)	/* ??? */
 #define IOASIC_RES_15	(15*IOASIC_SLOT_SIZE)	/* unused? */
 
 
