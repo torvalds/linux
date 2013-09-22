@@ -1045,12 +1045,41 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int cppi41_suspend(struct device *dev)
+{
+	struct cppi41_dd *cdd = dev_get_drvdata(dev);
+
+	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
+	disable_sched(cdd);
+
+	return 0;
+}
+
+static int cppi41_resume(struct device *dev)
+{
+	struct cppi41_dd *cdd = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < DESCS_AREAS; i++)
+		cppi_writel(cdd->descs_phys, cdd->qmgr_mem + QMGR_MEMBASE(i));
+
+	init_sched(cdd);
+	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(cppi41_pm_ops, cppi41_suspend, cppi41_resume);
+
 static struct platform_driver cpp41_dma_driver = {
 	.probe  = cppi41_dma_probe,
 	.remove = cppi41_dma_remove,
 	.driver = {
 		.name = "cppi41-dma-engine",
 		.owner = THIS_MODULE,
+		.pm = &cppi41_pm_ops,
 		.of_match_table = of_match_ptr(cppi41_dma_ids),
 	},
 };
