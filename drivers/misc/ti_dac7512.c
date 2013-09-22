@@ -24,7 +24,6 @@
 #include <linux/spi/spi.h>
 
 #define DAC7512_DRV_NAME	"dac7512"
-#define DRIVER_VERSION		"1.0"
 
 static ssize_t dac7512_store_val(struct device *dev,
 				 struct device_attribute *attr,
@@ -89,4 +88,3 @@ module_spi_driver(dac7512_driver);
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("DAC7512 16-bit DAC");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRIVER_VERSION);
