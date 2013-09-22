@@ -72,6 +72,7 @@ struct rk29_i2s_info {
 	spinlock_t spinlock_wr;//write read reg spin_lock
 };
 
+static struct snd_soc_dai *rk_cpu_dai=NULL;
 static struct rk29_dma_client rk29_dma_client_out = {
 	.name = "I2S PCM Stereo Out"
 };
@@ -138,6 +139,7 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 			xfer &= ~I2S_RX_TRAN_START;		
 			writel(xfer, &(pheadi2s->I2S_XFER));	
 			clr |= I2S_TX_CLEAR;
+			clr |= I2S_RX_CLEAR;
 			writel(clr, &(pheadi2s->I2S_CLR));
 			spin_unlock(&i2s->spinlock_wr);
 			udelay(1);
@@ -193,6 +195,7 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 			xfer &= ~I2S_TX_TRAN_START;		
 			writel(xfer, &(pheadi2s->I2S_XFER));		
 			clr |= I2S_RX_CLEAR;
+			clr |= I2S_TX_CLEAR;
 			writel(clr, &(pheadi2s->I2S_CLR));
 			spin_unlock(&i2s->spinlock_wr);
 			udelay(1);
@@ -479,6 +482,8 @@ static int i2s_set_gpio_mode(struct snd_soc_dai *dai)
 static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 {	
 	I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
+    if(rk_cpu_dai == NULL)
+        rk_cpu_dai = dai;
     switch(dai->id) {
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         case 1:
@@ -544,14 +549,14 @@ int rockchip_i2s_suspend(struct snd_soc_dai *cpu_dai)
 {
 	I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 //	clk_disable(clk);
-	return i2s_set_gpio_mode(cpu_dai);
+	return 0;
 }
 
 int rockchip_i2s_resume(struct snd_soc_dai *cpu_dai)
 {
 	I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 //	clk_enable(clk);
-	return rockchip_i2s_dai_probe(cpu_dai);
+	return 0;
 }
 #else
 #define rockchip_i2s_suspend NULL
@@ -775,6 +780,27 @@ err:
 	return ret;
 }
 
+static int rockchip_i2s_suspend_noirq(struct device *dev)
+{
+    struct snd_soc_dai *dai = rk_cpu_dai;
+    I2S_DBG("Enter %s, %d\n", __func__, __LINE__);
+
+	return i2s_set_gpio_mode(dai);
+}
+
+static int rockchip_i2s_resume_noirq(struct device *dev)
+{
+    struct snd_soc_dai *dai = rk_cpu_dai;
+    I2S_DBG("Enter %s, %d\n", __func__, __LINE__);
+
+	return rockchip_i2s_dai_probe(dai);
+}
+
+static const struct dev_pm_ops rockchip_i2s_pm_ops = {
+	.suspend_noirq = rockchip_i2s_suspend_noirq,
+	.resume_noirq = rockchip_i2s_resume_noirq,
+};
+
 static int __devexit rockchip_i2s_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_dai(&pdev->dev);
@@ -787,6 +813,7 @@ static struct platform_driver rockchip_i2s_driver = {
 	.driver = {
 		.name   = "rk29_i2s",
 		.owner  = THIS_MODULE,
+		.pm	= &rockchip_i2s_pm_ops,
 	},
 };
 
