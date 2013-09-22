@@ -506,8 +506,7 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 
 	return boot_params;
 fail2:
-	if (options_size)
-		efi_free(sys_table, options_size, hdr->cmd_line_ptr);
+	efi_free(sys_table, options_size, hdr->cmd_line_ptr);
 fail:
 	efi_free(sys_table, 0x4000, (unsigned long)boot_params);
 	return NULL;
