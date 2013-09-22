@@ -122,6 +122,7 @@ struct tpm_chip {
 	struct device *dev;	/* Device stuff */
 
 	int dev_num;		/* /dev/tpm# */
+	char devname[7];
 	unsigned long is_open;	/* only one allowed */
 	int time_expired;
 

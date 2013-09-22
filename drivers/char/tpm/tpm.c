@@ -1463,7 +1463,6 @@ void tpm_dev_vendor_release(struct tpm_chip *chip)
 		chip->vendor.release(chip->dev);
 
 	clear_bit(chip->dev_num, dev_mask);
-	kfree(chip->vendor.miscdev.name);
 }
 EXPORT_SYMBOL_GPL(tpm_dev_vendor_release);
 
@@ -1496,17 +1495,13 @@ EXPORT_SYMBOL_GPL(tpm_dev_release);
 struct tpm_chip *tpm_register_hardware(struct device *dev,
 					const struct tpm_vendor_specific *entry)
 {
-#define DEVNAME_SIZE 7
-
-	char *devname;
 	struct tpm_chip *chip;
 
 	/* Driver specific per-device data */
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
 
-	if (chip == NULL || devname == NULL)
-		goto out_free;
+	if (chip == NULL)
+		return NULL;
 
 	mutex_init(&chip->buffer_mutex);
 	mutex_init(&chip->tpm_mutex);
@@ -1531,8 +1526,9 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 
 	set_bit(chip->dev_num, dev_mask);
 
-	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
-	chip->vendor.miscdev.name = devname;
+	scnprintf(chip->devname, sizeof(chip->devname), "%s%d", "tpm",
+		  chip->dev_num);
+	chip->vendor.miscdev.name = chip->devname;
 
 	chip->vendor.miscdev.parent = dev;
 	chip->dev = get_device(dev);
@@ -1558,7 +1554,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 		goto put_device;
 	}
 
-	chip->bios_dir = tpm_bios_log_setup(devname);
+	chip->bios_dir = tpm_bios_log_setup(chip->devname);
 
 	/* Make chip available */
 	spin_lock(&driver_lock);
@@ -1571,7 +1567,6 @@ put_device:
 	put_device(chip->dev);
 out_free:
 	kfree(chip);
-	kfree(devname);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(tpm_register_hardware);
