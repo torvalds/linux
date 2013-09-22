@@ -444,6 +444,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	INIT_LIST_HEAD(&s->s_waiting);
 	INIT_LIST_HEAD(&s->s_unsafe);
 	s->s_num_cap_releases = 0;
+	s->s_cap_reconnect = 0;
 	s->s_cap_iterator = NULL;
 	INIT_LIST_HEAD(&s->s_cap_releases);
 	INIT_LIST_HEAD(&s->s_cap_releases_done);
@@ -1415,7 +1416,6 @@ static void discard_cap_releases(struct ceph_mds_client *mdsc,
 	unsigned num;
 
 	dout("discard_cap_releases mds%d\n", session->s_mds);
-	spin_lock(&session->s_cap_lock);
 
 	/* zero out the in-progress message */
 	msg = list_first_entry(&session->s_cap_releases,
@@ -1442,8 +1442,6 @@ static void discard_cap_releases(struct ceph_mds_client *mdsc,
 		msg->front.iov_len = sizeof(*head);
 		list_add(&msg->list_head, &session->s_cap_releases);
 	}
-
-	spin_unlock(&session->s_cap_lock);
 }
 
 /*
@@ -2488,6 +2486,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	cap->seq = 0;        /* reset cap seq */
 	cap->issue_seq = 0;  /* and issue_seq */
 	cap->mseq = 0;       /* and migrate_seq */
+	cap->cap_gen = cap->session->s_cap_gen;
 
 	if (recon_state->flock) {
 		rec.v2.cap_id = cpu_to_le64(cap->cap_id);
@@ -2611,8 +2610,20 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	dout("session %p state %s\n", session,
 	     session_state_name(session->s_state));
 
+	spin_lock(&session->s_gen_ttl_lock);
+	session->s_cap_gen++;
+	spin_unlock(&session->s_gen_ttl_lock);
+
+	spin_lock(&session->s_cap_lock);
+	/*
+	 * notify __ceph_remove_cap() that we are composing cap reconnect.
+	 * If a cap get released before being added to the cap reconnect,
+	 * __ceph_remove_cap() should skip queuing cap release.
+	 */
+	session->s_cap_reconnect = 1;
 	/* drop old cap expires; we're about to reestablish that state */
 	discard_cap_releases(mdsc, session);
+	spin_unlock(&session->s_cap_lock);
 
 	/* traverse this session's caps */
 	s_nr_caps = session->s_nr_caps;
@@ -2626,6 +2637,10 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	err = iterate_session_caps(session, encode_caps_cb, &recon_state);
 	if (err < 0)
 		goto fail;
+
+	spin_lock(&session->s_cap_lock);
+	session->s_cap_reconnect = 0;
+	spin_unlock(&session->s_cap_lock);
 
 	/*
 	 * snaprealms.  we provide mds with the ino, seq (version), and

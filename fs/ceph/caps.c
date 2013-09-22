@@ -909,7 +909,13 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 
 	/* remove from session list */
 	spin_lock(&session->s_cap_lock);
-	if (queue_release)
+	/*
+	 * s_cap_reconnect is protected by s_cap_lock. no one changes
+	 * s_cap_gen while session is in the reconnect state.
+	 */
+	if (queue_release &&
+	    (!session->s_cap_reconnect ||
+	     cap->cap_gen == session->s_cap_gen))
 		__queue_cap_release(session, ci->i_vino.ino, cap->cap_id,
 				    cap->mseq, cap->issue_seq);
 
