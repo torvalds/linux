@@ -10,8 +10,6 @@
 #define SEG_GRANULARITY_4KB	(1 << 0)
 
 #define DESC_TYPE_CODE_DATA	(1 << 0)
-
-#define EFI_PAGE_SIZE		(1UL << EFI_PAGE_SHIFT)
 #define EFI_READ_CHUNK_SIZE	(1024 * 1024)
 
 #define EFI_CONSOLE_OUT_DEVICE_GUID    \
@@ -60,12 +58,6 @@ struct efi_uga_draw_protocol {
 	void *get_mode;
 	void *set_mode;
 	void *blt;
-};
-
-struct efi_simple_text_output_protocol {
-	void *reset;
-	void *output_string;
-	void *test_string;
 };
 
 #endif /* BOOT_COMPRESSED_EBOOT_H */
