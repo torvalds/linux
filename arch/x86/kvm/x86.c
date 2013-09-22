@@ -5108,8 +5108,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		ctxt->have_exception = false;
 		ctxt->perm_ok = false;
 
-		ctxt->only_vendor_specific_insn
-			= emulation_type & EMULTYPE_TRAP_UD;
+		ctxt->ud = emulation_type & EMULTYPE_TRAP_UD;
 
 		r = x86_decode_insn(ctxt, insn, insn_len);
 
