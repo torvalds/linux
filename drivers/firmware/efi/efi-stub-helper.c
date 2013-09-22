@@ -554,3 +554,64 @@ static efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 
 	return status;
 }
+
+/*
+ * Convert the unicode UEFI command line to ASCII to pass to kernel.
+ * Size of memory allocated return in *cmd_line_len.
+ * Returns NULL on error.
+ */
+static char *efi_convert_cmdline_to_ascii(efi_system_table_t *sys_table_arg,
+				      efi_loaded_image_t *image,
+				      int *cmd_line_len)
+{
+	u16 *s2;
+	u8 *s1 = NULL;
+	unsigned long cmdline_addr = 0;
+	int load_options_size = image->load_options_size / 2; /* ASCII */
+	void *options = image->load_options;
+	int options_size = 0;
+	efi_status_t status;
+	int i;
+	u16 zero = 0;
+
+	if (options) {
+		s2 = options;
+		while (*s2 && *s2 != '\n' && options_size < load_options_size) {
+			s2++;
+			options_size++;
+		}
+	}
+
+	if (options_size == 0) {
+		/* No command line options, so return empty string*/
+		options_size = 1;
+		options = &zero;
+	}
+
+	options_size++;  /* NUL termination */
+#ifdef CONFIG_ARM
+	/*
+	 * For ARM, allocate at a high address to avoid reserved
+	 * regions at low addresses that we don't know the specfics of
+	 * at the time we are processing the command line.
+	 */
+	status = efi_high_alloc(sys_table_arg, options_size, 0,
+			    &cmdline_addr, 0xfffff000);
+#else
+	status = efi_low_alloc(sys_table_arg, options_size, 0,
+			    &cmdline_addr);
+#endif
+	if (status != EFI_SUCCESS)
+		return NULL;
+
+	s1 = (u8 *)cmdline_addr;
+	s2 = (u16 *)options;
+
+	for (i = 0; i < options_size - 1; i++)
+		*s1++ = *s2++;
+
+	*s1 = '\0';
+
+	*cmd_line_len = options_size;
+	return (char *)cmdline_addr;
+}
