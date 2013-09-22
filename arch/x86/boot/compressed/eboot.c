@@ -527,25 +527,12 @@ static efi_status_t exit_boot(struct boot_params *boot_params,
 	u8 nr_entries;
 	int i;
 
-	size = sizeof(*mem_map) * 32;
+get_map:
+	status = efi_get_memory_map(sys_table, &mem_map, &size, &desc_size,
+				    &desc_version, &key);
 
-again:
-	size += sizeof(*mem_map) * 2;
-	_size = size;
-	status = efi_low_alloc(sys_table, size, 1, (unsigned long *)&mem_map);
 	if (status != EFI_SUCCESS)
 		return status;
-
-get_map:
-	status = efi_call_phys5(sys_table->boottime->get_memory_map, &size,
-				mem_map, &key, &desc_size, &desc_version);
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		efi_free(sys_table, _size, (unsigned long)mem_map);
-		goto again;
-	}
-
-	if (status != EFI_SUCCESS)
-		goto free_mem_map;
 
 	memcpy(&efi->efi_loader_signature, EFI_LOADER_SIGNATURE, sizeof(__u32));
 	efi->efi_systab = (unsigned long)sys_table;
@@ -574,6 +561,7 @@ get_map:
 			goto free_mem_map;
 
 		called_exit = true;
+		efi_call_phys1(sys_table->boottime->free_pool, mem_map);
 		goto get_map;
 	}
 
@@ -642,7 +630,7 @@ get_map:
 	return EFI_SUCCESS;
 
 free_mem_map:
-	efi_free(sys_table, _size, (unsigned long)mem_map);
+	efi_call_phys1(sys_table->boottime->free_pool, mem_map);
 	return status;
 }
 
