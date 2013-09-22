@@ -27,9 +27,9 @@
 					fsl,pinmux-ids = <
 						MX28_PAD_GPMI_D07__GPIO_0_7
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				i2cmux_pins_cfa10049: i2cmux-10049@0 {
@@ -38,9 +38,9 @@
 						MX28_PAD_LCD_D22__GPIO_1_22
 						MX28_PAD_LCD_D23__GPIO_1_23
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				mac0_pins_cfa10049: mac0-10049@0 {
@@ -48,9 +48,9 @@
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP2_SS2__GPIO_2_21
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				pca_pins_cfa10049: pca-10049@0 {
@@ -58,9 +58,9 @@
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP2_SS0__GPIO_2_19
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				rotary_pins_cfa10049: rotary-10049@0 {
@@ -69,9 +69,9 @@
 						MX28_PAD_I2C0_SCL__GPIO_3_24
 						MX28_PAD_I2C0_SDA__GPIO_3_25
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				rotary_btn_pins_cfa10049: rotary-btn-10049@0 {
@@ -79,9 +79,9 @@
 					fsl,pinmux-ids = <
 						MX28_PAD_SAIF1_SDATA0__GPIO_3_26
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				spi2_pins_cfa10049: spi2-cfa10049@0 {
@@ -92,9 +92,9 @@
 						MX28_PAD_SSP2_MISO__GPIO_2_18
 						MX28_PAD_AUART1_TX__GPIO_3_5
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				spi3_pins_cfa10049: spi3-cfa10049@0 {
@@ -106,9 +106,9 @@
 						MX28_PAD_GPMI_ALE__GPIO_0_26
 						MX28_PAD_GPMI_CLE__GPIO_0_27
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				lcdif_18bit_pins_cfa10049: lcdif-18bit@0 {
@@ -133,9 +133,9 @@
 						MX28_PAD_LCD_D16__LCD_D16
 						MX28_PAD_LCD_D17__LCD_D17
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_cfa10049: lcdif-evk@0 {
@@ -146,9 +146,9 @@
 						MX28_PAD_LCD_RS__LCD_DOTCLK
 						MX28_PAD_LCD_CS__LCD_ENABLE
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_cfa10049_pullup: lcdif-10049-pullup@0 {
@@ -156,9 +156,9 @@
 					fsl,pinmux-ids = <
 						MX28_PAD_LCD_RESET__GPIO_3_30
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				w1_gpio_pins: w1-gpio@0 {
@@ -166,9 +166,9 @@
 					fsl,pinmux-ids = <
 						MX28_PAD_LCD_D21__GPIO_1_21
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>; /* 0 will enable the keeper */
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>; /* 0 will enable the keeper */
 				};
 			};
 

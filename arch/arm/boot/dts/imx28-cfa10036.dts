@@ -28,9 +28,9 @@
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP0_DATA7__GPIO_2_7
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				led_pins_cfa10036: leds-10036@0 {
@@ -38,9 +38,9 @@
 					fsl,pinmux-ids = <
 						MX28_PAD_AUART1_RX__GPIO_3_4
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				usb0_otg_cfa10036: otg-10036@0 {
@@ -48,9 +48,9 @@
 					fsl,pinmux-ids = <
 						MX28_PAD_GPMI_RDY0__USB0_ID
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 			};

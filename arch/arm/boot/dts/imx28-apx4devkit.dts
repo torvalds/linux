@@ -48,9 +48,9 @@
 						MX28_PAD_LCD_RESET__GPIO_3_30
 						MX28_PAD_JTAG_RTCK__GPIO_4_20
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_apx4: lcdif-apx4@0 {
@@ -61,9 +61,9 @@
 						MX28_PAD_LCD_RS__LCD_DOTCLK
 						MX28_PAD_LCD_CS__LCD_ENABLE
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				mmc2_4bit_pins_apx4: mmc2-4bit-apx4@0 {
@@ -76,17 +76,17 @@
 						MX28_PAD_SSP2_SS1__SSP2_D1
 						MX28_PAD_SSP2_SS2__SSP2_D2
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				mmc2_sck_cfg_apx4: mmc2-sck-cfg-apx4 {
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP0_DATA7__SSP2_SCK
 					>;
-					fsl,drive-strength = <2>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 

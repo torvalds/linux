@@ -141,9 +141,9 @@
 						MX23_PAD_PWM0__DUART_RX
 						MX23_PAD_PWM1__DUART_TX
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				auart0_pins_a: auart0@0 {
@@ -154,9 +154,9 @@
 						MX23_PAD_AUART1_CTS__AUART1_CTS
 						MX23_PAD_AUART1_RTS__AUART1_RTS
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				auart0_2pins_a: auart0-2pins@0 {
@@ -165,9 +165,9 @@
 						MX23_PAD_I2C_SCL__AUART1_TX
 						MX23_PAD_I2C_SDA__AUART1_RX
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				gpmi_pins_a: gpmi-nand@0 {
@@ -191,9 +191,9 @@
 						MX23_PAD_GPMI_CE1N__GPMI_CE1N
 						MX23_PAD_GPMI_CE0N__GPMI_CE0N
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				gpmi_pins_fixup: gpmi-pins-fixup {
@@ -202,7 +202,7 @@
 						MX23_PAD_GPMI_WRN__GPMI_WRN
 						MX23_PAD_GPMI_RDN__GPMI_RDN
 					>;
-					fsl,drive-strength = <2>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
 				};
 
 				mmc0_4bit_pins_a: mmc0-4bit@0 {
@@ -215,9 +215,9 @@
 						MX23_PAD_SSP1_CMD__SSP1_CMD
 						MX23_PAD_SSP1_SCK__SSP1_SCK
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				mmc0_8bit_pins_a: mmc0-8bit@0 {
@@ -235,9 +235,9 @@
 						MX23_PAD_SSP1_DETECT__SSP1_DETECT
 						MX23_PAD_SSP1_SCK__SSP1_SCK
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				mmc0_pins_fixup: mmc0-pins-fixup {
@@ -245,7 +245,7 @@
 						MX23_PAD_SSP1_DETECT__SSP1_DETECT
 						MX23_PAD_SSP1_SCK__SSP1_SCK
 					>;
-					fsl,pull-up = <0>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				pwm2_pins_a: pwm2@0 {
@@ -253,9 +253,9 @@
 					fsl,pinmux-ids = <
 						MX23_PAD_PWM2__PWM2
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_24bit_pins_a: lcdif-24bit@0 {
@@ -290,9 +290,9 @@
 						MX23_PAD_LCD_HSYNC__LCD_HSYNC
 						MX23_PAD_LCD_VSYNC__LCD_VSYNC
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				spi2_pins_a: spi2@0 {
@@ -303,9 +303,9 @@
 						MX23_PAD_GPMI_D00__SSP2_DATA0
 						MX23_PAD_GPMI_D03__SSP2_DATA3
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 			};
 

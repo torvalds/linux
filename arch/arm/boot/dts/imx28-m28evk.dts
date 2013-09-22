@@ -98,9 +98,9 @@
 						MX28_PAD_AUART3_RX__GPIO_3_12
 						MX28_PAD_AUART3_TX__GPIO_3_13
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_m28: lcdif-m28@0 {
@@ -109,9 +109,9 @@
 						MX28_PAD_LCD_DOTCLK__LCD_DOTCLK
 						MX28_PAD_LCD_ENABLE__LCD_ENABLE
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 
