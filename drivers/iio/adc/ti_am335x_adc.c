@@ -226,7 +226,7 @@ static const struct iio_buffer_setup_ops tiadc_buffer_setup_ops = {
 	.postdisable = &tiadc_buffer_postdisable,
 };
 
-int tiadc_iio_buffered_hardware_setup(struct iio_dev *indio_dev,
+static int tiadc_iio_buffered_hardware_setup(struct iio_dev *indio_dev,
 	irqreturn_t (*pollfunc_bh)(int irq, void *p),
 	irqreturn_t (*pollfunc_th)(int irq, void *p),
 	int irq,
