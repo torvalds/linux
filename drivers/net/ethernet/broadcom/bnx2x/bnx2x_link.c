@@ -9765,32 +9765,41 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 			 MDIO_AN_DEVAD, MDIO_AN_REG_8481_1000T_CTRL,
 			 an_1000_val);
 
-	/* set 100 speed advertisement */
-	if ((phy->req_line_speed == SPEED_AUTO_NEG) &&
-	     (phy->speed_cap_mask &
-	      (PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL |
-	       PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF))) {
-		an_10_100_val |= (1<<7);
-		/* Enable autoneg and restart autoneg for legacy speeds */
-		autoneg_val |= (1<<9 | 1<<12);
-
-		if (phy->req_duplex == DUPLEX_FULL)
+	/* Set 10/100 speed advertisement */
+	if (phy->req_line_speed == SPEED_AUTO_NEG) {
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL) {
+			/* Enable autoneg and restart autoneg for legacy speeds
+			 */
+			autoneg_val |= (1<<9 | 1<<12);
 			an_10_100_val |= (1<<8);
-		DP(NETIF_MSG_LINK, "Advertising 100M\n");
-	}
-	/* set 10 speed advertisement */
-	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
-	     (phy->speed_cap_mask &
-	      (PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL |
-	       PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF)) &&
-	     (phy->supported &
-	      (SUPPORTED_10baseT_Half |
-	       SUPPORTED_10baseT_Full)))) {
-		an_10_100_val |= (1<<5);
-		autoneg_val |= (1<<9 | 1<<12);
-		if (phy->req_duplex == DUPLEX_FULL)
+			DP(NETIF_MSG_LINK, "Advertising 100M-FD\n");
+		}
+
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF) {
+			/* Enable autoneg and restart autoneg for legacy speeds
+			 */
+			autoneg_val |= (1<<9 | 1<<12);
+			an_10_100_val |= (1<<7);
+			DP(NETIF_MSG_LINK, "Advertising 100M-HD\n");
+		}
+
+		if ((phy->speed_cap_mask &
+		     PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL) &&
+		    (phy->supported & SUPPORTED_10baseT_Full)) {
 			an_10_100_val |= (1<<6);
-		DP(NETIF_MSG_LINK, "Advertising 10M\n");
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 10M-FD\n");
+		}
+
+		if ((phy->speed_cap_mask &
+		     PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF) &&
+		    (phy->supported & SUPPORTED_10baseT_Half)) {
+			an_10_100_val |= (1<<5);
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 10M-HD\n");
+		}
 	}
 
 	/* Only 10/100 are allowed to work in FORCE mode */
