@@ -30,9 +30,6 @@
 #include <linux/mfd/ti_am335x_tscadc.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
-#include <linux/iio/trigger.h>
-#include <linux/iio/trigger_consumer.h>
-#include <linux/iio/triggered_buffer.h>
 
 struct tiadc_device {
 	struct ti_tscadc_dev *mfd_tscadc;
@@ -40,7 +37,6 @@ struct tiadc_device {
 	u8 channel_line[8];
 	u8 channel_step[8];
 	int buffer_en_ch_steps;
-	struct iio_trigger *trig;
 	u16 data[8];
 };
 
