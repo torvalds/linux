@@ -34,6 +34,7 @@ struct pwm_bl_data {
 	struct regulator	*power_supply;
 	int			enable_gpio;
 	unsigned long		enable_gpio_flags;
+	unsigned int		scale;
 	int			(*notify)(struct device *,
 					  int brightness);
 	void			(*notify_after)(struct device *,
@@ -42,23 +43,20 @@ struct pwm_bl_data {
 	void			(*exit)(struct device *);
 };
 
-static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness,
-				   int max)
+static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness)
 {
+	unsigned int lth = pb->lth_brightness;
 	int duty_cycle, err;
 
 	if (pb->enabled)
 		return;
 
-	if (pb->levels) {
+	if (pb->levels)
 		duty_cycle = pb->levels[brightness];
-		max = pb->levels[max];
-	} else {
+	else
 		duty_cycle = brightness;
-	}
 
-	duty_cycle = (duty_cycle * (pb->period - pb->lth_brightness) / max) +
-		     pb->lth_brightness;
+	duty_cycle = (duty_cycle * (pb->period - lth) / pb->scale) + lth;
 
 	pwm_config(pb->pwm, duty_cycle, pb->period);
 
@@ -100,7 +98,6 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 {
 	struct pwm_bl_data *pb = bl_get_data(bl);
 	int brightness = bl->props.brightness;
-	int max = bl->props.max_brightness;
 
 	if (bl->props.power != FB_BLANK_UNBLANK ||
 	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
@@ -111,7 +108,7 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		brightness = pb->notify(pb->dev, brightness);
 
 	if (brightness > 0)
-		pwm_backlight_power_on(pb, brightness, max);
+		pwm_backlight_power_on(pb, brightness);
 	else
 		pwm_backlight_power_off(pb);
 
@@ -218,7 +215,6 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	struct backlight_properties props;
 	struct backlight_device *bl;
 	struct pwm_bl_data *pb;
-	unsigned int max;
 	int ret;
 
 	if (!data) {
@@ -245,10 +241,15 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	}
 
 	if (data->levels) {
-		max = data->levels[data->max_brightness];
+		unsigned int i;
+
+		for (i = 0; i <= data->max_brightness; i++)
+			if (data->levels[i] > pb->scale)
+				pb->scale = data->levels[i];
+
 		pb->levels = data->levels;
 	} else
-		max = data->max_brightness;
+		pb->scale = data->max_brightness;
 
 	pb->enable_gpio = data->enable_gpio;
 	pb->enable_gpio_flags = data->enable_gpio_flags;
@@ -304,7 +305,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		pwm_set_period(pb->pwm, data->pwm_period_ns);
 
 	pb->period = pwm_get_period(pb->pwm);
-	pb->lth_brightness = data->lth_brightness * (pb->period / max);
+	pb->lth_brightness = data->lth_brightness * (pb->period / pb->scale);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
