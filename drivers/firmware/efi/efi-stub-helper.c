@@ -86,7 +86,7 @@ fail:
 /*
  * Allocate at the highest possible address that is not above 'max'.
  */
-static efi_status_t high_alloc(efi_system_table_t *sys_table_arg,
+static efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
 			       unsigned long size, unsigned long align,
 			       unsigned long *addr, unsigned long max)
 {
@@ -165,8 +165,8 @@ fail:
 /*
  * Allocate at the lowest possible address.
  */
-static efi_status_t low_alloc(efi_system_table_t *sys_table_arg,
-		unsigned long size, unsigned long align,
+static efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
+			      unsigned long size, unsigned long align,
 			      unsigned long *addr)
 {
 	unsigned long map_size, desc_size;
@@ -226,7 +226,7 @@ fail:
 	return status;
 }
 
-static void low_free(efi_system_table_t *sys_table_arg, unsigned long size,
+static void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
 		     unsigned long addr)
 {
 	unsigned long nr_pages;
@@ -407,8 +407,8 @@ grow:
 		 * addresses in memory, so allocate enough memory for
 		 * all the initrd's.
 		 */
-		status = high_alloc(sys_table_arg, initrd_total, 0x1000,
-				   &initrd_addr, hdr->initrd_addr_max);
+		status = efi_high_alloc(sys_table_arg, initrd_total, 0x1000,
+				    &initrd_addr, hdr->initrd_addr_max);
 		if (status != EFI_SUCCESS) {
 			efi_printk(sys_table_arg, "Failed to alloc highmem for initrds\n");
 			goto close_handles;
@@ -456,7 +456,7 @@ grow:
 	return status;
 
 free_initrd_total:
-	low_free(sys_table_arg, initrd_total, initrd_addr);
+	efi_free(sys_table_arg, initrd_total, initrd_addr);
 
 close_handles:
 	for (k = j; k < i; k++)
