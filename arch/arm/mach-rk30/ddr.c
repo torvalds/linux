@@ -1535,6 +1535,7 @@ bool ddr_get_dpll_status(void) //CPLL or DPLL bad rerurn false;good return true;
 }
 #endif
 
+#if defined(CONFIG_ARCH_RK30)
 /*****************************************
 NR   NO     NF               Fout                       freq Step     finally use
 1    8      12.5 - 62.5      37.5MHz  - 187.5MHz        3MHz          50MHz   <= 150MHz
@@ -1610,7 +1611,7 @@ uint32_t __sramlocalfunc ddr_set_pll_3066(uint32_t nMHz, uint32_t set)
 out:
     return ret;
 }
-
+#endif
 
 /*****************************************
 RK3066B
