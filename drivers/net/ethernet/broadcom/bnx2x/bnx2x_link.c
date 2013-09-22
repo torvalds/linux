@@ -4523,10 +4523,14 @@ static void bnx2x_warpcore_config_init(struct bnx2x_phy *phy,
 			 * enabled transmitter to avoid current leakage in case
 			 * no module is connected
 			 */
-			if (bnx2x_is_sfp_module_plugged(phy, params))
-				bnx2x_sfp_module_detection(phy, params);
-			else
-				bnx2x_sfp_e3_set_transmitter(params, phy, 1);
+			if ((params->loopback_mode == LOOPBACK_NONE) ||
+			    (params->loopback_mode == LOOPBACK_EXT)) {
+				if (bnx2x_is_sfp_module_plugged(phy, params))
+					bnx2x_sfp_module_detection(phy, params);
+				else
+					bnx2x_sfp_e3_set_transmitter(params,
+								     phy, 1);
+			}
 
 			bnx2x_warpcore_config_sfi(phy, params);
 			break;
@@ -6527,6 +6531,11 @@ static int bnx2x_link_initialize(struct link_params *params,
 		if (params->phy[INT_PHY].config_init)
 			params->phy[INT_PHY].config_init(phy, params, vars);
 	}
+
+	/* Re-read this value in case it was changed inside config_init due to
+	 * limitations of optic module
+	 */
+	vars->line_speed = params->phy[INT_PHY].req_line_speed;
 
 	/* Init external phy*/
 	if (non_ext_phy) {
