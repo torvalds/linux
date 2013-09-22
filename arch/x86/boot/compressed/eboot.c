@@ -677,40 +677,6 @@ free_mem_map:
 	return status;
 }
 
-static efi_status_t relocate_kernel(struct setup_header *hdr)
-{
-	unsigned long start, nr_pages;
-	efi_status_t status;
-
-	/*
-	 * The EFI firmware loader could have placed the kernel image
-	 * anywhere in memory, but the kernel has various restrictions
-	 * on the max physical address it can run at. Attempt to move
-	 * the kernel to boot_params.pref_address, or as low as
-	 * possible.
-	 */
-	start = hdr->pref_address;
-	nr_pages = round_up(hdr->init_size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
-
-	status = efi_call_phys4(sys_table->boottime->allocate_pages,
-				EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
-				nr_pages, &start);
-	if (status != EFI_SUCCESS) {
-		status = efi_low_alloc(sys_table, hdr->init_size,
-				   hdr->kernel_alignment, &start);
-		if (status != EFI_SUCCESS)
-			efi_printk(sys_table, "Failed to alloc mem for kernel\n");
-	}
-
-	if (status == EFI_SUCCESS)
-		memcpy((void *)start, (void *)(unsigned long)hdr->code32_start,
-		       hdr->init_size);
-
-	hdr->pref_address = hdr->code32_start;
-	hdr->code32_start = (__u32)start;
-
-	return status;
-}
 
 /*
  * On success we return a pointer to a boot_params structure, and NULL
