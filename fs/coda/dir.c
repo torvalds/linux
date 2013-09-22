@@ -387,9 +387,6 @@ static int coda_readdir(struct file *coda_file, struct dir_context *ctx)
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 	host_file = cfi->cfi_container;
 
-	if (!host_file->f_op)
-		return -ENOTDIR;
-
 	if (host_file->f_op->iterate) {
 		struct inode *host_inode = file_inode(host_file);
 		mutex_lock(&host_inode->i_mutex);

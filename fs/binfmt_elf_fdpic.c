@@ -111,7 +111,7 @@ static int is_elf_fdpic(struct elfhdr *hdr, struct file *file)
 		return 0;
 	if (!elf_check_arch(hdr) || !elf_check_fdpic(hdr))
 		return 0;
-	if (!file->f_op || !file->f_op->mmap)
+	if (!file->f_op->mmap)
 		return 0;
 	return 1;
 }

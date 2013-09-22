@@ -221,7 +221,7 @@ static int load_aout_binary(struct linux_binprm * bprm)
 	 * Requires a mmap handler. This prevents people from using a.out
 	 * as part of an exploit attack against /proc-related vulnerabilities.
 	 */
-	if (!bprm->file->f_op || !bprm->file->f_op->mmap)
+	if (!bprm->file->f_op->mmap)
 		return -ENOEXEC;
 
 	fd_offset = N_TXTOFF(ex);
@@ -374,7 +374,7 @@ static int load_aout_library(struct file *file)
 	 * Requires a mmap handler. This prevents people from using a.out
 	 * as part of an exploit attack against /proc-related vulnerabilities.
 	 */
-	if (!file->f_op || !file->f_op->mmap)
+	if (!file->f_op->mmap)
 		goto out;
 
 	if (N_FLAGS(ex))

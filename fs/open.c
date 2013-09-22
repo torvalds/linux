@@ -693,6 +693,10 @@ static int do_dentry_open(struct file *f,
 	}
 
 	f->f_op = fops_get(inode->i_fop);
+	if (unlikely(WARN_ON(!f->f_op))) {
+		error = -ENODEV;
+		goto cleanup_all;
+	}
 
 	error = security_file_open(f, cred);
 	if (error)
@@ -702,7 +706,7 @@ static int do_dentry_open(struct file *f,
 	if (error)
 		goto cleanup_all;
 
-	if (!open && f->f_op)
+	if (!open)
 		open = f->f_op->open;
 	if (open) {
 		error = open(inode, f);
@@ -1023,7 +1027,7 @@ int filp_close(struct file *filp, fl_owner_t id)
 		return 0;
 	}
 
-	if (filp->f_op && filp->f_op->flush)
+	if (filp->f_op->flush)
 		retval = filp->f_op->flush(filp, id);
 
 	if (likely(!(filp->f_mode & FMODE_PATH))) {
