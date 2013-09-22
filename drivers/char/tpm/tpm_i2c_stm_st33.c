@@ -805,24 +805,18 @@ static int tpm_st33_i2c_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 /*
  * tpm_st33_i2c_pm_suspend suspend the TPM device
- * Added: Work around when suspend and no tpm application is running, suspend
- * may fail because chip->data_buffer is not set (only set in tpm_open in Linux
- * TPM core)
  * @param: client, the i2c_client drescription (TPM I2C description).
  * @param: mesg, the power management message.
  * @return: 0 in case of success.
  */
 static int tpm_st33_i2c_pm_suspend(struct device *dev)
 {
-	struct tpm_chip *chip = dev_get_drvdata(dev);
 	struct st33zp24_platform_data *pin_infos = dev->platform_data;
 	int ret = 0;
 
 	if (power_mgt) {
 		gpio_set_value(pin_infos->io_lpcpd, 0);
 	} else {
-		if (chip->data_buffer == NULL)
-			chip->data_buffer = pin_infos->tpm_i2c_buffer[0];
 		ret = tpm_pm_suspend(dev);
 	}
 	return ret;
@@ -847,8 +841,6 @@ static int tpm_st33_i2c_pm_resume(struct device *dev)
 					  TPM_STS_VALID) == TPM_STS_VALID,
 					  chip->vendor.timeout_b);
 	} else {
-		if (chip->data_buffer == NULL)
-			chip->data_buffer = pin_infos->tpm_i2c_buffer[0];
 		ret = tpm_pm_resume(dev);
 		if (!ret)
 			tpm_do_selftest(chip);
