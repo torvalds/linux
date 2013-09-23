@@ -8,3 +8,14 @@ Only one VGIC instance may be instantiated through either this API or the
 legacy KVM_CREATE_IRQCHIP api.  The created VGIC will act as the VM interrupt
 controller, requiring emulated user-space devices to inject interrupts to the
 VGIC instead of directly to CPUs.
+
+Groups:
+  KVM_DEV_ARM_VGIC_GRP_ADDR
+  Attributes:
+    KVM_VGIC_V2_ADDR_TYPE_DIST (rw, 64-bit)
+      Base address in the guest physical address space of the GIC distributor
+      register mappings.
+
+    KVM_VGIC_V2_ADDR_TYPE_CPU (rw, 64-bit)
+      Base address in the guest physical address space of the GIC virtual cpu
+      interface register mappings.
