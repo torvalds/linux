@@ -202,8 +202,8 @@ over a rather long period of time, but improvements are always welcome!
 	updater uses call_rcu_sched() or synchronize_sched(), then
 	the corresponding readers must disable preemption, possibly
 	by calling rcu_read_lock_sched() and rcu_read_unlock_sched().
-	If the updater uses synchronize_srcu() or call_srcu(),
-	the the corresponding readers must use srcu_read_lock() and
+	If the updater uses synchronize_srcu() or call_srcu(), then
+	the corresponding readers must use srcu_read_lock() and
 	srcu_read_unlock(), and with the same srcu_struct.  The rules for
 	the expedited primitives are the same as for their non-expedited
 	counterparts.  Mixing things up will result in confusion and
