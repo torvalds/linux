@@ -376,13 +376,33 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 				__cpu_name[cpu] = "R4000PC";
 			}
 		} else {
+			int cca = read_c0_config() & CONF_CM_CMASK;
+			int mc;
+
+			/*
+			 * SC and MC versions can't be reliably told apart,
+			 * but only the latter support coherent caching
+			 * modes so assume the firmware has set the KSEG0
+			 * coherency attribute reasonably (if uncached, we
+			 * assume SC).
+			 */
+			switch (cca) {
+			case CONF_CM_CACHABLE_CE:
+			case CONF_CM_CACHABLE_COW:
+			case CONF_CM_CACHABLE_CUW:
+				mc = 1;
+				break;
+			default:
+				mc = 0;
+				break;
+			}
 			if ((c->processor_id & PRID_REV_MASK) >=
 			    PRID_REV_R4400) {
-				c->cputype = CPU_R4400SC;
-				__cpu_name[cpu] = "R4400SC";
+				c->cputype = mc ? CPU_R4400MC : CPU_R4400SC;
+				__cpu_name[cpu] = mc ? "R4400MC" : "R4400SC";
 			} else {
-				c->cputype = CPU_R4000SC;
-				__cpu_name[cpu] = "R4000SC";
+				c->cputype = mc ? CPU_R4000MC : CPU_R4000SC;
+				__cpu_name[cpu] = mc ? "R4000MC" : "R4000SC";
 			}
 		}
 
