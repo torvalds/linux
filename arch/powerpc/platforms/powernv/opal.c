@@ -77,6 +77,7 @@ int __init early_init_dt_scan_opal(unsigned long node,
 
 static int __init opal_register_exception_handlers(void)
 {
+#ifdef __BIG_ENDIAN__
 	u64 glue;
 
 	if (!(powerpc_firmware_features & FW_FEATURE_OPAL))
@@ -94,6 +95,7 @@ static int __init opal_register_exception_handlers(void)
 					0, glue);
 	glue += 128;
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
+#endif
 
 	return 0;
 }
