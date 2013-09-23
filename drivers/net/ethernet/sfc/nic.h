@@ -71,6 +71,26 @@ efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 	return ((efx_qword_t *) (tx_queue->txd.buf.addr)) + index;
 }
 
+/* Report whether the NIC considers this TX queue empty, given the
+ * write_count used for the last doorbell push.  May return false
+ * negative.
+ */
+static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
+					 unsigned int write_count)
+{
+	unsigned int empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
+
+	if (empty_read_count == 0)
+		return false;
+
+	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
+}
+
+static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
+{
+	return __efx_nic_tx_is_empty(tx_queue, tx_queue->write_count);
+}
+
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
  * the doorbell.  This can reduce latency when we are adding a single
  * descriptor to an empty queue, but is otherwise pointless.  Further,
@@ -80,14 +100,10 @@ efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 static inline bool efx_nic_may_push_tx_desc(struct efx_tx_queue *tx_queue,
 					    unsigned int write_count)
 {
-	unsigned empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
-
-	if (empty_read_count == 0)
-		return false;
+	bool was_empty = __efx_nic_tx_is_empty(tx_queue, write_count);
 
 	tx_queue->empty_read_count = 0;
-	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0
-		&& tx_queue->write_count - write_count == 1;
+	return was_empty && tx_queue->write_count - write_count == 1;
 }
 
 /* Returns a pointer to the specified descriptor in the RX descriptor queue */
@@ -389,6 +405,12 @@ enum {
 	EF10_STAT_COUNT
 };
 
+/* Maximum number of TX PIO buffers we may allocate to a function.
+ * This matches the total number of buffers on each SFC9100-family
+ * controller.
+ */
+#define EF10_TX_PIOBUF_COUNT 16
+
 /**
  * struct efx_ef10_nic_data - EF10 architecture NIC state
  * @mcdi_buf: DMA buffer for MCDI
@@ -397,6 +419,13 @@ enum {
  * @n_allocated_vis: Number of VIs allocated to this function
  * @must_realloc_vis: Flag: VIs have yet to be reallocated after MC reboot
  * @must_restore_filters: Flag: filters have yet to be restored after MC reboot
+ * @n_piobufs: Number of PIO buffers allocated to this function
+ * @wc_membase: Base address of write-combining mapping of the memory BAR
+ * @pio_write_base: Base address for writing PIO buffers
+ * @pio_write_vi_base: Relative VI number for @pio_write_base
+ * @piobuf_handle: Handle of each PIO buffer allocated
+ * @must_restore_piobufs: Flag: PIO buffers have yet to be restored after MC
+ *	reboot
  * @rx_rss_context: Firmware handle for our RSS context
  * @stats: Hardware statistics
  * @workaround_35388: Flag: firmware supports workaround for bug 35388
@@ -412,6 +441,11 @@ struct efx_ef10_nic_data {
 	unsigned int n_allocated_vis;
 	bool must_realloc_vis;
 	bool must_restore_filters;
+	unsigned int n_piobufs;
+	void __iomem *wc_membase, *pio_write_base;
+	unsigned int pio_write_vi_base;
+	unsigned int piobuf_handle[EF10_TX_PIOBUF_COUNT];
+	bool must_restore_piobufs;
 	u32 rx_rss_context;
 	u64 stats[EF10_STAT_COUNT];
 	bool workaround_35388;

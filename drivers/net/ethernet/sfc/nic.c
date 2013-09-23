@@ -19,6 +19,7 @@
 #include "bitfield.h"
 #include "efx.h"
 #include "nic.h"
+#include "ef10_regs.h"
 #include "farch_regs.h"
 #include "io.h"
 #include "workarounds.h"
@@ -166,26 +167,30 @@ void efx_nic_fini_interrupt(struct efx_nic *efx)
 
 /* Register dump */
 
-#define REGISTER_REVISION_A	1
-#define REGISTER_REVISION_B	2
-#define REGISTER_REVISION_C	3
-#define REGISTER_REVISION_Z	3	/* latest revision */
+#define REGISTER_REVISION_FA	1
+#define REGISTER_REVISION_FB	2
+#define REGISTER_REVISION_FC	3
+#define REGISTER_REVISION_FZ	3	/* last Falcon arch revision */
+#define REGISTER_REVISION_ED	4
+#define REGISTER_REVISION_EZ	4	/* latest EF10 revision */
 
 struct efx_nic_reg {
 	u32 offset:24;
-	u32 min_revision:2, max_revision:2;
+	u32 min_revision:3, max_revision:3;
 };
 
-#define REGISTER(name, min_rev, max_rev) {				\
-	FR_ ## min_rev ## max_rev ## _ ## name,				\
-	REGISTER_REVISION_ ## min_rev, REGISTER_REVISION_ ## max_rev	\
+#define REGISTER(name, arch, min_rev, max_rev) {			\
+	arch ## R_ ## min_rev ## max_rev ## _ ## name,			\
+	REGISTER_REVISION_ ## arch ## min_rev,				\
+	REGISTER_REVISION_ ## arch ## max_rev				\
 }
-#define REGISTER_AA(name) REGISTER(name, A, A)
-#define REGISTER_AB(name) REGISTER(name, A, B)
-#define REGISTER_AZ(name) REGISTER(name, A, Z)
-#define REGISTER_BB(name) REGISTER(name, B, B)
-#define REGISTER_BZ(name) REGISTER(name, B, Z)
-#define REGISTER_CZ(name) REGISTER(name, C, Z)
+#define REGISTER_AA(name) REGISTER(name, F, A, A)
+#define REGISTER_AB(name) REGISTER(name, F, A, B)
+#define REGISTER_AZ(name) REGISTER(name, F, A, Z)
+#define REGISTER_BB(name) REGISTER(name, F, B, B)
+#define REGISTER_BZ(name) REGISTER(name, F, B, Z)
+#define REGISTER_CZ(name) REGISTER(name, F, C, Z)
+#define REGISTER_DZ(name) REGISTER(name, E, D, Z)
 
 static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_AZ(ADR_REGION),
@@ -292,37 +297,42 @@ static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_AB(XX_TXDRV_CTL),
 	/* XX_PRBS_CTL, XX_PRBS_CHK and XX_PRBS_ERR are not used */
 	/* XX_CORE_STAT is partly RC */
+	REGISTER_DZ(BIU_HW_REV_ID),
+	REGISTER_DZ(MC_DB_LWRD),
+	REGISTER_DZ(MC_DB_HWRD),
 };
 
 struct efx_nic_reg_table {
 	u32 offset:24;
-	u32 min_revision:2, max_revision:2;
+	u32 min_revision:3, max_revision:3;
 	u32 step:6, rows:21;
 };
 
-#define REGISTER_TABLE_DIMENSIONS(_, offset, min_rev, max_rev, step, rows) { \
+#define REGISTER_TABLE_DIMENSIONS(_, offset, arch, min_rev, max_rev, step, rows) { \
 	offset,								\
-	REGISTER_REVISION_ ## min_rev, REGISTER_REVISION_ ## max_rev,	\
+	REGISTER_REVISION_ ## arch ## min_rev,				\
+	REGISTER_REVISION_ ## arch ## max_rev,				\
 	step, rows							\
 }
-#define REGISTER_TABLE(name, min_rev, max_rev)				\
+#define REGISTER_TABLE(name, arch, min_rev, max_rev)			\
 	REGISTER_TABLE_DIMENSIONS(					\
-		name, FR_ ## min_rev ## max_rev ## _ ## name,		\
-		min_rev, max_rev,					\
-		FR_ ## min_rev ## max_rev ## _ ## name ## _STEP,	\
-		FR_ ## min_rev ## max_rev ## _ ## name ## _ROWS)
-#define REGISTER_TABLE_AA(name) REGISTER_TABLE(name, A, A)
-#define REGISTER_TABLE_AZ(name) REGISTER_TABLE(name, A, Z)
-#define REGISTER_TABLE_BB(name) REGISTER_TABLE(name, B, B)
-#define REGISTER_TABLE_BZ(name) REGISTER_TABLE(name, B, Z)
+		name, arch ## R_ ## min_rev ## max_rev ## _ ## name,	\
+		arch, min_rev, max_rev,					\
+		arch ## R_ ## min_rev ## max_rev ## _ ## name ## _STEP,	\
+		arch ## R_ ## min_rev ## max_rev ## _ ## name ## _ROWS)
+#define REGISTER_TABLE_AA(name) REGISTER_TABLE(name, F, A, A)
+#define REGISTER_TABLE_AZ(name) REGISTER_TABLE(name, F, A, Z)
+#define REGISTER_TABLE_BB(name) REGISTER_TABLE(name, F, B, B)
+#define REGISTER_TABLE_BZ(name) REGISTER_TABLE(name, F, B, Z)
 #define REGISTER_TABLE_BB_CZ(name)					\
-	REGISTER_TABLE_DIMENSIONS(name, FR_BZ_ ## name, B, B,		\
+	REGISTER_TABLE_DIMENSIONS(name, FR_BZ_ ## name, F, B, B,	\
 				  FR_BZ_ ## name ## _STEP,		\
 				  FR_BB_ ## name ## _ROWS),		\
-	REGISTER_TABLE_DIMENSIONS(name, FR_BZ_ ## name, C, Z,		\
+	REGISTER_TABLE_DIMENSIONS(name, FR_BZ_ ## name, F, C, Z,	\
 				  FR_BZ_ ## name ## _STEP,		\
 				  FR_CZ_ ## name ## _ROWS)
-#define REGISTER_TABLE_CZ(name) REGISTER_TABLE(name, C, Z)
+#define REGISTER_TABLE_CZ(name) REGISTER_TABLE(name, F, C, Z)
+#define REGISTER_TABLE_DZ(name) REGISTER_TABLE(name, E, D, Z)
 
 static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
 	/* DRIVER is not used */
@@ -340,9 +350,9 @@ static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
 	 * 1K entries allows for some expansion of queue count and
 	 * size before we need to change the version. */
 	REGISTER_TABLE_DIMENSIONS(BUF_FULL_TBL_KER, FR_AA_BUF_FULL_TBL_KER,
-				  A, A, 8, 1024),
+				  F, A, A, 8, 1024),
 	REGISTER_TABLE_DIMENSIONS(BUF_FULL_TBL, FR_BZ_BUF_FULL_TBL,
-				  B, Z, 8, 1024),
+				  F, B, Z, 8, 1024),
 	REGISTER_TABLE_CZ(RX_MAC_FILTER_TBL0),
 	REGISTER_TABLE_BB_CZ(TIMER_TBL),
 	REGISTER_TABLE_BB_CZ(TX_PACE_TBL),
@@ -353,6 +363,7 @@ static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
 	/* MSIX_PBA_TABLE is not mapped */
 	/* SRM_DBG is not mapped (and is redundant with BUF_FLL_TBL) */
 	REGISTER_TABLE_BZ(RX_FILTER_TBL0),
+	REGISTER_TABLE_DZ(BIU_MC_SFT_STATUS),
 };
 
 size_t efx_nic_get_regs_len(struct efx_nic *efx)

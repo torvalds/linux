@@ -30,6 +30,7 @@ efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 extern int efx_setup_tc(struct net_device *net_dev, u8 num_tc);
 extern unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
+extern unsigned int efx_piobuf_size;
 
 /* RX */
 extern void efx_rx_config_page_split(struct efx_nic *efx);
