@@ -3785,6 +3785,13 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 		 */
 		dev_info(&pdev->dev, "using doorbell to reset controller\n");
 		writel(use_doorbell, vaddr + SA5_DOORBELL);
+
+		/* PMC hardware guys tell us we need a 5 second delay after
+		 * doorbell reset and before any attempt to talk to the board
+		 * at all to ensure that this actually works and doesn't fall
+		 * over in some weird corner cases.
+		 */
+		msleep(5000);
 	} else { /* Try to do it the PCI power state way */
 
 		/* Quoting from the Open CISS Specification: "The Power
@@ -3981,15 +3988,22 @@ static int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	   need a little pause here */
 	msleep(HPSA_POST_RESET_PAUSE_MSECS);
 
-	/* Wait for board to become not ready, then ready. */
-	dev_info(&pdev->dev, "Waiting for board to reset.\n");
-	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_NOT_READY);
-	if (rc) {
-		dev_warn(&pdev->dev,
-			"failed waiting for board to reset."
-			" Will try soft reset.\n");
-		rc = -ENOTSUPP; /* Not expected, but try soft reset later */
-		goto unmap_cfgtable;
+	if (!use_doorbell) {
+		/* Wait for board to become not ready, then ready.
+		 * (if we used the doorbell, then we already waited 5 secs
+		 * so the "not ready" state is already gone by so we
+		 * won't catch it.)
+		 */
+		dev_info(&pdev->dev, "Waiting for board to reset.\n");
+		rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_NOT_READY);
+		if (rc) {
+			dev_warn(&pdev->dev,
+				"failed waiting for board to reset."
+				" Will try soft reset.\n");
+			/* Not expected, but try soft reset later */
+			rc = -ENOTSUPP;
+			goto unmap_cfgtable;
+		}
 	}
 	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_READY);
 	if (rc) {
