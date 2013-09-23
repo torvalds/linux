@@ -29,13 +29,13 @@
 struct emac_instance;
 struct mal_instance;
 
-extern void emac_dbg_register(struct emac_instance *dev);
-extern void emac_dbg_unregister(struct emac_instance *dev);
-extern void mal_dbg_register(struct mal_instance *mal);
-extern void mal_dbg_unregister(struct mal_instance *mal);
-extern int emac_init_debug(void) __init;
-extern void emac_fini_debug(void) __exit;
-extern void emac_dbg_dump_all(void);
+void emac_dbg_register(struct emac_instance *dev);
+void emac_dbg_unregister(struct emac_instance *dev);
+void mal_dbg_register(struct mal_instance *mal);
+void mal_dbg_unregister(struct mal_instance *mal);
+int emac_init_debug(void) __init;
+void emac_fini_debug(void) __exit;
+void emac_dbg_dump_all(void);
 
 # define DBG_LEVEL		1
 
