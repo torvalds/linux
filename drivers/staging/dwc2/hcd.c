@@ -780,6 +780,10 @@ static void dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg,
 	chan->data_pid_start = qh->data_toggle;
 	chan->multi_count = 1;
 
+	if ((urb->actual_length < 0 || urb->actual_length > urb->length) &&
+	    !dwc2_hcd_is_pipe_in(&urb->pipe_info))
+		urb->actual_length = urb->length;
+
 	if (hsotg->core_params->dma_enable > 0) {
 		chan->xfer_dma = urb->dma + urb->actual_length;
 
