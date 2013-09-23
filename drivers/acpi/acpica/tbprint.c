@@ -190,6 +190,16 @@ acpi_status acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length)
 {
 	u8 checksum;
 
+	/*
+	 * FACS/S3PT:
+	 * They are the odd tables, have no standard ACPI header and no checksum
+	 */
+
+	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_S3PT) ||
+	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_FACS)) {
+		return (AE_OK);
+	}
+
 	/* Compute the checksum on the table */
 
 	checksum = acpi_tb_checksum(ACPI_CAST_PTR(u8, table), length);

@@ -80,16 +80,10 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
 		}
 	}
 
-	/* FACS is the odd table, has no standard ACPI header and no checksum */
+	/* Always calculate checksum, ignore bad checksum if requested */
 
-	if (!ACPI_COMPARE_NAME(&table_desc->signature, ACPI_SIG_FACS)) {
-
-		/* Always calculate checksum, ignore bad checksum if requested */
-
-		status =
-		    acpi_tb_verify_checksum(table_desc->pointer,
-					    table_desc->length);
-	}
+	status =
+	    acpi_tb_verify_checksum(table_desc->pointer, table_desc->length);
 
 	return_ACPI_STATUS(status);
 }
