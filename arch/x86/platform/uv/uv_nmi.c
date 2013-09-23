@@ -21,6 +21,7 @@
 
 #include <linux/cpu.h>
 #include <linux/delay.h>
+#include <linux/kexec.h>
 #include <linux/module.h>
 #include <linux/nmi.h>
 #include <linux/sched.h>
@@ -70,6 +71,7 @@ static atomic_t	uv_in_nmi;
 static atomic_t uv_nmi_cpu = ATOMIC_INIT(-1);
 static atomic_t uv_nmi_cpus_in_nmi = ATOMIC_INIT(-1);
 static atomic_t uv_nmi_slave_continue;
+static atomic_t uv_nmi_kexec_failed;
 static cpumask_var_t uv_nmi_cpu_mask;
 
 /* Values for uv_nmi_slave_continue */
@@ -143,6 +145,7 @@ module_param_named(retry_count, uv_nmi_retry_count, int, 0644);
  * Valid NMI Actions:
  *  "dump"	- dump process stack for each cpu
  *  "ips"	- dump IP info for each cpu
+ *  "kdump"	- do crash dump
  */
 static char uv_nmi_action[8] = "dump";
 module_param_string(action, uv_nmi_action, sizeof(uv_nmi_action), 0644);
@@ -496,6 +499,40 @@ static void uv_nmi_touch_watchdogs(void)
 	touch_nmi_watchdog();
 }
 
+#if defined(CONFIG_KEXEC)
+static void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
+{
+	/* Call crash to dump system state */
+	if (master) {
+		pr_emerg("UV: NMI executing crash_kexec on CPU%d\n", cpu);
+		crash_kexec(regs);
+
+		pr_emerg("UV: crash_kexec unexpectedly returned, ");
+		if (!kexec_crash_image) {
+			pr_cont("crash kernel not loaded\n");
+			atomic_set(&uv_nmi_kexec_failed, 1);
+			uv_nmi_sync_exit(1);
+			return;
+		}
+		pr_cont("kexec busy, stalling cpus while waiting\n");
+	}
+
+	/* If crash exec fails the slaves should return, otherwise stall */
+	while (atomic_read(&uv_nmi_kexec_failed) == 0)
+		mdelay(10);
+
+	/* Crash kernel most likely not loaded, return in an orderly fashion */
+	uv_nmi_sync_exit(0);
+}
+
+#else /* !CONFIG_KEXEC */
+static inline void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
+{
+	if (master)
+		pr_err("UV: NMI kdump: KEXEC not supported in this kernel\n");
+}
+#endif /* !CONFIG_KEXEC */
+
 /*
  * UV NMI handler
  */
@@ -516,6 +553,10 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 
 	/* Indicate we are the first CPU into the NMI handler */
 	master = (atomic_read(&uv_nmi_cpu) == cpu);
+
+	/* If NMI action is "kdump", then attempt to do it */
+	if (uv_nmi_action_is("kdump"))
+		uv_nmi_kdump(cpu, master, regs);
 
 	/* Pause as all cpus enter the NMI handler */
 	uv_nmi_wait(master);
