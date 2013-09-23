@@ -537,12 +537,12 @@ typedef struct oppanel_line {
 } oppanel_line_t;
 
 /* API functions */
-int64_t opal_console_write(int64_t term_number, int64_t *length,
+int64_t opal_console_write(int64_t term_number, __be64 *length,
 			   const uint8_t *buffer);
-int64_t opal_console_read(int64_t term_number, int64_t *length,
+int64_t opal_console_read(int64_t term_number, __be64 *length,
 			  uint8_t *buffer);
 int64_t opal_console_write_buffer_space(int64_t term_number,
-					int64_t *length);
+					__be64 *length);
 int64_t opal_rtc_read(uint32_t *year_month_day,
 		      uint64_t *hour_minute_second_millisecond);
 int64_t opal_rtc_write(uint32_t year_month_day,
@@ -552,7 +552,7 @@ int64_t opal_cec_reboot(void);
 int64_t opal_read_nvram(uint64_t buffer, uint64_t size, uint64_t offset);
 int64_t opal_write_nvram(uint64_t buffer, uint64_t size, uint64_t offset);
 int64_t opal_handle_interrupt(uint64_t isn, uint64_t *outstanding_event_mask);
-int64_t opal_poll_events(uint64_t *outstanding_event_mask);
+int64_t opal_poll_events(__be64 *outstanding_event_mask);
 int64_t opal_pci_set_hub_tce_memory(uint64_t hub_id, uint64_t tce_mem_addr,
 				    uint64_t tce_mem_size);
 int64_t opal_pci_set_phb_tce_memory(uint64_t phb_id, uint64_t tce_mem_addr,

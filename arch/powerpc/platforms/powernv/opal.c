@@ -164,27 +164,28 @@ void opal_notifier_disable(void)
 
 int opal_get_chars(uint32_t vtermno, char *buf, int count)
 {
-	s64 len, rc;
-	u64 evt;
+	s64 rc;
+	__be64 evt, len;
 
 	if (!opal.entry)
 		return -ENODEV;
 	opal_poll_events(&evt);
-	if ((evt & OPAL_EVENT_CONSOLE_INPUT) == 0)
+	if ((be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_INPUT) == 0)
 		return 0;
-	len = count;
-	rc = opal_console_read(vtermno, &len, buf);
+	len = cpu_to_be64(count);
+	rc = opal_console_read(vtermno, &len, buf);	
 	if (rc == OPAL_SUCCESS)
-		return len;
+		return be64_to_cpu(len);
 	return 0;
 }
 
 int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 {
 	int written = 0;
+	__be64 olen;
 	s64 len, rc;
 	unsigned long flags;
-	u64 evt;
+	__be64 evt;
 
 	if (!opal.entry)
 		return -ENODEV;
@@ -199,13 +200,14 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	 */
 	spin_lock_irqsave(&opal_write_lock, flags);
 	if (firmware_has_feature(FW_FEATURE_OPALv2)) {
-		rc = opal_console_write_buffer_space(vtermno, &len);
+		rc = opal_console_write_buffer_space(vtermno, &olen);
+		len = be64_to_cpu(olen);
 		if (rc || len < total_len) {
 			spin_unlock_irqrestore(&opal_write_lock, flags);
 			/* Closed -> drop characters */
 			if (rc)
 				return total_len;
-			opal_poll_events(&evt);
+			opal_poll_events(NULL);
 			return -EAGAIN;
 		}
 	}
@@ -216,8 +218,9 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	rc = OPAL_BUSY;
 	while(total_len > 0 && (rc == OPAL_BUSY ||
 				rc == OPAL_BUSY_EVENT || rc == OPAL_SUCCESS)) {
-		len = total_len;
-		rc = opal_console_write(vtermno, &len, data);
+		olen = cpu_to_be64(total_len);
+		rc = opal_console_write(vtermno, &olen, data);
+		len = be64_to_cpu(olen);
 
 		/* Closed or other error drop */
 		if (rc != OPAL_SUCCESS && rc != OPAL_BUSY &&
@@ -237,7 +240,8 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 		 */
 		do
 			opal_poll_events(&evt);
-		while(rc == OPAL_SUCCESS && (evt & OPAL_EVENT_CONSOLE_OUTPUT));
+		while(rc == OPAL_SUCCESS &&
+			(be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_OUTPUT));
 	}
 	spin_unlock_irqrestore(&opal_write_lock, flags);
 	return written;
