@@ -1309,7 +1309,6 @@ static int pmac_ide_pci_attach(struct pci_dev *pdev,
 	rc = pmac_ide_setup_device(pmif, &hw);
 	if (rc != 0) {
 		/* The inteface is released to the common IDE layer */
-		pci_set_drvdata(pdev, NULL);
 		iounmap(base);
 		pci_release_regions(pdev);
 		kfree(pmif);
