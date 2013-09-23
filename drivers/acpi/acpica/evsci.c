@@ -87,9 +87,7 @@ u32 acpi_ev_sci_dispatch(void)
 
 		/* Invoke the installed handler (at interrupt level) */
 
-		int_status |= sci_handler->address((u32)acpi_gbl_FADT.
-						   sci_interrupt,
-						   sci_handler->context);
+		int_status |= sci_handler->address(sci_handler->context);
 
 		sci_handler = sci_handler->next;
 	}
