@@ -46,8 +46,14 @@
 #define EDMA_CHANS	64
 #endif /* CONFIG_ARCH_DAVINCI_DA8XX */
 
-/* Max of 16 segments per channel to conserve PaRAM slots */
-#define MAX_NR_SG		16
+/*
+ * Max of 20 segments per channel to conserve PaRAM slots
+ * Also note that MAX_NR_SG should be atleast the no.of periods
+ * that are required for ASoC, otherwise DMA prep calls will
+ * fail. Today davinci-pcm is the only user of this driver and
+ * requires atleast 17 slots, so we setup the default to 20.
+ */
+#define MAX_NR_SG		20
 #define EDMA_MAX_SLOTS		MAX_NR_SG
 #define EDMA_DESCRIPTORS	16
 
