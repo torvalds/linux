@@ -4703,6 +4703,14 @@ bool bnx2x_chk_parity_attn(struct bnx2x *bp, bool *global, bool print)
 	attn.sig[3] = REG_RD(bp,
 		MISC_REG_AEU_AFTER_INVERT_4_FUNC_0 +
 			     port*4);
+	/* Since MCP attentions can't be disabled inside the block, we need to
+	 * read AEU registers to see whether they're currently disabled
+	 */
+	attn.sig[3] &= ((REG_RD(bp,
+				!port ? MISC_REG_AEU_ENABLE4_FUNC_0_OUT_0
+				      : MISC_REG_AEU_ENABLE4_FUNC_1_OUT_0) &
+			 MISC_AEU_ENABLE_MCP_PRTY_BITS) |
+			~MISC_AEU_ENABLE_MCP_PRTY_BITS);
 
 	if (!CHIP_IS_E1x(bp))
 		attn.sig[4] = REG_RD(bp,
