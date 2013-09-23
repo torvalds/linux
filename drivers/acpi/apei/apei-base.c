@@ -758,9 +758,9 @@ int apei_osc_setup(void)
 		.cap.pointer	= capbuf,
 	};
 
-	capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	capbuf[OSC_SUPPORT_TYPE] = 1;
-	capbuf[OSC_CONTROL_TYPE] = 0;
+	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
+	capbuf[OSC_SUPPORT_DWORD] = 1;
+	capbuf[OSC_CONTROL_DWORD] = 0;
 
 	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &handle))
 	    || ACPI_FAILURE(acpi_run_osc(handle, &context)))
