@@ -691,7 +691,6 @@ static int dwc3_resume(struct device *dev)
 
 	usb_phy_init(dwc->usb3_phy);
 	usb_phy_init(dwc->usb2_phy);
-	msleep(100);
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
