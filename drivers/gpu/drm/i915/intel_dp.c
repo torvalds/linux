@@ -671,6 +671,49 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	return ret;
 }
 
+static void
+intel_dp_set_clock(struct intel_encoder *encoder,
+		   struct intel_crtc_config *pipe_config, int link_bw)
+{
+	struct drm_device *dev = encoder->base.dev;
+
+	if (IS_G4X(dev)) {
+		if (link_bw == DP_LINK_BW_1_62) {
+			pipe_config->dpll.p1 = 2;
+			pipe_config->dpll.p2 = 10;
+			pipe_config->dpll.n = 2;
+			pipe_config->dpll.m1 = 23;
+			pipe_config->dpll.m2 = 8;
+		} else {
+			pipe_config->dpll.p1 = 1;
+			pipe_config->dpll.p2 = 10;
+			pipe_config->dpll.n = 1;
+			pipe_config->dpll.m1 = 14;
+			pipe_config->dpll.m2 = 2;
+		}
+		pipe_config->clock_set = true;
+	} else if (IS_HASWELL(dev)) {
+		/* Haswell has special-purpose DP DDI clocks. */
+	} else if (HAS_PCH_SPLIT(dev)) {
+		if (link_bw == DP_LINK_BW_1_62) {
+			pipe_config->dpll.n = 1;
+			pipe_config->dpll.p1 = 2;
+			pipe_config->dpll.p2 = 10;
+			pipe_config->dpll.m1 = 12;
+			pipe_config->dpll.m2 = 9;
+		} else {
+			pipe_config->dpll.n = 2;
+			pipe_config->dpll.p1 = 1;
+			pipe_config->dpll.p2 = 10;
+			pipe_config->dpll.m1 = 14;
+			pipe_config->dpll.m2 = 8;
+		}
+		pipe_config->clock_set = true;
+	} else if (IS_VALLEYVIEW(dev)) {
+		/* FIXME: Need to figure out optimized DP clocks for vlv. */
+	}
+}
+
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_config *pipe_config)
@@ -765,6 +808,8 @@ found:
 	intel_link_compute_m_n(bpp, lane_count,
 			       target_clock, adjusted_mode->clock,
 			       &pipe_config->dp_m_n);
+
+	intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
 
 	return true;
 }

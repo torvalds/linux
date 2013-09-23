@@ -102,15 +102,6 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			intel_clock_t *best_clock);
 
 static bool
-intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
-		      int target, int refclk, intel_clock_t *match_clock,
-		      intel_clock_t *best_clock);
-static bool
-intel_find_pll_ironlake_dp(const intel_limit_t *, struct drm_crtc *crtc,
-			   int target, int refclk, intel_clock_t *match_clock,
-			   intel_clock_t *best_clock);
-
-static bool
 intel_vlv_find_best_pll(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *match_clock,
 			intel_clock_t *best_clock);
@@ -242,20 +233,6 @@ static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
-static const intel_limit_t intel_limits_g4x_display_port = {
-	.dot = { .min = 161670, .max = 227000 },
-	.vco = { .min = 1750000, .max = 3500000},
-	.n = { .min = 1, .max = 2 },
-	.m = { .min = 97, .max = 108 },
-	.m1 = { .min = 0x10, .max = 0x12 },
-	.m2 = { .min = 0x05, .max = 0x06 },
-	.p = { .min = 10, .max = 20 },
-	.p1 = { .min = 1, .max = 2},
-	.p2 = { .dot_limit = 0,
-		.p2_slow = 10, .p2_fast = 10 },
-	.find_pll = intel_find_pll_g4x_dp,
-};
-
 static const intel_limit_t intel_limits_pineview_sdvo = {
 	.dot = { .min = 20000, .max = 400000},
 	.vco = { .min = 1700000, .max = 3500000 },
@@ -362,20 +339,6 @@ static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
-static const intel_limit_t intel_limits_ironlake_display_port = {
-	.dot = { .min = 25000, .max = 350000 },
-	.vco = { .min = 1760000, .max = 3510000},
-	.n = { .min = 1, .max = 2 },
-	.m = { .min = 81, .max = 90 },
-	.m1 = { .min = 12, .max = 22 },
-	.m2 = { .min = 5, .max = 9 },
-	.p = { .min = 10, .max = 20 },
-	.p1 = { .min = 1, .max = 2},
-	.p2 = { .dot_limit = 0,
-		.p2_slow = 10, .p2_fast = 10 },
-	.find_pll = intel_find_pll_ironlake_dp,
-};
-
 static const intel_limit_t intel_limits_vlv_dac = {
 	.dot = { .min = 25000, .max = 270000 },
 	.vco = { .min = 4000000, .max = 6000000 },
@@ -473,10 +436,7 @@ static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
 			else
 				limit = &intel_limits_ironlake_single_lvds;
 		}
-	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
-		   intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))
-		limit = &intel_limits_ironlake_display_port;
-	else
+	} else
 		limit = &intel_limits_ironlake_dac;
 
 	return limit;
@@ -497,8 +457,6 @@ static const intel_limit_t *intel_g4x_limit(struct drm_crtc *crtc)
 		limit = &intel_limits_g4x_hdmi;
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO)) {
 		limit = &intel_limits_g4x_sdvo;
-	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
-		limit = &intel_limits_g4x_display_port;
 	} else /* The option is for other outputs */
 		limit = &intel_limits_i9xx_sdvo;
 
@@ -745,59 +703,6 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	return found;
 }
 
-static bool
-intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
-			   int target, int refclk, intel_clock_t *match_clock,
-			   intel_clock_t *best_clock)
-{
-	struct drm_device *dev = crtc->dev;
-	intel_clock_t clock;
-
-	if (target < 200000) {
-		clock.n = 1;
-		clock.p1 = 2;
-		clock.p2 = 10;
-		clock.m1 = 12;
-		clock.m2 = 9;
-	} else {
-		clock.n = 2;
-		clock.p1 = 1;
-		clock.p2 = 10;
-		clock.m1 = 14;
-		clock.m2 = 8;
-	}
-	intel_clock(dev, refclk, &clock);
-	memcpy(best_clock, &clock, sizeof(intel_clock_t));
-	return true;
-}
-
-/* DisplayPort has only two frequencies, 162MHz and 270MHz */
-static bool
-intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
-		      int target, int refclk, intel_clock_t *match_clock,
-		      intel_clock_t *best_clock)
-{
-	intel_clock_t clock;
-	if (target < 200000) {
-		clock.p1 = 2;
-		clock.p2 = 10;
-		clock.n = 2;
-		clock.m1 = 23;
-		clock.m2 = 8;
-	} else {
-		clock.p1 = 1;
-		clock.p2 = 10;
-		clock.n = 1;
-		clock.m1 = 14;
-		clock.m2 = 2;
-	}
-	clock.m = 5 * (clock.m1 + 2) + (clock.m2 + 2);
-	clock.p = (clock.p1 * clock.p2);
-	clock.dot = 96000 * clock.m / (clock.n + 2) / clock.p;
-	clock.vco = 0;
-	memcpy(best_clock, &clock, sizeof(intel_clock_t));
-	return true;
-}
 static bool
 intel_vlv_find_best_pll(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *match_clock,
