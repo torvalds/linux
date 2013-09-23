@@ -1045,8 +1045,9 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 	regs->gpr[5] = (unsigned long) &rt_sf->uc;
 	regs->gpr[6] = (unsigned long) rt_sf;
 	regs->nip = (unsigned long) ka->sa.sa_handler;
-	/* enter the signal handler in big-endian mode */
+	/* enter the signal handler in native-endian mode */
 	regs->msr &= ~MSR_LE;
+	regs->msr |= (MSR_KERNEL & MSR_LE);
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
 	 * just indicates to userland that we were doing a transaction, but we
