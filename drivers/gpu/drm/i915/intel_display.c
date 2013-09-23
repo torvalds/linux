@@ -4395,10 +4395,10 @@ static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = crtc->pipe;
 
-	I915_WRITE(TRANSDATA_M1(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
-	I915_WRITE(TRANSDATA_N1(pipe), m_n->gmch_n);
-	I915_WRITE(TRANSDPLINK_M1(pipe), m_n->link_m);
-	I915_WRITE(TRANSDPLINK_N1(pipe), m_n->link_n);
+	I915_WRITE(PCH_TRANS_DATA_M1(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
+	I915_WRITE(PCH_TRANS_DATA_N1(pipe), m_n->gmch_n);
+	I915_WRITE(PCH_TRANS_LINK_M1(pipe), m_n->link_m);
+	I915_WRITE(PCH_TRANS_LINK_N1(pipe), m_n->link_n);
 }
 
 static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
@@ -4415,10 +4415,10 @@ static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 		I915_WRITE(PIPE_LINK_M1(transcoder), m_n->link_m);
 		I915_WRITE(PIPE_LINK_N1(transcoder), m_n->link_n);
 	} else {
-		I915_WRITE(PIPE_GMCH_DATA_M(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
-		I915_WRITE(PIPE_GMCH_DATA_N(pipe), m_n->gmch_n);
-		I915_WRITE(PIPE_DP_LINK_M(pipe), m_n->link_m);
-		I915_WRITE(PIPE_DP_LINK_N(pipe), m_n->link_n);
+		I915_WRITE(PIPE_DATA_M_G4X(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
+		I915_WRITE(PIPE_DATA_N_G4X(pipe), m_n->gmch_n);
+		I915_WRITE(PIPE_LINK_M_G4X(pipe), m_n->link_m);
+		I915_WRITE(PIPE_LINK_N_G4X(pipe), m_n->link_n);
 	}
 }
 

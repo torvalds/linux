@@ -259,14 +259,14 @@ void i915_save_display_reg(struct drm_device *dev)
 		dev_priv->regfile.saveDP_B = I915_READ(DP_B);
 		dev_priv->regfile.saveDP_C = I915_READ(DP_C);
 		dev_priv->regfile.saveDP_D = I915_READ(DP_D);
-		dev_priv->regfile.savePIPEA_GMCH_DATA_M = I915_READ(_PIPEA_GMCH_DATA_M);
-		dev_priv->regfile.savePIPEB_GMCH_DATA_M = I915_READ(_PIPEB_GMCH_DATA_M);
-		dev_priv->regfile.savePIPEA_GMCH_DATA_N = I915_READ(_PIPEA_GMCH_DATA_N);
-		dev_priv->regfile.savePIPEB_GMCH_DATA_N = I915_READ(_PIPEB_GMCH_DATA_N);
-		dev_priv->regfile.savePIPEA_DP_LINK_M = I915_READ(_PIPEA_DP_LINK_M);
-		dev_priv->regfile.savePIPEB_DP_LINK_M = I915_READ(_PIPEB_DP_LINK_M);
-		dev_priv->regfile.savePIPEA_DP_LINK_N = I915_READ(_PIPEA_DP_LINK_N);
-		dev_priv->regfile.savePIPEB_DP_LINK_N = I915_READ(_PIPEB_DP_LINK_N);
+		dev_priv->regfile.savePIPEA_GMCH_DATA_M = I915_READ(_PIPEA_DATA_M_G4X);
+		dev_priv->regfile.savePIPEB_GMCH_DATA_M = I915_READ(_PIPEB_DATA_M_G4X);
+		dev_priv->regfile.savePIPEA_GMCH_DATA_N = I915_READ(_PIPEA_DATA_N_G4X);
+		dev_priv->regfile.savePIPEB_GMCH_DATA_N = I915_READ(_PIPEB_DATA_N_G4X);
+		dev_priv->regfile.savePIPEA_DP_LINK_M = I915_READ(_PIPEA_LINK_M_G4X);
+		dev_priv->regfile.savePIPEB_DP_LINK_M = I915_READ(_PIPEB_LINK_M_G4X);
+		dev_priv->regfile.savePIPEA_DP_LINK_N = I915_READ(_PIPEA_LINK_N_G4X);
+		dev_priv->regfile.savePIPEB_DP_LINK_N = I915_READ(_PIPEB_LINK_N_G4X);
 	}
 	/* FIXME: regfile.save TV & SDVO state */
 
@@ -282,14 +282,14 @@ void i915_restore_display_reg(struct drm_device *dev)
 
 	/* Display port ratios (must be done before clock is set) */
 	if (SUPPORTS_INTEGRATED_DP(dev)) {
-		I915_WRITE(_PIPEA_GMCH_DATA_M, dev_priv->regfile.savePIPEA_GMCH_DATA_M);
-		I915_WRITE(_PIPEB_GMCH_DATA_M, dev_priv->regfile.savePIPEB_GMCH_DATA_M);
-		I915_WRITE(_PIPEA_GMCH_DATA_N, dev_priv->regfile.savePIPEA_GMCH_DATA_N);
-		I915_WRITE(_PIPEB_GMCH_DATA_N, dev_priv->regfile.savePIPEB_GMCH_DATA_N);
-		I915_WRITE(_PIPEA_DP_LINK_M, dev_priv->regfile.savePIPEA_DP_LINK_M);
-		I915_WRITE(_PIPEB_DP_LINK_M, dev_priv->regfile.savePIPEB_DP_LINK_M);
-		I915_WRITE(_PIPEA_DP_LINK_N, dev_priv->regfile.savePIPEA_DP_LINK_N);
-		I915_WRITE(_PIPEB_DP_LINK_N, dev_priv->regfile.savePIPEB_DP_LINK_N);
+		I915_WRITE(_PIPEA_DATA_M_G4X, dev_priv->regfile.savePIPEA_GMCH_DATA_M);
+		I915_WRITE(_PIPEB_DATA_M_G4X, dev_priv->regfile.savePIPEB_GMCH_DATA_M);
+		I915_WRITE(_PIPEA_DATA_N_G4X, dev_priv->regfile.savePIPEA_GMCH_DATA_N);
+		I915_WRITE(_PIPEB_DATA_N_G4X, dev_priv->regfile.savePIPEB_GMCH_DATA_N);
+		I915_WRITE(_PIPEA_LINK_M_G4X, dev_priv->regfile.savePIPEA_DP_LINK_M);
+		I915_WRITE(_PIPEB_LINK_M_G4X, dev_priv->regfile.savePIPEB_DP_LINK_M);
+		I915_WRITE(_PIPEA_LINK_N_G4X, dev_priv->regfile.savePIPEA_DP_LINK_N);
+		I915_WRITE(_PIPEB_LINK_N_G4X, dev_priv->regfile.savePIPEB_DP_LINK_N);
 	}
 
 	/* Fences */
