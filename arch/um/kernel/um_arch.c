@@ -234,7 +234,6 @@ static int panic_exit(struct notifier_block *self, unsigned long unused1,
 		      void *unused2)
 {
 	bust_spinlocks(1);
-	show_regs(&(current->thread.regs));
 	bust_spinlocks(0);
 	uml_exitcode = 1;
 	os_dump_core();
