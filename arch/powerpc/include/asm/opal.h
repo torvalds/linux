@@ -543,8 +543,8 @@ int64_t opal_console_read(int64_t term_number, __be64 *length,
 			  uint8_t *buffer);
 int64_t opal_console_write_buffer_space(int64_t term_number,
 					__be64 *length);
-int64_t opal_rtc_read(uint32_t *year_month_day,
-		      uint64_t *hour_minute_second_millisecond);
+int64_t opal_rtc_read(__be32 *year_month_day,
+		      __be64 *hour_minute_second_millisecond);
 int64_t opal_rtc_write(uint32_t year_month_day,
 		       uint64_t hour_minute_second_millisecond);
 int64_t opal_cec_power_down(uint64_t request);
