@@ -38,20 +38,20 @@ struct max98088_cdata {
 };
 
 struct max98088_priv {
-       enum max98088_type devtype;
-       struct max98088_pdata *pdata;
-       unsigned int sysclk;
-       struct max98088_cdata dai[2];
-       int eq_textcnt;
-       const char **eq_texts;
-       struct soc_enum eq_enum;
-       u8 ina_state;
-       u8 inb_state;
-       unsigned int ex_mode;
-       unsigned int digmic;
-       unsigned int mic1pre;
-       unsigned int mic2pre;
-       unsigned int extmic_mode;
+	enum max98088_type devtype;
+	struct max98088_pdata *pdata;
+	unsigned int sysclk;
+	struct max98088_cdata dai[2];
+	int eq_textcnt;
+	const char **eq_texts;
+	struct soc_enum eq_enum;
+	u8 ina_state;
+	u8 inb_state;
+	unsigned int ex_mode;
+	unsigned int digmic;
+	unsigned int mic1pre;
+	unsigned int mic2pre;
+	unsigned int extmic_mode;
 };
 
 static const u8 max98088_reg[M98088_REG_CNT] = {
@@ -2066,15 +2066,15 @@ static int max98088_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_max98088 = {
-       .probe   = max98088_probe,
-       .remove  = max98088_remove,
-       .suspend = max98088_suspend,
-       .resume  = max98088_resume,
-       .set_bias_level = max98088_set_bias_level,
-       .reg_cache_size = ARRAY_SIZE(max98088_reg),
-       .reg_word_size = sizeof(u8),
-       .reg_cache_default = max98088_reg,
-       .volatile_register = max98088_volatile_register,
+	.probe   = max98088_probe,
+	.remove  = max98088_remove,
+	.suspend = max98088_suspend,
+	.resume  = max98088_resume,
+	.set_bias_level = max98088_set_bias_level,
+	.reg_cache_size = ARRAY_SIZE(max98088_reg),
+	.reg_word_size = sizeof(u8),
+	.reg_cache_default = max98088_reg,
+	.volatile_register = max98088_volatile_register,
 	.dapm_widgets = max98088_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(max98088_dapm_widgets),
 	.dapm_routes = max98088_audio_map,
