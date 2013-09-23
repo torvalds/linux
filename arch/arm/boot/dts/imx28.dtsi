@@ -745,11 +745,11 @@
 				usb0_id_pins_a: usb0id@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x3071 /* MX28_PAD_AUART1_RTS__USB0_ID */
+						MX28_PAD_AUART1_RTS__USB0_ID
 					>;
-					fsl,drive-strength = <2>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 			};
 
