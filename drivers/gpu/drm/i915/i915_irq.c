@@ -807,7 +807,7 @@ static void notify_ring(struct drm_device *dev,
 	if (ring->obj == NULL)
 		return;
 
-	trace_i915_gem_request_complete(ring, ring->get_seqno(ring, false));
+	trace_i915_gem_request_complete(ring);
 
 	wake_up_all(&ring->irq_queue);
 	i915_queue_hangcheck(dev);
