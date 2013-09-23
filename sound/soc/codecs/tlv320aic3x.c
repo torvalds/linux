@@ -818,12 +818,6 @@ static int aic3x_add_widgets(struct snd_soc_codec *codec)
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_new_controls(dapm, aic3x_dapm_widgets,
-				  ARRAY_SIZE(aic3x_dapm_widgets));
-
-	/* set up audio path interconnects */
-	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
-
 	if (aic3x->model == AIC3X_MODEL_3007) {
 		snd_soc_dapm_new_controls(dapm, aic3007_dapm_widgets,
 			ARRAY_SIZE(aic3007_dapm_widgets));
@@ -1428,6 +1422,10 @@ static struct snd_soc_codec_driver soc_codec_dev_aic3x = {
 	.resume = aic3x_resume,
 	.controls = aic3x_snd_controls,
 	.num_controls = ARRAY_SIZE(aic3x_snd_controls),
+	.dapm_widgets = aic3x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(aic3x_dapm_widgets),
+	.dapm_routes = intercon,
+	.num_dapm_routes = ARRAY_SIZE(intercon),
 };
 
 /*
