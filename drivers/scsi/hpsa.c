@@ -4942,6 +4942,15 @@ static void hpsa_flush_cache(struct ctlr_info *h)
 {
 	char *flush_buf;
 	struct CommandList *c;
+	unsigned long flags;
+
+	/* Don't bother trying to flush the cache if locked up */
+	spin_lock_irqsave(&h->lock, flags);
+	if (unlikely(h->lockup_detected)) {
+		spin_unlock_irqrestore(&h->lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
 
 	flush_buf = kzalloc(4, GFP_KERNEL);
 	if (!flush_buf)
