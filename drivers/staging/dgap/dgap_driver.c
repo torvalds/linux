@@ -416,8 +416,7 @@ void dgap_cleanup_module(void)
 		unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 	}
 
-	if (dgap_config_buf)
-		kfree(dgap_config_buf);
+	kfree(dgap_config_buf);
 
 	for (i = 0; i < dgap_NumBoards; ++i) {
 		dgap_remove_ports_sysfiles(dgap_Board[i]);
@@ -484,10 +483,8 @@ static void dgap_cleanup_board(struct board_t *brd)
 		}
 	}
 
-	if (brd->flipbuf)
-		kfree(brd->flipbuf);
-	if (brd->flipflagbuf)
-		kfree(brd->flipflagbuf);
+	kfree(brd->flipbuf);
+	kfree(brd->flipflagbuf);
 
 	dgap_Board[brd->boardnum] = NULL;
 
