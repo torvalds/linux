@@ -1263,12 +1263,13 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	if (rdev)
 		goto found;
 
+	regulator = ERR_PTR(ret);
+
 	/*
 	 * If we have return value from dev_lookup fail, we do not expect to
 	 * succeed, so, quit with appropriate error value
 	 */
 	if (ret && ret != -ENODEV) {
-		regulator = ERR_PTR(ret);
 		goto out;
 	}
 
