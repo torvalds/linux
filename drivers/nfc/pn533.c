@@ -373,6 +373,7 @@ struct pn533 {
 	struct delayed_work poll_work;
 	struct work_struct mi_rx_work;
 	struct work_struct mi_tx_work;
+	struct work_struct mi_tm_rx_work;
 	struct work_struct tg_work;
 	struct work_struct rf_work;
 
@@ -1624,27 +1625,81 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 
 #define PN533_CMD_DATAEXCH_HEAD_LEN 1
 #define PN533_CMD_DATAEXCH_DATA_MAXLEN 262
+static void pn533_wq_tm_mi_recv(struct work_struct *work);
+static struct sk_buff *pn533_build_response(struct pn533 *dev);
+
 static int pn533_tm_get_data_complete(struct pn533 *dev, void *arg,
 				      struct sk_buff *resp)
 {
-	u8 status;
+	struct sk_buff *skb;
+	u8 status, ret, mi;
+	int rc;
 
 	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
-	if (IS_ERR(resp))
+	if (IS_ERR(resp)) {
+		skb_queue_purge(&dev->resp_q);
 		return PTR_ERR(resp);
-
-	status = resp->data[0];
-	skb_pull(resp, sizeof(status));
-
-	if (status != 0) {
-		nfc_tm_deactivated(dev->nfc_dev);
-		dev->tgt_mode = 0;
-		dev_kfree_skb(resp);
-		return 0;
 	}
 
-	return nfc_tm_data_received(dev->nfc_dev, resp);
+	status = resp->data[0];
+
+	ret = status & PN533_CMD_RET_MASK;
+	mi = status & PN533_CMD_MI_MASK;
+
+	skb_pull(resp, sizeof(status));
+
+	if (ret != PN533_CMD_RET_SUCCESS) {
+		rc = -EIO;
+		goto error;
+	}
+
+	skb_queue_tail(&dev->resp_q, resp);
+
+	if (mi) {
+		queue_work(dev->wq, &dev->mi_tm_rx_work);
+		return -EINPROGRESS;
+	}
+
+	skb = pn533_build_response(dev);
+	if (!skb) {
+		rc = -EIO;
+		goto error;
+	}
+
+	return nfc_tm_data_received(dev->nfc_dev, skb);
+
+error:
+	nfc_tm_deactivated(dev->nfc_dev);
+	dev->tgt_mode = 0;
+	skb_queue_purge(&dev->resp_q);
+	dev_kfree_skb(resp);
+
+	return rc;
+}
+
+static void pn533_wq_tm_mi_recv(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, mi_tm_rx_work);
+	struct sk_buff *skb;
+	int rc;
+
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
+
+	skb = pn533_alloc_skb(dev, 0);
+	if (!skb)
+		return;
+
+	rc = pn533_send_cmd_direct_async(dev,
+					PN533_CMD_TG_GET_DATA,
+					skb,
+					pn533_tm_get_data_complete,
+					NULL);
+
+	if (rc < 0)
+		dev_kfree_skb(skb);
+
+	return;
 }
 
 static void pn533_wq_tg_get_data(struct work_struct *work)
@@ -3055,6 +3110,7 @@ static int pn533_probe(struct usb_interface *interface,
 	INIT_WORK(&dev->mi_rx_work, pn533_wq_mi_recv);
 	INIT_WORK(&dev->mi_tx_work, pn533_wq_mi_send);
 	INIT_WORK(&dev->tg_work, pn533_wq_tg_get_data);
+	INIT_WORK(&dev->mi_tm_rx_work, pn533_wq_tm_mi_recv);
 	INIT_DELAYED_WORK(&dev->poll_work, pn533_wq_poll);
 	INIT_WORK(&dev->rf_work, pn533_wq_rf);
 	dev->wq = alloc_ordered_workqueue("pn533", 0);
