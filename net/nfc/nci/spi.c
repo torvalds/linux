@@ -44,6 +44,7 @@ static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb)
 	struct spi_message m;
 	struct spi_transfer t;
 
+	memset(&t, 0, sizeof(struct spi_transfer));
 	t.tx_buf = skb->data;
 	t.len = skb->len;
 	t.cs_change = 0;
@@ -173,16 +174,21 @@ static struct sk_buff *__nci_spi_recv_frame(struct nci_spi *nspi)
 	int ret;
 
 	spi_message_init(&m);
+
+	memset(&tx, 0, sizeof(struct spi_transfer));
 	req[0] = NCI_SPI_DIRECT_READ;
 	req[1] = nspi->acknowledge_mode;
 	tx.tx_buf = req;
 	tx.len = 2;
 	tx.cs_change = 0;
 	spi_message_add_tail(&tx, &m);
+
+	memset(&rx, 0, sizeof(struct spi_transfer));
 	rx.rx_buf = resp_hdr;
 	rx.len = 2;
 	rx.cs_change = 1;
 	spi_message_add_tail(&rx, &m);
+
 	ret = spi_sync(nspi->spi, &m);
 
 	if (ret)
@@ -199,11 +205,14 @@ static struct sk_buff *__nci_spi_recv_frame(struct nci_spi *nspi)
 		return NULL;
 
 	spi_message_init(&m);
+
+	memset(&rx, 0, sizeof(struct spi_transfer));
 	rx.rx_buf = skb_put(skb, rx_len);
 	rx.len = rx_len;
 	rx.cs_change = 0;
 	rx.delay_usecs = nspi->xfer_udelay;
 	spi_message_add_tail(&rx, &m);
+
 	ret = spi_sync(nspi->spi, &m);
 
 	if (ret)
