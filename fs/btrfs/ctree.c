@@ -1005,8 +1005,11 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	if (root->ref_cows)
-		btrfs_reloc_cow_block(trans, root, buf, cow);
+	if (root->ref_cows) {
+		ret = btrfs_reloc_cow_block(trans, root, buf, cow);
+		if (ret)
+			return ret;
+	}
 
 	if (buf == root->node) {
 		WARN_ON(parent && parent != buf);

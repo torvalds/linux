@@ -2025,6 +2025,17 @@ static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
+static int em_ret_far_imm(struct x86_emulate_ctxt *ctxt)
+{
+        int rc;
+
+        rc = em_ret_far(ctxt);
+        if (rc != X86EMUL_CONTINUE)
+                return rc;
+        rsp_increment(ctxt, ctxt->src.val);
+        return X86EMUL_CONTINUE;
+}
+
 static int em_cmpxchg(struct x86_emulate_ctxt *ctxt)
 {
 	/* Save real source value, then compare EAX against destination. */
@@ -3763,7 +3774,8 @@ static const struct opcode opcode_table[256] = {
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
 	I(Stack | SrcImmU16 | Src2ImmByte, em_enter), I(Stack, em_leave),
-	N, I(ImplicitOps | Stack, em_ret_far),
+	I(ImplicitOps | Stack | SrcImmU16, em_ret_far_imm),
+	I(ImplicitOps | Stack, em_ret_far),
 	D(ImplicitOps), DI(SrcImmByte, intn),
 	D(ImplicitOps | No64), II(ImplicitOps, em_iret, iret),
 	/* 0xD0 - 0xD7 */
