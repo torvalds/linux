@@ -236,8 +236,7 @@ static const unsigned ppi2_8b_pins[] = {
 static const unsigned ppi2_16b_pins[] = {
 	GPIO_PA0, GPIO_PA1, GPIO_PA2, GPIO_PA3, GPIO_PA4, GPIO_PA5, GPIO_PA6,
 	GPIO_PA7, GPIO_PA8, GPIO_PA9, GPIO_PA10, GPIO_PA11, GPIO_PA12,
-	GPIO_PA13, GPIO_PA14, GPIO_PA15,
-	GPIO_PA7, GPIO_PB0, GPIO_PB1, GPIO_PB2, GPIO_PB3,
+	GPIO_PA13, GPIO_PA14, GPIO_PA15, GPIO_PB0, GPIO_PB1, GPIO_PB2,
 };
 
 static const unsigned lp0_pins[] = {
