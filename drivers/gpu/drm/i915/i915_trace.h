@@ -319,9 +319,24 @@ DEFINE_EVENT(i915_gem_request, i915_gem_request_add,
 	    TP_ARGS(ring, seqno)
 );
 
-DEFINE_EVENT(i915_gem_request, i915_gem_request_complete,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno),
-	    TP_ARGS(ring, seqno)
+TRACE_EVENT(i915_gem_request_complete,
+	    TP_PROTO(struct intel_ring_buffer *ring),
+	    TP_ARGS(ring),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u32, ring)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = ring->dev->primary->index;
+			   __entry->ring = ring->id;
+			   __entry->seqno = ring->get_seqno(ring, false);
+			   ),
+
+	    TP_printk("dev=%u, ring=%u, seqno=%u",
+		      __entry->dev, __entry->ring, __entry->seqno)
 );
 
 DEFINE_EVENT(i915_gem_request, i915_gem_request_retire,
