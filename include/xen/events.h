@@ -39,6 +39,11 @@ int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
  */
 void unbind_from_irqhandler(unsigned int irq, void *dev_id);
 
+#define XEN_IRQ_PRIORITY_MAX     EVTCHN_FIFO_PRIORITY_MAX
+#define XEN_IRQ_PRIORITY_DEFAULT EVTCHN_FIFO_PRIORITY_DEFAULT
+#define XEN_IRQ_PRIORITY_MIN     EVTCHN_FIFO_PRIORITY_MIN
+int xen_set_irq_priority(unsigned irq, unsigned priority);
+
 /*
  * Allow extra references to event channels exposed to userspace by evtchn
  */

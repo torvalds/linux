@@ -1117,6 +1117,23 @@ void unbind_from_irqhandler(unsigned int irq, void *dev_id)
 }
 EXPORT_SYMBOL_GPL(unbind_from_irqhandler);
 
+/**
+ * xen_set_irq_priority() - set an event channel priority.
+ * @irq:irq bound to an event channel.
+ * @priority: priority between XEN_IRQ_PRIORITY_MAX and XEN_IRQ_PRIORITY_MIN.
+ */
+int xen_set_irq_priority(unsigned irq, unsigned priority)
+{
+	struct evtchn_set_priority set_priority;
+
+	set_priority.port = evtchn_from_irq(irq);
+	set_priority.priority = priority;
+
+	return HYPERVISOR_event_channel_op(EVTCHNOP_set_priority,
+					   &set_priority);
+}
+EXPORT_SYMBOL_GPL(xen_set_irq_priority);
+
 int evtchn_make_refcounted(unsigned int evtchn)
 {
 	int irq = get_evtchn_to_irq(evtchn);
