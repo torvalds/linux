@@ -184,6 +184,8 @@ list_set_add(struct ip_set *set, u32 i, struct set_adt_elem *d,
 			}
 			memmove(list_set_elem(set, map, i + 1), e,
 				set->dsize * (map->size - (i + 1)));
+			/* Extensions must be initialized to zero */
+			memset(e, 0, set->dsize);
 		}
 	}
 
@@ -192,7 +194,7 @@ list_set_add(struct ip_set *set, u32 i, struct set_adt_elem *d,
 		ip_set_timeout_set(ext_timeout(e, set), ext->timeout);
 	if (SET_WITH_COUNTER(set))
 		ip_set_init_counter(ext_counter(e, set), ext);
-	if (SET_WITH_COMMENT(set) && ext->comment)
+	if (SET_WITH_COMMENT(set))
 		ip_set_init_comment(ext_comment(e, set), ext);
 	return 0;
 }
