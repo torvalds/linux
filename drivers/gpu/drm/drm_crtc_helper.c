@@ -105,9 +105,9 @@ static void drm_mode_validate_flag(struct drm_connector *connector,
  * then culled (based on validity and the @maxX, @maxY parameters) and put into
  * the normal modes list.
  *
- * Intended to be use as a generic implementation of the ->probe() @connector
- * callback for drivers that use the crtc helpers for output mode filtering and
- * detection.
+ * Intended to be use as a generic implementation of the ->fill_modes()
+ * @connector vfunc for drivers that use the crtc helpers for output mode
+ * filtering and detection.
  *
  * RETURNS:
  * Number of modes found on @connector.
