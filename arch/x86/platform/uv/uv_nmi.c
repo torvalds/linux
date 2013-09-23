@@ -139,6 +139,19 @@ module_param_named(wait_count, uv_nmi_wait_count, int, 0644);
 static int uv_nmi_retry_count = 500;
 module_param_named(retry_count, uv_nmi_retry_count, int, 0644);
 
+/*
+ * Valid NMI Actions:
+ *  "dump"	- dump process stack for each cpu
+ *  "ips"	- dump IP info for each cpu
+ */
+static char uv_nmi_action[8] = "dump";
+module_param_string(action, uv_nmi_action, sizeof(uv_nmi_action), 0644);
+
+static inline bool uv_nmi_action_is(const char *action)
+{
+	return (strncmp(uv_nmi_action, action, strlen(action)) == 0);
+}
+
 /* Setup which NMI support is present in system */
 static void uv_nmi_setup_mmrs(void)
 {
@@ -367,13 +380,38 @@ static void uv_nmi_wait(int master)
 		atomic_read(&uv_nmi_cpus_in_nmi), num_online_cpus());
 }
 
+static void uv_nmi_dump_cpu_ip_hdr(void)
+{
+	printk(KERN_DEFAULT
+		"\nUV: %4s %6s %-32s %s   (Note: PID 0 not listed)\n",
+		"CPU", "PID", "COMMAND", "IP");
+}
+
+static void uv_nmi_dump_cpu_ip(int cpu, struct pt_regs *regs)
+{
+	printk(KERN_DEFAULT "UV: %4d %6d %-32.32s ",
+		cpu, current->pid, current->comm);
+
+	printk_address(regs->ip, 1);
+}
+
 /* Dump this cpu's state */
 static void uv_nmi_dump_state_cpu(int cpu, struct pt_regs *regs)
 {
 	const char *dots = " ................................. ";
 
-	printk(KERN_DEFAULT "UV:%sNMI process trace for CPU %d\n", dots, cpu);
-	show_regs(regs);
+	if (uv_nmi_action_is("ips")) {
+		if (cpu == 0)
+			uv_nmi_dump_cpu_ip_hdr();
+
+		if (current->pid != 0)
+			uv_nmi_dump_cpu_ip(cpu, regs);
+
+	} else if (uv_nmi_action_is("dump")) {
+		printk(KERN_DEFAULT
+			"UV:%sNMI process trace for CPU %d\n", dots, cpu);
+		show_regs(regs);
+	}
 	atomic_set(&uv_cpu_nmi.state, UV_NMI_STATE_DUMP_DONE);
 }
 
@@ -420,7 +458,8 @@ static void uv_nmi_dump_state(int cpu, struct pt_regs *regs, int master)
 		int ignored = 0;
 		int saved_console_loglevel = console_loglevel;
 
-		pr_alert("UV: tracing processes for %d CPUs from CPU %d\n",
+		pr_alert("UV: tracing %s for %d CPUs from CPU %d\n",
+			uv_nmi_action_is("ips") ? "IPs" : "processes",
 			atomic_read(&uv_nmi_cpus_in_nmi), cpu);
 
 		console_loglevel = uv_nmi_loglevel;
@@ -482,7 +521,8 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	uv_nmi_wait(master);
 
 	/* Dump state of each cpu */
-	uv_nmi_dump_state(cpu, regs, master);
+	if (uv_nmi_action_is("ips") || uv_nmi_action_is("dump"))
+		uv_nmi_dump_state(cpu, regs, master);
 
 	/* Clear per_cpu "in nmi" flag */
 	atomic_set(&uv_cpu_nmi.state, UV_NMI_STATE_OUT);
