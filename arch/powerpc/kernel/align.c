@@ -54,8 +54,6 @@ struct aligninfo {
 /* DSISR bits reported for a DCBZ instruction: */
 #define DCBZ	0x5f	/* 8xx/82xx dcbz faults when cache not enabled */
 
-#define SWAP(a, b)	(t = (a), (a) = (b), (b) = t)
-
 /*
  * The PowerPC stores certain bits of the instruction that caused the
  * alignment exception in the DSISR register.  This array maps those
@@ -458,7 +456,7 @@ static struct aligninfo spe_aligninfo[32] = {
 static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 		       unsigned int instr)
 {
-	int t, ret;
+	int ret;
 	union {
 		u64 ll;
 		u32 w[2];
@@ -581,24 +579,18 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 	if (flags & SW) {
 		switch (flags & 0xf0) {
 		case E8:
-			SWAP(data.v[0], data.v[7]);
-			SWAP(data.v[1], data.v[6]);
-			SWAP(data.v[2], data.v[5]);
-			SWAP(data.v[3], data.v[4]);
+			data.ll = swab64(data.ll);
 			break;
 		case E4:
-
-			SWAP(data.v[0], data.v[3]);
-			SWAP(data.v[1], data.v[2]);
-			SWAP(data.v[4], data.v[7]);
-			SWAP(data.v[5], data.v[6]);
+			data.w[0] = swab32(data.w[0]);
+			data.w[1] = swab32(data.w[1]);
 			break;
 		/* Its half word endian */
 		default:
-			SWAP(data.v[0], data.v[1]);
-			SWAP(data.v[2], data.v[3]);
-			SWAP(data.v[4], data.v[5]);
-			SWAP(data.v[6], data.v[7]);
+			data.h[0] = swab16(data.h[0]);
+			data.h[1] = swab16(data.h[1]);
+			data.h[2] = swab16(data.h[2]);
+			data.h[3] = swab16(data.h[3]);
 			break;
 		}
 	}
@@ -710,7 +702,7 @@ int fix_alignment(struct pt_regs *regs)
 	unsigned int dsisr;
 	unsigned char __user *addr;
 	unsigned long p, swiz;
-	int ret, t;
+	int ret;
 	union {
 		u64 ll;
 		double dd;
@@ -915,17 +907,13 @@ int fix_alignment(struct pt_regs *regs)
 	if (flags & SW) {
 		switch (nb) {
 		case 8:
-			SWAP(data.v[0], data.v[7]);
-			SWAP(data.v[1], data.v[6]);
-			SWAP(data.v[2], data.v[5]);
-			SWAP(data.v[3], data.v[4]);
+			data.ll = swab64(data.ll);
 			break;
 		case 4:
-			SWAP(data.v[4], data.v[7]);
-			SWAP(data.v[5], data.v[6]);
+			data.x32.low32 = swab32(data.x32.low32);
 			break;
 		case 2:
-			SWAP(data.v[6], data.v[7]);
+			data.x16.low16 = swab16(data.x16.low16);
 			break;
 		}
 	}
