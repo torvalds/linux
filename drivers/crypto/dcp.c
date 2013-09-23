@@ -734,6 +734,8 @@ static int dcp_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->dcp_regs_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(dev->dcp_regs_base))
+		return PTR_ERR(dev->dcp_regs_base);
 
 	dcp_set(dev, DCP_CTRL_SFRST, DCP_REG_CTRL);
 	udelay(10);
