@@ -933,10 +933,7 @@ const struct kobj_ns_type_operations *kobj_ns_ops(struct kobject *kobj)
 
 bool kobj_ns_current_may_mount(enum kobj_ns_type type)
 {
-	bool may_mount = false;
-
-	if (type == KOBJ_NS_TYPE_NONE)
-		return true;
+	bool may_mount = true;
 
 	spin_lock(&kobj_ns_type_lock);
 	if ((type > KOBJ_NS_TYPE_NONE) && (type < KOBJ_NS_TYPES) &&
