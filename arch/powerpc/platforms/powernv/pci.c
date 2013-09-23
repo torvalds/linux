@@ -236,7 +236,7 @@ static void pnv_pci_config_check_eeh(struct pnv_phb *phb,
 {
 	s64	rc;
 	u8	fstate;
-	u16	pcierr;
+	__be16	pcierr;
 	u32	pe_no;
 
 	/*
@@ -283,16 +283,16 @@ int pnv_pci_cfg_read(struct device_node *dn,
 		break;
 	}
 	case 2: {
-		u16 v16;
+		__be16 v16;
 		rc = opal_pci_config_read_half_word(phb->opal_id, bdfn, where,
 						   &v16);
-		*val = (rc == OPAL_SUCCESS) ? v16 : 0xffff;
+		*val = (rc == OPAL_SUCCESS) ? be16_to_cpu(v16) : 0xffff;
 		break;
 	}
 	case 4: {
-		u32 v32;
+		__be32 v32;
 		rc = opal_pci_config_read_word(phb->opal_id, bdfn, where, &v32);
-		*val = (rc == OPAL_SUCCESS) ? v32 : 0xffffffff;
+		*val = (rc == OPAL_SUCCESS) ? be32_to_cpu(v32) : 0xffffffff;
 		break;
 	}
 	default:
@@ -404,7 +404,7 @@ static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 			 struct dma_attrs *attrs)
 {
 	u64 proto_tce;
-	u64 *tcep, *tces;
+	__be64 *tcep, *tces;
 	u64 rpn;
 
 	proto_tce = TCE_PCI_READ; // Read allowed
@@ -416,7 +416,7 @@ static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 	rpn = __pa(uaddr) >> TCE_SHIFT;
 
 	while (npages--)
-		*(tcep++) = proto_tce | (rpn++ << TCE_RPN_SHIFT);
+		*(tcep++) = cpu_to_be64(proto_tce | (rpn++ << TCE_RPN_SHIFT));
 
 	/* Some implementations won't cache invalid TCEs and thus may not
 	 * need that flush. We'll probably turn it_type into a bit mask
@@ -430,12 +430,12 @@ static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 
 static void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 {
-	u64 *tcep, *tces;
+	__be64 *tcep, *tces;
 
 	tces = tcep = ((u64 *)tbl->it_base) + index - tbl->it_offset;
 
 	while (npages--)
-		*(tcep++) = 0;
+		*(tcep++) = cpu_to_be64(0);
 
 	if (tbl->it_type & TCE_PCI_SWINV_FREE)
 		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1);
@@ -462,8 +462,8 @@ void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 static struct iommu_table *pnv_pci_setup_bml_iommu(struct pci_controller *hose)
 {
 	struct iommu_table *tbl;
-	const __be64 *basep;
-	const __be32 *sizep, *swinvp;
+	const __be64 *basep, *swinvp;
+	const __be32 *sizep;
 
 	basep = of_get_property(hose->dn, "linux,tce-base", NULL);
 	sizep = of_get_property(hose->dn, "linux,tce-size", NULL);
@@ -484,9 +484,8 @@ static struct iommu_table *pnv_pci_setup_bml_iommu(struct pci_controller *hose)
 	swinvp = of_get_property(hose->dn, "linux,tce-sw-invalidate-info",
 				 NULL);
 	if (swinvp) {
-		tbl->it_busno = of_read_ulong(&swinvp[1], 2);
-		tbl->it_index =
-			(unsigned long)ioremap(of_read_number(swinvp, 2), 8);
+		tbl->it_busno = swinvp[1];
+		tbl->it_index = (unsigned long)ioremap(be64_to_cpup(swinvp), 8);
 		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
 	}
 	return tbl;
