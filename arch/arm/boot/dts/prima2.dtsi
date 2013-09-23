@@ -171,7 +171,8 @@
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0xb0000000 0xb0000000 0x180000>;
+			ranges = <0xb0000000 0xb0000000 0x180000>,
+			       <0x56000000 0x56000000 0x1b00000>;
 
 			timer@b0020000 {
 				compatible = "sirf,prima2-tick";
