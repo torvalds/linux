@@ -1068,14 +1068,14 @@ static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 static int aic3x_init_3007(struct snd_soc_codec *codec)
 {
-	u8 tmp1, tmp2, *cache = codec->reg_cache;
+	unsigned int tmp1, tmp2;
 
 	/*
 	 * There is no need to cache writes to undocumented page 0xD but
 	 * respective page 0 register cache entries must be preserved
 	 */
-	tmp1 = cache[0xD];
-	tmp2 = cache[0x8];
+	tmp1 = snd_soc_read(codec, 0xD);
+	tmp2 = snd_soc_read(codec, 0x8);
 	/* Class-D speaker driver init; datasheet p. 46 */
 	snd_soc_write(codec, AIC3X_PAGE_SELECT, 0x0D);
 	snd_soc_write(codec, 0xD, 0x0D);
@@ -1083,8 +1083,9 @@ static int aic3x_init_3007(struct snd_soc_codec *codec)
 	snd_soc_write(codec, 0x8, 0x5D);
 	snd_soc_write(codec, 0x8, 0x5C);
 	snd_soc_write(codec, AIC3X_PAGE_SELECT, 0x00);
-	cache[0xD] = tmp1;
-	cache[0x8] = tmp2;
+
+	snd_soc_write(codec, 0xD, tmp1);
+	snd_soc_write(codec, 0x8, tmp2);
 
 	return 0;
 }
