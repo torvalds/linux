@@ -217,16 +217,11 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		if (!(region_obj->region.flags & AOPOBJ_SETUP_COMPLETE)) {
 			region_obj->region.flags |= AOPOBJ_SETUP_COMPLETE;
 
-			if (region_obj2->extra.region_context) {
-
-				/* The handler for this region was already installed */
-
-				ACPI_FREE(region_context);
-			} else {
-				/*
-				 * Save the returned context for use in all accesses to
-				 * this particular region
-				 */
+			/*
+			 * Save the returned context for use in all accesses to
+			 * the handler for this particular region
+			 */
+			if (!(region_obj2->extra.region_context)) {
 				region_obj2->extra.region_context =
 				    region_context;
 			}
@@ -401,6 +396,14 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 						 ACPI_REGION_DEACTIVATE,
 						 handler_obj->address_space.
 						 context, region_context);
+
+				/*
+				 * region_context should have been released by the deactivate
+				 * operation. We don't need access to it anymore here.
+				 */
+				if (region_context) {
+					*region_context = NULL;
+				}
 
 				/* Init routine may fail, Just ignore errors */
 
