@@ -86,8 +86,8 @@ struct arizona_extcon_info {
 };
 
 static const struct arizona_micd_config micd_default_modes[] = {
-	{ ARIZONA_ACCDET_SRC, 1 << ARIZONA_MICD_BIAS_SRC_SHIFT, 0 },
-	{ 0,                  2 << ARIZONA_MICD_BIAS_SRC_SHIFT, 1 },
+	{ ARIZONA_ACCDET_SRC, 1, 0 },
+	{ 0,                  2, 1 },
 };
 
 static const struct arizona_micd_range micd_default_ranges[] = {
@@ -182,7 +182,8 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 					info->micd_modes[mode].gpio);
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 			   ARIZONA_MICD_BIAS_SRC_MASK,
-			   info->micd_modes[mode].bias);
+			   info->micd_modes[mode].bias <<
+			   ARIZONA_MICD_BIAS_SRC_SHIFT);
 	regmap_update_bits(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1,
 			   ARIZONA_ACCDET_SRC, info->micd_modes[mode].src);
 
@@ -193,7 +194,7 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 
 static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 {
-	switch (info->micd_modes[0].bias >> ARIZONA_MICD_BIAS_SRC_SHIFT) {
+	switch (info->micd_modes[0].bias) {
 	case 1:
 		return "MICBIAS1";
 	case 2:
