@@ -191,20 +191,33 @@ struct mxs_lradc {
 # define LRADC_CTRL0_MX28_XNPSW	/* XM */	(1 << 17)
 # define LRADC_CTRL0_MX28_XPPSW	/* XP */	(1 << 16)
 
+# define LRADC_CTRL0_MX23_TOUCH_DETECT_ENABLE	(1 << 20)
+# define LRADC_CTRL0_MX23_YM			(1 << 19)
+# define LRADC_CTRL0_MX23_XM			(1 << 18)
+# define LRADC_CTRL0_MX23_YP			(1 << 17)
+# define LRADC_CTRL0_MX23_XP			(1 << 16)
+
 # define LRADC_CTRL0_MX28_PLATE_MASK \
 		(LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE | \
 		LRADC_CTRL0_MX28_YNNSW | LRADC_CTRL0_MX28_YPNSW | \
 		LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_XNNSW | \
 		LRADC_CTRL0_MX28_XNPSW | LRADC_CTRL0_MX28_XPPSW)
 
+# define LRADC_CTRL0_MX23_PLATE_MASK \
+		(LRADC_CTRL0_MX23_TOUCH_DETECT_ENABLE | \
+		LRADC_CTRL0_MX23_YM | LRADC_CTRL0_MX23_XM | \
+		LRADC_CTRL0_MX23_YP | LRADC_CTRL0_MX23_XP)
+
 #define	LRADC_CTRL1				0x10
 #define	LRADC_CTRL1_TOUCH_DETECT_IRQ_EN		(1 << 24)
 #define	LRADC_CTRL1_LRADC_IRQ_EN(n)		(1 << ((n) + 16))
 #define	LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK	(0x1fff << 16)
+#define	LRADC_CTRL1_MX23_LRADC_IRQ_EN_MASK	(0x01ff << 16)
 #define	LRADC_CTRL1_LRADC_IRQ_EN_OFFSET		16
 #define	LRADC_CTRL1_TOUCH_DETECT_IRQ		(1 << 8)
 #define	LRADC_CTRL1_LRADC_IRQ(n)		(1 << (n))
 #define	LRADC_CTRL1_MX28_LRADC_IRQ_MASK		0x1fff
+#define	LRADC_CTRL1_MX23_LRADC_IRQ_MASK		0x01ff
 #define	LRADC_CTRL1_LRADC_IRQ_OFFSET		0
 
 #define	LRADC_CTRL2				0x20
@@ -255,37 +268,58 @@ static void mxs_lradc_reg_wrt(struct mxs_lradc *lradc, u32 val, u32 reg)
 
 static u32 mxs_lradc_plate_mask(struct mxs_lradc *lradc)
 {
-	return LRADC_CTRL0_MX28_PLATE_MASK;
+	if (lradc->soc == IMX23_LRADC)
+		return LRADC_CTRL0_MX23_PLATE_MASK;
+	else
+		return LRADC_CTRL0_MX28_PLATE_MASK;
 }
 
 static u32 mxs_lradc_irq_en_mask(struct mxs_lradc *lradc)
 {
-	return LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK;
+	if (lradc->soc == IMX23_LRADC)
+		return LRADC_CTRL1_MX23_LRADC_IRQ_EN_MASK;
+	else
+		return LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK;
 }
 
 static u32 mxs_lradc_irq_mask(struct mxs_lradc *lradc)
 {
-	return LRADC_CTRL1_MX28_LRADC_IRQ_MASK;
+	if (lradc->soc == IMX23_LRADC)
+		return LRADC_CTRL1_MX23_LRADC_IRQ_MASK;
+	else
+		return LRADC_CTRL1_MX28_LRADC_IRQ_MASK;
 }
 
 static u32 mxs_lradc_touch_detect_bit(struct mxs_lradc *lradc)
 {
-	return LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE;
+	if (lradc->soc == IMX23_LRADC)
+		return LRADC_CTRL0_MX23_TOUCH_DETECT_ENABLE;
+	else
+		return LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE;
 }
 
 static u32 mxs_lradc_drive_x_plate(struct mxs_lradc *lradc)
 {
-	return LRADC_CTRL0_MX28_XPPSW | LRADC_CTRL0_MX28_XNNSW;
+	if (lradc->soc == IMX23_LRADC)
+		return LRADC_CTRL0_MX23_XP | LRADC_CTRL0_MX23_XM;
+	else
+		return LRADC_CTRL0_MX28_XPPSW | LRADC_CTRL0_MX28_XNNSW;
 }
 
 static u32 mxs_lradc_drive_y_plate(struct mxs_lradc *lradc)
 {
-	return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_YNNSW;
+	if (lradc->soc == IMX23_LRADC)
+		return LRADC_CTRL0_MX23_YP | LRADC_CTRL0_MX23_YM;
+	else
+		return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_YNNSW;
 }
 
 static u32 mxs_lradc_drive_pressure(struct mxs_lradc *lradc)
 {
-	return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_XNNSW;
+	if (lradc->soc == IMX23_LRADC)
+		return LRADC_CTRL0_MX23_YP | LRADC_CTRL0_MX23_XM;
+	else
+		return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_XNNSW;
 }
 
 /*
@@ -322,7 +356,8 @@ static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
 	 * Virtual channel 0 is always used here as the others are always not
 	 * used if doing raw sampling.
 	 */
-	mxs_lradc_reg_clear(lradc, LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK,
+	if (lradc->soc == IMX28_LRADC)
+		mxs_lradc_reg_clear(lradc, LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK,
 			LRADC_CTRL1);
 	mxs_lradc_reg_clear(lradc, 0xff, LRADC_CTRL0);
 
@@ -764,7 +799,8 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 	if (ret < 0)
 		goto err_buf;
 
-	mxs_lradc_reg_clear(lradc, LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK,
+	if (lradc->soc == IMX28_LRADC)
+		mxs_lradc_reg_clear(lradc, LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK,
 							LRADC_CTRL1);
 	mxs_lradc_reg_clear(lradc, 0xff, LRADC_CTRL0);
 
@@ -802,7 +838,8 @@ static int mxs_lradc_buffer_postdisable(struct iio_dev *iio)
 					LRADC_DELAY_KICK, LRADC_DELAY(0));
 
 	mxs_lradc_reg_clear(lradc, 0xff, LRADC_CTRL0);
-	mxs_lradc_reg_clear(lradc, LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK,
+	if (lradc->soc == IMX28_LRADC)
+		mxs_lradc_reg_clear(lradc, LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK,
 					LRADC_CTRL1);
 
 	kfree(lradc->buffer);
@@ -906,7 +943,8 @@ static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
 	mxs_lradc_reg_wrt(lradc, 0, LRADC_DELAY(3));
 
 	/* Configure the touchscreen type */
-	mxs_lradc_reg_clear(lradc, LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE,
+	if (lradc->soc == IMX28_LRADC) {
+		mxs_lradc_reg_clear(lradc, LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE,
 							LRADC_CTRL0);
 
 	if (lradc->use_touchscreen == MXS_LRADC_TOUCHSCREEN_5WIRE)
@@ -994,6 +1032,12 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	else
 		dev_warn(dev, "Unsupported number of touchscreen wires (%d)\n",
 				ts_wires);
+
+	if ((lradc->soc == IMX23_LRADC) && (ts_wires == 5)) {
+		dev_warn(dev, "No support for 5 wire touches on i.MX23\n");
+		dev_warn(dev, "Falling back to 4 wire\n");
+		ts_wires = 4;
+	}
 
 	/* Grab all IRQ sources */
 	for (i = 0; i < of_cfg->irq_count; i++) {
