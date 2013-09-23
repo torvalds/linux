@@ -119,7 +119,8 @@ ACPI_EXPORT_SYMBOL(acpi_reset)
  ******************************************************************************/
 acpi_status acpi_read(u64 *return_value, struct acpi_generic_address *reg)
 {
-	u32 value;
+	u32 value_lo;
+	u32 value_hi;
 	u32 width;
 	u64 address;
 	acpi_status status;
@@ -137,13 +138,8 @@ acpi_status acpi_read(u64 *return_value, struct acpi_generic_address *reg)
 		return (status);
 	}
 
-	/* Initialize entire 64-bit return value to zero */
-
-	*return_value = 0;
-	value = 0;
-
 	/*
-	 * Two address spaces supported: Memory or IO. PCI_Config is
+	 * Two address spaces supported: Memory or I/O. PCI_Config is
 	 * not supported here because the GAS structure is insufficient
 	 */
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
@@ -155,29 +151,35 @@ acpi_status acpi_read(u64 *return_value, struct acpi_generic_address *reg)
 		}
 	} else {		/* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
 
+		value_lo = 0;
+		value_hi = 0;
+
 		width = reg->bit_width;
 		if (width == 64) {
 			width = 32;	/* Break into two 32-bit transfers */
 		}
 
 		status = acpi_hw_read_port((acpi_io_address)
-					   address, &value, width);
+					   address, &value_lo, width);
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
-		*return_value = value;
 
 		if (reg->bit_width == 64) {
 
 			/* Read the top 32 bits */
 
 			status = acpi_hw_read_port((acpi_io_address)
-						   (address + 4), &value, 32);
+						   (address + 4), &value_hi,
+						   32);
 			if (ACPI_FAILURE(status)) {
 				return (status);
 			}
-			*return_value |= ((u64)value << 32);
 		}
+
+		/* Set the return value only if status is AE_OK */
+
+		*return_value = (value_lo | ((u64)value_hi << 32));
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_IO,
@@ -186,7 +188,7 @@ acpi_status acpi_read(u64 *return_value, struct acpi_generic_address *reg)
 			  ACPI_FORMAT_UINT64(address),
 			  acpi_ut_get_region_name(reg->space_id)));
 
-	return (status);
+	return (AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_read)
