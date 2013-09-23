@@ -35,7 +35,11 @@
 #define DBG_LOW(fmt...)
 #endif
 
+#ifdef __BIG_ENDIAN__
 #define HPTE_LOCK_BIT 3
+#else
+#define HPTE_LOCK_BIT (56+3)
+#endif
 
 DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
@@ -172,7 +176,7 @@ static inline void tlbie(unsigned long vpn, int psize, int apsize,
 
 static inline void native_lock_hpte(struct hash_pte *hptep)
 {
-	unsigned long *word = &hptep->v;
+	unsigned long *word = (unsigned long *)&hptep->v;
 
 	while (1) {
 		if (!test_and_set_bit_lock(HPTE_LOCK_BIT, word))
@@ -184,7 +188,7 @@ static inline void native_lock_hpte(struct hash_pte *hptep)
 
 static inline void native_unlock_hpte(struct hash_pte *hptep)
 {
-	unsigned long *word = &hptep->v;
+	unsigned long *word = (unsigned long *)&hptep->v;
 
 	clear_bit_unlock(HPTE_LOCK_BIT, word);
 }
@@ -204,10 +208,10 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 	}
 
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
-		if (! (hptep->v & HPTE_V_VALID)) {
+		if (! (be64_to_cpu(hptep->v) & HPTE_V_VALID)) {
 			/* retry with lock held */
 			native_lock_hpte(hptep);
-			if (! (hptep->v & HPTE_V_VALID))
+			if (! (be64_to_cpu(hptep->v) & HPTE_V_VALID))
 				break;
 			native_unlock_hpte(hptep);
 		}
@@ -226,14 +230,14 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 			i, hpte_v, hpte_r);
 	}
 
-	hptep->r = hpte_r;
+	hptep->r = cpu_to_be64(hpte_r);
 	/* Guarantee the second dword is visible before the valid bit */
 	eieio();
 	/*
 	 * Now set the first dword including the valid bit
 	 * NOTE: this also unlocks the hpte
 	 */
-	hptep->v = hpte_v;
+	hptep->v = cpu_to_be64(hpte_v);
 
 	__asm__ __volatile__ ("ptesync" : : : "memory");
 
@@ -254,12 +258,12 @@ static long native_hpte_remove(unsigned long hpte_group)
 
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
 		hptep = htab_address + hpte_group + slot_offset;
-		hpte_v = hptep->v;
+		hpte_v = be64_to_cpu(hptep->v);
 
 		if ((hpte_v & HPTE_V_VALID) && !(hpte_v & HPTE_V_BOLTED)) {
 			/* retry with lock held */
 			native_lock_hpte(hptep);
-			hpte_v = hptep->v;
+			hpte_v = be64_to_cpu(hptep->v);
 			if ((hpte_v & HPTE_V_VALID)
 			    && !(hpte_v & HPTE_V_BOLTED))
 				break;
@@ -294,7 +298,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 
 	native_lock_hpte(hptep);
 
-	hpte_v = hptep->v;
+	hpte_v = be64_to_cpu(hptep->v);
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
 	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
@@ -308,8 +312,8 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	} else {
 		DBG_LOW(" -> hit\n");
 		/* Update the HPTE */
-		hptep->r = (hptep->r & ~(HPTE_R_PP | HPTE_R_N)) |
-			(newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_C));
+		hptep->r = cpu_to_be64((be64_to_cpu(hptep->r) & ~(HPTE_R_PP | HPTE_R_N)) |
+			(newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_C)));
 	}
 	native_unlock_hpte(hptep);
 
@@ -334,7 +338,7 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
 		hptep = htab_address + slot;
-		hpte_v = hptep->v;
+		hpte_v = be64_to_cpu(hptep->v);
 
 		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
 			/* HPTE matches */
@@ -369,8 +373,9 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 	hptep = htab_address + slot;
 
 	/* Update the HPTE */
-	hptep->r = (hptep->r & ~(HPTE_R_PP | HPTE_R_N)) |
-		(newpp & (HPTE_R_PP | HPTE_R_N));
+	hptep->r = cpu_to_be64((be64_to_cpu(hptep->r) &
+			~(HPTE_R_PP | HPTE_R_N)) |
+		(newpp & (HPTE_R_PP | HPTE_R_N)));
 	/*
 	 * Ensure it is out of the tlb too. Bolted entries base and
 	 * actual page size will be same.
@@ -392,7 +397,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 
 	want_v = hpte_encode_avpn(vpn, bpsize, ssize);
 	native_lock_hpte(hptep);
-	hpte_v = hptep->v;
+	hpte_v = be64_to_cpu(hptep->v);
 
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
@@ -458,7 +463,7 @@ static void native_hugepage_invalidate(struct mm_struct *mm,
 		hptep = htab_address + slot;
 		want_v = hpte_encode_avpn(vpn, psize, ssize);
 		native_lock_hpte(hptep);
-		hpte_v = hptep->v;
+		hpte_v = be64_to_cpu(hptep->v);
 
 		/* Even if we miss, we need to invalidate the TLB */
 		if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
@@ -519,11 +524,12 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 			int *psize, int *apsize, int *ssize, unsigned long *vpn)
 {
 	unsigned long avpn, pteg, vpi;
-	unsigned long hpte_v = hpte->v;
+	unsigned long hpte_v = be64_to_cpu(hpte->v);
+	unsigned long hpte_r = be64_to_cpu(hpte->r);
 	unsigned long vsid, seg_off;
 	int size, a_size, shift;
 	/* Look at the 8 bit LP value */
-	unsigned int lp = (hpte->r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
+	unsigned int lp = (hpte_r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
 
 	if (!(hpte_v & HPTE_V_LARGE)) {
 		size   = MMU_PAGE_4K;
@@ -612,7 +618,7 @@ static void native_hpte_clear(void)
 		 * running,  right?  and for crash dump, we probably
 		 * don't want to wait for a maybe bad cpu.
 		 */
-		hpte_v = hptep->v;
+		hpte_v = be64_to_cpu(hptep->v);
 
 		/*
 		 * Call __tlbie() here rather than tlbie() since we
@@ -664,7 +670,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 			hptep = htab_address + slot;
 			want_v = hpte_encode_avpn(vpn, psize, ssize);
 			native_lock_hpte(hptep);
-			hpte_v = hptep->v;
+			hpte_v = be64_to_cpu(hptep->v);
 			if (!HPTE_V_COMPARE(hpte_v, want_v) ||
 			    !(hpte_v & HPTE_V_VALID))
 				native_unlock_hpte(hptep);
