@@ -277,13 +277,13 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(cdata->dev, "Unable to register irq %d err %d\n", irq,
 			ret);
-		goto fail_free_irq;
+		goto fail_unregister_supply;
 	}
 
 	ret = tps65090_config_charger(cdata);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "charger config failed, err %d\n", ret);
-		goto fail_free_irq;
+		goto fail_unregister_supply;
 	}
 
 	/* Check for charger presence */
@@ -292,14 +292,14 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(cdata->dev, "%s(): Error in reading reg 0x%x", __func__,
 			TPS65090_REG_CG_STATUS1);
-		goto fail_free_irq;
+		goto fail_unregister_supply;
 	}
 
 	if (status1 != 0) {
 		ret = tps65090_enable_charging(cdata);
 		if (ret < 0) {
 			dev_err(cdata->dev, "error enabling charger\n");
-			goto fail_free_irq;
+			goto fail_unregister_supply;
 		}
 		cdata->ac_online = 1;
 		power_supply_changed(&cdata->ac);
@@ -307,8 +307,6 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 
 	return 0;
 
-fail_free_irq:
-	devm_free_irq(cdata->dev, irq, cdata);
 fail_unregister_supply:
 	power_supply_unregister(&cdata->ac);
 
@@ -319,7 +317,6 @@ static int tps65090_charger_remove(struct platform_device *pdev)
 {
 	struct tps65090_charger *cdata = platform_get_drvdata(pdev);
 
-	devm_free_irq(cdata->dev, cdata->irq, cdata);
 	power_supply_unregister(&cdata->ac);
 
 	return 0;
