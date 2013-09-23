@@ -112,6 +112,7 @@ static int ics_opal_set_affinity(struct irq_data *d,
 				 bool force)
 {
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
+	__be16 oserver;
 	int16_t server;
 	int8_t priority;
 	int64_t rc;
@@ -120,13 +121,13 @@ static int ics_opal_set_affinity(struct irq_data *d,
 	if (hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS)
 		return -1;
 
-	rc = opal_get_xive(hw_irq, &server, &priority);
+	rc = opal_get_xive(hw_irq, &oserver, &priority);
 	if (rc != OPAL_SUCCESS) {
-		pr_err("%s: opal_set_xive(irq=%d [hw 0x%x] server=%x)"
-		       " error %lld\n",
-		       __func__, d->irq, hw_irq, server, rc);
+		pr_err("%s: opal_get_xive(irq=%d [hw 0x%x]) error %lld\n",
+		       __func__, d->irq, hw_irq, rc);
 		return -1;
 	}
+	server = be16_to_cpu(oserver);
 
 	wanted_server = xics_get_irq_server(d->irq, cpumask, 1);
 	if (wanted_server < 0) {
@@ -181,7 +182,7 @@ static int ics_opal_map(struct ics *ics, unsigned int virq)
 {
 	unsigned int hw_irq = (unsigned int)virq_to_hw(virq);
 	int64_t rc;
-	int16_t server;
+	__be16 server;
 	int8_t priority;
 
 	if (WARN_ON(hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS))
@@ -201,7 +202,7 @@ static int ics_opal_map(struct ics *ics, unsigned int virq)
 static void ics_opal_mask_unknown(struct ics *ics, unsigned long vec)
 {
 	int64_t rc;
-	int16_t server;
+	__be16 server;
 	int8_t priority;
 
 	/* Check if HAL knows about this interrupt */
@@ -215,14 +216,14 @@ static void ics_opal_mask_unknown(struct ics *ics, unsigned long vec)
 static long ics_opal_get_server(struct ics *ics, unsigned long vec)
 {
 	int64_t rc;
-	int16_t server;
+	__be16 server;
 	int8_t priority;
 
 	/* Check if HAL knows about this interrupt */
 	rc = opal_get_xive(vec, &server, &priority);
 	if (rc != OPAL_SUCCESS)
 		return -1;
-	return ics_opal_unmangle_server(server);
+	return ics_opal_unmangle_server(be16_to_cpu(server));
 }
 
 int __init ics_opal_init(void)
