@@ -155,6 +155,8 @@ void acpi_db_set_scope(char *name);
 
 void acpi_db_dump_namespace(char *start_arg, char *depth_arg);
 
+void acpi_db_dump_namespace_paths(void);
+
 void acpi_db_dump_namespace_by_owner(char *owner_arg, char *depth_arg);
 
 acpi_status acpi_db_find_name_in_namespace(char *name_arg);
