@@ -90,12 +90,6 @@ struct aic3x_priv {
 	enum aic3x_micbias_voltage micbias_vg;
 };
 
-/*
- * AIC3X register cache
- * We can't read the AIC3X register space when we are
- * using 2 wire for device control, so we cache them instead.
- * There is no point in caching the reset register
- */
 static const u8 aic3x_reg[AIC3X_CACHEREGNUM] = {
 	0x00, 0x00, 0x00, 0x10,	/* 0 */
 	0x04, 0x00, 0x00, 0x00,	/* 4 */
