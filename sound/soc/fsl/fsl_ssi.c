@@ -469,19 +469,12 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 			 * parameters, then the second stream may be
 			 * constrained to the wrong sample rate or size.
 			 */
-			if (!first_runtime->sample_bits) {
-				dev_err(substream->pcm->card->dev,
-					"set sample size in %s stream first\n",
-					substream->stream ==
-					SNDRV_PCM_STREAM_PLAYBACK
-					? "capture" : "playback");
-				return -EAGAIN;
-			}
-
-			snd_pcm_hw_constraint_minmax(substream->runtime,
-				SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+			if (first_runtime->sample_bits) {
+				snd_pcm_hw_constraint_minmax(substream->runtime,
+						SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
 				first_runtime->sample_bits,
 				first_runtime->sample_bits);
+			}
 		}
 
 		ssi_private->second_stream = substream;
