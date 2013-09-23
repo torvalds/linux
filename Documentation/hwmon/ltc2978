@@ -10,10 +10,11 @@ Supported chips:
     Prefix: 'ltc2977'
     Addresses scanned: -
     Datasheet: http://www.linear.com/product/ltc2977
-  * Linear Technology LTC2978
+  * Linear Technology LTC2978, LTC2978A
     Prefix: 'ltc2978'
     Addresses scanned: -
     Datasheet: http://www.linear.com/product/ltc2978
+    	       http://www.linear.com/product/ltc2978a
   * Linear Technology LTC3880
     Prefix: 'ltc3880'
     Addresses scanned: -
