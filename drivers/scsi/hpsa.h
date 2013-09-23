@@ -136,6 +136,7 @@ struct ctlr_info {
 	atomic_t firmware_flash_in_progress;
 	u32 lockup_detected;
 	struct list_head lockup_list;
+	u32 fifo_recently_full;
 	/* Address of h->q[x] is passed to intr handler to know which queue */
 	u8 q[MAX_REPLY_QUEUES];
 	u32 TMFSupportFlags; /* cache what task mgmt funcs are supported. */

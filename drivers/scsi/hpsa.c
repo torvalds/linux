@@ -3483,9 +3483,11 @@ static void start_io(struct ctlr_info *h)
 		c = list_entry(h->reqQ.next, struct CommandList, list);
 		/* can't do anything if fifo is full */
 		if ((h->access.fifo_full(h))) {
+			h->fifo_recently_full = 1;
 			dev_warn(&h->pdev->dev, "fifo full\n");
 			break;
 		}
+		h->fifo_recently_full = 0;
 
 		/* Get the first entry from the Request Q */
 		removeQ(c);
@@ -3539,15 +3541,41 @@ static inline int bad_tag(struct ctlr_info *h, u32 tag_index,
 static inline void finish_cmd(struct CommandList *c)
 {
 	unsigned long flags;
+	int io_may_be_stalled = 0;
+	struct ctlr_info *h = c->h;
 
-	spin_lock_irqsave(&c->h->lock, flags);
+	spin_lock_irqsave(&h->lock, flags);
 	removeQ(c);
-	spin_unlock_irqrestore(&c->h->lock, flags);
+
+	/*
+	 * Check for possibly stalled i/o.
+	 *
+	 * If a fifo_full condition is encountered, requests will back up
+	 * in h->reqQ.  This queue is only emptied out by start_io which is
+	 * only called when a new i/o request comes in.  If no i/o's are
+	 * forthcoming, the i/o's in h->reqQ can get stuck.  So we call
+	 * start_io from here if we detect such a danger.
+	 *
+	 * Normally, we shouldn't hit this case, but pounding on the
+	 * CCISS_PASSTHRU ioctl can provoke it.  Only call start_io if
+	 * commands_outstanding is low.  We want to avoid calling
+	 * start_io from in here as much as possible, and esp. don't
+	 * want to get in a cycle where we call start_io every time
+	 * through here.
+	 */
+	if (unlikely(h->fifo_recently_full) &&
+		h->commands_outstanding < 5)
+		io_may_be_stalled = 1;
+
+	spin_unlock_irqrestore(&h->lock, flags);
+
 	dial_up_lockup_detection_on_fw_flash_complete(c->h, c);
 	if (likely(c->cmd_type == CMD_SCSI))
 		complete_scsi_command(c);
 	else if (c->cmd_type == CMD_IOCTL_PEND)
 		complete(c->waiting);
+	if (unlikely(io_may_be_stalled))
+		start_io(h);
 }
 
 static inline u32 hpsa_tag_contains_index(u32 tag)
