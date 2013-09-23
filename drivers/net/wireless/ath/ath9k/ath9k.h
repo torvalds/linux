@@ -952,7 +952,7 @@ void ath9k_ps_restore(struct ath_softc *sc);
 u8 ath_txchainmask_reduction(struct ath_softc *sc, u8 chainmask, u32 rate);
 
 void ath_start_rfkill_poll(struct ath_softc *sc);
-extern void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);
+void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);
 void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ath9k_vif_iter_data *iter_data);
