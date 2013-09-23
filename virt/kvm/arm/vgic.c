@@ -602,7 +602,7 @@ struct mmio_range {
 			    phys_addr_t offset);
 };
 
-static const struct mmio_range vgic_ranges[] = {
+static const struct mmio_range vgic_dist_ranges[] = {
 	{
 		.base		= GIC_DIST_CTRL,
 		.len		= 12,
@@ -669,14 +669,13 @@ static const struct mmio_range vgic_ranges[] = {
 static const
 struct mmio_range *find_matching_range(const struct mmio_range *ranges,
 				       struct kvm_exit_mmio *mmio,
-				       phys_addr_t base)
+				       phys_addr_t offset)
 {
 	const struct mmio_range *r = ranges;
-	phys_addr_t addr = mmio->phys_addr - base;
 
 	while (r->len) {
-		if (addr >= r->base &&
-		    (addr + mmio->len) <= (r->base + r->len))
+		if (offset >= r->base &&
+		    (offset + mmio->len) <= (r->base + r->len))
 			return r;
 		r++;
 	}
@@ -713,7 +712,8 @@ bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		return true;
 	}
 
-	range = find_matching_range(vgic_ranges, mmio, base);
+	offset = mmio->phys_addr - base;
+	range = find_matching_range(vgic_dist_ranges, mmio, offset);
 	if (unlikely(!range || !range->handle_mmio)) {
 		pr_warn("Unhandled access %d %08llx %d\n",
 			mmio->is_write, mmio->phys_addr, mmio->len);
