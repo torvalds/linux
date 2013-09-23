@@ -250,9 +250,10 @@ static int cw1200_spi_irq_subscribe(struct hwbus_priv *self)
 
 	pr_debug("SW IRQ subscribe\n");
 
-	ret = request_any_context_irq(self->func->irq, cw1200_spi_irq_handler,
-				      IRQF_TRIGGER_HIGH,
-				      "cw1200_wlan_irq", self);
+	ret = request_threaded_irq(self->func->irq, NULL,
+				   cw1200_spi_irq_handler,
+				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				   "cw1200_wlan_irq", self);
 	if (WARN_ON(ret < 0))
 		goto exit;
 
