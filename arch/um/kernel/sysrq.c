@@ -46,9 +46,6 @@ static void print_stack_trace(unsigned long *sp, unsigned long bp)
 	printk(KERN_INFO "\n");
 }
 
-/*Stolen from arch/i386/kernel/traps.c */
-static const int kstack_depth_to_print = 24;
-
 static unsigned long get_frame_pointer(struct task_struct *task,
 				       struct pt_regs *segv_regs)
 {
@@ -88,7 +85,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 
 	printk(KERN_INFO "Stack:\n");
 	stack = sp;
-	for (i = 0; i < kstack_depth_to_print; i++) {
+	for (i = 0; i < 3 * STACKSLOTS_PER_LINE; i++) {
 		if (kstack_end(stack))
 			break;
 		if (i && ((i % STACKSLOTS_PER_LINE) == 0))
