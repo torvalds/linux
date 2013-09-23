@@ -21,7 +21,6 @@
 #include <linux/export.h>
 #include <linux/spi/spi.h>
 #include <linux/crc-ccitt.h>
-#include <linux/nfc.h>
 #include <net/nfc/nci_core.h>
 
 #define NCI_SPI_ACK_SHIFT		6
@@ -164,7 +163,7 @@ static int send_acknowledge(struct nci_spi *nspi, u8 acknowledge)
 	return ret;
 }
 
-static struct sk_buff *__nci_spi_recv_frame(struct nci_spi *nspi)
+static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 {
 	struct sk_buff *skb;
 	struct spi_message m;
@@ -258,7 +257,7 @@ static u8 nci_spi_get_ack(struct sk_buff *skb)
 }
 
 /**
- * nci_spi_recv_frame - receive frame from NCI SPI drivers
+ * nci_spi_read - read frame from NCI SPI drivers
  *
  * @nspi: The nci spi
  * Context: can sleep
@@ -266,21 +265,18 @@ static u8 nci_spi_get_ack(struct sk_buff *skb)
  * This call may only be used from a context that may sleep.  The sleep
  * is non-interruptible, and has no timeout.
  *
- * It returns zero on success, else a negative error code.
+ * It returns an allocated skb containing the frame on success, or NULL.
  */
-int nci_spi_recv_frame(struct nci_spi *nspi)
+struct sk_buff *nci_spi_read(struct nci_spi *nspi)
 {
 	struct sk_buff *skb;
-	int ret = 0;
 
 	nspi->ops->deassert_int(nspi);
 
 	/* Retrieve frame from SPI */
-	skb = __nci_spi_recv_frame(nspi);
-	if (!skb) {
-		ret = -EIO;
+	skb = __nci_spi_read(nspi);
+	if (!skb)
 		goto done;
-	}
 
 	if (nspi->acknowledge_mode == NCI_SPI_CRC_ENABLED) {
 		if (!nci_spi_check_crc(skb)) {
@@ -299,20 +295,18 @@ int nci_spi_recv_frame(struct nci_spi *nspi)
 	/* If there is no payload (ACK/NACK only frame),
 	 * free the socket buffer
 	 */
-	if (skb->len == 0) {
+	if (!skb->len) {
 		kfree_skb(skb);
+		skb = NULL;
 		goto done;
 	}
 
 	if (nspi->acknowledge_mode == NCI_SPI_CRC_ENABLED)
 		send_acknowledge(nspi, ACKNOWLEDGE_ACK);
 
-	/* Forward skb to NCI core layer */
-	ret = nci_recv_frame(nspi->ndev, skb);
-
 done:
 	nspi->ops->assert_int(nspi);
 
-	return ret;
+	return skb;
 }
-EXPORT_SYMBOL_GPL(nci_spi_recv_frame);
+EXPORT_SYMBOL_GPL(nci_spi_read);

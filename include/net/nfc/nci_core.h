@@ -233,6 +233,6 @@ struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
 				     u8 acknowledge_mode, unsigned int delay,
 				     struct nci_dev *ndev);
 int nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb);
-int nci_spi_recv_frame(struct nci_spi *nspi);
+struct sk_buff *nci_spi_read(struct nci_spi *nspi);
 
 #endif /* __NCI_CORE_H */
