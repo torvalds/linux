@@ -748,7 +748,7 @@ free_mem_map:
 struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 			     struct boot_params *boot_params)
 {
-	struct desc_ptr *gdt, *idt;
+	struct desc_ptr *gdt;
 	efi_loaded_image_t *image;
 	struct setup_header *hdr = &boot_params->hdr;
 	efi_status_t status;
@@ -779,17 +779,6 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 		efi_printk(sys_table, "Failed to alloc mem for gdt\n");
 		goto fail;
 	}
-
-	status = efi_call_phys3(sys_table->boottime->allocate_pool,
-				EFI_LOADER_DATA, sizeof(*idt),
-				(void **)&idt);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to alloc mem for idt structure\n");
-		goto fail;
-	}
-
-	idt->size = 0;
-	idt->address = 0;
 
 	/*
 	 * If the kernel isn't already loaded at the preferred load
@@ -865,10 +854,8 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 	desc->base2 = 0x00;
 #endif /* CONFIG_X86_64 */
 
-	asm volatile ("lidt %0" : : "m" (*idt));
-	asm volatile ("lgdt %0" : : "m" (*gdt));
-
 	asm volatile("cli");
+	asm volatile ("lgdt %0" : : "m" (*gdt));
 
 	return boot_params;
 fail:
