@@ -2048,9 +2048,6 @@ static int max98088_probe(struct snd_soc_codec *codec)
 
        max98088_handle_pdata(codec);
 
-       snd_soc_add_codec_controls(codec, max98088_snd_controls,
-                            ARRAY_SIZE(max98088_snd_controls));
-
 err_access:
        return ret;
 }
@@ -2071,6 +2068,8 @@ static struct snd_soc_codec_driver soc_codec_dev_max98088 = {
 	.suspend = max98088_suspend,
 	.resume  = max98088_resume,
 	.set_bias_level = max98088_set_bias_level,
+	.controls = max98088_snd_controls,
+	.num_controls = ARRAY_SIZE(max98088_snd_controls),
 	.reg_cache_size = ARRAY_SIZE(max98088_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = max98088_reg,
