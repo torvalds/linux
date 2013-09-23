@@ -90,12 +90,11 @@
 /*
  * sctp/protocol.c
  */
-extern int sctp_copy_local_addr_list(struct net *, struct sctp_bind_addr *,
-				     sctp_scope_t, gfp_t gfp,
-				     int flags);
-extern struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
-extern int sctp_register_pf(struct sctp_pf *, sa_family_t);
-extern void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
+int sctp_copy_local_addr_list(struct net *, struct sctp_bind_addr *,
+			      sctp_scope_t, gfp_t gfp, int flags);
+struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
+int sctp_register_pf(struct sctp_pf *, sa_family_t);
+void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
 
 /*
  * sctp/socket.c
@@ -110,7 +109,7 @@ void sctp_sock_rfree(struct sk_buff *skb);
 void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 		    struct sctp_association *asoc);
 extern struct percpu_counter sctp_sockets_allocated;
-extern int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
+int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
 
 /*
  * sctp/primitive.c
