@@ -45,9 +45,8 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
  * @vaddr:		the kenrel mapping if kmap_cnt is not zero
  * @dmap_cnt:		number of times the buffer is mapped for dma
  * @sg_table:		the sg table for the buffer if dmap_cnt is not zero
- * @dirty:		bitmask representing which pages of this buffer have
- *			been dirtied by the cpu and need cache maintenance
- *			before dma
+ * @pages:		flat array of pages in the buffer -- used by fault
+ *			handler and only valid for buffers that are faulted in
  * @vmas:		list of vma's mapping this buffer
  * @handle_count:	count of handles referencing this buffer
  * @task_comm:		taskcomm of last client to reference this buffer in a
@@ -74,7 +73,7 @@ struct ion_buffer {
 	void *vaddr;
 	int dmap_cnt;
 	struct sg_table *sg_table;
-	unsigned long *dirty;
+	struct page **pages;
 	struct list_head vmas;
 	/* used to track orphaned buffers */
 	int handle_count;
@@ -94,6 +93,9 @@ void ion_buffer_destroy(struct ion_buffer *buffer);
  * @map_kernel		map memory to the kernel
  * @unmap_kernel	unmap memory to the kernel
  * @map_user		map memory to userspace
+ *
+ * allocate, phys, and map_user return 0 on success, -errno on error.
+ * map_dma and map_kernel return pointer on success, ERR_PTR on error.
  */
 struct ion_heap_ops {
 	int (*allocate) (struct ion_heap *heap,
@@ -213,6 +215,19 @@ int ion_heap_map_user(struct ion_heap *, struct ion_buffer *,
 int ion_heap_buffer_zero(struct ion_buffer *buffer);
 
 /**
+ * ion_heap_alloc_pages - allocate pages from alloc_pages
+ * @buffer:		the buffer to allocate for, used to extract the flags
+ * @gfp_flags:		the gfp_t for the allocation
+ * @order:		the order of the allocatoin
+ *
+ * This funciton allocations from alloc pages and also does any other
+ * necessary operations based on the buffer->flags.  For buffers which
+ * will be faulted in the pages are split using split_page
+ */
+struct page *ion_heap_alloc_pages(struct ion_buffer *buffer, gfp_t gfp_flags,
+				  unsigned int order);
+
+/**
  * ion_heap_init_deferred_free -- initialize deferred free functionality
  * @heap:		the heap
  *
@@ -269,6 +284,9 @@ void ion_carveout_heap_destroy(struct ion_heap *);
 
 struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *);
 void ion_chunk_heap_destroy(struct ion_heap *);
+struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *);
+void ion_cma_heap_destroy(struct ion_heap *);
+
 /**
  * kernel api to allocate/free from carveout -- used when carveout is
  * used to back an architecture specific custom heap
