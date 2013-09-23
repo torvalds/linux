@@ -114,6 +114,11 @@ struct ctlr_info {
 	struct TransTable_struct *transtable;
 	unsigned long transMethod;
 
+	/* cap concurrent passthrus at some reasonable maximum */
+#define HPSA_MAX_CONCURRENT_PASSTHRUS (20)
+	spinlock_t passthru_count_lock; /* protects passthru_count */
+	int passthru_count;
+
 	/*
 	 * Performant mode completion buffers
 	 */
