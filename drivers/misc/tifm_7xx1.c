@@ -378,7 +378,6 @@ err_out_irq:
 err_out_unmap:
 	iounmap(fm->addr);
 err_out_free:
-	pci_set_drvdata(dev, NULL);
 	tifm_free_adapter(fm);
 err_out_int:
 	pci_intx(dev, 0);
@@ -404,8 +403,6 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 
 	for (cnt = 0; cnt < fm->num_sockets; cnt++)
 		tifm_7xx1_sock_power_off(tifm_7xx1_sock_addr(fm->addr, cnt));
-
-	pci_set_drvdata(dev, NULL);
 
 	iounmap(fm->addr);
 	pci_intx(dev, 0);
