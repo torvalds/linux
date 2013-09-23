@@ -52,6 +52,9 @@ config GENERIC_BUG
 config ZONE_DMA
 	def_bool y
 
+config GENERIC_GPIO
+	def_bool y
+
 config FORCE_MAX_ZONEORDER
 	int
 	default "14"
@@ -316,6 +319,14 @@ config BF53x
 	bool
 	depends on (BF531 || BF532 || BF533 || BF534 || BF536 || BF537)
 	default y
+
+config GPIO_ADI
+	def_bool y
+	depends on (BF51x || BF52x || BF53x || BF538 || BF539 || BF561)
+
+config PINCTRL
+	def_bool y
+	depends on BF54x || BF60x
 
 config MEM_MT48LC64M4A2FB_7E
 	bool
