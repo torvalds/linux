@@ -73,7 +73,7 @@ static inline void *__nf_ct_ext_find(const struct nf_conn *ct, u8 id)
 	((id##_TYPE *)__nf_ct_ext_find((ext), (id)))
 
 /* Destroy all relationships */
-extern void __nf_ct_ext_destroy(struct nf_conn *ct);
+void __nf_ct_ext_destroy(struct nf_conn *ct);
 static inline void nf_ct_ext_destroy(struct nf_conn *ct)
 {
 	if (ct->ext)

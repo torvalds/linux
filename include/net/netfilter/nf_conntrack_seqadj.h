@@ -30,22 +30,18 @@ static inline struct nf_conn_seqadj *nfct_seqadj_ext_add(struct nf_conn *ct)
 	return nf_ct_ext_add(ct, NF_CT_EXT_SEQADJ, GFP_ATOMIC);
 }
 
-extern int nf_ct_seqadj_init(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			     s32 off);
-extern int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			    __be32 seq, s32 off);
-extern void nf_ct_tcp_seqadj_set(struct sk_buff *skb,
-				 struct nf_conn *ct,
-				 enum ip_conntrack_info ctinfo,
-				 s32 off);
+int nf_ct_seqadj_init(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+		      s32 off);
+int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+		     __be32 seq, s32 off);
+void nf_ct_tcp_seqadj_set(struct sk_buff *skb, struct nf_conn *ct,
+			  enum ip_conntrack_info ctinfo, s32 off);
 
-extern int nf_ct_seq_adjust(struct sk_buff *skb,
-			    struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			    unsigned int protoff);
-extern s32 nf_ct_seq_offset(const struct nf_conn *ct, enum ip_conntrack_dir,
-			    u32 seq);
+int nf_ct_seq_adjust(struct sk_buff *skb, struct nf_conn *ct,
+		     enum ip_conntrack_info ctinfo, unsigned int protoff);
+s32 nf_ct_seq_offset(const struct nf_conn *ct, enum ip_conntrack_dir, u32 seq);
 
-extern int nf_conntrack_seqadj_init(void);
-extern void nf_conntrack_seqadj_fini(void);
+int nf_conntrack_seqadj_init(void);
+void nf_conntrack_seqadj_fini(void);
 
 #endif /* _NF_CONNTRACK_SEQADJ_H */

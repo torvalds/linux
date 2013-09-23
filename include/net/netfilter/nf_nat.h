@@ -41,13 +41,13 @@ struct nf_conn_nat {
 };
 
 /* Set up the info structure to map into this range. */
-extern unsigned int nf_nat_setup_info(struct nf_conn *ct,
-				      const struct nf_nat_range *range,
-				      enum nf_nat_manip_type maniptype);
+unsigned int nf_nat_setup_info(struct nf_conn *ct,
+			       const struct nf_nat_range *range,
+			       enum nf_nat_manip_type maniptype);
 
 /* Is this tuple already taken? (not by us)*/
-extern int nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
-			     const struct nf_conn *ignored_conntrack);
+int nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
+		      const struct nf_conn *ignored_conntrack);
 
 static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
 {
