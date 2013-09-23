@@ -37,11 +37,12 @@
 #include <mach/regs-pmu.h>
 #include <mach/pmu.h>
 
-#include "../../../drivers/staging/android/ram_console.h"
 #include "common.h"
 #include "board-odroidxu.h"
 #include "resetreason.h"
 
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+#include "../../../drivers/staging/android/ram_console.h"
 static struct ram_console_platform_data ramconsole_pdata;
 
 static struct platform_device ramconsole_device = {
@@ -56,6 +57,7 @@ static struct platform_device persistent_trace_device = {
 	.name	= "persistent_trace",
 	.id	= -1,
 };
+#endif
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDK5410_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -135,8 +137,10 @@ static struct notifier_block exynos5_reboot_notifier = {
 };
 
 static struct platform_device *smdk5410_devices[] __initdata = {
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
 	&ramconsole_device,
 	&persistent_trace_device,
+#endif
 	&s3c_device_wdt,
 	&s3c_device_rtc,
 	&s3c_device_adc,
@@ -306,7 +310,9 @@ static struct s3c_watchdog_platdata smdk5410_watchdog_platform_data = {
 
 static void __init smdk5410_init_early(void)
 {
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
 	persistent_ram_early_init(&smdk5410_pr);
+#endif
 }
 
 static void exynos5_odroidxu_led_init(void)
@@ -332,7 +338,7 @@ static void __init smdk5410_machine_init(void)
 #endif
 	s3c_watchdog_set_platdata(&smdk5410_watchdog_platform_data);
 
-    exynos5_odroidxu_led_init();
+	exynos5_odroidxu_led_init();
 	
 	exynos5_odroidxu_clock_init();
 	exynos5_odroidxu_mmc_init();
@@ -343,9 +349,10 @@ static void __init smdk5410_machine_init(void)
 	exynos5_odroidxu_input_init();
 	exynos5_odroidxu_media_init();
 	exynos5_odroidxu_display_init();
-    exynos5_odroidxu_ioboard_init();
-    
+        exynos5_odroidxu_ioboard_init();
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK    
 	ramconsole_pdata.bootinfo = exynos_get_resetreason();
+#endif	
 	platform_add_devices(smdk5410_devices, ARRAY_SIZE(smdk5410_devices));
 
 	register_reboot_notifier(&exynos5_reboot_notifier);
