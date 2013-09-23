@@ -694,27 +694,27 @@ static inline int qnq_async_evt_rcvd(struct be_adapter *adapter)
 	return adapter->flags & BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
 }
 
-extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
-		u16 num_popped);
-extern void be_link_status_update(struct be_adapter *adapter, u8 link_status);
-extern void be_parse_stats(struct be_adapter *adapter);
-extern int be_load_fw(struct be_adapter *adapter, u8 *func);
-extern bool be_is_wol_supported(struct be_adapter *adapter);
-extern bool be_pause_supported(struct be_adapter *adapter);
-extern u32 be_get_fw_log_level(struct be_adapter *adapter);
+void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
+		  u16 num_popped);
+void be_link_status_update(struct be_adapter *adapter, u8 link_status);
+void be_parse_stats(struct be_adapter *adapter);
+int be_load_fw(struct be_adapter *adapter, u8 *func);
+bool be_is_wol_supported(struct be_adapter *adapter);
+bool be_pause_supported(struct be_adapter *adapter);
+u32 be_get_fw_log_level(struct be_adapter *adapter);
 int be_update_queues(struct be_adapter *adapter);
 int be_poll(struct napi_struct *napi, int budget);
 
 /*
  * internal function to initialize-cleanup roce device.
  */
-extern void be_roce_dev_add(struct be_adapter *);
-extern void be_roce_dev_remove(struct be_adapter *);
+void be_roce_dev_add(struct be_adapter *);
+void be_roce_dev_remove(struct be_adapter *);
 
 /*
  * internal function to open-close roce device during ifup-ifdown.
  */
-extern void be_roce_dev_open(struct be_adapter *);
-extern void be_roce_dev_close(struct be_adapter *);
+void be_roce_dev_open(struct be_adapter *);
+void be_roce_dev_close(struct be_adapter *);
 
 #endif				/* BE_H */
