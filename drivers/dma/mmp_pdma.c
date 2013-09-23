@@ -798,8 +798,7 @@ static void dma_do_tasklet(unsigned long data)
 		 * move the descriptors to a temporary list so we can drop
 		 * the lock during the entire cleanup operation
 		 */
-		list_del(&desc->node);
-		list_add(&desc->node, &chain_cleanup);
+		list_move(&desc->node, &chain_cleanup);
 
 		/*
 		 * Look for the first list entry which has the ENDIRQEN flag
