@@ -585,12 +585,14 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		d = d_splice_alias(inode, dentry);
 		error = 0;
 		if (file) {
-			if (d == NULL)
-				d = dentry;
-			if (S_ISREG(inode->i_mode))
-				error = finish_open(file, d, gfs2_open_common, opened);
-			else
+			if (S_ISREG(inode->i_mode)) {
+				WARN_ON(d != NULL);
+				error = finish_open(file, dentry, gfs2_open_common, opened);
+			} else {
 				error = finish_no_open(file, d);
+			}
+		} else {
+			dput(d);
 		}
 		gfs2_glock_dq_uninit(ghs);
 		return error;
@@ -777,8 +779,10 @@ static struct dentry *__gfs2_lookup(struct inode *dir, struct dentry *dentry,
 		error = finish_open(file, dentry, gfs2_open_common, opened);
 
 	gfs2_glock_dq_uninit(&gh);
-	if (error)
+	if (error) {
+		dput(d);
 		return ERR_PTR(error);
+	}
 	return d;
 }
 
@@ -1159,14 +1163,16 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 	d = __gfs2_lookup(dir, dentry, file, opened);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
-	if (d == NULL)
-		d = dentry;
-	if (d->d_inode) {
+	if (d != NULL)
+		dentry = d;
+	if (dentry->d_inode) {
 		if (!(*opened & FILE_OPENED))
-			return finish_no_open(file, d);
+			return finish_no_open(file, dentry);
+		dput(d);
 		return 0;
 	}
 
+	BUG_ON(d != NULL);
 	if (!(flags & O_CREAT))
 		return -ENOENT;
 
