@@ -592,6 +592,47 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 	return I915_READ(reg);
 }
 
+static bool g4x_pipe_in_vblank(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t status;
+
+	if (IS_VALLEYVIEW(dev)) {
+		status = pipe == PIPE_A ?
+			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
+			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+
+		return I915_READ(VLV_ISR) & status;
+	} else if (IS_G4X(dev)) {
+		status = pipe == PIPE_A ?
+			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
+			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+
+		return I915_READ(ISR) & status;
+	} else if (INTEL_INFO(dev)->gen < 7) {
+		status = pipe == PIPE_A ?
+			DE_PIPEA_VBLANK :
+			DE_PIPEB_VBLANK;
+
+		return I915_READ(DEISR) & status;
+	} else {
+		switch (pipe) {
+		default:
+		case PIPE_A:
+			status = DE_PIPEA_VBLANK_IVB;
+			break;
+		case PIPE_B:
+			status = DE_PIPEB_VBLANK_IVB;
+			break;
+		case PIPE_C:
+			status = DE_PIPEC_VBLANK_IVB;
+			break;
+		}
+
+		return I915_READ(DEISR) & status;
+	}
+}
+
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 			     int *vpos, int *hpos)
 {
@@ -622,6 +663,18 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		 * scanout position from Display scan line register.
 		 */
 		position = I915_READ(PIPEDSL(pipe)) & 0x1fff;
+
+		/*
+		 * The scanline counter increments at the leading edge
+		 * of hsync, ie. it completely misses the active portion
+		 * of the line. Fix up the counter at both edges of vblank
+		 * to get a more accurate picture whether we're in vblank
+		 * or not.
+		 */
+		in_vbl = g4x_pipe_in_vblank(dev, pipe);
+		if ((in_vbl && position == vbl_start - 1) ||
+		    (!in_vbl && position == vbl_end - 1))
+			position = (position + 1) % vtotal;
 	} else {
 		/* Have access to pixelcount since start of frame.
 		 * We can split this into vertical and horizontal
