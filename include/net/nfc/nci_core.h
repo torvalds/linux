@@ -207,17 +207,9 @@ int nci_to_errno(__u8 code);
 #define NCI_SPI_CRC_ENABLED	0x01
 
 /* ----- NCI SPI structures ----- */
-struct nci_spi;
-
-struct nci_spi_ops {
-	void (*assert_int)(struct nci_spi *nspi);
-	void (*deassert_int)(struct nci_spi *nspi);
-};
-
 struct nci_spi {
 	struct nci_dev		*ndev;
 	struct spi_device	*spi;
-	struct nci_spi_ops	*ops;
 
 	unsigned int		xfer_udelay;	/* microseconds delay between
 						  transactions */
@@ -229,10 +221,11 @@ struct nci_spi {
 
 /* ----- NCI SPI ----- */
 struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
-				     struct nci_spi_ops *ops,
 				     u8 acknowledge_mode, unsigned int delay,
 				     struct nci_dev *ndev);
-int nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb);
+int nci_spi_send(struct nci_spi *nspi,
+		 struct completion *write_handshake_completion,
+		 struct sk_buff *skb);
 struct sk_buff *nci_spi_read(struct nci_spi *nspi);
 
 #endif /* __NCI_CORE_H */

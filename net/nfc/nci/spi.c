@@ -38,15 +38,23 @@
 
 #define CRC_INIT		0xFFFF
 
-static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb)
+static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb,
+			  int cs_change)
 {
 	struct spi_message m;
 	struct spi_transfer t;
 
 	memset(&t, 0, sizeof(struct spi_transfer));
-	t.tx_buf = skb->data;
-	t.len = skb->len;
-	t.cs_change = 0;
+	/* a NULL skb means we just want the SPI chip select line to raise */
+	if (skb) {
+		t.tx_buf = skb->data;
+		t.len = skb->len;
+	} else {
+		/* still set tx_buf non NULL to make the driver happy */
+		t.tx_buf = &t;
+		t.len = 0;
+	}
+	t.cs_change = cs_change;
 	t.delay_usecs = nspi->xfer_udelay;
 
 	spi_message_init(&m);
@@ -55,14 +63,14 @@ static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb)
 	return spi_sync(nspi->spi, &m);
 }
 
-int nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb)
+int nci_spi_send(struct nci_spi *nspi,
+		 struct completion *write_handshake_completion,
+		 struct sk_buff *skb)
 {
 	unsigned int payload_len = skb->len;
 	unsigned char *hdr;
 	int ret;
 	long completion_rc;
-
-	nspi->ops->deassert_int(nspi);
 
 	/* add the NCI SPI header to the start of the buffer */
 	hdr = skb_push(skb, NCI_SPI_HDR_LEN);
@@ -79,11 +87,21 @@ int nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb)
 		*skb_put(skb, 1) = crc & 0xFF;
 	}
 
-	ret = __nci_spi_send(nspi, skb);
+	if (write_handshake_completion)	{
+		/* Trick SPI driver to raise chip select */
+		ret = __nci_spi_send(nspi, NULL, 1);
+		if (ret)
+			goto done;
 
-	kfree_skb(skb);
-	nspi->ops->assert_int(nspi);
+		/* wait for NFC chip hardware handshake to complete */
+		if (wait_for_completion_timeout(write_handshake_completion,
+						msecs_to_jiffies(1000)) == 0) {
+			ret = -ETIME;
+			goto done;
+		}
+	}
 
+	ret = __nci_spi_send(nspi, skb, 0);
 	if (ret != 0 || nspi->acknowledge_mode == NCI_SPI_CRC_DISABLED)
 		goto done;
 
@@ -96,6 +114,8 @@ int nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb)
 		ret = -EIO;
 
 done:
+	kfree_skb(skb);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nci_spi_send);
@@ -106,26 +126,20 @@ EXPORT_SYMBOL_GPL(nci_spi_send);
  * nci_spi_allocate_spi - allocate a new nci spi
  *
  * @spi: SPI device
- * @ops: device operations
  * @acknowledge_mode: Acknowledge mode used by the NFC device
  * @delay: delay between transactions in us
  * @ndev: nci dev to send incoming nci frames to
  */
 struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
-				     struct nci_spi_ops *ops,
 				     u8 acknowledge_mode, unsigned int delay,
 				     struct nci_dev *ndev)
 {
 	struct nci_spi *nspi;
 
-	if (!ops->assert_int || !ops->deassert_int)
-		return NULL;
-
 	nspi = devm_kzalloc(&spi->dev, sizeof(struct nci_spi), GFP_KERNEL);
 	if (!nspi)
 		return NULL;
 
-	nspi->ops = ops;
 	nspi->acknowledge_mode = acknowledge_mode;
 	nspi->xfer_udelay = delay;
 
@@ -156,7 +170,7 @@ static int send_acknowledge(struct nci_spi *nspi, u8 acknowledge)
 	*skb_put(skb, 1) = crc >> 8;
 	*skb_put(skb, 1) = crc & 0xFF;
 
-	ret = __nci_spi_send(nspi, skb);
+	ret = __nci_spi_send(nspi, skb, 0);
 
 	kfree_skb(skb);
 
@@ -189,7 +203,6 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 	spi_message_add_tail(&rx, &m);
 
 	ret = spi_sync(nspi->spi, &m);
-
 	if (ret)
 		return NULL;
 
@@ -213,7 +226,6 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 	spi_message_add_tail(&rx, &m);
 
 	ret = spi_sync(nspi->spi, &m);
-
 	if (ret)
 		goto receive_error;
 
@@ -271,8 +283,6 @@ struct sk_buff *nci_spi_read(struct nci_spi *nspi)
 {
 	struct sk_buff *skb;
 
-	nspi->ops->deassert_int(nspi);
-
 	/* Retrieve frame from SPI */
 	skb = __nci_spi_read(nspi);
 	if (!skb)
@@ -305,7 +315,6 @@ struct sk_buff *nci_spi_read(struct nci_spi *nspi)
 		send_acknowledge(nspi, ACKNOWLEDGE_ACK);
 
 done:
-	nspi->ops->assert_int(nspi);
 
 	return skb;
 }
