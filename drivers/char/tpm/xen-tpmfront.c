@@ -210,8 +210,6 @@ static struct attribute_group vtpm_attr_grp = {
 	.attrs = vtpm_attrs,
 };
 
-#define TPM_LONG_TIMEOUT   (10 * 60 * HZ)
-
 static const struct tpm_vendor_specific tpm_vtpm = {
 	.status = vtpm_status,
 	.recv = vtpm_recv,
@@ -223,11 +221,6 @@ static const struct tpm_vendor_specific tpm_vtpm = {
 	.attr_group = &vtpm_attr_grp,
 	.miscdev = {
 		.fops = &vtpm_ops,
-	},
-	.duration = {
-		TPM_LONG_TIMEOUT,
-		TPM_LONG_TIMEOUT,
-		TPM_LONG_TIMEOUT,
 	},
 };
 
