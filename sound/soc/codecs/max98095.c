@@ -1268,14 +1268,6 @@ static const struct snd_soc_dapm_route max98095_audio_map[] = {
 	{"MIC2 Input", NULL, "MIC2"},
 };
 
-static int max98095_add_widgets(struct snd_soc_codec *codec)
-{
-	snd_soc_add_codec_controls(codec, max98095_snd_controls,
-			     ARRAY_SIZE(max98095_snd_controls));
-
-	return 0;
-}
-
 /* codec mclk clock divider coefficients */
 static const struct {
 	u32 rate;
@@ -2430,8 +2422,6 @@ static int max98095_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, M98095_097_PWR_SYS, M98095_SHDNRUN,
 		M98095_SHDNRUN);
 
-	max98095_add_widgets(codec);
-
 	return 0;
 
 err_irq:
@@ -2463,6 +2453,8 @@ static struct snd_soc_codec_driver soc_codec_dev_max98095 = {
 	.suspend = max98095_suspend,
 	.resume  = max98095_resume,
 	.set_bias_level = max98095_set_bias_level,
+	.controls = max98095_snd_controls,
+	.num_controls = ARRAY_SIZE(max98095_snd_controls),
 	.reg_cache_size = ARRAY_SIZE(max98095_reg_def),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = max98095_reg_def,
