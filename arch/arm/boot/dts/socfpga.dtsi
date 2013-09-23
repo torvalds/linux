@@ -451,9 +451,9 @@
 			status = "disabled";
 		};
 
-		dcan1: d_can@ffc10000 {
+		dcan1: d_can@ffc01000 {
 			compatible = "bosch,d_can";
-			reg = <0xffc10000 0x1000>;
+			reg = <0xffc01000 0x1000>;
 			interrupts = <0 135 4>, <0 136 4>;
 			clocks = <&can1_clk>;
 			status = "disabled";
