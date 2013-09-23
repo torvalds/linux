@@ -14,8 +14,18 @@
 
 #ifdef CONFIG_VSX
 #define TS_FPRWIDTH 2
+
+#ifdef __BIG_ENDIAN__
+#define TS_FPROFFSET 0
+#define TS_VSRLOWOFFSET 1
+#else
+#define TS_FPROFFSET 1
+#define TS_VSRLOWOFFSET 0
+#endif
+
 #else
 #define TS_FPRWIDTH 1
+#define TS_FPROFFSET 0
 #endif
 
 #ifdef CONFIG_PPC64
@@ -142,8 +152,6 @@ typedef struct {
 	unsigned long seg;
 } mm_segment_t;
 
-#define TS_FPROFFSET 0
-#define TS_VSRLOWOFFSET 1
 #define TS_FPR(i) fpr[i][TS_FPROFFSET]
 #define TS_TRANS_FPR(i) transact_fpr[i][TS_FPROFFSET]
 
