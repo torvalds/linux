@@ -497,10 +497,8 @@ int dgap_tty_init(struct board_t *brd)
  */
 void dgap_tty_post_uninit(void)
 {
-	if (dgap_TmpWriteBuf) {
-		kfree(dgap_TmpWriteBuf);
-		dgap_TmpWriteBuf = NULL;
-	}
+	kfree(dgap_TmpWriteBuf);
+	dgap_TmpWriteBuf = NULL;
 }
 
 
@@ -522,10 +520,8 @@ void dgap_tty_uninit(struct board_t *brd)
 			tty_unregister_device(brd->SerialDriver, i);
 		}
 		tty_unregister_driver(brd->SerialDriver);
-		if (brd->SerialDriver->ttys) {
-			kfree(brd->SerialDriver->ttys);
-			brd->SerialDriver->ttys = NULL;
-		}
+		kfree(brd->SerialDriver->ttys);
+		brd->SerialDriver->ttys = NULL;
 		put_tty_driver(brd->SerialDriver);
 		brd->dgap_Major_Serial_Registered = FALSE;
 	}
@@ -538,10 +534,8 @@ void dgap_tty_uninit(struct board_t *brd)
 			tty_unregister_device(brd->PrintDriver, i);
 		}
 		tty_unregister_driver(brd->PrintDriver);
-		if (brd->PrintDriver->ttys) {
-			kfree(brd->PrintDriver->ttys);
-			brd->PrintDriver->ttys = NULL;
-	        }
+		kfree(brd->PrintDriver->ttys);
+		brd->PrintDriver->ttys = NULL;
 		put_tty_driver(brd->PrintDriver);
 		brd->dgap_Major_TransparentPrint_Registered = FALSE;
 	}
