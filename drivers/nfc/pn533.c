@@ -150,6 +150,7 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_CMD_TG_INIT_AS_TARGET 0x8c
 #define PN533_CMD_TG_GET_DATA 0x86
 #define PN533_CMD_TG_SET_DATA 0x8e
+#define PN533_CMD_TG_SET_META_DATA 0x94
 #define PN533_CMD_UNDEF 0xff
 
 #define PN533_CMD_RESPONSE(cmd) (cmd + 1)
@@ -374,6 +375,7 @@ struct pn533 {
 	struct work_struct mi_rx_work;
 	struct work_struct mi_tx_work;
 	struct work_struct mi_tm_rx_work;
+	struct work_struct mi_tm_tx_work;
 	struct work_struct tg_work;
 	struct work_struct rf_work;
 
@@ -1702,6 +1704,46 @@ static void pn533_wq_tm_mi_recv(struct work_struct *work)
 	return;
 }
 
+static int pn533_tm_send_complete(struct pn533 *dev, void *arg,
+				  struct sk_buff *resp);
+static void pn533_wq_tm_mi_send(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, mi_tm_tx_work);
+	struct sk_buff *skb;
+	int rc;
+
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
+
+	/* Grab the first skb in the queue */
+	skb = skb_dequeue(&dev->fragment_skb);
+	if (skb == NULL) {	/* No more data */
+		/* Reset the queue for future use */
+		skb_queue_head_init(&dev->fragment_skb);
+		goto error;
+	}
+
+	/* last entry - remove MI bit */
+	if (skb_queue_len(&dev->fragment_skb) == 0) {
+		rc = pn533_send_cmd_direct_async(dev, PN533_CMD_TG_SET_DATA,
+					skb, pn533_tm_send_complete, NULL);
+	} else
+		rc = pn533_send_cmd_direct_async(dev,
+					PN533_CMD_TG_SET_META_DATA,
+					skb, pn533_tm_send_complete, NULL);
+
+	if (rc == 0) /* success */
+		return;
+
+	dev_err(&dev->interface->dev,
+		"Error %d when trying to perform set meta data_exchange", rc);
+
+	dev_kfree_skb(skb);
+
+error:
+	pn533_send_ack(dev, GFP_KERNEL);
+	queue_work(dev->wq, &dev->cmd_work);
+}
+
 static void pn533_wq_tg_get_data(struct work_struct *work)
 {
 	struct pn533 *dev = container_of(work, struct pn533, tg_work);
@@ -2668,6 +2710,11 @@ static int pn533_tm_send_complete(struct pn533 *dev, void *arg,
 
 	status = resp->data[0];
 
+	/* Prepare for the next round */
+	if (skb_queue_len(&dev->fragment_skb) > 0) {
+		queue_work(dev->wq, &dev->mi_tm_tx_work);
+		return -EINPROGRESS;
+	}
 	dev_kfree_skb(resp);
 
 	if (status != 0) {
@@ -2690,17 +2737,32 @@ static int pn533_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 
 	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
+	/* let's split in multiple chunks if size's too big */
 	if (skb->len > PN533_CMD_DATAEXCH_DATA_MAXLEN) {
-		nfc_err(&dev->interface->dev,
-			"Data length greater than the max allowed: %d\n",
-			PN533_CMD_DATAEXCH_DATA_MAXLEN);
-		return -ENOSYS;
+		rc = pn533_fill_fragment_skbs(dev, skb);
+		if (rc <= 0)
+			goto error;
+
+		/* get the first skb */
+		skb = skb_dequeue(&dev->fragment_skb);
+		if (!skb) {
+			rc = -EIO;
+			goto error;
+		}
+
+		rc = pn533_send_data_async(dev, PN533_CMD_TG_SET_META_DATA, skb,
+						pn533_tm_send_complete, NULL);
+	} else {
+		/* Send th skb */
+		rc = pn533_send_data_async(dev, PN533_CMD_TG_SET_DATA, skb,
+						pn533_tm_send_complete, NULL);
 	}
 
-	rc = pn533_send_data_async(dev, PN533_CMD_TG_SET_DATA, skb,
-				   pn533_tm_send_complete, NULL);
-	if (rc < 0)
+error:
+	if (rc < 0) {
 		dev_kfree_skb(skb);
+		skb_queue_purge(&dev->fragment_skb);
+	}
 
 	return rc;
 }
@@ -3111,6 +3173,7 @@ static int pn533_probe(struct usb_interface *interface,
 	INIT_WORK(&dev->mi_tx_work, pn533_wq_mi_send);
 	INIT_WORK(&dev->tg_work, pn533_wq_tg_get_data);
 	INIT_WORK(&dev->mi_tm_rx_work, pn533_wq_tm_mi_recv);
+	INIT_WORK(&dev->mi_tm_tx_work, pn533_wq_tm_mi_send);
 	INIT_DELAYED_WORK(&dev->poll_work, pn533_wq_poll);
 	INIT_WORK(&dev->rf_work, pn533_wq_rf);
 	dev->wq = alloc_ordered_workqueue("pn533", 0);
