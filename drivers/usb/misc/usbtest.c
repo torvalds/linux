@@ -120,7 +120,7 @@ get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 			struct usb_host_endpoint	*e;
 
 			e = alt->endpoint + ep;
-			switch (e->desc.bmAttributes) {
+			switch (usb_endpoint_type(&e->desc)) {
 			case USB_ENDPOINT_XFER_BULK:
 				break;
 			case USB_ENDPOINT_XFER_ISOC:
