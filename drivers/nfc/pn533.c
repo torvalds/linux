@@ -2504,14 +2504,17 @@ static int pn533_fill_fragment_skbs(struct pn533 *dev, struct sk_buff *skb)
 			break;
 		}
 
-		/* Reserve the TG/MI byte */
-		skb_reserve(frag, 1);
+		if (!dev->tgt_mode) {
+			/* Reserve the TG/MI byte */
+			skb_reserve(frag, 1);
 
-		/* MI + TG */
-		if (frag_size  == PN533_CMD_DATAFRAME_MAXLEN)
-			*skb_push(frag, sizeof(u8)) = (PN533_CMD_MI_MASK | 1);
-		else
-			*skb_push(frag, sizeof(u8)) =  1; /* TG */
+			/* MI + TG */
+			if (frag_size  == PN533_CMD_DATAFRAME_MAXLEN)
+				*skb_push(frag, sizeof(u8)) =
+							(PN533_CMD_MI_MASK | 1);
+			else
+				*skb_push(frag, sizeof(u8)) =  1; /* TG */
+		}
 
 		memcpy(skb_put(frag, frag_size), skb->data, frag_size);
 
