@@ -138,7 +138,7 @@ acpi_tb_print_table_header(acpi_physical_address address,
 		ACPI_INFO((AE_INFO, "%4.4s %p %05X",
 			   header->signature, ACPI_CAST_PTR(void, address),
 			   header->length));
-	} else if (ACPI_COMPARE_NAME(header->signature, ACPI_SIG_RSDP)) {
+	} else if (ACPI_VALIDATE_RSDP_SIG(header->signature)) {
 
 		/* RSDP has no common fields */
 
