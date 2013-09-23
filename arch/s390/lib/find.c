@@ -15,7 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/export.h>
 
-unsigned long find_first_bit_left(const unsigned long *addr, unsigned long size)
+unsigned long find_first_bit_inv(const unsigned long *addr, unsigned long size)
 {
 	const unsigned long *p = addr;
 	unsigned long result = 0;
@@ -35,10 +35,10 @@ unsigned long find_first_bit_left(const unsigned long *addr, unsigned long size)
 found:
 	return result + (__fls(tmp) ^ (BITS_PER_LONG - 1));
 }
-EXPORT_SYMBOL(find_first_bit_left);
+EXPORT_SYMBOL(find_first_bit_inv);
 
-unsigned long find_next_bit_left(const unsigned long *addr, unsigned long size,
-				 unsigned long offset)
+unsigned long find_next_bit_inv(const unsigned long *addr, unsigned long size,
+				unsigned long offset)
 {
 	const unsigned long *p = addr + (offset / BITS_PER_LONG);
 	unsigned long result = offset & ~(BITS_PER_LONG - 1);
@@ -74,4 +74,4 @@ found_first:
 found_middle:
 	return result + (__fls(tmp) ^ (BITS_PER_LONG - 1));
 }
-EXPORT_SYMBOL(find_next_bit_left);
+EXPORT_SYMBOL(find_next_bit_inv);

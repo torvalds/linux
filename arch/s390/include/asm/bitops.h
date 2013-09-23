@@ -300,12 +300,41 @@ static inline int test_bit(unsigned long nr, const volatile unsigned long *ptr)
 }
 
 /*
- * ATTENTION:
- * find_first_bit_left() and find_next_bit_left() use MSB0 encoding.
+ * Functions which use MSB0 bit numbering.
+ * On an s390x system the bits are numbered:
+ *   |0..............63|64............127|128...........191|192...........255|
+ * and on s390:
+ *   |0.....31|31....63|64....95|96...127|128..159|160..191|192..223|224..255|
  */
-unsigned long find_first_bit_left(const unsigned long *addr, unsigned long size);
-unsigned long find_next_bit_left(const unsigned long *addr, unsigned long size,
-				 unsigned long offset);
+unsigned long find_first_bit_inv(const unsigned long *addr, unsigned long size);
+unsigned long find_next_bit_inv(const unsigned long *addr, unsigned long size,
+				unsigned long offset);
+
+static inline void set_bit_inv(unsigned long nr, volatile unsigned long *ptr)
+{
+	return set_bit(nr ^ (BITS_PER_LONG - 1), ptr);
+}
+
+static inline void clear_bit_inv(unsigned long nr, volatile unsigned long *ptr)
+{
+	return clear_bit(nr ^ (BITS_PER_LONG - 1), ptr);
+}
+
+static inline void __set_bit_inv(unsigned long nr, volatile unsigned long *ptr)
+{
+	return __set_bit(nr ^ (BITS_PER_LONG - 1), ptr);
+}
+
+static inline void __clear_bit_inv(unsigned long nr, volatile unsigned long *ptr)
+{
+	return __clear_bit(nr ^ (BITS_PER_LONG - 1), ptr);
+}
+
+static inline int test_bit_inv(unsigned long nr,
+			       const volatile unsigned long *ptr)
+{
+	return test_bit(nr ^ (BITS_PER_LONG - 1), ptr);
+}
 
 #ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
 
