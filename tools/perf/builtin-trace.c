@@ -363,6 +363,9 @@ static size_t syscall_arg__scnprintf_socket_type(char *bf, size_t size,
 #ifndef MSG_PROBE
 #define MSG_PROBE	     0x10
 #endif
+#ifndef MSG_WAITFORONE
+#define MSG_WAITFORONE	0x10000
+#endif
 #ifndef MSG_SENDPAGE_NOTLAST
 #define MSG_SENDPAGE_NOTLAST 0x20000
 #endif
