@@ -1819,7 +1819,7 @@ bnx2x_get_vf_igu_cam_info(struct bnx2x *bp)
 		fid = GET_FIELD((val), IGU_REG_MAPPING_MEMORY_FID);
 		if (fid & IGU_FID_ENCODE_IS_PF)
 			current_pf = fid & IGU_FID_PF_NUM_MASK;
-		else if (current_pf == BP_ABS_FUNC(bp))
+		else if (current_pf == BP_FUNC(bp))
 			bnx2x_vf_set_igu_info(bp, sb_id,
 					      (fid & IGU_FID_VF_NUM_MASK));
 		DP(BNX2X_MSG_IOV, "%s[%d], igu_sb_id=%d, msix=%d\n",
