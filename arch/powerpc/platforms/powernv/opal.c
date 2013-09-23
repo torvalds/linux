@@ -372,7 +372,7 @@ static irqreturn_t opal_interrupt(int irq, void *data)
 static int __init opal_init(void)
 {
 	struct device_node *np, *consoles;
-	const u32 *irqs;
+	const __be32 *irqs;
 	int rc, i, irqlen;
 
 	opal_node = of_find_node_by_path("/ibm,opal");
