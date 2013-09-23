@@ -1612,6 +1612,18 @@ static struct platform_device_id s3c64xx_spi_driver_ids[] = {
 };
 
 static const struct of_device_id s3c64xx_spi_dt_match[] = {
+	{ .compatible = "samsung,s3c2443-spi",
+			.data = (void *)&s3c2443_spi_port_config,
+	},
+	{ .compatible = "samsung,s3c6410-spi",
+			.data = (void *)&s3c6410_spi_port_config,
+	},
+	{ .compatible = "samsung,s5pc100-spi",
+			.data = (void *)&s5pc100_spi_port_config,
+	},
+	{ .compatible = "samsung,s5pv210-spi",
+			.data = (void *)&s5pv210_spi_port_config,
+	},
 	{ .compatible = "samsung,exynos4210-spi",
 			.data = (void *)&exynos4_spi_port_config,
 	},
