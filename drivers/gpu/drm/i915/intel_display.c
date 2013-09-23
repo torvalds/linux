@@ -5829,6 +5829,22 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	return ret;
 }
 
+static void ironlake_get_fdi_m_n_config(struct intel_crtc *crtc,
+					struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder transcoder = pipe_config->cpu_transcoder;
+
+	pipe_config->fdi_m_n.link_m = I915_READ(PIPE_LINK_M1(transcoder));
+	pipe_config->fdi_m_n.link_n = I915_READ(PIPE_LINK_N1(transcoder));
+	pipe_config->fdi_m_n.gmch_m = I915_READ(PIPE_DATA_M1(transcoder))
+					& ~TU_SIZE_MASK;
+	pipe_config->fdi_m_n.gmch_n = I915_READ(PIPE_DATA_N1(transcoder));
+	pipe_config->fdi_m_n.tu = ((I915_READ(PIPE_DATA_M1(transcoder))
+				   & TU_SIZE_MASK) >> TU_SIZE_SHIFT) + 1;
+}
+
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 				     struct intel_crtc_config *pipe_config)
 {
@@ -5846,6 +5862,8 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 		tmp = I915_READ(FDI_RX_CTL(crtc->pipe));
 		pipe_config->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
 					  FDI_DP_PORT_WIDTH_SHIFT) + 1;
+
+		ironlake_get_fdi_m_n_config(crtc, pipe_config);
 	}
 
 	return true;
@@ -5991,6 +6009,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		tmp = I915_READ(FDI_RX_CTL(PIPE_A));
 		pipe_config->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
 					  FDI_DP_PORT_WIDTH_SHIFT) + 1;
+
+		ironlake_get_fdi_m_n_config(crtc, pipe_config);
 	}
 
 	return true;
@@ -7976,6 +7996,11 @@ intel_pipe_config_compare(struct intel_crtc_config *current_config,
 
 	PIPE_CONF_CHECK_I(has_pch_encoder);
 	PIPE_CONF_CHECK_I(fdi_lanes);
+	PIPE_CONF_CHECK_I(fdi_m_n.gmch_m);
+	PIPE_CONF_CHECK_I(fdi_m_n.gmch_n);
+	PIPE_CONF_CHECK_I(fdi_m_n.link_m);
+	PIPE_CONF_CHECK_I(fdi_m_n.link_n);
+	PIPE_CONF_CHECK_I(fdi_m_n.tu);
 
 #undef PIPE_CONF_CHECK_I
 
