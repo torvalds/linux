@@ -99,7 +99,7 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 					   void *tce_mem, u64 tce_size)
 {
 	struct pnv_phb *phb;
-	const u64 *prop64;
+	const __be64 *prop64;
 	u64 phb_id;
 	int64_t rc;
 	static int primary = 1;
@@ -178,7 +178,7 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 void __init pnv_pci_init_p5ioc2_hub(struct device_node *np)
 {
 	struct device_node *phbn;
-	const u64 *prop64;
+	const __be64 *prop64;
 	u64 hub_id;
 	void *tce_mem;
 	uint64_t tce_per_phb;
