@@ -1101,8 +1101,16 @@ ENTRY(__sys_fork)
 	 l.addi	r3,r1,0
 
 ENTRY(sys_rt_sigreturn)
-	l.j	_sys_rt_sigreturn
+	l.jal	_sys_rt_sigreturn
 	 l.addi	r3,r1,0
+	l.sfne	r30,r0
+	l.bnf	_no_syscall_trace
+	 l.nop
+	l.jal	do_syscall_trace_leave
+	 l.addi	r3,r1,0
+_no_syscall_trace:
+	l.j	_resume_userspace
+	 l.nop
 
 /* This is a catch-all syscall for atomic instructions for the OpenRISC 1000.
  * The functions takes a variable number of parameters depending on which
