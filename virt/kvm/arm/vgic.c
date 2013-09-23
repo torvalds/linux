@@ -1495,6 +1495,12 @@ static int vgic_ioaddr_assign(struct kvm *kvm, phys_addr_t *ioaddr,
 {
 	int ret;
 
+	if (addr & ~KVM_PHYS_MASK)
+		return -E2BIG;
+
+	if (addr & (SZ_4K - 1))
+		return -EINVAL;
+
 	if (!IS_VGIC_ADDR_UNDEF(*ioaddr))
 		return -EEXIST;
 	if (addr + size < addr)
@@ -1507,26 +1513,41 @@ static int vgic_ioaddr_assign(struct kvm *kvm, phys_addr_t *ioaddr,
 	return ret;
 }
 
-int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr)
+/**
+ * kvm_vgic_addr - set or get vgic VM base addresses
+ * @kvm:   pointer to the vm struct
+ * @type:  the VGIC addr type, one of KVM_VGIC_V2_ADDR_TYPE_XXX
+ * @addr:  pointer to address value
+ * @write: if true set the address in the VM address space, if false read the
+ *          address
+ *
+ * Set or get the vgic base addresses for the distributor and the virtual CPU
+ * interface in the VM physical address space.  These addresses are properties
+ * of the emulated core/SoC and therefore user space initially knows this
+ * information.
+ */
+int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 {
 	int r = 0;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
 
-	if (addr & ~KVM_PHYS_MASK)
-		return -E2BIG;
-
-	if (addr & (SZ_4K - 1))
-		return -EINVAL;
-
 	mutex_lock(&kvm->lock);
 	switch (type) {
 	case KVM_VGIC_V2_ADDR_TYPE_DIST:
-		r = vgic_ioaddr_assign(kvm, &vgic->vgic_dist_base,
-				       addr, KVM_VGIC_V2_DIST_SIZE);
+		if (write) {
+			r = vgic_ioaddr_assign(kvm, &vgic->vgic_dist_base,
+					       *addr, KVM_VGIC_V2_DIST_SIZE);
+		} else {
+			*addr = vgic->vgic_dist_base;
+		}
 		break;
 	case KVM_VGIC_V2_ADDR_TYPE_CPU:
-		r = vgic_ioaddr_assign(kvm, &vgic->vgic_cpu_base,
-				       addr, KVM_VGIC_V2_CPU_SIZE);
+		if (write) {
+			r = vgic_ioaddr_assign(kvm, &vgic->vgic_cpu_base,
+					       *addr, KVM_VGIC_V2_CPU_SIZE);
+		} else {
+			*addr = vgic->vgic_cpu_base;
+		}
 		break;
 	default:
 		r = -ENODEV;
@@ -1538,16 +1559,58 @@ int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr)
 
 static int vgic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
+	int r;
+
+	switch (attr->group) {
+	case KVM_DEV_ARM_VGIC_GRP_ADDR: {
+		u64 __user *uaddr = (u64 __user *)(long)attr->addr;
+		u64 addr;
+		unsigned long type = (unsigned long)attr->attr;
+
+		if (copy_from_user(&addr, uaddr, sizeof(addr)))
+			return -EFAULT;
+
+		r = kvm_vgic_addr(dev->kvm, type, &addr, true);
+		return (r == -ENODEV) ? -ENXIO : r;
+	}
+	}
+
 	return -ENXIO;
 }
 
 static int vgic_get_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
-	return -ENXIO;
+	int r = -ENXIO;
+
+	switch (attr->group) {
+	case KVM_DEV_ARM_VGIC_GRP_ADDR: {
+		u64 __user *uaddr = (u64 __user *)(long)attr->addr;
+		u64 addr;
+		unsigned long type = (unsigned long)attr->attr;
+
+		r = kvm_vgic_addr(dev->kvm, type, &addr, false);
+		if (r)
+			return (r == -ENODEV) ? -ENXIO : r;
+
+		if (copy_to_user(uaddr, &addr, sizeof(addr)))
+			return -EFAULT;
+	}
+	}
+
+	return r;
 }
 
 static int vgic_has_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
+	switch (attr->group) {
+	case KVM_DEV_ARM_VGIC_GRP_ADDR:
+		switch (attr->attr) {
+		case KVM_VGIC_V2_ADDR_TYPE_DIST:
+		case KVM_VGIC_V2_ADDR_TYPE_CPU:
+			return 0;
+		}
+		break;
+	}
 	return -ENXIO;
 }
 
