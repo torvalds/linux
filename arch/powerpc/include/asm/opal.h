@@ -551,7 +551,7 @@ int64_t opal_cec_power_down(uint64_t request);
 int64_t opal_cec_reboot(void);
 int64_t opal_read_nvram(uint64_t buffer, uint64_t size, uint64_t offset);
 int64_t opal_write_nvram(uint64_t buffer, uint64_t size, uint64_t offset);
-int64_t opal_handle_interrupt(uint64_t isn, uint64_t *outstanding_event_mask);
+int64_t opal_handle_interrupt(uint64_t isn, __be64 *outstanding_event_mask);
 int64_t opal_poll_events(__be64 *outstanding_event_mask);
 int64_t opal_pci_set_hub_tce_memory(uint64_t hub_id, uint64_t tce_mem_addr,
 				    uint64_t tce_mem_size);
@@ -560,9 +560,9 @@ int64_t opal_pci_set_phb_tce_memory(uint64_t phb_id, uint64_t tce_mem_addr,
 int64_t opal_pci_config_read_byte(uint64_t phb_id, uint64_t bus_dev_func,
 				  uint64_t offset, uint8_t *data);
 int64_t opal_pci_config_read_half_word(uint64_t phb_id, uint64_t bus_dev_func,
-				       uint64_t offset, uint16_t *data);
+				       uint64_t offset, __be16 *data);
 int64_t opal_pci_config_read_word(uint64_t phb_id, uint64_t bus_dev_func,
-				  uint64_t offset, uint32_t *data);
+				  uint64_t offset, __be32 *data);
 int64_t opal_pci_config_write_byte(uint64_t phb_id, uint64_t bus_dev_func,
 				   uint64_t offset, uint8_t data);
 int64_t opal_pci_config_write_half_word(uint64_t phb_id, uint64_t bus_dev_func,
@@ -570,14 +570,14 @@ int64_t opal_pci_config_write_half_word(uint64_t phb_id, uint64_t bus_dev_func,
 int64_t opal_pci_config_write_word(uint64_t phb_id, uint64_t bus_dev_func,
 				   uint64_t offset, uint32_t data);
 int64_t opal_set_xive(uint32_t isn, uint16_t server, uint8_t priority);
-int64_t opal_get_xive(uint32_t isn, uint16_t *server, uint8_t *priority);
+int64_t opal_get_xive(uint32_t isn, __be16 *server, uint8_t *priority);
 int64_t opal_register_exception_handler(uint64_t opal_exception,
 					uint64_t handler_address,
 					uint64_t glue_cache_line);
 int64_t opal_pci_eeh_freeze_status(uint64_t phb_id, uint64_t pe_number,
 				   uint8_t *freeze_state,
-				   uint16_t *pci_error_type,
-				   uint64_t *phb_status);
+				   __be16 *pci_error_type,
+				   __be64 *phb_status);
 int64_t opal_pci_eeh_freeze_clear(uint64_t phb_id, uint64_t pe_number,
 				  uint64_t eeh_action_token);
 int64_t opal_pci_shpc(uint64_t phb_id, uint64_t shpc_action, uint8_t *state);
@@ -614,13 +614,13 @@ int64_t opal_pci_msi_eoi(uint64_t phb_id, uint32_t hw_irq);
 int64_t opal_pci_set_xive_pe(uint64_t phb_id, uint32_t pe_number,
 			     uint32_t xive_num);
 int64_t opal_get_xive_source(uint64_t phb_id, uint32_t xive_num,
-			     int32_t *interrupt_source_number);
+			     __be32 *interrupt_source_number);
 int64_t opal_get_msi_32(uint64_t phb_id, uint32_t mve_number, uint32_t xive_num,
-			uint8_t msi_range, uint32_t *msi_address,
-			uint32_t *message_data);
+			uint8_t msi_range, __be32 *msi_address,
+			__be32 *message_data);
 int64_t opal_get_msi_64(uint64_t phb_id, uint32_t mve_number,
 			uint32_t xive_num, uint8_t msi_range,
-			uint64_t *msi_address, uint32_t *message_data);
+			__be64 *msi_address, __be32 *message_data);
 int64_t opal_start_cpu(uint64_t thread_number, uint64_t start_address);
 int64_t opal_query_cpu_status(uint64_t thread_number, uint8_t *thread_status);
 int64_t opal_write_oppanel(oppanel_line_t *lines, uint64_t num_lines);
@@ -642,7 +642,7 @@ int64_t opal_pci_fence_phb(uint64_t phb_id);
 int64_t opal_pci_reinit(uint64_t phb_id, uint8_t reinit_scope);
 int64_t opal_pci_mask_pe_error(uint64_t phb_id, uint16_t pe_number, uint8_t error_type, uint8_t mask_action);
 int64_t opal_set_slot_led_status(uint64_t phb_id, uint64_t slot_id, uint8_t led_type, uint8_t led_action);
-int64_t opal_get_epow_status(uint64_t *status);
+int64_t opal_get_epow_status(__be64 *status);
 int64_t opal_set_system_attention_led(uint8_t led_action);
 int64_t opal_pci_next_error(uint64_t phb_id, uint64_t *first_frozen_pe,
 			    uint16_t *pci_error_type, uint16_t *severity);

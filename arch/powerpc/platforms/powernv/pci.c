@@ -412,7 +412,7 @@ static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 	if (direction != DMA_TO_DEVICE)
 		proto_tce |= TCE_PCI_WRITE;
 
-	tces = tcep = ((u64 *)tbl->it_base) + index - tbl->it_offset;
+	tces = tcep = ((__be64 *)tbl->it_base) + index - tbl->it_offset;
 	rpn = __pa(uaddr) >> TCE_SHIFT;
 
 	while (npages--)
@@ -432,7 +432,7 @@ static void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 {
 	__be64 *tcep, *tces;
 
-	tces = tcep = ((u64 *)tbl->it_base) + index - tbl->it_offset;
+	tces = tcep = ((__be64 *)tbl->it_base) + index - tbl->it_offset;
 
 	while (npages--)
 		*(tcep++) = cpu_to_be64(0);
@@ -484,7 +484,7 @@ static struct iommu_table *pnv_pci_setup_bml_iommu(struct pci_controller *hose)
 	swinvp = of_get_property(hose->dn, "linux,tce-sw-invalidate-info",
 				 NULL);
 	if (swinvp) {
-		tbl->it_busno = swinvp[1];
+		tbl->it_busno = be64_to_cpu(swinvp[1]);
 		tbl->it_index = (unsigned long)ioremap(be64_to_cpup(swinvp), 8);
 		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
 	}

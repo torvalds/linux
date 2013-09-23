@@ -366,7 +366,7 @@ int opal_machine_check(struct pt_regs *regs)
 
 static irqreturn_t opal_interrupt(int irq, void *data)
 {
-	uint64_t events;
+	__be64 events;
 
 	opal_handle_interrupt(virq_to_hw(irq), &events);
 

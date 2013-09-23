@@ -455,7 +455,7 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bus *bus)
 }
 
 static void pnv_pci_ioda1_tce_invalidate(struct iommu_table *tbl,
-					 u64 *startp, u64 *endp)
+					 __be64 *startp, __be64 *endp)
 {
 	__be64 __iomem *invalidate = (__be64 __iomem *)tbl->it_index;
 	unsigned long start, end, inc;
@@ -496,7 +496,7 @@ static void pnv_pci_ioda1_tce_invalidate(struct iommu_table *tbl,
 
 static void pnv_pci_ioda2_tce_invalidate(struct pnv_ioda_pe *pe,
 					 struct iommu_table *tbl,
-					 u64 *startp, u64 *endp)
+					 __be64 *startp, __be64 *endp)
 {
 	unsigned long start, end, inc;
 	__be64 __iomem *invalidate = (__be64 __iomem *)tbl->it_index;
@@ -521,7 +521,7 @@ static void pnv_pci_ioda2_tce_invalidate(struct pnv_ioda_pe *pe,
 }
 
 void pnv_pci_ioda_tce_invalidate(struct iommu_table *tbl,
-				 u64 *startp, u64 *endp)
+				 __be64 *startp, __be64 *endp)
 {
 	struct pnv_ioda_pe *pe = container_of(tbl, struct pnv_ioda_pe,
 					      tce32_table);
