@@ -218,7 +218,7 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 int intel_fbdev_init(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);
@@ -243,7 +243,7 @@ int intel_fbdev_init(struct drm_device *dev)
 
 void intel_fbdev_initial_config(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* Due to peculiar init order wrt to hpd handling this is separate. */
 	drm_fb_helper_initial_config(&dev_priv->fbdev->helper, 32);
@@ -251,7 +251,7 @@ void intel_fbdev_initial_config(struct drm_device *dev)
 
 void intel_fbdev_fini(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	if (!dev_priv->fbdev)
 		return;
 
@@ -262,7 +262,7 @@ void intel_fbdev_fini(struct drm_device *dev)
 
 void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct fb_info *info;
 
@@ -285,14 +285,14 @@ MODULE_LICENSE("GPL and additional rights");
 
 void intel_fb_output_poll_changed(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
 }
 
 void intel_fb_restore_mode(struct drm_device *dev)
 {
 	int ret;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (INTEL_INFO(dev)->num_pipes == 0)
 		return;
