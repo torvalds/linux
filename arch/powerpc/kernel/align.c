@@ -895,7 +895,7 @@ int fix_alignment(struct pt_regs *regs)
 #ifdef CONFIG_PPC_FPU
 			preempt_disable();
 			enable_kernel_fp();
-			cvt_df(&data.dd, (float *)&data.v[4]);
+			cvt_df(&data.dd, (float *)&data.x32.low32);
 			preempt_enable();
 #else
 			return 0;
@@ -935,7 +935,7 @@ int fix_alignment(struct pt_regs *regs)
 #ifdef CONFIG_PPC_FPU
 		preempt_disable();
 		enable_kernel_fp();
-		cvt_fd((float *)&data.v[4], &data.dd);
+		cvt_fd((float *)&data.x32.low32, &data.dd);
 		preempt_enable();
 #else
 		return 0;
