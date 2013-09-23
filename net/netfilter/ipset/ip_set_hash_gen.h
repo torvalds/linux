@@ -393,7 +393,7 @@ mtype_flush(struct ip_set *set)
 
 /* Destroy the hashtable part of the set */
 static void
-mtype_ahash_destroy(struct ip_set *set, struct htable *t)
+mtype_ahash_destroy(struct ip_set *set, struct htable *t, bool ext_destroy)
 {
 	struct hbucket *n;
 	u32 i;
@@ -401,7 +401,7 @@ mtype_ahash_destroy(struct ip_set *set, struct htable *t)
 	for (i = 0; i < jhash_size(t->htable_bits); i++) {
 		n = hbucket(t, i);
 		if (n->size) {
-			if (set->extensions & IPSET_EXT_DESTROY)
+			if (set->extensions & IPSET_EXT_DESTROY && ext_destroy)
 				mtype_ext_cleanup(set, n);
 			/* FIXME: use slab cache */
 			kfree(n->value);
@@ -420,7 +420,7 @@ mtype_destroy(struct ip_set *set)
 	if (set->extensions & IPSET_EXT_TIMEOUT)
 		del_timer_sync(&h->gc);
 
-	mtype_ahash_destroy(set, rcu_dereference_bh_nfnl(h->table));
+	mtype_ahash_destroy(set, rcu_dereference_bh_nfnl(h->table), true);
 #ifdef IP_SET_HASH_WITH_RBTREE
 	rbtree_destroy(&h->rbtree);
 #endif
@@ -586,7 +586,7 @@ retry:
 				mtype_data_reset_flags(data, &flags);
 #endif
 				read_unlock_bh(&set->lock);
-				mtype_ahash_destroy(set, t);
+				mtype_ahash_destroy(set, t, false);
 				if (ret == -EAGAIN)
 					goto retry;
 				return ret;
@@ -607,7 +607,7 @@ retry:
 
 	pr_debug("set %s resized from %u (%p) to %u (%p)\n", set->name,
 		 orig->htable_bits, orig, t->htable_bits, t);
-	mtype_ahash_destroy(set, orig);
+	mtype_ahash_destroy(set, orig, false);
 
 	return 0;
 }
