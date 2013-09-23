@@ -1224,10 +1224,45 @@ MODULE_DEVICE_TABLE(of, mxs_lradc_dt_ids);
 static int mxs_lradc_probe_touchscreen(struct mxs_lradc *lradc,
 						struct device_node *lradc_node)
 {
-	/* TODO retrieve from device tree */
+	int ret;
+	u32 ts_wires = 0, adapt;
+
+	ret = of_property_read_u32(lradc_node, "fsl,lradc-touchscreen-wires",
+				&ts_wires);
+	if (ret)
+		return -ENODEV; /* touchscreen feature disabled */
+
+	switch (ts_wires) {
+	case 4:
+		lradc->use_touchscreen = MXS_LRADC_TOUCHSCREEN_4WIRE;
+		break;
+	case 5:
+		if (lradc->soc == IMX28_LRADC) {
+			lradc->use_touchscreen = MXS_LRADC_TOUCHSCREEN_5WIRE;
+			break;
+		}
+		/* fall through an error message for i.MX23 */
+	default:
+		dev_err(lradc->dev,
+			"Unsupported number of touchscreen wires (%d)\n",
+			ts_wires);
+		return -EINVAL;
+	}
+
 	lradc->over_sample_cnt = 4;
+	ret = of_property_read_u32(lradc_node, "fsl,ave-ctrl", &adapt);
+	if (ret == 0)
+		lradc->over_sample_cnt = adapt;
+
 	lradc->over_sample_delay = 2;
+	ret = of_property_read_u32(lradc_node, "fsl,ave-delay", &adapt);
+	if (ret == 0)
+		lradc->over_sample_delay = adapt;
+
 	lradc->settling_delay = 10;
+	ret = of_property_read_u32(lradc_node, "fsl,settling", &adapt);
+	if (ret == 0)
+		lradc->settling_delay = adapt;
 
 	return 0;
 }
@@ -1243,7 +1278,6 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	struct mxs_lradc *lradc;
 	struct iio_dev *iio;
 	struct resource *iores;
-	uint32_t ts_wires = 0;
 	int ret = 0, touch_ret;
 	int i;
 
@@ -1276,25 +1310,6 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	}
 
 	touch_ret = mxs_lradc_probe_touchscreen(lradc, node);
-
-	/* Check if touchscreen is enabled in DT. */
-	ret = of_property_read_u32(node, "fsl,lradc-touchscreen-wires",
-				&ts_wires);
-	if (ret)
-		dev_info(dev, "Touchscreen not enabled.\n");
-	else if (ts_wires == 4)
-		lradc->use_touchscreen = MXS_LRADC_TOUCHSCREEN_4WIRE;
-	else if (ts_wires == 5)
-		lradc->use_touchscreen = MXS_LRADC_TOUCHSCREEN_5WIRE;
-	else
-		dev_warn(dev, "Unsupported number of touchscreen wires (%d)\n",
-				ts_wires);
-
-	if ((lradc->soc == IMX23_LRADC) && (ts_wires == 5)) {
-		dev_warn(dev, "No support for 5 wire touches on i.MX23\n");
-		dev_warn(dev, "Falling back to 4 wire\n");
-		ts_wires = 4;
-	}
 
 	/* Grab all IRQ sources */
 	for (i = 0; i < of_cfg->irq_count; i++) {
