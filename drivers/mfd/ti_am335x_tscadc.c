@@ -95,7 +95,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	const __be32            *cur;
 	u32			val;
 	int			err, ctrl;
-	int			clk_value, clock_rate;
+	int			clock_rate;
 	int			tsc_wires = 0, adc_channels = 0, total_channels;
 	int			readouts = 0;
 
@@ -196,11 +196,11 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	}
 	clock_rate = clk_get_rate(clk);
 	clk_put(clk);
-	clk_value = clock_rate / ADC_CLK;
+	tscadc->clk_div = clock_rate / ADC_CLK;
 
 	/* TSCADC_CLKDIV needs to be configured to the value minus 1 */
-	clk_value = clk_value - 1;
-	tscadc_writel(tscadc, REG_CLKDIV, clk_value);
+	tscadc->clk_div--;
+	tscadc_writel(tscadc, REG_CLKDIV, tscadc->clk_div);
 
 	/* Set the control register bits */
 	ctrl = CNTRLREG_STEPCONFIGWRT |
@@ -302,6 +302,8 @@ static int tscadc_resume(struct device *dev)
 	restore = tscadc_readl(tscadc_dev, REG_CTRL);
 	tscadc_writel(tscadc_dev, REG_CTRL,
 			(restore | CNTRLREG_TSCSSENB));
+
+	tscadc_writel(tscadc_dev, REG_CLKDIV, tscadc_dev->clk_div);
 
 	return 0;
 }
