@@ -51,6 +51,7 @@ config PINCTRL_AB8505
 
 config PINCTRL_ADI2
 	bool "ADI pin controller driver"
+	depends on BLACKFIN
 	select PINMUX
 	select IRQ_DOMAIN
 	help
