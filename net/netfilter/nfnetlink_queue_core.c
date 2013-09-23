@@ -298,7 +298,7 @@ nfqnl_put_packet_info(struct sk_buff *nlskb, struct sk_buff *packet,
 }
 
 static struct sk_buff *
-nfqnl_build_packet_message(struct nfqnl_instance *queue,
+nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			   struct nf_queue_entry *entry,
 			   __be32 **packet_id_ptr)
 {
@@ -372,7 +372,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (queue->flags & NFQA_CFG_F_CONNTRACK)
 		ct = nfqnl_ct_get(entskb, &size, &ctinfo);
 
-	skb = nfnetlink_alloc_skb(&init_net, size, queue->peer_portid,
+	skb = nfnetlink_alloc_skb(net, size, queue->peer_portid,
 				  GFP_ATOMIC);
 	if (!skb)
 		return NULL;
@@ -525,7 +525,7 @@ __nfqnl_enqueue_packet(struct net *net, struct nfqnl_instance *queue,
 	__be32 *packet_id_ptr;
 	int failopen = 0;
 
-	nskb = nfqnl_build_packet_message(queue, entry, &packet_id_ptr);
+	nskb = nfqnl_build_packet_message(net, queue, entry, &packet_id_ptr);
 	if (nskb == NULL) {
 		err = -ENOMEM;
 		goto err_out;
