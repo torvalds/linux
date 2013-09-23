@@ -47,13 +47,12 @@ _GLOBAL(call_do_softirq)
 	mtlr	r0
 	blr
 
-_GLOBAL(call_handle_irq)
+_GLOBAL(call_do_irq)
 	mflr	r0
 	stw	r0,4(r1)
-	mtctr	r6
-	stwu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r5)
-	mr	r1,r5
-	bctrl
+	stwu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r4)
+	mr	r1,r4
+	bl	__do_irq
 	lwz	r1,0(r1)
 	lwz	r0,4(r1)
 	mtlr	r0
