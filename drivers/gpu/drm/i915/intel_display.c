@@ -5001,6 +5001,23 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 
 	i9xx_get_pfit_config(crtc, pipe_config);
 
+	if (INTEL_INFO(dev)->gen >= 4) {
+		tmp = I915_READ(DPLL_MD(crtc->pipe));
+		pipe_config->pixel_multiplier =
+			((tmp & DPLL_MD_UDI_MULTIPLIER_MASK)
+			 >> DPLL_MD_UDI_MULTIPLIER_SHIFT) + 1;
+	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
+		tmp = I915_READ(DPLL(crtc->pipe));
+		pipe_config->pixel_multiplier =
+			((tmp & SDVO_MULTIPLIER_MASK)
+			 >> SDVO_MULTIPLIER_SHIFT_HIRES) + 1;
+	} else {
+		/* Note that on i915G/GM the pixel multiplier is in the sdvo
+		 * port and will be fixed up in the encoder->get_config
+		 * function. */
+		pipe_config->pixel_multiplier = 1;
+	}
+
 	return true;
 }
 
@@ -5864,6 +5881,12 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 					  FDI_DP_PORT_WIDTH_SHIFT) + 1;
 
 		ironlake_get_fdi_m_n_config(crtc, pipe_config);
+
+		/* XXX: Can't properly read out the pch dpll pixel multiplier
+		 * since we don't have state tracking for pch clocks yet. */
+		pipe_config->pixel_multiplier = 1;
+	} else {
+		pipe_config->pixel_multiplier = 1;
 	}
 
 	intel_get_pipe_timings(crtc, pipe_config);
@@ -5997,6 +6020,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
 				   (I915_READ(IPS_CTL) & IPS_ENABLE);
+
+	pipe_config->pixel_multiplier = 1;
 
 	return true;
 }
@@ -8094,6 +8119,9 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vsync_start);
 	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vsync_end);
 
+	if (!HAS_PCH_SPLIT(dev))
+		PIPE_CONF_CHECK_I(pixel_multiplier);
+
 	PIPE_CONF_CHECK_FLAGS(adjusted_mode.flags,
 			      DRM_MODE_FLAG_INTERLACE);
 
@@ -8215,9 +8243,8 @@ intel_modeset_check_state(struct drm_device *dev)
 			enabled = true;
 			if (encoder->connectors_active)
 				active = true;
-			if (encoder->get_config)
-				encoder->get_config(encoder, &pipe_config);
 		}
+
 		WARN(active != crtc->active,
 		     "crtc's computed active state doesn't match tracked active state "
 		     "(expected %i, found %i)\n", active, crtc->active);
@@ -8231,6 +8258,14 @@ intel_modeset_check_state(struct drm_device *dev)
 		/* hw state is inconsistent with the pipe A quirk */
 		if (crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
 			active = crtc->active;
+
+		list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+				    base.head) {
+			if (encoder->base.crtc != &crtc->base)
+				continue;
+			if (encoder->get_config)
+				encoder->get_config(encoder, &pipe_config);
+		}
 
 		WARN(crtc->active != active,
 		     "crtc active state doesn't match with hw state "
