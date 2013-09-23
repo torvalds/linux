@@ -77,8 +77,7 @@ int rtw_os_recvbuf_resource_alloc(struct adapter *padapter,
 int rtw_os_recvbuf_resource_free(struct adapter *padapter,
 				 struct recv_buf *precvbuf)
 {
-	if (precvbuf->purb)
-		usb_free_urb(precvbuf->purb);
+	usb_free_urb(precvbuf->purb);
 	return _SUCCESS;
 }
 
