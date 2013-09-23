@@ -34,7 +34,7 @@
 	mtmsrd	r12,1;			\
 	LOAD_REG_ADDR(r0,.opal_return);	\
 	mtlr	r0;			\
-	li	r0,MSR_DR|MSR_IR;	\
+	li	r0,MSR_DR|MSR_IR|MSR_LE;\
 	andc	r12,r12,r0;		\
 	li	r0,token;		\
 	mtspr	SPRN_HSRR1,r12;		\
@@ -45,6 +45,13 @@
 	hrfid
 
 _STATIC(opal_return)
+	/*
+	 * Fixup endian on OPAL return... we should be able to simplify
+	 * this by instead converting the below trampoline to a set of
+	 * bytes (always BE) since MSR:LE will end up fixed up as a side
+	 * effect of the rfid.
+	 */
+	FIXUP_ENDIAN
 	ld	r2,PACATOC(r13);
 	ld	r4,8(r1);
 	ld	r5,16(r1);
