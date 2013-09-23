@@ -239,7 +239,6 @@ static void mei_me_remove(struct pci_dev *pdev)
 
 	free_irq(pdev->irq, dev);
 	pci_disable_msi(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	if (hw->mem_addr)
 		pci_iounmap(pdev, hw->mem_addr);
