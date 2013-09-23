@@ -44,12 +44,12 @@ struct wl_security;
 struct wl_ibss;
 
 
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-#define htodchanspec(i) i
-#define dtohchanspec(i) i
+#define htod32(i) (i)
+#define htod16(i) (i)
+#define dtoh32(i) (i)
+#define dtoh16(i) (i)
+#define htodchanspec(i) (i)
+#define dtohchanspec(i) (i)
 
 #define WL_DBG_NONE	0
 #define WL_DBG_P2P_ACTION (1 << 5)
