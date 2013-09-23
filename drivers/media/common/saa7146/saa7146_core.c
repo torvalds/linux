@@ -524,8 +524,6 @@ static void saa7146_remove_one(struct pci_dev *pdev)
 	DEB_EE("dev:%p\n", dev);
 
 	dev->ext->detach(dev);
-	/* Zero the PCI drvdata after use. */
-	pci_set_drvdata(pdev, NULL);
 
 	/* shut down all video dma transfers */
 	saa7146_write(dev, MC1, 0x00ff0000);
