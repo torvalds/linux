@@ -241,7 +241,7 @@ static int gpio_vbus_set_suspend(struct usb_phy *phy, int suspend)
 
 /* platform driver interface */
 
-static int __init gpio_vbus_probe(struct platform_device *pdev)
+static int gpio_vbus_probe(struct platform_device *pdev)
 {
 	struct gpio_vbus_mach_info *pdata = dev_get_platdata(&pdev->dev);
 	struct gpio_vbus_data *gpio_vbus;
@@ -349,7 +349,7 @@ err_gpio:
 	return err;
 }
 
-static int __exit gpio_vbus_remove(struct platform_device *pdev)
+static int gpio_vbus_remove(struct platform_device *pdev)
 {
 	struct gpio_vbus_data *gpio_vbus = platform_get_drvdata(pdev);
 	struct gpio_vbus_mach_info *pdata = dev_get_platdata(&pdev->dev);
@@ -398,8 +398,6 @@ static const struct dev_pm_ops gpio_vbus_dev_pm_ops = {
 };
 #endif
 
-/* NOTE:  the gpio-vbus device may *NOT* be hotplugged */
-
 MODULE_ALIAS("platform:gpio-vbus");
 
 static struct platform_driver gpio_vbus_driver = {
@@ -410,10 +408,11 @@ static struct platform_driver gpio_vbus_driver = {
 		.pm = &gpio_vbus_dev_pm_ops,
 #endif
 	},
-	.remove  = __exit_p(gpio_vbus_remove),
+	.probe		= gpio_vbus_probe,
+	.remove		= gpio_vbus_remove,
 };
 
-module_platform_driver_probe(gpio_vbus_driver, gpio_vbus_probe);
+module_platform_driver(gpio_vbus_driver);
 
 MODULE_DESCRIPTION("simple GPIO controlled OTG transceiver driver");
 MODULE_AUTHOR("Philipp Zabel");
