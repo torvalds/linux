@@ -845,6 +845,35 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,946)
 #define N_SLINE	68
 #define N_SO	100
 
-#endif /*  __ASSEMBLY__ */
+/*
+ * Create an endian fixup trampoline
+ *
+ * This starts with a "tdi 0,0,0x48" instruction which is
+ * essentially a "trap never", and thus akin to a nop.
+ *
+ * The opcode for this instruction read with the wrong endian
+ * however results in a b . + 8
+ *
+ * So essentially we use that trick to execute the following
+ * trampoline in "reverse endian" if we are running with the
+ * MSR_LE bit set the "wrong" way for whatever endianness the
+ * kernel is built for.
+ */
 
+#ifdef CONFIG_PPC_BOOK3E
+#define FIXUP_ENDIAN
+#else
+#define FIXUP_ENDIAN						   \
+	tdi   0,0,0x48;	  /* Reverse endian of b . + 8		*/ \
+	b     $+36;	  /* Skip trampoline if endian is good	*/ \
+	.long 0x05009f42; /* bcl 20,31,$+4			*/ \
+	.long 0xa602487d; /* mflr r10				*/ \
+	.long 0x1c004a39; /* addi r10,r10,28			*/ \
+	.long 0xa600607d; /* mfmsr r11				*/ \
+	.long 0x01006b69; /* xori r11,r11,1			*/ \
+	.long 0xa6035a7d; /* mtsrr0 r10				*/ \
+	.long 0xa6037b7d; /* mtsrr1 r11				*/ \
+	.long 0x2400004c  /* rfid				*/
+#endif /* !CONFIG_PPC_BOOK3E */
+#endif /*  __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_PPC_ASM_H */
