@@ -1782,6 +1782,7 @@ static unsigned char *ext_target_model[] = {
 	"MSA2312",
 	"MSA2324",
 	"P2000 G3 SAS",
+	"MSA 2040 SAS",
 	NULL,
 };
 
