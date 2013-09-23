@@ -299,7 +299,13 @@
 				compatible = "sirf,prima2-spi";
 				reg = <0xb00d0000 0x10000>;
 				interrupts = <15>;
+				sirf,spi-num-chipselects = <1>;
+				sirf,spi-dma-rx-channel = <25>;
+				sirf,spi-dma-tx-channel = <20>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&clks 19>;
+				status = "disabled";
 			};
 
 			spi1: spi@b0170000 {
@@ -307,7 +313,13 @@
 				compatible = "sirf,prima2-spi";
 				reg = <0xb0170000 0x10000>;
 				interrupts = <16>;
+				sirf,spi-num-chipselects = <1>;
+				sirf,spi-dma-rx-channel = <12>;
+				sirf,spi-dma-tx-channel = <13>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&clks 20>;
+				status = "disabled";
 			};
 
 			i2c0: i2c@b00e0000 {

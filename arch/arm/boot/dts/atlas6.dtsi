@@ -297,6 +297,11 @@
 				compatible = "sirf,prima2-spi";
 				reg = <0xb0170000 0x10000>;
 				interrupts = <16>;
+				sirf,spi-num-chipselects = <1>;
+				sirf,spi-dma-rx-channel = <12>;
+				sirf,spi-dma-tx-channel = <13>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&clks 20>;
 				status = "disabled";
 			};
