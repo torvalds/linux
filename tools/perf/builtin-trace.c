@@ -517,6 +517,29 @@ static size_t syscall_arg__scnprintf_eventfd_flags(char *bf, size_t size,
 
 #define SCA_EFD_FLAGS syscall_arg__scnprintf_eventfd_flags
 
+static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
+						struct syscall_arg *arg)
+{
+	int printed = 0, flags = arg->val;
+
+#define	P_FLAG(n) \
+	if (flags & O_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~O_##n; \
+	}
+
+	P_FLAG(CLOEXEC);
+	P_FLAG(NONBLOCK);
+#undef P_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_PIPE_FLAGS syscall_arg__scnprintf_pipe_flags
+
 static size_t syscall_arg__scnprintf_signum(char *bf, size_t size, struct syscall_arg *arg)
 {
 	int sig = arg->val;
@@ -620,6 +643,8 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [2] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "openat",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_OPEN_FLAGS, /* flags */ }, },
+	{ .name	    = "pipe2",	    .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_PIPE_FLAGS, /* flags */ }, },
 	{ .name	    = "poll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "ppoll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "pread",	    .errmsg = true, .alias = "pread64", },
