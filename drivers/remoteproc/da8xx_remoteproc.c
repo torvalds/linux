@@ -301,8 +301,6 @@ static int da8xx_rproc_remove(struct platform_device *pdev)
 	 */
 	disable_irq(drproc->irq);
 
-	devm_clk_put(dev, drproc->dsp_clk);
-
 	rproc_del(rproc);
 	rproc_put(rproc);
 
