@@ -3180,6 +3180,7 @@ int bnx2x_enable_sriov(struct bnx2x *bp)
 		/* set local queue arrays */
 		vf->vfqs = &bp->vfdb->vfqs[qcount];
 		qcount += vf_sb_count(vf);
+		bnx2x_iov_static_resc(bp, vf);
 	}
 
 	/* prepare msix vectors in VF configuration space */
@@ -3187,6 +3188,8 @@ int bnx2x_enable_sriov(struct bnx2x *bp)
 		bnx2x_pretend_func(bp, HW_VF_HANDLE(bp, vf_idx));
 		REG_WR(bp, PCICFG_OFFSET + GRC_CONFIG_REG_VF_MSIX_CONTROL,
 		       num_vf_queues);
+		DP(BNX2X_MSG_IOV, "set msix vec num in VF %d cfg space to %d\n",
+		   vf_idx, num_vf_queues);
 	}
 	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
