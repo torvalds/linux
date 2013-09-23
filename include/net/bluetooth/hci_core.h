@@ -367,18 +367,17 @@ extern rwlock_t hci_dev_list_lock;
 extern rwlock_t hci_cb_list_lock;
 
 /* ----- HCI interface to upper protocols ----- */
-extern int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
-extern void l2cap_connect_cfm(struct hci_conn *hcon, u8 status);
-extern int l2cap_disconn_ind(struct hci_conn *hcon);
-extern void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason);
-extern int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt);
-extern int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb,
-			      u16 flags);
+int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
+void l2cap_connect_cfm(struct hci_conn *hcon, u8 status);
+int l2cap_disconn_ind(struct hci_conn *hcon);
+void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason);
+int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt);
+int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags);
 
-extern int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags);
-extern void sco_connect_cfm(struct hci_conn *hcon, __u8 status);
-extern void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason);
-extern int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
+int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags);
+void sco_connect_cfm(struct hci_conn *hcon, __u8 status);
+void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason);
+int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
 
 /* ----- Inquiry cache ----- */
 #define INQUIRY_CACHE_AGE_MAX   (HZ*30)   /* 30 seconds */
