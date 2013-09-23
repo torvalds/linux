@@ -148,7 +148,9 @@ EXPORT_SYMBOL(__ucmpdi2);
 #endif
 long long __bswapdi2(long long);
 EXPORT_SYMBOL(__bswapdi2);
+#ifdef __BIG_ENDIAN__
 EXPORT_SYMBOL(memcpy);
+#endif
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memcmp);
