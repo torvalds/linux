@@ -3513,10 +3513,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			return(-EINVAL);
 		}
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return(-ENOIOCTLCMD);
-
 	case DIGI_GETA:
 		/* get information for ditty */
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
@@ -3586,12 +3582,4 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		return(-ENOIOCTLCMD);
 	}
-
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-	DPR_IOCTL(("dgap_tty_ioctl end - cmd %s (%x), arg %lx\n", 
-		dgap_ioctl_name(cmd), cmd, arg));
-                        
-	return(0);
 }
