@@ -247,6 +247,8 @@
 				compatible = "sirf,prima2-vip";
 				reg = <0xb00C0000 0x10000>;
 				clocks = <&clks 31>;
+				interrupts = <14>;
+				sirf,vip-dma-rx-channel = <16>;
 			};
 
 			spi0: spi@b00d0000 {
