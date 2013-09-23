@@ -85,11 +85,6 @@ static inline unsigned xen_evtchn_max_channels(void)
 	return evtchn_ops->max_channels();
 }
 
-static inline unsigned xen_evtchn_nr_channels(void)
-{
-	return evtchn_ops->nr_channels();
-}
-
 /*
  * Do any ABI specific setup for a bound event channel before it can
  * be unmasked and used.

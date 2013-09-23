@@ -952,6 +952,19 @@ static int find_virq(unsigned int virq, unsigned int cpu)
 	return rc;
 }
 
+/**
+ * xen_evtchn_nr_channels - number of usable event channel ports
+ *
+ * This may be less than the maximum supported by the current
+ * hypervisor ABI. Use xen_evtchn_max_channels() for the maximum
+ * supported.
+ */
+unsigned xen_evtchn_nr_channels(void)
+{
+        return evtchn_ops->nr_channels();
+}
+EXPORT_SYMBOL_GPL(xen_evtchn_nr_channels);
+
 int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 {
 	struct evtchn_bind_virq bind_virq;

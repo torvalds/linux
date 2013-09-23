@@ -7,6 +7,8 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/events.h>
 
+unsigned xen_evtchn_nr_channels(void);
+
 int bind_evtchn_to_irq(unsigned int evtchn);
 int bind_evtchn_to_irqhandler(unsigned int evtchn,
 			      irq_handler_t handler,
