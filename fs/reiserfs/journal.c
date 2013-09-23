@@ -1338,7 +1338,6 @@ static int flush_journal_list(struct super_block *s,
 		reiserfs_warning(s, "clm-2048", "called with wcount %d",
 				 atomic_read(&journal->j_wcount));
 	}
-	BUG_ON(jl->j_trans_id == 0);
 
 	/* if flushall == 0, the lock is already held */
 	if (flushall) {
@@ -1765,6 +1764,8 @@ static int flush_used_journal_lists(struct super_block *s,
 			break;
 		tjl = JOURNAL_LIST_ENTRY(tjl->j_list.next);
 	}
+	get_journal_list(jl);
+	get_journal_list(flush_jl);
 	/* try to find a group of blocks we can flush across all the
 	 ** transactions, but only bother if we've actually spanned
 	 ** across multiple lists
@@ -1773,6 +1774,8 @@ static int flush_used_journal_lists(struct super_block *s,
 		ret = kupdate_transactions(s, jl, &tjl, &trans_id, len, i);
 	}
 	flush_journal_list(s, flush_jl, 1);
+	put_journal_list(s, flush_jl);
+	put_journal_list(s, jl);
 	return 0;
 }
 
