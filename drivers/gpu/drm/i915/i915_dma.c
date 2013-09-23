@@ -1569,7 +1569,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
-		goto put_bridge;
+		goto out_regs;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_kick_out_firmware_fb(dev_priv);
@@ -1598,7 +1598,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 				     aperture_size);
 	if (dev_priv->gtt.mappable == NULL) {
 		ret = -EIO;
-		goto out_rmmap;
+		goto out_gtt;
 	}
 
 	dev_priv->gtt.mtrr = arch_phys_wc_add(dev_priv->gtt.mappable_base,
@@ -1672,7 +1672,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		ret = i915_load_modeset_init(dev);
 		if (ret < 0) {
 			DRM_ERROR("failed to init modeset\n");
-			goto out_gem_unload;
+			goto out_power_well;
 		}
 	} else {
 		/* Start out suspended in ums mode. */
@@ -1692,6 +1692,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 
+out_power_well:
+	if (HAS_POWER_WELL(dev))
+		i915_remove_power_well(dev);
+	drm_vblank_cleanup(dev);
 out_gem_unload:
 	if (dev_priv->mm.inactive_shrinker.shrink)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
@@ -1706,12 +1710,17 @@ out_gem_unload:
 out_mtrrfree:
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
 	io_mapping_free(dev_priv->gtt.mappable);
+out_gtt:
+	list_del(&dev_priv->gtt.base.global_link);
+	drm_mm_takedown(&dev_priv->gtt.base.mm);
 	dev_priv->gtt.base.cleanup(&dev_priv->gtt.base);
-out_rmmap:
+out_regs:
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
+	if (dev_priv->slab)
+		kmem_cache_destroy(dev_priv->slab);
 	kfree(dev_priv);
 	return ret;
 }
@@ -1801,6 +1810,8 @@ int i915_driver_unload(struct drm_device *dev)
 	list_del(&dev_priv->gtt.base.global_link);
 	WARN_ON(!list_empty(&dev_priv->vm_list));
 	drm_mm_takedown(&dev_priv->gtt.base.mm);
+
+	drm_vblank_cleanup(dev);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
