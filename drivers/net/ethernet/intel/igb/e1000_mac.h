@@ -86,6 +86,6 @@ enum e1000_mng_mode {
 
 #define E1000_MNG_DHCP_COOKIE_STATUS_VLAN	0x2
 
-extern void e1000_init_function_pointers_82575(struct e1000_hw *hw);
+void e1000_init_function_pointers_82575(struct e1000_hw *hw);
 
 #endif
