@@ -630,7 +630,7 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 }
 #endif /* CONFIG_SPE */
 
-#if defined(CONFIG_VSX) && defined(__BIG_ENDIAN__)
+#ifdef CONFIG_VSX
 /*
  * Emulate VSX instructions...
  */
@@ -658,8 +658,25 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 
 	lptr = (unsigned long *) ptr;
 
+#ifdef __LITTLE_ENDIAN__
+	if (flags & SW) {
+		elsize = length;
+		sw = length-1;
+	} else {
+		/*
+		 * The elements are BE ordered, even in LE mode, so process
+		 * them in reverse order.
+		 */
+		addr += length - elsize;
+
+		/* 8 byte memory accesses go in the top 8 bytes of the VR */
+		if (length == 8)
+			ptr += 8;
+	}
+#else
 	if (flags & SW)
 		sw = elsize-1;
+#endif
 
 	for (j = 0; j < length; j += elsize) {
 		for (i = 0; i < elsize; ++i) {
@@ -669,8 +686,20 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 				ret |= __get_user(ptr[i^sw], addr + i);
 		}
 		ptr  += elsize;
+#ifdef __LITTLE_ENDIAN__
+		addr -= elsize;
+#else
 		addr += elsize;
+#endif
 	}
+
+#ifdef __BIG_ENDIAN__
+#define VSX_HI 0
+#define VSX_LO 1
+#else
+#define VSX_HI 1
+#define VSX_LO 0
+#endif
 
 	if (!ret) {
 		if (flags & U)
@@ -678,10 +707,10 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 
 		/* Splat load copies the same data to top and bottom 8 bytes */
 		if (flags & SPLT)
-			lptr[1] = lptr[0];
-		/* For 8 byte loads, zero the top 8 bytes */
+			lptr[VSX_LO] = lptr[VSX_HI];
+		/* For 8 byte loads, zero the low 8 bytes */
 		else if (!(flags & ST) && (8 == length))
-			lptr[1] = 0;
+			lptr[VSX_LO] = 0;
 	} else
 		return -EFAULT;
 
@@ -805,7 +834,6 @@ int fix_alignment(struct pt_regs *regs)
 	/* DAR has the operand effective address */
 	addr = (unsigned char __user *)regs->dar;
 
-#ifdef __BIG_ENDIAN__
 #ifdef CONFIG_VSX
 	if ((instruction & 0xfc00003e) == 0x7c000018) {
 		unsigned int elsize;
@@ -839,9 +867,6 @@ int fix_alignment(struct pt_regs *regs)
 		PPC_WARN_ALIGNMENT(vsx, regs);
 		return emulate_vsx(addr, reg, areg, regs, flags, nb, elsize);
 	}
-#endif
-#else
-	return -EFAULT;
 #endif
 	/* A size of 0 indicates an instruction we don't support, with
 	 * the exception of DCBZ which is handled as a special case here
