@@ -1243,14 +1243,18 @@ static irqreturn_t vgic_maintenance_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/**
+ * kvm_vgic_vcpu_init - Initialize per-vcpu VGIC state
+ * @vcpu: pointer to the vcpu struct
+ *
+ * Initialize the vgic_cpu struct and vgic_dist struct fields pertaining to
+ * this vcpu and enable the VGIC for this VCPU
+ */
 int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	int i;
-
-	if (!irqchip_in_kernel(vcpu->kvm))
-		return 0;
 
 	if (vcpu->vcpu_id >= VGIC_MAX_CPUS)
 		return -EBUSY;
@@ -1383,9 +1387,21 @@ out:
 	return ret;
 }
 
+/**
+ * kvm_vgic_init - Initialize global VGIC state before running any VCPUs
+ * @kvm: pointer to the kvm struct
+ *
+ * Map the virtual CPU interface into the VM before running any VCPUs.  We
+ * can't do this at creation time, because user space must first set the
+ * virtual CPU interface address in the guest physical address space.  Also
+ * initialize the ITARGETSRn regs to 0 on the emulated distributor.
+ */
 int kvm_vgic_init(struct kvm *kvm)
 {
 	int ret = 0, i;
+
+	if (!irqchip_in_kernel(kvm))
+		return 0;
 
 	mutex_lock(&kvm->lock);
 
