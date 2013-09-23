@@ -906,6 +906,39 @@
 #define DPG_PIPE_STUTTER_CONTROL                          0x6cd4
 #       define STUTTER_ENABLE                             (1 << 0)
 
+/* DCE8 FMT blocks */
+#define FMT_DYNAMIC_EXP_CNTL                 0x6fb4
+#       define FMT_DYNAMIC_EXP_EN            (1 << 0)
+#       define FMT_DYNAMIC_EXP_MODE          (1 << 4)
+        /* 0 = 10bit -> 12bit, 1 = 8bit -> 12bit */
+#define FMT_CONTROL                          0x6fb8
+#       define FMT_PIXEL_ENCODING            (1 << 16)
+        /* 0 = RGB 4:4:4 or YCbCr 4:4:4, 1 = YCbCr 4:2:2 */
+#define FMT_BIT_DEPTH_CONTROL                0x6fc8
+#       define FMT_TRUNCATE_EN               (1 << 0)
+#       define FMT_TRUNCATE_MODE             (1 << 1)
+#       define FMT_TRUNCATE_DEPTH(x)         ((x) << 4) /* 0 - 18bpp, 1 - 24bpp, 2 - 30bpp */
+#       define FMT_SPATIAL_DITHER_EN         (1 << 8)
+#       define FMT_SPATIAL_DITHER_MODE(x)    ((x) << 9)
+#       define FMT_SPATIAL_DITHER_DEPTH(x)   ((x) << 11) /* 0 - 18bpp, 1 - 24bpp, 2 - 30bpp */
+#       define FMT_FRAME_RANDOM_ENABLE       (1 << 13)
+#       define FMT_RGB_RANDOM_ENABLE         (1 << 14)
+#       define FMT_HIGHPASS_RANDOM_ENABLE    (1 << 15)
+#       define FMT_TEMPORAL_DITHER_EN        (1 << 16)
+#       define FMT_TEMPORAL_DITHER_DEPTH(x)  ((x) << 17) /* 0 - 18bpp, 1 - 24bpp, 2 - 30bpp */
+#       define FMT_TEMPORAL_DITHER_OFFSET(x) ((x) << 21)
+#       define FMT_TEMPORAL_LEVEL            (1 << 24)
+#       define FMT_TEMPORAL_DITHER_RESET     (1 << 25)
+#       define FMT_25FRC_SEL(x)              ((x) << 26)
+#       define FMT_50FRC_SEL(x)              ((x) << 28)
+#       define FMT_75FRC_SEL(x)              ((x) << 30)
+#define FMT_CLAMP_CONTROL                    0x6fe4
+#       define FMT_CLAMP_DATA_EN             (1 << 0)
+#       define FMT_CLAMP_COLOR_FORMAT(x)     ((x) << 16)
+#       define FMT_CLAMP_6BPC                0
+#       define FMT_CLAMP_8BPC                1
+#       define FMT_CLAMP_10BPC               2
+
 #define	GRBM_CNTL					0x8000
 #define		GRBM_READ_TIMEOUT(x)				((x) << 0)
 

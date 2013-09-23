@@ -2392,6 +2392,15 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 
 	/* this is needed for the pll/ss setup to work correctly in some cases */
 	atombios_set_encoder_crtc_source(encoder);
+	/* set up the FMT blocks */
+	if (ASIC_IS_DCE8(rdev))
+		dce8_program_fmt(encoder);
+	else if (ASIC_IS_DCE4(rdev))
+		dce4_program_fmt(encoder);
+	else if (ASIC_IS_DCE3(rdev))
+		dce3_program_fmt(encoder);
+	else if (ASIC_IS_AVIVO(rdev))
+		avivo_program_fmt(encoder);
 }
 
 static void radeon_atom_encoder_commit(struct drm_encoder *encoder)
