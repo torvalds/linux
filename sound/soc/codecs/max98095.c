@@ -612,23 +612,6 @@ static int max98095_volatile(struct snd_soc_codec *codec, unsigned int reg)
 }
 
 /*
- * Filter coefficients are in a separate register segment
- * and they share the address space of the normal registers.
- * The coefficient registers do not need or share the cache.
- */
-static int max98095_hw_write(struct snd_soc_codec *codec, unsigned int reg,
-			     unsigned int value)
-{
-	int ret;
-
-	codec->cache_bypass = 1;
-	ret = snd_soc_write(codec, reg, value);
-	codec->cache_bypass = 0;
-
-	return ret ? -EIO : 0;
-}
-
-/*
  * Load equalizer DSP coefficient configurations registers
  */
 static void m98095_eq_band(struct snd_soc_codec *codec, unsigned int dai,
@@ -648,8 +631,8 @@ static void m98095_eq_band(struct snd_soc_codec *codec, unsigned int dai,
 
 	/* Step through the registers and coefs */
 	for (i = 0; i < M98095_COEFS_PER_BAND; i++) {
-		max98095_hw_write(codec, eq_reg++, M98095_BYTE1(coefs[i]));
-		max98095_hw_write(codec, eq_reg++, M98095_BYTE0(coefs[i]));
+		snd_soc_write(codec, eq_reg++, M98095_BYTE1(coefs[i]));
+		snd_soc_write(codec, eq_reg++, M98095_BYTE0(coefs[i]));
 	}
 }
 
@@ -673,8 +656,8 @@ static void m98095_biquad_band(struct snd_soc_codec *codec, unsigned int dai,
 
 	/* Step through the registers and coefs */
 	for (i = 0; i < M98095_COEFS_PER_BAND; i++) {
-		max98095_hw_write(codec, bq_reg++, M98095_BYTE1(coefs[i]));
-		max98095_hw_write(codec, bq_reg++, M98095_BYTE0(coefs[i]));
+		snd_soc_write(codec, bq_reg++, M98095_BYTE1(coefs[i]));
+		snd_soc_write(codec, bq_reg++, M98095_BYTE0(coefs[i]));
 	}
 }
 
