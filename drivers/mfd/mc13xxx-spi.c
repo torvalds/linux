@@ -94,9 +94,14 @@ static int mc13xxx_spi_write(void *context, const void *data, size_t count)
 {
 	struct device *dev = context;
 	struct spi_device *spi = to_spi_device(dev);
+	const char *reg = data;
 
 	if (count != 4)
 		return -ENOTSUPP;
+
+	/* include errata fix for spi audio problems */
+	if (*reg == MC13783_AUDIO_CODEC || *reg == MC13783_AUDIO_DAC)
+		spi_write(spi, data, count);
 
 	return spi_write(spi, data, count);
 }
