@@ -35,6 +35,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/clk.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -133,6 +134,8 @@ struct mxs_lradc {
 	struct device		*dev;
 	void __iomem		*base;
 	int			irq[13];
+
+	struct clk		*clk;
 
 	uint32_t		*buffer;
 	struct iio_trigger	*trig;
@@ -922,6 +925,17 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	if (IS_ERR(lradc->base))
 		return PTR_ERR(lradc->base);
 
+	lradc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(lradc->clk)) {
+		dev_err(dev, "Failed to get the delay unit clock\n");
+		return PTR_ERR(lradc->clk);
+	}
+	ret = clk_prepare_enable(lradc->clk);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable the delay unit clock\n");
+		return ret;
+	}
+
 	INIT_WORK(&lradc->ts_work, mxs_lradc_ts_work);
 
 	/* Check if touchscreen is enabled in DT. */
@@ -1014,6 +1028,7 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 	mxs_lradc_trigger_remove(iio);
 	iio_triggered_buffer_cleanup(iio);
 
+	clk_disable_unprepare(lradc->clk);
 	return 0;
 }
 
