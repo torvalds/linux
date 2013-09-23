@@ -142,32 +142,6 @@ static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	return length;
 }
 
-ssize_t tpm_show_locality(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	struct tpm_chip *chip = dev_get_drvdata(dev);
-	struct tpm_private *priv = TPM_VPRIV(chip);
-	u8 locality = priv->shr->locality;
-
-	return sprintf(buf, "%d\n", locality);
-}
-
-ssize_t tpm_store_locality(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t len)
-{
-	struct tpm_chip *chip = dev_get_drvdata(dev);
-	struct tpm_private *priv = TPM_VPRIV(chip);
-	u8 val;
-
-	int rv = kstrtou8(buf, 0, &val);
-	if (rv)
-		return rv;
-
-	priv->shr->locality = val;
-
-	return len;
-}
-
 static const struct file_operations vtpm_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
@@ -188,8 +162,6 @@ static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
 static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
 static DEVICE_ATTR(durations, S_IRUGO, tpm_show_durations, NULL);
 static DEVICE_ATTR(timeouts, S_IRUGO, tpm_show_timeouts, NULL);
-static DEVICE_ATTR(locality, S_IRUGO | S_IWUSR, tpm_show_locality,
-		tpm_store_locality);
 
 static struct attribute *vtpm_attrs[] = {
 	&dev_attr_pubek.attr,
@@ -202,7 +174,6 @@ static struct attribute *vtpm_attrs[] = {
 	&dev_attr_cancel.attr,
 	&dev_attr_durations.attr,
 	&dev_attr_timeouts.attr,
-	&dev_attr_locality.attr,
 	NULL,
 };
 
