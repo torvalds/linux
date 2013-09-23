@@ -892,6 +892,37 @@ enum modeset_restore {
 	MODESET_SUSPENDED,
 };
 
+struct intel_vbt_data {
+	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
+	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
+
+	/* Feature bits */
+	unsigned int int_tv_support:1;
+	unsigned int lvds_dither:1;
+	unsigned int lvds_vbt:1;
+	unsigned int int_crt_support:1;
+	unsigned int lvds_use_ssc:1;
+	unsigned int display_clock_mode:1;
+	unsigned int fdi_rx_polarity_inverted:1;
+	int lvds_ssc_freq;
+	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
+
+	/* eDP */
+	int edp_rate;
+	int edp_lanes;
+	int edp_preemphasis;
+	int edp_vswing;
+	bool edp_initialized;
+	bool edp_support;
+	int edp_bpp;
+	struct edp_power_seq edp_pps;
+
+	int crt_ddc_pin;
+
+	int child_dev_num;
+	struct child_device_config *child_dev;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -971,6 +1002,7 @@ typedef struct drm_i915_private {
 	struct intel_fbc_work *fbc_work;
 
 	struct intel_opregion opregion;
+	struct intel_vbt_data vbt;
 
 	/* overlay */
 	struct intel_overlay *overlay;
@@ -987,31 +1019,8 @@ typedef struct drm_i915_private {
 	/* LVDS info */
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
-
-	/* Feature bits from the VBIOS */
-	unsigned int int_tv_support:1;
-	unsigned int lvds_dither:1;
-	unsigned int lvds_vbt:1;
-	unsigned int int_crt_support:1;
-	unsigned int lvds_use_ssc:1;
-	unsigned int display_clock_mode:1;
-	unsigned int fdi_rx_polarity_inverted:1;
-	int lvds_ssc_freq;
-	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
-	struct {
-		int rate;
-		int lanes;
-		int preemphasis;
-		int vswing;
-
-		bool initialized;
-		bool support;
-		int bpp;
-		struct edp_power_seq pps;
-	} edp;
 	bool no_aux_handshake;
 
-	int crt_ddc_pin;
 	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
@@ -1053,8 +1062,6 @@ typedef struct drm_i915_private {
 	/* indicates the reduced downclock for LVDS*/
 	int lvds_downclock;
 	u16 orig_clock;
-	int child_dev_num;
-	struct child_device_config *child_dev;
 
 	bool mchbar_need_disable;
 

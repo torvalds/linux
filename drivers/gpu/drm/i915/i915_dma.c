@@ -1753,10 +1753,10 @@ int i915_driver_unload(struct drm_device *dev)
 		 * free the memory space allocated for the child device
 		 * config parsed from VBT
 		 */
-		if (dev_priv->child_dev && dev_priv->child_dev_num) {
-			kfree(dev_priv->child_dev);
-			dev_priv->child_dev = NULL;
-			dev_priv->child_dev_num = 0;
+		if (dev_priv->vbt.child_dev && dev_priv->vbt.child_dev_num) {
+			kfree(dev_priv->vbt.child_dev);
+			dev_priv->vbt.child_dev = NULL;
+			dev_priv->vbt.child_dev_num = 0;
 		}
 
 		vga_switcheroo_unregister_client(dev->pdev);

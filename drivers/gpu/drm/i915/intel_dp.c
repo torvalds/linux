@@ -738,10 +738,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	 * recomments. This means we'll up-dither 16bpp framebuffers on
 	 * high-depth panels.
 	 */
-	if (is_edp(intel_dp) && dev_priv->edp.bpp) {
+	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp) {
 		DRM_DEBUG_KMS("forcing bpp for eDP panel to BIOS-provided %i\n",
-			      dev_priv->edp.bpp);
-		bpp = dev_priv->edp.bpp;
+			      dev_priv->vbt.edp_bpp);
+		bpp = dev_priv->vbt.edp_bpp;
 	}
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
@@ -2811,11 +2811,11 @@ bool intel_dpd_is_edp(struct drm_device *dev)
 	struct child_device_config *p_child;
 	int i;
 
-	if (!dev_priv->child_dev_num)
+	if (!dev_priv->vbt.child_dev_num)
 		return false;
 
-	for (i = 0; i < dev_priv->child_dev_num; i++) {
-		p_child = dev_priv->child_dev + i;
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		p_child = dev_priv->vbt.child_dev + i;
 
 		if (p_child->dvo_port == PORT_IDPD &&
 		    p_child->device_type == DEVICE_TYPE_eDP)
@@ -2893,7 +2893,7 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	DRM_DEBUG_KMS("cur t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
 		      cur.t1_t3, cur.t8, cur.t9, cur.t10, cur.t11_t12);
 
-	vbt = dev_priv->edp.pps;
+	vbt = dev_priv->vbt.edp_pps;
 
 	/* Upper limits from eDP 1.3 spec. Note that we use the clunky units of
 	 * our hw here, which are all in 100usec. */
@@ -3163,8 +3163,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		}
 
 		/* fallback to VBT if available for eDP */
-		if (!fixed_mode && dev_priv->lfp_lvds_vbt_mode) {
-			fixed_mode = drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
+		if (!fixed_mode && dev_priv->vbt.lfp_lvds_vbt_mode) {
+			fixed_mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
 			if (fixed_mode)
 				fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 		}
