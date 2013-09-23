@@ -946,6 +946,9 @@ typedef void
  * Various handlers and callback procedures
  */
 typedef
+u32 (*acpi_sci_handler) (u32 interrupt_number, void *context);
+
+typedef
 void (*acpi_gbl_event_handler) (u32 event_type,
 			       acpi_handle device,
 			       u32 event_number, void *context);

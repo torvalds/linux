@@ -269,6 +269,7 @@ ACPI_EXTERN acpi_table_handler acpi_gbl_table_handler;
 ACPI_EXTERN void *acpi_gbl_table_handler_context;
 ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
 ACPI_EXTERN acpi_interface_handler acpi_gbl_interface_handler;
+ACPI_EXTERN struct acpi_sci_handler_info *acpi_gbl_sci_handler_list;
 
 /* Owner ID support */
 

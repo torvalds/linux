@@ -113,11 +113,12 @@ void acpi_db_display_handlers(void);
 ACPI_HW_DEPENDENT_RETURN_VOID(void
 			      acpi_db_generate_gpe(char *gpe_arg,
 						   char *block_arg))
+ ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_db_generate_sci(void))
 
 /*
  * dbconvert - miscellaneous conversion routines
  */
- acpi_status acpi_db_hex_char_to_value(int hex_char, u8 *return_value);
+acpi_status acpi_db_hex_char_to_value(int hex_char, u8 *return_value);
 
 acpi_status acpi_db_convert_to_package(char *string, union acpi_object *object);
 
