@@ -1554,8 +1554,8 @@ long arch_ptrace(struct task_struct *child, long request,
 
 			flush_fp_to_thread(child);
 			if (fpidx < (PT_FPSCR - PT_FPR0))
-				tmp = ((unsigned long *)child->thread.fpr)
-					[fpidx * TS_FPRWIDTH];
+				memcpy(&tmp, &child->thread.TS_FPR(fpidx),
+				       sizeof(long));
 			else
 				tmp = child->thread.fpscr.val;
 		}
@@ -1587,8 +1587,8 @@ long arch_ptrace(struct task_struct *child, long request,
 
 			flush_fp_to_thread(child);
 			if (fpidx < (PT_FPSCR - PT_FPR0))
-				((unsigned long *)child->thread.fpr)
-					[fpidx * TS_FPRWIDTH] = data;
+				memcpy(&child->thread.TS_FPR(fpidx), &data,
+				       sizeof(long));
 			else
 				child->thread.fpscr.val = data;
 			ret = 0;
