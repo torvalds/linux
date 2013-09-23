@@ -650,7 +650,7 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 	flush_vsx_to_thread(current);
 
 	if (reg < 32)
-		ptr = (char *) &current->thread.TS_FPR(reg);
+		ptr = (char *) &current->thread.fpr[reg][0];
 	else
 		ptr = (char *) &current->thread.vr[reg - 32];
 
