@@ -1106,7 +1106,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 	unsigned long size, m32map_off, iomap_off, pemap_off;
-	const u64 *prop64;
+	const __be64 *prop64;
 	const u32 *prop32;
 	int len;
 	u64 phb_id;
@@ -1285,7 +1285,7 @@ void __init pnv_pci_init_ioda2_phb(struct device_node *np)
 void __init pnv_pci_init_ioda_hub(struct device_node *np)
 {
 	struct device_node *phbn;
-	const u64 *prop64;
+	const __be64 *prop64;
 	u64 hub_id;
 
 	pr_info("Probing IODA IO-Hub %s\n", np->full_name);
