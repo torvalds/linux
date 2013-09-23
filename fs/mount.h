@@ -21,6 +21,7 @@ struct mnt_pcp {
 struct mountpoint {
 	struct hlist_node m_hash;
 	struct dentry *m_dentry;
+	struct hlist_head m_list;
 	int m_count;
 };
 
@@ -51,6 +52,7 @@ struct mount {
 	struct mount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
 	struct mountpoint *mnt_mp;	/* where is it mounted */
+	struct hlist_node mnt_mp_list;	/* list mounts with the same mountpoint */
 #ifdef CONFIG_FSNOTIFY
 	struct hlist_head mnt_fsnotify_marks;
 	__u32 mnt_fsnotify_mask;
