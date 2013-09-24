@@ -662,6 +662,7 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	unsigned int bestppm = 1000000;
 	/* min update 19.2 MHz */
 	int max_n = min(limit->n.max, refclk / 19200);
+	bool found = false;
 
 	target *= 5; /* fast clock */
 
@@ -692,18 +693,20 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 					if (ppm < 100 && clock.p > best_clock->p) {
 						bestppm = 0;
 						*best_clock = clock;
+						found = true;
 					}
 
 					if (bestppm >= 10 && ppm < bestppm - 10) {
 						bestppm = ppm;
 						*best_clock = clock;
+						found = true;
 					}
 				}
 			}
 		}
 	}
 
-	return true;
+	return found;
 }
 
 bool intel_crtc_active(struct drm_crtc *crtc)
