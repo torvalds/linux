@@ -855,22 +855,9 @@ static int adi_gpio_pint_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "Invalid mem resource\n");
-		return -ENODEV;
-	}
-
-	if (!devm_request_mem_region(dev, res->start, resource_size(res),
-				     pdev->name)) {
-		dev_err(dev, "Region already claimed\n");
-		return -EBUSY;
-	}
-
-	pint->base = devm_ioremap(dev, res->start, resource_size(res));
-	if (!pint->base) {
-		dev_err(dev, "Could not ioremap\n");
-		return -ENOMEM;
-	}
+	pint->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pint->base))
+		return PTR_ERR(pint->base);
 
 	pint->regs = (struct gpio_pint_regs *)pint->base;
 
@@ -984,22 +971,9 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "Invalid mem resource\n");
-		return -ENODEV;
-	}
-
-	if (!devm_request_mem_region(dev, res->start, resource_size(res),
-				     pdev->name)) {
-		dev_err(dev, "Region already claimed\n");
-		return -EBUSY;
-	}
-
-	port->base = devm_ioremap(dev, res->start, resource_size(res));
-	if (!port->base) {
-		dev_err(dev, "Could not ioremap\n");
-		return -ENOMEM;
-	}
+	port->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(port->base))
+		return PTR_ERR(port->base);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res)
