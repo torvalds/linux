@@ -942,7 +942,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	/* make sure that the hardware is disabled */
 	ep93xx_spi_write_u8(espi, SSPCR1, 0);
 
-	error = spi_register_master(master);
+	error = devm_spi_register_master(&pdev->dev, master);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register SPI master\n");
 		goto fail_free_dma;
@@ -968,7 +968,6 @@ static int ep93xx_spi_remove(struct platform_device *pdev)
 
 	ep93xx_spi_release_dma(espi);
 
-	spi_unregister_master(master);
 	return 0;
 }
 
