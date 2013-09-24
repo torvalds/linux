@@ -1766,6 +1766,8 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 		   ((1 << ESF_DZ_RX_DSC_PTR_LBITS_WIDTH) - 1));
 
 	if (n_descs != rx_queue->scatter_n + 1) {
+		struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
 		/* detect rx abort */
 		if (unlikely(n_descs == rx_queue->scatter_n)) {
 			WARN_ON(rx_bytes != 0);
@@ -1773,10 +1775,13 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 			return 0;
 		}
 
-		if (unlikely(rx_queue->scatter_n != 0)) {
-			/* Scattered packet completions cannot be
-			 * merged, so something has gone wrong.
-			 */
+		/* Check that RX completion merging is valid, i.e.
+		 * the current firmware supports it and this is a
+		 * non-scattered packet.
+		 */
+		if (!(nic_data->datapath_caps &
+		      (1 << MC_CMD_GET_CAPABILITIES_OUT_RX_BATCHING_LBN)) ||
+		    rx_queue->scatter_n != 0 || rx_cont) {
 			efx_ef10_handle_rx_bad_lbits(
 				rx_queue, next_ptr_lbits,
 				(rx_queue->removed_count +
