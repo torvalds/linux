@@ -33,10 +33,6 @@ struct tegra_fbdev {
 struct host1x_drm {
 	struct drm_device *drm;
 	struct device *dev;
-	void __iomem *regs;
-	struct clk *clk;
-	int syncpt;
-	int irq;
 
 	struct mutex drm_clients_lock;
 	struct list_head drm_clients;
