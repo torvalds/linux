@@ -44,17 +44,6 @@
 		};
 	};
 
-	/* HS USB Port 2 RESET */
-	hsusb2_reset: hsusb2_reset_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "hsusb2_reset";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio5 19 0>;	/* gpio_147 */
-		startup-delay-us = <70000>;
-		enable-active-high;
-	};
-
 	/* HS USB Port 2 Power */
 	hsusb2_power: hsusb2_power_reg {
 		compatible = "regulator-fixed";
@@ -68,7 +57,7 @@
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2_phy {
 		compatible = "usb-nop-xceiv";
-		reset-supply = <&hsusb2_reset>;
+		reset-gpios = <&gpio5 19 GPIO_ACTIVE_LOW>;	/* gpio_147 */
 		vcc-supply = <&hsusb2_power>;
 	};
 
