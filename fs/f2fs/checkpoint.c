@@ -206,6 +206,7 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 void release_orphan_inode(struct f2fs_sb_info *sbi)
 {
 	mutex_lock(&sbi->orphan_inode_mutex);
+	BUG_ON(sbi->n_orphans == 0);
 	sbi->n_orphans--;
 	mutex_unlock(&sbi->orphan_inode_mutex);
 }
@@ -253,6 +254,7 @@ void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 		if (orphan->ino == ino) {
 			list_del(&orphan->list);
 			kmem_cache_free(orphan_entry_slab, orphan);
+			BUG_ON(sbi->n_orphans == 0);
 			sbi->n_orphans--;
 			break;
 		}
