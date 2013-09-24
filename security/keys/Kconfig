@@ -20,6 +20,23 @@ config KEYS
 
 	  If you are unsure as to whether this is required, answer N.
 
+config PERSISTENT_KEYRINGS
+	bool "Enable register of persistent per-UID keyrings"
+	depends on KEYS
+	help
+	  This option provides a register of persistent per-UID keyrings,
+	  primarily aimed at Kerberos key storage.  The keyrings are persistent
+	  in the sense that they stay around after all processes of that UID
+	  have exited, not that they survive the machine being rebooted.
+
+	  A particular keyring may be accessed by either the user whose keyring
+	  it is or by a process with administrative privileges.  The active
+	  LSMs gets to rule on which admin-level processes get to access the
+	  cache.
+
+	  Keyrings are created and added into the register upon demand and get
+	  removed if they expire (a default timeout is set upon creation).
+
 config BIG_KEYS
 	tristate "Large payload keys"
 	depends on KEYS
