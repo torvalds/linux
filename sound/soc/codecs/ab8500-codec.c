@@ -2468,6 +2468,8 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
+	snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
+
 	/* Setup AB8500 according to board-settings */
 	pdata = dev_get_platdata(dev->parent);
 
