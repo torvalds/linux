@@ -867,7 +867,7 @@ static int bfin_spi_probe(struct platform_device *pdev)
 	tasklet_init(&drv_data->pump_transfers,
 			bfin_spi_pump_transfers, (unsigned long)drv_data);
 	/* register with the SPI framework */
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(dev, master);
 	if (ret) {
 		dev_err(dev, "can not  register spi master\n");
 		goto err_free_peripheral;
@@ -898,7 +898,6 @@ static int bfin_spi_remove(struct platform_device *pdev)
 	free_dma(drv_data->rx_dma);
 	free_dma(drv_data->tx_dma);
 
-	spi_unregister_master(drv_data->master);
 	return 0;
 }
 
