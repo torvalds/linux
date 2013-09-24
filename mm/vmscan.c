@@ -142,7 +142,7 @@ static bool global_reclaim(struct scan_control *sc)
 
 static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
 {
-	return !mem_cgroup_disabled();
+	return !mem_cgroup_disabled() && global_reclaim(sc);
 }
 #else
 static bool global_reclaim(struct scan_control *sc)
@@ -2195,7 +2195,7 @@ __shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
 			struct lruvec *lruvec;
 
 			if (soft_reclaim &&
-			    !mem_cgroup_soft_reclaim_eligible(memcg, root)) {
+			    !mem_cgroup_soft_reclaim_eligible(memcg)) {
 				memcg = mem_cgroup_iter(root, memcg, &reclaim);
 				continue;
 			}
