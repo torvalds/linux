@@ -309,17 +309,7 @@ static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
 		.p2_slow = 7, .p2_fast = 7 },
 };
 
-static const intel_limit_t intel_limits_vlv_dac = {
-	.dot = { .min = 25000, .max = 270000 },
-	.vco = { .min = 4000000, .max = 6000000 },
-	.n = { .min = 1, .max = 7 },
-	.m1 = { .min = 2, .max = 3 },
-	.m2 = { .min = 11, .max = 156 },
-	.p1 = { .min = 2, .max = 3 },
-	.p2 = { .p2_slow = 2, .p2_fast = 20 }, /* slow=min, fast=max */
-};
-
-static const intel_limit_t intel_limits_vlv_hdmi = {
+static const intel_limit_t intel_limits_vlv = {
 	.dot = { .min = 25000, .max = 270000 },
 	.vco = { .min = 4000000, .max = 6000000 },
 	.n = { .min = 1, .max = 7 },
@@ -412,10 +402,7 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc, int refclk)
 		else
 			limit = &intel_limits_pineview_sdvo;
 	} else if (IS_VALLEYVIEW(dev)) {
-		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_ANALOG))
-			limit = &intel_limits_vlv_dac;
-		else
-			limit = &intel_limits_vlv_hdmi;
+		limit = &intel_limits_vlv;
 	} else if (!IS_GEN2(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_i9xx_lvds;
