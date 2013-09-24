@@ -695,8 +695,7 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 				p = p1 * p2;
 				/* based on hardware requirement, prefer bigger m1,m2 values */
 				for (m1 = limit->m1.min; m1 <= limit->m1.max; m1++) {
-					m2 = (((2*(fastclk * p * n / m1 )) +
-					       refclk) / (2*refclk));
+					m2 = DIV_ROUND_CLOSEST(fastclk * p * n, refclk * m1);
 					m = m1 * m2;
 					vco = updrate * m;
 
