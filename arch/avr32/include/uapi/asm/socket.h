@@ -76,4 +76,6 @@
 
 #define SO_BUSY_POLL		46
 
+#define SO_MAX_PACING_RATE	47
+
 #endif /* __ASM_AVR32_SOCKET_H */

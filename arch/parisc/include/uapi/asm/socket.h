@@ -75,6 +75,8 @@
 
 #define SO_BUSY_POLL		0x4027
 
+#define SO_MAX_PACING_RATE	0x4048
+
 /* O_NONBLOCK clashes with the bits used for socket types.  Therefore we
  * have to define SOCK_NONBLOCK to a different value here.
  */
