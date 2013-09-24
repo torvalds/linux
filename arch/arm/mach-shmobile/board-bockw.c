@@ -101,6 +101,12 @@ static struct resource sdhi0_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_iid(0x77)),
 };
 
+/* Ether */
+static struct resource ether_resources[] __initdata = {
+	DEFINE_RES_MEM(0xfde00000, 0x400),
+	DEFINE_RES_IRQ(gic_iid(0x89)),
+};
+
 static struct sh_eth_plat_data ether_platform_data __initdata = {
 	.phy		= 0x01,
 	.edmac_endian	= EDMAC_LITTLE_ENDIAN,
@@ -255,7 +261,13 @@ static void __init bockw_init(void)
 	r8a7778_clock_init();
 	r8a7778_init_irq_extpin(1);
 	r8a7778_add_standard_devices();
-	r8a7778_add_ether_device(&ether_platform_data);
+
+	platform_device_register_resndata(&platform_bus, "r8a777x-ether", -1,
+					  ether_resources,
+					  ARRAY_SIZE(ether_resources),
+					  &ether_platform_data,
+					  sizeof(ether_platform_data));
+
 	platform_device_register_full(&vin0_info);
 	/* VIN1 has a pin conflict with Ether */
 	if (!IS_ENABLED(CONFIG_SH_ETH))
