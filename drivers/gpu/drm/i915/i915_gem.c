@@ -3410,8 +3410,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 
 	/* And bump the LRU for this access */
 	if (i915_gem_object_is_inactive(obj)) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(obj,
-							   &dev_priv->gtt.base);
+		struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
 		if (vma)
 			list_move_tail(&vma->mm_list,
 				       &dev_priv->gtt.base.inactive_list);
@@ -4971,4 +4970,18 @@ i915_gem_inactive_scan(struct shrinker *shrinker, struct shrink_control *sc)
 	if (unlock)
 		mutex_unlock(&dev->struct_mutex);
 	return freed;
+}
+
+struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj)
+{
+	struct i915_vma *vma;
+
+	if (WARN_ON(list_empty(&obj->vma_list)))
+		return NULL;
+
+	vma = list_first_entry(&obj->vma_list, typeof(*vma), vma_link);
+	if (WARN_ON(vma->vm != obj_to_ggtt(obj)))
+		return NULL;
+
+	return vma;
 }
