@@ -139,7 +139,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
-		frame->childregs.psw.mask = psw_kernel_bits | PSW_MASK_DAT |
+		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
 				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 		frame->childregs.psw.addr = PSW_ADDR_AMODE |
 				(unsigned long) kernel_thread_starter;

@@ -200,7 +200,7 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		tmp = *(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr);
 		if (addr == (addr_t) &dummy->regs.psw.mask)
 			/* Return a clean psw mask. */
-			tmp = psw_user_bits | (tmp & PSW_MASK_USER);
+			tmp = PSW_USER_BITS | (tmp & PSW_MASK_USER);
 
 	} else if (addr < (addr_t) &dummy->regs.orig_gpr2) {
 		/*
@@ -322,7 +322,7 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * psw and gprs are stored on the stack
 		 */
 		if (addr == (addr_t) &dummy->regs.psw.mask &&
-		    ((data & ~PSW_MASK_USER) != psw_user_bits ||
+		    ((data & ~PSW_MASK_USER) != PSW_USER_BITS ||
 		     ((data & PSW_MASK_EA) && !(data & PSW_MASK_BA))))
 			/* Invalid psw mask. */
 			return -EINVAL;

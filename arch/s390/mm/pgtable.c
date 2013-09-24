@@ -1157,10 +1157,6 @@ int s390_enable_sie(void)
 	struct mm_struct *mm = tsk->mm;
 	struct mmu_gather tlb;
 
-	/* Do we have switched amode? If no, we cannot do sie */
-	if (s390_user_mode == HOME_SPACE_MODE)
-		return -EINVAL;
-
 	/* Do we have pgstes? if yes, we are done */
 	if (mm_has_pgste(tsk->mm))
 		return 0;

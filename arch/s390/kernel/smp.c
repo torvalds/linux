@@ -283,7 +283,7 @@ static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 	struct _lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
 
-	__load_psw_mask(psw_kernel_bits);
+	__load_psw_mask(PSW_KERNEL_BITS);
 	if (pcpu->address == source_cpu)
 		func(data);	/* should not return */
 	/* Stop target cpu (if func returns this stops the current cpu). */
@@ -395,7 +395,7 @@ void smp_send_stop(void)
 	int cpu;
 
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(psw_kernel_bits | PSW_MASK_DAT);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	trace_hardirqs_off();
 
 	debug_set_critical();
@@ -693,7 +693,7 @@ static void smp_start_secondary(void *cpuvoid)
 	S390_lowcore.restart_source = -1UL;
 	restore_access_regs(S390_lowcore.access_regs_save_area);
 	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
-	__load_psw_mask(psw_kernel_bits | PSW_MASK_DAT);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();

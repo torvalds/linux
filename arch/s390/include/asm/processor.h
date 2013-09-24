@@ -134,14 +134,14 @@ struct stack_frame {
  * Do necessary setup to start up a new thread.
  */
 #define start_thread(regs, new_psw, new_stackp) do {			\
-	regs->psw.mask	= psw_user_bits | PSW_MASK_EA | PSW_MASK_BA;	\
+	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_EA | PSW_MASK_BA;	\
 	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
 	regs->gprs[15]	= new_stackp;					\
 	execve_tail();							\
 } while (0)
 
 #define start_thread31(regs, new_psw, new_stackp) do {			\
-	regs->psw.mask	= psw_user_bits | PSW_MASK_BA;			\
+	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
 	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
 	regs->gprs[15]	= new_stackp;					\
 	__tlb_flush_mm(current->mm);					\
@@ -343,9 +343,9 @@ __set_psw_mask(unsigned long mask)
 }
 
 #define local_mcck_enable() \
-	__set_psw_mask(psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_MCHECK)
+	__set_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT | PSW_MASK_MCHECK)
 #define local_mcck_disable() \
-	__set_psw_mask(psw_kernel_bits | PSW_MASK_DAT)
+	__set_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT)
 
 /*
  * Basic Machine Check/Program Check Handler.

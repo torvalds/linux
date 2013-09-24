@@ -161,7 +161,7 @@ void __kprobes vtime_stop_cpu(void)
 	trace_hardirqs_on();
 
 	/* Wait for external, I/O or machine check interrupt. */
-	psw_mask = psw_kernel_bits | PSW_MASK_WAIT | PSW_MASK_DAT |
+	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT | PSW_MASK_DAT |
 		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	idle->nohz_delay = 0;
 

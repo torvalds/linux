@@ -57,7 +57,7 @@ static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 
 	/* Copy a 'clean' PSW mask to the user to avoid leaking
 	   information about whether PER is currently on.  */
-	user_sregs.regs.psw.mask = psw_user_bits |
+	user_sregs.regs.psw.mask = PSW_USER_BITS |
 		(regs->psw.mask & PSW_MASK_USER);
 	user_sregs.regs.psw.addr = regs->psw.addr;
 	memcpy(&user_sregs.regs.gprs, &regs->gprs, sizeof(sregs->regs.gprs));
@@ -85,12 +85,12 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	err = __copy_from_user(&user_sregs, sregs, sizeof(_sigregs));
 	if (err)
 		return err;
-	/* Use regs->psw.mask instead of psw_user_bits to preserve PER bit. */
+	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
 	regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
 		(user_sregs.regs.psw.mask & PSW_MASK_USER);
 	/* Check for invalid user address space control. */
-	if ((regs->psw.mask & PSW_MASK_ASC) >= (psw_kernel_bits & PSW_MASK_ASC))
-		regs->psw.mask = (psw_user_bits & PSW_MASK_ASC) |
+	if ((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_HOME)
+		regs->psw.mask = PSW_ASC_PRIMARY |
 			(regs->psw.mask & ~PSW_MASK_ASC);
 	/* Check for invalid amode */
 	if (regs->psw.mask & PSW_MASK_EA)
@@ -224,7 +224,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->gprs[15] = (unsigned long) frame;
 	/* Force default amode and default user address space control. */
 	regs->psw.mask = PSW_MASK_EA | PSW_MASK_BA |
-		(psw_user_bits & PSW_MASK_ASC) |
+		(PSW_USER_BITS & PSW_MASK_ASC) |
 		(regs->psw.mask & ~PSW_MASK_ASC);
 	regs->psw.addr = (unsigned long) ka->sa.sa_handler | PSW_ADDR_AMODE;
 
@@ -295,7 +295,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->gprs[15] = (unsigned long) frame;
 	/* Force default amode and default user address space control. */
 	regs->psw.mask = PSW_MASK_EA | PSW_MASK_BA |
-		(psw_user_bits & PSW_MASK_ASC) |
+		(PSW_USER_BITS & PSW_MASK_ASC) |
 		(regs->psw.mask & ~PSW_MASK_ASC);
 	regs->psw.addr = (unsigned long) ka->sa.sa_handler | PSW_ADDR_AMODE;
 
