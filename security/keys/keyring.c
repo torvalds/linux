@@ -479,7 +479,7 @@ not_this_keyring:
 
 	/* we found a viable match */
 found:
-	atomic_inc(&key->usage);
+	__key_get(key);
 	key->last_used_at = ctx->now.tv_sec;
 	keyring->last_used_at = ctx->now.tv_sec;
 	while (sp > 0)
@@ -573,7 +573,7 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 	return ERR_PTR(-ENOKEY);
 
 found:
-	atomic_inc(&key->usage);
+	__key_get(key);
 	keyring->last_used_at = key->last_used_at =
 		current_kernel_time().tv_sec;
 	rcu_read_unlock();
@@ -909,7 +909,7 @@ void __key_link(struct key *keyring, struct key *key,
 
 	klist = rcu_dereference_locked_keyring(keyring);
 
-	atomic_inc(&key->usage);
+	__key_get(key);
 	keyring->last_used_at = key->last_used_at =
 		current_kernel_time().tv_sec;
 

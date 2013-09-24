@@ -960,14 +960,17 @@ payload contents" for more information.
     the argument will not be parsed.
 
 
-(*) Extra references can be made to a key by calling the following function:
+(*) Extra references can be made to a key by calling one of the following
+    functions:
 
+	struct key *__key_get(struct key *key);
 	struct key *key_get(struct key *key);
 
-    These need to be disposed of by calling key_put() when they've been
-    finished with. The key pointer passed in will be returned. If the pointer
-    is NULL or CONFIG_KEYS is not set then the key will not be dereferenced and
-    no increment will take place.
+    Keys so references will need to be disposed of by calling key_put() when
+    they've been finished with.  The key pointer passed in will be returned.
+
+    In the case of key_get(), if the pointer is NULL or CONFIG_KEYS is not set
+    then the key will not be dereferenced and no increment will take place.
 
 
 (*) A key's serial number can be obtained by calling:

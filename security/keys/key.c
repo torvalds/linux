@@ -644,7 +644,7 @@ found:
 	/* this races with key_put(), but that doesn't matter since key_put()
 	 * doesn't actually change the key
 	 */
-	atomic_inc(&key->usage);
+	__key_get(key);
 
 error:
 	spin_unlock(&key_serial_lock);

@@ -235,7 +235,7 @@ int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 		if (IS_ERR(keyring))
 			return PTR_ERR(keyring);
 	} else {
-		atomic_inc(&keyring->usage);
+		__key_get(keyring);
 	}
 
 	/* install the keyring */
@@ -544,7 +544,7 @@ try_again:
 		}
 
 		key = ctx.cred->thread_keyring;
-		atomic_inc(&key->usage);
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
@@ -562,7 +562,7 @@ try_again:
 		}
 
 		key = ctx.cred->process_keyring;
-		atomic_inc(&key->usage);
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
@@ -593,7 +593,7 @@ try_again:
 
 		rcu_read_lock();
 		key = rcu_dereference(ctx.cred->session_keyring);
-		atomic_inc(&key->usage);
+		__key_get(key);
 		rcu_read_unlock();
 		key_ref = make_key_ref(key, 1);
 		break;
@@ -606,7 +606,7 @@ try_again:
 		}
 
 		key = ctx.cred->user->uid_keyring;
-		atomic_inc(&key->usage);
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
@@ -618,7 +618,7 @@ try_again:
 		}
 
 		key = ctx.cred->user->session_keyring;
-		atomic_inc(&key->usage);
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
@@ -632,7 +632,7 @@ try_again:
 		if (!key)
 			goto error;
 
-		atomic_inc(&key->usage);
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
@@ -648,7 +648,7 @@ try_again:
 		} else {
 			rka = ctx.cred->request_key_auth->payload.data;
 			key = rka->dest_keyring;
-			atomic_inc(&key->usage);
+			__key_get(key);
 		}
 		up_read(&ctx.cred->request_key_auth->sem);
 		if (!key)

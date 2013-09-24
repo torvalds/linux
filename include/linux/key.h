@@ -219,11 +219,15 @@ extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);
 extern void key_put(struct key *key);
 
+static inline struct key *__key_get(struct key *key)
+{
+	atomic_inc(&key->usage);
+	return key;
+}
+
 static inline struct key *key_get(struct key *key)
 {
-	if (key)
-		atomic_inc(&key->usage);
-	return key;
+	return key ? __key_get(key) : key;
 }
 
 static inline void key_ref_put(key_ref_t key_ref)
