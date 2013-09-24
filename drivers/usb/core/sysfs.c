@@ -23,14 +23,16 @@ static ssize_t field##_show(struct device *dev,				\
 {									\
 	struct usb_device *udev;					\
 	struct usb_host_config *actconfig;				\
+	ssize_t rc = 0;							\
 									\
 	udev = to_usb_device(dev);					\
+	usb_lock_device(udev);						\
 	actconfig = udev->actconfig;					\
 	if (actconfig)							\
-		return sprintf(buf, format_string,			\
+		rc = sprintf(buf, format_string,			\
 				actconfig->desc.field);			\
-	else								\
-		return 0;						\
+	usb_unlock_device(udev);					\
+	return rc;							\
 }									\
 
 #define usb_actconfig_attr(field, format_string)		\
@@ -45,12 +47,15 @@ static ssize_t bMaxPower_show(struct device *dev,
 {
 	struct usb_device *udev;
 	struct usb_host_config *actconfig;
+	ssize_t rc = 0;
 
 	udev = to_usb_device(dev);
+	usb_lock_device(udev);
 	actconfig = udev->actconfig;
-	if (!actconfig)
-		return 0;
-	return sprintf(buf, "%dmA\n", usb_get_max_power(udev, actconfig));
+	if (actconfig)
+		rc = sprintf(buf, "%dmA\n", usb_get_max_power(udev, actconfig));
+	usb_unlock_device(udev);
+	return rc;
 }
 static DEVICE_ATTR_RO(bMaxPower);
 
@@ -59,12 +64,15 @@ static ssize_t configuration_show(struct device *dev,
 {
 	struct usb_device *udev;
 	struct usb_host_config *actconfig;
+	ssize_t rc = 0;
 
 	udev = to_usb_device(dev);
+	usb_lock_device(udev);
 	actconfig = udev->actconfig;
-	if ((!actconfig) || (!actconfig->string))
-		return 0;
-	return sprintf(buf, "%s\n", actconfig->string);
+	if (actconfig && actconfig->string)
+		rc = sprintf(buf, "%s\n", actconfig->string);
+	usb_unlock_device(udev);
+	return rc;
 }
 static DEVICE_ATTR_RO(configuration);
 
@@ -764,6 +772,7 @@ read_descriptors(struct file *filp, struct kobject *kobj,
 	 * Following that are the raw descriptor entries for all the
 	 * configurations (config plus subsidiary descriptors).
 	 */
+	usb_lock_device(udev);
 	for (cfgno = -1; cfgno < udev->descriptor.bNumConfigurations &&
 			nleft > 0; ++cfgno) {
 		if (cfgno < 0) {
@@ -784,6 +793,7 @@ read_descriptors(struct file *filp, struct kobject *kobj,
 			off -= srclen;
 		}
 	}
+	usb_unlock_device(udev);
 	return count - nleft;
 }
 
@@ -870,9 +880,7 @@ static ssize_t interface_show(struct device *dev, struct device_attribute *attr,
 	char *string;
 
 	intf = to_usb_interface(dev);
-	string = intf->cur_altsetting->string;
-	barrier();		/* The altsetting might change! */
-
+	string = ACCESS_ONCE(intf->cur_altsetting->string);
 	if (!string)
 		return 0;
 	return sprintf(buf, "%s\n", string);
@@ -888,7 +896,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 	intf = to_usb_interface(dev);
 	udev = interface_to_usbdev(intf);
-	alt = intf->cur_altsetting;
+	alt = ACCESS_ONCE(intf->cur_altsetting);
 
 	return sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02X"
 			"ic%02Xisc%02Xip%02Xin%02X\n",
@@ -909,23 +917,14 @@ static ssize_t supports_autosuspend_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct usb_interface *intf;
-	struct usb_device *udev;
-	int ret;
+	int s;
 
-	intf = to_usb_interface(dev);
-	udev = interface_to_usbdev(intf);
-
-	usb_lock_device(udev);
+	device_lock(dev);
 	/* Devices will be autosuspended even when an interface isn't claimed */
-	if (!intf->dev.driver ||
-			to_usb_driver(intf->dev.driver)->supports_autosuspend)
-		ret = sprintf(buf, "%u\n", 1);
-	else
-		ret = sprintf(buf, "%u\n", 0);
-	usb_unlock_device(udev);
+	s = (!dev->driver || to_usb_driver(dev->driver)->supports_autosuspend);
+	device_unlock(dev);
 
-	return ret;
+	return sprintf(buf, "%u\n", s);
 }
 static DEVICE_ATTR_RO(supports_autosuspend);
 
