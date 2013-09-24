@@ -7578,6 +7578,8 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	struct page *page;
 	rpc_authflavor_t flavor;
 	struct nfs4_secinfo_flavors *flavors;
+	struct nfs4_secinfo4 *secinfo;
+	int i;
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page) {
@@ -7599,9 +7601,31 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	if (err)
 		goto out_freepage;
 
-	flavor = nfs_find_best_sec(flavors);
-	if (err == 0)
-		err = nfs4_lookup_root_sec(server, fhandle, info, flavor);
+	for (i = 0; i < flavors->num_flavors; i++) {
+		secinfo = &flavors->flavors[i];
+
+		switch (secinfo->flavor) {
+		case RPC_AUTH_NULL:
+		case RPC_AUTH_UNIX:
+		case RPC_AUTH_GSS:
+			flavor = rpcauth_get_pseudoflavor(secinfo->flavor,
+					&secinfo->flavor_info);
+			break;
+		default:
+			flavor = RPC_AUTH_MAXFLAVOR;
+			break;
+		}
+
+		if (flavor != RPC_AUTH_MAXFLAVOR) {
+			err = nfs4_lookup_root_sec(server, fhandle,
+						   info, flavor);
+			if (!err)
+				break;
+		}
+	}
+
+	if (flavor == RPC_AUTH_MAXFLAVOR)
+		err = -EPERM;
 
 out_freepage:
 	put_page(page);
