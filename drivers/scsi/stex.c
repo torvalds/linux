@@ -1790,8 +1790,6 @@ static void stex_remove(struct pci_dev *pdev)
 
 	scsi_remove_host(hba->host);
 
-	pci_set_drvdata(pdev, NULL);
-
 	stex_hba_stop(hba);
 
 	stex_hba_free(hba);

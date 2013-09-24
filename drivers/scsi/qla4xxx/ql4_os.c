@@ -7400,7 +7400,6 @@ static void qla4xxx_remove_adapter(struct pci_dev *pdev)
 
 	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 /**

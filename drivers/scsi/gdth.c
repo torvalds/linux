@@ -594,8 +594,6 @@ static void gdth_pci_remove_one(struct pci_dev *pdev)
 {
 	gdth_ha_str *ha = pci_get_drvdata(pdev);
 
-	pci_set_drvdata(pdev, NULL);
-
 	list_del(&ha->list);
 	gdth_remove_one(ha);
 
