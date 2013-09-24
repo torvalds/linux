@@ -316,8 +316,7 @@ static const intel_limit_t intel_limits_vlv_dac = {
 	.m1 = { .min = 2, .max = 3 },
 	.m2 = { .min = 11, .max = 156 },
 	.p1 = { .min = 2, .max = 3 },
-	.p2 = { .dot_limit = 270000,
-		.p2_slow = 2, .p2_fast = 20 }, /* slow=min, fast=max */
+	.p2 = { .p2_slow = 2, .p2_fast = 20 }, /* slow=min, fast=max */
 };
 
 static const intel_limit_t intel_limits_vlv_hdmi = {
@@ -327,8 +326,7 @@ static const intel_limit_t intel_limits_vlv_hdmi = {
 	.m1 = { .min = 2, .max = 3 },
 	.m2 = { .min = 11, .max = 156 },
 	.p1 = { .min = 2, .max = 3 },
-	.p2 = { .dot_limit = 270000,
-		.p2_slow = 2, .p2_fast = 20 }, /* slow=min, fast=max */
+	.p2 = { .p2_slow = 2, .p2_fast = 20 }, /* slow=min, fast=max */
 };
 
 static void vlv_clock(int refclk, intel_clock_t *clock)
