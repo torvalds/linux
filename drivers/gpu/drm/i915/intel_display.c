@@ -699,25 +699,27 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 					       refclk) / (2*refclk));
 					m = m1 * m2;
 					vco = updrate * m;
-					if (vco >= limit->vco.min && vco < limit->vco.max) {
-						ppm = 1000000 * ((vco / p) - fastclk) / fastclk;
-						absppm = (ppm > 0) ? ppm : (-ppm);
-						if (absppm < 100 && ((p1 * p2) > (bestp1 * bestp2))) {
-							bestppm = 0;
-							flag = 1;
-						}
-						if (absppm < bestppm - 10) {
-							bestppm = absppm;
-							flag = 1;
-						}
-						if (flag) {
-							bestn = n;
-							bestm1 = m1;
-							bestm2 = m2;
-							bestp1 = p1;
-							bestp2 = p2;
-							flag = 0;
-						}
+
+					if (vco < limit->vco.min || vco >= limit->vco.max)
+						continue;
+
+					ppm = 1000000 * ((vco / p) - fastclk) / fastclk;
+					absppm = (ppm > 0) ? ppm : (-ppm);
+					if (absppm < 100 && ((p1 * p2) > (bestp1 * bestp2))) {
+						bestppm = 0;
+						flag = 1;
+					}
+					if (absppm < bestppm - 10) {
+						bestppm = absppm;
+						flag = 1;
+					}
+					if (flag) {
+						bestn = n;
+						bestm1 = m1;
+						bestm2 = m2;
+						bestp1 = p1;
+						bestp2 = p2;
+						flag = 0;
 					}
 				}
 			}
