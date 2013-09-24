@@ -21,9 +21,9 @@ struct device;
 struct platform_device;
 
 #ifdef CONFIG_DRM_TEGRA
-int host1x_drm_alloc(struct platform_device *pdev);
+int tegra_drm_alloc(struct platform_device *pdev);
 #else
-static inline int host1x_drm_alloc(struct platform_device *pdev)
+static inline int tegra_drm_alloc(struct platform_device *pdev)
 {
 	return 0;
 }

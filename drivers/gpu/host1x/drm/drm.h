@@ -30,13 +30,13 @@ struct tegra_fbdev {
 	struct tegra_fb *fb;
 };
 
-struct host1x_drm {
+struct tegra_drm {
 	struct drm_device *drm;
 	struct device *dev;
 
-	struct mutex drm_clients_lock;
-	struct list_head drm_clients;
-	struct list_head drm_active;
+	struct mutex subdevs_lock;
+	struct list_head subdevs;
+	struct list_head active;
 
 	struct mutex clients_lock;
 	struct list_head clients;
@@ -68,7 +68,7 @@ struct host1x_drm_file {
 };
 
 struct host1x_client {
-	struct host1x_drm *host1x;
+	struct tegra_drm *tegra;
 	struct device *dev;
 
 	const struct host1x_client_ops *ops;
@@ -82,12 +82,12 @@ struct host1x_client {
 	struct list_head list;
 };
 
-extern int host1x_drm_init(struct host1x_drm *host1x, struct drm_device *drm);
-extern int host1x_drm_exit(struct host1x_drm *host1x);
+extern int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
+extern int tegra_drm_exit(struct tegra_drm *tegra);
 
-extern int host1x_register_client(struct host1x_drm *host1x,
+extern int host1x_register_client(struct tegra_drm *tegra,
 				  struct host1x_client *client);
-extern int host1x_unregister_client(struct host1x_drm *host1x,
+extern int host1x_unregister_client(struct tegra_drm *tegra,
 				    struct host1x_client *client);
 
 struct tegra_output;

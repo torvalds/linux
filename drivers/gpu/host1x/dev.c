@@ -163,7 +163,7 @@ static int host1x_probe(struct platform_device *pdev)
 
 	host1x_debug_init(host);
 
-	host1x_drm_alloc(pdev);
+	tegra_drm_alloc(pdev);
 
 	return 0;
 

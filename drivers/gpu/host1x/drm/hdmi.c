@@ -1181,7 +1181,7 @@ static const struct host1x_client_ops hdmi_client_ops = {
 
 static int tegra_hdmi_probe(struct platform_device *pdev)
 {
-	struct host1x_drm *host1x = host1x_get_drm_data(pdev->dev.parent);
+	struct tegra_drm *tegra = host1x_get_drm_data(pdev->dev.parent);
 	struct tegra_hdmi *hdmi;
 	struct resource *regs;
 	int err;
@@ -1256,7 +1256,7 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&hdmi->client.list);
 	hdmi->client.dev = &pdev->dev;
 
-	err = host1x_register_client(host1x, &hdmi->client);
+	err = host1x_register_client(tegra, &hdmi->client);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register host1x client: %d\n",
 			err);
@@ -1270,11 +1270,11 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 
 static int tegra_hdmi_remove(struct platform_device *pdev)
 {
-	struct host1x_drm *host1x = host1x_get_drm_data(pdev->dev.parent);
+	struct tegra_drm *tegra = host1x_get_drm_data(pdev->dev.parent);
 	struct tegra_hdmi *hdmi = platform_get_drvdata(pdev);
 	int err;
 
-	err = host1x_unregister_client(host1x, &hdmi->client);
+	err = host1x_unregister_client(tegra, &hdmi->client);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
 			err);

@@ -323,10 +323,10 @@ static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
 
 static void tegra_fb_output_poll_changed(struct drm_device *drm)
 {
-	struct host1x_drm *host1x = drm->dev_private;
+	struct tegra_drm *tegra = drm->dev_private;
 
-	if (host1x->fbdev)
-		drm_fb_helper_hotplug_event(&host1x->fbdev->base);
+	if (tegra->fbdev)
+		drm_fb_helper_hotplug_event(&tegra->fbdev->base);
 }
 
 static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
@@ -336,7 +336,7 @@ static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 
 int tegra_drm_fb_init(struct drm_device *drm)
 {
-	struct host1x_drm *host1x = drm->dev_private;
+	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_fbdev *fbdev;
 
 	drm->mode_config.min_width = 0;
@@ -352,16 +352,16 @@ int tegra_drm_fb_init(struct drm_device *drm)
 	if (IS_ERR(fbdev))
 		return PTR_ERR(fbdev);
 
-	host1x->fbdev = fbdev;
+	tegra->fbdev = fbdev;
 
 	return 0;
 }
 
 void tegra_drm_fb_exit(struct drm_device *drm)
 {
-	struct host1x_drm *host1x = drm->dev_private;
+	struct tegra_drm *tegra = drm->dev_private;
 
-	tegra_fbdev_free(host1x->fbdev);
+	tegra_fbdev_free(tegra->fbdev);
 }
 
 void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)

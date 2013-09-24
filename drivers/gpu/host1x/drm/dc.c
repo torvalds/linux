@@ -1109,7 +1109,7 @@ static const struct host1x_client_ops dc_client_ops = {
 
 static int tegra_dc_probe(struct platform_device *pdev)
 {
-	struct host1x_drm *host1x = host1x_get_drm_data(pdev->dev.parent);
+	struct tegra_drm *tegra = host1x_get_drm_data(pdev->dev.parent);
 	struct resource *regs;
 	struct tegra_dc *dc;
 	int err;
@@ -1153,7 +1153,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = host1x_register_client(host1x, &dc->client);
+	err = host1x_register_client(tegra, &dc->client);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register host1x client: %d\n",
 			err);
@@ -1167,11 +1167,11 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 static int tegra_dc_remove(struct platform_device *pdev)
 {
-	struct host1x_drm *host1x = host1x_get_drm_data(pdev->dev.parent);
+	struct tegra_drm *tegra = host1x_get_drm_data(pdev->dev.parent);
 	struct tegra_dc *dc = platform_get_drvdata(pdev);
 	int err;
 
-	err = host1x_unregister_client(host1x, &dc->client);
+	err = host1x_unregister_client(tegra, &dc->client);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
 			err);

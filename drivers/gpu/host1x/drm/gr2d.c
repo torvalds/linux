@@ -256,7 +256,7 @@ static const struct of_device_id gr2d_match[] = {
 static int gr2d_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct host1x_drm *host1x = host1x_get_drm_data(dev->parent);
+	struct tegra_drm *tegra = host1x_get_drm_data(dev->parent);
 	int err;
 	struct gr2d *gr2d = NULL;
 	struct host1x_syncpt **syncpts;
@@ -297,7 +297,7 @@ static int gr2d_probe(struct platform_device *pdev)
 	gr2d->client.syncpts = syncpts;
 	gr2d->client.num_syncpts = 1;
 
-	err = host1x_register_client(host1x, &gr2d->client);
+	err = host1x_register_client(tegra, &gr2d->client);
 	if (err < 0) {
 		dev_err(dev, "failed to register host1x client: %d\n", err);
 		return err;
@@ -312,12 +312,12 @@ static int gr2d_probe(struct platform_device *pdev)
 
 static int __exit gr2d_remove(struct platform_device *pdev)
 {
-	struct host1x_drm *host1x = host1x_get_drm_data(pdev->dev.parent);
+	struct tegra_drm *tegra = host1x_get_drm_data(pdev->dev.parent);
 	struct gr2d *gr2d = platform_get_drvdata(pdev);
 	unsigned int i;
 	int err;
 
-	err = host1x_unregister_client(host1x, &gr2d->client);
+	err = host1x_unregister_client(tegra, &gr2d->client);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to unregister client: %d\n", err);
 		return err;
