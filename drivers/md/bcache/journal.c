@@ -692,6 +692,7 @@ void bch_journal_meta(struct cache_set *c, struct closure *cl)
 		if (cl)
 			BUG_ON(!closure_wait(&w->wait, cl));
 
+		closure_flush(&c->journal.io);
 		__journal_try_write(c, true);
 	}
 }
