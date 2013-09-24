@@ -64,24 +64,31 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 	name.name = raw_inode->i_name;
 retry:
 	de = f2fs_find_entry(dir, &name, &page);
-	if (de && inode->i_ino == le32_to_cpu(de->ino)) {
-		kunmap(page);
-		f2fs_put_page(page, 0);
-		goto out;
-	}
+	if (de && inode->i_ino == le32_to_cpu(de->ino))
+		goto out_unmap_put;
 	if (de) {
 		einode = f2fs_iget(inode->i_sb, le32_to_cpu(de->ino));
 		if (IS_ERR(einode)) {
 			WARN_ON(1);
 			if (PTR_ERR(einode) == -ENOENT)
 				err = -EEXIST;
-			goto out;
+			goto out_unmap_put;
+		}
+		err = acquire_orphan_inode(F2FS_SB(inode->i_sb));
+		if (err) {
+			iput(einode);
+			goto out_unmap_put;
 		}
 		f2fs_delete_entry(de, page, einode);
 		iput(einode);
 		goto retry;
 	}
 	err = __f2fs_add_link(dir, &name, inode);
+	goto out;
+
+out_unmap_put:
+	kunmap(page);
+	f2fs_put_page(page, 0);
 out:
 	f2fs_msg(inode->i_sb, KERN_NOTICE, "recover_inode and its dentry: "
 			"ino = %x, name = %s, dir = %lx, err = %d",
