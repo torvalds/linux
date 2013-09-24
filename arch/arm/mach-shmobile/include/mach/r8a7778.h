@@ -24,8 +24,6 @@
 extern void r8a7778_add_standard_devices(void);
 extern void r8a7778_add_standard_devices_dt(void);
 extern void r8a7778_add_ether_device(struct sh_eth_plat_data *pdata);
-extern void r8a7778_add_vin_device(int id,
-				   struct rcar_vin_platform_data *pdata);
 extern void r8a7778_add_dt_devices(void);
 
 extern void r8a7778_init_late(void);
