@@ -46,7 +46,6 @@
 #include <linux/sctp.h>
 #include <linux/pkt_sched.h>
 #include <linux/ipv6.h>
-#include <linux/version.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <linux/ethtool.h>
