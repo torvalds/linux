@@ -19,6 +19,7 @@
 #define _HTT_H_
 
 #include <linux/bug.h>
+#include <linux/interrupt.h>
 
 #include "htc.h"
 #include "rx_desc.h"
@@ -1268,6 +1269,7 @@ struct ath10k_htt {
 	/* set if host-fw communication goes haywire
 	 * used to avoid further failures */
 	bool rx_confused;
+	struct tasklet_struct rx_replenish_task;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1307,6 +1309,10 @@ struct htt_rx_desc {
  */
 #define HTT_RX_BUF_SIZE 1920
 #define HTT_RX_MSDU_SIZE (HTT_RX_BUF_SIZE - (int)sizeof(struct htt_rx_desc))
+
+/* Refill a bunch of RX buffers for each refill round so that FW/HW can handle
+ * aggregated traffic more nicely. */
+#define ATH10K_HTT_MAX_NUM_REFILL 16
 
 /*
  * DMA_MAP expects the buffer to be an integral number of cache lines.

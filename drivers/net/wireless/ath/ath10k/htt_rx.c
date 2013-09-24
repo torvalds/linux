@@ -182,10 +182,27 @@ static int ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 
 static void ath10k_htt_rx_msdu_buff_replenish(struct ath10k_htt *htt)
 {
-	int ret, num_to_fill;
+	int ret, num_deficit, num_to_fill;
 
+	/* Refilling the whole RX ring buffer proves to be a bad idea. The
+	 * reason is RX may take up significant amount of CPU cycles and starve
+	 * other tasks, e.g. TX on an ethernet device while acting as a bridge
+	 * with ath10k wlan interface. This ended up with very poor performance
+	 * once CPU the host system was overwhelmed with RX on ath10k.
+	 *
+	 * By limiting the number of refills the replenishing occurs
+	 * progressively. This in turns makes use of the fact tasklets are
+	 * processed in FIFO order. This means actual RX processing can starve
+	 * out refilling. If there's not enough buffers on RX ring FW will not
+	 * report RX until it is refilled with enough buffers. This
+	 * automatically balances load wrt to CPU power.
+	 *
+	 * This probably comes at a cost of lower maximum throughput but
+	 * improves the avarage and stability. */
 	spin_lock_bh(&htt->rx_ring.lock);
-	num_to_fill = htt->rx_ring.fill_level - htt->rx_ring.fill_cnt;
+	num_deficit = htt->rx_ring.fill_level - htt->rx_ring.fill_cnt;
+	num_to_fill = min(ATH10K_HTT_MAX_NUM_REFILL, num_deficit);
+	num_deficit -= num_to_fill;
 	ret = ath10k_htt_rx_ring_fill_n(htt, num_to_fill);
 	if (ret == -ENOMEM) {
 		/*
@@ -196,6 +213,8 @@ static void ath10k_htt_rx_msdu_buff_replenish(struct ath10k_htt *htt)
 		 */
 		mod_timer(&htt->rx_ring.refill_retry_timer, jiffies +
 			  msecs_to_jiffies(HTT_RX_RING_REFILL_RETRY_MS));
+	} else if (num_deficit > 0) {
+		tasklet_schedule(&htt->rx_replenish_task);
 	}
 	spin_unlock_bh(&htt->rx_ring.lock);
 }
@@ -217,6 +236,7 @@ void ath10k_htt_rx_detach(struct ath10k_htt *htt)
 	int sw_rd_idx = htt->rx_ring.sw_rd_idx.msdu_payld;
 
 	del_timer_sync(&htt->rx_ring.refill_retry_timer);
+	tasklet_kill(&htt->rx_replenish_task);
 
 	while (sw_rd_idx != __le32_to_cpu(*(htt->rx_ring.alloc_idx.vaddr))) {
 		struct sk_buff *skb =
@@ -446,6 +466,12 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 	return msdu_chaining;
 }
 
+static void ath10k_htt_rx_replenish_task(unsigned long ptr)
+{
+	struct ath10k_htt *htt = (struct ath10k_htt *)ptr;
+	ath10k_htt_rx_msdu_buff_replenish(htt);
+}
+
 int ath10k_htt_rx_attach(struct ath10k_htt *htt)
 {
 	dma_addr_t paddr;
@@ -505,6 +531,9 @@ int ath10k_htt_rx_attach(struct ath10k_htt *htt)
 	htt->rx_ring.fill_cnt = 0;
 	if (__ath10k_htt_rx_ring_fill_n(htt, htt->rx_ring.fill_level))
 		goto err_fill_ring;
+
+	tasklet_init(&htt->rx_replenish_task, ath10k_htt_rx_replenish_task,
+		     (unsigned long)htt);
 
 	ath10k_dbg(ATH10K_DBG_BOOT, "htt rx ring size %d fill_level %d\n",
 		   htt->rx_ring.size, htt->rx_ring.fill_level);
@@ -956,7 +985,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 		}
 	}
 
-	ath10k_htt_rx_msdu_buff_replenish(htt);
+	tasklet_schedule(&htt->rx_replenish_task);
 }
 
 static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
