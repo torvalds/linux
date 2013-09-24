@@ -613,7 +613,6 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320aic23 = {
 	.num_dapm_routes = ARRAY_SIZE(tlv320aic23_intercon),
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*
  * If the i2c layer weren't so broken, we could pass this kind of data
  * around
@@ -660,29 +659,7 @@ static struct i2c_driver tlv320aic23_i2c_driver = {
 	.id_table = tlv320aic23_id,
 };
 
-#endif
-
-static int __init tlv320aic23_modinit(void)
-{
-	int ret;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&tlv320aic23_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register TLV320AIC23 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(tlv320aic23_modinit);
-
-static void __exit tlv320aic23_exit(void)
-{
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&tlv320aic23_i2c_driver);
-#endif
-}
-module_exit(tlv320aic23_exit);
+module_i2c_driver(tlv320aic23_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC TLV320AIC23 codec driver");
 MODULE_AUTHOR("Arun KS <arunks@mistralsolutions.com>");
