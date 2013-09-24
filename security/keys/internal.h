@@ -124,6 +124,7 @@ extern key_ref_t search_my_process_keyrings(struct key_type *type,
 extern key_ref_t search_process_keyrings(struct key_type *type,
 					 const void *description,
 					 key_match_func_t match,
+					 bool no_state_check,
 					 const struct cred *cred);
 
 extern struct key *find_keyring_by_name(const char *name, bool skip_perm_check);

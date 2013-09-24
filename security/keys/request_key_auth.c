@@ -247,7 +247,7 @@ struct key *key_get_instantiation_authkey(key_serial_t target_id)
 		&key_type_request_key_auth,
 		(void *) (unsigned long) target_id,
 		key_get_instantiation_authkey_match,
-		cred);
+		false, cred);
 
 	if (IS_ERR(authkey_ref)) {
 		authkey = ERR_CAST(authkey_ref);

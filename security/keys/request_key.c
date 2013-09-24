@@ -390,7 +390,8 @@ static int construct_alloc_key(struct key_type *type,
 	 * waited for locks */
 	mutex_lock(&key_construction_mutex);
 
-	key_ref = search_process_keyrings(type, description, type->match, cred);
+	key_ref = search_process_keyrings(type, description, type->match,
+					  false, cred);
 	if (!IS_ERR(key_ref))
 		goto key_already_present;
 
@@ -539,7 +540,8 @@ struct key *request_key_and_link(struct key_type *type,
 	       dest_keyring, flags);
 
 	/* search all the process keyrings for a key */
-	key_ref = search_process_keyrings(type, description, type->match, cred);
+	key_ref = search_process_keyrings(type, description, type->match,
+					  false, cred);
 
 	if (!IS_ERR(key_ref)) {
 		key = key_ref_to_ptr(key_ref);

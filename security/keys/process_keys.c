@@ -440,6 +440,7 @@ found:
 key_ref_t search_process_keyrings(struct key_type *type,
 				  const void *description,
 				  key_match_func_t match,
+				  bool no_state_check,
 				  const struct cred *cred)
 {
 	struct request_key_auth *rka;
@@ -448,7 +449,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	might_sleep();
 
 	key_ref = search_my_process_keyrings(type, description, match,
-					     false, cred);
+					     no_state_check, cred);
 	if (!IS_ERR(key_ref))
 		goto found;
 	err = key_ref;
@@ -468,7 +469,8 @@ key_ref_t search_process_keyrings(struct key_type *type,
 			rka = cred->request_key_auth->payload.data;
 
 			key_ref = search_process_keyrings(type, description,
-							  match, rka->cred);
+							  match, no_state_check,
+							  rka->cred);
 
 			up_read(&cred->request_key_auth->sem);
 
@@ -675,7 +677,7 @@ try_again:
 		/* check to see if we possess the key */
 		skey_ref = search_process_keyrings(key->type, key,
 						   lookup_user_key_possessed,
-						   cred);
+						   true, cred);
 
 		if (!IS_ERR(skey_ref)) {
 			key_put(key);
