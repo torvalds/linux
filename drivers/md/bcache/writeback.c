@@ -327,8 +327,7 @@ static void read_dirty(struct closure *cl)
 		if (delay > 0 &&
 		    (KEY_START(&w->key) != dc->last_read ||
 		     jiffies_to_msecs(delay) > 50))
-			while (delay)
-				delay = schedule_timeout(delay);
+			delay = schedule_timeout_uninterruptible(delay);
 
 		dc->last_read	= KEY_OFFSET(&w->key);
 
