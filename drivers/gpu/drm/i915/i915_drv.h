@@ -2030,6 +2030,9 @@ struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 struct i915_vma *
 i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 				  struct i915_address_space *vm);
+
+struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj);
+
 /* Some GGTT VM helpers */
 #define obj_to_ggtt(obj) \
 	(&((struct drm_i915_private *)(obj)->base.dev->dev_private)->gtt.base)
@@ -2066,7 +2069,6 @@ i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 	return i915_gem_object_pin(obj, obj_to_ggtt(obj), alignment,
 				   map_and_fenceable, nonblocking);
 }
-#undef obj_to_ggtt
 
 /* i915_gem_context.c */
 void i915_gem_context_init(struct drm_device *dev);
