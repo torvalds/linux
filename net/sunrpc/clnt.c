@@ -772,6 +772,8 @@ void rpc_task_set_client(struct rpc_task *task, struct rpc_clnt *clnt)
 		atomic_inc(&clnt->cl_count);
 		if (clnt->cl_softrtry)
 			task->tk_flags |= RPC_TASK_SOFT;
+		if (clnt->cl_noretranstimeo)
+			task->tk_flags |= RPC_TASK_NO_RETRANS_TIMEOUT;
 		if (sk_memalloc_socks()) {
 			struct rpc_xprt *xprt;
 
@@ -1898,7 +1900,8 @@ call_status(struct rpc_task *task)
 		rpc_delay(task, 3*HZ);
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
-		if (task->tk_client->cl_discrtry)
+		if (!(task->tk_flags & RPC_TASK_NO_RETRANS_TIMEOUT)
+		    && task->tk_client->cl_discrtry)
 			xprt_conditional_disconnect(req->rq_xprt,
 					req->rq_connect_cookie);
 		break;
