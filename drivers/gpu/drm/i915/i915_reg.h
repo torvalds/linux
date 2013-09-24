@@ -940,7 +940,7 @@
 
 #define GT_PARITY_ERROR(dev) \
 	(GT_RENDER_L3_PARITY_ERROR_INTERRUPT | \
-	 IS_HASWELL(dev) ? GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1 : 0)
+	 (IS_HASWELL(dev) ? GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1 : 0))
 
 /* These are all the "old" interrupts */
 #define ILK_BSD_USER_INTERRUPT				(1<<5)
