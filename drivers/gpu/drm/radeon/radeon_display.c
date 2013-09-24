@@ -1178,6 +1178,12 @@ static struct drm_prop_enum_list radeon_audio_enum_list[] =
 	{ RADEON_AUDIO_AUTO, "auto" },
 };
 
+/* XXX support different dither options? spatial, temporal, both, etc. */
+static struct drm_prop_enum_list radeon_dither_enum_list[] =
+{	{ RADEON_FMT_DITHER_DISABLE, "off" },
+	{ RADEON_FMT_DITHER_ENABLE, "on" },
+};
+
 static int radeon_modeset_create_props(struct radeon_device *rdev)
 {
 	int sz;
@@ -1233,6 +1239,12 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 		drm_property_create_enum(rdev->ddev, 0,
 					 "audio",
 					 radeon_audio_enum_list, sz);
+
+	sz = ARRAY_SIZE(radeon_dither_enum_list);
+	rdev->mode_info.dither_property =
+		drm_property_create_enum(rdev->ddev, 0,
+					 "dither",
+					 radeon_dither_enum_list, sz);
 
 	return 0;
 }

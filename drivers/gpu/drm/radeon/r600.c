@@ -133,10 +133,13 @@ void dce3_program_fmt(struct drm_encoder *encoder)
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 	int bpc = 0;
 	u32 tmp = 0;
-	bool dither = false;
+	enum radeon_connector_dither dither = RADEON_FMT_DITHER_DISABLE;
 
-	if (connector)
+	if (connector) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 		bpc = radeon_get_monitor_bpc(connector);
+		dither = radeon_connector->dither;
+	}
 
 	/* LVDS FMT is set up by atom */
 	if (radeon_encoder->devices & ATOM_DEVICE_LCD_SUPPORT)
@@ -152,14 +155,14 @@ void dce3_program_fmt(struct drm_encoder *encoder)
 
 	switch (bpc) {
 	case 6:
-		if (dither)
+		if (dither == RADEON_FMT_DITHER_ENABLE)
 			/* XXX sort out optimal dither settings */
 			tmp |= FMT_SPATIAL_DITHER_EN;
 		else
 			tmp |= FMT_TRUNCATE_EN;
 		break;
 	case 8:
-		if (dither)
+		if (dither == RADEON_FMT_DITHER_ENABLE)
 			/* XXX sort out optimal dither settings */
 			tmp |= (FMT_SPATIAL_DITHER_EN | FMT_SPATIAL_DITHER_DEPTH);
 		else
