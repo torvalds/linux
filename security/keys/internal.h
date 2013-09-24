@@ -99,8 +99,7 @@ extern void __key_link_end(struct key *keyring,
 			   unsigned long prealloc);
 
 extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
-				      const struct keyring_index_key *index_key,
-				      key_perm_t perm);
+				      const struct keyring_index_key *index_key);
 
 extern struct key *keyring_search_instkey(struct key *keyring,
 					  key_serial_t target_id);

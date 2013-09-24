@@ -531,15 +531,14 @@ EXPORT_SYMBOL(keyring_search);
  * RCU is used to make it unnecessary to lock the keyring key list here.
  *
  * Returns a pointer to the found key with usage count incremented if
- * successful and returns -ENOKEY if not found.  Revoked keys and keys not
- * providing the requested permission are skipped over.
+ * successful and returns -ENOKEY if not found.  Revoked and invalidated keys
+ * are skipped over.
  *
  * If successful, the possession indicator is propagated from the keyring ref
  * to the returned key reference.
  */
 key_ref_t __keyring_search_one(key_ref_t keyring_ref,
-			       const struct keyring_index_key *index_key,
-			       key_perm_t perm)
+			       const struct keyring_index_key *index_key)
 {
 	struct keyring_list *klist;
 	struct key *keyring, *key;
@@ -560,8 +559,6 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 			if (key->type == index_key->type &&
 			    (!key->type->match ||
 			     key->type->match(key, index_key->description)) &&
-			    key_permission(make_key_ref(key, possessed),
-					   perm) == 0 &&
 			    !(key->flags & ((1 << KEY_FLAG_INVALIDATED) |
 					    (1 << KEY_FLAG_REVOKED)))
 			    )
