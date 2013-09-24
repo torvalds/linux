@@ -1910,7 +1910,7 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-void
+static void
 i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 			       struct intel_ring_buffer *ring)
 {
@@ -1947,6 +1947,13 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 				       &dev_priv->mm.fence_list);
 		}
 	}
+}
+
+void i915_vma_move_to_active(struct i915_vma *vma,
+			     struct intel_ring_buffer *ring)
+{
+	list_move_tail(&vma->mm_list, &vma->vm->active_list);
+	return i915_gem_object_move_to_active(vma->obj, ring);
 }
 
 static void

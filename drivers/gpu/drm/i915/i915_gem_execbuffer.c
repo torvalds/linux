@@ -872,8 +872,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 		obj->base.read_domains = obj->base.pending_read_domains;
 		obj->fenced_gpu_access = obj->pending_fenced_gpu_access;
 
-		list_move_tail(&vma->mm_list, &vma->vm->active_list);
-		i915_gem_object_move_to_active(obj, ring);
+		i915_vma_move_to_active(vma, ring);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
 			obj->last_write_seqno = intel_ring_get_seqno(ring);

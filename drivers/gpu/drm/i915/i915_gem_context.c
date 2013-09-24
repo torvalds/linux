@@ -451,11 +451,8 @@ static int do_switch(struct i915_hw_context *to)
 	 * MI_SET_CONTEXT instead of when the next seqno has completed.
 	 */
 	if (from != NULL) {
-		struct drm_i915_private *dev_priv = from->obj->base.dev->dev_private;
-		struct i915_address_space *ggtt = &dev_priv->gtt.base;
 		from->obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
-		list_move_tail(&i915_gem_obj_to_vma(from->obj, ggtt)->mm_list, &ggtt->active_list);
-		i915_gem_object_move_to_active(from->obj, ring);
+		i915_vma_move_to_active(i915_gem_obj_to_ggtt(from->obj), ring);
 		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
 		 * whole damn pipeline, we don't need to explicitly mark the
 		 * object dirty. The only exception is that the context must be
