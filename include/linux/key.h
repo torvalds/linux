@@ -82,6 +82,12 @@ struct key_owner;
 struct keyring_list;
 struct keyring_name;
 
+struct keyring_index_key {
+	struct key_type		*type;
+	const char		*description;
+	size_t			desc_len;
+};
+
 /*****************************************************************************/
 /*
  * key reference with possession attribute handling
@@ -129,7 +135,6 @@ struct key {
 		struct list_head graveyard_link;
 		struct rb_node	serial_node;
 	};
-	struct key_type		*type;		/* type of key */
 	struct rw_semaphore	sem;		/* change vs change sem */
 	struct key_user		*user;		/* owner of this key */
 	void			*security;	/* security data for this key */
@@ -163,12 +168,18 @@ struct key {
 #define KEY_FLAG_ROOT_CAN_CLEAR	6	/* set if key can be cleared by root without permission */
 #define KEY_FLAG_INVALIDATED	7	/* set if key has been invalidated */
 
-	/* the description string
-	 * - this is used to match a key against search criteria
-	 * - this should be a printable string
+	/* the key type and key description string
+	 * - the desc is used to match a key against search criteria
+	 * - it should be a printable string
 	 * - eg: for krb5 AFS, this might be "afs@REDHAT.COM"
 	 */
-	char			*description;
+	union {
+		struct keyring_index_key index_key;
+		struct {
+			struct key_type	*type;		/* type of key */
+			char		*description;
+		};
+	};
 
 	/* type specific data
 	 * - this is used by the keyring type to index the name

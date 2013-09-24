@@ -89,19 +89,17 @@ extern struct key_type *key_type_lookup(const char *type);
 extern void key_type_put(struct key_type *ktype);
 
 extern int __key_link_begin(struct key *keyring,
-			    const struct key_type *type,
-			    const char *description,
+			    const struct keyring_index_key *index_key,
 			    unsigned long *_prealloc);
 extern int __key_link_check_live_key(struct key *keyring, struct key *key);
 extern void __key_link(struct key *keyring, struct key *key,
 		       unsigned long *_prealloc);
 extern void __key_link_end(struct key *keyring,
-			   struct key_type *type,
+			   const struct keyring_index_key *index_key,
 			   unsigned long prealloc);
 
 extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
-				      const struct key_type *type,
-				      const char *description,
+				      const struct keyring_index_key *index_key,
 				      key_perm_t perm);
 
 extern struct key *keyring_search_instkey(struct key *keyring,

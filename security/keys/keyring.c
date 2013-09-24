@@ -538,8 +538,7 @@ EXPORT_SYMBOL(keyring_search);
  * to the returned key reference.
  */
 key_ref_t __keyring_search_one(key_ref_t keyring_ref,
-			       const struct key_type *ktype,
-			       const char *description,
+			       const struct keyring_index_key *index_key,
 			       key_perm_t perm)
 {
 	struct keyring_list *klist;
@@ -558,9 +557,9 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 		smp_rmb();
 		for (loop = 0; loop < nkeys ; loop++) {
 			key = rcu_dereference(klist->keys[loop]);
-			if (key->type == ktype &&
+			if (key->type == index_key->type &&
 			    (!key->type->match ||
-			     key->type->match(key, description)) &&
+			     key->type->match(key, index_key->description)) &&
 			    key_permission(make_key_ref(key, possessed),
 					   perm) == 0 &&
 			    !(key->flags & ((1 << KEY_FLAG_INVALIDATED) |
@@ -747,8 +746,8 @@ static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
 /*
  * Preallocate memory so that a key can be linked into to a keyring.
  */
-int __key_link_begin(struct key *keyring, const struct key_type *type,
-		     const char *description, unsigned long *_prealloc)
+int __key_link_begin(struct key *keyring, const struct keyring_index_key *index_key,
+		     unsigned long *_prealloc)
 	__acquires(&keyring->sem)
 	__acquires(&keyring_serialise_link_sem)
 {
@@ -759,7 +758,8 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 	size_t size;
 	int loop, lru, ret;
 
-	kenter("%d,%s,%s,", key_serial(keyring), type->name, description);
+	kenter("%d,%s,%s,",
+	       key_serial(keyring), index_key->type->name, index_key->description);
 
 	if (keyring->type != &key_type_keyring)
 		return -ENOTDIR;
@@ -772,7 +772,7 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 
 	/* serialise link/link calls to prevent parallel calls causing a cycle
 	 * when linking two keyring in opposite orders */
-	if (type == &key_type_keyring)
+	if (index_key->type == &key_type_keyring)
 		down_write(&keyring_serialise_link_sem);
 
 	klist = rcu_dereference_locked_keyring(keyring);
@@ -784,8 +784,8 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 		for (loop = klist->nkeys - 1; loop >= 0; loop--) {
 			struct key *key = rcu_deref_link_locked(klist, loop,
 								keyring);
-			if (key->type == type &&
-			    strcmp(key->description, description) == 0) {
+			if (key->type == index_key->type &&
+			    strcmp(key->description, index_key->description) == 0) {
 				/* Found a match - we'll replace the link with
 				 * one to the new key.  We record the slot
 				 * position.
@@ -865,7 +865,7 @@ error_quota:
 	key_payload_reserve(keyring,
 			    keyring->datalen - KEYQUOTA_LINK_BYTES);
 error_sem:
-	if (type == &key_type_keyring)
+	if (index_key->type == &key_type_keyring)
 		up_write(&keyring_serialise_link_sem);
 error_krsem:
 	up_write(&keyring->sem);
@@ -957,16 +957,17 @@ void __key_link(struct key *keyring, struct key *key,
  *
  * Must be called with __key_link_begin() having being called.
  */
-void __key_link_end(struct key *keyring, struct key_type *type,
+void __key_link_end(struct key *keyring,
+		    const struct keyring_index_key *index_key,
 		    unsigned long prealloc)
 	__releases(&keyring->sem)
 	__releases(&keyring_serialise_link_sem)
 {
-	BUG_ON(type == NULL);
-	BUG_ON(type->name == NULL);
-	kenter("%d,%s,%lx", keyring->serial, type->name, prealloc);
+	BUG_ON(index_key->type == NULL);
+	BUG_ON(index_key->type->name == NULL);
+	kenter("%d,%s,%lx", keyring->serial, index_key->type->name, prealloc);
 
-	if (type == &key_type_keyring)
+	if (index_key->type == &key_type_keyring)
 		up_write(&keyring_serialise_link_sem);
 
 	if (prealloc) {
@@ -1007,12 +1008,12 @@ int key_link(struct key *keyring, struct key *key)
 	key_check(keyring);
 	key_check(key);
 
-	ret = __key_link_begin(keyring, key->type, key->description, &prealloc);
+	ret = __key_link_begin(keyring, &key->index_key, &prealloc);
 	if (ret == 0) {
 		ret = __key_link_check_live_key(keyring, key);
 		if (ret == 0)
 			__key_link(keyring, key, &prealloc);
-		__key_link_end(keyring, key->type, prealloc);
+		__key_link_end(keyring, &key->index_key, prealloc);
 	}
 
 	return ret;

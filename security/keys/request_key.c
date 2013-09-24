@@ -352,6 +352,11 @@ static int construct_alloc_key(struct key_type *type,
 			       struct key_user *user,
 			       struct key **_key)
 {
+	const struct keyring_index_key index_key = {
+		.type		= type,
+		.description	= description,
+		.desc_len	= strlen(description),
+	};
 	const struct cred *cred = current_cred();
 	unsigned long prealloc;
 	struct key *key;
@@ -379,8 +384,7 @@ static int construct_alloc_key(struct key_type *type,
 	set_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags);
 
 	if (dest_keyring) {
-		ret = __key_link_begin(dest_keyring, type, description,
-				       &prealloc);
+		ret = __key_link_begin(dest_keyring, &index_key, &prealloc);
 		if (ret < 0)
 			goto link_prealloc_failed;
 	}
@@ -400,7 +404,7 @@ static int construct_alloc_key(struct key_type *type,
 
 	mutex_unlock(&key_construction_mutex);
 	if (dest_keyring)
-		__key_link_end(dest_keyring, type, prealloc);
+		__key_link_end(dest_keyring, &index_key, prealloc);
 	mutex_unlock(&user->cons_lock);
 	*_key = key;
 	kleave(" = 0 [%d]", key_serial(key));
@@ -416,7 +420,7 @@ key_already_present:
 		ret = __key_link_check_live_key(dest_keyring, key);
 		if (ret == 0)
 			__key_link(dest_keyring, key, &prealloc);
-		__key_link_end(dest_keyring, type, prealloc);
+		__key_link_end(dest_keyring, &index_key, prealloc);
 		if (ret < 0)
 			goto link_check_failed;
 	}
