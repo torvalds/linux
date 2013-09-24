@@ -1,5 +1,5 @@
 menuconfig RK_PM_TESTS
-	bool "/sys/pm_tests/ support"
+	tristate "/sys/pm_tests/ support"
 	help
 	  PM tests tools
 
@@ -47,6 +47,11 @@ config PM_TEST_DVFS_TABLE_SCAN
 	bool "dvfs table scan"
 	help
 	  Use to scan dvfs table
+
+config PM_TEST_DVFS_TABLE_RESET
+	bool "dvfs table reset"
+	help
+	  Use to reset dvfs table
 
 config PM_TEST_DELAYLINE
 	bool "Get delayline value"
