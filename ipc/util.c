@@ -474,11 +474,6 @@ void ipc_free(void* ptr, int size)
 		kfree(ptr);
 }
 
-struct ipc_rcu {
-	struct rcu_head rcu;
-	atomic_t refcount;
-} ____cacheline_aligned_in_smp;
-
 /**
  *	ipc_rcu_alloc	-	allocate ipc and rcu space 
  *	@size: size desired
@@ -505,27 +500,24 @@ int ipc_rcu_getref(void *ptr)
 	return atomic_inc_not_zero(&p->refcount);
 }
 
-/**
- * ipc_schedule_free - free ipc + rcu space
- * @head: RCU callback structure for queued work
- */
-static void ipc_schedule_free(struct rcu_head *head)
-{
-	vfree(container_of(head, struct ipc_rcu, rcu));
-}
-
-void ipc_rcu_putref(void *ptr)
+void ipc_rcu_putref(void *ptr, void (*func)(struct rcu_head *head))
 {
 	struct ipc_rcu *p = ((struct ipc_rcu *)ptr) - 1;
 
 	if (!atomic_dec_and_test(&p->refcount))
 		return;
 
-	if (is_vmalloc_addr(ptr)) {
-		call_rcu(&p->rcu, ipc_schedule_free);
-	} else {
-		kfree_rcu(p, rcu);
-	}
+	call_rcu(&p->rcu, func);
+}
+
+void ipc_rcu_free(struct rcu_head *head)
+{
+	struct ipc_rcu *p = container_of(head, struct ipc_rcu, rcu);
+
+	if (is_vmalloc_addr(p))
+		vfree(p);
+	else
+		kfree(p);
 }
 
 /**
