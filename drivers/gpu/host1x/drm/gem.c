@@ -20,14 +20,14 @@
 
 #include "gem.h"
 
-static inline struct tegra_bo *host1x_to_drm_bo(struct host1x_bo *bo)
+static inline struct tegra_bo *host1x_to_tegra_bo(struct host1x_bo *bo)
 {
 	return container_of(bo, struct tegra_bo, base);
 }
 
 static void tegra_bo_put(struct host1x_bo *bo)
 {
-	struct tegra_bo *obj = host1x_to_drm_bo(bo);
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 	struct drm_device *drm = obj->gem.dev;
 
 	mutex_lock(&drm->struct_mutex);
@@ -37,7 +37,7 @@ static void tegra_bo_put(struct host1x_bo *bo)
 
 static dma_addr_t tegra_bo_pin(struct host1x_bo *bo, struct sg_table **sgt)
 {
-	struct tegra_bo *obj = host1x_to_drm_bo(bo);
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
 	return obj->paddr;
 }
@@ -48,7 +48,7 @@ static void tegra_bo_unpin(struct host1x_bo *bo, struct sg_table *sgt)
 
 static void *tegra_bo_mmap(struct host1x_bo *bo)
 {
-	struct tegra_bo *obj = host1x_to_drm_bo(bo);
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
 	return obj->vaddr;
 }
@@ -59,7 +59,7 @@ static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
 
 static void *tegra_bo_kmap(struct host1x_bo *bo, unsigned int page)
 {
-	struct tegra_bo *obj = host1x_to_drm_bo(bo);
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
 	return obj->vaddr + page * PAGE_SIZE;
 }
@@ -71,7 +71,7 @@ static void tegra_bo_kunmap(struct host1x_bo *bo, unsigned int page,
 
 static struct host1x_bo *tegra_bo_get(struct host1x_bo *bo)
 {
-	struct tegra_bo *obj = host1x_to_drm_bo(bo);
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 	struct drm_device *drm = obj->gem.dev;
 
 	mutex_lock(&drm->struct_mutex);
@@ -140,9 +140,9 @@ err_dma:
 }
 
 struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
-					    struct drm_device *drm,
-					    unsigned int size,
-					    unsigned int *handle)
+					     struct drm_device *drm,
+					     unsigned int size,
+					     unsigned int *handle)
 {
 	struct tegra_bo *bo;
 	int ret;
@@ -169,7 +169,6 @@ void tegra_bo_free_object(struct drm_gem_object *gem)
 	struct tegra_bo *bo = to_tegra_bo(gem);
 
 	drm_gem_free_mmap_offset(gem);
-
 	drm_gem_object_release(gem);
 	tegra_bo_destroy(gem->dev, bo);
 
@@ -189,7 +188,7 @@ int tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm,
 		args->size = args->pitch * args->height;
 
 	bo = tegra_bo_create_with_handle(file, drm, args->size,
-					    &args->handle);
+					 &args->handle);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
