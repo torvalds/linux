@@ -319,7 +319,7 @@ static const intel_limit_t intel_limits_vlv_dac = {
 	.p = { .min = 10, .max = 30 },
 	.p1 = { .min = 2, .max = 3 },
 	.p2 = { .dot_limit = 270000,
-		.p2_slow = 2, .p2_fast = 20 },
+		.p2_slow = 2, .p2_fast = 20 }, /* slow=min, fast=max */
 };
 
 static const intel_limit_t intel_limits_vlv_hdmi = {
@@ -332,7 +332,7 @@ static const intel_limit_t intel_limits_vlv_hdmi = {
 	.p = { .min = 10, .max = 30 },
 	.p1 = { .min = 2, .max = 3 },
 	.p2 = { .dot_limit = 270000,
-		.p2_slow = 2, .p2_fast = 20 },
+		.p2_slow = 2, .p2_fast = 20 }, /* slow=min, fast=max */
 };
 
 static void vlv_clock(int refclk, intel_clock_t *clock)
@@ -689,7 +689,7 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	/* based on hardware requirement, prefer smaller n to precision */
 	for (clock.n = limit->n.min; clock.n <= max_n; clock.n++) {
 		for (clock.p1 = limit->p1.max; clock.p1 >= limit->p1.min; clock.p1--) {
-			for (clock.p2 = limit->p2.p2_fast; clock.p2 > 0;
+			for (clock.p2 = limit->p2.p2_fast; clock.p2 >= limit->p2.p2_slow;
 			     clock.p2 -= clock.p2 > 10 ? 2 : 1) {
 				clock.p = clock.p1 * clock.p2;
 				/* based on hardware requirement, prefer bigger m1,m2 values */
