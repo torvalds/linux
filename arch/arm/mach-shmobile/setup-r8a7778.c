@@ -174,20 +174,6 @@ static struct platform_device_info hci##_info __initdata = {	\
 USB_PLATFORM_INFO(ehci);
 USB_PLATFORM_INFO(ohci);
 
-/* Ether */
-static struct resource ether_resources[] __initdata = {
-	DEFINE_RES_MEM(0xfde00000, 0x400),
-	DEFINE_RES_IRQ(gic_iid(0x89)),
-};
-
-void __init r8a7778_add_ether_device(struct sh_eth_plat_data *pdata)
-{
-	platform_device_register_resndata(&platform_bus, "r8a777x-ether", -1,
-					  ether_resources,
-					  ARRAY_SIZE(ether_resources),
-					  pdata, sizeof(*pdata));
-}
-
 /* PFC/GPIO */
 static struct resource pfc_resources[] __initdata = {
 	DEFINE_RES_MEM(0xfffc0000, 0x118),
