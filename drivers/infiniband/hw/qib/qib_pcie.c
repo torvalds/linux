@@ -51,8 +51,8 @@
  * file calls, even though this violates some
  * expectations of harmlessness.
  */
-static int qib_tune_pcie_caps(struct qib_devdata *);
-static int qib_tune_pcie_coalesce(struct qib_devdata *);
+static void qib_tune_pcie_caps(struct qib_devdata *);
+static void qib_tune_pcie_coalesce(struct qib_devdata *);
 
 /*
  * Do all the common PCIe setup and initialization.
@@ -487,7 +487,7 @@ MODULE_PARM_DESC(pcie_coalesce, "tune PCIe colescing on some Intel chipsets");
  * of these chipsets, with some BIOS settings, and enabling it on those
  * systems may result in the system crashing, and/or data corruption.
  */
-static int qib_tune_pcie_coalesce(struct qib_devdata *dd)
+static void qib_tune_pcie_coalesce(struct qib_devdata *dd)
 {
 	int r;
 	struct pci_dev *parent;
@@ -495,18 +495,18 @@ static int qib_tune_pcie_coalesce(struct qib_devdata *dd)
 	u32 mask, bits, val;
 
 	if (!qib_pcie_coalesce)
-		return 0;
+		return;
 
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
 	if (parent->bus->parent) {
 		qib_devinfo(dd->pcidev, "Parent not root\n");
-		return 1;
+		return;
 	}
 	if (!pci_is_pcie(parent))
-		return 1;
+		return;
 	if (parent->vendor != 0x8086)
-		return 1;
+		return;
 
 	/*
 	 *  - bit 12: Max_rdcmp_Imt_EN: need to set to 1
@@ -539,13 +539,12 @@ static int qib_tune_pcie_coalesce(struct qib_devdata *dd)
 		mask = (3U << 24) | (7U << 10);
 	} else {
 		/* not one of the chipsets that we know about */
-		return 1;
+		return;
 	}
 	pci_read_config_dword(parent, 0x48, &val);
 	val &= ~mask;
 	val |= bits;
 	r = pci_write_config_dword(parent, 0x48, val);
-	return 0;
 }
 
 /*
@@ -556,9 +555,8 @@ static int qib_pcie_caps;
 module_param_named(pcie_caps, qib_pcie_caps, int, S_IRUGO);
 MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (0..3), ReadReq (4..7)");
 
-static int qib_tune_pcie_caps(struct qib_devdata *dd)
+static void qib_tune_pcie_caps(struct qib_devdata *dd)
 {
-	int ret = 1; /* Assume the worst */
 	struct pci_dev *parent;
 	u16 rc_mpss, rc_mps, ep_mpss, ep_mps;
 	u16 rc_mrrs, ep_mrrs, max_mrrs;
@@ -567,18 +565,18 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 	parent = dd->pcidev->bus->self;
 	if (!pci_is_root_bus(parent->bus)) {
 		qib_devinfo(dd->pcidev, "Parent not root\n");
-		goto bail;
+		return;
 	}
 
 	if (!pci_is_pcie(parent) || !pci_is_pcie(dd->pcidev))
-		goto bail;
+		return;
+
 	rc_mpss = parent->pcie_mpss;
 	rc_mps = ffs(pcie_get_mps(parent)) - 8;
 	/* Find out supported and configured values for endpoint (us) */
 	ep_mpss = dd->pcidev->pcie_mpss;
 	ep_mps = ffs(pcie_get_mps(dd->pcidev)) - 8;
 
-	ret = 0;
 	/* Find max payload supported by root, endpoint */
 	if (rc_mpss > ep_mpss)
 		rc_mpss = ep_mpss;
@@ -618,8 +616,6 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 		ep_mrrs = max_mrrs;
 		pcie_set_readrq(dd->pcidev, ep_mrrs);
 	}
-bail:
-	return ret;
 }
 /* End of PCIe capability tuning */
 
