@@ -532,7 +532,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "spi-max-frequency", &max_freq))
 		qspi->spi_max_frequency = max_freq;
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret)
 		goto free_master;
 
@@ -543,22 +543,12 @@ free_master:
 	return ret;
 }
 
-static int ti_qspi_remove(struct platform_device *pdev)
-{
-	struct	ti_qspi *qspi = platform_get_drvdata(pdev);
-
-	spi_unregister_master(qspi->master);
-
-	return 0;
-}
-
 static const struct dev_pm_ops ti_qspi_pm_ops = {
 	.runtime_resume = ti_qspi_runtime_resume,
 };
 
 static struct platform_driver ti_qspi_driver = {
 	.probe	= ti_qspi_probe,
-	.remove	= ti_qspi_remove,
 	.driver = {
 		.name	= "ti,dra7xxx-qspi",
 		.owner	= THIS_MODULE,
