@@ -329,7 +329,7 @@ static int is_backlight_combination_mode(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (INTEL_INFO(dev)->gen >= 4)
+	if (IS_GEN4(dev))
 		return I915_READ(BLC_PWM_CTL2) & BLM_COMBINATION_MODE;
 
 	if (IS_GEN2(dev))
