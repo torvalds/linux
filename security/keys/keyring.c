@@ -329,9 +329,10 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 
 	struct keyring_list *keylist;
 	struct timespec now;
-	unsigned long possessed, kflags;
+	unsigned long kflags;
 	struct key *keyring, *key;
 	key_ref_t key_ref;
+	bool possessed;
 	long err;
 	int sp, nkeys, kix;
 
@@ -542,8 +543,8 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 			       key_perm_t perm)
 {
 	struct keyring_list *klist;
-	unsigned long possessed;
 	struct key *keyring, *key;
+	bool possessed;
 	int nkeys, loop;
 
 	keyring = key_ref_to_ptr(keyring_ref);

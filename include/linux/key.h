@@ -99,7 +99,7 @@ struct keyring_name;
 typedef struct __key_reference_with_attributes *key_ref_t;
 
 static inline key_ref_t make_key_ref(const struct key *key,
-				     unsigned long possession)
+				     bool possession)
 {
 	return (key_ref_t) ((unsigned long) key | possession);
 }
@@ -109,7 +109,7 @@ static inline struct key *key_ref_to_ptr(const key_ref_t key_ref)
 	return (struct key *) ((unsigned long) key_ref & ~1UL);
 }
 
-static inline unsigned long is_key_possessed(const key_ref_t key_ref)
+static inline bool is_key_possessed(const key_ref_t key_ref)
 {
 	return (unsigned long) key_ref & 1UL;
 }
