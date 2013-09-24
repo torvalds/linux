@@ -10,14 +10,14 @@
 #ifndef HOST1X_DRM_H
 #define HOST1X_DRM_H 1
 
+#include <uapi/drm/tegra_drm.h>
+#include <linux/host1x.h>
+
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
-#include <uapi/drm/tegra_drm.h>
-
-#include "host1x.h"
 
 struct tegra_fb {
 	struct drm_framebuffer base;

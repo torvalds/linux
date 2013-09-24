@@ -1,6 +1,4 @@
 /*
- * Tegra host1x driver
- *
  * Copyright (c) 2009-2013, NVIDIA Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,9 +20,9 @@
 #define __LINUX_HOST1X_H
 
 enum host1x_class {
-	HOST1X_CLASS_HOST1X	= 0x1,
-	HOST1X_CLASS_GR2D	= 0x51,
-	HOST1X_CLASS_GR2D_SB    = 0x52
+	HOST1X_CLASS_HOST1X = 0x1,
+	HOST1X_CLASS_GR2D = 0x51,
+	HOST1X_CLASS_GR2D_SB = 0x52,
 };
 
 #endif

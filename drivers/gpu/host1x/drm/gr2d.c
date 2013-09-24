@@ -20,7 +20,6 @@
 #include "drm.h"
 #include "gem.h"
 #include "job.h"
-#include "host1x.h"
 #include "host1x_bo.h"
 #include "host1x_client.h"
 #include "syncpt.h"
