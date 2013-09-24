@@ -613,7 +613,6 @@ extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
 			       struct intel_ring_buffer *ring);
 extern void intel_mark_idle(struct drm_device *dev);
 extern void intel_crtc_restore_mode(struct drm_crtc *crtc);
-extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_crtc_update_dpms(struct drm_crtc *crtc);
 extern void intel_encoder_destroy(struct drm_encoder *encoder);
 extern void intel_connector_dpms(struct drm_connector *, int mode);
