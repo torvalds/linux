@@ -688,9 +688,8 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	/* based on hardware requirement, prefer smaller n to precision */
 	for (clock.n = limit->n.min; clock.n <= ((refclk) / minupdate); clock.n++) {
 		for (clock.p1 = limit->p1.max; clock.p1 > limit->p1.min; clock.p1--) {
-			for (clock.p2 = limit->p2.p2_fast+1; clock.p2 > 0; clock.p2--) {
-				if (clock.p2 > 10)
-					clock.p2--;
+			for (clock.p2 = limit->p2.p2_fast; clock.p2 > 0;
+			     clock.p2 -= clock.p2 > 10 ? 2 : 1) {
 				clock.p = clock.p1 * clock.p2;
 				/* based on hardware requirement, prefer bigger m1,m2 values */
 				for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) {
