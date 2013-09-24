@@ -562,12 +562,9 @@ static int ath10k_monitor_stop(struct ath10k *ar)
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	/* For some reasons, ath10k_wmi_vdev_down() here couse
-	 * often ath10k_wmi_vdev_stop() to fail. Next we could
-	 * not run monitor vdev and driver reload
-	 * required. Don't see such problems we skip
-	 * ath10k_wmi_vdev_down() here.
-	 */
+	ret = ath10k_wmi_vdev_down(ar, ar->monitor_vdev_id);
+	if (ret)
+		ath10k_warn("Monitor vdev down failed: %d\n", ret);
 
 	ret = ath10k_wmi_vdev_stop(ar, ar->monitor_vdev_id);
 	if (ret)
