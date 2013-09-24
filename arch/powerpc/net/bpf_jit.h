@@ -92,6 +92,8 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 				     ___PPC_RA(base) | IMM_L(i))
 #define PPC_LHZ(r, base, i)	EMIT(PPC_INST_LHZ | ___PPC_RT(r) |	      \
 				     ___PPC_RA(base) | IMM_L(i))
+#define PPC_LHBRX(r, base, b)	EMIT(PPC_INST_LHBRX | ___PPC_RT(r) |	      \
+				     ___PPC_RA(base) | ___PPC_RB(b))
 /* Convenience helpers for the above with 'far' offsets: */
 #define PPC_LD_OFFS(r, base, i) do { if ((i) < 32768) PPC_LD(r, base, i);     \
 		else {	PPC_ADDIS(r, base, IMM_HA(i));			      \
@@ -185,6 +187,14 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 			if ((uintptr_t)(i) & 0x000000000000ffffULL)	      \
 				PPC_ORI(d, d, (uintptr_t)(i) & 0xffff);	      \
 		} } while (0);
+
+#define PPC_LHBRX_OFFS(r, base, i) \
+		do { PPC_LI32(r, i); PPC_LHBRX(r, r, base); } while(0)
+#ifdef __LITTLE_ENDIAN__
+#define PPC_NTOHS_OFFS(r, base, i)	PPC_LHBRX_OFFS(r, base, i)
+#else
+#define PPC_NTOHS_OFFS(r, base, i)	PPC_LHZ_OFFS(r, base, i)
+#endif
 
 static inline bool is_nearbranch(int offset)
 {

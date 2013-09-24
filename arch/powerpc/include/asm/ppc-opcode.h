@@ -203,6 +203,7 @@
 /* Misc instructions for BPF compiler */
 #define PPC_INST_LD			0xe8000000
 #define PPC_INST_LHZ			0xa0000000
+#define PPC_INST_LHBRX			0x7c00062c
 #define PPC_INST_LWZ			0x80000000
 #define PPC_INST_STD			0xf8000000
 #define PPC_INST_STDU			0xf8000001

@@ -17,13 +17,7 @@
 
 #include "bpf_jit.h"
 
-#ifndef __BIG_ENDIAN
-/* There are endianness assumptions herein. */
-#error "Little-endian PPC not supported in BPF compiler"
-#endif
-
 int bpf_jit_enable __read_mostly;
-
 
 static inline void bpf_flush_icache(void *start, void *end)
 {
@@ -346,18 +340,11 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			break;
 
 			/*** Ancillary info loads ***/
-
-			/* None of the BPF_S_ANC* codes appear to be passed by
-			 * sk_chk_filter().  The interpreter and the x86 BPF
-			 * compiler implement them so we do too -- they may be
-			 * planted in future.
-			 */
 		case BPF_S_ANC_PROTOCOL: /* A = ntohs(skb->protocol); */
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
 						  protocol) != 2);
-			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
-							  protocol));
-			/* ntohs is a NOP with BE loads. */
+			PPC_NTOHS_OFFS(r_A, r_skb, offsetof(struct sk_buff,
+							    protocol));
 			break;
 		case BPF_S_ANC_IFINDEX:
 			PPC_LD_OFFS(r_scratch1, r_skb, offsetof(struct sk_buff,
