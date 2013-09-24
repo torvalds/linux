@@ -8,7 +8,6 @@
  * for more details.
  */
 #include <linux/sh_clk.h>
-#include <mach/clock.h>
 #include "rsnd.h"
 
 #define CLKA	0
