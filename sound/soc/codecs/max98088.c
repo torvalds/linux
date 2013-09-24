@@ -552,6 +552,7 @@ static const struct regmap_config max98088_regmap = {
 
 	.readable_reg = max98088_readable_register,
 	.volatile_reg = max98088_volatile_register,
+	.max_register = 0xff,
 
 	.reg_defaults = max98088_reg,
 	.num_reg_defaults = ARRAY_SIZE(max98088_reg),
