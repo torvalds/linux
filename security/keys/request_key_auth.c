@@ -239,15 +239,17 @@ static int key_get_instantiation_authkey_match(const struct key *key,
  */
 struct key *key_get_instantiation_authkey(key_serial_t target_id)
 {
-	const struct cred *cred = current_cred();
+	struct keyring_search_context ctx = {
+		.index_key.type		= &key_type_request_key_auth,
+		.cred			= current_cred(),
+		.match			= key_get_instantiation_authkey_match,
+		.match_data		= (void *)(unsigned long)target_id,
+		.flags			= KEYRING_SEARCH_LOOKUP_DIRECT,
+	};
 	struct key *authkey;
 	key_ref_t authkey_ref;
 
-	authkey_ref = search_process_keyrings(
-		&key_type_request_key_auth,
-		(void *) (unsigned long) target_id,
-		key_get_instantiation_authkey_match,
-		false, cred);
+	authkey_ref = search_process_keyrings(&ctx);
 
 	if (IS_ERR(authkey_ref)) {
 		authkey = ERR_CAST(authkey_ref);

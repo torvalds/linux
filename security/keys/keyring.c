@@ -280,11 +280,7 @@ EXPORT_SYMBOL(keyring_alloc);
 /**
  * keyring_search_aux - Search a keyring tree for a key matching some criteria
  * @keyring_ref: A pointer to the keyring with possession indicator.
- * @cred: The credentials to use for permissions checks.
- * @type: The type of key to search for.
- * @description: Parameter for @match.
- * @match: Function to rule on whether or not a key is the one required.
- * @no_state_check: Don't check if a matching key is bad
+ * @ctx: The keyring search context.
  *
  * Search the supplied keyring tree for a key that matches the criteria given.
  * The root keyring and any linked keyrings must grant Search permission to the
@@ -314,11 +310,7 @@ EXPORT_SYMBOL(keyring_alloc);
  * @keyring_ref is propagated to the returned key reference.
  */
 key_ref_t keyring_search_aux(key_ref_t keyring_ref,
-			     const struct cred *cred,
-			     struct key_type *type,
-			     const void *description,
-			     key_match_func_t match,
-			     bool no_state_check)
+			     struct keyring_search_context *ctx)
 {
 	struct {
 		/* Need a separate keylist pointer for RCU purposes */
@@ -328,20 +320,18 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 	} stack[KEYRING_SEARCH_MAX_DEPTH];
 
 	struct keyring_list *keylist;
-	struct timespec now;
 	unsigned long kflags;
 	struct key *keyring, *key;
 	key_ref_t key_ref;
-	bool possessed;
 	long err;
 	int sp, nkeys, kix;
 
 	keyring = key_ref_to_ptr(keyring_ref);
-	possessed = is_key_possessed(keyring_ref);
+	ctx->possessed = is_key_possessed(keyring_ref);
 	key_check(keyring);
 
 	/* top keyring must have search permission to begin the search */
-	err = key_task_permission(keyring_ref, cred, KEY_SEARCH);
+	err = key_task_permission(keyring_ref, ctx->cred, KEY_SEARCH);
 	if (err < 0) {
 		key_ref = ERR_PTR(err);
 		goto error;
@@ -353,7 +343,7 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 
 	rcu_read_lock();
 
-	now = current_kernel_time();
+	ctx->now = current_kernel_time();
 	err = -EAGAIN;
 	sp = 0;
 
@@ -361,16 +351,17 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 	 * are looking for */
 	key_ref = ERR_PTR(-EAGAIN);
 	kflags = keyring->flags;
-	if (keyring->type == type && match(keyring, description)) {
+	if (keyring->type == ctx->index_key.type &&
+	    ctx->match(keyring, ctx->match_data)) {
 		key = keyring;
-		if (no_state_check)
+		if (ctx->flags & KEYRING_SEARCH_NO_STATE_CHECK)
 			goto found;
 
 		/* check it isn't negative and hasn't expired or been
 		 * revoked */
 		if (kflags & (1 << KEY_FLAG_REVOKED))
 			goto error_2;
-		if (key->expiry && now.tv_sec >= key->expiry)
+		if (key->expiry && ctx->now.tv_sec >= key->expiry)
 			goto error_2;
 		key_ref = ERR_PTR(key->type_data.reject_error);
 		if (kflags & (1 << KEY_FLAG_NEGATIVE))
@@ -384,7 +375,7 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 	if (kflags & ((1 << KEY_FLAG_INVALIDATED) |
 		      (1 << KEY_FLAG_REVOKED) |
 		      (1 << KEY_FLAG_NEGATIVE)) ||
-	    (keyring->expiry && now.tv_sec >= keyring->expiry))
+	    (keyring->expiry && ctx->now.tv_sec >= keyring->expiry))
 		goto error_2;
 
 	/* start processing a new keyring */
@@ -406,29 +397,29 @@ descend:
 		kflags = key->flags;
 
 		/* ignore keys not of this type */
-		if (key->type != type)
+		if (key->type != ctx->index_key.type)
 			continue;
 
 		/* skip invalidated, revoked and expired keys */
-		if (!no_state_check) {
+		if (!(ctx->flags & KEYRING_SEARCH_NO_STATE_CHECK)) {
 			if (kflags & ((1 << KEY_FLAG_INVALIDATED) |
 				      (1 << KEY_FLAG_REVOKED)))
 				continue;
 
-			if (key->expiry && now.tv_sec >= key->expiry)
+			if (key->expiry && ctx->now.tv_sec >= key->expiry)
 				continue;
 		}
 
 		/* keys that don't match */
-		if (!match(key, description))
+		if (!ctx->match(key, ctx->match_data))
 			continue;
 
 		/* key must have search permissions */
-		if (key_task_permission(make_key_ref(key, possessed),
-					cred, KEY_SEARCH) < 0)
+		if (key_task_permission(make_key_ref(key, ctx->possessed),
+					ctx->cred, KEY_SEARCH) < 0)
 			continue;
 
-		if (no_state_check)
+		if (ctx->flags & KEYRING_SEARCH_NO_STATE_CHECK)
 			goto found;
 
 		/* we set a different error code if we pass a negative key */
@@ -456,8 +447,8 @@ ascend:
 		if (sp >= KEYRING_SEARCH_MAX_DEPTH)
 			continue;
 
-		if (key_task_permission(make_key_ref(key, possessed),
-					cred, KEY_SEARCH) < 0)
+		if (key_task_permission(make_key_ref(key, ctx->possessed),
+					ctx->cred, KEY_SEARCH) < 0)
 			continue;
 
 		/* stack the current position */
@@ -489,12 +480,12 @@ not_this_keyring:
 	/* we found a viable match */
 found:
 	atomic_inc(&key->usage);
-	key->last_used_at = now.tv_sec;
-	keyring->last_used_at = now.tv_sec;
+	key->last_used_at = ctx->now.tv_sec;
+	keyring->last_used_at = ctx->now.tv_sec;
 	while (sp > 0)
-		stack[--sp].keyring->last_used_at = now.tv_sec;
+		stack[--sp].keyring->last_used_at = ctx->now.tv_sec;
 	key_check(key);
-	key_ref = make_key_ref(key, possessed);
+	key_ref = make_key_ref(key, ctx->possessed);
 error_2:
 	rcu_read_unlock();
 error:
@@ -514,11 +505,20 @@ key_ref_t keyring_search(key_ref_t keyring,
 			 struct key_type *type,
 			 const char *description)
 {
-	if (!type->match)
+	struct keyring_search_context ctx = {
+		.index_key.type		= type,
+		.index_key.description	= description,
+		.cred			= current_cred(),
+		.match			= type->match,
+		.match_data		= description,
+		.flags			= (type->def_lookup_type |
+					   KEYRING_SEARCH_DO_STATE_CHECK),
+	};
+
+	if (!ctx.match)
 		return ERR_PTR(-ENOKEY);
 
-	return keyring_search_aux(keyring, current->cred,
-				  type, description, type->match, false);
+	return keyring_search_aux(keyring, &ctx);
 }
 EXPORT_SYMBOL(keyring_search);
 

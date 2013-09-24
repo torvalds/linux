@@ -63,6 +63,11 @@ struct key_type {
 	 */
 	size_t def_datalen;
 
+	/* Default key search algorithm. */
+	unsigned def_lookup_type;
+#define KEYRING_SEARCH_LOOKUP_DIRECT	0x0000	/* Direct lookup by description. */
+#define KEYRING_SEARCH_LOOKUP_ITERATE	0x0001	/* Iterative search. */
+
 	/* vet a description */
 	int (*vet_description)(const char *description);
 
