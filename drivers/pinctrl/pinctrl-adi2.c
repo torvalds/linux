@@ -776,10 +776,11 @@ static int adi_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	struct gpio_port_t *regs = port->regs;
 	unsigned long flags;
 
+	adi_gpio_set_value(chip, offset, value);
+
 	spin_lock_irqsave(&port->lock, flags);
 
 	writew(readw(&regs->inen) & ~(1 << offset), &regs->inen);
-	adi_gpio_set_value(chip, offset, value);
 	writew(1 << offset, &regs->dir_set);
 
 	spin_unlock_irqrestore(&port->lock, flags);
