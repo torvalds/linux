@@ -39,4 +39,6 @@ struct cpsw_platform_data {
 	bool	dual_emac;	/* Enable Dual EMAC mode */
 };
 
+void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave);
+
 #endif /* __CPSW_H__ */
