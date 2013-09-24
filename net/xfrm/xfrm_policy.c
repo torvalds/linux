@@ -308,7 +308,7 @@ void xfrm_policy_destroy(struct xfrm_policy *policy)
 {
 	BUG_ON(!policy->walk.dead);
 
-	if (del_timer(&policy->timer))
+	if (del_timer(&policy->timer) || del_timer(&policy->polq.hold_timer))
 		BUG();
 
 	security_xfrm_policy_free(policy->security);
@@ -320,10 +320,8 @@ static void xfrm_queue_purge(struct sk_buff_head *list)
 {
 	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(list)) != NULL) {
-		dev_put(skb->dev);
+	while ((skb = skb_dequeue(list)) != NULL)
 		kfree_skb(skb);
-	}
 }
 
 /* Rule must be locked. Release descentant resources, announce
@@ -660,7 +658,13 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	xfrm_pol_hold(policy);
 	net->xfrm.policy_count[dir]++;
 	atomic_inc(&flow_cache_genid);
-	rt_genid_bump(net);
+
+	/* After previous checking, family can either be AF_INET or AF_INET6 */
+	if (policy->family == AF_INET)
+		rt_genid_bump_ipv4(net);
+	else
+		rt_genid_bump_ipv6(net);
+
 	if (delpol) {
 		xfrm_policy_requeue(delpol, policy);
 		__xfrm_policy_unlink(delpol, dir);
@@ -1758,7 +1762,6 @@ static void xfrm_policy_queue_process(unsigned long arg)
 	struct sk_buff *skb;
 	struct sock *sk;
 	struct dst_entry *dst;
-	struct net_device *dev;
 	struct xfrm_policy *pol = (struct xfrm_policy *)arg;
 	struct xfrm_policy_queue *pq = &pol->polq;
 	struct flowi fl;
@@ -1805,7 +1808,6 @@ static void xfrm_policy_queue_process(unsigned long arg)
 		dst = xfrm_lookup(xp_net(pol), skb_dst(skb)->path,
 				  &fl, skb->sk, 0);
 		if (IS_ERR(dst)) {
-			dev_put(skb->dev);
 			kfree_skb(skb);
 			continue;
 		}
@@ -1814,9 +1816,7 @@ static void xfrm_policy_queue_process(unsigned long arg)
 		skb_dst_drop(skb);
 		skb_dst_set(skb, dst);
 
-		dev = skb->dev;
 		err = dst_output(skb);
-		dev_put(dev);
 	}
 
 	return;
@@ -1839,7 +1839,6 @@ static int xdst_queue_output(struct sk_buff *skb)
 	}
 
 	skb_dst_force(skb);
-	dev_hold(skb->dev);
 
 	spin_lock_bh(&pq->hold_queue.lock);
 
@@ -2126,8 +2125,6 @@ restart:
 		 * have the xfrm_state's. We need to wait for KM to
 		 * negotiate new SA's or bail out with error.*/
 		if (net->xfrm.sysctl_larval_drop) {
-			/* EREMOTE tells the caller to generate
-			 * a one-shot blackhole route. */
 			dst_release(dst);
 			xfrm_pols_put(pols, drop_pols);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTNOSTATES);

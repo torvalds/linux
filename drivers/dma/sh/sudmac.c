@@ -150,7 +150,8 @@ static const struct sudmac_slave_config *sudmac_find_slave(
 	return NULL;
 }
 
-static int sudmac_set_slave(struct shdma_chan *schan, int slave_id, bool try)
+static int sudmac_set_slave(struct shdma_chan *schan, int slave_id,
+			    dma_addr_t slave_addr, bool try)
 {
 	struct sudmac_chan *sc = to_chan(schan);
 	const struct sudmac_slave_config *cfg = sudmac_find_slave(sc, slave_id);
@@ -298,11 +299,8 @@ static void sudmac_chan_remove(struct sudmac_device *su_dev)
 	int i;
 
 	shdma_for_each_chan(schan, &su_dev->shdma_dev, i) {
-		struct sudmac_chan *sc = to_chan(schan);
-
 		BUG_ON(!schan);
 
-		shdma_free_irq(&sc->shdma_chan);
 		shdma_chan_remove(schan);
 	}
 	dma_dev->chancnt = 0;
@@ -335,7 +333,7 @@ static const struct shdma_ops sudmac_shdma_ops = {
 
 static int sudmac_probe(struct platform_device *pdev)
 {
-	struct sudmac_pdata *pdata = pdev->dev.platform_data;
+	struct sudmac_pdata *pdata = dev_get_platdata(&pdev->dev);
 	int err, i;
 	struct sudmac_device *su_dev;
 	struct dma_device *dma_dev;
@@ -345,9 +343,8 @@ static int sudmac_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENODEV;
 
-	chan = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!chan || !irq_res)
+	if (!irq_res)
 		return -ENODEV;
 
 	err = -ENOMEM;
@@ -360,9 +357,10 @@ static int sudmac_probe(struct platform_device *pdev)
 
 	dma_dev = &su_dev->shdma_dev.dma_dev;
 
-	su_dev->chan_reg = devm_request_and_ioremap(&pdev->dev, chan);
-	if (!su_dev->chan_reg)
-		return err;
+	chan = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	su_dev->chan_reg = devm_ioremap_resource(&pdev->dev, chan);
+	if (IS_ERR(su_dev->chan_reg))
+		return PTR_ERR(su_dev->chan_reg);
 
 	dma_cap_set(DMA_SLAVE, dma_dev->cap_mask);
 
@@ -373,7 +371,7 @@ static int sudmac_probe(struct platform_device *pdev)
 		return err;
 
 	/* platform data */
-	su_dev->pdata = pdev->dev.platform_data;
+	su_dev->pdata = dev_get_platdata(&pdev->dev);
 
 	platform_set_drvdata(pdev, su_dev);
 
@@ -393,7 +391,6 @@ static int sudmac_probe(struct platform_device *pdev)
 chan_probe_err:
 	sudmac_chan_remove(su_dev);
 
-	platform_set_drvdata(pdev, NULL);
 	shdma_cleanup(&su_dev->shdma_dev);
 
 	return err;
@@ -407,7 +404,6 @@ static int sudmac_remove(struct platform_device *pdev)
 	dma_async_device_unregister(dma_dev);
 	sudmac_chan_remove(su_dev);
 	shdma_cleanup(&su_dev->shdma_dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

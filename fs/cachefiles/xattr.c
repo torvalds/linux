@@ -157,6 +157,43 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 }
 
 /*
+ * check the consistency between the backing cache and the FS-Cache cookie
+ */
+int cachefiles_check_auxdata(struct cachefiles_object *object)
+{
+	struct cachefiles_xattr *auxbuf;
+	enum fscache_checkaux validity;
+	struct dentry *dentry = object->dentry;
+	ssize_t xlen;
+	int ret;
+
+	ASSERT(dentry);
+	ASSERT(dentry->d_inode);
+	ASSERT(object->fscache.cookie->def->check_aux);
+
+	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, GFP_KERNEL);
+	if (!auxbuf)
+		return -ENOMEM;
+
+	xlen = vfs_getxattr(dentry, cachefiles_xattr_cache,
+			    &auxbuf->type, 512 + 1);
+	ret = -ESTALE;
+	if (xlen < 1 ||
+	    auxbuf->type != object->fscache.cookie->def->type)
+		goto error;
+
+	xlen--;
+	validity = fscache_check_aux(&object->fscache, &auxbuf->data, xlen);
+	if (validity != FSCACHE_CHECKAUX_OKAY)
+		goto error;
+
+	ret = 0;
+error:
+	kfree(auxbuf);
+	return ret;
+}
+
+/*
  * check the state xattr on a cache file
  * - return -ESTALE if the object should be deleted
  */

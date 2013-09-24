@@ -1321,7 +1321,7 @@ de4x5_open(struct net_device *dev)
     if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 		                                     lp->adapter_name, dev)) {
 	printk("de4x5_open(): Requested IRQ%d is busy - attemping FAST/SHARE...", dev->irq);
-	if (request_irq(dev->irq, de4x5_interrupt, IRQF_DISABLED | IRQF_SHARED,
+	if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 			                             lp->adapter_name, dev)) {
 	    printk("\n              Cannot get IRQ- reconfigure your hardware.\n");
 	    disable_ast(dev);
@@ -2319,7 +2319,7 @@ static void de4x5_pci_remove(struct pci_dev *pdev)
 	struct net_device *dev;
 	u_long iobase;
 
-	dev = dev_get_drvdata(&pdev->dev);
+	dev = pci_get_drvdata(pdev);
 	iobase = dev->base_addr;
 
 	unregister_netdev (dev);

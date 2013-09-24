@@ -246,7 +246,7 @@ s_vGetDASA (
     *pcbHeaderSize = cbHeaderSize;
 }
 
-int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
+int RXbBulkInProcessData(struct vnt_private *pDevice, struct vnt_rcb *pRCB,
 	unsigned long BytesToIndicate)
 {
 	struct net_device_stats *pStats = &pDevice->stats;
@@ -271,7 +271,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 	/* signed long ldBm = 0; */
 	int bIsWEP = false; int bExtIV = false;
 	u32 dwWbkStatus;
-	PRCB pRCBIndicate = pRCB;
+	struct vnt_rcb *pRCBIndicate = pRCB;
 	u8 *pbyDAddress;
 	u16 *pwPLCP_Length;
 	u8 abyVaildRate[MAX_RATE]
@@ -314,7 +314,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
          (BytesToIndicate < (*pwPLCP_Length)) ) {
 
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Wrong PLCP Length %x\n", (int) *pwPLCP_Length);
-        ASSERT(0);
         return false;
     }
     for ( ii=RATE_1M;ii<MAX_RATE;ii++) {
@@ -1337,7 +1336,7 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
 void RXvWorkItem(struct vnt_private *pDevice)
 {
 	int ntStatus;
-	PRCB pRCB = NULL;
+	struct vnt_rcb *pRCB = NULL;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
     spin_lock_irq(&pDevice->lock);
@@ -1347,7 +1346,6 @@ void RXvWorkItem(struct vnt_private *pDevice)
             (pDevice->NumRecvFreeList != 0) ) {
         pRCB = pDevice->FirstRecvFreeList;
         pDevice->NumRecvFreeList--;
-        ASSERT(pRCB);// cannot be NULL
         DequeueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList);
         ntStatus = PIPEnsBulkInUsbRead(pDevice, pRCB);
     }
@@ -1356,14 +1354,11 @@ void RXvWorkItem(struct vnt_private *pDevice)
 
 }
 
-void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
+void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb)
 {
 	struct vnt_private *pDevice = pRCB->pDevice;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->RXvFreeRCB\n");
-
-    ASSERT(!pRCB->Ref);     // should be 0
-    ASSERT(pRCB->pDevice);  // shouldn't be NULL
 
 	if (bReAllocSkb == false) {
 		kfree_skb(pRCB->skb);
@@ -1396,7 +1391,7 @@ void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
 
 void RXvMngWorkItem(struct vnt_private *pDevice)
 {
-	PRCB pRCB = NULL;
+	struct vnt_rcb *pRCB = NULL;
 	struct vnt_rx_mgmt *pRxPacket;
 	int bReAllocSkb = false;
 
@@ -1411,7 +1406,6 @@ void RXvMngWorkItem(struct vnt_private *pDevice)
         if(!pRCB){
             break;
         }
-        ASSERT(pRCB);// cannot be NULL
         pRxPacket = &(pRCB->sMngPacket);
 	vMgrRxManagePacket(pDevice, &pDevice->vnt_mgmt, pRxPacket);
         pRCB->Ref--;

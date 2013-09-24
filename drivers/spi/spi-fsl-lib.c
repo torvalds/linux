@@ -122,7 +122,7 @@ const char *mpc8xxx_spi_strmode(unsigned int flags)
 int mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 			unsigned int irq)
 {
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct spi_master *master;
 	struct mpc8xxx_spi *mpc8xxx_spi;
 	int ret = 0;

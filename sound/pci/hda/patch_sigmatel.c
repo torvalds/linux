@@ -158,6 +158,7 @@ enum {
 	STAC_D965_VERBS,
 	STAC_DELL_3ST,
 	STAC_DELL_BIOS,
+	STAC_DELL_BIOS_AMIC,
 	STAC_DELL_BIOS_SPDIF,
 	STAC_927X_DELL_DMIC,
 	STAC_927X_VOLKNOB,
@@ -3231,8 +3232,6 @@ static const struct hda_fixup stac927x_fixups[] = {
 	[STAC_DELL_BIOS] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
-			/* configure the analog microphone on some laptops */
-			{ 0x0c, 0x90a79130 },
 			/* correct the front output jack as a hp out */
 			{ 0x0f, 0x0221101f },
 			/* correct the front input jack as a mic */
@@ -3241,6 +3240,16 @@ static const struct hda_fixup stac927x_fixups[] = {
 		},
 		.chained = true,
 		.chain_id = STAC_927X_DELL_DMIC,
+	},
+	[STAC_DELL_BIOS_AMIC] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			/* configure the analog microphone on some laptops */
+			{ 0x0c, 0x90a79130 },
+			{}
+		},
+		.chained = true,
+		.chain_id = STAC_DELL_BIOS,
 	},
 	[STAC_DELL_BIOS_SPDIF] = {
 		.type = HDA_FIXUP_PINS,
@@ -3270,6 +3279,7 @@ static const struct hda_model_fixup stac927x_models[] = {
 	{ .id = STAC_D965_5ST_NO_FP, .name = "5stack-no-fp" },
 	{ .id = STAC_DELL_3ST, .name = "dell-3stack" },
 	{ .id = STAC_DELL_BIOS, .name = "dell-bios" },
+	{ .id = STAC_DELL_BIOS_AMIC, .name = "dell-bios-amic" },
 	{ .id = STAC_927X_VOLKNOB, .name = "volknob" },
 	{}
 };

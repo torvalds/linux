@@ -29,13 +29,11 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_dir2_format.h"
+#include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_error.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
-
-STATIC xfs_dir2_data_free_t *
-xfs_dir2_data_freefind(xfs_dir2_data_hdr_t *hdr, xfs_dir2_data_unused_t *dup);
 
 /*
  * Check the consistency of the data block.
@@ -149,8 +147,10 @@ __xfs_dir3_data_check(
 		XFS_WANT_CORRUPTED_RETURN(
 			!xfs_dir_ino_validate(mp, be64_to_cpu(dep->inumber)));
 		XFS_WANT_CORRUPTED_RETURN(
-			be16_to_cpu(*xfs_dir2_data_entry_tag_p(dep)) ==
+			be16_to_cpu(*xfs_dir3_data_entry_tag_p(mp, dep)) ==
 					       (char *)dep - (char *)hdr);
+		XFS_WANT_CORRUPTED_RETURN(
+			xfs_dir3_dirent_get_ftype(mp, dep) < XFS_DIR3_FT_MAX);
 		count++;
 		lastfree = 0;
 		if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
@@ -168,7 +168,7 @@ __xfs_dir3_data_check(
 			}
 			XFS_WANT_CORRUPTED_RETURN(i < be32_to_cpu(btp->count));
 		}
-		p += xfs_dir2_data_entsize(dep->namelen);
+		p += xfs_dir3_data_entsize(mp, dep->namelen);
 	}
 	/*
 	 * Need to have seen all the entries and all the bestfree slots.
@@ -325,7 +325,7 @@ xfs_dir3_data_readahead(
  * Given a data block and an unused entry from that block,
  * return the bestfree entry if any that corresponds to it.
  */
-STATIC xfs_dir2_data_free_t *
+xfs_dir2_data_free_t *
 xfs_dir2_data_freefind(
 	xfs_dir2_data_hdr_t	*hdr,		/* data block */
 	xfs_dir2_data_unused_t	*dup)		/* data unused entry */
@@ -333,7 +333,7 @@ xfs_dir2_data_freefind(
 	xfs_dir2_data_free_t	*dfp;		/* bestfree entry */
 	xfs_dir2_data_aoff_t	off;		/* offset value needed */
 	struct xfs_dir2_data_free *bf;
-#if defined(DEBUG) && defined(__KERNEL__)
+#ifdef DEBUG
 	int			matched;	/* matched the value */
 	int			seenzero;	/* saw a 0 bestfree entry */
 #endif
@@ -341,7 +341,7 @@ xfs_dir2_data_freefind(
 	off = (xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr);
 	bf = xfs_dir3_data_bestfree_p(hdr);
 
-#if defined(DEBUG) && defined(__KERNEL__)
+#ifdef DEBUG
 	/*
 	 * Validate some consistency in the bestfree table.
 	 * Check order, non-overlapping entries, and if we find the
@@ -538,8 +538,8 @@ xfs_dir2_data_freescan(
 		else {
 			dep = (xfs_dir2_data_entry_t *)p;
 			ASSERT((char *)dep - (char *)hdr ==
-			       be16_to_cpu(*xfs_dir2_data_entry_tag_p(dep)));
-			p += xfs_dir2_data_entsize(dep->namelen);
+			       be16_to_cpu(*xfs_dir3_data_entry_tag_p(mp, dep)));
+			p += xfs_dir3_data_entsize(mp, dep->namelen);
 		}
 	}
 }
@@ -629,7 +629,8 @@ xfs_dir2_data_log_entry(
 	struct xfs_buf		*bp,
 	xfs_dir2_data_entry_t	*dep)		/* data entry pointer */
 {
-	xfs_dir2_data_hdr_t	*hdr = bp->b_addr;
+	struct xfs_dir2_data_hdr *hdr = bp->b_addr;
+	struct xfs_mount	*mp = tp->t_mountp;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
@@ -637,7 +638,7 @@ xfs_dir2_data_log_entry(
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 
 	xfs_trans_log_buf(tp, bp, (uint)((char *)dep - (char *)hdr),
-		(uint)((char *)(xfs_dir2_data_entry_tag_p(dep) + 1) -
+		(uint)((char *)(xfs_dir3_data_entry_tag_p(mp, dep) + 1) -
 		       (char *)hdr - 1));
 }
 

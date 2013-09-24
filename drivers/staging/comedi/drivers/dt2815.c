@@ -51,9 +51,9 @@ Configuration options:
   [12] - Analog output 7 range configuration (same options)
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
 #include <linux/delay.h>
 
 #define DT2815_SIZE 2
@@ -165,10 +165,9 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	/* ao subdevice */

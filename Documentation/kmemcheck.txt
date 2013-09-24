@@ -91,9 +91,9 @@ information from the kmemcheck warnings, which is extremely valuable in
 debugging a problem. This option is not mandatory, however, because it slows
 down the compilation process and produces a much bigger kernel image.
 
-Now the kmemcheck menu should be visible (under "Kernel hacking" / "kmemcheck:
-trap use of uninitialized memory"). Here follows a description of the
-kmemcheck configuration variables:
+Now the kmemcheck menu should be visible (under "Kernel hacking" / "Memory
+Debugging" / "kmemcheck: trap use of uninitialized memory"). Here follows
+a description of the kmemcheck configuration variables:
 
   o CONFIG_KMEMCHECK
 

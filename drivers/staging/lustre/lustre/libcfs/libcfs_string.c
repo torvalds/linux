@@ -69,7 +69,6 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 	const char *debugstr;
 	char op = 0;
 	int newmask = minmask, i, len, found = 0;
-	ENTRY;
 
 	/* <str> must be a list of tokens separated by whitespace
 	 * and optionally an operator ('+' or '-').  If an operator
@@ -131,54 +130,6 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 	return 0;
 }
 EXPORT_SYMBOL(cfs_str2mask);
-
-/* Duplicate a string in a platform-independent way */
-char *cfs_strdup(const char *str, u_int32_t flags)
-{
-	size_t lenz; /* length of str + zero byte */
-	char *dup_str;
-
-	lenz = strlen(str) + 1;
-
-	dup_str = kmalloc(lenz, flags);
-	if (dup_str == NULL)
-		return NULL;
-
-	memcpy(dup_str, str, lenz);
-
-	return dup_str;
-}
-EXPORT_SYMBOL(cfs_strdup);
-
-/**
- * cfs_{v}snprintf() return the actual size that is printed rather than
- * the size that would be printed in standard functions.
- */
-/* safe vsnprintf */
-int cfs_vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
-{
-	int i;
-
-	LASSERT(size > 0);
-	i = vsnprintf(buf, size, fmt, args);
-
-	return  (i >= size ? size - 1 : i);
-}
-EXPORT_SYMBOL(cfs_vsnprintf);
-
-/* safe snprintf */
-int cfs_snprintf(char *buf, size_t size, const char *fmt, ...)
-{
-	va_list args;
-	int i;
-
-	va_start(args, fmt);
-	i = cfs_vsnprintf(buf, size, fmt, args);
-	va_end(args);
-
-	return  i;
-}
-EXPORT_SYMBOL(cfs_snprintf);
 
 /* get the first string out of @str */
 char *cfs_firststr(char *str, size_t size)

@@ -70,7 +70,7 @@ static int compat_hdio_getgeo(struct gendisk *disk, struct block_device *bdev,
 		return ret;
 
 	ret = copy_to_user(ugeo, &geo, 4);
-	ret |= __put_user(geo.start, &ugeo->start);
+	ret |= put_user(geo.start, &ugeo->start);
 	if (ret)
 		ret = -EFAULT;
 

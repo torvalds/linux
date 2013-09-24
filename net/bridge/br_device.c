@@ -71,7 +71,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		mdst = br_mdb_get(br, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
-		    br_multicast_querier_exists(br))
+		    br_multicast_querier_exists(br, eth_hdr(skb)))
 			br_multicast_deliver(mdst, skb);
 		else
 			br_flood_deliver(br, skb, false);
@@ -245,22 +245,22 @@ fail:
 int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
 {
 	struct netpoll *np;
-	int err = 0;
+	int err;
+
+	if (!p->br->dev->npinfo)
+		return 0;
 
 	np = kzalloc(sizeof(*p->np), gfp);
-	err = -ENOMEM;
 	if (!np)
-		goto out;
+		return -ENOMEM;
 
 	err = __netpoll_setup(np, p->dev, gfp);
 	if (err) {
 		kfree(np);
-		goto out;
+		return err;
 	}
 
 	p->np = np;
-
-out:
 	return err;
 }
 

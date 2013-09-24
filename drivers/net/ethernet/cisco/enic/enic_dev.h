@@ -20,6 +20,7 @@
 #define _ENIC_DEV_H_
 
 #include "vnic_dev.h"
+#include "vnic_vic.h"
 
 /*
  * Calls the devcmd function given by argument vnicdevcmdfn.

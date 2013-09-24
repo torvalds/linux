@@ -185,7 +185,7 @@ static int __exit hid_unbind(struct usb_composite_dev *cdev)
 
 static int __init hidg_plat_driver_probe(struct platform_device *pdev)
 {
-	struct hidg_func_descriptor *func = pdev->dev.platform_data;
+	struct hidg_func_descriptor *func = dev_get_platdata(&pdev->dev);
 	struct hidg_func_node *entry;
 
 	if (!func) {

@@ -31,6 +31,14 @@
 #include "db8500-regs.h"
 #include "id.h"
 
+void ux500_restart(enum reboot_mode mode, const char *cmd)
+{
+	local_irq_disable();
+	local_fiq_disable();
+
+	prcmu_system_reset(0);
+}
+
 /*
  * FIXME: Should we set up the GPIO domain here?
  *

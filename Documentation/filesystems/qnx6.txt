@@ -149,7 +149,7 @@ Bitmap system area
 ------------------
 
 The bitmap itself is divided into three parts.
-First the system area, that is split into two halfs.
+First the system area, that is split into two halves.
 Then userspace.
 
 The requirement for a static, fixed preallocated system area comes from how

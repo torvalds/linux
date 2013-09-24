@@ -460,6 +460,25 @@ static int iio_compute_scan_bytes(struct iio_dev *indio_dev, const long *mask,
 	return bytes;
 }
 
+void iio_disable_all_buffers(struct iio_dev *indio_dev)
+{
+	struct iio_buffer *buffer, *_buffer;
+
+	if (list_empty(&indio_dev->buffer_list))
+		return;
+
+	if (indio_dev->setup_ops->predisable)
+		indio_dev->setup_ops->predisable(indio_dev);
+
+	list_for_each_entry_safe(buffer, _buffer,
+			&indio_dev->buffer_list, buffer_list)
+		list_del_init(&buffer->buffer_list);
+
+	indio_dev->currentmode = INDIO_DIRECT_MODE;
+	if (indio_dev->setup_ops->postdisable)
+		indio_dev->setup_ops->postdisable(indio_dev);
+}
+
 int iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,
 		       struct iio_buffer *remove_buffer)
@@ -528,8 +547,15 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 			 * Note can only occur when adding a buffer.
 			 */
 			list_del(&insert_buffer->buffer_list);
-			indio_dev->active_scan_mask = old_mask;
-			success = -EINVAL;
+			if (old_mask) {
+				indio_dev->active_scan_mask = old_mask;
+				success = -EINVAL;
+			}
+			else {
+				kfree(compound_mask);
+				ret = -EINVAL;
+				goto error_ret;
+			}
 		}
 	} else {
 		indio_dev->active_scan_mask = compound_mask;

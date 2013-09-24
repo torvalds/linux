@@ -78,6 +78,8 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 			 symbol_conf.symfs, build_id_hex, build_id_hex + 2);
 		break;
 
+	case DSO_BINARY_TYPE__VMLINUX:
+	case DSO_BINARY_TYPE__GUEST_VMLINUX:
 	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
 		snprintf(file, size, "%s%s",
 			 symbol_conf.symfs, dso->long_name);
@@ -93,11 +95,14 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 			 dso->long_name);
 		break;
 
+	case DSO_BINARY_TYPE__KCORE:
+	case DSO_BINARY_TYPE__GUEST_KCORE:
+		snprintf(file, size, "%s", dso->long_name);
+		break;
+
 	default:
 	case DSO_BINARY_TYPE__KALLSYMS:
-	case DSO_BINARY_TYPE__VMLINUX:
 	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
-	case DSO_BINARY_TYPE__GUEST_VMLINUX:
 	case DSO_BINARY_TYPE__JAVA_JIT:
 	case DSO_BINARY_TYPE__NOT_FOUND:
 		ret = -1;
@@ -419,6 +424,7 @@ struct dso *dso__new(const char *name)
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->data_type   = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->loaded = 0;
+		dso->rel = 0;
 		dso->sorted_by_name = 0;
 		dso->has_build_id = 0;
 		dso->kernel = DSO_TYPE_USER;

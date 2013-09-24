@@ -168,6 +168,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	case ETH_P_8021Q:
 		vhdr = (struct vlan_ethhdr *)skb->data;
 		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
+		vid |= BATADV_VLAN_HAS_TAG;
 
 		if (vhdr->h_vlan_encapsulated_proto != ethertype)
 			break;
@@ -228,6 +229,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		 * (batadv_gw_is_dhcp_target() might have reallocated skb data)
 		 */
 	}
+
+	batadv_skb_set_priority(skb, 0);
 
 	/* ethernet packet should be broadcasted */
 	if (do_bcast) {
@@ -329,6 +332,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	case ETH_P_8021Q:
 		vhdr = (struct vlan_ethhdr *)skb->data;
 		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
+		vid |= BATADV_VLAN_HAS_TAG;
 
 		if (vhdr->h_vlan_encapsulated_proto != ethertype)
 			break;

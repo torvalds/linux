@@ -27,6 +27,11 @@
 		bootargs ="console=ttySAC2,115200";
 	};
 
+	firmware@0203F000 {
+		compatible = "samsung,secure-firmware";
+		reg = <0x0203F000 0x1000>;
+	};
+
 	mmc_reg: voltage-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "VMEM_VDD_2.8V";

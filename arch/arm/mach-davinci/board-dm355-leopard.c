@@ -173,10 +173,6 @@ static struct platform_device *davinci_leopard_devices[] __initdata = {
 	&davinci_nand_device,
 };
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 static void __init dm355_leopard_map_io(void)
 {
 	dm355_init();
@@ -252,7 +248,7 @@ static __init void dm355_leopard_init(void)
 	platform_add_devices(davinci_leopard_devices,
 			     ARRAY_SIZE(davinci_leopard_devices));
 	leopard_init_i2c();
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm355_serial_device);
 
 	/* NOTE:  NAND flash timings set by the UBL are slower than
 	 * needed by MT29F16G08FAA chips ... EMIF.A1CR is 0x40400204

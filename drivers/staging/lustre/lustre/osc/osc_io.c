@@ -261,7 +261,6 @@ static int osc_io_prepare_write(const struct lu_env *env,
 	struct obd_import *imp = class_exp2cliimp(dev->od_exp);
 	struct osc_io     *oio = cl2osc_io(env, ios);
 	int result = 0;
-	ENTRY;
 
 	/*
 	 * This implements OBD_BRW_CHECK logic from old client.
@@ -276,7 +275,7 @@ static int osc_io_prepare_write(const struct lu_env *env,
 		 * [from, to) bytes of this page to OST. -jay */
 		cl_page_export(env, slice->cpl_page, 1);
 
-	RETURN(result);
+	return result;
 }
 
 static int osc_io_commit_write(const struct lu_env *env,
@@ -288,7 +287,6 @@ static int osc_io_commit_write(const struct lu_env *env,
 	struct osc_page       *opg = cl2osc_page(slice);
 	struct osc_object     *obj = cl2osc(opg->ops_cl.cpl_obj);
 	struct osc_async_page *oap = &opg->ops_oap;
-	ENTRY;
 
 	LASSERT(to > 0);
 	/*
@@ -306,7 +304,7 @@ static int osc_io_commit_write(const struct lu_env *env,
 		/* see osc_io_prepare_write() for lockless io handling. */
 		cl_page_clip(env, slice->cpl_page, from, to);
 
-	RETURN(0);
+	return 0;
 }
 
 static int osc_io_fault_start(const struct lu_env *env,
@@ -314,8 +312,6 @@ static int osc_io_fault_start(const struct lu_env *env,
 {
 	struct cl_io       *io;
 	struct cl_fault_io *fio;
-
-	ENTRY;
 
 	io  = ios->cis_io;
 	fio = &io->u.ci_fault;
@@ -329,7 +325,7 @@ static int osc_io_fault_start(const struct lu_env *env,
 	if (fio->ft_writable)
 		osc_page_touch_at(env, ios->cis_obj,
 				  fio->ft_index, fio->ft_nob);
-	RETURN(0);
+	return 0;
 }
 
 static int osc_async_upcall(void *a, int rc)
@@ -517,19 +513,18 @@ static int osc_io_read_start(const struct lu_env *env,
 	struct cl_object *obj   = slice->cis_obj;
 	struct cl_attr   *attr  = &osc_env_info(env)->oti_attr;
 	int	      result = 0;
-	ENTRY;
 
 	if (oio->oi_lockless == 0) {
 		cl_object_attr_lock(obj);
 		result = cl_object_attr_get(env, obj, attr);
 		if (result == 0) {
-			attr->cat_atime = LTIME_S(CFS_CURRENT_TIME);
+			attr->cat_atime = LTIME_S(CURRENT_TIME);
 			result = cl_object_attr_set(env, obj, attr,
 						    CAT_ATIME);
 		}
 		cl_object_attr_unlock(obj);
 	}
-	RETURN(result);
+	return result;
 }
 
 static int osc_io_write_start(const struct lu_env *env,
@@ -539,7 +534,6 @@ static int osc_io_write_start(const struct lu_env *env,
 	struct cl_object *obj   = slice->cis_obj;
 	struct cl_attr   *attr  = &osc_env_info(env)->oti_attr;
 	int	      result = 0;
-	ENTRY;
 
 	if (oio->oi_lockless == 0) {
 		OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_DELAY_SETTIME, 1);
@@ -547,13 +541,13 @@ static int osc_io_write_start(const struct lu_env *env,
 		result = cl_object_attr_get(env, obj, attr);
 		if (result == 0) {
 			attr->cat_mtime = attr->cat_ctime =
-				LTIME_S(CFS_CURRENT_TIME);
+				LTIME_S(CURRENT_TIME);
 			result = cl_object_attr_set(env, obj, attr,
 						    CAT_MTIME | CAT_CTIME);
 		}
 		cl_object_attr_unlock(obj);
 	}
-	RETURN(result);
+	return result;
 }
 
 static int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
@@ -565,7 +559,6 @@ static int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
 	struct lov_oinfo *loi   = obj->oo_oinfo;
 	struct osc_async_cbargs *cbargs = &oio->oi_cbarg;
 	int rc = 0;
-	ENTRY;
 
 	memset(oa, 0, sizeof(*oa));
 	oa->o_oi = loi->loi_oi;
@@ -585,7 +578,7 @@ static int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
 
 	rc = osc_sync_base(osc_export(obj), oinfo, osc_async_upcall, cbargs,
 			   PTLRPCD_SET);
-	RETURN(rc);
+	return rc;
 }
 
 static int osc_io_fsync_start(const struct lu_env *env,
@@ -598,7 +591,6 @@ static int osc_io_fsync_start(const struct lu_env *env,
 	pgoff_t start  = cl_index(obj, fio->fi_start);
 	pgoff_t end    = cl_index(obj, fio->fi_end);
 	int     result = 0;
-	ENTRY;
 
 	if (fio->fi_end == OBD_OBJECT_EOF)
 		end = CL_PAGE_EOF;
@@ -625,7 +617,7 @@ static int osc_io_fsync_start(const struct lu_env *env,
 			result = rc;
 	}
 
-	RETURN(result);
+	return result;
 }
 
 static void osc_io_fsync_end(const struct lu_env *env,
@@ -785,7 +777,7 @@ static void osc_req_attr_set(const struct lu_env *env,
 					      "no cover page!\n");
 			CL_PAGE_DEBUG(D_ERROR, env, apage,
 				      "dump uncover page!\n");
-			libcfs_debug_dumpstack(NULL);
+			dump_stack();
 			LBUG();
 		}
 

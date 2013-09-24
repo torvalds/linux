@@ -134,11 +134,8 @@ static void dwc2_kill_urbs_in_qh_list(struct dwc2_hsotg *hsotg,
 	list_for_each_entry_safe(qh, qh_tmp, qh_list, qh_list_entry) {
 		list_for_each_entry_safe(qtd, qtd_tmp, &qh->qtd_list,
 					 qtd_list_entry) {
-			if (qtd->urb != NULL) {
-				dwc2_host_complete(hsotg, qtd->urb->priv,
-						   qtd->urb, -ETIMEDOUT);
-				dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
-			}
+			dwc2_host_complete(hsotg, qtd, -ETIMEDOUT);
+			dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
 		}
 	}
 }
@@ -420,6 +417,8 @@ static int dwc2_hcd_urb_dequeue(struct dwc2_hsotg *hsotg,
 		dev_dbg(hsotg->dev, "## Urb QTD QH is NULL ##\n");
 		return -EINVAL;
 	}
+
+	urb->priv = NULL;
 
 	if (urb_qtd->in_process && qh->channel) {
 		dwc2_dump_channel_info(hsotg, qh->channel);
@@ -1006,10 +1005,10 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 		dev_vdbg(hsotg->dev, "Queue periodic transactions\n");
 
 	tx_status = readl(hsotg->regs + HPTXSTS);
-	qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-		    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
-	fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-		    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+	qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+		    TXSTS_QSPCAVAIL_SHIFT;
+	fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+		    TXSTS_FSPCAVAIL_SHIFT;
 
 	if (dbg_perio()) {
 		dev_vdbg(hsotg->dev, "  P Tx Req Queue Space Avail (before queue): %d\n",
@@ -1021,7 +1020,9 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 	qh_ptr = hsotg->periodic_sched_assigned.next;
 	while (qh_ptr != &hsotg->periodic_sched_assigned) {
 		tx_status = readl(hsotg->regs + HPTXSTS);
-		if ((tx_status & TXSTS_QSPCAVAIL_MASK) == 0) {
+		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+			    TXSTS_QSPCAVAIL_SHIFT;
+		if (qspcavail == 0) {
 			no_queue_space = 1;
 			break;
 		}
@@ -1047,8 +1048,8 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 				qh->channel->multi_count > 1)
 			hsotg->queuing_high_bandwidth = 1;
 
-		fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-			    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+			    TXSTS_FSPCAVAIL_SHIFT;
 		status = dwc2_queue_transaction(hsotg, qh->channel, fspcavail);
 		if (status < 0) {
 			no_fifo_space = 1;
@@ -1079,10 +1080,10 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 
 	if (hsotg->core_params->dma_enable <= 0) {
 		tx_status = readl(hsotg->regs + HPTXSTS);
-		qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-			    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
-		fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-			    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+			    TXSTS_QSPCAVAIL_SHIFT;
+		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+			    TXSTS_FSPCAVAIL_SHIFT;
 		if (dbg_perio()) {
 			dev_vdbg(hsotg->dev,
 				 "  P Tx Req Queue Space Avail (after queue): %d\n",
@@ -1144,10 +1145,10 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 	dev_vdbg(hsotg->dev, "Queue non-periodic transactions\n");
 
 	tx_status = readl(hsotg->regs + GNPTXSTS);
-	qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-		    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
-	fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-		    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+	qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+		    TXSTS_QSPCAVAIL_SHIFT;
+	fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+		    TXSTS_FSPCAVAIL_SHIFT;
 	dev_vdbg(hsotg->dev, "  NP Tx Req Queue Space Avail (before queue): %d\n",
 		 qspcavail);
 	dev_vdbg(hsotg->dev, "  NP Tx FIFO Space Avail (before queue): %d\n",
@@ -1167,8 +1168,8 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 	 */
 	do {
 		tx_status = readl(hsotg->regs + GNPTXSTS);
-		qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-			    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
+		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+			    TXSTS_QSPCAVAIL_SHIFT;
 		if (hsotg->core_params->dma_enable <= 0 && qspcavail == 0) {
 			no_queue_space = 1;
 			break;
@@ -1183,8 +1184,8 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 		if (qh->tt_buffer_dirty)
 			goto next;
 
-		fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-			    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+			    TXSTS_FSPCAVAIL_SHIFT;
 		status = dwc2_queue_transaction(hsotg, qh->channel, fspcavail);
 
 		if (status > 0) {
@@ -1204,10 +1205,10 @@ next:
 
 	if (hsotg->core_params->dma_enable <= 0) {
 		tx_status = readl(hsotg->regs + GNPTXSTS);
-		qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-			    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
-		fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-			    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+			    TXSTS_QSPCAVAIL_SHIFT;
+		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+			    TXSTS_FSPCAVAIL_SHIFT;
 		dev_vdbg(hsotg->dev,
 			 "  NP Tx Req Queue Space Avail (after queue): %d\n",
 			 qspcavail);
@@ -1613,7 +1614,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		if (hprt0 & HPRT0_PWR)
 			port_status |= USB_PORT_STAT_POWER;
 
-		speed = hprt0 & HPRT0_SPD_MASK;
+		speed = (hprt0 & HPRT0_SPD_MASK) >> HPRT0_SPD_SHIFT;
 		if (speed == HPRT0_SPD_HIGH_SPEED)
 			port_status |= USB_PORT_STAT_HIGH_SPEED;
 		else if (speed == HPRT0_SPD_LOW_SPEED)
@@ -1762,11 +1763,9 @@ int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 
 #ifdef DWC2_DEBUG_SOF
 	dev_vdbg(hsotg->dev, "DWC OTG HCD GET FRAME NUMBER %d\n",
-		 hfnum >> HFNUM_FRNUM_SHIFT &
-		 HFNUM_FRNUM_MASK >> HFNUM_FRNUM_SHIFT);
+		 (hfnum & HFNUM_FRNUM_MASK) >> HFNUM_FRNUM_SHIFT);
 #endif
-	return hfnum >> HFNUM_FRNUM_SHIFT &
-	       HFNUM_FRNUM_MASK >> HFNUM_FRNUM_SHIFT;
+	return (hfnum & HFNUM_FRNUM_MASK) >> HFNUM_FRNUM_SHIFT;
 }
 
 int dwc2_hcd_is_b_host(struct dwc2_hsotg *hsotg)
@@ -1917,18 +1916,14 @@ void dwc2_hcd_dump_state(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "  periodic_usecs: %d\n", hsotg->periodic_usecs);
 	np_tx_status = readl(hsotg->regs + GNPTXSTS);
 	dev_dbg(hsotg->dev, "  NP Tx Req Queue Space Avail: %d\n",
-		np_tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-		TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT);
+		(np_tx_status & TXSTS_QSPCAVAIL_MASK) >> TXSTS_QSPCAVAIL_SHIFT);
 	dev_dbg(hsotg->dev, "  NP Tx FIFO Space Avail: %d\n",
-		np_tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-		TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT);
+		(np_tx_status & TXSTS_FSPCAVAIL_MASK) >> TXSTS_FSPCAVAIL_SHIFT);
 	p_tx_status = readl(hsotg->regs + HPTXSTS);
 	dev_dbg(hsotg->dev, "  P Tx Req Queue Space Avail: %d\n",
-		p_tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-		TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT);
+		(p_tx_status & TXSTS_QSPCAVAIL_MASK) >> TXSTS_QSPCAVAIL_SHIFT);
 	dev_dbg(hsotg->dev, "  P Tx FIFO Space Avail: %d\n",
-		p_tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-		TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT);
+		(p_tx_status & TXSTS_FSPCAVAIL_MASK) >> TXSTS_FSPCAVAIL_SHIFT);
 	dwc2_hcd_dump_frrem(hsotg);
 	dwc2_dump_global_registers(hsotg);
 	dwc2_dump_host_registers(hsotg);
@@ -2088,23 +2083,29 @@ static void dwc2_free_bus_bandwidth(struct usb_hcd *hcd, u16 bw,
  *
  * Must be called with interrupt disabled and spinlock held
  */
-void dwc2_host_complete(struct dwc2_hsotg *hsotg, void *context,
-			struct dwc2_hcd_urb *dwc2_urb, int status)
+void dwc2_host_complete(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
+			int status)
 {
-	struct urb *urb = context;
+	struct urb *urb;
 	int i;
 
+	if (!qtd) {
+		dev_dbg(hsotg->dev, "## %s: qtd is NULL ##\n", __func__);
+		return;
+	}
+
+	if (!qtd->urb) {
+		dev_dbg(hsotg->dev, "## %s: qtd->urb is NULL ##\n", __func__);
+		return;
+	}
+
+	urb = qtd->urb->priv;
 	if (!urb) {
-		dev_dbg(hsotg->dev, "## %s: context is NULL ##\n", __func__);
+		dev_dbg(hsotg->dev, "## %s: urb->priv is NULL ##\n", __func__);
 		return;
 	}
 
-	if (!dwc2_urb) {
-		dev_dbg(hsotg->dev, "## %s: dwc2_urb is NULL ##\n", __func__);
-		return;
-	}
-
-	urb->actual_length = dwc2_hcd_urb_get_actual_length(dwc2_urb);
+	urb->actual_length = dwc2_hcd_urb_get_actual_length(qtd->urb);
 
 	if (dbg_urb(urb))
 		dev_vdbg(hsotg->dev,
@@ -2121,18 +2122,17 @@ void dwc2_host_complete(struct dwc2_hsotg *hsotg, void *context,
 	}
 
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-		urb->error_count = dwc2_hcd_urb_get_error_count(dwc2_urb);
+		urb->error_count = dwc2_hcd_urb_get_error_count(qtd->urb);
 		for (i = 0; i < urb->number_of_packets; ++i) {
 			urb->iso_frame_desc[i].actual_length =
 				dwc2_hcd_urb_get_iso_desc_actual_length(
-						dwc2_urb, i);
+						qtd->urb, i);
 			urb->iso_frame_desc[i].status =
-				dwc2_hcd_urb_get_iso_desc_status(dwc2_urb, i);
+				dwc2_hcd_urb_get_iso_desc_status(qtd->urb, i);
 		}
 	}
 
 	urb->status = status;
-	urb->hcpriv = NULL;
 	if (!status) {
 		if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
 		    urb->actual_length < urb->transfer_buffer_length)
@@ -2149,7 +2149,10 @@ void dwc2_host_complete(struct dwc2_hsotg *hsotg, void *context,
 					urb);
 	}
 
-	kfree(dwc2_urb);
+	usb_hcd_unlink_urb_from_ep(dwc2_hsotg_to_hcd(hsotg), urb);
+	urb->hcpriv = NULL;
+	kfree(qtd->urb);
+	qtd->urb = NULL;
 
 	spin_unlock(&hsotg->lock);
 	usb_hcd_giveback_urb(dwc2_hsotg_to_hcd(hsotg), urb, status);
@@ -2337,8 +2340,8 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	struct usb_host_endpoint *ep = urb->ep;
 	struct dwc2_hcd_urb *dwc2_urb;
 	int i;
+	int retval;
 	int alloc_bandwidth = 0;
-	int retval = 0;
 	u8 ep_type = 0;
 	u32 tflags = 0;
 	void *buf;
@@ -2389,14 +2392,15 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 						!(usb_pipein(urb->pipe))));
 
 	buf = urb->transfer_buffer;
+
 	if (hcd->self.uses_dma) {
-		/*
-		 * Calculate virtual address from physical address, because
-		 * some class driver may not fill transfer_buffer.
-		 * In Buffer DMA mode virtual address is used, when handling
-		 * non-DWORD aligned buffers.
-		 */
-		buf = bus_to_virt(urb->transfer_dma);
+		if (!buf && (urb->transfer_dma & 3)) {
+			dev_err(hsotg->dev,
+				"%s: unaligned transfer with no transfer_buffer",
+				__func__);
+			retval = -EINVAL;
+			goto fail1;
+		}
 	}
 
 	if (!(urb->transfer_flags & URB_NO_INTERRUPT))
@@ -2420,20 +2424,35 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 						 urb->iso_frame_desc[i].length);
 
 	urb->hcpriv = dwc2_urb;
-	retval = dwc2_hcd_urb_enqueue(hsotg, dwc2_urb, &ep->hcpriv,
-				      mem_flags);
-	if (retval) {
-		urb->hcpriv = NULL;
-		kfree(dwc2_urb);
-	} else {
-		if (alloc_bandwidth) {
-			spin_lock_irqsave(&hsotg->lock, flags);
-			dwc2_allocate_bus_bandwidth(hcd,
-					dwc2_hcd_get_ep_bandwidth(hsotg, ep),
-					urb);
-			spin_unlock_irqrestore(&hsotg->lock, flags);
-		}
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	retval = usb_hcd_link_urb_to_ep(hcd, urb);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+	if (retval)
+		goto fail1;
+
+	retval = dwc2_hcd_urb_enqueue(hsotg, dwc2_urb, &ep->hcpriv, mem_flags);
+	if (retval)
+		goto fail2;
+
+	if (alloc_bandwidth) {
+		spin_lock_irqsave(&hsotg->lock, flags);
+		dwc2_allocate_bus_bandwidth(hcd,
+				dwc2_hcd_get_ep_bandwidth(hsotg, ep),
+				urb);
+		spin_unlock_irqrestore(&hsotg->lock, flags);
 	}
+
+	return 0;
+
+fail2:
+	spin_lock_irqsave(&hsotg->lock, flags);
+	dwc2_urb->priv = NULL;
+	usb_hcd_unlink_urb_from_ep(hcd, urb);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+fail1:
+	urb->hcpriv = NULL;
+	kfree(dwc2_urb);
 
 	return retval;
 }
@@ -2445,7 +2464,7 @@ static int _dwc2_hcd_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 				 int status)
 {
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
-	int rc = 0;
+	int rc;
 	unsigned long flags;
 
 	dev_dbg(hsotg->dev, "DWC OTG HCD URB Dequeue\n");
@@ -2453,12 +2472,18 @@ static int _dwc2_hcd_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
+		goto out;
+
 	if (!urb->hcpriv) {
 		dev_dbg(hsotg->dev, "## urb->hcpriv is NULL ##\n");
 		goto out;
 	}
 
 	rc = dwc2_hcd_urb_dequeue(hsotg, urb->hcpriv);
+
+	usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 	kfree(urb->hcpriv);
 	urb->hcpriv = NULL;
@@ -2653,7 +2678,7 @@ static void dwc2_hcd_free(struct dwc2_hsotg *hsotg)
 	writel(ahbcfg, hsotg->regs + GAHBCFG);
 	writel(0, hsotg->regs + GINTMSK);
 
-	if (hsotg->snpsid >= DWC2_CORE_REV_3_00a) {
+	if (hsotg->hw_params.snpsid >= DWC2_CORE_REV_3_00a) {
 		dctl = readl(hsotg->regs + DCTL);
 		dctl |= DCTL_SFTDISCON;
 		writel(dctl, hsotg->regs + DCTL);
@@ -2690,7 +2715,7 @@ void dwc2_set_all_params(struct dwc2_core_params *params, int value)
 	int i;
 
 	for (i = 0; i < size; i++)
-		p[i] = -1;
+		p[i] = value;
 }
 EXPORT_SYMBOL_GPL(dwc2_set_all_params);
 
@@ -2705,79 +2730,22 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 {
 	struct usb_hcd *hcd;
 	struct dwc2_host_chan *channel;
-	u32 snpsid, gusbcfg, hcfg;
+	u32 hcfg;
 	int i, num_channels;
-	int retval = -ENOMEM;
+	int retval;
 
 	dev_dbg(hsotg->dev, "DWC OTG HCD INIT\n");
 
-	/*
-	 * Attempt to ensure this device is really a DWC_otg Controller.
-	 * Read and verify the GSNPSID register contents. The value should be
-	 * 0x45f42xxx or 0x45f43xxx, which corresponds to either "OT2" or "OT3",
-	 * as in "OTG version 2.xx" or "OTG version 3.xx".
-	 */
-	snpsid = readl(hsotg->regs + GSNPSID);
-	if ((snpsid & 0xfffff000) != 0x4f542000 &&
-	    (snpsid & 0xfffff000) != 0x4f543000) {
-		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n", snpsid);
-		retval = -ENODEV;
-		goto error1;
-	}
+	/* Detect config values from hardware */
+	retval = dwc2_get_hwparams(hsotg);
 
-	/*
-	 * Store the contents of the hardware configuration registers here for
-	 * easy access later
-	 */
-	hsotg->hwcfg1 = readl(hsotg->regs + GHWCFG1);
-	hsotg->hwcfg2 = readl(hsotg->regs + GHWCFG2);
-	hsotg->hwcfg3 = readl(hsotg->regs + GHWCFG3);
-	hsotg->hwcfg4 = readl(hsotg->regs + GHWCFG4);
+	if (retval)
+		return retval;
 
-	dev_dbg(hsotg->dev, "hwcfg1=%08x\n", hsotg->hwcfg1);
-	dev_dbg(hsotg->dev, "hwcfg2=%08x\n", hsotg->hwcfg2);
-	dev_dbg(hsotg->dev, "hwcfg3=%08x\n", hsotg->hwcfg3);
-	dev_dbg(hsotg->dev, "hwcfg4=%08x\n", hsotg->hwcfg4);
-
-	/* Force host mode to get HPTXFSIZ exact power on value */
-	gusbcfg = readl(hsotg->regs + GUSBCFG);
-	gusbcfg |= GUSBCFG_FORCEHOSTMODE;
-	writel(gusbcfg, hsotg->regs + GUSBCFG);
-	usleep_range(100000, 150000);
-
-	hsotg->hptxfsiz = readl(hsotg->regs + HPTXFSIZ);
-	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hsotg->hptxfsiz);
-	gusbcfg = readl(hsotg->regs + GUSBCFG);
-	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
-	writel(gusbcfg, hsotg->regs + GUSBCFG);
-	usleep_range(100000, 150000);
+	retval = -ENOMEM;
 
 	hcfg = readl(hsotg->regs + HCFG);
 	dev_dbg(hsotg->dev, "hcfg=%08x\n", hcfg);
-	dev_dbg(hsotg->dev, "op_mode=%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_OP_MODE_SHIFT &
-		GHWCFG2_OP_MODE_MASK >> GHWCFG2_OP_MODE_SHIFT);
-	dev_dbg(hsotg->dev, "arch=%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_ARCHITECTURE_SHIFT &
-		GHWCFG2_ARCHITECTURE_MASK >> GHWCFG2_ARCHITECTURE_SHIFT);
-	dev_dbg(hsotg->dev, "num_dev_ep=%d\n",
-		hsotg->hwcfg2 >> GHWCFG2_NUM_DEV_EP_SHIFT &
-		GHWCFG2_NUM_DEV_EP_MASK >> GHWCFG2_NUM_DEV_EP_SHIFT);
-	dev_dbg(hsotg->dev, "max_host_chan=%d\n",
-		hsotg->hwcfg2 >> GHWCFG2_NUM_HOST_CHAN_SHIFT &
-		GHWCFG2_NUM_HOST_CHAN_MASK >> GHWCFG2_NUM_HOST_CHAN_SHIFT);
-	dev_dbg(hsotg->dev, "nonperio_tx_q_depth=0x%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_NONPERIO_TX_Q_DEPTH_SHIFT &
-		GHWCFG2_NONPERIO_TX_Q_DEPTH_MASK >>
-				GHWCFG2_NONPERIO_TX_Q_DEPTH_SHIFT);
-	dev_dbg(hsotg->dev, "host_perio_tx_q_depth=0x%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_HOST_PERIO_TX_Q_DEPTH_SHIFT &
-		GHWCFG2_HOST_PERIO_TX_Q_DEPTH_MASK >>
-				GHWCFG2_HOST_PERIO_TX_Q_DEPTH_SHIFT);
-	dev_dbg(hsotg->dev, "dev_token_q_depth=0x%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_DEV_TOKEN_Q_DEPTH_SHIFT &
-		GHWCFG3_XFER_SIZE_CNTR_WIDTH_MASK >>
-				GHWCFG3_XFER_SIZE_CNTR_WIDTH_SHIFT);
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 	hsotg->frame_num_array = kzalloc(sizeof(*hsotg->frame_num_array) *
@@ -2801,21 +2769,29 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	/* Validate parameter values */
 	dwc2_set_parameters(hsotg, params);
 
+	/* Check if the bus driver or platform code has setup a dma_mask */
+	if (hsotg->core_params->dma_enable > 0 &&
+	    hsotg->dev->dma_mask == NULL) {
+		dev_warn(hsotg->dev,
+			 "dma_mask not set, disabling DMA\n");
+		hsotg->core_params->dma_enable = 0;
+		hsotg->core_params->dma_desc_enable = 0;
+	}
+
 	/* Set device flags indicating whether the HCD supports DMA */
 	if (hsotg->core_params->dma_enable > 0) {
 		if (dma_set_mask(hsotg->dev, DMA_BIT_MASK(32)) < 0)
 			dev_warn(hsotg->dev, "can't set DMA mask\n");
-		if (dma_set_coherent_mask(hsotg->dev, DMA_BIT_MASK(31)) < 0)
-			dev_warn(hsotg->dev,
-				 "can't enable workaround for >2GB RAM\n");
-	} else {
-		dma_set_mask(hsotg->dev, 0);
-		dma_set_coherent_mask(hsotg->dev, 0);
+		if (dma_set_coherent_mask(hsotg->dev, DMA_BIT_MASK(32)) < 0)
+			dev_warn(hsotg->dev, "can't set coherent DMA mask\n");
 	}
 
 	hcd = usb_create_hcd(&dwc2_hc_driver, hsotg->dev, dev_name(hsotg->dev));
 	if (!hcd)
 		goto error1;
+
+	if (hsotg->core_params->dma_enable <= 0)
+		hcd->self.uses_dma = 0;
 
 	hcd->has_tt = 1;
 
@@ -2842,11 +2818,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 		goto error2;
 	}
 	INIT_WORK(&hsotg->wf_otg, dwc2_conn_id_status_change);
-
-	hsotg->snpsid = readl(hsotg->regs + GSNPSID);
-	dev_dbg(hsotg->dev, "Core Release: %1x.%1x%1x%1x\n",
-		hsotg->snpsid >> 12 & 0xf, hsotg->snpsid >> 8 & 0xf,
-		hsotg->snpsid >> 4 & 0xf, hsotg->snpsid & 0xf);
 
 	setup_timer(&hsotg->wkp_timer, dwc2_wakeup_detected,
 		    (unsigned long)hsotg);
@@ -2922,8 +2893,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	if (retval < 0)
 		goto error3;
 
-	dwc2_dump_global_registers(hsotg);
-	dwc2_dump_host_registers(hsotg);
 	dwc2_hcd_dump_state(hsotg);
 
 	dwc2_enable_global_interrupts(hsotg);

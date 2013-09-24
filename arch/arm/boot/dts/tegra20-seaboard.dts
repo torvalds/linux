@@ -518,7 +518,7 @@
 
 	pmc {
 		nvidia,invert-interrupt;
-		nvidia,suspend-mode = <2>;
+		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <5000>;
 		nvidia,cpu-pwr-off-time = <5000>;
 		nvidia,core-pwr-good-time = <3845 3845>;
@@ -566,7 +566,6 @@
 
 	usb@c5000000 {
 		status = "okay";
-		nvidia,vbus-gpio = <&gpio TEGRA_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
 		dr_mode = "otg";
 	};
 
@@ -829,7 +828,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 24 0>; /* PD0 */
+			gpio = <&gpio TEGRA_GPIO(D, 0) 0>;
 			regulator-always-on;
 			regulator-boot-on;
 		};

@@ -129,7 +129,7 @@ static void cap_inode_free_security(struct inode *inode)
 }
 
 static int cap_inode_init_security(struct inode *inode, struct inode *dir,
-				   const struct qstr *qstr, char **name,
+				   const struct qstr *qstr, const char **name,
 				   void **value, size_t *len)
 {
 	return -EOPNOTSUPP;

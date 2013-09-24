@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20130517
+#define ACPI_CA_VERSION                 0x20130725
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -147,6 +147,8 @@ acpi_status acpi_install_interface(acpi_string interface_name);
 
 acpi_status acpi_remove_interface(acpi_string interface_name);
 
+acpi_status acpi_update_interfaces(u8 action);
+
 u32
 acpi_check_address_range(acpi_adr_space_type space_id,
 			 acpi_physical_address address,
@@ -210,8 +212,8 @@ acpi_status
 acpi_walk_namespace(acpi_object_type type,
 		    acpi_handle start_object,
 		    u32 max_depth,
-		    acpi_walk_callback pre_order_visit,
-		    acpi_walk_callback post_order_visit,
+		    acpi_walk_callback descending_callback,
+		    acpi_walk_callback ascending_callback,
 		    void *context, void **return_value);
 
 acpi_status

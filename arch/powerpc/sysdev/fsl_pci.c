@@ -26,11 +26,15 @@
 #include <linux/memblock.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
+#include <asm/ppc-pci.h>
 #include <asm/machdep.h>
+#include <asm/disassemble.h>
+#include <asm/ppc-opcode.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
@@ -64,7 +68,7 @@ static int fsl_pcie_check_link(struct pci_controller *hose)
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_FSL_CFG_REG_LINK) {
 		if (hose->ops->read == fsl_indirect_read_config) {
 			struct pci_bus bus;
-			bus.number = 0;
+			bus.number = hose->first_busno;
 			bus.sysdata = hose;
 			bus.ops = hose->ops;
 			indirect_read_config(&bus, 0, PCIE_LTSSM, 4, &val);
@@ -297,10 +301,10 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		/* Size window to exact size if power-of-two or one size up */
 		if ((1ull << mem_log) != mem) {
+			mem_log++;
 			if ((1ull << mem_log) > mem)
 				pr_info("%s: Setting PCI inbound window "
 					"greater than memory size\n", name);
-			mem_log++;
 		}
 
 		piwar |= ((mem_log - 1) & PIWAR_SZ_MASK);
@@ -373,7 +377,9 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	}
 
 	if (hose->dma_window_size < mem) {
-#ifndef CONFIG_SWIOTLB
+#ifdef CONFIG_SWIOTLB
+		ppc_swiotlb_enable = 1;
+#else
 		pr_err("%s: ERROR: Memory size exceeds PCI ATMU ability to "
 			"map - enable CONFIG_SWIOTLB to avoid dma errors.\n",
 			 name);
@@ -868,6 +874,160 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose)
 	return 0;
 }
 
+#ifdef CONFIG_E500
+static int mcheck_handle_load(struct pt_regs *regs, u32 inst)
+{
+	unsigned int rd, ra, rb, d;
+
+	rd = get_rt(inst);
+	ra = get_ra(inst);
+	rb = get_rb(inst);
+	d = get_d(inst);
+
+	switch (get_op(inst)) {
+	case 31:
+		switch (get_xop(inst)) {
+		case OP_31_XOP_LWZX:
+		case OP_31_XOP_LWBRX:
+			regs->gpr[rd] = 0xffffffff;
+			break;
+
+		case OP_31_XOP_LWZUX:
+			regs->gpr[rd] = 0xffffffff;
+			regs->gpr[ra] += regs->gpr[rb];
+			break;
+
+		case OP_31_XOP_LBZX:
+			regs->gpr[rd] = 0xff;
+			break;
+
+		case OP_31_XOP_LBZUX:
+			regs->gpr[rd] = 0xff;
+			regs->gpr[ra] += regs->gpr[rb];
+			break;
+
+		case OP_31_XOP_LHZX:
+		case OP_31_XOP_LHBRX:
+			regs->gpr[rd] = 0xffff;
+			break;
+
+		case OP_31_XOP_LHZUX:
+			regs->gpr[rd] = 0xffff;
+			regs->gpr[ra] += regs->gpr[rb];
+			break;
+
+		case OP_31_XOP_LHAX:
+			regs->gpr[rd] = ~0UL;
+			break;
+
+		case OP_31_XOP_LHAUX:
+			regs->gpr[rd] = ~0UL;
+			regs->gpr[ra] += regs->gpr[rb];
+			break;
+
+		default:
+			return 0;
+		}
+		break;
+
+	case OP_LWZ:
+		regs->gpr[rd] = 0xffffffff;
+		break;
+
+	case OP_LWZU:
+		regs->gpr[rd] = 0xffffffff;
+		regs->gpr[ra] += (s16)d;
+		break;
+
+	case OP_LBZ:
+		regs->gpr[rd] = 0xff;
+		break;
+
+	case OP_LBZU:
+		regs->gpr[rd] = 0xff;
+		regs->gpr[ra] += (s16)d;
+		break;
+
+	case OP_LHZ:
+		regs->gpr[rd] = 0xffff;
+		break;
+
+	case OP_LHZU:
+		regs->gpr[rd] = 0xffff;
+		regs->gpr[ra] += (s16)d;
+		break;
+
+	case OP_LHA:
+		regs->gpr[rd] = ~0UL;
+		break;
+
+	case OP_LHAU:
+		regs->gpr[rd] = ~0UL;
+		regs->gpr[ra] += (s16)d;
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 1;
+}
+
+static int is_in_pci_mem_space(phys_addr_t addr)
+{
+	struct pci_controller *hose;
+	struct resource *res;
+	int i;
+
+	list_for_each_entry(hose, &hose_list, list_node) {
+		if (!(hose->indirect_type & PPC_INDIRECT_TYPE_EXT_REG))
+			continue;
+
+		for (i = 0; i < 3; i++) {
+			res = &hose->mem_resources[i];
+			if ((res->flags & IORESOURCE_MEM) &&
+				addr >= res->start && addr <= res->end)
+				return 1;
+		}
+	}
+	return 0;
+}
+
+int fsl_pci_mcheck_exception(struct pt_regs *regs)
+{
+	u32 inst;
+	int ret;
+	phys_addr_t addr = 0;
+
+	/* Let KVM/QEMU deal with the exception */
+	if (regs->msr & MSR_GS)
+		return 0;
+
+#ifdef CONFIG_PHYS_64BIT
+	addr = mfspr(SPRN_MCARU);
+	addr <<= 32;
+#endif
+	addr += mfspr(SPRN_MCAR);
+
+	if (is_in_pci_mem_space(addr)) {
+		if (user_mode(regs)) {
+			pagefault_disable();
+			ret = get_user(regs->nip, &inst);
+			pagefault_enable();
+		} else {
+			ret = probe_kernel_address(regs->nip, inst);
+		}
+
+		if (mcheck_handle_load(regs, inst)) {
+			regs->nip += 4;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+#endif
+
 #if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
 static const struct of_device_id pci_ids[] = {
 	{ .compatible = "fsl,mpc8540-pci", },
@@ -928,27 +1088,9 @@ static int fsl_pci_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device_node *node;
-#ifdef CONFIG_SWIOTLB
-	struct pci_controller *hose;
-#endif
 
 	node = pdev->dev.of_node;
 	ret = fsl_add_bridge(pdev, fsl_pci_primary == node);
-
-#ifdef CONFIG_SWIOTLB
-	if (ret == 0) {
-		hose = pci_find_hose_for_OF_device(pdev->dev.of_node);
-
-		/*
-		 * if we couldn't map all of DRAM via the dma windows
-		 * we need SWIOTLB to handle buffers located outside of
-		 * dma capable memory region
-		 */
-		if (memblock_end_of_DRAM() - 1 > hose->dma_window_base_cur +
-				hose->dma_window_size)
-			ppc_swiotlb_enable = 1;
-	}
-#endif
 
 	mpc85xx_pci_err_probe(pdev);
 

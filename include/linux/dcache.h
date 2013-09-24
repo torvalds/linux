@@ -9,6 +9,7 @@
 #include <linux/seqlock.h>
 #include <linux/cache.h>
 #include <linux/rcupdate.h>
+#include <linux/lockref.h>
 
 struct nameidata;
 struct path;
@@ -54,11 +55,11 @@ struct qstr {
 #define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
 
 struct dentry_stat_t {
-	int nr_dentry;
-	int nr_unused;
-	int age_limit;          /* age in seconds */
-	int want_pages;         /* pages requested by system */
-	int dummy[2];
+	long nr_dentry;
+	long nr_unused;
+	long age_limit;          /* age in seconds */
+	long want_pages;         /* pages requested by system */
+	long dummy[2];
 };
 extern struct dentry_stat_t dentry_stat;
 
@@ -100,6 +101,8 @@ extern unsigned int full_name_hash(const unsigned char *, unsigned int);
 # endif
 #endif
 
+#define d_lock	d_lockref.lock
+
 struct dentry {
 	/* RCU lookup touched fields */
 	unsigned int d_flags;		/* protected by d_lock */
@@ -112,8 +115,7 @@ struct dentry {
 	unsigned char d_iname[DNAME_INLINE_LEN];	/* small names */
 
 	/* Ref lookup also touches following */
-	unsigned int d_count;		/* protected by d_lock */
-	spinlock_t d_lock;		/* per dentry lock */
+	struct lockref d_lockref;	/* per-dentry lock and refcount */
 	const struct dentry_operations *d_op;
 	struct super_block *d_sb;	/* The root of the dentry tree */
 	unsigned long d_time;		/* used by d_revalidate */
@@ -206,11 +208,12 @@ struct dentry_operations {
 #define DCACHE_MANAGED_DENTRY \
 	(DCACHE_MOUNTED|DCACHE_NEED_AUTOMOUNT|DCACHE_MANAGE_TRANSIT)
 
+#define DCACHE_LRU_LIST		0x80000
 #define DCACHE_DENTRY_KILLED	0x100000
 
 extern seqlock_t rename_lock;
 
-static inline int dname_external(struct dentry *dentry)
+static inline int dname_external(const struct dentry *dentry)
 {
 	return dentry->d_name.name != dentry->d_iname;
 }
@@ -251,6 +254,7 @@ extern void d_prune_aliases(struct inode *);
 
 /* test whether we have any submounts in a subdir tree */
 extern int have_submounts(struct dentry *);
+extern int check_submounts_and_drop(struct dentry *);
 
 /*
  * This adds the entry to the hash queues.
@@ -302,31 +306,9 @@ extern struct dentry *__d_lookup(const struct dentry *, const struct qstr *);
 extern struct dentry *__d_lookup_rcu(const struct dentry *parent,
 				const struct qstr *name, unsigned *seq);
 
-/**
- * __d_rcu_to_refcount - take a refcount on dentry if sequence check is ok
- * @dentry: dentry to take a ref on
- * @seq: seqcount to verify against
- * Returns: 0 on failure, else 1.
- *
- * __d_rcu_to_refcount operates on a dentry,seq pair that was returned
- * by __d_lookup_rcu, to get a reference on an rcu-walk dentry.
- */
-static inline int __d_rcu_to_refcount(struct dentry *dentry, unsigned seq)
-{
-	int ret = 0;
-
-	assert_spin_locked(&dentry->d_lock);
-	if (!read_seqcount_retry(&dentry->d_seq, seq)) {
-		ret = 1;
-		dentry->d_count++;
-	}
-
-	return ret;
-}
-
 static inline unsigned d_count(const struct dentry *dentry)
 {
-	return dentry->d_count;
+	return dentry->d_lockref.count;
 }
 
 /* validate "insecure" dentry pointer */
@@ -357,17 +339,14 @@ extern char *dentry_path(struct dentry *, char *, int);
 static inline struct dentry *dget_dlock(struct dentry *dentry)
 {
 	if (dentry)
-		dentry->d_count++;
+		dentry->d_lockref.count++;
 	return dentry;
 }
 
 static inline struct dentry *dget(struct dentry *dentry)
 {
-	if (dentry) {
-		spin_lock(&dentry->d_lock);
-		dget_dlock(dentry);
-		spin_unlock(&dentry->d_lock);
-	}
+	if (dentry)
+		lockref_get(&dentry->d_lockref);
 	return dentry;
 }
 
@@ -380,17 +359,17 @@ extern struct dentry *dget_parent(struct dentry *dentry);
  *	Returns true if the dentry passed is not currently hashed.
  */
  
-static inline int d_unhashed(struct dentry *dentry)
+static inline int d_unhashed(const struct dentry *dentry)
 {
 	return hlist_bl_unhashed(&dentry->d_hash);
 }
 
-static inline int d_unlinked(struct dentry *dentry)
+static inline int d_unlinked(const struct dentry *dentry)
 {
 	return d_unhashed(dentry) && !IS_ROOT(dentry);
 }
 
-static inline int cant_mount(struct dentry *dentry)
+static inline int cant_mount(const struct dentry *dentry)
 {
 	return (dentry->d_flags & DCACHE_CANT_MOUNT);
 }
@@ -404,16 +383,20 @@ static inline void dont_mount(struct dentry *dentry)
 
 extern void dput(struct dentry *);
 
-static inline bool d_managed(struct dentry *dentry)
+static inline bool d_managed(const struct dentry *dentry)
 {
 	return dentry->d_flags & DCACHE_MANAGED_DENTRY;
 }
 
-static inline bool d_mountpoint(struct dentry *dentry)
+static inline bool d_mountpoint(const struct dentry *dentry)
 {
 	return dentry->d_flags & DCACHE_MOUNTED;
 }
 
 extern int sysctl_vfs_cache_pressure;
 
+static inline unsigned long vfs_pressure_ratio(unsigned long val)
+{
+	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
+}
 #endif	/* __LINUX_DCACHE_H */

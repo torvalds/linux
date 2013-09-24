@@ -33,7 +33,7 @@
 
 static void __iomem *rng_base;
 static struct clk *rng_clk;
-struct device *rng_dev;
+static struct device *rng_dev;
 
 static inline u32 picoxcell_trng_read_csr(void)
 {

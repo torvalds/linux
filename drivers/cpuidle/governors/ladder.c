@@ -192,14 +192,4 @@ static int __init init_ladder(void)
 	return cpuidle_register_governor(&ladder_governor);
 }
 
-/**
- * exit_ladder - exits the governor
- */
-static void __exit exit_ladder(void)
-{
-	cpuidle_unregister_governor(&ladder_governor);
-}
-
-MODULE_LICENSE("GPL");
-module_init(init_ladder);
-module_exit(exit_ladder);
+postcore_initcall(init_ladder);

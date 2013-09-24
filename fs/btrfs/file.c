@@ -1334,7 +1334,6 @@ fail:
 static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 				    size_t *write_bytes)
 {
-	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ordered_extent *ordered;
 	u64 lockstart, lockend;
@@ -1356,16 +1355,8 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 		btrfs_put_ordered_extent(ordered);
 	}
 
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans)) {
-		unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
-		return PTR_ERR(trans);
-	}
-
 	num_bytes = lockend - lockstart + 1;
-	ret = can_nocow_extent(trans, inode, lockstart, &num_bytes, NULL, NULL,
-			       NULL);
-	btrfs_end_transaction(trans, root);
+	ret = can_nocow_extent(inode, lockstart, &num_bytes, NULL, NULL, NULL);
 	if (ret <= 0) {
 		ret = 0;
 	} else {
@@ -1727,7 +1718,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	 */
 	BTRFS_I(inode)->last_trans = root->fs_info->generation + 1;
 	BTRFS_I(inode)->last_sub_trans = root->log_transid;
-	if (num_written > 0 || num_written == -EIOCBQUEUED) {
+	if (num_written > 0) {
 		err = generic_write_sync(file, pos, num_written);
 		if (err < 0 && num_written > 0)
 			num_written = err;
@@ -1868,8 +1859,8 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	ret = btrfs_log_dentry_safe(trans, root, dentry);
 	if (ret < 0) {
-		mutex_unlock(&inode->i_mutex);
-		goto out;
+		/* Fallthrough and commit/free transaction. */
+		ret = 1;
 	}
 
 	/* we've logged all the items and now have a consistent

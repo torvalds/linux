@@ -94,25 +94,31 @@ void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl);
 void btrfs_remove_free_space_cache(struct btrfs_block_group_cache
 				     *block_group);
 u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
-			       u64 offset, u64 bytes, u64 empty_size);
+			       u64 offset, u64 bytes, u64 empty_size,
+			       u64 *max_extent_size);
 u64 btrfs_find_ino_for_alloc(struct btrfs_root *fs_root);
 void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 			   u64 bytes);
-int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *root,
+int btrfs_find_space_cluster(struct btrfs_root *root,
 			     struct btrfs_block_group_cache *block_group,
 			     struct btrfs_free_cluster *cluster,
 			     u64 offset, u64 bytes, u64 empty_size);
 void btrfs_init_free_cluster(struct btrfs_free_cluster *cluster);
 u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 			     struct btrfs_free_cluster *cluster, u64 bytes,
-			     u64 min_start);
+			     u64 min_start, u64 *max_extent_size);
 int btrfs_return_cluster_to_free_space(
 			       struct btrfs_block_group_cache *block_group,
 			       struct btrfs_free_cluster *cluster);
 int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 			   u64 *trimmed, u64 start, u64 end, u64 minlen);
 
-void btrfs_test_free_space_cache(void);
+/* Support functions for runnint our sanity tests */
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+int test_add_free_space_entry(struct btrfs_block_group_cache *cache,
+			      u64 offset, u64 bytes, bool bitmap);
+int test_check_exists(struct btrfs_block_group_cache *cache,
+		      u64 offset, u64 bytes);
+#endif
 
 #endif

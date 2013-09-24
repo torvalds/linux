@@ -1419,7 +1419,7 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	struct usb_phy *phy;
 
 	dev_info(&pdev->dev, "msm_otg probe\n");
-	if (!pdev->dev.platform_data) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		dev_err(&pdev->dev, "No platform data given. Bailing out\n");
 		return -ENODEV;
 	}
@@ -1436,7 +1436,7 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	motg->pdata = pdev->dev.platform_data;
+	motg->pdata = dev_get_platdata(&pdev->dev);
 	phy = &motg->phy;
 	phy->dev = &pdev->dev;
 

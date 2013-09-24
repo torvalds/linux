@@ -7,6 +7,7 @@
  */
 #include <linux/init.h>
 
+#include <asm/cpu.h>
 #include <asm/setup.h>
 #include <asm/time.h>
 #include <asm/irq.h>
@@ -34,7 +35,7 @@ static void __iomem *status_reg = (void __iomem *)0xbf000410;
  */
 static unsigned int __init estimate_cpu_frequency(void)
 {
-	unsigned int prid = read_c0_prid() & 0xffff00;
+	unsigned int prid = read_c0_prid() & (PRID_COMP_MASK | PRID_IMP_MASK);
 	unsigned int tick = 0;
 	unsigned int freq;
 	unsigned int orig;

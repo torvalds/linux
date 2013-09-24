@@ -524,8 +524,8 @@ const struct irq_domain_ops pxa_irq_domain_ops = {
 
 static int pxa_gpio_probe_dt(struct platform_device *pdev)
 {
-	int ret, nr_gpios;
-	struct device_node *prev, *next, *np = pdev->dev.of_node;
+	int ret = 0, nr_gpios;
+	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
 				of_match_device(pxa_gpio_dt_ids, &pdev->dev);
 	const struct pxa_gpio_id *gpio_id;
@@ -537,20 +537,13 @@ static int pxa_gpio_probe_dt(struct platform_device *pdev)
 	gpio_id = of_id->data;
 	gpio_type = gpio_id->type;
 
-	next = of_get_next_child(np, NULL);
-	prev = next;
-	if (!next) {
-		dev_err(&pdev->dev, "Failed to find child gpio node\n");
-		ret = -EINVAL;
-		goto err;
-	}
-	of_node_put(prev);
 	nr_gpios = gpio_id->gpio_nums;
 	pxa_last_gpio = nr_gpios - 1;
 
 	irq_base = irq_alloc_descs(-1, 0, nr_gpios, 0);
 	if (irq_base < 0) {
 		dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
+		ret = irq_base;
 		goto err;
 	}
 	domain = irq_domain_add_legacy(np, nr_gpios, irq_base, 0,

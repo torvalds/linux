@@ -728,6 +728,16 @@ struct netdev_fcoe_hbainfo {
 };
 #endif
 
+#define MAX_PHYS_PORT_ID_LEN 32
+
+/* This structure holds a unique identifier to identify the
+ * physical port used by a netdevice.
+ */
+struct netdev_phys_port_id {
+	unsigned char id[MAX_PHYS_PORT_ID_LEN];
+	unsigned char id_len;
+};
+
 /*
  * This structure defines the management hooks for network devices.
  * The following hooks can be defined; unless noted otherwise, they are
@@ -932,6 +942,25 @@ struct netdev_fcoe_hbainfo {
  *	that determine carrier state from physical hardware properties (eg
  *	network cables) or protocol-dependent mechanisms (eg
  *	USB_CDC_NOTIFY_NETWORK_CONNECTION) should NOT implement this function.
+ *
+ * int (*ndo_get_phys_port_id)(struct net_device *dev,
+ *			       struct netdev_phys_port_id *ppid);
+ *	Called to get ID of physical port of this device. If driver does
+ *	not implement this, it is assumed that the hw is not able to have
+ *	multiple net devices on single physical port.
+ *
+ * void (*ndo_add_vxlan_port)(struct  net_device *dev,
+ *			      sa_family_t sa_family, __be16 port);
+ *	Called by vxlan to notiy a driver about the UDP port and socket
+ *	address family that vxlan is listnening to. It is called only when
+ *	a new port starts listening. The operation is protected by the
+ *	vxlan_net->sock_lock.
+ *
+ * void (*ndo_del_vxlan_port)(struct  net_device *dev,
+ *			      sa_family_t sa_family, __be16 port);
+ *	Called by vxlan to notify the driver about a UDP port and socket
+ *	address family that vxlan is not listening to anymore. The operation
+ *	is protected by the vxlan_net->sock_lock.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1060,6 +1089,14 @@ struct net_device_ops {
 						      struct nlmsghdr *nlh);
 	int			(*ndo_change_carrier)(struct net_device *dev,
 						      bool new_carrier);
+	int			(*ndo_get_phys_port_id)(struct net_device *dev,
+							struct netdev_phys_port_id *ppid);
+	void			(*ndo_add_vxlan_port)(struct  net_device *dev,
+						      sa_family_t sa_family,
+						      __be16 port);
+	void			(*ndo_del_vxlan_port)(struct  net_device *dev,
+						      sa_family_t sa_family,
+						      __be16 port);
 };
 
 /*
@@ -1107,6 +1144,7 @@ struct net_device {
 	struct list_head	napi_list;
 	struct list_head	unreg_list;
 	struct list_head	upper_dev_list; /* List of upper devices */
+	struct list_head	lower_dev_list;
 
 
 	/* currently active device features */
@@ -1633,6 +1671,7 @@ struct packet_offload {
 #define NETDEV_NOTIFY_PEERS	0x0013
 #define NETDEV_JOIN		0x0014
 #define NETDEV_CHANGEUPPER	0x0015
+#define NETDEV_RESEND_IGMP	0x0016
 
 extern int register_netdevice_notifier(struct notifier_block *nb);
 extern int unregister_netdevice_notifier(struct notifier_block *nb);
@@ -1664,9 +1703,6 @@ extern int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
 
 
 extern rwlock_t				dev_base_lock;		/* Device list lock */
-
-extern seqcount_t	devnet_rename_seq;	/* Device rename seq */
-
 
 #define for_each_netdev(net, d)		\
 		list_for_each_entry(d, &(net)->dev_base_head, dev_list)
@@ -2065,6 +2101,15 @@ static inline void netdev_tx_sent_queue(struct netdev_queue *dev_queue,
 #endif
 }
 
+/**
+ * 	netdev_sent_queue - report the number of bytes queued to hardware
+ * 	@dev: network device
+ * 	@bytes: number of bytes queued to the hardware device queue
+ *
+ * 	Report the number of bytes queued for sending/completion to the network
+ * 	device hardware queue. @bytes should be a good approximation and should
+ * 	exactly match netdev_completed_queue() @bytes
+ */
 static inline void netdev_sent_queue(struct net_device *dev, unsigned int bytes)
 {
 	netdev_tx_sent_queue(netdev_get_tx_queue(dev, 0), bytes);
@@ -2094,6 +2139,16 @@ static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 #endif
 }
 
+/**
+ * 	netdev_completed_queue - report bytes and packets completed by device
+ * 	@dev: network device
+ * 	@pkts: actual number of packets sent over the medium
+ * 	@bytes: actual number of bytes sent over the medium
+ *
+ * 	Report the number of bytes and packets transmitted by the network device
+ * 	hardware queue over the physical medium, @bytes must exactly match the
+ * 	@bytes amount passed to netdev_sent_queue()
+ */
 static inline void netdev_completed_queue(struct net_device *dev,
 					  unsigned int pkts, unsigned int bytes)
 {
@@ -2108,6 +2163,13 @@ static inline void netdev_tx_reset_queue(struct netdev_queue *q)
 #endif
 }
 
+/**
+ * 	netdev_reset_queue - reset the packets and bytes count of a network device
+ * 	@dev_queue: network device
+ *
+ * 	Reset the bytes and packet count of a network device and clear the
+ * 	software flow control OFF bit for this network device
+ */
 static inline void netdev_reset_queue(struct net_device *dev_queue)
 {
 	netdev_tx_reset_queue(netdev_get_tx_queue(dev_queue, 0));
@@ -2317,6 +2379,8 @@ extern int		dev_set_mac_address(struct net_device *,
 					    struct sockaddr *);
 extern int		dev_change_carrier(struct net_device *,
 					   bool new_carrier);
+extern int		dev_get_phys_port_id(struct net_device *dev,
+					     struct netdev_phys_port_id *ppid);
 extern int		dev_hard_start_xmit(struct sk_buff *skb,
 					    struct net_device *dev,
 					    struct netdev_queue *txq);
@@ -2749,6 +2813,16 @@ extern int		bpf_jit_enable;
 extern bool netdev_has_upper_dev(struct net_device *dev,
 				 struct net_device *upper_dev);
 extern bool netdev_has_any_upper_dev(struct net_device *dev);
+extern struct net_device *netdev_upper_get_next_dev_rcu(struct net_device *dev,
+							struct list_head **iter);
+
+/* iterate through upper list, must be called under RCU read lock */
+#define netdev_for_each_upper_dev_rcu(dev, upper, iter) \
+	for (iter = &(dev)->upper_dev_list, \
+	     upper = netdev_upper_get_next_dev_rcu(dev, &(iter)); \
+	     upper; \
+	     upper = netdev_upper_get_next_dev_rcu(dev, &(iter)))
+
 extern struct net_device *netdev_master_upper_dev_get(struct net_device *dev);
 extern struct net_device *netdev_master_upper_dev_get_rcu(struct net_device *dev);
 extern int netdev_upper_dev_link(struct net_device *dev,

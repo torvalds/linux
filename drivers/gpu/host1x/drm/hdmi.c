@@ -888,6 +888,11 @@ static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_hdmi *hdmi = node->info_ent->data;
+	int err;
+
+	err = clk_enable(hdmi->clk);
+	if (err)
+		return err;
 
 #define DUMP_REG(name)						\
 	seq_printf(s, "%-56s %#05x %08lx\n", #name, name,	\
@@ -1052,6 +1057,8 @@ static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 	DUMP_REG(HDMI_NV_PDISP_SOR_AUDIO_HDA_PRESENSE);
 
 #undef DUMP_REG
+
+	clk_disable(hdmi->clk);
 
 	return 0;
 }

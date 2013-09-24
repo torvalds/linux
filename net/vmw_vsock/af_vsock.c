@@ -96,8 +96,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <net/sock.h>
-
-#include "af_vsock.h"
+#include <net/af_vsock.h>
 
 static int __vsock_bind(struct sock *sk, struct sockaddr_vm *addr);
 static void vsock_sk_destruct(struct sock *sk);

@@ -47,10 +47,8 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	int nr;
 
 	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
-	if (!private) {
-		DRM_ERROR("failed to allocate private\n");
+	if (!private)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&private->pageflip_event_list);
 	dev->dev_private = (void *)private;

@@ -1762,39 +1762,46 @@ static int tz1090_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int tz1090_pinconf_set(struct pinctrl_dev *pctldev,
-			      unsigned int pin, unsigned long config)
+			      unsigned int pin, unsigned long *configs,
+			      unsigned num_configs)
 {
 	struct tz1090_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	enum pin_config_param param = pinconf_to_config_param(config);
-	unsigned int arg = pinconf_to_config_argument(config);
+	enum pin_config_param param;
+	unsigned int arg;
 	int ret;
 	u32 reg, width, mask, shift, val, tmp;
 	unsigned long flags;
+	int i;
 
-	dev_dbg(pctldev->dev, "%s(pin=%s, config=%#lx)\n",
-		__func__, tz1090_pins[pin].name, config);
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
 
-	/* Get register information */
-	ret = tz1090_pinconf_reg(pctldev, pin, param, true,
-				 &reg, &width, &mask, &shift, &val);
-	if (ret < 0)
-		return ret;
+		dev_dbg(pctldev->dev, "%s(pin=%s, config=%#lx)\n",
+			__func__, tz1090_pins[pin].name, configs[i]);
 
-	/* Unpack argument and range check it */
-	if (arg > 1) {
-		dev_dbg(pctldev->dev, "%s: arg %u out of range\n",
-			__func__, arg);
-		return -EINVAL;
-	}
+		/* Get register information */
+		ret = tz1090_pinconf_reg(pctldev, pin, param, true,
+					 &reg, &width, &mask, &shift, &val);
+		if (ret < 0)
+			return ret;
 
-	/* Write register field */
-	__global_lock2(flags);
-	tmp = pmx_read(pmx, reg);
-	tmp &= ~mask;
-	if (arg)
-		tmp |= val << shift;
-	pmx_write(pmx, tmp, reg);
-	__global_unlock2(flags);
+		/* Unpack argument and range check it */
+		if (arg > 1) {
+			dev_dbg(pctldev->dev, "%s: arg %u out of range\n",
+				__func__, arg);
+			return -EINVAL;
+		}
+
+		/* Write register field */
+		__global_lock2(flags);
+		tmp = pmx_read(pmx, reg);
+		tmp &= ~mask;
+		if (arg)
+			tmp |= val << shift;
+		pmx_write(pmx, tmp, reg);
+		__global_unlock2(flags);
+	} /* for each config */
 
 	return 0;
 }
@@ -1894,68 +1901,81 @@ static int tz1090_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int tz1090_pinconf_group_set(struct pinctrl_dev *pctldev,
-				    unsigned int group, unsigned long config)
+				    unsigned int group, unsigned long *configs,
+				    unsigned num_configs)
 {
 	struct tz1090_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const struct tz1090_pingroup *g;
-	enum pin_config_param param = pinconf_to_config_param(config);
+	enum pin_config_param param;
 	unsigned int arg, pin, i;
 	const unsigned int *pit;
 	int ret;
 	u32 reg, width, mask, shift, val;
 	unsigned long flags;
 	const int *map;
+	int j;
 
 	if (group >= ARRAY_SIZE(tz1090_groups)) {
 		pin = group - ARRAY_SIZE(tz1090_groups);
-		return tz1090_pinconf_set(pctldev, pin, config);
+		return tz1090_pinconf_set(pctldev, pin, configs, num_configs);
 	}
 
 	g = &tz1090_groups[group];
 	if (g->npins == 1) {
 		pin = g->pins[0];
-		ret = tz1090_pinconf_set(pctldev, pin, config);
+		ret = tz1090_pinconf_set(pctldev, pin, configs, num_configs);
 		if (ret != -ENOTSUPP)
 			return ret;
 	}
 
-	dev_dbg(pctldev->dev, "%s(group=%s, config=%#lx)\n",
-		__func__, g->name, config);
+	for (j = 0; j < num_configs; j++) {
+		param = pinconf_to_config_param(configs[j]);
 
-	/* Get register information */
-	ret = tz1090_pinconf_group_reg(pctldev, g, param, true,
-				       &reg, &width, &mask, &shift, &map);
-	if (ret < 0) {
-		/*
-		 * Maybe we're trying to set a per-pin configuration of a group,
-		 * so do the pins one by one. This is mainly as a convenience.
-		 */
-		for (i = 0, pit = g->pins; i < g->npins; ++i, ++pit) {
-			ret = tz1090_pinconf_set(pctldev, *pit, config);
-			if (ret)
-				return ret;
-		}
-		return 0;
-	}
+		dev_dbg(pctldev->dev, "%s(group=%s, config=%#lx)\n",
+			__func__, g->name, configs[j]);
 
-	/* Unpack argument and map it to register value */
-	arg = pinconf_to_config_argument(config);
-	for (i = 0; i < BIT(width); ++i) {
-		if (map[i] == arg || (map[i] == -EINVAL && !arg)) {
-			/* Write register field */
-			__global_lock2(flags);
-			val = pmx_read(pmx, reg);
-			val &= ~mask;
-			val |= i << shift;
-			pmx_write(pmx, val, reg);
-			__global_unlock2(flags);
+		/* Get register information */
+		ret = tz1090_pinconf_group_reg(pctldev, g, param, true, &reg,
+						&width, &mask, &shift, &map);
+		if (ret < 0) {
+			/*
+			 * Maybe we're trying to set a per-pin configuration
+			 * of a group, so do the pins one by one. This is
+			 * mainly as a convenience.
+			 */
+			for (i = 0, pit = g->pins; i < g->npins; ++i, ++pit) {
+				ret = tz1090_pinconf_set(pctldev, *pit, configs,
+					num_configs);
+				if (ret)
+					return ret;
+			}
 			return 0;
 		}
-	}
 
-	dev_dbg(pctldev->dev, "%s: arg %u not supported\n",
-		__func__, arg);
-	return -EINVAL;
+		/* Unpack argument and map it to register value */
+		arg = pinconf_to_config_argument(configs[j]);
+		for (i = 0; i < BIT(width); ++i) {
+			if (map[i] == arg || (map[i] == -EINVAL && !arg)) {
+				/* Write register field */
+				__global_lock2(flags);
+				val = pmx_read(pmx, reg);
+				val &= ~mask;
+				val |= i << shift;
+				pmx_write(pmx, val, reg);
+				__global_unlock2(flags);
+				goto next_config;
+			}
+		}
+
+		dev_dbg(pctldev->dev, "%s: arg %u not supported\n",
+			__func__, arg);
+		return -EINVAL;
+
+next_config:
+		;
+	} /* for each config */
+
+	return 0;
 }
 
 static struct pinconf_ops tz1090_pinconf_ops = {
@@ -1996,25 +2016,9 @@ static int tz1090_pinctrl_probe(struct platform_device *pdev)
 	tz1090_pinctrl_desc.npins = ARRAY_SIZE(tz1090_pins);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Missing MEM resource\n");
-		return -ENODEV;
-	}
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res),
-				     dev_name(&pdev->dev))) {
-		dev_err(&pdev->dev,
-			"Couldn't request MEM resource\n");
-		return -ENODEV;
-	}
-
-	pmx->regs = devm_ioremap(&pdev->dev, res->start,
-				 resource_size(res));
-	if (!pmx->regs) {
-		dev_err(&pdev->dev, "Couldn't ioremap regs\n");
-		return -ENODEV;
-	}
+	pmx->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pmx->regs))
+		return PTR_ERR(pmx->regs);
 
 	pmx->pctl = pinctrl_register(&tz1090_pinctrl_desc, &pdev->dev, pmx);
 	if (!pmx->pctl) {

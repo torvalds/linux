@@ -34,6 +34,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include "ufshcd.h"
 
@@ -87,6 +88,40 @@ static int ufshcd_pltfrm_resume(struct device *dev)
 #define ufshcd_pltfrm_resume	NULL
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
+static int ufshcd_pltfrm_runtime_suspend(struct device *dev)
+{
+	struct ufs_hba *hba =  dev_get_drvdata(dev);
+
+	if (!hba)
+		return 0;
+
+	return ufshcd_runtime_suspend(hba);
+}
+static int ufshcd_pltfrm_runtime_resume(struct device *dev)
+{
+	struct ufs_hba *hba =  dev_get_drvdata(dev);
+
+	if (!hba)
+		return 0;
+
+	return ufshcd_runtime_resume(hba);
+}
+static int ufshcd_pltfrm_runtime_idle(struct device *dev)
+{
+	struct ufs_hba *hba =  dev_get_drvdata(dev);
+
+	if (!hba)
+		return 0;
+
+	return ufshcd_runtime_idle(hba);
+}
+#else /* !CONFIG_PM_RUNTIME */
+#define ufshcd_pltfrm_runtime_suspend	NULL
+#define ufshcd_pltfrm_runtime_resume	NULL
+#define ufshcd_pltfrm_runtime_idle	NULL
+#endif /* CONFIG_PM_RUNTIME */
+
 /**
  * ufshcd_pltfrm_probe - probe routine of the driver
  * @pdev: pointer to Platform device handle
@@ -102,15 +137,8 @@ static int ufshcd_pltfrm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(dev, "Memory resource not available\n");
-		err = -ENODEV;
-		goto out;
-	}
-
 	mmio_base = devm_ioremap_resource(dev, mem_res);
 	if (IS_ERR(mmio_base)) {
-		dev_err(dev, "memory map failed\n");
 		err = PTR_ERR(mmio_base);
 		goto out;
 	}
@@ -122,14 +150,22 @@ static int ufshcd_pltfrm_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	err = ufshcd_init(dev, &hba, mmio_base, irq);
 	if (err) {
 		dev_err(dev, "Intialization failed\n");
-		goto out;
+		goto out_disable_rpm;
 	}
 
 	platform_set_drvdata(pdev, hba);
 
+	return 0;
+
+out_disable_rpm:
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
 out:
 	return err;
 }
@@ -144,7 +180,7 @@ static int ufshcd_pltfrm_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba =  platform_get_drvdata(pdev);
 
-	disable_irq(hba->irq);
+	pm_runtime_get_sync(&(pdev)->dev);
 	ufshcd_remove(hba);
 	return 0;
 }
@@ -157,6 +193,9 @@ static const struct of_device_id ufs_of_match[] = {
 static const struct dev_pm_ops ufshcd_dev_pm_ops = {
 	.suspend	= ufshcd_pltfrm_suspend,
 	.resume		= ufshcd_pltfrm_resume,
+	.runtime_suspend = ufshcd_pltfrm_runtime_suspend,
+	.runtime_resume  = ufshcd_pltfrm_runtime_resume,
+	.runtime_idle    = ufshcd_pltfrm_runtime_idle,
 };
 
 static struct platform_driver ufshcd_pltfrm_driver = {

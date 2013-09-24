@@ -1176,6 +1176,9 @@ ftrace_restore_flags:
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
 ENTRY(mcount)
+	cmpl $__PAGE_OFFSET, %esp
+	jb ftrace_stub		/* Paging not enabled yet? */
+
 	cmpl $0, function_trace_stop
 	jne  ftrace_stub
 

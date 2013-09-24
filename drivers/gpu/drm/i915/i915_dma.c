@@ -1353,6 +1353,12 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 */
 	intel_fbdev_initial_config(dev);
 
+	/*
+	 * Must do this after fbcon init so that
+	 * vgacon_save_screen() works during the handover.
+	 */
+	i915_disable_vga_mem(dev);
+
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	dev_priv->enable_hotplug_processing = true;
 
@@ -1672,7 +1678,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 out_gem_unload:
-	if (dev_priv->mm.inactive_shrinker.shrink)
+	if (dev_priv->mm.inactive_shrinker.scan_objects)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
 	if (dev->pdev->msi_enabled)
@@ -1711,7 +1717,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	i915_teardown_sysfs(dev);
 
-	if (dev_priv->mm.inactive_shrinker.shrink)
+	if (dev_priv->mm.inactive_shrinker.scan_objects)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
 	mutex_lock(&dev->struct_mutex);

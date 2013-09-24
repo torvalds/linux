@@ -209,6 +209,12 @@ clocks and IDs.
 	pll5_post_div		194
 	pll5_video_div		195
 	eim_slow      		196
+	spdif      		197
+	cko2_sel      		198
+	cko2_podf      		199
+	cko2      		200
+	cko      		201
+	vdoa      		202
 
 Examples:
 

@@ -303,6 +303,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			if (backlog > budget * cores_in_use && napi != NULL)
 				cvm_oct_enable_one_cpu();
 		}
+		rx_count++;
 
 		skb_in_hw = USE_SKBUFFS_IN_HW && work->word2.s.bufs == 1;
 		if (likely(skb_in_hw)) {
@@ -336,9 +337,6 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			 */
 			skb = dev_alloc_skb(work->len);
 			if (!skb) {
-				printk_ratelimited("Port %d failed to allocate "
-						   "skbuff, packet dropped\n",
-						   work->ipprt);
 				cvm_oct_free_work(work);
 				continue;
 			}
@@ -429,7 +427,6 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 #endif
 				}
 				netif_receive_skb(skb);
-				rx_count++;
 			} else {
 				/* Drop any packet received for a device that isn't up */
 				/*

@@ -11,9 +11,6 @@ wil6210-y += txrx.o
 wil6210-y += debug.o
 wil6210-$(CONFIG_WIL6210_TRACING) += trace.o
 
-ifeq (, $(findstring -W,$(EXTRA_CFLAGS)))
-	subdir-ccflags-y += -Werror
-endif
 # for tracing framework to find trace.h
 CFLAGS_trace.o := -I$(src)
 

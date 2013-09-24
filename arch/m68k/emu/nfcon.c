@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/uaccess.h>
+#include <linux/io.h>
 
 #include <asm/natfeat.h>
 
@@ -25,17 +26,18 @@ static struct tty_driver *nfcon_tty_driver;
 static void nfputs(const char *str, unsigned int count)
 {
 	char buf[68];
+	unsigned long phys = virt_to_phys(buf);
 
 	buf[64] = 0;
 	while (count > 64) {
 		memcpy(buf, str, 64);
-		nf_call(stderr_id, buf);
+		nf_call(stderr_id, phys);
 		str += 64;
 		count -= 64;
 	}
 	memcpy(buf, str, count);
 	buf[count] = 0;
-	nf_call(stderr_id, buf);
+	nf_call(stderr_id, phys);
 }
 
 static void nfcon_write(struct console *con, const char *str,
@@ -79,7 +81,7 @@ static int nfcon_tty_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	char temp[2] = { ch, 0 };
 
-	nf_call(stderr_id, temp);
+	nf_call(stderr_id, virt_to_phys(temp));
 	return 1;
 }
 

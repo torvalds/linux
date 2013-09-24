@@ -218,7 +218,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 	if (tx->tx_msg.ksm_zc_cookies[0] > tx->tx_msg.ksm_zc_cookies[1]) {
 		__u64   tmp = 0;
 
-		/* two seperated cookies: (a+2, a) or (a+1, a) */
+		/* two separated cookies: (a+2, a) or (a+1, a) */
 		LASSERT (tx->tx_msg.ksm_zc_cookies[0] -
 			 tx->tx_msg.ksm_zc_cookies[1] <= 2);
 
@@ -496,8 +496,8 @@ ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 	rc = libcfs_sock_write(sock, hdr, sizeof(*hdr),lnet_acceptor_timeout());
 
 	if (rc != 0) {
-		CNETERR("Error %d sending HELLO hdr to %u.%u.%u.%u/%d\n",
-			rc, HIPQUAD(conn->ksnc_ipaddr), conn->ksnc_port);
+		CNETERR("Error %d sending HELLO hdr to %pI4h/%d\n",
+			rc, &conn->ksnc_ipaddr, conn->ksnc_port);
 		goto out;
 	}
 
@@ -513,8 +513,8 @@ ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 			       lnet_acceptor_timeout());
 	if (rc != 0) {
 		CNETERR("Error %d sending HELLO payload (%d)"
-			" to %u.%u.%u.%u/%d\n", rc, hello->kshm_nips,
-			HIPQUAD(conn->ksnc_ipaddr), conn->ksnc_port);
+			" to %pI4h/%d\n", rc, hello->kshm_nips,
+			&conn->ksnc_ipaddr, conn->ksnc_port);
 	}
 out:
 	LIBCFS_FREE(hdr, sizeof(*hdr));
@@ -545,8 +545,8 @@ ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 			       lnet_acceptor_timeout());
 
 	if (rc != 0) {
-		CNETERR("Error %d sending HELLO hdr to %u.%u.%u.%u/%d\n",
-			rc, HIPQUAD(conn->ksnc_ipaddr), conn->ksnc_port);
+		CNETERR("Error %d sending HELLO hdr to %pI4h/%d\n",
+			rc, &conn->ksnc_ipaddr, conn->ksnc_port);
 		return rc;
 	}
 
@@ -558,8 +558,8 @@ ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 			       lnet_acceptor_timeout());
 	if (rc != 0) {
 		CNETERR("Error %d sending HELLO payload (%d)"
-			" to %u.%u.%u.%u/%d\n", rc, hello->kshm_nips,
-			HIPQUAD(conn->ksnc_ipaddr), conn->ksnc_port);
+			" to %pI4h/%d\n", rc, hello->kshm_nips,
+			&conn->ksnc_ipaddr, conn->ksnc_port);
 	}
 
 	return rc;
@@ -583,18 +583,18 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
 			      sizeof (*hdr) - offsetof (lnet_hdr_t, src_nid),
 			      timeout);
 	if (rc != 0) {
-		CERROR ("Error %d reading rest of HELLO hdr from %u.%u.%u.%u\n",
-			rc, HIPQUAD(conn->ksnc_ipaddr));
+		CERROR("Error %d reading rest of HELLO hdr from %pI4h\n",
+			rc, &conn->ksnc_ipaddr);
 		LASSERT (rc < 0 && rc != -EALREADY);
 		goto out;
 	}
 
 	/* ...and check we got what we expected */
 	if (hdr->type != cpu_to_le32 (LNET_MSG_HELLO)) {
-		CERROR ("Expecting a HELLO hdr,"
-			" but got type %d from %u.%u.%u.%u\n",
+		CERROR("Expecting a HELLO hdr,"
+			" but got type %d from %pI4h\n",
 			le32_to_cpu (hdr->type),
-			HIPQUAD(conn->ksnc_ipaddr));
+			&conn->ksnc_ipaddr);
 		rc = -EPROTO;
 		goto out;
 	}
@@ -607,8 +607,8 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
 					 sizeof (__u32);
 
 	if (hello->kshm_nips > LNET_MAX_INTERFACES) {
-		CERROR("Bad nips %d from ip %u.%u.%u.%u\n",
-		       hello->kshm_nips, HIPQUAD(conn->ksnc_ipaddr));
+		CERROR("Bad nips %d from ip %pI4h\n",
+		       hello->kshm_nips, &conn->ksnc_ipaddr);
 		rc = -EPROTO;
 		goto out;
 	}
@@ -619,9 +619,9 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
 	rc = libcfs_sock_read(sock, hello->kshm_ips,
 			      hello->kshm_nips * sizeof(__u32), timeout);
 	if (rc != 0) {
-		CERROR ("Error %d reading IPs from ip %u.%u.%u.%u\n",
-			rc, HIPQUAD(conn->ksnc_ipaddr));
-		LASSERT (rc < 0 && rc != -EALREADY);
+		CERROR("Error %d reading IPs from ip %pI4h\n",
+			rc, &conn->ksnc_ipaddr);
+		LASSERT(rc < 0 && rc != -EALREADY);
 		goto out;
 	}
 
@@ -629,8 +629,8 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
 		hello->kshm_ips[i] = __le32_to_cpu(hello->kshm_ips[i]);
 
 		if (hello->kshm_ips[i] == 0) {
-			CERROR("Zero IP[%d] from ip %u.%u.%u.%u\n",
-			       i, HIPQUAD(conn->ksnc_ipaddr));
+			CERROR("Zero IP[%d] from ip %pI4h\n",
+			       i, &conn->ksnc_ipaddr);
 			rc = -EPROTO;
 			break;
 		}
@@ -658,9 +658,9 @@ ksocknal_recv_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeou
 				       offsetof(ksock_hello_msg_t, kshm_src_nid),
 			      timeout);
 	if (rc != 0) {
-		CERROR ("Error %d reading HELLO from %u.%u.%u.%u\n",
-			rc, HIPQUAD(conn->ksnc_ipaddr));
-		LASSERT (rc < 0 && rc != -EALREADY);
+		CERROR("Error %d reading HELLO from %pI4h\n",
+			rc, &conn->ksnc_ipaddr);
+		LASSERT(rc < 0 && rc != -EALREADY);
 		return rc;
 	}
 
@@ -676,8 +676,8 @@ ksocknal_recv_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeou
 	}
 
 	if (hello->kshm_nips > LNET_MAX_INTERFACES) {
-		CERROR("Bad nips %d from ip %u.%u.%u.%u\n",
-		       hello->kshm_nips, HIPQUAD(conn->ksnc_ipaddr));
+		CERROR("Bad nips %d from ip %pI4h\n",
+		       hello->kshm_nips, &conn->ksnc_ipaddr);
 		return -EPROTO;
 	}
 
@@ -687,9 +687,9 @@ ksocknal_recv_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeou
 	rc = libcfs_sock_read(sock, hello->kshm_ips,
 			      hello->kshm_nips * sizeof(__u32), timeout);
 	if (rc != 0) {
-		CERROR ("Error %d reading IPs from ip %u.%u.%u.%u\n",
-			rc, HIPQUAD(conn->ksnc_ipaddr));
-		LASSERT (rc < 0 && rc != -EALREADY);
+		CERROR("Error %d reading IPs from ip %pI4h\n",
+			rc, &conn->ksnc_ipaddr);
+		LASSERT(rc < 0 && rc != -EALREADY);
 		return rc;
 	}
 
@@ -698,8 +698,8 @@ ksocknal_recv_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeou
 			__swab32s(&hello->kshm_ips[i]);
 
 		if (hello->kshm_ips[i] == 0) {
-			CERROR("Zero IP[%d] from ip %u.%u.%u.%u\n",
-			       i, HIPQUAD(conn->ksnc_ipaddr));
+			CERROR("Zero IP[%d] from ip %pI4h\n",
+			       i, &conn->ksnc_ipaddr);
 			return -EPROTO;
 		}
 	}

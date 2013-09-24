@@ -65,7 +65,7 @@ jade_empty_fifo(struct BCState *bcs, int count)
 		t += sprintf(t, "jade_empty_fifo %c cnt %d",
 			     bcs->hw.hscx.hscx ? 'B' : 'A', count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, bcs->blog);
+		debugl1(cs, "%s", bcs->blog);
 	}
 }
 
@@ -105,7 +105,7 @@ jade_fill_fifo(struct BCState *bcs)
 		t += sprintf(t, "jade_fill_fifo %c cnt %d",
 			     bcs->hw.hscx.hscx ? 'B' : 'A', count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, bcs->blog);
+		debugl1(cs, "%s", bcs->blog);
 	}
 }
 

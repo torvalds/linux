@@ -60,10 +60,12 @@ static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 					 struct drm_i915_fence_reg *fence,
 					 bool enable);
 
-static int i915_gem_inactive_shrink(struct shrinker *shrinker,
-				    struct shrink_control *sc);
+static unsigned long i915_gem_inactive_count(struct shrinker *shrinker,
+					     struct shrink_control *sc);
+static unsigned long i915_gem_inactive_scan(struct shrinker *shrinker,
+					    struct shrink_control *sc);
 static long i915_gem_purge(struct drm_i915_private *dev_priv, long target);
-static void i915_gem_shrink_all(struct drm_i915_private *dev_priv);
+static long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
 static void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 static bool cpu_cache_is_coherent(struct drm_device *dev,
@@ -1389,14 +1391,11 @@ out:
 		if (i915_terminally_wedged(&dev_priv->gpu_error))
 			return VM_FAULT_SIGBUS;
 	case -EAGAIN:
-		/* Give the error handler a chance to run and move the
-		 * objects off the GPU active list. Next time we service the
-		 * fault, we should be able to transition the page into the
-		 * GTT without touching the GPU (and so avoid further
-		 * EIO/EGAIN). If the GPU is wedged, then there is no issue
-		 * with coherency, just lost writes.
+		/*
+		 * EAGAIN means the gpu is hung and we'll wait for the error
+		 * handler to reset everything when re-faulting in
+		 * i915_mutex_lock_interruptible.
 		 */
-		set_need_resched();
 	case 0:
 	case -ERESTARTSYS:
 	case -EINTR:
@@ -1694,6 +1693,7 @@ static long
 __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 		  bool purgeable_only)
 {
+	struct list_head still_bound_list;
 	struct drm_i915_gem_object *obj, *next;
 	long count = 0;
 
@@ -1708,23 +1708,55 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 		}
 	}
 
-	list_for_each_entry_safe(obj, next, &dev_priv->mm.bound_list,
-				 global_list) {
+	/*
+	 * As we may completely rewrite the bound list whilst unbinding
+	 * (due to retiring requests) we have to strictly process only
+	 * one element of the list at the time, and recheck the list
+	 * on every iteration.
+	 */
+	INIT_LIST_HEAD(&still_bound_list);
+	while (count < target && !list_empty(&dev_priv->mm.bound_list)) {
 		struct i915_vma *vma, *v;
+
+		obj = list_first_entry(&dev_priv->mm.bound_list,
+				       typeof(*obj), global_list);
+		list_move_tail(&obj->global_list, &still_bound_list);
 
 		if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
 			continue;
+
+		/*
+		 * Hold a reference whilst we unbind this object, as we may
+		 * end up waiting for and retiring requests. This might
+		 * release the final reference (held by the active list)
+		 * and result in the object being freed from under us.
+		 * in this object being freed.
+		 *
+		 * Note 1: Shrinking the bound list is special since only active
+		 * (and hence bound objects) can contain such limbo objects, so
+		 * we don't need special tricks for shrinking the unbound list.
+		 * The only other place where we have to be careful with active
+		 * objects suddenly disappearing due to retiring requests is the
+		 * eviction code.
+		 *
+		 * Note 2: Even though the bound list doesn't hold a reference
+		 * to the object we can safely grab one here: The final object
+		 * unreferencing and the bound_list are both protected by the
+		 * dev->struct_mutex and so we won't ever be able to observe an
+		 * object on the bound_list with a reference count equals 0.
+		 */
+		drm_gem_object_reference(&obj->base);
 
 		list_for_each_entry_safe(vma, v, &obj->vma_list, vma_link)
 			if (i915_vma_unbind(vma))
 				break;
 
-		if (!i915_gem_object_put_pages(obj)) {
+		if (i915_gem_object_put_pages(obj) == 0)
 			count += obj->base.size >> PAGE_SHIFT;
-			if (count >= target)
-				return count;
-		}
+
+		drm_gem_object_unreference(&obj->base);
 	}
+	list_splice(&still_bound_list, &dev_priv->mm.bound_list);
 
 	return count;
 }
@@ -1735,16 +1767,21 @@ i915_gem_purge(struct drm_i915_private *dev_priv, long target)
 	return __i915_gem_shrink(dev_priv, target, true);
 }
 
-static void
+static long
 i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
 	struct drm_i915_gem_object *obj, *next;
+	long freed = 0;
 
 	i915_gem_evict_everything(dev_priv->dev);
 
 	list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list,
-				 global_list)
+				 global_list) {
+		if (obj->pages_pin_count == 0)
+			freed += obj->base.size >> PAGE_SHIFT;
 		i915_gem_object_put_pages(obj);
+	}
+	return freed;
 }
 
 static int
@@ -4581,7 +4618,8 @@ i915_gem_load(struct drm_device *dev)
 
 	dev_priv->mm.interruptible = true;
 
-	dev_priv->mm.inactive_shrinker.shrink = i915_gem_inactive_shrink;
+	dev_priv->mm.inactive_shrinker.scan_objects = i915_gem_inactive_scan;
+	dev_priv->mm.inactive_shrinker.count_objects = i915_gem_inactive_count;
 	dev_priv->mm.inactive_shrinker.seeks = DEFAULT_SEEKS;
 	register_shrinker(&dev_priv->mm.inactive_shrinker);
 }
@@ -4804,8 +4842,8 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
 #endif
 }
 
-static int
-i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
+static unsigned long
+i915_gem_inactive_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(shrinker,
@@ -4813,45 +4851,35 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 			     mm.inactive_shrinker);
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_i915_gem_object *obj;
-	int nr_to_scan = sc->nr_to_scan;
 	bool unlock = true;
-	int cnt;
+	unsigned long count;
 
 	if (!mutex_trylock(&dev->struct_mutex)) {
 		if (!mutex_is_locked_by(&dev->struct_mutex, current))
-			return 0;
+			return SHRINK_STOP;
 
 		if (dev_priv->mm.shrinker_no_lock_stealing)
-			return 0;
+			return SHRINK_STOP;
 
 		unlock = false;
 	}
 
-	if (nr_to_scan) {
-		nr_to_scan -= i915_gem_purge(dev_priv, nr_to_scan);
-		if (nr_to_scan > 0)
-			nr_to_scan -= __i915_gem_shrink(dev_priv, nr_to_scan,
-							false);
-		if (nr_to_scan > 0)
-			i915_gem_shrink_all(dev_priv);
-	}
-
-	cnt = 0;
+	count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list)
 		if (obj->pages_pin_count == 0)
-			cnt += obj->base.size >> PAGE_SHIFT;
+			count += obj->base.size >> PAGE_SHIFT;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		if (obj->active)
 			continue;
 
 		if (obj->pin_count == 0 && obj->pages_pin_count == 0)
-			cnt += obj->base.size >> PAGE_SHIFT;
+			count += obj->base.size >> PAGE_SHIFT;
 	}
 
 	if (unlock)
 		mutex_unlock(&dev->struct_mutex);
-	return cnt;
+	return count;
 }
 
 /* All the new VM stuff */
@@ -4912,4 +4940,38 @@ unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
 			return vma->node.size;
 
 	return 0;
+}
+
+static unsigned long
+i915_gem_inactive_scan(struct shrinker *shrinker, struct shrink_control *sc)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(shrinker,
+			     struct drm_i915_private,
+			     mm.inactive_shrinker);
+	struct drm_device *dev = dev_priv->dev;
+	int nr_to_scan = sc->nr_to_scan;
+	unsigned long freed;
+	bool unlock = true;
+
+	if (!mutex_trylock(&dev->struct_mutex)) {
+		if (!mutex_is_locked_by(&dev->struct_mutex, current))
+			return 0;
+
+		if (dev_priv->mm.shrinker_no_lock_stealing)
+			return 0;
+
+		unlock = false;
+	}
+
+	freed = i915_gem_purge(dev_priv, nr_to_scan);
+	if (freed < nr_to_scan)
+		freed += __i915_gem_shrink(dev_priv, nr_to_scan,
+							false);
+	if (freed < nr_to_scan)
+		freed += i915_gem_shrink_all(dev_priv);
+
+	if (unlock)
+		mutex_unlock(&dev->struct_mutex);
+	return freed;
 }

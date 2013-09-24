@@ -872,8 +872,8 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto free_master;
 	}
 
-	if (pdev->dev.platform_data) {
-		pdata = pdev->dev.platform_data;
+	if (dev_get_platdata(&pdev->dev)) {
+		pdata = dev_get_platdata(&pdev->dev);
 		dspi->pdata = *pdata;
 	} else {
 		/* update dspi pdata with that from the DT */

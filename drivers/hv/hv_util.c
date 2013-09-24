@@ -28,6 +28,18 @@
 #include <linux/reboot.h>
 #include <linux/hyperv.h>
 
+#define SHUTDOWN_MAJOR	3
+#define SHUTDOWN_MINOR  0
+#define SHUTDOWN_MAJOR_MINOR	(SHUTDOWN_MAJOR << 16 | SHUTDOWN_MINOR)
+
+#define TIMESYNCH_MAJOR	3
+#define TIMESYNCH_MINOR 0
+#define TIMESYNCH_MAJOR_MINOR	(TIMESYNCH_MAJOR << 16 | TIMESYNCH_MINOR)
+
+#define HEARTBEAT_MAJOR	3
+#define HEARTBEAT_MINOR 0
+#define HEARTBEAT_MAJOR_MINOR	(HEARTBEAT_MAJOR << 16 | HEARTBEAT_MINOR)
+
 static void shutdown_onchannelcallback(void *context);
 static struct hv_util_service util_shutdown = {
 	.util_cb = shutdown_onchannelcallback,
@@ -87,7 +99,8 @@ static void shutdown_onchannelcallback(void *context)
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
 			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-					shut_txf_buf, MAX_SRV_VER, MAX_SRV_VER);
+					shut_txf_buf, UTIL_FW_MAJOR_MINOR,
+					SHUTDOWN_MAJOR_MINOR);
 		} else {
 			shutdown_msg =
 				(struct shutdown_msg_data *)&shut_txf_buf[
@@ -213,7 +226,8 @@ static void timesync_onchannelcallback(void *context)
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
 			vmbus_prep_negotiate_resp(icmsghdrp, NULL, time_txf_buf,
-						MAX_SRV_VER, MAX_SRV_VER);
+						UTIL_FW_MAJOR_MINOR,
+						TIMESYNCH_MAJOR_MINOR);
 		} else {
 			timedatap = (struct ictimesync_data *)&time_txf_buf[
 				sizeof(struct vmbuspipe_hdr) +
@@ -253,7 +267,8 @@ static void heartbeat_onchannelcallback(void *context)
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
 			vmbus_prep_negotiate_resp(icmsghdrp, NULL,
-				hbeat_txf_buf, MAX_SRV_VER, MAX_SRV_VER);
+				hbeat_txf_buf, UTIL_FW_MAJOR_MINOR,
+				HEARTBEAT_MAJOR_MINOR);
 		} else {
 			heartbeat_msg =
 				(struct heartbeat_msg_data *)&hbeat_txf_buf[
@@ -380,5 +395,4 @@ module_init(init_hyperv_utils);
 module_exit(exit_hyperv_utils);
 
 MODULE_DESCRIPTION("Hyper-V Utilities");
-MODULE_VERSION(HV_DRV_VERSION);
 MODULE_LICENSE("GPL");

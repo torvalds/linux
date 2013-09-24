@@ -412,12 +412,9 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	/* If a delay is expected, orphan the skb. (orphaning usually takes
 	 * place at TX completion time, so _before_ the link transit delay)
-	 * Ideally, this orphaning should be done after the rate limiting
-	 * module, because this breaks TCP Small Queue, and other mechanisms
-	 * based on socket sk_wmem_alloc.
 	 */
 	if (q->latency || q->jitter)
-		skb_orphan(skb);
+		skb_orphan_partial(skb);
 
 	/*
 	 * If we need to duplicate packet, then re-insert at top of the

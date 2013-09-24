@@ -17,6 +17,8 @@
  * this warranty disclaimer.
  */
 
+#include <uapi/linux/ipv6.h>
+#include <net/ndisc.h>
 #include "decl.h"
 #include "ioctl.h"
 #include "util.h"
@@ -24,6 +26,46 @@
 #include "main.h"
 #include "11n_aggr.h"
 #include "11n_rxreorder.h"
+
+/* This function checks if a frame is IPv4 ARP or IPv6 Neighbour advertisement
+ * frame. If frame has both source and destination mac address as same, this
+ * function drops such gratuitous frames.
+ */
+static bool
+mwifiex_discard_gratuitous_arp(struct mwifiex_private *priv,
+			       struct sk_buff *skb)
+{
+	const struct mwifiex_arp_eth_header *arp;
+	struct ethhdr *eth_hdr;
+	struct ipv6hdr *ipv6;
+	struct icmp6hdr *icmpv6;
+
+	eth_hdr = (struct ethhdr *)skb->data;
+	switch (ntohs(eth_hdr->h_proto)) {
+	case ETH_P_ARP:
+		arp = (void *)(skb->data + sizeof(struct ethhdr));
+		if (arp->hdr.ar_op == htons(ARPOP_REPLY) ||
+		    arp->hdr.ar_op == htons(ARPOP_REQUEST)) {
+			if (!memcmp(arp->ar_sip, arp->ar_tip, 4))
+				return true;
+		}
+		break;
+	case ETH_P_IPV6:
+		ipv6 = (void *)(skb->data + sizeof(struct ethhdr));
+		icmpv6 = (void *)(skb->data + sizeof(struct ethhdr) +
+				  sizeof(struct ipv6hdr));
+		if (NDISC_NEIGHBOUR_ADVERTISEMENT == icmpv6->icmp6_type) {
+			if (!memcmp(&ipv6->saddr, &ipv6->daddr,
+				    sizeof(struct in6_addr)))
+				return true;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return false;
+}
 
 /*
  * This function processes the received packet and forwards it
@@ -89,6 +131,13 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 	/* Chop off the leading header bytes so the it points to the start of
 	   either the reconstructed EthII frame or the 802.2/llc/snap frame */
 	skb_pull(skb, hdr_chop);
+
+	if (priv->hs2_enabled &&
+	    mwifiex_discard_gratuitous_arp(priv, skb)) {
+		dev_dbg(priv->adapter->dev, "Bypassed Gratuitous ARP\n");
+		dev_kfree_skb_any(skb);
+		return 0;
+	}
 
 	priv->rxpd_rate = local_rx_pd->rx_rate;
 

@@ -1436,19 +1436,15 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 
 	/* Configure video port timings */
 
-	std_info->eav2sav = bt->hbackporch + bt->hfrontporch +
-		bt->hsync - 8;
+	std_info->eav2sav = V4L2_DV_BT_BLANKING_WIDTH(bt) - 8;
 	std_info->sav2eav = bt->width;
 
 	std_info->l1 = 1;
 	std_info->l3 = bt->vsync + bt->vbackporch + 1;
 
+	std_info->vsize = V4L2_DV_BT_FRAME_HEIGHT(bt);
 	if (bt->interlaced) {
 		if (bt->il_vbackporch || bt->il_vfrontporch || bt->il_vsync) {
-			std_info->vsize = bt->height * 2 +
-				bt->vfrontporch + bt->vsync + bt->vbackporch +
-				bt->il_vfrontporch + bt->il_vsync +
-				bt->il_vbackporch;
 			std_info->l5 = std_info->vsize/2 -
 				(bt->vfrontporch - 1);
 			std_info->l7 = std_info->vsize/2 + 1;
@@ -1462,8 +1458,6 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 			return -EINVAL;
 		}
 	} else {
-		std_info->vsize = bt->height + bt->vfrontporch +
-			bt->vsync + bt->vbackporch;
 		std_info->l5 = std_info->vsize - (bt->vfrontporch - 1);
 	}
 	strncpy(std_info->name, "Custom timings BT656/1120",
@@ -1618,6 +1612,102 @@ vpif_init_free_channel_objects:
 	return err;
 }
 
+static int vpif_async_bound(struct v4l2_async_notifier *notifier,
+			    struct v4l2_subdev *subdev,
+			    struct v4l2_async_subdev *asd)
+{
+	int i;
+
+	for (i = 0; i < vpif_obj.config->subdev_count; i++)
+		if (!strcmp(vpif_obj.config->subdevinfo[i].name,
+			    subdev->name)) {
+			vpif_obj.sd[i] = subdev;
+			vpif_obj.sd[i]->grp_id = 1 << i;
+			return 0;
+		}
+
+	return -EINVAL;
+}
+
+static int vpif_probe_complete(void)
+{
+	struct common_obj *common;
+	struct channel_obj *ch;
+	int j, err, k;
+
+	for (j = 0; j < VPIF_DISPLAY_MAX_DEVICES; j++) {
+		ch = vpif_obj.dev[j];
+		/* Initialize field of the channel objects */
+		atomic_set(&ch->usrs, 0);
+		for (k = 0; k < VPIF_NUMOBJECTS; k++) {
+			ch->common[k].numbuffers = 0;
+			common = &ch->common[k];
+			common->io_usrs = 0;
+			common->started = 0;
+			spin_lock_init(&common->irqlock);
+			mutex_init(&common->lock);
+			common->numbuffers = 0;
+			common->set_addr = NULL;
+			common->ytop_off = 0;
+			common->ybtm_off = 0;
+			common->ctop_off = 0;
+			common->cbtm_off = 0;
+			common->cur_frm = NULL;
+			common->next_frm = NULL;
+			memset(&common->fmt, 0, sizeof(common->fmt));
+			common->numbuffers = config_params.numbuffers[k];
+		}
+		ch->initialized = 0;
+		if (vpif_obj.config->subdev_count)
+			ch->sd = vpif_obj.sd[0];
+		ch->channel_id = j;
+		if (j < 2)
+			ch->common[VPIF_VIDEO_INDEX].numbuffers =
+			    config_params.numbuffers[ch->channel_id];
+		else
+			ch->common[VPIF_VIDEO_INDEX].numbuffers = 0;
+
+		memset(&ch->vpifparams, 0, sizeof(ch->vpifparams));
+
+		/* Initialize prio member of channel object */
+		v4l2_prio_init(&ch->prio);
+		ch->common[VPIF_VIDEO_INDEX].fmt.type =
+						V4L2_BUF_TYPE_VIDEO_OUTPUT;
+		ch->video_dev->lock = &common->lock;
+		video_set_drvdata(ch->video_dev, ch);
+
+		/* select output 0 */
+		err = vpif_set_output(vpif_obj.config, ch, 0);
+		if (err)
+			goto probe_out;
+
+		/* register video device */
+		vpif_dbg(1, debug, "channel=%x,channel->video_dev=%x\n",
+			 (int)ch, (int)&ch->video_dev);
+
+		err = video_register_device(ch->video_dev,
+					  VFL_TYPE_GRABBER, (j ? 3 : 2));
+		if (err < 0)
+			goto probe_out;
+	}
+
+	return 0;
+
+probe_out:
+	for (k = 0; k < j; k++) {
+		ch = vpif_obj.dev[k];
+		video_unregister_device(ch->video_dev);
+		video_device_release(ch->video_dev);
+		ch->video_dev = NULL;
+	}
+	return err;
+}
+
+static int vpif_async_complete(struct v4l2_async_notifier *notifier)
+{
+	return vpif_probe_complete();
+}
+
 /*
  * vpif_probe: This function creates device entries by register itself to the
  * V4L2 driver and initializes fields of each channel objects
@@ -1625,11 +1715,9 @@ vpif_init_free_channel_objects:
 static __init int vpif_probe(struct platform_device *pdev)
 {
 	struct vpif_subdev_info *subdevdata;
-	struct vpif_display_config *config;
-	int i, j = 0, k, err = 0;
+	int i, j = 0, err = 0;
 	int res_idx = 0;
 	struct i2c_adapter *i2c_adap;
-	struct common_obj *common;
 	struct channel_obj *ch;
 	struct video_device *vfd;
 	struct resource *res;
@@ -1708,11 +1796,9 @@ static __init int vpif_probe(struct platform_device *pdev)
 									size/2;
 		}
 	}
-
-	i2c_adap = i2c_get_adapter(1);
-	config = pdev->dev.platform_data;
-	subdev_count = config->subdev_count;
-	subdevdata = config->subdevinfo;
+	vpif_obj.config = pdev->dev.platform_data;
+	subdev_count = vpif_obj.config->subdev_count;
+	subdevdata = vpif_obj.config->subdevinfo;
 	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
 								GFP_KERNEL);
 	if (vpif_obj.sd == NULL) {
@@ -1721,86 +1807,41 @@ static __init int vpif_probe(struct platform_device *pdev)
 		goto vpif_sd_error;
 	}
 
-	for (i = 0; i < subdev_count; i++) {
-		vpif_obj.sd[i] = v4l2_i2c_new_subdev_board(&vpif_obj.v4l2_dev,
-						i2c_adap,
-						&subdevdata[i].board_info,
-						NULL);
-		if (!vpif_obj.sd[i]) {
-			vpif_err("Error registering v4l2 subdevice\n");
-			err = -ENODEV;
+	if (!vpif_obj.config->asd_sizes) {
+		i2c_adap = i2c_get_adapter(1);
+		for (i = 0; i < subdev_count; i++) {
+			vpif_obj.sd[i] =
+				v4l2_i2c_new_subdev_board(&vpif_obj.v4l2_dev,
+							  i2c_adap,
+							  &subdevdata[i].
+							  board_info,
+							  NULL);
+			if (!vpif_obj.sd[i]) {
+				vpif_err("Error registering v4l2 subdevice\n");
+				err = -ENODEV;
+				goto probe_subdev_out;
+			}
+
+			if (vpif_obj.sd[i])
+				vpif_obj.sd[i]->grp_id = 1 << i;
+		}
+		vpif_probe_complete();
+	} else {
+		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
+		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
+		vpif_obj.notifier.bound = vpif_async_bound;
+		vpif_obj.notifier.complete = vpif_async_complete;
+		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
+						   &vpif_obj.notifier);
+		if (err) {
+			vpif_err("Error registering async notifier\n");
+			err = -EINVAL;
 			goto probe_subdev_out;
 		}
-
-		if (vpif_obj.sd[i])
-			vpif_obj.sd[i]->grp_id = 1 << i;
 	}
 
-	for (j = 0; j < VPIF_DISPLAY_MAX_DEVICES; j++) {
-		ch = vpif_obj.dev[j];
-		/* Initialize field of the channel objects */
-		atomic_set(&ch->usrs, 0);
-		for (k = 0; k < VPIF_NUMOBJECTS; k++) {
-			ch->common[k].numbuffers = 0;
-			common = &ch->common[k];
-			common->io_usrs = 0;
-			common->started = 0;
-			spin_lock_init(&common->irqlock);
-			mutex_init(&common->lock);
-			common->numbuffers = 0;
-			common->set_addr = NULL;
-			common->ytop_off = common->ybtm_off = 0;
-			common->ctop_off = common->cbtm_off = 0;
-			common->cur_frm = common->next_frm = NULL;
-			memset(&common->fmt, 0, sizeof(common->fmt));
-			common->numbuffers = config_params.numbuffers[k];
-
-		}
-		ch->initialized = 0;
-		if (subdev_count)
-			ch->sd = vpif_obj.sd[0];
-		ch->channel_id = j;
-		if (j < 2)
-			ch->common[VPIF_VIDEO_INDEX].numbuffers =
-			    config_params.numbuffers[ch->channel_id];
-		else
-			ch->common[VPIF_VIDEO_INDEX].numbuffers = 0;
-
-		memset(&ch->vpifparams, 0, sizeof(ch->vpifparams));
-
-		/* Initialize prio member of channel object */
-		v4l2_prio_init(&ch->prio);
-		ch->common[VPIF_VIDEO_INDEX].fmt.type =
-						V4L2_BUF_TYPE_VIDEO_OUTPUT;
-		ch->video_dev->lock = &common->lock;
-		video_set_drvdata(ch->video_dev, ch);
-
-		/* select output 0 */
-		err = vpif_set_output(config, ch, 0);
-		if (err)
-			goto probe_out;
-
-		/* register video device */
-		vpif_dbg(1, debug, "channel=%x,channel->video_dev=%x\n",
-				(int)ch, (int)&ch->video_dev);
-
-		err = video_register_device(ch->video_dev,
-					  VFL_TYPE_GRABBER, (j ? 3 : 2));
-		if (err < 0)
-			goto probe_out;
-	}
-
-	v4l2_info(&vpif_obj.v4l2_dev,
-			" VPIF display driver initialized\n");
 	return 0;
 
-probe_out:
-	for (k = 0; k < j; k++) {
-		ch = vpif_obj.dev[k];
-		video_unregister_device(ch->video_dev);
-		video_device_release(ch->video_dev);
-		ch->video_dev = NULL;
-	}
 probe_subdev_out:
 	kfree(vpif_obj.sd);
 vpif_sd_error:

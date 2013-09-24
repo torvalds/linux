@@ -389,6 +389,7 @@ int r600_mc_wait_for_idle(struct radeon_device *rdev);
 u32 r600_get_xclk(struct radeon_device *rdev);
 uint64_t r600_get_gpu_clock_counter(struct radeon_device *rdev);
 int rv6xx_get_temp(struct radeon_device *rdev);
+int r600_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int r600_dpm_pre_set_power_state(struct radeon_device *rdev);
 void r600_dpm_post_set_power_state(struct radeon_device *rdev);
 /* r600 dma */
@@ -428,6 +429,8 @@ void rs780_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
 void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m);
+int rs780_dpm_force_performance_level(struct radeon_device *rdev,
+				      enum radeon_dpm_forced_level level);
 
 /*
  * rv770,rv730,rv710,rv740
@@ -625,6 +628,7 @@ void trinity_dpm_debugfs_print_current_performance_level(struct radeon_device *r
 							 struct seq_file *m);
 int trinity_dpm_force_performance_level(struct radeon_device *rdev,
 					enum radeon_dpm_forced_level level);
+void trinity_dpm_enable_bapm(struct radeon_device *rdev, bool enable);
 
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);
@@ -781,6 +785,7 @@ void kv_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 int kv_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);
 void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
+void kv_dpm_enable_bapm(struct radeon_device *rdev, bool enable);
 
 /* uvd v1.0 */
 uint32_t uvd_v1_0_get_rptr(struct radeon_device *rdev,

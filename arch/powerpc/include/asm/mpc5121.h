@@ -32,25 +32,11 @@ struct mpc512x_ccm {
 	u32	scfr2;	/* System Clock Frequency Register 2 */
 	u32	scfr2s;	/* System Clock Frequency Shadow Register 2 */
 	u32	bcr;	/* Bread Crumb Register */
-	u32	p0ccr;	/* PSC0 Clock Control Register */
-	u32	p1ccr;	/* PSC1 CCR */
-	u32	p2ccr;	/* PSC2 CCR */
-	u32	p3ccr;	/* PSC3 CCR */
-	u32	p4ccr;	/* PSC4 CCR */
-	u32	p5ccr;	/* PSC5 CCR */
-	u32	p6ccr;	/* PSC6 CCR */
-	u32	p7ccr;	/* PSC7 CCR */
-	u32	p8ccr;	/* PSC8 CCR */
-	u32	p9ccr;	/* PSC9 CCR */
-	u32	p10ccr;	/* PSC10 CCR */
-	u32	p11ccr;	/* PSC11 CCR */
+	u32	psc_ccr[12];	/* PSC Clock Control Registers */
 	u32	spccr;	/* SPDIF Clock Control Register */
 	u32	cccr;	/* CFM Clock Control Register */
 	u32	dccr;	/* DIU Clock Control Register */
-	u32	m1ccr;	/* MSCAN1 CCR */
-	u32	m2ccr;	/* MSCAN2 CCR */
-	u32	m3ccr;	/* MSCAN3 CCR */
-	u32	m4ccr;	/* MSCAN4 CCR */
+	u32	mscan_ccr[4];	/* MSCAN Clock Control Registers */
 	u8	res[0x98]; /* Reserved */
 };
 

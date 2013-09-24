@@ -637,7 +637,7 @@ static int sc26xx_probe(struct platform_device *dev)
 {
 	struct resource *res;
 	struct uart_sc26xx_port *up;
-	unsigned int *sc26xx_data = dev->dev.platform_data;
+	unsigned int *sc26xx_data = dev_get_platdata(&dev->dev);
 	int err;
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);

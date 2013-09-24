@@ -717,11 +717,6 @@ static int ti_abb_probe(struct platform_device *pdev)
 	/* Map ABB resources */
 	pname = "base-address";
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-	if (!res) {
-		dev_err(dev, "Missing '%s' IO resource\n", pname);
-		ret = -ENODEV;
-		goto err;
-	}
 	abb->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(abb->base)) {
 		ret = PTR_ERR(abb->base);
@@ -770,11 +765,6 @@ static int ti_abb_probe(struct platform_device *pdev)
 
 	pname = "ldo-address";
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-	if (!res) {
-		dev_dbg(dev, "Missing '%s' IO resource\n", pname);
-		ret = -ENODEV;
-		goto skip_opt;
-	}
 	abb->ldo_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(abb->ldo_base)) {
 		ret = PTR_ERR(abb->ldo_base);

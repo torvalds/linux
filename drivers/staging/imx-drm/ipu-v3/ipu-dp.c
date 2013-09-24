@@ -46,6 +46,8 @@
 #define DP_COM_CONF_CSC_DEF_BG		(2 << 8)
 #define DP_COM_CONF_CSC_DEF_BOTH	(1 << 8)
 
+#define IPUV3_NUM_FLOWS		3
+
 struct ipu_dp_priv;
 
 struct ipu_dp {
@@ -67,7 +69,7 @@ struct ipu_dp_priv {
 	struct ipu_soc *ipu;
 	struct device *dev;
 	void __iomem *base;
-	struct ipu_flow flow[3];
+	struct ipu_flow flow[IPUV3_NUM_FLOWS];
 	struct mutex mutex;
 	int use_count;
 };
@@ -280,7 +282,7 @@ struct ipu_dp *ipu_dp_get(struct ipu_soc *ipu, unsigned int flow)
 	struct ipu_dp_priv *priv = ipu->dp_priv;
 	struct ipu_dp *dp;
 
-	if (flow > 5)
+	if ((flow >> 1) >= IPUV3_NUM_FLOWS)
 		return ERR_PTR(-EINVAL);
 
 	if (flow & 1)
@@ -309,19 +311,20 @@ int ipu_dp_init(struct ipu_soc *ipu, struct device *dev, unsigned long base)
 	int i;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 	priv->dev = dev;
 	priv->ipu = ipu;
 
 	ipu->dp_priv = priv;
 
 	priv->base = devm_ioremap(dev, base, PAGE_SIZE);
-	if (!priv->base) {
+	if (!priv->base)
 		return -ENOMEM;
-	}
 
 	mutex_init(&priv->mutex);
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < IPUV3_NUM_FLOWS; i++) {
 		priv->flow[i].foreground.foreground = 1;
 		priv->flow[i].base = priv->base + ipu_dp_flow_base[i];
 		priv->flow[i].priv = priv;

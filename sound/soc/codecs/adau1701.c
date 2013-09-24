@@ -91,7 +91,7 @@
 #define ADAU1701_OSCIPOW_OPD		0x04
 #define ADAU1701_DACSET_DACINIT		1
 
-#define ADAU1707_CLKDIV_UNSET		(-1UL)
+#define ADAU1707_CLKDIV_UNSET		(-1U)
 
 #define ADAU1701_FIRMWARE "adau1701.bin"
 
@@ -247,21 +247,21 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 	    gpio_is_valid(adau1701->gpio_pll_mode[1])) {
 		switch (clkdiv) {
 		case 64:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 0);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 0);
 			break;
 		case 256:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 0);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 1);
 			break;
 		case 384:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 1);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 0);
 			break;
 		case 0:	/* fallback */
 		case 512:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 1);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 1);
 			break;
 		}
 	}
@@ -269,10 +269,10 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 	adau1701->pll_clkdiv = clkdiv;
 
 	if (gpio_is_valid(adau1701->gpio_nreset)) {
-		gpio_set_value(adau1701->gpio_nreset, 0);
+		gpio_set_value_cansleep(adau1701->gpio_nreset, 0);
 		/* minimum reset time is 20ns */
 		udelay(1);
-		gpio_set_value(adau1701->gpio_nreset, 1);
+		gpio_set_value_cansleep(adau1701->gpio_nreset, 1);
 		/* power-up time may be as long as 85ms */
 		mdelay(85);
 	}
@@ -734,7 +734,10 @@ static int adau1701_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adau1701_i2c_id[] = {
+	{ "adau1401", 0 },
+	{ "adau1401a", 0 },
 	{ "adau1701", 0 },
+	{ "adau1702", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adau1701_i2c_id);

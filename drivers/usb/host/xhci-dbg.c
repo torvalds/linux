@@ -580,3 +580,17 @@ void xhci_dbg_ctx(struct xhci_hcd *xhci,
 	xhci_dbg_slot_ctx(xhci, ctx);
 	xhci_dbg_ep_ctx(xhci, ctx, last_ep);
 }
+
+void xhci_dbg_trace(struct xhci_hcd *xhci, void (*trace)(struct va_format *),
+			const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	xhci_dbg(xhci, "%pV\n", &vaf);
+	trace(&vaf);
+	va_end(args);
+}

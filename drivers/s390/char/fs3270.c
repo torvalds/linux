@@ -524,20 +524,20 @@ static const struct file_operations fs3270_fops = {
 	.llseek		= no_llseek,
 };
 
-void fs3270_create_cb(int minor)
+static void fs3270_create_cb(int minor)
 {
 	__register_chrdev(IBM_FS3270_MAJOR, minor, 1, "tub", &fs3270_fops);
 	device_create(class3270, NULL, MKDEV(IBM_FS3270_MAJOR, minor),
 		      NULL, "3270/tub%d", minor);
 }
 
-void fs3270_destroy_cb(int minor)
+static void fs3270_destroy_cb(int minor)
 {
 	device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, minor));
 	__unregister_chrdev(IBM_FS3270_MAJOR, minor, 1, "tub");
 }
 
-struct raw3270_notifier fs3270_notifier =
+static struct raw3270_notifier fs3270_notifier =
 {
 	.create = fs3270_create_cb,
 	.destroy = fs3270_destroy_cb,

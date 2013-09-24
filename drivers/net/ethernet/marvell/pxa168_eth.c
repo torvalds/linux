@@ -583,10 +583,9 @@ static int init_hash_table(struct pxa168_eth_private *pep)
 	 * table is full.
 	 */
 	if (pep->htpr == NULL) {
-		pep->htpr = dma_alloc_coherent(pep->dev->dev.parent,
-					       HASH_ADDR_TABLE_SIZE,
-					       &pep->htpr_dma,
-					       GFP_KERNEL | __GFP_ZERO);
+		pep->htpr = dma_zalloc_coherent(pep->dev->dev.parent,
+						HASH_ADDR_TABLE_SIZE,
+						&pep->htpr_dma, GFP_KERNEL);
 		if (pep->htpr == NULL)
 			return -ENOMEM;
 	} else {
@@ -1024,9 +1023,9 @@ static int rxq_init(struct net_device *dev)
 	pep->rx_desc_count = 0;
 	size = pep->rx_ring_size * sizeof(struct rx_desc);
 	pep->rx_desc_area_size = size;
-	pep->p_rx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
-						 &pep->rx_desc_dma,
-						 GFP_KERNEL | __GFP_ZERO);
+	pep->p_rx_desc_area = dma_zalloc_coherent(pep->dev->dev.parent, size,
+						  &pep->rx_desc_dma,
+						  GFP_KERNEL);
 	if (!pep->p_rx_desc_area)
 		goto out;
 
@@ -1085,9 +1084,9 @@ static int txq_init(struct net_device *dev)
 	pep->tx_desc_count = 0;
 	size = pep->tx_ring_size * sizeof(struct tx_desc);
 	pep->tx_desc_area_size = size;
-	pep->p_tx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
-						 &pep->tx_desc_dma,
-						 GFP_KERNEL | __GFP_ZERO);
+	pep->p_tx_desc_area = dma_zalloc_coherent(pep->dev->dev.parent, size,
+						  &pep->tx_desc_dma,
+						  GFP_KERNEL);
 	if (!pep->p_tx_desc_area)
 		goto out;
 	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
@@ -1124,8 +1123,7 @@ static int pxa168_eth_open(struct net_device *dev)
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 	int err;
 
-	err = request_irq(dev->irq, pxa168_eth_int_handler,
-			  IRQF_DISABLED, dev->name, dev);
+	err = request_irq(dev->irq, pxa168_eth_int_handler, 0, dev->name, dev);
 	if (err) {
 		dev_err(&dev->dev, "can't assign irq\n");
 		return -EAGAIN;
@@ -1517,7 +1515,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	printk(KERN_INFO "%s:Using random mac address\n", DRIVER_NAME);
 	eth_hw_addr_random(dev);
 
-	pep->pd = pdev->dev.platform_data;
+	pep->pd = dev_get_platdata(&pdev->dev);
 	pep->rx_ring_size = NUM_RX_DESCS;
 	if (pep->pd->rx_queue_size)
 		pep->rx_ring_size = pep->pd->rx_queue_size;
