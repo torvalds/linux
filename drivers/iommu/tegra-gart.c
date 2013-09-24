@@ -351,7 +351,6 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	struct gart_device *gart;
 	struct resource *res, *res_remap;
 	void __iomem *gart_regs;
-	int err;
 	struct device *dev = &pdev->dev;
 
 	if (gart_handle)
@@ -376,8 +375,7 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	gart_regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!gart_regs) {
 		dev_err(dev, "failed to remap GART registers\n");
-		err = -ENXIO;
-		goto fail;
+		return -ENXIO;
 	}
 
 	gart->dev = &pdev->dev;
@@ -391,8 +389,7 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	gart->savedata = vmalloc(sizeof(u32) * gart->page_count);
 	if (!gart->savedata) {
 		dev_err(dev, "failed to allocate context save area\n");
-		err = -ENOMEM;
-		goto fail;
+		return -ENOMEM;
 	}
 
 	platform_set_drvdata(pdev, gart);
@@ -401,27 +398,15 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	gart_handle = gart;
 	bus_set_iommu(&platform_bus_type, &gart_iommu_ops);
 	return 0;
-
-fail:
-	if (gart_regs)
-		devm_iounmap(dev, gart_regs);
-	if (gart && gart->savedata)
-		vfree(gart->savedata);
-	devm_kfree(dev, gart);
-	return err;
 }
 
 static int tegra_gart_remove(struct platform_device *pdev)
 {
 	struct gart_device *gart = platform_get_drvdata(pdev);
-	struct device *dev = gart->dev;
 
 	writel(0, gart->regs + GART_CONFIG);
 	if (gart->savedata)
 		vfree(gart->savedata);
-	if (gart->regs)
-		devm_iounmap(dev, gart->regs);
-	devm_kfree(dev, gart);
 	gart_handle = NULL;
 	return 0;
 }
