@@ -22,3 +22,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(detach_device_from_domain);
 /* iommu_map_unmap */
 EXPORT_TRACEPOINT_SYMBOL_GPL(map);
 EXPORT_TRACEPOINT_SYMBOL_GPL(unmap);
+
+/* iommu_error */
+EXPORT_TRACEPOINT_SYMBOL_GPL(io_page_fault);

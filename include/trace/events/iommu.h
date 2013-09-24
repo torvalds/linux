@@ -123,6 +123,39 @@ DEFINE_EVENT_PRINT(iommu_map_unmap, unmap,
 			__entry->iova, __entry->size
 	)
 );
+
+DECLARE_EVENT_CLASS(iommu_error,
+
+	TP_PROTO(struct device *dev, unsigned long iova, int flags),
+
+	TP_ARGS(dev, iova, flags),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(dev))
+		__string(driver, dev_driver_string(dev))
+		__field(u64, iova)
+		__field(int, flags)
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(dev));
+		__assign_str(driver, dev_driver_string(dev));
+		__entry->iova = iova;
+		__entry->flags = flags;
+	),
+
+	TP_printk("IOMMU:%s %s iova=0x%016llx flags=0x%04x",
+			__get_str(driver), __get_str(device),
+			__entry->iova, __entry->flags
+	)
+);
+
+DEFINE_EVENT(iommu_error, io_page_fault,
+
+	TP_PROTO(struct device *dev, unsigned long iova, int flags),
+
+	TP_ARGS(dev, iova, flags)
+);
 #endif /* _TRACE_IOMMU_H */
 
 /* This part must be outside protection */
