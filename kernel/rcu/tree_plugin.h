@@ -779,8 +779,10 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 		}
 		if (rnp->parent == NULL) {
 			raw_spin_unlock_irqrestore(&rnp->lock, flags);
-			if (wake)
+			if (wake) {
+				smp_mb(); /* EGP done before wake_up(). */
 				wake_up(&sync_rcu_preempt_exp_wq);
+			}
 			break;
 		}
 		mask = rnp->grpmask;
@@ -1852,6 +1854,7 @@ static int rcu_oom_notify(struct notifier_block *self,
 
 	/* Wait for callbacks from earlier instance to complete. */
 	wait_event(oom_callback_wq, atomic_read(&oom_callback_count) == 0);
+	smp_mb(); /* Ensure callback reuse happens after callback invocation. */
 
 	/*
 	 * Prevent premature wakeup: ensure that all increments happen
@@ -2250,6 +2253,7 @@ static int rcu_nocb_kthread(void *arg)
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    TPS("Sleep"));
 			wait_event_interruptible(rdp->nocb_wq, rdp->nocb_head);
+			/* Memory barrier provide by xchg() below. */
 		} else if (firsttime) {
 			firsttime = 0;
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
