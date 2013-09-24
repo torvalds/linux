@@ -481,7 +481,14 @@ int main(int argc, const char **argv)
 		fprintf(stderr, "cannot handle %s internally", cmd);
 		goto out;
 	}
-
+#ifdef HAVE_LIBAUDIT_SUPPORT
+	if (!prefixcmp(cmd, "trace")) {
+		set_buildid_dir();
+		setup_path();
+		argv[0] = "trace";
+		return cmd_trace(argc, argv, NULL);
+	}
+#endif
 	/* Look for flags.. */
 	argv++;
 	argc--;
