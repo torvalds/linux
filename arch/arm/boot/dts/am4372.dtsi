@@ -418,5 +418,12 @@
 			reg = <0x53501000 0xa0>;
 			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		};
+
+		des: des@53701000 {
+			compatible = "ti,omap4-des";
+			ti,hwmods = "des";
+			reg = <0x53701000 0xa0>;
+			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+		};
 	};
 };
