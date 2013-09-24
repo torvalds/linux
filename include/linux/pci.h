@@ -470,6 +470,10 @@ struct pci_bus {
 /*
  * Returns true if the pci bus is root (behind host-pci bridge),
  * false otherwise
+ *
+ * Some code assumes that "bus->self == NULL" means that bus is a root bus.
+ * This is incorrect because "virtual" buses added for SR-IOV (via
+ * virtfn_add_bus()) have "bus->self == NULL" but are not root buses.
  */
 static inline bool pci_is_root_bus(struct pci_bus *pbus)
 {
