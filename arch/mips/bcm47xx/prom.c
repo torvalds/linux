@@ -28,6 +28,8 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
+#include <linux/ssb/ssb_driver_chipcommon.h>
+#include <linux/ssb/ssb_regs.h>
 #include <linux/smp.h>
 #include <asm/bootinfo.h>
 #include <bcm47xx.h>
@@ -94,9 +96,16 @@ static __init void prom_init_mem(void)
 	add_memory_region(0, mem, BOOT_MEM_RAM);
 }
 
+/*
+ * This is the first serial on the chip common core, it is at this position
+ * for sb (ssb) and ai (bcma) bus.
+ */
+#define BCM47XX_SERIAL_ADDR (SSB_ENUM_BASE + SSB_CHIPCO_UART0_DATA)
+
 void __init prom_init(void)
 {
 	prom_init_mem();
+	setup_8250_early_printk_port(CKSEG1ADDR(BCM47XX_SERIAL_ADDR), 0, 0);
 }
 
 void __init prom_free_prom_memory(void)

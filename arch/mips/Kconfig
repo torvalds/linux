@@ -120,6 +120,8 @@ config BCM47XX
 	select NO_EXCEPT_FILL
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+	select EARLY_PRINTK_8250 if EARLY_PRINTK
 	help
 	 Support for BCM47XX based boards
 
