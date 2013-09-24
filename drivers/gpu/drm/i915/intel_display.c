@@ -672,13 +672,11 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	u32 p1, p2, m1, m2, vco, bestn, bestm1, bestm2, bestp1, bestp2;
 	u32 m, n, fastclk;
 	u32 updrate, minupdate, p;
-	unsigned long bestppm, ppm, absppm;
+	unsigned int bestppm = 1000000;
 	int dotclk, flag;
 
 	flag = 0;
 	dotclk = target * 1000;
-	bestppm = 1000000;
-	ppm = absppm = 0;
 	fastclk = dotclk / (2*100);
 	updrate = 0;
 	minupdate = 19200;
@@ -695,6 +693,8 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 				p = p1 * p2;
 				/* based on hardware requirement, prefer bigger m1,m2 values */
 				for (m1 = limit->m1.min; m1 <= limit->m1.max; m1++) {
+					unsigned int ppm, diff;
+
 					m2 = DIV_ROUND_CLOSEST(fastclk * p * n, refclk * m1);
 					m = m1 * m2;
 					vco = updrate * m;
@@ -702,14 +702,14 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 					if (vco < limit->vco.min || vco >= limit->vco.max)
 						continue;
 
-					ppm = 1000000 * ((vco / p) - fastclk) / fastclk;
-					absppm = (ppm > 0) ? ppm : (-ppm);
-					if (absppm < 100 && ((p1 * p2) > (bestp1 * bestp2))) {
+					diff = abs(vco / p - fastclk);
+					ppm = div_u64(1000000ULL * diff, fastclk);
+					if (ppm < 100 && ((p1 * p2) > (bestp1 * bestp2))) {
 						bestppm = 0;
 						flag = 1;
 					}
-					if (absppm < bestppm - 10) {
-						bestppm = absppm;
+					if (ppm < bestppm - 10) {
+						bestppm = ppm;
 						flag = 1;
 					}
 					if (flag) {
