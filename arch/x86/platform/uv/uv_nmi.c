@@ -660,8 +660,7 @@ void uv_nmi_setup(void)
 		}
 		uv_hub_nmi_per(cpu) = uv_hub_nmi_list[nid];
 	}
-	alloc_cpumask_var(&uv_nmi_cpu_mask, GFP_KERNEL);
-	BUG_ON(!uv_nmi_cpu_mask);
+	BUG_ON(!alloc_cpumask_var(&uv_nmi_cpu_mask, GFP_KERNEL));
 }
 
 
