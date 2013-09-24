@@ -172,6 +172,27 @@ u8 hw_port_test_get(struct ci_hdrc *ci)
 	return hw_read(ci, OP_PORTSC, PORTSC_PTC) >> __ffs(PORTSC_PTC);
 }
 
+/* The PHY enters/leaves low power mode */
+static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
+{
+	enum ci_hw_regs reg = ci->hw_bank.lpm ? OP_DEVLC : OP_PORTSC;
+	bool lpm = !!(hw_read(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm)));
+
+	if (enable && !lpm) {
+		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
+				PORTSC_PHCD(ci->hw_bank.lpm));
+	} else  if (!enable && lpm) {
+		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
+				0);
+		/* 
+		 * The controller needs at least 1ms to reflect
+		 * PHY's status, the PHY also needs some time (less
+		 * than 1ms) to leave low power mode.
+		 */
+		usleep_range(1500, 2000);
+	}
+}
+
 static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 {
 	u32 reg;
@@ -198,6 +219,8 @@ static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 
 	if (ci->hw_ep_max > ENDPT_MAX)
 		return -ENODEV;
+
+	ci_hdrc_enter_lpm(ci, false);
 
 	/* Disable all interrupts bits */
 	hw_write(ci, OP_USBINTR, 0xffffffff, 0);
@@ -648,6 +671,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	dbg_remove_files(ci);
 	free_irq(ci->irq, ci);
 	ci_role_destroy(ci);
+	ci_hdrc_enter_lpm(ci, true);
 	ci_usb_phy_destroy(ci);
 	kfree(ci->hw_bank.regmap);
 
