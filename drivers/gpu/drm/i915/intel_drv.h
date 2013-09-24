@@ -608,7 +608,6 @@ extern void intel_ddi_get_config(struct intel_encoder *encoder,
 
 /* intel_display.c */
 int intel_pch_rawclk(struct drm_device *dev);
-extern bool intel_pipe_has_type(struct drm_crtc *crtc, int type);
 extern void intel_mark_busy(struct drm_device *dev);
 extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
 			       struct intel_ring_buffer *ring);

@@ -41,7 +41,6 @@
 #include <drm/drm_crtc_helper.h>
 #include <linux/dma_remapping.h>
 
-bool intel_pipe_has_type(struct drm_crtc *crtc, int type);
 static void intel_increase_pllclock(struct drm_crtc *crtc);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
 
@@ -336,6 +335,21 @@ static const intel_limit_t intel_limits_vlv_hdmi = {
 		.p2_slow = 2, .p2_fast = 20 },
 };
 
+/**
+ * Returns whether any output on the specified pipe is of the specified type
+ */
+static bool intel_pipe_has_type(struct drm_crtc *crtc, int type)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_encoder *encoder;
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->type == type)
+			return true;
+
+	return false;
+}
+
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
 						int refclk)
 {
@@ -436,21 +450,6 @@ static void i9xx_clock(int refclk, intel_clock_t *clock)
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
 	clock->dot = clock->vco / clock->p;
-}
-
-/**
- * Returns whether any output on the specified pipe is of the specified type
- */
-bool intel_pipe_has_type(struct drm_crtc *crtc, int type)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_encoder *encoder;
-
-	for_each_encoder_on_crtc(dev, crtc, encoder)
-		if (encoder->type == type)
-			return true;
-
-	return false;
 }
 
 #define INTELPllInvalid(s)   do { /* DRM_DEBUG(s); */ return false; } while (0)
