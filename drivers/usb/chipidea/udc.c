@@ -20,7 +20,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/usb/otg.h>
 #include <linux/usb/chipidea.h>
 
 #include "ci.h"
@@ -1790,34 +1789,9 @@ static int udc_start(struct ci_hdrc *ci)
 
 	ci->gadget.ep0 = &ci->ep0in->ep;
 
-	if (ci->global_phy) {
-		ci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
-		if (IS_ERR(ci->transceiver))
-			ci->transceiver = NULL;
-	}
-
-	if (ci->platdata->flags & CI_HDRC_REQUIRE_TRANSCEIVER) {
-		if (ci->transceiver == NULL) {
-			retval = -ENODEV;
-			goto destroy_eps;
-		}
-	}
-
-	if (ci->transceiver) {
-		retval = otg_set_peripheral(ci->transceiver->otg,
-						&ci->gadget);
-		/*
-		 * If we implement all USB functions using chipidea drivers,
-		 * it doesn't need to call above API, meanwhile, if we only
-		 * use gadget function, calling above API is useless.
-		 */
-		if (retval && retval != -ENOTSUPP)
-			goto put_transceiver;
-	}
-
 	retval = usb_add_gadget_udc(dev, &ci->gadget);
 	if (retval)
-		goto remove_trans;
+		goto destroy_eps;
 
 	pm_runtime_no_callbacks(&ci->gadget.dev);
 	pm_runtime_enable(&ci->gadget.dev);
@@ -1827,17 +1801,6 @@ static int udc_start(struct ci_hdrc *ci)
 
 	return retval;
 
-remove_trans:
-	if (ci->transceiver) {
-		otg_set_peripheral(ci->transceiver->otg, NULL);
-		if (ci->global_phy)
-			usb_put_phy(ci->transceiver);
-	}
-
-	dev_err(dev, "error = %i\n", retval);
-put_transceiver:
-	if (ci->transceiver && ci->global_phy)
-		usb_put_phy(ci->transceiver);
 destroy_eps:
 	destroy_eps(ci);
 free_pools:

@@ -474,6 +474,33 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 	}
 }
 
+static int ci_usb_phy_init(struct ci_hdrc *ci)
+{
+	if (ci->platdata->phy) {
+		ci->transceiver = ci->platdata->phy;
+		return usb_phy_init(ci->transceiver);
+	} else {
+		ci->global_phy = true;
+		ci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+		if (IS_ERR(ci->transceiver))
+			ci->transceiver = NULL;
+
+		return 0;
+	}
+}
+
+static void ci_usb_phy_destroy(struct ci_hdrc *ci)
+{
+	if (!ci->transceiver)
+		return;
+
+	otg_set_peripheral(ci->transceiver->otg, NULL);
+	if (ci->global_phy)
+		usb_put_phy(ci->transceiver);
+	else
+		usb_phy_shutdown(ci->transceiver);
+}
+
 static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -501,10 +528,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	ci->dev = dev;
 	ci->platdata = dev->platform_data;
-	if (ci->platdata->phy)
-		ci->transceiver = ci->platdata->phy;
-	else
-		ci->global_phy = true;
 
 	ret = hw_device_init(ci, base);
 	if (ret < 0) {
@@ -512,12 +535,19 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	ret = ci_usb_phy_init(ci);
+	if (ret) {
+		dev_err(dev, "unable to init phy: %d\n", ret);
+		return ret;
+	}
+
 	ci->hw_bank.phys = res->start;
 
 	ci->irq = platform_get_irq(pdev, 0);
 	if (ci->irq < 0) {
 		dev_err(dev, "missing IRQ\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto destroy_phy;
 	}
 
 	ci_get_otg_capable(ci);
@@ -536,11 +566,23 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		ret = ci_hdrc_gadget_init(ci);
 		if (ret)
 			dev_info(dev, "doesn't support gadget\n");
+		if (!ret && ci->transceiver) {
+			ret = otg_set_peripheral(ci->transceiver->otg,
+							&ci->gadget);
+			/*
+			 * If we implement all USB functions using chipidea drivers,
+			 * it doesn't need to call above API, meanwhile, if we only
+			 * use gadget function, calling above API is useless.
+			 */
+			if (ret && ret != -ENOTSUPP)
+				goto destroy_phy;
+		}
 	}
 
 	if (!ci->roles[CI_ROLE_HOST] && !ci->roles[CI_ROLE_GADGET]) {
 		dev_err(dev, "no supported roles\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto destroy_phy;
 	}
 
 	if (ci->is_otg) {
@@ -593,6 +635,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	free_irq(ci->irq, ci);
 stop:
 	ci_role_destroy(ci);
+destroy_phy:
+	ci_usb_phy_destroy(ci);
 
 	return ret;
 }
@@ -604,6 +648,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	dbg_remove_files(ci);
 	free_irq(ci->irq, ci);
 	ci_role_destroy(ci);
+	ci_usb_phy_destroy(ci);
 	kfree(ci->hw_bank.regmap);
 
 	return 0;
