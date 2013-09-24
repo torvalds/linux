@@ -131,12 +131,18 @@ int tegra_drm_alloc(struct platform_device *pdev)
 int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm)
 {
 	struct host1x_client *client;
+	int err;
 
 	mutex_lock(&tegra->clients_lock);
 
 	list_for_each_entry(client, &tegra->clients, list) {
-		if (client->ops && client->ops->drm_init) {
-			int err = client->ops->drm_init(client, drm);
+		struct tegra_drm_client *tdc = to_tegra_drm_client(client);
+
+		/* associate client with DRM device */
+		tdc->drm = drm;
+
+		if (client->ops && client->ops->init) {
+			err = client->ops->init(client);
 			if (err < 0) {
 				dev_err(tegra->dev,
 					"DRM setup failed for %s: %d\n",
@@ -154,8 +160,9 @@ int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm)
 
 int tegra_drm_exit(struct tegra_drm *tegra)
 {
-	struct platform_device *pdev = to_platform_device(tegra->dev);
 	struct host1x_client *client;
+	struct platform_device *pdev;
+	int err;
 
 	if (!tegra->drm)
 		return 0;
@@ -163,8 +170,8 @@ int tegra_drm_exit(struct tegra_drm *tegra)
 	mutex_lock(&tegra->clients_lock);
 
 	list_for_each_entry_reverse(client, &tegra->clients, list) {
-		if (client->ops && client->ops->drm_exit) {
-			int err = client->ops->drm_exit(client);
+		if (client->ops && client->ops->exit) {
+			err = client->ops->exit(client);
 			if (err < 0) {
 				dev_err(tegra->dev,
 					"DRM cleanup failed for %s: %d\n",
@@ -177,6 +184,7 @@ int tegra_drm_exit(struct tegra_drm *tegra)
 
 	mutex_unlock(&tegra->clients_lock);
 
+	pdev = to_platform_device(tegra->dev);
 	drm_platform_exit(&tegra_drm_driver, pdev);
 	tegra->drm = NULL;
 
@@ -409,22 +417,22 @@ static int tegra_open_channel(struct drm_device *drm, void *data,
 	struct tegra_drm *tegra = drm->dev_private;
 	struct drm_tegra_open_channel *args = data;
 	struct tegra_drm_context *context;
-	struct host1x_client *client;
+	struct tegra_drm_client *client;
 	int err = -ENODEV;
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		return -ENOMEM;
 
-	list_for_each_entry(client, &tegra->clients, list)
-		if (client->class == args->client) {
+	list_for_each_entry(client, &tegra->clients, base.list)
+		if (client->base.class == args->client) {
 			err = client->ops->open_channel(client, context);
 			if (err)
 				break;
 
-			context->client = client;
 			list_add(&context->list, &fpriv->contexts);
 			args->context = (uintptr_t)context;
+			context->client = client;
 			return 0;
 		}
 
@@ -463,10 +471,10 @@ static int tegra_get_syncpt(struct drm_device *drm, void *data,
 	if (!tegra_drm_file_owns_context(fpriv, context))
 		return -ENODEV;
 
-	if (args->index >= context->client->num_syncpts)
+	if (args->index >= context->client->base.num_syncpts)
 		return -EINVAL;
 
-	syncpt = context->client->syncpts[args->index];
+	syncpt = context->client->base.syncpts[args->index];
 	args->id = host1x_syncpt_id(syncpt);
 
 	return 0;

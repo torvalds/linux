@@ -27,20 +27,19 @@
 #define GR2D_NUM_REGS 0x4d
 
 struct gr2d {
-	struct host1x_client client;
+	struct tegra_drm_client client;
 	struct host1x_channel *channel;
 	struct clk *clk;
 
 	DECLARE_BITMAP(addr_regs, GR2D_NUM_REGS);
 };
 
-static inline struct gr2d *to_gr2d(struct host1x_client *client)
+static inline struct gr2d *to_gr2d(struct tegra_drm_client *client)
 {
 	return container_of(client, struct gr2d, client);
 }
 
-static int gr2d_client_init(struct host1x_client *client,
-			    struct drm_device *drm)
+static int gr2d_client_init(struct host1x_client *client)
 {
 	return 0;
 }
@@ -50,7 +49,12 @@ static int gr2d_client_exit(struct host1x_client *client)
 	return 0;
 }
 
-static int gr2d_open_channel(struct host1x_client *client,
+static const struct host1x_client_ops gr2d_client_ops = {
+	.init = gr2d_client_init,
+	.exit = gr2d_client_exit,
+};
+
+static int gr2d_open_channel(struct tegra_drm_client *client,
 			     struct tegra_drm_context *context)
 {
 	struct gr2d *gr2d = to_gr2d(client);
@@ -140,7 +144,7 @@ static int gr2d_submit(struct tegra_drm_context *context,
 	job->num_relocs = args->num_relocs;
 	job->num_waitchk = args->num_waitchks;
 	job->client = (u32)args->context;
-	job->class = context->client->class;
+	job->class = context->client->base.class;
 	job->serialize = true;
 
 	while (num_cmdbufs) {
@@ -201,7 +205,7 @@ static int gr2d_submit(struct tegra_drm_context *context,
 	if (args->timeout && args->timeout < 10000)
 		job->timeout = args->timeout;
 
-	err = host1x_job_pin(job, context->client->dev);
+	err = host1x_job_pin(job, context->client->base.dev);
 	if (err)
 		goto fail;
 
@@ -221,9 +225,7 @@ fail:
 	return err;
 }
 
-static struct host1x_client_ops gr2d_client_ops = {
-	.drm_init = gr2d_client_init,
-	.drm_exit = gr2d_client_exit,
+static const struct tegra_drm_client_ops gr2d_ops = {
 	.open_channel = gr2d_open_channel,
 	.close_channel = gr2d_close_channel,
 	.submit = gr2d_submit,
@@ -279,13 +281,15 @@ static int gr2d_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	gr2d->client.ops = &gr2d_client_ops;
-	gr2d->client.dev = dev;
-	gr2d->client.class = HOST1X_CLASS_GR2D;
-	gr2d->client.syncpts = syncpts;
-	gr2d->client.num_syncpts = 1;
+	INIT_LIST_HEAD(&gr2d->client.base.list);
+	gr2d->client.base.ops = &gr2d_client_ops;
+	gr2d->client.base.dev = dev;
+	gr2d->client.base.class = HOST1X_CLASS_GR2D;
+	gr2d->client.base.syncpts = syncpts;
+	gr2d->client.base.num_syncpts = 1;
+	gr2d->client.ops = &gr2d_ops;
 
-	err = host1x_register_client(tegra, &gr2d->client);
+	err = host1x_register_client(tegra, &gr2d->client.base);
 	if (err < 0) {
 		dev_err(dev, "failed to register host1x client: %d\n", err);
 		return err;
@@ -307,15 +311,15 @@ static int gr2d_remove(struct platform_device *pdev)
 	unsigned int i;
 	int err;
 
-	err = host1x_unregister_client(tegra, &gr2d->client);
+	err = host1x_unregister_client(tegra, &gr2d->client.base);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
 			err);
 		return err;
 	}
 
-	for (i = 0; i < gr2d->client.num_syncpts; i++)
-		host1x_syncpt_free(gr2d->client.syncpts[i]);
+	for (i = 0; i < gr2d->client.base.num_syncpts; i++)
+		host1x_syncpt_free(gr2d->client.base.syncpts[i]);
 
 	host1x_channel_free(gr2d->channel);
 	clk_disable_unprepare(gr2d->clk);

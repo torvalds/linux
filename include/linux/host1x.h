@@ -25,4 +25,24 @@ enum host1x_class {
 	HOST1X_CLASS_GR2D_SB = 0x52,
 };
 
+struct host1x_client;
+
+struct host1x_client_ops {
+	int (*init)(struct host1x_client *client);
+	int (*exit)(struct host1x_client *client);
+};
+
+struct host1x_client {
+	struct list_head list;
+	struct device *dev;
+
+	const struct host1x_client_ops *ops;
+
+	enum host1x_class class;
+	struct host1x_channel *channel;
+
+	struct host1x_syncpt **syncpts;
+	unsigned int num_syncpts;
+};
+
 #endif

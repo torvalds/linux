@@ -44,18 +44,16 @@ struct tegra_drm {
 	struct tegra_fbdev *fbdev;
 };
 
-struct host1x_client;
+struct tegra_drm_client;
 
 struct tegra_drm_context {
-	struct host1x_client *client;
+	struct tegra_drm_client *client;
 	struct host1x_channel *channel;
 	struct list_head list;
 };
 
-struct host1x_client_ops {
-	int (*drm_init)(struct host1x_client *client, struct drm_device *drm);
-	int (*drm_exit)(struct host1x_client *client);
-	int (*open_channel)(struct host1x_client *client,
+struct tegra_drm_client_ops {
+	int (*open_channel)(struct tegra_drm_client *client,
 			    struct tegra_drm_context *context);
 	void (*close_channel)(struct tegra_drm_context *context);
 	int (*submit)(struct tegra_drm_context *context,
@@ -63,20 +61,18 @@ struct host1x_client_ops {
 		      struct drm_file *file);
 };
 
-struct host1x_client {
-	struct tegra_drm *tegra;
-	struct device *dev;
+struct tegra_drm_client {
+	struct host1x_client base;
+	struct drm_device *drm;
 
-	const struct host1x_client_ops *ops;
-
-	enum host1x_class class;
-	struct host1x_channel *channel;
-
-	struct host1x_syncpt **syncpts;
-	unsigned int num_syncpts;
-
-	struct list_head list;
+	const struct tegra_drm_client_ops *ops;
 };
+
+static inline struct tegra_drm_client *
+to_tegra_drm_client(struct host1x_client *client)
+{
+	return container_of(client, struct tegra_drm_client, base);
+}
 
 extern int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
 extern int tegra_drm_exit(struct tegra_drm *tegra);
@@ -89,7 +85,7 @@ extern int host1x_unregister_client(struct tegra_drm *tegra,
 struct tegra_output;
 
 struct tegra_dc {
-	struct host1x_client client;
+	struct tegra_drm_client client;
 	struct device *dev;
 	spinlock_t lock;
 
@@ -112,7 +108,8 @@ struct tegra_dc {
 	struct drm_pending_vblank_event *event;
 };
 
-static inline struct tegra_dc *host1x_client_to_dc(struct host1x_client *client)
+static inline struct tegra_dc *
+tegra_drm_client_to_dc(struct tegra_drm_client *client)
 {
 	return container_of(client, struct tegra_dc, client);
 }
