@@ -32,10 +32,10 @@
 #define DIGITAL_SEL_RES_IS_T2T(sel_res) (!((sel_res) & 0x60))
 #define DIGITAL_SEL_RES_IS_NFC_DEP(sel_res) ((sel_res) & 0x40)
 
-#define DIGITAL_SENS_RES_IS_T1T(sens_res) (((sens_res) & 0x000C) == 0x000C)
+#define DIGITAL_SENS_RES_IS_T1T(sens_res) (((sens_res) & 0x0C00) == 0x0C00)
 #define DIGITAL_SENS_RES_IS_VALID(sens_res) \
-	((!((sens_res) & 0x1F00) && (((sens_res) & 0x000C) == 0x000C)) || \
-	(((sens_res) & 0x1F00) && ((sens_res) & 0x000C) != 0x000C))
+	((!((sens_res) & 0x001F) && (((sens_res) & 0x0C00) == 0x0C00)) || \
+	(((sens_res) & 0x001F) && ((sens_res) & 0x0C00) != 0x0C00))
 
 #define DIGITAL_MIFARE_READ_RES_LEN 16
 #define DIGITAL_MIFARE_ACK_RES	0x0A
@@ -280,7 +280,6 @@ static void digital_in_recv_sens_res(struct nfc_digital_dev *ddev, void *arg,
 				     struct sk_buff *resp)
 {
 	struct nfc_target *target = NULL;
-	u16 sens_res;
 	int rc;
 
 	if (IS_ERR(resp)) {
@@ -300,17 +299,15 @@ static void digital_in_recv_sens_res(struct nfc_digital_dev *ddev, void *arg,
 		goto exit;
 	}
 
-	memcpy(&target->sens_res, resp->data, sizeof(u16));
+	target->sens_res = __le16_to_cpu(*(__le16 *)resp->data);
 
-	sens_res = be16_to_cpu(target->sens_res);
-
-	if (!DIGITAL_SENS_RES_IS_VALID(sens_res)) {
+	if (!DIGITAL_SENS_RES_IS_VALID(target->sens_res)) {
 		PROTOCOL_ERR("4.6.3.3");
 		rc = -EINVAL;
 		goto exit;
 	}
 
-	if (DIGITAL_SENS_RES_IS_T1T(sens_res))
+	if (DIGITAL_SENS_RES_IS_T1T(target->sens_res))
 		rc = digital_target_found(ddev, target, NFC_PROTO_JEWEL);
 	else
 		rc = digital_in_send_sdd_req(ddev, target);
