@@ -633,7 +633,7 @@ static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
 		return mca_can_free(c) * c->btree_pages;
 
 	/* Return -1 if we can't do anything right now */
-	if (sc->gfp_mask & __GFP_WAIT)
+	if (sc->gfp_mask & __GFP_IO)
 		mutex_lock(&c->bucket_lock);
 	else if (!mutex_trylock(&c->bucket_lock))
 		return -1;
