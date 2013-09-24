@@ -1733,7 +1733,7 @@ struct bio_pair *bio_split(struct bio *bi, int first_sectors)
 	trace_block_split(bdev_get_queue(bi->bi_bdev), bi,
 				bi->bi_iter.bi_sector + first_sectors);
 
-	BUG_ON(bio_segments(bi) > 1);
+	BUG_ON(bio_multiple_segments(bi));
 	atomic_set(&bp->cnt, 3);
 	bp->error = 0;
 	bp->bio1 = *bi;
