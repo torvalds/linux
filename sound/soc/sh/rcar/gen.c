@@ -24,20 +24,96 @@ struct rsnd_gen_ops {
 			 struct rsnd_dai_stream *io);
 };
 
-struct rsnd_gen_reg_map {
-	int index;	/* -1 : not supported */
-	u32 offset_id;	/* offset of ssi0, ssi1, ssi2... */
-	u32 offset_adr;	/* offset of SSICR, SSISR, ... */
-};
-
 struct rsnd_gen {
 	void __iomem *base[RSND_BASE_MAX];
 
-	struct rsnd_gen_reg_map reg_map[RSND_REG_MAX];
 	struct rsnd_gen_ops *ops;
+
+	struct regmap *regmap;
+	struct regmap_field *regs[RSND_REG_MAX];
 };
 
 #define rsnd_priv_to_gen(p)	((struct rsnd_gen *)(p)->gen)
+
+#define RSND_REG_SET(gen, id, reg_id, offset, _id_offset, _id_size)	\
+	[id] = {							\
+		.reg = (unsigned int)gen->base[reg_id] + offset,	\
+		.lsb = 0,						\
+		.msb = 31,						\
+		.id_size = _id_size,					\
+		.id_offset = _id_offset,				\
+	}
+
+/*
+ *		basic function
+ */
+static int rsnd_regmap_write32(void *context, const void *_data, size_t count)
+{
+	struct rsnd_priv *priv = context;
+	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 *data = (u32 *)_data;
+	u32 val = data[1];
+	void __iomem *reg = (void *)data[0];
+
+	iowrite32(val, reg);
+
+	dev_dbg(dev, "w %p : %08x\n", reg, val);
+
+	return 0;
+}
+
+static int rsnd_regmap_read32(void *context,
+			      const void *_data, size_t reg_size,
+			      void *_val, size_t val_size)
+{
+	struct rsnd_priv *priv = context;
+	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 *data = (u32 *)_data;
+	u32 *val = (u32 *)_val;
+	void __iomem *reg = (void *)data[0];
+
+	*val = ioread32(reg);
+
+	dev_dbg(dev, "r %p : %08x\n", reg, *val);
+
+	return 0;
+}
+
+static struct regmap_bus rsnd_regmap_bus = {
+	.write				= rsnd_regmap_write32,
+	.read				= rsnd_regmap_read32,
+	.reg_format_endian_default	= REGMAP_ENDIAN_NATIVE,
+	.val_format_endian_default	= REGMAP_ENDIAN_NATIVE,
+};
+
+u32 rsnd_read(struct rsnd_priv *priv,
+	      struct rsnd_mod *mod, enum rsnd_reg reg)
+{
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+	u32 val;
+
+	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
+
+	return val;
+}
+
+void rsnd_write(struct rsnd_priv *priv,
+		struct rsnd_mod *mod,
+		enum rsnd_reg reg, u32 data)
+{
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+
+	regmap_fields_write(gen->regs[reg], rsnd_mod_id(mod), data);
+}
+
+void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
+	       enum rsnd_reg reg, u32 mask, u32 data)
+{
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+
+	regmap_fields_update_bits(gen->regs[reg], rsnd_mod_id(mod),
+				  mask, data);
+}
 
 /*
  *		Gen2
@@ -103,39 +179,64 @@ static int rsnd_gen1_path_exit(struct rsnd_priv *priv,
 	return ret;
 }
 
-#define RSND_GEN1_REG_MAP(g, s, i, oi, oa)				\
-	do {								\
-		(g)->reg_map[RSND_REG_##i].index  = RSND_GEN1_##s;	\
-		(g)->reg_map[RSND_REG_##i].offset_id = oi;		\
-		(g)->reg_map[RSND_REG_##i].offset_adr = oa;		\
-	} while (0)
+/* single address mapping */
+#define RSND_GEN1_S_REG(gen, reg, id, offset)	\
+	RSND_REG_SET(gen, RSND_REG_##id, RSND_GEN1_##reg, offset, 0, 9)
 
-static void rsnd_gen1_reg_map_init(struct rsnd_gen *gen)
+/* multi address mapping */
+#define RSND_GEN1_M_REG(gen, reg, id, offset, _id_offset)	\
+	RSND_REG_SET(gen, RSND_REG_##id, RSND_GEN1_##reg, offset, _id_offset, 9)
+
+static int rsnd_gen1_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 {
-	RSND_GEN1_REG_MAP(gen, SRU,	SRC_ROUTE_SEL,	0x0,	0x00);
-	RSND_GEN1_REG_MAP(gen, SRU,	SRC_TMG_SEL0,	0x0,	0x08);
-	RSND_GEN1_REG_MAP(gen, SRU,	SRC_TMG_SEL1,	0x0,	0x0c);
-	RSND_GEN1_REG_MAP(gen, SRU,	SRC_TMG_SEL2,	0x0,	0x10);
-	RSND_GEN1_REG_MAP(gen, SRU,	SRC_CTRL,	0x0,	0xc0);
-	RSND_GEN1_REG_MAP(gen, SRU,	SSI_MODE0,	0x0,	0xD0);
-	RSND_GEN1_REG_MAP(gen, SRU,	SSI_MODE1,	0x0,	0xD4);
-	RSND_GEN1_REG_MAP(gen, SRU,	BUSIF_MODE,	0x4,	0x20);
-	RSND_GEN1_REG_MAP(gen, SRU,	BUSIF_ADINR,	0x40,	0x214);
+	int i;
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct regmap_config regc;
+	struct reg_field regf[RSND_REG_MAX] = {
+		RSND_GEN1_S_REG(gen, SRU,	SRC_ROUTE_SEL,	0x00),
+		RSND_GEN1_S_REG(gen, SRU,	SRC_TMG_SEL0,	0x08),
+		RSND_GEN1_S_REG(gen, SRU,	SRC_TMG_SEL1,	0x0c),
+		RSND_GEN1_S_REG(gen, SRU,	SRC_TMG_SEL2,	0x10),
+		RSND_GEN1_S_REG(gen, SRU,	SRC_CTRL,	0xc0),
+		RSND_GEN1_S_REG(gen, SRU,	SSI_MODE0,	0xD0),
+		RSND_GEN1_S_REG(gen, SRU,	SSI_MODE1,	0xD4),
+		RSND_GEN1_M_REG(gen, SRU,	BUSIF_MODE,	0x20,	0x4),
+		RSND_GEN1_M_REG(gen, SRU,	BUSIF_ADINR,	0x214,	0x40),
 
-	RSND_GEN1_REG_MAP(gen, ADG,	BRRA,		0x0,	0x00);
-	RSND_GEN1_REG_MAP(gen, ADG,	BRRB,		0x0,	0x04);
-	RSND_GEN1_REG_MAP(gen, ADG,	SSICKR,		0x0,	0x08);
-	RSND_GEN1_REG_MAP(gen, ADG,	AUDIO_CLK_SEL0,	0x0,	0x0c);
-	RSND_GEN1_REG_MAP(gen, ADG,	AUDIO_CLK_SEL1,	0x0,	0x10);
-	RSND_GEN1_REG_MAP(gen, ADG,	AUDIO_CLK_SEL3,	0x0,	0x18);
-	RSND_GEN1_REG_MAP(gen, ADG,	AUDIO_CLK_SEL4,	0x0,	0x1c);
-	RSND_GEN1_REG_MAP(gen, ADG,	AUDIO_CLK_SEL5,	0x0,	0x20);
+		RSND_GEN1_S_REG(gen, ADG,	BRRA,		0x00),
+		RSND_GEN1_S_REG(gen, ADG,	BRRB,		0x04),
+		RSND_GEN1_S_REG(gen, ADG,	SSICKR,		0x08),
+		RSND_GEN1_S_REG(gen, ADG,	AUDIO_CLK_SEL0,	0x0c),
+		RSND_GEN1_S_REG(gen, ADG,	AUDIO_CLK_SEL1,	0x10),
+		RSND_GEN1_S_REG(gen, ADG,	AUDIO_CLK_SEL3,	0x18),
+		RSND_GEN1_S_REG(gen, ADG,	AUDIO_CLK_SEL4,	0x1c),
+		RSND_GEN1_S_REG(gen, ADG,	AUDIO_CLK_SEL5,	0x20),
 
-	RSND_GEN1_REG_MAP(gen, SSI,	SSICR,		0x40,	0x00);
-	RSND_GEN1_REG_MAP(gen, SSI,	SSISR,		0x40,	0x04);
-	RSND_GEN1_REG_MAP(gen, SSI,	SSITDR,		0x40,	0x08);
-	RSND_GEN1_REG_MAP(gen, SSI,	SSIRDR,		0x40,	0x0c);
-	RSND_GEN1_REG_MAP(gen, SSI,	SSIWSR,		0x40,	0x20);
+		RSND_GEN1_M_REG(gen, SSI,	SSICR,		0x00,	0x40),
+		RSND_GEN1_M_REG(gen, SSI,	SSISR,		0x04,	0x40),
+		RSND_GEN1_M_REG(gen, SSI,	SSITDR,		0x08,	0x40),
+		RSND_GEN1_M_REG(gen, SSI,	SSIRDR,		0x0c,	0x40),
+		RSND_GEN1_M_REG(gen, SSI,	SSIWSR,		0x20,	0x40),
+	};
+
+	memset(&regc, 0, sizeof(regc));
+	regc.reg_bits = 32;
+	regc.val_bits = 32;
+
+	gen->regmap = devm_regmap_init(dev, &rsnd_regmap_bus, priv, &regc);
+	if (IS_ERR(gen->regmap)) {
+		dev_err(dev, "regmap error %ld\n", PTR_ERR(gen->regmap));
+		return PTR_ERR(gen->regmap);
+	}
+
+	for (i = 0; i < RSND_REG_MAX; i++) {
+		gen->regs[i] = devm_regmap_field_alloc(dev, gen->regmap, regf[i]);
+		if (IS_ERR(gen->regs[i]))
+			return PTR_ERR(gen->regs[i]);
+
+	}
+
+	return 0;
 }
 
 static int rsnd_gen1_probe(struct platform_device *pdev,
@@ -147,6 +248,7 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 	struct resource *sru_res;
 	struct resource *adg_res;
 	struct resource *ssi_res;
+	int ret;
 
 	/*
 	 * map address
@@ -163,7 +265,9 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 	    IS_ERR(gen->base[RSND_GEN1_SSI]))
 		return -ENODEV;
 
-	rsnd_gen1_reg_map_init(gen);
+	ret = rsnd_gen1_regmap_init(priv, gen);
+	if (ret < 0)
+		return ret;
 
 	dev_dbg(dev, "Gen1 device probed\n");
 	dev_dbg(dev, "SRU : %08x => %p\n",	sru_res->start,
@@ -210,46 +314,12 @@ int rsnd_gen_path_exit(struct rsnd_priv *priv,
 	return gen->ops->path_exit(priv, rdai, io);
 }
 
-void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
-			       struct rsnd_mod *mod,
-			       enum rsnd_reg reg)
-{
-	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	int index;
-	u32 offset_id, offset_adr;
-
-	if (reg >= RSND_REG_MAX) {
-		dev_err(dev, "rsnd_reg reg error\n");
-		return NULL;
-	}
-
-	index		= gen->reg_map[reg].index;
-	offset_id	= gen->reg_map[reg].offset_id;
-	offset_adr	= gen->reg_map[reg].offset_adr;
-
-	if (index < 0) {
-		dev_err(dev, "unsupported reg access %d\n", reg);
-		return NULL;
-	}
-
-	if (offset_id && mod)
-		offset_id *= rsnd_mod_id(mod);
-
-	/*
-	 * index/offset were set on gen1/gen2
-	 */
-
-	return gen->base[index] + offset_id + offset_adr;
-}
-
 int rsnd_gen_probe(struct platform_device *pdev,
 		   struct rcar_snd_info *info,
 		   struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen;
-	int i;
 
 	gen = devm_kzalloc(dev, sizeof(*gen), GFP_KERNEL);
 	if (!gen) {
@@ -266,14 +336,6 @@ int rsnd_gen_probe(struct platform_device *pdev,
 	}
 
 	priv->gen = gen;
-
-	/*
-	 * see
-	 *	rsnd_reg_get()
-	 *	rsnd_gen_probe()
-	 */
-	for (i = 0; i < RSND_REG_MAX; i++)
-		gen->reg_map[i].index = -1;
 
 	return gen->ops->probe(pdev, info, priv);
 }
