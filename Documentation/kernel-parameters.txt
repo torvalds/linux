@@ -463,6 +463,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	atkbd.softrepeat= [HW]
 			Use software keyboard repeat
 
+	audit=		[KNL] Enable the audit sub-system
+			Format: { "0" | "1" } (0 = disabled, 1 = enabled)
+			Default: unset
+			
 	baycom_epp=	[HW,AX25]
 			Format: <io>,<mode>
 
