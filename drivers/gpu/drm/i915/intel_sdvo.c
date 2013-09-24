@@ -539,7 +539,7 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 		goto log_fail;
 
 	while ((status == SDVO_CMD_STATUS_PENDING ||
-			status == SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED) && --retry) {
+		status == SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED) && --retry) {
 		if (retry < 10)
 			msleep(15);
 		else
@@ -1773,6 +1773,9 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 {
 	struct edid *edid;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector));
+
 	/* set the bus switch and get the modes */
 	edid = intel_sdvo_get_edid(connector);
 
@@ -1868,6 +1871,9 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	uint32_t reply = 0, format_map = 0;
 	int i;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector));
+
 	/* Read the list of supported input resolutions for the selected TV
 	 * format.
 	 */
@@ -1902,6 +1908,9 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct drm_display_mode *newmode;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector));
+
 	/*
 	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
 	 * SDVO->LVDS transcoders can't cope with the EDID mode.
@@ -1933,7 +1942,6 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 			break;
 		}
 	}
-
 }
 
 static int intel_sdvo_get_modes(struct drm_connector *connector)
@@ -2397,6 +2405,8 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
 
+	DRM_DEBUG_KMS("initialising DVI device %d\n", device);
+
 	intel_sdvo_connector = kzalloc(sizeof(*intel_sdvo_connector), GFP_KERNEL);
 	if (!intel_sdvo_connector)
 		return false;
@@ -2445,6 +2455,8 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
 
+	DRM_DEBUG_KMS("initialising TV type %d\n", type);
+
 	intel_sdvo_connector = kzalloc(sizeof(*intel_sdvo_connector), GFP_KERNEL);
 	if (!intel_sdvo_connector)
 		return false;
@@ -2482,6 +2494,8 @@ intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, int device)
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
 
+	DRM_DEBUG_KMS("initialising analog device %d\n", device);
+
 	intel_sdvo_connector = kzalloc(sizeof(*intel_sdvo_connector), GFP_KERNEL);
 	if (!intel_sdvo_connector)
 		return false;
@@ -2512,6 +2526,8 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	struct drm_connector *connector;
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
+
+	DRM_DEBUG_KMS("initialising LVDS device %d\n", device);
 
 	intel_sdvo_connector = kzalloc(sizeof(*intel_sdvo_connector), GFP_KERNEL);
 	if (!intel_sdvo_connector)
