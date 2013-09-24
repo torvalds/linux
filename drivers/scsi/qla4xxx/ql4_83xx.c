@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)   2003-2012 QLogic Corporation
+ * Copyright (c)   2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -259,8 +259,8 @@ void qla4_83xx_rom_lock_recovery(struct scsi_qla_host *ha)
  * Return: On success return QLA_SUCCESS
  *	   On error return QLA_ERROR
  **/
-static int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
-				       uint32_t *data, uint32_t count)
+int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
+				uint32_t *data, uint32_t count)
 {
 	int i, j;
 	uint32_t agt_ctrl;
@@ -1473,9 +1473,9 @@ int qla4_83xx_isp_reset(struct scsi_qla_host *ha)
 				  __func__));
 	}
 
-	/* For ISP8324, Reset owner is NIC, iSCSI or FCOE based on priority
-	 * and which drivers are present. Unlike ISP8022, the function setting
-	 * NEED_RESET, may not be the Reset owner. */
+	/* For ISP8324 and ISP8042, Reset owner is NIC, iSCSI or FCOE based on
+	 * priority and which drivers are present. Unlike ISP8022, the function
+	 * setting NEED_RESET, may not be the Reset owner. */
 	if (qla4_83xx_can_perform_reset(ha))
 		set_bit(AF_8XXX_RST_OWNER, &ha->flags);
 

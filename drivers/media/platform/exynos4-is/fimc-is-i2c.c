@@ -12,7 +12,7 @@
 
 #include <linux/clk.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
+#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -66,8 +66,6 @@ static int fimc_is_i2c_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_enable(&i2c_adap->dev);
-
-	of_i2c_register_devices(i2c_adap);
 
 	return 0;
 }

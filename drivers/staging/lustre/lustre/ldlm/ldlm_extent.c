@@ -72,7 +72,6 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 	struct list_head *tmp;
 	struct ldlm_lock *lck;
 	__u64 kms = 0;
-	ENTRY;
 
 	/* don't let another thread in ldlm_extent_shift_kms race in
 	 * just after we finish and take our lock into account in its
@@ -86,7 +85,7 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 			continue;
 
 		if (lck->l_policy_data.l_extent.end >= old_kms)
-			RETURN(old_kms);
+			return old_kms;
 
 		/* This extent _has_ to be smaller than old_kms (checked above)
 		 * so kms can only ever be smaller or the same as old_kms. */
@@ -95,7 +94,7 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 	}
 	LASSERTF(kms <= old_kms, "kms "LPU64" old_kms "LPU64"\n", kms, old_kms);
 
-	RETURN(kms);
+	return kms;
 }
 EXPORT_SYMBOL(ldlm_extent_shift_kms);
 
@@ -103,16 +102,15 @@ struct kmem_cache *ldlm_interval_slab;
 struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock)
 {
 	struct ldlm_interval *node;
-	ENTRY;
 
 	LASSERT(lock->l_resource->lr_type == LDLM_EXTENT);
 	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
 	if (node == NULL)
-		RETURN(NULL);
+		return NULL;
 
 	INIT_LIST_HEAD(&node->li_group);
 	ldlm_interval_attach(node, lock);
-	RETURN(node);
+	return node;
 }
 
 void ldlm_interval_free(struct ldlm_interval *node)

@@ -40,7 +40,9 @@ struct hwbus_priv {
 	struct cw1200_common	*core;
 	const struct cw1200_platform_data_spi *pdata;
 	spinlock_t		lock; /* Serialize all bus operations */
+	wait_queue_head_t       wq;
 	int claimed;
+	int irq_disabled;
 };
 
 #define SDIO_TO_SPI_ADDR(addr) ((addr & 0x1f)>>2)
@@ -197,8 +199,11 @@ static void cw1200_spi_lock(struct hwbus_priv *self)
 {
 	unsigned long flags;
 
+	DECLARE_WAITQUEUE(wait, current);
+
 	might_sleep();
 
+	add_wait_queue(&self->wq, &wait);
 	spin_lock_irqsave(&self->lock, flags);
 	while (1) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -211,6 +216,7 @@ static void cw1200_spi_lock(struct hwbus_priv *self)
 	set_current_state(TASK_RUNNING);
 	self->claimed = 1;
 	spin_unlock_irqrestore(&self->lock, flags);
+	remove_wait_queue(&self->wq, &wait);
 
 	return;
 }
@@ -222,6 +228,8 @@ static void cw1200_spi_unlock(struct hwbus_priv *self)
 	spin_lock_irqsave(&self->lock, flags);
 	self->claimed = 0;
 	spin_unlock_irqrestore(&self->lock, flags);
+	wake_up(&self->wq);
+
 	return;
 }
 
@@ -230,6 +238,8 @@ static irqreturn_t cw1200_spi_irq_handler(int irq, void *dev_id)
 	struct hwbus_priv *self = dev_id;
 
 	if (self->core) {
+		disable_irq_nosync(self->func->irq);
+		self->irq_disabled = 1;
 		cw1200_irq_handler(self->core);
 		return IRQ_HANDLED;
 	} else {
@@ -263,13 +273,22 @@ exit:
 
 static int cw1200_spi_irq_unsubscribe(struct hwbus_priv *self)
 {
-	int ret = 0;
-
 	pr_debug("SW IRQ unsubscribe\n");
 	disable_irq_wake(self->func->irq);
 	free_irq(self->func->irq, self);
 
-	return ret;
+	return 0;
+}
+
+static int cw1200_spi_irq_enable(struct hwbus_priv *self, int enable)
+{
+	/* Disables are handled by the interrupt handler */
+	if (enable && self->irq_disabled) {
+		enable_irq(self->func->irq);
+		self->irq_disabled = 0;
+	}
+
+	return 0;
 }
 
 static int cw1200_spi_off(const struct cw1200_platform_data_spi *pdata)
@@ -349,6 +368,7 @@ static struct hwbus_ops cw1200_spi_hwbus_ops = {
 	.unlock			= cw1200_spi_unlock,
 	.align_size		= cw1200_spi_align_size,
 	.power_mgmt		= cw1200_spi_pm,
+	.irq_enable             = cw1200_spi_irq_enable,
 };
 
 /* Probe Function to be called by SPI stack when device is discovered */
@@ -399,6 +419,8 @@ static int cw1200_spi_probe(struct spi_device *func)
 	spin_lock_init(&self->lock);
 
 	spi_set_drvdata(func, self);
+
+	init_waitqueue_head(&self->wq);
 
 	status = cw1200_spi_irq_subscribe(self);
 

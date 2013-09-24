@@ -15,6 +15,7 @@ Required properties:
   optional gpio and may be set to 0 if not present.
 
 Optional properties:
+- atmel,nand-has-dma : boolean to support dma transfer for nand read/write.
 - nand-ecc-mode : String, operation mode of the NAND ecc mode, soft by default.
   Supported values are: "none", "soft", "hw", "hw_syndrome", "hw_oob_first",
   "soft_bch".
@@ -29,6 +30,14 @@ Optional properties:
   sector size 1024.
 - nand-bus-width : 8 or 16 bus width if not present 8
 - nand-on-flash-bbt: boolean to enable on flash bbt option if not present false
+- Nand Flash Controller(NFC) is a slave driver under Atmel nand flash
+  - Required properties:
+    - compatible : "atmel,sama5d3-nfc".
+    - reg : should specify the address and size used for NFC command registers,
+            NFC registers and NFC Sram. NFC Sram address and size can be absent
+            if don't want to use it.
+  - Optional properties:
+    - atmel,write-by-sram: boolean to enable NFC write by sram.
 
 Examples:
 nand0: nand@40000000,0 {
@@ -75,5 +84,24 @@ nand0: nand@40000000 {
 		>;
 	partition@0 {
 		...
+	};
+};
+
+/* for NFC supported chips */
+nand0: nand@40000000 {
+	compatible = "atmel,at91rm9200-nand";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+        ...
+        nfc@70000000 {
+		compatible = "atmel,sama5d3-nfc";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <
+			0x70000000 0x10000000	/* NFC Command Registers */
+			0xffffc000 0x00000070	/* NFC HSMC regs */
+			0x00200000 0x00100000	/* NFC SRAM banks */
+		>;
 	};
 };

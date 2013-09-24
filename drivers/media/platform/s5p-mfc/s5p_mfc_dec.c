@@ -386,10 +386,6 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			mfc_err("Unknown codec\n");
 			return -EINVAL;
 		}
-		if (!IS_MFCV6_PLUS(dev) && (fmt->fourcc == V4L2_PIX_FMT_VP8)) {
-			mfc_err("Not supported format.\n");
-			return -EINVAL;
-		}
 		if (!IS_MFCV6_PLUS(dev)) {
 			if (fmt->fourcc == V4L2_PIX_FMT_VP8) {
 				mfc_err("Not supported format.\n");

@@ -38,24 +38,25 @@
  *	sysfs stuff
  */
 
-static ssize_t show_index(struct device *cd,
-			 struct device_attribute *attr, char *buf)
+static ssize_t index_show(struct device *cd,
+			  struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev = to_video_device(cd);
 
 	return sprintf(buf, "%i\n", vdev->index);
 }
+static DEVICE_ATTR_RO(index);
 
-static ssize_t show_debug(struct device *cd,
-			 struct device_attribute *attr, char *buf)
+static ssize_t debug_show(struct device *cd,
+			  struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev = to_video_device(cd);
 
 	return sprintf(buf, "%i\n", vdev->debug);
 }
 
-static ssize_t set_debug(struct device *cd, struct device_attribute *attr,
-		   const char *buf, size_t len)
+static ssize_t debug_store(struct device *cd, struct device_attribute *attr,
+			  const char *buf, size_t len)
 {
 	struct video_device *vdev = to_video_device(cd);
 	int res = 0;
@@ -68,21 +69,24 @@ static ssize_t set_debug(struct device *cd, struct device_attribute *attr,
 	vdev->debug = value;
 	return len;
 }
+static DEVICE_ATTR_RW(debug);
 
-static ssize_t show_name(struct device *cd,
+static ssize_t name_show(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev = to_video_device(cd);
 
 	return sprintf(buf, "%.*s\n", (int)sizeof(vdev->name), vdev->name);
 }
+static DEVICE_ATTR_RO(name);
 
-static struct device_attribute video_device_attrs[] = {
-	__ATTR(name, S_IRUGO, show_name, NULL),
-	__ATTR(debug, 0644, show_debug, set_debug),
-	__ATTR(index, S_IRUGO, show_index, NULL),
-	__ATTR_NULL
+static struct attribute *video_device_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_debug.attr,
+	&dev_attr_index.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(video_device);
 
 /*
  *	Active devices
@@ -217,7 +221,7 @@ static void v4l2_device_release(struct device *cd)
 
 static struct class video_class = {
 	.name = VIDEO_NAME,
-	.dev_attrs = video_device_attrs,
+	.dev_groups = video_device_groups,
 };
 
 struct video_device *video_devdata(struct file *file)

@@ -23,6 +23,7 @@
 
 #define PREFIX "ACPI: "
 
+acpi_status acpi_os_initialize1(void);
 int init_acpi_device_notify(void);
 int acpi_scan_init(void);
 #ifdef	CONFIG_ACPI_PCI_SLOT
@@ -169,10 +170,8 @@ int acpi_create_platform_device(struct acpi_device *adev,
   -------------------------------------------------------------------------- */
 #if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
 bool acpi_video_backlight_quirks(void);
-bool acpi_video_verify_backlight_support(void);
 #else
 static inline bool acpi_video_backlight_quirks(void) { return false; }
-static inline bool acpi_video_verify_backlight_support(void) { return false; }
 #endif
 
 #endif /* _ACPI_INTERNAL_H_ */

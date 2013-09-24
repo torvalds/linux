@@ -90,6 +90,7 @@ extern struct file_operations ll_pgcache_seq_fops;
 #define REMOTE_PERM_HASHSIZE 16
 
 struct ll_getname_data {
+	struct dir_context ctx;
 	char	    *lgd_name;      /* points to a buffer with NAME_MAX+1 size */
 	struct lu_fid    lgd_fid;       /* target fid we are looking for */
 	int	      lgd_found;     /* inode matched? */
@@ -438,14 +439,6 @@ struct rmtacl_ctl_table {
 
 #define EE_HASHES       32
 
-struct eacl_entry {
-	struct list_head	    ee_list;
-	pid_t		 ee_key; /* hash key */
-	struct lu_fid	 ee_fid;
-	int		   ee_type; /* ACL type for ACCESS or DEFAULT */
-	ext_acl_xattr_header *ee_acl;
-};
-
 struct eacl_table {
 	spinlock_t	et_lock;
 	struct list_head	et_entries[EE_HASHES];
@@ -512,6 +505,7 @@ struct ll_sb_info {
 						 * clustred nfs */
 	struct rmtacl_ctl_table   ll_rct;
 	struct eacl_table	 ll_et;
+	__kernel_fsid_t		  ll_fsid;
 };
 
 #define LL_DEFAULT_MAX_RW_CHUNK      (32 * 1024 * 1024)
@@ -687,8 +681,7 @@ extern struct file_operations ll_dir_operations;
 extern struct inode_operations ll_dir_inode_operations;
 struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 			     struct ll_dir_chain *chain);
-int ll_dir_read(struct inode *inode, __u64 *_pos, void *cookie,
-		filldir_t filldir);
+int ll_dir_read(struct inode *inode, struct dir_context *ctx);
 
 int ll_get_mdt_idx(struct inode *inode);
 /* llite/namei.c */
@@ -792,8 +785,7 @@ void ll_intent_release(struct lookup_intent *);
 void ll_invalidate_aliases(struct inode *);
 void ll_frob_intent(struct lookup_intent **itp, struct lookup_intent *deft);
 void ll_lookup_finish_locks(struct lookup_intent *it, struct dentry *dentry);
-int ll_dcompare(const struct dentry *parent, const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+int ll_dcompare(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *d_name);
 int ll_revalidate_it_finish(struct ptlrpc_request *request,
 			    struct lookup_intent *it, struct dentry *de);
@@ -842,6 +834,7 @@ char *ll_get_fsname(struct super_block *sb, char *buf, int buflen);
 /* llite/llite_nfs.c */
 extern struct export_operations lustre_export_operations;
 __u32 get_uuid2int(const char *name, int len);
+void get_uuid2fsid(const char *name, int len, __kernel_fsid_t *fsid);
 struct inode *search_inode_for_lustre(struct super_block *sb,
 				      const struct lu_fid *fid);
 
@@ -1129,7 +1122,7 @@ int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm);
 int lustre_check_remote_perm(struct inode *inode, int mask);
 
 /* llite/llite_capa.c */
-extern timer_list_t ll_capa_timer;
+extern struct timer_list ll_capa_timer;
 
 int ll_capa_thread_start(void);
 void ll_capa_thread_stop(void);
@@ -1168,6 +1161,14 @@ void ll_ra_stats_inc(struct address_space *mapping, enum ra_stat which);
 
 /* llite/llite_rmtacl.c */
 #ifdef CONFIG_FS_POSIX_ACL
+struct eacl_entry {
+	struct list_head	    ee_list;
+	pid_t		 ee_key; /* hash key */
+	struct lu_fid	 ee_fid;
+	int		   ee_type; /* ACL type for ACCESS or DEFAULT */
+	ext_acl_xattr_header *ee_acl;
+};
+
 obd_valid rce_ops2valid(int ops);
 struct rmtacl_ctl_entry *rct_search(struct rmtacl_ctl_table *rct, pid_t key);
 int rct_add(struct rmtacl_ctl_table *rct, pid_t key, int ops);
@@ -1183,6 +1184,11 @@ struct eacl_entry *et_search_del(struct eacl_table *et, pid_t key,
 void et_search_free(struct eacl_table *et, pid_t key);
 void et_init(struct eacl_table *et);
 void et_fini(struct eacl_table *et);
+#else
+static inline obd_valid rce_ops2valid(int ops)
+{
+	return 0;
+}
 #endif
 
 /* statahead.c */

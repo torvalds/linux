@@ -351,7 +351,7 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 	struct resource *mem_res;
 	struct resource *irq_res;
 	resource_size_t mem_size;
-	struct isp1760_platform_data *priv = pdev->dev.platform_data;
+	struct isp1760_platform_data *priv = dev_get_platdata(&pdev->dev);
 	unsigned int devflags = 0;
 	unsigned long irqflags = IRQF_SHARED;
 

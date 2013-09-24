@@ -1319,8 +1319,6 @@ int sumo_dpm_set_power_state(struct radeon_device *rdev)
 	if (pi->enable_dpm)
 		sumo_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
-	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
-
 	return 0;
 }
 
@@ -1483,6 +1481,7 @@ static int sumo_parse_power_table(struct radeon_device *rdev)
 	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
 	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 	for (i = 0; i < state_array->ucNumEntries; i++) {
+		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
 		non_clock_array_index = power_state->v2.nonClockInfoIndex;
 		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
@@ -1496,12 +1495,15 @@ static int sumo_parse_power_table(struct radeon_device *rdev)
 		}
 		rdev->pm.dpm.ps[i].ps_priv = ps;
 		k = 0;
+		idx = (u8 *)&power_state->v2.clockInfoIndex[0];
 		for (j = 0; j < power_state->v2.ucNumDPMLevels; j++) {
-			clock_array_index = power_state->v2.clockInfoIndex[j];
+			clock_array_index = idx[j];
 			if (k >= SUMO_MAX_HARDWARE_POWERLEVELS)
 				break;
+
 			clock_info = (union pplib_clock_info *)
-				&clock_info_array->clockInfo[clock_array_index * clock_info_array->ucEntrySize];
+				((u8 *)&clock_info_array->clockInfo[0] +
+				 (clock_array_index * clock_info_array->ucEntrySize));
 			sumo_parse_pplib_clock_info(rdev,
 						    &rdev->pm.dpm.ps[i], k,
 						    clock_info);
@@ -1528,6 +1530,20 @@ u32 sumo_convert_vid2_to_vid7(struct radeon_device *rdev,
 	}
 
 	return vid_mapping_table->entries[vid_mapping_table->num_entries - 1].vid_7bit;
+}
+
+u32 sumo_convert_vid7_to_vid2(struct radeon_device *rdev,
+			      struct sumo_vid_mapping_table *vid_mapping_table,
+			      u32 vid_7bit)
+{
+	u32 i;
+
+	for (i = 0; i < vid_mapping_table->num_entries; i++) {
+		if (vid_mapping_table->entries[i].vid_7bit == vid_7bit)
+			return vid_mapping_table->entries[i].vid_2bit;
+	}
+
+	return vid_mapping_table->entries[vid_mapping_table->num_entries - 1].vid_2bit;
 }
 
 static u16 sumo_convert_voltage_index_to_value(struct radeon_device *rdev,

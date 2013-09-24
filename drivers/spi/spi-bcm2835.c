@@ -314,7 +314,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	master->mode_bits = BCM2835_SPI_MODE_BITS;
-	master->bits_per_word_mask = BIT(8 - 1);
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->bus_num = -1;
 	master->num_chipselect = 3;
 	master->transfer_one_message = bcm2835_spi_transfer_one;
@@ -325,12 +325,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	init_completion(&bs->done);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "could not get memory resource\n");
-		err = -ENODEV;
-		goto out_master_put;
-	}
-
 	bs->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(bs->regs)) {
 		err = PTR_ERR(bs->regs);
@@ -383,7 +377,7 @@ out_master_put:
 
 static int bcm2835_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
+	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
 
 	free_irq(bs->irq, master);

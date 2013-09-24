@@ -236,7 +236,7 @@ void __init
 init_rtc_irq(void)
 {
 	irq_set_chip_and_handler_name(RTC_IRQ, &dummy_irq_chip,
-				      handle_simple_irq, "RTC");
+				      handle_percpu_irq, "RTC");
 	setup_irq(RTC_IRQ, &timer_irqaction);
 }
 

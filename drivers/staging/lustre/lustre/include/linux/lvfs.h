@@ -54,10 +54,10 @@
 /* simple.c */
 
 struct lvfs_ucred {
-	__u32		   luc_uid;
-	__u32		   luc_gid;
-	__u32		   luc_fsuid;
-	__u32		   luc_fsgid;
+	kuid_t		luc_uid;
+	kgid_t		luc_gid;
+	kuid_t		luc_fsuid;
+	kgid_t		luc_fsgid;
 	kernel_cap_t	luc_cap;
 	__u32		   luc_umask;
 	struct group_info      *luc_ginfo;

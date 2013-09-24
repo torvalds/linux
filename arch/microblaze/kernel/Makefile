@@ -7,7 +7,6 @@ ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_timer.o = -pg
 CFLAGS_REMOVE_intc.o = -pg
 CFLAGS_REMOVE_early_printk.o = -pg
-CFLAGS_REMOVE_selfmod.o = -pg
 CFLAGS_REMOVE_heartbeat.o = -pg
 CFLAGS_REMOVE_ftrace.o = -pg
 CFLAGS_REMOVE_process.o = -pg
@@ -23,7 +22,6 @@ obj-y += dma.o exceptions.o \
 obj-y += cpu/
 
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
-obj-$(CONFIG_SELFMOD)		+= selfmod.o
 obj-$(CONFIG_HEART_BEAT)	+= heartbeat.o
 obj-$(CONFIG_MODULES)		+= microblaze_ksyms.o module.o
 obj-$(CONFIG_MMU)		+= misc.o

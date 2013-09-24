@@ -140,6 +140,7 @@ struct ath_rx_status {
 	int8_t rs_rssi_ext1;
 	int8_t rs_rssi_ext2;
 	u8 rs_isaggr;
+	u8 rs_firstaggr;
 	u8 rs_moreaggr;
 	u8 rs_num_delims;
 	u8 rs_flags;
@@ -569,6 +570,7 @@ struct ar5416_desc {
 #define AR_RxAggr           0x00020000
 #define AR_PostDelimCRCErr  0x00040000
 #define AR_RxStatusRsvd71   0x3ff80000
+#define AR_RxFirstAggr      0x20000000
 #define AR_DecryptBusyErr   0x40000000
 #define AR_KeyMiss          0x80000000
 

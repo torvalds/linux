@@ -594,7 +594,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		}
 		gfs2_glock_dq_uninit(ghs);
 		if (IS_ERR(d))
-			return PTR_RET(d);
+			return PTR_ERR(d);
 		return error;
 	} else if (error != -ENOENT) {
 		goto fail_gunlock;
@@ -694,8 +694,10 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 
 	mark_inode_dirty(inode);
 	d_instantiate(dentry, inode);
-	if (file)
+	if (file) {
+		*opened |= FILE_CREATED;
 		error = finish_open(file, dentry, gfs2_open_common, opened);
+	}
 	gfs2_glock_dq_uninit(ghs);
 	gfs2_glock_dq_uninit(ghs + 1);
 	return error;
@@ -1749,6 +1751,10 @@ static ssize_t gfs2_getxattr(struct dentry *dentry, const char *name,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int ret;
+
+	/* For selinux during lookup */
+	if (gfs2_glock_is_locked_by_me(ip->i_gl))
+		return generic_getxattr(dentry, name, data, size);
 
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
 	ret = gfs2_glock_nq(&gh);

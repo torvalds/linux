@@ -52,12 +52,13 @@ static struct kvm_s390_sie_block *sie_block(struct pt_regs *regs)
 
 static bool is_in_guest(struct pt_regs *regs)
 {
-	unsigned long ip = instruction_pointer(regs);
-
 	if (user_mode(regs))
 		return false;
-
-	return ip == (unsigned long) &sie_exit;
+#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+	return instruction_pointer(regs) == (unsigned long) &sie_exit;
+#else
+	return false;
+#endif
 }
 
 static unsigned long guest_is_user_mode(struct pt_regs *regs)
@@ -104,13 +105,10 @@ void perf_event_print_debug(void)
 
 	cpu = smp_processor_id();
 	memset(&cf_info, 0, sizeof(cf_info));
-	if (!qctri(&cf_info)) {
+	if (!qctri(&cf_info))
 		pr_info("CPU[%i] CPUM_CF: ver=%u.%u A=%04x E=%04x C=%04x\n",
 			cpu, cf_info.cfvn, cf_info.csvn,
 			cf_info.auth_ctl, cf_info.enable_ctl, cf_info.act_ctl);
-		print_hex_dump_bytes("CPUMF Query: ", DUMP_PREFIX_OFFSET,
-				     &cf_info, sizeof(cf_info));
-	}
 
 	local_irq_restore(flags);
 }

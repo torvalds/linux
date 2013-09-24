@@ -84,15 +84,11 @@ static struct gpio_chip twl6040gpo_chip = {
 
 static int gpo_twl6040_probe(struct platform_device *pdev)
 {
-	struct twl6040_gpo_data *pdata = pdev->dev.platform_data;
 	struct device *twl6040_core_dev = pdev->dev.parent;
 	struct twl6040 *twl6040 = dev_get_drvdata(twl6040_core_dev);
 	int ret;
 
-	if (pdata)
-		twl6040gpo_chip.base = pdata->gpio_base;
-	else
-		twl6040gpo_chip.base = -1;
+	twl6040gpo_chip.base = -1;
 
 	if (twl6040_get_revid(twl6040) < TWL6041_REV_ES2_0)
 		twl6040gpo_chip.ngpio = 3; /* twl6040 have 3 GPO */

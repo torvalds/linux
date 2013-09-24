@@ -2100,7 +2100,7 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
-	netif_rx(skb);
+	netif_receive_skb(skb);
 
 	stats->rx_bytes += pkt_len;
 	stats->rx_packets++;
@@ -2376,6 +2376,23 @@ out_0:
 	return ret;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/**
+ *  velocity_poll_controller		-	Velocity Poll controller function
+ *  @dev: network device
+ *
+ *
+ *  Used by NETCONSOLE and other diagnostic tools to allow network I/P
+ *  with interrupts disabled.
+ */
+static void velocity_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	velocity_intr(dev->irq, dev);
+	enable_irq(dev->irq);
+}
+#endif
+
 /**
  *	velocity_mii_ioctl		-	MII ioctl handler
  *	@dev: network device
@@ -2641,6 +2658,9 @@ static const struct net_device_ops velocity_netdev_ops = {
 	.ndo_do_ioctl		= velocity_ioctl,
 	.ndo_vlan_rx_add_vid	= velocity_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= velocity_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller = velocity_poll_controller,
+#endif
 };
 
 /**
@@ -2884,6 +2904,7 @@ out:
 	return ret;
 
 err_iounmap:
+	netif_napi_del(&vptr->napi);
 	iounmap(regs);
 err_free_dev:
 	free_netdev(netdev);
@@ -2904,6 +2925,7 @@ static int velocity_remove(struct device *dev)
 	struct velocity_info *vptr = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+	netif_napi_del(&vptr->napi);
 	iounmap(vptr->mac_regs);
 	free_netdev(netdev);
 	velocity_nics--;

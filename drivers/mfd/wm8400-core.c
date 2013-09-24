@@ -178,7 +178,7 @@ static int wm8400_i2c_probe(struct i2c_client *i2c,
 	wm8400->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, wm8400);
 
-	ret = wm8400_init(wm8400, i2c->dev.platform_data);
+	ret = wm8400_init(wm8400, dev_get_platdata(&i2c->dev));
 	if (ret != 0)
 		goto err;
 

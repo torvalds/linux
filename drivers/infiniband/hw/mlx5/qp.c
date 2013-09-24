@@ -199,7 +199,7 @@ static int set_rq_size(struct mlx5_ib_dev *dev, struct ib_qp_cap *cap,
 
 static int sq_overhead(enum ib_qp_type qp_type)
 {
-	int size;
+	int size = 0;
 
 	switch (qp_type) {
 	case IB_QPT_XRC_INI:

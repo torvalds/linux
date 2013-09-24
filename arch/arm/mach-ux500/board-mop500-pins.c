@@ -14,7 +14,6 @@
 
 #include <asm/mach-types.h>
 
-#include "pins-db8500.h"
 #include "board-mop500.h"
 
 enum custom_pin_cfg_t {

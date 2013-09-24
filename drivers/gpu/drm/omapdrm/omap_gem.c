@@ -20,6 +20,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
+#include <drm/drm_vma_manager.h>
 
 #include "omap_drv.h"
 #include "omap_dmm_tiler.h"
@@ -236,7 +237,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	 * mapping_gfp_mask(mapping) which conflicts w/ GFP_DMA32.. probably
 	 * we actually want CMA memory for it all anyways..
 	 */
-	pages = _drm_gem_get_pages(obj, GFP_KERNEL);
+	pages = drm_gem_get_pages(obj, GFP_KERNEL);
 	if (IS_ERR(pages)) {
 		dev_err(obj->dev->dev, "could not get pages: %ld\n", PTR_ERR(pages));
 		return PTR_ERR(pages);
@@ -270,7 +271,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	return 0;
 
 free_pages:
-	_drm_gem_put_pages(obj, pages, true, false);
+	drm_gem_put_pages(obj, pages, true, false);
 
 	return ret;
 }
@@ -294,7 +295,7 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 	kfree(omap_obj->addrs);
 	omap_obj->addrs = NULL;
 
-	_drm_gem_put_pages(obj, omap_obj->pages, true, false);
+	drm_gem_put_pages(obj, omap_obj->pages, true, false);
 	omap_obj->pages = NULL;
 }
 
@@ -308,21 +309,20 @@ uint32_t omap_gem_flags(struct drm_gem_object *obj)
 static uint64_t mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+	int ret;
+	size_t size;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	if (!obj->map_list.map) {
-		/* Make it mmapable */
-		size_t size = omap_gem_mmap_size(obj);
-		int ret = _drm_gem_create_mmap_offset_size(obj, size);
-
-		if (ret) {
-			dev_err(dev->dev, "could not allocate mmap offset\n");
-			return 0;
-		}
+	/* Make it mmapable */
+	size = omap_gem_mmap_size(obj);
+	ret = drm_gem_create_mmap_offset_size(obj, size);
+	if (ret) {
+		dev_err(dev->dev, "could not allocate mmap offset\n");
+		return 0;
 	}
 
-	return (uint64_t)obj->map_list.hash.key << PAGE_SHIFT;
+	return drm_vma_node_offset_addr(&obj->vma_node);
 }
 
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj)
@@ -626,21 +626,6 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 
 	return omap_gem_new_handle(dev, file, gsize,
 			OMAP_BO_SCANOUT | OMAP_BO_WC, &args->handle);
-}
-
-/**
- * omap_gem_dumb_destroy	-	destroy a dumb buffer
- * @file: client file
- * @dev: our DRM device
- * @handle: the object handle
- *
- * Destroy a handle that was created via omap_gem_dumb_create.
- */
-int omap_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle)
-{
-	/* No special work needed, drop the reference and see what falls out */
-	return drm_gem_handle_delete(file, handle);
 }
 
 /**
@@ -997,12 +982,11 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
 	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	uint64_t off = 0;
+	uint64_t off;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	if (obj->map_list.map)
-		off = (uint64_t)obj->map_list.hash.key;
+	off = drm_vma_node_start(&obj->vma_node);
 
 	seq_printf(m, "%08x: %2d (%2d) %08llx %08Zx (%2d) %p %4d",
 			omap_obj->flags, obj->name, obj->refcount.refcount.counter,
@@ -1309,8 +1293,7 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	list_del(&omap_obj->mm_list);
 
-	if (obj->map_list.map)
-		drm_gem_free_mmap_offset(obj);
+	drm_gem_free_mmap_offset(obj);
 
 	/* this means the object is still pinned.. which really should
 	 * not happen.  I think..
@@ -1427,8 +1410,9 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		omap_obj->height = gsize.tiled.height;
 	}
 
+	ret = 0;
 	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM))
-		ret = drm_gem_private_object_init(dev, obj, size);
+		drm_gem_private_object_init(dev, obj, size);
 	else
 		ret = drm_gem_object_init(dev, obj, size);
 

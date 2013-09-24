@@ -41,7 +41,6 @@ config CRIS
 	default y
 	select HAVE_IDE
 	select GENERIC_ATOMIC64
-	select HAVE_GENERIC_HARDIRQS
 	select HAVE_UID16
 	select VIRT_TO_BUS
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -98,9 +97,6 @@ config ETRAX_KMALLOCED_MODULES
 	bool "Enable module allocation with kmalloc"
 	help
 	  Enable module allocation with kmalloc instead of vmalloc.
-
-config OOM_REBOOT
-       bool "Enable reboot at out of memory"
 
 source "kernel/Kconfig.preempt"
 
@@ -174,12 +170,6 @@ config ETRAX_FLASH_BUSWIDTH
 	default "2"
 	help
 	  Width in bytes of the NOR Flash bus (1, 2 or 4). Is usually 2.
-
-config ETRAX_NANDFLASH_BUSWIDTH
-	int "Buswidth of NAND flash in bytes"
-	default "1"
-	help
-	  Width in bytes of the NAND flash (1 or 2).
 
 config ETRAX_FLASH1_SIZE
        int "FLASH1 size (dec, in MB. 0 = Unknown)"
@@ -271,38 +261,6 @@ config ETRAX_AXISFLASHMAP
 	help
 	  This option enables MTD mapping of flash devices.  Needed to use
 	  flash memories.  If unsure, say Y.
-
-config ETRAX_RTC
-	bool "Real Time Clock support"
-	depends on ETRAX_I2C
-	help
-	  Enables drivers for the Real-Time Clock battery-backed chips on
-	  some products. The kernel reads the time when booting, and
-	  the date can be set using ioctl(fd, RTC_SET_TIME, &rt) with rt a
-	  rtc_time struct (see <file:arch/cris/include/asm/rtc.h>) on the
-	  /dev/rtc device.  You can check the time with cat /proc/rtc, but
-	  normal time reading should be done using libc function time and
-	  friends.
-
-choice
-	prompt "RTC chip"
-	depends on ETRAX_RTC
-	default ETRAX_DS1302
-
-config ETRAX_DS1302
-	depends on ETRAX_ARCH_V10
-	bool "DS1302"
-	help
-	  Enables the driver for the DS1302 Real-Time Clock battery-backed
-	  chip on some products.
-
-config ETRAX_PCF8563
-	bool "PCF8563"
-	help
-	  Enables the driver for the PCF8563 Real-Time Clock battery-backed
-	  chip on some products.
-
-endchoice
 
 config ETRAX_SYNCHRONOUS_SERIAL
 	bool "Synchronous serial-port support"
@@ -578,26 +536,6 @@ config ETRAX_SERIAL_PORT3_DMA5_IN
 	depends on ETRAX_ARCH_V10
 	bool "DMA 5"
 
-config ETRAX_SERIAL_PORT3_DMA9_IN
-	bool "Ser3 uses DMA9 for input"
-	depends on ETRAXFS
-	help
-	  Enables the DMA9 input channel for ser3 (ttyS3).
-	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiving data.
-	  Normally you want to use DMA, unless you use the DMA channel for
-	  something else.
-
-config ETRAX_SERIAL_PORT3_DMA3_IN
-	bool "Ser3 uses DMA3 for input"
-	depends on CRIS_MACH_ARTPEC3
-	help
-	  Enables the DMA3 input channel for ser3 (ttyS3).
-	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiving data.
-	  Normally you want to use DMA, unless you use the DMA channel for
-	  something else.
-
 endchoice
 
 choice
@@ -614,26 +552,6 @@ config ETRAX_SERIAL_PORT3_NO_DMA_OUT
 config ETRAX_SERIAL_PORT3_DMA4_OUT
 	depends on ETRAX_ARCH_V10
 	bool "DMA 4"
-
-config ETRAX_SERIAL_PORT3_DMA8_OUT
-	bool "Ser3 uses DMA8 for output"
-	depends on ETRAXFS
-	help
-	  Enables the DMA8 output channel for ser3 (ttyS3).
-	  If you do not enable DMA, an interrupt for each character will be
-	  used when transmitting data.
-	  Normally you want to use DMA, unless you use the DMA channel for
-	  something else.
-
-config ETRAX_SERIAL_PORT3_DMA2_OUT
-	bool "Ser3 uses DMA2 for output"
-	depends on CRIS_MACH_ARTPEC3
-	help
-	  Enables the DMA2 output channel for ser3 (ttyS3).
-	  If you do not enable DMA, an interrupt for each character will be
-	  used when transmitting data.
-	  Normally you want to use DMA, unless you use the DMA channel for
-	  something else.
 
 endchoice
 

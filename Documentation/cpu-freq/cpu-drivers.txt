@@ -50,8 +50,6 @@ What shall this struct cpufreq_driver contain?
 
 cpufreq_driver.name -		The name of this driver.
 
-cpufreq_driver.owner -		THIS_MODULE;
-
 cpufreq_driver.init -		A pointer to the per-CPU initialization 
 				function.
 

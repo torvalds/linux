@@ -24,7 +24,8 @@ enum hist_filter {
 struct callchain_param	callchain_param = {
 	.mode	= CHAIN_GRAPH_REL,
 	.min_percent = 0.5,
-	.order  = ORDER_CALLEE
+	.order  = ORDER_CALLEE,
+	.key	= CCKEY_FUNCTION
 };
 
 u16 hists__col_len(struct hists *hists, enum hist_column col)
@@ -912,6 +913,7 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 		rb_link_node(&he->rb_node_in, parent, p);
 		rb_insert_color(&he->rb_node_in, root);
 		hists__inc_nr_entries(hists, he);
+		he->dummy = true;
 	}
 out:
 	return he;

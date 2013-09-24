@@ -442,8 +442,8 @@
 				compatible = "fsl,mvf600-fec";
 				reg = <0x400d0000 0x1000>;
 				interrupts = <0 78 0x04>;
-				clocks = <&clks VF610_CLK_ENET>,
-					<&clks VF610_CLK_ENET>,
+				clocks = <&clks VF610_CLK_ENET0>,
+					<&clks VF610_CLK_ENET0>,
 					<&clks VF610_CLK_ENET>;
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
@@ -453,8 +453,8 @@
 				compatible = "fsl,mvf600-fec";
 				reg = <0x400d1000 0x1000>;
 				interrupts = <0 79 0x04>;
-				clocks = <&clks VF610_CLK_ENET>,
-					<&clks VF610_CLK_ENET>,
+				clocks = <&clks VF610_CLK_ENET1>,
+					<&clks VF610_CLK_ENET1>,
 					<&clks VF610_CLK_ENET>;
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";

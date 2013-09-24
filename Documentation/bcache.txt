@@ -46,28 +46,32 @@ you format your backing devices and cache device at the same time, you won't
 have to manually attach:
   make-bcache -B /dev/sda /dev/sdb -C /dev/sdc
 
-To make bcache devices known to the kernel, echo them to /sys/fs/bcache/register:
+bcache-tools now ships udev rules, and bcache devices are known to the kernel
+immediately.  Without udev, you can manually register devices like this:
 
   echo /dev/sdb > /sys/fs/bcache/register
   echo /dev/sdc > /sys/fs/bcache/register
 
-To register your bcache devices automatically, you could add something like
-this to an init script:
+Registering the backing device makes the bcache device show up in /dev; you can
+now format it and use it as normal. But the first time using a new bcache
+device, it'll be running in passthrough mode until you attach it to a cache.
+See the section on attaching.
 
-  echo /dev/sd* > /sys/fs/bcache/register_quiet
+The devices show up as:
 
-It'll look for bcache superblocks and ignore everything that doesn't have one.
+  /dev/bcache<N>
 
-Registering the backing device makes the bcache show up in /dev; you can now
-format it and use it as normal. But the first time using a new bcache device,
-it'll be running in passthrough mode until you attach it to a cache. See the
-section on attaching.
+As well as (with udev):
 
-The devices show up at /dev/bcacheN, and can be controlled via sysfs from
-/sys/block/bcacheN/bcache:
+  /dev/bcache/by-uuid/<uuid>
+  /dev/bcache/by-label/<label>
+
+To get started:
 
   mkfs.ext4 /dev/bcache0
   mount /dev/bcache0 /mnt
+
+You can control bcache devices through sysfs at /sys/block/bcache<N>/bcache .
 
 Cache devices are managed as sets; multiple caches per set isn't supported yet
 but will allow for mirroring of metadata and dirty data in the future. Your new
@@ -80,11 +84,11 @@ must be attached to your cache set to enable caching. Attaching a backing
 device to a cache set is done thusly, with the UUID of the cache set in
 /sys/fs/bcache:
 
-  echo <UUID> > /sys/block/bcache0/bcache/attach
+  echo <CSET-UUID> > /sys/block/bcache0/bcache/attach
 
 This only has to be done once. The next time you reboot, just reregister all
 your bcache devices. If a backing device has data in a cache somewhere, the
-/dev/bcache# device won't be created until the cache shows up - particularly
+/dev/bcache<N> device won't be created until the cache shows up - particularly
 important if you have writeback caching turned on.
 
 If you're booting up and your cache device is gone and never coming back, you
@@ -190,6 +194,9 @@ want for getting the best possible numbers when benchmarking.
    a fix for the issue there).
 
 SYSFS - BACKING DEVICE:
+
+Available at /sys/block/<bdev>/bcache, /sys/block/bcache*/bcache and
+(if attached) /sys/fs/bcache/<cset-uuid>/bdev*
 
 attach
   Echo the UUID of a cache set to this file to enable caching.
@@ -300,6 +307,8 @@ cache_readaheads
 
 SYSFS - CACHE SET:
 
+Available at /sys/fs/bcache/<cset-uuid>
+
 average_key_size
   Average data per key in the btree.
 
@@ -389,6 +398,8 @@ trigger_gc
   Writing to this file forces garbage collection to run.
 
 SYSFS - CACHE DEVICE:
+
+Available at /sys/block/<cdev>/bcache
 
 block_size
   Minimum granularity of writes - should match hardware sector size.

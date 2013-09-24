@@ -16,8 +16,6 @@
 #include <linux/string.h>
 #include <linux/module.h>
 
-#undef strchr
-
 char *strchr(const char *s, int c)
 {
 	int z, g;

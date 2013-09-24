@@ -746,7 +746,7 @@ struct u300_clock {
 	u16 clk_val;
 };
 
-struct u300_clock const __initconst u300_clk_lookup[] = {
+static struct u300_clock const u300_clk_lookup[] __initconst = {
 	{
 		.type = U300_CLK_TYPE_REST,
 		.id = 3,
@@ -1151,7 +1151,7 @@ static void __init of_u300_syscon_mclk_init(struct device_node *np)
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
 
-static const __initconst struct of_device_id u300_clk_match[] = {
+static const struct of_device_id u300_clk_match[] __initconst = {
 	{
 		.compatible = "fixed-clock",
 		.data = of_fixed_clk_setup,

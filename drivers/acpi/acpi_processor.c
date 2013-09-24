@@ -178,14 +178,17 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_PRESENT))
 		return -ENODEV;
 
+	cpu_maps_update_begin();
+	cpu_hotplug_begin();
+
 	ret = acpi_map_lsapic(pr->handle, &pr->id);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = arch_register_cpu(pr->id);
 	if (ret) {
 		acpi_unmap_lsapic(pr->id);
-		return ret;
+		goto out;
 	}
 
 	/*
@@ -195,7 +198,11 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	 */
 	pr_info("CPU%d has been hot-added\n", pr->id);
 	pr->flags.need_hotplug_init = 1;
-	return 0;
+
+out:
+	cpu_hotplug_done();
+	cpu_maps_update_done();
+	return ret;
 }
 #else
 static inline int acpi_processor_hotadd_init(struct acpi_processor *pr)
@@ -451,13 +458,18 @@ static void acpi_processor_remove(struct acpi_device *device)
 	/* Clean up. */
 	per_cpu(processor_device_array, pr->id) = NULL;
 	per_cpu(processors, pr->id) = NULL;
-	try_offline_node(cpu_to_node(pr->id));
+
+	cpu_maps_update_begin();
+	cpu_hotplug_begin();
 
 	/* Remove the CPU. */
-	get_online_cpus();
 	arch_unregister_cpu(pr->id);
 	acpi_unmap_lsapic(pr->id);
-	put_online_cpus();
+
+	cpu_hotplug_done();
+	cpu_maps_update_done();
+
+	try_offline_node(cpu_to_node(pr->id));
 
  out:
 	free_cpumask_var(pr->throttling.shared_cpu_map);

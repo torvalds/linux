@@ -73,9 +73,10 @@ this driver on those mainboards.
 The ServerWorks Southbridges, the Intel 440MX, and the Victory66 are
 identical to the PIIX4 in I2C/SMBus support.
 
-The AMD SB700 and SP5100 chipsets implement two PIIX4-compatible SMBus
-controllers. If your BIOS initializes the secondary controller, it will
-be detected by this driver as an "Auxiliary SMBus Host Controller".
+The AMD SB700, SB800, SP5100 and Hudson-2 chipsets implement two
+PIIX4-compatible SMBus controllers. If your BIOS initializes the
+secondary controller, it will be detected by this driver as
+an "Auxiliary SMBus Host Controller".
 
 If you own Force CPCI735 motherboard or other OSB4 based systems you may need
 to change the SMBus Interrupt Select register so the SMBus controller uses

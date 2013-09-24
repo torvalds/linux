@@ -101,6 +101,8 @@ enum {
 	MLX5_CMD_OP_QUERY_ADAPTER		= 0x101,
 	MLX5_CMD_OP_INIT_HCA			= 0x102,
 	MLX5_CMD_OP_TEARDOWN_HCA		= 0x103,
+	MLX5_CMD_OP_ENABLE_HCA			= 0x104,
+	MLX5_CMD_OP_DISABLE_HCA			= 0x105,
 	MLX5_CMD_OP_QUERY_PAGES			= 0x107,
 	MLX5_CMD_OP_MANAGE_PAGES		= 0x108,
 	MLX5_CMD_OP_SET_HCA_CAP			= 0x109,
@@ -356,7 +358,7 @@ struct mlx5_caps {
 	u32	reserved_lkey;
 	u8	local_ca_ack_delay;
 	u8	log_max_mcg;
-	u16	max_qp_mcg;
+	u32	max_qp_mcg;
 	int	min_page_sz;
 };
 
@@ -689,8 +691,8 @@ void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev);
 int mlx5_pagealloc_start(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev);
 void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
-				 s16 npages);
-int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev);
+				 s32 npages);
+int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev);
 void mlx5_register_debugfs(void);
 void mlx5_unregister_debugfs(void);
@@ -729,9 +731,6 @@ void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db);
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 
-typedef void (*health_handler_t)(struct pci_dev *pdev, struct health_buffer __iomem *buf, int size);
-int mlx5_register_health_report_handler(health_handler_t handler);
-void mlx5_unregister_health_report_handler(void);
 const char *mlx5_command_str(int command);
 int mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev);

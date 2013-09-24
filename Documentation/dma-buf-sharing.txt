@@ -321,7 +321,7 @@ Access to a dma_buf from the kernel context involves three steps:
 
    When the importer is done accessing the range specified in begin_cpu_access,
    it needs to announce this to the exporter (to facilitate cache flushing and
-   unpinning of any pinned resources). The result of of any dma_buf kmap calls
+   unpinning of any pinned resources). The result of any dma_buf kmap calls
    after end_cpu_access is undefined.
 
    Interface:
@@ -406,6 +406,18 @@ Being able to mmap an export dma-buf buffer object has 2 main use-cases:
    different exporters handle this differently, buffer sharing can fail in
    interesting ways depending upong the exporter (if userspace starts depending
    upon this implicit synchronization).
+
+Other Interfaces Exposed to Userspace on the dma-buf FD
+------------------------------------------------------
+
+- Since kernel 3.12 the dma-buf FD supports the llseek system call, but only
+  with offset=0 and whence=SEEK_END|SEEK_SET. SEEK_SET is supported to allow
+  the usual size discover pattern size = SEEK_END(0); SEEK_SET(0). Every other
+  llseek operation will report -EINVAL.
+
+  If llseek on dma-buf FDs isn't support the kernel will report -ESPIPE for all
+  cases. Userspace can use this to detect support for discovering the dma-buf
+  size using llseek.
 
 Miscellaneous notes
 -------------------

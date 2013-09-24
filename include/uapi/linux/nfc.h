@@ -69,8 +69,22 @@
  *	starting a poll from a device which has a secure element enabled means
  *	we want to do SE based card emulation.
  * @NFC_CMD_DISABLE_SE: Disable the physical link to a specific secure element.
- * @NFC_CMD_FW_UPLOAD: Request to Load/flash firmware, or event to inform that
- *	some firmware was loaded
+ * @NFC_CMD_FW_DOWNLOAD: Request to Load/flash firmware, or event to inform
+ *	that some firmware was loaded
+ * @NFC_EVENT_SE_ADDED: Event emitted when a new secure element is discovered.
+ *	This typically will be sent whenever a new NFC controller with either
+ *	an embedded SE or an UICC one connected to it through SWP.
+ * @NFC_EVENT_SE_REMOVED: Event emitted when a secure element is removed from
+ *	the system, as a consequence of e.g. an NFC controller being unplugged.
+ * @NFC_EVENT_SE_CONNECTIVITY: This event is emitted whenever a secure element
+ *	is requesting connectivity access. For example a UICC SE may need to
+ *	talk with a sleeping modem and will notify this need by sending this
+ *	event. It is then up to userspace to decide if it will wake the modem
+ *	up or not.
+ * @NFC_EVENT_SE_TRANSACTION: This event is sent when an application running on
+ *	a specific SE notifies us about the end of a transaction. The parameter
+ *	for this event is the application ID (AID).
+ * @NFC_CMD_GET_SE: Dump all discovered secure elements from an NFC controller.
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -94,9 +108,12 @@ enum nfc_commands {
 	NFC_CMD_DISABLE_SE,
 	NFC_CMD_LLC_SDREQ,
 	NFC_EVENT_LLC_SDRES,
-	NFC_CMD_FW_UPLOAD,
+	NFC_CMD_FW_DOWNLOAD,
 	NFC_EVENT_SE_ADDED,
 	NFC_EVENT_SE_REMOVED,
+	NFC_EVENT_SE_CONNECTIVITY,
+	NFC_EVENT_SE_TRANSACTION,
+	NFC_CMD_GET_SE,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -129,6 +146,7 @@ enum nfc_commands {
  * @NFC_ATTR_FIRMWARE_NAME: Free format firmware version
  * @NFC_ATTR_SE_INDEX: Secure element index
  * @NFC_ATTR_SE_TYPE: Secure element type (UICC or EMBEDDED)
+ * @NFC_ATTR_FIRMWARE_DOWNLOAD_STATUS: Firmware download operation status
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -154,6 +172,8 @@ enum nfc_attrs {
 	NFC_ATTR_FIRMWARE_NAME,
 	NFC_ATTR_SE_INDEX,
 	NFC_ATTR_SE_TYPE,
+	NFC_ATTR_SE_AID,
+	NFC_ATTR_FIRMWARE_DOWNLOAD_STATUS,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };

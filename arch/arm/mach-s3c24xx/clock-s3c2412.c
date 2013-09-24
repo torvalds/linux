@@ -757,6 +757,5 @@ int __init s3c2412_baseclk_add(void)
 	}
 
 	clkdev_add_table(s3c2412_clk_lookup, ARRAY_SIZE(s3c2412_clk_lookup));
-	s3c_pwmclk_init();
 	return 0;
 }

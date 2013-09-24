@@ -1293,10 +1293,10 @@ static u64 tg_prfill_cpu_rwstat(struct seq_file *sf,
 	return __blkg_prfill_rwstat(sf, pd, &rwstat);
 }
 
-static int tg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
-			       struct seq_file *sf)
+static int tg_print_cpu_rwstat(struct cgroup_subsys_state *css,
+			       struct cftype *cft, struct seq_file *sf)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	blkcg_print_blkgs(sf, blkcg, tg_prfill_cpu_rwstat, &blkcg_policy_throtl,
 			  cft->private, true);
@@ -1325,31 +1325,31 @@ static u64 tg_prfill_conf_uint(struct seq_file *sf, struct blkg_policy_data *pd,
 	return __blkg_prfill_u64(sf, pd, v);
 }
 
-static int tg_print_conf_u64(struct cgroup *cgrp, struct cftype *cft,
-			     struct seq_file *sf)
+static int tg_print_conf_u64(struct cgroup_subsys_state *css,
+			     struct cftype *cft, struct seq_file *sf)
 {
-	blkcg_print_blkgs(sf, cgroup_to_blkcg(cgrp), tg_prfill_conf_u64,
+	blkcg_print_blkgs(sf, css_to_blkcg(css), tg_prfill_conf_u64,
 			  &blkcg_policy_throtl, cft->private, false);
 	return 0;
 }
 
-static int tg_print_conf_uint(struct cgroup *cgrp, struct cftype *cft,
-			      struct seq_file *sf)
+static int tg_print_conf_uint(struct cgroup_subsys_state *css,
+			      struct cftype *cft, struct seq_file *sf)
 {
-	blkcg_print_blkgs(sf, cgroup_to_blkcg(cgrp), tg_prfill_conf_uint,
+	blkcg_print_blkgs(sf, css_to_blkcg(css), tg_prfill_conf_uint,
 			  &blkcg_policy_throtl, cft->private, false);
 	return 0;
 }
 
-static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
-		       bool is_u64)
+static int tg_set_conf(struct cgroup_subsys_state *css, struct cftype *cft,
+		       const char *buf, bool is_u64)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg *blkcg = css_to_blkcg(css);
 	struct blkg_conf_ctx ctx;
 	struct throtl_grp *tg;
 	struct throtl_service_queue *sq;
 	struct blkcg_gq *blkg;
-	struct cgroup *pos_cgrp;
+	struct cgroup_subsys_state *pos_css;
 	int ret;
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
@@ -1379,8 +1379,7 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 	 * restrictions in the whole hierarchy and allows them to bypass
 	 * blk-throttle.
 	 */
-	tg_update_has_rules(tg);
-	blkg_for_each_descendant_pre(blkg, pos_cgrp, ctx.blkg)
+	blkg_for_each_descendant_pre(blkg, pos_css, ctx.blkg)
 		tg_update_has_rules(blkg_to_tg(blkg));
 
 	/*
@@ -1403,16 +1402,16 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 	return 0;
 }
 
-static int tg_set_conf_u64(struct cgroup *cgrp, struct cftype *cft,
+static int tg_set_conf_u64(struct cgroup_subsys_state *css, struct cftype *cft,
 			   const char *buf)
 {
-	return tg_set_conf(cgrp, cft, buf, true);
+	return tg_set_conf(css, cft, buf, true);
 }
 
-static int tg_set_conf_uint(struct cgroup *cgrp, struct cftype *cft,
+static int tg_set_conf_uint(struct cgroup_subsys_state *css, struct cftype *cft,
 			    const char *buf)
 {
-	return tg_set_conf(cgrp, cft, buf, false);
+	return tg_set_conf(css, cft, buf, false);
 }
 
 static struct cftype throtl_files[] = {
@@ -1623,7 +1622,7 @@ void blk_throtl_drain(struct request_queue *q)
 {
 	struct throtl_data *td = q->td;
 	struct blkcg_gq *blkg;
-	struct cgroup *pos_cgrp;
+	struct cgroup_subsys_state *pos_css;
 	struct bio *bio;
 	int rw;
 
@@ -1636,10 +1635,8 @@ void blk_throtl_drain(struct request_queue *q)
 	 * better to walk service_queue tree directly but blkg walk is
 	 * easier.
 	 */
-	blkg_for_each_descendant_post(blkg, pos_cgrp, td->queue->root_blkg)
+	blkg_for_each_descendant_post(blkg, pos_css, td->queue->root_blkg)
 		tg_drain_bios(&blkg_to_tg(blkg)->service_queue);
-
-	tg_drain_bios(&td_root_tg(td)->service_queue);
 
 	/* finally, transfer bios from top-level tg's into the td */
 	tg_drain_bios(&td->service_queue);

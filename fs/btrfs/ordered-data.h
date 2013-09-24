@@ -69,6 +69,7 @@ struct btrfs_ordered_sum {
 				       * the isize. */
 #define BTRFS_ORDERED_LOGGED_CSUM 8 /* We've logged the csums on this ordered
 				       ordered extent */
+#define BTRFS_ORDERED_TRUNCATED 9 /* Set when we have to truncate an extent */
 
 struct btrfs_ordered_extent {
 	/* logical offset in the file */
@@ -95,6 +96,12 @@ struct btrfs_ordered_extent {
 	 * btrfs_ordered_update_i_size();
 	 */
 	u64 outstanding_isize;
+
+	/*
+	 * If we get truncated we need to adjust the file extent we enter for
+	 * this ordered extent so that we do not expose stale data.
+	 */
+	u64 truncated_len;
 
 	/* flags (described above) */
 	unsigned long flags;
@@ -188,9 +195,8 @@ int btrfs_run_ordered_operations(struct btrfs_trans_handle *trans,
 void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct inode *inode);
-void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput);
-void btrfs_wait_all_ordered_extents(struct btrfs_fs_info *fs_info,
-				    int delay_iput);
+void btrfs_wait_ordered_extents(struct btrfs_root *root);
+void btrfs_wait_all_ordered_extents(struct btrfs_fs_info *fs_info);
 void btrfs_get_logged_extents(struct btrfs_root *log, struct inode *inode);
 void btrfs_wait_logged_extents(struct btrfs_root *log, u64 transid);
 void btrfs_free_logged_extents(struct btrfs_root *log, u64 transid);

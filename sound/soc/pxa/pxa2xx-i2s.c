@@ -23,9 +23,9 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/pxa2xx-lib.h>
+#include <sound/dmaengine_pcm.h>
 
 #include <mach/hardware.h>
-#include <mach/dma.h>
 #include <mach/audio.h>
 
 #include "pxa2xx-i2s.h"
@@ -82,20 +82,20 @@ static struct pxa_i2s_port pxa_i2s;
 static struct clk *clk_i2s;
 static int clk_ena = 0;
 
-static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_out = {
-	.name			= "I2S PCM Stereo out",
-	.dev_addr		= __PREG(SADR),
-	.drcmr			= &DRCMR(3),
-	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static unsigned long pxa2xx_i2s_pcm_stereo_out_req = 3;
+static struct snd_dmaengine_dai_dma_data pxa2xx_i2s_pcm_stereo_out = {
+	.addr		= __PREG(SADR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_i2s_pcm_stereo_out_req,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_in = {
-	.name			= "I2S PCM Stereo in",
-	.dev_addr		= __PREG(SADR),
-	.drcmr			= &DRCMR(2),
-	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static unsigned long pxa2xx_i2s_pcm_stereo_in_req = 2;
+static struct snd_dmaengine_dai_dma_data pxa2xx_i2s_pcm_stereo_in = {
+	.addr		= __PREG(SADR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_i2s_pcm_stereo_in_req,
 };
 
 static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream,
@@ -163,7 +163,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct pxa2xx_pcm_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	BUG_ON(IS_ERR(clk_i2s));
 	clk_prepare_enable(clk_i2s);

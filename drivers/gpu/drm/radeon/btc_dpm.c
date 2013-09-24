@@ -2340,12 +2340,6 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
-	if (ret) {
-		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -2548,9 +2542,6 @@ int btc_dpm_init(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi;
 	struct evergreen_power_info *eg_pi;
-	int index = GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info);
-	u16 data_offset, size;
-	u8 frev, crev;
 	struct atom_clock_dividers dividers;
 	int ret;
 
@@ -2633,16 +2624,7 @@ int btc_dpm_init(struct radeon_device *rdev)
 	eg_pi->vddci_control =
 		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDCI, 0);
 
-	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
-                                   &frev, &crev, &data_offset)) {
-		pi->sclk_ss = true;
-		pi->mclk_ss = true;
-		pi->dynamic_ss = true;
-	} else {
-		pi->sclk_ss = false;
-		pi->mclk_ss = false;
-		pi->dynamic_ss = true;
-	}
+	rv770_get_engine_memory_ss(rdev);
 
 	pi->asi = RV770_ASI_DFLT;
 	pi->pasi = CYPRESS_HASI_DFLT;
@@ -2659,8 +2641,7 @@ int btc_dpm_init(struct radeon_device *rdev)
 
 	pi->dynamic_pcie_gen2 = true;
 
-	if (pi->gfx_clock_gating &&
-	    (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE))
+	if (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE)
 		pi->thermal_protection = true;
 	else
 		pi->thermal_protection = false;
@@ -2711,6 +2692,12 @@ int btc_dpm_init(struct radeon_device *rdev)
 		rdev->pm.dpm.dyn_state.sclk_mclk_delta = 15000;
 	else
 		rdev->pm.dpm.dyn_state.sclk_mclk_delta = 10000;
+
+	/* make sure dc limits are valid */
+	if ((rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.sclk == 0) ||
+	    (rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.mclk == 0))
+		rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc =
+			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 
 	return 0;
 }

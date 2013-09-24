@@ -53,14 +53,13 @@ acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
 			  void **retyurn_value)
 {
 	long *cap = context;
-	acpi_handle h_dummy;
 
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_BCM", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(handle, "_BCL", &h_dummy))) {
+	if (acpi_has_method(handle, "_BCM") &&
+	    acpi_has_method(handle, "_BCL")) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found generic backlight "
 				  "support\n"));
 		*cap |= ACPI_VIDEO_BACKLIGHT;
-		if (ACPI_FAILURE(acpi_get_handle(handle, "_BQC", &h_dummy)))
+		if (!acpi_has_method(handle, "_BQC"))
 			printk(KERN_WARNING FW_BUG PREFIX "No _BQC method, "
 				"cannot determine initial brightness\n");
 		/* We have backlight support, no need to scan further */
@@ -79,22 +78,20 @@ acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
  */
 long acpi_is_video_device(acpi_handle handle)
 {
-	acpi_handle h_dummy;
 	long video_caps = 0;
 
 	/* Is this device able to support video switching ? */
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_DOD", &h_dummy)) ||
-	    ACPI_SUCCESS(acpi_get_handle(handle, "_DOS", &h_dummy)))
+	if (acpi_has_method(handle, "_DOD") || acpi_has_method(handle, "_DOS"))
 		video_caps |= ACPI_VIDEO_OUTPUT_SWITCHING;
 
 	/* Is this device able to retrieve a video ROM ? */
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_ROM", &h_dummy)))
+	if (acpi_has_method(handle, "_ROM"))
 		video_caps |= ACPI_VIDEO_ROM_AVAILABLE;
 
 	/* Is this device able to configure which video head to be POSTed ? */
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_VPO", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(handle, "_GPD", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(handle, "_SPD", &h_dummy)))
+	if (acpi_has_method(handle, "_VPO") &&
+	    acpi_has_method(handle, "_GPD") &&
+	    acpi_has_method(handle, "_SPD"))
 		video_caps |= ACPI_VIDEO_DEVICE_POSTING;
 
 	/* Only check for backlight functionality if one of the above hit. */
@@ -238,12 +235,7 @@ static void acpi_video_caps_check(void)
 
 bool acpi_video_backlight_quirks(void)
 {
-	if (acpi_gbl_osi_data >= ACPI_OSI_WIN_8) {
-		acpi_video_caps_check();
-		acpi_video_support |= ACPI_VIDEO_SKIP_BACKLIGHT;
-		return true;
-	}
-	return false;
+	return acpi_gbl_osi_data >= ACPI_OSI_WIN_8;
 }
 EXPORT_SYMBOL(acpi_video_backlight_quirks);
 
@@ -290,14 +282,6 @@ int acpi_video_backlight_support(void)
 	return acpi_video_support & ACPI_VIDEO_BACKLIGHT;
 }
 EXPORT_SYMBOL(acpi_video_backlight_support);
-
-/* For the ACPI video driver use only. */
-bool acpi_video_verify_backlight_support(void)
-{
-	return (acpi_video_support & ACPI_VIDEO_SKIP_BACKLIGHT) ?
-		false : acpi_video_backlight_support();
-}
-EXPORT_SYMBOL(acpi_video_verify_backlight_support);
 
 /*
  * Use acpi_backlight=vendor/video to force that backlight switching

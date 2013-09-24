@@ -654,7 +654,9 @@ EXPORT_SYMBOL_GPL(ipu_di_init_sync_panel);
 
 int ipu_di_enable(struct ipu_di *di)
 {
-	clk_prepare_enable(di->clk_di_pixel);
+	int ret = clk_prepare_enable(di->clk_di_pixel);
+	if (ret)
+		return ret;
 
 	ipu_module_enable(di->ipu, di->module);
 

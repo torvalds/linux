@@ -1,6 +1,6 @@
 menuconfig RT2X00
 	tristate "Ralink driver support"
-	depends on MAC80211
+	depends on MAC80211 && HAS_DMA
 	---help---
 	  This will enable the support for the Ralink drivers,
 	  developed in the rt2x00 project <http://rt2x00.serialmonkey.com>.
@@ -165,6 +165,12 @@ config RT2800USB_RT35XX
 	  This adds support for rt35xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT3572
+
+config RT2800USB_RT3573
+	bool "rt2800usb - Include support for rt3573 devices (EXPERIMENTAL)"
+	---help---
+	  This enables support for RT3573 chipset based wireless USB devices
+	  in the rt2800usb driver.
 
 config RT2800USB_RT53XX
        bool "rt2800usb - Include support for rt53xx devices (EXPERIMENTAL)"

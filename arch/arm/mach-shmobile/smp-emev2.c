@@ -29,41 +29,38 @@
 #include <asm/smp_scu.h>
 
 #define EMEV2_SCU_BASE 0x1e000000
+#define EMEV2_SMU_BASE 0xe0110000
+#define SMU_GENERAL_REG0 0x7c0
 
 static int emev2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
+	int ret;
+
+	ret = shmobile_smp_scu_boot_secondary(cpu, idle);
+	if (ret)
+		return ret;
+
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu_logical_map(cpu)));
 	return 0;
 }
 
 static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 {
-	scu_enable(shmobile_scu_base);
+	void __iomem *smu;
 
-	/* Tell ROM loader about our vector (in headsmp-scu.S, headsmp.S) */
-	emev2_set_boot_vector(__pa(shmobile_boot_vector));
-	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
-	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
+	/* Tell ROM loader about our vector (in headsmp.S) */
+	smu = ioremap(EMEV2_SMU_BASE, PAGE_SIZE);
+	if (smu) {
+		iowrite32(__pa(shmobile_boot_vector), smu + SMU_GENERAL_REG0);
+		iounmap(smu);
+	}
 
-	/* enable cache coherency on booting CPU */
-	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
-}
-
-static void __init emev2_smp_init_cpus(void)
-{
-	unsigned int ncores;
-
-	/* setup EMEV2 specific SCU base */
+	/* setup EMEV2 specific SCU bits */
 	shmobile_scu_base = ioremap(EMEV2_SCU_BASE, PAGE_SIZE);
-	emev2_clock_init(); /* need ioremapped SMU */
-
-	ncores = shmobile_scu_base ? scu_get_core_count(shmobile_scu_base) : 1;
-
-	shmobile_smp_init_cpus(ncores);
+	shmobile_smp_scu_prepare_cpus(max_cpus);
 }
 
 struct smp_operations emev2_smp_ops __initdata = {
-	.smp_init_cpus		= emev2_smp_init_cpus,
 	.smp_prepare_cpus	= emev2_smp_prepare_cpus,
 	.smp_boot_secondary	= emev2_boot_secondary,
 };

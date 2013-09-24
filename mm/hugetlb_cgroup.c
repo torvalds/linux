@@ -36,21 +36,13 @@ static struct hugetlb_cgroup *root_h_cgroup __read_mostly;
 static inline
 struct hugetlb_cgroup *hugetlb_cgroup_from_css(struct cgroup_subsys_state *s)
 {
-	return container_of(s, struct hugetlb_cgroup, css);
-}
-
-static inline
-struct hugetlb_cgroup *hugetlb_cgroup_from_cgroup(struct cgroup *cgroup)
-{
-	return hugetlb_cgroup_from_css(cgroup_subsys_state(cgroup,
-							   hugetlb_subsys_id));
+	return s ? container_of(s, struct hugetlb_cgroup, css) : NULL;
 }
 
 static inline
 struct hugetlb_cgroup *hugetlb_cgroup_from_task(struct task_struct *task)
 {
-	return hugetlb_cgroup_from_css(task_subsys_state(task,
-							 hugetlb_subsys_id));
+	return hugetlb_cgroup_from_css(task_css(task, hugetlb_subsys_id));
 }
 
 static inline bool hugetlb_cgroup_is_root(struct hugetlb_cgroup *h_cg)
@@ -58,17 +50,15 @@ static inline bool hugetlb_cgroup_is_root(struct hugetlb_cgroup *h_cg)
 	return (h_cg == root_h_cgroup);
 }
 
-static inline struct hugetlb_cgroup *parent_hugetlb_cgroup(struct cgroup *cg)
+static inline struct hugetlb_cgroup *
+parent_hugetlb_cgroup(struct hugetlb_cgroup *h_cg)
 {
-	if (!cg->parent)
-		return NULL;
-	return hugetlb_cgroup_from_cgroup(cg->parent);
+	return hugetlb_cgroup_from_css(css_parent(&h_cg->css));
 }
 
-static inline bool hugetlb_cgroup_have_usage(struct cgroup *cg)
+static inline bool hugetlb_cgroup_have_usage(struct hugetlb_cgroup *h_cg)
 {
 	int idx;
-	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cg);
 
 	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
 		if ((res_counter_read_u64(&h_cg->hugepage[idx], RES_USAGE)) > 0)
@@ -77,19 +67,18 @@ static inline bool hugetlb_cgroup_have_usage(struct cgroup *cg)
 	return false;
 }
 
-static struct cgroup_subsys_state *hugetlb_cgroup_css_alloc(struct cgroup *cgroup)
+static struct cgroup_subsys_state *
+hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 {
+	struct hugetlb_cgroup *parent_h_cgroup = hugetlb_cgroup_from_css(parent_css);
+	struct hugetlb_cgroup *h_cgroup;
 	int idx;
-	struct cgroup *parent_cgroup;
-	struct hugetlb_cgroup *h_cgroup, *parent_h_cgroup;
 
 	h_cgroup = kzalloc(sizeof(*h_cgroup), GFP_KERNEL);
 	if (!h_cgroup)
 		return ERR_PTR(-ENOMEM);
 
-	parent_cgroup = cgroup->parent;
-	if (parent_cgroup) {
-		parent_h_cgroup = hugetlb_cgroup_from_cgroup(parent_cgroup);
+	if (parent_h_cgroup) {
 		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
 			res_counter_init(&h_cgroup->hugepage[idx],
 					 &parent_h_cgroup->hugepage[idx]);
@@ -101,11 +90,11 @@ static struct cgroup_subsys_state *hugetlb_cgroup_css_alloc(struct cgroup *cgrou
 	return &h_cgroup->css;
 }
 
-static void hugetlb_cgroup_css_free(struct cgroup *cgroup)
+static void hugetlb_cgroup_css_free(struct cgroup_subsys_state *css)
 {
 	struct hugetlb_cgroup *h_cgroup;
 
-	h_cgroup = hugetlb_cgroup_from_cgroup(cgroup);
+	h_cgroup = hugetlb_cgroup_from_css(css);
 	kfree(h_cgroup);
 }
 
@@ -117,15 +106,14 @@ static void hugetlb_cgroup_css_free(struct cgroup *cgroup)
  * page reference and test for page active here. This function
  * cannot fail.
  */
-static void hugetlb_cgroup_move_parent(int idx, struct cgroup *cgroup,
+static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
 				       struct page *page)
 {
 	int csize;
 	struct res_counter *counter;
 	struct res_counter *fail_res;
 	struct hugetlb_cgroup *page_hcg;
-	struct hugetlb_cgroup *h_cg   = hugetlb_cgroup_from_cgroup(cgroup);
-	struct hugetlb_cgroup *parent = parent_hugetlb_cgroup(cgroup);
+	struct hugetlb_cgroup *parent = parent_hugetlb_cgroup(h_cg);
 
 	page_hcg = hugetlb_cgroup_from_page(page);
 	/*
@@ -155,8 +143,9 @@ out:
  * Force the hugetlb cgroup to empty the hugetlb resources by moving them to
  * the parent cgroup.
  */
-static void hugetlb_cgroup_css_offline(struct cgroup *cgroup)
+static void hugetlb_cgroup_css_offline(struct cgroup_subsys_state *css)
 {
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 	struct hstate *h;
 	struct page *page;
 	int idx = 0;
@@ -165,13 +154,13 @@ static void hugetlb_cgroup_css_offline(struct cgroup *cgroup)
 		for_each_hstate(h) {
 			spin_lock(&hugetlb_lock);
 			list_for_each_entry(page, &h->hugepage_activelist, lru)
-				hugetlb_cgroup_move_parent(idx, cgroup, page);
+				hugetlb_cgroup_move_parent(idx, h_cg, page);
 
 			spin_unlock(&hugetlb_lock);
 			idx++;
 		}
 		cond_resched();
-	} while (hugetlb_cgroup_have_usage(cgroup));
+	} while (hugetlb_cgroup_have_usage(h_cg));
 }
 
 int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
@@ -253,14 +242,15 @@ void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 	return;
 }
 
-static ssize_t hugetlb_cgroup_read(struct cgroup *cgroup, struct cftype *cft,
-				   struct file *file, char __user *buf,
-				   size_t nbytes, loff_t *ppos)
+static ssize_t hugetlb_cgroup_read(struct cgroup_subsys_state *css,
+				   struct cftype *cft, struct file *file,
+				   char __user *buf, size_t nbytes,
+				   loff_t *ppos)
 {
 	u64 val;
 	char str[64];
 	int idx, name, len;
-	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 
 	idx = MEMFILE_IDX(cft->private);
 	name = MEMFILE_ATTR(cft->private);
@@ -270,12 +260,12 @@ static ssize_t hugetlb_cgroup_read(struct cgroup *cgroup, struct cftype *cft,
 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
 }
 
-static int hugetlb_cgroup_write(struct cgroup *cgroup, struct cftype *cft,
-				const char *buffer)
+static int hugetlb_cgroup_write(struct cgroup_subsys_state *css,
+				struct cftype *cft, const char *buffer)
 {
 	int idx, name, ret;
 	unsigned long long val;
-	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 
 	idx = MEMFILE_IDX(cft->private);
 	name = MEMFILE_ATTR(cft->private);
@@ -300,10 +290,11 @@ static int hugetlb_cgroup_write(struct cgroup *cgroup, struct cftype *cft,
 	return ret;
 }
 
-static int hugetlb_cgroup_reset(struct cgroup *cgroup, unsigned int event)
+static int hugetlb_cgroup_reset(struct cgroup_subsys_state *css,
+				unsigned int event)
 {
 	int idx, name, ret = 0;
-	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 
 	idx = MEMFILE_IDX(event);
 	name = MEMFILE_ATTR(event);

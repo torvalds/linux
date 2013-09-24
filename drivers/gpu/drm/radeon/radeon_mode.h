@@ -225,6 +225,7 @@ struct radeon_afmt {
 	int offset;
 	bool last_buffer_filled_status;
 	int id;
+	struct r600_audio_pin *pin;
 };
 
 struct radeon_mode_info {
@@ -233,7 +234,7 @@ struct radeon_mode_info {
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
 	struct radeon_crtc *crtcs[6];
-	struct radeon_afmt *afmt[6];
+	struct radeon_afmt *afmt[7];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */
@@ -246,6 +247,8 @@ struct radeon_mode_info {
 	struct drm_property *underscan_property;
 	struct drm_property *underscan_hborder_property;
 	struct drm_property *underscan_vborder_property;
+	/* audio */
+	struct drm_property *audio_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
 	int bios_hardcoded_edid_size;
@@ -470,6 +473,12 @@ struct radeon_router {
 	u8 cd_mux_state;
 };
 
+enum radeon_connector_audio {
+	RADEON_AUDIO_DISABLE = 0,
+	RADEON_AUDIO_ENABLE = 1,
+	RADEON_AUDIO_AUTO = 2
+};
+
 struct radeon_connector {
 	struct drm_connector base;
 	uint32_t connector_id;
@@ -488,6 +497,7 @@ struct radeon_connector {
 	struct radeon_hpd hpd;
 	struct radeon_router router;
 	struct radeon_i2c_chan *router_bus;
+	enum radeon_connector_audio audio;
 };
 
 struct radeon_framebuffer {

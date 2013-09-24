@@ -300,7 +300,7 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	int ret;\n\n"
 	buf += "	if (strstr(name, \"tpgt_\") != name)\n"
 	buf += "		return ERR_PTR(-EINVAL);\n"
-	buf += "	if (strict_strtoul(name + 5, 10, &tpgt) || tpgt > UINT_MAX)\n"
+	buf += "	if (kstrtoul(name + 5, 10, &tpgt) || tpgt > UINT_MAX)\n"
 	buf += "		return ERR_PTR(-EINVAL);\n\n"
 	buf += "	tpg = kzalloc(sizeof(struct " + fabric_mod_name + "_tpg), GFP_KERNEL);\n"
 	buf += "	if (!tpg) {\n"

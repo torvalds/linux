@@ -505,7 +505,7 @@ static struct vpbe_output dm365evm_vpbe_outputs[] = {
 /*
  * Amplifiers on the board
  */
-struct ths7303_platform_data ths7303_pdata = {
+static struct ths7303_platform_data ths7303_pdata = {
 	.ch_1 = 3,
 	.ch_2 = 3,
 	.ch_3 = 3,
@@ -718,10 +718,6 @@ fail:
 	/* REVISIT export switches: NTSC/PAL (SW5.6), EXTRA1 (SW5.2), etc */
 }
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 static void __init dm365_evm_map_io(void)
 {
 	dm365_init();
@@ -748,7 +744,7 @@ static struct spi_board_info dm365_evm_spi_info[] __initconst = {
 static __init void dm365_evm_init(void)
 {
 	evm_init_i2c();
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm365_serial_device);
 
 	dm365evm_emac_configure();
 	dm365evm_mmc_configure();

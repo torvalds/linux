@@ -155,10 +155,10 @@ _GLOBAL(tm_reclaim)
 	mfvscr	vr0
 	li	r6, THREAD_TRANSACT_VSCR
 	stvx	vr0, r3, r6
+dont_backup_vec:
 	mfspr	r0, SPRN_VRSAVE
 	std	r0, THREAD_TRANSACT_VRSAVE(r3)
 
-dont_backup_vec:
 	andi.	r0, r4, MSR_FP
 	beq	dont_backup_fp
 
@@ -232,6 +232,16 @@ dont_backup_fp:
 	std	r4, _LINK(r7)
 	std	r5, _CCR(r7)
 	std	r6, _XER(r7)
+
+
+	/* ******************** TAR, PPR, DSCR ********** */
+	mfspr	r3, SPRN_TAR
+	mfspr	r4, SPRN_PPR
+	mfspr	r5, SPRN_DSCR
+
+	std	r3, THREAD_TM_TAR(r12)
+	std	r4, THREAD_TM_PPR(r12)
+	std	r5, THREAD_TM_DSCR(r12)
 
 	/* MSR and flags:  We don't change CRs, and we don't need to alter
 	 * MSR.
@@ -331,11 +341,11 @@ _GLOBAL(tm_recheckpoint)
 	lvx	vr0, r3, r5
 	mtvscr	vr0
 	REST_32VRS(0, r5, r3)			/* r5 scratch, r3 THREAD ptr */
+dont_restore_vec:
 	ld	r5, THREAD_VRSAVE(r3)
 	mtspr	SPRN_VRSAVE, r5
 #endif
 
-dont_restore_vec:
 	andi.	r0, r4, MSR_FP
 	beq	dont_restore_fp
 
@@ -347,6 +357,16 @@ dont_restore_fp:
 	mtmsr	r6				/* FP/Vec off again! */
 
 restore_gprs:
+
+	/* ******************** TAR, PPR, DSCR ********** */
+	ld	r4, THREAD_TM_TAR(r3)
+	ld	r5, THREAD_TM_PPR(r3)
+	ld	r6, THREAD_TM_DSCR(r3)
+
+	mtspr	SPRN_TAR,	r4
+	mtspr	SPRN_PPR,	r5
+	mtspr	SPRN_DSCR,	r6
+
 	/* ******************** CR,LR,CCR,MSR ********** */
 	ld	r3, _CTR(r7)
 	ld	r4, _LINK(r7)

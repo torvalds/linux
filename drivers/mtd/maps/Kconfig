@@ -157,24 +157,6 @@ config MTD_PXA2XX
 	help
 	  This provides a driver for the NOR flash attached to a PXA2xx chip.
 
-config MTD_OCTAGON
-	tristate "JEDEC Flash device mapped on Octagon 5066 SBC"
-	depends on X86 && MTD_JEDEC && MTD_COMPLEX_MAPPINGS
-	help
-	  This provides a 'mapping' driver which supports the way in which
-	  the flash chips are connected in the Octagon-5066 Single Board
-	  Computer. More information on the board is available at
-	  <http://www.octagonsystems.com/products/5066.aspx>.
-
-config MTD_VMAX
-	tristate "JEDEC Flash device mapped on Tempustech VMAX SBC301"
-	depends on X86 && MTD_JEDEC && MTD_COMPLEX_MAPPINGS
-	help
-	  This provides a 'mapping' driver which supports the way in which
-	  the flash chips are connected in the Tempustech VMAX SBC301 Single
-	  Board Computer. More information on the board is available at
-	  <http://www.tempustech.com/>.
-
 config MTD_SCx200_DOCFLASH
 	tristate "Flash device mapped with DOCCS on NatSemi SCx200"
 	depends on SCx200 && MTD_CFI

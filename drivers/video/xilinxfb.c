@@ -259,12 +259,12 @@ static int xilinxfb_assign(struct platform_device *pdev,
 		struct resource *res;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		drvdata->regs_phys = res->start;
-		drvdata->regs = devm_request_and_ioremap(&pdev->dev, res);
-		if (!drvdata->regs) {
-			rc = -EADDRNOTAVAIL;
+		drvdata->regs = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(drvdata->regs)) {
+			rc = PTR_ERR(drvdata->regs);
 			goto err_region;
 		}
+		drvdata->regs_phys = res->start;
 	}
 
 	/* Allocate the framebuffer memory */
@@ -341,8 +341,8 @@ static int xilinxfb_assign(struct platform_device *pdev,
 
 	if (drvdata->flags & BUS_ACCESS_FLAG) {
 		/* Put a banner in the log (for DEBUG) */
-		dev_dbg(dev, "regs: phys=%x, virt=%p\n", drvdata->regs_phys,
-					drvdata->regs);
+		dev_dbg(dev, "regs: phys=%pa, virt=%p\n",
+			&drvdata->regs_phys, drvdata->regs);
 	}
 	/* Put a banner in the log (for DEBUG) */
 	dev_dbg(dev, "fb: phys=%llx, virt=%p, size=%x\n",

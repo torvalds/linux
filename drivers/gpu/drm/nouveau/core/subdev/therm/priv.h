@@ -113,6 +113,8 @@ void nouveau_therm_ic_ctor(struct nouveau_therm *therm);
 int nouveau_therm_sensor_ctor(struct nouveau_therm *therm);
 
 int nouveau_therm_fan_ctor(struct nouveau_therm *therm);
+int nouveau_therm_fan_init(struct nouveau_therm *therm);
+int nouveau_therm_fan_fini(struct nouveau_therm *therm, bool suspend);
 int nouveau_therm_fan_get(struct nouveau_therm *therm);
 int nouveau_therm_fan_set(struct nouveau_therm *therm, bool now, int percent);
 int nouveau_therm_fan_user_get(struct nouveau_therm *therm);
@@ -122,6 +124,8 @@ int nouveau_therm_fan_sense(struct nouveau_therm *therm);
 
 int nouveau_therm_preinit(struct nouveau_therm *);
 
+int nouveau_therm_sensor_init(struct nouveau_therm *therm);
+int nouveau_therm_sensor_fini(struct nouveau_therm *therm, bool suspend);
 void nouveau_therm_sensor_preinit(struct nouveau_therm *);
 void nouveau_therm_sensor_set_threshold_state(struct nouveau_therm *therm,
 					     enum nouveau_therm_thrs thrs,

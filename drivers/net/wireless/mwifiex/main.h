@@ -204,11 +204,11 @@ struct mwifiex_ra_list_tbl {
 	struct list_head list;
 	struct sk_buff_head skb_head;
 	u8 ra[ETH_ALEN];
-	u32 total_pkts_size;
 	u32 is_11n_enabled;
 	u16 max_amsdu;
-	u16 pkt_count;
+	u16 ba_pkt_count;
 	u8 ba_packet_thr;
+	u16 total_pkt_count;
 };
 
 struct mwifiex_tid_tbl {
@@ -515,6 +515,8 @@ struct mwifiex_private {
 	bool scan_aborting;
 	u8 csa_chan;
 	unsigned long csa_expire_time;
+	u8 del_list_idx;
+	bool hs2_enabled;
 };
 
 enum mwifiex_ba_status {
@@ -601,6 +603,7 @@ struct mwifiex_if_ops {
 	int (*register_dev) (struct mwifiex_adapter *);
 	void (*unregister_dev) (struct mwifiex_adapter *);
 	int (*enable_int) (struct mwifiex_adapter *);
+	void (*disable_int) (struct mwifiex_adapter *);
 	int (*process_int_status) (struct mwifiex_adapter *);
 	int (*host_to_card) (struct mwifiex_adapter *, u8, struct sk_buff *,
 			     struct mwifiex_tx_param *);
@@ -747,6 +750,7 @@ struct mwifiex_adapter {
 
 	atomic_t is_tx_received;
 	atomic_t pending_bridged_pkts;
+	struct semaphore *card_sem;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -899,6 +903,8 @@ int mwifiex_cmd_append_vsie_tlv(struct mwifiex_private *priv, u16 vsie_mask,
 u32 mwifiex_get_active_data_rates(struct mwifiex_private *priv,
 				    u8 *rates);
 u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates);
+u32 mwifiex_get_rates_from_cfg80211(struct mwifiex_private *priv,
+				    u8 *rates, u8 radio_type);
 u8 mwifiex_is_rate_auto(struct mwifiex_private *priv);
 extern u16 region_code_index[MWIFIEX_MAX_REGION_CODE];
 void mwifiex_save_curr_bcn(struct mwifiex_private *priv);
@@ -1020,7 +1026,7 @@ mwifiex_netdev_get_priv(struct net_device *dev)
  */
 static inline bool mwifiex_is_skb_mgmt_frame(struct sk_buff *skb)
 {
-	return (*(u32 *)skb->data == PKT_TYPE_MGMT);
+	return (le32_to_cpu(*(__le32 *)skb->data) == PKT_TYPE_MGMT);
 }
 
 /* This function retrieves channel closed for operation by Channel

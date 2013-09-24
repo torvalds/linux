@@ -112,6 +112,7 @@ static inline struct cpumask *cpu_core_mask(int cpu)
 }
 
 extern int cpu_to_core_id(int cpu);
+extern int cpu_to_chip_id(int cpu);
 
 /* Since OpenPIC has only 4 IPIs, we use slightly different message numbers.
  *
@@ -145,6 +146,10 @@ extern void __cpu_die(unsigned int cpu);
 #define smp_setup_cpu_maps()
 static inline void inhibit_secondary_onlining(void) {}
 static inline void uninhibit_secondary_onlining(void) {}
+static inline const struct cpumask *cpu_sibling_mask(int cpu)
+{
+	return cpumask_of(cpu);
+}
 
 #endif /* CONFIG_SMP */
 
@@ -182,6 +187,8 @@ extern int smt_enabled_at_boot;
 extern int smp_mpic_probe(void);
 extern void smp_mpic_setup_cpu(int cpu);
 extern int smp_generic_kick_cpu(int nr);
+extern int smp_generic_cpu_bootable(unsigned int nr);
+
 
 extern void smp_generic_give_timebase(void);
 extern void smp_generic_take_timebase(void);

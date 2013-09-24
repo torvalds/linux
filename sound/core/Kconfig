@@ -6,6 +6,9 @@ config SND_PCM
 	tristate
 	select SND_TIMER
 
+config SND_DMAENGINE_PCM
+	tristate
+
 config SND_HWDEP
 	tristate
 

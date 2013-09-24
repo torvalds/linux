@@ -152,8 +152,6 @@ static int mxc_w1_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(mdev->clk);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

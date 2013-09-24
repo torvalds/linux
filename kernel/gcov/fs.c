@@ -74,7 +74,7 @@ static int __init gcov_persist_setup(char *str)
 {
 	unsigned long val;
 
-	if (strict_strtoul(str, 0, &val)) {
+	if (kstrtoul(str, 0, &val)) {
 		pr_warning("invalid gcov_persist parameter '%s'\n", str);
 		return 0;
 	}

@@ -20,27 +20,17 @@ struct pt_regs {
 
 	/* Real registers */
 	long bta;	/* bta_l1, bta_l2, erbta */
-	long lp_start;
-	long lp_end;
-	long lp_count;
+
+	long lp_start, lp_end, lp_count;
+
 	long status32;	/* status32_l1, status32_l2, erstatus */
 	long ret;	/* ilink1, ilink2 or eret */
 	long blink;
 	long fp;
 	long r26;	/* gp */
-	long r12;
-	long r11;
-	long r10;
-	long r9;
-	long r8;
-	long r7;
-	long r6;
-	long r5;
-	long r4;
-	long r3;
-	long r2;
-	long r1;
-	long r0;
+
+	long r12, r11, r10, r9, r8, r7, r6, r5, r4, r3, r2, r1, r0;
+
 	long sp;	/* user/kernel sp depending on where we came from  */
 	long orig_r0;
 
@@ -70,19 +60,7 @@ struct pt_regs {
 /* Callee saved registers - need to be saved only when you are scheduled out */
 
 struct callee_regs {
-	long r25;
-	long r24;
-	long r23;
-	long r22;
-	long r21;
-	long r20;
-	long r19;
-	long r18;
-	long r17;
-	long r16;
-	long r15;
-	long r14;
-	long r13;
+	long r25, r24, r23, r22, r21, r20, r19, r18, r17, r16, r15, r14, r13;
 };
 
 #define instruction_pointer(regs)	((regs)->ret)
