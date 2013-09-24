@@ -103,6 +103,9 @@ struct inet_cork {
 	int			length; /* Total length of all frames */
 	struct dst_entry	*dst;
 	u8			tx_flags;
+	__u8			ttl;
+	__s16			tos;
+	char			priority;
 };
 
 struct inet_cork_full {
