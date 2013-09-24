@@ -16,6 +16,7 @@
 #include "common.h"
 #include "common-board-devices.h"
 #include "dss-common.h"
+#include "control.h"
 
 struct pdata_init {
 	const char *compatible;
@@ -64,6 +65,17 @@ static inline void legacy_init_wl12xx(unsigned ref_clock,
 }
 #endif
 
+#ifdef CONFIG_ARCH_OMAP3
+static void __init hsmmc2_internal_input_clk(void)
+{
+	u32 reg;
+
+	reg = omap_ctrl_readl(OMAP343X_CONTROL_DEVCONF1);
+	reg |= OMAP2_MMCSDIO2ADPCLKISEL;
+	omap_ctrl_writel(reg, OMAP343X_CONTROL_DEVCONF1);
+}
+#endif /* CONFIG_ARCH_OMAP3 */
+
 #ifdef CONFIG_ARCH_OMAP4
 static void __init omap4_sdp_legacy_init(void)
 {
@@ -88,6 +100,10 @@ static void __init omap5_uevm_legacy_init(void)
 #endif
 
 static struct pdata_init pdata_quirks[] __initdata = {
+#ifdef CONFIG_ARCH_OMAP3
+	{ "nokia,omap3-n9", hsmmc2_internal_input_clk, },
+	{ "nokia,omap3-n950", hsmmc2_internal_input_clk, },
+#endif
 #ifdef CONFIG_ARCH_OMAP4
 	{ "ti,omap4-sdp", omap4_sdp_legacy_init, },
 	{ "ti,omap4-panda", omap4_panda_legacy_init, },
