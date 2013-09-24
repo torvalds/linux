@@ -496,7 +496,6 @@ void do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct thread_info *curtp, *irqtp;
-	unsigned long saved_sp_limit;
 
 	/* Switch to the irq stack to handle this */
 	curtp = current_thread_info();
@@ -509,12 +508,6 @@ void do_IRQ(struct pt_regs *regs)
 		return;
 	}
 
-	/* Adjust the stack limit */
-	saved_sp_limit = current->thread.ksp_limit;
-	current->thread.ksp_limit = (unsigned long)irqtp +
-		_ALIGN_UP(sizeof(struct thread_info), 16);
-
-
 	/* Prepare the thread_info in the irq stack */
 	irqtp->task = curtp->task;
 	irqtp->flags = 0;
@@ -526,7 +519,6 @@ void do_IRQ(struct pt_regs *regs)
 	call_do_irq(regs, irqtp);
 
 	/* Restore stack limit */
-	current->thread.ksp_limit = saved_sp_limit;
 	irqtp->task = NULL;
 
 	/* Copy back updates to the thread_info */
@@ -604,16 +596,12 @@ void irq_ctx_init(void)
 static inline void do_softirq_onstack(void)
 {
 	struct thread_info *curtp, *irqtp;
-	unsigned long saved_sp_limit = current->thread.ksp_limit;
 
 	curtp = current_thread_info();
 	irqtp = softirq_ctx[smp_processor_id()];
 	irqtp->task = curtp->task;
 	irqtp->flags = 0;
-	current->thread.ksp_limit = (unsigned long)irqtp +
-				    _ALIGN_UP(sizeof(struct thread_info), 16);
 	call_do_softirq(irqtp);
-	current->thread.ksp_limit = saved_sp_limit;
 	irqtp->task = NULL;
 
 	/* Set any flag that may have been set on the
