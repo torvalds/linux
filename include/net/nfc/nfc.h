@@ -85,6 +85,14 @@ struct nfc_ops {
 #define NFC_MAX_GT_LEN 48
 #define NFC_ATR_RES_GT_OFFSET 15
 
+/**
+ * struct nfc_target - NFC target descriptiom
+ *
+ * @sens_res: 2 bytes describing the target SENS_RES response, if the target
+ *	is a type A one. The %sens_res most significant byte must be byte 2
+ *	as described by the NFC Forum digital specification (i.e. the platform
+ *	configuration one) while %sens_res least significant byte is byte 1.
+ */
 struct nfc_target {
 	u32 idx;
 	u32 supported_protocols;
