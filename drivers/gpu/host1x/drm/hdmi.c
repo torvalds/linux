@@ -13,10 +13,10 @@
 #include <linux/hdmi.h>
 #include <linux/regulator/consumer.h>
 
+#include "host1x_client.h"
 #include "hdmi.h"
 #include "drm.h"
 #include "dc.h"
-#include "host1x_client.h"
 
 struct tegra_hdmi {
 	struct tegra_drm_client client;

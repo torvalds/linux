@@ -8,10 +8,8 @@
  */
 
 #include "host1x_client.h"
-#include "dev.h"
 #include "drm.h"
 #include "gem.h"
-#include "syncpt.h"
 
 #define DRIVER_NAME "tegra"
 #define DRIVER_DESC "NVIDIA Tegra graphics"

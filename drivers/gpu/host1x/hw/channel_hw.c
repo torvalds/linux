@@ -21,7 +21,6 @@
 
 #include <trace/events/host1x.h>
 
-#include "host1x_bo.h"
 #include "channel.h"
 #include "dev.h"
 #include "intr.h"

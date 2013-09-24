@@ -16,13 +16,9 @@
 
 #include <linux/clk.h>
 
-#include "channel.h"
+#include "host1x_client.h"
 #include "drm.h"
 #include "gem.h"
-#include "job.h"
-#include "host1x_bo.h"
-#include "host1x_client.h"
-#include "syncpt.h"
 
 #define GR2D_NUM_REGS 0x4d
 

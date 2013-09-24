@@ -19,10 +19,10 @@
 #ifndef __HOST1X_GEM_H
 #define __HOST1X_GEM_H
 
+#include <linux/host1x.h>
+
 #include <drm/drm.h>
 #include <drm/drmP.h>
-
-#include "host1x_bo.h"
 
 struct tegra_bo {
 	struct drm_gem_object gem;

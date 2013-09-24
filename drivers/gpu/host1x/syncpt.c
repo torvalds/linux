@@ -354,6 +354,25 @@ void host1x_syncpt_deinit(struct host1x *host)
 		kfree(sp->name);
 }
 
+/*
+ * Read max. It indicates how many operations there are in queue, either in
+ * channel or in a software thread.
+ * */
+u32 host1x_syncpt_read_max(struct host1x_syncpt *sp)
+{
+	smp_rmb();
+	return (u32)atomic_read(&sp->max_val);
+}
+
+/*
+ * Read min, which is a shadow of the current sync point value in hardware.
+ */
+u32 host1x_syncpt_read_min(struct host1x_syncpt *sp)
+{
+	smp_rmb();
+	return (u32)atomic_read(&sp->min_val);
+}
+
 int host1x_syncpt_nb_pts(struct host1x *host)
 {
 	return host->info->nb_pts;

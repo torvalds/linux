@@ -19,6 +19,9 @@
 #ifndef __LINUX_HOST1X_H
 #define __LINUX_HOST1X_H
 
+#include <linux/kref.h>
+#include <linux/types.h>
+
 enum host1x_class {
 	HOST1X_CLASS_HOST1X = 0x1,
 	HOST1X_CLASS_GR2D = 0x51,
@@ -44,5 +47,187 @@ struct host1x_client {
 	struct host1x_syncpt **syncpts;
 	unsigned int num_syncpts;
 };
+
+/*
+ * host1x buffer objects
+ */
+
+struct host1x_bo;
+struct sg_table;
+
+struct host1x_bo_ops {
+	struct host1x_bo *(*get)(struct host1x_bo *bo);
+	void (*put)(struct host1x_bo *bo);
+	dma_addr_t (*pin)(struct host1x_bo *bo, struct sg_table **sgt);
+	void (*unpin)(struct host1x_bo *bo, struct sg_table *sgt);
+	void *(*mmap)(struct host1x_bo *bo);
+	void (*munmap)(struct host1x_bo *bo, void *addr);
+	void *(*kmap)(struct host1x_bo *bo, unsigned int pagenum);
+	void (*kunmap)(struct host1x_bo *bo, unsigned int pagenum, void *addr);
+};
+
+struct host1x_bo {
+	const struct host1x_bo_ops *ops;
+};
+
+static inline void host1x_bo_init(struct host1x_bo *bo,
+				  const struct host1x_bo_ops *ops)
+{
+	bo->ops = ops;
+}
+
+static inline struct host1x_bo *host1x_bo_get(struct host1x_bo *bo)
+{
+	return bo->ops->get(bo);
+}
+
+static inline void host1x_bo_put(struct host1x_bo *bo)
+{
+	bo->ops->put(bo);
+}
+
+static inline dma_addr_t host1x_bo_pin(struct host1x_bo *bo,
+				       struct sg_table **sgt)
+{
+	return bo->ops->pin(bo, sgt);
+}
+
+static inline void host1x_bo_unpin(struct host1x_bo *bo, struct sg_table *sgt)
+{
+	bo->ops->unpin(bo, sgt);
+}
+
+static inline void *host1x_bo_mmap(struct host1x_bo *bo)
+{
+	return bo->ops->mmap(bo);
+}
+
+static inline void host1x_bo_munmap(struct host1x_bo *bo, void *addr)
+{
+	bo->ops->munmap(bo, addr);
+}
+
+static inline void *host1x_bo_kmap(struct host1x_bo *bo, unsigned int pagenum)
+{
+	return bo->ops->kmap(bo, pagenum);
+}
+
+static inline void host1x_bo_kunmap(struct host1x_bo *bo,
+				    unsigned int pagenum, void *addr)
+{
+	bo->ops->kunmap(bo, pagenum, addr);
+}
+
+/*
+ * host1x syncpoints
+ */
+
+struct host1x_syncpt;
+struct host1x;
+
+struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id);
+u32 host1x_syncpt_id(struct host1x_syncpt *sp);
+u32 host1x_syncpt_read_min(struct host1x_syncpt *sp);
+u32 host1x_syncpt_read_max(struct host1x_syncpt *sp);
+int host1x_syncpt_incr(struct host1x_syncpt *sp);
+int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
+		       u32 *value);
+struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
+					    bool client_managed);
+void host1x_syncpt_free(struct host1x_syncpt *sp);
+
+/*
+ * host1x channel
+ */
+
+struct host1x_channel;
+struct host1x_job;
+
+struct host1x_channel *host1x_channel_request(struct device *dev);
+void host1x_channel_free(struct host1x_channel *channel);
+struct host1x_channel *host1x_channel_get(struct host1x_channel *channel);
+void host1x_channel_put(struct host1x_channel *channel);
+int host1x_job_submit(struct host1x_job *job);
+
+/*
+ * host1x job
+ */
+
+struct host1x_reloc {
+	struct host1x_bo *cmdbuf;
+	u32 cmdbuf_offset;
+	struct host1x_bo *target;
+	u32 target_offset;
+	u32 shift;
+	u32 pad;
+};
+
+struct host1x_job {
+	/* When refcount goes to zero, job can be freed */
+	struct kref ref;
+
+	/* List entry */
+	struct list_head list;
+
+	/* Channel where job is submitted to */
+	struct host1x_channel *channel;
+
+	u32 client;
+
+	/* Gathers and their memory */
+	struct host1x_job_gather *gathers;
+	unsigned int num_gathers;
+
+	/* Wait checks to be processed at submit time */
+	struct host1x_waitchk *waitchk;
+	unsigned int num_waitchk;
+	u32 waitchk_mask;
+
+	/* Array of handles to be pinned & unpinned */
+	struct host1x_reloc *relocarray;
+	unsigned int num_relocs;
+	struct host1x_job_unpin_data *unpins;
+	unsigned int num_unpins;
+
+	dma_addr_t *addr_phys;
+	dma_addr_t *gather_addr_phys;
+	dma_addr_t *reloc_addr_phys;
+
+	/* Sync point id, number of increments and end related to the submit */
+	u32 syncpt_id;
+	u32 syncpt_incrs;
+	u32 syncpt_end;
+
+	/* Maximum time to wait for this job */
+	unsigned int timeout;
+
+	/* Index and number of slots used in the push buffer */
+	unsigned int first_get;
+	unsigned int num_slots;
+
+	/* Copy of gathers */
+	size_t gather_copy_size;
+	dma_addr_t gather_copy;
+	u8 *gather_copy_mapped;
+
+	/* Check if register is marked as an address reg */
+	int (*is_addr_reg)(struct device *dev, u32 reg, u32 class);
+
+	/* Request a SETCLASS to this class */
+	u32 class;
+
+	/* Add a channel wait for previous ops to complete */
+	bool serialize;
+};
+
+struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
+				    u32 num_cmdbufs, u32 num_relocs,
+				    u32 num_waitchks);
+void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *mem_id,
+			   u32 words, u32 offset);
+struct host1x_job *host1x_job_get(struct host1x_job *job);
+void host1x_job_put(struct host1x_job *job);
+int host1x_job_pin(struct host1x_job *job, struct device *dev);
+void host1x_job_unpin(struct host1x_job *job);
 
 #endif

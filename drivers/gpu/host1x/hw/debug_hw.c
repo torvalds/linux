@@ -19,7 +19,6 @@
 #include "debug.h"
 #include "cdma.h"
 #include "channel.h"
-#include "host1x_bo.h"
 
 #define HOST1X_DEBUG_MAX_PAGE_OFFSET 102400
 

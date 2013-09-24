@@ -18,6 +18,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
+#include <linux/host1x.h>
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
@@ -27,7 +28,6 @@
 
 #include "channel.h"
 #include "dev.h"
-#include "host1x_bo.h"
 #include "job.h"
 #include "syncpt.h"
 
