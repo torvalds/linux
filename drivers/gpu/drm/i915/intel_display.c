@@ -708,7 +708,7 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 						bestppm = 0;
 						flag = 1;
 					}
-					if (ppm < bestppm - 10) {
+					if (bestppm >= 10 && ppm < bestppm - 10) {
 						bestppm = ppm;
 						flag = 1;
 					}
