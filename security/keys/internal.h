@@ -90,19 +90,22 @@ extern void key_type_put(struct key_type *ktype);
 
 extern int __key_link_begin(struct key *keyring,
 			    const struct keyring_index_key *index_key,
-			    unsigned long *_prealloc);
+			    struct assoc_array_edit **_edit);
 extern int __key_link_check_live_key(struct key *keyring, struct key *key);
-extern void __key_link(struct key *keyring, struct key *key,
-		       unsigned long *_prealloc);
+extern void __key_link(struct key *key, struct assoc_array_edit **_edit);
 extern void __key_link_end(struct key *keyring,
 			   const struct keyring_index_key *index_key,
-			   unsigned long prealloc);
+			   struct assoc_array_edit *edit);
 
-extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
-				      const struct keyring_index_key *index_key);
+extern key_ref_t find_key_to_update(key_ref_t keyring_ref,
+				    const struct keyring_index_key *index_key);
 
 extern struct key *keyring_search_instkey(struct key *keyring,
 					  key_serial_t target_id);
+
+extern int iterate_over_keyring(const struct key *keyring,
+				int (*func)(const struct key *key, void *data),
+				void *data);
 
 typedef int (*key_match_func_t)(const struct key *, const void *);
 
@@ -118,6 +121,8 @@ struct keyring_search_context {
 #define KEYRING_SEARCH_NO_UPDATE_TIME	0x0008	/* Don't update times */
 #define KEYRING_SEARCH_NO_CHECK_PERM	0x0010	/* Don't check permissions */
 #define KEYRING_SEARCH_DETECT_TOO_DEEP	0x0020	/* Give an error on excessive depth */
+
+	int (*iterator)(const void *object, void *iterator_data);
 
 	/* Internal stuff */
 	int			skipped_ret;

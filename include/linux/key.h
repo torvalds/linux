@@ -22,6 +22,7 @@
 #include <linux/sysctl.h>
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
+#include <linux/assoc_array.h>
 
 #ifdef __KERNEL__
 #include <linux/uidgid.h>
@@ -196,11 +197,13 @@ struct key {
 	 *   whatever
 	 */
 	union {
-		unsigned long		value;
-		void __rcu		*rcudata;
-		void			*data;
-		struct keyring_list __rcu *subscriptions;
-	} payload;
+		union {
+			unsigned long		value;
+			void __rcu		*rcudata;
+			void			*data;
+		} payload;
+		struct assoc_array keys;
+	};
 };
 
 extern struct key *key_alloc(struct key_type *type,

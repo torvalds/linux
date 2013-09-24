@@ -12,6 +12,7 @@
  */
 //#define DEBUG
 #include <linux/slab.h>
+#include <linux/err.h>
 #include <linux/assoc_array_priv.h>
 
 /*

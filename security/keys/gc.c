@@ -130,6 +130,13 @@ void key_gc_keytype(struct key_type *ktype)
 	kleave("");
 }
 
+static int key_gc_keyring_func(const void *object, void *iterator_data)
+{
+	const struct key *key = object;
+	time_t *limit = iterator_data;
+	return key_is_dead(key, *limit);
+}
+
 /*
  * Garbage collect pointers from a keyring.
  *
@@ -138,10 +145,9 @@ void key_gc_keytype(struct key_type *ktype)
  */
 static void key_gc_keyring(struct key *keyring, time_t limit)
 {
-	struct keyring_list *klist;
-	int loop;
+	int result;
 
-	kenter("%x", key_serial(keyring));
+	kenter("%x{%s}", keyring->serial, keyring->description ?: "");
 
 	if (keyring->flags & ((1 << KEY_FLAG_INVALIDATED) |
 			      (1 << KEY_FLAG_REVOKED)))
@@ -149,27 +155,17 @@ static void key_gc_keyring(struct key *keyring, time_t limit)
 
 	/* scan the keyring looking for dead keys */
 	rcu_read_lock();
-	klist = rcu_dereference(keyring->payload.subscriptions);
-	if (!klist)
-		goto unlock_dont_gc;
-
-	loop = klist->nkeys;
-	smp_rmb();
-	for (loop--; loop >= 0; loop--) {
-		struct key *key = rcu_dereference(klist->keys[loop]);
-		if (key_is_dead(key, limit))
-			goto do_gc;
-	}
-
-unlock_dont_gc:
+	result = assoc_array_iterate(&keyring->keys,
+				     key_gc_keyring_func, &limit);
 	rcu_read_unlock();
+	if (result == true)
+		goto do_gc;
+
 dont_gc:
 	kleave(" [no gc]");
 	return;
 
 do_gc:
-	rcu_read_unlock();
-
 	keyring_gc(keyring, limit);
 	kleave(" [gc]");
 }
@@ -392,7 +388,6 @@ found_unreferenced_key:
 	 */
 found_keyring:
 	spin_unlock(&key_serial_lock);
-	kdebug("scan keyring %d", key->serial);
 	key_gc_keyring(key, limit);
 	goto maybe_resched;
 

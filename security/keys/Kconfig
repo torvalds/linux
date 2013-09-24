@@ -4,6 +4,7 @@
 
 config KEYS
 	bool "Enable access key retention support"
+	select ASSOCIATIVE_ARRAY
 	help
 	  This option provides support for retaining authentication tokens and
 	  access keys in the kernel.
