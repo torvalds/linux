@@ -335,7 +335,7 @@ static inline void invoke_softirq(void)
 		 * in its own stack to prevent from any overrun on top
 		 * of a potentially deep task stack.
 		 */
-		do_softirq();
+		do_softirq_own_stack();
 	} else {
 		wakeup_softirqd();
 	}
