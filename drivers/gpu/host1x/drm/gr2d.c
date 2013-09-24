@@ -1,8 +1,4 @@
 /*
- * drivers/video/tegra/host/gr2d/gr2d.c
- *
- * Tegra Graphics 2D
- *
  * Copyright (c) 2012-2013, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -18,9 +14,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/export.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk.h>
 
 #include "channel.h"

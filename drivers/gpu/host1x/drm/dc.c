@@ -8,11 +8,8 @@
  */
 
 #include <linux/clk.h>
-#include <linux/debugfs.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/platform_device.h>
 #include <linux/clk/tegra.h>
+#include <linux/debugfs.h>
 
 #include "host1x_client.h"
 #include "dc.h"

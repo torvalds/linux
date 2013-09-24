@@ -8,16 +8,10 @@
  */
 
 #include <linux/clk.h>
-#include <linux/debugfs.h>
-#include <linux/gpio.h>
-#include <linux/hdmi.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/platform_device.h>
-#include <linux/regulator/consumer.h>
 #include <linux/clk/tegra.h>
-
-#include <drm/drm_edid.h>
+#include <linux/debugfs.h>
+#include <linux/hdmi.h>
+#include <linux/regulator/consumer.h>
 
 #include "hdmi.h"
 #include "drm.h"

@@ -18,15 +18,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/mutex.h>
-#include <linux/export.h>
-#include <linux/dma-mapping.h>
-
-#include <drm/drmP.h>
-#include <drm/drm.h>
-
 #include "gem.h"
 
 static inline struct tegra_bo *host1x_to_drm_bo(struct host1x_bo *bo)

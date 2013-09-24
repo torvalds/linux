@@ -7,16 +7,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
-
-#include <linux/dma-mapping.h>
-#include <asm/dma-iommu.h>
-
-#include <drm/drm.h>
-#include <drm/drmP.h>
-
 #include "host1x_client.h"
 #include "dev.h"
 #include "drm.h"

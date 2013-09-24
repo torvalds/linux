@@ -15,13 +15,6 @@
  *
  */
 
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/mm.h>
-#include <linux/scatterlist.h>
-
-#include <linux/io.h>
-
 #include "dev.h"
 #include "debug.h"
 #include "cdma.h"
