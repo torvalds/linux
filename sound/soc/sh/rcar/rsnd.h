@@ -78,10 +78,6 @@ struct rsnd_dai_stream;
 #define rsnd_mod_bset(m, r, s, d) \
 	rsnd_bset(rsnd_mod_to_priv(m), m, RSND_REG_##r, s, d)
 
-#define rsnd_priv_read(p, r)		rsnd_read(p, NULL, RSND_REG_##r)
-#define rsnd_priv_write(p, r, d)	rsnd_write(p, NULL, RSND_REG_##r, d)
-#define rsnd_priv_bset(p, r, s, d)	rsnd_bset(p, NULL, RSND_REG_##r, s, d)
-
 u32 rsnd_read(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg);
 void rsnd_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
 		enum rsnd_reg reg, u32 data);
