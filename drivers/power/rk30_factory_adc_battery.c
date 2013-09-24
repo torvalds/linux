@@ -695,9 +695,10 @@ static int rk30_adc_battery_status_samples(struct rk30_adc_battery_data *bat)
 					bat->time_to_full = get_seconds();
 				}else if(bat->bat_capacity == 99)
 				{
-					if(get_seconds() - bat->time_to_full > 1800)
+					if(get_seconds() - bat->time_to_full > 1800){
 						bat->bat_capacity = 100;
 						bat->time_to_full = 0;
+					}
 
 				}
 
@@ -709,6 +710,19 @@ static int rk30_adc_battery_status_samples(struct rk30_adc_battery_data *bat)
 
 				bat->full_times = 0;
 				bat->bat_status = POWER_SUPPLY_STATUS_CHARGING;
+
+				if((bat->bat_capacity == 99)&&(bat->time_to_full == 0)){
+				bat->time_to_full = get_seconds();
+				}else if(bat->bat_capacity == 99)
+				{
+					if(get_seconds() - bat->time_to_full > 1800){
+						bat->bat_capacity = 100;
+						bat->time_to_full = 0;
+					}
+
+				}
+
+
 			}else{
 				bat->full_times++;
 
