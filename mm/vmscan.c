@@ -142,9 +142,7 @@ static bool global_reclaim(struct scan_control *sc)
 
 static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
 {
-	struct mem_cgroup *root = sc->target_mem_cgroup;
-	return !mem_cgroup_disabled() &&
-		mem_cgroup_soft_reclaim_eligible(root, root) != SKIP_TREE;
+	return !mem_cgroup_disabled();
 }
 #else
 static bool global_reclaim(struct scan_control *sc)
