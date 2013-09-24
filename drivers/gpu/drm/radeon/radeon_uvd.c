@@ -97,6 +97,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_BONAIRE:
 	case CHIP_KABINI:
 	case CHIP_KAVERI:
+	case CHIP_HAWAII:
 		fw_name = FIRMWARE_BONAIRE;
 		break;
 
