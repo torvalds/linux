@@ -6153,8 +6153,8 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
  * register. Callers should take care of disabling all the display engine
  * functions, doing the mode unset, fixing interrupts, etc.
  */
-void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
-		       bool switch_to_fclk, bool allow_power_down)
+static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
+			      bool switch_to_fclk, bool allow_power_down)
 {
 	uint32_t val;
 
@@ -6204,7 +6204,7 @@ void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
  * Fully restores LCPLL, disallowing power down and switching back to LCPLL
  * source.
  */
-void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
+static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 {
 	uint32_t val;
 
