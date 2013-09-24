@@ -233,6 +233,21 @@ TRACE_EVENT(i915_gem_evict_everything,
 	    TP_printk("dev=%d", __entry->dev)
 );
 
+TRACE_EVENT(i915_gem_evict_vm,
+	    TP_PROTO(struct i915_address_space *vm),
+	    TP_ARGS(vm),
+
+	    TP_STRUCT__entry(
+			     __field(struct i915_address_space *, vm)
+			    ),
+
+	    TP_fast_assign(
+			   __entry->vm = vm;
+			  ),
+
+	    TP_printk("dev=%d, vm=%p", __entry->vm->dev->primary->index, __entry->vm)
+);
+
 TRACE_EVENT(i915_gem_ring_dispatch,
 	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno, u32 flags),
 	    TP_ARGS(ring, seqno, flags),
