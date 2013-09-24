@@ -36,6 +36,8 @@
 
 struct syscall_arg {
 	unsigned long val;
+	struct thread *thread;
+	struct trace  *trace;
 	void	      *parm;
 	u8	      idx;
 	u8	      mask;
@@ -64,6 +66,29 @@ static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
 }
 
 #define SCA_STRARRAY syscall_arg__scnprintf_strarray
+
+static size_t syscall_arg__scnprintf_fd(char *bf, size_t size,
+					struct syscall_arg *arg);
+
+#define SCA_FD syscall_arg__scnprintf_fd
+
+static size_t syscall_arg__scnprintf_fd_at(char *bf, size_t size,
+					   struct syscall_arg *arg)
+{
+	int fd = arg->val;
+
+	if (fd == AT_FDCWD)
+		return scnprintf(bf, size, "CWD");
+
+	return syscall_arg__scnprintf_fd(bf, size, arg);
+}
+
+#define SCA_FDAT syscall_arg__scnprintf_fd_at
+
+static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
+					      struct syscall_arg *arg);
+
+#define SCA_CLOSE_FD syscall_arg__scnprintf_close_fd
 
 static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
 					 struct syscall_arg *arg)
@@ -613,28 +638,84 @@ static struct syscall_fmt {
 	{ .name	    = "brk",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* brk */ }, },
 	{ .name     = "clock_gettime",  .errmsg = true, STRARRAY(0, clk_id, clockid), },
+	{ .name	    = "close",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_CLOSE_FD, /* fd */ }, }, 
 	{ .name	    = "connect",    .errmsg = true, },
+	{ .name	    = "dup",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "dup2",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "dup3",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
 	{ .name	    = "epoll_ctl",  .errmsg = true, STRARRAY(1, op, epoll_ctl_ops), },
 	{ .name	    = "eventfd2",   .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_EFD_FLAGS, /* flags */ }, },
-	{ .name	    = "fcntl",	    .errmsg = true, STRARRAY(1, cmd, fcntl_cmds), },
+	{ .name	    = "faccessat",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
+	{ .name	    = "fadvise64",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "fallocate",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "fchdir",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "fchmod",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "fchmodat",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, }, 
+	{ .name	    = "fchown",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "fchownat",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, }, 
+	{ .name	    = "fcntl",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [1] = SCA_STRARRAY, /* cmd */ },
+	  .arg_parm	 = { [1] = &strarray__fcntl_cmds, /* cmd */ }, },
+	{ .name	    = "fdatasync",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
 	{ .name	    = "flock",	    .errmsg = true,
-	  .arg_scnprintf = { [1] = SCA_FLOCK, /* cmd */ }, },
-	{ .name	    = "fstat",	    .errmsg = true, .alias = "newfstat", },
-	{ .name	    = "fstatat",    .errmsg = true, .alias = "newfstatat", },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [1] = SCA_FLOCK, /* cmd */ }, },
+	{ .name	    = "fsetxattr",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "fstat",	    .errmsg = true, .alias = "newfstat",
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "fstatat",    .errmsg = true, .alias = "newfstatat",
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, }, 
+	{ .name	    = "fstatfs",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "fsync",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "ftruncate", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
 	{ .name	    = "futex",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_FUTEX_OP, /* op */ }, },
+	{ .name	    = "futimesat", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, }, 
+	{ .name	    = "getdents",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "getdents64", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
 	{ .name	    = "getitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
 	{ .name	    = "getrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
 	{ .name	    = "ioctl",	    .errmsg = true,
-	  .arg_scnprintf = { [2] = SCA_HEX, /* arg */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ 
+			     [2] = SCA_HEX, /* arg */ }, },
 	{ .name	    = "kill",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
-	{ .name	    = "lseek",	    .errmsg = true, STRARRAY(2, whence, whences), },
+	{ .name	    = "linkat",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, }, 
+	{ .name	    = "lseek",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [2] = SCA_STRARRAY, /* whence */ },
+	  .arg_parm	 = { [2] = &strarray__whences, /* whence */ }, },
 	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
 	{ .name     = "madvise",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX,	 /* start */
 			     [2] = SCA_MADV_BHV, /* behavior */ }, },
+	{ .name	    = "mkdirat",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, }, 
+	{ .name	    = "mknodat",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, }, 
 	{ .name	    = "mlock",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
 	{ .name	    = "mlockall",   .errmsg = true,
@@ -653,26 +734,45 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
 	{ .name	    = "munmap",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
+	{ .name	    = "name_to_handle_at", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, }, 
+	{ .name	    = "newfstatat", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, }, 
 	{ .name	    = "open",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "open_by_handle_at", .errmsg = true,
-	  .arg_scnprintf = { [2] = SCA_OPEN_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
+			     [2] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "openat",	    .errmsg = true,
-	  .arg_scnprintf = { [2] = SCA_OPEN_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
+			     [2] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "pipe2",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_PIPE_FLAGS, /* flags */ }, },
 	{ .name	    = "poll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "ppoll",	    .errmsg = true, .timeout = true, },
-	{ .name	    = "pread",	    .errmsg = true, .alias = "pread64", },
+	{ .name	    = "pread",	    .errmsg = true, .alias = "pread64",
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "preadv",	    .errmsg = true, .alias = "pread",
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
 	{ .name	    = "prlimit64",  .errmsg = true, STRARRAY(1, resource, rlimit_resources), },
-	{ .name	    = "pwrite",	    .errmsg = true, .alias = "pwrite64", },
-	{ .name	    = "read",	    .errmsg = true, },
+	{ .name	    = "pwrite",	    .errmsg = true, .alias = "pwrite64",
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "pwritev",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "read",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "readlinkat", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, }, 
+	{ .name	    = "readv",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
 	{ .name	    = "recvfrom",   .errmsg = true,
 	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "recvmmsg",   .errmsg = true,
 	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "recvmsg",    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_MSG_FLAGS, /* flags */ }, },
+	{ .name	    = "renameat",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, }, 
 	{ .name	    = "rt_sigaction", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "rt_sigprocmask",  .errmsg = true, STRARRAY(0, how, sighow), },
@@ -689,6 +789,8 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "setitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
 	{ .name	    = "setrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
+	{ .name	    = "shutdown",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
 	{ .name	    = "socket",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* family */
 			     [1] = SCA_SK_TYPE, /* type */ },
@@ -698,11 +800,21 @@ static struct syscall_fmt {
 			     [1] = SCA_SK_TYPE, /* type */ },
 	  .arg_parm	 = { [0] = &strarray__socket_families, /* family */ }, },
 	{ .name	    = "stat",	    .errmsg = true, .alias = "newstat", },
+	{ .name	    = "symlinkat",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, }, 
 	{ .name	    = "tgkill",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "tkill",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "uname",	    .errmsg = true, .alias = "newuname", },
+	{ .name	    = "unlinkat",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
+	{ .name	    = "utimensat",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dirfd */ }, },
+	{ .name	    = "write",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
+	{ .name	    = "writev",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, }, 
 };
 
 static int syscall_fmt__cmp(const void *name, const void *fmtp)
@@ -747,11 +859,20 @@ struct thread_trace {
 	unsigned long	  nr_events;
 	char		  *entry_str;
 	double		  runtime_ms;
+	struct {
+		int	  max;
+		char	  **table;
+	} paths;
 };
 
 static struct thread_trace *thread_trace__new(void)
 {
-	return zalloc(sizeof(struct thread_trace));
+	struct thread_trace *ttrace =  zalloc(sizeof(struct thread_trace));
+
+	if (ttrace)
+		ttrace->paths.max = -1;
+
+	return ttrace;
 }
 
 static struct thread_trace *thread__trace(struct thread *thread, FILE *fp)
@@ -792,6 +913,7 @@ struct trace {
 	unsigned long		nr_events;
 	struct strlist		*ev_qualifier;
 	bool			not_ev_qualifier;
+	bool			live;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
 	bool			sched;
@@ -800,6 +922,98 @@ struct trace {
 	double			duration_filter;
 	double			runtime_ms;
 };
+
+static int thread__read_fd_path(struct thread *thread, int fd)
+{
+	struct thread_trace *ttrace = thread->priv;
+	char linkname[PATH_MAX], pathname[PATH_MAX];
+	struct stat st;
+	int ret;
+
+	if (thread->pid_ == thread->tid) {
+		scnprintf(linkname, sizeof(linkname),
+			  "/proc/%d/fd/%d", thread->pid_, fd);
+	} else {
+		scnprintf(linkname, sizeof(linkname),
+			  "/proc/%d/task/%d/fd/%d", thread->pid_, thread->tid, fd);
+	}
+
+	if (lstat(linkname, &st) < 0 || st.st_size + 1 > (off_t)sizeof(pathname))
+		return -1;
+
+	ret = readlink(linkname, pathname, sizeof(pathname));
+
+	if (ret < 0 || ret > st.st_size)
+		return -1;
+
+	pathname[ret] = '\0';
+
+	if (fd > ttrace->paths.max) {
+		char **npath = realloc(ttrace->paths.table, (fd + 1) * sizeof(char *));
+
+		if (npath == NULL)
+			return -1;
+
+		if (ttrace->paths.max != -1) {
+			memset(npath + ttrace->paths.max + 1, 0,
+			       (fd - ttrace->paths.max) * sizeof(char *));
+		} else {
+			memset(npath, 0, (fd + 1) * sizeof(char *));
+		}
+
+		ttrace->paths.table = npath;
+		ttrace->paths.max   = fd;
+	}
+
+	ttrace->paths.table[fd] = strdup(pathname);
+
+	return ttrace->paths.table[fd] != NULL ? 0 : -1;
+}
+
+static const char *thread__fd_path(struct thread *thread, int fd, bool live)
+{
+	struct thread_trace *ttrace = thread->priv;
+
+	if (ttrace == NULL)
+		return NULL;
+
+	if (fd < 0)
+		return NULL;
+
+	if ((fd > ttrace->paths.max || ttrace->paths.table[fd] == NULL) &&
+	    (!live || thread__read_fd_path(thread, fd)))
+		return NULL;
+
+	return ttrace->paths.table[fd];
+}
+
+static size_t syscall_arg__scnprintf_fd(char *bf, size_t size,
+					struct syscall_arg *arg)
+{
+	int fd = arg->val;
+	size_t printed = scnprintf(bf, size, "%d", fd);
+	const char *path = thread__fd_path(arg->thread, fd, arg->trace->live);
+
+	if (path)
+		printed += scnprintf(bf + printed, size - printed, "<%s>", path);
+
+	return printed;
+}
+
+static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
+					      struct syscall_arg *arg)
+{
+	int fd = arg->val;
+	size_t printed = syscall_arg__scnprintf_fd(bf, size, arg);
+	struct thread_trace *ttrace = arg->thread->priv;
+
+	if (ttrace && fd >= 0 && fd <= ttrace->paths.max) {
+		free(ttrace->paths.table[fd]);
+		ttrace->paths.table[fd] = NULL;
+	}
+
+	return printed;
+}
 
 static bool trace__filter_duration(struct trace *trace, double t)
 {
@@ -969,7 +1183,8 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 }
 
 static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
-				      unsigned long *args)
+				      unsigned long *args, struct trace *trace,
+				      struct thread *thread)
 {
 	size_t printed = 0;
 
@@ -977,8 +1192,10 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 		struct format_field *field;
 		u8 bit = 1;
 		struct syscall_arg arg = {
-			.idx  = 0,
-			.mask = 0,
+			.idx	= 0,
+			.mask	= 0,
+			.trace  = trace,
+			.thread = thread,
 		};
 
 		for (field = sc->tp_format->format.fields->next; field;
@@ -1111,7 +1328,8 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	msg = ttrace->entry_str;
 	printed += scnprintf(msg + printed, 1024 - printed, "%s(", sc->name);
 
-	printed += syscall__scnprintf_args(sc, msg + printed, 1024 - printed,  args);
+	printed += syscall__scnprintf_args(sc, msg + printed, 1024 - printed,
+					   args, trace, thread);
 
 	if (!strcmp(sc->name, "exit_group") || !strcmp(sc->name, "exit")) {
 		if (!trace->duration_filter) {
@@ -1292,6 +1510,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	unsigned long before;
 	const bool forks = argc > 0;
 
+	trace->live = true;
+
 	if (evlist == NULL) {
 		fprintf(trace->output, "Not enough memory to run!\n");
 		goto out;
@@ -1423,6 +1643,7 @@ out_delete_maps:
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:
+	trace->live = false;
 	return err;
 }
 
