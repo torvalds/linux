@@ -1081,8 +1081,8 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	int err;
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
-			    sizeof(*mgmt) + 6 + extra_len);
+	/* 24 + 6 = header + auth_algo + auth_transaction + status_code */
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24 + 6 + extra_len);
 	if (!skb)
 		return;
 
