@@ -638,10 +638,6 @@ extern bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				       struct intel_load_detect_pipe *old);
 extern void intel_release_load_detect_pipe(struct drm_connector *connector,
 					   struct intel_load_detect_pipe *old);
-extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				    u16 blue, int regno);
-extern void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, int regno);
 extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 				      struct drm_i915_gem_object *obj,
 				      struct intel_ring_buffer *pipelined);
