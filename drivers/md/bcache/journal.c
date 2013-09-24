@@ -151,7 +151,8 @@ int bch_journal_read(struct cache_set *c, struct list_head *list,
 		bitmap_zero(bitmap, SB_JOURNAL_BUCKETS);
 		pr_debug("%u journal buckets", ca->sb.njournal_buckets);
 
-		/* Read journal buckets ordered by golden ratio hash to quickly
+		/*
+		 * Read journal buckets ordered by golden ratio hash to quickly
 		 * find a sequence of buckets with valid journal entries
 		 */
 		for (i = 0; i < ca->sb.njournal_buckets; i++) {
@@ -164,18 +165,20 @@ int bch_journal_read(struct cache_set *c, struct list_head *list,
 				goto bsearch;
 		}
 
-		/* If that fails, check all the buckets we haven't checked
+		/*
+		 * If that fails, check all the buckets we haven't checked
 		 * already
 		 */
 		pr_debug("falling back to linear search");
 
-		for (l = 0; l < ca->sb.njournal_buckets; l++) {
-			if (test_bit(l, bitmap))
-				continue;
-
+		for (l = find_first_zero_bit(bitmap, ca->sb.njournal_buckets);
+		     l < ca->sb.njournal_buckets;
+		     l = find_next_zero_bit(bitmap, ca->sb.njournal_buckets, l + 1))
 			if (read_bucket(l))
 				goto bsearch;
-		}
+
+		if (list_empty(list))
+			continue;
 bsearch:
 		/* Binary search */
 		m = r = find_next_bit(bitmap, ca->sb.njournal_buckets, l + 1);
@@ -195,10 +198,12 @@ bsearch:
 				r = m;
 		}
 
-		/* Read buckets in reverse order until we stop finding more
+		/*
+		 * Read buckets in reverse order until we stop finding more
 		 * journal entries
 		 */
-		pr_debug("finishing up");
+		pr_debug("finishing up: m %u njournal_buckets %u",
+			 m, ca->sb.njournal_buckets);
 		l = m;
 
 		while (1) {
@@ -226,9 +231,10 @@ bsearch:
 			}
 	}
 
-	c->journal.seq = list_entry(list->prev,
-				    struct journal_replay,
-				    list)->j.seq;
+	if (!list_empty(list))
+		c->journal.seq = list_entry(list->prev,
+					    struct journal_replay,
+					    list)->j.seq;
 
 	return 0;
 #undef read_bucket
