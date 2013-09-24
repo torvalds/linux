@@ -3282,6 +3282,84 @@ static void intel_disable_planes(struct drm_crtc *crtc)
 			intel_plane_disable(&intel_plane->base);
 }
 
+static void hsw_enable_ips(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+
+	if (!crtc->config.ips_enabled)
+		return;
+
+	/* We can only enable IPS after we enable a plane and wait for a vblank.
+	 * We guarantee that the plane is enabled by calling intel_enable_ips
+	 * only after intel_enable_plane. And intel_enable_plane already waits
+	 * for a vblank, so all we need to do here is to enable the IPS bit. */
+	assert_plane_enabled(dev_priv, crtc->plane);
+	I915_WRITE(IPS_CTL, IPS_ENABLE);
+}
+
+static void hsw_disable_ips(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!crtc->config.ips_enabled)
+		return;
+
+	assert_plane_enabled(dev_priv, crtc->plane);
+	I915_WRITE(IPS_CTL, 0);
+	POSTING_READ(IPS_CTL);
+
+	/* We need to wait for a vblank before we can disable the plane. */
+	intel_wait_for_vblank(dev, crtc->pipe);
+}
+
+/** Loads the palette/gamma unit for the CRTC with the prepared values */
+static void intel_crtc_load_lut(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	int palreg = PALETTE(pipe);
+	int i;
+	bool reenable_ips = false;
+
+	/* The clocks have to be on to load the palette. */
+	if (!crtc->enabled || !intel_crtc->active)
+		return;
+
+	if (!HAS_PCH_SPLIT(dev_priv->dev)) {
+		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI))
+			assert_dsi_pll_enabled(dev_priv);
+		else
+			assert_pll_enabled(dev_priv, pipe);
+	}
+
+	/* use legacy palette for Ironlake */
+	if (HAS_PCH_SPLIT(dev))
+		palreg = LGC_PALETTE(pipe);
+
+	/* Workaround : Do not read or write the pipe palette/gamma data while
+	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
+	 */
+	if (intel_crtc->config.ips_enabled &&
+	    ((I915_READ(GAMMA_MODE(pipe)) & GAMMA_MODE_MODE_MASK) ==
+	     GAMMA_MODE_MODE_SPLIT)) {
+		hsw_disable_ips(intel_crtc);
+		reenable_ips = true;
+	}
+
+	for (i = 0; i < 256; i++) {
+		I915_WRITE(palreg + 4 * i,
+			   (intel_crtc->lut_r[i] << 16) |
+			   (intel_crtc->lut_g[i] << 8) |
+			   intel_crtc->lut_b[i]);
+	}
+
+	if (reenable_ips)
+		hsw_enable_ips(intel_crtc);
+}
+
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3358,37 +3436,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 static bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 {
 	return HAS_IPS(crtc->base.dev) && crtc->pipe == PIPE_A;
-}
-
-static void hsw_enable_ips(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
-
-	if (!crtc->config.ips_enabled)
-		return;
-
-	/* We can only enable IPS after we enable a plane and wait for a vblank.
-	 * We guarantee that the plane is enabled by calling intel_enable_ips
-	 * only after intel_enable_plane. And intel_enable_plane already waits
-	 * for a vblank, so all we need to do here is to enable the IPS bit. */
-	assert_plane_enabled(dev_priv, crtc->plane);
-	I915_WRITE(IPS_CTL, IPS_ENABLE);
-}
-
-static void hsw_disable_ips(struct intel_crtc *crtc)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!crtc->config.ips_enabled)
-		return;
-
-	assert_plane_enabled(dev_priv, crtc->plane);
-	I915_WRITE(IPS_CTL, 0);
-	POSTING_READ(IPS_CTL);
-
-	/* We need to wait for a vblank before we can disable the plane. */
-	intel_wait_for_vblank(dev, crtc->pipe);
 }
 
 static void haswell_crtc_enable(struct drm_crtc *crtc)
@@ -6780,53 +6827,6 @@ void intel_write_eld(struct drm_encoder *encoder,
 
 	if (dev_priv->display.write_eld)
 		dev_priv->display.write_eld(connector, crtc);
-}
-
-/** Loads the palette/gamma unit for the CRTC with the prepared values */
-void intel_crtc_load_lut(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
-	int palreg = PALETTE(pipe);
-	int i;
-	bool reenable_ips = false;
-
-	/* The clocks have to be on to load the palette. */
-	if (!crtc->enabled || !intel_crtc->active)
-		return;
-
-	if (!HAS_PCH_SPLIT(dev_priv->dev)) {
-		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI))
-			assert_dsi_pll_enabled(dev_priv);
-		else
-			assert_pll_enabled(dev_priv, pipe);
-	}
-
-	/* use legacy palette for Ironlake */
-	if (HAS_PCH_SPLIT(dev))
-		palreg = LGC_PALETTE(pipe);
-
-	/* Workaround : Do not read or write the pipe palette/gamma data while
-	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
-	 */
-	if (intel_crtc->config.ips_enabled &&
-	    ((I915_READ(GAMMA_MODE(pipe)) & GAMMA_MODE_MODE_MASK) ==
-	     GAMMA_MODE_MODE_SPLIT)) {
-		hsw_disable_ips(intel_crtc);
-		reenable_ips = true;
-	}
-
-	for (i = 0; i < 256; i++) {
-		I915_WRITE(palreg + 4 * i,
-			   (intel_crtc->lut_r[i] << 16) |
-			   (intel_crtc->lut_g[i] << 8) |
-			   intel_crtc->lut_b[i]);
-	}
-
-	if (reenable_ips)
-		hsw_enable_ips(intel_crtc);
 }
 
 static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
