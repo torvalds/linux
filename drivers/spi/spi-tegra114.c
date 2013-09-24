@@ -1115,7 +1115,7 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	pm_runtime_put(&pdev->dev);
 
 	master->dev.of_node = pdev->dev.of_node;
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can not register to master err %d\n", ret);
 		goto exit_pm_disable;
@@ -1142,7 +1142,6 @@ static int tegra_spi_remove(struct platform_device *pdev)
 	struct tegra_spi_data	*tspi = spi_master_get_devdata(master);
 
 	free_irq(tspi->irq, tspi);
-	spi_unregister_master(master);
 
 	if (tspi->tx_dma_chan)
 		tegra_spi_deinit_dma_param(tspi, false);
