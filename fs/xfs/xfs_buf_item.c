@@ -628,6 +628,7 @@ xfs_buf_item_unlock(
 		else if (aborted) {
 			ASSERT(XFS_FORCED_SHUTDOWN(lip->li_mountp));
 			if (lip->li_flags & XFS_LI_IN_AIL) {
+				spin_lock(&lip->li_ailp->xa_lock);
 				xfs_trans_ail_delete(lip->li_ailp, lip,
 						     SHUTDOWN_LOG_IO_ERROR);
 			}
