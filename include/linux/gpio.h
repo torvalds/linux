@@ -204,6 +204,18 @@ static inline int gpio_to_irq(unsigned gpio)
 	return -EINVAL;
 }
 
+static inline int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
+{
+	WARN_ON(1);
+	return -EINVAL;
+}
+
+static inline void gpio_unlock_as_irq(struct gpio_chip *chip,
+				      unsigned int offset)
+{
+	WARN_ON(1);
+}
+
 static inline int irq_to_gpio(unsigned irq)
 {
 	/* irq can never have been returned from gpio_to_irq() */
