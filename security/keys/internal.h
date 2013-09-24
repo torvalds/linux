@@ -203,7 +203,7 @@ extern struct key *key_get_instantiation_authkey(key_serial_t target_id);
 /*
  * Determine whether a key is dead.
  */
-static inline bool key_is_dead(struct key *key, time_t limit)
+static inline bool key_is_dead(const struct key *key, time_t limit)
 {
 	return
 		key->flags & ((1 << KEY_FLAG_DEAD) |
