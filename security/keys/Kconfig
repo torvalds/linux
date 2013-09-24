@@ -20,6 +20,17 @@ config KEYS
 
 	  If you are unsure as to whether this is required, answer N.
 
+config BIG_KEYS
+	tristate "Large payload keys"
+	depends on KEYS
+	depends on TMPFS
+	help
+	  This option provides support for holding large keys within the kernel
+	  (for example Kerberos ticket caches).  The data may be stored out to
+	  swapspace by tmpfs.
+
+	  If you are unsure as to whether this is required, answer N.
+
 config TRUSTED_KEYS
 	tristate "TRUSTED KEYS"
 	depends on KEYS && TCG_TPM
