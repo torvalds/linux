@@ -678,15 +678,16 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 		   intel_clock_t *best_clock)
 {
 	intel_clock_t clock;
-	u32 minupdate = 19200;
 	unsigned int bestppm = 1000000;
+	/* min update 19.2 MHz */
+	int max_n = min(limit->n.max, refclk / 19200);
 
 	target *= 5; /* fast clock */
 
 	memset(best_clock, 0, sizeof(*best_clock));
 
 	/* based on hardware requirement, prefer smaller n to precision */
-	for (clock.n = limit->n.min; clock.n <= ((refclk) / minupdate); clock.n++) {
+	for (clock.n = limit->n.min; clock.n <= max_n; clock.n++) {
 		for (clock.p1 = limit->p1.max; clock.p1 > limit->p1.min; clock.p1--) {
 			for (clock.p2 = limit->p2.p2_fast; clock.p2 > 0;
 			     clock.p2 -= clock.p2 > 10 ? 2 : 1) {
