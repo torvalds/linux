@@ -639,21 +639,15 @@ static int sdh_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int sdh_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
 	struct bfin_sd_host *drv_data = get_sdh_data(dev);
-	int ret = 0;
-
-	if (mmc)
-		ret = mmc_suspend_host(mmc);
 
 	peripheral_free_list(drv_data->pin_req);
 
-	return ret;
+	return 0;
 }
 
 static int sdh_resume(struct platform_device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
 	struct bfin_sd_host *drv_data = get_sdh_data(dev);
 	int ret = 0;
 
@@ -664,10 +658,6 @@ static int sdh_resume(struct platform_device *dev)
 	}
 
 	sdh_reset();
-
-	if (mmc)
-		ret = mmc_resume_host(mmc);
-
 	return ret;
 }
 #else
