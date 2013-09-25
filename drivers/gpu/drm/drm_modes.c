@@ -738,6 +738,7 @@ void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 	if ((p == NULL) || ((p->type & DRM_MODE_TYPE_CRTC_C) == DRM_MODE_TYPE_BUILTIN))
 		return;
 
+	p->crtc_clock = p->clock;
 	p->crtc_hdisplay = p->hdisplay;
 	p->crtc_hsync_start = p->hsync_start;
 	p->crtc_hsync_end = p->hsync_end;
