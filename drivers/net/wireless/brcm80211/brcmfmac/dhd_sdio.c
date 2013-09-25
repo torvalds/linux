@@ -1786,10 +1786,15 @@ brcmf_sdbrcm_wait_event_wakeup(struct brcmf_sdio *bus)
 	return;
 }
 
+/**
+ * struct brcmf_skbuff_cb reserves first two bytes in sk_buff::cb for
+ * bus layer usage.
+ */
 /* flag marking a dummy skb added for DMA alignment requirement */
-#define DUMMY_SKB_FLAG		0x10000
+#define ALIGN_SKB_FLAG		0x8000
 /* bit mask of data length chopped from the previous packet */
-#define DUMMY_SKB_CHOP_LEN_MASK	0xffff
+#define ALIGN_SKB_CHOP_LEN_MASK	0x7fff
+
 /**
  * brcmf_sdio_txpkt_prep - packet preparation for transmit
  * @bus: brcmf_sdio structure pointer
@@ -1854,7 +1859,7 @@ brcmf_sdio_txpkt_prep(struct brcmf_sdio *bus, struct sk_buff_head *pktq,
 		memcpy(pkt_new->data,
 		       pkt_next->data + pkt_next->len - tail_chop,
 		       tail_chop);
-		*(u32 *)(pkt_new->cb) = DUMMY_SKB_FLAG + tail_chop;
+		*(u32 *)(pkt_new->cb) = ALIGN_SKB_FLAG + tail_chop;
 		skb_trim(pkt_next, pkt_next->len - tail_chop);
 		__skb_queue_after(pktq, pkt_next, pkt_new);
 	} else {
@@ -1908,8 +1913,8 @@ brcmf_sdio_txpkt_postp(struct brcmf_sdio *bus, struct sk_buff_head *pktq)
 
 	skb_queue_walk_safe(pktq, pkt_next, tmp) {
 		dummy_flags = *(u32 *)(pkt_next->cb);
-		if (dummy_flags & DUMMY_SKB_FLAG) {
-			chop_len = dummy_flags & DUMMY_SKB_CHOP_LEN_MASK;
+		if (dummy_flags & ALIGN_SKB_FLAG) {
+			chop_len = dummy_flags & ALIGN_SKB_CHOP_LEN_MASK;
 			if (chop_len) {
 				pkt_prev = pkt_next->prev;
 				memcpy(pkt_prev->data + pkt_prev->len,
