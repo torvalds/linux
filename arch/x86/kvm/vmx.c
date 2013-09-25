@@ -1898,16 +1898,12 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 /*
  * KVM wants to inject page-faults which it got to the guest. This function
  * checks whether in a nested guest, we need to inject them to L1 or L2.
- * This function assumes it is called with the exit reason in vmcs02 being
- * a #PF exception (this is the only case in which KVM injects a #PF when L2
- * is running).
  */
-static int nested_pf_handled(struct kvm_vcpu *vcpu)
+static int nested_vmx_check_exception(struct kvm_vcpu *vcpu, unsigned nr)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 
-	/* TODO: also check PFEC_MATCH/MASK, not just EB.PF. */
-	if (!(vmcs12->exception_bitmap & (1u << PF_VECTOR)))
+	if (!(vmcs12->exception_bitmap & (1u << nr)))
 		return 0;
 
 	nested_vmx_vmexit(vcpu);
@@ -1921,8 +1917,8 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 intr_info = nr | INTR_INFO_VALID_MASK;
 
-	if (!reinject && nr == PF_VECTOR && is_guest_mode(vcpu) &&
-	    !vmx->nested.nested_run_pending && nested_pf_handled(vcpu))
+	if (!reinject && is_guest_mode(vcpu) &&
+	    nested_vmx_check_exception(vcpu, nr))
 		return;
 
 	if (has_error_code) {
