@@ -7576,7 +7576,7 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 {
 	int err;
 	struct page *page;
-	rpc_authflavor_t flavor;
+	rpc_authflavor_t flavor = RPC_AUTH_MAXFLAVOR;
 	struct nfs4_secinfo_flavors *flavors;
 	struct nfs4_secinfo4 *secinfo;
 	int i;
