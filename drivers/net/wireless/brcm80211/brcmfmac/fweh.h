@@ -115,7 +115,7 @@ enum brcmf_fweh_event_code {
 };
 #undef BRCMF_ENUM_DEF
 
-#define BRCMF_EVENTING_MASK_LEN		(roundup(BRCMF_E_LAST, 8)/8)
+#define BRCMF_EVENTING_MASK_LEN		DIV_ROUND_UP(BRCMF_E_LAST, 8)
 
 /* flags field values in struct brcmf_event_msg */
 #define BRCMF_EVENT_MSG_LINK		0x01
