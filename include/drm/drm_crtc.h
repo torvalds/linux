@@ -154,7 +154,6 @@ struct drm_display_mode {
 	int height_mm;
 
 	/* Actual mode we give to hw */
-	int synth_clock;
 	int crtc_hdisplay;
 	int crtc_hblank_start;
 	int crtc_hblank_end;
