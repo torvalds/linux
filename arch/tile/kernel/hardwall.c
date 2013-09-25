@@ -66,7 +66,7 @@ static struct hardwall_type hardwall_types[] = {
 		0,
 		"udn",
 		LIST_HEAD_INIT(hardwall_types[HARDWALL_UDN].list),
-		__SPIN_LOCK_INITIALIZER(hardwall_types[HARDWALL_UDN].lock),
+		__SPIN_LOCK_UNLOCKED(hardwall_types[HARDWALL_UDN].lock),
 		NULL
 	},
 #ifndef __tilepro__
@@ -77,7 +77,7 @@ static struct hardwall_type hardwall_types[] = {
 		1,  /* disabled pending hypervisor support */
 		"idn",
 		LIST_HEAD_INIT(hardwall_types[HARDWALL_IDN].list),
-		__SPIN_LOCK_INITIALIZER(hardwall_types[HARDWALL_IDN].lock),
+		__SPIN_LOCK_UNLOCKED(hardwall_types[HARDWALL_IDN].lock),
 		NULL
 	},
 	{  /* access to user-space IPI */
@@ -87,7 +87,7 @@ static struct hardwall_type hardwall_types[] = {
 		0,
 		"ipi",
 		LIST_HEAD_INIT(hardwall_types[HARDWALL_IPI].list),
-		__SPIN_LOCK_INITIALIZER(hardwall_types[HARDWALL_IPI].lock),
+		__SPIN_LOCK_UNLOCKED(hardwall_types[HARDWALL_IPI].lock),
 		NULL
 	},
 #endif
