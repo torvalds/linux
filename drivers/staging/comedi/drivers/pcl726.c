@@ -67,10 +67,6 @@ Interrupts are not supported.
 
 #include "../comedidev.h"
 
-#define PCL726_SIZE 16
-#define PCL727_SIZE 32
-#define PCL728_SIZE 8
-
 #define PCL726_AO_MSB_REG(x)	(0x00 + ((x) * 2))
 #define PCL726_AO_LSB_REG(x)	(0x01 + ((x) * 2))
 #define PCL726_DO_MSB_REG	0x0c
@@ -110,9 +106,9 @@ static const struct comedi_lrange *const rangelist_728[] = {
 
 struct pcl726_board {
 	const char *name;
-	int n_aochan;
-	unsigned int io_range;
+	unsigned long io_len;
 	unsigned int irq_mask;
+	int n_aochan;
 	unsigned int have_dio:1;
 	unsigned int is_pcl727:1;
 	const struct comedi_lrange *const *ao_ranges;
@@ -122,37 +118,37 @@ struct pcl726_board {
 static const struct pcl726_board boardtypes[] = {
 	{
 		.name		= "pcl726",
+		.io_len		= 0x10,
 		.n_aochan	= 6,
-		.io_range	= PCL726_SIZE,
 		.have_dio	= 1,
 		.ao_ranges	= &rangelist_726[0],
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_726),
 	}, {
 		.name		= "pcl727",
+		.io_len		= 0x20,
 		.n_aochan	= 12,
-		.io_range	= PCL727_SIZE,
 		.have_dio	= 1,
 		.is_pcl727	= 1,
 		.ao_ranges	= &rangelist_727[0],
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_727),
 	}, {
 		.name		= "pcl728",
+		.io_len		= 0x08,
 		.n_aochan	= 2,
-		.io_range	= PCL728_SIZE,
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_728),
 		.ao_ranges	= &rangelist_728[0],
 	}, {
 		.name		= "acl6126",
-		.n_aochan	= 6,
-		.io_range	= PCL726_SIZE,
+		.io_len		= 0x10,
 		.irq_mask	= 0x96e8,
+		.n_aochan	= 6,
 		.have_dio	= 1,
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_726),
 		.ao_ranges	= &rangelist_726[0],
 	}, {
 		.name		= "acl6128",
+		.io_len		= 0x08,
 		.n_aochan	= 2,
-		.io_range	= PCL728_SIZE,
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_728),
 		.ao_ranges	= &rangelist_728[0],
 	},
@@ -269,7 +265,7 @@ static int pcl726_attach(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	ret = comedi_request_region(dev, it->options[0], board->io_len);
 	if (ret)
 		return ret;
 
