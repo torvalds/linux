@@ -73,16 +73,15 @@ Interrupts are not supported.
 
 #define PCL726_AO_MSB_REG(x)	(0x00 + ((x) * 2))
 #define PCL726_AO_LSB_REG(x)	(0x01 + ((x) * 2))
+#define PCL726_DO_MSB_REG	0x0c
+#define PCL726_DO_LSB_REG	0x0d
+#define PCL726_DI_MSB_REG	0x0e
+#define PCL726_DI_LSB_REG	0x0f
 
-#define PCL726_DO_HI 12
-#define PCL726_DO_LO 13
-#define PCL726_DI_HI 14
-#define PCL726_DI_LO 15
-
-#define PCL727_DO_HI 24
-#define PCL727_DO_LO 25
-#define PCL727_DI_HI  0
-#define PCL727_DI_LO  1
+#define PCL727_DI_MSB_REG	0x00
+#define PCL727_DI_LSB_REG	0x01
+#define PCL727_DO_MSB_REG	0x18
+#define PCL727_DO_LSB_REG	0x19
 
 static const struct comedi_lrange *const rangelist_726[] = {
 	&range_unipolar5, &range_unipolar10,
@@ -109,11 +108,8 @@ struct pcl726_board {
 	int num_of_ranges;	/*  num of ranges */
 	unsigned int IRQbits;	/*  allowed interrupts */
 	unsigned int io_range;	/*  len of IO space */
-	char have_dio;		/*  1=card have DI/DO ports */
-	int di_hi;		/*  ports for DI/DO operations */
-	int di_lo;
-	int do_hi;
-	int do_lo;
+	unsigned int have_dio:1;
+	unsigned int is_pcl727:1;
 	const struct comedi_lrange *const *range_type_list;
 	/*  list of supported ranges */
 };
@@ -125,10 +121,6 @@ static const struct pcl726_board boardtypes[] = {
 		.num_of_ranges	= 6,
 		.io_range	= PCL726_SIZE,
 		.have_dio	= 1,
-		.di_hi		= PCL726_DI_HI,
-		.di_lo		= PCL726_DI_LO,
-		.do_hi		= PCL726_DO_HI,
-		.do_lo		= PCL726_DO_LO,
 		.range_type_list = &rangelist_726[0],
 	}, {
 		.name		= "pcl727",
@@ -136,10 +128,7 @@ static const struct pcl726_board boardtypes[] = {
 		.num_of_ranges	= 4,
 		.io_range	= PCL727_SIZE,
 		.have_dio	= 1,
-		.di_hi		= PCL727_DI_HI,
-		.di_lo		= PCL727_DI_LO,
-		.do_hi		= PCL727_DO_HI,
-		.do_lo		= PCL727_DO_LO,
+		.is_pcl727	= 1,
 		.range_type_list = &rangelist_727[0],
 	}, {
 		.name		= "pcl728",
@@ -154,10 +143,6 @@ static const struct pcl726_board boardtypes[] = {
 		.IRQbits	= 0x96e8,
 		.io_range	= PCL726_SIZE,
 		.have_dio	= 1,
-		.di_hi		= PCL726_DI_HI,
-		.di_lo		= PCL726_DI_LO,
-		.do_hi		= PCL726_DO_HI,
-		.do_lo		= PCL726_DO_LO,
 		.range_type_list = &rangelist_726[0],
 	}, {
 		.name		= "acl6128",
@@ -222,12 +207,21 @@ static int pcl726_ao_insn_read(struct comedi_device *dev,
 
 static int pcl726_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	const struct pcl726_board *board = comedi_board(dev);
+	unsigned int val;
 
-	data[1] = inb(dev->iobase + board->di_lo) |
-	    (inb(dev->iobase + board->di_hi) << 8);
+	if (board->is_pcl727) {
+		val = inb(dev->iobase + PCL727_DI_LSB_REG);
+		val |= (inb(dev->iobase + PCL727_DI_MSB_REG) << 8);
+	} else {
+		val = inb(dev->iobase + PCL726_DI_LSB_REG);
+		val |= (inb(dev->iobase + PCL726_DI_MSB_REG) << 8);
+	}
+
+	data[1] = val;
 
 	return insn->n;
 }
@@ -238,14 +232,22 @@ static int pcl726_do_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	const struct pcl726_board *board = comedi_board(dev);
+	unsigned long io = dev->iobase;
 	unsigned int mask;
 
 	mask = comedi_dio_update_state(s, data);
 	if (mask) {
-		if (mask & 0x00ff)
-			outb(s->state & 0xff, dev->iobase + board->do_lo);
-		if (mask & 0xff00)
-			outb((s->state >> 8), dev->iobase + board->do_hi);
+		if (board->is_pcl727) {
+			if (mask & 0x00ff)
+				outb(s->state & 0xff, io + PCL727_DO_LSB_REG);
+			if (mask & 0xff00)
+				outb((s->state >> 8), io + PCL727_DO_MSB_REG);
+		} else {
+			if (mask & 0x00ff)
+				outb(s->state & 0xff, io + PCL726_DO_LSB_REG);
+			if (mask & 0xff00)
+				outb((s->state >> 8), io + PCL726_DO_MSB_REG);
+		}
 	}
 
 	data[1] = s->state;
