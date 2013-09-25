@@ -2267,7 +2267,7 @@ static bool bond_has_this_ip(struct bonding *bond, __be32 ip)
 		return true;
 
 	rcu_read_lock();
-	netdev_for_each_upper_dev_rcu(bond->dev, upper, iter) {
+	netdev_for_each_all_upper_dev_rcu(bond->dev, upper, iter) {
 		if (ip == bond_confirm_addr(upper, 0, ip)) {
 			ret = true;
 			break;
@@ -2342,10 +2342,12 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		 *
 		 * TODO: QinQ?
 		 */
-		netdev_for_each_upper_dev_rcu(bond->dev, vlan_upper, vlan_iter) {
+		netdev_for_each_all_upper_dev_rcu(bond->dev, vlan_upper,
+						  vlan_iter) {
 			if (!is_vlan_dev(vlan_upper))
 				continue;
-			netdev_for_each_upper_dev_rcu(vlan_upper, upper, iter) {
+			netdev_for_each_all_upper_dev_rcu(vlan_upper, upper,
+							  iter) {
 				if (upper == rt->dst.dev) {
 					vlan_id = vlan_dev_vlan_id(vlan_upper);
 					rcu_read_unlock();
@@ -2358,7 +2360,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		 * our upper vlans, then just search for any dev that
 		 * matches, and in case it's a vlan - save the id
 		 */
-		netdev_for_each_upper_dev_rcu(bond->dev, upper, iter) {
+		netdev_for_each_all_upper_dev_rcu(bond->dev, upper, iter) {
 			if (upper == rt->dst.dev) {
 				/* if it's a vlan - get its VID */
 				if (is_vlan_dev(upper))

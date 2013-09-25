@@ -1019,7 +1019,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 
 	/* loop through vlans and send one packet for each */
 	rcu_read_lock();
-	netdev_for_each_upper_dev_rcu(bond->dev, upper, iter) {
+	netdev_for_each_all_upper_dev_rcu(bond->dev, upper, iter) {
 		if (upper->priv_flags & IFF_802_1Q_VLAN)
 			alb_send_lp_vid(slave, mac_addr,
 					vlan_dev_vlan_id(upper));
