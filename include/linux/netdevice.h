@@ -2839,8 +2839,15 @@ extern int netdev_upper_dev_link(struct net_device *dev,
 				 struct net_device *upper_dev);
 extern int netdev_master_upper_dev_link(struct net_device *dev,
 					struct net_device *upper_dev);
+extern int netdev_master_upper_dev_link_private(struct net_device *dev,
+						struct net_device *upper_dev,
+						void *private);
 extern void netdev_upper_dev_unlink(struct net_device *dev,
 				    struct net_device *upper_dev);
+extern void *netdev_lower_dev_get_private_rcu(struct net_device *dev,
+					      struct net_device *lower_dev);
+extern void *netdev_lower_dev_get_private(struct net_device *dev,
+					  struct net_device *lower_dev);
 extern int skb_checksum_help(struct sk_buff *skb);
 extern struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 	netdev_features_t features, bool tx_path);
