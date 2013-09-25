@@ -2078,6 +2078,14 @@ static int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 	hdisplay = mode->hdisplay;
 	vdisplay = mode->vdisplay;
 
+	if (drm_mode_is_stereo(mode)) {
+		struct drm_display_mode adjusted = *mode;
+
+		drm_mode_set_crtcinfo(&adjusted, CRTC_STEREO_DOUBLE);
+		hdisplay = adjusted.crtc_hdisplay;
+		vdisplay = adjusted.crtc_vdisplay;
+	}
+
 	if (crtc->invert_dimensions)
 		swap(hdisplay, vdisplay);
 
