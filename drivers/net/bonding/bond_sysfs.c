@@ -172,24 +172,11 @@ int bond_create_slave_symlinks(struct net_device *master,
 			       struct net_device *slave)
 {
 	char linkname[IFNAMSIZ+7];
-	int ret = 0;
 
-	/* first, create a link from the slave back to the master */
-	ret = sysfs_create_link(&(slave->dev.kobj), &(master->dev.kobj),
-				"master");
-	if (ret)
-		return ret;
-	/* next, create a link from the master to the slave */
+	/* create a link from the master to the slave */
 	sprintf(linkname, "slave_%s", slave->name);
-	ret = sysfs_create_link(&(master->dev.kobj), &(slave->dev.kobj),
-				linkname);
-
-	/* free the master link created earlier in case of error */
-	if (ret)
-		sysfs_remove_link(&(slave->dev.kobj), "master");
-
-	return ret;
-
+	return sysfs_create_link(&(master->dev.kobj), &(slave->dev.kobj),
+				 linkname);
 }
 
 void bond_destroy_slave_symlinks(struct net_device *master,
@@ -197,7 +184,6 @@ void bond_destroy_slave_symlinks(struct net_device *master,
 {
 	char linkname[IFNAMSIZ+7];
 
-	sysfs_remove_link(&(slave->dev.kobj), "master");
 	sprintf(linkname, "slave_%s", slave->name);
 	sysfs_remove_link(&(master->dev.kobj), linkname);
 }

@@ -4584,6 +4584,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 					void *private, bool master)
 {
 	struct netdev_adjacent *adj;
+	int ret;
 
 	adj = __netdev_find_adj(dev, adj_dev, dev_list);
 
@@ -4606,12 +4607,23 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 		 adj_dev->name, dev->name, adj_dev->name);
 
 	/* Ensure that master link is always the first item in list. */
-	if (master)
+	if (master) {
+		ret = sysfs_create_link(&(dev->dev.kobj),
+					&(adj_dev->dev.kobj), "master");
+		if (ret)
+			goto free_adj;
+
 		list_add_rcu(&adj->list, dev_list);
-	else
+	} else {
 		list_add_tail_rcu(&adj->list, dev_list);
+	}
 
 	return 0;
+
+free_adj:
+	kfree(adj);
+
+	return ret;
 }
 
 void __netdev_adjacent_dev_remove(struct net_device *dev,
@@ -4634,6 +4646,9 @@ void __netdev_adjacent_dev_remove(struct net_device *dev,
 		adj->ref_nr--;
 		return;
 	}
+
+	if (adj->master)
+		sysfs_remove_link(&(dev->dev.kobj), "master");
 
 	list_del_rcu(&adj->list);
 	pr_debug("dev_put for %s, because link removed from %s to %s\n",
