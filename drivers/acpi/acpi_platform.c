@@ -30,7 +30,7 @@ static const struct acpi_device_id acpi_platform_device_ids[] = {
 
 	{ "PNP0D40" },
 	{ "ACPI0003" },
-
+	{ "VPC2004" },
 	{ }
 };
 
