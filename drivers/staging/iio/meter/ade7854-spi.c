@@ -297,7 +297,7 @@ static int ade7854_spi_probe(struct spi_device *spi)
 
 	ret = ade7854_probe(indio_dev, &spi->dev);
 
-	return 0;
+	return ret;
 }
 
 static int ade7854_spi_remove(struct spi_device *spi)

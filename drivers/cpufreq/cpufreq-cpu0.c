@@ -12,6 +12,7 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -177,7 +178,11 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int ret;
 
-	cpu_dev = &pdev->dev;
+	cpu_dev = get_cpu_device(0);
+	if (!cpu_dev) {
+		pr_err("failed to get cpu0 device\n");
+		return -ENODEV;
+	}
 
 	np = of_node_get(cpu_dev->of_node);
 	if (!np) {

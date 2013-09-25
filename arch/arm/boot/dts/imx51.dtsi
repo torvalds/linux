@@ -474,7 +474,7 @@
 				compatible = "fsl,imx51-pata", "fsl,imx27-pata";
 				reg = <0x83fe0000 0x4000>;
 				interrupts = <70>;
-				clocks = <&clks 161>;
+				clocks = <&clks 172>;
 				status = "disabled";
 			};
 

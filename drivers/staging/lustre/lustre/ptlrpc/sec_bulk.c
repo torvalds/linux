@@ -59,8 +59,8 @@
  ****************************************/
 
 
-#define PTRS_PER_PAGE   (PAGE_CACHE_SIZE / sizeof(void *))
-#define PAGES_PER_POOL  (PTRS_PER_PAGE)
+#define POINTERS_PER_PAGE	(PAGE_CACHE_SIZE / sizeof(void *))
+#define PAGES_PER_POOL		(POINTERS_PER_PAGE)
 
 #define IDLE_IDX_MAX	    (100)
 #define IDLE_IDX_WEIGHT	 (3)

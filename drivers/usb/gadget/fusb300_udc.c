@@ -22,7 +22,7 @@
 
 MODULE_DESCRIPTION("FUSB300  USB gadget driver");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Yuan Hsin Chen <yhchen@faraday-tech.com>");
+MODULE_AUTHOR("Yuan-Hsin Chen, Feng-Hsin Chiang <john453@faraday-tech.com>");
 MODULE_ALIAS("platform:fusb300_udc");
 
 #define DRIVER_VERSION	"20 October 2010"
