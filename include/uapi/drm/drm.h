@@ -627,6 +627,15 @@ struct drm_get_cap {
 	__u64 value;
 };
 
+/**
+ * DRM_CLIENT_CAP_STEREO_3D
+ *
+ * if set to 1, the DRM core will expose the stereo 3D capabilities of the
+ * monitor by advertising the supported 3D layouts in the flags of struct
+ * drm_mode_modeinfo.
+ */
+#define DRM_CLIENT_CAP_STEREO_3D	1
+
 /** DRM_IOCTL_SET_CLIENT_CAP ioctl argument type */
 struct drm_set_client_cap {
 	__u64 capability;

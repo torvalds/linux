@@ -1581,6 +1581,19 @@ out:
 	return ret;
 }
 
+static bool drm_mode_expose_to_userspace(const struct drm_display_mode *mode,
+					 const struct drm_file *file_priv)
+{
+	/*
+	 * If user-space hasn't configured the driver to expose the stereo 3D
+	 * modes, don't expose them.
+	 */
+	if (!file_priv->stereo_allowed && drm_mode_is_stereo(mode))
+		return false;
+
+	return true;
+}
+
 /**
  * drm_mode_getconnector - get connector configuration
  * @dev: drm device for the ioctl
@@ -1646,7 +1659,8 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	/* delayed so we get modes regardless of pre-fill_modes state */
 	list_for_each_entry(mode, &connector->modes, head)
-		mode_count++;
+		if (drm_mode_expose_to_userspace(mode, file_priv))
+			mode_count++;
 
 	out_resp->connector_id = connector->base.id;
 	out_resp->connector_type = connector->connector_type;
@@ -1668,6 +1682,9 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		copied = 0;
 		mode_ptr = (struct drm_mode_modeinfo __user *)(unsigned long)out_resp->modes_ptr;
 		list_for_each_entry(mode, &connector->modes, head) {
+			if (!drm_mode_expose_to_userspace(mode, file_priv))
+				continue;
+
 			drm_crtc_convert_to_umode(&u_mode, mode);
 			if (copy_to_user(mode_ptr + copied,
 					 &u_mode, sizeof(u_mode))) {

@@ -433,6 +433,9 @@ struct drm_file {
 	struct drm_master *master; /* master this node is currently associated with
 				      N.B. not always minor->master */
 
+	/* true when the client has asked us to expose stereo 3D mode flags */
+	bool stereo_allowed;
+
 	/**
 	 * fbs - List of framebuffers associated with this file.
 	 *
