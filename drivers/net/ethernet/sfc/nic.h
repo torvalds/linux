@@ -386,6 +386,18 @@ enum {
 	EF10_STAT_rx_align_error,
 	EF10_STAT_rx_length_error,
 	EF10_STAT_rx_nodesc_drops,
+	EF10_STAT_rx_pm_trunc_bb_overflow,
+	EF10_STAT_rx_pm_discard_bb_overflow,
+	EF10_STAT_rx_pm_trunc_vfifo_full,
+	EF10_STAT_rx_pm_discard_vfifo_full,
+	EF10_STAT_rx_pm_trunc_qbb,
+	EF10_STAT_rx_pm_discard_qbb,
+	EF10_STAT_rx_pm_discard_mapping,
+	EF10_STAT_rx_dp_q_disabled_packets,
+	EF10_STAT_rx_dp_di_dropped_packets,
+	EF10_STAT_rx_dp_streaming_packets,
+	EF10_STAT_rx_dp_emerg_fetch,
+	EF10_STAT_rx_dp_emerg_wait,
 	EF10_STAT_COUNT
 };
 

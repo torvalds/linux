@@ -444,6 +444,18 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(rx_align_error, RX_ALIGN_ERROR_PKTS),
 	EF10_DMA_STAT(rx_length_error, RX_LENGTH_ERROR_PKTS),
 	EF10_DMA_STAT(rx_nodesc_drops, RX_NODESC_DROPS),
+	EF10_DMA_STAT(rx_pm_trunc_bb_overflow, PM_TRUNC_BB_OVERFLOW),
+	EF10_DMA_STAT(rx_pm_discard_bb_overflow, PM_DISCARD_BB_OVERFLOW),
+	EF10_DMA_STAT(rx_pm_trunc_vfifo_full, PM_TRUNC_VFIFO_FULL),
+	EF10_DMA_STAT(rx_pm_discard_vfifo_full, PM_DISCARD_VFIFO_FULL),
+	EF10_DMA_STAT(rx_pm_trunc_qbb, PM_TRUNC_QBB),
+	EF10_DMA_STAT(rx_pm_discard_qbb, PM_DISCARD_QBB),
+	EF10_DMA_STAT(rx_pm_discard_mapping, PM_DISCARD_MAPPING),
+	EF10_DMA_STAT(rx_dp_q_disabled_packets, RXDP_Q_DISABLED_PKTS),
+	EF10_DMA_STAT(rx_dp_di_dropped_packets, RXDP_DI_DROPPED_PKTS),
+	EF10_DMA_STAT(rx_dp_streaming_packets, RXDP_STREAMING_PKTS),
+	EF10_DMA_STAT(rx_dp_emerg_fetch, RXDP_EMERGENCY_FETCH_CONDITIONS),
+	EF10_DMA_STAT(rx_dp_emerg_wait, RXDP_EMERGENCY_WAIT_CONDITIONS),
 };
 
 #define HUNT_COMMON_STAT_MASK ((1ULL << EF10_STAT_tx_bytes) |		\
@@ -498,15 +510,38 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 #define HUNT_40G_EXTRA_STAT_MASK ((1ULL << EF10_STAT_rx_align_error) |	\
 				  (1ULL << EF10_STAT_rx_length_error))
 
+/* These statistics are only provided if the firmware supports the
+ * capability PM_AND_RXDP_COUNTERS.
+ */
+#define HUNT_PM_AND_RXDP_STAT_MASK (					\
+	(1ULL << EF10_STAT_rx_pm_trunc_bb_overflow) |			\
+	(1ULL << EF10_STAT_rx_pm_discard_bb_overflow) |			\
+	(1ULL << EF10_STAT_rx_pm_trunc_vfifo_full) |			\
+	(1ULL << EF10_STAT_rx_pm_discard_vfifo_full) |			\
+	(1ULL << EF10_STAT_rx_pm_trunc_qbb) |				\
+	(1ULL << EF10_STAT_rx_pm_discard_qbb) |				\
+	(1ULL << EF10_STAT_rx_pm_discard_mapping) |			\
+	(1ULL << EF10_STAT_rx_dp_q_disabled_packets) |			\
+	(1ULL << EF10_STAT_rx_dp_di_dropped_packets) |			\
+	(1ULL << EF10_STAT_rx_dp_streaming_packets) |			\
+	(1ULL << EF10_STAT_rx_dp_emerg_fetch) |				\
+	(1ULL << EF10_STAT_rx_dp_emerg_wait))
+
 static u64 efx_ef10_raw_stat_mask(struct efx_nic *efx)
 {
 	u64 raw_mask = HUNT_COMMON_STAT_MASK;
 	u32 port_caps = efx_mcdi_phy_get_caps(efx);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
 	if (port_caps & (1 << MC_CMD_PHY_CAP_40000FDX_LBN))
 		raw_mask |= HUNT_40G_EXTRA_STAT_MASK;
 	else
 		raw_mask |= HUNT_10G_ONLY_STAT_MASK;
+
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_PM_AND_RXDP_COUNTERS_LBN))
+		raw_mask |= HUNT_PM_AND_RXDP_STAT_MASK;
+
 	return raw_mask;
 }
 
