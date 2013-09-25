@@ -1013,6 +1013,9 @@ struct i915_gpu_error {
 	struct drm_i915_error_state *first_error;
 	struct work_struct work;
 
+
+	unsigned long missed_irq_rings;
+
 	/**
 	 * State variable and reset counter controlling the reset flow
 	 *
@@ -1051,6 +1054,9 @@ struct i915_gpu_error {
 
 	/* For gpu hang simulation. */
 	unsigned int stop_rings;
+
+	/* For missed irq/seqno simulation. */
+	unsigned int test_irq_rings;
 };
 
 enum modeset_restore {

@@ -1897,6 +1897,72 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_ring_stop_fops,
 			i915_ring_stop_get, i915_ring_stop_set,
 			"0x%08llx\n");
 
+static int
+i915_ring_missed_irq_get(void *data, u64 *val)
+{
+	struct drm_device *dev = data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	*val = dev_priv->gpu_error.missed_irq_rings;
+	return 0;
+}
+
+static int
+i915_ring_missed_irq_set(void *data, u64 val)
+{
+	struct drm_device *dev = data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	/* Lock against concurrent debugfs callers */
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+	dev_priv->gpu_error.missed_irq_rings = val;
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_ring_missed_irq_fops,
+			i915_ring_missed_irq_get, i915_ring_missed_irq_set,
+			"0x%08llx\n");
+
+static int
+i915_ring_test_irq_get(void *data, u64 *val)
+{
+	struct drm_device *dev = data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	*val = dev_priv->gpu_error.test_irq_rings;
+
+	return 0;
+}
+
+static int
+i915_ring_test_irq_set(void *data, u64 val)
+{
+	struct drm_device *dev = data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	DRM_DEBUG_DRIVER("Masking interrupts on rings 0x%08llx\n", val);
+
+	/* Lock against concurrent debugfs callers */
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	dev_priv->gpu_error.test_irq_rings = val;
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_ring_test_irq_fops,
+			i915_ring_test_irq_get, i915_ring_test_irq_set,
+			"0x%08llx\n");
+
 #define DROP_UNBOUND 0x1
 #define DROP_BOUND 0x2
 #define DROP_RETIRE 0x4
@@ -2290,6 +2356,8 @@ static struct i915_debugfs_files {
 	{"i915_min_freq", &i915_min_freq_fops},
 	{"i915_cache_sharing", &i915_cache_sharing_fops},
 	{"i915_ring_stop", &i915_ring_stop_fops},
+	{"i915_ring_missed_irq", &i915_ring_missed_irq_fops},
+	{"i915_ring_test_irq", &i915_ring_test_irq_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 	{"i915_error_state", &i915_error_state_fops},
 	{"i915_next_seqno", &i915_next_seqno_fops},
