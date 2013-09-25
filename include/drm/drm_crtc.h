@@ -123,7 +123,8 @@ enum drm_mode_status {
 	.vscan = (vs), .flags = (f), \
 	.base.type = DRM_MODE_OBJECT_MODE
 
-#define CRTC_INTERLACE_HALVE_V 0x1 /* halve V values for interlacing */
+#define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
+#define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
 
 struct drm_display_mode {
 	/* Header */

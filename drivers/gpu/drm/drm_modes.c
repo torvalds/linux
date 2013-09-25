@@ -726,12 +726,18 @@ EXPORT_SYMBOL(drm_mode_vrefresh);
 /**
  * drm_mode_set_crtcinfo - set CRTC modesetting parameters
  * @p: mode
- * @adjust_flags: unused? (FIXME)
+ * @adjust_flags: a combination of adjustment flags
  *
  * LOCKING:
  * None.
  *
  * Setup the CRTC modesetting parameters for @p, adjusting if necessary.
+ *
+ * - The CRTC_INTERLACE_HALVE_V flag can be used to halve vertical timings of
+ *   interlaced modes.
+ * - The CRTC_STEREO_DOUBLE flag can be used to compute the timings for
+ *   buffers containing two eyes (only adjust the timings when needed, eg. for
+ *   "frame packing" or "side by side full").
  */
 void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 {
@@ -770,6 +776,20 @@ void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 		p->crtc_vsync_start *= p->vscan;
 		p->crtc_vsync_end *= p->vscan;
 		p->crtc_vtotal *= p->vscan;
+	}
+
+	if (adjust_flags & CRTC_STEREO_DOUBLE) {
+		unsigned int layout = p->flags & DRM_MODE_FLAG_3D_MASK;
+
+		switch (layout) {
+		case DRM_MODE_FLAG_3D_FRAME_PACKING:
+			p->crtc_clock *= 2;
+			p->crtc_vdisplay += p->crtc_vtotal;
+			p->crtc_vsync_start += p->crtc_vtotal;
+			p->crtc_vsync_end += p->crtc_vtotal;
+			p->crtc_vtotal += p->crtc_vtotal;
+			break;
+		}
 	}
 
 	p->crtc_vblank_start = min(p->crtc_vsync_start, p->crtc_vdisplay);
