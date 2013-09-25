@@ -84,72 +84,77 @@ Interrupts are not supported.
 #define PCL727_DO_LSB_REG	0x19
 
 static const struct comedi_lrange *const rangelist_726[] = {
-	&range_unipolar5, &range_unipolar10,
-	&range_bipolar5, &range_bipolar10,
-	&range_4_20mA, &range_unknown
+	&range_unipolar5,
+	&range_unipolar10,
+	&range_bipolar5,
+	&range_bipolar10,
+	&range_4_20mA,
+	&range_unknown
 };
 
 static const struct comedi_lrange *const rangelist_727[] = {
-	&range_unipolar5, &range_unipolar10,
+	&range_unipolar5,
+	&range_unipolar10,
 	&range_bipolar5,
 	&range_4_20mA
 };
 
 static const struct comedi_lrange *const rangelist_728[] = {
-	&range_unipolar5, &range_unipolar10,
-	&range_bipolar5, &range_bipolar10,
-	&range_4_20mA, &range_0_20mA
+	&range_unipolar5,
+	&range_unipolar10,
+	&range_bipolar5,
+	&range_bipolar10,
+	&range_4_20mA,
+	&range_0_20mA
 };
 
 struct pcl726_board {
-
 	const char *name;	/*  driver name */
 	int n_aochan;		/*  num of D/A chans */
-	int num_of_ranges;	/*  num of ranges */
 	unsigned int IRQbits;	/*  allowed interrupts */
 	unsigned int io_range;	/*  len of IO space */
 	unsigned int have_dio:1;
 	unsigned int is_pcl727:1;
-	const struct comedi_lrange *const *range_type_list;
-	/*  list of supported ranges */
+	const struct comedi_lrange *const *ao_ranges;
+	int ao_num_ranges;
 };
 
 static const struct pcl726_board boardtypes[] = {
 	{
 		.name		= "pcl726",
 		.n_aochan	= 6,
-		.num_of_ranges	= 6,
 		.io_range	= PCL726_SIZE,
 		.have_dio	= 1,
-		.range_type_list = &rangelist_726[0],
+		.ao_ranges	= &rangelist_726[0],
+		.ao_num_ranges	= ARRAY_SIZE(rangelist_726),
 	}, {
 		.name		= "pcl727",
 		.n_aochan	= 12,
-		.num_of_ranges	= 4,
 		.io_range	= PCL727_SIZE,
 		.have_dio	= 1,
 		.is_pcl727	= 1,
-		.range_type_list = &rangelist_727[0],
+		.ao_ranges	= &rangelist_727[0],
+		.ao_num_ranges	= ARRAY_SIZE(rangelist_727),
 	}, {
 		.name		= "pcl728",
 		.n_aochan	= 2,
-		.num_of_ranges	= 6,
 		.io_range	= PCL728_SIZE,
-		.range_type_list = &rangelist_728[0],
+		.ao_num_ranges	= ARRAY_SIZE(rangelist_728),
+		.ao_ranges	= &rangelist_728[0],
 	}, {
 		.name		= "acl6126",
 		.n_aochan	= 6,
-		.num_of_ranges	= 5,
 		.IRQbits	= 0x96e8,
 		.io_range	= PCL726_SIZE,
 		.have_dio	= 1,
-		.range_type_list = &rangelist_726[0],
+		.ao_num_ranges	= ARRAY_SIZE(rangelist_726),
+		.ao_ranges	= &rangelist_726[0],
 	}, {
 		.name		= "acl6128",
 		.n_aochan	= 2,
-		.num_of_ranges	= 6,
 		.io_range	= PCL728_SIZE,
-		.range_type_list = &rangelist_728[0],
+		.ao_num_ranges	= ARRAY_SIZE(rangelist_728),
+		.ao_ranges	= &rangelist_728[0],
 	},
 };
 
@@ -289,8 +294,8 @@ static int pcl726_attach(struct comedi_device *dev,
 	for (i = 0; i < 12; i++) {
 		unsigned int opt = it->options[2 + i];
 
-		if (opt < board->num_of_ranges && i < board->n_aochan)
-			devpriv->rangelist[i] = board->range_type_list[opt];
+		if (opt < board->ao_num_ranges && i < board->n_aochan)
+			devpriv->rangelist[i] = board->ao_ranges[opt];
 		else
 			devpriv->rangelist[i] = &range_unknown;
 	}
