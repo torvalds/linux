@@ -2419,6 +2419,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 {
 	struct slave *slave, *start_at;
 	struct bonding *bond = netdev_priv(dev);
+	struct list_head *iter;
 	int slave_agg_no;
 	int slaves_in_agg;
 	int agg_id;
@@ -2444,7 +2445,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 
 	slave_agg_no = bond->xmit_hash_policy(skb, slaves_in_agg);
 
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		struct aggregator *agg = SLAVE_AD_INFO(slave).port.aggregator;
 
 		if (agg && (agg->aggregator_identifier == agg_id)) {
@@ -2515,11 +2516,12 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 void bond_3ad_update_lacp_rate(struct bonding *bond)
 {
 	struct port *port = NULL;
+	struct list_head *iter;
 	struct slave *slave;
 	int lacp_fast;
 
 	lacp_fast = bond->params.lacp_fast;
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		port = &(SLAVE_AD_INFO(slave).port);
 		__get_state_machine_lock(port);
 		if (lacp_fast)

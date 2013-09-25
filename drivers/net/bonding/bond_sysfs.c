@@ -210,11 +210,12 @@ static ssize_t bonding_show_slaves(struct device *d,
 				   struct device_attribute *attr, char *buf)
 {
 	struct bonding *bond = to_bond(d);
+	struct list_head *iter;
 	struct slave *slave;
 	int res = 0;
 
 	read_lock(&bond->lock);
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		if (res > (PAGE_SIZE - IFNAMSIZ)) {
 			/* not enough space for another interface name */
 			if ((PAGE_SIZE - res) > 10)
@@ -656,6 +657,7 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 					 const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
+	struct list_head *iter;
 	struct slave *slave;
 	__be32 newtarget, *targets;
 	unsigned long *targets_rx;
@@ -688,7 +690,7 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			 &newtarget);
 		/* not to race with bond_arp_rcv */
 		write_lock_bh(&bond->lock);
-		bond_for_each_slave(bond, slave)
+		bond_for_each_slave(bond, slave, iter)
 			slave->target_last_arp_rx[ind] = jiffies;
 		targets[ind] = newtarget;
 		write_unlock_bh(&bond->lock);
@@ -714,7 +716,7 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			&newtarget);
 
 		write_lock_bh(&bond->lock);
-		bond_for_each_slave(bond, slave) {
+		bond_for_each_slave(bond, slave, iter) {
 			targets_rx = slave->target_last_arp_rx;
 			j = ind;
 			for (; (j < BOND_MAX_ARP_TARGETS-1) && targets[j+1]; j++)
@@ -1111,6 +1113,7 @@ static ssize_t bonding_store_primary(struct device *d,
 				     const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
+	struct list_head *iter;
 	char ifname[IFNAMSIZ];
 	struct slave *slave;
 
@@ -1138,7 +1141,7 @@ static ssize_t bonding_store_primary(struct device *d,
 		goto out;
 	}
 
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
 			pr_info("%s: Setting %s as primary slave.\n",
 				bond->dev->name, slave->dev->name);
@@ -1286,6 +1289,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 {
 	struct slave *slave, *old_active, *new_active;
 	struct bonding *bond = to_bond(d);
+	struct list_head *iter;
 	char ifname[IFNAMSIZ];
 
 	if (!rtnl_trylock())
@@ -1313,7 +1317,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 		goto out;
 	}
 
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
 			old_active = bond->curr_active_slave;
 			new_active = slave;
@@ -1493,6 +1497,7 @@ static ssize_t bonding_show_queue_id(struct device *d,
 				     char *buf)
 {
 	struct bonding *bond = to_bond(d);
+	struct list_head *iter;
 	struct slave *slave;
 	int res = 0;
 
@@ -1500,7 +1505,7 @@ static ssize_t bonding_show_queue_id(struct device *d,
 		return restart_syscall();
 
 	read_lock(&bond->lock);
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		if (res > (PAGE_SIZE - IFNAMSIZ - 6)) {
 			/* not enough space for another interface_name:queue_id pair */
 			if ((PAGE_SIZE - res) > 10)
@@ -1529,6 +1534,7 @@ static ssize_t bonding_store_queue_id(struct device *d,
 {
 	struct slave *slave, *update_slave;
 	struct bonding *bond = to_bond(d);
+	struct list_head *iter;
 	u16 qid;
 	int ret = count;
 	char *delim;
@@ -1565,7 +1571,7 @@ static ssize_t bonding_store_queue_id(struct device *d,
 
 	/* Search for thes slave and check for duplicate qids */
 	update_slave = NULL;
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		if (sdev == slave->dev)
 			/*
 			 * We don't need to check the matching
@@ -1619,6 +1625,7 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	int new_value, ret = count;
+	struct list_head *iter;
 	struct slave *slave;
 
 	if (sscanf(buf, "%d", &new_value) != 1) {
@@ -1641,7 +1648,7 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 	}
 
 	read_lock(&bond->lock);
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		if (!bond_is_active_slave(slave)) {
 			if (new_value)
 				slave->inactive = 0;

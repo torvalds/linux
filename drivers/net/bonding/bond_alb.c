@@ -223,13 +223,14 @@ static long long compute_gap(struct slave *slave)
 static struct slave *tlb_get_least_loaded_slave(struct bonding *bond)
 {
 	struct slave *slave, *least_loaded;
+	struct list_head *iter;
 	long long max_gap;
 
 	least_loaded = NULL;
 	max_gap = LLONG_MIN;
 
 	/* Find the slave with the largest gap */
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		if (SLAVE_IS_OK(slave)) {
 			long long gap = compute_gap(slave);
 
@@ -1172,8 +1173,9 @@ static void alb_change_hw_addr_on_detach(struct bonding *bond, struct slave *sla
  */
 static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slave *slave)
 {
-	struct slave *tmp_slave1, *free_mac_slave = NULL;
 	struct slave *has_bond_addr = bond->curr_active_slave;
+	struct slave *tmp_slave1, *free_mac_slave = NULL;
+	struct list_head *iter;
 
 	if (list_empty(&bond->slave_list)) {
 		/* this is the first slave */
@@ -1196,7 +1198,7 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 	/* The slave's address is equal to the address of the bond.
 	 * Search for a spare address in the bond for this slave.
 	 */
-	bond_for_each_slave(bond, tmp_slave1) {
+	bond_for_each_slave(bond, tmp_slave1, iter) {
 		if (!bond_slave_has_mac(bond, tmp_slave1->perm_hwaddr)) {
 			/* no slave has tmp_slave1's perm addr
 			 * as its curr addr
@@ -1247,6 +1249,7 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 static int alb_set_mac_address(struct bonding *bond, void *addr)
 {
 	struct slave *slave, *rollback_slave;
+	struct list_head *iter;
 	struct sockaddr sa;
 	char tmp_addr[ETH_ALEN];
 	int res;
@@ -1254,7 +1257,7 @@ static int alb_set_mac_address(struct bonding *bond, void *addr)
 	if (bond->alb_info.rlb_enabled)
 		return 0;
 
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		/* save net_device's current hw address */
 		memcpy(tmp_addr, slave->dev->dev_addr, ETH_ALEN);
 
@@ -1274,7 +1277,7 @@ unwind:
 	sa.sa_family = bond->dev->type;
 
 	/* unwind from head to the slave that failed */
-	bond_for_each_slave(bond, rollback_slave) {
+	bond_for_each_slave(bond, rollback_slave, iter) {
 		if (rollback_slave == slave)
 			break;
 		memcpy(tmp_addr, rollback_slave->dev->dev_addr, ETH_ALEN);
@@ -1460,6 +1463,7 @@ void bond_alb_monitor(struct work_struct *work)
 	struct bonding *bond = container_of(work, struct bonding,
 					    alb_work.work);
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
+	struct list_head *iter;
 	struct slave *slave;
 
 	read_lock(&bond->lock);
@@ -1482,7 +1486,7 @@ void bond_alb_monitor(struct work_struct *work)
 		 */
 		read_lock(&bond->curr_slave_lock);
 
-		bond_for_each_slave(bond, slave)
+		bond_for_each_slave(bond, slave, iter)
 			alb_send_learning_packets(slave, slave->dev->dev_addr);
 
 		read_unlock(&bond->curr_slave_lock);
@@ -1495,7 +1499,7 @@ void bond_alb_monitor(struct work_struct *work)
 
 		read_lock(&bond->curr_slave_lock);
 
-		bond_for_each_slave(bond, slave) {
+		bond_for_each_slave(bond, slave, iter) {
 			tlb_clear_slave(bond, slave, 1);
 			if (slave == bond->curr_active_slave) {
 				SLAVE_TLB_INFO(slave).load =

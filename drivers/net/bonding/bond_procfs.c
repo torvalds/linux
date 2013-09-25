@@ -10,8 +10,9 @@ static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(&bond->lock)
 {
 	struct bonding *bond = seq->private;
-	loff_t off = 0;
+	struct list_head *iter;
 	struct slave *slave;
+	loff_t off = 0;
 
 	/* make sure the bond won't be taken away */
 	rcu_read_lock();
@@ -20,7 +21,7 @@ static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	bond_for_each_slave(bond, slave)
+	bond_for_each_slave(bond, slave, iter)
 		if (++off == *pos)
 			return slave;
 
