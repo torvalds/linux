@@ -56,8 +56,8 @@ extern void copy_user_page(void *to, void *from, unsigned long vaddr, struct pag
 /* These are used to make use of C type-checking.. */
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long iopte; } iopte_t;
-typedef struct { unsigned int pmd; } pmd_t;
-typedef struct { unsigned int pgd; } pgd_t;
+typedef struct { unsigned long pmd; } pmd_t;
+typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pte_val(x)	((x).pte)
@@ -76,8 +76,8 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 /* .. while these make it easier on the compiler */
 typedef unsigned long pte_t;
 typedef unsigned long iopte_t;
-typedef unsigned int pmd_t;
-typedef unsigned int pgd_t;
+typedef unsigned long pmd_t;
+typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 #define pte_val(x)	(x)
@@ -97,15 +97,18 @@ typedef unsigned long pgprot_t;
 typedef pte_t *pgtable_t;
 
 /* These two values define the virtual address space range in which we
- * must forbid 64-bit user processes from making mappings.  It
- * represents the virtual address space hole present in most early
- * sparc64 chips including UltraSPARC-I.  The next two defines specify
- * the actual exclusion region we enforce, wherein we use a 4GB red
- * zone on each side of the VA hole.
+ * must forbid 64-bit user processes from making mappings.  It used to
+ * represent precisely the virtual address space hole present in most
+ * early sparc64 chips including UltraSPARC-I.  But now it also is
+ * further constrained by the limits of our page tables, which is
+ * 43-bits of virtual address.
  */
-#define SPARC64_VA_HOLE_TOP	_AC(0xfffff80000000000,UL)
-#define SPARC64_VA_HOLE_BOTTOM	_AC(0x0000080000000000,UL)
+#define SPARC64_VA_HOLE_TOP	_AC(0xfffffc0000000000,UL)
+#define SPARC64_VA_HOLE_BOTTOM	_AC(0x0000040000000000,UL)
 
+/* The next two defines specify the actual exclusion region we
+ * enforce, wherein we use a 4GB red zone on each side of the VA hole.
+ */
 #define VA_EXCLUDE_START (SPARC64_VA_HOLE_BOTTOM - (1UL << 32UL))
 #define VA_EXCLUDE_END   (SPARC64_VA_HOLE_TOP + (1UL << 32UL))
 

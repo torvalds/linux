@@ -51,15 +51,15 @@
 #define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3))
 #define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define PMD_BITS	(PAGE_SHIFT - 2)
+#define PMD_BITS	(PAGE_SHIFT - 3)
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
 #define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3) + PMD_BITS)
 #define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
-#define PGDIR_BITS	(PAGE_SHIFT - 2)
+#define PGDIR_BITS	(PAGE_SHIFT - 3)
 
-#if (PGDIR_SHIFT + PGDIR_BITS) != 45
+#if (PGDIR_SHIFT + PGDIR_BITS) != 43
 #error Page table parameters do not cover virtual address space properly.
 #endif
 
@@ -714,7 +714,7 @@ extern pgprot_t pmd_pgprot(pmd_t entry);
 
 static inline int pmd_present(pmd_t pmd)
 {
-	return pmd_val(pmd) != 0U;
+	return pmd_val(pmd) != 0UL;
 }
 
 #define pmd_none(pmd)			(!pmd_val(pmd))
@@ -741,7 +741,7 @@ static inline void pmd_set(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
 	(pud_val(*(pudp)) = (__pa((unsigned long) (pmdp)) >> PGD_PADDR_SHIFT))
 static inline unsigned long __pmd_page(pmd_t pmd)
 {
-	unsigned long paddr = (unsigned long) pmd_val(pmd);
+	unsigned long paddr = pmd_val(pmd);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (pmd_val(pmd) & PMD_ISHUGE)
 		paddr &= PMD_HUGE_PADDR;
@@ -751,14 +751,14 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 }
 #define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
 #define pud_page_vaddr(pud)		\
-	((unsigned long) __va((((unsigned long)pud_val(pud))<<PGD_PADDR_SHIFT)))
+	((unsigned long) __va((pud_val(pud)<<PGD_PADDR_SHIFT)))
 #define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
 #define pmd_bad(pmd)			(0)
-#define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0U)
+#define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
 #define pud_none(pud)			(!pud_val(pud))
 #define pud_bad(pud)			(0)
 #define pud_present(pud)		(pud_val(pud) != 0U)
-#define pud_clear(pudp)			(pud_val(*(pudp)) = 0U)
+#define pud_clear(pudp)			(pud_val(*(pudp)) = 0UL)
 
 /* Same in both SUN4V and SUN4U.  */
 #define pte_none(pte) 			(!pte_val(pte))
@@ -793,7 +793,7 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 				       pmd_t *pmdp)
 {
 	pmd_t pmd = *pmdp;
-	set_pmd_at(mm, addr, pmdp, __pmd(0U));
+	set_pmd_at(mm, addr, pmdp, __pmd(0UL));
 	return pmd;
 }
 
@@ -841,8 +841,8 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 })
 #endif
 
-extern pgd_t swapper_pg_dir[2048];
-extern pmd_t swapper_low_pmd_dir[2048];
+extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+extern pmd_t swapper_low_pmd_dir[PTRS_PER_PMD];
 
 extern void paging_init(void);
 extern unsigned long find_ecache_flush_span(unsigned long size);

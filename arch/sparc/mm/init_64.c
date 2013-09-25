@@ -1842,7 +1842,7 @@ static void __init sun4v_linear_pte_xor_finalize(void)
 /* paging_init() sets up the page tables */
 
 static unsigned long last_valid_pfn;
-pgd_t swapper_pg_dir[2048];
+pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 static void sun4u_pgprot_init(void);
 static void sun4v_pgprot_init(void);
