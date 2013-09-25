@@ -372,6 +372,9 @@ static u32 i915_read_blc_pwm_ctl(struct drm_device *dev)
 				I915_WRITE(BLC_PWM_CTL2,
 					   dev_priv->regfile.saveBLC_PWM_CTL2);
 		}
+
+		if (IS_VALLEYVIEW(dev) && !val)
+			val = 0x0f42ffff;
 	}
 
 	return val;
@@ -629,9 +632,23 @@ set_level:
 	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
 }
 
+/* FIXME: use VBT vals to init PWM_CTL and PWM_CTL2 correctly */
+static void intel_panel_init_backlight_regs(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_VALLEYVIEW(dev)) {
+		u32 cur_val = I915_READ(BLC_PWM_CTL) &
+			BACKLIGHT_DUTY_CYCLE_MASK;
+		I915_WRITE(BLC_PWM_CTL, (0xf42 << 16) | cur_val);
+	}
+}
+
 static void intel_panel_init_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_panel_init_backlight_regs(dev);
 
 	dev_priv->backlight.level = intel_panel_get_backlight(dev);
 	dev_priv->backlight.enabled = dev_priv->backlight.level != 0;
