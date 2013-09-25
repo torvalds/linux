@@ -4380,6 +4380,19 @@ struct netdev_adjacent {
 	struct rcu_head rcu;
 };
 
+static struct netdev_adjacent *__netdev_find_adj_rcu(struct net_device *dev,
+						     struct net_device *adj_dev,
+						     struct list_head *adj_list)
+{
+	struct netdev_adjacent *adj;
+
+	list_for_each_entry_rcu(adj, adj_list, list) {
+		if (adj->dev == adj_dev)
+			return adj;
+	}
+	return NULL;
+}
+
 static struct netdev_adjacent *__netdev_find_adj(struct net_device *dev,
 						 struct net_device *adj_dev,
 						 struct list_head *adj_list)
