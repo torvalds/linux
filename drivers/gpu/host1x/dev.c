@@ -172,7 +172,7 @@ fail_deinit_syncpt:
 	return err;
 }
 
-static int __exit host1x_remove(struct platform_device *pdev)
+static int host1x_remove(struct platform_device *pdev)
 {
 	struct host1x *host = platform_get_drvdata(pdev);
 
@@ -184,13 +184,12 @@ static int __exit host1x_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver tegra_host1x_driver = {
-	.probe = host1x_probe,
-	.remove = __exit_p(host1x_remove),
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "tegra-host1x",
 		.of_match_table = host1x_of_match,
 	},
+	.probe = host1x_probe,
+	.remove = host1x_remove,
 };
 
 static int __init tegra_host1x_init(void)
