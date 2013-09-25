@@ -1171,9 +1171,6 @@ static irqreturn_t omap_hsmmc_detect(int irq, void *dev_id)
 	struct omap_mmc_slot_data *slot = &mmc_slot(host);
 	int carddetect;
 
-	if (host->suspended)
-		return IRQ_HANDLED;
-
 	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
 
 	if (slot->card_detect)
@@ -1631,11 +1628,6 @@ static int omap_hsmmc_regs_show(struct seq_file *s, void *data)
 
 	seq_printf(s, "mmc%d:\n ctx_loss:\t%d\n\nregs:\n",
 			mmc->index, host->context_loss);
-
-	if (host->suspended) {
-		seq_printf(s, "host suspended, can't read registers\n");
-		return 0;
-	}
 
 	pm_runtime_get_sync(host->dev);
 
@@ -2101,23 +2093,12 @@ static void omap_hsmmc_complete(struct device *dev)
 
 static int omap_hsmmc_suspend(struct device *dev)
 {
-	int ret = 0;
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
 
 	if (!host)
 		return 0;
 
-	if (host && host->suspended)
-		return 0;
-
 	pm_runtime_get_sync(host->dev);
-	host->suspended = 1;
-	ret = mmc_suspend_host(host->mmc);
-
-	if (ret) {
-		host->suspended = 0;
-		goto err;
-	}
 
 	if (!(host->mmc->pm_flags & MMC_PM_KEEP_POWER)) {
 		omap_hsmmc_disable_irq(host);
@@ -2127,21 +2108,17 @@ static int omap_hsmmc_suspend(struct device *dev)
 
 	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
-err:
+
 	pm_runtime_put_sync(host->dev);
-	return ret;
+	return 0;
 }
 
 /* Routine to resume the MMC device */
 static int omap_hsmmc_resume(struct device *dev)
 {
-	int ret = 0;
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
 
 	if (!host)
-		return 0;
-
-	if (host && !host->suspended)
 		return 0;
 
 	pm_runtime_get_sync(host->dev);
@@ -2154,16 +2131,9 @@ static int omap_hsmmc_resume(struct device *dev)
 
 	omap_hsmmc_protect_card(host);
 
-	/* Notify the core to resume the host */
-	ret = mmc_resume_host(host->mmc);
-	if (ret == 0)
-		host->suspended = 0;
-
 	pm_runtime_mark_last_busy(host->dev);
 	pm_runtime_put_autosuspend(host->dev);
-
-	return ret;
-
+	return 0;
 }
 
 #else
