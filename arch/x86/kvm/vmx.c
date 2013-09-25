@@ -1921,7 +1921,7 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 intr_info = nr | INTR_INFO_VALID_MASK;
 
-	if (nr == PF_VECTOR && is_guest_mode(vcpu) &&
+	if (!reinject && nr == PF_VECTOR && is_guest_mode(vcpu) &&
 	    !vmx->nested.nested_run_pending && nested_pf_handled(vcpu))
 		return;
 
@@ -7053,9 +7053,9 @@ static void __vmx_complete_interrupts(struct kvm_vcpu *vcpu,
 	case INTR_TYPE_HARD_EXCEPTION:
 		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK) {
 			u32 err = vmcs_read32(error_code_field);
-			kvm_queue_exception_e(vcpu, vector, err);
+			kvm_requeue_exception_e(vcpu, vector, err);
 		} else
-			kvm_queue_exception(vcpu, vector);
+			kvm_requeue_exception(vcpu, vector);
 		break;
 	case INTR_TYPE_SOFT_INTR:
 		vcpu->arch.event_exit_inst_len = vmcs_read32(instr_len_field);
@@ -8013,7 +8013,7 @@ static void vmcs12_save_pending_event(struct kvm_vcpu *vcpu,
 	u32 idt_vectoring;
 	unsigned int nr;
 
-	if (vcpu->arch.exception.pending) {
+	if (vcpu->arch.exception.pending && vcpu->arch.exception.reinject) {
 		nr = vcpu->arch.exception.nr;
 		idt_vectoring = nr | VECTORING_INFO_VALID_MASK;
 
