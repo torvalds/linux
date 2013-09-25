@@ -233,8 +233,7 @@ out:
 static void uvesafb_free(struct uvesafb_ktask *task)
 {
 	if (task) {
-		if (task->done)
-			kfree(task->done);
+		kfree(task->done);
 		kfree(task);
 	}
 }
@@ -1332,8 +1331,8 @@ setmode:
 				FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
 	info->fix.line_length = mode->bytes_per_scan_line;
 
-out:	if (crtc != NULL)
-		kfree(crtc);
+out:
+	kfree(crtc);
 	uvesafb_free(task);
 
 	return err;
@@ -1793,8 +1792,7 @@ out_mode:
 	fb_destroy_modedb(info->monspecs.modedb);
 	fb_dealloc_cmap(&info->cmap);
 out:
-	if (par->vbe_modes)
-		kfree(par->vbe_modes);
+	kfree(par->vbe_modes);
 
 	framebuffer_release(info);
 	return err;
@@ -1817,12 +1815,9 @@ static int uvesafb_remove(struct platform_device *dev)
 		fb_dealloc_cmap(&info->cmap);
 
 		if (par) {
-			if (par->vbe_modes)
-				kfree(par->vbe_modes);
-			if (par->vbe_state_orig)
-				kfree(par->vbe_state_orig);
-			if (par->vbe_state_saved)
-				kfree(par->vbe_state_saved);
+			kfree(par->vbe_modes);
+			kfree(par->vbe_state_orig);
+			kfree(par->vbe_state_saved);
 		}
 
 		framebuffer_release(info);
