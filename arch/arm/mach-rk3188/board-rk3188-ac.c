@@ -940,6 +940,81 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 **************************************************************************************************/
 
 #ifdef CONFIG_BATTERY_RK30_ADC_FAC
+static int ac_current = -1;
+#define CHARING_CURRENT_500MA 0
+#define CHARING_CURRENT_1000MA 1
+
+#define   DC_CUR_SET_PIN RK30_PIN0_PB0
+#define   CHARGE_OK_PIN  RK30_PIN0_PA6
+#define   DC_DET_PIN     RK30_PIN0_PB2
+static int rk30_battery_adc_io_init(void)
+{
+        int ret = 0;
+        printk("charging:  set charging current 500ma \n");
+        ac_current = CHARING_CURRENT_500MA;
+        //dc charge detect pin
+        ret = gpio_request(DC_DET_PIN, NULL);
+        if (ret) {
+             printk("failed to request dc_det gpio\n");
+             return ret ;
+        }
+
+        gpio_pull_updown(DC_DET_PIN, 1);//important
+        ret = gpio_direction_input(DC_DET_PIN);
+        if (ret) {
+                printk("failed to set gpio dc_det input\n");
+                return ret ;
+        }
+
+        //charge ok pin
+        ret = gpio_request(CHARGE_OK_PIN, NULL);
+        if (ret) {
+                printk("failed to request charge_ok gpio\n");
+                return ret ;
+        }
+
+        gpio_pull_updown(CHARGE_OK_PIN, 1);//important
+        ret = gpio_direction_input(CHARGE_OK_PIN);
+        if (ret) {
+                printk("failed to set gpio charge_ok input\n");
+                return ret ;
+        }
+        //charge current set pin
+        ret = gpio_request(DC_CUR_SET_PIN, NULL);
+        if (ret) {
+                printk("failed to request DC_CUR_SET_PIN gpio\n");
+                return ret ;
+        }
+
+        ret = gpio_direction_output(DC_CUR_SET_PIN, GPIO_LOW);//500ma
+        if (ret) {
+                printk("failed to set gpio DC_CUR_SET_PIN output\n");
+                return ret ;
+        }
+
+        return 0;
+
+}
+
+static int set_usb_charging_current(int mode)
+{
+#if 0
+    if ( (ac_current==CHARING_CURRENT_1000MA) && (mode == PC_MODE) ) {
+                gpio_set_value(DC_CUR_SET_PIN, GPIO_LOW);
+                ac_current = CHARING_CURRENT_500MA;
+     }
+     else if ((mode == ADAPT_MODE) && (ac_current==CHARING_CURRENT_500MA))
+     {
+                gpio_set_value(DC_CUR_SET_PIN, GPIO_HIGH);
+               ac_current = CHARING_CURRENT_1000MA;
+
+      }
+#endif
+       gpio_set_value(DC_CUR_SET_PIN, GPIO_LOW);
+       ac_current = CHARING_CURRENT_500MA;
+}
+
+
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK30_PIN0_PB2,
         .batt_low_pin    = INVALID_GPIO, 
@@ -955,7 +1030,9 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
 
 	.is_reboot_charging = 1,
         .save_capacity   = 1 ,
-        .low_voltage_protection = 3600,    
+        .low_voltage_protection = 3600,   
+	.io_init = rk30_battery_adc_io_init,
+	.control_usb_charging= set_usb_charging_current, 
 };
 
 static struct platform_device rk30_device_adc_battery = {
