@@ -811,7 +811,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("DP link computation with max lane count %i "
 		      "max bw %02x pixel clock %iKHz\n",
-		      max_lane_count, bws[max_clock], adjusted_mode->clock);
+		      max_lane_count, bws[max_clock],
+		      adjusted_mode->crtc_clock);
 
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
@@ -823,7 +824,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	}
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
-		mode_rate = intel_dp_link_required(adjusted_mode->clock, bpp);
+		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
+						   bpp);
 
 		for (clock = 0; clock <= max_clock; clock++) {
 			for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
@@ -868,7 +870,8 @@ found:
 		      mode_rate, link_avail);
 
 	intel_link_compute_m_n(bpp, lane_count,
-			       adjusted_mode->clock, pipe_config->port_clock,
+			       adjusted_mode->crtc_clock,
+			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n);
 
 	intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
@@ -1483,7 +1486,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev_priv->dev) && port != PORT_A)
 		ironlake_check_encoder_dotclock(pipe_config, dotclock);
 
-	pipe_config->adjusted_mode.clock = dotclock;
+	pipe_config->adjusted_mode.crtc_clock = dotclock;
 }
 
 static bool is_edp_psr(struct intel_dp *intel_dp)

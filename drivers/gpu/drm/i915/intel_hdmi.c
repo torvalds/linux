@@ -737,7 +737,7 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev_priv->dev))
 		ironlake_check_encoder_dotclock(pipe_config, dotclock);
 
-	pipe_config->adjusted_mode.clock = dotclock;
+	pipe_config->adjusted_mode.crtc_clock = dotclock;
 }
 
 static void intel_enable_hdmi(struct intel_encoder *encoder)
@@ -873,7 +873,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
-	int clock_12bpc = pipe_config->adjusted_mode.clock * 3 / 2;
+	int clock_12bpc = pipe_config->adjusted_mode.crtc_clock * 3 / 2;
 	int portclock_limit = hdmi_portclock_limit(intel_hdmi);
 	int desired_bpp;
 
@@ -915,7 +915,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 		pipe_config->pipe_bpp = desired_bpp;
 	}
 
-	if (adjusted_mode->clock > portclock_limit) {
+	if (adjusted_mode->crtc_clock > portclock_limit) {
 		DRM_DEBUG_KMS("too high HDMI clock, rejecting mode\n");
 		return false;
 	}

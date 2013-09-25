@@ -123,7 +123,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev_priv->dev))
 		ironlake_check_encoder_dotclock(pipe_config, dotclock);
 
-	pipe_config->adjusted_mode.clock = dotclock;
+	pipe_config->adjusted_mode.crtc_clock = dotclock;
 }
 
 /* The LVDS pin pair needs to be on before the DPLLs are enabled.

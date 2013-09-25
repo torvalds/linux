@@ -217,7 +217,7 @@ struct intel_crtc_config {
 	 * preferred input timings. */
 	struct drm_display_mode requested_mode;
 	/* Actual pipe timings ie. what we program into the pipe timing
-	 * registers. adjusted_mode.clock is the pipe pixel clock. */
+	 * registers. adjusted_mode.crtc_clock is the pipe pixel clock. */
 	struct drm_display_mode adjusted_mode;
 
 	/* Pipe source size (ie. panel fitter input size)
