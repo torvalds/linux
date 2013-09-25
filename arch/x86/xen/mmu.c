@@ -468,8 +468,8 @@ PV_CALLEE_SAVE_REGS_THUNK(xen_pgd_val);
  * 3        PCD PWT      UC       UC     UC
  * 4    PAT              WB       WC     WB
  * 5    PAT     PWT      WC       WP     WT
- * 6    PAT PCD          UC-      UC     UC-
- * 7    PAT PCD PWT      UC       UC     UC
+ * 6    PAT PCD          UC-      rsv    UC-
+ * 7    PAT PCD PWT      UC       rsv    UC
  */
 
 void xen_set_pat(u64 pat)
