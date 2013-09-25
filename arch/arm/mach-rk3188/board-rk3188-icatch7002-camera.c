@@ -210,7 +210,7 @@ static void rk_cif_power(struct rk29camera_gpio_res *res,int on)
 		iomux_set(GPIO0_C0);
 		gpio_set_value(RK30_PIN1_PA4,0);
 		gpio_set_value(RK30_PIN1_PA5,0);
-		gpio_set_value(RK30_PIN1_PA6,0);	//Vincent_Liu@asus.com for clk 24M
+		gpio_set_value(RK30_PIN1_PA6,0);	// for clk 24M
 		gpio_set_value(RK30_PIN1_PA7,0);
 		gpio_set_value(RK30_PIN3_PB6,0);
 		gpio_set_value(RK30_PIN3_PB7,0);

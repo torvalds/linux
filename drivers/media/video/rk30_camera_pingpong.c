@@ -2037,7 +2037,6 @@ static int rk_camera_try_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	}
     ret = soc_camera_bus_param_compatible(camera_flags, bus_flags) ;
 
-	/*nelson_yang@asus.com fix: rock-chip coding bug*/
 	/* rockchip BUGBUG
 		if (ret < 0)
 			dev_warn(icd->dev.parent,
@@ -2051,7 +2050,6 @@ static int rk_camera_try_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	else{
 		ret = 0;
 	}
-	/*nelson_yang@asus.com fix: rock-chip coding bug end*/
     return ret;
 }
 

@@ -2098,7 +2098,7 @@ void icatch_sensor_power_ctr(struct soc_camera_device *icd ,int on,int power_mod
 		iomux_set(GPIO0_C0);
 		gpio_set_value(RK30_PIN1_PA4,0);
 		gpio_set_value(RK30_PIN1_PA5,0);
-		gpio_set_value(RK30_PIN1_PA6,0);	//Vincent_Liu@asus.com for clk 24M
+		gpio_set_value(RK30_PIN1_PA6,0);	// for clk 24M
 		gpio_set_value(RK30_PIN1_PA7,0);
 		gpio_set_value(RK30_PIN3_PB6,0);
 		gpio_set_value(RK30_PIN3_PB7,0);
@@ -2106,7 +2106,7 @@ void icatch_sensor_power_ctr(struct soc_camera_device *icd ,int on,int power_mod
 		//msleep(500);
 	}else{
 		//power ON
-		gpio_set_value(RK30_PIN1_PA6,1);	//Vincent_Liu@asus.com for clk 24M
+		gpio_set_value(RK30_PIN1_PA6,1);	// for clk 24M
 		
 		if(icl->power)
 			icl->power(icd->pdev,1);
@@ -2328,7 +2328,7 @@ void icatch_free_cali_fw_data(struct icatch_cali_fw_data * data) {
 		 
 		 icatch_sensor_power_ctr(icd,0,0);
 		 icatch_sensor_power_ctr(icd,1,0);
-		 gpio_set_value(RK30_PIN1_PA6,0);	//Vincent_Liu@asus.com for clk 24M
+		 gpio_set_value(RK30_PIN1_PA6,0);	// for clk 24M
 	#endif
 	}
 	// msleep(100);
