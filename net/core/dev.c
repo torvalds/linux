@@ -4385,12 +4385,9 @@ struct netdev_adjacent {
 
 static struct netdev_adjacent *__netdev_find_adj(struct net_device *dev,
 						 struct net_device *adj_dev,
-						 bool upper)
+						 struct list_head *dev_list)
 {
 	struct netdev_adjacent *adj;
-	struct list_head *dev_list;
-
-	dev_list = upper ? &dev->upper_dev_list : &dev->lower_dev_list;
 
 	list_for_each_entry(adj, dev_list, list) {
 		if (adj->dev == adj_dev)
@@ -4402,13 +4399,13 @@ static struct netdev_adjacent *__netdev_find_adj(struct net_device *dev,
 static inline struct netdev_adjacent *__netdev_find_upper(struct net_device *dev,
 							  struct net_device *udev)
 {
-	return __netdev_find_adj(dev, udev, true);
+	return __netdev_find_adj(dev, udev, &dev->upper_dev_list);
 }
 
 static inline struct netdev_adjacent *__netdev_find_lower(struct net_device *dev,
 							  struct net_device *ldev)
 {
-	return __netdev_find_adj(dev, ldev, false);
+	return __netdev_find_adj(dev, ldev, &dev->lower_dev_list);
 }
 
 /**
@@ -4514,12 +4511,12 @@ EXPORT_SYMBOL(netdev_master_upper_dev_get_rcu);
 
 static int __netdev_adjacent_dev_insert(struct net_device *dev,
 					struct net_device *adj_dev,
-					bool neighbour, bool master,
-					bool upper)
+					struct list_head *dev_list,
+					bool neighbour, bool master)
 {
 	struct netdev_adjacent *adj;
 
-	adj = __netdev_find_adj(dev, adj_dev, upper);
+	adj = __netdev_find_adj(dev, adj_dev, dev_list);
 
 	if (adj) {
 		BUG_ON(neighbour);
@@ -4538,19 +4535,14 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 
 	dev_hold(adj_dev);
 	pr_debug("dev_hold for %s, because of %s link added from %s to %s\n",
-		 adj_dev->name, upper ? "upper" : "lower", dev->name,
-		 adj_dev->name);
+		 adj_dev->name, dev_list == &dev->upper_dev_list ?
+		 "upper" : "lower", dev->name, adj_dev->name);
 
-	if (!upper) {
-		list_add_tail_rcu(&adj->list, &dev->lower_dev_list);
-		return 0;
-	}
-
-	/* Ensure that master upper link is always the first item in list. */
+	/* Ensure that master link is always the first item in list. */
 	if (master)
-		list_add_rcu(&adj->list, &dev->upper_dev_list);
+		list_add_rcu(&adj->list, dev_list);
 	else
-		list_add_tail_rcu(&adj->list, &dev->upper_dev_list);
+		list_add_tail_rcu(&adj->list, dev_list);
 
 	return 0;
 }
@@ -4559,27 +4551,25 @@ static inline int __netdev_upper_dev_insert(struct net_device *dev,
 					    struct net_device *udev,
 					    bool master, bool neighbour)
 {
-	return __netdev_adjacent_dev_insert(dev, udev, neighbour, master,
-					    true);
+	return __netdev_adjacent_dev_insert(dev, udev, &dev->upper_dev_list,
+					    neighbour, master);
 }
 
 static inline int __netdev_lower_dev_insert(struct net_device *dev,
 					    struct net_device *ldev,
 					    bool neighbour)
 {
-	return __netdev_adjacent_dev_insert(dev, ldev, neighbour, false,
-					    false);
+	return __netdev_adjacent_dev_insert(dev, ldev, &dev->lower_dev_list,
+					    neighbour, false);
 }
 
 void __netdev_adjacent_dev_remove(struct net_device *dev,
-				  struct net_device *adj_dev, bool upper)
+				  struct net_device *adj_dev,
+				  struct list_head *dev_list)
 {
 	struct netdev_adjacent *adj;
 
-	if (upper)
-		adj = __netdev_find_upper(dev, adj_dev);
-	else
-		adj = __netdev_find_lower(dev, adj_dev);
+	adj = __netdev_find_adj(dev, adj_dev, dev_list);
 
 	if (!adj)
 		BUG();
@@ -4591,8 +4581,8 @@ void __netdev_adjacent_dev_remove(struct net_device *dev,
 
 	list_del_rcu(&adj->list);
 	pr_debug("dev_put for %s, because of %s link removed from %s to %s\n",
-		 adj_dev->name, upper ? "upper" : "lower", dev->name,
-		 adj_dev->name);
+		 adj_dev->name, dev_list == &dev->upper_dev_list ?
+		 "upper" : "lower", dev->name, adj_dev->name);
 	dev_put(adj_dev);
 	kfree_rcu(adj, rcu);
 }
@@ -4600,13 +4590,13 @@ void __netdev_adjacent_dev_remove(struct net_device *dev,
 static inline void __netdev_upper_dev_remove(struct net_device *dev,
 					     struct net_device *udev)
 {
-	return __netdev_adjacent_dev_remove(dev, udev, true);
+	return __netdev_adjacent_dev_remove(dev, udev, &dev->upper_dev_list);
 }
 
 static inline void __netdev_lower_dev_remove(struct net_device *dev,
 					     struct net_device *ldev)
 {
-	return __netdev_adjacent_dev_remove(dev, ldev, false);
+	return __netdev_adjacent_dev_remove(dev, ldev, &dev->lower_dev_list);
 }
 
 int __netdev_adjacent_dev_insert_link(struct net_device *dev,
