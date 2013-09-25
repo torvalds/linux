@@ -377,7 +377,7 @@ static DEVICE_ATTR(keyclick, 0644, aic26_keyclick_show, aic26_keyclick_set);
 static int aic26_probe(struct snd_soc_codec *codec)
 {
 	struct aic26 *aic26 = dev_get_drvdata(codec->dev);
-	int ret, err, i, reg;
+	int ret, i, reg;
 
 	aic26->codec = codec;
 
@@ -403,12 +403,6 @@ static int aic26_probe(struct snd_soc_codec *codec)
 	if (ret)
 		dev_info(codec->dev, "error creating sysfs files\n");
 
-	/* register controls */
-	dev_dbg(codec->dev, "Registering controls\n");
-	err = snd_soc_add_codec_controls(codec, aic26_snd_controls,
-			ARRAY_SIZE(aic26_snd_controls));
-	WARN_ON(err < 0);
-
 	return 0;
 }
 
@@ -418,6 +412,8 @@ static struct snd_soc_codec_driver aic26_soc_codec_dev = {
 	.write = aic26_reg_write,
 	.reg_cache_size = AIC26_NUM_REGS,
 	.reg_word_size = sizeof(u16),
+	.controls = aic26_snd_controls,
+	.num_controls = ARRAY_SIZE(aic26_snd_controls),
 	.dapm_widgets = tlv320aic26_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(tlv320aic26_dapm_widgets),
 	.dapm_routes = tlv320aic26_dapm_routes,
