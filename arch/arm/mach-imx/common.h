@@ -147,9 +147,11 @@ int imx_cpu_kill(unsigned int cpu);
 
 #ifdef CONFIG_PM
 void imx6q_pm_init(void);
+void imx6q_pm_set_ccm_base(void __iomem *base);
 void imx5_pm_init(void);
 #else
 static inline void imx6q_pm_init(void) {}
+static inline void imx6q_pm_set_ccm_base(void __iomem *base) {}
 static inline void imx5_pm_init(void) {}
 #endif
 
