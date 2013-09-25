@@ -969,6 +969,17 @@ i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
 	return ret;
 }
 
+static void fake_irq(unsigned long data)
+{
+	wake_up_process((struct task_struct *)data);
+}
+
+static bool missed_irq(struct drm_i915_private *dev_priv,
+		       struct intel_ring_buffer *ring)
+{
+	return test_bit(ring->id, &dev_priv->gpu_error.missed_irq_rings);
+}
+
 /**
  * __wait_seqno - wait until execution of seqno has finished
  * @ring: the ring expected to report seqno
@@ -992,10 +1003,9 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			bool interruptible, struct timespec *timeout)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	struct timespec before, now, wait_time={1,0};
-	unsigned long timeout_jiffies;
-	long end;
-	bool wait_forever = true;
+	struct timespec before, now;
+	DEFINE_WAIT(wait);
+	long timeout_jiffies;
 	int ret;
 
 	WARN(dev_priv->pc8.irqs_disabled, "IRQs disabled\n");
@@ -1003,51 +1013,71 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	if (i915_seqno_passed(ring->get_seqno(ring, true), seqno))
 		return 0;
 
-	trace_i915_gem_request_wait_begin(ring, seqno);
+	timeout_jiffies = timeout ? timespec_to_jiffies_timeout(timeout) : 1;
 
-	if (timeout != NULL) {
-		wait_time = *timeout;
-		wait_forever = false;
-	}
-
-	timeout_jiffies = timespec_to_jiffies_timeout(&wait_time);
-
-	if (WARN_ON(!ring->irq_get(ring)))
+	if (!(dev_priv->gpu_error.test_irq_rings & intel_ring_flag(ring)) &&
+	    WARN_ON(!ring->irq_get(ring)))
 		return -ENODEV;
 
-	/* Record current time in case interrupted by signal, or wedged * */
+	/* Record current time in case interrupted by signal, or wedged */
+	trace_i915_gem_request_wait_begin(ring, seqno);
 	getrawmonotonic(&before);
+	for (;;) {
+		struct timer_list timer;
+		unsigned long expire;
 
-#define EXIT_COND \
-	(i915_seqno_passed(ring->get_seqno(ring, false), seqno) || \
-	 i915_reset_in_progress(&dev_priv->gpu_error) || \
-	 reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
-	do {
-		if (interruptible)
-			end = wait_event_interruptible_timeout(ring->irq_queue,
-							       EXIT_COND,
-							       timeout_jiffies);
-		else
-			end = wait_event_timeout(ring->irq_queue, EXIT_COND,
-						 timeout_jiffies);
+		prepare_to_wait(&ring->irq_queue, &wait,
+				interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 
 		/* We need to check whether any gpu reset happened in between
 		 * the caller grabbing the seqno and now ... */
-		if (reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
-			end = -EAGAIN;
+		if (reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter)) {
+			/* ... but upgrade the -EAGAIN to an -EIO if the gpu
+			 * is truely gone. */
+			ret = i915_gem_check_wedge(&dev_priv->gpu_error, interruptible);
+			if (ret == 0)
+				ret = -EAGAIN;
+			break;
+		}
 
-		/* ... but upgrade the -EGAIN to an -EIO if the gpu is truely
-		 * gone. */
-		ret = i915_gem_check_wedge(&dev_priv->gpu_error, interruptible);
-		if (ret)
-			end = ret;
-	} while (end == 0 && wait_forever);
+		if (i915_seqno_passed(ring->get_seqno(ring, false), seqno)) {
+			ret = 0;
+			break;
+		}
 
+		if (interruptible && signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+
+		if (timeout_jiffies <= 0) {
+			ret = -ETIME;
+			break;
+		}
+
+		timer.function = NULL;
+		if (timeout || missed_irq(dev_priv, ring)) {
+			setup_timer_on_stack(&timer, fake_irq, (unsigned long)current);
+			expire = jiffies + (missed_irq(dev_priv, ring) ? 1: timeout_jiffies);
+			mod_timer(&timer, expire);
+		}
+
+		schedule();
+
+		if (timeout)
+			timeout_jiffies = expire - jiffies;
+
+		if (timer.function) {
+			del_singleshot_timer_sync(&timer);
+			destroy_timer_on_stack(&timer);
+		}
+	}
 	getrawmonotonic(&now);
+	trace_i915_gem_request_wait_end(ring, seqno);
 
 	ring->irq_put(ring);
-	trace_i915_gem_request_wait_end(ring, seqno);
-#undef EXIT_COND
+
+	finish_wait(&ring->irq_queue, &wait);
 
 	if (timeout) {
 		struct timespec sleep_time = timespec_sub(now, before);
@@ -1056,17 +1086,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			set_normalized_timespec(timeout, 0, 0);
 	}
 
-	switch (end) {
-	case -EIO:
-	case -EAGAIN: /* Wedged */
-	case -ERESTARTSYS: /* Signal */
-		return (int)end;
-	case 0: /* Timeout */
-		return -ETIME;
-	default: /* Completed */
-		WARN_ON(end < 0); /* We're not aware of other errors */
-		return 0;
-	}
+	return ret;
 }
 
 /**
