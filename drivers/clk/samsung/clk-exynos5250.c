@@ -329,7 +329,7 @@ static struct samsung_div_clock exynos5250_div_clks[] __initdata = {
 	DIV(0, "div_jpeg", "mout_jpeg", DIV_GEN, 4, 4),
 
 	DIV(0, "div_audio0", "mout_audio0", DIV_MAU, 0, 4),
-	DIV(0, "div_pcm0", "sclk_audio0", DIV_MAU, 4, 8),
+	DIV(CLK_DIV_PCM0, "div_pcm0", "sclk_audio0", DIV_MAU, 4, 8),
 
 	DIV(0, "div_sata", "mout_sata", DIV_FSYS0, 20, 4),
 	DIV(0, "div_usb3", "mout_usb3", DIV_FSYS0, 24, 4),

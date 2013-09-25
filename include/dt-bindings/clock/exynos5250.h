@@ -55,6 +55,7 @@
 #define CLK_DIV_I2S1		157
 #define CLK_DIV_I2S2		158
 #define CLK_SCLK_HDMIPHY	159
+#define CLK_DIV_PCM0		160
 
 /* gate clocks */
 #define CLK_GSCL0		256
