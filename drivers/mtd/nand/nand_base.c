@@ -3238,6 +3238,9 @@ static void nand_decode_id(struct mtd_info *mtd, struct nand_chip *chip,
 	mtd->oobsize = mtd->writesize / 32;
 	*busw = type->options & NAND_BUSWIDTH_16;
 
+	/* All legacy ID NAND are small-page, SLC */
+	chip->bits_per_cell = 1;
+
 	/*
 	 * Check for Spansion/AMD ID + repeating 5th, 6th byte since
 	 * some Spansion chips have erasesize that conflicts with size
