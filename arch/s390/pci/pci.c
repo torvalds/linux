@@ -708,6 +708,47 @@ void pcibios_disable_device(struct pci_dev *pdev)
 	zdev->pdev = NULL;
 }
 
+#ifdef CONFIG_HIBERNATE_CALLBACKS
+static int zpci_restore(struct device *dev)
+{
+	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
+	int ret = 0;
+
+	if (zdev->state != ZPCI_FN_STATE_ONLINE)
+		goto out;
+
+	ret = clp_enable_fh(zdev, ZPCI_NR_DMA_SPACES);
+	if (ret)
+		goto out;
+
+	zpci_map_resources(zdev);
+	zpci_register_ioat(zdev, 0, zdev->start_dma + PAGE_OFFSET,
+			   zdev->start_dma + zdev->iommu_size - 1,
+			   (u64) zdev->dma_table);
+
+out:
+	return ret;
+}
+
+static int zpci_freeze(struct device *dev)
+{
+	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
+
+	if (zdev->state != ZPCI_FN_STATE_ONLINE)
+		return 0;
+
+	zpci_unregister_ioat(zdev, 0);
+	return clp_disable_fh(zdev);
+}
+
+struct dev_pm_ops pcibios_pm_ops = {
+	.thaw_noirq = zpci_restore,
+	.freeze_noirq = zpci_freeze,
+	.restore_noirq = zpci_restore,
+	.poweroff_noirq = zpci_freeze,
+};
+#endif /* CONFIG_HIBERNATE_CALLBACKS */
+
 static int zpci_scan_bus(struct zpci_dev *zdev)
 {
 	struct resource *res;
