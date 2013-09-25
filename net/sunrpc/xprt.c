@@ -912,7 +912,6 @@ void xprt_transmit(struct rpc_task *task)
 	} else if (!req->rq_bytes_sent)
 		return;
 
-	req->rq_connect_cookie = xprt->connect_cookie;
 	req->rq_xtime = ktime_get();
 	status = xprt->ops->send_request(task);
 	if (status != 0) {
@@ -938,12 +937,14 @@ void xprt_transmit(struct rpc_task *task)
 	/* Don't race with disconnect */
 	if (!xprt_connected(xprt))
 		task->tk_status = -ENOTCONN;
-	else if (!req->rq_reply_bytes_recvd && rpc_reply_expected(task)) {
+	else {
 		/*
 		 * Sleep on the pending queue since
 		 * we're expecting a reply.
 		 */
-		rpc_sleep_on(&xprt->pending, task, xprt_timer);
+		if (!req->rq_reply_bytes_recvd && rpc_reply_expected(task))
+			rpc_sleep_on(&xprt->pending, task, xprt_timer);
+		req->rq_connect_cookie = xprt->connect_cookie;
 	}
 	spin_unlock_bh(&xprt->transport_lock);
 }
@@ -1186,6 +1187,7 @@ static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 	req->rq_xprt    = xprt;
 	req->rq_buffer  = NULL;
 	req->rq_xid     = xprt_alloc_xid(xprt);
+	req->rq_connect_cookie = xprt->connect_cookie - 1;
 	req->rq_release_snd_buf = NULL;
 	xprt_reset_majortimeo(req);
 	dprintk("RPC: %5u reserved req %p xid %08x\n", task->tk_pid,
