@@ -71,8 +71,8 @@ Interrupts are not supported.
 #define PCL727_SIZE 32
 #define PCL728_SIZE 8
 
-#define PCL726_DAC0_HI 0
-#define PCL726_DAC0_LO 1
+#define PCL726_AO_MSB_REG(x)	(0x00 + ((x) * 2))
+#define PCL726_AO_LSB_REG(x)	(0x01 + ((x) * 2))
 
 #define PCL726_DO_HI 12
 #define PCL726_DO_LO 13
@@ -187,31 +187,31 @@ struct pcl726_private {
 	unsigned int ao_readback[12];
 };
 
-static int pcl726_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int pcl726_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pcl726_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	int hi, lo;
-	int n;
+	unsigned int val;
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
-		lo = data[n] & 0xff;
-		hi = (data[n] >> 8) & 0xf;
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		devpriv->ao_readback[chan] = val;
+
+		/* bipolar data to the DAC is two's complement */
 		if (comedi_chan_range_is_bipolar(s, chan, range))
-			hi ^= 0x8;
-		/*
-		 * the programming info did not say which order
-		 * to write bytes.  switch the order of the next
-		 * two lines if you get glitches.
-		 */
-		outb(hi, dev->iobase + PCL726_DAC0_HI + 2 * chan);
-		outb(lo, dev->iobase + PCL726_DAC0_LO + 2 * chan);
-		devpriv->ao_readback[chan] = data[n];
+			val = comedi_offset_munge(s, val);
+
+		/* order is important, MSB then LSB */
+		outb((val >> 8) & 0xff, dev->iobase + PCL726_AO_MSB_REG(chan));
+		outb(val & 0xff, dev->iobase + PCL726_AO_LSB_REG(chan));
 	}
 
-	return n;
+	return insn->n;
 }
 
 static int pcl726_ao_insn_read(struct comedi_device *dev,
@@ -322,7 +322,7 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = board->n_aochan;
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
-	s->insn_write = pcl726_ao_insn;
+	s->insn_write = pcl726_ao_insn_write;
 	s->insn_read = pcl726_ao_insn_read;
 	s->range_table_list = devpriv->rangelist;
 	for (i = 0; i < board->n_aochan; i++) {
