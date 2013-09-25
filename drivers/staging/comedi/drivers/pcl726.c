@@ -268,9 +268,6 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	for (i = 0; i < 12; i++)
-		devpriv->rangelist[i] = &range_unknown;
-
 	/*
 	 * Hook up the external trigger source interrupt only if the
 	 * user config option is valid and the board supports interrupts.
@@ -282,6 +279,16 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			/* External trigger source is from Pin-17 of CN3 */
 			dev->irq = it->options[1];
 		}
+	}
+
+	/* setup the per-channel analog output range_table_list */
+	for (i = 0; i < 12; i++) {
+		unsigned int opt = it->options[2 + i];
+
+		if (opt < board->num_of_ranges && i < board->n_aochan)
+			devpriv->rangelist[i] = board->range_type_list[opt];
+		else
+			devpriv->rangelist[i] = &range_unknown;
 	}
 
 	ret = comedi_alloc_subdevices(dev, 3);
@@ -298,18 +305,6 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = pcl726_ao_insn_write;
 	s->insn_read = pcl726_ao_insn_read;
 	s->range_table_list = devpriv->rangelist;
-	for (i = 0; i < board->n_aochan; i++) {
-		int j;
-
-		j = it->options[2 + 1];
-		if ((j < 0) || (j >= board->num_of_ranges)) {
-			printk
-			    ("Invalid range for channel %d! Must be 0<=%d<%d\n",
-			     i, j, board->num_of_ranges - 1);
-			j = 0;
-		}
-		devpriv->rangelist[i] = board->range_type_list[j];
-	}
 
 	s = &dev->subdevices[1];
 	/* di */
