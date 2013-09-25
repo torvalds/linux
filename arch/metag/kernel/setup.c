@@ -115,7 +115,7 @@ extern u32 __dtb_start[];
 extern struct console dash_console;
 #endif
 
-struct machine_desc *machine_desc __initdata;
+const struct machine_desc *machine_desc __initdata;
 
 /*
  * Map a Linux CPU number to a hardware thread ID
