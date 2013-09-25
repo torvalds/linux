@@ -253,12 +253,14 @@ static int pcl726_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int pcl726_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it)
 {
 	const struct pcl726_board *board = comedi_board(dev);
 	struct pcl726_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, i;
+	int ret;
+	int i;
 
 	ret = comedi_request_region(dev, it->options[0], board->io_range);
 	if (ret)
@@ -291,47 +293,38 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			devpriv->rangelist[i] = &range_unknown;
 	}
 
-	ret = comedi_alloc_subdevices(dev, 3);
+	ret = comedi_alloc_subdevices(dev, board->have_dio ? 3 : 1);
 	if (ret)
 		return ret;
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[0];
-	/* ao */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-	s->n_chan = board->n_aochan;
-	s->maxdata = 0xfff;
-	s->len_chanlist = 1;
-	s->insn_write = pcl726_ao_insn_write;
-	s->insn_read = pcl726_ao_insn_read;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
+	s->n_chan	= board->n_aochan;
+	s->maxdata	= 0x0fff;
 	s->range_table_list = devpriv->rangelist;
+	s->insn_write	= pcl726_ao_insn_write;
+	s->insn_read	= pcl726_ao_insn_read;
 
-	s = &dev->subdevices[1];
-	/* di */
-	if (!board->have_dio) {
-		s->type = COMEDI_SUBD_UNUSED;
-	} else {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND;
-		s->n_chan = 16;
-		s->maxdata = 1;
-		s->len_chanlist = 1;
-		s->insn_bits = pcl726_di_insn_bits;
-		s->range_table = &range_digital;
-	}
+	if (board->have_dio) {
+		/* Digital Input subdevice */
+		s = &dev->subdevices[1];
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= 16;
+		s->maxdata	= 1;
+		s->insn_bits	= pcl726_di_insn_bits;
+		s->range_table	= &range_digital;
 
-	s = &dev->subdevices[2];
-	/* do */
-	if (!board->have_dio) {
-		s->type = COMEDI_SUBD_UNUSED;
-	} else {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = 16;
-		s->maxdata = 1;
-		s->len_chanlist = 1;
-		s->insn_bits = pcl726_do_insn_bits;
-		s->range_table = &range_digital;
+		/* Digital Output subdevice */
+		s = &dev->subdevices[2];
+		s->type		= COMEDI_SUBD_DO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= 16;
+		s->maxdata	= 1;
+		s->insn_bits	= pcl726_do_insn_bits;
+		s->range_table	= &range_digital;
 	}
 
 	return 0;
