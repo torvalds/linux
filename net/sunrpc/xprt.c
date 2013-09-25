@@ -864,24 +864,27 @@ static inline int xprt_has_timer(struct rpc_xprt *xprt)
  * @task: RPC task about to send a request
  *
  */
-int xprt_prepare_transmit(struct rpc_task *task)
+bool xprt_prepare_transmit(struct rpc_task *task)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
-	int err = 0;
+	bool ret = false;
 
 	dprintk("RPC: %5u xprt_prepare_transmit\n", task->tk_pid);
 
 	spin_lock_bh(&xprt->transport_lock);
 	if (req->rq_reply_bytes_recvd && !req->rq_bytes_sent) {
-		err = req->rq_reply_bytes_recvd;
+		task->tk_status = req->rq_reply_bytes_recvd;
 		goto out_unlock;
 	}
-	if (!xprt->ops->reserve_xprt(xprt, task))
-		err = -EAGAIN;
+	if (!xprt->ops->reserve_xprt(xprt, task)) {
+		task->tk_status = -EAGAIN;
+		goto out_unlock;
+	}
+	ret = true;
 out_unlock:
 	spin_unlock_bh(&xprt->transport_lock);
-	return err;
+	return ret;
 }
 
 void xprt_end_transmit(struct rpc_task *task)
