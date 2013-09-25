@@ -807,6 +807,12 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_dev_lock(hdev);
 
+	if (mgmt_pending_find(MGMT_OP_SET_POWERED, hdev)) {
+		err = cmd_status(sk, hdev->id, MGMT_OP_SET_POWERED,
+				 MGMT_STATUS_BUSY);
+		goto failed;
+	}
+
 	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
 		cancel_delayed_work(&hdev->power_off);
 
@@ -820,12 +826,6 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	if (!!cp->val == hdev_is_powered(hdev)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_POWERED, hdev);
-		goto failed;
-	}
-
-	if (mgmt_pending_find(MGMT_OP_SET_POWERED, hdev)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_SET_POWERED,
-				 MGMT_STATUS_BUSY);
 		goto failed;
 	}
 
