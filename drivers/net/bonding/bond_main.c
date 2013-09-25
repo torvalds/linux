@@ -785,43 +785,24 @@ static bool bond_should_change_active(struct bonding *bond)
 /**
  * find_best_interface - select the best available slave to be the active one
  * @bond: our bonding struct
- *
- * Warning: Caller must hold curr_slave_lock for writing.
  */
 static struct slave *bond_find_best_slave(struct bonding *bond)
 {
-	struct slave *new_active, *old_active;
-	struct slave *bestslave = NULL;
+	struct slave *slave, *bestslave = NULL;
+	struct list_head *iter;
 	int mintime = bond->params.updelay;
-	int i;
 
-	new_active = bond->curr_active_slave;
+	if (bond->primary_slave && bond->primary_slave->link == BOND_LINK_UP &&
+	    bond_should_change_active(bond))
+		return bond->primary_slave;
 
-	if (!new_active) { /* there were no active slaves left */
-		new_active = bond_first_slave(bond);
-		if (!new_active)
-			return NULL; /* still no slave, return NULL */
-	}
-
-	if ((bond->primary_slave) &&
-	    bond->primary_slave->link == BOND_LINK_UP &&
-	    bond_should_change_active(bond)) {
-		new_active = bond->primary_slave;
-	}
-
-	/* remember where to stop iterating over the slaves */
-	old_active = new_active;
-
-	bond_for_each_slave_from(bond, new_active, i, old_active) {
-		if (new_active->link == BOND_LINK_UP) {
-			return new_active;
-		} else if (new_active->link == BOND_LINK_BACK &&
-			   IS_UP(new_active->dev)) {
-			/* link up, but waiting for stabilization */
-			if (new_active->delay < mintime) {
-				mintime = new_active->delay;
-				bestslave = new_active;
-			}
+	bond_for_each_slave(bond, slave, iter) {
+		if (slave->link == BOND_LINK_UP)
+			return slave;
+		if (slave->link == BOND_LINK_BACK && IS_UP(slave->dev) &&
+		    slave->delay < mintime) {
+			mintime = slave->delay;
+			bestslave = slave;
 		}
 	}
 
