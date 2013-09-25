@@ -886,6 +886,36 @@ static int new_settings(struct hci_dev *hdev, struct sock *skip)
 	return mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), skip);
 }
 
+struct cmd_lookup {
+	struct sock *sk;
+	struct hci_dev *hdev;
+	u8 mgmt_status;
+};
+
+static void settings_rsp(struct pending_cmd *cmd, void *data)
+{
+	struct cmd_lookup *match = data;
+
+	send_settings_rsp(cmd->sk, cmd->opcode, match->hdev);
+
+	list_del(&cmd->list);
+
+	if (match->sk == NULL) {
+		match->sk = cmd->sk;
+		sock_hold(match->sk);
+	}
+
+	mgmt_pending_free(cmd);
+}
+
+static void cmd_status_rsp(struct pending_cmd *cmd, void *data)
+{
+	u8 *status = data;
+
+	cmd_status(cmd->sk, cmd->index, cmd->opcode, *status);
+	mgmt_pending_remove(cmd);
+}
+
 static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 			    u16 len)
 {
@@ -3374,14 +3404,6 @@ done:
 	return err;
 }
 
-static void cmd_status_rsp(struct pending_cmd *cmd, void *data)
-{
-	u8 *status = data;
-
-	cmd_status(cmd->sk, cmd->index, cmd->opcode, *status);
-	mgmt_pending_remove(cmd);
-}
-
 int mgmt_index_added(struct hci_dev *hdev)
 {
 	if (!mgmt_valid_hdev(hdev))
@@ -3400,28 +3422,6 @@ int mgmt_index_removed(struct hci_dev *hdev)
 	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
 
 	return mgmt_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0, NULL);
-}
-
-struct cmd_lookup {
-	struct sock *sk;
-	struct hci_dev *hdev;
-	u8 mgmt_status;
-};
-
-static void settings_rsp(struct pending_cmd *cmd, void *data)
-{
-	struct cmd_lookup *match = data;
-
-	send_settings_rsp(cmd->sk, cmd->opcode, match->hdev);
-
-	list_del(&cmd->list);
-
-	if (match->sk == NULL) {
-		match->sk = cmd->sk;
-		sock_hold(match->sk);
-	}
-
-	mgmt_pending_free(cmd);
 }
 
 static void set_bredr_scan(struct hci_request *req)
