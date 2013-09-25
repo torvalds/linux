@@ -884,7 +884,7 @@ BOOL HDMITX_EnableVideoOutput(VIDEOPCLKLEVEL level,BYTE inputColorMode,BYTE outp
     switch(level)
     {
 	    case PCLK_HIGH:
-		    HDMITX_WriteI2C_Byte(REG_TX_PLL_CTRL,0xff);
+		    HDMITX_WriteI2C_Byte(REG_TX_PLL_CTRL,0x30 /*0xff*/);
 		    break ;
 	    default:
 		    HDMITX_WriteI2C_Byte(REG_TX_PLL_CTRL,0x00);
