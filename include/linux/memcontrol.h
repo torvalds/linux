@@ -53,23 +53,6 @@ struct mem_cgroup_reclaim_cookie {
 	unsigned int generation;
 };
 
-enum mem_cgroup_filter_t {
-	VISIT,		/* visit current node */
-	SKIP,		/* skip the current node and continue traversal */
-	SKIP_TREE,	/* skip the whole subtree and continue traversal */
-};
-
-/*
- * mem_cgroup_filter_t predicate might instruct mem_cgroup_iter_cond how to
- * iterate through the hierarchy tree. Each tree element is checked by the
- * predicate before it is returned by the iterator. If a filter returns
- * SKIP or SKIP_TREE then the iterator code continues traversal (with the
- * next node down the hierarchy or the next node that doesn't belong under the
- * memcg's subtree).
- */
-typedef enum mem_cgroup_filter_t
-(*mem_cgroup_iter_filter)(struct mem_cgroup *memcg, struct mem_cgroup *root);
-
 #ifdef CONFIG_MEMCG
 /*
  * All "charge" functions with gfp_mask should use GFP_KERNEL or
@@ -137,18 +120,9 @@ mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
 extern void mem_cgroup_end_migration(struct mem_cgroup *memcg,
 	struct page *oldpage, struct page *newpage, bool migration_ok);
 
-struct mem_cgroup *mem_cgroup_iter_cond(struct mem_cgroup *root,
-				   struct mem_cgroup *prev,
-				   struct mem_cgroup_reclaim_cookie *reclaim,
-				   mem_cgroup_iter_filter cond);
-
-static inline struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-				   struct mem_cgroup *prev,
-				   struct mem_cgroup_reclaim_cookie *reclaim)
-{
-	return mem_cgroup_iter_cond(root, prev, reclaim, NULL);
-}
-
+struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
+				   struct mem_cgroup *,
+				   struct mem_cgroup_reclaim_cookie *);
 void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
 
 /*
@@ -260,9 +234,9 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
 	mem_cgroup_update_page_stat(page, idx, -1);
 }
 
-enum mem_cgroup_filter_t
-mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg,
-		struct mem_cgroup *root);
+unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+						gfp_t gfp_mask,
+						unsigned long *total_scanned);
 
 void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
 static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
@@ -376,15 +350,6 @@ static inline void mem_cgroup_end_migration(struct mem_cgroup *memcg,
 		struct page *oldpage, struct page *newpage, bool migration_ok)
 {
 }
-static inline struct mem_cgroup *
-mem_cgroup_iter_cond(struct mem_cgroup *root,
-		struct mem_cgroup *prev,
-		struct mem_cgroup_reclaim_cookie *reclaim,
-		mem_cgroup_iter_filter cond)
-{
-	/* first call must return non-NULL, second return NULL */
-	return (struct mem_cgroup *)(unsigned long)!prev;
-}
 
 static inline struct mem_cgroup *
 mem_cgroup_iter(struct mem_cgroup *root,
@@ -471,11 +436,11 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
 }
 
 static inline
-enum mem_cgroup_filter_t
-mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg,
-		struct mem_cgroup *root)
+unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+					    gfp_t gfp_mask,
+					    unsigned long *total_scanned)
 {
-	return VISIT;
+	return 0;
 }
 
 static inline void mem_cgroup_split_huge_fixup(struct page *head)
