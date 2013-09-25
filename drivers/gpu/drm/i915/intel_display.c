@@ -8433,9 +8433,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	drm_mode_copy(&pipe_config->adjusted_mode, mode);
 	drm_mode_copy(&pipe_config->requested_mode, mode);
 
-	pipe_config->pipe_src_w = mode->hdisplay;
-	pipe_config->pipe_src_h = mode->vdisplay;
-
 	pipe_config->cpu_transcoder =
 		(enum transcoder) to_intel_crtc(crtc)->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
@@ -8469,6 +8466,10 @@ encoder_retry:
 
 	/* Fill in default crtc timings, allow encoders to overwrite them. */
 	drm_mode_set_crtcinfo(&pipe_config->adjusted_mode, CRTC_STEREO_DOUBLE);
+
+	/* set_crtcinfo() may have adjusted hdisplay/vdisplay */
+	pipe_config->pipe_src_w = pipe_config->adjusted_mode.crtc_hdisplay;
+	pipe_config->pipe_src_h = pipe_config->adjusted_mode.crtc_vdisplay;
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
