@@ -122,10 +122,10 @@ clusterip_config_entry_put(struct clusterip_config *c)
 }
 
 static struct clusterip_config *
-__clusterip_config_find(__be32 clusterip)
+__clusterip_config_find(struct net *net, __be32 clusterip)
 {
 	struct clusterip_config *c;
-	struct clusterip_net *cn = net_generic(&init_net, clusterip_net_id);
+	struct clusterip_net *cn = net_generic(net, clusterip_net_id);
 
 	list_for_each_entry_rcu(c, &cn->configs, list) {
 		if (c->clusterip == clusterip)
@@ -136,12 +136,12 @@ __clusterip_config_find(__be32 clusterip)
 }
 
 static inline struct clusterip_config *
-clusterip_config_find_get(__be32 clusterip, int entry)
+clusterip_config_find_get(struct net *net, __be32 clusterip, int entry)
 {
 	struct clusterip_config *c;
 
 	rcu_read_lock_bh();
-	c = __clusterip_config_find(clusterip);
+	c = __clusterip_config_find(net, clusterip);
 	if (c) {
 		if (unlikely(!atomic_inc_not_zero(&c->refcount)))
 			c = NULL;
@@ -381,7 +381,7 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 
 	/* FIXME: further sanity checks */
 
-	config = clusterip_config_find_get(e->ip.dst.s_addr, 1);
+	config = clusterip_config_find_get(&init_net, e->ip.dst.s_addr, 1);
 	if (!config) {
 		if (!(cipinfo->flags & CLUSTERIP_FLAG_NEW)) {
 			pr_info("no config found for %pI4, need 'new'\n",
@@ -519,7 +519,7 @@ arp_mangle(unsigned int hook,
 
 	/* if there is no clusterip configuration for the arp reply's
 	 * source ip, we don't want to mangle it */
-	c = clusterip_config_find_get(payload->src_ip, 0);
+	c = clusterip_config_find_get(&init_net, payload->src_ip, 0);
 	if (!c)
 		return NF_ACCEPT;
 
