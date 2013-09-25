@@ -1354,11 +1354,32 @@ static int set_hs(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	return send_settings_rsp(sk, MGMT_OP_SET_HS, hdev);
 }
 
+static void le_enable_complete(struct hci_dev *hdev, u8 status)
+{
+	struct cmd_lookup match = { NULL, hdev };
+
+	if (status) {
+		u8 mgmt_err = mgmt_status(status);
+
+		mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, cmd_status_rsp,
+				     &mgmt_err);
+		return;
+	}
+
+	mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, settings_rsp, &match);
+
+	new_settings(hdev, match.sk);
+
+	if (match.sk)
+		sock_put(match.sk);
+}
+
 static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
 	struct hci_cp_write_le_host_supported hci_cp;
 	struct pending_cmd *cmd;
+	struct hci_request req;
 	int err;
 	u8 val, enabled;
 
@@ -1419,8 +1440,12 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		hci_cp.simul = lmp_le_br_capable(hdev);
 	}
 
-	err = hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
-			   &hci_cp);
+	hci_req_init(&req, hdev);
+
+	hci_req_add(&req, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
+		    &hci_cp);
+
+	err = hci_req_run(&req, le_enable_complete);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 
@@ -4137,44 +4162,6 @@ int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
 	}
 
 	mgmt_pending_remove(cmd);
-
-	return err;
-}
-
-int mgmt_le_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
-{
-	struct cmd_lookup match = { NULL, hdev };
-	bool changed = false;
-	int err = 0;
-
-	if (status) {
-		u8 mgmt_err = mgmt_status(status);
-
-		if (enable && test_and_clear_bit(HCI_LE_ENABLED,
-						 &hdev->dev_flags))
-			err = new_settings(hdev, NULL);
-
-		mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, cmd_status_rsp,
-				     &mgmt_err);
-
-		return err;
-	}
-
-	if (enable) {
-		if (!test_and_set_bit(HCI_LE_ENABLED, &hdev->dev_flags))
-			changed = true;
-	} else {
-		if (test_and_clear_bit(HCI_LE_ENABLED, &hdev->dev_flags))
-			changed = true;
-	}
-
-	mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, settings_rsp, &match);
-
-	if (changed)
-		err = new_settings(hdev, match.sk);
-
-	if (match.sk)
-		sock_put(match.sk);
 
 	return err;
 }
