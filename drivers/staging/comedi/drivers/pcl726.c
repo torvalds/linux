@@ -109,9 +109,9 @@ static const struct comedi_lrange *const rangelist_728[] = {
 };
 
 struct pcl726_board {
-	const char *name;	/*  driver name */
-	int n_aochan;		/*  num of D/A chans */
-	unsigned int io_range;	/*  len of IO space */
+	const char *name;
+	int n_aochan;
+	unsigned int io_range;
 	unsigned int irq_mask;
 	unsigned int have_dio:1;
 	unsigned int is_pcl727:1;
