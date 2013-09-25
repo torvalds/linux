@@ -3152,6 +3152,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	case RF3322:
 		rt2800_config_channel_rf3322(rt2x00dev, conf, rf, info);
 		break;
+	case RF3070:
 	case RF5360:
 	case RF5370:
 	case RF5372:
@@ -3166,7 +3167,8 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		rt2800_config_channel_rf2xxx(rt2x00dev, conf, rf, info);
 	}
 
-	if (rt2x00_rf(rt2x00dev, RF3290) ||
+	if (rt2x00_rf(rt2x00dev, RF3070) ||
+	    rt2x00_rf(rt2x00dev, RF3290) ||
 	    rt2x00_rf(rt2x00dev, RF3322) ||
 	    rt2x00_rf(rt2x00dev, RF5360) ||
 	    rt2x00_rf(rt2x00dev, RF5370) ||
@@ -4272,6 +4274,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 7, rfcsr);
 		break;
 	case RF3053:
+	case RF3070:
 	case RF3290:
 	case RF5360:
 	case RF5370:
@@ -7038,6 +7041,7 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RF3022:
 	case RF3052:
 	case RF3053:
+	case RF3070:
 	case RF3290:
 	case RF3320:
 	case RF3322:
@@ -7560,6 +7564,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		   rt2x00_rf(rt2x00dev, RF2020) ||
 		   rt2x00_rf(rt2x00dev, RF3021) ||
 		   rt2x00_rf(rt2x00dev, RF3022) ||
+		   rt2x00_rf(rt2x00dev, RF3070) ||
 		   rt2x00_rf(rt2x00dev, RF3290) ||
 		   rt2x00_rf(rt2x00dev, RF3320) ||
 		   rt2x00_rf(rt2x00dev, RF3322) ||
@@ -7688,6 +7693,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	case RF3320:
 	case RF3052:
 	case RF3053:
+	case RF3070:
 	case RF3290:
 	case RF5360:
 	case RF5370:
