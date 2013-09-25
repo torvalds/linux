@@ -1000,6 +1000,7 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 		} else {
 			hdev->features[1][0] &= ~LMP_HOST_LE;
 			clear_bit(HCI_LE_ENABLED, &hdev->dev_flags);
+			clear_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
 		}
 
 		if (sent->simul)

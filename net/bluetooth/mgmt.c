@@ -384,8 +384,10 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	if (enable_hs)
 		settings |= MGMT_SETTING_HS;
 
-	if (lmp_le_capable(hdev))
+	if (lmp_le_capable(hdev)) {
 		settings |= MGMT_SETTING_LE;
+		settings |= MGMT_SETTING_ADVERTISING;
+	}
 
 	return settings;
 }
@@ -423,6 +425,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 
 	if (test_bit(HCI_HS_ENABLED, &hdev->dev_flags))
 		settings |= MGMT_SETTING_HS;
+
+	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags))
+		settings |= MGMT_SETTING_ADVERTISING;
 
 	return settings;
 }
@@ -1411,6 +1416,11 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 			changed = true;
 		}
 
+		if (!val && test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags)) {
+			clear_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+			changed = true;
+		}
+
 		err = send_settings_rsp(sk, MGMT_OP_SET_LE, hdev);
 		if (err < 0)
 			goto unlock;
@@ -1441,6 +1451,9 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	}
 
 	hci_req_init(&req, hdev);
+
+	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags) && !val)
+		hci_req_add(&req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(val), &val);
 
 	hci_req_add(&req, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
 		    &hci_cp);
@@ -3515,6 +3528,12 @@ static int powered_update_hci(struct hci_dev *hdev)
 		    cp.simul != lmp_host_le_br_capable(hdev))
 			hci_req_add(&req, HCI_OP_WRITE_LE_HOST_SUPPORTED,
 				    sizeof(cp), &cp);
+	}
+
+	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags)) {
+		u8 adv = 0x01;
+
+		hci_req_add(&req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(adv), &adv);
 	}
 
 	link_sec = test_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
