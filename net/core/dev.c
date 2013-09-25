@@ -4466,7 +4466,8 @@ struct net_device *netdev_master_upper_dev_get(struct net_device *dev)
 }
 EXPORT_SYMBOL(netdev_master_upper_dev_get);
 
-/* netdev_all_upper_get_next_dev_rcu - Get the next dev from upper list
+/**
+ * netdev_all_upper_get_next_dev_rcu - Get the next dev from upper list
  * @dev: device
  * @iter: list_head ** of the current position
  *
@@ -4490,6 +4491,63 @@ struct net_device *netdev_all_upper_get_next_dev_rcu(struct net_device *dev,
 	return upper->dev;
 }
 EXPORT_SYMBOL(netdev_all_upper_get_next_dev_rcu);
+
+/**
+ * netdev_lower_get_next_private - Get the next ->private from the
+ *				   lower neighbour list
+ * @dev: device
+ * @iter: list_head ** of the current position
+ *
+ * Gets the next netdev_adjacent->private from the dev's lower neighbour
+ * list, starting from iter position. The caller must hold either hold the
+ * RTNL lock or its own locking that guarantees that the neighbour lower
+ * list will remain unchainged.
+ */
+void *netdev_lower_get_next_private(struct net_device *dev,
+				    struct list_head **iter)
+{
+	struct netdev_adjacent *lower;
+
+	lower = list_entry(*iter, struct netdev_adjacent, list);
+
+	if (&lower->list == &dev->adj_list.lower)
+		return NULL;
+
+	if (iter)
+		*iter = lower->list.next;
+
+	return lower->private;
+}
+EXPORT_SYMBOL(netdev_lower_get_next_private);
+
+/**
+ * netdev_lower_get_next_private_rcu - Get the next ->private from the
+ *				       lower neighbour list, RCU
+ *				       variant
+ * @dev: device
+ * @iter: list_head ** of the current position
+ *
+ * Gets the next netdev_adjacent->private from the dev's lower neighbour
+ * list, starting from iter position. The caller must hold RCU read lock.
+ */
+void *netdev_lower_get_next_private_rcu(struct net_device *dev,
+					struct list_head **iter)
+{
+	struct netdev_adjacent *lower;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	lower = list_entry_rcu((*iter)->next, struct netdev_adjacent, list);
+
+	if (&lower->list == &dev->adj_list.lower)
+		return NULL;
+
+	if (iter)
+		*iter = &lower->list;
+
+	return lower->private;
+}
+EXPORT_SYMBOL(netdev_lower_get_next_private_rcu);
 
 /**
  * netdev_master_upper_dev_get_rcu - Get master upper device
