@@ -248,6 +248,32 @@ TRACE_EVENT(i915_gem_evict_vm,
 	    TP_printk("dev=%d, vm=%p", __entry->vm->dev->primary->index, __entry->vm)
 );
 
+TRACE_EVENT(i915_gem_ring_sync_to,
+	    TP_PROTO(struct intel_ring_buffer *from,
+		     struct intel_ring_buffer *to,
+		     u32 seqno),
+	    TP_ARGS(from, to, seqno),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u32, sync_from)
+			     __field(u32, sync_to)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = from->dev->primary->index;
+			   __entry->sync_from = from->id;
+			   __entry->sync_to = to->id;
+			   __entry->seqno = seqno;
+			   ),
+
+	    TP_printk("dev=%u, sync-from=%u, sync-to=%u, seqno=%u",
+		      __entry->dev,
+		      __entry->sync_from, __entry->sync_to,
+		      __entry->seqno)
+);
+
 TRACE_EVENT(i915_gem_ring_dispatch,
 	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno, u32 flags),
 	    TP_ARGS(ring, seqno, flags),
