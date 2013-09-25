@@ -126,7 +126,7 @@ obj-$(CONFIG_SOC_CAMERA_S5K5CA)	+= s5k5ca.o
 obj-$(CONFIG_SOC_CAMERA_HM2057)	+= hm2057.o
 obj-$(CONFIG_SOC_CAMERA_HM5065)	+= hm5065.o
 obj-$(CONFIG_SOC_CAMERA_MV9335) += mv9335/
-
+obj-$(CONFIG_SOC_CAMERA_ICATCH7002)	+= icatch7002/
 # And now the v4l2 drivers:
 
 obj-$(CONFIG_VIDEO_BT848) += bt8xx/

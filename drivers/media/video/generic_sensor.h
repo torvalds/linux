@@ -209,7 +209,7 @@ typedef struct rk_sensor_priv_s
 struct sensor_v4l2ctrl_info_s {
     struct v4l2_queryctrl *qctrl;
     int (*cb)(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
-              struct v4l2_ext_control *ext_ctrl);
+              struct v4l2_ext_control *ext_ctrl,bool is_set);
     struct rk_sensor_reg **sensor_Seqe;
     int cur_value;
     int num_ctrls;
@@ -218,7 +218,7 @@ struct sensor_v4l2ctrl_info_s {
 struct sensor_v4l2ctrl_usr_s {
     struct v4l2_queryctrl qctrl;
     int (*cb)(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
-              struct v4l2_ext_control *ext_ctrl);
+              struct v4l2_ext_control *ext_ctrl,bool is_set);
     struct rk_sensor_reg **sensor_Seqe;
 };
 
@@ -234,6 +234,9 @@ struct sensor_ops_cb_s{
 	int (*sensor_s_fmt_cb_th)(struct i2c_client *client,struct v4l2_mbus_framefmt *mf, bool capture);
 	int (*sensor_s_fmt_cb_bh)(struct i2c_client *client,struct v4l2_mbus_framefmt *mf, bool capture);
 	int (*sensor_try_fmt_cb_th)(struct i2c_client *client,struct v4l2_mbus_framefmt *mf);
+	int (*sensor_s_stream_cb)(struct v4l2_subdev *sd, int enable);
+    int (*sensor_enum_framesizes)(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);
+
 };
 //flash off in fixed time to prevent from too hot , zyc
 struct	rk_flash_timer{
@@ -300,6 +303,7 @@ extern int generic_sensor_af_workqueue_set(struct soc_camera_device *icd, enum r
 extern int generic_sensor_s_stream(struct v4l2_subdev *sd, int enable);
 extern int generic_sensor_writebuf(struct i2c_client *client, char *buf, int buf_size);
 extern int generic_sensor_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *cc);
+extern int generic_sensor_enum_framesizes(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);
 
 static inline int sensor_get_full_width_height(int full_resolution, unsigned short *w, unsigned short *h)
 {
@@ -404,7 +408,7 @@ static inline void sensor_v4l2ctrl_info_init (struct sensor_v4l2ctrl_info_s *ptr
                                         int step,
                                         int default_val,
                                         int(*cb)(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
-                                                 struct v4l2_ext_control *ext_ctrl),
+                                                 struct v4l2_ext_control *ext_ctrl,bool is_set),
                                         struct rk_sensor_reg ** sensor_seqe
                                         )
 {
@@ -469,11 +473,15 @@ static inline int sensor_v4l2ctrl_replace_cb(struct generic_sensor *sensor, int 
 }
 
 static inline int sensor_v4l2ctrl_default_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
-                                                     struct v4l2_ext_control *ext_ctrl)
+                                                     struct v4l2_ext_control *ext_ctrl,bool is_set)
 {
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));    
     int value = ext_ctrl->value;
     int index;
+    
+    if(!is_set){
+        return 0;
+    }
 
     if ((value < ctrl_info->qctrl->minimum) || (value > ctrl_info->qctrl->maximum)) {
         printk(KERN_ERR "%s(%d): value(0x%x) isn't between in (0x%x,0x%x)\n",__FUNCTION__,__LINE__,value,
@@ -496,7 +504,7 @@ static inline int sensor_v4l2ctrl_default_cb(struct soc_camera_device *icd, stru
     }
 }
 static inline int sensor_v4l2ctrl_flash_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
-                                                     struct v4l2_ext_control *ext_ctrl)
+                                                     struct v4l2_ext_control *ext_ctrl,bool is_set)
 {
     //struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     int value = ext_ctrl->value;
@@ -518,7 +526,7 @@ static inline int sensor_v4l2ctrl_flash_cb(struct soc_camera_device *icd, struct
     return 0;
 }
 static inline int sensor_focus_default_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
-													 struct v4l2_ext_control *ext_ctrl)
+													 struct v4l2_ext_control *ext_ctrl,bool is_set)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));	  
 	int value = ext_ctrl->value;
@@ -530,7 +538,7 @@ static inline int sensor_focus_default_cb(struct soc_camera_device *icd, struct 
 			ctrl_info->qctrl->minimum,ctrl_info->qctrl->maximum);
 		return -EINVAL;
 	}
-    
+
 	if(sensor->sensor_focus.focus_state == FocusState_Inval){
 		printk(KERN_ERR "%s(%d): focus have not been init success yet\n",__FUNCTION__,__LINE__);
 		//set focus delay
@@ -653,7 +661,7 @@ static inline int sensor_focus_default_cb(struct soc_camera_device *icd, struct 
 
 }
 static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
-													 struct v4l2_ext_control *ext_ctrl)
+													 struct v4l2_ext_control *ext_ctrl,bool is_set)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));	  
 	int value = ext_ctrl->value;
@@ -672,6 +680,24 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
 	}
 	return ret;
 }
+static int sensor_v4l2ctrl_mirror_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
+													 struct v4l2_ext_control *ext_ctrl);
+static int sensor_v4l2ctrl_flip_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
+													 struct v4l2_ext_control *ext_ctrl);
+													 
+static inline int sensor_v4l2ctrl_mirror_default_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
+													 struct v4l2_ext_control *ext_ctrl,bool is_set){
+	return sensor_v4l2ctrl_mirror_cb(icd,ctrl_info, ext_ctrl);
+											 
+
+}
+static inline int sensor_v4l2ctrl_flip_default_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
+													 struct v4l2_ext_control *ext_ctrl,bool is_set){
+	return sensor_v4l2ctrl_flip_cb(icd,ctrl_info, ext_ctrl);
+											 
+
+}
+
 #define new_user_v4l2ctrl(ctl_id,ctl_type,ctl_name,ctl_min,ctl_max,ctl_step,default_val,callback,seqe)\
 {\
     .qctrl = {\
@@ -1026,14 +1052,14 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
 	}  \
 	if (CFG_FunChk(sensor_config,CFG_Mirror)) {  \
         sensor_v4l2ctrl_info_init(ctrls,V4L2_CID_HFLIP,V4L2_CTRL_TYPE_BOOLEAN, \
-                            "Mirror Control",0,1,1,0,sensor_v4l2ctrl_mirror_cb,NULL); \
+                            "Mirror Control",0,1,1,0,sensor_v4l2ctrl_mirror_default_cb,NULL); \
         controls++;  \
         ctrls++;  \
 	}  \
 	if (CFG_FunChk(sensor_config,CFG_Flip)) {  \
         ctrls->qctrl = controls; \
         sensor_v4l2ctrl_info_init(ctrls,V4L2_CID_VFLIP,V4L2_CTRL_TYPE_BOOLEAN,  \
-                            "Flip Control",0,1,1,0,sensor_v4l2ctrl_flip_cb,NULL); \
+                            "Flip Control",0,1,1,0,sensor_v4l2ctrl_flip_default_cb,NULL); \
         controls++;  \
         ctrls++;  \
 	}  \
@@ -1196,6 +1222,7 @@ static struct v4l2_subdev_video_ops sensor_subdev_video_ops = {\
 	.enum_mbus_fmt	= generic_sensor_enum_fmt,\
 	.enum_frameintervals = generic_sensor_enum_frameintervals,\
 	.s_stream   = generic_sensor_s_stream,\
+	.enum_framesizes = generic_sensor_enum_framesizes,\
 };\
 static struct v4l2_subdev_ops sensor_subdev_ops = {\
 	.core	= &sensor_subdev_core_ops,\

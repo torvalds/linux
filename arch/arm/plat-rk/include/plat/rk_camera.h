@@ -257,7 +257,8 @@
 #define RK29_CAM_SENSOR_NT99240 nt99240  //oyyf@rock-chips.com 
 #define RK29_CAM_SENSOR_NT99252 nt99252  //oyyf@rock-chips.com 
 #define RK29_CAM_SENSOR_NT99340 nt99340  //oyyf@rock-chips.com 
-
+#define RK29_CAM_ISP_ICATCH7002_MI1040  icatchmi1040   
+#define RK29_CAM_ISP_ICATCH7002_OV5693  icatchov5693
 
 #define RK29_CAM_SENSOR_NAME_OV7675 "ov7675"
 #define RK29_CAM_SENSOR_NAME_OV9650 "ov9650"
@@ -295,6 +296,8 @@
 #define RK29_CAM_ISP_NAME_MTK9335ISP "mtk9335isp"
 #define RK29_CAM_SENSOR_NAME_HM2057  "hm2057"
 #define RK29_CAM_SENSOR_NAME_HM5065  "hm5065"
+#define RK29_CAM_ISP_NAME_ICATCH7002_MI1040 "icatchmi1040"
+#define RK29_CAM_ISP_NAME_ICATCH7002_OV5693 "icatchov5693"
 
 //Sensor full resolution define
 #define ov7675_FULL_RESOLUTION     0x30000            // 0.3 megapixel
@@ -357,7 +360,8 @@
 #define nt99240_FULL_RESOLUTION     0x200000           // oyyf@rock-chips.com:  2 megapixel 1600*1200
 #define nt99252_FULL_RESOLUTION     0x200000           // oyyf@rock-chips.com:  2 megapixel 1600*1200
 #define nt99340_FULL_RESOLUTION     0x300000           // oyyf@rock-chips.com:  3 megapixel 2048*1536
-
+#define icatchmi1040_FULL_RESOLUTION 0x200000
+#define icatchov5693_FULL_RESOLUTION 0x500000
 #define end_FULL_RESOLUTION         0x00
 
 //Sensor i2c addr define
@@ -410,6 +414,8 @@
 #define mtk9335isp_I2C_ADDR         0x50 
 #define hm2057_I2C_ADDR             0x48
 #define hm5065_I2C_ADDR             0x3e
+#define icatchmi1040_I2C_ADDR		0x78
+#define icatchov5693_I2C_ADDR       0x78
 #define end_I2C_ADDR                INVALID_VALUE
 
 
@@ -538,6 +544,13 @@
                                         SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_PWRDN,0)|\
                                         SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_CLKIN,3))
 #define mtk9335isp_PWRSEQ               sensor_PWRSEQ_DEFAULT
+#define icatchov5693_PWRSEQ               (SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_PWR,0)|\
+                                    SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_HWRST,2)|\
+                                    SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_CLKIN,1))
+#define icatchmi1040_PWRSEQ               (SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_PWR,0)|\
+                                    SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_HWRST,2)|\
+                                    SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_CLKIN,1))
+
 #define end_PWRSEQ                      0xffffffff
                                           
 
@@ -586,6 +599,15 @@
 
 #define Sensor_CropSet(a,b)                  a->reserved[1] = b;
 #define Sensor_CropGet(a)                    a->reserved[1]
+
+#define RK29_CAM_SUBDEV_HDR_EXPOSURE        0x04
+
+#define RK_VIDEOBUF_HDR_EXPOSURE_MINUS_1        0x00
+#define RK_VIDEOBUF_HDR_EXPOSURE_NORMAL         0x01
+#define RK_VIDEOBUF_HDR_EXPOSURE_PLUS_1         0x02
+#define RK_VIDEOBUF_HDR_EXPOSURE_FINISH         0x03
+#define RK_VIDEOBUF_CODE_SET(rk_code,type)  rk_code = (('R'<<24)|('K'<<16)|type)
+#define RK_VIDEOBUF_CODE_CHK(rk_code)       ((rk_code&(('R'<<24)|('K'<<16)))==(('R'<<24)|('K'<<16)))
 
 enum rk29camera_ioctrl_cmd
 {

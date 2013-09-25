@@ -271,8 +271,10 @@
 *        2. Reduce delay time after power off or power down camera;
 *v0.1.5:
 *        1. if sensor power callback failed, power down sensor;
+*v0.1.6:
+		 1. when power down,HWRST just need to set to powerdown mode.
 */
-static int camio_version = KERNEL_VERSION(0,1,5);
+static int camio_version = KERNEL_VERSION(0,1,6);
 module_param(camio_version, int, S_IRUGO);
 
 
@@ -1491,9 +1493,13 @@ static int rk_sensor_pwrseq(struct device *dev,int powerup_sequence, int on, int
 
             case SENSOR_PWRSEQ_HWRST:
             {
-                ret = rk_sensor_ioctrl(dev,Cam_Reset, 1);
-                msleep(2);
-                ret |= rk_sensor_ioctrl(dev,Cam_Reset, 0); 
+                if(!on){
+                    rk_sensor_ioctrl(dev,Cam_Reset, 1);
+                }else{
+                    ret = rk_sensor_ioctrl(dev,Cam_Reset, 1);
+                    msleep(2);
+                    ret |= rk_sensor_ioctrl(dev,Cam_Reset, 0); 
+                }
                 if (ret<0) {
                     eprintk("SENSOR_PWRSEQ_HWRST failed");
                 } else {

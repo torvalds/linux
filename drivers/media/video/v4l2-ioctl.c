@@ -2252,7 +2252,7 @@ static unsigned long cmd_input_size(unsigned int cmd)
 		CMDINSIZE(ENCODER_CMD,		encoder_cmd,	flags);
 		CMDINSIZE(TRY_ENCODER_CMD,	encoder_cmd,	flags);
 		CMDINSIZE(G_SLICED_VBI_CAP,	sliced_vbi_cap,	type);
-		CMDINSIZE(ENUM_FRAMESIZES,	frmsizeenum,	pixel_format);
+		CMDINSIZE(ENUM_FRAMESIZES,	frmsizeenum,	reserved[1]);
 		CMDINSIZE(ENUM_FRAMEINTERVALS,	frmivalenum,	height);
 	default:
 		return _IOC_SIZE(cmd);

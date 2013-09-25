@@ -1205,6 +1205,14 @@ config SOC_CAMERA_MV9335
           MtekVision camera isp chip
 
 source "drivers/media/video/mv9335/Kconfig"	
+config SOC_CAMERA_ICATCH7002
+        tristate "Icatch camera isp chip"
+        depends on SOC_CAMERA && I2C
+		default n
+        help
+          Icatch camera isp chip
+
+source "drivers/media/video/icatch7002/Kconfig"	
 
 config VIDEO_RK29
 	tristate "RKXX Camera Sensor Interface driver"
