@@ -353,6 +353,17 @@ static int may_wait_transaction(struct btrfs_root *root, int type)
 	return 0;
 }
 
+static inline bool need_reserve_reloc_root(struct btrfs_root *root)
+{
+	if (!root->fs_info->reloc_ctl ||
+	    !root->ref_cows ||
+	    root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID ||
+	    root->reloc_root)
+		return false;
+
+	return true;
+}
+
 static struct btrfs_trans_handle *
 start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 		  enum btrfs_reserve_flush_enum flush)
@@ -360,8 +371,9 @@ start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 	struct btrfs_trans_handle *h;
 	struct btrfs_transaction *cur_trans;
 	u64 num_bytes = 0;
-	int ret;
 	u64 qgroup_reserved = 0;
+	bool reloc_reserved = false;
+	int ret;
 
 	if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state))
 		return ERR_PTR(-EROFS);
@@ -390,6 +402,14 @@ start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 		}
 
 		num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
+		/*
+		 * Do the reservation for the relocation root creation
+		 */
+		if (unlikely(need_reserve_reloc_root(root))) {
+			num_bytes += root->nodesize;
+			reloc_reserved = true;
+		}
+
 		ret = btrfs_block_rsv_add(root,
 					  &root->fs_info->trans_block_rsv,
 					  num_bytes, flush);
@@ -451,6 +471,7 @@ again:
 	h->delayed_ref_elem.seq = 0;
 	h->type = type;
 	h->allocating_chunk = false;
+	h->reloc_reserved = false;
 	INIT_LIST_HEAD(&h->qgroup_ref_list);
 	INIT_LIST_HEAD(&h->new_bgs);
 
@@ -466,6 +487,7 @@ again:
 					      h->transid, num_bytes, 1);
 		h->block_rsv = &root->fs_info->trans_block_rsv;
 		h->bytes_reserved = num_bytes;
+		h->reloc_reserved = reloc_reserved;
 	}
 	h->qgroup_reserved = qgroup_reserved;
 

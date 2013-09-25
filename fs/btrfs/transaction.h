@@ -92,6 +92,7 @@ struct btrfs_trans_handle {
 	short aborted;
 	short adding_csums;
 	bool allocating_chunk;
+	bool reloc_reserved;
 	unsigned int type;
 	/*
 	 * this root is only needed to validate that the root passed to

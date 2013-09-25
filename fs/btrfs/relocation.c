@@ -1383,6 +1383,7 @@ int btrfs_init_reloc_root(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *reloc_root;
 	struct reloc_control *rc = root->fs_info->reloc_ctl;
+	struct btrfs_block_rsv *rsv;
 	int clear_rsv = 0;
 	int ret;
 
@@ -1396,13 +1397,14 @@ int btrfs_init_reloc_root(struct btrfs_trans_handle *trans,
 	    root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID)
 		return 0;
 
-	if (!trans->block_rsv) {
+	if (!trans->reloc_reserved) {
+		rsv = trans->block_rsv;
 		trans->block_rsv = rc->block_rsv;
 		clear_rsv = 1;
 	}
 	reloc_root = create_reloc_root(trans, root, root->root_key.objectid);
 	if (clear_rsv)
-		trans->block_rsv = NULL;
+		trans->block_rsv = rsv;
 
 	ret = __add_reloc_root(reloc_root);
 	BUG_ON(ret < 0);
