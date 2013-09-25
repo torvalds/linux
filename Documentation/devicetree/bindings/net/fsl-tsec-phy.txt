@@ -86,6 +86,7 @@ General Properties:
 
 Clock Properties:
 
+  - fsl,cksel        Timer reference clock source.
   - fsl,tclk-period  Timer reference clock period in nanoseconds.
   - fsl,tmr-prsc     Prescaler, divides the output clock.
   - fsl,tmr-add      Frequency compensation value.
@@ -97,7 +98,7 @@ Clock Properties:
   clock. You must choose these carefully for the clock to work right.
   Here is how to figure good values:
 
-  TimerOsc     = system clock               MHz
+  TimerOsc     = selected reference clock   MHz
   tclk_period  = desired clock period       nanoseconds
   NominalFreq  = 1000 / tclk_period         MHz
   FreqDivRatio = TimerOsc / NominalFreq     (must be greater that 1.0)
@@ -114,6 +115,18 @@ Clock Properties:
   Pulse Per Second (PPS) signal, since this will be offered to the PPS
   subsystem to synchronize the Linux clock.
 
+  "fsl,cksel" property allows to select different reference clock
+  sources:
+
+  <0> - external high precision timer reference clock (TSEC_TMR_CLK
+        input is used for this purpose);
+  <1> - eTSEC system clock;
+  <2> - eTSEC1 transmit clock;
+  <3> - RTC clock input.
+
+  When this attribute is not used, eTSEC system clock will serve as
+  IEEE 1588 timer reference clock.
+
 Example:
 
 	ptp_clock@24E00 {
@@ -121,6 +134,7 @@ Example:
 		reg = <0x24E00 0xB0>;
 		interrupts = <12 0x8 13 0x8>;
 		interrupt-parent = < &ipic >;
+		fsl,cksel       = <1>;
 		fsl,tclk-period = <10>;
 		fsl,tmr-prsc    = <100>;
 		fsl,tmr-add     = <0x999999A4>;
