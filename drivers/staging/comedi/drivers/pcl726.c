@@ -183,8 +183,6 @@ static const struct pcl726_board boardtypes[] = {
 };
 
 struct pcl726_private {
-
-	int bipolar[12];
 	const struct comedi_lrange *rangelist[12];
 	unsigned int ao_readback[12];
 };
@@ -193,14 +191,15 @@ static int pcl726_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	struct pcl726_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	int hi, lo;
 	int n;
-	int chan = CR_CHAN(insn->chanspec);
 
 	for (n = 0; n < insn->n; n++) {
 		lo = data[n] & 0xff;
 		hi = (data[n] >> 8) & 0xf;
-		if (devpriv->bipolar[chan])
+		if (comedi_chan_range_is_bipolar(s, chan, range))
 			hi ^= 0x8;
 		/*
 		 * the programming info did not say which order
@@ -279,10 +278,8 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	for (i = 0; i < 12; i++) {
-		devpriv->bipolar[i] = 0;
+	for (i = 0; i < 12; i++)
 		devpriv->rangelist[i] = &range_unknown;
-	}
 
 #ifdef ACL6126_IRQ
 	irq = 0;
@@ -339,9 +336,6 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			j = 0;
 		}
 		devpriv->rangelist[i] = board->range_type_list[j];
-		if (devpriv->rangelist[i]->range[0].min ==
-		    -devpriv->rangelist[i]->range[0].max)
-			devpriv->bipolar[i] = 1;	/* bipolar range */
 	}
 
 	s = &dev->subdevices[1];
