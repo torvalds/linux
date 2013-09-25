@@ -35,7 +35,7 @@
  */
 ENTRY(__cpu_flush_user_tlb_range)
 	vma_vm_mm x3, x2			// get vma->vm_mm
-	mmid	x3, x3				// get vm_mm->context.id
+	mmid	w3, x3				// get vm_mm->context.id
 	dsb	sy
 	lsr	x0, x0, #12			// align address
 	lsr	x1, x1, #12
