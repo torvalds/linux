@@ -3360,6 +3360,33 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 }
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_from_display_mode);
 
+static enum hdmi_3d_structure
+s3d_structure_from_display_mode(const struct drm_display_mode *mode)
+{
+	u32 layout = mode->flags & DRM_MODE_FLAG_3D_MASK;
+
+	switch (layout) {
+	case DRM_MODE_FLAG_3D_FRAME_PACKING:
+		return HDMI_3D_STRUCTURE_FRAME_PACKING;
+	case DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE:
+		return HDMI_3D_STRUCTURE_FIELD_ALTERNATIVE;
+	case DRM_MODE_FLAG_3D_LINE_ALTERNATIVE:
+		return HDMI_3D_STRUCTURE_LINE_ALTERNATIVE;
+	case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL:
+		return HDMI_3D_STRUCTURE_SIDE_BY_SIDE_FULL;
+	case DRM_MODE_FLAG_3D_L_DEPTH:
+		return HDMI_3D_STRUCTURE_L_DEPTH;
+	case DRM_MODE_FLAG_3D_L_DEPTH_GFX_GFX_DEPTH:
+		return HDMI_3D_STRUCTURE_L_DEPTH_GFX_GFX_DEPTH;
+	case DRM_MODE_FLAG_3D_TOP_AND_BOTTOM:
+		return HDMI_3D_STRUCTURE_TOP_AND_BOTTOM;
+	case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF:
+		return HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF;
+	default:
+		return HDMI_3D_STRUCTURE_INVALID;
+	}
+}
+
 /**
  * drm_hdmi_vendor_infoframe_from_display_mode() - fill an HDMI infoframe with
  * data from a DRM display mode
@@ -3377,20 +3404,29 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 					    const struct drm_display_mode *mode)
 {
 	int err;
+	u32 s3d_flags;
 	u8 vic;
 
 	if (!frame || !mode)
 		return -EINVAL;
 
 	vic = drm_match_hdmi_mode(mode);
-	if (!vic)
+	s3d_flags = mode->flags & DRM_MODE_FLAG_3D_MASK;
+
+	if (!vic && !s3d_flags)
+		return -EINVAL;
+
+	if (vic && s3d_flags)
 		return -EINVAL;
 
 	err = hdmi_vendor_infoframe_init(frame);
 	if (err < 0)
 		return err;
 
-	frame->vic = vic;
+	if (vic)
+		frame->vic = vic;
+	else
+		frame->s3d_struct = s3d_structure_from_display_mode(mode);
 
 	return 0;
 }
