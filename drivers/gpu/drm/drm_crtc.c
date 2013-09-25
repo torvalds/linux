@@ -2063,6 +2063,37 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 }
 EXPORT_SYMBOL(drm_mode_set_config_internal);
 
+/*
+ * Checks that the framebuffer is big enough for the CRTC viewport
+ * (x, y, hdisplay, vdisplay)
+ */
+static int drm_crtc_check_viewport(const struct drm_crtc *crtc,
+				   int x, int y,
+				   const struct drm_display_mode *mode,
+				   const struct drm_framebuffer *fb)
+
+{
+	int hdisplay, vdisplay;
+
+	hdisplay = mode->hdisplay;
+	vdisplay = mode->vdisplay;
+
+	if (crtc->invert_dimensions)
+		swap(hdisplay, vdisplay);
+
+	if (hdisplay > fb->width ||
+	    vdisplay > fb->height ||
+	    x > fb->width - hdisplay ||
+	    y > fb->height - vdisplay) {
+		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
+			      fb->width, fb->height, hdisplay, vdisplay, x, y,
+			      crtc->invert_dimensions ? " (inverted)" : "");
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
 /**
  * drm_mode_setcrtc - set CRTC configuration
  * @dev: drm device for the ioctl
@@ -2110,7 +2141,6 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 
 	if (crtc_req->mode_valid) {
-		int hdisplay, vdisplay;
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
 		if (crtc_req->fb_id == -1) {
@@ -2146,23 +2176,11 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 
-		hdisplay = mode->hdisplay;
-		vdisplay = mode->vdisplay;
-
-		if (crtc->invert_dimensions)
-			swap(hdisplay, vdisplay);
-
-		if (hdisplay > fb->width ||
-		    vdisplay > fb->height ||
-		    crtc_req->x > fb->width - hdisplay ||
-		    crtc_req->y > fb->height - vdisplay) {
-			DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
-				      fb->width, fb->height,
-				      hdisplay, vdisplay, crtc_req->x, crtc_req->y,
-				      crtc->invert_dimensions ? " (inverted)" : "");
-			ret = -ENOSPC;
+		ret = drm_crtc_check_viewport(crtc, crtc_req->x, crtc_req->y,
+					      mode, fb);
+		if (ret)
 			goto out;
-		}
+
 	}
 
 	if (crtc_req->count_connectors == 0 && mode) {
@@ -3579,7 +3597,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_framebuffer *fb = NULL, *old_fb = NULL;
 	struct drm_pending_vblank_event *e = NULL;
 	unsigned long flags;
-	int hdisplay, vdisplay;
 	int ret = -EINVAL;
 
 	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS ||
@@ -3611,22 +3628,9 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (!fb)
 		goto out;
 
-	hdisplay = crtc->mode.hdisplay;
-	vdisplay = crtc->mode.vdisplay;
-
-	if (crtc->invert_dimensions)
-		swap(hdisplay, vdisplay);
-
-	if (hdisplay > fb->width ||
-	    vdisplay > fb->height ||
-	    crtc->x > fb->width - hdisplay ||
-	    crtc->y > fb->height - vdisplay) {
-		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
-			      fb->width, fb->height, hdisplay, vdisplay, crtc->x, crtc->y,
-			      crtc->invert_dimensions ? " (inverted)" : "");
-		ret = -ENOSPC;
+	ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
+	if (ret)
 		goto out;
-	}
 
 	if (crtc->fb->pixel_format != fb->pixel_format) {
 		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
