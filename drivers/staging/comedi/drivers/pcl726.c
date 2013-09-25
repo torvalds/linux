@@ -1,66 +1,64 @@
 /*
-    comedi/drivers/pcl726.c
-
-    hardware driver for Advantech cards:
-     card:   PCL-726, PCL-727, PCL-728
-     driver: pcl726,  pcl727,  pcl728
-    and for ADLink cards:
-     card:   ACL-6126, ACL-6128
-     driver: acl6126,  acl6128
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1998 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
-/*
-Driver: pcl726
-Description: Advantech PCL-726 & compatibles
-Author: ds
-Status: untested
-Devices: [Advantech] PCL-726 (pcl726), PCL-727 (pcl727), PCL-728 (pcl728),
-  [ADLink] ACL-6126 (acl6126), ACL-6128 (acl6128)
-
-Interrupts are not supported.
-
-    Options for PCL-726:
-     [0] - IO Base
-     [2]...[7] - D/A output range for channel 1-6:
-		0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V,
-		4: 4-20mA, 5: unknown (external reference)
-
-    Options for PCL-727:
-     [0] - IO Base
-     [2]...[13] - D/A output range for channel 1-12:
-		0: 0-5V, 1: 0-10V, 2: +/-5V,
-		3: 4-20mA
-
-    Options for PCL-728 and ACL-6128:
-     [0] - IO Base
-     [2], [3] - D/A output range for channel 1 and 2:
-		0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V,
-		4: 4-20mA, 5: 0-20mA
-
-    Options for ACL-6126:
-     [0] - IO Base
-     [1] - IRQ (0=disable, 3, 5, 6, 7, 9, 10, 11, 12, 15) (currently ignored)
-     [2]...[7] - D/A output range for channel 1-6:
-		0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V,
-		4: 4-20mA
-*/
+ * pcl726.c
+ * Comedi driver for 6/12-Channel D/A Output and DIO cards
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-    Thanks to Circuit Specialists for having programming info (!) on
-    their web page.  (http://www.cir.com/)
-*/
+ * Driver: pcl726
+ * Description: Advantech PCL-726 & compatibles
+ * Author: David A. Schleef <ds@schleef.org>
+ * Status: untested
+ * Devices: (Advantech) PCL-726 [pcl726]
+ *	    (Advantech) PCL-727 [pcl727]
+ *	    (Advantech) PCL-728 [pcl728]
+ *	    (ADLink) ACL-6126 [acl6126]
+ *	    (ADLink) ACL-6128 [acl6128]
+ *
+ * Configuration Options:
+ *   [0]  - IO Base
+ *   [1]  - IRQ (ACL-6126 only)
+ *   [2]  - D/A output range for channel 0
+ *   [3]  - D/A output range for channel 1
+ *
+ * Boards with > 2 analog output channels:
+ *   [4]  - D/A output range for channel 2
+ *   [5]  - D/A output range for channel 3
+ *   [6]  - D/A output range for channel 4
+ *   [7]  - D/A output range for channel 5
+ *
+ * Boards with > 6 analog output channels:
+ *   [8]  - D/A output range for channel 6
+ *   [9]  - D/A output range for channel 7
+ *   [10] - D/A output range for channel 8
+ *   [11] - D/A output range for channel 9
+ *   [12] - D/A output range for channel 10
+ *   [13] - D/A output range for channel 11
+ *
+ * For PCL-726 the D/A output ranges are:
+ *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 4: 4-20mA, 5: unknown
+ *
+ * For PCL-727:
+ *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: 4-20mA
+ *
+ * For PCL-728 and ACL-6128:
+ *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 4: 4-20mA, 5: 0-20mA
+ *
+ * For ACL-6126:
+ *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 4: 4-20mA
+ */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
