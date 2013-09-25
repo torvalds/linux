@@ -3744,6 +3744,9 @@ static int exynos5_eventControl(struct hwc_composer_device_1 *dev, int dpy,
     return -EINVAL;
 }
 
+static hwc_display_contents_1_t *displays[HWC_NUM_DISPLAY_TYPES];
+void init_composer(struct exynos5_hwc_composer_device_1_t *dev);
+
 static void handle_hdmi_uevent(struct exynos5_hwc_composer_device_1_t *pdev,
         const char *buff, int len)
 {
@@ -3785,8 +3788,13 @@ static void handle_hdmi_uevent(struct exynos5_hwc_composer_device_1_t *pdev,
 #endif
 
     ALOGV("HDMI HPD changed to %s", pdev->hdmi_hpd ? "enabled" : "disabled");
-    if (pdev->hdmi_hpd)
+    if (pdev->hdmi_hpd) {
         ALOGI("HDMI Resolution changed to %dx%d", pdev->hdmi_h, pdev->hdmi_w);
+        init_composer(pdev);
+    }
+    else    {
+        hdmi_disable(pdev);
+    }
 
     /* hwc_dev->procs is set right after the device is opened, but there is
      * still a race condition where a hotplug event might occur after the open
@@ -4103,6 +4111,7 @@ static int exynos5_getDisplayConfigs(struct exynos5_hwc_composer_device_1_t *pde
         if (pdev->wfd_hpd)
             wfd_get_config(pdev);
 #else
+    #if 0
         if (!pdev->hdmi_hpd) {
             return -EINVAL;
         }
@@ -4111,6 +4120,7 @@ static int exynos5_getDisplayConfigs(struct exynos5_hwc_composer_device_1_t *pde
         if (err) {
             return -EINVAL;
         }
+    #endif
 #endif
         configs[0] = 0;
         *numConfigs = 1;
@@ -4298,6 +4308,7 @@ static int exynos5_open(struct exynos5_hwc_composer_device_1_t* dev)
                 dev->hdmi_hpd = false;
             }
         }
+        close(sw_fd);
     }
 #endif
 
@@ -4408,8 +4419,6 @@ static int exynos5_close(exynos5_hwc_composer_device_1_t *dev)
     return 0;
 }
 
-static hwc_display_contents_1_t *displays[HWC_NUM_DISPLAY_TYPES];
-
 static const uint32_t display_attributes[] = {
     HWC_DISPLAY_VSYNC_PERIOD,
     HWC_DISPLAY_WIDTH,
@@ -4509,6 +4518,14 @@ static int createDisplay(struct exynos5_hwc_composer_device_1_t *composer,
 	}
 }
 
+void init_composer(struct exynos5_hwc_composer_device_1_t *dev)
+{
+	exynos5_prepare(dev, HWC_NUM_DISPLAY_TYPES, displays);
+	exynos5_dump(dev);
+	dump_handle(&fimd_handle);
+	exynos5_set(dev, HWC_NUM_DISPLAY_TYPES, displays);
+}
+
 int	main(void)
 {
 	// Hardware Composer
@@ -4523,15 +4540,10 @@ int	main(void)
 
 	createDisplay(composer, HWC_DISPLAY_PRIMARY, 1);
 	createDisplay(composer, HWC_DISPLAY_EXTERNAL, 1);
-
-	exynos5_prepare(composer, HWC_NUM_DISPLAY_TYPES, displays);
-
-	exynos5_dump(composer);
-	dump_handle(&fimd_handle);
+	
+	if(composer->hdmi_hpd)  init_composer(composer);
 
 	while (1) {
-		exynos5_set(composer, HWC_NUM_DISPLAY_TYPES, displays);
-
 		printf("dennis -- ???\n");
 #if 0
 		usleep(500);
