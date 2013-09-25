@@ -29,6 +29,7 @@ MODULE_LICENSE("GPL");
 /* AIC26 driver private data */
 struct aic26 {
 	struct spi_device *spi;
+	struct regmap *regmap;
 	struct snd_soc_codec *codec;
 	int master;
 	int datfm;
@@ -39,72 +40,6 @@ struct aic26 {
 	int keyclick_freq;
 	int keyclick_len;
 };
-
-/* ---------------------------------------------------------------------
- * Register access routines
- */
-static unsigned int aic26_reg_read(struct snd_soc_codec *codec,
-				   unsigned int reg)
-{
-	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
-	u16 *cache = codec->reg_cache;
-	u16 cmd, value;
-	u8 buffer[2];
-	int rc;
-
-	if (reg >= AIC26_NUM_REGS) {
-		WARN_ON_ONCE(1);
-		return 0;
-	}
-
-	/* Do SPI transfer; first 16bits are command; remaining is
-	 * register contents */
-	cmd = AIC26_READ_COMMAND_WORD(reg);
-	buffer[0] = (cmd >> 8) & 0xff;
-	buffer[1] = cmd & 0xff;
-	rc = spi_write_then_read(aic26->spi, buffer, 2, buffer, 2);
-	if (rc) {
-		dev_err(&aic26->spi->dev, "AIC26 reg read error\n");
-		return -EIO;
-	}
-	value = (buffer[0] << 8) | buffer[1];
-
-	/* Update the cache before returning with the value */
-	cache[reg] = value;
-	return value;
-}
-
-static int aic26_reg_write(struct snd_soc_codec *codec, unsigned int reg,
-			   unsigned int value)
-{
-	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
-	u16 *cache = codec->reg_cache;
-	u16 cmd;
-	u8 buffer[4];
-	int rc;
-
-	if (reg >= AIC26_NUM_REGS) {
-		WARN_ON_ONCE(1);
-		return -EINVAL;
-	}
-
-	/* Do SPI transfer; first 16bits are command; remaining is data
-	 * to write into register */
-	cmd = AIC26_WRITE_COMMAND_WORD(reg);
-	buffer[0] = (cmd >> 8) & 0xff;
-	buffer[1] = cmd & 0xff;
-	buffer[2] = value >> 8;
-	buffer[3] = value;
-	rc = spi_write(aic26->spi, buffer, 4);
-	if (rc) {
-		dev_err(&aic26->spi->dev, "AIC26 reg read error\n");
-		return -EIO;
-	}
-
-	/* update cache before returning */
-	cache[reg] = value;
-	return 0;
-}
 
 static const struct snd_soc_dapm_widget tlv320aic26_dapm_widgets[] = {
 SND_SOC_DAPM_INPUT("MICIN"),
@@ -360,6 +295,8 @@ static int aic26_probe(struct snd_soc_codec *codec)
 	struct aic26 *aic26 = dev_get_drvdata(codec->dev);
 	int ret, reg;
 
+	snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
+
 	aic26->codec = codec;
 
 	/* Reset the codec to power on defaults */
@@ -385,14 +322,17 @@ static int aic26_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver aic26_soc_codec_dev = {
 	.probe = aic26_probe,
-	.read = aic26_reg_read,
-	.write = aic26_reg_write,
 	.controls = aic26_snd_controls,
 	.num_controls = ARRAY_SIZE(aic26_snd_controls),
 	.dapm_widgets = tlv320aic26_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(tlv320aic26_dapm_widgets),
 	.dapm_routes = tlv320aic26_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(tlv320aic26_dapm_routes),
+};
+
+static const struct regmap_config aic26_regmap = {
+	.reg_bits = 16,
+	.val_bits = 16,
 };
 
 /* ---------------------------------------------------------------------
@@ -410,6 +350,10 @@ static int aic26_spi_probe(struct spi_device *spi)
 	aic26 = devm_kzalloc(&spi->dev, sizeof *aic26, GFP_KERNEL);
 	if (!aic26)
 		return -ENOMEM;
+
+	aic26->regmap = devm_regmap_init_spi(spi, &aic26_regmap);
+	if (IS_ERR(aic26->regmap))
+		return PTR_ERR(aic26->regmap);
 
 	/* Initialize the driver data */
 	aic26->spi = spi;
