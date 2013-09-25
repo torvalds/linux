@@ -107,6 +107,7 @@ enum drm_mode_status {
     MODE_ONE_HEIGHT,    /* only one height is supported */
     MODE_ONE_SIZE,      /* only one resolution is supported */
     MODE_NO_REDUCED,    /* monitor doesn't accept reduced blanking */
+    MODE_NO_STEREO,	/* stereo modes not supported */
     MODE_UNVERIFIED = -3, /* mode needs to reverified */
     MODE_BAD = -2,	/* unspecified reason */
     MODE_ERROR	= -1	/* error condition */
@@ -593,6 +594,7 @@ struct drm_connector {
 	int connector_type_id;
 	bool interlace_allowed;
 	bool doublescan_allowed;
+	bool stereo_allowed;
 	struct list_head modes; /* list of modes on this connector */
 
 	enum drm_connector_status status;
