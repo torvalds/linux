@@ -2618,6 +2618,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	trace_i915_gem_ring_sync_to(from, to, seqno);
 	ret = to->sync_to(to, from, seqno);
 	if (!ret)
 		/* We use last_read_seqno because sync_to()
