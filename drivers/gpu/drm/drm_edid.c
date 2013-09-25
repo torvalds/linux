@@ -2507,6 +2507,9 @@ add_alternate_cea_modes(struct drm_connector *connector, struct edid *edid)
 		if (!newmode)
 			continue;
 
+		/* Carry over the stereo flags */
+		newmode->flags |= mode->flags & DRM_MODE_FLAG_3D_MASK;
+
 		/*
 		 * The current mode could be either variant. Make
 		 * sure to pick the "other" clock for the new mode.
