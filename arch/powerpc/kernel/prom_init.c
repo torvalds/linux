@@ -196,6 +196,8 @@ static int __initdata mem_reserve_cnt;
 
 static cell_t __initdata regbuf[1024];
 
+static bool rtas_has_query_cpu_stopped;
+
 
 /*
  * Error results ... some OF calls will return "-1" on error, some
@@ -1574,6 +1576,11 @@ static void __init prom_instantiate_rtas(void)
 	prom_setprop(rtas_node, "/rtas", "linux,rtas-entry",
 		     &val, sizeof(val));
 
+	/* Check if it supports "query-cpu-stopped-state" */
+	if (prom_getprop(rtas_node, "query-cpu-stopped-state",
+			 &val, sizeof(val)) != PROM_ERROR)
+		rtas_has_query_cpu_stopped = true;
+
 #if defined(CONFIG_PPC_POWERNV) && defined(__BIG_ENDIAN__)
 	/* PowerVN takeover hack */
 	prom_rtas_data = base;
@@ -1814,6 +1821,18 @@ static void __init prom_hold_cpus(void)
 	unsigned long *acknowledge
 		= (void *) LOW_ADDR(__secondary_hold_acknowledge);
 	unsigned long secondary_hold = LOW_ADDR(__secondary_hold);
+
+	/*
+	 * On pseries, if RTAS supports "query-cpu-stopped-state",
+	 * we skip this stage, the CPUs will be started by the
+	 * kernel using RTAS.
+	 */
+	if ((of_platform == PLATFORM_PSERIES ||
+	     of_platform == PLATFORM_PSERIES_LPAR) &&
+	    rtas_has_query_cpu_stopped) {
+		prom_printf("prom_hold_cpus: skipped\n");
+		return;
+	}
 
 	prom_debug("prom_hold_cpus: start...\n");
 	prom_debug("    1) spinloop       = 0x%x\n", (unsigned long)spinloop);
@@ -3011,6 +3030,8 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * On non-powermacs, put all CPUs in spin-loops.
 	 *
 	 * PowerMacs use a different mechanism to spin CPUs
+	 *
+	 * (This must be done after instanciating RTAS)
 	 */
 	if (of_platform != PLATFORM_POWERMAC &&
 	    of_platform != PLATFORM_OPAL)

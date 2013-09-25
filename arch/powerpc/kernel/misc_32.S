@@ -36,26 +36,41 @@
 
 	.text
 
+/*
+ * We store the saved ksp_limit in the unused part
+ * of the STACK_FRAME_OVERHEAD
+ */
 _GLOBAL(call_do_softirq)
 	mflr	r0
 	stw	r0,4(r1)
+	lwz	r10,THREAD+KSP_LIMIT(r2)
+	addi	r11,r3,THREAD_INFO_GAP
 	stwu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r3)
 	mr	r1,r3
+	stw	r10,8(r1)
+	stw	r11,THREAD+KSP_LIMIT(r2)
 	bl	__do_softirq
+	lwz	r10,8(r1)
 	lwz	r1,0(r1)
 	lwz	r0,4(r1)
+	stw	r10,THREAD+KSP_LIMIT(r2)
 	mtlr	r0
 	blr
 
-_GLOBAL(call_handle_irq)
+_GLOBAL(call_do_irq)
 	mflr	r0
 	stw	r0,4(r1)
-	mtctr	r6
-	stwu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r5)
-	mr	r1,r5
-	bctrl
+	lwz	r10,THREAD+KSP_LIMIT(r2)
+	addi	r11,r3,THREAD_INFO_GAP
+	stwu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r4)
+	mr	r1,r4
+	stw	r10,8(r1)
+	stw	r11,THREAD+KSP_LIMIT(r2)
+	bl	__do_irq
+	lwz	r10,8(r1)
 	lwz	r1,0(r1)
 	lwz	r0,4(r1)
+	stw	r10,THREAD+KSP_LIMIT(r2)
 	mtlr	r0
 	blr
 
