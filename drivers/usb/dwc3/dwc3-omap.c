@@ -535,7 +535,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		edev = of_extcon_get_extcon_dev(dev, 0);
 		if (IS_ERR(edev)) {
 			dev_vdbg(dev, "couldn't get extcon device\n");
-			ret = PTR_ERR(edev);
+			ret = -EPROBE_DEFER;
 			goto err2;
 		}
 
