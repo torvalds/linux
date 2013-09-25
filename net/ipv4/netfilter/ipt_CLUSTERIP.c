@@ -58,9 +58,6 @@ struct clusterip_config {
 	struct rcu_head rcu;
 };
 
-/* clusterip_lock protects the clusterip_configs list */
-static DEFINE_SPINLOCK(clusterip_lock);
-
 #ifdef CONFIG_PROC_FS
 static const struct file_operations clusterip_proc_fops;
 #endif
@@ -69,6 +66,9 @@ static int clusterip_net_id __read_mostly;
 
 struct clusterip_net {
 	struct list_head configs;
+	/* lock protects the configs list */
+	spinlock_t lock;
+
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *procdir;
 #endif
@@ -99,10 +99,12 @@ clusterip_config_put(struct clusterip_config *c)
 static inline void
 clusterip_config_entry_put(struct clusterip_config *c)
 {
+	struct clusterip_net *cn = net_generic(&init_net, clusterip_net_id);
+
 	local_bh_disable();
-	if (atomic_dec_and_lock(&c->entries, &clusterip_lock)) {
+	if (atomic_dec_and_lock(&c->entries, &cn->lock)) {
 		list_del_rcu(&c->list);
-		spin_unlock(&clusterip_lock);
+		spin_unlock(&cn->lock);
 		local_bh_enable();
 
 		dev_mc_del(c->dev, c->clustermac);
@@ -198,9 +200,9 @@ clusterip_config_init(const struct ipt_clusterip_tgt_info *i, __be32 ip,
 	}
 #endif
 
-	spin_lock_bh(&clusterip_lock);
+	spin_lock_bh(&cn->lock);
 	list_add_rcu(&c->list, &cn->configs);
-	spin_unlock_bh(&clusterip_lock);
+	spin_unlock_bh(&cn->lock);
 
 	return c;
 }
@@ -712,6 +714,8 @@ static int clusterip_net_init(struct net *net)
 	struct clusterip_net *cn = net_generic(net, clusterip_net_id);
 
 	INIT_LIST_HEAD(&cn->configs);
+
+	spin_lock_init(&cn->lock);
 
 #ifdef CONFIG_PROC_FS
 	cn->procdir = proc_mkdir("ipt_CLUSTERIP", net->proc_net);
