@@ -41,11 +41,6 @@
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
 
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	memblock_add(base, size);
-}
-
 #ifdef CONFIG_EARLY_PRINTK
 static char *stdout;
 
