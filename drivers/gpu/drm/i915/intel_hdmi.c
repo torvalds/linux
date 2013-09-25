@@ -1228,6 +1228,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
+	connector->stereo_allowed = 1;
 
 	switch (port) {
 	case PORT_B:
