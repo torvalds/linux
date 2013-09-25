@@ -54,7 +54,7 @@ REVISION 0.01
 #include <linux/gpio.h>
 
 
-
+#if 0
 #define ft_printk(fmt, arg...) \
 	printk(KERN_EMERG fmt, ##arg)
  //KERN_DEBUG
@@ -64,12 +64,21 @@ REVISION 0.01
  //KERN_WARNING
 #define ft_printk_info(fmt, arg...) \
 	printk(KERN_EMERG fmt, ##arg)
+#else
 
+#define ft_printk(fmt, arg...) \
+	printk(KERN_EMERG fmt, ##arg)
+ //KERN_DEBUG
+#define ft_printk_dbg(fmt, arg...) {while(0);}
+
+ //KERN_WARNING
+#define ft_printk_info(fmt, arg...) {while(0);}
+#endif
 
 
 #define MHZ (1000*1000)
 #define TST_SETUPS (4)
-#define FT_END_CNT (0x21)
+#define FT_END_CNT (0x23)
 
 #define ENABLE_FT_TEST_GPIO   // for ft seting 1.6G volt
 
@@ -87,7 +96,7 @@ static int setups_flag[TST_SETUPS]={0,0,0,0};
 
 #if defined(CONFIG_ARCH_RK3188)
 
-#if 1  // ¡Ωµµ≤‚ ‘
+#if 0  // ¡Ωµµ≤‚ ‘
 const static unsigned long arm_setups_rate[TST_SETUPS]={816*MHZ,1608*MHZ*1,0,0};
 const static unsigned long l1_tst_cnt[TST_SETUPS]={5*10*1,5*10*1,5*10*21,5*10*1};
 const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*1+2,5*2+4,5*2+4,5*2+4};
@@ -95,8 +104,8 @@ const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*1+2,5*2+4,5*2+4,5*2+4};
 #else
 
 //const static unsigned long arm_setups_rate[TST_SETUPS]={312*MHZ,1656*MHZ*1,1608*MHZ*1,312*MHZ*1};
-
-const static unsigned long arm_setups_rate[TST_SETUPS]={816*MHZ,1608*MHZ*1,816*MHZ*1,1608*MHZ*1};
+const static unsigned long arm_setups_rate[TST_SETUPS]={816*MHZ,1656*MHZ*1,1608*MHZ*1,312*MHZ*1};
+//const static unsigned long arm_setups_rate[TST_SETUPS]={816*MHZ,1608*MHZ*1,816*MHZ*1,1608*MHZ*1};
 const static unsigned long l1_tst_cnt[TST_SETUPS]={5*10*2,5*10*2,5*10*2,5*10*2};
 const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*1+2,5*2+4,5*2+4,5*2+4};
 
@@ -107,7 +116,8 @@ const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*1+2,5*2+4,5*2+4,5*2+4};
 
 #elif defined(CONFIG_SOC_RK3168)
 
-const static unsigned long arm_setups_rate[4]={552*MHZ,1608*MHZ*1,0,0};
+const static unsigned long arm_setups_rate[4] = {552 * MHZ, 1200 * MHZ, 1608 * MHZ, 0};
+//const static unsigned long arm_setups_rate[4]={552*MHZ,0,0,0};
 
 const static unsigned long l1_tst_cnt[TST_SETUPS]={5*10,5*10,0,0};
 const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*3,5*4,0,0};
@@ -719,7 +729,7 @@ static int rk_ft_tests_over(void)
 {
 	int ret = 0;
 
-	ft_cpu_test_type0_check(0,"KERENL");
+	ft_cpu_test_type0_check(0,"KERNEL");
 	
 	ft_cpu_test_type1_check(1,"HSPEED");
 	
