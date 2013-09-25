@@ -2761,8 +2761,9 @@ do_failover:
  */
 static void bond_ab_arp_probe(struct bonding *bond)
 {
-	struct slave *slave, *next_slave;
-	int i;
+	struct slave *slave, *before = NULL, *new_slave = NULL;
+	struct list_head *iter;
+	bool found = false;
 
 	read_lock(&bond->curr_slave_lock);
 
@@ -2792,18 +2793,12 @@ static void bond_ab_arp_probe(struct bonding *bond)
 
 	bond_set_slave_inactive_flags(bond->current_arp_slave);
 
-	/* search for next candidate */
-	next_slave = bond_next_slave(bond, bond->current_arp_slave);
-	bond_for_each_slave_from(bond, slave, i, next_slave) {
-		if (IS_UP(slave->dev)) {
-			slave->link = BOND_LINK_BACK;
-			bond_set_slave_active_flags(slave);
-			bond_arp_send_all(bond, slave);
-			slave->jiffies = jiffies;
-			bond->current_arp_slave = slave;
-			break;
-		}
+	bond_for_each_slave(bond, slave, iter) {
+		if (!found && !before && IS_UP(slave->dev))
+			before = slave;
 
+		if (found && !new_slave && IS_UP(slave->dev))
+			new_slave = slave;
 		/* if the link state is up at this point, we
 		 * mark it down - this can happen if we have
 		 * simultaneous link failures and
@@ -2811,7 +2806,7 @@ static void bond_ab_arp_probe(struct bonding *bond)
 		 * one the current slave so it is still marked
 		 * up when it is actually down
 		 */
-		if (slave->link == BOND_LINK_UP) {
+		if (!IS_UP(slave->dev) && slave->link == BOND_LINK_UP) {
 			slave->link = BOND_LINK_DOWN;
 			if (slave->link_failure_count < UINT_MAX)
 				slave->link_failure_count++;
@@ -2821,7 +2816,22 @@ static void bond_ab_arp_probe(struct bonding *bond)
 			pr_info("%s: backup interface %s is now down.\n",
 				bond->dev->name, slave->dev->name);
 		}
+		if (slave == bond->current_arp_slave)
+			found = true;
 	}
+
+	if (!new_slave && before)
+		new_slave = before;
+
+	if (!new_slave)
+		return;
+
+	new_slave->link = BOND_LINK_BACK;
+	bond_set_slave_active_flags(new_slave);
+	bond_arp_send_all(bond, new_slave);
+	new_slave->jiffies = jiffies;
+	bond->current_arp_slave = new_slave;
+
 }
 
 void bond_activebackup_arp_mon(struct work_struct *work)
