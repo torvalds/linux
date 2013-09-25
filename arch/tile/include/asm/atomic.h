@@ -166,7 +166,7 @@ static inline int atomic_cmpxchg(atomic_t *v, int o, int n)
  *
  * Atomically sets @v to @i and returns old @v
  */
-static inline u64 atomic64_xchg(atomic64_t *v, u64 n)
+static inline long long atomic64_xchg(atomic64_t *v, long long n)
 {
 	return xchg64(&v->counter, n);
 }
@@ -180,7 +180,8 @@ static inline u64 atomic64_xchg(atomic64_t *v, u64 n)
  * Atomically checks if @v holds @o and replaces it with @n if so.
  * Returns the old value at @v.
  */
-static inline u64 atomic64_cmpxchg(atomic64_t *v, u64 o, u64 n)
+static inline long long atomic64_cmpxchg(atomic64_t *v, long long o,
+					long long n)
 {
 	return cmpxchg64(&v->counter, o, n);
 }
