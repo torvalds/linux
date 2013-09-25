@@ -432,7 +432,6 @@ hpb_dmae_alloc_chan_resources(struct hpb_dmae_chan *hpb_chan,
 		hpb_chan->xfer_mode = XFER_DOUBLE;
 	} else {
 		dev_err(hpb_chan->shdma_chan.dev, "DCR setting error");
-		shdma_free_irq(&hpb_chan->shdma_chan);
 		return -EINVAL;
 	}
 
@@ -614,7 +613,6 @@ static void hpb_dmae_chan_remove(struct hpb_dmae_device *hpbdev)
 	shdma_for_each_chan(schan, &hpbdev->shdma_dev, i) {
 		BUG_ON(!schan);
 
-		shdma_free_irq(schan);
 		shdma_chan_remove(schan);
 	}
 	dma_dev->chancnt = 0;
