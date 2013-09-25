@@ -63,9 +63,9 @@ Interrupts are not supported.
 */
 
 #include <linux/module.h>
-#include "../comedidev.h"
+#include <linux/interrupt.h>
 
-#undef ACL6126_IRQ		/* no interrupt support (yet) */
+#include "../comedidev.h"
 
 #define PCL726_SIZE 16
 #define PCL727_SIZE 32
@@ -173,6 +173,11 @@ struct pcl726_private {
 	unsigned int ao_readback[12];
 };
 
+static irqreturn_t pcl818_interrupt(int irq, void *d)
+{
+	return IRQ_HANDLED;
+}
+
 static int pcl726_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -254,9 +259,6 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcl726_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, i;
-#ifdef ACL6126_IRQ
-	unsigned int irq;
-#endif
 
 	ret = comedi_request_region(dev, it->options[0], board->io_range);
 	if (ret)
@@ -269,35 +271,18 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (i = 0; i < 12; i++)
 		devpriv->rangelist[i] = &range_unknown;
 
-#ifdef ACL6126_IRQ
-	irq = 0;
-	if (boardtypes[board].IRQbits != 0) {	/* board support IRQ */
-		irq = it->options[1];
-		devpriv->first_chan = 2;
-		if (irq) {	/* we want to use IRQ */
-			if (((1 << irq) & boardtypes[board].IRQbits) == 0) {
-				printk(KERN_WARNING
-					", IRQ %d is out of allowed range,"
-					" DISABLING IT", irq);
-				irq = 0;	/* Bad IRQ */
-			} else {
-				if (request_irq(irq, interrupt_pcl818, 0,
-						dev->board_name, dev)) {
-					printk(KERN_WARNING
-						", unable to allocate IRQ %d,"
-						" DISABLING IT", irq);
-					irq = 0;	/* Can't use IRQ */
-				} else {
-					printk(", irq=%d", irq);
-				}
-			}
+	/*
+	 * Hook up the external trigger source interrupt only if the
+	 * user config option is valid and the board supports interrupts.
+	 */
+	if (it->options[1] && (board->IRQbits & (1 << it->options[1]))) {
+		ret = request_irq(it->options[1], pcl818_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0) {
+			/* External trigger source is from Pin-17 of CN3 */
+			dev->irq = it->options[1];
 		}
 	}
-
-	dev->irq = irq;
-#endif
-
-	printk("\n");
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
