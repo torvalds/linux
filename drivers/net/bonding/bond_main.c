@@ -1233,11 +1233,12 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 }
 
 static int bond_master_upper_dev_link(struct net_device *bond_dev,
-				      struct net_device *slave_dev)
+				      struct net_device *slave_dev,
+				      struct slave *slave)
 {
 	int err;
 
-	err = netdev_master_upper_dev_link(slave_dev, bond_dev);
+	err = netdev_master_upper_dev_link_private(slave_dev, bond_dev, slave);
 	if (err)
 		return err;
 	slave_dev->flags |= IFF_SLAVE;
@@ -1413,17 +1414,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 	}
 
-	res = bond_master_upper_dev_link(bond_dev, slave_dev);
-	if (res) {
-		pr_debug("Error %d calling bond_master_upper_dev_link\n", res);
-		goto err_restore_mac;
-	}
-
 	/* open the slave since the application closed it */
 	res = dev_open(slave_dev);
 	if (res) {
 		pr_debug("Opening slave %s failed\n", slave_dev->name);
-		goto err_unset_master;
+		goto err_restore_mac;
 	}
 
 	new_slave->bond = bond;
@@ -1637,6 +1632,13 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_dest_symlinks;
 	}
 
+	res = bond_master_upper_dev_link(bond_dev, slave_dev, new_slave);
+	if (res) {
+		pr_debug("Error %d calling bond_master_upper_dev_link\n", res);
+		goto err_unregister;
+	}
+
+
 	pr_info("%s: enslaving %s as a%s interface with a%s link.\n",
 		bond_dev->name, slave_dev->name,
 		bond_is_active_slave(new_slave) ? "n active" : " backup",
@@ -1646,6 +1648,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	return 0;
 
 /* Undo stages on error */
+err_unregister:
+	netdev_rx_handler_unregister(slave_dev);
+
 err_dest_symlinks:
 	bond_destroy_slave_symlinks(bond_dev, slave_dev);
 
@@ -1674,9 +1679,6 @@ err_detach:
 err_close:
 	slave_dev->priv_flags &= ~IFF_BONDING;
 	dev_close(slave_dev);
-
-err_unset_master:
-	bond_upper_dev_unlink(bond_dev, slave_dev);
 
 err_restore_mac:
 	if (!bond->params.fail_over_mac) {
@@ -1748,6 +1750,8 @@ static int __bond_release_one(struct net_device *bond_dev,
 	}
 
 	write_unlock_bh(&bond->lock);
+
+	bond_upper_dev_unlink(bond_dev, slave_dev);
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
 	 * for this slave anymore.
 	 */
@@ -1865,8 +1869,6 @@ static int __bond_release_one(struct net_device *bond_dev,
 
 		bond_hw_addr_flush(bond_dev, slave_dev);
 	}
-
-	bond_upper_dev_unlink(bond_dev, slave_dev);
 
 	slave_disable_netpoll(slave);
 
