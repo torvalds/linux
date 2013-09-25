@@ -108,49 +108,49 @@ struct pcl726_board {
 	const char *name;
 	unsigned long io_len;
 	unsigned int irq_mask;
-	int n_aochan;
-	unsigned int have_dio:1;
-	unsigned int is_pcl727:1;
 	const struct comedi_lrange *const *ao_ranges;
 	int ao_num_ranges;
+	int ao_nchan;
+	unsigned int have_dio:1;
+	unsigned int is_pcl727:1;
 };
 
 static const struct pcl726_board boardtypes[] = {
 	{
 		.name		= "pcl726",
 		.io_len		= 0x10,
-		.n_aochan	= 6,
-		.have_dio	= 1,
 		.ao_ranges	= &rangelist_726[0],
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_726),
+		.ao_nchan	= 6,
+		.have_dio	= 1,
 	}, {
 		.name		= "pcl727",
 		.io_len		= 0x20,
-		.n_aochan	= 12,
-		.have_dio	= 1,
-		.is_pcl727	= 1,
 		.ao_ranges	= &rangelist_727[0],
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_727),
+		.ao_nchan	= 12,
+		.have_dio	= 1,
+		.is_pcl727	= 1,
 	}, {
 		.name		= "pcl728",
 		.io_len		= 0x08,
-		.n_aochan	= 2,
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_728),
 		.ao_ranges	= &rangelist_728[0],
+		.ao_nchan	= 2,
 	}, {
 		.name		= "acl6126",
 		.io_len		= 0x10,
 		.irq_mask	= 0x96e8,
-		.n_aochan	= 6,
-		.have_dio	= 1,
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_726),
 		.ao_ranges	= &rangelist_726[0],
+		.ao_nchan	= 6,
+		.have_dio	= 1,
 	}, {
 		.name		= "acl6128",
 		.io_len		= 0x08,
-		.n_aochan	= 2,
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_728),
 		.ao_ranges	= &rangelist_728[0],
+		.ao_nchan	= 2,
 	},
 };
 
@@ -290,7 +290,7 @@ static int pcl726_attach(struct comedi_device *dev,
 	for (i = 0; i < 12; i++) {
 		unsigned int opt = it->options[2 + i];
 
-		if (opt < board->ao_num_ranges && i < board->n_aochan)
+		if (opt < board->ao_num_ranges && i < board->ao_nchan)
 			devpriv->rangelist[i] = board->ao_ranges[opt];
 		else
 			devpriv->rangelist[i] = &range_unknown;
@@ -304,7 +304,7 @@ static int pcl726_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
-	s->n_chan	= board->n_aochan;
+	s->n_chan	= board->ao_nchan;
 	s->maxdata	= 0x0fff;
 	s->range_table_list = devpriv->rangelist;
 	s->insn_write	= pcl726_ao_insn_write;
