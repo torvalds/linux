@@ -805,8 +805,8 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		pi->chan->state = BT_CONFIG;
 
 		__l2cap_connect_rsp_defer(pi->chan);
-		release_sock(sk);
-		return 0;
+		err = 0;
+		goto done;
 	}
 
 	release_sock(sk);
