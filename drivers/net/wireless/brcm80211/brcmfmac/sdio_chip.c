@@ -137,6 +137,8 @@ brcmf_sdio_sb_iscoreup(struct brcmf_sdio_dev *sdiodev,
 	u8 idx;
 
 	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
+	if (idx == BRCMF_MAX_CORENUM)
+		return false;
 
 	regdata = brcmf_sdio_regrl(sdiodev,
 				   CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
@@ -155,6 +157,8 @@ brcmf_sdio_ai_iscoreup(struct brcmf_sdio_dev *sdiodev,
 	bool ret;
 
 	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
+	if (idx == BRCMF_MAX_CORENUM)
+		return false;
 
 	regdata = brcmf_sdio_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
 				   NULL);
@@ -262,6 +266,8 @@ brcmf_sdio_ai_coredisable(struct brcmf_sdio_dev *sdiodev,
 	u32 regdata;
 
 	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
+	if (idx == BRCMF_MAX_CORENUM)
+		return;
 
 	/* if core is already in reset, just return */
 	regdata = brcmf_sdio_regrl(sdiodev,
@@ -305,6 +311,8 @@ brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
 	u8 idx;
 
 	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
+	if (idx == BRCMF_MAX_CORENUM)
+		return;
 
 	/*
 	 * Must do the disable sequence first to work for
@@ -369,6 +377,8 @@ brcmf_sdio_ai_resetcore(struct brcmf_sdio_dev *sdiodev,
 	u32 regdata;
 
 	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
+	if (idx == BRCMF_MAX_CORENUM)
+		return;
 
 	/* must disable first to work for arbitrary current core state */
 	brcmf_sdio_ai_coredisable(sdiodev, ci, coreid, core_bits);
