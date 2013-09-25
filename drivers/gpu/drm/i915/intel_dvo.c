@@ -154,7 +154,7 @@ static void intel_dvo_get_config(struct intel_encoder *encoder,
 
 	pipe_config->adjusted_mode.flags |= flags;
 
-	pipe_config->adjusted_mode.clock = pipe_config->port_clock;
+	pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static void intel_disable_dvo(struct intel_encoder *encoder)
