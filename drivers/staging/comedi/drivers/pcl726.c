@@ -216,15 +216,17 @@ static int pcl726_ao_insn_write(struct comedi_device *dev,
 
 static int pcl726_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct pcl726_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	int n;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_readback[chan];
-	return n;
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_readback[chan];
+
+	return insn->n;
 }
 
 static int pcl726_di_insn_bits(struct comedi_device *dev,
