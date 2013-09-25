@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/sdio_func.h>
 #include <linux/ssb/ssb_regs.h>
 #include <linux/bcma/bcma.h>
 
@@ -444,6 +445,9 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 				   NULL);
 	ci->chip = regdata & CID_ID_MASK;
 	ci->chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
+	if (sdiodev->func[0]->device == SDIO_DEVICE_ID_BROADCOM_4335_4339 &&
+	    ci->chiprev >= 2)
+		ci->chip = BCM4339_CHIP_ID;
 	ci->socitype = (regdata & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
 
 	brcmf_dbg(INFO, "chipid=0x%x chiprev=%d\n", ci->chip, ci->chiprev);
@@ -538,6 +542,20 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 		ci->c_inf[2].base = 0x18002000;
 		ci->c_inf[2].wrapbase = 0x18102000;
 		ci->c_inf[2].cib = 0x01084411;
+		ci->ramsize = 0xc0000;
+		ci->rambase = 0x180000;
+		break;
+	case BCM4339_CHIP_ID:
+		ci->c_inf[0].wrapbase = 0x18100000;
+		ci->c_inf[0].cib = 0x2e084411;
+		ci->c_inf[1].id = BCMA_CORE_SDIO_DEV;
+		ci->c_inf[1].base = 0x18005000;
+		ci->c_inf[1].wrapbase = 0x18105000;
+		ci->c_inf[1].cib = 0x15004211;
+		ci->c_inf[2].id = BCMA_CORE_ARM_CR4;
+		ci->c_inf[2].base = 0x18002000;
+		ci->c_inf[2].wrapbase = 0x18102000;
+		ci->c_inf[2].cib = 0x04084411;
 		ci->ramsize = 0xc0000;
 		ci->rambase = 0x180000;
 		break;
