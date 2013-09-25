@@ -2637,6 +2637,26 @@ static int add_hdmi_mandatory_stereo_modes(struct drm_connector *connector)
 	return modes;
 }
 
+static int add_hdmi_mode(struct drm_connector *connector, u8 vic)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_display_mode *newmode;
+
+	vic--; /* VICs start at 1 */
+	if (vic >= ARRAY_SIZE(edid_4k_modes)) {
+		DRM_ERROR("Unknown HDMI VIC: %d\n", vic);
+		return 0;
+	}
+
+	newmode = drm_mode_duplicate(dev, &edid_4k_modes[vic]);
+	if (!newmode)
+		return 0;
+
+	drm_mode_probed_add(connector, newmode);
+
+	return 1;
+}
+
 /*
  * do_hdmi_vsdb_modes - Parse the HDMI Vendor Specific data block
  * @connector: connector corresponding to the HDMI sink
@@ -2649,7 +2669,6 @@ static int add_hdmi_mandatory_stereo_modes(struct drm_connector *connector)
 static int
 do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
 {
-	struct drm_device *dev = connector->dev;
 	int modes = 0, offset = 0, i;
 	u8 vic_len;
 
@@ -2682,23 +2701,10 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
 	vic_len = db[8 + offset] >> 5;
 
 	for (i = 0; i < vic_len && len >= (9 + offset + i); i++) {
-		struct drm_display_mode *newmode;
 		u8 vic;
 
 		vic = db[9 + offset + i];
-
-		vic--; /* VICs start at 1 */
-		if (vic >= ARRAY_SIZE(edid_4k_modes)) {
-			DRM_ERROR("Unknown HDMI VIC: %d\n", vic);
-			continue;
-		}
-
-		newmode = drm_mode_duplicate(dev, &edid_4k_modes[vic]);
-		if (!newmode)
-			continue;
-
-		drm_mode_probed_add(connector, newmode);
-		modes++;
+		modes += add_hdmi_mode(connector, vic);
 	}
 
 out:
