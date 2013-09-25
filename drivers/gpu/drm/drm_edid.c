@@ -2407,7 +2407,7 @@ u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 
 		if ((KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock1) ||
 		     KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock2)) &&
-		    drm_mode_equal_no_clocks(to_match, cea_mode))
+		    drm_mode_equal_no_clocks_no_stereo(to_match, cea_mode))
 			return mode + 1;
 	}
 	return 0;
@@ -2456,7 +2456,7 @@ static u8 drm_match_hdmi_mode(const struct drm_display_mode *to_match)
 
 		if ((KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock1) ||
 		     KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock2)) &&
-		    drm_mode_equal_no_clocks(to_match, hdmi_mode))
+		    drm_mode_equal_no_clocks_no_stereo(to_match, hdmi_mode))
 			return mode + 1;
 	}
 	return 0;

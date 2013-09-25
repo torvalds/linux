@@ -848,12 +848,16 @@ bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_displ
 	} else if (mode1->clock != mode2->clock)
 		return false;
 
-	return drm_mode_equal_no_clocks(mode1, mode2);
+	if ((mode1->flags & DRM_MODE_FLAG_3D_MASK) !=
+	    (mode2->flags & DRM_MODE_FLAG_3D_MASK))
+		return false;
+
+	return drm_mode_equal_no_clocks_no_stereo(mode1, mode2);
 }
 EXPORT_SYMBOL(drm_mode_equal);
 
 /**
- * drm_mode_equal_no_clocks - test modes for equality
+ * drm_mode_equal_no_clocks_no_stereo - test modes for equality
  * @mode1: first mode
  * @mode2: second mode
  *
@@ -861,12 +865,13 @@ EXPORT_SYMBOL(drm_mode_equal);
  * None.
  *
  * Check to see if @mode1 and @mode2 are equivalent, but
- * don't check the pixel clocks.
+ * don't check the pixel clocks nor the stereo layout.
  *
  * RETURNS:
  * True if the modes are equal, false otherwise.
  */
-bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2)
+bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
+					const struct drm_display_mode *mode2)
 {
 	if (mode1->hdisplay == mode2->hdisplay &&
 	    mode1->hsync_start == mode2->hsync_start &&
@@ -878,12 +883,13 @@ bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1, const struct
 	    mode1->vsync_end == mode2->vsync_end &&
 	    mode1->vtotal == mode2->vtotal &&
 	    mode1->vscan == mode2->vscan &&
-	    mode1->flags == mode2->flags)
+	    (mode1->flags & ~DRM_MODE_FLAG_3D_MASK) ==
+	     (mode2->flags & ~DRM_MODE_FLAG_3D_MASK))
 		return true;
 
 	return false;
 }
-EXPORT_SYMBOL(drm_mode_equal_no_clocks);
+EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
 
 /**
  * drm_mode_validate_size - make sure modes adhere to size constraints
