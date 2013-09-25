@@ -281,27 +281,23 @@ extern const struct ixgbe_mbx_operations ixgbevf_mbx_ops;
 extern const char ixgbevf_driver_name[];
 extern const char ixgbevf_driver_version[];
 
-extern void ixgbevf_up(struct ixgbevf_adapter *adapter);
-extern void ixgbevf_down(struct ixgbevf_adapter *adapter);
-extern void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter);
-extern void ixgbevf_reset(struct ixgbevf_adapter *adapter);
-extern void ixgbevf_set_ethtool_ops(struct net_device *netdev);
-extern int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *,
-				      struct ixgbevf_ring *);
-extern int ixgbevf_setup_tx_resources(struct ixgbevf_adapter *,
-				      struct ixgbevf_ring *);
-extern void ixgbevf_free_rx_resources(struct ixgbevf_adapter *,
-				      struct ixgbevf_ring *);
-extern void ixgbevf_free_tx_resources(struct ixgbevf_adapter *,
-				      struct ixgbevf_ring *);
-extern void ixgbevf_update_stats(struct ixgbevf_adapter *adapter);
-extern int ethtool_ioctl(struct ifreq *ifr);
+void ixgbevf_up(struct ixgbevf_adapter *adapter);
+void ixgbevf_down(struct ixgbevf_adapter *adapter);
+void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter);
+void ixgbevf_reset(struct ixgbevf_adapter *adapter);
+void ixgbevf_set_ethtool_ops(struct net_device *netdev);
+int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *, struct ixgbevf_ring *);
+int ixgbevf_setup_tx_resources(struct ixgbevf_adapter *, struct ixgbevf_ring *);
+void ixgbevf_free_rx_resources(struct ixgbevf_adapter *, struct ixgbevf_ring *);
+void ixgbevf_free_tx_resources(struct ixgbevf_adapter *, struct ixgbevf_ring *);
+void ixgbevf_update_stats(struct ixgbevf_adapter *adapter);
+int ethtool_ioctl(struct ifreq *ifr);
 
-extern void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
-extern void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);
+void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
+void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);
 
 #ifdef DEBUG
-extern char *ixgbevf_get_hw_dev_name(struct ixgbe_hw *hw);
+char *ixgbevf_get_hw_dev_name(struct ixgbe_hw *hw);
 #define hw_dbg(hw, format, arg...) \
 	printk(KERN_DEBUG "%s: " format, ixgbevf_get_hw_dev_name(hw), ##arg)
 #else
