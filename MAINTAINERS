@@ -7259,9 +7259,9 @@ F:	include/linux/sched.h
 F:	include/uapi/linux/sched.h
 
 SCORE ARCHITECTURE
-M:	Chen Liqin <liqin.chen@sunplusct.com>
+M:	Chen Liqin <liqin.linux@gmail.com>
 M:	Lennox Wu <lennox.wu@gmail.com>
-W:	http://www.sunplusct.com
+W:	http://www.sunplus.com
 S:	Supported
 F:	arch/score/
 
