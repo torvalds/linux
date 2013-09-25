@@ -2378,7 +2378,9 @@ extern int		dev_ethtool(struct net *net, struct ifreq *);
 extern unsigned int	dev_get_flags(const struct net_device *);
 extern int		__dev_change_flags(struct net_device *, unsigned int flags);
 extern int		dev_change_flags(struct net_device *, unsigned int);
-extern void		__dev_notify_flags(struct net_device *, unsigned int old_flags);
+void			__dev_notify_flags(struct net_device *,
+					   unsigned int old_flags,
+					   unsigned int gchanges);
 extern int		dev_change_name(struct net_device *, const char *);
 extern int		dev_set_alias(struct net_device *, const char *, size_t);
 extern int		dev_change_net_namespace(struct net_device *,

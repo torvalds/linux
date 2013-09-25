@@ -5235,9 +5235,13 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags)
 	return ret;
 }
 
-void __dev_notify_flags(struct net_device *dev, unsigned int old_flags)
+void __dev_notify_flags(struct net_device *dev, unsigned int old_flags,
+			unsigned int gchanges)
 {
 	unsigned int changes = dev->flags ^ old_flags;
+
+	if (gchanges)
+		rtmsg_ifinfo(RTM_NEWLINK, dev, gchanges);
 
 	if (changes & IFF_UP) {
 		if (dev->flags & IFF_UP)
@@ -5274,10 +5278,7 @@ int dev_change_flags(struct net_device *dev, unsigned int flags)
 		return ret;
 
 	changes = old_flags ^ dev->flags;
-	if (changes)
-		rtmsg_ifinfo(RTM_NEWLINK, dev, changes);
-
-	__dev_notify_flags(dev, old_flags);
+	__dev_notify_flags(dev, old_flags, changes);
 	return ret;
 }
 EXPORT_SYMBOL(dev_change_flags);
