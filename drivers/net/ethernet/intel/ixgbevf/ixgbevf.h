@@ -361,7 +361,6 @@ struct ixgbevf_adapter {
 	struct ixgbe_hw hw;
 	u16 msg_enable;
 	struct ixgbevf_hw_stats stats;
-	u64 zero_base;
 	/* Interrupt Throttle Rate */
 	u32 eitr_param;
 
