@@ -120,16 +120,6 @@
 #define bond_for_each_slave_rcu(bond, pos) \
 	list_for_each_entry_rcu(pos, &(bond)->slave_list, list)
 
-/**
- * bond_for_each_slave_reverse - iterate in reverse from a given position
- * @bond:	the bond holding this list
- * @pos:	slave to continue from
- *
- * Caller must hold bond->lock
- */
-#define bond_for_each_slave_continue_reverse(bond, pos) \
-	list_for_each_entry_continue_reverse(pos, &(bond)->slave_list, list)
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 extern atomic_t netpoll_block_tx;
 

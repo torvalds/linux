@@ -1246,9 +1246,9 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
  */
 static int alb_set_mac_address(struct bonding *bond, void *addr)
 {
-	char tmp_addr[ETH_ALEN];
-	struct slave *slave;
+	struct slave *slave, *rollback_slave;
 	struct sockaddr sa;
+	char tmp_addr[ETH_ALEN];
 	int res;
 
 	if (bond->alb_info.rlb_enabled)
@@ -1274,10 +1274,12 @@ unwind:
 	sa.sa_family = bond->dev->type;
 
 	/* unwind from head to the slave that failed */
-	bond_for_each_slave_continue_reverse(bond, slave) {
-		memcpy(tmp_addr, slave->dev->dev_addr, ETH_ALEN);
-		dev_set_mac_address(slave->dev, &sa);
-		memcpy(slave->dev->dev_addr, tmp_addr, ETH_ALEN);
+	bond_for_each_slave(bond, rollback_slave) {
+		if (rollback_slave == slave)
+			break;
+		memcpy(tmp_addr, rollback_slave->dev->dev_addr, ETH_ALEN);
+		dev_set_mac_address(rollback_slave->dev, &sa);
+		memcpy(rollback_slave->dev->dev_addr, tmp_addr, ETH_ALEN);
 	}
 
 	return res;
