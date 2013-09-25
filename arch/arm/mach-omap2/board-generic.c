@@ -56,6 +56,7 @@ static void __init omap_generic_init(void)
 	omap_sdrc_init(NULL, NULL);
 
 	of_platform_populate(NULL, omap_dt_match_table, NULL, NULL);
+	pdata_quirks_init();
 
 	/*
 	 * HACK: call display setup code for selected boards to enable omapdss.

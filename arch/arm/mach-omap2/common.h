@@ -288,6 +288,8 @@ static inline void omap4_cpu_resume(void)
 
 #endif
 
+void pdata_quirks_init(void);
+
 struct omap_sdrc_params;
 extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1);
