@@ -1255,7 +1255,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
-	struct slave *new_slave = NULL;
+	struct slave *new_slave = NULL, *prev_slave;
 	struct sockaddr addr;
 	int link_reporting;
 	int res = 0, i;
@@ -1472,6 +1472,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	write_lock_bh(&bond->lock);
 
+	prev_slave = bond_last_slave(bond);
 	bond_attach_slave(bond, new_slave);
 
 	new_slave->delay = 0;
@@ -1566,9 +1567,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			 */
 			bond_3ad_initialize(bond, 1000/AD_TIMER_INTERVAL);
 		} else {
-			struct slave *prev_slave;
-
-			prev_slave = bond_prev_slave(bond, new_slave);
 			SLAVE_AD_INFO(new_slave).id =
 				SLAVE_AD_INFO(prev_slave).id + 1;
 		}
@@ -3506,9 +3504,8 @@ static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 	 */
 
 	bond_for_each_slave(bond, slave, iter) {
-		pr_debug("s %p s->p %p c_m %p\n",
+		pr_debug("s %p c_m %p\n",
 			 slave,
-			 bond_prev_slave(bond, slave),
 			 slave->dev->netdev_ops->ndo_change_mtu);
 
 		res = dev_set_mtu(slave->dev, new_mtu);

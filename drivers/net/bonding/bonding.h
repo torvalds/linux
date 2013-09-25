@@ -96,10 +96,6 @@
 	(bond_is_last_slave(bond, pos) ? bond_first_slave(bond) : \
 					 bond_to_slave((pos)->list.next))
 
-#define bond_prev_slave(bond, pos) \
-	(bond_is_first_slave(bond, pos) ? bond_last_slave(bond) : \
-					  bond_to_slave((pos)->list.prev))
-
 /**
  * bond_for_each_slave - iterate over all slaves
  * @bond:	the bond holding this list
