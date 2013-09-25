@@ -181,10 +181,12 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		bool exec = ((pmd_val(orig) & PMD_HUGE_EXEC) != 0);
 
 		addr &= HPAGE_MASK;
-		if (pmd_val(orig) & PMD_ISHUGE)
+		if (pmd_val(orig) & PMD_ISHUGE) {
 			tlb_batch_add_one(mm, addr, exec);
-		else
+			tlb_batch_add_one(mm, addr + REAL_HPAGE_SIZE, exec);
+		} else {
 			tlb_batch_pmd_scan(mm, addr, orig, exec);
+		}
 	}
 }
 

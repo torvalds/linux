@@ -152,7 +152,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
 	brz,pn		REG1, FAIL_LABEL; \
 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
-	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
+	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
 	sllx		REG1, PMD_PADDR_SHIFT, REG1; \
 	andn		REG2, 0x7, REG2; \
 	add		REG1, REG2, REG1;
@@ -177,8 +177,15 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	or		REG, _PAGE_##NAME##_4V, REG;	\
 	.previous;
 
-	/* Load into REG the PTE value for VALID, CACHE, and SZHUGE.  */
-#define BUILD_PTE_VALID_SZHUGE_CACHE(REG)				   \
+	/* Load into REG the PTE value for VALID, CACHE, and SZHUGE.
+	 *
+	 * We are fabricating an 8MB page using 2 4MB HW pages here.
+	 */
+#define BUILD_PTE_VALID_SZHUGE_CACHE(VADDR, PADDR_BITS, REG)		   \
+	sethi		%hi(4 * 1024 * 1024), REG;			   \
+	andn		PADDR_BITS, REG, PADDR_BITS;			   \
+	and		VADDR, REG, REG;				   \
+	or		PADDR_BITS, REG, PADDR_BITS;			   \
 661:	sethi		%uhi(_PAGE_VALID|_PAGE_SZHUGE_4U), REG;		   \
 	.section	.sun4v_1insn_patch, "ax";			   \
 	.word		661b;						   \
@@ -231,7 +238,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 nop;								      \
 	OR_PTE_BIT_2INSN(REG2, REG1, EXEC);				      \
 	/* REG1 can now be clobbered, build final PTE */		      \
-1:	BUILD_PTE_VALID_SZHUGE_CACHE(REG1);				      \
+1:	BUILD_PTE_VALID_SZHUGE_CACHE(VADDR, REG2, REG1);		      \
 	ba,pt		%xcc, PTE_LABEL;				      \
 	 or		REG1, REG2, REG1;				      \
 700:
@@ -263,7 +270,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
 	USER_PGTABLE_CHECK_PMD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, 800f) \
 	sllx		VADDR, 64 - PMD_SHIFT, REG2; \
-	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
+	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
 	sllx		REG1, PMD_PADDR_SHIFT, REG1; \
 	andn		REG2, 0x7, REG2; \
 	add		REG1, REG2, REG1; \

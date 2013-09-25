@@ -354,7 +354,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 	if (mm->context.huge_pte_count && is_hugetlb_pte(pte))
-		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, HPAGE_SHIFT,
+		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, REAL_HPAGE_SHIFT,
 					address, pte_val(pte));
 	else
 #endif
@@ -2547,53 +2547,13 @@ void __flush_tlb_all(void)
 			     : : "r" (pstate));
 }
 
-static pte_t *get_from_cache(struct mm_struct *mm)
-{
-	struct page *page;
-	pte_t *ret;
-
-	spin_lock(&mm->page_table_lock);
-	page = mm->context.pgtable_page;
-	ret = NULL;
-	if (page) {
-		void *p = page_address(page);
-
-		mm->context.pgtable_page = NULL;
-
-		ret = (pte_t *) (p + (PAGE_SIZE / 2));
-	}
-	spin_unlock(&mm->page_table_lock);
-
-	return ret;
-}
-
-static struct page *__alloc_for_cache(struct mm_struct *mm)
-{
-	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
-				       __GFP_REPEAT | __GFP_ZERO);
-
-	if (page) {
-		spin_lock(&mm->page_table_lock);
-		if (!mm->context.pgtable_page) {
-			atomic_set(&page->_count, 2);
-			mm->context.pgtable_page = page;
-		}
-		spin_unlock(&mm->page_table_lock);
-	}
-	return page;
-}
-
 pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 			    unsigned long address)
 {
-	struct page *page;
-	pte_t *pte;
+	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+				       __GFP_REPEAT | __GFP_ZERO);
+	pte_t *pte = NULL;
 
-	pte = get_from_cache(mm);
-	if (pte)
-		return pte;
-
-	page = __alloc_for_cache(mm);
 	if (page)
 		pte = (pte_t *) page_address(page);
 
@@ -2603,14 +2563,10 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 pgtable_t pte_alloc_one(struct mm_struct *mm,
 			unsigned long address)
 {
-	struct page *page;
-	pte_t *pte;
+	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+				       __GFP_REPEAT | __GFP_ZERO);
+	pte_t *pte = NULL;
 
-	pte = get_from_cache(mm);
-	if (pte)
-		return pte;
-
-	page = __alloc_for_cache(mm);
 	if (page) {
 		pgtable_page_ctor(page);
 		pte = (pte_t *) page_address(page);
@@ -2621,18 +2577,15 @@ pgtable_t pte_alloc_one(struct mm_struct *mm,
 
 void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-	struct page *page = virt_to_page(pte);
-	if (put_page_testzero(page))
-		free_hot_cold_page(page, 0);
+	free_page((unsigned long)pte);
 }
 
 static void __pte_free(pgtable_t pte)
 {
 	struct page *page = virt_to_page(pte);
-	if (put_page_testzero(page)) {
-		pgtable_page_dtor(page);
-		free_hot_cold_page(page, 0);
-	}
+
+	pgtable_page_dtor(page);
+	__free_page(page);
 }
 
 void pte_free(struct mm_struct *mm, pgtable_t pte)
@@ -2752,6 +2705,9 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 	pte <<= PMD_PADDR_SHIFT;
 	pte |= _PAGE_VALID;
 
+	/* We are fabricating 8MB pages using 4MB real hw pages.  */
+	pte |= (addr & (1UL << REAL_HPAGE_SHIFT));
+
 	prot = pmd_pgprot(entry);
 
 	if (tlb_type == hypervisor)
@@ -2766,7 +2722,7 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 	spin_lock_irqsave(&mm->context.lock, flags);
 
 	if (mm->context.tsb_block[MM_TSB_HUGE].tsb != NULL)
-		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, HPAGE_SHIFT,
+		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, REAL_HPAGE_SHIFT,
 					addr, pte);
 
 	spin_unlock_irqrestore(&mm->context.lock, flags);
