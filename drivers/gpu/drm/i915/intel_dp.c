@@ -59,7 +59,7 @@ static const struct dp_link_dpll pch_dpll[] = {
 
 static const struct dp_link_dpll vlv_dpll[] = {
 	{ DP_LINK_BW_1_62,
-		{ .p1 = 3, .p2 = 2, .n = 5, .m1 = 5, .m2 = 3 } },
+		{ .p1 = 3, .p2 = 2, .n = 5, .m1 = 3, .m2 = 81 } },
 	{ DP_LINK_BW_2_7,
 		{ .p1 = 2, .p2 = 2, .n = 1, .m1 = 2, .m2 = 27 } }
 };
