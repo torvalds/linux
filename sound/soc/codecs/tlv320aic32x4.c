@@ -617,16 +617,11 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 {
 	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
 	u32 tmp_reg;
-	int ret;
 
 	codec->hw_write = (hw_write_t) i2c_master_send;
 	codec->control_data = aic32x4->control_data;
 
 	if (aic32x4->rstn_gpio >= 0) {
-		ret = devm_gpio_request_one(codec->dev, aic32x4->rstn_gpio,
-				GPIOF_OUT_INIT_LOW, "tlv320aic32x4 rstn");
-		if (ret != 0)
-			return ret;
 		ndelay(10);
 		gpio_set_value(aic32x4->rstn_gpio, 1);
 	}
@@ -733,6 +728,13 @@ static int aic32x4_i2c_probe(struct i2c_client *i2c,
 		aic32x4->swapdacs = false;
 		aic32x4->micpga_routing = 0;
 		aic32x4->rstn_gpio = -1;
+	}
+
+	if (aic32x4->rstn_gpio >= 0) {
+		ret = devm_gpio_request_one(&i2c->dev, aic32x4->rstn_gpio,
+				GPIOF_OUT_INIT_LOW, "tlv320aic32x4 rstn");
+		if (ret != 0)
+			return ret;
 	}
 
 	ret = snd_soc_register_codec(&i2c->dev,
