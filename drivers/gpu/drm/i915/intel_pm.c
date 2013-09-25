@@ -3312,6 +3312,98 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 *val)
 	return limits;
 }
 
+static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
+{
+	int new_power;
+
+	new_power = dev_priv->rps.power;
+	switch (dev_priv->rps.power) {
+	case LOW_POWER:
+		if (val > dev_priv->rps.rpe_delay + 1 && val > dev_priv->rps.cur_delay)
+			new_power = BETWEEN;
+		break;
+
+	case BETWEEN:
+		if (val <= dev_priv->rps.rpe_delay && val < dev_priv->rps.cur_delay)
+			new_power = LOW_POWER;
+		else if (val >= dev_priv->rps.rp0_delay && val > dev_priv->rps.cur_delay)
+			new_power = HIGH_POWER;
+		break;
+
+	case HIGH_POWER:
+		if (val < (dev_priv->rps.rp1_delay + dev_priv->rps.rp0_delay) >> 1 && val < dev_priv->rps.cur_delay)
+			new_power = BETWEEN;
+		break;
+	}
+	/* Max/min bins are special */
+	if (val == dev_priv->rps.min_delay)
+		new_power = LOW_POWER;
+	if (val == dev_priv->rps.max_delay)
+		new_power = HIGH_POWER;
+	if (new_power == dev_priv->rps.power)
+		return;
+
+	/* Note the units here are not exactly 1us, but 1280ns. */
+	switch (new_power) {
+	case LOW_POWER:
+		/* Upclock if more than 95% busy over 16ms */
+		I915_WRITE(GEN6_RP_UP_EI, 12500);
+		I915_WRITE(GEN6_RP_UP_THRESHOLD, 11800);
+
+		/* Downclock if less than 85% busy over 32ms */
+		I915_WRITE(GEN6_RP_DOWN_EI, 25000);
+		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 21250);
+
+		I915_WRITE(GEN6_RP_CONTROL,
+			   GEN6_RP_MEDIA_TURBO |
+			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
+			   GEN6_RP_MEDIA_IS_GFX |
+			   GEN6_RP_ENABLE |
+			   GEN6_RP_UP_BUSY_AVG |
+			   GEN6_RP_DOWN_IDLE_AVG);
+		break;
+
+	case BETWEEN:
+		/* Upclock if more than 90% busy over 13ms */
+		I915_WRITE(GEN6_RP_UP_EI, 10250);
+		I915_WRITE(GEN6_RP_UP_THRESHOLD, 9225);
+
+		/* Downclock if less than 75% busy over 32ms */
+		I915_WRITE(GEN6_RP_DOWN_EI, 25000);
+		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 18750);
+
+		I915_WRITE(GEN6_RP_CONTROL,
+			   GEN6_RP_MEDIA_TURBO |
+			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
+			   GEN6_RP_MEDIA_IS_GFX |
+			   GEN6_RP_ENABLE |
+			   GEN6_RP_UP_BUSY_AVG |
+			   GEN6_RP_DOWN_IDLE_AVG);
+		break;
+
+	case HIGH_POWER:
+		/* Upclock if more than 85% busy over 10ms */
+		I915_WRITE(GEN6_RP_UP_EI, 8000);
+		I915_WRITE(GEN6_RP_UP_THRESHOLD, 6800);
+
+		/* Downclock if less than 60% busy over 32ms */
+		I915_WRITE(GEN6_RP_DOWN_EI, 25000);
+		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 15000);
+
+		I915_WRITE(GEN6_RP_CONTROL,
+			   GEN6_RP_MEDIA_TURBO |
+			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
+			   GEN6_RP_MEDIA_IS_GFX |
+			   GEN6_RP_ENABLE |
+			   GEN6_RP_UP_BUSY_AVG |
+			   GEN6_RP_DOWN_IDLE_AVG);
+		break;
+	}
+
+	dev_priv->rps.power = new_power;
+	dev_priv->rps.last_adj = 0;
+}
+
 void gen6_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3323,6 +3415,8 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 
 	if (val == dev_priv->rps.cur_delay)
 		return;
+
+	gen6_set_rps_thresholds(dev_priv, val);
 
 	if (IS_HASWELL(dev))
 		I915_WRITE(GEN6_RPNSWREQ,
@@ -3352,6 +3446,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
 	else
 		gen6_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
+	dev_priv->rps.last_adj = 0;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
@@ -3362,6 +3457,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv)
 		valleyview_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
 	else
 		gen6_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
+	dev_priv->rps.last_adj = 0;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
@@ -3546,7 +3642,10 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	/* In units of 50MHz */
 	dev_priv->rps.hw_max = dev_priv->rps.max_delay = rp_state_cap & 0xff;
-	dev_priv->rps.min_delay = (rp_state_cap & 0xff0000) >> 16;
+	dev_priv->rps.min_delay = (rp_state_cap >> 16) & 0xff;
+	dev_priv->rps.rp1_delay = (rp_state_cap >>  8) & 0xff;
+	dev_priv->rps.rp0_delay = (rp_state_cap >>  0) & 0xff;
+	dev_priv->rps.rpe_delay = dev_priv->rps.rp1_delay;
 	dev_priv->rps.cur_delay = 0;
 
 	/* disable the counters and set deterministic thresholds */
@@ -3594,38 +3693,9 @@ static void gen6_enable_rps(struct drm_device *dev)
 		   GEN6_RC_CTL_EI_MODE(1) |
 		   GEN6_RC_CTL_HW_ENABLE);
 
-	if (IS_HASWELL(dev)) {
-		I915_WRITE(GEN6_RPNSWREQ,
-			   HSW_FREQUENCY(10));
-		I915_WRITE(GEN6_RC_VIDEO_FREQ,
-			   HSW_FREQUENCY(12));
-	} else {
-		I915_WRITE(GEN6_RPNSWREQ,
-			   GEN6_FREQUENCY(10) |
-			   GEN6_OFFSET(0) |
-			   GEN6_AGGRESSIVE_TURBO);
-		I915_WRITE(GEN6_RC_VIDEO_FREQ,
-			   GEN6_FREQUENCY(12));
-	}
-
-	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 1000000);
-	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
-		   dev_priv->rps.max_delay << 24 |
-		   dev_priv->rps.min_delay << 16);
-
-	I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
-	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 245000);
-	I915_WRITE(GEN6_RP_UP_EI, 66000);
-	I915_WRITE(GEN6_RP_DOWN_EI, 350000);
-
+	/* Power down if completely idle for over 50ms */
+	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 50000);
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
-	I915_WRITE(GEN6_RP_CONTROL,
-		   GEN6_RP_MEDIA_TURBO |
-		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-		   GEN6_RP_MEDIA_IS_GFX |
-		   GEN6_RP_ENABLE |
-		   GEN6_RP_UP_BUSY_AVG |
-		   (IS_HASWELL(dev) ? GEN7_RP_DOWN_IDLE_AVG : GEN6_RP_DOWN_IDLE_CONT));
 
 	ret = sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_MIN_FREQ_TABLE, 0);
 	if (!ret) {
@@ -3641,7 +3711,8 @@ static void gen6_enable_rps(struct drm_device *dev)
 		DRM_DEBUG_DRIVER("Failed to set the min frequency\n");
 	}
 
-	gen6_set_rps(dev_priv->dev, (gt_perf_status & 0xff00) >> 8);
+	dev_priv->rps.power = HIGH_POWER; /* force a reset */
+	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
 
 	gen6_enable_rps_interrupts(dev);
 

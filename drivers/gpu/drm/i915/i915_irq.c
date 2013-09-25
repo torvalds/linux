@@ -818,7 +818,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
 						    rps.work);
 	u32 pm_iir;
-	u8 new_delay;
+	int new_delay, adj;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	pm_iir = dev_priv->rps.pm_iir;
@@ -835,29 +835,49 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
+	adj = dev_priv->rps.last_adj;
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
-		new_delay = dev_priv->rps.cur_delay + 1;
+		if (adj > 0)
+			adj *= 2;
+		else
+			adj = 1;
+		new_delay = dev_priv->rps.cur_delay + adj;
 
 		/*
 		 * For better performance, jump directly
 		 * to RPe if we're below it.
 		 */
-		if (IS_VALLEYVIEW(dev_priv->dev) &&
-		    dev_priv->rps.cur_delay < dev_priv->rps.rpe_delay)
+		if (new_delay < dev_priv->rps.rpe_delay)
 			new_delay = dev_priv->rps.rpe_delay;
-	} else
-		new_delay = dev_priv->rps.cur_delay - 1;
+	} else if (pm_iir & GEN6_PM_RP_DOWN_TIMEOUT) {
+		if (dev_priv->rps.cur_delay > dev_priv->rps.rpe_delay)
+			new_delay = dev_priv->rps.rpe_delay;
+		else
+			new_delay = dev_priv->rps.min_delay;
+		adj = 0;
+	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
+		if (adj < 0)
+			adj *= 2;
+		else
+			adj = -1;
+		new_delay = dev_priv->rps.cur_delay + adj;
+	} else { /* unknown event */
+		new_delay = dev_priv->rps.cur_delay;
+	}
 
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
 	 */
-	if (new_delay >= dev_priv->rps.min_delay &&
-	    new_delay <= dev_priv->rps.max_delay) {
-		if (IS_VALLEYVIEW(dev_priv->dev))
-			valleyview_set_rps(dev_priv->dev, new_delay);
-		else
-			gen6_set_rps(dev_priv->dev, new_delay);
-	}
+	if (new_delay < (int)dev_priv->rps.min_delay)
+		new_delay = dev_priv->rps.min_delay;
+	if (new_delay > (int)dev_priv->rps.max_delay)
+		new_delay = dev_priv->rps.max_delay;
+	dev_priv->rps.last_adj = new_delay - dev_priv->rps.cur_delay;
+
+	if (IS_VALLEYVIEW(dev_priv->dev))
+		valleyview_set_rps(dev_priv->dev, new_delay);
+	else
+		gen6_set_rps(dev_priv->dev, new_delay);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
