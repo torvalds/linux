@@ -168,27 +168,6 @@ static const struct class_attribute class_attr_bonding_masters = {
 	.namespace = bonding_namespace,
 };
 
-int bond_create_slave_symlinks(struct net_device *master,
-			       struct net_device *slave)
-{
-	char linkname[IFNAMSIZ+7];
-
-	/* create a link from the master to the slave */
-	sprintf(linkname, "slave_%s", slave->name);
-	return sysfs_create_link(&(master->dev.kobj), &(slave->dev.kobj),
-				 linkname);
-}
-
-void bond_destroy_slave_symlinks(struct net_device *master,
-				 struct net_device *slave)
-{
-	char linkname[IFNAMSIZ+7];
-
-	sprintf(linkname, "slave_%s", slave->name);
-	sysfs_remove_link(&(master->dev.kobj), linkname);
-}
-
-
 /*
  * Show the slaves in the current bond.
  */

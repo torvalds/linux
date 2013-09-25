@@ -4584,6 +4584,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 					void *private, bool master)
 {
 	struct netdev_adjacent *adj;
+	char linkname[IFNAMSIZ+7];
 	int ret;
 
 	adj = __netdev_find_adj(dev, adj_dev, dev_list);
@@ -4606,12 +4607,26 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	pr_debug("dev_hold for %s, because of link added from %s to %s\n",
 		 adj_dev->name, dev->name, adj_dev->name);
 
+	if (dev_list == &dev->adj_list.lower) {
+		sprintf(linkname, "lower_%s", adj_dev->name);
+		ret = sysfs_create_link(&(dev->dev.kobj),
+					&(adj_dev->dev.kobj), linkname);
+		if (ret)
+			goto free_adj;
+	} else if (dev_list == &dev->adj_list.upper) {
+		sprintf(linkname, "upper_%s", adj_dev->name);
+		ret = sysfs_create_link(&(dev->dev.kobj),
+					&(adj_dev->dev.kobj), linkname);
+		if (ret)
+			goto free_adj;
+	}
+
 	/* Ensure that master link is always the first item in list. */
 	if (master) {
 		ret = sysfs_create_link(&(dev->dev.kobj),
 					&(adj_dev->dev.kobj), "master");
 		if (ret)
-			goto free_adj;
+			goto remove_symlinks;
 
 		list_add_rcu(&adj->list, dev_list);
 	} else {
@@ -4619,6 +4634,15 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	}
 
 	return 0;
+
+remove_symlinks:
+	if (dev_list == &dev->adj_list.lower) {
+		sprintf(linkname, "lower_%s", adj_dev->name);
+		sysfs_remove_link(&(dev->dev.kobj), linkname);
+	} else if (dev_list == &dev->adj_list.upper) {
+		sprintf(linkname, "upper_%s", adj_dev->name);
+		sysfs_remove_link(&(dev->dev.kobj), linkname);
+	}
 
 free_adj:
 	kfree(adj);
@@ -4631,6 +4655,7 @@ void __netdev_adjacent_dev_remove(struct net_device *dev,
 				  struct list_head *dev_list)
 {
 	struct netdev_adjacent *adj;
+	char linkname[IFNAMSIZ+7];
 
 	adj = __netdev_find_adj(dev, adj_dev, dev_list);
 
@@ -4649,6 +4674,14 @@ void __netdev_adjacent_dev_remove(struct net_device *dev,
 
 	if (adj->master)
 		sysfs_remove_link(&(dev->dev.kobj), "master");
+
+	if (dev_list == &dev->adj_list.lower) {
+		sprintf(linkname, "lower_%s", adj_dev->name);
+		sysfs_remove_link(&(dev->dev.kobj), linkname);
+	} else if (dev_list == &dev->adj_list.upper) {
+		sprintf(linkname, "upper_%s", adj_dev->name);
+		sysfs_remove_link(&(dev->dev.kobj), linkname);
+	}
 
 	list_del_rcu(&adj->list);
 	pr_debug("dev_put for %s, because link removed from %s to %s\n",
