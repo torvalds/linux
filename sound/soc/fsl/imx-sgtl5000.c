@@ -62,7 +62,7 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	struct device_node *ssi_np, *codec_np;
 	struct platform_device *ssi_pdev;
 	struct i2c_client *codec_dev;
-	struct imx_sgtl5000_data *data;
+	struct imx_sgtl5000_data *data = NULL;
 	int int_port, ext_port;
 	int ret;
 
@@ -172,7 +172,7 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	return 0;
 
 fail:
-	if (!IS_ERR(data->codec_clk))
+	if (data && !IS_ERR(data->codec_clk))
 		clk_put(data->codec_clk);
 	if (ssi_np)
 		of_node_put(ssi_np);
