@@ -925,28 +925,23 @@ static int wmt_mci_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct wmt_mci_priv *priv;
-	int ret;
 
 	if (!mmc)
 		return 0;
 
 	priv = mmc_priv(mmc);
-	ret = mmc_suspend_host(mmc);
+	reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
+	writeb(reg_tmp | BM_SOFT_RESET, priv->sdmmc_base +
+	       SDMMC_BUSMODE);
 
-	if (!ret) {
-		reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-		writeb(reg_tmp | BM_SOFT_RESET, priv->sdmmc_base +
-		       SDMMC_BUSMODE);
+	reg_tmp = readw(priv->sdmmc_base + SDMMC_BLKLEN);
+	writew(reg_tmp & 0x5FFF, priv->sdmmc_base + SDMMC_BLKLEN);
 
-		reg_tmp = readw(priv->sdmmc_base + SDMMC_BLKLEN);
-		writew(reg_tmp & 0x5FFF, priv->sdmmc_base + SDMMC_BLKLEN);
+	writeb(0xFF, priv->sdmmc_base + SDMMC_STS0);
+	writeb(0xFF, priv->sdmmc_base + SDMMC_STS1);
 
-		writeb(0xFF, priv->sdmmc_base + SDMMC_STS0);
-		writeb(0xFF, priv->sdmmc_base + SDMMC_STS1);
-
-		clk_disable(priv->clk_sdmmc);
-	}
-	return ret;
+	clk_disable(priv->clk_sdmmc);
+	return 0;
 }
 
 static int wmt_mci_resume(struct device *dev)
@@ -955,7 +950,6 @@ static int wmt_mci_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct wmt_mci_priv *priv;
-	int ret = 0;
 
 	if (mmc) {
 		priv = mmc_priv(mmc);
@@ -973,10 +967,9 @@ static int wmt_mci_resume(struct device *dev)
 		writeb(reg_tmp | INT0_DI_INT_EN, priv->sdmmc_base +
 		       SDMMC_INTMASK0);
 
-		ret = mmc_resume_host(mmc);
 	}
 
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops wmt_mci_pm = {
