@@ -850,7 +850,12 @@ struct intel_gen6_power_mgmt {
 	u8 min_delay;
 	u8 max_delay;
 	u8 rpe_delay;
+	u8 rp1_delay;
+	u8 rp0_delay;
 	u8 hw_max;
+
+	int last_adj;
+	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
 
 	struct delayed_work delayed_resume_work;
 
