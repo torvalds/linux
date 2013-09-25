@@ -623,7 +623,6 @@ static int kyrofb_ioctl(struct fb_info *info,
 				"command instead.\n");
 			return -EINVAL;
 		}
-		break;
 	case KYRO_IOCTL_UVSTRIDE:
 		if (copy_to_user(argp, &deviceInfo.ulOverlayUVStride, sizeof(unsigned long)))
 			return -EFAULT;
