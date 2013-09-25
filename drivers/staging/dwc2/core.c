@@ -2205,7 +2205,7 @@ int dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 {
 #ifndef NO_FS_PHY_HW_CHECKS
 	int valid = 0;
-        u32 hs_phy_type, fs_phy_type;
+	u32 hs_phy_type, fs_phy_type;
 #endif
 	int retval = 0;
 
@@ -2553,7 +2553,7 @@ int dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val)
 		hsotg->core_params->ahbcfg = val;
 	else
 		hsotg->core_params->ahbcfg = GAHBCFG_HBSTLEN_INCR4 <<
-                                             GAHBCFG_HBSTLEN_SHIFT;
+						GAHBCFG_HBSTLEN_SHIFT;
 	return 0;
 }
 
