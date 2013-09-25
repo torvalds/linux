@@ -901,6 +901,7 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 	}
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ideapad_acpi_resume(struct device *device)
 {
 	ideapad_sync_rfk_state(ideapad_priv);
@@ -909,6 +910,7 @@ static int ideapad_acpi_resume(struct device *device)
 }
 
 static SIMPLE_DEV_PM_OPS(ideapad_pm, NULL, ideapad_acpi_resume);
+#endif
 
 static struct acpi_driver ideapad_acpi_driver = {
 	.name = "ideapad_acpi",
@@ -917,7 +919,9 @@ static struct acpi_driver ideapad_acpi_driver = {
 	.ops.add = ideapad_acpi_add,
 	.ops.remove = ideapad_acpi_remove,
 	.ops.notify = ideapad_acpi_notify,
+#ifdef CONFIG_PM_SLEEP
 	.drv.pm = &ideapad_pm,
+#endif
 	.owner = THIS_MODULE,
 };
 module_acpi_driver(ideapad_acpi_driver);
