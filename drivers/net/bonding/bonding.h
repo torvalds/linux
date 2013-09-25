@@ -250,6 +250,34 @@ struct bonding {
 	((struct slave *) rtnl_dereference(dev->rx_handler_data))
 
 /**
+ * __bond_next_slave - get the next slave after the one provided
+ * @bond - bonding struct
+ * @slave - the slave provided
+ *
+ * Returns the next slave after the slave provided, first slave if the
+ * slave provided is the last slave and NULL if slave is not found
+ */
+static inline struct slave *__bond_next_slave(struct bonding *bond,
+					      struct slave *slave)
+{
+	struct slave *slave_iter;
+	struct list_head *iter;
+	bool found = false;
+
+	netdev_for_each_lower_private(bond->dev, slave_iter, iter) {
+		if (found)
+			return slave_iter;
+		if (slave_iter == slave)
+			found = true;
+	}
+
+	if (found)
+		return bond_first_slave(bond);
+
+	return NULL;
+}
+
+/**
  * Returns NULL if the net_device does not belong to any of the bond's slaves
  *
  * Caller must hold bond lock for read
