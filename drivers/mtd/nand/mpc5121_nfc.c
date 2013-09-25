@@ -786,7 +786,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	/* Detect NAND chips */
 	if (nand_scan(mtd, be32_to_cpup(chips_no))) {
 		dev_err(dev, "NAND Flash not found !\n");
-		devm_free_irq(dev, prv->irq, mtd);
 		retval = -ENXIO;
 		goto error;
 	}
@@ -811,7 +810,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 
 	default:
 		dev_err(dev, "Unsupported NAND flash!\n");
-		devm_free_irq(dev, prv->irq, mtd);
 		retval = -ENXIO;
 		goto error;
 	}
@@ -822,7 +820,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	retval = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
 	if (retval) {
 		dev_err(dev, "Error adding MTD device!\n");
-		devm_free_irq(dev, prv->irq, mtd);
 		goto error;
 	}
 
@@ -836,11 +833,8 @@ static int mpc5121_nfc_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mtd_info *mtd = dev_get_drvdata(dev);
-	struct nand_chip *chip = mtd->priv;
-	struct mpc5121_nfc_prv *prv = chip->priv;
 
 	nand_release(mtd);
-	devm_free_irq(dev, prv->irq, mtd);
 	mpc5121_nfc_free(dev, mtd);
 
 	return 0;
