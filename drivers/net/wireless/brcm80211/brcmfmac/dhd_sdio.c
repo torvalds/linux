@@ -1492,13 +1492,12 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 					   bus->glom.qlen, pfirst, pfirst->data,
 					   pfirst->len, pfirst->next,
 					   pfirst->prev);
+			skb_unlink(pfirst, &bus->glom);
+			brcmf_rx_frame(bus->sdiodev->dev, pfirst);
+			bus->sdcnt.rxglompkts++;
 		}
-		/* sent any remaining packets up */
-		if (bus->glom.qlen)
-			brcmf_rx_frames(bus->sdiodev->dev, &bus->glom);
 
 		bus->sdcnt.rxglomframes++;
-		bus->sdcnt.rxglompkts += bus->glom.qlen;
 	}
 	return num;
 }
@@ -1643,7 +1642,6 @@ static void brcmf_pad(struct brcmf_sdio *bus, u16 *pad, u16 *rdlen)
 static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 {
 	struct sk_buff *pkt;		/* Packet for event or data frames */
-	struct sk_buff_head pktlist;	/* needed for bus interface */
 	u16 pad;		/* Number of pad bytes to read */
 	uint rxleft = 0;	/* Remaining number of frames allowed */
 	int ret;		/* Return code from calls */
@@ -1845,9 +1843,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 			continue;
 		}
 
-		skb_queue_head_init(&pktlist);
-		skb_queue_tail(&pktlist, pkt);
-		brcmf_rx_frames(bus->sdiodev->dev, &pktlist);
+		brcmf_rx_frame(bus->sdiodev->dev, pkt);
 	}
 
 	rxcount = maxframes - rxleft;
