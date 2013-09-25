@@ -408,7 +408,7 @@ static void __iomem *tegra_pcie_bus_map(struct tegra_pcie *pcie,
 
 	list_for_each_entry(bus, &pcie->busses, list)
 		if (bus->nr == busnr)
-			return bus->area->addr;
+			return (void __iomem *)bus->area->addr;
 
 	bus = tegra_pcie_bus_alloc(pcie, busnr);
 	if (IS_ERR(bus))
@@ -416,7 +416,7 @@ static void __iomem *tegra_pcie_bus_map(struct tegra_pcie *pcie,
 
 	list_add_tail(&bus->list, &pcie->busses);
 
-	return bus->area->addr;
+	return (void __iomem *)bus->area->addr;
 }
 
 static void __iomem *tegra_pcie_conf_address(struct pci_bus *bus,
