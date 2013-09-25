@@ -8343,7 +8343,7 @@ static void intel_dump_crtc_timings(const struct drm_display_mode *mode)
 {
 	DRM_DEBUG_KMS("crtc timings: %d %d %d %d %d %d %d %d %d, "
 			"type: 0x%x flags: 0x%x\n",
-		mode->clock,
+		mode->crtc_clock,
 		mode->crtc_hdisplay, mode->crtc_hsync_start,
 		mode->crtc_hsync_end, mode->crtc_htotal,
 		mode->crtc_vdisplay, mode->crtc_vsync_start,
