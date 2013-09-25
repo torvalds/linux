@@ -66,7 +66,6 @@ int __ref _debug_hotplug_cpu(int cpu, int action)
 		return -EINVAL;
 
 	lock_device_hotplug();
-	cpu_hotplug_driver_lock();
 
 	switch (action) {
 	case 0:
@@ -91,7 +90,6 @@ int __ref _debug_hotplug_cpu(int cpu, int action)
 		ret = -EINVAL;
 	}
 
-	cpu_hotplug_driver_unlock();
 	unlock_device_hotplug();
 
 	return ret;
