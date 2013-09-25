@@ -526,12 +526,30 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long high_frame;
 	unsigned long low_frame;
-	u32 high1, high2, low;
+	u32 high1, high2, low, pixel, vbl_start;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
 		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
 				"pipe %c\n", pipe_name(pipe));
 		return 0;
+	}
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		struct intel_crtc *intel_crtc =
+			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+		const struct drm_display_mode *mode =
+			&intel_crtc->config.adjusted_mode;
+
+		vbl_start = mode->crtc_vblank_start * mode->crtc_htotal;
+	} else {
+		enum transcoder cpu_transcoder =
+			intel_pipe_to_cpu_transcoder(dev_priv, pipe);
+		u32 htotal;
+
+		htotal = ((I915_READ(HTOTAL(cpu_transcoder)) >> 16) & 0x1fff) + 1;
+		vbl_start = (I915_READ(VBLANK(cpu_transcoder)) & 0x1fff) + 1;
+
+		vbl_start *= htotal;
 	}
 
 	high_frame = PIPEFRAME(pipe);
@@ -544,13 +562,20 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	 */
 	do {
 		high1 = I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK;
-		low   = I915_READ(low_frame)  & PIPE_FRAME_LOW_MASK;
+		low   = I915_READ(low_frame);
 		high2 = I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK;
 	} while (high1 != high2);
 
 	high1 >>= PIPE_FRAME_HIGH_SHIFT;
+	pixel = low & PIPE_PIXEL_MASK;
 	low >>= PIPE_FRAME_LOW_SHIFT;
-	return (high1 << 8) | low;
+
+	/*
+	 * The frame counter increments at beginning of active.
+	 * Cook up a vblank counter by also checking the pixel
+	 * counter against vblank start.
+	 */
+	return ((high1 << 8) | low) + (pixel >= vbl_start);
 }
 
 static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
@@ -3155,11 +3180,12 @@ void intel_irq_init(struct drm_device *dev)
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
-	dev->driver->get_vblank_counter = i915_get_vblank_counter;
-	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
+	} else {
+		dev->driver->get_vblank_counter = i915_get_vblank_counter;
+		dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
