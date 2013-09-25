@@ -354,6 +354,11 @@ static inline int mtd_has_oob(const struct mtd_info *mtd)
 	return mtd->_read_oob && mtd->_write_oob;
 }
 
+static inline int mtd_type_is_nand(const struct mtd_info *mtd)
+{
+	return mtd->type == MTD_NANDFLASH || mtd->type == MTD_MLCNANDFLASH;
+}
+
 static inline int mtd_can_have_bb(const struct mtd_info *mtd)
 {
 	return !!mtd->_block_isbad;
