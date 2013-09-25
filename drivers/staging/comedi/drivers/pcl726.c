@@ -111,8 +111,8 @@ static const struct comedi_lrange *const rangelist_728[] = {
 struct pcl726_board {
 	const char *name;	/*  driver name */
 	int n_aochan;		/*  num of D/A chans */
-	unsigned int IRQbits;	/*  allowed interrupts */
 	unsigned int io_range;	/*  len of IO space */
+	unsigned int irq_mask;
 	unsigned int have_dio:1;
 	unsigned int is_pcl727:1;
 	const struct comedi_lrange *const *ao_ranges;
@@ -144,8 +144,8 @@ static const struct pcl726_board boardtypes[] = {
 	}, {
 		.name		= "acl6126",
 		.n_aochan	= 6,
-		.IRQbits	= 0x96e8,
 		.io_range	= PCL726_SIZE,
+		.irq_mask	= 0x96e8,
 		.have_dio	= 1,
 		.ao_num_ranges	= ARRAY_SIZE(rangelist_726),
 		.ao_ranges	= &rangelist_726[0],
@@ -281,7 +281,7 @@ static int pcl726_attach(struct comedi_device *dev,
 	 * Hook up the external trigger source interrupt only if the
 	 * user config option is valid and the board supports interrupts.
 	 */
-	if (it->options[1] && (board->IRQbits & (1 << it->options[1]))) {
+	if (it->options[1] && (board->irq_mask & (1 << it->options[1]))) {
 		ret = request_irq(it->options[1], pcl818_interrupt, 0,
 				  dev->board_name, dev);
 		if (ret == 0) {
