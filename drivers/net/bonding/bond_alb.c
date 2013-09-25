@@ -1178,7 +1178,7 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 	struct slave *tmp_slave1, *free_mac_slave = NULL;
 	struct list_head *iter;
 
-	if (list_empty(&bond->slave_list)) {
+	if (!bond_has_slaves(bond)) {
 		/* this is the first slave */
 		return 0;
 	}
@@ -1469,7 +1469,7 @@ void bond_alb_monitor(struct work_struct *work)
 
 	read_lock(&bond->lock);
 
-	if (list_empty(&bond->slave_list)) {
+	if (!bond_has_slaves(bond)) {
 		bond_info->tx_rebalance_counter = 0;
 		bond_info->lp_counter = 0;
 		goto re_arm;
@@ -1606,7 +1606,7 @@ int bond_alb_init_slave(struct bonding *bond, struct slave *slave)
  */
 void bond_alb_deinit_slave(struct bonding *bond, struct slave *slave)
 {
-	if (!list_empty(&bond->slave_list))
+	if (bond_has_slaves(bond))
 		alb_change_hw_addr_on_detach(bond, slave);
 
 	tlb_clear_slave(bond, slave, 0);
@@ -1676,7 +1676,7 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	swap_slave = bond->curr_active_slave;
 	rcu_assign_pointer(bond->curr_active_slave, new_slave);
 
-	if (!new_slave || list_empty(&bond->slave_list))
+	if (!new_slave || !bond_has_slaves(bond))
 		return;
 
 	/* set the new curr_active_slave to the bonds mac address

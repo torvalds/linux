@@ -327,7 +327,7 @@ static ssize_t bonding_store_mode(struct device *d,
 		goto out;
 	}
 
-	if (!list_empty(&bond->slave_list)) {
+	if (bond_has_slaves(bond)) {
 		pr_err("unable to update mode of %s because it has slaves.\n",
 			bond->dev->name);
 		ret = -EPERM;
@@ -523,7 +523,7 @@ static ssize_t bonding_store_fail_over_mac(struct device *d,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (!list_empty(&bond->slave_list)) {
+	if (bond_has_slaves(bond)) {
 		pr_err("%s: Can't alter fail_over_mac with slaves in bond.\n",
 		       bond->dev->name);
 		ret = -EPERM;

@@ -72,6 +72,8 @@
 	res; })
 
 /* slave list primitives */
+#define bond_has_slaves(bond) !list_empty(&(bond)->slave_list)
+
 #define bond_to_slave(ptr) list_entry(ptr, struct slave, list)
 
 /* IMPORTANT: bond_first/last_slave can return NULL in case of an empty list */

@@ -2117,7 +2117,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	read_lock(&bond->lock);
 
 	//check if there are any slaves
-	if (list_empty(&bond->slave_list))
+	if (!bond_has_slaves(bond))
 		goto re_arm;
 
 	// check if agg_select_timer timer after initialize is timed out
