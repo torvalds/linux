@@ -1311,95 +1311,100 @@ static void build_r4000_tlb_refill_handler(void)
 	 * need three, with the second nop'ed and the third being
 	 * unused.
 	 */
-	/* Loongson2 ebase is different than r4k, we have more space */
-#if defined(CONFIG_32BIT) || defined(CONFIG_CPU_LOONGSON2)
-	if ((p - tlb_handler) > 64)
-		panic("TLB refill handler space exceeded");
-#else
-	if (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 1)
-	    || (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 3)
-		&& uasm_insn_has_bdelay(relocs,
-					tlb_handler + MIPS64_REFILL_INSNS - 3)))
-		panic("TLB refill handler space exceeded");
-#endif
-
-	/*
-	 * Now fold the handler in the TLB refill handler space.
-	 */
-#if defined(CONFIG_32BIT) || defined(CONFIG_CPU_LOONGSON2)
-	f = final_handler;
-	/* Simplest case, just copy the handler. */
-	uasm_copy_handler(relocs, labels, tlb_handler, p, f);
-	final_len = p - tlb_handler;
-#else /* CONFIG_64BIT */
-	f = final_handler + MIPS64_REFILL_INSNS;
-	if ((p - tlb_handler) <= MIPS64_REFILL_INSNS) {
-		/* Just copy the handler. */
-		uasm_copy_handler(relocs, labels, tlb_handler, p, f);
-		final_len = p - tlb_handler;
-	} else {
+	switch (boot_cpu_type()) {
+	default:
+		if (sizeof(long) == 4) {
+	case CPU_LOONGSON2:
+		/* Loongson2 ebase is different than r4k, we have more space */
+			if ((p - tlb_handler) > 64)
+				panic("TLB refill handler space exceeded");
+			/*
+			 * Now fold the handler in the TLB refill handler space.
+			 */
+			f = final_handler;
+			/* Simplest case, just copy the handler. */
+			uasm_copy_handler(relocs, labels, tlb_handler, p, f);
+			final_len = p - tlb_handler;
+			break;
+		} else {
+			if (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 1)
+			    || (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 3)
+				&& uasm_insn_has_bdelay(relocs,
+							tlb_handler + MIPS64_REFILL_INSNS - 3)))
+				panic("TLB refill handler space exceeded");
+			/*
+			 * Now fold the handler in the TLB refill handler space.
+			 */
+			f = final_handler + MIPS64_REFILL_INSNS;
+			if ((p - tlb_handler) <= MIPS64_REFILL_INSNS) {
+				/* Just copy the handler. */
+				uasm_copy_handler(relocs, labels, tlb_handler, p, f);
+				final_len = p - tlb_handler;
+			} else {
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
-		const enum label_id ls = label_tlb_huge_update;
+				const enum label_id ls = label_tlb_huge_update;
 #else
-		const enum label_id ls = label_vmalloc;
+				const enum label_id ls = label_vmalloc;
 #endif
-		u32 *split;
-		int ov = 0;
-		int i;
+				u32 *split;
+				int ov = 0;
+				int i;
 
-		for (i = 0; i < ARRAY_SIZE(labels) && labels[i].lab != ls; i++)
-			;
-		BUG_ON(i == ARRAY_SIZE(labels));
-		split = labels[i].addr;
+				for (i = 0; i < ARRAY_SIZE(labels) && labels[i].lab != ls; i++)
+					;
+				BUG_ON(i == ARRAY_SIZE(labels));
+				split = labels[i].addr;
 
-		/*
-		 * See if we have overflown one way or the other.
-		 */
-		if (split > tlb_handler + MIPS64_REFILL_INSNS ||
-		    split < p - MIPS64_REFILL_INSNS)
-			ov = 1;
+				/*
+				 * See if we have overflown one way or the other.
+				 */
+				if (split > tlb_handler + MIPS64_REFILL_INSNS ||
+				    split < p - MIPS64_REFILL_INSNS)
+					ov = 1;
 
-		if (ov) {
-			/*
-			 * Split two instructions before the end.  One
-			 * for the branch and one for the instruction
-			 * in the delay slot.
-			 */
-			split = tlb_handler + MIPS64_REFILL_INSNS - 2;
+				if (ov) {
+					/*
+					 * Split two instructions before the end.  One
+					 * for the branch and one for the instruction
+					 * in the delay slot.
+					 */
+					split = tlb_handler + MIPS64_REFILL_INSNS - 2;
 
-			/*
-			 * If the branch would fall in a delay slot,
-			 * we must back up an additional instruction
-			 * so that it is no longer in a delay slot.
-			 */
-			if (uasm_insn_has_bdelay(relocs, split - 1))
-				split--;
-		}
-		/* Copy first part of the handler. */
-		uasm_copy_handler(relocs, labels, tlb_handler, split, f);
-		f += split - tlb_handler;
+					/*
+					 * If the branch would fall in a delay slot,
+					 * we must back up an additional instruction
+					 * so that it is no longer in a delay slot.
+					 */
+					if (uasm_insn_has_bdelay(relocs, split - 1))
+						split--;
+				}
+				/* Copy first part of the handler. */
+				uasm_copy_handler(relocs, labels, tlb_handler, split, f);
+				f += split - tlb_handler;
 
-		if (ov) {
-			/* Insert branch. */
-			uasm_l_split(&l, final_handler);
-			uasm_il_b(&f, &r, label_split);
-			if (uasm_insn_has_bdelay(relocs, split))
-				uasm_i_nop(&f);
-			else {
-				uasm_copy_handler(relocs, labels,
-						  split, split + 1, f);
-				uasm_move_labels(labels, f, f + 1, -1);
-				f++;
-				split++;
+				if (ov) {
+					/* Insert branch. */
+					uasm_l_split(&l, final_handler);
+					uasm_il_b(&f, &r, label_split);
+					if (uasm_insn_has_bdelay(relocs, split))
+						uasm_i_nop(&f);
+					else {
+						uasm_copy_handler(relocs, labels,
+								  split, split + 1, f);
+						uasm_move_labels(labels, f, f + 1, -1);
+						f++;
+						split++;
+					}
+				}
+
+				/* Copy the rest of the handler. */
+				uasm_copy_handler(relocs, labels, split, p, final_handler);
+				final_len = (f - (final_handler + MIPS64_REFILL_INSNS)) +
+					    (p - split);
 			}
 		}
-
-		/* Copy the rest of the handler. */
-		uasm_copy_handler(relocs, labels, split, p, final_handler);
-		final_len = (f - (final_handler + MIPS64_REFILL_INSNS)) +
-			    (p - split);
+		break;
 	}
-#endif /* CONFIG_64BIT */
 
 	uasm_resolve_relocs(relocs, labels);
 	pr_debug("Wrote TLB refill handler (%u instructions).\n",
