@@ -7518,6 +7518,20 @@ static void nested_ept_uninit_mmu_context(struct kvm_vcpu *vcpu)
 	vcpu->arch.walk_mmu = &vcpu->arch.mmu;
 }
 
+static void vmx_inject_page_fault_nested(struct kvm_vcpu *vcpu,
+		struct x86_exception *fault)
+{
+	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+
+	WARN_ON(!is_guest_mode(vcpu));
+
+	/* TODO: also check PFEC_MATCH/MASK, not just EB.PF. */
+	if (vmcs12->exception_bitmap & (1u << PF_VECTOR))
+		nested_vmx_vmexit(vcpu);
+	else
+		kvm_inject_page_fault(vcpu, fault);
+}
+
 /*
  * prepare_vmcs02 is called when the L1 guest hypervisor runs its nested
  * L2 guest. L1 has a vmcs for L2 (vmcs12), and this function "merges" it
@@ -7770,6 +7784,9 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	/* shadow page tables on either EPT or shadow page tables */
 	kvm_set_cr3(vcpu, vmcs12->guest_cr3);
 	kvm_mmu_reset_context(vcpu);
+
+	if (!enable_ept)
+		vcpu->arch.walk_mmu->inject_page_fault = vmx_inject_page_fault_nested;
 
 	/*
 	 * L1 may access the L2's PDPTR, so save them to construct vmcs12
@@ -8229,6 +8246,9 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 
 	kvm_set_cr3(vcpu, vmcs12->host_cr3);
 	kvm_mmu_reset_context(vcpu);
+
+	if (!enable_ept)
+		vcpu->arch.walk_mmu->inject_page_fault = kvm_inject_page_fault;
 
 	if (enable_vpid) {
 		/*
