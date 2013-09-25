@@ -3345,6 +3345,26 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	trace_intel_gpu_freq_change(val * 50);
 }
 
+void gen6_rps_idle(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->rps.hw_lock);
+	if (dev_priv->info->is_valleyview)
+		valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
+	else
+		gen6_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
+void gen6_rps_boost(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->rps.hw_lock);
+	if (dev_priv->info->is_valleyview)
+		valleyview_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
+	else
+		gen6_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
 /*
  * Wait until the previous freq change has completed,
  * or the timeout elapsed, and then update our notion
@@ -3734,24 +3754,6 @@ int valleyview_rps_min_freq(struct drm_i915_private *dev_priv)
 	return vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM) & 0xff;
 }
 
-static void vlv_rps_timer_work(struct work_struct *work)
-{
-	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    rps.vlv_work.work);
-
-	/*
-	 * Timer fired, we must be idle.  Drop to min voltage state.
-	 * Note: we use RPe here since it should match the
-	 * Vmin we were shooting for.  That should give us better
-	 * perf when we come back out of RC6 than if we used the
-	 * min freq available.
-	 */
-	mutex_lock(&dev_priv->rps.hw_lock);
-	if (dev_priv->rps.cur_delay > dev_priv->rps.rpe_delay)
-		valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
-	mutex_unlock(&dev_priv->rps.hw_lock);
-}
-
 static void valleyview_setup_pctx(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3893,8 +3895,6 @@ static void valleyview_enable_rps(struct drm_device *dev)
 			 vlv_gpu_freq(dev_priv->mem_freq,
 				      dev_priv->rps.rpe_delay),
 			 dev_priv->rps.rpe_delay);
-
-	INIT_DELAYED_WORK(&dev_priv->rps.vlv_work, vlv_rps_timer_work);
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
 
@@ -4635,8 +4635,6 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 	} else if (INTEL_INFO(dev)->gen >= 6) {
 		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
 		cancel_work_sync(&dev_priv->rps.work);
-		if (IS_VALLEYVIEW(dev))
-			cancel_delayed_work_sync(&dev_priv->rps.vlv_work);
 		mutex_lock(&dev_priv->rps.hw_lock);
 		if (IS_VALLEYVIEW(dev))
 			valleyview_disable_rps(dev);

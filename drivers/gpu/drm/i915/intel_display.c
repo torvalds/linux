@@ -7726,6 +7726,9 @@ void intel_mark_idle(struct drm_device *dev)
 
 		intel_decrease_pllclock(crtc);
 	}
+
+	if (dev_priv->info->gen >= 6)
+		gen6_rps_idle(dev->dev_private);
 }
 
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,

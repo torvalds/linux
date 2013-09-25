@@ -825,4 +825,7 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);
 
+void gen6_rps_idle(struct drm_i915_private *dev_priv);
+void gen6_rps_boost(struct drm_i915_private *dev_priv);
+
 #endif /* __INTEL_DRV_H__ */

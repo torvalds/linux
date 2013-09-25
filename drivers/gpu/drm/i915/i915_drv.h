@@ -844,9 +844,6 @@ struct intel_gen6_power_mgmt {
 	struct work_struct work;
 	u32 pm_iir;
 
-	/* On vlv we need to manually drop to Vmin with a delayed work. */
-	struct delayed_work vlv_work;
-
 	/* The below variables an all the rps hw state are protected by
 	 * dev->struct mutext. */
 	u8 cur_delay;
@@ -963,6 +960,15 @@ struct i915_gem_mm {
 	 * fires, go retire requests.
 	 */
 	struct delayed_work retire_work;
+
+	/**
+	 * When we detect an idle GPU, we want to turn on
+	 * powersaving features. So once we see that there
+	 * are no more requests outstanding and no more
+	 * arrive within a small period of time, we fire
+	 * off the idle_work.
+	 */
+	struct delayed_work idle_work;
 
 	/**
 	 * Are we in a non-interruptible section of code like
@@ -1597,13 +1603,17 @@ struct drm_i915_gem_request {
 };
 
 struct drm_i915_file_private {
+	struct drm_i915_private *dev_priv;
+
 	struct {
 		spinlock_t lock;
 		struct list_head request_list;
+		struct delayed_work idle_work;
 	} mm;
 	struct idr context_idr;
 
 	struct i915_ctx_hang_stats hang_stats;
+	atomic_t rps_wait_boost;
 };
 
 #define INTEL_INFO(dev)	(to_i915(dev)->info)
@@ -1953,7 +1963,7 @@ i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
 	}
 }
 
-void i915_gem_retire_requests(struct drm_device *dev);
+bool i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_retire_requests_ring(struct intel_ring_buffer *ring);
 int __must_check i915_gem_check_wedge(struct i915_gpu_error *error,
 				      bool interruptible);
@@ -2004,6 +2014,7 @@ int i915_gem_attach_phys_object(struct drm_device *dev,
 void i915_gem_detach_phys_object(struct drm_device *dev,
 				 struct drm_i915_gem_object *obj);
 void i915_gem_free_all_phys_object(struct drm_device *dev);
+int i915_gem_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
 uint32_t
