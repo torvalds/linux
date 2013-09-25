@@ -297,7 +297,8 @@ struct dsi_data {
 	struct {
 		enum dsi_vc_source source;
 		struct omap_dss_device *dssdev;
-		enum fifo_size fifo_size;
+		enum fifo_size tx_fifo_size;
+		enum fifo_size rx_fifo_size;
 		int vc_id;
 	} vc[4];
 
@@ -2427,14 +2428,14 @@ static void dsi_config_tx_fifo(struct platform_device *dsidev,
 	int add = 0;
 	int i;
 
-	dsi->vc[0].fifo_size = size1;
-	dsi->vc[1].fifo_size = size2;
-	dsi->vc[2].fifo_size = size3;
-	dsi->vc[3].fifo_size = size4;
+	dsi->vc[0].tx_fifo_size = size1;
+	dsi->vc[1].tx_fifo_size = size2;
+	dsi->vc[2].tx_fifo_size = size3;
+	dsi->vc[3].tx_fifo_size = size4;
 
 	for (i = 0; i < 4; i++) {
 		u8 v;
-		int size = dsi->vc[i].fifo_size;
+		int size = dsi->vc[i].tx_fifo_size;
 
 		if (add + size > 4) {
 			DSSERR("Illegal FIFO configuration\n");
@@ -2460,14 +2461,14 @@ static void dsi_config_rx_fifo(struct platform_device *dsidev,
 	int add = 0;
 	int i;
 
-	dsi->vc[0].fifo_size = size1;
-	dsi->vc[1].fifo_size = size2;
-	dsi->vc[2].fifo_size = size3;
-	dsi->vc[3].fifo_size = size4;
+	dsi->vc[0].rx_fifo_size = size1;
+	dsi->vc[1].rx_fifo_size = size2;
+	dsi->vc[2].rx_fifo_size = size3;
+	dsi->vc[3].rx_fifo_size = size4;
 
 	for (i = 0; i < 4; i++) {
 		u8 v;
-		int size = dsi->vc[i].fifo_size;
+		int size = dsi->vc[i].rx_fifo_size;
 
 		if (add + size > 4) {
 			DSSERR("Illegal FIFO configuration\n");
@@ -2920,7 +2921,7 @@ static int dsi_vc_send_long(struct platform_device *dsidev, int channel,
 		DSSDBG("dsi_vc_send_long, %d bytes\n", len);
 
 	/* len + header */
-	if (dsi->vc[channel].fifo_size * 32 * 4 < len + 4) {
+	if (dsi->vc[channel].tx_fifo_size * 32 * 4 < len + 4) {
 		DSSERR("unable to send long packet: packet too long.\n");
 		return -EINVAL;
 	}
