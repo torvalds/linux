@@ -512,16 +512,7 @@ list_set_list(const struct ip_set *set,
 		if (nla_put_string(skb, IPSET_ATTR_NAME,
 				   ip_set_name_byindex(e->id)))
 			goto nla_put_failure;
-		if (SET_WITH_TIMEOUT(set) &&
-		    nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
-				  htonl(ip_set_timeout_get(
-						ext_timeout(e, set)))))
-			goto nla_put_failure;
-		if (SET_WITH_COUNTER(set) &&
-		    ip_set_put_counter(skb, ext_counter(e, set)))
-			goto nla_put_failure;
-		if (SET_WITH_COMMENT(set) &&
-		    ip_set_put_comment(skb, ext_comment(e, set)))
+		if (ip_set_put_extensions(skb, set, e, true))
 			goto nla_put_failure;
 		ipset_nest_end(skb, nested);
 	}

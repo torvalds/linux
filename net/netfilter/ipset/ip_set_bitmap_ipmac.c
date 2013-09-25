@@ -176,17 +176,6 @@ bitmap_ipmac_do_del(const struct bitmap_ipmac_adt_elem *e,
 	return !test_and_clear_bit(e->id, map->members);
 }
 
-static inline unsigned long
-ip_set_timeout_stored(struct bitmap_ipmac *map, u32 id, unsigned long *timeout,
-		      size_t dsize)
-{
-	const struct bitmap_ipmac_elem *elem =
-		get_elem(map->extensions, id, dsize);
-
-	return elem->filled == MAC_FILLED ? ip_set_timeout_get(timeout) :
-					    *timeout;
-}
-
 static inline int
 bitmap_ipmac_do_list(struct sk_buff *skb, const struct bitmap_ipmac *map,
 		     u32 id, size_t dsize)

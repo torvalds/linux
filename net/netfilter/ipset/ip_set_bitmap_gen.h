@@ -183,6 +183,14 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	return 0;
 }
 
+#ifndef IP_SET_BITMAP_STORED_TIMEOUT
+static inline bool
+mtype_is_filled(const struct mtype_elem *x)
+{
+	return true;
+}
+#endif
+
 static int
 mtype_list(const struct ip_set *set,
 	   struct sk_buff *skb, struct netlink_callback *cb)
@@ -215,25 +223,8 @@ mtype_list(const struct ip_set *set,
 		}
 		if (mtype_do_list(skb, map, id, set->dsize))
 			goto nla_put_failure;
-		if (SET_WITH_TIMEOUT(set)) {
-#ifdef IP_SET_BITMAP_STORED_TIMEOUT
-			if (nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
-					  htonl(ip_set_timeout_stored(map, id,
-							ext_timeout(x, set),
-							set->dsize))))
-				goto nla_put_failure;
-#else
-			if (nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
-					  htonl(ip_set_timeout_get(
-							ext_timeout(x, set)))))
-				goto nla_put_failure;
-#endif
-		}
-		if (SET_WITH_COUNTER(set) &&
-		    ip_set_put_counter(skb, ext_counter(x, set)))
-			goto nla_put_failure;
-		if (SET_WITH_COMMENT(set) &&
-		    ip_set_put_comment(skb, ext_comment(x, set)))
+		if (ip_set_put_extensions(skb, set, x,
+		    mtype_is_filled((const struct mtype_elem *) x)))
 			goto nla_put_failure;
 		ipset_nest_end(skb, nested);
 	}
