@@ -43,18 +43,16 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
  */
 struct machine_desc * __init setup_machine_fdt(void *dt)
 {
-	struct boot_param_header *devtree = dt;
 	struct machine_desc *mdesc, *mdesc_best = NULL;
 	unsigned int score, mdesc_score = ~1;
 	unsigned long dt_root;
 	const char *model;
 
 	/* check device tree validity */
-	if (be32_to_cpu(devtree->magic) != OF_DT_HEADER)
+	if (!early_init_dt_scan(dt))
 		return NULL;
 
 	/* Search the mdescs for the 'best' compatible value match */
-	initial_boot_params = devtree;
 	dt_root = of_get_flat_dt_root();
 
 	for_each_machine_desc(mdesc) {
@@ -89,9 +87,6 @@ struct machine_desc * __init setup_machine_fdt(void *dt)
 	if (!model)
 		model = "<unknown>";
 	pr_info("Machine: %s, model: %s\n", mdesc_best->name, model);
-
-	/* Retrieve various information from the /chosen node */
-	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
 
 	return mdesc_best;
 
