@@ -2556,13 +2556,95 @@ do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len)
 	return modes;
 }
 
+struct stereo_mandatory_mode {
+	int width, height, vrefresh;
+	unsigned int flags;
+};
+
+static const struct stereo_mandatory_mode stereo_mandatory_modes[] = {
+	{ 1920, 1080, 24,
+	  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM | DRM_MODE_FLAG_3D_FRAME_PACKING },
+	{ 1920, 1080, 50,
+	  DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF },
+	{ 1920, 1080, 60,
+	  DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF },
+	{ 1280, 720,  50,
+	  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM | DRM_MODE_FLAG_3D_FRAME_PACKING },
+	{ 1280, 720,  60,
+	  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM | DRM_MODE_FLAG_3D_FRAME_PACKING }
+};
+
+static bool
+stereo_match_mandatory(const struct drm_display_mode *mode,
+		       const struct stereo_mandatory_mode *stereo_mode)
+{
+	unsigned int interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
+
+	return mode->hdisplay == stereo_mode->width &&
+	       mode->vdisplay == stereo_mode->height &&
+	       interlaced == (stereo_mode->flags & DRM_MODE_FLAG_INTERLACE) &&
+	       drm_mode_vrefresh(mode) == stereo_mode->vrefresh;
+}
+
+static const struct stereo_mandatory_mode *
+hdmi_find_stereo_mandatory_mode(const struct drm_display_mode *mode)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(stereo_mandatory_modes); i++)
+		if (stereo_match_mandatory(mode, &stereo_mandatory_modes[i]))
+			return &stereo_mandatory_modes[i];
+
+	return NULL;
+}
+
+static int add_hdmi_mandatory_stereo_modes(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	const struct drm_display_mode *mode;
+	struct list_head stereo_modes;
+	int modes = 0;
+
+	INIT_LIST_HEAD(&stereo_modes);
+
+	list_for_each_entry(mode, &connector->probed_modes, head) {
+		const struct stereo_mandatory_mode *mandatory;
+		u32 stereo_layouts, layout;
+
+		mandatory = hdmi_find_stereo_mandatory_mode(mode);
+		if (!mandatory)
+			continue;
+
+		stereo_layouts = mandatory->flags & DRM_MODE_FLAG_3D_MASK;
+		do {
+			struct drm_display_mode *new_mode;
+
+			layout = 1 << (ffs(stereo_layouts) - 1);
+			stereo_layouts &= ~layout;
+
+			new_mode = drm_mode_duplicate(dev, mode);
+			if (!new_mode)
+				continue;
+
+			new_mode->flags |= layout;
+			list_add_tail(&new_mode->head, &stereo_modes);
+			modes++;
+		} while (stereo_layouts);
+	}
+
+	list_splice_tail(&stereo_modes, &connector->probed_modes);
+
+	return modes;
+}
+
 /*
  * do_hdmi_vsdb_modes - Parse the HDMI Vendor Specific data block
  * @connector: connector corresponding to the HDMI sink
  * @db: start of the CEA vendor specific block
  * @len: length of the CEA block payload, ie. one can access up to db[len]
  *
- * Parses the HDMI VSDB looking for modes to add to @connector.
+ * Parses the HDMI VSDB looking for modes to add to @connector. This function
+ * also adds the stereo 3d modes when applicable.
  */
 static int
 do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
@@ -2588,10 +2670,15 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
 
 	/* the declared length is not long enough for the 2 first bytes
 	 * of additional video format capabilities */
-	offset += 2;
-	if (len < (8 + offset))
+	if (len < (8 + offset + 2))
 		goto out;
 
+	/* 3D_Present */
+	offset++;
+	if (db[8 + offset] & (1 << 7))
+		modes += add_hdmi_mandatory_stereo_modes(connector);
+
+	offset++;
 	vic_len = db[8 + offset] >> 5;
 
 	for (i = 0; i < vic_len && len >= (9 + offset + i); i++) {
@@ -2671,8 +2758,8 @@ static int
 add_cea_modes(struct drm_connector *connector, struct edid *edid)
 {
 	const u8 *cea = drm_find_cea_extension(edid);
-	const u8 *db;
-	u8 dbl;
+	const u8 *db, *hdmi = NULL;
+	u8 dbl, hdmi_len;
 	int modes = 0;
 
 	if (cea && cea_revision(cea) >= 3) {
@@ -2687,10 +2774,19 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 
 			if (cea_db_tag(db) == VIDEO_BLOCK)
 				modes += do_cea_modes(connector, db + 1, dbl);
-			else if (cea_db_is_hdmi_vsdb(db))
-				modes += do_hdmi_vsdb_modes(connector, db, dbl);
+			else if (cea_db_is_hdmi_vsdb(db)) {
+				hdmi = db;
+				hdmi_len = dbl;
+			}
 		}
 	}
+
+	/*
+	 * We parse the HDMI VSDB after having added the cea modes as we will
+	 * be patching their flags when the sink supports stereo 3D.
+	 */
+	if (hdmi)
+		modes += do_hdmi_vsdb_modes(connector, hdmi, hdmi_len);
 
 	return modes;
 }
