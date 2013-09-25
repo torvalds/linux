@@ -303,6 +303,15 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 }
 
 /**
+ * Set device/driver capabilities
+ */
+int
+drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
+{
+	return -EINVAL;
+}
+
+/**
  * Setversion ioctl.
  *
  * \param inode device inode.

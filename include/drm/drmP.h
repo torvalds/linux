@@ -1303,6 +1303,8 @@ extern int drm_getstats(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 extern int drm_getcap(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
+extern int drm_setclientcap(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv);
 extern int drm_setversion(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 extern int drm_noop(struct drm_device *dev, void *data,
