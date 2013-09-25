@@ -115,7 +115,7 @@ struct pcl726_board {
 	unsigned int is_pcl727:1;
 };
 
-static const struct pcl726_board boardtypes[] = {
+static const struct pcl726_board pcl726_boards[] = {
 	{
 		.name		= "pcl726",
 		.io_len		= 0x10,
@@ -443,8 +443,8 @@ static struct comedi_driver pcl726_driver = {
 	.module		= THIS_MODULE,
 	.attach		= pcl726_attach,
 	.detach		= comedi_legacy_detach,
-	.board_name	= &boardtypes[0].name,
-	.num_names	= ARRAY_SIZE(boardtypes),
+	.board_name	= &pcl726_boards[0].name,
+	.num_names	= ARRAY_SIZE(pcl726_boards),
 	.offset		= sizeof(struct pcl726_board),
 };
 module_comedi_driver(pcl726_driver);
