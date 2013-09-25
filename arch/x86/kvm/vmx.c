@@ -6742,20 +6742,6 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	if (vmx->emulation_required)
 		return handle_invalid_guest_state(vcpu);
 
-	/*
-	 * the KVM_REQ_EVENT optimization bit is only on for one entry, and if
-	 * we did not inject a still-pending event to L1 now because of
-	 * nested_run_pending, we need to re-enable this bit.
-	 */
-	if (vmx->nested.nested_run_pending)
-		kvm_make_request(KVM_REQ_EVENT, vcpu);
-
-	if (!is_guest_mode(vcpu) && (exit_reason == EXIT_REASON_VMLAUNCH ||
-	    exit_reason == EXIT_REASON_VMRESUME))
-		vmx->nested.nested_run_pending = 1;
-	else
-		vmx->nested.nested_run_pending = 0;
-
 	if (is_guest_mode(vcpu) && nested_vmx_exit_handled(vcpu)) {
 		nested_vmx_vmexit(vcpu);
 		return 1;
@@ -7289,6 +7275,16 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
 	trace_kvm_exit(vmx->exit_reason, vcpu, KVM_ISA_VMX);
+
+	/*
+	 * the KVM_REQ_EVENT optimization bit is only on for one entry, and if
+	 * we did not inject a still-pending event to L1 now because of
+	 * nested_run_pending, we need to re-enable this bit.
+	 */
+	if (vmx->nested.nested_run_pending)
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+
+	vmx->nested.nested_run_pending = 0;
 
 	vmx_complete_atomic_exit(vmx);
 	vmx_recover_nmi_blocking(vmx);
@@ -7947,6 +7943,8 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		return -ENOMEM;
 
 	enter_guest_mode(vcpu);
+
+	vmx->nested.nested_run_pending = 1;
 
 	vmx->nested.vmcs01_tsc_offset = vmcs_read64(TSC_OFFSET);
 
