@@ -60,48 +60,6 @@ enum si476x_pcm_format {
 	SI476X_PCM_FORMAT_S24_LE	= 6,
 };
 
-static unsigned int si476x_codec_read(struct snd_soc_codec *codec,
-				      unsigned int reg)
-{
-	int err;
-	unsigned int val;
-	struct si476x_core *core = codec->control_data;
-
-	si476x_core_lock(core);
-	if (!si476x_core_is_powered_up(core))
-		regcache_cache_only(core->regmap, true);
-
-	err = regmap_read(core->regmap, reg, &val);
-
-	if (!si476x_core_is_powered_up(core))
-		regcache_cache_only(core->regmap, false);
-	si476x_core_unlock(core);
-
-	if (err < 0)
-		return err;
-
-	return val;
-}
-
-static int si476x_codec_write(struct snd_soc_codec *codec,
-			      unsigned int reg, unsigned int val)
-{
-	int err;
-	struct si476x_core *core = codec->control_data;
-
-	si476x_core_lock(core);
-	if (!si476x_core_is_powered_up(core))
-		regcache_cache_only(core->regmap, true);
-
-	err = regmap_write(core->regmap, reg, val);
-
-	if (!si476x_core_is_powered_up(core))
-		regcache_cache_only(core->regmap, false);
-	si476x_core_unlock(core);
-
-	return err;
-}
-
 static const struct snd_soc_dapm_widget si476x_dapm_widgets[] = {
 SND_SOC_DAPM_OUTPUT("LOUT"),
 SND_SOC_DAPM_OUTPUT("ROUT"),
@@ -239,7 +197,7 @@ static int si476x_codec_hw_params(struct snd_pcm_substream *substream,
 
 static int si476x_codec_probe(struct snd_soc_codec *codec)
 {
-	codec->control_data = i2c_mfd_cell_to_core(codec->dev);
+	codec->control_data = dev_get_regmap(codec->dev->parent, NULL);
 	return 0;
 }
 
@@ -268,8 +226,6 @@ static struct snd_soc_dai_driver si476x_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_si476x = {
 	.probe  = si476x_codec_probe,
-	.read   = si476x_codec_read,
-	.write  = si476x_codec_write,
 	.dapm_widgets = si476x_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(si476x_dapm_widgets),
 	.dapm_routes = si476x_dapm_routes,
