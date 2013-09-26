@@ -260,7 +260,8 @@ static int dt2801_readdata(struct comedi_device *dev, int *data)
 
 static int dt2801_readdata2(struct comedi_device *dev, int *data)
 {
-	int lb, hb;
+	int lb = 0;
+	int hb = 0;
 	int ret;
 
 	ret = dt2801_readdata(dev, &lb);
@@ -532,7 +533,7 @@ static int dt2801_dio_insn_bits(struct comedi_device *dev,
 				unsigned int *data)
 {
 	int which = (s == &dev->subdevices[3]) ? 1 : 0;
-	unsigned int val;
+	unsigned int val = 0;
 
 	if (comedi_dio_update_state(s, data)) {
 		dt2801_writecmd(dev, DT_C_WRITE_DIG);
