@@ -184,8 +184,8 @@ struct wahc {
 	struct urb *dti_urb;		/* URB for reading xfer results */
 	struct urb *buf_in_urb;		/* URB for reading data in */
 	struct edc dti_edc;		/* DTI error density counter */
-	struct wa_xfer_result *xfer_result; /* real size = dti_ep maxpktsize */
-	size_t xfer_result_size;
+	void *dti_buf;
+	size_t dti_buf_size;
 
 	s32 status;			/* For reading status */
 

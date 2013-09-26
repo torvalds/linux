@@ -1418,7 +1418,8 @@ static int wa_xfer_status_to_errno(u8 status)
  *
  * FIXME: this function needs to be broken up in parts
  */
-static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer)
+static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
+		struct wa_xfer_result *xfer_result)
 {
 	int result;
 	struct device *dev = &wa->usb_iface->dev;
@@ -1426,8 +1427,7 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer)
 	u8 seg_idx;
 	struct wa_seg *seg;
 	struct wa_rpipe *rpipe;
-	struct wa_xfer_result *xfer_result = wa->xfer_result;
-	u8 done = 0;
+	unsigned done = 0;
 	u8 usb_status;
 	unsigned rpipe_ready = 0;
 
@@ -1687,7 +1687,7 @@ static void wa_buf_in_cb(struct urb *urb)
  * We go back to OFF when we detect a ENOENT or ESHUTDOWN (or too many
  * errors) in the URBs.
  */
-static void wa_xfer_result_cb(struct urb *urb)
+static void wa_dti_cb(struct urb *urb)
 {
 	int result;
 	struct wahc *wa = urb->context;
@@ -1709,7 +1709,7 @@ static void wa_xfer_result_cb(struct urb *urb)
 				urb->actual_length, sizeof(*xfer_result));
 			break;
 		}
-		xfer_result = wa->xfer_result;
+		xfer_result = (struct wa_xfer_result *)(wa->dti_buf);
 		if (xfer_result->hdr.bLength != sizeof(*xfer_result)) {
 			dev_err(dev, "DTI Error: xfer result--"
 				"bad header length %u\n",
@@ -1735,7 +1735,7 @@ static void wa_xfer_result_cb(struct urb *urb)
 				xfer_id, usb_status);
 			break;
 		}
-		wa_xfer_result_chew(wa, xfer);
+		wa_xfer_result_chew(wa, xfer, xfer_result);
 		wa_xfer_put(xfer);
 		break;
 	case -ENOENT:		/* (we killed the URB)...so, no broadcast */
@@ -1777,7 +1777,7 @@ out:
  * don't really set it up and start it until the first xfer complete
  * notification arrives, which is what we do here.
  *
- * Follow up in wa_xfer_result_cb(), as that's where the whole state
+ * Follow up in wa_dti_cb(), as that's where the whole state
  * machine starts.
  *
  * So here we just initialize the DTI URB for reading transfer result
@@ -1813,8 +1813,8 @@ void wa_handle_notif_xfer(struct wahc *wa, struct wa_notif_hdr *notif_hdr)
 	usb_fill_bulk_urb(
 		wa->dti_urb, wa->usb_dev,
 		usb_rcvbulkpipe(wa->usb_dev, 0x80 | notif_xfer->bEndpoint),
-		wa->xfer_result, wa->xfer_result_size,
-		wa_xfer_result_cb, wa);
+		wa->dti_buf, wa->dti_buf_size,
+		wa_dti_cb, wa);
 
 	wa->buf_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (wa->buf_in_urb == NULL) {
