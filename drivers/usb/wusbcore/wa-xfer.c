@@ -635,9 +635,11 @@ static void wa_seg_tr_cb(struct urb *urb)
 	}
 }
 
-/* allocate an SG list to store bytes_to_transfer bytes and copy the
+/*
+ * Allocate an SG list to store bytes_to_transfer bytes and copy the
  * subset of the in_sg that matches the buffer subset
- * we are about to transfer. */
+ * we are about to transfer.
+ */
 static struct scatterlist *wa_xfer_create_subset_sg(struct scatterlist *in_sg,
 	const unsigned int bytes_transferred,
 	const unsigned int bytes_to_transfer, unsigned int *out_num_sgs)
@@ -716,6 +718,55 @@ static struct scatterlist *wa_xfer_create_subset_sg(struct scatterlist *in_sg,
 }
 
 /*
+ * Populate buffer ptr and size, DMA buffer or SG list for the dto urb.
+ */
+static int __wa_populate_dto_urb(struct wa_xfer *xfer,
+	struct wa_seg *seg, size_t buf_itr_offset, size_t buf_itr_size)
+{
+	int result = 0;
+
+	if (xfer->is_dma) {
+		seg->dto_urb->transfer_dma =
+			xfer->urb->transfer_dma + buf_itr_offset;
+		seg->dto_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		seg->dto_urb->sg = NULL;
+		seg->dto_urb->num_sgs = 0;
+	} else {
+		/* do buffer or SG processing. */
+		seg->dto_urb->transfer_flags &=
+			~URB_NO_TRANSFER_DMA_MAP;
+		/* this should always be 0 before a resubmit. */
+		seg->dto_urb->num_mapped_sgs = 0;
+
+		if (xfer->urb->transfer_buffer) {
+			seg->dto_urb->transfer_buffer =
+				xfer->urb->transfer_buffer +
+				buf_itr_offset;
+			seg->dto_urb->sg = NULL;
+			seg->dto_urb->num_sgs = 0;
+		} else {
+			seg->dto_urb->transfer_buffer = NULL;
+
+			/*
+			 * allocate an SG list to store seg_size bytes
+			 * and copy the subset of the xfer->urb->sg that
+			 * matches the buffer subset we are about to
+			 * read.
+			 */
+			seg->dto_urb->sg = wa_xfer_create_subset_sg(
+				xfer->urb->sg,
+				buf_itr_offset, buf_itr_size,
+				&(seg->dto_urb->num_sgs));
+			if (!(seg->dto_urb->sg))
+				result = -ENOMEM;
+		}
+	}
+	seg->dto_urb->transfer_buffer_length = buf_itr_size;
+
+	return result;
+}
+
+/*
  * Allocate the segs array and initialize each of them
  *
  * The segments are freed by wa_xfer_destroy() when the xfer use count
@@ -762,48 +813,13 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 				usb_sndbulkpipe(usb_dev,
 						dto_epd->bEndpointAddress),
 				NULL, 0, wa_seg_dto_cb, seg);
-			if (xfer->is_dma) {
-				seg->dto_urb->transfer_dma =
-					xfer->urb->transfer_dma + buf_itr;
-				seg->dto_urb->transfer_flags |=
-					URB_NO_TRANSFER_DMA_MAP;
-				seg->dto_urb->transfer_buffer = NULL;
-				seg->dto_urb->sg = NULL;
-				seg->dto_urb->num_sgs = 0;
-			} else {
-				/* do buffer or SG processing. */
-				seg->dto_urb->transfer_flags &=
-					~URB_NO_TRANSFER_DMA_MAP;
-				/* this should always be 0 before a resubmit. */
-				seg->dto_urb->num_mapped_sgs = 0;
 
-				if (xfer->urb->transfer_buffer) {
-					seg->dto_urb->transfer_buffer =
-						xfer->urb->transfer_buffer +
-						buf_itr;
-					seg->dto_urb->sg = NULL;
-					seg->dto_urb->num_sgs = 0;
-				} else {
-					/* allocate an SG list to store seg_size
-					    bytes and copy the subset of the
-					    xfer->urb->sg that matches the
-					    buffer subset we are about to read.
-					*/
-					seg->dto_urb->sg =
-						wa_xfer_create_subset_sg(
-						xfer->urb->sg,
-						buf_itr, buf_itr_size,
-						&(seg->dto_urb->num_sgs));
+			/* fill in the xfer buffer information. */
+			result = __wa_populate_dto_urb(xfer, seg,
+						buf_itr, buf_itr_size);
 
-					if (!(seg->dto_urb->sg)) {
-						seg->dto_urb->num_sgs	= 0;
-						goto error_sg_alloc;
-					}
-
-					seg->dto_urb->transfer_buffer = NULL;
-				}
-			}
-			seg->dto_urb->transfer_buffer_length = buf_itr_size;
+			if (result < 0)
+				goto error_seg_outbound_populate;
 		}
 		seg->status = WA_SEG_READY;
 		buf_itr += buf_itr_size;
@@ -811,20 +827,17 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 	}
 	return 0;
 
-error_sg_alloc:
+	/*
+	 * Free the memory for the current segment which failed to init.
+	 * Use the fact that cnt is left at were it failed.  The remaining
+	 * segments will be cleaned up by wa_xfer_destroy.
+	 */
+error_seg_outbound_populate:
 	usb_free_urb(xfer->seg[cnt]->dto_urb);
 error_dto_alloc:
 	kfree(xfer->seg[cnt]);
-	cnt--;
+	xfer->seg[cnt] = NULL;
 error_seg_kmalloc:
-	/* use the fact that cnt is left at were it failed */
-	for (; cnt >= 0; cnt--) {
-		if (xfer->seg[cnt] && xfer->is_inbound == 0) {
-			usb_free_urb(xfer->seg[cnt]->dto_urb);
-			kfree(xfer->seg[cnt]->dto_urb->sg);
-		}
-		kfree(xfer->seg[cnt]);
-	}
 error_segs_kzalloc:
 	return result;
 }
