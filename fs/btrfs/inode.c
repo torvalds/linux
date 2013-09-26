@@ -4239,15 +4239,16 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
-		btrfs_wait_ordered_range(inode, hole_start,
-					 block_end - hole_start);
+
 		lock_extent_bits(io_tree, hole_start, block_end - 1, 0,
 				 &cached_state);
-		ordered = btrfs_lookup_ordered_extent(inode, hole_start);
+		ordered = btrfs_lookup_ordered_range(inode, hole_start,
+						     block_end - hole_start);
 		if (!ordered)
 			break;
 		unlock_extent_cached(io_tree, hole_start, block_end - 1,
 				     &cached_state, GFP_NOFS);
+		btrfs_start_ordered_extent(inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 	}
 
