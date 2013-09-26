@@ -1486,7 +1486,7 @@ static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar, struct sk_buff *skb)
 static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	int ret;
+	int ret = 0;
 
 	if (ar->htt.target_version_major >= 3) {
 		/* Since HTT 3.0 there is no separate mgmt tx command */
@@ -1494,16 +1494,32 @@ static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
 		goto exit;
 	}
 
-	if (ieee80211_is_mgmt(hdr->frame_control))
-		ret = ath10k_htt_mgmt_tx(&ar->htt, skb);
-	else if (ieee80211_is_nullfunc(hdr->frame_control))
+	if (ieee80211_is_mgmt(hdr->frame_control)) {
+		if (test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
+			     ar->fw_features)) {
+			if (skb_queue_len(&ar->wmi_mgmt_tx_queue) >=
+			    ATH10K_MAX_NUM_MGMT_PENDING) {
+				ath10k_warn("wmi mgmt_tx queue limit reached\n");
+				ret = -EBUSY;
+				goto exit;
+			}
+
+			skb_queue_tail(&ar->wmi_mgmt_tx_queue, skb);
+			ieee80211_queue_work(ar->hw, &ar->wmi_mgmt_tx_work);
+		} else {
+			ret = ath10k_htt_mgmt_tx(&ar->htt, skb);
+		}
+	} else if (!test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
+			     ar->fw_features) &&
+		   ieee80211_is_nullfunc(hdr->frame_control)) {
 		/* FW does not report tx status properly for NullFunc frames
 		 * unless they are sent through mgmt tx path. mac80211 sends
-		 * those frames when it detects link/beacon loss and depends on
-		 * the tx status to be correct. */
+		 * those frames when it detects link/beacon loss and depends
+		 * on the tx status to be correct. */
 		ret = ath10k_htt_mgmt_tx(&ar->htt, skb);
-	else
+	} else {
 		ret = ath10k_htt_tx(&ar->htt, skb);
+	}
 
 exit:
 	if (ret) {
@@ -1554,7 +1570,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 
 		hdr = (struct ieee80211_hdr *)skb->data;
 		peer_addr = ieee80211_get_DA(hdr);
-		vdev_id = ATH10K_SKB_CB(skb)->htt.vdev_id;
+		vdev_id = ATH10K_SKB_CB(skb)->vdev_id;
 
 		spin_lock_bh(&ar->data_lock);
 		peer = ath10k_peer_find(ar, vdev_id, peer_addr);
@@ -1593,6 +1609,36 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 		}
 
 		mutex_unlock(&ar->conf_mutex);
+	}
+}
+
+void ath10k_mgmt_over_wmi_tx_purge(struct ath10k *ar)
+{
+	struct sk_buff *skb;
+
+	for (;;) {
+		skb = skb_dequeue(&ar->wmi_mgmt_tx_queue);
+		if (!skb)
+			break;
+
+		ieee80211_free_txskb(ar->hw, skb);
+	}
+}
+
+void ath10k_mgmt_over_wmi_tx_work(struct work_struct *work)
+{
+	struct ath10k *ar = container_of(work, struct ath10k, wmi_mgmt_tx_work);
+	struct sk_buff *skb;
+	int ret;
+
+	for (;;) {
+		skb = skb_dequeue(&ar->wmi_mgmt_tx_queue);
+		if (!skb)
+			break;
+
+		ret = ath10k_wmi_mgmt_tx(ar, skb);
+		if (ret)
+			ath10k_warn("wmi mgmt_tx failed (%d)\n", ret);
 	}
 }
 
@@ -1754,14 +1800,14 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 		ath10k_tx_h_seq_no(skb);
 	}
 
+	ATH10K_SKB_CB(skb)->vdev_id = vdev_id;
 	ATH10K_SKB_CB(skb)->htt.is_offchan = false;
-	ATH10K_SKB_CB(skb)->htt.vdev_id = vdev_id;
 	ATH10K_SKB_CB(skb)->htt.tid = tid;
 
 	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
 		spin_lock_bh(&ar->data_lock);
 		ATH10K_SKB_CB(skb)->htt.is_offchan = true;
-		ATH10K_SKB_CB(skb)->htt.vdev_id = ar->scan.vdev_id;
+		ATH10K_SKB_CB(skb)->vdev_id = ar->scan.vdev_id;
 		spin_unlock_bh(&ar->data_lock);
 
 		ath10k_dbg(ATH10K_DBG_MAC, "queued offchannel skb %p\n", skb);
@@ -1783,6 +1829,7 @@ void ath10k_halt(struct ath10k *ar)
 
 	del_timer_sync(&ar->scan.timeout);
 	ath10k_offchan_tx_purge(ar);
+	ath10k_mgmt_over_wmi_tx_purge(ar);
 	ath10k_peer_cleanup_all(ar);
 	ath10k_core_stop(ar);
 	ath10k_hif_power_down(ar);
@@ -1859,7 +1906,10 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 	ar->state = ATH10K_STATE_OFF;
 	mutex_unlock(&ar->conf_mutex);
 
+	ath10k_mgmt_over_wmi_tx_purge(ar);
+
 	cancel_work_sync(&ar->offchan_tx_work);
+	cancel_work_sync(&ar->wmi_mgmt_tx_work);
 	cancel_work_sync(&ar->restart_work);
 }
 

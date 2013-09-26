@@ -308,7 +308,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	struct sk_buff *txdesc = NULL;
 	struct htt_cmd *cmd;
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(msdu);
-	u8 vdev_id = skb_cb->htt.vdev_id;
+	u8 vdev_id = skb_cb->vdev_id;
 	int len = 0;
 	int msdu_id = -1;
 	int res;
@@ -384,7 +384,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(msdu);
 	struct sk_buff *txdesc = NULL;
 	bool use_frags;
-	u8 vdev_id = ATH10K_SKB_CB(msdu)->htt.vdev_id;
+	u8 vdev_id = ATH10K_SKB_CB(msdu)->vdev_id;
 	u8 tid;
 	int prefetch_len, desc_len;
 	int msdu_id = -1;

@@ -43,15 +43,17 @@
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
 
+#define ATH10K_MAX_NUM_MGMT_PENDING 16
+
 struct ath10k;
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
 	bool is_mapped;
 	bool is_aborted;
+	u8 vdev_id;
 
 	struct {
-		u8 vdev_id;
 		u8 tid;
 		bool is_offchan;
 
@@ -284,6 +286,9 @@ enum ath10k_fw_features {
 	/* firmware from 10X branch */
 	ATH10K_FW_FEATURE_WMI_10X = 1,
 
+	/* firmware support tx frame management over WMI, otherwise it's HTT */
+	ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX = 2,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
@@ -392,6 +397,9 @@ struct ath10k {
 	struct sk_buff_head offchan_tx_queue;
 	struct completion offchan_tx_completed;
 	struct sk_buff *offchan_tx_skb;
+
+	struct work_struct wmi_mgmt_tx_work;
+	struct sk_buff_head wmi_mgmt_tx_queue;
 
 	enum ath10k_state state;
 
