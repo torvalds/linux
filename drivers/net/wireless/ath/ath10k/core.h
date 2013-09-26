@@ -270,12 +270,21 @@ enum ath10k_state {
 	ATH10K_STATE_WEDGED,
 };
 
+enum ath10k_fw_features {
+	/* wmi_mgmt_rx_hdr contains extra RSSI information */
+	ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX = 0,
+
+	/* keep last */
+	ATH10K_FW_FEATURE_COUNT,
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
 	struct device *dev;
 	u8 mac_addr[ETH_ALEN];
 
+	u32 chip_id;
 	u32 target_version;
 	u8 fw_version_major;
 	u32 fw_version_minor;
@@ -287,6 +296,8 @@ struct ath10k {
 	u32 ht_cap_info;
 	u32 vht_cap_info;
 	u32 num_rf_chains;
+
+	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
 
 	struct targetdef *targetdef;
 	struct hostdef *hostdef;
@@ -393,7 +404,7 @@ void ath10k_core_destroy(struct ath10k *ar);
 
 int ath10k_core_start(struct ath10k *ar);
 void ath10k_core_stop(struct ath10k *ar);
-int ath10k_core_register(struct ath10k *ar);
+int ath10k_core_register(struct ath10k *ar, u32 chip_id);
 void ath10k_core_unregister(struct ath10k *ar);
 
 #endif /* _CORE_H_ */

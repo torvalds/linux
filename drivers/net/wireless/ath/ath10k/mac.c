@@ -503,12 +503,9 @@ static int ath10k_monitor_start(struct ath10k *ar, int vdev_id)
 {
 	struct ieee80211_channel *channel = ar->hw->conf.chandef.chan;
 	struct wmi_vdev_start_request_arg arg = {};
-	enum nl80211_channel_type type;
 	int ret = 0;
 
 	lockdep_assert_held(&ar->conf_mutex);
-
-	type = cfg80211_get_chandef_type(&ar->hw->conf.chandef);
 
 	arg.vdev_id = vdev_id;
 	arg.channel.freq = channel->center_freq;
@@ -973,7 +970,7 @@ static void ath10k_peer_assoc_h_qos_ap(struct ath10k *ar,
 			   sta->uapsd_queues, sta->max_sp);
 
 		arg->peer_flags |= WMI_PEER_APSD;
-		arg->peer_flags |= WMI_RC_UAPSD_FLAG;
+		arg->peer_rate_caps |= WMI_RC_UAPSD_FLAG;
 
 		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
 			uapsd |= WMI_AP_PS_UAPSD_AC3_DELIVERY_EN |
@@ -1421,10 +1418,6 @@ static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	int ret;
 
-	/* TODO AP mode should be implemented */
-	if (vif->type != NL80211_IFTYPE_STATION)
-		return;
-
 	if (!ieee80211_has_protected(hdr->frame_control))
 		return;
 
@@ -1480,6 +1473,12 @@ static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int ret;
 
+	if (ar->htt.target_version_major >= 3) {
+		/* Since HTT 3.0 there is no separate mgmt tx command */
+		ret = ath10k_htt_tx(&ar->htt, skb);
+		goto exit;
+	}
+
 	if (ieee80211_is_mgmt(hdr->frame_control))
 		ret = ath10k_htt_mgmt_tx(&ar->htt, skb);
 	else if (ieee80211_is_nullfunc(hdr->frame_control))
@@ -1491,6 +1490,7 @@ static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
 	else
 		ret = ath10k_htt_tx(&ar->htt, skb);
 
+exit:
 	if (ret) {
 		ath10k_warn("tx failed (%d). dropping packet.\n", ret);
 		ieee80211_free_txskb(ar->hw, skb);
@@ -1727,8 +1727,10 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	/* we must calculate tid before we apply qos workaround
 	 * as we'd lose the qos control field */
 	tid = HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
-	if (ieee80211_is_data_qos(hdr->frame_control) &&
-	    is_unicast_ether_addr(ieee80211_get_DA(hdr))) {
+	if (ieee80211_is_mgmt(hdr->frame_control)) {
+		tid = HTT_DATA_TX_EXT_TID_MGMT;
+	} else if (ieee80211_is_data_qos(hdr->frame_control) &&
+		   is_unicast_ether_addr(ieee80211_get_DA(hdr))) {
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 	}

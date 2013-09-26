@@ -39,17 +39,6 @@ MODULE_PARM_DESC(p2p, "Enable ath10k P2P support");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
-		.id = QCA988X_HW_1_0_VERSION,
-		.name = "qca988x hw1.0",
-		.patch_load_addr = QCA988X_HW_1_0_PATCH_LOAD_ADDR,
-		.fw = {
-			.dir = QCA988X_HW_1_0_FW_DIR,
-			.fw = QCA988X_HW_1_0_FW_FILE,
-			.otp = QCA988X_HW_1_0_OTP_FILE,
-			.board = QCA988X_HW_1_0_BOARD_DATA_FILE,
-		},
-	},
-	{
 		.id = QCA988X_HW_2_0_VERSION,
 		.name = "qca988x hw2.0",
 		.patch_load_addr = QCA988X_HW_2_0_PATCH_LOAD_ADDR,
@@ -717,9 +706,42 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	return 0;
 }
 
-int ath10k_core_register(struct ath10k *ar)
+static int ath10k_core_check_chip_id(struct ath10k *ar)
+{
+	u32 hw_revision = MS(ar->chip_id, SOC_CHIP_ID_REV);
+
+	/* Check that we are not using hw1.0 (some of them have same pci id
+	 * as hw2.0) before doing anything else as ath10k crashes horribly
+	 * due to missing hw1.0 workarounds. */
+	switch (hw_revision) {
+	case QCA988X_HW_1_0_CHIP_ID_REV:
+		ath10k_err("ERROR: qca988x hw1.0 is not supported\n");
+		return -EOPNOTSUPP;
+
+	case QCA988X_HW_2_0_CHIP_ID_REV:
+		/* known hardware revision, continue normally */
+		return 0;
+
+	default:
+		ath10k_warn("Warning: hardware revision unknown (0x%x), expect problems\n",
+			    ar->chip_id);
+		return 0;
+	}
+
+	return 0;
+}
+
+int ath10k_core_register(struct ath10k *ar, u32 chip_id)
 {
 	int status;
+
+	ar->chip_id = chip_id;
+
+	status = ath10k_core_check_chip_id(ar);
+	if (status) {
+		ath10k_err("Unsupported chip id 0x%08x\n", ar->chip_id);
+		return status;
+	}
 
 	status = ath10k_core_probe_fw(ar);
 	if (status) {

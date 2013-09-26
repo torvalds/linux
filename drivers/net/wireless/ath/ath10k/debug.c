@@ -260,7 +260,6 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 	}
 
 	spin_unlock_bh(&ar->data_lock);
-	mutex_unlock(&ar->conf_mutex);
 	complete(&ar->debug.event_stats_compl);
 }
 
@@ -499,6 +498,25 @@ static const struct file_operations fops_simulate_fw_crash = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_read_chip_id(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	unsigned int len;
+	char buf[50];
+
+	len = scnprintf(buf, sizeof(buf), "0x%08x\n", ar->chip_id);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_chip_id = {
+	.read = ath10k_read_chip_id,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.debugfs_phy = debugfs_create_dir("ath10k",
@@ -517,6 +535,9 @@ int ath10k_debug_create(struct ath10k *ar)
 
 	debugfs_create_file("simulate_fw_crash", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_simulate_fw_crash);
+
+	debugfs_create_file("chip_id", S_IRUSR, ar->debug.debugfs_phy,
+			    ar, &fops_chip_id);
 
 	return 0;
 }
