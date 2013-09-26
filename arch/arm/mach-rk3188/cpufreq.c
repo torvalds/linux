@@ -160,7 +160,7 @@ static struct cpufreq_frequency_table temp_limits_gpu_perf[] = {
 #elif defined(CONFIG_ARCH_RK3026)
 static struct cpufreq_frequency_table temp_limits[2][1] = {
 	{	// 1 CPU busy
-		{.frequency =          -1, .index = 0},
+		{.frequency =  912 * 1000, .index = 0},
 	}, {	// 2 CPUs busy
 		{.frequency =  816 * 1000, .index = 0},
 	}
