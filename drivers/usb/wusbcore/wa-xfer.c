@@ -1560,6 +1560,7 @@ error_submit_buf_in:
 			xfer, seg_idx, result);
 	seg->result = result;
 	kfree(wa->buf_in_urb->sg);
+	wa->buf_in_urb->sg = NULL;
 error_sg_alloc:
 	__wa_xfer_abort(xfer);
 error_complete:
@@ -1859,6 +1860,7 @@ out:
 
 error_dti_urb_submit:
 	usb_put_urb(wa->buf_in_urb);
+	wa->buf_in_urb = NULL;
 error_buf_in_urb_alloc:
 	usb_put_urb(wa->dti_urb);
 	wa->dti_urb = NULL;
