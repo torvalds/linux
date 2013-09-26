@@ -205,8 +205,6 @@ extern void rtl8723ae_phy_set_txpower_level(struct ieee80211_hw *hw,
 					    u8 channel);
 extern bool rtl8723ae_phy_update_txpower_dbm(struct ieee80211_hw *hw,
 					     long power_indbm);
-extern void rtl8723ae_phy_scan_operation_backup(struct ieee80211_hw *hw,
-						u8 operation);
 extern void rtl8723ae_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
 extern void rtl8723ae_phy_set_bw_mode(struct ieee80211_hw *hw,
 				      enum nl80211_channel_type ch_type);
