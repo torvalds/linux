@@ -2004,6 +2004,24 @@ static void bnx2fc_ulp_init(struct cnic_dev *dev)
 		set_bit(BNX2FC_CNIC_REGISTERED, &hba->reg_with_cnic);
 }
 
+/* Assumes rtnl_lock and the bnx2fc_dev_lock are already taken */
+static int __bnx2fc_disable(struct fcoe_ctlr *ctlr)
+{
+	struct bnx2fc_interface *interface = fcoe_ctlr_priv(ctlr);
+
+	if (interface->enabled == true) {
+		if (!ctlr->lp) {
+			pr_err(PFX "__bnx2fc_disable: lport not found\n");
+			return -ENODEV;
+		} else {
+			interface->enabled = false;
+			fcoe_ctlr_link_down(ctlr);
+			fcoe_clean_pending_queue(ctlr->lp);
+		}
+	}
+	return 0;
+}
+
 /**
  * Deperecated: Use bnx2fc_enabled()
  */
@@ -2018,18 +2036,32 @@ static int bnx2fc_disable(struct net_device *netdev)
 
 	interface = bnx2fc_interface_lookup(netdev);
 	ctlr = bnx2fc_to_ctlr(interface);
-	if (!interface || !ctlr->lp) {
-		rc = -ENODEV;
-		printk(KERN_ERR PFX "bnx2fc_disable: interface or lport not found\n");
-	} else {
-		interface->enabled = false;
-		fcoe_ctlr_link_down(ctlr);
-		fcoe_clean_pending_queue(ctlr->lp);
-	}
 
+	if (!interface) {
+		rc = -ENODEV;
+		pr_err(PFX "bnx2fc_disable: interface not found\n");
+	} else {
+		rc = __bnx2fc_disable(ctlr);
+	}
 	mutex_unlock(&bnx2fc_dev_lock);
 	rtnl_unlock();
 	return rc;
+}
+
+static int __bnx2fc_enable(struct fcoe_ctlr *ctlr)
+{
+	struct bnx2fc_interface *interface = fcoe_ctlr_priv(ctlr);
+
+	if (interface->enabled == false) {
+		if (!ctlr->lp) {
+			pr_err(PFX "__bnx2fc_enable: lport not found\n");
+			return -ENODEV;
+		} else if (!bnx2fc_link_ok(ctlr->lp)) {
+			fcoe_ctlr_link_up(ctlr);
+			interface->enabled = true;
+		}
+	}
+	return 0;
 }
 
 /**
@@ -2046,12 +2078,11 @@ static int bnx2fc_enable(struct net_device *netdev)
 
 	interface = bnx2fc_interface_lookup(netdev);
 	ctlr = bnx2fc_to_ctlr(interface);
-	if (!interface || !ctlr->lp) {
+	if (!interface) {
 		rc = -ENODEV;
-		printk(KERN_ERR PFX "bnx2fc_enable: interface or lport not found\n");
-	} else if (!bnx2fc_link_ok(ctlr->lp)) {
-		fcoe_ctlr_link_up(ctlr);
-		interface->enabled = true;
+		pr_err(PFX "bnx2fc_enable: interface not found\n");
+	} else {
+		rc = __bnx2fc_enable(ctlr);
 	}
 
 	mutex_unlock(&bnx2fc_dev_lock);
@@ -2072,14 +2103,12 @@ static int bnx2fc_enable(struct net_device *netdev)
 static int bnx2fc_ctlr_enabled(struct fcoe_ctlr_device *cdev)
 {
 	struct fcoe_ctlr *ctlr = fcoe_ctlr_device_priv(cdev);
-	struct fc_lport *lport = ctlr->lp;
-	struct net_device *netdev = bnx2fc_netdev(lport);
 
 	switch (cdev->enabled) {
 	case FCOE_CTLR_ENABLED:
-		return bnx2fc_enable(netdev);
+		return __bnx2fc_enable(ctlr);
 	case FCOE_CTLR_DISABLED:
-		return bnx2fc_disable(netdev);
+		return __bnx2fc_disable(ctlr);
 	case FCOE_CTLR_UNUSED:
 	default:
 		return -ENOTSUPP;
