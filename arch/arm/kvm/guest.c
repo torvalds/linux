@@ -190,6 +190,8 @@ int __attribute_const__ kvm_target_cpu(void)
 		return -EINVAL;
 
 	switch (part_number) {
+	case ARM_CPU_PART_CORTEX_A7:
+		return KVM_ARM_TARGET_CORTEX_A7;
 	case ARM_CPU_PART_CORTEX_A15:
 		return KVM_ARM_TARGET_CORTEX_A15;
 	default:
@@ -202,7 +204,7 @@ int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 {
 	unsigned int i;
 
-	/* We can only do a cortex A15 for now. */
+	/* We can only cope with guest==host and only on A15/A7 (for now). */
 	if (init->target != kvm_target_cpu())
 		return -EINVAL;
 
