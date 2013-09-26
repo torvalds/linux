@@ -180,6 +180,12 @@ union vnt_tx_data_head {
 	struct vnt_cts_fb cts_g_fb;
 };
 
+union vnt_tx_head {
+	struct vnt_rrv_time_rts rts;
+	struct vnt_rrv_time_cts cts;
+	struct vnt_rrv_time_ab ab;
+};
+
 struct vnt_tx_fifo_head {
 	u32 adwTxKey[4];
 	u16 wFIFOCtl;
@@ -193,6 +199,7 @@ struct vnt_tx_buffer {
 	u8 byPKTNO;
 	u16 wTxByteCount;
 	struct vnt_tx_fifo_head fifo_head;
+	union vnt_tx_head tx_head;
 } __packed;
 
 struct vnt_beacon_buffer {
