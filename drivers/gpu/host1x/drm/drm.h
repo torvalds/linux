@@ -46,7 +46,7 @@ struct tegra_drm {
 
 struct host1x_client;
 
-struct host1x_drm_context {
+struct tegra_drm_context {
 	struct host1x_client *client;
 	struct host1x_channel *channel;
 	struct list_head list;
@@ -56,9 +56,9 @@ struct host1x_client_ops {
 	int (*drm_init)(struct host1x_client *client, struct drm_device *drm);
 	int (*drm_exit)(struct host1x_client *client);
 	int (*open_channel)(struct host1x_client *client,
-			    struct host1x_drm_context *context);
-	void (*close_channel)(struct host1x_drm_context *context);
-	int (*submit)(struct host1x_drm_context *context,
+			    struct tegra_drm_context *context);
+	void (*close_channel)(struct tegra_drm_context *context);
+	int (*submit)(struct tegra_drm_context *context,
 		      struct drm_tegra_submit *args, struct drm_device *drm,
 		      struct drm_file *file);
 };

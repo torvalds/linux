@@ -306,7 +306,7 @@ static int tegra_drm_open(struct drm_device *drm, struct drm_file *filp)
 	return 0;
 }
 
-static void host1x_drm_context_free(struct host1x_drm_context *context)
+static void tegra_drm_context_free(struct tegra_drm_context *context)
 {
 	context->client->ops->close_channel(context);
 	kfree(context);
@@ -320,10 +320,15 @@ static void tegra_drm_lastclose(struct drm_device *drm)
 }
 
 #ifdef CONFIG_DRM_TEGRA_STAGING
-static bool tegra_drm_file_owns_context(struct tegra_drm_file *file,
-					struct host1x_drm_context *context)
+static struct tegra_drm_context *tegra_drm_get_context(__u64 context)
 {
-	struct host1x_drm_context *ctx;
+	return (struct tegra_drm_context *)(uintptr_t)context;
+}
+
+static bool tegra_drm_file_owns_context(struct tegra_drm_file *file,
+					struct tegra_drm_context *context)
+{
+	struct tegra_drm_context *ctx;
 
 	list_for_each_entry(ctx, &file->contexts, list)
 		if (ctx == context)
@@ -413,7 +418,7 @@ static int tegra_open_channel(struct drm_device *drm, void *data,
 	struct tegra_drm_file *fpriv = file->driver_priv;
 	struct tegra_drm *tegra = drm->dev_private;
 	struct drm_tegra_open_channel *args = data;
-	struct host1x_drm_context *context;
+	struct tegra_drm_context *context;
 	struct host1x_client *client;
 	int err = -ENODEV;
 
@@ -442,14 +447,15 @@ static int tegra_close_channel(struct drm_device *drm, void *data,
 {
 	struct drm_tegra_close_channel *args = data;
 	struct tegra_drm_file *fpriv = file->driver_priv;
-	struct host1x_drm_context *context =
-		(struct host1x_drm_context *)(uintptr_t)args->context;
+	struct tegra_drm_context *context;
+
+	context = tegra_drm_get_context(args->context);
 
 	if (!tegra_drm_file_owns_context(fpriv, context))
 		return -EINVAL;
 
 	list_del(&context->list);
-	host1x_drm_context_free(context);
+	tegra_drm_context_free(context);
 
 	return 0;
 }
@@ -459,9 +465,10 @@ static int tegra_get_syncpt(struct drm_device *drm, void *data,
 {
 	struct tegra_drm_file *fpriv = file->driver_priv;
 	struct drm_tegra_get_syncpt *args = data;
-	struct host1x_drm_context *context =
-		(struct host1x_drm_context *)(uintptr_t)args->context;
+	struct tegra_drm_context *context;
 	struct host1x_syncpt *syncpt;
+
+	context = tegra_drm_get_context(args->context);
 
 	if (!tegra_drm_file_owns_context(fpriv, context))
 		return -ENODEV;
@@ -480,8 +487,9 @@ static int tegra_submit(struct drm_device *drm, void *data,
 {
 	struct tegra_drm_file *fpriv = file->driver_priv;
 	struct drm_tegra_submit *args = data;
-	struct host1x_drm_context *context =
-		(struct host1x_drm_context *)(uintptr_t)args->context;
+	struct tegra_drm_context *context;
+
+	context = tegra_drm_get_context(args->context);
 
 	if (!tegra_drm_file_owns_context(fpriv, context))
 		return -ENODEV;
@@ -563,14 +571,14 @@ static void tegra_drm_disable_vblank(struct drm_device *drm, int pipe)
 static void tegra_drm_preclose(struct drm_device *drm, struct drm_file *file)
 {
 	struct tegra_drm_file *fpriv = file->driver_priv;
-	struct host1x_drm_context *context, *tmp;
+	struct tegra_drm_context *context, *tmp;
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head)
 		tegra_dc_cancel_page_flip(crtc, file);
 
 	list_for_each_entry_safe(context, tmp, &fpriv->contexts, list)
-		host1x_drm_context_free(context);
+		tegra_drm_context_free(context);
 
 	kfree(fpriv);
 }

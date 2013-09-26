@@ -58,7 +58,7 @@ static int gr2d_client_exit(struct host1x_client *client)
 }
 
 static int gr2d_open_channel(struct host1x_client *client,
-			     struct host1x_drm_context *context)
+			     struct tegra_drm_context *context)
 {
 	struct gr2d *gr2d = to_gr2d(client);
 
@@ -70,7 +70,7 @@ static int gr2d_open_channel(struct host1x_client *client,
 	return 0;
 }
 
-static void gr2d_close_channel(struct host1x_drm_context *context)
+static void gr2d_close_channel(struct tegra_drm_context *context)
 {
 	host1x_channel_put(context->channel);
 }
@@ -94,7 +94,7 @@ static struct host1x_bo *host1x_bo_lookup(struct drm_device *drm,
 	return &bo->base;
 }
 
-static int gr2d_submit(struct host1x_drm_context *context,
+static int gr2d_submit(struct tegra_drm_context *context,
 		       struct drm_tegra_submit *args, struct drm_device *drm,
 		       struct drm_file *file)
 {
