@@ -824,20 +824,6 @@ config ARCH_EXYNOS
 	help
 	  Support for SAMSUNG's EXYNOS SoCs (EXYNOS4/5)
 
-config ARCH_SHARK
-	bool "Shark"
-	select ARCH_USES_GETTIMEOFFSET
-	select CPU_SA110
-	select ISA
-	select ISA_DMA
-	select NEED_MACH_MEMORY_H
-	select PCI
-	select VIRT_TO_BUS
-	select ZONE_DMA
-	help
-	  Support for the StrongARM based Digital DNARD machine, also known
-	  as "Shark" (<http://www.shark-linux.de/shark.html>).
-
 config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -1430,12 +1416,6 @@ config PCI_NANOENGINE
 
 config PCI_SYSCALL
 	def_bool PCI
-
-# Select the host bridge type
-config PCI_HOST_VIA82C505
-	bool
-	depends on PCI && ARCH_SHARK
-	default y
 
 config PCI_HOST_ITE8152
 	bool

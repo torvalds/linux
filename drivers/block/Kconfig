@@ -505,7 +505,7 @@ config VIRTIO_BLK
 config BLK_DEV_HD
 	bool "Very old hard disk (MFM/RLL/IDE) driver"
 	depends on HAVE_IDE
-	depends on !ARM || ARCH_RPC || ARCH_SHARK || BROKEN
+	depends on !ARM || ARCH_RPC || BROKEN
 	help
 	  This is a very old hard disk driver that lacks the enhanced
 	  functionality of the newer ones.
