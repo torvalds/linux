@@ -400,11 +400,14 @@ static void ipp_par_check(int* dst_w, int* dst_h, int* dst_vir_w,
 static void fb_copy_by_ipp(struct fb_info *dst_info, struct fb_info *src_info,int offset)
 {
 	struct rk29_ipp_req ipp_req;
-
  	uint32_t  rotation = 0;
+	int dst_w,dst_h,dst_vir_w;
+	int ipp_fmt;
+	u8 data_format = (dst_info->var.nonstd)&0xff;
+	
 	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
 #if defined(CONFIG_FB_ROTATE)
-	int orientation = orientation = 270 - CONFIG_ROTATE_ORIENTATION;
+	int orientation = 270 - CONFIG_ROTATE_ORIENTATION;
 	switch(orientation)
 	{
 		case 0:
@@ -425,15 +428,23 @@ static void fb_copy_by_ipp(struct fb_info *dst_info, struct fb_info *src_info,in
 			
 	}
 #endif
+
+	dst_w = dst_info->var.xres;
+	dst_h = dst_info->var.yres;
+	dst_vir_w = dst_info->var.xres_virtual;
+	ipp_fmt = get_ipp_format(data_format);
+	ipp_par_check(&dst_w,&dst_h,&dst_vir_w,rotation,ipp_fmt);
 	ipp_req.src0.YrgbMst = src_info->fix.smem_start + offset;
 	ipp_req.src0.w = src_info->var.xres;
 	ipp_req.src0.h = src_info->var.yres;
 	ipp_req.src_vir_w = src_info->var.xres_virtual;
+	ipp_req.src0.fmt = ipp_fmt;
 	
 	ipp_req.dst0.YrgbMst = dst_info->fix.smem_start + offset;
-	ipp_req.dst0.w = dst_info->var.xres;
-	ipp_req.dst0.h = dst_info->var.yres;
-	ipp_req.dst_vir_w = dst_info->var.xres_virtual;
+	ipp_req.dst0.w = dst_w;
+	ipp_req.dst0.h = dst_h;
+	ipp_req.dst_vir_w = dst_vir_w;
+	ipp_req.dst0.fmt = ipp_fmt;
 
 	
 	ipp_req.timeout = 100;
