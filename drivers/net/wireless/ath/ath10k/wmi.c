@@ -1451,9 +1451,9 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 			 * peers, 1 extra for self peer on target */
 			/* this needs to be tied, host and target
 			 * can get out of sync */
-			num_units = TARGET_NUM_PEERS + 1;
+			num_units = TARGET_10X_NUM_PEERS + 1;
 		else if (num_unit_info & NUM_UNITS_IS_NUM_VDEVS)
-			num_units = TARGET_NUM_VDEVS + 1;
+			num_units = TARGET_10X_NUM_VDEVS + 1;
 
 		ath10k_dbg(ATH10K_DBG_WMI,
 			   "wmi mem_req_id %d num_units %d num_unit_info %d unit size %d actual units %d\n",
@@ -2015,48 +2015,48 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 	u32 len, val;
 	int i;
 
-	config.num_vdevs = __cpu_to_le32(TARGET_NUM_VDEVS);
-	config.num_peers = __cpu_to_le32(TARGET_NUM_PEERS + TARGET_NUM_VDEVS);
-	config.num_peer_keys = __cpu_to_le32(TARGET_NUM_PEER_KEYS);
-	config.num_tids = __cpu_to_le32(TARGET_NUM_TIDS);
-	config.ast_skid_limit = __cpu_to_le32(TARGET_AST_SKID_LIMIT);
-	config.tx_chain_mask = __cpu_to_le32(TARGET_TX_CHAIN_MASK);
-	config.rx_chain_mask = __cpu_to_le32(TARGET_RX_CHAIN_MASK);
-	config.rx_timeout_pri_vo = __cpu_to_le32(TARGET_RX_TIMEOUT_LO_PRI);
-	config.rx_timeout_pri_vi = __cpu_to_le32(TARGET_RX_TIMEOUT_LO_PRI);
-	config.rx_timeout_pri_be = __cpu_to_le32(TARGET_RX_TIMEOUT_LO_PRI);
-	config.rx_timeout_pri_bk = __cpu_to_le32(TARGET_RX_TIMEOUT_HI_PRI);
-	config.rx_decap_mode = __cpu_to_le32(TARGET_RX_DECAP_MODE);
+	config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
+	config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS);
+	config.num_peer_keys = __cpu_to_le32(TARGET_10X_NUM_PEER_KEYS);
+	config.num_tids = __cpu_to_le32(TARGET_10X_NUM_TIDS);
+	config.ast_skid_limit = __cpu_to_le32(TARGET_10X_AST_SKID_LIMIT);
+	config.tx_chain_mask = __cpu_to_le32(TARGET_10X_TX_CHAIN_MASK);
+	config.rx_chain_mask = __cpu_to_le32(TARGET_10X_RX_CHAIN_MASK);
+	config.rx_timeout_pri_vo = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_LO_PRI);
+	config.rx_timeout_pri_vi = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_LO_PRI);
+	config.rx_timeout_pri_be = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_LO_PRI);
+	config.rx_timeout_pri_bk = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_HI_PRI);
+	config.rx_decap_mode = __cpu_to_le32(TARGET_10X_RX_DECAP_MODE);
 
 	config.scan_max_pending_reqs =
-		__cpu_to_le32(TARGET_SCAN_MAX_PENDING_REQS);
+		__cpu_to_le32(TARGET_10X_SCAN_MAX_PENDING_REQS);
 
 	config.bmiss_offload_max_vdev =
-		__cpu_to_le32(TARGET_BMISS_OFFLOAD_MAX_VDEV);
+		__cpu_to_le32(TARGET_10X_BMISS_OFFLOAD_MAX_VDEV);
 
 	config.roam_offload_max_vdev =
-		__cpu_to_le32(TARGET_ROAM_OFFLOAD_MAX_VDEV);
+		__cpu_to_le32(TARGET_10X_ROAM_OFFLOAD_MAX_VDEV);
 
 	config.roam_offload_max_ap_profiles =
-		__cpu_to_le32(TARGET_ROAM_OFFLOAD_MAX_AP_PROFILES);
+		__cpu_to_le32(TARGET_10X_ROAM_OFFLOAD_MAX_AP_PROFILES);
 
-	config.num_mcast_groups = __cpu_to_le32(TARGET_NUM_MCAST_GROUPS);
+	config.num_mcast_groups = __cpu_to_le32(TARGET_10X_NUM_MCAST_GROUPS);
 	config.num_mcast_table_elems =
-		__cpu_to_le32(TARGET_NUM_MCAST_TABLE_ELEMS);
+		__cpu_to_le32(TARGET_10X_NUM_MCAST_TABLE_ELEMS);
 
-	config.mcast2ucast_mode = __cpu_to_le32(TARGET_MCAST2UCAST_MODE);
-	config.tx_dbg_log_size = __cpu_to_le32(TARGET_TX_DBG_LOG_SIZE);
-	config.num_wds_entries = __cpu_to_le32(TARGET_NUM_WDS_ENTRIES);
-	config.dma_burst_size = __cpu_to_le32(TARGET_DMA_BURST_SIZE);
-	config.mac_aggr_delim = __cpu_to_le32(TARGET_MAC_AGGR_DELIM);
+	config.mcast2ucast_mode = __cpu_to_le32(TARGET_10X_MCAST2UCAST_MODE);
+	config.tx_dbg_log_size = __cpu_to_le32(TARGET_10X_TX_DBG_LOG_SIZE);
+	config.num_wds_entries = __cpu_to_le32(TARGET_10X_NUM_WDS_ENTRIES);
+	config.dma_burst_size = __cpu_to_le32(TARGET_10X_DMA_BURST_SIZE);
+	config.mac_aggr_delim = __cpu_to_le32(TARGET_10X_MAC_AGGR_DELIM);
 
-	val = TARGET_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK;
+	val = TARGET_10X_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK;
 	config.rx_skip_defrag_timeout_dup_detection_check = __cpu_to_le32(val);
 
-	config.vow_config = __cpu_to_le32(TARGET_VOW_CONFIG);
+	config.vow_config = __cpu_to_le32(TARGET_10X_VOW_CONFIG);
 
-	config.num_msdu_desc = __cpu_to_le32(TARGET_NUM_MSDU_DESC);
-	config.max_frag_entries = __cpu_to_le32(TARGET_MAX_FRAG_ENTRIES);
+	config.num_msdu_desc = __cpu_to_le32(TARGET_10X_NUM_MSDU_DESC);
+	config.max_frag_entries = __cpu_to_le32(TARGET_10X_MAX_FRAG_ENTRIES);
 
 	len = sizeof(*cmd) +
 	      (sizeof(struct host_memory_chunk) * ar->wmi.num_mem_chunks);
