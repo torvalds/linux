@@ -725,7 +725,7 @@ static struct platform_device device_ion = {
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
 #ifdef CONFIG_SDMMC_RK29
-#include "board-rk3188-ds1006h-sdmmc-config.c"
+#include "board-rk3188-ac-sdmmc-config.c"
 #include "../plat-rk/rk-sdmmc-ops.c"
 #include "../plat-rk/rk-sdmmc-wifi.c"
 #endif //endif ---#ifdef CONFIG_SDMMC_RK29
@@ -794,7 +794,7 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.use_dma = 0,
 #endif
 
-#if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC) && defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+#if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
     .status = rk29sdk_wifi_mmc0_status,
     .register_status_notify = rk29sdk_wifi_mmc0_status_register,
 #endif
@@ -1096,6 +1096,12 @@ struct platform_device pwm_regulator_device[1] = {
 };
 #endif
 
+#ifdef CONFIG_RK29_VMAC
+#define PHY_PWR_EN_GPIO RK30_PIN0_PC0
+#define PHY_PWR_EN_VALUE   GPIO_HIGH
+#include "../mach-rk30/board-rk31-sdk-vmac.c"
+#endif
+
 #ifdef CONFIG_RFKILL_RK
 // bluetooth rfkill device, its driver in net/rfkill/rfkill-rk.c
 static struct rfkill_rk_platform_data rfkill_rk_platdata = {
@@ -1111,26 +1117,26 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
     },
 
     .reset_gpio         = { // BT_RST
-        .io             = RK30_PIN3_PD1, // set io to INVALID_GPIO for disable it
+        .io             = RK30_PIN3_PA0, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_LOW,
         .iomux          = {
             .name       = "bt_reset",
-            .fgpio      = GPIO3_D1,
+            .fgpio      = GPIO3_A0,
        },
    }, 
 
     .wake_gpio          = { // BT_WAKE, use to control bt's sleep and wakeup
-        .io             = RK30_PIN3_PC6, // set io to INVALID_GPIO for disable it
+        .io             = RK30_PIN3_PB0, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_HIGH,
         .iomux          = {
             .name       = "bt_wake",
-            .fgpio      = GPIO3_C6,
+            .fgpio      = GPIO3_B0,
         },
     },
 
     .wake_host_irq      = { // BT_HOST_WAKE, for bt wakeup host when it is in deep sleep
         .gpio           = {
-            .io         = RK30_PIN0_PA5, // set io to INVALID_GPIO for disable it
+            .io         = RK30_PIN3_PB1, // set io to INVALID_GPIO for disable it
             .enable     = GPIO_LOW,      // set GPIO_LOW for falling, set 0 for rising
             .iomux      = {
                 .name   = NULL,
