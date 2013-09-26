@@ -1651,7 +1651,7 @@ hal_EfusePgCheckAvailableAddr(
 {
 	u16	efuse_max_available_len = 0;
 
-	/* Change to check TYPE_EFUSE_MAP_LEN , beacuse 8188E raw 256, logic map over 256. */
+	/* Change to check TYPE_EFUSE_MAP_LEN , because 8188E raw 256, logic map over 256. */
 	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&efuse_max_available_len, false);
 
 	if (Efuse_GetCurrentSize(pAdapter, efuseType, bPseudoTest) >= efuse_max_available_len)
@@ -2098,7 +2098,7 @@ static u8 Hal_GetChnlGroup88E(u8 chnl, u8 *pGroup)
 	if (chnl <= 14) {
 		bIn24G = true;
 
-		if (chnl < 3)			/*  Chanel 1-2 */
+		if (chnl < 3)			/*  Channel 1-2 */
 			*pGroup = 0;
 		else if (chnl < 6)		/*  Channel 3-5 */
 			*pGroup = 1;
