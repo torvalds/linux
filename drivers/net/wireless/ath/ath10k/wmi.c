@@ -2341,11 +2341,15 @@ int ath10k_wmi_cmd_init(struct ath10k *ar)
 	return ret;
 }
 
-static int ath10k_wmi_start_scan_calc_len(const struct wmi_start_scan_arg *arg)
+static int ath10k_wmi_start_scan_calc_len(struct ath10k *ar,
+					  const struct wmi_start_scan_arg *arg)
 {
 	int len;
 
-	len = sizeof(struct wmi_start_scan_cmd);
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
+		len = sizeof(struct wmi_start_scan_cmd_10x);
+	else
+		len = sizeof(struct wmi_start_scan_cmd);
 
 	if (arg->ie_len) {
 		if (!arg->ie)
@@ -2405,7 +2409,7 @@ int ath10k_wmi_start_scan(struct ath10k *ar,
 	int len = 0;
 	int i;
 
-	len = ath10k_wmi_start_scan_calc_len(arg);
+	len = ath10k_wmi_start_scan_calc_len(ar, arg);
 	if (len < 0)
 		return len; /* len contains error code here */
 
@@ -2437,7 +2441,14 @@ int ath10k_wmi_start_scan(struct ath10k *ar,
 	cmd->scan_ctrl_flags    = __cpu_to_le32(arg->scan_ctrl_flags);
 
 	/* TLV list starts after fields included in the struct */
-	off = sizeof(*cmd);
+	/* There's just one filed that differes the two start_scan
+	 * structures - burst_duration, which we are not using btw,
+	   no point to make the split here, just shift the buffer to fit with
+	   given FW */
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
+		off = sizeof(struct wmi_start_scan_cmd_10x);
+	else
+		off = sizeof(struct wmi_start_scan_cmd);
 
 	if (arg->n_channels) {
 		channels = (void *)skb->data + off;
