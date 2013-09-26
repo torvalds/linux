@@ -281,6 +281,7 @@ struct mfd_rk616 {
 	struct clk *mclk;
 	u64 pll0_rate;
 	u64 pll1_rate;
+	unsigned int resume; 	
 	struct dentry *debugfs_dir;
 	int (*read_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 	int (*write_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);

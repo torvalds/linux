@@ -757,8 +757,15 @@ int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enab
 	if(ret < 0)
 		return ret;
 	ret = rk616_router_cfg(rk616);
-	ret = rk616_vif_cfg(rk616,hdmi_screen,0);
-	ret = rk616_vif_cfg(rk616,hdmi_screen,1);
+	
+	/*
+		If wake up, does not execute the rk616_vif_cfg can save 50ms time
+	*/
+	if(rk616->resume != 1){
+		ret = rk616_vif_cfg(rk616,hdmi_screen,0);
+		ret = rk616_vif_cfg(rk616,hdmi_screen,1);
+	}
+
 	ret = rk616_scaler_cfg(rk616,screen);			
 	ret = rk616_dither_cfg(rk616,screen,enable);
 	return 0;

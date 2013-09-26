@@ -61,7 +61,6 @@ static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 				ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
 
 				rk616_dbg(rk616->dev,"rk616 use single lvds channel.......\n");
-				
 			}
 
 		}
@@ -132,7 +131,9 @@ static void rk616_lvds_late_resume(struct early_suspend *h)
 {
 	struct rk616_lvds *lvds = container_of(h, struct rk616_lvds,early_suspend);
 	struct mfd_rk616 *rk616 = lvds->rk616;
-	rk616_lvds_init_cfg(rk616,lvds->screen);
+	rk616->resume = 1;
+	rk616_lvds_init_cfg(rk616,lvds->screen);	
+	rk616->resume = 0;
 }
 
 #endif
