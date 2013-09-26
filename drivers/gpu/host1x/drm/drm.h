@@ -94,16 +94,13 @@ struct tegra_output;
 
 struct tegra_dc {
 	struct host1x_client client;
-	spinlock_t lock;
-
-	struct host1x_drm *host1x;
 	struct device *dev;
+	spinlock_t lock;
 
 	struct drm_crtc base;
 	int pipe;
 
 	struct clk *clk;
-
 	void __iomem *regs;
 	int irq;
 
