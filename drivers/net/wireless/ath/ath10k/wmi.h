@@ -2072,6 +2072,60 @@ struct wmi_csa_event {
 #define VDEV_DEFAULT_STATS_UPDATE_PERIOD    500
 #define PEER_DEFAULT_STATS_UPDATE_PERIOD    500
 
+struct wmi_pdev_param_map {
+	u32 tx_chain_mask;
+	u32 rx_chain_mask;
+	u32 txpower_limit2g;
+	u32 txpower_limit5g;
+	u32 txpower_scale;
+	u32 beacon_gen_mode;
+	u32 beacon_tx_mode;
+	u32 resmgr_offchan_mode;
+	u32 protection_mode;
+	u32 dynamic_bw;
+	u32 non_agg_sw_retry_th;
+	u32 agg_sw_retry_th;
+	u32 sta_kickout_th;
+	u32 ac_aggrsize_scaling;
+	u32 ltr_enable;
+	u32 ltr_ac_latency_be;
+	u32 ltr_ac_latency_bk;
+	u32 ltr_ac_latency_vi;
+	u32 ltr_ac_latency_vo;
+	u32 ltr_ac_latency_timeout;
+	u32 ltr_sleep_override;
+	u32 ltr_rx_override;
+	u32 ltr_tx_activity_timeout;
+	u32 l1ss_enable;
+	u32 dsleep_enable;
+	u32 pcielp_txbuf_flush;
+	u32 pcielp_txbuf_watermark;
+	u32 pcielp_txbuf_tmo_en;
+	u32 pcielp_txbuf_tmo_value;
+	u32 pdev_stats_update_period;
+	u32 vdev_stats_update_period;
+	u32 peer_stats_update_period;
+	u32 bcnflt_stats_update_period;
+	u32 pmf_qos;
+	u32 arp_ac_override;
+	u32 arpdhcp_ac_override;
+	u32 dcs;
+	u32 ani_enable;
+	u32 ani_poll_period;
+	u32 ani_listen_period;
+	u32 ani_ofdm_level;
+	u32 ani_cck_level;
+	u32 dyntxchain;
+	u32 proxy_sta;
+	u32 idle_ps_config;
+	u32 power_gating_sleep;
+	u32 fast_channel_reset;
+	u32 burst_dur;
+	u32 burst_enable;
+};
+
+#define WMI_PDEV_PARAM_UNSUPPORTED 0
+
 enum wmi_pdev_param {
 	/* TX chian mask */
 	WMI_PDEV_PARAM_TX_CHAIN_MASK = 0x1,
@@ -2169,6 +2223,97 @@ enum wmi_pdev_param {
 	WMI_PDEV_PARAM_IDLE_PS_CONFIG,
 	/* Enable/Disable power gating sleep */
 	WMI_PDEV_PARAM_POWER_GATING_SLEEP,
+};
+
+enum wmi_10x_pdev_param {
+	/* TX chian mask */
+	WMI_10X_PDEV_PARAM_TX_CHAIN_MASK = 0x1,
+	/* RX chian mask */
+	WMI_10X_PDEV_PARAM_RX_CHAIN_MASK,
+	/* TX power limit for 2G Radio */
+	WMI_10X_PDEV_PARAM_TXPOWER_LIMIT2G,
+	/* TX power limit for 5G Radio */
+	WMI_10X_PDEV_PARAM_TXPOWER_LIMIT5G,
+	/* TX power scale */
+	WMI_10X_PDEV_PARAM_TXPOWER_SCALE,
+	/* Beacon generation mode . 0: host, 1: target   */
+	WMI_10X_PDEV_PARAM_BEACON_GEN_MODE,
+	/* Beacon generation mode . 0: staggered 1: bursted   */
+	WMI_10X_PDEV_PARAM_BEACON_TX_MODE,
+	/*
+	 * Resource manager off chan mode .
+	 * 0: turn off off chan mode. 1: turn on offchan mode
+	 */
+	WMI_10X_PDEV_PARAM_RESMGR_OFFCHAN_MODE,
+	/*
+	 * Protection mode:
+	 * 0: no protection 1:use CTS-to-self 2: use RTS/CTS
+	 */
+	WMI_10X_PDEV_PARAM_PROTECTION_MODE,
+	/* Dynamic bandwidth 0: disable 1: enable */
+	WMI_10X_PDEV_PARAM_DYNAMIC_BW,
+	/* Non aggregrate/ 11g sw retry threshold.0-disable */
+	WMI_10X_PDEV_PARAM_NON_AGG_SW_RETRY_TH,
+	/* aggregrate sw retry threshold. 0-disable*/
+	WMI_10X_PDEV_PARAM_AGG_SW_RETRY_TH,
+	/* Station kickout threshold (non of consecutive failures).0-disable */
+	WMI_10X_PDEV_PARAM_STA_KICKOUT_TH,
+	/* Aggerate size scaling configuration per AC */
+	WMI_10X_PDEV_PARAM_AC_AGGRSIZE_SCALING,
+	/* LTR enable */
+	WMI_10X_PDEV_PARAM_LTR_ENABLE,
+	/* LTR latency for BE, in us */
+	WMI_10X_PDEV_PARAM_LTR_AC_LATENCY_BE,
+	/* LTR latency for BK, in us */
+	WMI_10X_PDEV_PARAM_LTR_AC_LATENCY_BK,
+	/* LTR latency for VI, in us */
+	WMI_10X_PDEV_PARAM_LTR_AC_LATENCY_VI,
+	/* LTR latency for VO, in us  */
+	WMI_10X_PDEV_PARAM_LTR_AC_LATENCY_VO,
+	/* LTR AC latency timeout, in ms */
+	WMI_10X_PDEV_PARAM_LTR_AC_LATENCY_TIMEOUT,
+	/* LTR platform latency override, in us */
+	WMI_10X_PDEV_PARAM_LTR_SLEEP_OVERRIDE,
+	/* LTR-RX override, in us */
+	WMI_10X_PDEV_PARAM_LTR_RX_OVERRIDE,
+	/* Tx activity timeout for LTR, in us */
+	WMI_10X_PDEV_PARAM_LTR_TX_ACTIVITY_TIMEOUT,
+	/* L1SS state machine enable */
+	WMI_10X_PDEV_PARAM_L1SS_ENABLE,
+	/* Deep sleep state machine enable */
+	WMI_10X_PDEV_PARAM_DSLEEP_ENABLE,
+	/* pdev level stats update period in ms */
+	WMI_10X_PDEV_PARAM_PDEV_STATS_UPDATE_PERIOD,
+	/* vdev level stats update period in ms */
+	WMI_10X_PDEV_PARAM_VDEV_STATS_UPDATE_PERIOD,
+	/* peer level stats update period in ms */
+	WMI_10X_PDEV_PARAM_PEER_STATS_UPDATE_PERIOD,
+	/* beacon filter status update period */
+	WMI_10X_PDEV_PARAM_BCNFLT_STATS_UPDATE_PERIOD,
+	/* QOS Mgmt frame protection MFP/PMF 0: disable, 1: enable */
+	WMI_10X_PDEV_PARAM_PMF_QOS,
+	/* Access category on which ARP and DHCP frames are sent */
+	WMI_10X_PDEV_PARAM_ARPDHCP_AC_OVERRIDE,
+	/* DCS configuration */
+	WMI_10X_PDEV_PARAM_DCS,
+	/* Enable/Disable ANI on target */
+	WMI_10X_PDEV_PARAM_ANI_ENABLE,
+	/* configure the ANI polling period */
+	WMI_10X_PDEV_PARAM_ANI_POLL_PERIOD,
+	/* configure the ANI listening period */
+	WMI_10X_PDEV_PARAM_ANI_LISTEN_PERIOD,
+	/* configure OFDM immunity level */
+	WMI_10X_PDEV_PARAM_ANI_OFDM_LEVEL,
+	/* configure CCK immunity level */
+	WMI_10X_PDEV_PARAM_ANI_CCK_LEVEL,
+	/* Enable/Disable CDD for 1x1 STAs in rate control module */
+	WMI_10X_PDEV_PARAM_DYNTXCHAIN,
+	/* Enable/Disable Fast channel reset*/
+	WMI_10X_PDEV_PARAM_FAST_CHANNEL_RESET,
+	/* Set Bursting DUR */
+	WMI_10X_PDEV_PARAM_BURST_DUR,
+	/* Set Bursting Enable*/
+	WMI_10X_PDEV_PARAM_BURST_ENABLE,
 };
 
 struct wmi_pdev_set_param_cmd {
@@ -3797,8 +3942,7 @@ int ath10k_wmi_pdev_suspend_target(struct ath10k *ar);
 int ath10k_wmi_pdev_resume_target(struct ath10k *ar);
 int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
 				  u16 rd5g, u16 ctl2g, u16 ctl5g);
-int ath10k_wmi_pdev_set_param(struct ath10k *ar, enum wmi_pdev_param id,
-			      u32 value);
+int ath10k_wmi_pdev_set_param(struct ath10k *ar, u32 id, u32 value);
 int ath10k_wmi_cmd_init(struct ath10k *ar);
 int ath10k_wmi_start_scan(struct ath10k *ar, const struct wmi_start_scan_arg *);
 void ath10k_wmi_start_scan_init(struct ath10k *ar, struct wmi_start_scan_arg *);

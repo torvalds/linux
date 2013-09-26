@@ -1882,12 +1882,12 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	else if (ar->state == ATH10K_STATE_RESTARTING)
 		ar->state = ATH10K_STATE_RESTARTED;
 
-	ret = ath10k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_PMF_QOS, 1);
+	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->pmf_qos, 1);
 	if (ret)
 		ath10k_warn("could not enable WMI_PDEV_PARAM_PMF_QOS (%d)\n",
 			    ret);
 
-	ret = ath10k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_DYNAMIC_BW, 0);
+	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->dynamic_bw, 0);
 	if (ret)
 		ath10k_warn("could not init WMI_PDEV_PARAM_DYNAMIC_BW (%d)\n",
 			    ret);
@@ -2209,7 +2209,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	int ret = 0;
-	u32 vdev_param;
+	u32 vdev_param, pdev_param;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -2235,8 +2235,8 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 			   "vdev %d set beacon tx mode to staggered\n",
 			   arvif->vdev_id);
 
-		ret = ath10k_wmi_pdev_set_param(ar,
-						WMI_PDEV_PARAM_BEACON_TX_MODE,
+		pdev_param = ar->wmi.pdev_param->beacon_tx_mode;
+		ret = ath10k_wmi_pdev_set_param(ar, pdev_param,
 						WMI_BEACON_STAGGERED_MODE);
 		if (ret)
 			ath10k_warn("Failed to set beacon mode for VDEV: %d\n",

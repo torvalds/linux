@@ -120,6 +120,7 @@ struct ath10k_wmi {
 	wait_queue_head_t tx_credits_wq;
 	struct wmi_cmd_map *cmd;
 	struct wmi_vdev_param_map *vdev_param;
+	struct wmi_pdev_param_map *pdev_param;
 
 	u32 num_mem_chunks;
 	struct ath10k_mem_chunk mem_chunks[ATH10K_MAX_MEM_REQS];
