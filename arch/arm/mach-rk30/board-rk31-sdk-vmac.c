@@ -11,6 +11,7 @@ static int rk30_vmac_register_set(void)
 static int rk30_rmii_io_init(void)
 {
 	int err;
+	long val;
 	printk("enter %s ",__func__);
 	iomux_set(GPIO0_C0);//power pwr
 	iomux_set(GPIO3_D2);//int
@@ -28,8 +29,9 @@ static int rk30_rmii_io_init(void)
 	iomux_set(RMII_CLKOUT);
 
 	//rk3188 gpio3 and sdio drive strength , 
-    grf_writel(0x0f<<16|0x0f,GRF_IO_CON3);
-      
+	val = grf_readl(GRF_IO_CON3);
+	grf_writel(val|(0x0f<<16)|0x0f, GRF_IO_CON3);
+	  
 	//phy power gpio
 	err = gpio_request(PHY_PWR_EN_GPIO, "phy_power_en");
 	if (err) {
