@@ -737,8 +737,8 @@ static struct samsung_gate_clock exynos5420_gate_clks[] __initdata = {
 static struct samsung_pll_clock exynos5420_plls[nr_plls] __initdata = {
 	[apll] = PLL(pll_2550, fout_apll, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, NULL),
-	[cpll] = PLL(pll_2550, fout_mpll, "fout_mpll", "fin_pll", MPLL_LOCK,
-		MPLL_CON0, NULL),
+	[cpll] = PLL(pll_2550, fout_cpll, "fout_cpll", "fin_pll", CPLL_LOCK,
+		CPLL_CON0, NULL),
 	[dpll] = PLL(pll_2550, fout_dpll, "fout_dpll", "fin_pll", DPLL_LOCK,
 		DPLL_CON0, NULL),
 	[epll] = PLL(pll_2650, fout_epll, "fout_epll", "fin_pll", EPLL_LOCK,
