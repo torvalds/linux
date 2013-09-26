@@ -79,6 +79,11 @@ _GLOBAL(tm_abort)
 	TABORT(R3)
 	blr
 
+	.section	".toc","aw"
+DSCR_DEFAULT:
+	.tc dscr_default[TC],dscr_default
+
+	.section	".text"
 
 /* void tm_reclaim(struct thread_struct *thread,
  *                 unsigned long orig_msr,
@@ -178,10 +183,17 @@ dont_backup_fp:
 	std	r1, PACATMSCRATCH(r13)
 	ld	r1, PACAR1(r13)
 
+	/* Store the PPR in r11 and reset to decent value */
+	std	r11, GPR11(r1)			/* Temporary stash */
+	mfspr	r11, SPRN_PPR
+	HMT_MEDIUM
+
 	/* Now get some more GPRS free */
 	std	r7, GPR7(r1)			/* Temporary stash */
 	std	r12, GPR12(r1)			/* ''   ''    ''   */
 	ld	r12, STACK_PARAM(0)(r1)		/* Param 0, thread_struct * */
+
+	std	r11, THREAD_TM_PPR(r12)		/* Store PPR and free r11 */
 
 	addi	r7, r12, PT_CKPT_REGS		/* Thread's ckpt_regs */
 
@@ -194,15 +206,19 @@ dont_backup_fp:
 	SAVE_GPR(0, r7)				/* user r0 */
 	SAVE_GPR(2, r7)			/* user r2 */
 	SAVE_4GPRS(3, r7)			/* user r3-r6 */
-	SAVE_4GPRS(8, r7)			/* user r8-r11 */
+	SAVE_GPR(8, r7)				/* user r8 */
+	SAVE_GPR(9, r7)				/* user r9 */
+	SAVE_GPR(10, r7)			/* user r10 */
 	ld	r3, PACATMSCRATCH(r13)		/* user r1 */
 	ld	r4, GPR7(r1)			/* user r7 */
-	ld	r5, GPR12(r1)			/* user r12 */
-	GET_SCRATCH0(6)				/* user r13 */
+	ld	r5, GPR11(r1)			/* user r11 */
+	ld	r6, GPR12(r1)			/* user r12 */
+	GET_SCRATCH0(8)				/* user r13 */
 	std	r3, GPR1(r7)
 	std	r4, GPR7(r7)
-	std	r5, GPR12(r7)
-	std	r6, GPR13(r7)
+	std	r5, GPR11(r7)
+	std	r6, GPR12(r7)
+	std	r8, GPR13(r7)
 
 	SAVE_NVGPRS(r7)				/* user r14-r31 */
 
@@ -225,14 +241,12 @@ dont_backup_fp:
 	std	r6, _XER(r7)
 
 
-	/* ******************** TAR, PPR, DSCR ********** */
+	/* ******************** TAR, DSCR ********** */
 	mfspr	r3, SPRN_TAR
-	mfspr	r4, SPRN_PPR
-	mfspr	r5, SPRN_DSCR
+	mfspr	r4, SPRN_DSCR
 
 	std	r3, THREAD_TM_TAR(r12)
-	std	r4, THREAD_TM_PPR(r12)
-	std	r5, THREAD_TM_DSCR(r12)
+	std	r4, THREAD_TM_DSCR(r12)
 
 	/* MSR and flags:  We don't change CRs, and we don't need to alter
 	 * MSR.
@@ -249,7 +263,7 @@ dont_backup_fp:
 	std	r3, THREAD_TM_TFHAR(r12)
 	std	r4, THREAD_TM_TFIAR(r12)
 
-	/* AMR and PPR are checkpointed too, but are unsupported by Linux. */
+	/* AMR is checkpointed too, but is unsupported by Linux. */
 
 	/* Restore original MSR/IRQ state & clear TM mode */
 	ld	r14, TM_FRAME_L0(r1)		/* Orig MSR */
@@ -265,6 +279,12 @@ dont_backup_fp:
 	mtcr	r4
 	mtlr	r0
 	ld	r2, 40(r1)
+
+	/* Load system default DSCR */
+	ld	r4, DSCR_DEFAULT@toc(r2)
+	ld	r0, 0(r4)
+	mtspr	SPRN_DSCR, r0
+
 	blr
 
 
@@ -349,43 +369,49 @@ dont_restore_fp:
 
 restore_gprs:
 
-	/* ******************** TAR, PPR, DSCR ********** */
-	ld	r4, THREAD_TM_TAR(r3)
-	ld	r5, THREAD_TM_PPR(r3)
-	ld	r6, THREAD_TM_DSCR(r3)
-
-	mtspr	SPRN_TAR,	r4
-	mtspr	SPRN_PPR,	r5
-	mtspr	SPRN_DSCR,	r6
-
 	/* ******************** CR,LR,CCR,MSR ********** */
-	ld	r3, _CTR(r7)
-	ld	r4, _LINK(r7)
-	ld	r5, _CCR(r7)
-	ld	r6, _XER(r7)
+	ld	r4, _CTR(r7)
+	ld	r5, _LINK(r7)
+	ld	r6, _CCR(r7)
+	ld	r8, _XER(r7)
 
-	mtctr	r3
-	mtlr	r4
-	mtcr	r5
-	mtxer	r6
+	mtctr	r4
+	mtlr	r5
+	mtcr	r6
+	mtxer	r8
+
+	/* ******************** TAR ******************** */
+	ld	r4, THREAD_TM_TAR(r3)
+	mtspr	SPRN_TAR,	r4
+
+	/* Load up the PPR and DSCR in GPRs only at this stage */
+	ld	r5, THREAD_TM_DSCR(r3)
+	ld	r6, THREAD_TM_PPR(r3)
 
 	/* MSR and flags:  We don't change CRs, and we don't need to alter
 	 * MSR.
 	 */
 
 	REST_4GPRS(0, r7)			/* GPR0-3 */
-	REST_GPR(4, r7)				/* GPR4-6 */
-	REST_GPR(5, r7)
-	REST_GPR(6, r7)
+	REST_GPR(4, r7)				/* GPR4 */
 	REST_4GPRS(8, r7)			/* GPR8-11 */
 	REST_2GPRS(12, r7)			/* GPR12-13 */
 
 	REST_NVGPRS(r7)				/* GPR14-31 */
 
-	ld	r7, GPR7(r7)			/* GPR7 */
+	/* Load up PPR and DSCR here so we don't run with user values for long
+	 */
+	mtspr	SPRN_DSCR, r5
+	mtspr	SPRN_PPR, r6
+
+	REST_GPR(5, r7)				/* GPR5-7 */
+	REST_GPR(6, r7)
+	ld	r7, GPR7(r7)
 
 	/* Commit register state as checkpointed state: */
 	TRECHKPT
+
+	HMT_MEDIUM
 
 	/* Our transactional state has now changed.
 	 *
@@ -405,6 +431,12 @@ restore_gprs:
 	mtcr	r4
 	mtlr	r0
 	ld	r2, 40(r1)
+
+	/* Load system default DSCR */
+	ld	r4, DSCR_DEFAULT@toc(r2)
+	ld	r0, 0(r4)
+	mtspr	SPRN_DSCR, r0
+
 	blr
 
 	/* ****************************************************************** */
