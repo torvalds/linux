@@ -77,7 +77,23 @@
 #define PLLE_MISC_SETUP_VALUE (7 << PLLE_MISC_SETUP_BASE_SHIFT)
 
 #define PLLE_SS_CTRL 0x68
-#define PLLE_SS_DISABLE (7 << 10)
+#define PLLE_SS_CNTL_BYPASS_SS BIT(10)
+#define PLLE_SS_CNTL_INTERP_RESET BIT(11)
+#define PLLE_SS_CNTL_SSC_BYP BIT(12)
+#define PLLE_SS_CNTL_CENTER BIT(14)
+#define PLLE_SS_CNTL_INVERT BIT(15)
+#define PLLE_SS_DISABLE (PLLE_SS_CNTL_BYPASS_SS | PLLE_SS_CNTL_INTERP_RESET |\
+				PLLE_SS_CNTL_SSC_BYP)
+#define PLLE_SS_MAX_MASK 0x1ff
+#define PLLE_SS_MAX_VAL 0x25
+#define PLLE_SS_INC_MASK (0xff << 16)
+#define PLLE_SS_INC_VAL (0x1 << 16)
+#define PLLE_SS_INCINTRV_MASK (0x3f << 24)
+#define PLLE_SS_INCINTRV_VAL (0x20 << 24)
+#define PLLE_SS_COEFFICIENTS_MASK \
+	(PLLE_SS_MAX_MASK | PLLE_SS_INC_MASK | PLLE_SS_INCINTRV_MASK)
+#define PLLE_SS_COEFFICIENTS_VAL \
+	(PLLE_SS_MAX_VAL | PLLE_SS_INC_VAL | PLLE_SS_INCINTRV_VAL)
 
 #define PLLE_AUX_PLLP_SEL	BIT(2)
 #define PLLE_AUX_ENABLE_SWCTL	BIT(4)
@@ -1216,6 +1232,18 @@ static int clk_plle_tegra114_enable(struct clk_hw *hw)
 
 	if (ret < 0)
 		goto out;
+
+	val = pll_readl(PLLE_SS_CTRL, pll);
+	val &= ~(PLLE_SS_CNTL_CENTER | PLLE_SS_CNTL_INVERT);
+	val &= ~PLLE_SS_COEFFICIENTS_MASK;
+	val |= PLLE_SS_COEFFICIENTS_VAL;
+	pll_writel(val, PLLE_SS_CTRL, pll);
+	val &= ~(PLLE_SS_CNTL_SSC_BYP | PLLE_SS_CNTL_BYPASS_SS);
+	pll_writel(val, PLLE_SS_CTRL, pll);
+	udelay(1);
+	val &= ~PLLE_SS_CNTL_INTERP_RESET;
+	pll_writel(val, PLLE_SS_CTRL, pll);
+	udelay(1);
 
 	/* TODO: enable hw control of xusb brick pll */
 
