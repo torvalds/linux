@@ -185,6 +185,7 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 	if (status)
 		goto out_put;
 
+	smp_wmb();
 	ds->ds_clp = clp;
 	dprintk("%s [new] addr: %s\n", __func__, ds->ds_remotestr);
 out:
@@ -809,6 +810,7 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 		filelayout_mark_devid_invalid(devid);
 		goto out;
 	}
+	smp_rmb();
 	if (ds->ds_clp)
 		goto out_test_devid;
 
