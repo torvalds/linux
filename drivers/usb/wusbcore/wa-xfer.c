@@ -114,8 +114,8 @@ static void wa_xfer_delayed_run(struct wa_rpipe *);
  * struct).
  */
 struct wa_seg {
-	struct urb urb;
-	struct urb *dto_urb;		/* for data output? */
+	struct urb tr_urb;		/* transfer request urb. */
+	struct urb *dto_urb;		/* for data output. */
 	struct list_head list_node;	/* for rpipe->req_list */
 	struct wa_xfer *xfer;		/* out xfer */
 	u8 index;			/* which segment we are */
@@ -127,11 +127,11 @@ struct wa_seg {
 
 static inline void wa_seg_init(struct wa_seg *seg)
 {
-	usb_init_urb(&seg->urb);
+	usb_init_urb(&seg->tr_urb);
 
 	/* set the remaining memory to 0. */
-	memset(((void *)seg) + sizeof(seg->urb), 0,
-		sizeof(*seg) - sizeof(seg->urb));
+	memset(((void *)seg) + sizeof(seg->tr_urb), 0,
+		sizeof(*seg) - sizeof(seg->tr_urb));
 }
 
 /*
@@ -179,7 +179,7 @@ static void wa_xfer_destroy(struct kref *_xfer)
 		unsigned cnt;
 		for (cnt = 0; cnt < xfer->segs; cnt++) {
 			usb_free_urb(xfer->seg[cnt]->dto_urb);
-			usb_free_urb(&xfer->seg[cnt]->urb);
+			usb_free_urb(&xfer->seg[cnt]->tr_urb);
 		}
 	}
 	kfree(xfer);
@@ -494,12 +494,12 @@ static void __wa_xfer_setup_hdr0(struct wa_xfer *xfer,
 /*
  * Callback for the OUT data phase of the segment request
  *
- * Check wa_seg_cb(); most comments also apply here because this
+ * Check wa_seg_tr_cb(); most comments also apply here because this
  * function does almost the same thing and they work closely
  * together.
  *
  * If the seg request has failed but this DTO phase has succeeded,
- * wa_seg_cb() has already failed the segment and moved the
+ * wa_seg_tr_cb() has already failed the segment and moved the
  * status to WA_SEG_ERROR, so this will go through 'case 0' and
  * effectively do nothing.
  */
@@ -576,7 +576,7 @@ static void wa_seg_dto_cb(struct urb *urb)
  * as in that case, wa_seg_dto_cb will do it when the OUT data phase
  * finishes.
  */
-static void wa_seg_cb(struct urb *urb)
+static void wa_seg_tr_cb(struct urb *urb)
 {
 	struct wa_seg *seg = urb->context;
 	struct wa_xfer *xfer = seg->xfer;
@@ -740,11 +740,11 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 		wa_seg_init(seg);
 		seg->xfer = xfer;
 		seg->index = cnt;
-		usb_fill_bulk_urb(&seg->urb, usb_dev,
+		usb_fill_bulk_urb(&seg->tr_urb, usb_dev,
 				  usb_sndbulkpipe(usb_dev,
 						  dto_epd->bEndpointAddress),
 				  &seg->xfer_hdr, xfer_hdr_size,
-				  wa_seg_cb, seg);
+				  wa_seg_tr_cb, seg);
 		buf_itr_size = min(buf_size, xfer->seg_size);
 		if (xfer->is_inbound == 0 && buf_size > 0) {
 			/* outbound data. */
@@ -888,12 +888,14 @@ static int __wa_seg_submit(struct wa_rpipe *rpipe, struct wa_xfer *xfer,
 			   struct wa_seg *seg)
 {
 	int result;
-	result = usb_submit_urb(&seg->urb, GFP_ATOMIC);
+	/* submit the transfer request. */
+	result = usb_submit_urb(&seg->tr_urb, GFP_ATOMIC);
 	if (result < 0) {
 		printk(KERN_ERR "xfer %p#%u: REQ submit failed: %d\n",
 		       xfer, seg->index, result);
 		goto error_seg_submit;
 	}
+	/* submit the out data if this is an out request. */
 	if (seg->dto_urb) {
 		result = usb_submit_urb(seg->dto_urb, GFP_ATOMIC);
 		if (result < 0) {
@@ -907,7 +909,7 @@ static int __wa_seg_submit(struct wa_rpipe *rpipe, struct wa_xfer *xfer,
 	return 0;
 
 error_dto_submit:
-	usb_unlink_urb(&seg->urb);
+	usb_unlink_urb(&seg->tr_urb);
 error_seg_submit:
 	seg->status = WA_SEG_ERROR;
 	seg->result = result;
@@ -1313,7 +1315,7 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 			break;
 		case WA_SEG_SUBMITTED:
 			seg->status = WA_SEG_ABORTED;
-			usb_unlink_urb(&seg->urb);
+			usb_unlink_urb(&seg->tr_urb);
 			if (xfer->is_inbound == 0)
 				usb_unlink_urb(seg->dto_urb);
 			xfer->segs_done++;
