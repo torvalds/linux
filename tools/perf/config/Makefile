@@ -226,9 +226,13 @@ endif
 
 FLAGS_UNWIND=$(LIBUNWIND_CFLAGS) $(CFLAGS) $(LIBUNWIND_LDFLAGS) $(LDFLAGS) $(EXTLIBS) $(LIBUNWIND_LIBS)
 ifneq ($(call try-cc,$(SOURCE_LIBUNWIND),$(FLAGS_UNWIND),libunwind),y)
-  msg := $(warning No libunwind found, disabling post unwind support. Please install libunwind-dev[el] >= 0.99);
+  msg := $(warning No libunwind found, disabling post unwind support. Please install libunwind-dev[el] >= 1.1);
   NO_LIBUNWIND := 1
 endif # Libunwind support
+ifneq ($(call try-cc,$(SOURCE_LIBUNWIND_DEBUG_FRAME),$(FLAGS_UNWIND),libunwind debug_frame),y)
+  msg := $(warning No debug_frame support found in libunwind);
+CFLAGS += -DNO_LIBUNWIND_DEBUG_FRAME
+endif # debug_frame support in libunwind
 endif # NO_LIBUNWIND
 
 ifndef NO_LIBUNWIND
