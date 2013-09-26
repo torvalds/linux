@@ -1005,9 +1005,10 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 		} else {
 			devpriv->ai_et = 0;
 		}
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
-					  &divisor2, &devpriv->ai_timer1,
-					  devpriv->ai_flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
+					  &divisor1, &divisor2,
+					  &devpriv->ai_timer1,
+					  devpriv->ai_flags);
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 		if (mode != 2) {
 			/*  start pacer */
@@ -1086,9 +1087,9 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
-					  &divisor2, &cmd->convert_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
+					  &divisor1, &divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
@@ -1284,7 +1285,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 			s->do_cmdtest = pci171x_ai_cmdtest;
 			s->do_cmd = pci171x_ai_cmd;
 		}
-		devpriv->i8254_osc_base = 100;	/*  100ns=10MHz */
+		devpriv->i8254_osc_base = I8254_OSC_BASE_10MHZ;
 		subdev++;
 	}
 

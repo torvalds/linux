@@ -86,8 +86,6 @@ TODO:
 #define PCI9111_AI_INSTANT_READ_UDELAY_US	2
 #define PCI9111_AI_INSTANT_READ_TIMEOUT		100
 
-#define PCI9111_8254_CLOCK_PERIOD_NS		500
-
 /*
  * IO address map and bit defines
  */
@@ -393,11 +391,10 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer_2div(PCI9111_8254_CLOCK_PERIOD_NS,
-					       &dev_private->div1,
-					       &dev_private->div2,
-					       &cmd->convert_arg,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
+					  &dev_private->div1,
+					  &dev_private->div2,
+					  &cmd->convert_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			error++;
 	}

@@ -792,7 +792,8 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 	case 4:
 		if (*tim2 < this_board->ai_ns_min)
 			*tim2 = this_board->ai_ns_min;
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, div1, div2,
+		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
+					  div1, div2,
 					  tim2, flags & TRIG_ROUND_NEAREST);
 		break;
 	case 2:
@@ -1277,9 +1278,9 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
-					  &divisor2, &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
+					  &divisor1, &divisor2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		if (cmd->scan_begin_arg < this_board->ai_ns_min)
 			cmd->scan_begin_arg = this_board->ai_ns_min;
 		if (tmp != cmd->scan_begin_arg)
@@ -1288,9 +1289,9 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW)) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
-					  &divisor2, &cmd->convert_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
+					  &divisor1, &divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
@@ -2086,7 +2087,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->insn_bits = pci9118_insn_bits_do;
 
 	devpriv->valid = 1;
-	devpriv->i8254_osc_base = 250;	/* 250ns=4MHz */
+	devpriv->i8254_osc_base = I8254_OSC_BASE_4MHZ;
 	devpriv->ai_maskharderr = 0x10a;
 					/* default measure crash condition */
 	if (hw_err_mask)		/* disable some requested */

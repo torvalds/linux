@@ -63,8 +63,6 @@ irq can be omitted, although the cmd interface will not work without it.
 #define DAS16M1_SIZE 16
 #define DAS16M1_SIZE2 8
 
-#define DAS16M1_XTAL 100	/* 10 MHz master clock */
-
 #define FIFO_SIZE 1024		/*  1024 sample fifo */
 
 /*
@@ -207,11 +205,10 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		/* calculate counter values that give desired timing */
-		i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL,
-					       &(devpriv->divisor1),
-					       &(devpriv->divisor2),
-					       &(cmd->convert_arg),
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -250,9 +247,10 @@ static unsigned int das16m1_set_pacer(struct comedi_device *dev,
 {
 	struct das16m1_private_struct *devpriv = dev->private;
 
-	i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL, &(devpriv->divisor1),
-				       &(devpriv->divisor2), &ns,
-				       rounding_flags & TRIG_ROUND_MASK);
+	i8253_cascade_ns_to_timer_2div(I8254_OSC_BASE_10MHZ,
+				       &devpriv->divisor1,
+				       &devpriv->divisor2,
+				       &ns, rounding_flags);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
 	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 1, devpriv->divisor1,

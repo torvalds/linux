@@ -73,7 +73,6 @@
 #include "ni_labpc_isadma.h"
 
 #define LABPC_SIZE		0x20	/* size of ISA io region */
-#define LABPC_TIMER_BASE	500	/* 2 MHz master clock */
 #define LABPC_ADC_TIMEOUT	1000
 
 enum scan_mode {
@@ -459,13 +458,13 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 		 * clock speed on convert and scan counters)
 		 */
 		devpriv->divisor_b0 = (scan_period - 1) /
-		    (LABPC_TIMER_BASE * max_counter_value) + 1;
+		    (I8254_OSC_BASE_2MHZ * max_counter_value) + 1;
 		if (devpriv->divisor_b0 < min_counter_value)
 			devpriv->divisor_b0 = min_counter_value;
 		if (devpriv->divisor_b0 > max_counter_value)
 			devpriv->divisor_b0 = max_counter_value;
 
-		base_period = LABPC_TIMER_BASE * devpriv->divisor_b0;
+		base_period = I8254_OSC_BASE_2MHZ * devpriv->divisor_b0;
 
 		/*  set a0 for conversion frequency and b1 for scan frequency */
 		switch (cmd->flags & TRIG_ROUND_MASK) {
@@ -510,22 +509,20 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 		 * calculate cascaded counter values
 		 * that give desired scan timing
 		 */
-		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
-					       &(devpriv->divisor_b1),
-					       &(devpriv->divisor_b0),
-					       &scan_period,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
+					  &devpriv->divisor_b1,
+					  &devpriv->divisor_b0,
+					  &scan_period, cmd->flags);
 		labpc_set_ai_scan_period(cmd, mode, scan_period);
 	} else if (convert_period) {
 		/*
 		 * calculate cascaded counter values
 		 * that give desired conversion timing
 		 */
-		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
-					       &(devpriv->divisor_a0),
-					       &(devpriv->divisor_b0),
-					       &convert_period,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
+					  &devpriv->divisor_a0,
+					  &devpriv->divisor_b0,
+					  &convert_period, cmd->flags);
 		labpc_set_ai_convert_period(cmd, mode, convert_period);
 	}
 }

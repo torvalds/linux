@@ -215,12 +215,6 @@ Caveats:
 #define CLK_EXT		7	/* external clock */
 /* Macro to construct clock input configuration register value. */
 #define CLK_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
-/* Timebases in ns. */
-#define TIMEBASE_10MHZ		100
-#define TIMEBASE_1MHZ		1000
-#define TIMEBASE_100KHZ		10000
-#define TIMEBASE_10KHZ		100000
-#define TIMEBASE_1KHZ		1000000
 
 /*
  * Counter/timer gate input configuration sources.
@@ -843,26 +837,26 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		switch (round_mode) {
 		case TRIG_ROUND_NEAREST:
 		default:
-			round = TIMEBASE_10MHZ / 2;
+			round = I8254_OSC_BASE_10MHZ / 2;
 			break;
 		case TRIG_ROUND_DOWN:
 			round = 0;
 			break;
 		case TRIG_ROUND_UP:
-			round = TIMEBASE_10MHZ - 1;
+			round = I8254_OSC_BASE_10MHZ - 1;
 			break;
 		}
 		/* Be careful to avoid overflow! */
-		div2 = cmd->scan_begin_arg / TIMEBASE_10MHZ;
-		div2 += (round + cmd->scan_begin_arg % TIMEBASE_10MHZ) /
-		    TIMEBASE_10MHZ;
+		div2 = cmd->scan_begin_arg / I8254_OSC_BASE_10MHZ;
+		div2 += (round + cmd->scan_begin_arg % I8254_OSC_BASE_10MHZ) /
+			I8254_OSC_BASE_10MHZ;
 		if (div2 <= 0x10000) {
 			/* A single timer will suffice. */
 			if (div2 < 2)
 				div2 = 2;
-			cmd->scan_begin_arg = div2 * TIMEBASE_10MHZ;
+			cmd->scan_begin_arg = div2 * I8254_OSC_BASE_10MHZ;
 			if (cmd->scan_begin_arg < div2 ||
-			    cmd->scan_begin_arg < TIMEBASE_10MHZ) {
+			    cmd->scan_begin_arg < I8254_OSC_BASE_10MHZ) {
 				/* Overflow! */
 				cmd->scan_begin_arg = MAX_SCAN_PERIOD;
 			}
@@ -870,7 +864,8 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			/* Use two timers. */
 			div1 = devpriv->cached_div1;
 			div2 = devpriv->cached_div2;
-			pci224_cascade_ns_to_timer(TIMEBASE_10MHZ, &div1, &div2,
+			pci224_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+						   &div1, &div2,
 						   &cmd->scan_begin_arg,
 						   round_mode);
 			devpriv->cached_div1 = div1;
@@ -1002,19 +997,19 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		switch (round_mode) {
 		case TRIG_ROUND_NEAREST:
 		default:
-			round = TIMEBASE_10MHZ / 2;
+			round = I8254_OSC_BASE_10MHZ / 2;
 			break;
 		case TRIG_ROUND_DOWN:
 			round = 0;
 			break;
 		case TRIG_ROUND_UP:
-			round = TIMEBASE_10MHZ - 1;
+			round = I8254_OSC_BASE_10MHZ - 1;
 			break;
 		}
 		/* Be careful to avoid overflow! */
-		div2 = cmd->scan_begin_arg / TIMEBASE_10MHZ;
-		div2 += (round + cmd->scan_begin_arg % TIMEBASE_10MHZ) /
-		    TIMEBASE_10MHZ;
+		div2 = cmd->scan_begin_arg / I8254_OSC_BASE_10MHZ;
+		div2 += (round + cmd->scan_begin_arg % I8254_OSC_BASE_10MHZ) /
+			I8254_OSC_BASE_10MHZ;
 		if (div2 <= 0x10000) {
 			/* A single timer will suffice. */
 			if (div2 < 2)
@@ -1025,7 +1020,8 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			/* Use two timers. */
 			div1 = devpriv->cached_div1;
 			div2 = devpriv->cached_div2;
-			pci224_cascade_ns_to_timer(TIMEBASE_10MHZ, &div1, &div2,
+			pci224_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+						   &div1, &div2,
 						   &ns, round_mode);
 		}
 

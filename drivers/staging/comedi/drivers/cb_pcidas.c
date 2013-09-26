@@ -73,7 +73,6 @@ analog triggering on 1602 series
 #include "amcc_s5933.h"
 #include "comedi_fc.h"
 
-#define TIMER_BASE		100	/* 10MHz master clock */
 #define AI_BUFFER_SIZE		1024	/* max ai fifo size */
 #define AO_BUFFER_SIZE		1024	/* max ao fifo size */
 #define NUM_CHANNELS_8800	8
@@ -880,21 +879,19 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-					       &(devpriv->divisor1),
-					       &(devpriv->divisor2),
-					       &(cmd->scan_begin_arg),
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-					       &(devpriv->divisor1),
-					       &(devpriv->divisor2),
-					       &(cmd->convert_arg),
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -932,9 +929,9 @@ static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 
-	i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
-				       &(devpriv->divisor2), ns,
-				       rounding_flags & TRIG_ROUND_MASK);
+	i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+				  &devpriv->divisor1, &devpriv->divisor2,
+				  ns, rounding_flags);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
 	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 1,
@@ -1084,11 +1081,10 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-					       &(devpriv->ao_divisor1),
-					       &(devpriv->ao_divisor2),
-					       &(cmd->scan_begin_arg),
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &devpriv->ao_divisor1,
+					  &devpriv->ao_divisor2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -1209,11 +1205,10 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 
 	/*  load counters */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-					       &(devpriv->ao_divisor1),
-					       &(devpriv->ao_divisor2),
-					       &(cmd->scan_begin_arg),
-					       cmd->flags);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &devpriv->ao_divisor1,
+					  &devpriv->ao_divisor2,
+					  &cmd->scan_begin_arg, cmd->flags);
 
 		/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
 		i8254_load(devpriv->pacer_counter_dio + DAC8254, 0, 1,

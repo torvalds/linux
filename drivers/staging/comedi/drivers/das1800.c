@@ -108,7 +108,6 @@ TODO:
 /* misc. defines */
 #define DAS1800_SIZE           16	/* uses 16 io addresses */
 #define FIFO_SIZE              1024	/*  1024 sample fifo */
-#define TIMER_BASE             200	/*  5 Mhz master clock */
 #define UNIPOLAR               0x4	/*  bit that determines whether input range is uni/bipolar */
 #define DMA_BUF_SIZE           0x1ff00	/*  size in bytes of dma buffers */
 
@@ -839,12 +838,11 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 		if (cmd->scan_begin_src == TRIG_FOLLOW) {
 			tmp_arg = cmd->convert_arg;
 			/* calculate counter values that give desired timing */
-			i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-						       &(devpriv->divisor1),
-						       &(devpriv->divisor2),
-						       &(cmd->convert_arg),
-						       cmd->
-						       flags & TRIG_ROUND_MASK);
+			i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
+						  &devpriv->divisor1,
+						  &devpriv->divisor2,
+						  &cmd->convert_arg,
+						  cmd->flags);
 			if (tmp_arg != cmd->convert_arg)
 				err++;
 		}
@@ -869,16 +867,11 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 				}
 				tmp_arg = cmd->scan_begin_arg;
 				/* calculate counter values that give desired timing */
-				i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-							       &(devpriv->
-								 divisor1),
-							       &(devpriv->
-								 divisor2),
-							       &(cmd->
-								 scan_begin_arg),
-							       cmd->
-							       flags &
-							       TRIG_ROUND_MASK);
+				i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
+							  &devpriv->divisor1,
+							  &devpriv->divisor2,
+							  &cmd->scan_begin_arg,
+							  cmd->flags);
 				if (tmp_arg != cmd->scan_begin_arg)
 					err++;
 			}
@@ -1010,12 +1003,10 @@ static int setup_counters(struct comedi_device *dev,
 		if (cmd->convert_src == TRIG_TIMER) {
 			/* set conversion frequency */
 			period = cmd->convert_arg;
-			i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-						       &devpriv->divisor1,
-						       &devpriv->divisor2,
-						       &period,
-						       cmd->flags &
-							TRIG_ROUND_MASK);
+			i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
+						  &devpriv->divisor1,
+						  &devpriv->divisor2,
+						  &period, cmd->flags);
 			if (das1800_set_frequency(dev) < 0)
 				return -1;
 		}
@@ -1023,9 +1014,10 @@ static int setup_counters(struct comedi_device *dev,
 	case TRIG_TIMER:	/*  in burst mode */
 		/* set scan frequency */
 		period = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &devpriv->divisor1,
-					       &devpriv->divisor2, &period,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &period, cmd->flags);
 		if (das1800_set_frequency(dev) < 0)
 			return -1;
 		break;

@@ -481,8 +481,7 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(board->i8254_osc_base,
 					  &divisor1, &divisor2,
-					  &cmd->convert_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < board->ai_ns_min)
 			cmd->convert_arg = board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
@@ -528,9 +527,9 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (cmd->convert_arg < board->ai_ns_min)
 			cmd->convert_arg = board->ai_ns_min;
 
-		i8253_cascade_ns_to_timer(board->i8254_osc_base, &divisor1,
-					  &divisor2, &cmd->convert_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(board->i8254_osc_base,
+					  &divisor1, &divisor2,
+					  &cmd->convert_arg, cmd->flags);
 
 		/*  PCL816 crash if any divisor is set to 1 */
 		if (divisor1 == 1) {
@@ -1105,7 +1104,7 @@ static const struct pcl816_board boardtypes[] = {
 	 0xffff,		/*  D/A maxdata */
 	 1024,
 	 1,			/*  ao chan list */
-	 100},
+	 I8254_OSC_BASE_10MHZ},
 	{"pcl814b", 8, 16, 10000, 1, 16, 16, &range_pcl816,
 	 &range_pcl816, PCLx1x_RANGE,
 	 0x00fc,
@@ -1114,7 +1113,7 @@ static const struct pcl816_board boardtypes[] = {
 	 0x3fff,
 	 1024,
 	 1,
-	 100},
+	 I8254_OSC_BASE_10MHZ},
 };
 
 static struct comedi_driver pcl816_driver = {

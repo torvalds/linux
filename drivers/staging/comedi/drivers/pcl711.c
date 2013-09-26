@@ -349,11 +349,11 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(500,		/* 2 Mhz */
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
 					  &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+					  cmd->flags);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}

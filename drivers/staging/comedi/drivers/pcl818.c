@@ -800,8 +800,9 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 		devpriv->neverending_ai = 1;	/* well, user want neverending */
 
 	if (mode == 1) {
-		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base, &divisor1,
-					  &divisor2, &cmd->convert_arg,
+		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base,
+					  &divisor1, &divisor2,
+					  &cmd->convert_arg,
 					  TRIG_ROUND_NEAREST);
 		if (divisor1 == 1) {	/* PCL718/818 crash if any divisor is set to 1 */
 			divisor1 = 2;
@@ -1034,9 +1035,9 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base, &divisor1,
-					  &divisor2, &cmd->convert_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base,
+					  &divisor1, &divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < board->ns_min)
 			cmd->convert_arg = board->ns_min;
 		if (tmp != cmd->convert_arg)
@@ -1432,9 +1433,9 @@ no_dma:
 
 	/* select 1/10MHz oscilator */
 	if ((it->options[3] == 0) || (it->options[3] == 10))
-		devpriv->i8253_osc_base = 100;
+		devpriv->i8253_osc_base = I8254_OSC_BASE_10MHZ;
 	else
-		devpriv->i8253_osc_base = 1000;
+		devpriv->i8253_osc_base = I8254_OSC_BASE_1MHZ;
 
 	/* max sampling speed */
 	devpriv->ns_min = board->ns_min;
