@@ -15,12 +15,11 @@
 /* This file is machine-generated; DO NOT EDIT! */
 #include "gxio/iorpc_mpipe_info.h"
 
-
 struct instance_aux_param {
 	_gxio_mpipe_link_name_t name;
 };
 
-int gxio_mpipe_info_instance_aux(gxio_mpipe_info_context_t * context,
+int gxio_mpipe_info_instance_aux(gxio_mpipe_info_context_t *context,
 				 _gxio_mpipe_link_name_t name)
 {
 	struct instance_aux_param temp;
@@ -39,10 +38,10 @@ struct enumerate_aux_param {
 	_gxio_mpipe_link_mac_t mac;
 };
 
-int gxio_mpipe_info_enumerate_aux(gxio_mpipe_info_context_t * context,
+int gxio_mpipe_info_enumerate_aux(gxio_mpipe_info_context_t *context,
 				  unsigned int idx,
-				  _gxio_mpipe_link_name_t * name,
-				  _gxio_mpipe_link_mac_t * mac)
+				  _gxio_mpipe_link_name_t *name,
+				  _gxio_mpipe_link_mac_t *mac)
 {
 	int __result;
 	struct enumerate_aux_param temp;
@@ -50,7 +49,7 @@ int gxio_mpipe_info_enumerate_aux(gxio_mpipe_info_context_t * context,
 
 	__result =
 	    hv_dev_pread(context->fd, 0, (HV_VirtAddr) params, sizeof(*params),
-			 (((uint64_t) idx << 32) |
+			 (((uint64_t)idx << 32) |
 			  GXIO_MPIPE_INFO_OP_ENUMERATE_AUX));
 	*name = params->name;
 	*mac = params->mac;
@@ -64,7 +63,7 @@ struct get_mmio_base_param {
 	HV_PTE base;
 };
 
-int gxio_mpipe_info_get_mmio_base(gxio_mpipe_info_context_t * context,
+int gxio_mpipe_info_get_mmio_base(gxio_mpipe_info_context_t *context,
 				  HV_PTE *base)
 {
 	int __result;
@@ -86,7 +85,7 @@ struct check_mmio_offset_param {
 	unsigned long size;
 };
 
-int gxio_mpipe_info_check_mmio_offset(gxio_mpipe_info_context_t * context,
+int gxio_mpipe_info_check_mmio_offset(gxio_mpipe_info_context_t *context,
 				      unsigned long offset, unsigned long size)
 {
 	struct check_mmio_offset_param temp;

@@ -1758,8 +1758,6 @@ int rv6xx_dpm_set_power_state(struct radeon_device *rdev)
 
 	rv6xx_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
-	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
-
 	return 0;
 }
 

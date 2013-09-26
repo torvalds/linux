@@ -6149,8 +6149,10 @@ static int __init cxgb4_init_module(void)
 		pr_warn("could not create debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4_driver);
-	if (ret < 0)
+	if (ret < 0) {
 		debugfs_remove(cxgb4_debugfs_root);
+		destroy_workqueue(workq);
+	}
 
 	register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
 

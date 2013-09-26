@@ -109,13 +109,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 
 	pkt.hdr.proto_version = sbi->version;
 	pkt.hdr.type = type;
-	mutex_lock(&sbi->wq_mutex);
 
-	/* Check if we have become catatonic */
-	if (sbi->catatonic) {
-		mutex_unlock(&sbi->wq_mutex);
-		return;
-	}
 	switch (type) {
 	/* Kernel protocol v4 missing and expire packets */
 	case autofs_ptype_missing:
@@ -427,7 +421,6 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		wq->tgid = current->tgid;
 		wq->status = -EINTR; /* Status return if interrupted */
 		wq->wait_ctr = 2;
-		mutex_unlock(&sbi->wq_mutex);
 
 		if (sbi->version < 5) {
 			if (notify == NFY_MOUNT)
@@ -449,15 +442,15 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
 
-		/* autofs4_notify_daemon() may block */
+		/* autofs4_notify_daemon() may block; it will unlock ->wq_mutex */
 		autofs4_notify_daemon(sbi, wq, type);
 	} else {
 		wq->wait_ctr++;
-		mutex_unlock(&sbi->wq_mutex);
-		kfree(qstr.name);
 		DPRINTK("existing wait id = 0x%08lx, name = %.*s, nfy=%d",
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
+		mutex_unlock(&sbi->wq_mutex);
+		kfree(qstr.name);
 	}
 
 	/*
