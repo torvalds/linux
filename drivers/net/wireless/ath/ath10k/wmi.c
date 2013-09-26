@@ -265,6 +265,124 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.gpio_output_cmdid = WMI_10X_GPIO_OUTPUT_CMDID,
 };
 
+/* MAIN WMI VDEV param map */
+static struct wmi_vdev_param_map wmi_vdev_param_map = {
+	.rts_threshold = WMI_VDEV_PARAM_RTS_THRESHOLD,
+	.fragmentation_threshold = WMI_VDEV_PARAM_FRAGMENTATION_THRESHOLD,
+	.beacon_interval = WMI_VDEV_PARAM_BEACON_INTERVAL,
+	.listen_interval = WMI_VDEV_PARAM_LISTEN_INTERVAL,
+	.multicast_rate = WMI_VDEV_PARAM_MULTICAST_RATE,
+	.mgmt_tx_rate = WMI_VDEV_PARAM_MGMT_TX_RATE,
+	.slot_time = WMI_VDEV_PARAM_SLOT_TIME,
+	.preamble = WMI_VDEV_PARAM_PREAMBLE,
+	.swba_time = WMI_VDEV_PARAM_SWBA_TIME,
+	.wmi_vdev_stats_update_period = WMI_VDEV_STATS_UPDATE_PERIOD,
+	.wmi_vdev_pwrsave_ageout_time = WMI_VDEV_PWRSAVE_AGEOUT_TIME,
+	.wmi_vdev_host_swba_interval = WMI_VDEV_HOST_SWBA_INTERVAL,
+	.dtim_period = WMI_VDEV_PARAM_DTIM_PERIOD,
+	.wmi_vdev_oc_scheduler_air_time_limit =
+					WMI_VDEV_OC_SCHEDULER_AIR_TIME_LIMIT,
+	.wds = WMI_VDEV_PARAM_WDS,
+	.atim_window = WMI_VDEV_PARAM_ATIM_WINDOW,
+	.bmiss_count_max = WMI_VDEV_PARAM_BMISS_COUNT_MAX,
+	.bmiss_first_bcnt = WMI_VDEV_PARAM_BMISS_FIRST_BCNT,
+	.bmiss_final_bcnt = WMI_VDEV_PARAM_BMISS_FINAL_BCNT,
+	.feature_wmm = WMI_VDEV_PARAM_FEATURE_WMM,
+	.chwidth = WMI_VDEV_PARAM_CHWIDTH,
+	.chextoffset = WMI_VDEV_PARAM_CHEXTOFFSET,
+	.disable_htprotection =	WMI_VDEV_PARAM_DISABLE_HTPROTECTION,
+	.sta_quickkickout = WMI_VDEV_PARAM_STA_QUICKKICKOUT,
+	.mgmt_rate = WMI_VDEV_PARAM_MGMT_RATE,
+	.protection_mode = WMI_VDEV_PARAM_PROTECTION_MODE,
+	.fixed_rate = WMI_VDEV_PARAM_FIXED_RATE,
+	.sgi = WMI_VDEV_PARAM_SGI,
+	.ldpc = WMI_VDEV_PARAM_LDPC,
+	.tx_stbc = WMI_VDEV_PARAM_TX_STBC,
+	.rx_stbc = WMI_VDEV_PARAM_RX_STBC,
+	.intra_bss_fwd = WMI_VDEV_PARAM_INTRA_BSS_FWD,
+	.def_keyid = WMI_VDEV_PARAM_DEF_KEYID,
+	.nss = WMI_VDEV_PARAM_NSS,
+	.bcast_data_rate = WMI_VDEV_PARAM_BCAST_DATA_RATE,
+	.mcast_data_rate = WMI_VDEV_PARAM_MCAST_DATA_RATE,
+	.mcast_indicate = WMI_VDEV_PARAM_MCAST_INDICATE,
+	.dhcp_indicate = WMI_VDEV_PARAM_DHCP_INDICATE,
+	.unknown_dest_indicate = WMI_VDEV_PARAM_UNKNOWN_DEST_INDICATE,
+	.ap_keepalive_min_idle_inactive_time_secs =
+			WMI_VDEV_PARAM_AP_KEEPALIVE_MIN_IDLE_INACTIVE_TIME_SECS,
+	.ap_keepalive_max_idle_inactive_time_secs =
+			WMI_VDEV_PARAM_AP_KEEPALIVE_MAX_IDLE_INACTIVE_TIME_SECS,
+	.ap_keepalive_max_unresponsive_time_secs =
+			WMI_VDEV_PARAM_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS,
+	.ap_enable_nawds = WMI_VDEV_PARAM_AP_ENABLE_NAWDS,
+	.mcast2ucast_set = WMI_VDEV_PARAM_UNSUPPORTED,
+	.enable_rtscts = WMI_VDEV_PARAM_ENABLE_RTSCTS,
+	.txbf = WMI_VDEV_PARAM_TXBF,
+	.packet_powersave = WMI_VDEV_PARAM_PACKET_POWERSAVE,
+	.drop_unencry = WMI_VDEV_PARAM_DROP_UNENCRY,
+	.tx_encap_type = WMI_VDEV_PARAM_TX_ENCAP_TYPE,
+	.ap_detect_out_of_sync_sleeping_sta_time_secs =
+					WMI_VDEV_PARAM_UNSUPPORTED,
+};
+
+/* 10.X WMI VDEV param map */
+static struct wmi_vdev_param_map wmi_10x_vdev_param_map = {
+	.rts_threshold = WMI_10X_VDEV_PARAM_RTS_THRESHOLD,
+	.fragmentation_threshold = WMI_10X_VDEV_PARAM_FRAGMENTATION_THRESHOLD,
+	.beacon_interval = WMI_10X_VDEV_PARAM_BEACON_INTERVAL,
+	.listen_interval = WMI_10X_VDEV_PARAM_LISTEN_INTERVAL,
+	.multicast_rate = WMI_10X_VDEV_PARAM_MULTICAST_RATE,
+	.mgmt_tx_rate = WMI_10X_VDEV_PARAM_MGMT_TX_RATE,
+	.slot_time = WMI_10X_VDEV_PARAM_SLOT_TIME,
+	.preamble = WMI_10X_VDEV_PARAM_PREAMBLE,
+	.swba_time = WMI_10X_VDEV_PARAM_SWBA_TIME,
+	.wmi_vdev_stats_update_period = WMI_10X_VDEV_STATS_UPDATE_PERIOD,
+	.wmi_vdev_pwrsave_ageout_time = WMI_10X_VDEV_PWRSAVE_AGEOUT_TIME,
+	.wmi_vdev_host_swba_interval = WMI_10X_VDEV_HOST_SWBA_INTERVAL,
+	.dtim_period = WMI_10X_VDEV_PARAM_DTIM_PERIOD,
+	.wmi_vdev_oc_scheduler_air_time_limit =
+				WMI_10X_VDEV_OC_SCHEDULER_AIR_TIME_LIMIT,
+	.wds = WMI_10X_VDEV_PARAM_WDS,
+	.atim_window = WMI_10X_VDEV_PARAM_ATIM_WINDOW,
+	.bmiss_count_max = WMI_10X_VDEV_PARAM_BMISS_COUNT_MAX,
+	.bmiss_first_bcnt = WMI_VDEV_PARAM_UNSUPPORTED,
+	.bmiss_final_bcnt = WMI_VDEV_PARAM_UNSUPPORTED,
+	.feature_wmm = WMI_10X_VDEV_PARAM_FEATURE_WMM,
+	.chwidth = WMI_10X_VDEV_PARAM_CHWIDTH,
+	.chextoffset = WMI_10X_VDEV_PARAM_CHEXTOFFSET,
+	.disable_htprotection = WMI_10X_VDEV_PARAM_DISABLE_HTPROTECTION,
+	.sta_quickkickout = WMI_10X_VDEV_PARAM_STA_QUICKKICKOUT,
+	.mgmt_rate = WMI_10X_VDEV_PARAM_MGMT_RATE,
+	.protection_mode = WMI_10X_VDEV_PARAM_PROTECTION_MODE,
+	.fixed_rate = WMI_10X_VDEV_PARAM_FIXED_RATE,
+	.sgi = WMI_10X_VDEV_PARAM_SGI,
+	.ldpc = WMI_10X_VDEV_PARAM_LDPC,
+	.tx_stbc = WMI_10X_VDEV_PARAM_TX_STBC,
+	.rx_stbc = WMI_10X_VDEV_PARAM_RX_STBC,
+	.intra_bss_fwd = WMI_10X_VDEV_PARAM_INTRA_BSS_FWD,
+	.def_keyid = WMI_10X_VDEV_PARAM_DEF_KEYID,
+	.nss = WMI_10X_VDEV_PARAM_NSS,
+	.bcast_data_rate = WMI_10X_VDEV_PARAM_BCAST_DATA_RATE,
+	.mcast_data_rate = WMI_10X_VDEV_PARAM_MCAST_DATA_RATE,
+	.mcast_indicate = WMI_10X_VDEV_PARAM_MCAST_INDICATE,
+	.dhcp_indicate = WMI_10X_VDEV_PARAM_DHCP_INDICATE,
+	.unknown_dest_indicate = WMI_10X_VDEV_PARAM_UNKNOWN_DEST_INDICATE,
+	.ap_keepalive_min_idle_inactive_time_secs =
+		WMI_10X_VDEV_PARAM_AP_KEEPALIVE_MIN_IDLE_INACTIVE_TIME_SECS,
+	.ap_keepalive_max_idle_inactive_time_secs =
+		WMI_10X_VDEV_PARAM_AP_KEEPALIVE_MAX_IDLE_INACTIVE_TIME_SECS,
+	.ap_keepalive_max_unresponsive_time_secs =
+		WMI_10X_VDEV_PARAM_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS,
+	.ap_enable_nawds = WMI_10X_VDEV_PARAM_AP_ENABLE_NAWDS,
+	.mcast2ucast_set = WMI_10X_VDEV_PARAM_MCAST2UCAST_SET,
+	.enable_rtscts = WMI_10X_VDEV_PARAM_ENABLE_RTSCTS,
+	.txbf = WMI_VDEV_PARAM_UNSUPPORTED,
+	.packet_powersave = WMI_VDEV_PARAM_UNSUPPORTED,
+	.drop_unencry = WMI_VDEV_PARAM_UNSUPPORTED,
+	.tx_encap_type = WMI_VDEV_PARAM_UNSUPPORTED,
+	.ap_detect_out_of_sync_sleeping_sta_time_secs =
+		WMI_10X_VDEV_PARAM_AP_DETECT_OUT_OF_SYNC_SLEEPING_STA_TIME_SECS,
+};
+
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar)
 {
 	int ret;
@@ -1751,9 +1869,11 @@ int ath10k_wmi_attach(struct ath10k *ar)
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
 		ath10k_warn("Firmware 10.X is not yet supported\n");
 		ar->wmi.cmd = &wmi_10x_cmd_map;
+		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
 		ret = -ENOTSUPP;
 	} else {
 		ar->wmi.cmd = &wmi_cmd_map;
+		ar->wmi.vdev_param = &wmi_vdev_param_map;
 		ret = 0;
 	}
 
@@ -2516,10 +2636,17 @@ int ath10k_wmi_vdev_down(struct ath10k *ar, u32 vdev_id)
 }
 
 int ath10k_wmi_vdev_set_param(struct ath10k *ar, u32 vdev_id,
-			      enum wmi_vdev_param param_id, u32 param_value)
+			      u32 param_id, u32 param_value)
 {
 	struct wmi_vdev_set_param_cmd *cmd;
 	struct sk_buff *skb;
+
+	if (param_id == WMI_VDEV_PARAM_UNSUPPORTED) {
+		ath10k_dbg(ATH10K_DBG_WMI,
+			   "vdev param %d not supported by firmware\n",
+			    param_id);
+		return -EINVAL;
+	}
 
 	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
 	if (!skb)

@@ -334,25 +334,29 @@ static int ath10k_peer_create(struct ath10k *ar, u32 vdev_id, const u8 *addr)
 
 static int  ath10k_mac_set_rts(struct ath10k_vif *arvif, u32 value)
 {
+	struct ath10k *ar = arvif->ar;
+	u32 vdev_param;
+
 	if (value != 0xFFFFFFFF)
 		value = min_t(u32, arvif->ar->hw->wiphy->rts_threshold,
 			      ATH10K_RTS_MAX);
 
-	return ath10k_wmi_vdev_set_param(arvif->ar, arvif->vdev_id,
-					 WMI_VDEV_PARAM_RTS_THRESHOLD,
-					 value);
+	vdev_param = ar->wmi.vdev_param->rts_threshold;
+	return ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param, value);
 }
 
 static int ath10k_mac_set_frag(struct ath10k_vif *arvif, u32 value)
 {
+	struct ath10k *ar = arvif->ar;
+	u32 vdev_param;
+
 	if (value != 0xFFFFFFFF)
 		value = clamp_t(u32, arvif->ar->hw->wiphy->frag_threshold,
 				ATH10K_FRAGMT_THRESHOLD_MIN,
 				ATH10K_FRAGMT_THRESHOLD_MAX);
 
-	return ath10k_wmi_vdev_set_param(arvif->ar, arvif->vdev_id,
-					 WMI_VDEV_PARAM_FRAGMENTATION_THRESHOLD,
-					 value);
+	vdev_param = ar->wmi.vdev_param->fragmentation_threshold;
+	return ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param, value);
 }
 
 static int ath10k_peer_delete(struct ath10k *ar, u32 vdev_id, const u8 *addr)
@@ -674,6 +678,7 @@ static void ath10k_control_ibss(struct ath10k_vif *arvif,
 				struct ieee80211_bss_conf *info,
 				const u8 self_peer[ETH_ALEN])
 {
+	u32 vdev_param;
 	int ret = 0;
 
 	lockdep_assert_held(&arvif->ar->conf_mutex);
@@ -707,8 +712,8 @@ static void ath10k_control_ibss(struct ath10k_vif *arvif,
 		return;
 	}
 
-	ret = ath10k_wmi_vdev_set_param(arvif->ar, arvif->vdev_id,
-					WMI_VDEV_PARAM_ATIM_WINDOW,
+	vdev_param = arvif->ar->wmi.vdev_param->atim_window;
+	ret = ath10k_wmi_vdev_set_param(arvif->ar, arvif->vdev_id, vdev_param,
 					ATH10K_DEFAULT_ATIM);
 	if (ret)
 		ath10k_warn("Failed to set IBSS ATIM for VDEV:%d ret:%d\n",
@@ -1430,6 +1435,7 @@ static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
 	struct ath10k *ar = arvif->ar;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_key_conf *key = info->control.hw_key;
+	u32 vdev_param;
 	int ret;
 
 	if (!ieee80211_has_protected(hdr->frame_control))
@@ -1448,8 +1454,8 @@ static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
 	ath10k_dbg(ATH10K_DBG_MAC, "mac vdev %d keyidx %d\n",
 		   arvif->vdev_id, key->keyidx);
 
-	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
-					WMI_VDEV_PARAM_DEF_KEYID,
+	vdev_param = ar->wmi.vdev_param->def_keyid;
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 					key->keyidx);
 	if (ret) {
 		ath10k_warn("could not update wep keyidx (%d)\n", ret);
@@ -1983,6 +1989,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	int ret = 0;
 	u32 value;
 	int bit;
+	u32 vdev_param;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -2044,13 +2051,14 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
-	ret = ath10k_wmi_vdev_set_param(ar, 0, WMI_VDEV_PARAM_DEF_KEYID,
+	vdev_param = ar->wmi.vdev_param->def_keyid;
+	ret = ath10k_wmi_vdev_set_param(ar, 0, vdev_param,
 					arvif->def_wep_key_index);
 	if (ret)
 		ath10k_warn("Failed to set default keyid: %d\n", ret);
 
-	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
-					WMI_VDEV_PARAM_TX_ENCAP_TYPE,
+	vdev_param = ar->wmi.vdev_param->tx_encap_type;
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 					ATH10K_HW_TXRX_NATIVE_WIFI);
 	if (ret)
 		ath10k_warn("Failed to set TX encap: %d\n", ret);
@@ -2201,6 +2209,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	int ret = 0;
+	u32 vdev_param;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -2209,8 +2218,8 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		arvif->beacon_interval = info->beacon_int;
-		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
-						WMI_VDEV_PARAM_BEACON_INTERVAL,
+		vdev_param = ar->wmi.vdev_param->beacon_interval;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 						arvif->beacon_interval);
 		ath10k_dbg(ATH10K_DBG_MAC,
 			   "mac vdev %d beacon_interval %d\n",
@@ -2241,8 +2250,8 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 			   "mac vdev %d dtim_period %d\n",
 			   arvif->vdev_id, arvif->dtim_period);
 
-		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
-						WMI_VDEV_PARAM_DTIM_PERIOD,
+		vdev_param = ar->wmi.vdev_param->dtim_period;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 						arvif->dtim_period);
 		if (ret)
 			ath10k_warn("Failed to set dtim period for VDEV: %d\n",
@@ -2309,8 +2318,8 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 		ath10k_dbg(ATH10K_DBG_MAC, "mac vdev %d cts_prot %d\n",
 			   arvif->vdev_id, cts_prot);
 
-		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
-						WMI_VDEV_PARAM_ENABLE_RTSCTS,
+		vdev_param = ar->wmi.vdev_param->enable_rtscts;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 						cts_prot);
 		if (ret)
 			ath10k_warn("Failed to set CTS prot for VDEV: %d\n",
@@ -2328,8 +2337,8 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 		ath10k_dbg(ATH10K_DBG_MAC, "mac vdev %d slot_time %d\n",
 			   arvif->vdev_id, slottime);
 
-		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
-						WMI_VDEV_PARAM_SLOT_TIME,
+		vdev_param = ar->wmi.vdev_param->slot_time;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 						slottime);
 		if (ret)
 			ath10k_warn("Failed to set erp slot for VDEV: %d\n",
@@ -2347,8 +2356,8 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 			   "mac vdev %d preamble %dn",
 			   arvif->vdev_id, preamble);
 
-		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
-						WMI_VDEV_PARAM_PREAMBLE,
+		vdev_param = ar->wmi.vdev_param->preamble;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 						preamble);
 		if (ret)
 			ath10k_warn("Failed to set preamble for VDEV: %d\n",

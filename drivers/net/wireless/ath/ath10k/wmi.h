@@ -2695,6 +2695,61 @@ enum wmi_rate_preamble {
 /* Value to disable fixed rate setting */
 #define WMI_FIXED_RATE_NONE    (0xff)
 
+struct wmi_vdev_param_map {
+	u32 rts_threshold;
+	u32 fragmentation_threshold;
+	u32 beacon_interval;
+	u32 listen_interval;
+	u32 multicast_rate;
+	u32 mgmt_tx_rate;
+	u32 slot_time;
+	u32 preamble;
+	u32 swba_time;
+	u32 wmi_vdev_stats_update_period;
+	u32 wmi_vdev_pwrsave_ageout_time;
+	u32 wmi_vdev_host_swba_interval;
+	u32 dtim_period;
+	u32 wmi_vdev_oc_scheduler_air_time_limit;
+	u32 wds;
+	u32 atim_window;
+	u32 bmiss_count_max;
+	u32 bmiss_first_bcnt;
+	u32 bmiss_final_bcnt;
+	u32 feature_wmm;
+	u32 chwidth;
+	u32 chextoffset;
+	u32 disable_htprotection;
+	u32 sta_quickkickout;
+	u32 mgmt_rate;
+	u32 protection_mode;
+	u32 fixed_rate;
+	u32 sgi;
+	u32 ldpc;
+	u32 tx_stbc;
+	u32 rx_stbc;
+	u32 intra_bss_fwd;
+	u32 def_keyid;
+	u32 nss;
+	u32 bcast_data_rate;
+	u32 mcast_data_rate;
+	u32 mcast_indicate;
+	u32 dhcp_indicate;
+	u32 unknown_dest_indicate;
+	u32 ap_keepalive_min_idle_inactive_time_secs;
+	u32 ap_keepalive_max_idle_inactive_time_secs;
+	u32 ap_keepalive_max_unresponsive_time_secs;
+	u32 ap_enable_nawds;
+	u32 mcast2ucast_set;
+	u32 enable_rtscts;
+	u32 txbf;
+	u32 packet_powersave;
+	u32 drop_unencry;
+	u32 tx_encap_type;
+	u32 ap_detect_out_of_sync_sleeping_sta_time_secs;
+};
+
+#define WMI_VDEV_PARAM_UNSUPPORTED 0
+
 /* the definition of different VDEV parameters */
 enum wmi_vdev_param {
 	/* RTS Threshold */
@@ -2824,6 +2879,121 @@ enum wmi_vdev_param {
 	 * Set the encapsulation type for frames.
 	 */
 	WMI_VDEV_PARAM_TX_ENCAP_TYPE,
+};
+
+/* the definition of different VDEV parameters */
+enum wmi_10x_vdev_param {
+	/* RTS Threshold */
+	WMI_10X_VDEV_PARAM_RTS_THRESHOLD = 0x1,
+	/* Fragmentation threshold */
+	WMI_10X_VDEV_PARAM_FRAGMENTATION_THRESHOLD,
+	/* beacon interval in TUs */
+	WMI_10X_VDEV_PARAM_BEACON_INTERVAL,
+	/* Listen interval in TUs */
+	WMI_10X_VDEV_PARAM_LISTEN_INTERVAL,
+	/* muticast rate in Mbps */
+	WMI_10X_VDEV_PARAM_MULTICAST_RATE,
+	/* management frame rate in Mbps */
+	WMI_10X_VDEV_PARAM_MGMT_TX_RATE,
+	/* slot time (long vs short) */
+	WMI_10X_VDEV_PARAM_SLOT_TIME,
+	/* preamble (long vs short) */
+	WMI_10X_VDEV_PARAM_PREAMBLE,
+	/* SWBA time (time before tbtt in msec) */
+	WMI_10X_VDEV_PARAM_SWBA_TIME,
+	/* time period for updating VDEV stats */
+	WMI_10X_VDEV_STATS_UPDATE_PERIOD,
+	/* age out time in msec for frames queued for station in power save */
+	WMI_10X_VDEV_PWRSAVE_AGEOUT_TIME,
+	/*
+	 * Host SWBA interval (time in msec before tbtt for SWBA event
+	 * generation).
+	 */
+	WMI_10X_VDEV_HOST_SWBA_INTERVAL,
+	/* DTIM period (specified in units of num beacon intervals) */
+	WMI_10X_VDEV_PARAM_DTIM_PERIOD,
+	/*
+	 * scheduler air time limit for this VDEV. used by off chan
+	 * scheduler.
+	 */
+	WMI_10X_VDEV_OC_SCHEDULER_AIR_TIME_LIMIT,
+	/* enable/dsiable WDS for this VDEV  */
+	WMI_10X_VDEV_PARAM_WDS,
+	/* ATIM Window */
+	WMI_10X_VDEV_PARAM_ATIM_WINDOW,
+	/* BMISS max */
+	WMI_10X_VDEV_PARAM_BMISS_COUNT_MAX,
+	/* WMM enables/disabled */
+	WMI_10X_VDEV_PARAM_FEATURE_WMM,
+	/* Channel width */
+	WMI_10X_VDEV_PARAM_CHWIDTH,
+	/* Channel Offset */
+	WMI_10X_VDEV_PARAM_CHEXTOFFSET,
+	/* Disable HT Protection */
+	WMI_10X_VDEV_PARAM_DISABLE_HTPROTECTION,
+	/* Quick STA Kickout */
+	WMI_10X_VDEV_PARAM_STA_QUICKKICKOUT,
+	/* Rate to be used with Management frames */
+	WMI_10X_VDEV_PARAM_MGMT_RATE,
+	/* Protection Mode */
+	WMI_10X_VDEV_PARAM_PROTECTION_MODE,
+	/* Fixed rate setting */
+	WMI_10X_VDEV_PARAM_FIXED_RATE,
+	/* Short GI Enable/Disable */
+	WMI_10X_VDEV_PARAM_SGI,
+	/* Enable LDPC */
+	WMI_10X_VDEV_PARAM_LDPC,
+	/* Enable Tx STBC */
+	WMI_10X_VDEV_PARAM_TX_STBC,
+	/* Enable Rx STBC */
+	WMI_10X_VDEV_PARAM_RX_STBC,
+	/* Intra BSS forwarding  */
+	WMI_10X_VDEV_PARAM_INTRA_BSS_FWD,
+	/* Setting Default xmit key for Vdev */
+	WMI_10X_VDEV_PARAM_DEF_KEYID,
+	/* NSS width */
+	WMI_10X_VDEV_PARAM_NSS,
+	/* Set the custom rate for the broadcast data frames */
+	WMI_10X_VDEV_PARAM_BCAST_DATA_RATE,
+	/* Set the custom rate (rate-code) for multicast data frames */
+	WMI_10X_VDEV_PARAM_MCAST_DATA_RATE,
+	/* Tx multicast packet indicate Enable/Disable */
+	WMI_10X_VDEV_PARAM_MCAST_INDICATE,
+	/* Tx DHCP packet indicate Enable/Disable */
+	WMI_10X_VDEV_PARAM_DHCP_INDICATE,
+	/* Enable host inspection of Tx unicast packet to unknown destination */
+	WMI_10X_VDEV_PARAM_UNKNOWN_DEST_INDICATE,
+
+	/* The minimum amount of time AP begins to consider STA inactive */
+	WMI_10X_VDEV_PARAM_AP_KEEPALIVE_MIN_IDLE_INACTIVE_TIME_SECS,
+
+	/*
+	 * An associated STA is considered inactive when there is no recent
+	 * TX/RX activity and no downlink frames are buffered for it. Once a
+	 * STA exceeds the maximum idle inactive time, the AP will send an
+	 * 802.11 data-null as a keep alive to verify the STA is still
+	 * associated. If the STA does ACK the data-null, or if the data-null
+	 * is buffered and the STA does not retrieve it, the STA will be
+	 * considered unresponsive
+	 * (see WMI_10X_VDEV_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS).
+	 */
+	WMI_10X_VDEV_PARAM_AP_KEEPALIVE_MAX_IDLE_INACTIVE_TIME_SECS,
+
+	/*
+	 * An associated STA is considered unresponsive if there is no recent
+	 * TX/RX activity and downlink frames are buffered for it. Once a STA
+	 * exceeds the maximum unresponsive time, the AP will send a
+	 * WMI_10X_STA_KICKOUT event to the host so the STA can be deleted. */
+	WMI_10X_VDEV_PARAM_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS,
+
+	/* Enable NAWDS : MCAST INSPECT Enable, NAWDS Flag set */
+	WMI_10X_VDEV_PARAM_AP_ENABLE_NAWDS,
+
+	WMI_10X_VDEV_PARAM_MCAST2UCAST_SET,
+	/* Enable/Disable RTS-CTS */
+	WMI_10X_VDEV_PARAM_ENABLE_RTSCTS,
+
+	WMI_10X_VDEV_PARAM_AP_DETECT_OUT_OF_SYNC_SLEEPING_STA_TIME_SECS,
 };
 
 /* slot time long */
@@ -3648,7 +3818,7 @@ int ath10k_wmi_vdev_up(struct ath10k *ar, u32 vdev_id, u32 aid,
 		       const u8 *bssid);
 int ath10k_wmi_vdev_down(struct ath10k *ar, u32 vdev_id);
 int ath10k_wmi_vdev_set_param(struct ath10k *ar, u32 vdev_id,
-			      enum wmi_vdev_param param_id, u32 param_value);
+			      u32 param_id, u32 param_value);
 int ath10k_wmi_vdev_install_key(struct ath10k *ar,
 				const struct wmi_vdev_install_key_arg *arg);
 int ath10k_wmi_peer_create(struct ath10k *ar, u32 vdev_id,

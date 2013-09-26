@@ -119,6 +119,7 @@ struct ath10k_wmi {
 	struct completion unified_ready;
 	wait_queue_head_t tx_credits_wq;
 	struct wmi_cmd_map *cmd;
+	struct wmi_vdev_param_map *vdev_param;
 
 	u32 num_mem_chunks;
 	struct ath10k_mem_chunk mem_chunks[ATH10K_MAX_MEM_REQS];
