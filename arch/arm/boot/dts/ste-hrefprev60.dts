@@ -12,7 +12,8 @@
 /dts-v1/;
 #include "ste-dbx5x0.dtsi"
 #include "ste-href.dtsi"
-#include "ste-stuib.dtsi"
+#include "ste-href-stuib.dtsi"
+#include "ste-href-tvk1281618.dtsi"
 
 / {
 	model = "ST-Ericsson HREF (pre-v60) platform with Device Tree";
