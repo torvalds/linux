@@ -15,6 +15,12 @@ config PCI_EXYNOS
 	select PCIEPORTBUS
 	select PCIE_DW
 
+config PCI_IMX6
+	bool "Freescale i.MX6 PCIe controller"
+	depends on SOC_IMX6Q
+	select PCIEPORTBUS
+	select PCIE_DW
+
 config PCI_TEGRA
 	bool "NVIDIA Tegra PCIe controller"
 	depends on ARCH_TEGRA
