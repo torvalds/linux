@@ -22,21 +22,21 @@
  */
 
 /* Linkage, sets prot link and updates hdrlen in pub */
-extern int brcmf_proto_attach(struct brcmf_pub *drvr);
+int brcmf_proto_attach(struct brcmf_pub *drvr);
 
 /* Unlink, frees allocated protocol memory (including brcmf_proto) */
-extern void brcmf_proto_detach(struct brcmf_pub *drvr);
+void brcmf_proto_detach(struct brcmf_pub *drvr);
 
 /* Stop protocol: sync w/dongle state. */
-extern void brcmf_proto_stop(struct brcmf_pub *drvr);
+void brcmf_proto_stop(struct brcmf_pub *drvr);
 
 /* Add any protocol-specific data header.
  * Caller must reserve prot_hdrlen prepend space.
  */
-extern void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx, u8 offset,
-				struct sk_buff *txp);
+void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx, u8 offset,
+			 struct sk_buff *txp);
 
 /* Sets dongle media info (drv_version, mac address). */
-extern int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
+int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
 
 #endif				/* _BRCMF_PROTO_H_ */
