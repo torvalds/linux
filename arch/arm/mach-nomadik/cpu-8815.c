@@ -31,9 +31,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/mtd/fsmc.h>
 #include <linux/gpio.h>
-#include <linux/amba/mmci.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -146,17 +144,6 @@ static void __init cpu8815_timer_init_of(void)
 	clocksource_of_init();
 }
 
-static struct fsmc_nand_timings cpu8815_nand_timings = {
-	.thiz	= 0,
-	.thold	= 0x10,
-	.twait	= 0x0A,
-	.tset	= 0,
-};
-
-static struct fsmc_nand_platform_data cpu8815_nand_data = {
-	.nand_timings = &cpu8815_nand_timings,
-};
-
 /*
  * The SMSC911x IRQ is connected to a GPIO pin, but the driver expects
  * to simply request an IRQ passed as a resource. So the GPIO pin needs
@@ -188,15 +175,6 @@ static int __init cpu8815_eth_init(void)
 	return 0;
 }
 device_initcall(cpu8815_eth_init);
-
-/*
- * TODO:
- * cannot be set from device tree, convert to a proper DT
- * binding.
- */
-static struct mmci_platform_data mmcsd_plat_data = {
-	.ocr_mask = MMC_VDD_29_30,
-};
 
 /*
  * This GPIO pin turns on a line that is used to detect card insertion
@@ -232,24 +210,13 @@ static int __init cpu8815_mmcsd_init(void)
 }
 device_initcall(cpu8815_mmcsd_init);
 
-
-/* These are mostly to get the right device names for the clock lookups */
-static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("stericsson,fsmc-nand", NOMADIK_FSMC_BASE,
-		NULL, &cpu8815_nand_data),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_SDI_BASE,
-		NULL, &mmcsd_plat_data),
-	{ /* sentinel */ },
-};
-
 static void __init cpu8815_init_of(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	/* At full speed latency must be >=2, so 0x249 in low bits */
 	l2x0_of_init(0x00730249, 0xfe000fff);
 #endif
-	of_platform_populate(NULL, of_default_bus_match_table,
-			cpu8815_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char * cpu8815_board_compat[] = {
