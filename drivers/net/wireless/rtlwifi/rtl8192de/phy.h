@@ -142,8 +142,6 @@ extern bool rtl92c_phy_config_rf_with_feaderfile(struct ieee80211_hw *hw,
 						 enum radio_path rfpath);
 extern void rtl92d_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
 extern void rtl92d_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel);
-extern void rtl92d_phy_scan_operation_backup(struct ieee80211_hw *hw,
-					     u8 operation);
 extern void rtl92d_phy_set_bw_mode(struct ieee80211_hw *hw,
 				   enum nl80211_channel_type ch_type);
 extern u8 rtl92d_phy_sw_chnl(struct ieee80211_hw *hw);
