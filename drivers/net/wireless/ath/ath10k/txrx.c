@@ -268,6 +268,8 @@ void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 		   status->vht_nss,
 		   status->freq,
 		   status->band);
+	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "rx skb: ",
+			info->skb->data, info->skb->len);
 
 	ieee80211_rx(ar->hw, info->skb);
 }
