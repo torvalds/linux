@@ -40,8 +40,10 @@
 void rk29_backlight_set(bool on);
 bool rk29_get_backlight_status(void);
 
-#ifdef	CONFIG_FB_MIRRORING
+static int hdmi_switch_complete = 0;
 
+
+#if defined(CONFIG_FB_MIRRORING)
 
 int (*video_data_to_mirroring)(struct fb_info *info,u32 yuv_phy[2]) = NULL;
 EXPORT_SYMBOL(video_data_to_mirroring);
@@ -242,7 +244,26 @@ static int rk_fb_open(struct fb_info *info,int user)
     }
     
     return 0;
-    
+}
+
+static int  get_extend_fb_id(char *id )
+{
+	int fb_id = 0;
+	if(!strcmp(id,"fb0"))
+	{
+		fb_id = 0;
+	}
+	else if(!strcmp(id,"fb1"))
+	{
+		fb_id = 1;
+	}
+#if defined(CONFIG_LCDC_RK30)	//only rk30 lcdc has three windows layer now
+	else if(!strcmp(id,"fb2"))
+        {
+               fb_id = 2;
+        }
+#endif
+	return fb_id;
 }
 
 static int rk_fb_close(struct fb_info *info,int user)
@@ -279,6 +300,103 @@ static int rk_fb_close(struct fb_info *info,int user)
 	
     	return 0;
 }
+
+
+static int get_ipp_format(int fmt)
+{
+	int ipp_fmt = IPP_XRGB_8888;
+	switch (fmt)
+	{
+	case HAL_PIXEL_FORMAT_RGBX_8888: 
+	case HAL_PIXEL_FORMAT_RGBA_8888 :     
+	case HAL_PIXEL_FORMAT_BGRA_8888 :     
+	case HAL_PIXEL_FORMAT_RGB_888 :
+		ipp_fmt = IPP_XRGB_8888;
+		break;
+	case HAL_PIXEL_FORMAT_RGB_565:  	//RGB565
+		ipp_fmt = IPP_RGB_565;
+	    	break;
+	case HAL_PIXEL_FORMAT_YCbCr_422_SP : 	// yuv422
+		ipp_fmt = IPP_Y_CBCR_H2V1;
+	    	break;
+	case HAL_PIXEL_FORMAT_YCrCb_NV12: 	// YUV420---uvuvuv
+		ipp_fmt = IPP_Y_CBCR_H2V2;
+	    	break;
+	case HAL_PIXEL_FORMAT_YCrCb_444 : // yuv444
+		ipp_fmt = IPP_Y_CBCR_H1V1;
+		break;
+	default:
+		ipp_fmt = IPP_IMGTYPE_LIMIT;
+		break;
+	}
+
+	return ipp_fmt;
+}
+
+static void ipp_par_check(int* dst_w, int* dst_h, int* dst_vir_w, 
+				int rotation, int fmt)
+{
+	int align16 = 2;
+	int align64 = 8;
+	
+	
+
+	if(fmt == IPP_XRGB_8888) //XRGB,32bits per pixel
+	{
+		align16 = 1;
+		align64 = 2;
+	}
+
+	if(fmt == IPP_RGB_565) //RGB565 ,16bits per pixel
+	{
+		align16 = 1;
+		align64 = 4;
+	}
+	else  //yuv
+	{
+		align16 = 2;
+		align64 = 8;
+	}
+	align16 -= 1;  //for YUV, 1
+	align64 -= 1;  //for YUV, 7
+	
+	if(rotation == IPP_ROT_0)//no rotation
+	{
+		if(fmt > IPP_RGB_565)//only YUV need to align
+		{
+			if((*dst_w & 1) != 0)
+			{
+				*dst_w = *dst_w+1;
+			}
+			if((*dst_h & 1) != 0)
+			{
+				*dst_h = *dst_h+1;
+			}
+			if(*dst_vir_w < *dst_w)
+			{
+				*dst_vir_w = *dst_w;
+			}
+		}
+	}
+	else//rotaion
+	{
+
+		if((*dst_w & align64) != 0)
+		{
+			*dst_w = (*dst_w+align64)&(~align64);
+		}
+		if((fmt > IPP_RGB_565) && ((*dst_h & 1) == 1)) //for yuv ,must 2 pix align
+		{
+			*dst_h = *dst_h+1;
+		}
+		if(*dst_vir_w < *dst_w)
+		{
+			*dst_vir_w = *dst_w;
+		}
+	}
+
+}
+
 static void fb_copy_by_ipp(struct fb_info *dst_info, struct fb_info *src_info,int offset)
 {
 	struct rk29_ipp_req ipp_req;
@@ -356,6 +474,8 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
 	struct layer_par *par2 = NULL;
 	struct fb_info * info2 = NULL; 
+	int layer_id2 = 0;
+	int extend_fb_id = 0;
 	struct rk_lcdc_device_driver * dev_drv1  = NULL;
 #endif
     	int layer_id = 0;
@@ -406,20 +526,22 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	dev_drv->pan_display(dev_drv,layer_id);
 	#if defined(CONFIG_RK_HDMI)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
-			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
+			if((hdmi_get_hotplug() == HDMI_HPD_ACTIVED) && (hdmi_switch_complete))
 			{
 				if(inf->num_fb >= 2)
 				{
-					info2 = inf->fb[inf->num_fb>>1];
+					extend_fb_id = get_extend_fb_id(info->fix.id);
+					info2 = inf->fb[(inf->num_fb>>1) + extend_fb_id];
 					dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
-					par2 = dev_drv1->layer_par[layer_id];
+					layer_id2 = dev_drv1->fb_get_layer(dev_drv1,info2->fix.id);
+					par2 = dev_drv1->layer_par[layer_id2];
 					par2->y_offset = par->y_offset;
 					//memcpy(info2->screen_base+par2->y_offset,info->screen_base+par->y_offset,
 					//	var->xres*var->yres*var->bits_per_pixel>>3);
 					#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 					fb_copy_by_ipp(info2,info,par->y_offset);
 					#endif
-					dev_drv1->pan_display(dev_drv1,layer_id);
+					dev_drv1->pan_display(dev_drv1,layer_id2);
 					//queue_delayed_work(inf->workqueue, &inf->delay_work,0);
 				}
 			}
@@ -439,6 +561,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 #if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
 	struct fb_info * info2 = NULL;
+	int extend_fb_id = 0;
 	struct rk_lcdc_device_driver * dev_drv1  = NULL;
 #endif
 	u32 yuv_phy[2];
@@ -499,11 +622,12 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 				dev_drv->lcdc_reg_update(dev_drv);
 	#if defined(CONFIG_RK_HDMI)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
-			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
+			if((hdmi_get_hotplug() == HDMI_HPD_ACTIVED) && (hdmi_switch_complete))
 			{
 				if(inf->num_fb >= 2)
 				{
-					info2 = inf->fb[inf->num_fb>>1];
+					extend_fb_id = get_extend_fb_id(info->fix.id);
+					info2 = inf->fb[(inf->num_fb>>1) + extend_fb_id];
 					dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
 					if(dev_drv1->lcdc_reg_update)
 						dev_drv1->lcdc_reg_update(dev_drv1);
@@ -852,12 +976,14 @@ static int rk_fb_set_par(struct fb_info *info)
 	par->yvir =  var->yres_virtual;
 	#if defined(CONFIG_RK_HDMI)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
-			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
+			if((hdmi_get_hotplug() == HDMI_HPD_ACTIVED) && (hdmi_switch_complete))
 			{
 				struct rk_fb_inf *inf = dev_get_drvdata(info->device);
-				struct fb_info * info2 = inf->fb[inf->num_fb>>1];
+				int extend_fb_id = get_extend_fb_id(info->fix.id);
+				struct fb_info * info2 = inf->fb[(inf->num_fb>>1) + extend_fb_id];
 				struct rk_lcdc_device_driver * dev_drv1  = (struct rk_lcdc_device_driver * )info2->par;
-				struct layer_par *par2 = dev_drv1->layer_par[layer_id];
+				int layer_id2 = dev_drv->fb_get_layer(dev_drv1,info2->fix.id);
+				struct layer_par *par2 = dev_drv1->layer_par[layer_id2];
 				if(info != info2)
 				{
 					if(par->xact < par->yact)
@@ -881,7 +1007,7 @@ static int rk_fb_set_par(struct fb_info *info)
 					par2->format = par->format;
 					info2->var.nonstd &= 0xffffff00;
 					info2->var.nonstd |= data_format;
-					dev_drv1->set_par(dev_drv1,layer_id);
+					dev_drv1->set_par(dev_drv1,layer_id2);
 				}
 			}
 		#endif
@@ -1179,6 +1305,8 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		{
 			dev_drv->open(dev_drv,layer_id,enable); //disable the layer which attached to this fb
 		}
+		hdmi_switch_complete = 0;
+	
 		return 0;
 	}
 	
@@ -1247,6 +1375,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 #elif defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)  //close backlight for device whic do not support dual display
 	rk29_backlight_set(1);
 #endif
+	hdmi_switch_complete = enable;
 	return 0;
 
 }
