@@ -180,10 +180,29 @@ union vnt_tx_data_head {
 	struct vnt_cts_fb cts_g_fb;
 };
 
+struct vnt_tx_mic_hdr {
+	struct vnt_mic_hdr hdr;
+	union vnt_tx_data_head head;
+} __packed;
+
+union vnt_tx {
+	struct vnt_tx_mic_hdr mic;
+	union vnt_tx_data_head head;
+};
+
 union vnt_tx_head {
-	struct vnt_rrv_time_rts rts;
-	struct vnt_rrv_time_cts cts;
-	struct vnt_rrv_time_ab ab;
+	struct {
+		struct vnt_rrv_time_rts rts;
+		union vnt_tx tx;
+	} __packed tx_rts;
+	struct {
+		struct vnt_rrv_time_cts cts;
+		union vnt_tx tx;
+	} __packed tx_cts;
+	struct {
+		struct vnt_rrv_time_ab ab;
+		union vnt_tx tx;
+	} __packed tx_ab;
 };
 
 struct vnt_tx_fifo_head {

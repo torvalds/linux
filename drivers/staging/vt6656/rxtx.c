@@ -870,7 +870,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
 	if (need_rts) {
             //Fill RsvTime
-		struct vnt_rrv_time_rts *pBuf = &tx_buffer->tx_head.rts;
+		struct vnt_rrv_time_rts *pBuf = &tx_buffer->tx_head.tx_rts.rts;
 
 		pBuf->wRTSTxRrvTime_aa = s_uGetRTSCTSRsvTime(pDevice, 2,
 				byPktType, cbFrameSize, wCurrentRate);
@@ -889,7 +889,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
         }
         else {//RTS_needless, PCF mode
             //Fill RsvTime
-		struct vnt_rrv_time_cts *pBuf = &tx_buffer->tx_head.cts;
+		struct vnt_rrv_time_cts *pBuf = &tx_buffer->tx_head.tx_cts.cts;
 
 		pBuf->wTxRrvTime_a = vnt_rxtx_rsvtime_le16(pDevice, byPktType,
 			cbFrameSize, wCurrentRate, bNeedACK);
@@ -906,7 +906,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
     else if (byPktType == PK_TYPE_11A) {
 	if (need_rts) {
             //Fill RsvTime
-		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.ab;
+		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.tx_ab.ab;
 
 		pBuf->wRTSTxRrvTime = s_uGetRTSCTSRsvTime(pDevice, 2,
 				byPktType, cbFrameSize, wCurrentRate);
@@ -917,7 +917,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 			bNeedACK, psEthHeader, wCurrentRate, byFBOption);
 	} else {
             //Fill RsvTime
-		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.ab;
+		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.tx_ab.ab;
 
 		pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11A,
 			cbFrameSize, wCurrentRate, bNeedACK);
@@ -926,7 +926,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
     else if (byPktType == PK_TYPE_11B) {
 	if (need_rts) {
             //Fill RsvTime
-		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.ab;
+		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.tx_ab.ab;
 
 		pBuf->wRTSTxRrvTime = s_uGetRTSCTSRsvTime(pDevice, 0,
 				byPktType, cbFrameSize, wCurrentRate);
@@ -938,7 +938,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
         }
         else { //RTS_needless, non PCF mode
             //Fill RsvTime
-		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.ab;
+		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.tx_ab.ab;
 
 		pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11B,
 			cbFrameSize, wCurrentRate, bNeedACK);
