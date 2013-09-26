@@ -368,6 +368,7 @@ static const struct of_device_id of_palmas_match_tbl[] = {
 	},
 	{ },
 };
+MODULE_DEVICE_TABLE(of, of_palmas_match_tbl);
 
 static int palmas_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
