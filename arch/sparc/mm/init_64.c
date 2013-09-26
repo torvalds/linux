@@ -2602,120 +2602,20 @@ void pgtable_free(void *table, bool is_page)
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot, bool for_modify)
-{
-	if (pgprot_val(pgprot) & _PAGE_VALID)
-		pmd_val(pmd) |= PMD_HUGE_PRESENT;
-	if (tlb_type == hypervisor) {
-		if (pgprot_val(pgprot) & _PAGE_WRITE_4V)
-			pmd_val(pmd) |= PMD_HUGE_WRITE;
-		if (pgprot_val(pgprot) & _PAGE_EXEC_4V)
-			pmd_val(pmd) |= PMD_HUGE_EXEC;
-
-		if (!for_modify) {
-			if (pgprot_val(pgprot) & _PAGE_ACCESSED_4V)
-				pmd_val(pmd) |= PMD_HUGE_ACCESSED;
-			if (pgprot_val(pgprot) & _PAGE_MODIFIED_4V)
-				pmd_val(pmd) |= PMD_HUGE_DIRTY;
-		}
-	} else {
-		if (pgprot_val(pgprot) & _PAGE_WRITE_4U)
-			pmd_val(pmd) |= PMD_HUGE_WRITE;
-		if (pgprot_val(pgprot) & _PAGE_EXEC_4U)
-			pmd_val(pmd) |= PMD_HUGE_EXEC;
-
-		if (!for_modify) {
-			if (pgprot_val(pgprot) & _PAGE_ACCESSED_4U)
-				pmd_val(pmd) |= PMD_HUGE_ACCESSED;
-			if (pgprot_val(pgprot) & _PAGE_MODIFIED_4U)
-				pmd_val(pmd) |= PMD_HUGE_DIRTY;
-		}
-	}
-
-	return pmd;
-}
-
-pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
-{
-	pmd_t pmd;
-
-	pmd_val(pmd) = (page_nr << ((PAGE_SHIFT - PMD_PADDR_SHIFT)));
-	pmd_val(pmd) |= PMD_ISHUGE;
-	pmd = pmd_set_protbits(pmd, pgprot, false);
-	return pmd;
-}
-
-pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
-{
-	pmd_val(pmd) &= ~(PMD_HUGE_PRESENT |
-			  PMD_HUGE_WRITE |
-			  PMD_HUGE_EXEC);
-	pmd = pmd_set_protbits(pmd, newprot, true);
-	return pmd;
-}
-
-pgprot_t pmd_pgprot(pmd_t entry)
-{
-	unsigned long pte = 0;
-
-	if (pmd_val(entry) & PMD_HUGE_PRESENT)
-		pte |= _PAGE_VALID;
-
-	if (tlb_type == hypervisor) {
-		if (pmd_val(entry) & PMD_HUGE_PRESENT)
-			pte |= _PAGE_PRESENT_4V;
-		if (pmd_val(entry) & PMD_HUGE_EXEC)
-			pte |= _PAGE_EXEC_4V;
-		if (pmd_val(entry) & PMD_HUGE_WRITE)
-			pte |= _PAGE_W_4V;
-		if (pmd_val(entry) & PMD_HUGE_ACCESSED)
-			pte |= _PAGE_ACCESSED_4V;
-		if (pmd_val(entry) & PMD_HUGE_DIRTY)
-			pte |= _PAGE_MODIFIED_4V;
-		pte |= _PAGE_CP_4V|_PAGE_CV_4V;
-	} else {
-		if (pmd_val(entry) & PMD_HUGE_PRESENT)
-			pte |= _PAGE_PRESENT_4U;
-		if (pmd_val(entry) & PMD_HUGE_EXEC)
-			pte |= _PAGE_EXEC_4U;
-		if (pmd_val(entry) & PMD_HUGE_WRITE)
-			pte |= _PAGE_W_4U;
-		if (pmd_val(entry) & PMD_HUGE_ACCESSED)
-			pte |= _PAGE_ACCESSED_4U;
-		if (pmd_val(entry) & PMD_HUGE_DIRTY)
-			pte |= _PAGE_MODIFIED_4U;
-		pte |= _PAGE_CP_4U|_PAGE_CV_4U;
-	}
-
-	return __pgprot(pte);
-}
-
 void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 			  pmd_t *pmd)
 {
 	unsigned long pte, flags;
 	struct mm_struct *mm;
 	pmd_t entry = *pmd;
-	pgprot_t prot;
 
 	if (!pmd_large(entry) || !pmd_young(entry))
 		return;
 
-	pte = (pmd_val(entry) & ~PMD_HUGE_PROTBITS);
-	pte <<= PMD_PADDR_SHIFT;
-	pte |= _PAGE_VALID;
+	pte = pmd_val(entry);
 
 	/* We are fabricating 8MB pages using 4MB real hw pages.  */
 	pte |= (addr & (1UL << REAL_HPAGE_SHIFT));
-
-	prot = pmd_pgprot(entry);
-
-	if (tlb_type == hypervisor)
-		pgprot_val(prot) |= _PAGE_SZHUGE_4V;
-	else
-		pgprot_val(prot) |= _PAGE_SZHUGE_4U;
-
-	pte |= pgprot_val(prot);
 
 	mm = vma->vm_mm;
 
