@@ -197,7 +197,7 @@ static bool usb_match_any_interface(struct usb_device *udev,
 	return false;
 }
 
-int usb_amd_resume_quirk(struct usb_device *udev)
+static int usb_amd_resume_quirk(struct usb_device *udev)
 {
 	struct usb_hcd *hcd;
 
