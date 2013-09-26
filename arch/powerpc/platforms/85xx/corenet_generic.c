@@ -32,7 +32,7 @@
 #include <sysdev/fsl_pci.h>
 #include "smp.h"
 
-void __init corenet_ds_pic_init(void)
+void __init corenet_gen_pic_init(void)
 {
 	struct mpic *mpic;
 	unsigned int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU |
@@ -50,7 +50,7 @@ void __init corenet_ds_pic_init(void)
 /*
  * Setup the architecture
  */
-void __init corenet_ds_setup_arch(void)
+void __init corenet_gen_setup_arch(void)
 {
 	mpc85xx_smp_init();
 
@@ -91,7 +91,7 @@ static const struct of_device_id of_device_ids[] = {
 	{}
 };
 
-int __init corenet_ds_publish_devices(void)
+int __init corenet_gen_publish_devices(void)
 {
 	return of_platform_bus_probe(NULL, of_device_ids, NULL);
 }
@@ -159,8 +159,8 @@ static int __init corenet_generic_probe(void)
 define_machine(corenet_generic) {
 	.name			= "CoreNet Generic",
 	.probe			= corenet_generic_probe,
-	.setup_arch		= corenet_ds_setup_arch,
-	.init_IRQ		= corenet_ds_pic_init,
+	.setup_arch		= corenet_gen_setup_arch,
+	.init_IRQ		= corenet_gen_pic_init,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 #endif
@@ -175,7 +175,7 @@ define_machine(corenet_generic) {
 #endif
 };
 
-machine_arch_initcall(corenet_generic, corenet_ds_publish_devices);
+machine_arch_initcall(corenet_generic, corenet_gen_publish_devices);
 
 #ifdef CONFIG_SWIOTLB
 machine_arch_initcall(corenet_generic, swiotlb_setup_bus_notifier);
