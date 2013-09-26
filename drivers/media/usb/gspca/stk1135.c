@@ -612,7 +612,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-void stk1135_try_fmt(struct gspca_dev *gspca_dev, struct v4l2_format *fmt)
+static void stk1135_try_fmt(struct gspca_dev *gspca_dev, struct v4l2_format *fmt)
 {
 	fmt->fmt.pix.width = clamp(fmt->fmt.pix.width, 32U, 1280U);
 	fmt->fmt.pix.height = clamp(fmt->fmt.pix.height, 32U, 1024U);
@@ -624,7 +624,7 @@ void stk1135_try_fmt(struct gspca_dev *gspca_dev, struct v4l2_format *fmt)
 	fmt->fmt.pix.sizeimage = fmt->fmt.pix.width * fmt->fmt.pix.height;
 }
 
-int stk1135_enum_framesizes(struct gspca_dev *gspca_dev,
+static int stk1135_enum_framesizes(struct gspca_dev *gspca_dev,
 			struct v4l2_frmsizeenum *fsize)
 {
 	if (fsize->index != 0 || fsize->pixel_format != V4L2_PIX_FMT_SBGGR8)
