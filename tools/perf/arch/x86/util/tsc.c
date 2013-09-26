@@ -32,7 +32,7 @@ u64 tsc_to_perf_time(u64 cyc, struct perf_tsc_conversion *tc)
 int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
 			     struct perf_tsc_conversion *tc)
 {
-	bool cap_usr_time_zero;
+	bool cap_user_time_zero;
 	u32 seq;
 	int i = 0;
 
@@ -42,7 +42,7 @@ int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
 		tc->time_mult = pc->time_mult;
 		tc->time_shift = pc->time_shift;
 		tc->time_zero = pc->time_zero;
-		cap_usr_time_zero = pc->cap_usr_time_zero;
+		cap_user_time_zero = pc->cap_user_time_zero;
 		rmb();
 		if (pc->lock == seq && !(seq & 1))
 			break;
@@ -52,7 +52,7 @@ int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
 		}
 	}
 
-	if (!cap_usr_time_zero)
+	if (!cap_user_time_zero)
 		return -EOPNOTSUPP;
 
 	return 0;

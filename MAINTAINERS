@@ -6596,7 +6596,7 @@ S:	Obsolete
 F:	drivers/net/wireless/prism54/
 
 PROMISE SATA TX2/TX4 CONTROLLER LIBATA DRIVER
-M:	Mikael Pettersson <mikpe@it.uu.se>
+M:	Mikael Pettersson <mikpelinux@gmail.com>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
 F:	drivers/ata/sata_promise.*
