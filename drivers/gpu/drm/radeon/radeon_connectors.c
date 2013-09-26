@@ -1722,7 +1722,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 						      0);
 			drm_object_attach_property(&radeon_connector->base.base,
 						   rdev->mode_info.audio_property,
-						   RADEON_AUDIO_DISABLE);
+						   RADEON_AUDIO_AUTO);
 			drm_object_attach_property(&radeon_connector->base.base,
 						   rdev->mode_info.dither_property,
 						   RADEON_FMT_DITHER_DISABLE);
@@ -1822,7 +1822,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (ASIC_IS_DCE2(rdev)) {
 				drm_object_attach_property(&radeon_connector->base.base,
 							      rdev->mode_info.audio_property,
-							      RADEON_AUDIO_DISABLE);
+							      RADEON_AUDIO_AUTO);
 			}
 			if (ASIC_IS_AVIVO(rdev)) {
 				drm_object_attach_property(&radeon_connector->base.base,
@@ -1872,7 +1872,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (ASIC_IS_DCE2(rdev)) {
 				drm_object_attach_property(&radeon_connector->base.base,
 							      rdev->mode_info.audio_property,
-							      RADEON_AUDIO_DISABLE);
+							      RADEON_AUDIO_AUTO);
 			}
 			if (ASIC_IS_AVIVO(rdev)) {
 				drm_object_attach_property(&radeon_connector->base.base,
@@ -1921,7 +1921,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (ASIC_IS_DCE2(rdev)) {
 				drm_object_attach_property(&radeon_connector->base.base,
 							      rdev->mode_info.audio_property,
-							      RADEON_AUDIO_DISABLE);
+							      RADEON_AUDIO_AUTO);
 			}
 			if (ASIC_IS_AVIVO(rdev)) {
 				drm_object_attach_property(&radeon_connector->base.base,
