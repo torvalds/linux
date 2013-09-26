@@ -143,7 +143,127 @@ static struct wmi_cmd_map wmi_cmd_map = {
 	.gpio_output_cmdid = WMI_GPIO_OUTPUT_CMDID,
 };
 
-/* TODO: 10.X WMI cmd track */
+/* 10.X WMI cmd track */
+static struct wmi_cmd_map wmi_10x_cmd_map = {
+	.init_cmdid = WMI_10X_INIT_CMDID,
+	.start_scan_cmdid = WMI_10X_START_SCAN_CMDID,
+	.stop_scan_cmdid = WMI_10X_STOP_SCAN_CMDID,
+	.scan_chan_list_cmdid = WMI_10X_SCAN_CHAN_LIST_CMDID,
+	.scan_sch_prio_tbl_cmdid = WMI_CMD_UNDEFINED,
+	.pdev_set_regdomain_cmdid = WMI_10X_PDEV_SET_REGDOMAIN_CMDID,
+	.pdev_set_channel_cmdid = WMI_10X_PDEV_SET_CHANNEL_CMDID,
+	.pdev_set_param_cmdid = WMI_10X_PDEV_SET_PARAM_CMDID,
+	.pdev_pktlog_enable_cmdid = WMI_10X_PDEV_PKTLOG_ENABLE_CMDID,
+	.pdev_pktlog_disable_cmdid = WMI_10X_PDEV_PKTLOG_DISABLE_CMDID,
+	.pdev_set_wmm_params_cmdid = WMI_10X_PDEV_SET_WMM_PARAMS_CMDID,
+	.pdev_set_ht_cap_ie_cmdid = WMI_10X_PDEV_SET_HT_CAP_IE_CMDID,
+	.pdev_set_vht_cap_ie_cmdid = WMI_10X_PDEV_SET_VHT_CAP_IE_CMDID,
+	.pdev_set_dscp_tid_map_cmdid = WMI_10X_PDEV_SET_DSCP_TID_MAP_CMDID,
+	.pdev_set_quiet_mode_cmdid = WMI_10X_PDEV_SET_QUIET_MODE_CMDID,
+	.pdev_green_ap_ps_enable_cmdid = WMI_10X_PDEV_GREEN_AP_PS_ENABLE_CMDID,
+	.pdev_get_tpc_config_cmdid = WMI_10X_PDEV_GET_TPC_CONFIG_CMDID,
+	.pdev_set_base_macaddr_cmdid = WMI_10X_PDEV_SET_BASE_MACADDR_CMDID,
+	.vdev_create_cmdid = WMI_10X_VDEV_CREATE_CMDID,
+	.vdev_delete_cmdid = WMI_10X_VDEV_DELETE_CMDID,
+	.vdev_start_request_cmdid = WMI_10X_VDEV_START_REQUEST_CMDID,
+	.vdev_restart_request_cmdid = WMI_10X_VDEV_RESTART_REQUEST_CMDID,
+	.vdev_up_cmdid = WMI_10X_VDEV_UP_CMDID,
+	.vdev_stop_cmdid = WMI_10X_VDEV_STOP_CMDID,
+	.vdev_down_cmdid = WMI_10X_VDEV_DOWN_CMDID,
+	.vdev_set_param_cmdid = WMI_10X_VDEV_SET_PARAM_CMDID,
+	.vdev_install_key_cmdid = WMI_10X_VDEV_INSTALL_KEY_CMDID,
+	.peer_create_cmdid = WMI_10X_PEER_CREATE_CMDID,
+	.peer_delete_cmdid = WMI_10X_PEER_DELETE_CMDID,
+	.peer_flush_tids_cmdid = WMI_10X_PEER_FLUSH_TIDS_CMDID,
+	.peer_set_param_cmdid = WMI_10X_PEER_SET_PARAM_CMDID,
+	.peer_assoc_cmdid = WMI_10X_PEER_ASSOC_CMDID,
+	.peer_add_wds_entry_cmdid = WMI_10X_PEER_ADD_WDS_ENTRY_CMDID,
+	.peer_remove_wds_entry_cmdid = WMI_10X_PEER_REMOVE_WDS_ENTRY_CMDID,
+	.peer_mcast_group_cmdid = WMI_10X_PEER_MCAST_GROUP_CMDID,
+	.bcn_tx_cmdid = WMI_10X_BCN_TX_CMDID,
+	.pdev_send_bcn_cmdid = WMI_10X_PDEV_SEND_BCN_CMDID,
+	.bcn_tmpl_cmdid = WMI_CMD_UNDEFINED,
+	.bcn_filter_rx_cmdid = WMI_10X_BCN_FILTER_RX_CMDID,
+	.prb_req_filter_rx_cmdid = WMI_10X_PRB_REQ_FILTER_RX_CMDID,
+	.mgmt_tx_cmdid = WMI_10X_MGMT_TX_CMDID,
+	.prb_tmpl_cmdid = WMI_CMD_UNDEFINED,
+	.addba_clear_resp_cmdid = WMI_10X_ADDBA_CLEAR_RESP_CMDID,
+	.addba_send_cmdid = WMI_10X_ADDBA_SEND_CMDID,
+	.addba_status_cmdid = WMI_10X_ADDBA_STATUS_CMDID,
+	.delba_send_cmdid = WMI_10X_DELBA_SEND_CMDID,
+	.addba_set_resp_cmdid = WMI_10X_ADDBA_SET_RESP_CMDID,
+	.send_singleamsdu_cmdid = WMI_10X_SEND_SINGLEAMSDU_CMDID,
+	.sta_powersave_mode_cmdid = WMI_10X_STA_POWERSAVE_MODE_CMDID,
+	.sta_powersave_param_cmdid = WMI_10X_STA_POWERSAVE_PARAM_CMDID,
+	.sta_mimo_ps_mode_cmdid = WMI_10X_STA_MIMO_PS_MODE_CMDID,
+	.pdev_dfs_enable_cmdid = WMI_10X_PDEV_DFS_ENABLE_CMDID,
+	.pdev_dfs_disable_cmdid = WMI_10X_PDEV_DFS_DISABLE_CMDID,
+	.roam_scan_mode = WMI_10X_ROAM_SCAN_MODE,
+	.roam_scan_rssi_threshold = WMI_10X_ROAM_SCAN_RSSI_THRESHOLD,
+	.roam_scan_period = WMI_10X_ROAM_SCAN_PERIOD,
+	.roam_scan_rssi_change_threshold =
+				WMI_10X_ROAM_SCAN_RSSI_CHANGE_THRESHOLD,
+	.roam_ap_profile = WMI_10X_ROAM_AP_PROFILE,
+	.ofl_scan_add_ap_profile = WMI_10X_OFL_SCAN_ADD_AP_PROFILE,
+	.ofl_scan_remove_ap_profile = WMI_10X_OFL_SCAN_REMOVE_AP_PROFILE,
+	.ofl_scan_period = WMI_10X_OFL_SCAN_PERIOD,
+	.p2p_dev_set_device_info = WMI_10X_P2P_DEV_SET_DEVICE_INFO,
+	.p2p_dev_set_discoverability = WMI_10X_P2P_DEV_SET_DISCOVERABILITY,
+	.p2p_go_set_beacon_ie = WMI_10X_P2P_GO_SET_BEACON_IE,
+	.p2p_go_set_probe_resp_ie = WMI_10X_P2P_GO_SET_PROBE_RESP_IE,
+	.p2p_set_vendor_ie_data_cmdid = WMI_CMD_UNDEFINED,
+	.ap_ps_peer_param_cmdid = WMI_CMD_UNDEFINED,
+	.ap_ps_peer_uapsd_coex_cmdid = WMI_CMD_UNDEFINED,
+	.peer_rate_retry_sched_cmdid = WMI_10X_PEER_RATE_RETRY_SCHED_CMDID,
+	.wlan_profile_trigger_cmdid = WMI_10X_WLAN_PROFILE_TRIGGER_CMDID,
+	.wlan_profile_set_hist_intvl_cmdid =
+				WMI_10X_WLAN_PROFILE_SET_HIST_INTVL_CMDID,
+	.wlan_profile_get_profile_data_cmdid =
+				WMI_10X_WLAN_PROFILE_GET_PROFILE_DATA_CMDID,
+	.wlan_profile_enable_profile_id_cmdid =
+				WMI_10X_WLAN_PROFILE_ENABLE_PROFILE_ID_CMDID,
+	.wlan_profile_list_profile_id_cmdid =
+				WMI_10X_WLAN_PROFILE_LIST_PROFILE_ID_CMDID,
+	.pdev_suspend_cmdid = WMI_10X_PDEV_SUSPEND_CMDID,
+	.pdev_resume_cmdid = WMI_10X_PDEV_RESUME_CMDID,
+	.add_bcn_filter_cmdid = WMI_10X_ADD_BCN_FILTER_CMDID,
+	.rmv_bcn_filter_cmdid = WMI_10X_RMV_BCN_FILTER_CMDID,
+	.wow_add_wake_pattern_cmdid = WMI_10X_WOW_ADD_WAKE_PATTERN_CMDID,
+	.wow_del_wake_pattern_cmdid = WMI_10X_WOW_DEL_WAKE_PATTERN_CMDID,
+	.wow_enable_disable_wake_event_cmdid =
+				WMI_10X_WOW_ENABLE_DISABLE_WAKE_EVENT_CMDID,
+	.wow_enable_cmdid = WMI_10X_WOW_ENABLE_CMDID,
+	.wow_hostwakeup_from_sleep_cmdid =
+				WMI_10X_WOW_HOSTWAKEUP_FROM_SLEEP_CMDID,
+	.rtt_measreq_cmdid = WMI_10X_RTT_MEASREQ_CMDID,
+	.rtt_tsf_cmdid = WMI_10X_RTT_TSF_CMDID,
+	.vdev_spectral_scan_configure_cmdid =
+				WMI_10X_VDEV_SPECTRAL_SCAN_CONFIGURE_CMDID,
+	.vdev_spectral_scan_enable_cmdid =
+				WMI_10X_VDEV_SPECTRAL_SCAN_ENABLE_CMDID,
+	.request_stats_cmdid = WMI_10X_REQUEST_STATS_CMDID,
+	.set_arp_ns_offload_cmdid = WMI_CMD_UNDEFINED,
+	.network_list_offload_config_cmdid = WMI_CMD_UNDEFINED,
+	.gtk_offload_cmdid = WMI_CMD_UNDEFINED,
+	.csa_offload_enable_cmdid = WMI_CMD_UNDEFINED,
+	.csa_offload_chanswitch_cmdid = WMI_CMD_UNDEFINED,
+	.chatter_set_mode_cmdid = WMI_CMD_UNDEFINED,
+	.peer_tid_addba_cmdid = WMI_CMD_UNDEFINED,
+	.peer_tid_delba_cmdid = WMI_CMD_UNDEFINED,
+	.sta_dtim_ps_method_cmdid = WMI_CMD_UNDEFINED,
+	.sta_uapsd_auto_trig_cmdid = WMI_CMD_UNDEFINED,
+	.sta_keepalive_cmd = WMI_CMD_UNDEFINED,
+	.echo_cmdid = WMI_10X_ECHO_CMDID,
+	.pdev_utf_cmdid = WMI_10X_PDEV_UTF_CMDID,
+	.dbglog_cfg_cmdid = WMI_10X_DBGLOG_CFG_CMDID,
+	.pdev_qvit_cmdid = WMI_10X_PDEV_QVIT_CMDID,
+	.pdev_ftm_intg_cmdid = WMI_CMD_UNDEFINED,
+	.vdev_set_keepalive_cmdid = WMI_CMD_UNDEFINED,
+	.vdev_get_keepalive_cmdid = WMI_CMD_UNDEFINED,
+	.force_fw_hang_cmdid = WMI_CMD_UNDEFINED,
+	.gpio_config_cmdid = WMI_10X_GPIO_CONFIG_CMDID,
+	.gpio_output_cmdid = WMI_10X_GPIO_OUTPUT_CMDID,
+};
 
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar)
 {
@@ -1307,13 +1427,15 @@ static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
 /* WMI Initialization functions */
 int ath10k_wmi_attach(struct ath10k *ar)
 {
-	int ret = 0;
+	int ret;
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
 		ath10k_warn("Firmware 10.X is not yet supported\n");
+		ar->wmi.cmd = &wmi_10x_cmd_map;
 		ret = -ENOTSUPP;
 	} else {
 		ar->wmi.cmd = &wmi_cmd_map;
+		ret = 0;
 	}
 
 	init_completion(&ar->wmi.service_ready);
