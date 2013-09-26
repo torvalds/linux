@@ -520,6 +520,10 @@ static void wa_seg_dto_cb(struct urb *urb)
 	unsigned rpipe_ready = 0;
 	u8 done = 0;
 
+	/* free the sg if it was used. */
+	kfree(urb->sg);
+	urb->sg = NULL;
+
 	switch (urb->status) {
 	case 0:
 		spin_lock_irqsave(&xfer->lock, flags);
