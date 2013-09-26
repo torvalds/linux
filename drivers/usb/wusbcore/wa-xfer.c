@@ -178,9 +178,15 @@ static void wa_xfer_destroy(struct kref *_xfer)
 	if (xfer->seg) {
 		unsigned cnt;
 		for (cnt = 0; cnt < xfer->segs; cnt++) {
-			usb_free_urb(xfer->seg[cnt]->dto_urb);
-			usb_free_urb(&xfer->seg[cnt]->tr_urb);
+			if (xfer->seg[cnt]) {
+				if (xfer->seg[cnt]->dto_urb) {
+					kfree(xfer->seg[cnt]->dto_urb->sg);
+					usb_free_urb(xfer->seg[cnt]->dto_urb);
+				}
+				usb_free_urb(&xfer->seg[cnt]->tr_urb);
+			}
 		}
+		kfree(xfer->seg);
 	}
 	kfree(xfer);
 }
