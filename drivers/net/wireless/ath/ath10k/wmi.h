@@ -1130,6 +1130,46 @@ struct wmi_service_ready_event {
 	struct wlan_host_mem_req mem_reqs[1];
 } __packed;
 
+/* This is the definition from 10.X firmware branch */
+struct wmi_service_ready_event_10x {
+	__le32 sw_version;
+	__le32 abi_version;
+
+	/* WMI_PHY_CAPABILITY */
+	__le32 phy_capability;
+
+	/* Maximum number of frag table entries that SW will populate less 1 */
+	__le32 max_frag_entry;
+	__le32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	__le32 num_rf_chains;
+
+	/*
+	 * The following field is only valid for service type
+	 * WMI_SERVICE_11AC
+	 */
+	__le32 ht_cap_info; /* WMI HT Capability */
+	__le32 vht_cap_info; /* VHT capability info field of 802.11ac */
+	__le32 vht_supp_mcs; /* VHT Supported MCS Set field Rx/Tx same */
+	__le32 hw_min_tx_power;
+	__le32 hw_max_tx_power;
+
+	struct hal_reg_capabilities hal_reg_capabilities;
+
+	__le32 sys_cap_info;
+	__le32 min_pkt_size_enable; /* Enterprise mode short pkt enable */
+
+	/*
+	 * request to host to allocate a chuck of memory and pss it down to FW
+	 * via WM_INIT. FW uses this as FW extesnsion memory for saving its
+	 * data structures. Only valid for low latency interfaces like PCIE
+	 * where FW can access this memory directly (or) by DMA.
+	 */
+	__le32 num_mem_reqs;
+
+	struct wlan_host_mem_req mem_reqs[1];
+} __packed;
+
+
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5*HZ)
 #define WMI_UNIFIED_READY_TIMEOUT_HZ (5*HZ)
 

@@ -1301,6 +1301,69 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	complete(&ar->wmi.service_ready);
 }
 
+static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
+						  struct sk_buff *skb)
+{
+	struct wmi_service_ready_event_10x *ev = (void *)skb->data;
+
+	if (skb->len < sizeof(*ev)) {
+		ath10k_warn("Service ready event was %d B but expected %zu B. Wrong firmware version?\n",
+			    skb->len, sizeof(*ev));
+		return;
+	}
+
+	ar->hw_min_tx_power = __le32_to_cpu(ev->hw_min_tx_power);
+	ar->hw_max_tx_power = __le32_to_cpu(ev->hw_max_tx_power);
+	ar->ht_cap_info = __le32_to_cpu(ev->ht_cap_info);
+	ar->vht_cap_info = __le32_to_cpu(ev->vht_cap_info);
+	ar->fw_version_major =
+		(__le32_to_cpu(ev->sw_version) & 0xff000000) >> 24;
+	ar->fw_version_minor = (__le32_to_cpu(ev->sw_version) & 0x00ffffff);
+	ar->phy_capability = __le32_to_cpu(ev->phy_capability);
+	ar->num_rf_chains = __le32_to_cpu(ev->num_rf_chains);
+
+	if (ar->num_rf_chains > WMI_MAX_SPATIAL_STREAM) {
+		ath10k_warn("hardware advertises support for more spatial streams than it should (%d > %d)\n",
+			    ar->num_rf_chains, WMI_MAX_SPATIAL_STREAM);
+		ar->num_rf_chains = WMI_MAX_SPATIAL_STREAM;
+	}
+
+	ar->ath_common.regulatory.current_rd =
+		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
+
+	ath10k_debug_read_service_map(ar, ev->wmi_service_bitmap,
+				      sizeof(ev->wmi_service_bitmap));
+
+	if (strlen(ar->hw->wiphy->fw_version) == 0) {
+		snprintf(ar->hw->wiphy->fw_version,
+			 sizeof(ar->hw->wiphy->fw_version),
+			 "%u.%u",
+			 ar->fw_version_major,
+			 ar->fw_version_minor);
+	}
+
+	/* FIXME: it probably should be better to support this.
+	   TODO: Next patch introduce memory chunks. It's a must for 10.x FW */
+	if (__le32_to_cpu(ev->num_mem_reqs) > 0) {
+		ath10k_warn("target requested %d memory chunks; ignoring\n",
+			    __le32_to_cpu(ev->num_mem_reqs));
+	}
+
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi event service ready sw_ver 0x%08x abi_ver %u phy_cap 0x%08x ht_cap 0x%08x vht_cap 0x%08x vht_supp_msc 0x%08x sys_cap_info 0x%08x mem_reqs %u num_rf_chains %u\n",
+		   __le32_to_cpu(ev->sw_version),
+		   __le32_to_cpu(ev->abi_version),
+		   __le32_to_cpu(ev->phy_capability),
+		   __le32_to_cpu(ev->ht_cap_info),
+		   __le32_to_cpu(ev->vht_cap_info),
+		   __le32_to_cpu(ev->vht_supp_mcs),
+		   __le32_to_cpu(ev->sys_cap_info),
+		   __le32_to_cpu(ev->num_mem_reqs),
+		   __le32_to_cpu(ev->num_rf_chains));
+
+	complete(&ar->wmi.service_ready);
+}
+
 static int ath10k_wmi_ready_event_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_ready_event *ev = (struct wmi_ready_event *)skb->data;
@@ -1537,7 +1600,7 @@ static void ath10k_wmi_10x_process_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_event_vdev_resume_req(ar, skb);
 		break;
 	case WMI_10X_SERVICE_READY_EVENTID:
-		ath10k_wmi_service_ready_event_rx(ar, skb);
+		ath10k_wmi_10x_service_ready_event_rx(ar, skb);
 		break;
 	case WMI_10X_READY_EVENTID:
 		ath10k_wmi_ready_event_rx(ar, skb);
