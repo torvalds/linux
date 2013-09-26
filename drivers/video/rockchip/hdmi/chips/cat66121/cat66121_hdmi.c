@@ -16,7 +16,7 @@
 #include "cat66121_hdmi.h"
 #include "cat66121_hdmi_hw.h"
 
-#define HDMI_POLL_MDELAY 	100
+#define HDMI_POLL_MDELAY 	50//100
 struct cat66121_hdmi_pdata *cat66121_hdmi = NULL;
 struct hdmi *hdmi=NULL;
 
@@ -213,7 +213,14 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 		rc = -ENXIO;
 		goto err_request_lcdc;
 	}
+
+        cat66121_hdmi->plug_status = -1;
+#ifdef SUPPORT_HDCP
+	hdmi->irq = INVALID_GPIO;
+#else
 	hdmi->irq = gpio_to_irq(client->irq);
+#endif
+
 	hdmi->xscale = 100;
 	hdmi->yscale = 100;
 	hdmi->insert = cat66121_hdmi_sys_insert;
@@ -259,7 +266,7 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 	}
 #endif
 
-	if(client->irq != INVALID_GPIO) {
+	if(hdmi->irq != INVALID_GPIO) {
 		cat66121_irq_work_func(NULL);
 		if((rc = gpio_request(client->irq, "hdmi gpio")) < 0)
 		{

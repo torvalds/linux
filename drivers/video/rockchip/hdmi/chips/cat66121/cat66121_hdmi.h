@@ -14,6 +14,7 @@ struct cat66121_hdmi_pdata {
 	struct i2c_client *client;
 	struct delayed_work delay_work;
 	struct workqueue_struct *workqueue;
+        int plug_status;
 };
 
 extern struct cat66121_hdmi_pdata *cat66121_hdmi;

@@ -5,7 +5,9 @@
 #include <mach/io.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include "hdmitx.h"
 
+extern HDMITXDEV hdmiTxDev[HDMITX_MAX_DEV_COUNT] ;
 #define HDMITX_INPUT_SIGNAL_TYPE 0  // for default(Sync Sep Mode)
 #define INPUT_SPDIF_ENABLE	0
 /*******************************
@@ -223,9 +225,10 @@ void cat66121_InterruptClr(void)
 					(intdata4&0x2)? "No audio input interrupt  \n":"",
 					(intdata4&0x1)? "Audio decode error interrupt \n":""));
 	}
-	HDMITX_WriteI2C_Byte(REG_TX_SYS_STATUS,intclr3); // clear interrupt.
+	
 	HDMITX_WriteI2C_Byte(REG_TX_INT_CLR0,0xFF);
 	HDMITX_WriteI2C_Byte(REG_TX_INT_CLR1,0xFF);
+	HDMITX_WriteI2C_Byte(REG_TX_SYS_STATUS,intclr3); // clear interrupt.
 	intclr3 &= ~(B_TX_INTACTDONE);
 	HDMITX_WriteI2C_Byte(REG_TX_SYS_STATUS,intclr3); // INTACTDONE reset to zero.
 }
@@ -234,7 +237,7 @@ void cat66121_hdmi_interrupt(void)
 	char sysstat = 0; 
 	mutex_lock(&handler_mutex);
 	sysstat = HDMITX_ReadI2C_Byte(REG_TX_SYS_STATUS);
-	if(sysstat & B_TX_INT_ACTIVE){
+	if((sysstat & B_TX_INT_ACTIVE) || ((B_TX_HPDETECT & cat66121_hdmi->plug_status) != (B_TX_HPDETECT & sysstat)))  {
     		char intdata1,intdata2,intdata3;
 		intdata1 = HDMITX_ReadI2C_Byte(REG_TX_INT_STAT1);
 		intdata2 = HDMITX_ReadI2C_Byte(REG_TX_INT_STAT2);
@@ -259,7 +262,14 @@ void cat66121_hdmi_interrupt(void)
 		{
 			HDMITX_DEBUG_PRINTF(("DDC BUS HANG.\n"));
 			hdmitx_AbortDDC();
-		}
+#ifdef SUPPORT_HDCP
+                        if(hdmiTxDev[0].bAuthenticated)
+                        {
+                                HDMITX_DEBUG_PRINTF(("when DDC hang,and aborted DDC,the HDCP authentication need to restart.\n"));
+                                hdmitx_hdcp_ResumeAuthentication();
+                        }
+#endif
+                }
 		if(intdata1 & B_TX_INT_AUD_OVERFLOW ){
 			HDMITX_DEBUG_PRINTF(("AUDIO FIFO OVERFLOW.\n"));
 			HDMITX_OrReg_Byte(REG_TX_SW_RST,(B_HDMITX_AUD_RST|B_TX_AREF_RST));
@@ -277,6 +287,9 @@ void cat66121_hdmi_interrupt(void)
 		
 #ifdef SUPPORT_HDCP
 		if(intdata2 & B_TX_INT_AUTH_FAIL){
+			hdmiTxDev[0].bAuthenticated = FALSE;
+			hdmitx_AbortDDC();
+#if 0
 			if(getHDMITX_LinkStatus())
 			{
 				// AudioModeDetect();
@@ -287,22 +300,45 @@ void cat66121_hdmi_interrupt(void)
 					setHDMITX_AVMute(FALSE);
 				}
 			}
+#endif
 		}else if(intdata2 & B_TX_INT_AUTH_DONE){
 			HDMITX_SetI2C_Byte(REG_TX_INT_MASK2, B_TX_AUTH_DONE_MASK, B_TX_AUTH_DONE_MASK);
 			HDMITX_DEBUG_PRINTF(("getHDMITX_AuthenticationDone() ==SUCCESS\n") );
 		}
 #endif
-		if(intdata1 & B_TX_INT_HPD_PLUG){
+		if((intdata1 & B_TX_INT_HPD_PLUG)|| ((B_TX_HPDETECT & cat66121_hdmi->plug_status) != (B_TX_HPDETECT & sysstat))) {
+		    hdmiTxDev[0].bAuthenticated = FALSE;
 			if(sysstat & B_TX_HPDETECT){
 				HDMITX_DEBUG_PRINTF(("HPD plug\n") );
 			}else{
 				HDMITX_DEBUG_PRINTF(("HPD unplug\n") );
 			}
+			cat66121_hdmi->plug_status = sysstat;
 			if(hdmi->state == HDMI_SLEEP)
 				hdmi->state = WAIT_HOTPLUG;
 			queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(0));	
 		}
+		if(intdata1 & (B_TX_INT_RX_SENSE)) {
+				hdmiTxDev[0].bAuthenticated = FALSE;
+		}
 	}
+    
+#ifdef SUPPORT_HDCP
+        if(hdmi->display == HDMI_ENABLE)
+        {
+                if(getHDMITX_LinkStatus())
+                {
+                        // AudioModeDetect();
+                        if(getHDMITX_AuthenticationDone() ==FALSE)
+                        {
+                                HDMITX_DEBUG_PRINTF(("getHDMITX_AuthenticationDone() ==FALSE\n") );
+                                HDMITX_EnableHDCP(TRUE);
+                                setHDMITX_AVMute(FALSE);
+                        }
+                }
+        }	
+#endif
+	
 	mutex_unlock(&handler_mutex);
 }
 
@@ -310,7 +346,16 @@ int cat66121_hdmi_sys_detect_hpd(void)
 {
 	char HPD= 0;
 	BYTE sysstat;
-	sysstat = HDMITX_ReadI2C_Byte(REG_TX_SYS_STATUS);
+
+
+#ifdef SUPPORT_HDCP
+	if((cat66121_hdmi->plug_status != 0) && (cat66121_hdmi->plug_status != 1))
+		cat66121_hdmi->plug_status = HDMITX_ReadI2C_Byte(REG_TX_SYS_STATUS);
+	
+        sysstat = cat66121_hdmi->plug_status;
+#else
+        sysstat = HDMITX_ReadI2C_Byte(REG_TX_SYS_STATUS);
+#endif
 
 	HPD = ((sysstat & B_TX_HPDETECT) == B_TX_HPDETECT)?TRUE:FALSE;
 	if(HPD)
@@ -410,6 +455,10 @@ int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
 		hdmi_err(hdmi->dev, "[%s] input parameter error\n", __FUNCTION__);
 		return -1;
 	}
+
+#ifdef SUPPORT_HDCP
+	HDMITX_EnableHDCP(FALSE);
+#endif
 
 	// output Color mode
 	switch(vpara->output_color)
@@ -624,7 +673,7 @@ void cat66121_hdmi_sys_enalbe_output(int enable)
 	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
 	
 	if(enable){
-#ifdef SUPPORT_HDCP
+#if 0//def SUPPORT_HDCP
 		cancel_delayed_work_sync(&hdcp_delay_work);
 		schedule_delayed_work(&hdcp_delay_work, msecs_to_jiffies(100));
 #endif
@@ -648,7 +697,7 @@ int cat66121_hdmi_sys_insert(void)
 int cat66121_hdmi_sys_remove(void)
 {
 	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
-#ifdef SUPPORT_HDCP
+#if 0//def SUPPORT_HDCP
 	cancel_delayed_work_sync(&hdcp_delay_work);
 	HDMITX_EnableHDCP(FALSE);
 #endif
