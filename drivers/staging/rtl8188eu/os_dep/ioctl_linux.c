@@ -1074,7 +1074,7 @@ static int rtw_wx_get_range(struct net_device *dev,
 
 /*  The following code will proivde the security capability to network manager. */
 /*  If the driver doesn't provide this capability to network manager, */
-/*  the WPA/WPA2 routers can't be choosen in the network manager. */
+/*  the WPA/WPA2 routers can't be chosen in the network manager. */
 
 /*
 #define IW_SCAN_CAPA_NONE		0x00
@@ -1373,7 +1373,7 @@ _func_enter_;
 				}
 			}
 
-			/* it has still some scan paramater to parse, we only do this now... */
+			/* it has still some scan parameter to parse, we only do this now... */
 			_status = rtw_set_802_11_bssid_list_scan(padapter, ssid, RTW_SSID_SCAN_AMOUNT);
 		} else {
 			_status = rtw_set_802_11_bssid_list_scan(padapter, NULL, 0);
@@ -2961,7 +2961,7 @@ static int rtw_p2p_get_status(struct net_device *dev,
 
 /*	Commented by Albert 20110520 */
 /*	This function will return the config method description */
-/*	This config method description will show us which config method the remote P2P device is intented to use */
+/*	This config method description will show us which config method the remote P2P device is intended to use */
 /*	by sending the provisioning discovery request frame. */
 
 static int rtw_p2p_get_req_cm(struct net_device *dev,
@@ -3413,7 +3413,7 @@ static int rtw_p2p_get_invitation_procedure(struct net_device *dev,
 	/*  +8 is for the str "InvProc =", we have to clear it at wrqu->data.pointer */
 
 	/*	Commented by Ouden 20121226 */
-	/*	The application wants to know P2P initation procedure is support or not. */
+	/*	The application wants to know P2P initiation procedure is supported or not. */
 	/*	Format: iwpriv wlanx p2p_get2 InvProc = 00:E0:4C:00:00:05 */
 
 	DBG_88E("[%s] data = %s\n", __func__, (char *)extra);
@@ -6145,7 +6145,7 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 
 		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
 			setdata[jj] = key_2char2num(tmp[2][kk], tmp[2][kk + 1]);
-		/* Change to check TYPE_EFUSE_MAP_LEN, beacuse 8188E raw 256, logic map over 256. */
+		/* Change to check TYPE_EFUSE_MAP_LEN, because 8188E raw 256, logic map over 256. */
 		EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&max_available_size, false);
 		if ((addr+cnts) > max_available_size) {
 			DBG_88E("%s: addr(0x%X)+cnts(%d) parameter error!\n", __func__, addr, cnts);
@@ -6220,7 +6220,7 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 
 		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
 			setdata[jj] = key_2char2num(tmp[1][kk], tmp[1][kk + 1]);
-		/* Change to check TYPE_EFUSE_MAP_LEN, beacuse 8188E raw 256, logic map over 256. */
+		/* Change to check TYPE_EFUSE_MAP_LEN, because 8188E raw 256, logic map over 256. */
 		EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&max_available_size, false);
 		if ((addr+cnts) > max_available_size) {
 			DBG_88E("%s: addr(0x%X)+cnts(%d) parameter error!\n", __func__, addr, cnts);
