@@ -63,10 +63,6 @@ struct host1x_client_ops {
 		      struct drm_file *file);
 };
 
-struct host1x_drm_file {
-	struct list_head contexts;
-};
-
 struct host1x_client {
 	struct tegra_drm *tegra;
 	struct device *dev;
