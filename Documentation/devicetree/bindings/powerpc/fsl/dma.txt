@@ -128,6 +128,76 @@ Example:
 		};
 	};
 
+** Freescale Elo3 DMA Controller
+   DMA controller which has same function as EloPlus except that Elo3 has 8
+   channels while EloPlus has only 4, it is used in Freescale Txxx and Bxxx
+   series chips, such as t1040, t4240, b4860.
+
+Required properties:
+
+- compatible        : must include "fsl,elo3-dma"
+- reg               : contains two entries for DMA General Status Registers,
+                      i.e. DGSR0 which includes status for channel 1~4, and
+                      DGSR1 for channel 5~8
+- ranges            : describes the mapping between the address space of the
+                      DMA channels and the address space of the DMA controller
+
+- DMA channel nodes:
+        - compatible        : must include "fsl,eloplus-dma-channel"
+        - reg               : DMA channel specific registers
+        - interrupts        : interrupt specifier for DMA channel IRQ
+        - interrupt-parent  : optional, if needed for interrupt mapping
+
+Example:
+dma@100300 {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "fsl,elo3-dma";
+	reg = <0x100300 0x4>,
+	      <0x100600 0x4>;
+	ranges = <0x0 0x100100 0x500>;
+	dma-channel@0 {
+		compatible = "fsl,eloplus-dma-channel";
+		reg = <0x0 0x80>;
+		interrupts = <28 2 0 0>;
+	};
+	dma-channel@80 {
+		compatible = "fsl,eloplus-dma-channel";
+		reg = <0x80 0x80>;
+		interrupts = <29 2 0 0>;
+	};
+	dma-channel@100 {
+		compatible = "fsl,eloplus-dma-channel";
+		reg = <0x100 0x80>;
+		interrupts = <30 2 0 0>;
+	};
+	dma-channel@180 {
+		compatible = "fsl,eloplus-dma-channel";
+		reg = <0x180 0x80>;
+		interrupts = <31 2 0 0>;
+	};
+	dma-channel@300 {
+		compatible = "fsl,eloplus-dma-channel";
+		reg = <0x300 0x80>;
+		interrupts = <76 2 0 0>;
+	};
+	dma-channel@380 {
+		compatible = "fsl,eloplus-dma-channel";
+		reg = <0x380 0x80>;
+		interrupts = <77 2 0 0>;
+	};
+	dma-channel@400 {
+		compatible = "fsl,eloplus-dma-channel";
+		reg = <0x400 0x80>;
+		interrupts = <78 2 0 0>;
+	};
+	dma-channel@480 {
+		compatible = "fsl,eloplus-dma-channel";
+		reg = <0x480 0x80>;
+		interrupts = <79 2 0 0>;
+	};
+};
+
 Note on DMA channel compatible properties: The compatible property must say
 "fsl,elo-dma-channel" or "fsl,eloplus-dma-channel" to be used by the Elo DMA
 driver (fsldma).  Any DMA channel used by fsldma cannot be used by another
