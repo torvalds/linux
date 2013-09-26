@@ -71,6 +71,7 @@ MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("Adjunct Processor Bus driver, " \
 		   "Copyright IBM Corp. 2006, 2012");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("z90crypt");
 
 /*
  * Module parameter
@@ -412,7 +413,7 @@ __ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length,
 	register unsigned long reg2 asm ("2") = (unsigned long) msg;
 	register unsigned long reg3 asm ("3") = (unsigned long) length;
 	register unsigned long reg4 asm ("4") = (unsigned int) (psmid >> 32);
-	register unsigned long reg5 asm ("5") = (unsigned int) psmid;
+	register unsigned long reg5 asm ("5") = psmid & 0xffffffff;
 
 	if (special == 1)
 		reg0 |= 0x400000UL;

@@ -11,7 +11,6 @@ config OPENRISC
 	select HAVE_MEMBLOCK
 	select ARCH_REQUIRE_GPIOLIB
         select HAVE_ARCH_TRACEHOOK
-	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -55,6 +54,7 @@ config GENERIC_CSUM
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 

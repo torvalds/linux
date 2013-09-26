@@ -246,10 +246,9 @@ EXPORT_SYMBOL(libcfs_kkuc_group_add);
 int libcfs_kkuc_group_rem(int uid, int group)
 {
 	struct kkuc_reg *reg, *next;
-	ENTRY;
 
 	if (kkuc_groups[group].next == NULL)
-		RETURN(0);
+		return 0;
 
 	if (uid == 0) {
 		/* Broadcast a shutdown message */
@@ -275,7 +274,7 @@ int libcfs_kkuc_group_rem(int uid, int group)
 	}
 	up_write(&kg_sem);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_rem);
 
@@ -284,7 +283,6 @@ int libcfs_kkuc_group_put(int group, void *payload)
 	struct kkuc_reg	*reg;
 	int		 rc = 0;
 	int one_success = 0;
-	ENTRY;
 
 	down_read(&kg_sem);
 	list_for_each_entry(reg, &kkuc_groups[group], kr_chain) {
@@ -305,7 +303,7 @@ int libcfs_kkuc_group_put(int group, void *payload)
 	if (one_success)
 		rc = 0;
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_put);
 
@@ -320,16 +318,15 @@ int libcfs_kkuc_group_foreach(int group, libcfs_kkuc_cb_t cb_func,
 {
 	struct kkuc_reg *reg;
 	int rc = 0;
-	ENTRY;
 
 	if (group > KUC_GRP_MAX) {
 		CDEBUG(D_WARNING, "Kernelcomm: bad group %d\n", group);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* no link for this group */
 	if (kkuc_groups[group].next == NULL)
-		RETURN(0);
+		return 0;
 
 	down_read(&kg_sem);
 	list_for_each_entry(reg, &kkuc_groups[group], kr_chain) {
@@ -339,7 +336,7 @@ int libcfs_kkuc_group_foreach(int group, libcfs_kkuc_cb_t cb_func,
 	}
 	up_read(&kg_sem);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_foreach);
 

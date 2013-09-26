@@ -185,6 +185,10 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		  ifevent->action, ifevent->ifidx, ifevent->bssidx,
 		  ifevent->flags, ifevent->role);
 
+	if (ifevent->flags & BRCMF_E_IF_FLAG_NOIF) {
+		brcmf_dbg(EVENT, "event can be ignored\n");
+		return;
+	}
 	if (ifevent->ifidx >= BRCMF_MAX_IFS) {
 		brcmf_err("invalid interface index: %u\n",
 			  ifevent->ifidx);

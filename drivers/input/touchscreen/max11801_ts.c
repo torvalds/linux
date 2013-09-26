@@ -181,12 +181,11 @@ static int max11801_ts_probe(struct i2c_client *client,
 	struct input_dev *input_dev;
 	int error;
 
-	data = kzalloc(sizeof(struct max11801_data), GFP_KERNEL);
-	input_dev = input_allocate_device();
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	input_dev = devm_input_allocate_device(&client->dev);
 	if (!data || !input_dev) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
-		error = -ENOMEM;
-		goto err_free_mem;
+		return -ENOMEM;
 	}
 
 	data->client = client;
@@ -205,37 +204,20 @@ static int max11801_ts_probe(struct i2c_client *client,
 
 	max11801_ts_phy_init(data);
 
-	error = request_threaded_irq(client->irq, NULL, max11801_ts_interrupt,
-				     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				     "max11801_ts", data);
+	error = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+					  max11801_ts_interrupt,
+					  IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					  "max11801_ts", data);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
-		goto err_free_mem;
+		return error;
 	}
 
 	error = input_register_device(data->input_dev);
 	if (error)
-		goto err_free_irq;
+		return error;
 
 	i2c_set_clientdata(client, data);
-	return 0;
-
-err_free_irq:
-	free_irq(client->irq, data);
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(data);
-	return error;
-}
-
-static int max11801_ts_remove(struct i2c_client *client)
-{
-	struct max11801_data *data = i2c_get_clientdata(client);
-
-	free_irq(client->irq, data);
-	input_unregister_device(data->input_dev);
-	kfree(data);
-
 	return 0;
 }
 
@@ -252,7 +234,6 @@ static struct i2c_driver max11801_ts_driver = {
 	},
 	.id_table	= max11801_ts_id,
 	.probe		= max11801_ts_probe,
-	.remove		= max11801_ts_remove,
 };
 
 module_i2c_driver(max11801_ts_driver);

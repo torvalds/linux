@@ -2,7 +2,7 @@
 Ext4 Filesystem
 ===============
 
-Ext4 is an an advanced level of the ext3 filesystem which incorporates
+Ext4 is an advanced level of the ext3 filesystem which incorporates
 scalability and reliability enhancements for supporting large filesystems
 (64 bit) in keeping with increasing disk capacities and state-of-the-art
 feature requirements.
@@ -144,11 +144,12 @@ journal_async_commit	Commit block can be written to disk without waiting
 			mount the device. This will enable 'journal_checksum'
 			internally.
 
+journal_path=path
 journal_dev=devnum	When the external journal device's major/minor numbers
-			have changed, this option allows the user to specify
+			have changed, these options allow the user to specify
 			the new journal location.  The journal device is
-			identified through its new major/minor numbers encoded
-			in devnum.
+			identified through either its new major/minor numbers
+			encoded in devnum, or via a path to the device.
 
 norecovery		Don't load the journal on mounting.  Note that
 noload			if the filesystem was not unmounted cleanly,

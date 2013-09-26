@@ -164,6 +164,7 @@ int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari)
 		uuari->uars[i].map = ioremap(addr, PAGE_SIZE);
 		if (!uuari->uars[i].map) {
 			mlx5_cmd_free_uar(dev, uuari->uars[i].index);
+			err = -ENOMEM;
 			goto out_count;
 		}
 		mlx5_core_dbg(dev, "allocated uar index 0x%x, mmaped at %p\n",

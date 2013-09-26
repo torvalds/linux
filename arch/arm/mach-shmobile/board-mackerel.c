@@ -41,6 +41,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_data/gpio_backlight.h>
 #include <linux/pm_clock.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -49,7 +50,6 @@
 #include <linux/tca6416_keypad.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/dma-mapping.h>
-
 #include <video/sh_mobile_hdmi.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
@@ -346,7 +346,7 @@ static struct platform_device meram_device = {
 	},
 };
 
-/* LCDC */
+/* LCDC and backlight */
 static struct fb_videomode mackerel_lcdc_modes[] = {
 	{
 		.name		= "WVGA Panel",
@@ -361,13 +361,6 @@ static struct fb_videomode mackerel_lcdc_modes[] = {
 		.sync		= 0,
 	},
 };
-
-static int mackerel_set_brightness(int brightness)
-{
-	gpio_set_value(31, brightness);
-
-	return 0;
-}
 
 static const struct sh_mobile_meram_cfg lcd_meram_cfg = {
 	.icb[0] = {
@@ -393,11 +386,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.width		= 152,
 			.height		= 91,
 		},
-		.bl_info = {
-			.name = "sh_mobile_lcdc_bl",
-			.max_brightness = 1,
-			.set_brightness = mackerel_set_brightness,
-		},
 		.meram_cfg = &lcd_meram_cfg,
 	}
 };
@@ -422,6 +410,20 @@ static struct platform_device lcdc_device = {
 	.dev	= {
 		.platform_data	= &lcdc_info,
 		.coherent_dma_mask = ~0,
+	},
+};
+
+static struct gpio_backlight_platform_data gpio_backlight_data = {
+	.fbdev = &lcdc_device.dev,
+	.gpio = 31,
+	.def_value = 1,
+	.name = "backlight",
+};
+
+static struct platform_device gpio_backlight_device = {
+	.name = "gpio-backlight",
+	.dev = {
+		.platform_data = &gpio_backlight_data,
 	},
 };
 
@@ -1231,6 +1233,7 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
 	&lcdc_device,
+	&gpio_backlight_device,
 	&usbhs0_device,
 	&usbhs1_device,
 	&leds_device,
@@ -1440,9 +1443,6 @@ static void __init mackerel_init(void)
 	pinctrl_register_mappings(mackerel_pinctrl_map,
 				  ARRAY_SIZE(mackerel_pinctrl_map));
 	sh7372_pinmux_init();
-
-	/* backlight, off by default */
-	gpio_request_one(31, GPIOF_OUT_INIT_LOW, NULL);
 
 	gpio_request_one(151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 

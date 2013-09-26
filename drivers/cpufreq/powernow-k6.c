@@ -207,7 +207,6 @@ static struct cpufreq_driver powernow_k6_driver = {
 	.exit		= powernow_k6_cpu_exit,
 	.get		= powernow_k6_get,
 	.name		= "powernow-k6",
-	.owner		= THIS_MODULE,
 	.attr		= powernow_k6_attr,
 };
 

@@ -286,6 +286,7 @@ struct kvm_mmu {
 	u64 *pae_root;
 	u64 *lm_root;
 	u64 rsvd_bits_mask[2][4];
+	u64 bad_mt_xwr;
 
 	/*
 	 * Bitmap: bit set = last pte in walk
@@ -323,6 +324,7 @@ struct kvm_pmu {
 	u64 global_ovf_ctrl;
 	u64 counter_bitmask[2];
 	u64 global_ctrl_mask;
+	u64 reserved_bits;
 	u8 version;
 	struct kvm_pmc gp_counters[INTEL_PMC_MAX_GENERIC];
 	struct kvm_pmc fixed_counters[INTEL_PMC_MAX_FIXED];
@@ -511,6 +513,14 @@ struct kvm_vcpu_arch {
 	 * instruction.
 	 */
 	bool write_fault_to_shadow_pgtable;
+
+	/* set at EPT violation at this point */
+	unsigned long exit_qualification;
+
+	/* pv related host specific info */
+	struct {
+		bool pv_unhalted;
+	} pv;
 };
 
 struct kvm_lpage_info {
@@ -802,8 +812,8 @@ extern u32  kvm_min_guest_tsc_khz;
 extern u32  kvm_max_guest_tsc_khz;
 
 enum emulation_result {
-	EMULATE_DONE,       /* no further processing */
-	EMULATE_DO_MMIO,      /* kvm_run filled with mmio request */
+	EMULATE_DONE,         /* no further processing */
+	EMULATE_USER_EXIT,    /* kvm_run ready for userspace exit */
 	EMULATE_FAIL,         /* can't emulate this instruction */
 };
 

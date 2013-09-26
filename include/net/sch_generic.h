@@ -316,6 +316,7 @@ extern struct Qdisc noop_qdisc;
 extern struct Qdisc_ops noop_qdisc_ops;
 extern struct Qdisc_ops pfifo_fast_ops;
 extern struct Qdisc_ops mq_qdisc_ops;
+extern const struct Qdisc_ops *default_qdisc_ops;
 
 struct Qdisc_class_common {
 	u32			classid;
@@ -350,30 +351,32 @@ qdisc_class_find(const struct Qdisc_class_hash *hash, u32 id)
 	return NULL;
 }
 
-extern int qdisc_class_hash_init(struct Qdisc_class_hash *);
-extern void qdisc_class_hash_insert(struct Qdisc_class_hash *, struct Qdisc_class_common *);
-extern void qdisc_class_hash_remove(struct Qdisc_class_hash *, struct Qdisc_class_common *);
-extern void qdisc_class_hash_grow(struct Qdisc *, struct Qdisc_class_hash *);
-extern void qdisc_class_hash_destroy(struct Qdisc_class_hash *);
+int qdisc_class_hash_init(struct Qdisc_class_hash *);
+void qdisc_class_hash_insert(struct Qdisc_class_hash *,
+			     struct Qdisc_class_common *);
+void qdisc_class_hash_remove(struct Qdisc_class_hash *,
+			     struct Qdisc_class_common *);
+void qdisc_class_hash_grow(struct Qdisc *, struct Qdisc_class_hash *);
+void qdisc_class_hash_destroy(struct Qdisc_class_hash *);
 
-extern void dev_init_scheduler(struct net_device *dev);
-extern void dev_shutdown(struct net_device *dev);
-extern void dev_activate(struct net_device *dev);
-extern void dev_deactivate(struct net_device *dev);
-extern void dev_deactivate_many(struct list_head *head);
-extern struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
-				     struct Qdisc *qdisc);
-extern void qdisc_reset(struct Qdisc *qdisc);
-extern void qdisc_destroy(struct Qdisc *qdisc);
-extern void qdisc_tree_decrease_qlen(struct Qdisc *qdisc, unsigned int n);
-extern struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
-				 struct Qdisc_ops *ops);
-extern struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
-				       struct Qdisc_ops *ops, u32 parentid);
-extern void __qdisc_calculate_pkt_len(struct sk_buff *skb,
-				      const struct qdisc_size_table *stab);
-extern void tcf_destroy(struct tcf_proto *tp);
-extern void tcf_destroy_chain(struct tcf_proto **fl);
+void dev_init_scheduler(struct net_device *dev);
+void dev_shutdown(struct net_device *dev);
+void dev_activate(struct net_device *dev);
+void dev_deactivate(struct net_device *dev);
+void dev_deactivate_many(struct list_head *head);
+struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
+			      struct Qdisc *qdisc);
+void qdisc_reset(struct Qdisc *qdisc);
+void qdisc_destroy(struct Qdisc *qdisc);
+void qdisc_tree_decrease_qlen(struct Qdisc *qdisc, unsigned int n);
+struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
+			  const struct Qdisc_ops *ops);
+struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
+				const struct Qdisc_ops *ops, u32 parentid);
+void __qdisc_calculate_pkt_len(struct sk_buff *skb,
+			       const struct qdisc_size_table *stab);
+void tcf_destroy(struct tcf_proto *tp);
+void tcf_destroy_chain(struct tcf_proto **fl);
 
 /* Reset all TX qdiscs greater then index of a device.  */
 static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
@@ -683,16 +686,23 @@ struct psched_ratecfg {
 	u64	rate_bytes_ps; /* bytes per second */
 	u32	mult;
 	u16	overhead;
+	u8	linklayer;
 	u8	shift;
 };
 
 static inline u64 psched_l2t_ns(const struct psched_ratecfg *r,
 				unsigned int len)
 {
-	return ((u64)(len + r->overhead) * r->mult) >> r->shift;
+	len += r->overhead;
+
+	if (unlikely(r->linklayer == TC_LINKLAYER_ATM))
+		return ((u64)(DIV_ROUND_UP(len,48)*53) * r->mult) >> r->shift;
+
+	return ((u64)len * r->mult) >> r->shift;
 }
 
-extern void psched_ratecfg_precompute(struct psched_ratecfg *r, const struct tc_ratespec *conf);
+void psched_ratecfg_precompute(struct psched_ratecfg *r,
+			       const struct tc_ratespec *conf);
 
 static inline void psched_ratecfg_getrate(struct tc_ratespec *res,
 					  const struct psched_ratecfg *r)
@@ -700,6 +710,7 @@ static inline void psched_ratecfg_getrate(struct tc_ratespec *res,
 	memset(res, 0, sizeof(*res));
 	res->rate = r->rate_bytes_ps;
 	res->overhead = r->overhead;
+	res->linklayer = (r->linklayer & TC_LINKLAYER_MASK);
 }
 
 #endif

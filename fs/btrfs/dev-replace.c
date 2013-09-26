@@ -148,13 +148,13 @@ no_valid_dev_replace_entry_found:
 		    !btrfs_test_opt(dev_root, DEGRADED)) {
 			ret = -EIO;
 			pr_warn("btrfs: cannot mount because device replace operation is ongoing and\n" "srcdev (devid %llu) is missing, need to run 'btrfs dev scan'?\n",
-				(unsigned long long)src_devid);
+				src_devid);
 		}
 		if (!dev_replace->tgtdev &&
 		    !btrfs_test_opt(dev_root, DEGRADED)) {
 			ret = -EIO;
 			pr_warn("btrfs: cannot mount because device replace operation is ongoing and\n" "tgtdev (devid %llu) is missing, need to run btrfs dev scan?\n",
-				(unsigned long long)BTRFS_DEV_REPLACE_DEVID);
+				BTRFS_DEV_REPLACE_DEVID);
 		}
 		if (dev_replace->tgtdev) {
 			if (dev_replace->srcdev) {
@@ -747,7 +747,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 	WARN_ON(atomic_xchg(
 		&fs_info->mutually_exclusive_operation_running, 1));
 	task = kthread_run(btrfs_dev_replace_kthread, fs_info, "btrfs-devrepl");
-	return PTR_RET(task);
+	return PTR_ERR_OR_ZERO(task);
 }
 
 static int btrfs_dev_replace_kthread(void *data)

@@ -225,6 +225,7 @@ static void python_process_tracepoint(union perf_event *perf_event
 				 struct perf_sample *sample,
 				 struct perf_evsel *evsel,
 				 struct machine *machine __maybe_unused,
+				 struct thread *thread,
 				 struct addr_location *al)
 {
 	PyObject *handler, *retval, *context, *t, *obj, *dict = NULL;
@@ -238,7 +239,6 @@ static void python_process_tracepoint(union perf_event *perf_event
 	int cpu = sample->cpu;
 	void *data = sample->raw_data;
 	unsigned long long nsecs = sample->time;
-	struct thread *thread = al->thread;
 	char *comm = thread->comm;
 
 	t = PyTuple_New(MAX_FIELDS);
@@ -345,12 +345,12 @@ static void python_process_general_event(union perf_event *perf_event
 					 struct perf_sample *sample,
 					 struct perf_evsel *evsel,
 					 struct machine *machine __maybe_unused,
+					 struct thread *thread,
 					 struct addr_location *al)
 {
 	PyObject *handler, *retval, *t, *dict;
 	static char handler_name[64];
 	unsigned n = 0;
-	struct thread *thread = al->thread;
 
 	/*
 	 * Use the MAX_FIELDS to make the function expandable, though
@@ -404,17 +404,18 @@ static void python_process_event(union perf_event *perf_event,
 				 struct perf_sample *sample,
 				 struct perf_evsel *evsel,
 				 struct machine *machine,
+				 struct thread *thread,
 				 struct addr_location *al)
 {
 	switch (evsel->attr.type) {
 	case PERF_TYPE_TRACEPOINT:
 		python_process_tracepoint(perf_event, sample, evsel,
-					  machine, al);
+					  machine, thread, al);
 		break;
 	/* Reserve for future process_hw/sw/raw APIs */
 	default:
 		python_process_general_event(perf_event, sample, evsel,
-					     machine, al);
+					     machine, thread, al);
 	}
 }
 

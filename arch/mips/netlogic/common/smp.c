@@ -106,9 +106,7 @@ void nlm_early_init_secondary(int cpu)
 {
 	change_c0_config(CONF_CM_CMASK, 0x3);
 #ifdef CONFIG_CPU_XLP
-	/* mmu init, once per core */
-	if (cpu % NLM_THREADS_PER_CORE == 0)
-		xlp_mmu_init();
+	xlp_mmu_init();
 #endif
 	write_c0_ebase(nlm_current_node()->ebase);
 }
@@ -116,7 +114,7 @@ void nlm_early_init_secondary(int cpu)
 /*
  * Code to run on secondary just after probing the CPU
  */
-static void __cpuinit nlm_init_secondary(void)
+static void nlm_init_secondary(void)
 {
 	int hwtid;
 
@@ -252,7 +250,7 @@ unsupp:
 	return 0;
 }
 
-int __cpuinit nlm_wakeup_secondary_cpus(void)
+int nlm_wakeup_secondary_cpus(void)
 {
 	u32 *reset_data;
 	int threadmode;

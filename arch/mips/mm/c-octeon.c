@@ -180,7 +180,7 @@ static void octeon_flush_kernel_vmap_range(unsigned long vaddr, int size)
  * Probe Octeon's caches
  *
  */
-static void __cpuinit probe_octeon(void)
+static void probe_octeon(void)
 {
 	unsigned long icache_size;
 	unsigned long dcache_size;
@@ -224,6 +224,20 @@ static void __cpuinit probe_octeon(void)
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
 
+	case CPU_CAVIUM_OCTEON3:
+		c->icache.linesz = 128;
+		c->icache.sets = 16;
+		c->icache.ways = 39;
+		c->icache.flags |= MIPS_CACHE_VTAG;
+		icache_size = c->icache.sets * c->icache.ways * c->icache.linesz;
+
+		c->dcache.linesz = 128;
+		c->dcache.ways = 32;
+		c->dcache.sets = 8;
+		dcache_size = c->dcache.sets * c->dcache.ways * c->dcache.linesz;
+		c->options |= MIPS_CPU_PREFETCH;
+		break;
+
 	default:
 		panic("Unsupported Cavium Networks CPU type");
 		break;
@@ -251,7 +265,7 @@ static void __cpuinit probe_octeon(void)
 	}
 }
 
-static void  __cpuinit octeon_cache_error_setup(void)
+static void  octeon_cache_error_setup(void)
 {
 	extern char except_vec2_octeon;
 	set_handler(0x100, &except_vec2_octeon, 0x80);
@@ -261,7 +275,7 @@ static void  __cpuinit octeon_cache_error_setup(void)
  * Setup the Octeon cache flush routines
  *
  */
-void __cpuinit octeon_cache_init(void)
+void octeon_cache_init(void)
 {
 	probe_octeon();
 

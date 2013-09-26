@@ -335,9 +335,10 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
  */
 void libcfs_debug_dumplog_internal(void *arg)
 {
-	DECL_JOURNAL_DATA;
+	void *journal_info;
 
-	PUSH_JOURNAL;
+	journal_info = current->journal_info;
+	current->journal_info = NULL;
 
 	if (strncmp(libcfs_debug_file_path_arr, "NONE", 4) != 0) {
 		snprintf(debug_file_name, sizeof(debug_file_name) - 1,
@@ -348,7 +349,8 @@ void libcfs_debug_dumplog_internal(void *arg)
 		cfs_tracefile_dump_all_pages(debug_file_name);
 		libcfs_run_debug_log_upcall(debug_file_name);
 	}
-	POP_JOURNAL;
+
+	current->journal_info = journal_info;
 }
 
 int libcfs_debug_dumplog_thread(void *arg)
@@ -361,8 +363,7 @@ int libcfs_debug_dumplog_thread(void *arg)
 void libcfs_debug_dumplog(void)
 {
 	wait_queue_t wait;
-	task_t    *dumper;
-	ENTRY;
+	struct task_struct *dumper;
 
 	/* we're being careful to ensure that the kernel thread is
 	 * able to set our state to running as it exits before we
@@ -458,14 +459,6 @@ void libcfs_debug_set_level(unsigned int debug_level)
 }
 
 EXPORT_SYMBOL(libcfs_debug_set_level);
-
-long libcfs_log_return(struct libcfs_debug_msg_data *msgdata, long rc)
-{
-	libcfs_debug_msg(msgdata, "Process leaving (rc=%lu : %ld : %lx)\n",
-			 rc, rc, rc);
-	return rc;
-}
-EXPORT_SYMBOL(libcfs_log_return);
 
 void libcfs_log_goto(struct libcfs_debug_msg_data *msgdata, const char *label,
 		     long_ptr_t rc)

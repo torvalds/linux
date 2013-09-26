@@ -660,7 +660,7 @@ ab3100_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
 
 static int ab3100_regulators_probe(struct platform_device *pdev)
 {
-	struct ab3100_platform_data *plfdata = pdev->dev.platform_data;
+	struct ab3100_platform_data *plfdata = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	int err = 0;
 	u8 data;

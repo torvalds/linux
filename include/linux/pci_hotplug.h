@@ -28,19 +28,6 @@
 #ifndef _PCI_HOTPLUG_H
 #define _PCI_HOTPLUG_H
 
-/* These values come from the PCI Express Spec */
-enum pcie_link_width {
-	PCIE_LNK_WIDTH_RESRV	= 0x00,
-	PCIE_LNK_X1		= 0x01,
-	PCIE_LNK_X2		= 0x02,
-	PCIE_LNK_X4		= 0x04,
-	PCIE_LNK_X8		= 0x08,
-	PCIE_LNK_X12		= 0x0C,
-	PCIE_LNK_X16		= 0x10,
-	PCIE_LNK_X32		= 0x20,
-	PCIE_LNK_WIDTH_UNKNOWN  = 0xFF,
-};
-
 /**
  * struct hotplug_slot_ops -the callbacks that the hotplug pci core can use
  * @owner: The module owner of this structure
@@ -63,6 +50,9 @@ enum pcie_link_width {
  * @get_adapter_status: Called to get see if an adapter is present in the slot or not.
  *	If this field is NULL, the value passed in the struct hotplug_slot_info
  *	will be used when this value is requested by a user.
+ * @reset_slot: Optional interface to allow override of a bus reset for the
+ *	slot for cases where a secondary bus reset can result in spurious
+ *	hotplug events or where a slot can be reset independent of the bus.
  *
  * The table of function pointers that is passed to the hotplug pci core by a
  * hotplug pci driver.  These functions are called by the hotplug pci core when
@@ -80,6 +70,7 @@ struct hotplug_slot_ops {
 	int (*get_attention_status)	(struct hotplug_slot *slot, u8 *value);
 	int (*get_latch_status)		(struct hotplug_slot *slot, u8 *value);
 	int (*get_adapter_status)	(struct hotplug_slot *slot, u8 *value);
+	int (*reset_slot)		(struct hotplug_slot *slot, int probe);
 };
 
 /**

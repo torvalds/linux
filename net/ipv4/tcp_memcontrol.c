@@ -87,8 +87,8 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 	if (!cg_proto)
 		return -EINVAL;
 
-	if (val > RESOURCE_MAX)
-		val = RESOURCE_MAX;
+	if (val > RES_COUNTER_MAX)
+		val = RES_COUNTER_MAX;
 
 	tcp = tcp_from_cgproto(cg_proto);
 
@@ -101,9 +101,9 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 		tcp->tcp_prot_mem[i] = min_t(long, val >> PAGE_SHIFT,
 					     net->ipv4.sysctl_tcp_mem[i]);
 
-	if (val == RESOURCE_MAX)
+	if (val == RES_COUNTER_MAX)
 		clear_bit(MEMCG_SOCK_ACTIVE, &cg_proto->flags);
-	else if (val != RESOURCE_MAX) {
+	else if (val != RES_COUNTER_MAX) {
 		/*
 		 * The active bit needs to be written after the static_key
 		 * update. This is what guarantees that the socket activation
@@ -132,10 +132,10 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 	return 0;
 }
 
-static int tcp_cgroup_write(struct cgroup *cont, struct cftype *cft,
+static int tcp_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
 			    const char *buffer)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	unsigned long long val;
 	int ret = 0;
 
@@ -180,14 +180,14 @@ static u64 tcp_read_usage(struct mem_cgroup *memcg)
 	return res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
 }
 
-static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
+static u64 tcp_cgroup_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	u64 val;
 
 	switch (cft->private) {
 	case RES_LIMIT:
-		val = tcp_read_stat(memcg, RES_LIMIT, RESOURCE_MAX);
+		val = tcp_read_stat(memcg, RES_LIMIT, RES_COUNTER_MAX);
 		break;
 	case RES_USAGE:
 		val = tcp_read_usage(memcg);
@@ -202,13 +202,13 @@ static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
 	return val;
 }
 
-static int tcp_cgroup_reset(struct cgroup *cont, unsigned int event)
+static int tcp_cgroup_reset(struct cgroup_subsys_state *css, unsigned int event)
 {
 	struct mem_cgroup *memcg;
 	struct tcp_memcontrol *tcp;
 	struct cg_proto *cg_proto;
 
-	memcg = mem_cgroup_from_cont(cont);
+	memcg = mem_cgroup_from_css(css);
 	cg_proto = tcp_prot.proto_cgroup(memcg);
 	if (!cg_proto)
 		return 0;

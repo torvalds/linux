@@ -268,7 +268,7 @@ static int isl12022_probe(struct i2c_client *client,
 	isl12022->rtc = devm_rtc_device_register(&client->dev,
 					isl12022_driver.driver.name,
 					&isl12022_rtc_ops, THIS_MODULE);
-	return PTR_RET(isl12022->rtc);
+	return PTR_ERR_OR_ZERO(isl12022->rtc);
 }
 
 static const struct i2c_device_id isl12022_id[] = {

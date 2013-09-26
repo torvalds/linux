@@ -49,7 +49,7 @@
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
 
-int __cpuinit xlr_wakeup_secondary_cpus(void)
+int xlr_wakeup_secondary_cpus(void)
 {
 	struct nlm_soc_info *nodep;
 	unsigned int i, j, boot_cpu;

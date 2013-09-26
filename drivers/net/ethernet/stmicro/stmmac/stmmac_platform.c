@@ -71,14 +71,23 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		plat->force_sf_dma_mode = 1;
 	}
 
-	dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg), GFP_KERNEL);
-	if (!dma_cfg)
-		return -ENOMEM;
-
-	plat->dma_cfg = dma_cfg;
-	of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
-	dma_cfg->fixed_burst = of_property_read_bool(np, "snps,fixed-burst");
-	dma_cfg->mixed_burst = of_property_read_bool(np, "snps,mixed-burst");
+	if (of_find_property(np, "snps,pbl", NULL)) {
+		dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
+				       GFP_KERNEL);
+		if (!dma_cfg)
+			return -ENOMEM;
+		plat->dma_cfg = dma_cfg;
+		of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
+		dma_cfg->fixed_burst =
+			of_property_read_bool(np, "snps,fixed-burst");
+		dma_cfg->mixed_burst =
+			of_property_read_bool(np, "snps,mixed-burst");
+	}
+	plat->force_thresh_dma_mode = of_property_read_bool(np, "snps,force_thresh_dma_mode");
+	if (plat->force_thresh_dma_mode) {
+		plat->force_sf_dma_mode = 0;
+		pr_warn("force_sf_dma_mode is ignored if force_thresh_dma_mode is set.");
+	}
 
 	return 0;
 }
@@ -109,14 +118,11 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	const char *mac = NULL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
 
-	plat_dat = pdev->dev.platform_data;
+	plat_dat = dev_get_platdata(&pdev->dev);
 	if (pdev->dev.of_node) {
 		if (!plat_dat)
 			plat_dat = devm_kzalloc(&pdev->dev,

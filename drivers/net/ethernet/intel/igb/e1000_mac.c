@@ -1171,17 +1171,6 @@ s32 igb_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed,
 		hw_dbg("Half Duplex\n");
 	}
 
-	/* Check if it is an I354 2.5Gb backplane connection. */
-	if (hw->mac.type == e1000_i354) {
-		if ((status & E1000_STATUS_2P5_SKU) &&
-		    !(status & E1000_STATUS_2P5_SKU_OVER)) {
-			*speed = SPEED_2500;
-			*duplex = FULL_DUPLEX;
-			hw_dbg("2500 Mbs, ");
-			hw_dbg("Full Duplex\n");
-		}
-	}
-
 	return 0;
 }
 

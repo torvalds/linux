@@ -62,7 +62,6 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_local *local = sdata->local;
 	u32 basic_rates = 0;
 	struct cfg80211_chan_def sta_chan_def;
 
@@ -85,7 +84,7 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
 		return false;
 
-	ieee80211_sta_get_rates(local, ie, ieee80211_get_sdata_band(sdata),
+	ieee80211_sta_get_rates(sdata, ie, ieee80211_get_sdata_band(sdata),
 				&basic_rates);
 
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
@@ -274,7 +273,9 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	neighbors = min_t(int, neighbors, IEEE80211_MAX_MESH_PEERINGS);
 	*pos++ = neighbors << 1;
 	/* Mesh capability */
-	*pos = IEEE80211_MESHCONF_CAPAB_FORWARDING;
+	*pos = 0x00;
+	*pos |= ifmsh->mshcfg.dot11MeshForwarding ?
+			IEEE80211_MESHCONF_CAPAB_FORWARDING : 0x00;
 	*pos |= ifmsh->accepting_plinks ?
 			IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	/* Mesh PS mode. See IEEE802.11-2012 8.4.2.100.8 */
@@ -830,6 +831,9 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	ieee802_11_parse_elems(pos, len - baselen, false, &elems);
+
+	if (!elems.mesh_id)
+		return;
 
 	/* 802.11-2012 10.1.4.3.2 */
 	if ((!ether_addr_equal(mgmt->da, sdata->vif.addr) &&

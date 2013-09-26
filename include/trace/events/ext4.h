@@ -14,7 +14,6 @@ struct ext4_prealloc_space;
 struct ext4_inode_info;
 struct mpage_da_data;
 struct ext4_map_blocks;
-struct ext4_extent;
 struct extent_status;
 
 #define EXT4_I(inode) (container_of(inode, struct ext4_inode_info, vfs_inode))
@@ -64,10 +63,10 @@ struct extent_status;
 	{ EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER,	"LAST_CLUSTER" })
 
 #define show_extent_status(status) __print_flags(status, "",	\
-	{ (1 << 3),	"W" }, 					\
-	{ (1 << 2),	"U" },					\
-	{ (1 << 1),	"D" },					\
-	{ (1 << 0),	"H" })
+	{ EXTENT_STATUS_WRITTEN,	"W" },			\
+	{ EXTENT_STATUS_UNWRITTEN,	"U" },			\
+	{ EXTENT_STATUS_DELAYED,	"D" },			\
+	{ EXTENT_STATUS_HOLE,		"H" })
 
 
 TRACE_EVENT(ext4_free_inode,
@@ -2192,7 +2191,7 @@ TRACE_EVENT(ext4_ext_remove_space_done,
 		  (unsigned short) __entry->eh_entries)
 );
 
-TRACE_EVENT(ext4_es_insert_extent,
+DECLARE_EVENT_CLASS(ext4__es_extent,
 	TP_PROTO(struct inode *inode, struct extent_status *es),
 
 	TP_ARGS(inode, es),
@@ -2212,7 +2211,7 @@ TRACE_EVENT(ext4_es_insert_extent,
 		__entry->lblk	= es->es_lblk;
 		__entry->len	= es->es_len;
 		__entry->pblk	= ext4_es_pblock(es);
-		__entry->status	= ext4_es_status(es) >> 60;
+		__entry->status	= ext4_es_status(es);
 	),
 
 	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %s",
@@ -2220,6 +2219,18 @@ TRACE_EVENT(ext4_es_insert_extent,
 		  (unsigned long) __entry->ino,
 		  __entry->lblk, __entry->len,
 		  __entry->pblk, show_extent_status(__entry->status))
+);
+
+DEFINE_EVENT(ext4__es_extent, ext4_es_insert_extent,
+	TP_PROTO(struct inode *inode, struct extent_status *es),
+
+	TP_ARGS(inode, es)
+);
+
+DEFINE_EVENT(ext4__es_extent, ext4_es_cache_extent,
+	TP_PROTO(struct inode *inode, struct extent_status *es),
+
+	TP_ARGS(inode, es)
 );
 
 TRACE_EVENT(ext4_es_remove_extent,
@@ -2289,7 +2300,7 @@ TRACE_EVENT(ext4_es_find_delayed_extent_range_exit,
 		__entry->lblk	= es->es_lblk;
 		__entry->len	= es->es_len;
 		__entry->pblk	= ext4_es_pblock(es);
-		__entry->status	= ext4_es_status(es) >> 60;
+		__entry->status	= ext4_es_status(es);
 	),
 
 	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %s",
@@ -2343,7 +2354,7 @@ TRACE_EVENT(ext4_es_lookup_extent_exit,
 		__entry->lblk	= es->es_lblk;
 		__entry->len	= es->es_len;
 		__entry->pblk	= ext4_es_pblock(es);
-		__entry->status	= ext4_es_status(es) >> 60;
+		__entry->status	= ext4_es_status(es);
 		__entry->found	= found;
 	),
 

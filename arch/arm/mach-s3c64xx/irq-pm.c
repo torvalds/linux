@@ -22,7 +22,6 @@
 #include <mach/map.h>
 
 #include <plat/regs-serial.h>
-#include <plat/regs-timer.h>
 #include <mach/regs-gpio.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
@@ -43,7 +42,6 @@ static struct sleep_save irq_save[] = {
 	SAVE_ITEM(S3C64XX_EINT0FLTCON2),
 	SAVE_ITEM(S3C64XX_EINT0FLTCON3),
 	SAVE_ITEM(S3C64XX_EINT0MASK),
-	SAVE_ITEM(S3C64XX_TINT_CSTAT),
 };
 
 static struct irq_grp_save {

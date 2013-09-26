@@ -1146,11 +1146,18 @@ int ahci_host_activate(struct ata_host *host, int irq, unsigned int n_msis)
 		return rc;
 
 	for (i = 0; i < host->n_ports; i++) {
+		const char* desc;
 		struct ahci_port_priv *pp = host->ports[i]->private_data;
+
+		/* pp is NULL for dummy ports */
+		if (pp)
+			desc = pp->irq_desc;
+		else
+			desc = dev_driver_string(host->dev);
 
 		rc = devm_request_threaded_irq(host->dev,
 			irq + i, ahci_hw_interrupt, ahci_thread_fn, IRQF_SHARED,
-			pp->irq_desc, host->ports[i]);
+			desc, host->ports[i]);
 		if (rc)
 			goto out_free_irqs;
 	}
@@ -1288,6 +1295,14 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 */
 		if (!(hpriv->flags & AHCI_HFLAG_NO_FPDMA_AA))
 			pi.flags |= ATA_FLAG_FPDMA_AA;
+
+		/*
+		 * All AHCI controllers should be forward-compatible
+		 * with the new auxiliary field. This code should be
+		 * conditionalized if any buggy AHCI controllers are
+		 * encountered.
+		 */
+		pi.flags |= ATA_FLAG_FPDMA_AUX;
 	}
 
 	if (hpriv->cap & HOST_CAP_PMP)

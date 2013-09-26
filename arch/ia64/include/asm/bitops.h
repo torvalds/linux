@@ -425,13 +425,7 @@ __fls (unsigned long x)
 
 #include <asm-generic/bitops/fls64.h>
 
-/*
- * ffs: find first bit set. This is defined the same way as the libc and
- * compiler builtin ffs routines, therefore differs in spirit from the above
- * ffz (man ffs): it operates on "int" values only and the result value is the
- * bit number + 1.  ffs(0) is defined to return zero.
- */
-#define ffs(x)	__builtin_ffs(x)
+#include <asm-generic/bitops/builtin-ffs.h>
 
 /*
  * hweightN: returns the hamming weight (i.e. the number

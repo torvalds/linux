@@ -175,7 +175,7 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 	entry = syscall_nr_to_meta(syscall);
 
 	if (!entry) {
-		trace_seq_printf(s, "\n");
+		trace_seq_putc(s, '\n');
 		return TRACE_TYPE_HANDLED;
 	}
 
@@ -200,8 +200,8 @@ extern char *__bad_type_size(void);
 		#type, #name, offsetof(typeof(trace), name),		\
 		sizeof(trace.name), is_signed_type(type)
 
-static
-int  __set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
+static int __init
+__set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
 {
 	int i;
 	int pos = 0;
@@ -228,7 +228,7 @@ int  __set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
 	return pos;
 }
 
-static int set_syscall_print_fmt(struct ftrace_event_call *call)
+static int __init set_syscall_print_fmt(struct ftrace_event_call *call)
 {
 	char *print_fmt;
 	int len;
@@ -253,7 +253,7 @@ static int set_syscall_print_fmt(struct ftrace_event_call *call)
 	return 0;
 }
 
-static void free_syscall_print_fmt(struct ftrace_event_call *call)
+static void __init free_syscall_print_fmt(struct ftrace_event_call *call)
 {
 	struct syscall_metadata *entry = call->data;
 
@@ -459,7 +459,7 @@ static void unreg_event_syscall_exit(struct ftrace_event_file *file,
 	mutex_unlock(&syscall_trace_lock);
 }
 
-static int init_syscall_trace(struct ftrace_event_call *call)
+static int __init init_syscall_trace(struct ftrace_event_call *call)
 {
 	int id;
 	int num;
@@ -566,14 +566,14 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 	if (!sys_data)
 		return;
 
+	head = this_cpu_ptr(sys_data->enter_event->perf_events);
+	if (hlist_empty(head))
+		return;
+
 	/* get the size after alignment with the u32 buffer size field */
 	size = sizeof(unsigned long) * sys_data->nb_args + sizeof(*rec);
 	size = ALIGN(size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
-
-	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE,
-		      "perf buffer not large enough"))
-		return;
 
 	rec = (struct syscall_trace_enter *)perf_trace_buf_prepare(size,
 				sys_data->enter_event->event.type, regs, &rctx);
@@ -583,8 +583,6 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 	rec->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args,
 			       (unsigned long *)&rec->args);
-
-	head = this_cpu_ptr(sys_data->enter_event->perf_events);
 	perf_trace_buf_submit(rec, size, rctx, 0, 1, regs, head, NULL);
 }
 
@@ -642,17 +640,13 @@ static void perf_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 	if (!sys_data)
 		return;
 
+	head = this_cpu_ptr(sys_data->exit_event->perf_events);
+	if (hlist_empty(head))
+		return;
+
 	/* We can probably do that at build time */
 	size = ALIGN(sizeof(*rec) + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
-
-	/*
-	 * Impossible, but be paranoid with the future
-	 * How to put this check outside runtime?
-	 */
-	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE,
-		"exit event has grown above perf buffer size"))
-		return;
 
 	rec = (struct syscall_trace_exit *)perf_trace_buf_prepare(size,
 				sys_data->exit_event->event.type, regs, &rctx);
@@ -661,8 +655,6 @@ static void perf_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 
 	rec->nr = syscall_nr;
 	rec->ret = syscall_get_return_value(current, regs);
-
-	head = this_cpu_ptr(sys_data->exit_event->perf_events);
 	perf_trace_buf_submit(rec, size, rctx, 0, 1, regs, head, NULL);
 }
 

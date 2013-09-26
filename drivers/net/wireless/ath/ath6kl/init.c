@@ -1836,6 +1836,9 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 
 	clear_bit(WMI_READY, &ar->flag);
 
+	if (ar->fw_recovery.enable)
+		del_timer_sync(&ar->fw_recovery.hb_timer);
+
 	/*
 	 * After wmi_shudown all WMI events will be dropped. We
 	 * need to cleanup the buffers allocated in AP mode and

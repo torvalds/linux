@@ -16,6 +16,7 @@
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
+#include "exynos_drm_plane.h"
 
 #define to_exynos_plane(x)	container_of(x, struct exynos_plane, base)
 
@@ -264,10 +265,8 @@ struct drm_plane *exynos_plane_init(struct drm_device *dev,
 	int err;
 
 	exynos_plane = kzalloc(sizeof(struct exynos_plane), GFP_KERNEL);
-	if (!exynos_plane) {
-		DRM_ERROR("failed to allocate plane\n");
+	if (!exynos_plane)
 		return NULL;
-	}
 
 	err = drm_plane_init(dev, &exynos_plane->base, possible_crtcs,
 			      &exynos_plane_funcs, formats, ARRAY_SIZE(formats),

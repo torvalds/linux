@@ -443,7 +443,7 @@ void tcp_init_metrics(struct sock *sk)
 	struct dst_entry *dst = __sk_dst_get(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_metrics_block *tm;
-	u32 val;
+	u32 val, crtt = 0; /* cached RTT scaled by 8 */
 
 	if (dst == NULL)
 		goto reset;
@@ -478,15 +478,19 @@ void tcp_init_metrics(struct sock *sk)
 		tp->reordering = val;
 	}
 
-	val = tcp_metric_get(tm, TCP_METRIC_RTT);
-	if (val == 0 || tp->srtt == 0) {
-		rcu_read_unlock();
-		goto reset;
-	}
-	/* Initial rtt is determined from SYN,SYN-ACK.
-	 * The segment is small and rtt may appear much
-	 * less than real one. Use per-dst memory
-	 * to make it more realistic.
+	crtt = tcp_metric_get_jiffies(tm, TCP_METRIC_RTT);
+	rcu_read_unlock();
+reset:
+	/* The initial RTT measurement from the SYN/SYN-ACK is not ideal
+	 * to seed the RTO for later data packets because SYN packets are
+	 * small. Use the per-dst cached values to seed the RTO but keep
+	 * the RTT estimator variables intact (e.g., srtt, mdev, rttvar).
+	 * Later the RTO will be updated immediately upon obtaining the first
+	 * data RTT sample (tcp_rtt_estimator()). Hence the cached RTT only
+	 * influences the first RTO but not later RTT estimation.
+	 *
+	 * But if RTT is not available from the SYN (due to retransmits or
+	 * syn cookies) or the cache, force a conservative 3secs timeout.
 	 *
 	 * A bit of theory. RTT is time passed after "normal" sized packet
 	 * is sent until it is ACKed. In normal circumstances sending small
@@ -497,21 +501,9 @@ void tcp_init_metrics(struct sock *sk)
 	 * to low value, and then abruptly stops to do it and starts to delay
 	 * ACKs, wait for troubles.
 	 */
-	val = msecs_to_jiffies(val);
-	if (val > tp->srtt) {
-		tp->srtt = val;
-		tp->rtt_seq = tp->snd_nxt;
-	}
-	val = tcp_metric_get_jiffies(tm, TCP_METRIC_RTTVAR);
-	if (val > tp->mdev) {
-		tp->mdev = val;
-		tp->mdev_max = tp->rttvar = max(tp->mdev, tcp_rto_min(sk));
-	}
-	rcu_read_unlock();
-
-	tcp_set_rto(sk);
-reset:
-	if (tp->srtt == 0) {
+	if (crtt > tp->srtt) {
+		inet_csk(sk)->icsk_rto = crtt + max(crtt >> 2, tcp_rto_min(sk));
+	} else if (tp->srtt == 0) {
 		/* RFC6298: 5.7 We've failed to get a valid RTT sample from
 		 * 3WHS. This is most likely due to retransmission,
 		 * including spurious one. Reset the RTO back to 3secs

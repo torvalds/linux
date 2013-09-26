@@ -7,6 +7,23 @@ struct dsa_platform_data;
 struct mv643xx_eth_platform_data;
 struct mv_sata_platform_data;
 
+#define ORION_MBUS_PCIE_MEM_TARGET    0x04
+#define ORION_MBUS_PCIE_MEM_ATTR      0x59
+#define ORION_MBUS_PCIE_IO_TARGET     0x04
+#define ORION_MBUS_PCIE_IO_ATTR       0x51
+#define ORION_MBUS_PCIE_WA_TARGET     0x04
+#define ORION_MBUS_PCIE_WA_ATTR       0x79
+#define ORION_MBUS_PCI_MEM_TARGET     0x03
+#define ORION_MBUS_PCI_MEM_ATTR       0x59
+#define ORION_MBUS_PCI_IO_TARGET      0x03
+#define ORION_MBUS_PCI_IO_ATTR        0x51
+#define ORION_MBUS_DEVBUS_BOOT_TARGET 0x01
+#define ORION_MBUS_DEVBUS_BOOT_ATTR   0x0f
+#define ORION_MBUS_DEVBUS_TARGET(cs)  0x01
+#define ORION_MBUS_DEVBUS_ATTR(cs)    (~(1 << cs))
+#define ORION_MBUS_SRAM_TARGET        0x00
+#define ORION_MBUS_SRAM_ATTR          0x00
+
 /*
  * Basic Orion init functions used early by machine-setup.
  */

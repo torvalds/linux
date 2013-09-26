@@ -730,8 +730,19 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
 	 * of how soft-dirty works.
 	 */
 	pte_t ptent = *pte;
-	ptent = pte_wrprotect(ptent);
-	ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
+
+	if (pte_present(ptent)) {
+		ptent = pte_wrprotect(ptent);
+		ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
+	} else if (is_swap_pte(ptent)) {
+		ptent = pte_swp_clear_soft_dirty(ptent);
+	} else if (pte_file(ptent)) {
+		ptent = pte_file_clear_soft_dirty(ptent);
+	}
+
+	if (vma->vm_flags & VM_SOFTDIRTY)
+		vma->vm_flags &= ~VM_SOFTDIRTY;
+
 	set_pte_at(vma->vm_mm, addr, pte, ptent);
 #endif
 }
@@ -752,13 +763,14 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
 		ptent = *pte;
-		if (!pte_present(ptent))
-			continue;
 
 		if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
 			clear_soft_dirty(vma, addr, pte);
 			continue;
 		}
+
+		if (!pte_present(ptent))
+			continue;
 
 		page = vm_normal_page(vma, addr, ptent);
 		if (!page)
@@ -859,7 +871,7 @@ typedef struct {
 } pagemap_entry_t;
 
 struct pagemapread {
-	int pos, len;
+	int pos, len;		/* units: PM_ENTRY_BYTES, not bytes */
 	pagemap_entry_t *buffer;
 	bool v2;
 };
@@ -867,7 +879,7 @@ struct pagemapread {
 #define PAGEMAP_WALK_SIZE	(PMD_SIZE)
 #define PAGEMAP_WALK_MASK	(PMD_MASK)
 
-#define PM_ENTRY_BYTES      sizeof(u64)
+#define PM_ENTRY_BYTES      sizeof(pagemap_entry_t)
 #define PM_STATUS_BITS      3
 #define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
 #define PM_STATUS_MASK      (((1LL << PM_STATUS_BITS) - 1) << PM_STATUS_OFFSET)
@@ -930,21 +942,25 @@ static void pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
 		flags = PM_PRESENT;
 		page = vm_normal_page(vma, addr, pte);
 	} else if (is_swap_pte(pte)) {
-		swp_entry_t entry = pte_to_swp_entry(pte);
-
+		swp_entry_t entry;
+		if (pte_swp_soft_dirty(pte))
+			flags2 |= __PM_SOFT_DIRTY;
+		entry = pte_to_swp_entry(pte);
 		frame = swp_type(entry) |
 			(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
 		flags = PM_SWAP;
 		if (is_migration_entry(entry))
 			page = migration_entry_to_page(entry);
 	} else {
-		*pme = make_pme(PM_NOT_PRESENT(pm->v2));
+		if (vma->vm_flags & VM_SOFTDIRTY)
+			flags2 |= __PM_SOFT_DIRTY;
+		*pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, flags2));
 		return;
 	}
 
 	if (page && !PageAnon(page))
 		flags |= PM_FILE;
-	if (pte_soft_dirty(pte))
+	if ((vma->vm_flags & VM_SOFTDIRTY) || pte_soft_dirty(pte))
 		flags2 |= __PM_SOFT_DIRTY;
 
 	*pme = make_pme(PM_PFRAME(frame) | PM_STATUS2(pm->v2, flags2) | flags);
@@ -963,7 +979,7 @@ static void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *p
 		*pme = make_pme(PM_PFRAME(pmd_pfn(pmd) + offset)
 				| PM_STATUS2(pm->v2, pmd_flags2) | PM_PRESENT);
 	else
-		*pme = make_pme(PM_NOT_PRESENT(pm->v2));
+		*pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, pmd_flags2));
 }
 #else
 static inline void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
@@ -986,7 +1002,11 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	if (vma && pmd_trans_huge_lock(pmd, vma) == 1) {
 		int pmd_flags2;
 
-		pmd_flags2 = (pmd_soft_dirty(*pmd) ? __PM_SOFT_DIRTY : 0);
+		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
+			pmd_flags2 = __PM_SOFT_DIRTY;
+		else
+			pmd_flags2 = 0;
+
 		for (; addr != end; addr += PAGE_SIZE) {
 			unsigned long offset;
 
@@ -1004,12 +1024,17 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	if (pmd_trans_unstable(pmd))
 		return 0;
 	for (; addr != end; addr += PAGE_SIZE) {
+		int flags2;
 
 		/* check to see if we've left 'vma' behind
 		 * and need a new, higher one */
 		if (vma && (addr >= vma->vm_end)) {
 			vma = find_vma(walk->mm, addr);
-			pme = make_pme(PM_NOT_PRESENT(pm->v2));
+			if (vma && (vma->vm_flags & VM_SOFTDIRTY))
+				flags2 = __PM_SOFT_DIRTY;
+			else
+				flags2 = 0;
+			pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, flags2));
 		}
 
 		/* check that 'vma' actually covers this address,
@@ -1033,13 +1058,15 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 
 #ifdef CONFIG_HUGETLB_PAGE
 static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
-					pte_t pte, int offset)
+					pte_t pte, int offset, int flags2)
 {
 	if (pte_present(pte))
-		*pme = make_pme(PM_PFRAME(pte_pfn(pte) + offset)
-				| PM_STATUS2(pm->v2, 0) | PM_PRESENT);
+		*pme = make_pme(PM_PFRAME(pte_pfn(pte) + offset)	|
+				PM_STATUS2(pm->v2, flags2)		|
+				PM_PRESENT);
 	else
-		*pme = make_pme(PM_NOT_PRESENT(pm->v2));
+		*pme = make_pme(PM_NOT_PRESENT(pm->v2)			|
+				PM_STATUS2(pm->v2, flags2));
 }
 
 /* This function walks within one hugetlb entry in the single call */
@@ -1048,12 +1075,22 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
 				 struct mm_walk *walk)
 {
 	struct pagemapread *pm = walk->private;
+	struct vm_area_struct *vma;
 	int err = 0;
+	int flags2;
 	pagemap_entry_t pme;
+
+	vma = find_vma(walk->mm, addr);
+	WARN_ON_ONCE(!vma);
+
+	if (vma && (vma->vm_flags & VM_SOFTDIRTY))
+		flags2 = __PM_SOFT_DIRTY;
+	else
+		flags2 = 0;
 
 	for (; addr != end; addr += PAGE_SIZE) {
 		int offset = (addr & ~hmask) >> PAGE_SHIFT;
-		huge_pte_to_pagemap_entry(&pme, pm, *pte, offset);
+		huge_pte_to_pagemap_entry(&pme, pm, *pte, offset, flags2);
 		err = add_to_pagemap(addr, &pme, pm);
 		if (err)
 			return err;
@@ -1116,8 +1153,8 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		goto out_task;
 
 	pm.v2 = soft_dirty_cleared;
-	pm.len = PM_ENTRY_BYTES * (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-	pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
+	pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
+	pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
 	ret = -ENOMEM;
 	if (!pm.buffer)
 		goto out_task;
@@ -1365,8 +1402,10 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	walk.mm = mm;
 
 	pol = get_vma_policy(task, vma, vma->vm_start);
-	mpol_to_str(buffer, sizeof(buffer), pol);
+	n = mpol_to_str(buffer, sizeof(buffer), pol);
 	mpol_cond_put(pol);
+	if (n < 0)
+		return n;
 
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
 

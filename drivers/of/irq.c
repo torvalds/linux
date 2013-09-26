@@ -28,7 +28,7 @@
 
 /**
  * irq_of_parse_and_map - Parse and map an interrupt into linux virq space
- * @device: Device node of the device whose interrupt is to be mapped
+ * @dev: Device node of the device whose interrupt is to be mapped
  * @index: Index of the interrupt to map
  *
  * This function is a wrapper that chains of_irq_map_one() and
@@ -345,6 +345,7 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 	if (r && irq) {
 		const char *name = NULL;
 
+		memset(r, 0, sizeof(*r));
 		/*
 		 * Get optional "interrupts-names" property to add a name
 		 * to the resource.
@@ -482,8 +483,9 @@ void __init of_irq_init(const struct of_device_id *matches)
 		}
 
 		/* Get the next pending parent that might have children */
-		desc = list_first_entry(&intc_parent_list, typeof(*desc), list);
-		if (list_empty(&intc_parent_list) || !desc) {
+		desc = list_first_entry_or_null(&intc_parent_list,
+						typeof(*desc), list);
+		if (!desc) {
 			pr_err("of_irq_init: children remain, but no parents\n");
 			break;
 		}

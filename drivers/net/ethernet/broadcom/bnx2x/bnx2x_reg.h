@@ -6335,6 +6335,7 @@
 #define PCI_ID_VAL2					0x438
 #define PCI_ID_VAL3					0x43c
 
+#define GRC_CONFIG_REG_VF_MSIX_CONTROL		    0x61C
 #define GRC_CONFIG_REG_PF_INIT_VF		0x624
 #define GRC_CR_PF_INIT_VF_PF_FIRST_VF_NUM_MASK	0xf
 /* First VF_NUM for PF is encoded in this register.

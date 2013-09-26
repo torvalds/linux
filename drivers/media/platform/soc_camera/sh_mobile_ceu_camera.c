@@ -610,13 +610,12 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 static int sh_mobile_ceu_clock_start(struct soc_camera_host *ici)
 {
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	int ret;
 
 	pm_runtime_get_sync(ici->v4l2_dev.dev);
 
 	pcdev->buf_total = 0;
 
-	ret = sh_mobile_ceu_soft_reset(pcdev);
+	sh_mobile_ceu_soft_reset(pcdev);
 
 	return 0;
 }
@@ -1837,9 +1836,9 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		for (j = 0; pcdev->pdata->asd_sizes[j]; j++) {
 			for (i = 0; i < pcdev->pdata->asd_sizes[j]; i++, asd++) {
 				dev_dbg(&pdev->dev, "%s(): subdev #%d, type %u\n",
-					__func__, i, (*asd)->bus_type);
-				if ((*asd)->bus_type == V4L2_ASYNC_BUS_PLATFORM &&
-				    !strncmp(name, (*asd)->match.platform.name,
+					__func__, i, (*asd)->match_type);
+				if ((*asd)->match_type == V4L2_ASYNC_MATCH_DEVNAME &&
+				    !strncmp(name, (*asd)->match.device_name.name,
 					     sizeof(name) - 1)) {
 					pcdev->csi2_asd = *asd;
 					break;

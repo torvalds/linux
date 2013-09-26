@@ -581,6 +581,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, bcma_core_pci_fixup_addresses);
 int bcma_core_pci_plat_dev_init(struct pci_dev *dev)
 {
 	struct bcma_drv_pci_host *pc_host;
+	int readrq;
 
 	if (dev->bus->ops->read != bcma_core_pci_hostmode_read_config) {
 		/* This is not a device on the PCI-core bridge. */
@@ -595,6 +596,11 @@ int bcma_core_pci_plat_dev_init(struct pci_dev *dev)
 	dev->irq = bcma_core_irq(pc_host->pdev->core);
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
 
+	readrq = pcie_get_readrq(dev);
+	if (readrq > 128) {
+		pr_info("change PCIe max read request size from %i to 128\n", readrq);
+		pcie_set_readrq(dev, 128);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(bcma_core_pci_plat_dev_init);

@@ -107,7 +107,6 @@ static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
  * only four options will fit in a standard TCP header */
 #define TCP_NUM_SACKS 4
 
-struct tcp_cookie_values;
 struct tcp_request_sock_ops;
 
 struct tcp_request_sock {
@@ -238,6 +237,7 @@ struct tcp_sock {
 
  	u32	rcv_wnd;	/* Current receiver window		*/
 	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
+	u32	notsent_lowat;	/* TCP_NOTSENT_LOWAT */
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
 	u32	lost_out;	/* Lost packets			*/
 	u32	sacked_out;	/* SACK'd packets			*/

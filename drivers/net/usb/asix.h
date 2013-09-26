@@ -178,6 +178,8 @@ struct asix_common_private {
 	struct asix_rx_fixup_info rx_fixup_info;
 };
 
+extern const struct driver_info ax88172a_info;
+
 /* ASIX specific flags */
 #define FLAG_EEPROM_MAC		(1UL << 0)  /* init device MAC from eeprom */
 

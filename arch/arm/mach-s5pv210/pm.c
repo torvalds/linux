@@ -21,7 +21,6 @@
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/regs-timer.h>
 
 #include <mach/regs-irq.h>
 #include <mach/regs-clock.h>
@@ -77,15 +76,6 @@ static struct sleep_save s5pv210_core_save[] = {
 	/* Clock ETC */
 	SAVE_ITEM(S5P_CLK_OUT),
 	SAVE_ITEM(S5P_MDNIE_SEL),
-
-	/* PWM Register */
-	SAVE_ITEM(S3C2410_TCFG0),
-	SAVE_ITEM(S3C2410_TCFG1),
-	SAVE_ITEM(S3C64XX_TINT_CSTAT),
-	SAVE_ITEM(S3C2410_TCON),
-	SAVE_ITEM(S3C2410_TCNTB(0)),
-	SAVE_ITEM(S3C2410_TCMPB(0)),
-	SAVE_ITEM(S3C2410_TCNTO(0)),
 };
 
 static int s5pv210_cpu_suspend(unsigned long arg)

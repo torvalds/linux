@@ -73,9 +73,6 @@ static struct pxa2xx_spi_chip mcp251x_chip_info4 = {
 
 static struct mcp251x_platform_data mcp251x_info = {
 	.oscillator_frequency = 16E6,
-	.board_specific_setup = NULL,
-	.power_enable         = NULL,
-	.transceiver_enable   = NULL
 };
 
 static struct spi_board_info mcp251x_board_info[] = {

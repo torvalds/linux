@@ -46,6 +46,10 @@ static int port __read_mostly = 0;
 MODULE_PARM_DESC(port, "Port to match (0=all)");
 module_param(port, int, 0);
 
+static unsigned int fwmark __read_mostly = 0;
+MODULE_PARM_DESC(fwmark, "skb mark to match (0=no mark)");
+module_param(fwmark, uint, 0);
+
 static int bufsize __read_mostly = 64 * 1024;
 MODULE_PARM_DESC(bufsize, "Log buffer size (default 64k)");
 module_param(bufsize, int, 0);
@@ -129,15 +133,19 @@ static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
 					    void *arg,
 					    sctp_cmd_seq_t *commands)
 {
+	struct sctp_chunk *chunk = arg;
+	struct sk_buff *skb = chunk->skb;
 	struct sctp_transport *sp;
 	static __u32 lcwnd = 0;
 	struct timespec now;
 
 	sp = asoc->peer.primary_path;
 
-	if ((full || sp->cwnd != lcwnd) &&
-	    (!port || asoc->peer.port == port ||
-	     ep->base.bind_addr.port == port)) {
+	if (((port == 0 && fwmark == 0) ||
+	     asoc->peer.port == port ||
+	     ep->base.bind_addr.port == port ||
+	     (fwmark > 0 && skb->mark == fwmark)) &&
+	    (full || sp->cwnd != lcwnd)) {
 		lcwnd = sp->cwnd;
 
 		getnstimeofday(&now);
@@ -155,13 +163,8 @@ static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
 			if (sp == asoc->peer.primary_path)
 				printl("*");
 
-			if (sp->ipaddr.sa.sa_family == AF_INET)
-				printl("%pI4 ", &sp->ipaddr.v4.sin_addr);
-			else
-				printl("%pI6 ", &sp->ipaddr.v6.sin6_addr);
-
-			printl("%2u %8u %8u %8u %8u %8u ",
-			       sp->state, sp->cwnd, sp->ssthresh,
+			printl("%pISc %2u %8u %8u %8u %8u %8u ",
+			       &sp->ipaddr, sp->state, sp->cwnd, sp->ssthresh,
 			       sp->flight_size, sp->partial_bytes_acked,
 			       sp->pathmtu);
 		}
@@ -203,8 +206,8 @@ static __init int sctpprobe_init(void)
 	if (ret)
 		goto remove_proc;
 
-	pr_info("probe registered (port=%d)\n", port);
-
+	pr_info("probe registered (port=%d/fwmark=%u) bufsize=%u\n",
+		port, fwmark, bufsize);
 	return 0;
 
 remove_proc:

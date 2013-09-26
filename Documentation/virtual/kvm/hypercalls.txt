@@ -64,3 +64,17 @@ Purpose: To enable communication between the hypervisor and guest there is a
 shared page that contains parts of supervisor visible register state.
 The guest can map this shared page to access its supervisor register through
 memory using this hypercall.
+
+5. KVM_HC_KICK_CPU
+------------------------
+Architecture: x86
+Status: active
+Purpose: Hypercall used to wakeup a vcpu from HLT state
+Usage example : A vcpu of a paravirtualized guest that is busywaiting in guest
+kernel mode for an event to occur (ex: a spinlock to become available) can
+execute HLT instruction once it has busy-waited for more than a threshold
+time-interval. Execution of HLT instruction would cause the hypervisor to put
+the vcpu to sleep until occurence of an appropriate event. Another vcpu of the
+same guest can wakeup the sleeping vcpu by issuing KVM_HC_KICK_CPU hypercall,
+specifying APIC ID (a1) of the vcpu to be woken up. An additional argument (a0)
+is used in the hypercall for future use.

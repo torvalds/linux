@@ -63,7 +63,7 @@ config SND_SOC_SAMSUNG_SMDK_WM8580
 config SND_SOC_SAMSUNG_SMDK_WM8994
 	tristate "SoC I2S Audio support for WM8994 on SMDK"
 	depends on SND_SOC_SAMSUNG
-	depends on I2C=y && GENERIC_HARDIRQS
+	depends on I2C=y
 	select MFD_WM8994
 	select SND_SOC_WM8994
 	select SND_SAMSUNG_I2S
@@ -151,7 +151,7 @@ config SND_SOC_SMARTQ
 config SND_SOC_GONI_AQUILA_WM8994
 	tristate "SoC I2S Audio support for AQUILA/GONI - WM8994"
 	depends on SND_SOC_SAMSUNG && (MACH_GONI || MACH_AQUILA)
-	depends on I2C=y && GENERIC_HARDIRQS
+	depends on I2C=y
 	select SND_SAMSUNG_I2S
 	select MFD_WM8994
 	select SND_SOC_WM8994
@@ -177,7 +177,7 @@ config SND_SOC_SMDK_WM8580_PCM
 config SND_SOC_SMDK_WM8994_PCM
 	tristate "SoC PCM Audio support for WM8994 on SMDK"
 	depends on SND_SOC_SAMSUNG
-	depends on I2C=y && GENERIC_HARDIRQS
+	depends on I2C=y
 	select MFD_WM8994
 	select SND_SOC_WM8994
 	select SND_SAMSUNG_PCM

@@ -232,7 +232,7 @@ struct eg20t_port {
 	unsigned int iobase;
 	struct pci_dev *pdev;
 	int fifo_size;
-	int uartclk;
+	unsigned int uartclk;
 	int start_tx;
 	int start_rx;
 	int tx_empty;
@@ -373,35 +373,62 @@ static const struct file_operations port_regs_ops = {
 };
 #endif	/* CONFIG_DEBUG_FS */
 
+static struct dmi_system_id pch_uart_dmi_table[] = {
+	{
+		.ident = "CM-iTC",
+		{
+			DMI_MATCH(DMI_BOARD_NAME, "CM-iTC"),
+		},
+		(void *)CMITC_UARTCLK,
+	},
+	{
+		.ident = "FRI2",
+		{
+			DMI_MATCH(DMI_BIOS_VERSION, "FRI2"),
+		},
+		(void *)FRI2_64_UARTCLK,
+	},
+	{
+		.ident = "Fish River Island II",
+		{
+			DMI_MATCH(DMI_PRODUCT_NAME, "Fish River Island II"),
+		},
+		(void *)FRI2_48_UARTCLK,
+	},
+	{
+		.ident = "COMe-mTT",
+		{
+			DMI_MATCH(DMI_BOARD_NAME, "COMe-mTT"),
+		},
+		(void *)NTC1_UARTCLK,
+	},
+	{
+		.ident = "nanoETXexpress-TT",
+		{
+			DMI_MATCH(DMI_BOARD_NAME, "nanoETXexpress-TT"),
+		},
+		(void *)NTC1_UARTCLK,
+	},
+	{
+		.ident = "MinnowBoard",
+		{
+			DMI_MATCH(DMI_BOARD_NAME, "MinnowBoard"),
+		},
+		(void *)MINNOW_UARTCLK,
+	},
+};
+
 /* Return UART clock, checking for board specific clocks. */
-static int pch_uart_get_uartclk(void)
+static unsigned int pch_uart_get_uartclk(void)
 {
-	const char *cmp;
+	const struct dmi_system_id *d;
 
 	if (user_uartclk)
 		return user_uartclk;
 
-	cmp = dmi_get_system_info(DMI_BOARD_NAME);
-	if (cmp && strstr(cmp, "CM-iTC"))
-		return CMITC_UARTCLK;
-
-	cmp = dmi_get_system_info(DMI_BIOS_VERSION);
-	if (cmp && strnstr(cmp, "FRI2", 4))
-		return FRI2_64_UARTCLK;
-
-	cmp = dmi_get_system_info(DMI_PRODUCT_NAME);
-	if (cmp && strstr(cmp, "Fish River Island II"))
-		return FRI2_48_UARTCLK;
-
-	/* Kontron COMe-mTT10 (nanoETXexpress-TT) */
-	cmp = dmi_get_system_info(DMI_BOARD_NAME);
-	if (cmp && (strstr(cmp, "COMe-mTT") ||
-		    strstr(cmp, "nanoETXexpress-TT")))
-		return NTC1_UARTCLK;
-
-	cmp = dmi_get_system_info(DMI_BOARD_NAME);
-	if (cmp && strstr(cmp, "MinnowBoard"))
-		return MINNOW_UARTCLK;
+	d = dmi_first_match(pch_uart_dmi_table);
+	if (d)
+		return (unsigned long)d->driver_data;
 
 	return DEFAULT_UARTCLK;
 }
@@ -422,7 +449,7 @@ static void pch_uart_hal_disable_interrupt(struct eg20t_port *priv,
 	iowrite8(ier, priv->membase + UART_IER);
 }
 
-static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
+static int pch_uart_hal_set_line(struct eg20t_port *priv, unsigned int baud,
 				 unsigned int parity, unsigned int bits,
 				 unsigned int stb)
 {
@@ -457,7 +484,7 @@ static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
 	lcr |= bits;
 	lcr |= stb;
 
-	dev_dbg(priv->port.dev, "%s:baud = %d, div = %04x, lcr = %02x (%lu)\n",
+	dev_dbg(priv->port.dev, "%s:baud = %u, div = %04x, lcr = %02x (%lu)\n",
 		 __func__, baud, div, lcr, jiffies);
 	iowrite8(PCH_UART_LCR_DLAB, priv->membase + UART_LCR);
 	iowrite8(dll, priv->membase + PCH_UART_DLL);
@@ -1363,9 +1390,8 @@ static void pch_uart_shutdown(struct uart_port *port)
 static void pch_uart_set_termios(struct uart_port *port,
 				 struct ktermios *termios, struct ktermios *old)
 {
-	int baud;
 	int rtn;
-	unsigned int parity, bits, stb;
+	unsigned int baud, parity, bits, stb;
 	struct eg20t_port *priv;
 	unsigned long flags;
 
@@ -1498,6 +1524,7 @@ static int pch_uart_verify_port(struct uart_port *port,
 	return 0;
 }
 
+#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_PCH_UART_CONSOLE)
 /*
  *	Wait for transmitter & holding register to empty
  */
@@ -1528,6 +1555,7 @@ static void wait_for_xmitr(struct eg20t_port *up, int bits)
 		}
 	}
 }
+#endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_PCH_UART_CONSOLE */
 
 #ifdef CONFIG_CONSOLE_POLL
 /*

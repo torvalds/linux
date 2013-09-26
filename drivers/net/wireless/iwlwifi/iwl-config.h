@@ -152,6 +152,7 @@ struct iwl_base_params {
 	unsigned int wd_timeout;
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
+	const bool pcie_l1_allowed;
 };
 
 /*
@@ -205,6 +206,7 @@ struct iwl_eeprom_params {
  * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
+ * @high_temp: Is this NIC is designated to be in high temperature.
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -233,6 +235,7 @@ struct iwl_cfg {
 	enum iwl_led_mode led_mode;
 	const bool rx_with_siso_diversity;
 	const bool internal_wimax_coex;
+	bool high_temp;
 };
 
 /*
@@ -283,6 +286,7 @@ extern const struct iwl_cfg iwl135_bgn_cfg;
 #endif /* CONFIG_IWLDVM */
 #if IS_ENABLED(CONFIG_IWLMVM)
 extern const struct iwl_cfg iwl7260_2ac_cfg;
+extern const struct iwl_cfg iwl7260_2ac_cfg_high_temp;
 extern const struct iwl_cfg iwl7260_2n_cfg;
 extern const struct iwl_cfg iwl7260_n_cfg;
 extern const struct iwl_cfg iwl3160_2ac_cfg;

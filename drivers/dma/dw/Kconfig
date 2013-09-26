@@ -4,7 +4,6 @@
 
 config DW_DMAC_CORE
 	tristate "Synopsys DesignWare AHB DMA support"
-	depends on GENERIC_HARDIRQS
 	select DMA_ENGINE
 
 config DW_DMAC

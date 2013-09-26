@@ -158,7 +158,7 @@ static void compute_batch_value(void)
 	percpu_counter_batch = max(32, nr*2);
 }
 
-static int __cpuinit percpu_counter_hotcpu_callback(struct notifier_block *nb,
+static int percpu_counter_hotcpu_callback(struct notifier_block *nb,
 					unsigned long action, void *hcpu)
 {
 #ifdef CONFIG_HOTPLUG_CPU

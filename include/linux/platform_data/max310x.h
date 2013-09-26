@@ -1,5 +1,5 @@
 /*
- *  Maxim (Dallas) MAX3107/8 serial driver
+ *  Maxim (Dallas) MAX3107/8/9, MAX14830 serial driver
  *
  *  Copyright (C) 2012 Alexander Shiyan <shc_work@mail.ru>
  *
@@ -37,14 +37,13 @@
  * };
  */
 
-#define MAX310X_MAX_UARTS	1
+#define MAX310X_MAX_UARTS	4
 
 /* MAX310X platform data structure */
 struct max310x_pdata {
 	/* Flags global to driver */
-	const u8		driver_flags:2;
+	const u8		driver_flags;
 #define MAX310X_EXT_CLK		(0x00000001)	/* External clock enable */
-#define MAX310X_AUTOSLEEP	(0x00000002)	/* Enable AutoSleep mode */
 	/* Flags global to UART port */
 	const u8		uart_flags[MAX310X_MAX_UARTS];
 #define MAX310X_LOOPBACK	(0x00000001)	/* Loopback mode enable */
@@ -60,8 +59,6 @@ struct max310x_pdata {
 	void (*init)(void);
 	/* Called before finish */
 	void (*exit)(void);
-	/* Suspend callback */
-	void (*suspend)(int do_suspend);
 };
 
 #endif

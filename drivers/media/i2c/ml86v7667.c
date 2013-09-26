@@ -117,7 +117,7 @@ static int ml86v7667_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
+	int ret = -EINVAL;
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -157,7 +157,7 @@ static int ml86v7667_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int ml86v7667_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
@@ -209,7 +209,8 @@ static int ml86v7667_mbus_fmt(struct v4l2_subdev *sd,
 
 	fmt->code = V4L2_MBUS_FMT_YUYV8_2X8;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	fmt->field = V4L2_FIELD_INTERLACED;
+	/* The top field is always transferred first by the chip */
+	fmt->field = V4L2_FIELD_INTERLACED_TB;
 	fmt->width = 720;
 	fmt->height = priv->std & V4L2_STD_525_60 ? 480 : 576;
 

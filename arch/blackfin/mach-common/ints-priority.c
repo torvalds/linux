@@ -1281,7 +1281,7 @@ static struct irq_chip bfin_gpio_irqchip = {
 	.irq_set_wake = bfin_gpio_set_wake,
 };
 
-void __cpuinit init_exception_vectors(void)
+void init_exception_vectors(void)
 {
 	/* cannot program in software:
 	 * evt0 - emulation (jtag)

@@ -146,7 +146,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 		if (IS_ERR(config))
 			return PTR_ERR(config);
 	} else {
-		config = pdev->dev.platform_data;
+		config = dev_get_platdata(&pdev->dev);
 	}
 
 	if (!config)

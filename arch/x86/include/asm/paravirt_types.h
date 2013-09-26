@@ -327,13 +327,15 @@ struct pv_mmu_ops {
 };
 
 struct arch_spinlock;
+#ifdef CONFIG_SMP
+#include <asm/spinlock_types.h>
+#else
+typedef u16 __ticket_t;
+#endif
+
 struct pv_lock_ops {
-	int (*spin_is_locked)(struct arch_spinlock *lock);
-	int (*spin_is_contended)(struct arch_spinlock *lock);
-	void (*spin_lock)(struct arch_spinlock *lock);
-	void (*spin_lock_flags)(struct arch_spinlock *lock, unsigned long flags);
-	int (*spin_trylock)(struct arch_spinlock *lock);
-	void (*spin_unlock)(struct arch_spinlock *lock);
+	struct paravirt_callee_save lock_spinning;
+	void (*unlock_kick)(struct arch_spinlock *lock, __ticket_t ticket);
 };
 
 /* This contains all the paravirt structures: we get a convenient
@@ -387,7 +389,8 @@ extern struct pv_lock_ops pv_lock_ops;
 
 /* Simple instruction patching code. */
 #define DEF_NATIVE(ops, name, code) 					\
-	extern const char start_##ops##_##name[], end_##ops##_##name[];	\
+	extern const char start_##ops##_##name[] __visible,		\
+			  end_##ops##_##name[] __visible;		\
 	asm("start_" #ops "_" #name ": " code "; end_" #ops "_" #name ":")
 
 unsigned paravirt_patch_nop(void);

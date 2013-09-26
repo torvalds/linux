@@ -68,7 +68,7 @@
 void __iomem *da8xx_syscfg0_base;
 void __iomem *da8xx_syscfg1_base;
 
-static struct plat_serial8250_port da8xx_serial_pdata[] = {
+static struct plat_serial8250_port da8xx_serial0_pdata[] = {
 	{
 		.mapbase	= DA8XX_UART0_BASE,
 		.irq		= IRQ_DA8XX_UARTINT0,
@@ -78,6 +78,11 @@ static struct plat_serial8250_port da8xx_serial_pdata[] = {
 		.regshift	= 2,
 	},
 	{
+		.flags	= 0,
+	}
+};
+static struct plat_serial8250_port da8xx_serial1_pdata[] = {
+	{
 		.mapbase	= DA8XX_UART1_BASE,
 		.irq		= IRQ_DA8XX_UARTINT1,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
@@ -85,6 +90,11 @@ static struct plat_serial8250_port da8xx_serial_pdata[] = {
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 	},
+	{
+		.flags	= 0,
+	}
+};
+static struct plat_serial8250_port da8xx_serial2_pdata[] = {
 	{
 		.mapbase	= DA8XX_UART2_BASE,
 		.irq		= IRQ_DA8XX_UARTINT2,
@@ -95,15 +105,33 @@ static struct plat_serial8250_port da8xx_serial_pdata[] = {
 	},
 	{
 		.flags	= 0,
-	},
+	}
 };
 
-struct platform_device da8xx_serial_device = {
-	.name	= "serial8250",
-	.id	= PLAT8250_DEV_PLATFORM,
-	.dev	= {
-		.platform_data	= da8xx_serial_pdata,
+struct platform_device da8xx_serial_device[] = {
+	{
+		.name	= "serial8250",
+		.id	= PLAT8250_DEV_PLATFORM,
+		.dev	= {
+			.platform_data	= da8xx_serial0_pdata,
+		}
 	},
+	{
+		.name	= "serial8250",
+		.id	= PLAT8250_DEV_PLATFORM1,
+		.dev	= {
+			.platform_data	= da8xx_serial1_pdata,
+		}
+	},
+	{
+		.name	= "serial8250",
+		.id	= PLAT8250_DEV_PLATFORM2,
+		.dev	= {
+			.platform_data	= da8xx_serial2_pdata,
+		}
+	},
+	{
+	}
 };
 
 static s8 da8xx_queue_tc_mapping[][2] = {
@@ -453,12 +481,8 @@ int __init da8xx_register_emac(void)
 	ret = platform_device_register(&da8xx_mdio_device);
 	if (ret < 0)
 		return ret;
-	ret = platform_device_register(&da8xx_emac_device);
-	if (ret < 0)
-		return ret;
-	ret = clk_add_alias(NULL, dev_name(&da8xx_mdio_device.dev),
-			    NULL, &da8xx_emac_device.dev);
-	return ret;
+
+	return platform_device_register(&da8xx_emac_device);
 }
 
 static struct resource da830_mcasp1_resources[] = {
@@ -828,14 +852,7 @@ static struct platform_device da8xx_rtc_device = {
 
 int da8xx_register_rtc(void)
 {
-	int ret;
-
-	ret = platform_device_register(&da8xx_rtc_device);
-	if (!ret)
-		/* Atleast on DA850, RTC is a wakeup source */
-		device_init_wakeup(&da8xx_rtc_device.dev, true);
-
-	return ret;
+	return platform_device_register(&da8xx_rtc_device);
 }
 
 static void __iomem *da8xx_ddr2_ctlr_base;

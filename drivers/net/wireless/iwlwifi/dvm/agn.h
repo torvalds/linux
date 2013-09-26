@@ -106,7 +106,6 @@ extern const struct iwl_dvm_cfg iwl_dvm_6030_cfg;
 #define STATUS_CHANNEL_SWITCH_PENDING 11
 #define STATUS_SCAN_COMPLETE	12
 #define STATUS_POWER_PMI	13
-#define STATUS_SCAN_ROC_EXPIRED 14
 
 struct iwl_ucode_capabilities;
 
@@ -250,7 +249,6 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 
 /* scan */
 void iwlagn_post_scan(struct iwl_priv *priv);
-void iwlagn_disable_roc(struct iwl_priv *priv);
 int iwl_force_rf_reset(struct iwl_priv *priv, bool external);
 void iwl_init_scan_params(struct iwl_priv *priv);
 int iwl_scan_cancel(struct iwl_priv *priv);
@@ -264,10 +262,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 				   struct ieee80211_vif *vif,
 				   enum iwl_scan_type scan_type,
 				   enum ieee80211_band band);
-
-void iwl_scan_roc_expired(struct iwl_priv *priv);
-void iwl_scan_offchannel_skb(struct iwl_priv *priv);
-void iwl_scan_offchannel_skb_status(struct iwl_priv *priv);
 
 /* For faster active scanning, scan will move to the next channel if fewer than
  * PLCP_QUIET_THRESH packets are heard on this channel within

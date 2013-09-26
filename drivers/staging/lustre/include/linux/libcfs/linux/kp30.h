@@ -55,7 +55,6 @@
 #include <linux/interrupt.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
 #include <linux/rwsem.h>
@@ -74,34 +73,6 @@
 #include <linux/libcfs/linux/portals_compat25.h>
 
 
-#define prepare_work(wq,cb,cbdata)					    \
-do {									  \
-	INIT_WORK((wq), (void *)(cb));					\
-} while (0)
-
-#define cfs_get_work_data(type,field,data) container_of(data,type,field)
-
-
-#define our_recalc_sigpending(current) recalc_sigpending()
-#define strtok(a,b) strpbrk(a, b)
-#define work_struct_t      struct work_struct
-
-#ifdef CONFIG_SMP
-#else
-#endif
-
-
-#define SEM_COUNT(sem)	  ((sem)->count)
-
-
-/* ------------------------------------------------------------------- */
-
-#define PORTAL_SYMBOL_REGISTER(x)
-#define PORTAL_SYMBOL_UNREGISTER(x)
-
-
-
-
 /******************************************************************************/
 /* Module parameter support */
 #define CFS_MODULE_PARM(name, t, type, perm, desc) \
@@ -109,26 +80,6 @@ do {									  \
 	MODULE_PARM_DESC(name, desc)
 
 #define CFS_SYSFS_MODULE_PARM  1 /* module parameters accessible via sysfs */
-
-/******************************************************************************/
-
-#if (__GNUC__)
-/* Use the special GNU C __attribute__ hack to have the compiler check the
- * printf style argument string against the actual argument count and
- * types.
- */
-#ifdef printf
-# warning printf has been defined as a macro...
-# undef printf
-#endif
-
-#endif /* __GNUC__ */
-
-# define fprintf(a, format, b...) CDEBUG(D_OTHER, format , ## b)
-# define printf(format, b...) CDEBUG(D_OTHER, format , ## b)
-# define time(a) CURRENT_TIME
-
-# define cfs_num_present_cpus()  num_present_cpus()
 
 /******************************************************************************/
 /* Light-weight trace
@@ -236,9 +187,13 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
 # endif
 #endif
 
-# define LI_POISON ((int)0x5a5a5a5a5a5a5a5a)
-# define LL_POISON ((long)0x5a5a5a5a5a5a5a5a)
-# define LP_POISON ((void *)(long)0x5a5a5a5a5a5a5a5a)
+# define LI_POISON 0x5a5a5a5a
+#if BITS_PER_LONG > 32
+# define LL_POISON 0x5a5a5a5a5a5a5a5aL
+#else
+# define LL_POISON 0x5a5a5a5aL
+#endif
+# define LP_POISON ((void *)LL_POISON)
 
 /* this is a bit chunky */
 

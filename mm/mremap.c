@@ -15,6 +15,7 @@
 #include <linux/swap.h>
 #include <linux/capability.h>
 #include <linux/fs.h>
+#include <linux/swapops.h>
 #include <linux/highmem.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
@@ -24,6 +25,7 @@
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/pgalloc.h>
 
 #include "internal.h"
 
@@ -61,12 +63,31 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 		return NULL;
 
 	pmd = pmd_alloc(mm, pud, addr);
-	if (!pmd)
+	if (!pmd) {
+		pud_free(mm, pud);
 		return NULL;
+	}
 
 	VM_BUG_ON(pmd_trans_huge(*pmd));
 
 	return pmd;
+}
+
+static pte_t move_soft_dirty_pte(pte_t pte)
+{
+	/*
+	 * Set soft dirty bit so we can notice
+	 * in userspace the ptes were moved.
+	 */
+#ifdef CONFIG_MEM_SOFT_DIRTY
+	if (pte_present(pte))
+		pte = pte_mksoft_dirty(pte);
+	else if (is_swap_pte(pte))
+		pte = pte_swp_mksoft_dirty(pte);
+	else if (pte_file(pte))
+		pte = pte_file_mksoft_dirty(pte);
+#endif
+	return pte;
 }
 
 static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
@@ -126,7 +147,8 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 			continue;
 		pte = ptep_get_and_clear(mm, old_addr, old_pte);
 		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
-		set_pte_at(mm, new_addr, new_pte, pte_mksoft_dirty(pte));
+		pte = move_soft_dirty_pte(pte);
+		set_pte_at(mm, new_addr, new_pte, pte);
 	}
 
 	arch_leave_lazy_mmu_mode();

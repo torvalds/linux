@@ -27,7 +27,7 @@
 #include <asm/spram.h>
 #include <asm/uaccess.h>
 
-static int __cpuinitdata mips_fpu_disabled;
+static int mips_fpu_disabled;
 
 static int __init fpu_disable(char *s)
 {
@@ -39,7 +39,7 @@ static int __init fpu_disable(char *s)
 
 __setup("nofpu", fpu_disable);
 
-int __cpuinitdata mips_dsp_disabled;
+int mips_dsp_disabled;
 
 static int __init dsp_disable(char *s)
 {
@@ -134,7 +134,7 @@ static inline void cpu_probe_vmbits(struct cpuinfo_mips *c)
 #endif
 }
 
-static void __cpuinit set_isa(struct cpuinfo_mips *c, unsigned int isa)
+static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 {
 	switch (isa) {
 	case MIPS_CPU_ISA_M64R2:
@@ -159,7 +159,7 @@ static void __cpuinit set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	}
 }
 
-static char unknown_isa[] __cpuinitdata = KERN_ERR \
+static char unknown_isa[] = KERN_ERR \
 	"Unsupported ISA type, c0.config0: %d.";
 
 static inline unsigned int decode_config0(struct cpuinfo_mips *c)
@@ -290,7 +290,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	return config4 & MIPS_CONF_M;
 }
 
-static void __cpuinit decode_configs(struct cpuinfo_mips *c)
+static void decode_configs(struct cpuinfo_mips *c)
 {
 	int ok;
 
@@ -852,9 +852,16 @@ platform:
 	case PRID_IMP_CAVIUM_CN63XX:
 	case PRID_IMP_CAVIUM_CN66XX:
 	case PRID_IMP_CAVIUM_CN68XX:
+	case PRID_IMP_CAVIUM_CNF71XX:
 		c->cputype = CPU_CAVIUM_OCTEON2;
 		__cpu_name[cpu] = "Cavium Octeon II";
 		set_elf_platform(cpu, "octeon2");
+		break;
+	case PRID_IMP_CAVIUM_CN70XX:
+	case PRID_IMP_CAVIUM_CN78XX:
+		c->cputype = CPU_CAVIUM_OCTEON3;
+		__cpu_name[cpu] = "Cavium Octeon III";
+		set_elf_platform(cpu, "octeon3");
 		break;
 	default:
 		printk(KERN_INFO "Unknown Octeon chip!\n");
@@ -899,6 +906,11 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 			MIPS_CPU_LLSC);
 
 	switch (c->processor_id & 0xff00) {
+	case PRID_IMP_NETLOGIC_XLP2XX:
+		c->cputype = CPU_XLP;
+		__cpu_name[cpu] = "Broadcom XLPII";
+		break;
+
 	case PRID_IMP_NETLOGIC_XLP8XX:
 	case PRID_IMP_NETLOGIC_XLP3XX:
 		c->cputype = CPU_XLP;
@@ -962,7 +974,7 @@ EXPORT_SYMBOL(__ua_limit);
 const char *__cpu_name[NR_CPUS];
 const char *__elf_platform;
 
-__cpuinit void cpu_probe(void)
+void cpu_probe(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int cpu = smp_processor_id();
@@ -1047,7 +1059,7 @@ __cpuinit void cpu_probe(void)
 #endif
 }
 
-__cpuinit void cpu_report(void)
+void cpu_report(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 

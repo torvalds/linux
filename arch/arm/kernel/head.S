@@ -343,7 +343,7 @@ __turn_mmu_on_loc:
 	.long	__turn_mmu_on_end
 
 #if defined(CONFIG_SMP)
-	__CPUINIT
+	.text
 ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.

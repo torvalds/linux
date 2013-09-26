@@ -85,6 +85,8 @@ MODULE_DEVICE_TABLE(ccw, dasd_eckd_ids);
 
 static struct ccw_driver dasd_eckd_driver; /* see below */
 
+static void *rawpadpage;
+
 #define INIT_CQR_OK 0
 #define INIT_CQR_UNFORMATTED 1
 #define INIT_CQR_ERROR 2
@@ -3237,18 +3239,26 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	unsigned int seg_len, len_to_track_end;
 	unsigned int first_offs;
 	unsigned int cidaw, cplength, datasize;
-	sector_t first_trk, last_trk;
+	sector_t first_trk, last_trk, sectors;
+	sector_t start_padding_sectors, end_sector_offset, end_padding_sectors;
 	unsigned int pfx_datasize;
 
 	/*
 	 * raw track access needs to be mutiple of 64k and on 64k boundary
+	 * For read requests we can fix an incorrect alignment by padding
+	 * the request with dummy pages.
 	 */
-	if ((blk_rq_pos(req) % DASD_RAW_SECTORS_PER_TRACK) != 0) {
-		cqr = ERR_PTR(-EINVAL);
-		goto out;
-	}
-	if (((blk_rq_pos(req) + blk_rq_sectors(req)) %
-	     DASD_RAW_SECTORS_PER_TRACK) != 0) {
+	start_padding_sectors = blk_rq_pos(req) % DASD_RAW_SECTORS_PER_TRACK;
+	end_sector_offset = (blk_rq_pos(req) + blk_rq_sectors(req)) %
+		DASD_RAW_SECTORS_PER_TRACK;
+	end_padding_sectors = (DASD_RAW_SECTORS_PER_TRACK - end_sector_offset) %
+		DASD_RAW_SECTORS_PER_TRACK;
+	basedev = block->base;
+	if ((start_padding_sectors || end_padding_sectors) &&
+	    (rq_data_dir(req) == WRITE)) {
+		DBF_DEV_EVENT(DBF_ERR, basedev,
+			      "raw write not track aligned (%lu,%lu) req %p",
+			      start_padding_sectors, end_padding_sectors, req);
 		cqr = ERR_PTR(-EINVAL);
 		goto out;
 	}
@@ -3258,7 +3268,6 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 		DASD_RAW_SECTORS_PER_TRACK;
 	trkcount = last_trk - first_trk + 1;
 	first_offs = 0;
-	basedev = block->base;
 
 	if (rq_data_dir(req) == READ)
 		cmd = DASD_ECKD_CCW_READ_TRACK;
@@ -3307,12 +3316,26 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	}
 
 	idaws = (unsigned long *)(cqr->data + pfx_datasize);
-
 	len_to_track_end = 0;
-
+	if (start_padding_sectors) {
+		ccw[-1].flags |= CCW_FLAG_CC;
+		ccw->cmd_code = cmd;
+		/* maximum 3390 track size */
+		ccw->count = 57326;
+		/* 64k map to one track */
+		len_to_track_end = 65536 - start_padding_sectors * 512;
+		ccw->cda = (__u32)(addr_t)idaws;
+		ccw->flags |= CCW_FLAG_IDA;
+		ccw->flags |= CCW_FLAG_SLI;
+		ccw++;
+		for (sectors = 0; sectors < start_padding_sectors; sectors += 8)
+			idaws = idal_create_words(idaws, rawpadpage, PAGE_SIZE);
+	}
 	rq_for_each_segment(bv, req, iter) {
 		dst = page_address(bv->bv_page) + bv->bv_offset;
 		seg_len = bv->bv_len;
+		if (cmd == DASD_ECKD_CCW_READ_TRACK)
+			memset(dst, 0, seg_len);
 		if (!len_to_track_end) {
 			ccw[-1].flags |= CCW_FLAG_CC;
 			ccw->cmd_code = cmd;
@@ -3328,7 +3351,8 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 		len_to_track_end -= seg_len;
 		idaws = idal_create_words(idaws, dst, seg_len);
 	}
-
+	for (sectors = 0; sectors < end_padding_sectors; sectors += 8)
+		idaws = idal_create_words(idaws, rawpadpage, PAGE_SIZE);
 	if (blk_noretry_request(req) ||
 	    block->base->features & DASD_FEATURE_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
@@ -4479,12 +4503,19 @@ dasd_eckd_init(void)
 		kfree(dasd_reserve_req);
 		return -ENOMEM;
 	}
+	rawpadpage = (void *)__get_free_page(GFP_KERNEL);
+	if (!rawpadpage) {
+		kfree(path_verification_worker);
+		kfree(dasd_reserve_req);
+		return -ENOMEM;
+	}
 	ret = ccw_driver_register(&dasd_eckd_driver);
 	if (!ret)
 		wait_for_device_probe();
 	else {
 		kfree(path_verification_worker);
 		kfree(dasd_reserve_req);
+		free_page((unsigned long)rawpadpage);
 	}
 	return ret;
 }
@@ -4495,6 +4526,7 @@ dasd_eckd_cleanup(void)
 	ccw_driver_unregister(&dasd_eckd_driver);
 	kfree(path_verification_worker);
 	kfree(dasd_reserve_req);
+	free_page((unsigned long)rawpadpage);
 }
 
 module_init(dasd_eckd_init);

@@ -153,7 +153,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_TIMING_BEACON_ONLY |
-		    IEEE80211_HW_CONNECTION_MONITOR;
+		    IEEE80211_HW_CONNECTION_MONITOR |
+		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
+		    IEEE80211_HW_SUPPORTS_STATIC_SMPS |
+		    IEEE80211_HW_SUPPORTS_UAPSD;
 
 	hw->queues = IWL_MVM_FIRST_AGG_QUEUE;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
@@ -188,6 +191,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->wiphy->max_remain_on_channel_duration = 10000;
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
+	hw->uapsd_queues = IWL_UAPSD_AC_INFO;
+	hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
 
 	/* Extract MAC address */
 	memcpy(mvm->addresses[0].addr, mvm->nvm_data->hw_addr, ETH_ALEN);
@@ -257,7 +262,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	return ieee80211_register_hw(mvm->hw);
+	ret = ieee80211_register_hw(mvm->hw);
+	if (ret)
+		iwl_mvm_leds_exit(mvm);
+
+	return ret;
 }
 
 static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
@@ -385,6 +394,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	ieee80211_wake_queues(mvm->hw);
 
 	mvm->vif_count = 0;
+	mvm->rx_ba_sessions = 0;
 }
 
 static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
@@ -501,33 +511,10 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	/* Allocate resources for the MAC context, and add it the the fw  */
+	/* Allocate resources for the MAC context, and add it to the fw  */
 	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
 	if (ret)
 		goto out_unlock;
-
-	/*
-	 * The AP binding flow can be done only after the beacon
-	 * template is configured (which happens only in the mac80211
-	 * start_ap() flow), and adding the broadcast station can happen
-	 * only after the binding.
-	 * In addition, since modifying the MAC before adding a bcast
-	 * station is not allowed by the FW, delay the adding of MAC context to
-	 * the point where we can also add the bcast station.
-	 * In short: there's not much we can do at this point, other than
-	 * allocating resources :)
-	 */
-	if (vif->type == NL80211_IFTYPE_AP) {
-		u32 qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
-		ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->bcast_sta,
-					       qmask);
-		if (ret) {
-			IWL_ERR(mvm, "Failed to allocate bcast sta\n");
-			goto out_release;
-		}
-
-		goto out_unlock;
-	}
 
 	/*
 	 * TODO: remove this temporary code.
@@ -550,6 +537,30 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 					    iwl_mvm_pm_disable_iterator, mvm);
 	}
 
+	/*
+	 * The AP binding flow can be done only after the beacon
+	 * template is configured (which happens only in the mac80211
+	 * start_ap() flow), and adding the broadcast station can happen
+	 * only after the binding.
+	 * In addition, since modifying the MAC before adding a bcast
+	 * station is not allowed by the FW, delay the adding of MAC context to
+	 * the point where we can also add the bcast station.
+	 * In short: there's not much we can do at this point, other than
+	 * allocating resources :)
+	 */
+	if (vif->type == NL80211_IFTYPE_AP) {
+		u32 qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
+		ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->bcast_sta,
+					       qmask);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to allocate bcast sta\n");
+			goto out_release;
+		}
+
+		iwl_mvm_vif_dbgfs_register(mvm, vif);
+		goto out_unlock;
+	}
+
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
 	if (ret)
 		goto out_release;
@@ -561,15 +572,17 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	iwl_mvm_power_update_mode(mvm, vif);
 
 	/* beacon filtering */
-	if (!mvm->bf_allowed_vif &&
-	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p){
-		mvm->bf_allowed_vif = mvmvif;
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
-	}
-
 	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
 	if (ret)
-		goto out_release;
+		goto out_remove_mac;
+
+	if (!mvm->bf_allowed_vif &&
+	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
+	    mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BF_UPDATED){
+		mvm->bf_allowed_vif = mvmvif;
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
+				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
+	}
 
 	/*
 	 * P2P_DEVICE interface does not have a channel context assigned to it,
@@ -581,7 +594,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvmvif->phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
 		if (!mvmvif->phy_ctxt) {
 			ret = -ENOSPC;
-			goto out_remove_mac;
+			goto out_free_bf;
 		}
 
 		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->phy_ctxt);
@@ -605,6 +618,12 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	iwl_mvm_binding_remove_vif(mvm, vif);
  out_unref_phy:
 	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
+ out_free_bf:
+	if (mvm->bf_allowed_vif == mvmvif) {
+		mvm->bf_allowed_vif = NULL;
+		vif->driver_flags &= ~(IEEE80211_VIF_BEACON_FILTER |
+				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
+	}
  out_remove_mac:
 	mvmvif->phy_ctxt = NULL;
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
@@ -669,7 +688,8 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 
 	if (mvm->bf_allowed_vif == mvmvif) {
 		mvm->bf_allowed_vif = NULL;
-		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+		vif->driver_flags &= ~(IEEE80211_VIF_BEACON_FILTER |
+				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
 	}
 
 	iwl_mvm_vif_dbgfs_clean(mvm, vif);
@@ -712,6 +732,20 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 out_release:
 	iwl_mvm_mac_ctxt_release(mvm, vif);
 	mutex_unlock(&mvm->mutex);
+}
+
+static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				s8 tx_power)
+{
+	/* FW is in charge of regulatory enforcement */
+	struct iwl_reduce_tx_power_cmd reduce_txpwr_cmd = {
+		.mac_context_id = iwl_mvm_vif_from_mac80211(vif)->id,
+		.pwr_restriction = cpu_to_le16(tx_power),
+	};
+
+	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, CMD_SYNC,
+				    sizeof(reduce_txpwr_cmd),
+				    &reduce_txpwr_cmd);
 }
 
 static int iwl_mvm_mac_config(struct ieee80211_hw *hw, u32 changed)
@@ -761,7 +795,6 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				IWL_ERR(mvm, "failed to update quotas\n");
 				return;
 			}
-			iwl_mvm_bt_coex_vif_assoc(mvm, vif);
 			iwl_mvm_configure_mcast_filter(mvm, vif);
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/* remove AP station now that the MAC is unassoc */
@@ -774,9 +807,19 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 		}
-		ret = iwl_mvm_power_update_mode(mvm, vif);
-		if (ret)
-			IWL_ERR(mvm, "failed to update power mode\n");
+
+		/* reset rssi values */
+		mvmvif->bf_data.ave_beacon_signal = 0;
+
+		if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD)) {
+			/* Workaround for FW bug, otherwise FW disables device
+			 * power save upon disassociation
+			 */
+			ret = iwl_mvm_power_update_mode(mvm, vif);
+			if (ret)
+				IWL_ERR(mvm, "failed to update power mode\n");
+		}
+		iwl_mvm_bt_coex_vif_assoc(mvm, vif);
 	} else if (changes & BSS_CHANGED_BEACON_INFO) {
 		/*
 		 * We received a beacon _after_ association so
@@ -784,10 +827,24 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		 */
 		iwl_mvm_remove_time_event(mvm, mvmvif,
 					  &mvmvif->time_event_data);
-	} else if (changes & BSS_CHANGED_PS) {
+	} else if (changes & (BSS_CHANGED_PS | BSS_CHANGED_QOS)) {
 		ret = iwl_mvm_power_update_mode(mvm, vif);
 		if (ret)
 			IWL_ERR(mvm, "failed to update power mode\n");
+	}
+	if (changes & BSS_CHANGED_TXPOWER) {
+		IWL_DEBUG_CALIB(mvm, "Changing TX Power to %d\n",
+				bss_conf->txpower);
+		iwl_mvm_set_tx_power(mvm, vif, bss_conf->txpower);
+	}
+
+	if (changes & BSS_CHANGED_CQM) {
+		IWL_DEBUG_MAC80211(mvm, "cqm info_changed");
+		/* reset cqm events tracking */
+		mvmvif->bf_data.last_cqm_event = 0;
+		ret = iwl_mvm_update_beacon_filter(mvm, vif);
+		if (ret)
+			IWL_ERR(mvm, "failed to update CQM thresholds\n");
 	}
 }
 
@@ -1006,6 +1063,21 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE) {
+		/*
+		 * Firmware bug - it'll crash if the beacon interval is less
+		 * than 16. We can't avoid connecting at all, so refuse the
+		 * station state change, this will cause mac80211 to abandon
+		 * attempts to connect to this AP, and eventually wpa_s will
+		 * blacklist the AP...
+		 */
+		if (vif->type == NL80211_IFTYPE_STATION &&
+		    vif->bss_conf.beacon_int < 16) {
+			IWL_ERR(mvm,
+				"AP %pM beacon interval is %d, refusing due to firmware bug!\n",
+				sta->addr, vif->bss_conf.beacon_int);
+			ret = -EINVAL;
+			goto out_unlock;
+		}
 		ret = iwl_mvm_add_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {
@@ -1038,6 +1110,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else {
 		ret = -EIO;
 	}
+ out_unlock:
 	mutex_unlock(&mvm->mutex);
 
 	return ret;

@@ -53,11 +53,15 @@ static char *sb_writers_name[SB_FREEZE_LEVELS] = {
  * shrinker path and that leads to deadlock on the shrinker_rwsem. Hence we
  * take a passive reference to the superblock to avoid this from occurring.
  */
-static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+static unsigned long super_cache_scan(struct shrinker *shrink,
+				      struct shrink_control *sc)
 {
 	struct super_block *sb;
-	int	fs_objects = 0;
-	int	total_objects;
+	long	fs_objects = 0;
+	long	total_objects;
+	long	freed = 0;
+	long	dentries;
+	long	inodes;
 
 	sb = container_of(shrink, struct super_block, s_shrink);
 
@@ -65,46 +69,62 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
 	 * Deadlock avoidance.  We may hold various FS locks, and we don't want
 	 * to recurse into the FS that called us in clear_inode() and friends..
 	 */
-	if (sc->nr_to_scan && !(sc->gfp_mask & __GFP_FS))
-		return -1;
+	if (!(sc->gfp_mask & __GFP_FS))
+		return SHRINK_STOP;
 
 	if (!grab_super_passive(sb))
-		return -1;
+		return SHRINK_STOP;
 
-	if (sb->s_op && sb->s_op->nr_cached_objects)
-		fs_objects = sb->s_op->nr_cached_objects(sb);
+	if (sb->s_op->nr_cached_objects)
+		fs_objects = sb->s_op->nr_cached_objects(sb, sc->nid);
 
-	total_objects = sb->s_nr_dentry_unused +
-			sb->s_nr_inodes_unused + fs_objects + 1;
+	inodes = list_lru_count_node(&sb->s_inode_lru, sc->nid);
+	dentries = list_lru_count_node(&sb->s_dentry_lru, sc->nid);
+	total_objects = dentries + inodes + fs_objects + 1;
 
-	if (sc->nr_to_scan) {
-		int	dentries;
-		int	inodes;
+	/* proportion the scan between the caches */
+	dentries = mult_frac(sc->nr_to_scan, dentries, total_objects);
+	inodes = mult_frac(sc->nr_to_scan, inodes, total_objects);
 
-		/* proportion the scan between the caches */
-		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
-							total_objects;
-		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
-							total_objects;
-		if (fs_objects)
-			fs_objects = (sc->nr_to_scan * fs_objects) /
-							total_objects;
-		/*
-		 * prune the dcache first as the icache is pinned by it, then
-		 * prune the icache, followed by the filesystem specific caches
-		 */
-		prune_dcache_sb(sb, dentries);
-		prune_icache_sb(sb, inodes);
+	/*
+	 * prune the dcache first as the icache is pinned by it, then
+	 * prune the icache, followed by the filesystem specific caches
+	 */
+	freed = prune_dcache_sb(sb, dentries, sc->nid);
+	freed += prune_icache_sb(sb, inodes, sc->nid);
 
-		if (fs_objects && sb->s_op->free_cached_objects) {
-			sb->s_op->free_cached_objects(sb, fs_objects);
-			fs_objects = sb->s_op->nr_cached_objects(sb);
-		}
-		total_objects = sb->s_nr_dentry_unused +
-				sb->s_nr_inodes_unused + fs_objects;
+	if (fs_objects) {
+		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
+								total_objects);
+		freed += sb->s_op->free_cached_objects(sb, fs_objects,
+						       sc->nid);
 	}
 
-	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
+	drop_super(sb);
+	return freed;
+}
+
+static unsigned long super_cache_count(struct shrinker *shrink,
+				       struct shrink_control *sc)
+{
+	struct super_block *sb;
+	long	total_objects = 0;
+
+	sb = container_of(shrink, struct super_block, s_shrink);
+
+	if (!grab_super_passive(sb))
+		return 0;
+
+	if (sb->s_op && sb->s_op->nr_cached_objects)
+		total_objects = sb->s_op->nr_cached_objects(sb,
+						 sc->nid);
+
+	total_objects += list_lru_count_node(&sb->s_dentry_lru,
+						 sc->nid);
+	total_objects += list_lru_count_node(&sb->s_inode_lru,
+						 sc->nid);
+
+	total_objects = vfs_pressure_ratio(total_objects);
 	drop_super(sb);
 	return total_objects;
 }
@@ -152,15 +172,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	static const struct super_operations default_op;
 
 	if (s) {
-		if (security_sb_alloc(s)) {
-			/*
-			 * We cannot call security_sb_free() without
-			 * security_sb_alloc() succeeding. So bail out manually
-			 */
-			kfree(s);
-			s = NULL;
-			goto out;
-		}
+		if (security_sb_alloc(s))
+			goto out_free_sb;
+
 #ifdef CONFIG_SMP
 		s->s_files = alloc_percpu(struct list_head);
 		if (!s->s_files)
@@ -181,9 +195,12 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 		INIT_HLIST_NODE(&s->s_instances);
 		INIT_HLIST_BL_HEAD(&s->s_anon);
 		INIT_LIST_HEAD(&s->s_inodes);
-		INIT_LIST_HEAD(&s->s_dentry_lru);
-		INIT_LIST_HEAD(&s->s_inode_lru);
-		spin_lock_init(&s->s_inode_lru_lock);
+
+		if (list_lru_init(&s->s_dentry_lru))
+			goto err_out;
+		if (list_lru_init(&s->s_inode_lru))
+			goto err_out_dentry_lru;
+
 		INIT_LIST_HEAD(&s->s_mounts);
 		init_rwsem(&s->s_umount);
 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
@@ -216,11 +233,16 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 		s->cleancache_poolid = -1;
 
 		s->s_shrink.seeks = DEFAULT_SEEKS;
-		s->s_shrink.shrink = prune_super;
+		s->s_shrink.scan_objects = super_cache_scan;
+		s->s_shrink.count_objects = super_cache_count;
 		s->s_shrink.batch = 1024;
+		s->s_shrink.flags = SHRINKER_NUMA_AWARE;
 	}
 out:
 	return s;
+
+err_out_dentry_lru:
+	list_lru_destroy(&s->s_dentry_lru);
 err_out:
 	security_sb_free(s);
 #ifdef CONFIG_SMP
@@ -228,6 +250,7 @@ err_out:
 		free_percpu(s->s_files);
 #endif
 	destroy_sb_writers(s);
+out_free_sb:
 	kfree(s);
 	s = NULL;
 	goto out;
@@ -300,6 +323,9 @@ void deactivate_locked_super(struct super_block *s)
 
 		/* caches are now gone, we can safely kill the shrinker now */
 		unregister_shrinker(&s->s_shrink);
+		list_lru_destroy(&s->s_dentry_lru);
+		list_lru_destroy(&s->s_inode_lru);
+
 		put_filesystem(fs);
 		put_super(s);
 	} else {
@@ -336,19 +362,19 @@ EXPORT_SYMBOL(deactivate_super);
  *	and want to turn it into a full-blown active reference.  grab_super()
  *	is called with sb_lock held and drops it.  Returns 1 in case of
  *	success, 0 if we had failed (superblock contents was already dead or
- *	dying when grab_super() had been called).
+ *	dying when grab_super() had been called).  Note that this is only
+ *	called for superblocks not in rundown mode (== ones still on ->fs_supers
+ *	of their type), so increment of ->s_count is OK here.
  */
 static int grab_super(struct super_block *s) __releases(sb_lock)
 {
-	if (atomic_inc_not_zero(&s->s_active)) {
-		spin_unlock(&sb_lock);
-		return 1;
-	}
-	/* it's going away */
 	s->s_count++;
 	spin_unlock(&sb_lock);
-	/* wait for it to die */
 	down_write(&s->s_umount);
+	if ((s->s_flags & MS_BORN) && atomic_inc_not_zero(&s->s_active)) {
+		put_super(s);
+		return 1;
+	}
 	up_write(&s->s_umount);
 	put_super(s);
 	return 0;
@@ -414,6 +440,11 @@ void generic_shutdown_super(struct super_block *sb)
 
 		evict_inodes(sb);
 
+		if (sb->s_dio_done_wq) {
+			destroy_workqueue(sb->s_dio_done_wq);
+			sb->s_dio_done_wq = NULL;
+		}
+
 		if (sop->put_super)
 			sop->put_super(sb);
 
@@ -462,11 +493,6 @@ retry:
 				up_write(&s->s_umount);
 				destroy_super(s);
 				s = NULL;
-			}
-			down_write(&old->s_umount);
-			if (unlikely(!(old->s_flags & MS_BORN))) {
-				deactivate_locked_super(old);
-				goto retry;
 			}
 			return old;
 		}
@@ -660,10 +686,10 @@ restart:
 		if (hlist_unhashed(&sb->s_instances))
 			continue;
 		if (sb->s_bdev == bdev) {
-			if (grab_super(sb)) /* drops sb_lock */
-				return sb;
-			else
+			if (!grab_super(sb))
 				goto restart;
+			up_write(&sb->s_umount);
+			return sb;
 		}
 	}
 	spin_unlock(&sb_lock);

@@ -24,51 +24,13 @@ struct xlog_ticket;
 struct xfs_mount;
 
 /*
- * Macros, structures, prototypes for internal log manager use.
+ * Flags for log structure
  */
-
-#define XLOG_MIN_ICLOGS		2
-#define XLOG_MAX_ICLOGS		8
-#define XLOG_HEADER_MAGIC_NUM	0xFEEDbabe	/* Invalid cycle number */
-#define XLOG_VERSION_1		1
-#define XLOG_VERSION_2		2		/* Large IClogs, Log sunit */
-#define XLOG_VERSION_OKBITS	(XLOG_VERSION_1 | XLOG_VERSION_2)
-#define XLOG_MIN_RECORD_BSIZE	(16*1024)	/* eventually 32k */
-#define XLOG_BIG_RECORD_BSIZE	(32*1024)	/* 32k buffers */
-#define XLOG_MAX_RECORD_BSIZE	(256*1024)
-#define XLOG_HEADER_CYCLE_SIZE	(32*1024)	/* cycle data in header */
-#define XLOG_MIN_RECORD_BSHIFT	14		/* 16384 == 1 << 14 */
-#define XLOG_BIG_RECORD_BSHIFT	15		/* 32k == 1 << 15 */
-#define XLOG_MAX_RECORD_BSHIFT	18		/* 256k == 1 << 18 */
-#define XLOG_BTOLSUNIT(log, b)  (((b)+(log)->l_mp->m_sb.sb_logsunit-1) / \
-                                 (log)->l_mp->m_sb.sb_logsunit)
-#define XLOG_LSUNITTOB(log, su) ((su) * (log)->l_mp->m_sb.sb_logsunit)
-
-#define XLOG_HEADER_SIZE	512
-
-#define XLOG_REC_SHIFT(log) \
-	BTOBB(1 << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
-	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
-#define XLOG_TOTAL_REC_SHIFT(log) \
-	BTOBB(XLOG_MAX_ICLOGS << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
-	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
-
-static inline xfs_lsn_t xlog_assign_lsn(uint cycle, uint block)
-{
-	return ((xfs_lsn_t)cycle << 32) | block;
-}
-
-static inline uint xlog_get_cycle(char *ptr)
-{
-	if (be32_to_cpu(*(__be32 *)ptr) == XLOG_HEADER_MAGIC_NUM)
-		return be32_to_cpu(*((__be32 *)ptr + 1));
-	else
-		return be32_to_cpu(*(__be32 *)ptr);
-}
-
-#define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
-
-#ifdef __KERNEL__
+#define XLOG_ACTIVE_RECOVERY	0x2	/* in the middle of recovery */
+#define	XLOG_RECOVERY_NEEDED	0x4	/* log was recovered */
+#define XLOG_IO_ERROR		0x8	/* log hit an I/O error, and being
+					   shutdown */
+#define XLOG_TAIL_WARN		0x10	/* log tail verify warning issued */
 
 /*
  * get client id from packed copy.
@@ -101,27 +63,7 @@ static inline uint xlog_get_client_id(__be32 i)
 #define XLOG_STATE_IOERROR   0x0080 /* IO error happened in sync'ing log */
 #define XLOG_STATE_ALL	     0x7FFF /* All possible valid flags */
 #define XLOG_STATE_NOTUSED   0x8000 /* This IC log not being used */
-#endif	/* __KERNEL__ */
 
-/*
- * Flags to log operation header
- *
- * The first write of a new transaction will be preceded with a start
- * record, XLOG_START_TRANS.  Once a transaction is committed, a commit
- * record is written, XLOG_COMMIT_TRANS.  If a single region can not fit into
- * the remainder of the current active in-core log, it is split up into
- * multiple regions.  Each partial region will be marked with a
- * XLOG_CONTINUE_TRANS until the last one, which gets marked with XLOG_END_TRANS.
- *
- */
-#define XLOG_START_TRANS	0x01	/* Start a new transaction */
-#define XLOG_COMMIT_TRANS	0x02	/* Commit this transaction */
-#define XLOG_CONTINUE_TRANS	0x04	/* Cont this trans into new region */
-#define XLOG_WAS_CONT_TRANS	0x08	/* Cont this trans into new region */
-#define XLOG_END_TRANS		0x10	/* End a continued transaction */
-#define XLOG_UNMOUNT_TRANS	0x20	/* Unmount a filesystem transaction */
-
-#ifdef __KERNEL__
 /*
  * Flags to log ticket
  */
@@ -132,22 +74,6 @@ static inline uint xlog_get_client_id(__be32 i)
 	{ XLOG_TIC_INITED,	"XLOG_TIC_INITED" }, \
 	{ XLOG_TIC_PERM_RESERV,	"XLOG_TIC_PERM_RESERV" }
 
-#endif	/* __KERNEL__ */
-
-#define XLOG_UNMOUNT_TYPE	0x556e	/* Un for Unmount */
-
-/*
- * Flags for log structure
- */
-#define XLOG_ACTIVE_RECOVERY	0x2	/* in the middle of recovery */
-#define	XLOG_RECOVERY_NEEDED	0x4	/* log was recovered */
-#define XLOG_IO_ERROR		0x8	/* log hit an I/O error, and being
-					   shutdown */
-#define XLOG_TAIL_WARN		0x10	/* log tail verify warning issued */
-
-typedef __uint32_t xlog_tid_t;
-
-#ifdef __KERNEL__
 /*
  * Below are states for covering allocation transactions.
  * By covering, we mean changing the h_tail_lsn in the last on-disk
@@ -223,7 +149,6 @@ typedef __uint32_t xlog_tid_t;
 
 #define XLOG_COVER_OPS		5
 
-
 /* Ticket reservation region accounting */ 
 #define XLOG_TIC_LEN_MAX	15
 
@@ -257,64 +182,6 @@ typedef struct xlog_ticket {
 	uint		   t_res_o_flow;		 /* sum overflow : 4 */
 	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : 8 * 15 */ 
 } xlog_ticket_t;
-
-#endif
-
-
-typedef struct xlog_op_header {
-	__be32	   oh_tid;	/* transaction id of operation	:  4 b */
-	__be32	   oh_len;	/* bytes in data region		:  4 b */
-	__u8	   oh_clientid;	/* who sent me this		:  1 b */
-	__u8	   oh_flags;	/*				:  1 b */
-	__u16	   oh_res2;	/* 32 bit align			:  2 b */
-} xlog_op_header_t;
-
-
-/* valid values for h_fmt */
-#define XLOG_FMT_UNKNOWN  0
-#define XLOG_FMT_LINUX_LE 1
-#define XLOG_FMT_LINUX_BE 2
-#define XLOG_FMT_IRIX_BE  3
-
-/* our fmt */
-#ifdef XFS_NATIVE_HOST
-#define XLOG_FMT XLOG_FMT_LINUX_BE
-#else
-#define XLOG_FMT XLOG_FMT_LINUX_LE
-#endif
-
-typedef struct xlog_rec_header {
-	__be32	  h_magicno;	/* log record (LR) identifier		:  4 */
-	__be32	  h_cycle;	/* write cycle of log			:  4 */
-	__be32	  h_version;	/* LR version				:  4 */
-	__be32	  h_len;	/* len in bytes; should be 64-bit aligned: 4 */
-	__be64	  h_lsn;	/* lsn of this LR			:  8 */
-	__be64	  h_tail_lsn;	/* lsn of 1st LR w/ buffers not committed: 8 */
-	__le32	  h_crc;	/* crc of log record                    :  4 */
-	__be32	  h_prev_block; /* block number to previous LR		:  4 */
-	__be32	  h_num_logops;	/* number of log operations in this LR	:  4 */
-	__be32	  h_cycle_data[XLOG_HEADER_CYCLE_SIZE / BBSIZE];
-	/* new fields */
-	__be32    h_fmt;        /* format of log record                 :  4 */
-	uuid_t	  h_fs_uuid;    /* uuid of FS                           : 16 */
-	__be32	  h_size;	/* iclog size				:  4 */
-} xlog_rec_header_t;
-
-typedef struct xlog_rec_ext_header {
-	__be32	  xh_cycle;	/* write cycle of log			: 4 */
-	__be32	  xh_cycle_data[XLOG_HEADER_CYCLE_SIZE / BBSIZE]; /*	: 256 */
-} xlog_rec_ext_header_t;
-
-#ifdef __KERNEL__
-
-/*
- * Quite misnamed, because this union lays out the actual on-disk log buffer.
- */
-typedef union xlog_in_core2 {
-	xlog_rec_header_t	hic_header;
-	xlog_rec_ext_header_t	hic_xheader;
-	char			hic_sector[XLOG_HEADER_SIZE];
-} xlog_in_core_2_t;
 
 /*
  * - A log record header is 512 bytes.  There is plenty of room to grow the
@@ -411,14 +278,17 @@ struct xfs_cil {
 	struct xlog		*xc_log;
 	struct list_head	xc_cil;
 	spinlock_t		xc_cil_lock;
+
+	struct rw_semaphore	xc_ctx_lock ____cacheline_aligned_in_smp;
 	struct xfs_cil_ctx	*xc_ctx;
-	struct rw_semaphore	xc_ctx_lock;
+
+	spinlock_t		xc_push_lock ____cacheline_aligned_in_smp;
+	xfs_lsn_t		xc_push_seq;
 	struct list_head	xc_committing;
 	wait_queue_head_t	xc_commit_wait;
 	xfs_lsn_t		xc_current_sequence;
 	struct work_struct	xc_push_work;
-	xfs_lsn_t		xc_push_seq;
-};
+} ____cacheline_aligned_in_smp;
 
 /*
  * The amount of log space we allow the CIL to aggregate is difficult to size.
@@ -686,6 +556,5 @@ static inline void xlog_wait(wait_queue_head_t *wq, spinlock_t *lock)
 	schedule();
 	remove_wait_queue(wq, &wait);
 }
-#endif	/* __KERNEL__ */
 
 #endif	/* __XFS_LOG_PRIV_H__ */

@@ -543,7 +543,7 @@ static int vlsi_process_rx(struct vlsi_ring *r, struct ring_descr *rd)
 	int		crclen, len = 0;
 	struct sk_buff	*skb;
 	int		ret = 0;
-	struct net_device *ndev = (struct net_device *)pci_get_drvdata(r->pdev);
+	struct net_device *ndev = pci_get_drvdata(r->pdev);
 	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 
 	pci_dma_sync_single_for_cpu(r->pdev, rd_get_addr(rd), r->len, r->dir);

@@ -57,7 +57,7 @@ changes occur:
 	interface must make sure that any previous page table
 	modifications for the address space 'vma->vm_mm' in the range
 	'start' to 'end-1' will be visible to the cpu.  That is, after
-	running, here will be no entries in the TLB for 'mm' for
+	running, there will be no entries in the TLB for 'mm' for
 	virtual addresses in the range 'start' to 'end-1'.
 
 	The "vma" is the backing store being used for the region.
@@ -375,8 +375,8 @@ maps this page at its virtual address.
 
   void flush_icache_page(struct vm_area_struct *vma, struct page *page)
 	All the functionality of flush_icache_page can be implemented in
-	flush_dcache_page and update_mmu_cache. In 2.7 the hope is to
-	remove this interface completely.
+	flush_dcache_page and update_mmu_cache. In the future, the hope
+	is to remove this interface completely.
 
 The final category of APIs is for I/O to deliberately aliased address
 ranges inside the kernel.  Such aliases are set up by use of the

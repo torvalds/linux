@@ -38,8 +38,8 @@ nv4e_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	pfb->ram->size = nv_rd32(pfb, 0x10020c) & 0xff000000;
-	pfb->ram->type = NV_MEM_TYPE_STOLEN;
+	ram->size = nv_rd32(pfb, 0x10020c) & 0xff000000;
+	ram->type = NV_MEM_TYPE_STOLEN;
 	return 0;
 }
 

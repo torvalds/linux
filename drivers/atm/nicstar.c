@@ -153,7 +153,6 @@ static int ns_ioctl(struct atm_dev *dev, unsigned int cmd, void __user * arg);
 static void which_list(ns_dev * card, struct sk_buff *skb);
 #endif
 static void ns_poll(unsigned long arg);
-static int ns_parse_mac(char *mac, unsigned char *esi);
 static void ns_phy_put(struct atm_dev *dev, unsigned char value,
 		       unsigned long addr);
 static unsigned char ns_phy_get(struct atm_dev *dev, unsigned long addr);
@@ -779,7 +778,7 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 		return error;
 	}
 
-	if (ns_parse_mac(mac[i], card->atmdev->esi)) {
+	if (mac[i] == NULL || mac_pton(mac[i], card->atmdev->esi)) {
 		nicstar_read_eprom(card->membase, NICSTAR_EPROM_MAC_ADDR_OFFSET,
 				   card->atmdev->esi, 6);
 		if (memcmp(card->atmdev->esi, "\x00\x00\x00\x00\x00\x00", 6) ==
@@ -2801,29 +2800,6 @@ static void ns_poll(unsigned long arg)
 	mod_timer(&ns_timer, jiffies + NS_POLL_PERIOD);
 	PRINTK("nicstar: Leaving ns_poll().\n");
 }
-
-static int ns_parse_mac(char *mac, unsigned char *esi)
-{
-	int i, j;
-	short byte1, byte0;
-
-	if (mac == NULL || esi == NULL)
-		return -1;
-	j = 0;
-	for (i = 0; i < 6; i++) {
-		if ((byte1 = hex_to_bin(mac[j++])) < 0)
-			return -1;
-		if ((byte0 = hex_to_bin(mac[j++])) < 0)
-			return -1;
-		esi[i] = (unsigned char)(byte1 * 16 + byte0);
-		if (i < 5) {
-			if (mac[j++] != ':')
-				return -1;
-		}
-	}
-	return 0;
-}
-
 
 static void ns_phy_put(struct atm_dev *dev, unsigned char value,
 		       unsigned long addr)

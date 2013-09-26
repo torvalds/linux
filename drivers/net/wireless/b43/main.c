@@ -4645,6 +4645,19 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_PSM_RUN,
 		      B43_MACCTL_PSM_JMP0);
 
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		bcma_core_pci_down(dev->dev->bdev->bus);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		/* TODO */
+		break;
+#endif
+	}
+
 	b43_dma_free(dev);
 	b43_pio_free(dev);
 	b43_chip_exit(dev);
@@ -4684,6 +4697,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	case B43_BUS_BCMA:
 		bcma_core_pci_irq_ctl(&dev->dev->bdev->bus->drv_pci[0],
 				      dev->dev->bdev, true);
+		bcma_core_pci_up(dev->dev->bdev->bus);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB

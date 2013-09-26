@@ -2393,7 +2393,7 @@ static const struct dev_pm_ops r8a66597_dev_pm_ops = {
 
 static int r8a66597_remove(struct platform_device *pdev)
 {
-	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
+	struct r8a66597		*r8a66597 = platform_get_drvdata(pdev);
 	struct usb_hcd		*hcd = r8a66597_to_hcd(r8a66597);
 
 	del_timer_sync(&r8a66597->rh_timer);
@@ -2466,8 +2466,8 @@ static int r8a66597_probe(struct platform_device *pdev)
 	}
 	r8a66597 = hcd_to_r8a66597(hcd);
 	memset(r8a66597, 0, sizeof(struct r8a66597));
-	dev_set_drvdata(&pdev->dev, r8a66597);
-	r8a66597->pdata = pdev->dev.platform_data;
+	platform_set_drvdata(pdev, r8a66597);
+	r8a66597->pdata = dev_get_platdata(&pdev->dev);
 	r8a66597->irq_sense_low = irq_trigger == IRQF_TRIGGER_LOW;
 
 	if (r8a66597->pdata->on_chip) {

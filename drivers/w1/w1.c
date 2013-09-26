@@ -96,14 +96,15 @@ static void w1_slave_release(struct device *dev)
 	complete(&sl->released);
 }
 
-static ssize_t w1_slave_read_name(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = dev_to_w1_slave(dev);
 
 	return sprintf(buf, "%s\n", sl->name);
 }
+static DEVICE_ATTR_RO(name);
 
-static ssize_t w1_slave_read_id(struct device *dev,
+static ssize_t id_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = dev_to_w1_slave(dev);
@@ -112,17 +113,20 @@ static ssize_t w1_slave_read_id(struct device *dev,
 	memcpy(buf, (u8 *)&sl->reg_num, count);
 	return count;
 }
+static DEVICE_ATTR_RO(id);
 
-static struct device_attribute w1_slave_attr_name =
-	__ATTR(name, S_IRUGO, w1_slave_read_name, NULL);
-static struct device_attribute w1_slave_attr_id =
-	__ATTR(id, S_IRUGO, w1_slave_read_id, NULL);
+static struct attribute *w1_slave_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(w1_slave);
 
 /* Default family */
 
-static ssize_t w1_default_write(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr,
-				char *buf, loff_t off, size_t count)
+static ssize_t rw_write(struct file *filp, struct kobject *kobj,
+			struct bin_attribute *bin_attr, char *buf, loff_t off,
+			size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
@@ -139,9 +143,9 @@ out_up:
 	return count;
 }
 
-static ssize_t w1_default_read(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
-			       char *buf, loff_t off, size_t count)
+static ssize_t rw_read(struct file *filp, struct kobject *kobj,
+		       struct bin_attribute *bin_attr, char *buf, loff_t off,
+		       size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
@@ -151,29 +155,24 @@ static ssize_t w1_default_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute w1_default_attr = {
-      .attr = {
-              .name = "rw",
-              .mode = S_IRUGO | S_IWUSR,
-      },
-      .size = PAGE_SIZE,
-      .read = w1_default_read,
-      .write = w1_default_write,
+static BIN_ATTR_RW(rw, PAGE_SIZE);
+
+static struct bin_attribute *w1_slave_bin_attrs[] = {
+	&bin_attr_rw,
+	NULL,
 };
 
-static int w1_default_add_slave(struct w1_slave *sl)
-{
-	return sysfs_create_bin_file(&sl->dev.kobj, &w1_default_attr);
-}
+static const struct attribute_group w1_slave_default_group = {
+	.bin_attrs = w1_slave_bin_attrs,
+};
 
-static void w1_default_remove_slave(struct w1_slave *sl)
-{
-	sysfs_remove_bin_file(&sl->dev.kobj, &w1_default_attr);
-}
+static const struct attribute_group *w1_slave_default_groups[] = {
+	&w1_slave_default_group,
+	NULL,
+};
 
 static struct w1_family_ops w1_default_fops = {
-	.add_slave	= w1_default_add_slave,
-	.remove_slave	= w1_default_remove_slave,
+	.groups		= w1_slave_default_groups,
 };
 
 static struct w1_family w1_default_family = {
@@ -235,9 +234,11 @@ static ssize_t w1_master_attribute_store_search(struct device * dev,
 {
 	long tmp;
 	struct w1_master *md = dev_to_w1_master(dev);
+	int ret;
 
-	if (strict_strtol(buf, 0, &tmp) == -EINVAL)
-		return -EINVAL;
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret)
+		return ret;
 
 	mutex_lock(&md->mutex);
 	md->search_count = tmp;
@@ -267,9 +268,11 @@ static ssize_t w1_master_attribute_store_pullup(struct device *dev,
 {
 	long tmp;
 	struct w1_master *md = dev_to_w1_master(dev);
+	int ret;
 
-	if (strict_strtol(buf, 0, &tmp) == -EINVAL)
-		return -EINVAL;
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret)
+		return ret;
 
 	mutex_lock(&md->mutex);
 	md->enable_pullup = tmp;
@@ -587,6 +590,66 @@ end:
 	return err;
 }
 
+/*
+ * Handle sysfs file creation and removal here, before userspace is told that
+ * the device is added / removed from the system
+ */
+static int w1_bus_notify(struct notifier_block *nb, unsigned long action,
+			 void *data)
+{
+	struct device *dev = data;
+	struct w1_slave *sl;
+	struct w1_family_ops *fops;
+	int err;
+
+	/*
+	 * Only care about slave devices at the moment.  Yes, we should use a
+	 * separate "type" for this, but for now, look at the release function
+	 * to know which type it is...
+	 */
+	if (dev->release != w1_slave_release)
+		return 0;
+
+	sl = dev_to_w1_slave(dev);
+	fops = sl->family->fops;
+
+	switch (action) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		/* if the family driver needs to initialize something... */
+		if (fops->add_slave) {
+			err = fops->add_slave(sl);
+			if (err < 0) {
+				dev_err(&sl->dev,
+					"add_slave() call failed. err=%d\n",
+					err);
+				return err;
+			}
+		}
+		if (fops->groups) {
+			err = sysfs_create_groups(&sl->dev.kobj, fops->groups);
+			if (err) {
+				dev_err(&sl->dev,
+					"sysfs group creation failed. err=%d\n",
+					err);
+				return err;
+			}
+		}
+
+		break;
+	case BUS_NOTIFY_DEL_DEVICE:
+		if (fops->remove_slave)
+			sl->family->fops->remove_slave(sl);
+		if (fops->groups)
+			sysfs_remove_groups(&sl->dev.kobj, fops->groups);
+		break;
+	}
+	return 0;
+}
+
+static struct notifier_block w1_bus_nb = {
+	.notifier_call = w1_bus_notify,
+};
+
 static int __w1_attach_slave_device(struct w1_slave *sl)
 {
 	int err;
@@ -595,6 +658,7 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 	sl->dev.driver = &w1_slave_driver;
 	sl->dev.bus = &w1_bus_type;
 	sl->dev.release = &w1_slave_release;
+	sl->dev.groups = w1_slave_groups;
 
 	dev_set_name(&sl->dev, "%02x-%012llx",
 		 (unsigned int) sl->reg_num.family,
@@ -615,44 +679,13 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 		return err;
 	}
 
-	/* Create "name" entry */
-	err = device_create_file(&sl->dev, &w1_slave_attr_name);
-	if (err < 0) {
-		dev_err(&sl->dev,
-			"sysfs file creation for [%s] failed. err=%d\n",
-			dev_name(&sl->dev), err);
-		goto out_unreg;
-	}
 
-	/* Create "id" entry */
-	err = device_create_file(&sl->dev, &w1_slave_attr_id);
-	if (err < 0) {
-		dev_err(&sl->dev,
-			"sysfs file creation for [%s] failed. err=%d\n",
-			dev_name(&sl->dev), err);
-		goto out_rem1;
-	}
-
-	/* if the family driver needs to initialize something... */
-	if (sl->family->fops && sl->family->fops->add_slave &&
-	    ((err = sl->family->fops->add_slave(sl)) < 0)) {
-		dev_err(&sl->dev,
-			"sysfs file creation for [%s] failed. err=%d\n",
-			dev_name(&sl->dev), err);
-		goto out_rem2;
-	}
+	dev_set_uevent_suppress(&sl->dev, false);
+	kobject_uevent(&sl->dev.kobj, KOBJ_ADD);
 
 	list_add_tail(&sl->w1_slave_entry, &sl->master->slist);
 
 	return 0;
-
-out_rem2:
-	device_remove_file(&sl->dev, &w1_slave_attr_id);
-out_rem1:
-	device_remove_file(&sl->dev, &w1_slave_attr_name);
-out_unreg:
-	device_unregister(&sl->dev);
-	return err;
 }
 
 static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
@@ -723,16 +756,11 @@ void w1_slave_detach(struct w1_slave *sl)
 
 	list_del(&sl->w1_slave_entry);
 
-	if (sl->family->fops && sl->family->fops->remove_slave)
-		sl->family->fops->remove_slave(sl);
-
 	memset(&msg, 0, sizeof(msg));
 	memcpy(msg.id.id, &sl->reg_num, sizeof(msg.id));
 	msg.type = W1_SLAVE_REMOVE;
 	w1_netlink_send(sl->master, &msg);
 
-	device_remove_file(&sl->dev, &w1_slave_attr_id);
-	device_remove_file(&sl->dev, &w1_slave_attr_name);
 	device_unregister(&sl->dev);
 
 	wait_for_completion(&sl->released);
@@ -1016,6 +1044,10 @@ static int __init w1_init(void)
 		printk(KERN_ERR "Failed to register bus. err=%d.\n", retval);
 		goto err_out_exit_init;
 	}
+
+	retval = bus_register_notifier(&w1_bus_type, &w1_bus_nb);
+	if (retval)
+		goto err_out_bus_unregister;
 
 	retval = driver_register(&w1_master_driver);
 	if (retval) {

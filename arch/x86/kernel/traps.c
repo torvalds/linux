@@ -58,23 +58,24 @@
 #include <asm/mce.h>
 #include <asm/fixmap.h>
 #include <asm/mach_traps.h>
+#include <asm/alternative.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
+
+/* No need to be aligned, but done to keep all IDTs defined the same way. */
+gate_desc debug_idt_table[NR_VECTORS] __page_aligned_bss;
 #else
 #include <asm/processor-flags.h>
 #include <asm/setup.h>
 
 asmlinkage int system_call(void);
-
-/*
- * The IDT has to be page-aligned to simplify the Pentium
- * F0 0F bug workaround.
- */
-gate_desc idt_table[NR_VECTORS] __page_aligned_data = { { { { 0, 0 } } }, };
 #endif
+
+/* Must be page-aligned because the real IDT is used in a fixmap. */
+gate_desc idt_table[NR_VECTORS] __page_aligned_bss;
 
 DECLARE_BITMAP(used_vectors, NR_VECTORS);
 EXPORT_SYMBOL_GPL(used_vectors);
@@ -327,6 +328,9 @@ dotraplinkage void __kprobes notrace do_int3(struct pt_regs *regs, long error_co
 	    ftrace_int3_handler(regs))
 		return;
 #endif
+	if (poke_int3_handler(regs))
+		return;
+
 	prev_state = exception_enter();
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,

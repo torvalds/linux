@@ -5,6 +5,7 @@
 #include <linux/rbtree.h>
 #include "map.h"
 
+struct addr_location;
 struct branch_stack;
 struct perf_evsel;
 struct perf_sample;
@@ -28,6 +29,7 @@ struct machine {
 	struct list_head  kernel_dsos;
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
+	symbol_filter_t	  symbol_filter;
 };
 
 static inline
@@ -36,13 +38,14 @@ struct map *machine__kernel_map(struct machine *machine, enum map_type type)
 	return machine->vmlinux_maps[type];
 }
 
-struct thread *machine__find_thread(struct machine *machine, pid_t pid);
+struct thread *machine__find_thread(struct machine *machine, pid_t tid);
 
 int machine__process_comm_event(struct machine *machine, union perf_event *event);
 int machine__process_exit_event(struct machine *machine, union perf_event *event);
 int machine__process_fork_event(struct machine *machine, union perf_event *event);
 int machine__process_lost_event(struct machine *machine, union perf_event *event);
 int machine__process_mmap_event(struct machine *machine, union perf_event *event);
+int machine__process_mmap2_event(struct machine *machine, union perf_event *event);
 int machine__process_event(struct machine *machine, union perf_event *event);
 
 typedef void (*machine__process_t)(struct machine *machine, void *data);
@@ -50,6 +53,7 @@ typedef void (*machine__process_t)(struct machine *machine, void *data);
 struct machines {
 	struct machine host;
 	struct rb_root guests;
+	symbol_filter_t symbol_filter;
 };
 
 void machines__init(struct machines *machines);
@@ -67,6 +71,9 @@ struct machine *machines__findnew(struct machines *machines, pid_t pid);
 void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size);
 char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
 
+void machines__set_symbol_filter(struct machines *machines,
+				 symbol_filter_t symbol_filter);
+
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);
 void machine__delete_dead_threads(struct machine *machine);
@@ -83,7 +90,8 @@ int machine__resolve_callchain(struct machine *machine,
 			       struct perf_evsel *evsel,
 			       struct thread *thread,
 			       struct perf_sample *sample,
-			       struct symbol **parent);
+			       struct symbol **parent,
+			       struct addr_location *root_al);
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms
@@ -99,7 +107,8 @@ static inline bool machine__is_host(struct machine *machine)
 	return machine ? machine->pid == HOST_KERNEL_ID : false;
 }
 
-struct thread *machine__findnew_thread(struct machine *machine, pid_t pid);
+struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
+				       pid_t tid);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);
 

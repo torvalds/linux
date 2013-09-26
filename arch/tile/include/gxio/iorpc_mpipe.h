@@ -44,10 +44,13 @@
 #define GXIO_MPIPE_OP_REGISTER_CLIENT_MEMORY IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x1210)
 #define GXIO_MPIPE_OP_LINK_OPEN_AUX    IORPC_OPCODE(IORPC_FORMAT_NONE, 0x1211)
 #define GXIO_MPIPE_OP_LINK_CLOSE_AUX   IORPC_OPCODE(IORPC_FORMAT_NONE, 0x1212)
+#define GXIO_MPIPE_OP_LINK_SET_ATTR_AUX IORPC_OPCODE(IORPC_FORMAT_NONE, 0x1213)
 
-#define GXIO_MPIPE_OP_GET_TIMESTAMP_AUX IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x121e)
-#define GXIO_MPIPE_OP_SET_TIMESTAMP_AUX IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x121f)
-#define GXIO_MPIPE_OP_ADJUST_TIMESTAMP_AUX IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x1220)
+#define GXIO_MPIPE_OP_GET_TIMESTAMP_AUX IORPC_OPCODE(IORPC_FORMAT_NONE, 0x121e)
+#define GXIO_MPIPE_OP_SET_TIMESTAMP_AUX IORPC_OPCODE(IORPC_FORMAT_NONE, 0x121f)
+#define GXIO_MPIPE_OP_ADJUST_TIMESTAMP_AUX IORPC_OPCODE(IORPC_FORMAT_NONE, 0x1220)
+#define GXIO_MPIPE_OP_CONFIG_EDMA_RING_BLKS IORPC_OPCODE(IORPC_FORMAT_NONE, 0x1221)
+#define GXIO_MPIPE_OP_ADJUST_TIMESTAMP_FREQ IORPC_OPCODE(IORPC_FORMAT_NONE, 0x1222)
 #define GXIO_MPIPE_OP_ARM_POLLFD       IORPC_OPCODE(IORPC_FORMAT_KERNEL_POLLFD, 0x9000)
 #define GXIO_MPIPE_OP_CLOSE_POLLFD     IORPC_OPCODE(IORPC_FORMAT_KERNEL_POLLFD, 0x9001)
 #define GXIO_MPIPE_OP_GET_MMIO_BASE    IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x8000)
@@ -114,6 +117,8 @@ int gxio_mpipe_link_open_aux(gxio_mpipe_context_t * context,
 
 int gxio_mpipe_link_close_aux(gxio_mpipe_context_t * context, int mac);
 
+int gxio_mpipe_link_set_attr_aux(gxio_mpipe_context_t * context, int mac,
+				 uint32_t attr, int64_t val);
 
 int gxio_mpipe_get_timestamp_aux(gxio_mpipe_context_t * context, uint64_t * sec,
 				 uint64_t * nsec, uint64_t * cycles);
@@ -123,6 +128,9 @@ int gxio_mpipe_set_timestamp_aux(gxio_mpipe_context_t * context, uint64_t sec,
 
 int gxio_mpipe_adjust_timestamp_aux(gxio_mpipe_context_t * context,
 				    int64_t nsec);
+
+int gxio_mpipe_adjust_timestamp_freq(gxio_mpipe_context_t * context,
+				     int32_t ppb);
 
 int gxio_mpipe_arm_pollfd(gxio_mpipe_context_t * context, int pollfd_cookie);
 

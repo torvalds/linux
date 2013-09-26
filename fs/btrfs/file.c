@@ -596,20 +596,29 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		if (no_splits)
 			goto next;
 
-		if (em->block_start < EXTENT_MAP_LAST_BYTE &&
-		    em->start < start) {
+		if (em->start < start) {
 			split->start = em->start;
 			split->len = start - em->start;
-			split->orig_start = em->orig_start;
-			split->block_start = em->block_start;
 
-			if (compressed)
-				split->block_len = em->block_len;
-			else
-				split->block_len = split->len;
-			split->ram_bytes = em->ram_bytes;
-			split->orig_block_len = max(split->block_len,
-						    em->orig_block_len);
+			if (em->block_start < EXTENT_MAP_LAST_BYTE) {
+				split->orig_start = em->orig_start;
+				split->block_start = em->block_start;
+
+				if (compressed)
+					split->block_len = em->block_len;
+				else
+					split->block_len = split->len;
+				split->orig_block_len = max(split->block_len,
+						em->orig_block_len);
+				split->ram_bytes = em->ram_bytes;
+			} else {
+				split->orig_start = split->start;
+				split->block_len = 0;
+				split->block_start = em->block_start;
+				split->orig_block_len = 0;
+				split->ram_bytes = split->len;
+			}
+
 			split->generation = gen;
 			split->bdev = em->bdev;
 			split->flags = flags;
@@ -620,8 +629,7 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split = split2;
 			split2 = NULL;
 		}
-		if (em->block_start < EXTENT_MAP_LAST_BYTE &&
-		    testend && em->start + em->len > start + len) {
+		if (testend && em->start + em->len > start + len) {
 			u64 diff = start + len - em->start;
 
 			split->start = start + len;
@@ -630,18 +638,28 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split->flags = flags;
 			split->compress_type = em->compress_type;
 			split->generation = gen;
-			split->orig_block_len = max(em->block_len,
-						    em->orig_block_len);
-			split->ram_bytes = em->ram_bytes;
 
-			if (compressed) {
-				split->block_len = em->block_len;
-				split->block_start = em->block_start;
-				split->orig_start = em->orig_start;
+			if (em->block_start < EXTENT_MAP_LAST_BYTE) {
+				split->orig_block_len = max(em->block_len,
+						    em->orig_block_len);
+
+				split->ram_bytes = em->ram_bytes;
+				if (compressed) {
+					split->block_len = em->block_len;
+					split->block_start = em->block_start;
+					split->orig_start = em->orig_start;
+				} else {
+					split->block_len = split->len;
+					split->block_start = em->block_start
+						+ diff;
+					split->orig_start = em->orig_start;
+				}
 			} else {
-				split->block_len = split->len;
-				split->block_start = em->block_start + diff;
-				split->orig_start = em->orig_start;
+				split->ram_bytes = split->len;
+				split->orig_start = split->start;
+				split->block_len = 0;
+				split->block_start = em->block_start;
+				split->orig_block_len = 0;
 			}
 
 			ret = add_extent_mapping(em_tree, split, modified);
@@ -1316,7 +1334,6 @@ fail:
 static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 				    size_t *write_bytes)
 {
-	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ordered_extent *ordered;
 	u64 lockstart, lockend;
@@ -1338,16 +1355,8 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 		btrfs_put_ordered_extent(ordered);
 	}
 
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans)) {
-		unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
-		return PTR_ERR(trans);
-	}
-
 	num_bytes = lockend - lockstart + 1;
-	ret = can_nocow_extent(trans, inode, lockstart, &num_bytes, NULL, NULL,
-			       NULL);
-	btrfs_end_transaction(trans, root);
+	ret = can_nocow_extent(inode, lockstart, &num_bytes, NULL, NULL, NULL);
 	if (ret <= 0) {
 		ret = 0;
 	} else {
@@ -1709,7 +1718,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	 */
 	BTRFS_I(inode)->last_trans = root->fs_info->generation + 1;
 	BTRFS_I(inode)->last_sub_trans = root->log_transid;
-	if (num_written > 0 || num_written == -EIOCBQUEUED) {
+	if (num_written > 0) {
 		err = generic_write_sync(file, pos, num_written);
 		if (err < 0 && num_written > 0)
 			num_written = err;

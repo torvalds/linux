@@ -116,8 +116,10 @@ ssize_t ide_park_store(struct device *dev, struct device_attribute *attr,
 	long int input;
 	int rc;
 
-	rc = strict_strtol(buf, 10, &input);
-	if (rc || input < -2)
+	rc = kstrtol(buf, 10, &input);
+	if (rc)
+		return rc;
+	if (input < -2)
 		return -EINVAL;
 	if (input > MAX_PARK_TIMEOUT) {
 		input = MAX_PARK_TIMEOUT;

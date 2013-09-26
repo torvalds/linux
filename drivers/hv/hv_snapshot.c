@@ -24,6 +24,10 @@
 #include <linux/workqueue.h>
 #include <linux/hyperv.h>
 
+#define VSS_MAJOR  5
+#define VSS_MINOR  0
+#define VSS_MAJOR_MINOR    (VSS_MAJOR << 16 | VSS_MINOR)
+
 
 
 /*
@@ -186,18 +190,8 @@ void hv_vss_onchannelcallback(void *context)
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
 			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				 recv_buffer, MAX_SRV_VER, MAX_SRV_VER);
-			/*
-			 * We currently negotiate the highest number the
-			 * host has presented. If this version is not
-			 * atleast 5.0, reject.
-			 */
-			negop = (struct icmsg_negotiate *)&recv_buffer[
-				sizeof(struct vmbuspipe_hdr) +
-				sizeof(struct icmsg_hdr)];
-
-			if (negop->icversion_data[1].major < 5)
-				negop->icframe_vercnt = 0;
+				 recv_buffer, UTIL_FW_MAJOR_MINOR,
+				 VSS_MAJOR_MINOR);
 		} else {
 			vss_msg = (struct hv_vss_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +

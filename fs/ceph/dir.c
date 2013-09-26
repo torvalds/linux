@@ -793,6 +793,8 @@ static int ceph_link(struct dentry *old_dentry, struct inode *dir,
 	req->r_locked_dir = dir;
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
+	/* release LINK_SHARED on source inode (mds will lock it) */
+	req->r_old_inode_drop = CEPH_CAP_LINK_SHARED;
 	err = ceph_mdsc_do_request(mdsc, dir, req);
 	if (err) {
 		d_drop(dentry);

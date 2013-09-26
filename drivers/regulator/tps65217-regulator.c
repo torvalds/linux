@@ -27,7 +27,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps65217.h>
 
-#define TPS65217_REGULATOR(_name, _id, _ops, _n, _vr, _vm, _em, _t) \
+#define TPS65217_REGULATOR(_name, _id, _ops, _n, _vr, _vm, _em, _t, _lr, _nlr) \
 	{						\
 		.name		= _name,		\
 		.id		= _id,			\
@@ -40,16 +40,9 @@
 		.enable_reg	= TPS65217_REG_ENABLE,	\
 		.enable_mask	= _em,			\
 		.volt_table	= _t,			\
+		.linear_ranges	= _lr,			\
+		.n_linear_ranges = _nlr,		\
 	}						\
-
-#define TPS65217_INFO(_nm, _min, _max, _f1, _f2)	\
-	{						\
-		.name		= _nm,			\
-		.min_uV		= _min,			\
-		.max_uV		= _max,			\
-		.vsel_to_uv	= _f1,			\
-		.uv_to_vsel	= _f2,			\
-	}
 
 static const unsigned int LDO1_VSEL_table[] = {
 	1000000, 1100000, 1200000, 1250000,
@@ -58,88 +51,26 @@ static const unsigned int LDO1_VSEL_table[] = {
 	2800000, 3000000, 3100000, 3300000,
 };
 
-static int tps65217_vsel_to_uv1(unsigned int vsel)
-{
-	int uV = 0;
+static const struct regulator_linear_range tps65217_uv1_ranges[] = {
+	{ .min_uV = 900000, .max_uV = 1500000, .min_sel =  0, .max_sel = 24,
+	  .uV_step = 25000 },
+	{ .min_uV = 1550000, .max_uV = 1800000, .min_sel = 25, .max_sel = 30,
+	  .uV_step = 50000 },
+	{ .min_uV = 1850000, .max_uV = 2900000, .min_sel = 31, .max_sel = 52,
+	  .uV_step = 50000 },
+	{ .min_uV = 3000000, .max_uV = 3200000, .min_sel = 53, .max_sel = 55,
+	  .uV_step = 100000 },
+	{ .min_uV = 3300000, .max_uV = 3300000, .min_sel = 56, .max_sel = 62,
+	  .uV_step = 0 },
+};
 
-	if (vsel > 63)
-		return -EINVAL;
-
-	if (vsel <= 24)
-		uV = vsel * 25000 + 900000;
-	else if (vsel <= 52)
-		uV = (vsel - 24) * 50000 + 1500000;
-	else if (vsel < 56)
-		uV = (vsel - 52) * 100000 + 2900000;
-	else
-		uV = 3300000;
-
-	return uV;
-}
-
-static int tps65217_uv_to_vsel1(int uV, unsigned int *vsel)
-{
-	if (uV < 0 || uV > 3300000)
-		return -EINVAL;
-
-	if (uV <= 1500000)
-		*vsel = DIV_ROUND_UP(uV - 900000, 25000);
-	else if (uV <= 2900000)
-		*vsel = 24 + DIV_ROUND_UP(uV - 1500000, 50000);
-	else if (uV < 3300000)
-		*vsel = 52 + DIV_ROUND_UP(uV - 2900000, 100000);
-	else
-		*vsel = 56;
-
-	return 0;
-}
-
-static int tps65217_vsel_to_uv2(unsigned int vsel)
-{
-	int uV = 0;
-
-	if (vsel > 31)
-		return -EINVAL;
-
-	if (vsel <= 8)
-		uV = vsel * 50000 + 1500000;
-	else if (vsel <= 13)
-		uV = (vsel - 8) * 100000 + 1900000;
-	else
-		uV = (vsel - 13) * 50000 + 2400000;
-
-	return uV;
-}
-
-static int tps65217_uv_to_vsel2(int uV, unsigned int *vsel)
-{
-	if (uV < 0 || uV > 3300000)
-		return -EINVAL;
-
-	if (uV <= 1900000)
-		*vsel = DIV_ROUND_UP(uV - 1500000, 50000);
-	else if (uV <= 2400000)
-		*vsel = 8 + DIV_ROUND_UP(uV - 1900000, 100000);
-	else
-		*vsel = 13 + DIV_ROUND_UP(uV - 2400000, 50000);
-
-	return 0;
-}
-
-static struct tps_info tps65217_pmic_regs[] = {
-	TPS65217_INFO("DCDC1", 900000, 1800000, tps65217_vsel_to_uv1,
-			tps65217_uv_to_vsel1),
-	TPS65217_INFO("DCDC2", 900000, 3300000, tps65217_vsel_to_uv1,
-			tps65217_uv_to_vsel1),
-	TPS65217_INFO("DCDC3", 900000, 1500000, tps65217_vsel_to_uv1,
-			tps65217_uv_to_vsel1),
-	TPS65217_INFO("LDO1", 1000000, 3300000, NULL, NULL),
-	TPS65217_INFO("LDO2", 900000, 3300000, tps65217_vsel_to_uv1,
-			tps65217_uv_to_vsel1),
-	TPS65217_INFO("LDO3", 1800000, 3300000, tps65217_vsel_to_uv2,
-			tps65217_uv_to_vsel2),
-	TPS65217_INFO("LDO4", 1800000, 3300000, tps65217_vsel_to_uv2,
-			tps65217_uv_to_vsel2),
+static const struct regulator_linear_range tps65217_uv2_ranges[] = {
+	{ .min_uV = 1500000, .max_uV = 1900000, .min_sel =  0, .max_sel = 8,
+	  .uV_step = 50000 },
+	{ .min_uV = 2000000, .max_uV = 2400000, .min_sel = 9, .max_sel = 13,
+	  .uV_step = 100000 },
+	{ .min_uV = 2450000, .max_uV = 3300000, .min_sel = 14, .max_sel = 31,
+	  .uV_step = 50000 },
 };
 
 static int tps65217_pmic_enable(struct regulator_dev *dev)
@@ -192,49 +123,6 @@ static int tps65217_pmic_set_voltage_sel(struct regulator_dev *dev,
 	return ret;
 }
 
-static int tps65217_pmic_map_voltage(struct regulator_dev *dev,
-				     int min_uV, int max_uV)
-{
-
-	struct tps65217 *tps = rdev_get_drvdata(dev);
-	unsigned int sel, rid = rdev_get_id(dev);
-	int ret;
-
-	/* LDO1 uses regulator_map_voltage_iterate() */
-	if (rid == TPS65217_LDO_1)
-		return -EINVAL;
-
-	if (rid < TPS65217_DCDC_1 || rid > TPS65217_LDO_4)
-		return -EINVAL;
-
-	if (min_uV < tps->info[rid]->min_uV)
-		min_uV = tps->info[rid]->min_uV;
-
-	if (max_uV < tps->info[rid]->min_uV || min_uV > tps->info[rid]->max_uV)
-		return -EINVAL;
-
-	ret = tps->info[rid]->uv_to_vsel(min_uV, &sel);
-	if (ret)
-		return ret;
-
-	return sel;
-}
-
-static int tps65217_pmic_list_voltage(struct regulator_dev *dev,
-					unsigned selector)
-{
-	struct tps65217 *tps = rdev_get_drvdata(dev);
-	unsigned int rid = rdev_get_id(dev);
-
-	if (rid < TPS65217_DCDC_1 || rid > TPS65217_LDO_4)
-		return -EINVAL;
-
-	if (selector >= dev->desc->n_voltages)
-		return -EINVAL;
-
-	return tps->info[rid]->vsel_to_uv(selector);
-}
-
 /* Operations permitted on DCDCx, LDO2, LDO3 and LDO4 */
 static struct regulator_ops tps65217_pmic_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -242,8 +130,8 @@ static struct regulator_ops tps65217_pmic_ops = {
 	.disable		= tps65217_pmic_disable,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= tps65217_pmic_set_voltage_sel,
-	.list_voltage		= tps65217_pmic_list_voltage,
-	.map_voltage		= tps65217_pmic_map_voltage,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
 /* Operations permitted on LDO1 */
@@ -259,27 +147,33 @@ static struct regulator_ops tps65217_pmic_ldo1_ops = {
 static const struct regulator_desc regulators[] = {
 	TPS65217_REGULATOR("DCDC1", TPS65217_DCDC_1, tps65217_pmic_ops, 64,
 			   TPS65217_REG_DEFDCDC1, TPS65217_DEFDCDCX_DCDC_MASK,
-			   TPS65217_ENABLE_DC1_EN, NULL),
+			   TPS65217_ENABLE_DC1_EN, NULL, tps65217_uv1_ranges,
+			   2),	/* DCDC1 voltage range: 900000 ~ 1800000 */
 	TPS65217_REGULATOR("DCDC2", TPS65217_DCDC_2, tps65217_pmic_ops, 64,
 			   TPS65217_REG_DEFDCDC2, TPS65217_DEFDCDCX_DCDC_MASK,
-			   TPS65217_ENABLE_DC2_EN, NULL),
+			   TPS65217_ENABLE_DC2_EN, NULL, tps65217_uv1_ranges,
+			   ARRAY_SIZE(tps65217_uv1_ranges)),
 	TPS65217_REGULATOR("DCDC3", TPS65217_DCDC_3, tps65217_pmic_ops, 64,
 			   TPS65217_REG_DEFDCDC3, TPS65217_DEFDCDCX_DCDC_MASK,
-			   TPS65217_ENABLE_DC3_EN, NULL),
+			   TPS65217_ENABLE_DC3_EN, NULL, tps65217_uv1_ranges,
+			   1),	/* DCDC3 voltage range: 900000 ~ 1500000 */
 	TPS65217_REGULATOR("LDO1", TPS65217_LDO_1, tps65217_pmic_ldo1_ops, 16,
 			   TPS65217_REG_DEFLDO1, TPS65217_DEFLDO1_LDO1_MASK,
-			   TPS65217_ENABLE_LDO1_EN, LDO1_VSEL_table),
+			   TPS65217_ENABLE_LDO1_EN, LDO1_VSEL_table, NULL, 0),
 	TPS65217_REGULATOR("LDO2", TPS65217_LDO_2, tps65217_pmic_ops, 64,
 			   TPS65217_REG_DEFLDO2, TPS65217_DEFLDO2_LDO2_MASK,
-			   TPS65217_ENABLE_LDO2_EN, NULL),
+			   TPS65217_ENABLE_LDO2_EN, NULL, tps65217_uv1_ranges,
+			   ARRAY_SIZE(tps65217_uv1_ranges)),
 	TPS65217_REGULATOR("LDO3", TPS65217_LDO_3, tps65217_pmic_ops, 32,
 			   TPS65217_REG_DEFLS1, TPS65217_DEFLDO3_LDO3_MASK,
 			   TPS65217_ENABLE_LS1_EN | TPS65217_DEFLDO3_LDO3_EN,
-			   NULL),
+			   NULL, tps65217_uv2_ranges,
+			   ARRAY_SIZE(tps65217_uv2_ranges)),
 	TPS65217_REGULATOR("LDO4", TPS65217_LDO_4, tps65217_pmic_ops, 32,
 			   TPS65217_REG_DEFLS2, TPS65217_DEFLDO4_LDO4_MASK,
 			   TPS65217_ENABLE_LS2_EN | TPS65217_DEFLDO4_LDO4_EN,
-			   NULL),
+			   NULL, tps65217_uv2_ranges,
+			   ARRAY_SIZE(tps65217_uv2_ranges)),
 };
 
 #ifdef CONFIG_OF
@@ -368,8 +262,6 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 			continue;
 
 		/* Register the regulators */
-		tps->info[i] = &tps65217_pmic_regs[i];
-
 		config.dev = tps->dev;
 		config.init_data = reg_data;
 		config.driver_data = tps;

@@ -329,7 +329,7 @@ static int pidns_install(struct nsproxy *nsproxy, void *ns)
 	struct pid_namespace *ancestor, *new = ns;
 
 	if (!ns_capable(new->user_ns, CAP_SYS_ADMIN) ||
-	    !nsown_capable(CAP_SYS_ADMIN))
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/*
@@ -349,8 +349,8 @@ static int pidns_install(struct nsproxy *nsproxy, void *ns)
 	if (ancestor != active)
 		return -EINVAL;
 
-	put_pid_ns(nsproxy->pid_ns);
-	nsproxy->pid_ns = get_pid_ns(new);
+	put_pid_ns(nsproxy->pid_ns_for_children);
+	nsproxy->pid_ns_for_children = get_pid_ns(new);
 	return 0;
 }
 

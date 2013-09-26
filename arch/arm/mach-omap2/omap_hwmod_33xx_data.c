@@ -325,7 +325,6 @@ static struct omap_hwmod am33xx_adc_tsc_hwmod = {
  *
  *    - cEFUSE (doesn't fall under any ocp_if)
  *    - clkdiv32k
- *    - debugss
  *    - ocp watch point
  */
 #if 0
@@ -364,27 +363,6 @@ static struct omap_hwmod am33xx_clkdiv32k_hwmod = {
 	.prcm		= {
 		.omap4	= {
 			.clkctrl_offs	= AM33XX_CM_PER_CLKDIV32K_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
- * 'debugss' class
- * debug sub system
- */
-static struct omap_hwmod_class am33xx_debugss_hwmod_class = {
-	.name		= "debugss",
-};
-
-static struct omap_hwmod am33xx_debugss_hwmod = {
-	.name		= "debugss",
-	.class		= &am33xx_debugss_hwmod_class,
-	.clkdm_name	= "l3_aon_clkdm",
-	.main_clk	= "debugss_ick",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM33XX_CM_WKUP_DEBUGSS_CLKCTRL_OFFSET,
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
@@ -482,6 +460,34 @@ static struct omap_hwmod am33xx_ocmcram_hwmod = {
 	},
 };
 
+/*
+ * 'debugss' class
+ * debug sub system
+ */
+static struct omap_hwmod_opt_clk debugss_opt_clks[] = {
+	{ .role = "dbg_sysclk", .clk = "dbg_sysclk_ck" },
+	{ .role = "dbg_clka", .clk = "dbg_clka_ck" },
+};
+
+static struct omap_hwmod_class am33xx_debugss_hwmod_class = {
+	.name		= "debugss",
+};
+
+static struct omap_hwmod am33xx_debugss_hwmod = {
+	.name		= "debugss",
+	.class		= &am33xx_debugss_hwmod_class,
+	.clkdm_name	= "l3_aon_clkdm",
+	.main_clk	= "trace_clk_div_ck",
+	.prcm		= {
+		.omap4	= {
+			.clkctrl_offs	= AM33XX_CM_WKUP_DEBUGSS_CLKCTRL_OFFSET,
+			.modulemode	= MODULEMODE_SWCTRL,
+		},
+	},
+	.opt_clks	= debugss_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(debugss_opt_clks),
+};
+
 /* 'smartreflex' class */
 static struct omap_hwmod_class am33xx_smartreflex_hwmod_class = {
 	.name		= "smartreflex",
@@ -562,6 +568,7 @@ static struct omap_hwmod am33xx_cpgmac0_hwmod = {
 	.clkdm_name	= "cpsw_125mhz_clkdm",
 	.flags		= (HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY),
 	.main_clk	= "cpsw_125mhz_gclk",
+	.mpu_rt_idx	= 1,
 	.prcm		= {
 		.omap4	= {
 			.clkctrl_offs	= AM33XX_CM_PER_CPGMAC0_CLKCTRL_OFFSET,
@@ -1512,7 +1519,7 @@ static struct omap_hwmod am33xx_uart1_hwmod = {
 	.name		= "uart1",
 	.class		= &uart_class,
 	.clkdm_name	= "l4_wkup_clkdm",
-	.flags		= HWMOD_SWSUP_SIDLE_ACT,
+	.flags		= DEBUG_AM33XXUART1_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
 	.main_clk	= "dpll_per_m2_div4_wkupdm_ck",
 	.prcm		= {
 		.omap4	= {
@@ -1793,6 +1800,24 @@ static struct omap_hwmod_ocp_if am33xx_l3_main__gfx = {
 	.slave		= &am33xx_gfx_hwmod,
 	.clk		= "dpll_core_m4_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* l3_main -> debugss */
+static struct omap_hwmod_addr_space am33xx_debugss_addrs[] = {
+	{
+		.pa_start	= 0x4b000000,
+		.pa_end		= 0x4b000000 + SZ_16M - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_ocp_if am33xx_l3_main__debugss = {
+	.master		= &am33xx_l3_main_hwmod,
+	.slave		= &am33xx_debugss_hwmod,
+	.clk		= "dpll_core_m4_ck",
+	.addr		= am33xx_debugss_addrs,
+	.user		= OCP_USER_MPU,
 };
 
 /* l4 wkup -> smartreflex0 */
@@ -2469,6 +2494,7 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_pruss__l3_main,
 	&am33xx_wkup_m3__l4_wkup,
 	&am33xx_gfx__l3_main,
+	&am33xx_l3_main__debugss,
 	&am33xx_l4_wkup__wkup_m3,
 	&am33xx_l4_wkup__control,
 	&am33xx_l4_wkup__smartreflex0,

@@ -1798,7 +1798,6 @@ static int __exit pmz_detach(struct platform_device *pdev)
 
 	uart_remove_one_port(&pmz_uart_reg, &uap->port);
 
-	platform_set_drvdata(pdev, NULL);
 	uap->port.dev = NULL;
 
 	return 0;

@@ -133,7 +133,7 @@ int omap_encoder_update(struct drm_encoder *encoder,
 	struct omap_dss_driver *dssdrv = dssdev->driver;
 	int ret;
 
-	dssdev->output->manager = mgr;
+	dssdev->src->manager = mgr;
 
 	if (dssdrv->check_timings) {
 		ret = dssdrv->check_timings(dssdev, timings);

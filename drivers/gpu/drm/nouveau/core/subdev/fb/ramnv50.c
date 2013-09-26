@@ -27,17 +27,10 @@
 #include "priv.h"
 
 void
-nv50_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
+__nv50_ram_put(struct nouveau_fb *pfb, struct nouveau_mem *mem)
 {
 	struct nouveau_mm_node *this;
-	struct nouveau_mem *mem;
 
-	mem = *pmem;
-	*pmem = NULL;
-	if (unlikely(mem == NULL))
-		return;
-
-	mutex_lock(&pfb->base.mutex);
 	while (!list_empty(&mem->regions)) {
 		this = list_first_entry(&mem->regions, typeof(*this), rl_entry);
 
@@ -46,6 +39,19 @@ nv50_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 	}
 
 	nouveau_mm_free(&pfb->tags, &mem->tag);
+}
+
+void
+nv50_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
+{
+	struct nouveau_mem *mem = *pmem;
+
+	*pmem = NULL;
+	if (unlikely(mem == NULL))
+		return;
+
+	mutex_lock(&pfb->base.mutex);
+	__nv50_ram_put(pfb, mem);
 	mutex_unlock(&pfb->base.mutex);
 
 	kfree(mem);

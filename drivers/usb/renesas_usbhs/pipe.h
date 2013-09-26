@@ -54,9 +54,9 @@ struct usbhs_pipe_info {
  * pipe list
  */
 #define __usbhs_for_each_pipe(start, pos, info, i)	\
-	for (i = start, pos = (info)->pipe + i;		\
-	     i < (info)->size;				\
-	     i++, pos = (info)->pipe + i)
+	for ((i) = start;						\
+	     ((i) < (info)->size) && ((pos) = (info)->pipe + (i));	\
+	     (i)++)
 
 #define usbhs_for_each_pipe(pos, priv, i)			\
 	__usbhs_for_each_pipe(1, pos, &((priv)->pipe_info), i)

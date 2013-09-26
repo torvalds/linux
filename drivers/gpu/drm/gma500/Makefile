@@ -15,6 +15,7 @@ gma500_gfx-y += \
 	  mmu.o \
 	  power.o \
 	  psb_drv.o \
+	  gma_display.o \
 	  psb_intel_display.o \
 	  psb_intel_lvds.o \
 	  psb_intel_modes.o \

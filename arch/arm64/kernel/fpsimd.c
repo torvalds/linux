@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
+#include <linux/hardirq.h>
 
 #include <asm/fpsimd.h>
 #include <asm/cputype.h>
@@ -82,6 +83,33 @@ void fpsimd_flush_thread(void)
 	memset(&current->thread.fpsimd_state, 0, sizeof(struct fpsimd_state));
 	fpsimd_load_state(&current->thread.fpsimd_state);
 }
+
+#ifdef CONFIG_KERNEL_MODE_NEON
+
+/*
+ * Kernel-side NEON support functions
+ */
+void kernel_neon_begin(void)
+{
+	/* Avoid using the NEON in interrupt context */
+	BUG_ON(in_interrupt());
+	preempt_disable();
+
+	if (current->mm)
+		fpsimd_save_state(&current->thread.fpsimd_state);
+}
+EXPORT_SYMBOL(kernel_neon_begin);
+
+void kernel_neon_end(void)
+{
+	if (current->mm)
+		fpsimd_load_state(&current->thread.fpsimd_state);
+
+	preempt_enable();
+}
+EXPORT_SYMBOL(kernel_neon_end);
+
+#endif /* CONFIG_KERNEL_MODE_NEON */
 
 /*
  * FP/SIMD support code initialisation.

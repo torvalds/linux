@@ -110,6 +110,7 @@ void omap3630_init_late(void);
 void am35xx_init_late(void);
 void ti81xx_init_late(void);
 int omap2_common_pm_late_init(void);
+void dra7xx_init_early(void);
 
 #ifdef CONFIG_SOC_BUS
 void omap_soc_device_init(void);

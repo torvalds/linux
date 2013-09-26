@@ -592,6 +592,7 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, u8 *buf, uint nbytes)
 {
 	struct sk_buff *mypkt;
+	struct sk_buff_head pktq;
 	int err;
 
 	mypkt = brcmu_pkt_buf_get_skb(nbytes);
@@ -602,7 +603,10 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	}
 
 	memcpy(mypkt->data, buf, nbytes);
-	err = brcmf_sdcard_send_pkt(sdiodev, addr, fn, flags, mypkt);
+	__skb_queue_head_init(&pktq);
+	__skb_queue_tail(&pktq, mypkt);
+	err = brcmf_sdcard_send_pkt(sdiodev, addr, fn, flags, &pktq);
+	__skb_dequeue_tail(&pktq);
 
 	brcmu_pkt_buf_free_skb(mypkt);
 	return err;
@@ -611,22 +615,18 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 int
 brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, struct sk_buff *pkt)
+		      uint flags, struct sk_buff_head *pktq)
 {
 	uint width;
 	int err = 0;
-	struct sk_buff_head pkt_list;
 
 	brcmf_dbg(SDIO, "fun = %d, addr = 0x%x, size = %d\n",
-		  fn, addr, pkt->len);
+		  fn, addr, pktq->qlen);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
 	brcmf_sdio_addrprep(sdiodev, width, &addr);
 
-	skb_queue_head_init(&pkt_list);
-	skb_queue_tail(&pkt_list, pkt);
-	err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, &pkt_list);
-	skb_dequeue_tail(&pkt_list);
+	err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, pktq);
 
 	return err;
 }

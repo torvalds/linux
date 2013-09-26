@@ -23,7 +23,6 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -31,6 +30,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of.h>
 
 #include <drm/exynos_drm.h>
 
@@ -1186,16 +1186,12 @@ static int mixer_probe(struct platform_device *pdev)
 
 	drm_hdmi_ctx = devm_kzalloc(dev, sizeof(*drm_hdmi_ctx),
 								GFP_KERNEL);
-	if (!drm_hdmi_ctx) {
-		DRM_ERROR("failed to allocate common hdmi context.\n");
+	if (!drm_hdmi_ctx)
 		return -ENOMEM;
-	}
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx) {
-		DRM_ERROR("failed to alloc mixer context.\n");
+	if (!ctx)
 		return -ENOMEM;
-	}
 
 	mutex_init(&ctx->mixer_mutex);
 

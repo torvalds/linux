@@ -159,16 +159,6 @@ static inline void __bnx2x_exe_queue_reset_pending(
 	}
 }
 
-static inline void bnx2x_exe_queue_reset_pending(struct bnx2x *bp,
-						 struct bnx2x_exe_queue_obj *o)
-{
-	spin_lock_bh(&o->lock);
-
-	__bnx2x_exe_queue_reset_pending(bp, o);
-
-	spin_unlock_bh(&o->lock);
-}
-
 /**
  * bnx2x_exe_queue_step - execute one execution chunk atomically
  *
@@ -176,7 +166,7 @@ static inline void bnx2x_exe_queue_reset_pending(struct bnx2x *bp,
  * @o:			queue
  * @ramrod_flags:	flags
  *
- * (Atomicity is ensured using the exe_queue->lock).
+ * (Should be called while holding the exe_queue->lock).
  */
 static inline int bnx2x_exe_queue_step(struct bnx2x *bp,
 				       struct bnx2x_exe_queue_obj *o,
@@ -186,8 +176,6 @@ static inline int bnx2x_exe_queue_step(struct bnx2x *bp,
 	int cur_len = 0, rc;
 
 	memset(&spacer, 0, sizeof(spacer));
-
-	spin_lock_bh(&o->lock);
 
 	/* Next step should not be performed until the current is finished,
 	 * unless a DRV_CLEAR_ONLY bit is set. In this case we just want to
@@ -200,7 +188,6 @@ static inline int bnx2x_exe_queue_step(struct bnx2x *bp,
 			DP(BNX2X_MSG_SP, "RAMROD_DRV_CLR_ONLY requested: resetting a pending_comp list\n");
 			__bnx2x_exe_queue_reset_pending(bp, o);
 		} else {
-			spin_unlock_bh(&o->lock);
 			return 1;
 		}
 	}
@@ -228,10 +215,8 @@ static inline int bnx2x_exe_queue_step(struct bnx2x *bp,
 	}
 
 	/* Sanity check */
-	if (!cur_len) {
-		spin_unlock_bh(&o->lock);
+	if (!cur_len)
 		return 0;
-	}
 
 	rc = o->execute(bp, o->owner, &o->pending_comp, ramrod_flags);
 	if (rc < 0)
@@ -245,7 +230,6 @@ static inline int bnx2x_exe_queue_step(struct bnx2x *bp,
 		 */
 		__bnx2x_exe_queue_reset_pending(bp, o);
 
-	spin_unlock_bh(&o->lock);
 	return rc;
 }
 
@@ -432,12 +416,219 @@ static bool bnx2x_put_credit_vlan_mac(struct bnx2x_vlan_mac_obj *o)
 	return true;
 }
 
+/**
+ * __bnx2x_vlan_mac_h_write_trylock - try getting the vlan mac writer lock
+ *
+ * @bp:		device handle
+ * @o:		vlan_mac object
+ *
+ * @details: Non-blocking implementation; should be called under execution
+ *           queue lock.
+ */
+static int __bnx2x_vlan_mac_h_write_trylock(struct bnx2x *bp,
+					    struct bnx2x_vlan_mac_obj *o)
+{
+	if (o->head_reader) {
+		DP(BNX2X_MSG_SP, "vlan_mac_lock writer - There are readers; Busy\n");
+		return -EBUSY;
+	}
+
+	DP(BNX2X_MSG_SP, "vlan_mac_lock writer - Taken\n");
+	return 0;
+}
+
+/**
+ * __bnx2x_vlan_mac_h_exec_pending - execute step instead of a previous step
+ *
+ * @bp:		device handle
+ * @o:		vlan_mac object
+ *
+ * @details Should be called under execution queue lock; notice it might release
+ *          and reclaim it during its run.
+ */
+static void __bnx2x_vlan_mac_h_exec_pending(struct bnx2x *bp,
+					    struct bnx2x_vlan_mac_obj *o)
+{
+	int rc;
+	unsigned long ramrod_flags = o->saved_ramrod_flags;
+
+	DP(BNX2X_MSG_SP, "vlan_mac_lock execute pending command with ramrod flags %lu\n",
+	   ramrod_flags);
+	o->head_exe_request = false;
+	o->saved_ramrod_flags = 0;
+	rc = bnx2x_exe_queue_step(bp, &o->exe_queue, &ramrod_flags);
+	if (rc != 0) {
+		BNX2X_ERR("execution of pending commands failed with rc %d\n",
+			  rc);
+#ifdef BNX2X_STOP_ON_ERROR
+		bnx2x_panic();
+#endif
+	}
+}
+
+/**
+ * __bnx2x_vlan_mac_h_pend - Pend an execution step which couldn't run
+ *
+ * @bp:			device handle
+ * @o:			vlan_mac object
+ * @ramrod_flags:	ramrod flags of missed execution
+ *
+ * @details Should be called under execution queue lock.
+ */
+static void __bnx2x_vlan_mac_h_pend(struct bnx2x *bp,
+				    struct bnx2x_vlan_mac_obj *o,
+				    unsigned long ramrod_flags)
+{
+	o->head_exe_request = true;
+	o->saved_ramrod_flags = ramrod_flags;
+	DP(BNX2X_MSG_SP, "Placing pending execution with ramrod flags %lu\n",
+	   ramrod_flags);
+}
+
+/**
+ * __bnx2x_vlan_mac_h_write_unlock - unlock the vlan mac head list writer lock
+ *
+ * @bp:			device handle
+ * @o:			vlan_mac object
+ *
+ * @details Should be called under execution queue lock. Notice if a pending
+ *          execution exists, it would perform it - possibly releasing and
+ *          reclaiming the execution queue lock.
+ */
+static void __bnx2x_vlan_mac_h_write_unlock(struct bnx2x *bp,
+					    struct bnx2x_vlan_mac_obj *o)
+{
+	/* It's possible a new pending execution was added since this writer
+	 * executed. If so, execute again. [Ad infinitum]
+	 */
+	while (o->head_exe_request) {
+		DP(BNX2X_MSG_SP, "vlan_mac_lock - writer release encountered a pending request\n");
+		__bnx2x_vlan_mac_h_exec_pending(bp, o);
+	}
+}
+
+/**
+ * bnx2x_vlan_mac_h_write_unlock - unlock the vlan mac head list writer lock
+ *
+ * @bp:			device handle
+ * @o:			vlan_mac object
+ *
+ * @details Notice if a pending execution exists, it would perform it -
+ *          possibly releasing and reclaiming the execution queue lock.
+ */
+void bnx2x_vlan_mac_h_write_unlock(struct bnx2x *bp,
+				   struct bnx2x_vlan_mac_obj *o)
+{
+	spin_lock_bh(&o->exe_queue.lock);
+	__bnx2x_vlan_mac_h_write_unlock(bp, o);
+	spin_unlock_bh(&o->exe_queue.lock);
+}
+
+/**
+ * __bnx2x_vlan_mac_h_read_lock - lock the vlan mac head list reader lock
+ *
+ * @bp:			device handle
+ * @o:			vlan_mac object
+ *
+ * @details Should be called under the execution queue lock. May sleep. May
+ *          release and reclaim execution queue lock during its run.
+ */
+static int __bnx2x_vlan_mac_h_read_lock(struct bnx2x *bp,
+					struct bnx2x_vlan_mac_obj *o)
+{
+	/* If we got here, we're holding lock --> no WRITER exists */
+	o->head_reader++;
+	DP(BNX2X_MSG_SP, "vlan_mac_lock - locked reader - number %d\n",
+	   o->head_reader);
+
+	return 0;
+}
+
+/**
+ * bnx2x_vlan_mac_h_read_lock - lock the vlan mac head list reader lock
+ *
+ * @bp:			device handle
+ * @o:			vlan_mac object
+ *
+ * @details May sleep. Claims and releases execution queue lock during its run.
+ */
+int bnx2x_vlan_mac_h_read_lock(struct bnx2x *bp,
+			       struct bnx2x_vlan_mac_obj *o)
+{
+	int rc;
+
+	spin_lock_bh(&o->exe_queue.lock);
+	rc = __bnx2x_vlan_mac_h_read_lock(bp, o);
+	spin_unlock_bh(&o->exe_queue.lock);
+
+	return rc;
+}
+
+/**
+ * __bnx2x_vlan_mac_h_read_unlock - unlock the vlan mac head list reader lock
+ *
+ * @bp:			device handle
+ * @o:			vlan_mac object
+ *
+ * @details Should be called under execution queue lock. Notice if a pending
+ *          execution exists, it would be performed if this was the last
+ *          reader. possibly releasing and reclaiming the execution queue lock.
+ */
+static void __bnx2x_vlan_mac_h_read_unlock(struct bnx2x *bp,
+					  struct bnx2x_vlan_mac_obj *o)
+{
+	if (!o->head_reader) {
+		BNX2X_ERR("Need to release vlan mac reader lock, but lock isn't taken\n");
+#ifdef BNX2X_STOP_ON_ERROR
+		bnx2x_panic();
+#endif
+	} else {
+		o->head_reader--;
+		DP(BNX2X_MSG_SP, "vlan_mac_lock - decreased readers to %d\n",
+		   o->head_reader);
+	}
+
+	/* It's possible a new pending execution was added, and that this reader
+	 * was last - if so we need to execute the command.
+	 */
+	if (!o->head_reader && o->head_exe_request) {
+		DP(BNX2X_MSG_SP, "vlan_mac_lock - reader release encountered a pending request\n");
+
+		/* Writer release will do the trick */
+		__bnx2x_vlan_mac_h_write_unlock(bp, o);
+	}
+}
+
+/**
+ * bnx2x_vlan_mac_h_read_unlock - unlock the vlan mac head list reader lock
+ *
+ * @bp:			device handle
+ * @o:			vlan_mac object
+ *
+ * @details Notice if a pending execution exists, it would be performed if this
+ *          was the last reader. Claims and releases the execution queue lock
+ *          during its run.
+ */
+void bnx2x_vlan_mac_h_read_unlock(struct bnx2x *bp,
+				  struct bnx2x_vlan_mac_obj *o)
+{
+	spin_lock_bh(&o->exe_queue.lock);
+	__bnx2x_vlan_mac_h_read_unlock(bp, o);
+	spin_unlock_bh(&o->exe_queue.lock);
+}
+
 static int bnx2x_get_n_elements(struct bnx2x *bp, struct bnx2x_vlan_mac_obj *o,
 				int n, u8 *base, u8 stride, u8 size)
 {
 	struct bnx2x_vlan_mac_registry_elem *pos;
 	u8 *next = base;
 	int counter = 0;
+	int read_lock;
+
+	DP(BNX2X_MSG_SP, "get_n_elements - taking vlan_mac_lock (reader)\n");
+	read_lock = bnx2x_vlan_mac_h_read_lock(bp, o);
+	if (read_lock != 0)
+		BNX2X_ERR("get_n_elements failed to get vlan mac reader lock; Access without lock\n");
 
 	/* traverse list */
 	list_for_each_entry(pos, &o->head, link) {
@@ -449,6 +640,12 @@ static int bnx2x_get_n_elements(struct bnx2x *bp, struct bnx2x_vlan_mac_obj *o,
 			next += stride + size;
 		}
 	}
+
+	if (read_lock == 0) {
+		DP(BNX2X_MSG_SP, "get_n_elements - releasing vlan_mac_lock (reader)\n");
+		bnx2x_vlan_mac_h_read_unlock(bp, o);
+	}
+
 	return counter * ETH_ALEN;
 }
 
@@ -1397,6 +1594,32 @@ static int bnx2x_wait_vlan_mac(struct bnx2x *bp,
 	return -EBUSY;
 }
 
+static int __bnx2x_vlan_mac_execute_step(struct bnx2x *bp,
+					 struct bnx2x_vlan_mac_obj *o,
+					 unsigned long *ramrod_flags)
+{
+	int rc = 0;
+
+	spin_lock_bh(&o->exe_queue.lock);
+
+	DP(BNX2X_MSG_SP, "vlan_mac_execute_step - trying to take writer lock\n");
+	rc = __bnx2x_vlan_mac_h_write_trylock(bp, o);
+
+	if (rc != 0) {
+		__bnx2x_vlan_mac_h_pend(bp, o, *ramrod_flags);
+
+		/* Calling function should not diffrentiate between this case
+		 * and the case in which there is already a pending ramrod
+		 */
+		rc = 1;
+	} else {
+		rc = bnx2x_exe_queue_step(bp, &o->exe_queue, ramrod_flags);
+	}
+	spin_unlock_bh(&o->exe_queue.lock);
+
+	return rc;
+}
+
 /**
  * bnx2x_complete_vlan_mac - complete one VLAN-MAC ramrod
  *
@@ -1414,11 +1637,18 @@ static int bnx2x_complete_vlan_mac(struct bnx2x *bp,
 	struct bnx2x_raw_obj *r = &o->raw;
 	int rc;
 
+	/* Clearing the pending list & raw state should be made
+	 * atomically (as execution flow assumes they represent the same).
+	 */
+	spin_lock_bh(&o->exe_queue.lock);
+
 	/* Reset pending list */
-	bnx2x_exe_queue_reset_pending(bp, &o->exe_queue);
+	__bnx2x_exe_queue_reset_pending(bp, &o->exe_queue);
 
 	/* Clear pending */
 	r->clear_pending(r);
+
+	spin_unlock_bh(&o->exe_queue.lock);
 
 	/* If ramrod failed this is most likely a SW bug */
 	if (cqe->message.error)
@@ -1426,7 +1656,8 @@ static int bnx2x_complete_vlan_mac(struct bnx2x *bp,
 
 	/* Run the next bulk of pending commands if requested */
 	if (test_bit(RAMROD_CONT, ramrod_flags)) {
-		rc = bnx2x_exe_queue_step(bp, &o->exe_queue, ramrod_flags);
+		rc = __bnx2x_vlan_mac_execute_step(bp, o, ramrod_flags);
+
 		if (rc < 0)
 			return rc;
 	}
@@ -1719,9 +1950,8 @@ static inline int bnx2x_vlan_mac_push_new_cmd(
  * @p:
  *
  */
-int bnx2x_config_vlan_mac(
-	struct bnx2x *bp,
-	struct bnx2x_vlan_mac_ramrod_params *p)
+int bnx2x_config_vlan_mac(struct bnx2x *bp,
+			   struct bnx2x_vlan_mac_ramrod_params *p)
 {
 	int rc = 0;
 	struct bnx2x_vlan_mac_obj *o = p->vlan_mac_obj;
@@ -1752,7 +1982,8 @@ int bnx2x_config_vlan_mac(
 	/* Execute commands if required */
 	if (cont || test_bit(RAMROD_EXEC, ramrod_flags) ||
 	    test_bit(RAMROD_COMP_WAIT, ramrod_flags)) {
-		rc = bnx2x_exe_queue_step(bp, &o->exe_queue, ramrod_flags);
+		rc = __bnx2x_vlan_mac_execute_step(bp, p->vlan_mac_obj,
+						   &p->ramrod_flags);
 		if (rc < 0)
 			return rc;
 	}
@@ -1775,8 +2006,9 @@ int bnx2x_config_vlan_mac(
 				return rc;
 
 			/* Make a next step */
-			rc = bnx2x_exe_queue_step(bp, &o->exe_queue,
-						  ramrod_flags);
+			rc = __bnx2x_vlan_mac_execute_step(bp,
+							   p->vlan_mac_obj,
+							   &p->ramrod_flags);
 			if (rc < 0)
 				return rc;
 		}
@@ -1806,10 +2038,11 @@ static int bnx2x_vlan_mac_del_all(struct bnx2x *bp,
 				  unsigned long *ramrod_flags)
 {
 	struct bnx2x_vlan_mac_registry_elem *pos = NULL;
-	int rc = 0;
 	struct bnx2x_vlan_mac_ramrod_params p;
 	struct bnx2x_exe_queue_obj *exeq = &o->exe_queue;
 	struct bnx2x_exeq_elem *exeq_pos, *exeq_pos_n;
+	int read_lock;
+	int rc = 0;
 
 	/* Clear pending commands first */
 
@@ -1844,6 +2077,11 @@ static int bnx2x_vlan_mac_del_all(struct bnx2x *bp,
 	__clear_bit(RAMROD_EXEC, &p.ramrod_flags);
 	__clear_bit(RAMROD_CONT, &p.ramrod_flags);
 
+	DP(BNX2X_MSG_SP, "vlan_mac_del_all -- taking vlan_mac_lock (reader)\n");
+	read_lock = bnx2x_vlan_mac_h_read_lock(bp, o);
+	if (read_lock != 0)
+		return read_lock;
+
 	list_for_each_entry(pos, &o->head, link) {
 		if (pos->vlan_mac_flags == *vlan_mac_flags) {
 			p.user_req.vlan_mac_flags = pos->vlan_mac_flags;
@@ -1851,10 +2089,14 @@ static int bnx2x_vlan_mac_del_all(struct bnx2x *bp,
 			rc = bnx2x_config_vlan_mac(bp, &p);
 			if (rc < 0) {
 				BNX2X_ERR("Failed to add a new DEL command\n");
+				bnx2x_vlan_mac_h_read_unlock(bp, o);
 				return rc;
 			}
 		}
 	}
+
+	DP(BNX2X_MSG_SP, "vlan_mac_del_all -- releasing vlan_mac_lock (reader)\n");
+	bnx2x_vlan_mac_h_read_unlock(bp, o);
 
 	p.ramrod_flags = *ramrod_flags;
 	__set_bit(RAMROD_CONT, &p.ramrod_flags);
@@ -1887,6 +2129,9 @@ static inline void bnx2x_init_vlan_mac_common(struct bnx2x_vlan_mac_obj *o,
 	struct bnx2x_credit_pool_obj *vlans_pool)
 {
 	INIT_LIST_HEAD(&o->head);
+	o->head_reader = 0;
+	o->head_exe_request = false;
+	o->saved_ramrod_flags = 0;
 
 	o->macs_pool = macs_pool;
 	o->vlans_pool = vlans_pool;
@@ -4169,6 +4414,16 @@ void bnx2x_init_rss_config_obj(struct bnx2x *bp,
 
 	rss_obj->engine_id  = engine_id;
 	rss_obj->config_rss = bnx2x_setup_rss;
+}
+
+int validate_vlan_mac(struct bnx2x *bp,
+		      struct bnx2x_vlan_mac_obj *vlan_mac)
+{
+	if (!vlan_mac->get_n_elements) {
+		BNX2X_ERR("vlan mac object was not intialized\n");
+		return -EINVAL;
+	}
+	return 0;
 }
 
 /********************** Queue state object ***********************************/

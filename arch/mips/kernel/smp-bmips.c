@@ -66,6 +66,8 @@ static void __init bmips_smp_setup(void)
 	int i, cpu = 1, boot_cpu = 0;
 
 #if defined(CONFIG_CPU_BMIPS4350) || defined(CONFIG_CPU_BMIPS4380)
+	int cpu_hw_intr;
+
 	/* arbitration priority */
 	clear_c0_brcm_cmt_ctrl(0x30);
 
@@ -79,15 +81,13 @@ static void __init bmips_smp_setup(void)
 	 * MIPS interrupts 0,1 (SW INT 0,1) cross over to the other thread
 	 * MIPS interrupt 2 (HW INT 0) is the CPU0 L1 controller output
 	 * MIPS interrupt 3 (HW INT 1) is the CPU1 L1 controller output
-	 *
-	 * If booting from TP1, leave the existing CMT interrupt routing
-	 * such that TP0 responds to SW1 and TP1 responds to SW0.
 	 */
 	if (boot_cpu == 0)
-		change_c0_brcm_cmt_intr(0xf8018000,
-					(0x02 << 27) | (0x03 << 15));
+		cpu_hw_intr = 0x02;
 	else
-		change_c0_brcm_cmt_intr(0xf8018000, (0x1d << 27));
+		cpu_hw_intr = 0x1d;
+
+	change_c0_brcm_cmt_intr(0xf8018000, (cpu_hw_intr << 27) | (0x03 << 15));
 
 	/* single core, 2 threads (2 pipelines) */
 	max_cpus = 2;
@@ -173,7 +173,7 @@ static void bmips_boot_secondary(int cpu, struct task_struct *idle)
 	else {
 #if defined(CONFIG_CPU_BMIPS4350) || defined(CONFIG_CPU_BMIPS4380)
 		/* Reset slave TP1 if booting from TP0 */
-		if (cpu_logical_map(cpu) == 0)
+		if (cpu_logical_map(cpu) == 1)
 			set_c0_brcm_cmt_ctrl(0x01);
 #elif defined(CONFIG_CPU_BMIPS5000)
 		if (cpu & 0x01)
@@ -202,9 +202,15 @@ static void bmips_init_secondary(void)
 #if defined(CONFIG_CPU_BMIPS4350) || defined(CONFIG_CPU_BMIPS4380)
 	void __iomem *cbr = BMIPS_GET_CBR();
 	unsigned long old_vec;
+	unsigned long relo_vector;
+	int boot_cpu;
 
-	old_vec = __raw_readl(cbr + BMIPS_RELO_VECTOR_CONTROL_1);
-	__raw_writel(old_vec & ~0x20000000, cbr + BMIPS_RELO_VECTOR_CONTROL_1);
+	boot_cpu = !!(read_c0_brcm_cmt_local() & (1 << 31));
+	relo_vector = boot_cpu ? BMIPS_RELO_VECTOR_CONTROL_0 :
+			  BMIPS_RELO_VECTOR_CONTROL_1;
+
+	old_vec = __raw_readl(cbr + relo_vector);
+	__raw_writel(old_vec & ~0x20000000, cbr + relo_vector);
 
 	clear_c0_cause(smp_processor_id() ? C_SW1 : C_SW0);
 #elif defined(CONFIG_CPU_BMIPS5000)
@@ -398,7 +404,7 @@ struct plat_smp_ops bmips_smp_ops = {
  * UP BMIPS systems as well.
  ***********************************************************************/
 
-static void __cpuinit bmips_wr_vec(unsigned long dst, char *start, char *end)
+static void bmips_wr_vec(unsigned long dst, char *start, char *end)
 {
 	memcpy((void *)dst, start, end - start);
 	dma_cache_wback((unsigned long)start, end - start);
@@ -406,7 +412,7 @@ static void __cpuinit bmips_wr_vec(unsigned long dst, char *start, char *end)
 	instruction_hazard();
 }
 
-static inline void __cpuinit bmips_nmi_handler_setup(void)
+static inline void bmips_nmi_handler_setup(void)
 {
 	bmips_wr_vec(BMIPS_NMI_RESET_VEC, &bmips_reset_nmi_vec,
 		&bmips_reset_nmi_vec_end);
@@ -414,7 +420,7 @@ static inline void __cpuinit bmips_nmi_handler_setup(void)
 		&bmips_smp_int_vec_end);
 }
 
-void __cpuinit bmips_ebase_setup(void)
+void bmips_ebase_setup(void)
 {
 	unsigned long new_ebase = ebase;
 	void __iomem __maybe_unused *cbr;

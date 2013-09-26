@@ -62,9 +62,8 @@ Interrupts are not supported.
     their web page.  (http://www.cir.com/)
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
 
 #undef ACL6126_IRQ		/* no interrupt support (yet) */
 
@@ -229,10 +228,9 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	for (i = 0; i < 12; i++) {
 		devpriv->bipolar[i] = 0;
