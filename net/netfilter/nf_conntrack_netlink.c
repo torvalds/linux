@@ -237,19 +237,21 @@ static int
 ctnetlink_dump_counters(struct sk_buff *skb, const struct nf_conn *ct,
 			enum ip_conntrack_dir dir, int type)
 {
-	struct nf_conn_counter *acct;
+	struct nf_conn_acct *acct;
+	struct nf_conn_counter *counter;
 	u64 pkts, bytes;
 
 	acct = nf_conn_acct_find(ct);
 	if (!acct)
 		return 0;
 
+	counter = acct->counter;
 	if (type == IPCTNL_MSG_CT_GET_CTRZERO) {
-		pkts = atomic64_xchg(&acct[dir].packets, 0);
-		bytes = atomic64_xchg(&acct[dir].bytes, 0);
+		pkts = atomic64_xchg(&counter[dir].packets, 0);
+		bytes = atomic64_xchg(&counter[dir].bytes, 0);
 	} else {
-		pkts = atomic64_read(&acct[dir].packets);
-		bytes = atomic64_read(&acct[dir].bytes);
+		pkts = atomic64_read(&counter[dir].packets);
+		bytes = atomic64_read(&counter[dir].bytes);
 	}
 	return dump_counters(skb, pkts, bytes, dir);
 }
@@ -530,7 +532,7 @@ ctnetlink_proto_size(const struct nf_conn *ct)
 }
 
 static inline size_t
-ctnetlink_counters_size(const struct nf_conn *ct)
+ctnetlink_acct_size(const struct nf_conn *ct)
 {
 	if (!nf_ct_ext_exist(ct, NF_CT_EXT_ACCT))
 		return 0;
@@ -579,7 +581,7 @@ ctnetlink_nlmsg_size(const struct nf_conn *ct)
 	       + 3 * nla_total_size(sizeof(u_int8_t)) /* CTA_PROTO_NUM */
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_ID */
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_STATUS */
-	       + ctnetlink_counters_size(ct)
+	       + ctnetlink_acct_size(ct)
 	       + ctnetlink_timestamp_size(ct)
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_TIMEOUT */
 	       + nla_total_size(0) /* CTA_PROTOINFO */
