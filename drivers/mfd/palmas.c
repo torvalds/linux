@@ -570,6 +570,11 @@ static int palmas_i2c_remove(struct i2c_client *i2c)
 
 	regmap_del_irq_chip(palmas->irq, palmas->irq_data);
 
+	if (palmas == palmas_dev) {
+		pm_power_off = NULL;
+		palmas_dev = NULL;
+	}
+
 	return 0;
 }
 
