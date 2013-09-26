@@ -382,6 +382,7 @@ ifndef NO_GTK2
     CFLAGS += -DHAVE_GTK2_SUPPORT
     GTK_CFLAGS += $(shell pkg-config --cflags gtk+-2.0 2>/dev/null)
     GTK_LIBS := $(shell pkg-config --libs gtk+-2.0 2>/dev/null)
+    EXTLIBS += -ldl
   endif
 endif
 
