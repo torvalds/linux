@@ -59,27 +59,6 @@ static void ath10k_send_suspend_complete(struct ath10k *ar)
 	wake_up(&ar->event_queue);
 }
 
-static int ath10k_check_fw_version(struct ath10k *ar)
-{
-	char version[32];
-
-	if (ar->fw_version_major >= SUPPORTED_FW_MAJOR &&
-	    ar->fw_version_minor >= SUPPORTED_FW_MINOR &&
-	    ar->fw_version_release >= SUPPORTED_FW_RELEASE &&
-	    ar->fw_version_build >= SUPPORTED_FW_BUILD)
-		return 0;
-
-	snprintf(version, sizeof(version), "%u.%u.%u.%u",
-		 SUPPORTED_FW_MAJOR, SUPPORTED_FW_MINOR,
-		 SUPPORTED_FW_RELEASE, SUPPORTED_FW_BUILD);
-
-	ath10k_warn("WARNING: Firmware version %s is not officially supported.\n",
-		    ar->hw->wiphy->fw_version);
-	ath10k_warn("Please upgrade to version %s (or newer)\n", version);
-
-	return 0;
-}
-
 static int ath10k_init_connect_htc(struct ath10k *ar)
 {
 	int status;
@@ -615,10 +594,6 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err_htt_detach;
 
 	ath10k_info("firmware %s booted\n", ar->hw->wiphy->fw_version);
-
-	status = ath10k_check_fw_version(ar);
-	if (status)
-		goto err_disconnect_htc;
 
 	status = ath10k_wmi_cmd_init(ar);
 	if (status) {

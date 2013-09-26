@@ -20,12 +20,6 @@
 
 #include "targaddrs.h"
 
-/* Supported FW version */
-#define SUPPORTED_FW_MAJOR	1
-#define SUPPORTED_FW_MINOR	0
-#define SUPPORTED_FW_RELEASE	0
-#define SUPPORTED_FW_BUILD	636
-
 /* QCA988X 1.0 definitions (unsupported) */
 #define QCA988X_HW_1_0_CHIP_ID_REV	0x0
 
