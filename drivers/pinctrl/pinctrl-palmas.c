@@ -961,26 +961,9 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int palmas_pinconf_group_get(struct pinctrl_dev *pctldev,
-				unsigned group, unsigned long *config)
-{
-	dev_err(pctldev->dev, "palmas_pinconf_group_get op not supported\n");
-	return -ENOTSUPP;
-}
-
-static int palmas_pinconf_group_set(struct pinctrl_dev *pctldev,
-				unsigned group, unsigned long *configs,
-				unsigned num_configs)
-{
-	dev_err(pctldev->dev, "palmas_pinconf_group_set op not supported\n");
-	return -ENOTSUPP;
-}
-
 static const struct pinconf_ops palmas_pinconf_ops = {
 	.pin_config_get = palmas_pinconf_get,
 	.pin_config_set = palmas_pinconf_set,
-	.pin_config_group_get = palmas_pinconf_group_get,
-	.pin_config_group_set = palmas_pinconf_group_set,
 };
 
 static struct pinctrl_desc palmas_pinctrl_desc = {
