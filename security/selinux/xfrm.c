@@ -268,10 +268,10 @@ int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
 	if (!old_ctx)
 		return 0;
 
-	new_ctx = kmalloc(sizeof(*old_ctx) + old_ctx->ctx_len, GFP_ATOMIC);
+	new_ctx = kmemdup(old_ctx, sizeof(*old_ctx) + old_ctx->ctx_len,
+			  GFP_ATOMIC);
 	if (!new_ctx)
 		return -ENOMEM;
-	memcpy(new_ctx, old_ctx, sizeof(*old_ctx) + old_ctx->ctx_len);
 	atomic_inc(&selinux_xfrm_refcount);
 	*new_ctxp = new_ctx;
 
