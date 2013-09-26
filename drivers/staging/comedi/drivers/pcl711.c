@@ -156,7 +156,7 @@ static const struct pcl711_board boardtypes[] = {
 };
 
 struct pcl711_private {
-	int ntrig;
+	unsigned int ntrig;
 	unsigned int ao_readback[2];
 	unsigned int divisor1;
 	unsigned int divisor2;
@@ -213,10 +213,8 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 	outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
 
-	/* FIXME! Nothing else sets ntrig! */
-	if (!(--devpriv->ntrig)) {
+	if (s->async->cmd.stop_src == TRIG_COUNT && !(--devpriv->ntrig)) {
 		pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
-
 		s->async->events |= COMEDI_CB_EOA;
 	}
 	comedi_event(dev, s);
@@ -366,6 +364,16 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	pcl711_set_changain(dev, s, cmd->chanlist[0]);
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		if (cmd->stop_arg == 0) {
+			/* an empty acquisition */
+			s->async->events |= COMEDI_CB_EOA;
+			comedi_event(dev, s);
+			return 0;
+		}
+		devpriv->ntrig = cmd->stop_arg;
+	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
