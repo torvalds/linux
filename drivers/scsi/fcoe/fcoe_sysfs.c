@@ -558,7 +558,7 @@ static BUS_ATTR(ctlr_destroy, S_IWUSR, NULL, fcoe_ctlr_destroy_store);
 
 static struct attribute *fcoe_bus_attrs[] = {
 	&bus_attr_ctlr_create.attr,
-	&bus_attr_ctrl_destroy.attr,
+	&bus_attr_ctlr_destroy.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(fcoe_bus);
