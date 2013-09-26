@@ -25,19 +25,20 @@
 #include "host1x_client.h"
 #include "syncpt.h"
 
+#define GR2D_NUM_REGS 0x4d
+
 struct gr2d {
 	struct host1x_client client;
-	struct clk *clk;
 	struct host1x_channel *channel;
-	unsigned long *addr_regs;
+	struct clk *clk;
+
+	DECLARE_BITMAP(addr_regs, GR2D_NUM_REGS);
 };
 
 static inline struct gr2d *to_gr2d(struct host1x_client *client)
 {
 	return container_of(client, struct gr2d, client);
 }
-
-static int gr2d_is_addr_reg(struct device *dev, u32 class, u32 reg);
 
 static int gr2d_client_init(struct host1x_client *client,
 			    struct drm_device *drm)
@@ -56,7 +57,6 @@ static int gr2d_open_channel(struct host1x_client *client,
 	struct gr2d *gr2d = to_gr2d(client);
 
 	context->channel = host1x_channel_get(gr2d->channel);
-
 	if (!context->channel)
 		return -ENOMEM;
 
@@ -87,11 +87,35 @@ static struct host1x_bo *host1x_bo_lookup(struct drm_device *drm,
 	return &bo->base;
 }
 
+static int gr2d_is_addr_reg(struct device *dev, u32 class, u32 offset)
+{
+	struct gr2d *gr2d = dev_get_drvdata(dev);
+
+	switch (class) {
+	case HOST1X_CLASS_HOST1X:
+		if (offset == 0x2b)
+			return 1;
+
+		break;
+
+	case HOST1X_CLASS_GR2D:
+	case HOST1X_CLASS_GR2D_SB:
+		if (offset >= GR2D_NUM_REGS)
+			break;
+
+		if (test_bit(offset, gr2d->addr_regs))
+			return 1;
+
+		break;
+	}
+
+	return 0;
+}
+
 static int gr2d_submit(struct tegra_drm_context *context,
 		       struct drm_tegra_submit *args, struct drm_device *drm,
 		       struct drm_file *file)
 {
-	struct host1x_job *job;
 	unsigned int num_cmdbufs = args->num_cmdbufs;
 	unsigned int num_relocs = args->num_relocs;
 	unsigned int num_waitchks = args->num_waitchks;
@@ -102,6 +126,7 @@ static int gr2d_submit(struct tegra_drm_context *context,
 	struct drm_tegra_waitchk __user *waitchks =
 		(void * __user)(uintptr_t)args->waitchks;
 	struct drm_tegra_syncpt syncpt;
+	struct host1x_job *job;
 	int err;
 
 	/* We don't yet support other than one syncpt_incr struct per submit */
@@ -205,54 +230,25 @@ static struct host1x_client_ops gr2d_client_ops = {
 	.submit = gr2d_submit,
 };
 
-static void gr2d_init_addr_reg_map(struct device *dev, struct gr2d *gr2d)
-{
-	const u32 gr2d_addr_regs[] = {0x1a, 0x1b, 0x26, 0x2b, 0x2c, 0x2d, 0x31,
-				      0x32, 0x48, 0x49, 0x4a, 0x4b, 0x4c};
-	unsigned long *bitmap;
-	int i;
-
-	bitmap = devm_kzalloc(dev, DIV_ROUND_UP(256, BITS_PER_BYTE),
-			      GFP_KERNEL);
-
-	for (i = 0; i < ARRAY_SIZE(gr2d_addr_regs); ++i) {
-		u32 reg = gr2d_addr_regs[i];
-		bitmap[BIT_WORD(reg)] |= BIT_MASK(reg);
-	}
-
-	gr2d->addr_regs = bitmap;
-}
-
-static int gr2d_is_addr_reg(struct device *dev, u32 class, u32 reg)
-{
-	struct gr2d *gr2d = dev_get_drvdata(dev);
-
-	switch (class) {
-	case HOST1X_CLASS_HOST1X:
-		return reg == 0x2b;
-	case HOST1X_CLASS_GR2D:
-	case HOST1X_CLASS_GR2D_SB:
-		reg &= 0xff;
-		if (gr2d->addr_regs[BIT_WORD(reg)] & BIT_MASK(reg))
-			return 1;
-	default:
-		return 0;
-	}
-}
-
 static const struct of_device_id gr2d_match[] = {
 	{ .compatible = "nvidia,tegra30-gr2d" },
 	{ .compatible = "nvidia,tegra20-gr2d" },
 	{ },
 };
 
+static const u32 gr2d_addr_regs[] = {
+	0x1a, 0x1b, 0x26, 0x2b, 0x2c, 0x2d, 0x31, 0x32,
+	0x48, 0x49, 0x4a, 0x4b, 0x4c
+};
+
 static int gr2d_probe(struct platform_device *pdev)
 {
+	struct tegra_drm *tegra = host1x_get_drm_data(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct tegra_drm *tegra = host1x_get_drm_data(dev->parent);
-	int err;
-	struct gr2d *gr2d = NULL;
 	struct host1x_syncpt **syncpts;
+	struct gr2d *gr2d;
+	unsigned int i;
+	int err;
 
 	gr2d = devm_kzalloc(dev, sizeof(*gr2d), GFP_KERNEL);
 	if (!gr2d)
@@ -296,14 +292,16 @@ static int gr2d_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	gr2d_init_addr_reg_map(dev, gr2d);
+	/* initialize address register map */
+	for (i = 0; i < ARRAY_SIZE(gr2d_addr_regs); i++)
+		set_bit(gr2d_addr_regs[i], gr2d->addr_regs);
 
 	platform_set_drvdata(pdev, gr2d);
 
 	return 0;
 }
 
-static int __exit gr2d_remove(struct platform_device *pdev)
+static int gr2d_remove(struct platform_device *pdev)
 {
 	struct tegra_drm *tegra = host1x_get_drm_data(pdev->dev.parent);
 	struct gr2d *gr2d = platform_get_drvdata(pdev);
@@ -312,7 +310,8 @@ static int __exit gr2d_remove(struct platform_device *pdev)
 
 	err = host1x_unregister_client(tegra, &gr2d->client);
 	if (err < 0) {
-		dev_err(&pdev->dev, "failed to unregister client: %d\n", err);
+		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
+			err);
 		return err;
 	}
 
@@ -326,11 +325,10 @@ static int __exit gr2d_remove(struct platform_device *pdev)
 }
 
 struct platform_driver tegra_gr2d_driver = {
-	.probe = gr2d_probe,
-	.remove = __exit_p(gr2d_remove),
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "gr2d",
 		.of_match_table = gr2d_match,
-	}
+	},
+	.probe = gr2d_probe,
+	.remove = gr2d_remove,
 };
