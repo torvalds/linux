@@ -3755,6 +3755,13 @@ static struct l2cap_chan *l2cap_connect(struct l2cap_conn *conn,
 
 	sk = chan->sk;
 
+	/* For certain devices (ex: HID mouse), support for authentication,
+	 * pairing and bonding is optional. For such devices, inorder to avoid
+	 * the ACL alive for too long after L2CAP disconnection, reset the ACL
+	 * disc_timeout back to HCI_DISCONN_TIMEOUT during L2CAP connect.
+	 */
+	conn->hcon->disc_timeout = HCI_DISCONN_TIMEOUT;
+
 	bacpy(&bt_sk(sk)->src, conn->src);
 	bacpy(&bt_sk(sk)->dst, conn->dst);
 	chan->psm  = psm;
