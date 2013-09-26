@@ -102,12 +102,24 @@ struct ath10k_bmi {
 	bool done_sent;
 };
 
+#define ATH10K_MAX_MEM_REQS 16
+
+struct ath10k_mem_chunk {
+	void *vaddr;
+	dma_addr_t paddr;
+	u32 len;
+	u32 req_id;
+};
+
 struct ath10k_wmi {
 	enum ath10k_htc_ep_id eid;
 	struct completion service_ready;
 	struct completion unified_ready;
 	wait_queue_head_t tx_credits_wq;
 	struct wmi_cmd_map *cmd;
+
+	u32 num_mem_chunks;
+	struct ath10k_mem_chunk mem_chunks[ATH10K_MAX_MEM_REQS];
 };
 
 struct ath10k_peer_stat {

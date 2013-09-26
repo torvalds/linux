@@ -1377,6 +1377,9 @@ struct wmi_resource_config {
 	__le32 max_frag_entries;
 } __packed;
 
+#define NUM_UNITS_IS_NUM_VDEVS   0x1
+#define NUM_UNITS_IS_NUM_PEERS   0x2
+
 /* strucutre describing host memory chunk. */
 struct host_memory_chunk {
 	/* id of the request that is passed up in service ready */
