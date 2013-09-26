@@ -37,6 +37,15 @@
 #define DRIVER_DESC		"Mass Storage Gadget"
 #define DRIVER_VERSION		"2009/09/11"
 
+/*
+ * Thanks to NetChip Technologies for donating this product ID.
+ *
+ * DO NOT REUSE THESE IDs with any other driver!!  Ever!!
+ * Instead:  allocate your own, using normal USB-IF procedures.
+ */
+#define FSG_VENDOR_ID	0x0525	/* NetChip */
+#define FSG_PRODUCT_ID	0xa4a5	/* Linux-USB File-backed Storage Gadget */
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -102,6 +111,20 @@ static struct usb_gadget_strings *dev_strings[] = {
 static struct fsg_module_parameters mod_data = {
 	.stall = 1
 };
+#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+
+static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
+
+#else
+
+/*
+ * Number of buffers we will use.
+ * 2 is usually enough for good buffering pipeline
+ */
+#define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
+
+#endif /* CONFIG_USB_GADGET_DEBUG_FILES */
+
 FSG_MODULE_PARAMETERS(/* no prefix */, mod_data);
 
 static unsigned long msg_registered;
@@ -129,7 +152,7 @@ static int __init msg_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	fsg_config_from_params(&config, &mod_data);
+	fsg_config_from_params(&config, &mod_data, fsg_num_buffers);
 	config.ops = &ops;
 
 	retp = fsg_common_init(&common, c->cdev, &config);

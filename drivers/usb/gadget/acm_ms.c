@@ -104,6 +104,20 @@ static struct usb_gadget_strings *dev_strings[] = {
 /****************************** Configurations ******************************/
 
 static struct fsg_module_parameters fsg_mod_data = { .stall = 1 };
+#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+
+static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
+
+#else
+
+/*
+ * Number of buffers we will use.
+ * 2 is usually enough for good buffering pipeline
+ */
+#define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
+
+#endif /* CONFIG_USB_DEBUG */
+
 FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
 
 static struct fsg_common fsg_common;
@@ -167,7 +181,8 @@ static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 	void			*retp;
 
 	/* set up mass storage function */
-	retp = fsg_common_from_params(&fsg_common, cdev, &fsg_mod_data);
+	retp = fsg_common_from_params(&fsg_common, cdev, &fsg_mod_data,
+				      fsg_num_buffers);
 	if (IS_ERR(retp)) {
 		status = PTR_ERR(retp);
 		return PTR_ERR(retp);

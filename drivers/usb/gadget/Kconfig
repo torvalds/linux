@@ -525,6 +525,9 @@ config USB_F_SUBSET
 config USB_F_RNDIS
 	tristate
 
+config USB_U_MS
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
@@ -878,6 +881,7 @@ config USB_MASS_STORAGE
 	tristate "Mass Storage Gadget"
 	depends on BLOCK
 	select USB_LIBCOMPOSITE
+	select USB_U_MS
 	help
 	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
 	  As its storage repository it can use a regular file or a block
@@ -1001,6 +1005,7 @@ config USB_G_ACM_MS
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
 	select USB_F_ACM
+	select USB_U_MS
 	help
 	  This driver provides two functions in one configuration:
 	  a mass storage, and a CDC ACM (serial port) link.
@@ -1017,6 +1022,7 @@ config USB_G_MULTI
 	select USB_U_ETHER
 	select USB_U_RNDIS
 	select USB_F_ACM
+	select USB_U_MS
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS
 	  and/or CDC Ethernet), mass storage and ACM serial link
