@@ -107,6 +107,7 @@ struct ath10k_wmi {
 	struct completion service_ready;
 	struct completion unified_ready;
 	wait_queue_head_t tx_credits_wq;
+	struct wmi_cmd_map *cmd;
 };
 
 struct ath10k_peer_stat {
@@ -267,6 +268,9 @@ enum ath10k_state {
 enum ath10k_fw_features {
 	/* wmi_mgmt_rx_hdr contains extra RSSI information */
 	ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX = 0,
+
+	/* firmware from 10X branch */
+	ATH10K_FW_FEATURE_WMI_10X = 1,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
