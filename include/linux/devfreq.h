@@ -168,7 +168,7 @@ struct devfreq {
 	unsigned long max_freq;
 	bool stop_polling;
 
-	/* information for device freqeuncy transition */
+	/* information for device frequency transition */
 	unsigned int total_trans;
 	unsigned int *trans_table;
 	unsigned long *time_in_state;
