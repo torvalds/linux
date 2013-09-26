@@ -47,6 +47,8 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
+#include <plat/efuse.h>
+
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
@@ -1727,11 +1729,24 @@ static void __init rk30_reserve(void)
 /***********************************************************
 *	clock
 ************************************************************/
-static struct cpufreq_frequency_table dvfs_arm_table[] = {
+static struct cpufreq_frequency_table dvfs_arm_table_v0[] = {
 	{.frequency = 312 * 1000,       .index = 1200 * 1000},
 	{.frequency = 504 * 1000,       .index = 1200 * 1000},
 	{.frequency = 816 * 1000,       .index = 1250 * 1000},
+	{.frequency = 912 * 1000,       .index = 1350 * 1000},
 	{.frequency = 1008 * 1000,      .index = 1350 * 1000},
+	//{.frequency = 1200 * 1000,      .index = 1200 * 1000},
+	//{.frequency = 1416 * 1000,      .index = 1200 * 1000},
+	//{.frequency = 1608 * 1000,      .index = 1200 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
+static struct cpufreq_frequency_table dvfs_arm_table_v1[] = {
+	{.frequency = 312 * 1000,       .index = 1200 * 1000},
+	{.frequency = 504 * 1000,       .index = 1200 * 1000},
+	{.frequency = 816 * 1000,       .index = 1275 * 1000},
+	{.frequency = 912 * 1000,       .index = 1350 * 1000},
+	{.frequency = 1008 * 1000,      .index = 1400 * 1000},
 	//{.frequency = 1200 * 1000,      .index = 1200 * 1000},
 	//{.frequency = 1416 * 1000,      .index = 1200 * 1000},
 	//{.frequency = 1608 * 1000,      .index = 1200 * 1000},
@@ -1754,11 +1769,20 @@ static struct cpufreq_frequency_table dvfs_ddr_table[] = {
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
+#define RK3026_SOC_V0 0x00
+#define RK3026_SOC_V1 0x01
+
 void __init board_clock_init(void)
 {
 	rk2928_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
 	//dvfs_set_arm_logic_volt(dvfs_cpu_logic_table, cpu_dvfs_table, dep_cpu2core_table);	
-	dvfs_set_freq_volt_table(clk_get(NULL, "cpu"), dvfs_arm_table);
+
+	printk(KERN_INFO "rk3026 soc version:%d\n", rk3026_version_val());
+	if (rk3026_version_val() == RK3026_SOC_V1)
+		dvfs_set_freq_volt_table(clk_get(NULL, "cpu"), dvfs_arm_table_v1);
+	else
+		dvfs_set_freq_volt_table(clk_get(NULL, "cpu"), dvfs_arm_table_v0);
+
 	dvfs_set_freq_volt_table(clk_get(NULL, "gpu"), dvfs_gpu_table);
 	dvfs_set_freq_volt_table(clk_get(NULL, "ddr"), dvfs_ddr_table);
 }
