@@ -189,6 +189,14 @@ static unsigned int pcl711_ai_get_sample(struct comedi_device *dev,
 	return val & s->maxdata;
 }
 
+static int pcl711_ai_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
+{
+	outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
+	pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
+	return 0;
+}
+
 static irqreturn_t pcl711_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -493,6 +501,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->len_chanlist	= 1;
 		s->do_cmdtest	= pcl711_ai_cmdtest;
 		s->do_cmd	= pcl711_ai_cmd;
+		s->cancel	= pcl711_ai_cancel;
 	}
 
 	/* Analog Output subdevice */
