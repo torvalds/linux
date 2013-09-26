@@ -242,6 +242,11 @@ static struct usb_gadget_strings	fsg_stringtab = {
 	.strings	= fsg_strings,
 };
 
+static struct usb_gadget_strings *fsg_strings_array[] = {
+	&fsg_stringtab,
+	NULL,
+};
+
 /*-------------------------------------------------------------------------*/
 
 struct fsg_dev;
@@ -2645,6 +2650,7 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 	struct fsg_buffhd *bh;
 	struct fsg_lun **curlun_it;
 	struct fsg_lun_config *lcfg;
+	struct usb_string *us;
 	int nluns, i, rc;
 	char *pathbuf;
 
@@ -2687,14 +2693,13 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 	common->ep0req = cdev->req;
 	common->cdev = cdev;
 
-	/* Maybe allocate device-global string IDs, and patch descriptors */
-	if (fsg_strings[FSG_STRING_INTERFACE].id == 0) {
-		rc = usb_string_id(cdev);
-		if (unlikely(rc < 0))
-			goto error_release;
-		fsg_strings[FSG_STRING_INTERFACE].id = rc;
-		fsg_intf_desc.iInterface = rc;
+	us = usb_gstrings_attach(cdev, fsg_strings_array,
+				 ARRAY_SIZE(fsg_strings));
+	if (IS_ERR(us)) {
+		rc = PTR_ERR(us);
+		goto error_release;
 	}
+	fsg_intf_desc.iInterface = us[FSG_STRING_INTERFACE].id;
 
 	/*
 	 * Create the LUNs, open their backing files, and register the
@@ -2988,11 +2993,6 @@ autoconf_fail:
 
 /****************************** ADD FUNCTION ******************************/
 
-static struct usb_gadget_strings *fsg_strings_array[] = {
-	&fsg_stringtab,
-	NULL,
-};
-
 static int fsg_bind_config(struct usb_composite_dev *cdev,
 			   struct usb_configuration *c,
 			   struct fsg_common *common)
@@ -3005,7 +3005,6 @@ static int fsg_bind_config(struct usb_composite_dev *cdev,
 		return -ENOMEM;
 
 	fsg->function.name        = FSG_DRIVER_DESC;
-	fsg->function.strings     = fsg_strings_array;
 	fsg->function.bind        = fsg_bind;
 	fsg->function.unbind      = fsg_unbind;
 	fsg->function.setup       = fsg_setup;
