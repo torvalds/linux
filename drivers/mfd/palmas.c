@@ -567,7 +567,6 @@ static int palmas_i2c_remove(struct i2c_client *i2c)
 {
 	struct palmas *palmas = i2c_get_clientdata(i2c);
 
-	mfd_remove_devices(palmas->dev);
 	regmap_del_irq_chip(palmas->irq, palmas->irq_data);
 
 	return 0;
