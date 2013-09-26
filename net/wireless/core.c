@@ -566,18 +566,13 @@ int wiphy_register(struct wiphy *wiphy)
 	/* check and set up bitrates */
 	ieee80211_set_bitrate_flags(wiphy);
 
-
+	rtnl_lock();
 	res = device_add(&rdev->wiphy.dev);
-	if (res)
-		return res;
-
-	res = rfkill_register(rdev->rfkill);
 	if (res) {
-		device_del(&rdev->wiphy.dev);
+		rtnl_unlock();
 		return res;
 	}
 
-	rtnl_lock();
 	/* set up regulatory info */
 	wiphy_regulatory_register(wiphy);
 
@@ -606,6 +601,15 @@ int wiphy_register(struct wiphy *wiphy)
 
 	rdev->wiphy.registered = true;
 	rtnl_unlock();
+
+	res = rfkill_register(rdev->rfkill);
+	if (res) {
+		rfkill_destroy(rdev->rfkill);
+		rdev->rfkill = NULL;
+		wiphy_unregister(&rdev->wiphy);
+		return res;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(wiphy_register);
@@ -640,7 +644,8 @@ void wiphy_unregister(struct wiphy *wiphy)
 		rtnl_unlock();
 		__count == 0; }));
 
-	rfkill_unregister(rdev->rfkill);
+	if (rdev->rfkill)
+		rfkill_unregister(rdev->rfkill);
 
 	rtnl_lock();
 	rdev->wiphy.registered = false;
