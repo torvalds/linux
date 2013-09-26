@@ -274,7 +274,7 @@ struct fsg_common {
 
 	unsigned int		nluns;
 	unsigned int		lun;
-	struct fsg_lun		*luns;
+	struct fsg_lun		**luns;
 	struct fsg_lun		*curlun;
 
 	unsigned int		bulk_out_maxpacket;
@@ -2151,7 +2151,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 		common->data_dir = DATA_DIR_NONE;
 	common->lun = cbw->Lun;
 	if (common->lun < common->nluns)
-		common->curlun = &common->luns[common->lun];
+		common->curlun = common->luns[common->lun];
 	else
 		common->curlun = NULL;
 	common->tag = cbw->Tag;
@@ -2299,7 +2299,9 @@ reset:
 
 	common->running = 1;
 	for (i = 0; i < common->nluns; ++i)
-		common->luns[i].unit_attention_data = SS_RESET_OCCURRED;
+		if (common->luns[i])
+			common->luns[i]->unit_attention_data =
+				SS_RESET_OCCURRED;
 	return rc;
 }
 
@@ -2399,7 +2401,9 @@ static void handle_exception(struct fsg_common *common)
 		common->state = FSG_STATE_STATUS_PHASE;
 	else {
 		for (i = 0; i < common->nluns; ++i) {
-			curlun = &common->luns[i];
+			curlun = common->luns[i];
+			if (!curlun)
+				continue;
 			curlun->prevent_medium_removal = 0;
 			curlun->sense_data = SS_NO_SENSE;
 			curlun->unit_attention_data = SS_NO_SENSE;
@@ -2441,8 +2445,9 @@ static void handle_exception(struct fsg_common *common)
 		 * CONFIG_CHANGE cases.
 		 */
 		/* for (i = 0; i < common->nluns; ++i) */
-		/*	common->luns[i].unit_attention_data = */
-		/*		SS_RESET_OCCURRED;  */
+		/*	if (common->luns[i]) */
+		/*		common->luns[i]->unit_attention_data = */
+		/*			SS_RESET_OCCURRED;  */
 		break;
 
 	case FSG_STATE_CONFIG_CHANGE:
@@ -2538,12 +2543,13 @@ static int fsg_main_thread(void *common_)
 
 	if (!common->ops || !common->ops->thread_exits
 	 || common->ops->thread_exits(common) < 0) {
-		struct fsg_lun *curlun = common->luns;
+		struct fsg_lun **curlun_it = common->luns;
 		unsigned i = common->nluns;
 
 		down_write(&common->filesem);
-		for (; i--; ++curlun) {
-			if (!fsg_lun_is_open(curlun))
+		for (; i--; ++curlun_it) {
+			struct fsg_lun *curlun = *curlun_it;
+			if (!curlun || !fsg_lun_is_open(curlun))
 				continue;
 
 			fsg_lun_close(curlun);
@@ -2637,7 +2643,7 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 {
 	struct usb_gadget *gadget = cdev->gadget;
 	struct fsg_buffhd *bh;
-	struct fsg_lun *curlun;
+	struct fsg_lun **curlun_it;
 	struct fsg_lun_config *lcfg;
 	int nluns, i, rc;
 	char *pathbuf;
@@ -2694,16 +2700,26 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 	 * Create the LUNs, open their backing files, and register the
 	 * LUN devices in sysfs.
 	 */
-	curlun = kcalloc(nluns, sizeof(*curlun), GFP_KERNEL);
-	if (unlikely(!curlun)) {
+	curlun_it = kcalloc(nluns, sizeof(*curlun_it), GFP_KERNEL);
+	if (unlikely(!curlun_it)) {
 		rc = -ENOMEM;
 		goto error_release;
 	}
-	common->luns = curlun;
+	common->luns = curlun_it;
 
 	init_rwsem(&common->filesem);
 
-	for (i = 0, lcfg = cfg->luns; i < nluns; ++i, ++curlun, ++lcfg) {
+	for (i = 0, lcfg = cfg->luns; i < nluns; ++i, ++curlun_it, ++lcfg) {
+		struct fsg_lun *curlun;
+
+		curlun = kzalloc(sizeof(*curlun), GFP_KERNEL);
+		if (!curlun) {
+			rc = -ENOMEM;
+			common->nluns = i;
+			goto error_release;
+		}
+		*curlun_it = curlun;
+
 		curlun->cdrom = !!lcfg->cdrom;
 		curlun->ro = lcfg->cdrom || lcfg->ro;
 		curlun->initially_ro = curlun->ro;
@@ -2719,6 +2735,7 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 			INFO(common, "failed to register LUN%d: %d\n", i, rc);
 			common->nluns = i;
 			put_device(&curlun->dev);
+			kfree(curlun);
 			goto error_release;
 		}
 
@@ -2771,7 +2788,7 @@ buffhds_first_it:
 	snprintf(common->inquiry_string, sizeof common->inquiry_string,
 		 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
 		 /* Assume product name dependent on the first LUN */
-		 cfg->product_name ?: (common->luns->cdrom
+		 cfg->product_name ?: ((*common->luns)->cdrom
 				     ? "File-CD Gadget"
 				     : "File-Stor Gadget"),
 		 i);
@@ -2802,9 +2819,10 @@ buffhds_first_it:
 	INFO(common, "Number of LUNs=%d\n", common->nluns);
 
 	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
-	for (i = 0, nluns = common->nluns, curlun = common->luns;
+	for (i = 0, nluns = common->nluns, curlun_it = common->luns;
 	     i < nluns;
-	     ++curlun, ++i) {
+	     ++curlun_it, ++i) {
+		struct fsg_lun *curlun = *curlun_it;
 		char *p = "(no medium)";
 		if (fsg_lun_is_open(curlun)) {
 			p = "(error)";
@@ -2849,11 +2867,14 @@ static void fsg_common_release(struct kref *ref)
 	}
 
 	if (likely(common->luns)) {
-		struct fsg_lun *lun = common->luns;
+		struct fsg_lun **lun_it = common->luns;
 		unsigned i = common->nluns;
 
 		/* In error recovery common->nluns may be zero. */
-		for (; i; --i, ++lun) {
+		for (; i; --i, ++lun_it) {
+			struct fsg_lun *lun = *lun_it;
+			if (!lun)
+				continue;
 			device_remove_file(&lun->dev, &dev_attr_nofua);
 			device_remove_file(&lun->dev,
 					   lun->cdrom
@@ -2865,6 +2886,7 @@ static void fsg_common_release(struct kref *ref)
 					 : &dev_attr_file_nonremovable);
 			fsg_lun_close(lun);
 			device_unregister(&lun->dev);
+			kfree(lun);
 		}
 
 		kfree(common->luns);
