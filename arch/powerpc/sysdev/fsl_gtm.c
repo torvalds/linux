@@ -19,6 +19,8 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>

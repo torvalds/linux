@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/i8259.h>
