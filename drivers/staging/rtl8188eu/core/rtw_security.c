@@ -916,7 +916,7 @@ _func_enter_;
 			add1b[i] = 0x00;
 	}
 
-	swap_halfs[0] = in[2];    /* Swap halfs */
+	swap_halfs[0] = in[2];    /* Swap halves */
 	swap_halfs[1] = in[3];
 	swap_halfs[2] = in[0];
 	swap_halfs[3] = in[1];

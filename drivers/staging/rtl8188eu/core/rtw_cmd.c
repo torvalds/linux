@@ -1162,7 +1162,7 @@ _func_enter_;
 	else
 		memcpy(&psetstakey_para->key, &psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey, 16);
 
-	/* jeff: set this becasue at least sw key is ready */
+	/* jeff: set this because at least sw key is ready */
 	padapter->securitypriv.busetkipkey = true;
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);

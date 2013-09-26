@@ -527,7 +527,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 		case NAT25_CHECK:
 			return -1;
 		case NAT25_INSERT:
-			/* some muticast with source IP is all zero, maybe other case is illegal */
+			/* some multicast with source IP is all zero, maybe other case is illegal */
 			/* in class A, B, C, host address is all zero or all one is illegal */
 			if (iph->saddr == 0)
 				return 0;
