@@ -1197,37 +1197,6 @@ static const struct mmc_host_ops realtek_pci_sdmmc_ops = {
 	.execute_tuning = sdmmc_execute_tuning,
 };
 
-#ifdef CONFIG_PM
-static int rtsx_pci_sdmmc_suspend(struct platform_device *pdev,
-		pm_message_t state)
-{
-	struct realtek_pci_sdmmc *host = platform_get_drvdata(pdev);
-	struct mmc_host *mmc = host->mmc;
-	int err;
-
-	dev_dbg(sdmmc_dev(host), "--> %s\n", __func__);
-
-	err = mmc_suspend_host(mmc);
-	if (err)
-		return err;
-
-	return 0;
-}
-
-static int rtsx_pci_sdmmc_resume(struct platform_device *pdev)
-{
-	struct realtek_pci_sdmmc *host = platform_get_drvdata(pdev);
-	struct mmc_host *mmc = host->mmc;
-
-	dev_dbg(sdmmc_dev(host), "--> %s\n", __func__);
-
-	return mmc_resume_host(mmc);
-}
-#else /* CONFIG_PM */
-#define rtsx_pci_sdmmc_suspend NULL
-#define rtsx_pci_sdmmc_resume NULL
-#endif /* CONFIG_PM */
-
 static void init_extra_caps(struct realtek_pci_sdmmc *host)
 {
 	struct mmc_host *mmc = host->mmc;
@@ -1367,8 +1336,6 @@ static struct platform_driver rtsx_pci_sdmmc_driver = {
 	.probe		= rtsx_pci_sdmmc_drv_probe,
 	.remove		= rtsx_pci_sdmmc_drv_remove,
 	.id_table       = rtsx_pci_sdmmc_ids,
-	.suspend	= rtsx_pci_sdmmc_suspend,
-	.resume		= rtsx_pci_sdmmc_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRV_NAME_RTSX_PCI_SDMMC,
