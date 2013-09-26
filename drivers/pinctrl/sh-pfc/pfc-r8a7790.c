@@ -781,6 +781,8 @@ enum {
 	ADICS_SAMP_MARK, DU2_CDE_MARK, QPOLB_MARK, SCIFA2_RXD_B_MARK,
 	USB1_PWEN_MARK, AUDIO_CLKOUT_D_MARK, USB1_OVC_MARK,
 	TCLK1_B_MARK,
+
+	I2C3_SCL_MARK, I2C3_SDA_MARK,
 	PINMUX_MARK_END,
 };
 
@@ -1719,10 +1721,22 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_DATA(IP16_6, AUDIO_CLKOUT_D),
 	PINMUX_IPSR_DATA(IP16_7, USB1_OVC),
 	PINMUX_IPSR_MODSEL_DATA(IP16_7, TCLK1_B, SEL_TMU1_1),
+
+	PINMUX_DATA(I2C3_SCL_MARK, FN_SEL_IICDVFS_1),
+	PINMUX_DATA(I2C3_SDA_MARK, FN_SEL_IICDVFS_1),
 };
+
+/* R8A7790 has 6 banks with 32 GPIOs in each = 192 GPIOs */
+#define ROW_GROUP_A(r) ('Z' - 'A' + 1 + (r))
+#define PIN_NUMBER(r, c) (((r) - 'A') * 31 + (c) + 200)
+#define PIN_A_NUMBER(r, c) PIN_NUMBER(ROW_GROUP_A(r), c)
 
 static struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
+
+	/* Pins not associated with a GPIO port */
+	SH_PFC_PIN_NAMED(ROW_GROUP_A('J'), 15, AJ15),
+	SH_PFC_PIN_NAMED(ROW_GROUP_A('H'), 15, AH15),
 };
 
 /* - DU RGB ----------------------------------------------------------------- */
@@ -2047,6 +2061,14 @@ static const unsigned int i2c2_e_pins[] = {
 };
 static const unsigned int i2c2_e_mux[] = {
 	I2C2_SCL_E_MARK, I2C2_SDA_E_MARK,
+};
+/* - I2C3 ------------------------------------------------------------------- */
+static const unsigned int i2c3_pins[] = {
+	/* SCL, SDA */
+	PIN_A_NUMBER('J', 15), PIN_A_NUMBER('H', 15),
+};
+static const unsigned int i2c3_mux[] = {
+	I2C3_SCL_MARK, I2C3_SDA_MARK,
 };
 /* - INTC ------------------------------------------------------------------- */
 static const unsigned int intc_irq0_pins[] = {
@@ -3113,6 +3135,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(i2c2_c),
 	SH_PFC_PIN_GROUP(i2c2_d),
 	SH_PFC_PIN_GROUP(i2c2_e),
+	SH_PFC_PIN_GROUP(i2c3),
 	SH_PFC_PIN_GROUP(intc_irq0),
 	SH_PFC_PIN_GROUP(intc_irq1),
 	SH_PFC_PIN_GROUP(intc_irq2),
@@ -3321,6 +3344,10 @@ static const char * const i2c2_groups[] = {
 	"i2c2_c",
 	"i2c2_d",
 	"i2c2_e",
+};
+
+static const char * const i2c3_groups[] = {
+	"i2c3",
 };
 
 static const char * const intc_groups[] = {
@@ -3551,6 +3578,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(hscif1),
 	SH_PFC_FUNCTION(i2c1),
 	SH_PFC_FUNCTION(i2c2),
+	SH_PFC_FUNCTION(i2c3),
 	SH_PFC_FUNCTION(intc),
 	SH_PFC_FUNCTION(mmc0),
 	SH_PFC_FUNCTION(mmc1),
