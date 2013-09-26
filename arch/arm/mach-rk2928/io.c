@@ -51,6 +51,7 @@ static struct map_desc rk2928_io_desc[] __initdata = {
 	RK2928_DEVICE(DDR_PHY),
 	RK2928_DEVICE(RKI2C0),
 	RK2928_DEVICE(RKI2C1),
+	RK2928_DEVICE(EFUSE),
 };
 
 void __init rk2928_map_common_io(void)

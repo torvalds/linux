@@ -17,6 +17,11 @@
 #define efuse_writel(val, offset)	writel_relaxed(val, RK30_EFUSE_BASE + offset)
 #endif
 
+#if defined(CONFIG_ARCH_RK3026)
+#define efuse_readl(offset)             readl_relaxed(RK2928_EFUSE_BASE + offset)
+#define efuse_writel(val, offset)       writel_relaxed(val, RK2928_EFUSE_BASE + offset)
+#endif
+
 u8 efuse_buf[32 + 1] = {0, 0};
 
 static int efuse_readregs(u32 addr, u32 length, u8 *buf)
@@ -59,7 +64,38 @@ static int efuse_readregs(u32 addr, u32 length, u8 *buf)
 
 void rk_efuse_init(void)
 {
+#if defined(CONFIG_ARCH_RK3026)
+	u8 tmp_buf[32];
+	int i, j, err = 0;
+
 	efuse_readregs(0x0, 32, efuse_buf);
+
+	/*
+	 * i = 10,	need time = 2,860,875	ns
+	 * i = 100,	need time = 27,327,000	ns
+	 */
+	for (i = 0; i < 10; i++){
+		efuse_readregs(0x0, 32, tmp_buf);
+		for (j = 0; j < 32; j++){
+			if (efuse_buf[j] != tmp_buf[j]){
+				printk(KERN_WARNING ":%s:rk3026 efuse bit err\n", __func__);
+				efuse_readregs(0x0, 32, efuse_buf);
+				i = 0;
+				err++;
+				break;
+			}
+		}
+
+		if (err >= 500) {
+			printk(KERN_ERR "%s:rk3026 get efuse err\n", __func__);
+			efuse_buf[5] = 0x00;	/* set default SOC version */
+			efuse_buf[22] = 0x00;	/* clean msg about leakage */
+			break;
+		}
+	}
+#else
+	efuse_readregs(0x0, 32, efuse_buf);
+#endif
 }
 
 int rk_pll_flag(void)
@@ -86,6 +122,11 @@ int rk_leakage_val(void)
 }
 
 int rk3028_version_val(void)
+{
+	return efuse_buf[5];
+}
+
+int rk3026_version_val(void)
 {
 	return efuse_buf[5];
 }

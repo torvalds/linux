@@ -4,7 +4,11 @@
 #include <asm/types.h>
 
 /* eFuse controller register */
+#if defined(CONFIG_ARCH_RK3026)
+#define EFUSE_A_SHIFT		(8)
+#else
 #define EFUSE_A_SHIFT		(6)
+#endif
 #define EFUSE_A_MASK		(0xFF)
 //#define EFUSE_PD		(1 << 5)
 //#define EFUSE_PS		(1 << 4)
@@ -22,5 +26,6 @@ int rk_pll_flag(void);
 int rk_tflag(void);
 int rk_leakage_val(void);
 int rk3028_version_val(void);
+int rk3026_version_val(void);
 
 #endif

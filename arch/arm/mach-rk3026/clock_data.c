@@ -2879,6 +2879,7 @@ static void __init rk2928_clock_common_init(unsigned long gpll_rate, unsigned lo
 
 	//rk_dump_clock_info();
 }
+#include <plat/efuse.h>
 void __init _rk2928_clock_data_init(unsigned long gpll, unsigned long cpll, int flags)
 {
 	struct clk_lookup *clk;
@@ -2894,6 +2895,8 @@ void __init _rk2928_clock_data_init(unsigned long gpll, unsigned long cpll, int 
 		clkdev_add(clk);
 		clk_register(clk->clk);
 	}
+
+	rk_efuse_init();
 
 	CLKDATA_DBG("clk_recalculate_root_clocks_nolock\n");
 	div_clk_for_pll_init();
