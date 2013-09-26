@@ -160,7 +160,7 @@ struct pcl726_private {
 	unsigned int cmd_running:1;
 };
 
-static int pcl818_intr_insn_bits(struct comedi_device *dev,
+static int pcl726_intr_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
@@ -169,7 +169,7 @@ static int pcl818_intr_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pcl818_intr_cmdtest(struct comedi_device *dev,
+static int pcl726_intr_cmdtest(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_cmd *cmd)
 {
@@ -211,7 +211,7 @@ static int pcl818_intr_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcl818_intr_cmd(struct comedi_device *dev,
+static int pcl726_intr_cmd(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
 	struct pcl726_private *devpriv = dev->private;
@@ -221,7 +221,7 @@ static int pcl818_intr_cmd(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcl818_intr_cancel(struct comedi_device *dev,
+static int pcl726_intr_cancel(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct pcl726_private *devpriv = dev->private;
@@ -231,14 +231,14 @@ static int pcl818_intr_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static irqreturn_t pcl818_interrupt(int irq, void *d)
+static irqreturn_t pcl726_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct pcl726_private *devpriv = dev->private;
 
 	if (devpriv->cmd_running) {
-		pcl818_intr_cancel(dev, s);
+		pcl726_intr_cancel(dev, s);
 
 		comedi_buf_put(s->async, 0);
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
@@ -363,7 +363,7 @@ static int pcl726_attach(struct comedi_device *dev,
 	 * user config option is valid and the board supports interrupts.
 	 */
 	if (it->options[1] && (board->irq_mask & (1 << it->options[1]))) {
-		ret = request_irq(it->options[1], pcl818_interrupt, 0,
+		ret = request_irq(it->options[1], pcl726_interrupt, 0,
 				  dev->board_name, dev);
 		if (ret == 0) {
 			/* External trigger source is from Pin-17 of CN3 */
@@ -429,10 +429,10 @@ static int pcl726_attach(struct comedi_device *dev,
 		s->n_chan	= 1;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
-		s->insn_bits	= pcl818_intr_insn_bits;
-		s->do_cmdtest	= pcl818_intr_cmdtest;
-		s->do_cmd	= pcl818_intr_cmd;
-		s->cancel	= pcl818_intr_cancel;
+		s->insn_bits	= pcl726_intr_insn_bits;
+		s->do_cmdtest	= pcl726_intr_cmdtest;
+		s->do_cmd	= pcl726_intr_cmd;
+		s->cancel	= pcl726_intr_cancel;
 	}
 
 	return 0;
