@@ -93,6 +93,7 @@
 		reg = <0 0xe6500000 0 0x428>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 174 0x4>;
+		status = "disabled";
 	};
 
 	i2c1: i2c@e6510000 {
@@ -102,6 +103,7 @@
 		reg = <0 0xe6510000 0 0x428>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 175 0x4>;
+		status = "disabled";
 	};
 
 	i2c2: i2c@e6520000 {
@@ -111,6 +113,7 @@
 		reg = <0 0xe6520000 0 0x428>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 176 0x4>;
+		status = "disabled";
 	};
 
 	i2c3: i2c@e6530000 {
@@ -120,6 +123,7 @@
 		reg = <0 0xe6530000 0 0x428>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 177 0x4>;
+		status = "disabled";
 	};
 
 	i2c4: i2c@e6540000 {
@@ -129,6 +133,7 @@
 		reg = <0 0xe6540000 0 0x428>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 178 0x4>;
+		status = "disabled";
 	};
 
 	i2c5: i2c@e60b0000 {
@@ -138,6 +143,7 @@
 		reg = <0 0xe60b0000 0 0x428>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 179 0x4>;
+		status = "disabled";
 	};
 
 	i2c6: i2c@e6550000 {
@@ -147,6 +153,7 @@
 		reg = <0 0xe6550000 0 0x428>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 184 0x4>;
+		status = "disabled";
 	};
 
 	i2c7: i2c@e6560000 {
@@ -156,6 +163,7 @@
 		reg = <0 0xe6560000 0 0x428>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 185 0x4>;
+		status = "disabled";
 	};
 
 	i2c8: i2c@e6570000 {
@@ -165,6 +173,7 @@
 		reg = <0 0xe6570000 0 0x428>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 173 0x4>;
+		status = "disabled";
 	};
 
 	mmcif0: mmcif@ee200000 {

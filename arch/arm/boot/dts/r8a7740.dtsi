@@ -131,6 +131,7 @@
 			      0 202 0x4
 			      0 203 0x4
 			      0 204 0x4>;
+		status = "disabled";
 	};
 
 	i2c1: i2c@e6c20000 {
@@ -143,6 +144,7 @@
 			      0 71 0x4
 			      0 72 0x4
 			      0 73 0x4>;
+		status = "disabled";
 	};
 
 	pfc: pfc@e6050000 {

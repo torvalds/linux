@@ -52,6 +52,7 @@
 };
 
 &i2c0 {
+	status = "okay";
 	touchscreen: st1232@55 {
 		compatible = "sitronix,st1232";
 		reg = <0x55>;
