@@ -1908,7 +1908,7 @@ int ath10k_wmi_pdev_set_param(struct ath10k *ar, enum wmi_pdev_param id,
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->pdev_set_param_cmdid);
 }
 
-int ath10k_wmi_cmd_init(struct ath10k *ar)
+static int ath10k_wmi_main_cmd_init(struct ath10k *ar)
 {
 	struct wmi_init_cmd *cmd;
 	struct sk_buff *buf;
@@ -2005,6 +2005,109 @@ out:
 
 	ath10k_dbg(ATH10K_DBG_WMI, "wmi init\n");
 	return ath10k_wmi_cmd_send(ar, buf, ar->wmi.cmd->init_cmdid);
+}
+
+static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
+{
+	struct wmi_init_cmd_10x *cmd;
+	struct sk_buff *buf;
+	struct wmi_resource_config_10x config = {};
+	u32 len, val;
+	int i;
+
+	config.num_vdevs = __cpu_to_le32(TARGET_NUM_VDEVS);
+	config.num_peers = __cpu_to_le32(TARGET_NUM_PEERS + TARGET_NUM_VDEVS);
+	config.num_peer_keys = __cpu_to_le32(TARGET_NUM_PEER_KEYS);
+	config.num_tids = __cpu_to_le32(TARGET_NUM_TIDS);
+	config.ast_skid_limit = __cpu_to_le32(TARGET_AST_SKID_LIMIT);
+	config.tx_chain_mask = __cpu_to_le32(TARGET_TX_CHAIN_MASK);
+	config.rx_chain_mask = __cpu_to_le32(TARGET_RX_CHAIN_MASK);
+	config.rx_timeout_pri_vo = __cpu_to_le32(TARGET_RX_TIMEOUT_LO_PRI);
+	config.rx_timeout_pri_vi = __cpu_to_le32(TARGET_RX_TIMEOUT_LO_PRI);
+	config.rx_timeout_pri_be = __cpu_to_le32(TARGET_RX_TIMEOUT_LO_PRI);
+	config.rx_timeout_pri_bk = __cpu_to_le32(TARGET_RX_TIMEOUT_HI_PRI);
+	config.rx_decap_mode = __cpu_to_le32(TARGET_RX_DECAP_MODE);
+
+	config.scan_max_pending_reqs =
+		__cpu_to_le32(TARGET_SCAN_MAX_PENDING_REQS);
+
+	config.bmiss_offload_max_vdev =
+		__cpu_to_le32(TARGET_BMISS_OFFLOAD_MAX_VDEV);
+
+	config.roam_offload_max_vdev =
+		__cpu_to_le32(TARGET_ROAM_OFFLOAD_MAX_VDEV);
+
+	config.roam_offload_max_ap_profiles =
+		__cpu_to_le32(TARGET_ROAM_OFFLOAD_MAX_AP_PROFILES);
+
+	config.num_mcast_groups = __cpu_to_le32(TARGET_NUM_MCAST_GROUPS);
+	config.num_mcast_table_elems =
+		__cpu_to_le32(TARGET_NUM_MCAST_TABLE_ELEMS);
+
+	config.mcast2ucast_mode = __cpu_to_le32(TARGET_MCAST2UCAST_MODE);
+	config.tx_dbg_log_size = __cpu_to_le32(TARGET_TX_DBG_LOG_SIZE);
+	config.num_wds_entries = __cpu_to_le32(TARGET_NUM_WDS_ENTRIES);
+	config.dma_burst_size = __cpu_to_le32(TARGET_DMA_BURST_SIZE);
+	config.mac_aggr_delim = __cpu_to_le32(TARGET_MAC_AGGR_DELIM);
+
+	val = TARGET_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK;
+	config.rx_skip_defrag_timeout_dup_detection_check = __cpu_to_le32(val);
+
+	config.vow_config = __cpu_to_le32(TARGET_VOW_CONFIG);
+
+	config.num_msdu_desc = __cpu_to_le32(TARGET_NUM_MSDU_DESC);
+	config.max_frag_entries = __cpu_to_le32(TARGET_MAX_FRAG_ENTRIES);
+
+	len = sizeof(*cmd) +
+	      (sizeof(struct host_memory_chunk) * ar->wmi.num_mem_chunks);
+
+	buf = ath10k_wmi_alloc_skb(len);
+	if (!buf)
+		return -ENOMEM;
+
+	cmd = (struct wmi_init_cmd_10x *)buf->data;
+
+	if (ar->wmi.num_mem_chunks == 0) {
+		cmd->num_host_mem_chunks = 0;
+		goto out;
+	}
+
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi sending %d memory chunks info.\n",
+		   __cpu_to_le32(ar->wmi.num_mem_chunks));
+
+	cmd->num_host_mem_chunks = __cpu_to_le32(ar->wmi.num_mem_chunks);
+
+	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
+		cmd->host_mem_chunks[i].ptr =
+			__cpu_to_le32(ar->wmi.mem_chunks[i].paddr);
+		cmd->host_mem_chunks[i].size =
+			__cpu_to_le32(ar->wmi.mem_chunks[i].len);
+		cmd->host_mem_chunks[i].req_id =
+			__cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
+
+		ath10k_dbg(ATH10K_DBG_WMI,
+			   "wmi chunk %d len %d requested, addr 0x%x\n",
+			   i,
+			   cmd->host_mem_chunks[i].size,
+			   cmd->host_mem_chunks[i].ptr);
+	}
+out:
+	memcpy(&cmd->resource_config, &config, sizeof(config));
+
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi init 10x\n");
+	return ath10k_wmi_cmd_send(ar, buf, ar->wmi.cmd->init_cmdid);
+}
+
+int ath10k_wmi_cmd_init(struct ath10k *ar)
+{
+	int ret;
+
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
+		ret = ath10k_wmi_10x_cmd_init(ar);
+	else
+		ret = ath10k_wmi_main_cmd_init(ar);
+
+	return ret;
 }
 
 static int ath10k_wmi_start_scan_calc_len(const struct wmi_start_scan_arg *arg)
