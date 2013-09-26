@@ -118,7 +118,7 @@ static DEFINE_SPINLOCK(amd_lock);
  *
  * Returns: 1 if it is an AMD chipset, 0 otherwise.
  */
-int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
+static int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
 {
 	u8 rev = 0;
 	pinfo->sb_type.gen = AMD_CHIPSET_UNKNOWN;
