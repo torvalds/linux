@@ -152,5 +152,6 @@ int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
 bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb);
 struct sk_buff *rtl_make_del_ba(struct ieee80211_hw *hw,
 				u8 *sa, u8 *bssid, u16 tid);
+void rtl_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation);
 
 #endif
