@@ -2117,7 +2117,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	read_lock(&bond->lock);
 
 	//check if there are any slaves
-	if (list_empty(&bond->slave_list))
+	if (!bond_has_slaves(bond))
 		goto re_arm;
 
 	// check if agg_select_timer timer after initialize is timed out
@@ -2417,14 +2417,15 @@ int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 
 int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 {
-	struct slave *slave, *start_at;
 	struct bonding *bond = netdev_priv(dev);
-	int slave_agg_no;
-	int slaves_in_agg;
-	int agg_id;
-	int i;
+	struct slave *slave, *first_ok_slave;
+	struct aggregator *agg;
 	struct ad_info ad_info;
+	struct list_head *iter;
+	int slaves_in_agg;
+	int slave_agg_no;
 	int res = 1;
+	int agg_id;
 
 	read_lock(&bond->lock);
 	if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
@@ -2437,20 +2438,28 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 	agg_id = ad_info.aggregator_id;
 
 	if (slaves_in_agg == 0) {
-		/*the aggregator is empty*/
 		pr_debug("%s: Error: active aggregator is empty\n", dev->name);
 		goto out;
 	}
 
 	slave_agg_no = bond->xmit_hash_policy(skb, slaves_in_agg);
+	first_ok_slave = NULL;
 
-	bond_for_each_slave(bond, slave) {
-		struct aggregator *agg = SLAVE_AD_INFO(slave).port.aggregator;
+	bond_for_each_slave(bond, slave, iter) {
+		agg = SLAVE_AD_INFO(slave).port.aggregator;
+		if (!agg || agg->aggregator_identifier != agg_id)
+			continue;
 
-		if (agg && (agg->aggregator_identifier == agg_id)) {
+		if (slave_agg_no >= 0) {
+			if (!first_ok_slave && SLAVE_IS_OK(slave))
+				first_ok_slave = slave;
 			slave_agg_no--;
-			if (slave_agg_no < 0)
-				break;
+			continue;
+		}
+
+		if (SLAVE_IS_OK(slave)) {
+			res = bond_dev_queue_xmit(bond, skb, slave->dev);
+			goto out;
 		}
 	}
 
@@ -2460,20 +2469,10 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 	}
 
-	start_at = slave;
-
-	bond_for_each_slave_from(bond, slave, i, start_at) {
-		int slave_agg_id = 0;
-		struct aggregator *agg = SLAVE_AD_INFO(slave).port.aggregator;
-
-		if (agg)
-			slave_agg_id = agg->aggregator_identifier;
-
-		if (SLAVE_IS_OK(slave) && agg && (slave_agg_id == agg_id)) {
-			res = bond_dev_queue_xmit(bond, skb, slave->dev);
-			break;
-		}
-	}
+	/* we couldn't find any suitable slave after the agg_no, so use the
+	 * first suitable found, if found. */
+	if (first_ok_slave)
+		res = bond_dev_queue_xmit(bond, skb, first_ok_slave->dev);
 
 out:
 	read_unlock(&bond->lock);
@@ -2515,11 +2514,12 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 void bond_3ad_update_lacp_rate(struct bonding *bond)
 {
 	struct port *port = NULL;
+	struct list_head *iter;
 	struct slave *slave;
 	int lacp_fast;
 
 	lacp_fast = bond->params.lacp_fast;
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave(bond, slave, iter) {
 		port = &(SLAVE_AD_INFO(slave).port);
 		__get_state_machine_lock(port);
 		if (lacp_fast)
