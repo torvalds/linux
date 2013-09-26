@@ -228,6 +228,7 @@ config P2041_RDB
 	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
+	select CORENET_GENERIC
 	help
 	  This option enables support for the P2041 RDB board
 
@@ -241,6 +242,7 @@ config P3041_DS
 	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
+	select CORENET_GENERIC
 	help
 	  This option enables support for the P3041 DS board
 
@@ -254,6 +256,7 @@ config P4080_DS
 	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
+	select CORENET_GENERIC
 	help
 	  This option enables support for the P4080 DS board
 
@@ -278,6 +281,7 @@ config P5020_DS
 	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
+	select CORENET_GENERIC
 	help
 	  This option enables support for the P5020 DS board
 
@@ -292,6 +296,7 @@ config P5040_DS
 	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
+	select CORENET_GENERIC
 	help
 	  This option enables support for the P5040 DS board
 
@@ -323,6 +328,7 @@ config T4240_QDS
 	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
+	select CORENET_GENERIC
 	help
 	  This option enables support for the T4240 QDS board
 
@@ -337,6 +343,7 @@ config B4_QDS
 	select ARCH_REQUIRE_GPIOLIB
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
+	select CORENET_GENERIC
 	help
 	  This option enables support for the B4 QDS board
 	  The B4 application development system B4 QDS is a complete
@@ -347,4 +354,7 @@ endif
 endif # FSL_SOC_BOOKE
 
 config TQM85xx
+	bool
+
+config CORENET_GENERIC
 	bool
