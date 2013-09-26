@@ -27,14 +27,11 @@
 static void reset_mpidr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 {
 	/*
-	 * Compute guest MPIDR:
-	 * (Even if we present only one VCPU to the guest on an SMP
-	 * host we don't set the U bit in the MPIDR, or vice versa, as
-	 * revealing the underlying hardware properties is likely to
-	 * be the best choice).
+	 * Compute guest MPIDR. No need to mess around with different clusters
+	 * but we read the 'U' bit from the underlying hardware directly.
 	 */
-	vcpu->arch.cp15[c0_MPIDR] = (read_cpuid_mpidr() & ~MPIDR_LEVEL_MASK)
-		| (vcpu->vcpu_id & MPIDR_LEVEL_MASK);
+	vcpu->arch.cp15[c0_MPIDR] = (read_cpuid_mpidr() & MPIDR_SMP_BITMASK)
+					| vcpu->vcpu_id;
 }
 
 #include "coproc.h"
