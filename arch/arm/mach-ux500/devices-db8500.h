@@ -10,7 +10,6 @@
 
 #include "irqs.h"
 #include "db8500-regs.h"
-#include "devices-common.h"
 
 struct platform_device;
 
