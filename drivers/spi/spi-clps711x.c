@@ -227,7 +227,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Can't request IRQ\n");
 		clk_put(hw->spi_clk);
-		goto clk_out;
+		goto err_out;
 	}
 
 	ret = spi_register_master(master);
@@ -240,7 +240,6 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 
 	dev_err(&pdev->dev, "Failed to register master\n");
 
-clk_out:
 err_out:
 	while (--i >= 0)
 		if (gpio_is_valid(hw->chipselect[i]))
