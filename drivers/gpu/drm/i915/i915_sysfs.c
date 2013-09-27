@@ -37,12 +37,30 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u64 raw_time; /* 32b value may overflow during fixed point math */
+	u64 units = 128ULL, div = 100000ULL, bias = 100ULL;
 
 	if (!intel_enable_rc6(dev))
 		return 0;
 
-	raw_time = I915_READ(reg) * 128ULL;
-	return DIV_ROUND_UP_ULL(raw_time, 100000);
+	/* On VLV, residency time is in CZ units rather than 1.28us */
+	if (IS_VALLEYVIEW(dev)) {
+		u32 clkctl2;
+
+		clkctl2 = I915_READ(VLV_CLK_CTL2) >>
+			CLK_CTL2_CZCOUNT_30NS_SHIFT;
+		if (!clkctl2) {
+			WARN(!clkctl2, "bogus CZ count value");
+			return 0;
+		}
+		units = DIV_ROUND_UP_ULL(30ULL * bias, (u64)clkctl2);
+		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
+			units <<= 8;
+
+		div = 1000000ULL * bias;
+	}
+
+	raw_time = I915_READ(reg) * units;
+	return DIV_ROUND_UP_ULL(raw_time, div);
 }
 
 static ssize_t
