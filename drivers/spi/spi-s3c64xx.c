@@ -558,22 +558,18 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
 						struct spi_device *spi)
 {
-	struct s3c64xx_spi_csinfo *cs;
-
 	if (sdd->tgl_spi != NULL) { /* If last device toggled after mssg */
 		if (sdd->tgl_spi != spi) { /* if last mssg on diff device */
 			/* Deselect the last toggled device */
-			cs = sdd->tgl_spi->controller_data;
-			if (sdd->cs_gpio)
-				gpio_set_value(cs->line,
+			if (spi->cs_gpio >= 0)
+				gpio_set_value(spi->cs_gpio,
 					spi->mode & SPI_CS_HIGH ? 0 : 1);
 		}
 		sdd->tgl_spi = NULL;
 	}
 
-	cs = spi->controller_data;
-	if (sdd->cs_gpio)
-		gpio_set_value(cs->line, spi->mode & SPI_CS_HIGH ? 1 : 0);
+	if (spi->cs_gpio >= 0)
+		gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH ? 1 : 0);
 
 	/* Start the signals */
 	writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
@@ -701,13 +697,11 @@ static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
 static inline void disable_cs(struct s3c64xx_spi_driver_data *sdd,
 						struct spi_device *spi)
 {
-	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
-
 	if (sdd->tgl_spi == spi)
 		sdd->tgl_spi = NULL;
 
-	if (sdd->cs_gpio)
-		gpio_set_value(cs->line, spi->mode & SPI_CS_HIGH ? 0 : 1);
+	if (spi->cs_gpio >= 0)
+		gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH ? 0 : 1);
 
 	/* Quiese the signals */
 	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
@@ -1070,6 +1064,8 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 					cs->line, err);
 				goto err_gpio_req;
 			}
+
+			spi->cs_gpio = cs->line;
 		}
 
 		spi_set_ctldata(spi, cs);
@@ -1139,8 +1135,8 @@ static void s3c64xx_spi_cleanup(struct spi_device *spi)
 	struct s3c64xx_spi_driver_data *sdd;
 
 	sdd = spi_master_get_devdata(spi->master);
-	if (cs && sdd->cs_gpio) {
-		gpio_free(cs->line);
+	if (spi->cs_gpio) {
+		gpio_free(spi->cs_gpio);
 		if (spi->dev.of_node)
 			kfree(cs);
 	}
