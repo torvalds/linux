@@ -333,20 +333,20 @@ i2c_dp_aux_add_bus(struct i2c_adapter *adapter);
 
 
 #define DP_LINK_STATUS_SIZE	   6
-bool drm_dp_channel_eq_ok(u8 link_status[DP_LINK_STATUS_SIZE],
+bool drm_dp_channel_eq_ok(const u8 link_status[DP_LINK_STATUS_SIZE],
 			  int lane_count);
-bool drm_dp_clock_recovery_ok(u8 link_status[DP_LINK_STATUS_SIZE],
+bool drm_dp_clock_recovery_ok(const u8 link_status[DP_LINK_STATUS_SIZE],
 			      int lane_count);
-u8 drm_dp_get_adjust_request_voltage(u8 link_status[DP_LINK_STATUS_SIZE],
+u8 drm_dp_get_adjust_request_voltage(const u8 link_status[DP_LINK_STATUS_SIZE],
 				     int lane);
-u8 drm_dp_get_adjust_request_pre_emphasis(u8 link_status[DP_LINK_STATUS_SIZE],
+u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SIZE],
 					  int lane);
 
 #define DP_RECEIVER_CAP_SIZE		0xf
 #define EDP_PSR_RECEIVER_CAP_SIZE	2
 
-void drm_dp_link_train_clock_recovery_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]);
-void drm_dp_link_train_channel_eq_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]);
+void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
+void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
@@ -379,13 +379,13 @@ struct edp_vsc_psr {
 #define EDP_VSC_PSR_CRC_VALUES_VALID	(1<<2)
 
 static inline int
-drm_dp_max_link_rate(u8 dpcd[DP_RECEIVER_CAP_SIZE])
+drm_dp_max_link_rate(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return drm_dp_bw_code_to_link_rate(dpcd[DP_MAX_LINK_RATE]);
 }
 
 static inline u8
-drm_dp_max_lane_count(u8 dpcd[DP_RECEIVER_CAP_SIZE])
+drm_dp_max_lane_count(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK;
 }
