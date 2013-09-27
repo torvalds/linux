@@ -218,11 +218,6 @@ void vMgrObjectInit(struct vnt_private *pDevice)
     pMgmt->sTimerSecondCallback.function = (TimerFunction)BSSvSecondCallBack;
     pMgmt->sTimerSecondCallback.expires = RUN_AT(HZ);
 
-    init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (unsigned long)pDevice;
-    pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
-    pDevice->sTimerCommand.expires = RUN_AT(HZ);
-
     init_timer(&pDevice->sTimerTxData);
     pDevice->sTimerTxData.data = (unsigned long)pDevice;
     pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
@@ -844,8 +839,8 @@ static void s_vMgrRxAssocResponse(struct vnt_private *pDevice,
               pDevice->bwextstep3 = false;
               pDevice->bWPASuppWextEnabled = false;
 
-if(pMgmt->eCurrState == WMAC_STATE_ASSOC)
-      timer_expire(pDevice->sTimerCommand, 0);
+	if (pMgmt->eCurrState == WMAC_STATE_ASSOC)
+		schedule_delayed_work(&pDevice->run_command_work, 0);
 
     return;
 }
@@ -1127,7 +1122,7 @@ static void s_vMgrRxAuthenSequence_2(struct vnt_private *pDevice,
             if ( cpu_to_le16((*(pFrame->pwStatus))) == WLAN_MGMT_STATUS_SUCCESS ){
                 DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (OPEN) Successful.\n");
                 pMgmt->eCurrState = WMAC_STATE_AUTH;
-	       timer_expire(pDevice->sTimerCommand, 0);
+		schedule_delayed_work(&pDevice->run_command_work, 0);
             }
             else {
                 DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (OPEN) Failed.\n");
@@ -1302,7 +1297,7 @@ static void s_vMgrRxAuthenSequence_4(struct vnt_private *pDevice,
     if ( cpu_to_le16((*(pFrame->pwStatus))) == WLAN_MGMT_STATUS_SUCCESS ){
         DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (SHAREDKEY) Successful.\n");
         pMgmt->eCurrState = WMAC_STATE_AUTH;
-        timer_expire(pDevice->sTimerCommand, 0);
+	schedule_delayed_work(&pDevice->run_command_work, 0);
     }
     else{
         DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (SHAREDKEY) Failed.\n");

@@ -702,6 +702,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	device_set_options(pDevice);
 	spin_lock_init(&pDevice->lock);
+	INIT_DELAYED_WORK(&pDevice->run_command_work, vRunCommand);
 
 	pDevice->tx_80211 = device_dma0_tx_80211;
 	pDevice->vnt_mgmt.pAdapter = (void *) pDevice;
@@ -1076,7 +1077,9 @@ static int device_close(struct net_device *dev)
     MP_CLEAR_FLAG(pDevice, fMP_POST_WRITES);
     MP_CLEAR_FLAG(pDevice, fMP_POST_READS);
     pDevice->fKillEventPollingThread = true;
-    del_timer(&pDevice->sTimerCommand);
+
+	cancel_delayed_work_sync(&pDevice->run_command_work);
+
     del_timer(&pMgmt->sTimerSecondCallback);
 
     del_timer(&pDevice->sTimerTxData);

@@ -268,20 +268,14 @@ struct vnt_tx_mgmt *s_MgrMakeProbeRequest(struct vnt_private *pDevice,
 
 void vCommandTimerWait(struct vnt_private *pDevice, unsigned long MSecond)
 {
-
-	init_timer(&pDevice->sTimerCommand);
-
-	pDevice->sTimerCommand.data = (unsigned long)pDevice;
-	pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
-	pDevice->sTimerCommand.expires = RUN_AT((MSecond * HZ) / 1000);
-
-	add_timer(&pDevice->sTimerCommand);
-
-	return;
+	schedule_delayed_work(&pDevice->run_command_work,
+						msecs_to_jiffies(MSecond));
 }
 
-void vRunCommand(struct vnt_private *pDevice)
+void vRunCommand(struct work_struct *work)
 {
+	struct vnt_private *pDevice =
+		container_of(work, struct vnt_private, run_command_work.work);
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	PWLAN_IE_SSID pItemSSID;
 	PWLAN_IE_SSID pItemSSIDCurr;
@@ -1156,14 +1150,8 @@ static int s_bClearBSSID_SCAN(struct vnt_private *pDevice)
 //mike add:reset command timer
 void vResetCommandTimer(struct vnt_private *pDevice)
 {
+	cancel_delayed_work_sync(&pDevice->run_command_work);
 
-	//delete timer
-	del_timer(&pDevice->sTimerCommand);
-	//init timer
-	init_timer(&pDevice->sTimerCommand);
-	pDevice->sTimerCommand.data = (unsigned long)pDevice;
-	pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
-	pDevice->sTimerCommand.expires = RUN_AT(HZ);
 	pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
 	pDevice->uCmdDequeueIdx = 0;
 	pDevice->uCmdEnqueueIdx = 0;

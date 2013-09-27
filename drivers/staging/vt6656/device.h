@@ -707,7 +707,7 @@ struct vnt_private {
 	u8 byBBCR09;
 
 	/* command timer */
-	struct timer_list sTimerCommand;
+	struct delayed_work run_command_work;
 
 	struct timer_list sTimerTxData;
 	unsigned long nTxDataTimeCout;
