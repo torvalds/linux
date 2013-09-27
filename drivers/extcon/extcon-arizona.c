@@ -86,8 +86,8 @@ struct arizona_extcon_info {
 };
 
 static const struct arizona_micd_config micd_default_modes[] = {
-	{ ARIZONA_ACCDET_SRC, 1 << ARIZONA_MICD_BIAS_SRC_SHIFT, 0 },
-	{ 0,                  2 << ARIZONA_MICD_BIAS_SRC_SHIFT, 1 },
+	{ ARIZONA_ACCDET_SRC, 1, 0 },
+	{ 0,                  2, 1 },
 };
 
 static const struct arizona_micd_range micd_default_ranges[] = {
@@ -182,7 +182,8 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 					info->micd_modes[mode].gpio);
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 			   ARIZONA_MICD_BIAS_SRC_MASK,
-			   info->micd_modes[mode].bias);
+			   info->micd_modes[mode].bias <<
+			   ARIZONA_MICD_BIAS_SRC_SHIFT);
 	regmap_update_bits(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1,
 			   ARIZONA_ACCDET_SRC, info->micd_modes[mode].src);
 
@@ -193,7 +194,7 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 
 static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 {
-	switch (info->micd_modes[0].bias >> ARIZONA_MICD_BIAS_SRC_SHIFT) {
+	switch (info->micd_modes[0].bias) {
 	case 1:
 		return "MICBIAS1";
 	case 2:
@@ -388,7 +389,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 			   >> ARIZONA_HP_IMPEDANCE_RANGE_SHIFT;
 
 		if (range < ARRAY_SIZE(arizona_hpdet_b_ranges) - 1 &&
-		    (val < 100 || val > 0x3fb)) {
+		    (val < 100 || val >= 0x3fb)) {
 			range++;
 			dev_dbg(arizona->dev, "Moving to HPDET range %d\n",
 				range);
@@ -401,7 +402,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 
 		/* If we go out of range report top of range */
-		if (val < 100 || val > 0x3fb) {
+		if (val < 100 || val >= 0x3fb) {
 			dev_dbg(arizona->dev, "Measurement out of range\n");
 			return ARIZONA_HPDET_MAX;
 		}
@@ -514,7 +515,7 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading,
 		}
 
 		/*
-		 * If we measure the mic as 
+		 * If we measure the mic as high impedance
 		 */
 		if (!id_gpio || info->hpdet_res[1] > 50) {
 			dev_dbg(arizona->dev, "Detected mic\n");
@@ -1042,6 +1043,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	else
 		info->micd_timeout = DEFAULT_MICD_TIMEOUT;
 
+out:
 	/* Clear trig_sts to make sure DCVDD is not forced up */
 	regmap_write(arizona->regmap, ARIZONA_AOD_WKUP_AND_TRIG,
 		     ARIZONA_MICD_CLAMP_FALL_TRIG_STS |
@@ -1049,7 +1051,6 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		     ARIZONA_JD1_FALL_TRIG_STS |
 		     ARIZONA_JD1_RISE_TRIG_STS);
 
-out:
 	mutex_unlock(&info->lock);
 
 	pm_runtime_mark_last_busy(info->dev);
@@ -1132,9 +1133,10 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	}
 
 	info->edev.name = "Headset Jack";
+	info->edev.dev.parent = arizona->dev;
 	info->edev.supported_cable = arizona_cable;
 
-	ret = extcon_dev_register(&info->edev, arizona->dev);
+	ret = extcon_dev_register(&info->edev);
 	if (ret < 0) {
 		dev_err(arizona->dev, "extcon_dev_register() failed: %d\n",
 			ret);

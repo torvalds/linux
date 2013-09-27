@@ -965,7 +965,7 @@ static void max77693_muic_irq_work(struct work_struct *work)
 
 	mutex_lock(&info->mutex);
 
-	for (i = 0 ; i < ARRAY_SIZE(muic_irqs) ; i++)
+	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++)
 		if (info->irq == muic_irqs[i].virq)
 			irq_type = muic_irqs[i].irq;
 
@@ -1183,8 +1183,9 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 	info->edev->name = DEV_NAME;
+	info->edev->dev.parent = &pdev->dev;
 	info->edev->supported_cable = max77693_extcon_cable;
-	ret = extcon_dev_register(info->edev, NULL);
+	ret = extcon_dev_register(info->edev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		goto err_irq;
@@ -1200,7 +1201,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		num_init_data = ARRAY_SIZE(default_init_data);
 	}
 
-	for (i = 0 ; i < num_init_data ; i++) {
+	for (i = 0; i < num_init_data; i++) {
 		enum max77693_irq_source irq_src
 				= MAX77693_IRQ_GROUP_NR;
 
