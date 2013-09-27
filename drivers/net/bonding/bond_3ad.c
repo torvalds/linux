@@ -2056,7 +2056,9 @@ void bond_3ad_unbind_slave(struct slave *slave)
 				pr_info("%s: Removing an active aggregator\n",
 					slave->bond->dev->name);
 				// select new active aggregator
-				ad_agg_selection_logic(__get_first_agg(port));
+				temp_aggregator = __get_first_agg(port);
+				if (temp_aggregator)
+					ad_agg_selection_logic(temp_aggregator);
 			}
 		}
 	}
