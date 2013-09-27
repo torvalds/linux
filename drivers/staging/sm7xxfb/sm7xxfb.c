@@ -259,8 +259,7 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 			if (sfb->fb.var.bits_per_pixel == 16) {
 				u32 *pal = sfb->fb.pseudo_palette;
 				val = chan_to_field(red, &sfb->fb.var.red);
-				val |= chan_to_field(green, \
-						&sfb->fb.var.green);
+				val |= chan_to_field(green, &sfb->fb.var.green);
 				val |= chan_to_field(blue, &sfb->fb.var.blue);
 #ifdef __BIG_ENDIAN
 				pal[regno] =
@@ -274,8 +273,7 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 			} else {
 				u32 *pal = sfb->fb.pseudo_palette;
 				val = chan_to_field(red, &sfb->fb.var.red);
-				val |= chan_to_field(green, \
-						&sfb->fb.var.green);
+				val |= chan_to_field(green, &sfb->fb.var.green);
 				val |= chan_to_field(blue, &sfb->fb.var.blue);
 #ifdef __BIG_ENDIAN
 				val =
@@ -508,9 +506,9 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 
 			/* init SEQ register SR30 - SR75 */
 			for (i = 0; i < SIZE_SR30_SR75; i++)
-				if (((i + 0x30) != 0x62) \
-					&& ((i + 0x30) != 0x6a) \
-					&& ((i + 0x30) != 0x6b))
+				if ((i + 0x30) != 0x62 &&
+				    (i + 0x30) != 0x6a &&
+				    (i + 0x30) != 0x6b)
 					smtc_seqw(i + 0x30,
 						VGAMode[j].Init_SR30_SR75[i]);
 
