@@ -149,28 +149,6 @@ static inline struct port *__get_first_port(struct bonding *bond)
 }
 
 /**
- * __get_next_port - get the next port in the bond
- * @port: the port we're looking at
- *
- * Return the port of the slave that is next in line of @port's slave in the
- * bond, or %NULL if it can't be found.
- */
-static inline struct port *__get_next_port(struct port *port)
-{
-	struct bonding *bond = __get_bond_by_port(port);
-	struct slave *slave = port->slave, *slave_next;
-
-	// If there's no bond for this port, or this is the last slave
-	if (bond == NULL)
-		return NULL;
-	slave_next = bond_next_slave(bond, slave);
-	if (!slave_next || bond_is_first_slave(bond, slave_next))
-		return NULL;
-
-	return &(SLAVE_AD_INFO(slave_next).port);
-}
-
-/**
  * __get_first_agg - get the first aggregator in the bond
  * @bond: the bond we're looking at
  *
@@ -2113,8 +2091,10 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    ad_work.work);
-	struct port *port;
 	struct aggregator *aggregator;
+	struct list_head *iter;
+	struct slave *slave;
+	struct port *port;
 
 	read_lock(&bond->lock);
 
@@ -2139,7 +2119,8 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	}
 
 	// for each port run the state machines
-	for (port = __get_first_port(bond); port; port = __get_next_port(port)) {
+	bond_for_each_slave(bond, slave, iter) {
+		port = &(SLAVE_AD_INFO(slave).port);
 		if (!port->slave) {
 			pr_warning("%s: Warning: Found an uninitialized port\n",
 				   bond->dev->name);
@@ -2384,9 +2365,12 @@ int __bond_3ad_get_active_agg_info(struct bonding *bond,
 				   struct ad_info *ad_info)
 {
 	struct aggregator *aggregator = NULL;
+	struct list_head *iter;
+	struct slave *slave;
 	struct port *port;
 
-	for (port = __get_first_port(bond); port; port = __get_next_port(port)) {
+	bond_for_each_slave(bond, slave, iter) {
+		port = &(SLAVE_AD_INFO(slave).port);
 		if (port->aggregator && port->aggregator->is_active) {
 			aggregator = port->aggregator;
 			break;
