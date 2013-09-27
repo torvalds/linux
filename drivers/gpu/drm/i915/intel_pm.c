@@ -3804,7 +3804,8 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	if ((gtfifodbg = I915_READ(GTFIFODBG))) {
-		DRM_ERROR("GT fifo had a previous error %x\n", gtfifodbg);
+		DRM_DEBUG_DRIVER("GT fifo had a previous error %x\n",
+				 gtfifodbg);
 		I915_WRITE(GTFIFODBG, gtfifodbg);
 	}
 
