@@ -230,7 +230,7 @@ c4_wq_port_init (mpi_t *pi)
             __func__, name, pi->portnum); /* RLD DEBUG */
 #endif
     if (!(pi->wq_port = create_singlethread_workqueue (name)))
-        return ENOMEM;
+        return -ENOMEM;
     return 0;                       /* success */
 }
 
