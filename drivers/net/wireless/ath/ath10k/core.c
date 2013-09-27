@@ -215,7 +215,7 @@ static int ath10k_push_board_ext_data(struct ath10k *ar,
 
 static int ath10k_download_board_data(struct ath10k *ar)
 {
-	const struct firmware *fw = ar->board_data;
+	const struct firmware *fw = ar->board;
 	u32 board_data_size = QCA988X_BOARD_DATA_SZ;
 	u32 address;
 	int ret;
@@ -298,8 +298,8 @@ exit:
 
 static void ath10k_core_free_firmware_files(struct ath10k *ar)
 {
-	if (ar->board_data && !IS_ERR(ar->board_data))
-		release_firmware(ar->board_data);
+	if (ar->board && !IS_ERR(ar->board))
+		release_firmware(ar->board);
 
 	if (ar->otp && !IS_ERR(ar->otp))
 		release_firmware(ar->otp);
@@ -307,7 +307,7 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	if (ar->firmware && !IS_ERR(ar->firmware))
 		release_firmware(ar->firmware);
 
-	ar->board_data = NULL;
+	ar->board = NULL;
 	ar->otp = NULL;
 	ar->firmware = NULL;
 }
@@ -326,11 +326,11 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 		return -EINVAL;
 	}
 
-	ar->board_data = ath10k_fetch_fw_file(ar,
-					      ar->hw_params.fw.dir,
-					      ar->hw_params.fw.board);
-	if (IS_ERR(ar->board_data)) {
-		ret = PTR_ERR(ar->board_data);
+	ar->board = ath10k_fetch_fw_file(ar,
+					 ar->hw_params.fw.dir,
+					 ar->hw_params.fw.board);
+	if (IS_ERR(ar->board)) {
+		ret = PTR_ERR(ar->board);
 		ath10k_err("could not fetch board data (%d)\n", ret);
 		goto err;
 	}

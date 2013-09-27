@@ -347,7 +347,7 @@ struct ath10k {
 		} fw;
 	} hw_params;
 
-	const struct firmware *board_data;
+	const struct firmware *board;
 	const struct firmware *otp;
 	const struct firmware *firmware;
 
