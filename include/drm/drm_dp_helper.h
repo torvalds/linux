@@ -77,10 +77,10 @@
 #define DP_DOWNSTREAMPORT_PRESENT           0x005
 # define DP_DWN_STRM_PORT_PRESENT           (1 << 0)
 # define DP_DWN_STRM_PORT_TYPE_MASK         0x06
-/* 00b = DisplayPort */
-/* 01b = Analog */
-/* 10b = TMDS or HDMI */
-/* 11b = Other */
+# define DP_DWN_STRM_PORT_TYPE_DP           (0 << 1)
+# define DP_DWN_STRM_PORT_TYPE_ANALOG       (1 << 1)
+# define DP_DWN_STRM_PORT_TYPE_TMDS         (2 << 1)
+# define DP_DWN_STRM_PORT_TYPE_OTHER        (3 << 1)
 # define DP_FORMAT_CONVERSION               (1 << 3)
 # define DP_DETAILED_CAP_INFO_AVAILABLE	    (1 << 4) /* DPI */
 
