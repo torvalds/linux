@@ -358,6 +358,11 @@ out_unlock:
 void xprt_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	if (xprt->snd_task == task) {
+		if (task != NULL) {
+			struct rpc_rqst *req = task->tk_rqstp;
+			if (req != NULL)
+				req->rq_bytes_sent = 0;
+		}
 		xprt_clear_locked(xprt);
 		__xprt_lock_write_next(xprt);
 	}
@@ -375,6 +380,11 @@ EXPORT_SYMBOL_GPL(xprt_release_xprt);
 void xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	if (xprt->snd_task == task) {
+		if (task != NULL) {
+			struct rpc_rqst *req = task->tk_rqstp;
+			if (req != NULL)
+				req->rq_bytes_sent = 0;
+		}
 		xprt_clear_locked(xprt);
 		__xprt_lock_write_next_cong(xprt);
 	}
