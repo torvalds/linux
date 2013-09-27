@@ -534,7 +534,13 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 
 	DBG(1,"%s for lcdc%d>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
 		__func__,lcdc_dev->id,get_format_string(par->format,fmt),xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
-	
+
+	if((!xact) || (!yact) || (!par->xsize) || (!par->ysize))
+	{
+		dev_err(lcdc_dev->driver.dev,"invalid parameter for win0-->xact:%d yact:%d xsize:%d ysize:%d\n",
+			xact,yact,par->xsize,par->ysize);
+		return -EINVAL;
+	}	
 	ScaleYrgbX = CalScale(xact, par->xsize); //both RGB and yuv need this two factor
 	ScaleYrgbY = CalScale(yact, par->ysize);
 	switch (par->format)
@@ -643,7 +649,12 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	DBG(1,"%s for lcdc%d>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
 		__func__,lcdc_dev->id,get_format_string(par->format,fmt),xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 
-	
+	if((!xact) || (!yact) || (!par->xsize) || (!par->ysize))
+	{
+		dev_err(lcdc_dev->driver.dev,"invalid parameter for win1-->xact:%d yact:%d xsize:%d ysize:%d\n",
+			xact,yact,par->xsize,par->ysize);
+		return -EINVAL;
+	}	
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
 	{
@@ -740,7 +751,12 @@ static int win2_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	DBG(1,"%s for lcdc%d>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
 		__func__,lcdc_dev->id,get_format_string(par->format,fmt),xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 
-	
+	if((!xact) || (!yact) || (!par->xsize) || (!par->ysize))
+	{
+		dev_err(lcdc_dev->driver.dev,"invalid parameter for win2-->xact:%d yact:%d xsize:%d ysize:%d\n",
+			xact,yact,par->xsize,par->ysize);
+		return -EINVAL;
+	}	
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
 	{
