@@ -1381,7 +1381,7 @@ static struct nfs_open_context *create_nfs_open_context(struct dentry *dentry, i
 
 static int do_open(struct inode *inode, struct file *filp)
 {
-	nfs_fscache_set_inode_cookie(inode, filp);
+	nfs_fscache_open_file(inode, filp);
 	return 0;
 }
 

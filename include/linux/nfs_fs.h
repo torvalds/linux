@@ -269,9 +269,13 @@ static inline int NFS_STALE(const struct inode *inode)
 	return test_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
 }
 
-static inline int NFS_FSCACHE(const struct inode *inode)
+static inline struct fscache_cookie *nfs_i_fscache(struct inode *inode)
 {
-	return test_bit(NFS_INO_FSCACHE, &NFS_I(inode)->flags);
+#ifdef CONFIG_NFS_FSCACHE
+	return NFS_I(inode)->fscache;
+#else
+	return NULL;
+#endif
 }
 
 static inline __u64 NFS_FILEID(const struct inode *inode)
