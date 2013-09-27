@@ -90,34 +90,19 @@
 			nand-on-flash-bbt;
 			status = "okay";
 
-			at91bootstrap@0 {
-				label = "at91bootstrap";
-				reg = <0x0 0x8000>;
-			};
-
-			barebox@8000 {
+			barebox@0 {
 				label = "barebox";
-				reg = <0x8000 0x40000>;
+				reg = <0x0 0x58000>;
 			};
 
-			bareboxenv@48000 {
-				label = "bareboxenv";
-				reg = <0x48000 0x8000>;
+			u_boot_env@58000 {
+				label = "u_boot_env";
+				reg = <0x58000 0x8000>;
 			};
 
-			user_block@0x50000 {
-				label = "user_block";
-				reg = <0x50000 0xb0000>;
-			};
-
-			kernel@100000 {
-				label = "kernel";
-				reg = <0x100000 0x1b0000>;
-			};
-
-			root@2b0000 {
-				label = "root";
-				reg = <0x2b0000 0x1D50000>;
+			ubi@60000 {
+				label = "ubi";
+				reg = <0x60000 0x1FA0000>;
 			};
 		};
 
