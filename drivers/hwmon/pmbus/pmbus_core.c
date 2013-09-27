@@ -157,7 +157,7 @@ EXPORT_SYMBOL_GPL(pmbus_write_byte);
 
 /*
  * _pmbus_write_byte() is similar to pmbus_write_byte(), but checks if
- * a device specific mapping funcion exists and calls it if necessary.
+ * a device specific mapping function exists and calls it if necessary.
  */
 static int _pmbus_write_byte(struct i2c_client *client, int page, u8 value)
 {
