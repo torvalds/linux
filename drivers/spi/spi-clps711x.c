@@ -226,7 +226,6 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), hw);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't request IRQ\n");
-		clk_put(hw->spi_clk);
 		goto clk_out;
 	}
 
