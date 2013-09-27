@@ -73,7 +73,7 @@ OS_mem_token_alloc (size_t size)
     if (!skb)
     {
         //pr_warning("no mem in OS_mem_token_alloc !\n");
-        return 0;
+        return NULL;
     }
     return skb;
 }
@@ -103,7 +103,7 @@ OS_mem_token_data (void *token)
 static inline void *
 OS_mem_token_next (void *token)
 {
-    return 0;
+    return NULL;
 }
 
 
