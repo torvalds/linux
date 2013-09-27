@@ -91,7 +91,7 @@ static ssize_t iio_bfin_tmr_frequency_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (val > 100000) {
+	if (val > 100000)
 		return -EINVAL;
 
 	enabled = get_enabled_gptimers() & st->t->bit;
