@@ -35,6 +35,33 @@
 		regulator-boot-on;
 	};
 
+	vcc_sdhi0: regulator@1 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "SDHI0 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&pfc 75 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vccq_sdhi0: regulator@2 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_sdhi0>;
+
+		enable-gpio = <&pfc 74 GPIO_ACTIVE_HIGH>;
+		gpios = <&pfc 17 GPIO_ACTIVE_HIGH>;
+		states = <3300000 0
+			  1800000 1>;
+
+		enable-active-high;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		led1 {
@@ -92,8 +119,39 @@
 		renesas,groups = "tpu0_to2_1";
 		renesas,function = "tpu0";
 	};
+
+	mmc0_pins: mmc0 {
+		renesas,groups = "mmc0_data8_1", "mmc0_ctrl_1";
+		renesas,function = "mmc0";
+	};
+
+	sdhi0_pins: sdhi0 {
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_wp";
+		renesas,function = "sdhi0";
+	};
 };
 
 &tpu {
+	status = "okay";
+};
+
+&mmcif0 {
+	pinctrl-0 = <&mmc0_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&reg_3p3v>;
+	bus-width = <8>;
+	non-removable;
+	status = "okay";
+};
+
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&vcc_sdhi0>;
+	vqmmc-supply = <&vccq_sdhi0>;
+	bus-width = <4>;
+	cd-gpios = <&pfc 167 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
