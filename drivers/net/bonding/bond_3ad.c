@@ -155,28 +155,6 @@ static inline struct aggregator *__get_first_agg(struct port *port)
 	return first_slave ? &(SLAVE_AD_INFO(first_slave).aggregator) : NULL;
 }
 
-/**
- * __get_next_agg - get the next aggregator in the bond
- * @aggregator: the aggregator we're looking at
- *
- * Return the aggregator of the slave that is next in line of @aggregator's
- * slave in the bond, or %NULL if it can't be found.
- */
-static inline struct aggregator *__get_next_agg(struct aggregator *aggregator)
-{
-	struct slave *slave = aggregator->slave, *slave_next;
-	struct bonding *bond = bond_get_bond_by_slave(slave);
-
-	// If there's no bond for this aggregator, or this is the last slave
-	if (bond == NULL)
-		return NULL;
-	slave_next = bond_next_slave(bond, slave);
-	if (!slave_next || bond_is_first_slave(bond, slave_next))
-		return NULL;
-
-	return &(SLAVE_AD_INFO(slave_next).aggregator);
-}
-
 /*
  * __agg_has_partner
  *
