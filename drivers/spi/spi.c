@@ -838,9 +838,8 @@ static void of_register_spi_devices(struct spi_master *master)
 {
 	struct spi_device *spi;
 	struct device_node *nc;
-	const __be32 *prop;
 	int rc;
-	int len;
+	u32 value;
 
 	if (!master->dev.of_node)
 		return;
@@ -865,14 +864,14 @@ static void of_register_spi_devices(struct spi_master *master)
 		}
 
 		/* Device address */
-		prop = of_get_property(nc, "reg", &len);
-		if (!prop || len < sizeof(*prop)) {
-			dev_err(&master->dev, "%s has no 'reg' property\n",
-				nc->full_name);
+		rc = of_property_read_u32(nc, "reg", &value);
+		if (rc) {
+			dev_err(&master->dev, "%s has no valid 'reg' property (%d)\n",
+				nc->full_name, rc);
 			spi_dev_put(spi);
 			continue;
 		}
-		spi->chip_select = be32_to_cpup(prop);
+		spi->chip_select = value;
 
 		/* Mode (clock phase/polarity/etc.) */
 		if (of_find_property(nc, "spi-cpha", NULL))
@@ -885,55 +884,53 @@ static void of_register_spi_devices(struct spi_master *master)
 			spi->mode |= SPI_3WIRE;
 
 		/* Device DUAL/QUAD mode */
-		prop = of_get_property(nc, "spi-tx-bus-width", &len);
-		if (prop && len == sizeof(*prop)) {
-			switch (be32_to_cpup(prop)) {
-			case SPI_NBITS_SINGLE:
+		if (!of_property_read_u32(nc, "spi-tx-bus-width", &value)) {
+			switch (value) {
+			case 1:
 				break;
-			case SPI_NBITS_DUAL:
+			case 2:
 				spi->mode |= SPI_TX_DUAL;
 				break;
-			case SPI_NBITS_QUAD:
+			case 4:
 				spi->mode |= SPI_TX_QUAD;
 				break;
 			default:
 				dev_err(&master->dev,
 					"spi-tx-bus-width %d not supported\n",
-					be32_to_cpup(prop));
+					value);
 				spi_dev_put(spi);
 				continue;
 			}
 		}
 
-		prop = of_get_property(nc, "spi-rx-bus-width", &len);
-		if (prop && len == sizeof(*prop)) {
-			switch (be32_to_cpup(prop)) {
-			case SPI_NBITS_SINGLE:
+		if (!of_property_read_u32(nc, "spi-rx-bus-width", &value)) {
+			switch (value) {
+			case 1:
 				break;
-			case SPI_NBITS_DUAL:
+			case 2:
 				spi->mode |= SPI_RX_DUAL;
 				break;
-			case SPI_NBITS_QUAD:
+			case 4:
 				spi->mode |= SPI_RX_QUAD;
 				break;
 			default:
 				dev_err(&master->dev,
 					"spi-rx-bus-width %d not supported\n",
-					be32_to_cpup(prop));
+					value);
 				spi_dev_put(spi);
 				continue;
 			}
 		}
 
 		/* Device speed */
-		prop = of_get_property(nc, "spi-max-frequency", &len);
-		if (!prop || len < sizeof(*prop)) {
-			dev_err(&master->dev, "%s has no 'spi-max-frequency' property\n",
-				nc->full_name);
+		rc = of_property_read_u32(nc, "spi-max-frequency", &value);
+		if (rc) {
+			dev_err(&master->dev, "%s has no valid 'spi-max-frequency' property (%d)\n",
+				nc->full_name, rc);
 			spi_dev_put(spi);
 			continue;
 		}
-		spi->max_speed_hz = be32_to_cpup(prop);
+		spi->max_speed_hz = value;
 
 		/* IRQ */
 		spi->irq = irq_of_parse_and_map(nc, 0);
