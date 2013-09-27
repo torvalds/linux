@@ -157,7 +157,7 @@ prep_hdw_info (void)
         hi->pci_slot = 0xff;
         hi->pci_pin[0] = 0;
         hi->pci_pin[1] = 0;
-        hi->ndev = 0;
+        hi->ndev = NULL;
         hi->addr[0] = 0L;
         hi->addr[1] = 0L;
         hi->addr_mapped[0] = 0L;
@@ -328,7 +328,7 @@ c4hw_attach_all (void)
             break;
         for (j = 0; j < 2; j++)
         {
-            if (request_mem_region (hi->addr[j], hi->len[j], hi->devname) == 0)
+	    if (!request_mem_region (hi->addr[j], hi->len[j], hi->devname))
             {
                 pr_warning("%s: memory in use, addr=0x%lx, len=0x%lx ?\n",
                            hi->devname, hi->addr[j], hi->len[j]);
