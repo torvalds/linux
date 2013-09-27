@@ -20,6 +20,14 @@ struct pcie_port_info {
 	phys_addr_t	mem_bus_addr;
 };
 
+/*
+ * Maximum number of MSI IRQs can be 256 per controller. But keep
+ * it 32 as of now. Probably we will never need more than 32. If needed,
+ * then increment it in multiple of 32.
+ */
+#define MAX_MSI_IRQS			32
+#define MAX_MSI_CTRLS			(MAX_MSI_IRQS / 32)
+
 struct pcie_port {
 	struct device		*dev;
 	u8			root_bus_nr;
@@ -38,6 +46,10 @@ struct pcie_port {
 	int			irq;
 	u32			lanes;
 	struct pcie_host_ops	*ops;
+	int			msi_irq;
+	int			msi_irq_start;
+	unsigned long		msi_data;
+	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_IRQS);
 };
 
 struct pcie_host_ops {
@@ -57,6 +69,8 @@ int cfg_read(void __iomem *addr, int where, int size, u32 *val);
 int cfg_write(void __iomem *addr, int where, int size, u32 val);
 int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size, u32 val);
 int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size, u32 *val);
+void dw_handle_msi_irq(struct pcie_port *pp);
+void dw_pcie_msi_init(struct pcie_port *pp);
 int dw_pcie_link_up(struct pcie_port *pp);
 void dw_pcie_setup_rc(struct pcie_port *pp);
 int dw_pcie_host_init(struct pcie_port *pp);
