@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 
-#include "../common/mic_device.h"
+#include "../common/mic_dev.h"
 #include "mic_device.h"
 #include "mic_x100.h"
 #include "mic_smpt.h"

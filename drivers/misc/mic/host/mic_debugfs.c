@@ -23,7 +23,7 @@
 #include <linux/seq_file.h>
 
 #include <linux/mic_common.h>
-#include "../common/mic_device.h"
+#include "../common/mic_dev.h"
 #include "mic_device.h"
 #include "mic_smpt.h"
 #include "mic_virtio.h"

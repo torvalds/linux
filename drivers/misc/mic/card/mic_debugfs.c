@@ -30,7 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 
-#include "../common/mic_device.h"
+#include "../common/mic_dev.h"
 #include "mic_device.h"
 
 /* Debugfs parent dir */

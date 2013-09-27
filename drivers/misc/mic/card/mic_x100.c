@@ -28,7 +28,7 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 
-#include "../common/mic_device.h"
+#include "../common/mic_dev.h"
 #include "mic_device.h"
 #include "mic_x100.h"
 

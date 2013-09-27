@@ -40,7 +40,7 @@
 #include <linux/slab.h>
 #include <linux/virtio_config.h>
 
-#include "../common/mic_device.h"
+#include "../common/mic_dev.h"
 #include "mic_virtio.h"
 
 #define VIRTIO_SUBCODE_64 0x0D00

@@ -18,8 +18,8 @@
  * Intel MIC driver.
  *
  */
-#ifndef __MIC_COMMON_DEVICE_H_
-#define __MIC_COMMON_DEVICE_H_
+#ifndef __MIC_DEV_H__
+#define __MIC_DEV_H__
 
 /**
  * struct mic_mw - MIC memory window
