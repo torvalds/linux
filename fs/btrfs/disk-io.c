@@ -3836,7 +3836,8 @@ static void btrfs_destroy_all_ordered_extents(struct btrfs_fs_info *fs_info)
 	while (!list_empty(&splice)) {
 		root = list_first_entry(&splice, struct btrfs_root,
 					ordered_root);
-		list_del_init(&root->ordered_root);
+		list_move_tail(&root->ordered_root,
+			       &fs_info->ordered_roots);
 
 		btrfs_destroy_ordered_extents(root);
 
