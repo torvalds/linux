@@ -545,6 +545,7 @@ static int efx_ef10_try_update_nic_stats(struct efx_nic *efx)
 	rmb();
 	efx_nic_update_stats(efx_ef10_stat_desc, EF10_STAT_COUNT, stats_mask,
 			     stats, efx->stats_buffer.addr, false);
+	rmb();
 	generation_start = dma_stats[MC_CMD_MAC_GENERATION_START];
 	if (generation_end != generation_start)
 		return -EAGAIN;
