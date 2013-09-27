@@ -18,6 +18,8 @@
 #include <linux/crc32.h>
 #include <linux/magic.h>
 #include <linux/kobject.h>
+#include <linux/wait.h>
+#include <linux/sched.h>
 
 /*
  * For mount options
@@ -318,14 +320,6 @@ enum count_type {
 };
 
 /*
- * Uses as sbi->fs_lock[NR_GLOBAL_LOCKS].
- * The checkpoint procedure blocks all the locks in this fs_lock array.
- * Some FS operations grab free locks, and if there is no free lock,
- * then wait to grab a lock in a round-robin manner.
- */
-#define NR_GLOBAL_LOCKS	8
-
-/*
  * The below are the page types of bios used in submti_bio().
  * The available types are:
  * DATA			User data pages. It operates as async mode.
@@ -365,10 +359,10 @@ struct f2fs_sb_info {
 	struct f2fs_checkpoint *ckpt;		/* raw checkpoint pointer */
 	struct inode *meta_inode;		/* cache meta blocks */
 	struct mutex cp_mutex;			/* checkpoint procedure lock */
-	struct mutex fs_lock[NR_GLOBAL_LOCKS];	/* blocking FS operations */
+	struct rw_semaphore cp_rwsem;		/* blocking FS operations */
+	wait_queue_head_t cp_wait;		/* checkpoint wait queue */
 	struct mutex node_write;		/* locking node writes */
 	struct mutex writepages;		/* mutex for writepages() */
-	unsigned char next_lock_num;		/* round-robin global locks */
 	int por_doing;				/* recovery is doing or not */
 	int on_build_free_nids;			/* build_free_nids is doing */
 
@@ -520,48 +514,34 @@ static inline void clear_ckpt_flags(struct f2fs_checkpoint *cp, unsigned int f)
 	cp->ckpt_flags = cpu_to_le32(ckpt_flags);
 }
 
-static inline void mutex_lock_all(struct f2fs_sb_info *sbi)
+static inline void f2fs_lock_op(struct f2fs_sb_info *sbi)
 {
-	int i;
-
-	for (i = 0; i < NR_GLOBAL_LOCKS; i++) {
-		/*
-		 * This is the only time we take multiple fs_lock[]
-		 * instances; the order is immaterial since we
-		 * always hold cp_mutex, which serializes multiple
-		 * such operations.
-		 */
-		mutex_lock_nest_lock(&sbi->fs_lock[i], &sbi->cp_mutex);
-	}
+	/*
+	 * If the checkpoint thread is waiting for cp_rwsem, add cuurent task
+	 * into wait list to avoid the checkpoint thread starvation
+	 */
+	while (!list_empty(&sbi->cp_rwsem.wait_list))
+		wait_event_interruptible(sbi->cp_wait,
+				list_empty(&sbi->cp_rwsem.wait_list));
+	down_read(&sbi->cp_rwsem);
 }
 
-static inline void mutex_unlock_all(struct f2fs_sb_info *sbi)
+static inline void f2fs_unlock_op(struct f2fs_sb_info *sbi)
 {
-	int i = 0;
-	for (; i < NR_GLOBAL_LOCKS; i++)
-		mutex_unlock(&sbi->fs_lock[i]);
+	up_read(&sbi->cp_rwsem);
 }
 
-static inline int mutex_lock_op(struct f2fs_sb_info *sbi)
+static inline void f2fs_lock_all(struct f2fs_sb_info *sbi)
 {
-	unsigned char next_lock;
-	int i = 0;
-
-	for (; i < NR_GLOBAL_LOCKS; i++)
-		if (mutex_trylock(&sbi->fs_lock[i]))
-			return i;
-
-	next_lock = sbi->next_lock_num++ % NR_GLOBAL_LOCKS;
-	mutex_lock(&sbi->fs_lock[next_lock]);
-	return next_lock;
+	down_write_nest_lock(&sbi->cp_rwsem, &sbi->cp_mutex);
 }
 
-static inline void mutex_unlock_op(struct f2fs_sb_info *sbi, int ilock)
+static inline void f2fs_unlock_all(struct f2fs_sb_info *sbi)
 {
-	if (ilock < 0)
-		return;
-	BUG_ON(ilock >= NR_GLOBAL_LOCKS);
-	mutex_unlock(&sbi->fs_lock[ilock]);
+	up_write(&sbi->cp_rwsem);
+
+	/* wake up all tasks blocked by checkpoint */
+	wake_up_all(&sbi->cp_wait);
 }
 
 /*

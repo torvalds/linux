@@ -560,9 +560,9 @@ write:
 		inode_dec_dirty_dents(inode);
 		err = do_write_data_page(page);
 	} else {
-		int ilock = mutex_lock_op(sbi);
+		f2fs_lock_op(sbi);
 		err = do_write_data_page(page);
-		mutex_unlock_op(sbi, ilock);
+		f2fs_unlock_op(sbi);
 		need_balance_fs = true;
 	}
 	if (err == -ENOENT)
@@ -641,7 +641,6 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 	pgoff_t index = ((unsigned long long) pos) >> PAGE_CACHE_SHIFT;
 	struct dnode_of_data dn;
 	int err = 0;
-	int ilock;
 
 	f2fs_balance_fs(sbi);
 repeat:
@@ -650,7 +649,7 @@ repeat:
 		return -ENOMEM;
 	*pagep = page;
 
-	ilock = mutex_lock_op(sbi);
+	f2fs_lock_op(sbi);
 
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, index, ALLOC_NODE);
@@ -664,7 +663,7 @@ repeat:
 	if (err)
 		goto err;
 
-	mutex_unlock_op(sbi, ilock);
+	f2fs_unlock_op(sbi);
 
 	if ((len == PAGE_CACHE_SIZE) || PageUptodate(page))
 		return 0;
@@ -700,7 +699,7 @@ out:
 	return 0;
 
 err:
-	mutex_unlock_op(sbi, ilock);
+	f2fs_unlock_op(sbi);
 	f2fs_put_page(page, 1);
 	return err;
 }

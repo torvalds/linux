@@ -584,16 +584,13 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 			const void *value, size_t value_len, struct page *ipage)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	int ilock;
 	int err;
 
 	f2fs_balance_fs(sbi);
 
-	ilock = mutex_lock_op(sbi);
-
+	f2fs_lock_op(sbi);
 	err = __f2fs_setxattr(inode, name_index, name, value, value_len, ipage);
-
-	mutex_unlock_op(sbi, ilock);
+	f2fs_unlock_op(sbi);
 
 	return err;
 }

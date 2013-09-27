@@ -292,7 +292,6 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	struct f2fs_summary sum;
 	struct node_info ni;
 	int err = 0, recovered = 0;
-	int ilock;
 
 	start = start_bidx_of_node(ofs_of_node(page), fi);
 	if (IS_INODE(page))
@@ -300,12 +299,12 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	else
 		end = start + ADDRS_PER_BLOCK;
 
-	ilock = mutex_lock_op(sbi);
+	f2fs_lock_op(sbi);
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 
 	err = get_dnode_of_data(&dn, start, ALLOC_NODE);
 	if (err) {
-		mutex_unlock_op(sbi, ilock);
+		f2fs_unlock_op(sbi);
 		return err;
 	}
 
@@ -356,7 +355,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	recover_node_page(sbi, dn.node_page, &sum, &ni, blkaddr);
 err:
 	f2fs_put_dnode(&dn);
-	mutex_unlock_op(sbi, ilock);
+	f2fs_unlock_op(sbi);
 
 	f2fs_msg(sbi->sb, KERN_NOTICE, "recover_data: ino = %lx, "
 			"recovered_data = %d blocks, err = %d",

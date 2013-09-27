@@ -214,7 +214,7 @@ int update_inode_page(struct inode *inode)
 int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	int ret, ilock;
+	int ret;
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
 			inode->i_ino == F2FS_META_INO(sbi))
@@ -227,9 +227,9 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	 * We need to lock here to prevent from producing dirty node pages
 	 * during the urgent cleaning time when runing out of free sections.
 	 */
-	ilock = mutex_lock_op(sbi);
+	f2fs_lock_op(sbi);
 	ret = update_inode_page(inode);
-	mutex_unlock_op(sbi, ilock);
+	f2fs_unlock_op(sbi);
 
 	if (wbc)
 		f2fs_balance_fs(sbi);
@@ -243,7 +243,6 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 void f2fs_evict_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	int ilock;
 
 	trace_f2fs_evict_inode(inode);
 	truncate_inode_pages(&inode->i_data, 0);
@@ -265,9 +264,9 @@ void f2fs_evict_inode(struct inode *inode)
 	if (F2FS_HAS_BLOCKS(inode))
 		f2fs_truncate(inode);
 
-	ilock = mutex_lock_op(sbi);
+	f2fs_lock_op(sbi);
 	remove_inode_page(inode);
-	mutex_unlock_op(sbi, ilock);
+	f2fs_unlock_op(sbi);
 
 	sb_end_intwrite(inode->i_sb);
 no_delete:

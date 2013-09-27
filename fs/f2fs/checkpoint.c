@@ -619,11 +619,10 @@ static void block_operations(struct f2fs_sb_info *sbi)
 	blk_start_plug(&plug);
 
 retry_flush_dents:
-	mutex_lock_all(sbi);
-
+	f2fs_lock_all(sbi);
 	/* write all the dirty dentry pages */
 	if (get_pages(sbi, F2FS_DIRTY_DENTS)) {
-		mutex_unlock_all(sbi);
+		f2fs_unlock_all(sbi);
 		sync_dirty_dir_inodes(sbi);
 		goto retry_flush_dents;
 	}
@@ -646,7 +645,7 @@ retry_flush_nodes:
 static void unblock_operations(struct f2fs_sb_info *sbi)
 {
 	mutex_unlock(&sbi->node_write);
-	mutex_unlock_all(sbi);
+	f2fs_unlock_all(sbi);
 }
 
 static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
