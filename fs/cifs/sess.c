@@ -500,9 +500,9 @@ select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 				return NTLMv2;
 			if (global_secflags & CIFSSEC_MAY_NTLM)
 				return NTLM;
-			/* Fallthrough */
 		default:
-			return Unspecified;
+			/* Fallthrough to attempt LANMAN authentication next */
+			break;
 		}
 	case CIFS_NEGFLAVOR_LANMAN:
 		switch (requested) {
