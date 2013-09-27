@@ -1791,7 +1791,7 @@ struct be_nic_res_desc {
 	u8 acpi_params;
 	u8 wol_param;
 	u16 rsvd7;
-	u32 rsvd8[3];
+	u32 rsvd8[7];
 } __packed;
 
 struct be_cmd_req_get_func_config {
