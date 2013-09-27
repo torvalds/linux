@@ -97,6 +97,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Show a summary of syscalls by thread with min, max, and average times (in
     msec) and relative stddev.
 
+--tool_stats::
+	Show tool stats such as number of times fd->pathname was discovered thru
+	hooking the open syscall return + vfs_getname or via reading /proc/pid/fd, etc.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script[1]
