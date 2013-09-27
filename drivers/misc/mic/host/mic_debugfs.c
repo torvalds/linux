@@ -103,7 +103,7 @@ static int mic_smpt_show(struct seq_file *s, void *pos)
 	unsigned long flags;
 
 	seq_printf(s, "MIC %-2d |%-10s| %-14s %-10s\n",
-		mdev->id, "SMPT entry", "SW DMA addr", "RefCount");
+		   mdev->id, "SMPT entry", "SW DMA addr", "RefCount");
 	seq_puts(s, "====================================================\n");
 
 	if (mdev->smpt) {
@@ -111,8 +111,8 @@ static int mic_smpt_show(struct seq_file *s, void *pos)
 		spin_lock_irqsave(&smpt_info->smpt_lock, flags);
 		for (i = 0; i < smpt_info->info.num_reg; i++) {
 			seq_printf(s, "%9s|%-10d| %-#14llx %-10lld\n",
-				" ",  i, smpt_info->entry[i].dma_addr,
-				smpt_info->entry[i].ref_count);
+				   " ",  i, smpt_info->entry[i].dma_addr,
+				   smpt_info->entry[i].ref_count);
 		}
 		spin_unlock_irqrestore(&smpt_info->smpt_lock, flags);
 	}
@@ -203,17 +203,17 @@ static int mic_dp_show(struct seq_file *s, void *pos)
 	int i, j;
 
 	seq_printf(s, "Bootparam: magic 0x%x\n",
-		bootparam->magic);
+		   bootparam->magic);
 	seq_printf(s, "Bootparam: h2c_shutdown_db %d\n",
-		bootparam->h2c_shutdown_db);
+		   bootparam->h2c_shutdown_db);
 	seq_printf(s, "Bootparam: h2c_config_db %d\n",
-		bootparam->h2c_config_db);
+		   bootparam->h2c_config_db);
 	seq_printf(s, "Bootparam: c2h_shutdown_db %d\n",
-		bootparam->c2h_shutdown_db);
+		   bootparam->c2h_shutdown_db);
 	seq_printf(s, "Bootparam: shutdown_status %d\n",
-		bootparam->shutdown_status);
+		   bootparam->shutdown_status);
 	seq_printf(s, "Bootparam: shutdown_card %d\n",
-		bootparam->shutdown_card);
+		   bootparam->shutdown_card);
 
 	for (i = sizeof(*bootparam); i < MIC_DP_SIZE;
 	     i += mic_total_desc_size(d)) {
@@ -239,10 +239,10 @@ static int mic_dp_show(struct seq_file *s, void *pos)
 			seq_printf(s, "address 0x%llx ", vqconfig->address);
 			seq_printf(s, "num %d ", vqconfig->num);
 			seq_printf(s, "used address 0x%llx\n",
-				vqconfig->used_address);
+				   vqconfig->used_address);
 		}
 
-		features = (__u32 *) mic_vq_features(d);
+		features = (__u32 *)mic_vq_features(d);
 		seq_printf(s, "Features: Host 0x%x ", features[0]);
 		seq_printf(s, "Guest 0x%x\n", features[1]);
 
@@ -256,7 +256,7 @@ static int mic_dp_show(struct seq_file *s, void *pos)
 		seq_printf(s, "Guest Ack %d ", dc->guest_ack);
 		seq_printf(s, "Host ack %d\n", dc->host_ack);
 		seq_printf(s, "Used address updated %d ",
-			dc->used_address_updated);
+			   dc->used_address_updated);
 		seq_printf(s, "Vdev 0x%llx\n", dc->vdev);
 		seq_printf(s, "c2h doorbell %d ", dc->c2h_vdev_db);
 		seq_printf(s, "h2c doorbell %d\n", dc->h2c_vdev_db);
@@ -294,10 +294,10 @@ static int mic_vdev_info_show(struct seq_file *s, void *unused)
 	list_for_each_safe(pos, tmp, &mdev->vdev_list) {
 		mvdev = list_entry(pos, struct mic_vdev, list);
 		seq_printf(s, "VDEV type %d state %s in %ld out %ld\n",
-			mvdev->virtio_id,
-			mic_vdevup(mvdev) ? "UP" : "DOWN",
-			mvdev->in_bytes,
-			mvdev->out_bytes);
+			   mvdev->virtio_id,
+			   mic_vdevup(mvdev) ? "UP" : "DOWN",
+			   mvdev->in_bytes,
+			   mvdev->out_bytes);
 		for (i = 0; i < MIC_MAX_VRINGS; i++) {
 			struct vring_desc *desc;
 			struct vring_avail *avail;
@@ -309,38 +309,38 @@ static int mic_vdev_info_show(struct seq_file *s, void *unused)
 				continue;
 			desc = vrh->vring.desc;
 			seq_printf(s, "vring i %d avail_idx %d",
-				i, mvr->vring.info->avail_idx & (num - 1));
+				   i, mvr->vring.info->avail_idx & (num - 1));
 			seq_printf(s, " vring i %d avail_idx %d\n",
-				i, mvr->vring.info->avail_idx);
+				   i, mvr->vring.info->avail_idx);
 			seq_printf(s, "vrh i %d weak_barriers %d",
-				i, vrh->weak_barriers);
+				   i, vrh->weak_barriers);
 			seq_printf(s, " last_avail_idx %d last_used_idx %d",
-				vrh->last_avail_idx, vrh->last_used_idx);
+				   vrh->last_avail_idx, vrh->last_used_idx);
 			seq_printf(s, " completed %d\n", vrh->completed);
 			for (j = 0; j < num; j++) {
 				seq_printf(s, "desc[%d] addr 0x%llx len %d",
-					j, desc->addr, desc->len);
+					   j, desc->addr, desc->len);
 				seq_printf(s, " flags 0x%x next %d\n",
-					desc->flags,
-					desc->next);
+					   desc->flags, desc->next);
 				desc++;
 			}
 			avail = vrh->vring.avail;
 			seq_printf(s, "avail flags 0x%x idx %d\n",
-				avail->flags, avail->idx & (num - 1));
+				   avail->flags, avail->idx & (num - 1));
 			seq_printf(s, "avail flags 0x%x idx %d\n",
-				avail->flags, avail->idx);
+				   avail->flags, avail->idx);
 			for (j = 0; j < num; j++)
 				seq_printf(s, "avail ring[%d] %d\n",
-					j, avail->ring[j]);
+					   j, avail->ring[j]);
 			used = vrh->vring.used;
 			seq_printf(s, "used flags 0x%x idx %d\n",
-				used->flags, used->idx & (num - 1));
+				   used->flags, used->idx & (num - 1));
 			seq_printf(s, "used flags 0x%x idx %d\n",
-				used->flags, used->idx);
+				   used->flags, used->idx);
 			for (j = 0; j < num; j++)
 				seq_printf(s, "used ring[%d] id %d len %d\n",
-					j, used->ring[j].id, used->ring[j].len);
+					   j, used->ring[j].id,
+					   used->ring[j].len);
 		}
 	}
 	mutex_unlock(&mdev->mic_mutex);
@@ -389,7 +389,7 @@ static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 			reg = mdev->intr_ops->read_msi_to_src_map(mdev, entry);
 
 			seq_printf(s, "%s %-10d %s %-10d MXAR[%d]: %08X\n",
-				"IRQ:", vector, "Entry:", entry, i, reg);
+				   "IRQ:", vector, "Entry:", entry, i, reg);
 
 			seq_printf(s, "%-10s", "offset:");
 			for (j = (MIC_NUM_OFFSETS - 1); j >= 0; j--)
@@ -400,8 +400,8 @@ static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 			seq_printf(s, "%-10s", "count:");
 			for (j = (MIC_NUM_OFFSETS - 1); j >= 0; j--)
 				seq_printf(s, "%4d ",
-				(mdev->irq_info.mic_msi_map[i] & BIT(j)) ?
-					1 : 0);
+					   (mdev->irq_info.mic_msi_map[i] &
+					   BIT(j)) ? 1 : 0);
 			seq_puts(s, "\n\n");
 		}
 	} else {
@@ -409,7 +409,6 @@ static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 	}
 
 	return 0;
-
 }
 
 static int mic_msi_irq_info_debug_open(struct inode *inode, struct file *file)
@@ -443,26 +442,23 @@ void mic_create_debug_dir(struct mic_device *mdev)
 	if (!mdev->dbg_dir)
 		return;
 
-	debugfs_create_file("log_buf", 0444, mdev->dbg_dir,
-		mdev, &log_buf_ops);
+	debugfs_create_file("log_buf", 0444, mdev->dbg_dir, mdev, &log_buf_ops);
 
-	debugfs_create_file("smpt", 0444, mdev->dbg_dir,
-		mdev, &smpt_file_ops);
+	debugfs_create_file("smpt", 0444, mdev->dbg_dir, mdev, &smpt_file_ops);
 
-	debugfs_create_file("soft_reset", 0444, mdev->dbg_dir,
-		mdev, &soft_reset_ops);
+	debugfs_create_file("soft_reset", 0444, mdev->dbg_dir, mdev,
+			    &soft_reset_ops);
 
-	debugfs_create_file("post_code", 0444, mdev->dbg_dir,
-		mdev, &post_code_ops);
+	debugfs_create_file("post_code", 0444, mdev->dbg_dir, mdev,
+			    &post_code_ops);
 
-	debugfs_create_file("dp", 0444, mdev->dbg_dir,
-		mdev, &dp_ops);
+	debugfs_create_file("dp", 0444, mdev->dbg_dir, mdev, &dp_ops);
 
-	debugfs_create_file("vdev_info", 0444, mdev->dbg_dir,
-		mdev, &vdev_info_ops);
+	debugfs_create_file("vdev_info", 0444, mdev->dbg_dir, mdev,
+			    &vdev_info_ops);
 
-	debugfs_create_file("msi_irq_info", 0444, mdev->dbg_dir,
-		mdev, &msi_irq_info_ops);
+	debugfs_create_file("msi_irq_info", 0444, mdev->dbg_dir, mdev,
+			    &msi_irq_info_ops);
 }
 
 /**

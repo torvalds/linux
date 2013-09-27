@@ -66,8 +66,8 @@ void mic_send_intr(struct mic_device *mdev, int doorbell)
 	/* Ensure that the interrupt is ordered w.r.t previous stores. */
 	wmb();
 	mic_mmio_write(mw, MIC_X100_SBOX_SDBIC0_DBREQ_BIT,
-		MIC_X100_SBOX_BASE_ADDRESS +
-		(MIC_X100_SBOX_SDBIC0 + (4 * doorbell)));
+		       MIC_X100_SBOX_BASE_ADDRESS +
+		       (MIC_X100_SBOX_SDBIC0 + (4 * doorbell)));
 }
 
 /**

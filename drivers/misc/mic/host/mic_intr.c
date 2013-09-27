@@ -71,8 +71,8 @@ static irqreturn_t mic_interrupt(int irq, void *dev)
 
 /* Return the interrupt offset from the index. Index is 0 based. */
 static u16 mic_map_src_to_offset(struct mic_device *mdev,
-		int intr_src, enum mic_intr_type type) {
-
+		int intr_src, enum mic_intr_type type)
+{
 	if (type >= MIC_NUM_INTR_TYPES)
 		return MIC_NUM_OFFSETS;
 	if (intr_src >= mdev->intr_info->intr_len[type])
@@ -112,7 +112,7 @@ static struct mic_intr_cb *mic_register_intr_callback(struct mic_device *mdev,
 	struct mic_intr_cb *intr_cb;
 	unsigned long flags;
 	int rc;
-	intr_cb = kmalloc(sizeof(struct mic_intr_cb), GFP_KERNEL);
+	intr_cb = kmalloc(sizeof(*intr_cb), GFP_KERNEL);
 
 	if (!intr_cb)
 		return ERR_PTR(-ENOMEM);
@@ -159,7 +159,7 @@ static u8 mic_unregister_intr_callback(struct mic_device *mdev, u32 idx)
 			if (intr_cb->cb_id == idx) {
 				list_del(pos);
 				ida_simple_remove(&mdev->irq_info.cb_ida,
-					intr_cb->cb_id);
+						  intr_cb->cb_id);
 				kfree(intr_cb);
 				spin_unlock_irqrestore(
 					&mdev->irq_info.mic_intr_lock, flags);
@@ -182,9 +182,10 @@ static u8 mic_unregister_intr_callback(struct mic_device *mdev, u32 idx)
 static int mic_setup_msix(struct mic_device *mdev, struct pci_dev *pdev)
 {
 	int rc, i;
+	int entry_size = sizeof(*mdev->irq_info.msix_entries);
 
-	mdev->irq_info.msix_entries = kmalloc(sizeof(struct msix_entry) *
-			MIC_MIN_MSIX, GFP_KERNEL);
+	mdev->irq_info.msix_entries = kmalloc_array(MIC_MIN_MSIX,
+						    entry_size, GFP_KERNEL);
 	if (!mdev->irq_info.msix_entries) {
 		rc = -ENOMEM;
 		goto err_nomem1;
@@ -231,8 +232,9 @@ static int mic_setup_callbacks(struct mic_device *mdev)
 {
 	int i;
 
-	mdev->irq_info.cb_list = kmalloc(sizeof(struct list_head) *
-		MIC_NUM_OFFSETS, GFP_KERNEL);
+	mdev->irq_info.cb_list = kmalloc_array(MIC_NUM_OFFSETS,
+					       sizeof(*mdev->irq_info.cb_list),
+					       GFP_KERNEL);
 	if (!mdev->irq_info.cb_list)
 		return -ENOMEM;
 
@@ -261,7 +263,7 @@ static void mic_release_callbacks(struct mic_device *mdev)
 
 		if (list_empty(&mdev->irq_info.cb_list[i])) {
 			spin_unlock_irqrestore(&mdev->irq_info.mic_intr_lock,
-				flags);
+					       flags);
 			break;
 		}
 
@@ -269,7 +271,7 @@ static void mic_release_callbacks(struct mic_device *mdev)
 			intr_cb = list_entry(pos, struct mic_intr_cb, list);
 			list_del(pos);
 			ida_simple_remove(&mdev->irq_info.cb_ida,
-				intr_cb->cb_id);
+					  intr_cb->cb_id);
 			kfree(intr_cb);
 		}
 		spin_unlock_irqrestore(&mdev->irq_info.mic_intr_lock, flags);
@@ -427,8 +429,8 @@ struct mic_irq *mic_request_irq(struct mic_device *mdev,
 	offset = mic_map_src_to_offset(mdev, intr_src, type);
 	if (offset >= MIC_NUM_OFFSETS) {
 		dev_err(mdev->sdev->parent,
-				"Error mapping index %d to a valid source id.\n",
-				intr_src);
+			"Error mapping index %d to a valid source id.\n",
+			intr_src);
 		rc = -EINVAL;
 		goto err;
 	}
@@ -437,7 +439,7 @@ struct mic_irq *mic_request_irq(struct mic_device *mdev,
 		msix = mic_get_available_vector(mdev);
 		if (!msix) {
 			dev_err(mdev->sdev->parent,
-			"No MSIx vectors available for use.\n");
+				"No MSIx vectors available for use.\n");
 			rc = -ENOSPC;
 			goto err;
 		}
@@ -460,7 +462,7 @@ struct mic_irq *mic_request_irq(struct mic_device *mdev,
 				offset, func, data);
 		if (IS_ERR(intr_cb)) {
 			dev_err(mdev->sdev->parent,
-			"No available callback entries for use\n");
+				"No available callback entries for use\n");
 			rc = PTR_ERR(intr_cb);
 			goto err;
 		}
@@ -506,7 +508,7 @@ void mic_free_irq(struct mic_device *mdev,
 	if (mdev->irq_info.num_vectors > 1) {
 		if (entry >= mdev->irq_info.num_vectors) {
 			dev_warn(mdev->sdev->parent,
-				"entry %d should be < num_irq %d\n",
+				 "entry %d should be < num_irq %d\n",
 				entry, mdev->irq_info.num_vectors);
 			return;
 		}
@@ -581,7 +583,7 @@ void mic_free_interrupts(struct mic_device *mdev, struct pci_dev *pdev)
 		for (i = 0; i < mdev->irq_info.num_vectors; i++) {
 			if (mdev->irq_info.mic_msi_map[i])
 				dev_warn(&pdev->dev, "irq %d may still be in use.\n",
-					mdev->irq_info.msix_entries[i].vector);
+					 mdev->irq_info.msix_entries[i].vector);
 		}
 		kfree(mdev->irq_info.mic_msi_map);
 		kfree(mdev->irq_info.msix_entries);

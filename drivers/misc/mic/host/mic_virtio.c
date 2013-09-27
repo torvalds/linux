@@ -195,7 +195,7 @@ static int _mic_virtio_copy(struct mic_vdev *mvdev,
 			MIC_VRINGH_READ, &out_len);
 		if (ret) {
 			dev_err(mic_dev(mvdev), "%s %d err %d\n",
-					__func__, __LINE__, ret);
+				__func__, __LINE__, ret);
 			break;
 		}
 		len -= out_len;
@@ -206,7 +206,7 @@ static int _mic_virtio_copy(struct mic_vdev *mvdev,
 			!MIC_VRINGH_READ, &out_len);
 		if (ret) {
 			dev_err(mic_dev(mvdev), "%s %d err %d\n",
-					__func__, __LINE__, ret);
+				__func__, __LINE__, ret);
 			break;
 		}
 		len -= out_len;
@@ -225,8 +225,7 @@ static int _mic_virtio_copy(struct mic_vdev *mvdev,
 	 * Update the used ring if a descriptor was available and some data was
 	 * copied in/out and the user asked for a used ring update.
 	 */
-	if (*head != USHRT_MAX && copy->out_len &&
-		copy->update_used) {
+	if (*head != USHRT_MAX && copy->out_len && copy->update_used) {
 		u32 total = 0;
 
 		/* Determine the total data consumed */
@@ -367,7 +366,6 @@ void mic_bh_handler(struct work_struct *work)
 
 static irqreturn_t mic_virtio_intr_handler(int irq, void *data)
 {
-
 	struct mic_vdev *mvdev = data;
 	struct mic_device *mdev = mvdev->mdev;
 
@@ -394,7 +392,7 @@ int mic_virtio_config_change(struct mic_vdev *mvdev,
 	}
 
 	if (copy_from_user(mic_vq_configspace(mvdev->dd),
-				argp, mvdev->dd->config_len)) {
+			   argp, mvdev->dd->config_len)) {
 		dev_err(mic_dev(mvdev), "%s %d err %d\n",
 			__func__, __LINE__, -EFAULT);
 		ret = -EFAULT;
@@ -438,8 +436,8 @@ static int mic_copy_dp_entry(struct mic_vdev *mvdev,
 		return -EFAULT;
 	}
 
-	if (mic_aligned_desc_size(&dd) > MIC_MAX_DESC_BLK_SIZE
-		|| dd.num_vq > MIC_MAX_VRINGS) {
+	if (mic_aligned_desc_size(&dd) > MIC_MAX_DESC_BLK_SIZE ||
+	    dd.num_vq > MIC_MAX_VRINGS) {
 		dev_err(mic_dev(mvdev), "%s %d err %d\n",
 			__func__, __LINE__, -EINVAL);
 		return -EINVAL;
@@ -503,7 +501,7 @@ static void mic_init_device_ctrl(struct mic_vdev *mvdev,
 {
 	struct mic_device_ctrl *dc;
 
-	dc = mvdev->dc = (void *)devpage + mic_aligned_desc_size(devpage);
+	dc = (void *)devpage + mic_aligned_desc_size(devpage);
 
 	dc->config_change = 0;
 	dc->guest_ack = 0;
@@ -512,6 +510,7 @@ static void mic_init_device_ctrl(struct mic_vdev *mvdev,
 	dc->used_address_updated = 0;
 	dc->c2h_vdev_db = -1;
 	dc->h2c_vdev_db = -1;
+	mvdev->dc = dc;
 }
 
 int mic_virtio_add_device(struct mic_vdev *mvdev,
@@ -551,7 +550,7 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 			sizeof(struct _mic_vring_info));
 		vr->va = (void *)
 			__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-			get_order(vr_size));
+					 get_order(vr_size));
 		if (!vr->va) {
 			ret = -ENOMEM;
 			dev_err(mic_dev(mvdev), "%s %d err %d\n",
@@ -564,8 +563,7 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 		vqconfig[i].address = mic_map_single(mdev,
 			vr->va, vr_size);
 		if (mic_map_error(vqconfig[i].address)) {
-			free_pages((unsigned long)vr->va,
-				get_order(vr_size));
+			free_pages((unsigned long)vr->va, get_order(vr_size));
 			ret = -ENOMEM;
 			dev_err(mic_dev(mvdev), "%s %d err %d\n",
 				__func__, __LINE__, ret);
@@ -573,8 +571,7 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 		}
 		vqconfig[i].address = cpu_to_le64(vqconfig[i].address);
 
-		vring_init(&vr->vr, num,
-			vr->va, MIC_VIRTIO_RING_ALIGN);
+		vring_init(&vr->vr, num, vr->va, MIC_VIRTIO_RING_ALIGN);
 		ret = vringh_init_kern(&mvr->vrh,
 			*(u32 *)mic_vq_features(mvdev->dd), num, false,
 			vr->vr.desc, vr->vr.avail, vr->vr.used);
@@ -593,8 +590,8 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 			__func__, __LINE__, i, vr->va, vr->info, vr_size);
 	}
 
-	snprintf(irqname, sizeof(irqname),
-		"mic%dvirtio%d", mdev->id, mvdev->virtio_id);
+	snprintf(irqname, sizeof(irqname), "mic%dvirtio%d", mdev->id,
+		 mvdev->virtio_id);
 	mvdev->virtio_db = mic_next_db(mdev);
 	mvdev->virtio_cookie = mic_request_irq(mdev, mic_virtio_intr_handler,
 			irqname, mvdev, mvdev->virtio_db, MIC_INTR_DB);
@@ -628,9 +625,9 @@ err:
 	for (j = 0; j < i; j++) {
 		struct mic_vringh *mvr = &mvdev->mvr[j];
 		mic_unmap_single(mdev, le64_to_cpu(vqconfig[j].address),
-				mvr->vring.len);
+				 mvr->vring.len);
 		free_pages((unsigned long)mvr->vring.va,
-			get_order(mvr->vring.len));
+			   get_order(mvr->vring.len));
 	}
 	mutex_unlock(&mdev->mic_mutex);
 	return ret;
@@ -676,9 +673,9 @@ skip_hot_remove:
 		vringh_kiov_cleanup(&mvr->riov);
 		vringh_kiov_cleanup(&mvr->wiov);
 		mic_unmap_single(mdev, le64_to_cpu(vqconfig[i].address),
-				mvr->vring.len);
+				 mvr->vring.len);
 		free_pages((unsigned long)mvr->vring.va,
-			get_order(mvr->vring.len));
+			   get_order(mvr->vring.len));
 	}
 
 	list_for_each_safe(pos, tmp, &mdev->vdev_list) {

@@ -246,7 +246,7 @@ static int tun_alloc(struct mic_info *mic, char *dev)
 	if (*dev)
 		strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
-	err = ioctl(fd, TUNSETIFF, (void *) &ifr);
+	err = ioctl(fd, TUNSETIFF, (void *)&ifr);
 	if (err < 0) {
 		mpsslog("%s %s %d TUNSETIFF failed %s\n",
 			mic->name, __func__, __LINE__, strerror(errno));
@@ -363,7 +363,7 @@ static inline void verify_out_len(struct mic_info *mic,
 {
 	if (copy->out_len != sum_iovec_len(copy)) {
 		mpsslog("%s %s %d BUG copy->out_len 0x%x len 0x%x\n",
-				mic->name, __func__, __LINE__,
+			mic->name, __func__, __LINE__,
 				copy->out_len, sum_iovec_len(copy));
 		assert(copy->out_len == sum_iovec_len(copy));
 	}
@@ -372,7 +372,7 @@ static inline void verify_out_len(struct mic_info *mic,
 /* Display an iovec */
 static void
 disp_iovec(struct mic_info *mic, struct mic_copy_desc *copy,
-	const char *s, int line)
+	   const char *s, int line)
 {
 	int i;
 
@@ -401,7 +401,7 @@ static inline void txrx_prepare(int type, bool tx, struct mic_vring *vr,
 /* Central API which triggers the copies */
 static int
 mic_virtio_copy(struct mic_info *mic, int fd,
-	struct mic_vring *vr, struct mic_copy_desc *copy)
+		struct mic_vring *vr, struct mic_copy_desc *copy)
 {
 	int ret;
 
@@ -440,7 +440,7 @@ init_vr(struct mic_info *mic, int fd, int type,
 	vr0->info = vr0->va +
 		vring_size(MIC_VRING_ENTRIES, MIC_VIRTIO_RING_ALIGN);
 	vring_init(&vr0->vr,
-		MIC_VRING_ENTRIES, vr0->va, MIC_VIRTIO_RING_ALIGN);
+		   MIC_VRING_ENTRIES, vr0->va, MIC_VIRTIO_RING_ALIGN);
 	mpsslog("%s %s vr0 %p vr0->info %p vr_size 0x%x vring 0x%x ",
 		__func__, mic->name, vr0->va, vr0->info, vr_size,
 		vring_size(MIC_VRING_ENTRIES, MIC_VIRTIO_RING_ALIGN));
@@ -453,7 +453,7 @@ init_vr(struct mic_info *mic, int fd, int type,
 		vr1->info = vr1->va + vring_size(MIC_VRING_ENTRIES,
 			MIC_VIRTIO_RING_ALIGN);
 		vring_init(&vr1->vr,
-			MIC_VRING_ENTRIES, vr1->va, MIC_VIRTIO_RING_ALIGN);
+			   MIC_VRING_ENTRIES, vr1->va, MIC_VIRTIO_RING_ALIGN);
 		mpsslog("%s %s vr1 %p vr1->info %p vr_size 0x%x vring 0x%x ",
 			__func__, mic->name, vr1->va, vr1->info, vr_size,
 			vring_size(MIC_VRING_ENTRIES, MIC_VIRTIO_RING_ALIGN));
@@ -551,7 +551,7 @@ virtio_net(void *arg)
 	net_poll[NET_FD_TUN].events = POLLIN;
 
 	if (MAP_FAILED == init_vr(mic, mic->mic_net.virtio_net_fd,
-		VIRTIO_ID_NET, &tx_vr, &rx_vr,
+				  VIRTIO_ID_NET, &tx_vr, &rx_vr,
 		virtnet_dev_page.dd.num_vq)) {
 		mpsslog("%s init_vr failed %s\n",
 			mic->name, strerror(errno));
@@ -576,7 +576,7 @@ virtio_net(void *arg)
 		}
 		if (!(desc->status & VIRTIO_CONFIG_S_DRIVER_OK))
 			wait_for_card_driver(mic, mic->mic_net.virtio_net_fd,
-					VIRTIO_ID_NET);
+					     VIRTIO_ID_NET);
 		/*
 		 * Check if there is data to be read from TUN and write to
 		 * virtio net fd if there is.
@@ -587,7 +587,7 @@ virtio_net(void *arg)
 				copy.iov, copy.iovcnt);
 			if (len > 0) {
 				struct virtio_net_hdr *hdr
-					= (struct virtio_net_hdr *) vnet_hdr[0];
+					= (struct virtio_net_hdr *)vnet_hdr[0];
 
 				/* Disable checksums on the card since we are on
 				   a reliable PCIe link */
@@ -606,7 +606,7 @@ virtio_net(void *arg)
 #endif
 				spin_for_descriptors(mic, &tx_vr);
 				txrx_prepare(VIRTIO_ID_NET, 1, &tx_vr, &copy,
-					len);
+					     len);
 
 				err = mic_virtio_copy(mic,
 					mic->mic_net.virtio_net_fd, &tx_vr,
@@ -644,7 +644,7 @@ virtio_net(void *arg)
 				le16toh(rx_vr.vr.avail->idx)) {
 				copy.iov = iov1;
 				txrx_prepare(VIRTIO_ID_NET, 0, &rx_vr, &copy,
-					MAX_NET_PKT_SIZE
+					     MAX_NET_PKT_SIZE
 					+ sizeof(struct virtio_net_hdr));
 
 				err = mic_virtio_copy(mic,
@@ -669,7 +669,7 @@ virtio_net(void *arg)
 					verify_out_len(mic, &copy);
 #ifdef DEBUG
 					disp_iovec(mic, copy, __func__,
-						__LINE__);
+						   __LINE__);
 					mpsslog("%s %s %d ",
 						mic->name, __func__, __LINE__);
 					mpsslog("read from net 0x%lx\n",
@@ -686,7 +686,7 @@ virtio_net(void *arg)
 					} else {
 #ifdef DEBUG
 						disp_iovec(mic, &copy, __func__,
-							__LINE__);
+							   __LINE__);
 						mpsslog("%s %s %d ",
 							mic->name, __func__,
 							__LINE__);
@@ -750,13 +750,13 @@ virtio_console(void *arg)
 	err = grantpt(pty_fd);
 	if (err < 0) {
 		mpsslog("can't grant access: %s %s\n",
-				pts_name, strerror(errno));
+			pts_name, strerror(errno));
 		goto _close_pty;
 	}
 	err = unlockpt(pty_fd);
 	if (err < 0) {
 		mpsslog("can't unlock a pseudoterminal: %s %s\n",
-				pts_name, strerror(errno));
+			pts_name, strerror(errno));
 		goto _close_pty;
 	}
 	console_poll[MONITOR_FD].fd = pty_fd;
@@ -766,7 +766,7 @@ virtio_console(void *arg)
 	console_poll[VIRTIO_CONSOLE_FD].events = POLLIN;
 
 	if (MAP_FAILED == init_vr(mic, mic->mic_console.virtio_console_fd,
-		VIRTIO_ID_CONSOLE, &tx_vr, &rx_vr,
+				  VIRTIO_ID_CONSOLE, &tx_vr, &rx_vr,
 		virtcons_dev_page.dd.num_vq)) {
 		mpsslog("%s init_vr failed %s\n",
 			mic->name, strerror(errno));
@@ -787,7 +787,7 @@ virtio_console(void *arg)
 		}
 		if (!(desc->status & VIRTIO_CONFIG_S_DRIVER_OK))
 			wait_for_card_driver(mic,
-				mic->mic_console.virtio_console_fd,
+					     mic->mic_console.virtio_console_fd,
 				VIRTIO_ID_CONSOLE);
 
 		if (console_poll[MONITOR_FD].revents & POLLIN) {
@@ -802,7 +802,7 @@ virtio_console(void *arg)
 #endif
 				spin_for_descriptors(mic, &tx_vr);
 				txrx_prepare(VIRTIO_ID_CONSOLE, 1, &tx_vr,
-					&copy, len);
+					     &copy, len);
 
 				err = mic_virtio_copy(mic,
 					mic->mic_console.virtio_console_fd,
@@ -837,7 +837,7 @@ virtio_console(void *arg)
 				le16toh(rx_vr.vr.avail->idx)) {
 				copy.iov = iov1;
 				txrx_prepare(VIRTIO_ID_CONSOLE, 0, &rx_vr,
-					&copy, PAGE_SIZE);
+					     &copy, PAGE_SIZE);
 
 				err = mic_virtio_copy(mic,
 					mic->mic_console.virtio_console_fd,
@@ -848,7 +848,7 @@ virtio_console(void *arg)
 					verify_out_len(mic, &copy);
 #ifdef DEBUG
 					disp_iovec(mic, copy, __func__,
-						__LINE__);
+						   __LINE__);
 					mpsslog("%s %s %d ",
 						mic->name, __func__, __LINE__);
 					mpsslog("read from net 0x%lx\n",
@@ -865,7 +865,7 @@ virtio_console(void *arg)
 					} else {
 #ifdef DEBUG
 						disp_iovec(mic, copy, __func__,
-							__LINE__);
+							   __LINE__);
 						mpsslog("%s %s %d ",
 							mic->name, __func__,
 							__LINE__);
@@ -1033,7 +1033,8 @@ start_virtblk(struct mic_info *mic, struct mic_vring *vring)
 	}
 	add_virtio_device(mic, &virtblk_dev_page.dd);
 	if (MAP_FAILED == init_vr(mic, mic->mic_virtblk.virtio_block_fd,
-		VIRTIO_ID_BLOCK, vring, NULL, virtblk_dev_page.dd.num_vq)) {
+				  VIRTIO_ID_BLOCK, vring, NULL,
+				  virtblk_dev_page.dd.num_vq)) {
 		mpsslog("%s init_vr failed %s\n",
 			mic->name, strerror(errno));
 		return false;
@@ -1060,7 +1061,7 @@ header_error_check(struct vring_desc *desc)
 {
 	if (le32toh(desc->len) != sizeof(struct virtio_blk_outhdr)) {
 		mpsslog("%s() %d: length is not sizeof(virtio_blk_outhd)\n",
-				__func__, __LINE__);
+			__func__, __LINE__);
 		return -EIO;
 	}
 	if (!(le16toh(desc->flags) & VRING_DESC_F_NEXT)) {
@@ -1132,7 +1133,7 @@ write_status(int fd, __u8 *status)
 static void *
 virtio_block(void *arg)
 {
-	struct mic_info *mic = (struct mic_info *) arg;
+	struct mic_info *mic = (struct mic_info *)arg;
 	int ret;
 	struct pollfd block_poll;
 	struct mic_vring vring;
@@ -1219,8 +1220,8 @@ virtio_block(void *arg)
 				status = 0;
 				fos = mic->mic_virtblk.backend_addr +
 					(hdr.sector * SECTOR_SIZE);
-				buffer_desc_idx = desc_idx =
-					next_desc(desc);
+				buffer_desc_idx = next_desc(desc);
+				desc_idx = buffer_desc_idx;
 				for (desc = &vring.vr.desc[buffer_desc_idx];
 				     desc->flags & VRING_DESC_F_NEXT;
 				     desc_idx = next_desc(desc),
@@ -1255,7 +1256,7 @@ virtio_block(void *arg)
 						iovec,
 						piov - iovec);
 					if (ret < 0 &&
-						status != 0)
+					    status != 0)
 						status = ret;
 				}
 				/* write status and update used pointer */
@@ -1391,7 +1392,7 @@ mic_config(void *arg)
 	char value[4096];
 
 	snprintf(pathname, PATH_MAX - 1, "%s/%s/%s",
-		MICSYSFSDIR, mic->name, "state");
+		 MICSYSFSDIR, mic->name, "state");
 
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0) {
@@ -1560,22 +1561,22 @@ init_mic(struct mic_info *mic)
 			virtio_console, mic);
 		if (err)
 			mpsslog("%s virtcons pthread_create failed %s\n",
-			mic->name, strerror(err));
+				mic->name, strerror(err));
 		err = pthread_create(&mic->mic_net.net_thread, NULL,
 			virtio_net, mic);
 		if (err)
 			mpsslog("%s virtnet pthread_create failed %s\n",
-			mic->name, strerror(err));
+				mic->name, strerror(err));
 		err = pthread_create(&mic->mic_virtblk.block_thread, NULL,
 			virtio_block, mic);
 		if (err)
 			mpsslog("%s virtblk pthread_create failed %s\n",
-			mic->name, strerror(err));
+				mic->name, strerror(err));
 		sigemptyset(&act.sa_mask);
 		err = sigaction(SIGUSR1, &act, NULL);
 		if (err)
 			mpsslog("%s sigaction SIGUSR1 failed %s\n",
-			mic->name, strerror(errno));
+				mic->name, strerror(errno));
 		while (1)
 			sleep(60);
 	case -1:

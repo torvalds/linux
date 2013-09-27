@@ -140,9 +140,9 @@ unsigned int mic_poll(struct file *f, poll_table *wait)
 
 	poll_wait(f, &mvdev->waitq, wait);
 
-	if (mic_vdev_inited(mvdev))
+	if (mic_vdev_inited(mvdev)) {
 		mask = POLLERR;
-	else if (mvdev->poll_wake) {
+	} else if (mvdev->poll_wake) {
 		mvdev->poll_wake = 0;
 		mask = POLLIN | POLLOUT;
 	}
@@ -152,7 +152,7 @@ unsigned int mic_poll(struct file *f, poll_table *wait)
 
 static inline int
 mic_query_offset(struct mic_vdev *mvdev, unsigned long offset,
-	unsigned long *size, unsigned long *pa)
+		 unsigned long *size, unsigned long *pa)
 {
 	struct mic_device *mdev = mvdev->mdev;
 	unsigned long start = MIC_DP_SIZE;

@@ -84,7 +84,7 @@ static void mic_add_smpt_entry(int spt, s64 *ref, u64 addr,
 	for (i = spt; i < spt + entries; i++,
 		addr += smpt_info->info.page_size) {
 		if (!smpt_info->entry[i].ref_count &&
-			(smpt_info->entry[i].dma_addr != addr)) {
+		    (smpt_info->entry[i].dma_addr != addr)) {
 			mdev->smpt_ops->set(mdev, addr, i);
 			smpt_info->entry[i].dma_addr = addr;
 		}
@@ -183,7 +183,7 @@ mic_to_dma_addr(struct mic_device *mdev, dma_addr_t mic_addr)
 
 	if (!mic_is_system_addr(mdev, mic_addr)) {
 		dev_err(mdev->sdev->parent,
-		"mic_addr is invalid. mic_addr = 0x%llx\n", mic_addr);
+			"mic_addr is invalid. mic_addr = 0x%llx\n", mic_addr);
 		return -EINVAL;
 	}
 	spt = mic_sys_addr_to_smpt(mdev, mic_addr);
@@ -286,7 +286,7 @@ void mic_unmap(struct mic_device *mdev, dma_addr_t mic_addr, size_t size)
 		smpt_info->entry[i].ref_count -= ref[i - spt];
 		if (smpt_info->entry[i].ref_count < 0)
 			dev_warn(mdev->sdev->parent,
-				"ref count for entry %d is negative\n", i);
+				 "ref count for entry %d is negative\n", i);
 	}
 	spin_unlock_irqrestore(&smpt_info->smpt_lock, flags);
 	kfree(ref);
@@ -320,7 +320,7 @@ dma_addr_t mic_map_single(struct mic_device *mdev, void *va, size_t size)
 				"mic_map failed dma_addr 0x%llx size 0x%lx\n",
 				dma_addr, size);
 			pci_unmap_single(pdev, dma_addr,
-				size, PCI_DMA_BIDIRECTIONAL);
+					 size, PCI_DMA_BIDIRECTIONAL);
 		}
 	}
 	return mic_addr;
@@ -366,8 +366,8 @@ int mic_smpt_init(struct mic_device *mdev)
 
 	smpt_info = mdev->smpt;
 	mdev->smpt_ops->init(mdev);
-	smpt_info->entry = kmalloc(sizeof(struct mic_smpt)
-			* smpt_info->info.num_reg, GFP_KERNEL);
+	smpt_info->entry = kmalloc_array(smpt_info->info.num_reg,
+					 sizeof(*smpt_info->entry), GFP_KERNEL);
 	if (!smpt_info->entry) {
 		err = -ENOMEM;
 		goto free_smpt;
@@ -412,7 +412,7 @@ void mic_smpt_uninit(struct mic_device *mdev)
 			smpt_info->entry[i].ref_count);
 		if (smpt_info->entry[i].ref_count)
 			dev_warn(mdev->sdev->parent,
-			"ref count for entry %d is not zero\n", i);
+				 "ref count for entry %d is not zero\n", i);
 	}
 	kfree(smpt_info->entry);
 	kfree(smpt_info);

@@ -46,8 +46,8 @@ mic_x100_write_spad(struct mic_device *mdev, unsigned int idx, u32 val)
 	dev_dbg(mdev->sdev->parent, "Writing 0x%x to scratch pad index %d\n",
 		val, idx);
 	mic_mmio_write(&mdev->mmio, val,
-		MIC_X100_SBOX_BASE_ADDRESS +
-		MIC_X100_SBOX_SPAD0 + idx * 4);
+		       MIC_X100_SBOX_BASE_ADDRESS +
+		       MIC_X100_SBOX_SPAD0 + idx * 4);
 }
 
 /**
@@ -130,8 +130,8 @@ static void mic_x100_send_sbox_intr(struct mic_device *mdev,
 {
 	struct mic_mw *mw = &mdev->mmio;
 	u64 apic_icr_offset = MIC_X100_SBOX_APICICR0 + doorbell * 8;
-	u32 apicicr_low = mic_mmio_read(mw,
-			MIC_X100_SBOX_BASE_ADDRESS + apic_icr_offset);
+	u32 apicicr_low = mic_mmio_read(mw, MIC_X100_SBOX_BASE_ADDRESS +
+					apic_icr_offset);
 
 	/* for MIC we need to make sure we "hit" the send_icr bit (13) */
 	apicicr_low = (apicicr_low | (1 << 13));
@@ -139,7 +139,7 @@ static void mic_x100_send_sbox_intr(struct mic_device *mdev,
 	/* Ensure that the interrupt is ordered w.r.t. previous stores. */
 	wmb();
 	mic_mmio_write(mw, apicicr_low,
-		MIC_X100_SBOX_BASE_ADDRESS + apic_icr_offset);
+		       MIC_X100_SBOX_BASE_ADDRESS + apic_icr_offset);
 }
 
 /**
@@ -153,7 +153,7 @@ static void mic_x100_send_rdmasr_intr(struct mic_device *mdev,
 	/* Ensure that the interrupt is ordered w.r.t. previous stores. */
 	wmb();
 	mic_mmio_write(&mdev->mmio, 0,
-		MIC_X100_SBOX_BASE_ADDRESS + rdmasr_offset);
+		       MIC_X100_SBOX_BASE_ADDRESS + rdmasr_offset);
 }
 
 /**
@@ -212,7 +212,7 @@ done:
  */
 static void mic_x100_hw_intr_init(struct mic_device *mdev)
 {
-	mdev->intr_info = (struct mic_intr_info *) mic_x100_intr_init;
+	mdev->intr_info = (struct mic_intr_info *)mic_x100_intr_init;
 }
 
 /**
@@ -244,7 +244,7 @@ mic_x100_read_msi_to_src_map(struct mic_device *mdev, int idx)
  */
 static void
 mic_x100_program_msi_to_src_map(struct mic_device *mdev,
-			int idx, int offset, bool set)
+				int idx, int offset, bool set)
 {
 	unsigned long reg;
 	struct mic_mw *mw = &mdev->mmio;
@@ -308,12 +308,12 @@ static void mic_x100_send_firmware_intr(struct mic_device *mdev)
 	apicicr_low = (vector | (1 << 13));
 
 	mic_mmio_write(mw, mic_x100_get_apic_id(mdev),
-		MIC_X100_SBOX_BASE_ADDRESS + apic_icr_offset + 4);
+		       MIC_X100_SBOX_BASE_ADDRESS + apic_icr_offset + 4);
 
 	/* Ensure that the interrupt is ordered w.r.t. previous stores. */
 	wmb();
 	mic_mmio_write(mw, apicicr_low,
-		MIC_X100_SBOX_BASE_ADDRESS + apic_icr_offset);
+		       MIC_X100_SBOX_BASE_ADDRESS + apic_icr_offset);
 }
 
 /**
@@ -365,8 +365,7 @@ mic_x100_load_command_line(struct mic_device *mdev, const struct firmware *fw)
 	len += snprintf(buf, CMDLINE_SIZE - len,
 		" mem=%dM", boot_mem);
 	if (mdev->cmdline)
-		snprintf(buf + len, CMDLINE_SIZE - len,
-				" %s", mdev->cmdline);
+		snprintf(buf + len, CMDLINE_SIZE - len, " %s", mdev->cmdline);
 	memcpy_toio(cmd_line_va, buf, strlen(buf) + 1);
 	kfree(buf);
 	return 0;
@@ -397,8 +396,7 @@ mic_x100_load_ramdisk(struct mic_device *mdev)
 	 * Typically the bootaddr for card OS is 64M
 	 * so copy over the ramdisk @ 128M.
 	 */
-	memcpy_toio(mdev->aper.va + (mdev->bootaddr << 1),
-		fw->data, fw->size);
+	memcpy_toio(mdev->aper.va + (mdev->bootaddr << 1), fw->data, fw->size);
 	iowrite32(cpu_to_le32(mdev->bootaddr << 1), &bp->hdr.ramdisk_image);
 	iowrite32(cpu_to_le32(fw->size), &bp->hdr.ramdisk_size);
 	release_firmware(fw);
@@ -484,8 +482,7 @@ mic_x100_load_firmware(struct mic_device *mdev, const char *buf)
 	if (mdev->ramdisk)
 		rc = mic_x100_load_ramdisk(mdev);
 error:
-	dev_dbg(mdev->sdev->parent, "%s %d rc %d\n",
-			__func__, __LINE__, rc);
+	dev_dbg(mdev->sdev->parent, "%s %d rc %d\n", __func__, __LINE__, rc);
 done:
 	return rc;
 }
@@ -524,8 +521,8 @@ mic_x100_smpt_set(struct mic_device *mdev, dma_addr_t dma_addr, u8 index)
 	uint32_t smpt_reg_val = BUILD_SMPT(SNOOP_ON,
 			dma_addr >> mdev->smpt->info.page_shift);
 	mic_mmio_write(&mdev->mmio, smpt_reg_val,
-		MIC_X100_SBOX_BASE_ADDRESS +
-		MIC_X100_SBOX_SMPT00 + (4 * index));
+		       MIC_X100_SBOX_BASE_ADDRESS +
+		       MIC_X100_SBOX_SMPT00 + (4 * index));
 }
 
 /**

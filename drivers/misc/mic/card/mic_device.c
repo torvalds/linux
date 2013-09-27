@@ -167,7 +167,6 @@ struct mic_irq *mic_request_card_irq(irqreturn_t (*func)(int irq, void *data),
 	return (struct mic_irq *)cookie;
 err:
 	return ERR_PTR(rc);
-
 }
 
 /**

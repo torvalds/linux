@@ -35,7 +35,7 @@ readsysfs(char *dir, char *entry)
 		snprintf(filename, PATH_MAX, "%s/%s", MICSYSFSDIR, entry);
 	else
 		snprintf(filename, PATH_MAX,
-			"%s/%s/%s", MICSYSFSDIR, dir, entry);
+			 "%s/%s/%s", MICSYSFSDIR, dir, entry);
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
@@ -75,7 +75,7 @@ setsysfs(char *dir, char *entry, char *value)
 		snprintf(filename, PATH_MAX, "%s/%s", MICSYSFSDIR, entry);
 	else
 		snprintf(filename, PATH_MAX, "%s/%s/%s",
-			MICSYSFSDIR, dir, entry);
+			 MICSYSFSDIR, dir, entry);
 
 	oldvalue = readsysfs(dir, entry);
 

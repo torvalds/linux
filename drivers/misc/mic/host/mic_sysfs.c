@@ -130,7 +130,7 @@ state_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static ssize_t
 state_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+	    const char *buf, size_t count)
 {
 	int rc = 0;
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
@@ -163,7 +163,7 @@ done:
 static DEVICE_ATTR_RW(state);
 
 static ssize_t shutdown_status_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				    struct device_attribute *attr, char *buf)
 {
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
 
@@ -193,7 +193,7 @@ cmdline_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static ssize_t
 cmdline_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+	      const char *buf, size_t count)
 {
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
 
@@ -239,7 +239,7 @@ firmware_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static ssize_t
 firmware_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+	       const char *buf, size_t count)
 {
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
 
@@ -284,7 +284,7 @@ ramdisk_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static ssize_t
 ramdisk_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+	      const char *buf, size_t count)
 {
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
 
@@ -330,7 +330,7 @@ bootmode_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static ssize_t
 bootmode_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+	       const char *buf, size_t count)
 {
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
 
@@ -363,7 +363,7 @@ static DEVICE_ATTR_RW(bootmode);
 
 static ssize_t
 log_buf_addr_show(struct device *dev, struct device_attribute *attr,
-	char *buf)
+		  char *buf)
 {
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
 
@@ -375,7 +375,7 @@ log_buf_addr_show(struct device *dev, struct device_attribute *attr,
 
 static ssize_t
 log_buf_addr_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+		   const char *buf, size_t count)
 {
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
 	int ret;
@@ -397,7 +397,7 @@ static DEVICE_ATTR_RW(log_buf_addr);
 
 static ssize_t
 log_buf_len_show(struct device *dev, struct device_attribute *attr,
-	char *buf)
+		 char *buf)
 {
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
 
@@ -409,7 +409,7 @@ log_buf_len_show(struct device *dev, struct device_attribute *attr,
 
 static ssize_t
 log_buf_len_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+		  const char *buf, size_t count)
 {
 	struct mic_device *mdev = dev_get_drvdata(dev->parent);
 	int ret;

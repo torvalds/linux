@@ -103,7 +103,7 @@ static void mic_finalize_features(struct virtio_device *vdev)
 	for (i = 0; i < bits; i++) {
 		if (test_bit(i, vdev->features))
 			iowrite8(ioread8(&out_features[i / 8]) | (1 << (i % 8)),
-				&out_features[i / 8]);
+				 &out_features[i / 8]);
 	}
 }
 
@@ -197,10 +197,9 @@ static void mic_notify(struct virtqueue *vq)
 static void mic_del_vq(struct virtqueue *vq, int n)
 {
 	struct mic_vdev *mvdev = to_micvdev(vq->vdev);
-	struct vring *vr = (struct vring *) (vq + 1);
+	struct vring *vr = (struct vring *)(vq + 1);
 
-	free_pages((unsigned long) vr->used,
-		get_order(mvdev->used_size[n]));
+	free_pages((unsigned long) vr->used, get_order(mvdev->used_size[n]));
 	vring_del_virtqueue(vq);
 	mic_card_unmap(mvdev->mdev, mvdev->vr[n]);
 	mvdev->vr[n] = NULL;
@@ -274,8 +273,8 @@ static struct virtqueue *mic_find_vq(struct virtio_device *vdev,
 	/* Allocate and reassign used ring now */
 	mvdev->used_size[index] = PAGE_ALIGN(sizeof(__u16) * 3 +
 			sizeof(struct vring_used_elem) * config.num);
-	used = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
-				get_order(mvdev->used_size[index]));
+	used = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+					get_order(mvdev->used_size[index]));
 	if (!used) {
 		err = -ENOMEM;
 		dev_err(mic_dev(mvdev), "%s %d err %d\n",
@@ -291,7 +290,7 @@ static struct virtqueue *mic_find_vq(struct virtio_device *vdev,
 	 * vring_new_virtqueue() would ensure that
 	 *  (&vq->vring == (struct vring *) (&vq->vq + 1));
 	 */
-	vr = (struct vring *) (vq + 1);
+	vr = (struct vring *)(vq + 1);
 	vr->used = used;
 
 	vq->priv = mvdev;
@@ -544,7 +543,7 @@ static void mic_scan_devices(struct mic_driver *mdrv, bool remove)
 		if (dev) {
 			if (remove)
 				iowrite8(MIC_VIRTIO_PARAM_DEV_REMOVE,
-					&dc->config_change);
+					 &dc->config_change);
 			put_device(dev);
 			mic_handle_config_change(d, i, mdrv);
 			ret = mic_remove_device(d, i, mdrv);
@@ -559,7 +558,7 @@ static void mic_scan_devices(struct mic_driver *mdrv, bool remove)
 
 		/* new device */
 		dev_dbg(mdrv->dev, "%s %d Adding new virtio device %p\n",
-				__func__, __LINE__, d);
+			__func__, __LINE__, d);
 		if (!remove)
 			mic_add_device(d, i, mdrv);
 	}
