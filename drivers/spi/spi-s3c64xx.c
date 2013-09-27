@@ -570,9 +570,6 @@ static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
 
 	if (spi->cs_gpio >= 0)
 		gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH ? 1 : 0);
-
-	/* Start the signals */
-	writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 }
 
 static u32 s3c64xx_spi_wait_for_timeout(struct s3c64xx_spi_driver_data *sdd,
@@ -702,9 +699,6 @@ static inline void disable_cs(struct s3c64xx_spi_driver_data *sdd,
 
 	if (spi->cs_gpio >= 0)
 		gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH ? 0 : 1);
-
-	/* Quiese the signals */
-	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 }
 
 static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
@@ -930,6 +924,9 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		/* Slave Select */
 		enable_cs(sdd, spi);
 
+		/* Start the signals */
+		writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
+
 		spin_unlock_irqrestore(&sdd->lock, flags);
 
 		status = wait_for_xfer(sdd, xfer, use_dma);
@@ -970,10 +967,14 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 	}
 
 out:
-	if (!cs_toggle || status)
+	if (!cs_toggle || status) {
+		/* Quiese the signals */
+		writel(S3C64XX_SPI_SLAVE_SIG_INACT,
+		       sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 		disable_cs(sdd, spi);
-	else
+	} else {
 		sdd->tgl_spi = spi;
+	}
 
 	s3c64xx_spi_unmap_mssg(sdd, msg);
 
@@ -1112,11 +1113,13 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	}
 
 	pm_runtime_put(&sdd->pdev->dev);
+	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 	disable_cs(sdd, spi);
 	return 0;
 
 setup_exit:
 	/* setup() returns with device de-selected */
+	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 	disable_cs(sdd, spi);
 
 	gpio_free(cs->line);
