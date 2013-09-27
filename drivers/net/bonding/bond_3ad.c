@@ -1936,6 +1936,9 @@ void bond_3ad_unbind_slave(struct slave *slave)
 	struct port *port, *prev_port, *temp_port;
 	struct aggregator *aggregator, *new_aggregator, *temp_aggregator;
 	int select_new_active_agg = 0;
+	struct bonding *bond = slave->bond;
+	struct slave *slave_iter;
+	struct list_head *iter;
 
 	// find the aggregator related to this slave
 	aggregator = &(SLAVE_AD_INFO(slave).aggregator);
@@ -1965,14 +1968,16 @@ void bond_3ad_unbind_slave(struct slave *slave)
 		// reason to search for new aggregator, and that we will find one
 		if ((aggregator->lag_ports != port) || (aggregator->lag_ports->next_port_in_aggregator)) {
 			// find new aggregator for the related port(s)
-			new_aggregator = __get_first_agg(port);
-			for (; new_aggregator; new_aggregator = __get_next_agg(new_aggregator)) {
+			bond_for_each_slave(bond, slave_iter, iter) {
+				new_aggregator = &(SLAVE_AD_INFO(slave_iter).aggregator);
 				// if the new aggregator is empty, or it is connected to our port only
 				if (!new_aggregator->lag_ports
 				    || ((new_aggregator->lag_ports == port)
 					&& !new_aggregator->lag_ports->next_port_in_aggregator))
 					break;
 			}
+			if (!slave_iter)
+				new_aggregator = NULL;
 			// if new aggregator found, copy the aggregator's parameters
 			// and connect the related lag_ports to the new aggregator
 			if ((new_aggregator) && ((!new_aggregator->lag_ports) || ((new_aggregator->lag_ports == port) && !new_aggregator->lag_ports->next_port_in_aggregator))) {
@@ -2032,8 +2037,8 @@ void bond_3ad_unbind_slave(struct slave *slave)
 
 	pr_debug("Unbinding port %d\n", port->actor_port_number);
 	// find the aggregator that this port is connected to
-	temp_aggregator = __get_first_agg(port);
-	for (; temp_aggregator; temp_aggregator = __get_next_agg(temp_aggregator)) {
+	bond_for_each_slave(bond, slave_iter, iter) {
+		temp_aggregator = &(SLAVE_AD_INFO(slave_iter).aggregator);
 		prev_port = NULL;
 		// search the port in the aggregator's related ports
 		for (temp_port = temp_aggregator->lag_ports; temp_port;
