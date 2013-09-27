@@ -2562,16 +2562,16 @@ struct stereo_mandatory_mode {
 };
 
 static const struct stereo_mandatory_mode stereo_mandatory_modes[] = {
-	{ 1920, 1080, 24,
-	  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM | DRM_MODE_FLAG_3D_FRAME_PACKING },
+	{ 1920, 1080, 24, DRM_MODE_FLAG_3D_TOP_AND_BOTTOM },
+	{ 1920, 1080, 24, DRM_MODE_FLAG_3D_FRAME_PACKING },
 	{ 1920, 1080, 50,
 	  DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF },
 	{ 1920, 1080, 60,
 	  DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF },
-	{ 1280, 720,  50,
-	  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM | DRM_MODE_FLAG_3D_FRAME_PACKING },
-	{ 1280, 720,  60,
-	  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM | DRM_MODE_FLAG_3D_FRAME_PACKING }
+	{ 1280, 720,  50, DRM_MODE_FLAG_3D_TOP_AND_BOTTOM },
+	{ 1280, 720,  50, DRM_MODE_FLAG_3D_FRAME_PACKING },
+	{ 1280, 720,  60, DRM_MODE_FLAG_3D_TOP_AND_BOTTOM },
+	{ 1280, 720,  60, DRM_MODE_FLAG_3D_FRAME_PACKING }
 };
 
 static bool
@@ -2586,50 +2586,33 @@ stereo_match_mandatory(const struct drm_display_mode *mode,
 	       drm_mode_vrefresh(mode) == stereo_mode->vrefresh;
 }
 
-static const struct stereo_mandatory_mode *
-hdmi_find_stereo_mandatory_mode(const struct drm_display_mode *mode)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(stereo_mandatory_modes); i++)
-		if (stereo_match_mandatory(mode, &stereo_mandatory_modes[i]))
-			return &stereo_mandatory_modes[i];
-
-	return NULL;
-}
-
 static int add_hdmi_mandatory_stereo_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	const struct drm_display_mode *mode;
 	struct list_head stereo_modes;
-	int modes = 0;
+	int modes = 0, i;
 
 	INIT_LIST_HEAD(&stereo_modes);
 
 	list_for_each_entry(mode, &connector->probed_modes, head) {
-		const struct stereo_mandatory_mode *mandatory;
-		u32 stereo_layouts, layout;
-
-		mandatory = hdmi_find_stereo_mandatory_mode(mode);
-		if (!mandatory)
-			continue;
-
-		stereo_layouts = mandatory->flags & DRM_MODE_FLAG_3D_MASK;
-		do {
+		for (i = 0; i < ARRAY_SIZE(stereo_mandatory_modes); i++) {
+			const struct stereo_mandatory_mode *mandatory;
 			struct drm_display_mode *new_mode;
 
-			layout = 1 << (ffs(stereo_layouts) - 1);
-			stereo_layouts &= ~layout;
+			if (!stereo_match_mandatory(mode,
+						    &stereo_mandatory_modes[i]))
+				continue;
 
+			mandatory = &stereo_mandatory_modes[i];
 			new_mode = drm_mode_duplicate(dev, mode);
 			if (!new_mode)
 				continue;
 
-			new_mode->flags |= layout;
+			new_mode->flags |= mandatory->flags;
 			list_add_tail(&new_mode->head, &stereo_modes);
 			modes++;
-		} while (stereo_layouts);
+		}
 	}
 
 	list_splice_tail(&stereo_modes, &connector->probed_modes);
