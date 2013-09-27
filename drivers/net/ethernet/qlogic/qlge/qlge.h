@@ -18,7 +18,7 @@
  */
 #define DRV_NAME  	"qlge"
 #define DRV_STRING 	"QLogic 10 Gigabit PCI-E Ethernet Driver "
-#define DRV_VERSION	"v1.00.00.32"
+#define DRV_VERSION	"1.00.00.33"
 
 #define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
 
