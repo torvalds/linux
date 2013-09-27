@@ -108,6 +108,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet_1>;
 	phy-mode = "rgmii";
+	phy-reset-gpios = <&gpio1 25 0>;
 	status = "okay";
 };
 
@@ -172,6 +173,7 @@
 				MX6QDL_PAD_NANDF_CLE__GPIO6_IO07 0x80000000
 				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x80000000
 				MX6QDL_PAD_EIM_D22__GPIO3_IO22  0x80000000
+				MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25 0x80000000
 			>;
 		};
 	};
