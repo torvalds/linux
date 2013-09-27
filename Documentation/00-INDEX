@@ -40,7 +40,7 @@ IPMI.txt
 IRQ-affinity.txt
 	- how to select which CPU(s) handle which interrupt events on SMP.
 IRQ-domain.txt
-	- info on inerrupt numbering and setting up IRQ domains.
+	- info on interrupt numbering and setting up IRQ domains.
 IRQ.txt
 	- description of what an IRQ is.
 Intel-IOMMU.txt

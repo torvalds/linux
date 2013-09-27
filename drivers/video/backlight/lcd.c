@@ -89,7 +89,7 @@ static inline void lcd_unregister_fb(struct lcd_device *ld)
 }
 #endif /* CONFIG_FB */
 
-static ssize_t lcd_show_power(struct device *dev, struct device_attribute *attr,
+static ssize_t lcd_power_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	int rc;
@@ -105,7 +105,7 @@ static ssize_t lcd_show_power(struct device *dev, struct device_attribute *attr,
 	return rc;
 }
 
-static ssize_t lcd_store_power(struct device *dev,
+static ssize_t lcd_power_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	int rc;
@@ -128,8 +128,9 @@ static ssize_t lcd_store_power(struct device *dev,
 
 	return rc;
 }
+static DEVICE_ATTR_RW(lcd_power);
 
-static ssize_t lcd_show_contrast(struct device *dev,
+static ssize_t contrast_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	int rc = -ENXIO;
@@ -143,7 +144,7 @@ static ssize_t lcd_show_contrast(struct device *dev,
 	return rc;
 }
 
-static ssize_t lcd_store_contrast(struct device *dev,
+static ssize_t contrast_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	int rc;
@@ -166,14 +167,16 @@ static ssize_t lcd_store_contrast(struct device *dev,
 
 	return rc;
 }
+static DEVICE_ATTR_RW(contrast);
 
-static ssize_t lcd_show_max_contrast(struct device *dev,
+static ssize_t max_contrast_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct lcd_device *ld = to_lcd_device(dev);
 
 	return sprintf(buf, "%d\n", ld->props.max_contrast);
 }
+static DEVICE_ATTR_RO(max_contrast);
 
 static struct class *lcd_class;
 
@@ -183,12 +186,13 @@ static void lcd_device_release(struct device *dev)
 	kfree(ld);
 }
 
-static struct device_attribute lcd_device_attributes[] = {
-	__ATTR(lcd_power, 0644, lcd_show_power, lcd_store_power),
-	__ATTR(contrast, 0644, lcd_show_contrast, lcd_store_contrast),
-	__ATTR(max_contrast, 0444, lcd_show_max_contrast, NULL),
-	__ATTR_NULL,
+static struct attribute *lcd_device_attrs[] = {
+	&dev_attr_lcd_power.attr,
+	&dev_attr_contrast.attr,
+	&dev_attr_max_contrast.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(lcd_device);
 
 /**
  * lcd_device_register - register a new object of lcd_device class.
@@ -344,7 +348,7 @@ static int __init lcd_class_init(void)
 		return PTR_ERR(lcd_class);
 	}
 
-	lcd_class->dev_attrs = lcd_device_attributes;
+	lcd_class->dev_groups = lcd_device_groups;
 	return 0;
 }
 

@@ -743,6 +743,14 @@ config HID_WIIMOTE
 	To compile this driver as a module, choose M here: the
 	module will be called hid-wiimote.
 
+config HID_XINMO
+	tristate "Xin-Mo non-fully compliant devices"
+	depends on HID
+	---help---
+	Support for Xin-Mo devices that are not fully compliant with the HID
+	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
+	if you have a Xin-Mo Dual Arcade controller.
+
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support"
 	depends on HID

@@ -73,6 +73,9 @@ If you do not specify any options, they will default to
 
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
+
 #include "../comedidev.h"
 
 /* address scheme (page 2.17 of the manual) */
@@ -214,10 +217,9 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	devpriv->unipolar = it->options[1];
 	devpriv->differential = it->options[2];

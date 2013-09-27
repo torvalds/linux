@@ -76,9 +76,9 @@ pin, which can be used to wake up tasks.
    or http://www.linux-magazin.de/ausgabe/1999/10/IO/io.html
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 #include <linux/interrupt.h>
-#include <linux/ioport.h>
 
 #include "comedi_fc.h"
 
@@ -279,10 +279,9 @@ static int parport_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DIO;

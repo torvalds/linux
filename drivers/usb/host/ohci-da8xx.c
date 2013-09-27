@@ -85,7 +85,7 @@ static void ohci_da8xx_ocic_handler(struct da8xx_ohci_root_hub *hub,
 static int ohci_da8xx_init(struct usb_hcd *hcd)
 {
 	struct device *dev		= hcd->self.controller;
-	struct da8xx_ohci_root_hub *hub	= dev->platform_data;
+	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
 	struct ohci_hcd	*ohci		= hcd_to_ohci(hcd);
 	int result;
 	u32 rh_a;
@@ -171,7 +171,7 @@ static int ohci_da8xx_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				  u16 wIndex, char *buf, u16 wLength)
 {
 	struct device *dev		= hcd->self.controller;
-	struct da8xx_ohci_root_hub *hub	= dev->platform_data;
+	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
 	int temp;
 
 	switch (typeReq) {
@@ -292,7 +292,7 @@ static const struct hc_driver ohci_da8xx_hc_driver = {
 static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 			       struct platform_device *pdev)
 {
-	struct da8xx_ohci_root_hub *hub	= pdev->dev.platform_data;
+	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(&pdev->dev);
 	struct usb_hcd	*hcd;
 	struct resource *mem;
 	int error, irq;
@@ -380,7 +380,7 @@ err0:
 static inline void
 usb_hcd_da8xx_remove(struct usb_hcd *hcd, struct platform_device *pdev)
 {
-	struct da8xx_ohci_root_hub *hub	= pdev->dev.platform_data;
+	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(&pdev->dev);
 
 	hub->ocic_notify(NULL);
 	usb_remove_hcd(hcd);

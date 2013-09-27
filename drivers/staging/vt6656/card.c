@@ -319,53 +319,27 @@ CARDvCalculateOFDMRParameter (
  */
 void CARDvSetRSPINF(struct vnt_private *pDevice, u8 byBBType)
 {
-	u8 abyServ[4] = {0, 0, 0, 0}; /* For CCK */
-	u8 abySignal[4] = {0, 0, 0, 0};
-	u16 awLen[4] = {0, 0, 0, 0};
+	struct vnt_phy_field phy[4];
 	u8 abyTxRate[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0}; /* For OFDM */
 	u8 abyRsvTime[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 	u8 abyData[34];
 	int i;
 
     //RSPINF_b_1
-    BBvCalculateParameter(pDevice,
-                         14,
-                         swGetCCKControlRate(pDevice, RATE_1M),
-                         PK_TYPE_11B,
-                         &awLen[0],
-                         &abyServ[0],
-                         &abySignal[0]
-    );
+	BBvCalculateParameter(pDevice, 14,
+		swGetCCKControlRate(pDevice, RATE_1M), PK_TYPE_11B, &phy[0]);
 
     ///RSPINF_b_2
-    BBvCalculateParameter(pDevice,
-                         14,
-                         swGetCCKControlRate(pDevice, RATE_2M),
-                         PK_TYPE_11B,
-                         &awLen[1],
-                         &abyServ[1],
-                         &abySignal[1]
-    );
+	BBvCalculateParameter(pDevice, 14,
+		swGetCCKControlRate(pDevice, RATE_2M), PK_TYPE_11B, &phy[1]);
 
     //RSPINF_b_5
-    BBvCalculateParameter(pDevice,
-                         14,
-                         swGetCCKControlRate(pDevice, RATE_5M),
-                         PK_TYPE_11B,
-                         &awLen[2],
-                         &abyServ[2],
-                         &abySignal[2]
-    );
+	BBvCalculateParameter(pDevice, 14,
+		swGetCCKControlRate(pDevice, RATE_5M), PK_TYPE_11B, &phy[2]);
 
     //RSPINF_b_11
-    BBvCalculateParameter(pDevice,
-                         14,
-                         swGetCCKControlRate(pDevice, RATE_11M),
-                         PK_TYPE_11B,
-                         &awLen[3],
-                         &abyServ[3],
-                         &abySignal[3]
-    );
+	BBvCalculateParameter(pDevice, 14,
+		swGetCCKControlRate(pDevice, RATE_11M), PK_TYPE_11B, &phy[3]);
 
     //RSPINF_a_6
     CARDvCalculateOFDMRParameter (RATE_6M,
@@ -421,25 +395,21 @@ void CARDvSetRSPINF(struct vnt_private *pDevice, u8 byBBType)
                                  &abyTxRate[8],
                                  &abyRsvTime[8]);
 
-    abyData[0] = (u8)(awLen[0]&0xFF);
-    abyData[1] = (u8)(awLen[0]>>8);
-    abyData[2] = abySignal[0];
-    abyData[3] = abyServ[0];
+	put_unaligned(phy[0].len, (u16 *)&abyData[0]);
+	abyData[2] = phy[0].signal;
+	abyData[3] = phy[0].service;
 
-    abyData[4] = (u8)(awLen[1]&0xFF);
-    abyData[5] = (u8)(awLen[1]>>8);
-    abyData[6] = abySignal[1];
-    abyData[7] = abyServ[1];
+	put_unaligned(phy[1].len, (u16 *)&abyData[4]);
+	abyData[6] = phy[1].signal;
+	abyData[7] = phy[1].service;
 
-    abyData[8] = (u8)(awLen[2]&0xFF);
-    abyData[9] = (u8)(awLen[2]>>8);
-    abyData[10] = abySignal[2];
-    abyData[11] = abyServ[2];
+	put_unaligned(phy[2].len, (u16 *)&abyData[8]);
+	abyData[10] = phy[2].signal;
+	abyData[11] = phy[2].service;
 
-    abyData[12] = (u8)(awLen[3]&0xFF);
-    abyData[13] = (u8)(awLen[3]>>8);
-    abyData[14] = abySignal[3];
-    abyData[15] = abyServ[3];
+	put_unaligned(phy[3].len, (u16 *)&abyData[12]);
+	abyData[14] = phy[3].signal;
+	abyData[15] = phy[3].service;
 
     for (i = 0; i < 9; i++) {
 	abyData[16+i*2] = abyTxRate[i];

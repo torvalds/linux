@@ -524,7 +524,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->flags.reset_active = 0;
 	ha->flags.pci_channel_io_perm_failure = 0;
 	ha->flags.eeh_busy = 0;
-	ha->thermal_support = THERMAL_SUPPORT_I2C|THERMAL_SUPPORT_ISP;
+	vha->qla_stats.jiffies_at_last_reset = get_jiffies_64();
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&vha->loop_state, LOOP_DOWN);
 	vha->device_flags = DFLG_NO_CABLE;
@@ -552,7 +552,18 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	if (rval) {
 		ql_log(ql_log_fatal, vha, 0x004f,
 		    "Unable to validate FLASH data.\n");
-		return (rval);
+		return rval;
+	}
+
+	if (IS_QLA8044(ha)) {
+		qla8044_read_reset_template(vha);
+
+		/* NOTE: If ql2xdontresethba==1, set IDC_CTRL DONTRESET_BIT0.
+		 * If DONRESET_BIT0 is set, drivers should not set dev_state
+		 * to NEED_RESET. But if NEED_RESET is set, drivers should
+		 * should honor the reset. */
+		if (ql2xdontresethba == 1)
+			qla8044_set_idc_dontreset(vha);
 	}
 
 	ha->isp_ops->get_flash_version(vha, req->ring);
@@ -564,12 +575,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	if (ha->flags.disable_serdes) {
 		/* Mask HBA via NVRAM settings? */
 		ql_log(ql_log_info, vha, 0x0077,
-		    "Masking HBA WWPN "
-		    "%02x%02x%02x%02x%02x%02x%02x%02x (via NVRAM).\n",
-		    vha->port_name[0], vha->port_name[1],
-		    vha->port_name[2], vha->port_name[3],
-		    vha->port_name[4], vha->port_name[5],
-		    vha->port_name[6], vha->port_name[7]);
+		    "Masking HBA WWPN %8phN (via NVRAM).\n", vha->port_name);
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -619,6 +625,11 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 
 	if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha))
 		qla24xx_read_fcp_prio_cfg(vha);
+
+	if (IS_P3P_TYPE(ha))
+		qla82xx_set_driver_version(vha, QLA2XXX_VERSION);
+	else
+		qla25xx_set_driver_version(vha, QLA2XXX_VERSION);
 
 	return (rval);
 }
@@ -1332,7 +1343,7 @@ qla24xx_chip_diag(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		return QLA_SUCCESS;
 
 	ha->fw_transfer_size = REQUEST_ENTRY_SIZE * req->length;
@@ -1615,7 +1626,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 	unsigned long flags;
 	uint16_t fw_major_version;
 
-	if (IS_QLA82XX(ha)) {
+	if (IS_P3P_TYPE(ha)) {
 		rval = ha->isp_ops->load_risc(vha, &srisc_address);
 		if (rval == QLA_SUCCESS) {
 			qla2x00_stop_firmware(vha);
@@ -1651,7 +1662,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			if (rval == QLA_SUCCESS) {
 enable_82xx_npiv:
 				fw_major_version = ha->fw_major_version;
-				if (IS_QLA82XX(ha))
+				if (IS_P3P_TYPE(ha))
 					qla82xx_check_md_needed(vha);
 				else
 					rval = qla2x00_get_fw_version(vha);
@@ -1681,7 +1692,7 @@ enable_82xx_npiv:
 					goto failed;
 
 				if (!fw_major_version && ql2xallocfwdump
-				    && !IS_QLA82XX(ha))
+				    && !(IS_P3P_TYPE(ha)))
 					qla2x00_alloc_fw_dump(vha);
 			}
 		} else {
@@ -1849,7 +1860,7 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 	int rval;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		return;
 
 	/* Update Serial Link options. */
@@ -3061,22 +3072,13 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	    mb);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_disc, vha, 0x2004,
-		    "Unable to adjust iIDMA "
-		    "%02x%02x%02x%02x%02x%02x%02x%02x -- %04x %x %04x "
-		    "%04x.\n", fcport->port_name[0], fcport->port_name[1],
-		    fcport->port_name[2], fcport->port_name[3],
-		    fcport->port_name[4], fcport->port_name[5],
-		    fcport->port_name[6], fcport->port_name[7], rval,
-		    fcport->fp_speed, mb[0], mb[1]);
+		    "Unable to adjust iIDMA %8phN -- %04x %x %04x %04x.\n",
+		    fcport->port_name, rval, fcport->fp_speed, mb[0], mb[1]);
 	} else {
 		ql_dbg(ql_dbg_disc, vha, 0x2005,
-		    "iIDMA adjusted to %s GB/s "
-		    "on %02x%02x%02x%02x%02x%02x%02x%02x.\n",
+		    "iIDMA adjusted to %s GB/s on %8phN.\n",
 		    qla2x00_get_link_speed_str(ha, fcport->fp_speed),
-		    fcport->port_name[0], fcport->port_name[1],
-		    fcport->port_name[2], fcport->port_name[3],
-		    fcport->port_name[4], fcport->port_name[5],
-		    fcport->port_name[6], fcport->port_name[7]);
+		    fcport->port_name);
 	}
 }
 
@@ -4007,10 +4009,18 @@ qla83xx_reset_ownership(scsi_qla_host_t *vha)
 	uint32_t class_type_mask = 0x3;
 	uint16_t fcoe_other_function = 0xffff, i;
 
-	qla83xx_rd_reg(vha, QLA83XX_IDC_DRV_PRESENCE, &drv_presence);
-
-	qla83xx_rd_reg(vha, QLA83XX_DEV_PARTINFO1, &dev_part_info1);
-	qla83xx_rd_reg(vha, QLA83XX_DEV_PARTINFO2, &dev_part_info2);
+	if (IS_QLA8044(ha)) {
+		drv_presence = qla8044_rd_direct(vha,
+		    QLA8044_CRB_DRV_ACTIVE_INDEX);
+		dev_part_info1 = qla8044_rd_direct(vha,
+		    QLA8044_CRB_DEV_PART_INFO_INDEX);
+		dev_part_info2 = qla8044_rd_direct(vha,
+		    QLA8044_CRB_DEV_PART_INFO2);
+	} else {
+		qla83xx_rd_reg(vha, QLA83XX_IDC_DRV_PRESENCE, &drv_presence);
+		qla83xx_rd_reg(vha, QLA83XX_DEV_PARTINFO1, &dev_part_info1);
+		qla83xx_rd_reg(vha, QLA83XX_DEV_PARTINFO2, &dev_part_info2);
+	}
 	for (i = 0; i < 8; i++) {
 		class_type = ((dev_part_info1 >> (i * 4)) & class_type_mask);
 		if ((class_type == QLA83XX_CLASS_TYPE_FCOE) &&
@@ -4347,7 +4357,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	/* For ISP82XX, driver waits for completion of the commands.
 	 * online flag should be set.
 	 */
-	if (!IS_QLA82XX(ha))
+	if (!(IS_P3P_TYPE(ha)))
 		vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
 	clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
@@ -4360,7 +4370,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	 * Driver waits for the completion of the commands.
 	 * the interrupts need to be enabled.
 	 */
-	if (!IS_QLA82XX(ha))
+	if (!(IS_P3P_TYPE(ha)))
 		ha->isp_ops->reset_chip(vha);
 
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
@@ -4403,7 +4413,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 
 	if (!ha->flags.eeh_busy) {
 		/* Make sure for ISP 82XX IO DMA is complete */
-		if (IS_QLA82XX(ha)) {
+		if (IS_P3P_TYPE(ha)) {
 			qla82xx_chip_reset_cleanup(vha);
 			ql_log(ql_log_info, vha, 0x00b4,
 			    "Done chip reset cleanup.\n");
@@ -4723,7 +4733,7 @@ qla24xx_reset_adapter(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		return;
 
 	vha->flags.online = 0;
@@ -4789,8 +4799,6 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	}
 	ha->nvram_size = sizeof(struct nvram_24xx);
 	ha->vpd_size = FA_NVRAM_VPD_SIZE;
-	if (IS_QLA82XX(ha))
-		ha->vpd_size = FA_VPD_SIZE_82XX;
 
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
@@ -5552,6 +5560,8 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	/* Determine NVRAM starting address. */
 	ha->nvram_size = sizeof(struct nvram_81xx);
 	ha->vpd_size = FA_NVRAM_VPD_SIZE;
+	if (IS_P3P_TYPE(ha) || IS_QLA8031(ha))
+		ha->vpd_size = FA_VPD_SIZE_82XX;
 
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
@@ -5734,7 +5744,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 
 	/* Link Down Timeout = 0:
 	 *
-	 * 	When Port Down timer expires we will start returning
+	 *	When Port Down timer expires we will start returning
 	 *	I/O's to OS with "DID_NO_CONNECT".
 	 *
 	 * Link Down Timeout != 0:
@@ -6061,7 +6071,7 @@ qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (priority < 0)
 		return QLA_FUNCTION_FAILED;
 
-	if (IS_QLA82XX(vha->hw)) {
+	if (IS_P3P_TYPE(vha->hw)) {
 		fcport->fcp_prio = priority & 0xf;
 		return QLA_SUCCESS;
 	}

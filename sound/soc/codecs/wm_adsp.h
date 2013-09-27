@@ -39,6 +39,7 @@ struct wm_adsp {
 	int type;
 	struct device *dev;
 	struct regmap *regmap;
+	struct snd_soc_card *card;
 
 	int base;
 	int sysclk_reg;
@@ -57,7 +58,7 @@ struct wm_adsp {
 
 	struct regulator *dvfs;
 
-	struct wm_coeff *wm_coeff;
+	struct list_head ctl_list;
 };
 
 #define WM_ADSP1(wname, num) \

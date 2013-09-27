@@ -100,7 +100,6 @@ endif # COMEDI_MISC_DRIVERS
 
 menuconfig COMEDI_ISA_DRIVERS
 	bool "Comedi ISA and PC/104 drivers"
-	depends on ISA
 	---help---
 	  Enable comedi ISA and PC/104 drivers to be built
 
@@ -122,8 +121,18 @@ config COMEDI_PCL724
 	tristate "Advantech PCL-722/724/731 and ADlink ACL-7122/7124/PET-48DIO"
 	select COMEDI_8255
 	---help---
-	  Enable support for Advantech PCL-724, PCL-722, PCL-731 and
-	  ADlink ACL-7122, ACL-7124, PET-48DIO ISA cards
+	  Enable support for ISA and PC/104 based 8255 digital i/o boards. This
+	  driver provides a legacy comedi driver wrapper for the generic 8255
+	  support driver.
+
+	  Supported boards include:
+	    Advantech PCL-724    24 channels
+	    Advantech PCL-722    144 (or 96) channels
+	    Advantech PCL-731    48 channels
+	    ADlink ACL-7122      144 (or 96) channels
+	    ADlink ACL-7124      24 channels
+	    ADlink PET-48DIO     48 channels
+	    WinSystems PCM-IO48  48 channels (PC/104)
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl724.
@@ -403,6 +412,15 @@ config COMEDI_AIO_IIRO_16
 	  To compile this driver as a module, choose M here: the module will be
 	  called aio_iiro_16.
 
+config COMEDI_II_PCI20KC
+	tristate "Intelligent Instruments PCI-20001C carrier support"
+	---help---
+	  Enable support for Intelligent Instruments PCI-20001C carrier
+	  PCI-20001, PCI-20006 and PCI-20341
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ii_pci20kc.
+
 config COMEDI_C6XDIGIO
 	tristate "Mechatronic Systems Inc. C6x_DIGIO DSP daughter card support"
 	---help---
@@ -448,7 +466,6 @@ config COMEDI_NI_AT_AO
 
 config COMEDI_NI_ATMIO
 	tristate "NI AT-MIO E series ISA-PNP card support"
-	depends on ISAPNP
 	select COMEDI_8255
 	select COMEDI_NI_TIO
 	---help---
@@ -461,11 +478,10 @@ config COMEDI_NI_ATMIO
 	  called ni_atmio.
 
 config COMEDI_NI_ATMIO16D
-	tristate "NI AT-MIO16/AT-MIO16D series ISA-PNP card support"
-	depends on ISAPNP
+	tristate "NI AT-MIO-16/AT-MIO-16D series ISA card support"
 	select COMEDI_8255
 	---help---
-	  Enable support for National Instruments AT-MIO16/AT-MIO16D cards.
+	  Enable support for National Instruments AT-MIO-16/AT-MIO-16D cards.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_atmio16d.
@@ -473,7 +489,7 @@ config COMEDI_NI_ATMIO16D
 config COMEDI_NI_LABPC_ISA
 	tristate "NI Lab-PC and compatibles ISA support"
 	select COMEDI_NI_LABPC
-	depends on VIRT_TO_BUS
+	select COMEDI_NI_LABPC_ISADMA if ISA_DMA_API && VIRT_TO_BUS
 	---help---
 	  Enable support for National Instruments Lab-PC and compatibles
 	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+.
@@ -866,15 +882,6 @@ config COMEDI_ICP_MULTI
 	  To compile this driver as a module, choose M here: the module will be
 	  called icp_multi.
 
-config COMEDI_II_PCI20KC
-	tristate "Intelligent Instruments PCI-20001C carrier support"
-	---help---
-	  Enable support for Intelligent Instruments PCI-20001C carrier
-	  PCI-20001, PCI-20006 and PCI-20341
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called ii_pci20kc.
-
 config COMEDI_DAQBOARD2000
 	tristate "IOtech DAQboard/2000 support"
 	select COMEDI_8255
@@ -1261,6 +1268,9 @@ config COMEDI_NI_LABPC
 	tristate
 	select COMEDI_8255
 	select COMEDI_FC
+
+config COMEDI_NI_LABPC_ISADMA
+	tristate
 
 config COMEDI_NI_TIO
 	tristate

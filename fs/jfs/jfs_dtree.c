@@ -3047,6 +3047,14 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 
 		dir_index = (u32) ctx->pos;
 
+		/*
+		 * NFSv4 reserves cookies 1 and 2 for . and .. so the value
+		 * we return to the vfs is one greater than the one we use
+		 * internally.
+		 */
+		if (dir_index)
+			dir_index--;
+
 		if (dir_index > 1) {
 			struct dir_table_slot dirtab_slot;
 
@@ -3086,7 +3094,7 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 			if (p->header.flag & BT_INTERNAL) {
 				jfs_err("jfs_readdir: bad index table");
 				DT_PUTPAGE(mp);
-				ctx->pos = -1;
+				ctx->pos = DIREND;
 				return 0;
 			}
 		} else {
@@ -3094,14 +3102,14 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 				/*
 				 * self "."
 				 */
-				ctx->pos = 0;
+				ctx->pos = 1;
 				if (!dir_emit(ctx, ".", 1, ip->i_ino, DT_DIR))
 					return 0;
 			}
 			/*
 			 * parent ".."
 			 */
-			ctx->pos = 1;
+			ctx->pos = 2;
 			if (!dir_emit(ctx, "..", 2, PARENT(ip), DT_DIR))
 				return 0;
 
@@ -3122,22 +3130,23 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 		/*
 		 * Legacy filesystem - OS/2 & Linux JFS < 0.3.6
 		 *
-		 * pn = index = 0:	First entry "."
-		 * pn = 0; index = 1:	Second entry ".."
+		 * pn = 0; index = 1:	First entry "."
+		 * pn = 0; index = 2:	Second entry ".."
 		 * pn > 0:		Real entries, pn=1 -> leftmost page
 		 * pn = index = -1:	No more entries
 		 */
 		dtpos = ctx->pos;
-		if (dtpos == 0) {
+		if (dtpos < 2) {
 			/* build "." entry */
+			ctx->pos = 1;
 			if (!dir_emit(ctx, ".", 1, ip->i_ino, DT_DIR))
 				return 0;
-			dtoffset->index = 1;
+			dtoffset->index = 2;
 			ctx->pos = dtpos;
 		}
 
 		if (dtoffset->pn == 0) {
-			if (dtoffset->index == 1) {
+			if (dtoffset->index == 2) {
 				/* build ".." entry */
 				if (!dir_emit(ctx, "..", 2, PARENT(ip), DT_DIR))
 					return 0;
@@ -3228,6 +3237,12 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 					}
 					jfs_dirent->position = unique_pos++;
 				}
+				/*
+				 * We add 1 to the index because we may
+				 * use a value of 2 internally, and NFSv4
+				 * doesn't like that.
+				 */
+				jfs_dirent->position++;
 			} else {
 				jfs_dirent->position = dtpos;
 				len = min(d_namleft, DTLHDRDATALEN_LEGACY);

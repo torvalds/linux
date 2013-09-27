@@ -26,7 +26,7 @@
 
 struct octeon_hcd {
 	spinlock_t lock;
-	cvmx_usb_state_t usb;
+	struct cvmx_usb_state usb;
 	struct tasklet_struct dequeue_tasklet;
 	struct list_head dequeue_list;
 };
@@ -42,7 +42,7 @@ static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
 	return container_of((void *)p, struct usb_hcd, hcd_priv);
 }
 
-static inline struct octeon_hcd *cvmx_usb_to_octeon(cvmx_usb_state_t *p)
+static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
 {
 	return container_of(p, struct octeon_hcd, usb);
 }
@@ -58,9 +58,9 @@ static irqreturn_t octeon_usb_irq(struct usb_hcd *hcd)
 	return IRQ_HANDLED;
 }
 
-static void octeon_usb_port_callback(cvmx_usb_state_t *usb,
-				     cvmx_usb_callback_t reason,
-				     cvmx_usb_complete_t status,
+static void octeon_usb_port_callback(struct cvmx_usb_state *usb,
+				     enum cvmx_usb_callback reason,
+				     enum cvmx_usb_complete status,
 				     int pipe_handle,
 				     int submit_handle,
 				     int bytes_transferred,
@@ -105,9 +105,9 @@ static int octeon_usb_get_frame_number(struct usb_hcd *hcd)
 	return cvmx_usb_get_frame_number(&priv->usb);
 }
 
-static void octeon_usb_urb_complete_callback(cvmx_usb_state_t *usb,
-					     cvmx_usb_callback_t reason,
-					     cvmx_usb_complete_t status,
+static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
+					     enum cvmx_usb_callback reason,
+					     enum cvmx_usb_complete status,
 					     int pipe_handle,
 					     int submit_handle,
 					     int bytes_transferred,
@@ -141,7 +141,8 @@ static void octeon_usb_urb_complete_callback(cvmx_usb_state_t *usb,
 		 * The pointer to the private list is stored in the setup_packet
 		 * field.
 		 */
-		cvmx_usb_iso_packet_t *iso_packet = (cvmx_usb_iso_packet_t *) urb->setup_packet;
+		struct cvmx_usb_iso_packet *iso_packet =
+			(struct cvmx_usb_iso_packet *) urb->setup_packet;
 		/* Recalculate the transfer size by adding up each packet */
 		urb->actual_length = 0;
 		for (i = 0; i < urb->number_of_packets; i++) {
@@ -208,7 +209,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	int submit_handle = -1;
 	int pipe_handle;
 	unsigned long flags;
-	cvmx_usb_iso_packet_t *iso_packet;
+	struct cvmx_usb_iso_packet *iso_packet;
 	struct usb_host_endpoint *ep = urb->ep;
 
 	urb->status = 0;
@@ -216,8 +217,8 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if (!ep->hcpriv) {
-		cvmx_usb_transfer_t transfer_type;
-		cvmx_usb_speed_t speed;
+		enum cvmx_usb_transfer transfer_type;
+		enum cvmx_usb_speed speed;
 		int split_device = 0;
 		int split_port = 0;
 		switch (usb_pipetype(urb->pipe)) {
@@ -305,7 +306,9 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		 * Allocate a structure to use for our private list of
 		 * isochronous packets.
 		 */
-		iso_packet = kmalloc(urb->number_of_packets * sizeof(cvmx_usb_iso_packet_t), GFP_ATOMIC);
+		iso_packet = kmalloc(urb->number_of_packets *
+				     sizeof(struct cvmx_usb_iso_packet),
+				     GFP_ATOMIC);
 		if (iso_packet) {
 			int i;
 			/* Fill the list with the data from the URB */
@@ -440,7 +443,7 @@ static void octeon_usb_endpoint_disable(struct usb_hcd *hcd, struct usb_host_end
 static int octeon_usb_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct octeon_hcd *priv = hcd_to_octeon(hcd);
-	cvmx_usb_port_status_t port_status;
+	struct cvmx_usb_port_status port_status;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -456,7 +459,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
 {
 	struct octeon_hcd *priv = hcd_to_octeon(hcd);
 	struct device *dev = hcd->self.controller;
-	cvmx_usb_port_status_t usb_port_status;
+	struct cvmx_usb_port_status usb_port_status;
 	int port_status;
 	struct usb_hub_descriptor *desc;
 	unsigned long flags;

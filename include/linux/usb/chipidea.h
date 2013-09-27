@@ -18,12 +18,17 @@ struct ci_hdrc_platform_data {
 	unsigned long	 flags;
 #define CI_HDRC_REGS_SHARED		BIT(0)
 #define CI_HDRC_REQUIRE_TRANSCEIVER	BIT(1)
-#define CI_HDRC_PULLUP_ON_VBUS		BIT(2)
 #define CI_HDRC_DISABLE_STREAMING	BIT(3)
+	/*
+	 * Only set it when DCCPARAMS.DC==1 and DCCPARAMS.HC==1,
+	 * but otg is not supported (no register otgsc).
+	 */
+#define CI_HDRC_DUAL_ROLE_NOT_OTG	BIT(4)
 	enum usb_dr_mode	dr_mode;
 #define CI_HDRC_CONTROLLER_RESET_EVENT		0
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1
 	void	(*notify_event) (struct ci_hdrc *ci, unsigned event);
+	struct regulator	*reg_vbus;
 };
 
 /* Default offset of capability registers */

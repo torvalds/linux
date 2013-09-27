@@ -855,8 +855,8 @@ static void lm87_init_client(struct i2c_client *client)
 {
 	struct lm87_data *data = i2c_get_clientdata(client);
 
-	if (client->dev.platform_data) {
-		data->channel = *(u8 *)client->dev.platform_data;
+	if (dev_get_platdata(&client->dev)) {
+		data->channel = *(u8 *)dev_get_platdata(&client->dev);
 		lm87_write_value(client,
 				 LM87_REG_CHANNEL_MODE, data->channel);
 	} else {

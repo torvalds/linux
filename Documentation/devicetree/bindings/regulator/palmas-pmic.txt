@@ -25,8 +25,8 @@ Optional nodes:
 	       Additional custom properties  are listed below.
 
 	       For ti,palmas-pmic - smps12, smps123, smps3 depending on OTP,
-	       smps45, smps457, smps7 depending on variant, smps6, smps[8-10],
-	       ldo[1-9], ldoln, ldousb.
+	       smps45, smps457, smps7 depending on variant, smps6, smps[8-9],
+	       smps10_out2, smps10_out1, do[1-9], ldoln, ldousb.
 
 	       Optional sub-node properties:
 	       ti,warm-reset - maintain voltage during warm reset(boolean)

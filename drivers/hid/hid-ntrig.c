@@ -115,7 +115,8 @@ static inline int ntrig_get_mode(struct hid_device *hdev)
 	struct hid_report *report = hdev->report_enum[HID_FEATURE_REPORT].
 				    report_id_hash[0x0d];
 
-	if (!report)
+	if (!report || report->maxfield < 1 ||
+	    report->field[0]->report_count < 1)
 		return -EINVAL;
 
 	hid_hw_request(hdev, report, HID_REQ_GET_REPORT);
@@ -237,7 +238,7 @@ static ssize_t set_min_width(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_width)
@@ -272,7 +273,7 @@ static ssize_t set_min_height(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_height)
@@ -306,7 +307,7 @@ static ssize_t set_activate_slack(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > 0x7f)
@@ -341,7 +342,7 @@ static ssize_t set_activation_width(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_width)
@@ -377,7 +378,7 @@ static ssize_t set_activation_height(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_height)
@@ -411,7 +412,7 @@ static ssize_t set_deactivate_slack(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	/*

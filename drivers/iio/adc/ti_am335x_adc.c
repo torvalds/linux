@@ -216,11 +216,11 @@ static int tiadc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	indio_dev = iio_device_alloc(sizeof(struct tiadc_device));
+	indio_dev = devm_iio_device_alloc(&pdev->dev,
+					  sizeof(struct tiadc_device));
 	if (indio_dev == NULL) {
 		dev_err(&pdev->dev, "failed to allocate iio device\n");
-		err = -ENOMEM;
-		goto err_ret;
+		return -ENOMEM;
 	}
 	adc_dev = iio_priv(indio_dev);
 
@@ -241,7 +241,7 @@ static int tiadc_probe(struct platform_device *pdev)
 
 	err = tiadc_channel_init(indio_dev, adc_dev->channels);
 	if (err < 0)
-		goto err_free_device;
+		return err;
 
 	err = iio_device_register(indio_dev);
 	if (err)
@@ -253,9 +253,6 @@ static int tiadc_probe(struct platform_device *pdev)
 
 err_free_channels:
 	tiadc_channels_remove(indio_dev);
-err_free_device:
-	iio_device_free(indio_dev);
-err_ret:
 	return err;
 }
 
@@ -270,8 +267,6 @@ static int tiadc_remove(struct platform_device *pdev)
 
 	step_en = get_adc_step_mask(adc_dev);
 	am335x_tsc_se_clr(adc_dev->mfd_tscadc, step_en);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

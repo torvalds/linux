@@ -68,6 +68,11 @@
 #define UFSHCD "ufshcd"
 #define UFSHCD_DRIVER_VERSION "0.2"
 
+enum dev_cmd_type {
+	DEV_CMD_TYPE_NOP		= 0x0,
+	DEV_CMD_TYPE_QUERY		= 0x1,
+};
+
 /**
  * struct uic_command - UIC command structure
  * @command: UIC command
@@ -91,7 +96,7 @@ struct uic_command {
 /**
  * struct ufshcd_lrb - local reference block
  * @utr_descriptor_ptr: UTRD address of the command
- * @ucd_cmd_ptr: UCD address of the command
+ * @ucd_req_ptr: UCD address of the command
  * @ucd_rsp_ptr: Response UPIU address for this command
  * @ucd_prdt_ptr: PRDT address of the command
  * @cmd: pointer to SCSI command
@@ -101,10 +106,11 @@ struct uic_command {
  * @command_type: SCSI, UFS, Query.
  * @task_tag: Task tag of the command
  * @lun: LUN of the command
+ * @intr_cmd: Interrupt command (doesn't participate in interrupt aggregation)
  */
 struct ufshcd_lrb {
 	struct utp_transfer_req_desc *utr_descriptor_ptr;
-	struct utp_upiu_cmd *ucd_cmd_ptr;
+	struct utp_upiu_req *ucd_req_ptr;
 	struct utp_upiu_rsp *ucd_rsp_ptr;
 	struct ufshcd_sg_entry *ucd_prdt_ptr;
 
@@ -116,8 +122,35 @@ struct ufshcd_lrb {
 	int command_type;
 	int task_tag;
 	unsigned int lun;
+	bool intr_cmd;
 };
 
+/**
+ * struct ufs_query - holds relevent data structures for query request
+ * @request: request upiu and function
+ * @descriptor: buffer for sending/receiving descriptor
+ * @response: response upiu and response
+ */
+struct ufs_query {
+	struct ufs_query_req request;
+	u8 *descriptor;
+	struct ufs_query_res response;
+};
+
+/**
+ * struct ufs_dev_cmd - all assosiated fields with device management commands
+ * @type: device management command type - Query, NOP OUT
+ * @lock: lock to allow one command at a time
+ * @complete: internal commands completion
+ * @tag_wq: wait queue until free command slot is available
+ */
+struct ufs_dev_cmd {
+	enum dev_cmd_type type;
+	struct mutex lock;
+	struct completion *complete;
+	wait_queue_head_t tag_wq;
+	struct ufs_query query;
+};
 
 /**
  * struct ufs_hba - per adapter private structure
@@ -131,6 +164,7 @@ struct ufshcd_lrb {
  * @host: Scsi_Host instance of the driver
  * @dev: device handle
  * @lrb: local reference block
+ * @lrb_in_use: lrb in use
  * @outstanding_tasks: Bits representing outstanding task requests
  * @outstanding_reqs: Bits representing outstanding transfer requests
  * @capabilities: UFS Controller Capabilities
@@ -144,8 +178,12 @@ struct ufshcd_lrb {
  * @tm_condition: condition variable for task management
  * @ufshcd_state: UFSHCD states
  * @intr_mask: Interrupt Mask Bits
+ * @ee_ctrl_mask: Exception event control mask
  * @feh_workq: Work queue for fatal controller error handling
+ * @eeh_work: Worker to handle exception events
  * @errors: HBA errors
+ * @dev_cmd: ufs device management command information
+ * @auto_bkops_enabled: to track whether bkops is enabled in device
  */
 struct ufs_hba {
 	void __iomem *mmio_base;
@@ -164,6 +202,7 @@ struct ufs_hba {
 	struct device *dev;
 
 	struct ufshcd_lrb *lrb;
+	unsigned long lrb_in_use;
 
 	unsigned long outstanding_tasks;
 	unsigned long outstanding_reqs;
@@ -182,12 +221,19 @@ struct ufs_hba {
 
 	u32 ufshcd_state;
 	u32 intr_mask;
+	u16 ee_ctrl_mask;
 
 	/* Work Queues */
 	struct work_struct feh_workq;
+	struct work_struct eeh_work;
 
 	/* HBA Errors */
 	u32 errors;
+
+	/* Device management request data */
+	struct ufs_dev_cmd dev_cmd;
+
+	bool auto_bkops_enabled;
 };
 
 #define ufshcd_writel(hba, val, reg)	\
@@ -208,4 +254,13 @@ static inline void ufshcd_hba_stop(struct ufs_hba *hba)
 	ufshcd_writel(hba, CONTROLLER_DISABLE,  REG_CONTROLLER_ENABLE);
 }
 
+static inline void check_upiu_size(void)
+{
+	BUILD_BUG_ON(ALIGNED_UPIU_SIZE <
+		GENERAL_UPIU_REQUEST_SIZE + QUERY_DESC_MAX_SIZE);
+}
+
+extern int ufshcd_runtime_suspend(struct ufs_hba *hba);
+extern int ufshcd_runtime_resume(struct ufs_hba *hba);
+extern int ufshcd_runtime_idle(struct ufs_hba *hba);
 #endif /* End of Header */

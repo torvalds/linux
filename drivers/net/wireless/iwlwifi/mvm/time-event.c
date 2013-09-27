@@ -199,7 +199,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		 * and know the dtim period.
 		 */
 		iwl_mvm_te_check_disconnect(mvm, te_data->vif,
-			"No assocation and the time event is over already...");
+			"No association and the time event is over already...");
 		iwl_mvm_te_clear_data(mvm, te_data);
 	} else if (le32_to_cpu(notif->action) & TE_V2_NOTIF_HOST_EVENT_START) {
 		te_data->running = true;

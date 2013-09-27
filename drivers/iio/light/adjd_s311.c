@@ -37,22 +37,14 @@
 #define ADJD_S311_CAP_GREEN	0x07
 #define ADJD_S311_CAP_BLUE	0x08
 #define ADJD_S311_CAP_CLEAR	0x09
-#define ADJD_S311_INT_RED_LO	0x0a
-#define ADJD_S311_INT_RED_HI	0x0b
-#define ADJD_S311_INT_GREEN_LO	0x0c
-#define ADJD_S311_INT_GREEN_HI	0x0d
-#define ADJD_S311_INT_BLUE_LO	0x0e
-#define ADJD_S311_INT_BLUE_HI	0x0f
-#define ADJD_S311_INT_CLEAR_LO	0x10
-#define ADJD_S311_INT_CLEAR_HI	0x11
-#define ADJD_S311_DATA_RED_LO	0x40
-#define ADJD_S311_DATA_RED_HI	0x41
-#define ADJD_S311_DATA_GREEN_LO	0x42
-#define ADJD_S311_DATA_GREEN_HI	0x43
-#define ADJD_S311_DATA_BLUE_LO	0x44
-#define ADJD_S311_DATA_BLUE_HI	0x45
-#define ADJD_S311_DATA_CLEAR_LO	0x46
-#define ADJD_S311_DATA_CLEAR_HI	0x47
+#define ADJD_S311_INT_RED	0x0a
+#define ADJD_S311_INT_GREEN	0x0c
+#define ADJD_S311_INT_BLUE	0x0e
+#define ADJD_S311_INT_CLEAR	0x10
+#define ADJD_S311_DATA_RED	0x40
+#define ADJD_S311_DATA_GREEN	0x42
+#define ADJD_S311_DATA_BLUE	0x44
+#define ADJD_S311_DATA_CLEAR	0x46
 #define ADJD_S311_OFFSET_RED	0x48
 #define ADJD_S311_OFFSET_GREEN	0x49
 #define ADJD_S311_OFFSET_BLUE	0x4a
@@ -73,8 +65,8 @@ enum adjd_s311_channel_idx {
 	IDX_RED, IDX_GREEN, IDX_BLUE, IDX_CLEAR
 };
 
-#define ADJD_S311_DATA_REG(chan) (ADJD_S311_DATA_RED_LO + (chan) * 2)
-#define ADJD_S311_INT_REG(chan) (ADJD_S311_INT_RED_LO + (chan) * 2)
+#define ADJD_S311_DATA_REG(chan) (ADJD_S311_DATA_RED + (chan) * 2)
+#define ADJD_S311_INT_REG(chan) (ADJD_S311_INT_RED + (chan) * 2)
 #define ADJD_S311_CAP_REG(chan) (ADJD_S311_CAP_RED + (chan))
 
 static int adjd_s311_req_data(struct iio_dev *indio_dev)
@@ -232,7 +224,8 @@ static int adjd_s311_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = adjd_s311_read_data(indio_dev, chan->address, val);
+		ret = adjd_s311_read_data(indio_dev,
+			ADJD_S311_DATA_REG(chan->address), val);
 		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;
@@ -293,11 +286,10 @@ static int adjd_s311_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int err;
 
-	indio_dev = iio_device_alloc(sizeof(*data));
-	if (indio_dev == NULL) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	if (indio_dev == NULL)
+		return -ENOMEM;
+
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
@@ -312,7 +304,7 @@ static int adjd_s311_probe(struct i2c_client *client,
 	err = iio_triggered_buffer_setup(indio_dev, NULL,
 		adjd_s311_trigger_handler, NULL);
 	if (err < 0)
-		goto exit_free_device;
+		return err;
 
 	err = iio_device_register(indio_dev);
 	if (err)
@@ -324,9 +316,6 @@ static int adjd_s311_probe(struct i2c_client *client,
 
 exit_unreg_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
-exit_free_device:
-	iio_device_free(indio_dev);
-exit:
 	return err;
 }
 
@@ -338,7 +327,6 @@ static int adjd_s311_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	kfree(data->buffer);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -213,7 +213,7 @@ The individual methods perform the following tasks:
      methods: for example the SPEC driver may define that its carrier
      I2C memory is seen at offset 1M and the internal SPI flash is seen
      at offset 16M.  This multiplexing of several flash memories in the
-     same address space is is carrier-specific and should only be used
+     same address space is carrier-specific and should only be used
      by a driver that has verified the `carrier_name' field.
 
 

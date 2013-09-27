@@ -23,10 +23,7 @@
 	apb@80000000 {
 		apbh@80000000 {
 			pinctrl@80018000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&hog_pins_cfa10036>;
-
-				hog_pins_cfa10036: hog-10036@0 {
+				ssd1306_cfa10036: ssd1306-10036@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x2073 /* MX28_PAD_SSP0_D7__GPIO_2_7 */
@@ -83,6 +80,8 @@
 
 				ssd1306: oled@3c {
 					compatible = "solomon,ssd1306fb-i2c";
+					pinctrl-names = "default";
+					pinctrl-0 = <&ssd1306_cfa10036>;
 					reg = <0x3c>;
 					reset-gpios = <&gpio2 7 0>;
 					solomon,height = <32>;

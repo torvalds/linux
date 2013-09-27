@@ -131,7 +131,7 @@ nv40_calc_pll(struct drm_device *dev, u32 reg, struct nvbios_pll *pll,
 	if (clk < pll->vco1.max_freq)
 		pll->vco2.max_freq = 0;
 
-	pclk->pll_calc(pclk, pll, clk, &coef);
+	ret = pclk->pll_calc(pclk, pll, clk, &coef);
 	if (ret == 0)
 		return -ERANGE;
 

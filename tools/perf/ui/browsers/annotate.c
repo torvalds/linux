@@ -428,6 +428,14 @@ static void annotate_browser__init_asm_mode(struct annotate_browser *browser)
 	browser->b.nr_entries = browser->nr_asm_entries;
 }
 
+#define SYM_TITLE_MAX_SIZE (PATH_MAX + 64)
+
+static int sym_title(struct symbol *sym, struct map *map, char *title,
+		     size_t sz)
+{
+	return snprintf(title, sz, "%s  %s", sym->name, map->dso->long_name);
+}
+
 static bool annotate_browser__callq(struct annotate_browser *browser,
 				    struct perf_evsel *evsel,
 				    struct hist_browser_timer *hbt)
@@ -438,6 +446,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	struct annotation *notes;
 	struct symbol *target;
 	u64 ip;
+	char title[SYM_TITLE_MAX_SIZE];
 
 	if (!ins__is_call(dl->ins))
 		return false;
@@ -461,7 +470,8 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 
 	pthread_mutex_unlock(&notes->lock);
 	symbol__tui_annotate(target, ms->map, evsel, hbt);
-	ui_browser__show_title(&browser->b, sym->name);
+	sym_title(sym, ms->map, title, sizeof(title));
+	ui_browser__show_title(&browser->b, title);
 	return true;
 }
 
@@ -495,7 +505,7 @@ static bool annotate_browser__jump(struct annotate_browser *browser)
 
 	dl = annotate_browser__find_offset(browser, dl->ops.target.offset, &idx);
 	if (dl == NULL) {
-		ui_helpline__puts("Invallid jump offset");
+		ui_helpline__puts("Invalid jump offset");
 		return true;
 	}
 
@@ -653,8 +663,10 @@ static int annotate_browser__run(struct annotate_browser *browser,
 	const char *help = "Press 'h' for help on key bindings";
 	int delay_secs = hbt ? hbt->refresh : 0;
 	int key;
+	char title[SYM_TITLE_MAX_SIZE];
 
-	if (ui_browser__show(&browser->b, sym->name, help) < 0)
+	sym_title(sym, ms->map, title, sizeof(title));
+	if (ui_browser__show(&browser->b, title, help) < 0)
 		return -1;
 
 	annotate_browser__calc_percent(browser, evsel);
@@ -720,7 +732,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"s             Toggle source code view\n"
 		"/             Search string\n"
 		"r             Run available scripts\n"
-		"?             Search previous string\n");
+		"?             Search string backwards\n");
 			continue;
 		case 'r':
 			{

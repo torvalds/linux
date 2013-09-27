@@ -301,6 +301,13 @@ int dso__load_sym(struct dso *dso, struct map *map __maybe_unused,
 	return 0;
 }
 
+int file__read_maps(int fd __maybe_unused, bool exe __maybe_unused,
+		    mapfn_t mapfn __maybe_unused, void *data __maybe_unused,
+		    bool *is_64_bit __maybe_unused)
+{
+	return -1;
+}
+
 void symbol__elf_init(void)
 {
 }

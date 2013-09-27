@@ -490,15 +490,11 @@ static int adnp_irq_setup(struct adnp *adnp)
 	if (err != 0) {
 		dev_err(chip->dev, "can't request IRQ#%d: %d\n",
 			adnp->client->irq, err);
-		goto error;
+		return err;
 	}
 
 	chip->to_irq = adnp_gpio_to_irq;
 	return 0;
-
-error:
-	irq_domain_remove(adnp->domain);
-	return err;
 }
 
 static void adnp_irq_teardown(struct adnp *adnp)

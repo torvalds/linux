@@ -546,7 +546,9 @@ static int slow_eval_unknown_fn(struct subchannel_id schid, void *data)
 		case -ENOMEM:
 		case -EIO:
 			/* These should abort looping */
+			spin_lock_irq(&slow_subchannel_lock);
 			idset_sch_del_subseq(slow_subchannel_set, schid);
+			spin_unlock_irq(&slow_subchannel_lock);
 			break;
 		default:
 			rc = 0;
@@ -740,7 +742,7 @@ css_cm_enable_store(struct device *dev, struct device_attribute *attr,
 	int ret;
 	unsigned long val;
 
-	ret = strict_strtoul(buf, 16, &val);
+	ret = kstrtoul(buf, 16, &val);
 	if (ret)
 		return ret;
 	mutex_lock(&css->mutex);

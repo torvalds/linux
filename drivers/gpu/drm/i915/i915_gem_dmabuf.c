@@ -27,10 +27,15 @@
 #include "i915_drv.h"
 #include <linux/dma-buf.h>
 
+static struct drm_i915_gem_object *dma_buf_to_obj(struct dma_buf *buf)
+{
+	return to_intel_bo(buf->priv);
+}
+
 static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachment,
 					     enum dma_data_direction dir)
 {
-	struct drm_i915_gem_object *obj = attachment->dmabuf->priv;
+	struct drm_i915_gem_object *obj = dma_buf_to_obj(attachment->dmabuf);
 	struct sg_table *st;
 	struct scatterlist *src, *dst;
 	int ret, i;
@@ -85,7 +90,7 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 				   struct sg_table *sg,
 				   enum dma_data_direction dir)
 {
-	struct drm_i915_gem_object *obj = attachment->dmabuf->priv;
+	struct drm_i915_gem_object *obj = dma_buf_to_obj(attachment->dmabuf);
 
 	mutex_lock(&obj->base.dev->struct_mutex);
 
@@ -98,20 +103,9 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	mutex_unlock(&obj->base.dev->struct_mutex);
 }
 
-static void i915_gem_dmabuf_release(struct dma_buf *dma_buf)
-{
-	struct drm_i915_gem_object *obj = dma_buf->priv;
-
-	if (obj->base.export_dma_buf == dma_buf) {
-		/* drop the reference on the export fd holds */
-		obj->base.export_dma_buf = NULL;
-		drm_gem_object_unreference_unlocked(&obj->base);
-	}
-}
-
 static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 {
-	struct drm_i915_gem_object *obj = dma_buf->priv;
+	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	struct drm_device *dev = obj->base.dev;
 	struct sg_page_iter sg_iter;
 	struct page **pages;
@@ -159,7 +153,7 @@ error:
 
 static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 {
-	struct drm_i915_gem_object *obj = dma_buf->priv;
+	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	struct drm_device *dev = obj->base.dev;
 	int ret;
 
@@ -202,7 +196,7 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 
 static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size_t length, enum dma_data_direction direction)
 {
-	struct drm_i915_gem_object *obj = dma_buf->priv;
+	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	struct drm_device *dev = obj->base.dev;
 	int ret;
 	bool write = (direction == DMA_BIDIRECTIONAL || direction == DMA_TO_DEVICE);
@@ -219,7 +213,7 @@ static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size
 static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.map_dma_buf = i915_gem_map_dma_buf,
 	.unmap_dma_buf = i915_gem_unmap_dma_buf,
-	.release = i915_gem_dmabuf_release,
+	.release = drm_gem_dmabuf_release,
 	.kmap = i915_gem_dmabuf_kmap,
 	.kmap_atomic = i915_gem_dmabuf_kmap_atomic,
 	.kunmap = i915_gem_dmabuf_kunmap,
@@ -233,9 +227,7 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				      struct drm_gem_object *gem_obj, int flags)
 {
-	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
-
-	return dma_buf_export(obj, &i915_dmabuf_ops, obj->base.size, flags);
+	return dma_buf_export(gem_obj, &i915_dmabuf_ops, gem_obj->size, flags);
 }
 
 static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
@@ -272,7 +264,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 
 	/* is this one of own objects? */
 	if (dma_buf->ops == &i915_dmabuf_ops) {
-		obj = dma_buf->priv;
+		obj = dma_buf_to_obj(dma_buf);
 		/* is it from our device? */
 		if (obj->base.dev == dev) {
 			/*
@@ -297,12 +289,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 		goto fail_detach;
 	}
 
-	ret = drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
-	if (ret) {
-		i915_gem_object_free(obj);
-		goto fail_detach;
-	}
-
+	drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
 	i915_gem_object_init(obj, &i915_gem_object_dmabuf_ops);
 	obj->base.import_attach = attach;
 

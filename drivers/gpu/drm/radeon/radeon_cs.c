@@ -268,7 +268,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			return -EINVAL;
 
 		/* we only support VM on some SI+ rings */
-		if ((p->rdev->asic->ring[p->ring].cs_parse == NULL) &&
+		if ((p->rdev->asic->ring[p->ring]->cs_parse == NULL) &&
 		   ((p->cs_flags & RADEON_CS_USE_VM) == 0)) {
 			DRM_ERROR("Ring %d requires VM!\n", p->ring);
 			return -EINVAL;
@@ -383,6 +383,10 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		DRM_ERROR("Invalid command stream !\n");
 		return r;
 	}
+
+	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
+		radeon_uvd_note_usage(rdev);
+
 	radeon_cs_sync_rings(parser);
 	r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	if (r) {
@@ -474,6 +478,9 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		return r;
 	}
 
+	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
+		radeon_uvd_note_usage(rdev);
+
 	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
 	r = radeon_vm_alloc_pt(rdev, vm);
@@ -551,10 +558,6 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		r = radeon_cs_handle_lockup(rdev, r);
 		return r;
 	}
-
-	/* XXX pick SD/HD/MVC */
-	if (parser.ring == R600_RING_TYPE_UVD_INDEX)
-		radeon_uvd_note_usage(rdev);
 
 	r = radeon_cs_ib_chunk(rdev, &parser);
 	if (r) {

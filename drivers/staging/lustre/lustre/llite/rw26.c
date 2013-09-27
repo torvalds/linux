@@ -51,9 +51,6 @@
 #include <linux/buffer_head.h>
 #include <linux/mpage.h>
 #include <linux/writeback.h>
-#include <linux/stat.h>
-#include <asm/uaccess.h>
-#include <linux/mm.h>
 #include <linux/pagemap.h>
 
 #define DEBUG_SUBSYSTEM S_LLITE
@@ -72,7 +69,8 @@
  * aligned truncate). Lustre leaves partially truncated page in the cache,
  * relying on struct inode::i_size to limit further accesses.
  */
-static void ll_invalidatepage(struct page *vmpage, unsigned long offset)
+static void ll_invalidatepage(struct page *vmpage, unsigned int offset,
+			      unsigned int length)
 {
 	struct inode     *inode;
 	struct lu_env    *env;
@@ -89,7 +87,7 @@ static void ll_invalidatepage(struct page *vmpage, unsigned long offset)
 	 * below because they are run with page locked and all our io is
 	 * happening with locked page too
 	 */
-	if (offset == 0) {
+	if (offset == 0 && length == PAGE_CACHE_SIZE) {
 		env = cl_env_get(&refcheck);
 		if (!IS_ERR(env)) {
 			inode = vmpage->mapping->host;
@@ -182,7 +180,7 @@ static int ll_set_page_dirty(struct page *vmpage)
 	 */
 	vvp_write_pending(obj, cpg);
 #endif
-	RETURN(__set_page_dirty_nobuffers(vmpage));
+	return __set_page_dirty_nobuffers(vmpage);
 }
 
 #define MAX_DIRECTIO_SIZE 2*1024*1024*1024UL
@@ -249,7 +247,6 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 	long page_size      = cl_page_size(obj);
 	bool do_io;
 	int  io_pages       = 0;
-	ENTRY;
 
 	queue = &io->ci_queue;
 	cl_2queue_init(queue);
@@ -286,11 +283,11 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 			src_page = (rw == WRITE) ? pages[i] : vmpage;
 			dst_page = (rw == WRITE) ? vmpage : pages[i];
 
-			src = ll_kmap_atomic(src_page, KM_USER0);
-			dst = ll_kmap_atomic(dst_page, KM_USER1);
+			src = kmap_atomic(src_page);
+			dst = kmap_atomic(dst_page);
 			memcpy(dst, src, min(page_size, size));
-			ll_kunmap_atomic(dst, KM_USER1);
-			ll_kunmap_atomic(src, KM_USER0);
+			kunmap_atomic(dst);
+			kunmap_atomic(src);
 
 			/* make sure page will be added to the transfer by
 			 * cl_io_submit()->...->vvp_page_prep_write(). */
@@ -335,7 +332,7 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 	cl_2queue_discard(env, io, queue);
 	cl_2queue_disown(env, io, queue);
 	cl_2queue_fini(env, queue);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ll_direct_rw_pages);
 
@@ -383,14 +380,13 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	unsigned long seg = 0;
 	long size = MAX_DIO_SIZE;
 	int refcheck;
-	ENTRY;
 
 	if (!lli->lli_has_smd)
-		RETURN(-EBADF);
+		return -EBADF;
 
 	/* FIXME: io smaller than PAGE_SIZE is broken on ia64 ??? */
 	if ((file_offset & ~CFS_PAGE_MASK) || (count & ~CFS_PAGE_MASK))
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), size=%lu (max %lu), "
 	       "offset=%lld=%llx, pages %lu (max %lu)\n",
@@ -402,7 +398,7 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	for (seg = 0; seg < nr_segs; seg++) {
 		if (((unsigned long)iov[seg].iov_base & ~CFS_PAGE_MASK) ||
 		    (iov[seg].iov_len & ~CFS_PAGE_MASK))
-			RETURN(-EINVAL);
+			return -EINVAL;
 	}
 
 	env = cl_env_get(&refcheck);
@@ -495,7 +491,7 @@ out:
 	}
 
 	cl_env_put(env, &refcheck);
-	RETURN(tot_bytes ? : result);
+	return tot_bytes ? : result;
 }
 
 static int ll_write_begin(struct file *file, struct address_space *mapping,
@@ -506,11 +502,10 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 	struct page *page;
 	int rc;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
-	ENTRY;
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	*pagep = page;
 
@@ -519,7 +514,7 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		page_cache_release(page);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 static int ll_write_end(struct file *file, struct address_space *mapping,

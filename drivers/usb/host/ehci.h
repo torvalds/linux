@@ -38,7 +38,7 @@ typedef __u16 __bitwise __hc16;
 #endif
 
 /* statistics can be kept for tuning/monitoring */
-#ifdef DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 #define EHCI_STATS
 #endif
 
@@ -88,6 +88,7 @@ enum ehci_hrtimer_event {
 	EHCI_HRTIMER_POLL_DEAD,		/* Wait for dead controller to stop */
 	EHCI_HRTIMER_UNLINK_INTR,	/* Wait for interrupt QH unlink */
 	EHCI_HRTIMER_FREE_ITDS,		/* Wait for unused iTDs and siTDs */
+	EHCI_HRTIMER_START_UNLINK_INTR, /* Unlink empty interrupt QHs */
 	EHCI_HRTIMER_ASYNC_UNLINKS,	/* Unlink empty async QHs */
 	EHCI_HRTIMER_IAA_WATCHDOG,	/* Handle lost IAA interrupts */
 	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
@@ -143,7 +144,9 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		i_thresh;	/* uframes HC might cache */
 
 	union ehci_shadow	*pshadow;	/* mirror hw periodic table */
+	struct list_head	intr_unlink_wait;
 	struct list_head	intr_unlink;
+	unsigned		intr_unlink_wait_cycle;
 	unsigned		intr_unlink_cycle;
 	unsigned		now_frame;	/* frame from HC hardware */
 	unsigned		last_iso_frame;	/* last frame scanned for iso */
@@ -210,6 +213,7 @@ struct ehci_hcd {			/* one per controller */
 	#define OHCI_HCCTRL_LEN         0x4
 	__hc32			*ohci_hcctrl_reg;
 	unsigned		has_hostpc:1;
+	unsigned		has_tdi_phy_lpm:1;
 	unsigned		has_ppcd:1; /* support per-port change bits */
 	u8			sbrn;		/* packed release number */
 
@@ -222,7 +226,7 @@ struct ehci_hcd {			/* one per controller */
 #endif
 
 	/* debug files */
-#ifdef DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	struct dentry		*debug_dir;
 #endif
 
@@ -778,15 +782,10 @@ static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 #define ehci_warn(ehci, fmt, args...) \
 	dev_warn(ehci_to_hcd(ehci)->self.controller , fmt , ## args)
 
-#ifdef VERBOSE_DEBUG
-#	define ehci_vdbg ehci_dbg
-#else
-	static inline void ehci_vdbg(struct ehci_hcd *ehci, ...) {}
-#endif
 
-#ifndef DEBUG
+#if !defined(DEBUG) && !defined(CONFIG_DYNAMIC_DEBUG)
 #define STUB_DEBUG_FILES
-#endif	/* DEBUG */
+#endif	/* !DEBUG && !CONFIG_DYNAMIC_DEBUG */
 
 /*-------------------------------------------------------------------------*/
 

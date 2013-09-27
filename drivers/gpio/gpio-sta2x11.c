@@ -361,7 +361,7 @@ static int gsta_probe(struct platform_device *dev)
 	struct gsta_gpio *chip;
 	struct resource *res;
 
-	pdev = *(struct pci_dev **)(dev->dev.platform_data);
+	pdev = *(struct pci_dev **)dev_get_platdata(&dev->dev);
 	gpio_pdata = dev_get_platdata(&pdev->dev);
 
 	if (gpio_pdata == NULL)

@@ -1,5 +1,6 @@
 menuconfig UIO
 	tristate "Userspace I/O drivers"
+	depends on MMU
 	help
 	  Enable this to allow the userspace driver core code to be
 	  built.  This code allows userspace programs easy access to
@@ -22,13 +23,6 @@ config UIO_CIF
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called uio_cif.
-
-config UIO_PDRV
-	tristate "Userspace I/O platform driver"
-	help
-	  Generic platform driver for Userspace I/O devices.
-
-	  If you don't know what to do here, say N.
 
 config UIO_PDRV_GENIRQ
 	tristate "Userspace I/O platform driver with generic IRQ handling"
@@ -127,5 +121,18 @@ config UIO_PRUSS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called uio_pruss.
+
+config UIO_MF624
+	tristate "Humusoft MF624 DAQ PCI card driver"
+	depends on PCI
+	help
+	  Userspace I/O interface for the Humusoft MF624 PCI card.
+	  A sample userspace application using this driver is available
+	  (among other MF624 related information and software components)
+	  for download in a git repository:
+
+	    git clone git://rtime.felk.cvut.cz/mf6xx.git
+
+	  If you compile this as a module, it will be called uio_mf624.
 
 endif

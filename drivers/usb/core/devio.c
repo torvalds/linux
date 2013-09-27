@@ -725,15 +725,15 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype,
 
 	/*
 	 * check for the special corner case 'get_device_id' in the printer
-	 * class specification, where wIndex is (interface << 8 | altsetting)
-	 * instead of just interface
+	 * class specification, which we always want to allow as it is used
+	 * to query things like ink level, etc.
 	 */
 	if (requesttype == 0xa1 && request == 0) {
 		alt_setting = usb_find_alt_setting(ps->dev->actconfig,
 						   index >> 8, index & 0xff);
 		if (alt_setting
 		 && alt_setting->desc.bInterfaceClass == USB_CLASS_PRINTER)
-			index >>= 8;
+			return 0;
 	}
 
 	index &= 0xff;

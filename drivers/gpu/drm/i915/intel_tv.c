@@ -823,16 +823,14 @@ static const struct tv_mode tv_modes[] = {
 	},
 };
 
-static struct intel_tv *enc_to_intel_tv(struct drm_encoder *encoder)
+static struct intel_tv *enc_to_tv(struct intel_encoder *encoder)
 {
-	return container_of(encoder, struct intel_tv, base.base);
+	return container_of(encoder, struct intel_tv, base);
 }
 
 static struct intel_tv *intel_attached_tv(struct drm_connector *connector)
 {
-	return container_of(intel_attached_encoder(connector),
-			    struct intel_tv,
-			    base);
+	return enc_to_tv(intel_attached_encoder(connector));
 }
 
 static bool
@@ -908,7 +906,7 @@ static bool
 intel_tv_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_config *pipe_config)
 {
-	struct intel_tv *intel_tv = enc_to_intel_tv(&encoder->base);
+	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
 
 	if (!tv_mode)
@@ -921,15 +919,12 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
-static void
-intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
-		  struct drm_display_mode *adjusted_mode)
+static void intel_tv_mode_set(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
 	u32 tv_ctl;
 	u32 hctl1, hctl2, hctl3;
@@ -1305,6 +1300,10 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	int type;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
+		      connector->base.id, drm_get_connector_name(connector),
+		      force);
+
 	mode = reported_modes[0];
 
 	if (force) {
@@ -1483,10 +1482,6 @@ out:
 	return ret;
 }
 
-static const struct drm_encoder_helper_funcs intel_tv_helper_funcs = {
-	.mode_set = intel_tv_mode_set,
-};
-
 static const struct drm_connector_funcs intel_tv_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_tv_detect,
@@ -1619,6 +1614,7 @@ intel_tv_init(struct drm_device *dev)
 			 DRM_MODE_ENCODER_TVDAC);
 
 	intel_encoder->compute_config = intel_tv_compute_config;
+	intel_encoder->mode_set = intel_tv_mode_set;
 	intel_encoder->enable = intel_enable_tv;
 	intel_encoder->disable = intel_disable_tv;
 	intel_encoder->get_hw_state = intel_tv_get_hw_state;
@@ -1640,7 +1636,6 @@ intel_tv_init(struct drm_device *dev)
 
 	intel_tv->tv_format = tv_modes[initial_mode].name;
 
-	drm_encoder_helper_add(&intel_encoder->base, &intel_tv_helper_funcs);
 	drm_connector_helper_add(connector, &intel_tv_connector_helper_funcs);
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;

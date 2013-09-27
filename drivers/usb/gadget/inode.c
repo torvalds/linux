@@ -1270,10 +1270,6 @@ dev_release (struct inode *inode, struct file *fd)
 	dev->buf = NULL;
 	put_dev (dev);
 
-	/* other endpoints were all decoupled from this device */
-	spin_lock_irq(&dev->lock);
-	dev->state = STATE_DEV_DISABLED;
-	spin_unlock_irq(&dev->lock);
 	return 0;
 }
 

@@ -619,7 +619,7 @@ static int logi_dj_ll_input_event(struct input_dev *dev, unsigned int type,
 
 	struct hid_field *field;
 	struct hid_report *report;
-	unsigned char data[8];
+	unsigned char *data;
 	int offset;
 
 	dbg_hid("%s: %s, type:%d | code:%d | value:%d\n",
@@ -635,6 +635,13 @@ static int logi_dj_ll_input_event(struct input_dev *dev, unsigned int type,
 		return -1;
 	}
 	hid_set_field(field, offset, value);
+
+	data = hid_alloc_report_buf(field->report, GFP_ATOMIC);
+	if (!data) {
+		dev_warn(&dev->dev, "failed to allocate report buf memory\n");
+		return -1;
+	}
+
 	hid_output_report(field->report, &data[0]);
 
 	output_report_enum = &dj_rcv_hiddev->report_enum[HID_OUTPUT_REPORT];
@@ -645,8 +652,9 @@ static int logi_dj_ll_input_event(struct input_dev *dev, unsigned int type,
 
 	hid_hw_request(dj_rcv_hiddev, report, HID_REQ_SET_REPORT);
 
-	return 0;
+	kfree(data);
 
+	return 0;
 }
 
 static int logi_dj_ll_start(struct hid_device *hid)
@@ -801,10 +809,10 @@ static int logi_dj_probe(struct hid_device *hdev,
 	}
 
 	/* This is enabling the polling urb on the IN endpoint */
-	retval = hdev->ll_driver->open(hdev);
+	retval = hid_hw_open(hdev);
 	if (retval < 0) {
-		dev_err(&hdev->dev, "%s:hdev->ll_driver->open returned "
-			"error:%d\n", __func__, retval);
+		dev_err(&hdev->dev, "%s:hid_hw_open returned error:%d\n",
+			__func__, retval);
 		goto llopen_failed;
 	}
 
@@ -821,7 +829,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 	return retval;
 
 logi_dj_recv_query_paired_devices_failed:
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 
 llopen_failed:
 switch_to_dj_mode_fail:
@@ -863,7 +871,7 @@ static void logi_dj_remove(struct hid_device *hdev)
 
 	cancel_work_sync(&djrcv_dev->work);
 
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 
 	/* I suppose that at this point the only context that can access

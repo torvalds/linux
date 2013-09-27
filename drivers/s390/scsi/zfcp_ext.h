@@ -126,8 +126,6 @@ extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *, struct zfcp_qdio_req *,
 extern int zfcp_qdio_open(struct zfcp_qdio *);
 extern void zfcp_qdio_close(struct zfcp_qdio *);
 extern void zfcp_qdio_siosl(struct zfcp_adapter *);
-extern struct zfcp_fsf_req *zfcp_fsf_get_req(struct zfcp_qdio *,
-					     struct qdio_buffer *);
 
 /* zfcp_scsi.c */
 extern struct scsi_transport_template *zfcp_scsi_transport_template;

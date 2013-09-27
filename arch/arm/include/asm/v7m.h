@@ -15,6 +15,10 @@
 
 #define V7M_SCB_VTOR			0x08
 
+#define V7M_SCB_AIRCR			0x0c
+#define V7M_SCB_AIRCR_VECTKEY			(0x05fa << 16)
+#define V7M_SCB_AIRCR_SYSRESETREQ		(1 << 2)
+
 #define V7M_SCB_SCR			0x10
 #define V7M_SCB_SCR_SLEEPDEEP			(1 << 2)
 
@@ -42,3 +46,11 @@
  */
 #define EXC_RET_STACK_MASK			0x00000004
 #define EXC_RET_THREADMODE_PROCESSSTACK		0xfffffffd
+
+#ifndef __ASSEMBLY__
+
+enum reboot_mode;
+
+void armv7m_restart(enum reboot_mode mode, const char *cmd);
+
+#endif /* __ASSEMBLY__ */

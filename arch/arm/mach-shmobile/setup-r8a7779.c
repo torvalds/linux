@@ -559,6 +559,33 @@ static struct resource ether_resources[] = {
 	},
 };
 
+#define R8A7779_VIN(idx) \
+static struct resource vin##idx##_resources[] __initdata = {		\
+	DEFINE_RES_MEM(0xffc50000 + 0x1000 * (idx), 0x1000),		\
+	DEFINE_RES_IRQ(gic_iid(0x5f + (idx))),				\
+};									\
+									\
+static struct platform_device_info vin##idx##_info __initdata = {	\
+	.parent		= &platform_bus,				\
+	.name		= "r8a7779-vin",				\
+	.id		= idx,						\
+	.res		= vin##idx##_resources,				\
+	.num_res	= ARRAY_SIZE(vin##idx##_resources),		\
+	.dma_mask	= DMA_BIT_MASK(32),				\
+}
+
+R8A7779_VIN(0);
+R8A7779_VIN(1);
+R8A7779_VIN(2);
+R8A7779_VIN(3);
+
+static struct platform_device_info *vin_info_table[] __initdata = {
+	&vin0_info,
+	&vin1_info,
+	&vin2_info,
+	&vin3_info,
+};
+
 static struct platform_device *r8a7779_devices_dt[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -608,6 +635,16 @@ void __init r8a7779_add_usb_phy_device(struct rcar_phy_platform_data *pdata)
 					  usb_phy_resources,
 					  ARRAY_SIZE(usb_phy_resources),
 					  pdata, sizeof(*pdata));
+}
+
+void __init r8a7779_add_vin_device(int id, struct rcar_vin_platform_data *pdata)
+{
+	BUG_ON(id < 0 || id > 3);
+
+	vin_info_table[id]->data = pdata;
+	vin_info_table[id]->size_data = sizeof(*pdata);
+
+	platform_device_register_full(vin_info_table[id]);
 }
 
 /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
@@ -665,10 +702,6 @@ void __init r8a7779_init_delay(void)
 	shmobile_setup_delay(1000, 2, 4); /* Cortex-A9 @ 1000MHz */
 }
 
-static const struct of_dev_auxdata r8a7779_auxdata_lookup[] __initconst = {
-	{},
-};
-
 void __init r8a7779_add_standard_devices_dt(void)
 {
 	/* clocks are setup late during boot in the case of DT */
@@ -676,8 +709,7 @@ void __init r8a7779_add_standard_devices_dt(void)
 
 	platform_add_devices(r8a7779_devices_dt,
 			     ARRAY_SIZE(r8a7779_devices_dt));
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     r8a7779_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char *r8a7779_compat_dt[] __initdata = {

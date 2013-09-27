@@ -82,7 +82,7 @@ static void mv_u3d_phy_write(void __iomem *base, u32 reg, u32 value)
 	writel_relaxed(value, data);
 }
 
-void mv_u3d_phy_shutdown(struct usb_phy *phy)
+static void mv_u3d_phy_shutdown(struct usb_phy *phy)
 {
 	struct mv_u3d_phy *mv_u3d_phy;
 	void __iomem *base;
@@ -271,7 +271,7 @@ static int mv_u3d_phy_probe(struct platform_device *pdev)
 	void __iomem	*phy_base;
 	int	ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "%s: no platform data defined\n", __func__);
 		return -EINVAL;

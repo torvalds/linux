@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "kirkwood-ns2-common.dtsi"
+#include "kirkwood-ns2-common.dtsi"
 
 / {
 	model = "LaCie Network Space Max v2";
@@ -49,3 +49,5 @@
 		};
 	};
 };
+
+&ethphy0 { reg = <8>; };

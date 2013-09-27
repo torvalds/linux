@@ -60,12 +60,12 @@ nvd0_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	int ret;
 
 	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				     &nouveau_i2c_bit_algo, &port);
+				      &nouveau_i2c_bit_algo, &nvd0_i2c_func,
+				      &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
 
-	port->base.func = &nvd0_i2c_func;
 	port->state = 0x00000007;
 	port->addr = 0x00d014 + (info->drive * 0x20);
 	if (info->share != DCB_I2C_UNUSED) {

@@ -125,7 +125,7 @@ struct sw_flow_key {
 			} nd;
 		} ipv6;
 	};
-} __aligned(__alignof__(long));
+} __aligned(BITS_PER_LONG/8); /* Ensure that we can do comparisons as longs. */
 
 struct sw_flow {
 	struct rcu_head rcu;

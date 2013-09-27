@@ -277,7 +277,7 @@ static int max8925_regulator_dt_init(struct platform_device *pdev,
 static int max8925_regulator_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct regulator_init_data *pdata = pdev->dev.platform_data;
+	struct regulator_init_data *pdata = dev_get_platdata(&pdev->dev);
 	struct regulator_config config = { };
 	struct max8925_regulator_info *ri;
 	struct resource *res;

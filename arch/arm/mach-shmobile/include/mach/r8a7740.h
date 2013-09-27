@@ -42,6 +42,8 @@ enum {
 	SHDMA_SLAVE_FSIB_TX,
 	SHDMA_SLAVE_USBHS_TX,
 	SHDMA_SLAVE_USBHS_RX,
+	SHDMA_SLAVE_MMCIF_TX,
+	SHDMA_SLAVE_MMCIF_RX,
 };
 
 extern void r8a7740_meram_workaround(void);

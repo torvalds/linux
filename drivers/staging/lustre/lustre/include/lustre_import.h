@@ -336,9 +336,11 @@ static inline unsigned int at_timeout2est(unsigned int val)
 }
 
 static inline void at_reset(struct adaptive_timeout *at, int val) {
+	spin_lock(&at->at_lock);
 	at->at_current = val;
 	at->at_worst_ever = val;
 	at->at_worst_time = cfs_time_current_sec();
+	spin_unlock(&at->at_lock);
 }
 static inline void at_init(struct adaptive_timeout *at, int val, int flags) {
 	memset(at, 0, sizeof(*at));

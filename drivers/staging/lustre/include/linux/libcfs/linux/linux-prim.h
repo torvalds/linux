@@ -49,7 +49,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
@@ -64,42 +63,11 @@
 
 #include <linux/libcfs/linux/linux-time.h>
 
-
-/*
- * CPU
- */
-#ifdef for_each_possible_cpu
-#define cfs_for_each_possible_cpu(cpu) for_each_possible_cpu(cpu)
-#elif defined(for_each_cpu)
-#define cfs_for_each_possible_cpu(cpu) for_each_cpu(cpu)
-#endif
-
-#ifdef NR_CPUS
-#else
-#define NR_CPUS     1
-#endif
-
-/*
- * cache
- */
-
-/*
- * IRQs
- */
-
-
-/*
- * Pseudo device register
- */
-typedef struct miscdevice		psdev_t;
-
 /*
  * Sysctl register
  */
 typedef struct ctl_table		ctl_table_t;
 typedef struct ctl_table_header		ctl_table_header_t;
-
-#define cfs_register_sysctl_table(t, a) register_sysctl_table(t)
 
 #define DECLARE_PROC_HANDLER(name)		      \
 static int					      \
@@ -112,130 +80,4 @@ LL_PROC_PROTO(name)				     \
 				 __##name);	     \
 }
 
-/*
- * Symbol register
- */
-#define cfs_symbol_register(s, p)       do {} while(0)
-#define cfs_symbol_unregister(s)	do {} while(0)
-#define cfs_symbol_get(s)	       symbol_get(s)
-#define cfs_symbol_put(s)	       symbol_put(s)
-
-typedef struct module module_t;
-
-/*
- * Proc file system APIs
- */
-typedef struct proc_dir_entry	   proc_dir_entry_t;
-
-/*
- * Wait Queue
- */
-
-
-typedef long			    cfs_task_state_t;
-
-#define CFS_DECL_WAITQ(wq)		DECLARE_WAIT_QUEUE_HEAD(wq)
-
-/*
- * Task struct
- */
-typedef struct task_struct	      task_t;
-#define DECL_JOURNAL_DATA	   void *journal_info
-#define PUSH_JOURNAL		do {    \
-	journal_info = current->journal_info;   \
-	current->journal_info = NULL;	   \
-	} while(0)
-#define POP_JOURNAL		 do {    \
-	current->journal_info = journal_info;   \
-	} while(0)
-
-/* Module interfaces */
-#define cfs_module(name, version, init, fini) \
-	module_init(init);		    \
-	module_exit(fini)
-
-/*
- * Signal
- */
-
-/*
- * Timer
- */
-typedef struct timer_list timer_list_t;
-
-
-#ifndef wait_event_timeout /* Only for RHEL3 2.4.21 kernel */
-#define __wait_event_timeout(wq, condition, timeout, ret)	\
-do {							     \
-	int __ret = 0;					   \
-	if (!(condition)) {				      \
-		wait_queue_t __wait;			     \
-		unsigned long expire;			    \
-								 \
-		init_waitqueue_entry(&__wait, current);	  \
-		expire = timeout + jiffies;		      \
-		add_wait_queue(&wq, &__wait);		    \
-		for (;;) {				       \
-			set_current_state(TASK_UNINTERRUPTIBLE); \
-			if (condition)			   \
-				break;			   \
-			if (jiffies > expire) {		  \
-				ret = jiffies - expire;	  \
-				break;			   \
-			}					\
-			schedule_timeout(timeout);	       \
-		}						\
-		current->state = TASK_RUNNING;		   \
-		remove_wait_queue(&wq, &__wait);		 \
-	}							\
-} while (0)
-/*
-   retval == 0; condition met; we're good.
-   retval > 0; timed out.
-*/
-#define cfs_waitq_wait_event_timeout(wq, condition, timeout, ret)    \
-do {								 \
-	ret = 0;						     \
-	if (!(condition))					    \
-		__wait_event_timeout(wq, condition, timeout, ret);   \
-} while (0)
-#else
-#define cfs_waitq_wait_event_timeout(wq, condition, timeout, ret)    \
-	ret = wait_event_timeout(wq, condition, timeout)
-#endif
-
-#define cfs_waitq_wait_event_interruptible_timeout(wq, c, timeout, ret) \
-	ret = wait_event_interruptible_timeout(wq, c, timeout)
-
-/*
- * atomic
- */
-
-
-#define cfs_atomic_add_unless(atom, a, u)    atomic_add_unless(atom, a, u)
-#define cfs_atomic_cmpxchg(atom, old, nv)    atomic_cmpxchg(atom, old, nv)
-
-/*
- * membar
- */
-
-
-/*
- * interrupt
- */
-
-
-/*
- * might_sleep
- */
-
-/*
- * group_info
- */
-typedef struct group_info group_info_t;
-
-
-/*
- * Random bytes
- */
 #endif

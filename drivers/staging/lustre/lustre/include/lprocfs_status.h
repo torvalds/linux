@@ -345,7 +345,7 @@ enum {
 
 #define EXTRA_FIRST_OPC LDLM_GLIMPSE_ENQUEUE
 /* class_obd.c */
-extern proc_dir_entry_t *proc_lustre_root;
+extern struct proc_dir_entry *proc_lustre_root;
 
 struct obd_device;
 struct obd_histogram;
@@ -369,18 +369,6 @@ static inline void s2dhms(struct dhms *ts, time_t secs)
 #define JOBSTATS_JOBID_VAR_MAX_LEN	20
 #define JOBSTATS_DISABLE		"disable"
 #define JOBSTATS_PROCNAME_UID		"procname_uid"
-
-typedef void (*cntr_init_callback)(struct lprocfs_stats *stats);
-
-struct obd_job_stats {
-	cfs_hash_t	*ojs_hash;
-	struct list_head	 ojs_list;
-	rwlock_t       ojs_lock; /* protect the obj_list */
-	cntr_init_callback ojs_cntr_init_fn;
-	int		ojs_cntr_num;
-	int		ojs_cleanup_interval;
-	time_t		   ojs_last_cleanup;
-};
 
 #ifdef LPROCFS
 
@@ -562,11 +550,11 @@ extern void lprocfs_free_md_stats(struct obd_device *obddev);
 struct obd_export;
 struct nid_stat;
 extern int lprocfs_add_clear_entry(struct obd_device * obd,
-				   proc_dir_entry_t *entry);
+				   struct proc_dir_entry *entry);
 extern int lprocfs_exp_setup(struct obd_export *exp,
 			     lnet_nid_t *peer_nid, int *newnid);
 extern int lprocfs_exp_cleanup(struct obd_export *exp);
-extern proc_dir_entry_t *lprocfs_add_simple(struct proc_dir_entry *root,
+extern struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
 						char *name,
 						void *data,
 						struct file_operations *fops);
@@ -579,27 +567,27 @@ lprocfs_nid_stats_clear_write(struct file *file, const char *buffer,
 			      unsigned long count, void *data);
 extern int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data);
 
-extern int lprocfs_register_stats(proc_dir_entry_t *root, const char *name,
+extern int lprocfs_register_stats(struct proc_dir_entry *root, const char *name,
 				  struct lprocfs_stats *stats);
 
 /* lprocfs_status.c */
-extern int lprocfs_add_vars(proc_dir_entry_t *root,
+extern int lprocfs_add_vars(struct proc_dir_entry *root,
 			    struct lprocfs_vars *var,
 			    void *data);
 
-extern proc_dir_entry_t *lprocfs_register(const char *name,
-					      proc_dir_entry_t *parent,
+extern struct proc_dir_entry *lprocfs_register(const char *name,
+					      struct proc_dir_entry *parent,
 					      struct lprocfs_vars *list,
 					      void *data);
 
-extern void lprocfs_remove(proc_dir_entry_t **root);
+extern void lprocfs_remove(struct proc_dir_entry **root);
 extern void lprocfs_remove_proc_entry(const char *name,
 				      struct proc_dir_entry *parent);
 
 extern int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list);
 extern int lprocfs_obd_cleanup(struct obd_device *obd);
 
-extern int lprocfs_seq_create(proc_dir_entry_t *parent, const char *name,
+extern int lprocfs_seq_create(struct proc_dir_entry *parent, const char *name,
 			      umode_t mode,
 			      const struct file_operations *seq_fops,
 			      void *data);
@@ -663,8 +651,8 @@ extern int lprocfs_write_u64_helper(const char *buffer, unsigned long count,
 extern int lprocfs_write_frac_u64_helper(const char *buffer,
 					 unsigned long count,
 					 __u64 *val, int mult);
-char *lprocfs_find_named_value(const char *buffer, const char *name,
-				unsigned long *count);
+extern char *lprocfs_find_named_value(const char *buffer, const char *name,
+				      size_t *count);
 void lprocfs_oh_tally(struct obd_histogram *oh, unsigned int value);
 void lprocfs_oh_tally_log2(struct obd_histogram *oh, unsigned int value);
 void lprocfs_oh_clear(struct obd_histogram *oh);
@@ -748,16 +736,6 @@ struct file_operations name##_fops = {				     \
 		.release = lprocfs_single_release,			\
 	};
 
-/* lprocfs_jobstats.c */
-int lprocfs_job_stats_log(struct obd_device *obd, char *jobid,
-			  int event, long amount);
-void lprocfs_job_stats_fini(struct obd_device *obd);
-int lprocfs_job_stats_init(struct obd_device *obd, int cntr_num,
-			   cntr_init_callback fn);
-int lprocfs_rd_job_interval(struct seq_file *m, void *data);
-int lprocfs_wr_job_interval(struct file *file, const char *buffer,
-			    unsigned long count, void *data);
-
 /* lproc_ptlrpc.c */
 struct ptlrpc_request;
 extern void target_print_req(void *seq_file, struct ptlrpc_request *req);
@@ -826,9 +804,6 @@ extern int lprocfs_quota_rd_qs_factor(char *page, char **start, loff_t off,
 extern int lprocfs_quota_wr_qs_factor(struct file *file,
 				      const char *buffer,
 				      unsigned long count, void *data);
-
-
-
 #else
 /* LPROCFS is not defined */
 
@@ -863,7 +838,7 @@ static inline void lprocfs_clear_stats(struct lprocfs_stats *stats)
 { return; }
 static inline void lprocfs_free_stats(struct lprocfs_stats **stats)
 { return; }
-static inline int lprocfs_register_stats(proc_dir_entry_t *root,
+static inline int lprocfs_register_stats(struct proc_dir_entry *root,
 					 const char *name,
 					 struct lprocfs_stats *stats)
 { return 0; }
@@ -894,7 +869,7 @@ static inline int lprocfs_exp_setup(struct obd_export *exp,lnet_nid_t *peer_nid,
 { return 0; }
 static inline int lprocfs_exp_cleanup(struct obd_export *exp)
 { return 0; }
-static inline proc_dir_entry_t *
+static inline struct proc_dir_entry *
 lprocfs_add_simple(struct proc_dir_entry *root, char *name,
 		   void *data, struct file_operations *fops)
 {return 0; }
@@ -912,15 +887,15 @@ static inline
 int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data)
 { return 0; }
 
-static inline proc_dir_entry_t *
-lprocfs_register(const char *name, proc_dir_entry_t *parent,
+static inline struct proc_dir_entry *
+lprocfs_register(const char *name, struct proc_dir_entry *parent,
 		 struct lprocfs_vars *list, void *data)
 { return NULL; }
-static inline int lprocfs_add_vars(proc_dir_entry_t *root,
+static inline int lprocfs_add_vars(struct proc_dir_entry *root,
 				   struct lprocfs_vars *var,
 				   void *data)
 { return 0; }
-static inline void lprocfs_remove(proc_dir_entry_t **root)
+static inline void lprocfs_remove(struct proc_dir_entry **root)
 { return; }
 static inline void lprocfs_remove_proc_entry(const char *name,
 					     struct proc_dir_entry *parent)
@@ -1020,20 +995,6 @@ __u64 lprocfs_stats_collector(struct lprocfs_stats *stats, int idx,
 #define LPROC_SEQ_FOPS_RO_TYPE(name, type)
 #define LPROC_SEQ_FOPS_RW_TYPE(name, type)
 #define LPROC_SEQ_FOPS_WR_ONLY(name, type)
-
-/* lprocfs_jobstats.c */
-static inline
-int lprocfs_job_stats_log(struct obd_device *obd, char *jobid, int event,
-			  long amount)
-{ return 0; }
-static inline
-void lprocfs_job_stats_fini(struct obd_device *obd)
-{ return; }
-static inline
-int lprocfs_job_stats_init(struct obd_device *obd, int cntr_num,
-			   cntr_init_callback fn)
-{ return 0; }
-
 
 /* lproc_ptlrpc.c */
 #define target_print_req NULL

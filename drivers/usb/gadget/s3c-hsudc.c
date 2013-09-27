@@ -1262,7 +1262,7 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct s3c_hsudc *hsudc;
-	struct s3c24xx_hsudc_platdata *pd = pdev->dev.platform_data;
+	struct s3c24xx_hsudc_platdata *pd = dev_get_platdata(&pdev->dev);
 	int ret, i;
 
 	hsudc = devm_kzalloc(&pdev->dev, sizeof(struct s3c_hsudc) +
@@ -1275,7 +1275,7 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 	hsudc->dev = dev;
-	hsudc->pd = pdev->dev.platform_data;
+	hsudc->pd = dev_get_platdata(&pdev->dev);
 
 	hsudc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 

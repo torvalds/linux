@@ -31,8 +31,8 @@
 #define at91_for_each_port(index)	\
 		for ((index) = 0; (index) < AT91_MAX_USBH_PORTS; (index)++)
 
-/* interface and function clocks; sometimes also an AHB clock */
-static struct clk *iclk, *fclk, *hclk;
+/* interface, function and usb clocks; sometimes also an AHB clock */
+static struct clk *iclk, *fclk, *uclk, *hclk;
 static int clocked;
 
 extern int usb_disabled(void);
@@ -41,6 +41,10 @@ extern int usb_disabled(void);
 
 static void at91_start_clock(void)
 {
+	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
+		clk_set_rate(uclk, 48000000);
+		clk_prepare_enable(uclk);
+	}
 	clk_prepare_enable(hclk);
 	clk_prepare_enable(iclk);
 	clk_prepare_enable(fclk);
@@ -52,6 +56,8 @@ static void at91_stop_clock(void)
 	clk_disable_unprepare(fclk);
 	clk_disable_unprepare(iclk);
 	clk_disable_unprepare(hclk);
+	if (IS_ENABLED(CONFIG_COMMON_CLK))
+		clk_disable_unprepare(uclk);
 	clocked = 0;
 }
 
@@ -162,6 +168,14 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 		retval = PTR_ERR(hclk);
 		goto err5;
 	}
+	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
+		uclk = clk_get(&pdev->dev, "usb_clk");
+		if (IS_ERR(uclk)) {
+			dev_err(&pdev->dev, "failed to get uclk\n");
+			retval = PTR_ERR(uclk);
+			goto err6;
+		}
+	}
 
 	at91_start_hc(pdev);
 	ohci_hcd_init(hcd_to_ohci(hcd));
@@ -173,6 +187,9 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	/* Error handling */
 	at91_stop_hc(pdev);
 
+	if (IS_ENABLED(CONFIG_COMMON_CLK))
+		clk_put(uclk);
+ err6:
 	clk_put(hclk);
  err5:
 	clk_put(fclk);
@@ -212,12 +229,12 @@ static void usb_hcd_at91_remove(struct usb_hcd *hcd,
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
+	if (IS_ENABLED(CONFIG_COMMON_CLK))
+		clk_put(uclk);
 	clk_put(hclk);
 	clk_put(fclk);
 	clk_put(iclk);
 	fclk = iclk = hclk = NULL;
-
-	dev_set_drvdata(&pdev->dev, NULL);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -225,7 +242,7 @@ static void usb_hcd_at91_remove(struct usb_hcd *hcd,
 static int
 ohci_at91_reset (struct usb_hcd *hcd)
 {
-	struct at91_usbh_data	*board = hcd->self.controller->platform_data;
+	struct at91_usbh_data	*board = dev_get_platdata(hcd->self.controller);
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	int			ret;
 
@@ -280,7 +297,7 @@ static int ohci_at91_usb_get_power(struct at91_usbh_data *pdata, int port)
  */
 static int ohci_at91_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
-	struct at91_usbh_data *pdata = hcd->self.controller->platform_data;
+	struct at91_usbh_data *pdata = dev_get_platdata(hcd->self.controller);
 	int length = ohci_hub_status_data(hcd, buf);
 	int port;
 
@@ -301,7 +318,7 @@ static int ohci_at91_hub_status_data(struct usb_hcd *hcd, char *buf)
 static int ohci_at91_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				 u16 wIndex, char *buf, u16 wLength)
 {
-	struct at91_usbh_data *pdata = hcd->self.controller->platform_data;
+	struct at91_usbh_data *pdata = dev_get_platdata(hcd->self.controller);
 	struct usb_hub_descriptor *desc;
 	int ret = -EINVAL;
 	u32 *data = (u32 *)buf;
@@ -461,7 +478,7 @@ static const struct hc_driver ohci_at91_hc_driver = {
 static irqreturn_t ohci_hcd_at91_overcurrent_irq(int irq, void *data)
 {
 	struct platform_device *pdev = data;
-	struct at91_usbh_data *pdata = pdev->dev.platform_data;
+	struct at91_usbh_data *pdata = dev_get_platdata(&pdev->dev);
 	int val, gpio, port;
 
 	/* From the GPIO notifying the over-current situation, find
@@ -567,7 +584,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	if (pdata) {
 		at91_for_each_port(i) {
@@ -643,7 +660,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 
 static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 {
-	struct at91_usbh_data	*pdata = pdev->dev.platform_data;
+	struct at91_usbh_data	*pdata = dev_get_platdata(&pdev->dev);
 	int			i;
 
 	if (pdata) {

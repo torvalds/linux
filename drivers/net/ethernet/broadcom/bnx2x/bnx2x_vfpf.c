@@ -257,17 +257,23 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 
 			/* humble our request */
 			req->resc_request.num_txqs =
-				bp->acquire_resp.resc.num_txqs;
+				min(req->resc_request.num_txqs,
+				    bp->acquire_resp.resc.num_txqs);
 			req->resc_request.num_rxqs =
-				bp->acquire_resp.resc.num_rxqs;
+				min(req->resc_request.num_rxqs,
+				    bp->acquire_resp.resc.num_rxqs);
 			req->resc_request.num_sbs =
-				bp->acquire_resp.resc.num_sbs;
+				min(req->resc_request.num_sbs,
+				    bp->acquire_resp.resc.num_sbs);
 			req->resc_request.num_mac_filters =
-				bp->acquire_resp.resc.num_mac_filters;
+				min(req->resc_request.num_mac_filters,
+				    bp->acquire_resp.resc.num_mac_filters);
 			req->resc_request.num_vlan_filters =
-				bp->acquire_resp.resc.num_vlan_filters;
+				min(req->resc_request.num_vlan_filters,
+				    bp->acquire_resp.resc.num_vlan_filters);
 			req->resc_request.num_mc_filters =
-				bp->acquire_resp.resc.num_mc_filters;
+				min(req->resc_request.num_mc_filters,
+				    bp->acquire_resp.resc.num_mc_filters);
 
 			/* Clear response buffer */
 			memset(&bp->vf2pf_mbox->resp, 0,
@@ -293,7 +299,7 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 	bp->common.flash_size = 0;
 	bp->flags |=
 		NO_WOL_FLAG | NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG | NO_FCOE_FLAG;
-	bp->igu_sb_cnt = 1;
+	bp->igu_sb_cnt = bp->acquire_resp.resc.num_sbs;
 	bp->igu_base_sb = bp->acquire_resp.resc.hw_sbs[0].hw_sb_id;
 	strlcpy(bp->fw_ver, bp->acquire_resp.pfdev_info.fw_ver,
 		sizeof(bp->fw_ver));
@@ -372,6 +378,8 @@ int bnx2x_vfpf_init(struct bnx2x *bp)
 	/* statistics - requests only supports single queue for now */
 	req->stats_addr = bp->fw_stats_data_mapping +
 			  offsetof(struct bnx2x_fw_stats_data, queue_stats);
+
+	req->stats_stride = sizeof(struct per_queue_stats);
 
 	/* add list termination tlv */
 	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
@@ -452,12 +460,60 @@ free_irq:
 	bnx2x_free_irq(bp);
 }
 
+static void bnx2x_leading_vfq_init(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				   struct bnx2x_vf_queue *q)
+{
+	u8 cl_id = vfq_cl_id(vf, q);
+	u8 func_id = FW_VF_HANDLE(vf->abs_vfid);
+
+	/* mac */
+	bnx2x_init_mac_obj(bp, &q->mac_obj,
+			   cl_id, q->cid, func_id,
+			   bnx2x_vf_sp(bp, vf, mac_rdata),
+			   bnx2x_vf_sp_map(bp, vf, mac_rdata),
+			   BNX2X_FILTER_MAC_PENDING,
+			   &vf->filter_state,
+			   BNX2X_OBJ_TYPE_RX_TX,
+			   &bp->macs_pool);
+	/* vlan */
+	bnx2x_init_vlan_obj(bp, &q->vlan_obj,
+			    cl_id, q->cid, func_id,
+			    bnx2x_vf_sp(bp, vf, vlan_rdata),
+			    bnx2x_vf_sp_map(bp, vf, vlan_rdata),
+			    BNX2X_FILTER_VLAN_PENDING,
+			    &vf->filter_state,
+			    BNX2X_OBJ_TYPE_RX_TX,
+			    &bp->vlans_pool);
+
+	/* mcast */
+	bnx2x_init_mcast_obj(bp, &vf->mcast_obj, cl_id,
+			     q->cid, func_id, func_id,
+			     bnx2x_vf_sp(bp, vf, mcast_rdata),
+			     bnx2x_vf_sp_map(bp, vf, mcast_rdata),
+			     BNX2X_FILTER_MCAST_PENDING,
+			     &vf->filter_state,
+			     BNX2X_OBJ_TYPE_RX_TX);
+
+	/* rss */
+	bnx2x_init_rss_config_obj(bp, &vf->rss_conf_obj, cl_id, q->cid,
+				  func_id, func_id,
+				  bnx2x_vf_sp(bp, vf, rss_rdata),
+				  bnx2x_vf_sp_map(bp, vf, rss_rdata),
+				  BNX2X_FILTER_RSS_CONF_PENDING,
+				  &vf->filter_state,
+				  BNX2X_OBJ_TYPE_RX_TX);
+
+	vf->leading_rss = cl_id;
+	q->is_leading = true;
+}
+
 /* ask the pf to open a queue for the vf */
-int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx)
+int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp,
+		       bool is_leading)
 {
 	struct vfpf_setup_q_tlv *req = &bp->vf2pf_mbox->req.setup_q;
 	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
-	struct bnx2x_fastpath *fp = &bp->fp[fp_idx];
+	u8 fp_idx = fp->index;
 	u16 tpa_agg_size = 0, flags = 0;
 	int rc;
 
@@ -472,6 +528,9 @@ int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx)
 			flags |= VFPF_QUEUE_FLG_TPA_GRO;
 		tpa_agg_size = TPA_AGG_SIZE;
 	}
+
+	if (is_leading)
+		flags |= VFPF_QUEUE_FLG_LEADING_RSS;
 
 	/* calculate queue flags */
 	flags |= VFPF_QUEUE_FLG_STATS;
@@ -638,6 +697,71 @@ int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
 
 	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
 		BNX2X_ERR("vfpf SET MAC failed: %d\n", resp->hdr.status);
+		rc = -EINVAL;
+	}
+out:
+	bnx2x_vfpf_finalize(bp, &req->first_tlv);
+
+	return 0;
+}
+
+/* request pf to config rss table for vf queues*/
+int bnx2x_vfpf_config_rss(struct bnx2x *bp,
+			  struct bnx2x_config_rss_params *params)
+{
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	struct vfpf_rss_tlv *req = &bp->vf2pf_mbox->req.update_rss;
+	int rc = 0;
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_UPDATE_RSS,
+			sizeof(*req));
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	memcpy(req->ind_table, params->ind_table, T_ETH_INDIRECTION_TABLE_SIZE);
+	memcpy(req->rss_key, params->rss_key, sizeof(params->rss_key));
+	req->ind_table_size = T_ETH_INDIRECTION_TABLE_SIZE;
+	req->rss_key_size = T_ETH_RSS_KEY;
+	req->rss_result_mask = params->rss_result_mask;
+
+	/* flags handled individually for backward/forward compatability */
+	if (params->rss_flags & (1 << BNX2X_RSS_MODE_DISABLED))
+		req->rss_flags |= VFPF_RSS_MODE_DISABLED;
+	if (params->rss_flags & (1 << BNX2X_RSS_MODE_REGULAR))
+		req->rss_flags |= VFPF_RSS_MODE_REGULAR;
+	if (params->rss_flags & (1 << BNX2X_RSS_SET_SRCH))
+		req->rss_flags |= VFPF_RSS_SET_SRCH;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV4))
+		req->rss_flags |= VFPF_RSS_IPV4;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV4_TCP))
+		req->rss_flags |= VFPF_RSS_IPV4_TCP;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV4_UDP))
+		req->rss_flags |= VFPF_RSS_IPV4_UDP;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV6))
+		req->rss_flags |= VFPF_RSS_IPV6;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV6_TCP))
+		req->rss_flags |= VFPF_RSS_IPV6_TCP;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV6_UDP))
+		req->rss_flags |= VFPF_RSS_IPV6_UDP;
+
+	DP(BNX2X_MSG_IOV, "rss flags %x\n", req->rss_flags);
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	/* send message to pf */
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+	if (rc) {
+		BNX2X_ERR("failed to send message to pf. rc was %d\n", rc);
+		goto out;
+	}
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		BNX2X_ERR("failed to send rss message to PF over Vf PF channel %d\n",
+			  resp->hdr.status);
 		rc = -EINVAL;
 	}
 out:
@@ -948,7 +1072,7 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	/* fill in pfdev info */
 	resp->pfdev_info.chip_num = bp->common.chip_id;
-	resp->pfdev_info.db_size = (1 << BNX2X_DB_SHIFT);
+	resp->pfdev_info.db_size = bp->db_size;
 	resp->pfdev_info.indices_per_sb = HC_SB_MAX_INDICES_E2;
 	resp->pfdev_info.pf_cap = (PFVF_CAP_RSS |
 				   /* PFVF_CAP_DHC |*/ PFVF_CAP_TPA);
@@ -1054,7 +1178,12 @@ static void bnx2x_vf_mbx_init_vf(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	/* record ghost addresses from vf message */
 	vf->spq_map = init->spq_addr;
 	vf->fw_stat_map = init->stats_addr;
+	vf->stats_stride = init->stats_stride;
 	vf->op_rc = bnx2x_vf_init(bp, vf, (dma_addr_t *)init->sb_addr);
+
+	/* set VF multiqueue statistics collection mode */
+	if (init->flags & VFPF_INIT_FLG_STATS_COALESCE)
+		vf->cfg_flags |= VF_CFG_STATS_COALESCE;
 
 	/* response */
 	bnx2x_vf_mbx_resp(bp, vf);
@@ -1080,6 +1209,8 @@ static void bnx2x_vf_mbx_set_q_flags(struct bnx2x *bp, u32 mbx_q_flags,
 		__set_bit(BNX2X_Q_FLG_HC, sp_q_flags);
 	if (mbx_q_flags & VFPF_QUEUE_FLG_DHC)
 		__set_bit(BNX2X_Q_FLG_DHC, sp_q_flags);
+	if (mbx_q_flags & VFPF_QUEUE_FLG_LEADING_RSS)
+		__set_bit(BNX2X_Q_FLG_LEADING_RSS, sp_q_flags);
 
 	/* outer vlan removal is set according to PF's multi function mode */
 	if (IS_MF_SD(bp))
@@ -1112,6 +1243,9 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 		struct bnx2x_queue_init_params *init_p;
 		struct bnx2x_queue_setup_params *setup_p;
+
+		if (bnx2x_vfq_is_leading(q))
+			bnx2x_leading_vfq_init(bp, vf, q);
 
 		/* re-init the VF operation context */
 		memset(&vf->op_params.qctor, 0 , sizeof(vf->op_params.qctor));
@@ -1552,6 +1686,68 @@ static void bnx2x_vf_mbx_release_vf(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		bnx2x_vf_mbx_resp(bp, vf);
 }
 
+static void bnx2x_vf_mbx_update_rss(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				    struct bnx2x_vf_mbx *mbx)
+{
+	struct bnx2x_vfop_cmd cmd = {
+		.done = bnx2x_vf_mbx_resp,
+		.block = false,
+	};
+	struct bnx2x_config_rss_params *vf_op_params = &vf->op_params.rss;
+	struct vfpf_rss_tlv *rss_tlv = &mbx->msg->req.update_rss;
+
+	if (rss_tlv->ind_table_size != T_ETH_INDIRECTION_TABLE_SIZE ||
+	    rss_tlv->rss_key_size != T_ETH_RSS_KEY) {
+		BNX2X_ERR("failing rss configuration of vf %d due to size mismatch\n",
+			  vf->index);
+		vf->op_rc = -EINVAL;
+		goto mbx_resp;
+	}
+
+	/* set vfop params according to rss tlv */
+	memcpy(vf_op_params->ind_table, rss_tlv->ind_table,
+	       T_ETH_INDIRECTION_TABLE_SIZE);
+	memcpy(vf_op_params->rss_key, rss_tlv->rss_key,
+	       sizeof(rss_tlv->rss_key));
+	vf_op_params->rss_obj = &vf->rss_conf_obj;
+	vf_op_params->rss_result_mask = rss_tlv->rss_result_mask;
+
+	/* flags handled individually for backward/forward compatability */
+	if (rss_tlv->rss_flags & VFPF_RSS_MODE_DISABLED)
+		__set_bit(BNX2X_RSS_MODE_DISABLED, &vf_op_params->rss_flags);
+	if (rss_tlv->rss_flags & VFPF_RSS_MODE_REGULAR)
+		__set_bit(BNX2X_RSS_MODE_REGULAR, &vf_op_params->rss_flags);
+	if (rss_tlv->rss_flags & VFPF_RSS_SET_SRCH)
+		__set_bit(BNX2X_RSS_SET_SRCH, &vf_op_params->rss_flags);
+	if (rss_tlv->rss_flags & VFPF_RSS_IPV4)
+		__set_bit(BNX2X_RSS_IPV4, &vf_op_params->rss_flags);
+	if (rss_tlv->rss_flags & VFPF_RSS_IPV4_TCP)
+		__set_bit(BNX2X_RSS_IPV4_TCP, &vf_op_params->rss_flags);
+	if (rss_tlv->rss_flags & VFPF_RSS_IPV4_UDP)
+		__set_bit(BNX2X_RSS_IPV4_UDP, &vf_op_params->rss_flags);
+	if (rss_tlv->rss_flags & VFPF_RSS_IPV6)
+		__set_bit(BNX2X_RSS_IPV6, &vf_op_params->rss_flags);
+	if (rss_tlv->rss_flags & VFPF_RSS_IPV6_TCP)
+		__set_bit(BNX2X_RSS_IPV6_TCP, &vf_op_params->rss_flags);
+	if (rss_tlv->rss_flags & VFPF_RSS_IPV6_UDP)
+		__set_bit(BNX2X_RSS_IPV6_UDP, &vf_op_params->rss_flags);
+
+	if ((!(rss_tlv->rss_flags & VFPF_RSS_IPV4_TCP) &&
+	     rss_tlv->rss_flags & VFPF_RSS_IPV4_UDP) ||
+	    (!(rss_tlv->rss_flags & VFPF_RSS_IPV6_TCP) &&
+	     rss_tlv->rss_flags & VFPF_RSS_IPV6_UDP)) {
+		BNX2X_ERR("about to hit a FW assert. aborting...\n");
+		vf->op_rc = -EINVAL;
+		goto mbx_resp;
+	}
+
+	vf->op_rc = bnx2x_vfop_rss_cmd(bp, vf, &cmd);
+
+mbx_resp:
+	if (vf->op_rc)
+		bnx2x_vf_mbx_resp(bp, vf);
+}
+
 /* dispatch request */
 static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  struct bnx2x_vf_mbx *mbx)
@@ -1588,6 +1784,9 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		case CHANNEL_TLV_RELEASE:
 			bnx2x_vf_mbx_release_vf(bp, vf, mbx);
 			break;
+		case CHANNEL_TLV_UPDATE_RSS:
+			bnx2x_vf_mbx_update_rss(bp, vf, mbx);
+			break;
 		}
 
 	} else {
@@ -1607,7 +1806,7 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		/* test whether we can respond to the VF (do we have an address
 		 * for it?)
 		 */
-		if (vf->state == VF_ACQUIRED) {
+		if (vf->state == VF_ACQUIRED || vf->state == VF_ENABLED) {
 			/* mbx_resp uses the op_rc of the VF */
 			vf->op_rc = PFVF_STATUS_NOT_SUPPORTED;
 

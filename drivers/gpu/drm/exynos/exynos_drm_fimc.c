@@ -17,10 +17,12 @@
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
 #include "regs-fimc.h"
+#include "exynos_drm_drv.h"
 #include "exynos_drm_ipp.h"
 #include "exynos_drm_fimc.h"
 
@@ -1343,10 +1345,8 @@ static int fimc_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 	struct drm_exynos_ipp_prop_list *prop_list;
 
 	prop_list = devm_kzalloc(ippdrv->dev, sizeof(*prop_list), GFP_KERNEL);
-	if (!prop_list) {
-		DRM_ERROR("failed to alloc property list.\n");
+	if (!prop_list)
 		return -ENOMEM;
-	}
 
 	prop_list->version = 1;
 	prop_list->writeback = 1;

@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2011 LSI Corporation.
+ *  Copyright (c) 2000-2013 LSI Corporation.
  *
  *
  *           Name:  mpi2_cnfg.h
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.22
+ *    mpi2_cnfg.h Version:  02.00.23
  *
  *  Version History
  *  ---------------
@@ -149,6 +149,8 @@
  *  11-18-11  02.00.22  Added define MPI2_IOCPAGE6_CAP_FLAGS_4K_SECTORS_SUPPORT.
  *                      Added UEFIVersion field to BIOS Page 1 and defined new
  *                      BiosOptions bits.
+ *  11-27-12  02.00.23  Added MPI2_MANPAGE7_FLAG_EVENTREPLAY_SLOT_ORDER.
+ *			 Added MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID.
  *  --------------------------------------------------------------------------
  */
 
@@ -698,6 +700,7 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_7
 #define MPI2_MANUFACTURING7_PAGEVERSION                 (0x01)
 
 /* defines for the Flags field */
+#define MPI2_MANPAGE7_FLAG_EVENTREPLAY_SLOT_ORDER       (0x00000002)
 #define MPI2_MANPAGE7_FLAG_USE_SLOT_INFO                (0x00000001)
 
 
@@ -1224,6 +1227,9 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1
 #define MPI2_BIOSPAGE1_PAGEVERSION                      (0x05)
 
 /* values for BIOS Page 1 BiosOptions field */
+#define MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID                  (0x000000F0)
+#define MPI2_BIOSPAGE1_OPTIONS_LSI_OEM_ID                   (0x00000000)
+
 #define MPI2_BIOSPAGE1_OPTIONS_MASK_UEFI_HII_REGISTRATION   (0x00000006)
 #define MPI2_BIOSPAGE1_OPTIONS_ENABLE_UEFI_HII              (0x00000000)
 #define MPI2_BIOSPAGE1_OPTIONS_DISABLE_UEFI_HII             (0x00000002)

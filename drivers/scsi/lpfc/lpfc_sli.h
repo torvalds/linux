@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -60,7 +60,8 @@ struct lpfc_iocbq {
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint16_t iocb_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */
-#define LPFC_IO_WAKE		2	/* High Priority Queue signal flag */
+#define LPFC_IO_WAKE		2	/* Synchronous I/O completed */
+#define LPFC_IO_WAKE_TMO	LPFC_IO_WAKE /* Synchronous I/O timed out */
 #define LPFC_IO_FCP		4	/* FCP command -- iocbq in scsi_buf */
 #define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
 #define LPFC_IO_FABRIC		0x10	/* Iocb send using fabric scheduler */
@@ -92,6 +93,8 @@ struct lpfc_iocbq {
 	} context_un;
 
 	void (*fabric_iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
+			   struct lpfc_iocbq *);
+	void (*wait_iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);
 	void (*iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);

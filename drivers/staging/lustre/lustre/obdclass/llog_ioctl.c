@@ -45,46 +45,45 @@ static int str2logid(struct llog_logid *logid, char *str, int len)
 	char *start, *end, *endp;
 	__u64 id, seq;
 
-	ENTRY;
 	start = str;
 	if (*start != '#')
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	start++;
 	if (start - str >= len - 1)
-		RETURN(-EINVAL);
+		return -EINVAL;
 	end = strchr(start, '#');
 	if (end == NULL || end == start)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	*end = '\0';
 	id = simple_strtoull(start, &endp, 0);
 	if (endp != end)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	start = ++end;
 	if (start - str >= len - 1)
-		RETURN(-EINVAL);
+		return -EINVAL;
 	end = strchr(start, '#');
 	if (end == NULL || end == start)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	*end = '\0';
 	seq = simple_strtoull(start, &endp, 0);
 	if (endp != end)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	ostid_set_seq(&logid->lgl_oi, seq);
 	ostid_set_id(&logid->lgl_oi, id);
 
 	start = ++end;
 	if (start - str >= len - 1)
-		RETURN(-EINVAL);
+		return -EINVAL;
 	logid->lgl_ogen = simple_strtoul(start, &endp, 16);
 	if (*endp != '\0')
-		RETURN(-EINVAL);
+		return -EINVAL;
 
-	RETURN(0);
+	return 0;
 }
 
 static int llog_check_cb(const struct lu_env *env, struct llog_handle *handle,
@@ -96,8 +95,6 @@ static int llog_check_cb(const struct lu_env *env, struct llog_handle *handle,
 	char *endp;
 	int cur_index, rc = 0;
 
-	ENTRY;
-
 	if (ioc_data && ioc_data->ioc_inllen1 > 0) {
 		l = 0;
 		remains = ioc_data->ioc_inllen4 +
@@ -106,19 +103,19 @@ static int llog_check_cb(const struct lu_env *env, struct llog_handle *handle,
 			cfs_size_round(ioc_data->ioc_inllen3);
 		from = simple_strtol(ioc_data->ioc_inlbuf2, &endp, 0);
 		if (*endp != '\0')
-			RETURN(-EINVAL);
+			return -EINVAL;
 		to = simple_strtol(ioc_data->ioc_inlbuf3, &endp, 0);
 		if (*endp != '\0')
-			RETURN(-EINVAL);
+			return -EINVAL;
 		ioc_data->ioc_inllen1 = 0;
 		out = ioc_data->ioc_bulk;
 	}
 
 	cur_index = rec->lrh_index;
 	if (cur_index < from)
-		RETURN(0);
+		return 0;
 	if (to > 0 && cur_index > to)
-		RETURN(-LLOG_EEMPTY);
+		return -LLOG_EEMPTY;
 
 	if (handle->lgh_hdr->llh_flags & LLOG_F_IS_CAT) {
 		struct llog_logid_rec	*lir = (struct llog_logid_rec *)rec;
@@ -131,13 +128,13 @@ static int llog_check_cb(const struct lu_env *env, struct llog_handle *handle,
 				     rec->lrh_len);
 		}
 		if (handle->lgh_ctxt == NULL)
-			RETURN(-EOPNOTSUPP);
+			return -EOPNOTSUPP;
 		rc = llog_cat_id2handle(env, handle, &loghandle, &lir->lid_id);
 		if (rc) {
 			CDEBUG(D_IOCTL, "cannot find log #"DOSTID"#%08x\n",
 			       POSTID(&lir->lid_id.lgl_oi),
 			       lir->lid_id.lgl_ogen);
-			RETURN(rc);
+			return rc;
 		}
 		rc = llog_process(env, loghandle, llog_check_cb, NULL, NULL);
 		llog_handle_put(loghandle);
@@ -167,10 +164,10 @@ static int llog_check_cb(const struct lu_env *env, struct llog_handle *handle,
 		if (remains <= 0) {
 			CERROR("%s: no space to print log records\n",
 			       handle->lgh_ctxt->loc_obd->obd_name);
-			RETURN(-LLOG_EEMPTY);
+			return -LLOG_EEMPTY;
 		}
 	}
-	RETURN(rc);
+	return rc;
 }
 
 static int llog_print_cb(const struct lu_env *env, struct llog_handle *handle,
@@ -182,7 +179,6 @@ static int llog_print_cb(const struct lu_env *env, struct llog_handle *handle,
 	char *endp;
 	int cur_index;
 
-	ENTRY;
 	if (ioc_data != NULL && ioc_data->ioc_inllen1 > 0) {
 		l = 0;
 		remains = ioc_data->ioc_inllen4 +
@@ -191,26 +187,26 @@ static int llog_print_cb(const struct lu_env *env, struct llog_handle *handle,
 			cfs_size_round(ioc_data->ioc_inllen3);
 		from = simple_strtol(ioc_data->ioc_inlbuf2, &endp, 0);
 		if (*endp != '\0')
-			RETURN(-EINVAL);
+			return -EINVAL;
 		to = simple_strtol(ioc_data->ioc_inlbuf3, &endp, 0);
 		if (*endp != '\0')
-			RETURN(-EINVAL);
+			return -EINVAL;
 		out = ioc_data->ioc_bulk;
 		ioc_data->ioc_inllen1 = 0;
 	}
 
 	cur_index = rec->lrh_index;
 	if (cur_index < from)
-		RETURN(0);
+		return 0;
 	if (to > 0 && cur_index > to)
-		RETURN(-LLOG_EEMPTY);
+		return -LLOG_EEMPTY;
 
 	if (handle->lgh_hdr->llh_flags & LLOG_F_IS_CAT) {
 		struct llog_logid_rec *lir = (struct llog_logid_rec *)rec;
 
 		if (rec->lrh_type != LLOG_LOGID_MAGIC) {
 			CERROR("invalid record in catalog\n");
-			RETURN(-EINVAL);
+			return -EINVAL;
 		}
 
 		l = snprintf(out, remains,
@@ -222,7 +218,7 @@ static int llog_print_cb(const struct lu_env *env, struct llog_handle *handle,
 
 		rc = class_config_parse_rec(rec, out, remains);
 		if (rc < 0)
-			RETURN(rc);
+			return rc;
 		l = rc;
 	} else {
 		l = snprintf(out, remains,
@@ -233,10 +229,10 @@ static int llog_print_cb(const struct lu_env *env, struct llog_handle *handle,
 	remains -= l;
 	if (remains <= 0) {
 		CERROR("not enough space for print log records\n");
-		RETURN(-LLOG_EEMPTY);
+		return -LLOG_EEMPTY;
 	}
 
-	RETURN(0);
+	return 0;
 }
 static int llog_remove_log(const struct lu_env *env, struct llog_handle *cat,
 			   struct llog_logid *logid)
@@ -244,13 +240,11 @@ static int llog_remove_log(const struct lu_env *env, struct llog_handle *cat,
 	struct llog_handle	*log;
 	int			 rc;
 
-	ENTRY;
-
 	rc = llog_cat_id2handle(env, cat, &log, logid);
 	if (rc) {
 		CDEBUG(D_IOCTL, "cannot find log #"DOSTID"#%08x\n",
 		       POSTID(&logid->lgl_oi), logid->lgl_ogen);
-		RETURN(-ENOENT);
+		return -ENOENT;
 	}
 
 	rc = llog_destroy(env, log);
@@ -261,7 +255,7 @@ static int llog_remove_log(const struct lu_env *env, struct llog_handle *cat,
 	llog_cat_cleanup(env, cat, log, log->u.phd.phd_cookie.lgc_index);
 out:
 	llog_handle_put(log);
-	RETURN(rc);
+	return rc;
 
 }
 
@@ -271,12 +265,11 @@ static int llog_delete_cb(const struct lu_env *env, struct llog_handle *handle,
 	struct llog_logid_rec	*lir = (struct llog_logid_rec *)rec;
 	int			 rc;
 
-	ENTRY;
 	if (rec->lrh_type != LLOG_LOGID_MAGIC)
-		RETURN(-EINVAL);
+		return -EINVAL;
 	rc = llog_remove_log(env, handle, &lir->lid_id);
 
-	RETURN(rc);
+	return rc;
 }
 
 
@@ -287,25 +280,23 @@ int llog_ioctl(const struct lu_env *env, struct llog_ctxt *ctxt, int cmd,
 	int			 rc = 0;
 	struct llog_handle	*handle = NULL;
 
-	ENTRY;
-
 	if (*data->ioc_inlbuf1 == '#') {
 		rc = str2logid(&logid, data->ioc_inlbuf1, data->ioc_inllen1);
 		if (rc)
-			RETURN(rc);
+			return rc;
 		rc = llog_open(env, ctxt, &handle, &logid, NULL,
 			       LLOG_OPEN_EXISTS);
 		if (rc)
-			RETURN(rc);
+			return rc;
 	} else if (*data->ioc_inlbuf1 == '$') {
 		char *name = data->ioc_inlbuf1 + 1;
 
 		rc = llog_open(env, ctxt, &handle, NULL, name,
 			       LLOG_OPEN_EXISTS);
 		if (rc)
-			RETURN(rc);
+			return rc;
 	} else {
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	rc = llog_init_handle(env, handle, 0, NULL);
@@ -422,6 +413,6 @@ out_close:
 		llog_cat_close(env, handle);
 	else
 		llog_close(env, handle);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(llog_ioctl);

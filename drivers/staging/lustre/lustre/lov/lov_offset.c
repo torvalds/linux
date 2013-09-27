@@ -52,10 +52,9 @@ obd_size lov_stripe_size(struct lov_stripe_md *lsm, obd_size ost_size,
 	obd_off swidth;
 	obd_size lov_size;
 	int magic = lsm->lsm_magic;
-	ENTRY;
 
 	if (ost_size == 0)
-		RETURN(0);
+		return 0;
 
 	LASSERT(lsm_op_find(magic) != NULL);
 	lsm_op_find(magic)->lsm_stripe_by_index(lsm, &stripeno, NULL, &swidth);
@@ -67,7 +66,7 @@ obd_size lov_stripe_size(struct lov_stripe_md *lsm, obd_size ost_size,
 	else
 		lov_size = (ost_size - 1) * swidth + (stripeno + 1) * ssize;
 
-	RETURN(lov_size);
+	return lov_size;
 }
 
 /* we have an offset in file backed by an lov and want to find out where

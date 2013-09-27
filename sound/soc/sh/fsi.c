@@ -235,6 +235,8 @@ struct fsi_stream {
 	struct sh_dmae_slave	slave; /* see fsi_handler_init() */
 	struct work_struct	work;
 	dma_addr_t		dma;
+	int			loop_cnt;
+	int			additional_pos;
 };
 
 struct fsi_clk {
@@ -1289,6 +1291,8 @@ static int fsi_dma_init(struct fsi_priv *fsi, struct fsi_stream *io)
 	io->bus_option = BUSOP_SET(24, PACKAGE_24BITBUS_BACK) |
 			 BUSOP_SET(16, PACKAGE_16BITBUS_STREAM);
 
+	io->loop_cnt = 2; /* push 1st, 2nd period first, then 3rd, 4th... */
+	io->additional_pos = 0;
 	io->dma = dma_map_single(dai->dev, runtime->dma_area,
 				 snd_pcm_lib_buffer_bytes(io->substream), dir);
 	return 0;
@@ -1305,11 +1309,15 @@ static int fsi_dma_quit(struct fsi_priv *fsi, struct fsi_stream *io)
 	return 0;
 }
 
-static dma_addr_t fsi_dma_get_area(struct fsi_stream *io)
+static dma_addr_t fsi_dma_get_area(struct fsi_stream *io, int additional)
 {
 	struct snd_pcm_runtime *runtime = io->substream->runtime;
+	int period = io->period_pos + additional;
 
-	return io->dma + samples_to_bytes(runtime, io->buff_sample_pos);
+	if (period >= runtime->periods)
+		period = 0;
+
+	return io->dma + samples_to_bytes(runtime, period * io->period_samples);
 }
 
 static void fsi_dma_complete(void *data)
@@ -1321,7 +1329,7 @@ static void fsi_dma_complete(void *data)
 	enum dma_data_direction dir = fsi_stream_is_play(fsi, io) ?
 		DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
-	dma_sync_single_for_cpu(dai->dev, fsi_dma_get_area(io),
+	dma_sync_single_for_cpu(dai->dev, fsi_dma_get_area(io, 0),
 			samples_to_bytes(runtime, io->period_samples), dir);
 
 	io->buff_sample_pos += io->period_samples;
@@ -1347,7 +1355,7 @@ static void fsi_dma_do_work(struct work_struct *work)
 	struct snd_pcm_runtime *runtime;
 	enum dma_data_direction dir;
 	int is_play = fsi_stream_is_play(fsi, io);
-	int len;
+	int len, i;
 	dma_addr_t buf;
 
 	if (!fsi_stream_is_working(fsi, io))
@@ -1357,26 +1365,33 @@ static void fsi_dma_do_work(struct work_struct *work)
 	runtime	= io->substream->runtime;
 	dir	= is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	len	= samples_to_bytes(runtime, io->period_samples);
-	buf	= fsi_dma_get_area(io);
 
-	dma_sync_single_for_device(dai->dev, buf, len, dir);
+	for (i = 0; i < io->loop_cnt; i++) {
+		buf	= fsi_dma_get_area(io, io->additional_pos);
 
-	desc = dmaengine_prep_slave_single(io->chan, buf, len, dir,
-					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc) {
-		dev_err(dai->dev, "dmaengine_prep_slave_sg() fail\n");
-		return;
+		dma_sync_single_for_device(dai->dev, buf, len, dir);
+
+		desc = dmaengine_prep_slave_single(io->chan, buf, len, dir,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_err(dai->dev, "dmaengine_prep_slave_sg() fail\n");
+			return;
+		}
+
+		desc->callback		= fsi_dma_complete;
+		desc->callback_param	= io;
+
+		if (dmaengine_submit(desc) < 0) {
+			dev_err(dai->dev, "tx_submit() fail\n");
+			return;
+		}
+
+		dma_async_issue_pending(io->chan);
+
+		io->additional_pos = 1;
 	}
 
-	desc->callback		= fsi_dma_complete;
-	desc->callback_param	= io;
-
-	if (dmaengine_submit(desc) < 0) {
-		dev_err(dai->dev, "tx_submit() fail\n");
-		return;
-	}
-
-	dma_async_issue_pending(io->chan);
+	io->loop_cnt = 1;
 
 	/*
 	 * FIXME

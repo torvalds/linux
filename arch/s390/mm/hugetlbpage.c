@@ -8,21 +8,127 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 
+static inline pmd_t __pte_to_pmd(pte_t pte)
+{
+	int none, young, prot;
+	pmd_t pmd;
+
+	/*
+	 * Convert encoding		  pte bits	  pmd bits
+	 *				.IR...wrdytp	..R...I...y.
+	 * empty			.10...000000 -> ..0...1...0.
+	 * prot-none, clean, old	.11...000001 -> ..0...1...1.
+	 * prot-none, clean, young	.11...000101 -> ..1...1...1.
+	 * prot-none, dirty, old	.10...001001 -> ..0...1...1.
+	 * prot-none, dirty, young	.10...001101 -> ..1...1...1.
+	 * read-only, clean, old	.11...010001 -> ..1...1...0.
+	 * read-only, clean, young	.01...010101 -> ..1...0...1.
+	 * read-only, dirty, old	.11...011001 -> ..1...1...0.
+	 * read-only, dirty, young	.01...011101 -> ..1...0...1.
+	 * read-write, clean, old	.11...110001 -> ..0...1...0.
+	 * read-write, clean, young	.01...110101 -> ..0...0...1.
+	 * read-write, dirty, old	.10...111001 -> ..0...1...0.
+	 * read-write, dirty, young	.00...111101 -> ..0...0...1.
+	 * Huge ptes are dirty by definition, a clean pte is made dirty
+	 * by the conversion.
+	 */
+	if (pte_present(pte)) {
+		pmd_val(pmd) = pte_val(pte) & PAGE_MASK;
+		if (pte_val(pte) & _PAGE_INVALID)
+			pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
+		none = (pte_val(pte) & _PAGE_PRESENT) &&
+			!(pte_val(pte) & _PAGE_READ) &&
+			!(pte_val(pte) & _PAGE_WRITE);
+		prot = (pte_val(pte) & _PAGE_PROTECT) &&
+			!(pte_val(pte) & _PAGE_WRITE);
+		young = pte_val(pte) & _PAGE_YOUNG;
+		if (none || young)
+			pmd_val(pmd) |= _SEGMENT_ENTRY_YOUNG;
+		if (prot || (none && young))
+			pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
+	} else
+		pmd_val(pmd) = _SEGMENT_ENTRY_INVALID;
+	return pmd;
+}
+
+static inline pte_t __pmd_to_pte(pmd_t pmd)
+{
+	pte_t pte;
+
+	/*
+	 * Convert encoding	  pmd bits	  pte bits
+	 *			..R...I...y.	.IR...wrdytp
+	 * empty		..0...1...0. -> .10...000000
+	 * prot-none, old	..0...1...1. -> .10...001001
+	 * prot-none, young	..1...1...1. -> .10...001101
+	 * read-only, old	..1...1...0. -> .11...011001
+	 * read-only, young	..1...0...1. -> .01...011101
+	 * read-write, old	..0...1...0. -> .10...111001
+	 * read-write, young	..0...0...1. -> .00...111101
+	 * Huge ptes are dirty by definition
+	 */
+	if (pmd_present(pmd)) {
+		pte_val(pte) = _PAGE_PRESENT | _PAGE_LARGE | _PAGE_DIRTY |
+			(pmd_val(pmd) & PAGE_MASK);
+		if (pmd_val(pmd) & _SEGMENT_ENTRY_INVALID)
+			pte_val(pte) |= _PAGE_INVALID;
+		if (pmd_prot_none(pmd)) {
+			if (pmd_val(pmd) & _SEGMENT_ENTRY_PROTECT)
+				pte_val(pte) |= _PAGE_YOUNG;
+		} else {
+			pte_val(pte) |= _PAGE_READ;
+			if (pmd_val(pmd) & _SEGMENT_ENTRY_PROTECT)
+				pte_val(pte) |= _PAGE_PROTECT;
+			else
+				pte_val(pte) |= _PAGE_WRITE;
+			if (pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG)
+				pte_val(pte) |= _PAGE_YOUNG;
+		}
+	} else
+		pte_val(pte) = _PAGE_INVALID;
+	return pte;
+}
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-				   pte_t *pteptr, pte_t pteval)
+		     pte_t *ptep, pte_t pte)
 {
-	pmd_t *pmdp = (pmd_t *) pteptr;
-	unsigned long mask;
+	pmd_t pmd;
 
+	pmd = __pte_to_pmd(pte);
 	if (!MACHINE_HAS_HPAGE) {
-		pteptr = (pte_t *) pte_page(pteval)[1].index;
-		mask = pte_val(pteval) &
-				(_SEGMENT_ENTRY_INV | _SEGMENT_ENTRY_RO);
-		pte_val(pteval) = (_SEGMENT_ENTRY + __pa(pteptr)) | mask;
-	}
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_ORIGIN;
+		pmd_val(pmd) |= pte_page(pte)[1].index;
+	} else
+		pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_CO;
+	*(pmd_t *) ptep = pmd;
+}
 
-	pmd_val(*pmdp) = pte_val(pteval);
+pte_t huge_ptep_get(pte_t *ptep)
+{
+	unsigned long origin;
+	pmd_t pmd;
+
+	pmd = *(pmd_t *) ptep;
+	if (!MACHINE_HAS_HPAGE && pmd_present(pmd)) {
+		origin = pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN;
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_ORIGIN;
+		pmd_val(pmd) |= *(unsigned long *) origin;
+	}
+	return __pmd_to_pte(pmd);
+}
+
+pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+			      unsigned long addr, pte_t *ptep)
+{
+	pmd_t *pmdp = (pmd_t *) ptep;
+	pte_t pte = huge_ptep_get(ptep);
+
+	if (MACHINE_HAS_IDTE)
+		__pmd_idte(addr, pmdp);
+	else
+		__pmd_csp(pmdp);
+	pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
+	return pte;
 }
 
 int arch_prepare_hugepage(struct page *page)
@@ -58,7 +164,7 @@ void arch_release_hugepage(struct page *page)
 	ptep = (pte_t *) page[1].index;
 	if (!ptep)
 		return;
-	clear_table((unsigned long *) ptep, _PAGE_TYPE_EMPTY,
+	clear_table((unsigned long *) ptep, _PAGE_INVALID,
 		    PTRS_PER_PTE * sizeof(pte_t));
 	page_table_free(&init_mm, (unsigned long *) ptep);
 	page[1].index = 0;

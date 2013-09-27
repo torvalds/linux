@@ -464,9 +464,6 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 				 "error getting hotkey status\n"));
 		return;
 	}
-
-	acpi_bus_generate_proc_event(pcc->device, HKEY_NOTIFY, result);
-
 	if (!sparse_keymap_report_event(hotk_input_dev,
 					result & 0xf, result & 0x80, false))
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,

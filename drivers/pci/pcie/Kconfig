@@ -2,7 +2,7 @@
 # PCI Express Port Bus Configuration
 #
 config PCIEPORTBUS
-	bool "PCI Express support"
+	bool "PCI Express Port Bus support"
 	depends on PCI
 	help
 	  This automatically enables PCI Express Port Bus support. Users can

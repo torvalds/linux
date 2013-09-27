@@ -52,7 +52,7 @@ Options:
 irq can be omitted, although the cmd interface will not work without it.
 */
 
-#include <linux/ioport.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
@@ -567,10 +567,9 @@ static int das16m1_attach(struct comedi_device *dev,
 	int ret;
 	unsigned int irq;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_request_region(dev, it->options[0], DAS16M1_SIZE);
 	if (ret)

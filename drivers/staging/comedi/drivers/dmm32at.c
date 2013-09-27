@@ -32,9 +32,10 @@ Configuration Options:
   comedi_config /dev/comedi0 dmm32at baseaddr,irq
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
 
 #include "comedi_fc.h"
 
@@ -647,31 +648,34 @@ static int dmm32at_dio_insn_bits(struct comedi_device *dev,
 
 static int dmm32at_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct dmm32at_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
 	unsigned char chanbit;
-	int chan = CR_CHAN(insn->chanspec);
+	int ret;
 
-	if (insn->n != 1)
-		return -EINVAL;
-
-	if (chan < 8)
+	if (chan < 8) {
+		mask = 0x0000ff;
 		chanbit = DMM32AT_DIRA;
-	else if (chan < 16)
+	} else if (chan < 16) {
+		mask = 0x00ff00;
 		chanbit = DMM32AT_DIRB;
-	else if (chan < 20)
+	} else if (chan < 20) {
+		mask = 0x0f0000;
 		chanbit = DMM32AT_DIRCL;
-	else
+	} else {
+		mask = 0xf00000;
 		chanbit = DMM32AT_DIRCH;
+	}
 
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
-	/* if output clear the bit, otherwise set it */
-	if (data[0] == COMEDI_OUTPUT)
+	if (data[0] == INSN_CONFIG_DIO_OUTPUT)
 		devpriv->dio_config &= ~chanbit;
 	else
 		devpriv->dio_config |= chanbit;
@@ -680,7 +684,7 @@ static int dmm32at_dio_insn_config(struct comedi_device *dev,
 	/* set the DIO's to the new configuration setting */
 	outb(devpriv->dio_config, dev->iobase + DMM32AT_DIOCONF);
 
-	return 1;
+	return insn->n;
 }
 
 static int dmm32at_attach(struct comedi_device *dev,
@@ -753,10 +757,9 @@ static int dmm32at_attach(struct comedi_device *dev,
 		dev->irq = irq;
 	}
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)

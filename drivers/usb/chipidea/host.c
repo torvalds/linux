@@ -24,6 +24,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/chipidea.h>
+#include <linux/regulator/consumer.h>
 
 #include "../host/ehci.h"
 
@@ -63,15 +64,34 @@ static int host_start(struct ci_hdrc *ci)
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = ci->hw_bank.cap;
 	ehci->has_hostpc = ci->hw_bank.lpm;
+	ehci->has_tdi_phy_lpm = ci->hw_bank.lpm;
+
+	if (ci->platdata->reg_vbus) {
+		ret = regulator_enable(ci->platdata->reg_vbus);
+		if (ret) {
+			dev_err(ci->dev,
+				"Failed to enable vbus regulator, ret=%d\n",
+				ret);
+			goto put_hcd;
+		}
+	}
 
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret)
-		usb_put_hcd(hcd);
+		goto disable_reg;
 	else
 		ci->hcd = hcd;
 
 	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
 		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
+
+	return ret;
+
+disable_reg:
+	regulator_disable(ci->platdata->reg_vbus);
+
+put_hcd:
+	usb_put_hcd(hcd);
 
 	return ret;
 }
@@ -82,6 +102,15 @@ static void host_stop(struct ci_hdrc *ci)
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
+	if (ci->platdata->reg_vbus)
+		regulator_disable(ci->platdata->reg_vbus);
+}
+
+
+void ci_hdrc_host_destroy(struct ci_hdrc *ci)
+{
+	if (ci->role == CI_ROLE_HOST)
+		host_stop(ci);
 }
 
 int ci_hdrc_host_init(struct ci_hdrc *ci)

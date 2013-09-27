@@ -28,7 +28,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/usb/phy.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 
 #include "soc.h"
 #include "omap_device.h"
@@ -349,7 +349,7 @@ static struct fixed_voltage_config hsusb_reg_config = {
 	/* .init_data filled later */
 };
 
-static const char *nop_name = "nop_usb_xceiv"; /* NOP PHY driver */
+static const char *nop_name = "usb_phy_gen_xceiv"; /* NOP PHY driver */
 static const char *reg_name = "reg-fixed-voltage"; /* Regulator driver */
 
 /**
@@ -460,9 +460,9 @@ int usbhs_init_phys(struct usbhs_phy_data *phy, int num_phys)
 		pdevinfo.name = nop_name;
 		pdevinfo.id = phy->port;
 		pdevinfo.data = phy->platform_data;
-		pdevinfo.size_data = sizeof(struct nop_usb_xceiv_platform_data);
-
-		scnprintf(phy_id, MAX_STR, "nop_usb_xceiv.%d",
+		pdevinfo.size_data =
+			sizeof(struct usb_phy_gen_xceiv_platform_data);
+		scnprintf(phy_id, MAX_STR, "usb_phy_gen_xceiv.%d",
 					phy->port);
 		pdev = platform_device_register_full(&pdevinfo);
 		if (IS_ERR(pdev)) {

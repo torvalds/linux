@@ -421,13 +421,11 @@ static int dw_i2s_probe(struct platform_device *pdev)
 					 dw_i2s_dai, 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "not able to register dai\n");
-		goto err_set_drvdata;
+		goto err_clk_disable;
 	}
 
 	return 0;
 
-err_set_drvdata:
-	dev_set_drvdata(&pdev->dev, NULL);
 err_clk_disable:
 	clk_disable(dev->clk);
 err_clk_put:
@@ -440,7 +438,6 @@ static int dw_i2s_remove(struct platform_device *pdev)
 	struct dw_i2s_dev *dev = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	clk_put(dev->clk);
 

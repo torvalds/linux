@@ -266,6 +266,7 @@ extern int of_device_is_available(const struct device_node *device);
 extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
+extern struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 #define for_each_property_of_node(dn, pp) \
 	for (pp = dn->properties; pp != NULL; pp = pp->next)
 
@@ -342,6 +343,8 @@ const char *of_prop_next_string(struct property *prop, const char *cur);
 		s = of_prop_next_string(prop, NULL);		\
 		s;						\
 		s = of_prop_next_string(prop, s))
+
+int of_device_is_stdout_path(struct device_node *dn);
 
 #else /* CONFIG_OF */
 
@@ -459,6 +462,12 @@ static inline const void *of_get_property(const struct device_node *node,
 	return NULL;
 }
 
+static inline struct device_node *of_get_cpu_node(int cpu,
+					unsigned int *thread)
+{
+	return NULL;
+}
+
 static inline int of_property_read_u64(const struct device_node *np,
 				       const char *propname, u64 *out_value)
 {
@@ -501,6 +510,11 @@ static inline int of_alias_get_id(struct device_node *np, const char *stem)
 }
 
 static inline int of_machine_is_compatible(const char *compat)
+{
+	return 0;
+}
+
+static inline int of_device_is_stdout_path(struct device_node *dn)
 {
 	return 0;
 }

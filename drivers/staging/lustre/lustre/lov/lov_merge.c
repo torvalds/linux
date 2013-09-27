@@ -109,7 +109,7 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	lvb->lvb_mtime = current_mtime;
 	lvb->lvb_atime = current_atime;
 	lvb->lvb_ctime = current_ctime;
-	RETURN(rc);
+	return rc;
 }
 
 /** Merge the lock value block(&lvb) attributes from each of the stripes in a
@@ -127,7 +127,6 @@ int lov_merge_lvb(struct obd_export *exp,
 	int   rc;
 	__u64 kms;
 
-	ENTRY;
 	lov_stripe_lock(lsm);
 	rc = lov_merge_lvb_kms(lsm, lvb, &kms);
 	lov_stripe_unlock(lsm);
@@ -137,7 +136,7 @@ int lov_merge_lvb(struct obd_export *exp,
 	CDEBUG(D_INODE, "merged for ID "DOSTID" s="LPU64" m="LPU64" a="LPU64
 	       " c="LPU64" b="LPU64"\n", POSTID(&lsm->lsm_oi), lvb->lvb_size,
 	       lvb->lvb_mtime, lvb->lvb_atime, lvb->lvb_ctime, lvb->lvb_blocks);
-	RETURN(rc);
+	return rc;
 }
 
 /* Must be called under the lov_stripe_lock() */
@@ -147,7 +146,6 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 	struct lov_oinfo *loi;
 	int stripe = 0;
 	__u64 kms;
-	ENTRY;
 
 	LASSERT(spin_is_locked(&lsm->lsm_lock));
 	LASSERT(lsm->lsm_lock_owner == current_pid());
@@ -162,7 +160,7 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 			       loi->loi_kms, kms);
 			loi_kms_set(loi, loi->loi_lvb.lvb_size = kms);
 		}
-		RETURN(0);
+		return 0;
 	}
 
 	if (size > 0)
@@ -175,7 +173,7 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 	if (kms > loi->loi_kms)
 		loi_kms_set(loi, kms);
 
-	RETURN(0);
+	return 0;
 }
 
 void lov_merge_attrs(struct obdo *tgt, struct obdo *src, obd_valid valid,

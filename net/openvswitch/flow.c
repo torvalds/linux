@@ -1981,6 +1981,7 @@ nla_put_failure:
  * Returns zero if successful or a negative error code. */
 int ovs_flow_init(void)
 {
+	BUILD_BUG_ON(__alignof__(struct sw_flow_key) % __alignof__(long));
 	BUILD_BUG_ON(sizeof(struct sw_flow_key) % sizeof(long));
 
 	flow_cache = kmem_cache_create("sw_flow", sizeof(struct sw_flow), 0,

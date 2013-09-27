@@ -1261,6 +1261,20 @@ static void activate_path(struct work_struct *work)
 				pg_init_done, pgpath);
 }
 
+static int noretry_error(int error)
+{
+	switch (error) {
+	case -EOPNOTSUPP:
+	case -EREMOTEIO:
+	case -EILSEQ:
+	case -ENODATA:
+		return 1;
+	}
+
+	/* Anything else could be a path failure, so should be retried */
+	return 0;
+}
+
 /*
  * end_io handling
  */
@@ -1284,7 +1298,7 @@ static int do_end_io(struct multipath *m, struct request *clone,
 	if (!error && !clone->errors)
 		return 0;	/* I/O complete */
 
-	if (error == -EOPNOTSUPP || error == -EREMOTEIO || error == -EILSEQ)
+	if (noretry_error(error))
 		return error;
 
 	if (mpio->pgpath)

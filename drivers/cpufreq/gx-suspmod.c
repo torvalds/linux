@@ -183,7 +183,7 @@ static void gx_write_byte(int reg, int value)
  * gx_detect_chipset:
  *
  **/
-static __init struct pci_dev *gx_detect_chipset(void)
+static struct pci_dev * __init gx_detect_chipset(void)
 {
 	struct pci_dev *gx_pci = NULL;
 
@@ -446,7 +446,6 @@ static struct cpufreq_driver gx_suspmod_driver = {
 	.target		= cpufreq_gx_target,
 	.init		= cpufreq_gx_cpu_init,
 	.name		= "gx-suspmod",
-	.owner		= THIS_MODULE,
 };
 
 static int __init cpufreq_gx_init(void)
@@ -466,7 +465,7 @@ static int __init cpufreq_gx_init(void)
 
 	pr_debug("geode suspend modulation available.\n");
 
-	params = kzalloc(sizeof(struct gxfreq_params), GFP_KERNEL);
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (params == NULL)
 		return -ENOMEM;
 

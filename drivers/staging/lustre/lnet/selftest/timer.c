@@ -195,7 +195,7 @@ stt_timer_main (void *arg)
 int
 stt_start_timer_thread (void)
 {
-	task_t *task;
+	struct task_struct *task;
 
 	LASSERT(!stt_data.stt_shuttingdown);
 

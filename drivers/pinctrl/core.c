@@ -153,9 +153,7 @@ int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name)
 		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
 		/* Pin space may be sparse */
-		if (desc == NULL)
-			continue;
-		if (desc->name && !strcmp(name, desc->name))
+		if (desc && !strcmp(name, desc->name))
 			return pin;
 	}
 
@@ -357,14 +355,17 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio)
 	/* Loop over the pin controllers */
 	list_for_each_entry(pctldev, &pinctrldev_list, node) {
 		/* Loop over the ranges */
+		mutex_lock(&pctldev->mutex);
 		list_for_each_entry(range, &pctldev->gpio_ranges, node) {
 			/* Check if any gpio range overlapped with gpio chip */
 			if (range->base + range->npins - 1 < chip->base ||
 			    range->base > chip->base + chip->ngpio - 1)
 				continue;
+			mutex_unlock(&pctldev->mutex);
 			mutex_unlock(&pinctrldev_list_mutex);
 			return true;
 		}
+		mutex_unlock(&pctldev->mutex);
 	}
 
 	mutex_unlock(&pinctrldev_list_mutex);
@@ -392,6 +393,8 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 {
 	struct pinctrl_dev *pctldev = NULL;
 
+	mutex_lock(&pinctrldev_list_mutex);
+
 	/* Loop over the pin controllers */
 	list_for_each_entry(pctldev, &pinctrldev_list, node) {
 		struct pinctrl_gpio_range *range;
@@ -400,9 +403,12 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 		if (range != NULL) {
 			*outdev = pctldev;
 			*outrange = range;
+			mutex_unlock(&pinctrldev_list_mutex);
 			return 0;
 		}
 	}
+
+	mutex_unlock(&pinctrldev_list_mutex);
 
 	return -EPROBE_DEFER;
 }
@@ -556,10 +562,14 @@ int pinctrl_request_gpio(unsigned gpio)
 		return ret;
 	}
 
+	mutex_lock(&pctldev->mutex);
+
 	/* Convert to the pin controllers number space */
 	pin = gpio_to_pin(range, gpio);
 
 	ret = pinmux_request_gpio(pctldev, range, pin, gpio);
+
+	mutex_unlock(&pctldev->mutex);
 
 	return ret;
 }
@@ -1228,22 +1238,35 @@ EXPORT_SYMBOL_GPL(pinctrl_force_default);
 #ifdef CONFIG_PM
 
 /**
+ * pinctrl_pm_select_state() - select pinctrl state for PM
+ * @dev: device to select default state for
+ * @state: state to set
+ */
+static int pinctrl_pm_select_state(struct device *dev,
+				   struct pinctrl_state *state)
+{
+	struct dev_pin_info *pins = dev->pins;
+	int ret;
+
+	if (IS_ERR(state))
+		return 0; /* No such state */
+	ret = pinctrl_select_state(pins->p, state);
+	if (ret)
+		dev_err(dev, "failed to activate pinctrl state %s\n",
+			state->name);
+	return ret;
+}
+
+/**
  * pinctrl_pm_select_default_state() - select default pinctrl state for PM
  * @dev: device to select default state for
  */
 int pinctrl_pm_select_default_state(struct device *dev)
 {
-	struct dev_pin_info *pins = dev->pins;
-	int ret;
-
-	if (!pins)
+	if (!dev->pins)
 		return 0;
-	if (IS_ERR(pins->default_state))
-		return 0; /* No default state */
-	ret = pinctrl_select_state(pins->p, pins->default_state);
-	if (ret)
-		dev_err(dev, "failed to activate default pinctrl state\n");
-	return ret;
+
+	return pinctrl_pm_select_state(dev, dev->pins->default_state);
 }
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_default_state);
 
@@ -1253,17 +1276,10 @@ EXPORT_SYMBOL_GPL(pinctrl_pm_select_default_state);
  */
 int pinctrl_pm_select_sleep_state(struct device *dev)
 {
-	struct dev_pin_info *pins = dev->pins;
-	int ret;
-
-	if (!pins)
+	if (!dev->pins)
 		return 0;
-	if (IS_ERR(pins->sleep_state))
-		return 0; /* No sleep state */
-	ret = pinctrl_select_state(pins->p, pins->sleep_state);
-	if (ret)
-		dev_err(dev, "failed to activate pinctrl sleep state\n");
-	return ret;
+
+	return pinctrl_pm_select_state(dev, dev->pins->sleep_state);
 }
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_sleep_state);
 
@@ -1273,17 +1289,10 @@ EXPORT_SYMBOL_GPL(pinctrl_pm_select_sleep_state);
  */
 int pinctrl_pm_select_idle_state(struct device *dev)
 {
-	struct dev_pin_info *pins = dev->pins;
-	int ret;
-
-	if (!pins)
+	if (!dev->pins)
 		return 0;
-	if (IS_ERR(pins->idle_state))
-		return 0; /* No idle state */
-	ret = pinctrl_select_state(pins->p, pins->idle_state);
-	if (ret)
-		dev_err(dev, "failed to activate pinctrl idle state\n");
-	return ret;
+
+	return pinctrl_pm_select_state(dev, dev->pins->idle_state);
 }
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_idle_state);
 #endif

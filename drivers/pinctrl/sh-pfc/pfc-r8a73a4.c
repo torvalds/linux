@@ -21,85 +21,84 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <mach/irqs.h>
-#include <mach/r8a73a4.h>
 
 #include "core.h"
 #include "sh_pfc.h"
 
 #define CPU_ALL_PORT(fn, pfx, sfx)					\
 	/*  Port0 - Port30 */						\
-	PORT_10(fn, pfx, sfx),						\
-	PORT_10(fn, pfx##1, sfx),					\
-	PORT_10(fn, pfx##2, sfx),					\
-	PORT_1(fn,  pfx##30, sfx),					\
+	PORT_10(0, fn, pfx, sfx),					\
+	PORT_10(10, fn, pfx##1, sfx),					\
+	PORT_10(20, fn, pfx##2, sfx),					\
+	PORT_1(30, fn, pfx##30, sfx),					\
 	/* Port32 - Port40 */						\
-	PORT_1(fn,  pfx##32, sfx),	PORT_1(fn,  pfx##33, sfx),	\
-	PORT_1(fn,  pfx##34, sfx),	PORT_1(fn,  pfx##35, sfx),	\
-	PORT_1(fn,  pfx##36, sfx),	PORT_1(fn,  pfx##37, sfx),	\
-	PORT_1(fn,  pfx##38, sfx),	PORT_1(fn,  pfx##39, sfx),	\
-	PORT_1(fn,  pfx##40, sfx),					\
+	PORT_1(32, fn, pfx##32, sfx),	PORT_1(33, fn, pfx##33, sfx),	\
+	PORT_1(34, fn, pfx##34, sfx),	PORT_1(35, fn, pfx##35, sfx),	\
+	PORT_1(36, fn, pfx##36, sfx),	PORT_1(37, fn, pfx##37, sfx),	\
+	PORT_1(38, fn, pfx##38, sfx),	PORT_1(39, fn, pfx##39, sfx),	\
+	PORT_1(40, fn, pfx##40, sfx),					\
 	/* Port64  - Port85 */						\
-	PORT_1(fn, pfx##64, sfx),	PORT_1(fn, pfx##65, sfx),	\
-	PORT_1(fn, pfx##66, sfx),	PORT_1(fn, pfx##67, sfx),	\
-	PORT_1(fn, pfx##68, sfx),	PORT_1(fn, pfx##69, sfx),	\
-	PORT_10(fn, pfx##7, sfx),					\
-	PORT_1(fn, pfx##80, sfx),	PORT_1(fn, pfx##81, sfx),	\
-	PORT_1(fn, pfx##82, sfx),	PORT_1(fn, pfx##83, sfx),	\
-	PORT_1(fn, pfx##84, sfx),	PORT_1(fn, pfx##85, sfx),	\
+	PORT_1(64, fn, pfx##64, sfx),	PORT_1(65, fn, pfx##65, sfx),	\
+	PORT_1(66, fn, pfx##66, sfx),	PORT_1(67, fn, pfx##67, sfx),	\
+	PORT_1(68, fn, pfx##68, sfx),	PORT_1(69, fn, pfx##69, sfx),	\
+	PORT_10(70, fn, pfx##7, sfx),					\
+	PORT_1(80, fn, pfx##80, sfx),	PORT_1(81, fn, pfx##81, sfx),	\
+	PORT_1(82, fn, pfx##82, sfx),	PORT_1(83, fn, pfx##83, sfx),	\
+	PORT_1(84, fn, pfx##84, sfx),	PORT_1(85, fn, pfx##85, sfx),	\
 	/* Port96  - Port126 */						\
-	PORT_1(fn, pfx##96, sfx),	PORT_1(fn, pfx##97, sfx),	\
-	PORT_1(fn, pfx##98, sfx),	PORT_1(fn, pfx##99, sfx),	\
-	PORT_10(fn, pfx##10, sfx),					\
-	PORT_10(fn, pfx##11, sfx),					\
-	PORT_1(fn, pfx##120, sfx),	PORT_1(fn, pfx##121, sfx),	\
-	PORT_1(fn, pfx##122, sfx),	PORT_1(fn, pfx##123, sfx),	\
-	PORT_1(fn, pfx##124, sfx),	PORT_1(fn, pfx##125, sfx),	\
-	PORT_1(fn, pfx##126, sfx),					\
+	PORT_1(96, fn, pfx##96, sfx),	PORT_1(97, fn, pfx##97, sfx),	\
+	PORT_1(98, fn, pfx##98, sfx),	PORT_1(99, fn, pfx##99, sfx),	\
+	PORT_10(100, fn, pfx##10, sfx),					\
+	PORT_10(110, fn, pfx##11, sfx),					\
+	PORT_1(120, fn, pfx##120, sfx),	PORT_1(121, fn, pfx##121, sfx),	\
+	PORT_1(122, fn, pfx##122, sfx),	PORT_1(123, fn, pfx##123, sfx),	\
+	PORT_1(124, fn, pfx##124, sfx),	PORT_1(125, fn, pfx##125, sfx),	\
+	PORT_1(126, fn, pfx##126, sfx),					\
 	/* Port128 - Port134 */						\
-	PORT_1(fn, pfx##128, sfx),	PORT_1(fn, pfx##129, sfx),	\
-	PORT_1(fn, pfx##130, sfx),	PORT_1(fn, pfx##131, sfx),	\
-	PORT_1(fn, pfx##132, sfx),	PORT_1(fn, pfx##133, sfx),	\
-	PORT_1(fn, pfx##134, sfx),					\
+	PORT_1(128, fn, pfx##128, sfx),	PORT_1(129, fn, pfx##129, sfx),	\
+	PORT_1(130, fn, pfx##130, sfx),	PORT_1(131, fn, pfx##131, sfx),	\
+	PORT_1(132, fn, pfx##132, sfx),	PORT_1(133, fn, pfx##133, sfx),	\
+	PORT_1(134, fn, pfx##134, sfx),					\
 	/* Port160 - Port178 */						\
-	PORT_10(fn, pfx##16, sfx),					\
-	PORT_1(fn, pfx##170, sfx),	PORT_1(fn, pfx##171, sfx),	\
-	PORT_1(fn, pfx##172, sfx),	PORT_1(fn, pfx##173, sfx),	\
-	PORT_1(fn, pfx##174, sfx),	PORT_1(fn, pfx##175, sfx),	\
-	PORT_1(fn, pfx##176, sfx),	PORT_1(fn, pfx##177, sfx),	\
-	PORT_1(fn, pfx##178, sfx),					\
+	PORT_10(160, fn, pfx##16, sfx),					\
+	PORT_1(170, fn, pfx##170, sfx),	PORT_1(171, fn, pfx##171, sfx),	\
+	PORT_1(172, fn, pfx##172, sfx),	PORT_1(173, fn, pfx##173, sfx),	\
+	PORT_1(174, fn, pfx##174, sfx),	PORT_1(175, fn, pfx##175, sfx),	\
+	PORT_1(176, fn, pfx##176, sfx),	PORT_1(177, fn, pfx##177, sfx),	\
+	PORT_1(178, fn, pfx##178, sfx),					\
 	/* Port192 - Port222 */						\
-	PORT_1(fn, pfx##192, sfx),	PORT_1(fn, pfx##193, sfx),	\
-	PORT_1(fn, pfx##194, sfx),	PORT_1(fn, pfx##195, sfx),	\
-	PORT_1(fn, pfx##196, sfx),	PORT_1(fn, pfx##197, sfx),	\
-	PORT_1(fn, pfx##198, sfx),	PORT_1(fn, pfx##199, sfx),	\
-	PORT_10(fn, pfx##20, sfx),					\
-	PORT_10(fn, pfx##21, sfx),					\
-	PORT_1(fn, pfx##220, sfx),	PORT_1(fn, pfx##221, sfx),	\
-	PORT_1(fn, pfx##222, sfx),					\
+	PORT_1(192, fn, pfx##192, sfx),	PORT_1(193, fn, pfx##193, sfx),	\
+	PORT_1(194, fn, pfx##194, sfx),	PORT_1(195, fn, pfx##195, sfx),	\
+	PORT_1(196, fn, pfx##196, sfx),	PORT_1(197, fn, pfx##197, sfx),	\
+	PORT_1(198, fn, pfx##198, sfx),	PORT_1(199, fn, pfx##199, sfx),	\
+	PORT_10(200, fn, pfx##20, sfx),					\
+	PORT_10(210, fn, pfx##21, sfx),					\
+	PORT_1(220, fn, pfx##220, sfx),	PORT_1(221, fn, pfx##221, sfx),	\
+	PORT_1(222, fn, pfx##222, sfx),					\
 	/* Port224 - Port250 */						\
-	PORT_1(fn, pfx##224, sfx),	PORT_1(fn, pfx##225, sfx),	\
-	PORT_1(fn, pfx##226, sfx),	PORT_1(fn, pfx##227, sfx),	\
-	PORT_1(fn, pfx##228, sfx),	PORT_1(fn, pfx##229, sfx),	\
-	PORT_10(fn, pfx##23, sfx),					\
-	PORT_10(fn, pfx##24, sfx),					\
-	PORT_1(fn, pfx##250, sfx),					\
+	PORT_1(224, fn, pfx##224, sfx),	PORT_1(225, fn, pfx##225, sfx),	\
+	PORT_1(226, fn, pfx##226, sfx),	PORT_1(227, fn, pfx##227, sfx),	\
+	PORT_1(228, fn, pfx##228, sfx),	PORT_1(229, fn, pfx##229, sfx),	\
+	PORT_10(230, fn, pfx##23, sfx),					\
+	PORT_10(240, fn, pfx##24, sfx),					\
+	PORT_1(250, fn, pfx##250, sfx),					\
 	/* Port256 - Port283 */						\
-	PORT_1(fn, pfx##256, sfx),	PORT_1(fn, pfx##257, sfx),	\
-	PORT_1(fn, pfx##258, sfx),	PORT_1(fn, pfx##259, sfx),	\
-	PORT_10(fn, pfx##26, sfx),					\
-	PORT_10(fn, pfx##27, sfx),					\
-	PORT_1(fn, pfx##280, sfx),	PORT_1(fn, pfx##281, sfx),	\
-	PORT_1(fn, pfx##282, sfx),	PORT_1(fn, pfx##283, sfx),	\
+	PORT_1(256, fn, pfx##256, sfx),	PORT_1(257, fn, pfx##257, sfx),	\
+	PORT_1(258, fn, pfx##258, sfx),	PORT_1(259, fn, pfx##259, sfx),	\
+	PORT_10(260, fn, pfx##26, sfx),					\
+	PORT_10(270, fn, pfx##27, sfx),					\
+	PORT_1(280, fn, pfx##280, sfx),	PORT_1(281, fn, pfx##281, sfx),	\
+	PORT_1(282, fn, pfx##282, sfx),	PORT_1(283, fn, pfx##283, sfx),	\
 	/* Port288 - Port308 */						\
-	PORT_1(fn, pfx##288, sfx),	PORT_1(fn, pfx##289, sfx),	\
-	PORT_10(fn, pfx##29, sfx),					\
-	PORT_1(fn, pfx##300, sfx),	PORT_1(fn, pfx##301, sfx),	\
-	PORT_1(fn, pfx##302, sfx),	PORT_1(fn, pfx##303, sfx),	\
-	PORT_1(fn, pfx##304, sfx),	PORT_1(fn, pfx##305, sfx),	\
-	PORT_1(fn, pfx##306, sfx),	PORT_1(fn, pfx##307, sfx),	\
-	PORT_1(fn, pfx##308, sfx),					\
+	PORT_1(288, fn, pfx##288, sfx),	PORT_1(289, fn, pfx##289, sfx),	\
+	PORT_10(290, fn, pfx##29, sfx),					\
+	PORT_1(300, fn, pfx##300, sfx),	PORT_1(301, fn, pfx##301, sfx),	\
+	PORT_1(302, fn, pfx##302, sfx),	PORT_1(303, fn, pfx##303, sfx),	\
+	PORT_1(304, fn, pfx##304, sfx),	PORT_1(305, fn, pfx##305, sfx),	\
+	PORT_1(306, fn, pfx##306, sfx),	PORT_1(307, fn, pfx##307, sfx),	\
+	PORT_1(308, fn, pfx##308, sfx),					\
 	/* Port320 - Port329 */						\
-	PORT_10(fn, pfx##32, sfx)
+	PORT_10(320, fn, pfx##32, sfx)
 
 
 enum {
@@ -428,10 +427,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-#define _PORT_DATA(pfx, sfx)	PORT_DATA_IO(pfx)
-#define PINMUX_DATA_ALL()    CPU_ALL_PORT(_PORT_DATA, , unused)
-
-static const pinmux_enum_t pinmux_data[] = {
+static const u16 pinmux_data[] = {
 	/* specify valid pin states for each pin in GPIO mode */
 	PINMUX_DATA_ALL(),
 
@@ -1269,19 +1265,12 @@ static const pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(IRQ57_MARK,			PORT329_FN0),
 };
 
-#define R8A73A4_PIN(pin, cfgs)			\
-	{					\
-		.name = __stringify(PORT##pin),	\
-		.enum_id = PORT##pin##_DATA,	\
-		.configs = cfgs,		\
-	}
-
 #define __O	(SH_PFC_PIN_CFG_OUTPUT)
 #define __IO	(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
 #define __PUD	(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
 
-#define R8A73A4_PIN_IO_PU_PD(pin)       R8A73A4_PIN(pin, __IO | __PUD)
-#define R8A73A4_PIN_O(pin)              R8A73A4_PIN(pin, __O)
+#define R8A73A4_PIN_IO_PU_PD(pin)       SH_PFC_PIN_CFG(pin, __IO | __PUD)
+#define R8A73A4_PIN_O(pin)              SH_PFC_PIN_CFG(pin, __O)
 
 static struct sh_pfc_pin pinmux_pins[] = {
 	R8A73A4_PIN_IO_PU_PD(0), R8A73A4_PIN_IO_PU_PD(1),
@@ -1406,20 +1395,6 @@ static struct sh_pfc_pin pinmux_pins[] = {
 	R8A73A4_PIN_IO_PU_PD(324), R8A73A4_PIN_IO_PU_PD(325),
 	R8A73A4_PIN_IO_PU_PD(326), R8A73A4_PIN_IO_PU_PD(327),
 	R8A73A4_PIN_IO_PU_PD(328), R8A73A4_PIN_IO_PU_PD(329),
-};
-
-static const struct pinmux_range pinmux_ranges[] = {
-	{.begin = 0, .end = 30,},
-	{.begin = 32, .end = 40,},
-	{.begin = 64, .end = 85,},
-	{.begin = 96, .end = 126,},
-	{.begin = 128, .end = 134,},
-	{.begin = 160, .end = 178,},
-	{.begin = 192, .end = 222,},
-	{.begin = 224, .end = 250,},
-	{.begin = 256, .end = 283,},
-	{.begin = 288, .end = 308,},
-	{.begin = 320, .end = 329,},
 };
 
 /* - IRQC ------------------------------------------------------------------- */
@@ -2765,9 +2740,6 @@ const struct sh_pfc_soc_info r8a73a4_pinmux_info = {
 
 	.pins = pinmux_pins,
 	.nr_pins = ARRAY_SIZE(pinmux_pins),
-
-	.ranges = pinmux_ranges,
-	.nr_ranges = ARRAY_SIZE(pinmux_ranges),
 
 	.groups = pinmux_groups,
 	.nr_groups = ARRAY_SIZE(pinmux_groups),

@@ -680,7 +680,7 @@ int dma_buf_debugfs_create_file(const char *name,
 	d = debugfs_create_file(name, S_IRUGO, dma_buf_debugfs_dir,
 			write, &dma_buf_debug_fops);
 
-	return PTR_RET(d);
+	return PTR_ERR_OR_ZERO(d);
 }
 #else
 static inline int dma_buf_init_debugfs(void)

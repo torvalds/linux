@@ -24,6 +24,7 @@ static u64			last_timestamp;
 static u64			nr_unordered;
 extern const struct option	record_options[];
 static bool			no_callchain;
+static bool			latency_format;
 static bool			system_wide;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -65,6 +66,7 @@ struct output_option {
 static struct {
 	bool user_set;
 	bool wildcard_set;
+	unsigned int print_ip_opts;
 	u64 fields;
 	u64 invalid_fields;
 } output[PERF_TYPE_MAX] = {
@@ -234,6 +236,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 {
 	int j;
 	struct perf_evsel *evsel;
+	struct perf_event_attr *attr;
 
 	for (j = 0; j < PERF_TYPE_MAX; ++j) {
 		evsel = perf_session__find_first_evtype(session, j);
@@ -252,6 +255,24 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		if (evsel && output[j].fields &&
 			perf_evsel__check_attr(evsel, session))
 			return -1;
+
+		if (evsel == NULL)
+			continue;
+
+		attr = &evsel->attr;
+
+		output[j].print_ip_opts = 0;
+		if (PRINT_FIELD(IP))
+			output[j].print_ip_opts |= PRINT_IP_OPT_IP;
+
+		if (PRINT_FIELD(SYM))
+			output[j].print_ip_opts |= PRINT_IP_OPT_SYM;
+
+		if (PRINT_FIELD(DSO))
+			output[j].print_ip_opts |= PRINT_IP_OPT_DSO;
+
+		if (PRINT_FIELD(SYMOFFSET))
+			output[j].print_ip_opts |= PRINT_IP_OPT_SYMOFFSET;
 	}
 
 	return 0;
@@ -381,8 +402,8 @@ static void print_sample_bts(union perf_event *event,
 		else
 			printf("\n");
 		perf_evsel__print_ip(evsel, event, sample, machine,
-				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
-				     PRINT_FIELD(SYMOFFSET));
+				     output[attr->type].print_ip_opts,
+				     PERF_MAX_STACK_DEPTH);
 	}
 
 	printf(" => ");
@@ -396,10 +417,10 @@ static void print_sample_bts(union perf_event *event,
 
 static void process_event(union perf_event *event, struct perf_sample *sample,
 			  struct perf_evsel *evsel, struct machine *machine,
-			  struct addr_location *al)
+			  struct thread *thread,
+			  struct addr_location *al __maybe_unused)
 {
 	struct perf_event_attr *attr = &evsel->attr;
-	struct thread *thread = al->thread;
 
 	if (output[attr->type].fields == 0)
 		return;
@@ -422,9 +443,10 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 			printf(" ");
 		else
 			printf("\n");
+
 		perf_evsel__print_ip(evsel, event, sample, machine,
-				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
-				     PRINT_FIELD(SYMOFFSET));
+				     output[attr->type].print_ip_opts,
+				     PERF_MAX_STACK_DEPTH);
 	}
 
 	printf("\n");
@@ -479,7 +501,8 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				struct machine *machine)
 {
 	struct addr_location al;
-	struct thread *thread = machine__findnew_thread(machine, event->ip.tid);
+	struct thread *thread = machine__findnew_thread(machine, sample->pid,
+							sample->tid);
 
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -498,7 +521,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		return 0;
 	}
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample, 0) < 0) {
+	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_err("problem processing %d event, skipping it.\n",
 		       event->header.type);
 		return -1;
@@ -510,7 +533,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
-	scripting_ops->process_event(event, sample, evsel, machine, &al);
+	scripting_ops->process_event(event, sample, evsel, machine, thread, &al);
 
 	evsel->hists.stats.total_period += sample->period;
 	return 0;
@@ -523,7 +546,6 @@ static struct perf_tool perf_script = {
 	.exit		 = perf_event__process_exit,
 	.fork		 = perf_event__process_fork,
 	.attr		 = perf_event__process_attr,
-	.event_type	 = perf_event__process_event_type,
 	.tracing_data	 = perf_event__process_tracing_data,
 	.build_id	 = perf_event__process_build_id,
 	.ordered_samples = true,

@@ -1709,7 +1709,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 
 	if(netif_msg_intr(sis_priv))
 		printk(KERN_DEBUG "%s: exiting interrupt, "
-		       "interrupt status = 0x%#8.8x.\n",
+		       "interrupt status = %#8.8x\n",
 		       net_dev->name, sr32(isr));
 
 	spin_unlock (&sis_priv->lock);

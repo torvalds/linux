@@ -78,14 +78,14 @@
 
 #define iser_warn(fmt, arg...)				\
 	do {						\
-		if (iser_debug_level > 1)		\
+		if (iser_debug_level > 0)		\
 			pr_warn(PFX "%s:" fmt,          \
 				__func__ , ## arg);	\
 	} while (0)
 
 #define iser_info(fmt, arg...)				\
 	do {						\
-		if (iser_debug_level > 0)		\
+		if (iser_debug_level > 1)		\
 			pr_info(PFX "%s:" fmt,          \
 				__func__ , ## arg);	\
 	} while (0)
@@ -102,7 +102,13 @@
 
 					/* support up to 512KB in one RDMA */
 #define ISCSI_ISER_SG_TABLESIZE         (0x80000 >> SHIFT_4K)
-#define ISER_DEF_CMD_PER_LUN		ISCSI_DEF_XMIT_CMDS_MAX
+#define ISER_DEF_XMIT_CMDS_DEFAULT		512
+#if ISCSI_DEF_XMIT_CMDS_MAX > ISER_DEF_XMIT_CMDS_DEFAULT
+	#define ISER_DEF_XMIT_CMDS_MAX		ISCSI_DEF_XMIT_CMDS_MAX
+#else
+	#define ISER_DEF_XMIT_CMDS_MAX		ISER_DEF_XMIT_CMDS_DEFAULT
+#endif
+#define ISER_DEF_CMD_PER_LUN		ISER_DEF_XMIT_CMDS_MAX
 
 /* QP settings */
 /* Maximal bounds on received asynchronous PDUs */
@@ -111,9 +117,9 @@
 #define ISER_MAX_TX_MISC_PDUS		6 /* NOOP_OUT(2), TEXT(1),         *
 					   * SCSI_TMFUNC(2), LOGOUT(1) */
 
-#define ISER_QP_MAX_RECV_DTOS		(ISCSI_DEF_XMIT_CMDS_MAX)
+#define ISER_QP_MAX_RECV_DTOS		(ISER_DEF_XMIT_CMDS_MAX)
 
-#define ISER_MIN_POSTED_RX		(ISCSI_DEF_XMIT_CMDS_MAX >> 2)
+#define ISER_MIN_POSTED_RX		(ISER_DEF_XMIT_CMDS_MAX >> 2)
 
 /* the max TX (send) WR supported by the iSER QP is defined by                 *
  * max_send_wr = T * (1 + D) + C ; D is how many inflight dataouts we expect   *
@@ -123,7 +129,7 @@
 
 #define ISER_INFLIGHT_DATAOUTS		8
 
-#define ISER_QP_MAX_REQ_DTOS		(ISCSI_DEF_XMIT_CMDS_MAX *    \
+#define ISER_QP_MAX_REQ_DTOS		(ISER_DEF_XMIT_CMDS_MAX *    \
 					(1 + ISER_INFLIGHT_DATAOUTS) + \
 					ISER_MAX_TX_MISC_PDUS        + \
 					ISER_MAX_RX_MISC_PDUS)
@@ -205,7 +211,7 @@ struct iser_mem_reg {
 	u64  va;
 	u64  len;
 	void *mem_h;
-	int  is_fmr;
+	int  is_mr;
 };
 
 struct iser_regd_buf {
@@ -246,6 +252,9 @@ struct iser_rx_desc {
 
 #define ISER_MAX_CQ 4
 
+struct iser_conn;
+struct iscsi_iser_task;
+
 struct iser_device {
 	struct ib_device             *ib_device;
 	struct ib_pd	             *pd;
@@ -259,6 +268,22 @@ struct iser_device {
 	int                          cq_active_qps[ISER_MAX_CQ];
 	int			     cqs_used;
 	struct iser_cq_desc	     *cq_desc;
+	int                          (*iser_alloc_rdma_reg_res)(struct iser_conn *ib_conn,
+								unsigned cmds_max);
+	void                         (*iser_free_rdma_reg_res)(struct iser_conn *ib_conn);
+	int                          (*iser_reg_rdma_mem)(struct iscsi_iser_task *iser_task,
+							  enum iser_data_dir cmd_dir);
+	void                         (*iser_unreg_rdma_mem)(struct iscsi_iser_task *iser_task,
+							    enum iser_data_dir cmd_dir);
+};
+
+struct fast_reg_descriptor {
+	struct list_head		  list;
+	/* For fast registration - FRWR */
+	struct ib_mr			 *data_mr;
+	struct ib_fast_reg_page_list     *data_frpl;
+	/* Valid for fast registration flag */
+	bool				  valid;
 };
 
 struct iser_conn {
@@ -270,13 +295,13 @@ struct iser_conn {
 	struct iser_device           *device;       /* device context          */
 	struct rdma_cm_id            *cma_id;       /* CMA ID		       */
 	struct ib_qp	             *qp;           /* QP 		       */
-	struct ib_fmr_pool           *fmr_pool;     /* pool of IB FMRs         */
 	wait_queue_head_t	     wait;          /* waitq for conn/disconn  */
+	unsigned		     qp_max_recv_dtos; /* num of rx buffers */
+	unsigned		     qp_max_recv_dtos_mask; /* above minus 1 */
+	unsigned		     min_posted_rx; /* qp_max_recv_dtos >> 2 */
 	int                          post_recv_buf_count; /* posted rx count  */
 	atomic_t                     post_send_buf_count; /* posted tx count   */
 	char 			     name[ISER_OBJECT_NAME_SIZE];
-	struct iser_page_vec         *page_vec;     /* represents SG to fmr maps*
-						     * maps serialized as tx is*/
 	struct list_head	     conn_list;       /* entry in ig conn list */
 
 	char  			     *login_buf;
@@ -285,6 +310,17 @@ struct iser_conn {
 	unsigned int 		     rx_desc_head;
 	struct iser_rx_desc	     *rx_descs;
 	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
+	union {
+		struct {
+			struct ib_fmr_pool      *pool;	   /* pool of IB FMRs         */
+			struct iser_page_vec	*page_vec; /* represents SG to fmr maps*
+							    * maps serialized as tx is*/
+		} fmr;
+		struct {
+			struct list_head	pool;
+			int			pool_size;
+		} frwr;
+	} fastreg;
 };
 
 struct iscsi_iser_conn {
@@ -368,8 +404,10 @@ void iser_free_rx_descriptors(struct iser_conn *ib_conn);
 void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *task,
 				     enum iser_data_dir         cmd_dir);
 
-int  iser_reg_rdma_mem(struct iscsi_iser_task *task,
-		       enum   iser_data_dir        cmd_dir);
+int  iser_reg_rdma_mem_fmr(struct iscsi_iser_task *task,
+			   enum iser_data_dir cmd_dir);
+int  iser_reg_rdma_mem_frwr(struct iscsi_iser_task *task,
+			    enum iser_data_dir cmd_dir);
 
 int  iser_connect(struct iser_conn   *ib_conn,
 		  struct sockaddr_in *src_addr,
@@ -380,7 +418,10 @@ int  iser_reg_page_vec(struct iser_conn     *ib_conn,
 		       struct iser_page_vec *page_vec,
 		       struct iser_mem_reg  *mem_reg);
 
-void iser_unreg_mem(struct iser_mem_reg *mem_reg);
+void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
+			enum iser_data_dir cmd_dir);
+void iser_unreg_mem_frwr(struct iscsi_iser_task *iser_task,
+			 enum iser_data_dir cmd_dir);
 
 int  iser_post_recvl(struct iser_conn *ib_conn);
 int  iser_post_recvm(struct iser_conn *ib_conn, int count);
@@ -394,5 +435,9 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task);
 int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);
-int iser_alloc_rx_descriptors(struct iser_conn *ib_conn);
+int iser_alloc_rx_descriptors(struct iser_conn *ib_conn, struct iscsi_session *session);
+int iser_create_fmr_pool(struct iser_conn *ib_conn, unsigned cmds_max);
+void iser_free_fmr_pool(struct iser_conn *ib_conn);
+int iser_create_frwr_pool(struct iser_conn *ib_conn, unsigned cmds_max);
+void iser_free_frwr_pool(struct iser_conn *ib_conn);
 #endif

@@ -238,6 +238,9 @@ static int exynos_target(struct cpufreq_policy *policy,
 	freqs.old = dvfs_info->cur_frequency;
 	freqs.new = freq_table[index].frequency;
 
+	if (freqs.old == freqs.new)
+		goto out;
+
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* Set the target frequency in all C0_3_PSTATE register */

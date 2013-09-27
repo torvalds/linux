@@ -32,7 +32,6 @@
 #include "cm1_54xx.h"
 #include "cm2_54xx.h"
 #include "prm54xx.h"
-#include "prm-regbits-54xx.h"
 #include "i2c.h"
 #include "mmc.h"
 #include "wd_timer.h"

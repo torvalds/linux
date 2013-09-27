@@ -322,7 +322,7 @@ static void ts5500_disable_irq(struct ts5500_priv *priv)
 static int ts5500_dio_probe(struct platform_device *pdev)
 {
 	enum ts5500_blocks block = platform_get_device_id(pdev)->driver_data;
-	struct ts5500_dio_platform_data *pdata = pdev->dev.platform_data;
+	struct ts5500_dio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	const char *name = dev_name(dev);
 	struct ts5500_priv *priv;

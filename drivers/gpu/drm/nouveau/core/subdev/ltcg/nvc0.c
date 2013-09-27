@@ -30,8 +30,9 @@ struct nvc0_ltcg_priv {
 	struct nouveau_ltcg base;
 	u32 part_nr;
 	u32 subp_nr;
-	struct nouveau_mm tags;
 	u32 num_tags;
+	u32 tag_base;
+	struct nouveau_mm tags;
 	struct nouveau_mm_node *tag_ram;
 };
 
@@ -117,10 +118,6 @@ nvc0_ltcg_init_tag_ram(struct nouveau_fb *pfb, struct nvc0_ltcg_priv *priv)
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
 
-	nv_wr32(priv, 0x17e8d8, priv->part_nr);
-	if (nv_device(pfb)->card_type >= NV_E0)
-		nv_wr32(priv, 0x17e000, priv->part_nr);
-
 	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
 	priv->num_tags = (pfb->ram->size >> 17) / 4;
 	if (priv->num_tags > (1 << 17))
@@ -142,7 +139,7 @@ nvc0_ltcg_init_tag_ram(struct nouveau_fb *pfb, struct nvc0_ltcg_priv *priv)
 	tag_size += tag_align;
 	tag_size  = (tag_size + 0xfff) >> 12; /* round up */
 
-	ret = nouveau_mm_tail(&pfb->vram, 0, tag_size, tag_size, 1,
+	ret = nouveau_mm_tail(&pfb->vram, 1, tag_size, tag_size, 1,
 	                      &priv->tag_ram);
 	if (ret) {
 		priv->num_tags = 0;
@@ -152,7 +149,7 @@ nvc0_ltcg_init_tag_ram(struct nouveau_fb *pfb, struct nvc0_ltcg_priv *priv)
 		tag_base += tag_align - 1;
 		ret = do_div(tag_base, tag_align);
 
-		nv_wr32(priv, 0x17e8d4, tag_base);
+		priv->tag_base = tag_base;
 	}
 	ret = nouveau_mm_init(&priv->tags, 0, priv->num_tags, 1);
 
@@ -182,8 +179,6 @@ nvc0_ltcg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	}
 	priv->subp_nr = nv_rd32(priv, 0x17e8dc) >> 28;
 
-	nv_mask(priv, 0x17e820, 0x00100000, 0x00000000); /* INTR_EN &= ~0x10 */
-
 	ret = nvc0_ltcg_init_tag_ram(pfb, priv);
 	if (ret)
 		return ret;
@@ -209,13 +204,32 @@ nvc0_ltcg_dtor(struct nouveau_object *object)
 	nouveau_ltcg_destroy(ltcg);
 }
 
+static int
+nvc0_ltcg_init(struct nouveau_object *object)
+{
+	struct nouveau_ltcg *ltcg = (struct nouveau_ltcg *)object;
+	struct nvc0_ltcg_priv *priv = (struct nvc0_ltcg_priv *)ltcg;
+	int ret;
+
+	ret = nouveau_ltcg_init(ltcg);
+	if (ret)
+		return ret;
+
+	nv_mask(priv, 0x17e820, 0x00100000, 0x00000000); /* INTR_EN &= ~0x10 */
+	nv_wr32(priv, 0x17e8d8, priv->part_nr);
+	if (nv_device(ltcg)->card_type >= NV_E0)
+		nv_wr32(priv, 0x17e000, priv->part_nr);
+	nv_wr32(priv, 0x17e8d4, priv->tag_base);
+	return 0;
+}
+
 struct nouveau_oclass
 nvc0_ltcg_oclass = {
 	.handle = NV_SUBDEV(LTCG, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_ltcg_ctor,
 		.dtor = nvc0_ltcg_dtor,
-		.init = _nouveau_ltcg_init,
+		.init = nvc0_ltcg_init,
 		.fini = _nouveau_ltcg_fini,
 	},
 };

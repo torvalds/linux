@@ -66,6 +66,43 @@ TRACE_EVENT(machine_suspend,
 	TP_printk("state=%lu", (unsigned long)__entry->state)
 );
 
+TRACE_EVENT(device_pm_report_time,
+
+	TP_PROTO(struct device *dev, const char *pm_ops, s64 ops_time,
+		 char *pm_event_str, int error),
+
+	TP_ARGS(dev, pm_ops, ops_time, pm_event_str, error),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(dev))
+		__string(driver, dev_driver_string(dev))
+		__string(parent, dev->parent ? dev_name(dev->parent) : "none")
+		__string(pm_ops, pm_ops ? pm_ops : "none ")
+		__string(pm_event_str, pm_event_str)
+		__field(s64, ops_time)
+		__field(int, error)
+	),
+
+	TP_fast_assign(
+		const char *tmp = dev->parent ? dev_name(dev->parent) : "none";
+		const char *tmp_i = pm_ops ? pm_ops : "none ";
+
+		__assign_str(device, dev_name(dev));
+		__assign_str(driver, dev_driver_string(dev));
+		__assign_str(parent, tmp);
+		__assign_str(pm_ops, tmp_i);
+		__assign_str(pm_event_str, pm_event_str);
+		__entry->ops_time = ops_time;
+		__entry->error = error;
+	),
+
+	/* ops_str has an extra space at the end */
+	TP_printk("%s %s parent=%s state=%s ops=%snsecs=%lld err=%d",
+		__get_str(driver), __get_str(device), __get_str(parent),
+		__get_str(pm_event_str), __get_str(pm_ops),
+		__entry->ops_time, __entry->error)
+);
+
 DECLARE_EVENT_CLASS(wakeup_source,
 
 	TP_PROTO(const char *name, unsigned int state),

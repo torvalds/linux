@@ -154,7 +154,13 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		    dev->dev_state != MEI_DEV_POWER_DOWN)
 			dev->dev_state = MEI_DEV_RESETTING;
 
+		/* remove all waiting requests */
+		mei_cl_all_write_clear(dev);
+
 		mei_cl_all_disconnect(dev);
+
+		/* wake up all readings so they can be interrupted */
+		mei_cl_all_wakeup(dev);
 
 		/* remove entry if already in list */
 		dev_dbg(&dev->pdev->dev, "remove iamthif and wd from the file list.\n");
@@ -196,11 +202,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 
 	mei_hbm_start_req(dev);
 
-	/* wake up all readings so they can be interrupted */
-	mei_cl_all_read_wakeup(dev);
-
-	/* remove all waiting requests */
-	mei_cl_all_write_clear(dev);
 }
 EXPORT_SYMBOL_GPL(mei_reset);
 

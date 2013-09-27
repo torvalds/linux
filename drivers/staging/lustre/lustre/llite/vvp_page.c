@@ -218,9 +218,8 @@ static int vvp_page_prep_read(const struct lu_env *env,
 			      const struct cl_page_slice *slice,
 			      struct cl_io *unused)
 {
-	ENTRY;
 	/* Skip the page already marked as PG_uptodate. */
-	RETURN(PageUptodate(cl2vm_page(slice)) ? -EALREADY : 0);
+	return PageUptodate(cl2vm_page(slice)) ? -EALREADY : 0;
 }
 
 static int vvp_page_prep_write(const struct lu_env *env,
@@ -274,7 +273,6 @@ static void vvp_page_completion_read(const struct lu_env *env,
 	struct page      *vmpage = cp->cpg_page;
 	struct cl_page  *page   = cl_page_top(slice->cpl_page);
 	struct inode    *inode  = ccc_object_inode(page->cp_obj);
-	ENTRY;
 
 	LASSERT(PageLocked(vmpage));
 	CL_PAGE_HEADER(D_PAGE, env, page, "completing READ with %d\n", ioret);
@@ -290,8 +288,6 @@ static void vvp_page_completion_read(const struct lu_env *env,
 
 	if (page->cp_sync_io == NULL)
 		unlock_page(vmpage);
-
-	EXIT;
 }
 
 static void vvp_page_completion_write(const struct lu_env *env,
@@ -301,7 +297,6 @@ static void vvp_page_completion_write(const struct lu_env *env,
 	struct ccc_page *cp     = cl2ccc_page(slice);
 	struct cl_page  *pg     = slice->cpl_page;
 	struct page      *vmpage = cp->cpg_page;
-	ENTRY;
 
 	LASSERT(ergo(pg->cp_sync_io != NULL, PageLocked(vmpage)));
 	LASSERT(PageWriteback(vmpage));
@@ -329,7 +324,6 @@ static void vvp_page_completion_write(const struct lu_env *env,
 		vvp_vmpage_error(ccc_object_inode(pg->cp_obj), vmpage, ioret);
 
 	end_page_writeback(vmpage);
-	EXIT;
 }
 
 /**
@@ -372,7 +366,7 @@ static int vvp_page_make_ready(const struct lu_env *env,
 		LBUG();
 	}
 	unlock_page(vmpage);
-	RETURN(result);
+	return result;
 }
 
 static int vvp_page_print(const struct lu_env *env,

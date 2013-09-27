@@ -67,8 +67,10 @@ PPC64_CACHES:
  *   flush all bytes from start through stop-1 inclusive
  */
 
-_KPROBE(__flush_icache_range)
-
+_KPROBE(flush_icache_range)
+BEGIN_FTR_SECTION
+	blr
+END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 /*
  * Flush the data cache to memory 
  * 
@@ -247,6 +249,37 @@ _GLOBAL(__bswapdi2)
 	blr
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE)
+
+_GLOBAL(rmci_on)
+	sync
+	isync
+	li	r3,0x100
+	rldicl	r3,r3,32,0
+	mfspr	r5,SPRN_HID4
+	or	r5,r5,r3
+	sync
+	mtspr	SPRN_HID4,r5
+	isync
+	slbia
+	isync
+	sync
+	blr
+
+_GLOBAL(rmci_off)
+	sync
+	isync
+	li	r3,0x100
+	rldicl	r3,r3,32,0
+	mfspr	r5,SPRN_HID4
+	andc	r5,r5,r3
+	sync
+	mtspr	SPRN_HID4,r5
+	isync
+	slbia
+	isync
+	sync
+	blr
+
 /*
  * Do an IO access in real mode
  */
@@ -415,19 +448,6 @@ _GLOBAL(scom970_write)
 	mtmsrd	r5,1
 	blr
 #endif /* CONFIG_CPU_FREQ_PMAC64 || CONFIG_CPU_FREQ_MAPLE */
-
-
-/*
- * disable_kernel_fp()
- * Disable the FPU.
- */
-_GLOBAL(disable_kernel_fp)
-	mfmsr	r3
-	rldicl	r0,r3,(63-MSR_FP_LG),1
-	rldicl	r3,r0,(MSR_FP_LG+1),0
-	mtmsrd	r3			/* disable use of fpu now */
-	isync
-	blr
 
 /* kexec_wait(phys_cpu)
  *

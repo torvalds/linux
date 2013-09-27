@@ -22,6 +22,7 @@
  * more details.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -59,36 +60,22 @@ static int apci16xx_insn_config(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	unsigned int chan_mask = 1 << CR_CHAN(insn->chanspec);
-	unsigned int bits;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
-	/*
-	 * Each 8-bit "port" is configurable as either input or
-	 * output. Changing the configuration of any channel in
-	 * a port changes the entire port.
-	 */
-	if (chan_mask & 0x000000ff)
-		bits = 0x000000ff;
-	else if (chan_mask & 0x0000ff00)
-		bits = 0x0000ff00;
-	else if (chan_mask & 0x00ff0000)
-		bits = 0x00ff0000;
+	if (chan < 8)
+		mask = 0x000000ff;
+	else if (chan < 16)
+		mask = 0x0000ff00;
+	else if (chan < 24)
+		mask = 0x00ff0000;
 	else
-		bits = 0xff000000;
+		mask = 0xff000000;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~bits;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & bits) ? COMEDI_INPUT : COMEDI_OUTPUT;
-		return insn->n;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	outl(s->io_bits, dev->iobase + APCI16XX_DIR_REG(s->index));
 

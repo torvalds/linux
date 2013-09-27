@@ -268,7 +268,6 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 	struct ptlrpc_request_set *set = pc->pc_set;
 	int rc = 0;
 	int rc2;
-	ENTRY;
 
 	if (atomic_read(&set->set_new_count)) {
 		spin_lock(&set->set_new_req_lock);
@@ -302,7 +301,7 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 		 * new modules are loaded, i.e., early during boot up.
 		 */
 		CERROR("Failure to refill session: %d\n", rc2);
-		RETURN(rc);
+		return rc;
 	}
 
 	if (atomic_read(&set->set_remaining))
@@ -368,7 +367,7 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 		}
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -383,7 +382,6 @@ static int ptlrpcd(void *arg)
 	struct ptlrpc_request_set *set = pc->pc_set;
 	struct lu_env env = { .le_ses = NULL };
 	int rc, exit = 0;
-	ENTRY;
 
 	unshare_fs_struct();
 #if defined(CONFIG_SMP)
@@ -410,7 +408,7 @@ static int ptlrpcd(void *arg)
 	complete(&pc->pc_starting);
 
 	if (rc != 0)
-		RETURN(rc);
+		return rc;
 
 	/*
 	 * This mainloop strongly resembles ptlrpc_set_wait() except that our
@@ -501,7 +499,6 @@ static int ptlrpcd_bind(int index, int max)
 #if defined(CONFIG_NUMA)
 	cpumask_t mask;
 #endif
-	ENTRY;
 
 	LASSERT(index <= max - 1);
 	pc = &ptlrpcds->pd_threads[index];
@@ -596,7 +593,7 @@ static int ptlrpcd_bind(int index, int max)
 		}
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 
@@ -604,7 +601,6 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 {
 	int rc;
 	int env = 0;
-	ENTRY;
 
 	/*
 	 * Do not allow start second thread for one pc.
@@ -612,7 +608,7 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 	if (test_and_set_bit(LIOD_START, &pc->pc_flags)) {
 		CWARN("Starting second thread (%s) for same pc %p\n",
 		      name, pc);
-		RETURN(0);
+		return 0;
 	}
 
 	pc->pc_index = index;
@@ -634,7 +630,8 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 
 	env = 1;
 	{
-		task_t *task;
+		struct task_struct *task;
+
 		if (index >= 0) {
 			rc = ptlrpcd_bind(index, max);
 			if (rc < 0)
@@ -663,31 +660,25 @@ out:
 		clear_bit(LIOD_BIND, &pc->pc_flags);
 		clear_bit(LIOD_START, &pc->pc_flags);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 void ptlrpcd_stop(struct ptlrpcd_ctl *pc, int force)
 {
-	ENTRY;
-
 	if (!test_bit(LIOD_START, &pc->pc_flags)) {
 		CWARN("Thread for pc %p was not started\n", pc);
-		goto out;
+		return;
 	}
 
 	set_bit(LIOD_STOP, &pc->pc_flags);
 	if (force)
 		set_bit(LIOD_FORCE, &pc->pc_flags);
 	wake_up(&pc->pc_set->set_waitq);
-
-out:
-	EXIT;
 }
 
 void ptlrpcd_free(struct ptlrpcd_ctl *pc)
 {
 	struct ptlrpc_request_set *set = pc->pc_set;
-	ENTRY;
 
 	if (!test_bit(LIOD_START, &pc->pc_flags)) {
 		CWARN("Thread for pc %p was not started\n", pc);
@@ -716,13 +707,11 @@ out:
 		pc->pc_partners = NULL;
 	}
 	pc->pc_npartners = 0;
-	EXIT;
 }
 
 static void ptlrpcd_fini(void)
 {
 	int i;
-	ENTRY;
 
 	if (ptlrpcds != NULL) {
 		for (i = 0; i < ptlrpcds->pd_nthreads; i++)
@@ -734,8 +723,6 @@ static void ptlrpcd_fini(void)
 		OBD_FREE(ptlrpcds, ptlrpcds->pd_size);
 		ptlrpcds = NULL;
 	}
-
-	EXIT;
 }
 
 static int ptlrpcd_init(void)
@@ -743,7 +730,6 @@ static int ptlrpcd_init(void)
 	int nthreads = num_online_cpus();
 	char name[16];
 	int size, i = -1, j, rc = 0;
-	ENTRY;
 
 	if (max_ptlrpcds > 0 && max_ptlrpcds < nthreads)
 		nthreads = max_ptlrpcds;
@@ -800,19 +786,18 @@ out:
 		ptlrpcds = NULL;
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 int ptlrpcd_addref(void)
 {
 	int rc = 0;
-	ENTRY;
 
 	mutex_lock(&ptlrpcd_mutex);
 	if (++ptlrpcd_users == 1)
 		rc = ptlrpcd_init();
 	mutex_unlock(&ptlrpcd_mutex);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpcd_addref);
 

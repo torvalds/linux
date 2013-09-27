@@ -17,7 +17,6 @@
 #include <asm/uaccess.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
-#include "ext4_extents.h"
 
 #define MAX_32_NUM ((((unsigned long long) 1) << 32) - 1)
 
@@ -624,6 +623,8 @@ resizefs_out:
 
 		return 0;
 	}
+	case EXT4_IOC_PRECACHE_EXTENTS:
+		return ext4_ext_precache(inode);
 
 	default:
 		return -ENOTTY;
@@ -688,6 +689,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC_MOVE_EXT:
 	case FITRIM:
 	case EXT4_IOC_RESIZE_FS:
+	case EXT4_IOC_PRECACHE_EXTENTS:
 		break;
 	default:
 		return -ENOIOCTLCMD;

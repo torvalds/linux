@@ -23,7 +23,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
-#include <linux/of_i2c.h>
 
 #define I2C_PNX_TIMEOUT_DEFAULT		10 /* msec */
 #define I2C_PNX_SPEED_KHZ_DEFAULT	100
@@ -595,7 +594,7 @@ static struct i2c_algorithm pnx_algorithm = {
 	.functionality = i2c_pnx_func,
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int i2c_pnx_controller_suspend(struct device *dev)
 {
 	struct i2c_pnx_algo_data *alg_data = dev_get_drvdata(dev);
@@ -727,7 +726,8 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 	alg_data->irq = platform_get_irq(pdev, 0);
 	if (alg_data->irq < 0) {
 		dev_err(&pdev->dev, "Failed to get IRQ from platform resource\n");
-		goto out_irq;
+		ret = alg_data->irq;
+		goto out_clock;
 	}
 	ret = request_irq(alg_data->irq, i2c_pnx_interrupt,
 			0, pdev->name, alg_data);
@@ -740,8 +740,6 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "I2C: Failed to add bus\n");
 		goto out_irq;
 	}
-
-	of_i2c_register_devices(&alg_data->adapter);
 
 	dev_dbg(&pdev->dev, "%s: Master at %#8x, irq %d.\n",
 		alg_data->adapter.name, res->start, alg_data->irq);

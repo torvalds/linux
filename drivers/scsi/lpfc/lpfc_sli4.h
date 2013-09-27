@@ -117,6 +117,7 @@ union sli4_qe {
 	struct lpfc_rcqe_complete *rcqe_complete;
 	struct lpfc_mqe *mqe;
 	union  lpfc_wqe *wqe;
+	union  lpfc_wqe128 *wqe128;
 	struct lpfc_rqe *rqe;
 };
 
@@ -325,12 +326,14 @@ struct lpfc_bmbx {
 #define LPFC_EQE_SIZE_16B	16
 #define LPFC_CQE_SIZE		16
 #define LPFC_WQE_SIZE		64
+#define LPFC_WQE128_SIZE	128
 #define LPFC_MQE_SIZE		256
 #define LPFC_RQE_SIZE		8
 
 #define LPFC_EQE_DEF_COUNT	1024
 #define LPFC_CQE_DEF_COUNT      1024
 #define LPFC_WQE_DEF_COUNT      256
+#define LPFC_WQE128_DEF_COUNT   128
 #define LPFC_MQE_DEF_COUNT      16
 #define LPFC_RQE_DEF_COUNT	512
 
@@ -416,6 +419,9 @@ struct lpfc_pc_sli4_params {
 	uint8_t mqv;
 	uint8_t wqv;
 	uint8_t rqv;
+	uint8_t wqsize;
+#define LPFC_WQ_SZ64_SUPPORT	1
+#define LPFC_WQ_SZ128_SUPPORT	2
 };
 
 struct lpfc_iov {

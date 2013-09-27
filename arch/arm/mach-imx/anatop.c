@@ -66,7 +66,7 @@ void imx_anatop_post_resume(void)
 	imx_anatop_enable_weak2p5(false);
 }
 
-void imx_anatop_usb_chrg_detect_disable(void)
+static void imx_anatop_usb_chrg_detect_disable(void)
 {
 	regmap_write(anatop, ANADIG_USB1_CHRG_DETECT,
 		BM_ANADIG_USB_CHRG_DETECT_EN_B
@@ -100,4 +100,6 @@ void __init imx_anatop_init(void)
 		pr_err("%s: failed to find imx6q-anatop regmap!\n", __func__);
 		return;
 	}
+
+	imx_anatop_usb_chrg_detect_disable();
 }

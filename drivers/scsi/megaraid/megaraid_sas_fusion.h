@@ -88,7 +88,7 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 #define MEGASAS_FUSION_IN_RESET 0
 
 /*
- * Raid Context structure which describes MegaRAID specific IO Paramenters
+ * Raid Context structure which describes MegaRAID specific IO Parameters
  * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
  */
 

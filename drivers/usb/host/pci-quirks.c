@@ -735,32 +735,6 @@ static int handshake(void __iomem *ptr, u32 mask, u32 done,
 	return -ETIMEDOUT;
 }
 
-#define PCI_DEVICE_ID_INTEL_LYNX_POINT_XHCI	0x8C31
-#define PCI_DEVICE_ID_INTEL_LYNX_POINT_LP_XHCI	0x9C31
-
-bool usb_is_intel_ppt_switchable_xhci(struct pci_dev *pdev)
-{
-	return pdev->class == PCI_CLASS_SERIAL_USB_XHCI &&
-		pdev->vendor == PCI_VENDOR_ID_INTEL &&
-		pdev->device == PCI_DEVICE_ID_INTEL_PANTHERPOINT_XHCI;
-}
-
-/* The Intel Lynx Point chipset also has switchable ports. */
-bool usb_is_intel_lpt_switchable_xhci(struct pci_dev *pdev)
-{
-	return pdev->class == PCI_CLASS_SERIAL_USB_XHCI &&
-		pdev->vendor == PCI_VENDOR_ID_INTEL &&
-		(pdev->device == PCI_DEVICE_ID_INTEL_LYNX_POINT_XHCI ||
-		 pdev->device == PCI_DEVICE_ID_INTEL_LYNX_POINT_LP_XHCI);
-}
-
-bool usb_is_intel_switchable_xhci(struct pci_dev *pdev)
-{
-	return usb_is_intel_ppt_switchable_xhci(pdev) ||
-		usb_is_intel_lpt_switchable_xhci(pdev);
-}
-EXPORT_SYMBOL_GPL(usb_is_intel_switchable_xhci);
-
 /*
  * Intel's Panther Point chipset has two host controllers (EHCI and xHCI) that
  * share some number of ports.  These ports can be switched between either
@@ -779,9 +753,23 @@ EXPORT_SYMBOL_GPL(usb_is_intel_switchable_xhci);
  * terminations before switching the USB 2.0 wires over, so that USB 3.0
  * devices connect at SuperSpeed, rather than at USB 2.0 speeds.
  */
-void usb_enable_xhci_ports(struct pci_dev *xhci_pdev)
+void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 {
 	u32		ports_available;
+	bool		ehci_found = false;
+	struct pci_dev	*companion = NULL;
+
+	/* make sure an intel EHCI controller exists */
+	for_each_pci_dev(companion) {
+		if (companion->class == PCI_CLASS_SERIAL_USB_EHCI &&
+		    companion->vendor == PCI_VENDOR_ID_INTEL) {
+			ehci_found = true;
+			break;
+		}
+	}
+
+	if (!ehci_found)
+		return;
 
 	/* Don't switchover the ports if the user hasn't compiled the xHCI
 	 * driver.  Otherwise they will see "dead" USB ports that don't power
@@ -840,7 +828,7 @@ void usb_enable_xhci_ports(struct pci_dev *xhci_pdev)
 	dev_dbg(&xhci_pdev->dev, "USB 2.0 ports that are now switched over "
 			"to xHCI: 0x%x\n", ports_available);
 }
-EXPORT_SYMBOL_GPL(usb_enable_xhci_ports);
+EXPORT_SYMBOL_GPL(usb_enable_intel_xhci_ports);
 
 void usb_disable_xhci_ports(struct pci_dev *xhci_pdev)
 {
@@ -921,8 +909,8 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 	writel(val, base + ext_cap_offset + XHCI_LEGACY_CONTROL_OFFSET);
 
 hc_init:
-	if (usb_is_intel_switchable_xhci(pdev))
-		usb_enable_xhci_ports(pdev);
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
+		usb_enable_intel_xhci_ports(pdev);
 
 	op_reg_base = base + XHCI_HC_LENGTH(readl(base));
 

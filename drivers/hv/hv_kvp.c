@@ -29,6 +29,16 @@
 #include <linux/hyperv.h>
 
 
+/*
+ * Pre win8 version numbers used in ws2008 and ws 2008 r2 (win7)
+ */
+#define WIN7_SRV_MAJOR   3
+#define WIN7_SRV_MINOR   0
+#define WIN7_SRV_MAJOR_MINOR     (WIN7_SRV_MAJOR << 16 | WIN7_SRV_MINOR)
+
+#define WIN8_SRV_MAJOR   4
+#define WIN8_SRV_MINOR   0
+#define WIN8_SRV_MAJOR_MINOR     (WIN8_SRV_MAJOR << 16 | WIN8_SRV_MINOR)
 
 /*
  * Global state maintained for transaction that is being processed.
@@ -76,7 +86,9 @@ static u8 *recv_buffer;
 /*
  * Register the kernel component with the user-level daemon.
  * As part of this registration, pass the LIC version number.
+ * This number has no meaning, it satisfies the registration protocol.
  */
+#define HV_DRV_VERSION           "3.1"
 
 static void
 kvp_register(int reg_value)
@@ -593,8 +605,19 @@ void hv_kvp_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
+			/*
+			 * We start with win8 version and if the host cannot
+			 * support that we use the previous version.
+			 */
+			if (vmbus_prep_negotiate_resp(icmsghdrp, negop,
+				 recv_buffer, UTIL_FW_MAJOR_MINOR,
+				 WIN8_SRV_MAJOR_MINOR))
+				goto done;
+
 			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				 recv_buffer, MAX_SRV_VER, MAX_SRV_VER);
+				 recv_buffer, UTIL_FW_MAJOR_MINOR,
+				 WIN7_SRV_MAJOR_MINOR);
+
 		} else {
 			kvp_msg = (struct hv_kvp_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +
@@ -626,6 +649,7 @@ void hv_kvp_onchannelcallback(void *context)
 			return;
 
 		}
+done:
 
 		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
 			| ICMSGHDRFLAG_RESPONSE;

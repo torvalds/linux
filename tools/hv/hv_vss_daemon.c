@@ -38,8 +38,6 @@
 #include <linux/netlink.h>
 #include <syslog.h>
 
-static char vss_recv_buffer[4096];
-static char vss_send_buffer[4096];
 static struct sockaddr_nl addr;
 
 #ifndef SOL_NETLINK
@@ -107,23 +105,18 @@ static int vss_operate(int operation)
 
 static int netlink_send(int fd, struct cn_msg *msg)
 {
-	struct nlmsghdr *nlh;
+	struct nlmsghdr nlh = { .nlmsg_type = NLMSG_DONE };
 	unsigned int size;
 	struct msghdr message;
-	char buffer[64];
 	struct iovec iov[2];
 
-	size = NLMSG_SPACE(sizeof(struct cn_msg) + msg->len);
+	size = sizeof(struct cn_msg) + msg->len;
 
-	nlh = (struct nlmsghdr *)buffer;
-	nlh->nlmsg_seq = 0;
-	nlh->nlmsg_pid = getpid();
-	nlh->nlmsg_type = NLMSG_DONE;
-	nlh->nlmsg_len = NLMSG_LENGTH(size - sizeof(*nlh));
-	nlh->nlmsg_flags = 0;
+	nlh.nlmsg_pid = getpid();
+	nlh.nlmsg_len = NLMSG_LENGTH(size);
 
-	iov[0].iov_base = nlh;
-	iov[0].iov_len = sizeof(*nlh);
+	iov[0].iov_base = &nlh;
+	iov[0].iov_len = sizeof(nlh);
 
 	iov[1].iov_base = msg;
 	iov[1].iov_len = size;
@@ -147,6 +140,9 @@ int main(void)
 	struct cn_msg	*incoming_cn_msg;
 	int	op;
 	struct hv_vss_msg *vss_msg;
+	char *vss_send_buffer;
+	char *vss_recv_buffer;
+	size_t vss_recv_buffer_len;
 
 	if (daemon(1, 0))
 		return 1;
@@ -154,9 +150,18 @@ int main(void)
 	openlog("Hyper-V VSS", 0, LOG_USER);
 	syslog(LOG_INFO, "VSS starting; pid is:%d", getpid());
 
+	vss_recv_buffer_len = NLMSG_HDRLEN + sizeof(struct cn_msg) + sizeof(struct hv_vss_msg);
+	vss_send_buffer = calloc(1, vss_recv_buffer_len);
+	vss_recv_buffer = calloc(1, vss_recv_buffer_len);
+	if (!(vss_send_buffer && vss_recv_buffer)) {
+		syslog(LOG_ERR, "Failed to allocate netlink buffers");
+		exit(EXIT_FAILURE);
+	}
+
 	fd = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
 	if (fd < 0) {
-		syslog(LOG_ERR, "netlink socket creation failed; error:%d", fd);
+		syslog(LOG_ERR, "netlink socket creation failed; error:%d %s",
+				errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	addr.nl_family = AF_NETLINK;
@@ -167,12 +172,16 @@ int main(void)
 
 	error = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
 	if (error < 0) {
-		syslog(LOG_ERR, "bind failed; error:%d", error);
+		syslog(LOG_ERR, "bind failed; error:%d %s", errno, strerror(errno));
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
 	nl_group = CN_VSS_IDX;
-	setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &nl_group, sizeof(nl_group));
+	if (setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &nl_group, sizeof(nl_group)) < 0) {
+		syslog(LOG_ERR, "setsockopt failed; error:%d %s", errno, strerror(errno));
+		close(fd);
+		exit(EXIT_FAILURE);
+	}
 	/*
 	 * Register ourselves with the kernel.
 	 */
@@ -187,7 +196,7 @@ int main(void)
 
 	len = netlink_send(fd, message);
 	if (len < 0) {
-		syslog(LOG_ERR, "netlink_send failed; error:%d", len);
+		syslog(LOG_ERR, "netlink_send failed; error:%d %s", errno, strerror(errno));
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
@@ -199,9 +208,18 @@ int main(void)
 		socklen_t addr_l = sizeof(addr);
 		pfd.events = POLLIN;
 		pfd.revents = 0;
-		poll(&pfd, 1, -1);
 
-		len = recvfrom(fd, vss_recv_buffer, sizeof(vss_recv_buffer), 0,
+		if (poll(&pfd, 1, -1) < 0) {
+			syslog(LOG_ERR, "poll failed; error:%d %s", errno, strerror(errno));
+			if (errno == EINVAL) {
+				close(fd);
+				exit(EXIT_FAILURE);
+			}
+			else
+				continue;
+		}
+
+		len = recvfrom(fd, vss_recv_buffer, vss_recv_buffer_len, 0,
 				addr_p, &addr_l);
 
 		if (len < 0) {
@@ -241,7 +259,8 @@ int main(void)
 		vss_msg->error = error;
 		len = netlink_send(fd, incoming_cn_msg);
 		if (len < 0) {
-			syslog(LOG_ERR, "net_link send failed; error:%d", len);
+			syslog(LOG_ERR, "net_link send failed; error:%d %s",
+					errno, strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}

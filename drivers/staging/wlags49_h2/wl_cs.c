@@ -99,7 +99,6 @@
 #include <wl_main.h>
 #include <wl_netdev.h>
 #include <wl_cs.h>
-#include <wl_sysfs.h>
 
 
 /*******************************************************************************
@@ -178,7 +177,6 @@ static void wl_adapter_detach(struct pcmcia_device *link)
 	wl_adapter_release(link);
 
 	if (dev) {
-		unregister_wlags_sysfs(dev);
 		unregister_netdev(dev);
 		wl_device_dealloc(dev);
 	}
@@ -264,8 +262,6 @@ int wl_adapter_insert(struct pcmcia_device *link)
 		printk("%s: register_netdev() failed\n", MODULE_NAME);
 		goto failed;
 	}
-
-	register_wlags_sysfs(dev);
 
 	printk(KERN_INFO "%s: Wireless, io_addr %#03lx, irq %d, mac_address"
 		" %pM\n", dev->name, dev->base_addr, dev->irq, dev->dev_addr);

@@ -88,7 +88,6 @@ EXPORT_SYMBOL(lustre_swab_llog_id);
 
 void lustre_swab_llogd_body (struct llogd_body *d)
 {
-	ENTRY;
 	print_llogd_body(d);
 	lustre_swab_llog_id(&d->lgd_logid);
 	__swab32s (&d->lgd_ctxt_idx);
@@ -98,7 +97,6 @@ void lustre_swab_llogd_body (struct llogd_body *d)
 	__swab32s (&d->lgd_len);
 	__swab64s (&d->lgd_cur_offset);
 	print_llogd_body(d);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_llogd_body);
 
@@ -203,6 +201,23 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 		break;
 	}
 
+	case HSM_AGENT_REC: {
+		struct llog_agent_req_rec *arr =
+			(struct llog_agent_req_rec *)rec;
+
+		__swab32s(&arr->arr_hai.hai_len);
+		__swab32s(&arr->arr_hai.hai_action);
+		lustre_swab_lu_fid(&arr->arr_hai.hai_fid);
+		lustre_swab_lu_fid(&arr->arr_hai.hai_dfid);
+		__swab64s(&arr->arr_hai.hai_cookie);
+		__swab64s(&arr->arr_hai.hai_extent.offset);
+		__swab64s(&arr->arr_hai.hai_extent.length);
+		__swab64s(&arr->arr_hai.hai_gid);
+		/* no swabing for opaque data */
+		/* hai_data[0]; */
+		break;
+	}
+
 	case MDS_SETATTR64_REC:
 	{
 		struct llog_setattr64_rec *lsr =
@@ -281,20 +296,17 @@ static void print_llog_hdr(struct llog_log_hdr *h)
 
 void lustre_swab_llog_hdr (struct llog_log_hdr *h)
 {
-	ENTRY;
 	print_llog_hdr(h);
 
 	lustre_swab_llog_rec(&h->llh_hdr);
 
 	print_llog_hdr(h);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_llog_hdr);
 
 static void print_lustre_cfg(struct lustre_cfg *lcfg)
 {
 	int i;
-	ENTRY;
 
 	if (!(libcfs_debug & D_OTHER)) /* don't loop on nothing */
 		return;
@@ -311,20 +323,17 @@ static void print_lustre_cfg(struct lustre_cfg *lcfg)
 		for (i = 0; i < lcfg->lcfg_bufcount; i++)
 			CDEBUG(D_OTHER, "\tlcfg->lcfg_buflens[%d]: %d\n",
 			       i, lcfg->lcfg_buflens[i]);
-	EXIT;
 }
 
 void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg)
 {
 	int i;
-	ENTRY;
 
 	__swab32s(&lcfg->lcfg_version);
 
 	if (lcfg->lcfg_version != LUSTRE_CFG_VERSION) {
 		CERROR("not swabbing lustre_cfg version %#x (expecting %#x)\n",
 		       lcfg->lcfg_version, LUSTRE_CFG_VERSION);
-		EXIT;
 		return;
 	}
 
@@ -337,7 +346,6 @@ void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg)
 		__swab32s(&lcfg->lcfg_buflens[i]);
 
 	print_lustre_cfg(lcfg);
-	EXIT;
 	return;
 }
 EXPORT_SYMBOL(lustre_swab_lustre_cfg);
@@ -360,7 +368,6 @@ struct cfg_marker32 {
 void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 {
 	struct cfg_marker32 *cm32 = (struct cfg_marker32*)marker;
-	ENTRY;
 
 	if (swab) {
 		__swab32s(&marker->cm_step);
@@ -401,7 +408,6 @@ void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 		__swab64s(&marker->cm_canceltime);
 	}
 
-	EXIT;
 	return;
 }
 EXPORT_SYMBOL(lustre_swab_cfg_marker);

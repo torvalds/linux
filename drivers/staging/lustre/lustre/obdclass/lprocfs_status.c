@@ -68,11 +68,11 @@ EXPORT_SYMBOL(lprocfs_seq_release);
 
 /* lprocfs API calls */
 
-proc_dir_entry_t *lprocfs_add_simple(struct proc_dir_entry *root,
+struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
 				     char *name, void *data,
 				     struct file_operations *fops)
 {
-	proc_dir_entry_t *proc;
+	struct proc_dir_entry *proc;
 	umode_t mode = 0;
 
 	if (root == NULL || name == NULL || fops == NULL)
@@ -179,17 +179,21 @@ struct proc_dir_entry *lprocfs_register(const char *name,
 					struct proc_dir_entry *parent,
 					struct lprocfs_vars *list, void *data)
 {
-	struct proc_dir_entry *newchild;
+	struct proc_dir_entry *entry;
 
-	newchild = proc_mkdir(name, parent);
-	if (newchild != NULL && list != NULL) {
-		int rc = lprocfs_add_vars(newchild, list, data);
-		if (rc) {
-			lprocfs_remove(&newchild);
-			return ERR_PTR(rc);
+	entry = proc_mkdir(name, parent);
+	if (entry == NULL)
+		GOTO(out, entry = ERR_PTR(-ENOMEM));
+
+	if (list != NULL) {
+		int rc = lprocfs_add_vars(entry, list, data);
+		if (rc != 0) {
+			lprocfs_remove(&entry);
+			entry = ERR_PTR(rc);
 		}
 	}
-	return newchild;
+out:
+	return entry;
 }
 EXPORT_SYMBOL(lprocfs_register);
 
@@ -896,7 +900,6 @@ void lprocfs_free_per_client_stats(struct obd_device *obd)
 {
 	cfs_hash_t *hash = obd->obd_nid_stats_hash;
 	struct nid_stat *stat;
-	ENTRY;
 
 	/* we need extra list - because hash_exit called to early */
 	/* not need locking because all clients is died */
@@ -907,7 +910,6 @@ void lprocfs_free_per_client_stats(struct obd_device *obd)
 		cfs_hash_del(hash, &stat->nid, &stat->nid_hash);
 		lprocfs_free_client_stats(stat);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(lprocfs_free_per_client_stats);
 
@@ -1494,7 +1496,6 @@ EXPORT_SYMBOL(lprocfs_nid_stats_clear_read);
 static int lprocfs_nid_stats_clear_write_cb(void *obj, void *data)
 {
 	struct nid_stat *stat = obj;
-	ENTRY;
 
 	CDEBUG(D_INFO,"refcnt %d\n", atomic_read(&stat->nid_exp_ref_count));
 	if (atomic_read(&stat->nid_exp_ref_count) == 1) {
@@ -1502,13 +1503,13 @@ static int lprocfs_nid_stats_clear_write_cb(void *obj, void *data)
 		spin_lock(&stat->nid_obd->obd_nid_lock);
 		list_move(&stat->nid_list, data);
 		spin_unlock(&stat->nid_obd->obd_nid_lock);
-		RETURN(1);
+		return 1;
 	}
 	/* we has reference to object - only clear data*/
 	if (stat->nid_stats)
 		lprocfs_clear_stats(stat->nid_stats);
 
-	RETURN(0);
+	return 0;
 }
 
 int lprocfs_nid_stats_clear_write(struct file *file, const char *buffer,
@@ -1536,22 +1537,21 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 {
 	struct nid_stat *new_stat, *old_stat;
 	struct obd_device *obd = NULL;
-	proc_dir_entry_t *entry;
+	struct proc_dir_entry *entry;
 	char *buffer = NULL;
 	int rc = 0;
-	ENTRY;
 
 	*newnid = 0;
 
 	if (!exp || !exp->exp_obd || !exp->exp_obd->obd_proc_exports_entry ||
 	    !exp->exp_obd->obd_nid_stats_hash)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	/* not test against zero because eric say:
 	 * You may only test nid against another nid, or LNET_NID_ANY.
 	 * Anything else is nonsense.*/
 	if (!nid || *nid == LNET_NID_ANY)
-		RETURN(0);
+		return 0;
 
 	obd = exp->exp_obd;
 
@@ -1559,7 +1559,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 
 	OBD_ALLOC_PTR(new_stat);
 	if (new_stat == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	new_stat->nid	       = *nid;
 	new_stat->nid_obd	   = exp->exp_obd;
@@ -1596,10 +1596,12 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 					      NULL, NULL);
 	OBD_FREE(buffer, LNET_NIDSTR_SIZE);
 
-	if (new_stat->nid_proc == NULL) {
+	if (IS_ERR(new_stat->nid_proc)) {
 		CERROR("Error making export directory for nid %s\n",
 		       libcfs_nid2str(*nid));
-		GOTO(destroy_new_ns, rc = -ENOMEM);
+		rc = PTR_ERR(new_stat->nid_proc);
+		new_stat->nid_proc = NULL;
+		GOTO(destroy_new_ns, rc);
 	}
 
 	entry = lprocfs_add_simple(new_stat->nid_proc, "uuid",
@@ -1625,7 +1627,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 	list_add(&new_stat->nid_list, &obd->obd_nid_stats);
 	spin_unlock(&obd->obd_nid_lock);
 
-	RETURN(rc);
+	return rc;
 
 destroy_new_ns:
 	if (new_stat->nid_proc != NULL)
@@ -1635,7 +1637,7 @@ destroy_new_ns:
 destroy_new:
 	nidstat_putref(new_stat);
 	OBD_FREE_PTR(new_stat);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(lprocfs_exp_setup);
 
@@ -1644,7 +1646,7 @@ int lprocfs_exp_cleanup(struct obd_export *exp)
 	struct nid_stat *stat = exp->exp_nid_stats;
 
 	if(!stat || !exp->exp_obd)
-		RETURN(0);
+		return 0;
 
 	nidstat_putref(exp->exp_nid_stats);
 	exp->exp_nid_stats = NULL;
@@ -1873,7 +1875,7 @@ static char *lprocfs_strnstr(const char *s1, const char *s2, size_t len)
  * If \a name is not found the original \a buffer is returned.
  */
 char *lprocfs_find_named_value(const char *buffer, const char *name,
-				unsigned long *count)
+			       size_t *count)
 {
 	char *val;
 	size_t buflen = *count;
@@ -1897,23 +1899,22 @@ char *lprocfs_find_named_value(const char *buffer, const char *name,
 }
 EXPORT_SYMBOL(lprocfs_find_named_value);
 
-int lprocfs_seq_create(proc_dir_entry_t *parent,
+int lprocfs_seq_create(struct proc_dir_entry *parent,
 		       const char *name,
 		       umode_t mode,
 		       const struct file_operations *seq_fops,
 		       void *data)
 {
 	struct proc_dir_entry *entry;
-	ENTRY;
 
 	/* Disallow secretly (un)writable entries. */
 	LASSERT((seq_fops->write == NULL) == ((mode & 0222) == 0));
 	entry = proc_create_data(name, mode, parent, seq_fops, data);
 
 	if (entry == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_seq_create);
 

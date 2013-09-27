@@ -56,9 +56,7 @@
 
 #define MAX_NAME_LEN		64
 
-#define CHASE_TIMEOUT		(5*HZ)		/* 5 seconds */
 #define OPEN_TIMEOUT		(5*HZ)		/* 5 seconds */
-#define COMMAND_TIMEOUT		(5*HZ)		/* 5 seconds */
 
 /* receive port state */
 enum RXSTATE {

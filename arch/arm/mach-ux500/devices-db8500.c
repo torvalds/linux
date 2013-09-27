@@ -49,6 +49,7 @@ struct stedma40_platform_data dma40_plat_data = {
 struct platform_device u8500_dma40_device = {
 	.dev = {
 		.platform_data = &dma40_plat_data,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.name = "dma40",
 	.id = 0,

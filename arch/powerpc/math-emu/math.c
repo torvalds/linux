@@ -7,11 +7,26 @@
 
 #include <asm/uaccess.h>
 #include <asm/reg.h>
+#include <asm/switch_to.h>
 
 #include <asm/sfp-machine.h>
 #include <math-emu/double.h>
 
 #define FLOATFUNC(x)	extern int x(void *, void *, void *, void *)
+
+/* The instructions list which may be not implemented by a hardware FPU */
+FLOATFUNC(fre);
+FLOATFUNC(frsqrtes);
+FLOATFUNC(fsqrt);
+FLOATFUNC(fsqrts);
+FLOATFUNC(mtfsf);
+FLOATFUNC(mtfsfi);
+
+#ifdef CONFIG_MATH_EMULATION_HW_UNIMPLEMENTED
+#undef FLOATFUNC(x)
+#define FLOATFUNC(x)	static inline int x(void *op1, void *op2, void *op3, \
+						 void *op4) { }
+#endif
 
 FLOATFUNC(fadd);
 FLOATFUNC(fadds);
@@ -42,8 +57,6 @@ FLOATFUNC(mcrfs);
 FLOATFUNC(mffs);
 FLOATFUNC(mtfsb0);
 FLOATFUNC(mtfsb1);
-FLOATFUNC(mtfsf);
-FLOATFUNC(mtfsfi);
 
 FLOATFUNC(lfd);
 FLOATFUNC(lfs);
@@ -58,13 +71,9 @@ FLOATFUNC(fnabs);
 FLOATFUNC(fneg);
 
 /* Optional */
-FLOATFUNC(fre);
 FLOATFUNC(fres);
 FLOATFUNC(frsqrte);
-FLOATFUNC(frsqrtes);
 FLOATFUNC(fsel);
-FLOATFUNC(fsqrt);
-FLOATFUNC(fsqrts);
 
 
 #define OP31		0x1f		/*   31 */
@@ -154,7 +163,6 @@ FLOATFUNC(fsqrts);
 #define XEU	15
 #define XFLB	10
 
-#ifdef CONFIG_MATH_EMULATION
 static int
 record_exception(struct pt_regs *regs, int eflag)
 {
@@ -212,7 +220,6 @@ record_exception(struct pt_regs *regs, int eflag)
 
 	return (fpscr & FPSCR_FEX) ? 1 : 0;
 }
-#endif /* CONFIG_MATH_EMULATION */
 
 int
 do_mathemu(struct pt_regs *regs)
@@ -222,56 +229,13 @@ do_mathemu(struct pt_regs *regs)
 	signed short sdisp;
 	u32 insn = 0;
 	int idx = 0;
-#ifdef CONFIG_MATH_EMULATION
 	int (*func)(void *, void *, void *, void *);
 	int type = 0;
 	int eflag, trap;
-#endif
 
 	if (get_user(insn, (u32 *)pc))
 		return -EFAULT;
 
-#ifndef CONFIG_MATH_EMULATION
-	switch (insn >> 26) {
-	case LFD:
-		idx = (insn >> 16) & 0x1f;
-		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
-		lfd(op0, op1, op2, op3);
-		break;
-	case LFDU:
-		idx = (insn >> 16) & 0x1f;
-		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
-		lfd(op0, op1, op2, op3);
-		regs->gpr[idx] = (unsigned long)op1;
-		break;
-	case STFD:
-		idx = (insn >> 16) & 0x1f;
-		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
-		stfd(op0, op1, op2, op3);
-		break;
-	case STFDU:
-		idx = (insn >> 16) & 0x1f;
-		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
-		stfd(op0, op1, op2, op3);
-		regs->gpr[idx] = (unsigned long)op1;
-		break;
-	case OP63:
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
-		fmr(op0, op1, op2, op3);
-		break;
-	default:
-		goto illegal;
-	}
-#else /* CONFIG_MATH_EMULATION */
 	switch (insn >> 26) {
 	case LFS:	func = lfs;	type = D;	break;
 	case LFSU:	func = lfs;	type = DU;	break;
@@ -416,21 +380,16 @@ do_mathemu(struct pt_regs *regs)
 	case XE:
 		idx = (insn >> 16) & 0x1f;
 		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		if (!idx) {
-			if (((insn >> 1) & 0x3ff) == STFIWX)
-				op1 = (void *)(regs->gpr[(insn >> 11) & 0x1f]);
-			else
-				goto illegal;
-		} else {
-			op1 = (void *)(regs->gpr[idx] + regs->gpr[(insn >> 11) & 0x1f]);
-		}
-
+		op1 = (void *)((idx ? regs->gpr[idx] : 0)
+				+ regs->gpr[(insn >> 11) & 0x1f]);
 		break;
 
 	case XEU:
 		idx = (insn >> 16) & 0x1f;
+		if (!idx)
+			goto illegal;
 		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)((idx ? regs->gpr[idx] : 0)
+		op1 = (void *)(regs->gpr[idx]
 				+ regs->gpr[(insn >> 11) & 0x1f]);
 		break;
 
@@ -465,6 +424,13 @@ do_mathemu(struct pt_regs *regs)
 		goto illegal;
 	}
 
+	/*
+	 * If we support a HW FPU, we need to ensure the FP state
+	 * is flushed into the thread_struct before attempting
+	 * emulation
+	 */
+	flush_fp_to_thread(current);
+
 	eflag = func(op0, op1, op2, op3);
 
 	if (insn & 1) {
@@ -485,7 +451,6 @@ do_mathemu(struct pt_regs *regs)
 	default:
 		break;
 	}
-#endif /* CONFIG_MATH_EMULATION */
 
 	regs->nip += 4;
 	return 0;

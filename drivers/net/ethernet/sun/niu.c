@@ -9478,7 +9478,7 @@ static struct niu_parent *niu_new_parent(struct niu *np,
 	if (IS_ERR(plat_dev))
 		return NULL;
 
-	for (i = 0; attr_name(niu_parent_attributes[i]); i++) {
+	for (i = 0; niu_parent_attributes[i].attr.name; i++) {
 		int err = device_create_file(&plat_dev->dev,
 					     &niu_parent_attributes[i]);
 		if (err)

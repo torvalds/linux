@@ -1371,7 +1371,7 @@ EXPORT_SYMBOL(LNetNIInit);
  * \return always 0 for current implementation.
  */
 int
-LNetNIFini()
+LNetNIFini(void)
 {
 	LNET_MUTEX_LOCK(&the_lnet.ln_api_mutex);
 
@@ -1541,7 +1541,10 @@ LNetGetId(unsigned int index, lnet_process_id_t *id)
 	int		rc = -ENOENT;
 
 	LASSERT(the_lnet.ln_init);
-	LASSERT(the_lnet.ln_refcount > 0);
+
+	/* LNetNI initilization failed? */
+	if (the_lnet.ln_refcount == 0)
+		return rc;
 
 	cpt = lnet_net_lock_current();
 

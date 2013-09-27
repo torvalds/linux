@@ -316,7 +316,7 @@ ksocknal_lib_tunables_init ()
 		*ksocknal_tunables.ksnd_zc_recv_min_nfrags = LNET_MAX_IOV;
 
 	ksocknal_tunables.ksnd_sysctl =
-		cfs_register_sysctl_table(ksocknal_top_ctl_table, 0);
+		register_sysctl_table(ksocknal_top_ctl_table);
 
 	if (ksocknal_tunables.ksnd_sysctl == NULL)
 		CWARN("Can't setup /proc tunables\n");
@@ -325,20 +325,20 @@ ksocknal_lib_tunables_init ()
 }
 
 void
-ksocknal_lib_tunables_fini ()
+ksocknal_lib_tunables_fini(void)
 {
 	if (ksocknal_tunables.ksnd_sysctl != NULL)
 		unregister_sysctl_table(ksocknal_tunables.ksnd_sysctl);
 }
 #else
 int
-ksocknal_lib_tunables_init ()
+ksocknal_lib_tunables_init(void)
 {
 	return 0;
 }
 
 void
-ksocknal_lib_tunables_fini ()
+ksocknal_lib_tunables_fini(void)
 {
 }
 #endif /* # if CONFIG_SYSCTL && !CFS_SYSFS_MODULE_PARM */
@@ -964,7 +964,6 @@ static void
 ksocknal_data_ready (struct sock *sk, int n)
 {
 	ksock_conn_t  *conn;
-	ENTRY;
 
 	/* interleave correctly with closing sockets... */
 	LASSERT(!in_irq());
@@ -978,8 +977,6 @@ ksocknal_data_ready (struct sock *sk, int n)
 		ksocknal_read_callback(conn);
 
 	read_unlock(&ksocknal_data.ksnd_global_lock);
-
-	EXIT;
 }
 
 static void

@@ -1313,7 +1313,7 @@ int mmc_regulator_get_supply(struct mmc_host *mmc)
 
 	supply = devm_regulator_get(dev, "vmmc");
 	mmc->supply.vmmc = supply;
-	mmc->supply.vqmmc = devm_regulator_get(dev, "vqmmc");
+	mmc->supply.vqmmc = devm_regulator_get_optional(dev, "vqmmc");
 
 	if (IS_ERR(supply))
 		return PTR_ERR(supply);

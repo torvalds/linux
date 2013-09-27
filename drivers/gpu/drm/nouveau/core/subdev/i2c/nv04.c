@@ -91,12 +91,12 @@ nv04_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	int ret;
 
 	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				     &nouveau_i2c_bit_algo, &port);
+				      &nouveau_i2c_bit_algo, &nv04_i2c_func,
+				      &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
 
-	port->base.func = &nv04_i2c_func;
 	port->drive = info->drive;
 	port->sense = info->sense;
 	return 0;

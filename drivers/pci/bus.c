@@ -216,24 +216,6 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 	}
 }
 
-void pci_enable_bridges(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-	int retval;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		if (dev->subordinate) {
-			if (!pci_is_enabled(dev)) {
-				retval = pci_enable_device(dev);
-				if (retval)
-					dev_err(&dev->dev, "Error enabling bridge (%d), continuing\n", retval);
-				pci_set_master(dev);
-			}
-			pci_enable_bridges(dev->subordinate);
-		}
-	}
-}
-
 /** pci_walk_bus - walk devices on/under bus, calling callback.
  *  @top      bus whose devices should be walked
  *  @cb       callback to be called for each device found
@@ -301,4 +283,3 @@ EXPORT_SYMBOL(pci_bus_put);
 EXPORT_SYMBOL(pci_bus_alloc_resource);
 EXPORT_SYMBOL_GPL(pci_bus_add_device);
 EXPORT_SYMBOL(pci_bus_add_devices);
-EXPORT_SYMBOL(pci_enable_bridges);

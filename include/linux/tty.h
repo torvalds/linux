@@ -10,6 +10,8 @@
 #include <linux/mutex.h>
 #include <linux/tty_flags.h>
 #include <uapi/linux/tty.h>
+#include <linux/rwsem.h>
+#include <linux/llist.h>
 
 
 
@@ -29,9 +31,10 @@
 #define __DISABLED_CHAR '\0'
 
 struct tty_buffer {
-	struct tty_buffer *next;
-	char *char_buf_ptr;
-	unsigned char *flag_buf_ptr;
+	union {
+		struct tty_buffer *next;
+		struct llist_node free;
+	};
 	int used;
 	int size;
 	int commit;
@@ -40,25 +43,25 @@ struct tty_buffer {
 	unsigned long data[0];
 };
 
-/*
- * We default to dicing tty buffer allocations to this many characters
- * in order to avoid multiple page allocations. We know the size of
- * tty_buffer itself but it must also be taken into account that the
- * the buffer is 256 byte aligned. See tty_buffer_find for the allocation
- * logic this must match
- */
+static inline unsigned char *char_buf_ptr(struct tty_buffer *b, int ofs)
+{
+	return ((unsigned char *)b->data) + ofs;
+}
 
-#define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
-
+static inline char *flag_buf_ptr(struct tty_buffer *b, int ofs)
+{
+	return (char *)char_buf_ptr(b, ofs) + b->size;
+}
 
 struct tty_bufhead {
-	struct work_struct work;
-	spinlock_t lock;
 	struct tty_buffer *head;	/* Queue head */
+	struct work_struct work;
+	struct mutex	   lock;
+	atomic_t	   priority;
+	struct tty_buffer sentinel;
+	struct llist_head free;		/* Free queue head */
+	atomic_t	   memory_used; /* In-use buffers excluding free list */
 	struct tty_buffer *tail;	/* Active buffer */
-	struct tty_buffer *free;	/* Free queue head */
-	int memory_used;		/* Buffer space used excluding
-								free queue */
 };
 /*
  * When a break, frame error, or parity error happens, these codes are
@@ -199,9 +202,6 @@ struct tty_port {
 	wait_queue_head_t	close_wait;	/* Close waiters */
 	wait_queue_head_t	delta_msr_wait;	/* Modem status change */
 	unsigned long		flags;		/* TTY flags ASY_*/
-	unsigned long		iflags;		/* TTYP_ internal flags */
-#define TTYP_FLUSHING			1  /* Flushing to ldisc in progress */
-#define TTYP_FLUSHPENDING		2  /* Queued buffer flush pending */
 	unsigned char		console:1,	/* port is a console */
 				low_latency:1;	/* direct buffer flush */
 	struct mutex		mutex;		/* Locking */
@@ -238,14 +238,16 @@ struct tty_struct {
 	int index;
 
 	/* Protects ldisc changes: Lock tty not pty */
-	struct mutex ldisc_mutex;
+	struct ld_semaphore ldisc_sem;
 	struct tty_ldisc *ldisc;
 
 	struct mutex atomic_write_lock;
 	struct mutex legacy_mutex;
-	struct mutex termios_mutex;
+	struct mutex throttle_mutex;
+	struct rw_semaphore termios_rwsem;
+	struct mutex winsize_mutex;
 	spinlock_t ctrl_lock;
-	/* Termios values are protected by the termios mutex */
+	/* Termios values are protected by the termios rwsem */
 	struct ktermios termios, termios_locked;
 	struct termiox *termiox;	/* May be NULL for unsupported */
 	char name[64];
@@ -253,7 +255,7 @@ struct tty_struct {
 	struct pid *session;
 	unsigned long flags;
 	int count;
-	struct winsize winsize;		/* termios mutex */
+	struct winsize winsize;		/* winsize_mutex */
 	unsigned char stopped:1, hw_stopped:1, flow_stopped:1, packet:1;
 	unsigned char ctrl_status;	/* ctrl_lock */
 	unsigned int receive_room;	/* Bytes free for queue */
@@ -303,10 +305,7 @@ struct tty_file_private {
 #define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
 #define TTY_DEBUG 		4	/* Debugging */
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
-#define TTY_PUSH 		6	/* n_tty private */
 #define TTY_CLOSING 		7	/* ->close() in progress */
-#define TTY_LDISC 		9	/* Line discipline attached */
-#define TTY_LDISC_CHANGING 	10	/* Line discipline changing */
 #define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
 #define TTY_PTY_LOCK 		16	/* pty private */
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
@@ -558,6 +557,19 @@ extern void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty);
 extern void tty_ldisc_init(struct tty_struct *tty);
 extern void tty_ldisc_deinit(struct tty_struct *tty);
 extern void tty_ldisc_begin(void);
+
+static inline int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
+					char *f, int count)
+{
+	if (ld->ops->receive_buf2)
+		count = ld->ops->receive_buf2(ld->tty, p, f, count);
+	else {
+		count = min_t(int, count, ld->tty->receive_room);
+		if (count)
+			ld->ops->receive_buf(ld->tty, p, f, count);
+	}
+	return count;
+}
 
 
 /* n_tty.c */

@@ -94,6 +94,7 @@ MODULE_DEVICE_TABLE(pci, rtl8192_pci_id_tbl);
 static int rtl8192_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id);
 static void rtl8192_pci_disconnect(struct pci_dev *pdev);
+static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
 
 static struct pci_driver rtl8192_pci_driver = {
 	.name = DRV_NAME,	/* Driver name   */
@@ -1324,7 +1325,7 @@ static short rtl8192_init(struct net_device *dev)
 		    (unsigned long)dev);
 
 	rtl8192_irq_disable(dev);
-	if (request_irq(dev->irq, (void *)rtl8192_interrupt_rsl, IRQF_SHARED,
+	if (request_irq(dev->irq, rtl8192_interrupt, IRQF_SHARED,
 	    dev->name, dev)) {
 		printk(KERN_ERR "Error allocating IRQ %d", dev->irq);
 		return -1;
@@ -2704,7 +2705,7 @@ out:
 }
 
 
-irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs)
+irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 {
 	struct net_device *dev = (struct net_device *) netdev;
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);

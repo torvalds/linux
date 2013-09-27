@@ -71,7 +71,6 @@ static int lov_llog_origin_add(const struct lu_env *env,
 	struct obd_device *obd = ctxt->loc_obd;
 	struct lov_obd *lov = &obd->u.lov;
 	int i, rc = 0, cookies = 0;
-	ENTRY;
 
 	LASSERTF(logcookies && numcookies >= lsm->lsm_stripe_count,
 		 "logcookies %p, numcookies %d lsm->lsm_stripe_count %d \n",
@@ -118,7 +117,7 @@ static int lov_llog_origin_add(const struct lu_env *env,
 		/* Note that rc is always 1 if llog_obd_add was successful */
 		cookies += rc;
 	}
-	RETURN(cookies);
+	return cookies;
 }
 
 static int lov_llog_origin_connect(struct llog_ctxt *ctxt,
@@ -129,7 +128,6 @@ static int lov_llog_origin_connect(struct llog_ctxt *ctxt,
 	struct obd_device *obd = ctxt->loc_obd;
 	struct lov_obd *lov = &obd->u.lov;
 	int i, rc = 0, err = 0;
-	ENTRY;
 
 	obd_getref(obd);
 	for (i = 0; i < lov->desc.ld_tgt_count; i++) {
@@ -154,7 +152,7 @@ static int lov_llog_origin_connect(struct llog_ctxt *ctxt,
 	}
 	obd_putref(obd);
 
-	RETURN(err);
+	return err;
 }
 
 /* the replicators commit callback */
@@ -167,7 +165,6 @@ static int lov_llog_repl_cancel(const struct lu_env *env,
 	struct lov_obd *lov;
 	struct obd_device *obd = ctxt->loc_obd;
 	int rc = 0, i;
-	ENTRY;
 
 	LASSERT(lsm != NULL);
 	LASSERT(count == lsm->lsm_stripe_count);
@@ -194,7 +191,7 @@ static int lov_llog_repl_cancel(const struct lu_env *env,
 		}
 	}
 	obd_putref(obd);
-	RETURN(rc);
+	return rc;
 }
 
 static struct llog_operations lov_mds_ost_orig_logops = {
@@ -212,13 +209,12 @@ int lov_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
 	struct lov_obd *lov = &obd->u.lov;
 	struct obd_device *child;
 	int i, rc = 0;
-	ENTRY;
 
 	LASSERT(olg == &obd->obd_olg);
 	rc = llog_setup(NULL, obd, olg, LLOG_MDS_OST_ORIG_CTXT, disk_obd,
 			&lov_mds_ost_orig_logops);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = llog_setup(NULL, obd, olg, LLOG_SIZE_REPL_CTXT, disk_obd,
 			&lov_size_repl_logops);
@@ -261,8 +257,6 @@ int lov_llog_finish(struct obd_device *obd, int count)
 {
 	struct llog_ctxt *ctxt;
 
-	ENTRY;
-
 	/* cleanup our llogs only if the ctxts have been setup
 	 * (client lov doesn't setup, mds lov does). */
 	ctxt = llog_get_context(obd, LLOG_MDS_OST_ORIG_CTXT);
@@ -274,5 +268,5 @@ int lov_llog_finish(struct obd_device *obd, int count)
 		llog_cleanup(NULL, ctxt);
 
 	/* lov->tgt llogs are cleaned during osc_cleanup. */
-	RETURN(0);
+	return 0;
 }

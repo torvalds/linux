@@ -68,7 +68,6 @@ void lov_pool_putref(struct pool_desc *pool)
 		lov_ost_pool_free(&(pool->pool_rr.lqr_pool));
 		lov_ost_pool_free(&(pool->pool_obds));
 		OBD_FREE_PTR(pool);
-		EXIT;
 	}
 }
 
@@ -322,8 +321,6 @@ void lov_dump_pool(int level, struct pool_desc *pool)
 #define LOV_POOL_INIT_COUNT 2
 int lov_ost_pool_init(struct ost_pool *op, unsigned int count)
 {
-	ENTRY;
-
 	if (count == 0)
 		count = LOV_POOL_INIT_COUNT;
 	op->op_array = NULL;
@@ -333,9 +330,8 @@ int lov_ost_pool_init(struct ost_pool *op, unsigned int count)
 	OBD_ALLOC(op->op_array, op->op_size * sizeof(op->op_array[0]));
 	if (op->op_array == NULL) {
 		op->op_size = 0;
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
-	EXIT;
 	return 0;
 }
 
@@ -366,7 +362,6 @@ int lov_ost_pool_extend(struct ost_pool *op, unsigned int min_count)
 int lov_ost_pool_add(struct ost_pool *op, __u32 idx, unsigned int min_count)
 {
 	int rc = 0, i;
-	ENTRY;
 
 	down_write(&op->op_rw_sem);
 
@@ -382,7 +377,6 @@ int lov_ost_pool_add(struct ost_pool *op, __u32 idx, unsigned int min_count)
 	/* ost not found we add it */
 	op->op_array[op->op_count] = idx;
 	op->op_count++;
-	EXIT;
 out:
 	up_write(&op->op_rw_sem);
 	return rc;
@@ -391,7 +385,6 @@ out:
 int lov_ost_pool_remove(struct ost_pool *op, __u32 idx)
 {
 	int i;
-	ENTRY;
 
 	down_write(&op->op_rw_sem);
 
@@ -401,21 +394,18 @@ int lov_ost_pool_remove(struct ost_pool *op, __u32 idx)
 				(op->op_count - i - 1) * sizeof(op->op_array[0]));
 			op->op_count--;
 			up_write(&op->op_rw_sem);
-			EXIT;
 			return 0;
 		}
 	}
 
 	up_write(&op->op_rw_sem);
-	RETURN(-EINVAL);
+	return -EINVAL;
 }
 
 int lov_ost_pool_free(struct ost_pool *op)
 {
-	ENTRY;
-
 	if (op->op_size == 0)
-		RETURN(0);
+		return 0;
 
 	down_write(&op->op_rw_sem);
 
@@ -425,7 +415,7 @@ int lov_ost_pool_free(struct ost_pool *op)
 	op->op_size = 0;
 
 	up_write(&op->op_rw_sem);
-	RETURN(0);
+	return 0;
 }
 
 
@@ -434,16 +424,15 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	struct lov_obd *lov;
 	struct pool_desc *new_pool;
 	int rc;
-	ENTRY;
 
 	lov = &(obd->u.lov);
 
 	if (strlen(poolname) > LOV_MAXPOOLNAME)
-		RETURN(-ENAMETOOLONG);
+		return -ENAMETOOLONG;
 
 	OBD_ALLOC_PTR(new_pool);
 	if (new_pool == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	strncpy(new_pool->pool_name, poolname, LOV_MAXPOOLNAME);
 	new_pool->pool_name[LOV_MAXPOOLNAME] = '\0';
@@ -492,7 +481,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	CDEBUG(D_CONFIG, LOV_POOLNAMEF" is pool #%d\n",
 	       poolname, lov->lov_pool_count);
 
-	RETURN(0);
+	return 0;
 
 out_err:
 	spin_lock(&obd->obd_dev_lock);
@@ -513,14 +502,13 @@ int lov_pool_del(struct obd_device *obd, char *poolname)
 {
 	struct lov_obd *lov;
 	struct pool_desc *pool;
-	ENTRY;
 
 	lov = &(obd->u.lov);
 
 	/* lookup and kill hash reference */
 	pool = cfs_hash_del_key(lov->lov_pools_hash_body, poolname);
 	if (pool == NULL)
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	if (pool->pool_proc_entry != NULL) {
 		CDEBUG(D_INFO, "proc entry %p\n", pool->pool_proc_entry);
@@ -536,7 +524,7 @@ int lov_pool_del(struct obd_device *obd, char *poolname)
 	/* release last reference */
 	lov_pool_putref(pool);
 
-	RETURN(0);
+	return 0;
 }
 
 
@@ -547,13 +535,12 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 	struct pool_desc *pool;
 	unsigned int lov_idx;
 	int rc;
-	ENTRY;
 
 	lov = &(obd->u.lov);
 
 	pool = cfs_hash_lookup(lov->lov_pools_hash_body, poolname);
 	if (pool == NULL)
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	obd_str2uuid(&ost_uuid, ostname);
 
@@ -580,7 +567,6 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 	CDEBUG(D_CONFIG, "Added %s to "LOV_POOLNAMEF" as member %d\n",
 	       ostname, poolname,  pool_tgt_count(pool));
 
-	EXIT;
 out:
 	obd_putref(obd);
 	lov_pool_putref(pool);
@@ -594,13 +580,12 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 	struct pool_desc *pool;
 	unsigned int lov_idx;
 	int rc = 0;
-	ENTRY;
 
 	lov = &(obd->u.lov);
 
 	pool = cfs_hash_lookup(lov->lov_pools_hash_body, poolname);
 	if (pool == NULL)
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	obd_str2uuid(&ost_uuid, ostname);
 
@@ -626,7 +611,6 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 	CDEBUG(D_CONFIG, "%s removed from "LOV_POOLNAMEF"\n", ostname,
 	       poolname);
 
-	EXIT;
 out:
 	obd_putref(obd);
 	lov_pool_putref(pool);
@@ -636,7 +620,6 @@ out:
 int lov_check_index_in_pool(__u32 idx, struct pool_desc *pool)
 {
 	int i, rc;
-	ENTRY;
 
 	/* caller may no have a ref on pool if it got the pool
 	 * without calling lov_find_pool() (e.g. go through the lov pool
@@ -651,7 +634,6 @@ int lov_check_index_in_pool(__u32 idx, struct pool_desc *pool)
 			GOTO(out, rc = 0);
 	}
 	rc = -ENOENT;
-	EXIT;
 out:
 	up_read(&pool_tgt_rw_sem(pool));
 

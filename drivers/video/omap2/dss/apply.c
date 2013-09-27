@@ -428,8 +428,8 @@ static struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *m
 	if (dssdev == NULL)
 		return NULL;
 
-	while (dssdev->device)
-		dssdev = dssdev->device;
+	while (dssdev->dst)
+		dssdev = dssdev->dst;
 
 	if (dssdev->driver)
 		return dssdev;

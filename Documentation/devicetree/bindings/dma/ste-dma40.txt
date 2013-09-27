@@ -37,14 +37,14 @@ Each dmas request consists of 4 cells:
   1. A phandle pointing to the DMA controller
   2. Device Type
   3. The DMA request line number (only when 'use fixed channel' is set)
-  4. A 32bit mask specifying; mode, direction and endianess [NB: This list will grow]
+  4. A 32bit mask specifying; mode, direction and endianness [NB: This list will grow]
         0x00000001: Mode:
                 Logical channel when unset
                 Physical channel when set
         0x00000002: Direction:
                 Memory to Device when unset
                 Device to Memory when set
-        0x00000004: Endianess:
+        0x00000004: Endianness:
                 Little endian when unset
                 Big endian when set
         0x00000008: Use fixed channel:

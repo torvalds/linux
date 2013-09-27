@@ -108,12 +108,12 @@
  *	   3= 20V unipolar inputs
  */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/gfp.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>
-#include <linux/ioport.h>
 #include <linux/io.h>
 #include <asm/dma.h>
 
@@ -1110,10 +1110,9 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	irq = 0;
 	if (board->IRQbits != 0) {	/* board support IRQ */
@@ -1405,6 +1404,7 @@ no_dma:
 		if (it->options[3] > 0)
 						/*  we use external trigger */
 			devpriv->use_ext_trg = 1;
+		break;
 	case boardA821:
 		devpriv->max_812_ai_mode0_rangewait = 1;
 		devpriv->mode_reg_int = (irq << 4) & 0xf0;

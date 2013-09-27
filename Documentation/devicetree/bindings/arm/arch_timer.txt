@@ -1,10 +1,14 @@
 * ARM architected timer
 
-ARM cores may have a per-core architected timer, which provides per-cpu timers.
+ARM cores may have a per-core architected timer, which provides per-cpu timers,
+or a memory mapped architected timer, which provides up to 8 frames with a
+physical and optional virtual timer per frame.
 
-The timer is attached to a GIC to deliver its per-processor interrupts.
+The per-core architected timer is attached to a GIC to deliver its
+per-processor interrupts via PPIs. The memory mapped timer is attached to a GIC
+to deliver its interrupts via SPIs.
 
-** Timer node properties:
+** CP15 Timer node properties:
 
 - compatible : Should at least contain one of
 	"arm,armv7-timer"
@@ -25,4 +29,53 @@ Example:
 			     <1 11 0xf08>,
 			     <1 10 0xf08>;
 		clock-frequency = <100000000>;
+	};
+
+** Memory mapped timer node properties:
+
+- compatible : Should at least contain "arm,armv7-timer-mem".
+
+- clock-frequency : The frequency of the main counter, in Hz. Optional.
+
+- reg : The control frame base address.
+
+Note that #address-cells, #size-cells, and ranges shall be present to ensure
+the CPU can address a frame's registers.
+
+A timer node has up to 8 frame sub-nodes, each with the following properties:
+
+- frame-number: 0 to 7.
+
+- interrupts : Interrupt list for physical and virtual timers in that order.
+  The virtual timer interrupt is optional.
+
+- reg : The first and second view base addresses in that order. The second view
+  base address is optional.
+
+- status : "disabled" indicates the frame is not available for use. Optional.
+
+Example:
+
+	timer@f0000000 {
+		compatible = "arm,armv7-timer-mem";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		reg = <0xf0000000 0x1000>;
+		clock-frequency = <50000000>;
+
+		frame@f0001000 {
+			frame-number = <0>
+			interrupts = <0 13 0x8>,
+				     <0 14 0x8>;
+			reg = <0xf0001000 0x1000>,
+			      <0xf0002000 0x1000>;
+		};
+
+		frame@f0003000 {
+			frame-number = <1>
+			interrupts = <0 15 0x8>;
+			reg = <0xf0003000 0x1000>;
+			status = "disabled";
+		};
 	};

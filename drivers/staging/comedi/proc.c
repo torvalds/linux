@@ -55,6 +55,7 @@ static int comedi_read(struct seq_file *m, void *v)
 	if (!devices_q)
 		seq_puts(m, "no devices\n");
 
+	mutex_lock(&comedi_drivers_list_lock);
 	for (driv = comedi_drivers; driv; driv = driv->next) {
 		seq_printf(m, "%s:\n", driv->driver_name);
 		for (i = 0; i < driv->num_names; i++)
@@ -65,6 +66,7 @@ static int comedi_read(struct seq_file *m, void *v)
 		if (!driv->num_names)
 			seq_printf(m, " %s\n", driv->driver_name);
 	}
+	mutex_unlock(&comedi_drivers_list_lock);
 
 	return 0;
 }

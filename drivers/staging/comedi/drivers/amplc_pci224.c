@@ -98,6 +98,7 @@ Caveats:
      correctly.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -1419,10 +1420,9 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev_info(dev->class_dev, DRIVER_NAME ": attach\n");
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	pci_dev = pci224_find_pci_dev(dev, it);
 	if (!pci_dev)
@@ -1440,10 +1440,9 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_unused)
 	dev_info(dev->class_dev, DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	dev->board_ptr = pci224_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {

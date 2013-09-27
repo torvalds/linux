@@ -8,7 +8,7 @@ perf-list - List all symbolic event types
 SYNOPSIS
 --------
 [verse]
-'perf list' [hw|sw|cache|tracepoint|event_glob]
+'perf list' [hw|sw|cache|tracepoint|pmu|event_glob]
 
 DESCRIPTION
 -----------
@@ -29,6 +29,8 @@ counted. The following modifiers exist:
  G - guest counting (in KVM guests)
  H - host counting (not in KVM guests)
  p - precise level
+ S - read sample value (PERF_SAMPLE_READ)
+ D - pin the event to the PMU
 
 The 'p' modifier can be used for specifying how precise the instruction
 address should be. The 'p' modifier can be specified multiple times:
@@ -103,6 +105,8 @@ To limit the list use:
 . 'tracepoint' to list all tracepoint events, alternatively use
   'subsys_glob:event_glob' to filter by tracepoint subsystems such as sched,
   block, etc.
+
+. 'pmu' to print the kernel supplied PMU events.
 
 . If none of the above is matched, it will apply the supplied glob to all
   events, printing the ones that match.

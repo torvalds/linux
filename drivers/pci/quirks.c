@@ -3126,9 +3126,6 @@ static int reset_intel_generic_dev(struct pci_dev *dev, int probe)
 
 static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
 {
-	int i;
-	u16 status;
-
 	/*
 	 * http://www.intel.com/content/dam/doc/datasheet/82599-10-gbe-controller-datasheet.pdf
 	 *
@@ -3140,20 +3137,9 @@ static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
 	if (probe)
 		return 0;
 
-	/* Wait for Transaction Pending bit clean */
-	for (i = 0; i < 4; i++) {
-		if (i)
-			msleep((1 << (i - 1)) * 100);
+	if (!pci_wait_for_pending_transaction(dev))
+		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
 
-		pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
-		if (!(status & PCI_EXP_DEVSTA_TRPND))
-			goto clear;
-	}
-
-	dev_err(&dev->dev, "transaction is not cleared; "
-			"proceeding with reset anyway\n");
-
-clear:
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
 
 	msleep(100);
@@ -3208,6 +3194,83 @@ reset_complete:
 	return 0;
 }
 
+/*
+ * Device-specific reset method for Chelsio T4-based adapters.
+ */
+static int reset_chelsio_generic_dev(struct pci_dev *dev, int probe)
+{
+	u16 old_command;
+	u16 msix_flags;
+
+	/*
+	 * If this isn't a Chelsio T4-based device, return -ENOTTY indicating
+	 * that we have no device-specific reset method.
+	 */
+	if ((dev->device & 0xf000) != 0x4000)
+		return -ENOTTY;
+
+	/*
+	 * If this is the "probe" phase, return 0 indicating that we can
+	 * reset this device.
+	 */
+	if (probe)
+		return 0;
+
+	/*
+	 * T4 can wedge if there are DMAs in flight within the chip and Bus
+	 * Master has been disabled.  We need to have it on till the Function
+	 * Level Reset completes.  (BUS_MASTER is disabled in
+	 * pci_reset_function()).
+	 */
+	pci_read_config_word(dev, PCI_COMMAND, &old_command);
+	pci_write_config_word(dev, PCI_COMMAND,
+			      old_command | PCI_COMMAND_MASTER);
+
+	/*
+	 * Perform the actual device function reset, saving and restoring
+	 * configuration information around the reset.
+	 */
+	pci_save_state(dev);
+
+	/*
+	 * T4 also suffers a Head-Of-Line blocking problem if MSI-X interrupts
+	 * are disabled when an MSI-X interrupt message needs to be delivered.
+	 * So we briefly re-enable MSI-X interrupts for the duration of the
+	 * FLR.  The pci_restore_state() below will restore the original
+	 * MSI-X state.
+	 */
+	pci_read_config_word(dev, dev->msix_cap+PCI_MSIX_FLAGS, &msix_flags);
+	if ((msix_flags & PCI_MSIX_FLAGS_ENABLE) == 0)
+		pci_write_config_word(dev, dev->msix_cap+PCI_MSIX_FLAGS,
+				      msix_flags |
+				      PCI_MSIX_FLAGS_ENABLE |
+				      PCI_MSIX_FLAGS_MASKALL);
+
+	/*
+	 * Start of pcie_flr() code sequence.  This reset code is a copy of
+	 * the guts of pcie_flr() because that's not an exported function.
+	 */
+
+	if (!pci_wait_for_pending_transaction(dev))
+		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
+
+	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
+	msleep(100);
+
+	/*
+	 * End of pcie_flr() code sequence.
+	 */
+
+	/*
+	 * Restore the configuration information (BAR values, etc.) including
+	 * the original PCI Configuration Space Command word, and return
+	 * success.
+	 */
+	pci_restore_state(dev);
+	pci_write_config_word(dev, PCI_COMMAND, old_command);
+	return 0;
+}
+
 #define PCI_DEVICE_ID_INTEL_82599_SFP_VF   0x10ed
 #define PCI_DEVICE_ID_INTEL_IVB_M_VGA      0x0156
 #define PCI_DEVICE_ID_INTEL_IVB_M2_VGA     0x0166
@@ -3221,6 +3284,8 @@ static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
 		reset_ivb_igd },
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
 		reset_intel_generic_dev },
+	{ PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,
+		reset_chelsio_generic_dev },
 	{ 0 }
 };
 
@@ -3295,11 +3360,61 @@ struct pci_dev *pci_get_dma_source(struct pci_dev *dev)
 	return pci_dev_get(dev);
 }
 
+/*
+ * AMD has indicated that the devices below do not support peer-to-peer
+ * in any system where they are found in the southbridge with an AMD
+ * IOMMU in the system.  Multifunction devices that do not support
+ * peer-to-peer between functions can claim to support a subset of ACS.
+ * Such devices effectively enable request redirect (RR) and completion
+ * redirect (CR) since all transactions are redirected to the upstream
+ * root complex.
+ *
+ * http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/94086
+ * http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/94102
+ * http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/99402
+ *
+ * 1002:4385 SBx00 SMBus Controller
+ * 1002:439c SB7x0/SB8x0/SB9x0 IDE Controller
+ * 1002:4383 SBx00 Azalia (Intel HDA)
+ * 1002:439d SB7x0/SB8x0/SB9x0 LPC host controller
+ * 1002:4384 SBx00 PCI to PCI Bridge
+ * 1002:4399 SB7x0/SB8x0/SB9x0 USB OHCI2 Controller
+ */
+static int pci_quirk_amd_sb_acs(struct pci_dev *dev, u16 acs_flags)
+{
+#ifdef CONFIG_ACPI
+	struct acpi_table_header *header = NULL;
+	acpi_status status;
+
+	/* Targeting multifunction devices on the SB (appears on root bus) */
+	if (!dev->multifunction || !pci_is_root_bus(dev->bus))
+		return -ENODEV;
+
+	/* The IVRS table describes the AMD IOMMU */
+	status = acpi_get_table("IVRS", 0, &header);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	/* Filter out flags not applicable to multifunction */
+	acs_flags &= (PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_EC | PCI_ACS_DT);
+
+	return acs_flags & ~(PCI_ACS_RR | PCI_ACS_CR) ? 0 : 1;
+#else
+	return -ENODEV;
+#endif
+}
+
 static const struct pci_dev_acs_enabled {
 	u16 vendor;
 	u16 device;
 	int (*acs_enabled)(struct pci_dev *dev, u16 acs_flags);
 } pci_dev_acs_enabled[] = {
+	{ PCI_VENDOR_ID_ATI, 0x4385, pci_quirk_amd_sb_acs },
+	{ PCI_VENDOR_ID_ATI, 0x439c, pci_quirk_amd_sb_acs },
+	{ PCI_VENDOR_ID_ATI, 0x4383, pci_quirk_amd_sb_acs },
+	{ PCI_VENDOR_ID_ATI, 0x439d, pci_quirk_amd_sb_acs },
+	{ PCI_VENDOR_ID_ATI, 0x4384, pci_quirk_amd_sb_acs },
+	{ PCI_VENDOR_ID_ATI, 0x4399, pci_quirk_amd_sb_acs },
 	{ 0 }
 };
 

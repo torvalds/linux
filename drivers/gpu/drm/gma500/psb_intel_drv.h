@@ -24,6 +24,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/gpio.h>
+#include "gma_display.h"
 
 /*
  * Display related stuff
@@ -116,11 +117,11 @@ struct psb_intel_i2c_chan {
 	u8 slave_addr;
 };
 
-struct psb_intel_encoder {
+struct gma_encoder {
 	struct drm_encoder base;
 	int type;
 	bool needs_tv_clock;
-	void (*hot_plug)(struct psb_intel_encoder *);
+	void (*hot_plug)(struct gma_encoder *);
 	int crtc_mask;
 	int clone_mask;
 	u32 ddi_select;	/* Channel info */
@@ -136,9 +137,9 @@ struct psb_intel_encoder {
 	struct psb_intel_i2c_chan *ddc_bus;
 };
 
-struct psb_intel_connector {
+struct gma_connector {
 	struct drm_connector base;
-	struct psb_intel_encoder *encoder;
+	struct gma_encoder *encoder;
 };
 
 struct psb_intel_crtc_state {
@@ -161,7 +162,7 @@ struct psb_intel_crtc_state {
 	uint32_t savePalette[256];
 };
 
-struct psb_intel_crtc {
+struct gma_crtc {
 	struct drm_crtc base;
 	int pipe;
 	int plane;
@@ -188,14 +189,16 @@ struct psb_intel_crtc {
 
 	/* Saved Crtc HW states */
 	struct psb_intel_crtc_state *crtc_state;
+
+	const struct gma_clock_funcs *clock_funcs;
 };
 
-#define to_psb_intel_crtc(x)	\
-		container_of(x, struct psb_intel_crtc, base)
-#define to_psb_intel_connector(x) \
-		container_of(x, struct psb_intel_connector, base)
-#define to_psb_intel_encoder(x)	\
-		container_of(x, struct psb_intel_encoder, base)
+#define to_gma_crtc(x)	\
+		container_of(x, struct gma_crtc, base)
+#define to_gma_connector(x) \
+		container_of(x, struct gma_connector, base)
+#define to_gma_encoder(x)	\
+		container_of(x, struct gma_encoder, base)
 #define to_psb_intel_framebuffer(x)	\
 		container_of(x, struct psb_intel_framebuffer, base)
 
@@ -223,27 +226,18 @@ extern void oaktrail_dsi_init(struct drm_device *dev,
 extern void mid_dsi_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev, int dsi_num);
 
-extern void psb_intel_crtc_load_lut(struct drm_crtc *crtc);
-extern void psb_intel_encoder_prepare(struct drm_encoder *encoder);
-extern void psb_intel_encoder_commit(struct drm_encoder *encoder);
-extern void psb_intel_encoder_destroy(struct drm_encoder *encoder);
+extern struct drm_encoder *gma_best_encoder(struct drm_connector *connector);
+extern void gma_connector_attach_encoder(struct gma_connector *connector,
+					 struct gma_encoder *encoder);
 
-static inline struct psb_intel_encoder *psb_intel_attached_encoder(
+static inline struct gma_encoder *gma_attached_encoder(
 						struct drm_connector *connector)
 {
-	return to_psb_intel_connector(connector)->encoder;
+	return to_gma_connector(connector)->encoder;
 }
-
-extern void psb_intel_connector_attach_encoder(
-					struct psb_intel_connector *connector,
-					struct psb_intel_encoder *encoder);
-
-extern struct drm_encoder *psb_intel_best_encoder(struct drm_connector
-					      *connector);
 
 extern struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);
-extern void psb_intel_wait_for_vblank(struct drm_device *dev);
 extern int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 extern struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev,

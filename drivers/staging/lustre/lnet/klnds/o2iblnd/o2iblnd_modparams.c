@@ -404,7 +404,7 @@ kiblnd_sysctl_init (void)
 			      sizeof(ipif_basename_space));
 
 	kiblnd_tunables.kib_sysctl =
-		cfs_register_sysctl_table(kiblnd_top_ctl_table, 0);
+		register_sysctl_table(kiblnd_top_ctl_table);
 
 	if (kiblnd_tunables.kib_sysctl == NULL)
 		CWARN("Can't setup /proc tunables\n");

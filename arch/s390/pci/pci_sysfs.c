@@ -48,11 +48,38 @@ static ssize_t show_pfgid(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(pfgid, S_IRUGO, show_pfgid, NULL);
 
+static void recover_callback(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct zpci_dev *zdev = get_zdev(pdev);
+	int ret;
+
+	pci_stop_and_remove_bus_device(pdev);
+	ret = zpci_disable_device(zdev);
+	if (ret)
+		return;
+
+	ret = zpci_enable_device(zdev);
+	if (ret)
+		return;
+
+	pci_rescan_bus(zdev->bus);
+}
+
+static ssize_t store_recover(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	int rc = device_schedule_callback(dev, recover_callback);
+	return rc ? rc : count;
+}
+static DEVICE_ATTR(recover, S_IWUSR, NULL, store_recover);
+
 static struct device_attribute *zpci_dev_attrs[] = {
 	&dev_attr_function_id,
 	&dev_attr_function_handle,
 	&dev_attr_pchid,
 	&dev_attr_pfgid,
+	&dev_attr_recover,
 	NULL,
 };
 

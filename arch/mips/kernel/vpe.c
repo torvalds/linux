@@ -1335,8 +1335,9 @@ static ssize_t store_kill(struct device *dev, struct device_attribute *attr,
 
 	return len;
 }
+static DEVICE_ATTR(kill, S_IWUSR, NULL, store_kill);
 
-static ssize_t show_ntcs(struct device *cd, struct device_attribute *attr,
+static ssize_t ntcs_show(struct device *cd, struct device_attribute *attr,
 			 char *buf)
 {
 	struct vpe *vpe = get_vpe(tclimit);
@@ -1344,7 +1345,7 @@ static ssize_t show_ntcs(struct device *cd, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", vpe->ntcs);
 }
 
-static ssize_t store_ntcs(struct device *dev, struct device_attribute *attr,
+static ssize_t ntcs_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t len)
 {
 	struct vpe *vpe = get_vpe(tclimit);
@@ -1365,12 +1366,14 @@ static ssize_t store_ntcs(struct device *dev, struct device_attribute *attr,
 out_einval:
 	return -EINVAL;
 }
+static DEVICE_ATTR_RW(ntcs);
 
-static struct device_attribute vpe_class_attributes[] = {
-	__ATTR(kill, S_IWUSR, NULL, store_kill),
-	__ATTR(ntcs, S_IRUGO | S_IWUSR, show_ntcs, store_ntcs),
-	{}
+static struct attribute vpe_attrs[] = {
+	&dev_attr_kill.attr,
+	&dev_attr_ntcs.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(vpe);
 
 static void vpe_device_release(struct device *cd)
 {
@@ -1381,7 +1384,7 @@ struct class vpe_class = {
 	.name = "vpe",
 	.owner = THIS_MODULE,
 	.dev_release = vpe_device_release,
-	.dev_attrs = vpe_class_attributes,
+	.dev_groups = vpe_groups,
 };
 
 struct device vpe_device;

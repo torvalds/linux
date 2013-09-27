@@ -68,6 +68,8 @@ MODULE_PARM_DESC(autosuspend, "default autosuspend delay");
  * @alt_num: alternate interface setting number to search for.
  *
  * Search the configuration's interface cache for the given alt setting.
+ *
+ * Return: The alternate setting, if found. %NULL otherwise.
  */
 struct usb_host_interface *usb_find_alt_setting(
 		struct usb_host_config *config,
@@ -103,8 +105,7 @@ EXPORT_SYMBOL_GPL(usb_find_alt_setting);
  * @ifnum: the desired interface
  *
  * This walks the device descriptor for the currently active configuration
- * and returns a pointer to the interface with that particular interface
- * number, or null.
+ * to find the interface object with the particular interface number.
  *
  * Note that configuration descriptors are not required to assign interface
  * numbers sequentially, so that it would be incorrect to assume that
@@ -115,6 +116,9 @@ EXPORT_SYMBOL_GPL(usb_find_alt_setting);
  *
  * Don't call this function unless you are bound to one of the interfaces
  * on this device or you have locked the device!
+ *
+ * Return: A pointer to the interface that has @ifnum as interface number,
+ * if found. %NULL otherwise.
  */
 struct usb_interface *usb_ifnum_to_if(const struct usb_device *dev,
 				      unsigned ifnum)
@@ -139,8 +143,7 @@ EXPORT_SYMBOL_GPL(usb_ifnum_to_if);
  * @altnum: the desired alternate setting number
  *
  * This searches the altsetting array of the specified interface for
- * an entry with the correct bAlternateSetting value and returns a pointer
- * to that entry, or null.
+ * an entry with the correct bAlternateSetting value.
  *
  * Note that altsettings need not be stored sequentially by number, so
  * it would be incorrect to assume that the first altsetting entry in
@@ -149,6 +152,9 @@ EXPORT_SYMBOL_GPL(usb_ifnum_to_if);
  *
  * Don't call this function unless you are bound to the intf interface
  * or you have locked the device!
+ *
+ * Return: A pointer to the entry of the altsetting array of @intf that
+ * has @altnum as the alternate setting number. %NULL if not found.
  */
 struct usb_host_interface *usb_altnum_to_altsetting(
 					const struct usb_interface *intf,
@@ -191,6 +197,8 @@ static int __find_interface(struct device *dev, void *data)
  * This walks the bus device list and returns a pointer to the interface
  * with the matching minor and driver.  Note, this only works for devices
  * that share the USB major number.
+ *
+ * Return: A pointer to the interface with the matching major and @minor.
  */
 struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 {
@@ -390,6 +398,9 @@ static unsigned usb_bus_is_wusb(struct usb_bus *bus)
  * controllers) should ever call this.
  *
  * This call may not be used in a non-sleeping context.
+ *
+ * Return: On success, a pointer to the allocated usb device. %NULL on
+ * failure.
  */
 struct usb_device *usb_alloc_dev(struct usb_device *parent,
 				 struct usb_bus *bus, unsigned port1)
@@ -501,7 +512,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
  * their probe() methods, when they bind to an interface, and release
  * them by calling usb_put_dev(), in their disconnect() methods.
  *
- * A pointer to the device with the incremented reference counter is returned.
+ * Return: A pointer to the device with the incremented reference counter.
  */
 struct usb_device *usb_get_dev(struct usb_device *dev)
 {
@@ -535,8 +546,7 @@ EXPORT_SYMBOL_GPL(usb_put_dev);
  * their probe() methods, when they bind to an interface, and release
  * them by calling usb_put_intf(), in their disconnect() methods.
  *
- * A pointer to the interface with the incremented reference counter is
- * returned.
+ * Return: A pointer to the interface with the incremented reference counter.
  */
 struct usb_interface *usb_get_intf(struct usb_interface *intf)
 {
@@ -589,7 +599,7 @@ EXPORT_SYMBOL_GPL(usb_put_intf);
  * disconnect; in some drivers (such as usb-storage) the disconnect()
  * or suspend() method will block waiting for a device reset to complete.
  *
- * Returns a negative error code for failure, otherwise 0.
+ * Return: A negative error code for failure, otherwise 0.
  */
 int usb_lock_device_for_reset(struct usb_device *udev,
 			      const struct usb_interface *iface)
@@ -628,14 +638,15 @@ EXPORT_SYMBOL_GPL(usb_lock_device_for_reset);
  * usb_get_current_frame_number - return current bus frame number
  * @dev: the device whose bus is being queried
  *
- * Returns the current frame number for the USB host controller
- * used with the given USB device.  This can be used when scheduling
+ * Return: The current frame number for the USB host controller used
+ * with the given USB device. This can be used when scheduling
  * isochronous requests.
  *
- * Note that different kinds of host controller have different
- * "scheduling horizons".  While one type might support scheduling only
- * 32 frames into the future, others could support scheduling up to
- * 1024 frames into the future.
+ * Note: Different kinds of host controller have different "scheduling
+ * horizons". While one type might support scheduling only 32 frames
+ * into the future, others could support scheduling up to 1024 frames
+ * into the future.
+ *
  */
 int usb_get_current_frame_number(struct usb_device *dev)
 {
@@ -685,11 +696,12 @@ EXPORT_SYMBOL_GPL(__usb_get_extra_descriptor);
  * @mem_flags: affect whether allocation may block
  * @dma: used to return DMA address of buffer
  *
- * Return value is either null (indicating no buffer could be allocated), or
- * the cpu-space pointer to a buffer that may be used to perform DMA to the
+ * Return: Either null (indicating no buffer could be allocated), or the
+ * cpu-space pointer to a buffer that may be used to perform DMA to the
  * specified device.  Such cpu-space buffers are returned along with the DMA
  * address (through the pointer provided).
  *
+ * Note:
  * These buffers are used with URB_NO_xxx_DMA_MAP set in urb->transfer_flags
  * to avoid behaviors like using "DMA bounce buffers", or thrashing IOMMU
  * hardware during URB completion/resubmit.  The implementation varies between
@@ -735,17 +747,18 @@ EXPORT_SYMBOL_GPL(usb_free_coherent);
  * usb_buffer_map - create DMA mapping(s) for an urb
  * @urb: urb whose transfer_buffer/setup_packet will be mapped
  *
- * Return value is either null (indicating no buffer could be mapped), or
- * the parameter.  URB_NO_TRANSFER_DMA_MAP is
- * added to urb->transfer_flags if the operation succeeds.  If the device
- * is connected to this system through a non-DMA controller, this operation
- * always succeeds.
+ * URB_NO_TRANSFER_DMA_MAP is added to urb->transfer_flags if the operation
+ * succeeds. If the device is connected to this system through a non-DMA
+ * controller, this operation always succeeds.
  *
  * This call would normally be used for an urb which is reused, perhaps
  * as the target of a large periodic transfer, with usb_buffer_dmasync()
  * calls to synchronize memory and dma state.
  *
  * Reverse the effect of this call with usb_buffer_unmap().
+ *
+ * Return: Either %NULL (indicating no buffer could be mapped), or @urb.
+ *
  */
 #if 0
 struct urb *usb_buffer_map(struct urb *urb)
@@ -850,9 +863,10 @@ EXPORT_SYMBOL_GPL(usb_buffer_unmap);
  * @sg: the scatterlist to map
  * @nents: the number of entries in the scatterlist
  *
- * Return value is either < 0 (indicating no buffers could be mapped), or
- * the number of DMA mapping array entries in the scatterlist.
+ * Return: Either < 0 (indicating no buffers could be mapped), or the
+ * number of DMA mapping array entries in the scatterlist.
  *
+ * Note:
  * The caller is responsible for placing the resulting DMA addresses from
  * the scatterlist into URB transfer buffer pointers, and for setting the
  * URB_NO_TRANSFER_DMA_MAP transfer flag in each of those URBs.

@@ -197,7 +197,7 @@ inline void force_pci_posting(struct net_device *dev)
 	mb();
 }
 
-irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs);
+static irqreturn_t rtl8180_interrupt(int irq, void *netdev);
 void set_nic_rxring(struct net_device *dev);
 void set_nic_txring(struct net_device *dev);
 static struct net_device_stats *rtl8180_stats(struct net_device *dev);
@@ -2666,7 +2666,7 @@ short rtl8180_init(struct net_device *dev)
 				  TX_BEACON_RING_ADDR))
 		return -ENOMEM;
 
-	if (request_irq(dev->irq, (void *)rtl8180_interrupt, IRQF_SHARED, dev->name, dev)) {
+	if (request_irq(dev->irq, rtl8180_interrupt, IRQF_SHARED, dev->name, dev)) {
 		DMESGE("Error allocating IRQ %d", dev->irq);
 		return -1;
 	} else {
@@ -3537,7 +3537,7 @@ void rtl8180_tx_isr(struct net_device *dev, int pri, short error)
 	spin_unlock_irqrestore(&priv->tx_lock, flag);
 }
 
-irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
+irqreturn_t rtl8180_interrupt(int irq, void *netdev)
 {
 	struct net_device *dev = (struct net_device *) netdev;
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);

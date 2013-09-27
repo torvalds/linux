@@ -22,8 +22,10 @@
  * more details.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include "../comedidev.h"
 #include "addi_watchdog.h"

@@ -29,6 +29,7 @@ config MICROBLAZE
 	select GENERIC_IDLE_POLL_SETUP
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS3
+	select CLKSRC_OF
 
 config SWAP
 	def_bool n

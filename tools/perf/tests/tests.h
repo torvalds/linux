@@ -1,6 +1,14 @@
 #ifndef TESTS_H
 #define TESTS_H
 
+#define TEST_ASSERT_VAL(text, cond)					 \
+do {									 \
+	if (!(cond)) {							 \
+		pr_debug("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
+		return -1;						 \
+	}								 \
+} while (0)
+
 enum {
 	TEST_OK   =  0,
 	TEST_FAIL = -1,
@@ -27,5 +35,9 @@ int test__bp_signal(void);
 int test__bp_signal_overflow(void);
 int test__task_exit(void);
 int test__sw_clock_freq(void);
+int test__perf_time_to_tsc(void);
+int test__code_reading(void);
+int test__sample_parsing(void);
+int test__keep_tracking(void);
 
 #endif /* TESTS_H */

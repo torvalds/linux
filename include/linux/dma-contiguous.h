@@ -57,7 +57,7 @@ struct cma;
 struct page;
 struct device;
 
-#ifdef CONFIG_CMA
+#ifdef CONFIG_DMA_CMA
 
 /*
  * There is always at least global CMA area and a few optional device

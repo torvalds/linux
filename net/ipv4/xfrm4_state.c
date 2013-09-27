@@ -83,6 +83,7 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.extract_input		= xfrm4_extract_input,
 	.extract_output		= xfrm4_extract_output,
 	.transport_finish	= xfrm4_transport_finish,
+	.local_error		= xfrm4_local_error,
 };
 
 void __init xfrm4_state_init(void)

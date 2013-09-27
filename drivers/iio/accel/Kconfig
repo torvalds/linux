@@ -1,7 +1,21 @@
 #
 # Accelerometer drivers
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Accelerometers"
+
+config BMA180
+	tristate "Bosch BMA180 3-Axis Accelerometer Driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build a driver for the Bosch BMA180
+	  triaxial acceleration sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bma180.
 
 config HID_SENSOR_ACCEL_3D
 	depends on HID_SENSOR_HUB
@@ -13,13 +27,6 @@ config HID_SENSOR_ACCEL_3D
 	help
 	  Say yes here to build support for the HID SENSOR
 	  accelerometers 3D.
-
-config KXSD9
-	tristate "Kionix KXSD9 Accelerometer Driver"
-	depends on SPI
-	help
-	  Say yes here to build support for the Kionix KXSD9 accelerometer.
-	  Currently this only supports the device via an SPI interface.
 
 config IIO_ST_ACCEL_3AXIS
 	tristate "STMicroelectronics accelerometers 3-Axis Driver"
@@ -33,8 +40,8 @@ config IIO_ST_ACCEL_3AXIS
 	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
 	  LIS331DLH, LSM303DL, LSM303DLM, LSM330.
 
-	  This driver can also be built as a module. If so, will be created
-	  these modules:
+	  This driver can also be built as a module. If so, these modules
+	  will be created:
 	  - st_accel (core functions for the driver [it is mandatory]);
 	  - st_accel_i2c (necessary for the I2C devices [optional*]);
 	  - st_accel_spi (necessary for the SPI devices [optional*]);
@@ -50,5 +57,12 @@ config IIO_ST_ACCEL_SPI_3AXIS
 	tristate
 	depends on IIO_ST_ACCEL_3AXIS
 	depends on IIO_ST_SENSORS_SPI
+
+config KXSD9
+	tristate "Kionix KXSD9 Accelerometer Driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Kionix KXSD9 accelerometer.
+	  Currently this only supports the device via an SPI interface.
 
 endmenu

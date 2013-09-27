@@ -9,18 +9,20 @@
 
 #include <byteswap.h>
 #include <linux/bitops.h>
-#include "asm/bug.h"
 #include <lk/debugfs.h>
-#include "event-parse.h"
+#include <traceevent/event-parse.h>
+#include <linux/hw_breakpoint.h>
+#include <linux/perf_event.h>
+#include <sys/resource.h>
+#include "asm/bug.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"
 #include "cpumap.h"
 #include "thread_map.h"
 #include "target.h"
-#include <linux/hw_breakpoint.h>
-#include <linux/perf_event.h>
 #include "perf_regs.h"
+#include "debug.h"
 
 static struct {
 	bool sample_id_all;
@@ -29,7 +31,7 @@ static struct {
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
-static int __perf_evsel__sample_size(u64 sample_type)
+int __perf_evsel__sample_size(u64 sample_type)
 {
 	u64 mask = sample_type & PERF_SAMPLE_MASK;
 	int size = 0;
@@ -43,6 +45,72 @@ static int __perf_evsel__sample_size(u64 sample_type)
 	size *= sizeof(u64);
 
 	return size;
+}
+
+/**
+ * __perf_evsel__calc_id_pos - calculate id_pos.
+ * @sample_type: sample type
+ *
+ * This function returns the position of the event id (PERF_SAMPLE_ID or
+ * PERF_SAMPLE_IDENTIFIER) in a sample event i.e. in the array of struct
+ * sample_event.
+ */
+static int __perf_evsel__calc_id_pos(u64 sample_type)
+{
+	int idx = 0;
+
+	if (sample_type & PERF_SAMPLE_IDENTIFIER)
+		return 0;
+
+	if (!(sample_type & PERF_SAMPLE_ID))
+		return -1;
+
+	if (sample_type & PERF_SAMPLE_IP)
+		idx += 1;
+
+	if (sample_type & PERF_SAMPLE_TID)
+		idx += 1;
+
+	if (sample_type & PERF_SAMPLE_TIME)
+		idx += 1;
+
+	if (sample_type & PERF_SAMPLE_ADDR)
+		idx += 1;
+
+	return idx;
+}
+
+/**
+ * __perf_evsel__calc_is_pos - calculate is_pos.
+ * @sample_type: sample type
+ *
+ * This function returns the position (counting backwards) of the event id
+ * (PERF_SAMPLE_ID or PERF_SAMPLE_IDENTIFIER) in a non-sample event i.e. if
+ * sample_id_all is used there is an id sample appended to non-sample events.
+ */
+static int __perf_evsel__calc_is_pos(u64 sample_type)
+{
+	int idx = 1;
+
+	if (sample_type & PERF_SAMPLE_IDENTIFIER)
+		return 1;
+
+	if (!(sample_type & PERF_SAMPLE_ID))
+		return -1;
+
+	if (sample_type & PERF_SAMPLE_CPU)
+		idx += 1;
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
+		idx += 1;
+
+	return idx;
+}
+
+void perf_evsel__calc_id_pos(struct perf_evsel *evsel)
+{
+	evsel->id_pos = __perf_evsel__calc_id_pos(evsel->attr.sample_type);
+	evsel->is_pos = __perf_evsel__calc_is_pos(evsel->attr.sample_type);
 }
 
 void hists__init(struct hists *hists)
@@ -61,6 +129,7 @@ void __perf_evsel__set_sample_bit(struct perf_evsel *evsel,
 	if (!(evsel->attr.sample_type & bit)) {
 		evsel->attr.sample_type |= bit;
 		evsel->sample_size += sizeof(u64);
+		perf_evsel__calc_id_pos(evsel);
 	}
 }
 
@@ -70,12 +139,19 @@ void __perf_evsel__reset_sample_bit(struct perf_evsel *evsel,
 	if (evsel->attr.sample_type & bit) {
 		evsel->attr.sample_type &= ~bit;
 		evsel->sample_size -= sizeof(u64);
+		perf_evsel__calc_id_pos(evsel);
 	}
 }
 
-void perf_evsel__set_sample_id(struct perf_evsel *evsel)
+void perf_evsel__set_sample_id(struct perf_evsel *evsel,
+			       bool can_sample_identifier)
 {
-	perf_evsel__set_sample_bit(evsel, ID);
+	if (can_sample_identifier) {
+		perf_evsel__reset_sample_bit(evsel, ID);
+		perf_evsel__set_sample_bit(evsel, IDENTIFIER);
+	} else {
+		perf_evsel__set_sample_bit(evsel, ID);
+	}
 	evsel->attr.read_format |= PERF_FORMAT_ID;
 }
 
@@ -88,6 +164,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	INIT_LIST_HEAD(&evsel->node);
 	hists__init(&evsel->hists);
 	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
+	perf_evsel__calc_id_pos(evsel);
 }
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
@@ -246,6 +323,7 @@ const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
 	"major-faults",
 	"alignment-faults",
 	"emulation-faults",
+	"dummy",
 };
 
 static const char *__perf_evsel__sw_name(u64 config)
@@ -490,6 +568,7 @@ int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size)
 void perf_evsel__config(struct perf_evsel *evsel,
 			struct perf_record_opts *opts)
 {
+	struct perf_evsel *leader = evsel->leader;
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
@@ -498,6 +577,25 @@ void perf_evsel__config(struct perf_evsel *evsel,
 
 	perf_evsel__set_sample_bit(evsel, IP);
 	perf_evsel__set_sample_bit(evsel, TID);
+
+	if (evsel->sample_read) {
+		perf_evsel__set_sample_bit(evsel, READ);
+
+		/*
+		 * We need ID even in case of single event, because
+		 * PERF_SAMPLE_READ process ID specific data.
+		 */
+		perf_evsel__set_sample_id(evsel, false);
+
+		/*
+		 * Apply group format only if we belong to group
+		 * with more than one members.
+		 */
+		if (leader->nr_members > 1) {
+			attr->read_format |= PERF_FORMAT_GROUP;
+			attr->inherit = 0;
+		}
+	}
 
 	/*
 	 * We default some events to a 1 default interval. But keep
@@ -512,6 +610,15 @@ void perf_evsel__config(struct perf_evsel *evsel,
 		} else {
 			attr->sample_period = opts->default_interval;
 		}
+	}
+
+	/*
+	 * Disable sampling for all group members other
+	 * than leader in case leader 'leads' the sampling.
+	 */
+	if ((leader != evsel) && leader->sample_read) {
+		attr->sample_freq   = 0;
+		attr->sample_period = 0;
 	}
 
 	if (opts->no_samples)
@@ -605,15 +712,15 @@ int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 	return evsel->fd != NULL ? 0 : -ENOMEM;
 }
 
-int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
-			   const char *filter)
+static int perf_evsel__run_ioctl(struct perf_evsel *evsel, int ncpus, int nthreads,
+			  int ioc,  void *arg)
 {
 	int cpu, thread;
 
 	for (cpu = 0; cpu < ncpus; cpu++) {
 		for (thread = 0; thread < nthreads; thread++) {
 			int fd = FD(evsel, cpu, thread),
-			    err = ioctl(fd, PERF_EVENT_IOC_SET_FILTER, filter);
+			    err = ioctl(fd, ioc, arg);
 
 			if (err)
 				return err;
@@ -621,6 +728,21 @@ int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 	}
 
 	return 0;
+}
+
+int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
+			   const char *filter)
+{
+	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
+				     PERF_EVENT_IOC_SET_FILTER,
+				     (void *)filter);
+}
+
+int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads)
+{
+	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
+				     PERF_EVENT_IOC_ENABLE,
+				     0);
 }
 
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -817,12 +939,72 @@ static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread)
 	return fd;
 }
 
+#define __PRINT_ATTR(fmt, cast, field)  \
+	fprintf(fp, "  %-19s "fmt"\n", #field, cast attr->field)
+
+#define PRINT_ATTR_U32(field)  __PRINT_ATTR("%u" , , field)
+#define PRINT_ATTR_X32(field)  __PRINT_ATTR("%#x", , field)
+#define PRINT_ATTR_U64(field)  __PRINT_ATTR("%" PRIu64, (uint64_t), field)
+#define PRINT_ATTR_X64(field)  __PRINT_ATTR("%#"PRIx64, (uint64_t), field)
+
+#define PRINT_ATTR2N(name1, field1, name2, field2)	\
+	fprintf(fp, "  %-19s %u    %-19s %u\n",		\
+	name1, attr->field1, name2, attr->field2)
+
+#define PRINT_ATTR2(field1, field2) \
+	PRINT_ATTR2N(#field1, field1, #field2, field2)
+
+static size_t perf_event_attr__fprintf(struct perf_event_attr *attr, FILE *fp)
+{
+	size_t ret = 0;
+
+	ret += fprintf(fp, "%.60s\n", graph_dotted_line);
+	ret += fprintf(fp, "perf_event_attr:\n");
+
+	ret += PRINT_ATTR_U32(type);
+	ret += PRINT_ATTR_U32(size);
+	ret += PRINT_ATTR_X64(config);
+	ret += PRINT_ATTR_U64(sample_period);
+	ret += PRINT_ATTR_U64(sample_freq);
+	ret += PRINT_ATTR_X64(sample_type);
+	ret += PRINT_ATTR_X64(read_format);
+
+	ret += PRINT_ATTR2(disabled, inherit);
+	ret += PRINT_ATTR2(pinned, exclusive);
+	ret += PRINT_ATTR2(exclude_user, exclude_kernel);
+	ret += PRINT_ATTR2(exclude_hv, exclude_idle);
+	ret += PRINT_ATTR2(mmap, comm);
+	ret += PRINT_ATTR2(freq, inherit_stat);
+	ret += PRINT_ATTR2(enable_on_exec, task);
+	ret += PRINT_ATTR2(watermark, precise_ip);
+	ret += PRINT_ATTR2(mmap_data, sample_id_all);
+	ret += PRINT_ATTR2(exclude_host, exclude_guest);
+	ret += PRINT_ATTR2N("excl.callchain_kern", exclude_callchain_kernel,
+			    "excl.callchain_user", exclude_callchain_user);
+
+	ret += PRINT_ATTR_U32(wakeup_events);
+	ret += PRINT_ATTR_U32(wakeup_watermark);
+	ret += PRINT_ATTR_X32(bp_type);
+	ret += PRINT_ATTR_X64(bp_addr);
+	ret += PRINT_ATTR_X64(config1);
+	ret += PRINT_ATTR_U64(bp_len);
+	ret += PRINT_ATTR_X64(config2);
+	ret += PRINT_ATTR_X64(branch_sample_type);
+	ret += PRINT_ATTR_X64(sample_regs_user);
+	ret += PRINT_ATTR_U32(sample_stack_user);
+
+	ret += fprintf(fp, "%.60s\n", graph_dotted_line);
+
+	return ret;
+}
+
 static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 			      struct thread_map *threads)
 {
 	int cpu, thread;
 	unsigned long flags = 0;
 	int pid = -1, err;
+	enum { NO_CHANGE, SET_TO_MAX, INCREASED_MAX } set_rlimit = NO_CHANGE;
 
 	if (evsel->fd == NULL &&
 	    perf_evsel__alloc_fd(evsel, cpus->nr, threads->nr) < 0)
@@ -840,6 +1022,9 @@ retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
 
+	if (verbose >= 2)
+		perf_event_attr__fprintf(&evsel->attr, stderr);
+
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 
 		for (thread = 0; thread < threads->nr; thread++) {
@@ -849,6 +1034,9 @@ retry_sample_id:
 				pid = threads->map[thread];
 
 			group_fd = get_group_fd(evsel, cpu, thread);
+retry_open:
+			pr_debug2("perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx\n",
+				  pid, cpus->map[cpu], group_fd, flags);
 
 			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
 								     pid,
@@ -858,12 +1046,37 @@ retry_sample_id:
 				err = -errno;
 				goto try_fallback;
 			}
+			set_rlimit = NO_CHANGE;
 		}
 	}
 
 	return 0;
 
 try_fallback:
+	/*
+	 * perf stat needs between 5 and 22 fds per CPU. When we run out
+	 * of them try to increase the limits.
+	 */
+	if (err == -EMFILE && set_rlimit < INCREASED_MAX) {
+		struct rlimit l;
+		int old_errno = errno;
+
+		if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
+			if (set_rlimit == NO_CHANGE)
+				l.rlim_cur = l.rlim_max;
+			else {
+				l.rlim_cur = l.rlim_max + 1000;
+				l.rlim_max = l.rlim_cur;
+			}
+			if (setrlimit(RLIMIT_NOFILE, &l) == 0) {
+				set_rlimit++;
+				errno = old_errno;
+				goto retry_open;
+			}
+		}
+		errno = old_errno;
+	}
+
 	if (err != -EINVAL || cpu > 0 || thread > 0)
 		goto out_close;
 
@@ -951,6 +1164,11 @@ static int perf_evsel__parse_id_sample(const struct perf_evsel *evsel,
 	array += ((event->header.size -
 		   sizeof(event->header)) / sizeof(u64)) - 1;
 
+	if (type & PERF_SAMPLE_IDENTIFIER) {
+		sample->id = *array;
+		array--;
+	}
+
 	if (type & PERF_SAMPLE_CPU) {
 		u.val64 = *array;
 		if (swapped) {
@@ -994,24 +1212,30 @@ static int perf_evsel__parse_id_sample(const struct perf_evsel *evsel,
 	return 0;
 }
 
-static bool sample_overlap(const union perf_event *event,
-			   const void *offset, u64 size)
+static inline bool overflow(const void *endp, u16 max_size, const void *offset,
+			    u64 size)
 {
-	const void *base = event;
-
-	if (offset + size > base + event->header.size)
-		return true;
-
-	return false;
+	return size > max_size || offset + size > endp;
 }
+
+#define OVERFLOW_CHECK(offset, size, max_size)				\
+	do {								\
+		if (overflow(endp, (max_size), (offset), (size)))	\
+			return -EFAULT;					\
+	} while (0)
+
+#define OVERFLOW_CHECK_u64(offset) \
+	OVERFLOW_CHECK(offset, sizeof(u64), sizeof(u64))
 
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *data)
 {
 	u64 type = evsel->attr.sample_type;
-	u64 regs_user = evsel->attr.sample_regs_user;
 	bool swapped = evsel->needs_swap;
 	const u64 *array;
+	u16 max_size = event->header.size;
+	const void *endp = (void *)event + max_size;
+	u64 sz;
 
 	/*
 	 * used for cross-endian analysis. See git commit 65014ab3
@@ -1033,11 +1257,22 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 
 	array = event->sample.array;
 
+	/*
+	 * The evsel's sample_size is based on PERF_SAMPLE_MASK which includes
+	 * up to PERF_SAMPLE_PERIOD.  After that overflow() must be used to
+	 * check the format does not go past the end of the event.
+	 */
 	if (evsel->sample_size + sizeof(event->header) > event->header.size)
 		return -EFAULT;
 
+	data->id = -1ULL;
+	if (type & PERF_SAMPLE_IDENTIFIER) {
+		data->id = *array;
+		array++;
+	}
+
 	if (type & PERF_SAMPLE_IP) {
-		data->ip = event->ip.ip;
+		data->ip = *array;
 		array++;
 	}
 
@@ -1066,7 +1301,6 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		array++;
 	}
 
-	data->id = -1ULL;
 	if (type & PERF_SAMPLE_ID) {
 		data->id = *array;
 		array++;
@@ -1096,25 +1330,62 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	}
 
 	if (type & PERF_SAMPLE_READ) {
-		fprintf(stderr, "PERF_SAMPLE_READ is unsupported for now\n");
-		return -1;
+		u64 read_format = evsel->attr.read_format;
+
+		OVERFLOW_CHECK_u64(array);
+		if (read_format & PERF_FORMAT_GROUP)
+			data->read.group.nr = *array;
+		else
+			data->read.one.value = *array;
+
+		array++;
+
+		if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+			OVERFLOW_CHECK_u64(array);
+			data->read.time_enabled = *array;
+			array++;
+		}
+
+		if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+			OVERFLOW_CHECK_u64(array);
+			data->read.time_running = *array;
+			array++;
+		}
+
+		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
+		if (read_format & PERF_FORMAT_GROUP) {
+			const u64 max_group_nr = UINT64_MAX /
+					sizeof(struct sample_read_value);
+
+			if (data->read.group.nr > max_group_nr)
+				return -EFAULT;
+			sz = data->read.group.nr *
+			     sizeof(struct sample_read_value);
+			OVERFLOW_CHECK(array, sz, max_size);
+			data->read.group.values =
+					(struct sample_read_value *)array;
+			array = (void *)array + sz;
+		} else {
+			OVERFLOW_CHECK_u64(array);
+			data->read.one.id = *array;
+			array++;
+		}
 	}
 
 	if (type & PERF_SAMPLE_CALLCHAIN) {
-		if (sample_overlap(event, array, sizeof(data->callchain->nr)))
+		const u64 max_callchain_nr = UINT64_MAX / sizeof(u64);
+
+		OVERFLOW_CHECK_u64(array);
+		data->callchain = (struct ip_callchain *)array++;
+		if (data->callchain->nr > max_callchain_nr)
 			return -EFAULT;
-
-		data->callchain = (struct ip_callchain *)array;
-
-		if (sample_overlap(event, array, data->callchain->nr))
-			return -EFAULT;
-
-		array += 1 + data->callchain->nr;
+		sz = data->callchain->nr * sizeof(u64);
+		OVERFLOW_CHECK(array, sz, max_size);
+		array = (void *)array + sz;
 	}
 
 	if (type & PERF_SAMPLE_RAW) {
-		const u64 *pdata;
-
+		OVERFLOW_CHECK_u64(array);
 		u.val64 = *array;
 		if (WARN_ONCE(swapped,
 			      "Endianness of raw data not corrected!\n")) {
@@ -1123,65 +1394,71 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			u.val32[0] = bswap_32(u.val32[0]);
 			u.val32[1] = bswap_32(u.val32[1]);
 		}
-
-		if (sample_overlap(event, array, sizeof(u32)))
-			return -EFAULT;
-
 		data->raw_size = u.val32[0];
-		pdata = (void *) array + sizeof(u32);
+		array = (void *)array + sizeof(u32);
 
-		if (sample_overlap(event, pdata, data->raw_size))
-			return -EFAULT;
-
-		data->raw_data = (void *) pdata;
-
-		array = (void *)array + data->raw_size + sizeof(u32);
+		OVERFLOW_CHECK(array, data->raw_size, max_size);
+		data->raw_data = (void *)array;
+		array = (void *)array + data->raw_size;
 	}
 
 	if (type & PERF_SAMPLE_BRANCH_STACK) {
-		u64 sz;
+		const u64 max_branch_nr = UINT64_MAX /
+					  sizeof(struct branch_entry);
 
-		data->branch_stack = (struct branch_stack *)array;
-		array++; /* nr */
+		OVERFLOW_CHECK_u64(array);
+		data->branch_stack = (struct branch_stack *)array++;
 
+		if (data->branch_stack->nr > max_branch_nr)
+			return -EFAULT;
 		sz = data->branch_stack->nr * sizeof(struct branch_entry);
-		sz /= sizeof(u64);
-		array += sz;
+		OVERFLOW_CHECK(array, sz, max_size);
+		array = (void *)array + sz;
 	}
 
 	if (type & PERF_SAMPLE_REGS_USER) {
-		/* First u64 tells us if we have any regs in sample. */
-		u64 avail = *array++;
+		OVERFLOW_CHECK_u64(array);
+		data->user_regs.abi = *array;
+		array++;
 
-		if (avail) {
+		if (data->user_regs.abi) {
+			u64 regs_user = evsel->attr.sample_regs_user;
+
+			sz = hweight_long(regs_user) * sizeof(u64);
+			OVERFLOW_CHECK(array, sz, max_size);
 			data->user_regs.regs = (u64 *)array;
-			array += hweight_long(regs_user);
+			array = (void *)array + sz;
 		}
 	}
 
 	if (type & PERF_SAMPLE_STACK_USER) {
-		u64 size = *array++;
+		OVERFLOW_CHECK_u64(array);
+		sz = *array++;
 
 		data->user_stack.offset = ((char *)(array - 1)
 					  - (char *) event);
 
-		if (!size) {
+		if (!sz) {
 			data->user_stack.size = 0;
 		} else {
+			OVERFLOW_CHECK(array, sz, max_size);
 			data->user_stack.data = (char *)array;
-			array += size / sizeof(*array);
+			array = (void *)array + sz;
+			OVERFLOW_CHECK_u64(array);
 			data->user_stack.size = *array++;
 		}
 	}
 
 	data->weight = 0;
 	if (type & PERF_SAMPLE_WEIGHT) {
+		OVERFLOW_CHECK_u64(array);
 		data->weight = *array;
 		array++;
 	}
 
 	data->data_src = PERF_MEM_DATA_SRC_NONE;
 	if (type & PERF_SAMPLE_DATA_SRC) {
+		OVERFLOW_CHECK_u64(array);
 		data->data_src = *array;
 		array++;
 	}
@@ -1189,12 +1466,105 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	return 0;
 }
 
+size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
+				     u64 sample_regs_user, u64 read_format)
+{
+	size_t sz, result = sizeof(struct sample_event);
+
+	if (type & PERF_SAMPLE_IDENTIFIER)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_IP)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_TID)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_TIME)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_ADDR)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_ID)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_STREAM_ID)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_CPU)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_PERIOD)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_READ) {
+		result += sizeof(u64);
+		if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+			result += sizeof(u64);
+		if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+			result += sizeof(u64);
+		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
+		if (read_format & PERF_FORMAT_GROUP) {
+			sz = sample->read.group.nr *
+			     sizeof(struct sample_read_value);
+			result += sz;
+		} else {
+			result += sizeof(u64);
+		}
+	}
+
+	if (type & PERF_SAMPLE_CALLCHAIN) {
+		sz = (sample->callchain->nr + 1) * sizeof(u64);
+		result += sz;
+	}
+
+	if (type & PERF_SAMPLE_RAW) {
+		result += sizeof(u32);
+		result += sample->raw_size;
+	}
+
+	if (type & PERF_SAMPLE_BRANCH_STACK) {
+		sz = sample->branch_stack->nr * sizeof(struct branch_entry);
+		sz += sizeof(u64);
+		result += sz;
+	}
+
+	if (type & PERF_SAMPLE_REGS_USER) {
+		if (sample->user_regs.abi) {
+			result += sizeof(u64);
+			sz = hweight_long(sample_regs_user) * sizeof(u64);
+			result += sz;
+		} else {
+			result += sizeof(u64);
+		}
+	}
+
+	if (type & PERF_SAMPLE_STACK_USER) {
+		sz = sample->user_stack.size;
+		result += sizeof(u64);
+		if (sz) {
+			result += sz;
+			result += sizeof(u64);
+		}
+	}
+
+	if (type & PERF_SAMPLE_WEIGHT)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_DATA_SRC)
+		result += sizeof(u64);
+
+	return result;
+}
+
 int perf_event__synthesize_sample(union perf_event *event, u64 type,
+				  u64 sample_regs_user, u64 read_format,
 				  const struct perf_sample *sample,
 				  bool swapped)
 {
 	u64 *array;
-
+	size_t sz;
 	/*
 	 * used for cross-endian analysis. See git commit 65014ab3
 	 * for why this goofiness is needed.
@@ -1203,8 +1573,13 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 
 	array = event->sample.array;
 
+	if (type & PERF_SAMPLE_IDENTIFIER) {
+		*array = sample->id;
+		array++;
+	}
+
 	if (type & PERF_SAMPLE_IP) {
-		event->ip.ip = sample->ip;
+		*array = sample->ip;
 		array++;
 	}
 
@@ -1259,6 +1634,97 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 
 	if (type & PERF_SAMPLE_PERIOD) {
 		*array = sample->period;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_READ) {
+		if (read_format & PERF_FORMAT_GROUP)
+			*array = sample->read.group.nr;
+		else
+			*array = sample->read.one.value;
+		array++;
+
+		if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+			*array = sample->read.time_enabled;
+			array++;
+		}
+
+		if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+			*array = sample->read.time_running;
+			array++;
+		}
+
+		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
+		if (read_format & PERF_FORMAT_GROUP) {
+			sz = sample->read.group.nr *
+			     sizeof(struct sample_read_value);
+			memcpy(array, sample->read.group.values, sz);
+			array = (void *)array + sz;
+		} else {
+			*array = sample->read.one.id;
+			array++;
+		}
+	}
+
+	if (type & PERF_SAMPLE_CALLCHAIN) {
+		sz = (sample->callchain->nr + 1) * sizeof(u64);
+		memcpy(array, sample->callchain, sz);
+		array = (void *)array + sz;
+	}
+
+	if (type & PERF_SAMPLE_RAW) {
+		u.val32[0] = sample->raw_size;
+		if (WARN_ONCE(swapped,
+			      "Endianness of raw data not corrected!\n")) {
+			/*
+			 * Inverse of what is done in perf_evsel__parse_sample
+			 */
+			u.val32[0] = bswap_32(u.val32[0]);
+			u.val32[1] = bswap_32(u.val32[1]);
+			u.val64 = bswap_64(u.val64);
+		}
+		*array = u.val64;
+		array = (void *)array + sizeof(u32);
+
+		memcpy(array, sample->raw_data, sample->raw_size);
+		array = (void *)array + sample->raw_size;
+	}
+
+	if (type & PERF_SAMPLE_BRANCH_STACK) {
+		sz = sample->branch_stack->nr * sizeof(struct branch_entry);
+		sz += sizeof(u64);
+		memcpy(array, sample->branch_stack, sz);
+		array = (void *)array + sz;
+	}
+
+	if (type & PERF_SAMPLE_REGS_USER) {
+		if (sample->user_regs.abi) {
+			*array++ = sample->user_regs.abi;
+			sz = hweight_long(sample_regs_user) * sizeof(u64);
+			memcpy(array, sample->user_regs.regs, sz);
+			array = (void *)array + sz;
+		} else {
+			*array++ = 0;
+		}
+	}
+
+	if (type & PERF_SAMPLE_STACK_USER) {
+		sz = sample->user_stack.size;
+		*array++ = sz;
+		if (sz) {
+			memcpy(array, sample->user_stack.data, sz);
+			array = (void *)array + sz;
+			*array++ = sz;
+		}
+	}
+
+	if (type & PERF_SAMPLE_WEIGHT) {
+		*array = sample->weight;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_DATA_SRC) {
+		*array = sample->data_src;
 		array++;
 	}
 
@@ -1391,6 +1857,7 @@ static int sample_type__fprintf(FILE *fp, bool *first, u64 value)
 		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
 		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
 		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
+		bit_name(IDENTIFIER),
 		{ .name = NULL, }
 	};
 #undef bit_name
@@ -1482,7 +1949,7 @@ out:
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize)
 {
-	if ((err == ENOENT || err == ENXIO) &&
+	if ((err == ENOENT || err == ENXIO || err == ENODEV) &&
 	    evsel->attr.type   == PERF_TYPE_HARDWARE &&
 	    evsel->attr.config == PERF_COUNT_HW_CPU_CYCLES) {
 		/*

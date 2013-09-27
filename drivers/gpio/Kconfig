@@ -146,6 +146,16 @@ config GPIO_MM_LANTIQ
 	  (EBU) found on Lantiq SoCs. The gpios are output only as they are
 	  created by attaching a 16bit latch to the bus.
 
+config GPIO_F7188X
+	tristate "F71882FG and F71889F GPIO support"
+	depends on X86
+	help
+	  This option enables support for GPIOs found on Fintek Super-I/O
+	  chips F71882FG and F71889F.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called f7188x-gpio.
+
 config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
@@ -241,6 +251,21 @@ config GPIO_TS5500
 	  Technologic Systems platforms. It includes, but is not limited to, 3
 	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
 	  LCD port.
+
+config GPIO_TZ1090
+	bool "Toumaz Xenif TZ1090 GPIO support"
+	depends on SOC_TZ1090
+	select GENERIC_IRQ_CHIP
+	default y
+	help
+	  Say yes here to support Toumaz Xenif TZ1090 GPIOs.
+
+config GPIO_TZ1090_PDC
+	bool "Toumaz Xenif TZ1090 PDC GPIO support"
+	depends on SOC_TZ1090
+	default y
+	help
+	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
 
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
@@ -675,6 +700,18 @@ config GPIO_UCB1400
 	help
 	  This enables support for the Philips UCB1400 GPIO pins.
 	  The UCB1400 is an AC97 audio codec.
+
+comment "LPC GPIO expanders:"
+
+config GPIO_KEMPLD
+	tristate "Kontron ETX / COMexpress GPIO"
+	depends on MFD_KEMPLD
+	help
+	  This enables support for the PLD GPIO interface on some Kontron ETX
+	  and COMexpress (ETXexpress) modules.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-kempld.
 
 comment "MODULbus GPIO expanders:"
 

@@ -107,6 +107,8 @@ struct psc_ops {
 	unsigned int	(*set_baudrate)(struct uart_port *port,
 					struct ktermios *new,
 					struct ktermios *old);
+	int		(*clock_alloc)(struct uart_port *port);
+	void		(*clock_relse)(struct uart_port *port);
 	int		(*clock)(struct uart_port *port, int enable);
 	int		(*fifoc_init)(void);
 	void		(*fifoc_uninit)(void);
@@ -616,31 +618,73 @@ static irqreturn_t mpc512x_psc_handle_irq(struct uart_port *port)
 	return IRQ_NONE;
 }
 
-static int mpc512x_psc_clock(struct uart_port *port, int enable)
+static struct clk *psc_mclk_clk[MPC52xx_PSC_MAXNUM];
+
+/* called from within the .request_port() callback (allocation) */
+static int mpc512x_psc_alloc_clock(struct uart_port *port)
 {
-	struct clk *psc_clk;
 	int psc_num;
-	char clk_name[10];
+	char clk_name[16];
+	struct clk *clk;
+	int err;
+
+	psc_num = (port->mapbase & 0xf00) >> 8;
+	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
+	clk = devm_clk_get(port->dev, clk_name);
+	if (IS_ERR(clk)) {
+		dev_err(port->dev, "Failed to get MCLK!\n");
+		return PTR_ERR(clk);
+	}
+	err = clk_prepare_enable(clk);
+	if (err) {
+		dev_err(port->dev, "Failed to enable MCLK!\n");
+		return err;
+	}
+	psc_mclk_clk[psc_num] = clk;
+	return 0;
+}
+
+/* called from within the .release_port() callback (release) */
+static void mpc512x_psc_relse_clock(struct uart_port *port)
+{
+	int psc_num;
+	struct clk *clk;
+
+	psc_num = (port->mapbase & 0xf00) >> 8;
+	clk = psc_mclk_clk[psc_num];
+	if (clk) {
+		clk_disable_unprepare(clk);
+		psc_mclk_clk[psc_num] = NULL;
+	}
+}
+
+/* implementation of the .clock() callback (enable/disable) */
+static int mpc512x_psc_endis_clock(struct uart_port *port, int enable)
+{
+	int psc_num;
+	struct clk *psc_clk;
+	int ret;
 
 	if (uart_console(port))
 		return 0;
 
 	psc_num = (port->mapbase & 0xf00) >> 8;
-	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
-	psc_clk = clk_get(port->dev, clk_name);
-	if (IS_ERR(psc_clk)) {
+	psc_clk = psc_mclk_clk[psc_num];
+	if (!psc_clk) {
 		dev_err(port->dev, "Failed to get PSC clock entry!\n");
 		return -ENODEV;
 	}
 
-	dev_dbg(port->dev, "%s %sable\n", clk_name, enable ? "en" : "dis");
-
-	if (enable)
-		clk_enable(psc_clk);
-	else
+	dev_dbg(port->dev, "mclk %sable\n", enable ? "en" : "dis");
+	if (enable) {
+		ret = clk_enable(psc_clk);
+		if (ret)
+			dev_err(port->dev, "Failed to enable MCLK!\n");
+		return ret;
+	} else {
 		clk_disable(psc_clk);
-
-	return 0;
+		return 0;
+	}
 }
 
 static void mpc512x_psc_get_irq(struct uart_port *port, struct device_node *np)
@@ -873,7 +917,9 @@ static struct psc_ops mpc5125_psc_ops = {
 	.cw_disable_ints = mpc5125_psc_cw_disable_ints,
 	.cw_restore_ints = mpc5125_psc_cw_restore_ints,
 	.set_baudrate = mpc5125_psc_set_baudrate,
-	.clock = mpc512x_psc_clock,
+	.clock_alloc = mpc512x_psc_alloc_clock,
+	.clock_relse = mpc512x_psc_relse_clock,
+	.clock = mpc512x_psc_endis_clock,
 	.fifoc_init = mpc512x_psc_fifoc_init,
 	.fifoc_uninit = mpc512x_psc_fifoc_uninit,
 	.get_irq = mpc512x_psc_get_irq,
@@ -906,7 +952,9 @@ static struct psc_ops mpc512x_psc_ops = {
 	.cw_disable_ints = mpc512x_psc_cw_disable_ints,
 	.cw_restore_ints = mpc512x_psc_cw_restore_ints,
 	.set_baudrate = mpc512x_psc_set_baudrate,
-	.clock = mpc512x_psc_clock,
+	.clock_alloc = mpc512x_psc_alloc_clock,
+	.clock_relse = mpc512x_psc_relse_clock,
+	.clock = mpc512x_psc_endis_clock,
 	.fifoc_init = mpc512x_psc_fifoc_init,
 	.fifoc_uninit = mpc512x_psc_fifoc_uninit,
 	.get_irq = mpc512x_psc_get_irq,
@@ -1166,6 +1214,9 @@ mpc52xx_uart_type(struct uart_port *port)
 static void
 mpc52xx_uart_release_port(struct uart_port *port)
 {
+	if (psc_ops->clock_relse)
+		psc_ops->clock_relse(port);
+
 	/* remapped by us ? */
 	if (port->flags & UPF_IOREMAP) {
 		iounmap(port->membase);
@@ -1190,11 +1241,24 @@ mpc52xx_uart_request_port(struct uart_port *port)
 	err = request_mem_region(port->mapbase, sizeof(struct mpc52xx_psc),
 			"mpc52xx_psc_uart") != NULL ? 0 : -EBUSY;
 
-	if (err && (port->flags & UPF_IOREMAP)) {
+	if (err)
+		goto out_membase;
+
+	if (psc_ops->clock_alloc) {
+		err = psc_ops->clock_alloc(port);
+		if (err)
+			goto out_mapregion;
+	}
+
+	return 0;
+
+out_mapregion:
+	release_mem_region(port->mapbase, sizeof(struct mpc52xx_psc));
+out_membase:
+	if (port->flags & UPF_IOREMAP) {
 		iounmap(port->membase);
 		port->membase = NULL;
 	}
-
 	return err;
 }
 

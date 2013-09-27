@@ -3174,7 +3174,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		found_key.type = BTRFS_INODE_ITEM_KEY;
 		found_key.offset = 0;
 		inode = btrfs_iget(root->fs_info->sb, &found_key, root, NULL);
-		ret = PTR_RET(inode);
+		ret = PTR_ERR_OR_ZERO(inode);
 		if (ret && ret != -ESTALE)
 			goto out;
 

@@ -77,7 +77,6 @@
 
 #define __sync()	__insn_mf()
 
-#if !CHIP_HAS_MF_WAITS_FOR_VICTIMS()
 #include <hv/syscall_public.h>
 /*
  * Issue an uncacheable load to each memory controller, then
@@ -96,7 +95,6 @@ static inline void __mb_incoherent(void)
 		       "r20", "r21", "r22", "r23", "r24",
 		       "r25", "r26", "r27", "r28", "r29");
 }
-#endif
 
 /* Fence to guarantee visibility of stores to incoherent memory. */
 static inline void
@@ -104,7 +102,6 @@ mb_incoherent(void)
 {
 	__insn_mf();
 
-#if !CHIP_HAS_MF_WAITS_FOR_VICTIMS()
 	{
 #if CHIP_HAS_TILE_WRITE_PENDING()
 		const unsigned long WRITE_TIMEOUT_CYCLES = 400;
@@ -116,7 +113,6 @@ mb_incoherent(void)
 #endif /* CHIP_HAS_TILE_WRITE_PENDING() */
 		(void) __mb_incoherent();
 	}
-#endif /* CHIP_HAS_MF_WAITS_FOR_VICTIMS() */
 }
 
 #define fast_wmb()	__sync()

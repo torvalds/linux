@@ -203,7 +203,7 @@ static int ad7303_probe(struct spi_device *spi)
 	bool ext_ref;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -212,15 +212,13 @@ static int ad7303_probe(struct spi_device *spi)
 
 	st->spi = spi;
 
-	st->vdd_reg = regulator_get(&spi->dev, "Vdd");
-	if (IS_ERR(st->vdd_reg)) {
-		ret = PTR_ERR(st->vdd_reg);
-		goto err_free;
-	}
+	st->vdd_reg = devm_regulator_get(&spi->dev, "Vdd");
+	if (IS_ERR(st->vdd_reg))
+		return PTR_ERR(st->vdd_reg);
 
 	ret = regulator_enable(st->vdd_reg);
 	if (ret)
-		goto err_put_vdd_reg;
+		return ret;
 
 	if (spi->dev.of_node) {
 		ext_ref = of_property_read_bool(spi->dev.of_node,
@@ -234,7 +232,7 @@ static int ad7303_probe(struct spi_device *spi)
 	}
 
 	if (ext_ref) {
-		st->vref_reg = regulator_get(&spi->dev, "REF");
+		st->vref_reg = devm_regulator_get(&spi->dev, "REF");
 		if (IS_ERR(st->vref_reg)) {
 			ret = PTR_ERR(st->vref_reg);
 			goto err_disable_vdd_reg;
@@ -242,7 +240,7 @@ static int ad7303_probe(struct spi_device *spi)
 
 		ret = regulator_enable(st->vref_reg);
 		if (ret)
-			goto err_put_vref_reg;
+			goto err_disable_vdd_reg;
 
 		st->config |= AD7303_CFG_EXTERNAL_VREF;
 	}
@@ -263,16 +261,8 @@ static int ad7303_probe(struct spi_device *spi)
 err_disable_vref_reg:
 	if (st->vref_reg)
 		regulator_disable(st->vref_reg);
-err_put_vref_reg:
-	if (st->vref_reg)
-		regulator_put(st->vref_reg);
 err_disable_vdd_reg:
 	regulator_disable(st->vdd_reg);
-err_put_vdd_reg:
-	regulator_put(st->vdd_reg);
-err_free:
-	iio_device_free(indio_dev);
-
 	return ret;
 }
 
@@ -283,14 +273,9 @@ static int ad7303_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 
-	if (st->vref_reg) {
+	if (st->vref_reg)
 		regulator_disable(st->vref_reg);
-		regulator_put(st->vref_reg);
-	}
 	regulator_disable(st->vdd_reg);
-	regulator_put(st->vdd_reg);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -131,19 +131,19 @@ static ssize_t pci_bus_show_cpuaffinity(struct device *dev,
 	return ret;
 }
 
-static inline ssize_t pci_bus_show_cpumaskaffinity(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t cpuaffinity_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return pci_bus_show_cpuaffinity(dev, 0, attr, buf);
 }
+static DEVICE_ATTR_RO(cpuaffinity);
 
-static inline ssize_t pci_bus_show_cpulistaffinity(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t cpulistaffinity_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
 	return pci_bus_show_cpuaffinity(dev, 1, attr, buf);
 }
+static DEVICE_ATTR_RO(cpulistaffinity);
 
 /* show resources */
 static ssize_t
@@ -379,6 +379,7 @@ dev_bus_rescan_store(struct device *dev, struct device_attribute *attr,
 	}
 	return count;
 }
+static DEVICE_ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, dev_bus_rescan_store);
 
 #if defined(CONFIG_PM_RUNTIME) && defined(CONFIG_ACPI)
 static ssize_t d3cold_allowed_store(struct device *dev,
@@ -514,11 +515,20 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR_NULL,
 };
 
-struct device_attribute pcibus_dev_attrs[] = {
-	__ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, dev_bus_rescan_store),
-	__ATTR(cpuaffinity, S_IRUGO, pci_bus_show_cpumaskaffinity, NULL),
-	__ATTR(cpulistaffinity, S_IRUGO, pci_bus_show_cpulistaffinity, NULL),
-	__ATTR_NULL,
+static struct attribute *pcibus_attrs[] = {
+	&dev_attr_rescan.attr,
+	&dev_attr_cpuaffinity.attr,
+	&dev_attr_cpulistaffinity.attr,
+	NULL,
+};
+
+static const struct attribute_group pcibus_group = {
+	.attrs = pcibus_attrs,
+};
+
+const struct attribute_group *pcibus_groups[] = {
+	&pcibus_group,
+	NULL,
 };
 
 static ssize_t

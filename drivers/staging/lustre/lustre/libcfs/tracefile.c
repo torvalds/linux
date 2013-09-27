@@ -275,11 +275,8 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	int			i;
 	int			remain;
 	int			mask = msgdata->msg_mask;
-	char		      *file = (char *)msgdata->msg_file;
+	const char		*file = kbasename(msgdata->msg_file);
 	cfs_debug_limit_state_t   *cdls = msgdata->msg_cdls;
-
-	if (strchr(file, '/'))
-		file = strrchr(file, '/') + 1;
 
 	tcd = cfs_trace_get_tcd();
 
@@ -529,7 +526,7 @@ static void collect_pages_on_all_cpus(struct page_collection *pc)
 	int i, cpu;
 
 	spin_lock(&pc->pc_lock);
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			list_splice_init(&tcd->tcd_pages, &pc->pc_pages);
 			tcd->tcd_cur_pages = 0;
@@ -562,7 +559,7 @@ static void put_pages_back_on_all_cpus(struct page_collection *pc)
 	int i, cpu;
 
 	spin_lock(&pc->pc_lock);
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			cur_head = tcd->tcd_pages.next;
 
@@ -630,7 +627,7 @@ static void put_pages_on_daemon_list(struct page_collection *pc)
 	struct cfs_trace_cpu_data *tcd;
 	int i, cpu;
 
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu)
 			put_pages_on_tcd_daemon_list(pc, tcd);
 	}
@@ -1159,7 +1156,7 @@ static void trace_cleanup_on_all_cpus(void)
 	struct cfs_trace_page *tmp;
 	int i, cpu;
 
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			tcd->tcd_shutting_down = 1;
 

@@ -95,6 +95,7 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 			 struct nouveau_object *engine,
 			 struct nouveau_oclass *oclass, u8 index,
 			 const struct i2c_algorithm *algo,
+			 const struct nouveau_i2c_func *func,
 			 int size, void **pobject)
 {
 	struct nouveau_device *device = nv_device(parent);
@@ -112,6 +113,7 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 	port->adapter.owner = THIS_MODULE;
 	port->adapter.dev.parent = &device->pdev->dev;
 	port->index = index;
+	port->func = func;
 	i2c_set_adapdata(&port->adapter, i2c);
 
 	if ( algo == &nouveau_i2c_bit_algo &&

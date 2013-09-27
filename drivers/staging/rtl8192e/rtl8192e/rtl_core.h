@@ -88,10 +88,6 @@
 	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID , \
 	.driver_data = (kernel_ulong_t)&(cfg)
 
-#define irqreturn_type irqreturn_t
-
-#define rtl8192_interrupt(x, y, z) rtl8192_interrupt_rsl(x, y)
-
 #define RTL_MAX_SCAN_SIZE 128
 
 #define RTL_RATE_MAX		30
@@ -1044,8 +1040,6 @@ void rtl8192_set_chan(struct net_device *dev, short ch);
 void check_rfctrl_gpio_timer(unsigned long data);
 
 void rtl8192_hw_wakeup_wq(void *data);
-irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs);
-
 short rtl8192_pci_initdescring(struct net_device *dev);
 
 void rtl8192_cancel_deferred_work(struct r8192_priv *priv);

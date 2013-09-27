@@ -722,17 +722,22 @@ for more details.</para>
     </section>
 
     <section id="mpeg-controls">
-      <title>MPEG Control Reference</title>
+      <title>Codec Control Reference</title>
 
-      <para>Below all controls within the MPEG control class are
+      <para>Below all controls within the Codec control class are
 described. First the generic controls, then controls specific for
 certain hardware.</para>
 
+      <para>Note: These controls are applicable to all codecs and
+not just MPEG. The defines are prefixed with V4L2_CID_MPEG/V4L2_MPEG
+as the controls were originally made for MPEG codecs and later
+extended to cover all encoding formats.</para>
+
       <section>
-	<title>Generic MPEG Controls</title>
+	<title>Generic Codec Controls</title>
 
 	<table pgwide="1" frame="none" id="mpeg-control-id">
-	  <title>MPEG Control IDs</title>
+	  <title>Codec Control IDs</title>
 	  <tgroup cols="4">
 	    <colspec colname="c1" colwidth="1*" />
 	    <colspec colname="c2" colwidth="6*" />
@@ -752,7 +757,7 @@ certain hardware.</para>
 	      <row>
 		<entry spanname="id"><constant>V4L2_CID_MPEG_CLASS</constant>&nbsp;</entry>
 		<entry>class</entry>
-	      </row><row><entry spanname="descr">The MPEG class
+	      </row><row><entry spanname="descr">The Codec class
 descriptor. Calling &VIDIOC-QUERYCTRL; for this control will return a
 description of this control class. This description can be used as the
 caption of a Tab page in a GUI, for example.</entry>
@@ -3008,6 +3013,159 @@ in by the application. 0 = do not insert, 1 = insert packets.</entry>
 	    </tbody>
 	  </tgroup>
 	</table>
+      </section>
+
+    <section>
+      <title>VPX Control Reference</title>
+
+      <para>The VPX controls include controls for encoding parameters
+      of VPx video codec.</para>
+
+      <table pgwide="1" frame="none" id="vpx-control-id">
+      <title>VPX Control IDs</title>
+
+      <tgroup cols="4">
+        <colspec colname="c1" colwidth="1*" />
+        <colspec colname="c2" colwidth="6*" />
+        <colspec colname="c3" colwidth="2*" />
+        <colspec colname="c4" colwidth="6*" />
+        <spanspec namest="c1" nameend="c2" spanname="id" />
+        <spanspec namest="c2" nameend="c4" spanname="descr" />
+        <thead>
+          <row>
+            <entry spanname="id" align="left">ID</entry>
+            <entry align="left">Type</entry>
+          </row><row rowsep="1"><entry spanname="descr" align="left">Description</entry>
+          </row>
+        </thead>
+        <tbody valign="top">
+          <row><entry></entry></row>
+
+	      <row><entry></entry></row>
+	      <row id="v4l2-vpx-num-partitions">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_NUM_PARTITIONS</constant></entry>
+		<entry>enum v4l2_vp8_num_partitions</entry>
+	      </row>
+	      <row><entry spanname="descr">The number of token partitions to use in VP8 encoder.
+Possible values are:</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry><constant>V4L2_CID_MPEG_VIDEO_VPX_1_PARTITION</constant></entry>
+		      <entry>1 coefficient partition</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_CID_MPEG_VIDEO_VPX_2_PARTITIONS</constant></entry>
+		      <entry>2 coefficient partitions</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_CID_MPEG_VIDEO_VPX_4_PARTITIONS</constant></entry>
+		      <entry>4 coefficient partitions</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_CID_MPEG_VIDEO_VPX_8_PARTITIONS</constant></entry>
+		      <entry>8 coefficient partitions</entry>
+	            </row>
+                  </tbody>
+		</entrytbl>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_IMD_DISABLE_4X4</constant></entry>
+		<entry>boolean</entry>
+	      </row>
+	      <row><entry spanname="descr">Setting this prevents intra 4x4 mode in the intra mode decision.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row id="v4l2-vpx-num-ref-frames">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_NUM_REF_FRAMES</constant></entry>
+		<entry>enum v4l2_vp8_num_ref_frames</entry>
+	      </row>
+	      <row><entry spanname="descr">The number of reference pictures for encoding P frames.
+Possible values are:</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry><constant>V4L2_CID_MPEG_VIDEO_VPX_1_REF_FRAME</constant></entry>
+		      <entry>Last encoded frame will be searched</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_CID_MPEG_VIDEO_VPX_2_REF_FRAME</constant></entry>
+		      <entry>Two frames will be searched among the last encoded frame, the golden frame
+and the alternate reference (altref) frame. The encoder implementation will decide which two are chosen.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_CID_MPEG_VIDEO_VPX_3_REF_FRAME</constant></entry>
+		      <entry>The last encoded frame, the golden frame and the altref frame will be searched.</entry>
+		    </row>
+                  </tbody>
+		</entrytbl>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_FILTER_LEVEL</constant></entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Indicates the loop filter level. The adjustment of the loop
+filter level is done via a delta value against a baseline loop filter value.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_FILTER_SHARPNESS</constant></entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">This parameter affects the loop filter. Anything above
+zero weakens the deblocking effect on the loop filter.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD</constant></entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Sets the refresh period for the golden frame. The period is defined
+in number of frames. For a value of 'n', every nth frame starting from the first key frame will be taken as a golden frame.
+For eg. for encoding sequence of 0, 1, 2, 3, 4, 5, 6, 7 where the golden frame refresh period is set as 4, the frames
+0, 4, 8 etc will be taken as the golden frames as frame 0 is always a key frame.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row id="v4l2-vpx-golden-frame-sel">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL</constant></entry>
+		<entry>enum v4l2_vp8_golden_frame_sel</entry>
+	      </row>
+	      <row><entry spanname="descr">Selects the golden frame for encoding.
+Possible values are:</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry><constant>V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_PREV</constant></entry>
+		      <entry>Use the (n-2)th frame as a golden frame, current frame index being 'n'.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_REF_PERIOD</constant></entry>
+		      <entry>Use the previous specific frame indicated by
+V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD as a golden frame.</entry>
+		    </row>
+                  </tbody>
+		</entrytbl>
+	      </row>
+
+          <row><entry></entry></row>
+        </tbody>
+      </tgroup>
+      </table>
+
       </section>
     </section>
 

@@ -155,7 +155,7 @@ create_hw_context(struct drm_device *dev,
 
 	if (INTEL_INFO(dev)->gen >= 7) {
 		ret = i915_gem_object_set_cache_level(ctx->obj,
-						      I915_CACHE_LLC_MLC);
+						      I915_CACHE_L3_LLC);
 		/* Failure shouldn't ever happen this early */
 		if (WARN_ON(ret))
 			goto err_out;
@@ -214,7 +214,7 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	 * default context.
 	 */
 	dev_priv->ring[RCS].default_context = ctx;
-	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false, false);
+	ret = i915_gem_obj_ggtt_pin(ctx->obj, CONTEXT_ALIGN, false, false);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
 		goto err_destroy;
@@ -304,31 +304,24 @@ static int context_idr_cleanup(int id, void *p, void *data)
 }
 
 struct i915_ctx_hang_stats *
-i915_gem_context_get_hang_stats(struct intel_ring_buffer *ring,
+i915_gem_context_get_hang_stats(struct drm_device *dev,
 				struct drm_file *file,
 				u32 id)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct i915_hw_context *to;
-
-	if (dev_priv->hw_contexts_disabled)
-		return ERR_PTR(-ENOENT);
-
-	if (ring->id != RCS)
-		return ERR_PTR(-EINVAL);
-
-	if (file == NULL)
-		return ERR_PTR(-EINVAL);
+	struct i915_hw_context *ctx;
 
 	if (id == DEFAULT_CONTEXT_ID)
 		return &file_priv->hang_stats;
 
-	to = i915_gem_context_get(file->driver_priv, id);
-	if (to == NULL)
+	ctx = NULL;
+	if (!dev_priv->hw_contexts_disabled)
+		ctx = i915_gem_context_get(file->driver_priv, id);
+	if (ctx == NULL)
 		return ERR_PTR(-ENOENT);
 
-	return &to->hang_stats;
+	return &ctx->hang_stats;
 }
 
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
@@ -377,7 +370,7 @@ mi_set_context(struct intel_ring_buffer *ring,
 
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
-	intel_ring_emit(ring, new_context->obj->gtt_offset |
+	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(new_context->obj) |
 			MI_MM_SPACE_GTT |
 			MI_SAVE_EXT_STATE_EN |
 			MI_RESTORE_EXT_STATE_EN |
@@ -407,7 +400,7 @@ static int do_switch(struct i915_hw_context *to)
 	if (from == to)
 		return 0;
 
-	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false, false);
+	ret = i915_gem_obj_ggtt_pin(to->obj, CONTEXT_ALIGN, false, false);
 	if (ret)
 		return ret;
 
@@ -443,7 +436,10 @@ static int do_switch(struct i915_hw_context *to)
 	 * MI_SET_CONTEXT instead of when the next seqno has completed.
 	 */
 	if (from != NULL) {
+		struct drm_i915_private *dev_priv = from->obj->base.dev->dev_private;
+		struct i915_address_space *ggtt = &dev_priv->gtt.base;
 		from->obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
+		list_move_tail(&i915_gem_obj_to_vma(from->obj, ggtt)->mm_list, &ggtt->active_list);
 		i915_gem_object_move_to_active(from->obj, ring);
 		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
 		 * whole damn pipeline, we don't need to explicitly mark the

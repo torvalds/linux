@@ -1,0 +1,34 @@
+/*
+ * Copyright 2013 Maxime Ripard
+ *
+ * Maxime Ripard <maxime.ripard@free-electrons.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "sun7i-a20.dtsi"
+
+/ {
+	model = "Olimex A20-Olinuxino Micro";
+	compatible = "olimex,a20-olinuxino-micro", "allwinner,sun7i-a20";
+
+	soc@01c00000 {
+		uart0: serial@01c28000 {
+			status = "okay";
+		};
+
+		uart6: serial@01c29800 {
+			status = "okay";
+		};
+
+		uart7: serial@01c29c00 {
+			status = "okay";
+		};
+	};
+};

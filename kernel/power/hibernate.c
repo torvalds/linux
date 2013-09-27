@@ -39,7 +39,7 @@ static int resume_delay;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
 sector_t swsusp_resume_block;
-int in_suspend __nosavedata;
+__visible int in_suspend __nosavedata;
 
 enum {
 	HIBERNATION_INVALID,

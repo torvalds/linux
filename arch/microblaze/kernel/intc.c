@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
+ * Copyright (C) 2007-2013 Michal Simek <monstr@monstr.eu>
+ * Copyright (C) 2012-2013 Xilinx, Inc.
  * Copyright (C) 2007-2009 PetaLogix
  * Copyright (C) 2006 Atmark Techno, Inc.
  *
@@ -8,23 +9,15 @@
  * for more details.
  */
 
-#include <linux/init.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
-#include <asm/page.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/bug.h>
 
-#include <asm/prom.h>
-#include <asm/irq.h>
+#include "../../drivers/irqchip/irqchip.h"
 
-#ifdef CONFIG_SELFMOD_INTC
-#include <asm/selfmod.h>
-#define INTC_BASE	BARRIER_BASE_ADDR
-#else
-static unsigned int intc_baseaddr;
-#define INTC_BASE	intc_baseaddr
-#endif
+static void __iomem *intc_baseaddr;
 
 /* No one else should require these constants, so define them locally here. */
 #define ISR 0x00			/* Interrupt Status Register */
@@ -50,21 +43,21 @@ static void intc_enable_or_unmask(struct irq_data *d)
 	 * acks the irq before calling the interrupt handler
 	 */
 	if (irqd_is_level_type(d))
-		out_be32(INTC_BASE + IAR, mask);
+		out_be32(intc_baseaddr + IAR, mask);
 
-	out_be32(INTC_BASE + SIE, mask);
+	out_be32(intc_baseaddr + SIE, mask);
 }
 
 static void intc_disable_or_mask(struct irq_data *d)
 {
 	pr_debug("disable: %ld\n", d->hwirq);
-	out_be32(INTC_BASE + CIE, 1 << d->hwirq);
+	out_be32(intc_baseaddr + CIE, 1 << d->hwirq);
 }
 
 static void intc_ack(struct irq_data *d)
 {
 	pr_debug("ack: %ld\n", d->hwirq);
-	out_be32(INTC_BASE + IAR, 1 << d->hwirq);
+	out_be32(intc_baseaddr + IAR, 1 << d->hwirq);
 }
 
 static void intc_mask_ack(struct irq_data *d)
@@ -72,8 +65,8 @@ static void intc_mask_ack(struct irq_data *d)
 	unsigned long mask = 1 << d->hwirq;
 
 	pr_debug("disable_and_ack: %ld\n", d->hwirq);
-	out_be32(INTC_BASE + CIE, mask);
-	out_be32(INTC_BASE + IAR, mask);
+	out_be32(intc_baseaddr + CIE, mask);
+	out_be32(intc_baseaddr + IAR, mask);
 }
 
 static struct irq_chip intc_dev = {
@@ -90,7 +83,7 @@ unsigned int get_irq(void)
 {
 	unsigned int hwirq, irq = -1;
 
-	hwirq = in_be32(INTC_BASE + IVR);
+	hwirq = in_be32(intc_baseaddr + IVR);
 	if (hwirq != -1U)
 		irq = irq_find_mapping(root_domain, hwirq);
 
@@ -120,40 +113,32 @@ static const struct irq_domain_ops xintc_irq_domain_ops = {
 	.map = xintc_map,
 };
 
-void __init init_IRQ(void)
+static int __init xilinx_intc_of_init(struct device_node *intc,
+					     struct device_node *parent)
 {
 	u32 nr_irq, intr_mask;
-	struct device_node *intc = NULL;
-#ifdef CONFIG_SELFMOD_INTC
-	unsigned int intc_baseaddr = 0;
-	static int arr_func[] = {
-				(int)&get_irq,
-				(int)&intc_enable_or_unmask,
-				(int)&intc_disable_or_mask,
-				(int)&intc_mask_ack,
-				(int)&intc_ack,
-				(int)&intc_end,
-				0
-			};
-#endif
-	intc = of_find_compatible_node(NULL, NULL, "xlnx,xps-intc-1.00.a");
-	BUG_ON(!intc);
+	int ret;
 
-	intc_baseaddr = be32_to_cpup(of_get_property(intc, "reg", NULL));
-	intc_baseaddr = (unsigned long) ioremap(intc_baseaddr, PAGE_SIZE);
-	nr_irq = be32_to_cpup(of_get_property(intc,
-						"xlnx,num-intr-inputs", NULL));
+	intc_baseaddr = of_iomap(intc, 0);
+	BUG_ON(!intc_baseaddr);
 
-	intr_mask =
-		be32_to_cpup(of_get_property(intc, "xlnx,kind-of-intr", NULL));
+	ret = of_property_read_u32(intc, "xlnx,num-intr-inputs", &nr_irq);
+	if (ret < 0) {
+		pr_err("%s: unable to read xlnx,num-intr-inputs\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = of_property_read_u32(intc, "xlnx,kind-of-intr", &intr_mask);
+	if (ret < 0) {
+		pr_err("%s: unable to read xlnx,kind-of-intr\n", __func__);
+		return -EINVAL;
+	}
+
 	if (intr_mask > (u32)((1ULL << nr_irq) - 1))
 		pr_info(" ERROR: Mismatch in kind-of-intr param\n");
 
-#ifdef CONFIG_SELFMOD_INTC
-	selfmod_function((int *) arr_func, intc_baseaddr);
-#endif
-	pr_info("%s #0 at 0x%08x, num_irq=%d, edge=0x%x\n",
-		intc->name, intc_baseaddr, nr_irq, intr_mask);
+	pr_info("%s: num_irq=%d, edge=0x%x\n",
+		intc->full_name, nr_irq, intr_mask);
 
 	/*
 	 * Disable all external interrupts until they are
@@ -174,4 +159,8 @@ void __init init_IRQ(void)
 							(void *)intr_mask);
 
 	irq_set_default_host(root_domain);
+
+	return 0;
 }
+
+IRQCHIP_DECLARE(xilinx_intc, "xlnx,xps-intc-1.00.a", xilinx_intc_of_init);

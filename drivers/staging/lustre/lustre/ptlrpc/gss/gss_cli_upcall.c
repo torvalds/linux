@@ -243,41 +243,41 @@ int gss_do_ctx_init_rpc(__user char *buffer, unsigned long count)
 	if (count != sizeof(param)) {
 		CERROR("ioctl size %lu, expect %lu, please check lgss_keyring "
 		       "version\n", count, (unsigned long) sizeof(param));
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	if (copy_from_user(&param, buffer, sizeof(param))) {
 		CERROR("failed copy data from lgssd\n");
-		RETURN(-EFAULT);
+		return -EFAULT;
 	}
 
 	if (param.version != GSSD_INTERFACE_VERSION) {
 		CERROR("gssd interface version %d (expect %d)\n",
 			param.version, GSSD_INTERFACE_VERSION);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* take name */
 	if (strncpy_from_user(obdname, param.uuid, sizeof(obdname)) <= 0) {
 		CERROR("Invalid obdname pointer\n");
-		RETURN(-EFAULT);
+		return -EFAULT;
 	}
 
 	obd = class_name2obd(obdname);
 	if (!obd) {
 		CERROR("no such obd %s\n", obdname);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (unlikely(!obd->obd_set_up)) {
 		CERROR("obd %s not setup\n", obdname);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	spin_lock(&obd->obd_dev_lock);
 	if (obd->obd_stopping) {
 		CERROR("obd %s has stopped\n", obdname);
 		spin_unlock(&obd->obd_dev_lock);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (strcmp(obd->obd_type->typ_name, LUSTRE_MDC_NAME) &&
@@ -285,7 +285,7 @@ int gss_do_ctx_init_rpc(__user char *buffer, unsigned long count)
 	    strcmp(obd->obd_type->typ_name, LUSTRE_MGC_NAME)) {
 		CERROR("obd %s is not a client device\n", obdname);
 		spin_unlock(&obd->obd_dev_lock);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	spin_unlock(&obd->obd_dev_lock);
 
@@ -293,7 +293,7 @@ int gss_do_ctx_init_rpc(__user char *buffer, unsigned long count)
 	if (obd->u.cli.cl_import == NULL) {
 		CERROR("obd %s: import has gone\n", obd->obd_name);
 		up_read(&obd->u.cli.cl_sem);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	imp = class_import_get(obd->u.cli.cl_import);
 	up_read(&obd->u.cli.cl_sem);
@@ -301,7 +301,7 @@ int gss_do_ctx_init_rpc(__user char *buffer, unsigned long count)
 	if (imp->imp_deactive) {
 		CERROR("import has been deactivated\n");
 		class_import_put(imp);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	req = ptlrpc_request_alloc_pack(imp, &RQF_SEC_CTX, LUSTRE_OBD_VERSION,
@@ -368,7 +368,7 @@ out_copy:
 
 	class_import_put(imp);
 	ptlrpc_req_finished(req);
-	RETURN(rc);
+	return rc;
 }
 
 int gss_do_ctx_fini_rpc(struct gss_cli_ctx *gctx)
@@ -378,7 +378,6 @@ int gss_do_ctx_fini_rpc(struct gss_cli_ctx *gctx)
 	struct ptlrpc_request   *req;
 	struct ptlrpc_user_desc *pud;
 	int		      rc;
-	ENTRY;
 
 	LASSERT(atomic_read(&ctx->cc_refcount) > 0);
 
@@ -386,7 +385,7 @@ int gss_do_ctx_fini_rpc(struct gss_cli_ctx *gctx)
 		CDEBUG(D_SEC, "ctx %p(%u->%s) not uptodate, "
 		       "don't send destroy rpc\n", ctx,
 		       ctx->cc_vcred.vc_uid, sec2target_str(ctx->cc_sec));
-		RETURN(0);
+		return 0;
 	}
 
 	might_sleep();
@@ -434,7 +433,7 @@ int gss_do_ctx_fini_rpc(struct gss_cli_ctx *gctx)
 out_ref:
 	ptlrpc_req_finished(req);
 out:
-	RETURN(rc);
+	return rc;
 }
 
 int __init gss_init_cli_upcall(void)

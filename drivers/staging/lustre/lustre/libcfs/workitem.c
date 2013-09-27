@@ -376,7 +376,8 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 	rc = 0;
 	while (nthrs > 0)  {
 		char	name[16];
-		task_t	*task;
+		struct task_struct *task;
+
 		spin_lock(&cfs_wi_data.wi_glock);
 		while (sched->ws_starting > 0) {
 			spin_unlock(&cfs_wi_data.wi_glock);

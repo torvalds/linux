@@ -149,7 +149,7 @@ struct omap3_gpmc_regs {
 
 static struct gpmc_client_irq gpmc_client_irq[GPMC_NR_IRQ];
 static struct irq_chip gpmc_irq_chip;
-static unsigned gpmc_irq_start;
+static int gpmc_irq_start;
 
 static struct resource	gpmc_mem_root;
 static struct resource	gpmc_cs_mem[GPMC_CS_NUM];

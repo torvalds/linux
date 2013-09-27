@@ -258,8 +258,9 @@ static int fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
 
 int fsl_usb2_mpc5121_init(struct platform_device *pdev)
 {
-	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct clk *clk;
+	int err;
 	char clk_name[10];
 	int base, clk_num;
 
@@ -272,13 +273,16 @@ int fsl_usb2_mpc5121_init(struct platform_device *pdev)
 		return -ENODEV;
 
 	snprintf(clk_name, sizeof(clk_name), "usb%d_clk", clk_num);
-	clk = clk_get(&pdev->dev, clk_name);
+	clk = devm_clk_get(pdev->dev.parent, clk_name);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clk\n");
 		return PTR_ERR(clk);
 	}
-
-	clk_enable(clk);
+	err = clk_prepare_enable(clk);
+	if (err) {
+		dev_err(&pdev->dev, "failed to enable clk\n");
+		return err;
+	}
 	pdata->clk = clk;
 
 	if (pdata->phy_mode == FSL_USB2_PHY_UTMI_WIDE) {
@@ -298,14 +302,12 @@ int fsl_usb2_mpc5121_init(struct platform_device *pdev)
 
 static void fsl_usb2_mpc5121_exit(struct platform_device *pdev)
 {
-	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	pdata->regs = NULL;
 
-	if (pdata->clk) {
-		clk_disable(pdata->clk);
-		clk_put(pdata->clk);
-	}
+	if (pdata->clk)
+		clk_disable_unprepare(pdata->clk);
 }
 
 static struct fsl_usb2_platform_data fsl_usb2_mpc5121_pd = {

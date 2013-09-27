@@ -45,7 +45,6 @@
 #include <asm/msr.h>
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
-#include "mperf.h"
 
 MODULE_AUTHOR("Paul Diefenbaugh, Dominik Brodowski");
 MODULE_DESCRIPTION("ACPI Processor P-States Driver");
@@ -198,7 +197,7 @@ static ssize_t show_cpb(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", boost_enabled);
 }
 
-static struct freq_attr cpb = __ATTR(cpb, 0644, show_cpb, store_cpb);
+cpufreq_freq_attr_rw(cpb);
 #endif
 
 static int check_est_cpu(unsigned int cpuid)
@@ -710,7 +709,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		return blacklisted;
 #endif
 
-	data = kzalloc(sizeof(struct acpi_cpufreq_data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -800,7 +799,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto err_unreg;
 	}
 
-	data->freq_table = kmalloc(sizeof(struct cpufreq_frequency_table) *
+	data->freq_table = kmalloc(sizeof(*data->freq_table) *
 		    (perf->state_count+1), GFP_KERNEL);
 	if (!data->freq_table) {
 		result = -ENOMEM;
@@ -860,10 +859,6 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	/* notify BIOS that we exist */
 	acpi_processor_notify_smm(THIS_MODULE);
-
-	/* Check for APERF/MPERF support in hardware */
-	if (boot_cpu_has(X86_FEATURE_APERFMPERF))
-		acpi_cpufreq_driver.getavg = cpufreq_get_measured_perf;
 
 	pr_debug("CPU%u - ACPI performance management activated.\n", cpu);
 	for (i = 0; i < perf->state_count; i++)
@@ -941,7 +936,6 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 	.exit		= acpi_cpufreq_cpu_exit,
 	.resume		= acpi_cpufreq_resume,
 	.name		= "acpi-cpufreq",
-	.owner		= THIS_MODULE,
 	.attr		= acpi_cpufreq_attr,
 };
 

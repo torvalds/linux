@@ -98,7 +98,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 
 */
 
-#include <linux/ioport.h>
+#include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -1227,10 +1227,9 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long pages;
 	struct comedi_subdevice *s;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	devpriv->io_range = board->io_range;
 	if ((board->fifo) && (it->options[2] == -1)) {

@@ -96,6 +96,9 @@ config SWIOTLB
 config IOMMU_HELPER
 	def_bool SWIOTLB
 
+config KERNEL_MODE_NEON
+	def_bool y
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"

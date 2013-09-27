@@ -18,7 +18,8 @@
 #define LSM303DLM_MAGN_DEV_NAME		"lsm303dlm_magn"
 #define LIS3MDL_MAGN_DEV_NAME		"lis3mdl"
 
-int st_magn_common_probe(struct iio_dev *indio_dev);
+int st_magn_common_probe(struct iio_dev *indio_dev,
+					struct st_sensors_platform_data *pdata);
 void st_magn_common_remove(struct iio_dev *indio_dev);
 
 #ifdef CONFIG_IIO_BUFFER

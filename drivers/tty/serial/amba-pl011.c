@@ -265,7 +265,7 @@ static void pl011_sgbuf_free(struct dma_chan *chan, struct pl011_sgbuf *sg,
 static void pl011_dma_probe_initcall(struct device *dev, struct uart_amba_port *uap)
 {
 	/* DMA is the sole user of the platform data right now */
-	struct amba_pl011_data *plat = uap->port.dev->platform_data;
+	struct amba_pl011_data *plat = dev_get_platdata(uap->port.dev);
 	struct dma_slave_config tx_conf = {
 		.dst_addr = uap->port.mapbase + UART01x_DR,
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
@@ -677,6 +677,8 @@ static inline bool pl011_dma_tx_start(struct uart_amba_port *uap)
  * Locking: called with port lock held and IRQs disabled.
  */
 static void pl011_dma_flush_buffer(struct uart_port *port)
+__releases(&uap->port.lock)
+__acquires(&uap->port.lock)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 
@@ -1198,6 +1200,8 @@ static void pl011_enable_ms(struct uart_port *port)
 }
 
 static void pl011_rx_chars(struct uart_amba_port *uap)
+__releases(&uap->port.lock)
+__acquires(&uap->port.lock)
 {
 	pl011_fifo_to_tty(uap);
 
@@ -1497,10 +1501,10 @@ static int pl011_hwinit(struct uart_port *port)
 	uap->im = readw(uap->port.membase + UART011_IMSC);
 	writew(UART011_RTIM | UART011_RXIM, uap->port.membase + UART011_IMSC);
 
-	if (uap->port.dev->platform_data) {
+	if (dev_get_platdata(uap->port.dev)) {
 		struct amba_pl011_data *plat;
 
-		plat = uap->port.dev->platform_data;
+		plat = dev_get_platdata(uap->port.dev);
 		if (plat->init)
 			plat->init();
 	}
@@ -1645,10 +1649,10 @@ static void pl011_shutdown(struct uart_port *port)
 	/* Optionally let pins go into sleep states */
 	pinctrl_pm_select_sleep_state(port->dev);
 
-	if (uap->port.dev->platform_data) {
+	if (dev_get_platdata(uap->port.dev)) {
 		struct amba_pl011_data *plat;
 
-		plat = uap->port.dev->platform_data;
+		plat = dev_get_platdata(uap->port.dev);
 		if (plat->exit)
 			plat->exit();
 	}
@@ -2002,10 +2006,10 @@ static int __init pl011_console_setup(struct console *co, char *options)
 	if (ret)
 		return ret;
 
-	if (uap->port.dev->platform_data) {
+	if (dev_get_platdata(uap->port.dev)) {
 		struct amba_pl011_data *plat;
 
-		plat = uap->port.dev->platform_data;
+		plat = dev_get_platdata(uap->port.dev);
 		if (plat->init)
 			plat->init();
 	}

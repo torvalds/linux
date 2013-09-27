@@ -48,12 +48,6 @@ config OF_IRQ
 	def_bool y
 	depends on !SPARC
 
-config OF_I2C
-	def_tristate I2C
-	depends on I2C
-	help
-	  OpenFirmware I2C accessors
-
 config OF_NET
 	depends on NETDEVICES
 	def_bool y

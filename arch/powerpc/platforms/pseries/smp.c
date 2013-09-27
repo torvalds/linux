@@ -43,8 +43,8 @@
 #include <asm/cputhreads.h>
 #include <asm/xics.h>
 #include <asm/dbell.h>
+#include <asm/plpar_wrappers.h>
 
-#include "plpar_wrappers.h"
 #include "pseries.h"
 #include "offline_states.h"
 
@@ -187,22 +187,6 @@ static int smp_pSeries_kick_cpu(int nr)
 	return 0;
 }
 
-static int smp_pSeries_cpu_bootable(unsigned int nr)
-{
-	/* Special case - we inhibit secondary thread startup
-	 * during boot if the user requests it.
-	 */
-	if (system_state == SYSTEM_BOOTING && cpu_has_feature(CPU_FTR_SMT)) {
-		if (!smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
-			return 0;
-		if (smt_enabled_at_boot
-		    && cpu_thread_in_core(nr) >= smt_enabled_at_boot)
-			return 0;
-	}
-
-	return 1;
-}
-
 /* Only used on systems that support multiple IPI mechanisms */
 static void pSeries_cause_ipi_mux(int cpu, unsigned long data)
 {
@@ -237,7 +221,7 @@ static struct smp_ops_t pSeries_xics_smp_ops = {
 	.probe		= pSeries_smp_probe,
 	.kick_cpu	= smp_pSeries_kick_cpu,
 	.setup_cpu	= smp_xics_setup_cpu,
-	.cpu_bootable	= smp_pSeries_cpu_bootable,
+	.cpu_bootable	= smp_generic_cpu_bootable,
 };
 
 /* This is called very early */

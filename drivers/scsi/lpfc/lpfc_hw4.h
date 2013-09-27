@@ -234,6 +234,9 @@ struct ulp_bde64 {
 	uint32_t addrHigh;
 };
 
+/* Maximun size of immediate data that can fit into a 128 byte WQE */
+#define LPFC_MAX_BDE_IMM_SIZE	64
+
 struct lpfc_sli4_flags {
 	uint32_t word0;
 #define lpfc_idx_rsrc_rdy_SHIFT		0
@@ -2585,6 +2588,9 @@ struct lpfc_sli4_parameters {
 #define cfg_mqv_WORD				word6
 	uint32_t word7;
 	uint32_t word8;
+#define cfg_wqsize_SHIFT			8
+#define cfg_wqsize_MASK				0x0000000f
+#define cfg_wqsize_WORD				word8
 #define cfg_wqv_SHIFT				14
 #define cfg_wqv_MASK				0x00000003
 #define cfg_wqv_WORD				word8
@@ -3619,6 +3625,13 @@ union lpfc_wqe {
 	struct xmit_bls_rsp64_wqe xmit_bls_rsp;
 	struct xmit_els_rsp64_wqe xmit_els_rsp;
 	struct els_request64_wqe els_req;
+	struct gen_req64_wqe gen_req;
+};
+
+union lpfc_wqe128 {
+	uint32_t words[32];
+	struct lpfc_wqe_generic generic;
+	struct xmit_seq64_wqe xmit_sequence;
 	struct gen_req64_wqe gen_req;
 };
 

@@ -56,6 +56,16 @@ acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
 
 acpi_status
 acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld);
+
+bool acpi_has_method(acpi_handle handle, char *name);
+acpi_status acpi_execute_simple_method(acpi_handle handle, char *method,
+				       u64 arg);
+acpi_status acpi_evaluate_ej0(acpi_handle handle);
+acpi_status acpi_evaluate_lck(acpi_handle handle, int lock);
+bool acpi_ata_match(acpi_handle handle);
+bool acpi_bay_match(acpi_handle handle);
+bool acpi_dock_match(acpi_handle handle);
+
 #ifdef CONFIG_ACPI
 
 #include <linux/proc_fs.h>
@@ -157,9 +167,8 @@ struct acpi_device_flags {
 	u32 removable:1;
 	u32 ejectable:1;
 	u32 power_manageable:1;
-	u32 eject_pending:1;
 	u32 match_driver:1;
-	u32 reserved:26;
+	u32 reserved:27;
 };
 
 /* File System */
@@ -352,14 +361,11 @@ extern int acpi_notifier_call_chain(struct acpi_device *, u32, u32);
 extern int register_acpi_notifier(struct notifier_block *);
 extern int unregister_acpi_notifier(struct notifier_block *);
 
-extern int register_acpi_bus_notifier(struct notifier_block *nb);
-extern void unregister_acpi_bus_notifier(struct notifier_block *nb);
 /*
  * External Functions
  */
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
-void acpi_bus_data_handler(acpi_handle handle, void *context);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
@@ -377,15 +383,6 @@ bool acpi_bus_power_manageable(acpi_handle handle);
 bool acpi_bus_can_wakeup(acpi_handle handle);
 #else
 static inline bool acpi_bus_can_wakeup(acpi_handle handle) { return false; }
-#endif
-
-#ifdef CONFIG_ACPI_PROC_EVENT
-int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data);
-int acpi_bus_generate_proc_event4(const char *class, const char *bid, u8 type, int data);
-int acpi_bus_receive_event(struct acpi_bus_event *event);
-#else
-static inline int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data)
-	{ return 0; }
 #endif
 
 void acpi_scan_lock_acquire(void);
@@ -478,7 +475,8 @@ static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 	if (p)
 		*p = ACPI_STATE_D0;
 
-	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3) ? m : ACPI_STATE_D0;
+	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3_COLD) ?
+		m : ACPI_STATE_D0;
 }
 static inline void acpi_dev_pm_add_dependent(acpi_handle handle,
 					     struct device *depdev) {}

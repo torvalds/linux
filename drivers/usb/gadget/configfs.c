@@ -859,8 +859,10 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 		list_for_each_entry_safe(f, tmp, &cfg->func_list, list) {
 			list_del(&f->list);
 			ret = usb_add_function(c, f);
-			if (ret)
+			if (ret) {
+				list_add(&f->list, &cfg->func_list);
 				goto err_purge_funcs;
+			}
 		}
 		usb_ep_autoconfig_reset(cdev->gadget);
 	}

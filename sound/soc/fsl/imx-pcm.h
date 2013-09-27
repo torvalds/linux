@@ -22,17 +22,23 @@
 
 static inline void
 imx_pcm_dma_params_init_data(struct imx_dma_data *dma_data,
-	int dma, bool shared)
+	int dma, enum sdma_peripheral_type peripheral_type)
 {
 	dma_data->dma_request = dma;
 	dma_data->priority = DMA_PRIO_HIGH;
-	if (shared)
-		dma_data->peripheral_type = IMX_DMATYPE_SSI_SP;
-	else
-		dma_data->peripheral_type = IMX_DMATYPE_SSI;
+	dma_data->peripheral_type = peripheral_type;
 }
 
-#ifdef CONFIG_SND_SOC_IMX_PCM_DMA
+struct imx_pcm_fiq_params {
+	int irq;
+	void __iomem *base;
+
+	/* Pointer to original ssi driver to setup tx rx sizes */
+	struct snd_dmaengine_dai_dma_data *dma_params_rx;
+	struct snd_dmaengine_dai_dma_data *dma_params_tx;
+};
+
+#if IS_ENABLED(CONFIG_SND_SOC_IMX_PCM_DMA)
 int imx_pcm_dma_init(struct platform_device *pdev);
 void imx_pcm_dma_exit(struct platform_device *pdev);
 #else
@@ -46,11 +52,13 @@ static inline void imx_pcm_dma_exit(struct platform_device *pdev)
 }
 #endif
 
-#ifdef CONFIG_SND_SOC_IMX_PCM_FIQ
-int imx_pcm_fiq_init(struct platform_device *pdev);
+#if IS_ENABLED(CONFIG_SND_SOC_IMX_PCM_FIQ)
+int imx_pcm_fiq_init(struct platform_device *pdev,
+		struct imx_pcm_fiq_params *params);
 void imx_pcm_fiq_exit(struct platform_device *pdev);
 #else
-static inline int imx_pcm_fiq_init(struct platform_device *pdev)
+static inline int imx_pcm_fiq_init(struct platform_device *pdev,
+		struct imx_pcm_fiq_params *params)
 {
 	return -ENODEV;
 }

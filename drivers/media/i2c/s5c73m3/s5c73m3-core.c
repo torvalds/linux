@@ -1111,6 +1111,11 @@ static int s5c73m3_oif_set_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
 		*mf = fmt->format;
+		if (fmt->pad == OIF_ISP_PAD) {
+			mf = v4l2_subdev_get_try_format(fh, OIF_SOURCE_PAD);
+			mf->width = fmt->format.width;
+			mf->height = fmt->format.height;
+		}
 	} else {
 		switch (fmt->pad) {
 		case OIF_ISP_PAD:

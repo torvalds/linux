@@ -2022,8 +2022,6 @@ static u32 hotkey_driver_mask;		/* events needed by the driver */
 static u32 hotkey_user_mask;		/* events visible to userspace */
 static u32 hotkey_acpi_mask;		/* events enabled in firmware */
 
-static unsigned int hotkey_report_mode;
-
 static u16 *hotkey_keycode_map;
 
 static struct attribute_set *hotkey_dev_attributes;
@@ -2282,10 +2280,6 @@ static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
 static void tpacpi_hotkey_send_key(unsigned int scancode)
 {
 	tpacpi_input_send_key_masked(scancode);
-	if (hotkey_report_mode < 2) {
-		acpi_bus_generate_proc_event(ibm_hotkey_acpidriver.device,
-				0x80, TP_HKEY_EV_HOTKEY_BASE + scancode);
-	}
 }
 
 static void hotkey_read_nvram(struct tp_nvram_state *n, const u32 m)
@@ -2882,18 +2876,6 @@ static void hotkey_tablet_mode_notify_change(void)
 			     "hotkey_tablet_mode");
 }
 
-/* sysfs hotkey report_mode -------------------------------------------- */
-static ssize_t hotkey_report_mode_show(struct device *dev,
-			   struct device_attribute *attr,
-			   char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-		(hotkey_report_mode != 0) ? hotkey_report_mode : 1);
-}
-
-static struct device_attribute dev_attr_hotkey_report_mode =
-	__ATTR(hotkey_report_mode, S_IRUGO, hotkey_report_mode_show, NULL);
-
 /* sysfs wakeup reason (pollable) -------------------------------------- */
 static ssize_t hotkey_wakeup_reason_show(struct device *dev,
 			   struct device_attribute *attr,
@@ -2935,7 +2917,6 @@ static struct attribute *hotkey_attributes[] __initdata = {
 	&dev_attr_hotkey_enable.attr,
 	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_bios_mask.attr,
-	&dev_attr_hotkey_report_mode.attr,
 	&dev_attr_hotkey_wakeup_reason.attr,
 	&dev_attr_hotkey_wakeup_hotunplug_complete.attr,
 	&dev_attr_hotkey_mask.attr,
@@ -3439,11 +3420,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		"initial masks: user=0x%08x, fw=0x%08x, poll=0x%08x\n",
 		hotkey_user_mask, hotkey_acpi_mask, hotkey_source_mask);
 
-	dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
-			"legacy ibm/hotkey event reporting over procfs %s\n",
-			(hotkey_report_mode < 2) ?
-				"enabled" : "disabled");
-
 	tpacpi_inputdev->open = &hotkey_inputdev_open;
 	tpacpi_inputdev->close = &hotkey_inputdev_close;
 
@@ -3735,13 +3711,6 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			pr_notice("unhandled HKEY event 0x%04x\n", hkey);
 			pr_notice("please report the conditions when this "
 				  "event happened to %s\n", TPACPI_MAIL);
-		}
-
-		/* Legacy events */
-		if (!ignore_acpi_ev &&
-		    (send_acpi_ev || hotkey_report_mode < 2)) {
-			acpi_bus_generate_proc_event(ibm->acpi->device,
-						     event, hkey);
 		}
 
 		/* netlink events */
@@ -8840,11 +8809,6 @@ module_param(brightness_enable, uint, 0444);
 MODULE_PARM_DESC(brightness_enable,
 		 "Enables backlight control when 1, disables when 0");
 
-module_param(hotkey_report_mode, uint, 0444);
-MODULE_PARM_DESC(hotkey_report_mode,
-		 "used for backwards compatibility with userspace, "
-		 "see documentation");
-
 #ifdef CONFIG_THINKPAD_ACPI_ALSA_SUPPORT
 module_param_named(volume_mode, volume_mode, uint, 0444);
 MODULE_PARM_DESC(volume_mode,
@@ -8974,10 +8938,6 @@ static int __init thinkpad_acpi_module_init(void)
 	int ret, i;
 
 	tpacpi_lifecycle = TPACPI_LIFE_INIT;
-
-	/* Parameter checking */
-	if (hotkey_report_mode > 2)
-		return -EINVAL;
 
 	/* Driver-level probe */
 

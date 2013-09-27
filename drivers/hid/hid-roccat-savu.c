@@ -94,44 +94,48 @@ SAVU_SYSFS_W(thingy, THINGY) \
 SAVU_SYSFS_R(thingy, THINGY)
 
 #define SAVU_BIN_ATTRIBUTE_RW(thingy, THINGY) \
-{ \
+SAVU_SYSFS_RW(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = SAVU_SIZE_ ## THINGY, \
 	.read = savu_sysfs_read_ ## thingy, \
 	.write = savu_sysfs_write_ ## thingy \
 }
 
-#define SAVU_BIN_ATTRIBUTE_R(thingy, THINGY) \
-{ \
-	.attr = { .name = #thingy, .mode = 0440 }, \
-	.size = SAVU_SIZE_ ## THINGY, \
-	.read = savu_sysfs_read_ ## thingy, \
-}
-
 #define SAVU_BIN_ATTRIBUTE_W(thingy, THINGY) \
-{ \
+SAVU_SYSFS_W(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = SAVU_SIZE_ ## THINGY, \
 	.write = savu_sysfs_write_ ## thingy \
 }
 
-SAVU_SYSFS_W(control, CONTROL)
-SAVU_SYSFS_RW(profile, PROFILE)
-SAVU_SYSFS_RW(general, GENERAL)
-SAVU_SYSFS_RW(buttons, BUTTONS)
-SAVU_SYSFS_RW(macro, MACRO)
-SAVU_SYSFS_RW(info, INFO)
-SAVU_SYSFS_RW(sensor, SENSOR)
+SAVU_BIN_ATTRIBUTE_W(control, CONTROL);
+SAVU_BIN_ATTRIBUTE_RW(profile, PROFILE);
+SAVU_BIN_ATTRIBUTE_RW(general, GENERAL);
+SAVU_BIN_ATTRIBUTE_RW(buttons, BUTTONS);
+SAVU_BIN_ATTRIBUTE_RW(macro, MACRO);
+SAVU_BIN_ATTRIBUTE_RW(info, INFO);
+SAVU_BIN_ATTRIBUTE_RW(sensor, SENSOR);
 
-static struct bin_attribute savu_bin_attributes[] = {
-	SAVU_BIN_ATTRIBUTE_W(control, CONTROL),
-	SAVU_BIN_ATTRIBUTE_RW(profile, PROFILE),
-	SAVU_BIN_ATTRIBUTE_RW(general, GENERAL),
-	SAVU_BIN_ATTRIBUTE_RW(buttons, BUTTONS),
-	SAVU_BIN_ATTRIBUTE_RW(macro, MACRO),
-	SAVU_BIN_ATTRIBUTE_RW(info, INFO),
-	SAVU_BIN_ATTRIBUTE_RW(sensor, SENSOR),
-	__ATTR_NULL
+static struct bin_attribute *savu_bin_attributes[] = {
+	&bin_attr_control,
+	&bin_attr_profile,
+	&bin_attr_general,
+	&bin_attr_buttons,
+	&bin_attr_macro,
+	&bin_attr_info,
+	&bin_attr_sensor,
+	NULL,
+};
+
+static const struct attribute_group savu_group = {
+	.bin_attrs = savu_bin_attributes,
+};
+
+static const struct attribute_group *savu_groups[] = {
+	&savu_group,
+	NULL,
 };
 
 static int savu_init_savu_device_struct(struct usb_device *usb_dev,
@@ -294,7 +298,7 @@ static int __init savu_init(void)
 	savu_class = class_create(THIS_MODULE, "savu");
 	if (IS_ERR(savu_class))
 		return PTR_ERR(savu_class);
-	savu_class->dev_bin_attrs = savu_bin_attributes;
+	savu_class->dev_groups = savu_groups;
 
 	retval = hid_register_driver(&savu_driver);
 	if (retval)

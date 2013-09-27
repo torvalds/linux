@@ -6893,7 +6893,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		bnx2x_init_block(bp, BLOCK_TM, PHASE_COMMON);
 
 	bnx2x_init_block(bp, BLOCK_DORQ, PHASE_COMMON);
-	REG_WR(bp, DORQ_REG_DPM_CID_OFST, BNX2X_DB_SHIFT);
+
 	if (!CHIP_REV_IS_SLOW(bp))
 		/* enable hw interrupt from doorbell Q */
 		REG_WR(bp, DORQ_REG_DORQ_INT_MASK, 0);
@@ -7855,11 +7855,14 @@ void bnx2x_free_mem(struct bnx2x *bp)
 {
 	int i;
 
-	BNX2X_PCI_FREE(bp->def_status_blk, bp->def_status_blk_mapping,
-		       sizeof(struct host_sp_status_block));
-
 	BNX2X_PCI_FREE(bp->fw_stats, bp->fw_stats_mapping,
 		       bp->fw_stats_data_sz + bp->fw_stats_req_sz);
+
+	if (IS_VF(bp))
+		return;
+
+	BNX2X_PCI_FREE(bp->def_status_blk, bp->def_status_blk_mapping,
+		       sizeof(struct host_sp_status_block));
 
 	BNX2X_PCI_FREE(bp->slowpath, bp->slowpath_mapping,
 		       sizeof(struct bnx2x_slowpath));
@@ -8060,7 +8063,10 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 
 int bnx2x_setup_leading(struct bnx2x *bp)
 {
-	return bnx2x_setup_queue(bp, &bp->fp[0], 1);
+	if (IS_PF(bp))
+		return bnx2x_setup_queue(bp, &bp->fp[0], true);
+	else /* VF */
+		return bnx2x_vfpf_setup_q(bp, &bp->fp[0], true);
 }
 
 /**
@@ -8074,8 +8080,10 @@ int bnx2x_set_int_mode(struct bnx2x *bp)
 {
 	int rc = 0;
 
-	if (IS_VF(bp) && int_mode != BNX2X_INT_MODE_MSIX)
+	if (IS_VF(bp) && int_mode != BNX2X_INT_MODE_MSIX) {
+		BNX2X_ERR("VF not loaded since interrupt mode not msix\n");
 		return -EINVAL;
+	}
 
 	switch (int_mode) {
 	case BNX2X_INT_MODE_MSIX:
@@ -9955,8 +9963,6 @@ static int bnx2x_prev_mark_path(struct bnx2x *bp, bool after_undi)
 
 static int bnx2x_do_flr(struct bnx2x *bp)
 {
-	int i;
-	u16 status;
 	struct pci_dev *dev = bp->pdev;
 
 	if (CHIP_IS_E1x(bp)) {
@@ -9971,20 +9977,8 @@ static int bnx2x_do_flr(struct bnx2x *bp)
 		return -EINVAL;
 	}
 
-	/* Wait for Transaction Pending bit clean */
-	for (i = 0; i < 4; i++) {
-		if (i)
-			msleep((1 << (i - 1)) * 100);
-
-		pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
-		if (!(status & PCI_EXP_DEVSTA_TRPND))
-			goto clear;
-	}
-
-	dev_err(&dev->dev,
-		"transaction is not cleared; proceeding with reset anyway\n");
-
-clear:
+	if (!pci_wait_for_pending_transaction(dev))
+		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
 
 	BNX2X_DEV_INFO("Initiating FLR\n");
 	bnx2x_fw_command(bp, DRV_MSG_CODE_INITIATE_FLR, 0);
@@ -11658,9 +11652,11 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	 * second status block for the L2 queue, and a third status block for
 	 * CNIC if supported.
 	 */
-	if (CNIC_SUPPORT(bp))
+	if (IS_VF(bp))
+		bp->min_msix_vec_cnt = 1;
+	else if (CNIC_SUPPORT(bp))
 		bp->min_msix_vec_cnt = 3;
-	else
+	else /* PF w/o cnic */
 		bp->min_msix_vec_cnt = 2;
 	BNX2X_DEV_INFO("bp->min_msix_vec_cnt %d", bp->min_msix_vec_cnt);
 
@@ -12571,8 +12567,7 @@ static int bnx2x_set_qm_cid_count(struct bnx2x *bp)
  * @dev:	pci device
  *
  */
-static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev,
-				     int cnic_cnt, bool is_vf)
+static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev, int cnic_cnt)
 {
 	int index;
 	u16 control = 0;
@@ -12598,7 +12593,7 @@ static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev,
 
 	index = control & PCI_MSIX_FLAGS_QSIZE;
 
-	return is_vf ? index + 1 : index;
+	return index;
 }
 
 static int set_max_cos_est(int chip_id)
@@ -12678,10 +12673,13 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	is_vf = set_is_vf(ent->driver_data);
 	cnic_cnt = is_vf ? 0 : 1;
 
-	max_non_def_sbs = bnx2x_get_num_non_def_sbs(pdev, cnic_cnt, is_vf);
+	max_non_def_sbs = bnx2x_get_num_non_def_sbs(pdev, cnic_cnt);
+
+	/* add another SB for VF as it has no default SB */
+	max_non_def_sbs += is_vf ? 1 : 0;
 
 	/* Maximum number of RSS queues: one IGU SB goes to CNIC */
-	rss_count = is_vf ? 1 : max_non_def_sbs - cnic_cnt;
+	rss_count = max_non_def_sbs - cnic_cnt;
 
 	if (rss_count < 1)
 		return -EINVAL;

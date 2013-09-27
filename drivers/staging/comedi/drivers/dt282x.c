@@ -51,13 +51,16 @@ Notes:
     be fixed to check for this situation and return an error.
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
+#include <linux/delay.h>
 #include <linux/gfp.h>
-#include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+
 #include <asm/dma.h>
+
 #include "comedi_fc.h"
 
 #define DEBUG
@@ -264,8 +267,9 @@ struct dt282x_private {
 			}					\
 			udelay(5);				\
 		}						\
-		if (_i)						\
+		if (_i) {					\
 			b					\
+		}						\
 	} while (0)
 
 static int prep_ai_dma(struct comedi_device *dev, int chan, int size);
@@ -978,29 +982,32 @@ static int dt282x_dio_insn_bits(struct comedi_device *dev,
 
 static int dt282x_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct dt282x_private *devpriv = dev->private;
-	int mask;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
-	mask = (CR_CHAN(insn->chanspec) < 8) ? 0x00ff : 0xff00;
-	if (data[0])
-		s->io_bits |= mask;
+	if (chan < 8)
+		mask = 0x00ff;
 	else
-		s->io_bits &= ~mask;
+		mask = 0xff00;
 
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
+
+	devpriv->dacsr &= ~(DT2821_LBOE | DT2821_HBOE);
 	if (s->io_bits & 0x00ff)
 		devpriv->dacsr |= DT2821_LBOE;
-	else
-		devpriv->dacsr &= ~DT2821_LBOE;
 	if (s->io_bits & 0xff00)
 		devpriv->dacsr |= DT2821_HBOE;
-	else
-		devpriv->dacsr &= ~DT2821_HBOE;
 
 	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
 
-	return 1;
+	return insn->n;
 }
 
 static const struct comedi_lrange *const ai_range_table[] = {
@@ -1188,10 +1195,9 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	}
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = dt282x_grab_dma(dev, it->options[opt_dma1],
 			      it->options[opt_dma2]);

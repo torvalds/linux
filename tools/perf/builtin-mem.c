@@ -14,7 +14,6 @@ static const char	*mem_operation		= MEM_OPERATION_LOAD;
 struct perf_mem {
 	struct perf_tool	tool;
 	char const		*input_name;
-	symbol_filter_t		annotate_init;
 	bool			hide_unresolved;
 	bool			dump_raw;
 	const char		*cpu_list;
@@ -69,8 +68,7 @@ dump_raw_samples(struct perf_tool *tool,
 	struct addr_location al;
 	const char *fmt;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample,
-				mem->annotate_init) < 0) {
+	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 				event->header.type);
 		return -1;
@@ -96,7 +94,7 @@ dump_raw_samples(struct perf_tool *tool,
 		symbol_conf.field_sep,
 		sample->tid,
 		symbol_conf.field_sep,
-		event->ip.ip,
+		sample->ip,
 		symbol_conf.field_sep,
 		sample->addr,
 		symbol_conf.field_sep,

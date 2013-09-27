@@ -1884,6 +1884,7 @@ static struct pmu pmu = {
 void arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
 {
 	userpg->cap_usr_time = 0;
+	userpg->cap_usr_time_zero = 0;
 	userpg->cap_usr_rdpmc = x86_pmu.attr_rdpmc;
 	userpg->pmc_width = x86_pmu.cntval_bits;
 
@@ -1897,6 +1898,11 @@ void arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
 	userpg->time_mult = this_cpu_read(cyc2ns);
 	userpg->time_shift = CYC2NS_SCALE_FACTOR;
 	userpg->time_offset = this_cpu_read(cyc2ns_offset) - now;
+
+	if (sched_clock_stable && !check_tsc_disabled()) {
+		userpg->cap_usr_time_zero = 1;
+		userpg->time_zero = this_cpu_read(cyc2ns_offset);
+	}
 }
 
 /*

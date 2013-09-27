@@ -244,11 +244,10 @@ lnet_eq_dequeue_event(lnet_eq_t *eq, lnet_event_t *ev)
 	int		new_index = eq->eq_deq_seq & (eq->eq_size - 1);
 	lnet_event_t	*new_event = &eq->eq_events[new_index];
 	int		rc;
-	ENTRY;
 
 	/* must called with lnet_eq_wait_lock hold */
 	if (LNET_SEQ_GT(eq->eq_deq_seq, new_event->sequence))
-		RETURN(0);
+		return 0;
 
 	/* We've got a new event... */
 	*ev = *new_event;
@@ -268,7 +267,7 @@ lnet_eq_dequeue_event(lnet_eq_t *eq, lnet_event_t *ev)
 	}
 
 	eq->eq_deq_seq = new_event->sequence + 1;
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -400,13 +399,12 @@ LNetEQPoll(lnet_handle_eq_t *eventqs, int neq, int timeout_ms,
 	int	wait = 1;
 	int	rc;
 	int	i;
-	ENTRY;
 
 	LASSERT (the_lnet.ln_init);
 	LASSERT (the_lnet.ln_refcount > 0);
 
 	if (neq < 1)
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	lnet_eq_wait_lock();
 
@@ -416,14 +414,14 @@ LNetEQPoll(lnet_handle_eq_t *eventqs, int neq, int timeout_ms,
 
 			if (eq == NULL) {
 				lnet_eq_wait_unlock();
-				RETURN(-ENOENT);
+				return -ENOENT;
 			}
 
 			rc = lnet_eq_dequeue_event(eq, event);
 			if (rc != 0) {
 				lnet_eq_wait_unlock();
 				*which = i;
-				RETURN(rc);
+				return rc;
 			}
 		}
 
@@ -443,5 +441,5 @@ LNetEQPoll(lnet_handle_eq_t *eventqs, int neq, int timeout_ms,
 	}
 
 	lnet_eq_wait_unlock();
-	RETURN(0);
+	return 0;
 }

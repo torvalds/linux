@@ -23,18 +23,23 @@
 
 static void early_hv_write(struct console *con, const char *s, unsigned n)
 {
-	hv_console_write((HV_VirtAddr) s, n);
+	tile_console_write(s, n);
+
+	/*
+	 * Convert NL to NLCR (close enough to CRNL) during early boot.
+	 * We assume newlines are at the ends of strings, which turns out
+	 * to be good enough for early boot console output.
+	 */
+	if (n && s[n-1] == '\n')
+		tile_console_write("\r", 1);
 }
 
 static struct console early_hv_console = {
 	.name =		"earlyhv",
 	.write =	early_hv_write,
-	.flags =	CON_PRINTBUFFER,
+	.flags =	CON_PRINTBUFFER | CON_BOOT,
 	.index =	-1,
 };
-
-/* Direct interface for emergencies */
-static int early_console_complete;
 
 void early_panic(const char *fmt, ...)
 {
@@ -43,51 +48,21 @@ void early_panic(const char *fmt, ...)
 	va_start(ap, fmt);
 	early_printk("Kernel panic - not syncing: ");
 	early_vprintk(fmt, ap);
-	early_console->write(early_console, "\n", 1);
+	early_printk("\n");
 	va_end(ap);
 	dump_stack();
 	hv_halt();
 }
-
-static int __initdata keep_early;
 
 static int __init setup_early_printk(char *str)
 {
 	if (early_console)
 		return 1;
 
-	if (str != NULL && strncmp(str, "keep", 4) == 0)
-		keep_early = 1;
-
 	early_console = &early_hv_console;
 	register_console(early_console);
 
 	return 0;
-}
-
-void __init disable_early_printk(void)
-{
-	early_console_complete = 1;
-	if (!early_console)
-		return;
-	if (!keep_early) {
-		early_printk("disabling early console\n");
-		unregister_console(early_console);
-		early_console = NULL;
-	} else {
-		early_printk("keeping early console\n");
-	}
-}
-
-void warn_early_printk(void)
-{
-	if (early_console_complete || early_console)
-		return;
-	early_printk("\
-Machine shutting down before console output is fully initialized.\n\
-You may wish to reboot and add the option 'earlyprintk' to your\n\
-boot command line to see any diagnostic early console output.\n\
-");
 }
 
 early_param("earlyprintk", setup_early_printk);

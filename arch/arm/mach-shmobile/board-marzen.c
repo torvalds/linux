@@ -1,8 +1,9 @@
 /*
  * marzen board support
  *
- * Copyright (C) 2011  Renesas Solutions Corp.
+ * Copyright (C) 2011, 2013  Renesas Solutions Corp.
  * Copyright (C) 2011  Magnus Damm
+ * Copyright (C) 2013  Cogent Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +38,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
+#include <media/soc_camera.h>
 #include <mach/hardware.h>
 #include <mach/r8a7779.h>
 #include <mach/common.h>
@@ -178,12 +180,40 @@ static struct platform_device leds_device = {
 	},
 };
 
+static struct rcar_vin_platform_data vin_platform_data __initdata = {
+	.flags	= RCAR_VIN_BT656,
+};
+
+#define MARZEN_CAMERA(idx)					\
+static struct i2c_board_info camera##idx##_info = {		\
+	I2C_BOARD_INFO("adv7180", 0x20 + (idx)),		\
+};								\
+								\
+static struct soc_camera_link iclink##idx##_adv7180 = {		\
+	.bus_id		= 1 + 2 * (idx),			\
+	.i2c_adapter_id	= 0,					\
+	.board_info	= &camera##idx##_info,			\
+};								\
+								\
+static struct platform_device camera##idx##_device = {		\
+	.name	= "soc-camera-pdrv",				\
+	.id	= idx,						\
+	.dev	= {						\
+		.platform_data	= &iclink##idx##_adv7180,	\
+	},							\
+};
+
+MARZEN_CAMERA(0);
+MARZEN_CAMERA(1);
+
 static struct platform_device *marzen_devices[] __initdata = {
 	&eth_device,
 	&sdhi0_device,
 	&thermal_device,
 	&hspi_device,
 	&leds_device,
+	&camera0_device,
+	&camera1_device,
 };
 
 static const struct pinctrl_map marzen_pinctrl_map[] = {
@@ -219,6 +249,16 @@ static const struct pinctrl_map marzen_pinctrl_map[] = {
 	/* USB2 */
 	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform.1", "pfc-r8a7779",
 				  "usb2", "usb2"),
+	/* VIN1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7779-vin.1", "pfc-r8a7779",
+				  "vin1_clk", "vin1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7779-vin.1", "pfc-r8a7779",
+				  "vin1_data8", "vin1"),
+	/* VIN3 */
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7779-vin.3", "pfc-r8a7779",
+				  "vin3_clk", "vin3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7779-vin.3", "pfc-r8a7779",
+				  "vin3_data8", "vin3"),
 };
 
 static void __init marzen_init(void)
@@ -235,6 +275,8 @@ static void __init marzen_init(void)
 
 	r8a7779_add_standard_devices();
 	r8a7779_add_usb_phy_device(&usb_phy_platform_data);
+	r8a7779_add_vin_device(1, &vin_platform_data);
+	r8a7779_add_vin_device(3, &vin_platform_data);
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
 }
 

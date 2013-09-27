@@ -168,16 +168,43 @@ int netlink_remove_tap(struct netlink_tap *nt)
 }
 EXPORT_SYMBOL_GPL(netlink_remove_tap);
 
+static bool netlink_filter_tap(const struct sk_buff *skb)
+{
+	struct sock *sk = skb->sk;
+	bool pass = false;
+
+	/* We take the more conservative approach and
+	 * whitelist socket protocols that may pass.
+	 */
+	switch (sk->sk_protocol) {
+	case NETLINK_ROUTE:
+	case NETLINK_USERSOCK:
+	case NETLINK_SOCK_DIAG:
+	case NETLINK_NFLOG:
+	case NETLINK_XFRM:
+	case NETLINK_FIB_LOOKUP:
+	case NETLINK_NETFILTER:
+	case NETLINK_GENERIC:
+		pass = true;
+		break;
+	}
+
+	return pass;
+}
+
 static int __netlink_deliver_tap_skb(struct sk_buff *skb,
 				     struct net_device *dev)
 {
 	struct sk_buff *nskb;
+	struct sock *sk = skb->sk;
 	int ret = -ENOMEM;
 
 	dev_hold(dev);
 	nskb = skb_clone(skb, GFP_ATOMIC);
 	if (nskb) {
 		nskb->dev = dev;
+		nskb->protocol = htons((u16) sk->sk_protocol);
+
 		ret = dev_queue_xmit(nskb);
 		if (unlikely(ret > 0))
 			ret = net_xmit_errno(ret);
@@ -191,6 +218,9 @@ static void __netlink_deliver_tap(struct sk_buff *skb)
 {
 	int ret;
 	struct netlink_tap *tmp;
+
+	if (!netlink_filter_tap(skb))
+		return;
 
 	list_for_each_entry_rcu(tmp, &netlink_tap_all, list) {
 		ret = __netlink_deliver_tap_skb(skb, tmp->dev);

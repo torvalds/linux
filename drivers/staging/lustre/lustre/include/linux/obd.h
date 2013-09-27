@@ -93,11 +93,8 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 				      lock, task->comm, task->pid,
 				      lock->func, lock->line,
 				      (jiffies - lock->time) / HZ);
-			LCONSOLE_WARN("====== for process holding the "
-				      "lock =====\n");
-			libcfs_debug_dumpstack(task);
 			LCONSOLE_WARN("====== for current process =====\n");
-			libcfs_debug_dumpstack(NULL);
+			dump_stack();
 			LCONSOLE_WARN("====== end =======\n");
 			cfs_pause(1000 * HZ);
 		}

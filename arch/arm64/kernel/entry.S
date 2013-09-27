@@ -423,6 +423,7 @@ el0_da:
 	 * Data abort handling
 	 */
 	mrs	x0, far_el1
+	bic	x0, x0, #(0xff << 56)
 	disable_step x1
 	isb
 	enable_dbg
@@ -476,6 +477,8 @@ el0_undef:
 	 * Undefined instruction
 	 */
 	mov	x0, sp
+	// enable interrupts before calling the main handler
+	enable_irq
 	b	do_undefinstr
 el0_dbg:
 	/*

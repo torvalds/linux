@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/debugfs.h>
+#include <linux/vmalloc.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
@@ -50,6 +51,7 @@
 
 #define DEFAULT_COUNT 10
 #define REC_NUM_DEFAULT 10
+#define EXEC_SIZE 64
 
 enum cname {
 	CN_INVALID,
@@ -68,6 +70,7 @@ enum ctype {
 	CT_NONE,
 	CT_PANIC,
 	CT_BUG,
+	CT_WARNING,
 	CT_EXCEPTION,
 	CT_LOOP,
 	CT_OVERFLOW,
@@ -77,7 +80,12 @@ enum ctype {
 	CT_WRITE_AFTER_FREE,
 	CT_SOFTLOCKUP,
 	CT_HARDLOCKUP,
+	CT_SPINLOCKUP,
 	CT_HUNG_TASK,
+	CT_EXEC_DATA,
+	CT_EXEC_STACK,
+	CT_EXEC_KMALLOC,
+	CT_EXEC_VMALLOC,
 };
 
 static char* cp_name[] = {
@@ -95,6 +103,7 @@ static char* cp_name[] = {
 static char* cp_type[] = {
 	"PANIC",
 	"BUG",
+	"WARNING",
 	"EXCEPTION",
 	"LOOP",
 	"OVERFLOW",
@@ -104,7 +113,12 @@ static char* cp_type[] = {
 	"WRITE_AFTER_FREE",
 	"SOFTLOCKUP",
 	"HARDLOCKUP",
+	"SPINLOCKUP",
 	"HUNG_TASK",
+	"EXEC_DATA",
+	"EXEC_STACK",
+	"EXEC_KMALLOC",
+	"EXEC_VMALLOC",
 };
 
 static struct jprobe lkdtm;
@@ -121,6 +135,9 @@ static enum cname cpoint = CN_INVALID;
 static enum ctype cptype = CT_NONE;
 static int count = DEFAULT_COUNT;
 static DEFINE_SPINLOCK(count_lock);
+static DEFINE_SPINLOCK(lock_me_up);
+
+static u8 data_area[EXEC_SIZE];
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
@@ -275,6 +292,19 @@ static int recursive_loop(int a)
         	return recursive_loop(a);
 }
 
+static void do_nothing(void)
+{
+	return;
+}
+
+static void execute_location(void *dst)
+{
+	void (*func)(void) = dst;
+
+	memcpy(dst, do_nothing, EXEC_SIZE);
+	func();
+}
+
 static void lkdtm_do_action(enum ctype which)
 {
 	switch (which) {
@@ -283,6 +313,9 @@ static void lkdtm_do_action(enum ctype which)
 		break;
 	case CT_BUG:
 		BUG();
+		break;
+	case CT_WARNING:
+		WARN_ON(1);
 		break;
 	case CT_EXCEPTION:
 		*((int *) 0) = 0;
@@ -295,10 +328,10 @@ static void lkdtm_do_action(enum ctype which)
 		(void) recursive_loop(0);
 		break;
 	case CT_CORRUPT_STACK: {
-		volatile u32 data[8];
-		volatile u32 *p = data;
+		/* Make sure the compiler creates and uses an 8 char array. */
+		volatile char data[8];
 
-		p[12] = 0x12345678;
+		memset((void *)data, 0, 64);
 		break;
 	}
 	case CT_UNALIGNED_LOAD_STORE_WRITE: {
@@ -340,10 +373,34 @@ static void lkdtm_do_action(enum ctype which)
 		for (;;)
 			cpu_relax();
 		break;
+	case CT_SPINLOCKUP:
+		/* Must be called twice to trigger. */
+		spin_lock(&lock_me_up);
+		break;
 	case CT_HUNG_TASK:
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule();
 		break;
+	case CT_EXEC_DATA:
+		execute_location(data_area);
+		break;
+	case CT_EXEC_STACK: {
+		u8 stack_area[EXEC_SIZE];
+		execute_location(stack_area);
+		break;
+	}
+	case CT_EXEC_KMALLOC: {
+		u32 *kmalloc_area = kmalloc(EXEC_SIZE, GFP_KERNEL);
+		execute_location(kmalloc_area);
+		kfree(kmalloc_area);
+		break;
+	}
+	case CT_EXEC_VMALLOC: {
+		u32 *vmalloc_area = vmalloc(EXEC_SIZE);
+		execute_location(vmalloc_area);
+		vfree(vmalloc_area);
+		break;
+	}
 	case CT_NONE:
 	default:
 		break;

@@ -2267,7 +2267,7 @@ static int f71882fg_create_fan_sysfs_files(
 static int f71882fg_probe(struct platform_device *pdev)
 {
 	struct f71882fg_data *data;
-	struct f71882fg_sio_data *sio_data = pdev->dev.platform_data;
+	struct f71882fg_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	int nr_fans = f71882fg_nr_fans[sio_data->type];
 	int nr_temps = f71882fg_nr_temps[sio_data->type];
 	int err, i;

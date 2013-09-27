@@ -27,7 +27,6 @@
 #include <linux/stmp_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_i2c.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 
@@ -114,18 +113,21 @@ struct mxs_i2c_dev {
 
 	uint32_t timing0;
 	uint32_t timing1;
+	uint32_t timing2;
 
 	/* DMA support components */
-	struct dma_chan         	*dmach;
+	struct dma_chan			*dmach;
 	uint32_t			pio_data[2];
 	uint32_t			addr_data;
 	struct scatterlist		sg_io[2];
 	bool				dma_read;
 };
 
-static void mxs_i2c_reset(struct mxs_i2c_dev *i2c)
+static int mxs_i2c_reset(struct mxs_i2c_dev *i2c)
 {
-	stmp_reset_block(i2c->regs);
+	int ret = stmp_reset_block(i2c->regs);
+	if (ret)
+		return ret;
 
 	/*
 	 * Configure timing for the I2C block. The I2C TIMING2 register has to
@@ -136,9 +138,11 @@ static void mxs_i2c_reset(struct mxs_i2c_dev *i2c)
 	 */
 	writel(i2c->timing0, i2c->regs + MXS_I2C_TIMING0);
 	writel(i2c->timing1, i2c->regs + MXS_I2C_TIMING1);
-	writel(0x00300030, i2c->regs + MXS_I2C_TIMING2);
+	writel(i2c->timing2, i2c->regs + MXS_I2C_TIMING2);
 
 	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
+
+	return 0;
 }
 
 static void mxs_i2c_dma_finish(struct mxs_i2c_dev *i2c)
@@ -475,7 +479,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 				int stop)
 {
 	struct mxs_i2c_dev *i2c = i2c_get_adapdata(adap);
-	int ret;
+	int ret, err;
 	int flags;
 
 	flags = stop ? MXS_I2C_CTRL0_POST_SEND_STOP : 0;
@@ -495,8 +499,11 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	i2c->cmd_err = 0;
 	if (0) {	/* disable PIO mode until a proper fix is made */
 		ret = mxs_i2c_pio_setup_xfer(adap, msg, flags);
-		if (ret)
-			mxs_i2c_reset(i2c);
+		if (ret) {
+			err = mxs_i2c_reset(i2c);
+			if (err)
+				return err;
+		}
 	} else {
 		INIT_COMPLETION(i2c->cmd_complete);
 		ret = mxs_i2c_dma_setup_xfer(adap, msg, flags);
@@ -527,7 +534,10 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 timeout:
 	dev_dbg(i2c->dev, "Timeout!\n");
 	mxs_i2c_dma_finish(i2c);
-	mxs_i2c_reset(i2c);
+	ret = mxs_i2c_reset(i2c);
+	if (ret)
+		return ret;
+
 	return -ETIMEDOUT;
 }
 
@@ -577,41 +587,79 @@ static const struct i2c_algorithm mxs_i2c_algo = {
 	.functionality = mxs_i2c_func,
 };
 
-static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, int speed)
+static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, uint32_t speed)
 {
-	/* The I2C block clock run at 24MHz */
+	/* The I2C block clock runs at 24MHz */
 	const uint32_t clk = 24000000;
-	uint32_t base;
+	uint32_t divider;
 	uint16_t high_count, low_count, rcv_count, xmit_count;
+	uint32_t bus_free, leadin;
 	struct device *dev = i2c->dev;
 
-	if (speed > 540000) {
-		dev_warn(dev, "Speed too high (%d Hz), using 540 kHz\n", speed);
-		speed = 540000;
-	} else if (speed < 12000) {
-		dev_warn(dev, "Speed too low (%d Hz), using 12 kHz\n", speed);
-		speed = 12000;
+	divider = DIV_ROUND_UP(clk, speed);
+
+	if (divider < 25) {
+		/*
+		 * limit the divider, so that min(low_count, high_count)
+		 * is >= 1
+		 */
+		divider = 25;
+		dev_warn(dev,
+			"Speed too high (%u.%03u kHz), using %u.%03u kHz\n",
+			speed / 1000, speed % 1000,
+			clk / divider / 1000, clk / divider % 1000);
+	} else if (divider > 1897) {
+		/*
+		 * limit the divider, so that max(low_count, high_count)
+		 * cannot exceed 1023
+		 */
+		divider = 1897;
+		dev_warn(dev,
+			"Speed too low (%u.%03u kHz), using %u.%03u kHz\n",
+			speed / 1000, speed % 1000,
+			clk / divider / 1000, clk / divider % 1000);
 	}
 
 	/*
-	 * The timing derivation algorithm. There is no documentation for this
-	 * algorithm available, it was derived by using the scope and fiddling
-	 * with constants until the result observed on the scope was good enough
-	 * for 20kHz, 50kHz, 100kHz, 200kHz, 300kHz and 400kHz. It should be
-	 * possible to assume the algorithm works for other frequencies as well.
+	 * The I2C spec specifies the following timing data:
+	 *                          standard mode  fast mode Bitfield name
+	 * tLOW (SCL LOW period)     4700 ns        1300 ns
+	 * tHIGH (SCL HIGH period)   4000 ns         600 ns
+	 * tSU;DAT (data setup time)  250 ns         100 ns
+	 * tHD;STA (START hold time) 4000 ns         600 ns
+	 * tBUF (bus free time)      4700 ns        1300 ns
 	 *
-	 * Note it was necessary to cap the frequency on both ends as it's not
-	 * possible to configure completely arbitrary frequency for the I2C bus
-	 * clock.
+	 * The hardware (of the i.MX28 at least) seems to add 2 additional
+	 * clock cycles to the low_count and 7 cycles to the high_count.
+	 * This is compensated for by subtracting the respective constants
+	 * from the values written to the timing registers.
 	 */
-	base = ((clk / speed) - 38) / 2;
-	high_count = base + 3;
-	low_count = base - 3;
-	rcv_count = (high_count * 3) / 4;
-	xmit_count = low_count / 4;
+	if (speed > 100000) {
+		/* fast mode */
+		low_count = DIV_ROUND_CLOSEST(divider * 13, (13 + 6));
+		high_count = DIV_ROUND_CLOSEST(divider * 6, (13 + 6));
+		leadin = DIV_ROUND_UP(600 * (clk / 1000000), 1000);
+		bus_free = DIV_ROUND_UP(1300 * (clk / 1000000), 1000);
+	} else {
+		/* normal mode */
+		low_count = DIV_ROUND_CLOSEST(divider * 47, (47 + 40));
+		high_count = DIV_ROUND_CLOSEST(divider * 40, (47 + 40));
+		leadin = DIV_ROUND_UP(4700 * (clk / 1000000), 1000);
+		bus_free = DIV_ROUND_UP(4700 * (clk / 1000000), 1000);
+	}
+	rcv_count = high_count * 3 / 8;
+	xmit_count = low_count * 3 / 8;
 
+	dev_dbg(dev,
+		"speed=%u(actual %u) divider=%u low=%u high=%u xmit=%u rcv=%u leadin=%u bus_free=%u\n",
+		speed, clk / divider, divider, low_count, high_count,
+		xmit_count, rcv_count, leadin, bus_free);
+
+	low_count -= 2;
+	high_count -= 7;
 	i2c->timing0 = (high_count << 16) | rcv_count;
 	i2c->timing1 = (low_count << 16) | xmit_count;
+	i2c->timing2 = (bus_free << 16 | leadin);
 }
 
 static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
@@ -683,7 +731,9 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, i2c);
 
 	/* Do reset to enforce correct startup after pinmuxing */
-	mxs_i2c_reset(i2c);
+	err = mxs_i2c_reset(i2c);
+	if (err)
+		return err;
 
 	adap = &i2c->adapter;
 	strlcpy(adap->name, "MXS I2C adapter", sizeof(adap->name));
@@ -700,8 +750,6 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 				i2c->regs + MXS_I2C_CTRL0_SET);
 		return err;
 	}
-
-	of_i2c_register_devices(adap);
 
 	return 0;
 }

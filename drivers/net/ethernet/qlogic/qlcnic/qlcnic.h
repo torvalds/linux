@@ -946,7 +946,6 @@ struct qlcnic_ipaddr {
 #define QLCNIC_PCI_REG_MSIX_TBL 	0x44
 #define QLCNIC_MSIX_TBL_PGSIZE		4096
 
-#define QLCNIC_NETDEV_WEIGHT	128
 #define QLCNIC_ADAPTER_UP_MAGIC 777
 
 #define __QLCNIC_FW_ATTACHED		0

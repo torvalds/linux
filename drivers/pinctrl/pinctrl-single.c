@@ -209,7 +209,7 @@ struct pcs_device {
 static int pcs_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 			   unsigned long *config);
 static int pcs_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
-			   unsigned long config);
+			   unsigned long *configs, unsigned num_configs);
 
 static enum pin_config_param pcs_bias[] = {
 	PIN_CONFIG_BIAS_PULL_DOWN,
@@ -536,7 +536,7 @@ static void pcs_pinconf_clear_bias(struct pinctrl_dev *pctldev, unsigned pin)
 	int i;
 	for (i = 0; i < ARRAY_SIZE(pcs_bias); i++) {
 		config = pinconf_to_config_packed(pcs_bias[i], 0);
-		pcs_pinconf_set(pctldev, pin, config);
+		pcs_pinconf_set(pctldev, pin, &config, 1);
 	}
 }
 
@@ -622,22 +622,28 @@ static int pcs_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int pcs_pinconf_set(struct pinctrl_dev *pctldev,
-				unsigned pin, unsigned long config)
+				unsigned pin, unsigned long *configs,
+				unsigned num_configs)
 {
 	struct pcs_device *pcs = pinctrl_dev_get_drvdata(pctldev);
 	struct pcs_function *func;
 	unsigned offset = 0, shift = 0, i, data, ret;
 	u16 arg;
+	int j;
 
 	ret = pcs_get_function(pctldev, pin, &func);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < func->nconfs; i++) {
-		if (pinconf_to_config_param(config) == func->conf[i].param) {
+	for (j = 0; j < num_configs; j++) {
+		for (i = 0; i < func->nconfs; i++) {
+			if (pinconf_to_config_param(configs[j])
+				!= func->conf[i].param)
+				continue;
+
 			offset = pin * (pcs->width / BITS_PER_BYTE);
 			data = pcs->read(pcs->base + offset);
-			arg = pinconf_to_config_argument(config);
+			arg = pinconf_to_config_argument(configs[j]);
 			switch (func->conf[i].param) {
 			/* 2 parameters */
 			case PIN_CONFIG_INPUT_SCHMITT:
@@ -667,10 +673,14 @@ static int pcs_pinconf_set(struct pinctrl_dev *pctldev,
 				return -ENOTSUPP;
 			}
 			pcs->write(data, pcs->base + offset);
-			return 0;
+
+			break;
 		}
-	}
-	return -ENOTSUPP;
+		if (i >= func->nconfs)
+			return -ENOTSUPP;
+	} /* for each config */
+
+	return 0;
 }
 
 static int pcs_pinconf_group_get(struct pinctrl_dev *pctldev,
@@ -695,7 +705,8 @@ static int pcs_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int pcs_pinconf_group_set(struct pinctrl_dev *pctldev,
-				unsigned group, unsigned long config)
+				unsigned group, unsigned long *configs,
+				unsigned num_configs)
 {
 	const unsigned *pins;
 	unsigned npins;
@@ -705,7 +716,7 @@ static int pcs_pinconf_group_set(struct pinctrl_dev *pctldev,
 	if (ret)
 		return ret;
 	for (i = 0; i < npins; i++) {
-		if (pcs_pinconf_set(pctldev, pins[i], config))
+		if (pcs_pinconf_set(pctldev, pins[i], configs, num_configs))
 			return -ENOTSUPP;
 	}
 	return 0;

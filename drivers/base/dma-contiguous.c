@@ -134,7 +134,7 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 
 static DEFINE_MUTEX(cma_mutex);
 
-static __init int cma_activate_area(unsigned long base_pfn, unsigned long count)
+static int __init cma_activate_area(unsigned long base_pfn, unsigned long count)
 {
 	unsigned long pfn = base_pfn;
 	unsigned i = count >> pageblock_order;
@@ -156,7 +156,7 @@ static __init int cma_activate_area(unsigned long base_pfn, unsigned long count)
 	return 0;
 }
 
-static __init struct cma *cma_create_area(unsigned long base_pfn,
+static struct cma * __init cma_create_area(unsigned long base_pfn,
 				     unsigned long count)
 {
 	int bitmap_size = BITS_TO_LONGS(count) * sizeof(long);

@@ -244,6 +244,7 @@ STAC9227/9228/9229/927x
   5stack-no-fp	D965 5stack without front panel
   dell-3stack	Dell Dimension E520
   dell-bios	Fixes with Dell BIOS setup
+  dell-bios-amic Fixes with Dell BIOS setup including analog mic
   volknob	Fixes with volume-knob widget 0x24
   auto		BIOS setup (default)
 

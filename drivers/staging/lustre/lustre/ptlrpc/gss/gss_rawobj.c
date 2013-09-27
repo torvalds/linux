@@ -65,7 +65,7 @@ int rawobj_alloc(rawobj_t *obj, char *buf, int len)
 		OBD_ALLOC_LARGE(obj->data, len);
 		if (!obj->data) {
 			obj->len = 0;
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		memcpy(obj->data, buf, len);
 	} else

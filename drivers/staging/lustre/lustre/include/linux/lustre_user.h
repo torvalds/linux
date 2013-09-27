@@ -41,7 +41,6 @@
 #ifndef _LINUX_LUSTRE_USER_H
 #define _LINUX_LUSTRE_USER_H
 
-# include <linux/version.h>
 # include <linux/quota.h>
 
 /*
@@ -53,15 +52,19 @@
 
 #include <linux/string.h>
 
-#if defined(__x86_64__) || defined(__ia64__) || defined(__ppc64__) || \
-    defined(__craynv) || defined (__mips64__) || defined(__powerpc64__)
-typedef struct stat     lstat_t;
-#define lstat_f	 lstat
-#define HAVE_LOV_USER_MDS_DATA
-#else
+/*
+ * We need to always use 64bit version because the structure
+ * is shared across entire cluster where 32bit and 64bit machines
+ * are co-existing.
+ */
+#if __BITS_PER_LONG != 64 || defined(__ARCH_WANT_STAT64)
 typedef struct stat64   lstat_t;
 #define lstat_f	 lstat64
-#define HAVE_LOV_USER_MDS_DATA
+#else
+typedef struct stat     lstat_t;
+#define lstat_f	 lstat
 #endif
+
+#define HAVE_LOV_USER_MDS_DATA
 
 #endif /* _LUSTRE_USER_H */

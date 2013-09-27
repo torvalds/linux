@@ -105,13 +105,30 @@ static int __kprobes get_fixup_type(kprobe_opcode_t *insn)
 		fixup |= FIXUP_RETURN_REGISTER;
 		break;
 	case 0xeb:
-		if ((insn[2] & 0xff) == 0x44 ||	/* bxhg  */
-		    (insn[2] & 0xff) == 0x45)	/* bxleg */
+		switch (insn[2] & 0xff) {
+		case 0x44: /* bxhg  */
+		case 0x45: /* bxleg */
 			fixup = FIXUP_BRANCH_NOT_TAKEN;
+			break;
+		}
 		break;
 	case 0xe3:	/* bctg	*/
 		if ((insn[2] & 0xff) == 0x46)
 			fixup = FIXUP_BRANCH_NOT_TAKEN;
+		break;
+	case 0xec:
+		switch (insn[2] & 0xff) {
+		case 0xe5: /* clgrb */
+		case 0xe6: /* cgrb  */
+		case 0xf6: /* crb   */
+		case 0xf7: /* clrb  */
+		case 0xfc: /* cgib  */
+		case 0xfd: /* cglib */
+		case 0xfe: /* cib   */
+		case 0xff: /* clib  */
+			fixup = FIXUP_BRANCH_NOT_TAKEN;
+			break;
+		}
 		break;
 	}
 	return fixup;

@@ -1135,14 +1135,13 @@ out_zap_parent:
 	if (inode && S_ISDIR(inode->i_mode)) {
 		/* Purge readdir caches. */
 		nfs_zap_caches(inode);
-		/* If we have submounts, don't unhash ! */
-		if (have_submounts(dentry))
-			goto out_valid;
 		if (dentry->d_flags & DCACHE_DISCONNECTED)
 			goto out_valid;
-		shrink_dcache_parent(dentry);
 	}
-	d_drop(dentry);
+	/* If we have submounts, don't unhash ! */
+	if (check_submounts_and_drop(dentry) != 0)
+		goto out_valid;
+
 	dput(parent);
 	dfprintk(LOOKUPCACHE, "NFS: %s(%s/%s) is invalid\n",
 			__func__, dentry->d_parent->d_name.name,

@@ -28,19 +28,27 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
+#include <linux/usb/of.h>
 #include <asm/mach-types.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
+#include <linux/regulator/consumer.h>
 
 #define ULPI_VIEWPORT		0x170
 
-/* PORTSC registers */
+/* PORTSC PTS/PHCD bits, Tegra20 only */
 #define TEGRA_USB_PORTSC1				0x184
 #define TEGRA_USB_PORTSC1_PTS(x)			(((x) & 0x3) << 30)
 #define TEGRA_USB_PORTSC1_PHCD				(1 << 23)
+
+/* HOSTPC1 PTS/PHCD bits, Tegra30 and above */
+#define TEGRA_USB_HOSTPC1_DEVLC		0x1b4
+#define TEGRA_USB_HOSTPC1_DEVLC_PTS(x)	(((x) & 0x7) << 29)
+#define TEGRA_USB_HOSTPC1_DEVLC_PHCD	(1 << 22)
 
 /* Bits of PORTSC1, which will get cleared by writing 1 into them */
 #define TEGRA_PORTSC1_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_OCC)
@@ -84,16 +92,22 @@
 
 #define UTMIP_XCVR_CFG0		0x808
 #define   UTMIP_XCVR_SETUP(x)			(((x) & 0xf) << 0)
+#define   UTMIP_XCVR_SETUP_MSB(x)		((((x) & 0x70) >> 4) << 22)
 #define   UTMIP_XCVR_LSRSLEW(x)			(((x) & 0x3) << 8)
 #define   UTMIP_XCVR_LSFSLEW(x)			(((x) & 0x3) << 10)
 #define   UTMIP_FORCE_PD_POWERDOWN		(1 << 14)
 #define   UTMIP_FORCE_PD2_POWERDOWN		(1 << 16)
 #define   UTMIP_FORCE_PDZI_POWERDOWN		(1 << 18)
-#define   UTMIP_XCVR_HSSLEW_MSB(x)		(((x) & 0x7f) << 25)
+#define   UTMIP_XCVR_LSBIAS_SEL			(1 << 21)
+#define   UTMIP_XCVR_HSSLEW(x)			(((x) & 0x3) << 4)
+#define   UTMIP_XCVR_HSSLEW_MSB(x)		((((x) & 0x1fc) >> 2) << 25)
 
 #define UTMIP_BIAS_CFG0		0x80c
 #define   UTMIP_OTGPD			(1 << 11)
 #define   UTMIP_BIASPD			(1 << 10)
+#define   UTMIP_HSSQUELCH_LEVEL(x)	(((x) & 0x3) << 0)
+#define   UTMIP_HSDISCON_LEVEL(x)	(((x) & 0x3) << 2)
+#define   UTMIP_HSDISCON_LEVEL_MSB(x)	((((x) & 0x4) >> 2) << 24)
 
 #define UTMIP_HSRX_CFG0		0x810
 #define   UTMIP_ELASTIC_LIMIT(x)	(((x) & 0x1f) << 10)
@@ -136,6 +150,12 @@
 
 #define UTMIP_BIAS_CFG1		0x83c
 #define   UTMIP_BIAS_PDTRK_COUNT(x)	(((x) & 0x1f) << 3)
+
+/* For Tegra30 and above only, the address is different in Tegra20 */
+#define USB_USBMODE		0x1f8
+#define   USB_USBMODE_MASK		(3 << 0)
+#define   USB_USBMODE_HOST		(3 << 0)
+#define   USB_USBMODE_DEVICE		(2 << 0)
 
 static DEFINE_SPINLOCK(utmip_pad_lock);
 static int utmip_pad_count;
@@ -184,36 +204,22 @@ static const struct tegra_xtal_freq tegra_freq_table[] = {
 	},
 };
 
-static struct tegra_utmip_config utmip_default[] = {
-	[0] = {
-		.hssync_start_delay = 9,
-		.idle_wait_delay = 17,
-		.elastic_limit = 16,
-		.term_range_adj = 6,
-		.xcvr_setup = 9,
-		.xcvr_lsfslew = 1,
-		.xcvr_lsrslew = 1,
-	},
-	[2] = {
-		.hssync_start_delay = 9,
-		.idle_wait_delay = 17,
-		.elastic_limit = 16,
-		.term_range_adj = 6,
-		.xcvr_setup = 9,
-		.xcvr_lsfslew = 2,
-		.xcvr_lsrslew = 2,
-	},
-};
-
 static void set_pts(struct tegra_usb_phy *phy, u8 pts_val)
 {
 	void __iomem *base = phy->regs;
 	unsigned long val;
 
-	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
-	val &= ~TEGRA_USB_PORTSC1_PTS(3);
-	val |= TEGRA_USB_PORTSC1_PTS(pts_val & 3);
-	writel(val, base + TEGRA_USB_PORTSC1);
+	if (phy->soc_config->has_hostpc) {
+		val = readl(base + TEGRA_USB_HOSTPC1_DEVLC);
+		val &= ~TEGRA_USB_HOSTPC1_DEVLC_PTS(~0);
+		val |= TEGRA_USB_HOSTPC1_DEVLC_PTS(pts_val);
+		writel(val, base + TEGRA_USB_HOSTPC1_DEVLC);
+	} else {
+		val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
+		val &= ~TEGRA_USB_PORTSC1_PTS(~0);
+		val |= TEGRA_USB_PORTSC1_PTS(pts_val);
+		writel(val, base + TEGRA_USB_PORTSC1);
+	}
 }
 
 static void set_phcd(struct tegra_usb_phy *phy, bool enable)
@@ -221,17 +227,26 @@ static void set_phcd(struct tegra_usb_phy *phy, bool enable)
 	void __iomem *base = phy->regs;
 	unsigned long val;
 
-	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
-	if (enable)
-		val |= TEGRA_USB_PORTSC1_PHCD;
-	else
-		val &= ~TEGRA_USB_PORTSC1_PHCD;
-	writel(val, base + TEGRA_USB_PORTSC1);
+	if (phy->soc_config->has_hostpc) {
+		val = readl(base + TEGRA_USB_HOSTPC1_DEVLC);
+		if (enable)
+			val |= TEGRA_USB_HOSTPC1_DEVLC_PHCD;
+		else
+			val &= ~TEGRA_USB_HOSTPC1_DEVLC_PHCD;
+		writel(val, base + TEGRA_USB_HOSTPC1_DEVLC);
+	} else {
+		val = readl(base + TEGRA_USB_PORTSC1) & ~PORT_RWC_BITS;
+		if (enable)
+			val |= TEGRA_USB_PORTSC1_PHCD;
+		else
+			val &= ~TEGRA_USB_PORTSC1_PHCD;
+		writel(val, base + TEGRA_USB_PORTSC1);
+	}
 }
 
 static int utmip_pad_open(struct tegra_usb_phy *phy)
 {
-	phy->pad_clk = devm_clk_get(phy->dev, "utmi-pads");
+	phy->pad_clk = devm_clk_get(phy->u_phy.dev, "utmi-pads");
 	if (IS_ERR(phy->pad_clk)) {
 		pr_err("%s: can't get utmip pad clock\n", __func__);
 		return PTR_ERR(phy->pad_clk);
@@ -244,6 +259,7 @@ static void utmip_pad_power_on(struct tegra_usb_phy *phy)
 {
 	unsigned long val, flags;
 	void __iomem *base = phy->pad_regs;
+	struct tegra_utmip_config *config = phy->config;
 
 	clk_prepare_enable(phy->pad_clk);
 
@@ -252,6 +268,16 @@ static void utmip_pad_power_on(struct tegra_usb_phy *phy)
 	if (utmip_pad_count++ == 0) {
 		val = readl(base + UTMIP_BIAS_CFG0);
 		val &= ~(UTMIP_OTGPD | UTMIP_BIASPD);
+
+		if (phy->soc_config->requires_extra_tuning_parameters) {
+			val &= ~(UTMIP_HSSQUELCH_LEVEL(~0) |
+				UTMIP_HSDISCON_LEVEL(~0) |
+				UTMIP_HSDISCON_LEVEL_MSB(~0));
+
+			val |= UTMIP_HSSQUELCH_LEVEL(config->hssquelch_level);
+			val |= UTMIP_HSDISCON_LEVEL(config->hsdiscon_level);
+			val |= UTMIP_HSDISCON_LEVEL_MSB(config->hsdiscon_level);
+		}
 		writel(val, base + UTMIP_BIAS_CFG0);
 	}
 
@@ -361,7 +387,7 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 	}
 
 	val = readl(base + UTMIP_TX_CFG0);
-	val &= ~UTMIP_FS_PREABMLE_J;
+	val |= UTMIP_FS_PREABMLE_J;
 	writel(val, base + UTMIP_TX_CFG0);
 
 	val = readl(base + UTMIP_HSRX_CFG0);
@@ -384,34 +410,56 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 	val &= ~UTMIP_SUSPEND_EXIT_ON_EDGE;
 	writel(val, base + UTMIP_MISC_CFG0);
 
-	val = readl(base + UTMIP_MISC_CFG1);
-	val &= ~(UTMIP_PLL_ACTIVE_DLY_COUNT(~0) | UTMIP_PLLU_STABLE_COUNT(~0));
-	val |= UTMIP_PLL_ACTIVE_DLY_COUNT(phy->freq->active_delay) |
-		UTMIP_PLLU_STABLE_COUNT(phy->freq->stable_count);
-	writel(val, base + UTMIP_MISC_CFG1);
+	if (!phy->soc_config->utmi_pll_config_in_car_module) {
+		val = readl(base + UTMIP_MISC_CFG1);
+		val &= ~(UTMIP_PLL_ACTIVE_DLY_COUNT(~0) |
+			UTMIP_PLLU_STABLE_COUNT(~0));
+		val |= UTMIP_PLL_ACTIVE_DLY_COUNT(phy->freq->active_delay) |
+			UTMIP_PLLU_STABLE_COUNT(phy->freq->stable_count);
+		writel(val, base + UTMIP_MISC_CFG1);
 
-	val = readl(base + UTMIP_PLL_CFG1);
-	val &= ~(UTMIP_XTAL_FREQ_COUNT(~0) | UTMIP_PLLU_ENABLE_DLY_COUNT(~0));
-	val |= UTMIP_XTAL_FREQ_COUNT(phy->freq->xtal_freq_count) |
-		UTMIP_PLLU_ENABLE_DLY_COUNT(phy->freq->enable_delay);
-	writel(val, base + UTMIP_PLL_CFG1);
+		val = readl(base + UTMIP_PLL_CFG1);
+		val &= ~(UTMIP_XTAL_FREQ_COUNT(~0) |
+			UTMIP_PLLU_ENABLE_DLY_COUNT(~0));
+		val |= UTMIP_XTAL_FREQ_COUNT(phy->freq->xtal_freq_count) |
+			UTMIP_PLLU_ENABLE_DLY_COUNT(phy->freq->enable_delay);
+		writel(val, base + UTMIP_PLL_CFG1);
+	}
 
-	if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE) {
+	if (phy->mode == USB_DR_MODE_PERIPHERAL) {
 		val = readl(base + USB_SUSP_CTRL);
 		val &= ~(USB_WAKE_ON_CNNT_EN_DEV | USB_WAKE_ON_DISCON_EN_DEV);
 		writel(val, base + USB_SUSP_CTRL);
+
+		val = readl(base + UTMIP_BAT_CHRG_CFG0);
+		val &= ~UTMIP_PD_CHRG;
+		writel(val, base + UTMIP_BAT_CHRG_CFG0);
+	} else {
+		val = readl(base + UTMIP_BAT_CHRG_CFG0);
+		val |= UTMIP_PD_CHRG;
+		writel(val, base + UTMIP_BAT_CHRG_CFG0);
 	}
 
 	utmip_pad_power_on(phy);
 
 	val = readl(base + UTMIP_XCVR_CFG0);
 	val &= ~(UTMIP_FORCE_PD_POWERDOWN | UTMIP_FORCE_PD2_POWERDOWN |
-		 UTMIP_FORCE_PDZI_POWERDOWN | UTMIP_XCVR_SETUP(~0) |
-		 UTMIP_XCVR_LSFSLEW(~0) | UTMIP_XCVR_LSRSLEW(~0) |
-		 UTMIP_XCVR_HSSLEW_MSB(~0));
-	val |= UTMIP_XCVR_SETUP(config->xcvr_setup);
+		 UTMIP_FORCE_PDZI_POWERDOWN | UTMIP_XCVR_LSBIAS_SEL |
+		 UTMIP_XCVR_SETUP(~0) | UTMIP_XCVR_SETUP_MSB(~0) |
+		 UTMIP_XCVR_LSFSLEW(~0) | UTMIP_XCVR_LSRSLEW(~0));
+
+	if (!config->xcvr_setup_use_fuses) {
+		val |= UTMIP_XCVR_SETUP(config->xcvr_setup);
+		val |= UTMIP_XCVR_SETUP_MSB(config->xcvr_setup);
+	}
 	val |= UTMIP_XCVR_LSFSLEW(config->xcvr_lsfslew);
 	val |= UTMIP_XCVR_LSRSLEW(config->xcvr_lsrslew);
+
+	if (phy->soc_config->requires_extra_tuning_parameters) {
+		val &= ~(UTMIP_XCVR_HSSLEW(~0) | UTMIP_XCVR_HSSLEW_MSB(~0));
+		val |= UTMIP_XCVR_HSSLEW(config->xcvr_hsslew);
+		val |= UTMIP_XCVR_HSSLEW_MSB(config->xcvr_hsslew);
+	}
 	writel(val, base + UTMIP_XCVR_CFG0);
 
 	val = readl(base + UTMIP_XCVR_CFG1);
@@ -420,23 +468,19 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 	val |= UTMIP_XCVR_TERM_RANGE_ADJ(config->term_range_adj);
 	writel(val, base + UTMIP_XCVR_CFG1);
 
-	val = readl(base + UTMIP_BAT_CHRG_CFG0);
-	val &= ~UTMIP_PD_CHRG;
-	writel(val, base + UTMIP_BAT_CHRG_CFG0);
-
 	val = readl(base + UTMIP_BIAS_CFG1);
 	val &= ~UTMIP_BIAS_PDTRK_COUNT(~0);
 	val |= UTMIP_BIAS_PDTRK_COUNT(0x5);
 	writel(val, base + UTMIP_BIAS_CFG1);
 
-	if (phy->is_legacy_phy) {
-		val = readl(base + UTMIP_SPARE_CFG0);
-		if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE)
-			val &= ~FUSE_SETUP_SEL;
-		else
-			val |= FUSE_SETUP_SEL;
-		writel(val, base + UTMIP_SPARE_CFG0);
-	} else {
+	val = readl(base + UTMIP_SPARE_CFG0);
+	if (config->xcvr_setup_use_fuses)
+		val |= FUSE_SETUP_SEL;
+	else
+		val &= ~FUSE_SETUP_SEL;
+	writel(val, base + UTMIP_SPARE_CFG0);
+
+	if (!phy->is_legacy_phy) {
 		val = readl(base + USB_SUSP_CTRL);
 		val |= UTMIP_PHY_ENABLE;
 		writel(val, base + USB_SUSP_CTRL);
@@ -459,6 +503,16 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 
 	utmi_phy_clk_enable(phy);
 
+	if (phy->soc_config->requires_usbmode_setup) {
+		val = readl(base + USB_USBMODE);
+		val &= ~USB_USBMODE_MASK;
+		if (phy->mode == USB_DR_MODE_HOST)
+			val |= USB_USBMODE_HOST;
+		else
+			val |= USB_USBMODE_DEVICE;
+		writel(val, base + USB_USBMODE);
+	}
+
 	if (!phy->is_legacy_phy)
 		set_pts(phy, 0);
 
@@ -472,7 +526,7 @@ static int utmi_phy_power_off(struct tegra_usb_phy *phy)
 
 	utmi_phy_clk_disable(phy);
 
-	if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE) {
+	if (phy->mode == USB_DR_MODE_PERIPHERAL) {
 		val = readl(base + USB_SUSP_CTRL);
 		val &= ~USB_WAKEUP_DEBOUNCE_COUNT(~0);
 		val |= USB_WAKE_ON_CNNT_EN_DEV | USB_WAKEUP_DEBOUNCE_COUNT(5);
@@ -560,13 +614,15 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 
 	ret = gpio_direction_output(phy->reset_gpio, 0);
 	if (ret < 0) {
-		dev_err(phy->dev, "gpio %d not set to 0\n", phy->reset_gpio);
+		dev_err(phy->u_phy.dev, "gpio %d not set to 0\n",
+			phy->reset_gpio);
 		return ret;
 	}
 	msleep(5);
 	ret = gpio_direction_output(phy->reset_gpio, 1);
 	if (ret < 0) {
-		dev_err(phy->dev, "gpio %d not set to 1\n", phy->reset_gpio);
+		dev_err(phy->u_phy.dev, "gpio %d not set to 1\n",
+			phy->reset_gpio);
 		return ret;
 	}
 
@@ -634,6 +690,9 @@ static void tegra_usb_phy_close(struct usb_phy *x)
 {
 	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
 
+	if (!IS_ERR(phy->vbus))
+		regulator_disable(phy->vbus);
+
 	clk_disable_unprepare(phy->pll_u);
 }
 
@@ -666,29 +725,30 @@ static int ulpi_open(struct tegra_usb_phy *phy)
 {
 	int err;
 
-	phy->clk = devm_clk_get(phy->dev, "ulpi-link");
+	phy->clk = devm_clk_get(phy->u_phy.dev, "ulpi-link");
 	if (IS_ERR(phy->clk)) {
 		pr_err("%s: can't get ulpi clock\n", __func__);
 		return PTR_ERR(phy->clk);
 	}
 
-	err = devm_gpio_request(phy->dev, phy->reset_gpio, "ulpi_phy_reset_b");
+	err = devm_gpio_request(phy->u_phy.dev, phy->reset_gpio,
+		"ulpi_phy_reset_b");
 	if (err < 0) {
-		dev_err(phy->dev, "request failed for gpio: %d\n",
+		dev_err(phy->u_phy.dev, "request failed for gpio: %d\n",
 		       phy->reset_gpio);
 		return err;
 	}
 
 	err = gpio_direction_output(phy->reset_gpio, 0);
 	if (err < 0) {
-		dev_err(phy->dev, "gpio %d direction not set to output\n",
+		dev_err(phy->u_phy.dev, "gpio %d direction not set to output\n",
 		       phy->reset_gpio);
 		return err;
 	}
 
 	phy->ulpi = otg_ulpi_create(&ulpi_viewport_access_ops, 0);
 	if (!phy->ulpi) {
-		dev_err(phy->dev, "otg_ulpi_create returned NULL\n");
+		dev_err(phy->u_phy.dev, "otg_ulpi_create returned NULL\n");
 		err = -ENOMEM;
 		return err;
 	}
@@ -703,14 +763,7 @@ static int tegra_usb_phy_init(struct tegra_usb_phy *phy)
 	int i;
 	int err;
 
-	if (!phy->is_ulpi_phy) {
-		if (phy->is_legacy_phy)
-			phy->config = &utmip_default[0];
-		else
-			phy->config = &utmip_default[2];
-	}
-
-	phy->pll_u = devm_clk_get(phy->dev, "pll_u");
+	phy->pll_u = devm_clk_get(phy->u_phy.dev, "pll_u");
 	if (IS_ERR(phy->pll_u)) {
 		pr_err("Can't get pll_u clock\n");
 		return PTR_ERR(phy->pll_u);
@@ -731,6 +784,16 @@ static int tegra_usb_phy_init(struct tegra_usb_phy *phy)
 		pr_err("invalid pll_u parent rate %ld\n", parent_rate);
 		err = -EINVAL;
 		goto fail;
+	}
+
+	if (!IS_ERR(phy->vbus)) {
+		err = regulator_enable(phy->vbus);
+		if (err) {
+			dev_err(phy->u_phy.dev,
+				"failed to enable usb vbus regulator: %d\n",
+				err);
+			goto fail;
+		}
 	}
 
 	if (phy->is_ulpi_phy)
@@ -784,11 +847,138 @@ void tegra_ehci_phy_restore_end(struct usb_phy *x)
 }
 EXPORT_SYMBOL_GPL(tegra_ehci_phy_restore_end);
 
+static int read_utmi_param(struct platform_device *pdev, const char *param,
+			   u8 *dest)
+{
+	u32 value;
+	int err = of_property_read_u32(pdev->dev.of_node, param, &value);
+	*dest = (u8)value;
+	if (err < 0)
+		dev_err(&pdev->dev, "Failed to read USB UTMI parameter %s: %d\n",
+			param, err);
+	return err;
+}
+
+static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
+			  struct platform_device *pdev)
+{
+	struct resource *res;
+	int err;
+	struct tegra_utmip_config *config;
+
+	tegra_phy->is_ulpi_phy = false;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res) {
+		dev_err(&pdev->dev, "Failed to get UTMI Pad regs\n");
+		return  -ENXIO;
+	}
+
+	tegra_phy->pad_regs = devm_ioremap(&pdev->dev, res->start,
+		resource_size(res));
+	if (!tegra_phy->regs) {
+		dev_err(&pdev->dev, "Failed to remap UTMI Pad regs\n");
+		return -ENOMEM;
+	}
+
+	tegra_phy->config = devm_kzalloc(&pdev->dev,
+		sizeof(*tegra_phy->config), GFP_KERNEL);
+	if (!tegra_phy->config) {
+		dev_err(&pdev->dev,
+			"unable to allocate memory for USB UTMIP config\n");
+		return -ENOMEM;
+	}
+
+	config = tegra_phy->config;
+
+	err = read_utmi_param(pdev, "nvidia,hssync-start-delay",
+		&config->hssync_start_delay);
+	if (err < 0)
+		return err;
+
+	err = read_utmi_param(pdev, "nvidia,elastic-limit",
+		&config->elastic_limit);
+	if (err < 0)
+		return err;
+
+	err = read_utmi_param(pdev, "nvidia,idle-wait-delay",
+		&config->idle_wait_delay);
+	if (err < 0)
+		return err;
+
+	err = read_utmi_param(pdev, "nvidia,term-range-adj",
+		&config->term_range_adj);
+	if (err < 0)
+		return err;
+
+	err = read_utmi_param(pdev, "nvidia,xcvr-lsfslew",
+		&config->xcvr_lsfslew);
+	if (err < 0)
+		return err;
+
+	err = read_utmi_param(pdev, "nvidia,xcvr-lsrslew",
+		&config->xcvr_lsrslew);
+	if (err < 0)
+		return err;
+
+	if (tegra_phy->soc_config->requires_extra_tuning_parameters) {
+		err = read_utmi_param(pdev, "nvidia,xcvr-hsslew",
+			&config->xcvr_hsslew);
+		if (err < 0)
+			return err;
+
+		err = read_utmi_param(pdev, "nvidia,hssquelch-level",
+			&config->hssquelch_level);
+		if (err < 0)
+			return err;
+
+		err = read_utmi_param(pdev, "nvidia,hsdiscon-level",
+			&config->hsdiscon_level);
+		if (err < 0)
+			return err;
+	}
+
+	config->xcvr_setup_use_fuses = of_property_read_bool(
+		pdev->dev.of_node, "nvidia,xcvr-setup-use-fuses");
+
+	if (!config->xcvr_setup_use_fuses) {
+		err = read_utmi_param(pdev, "nvidia,xcvr-setup",
+			&config->xcvr_setup);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static const struct tegra_phy_soc_config tegra20_soc_config = {
+	.utmi_pll_config_in_car_module = false,
+	.has_hostpc = false,
+	.requires_usbmode_setup = false,
+	.requires_extra_tuning_parameters = false,
+};
+
+static const struct tegra_phy_soc_config tegra30_soc_config = {
+	.utmi_pll_config_in_car_module = true,
+	.has_hostpc = true,
+	.requires_usbmode_setup = true,
+	.requires_extra_tuning_parameters = true,
+};
+
+static struct of_device_id tegra_usb_phy_id_table[] = {
+	{ .compatible = "nvidia,tegra30-usb-phy", .data = &tegra30_soc_config },
+	{ .compatible = "nvidia,tegra20-usb-phy", .data = &tegra20_soc_config },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tegra_usb_phy_id_table);
+
 static int tegra_usb_phy_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
 	struct resource *res;
 	struct tegra_usb_phy *tegra_phy = NULL;
 	struct device_node *np = pdev->dev.of_node;
+	enum usb_phy_interface phy_type;
 	int err;
 
 	tegra_phy = devm_kzalloc(&pdev->dev, sizeof(*tegra_phy), GFP_KERNEL);
@@ -796,6 +986,13 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to allocate memory for USB2 PHY\n");
 		return -ENOMEM;
 	}
+
+	match = of_match_device(tegra_usb_phy_id_table, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
+	}
+	tegra_phy->soc_config = match->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -813,23 +1010,15 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	tegra_phy->is_legacy_phy =
 		of_property_read_bool(np, "nvidia,has-legacy-mode");
 
-	err = of_property_match_string(np, "phy_type", "ulpi");
-	if (err < 0) {
-		tegra_phy->is_ulpi_phy = false;
+	phy_type = of_usb_get_phy_mode(np);
+	switch (phy_type) {
+	case USBPHY_INTERFACE_MODE_UTMI:
+		err = utmi_phy_probe(tegra_phy, pdev);
+		if (err < 0)
+			return err;
+		break;
 
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!res) {
-			dev_err(&pdev->dev, "Failed to get UTMI Pad regs\n");
-			return  -ENXIO;
-		}
-
-		tegra_phy->pad_regs = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
-		if (!tegra_phy->regs) {
-			dev_err(&pdev->dev, "Failed to remap UTMI Pad regs\n");
-			return -ENOMEM;
-		}
-	} else {
+	case USBPHY_INTERFACE_MODE_ULPI:
 		tegra_phy->is_ulpi_phy = true;
 
 		tegra_phy->reset_gpio =
@@ -839,19 +1028,35 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 				tegra_phy->reset_gpio);
 			return tegra_phy->reset_gpio;
 		}
+		tegra_phy->config = NULL;
+		break;
+
+	default:
+		dev_err(&pdev->dev, "phy_type is invalid or unsupported\n");
+		return -EINVAL;
 	}
 
-	err = of_property_match_string(np, "dr_mode", "otg");
-	if (err < 0) {
-		err = of_property_match_string(np, "dr_mode", "peripheral");
-		if (err < 0)
-			tegra_phy->mode = TEGRA_USB_PHY_MODE_HOST;
-		else
-			tegra_phy->mode = TEGRA_USB_PHY_MODE_DEVICE;
-	} else
-		tegra_phy->mode = TEGRA_USB_PHY_MODE_OTG;
+	if (of_find_property(np, "dr_mode", NULL))
+		tegra_phy->mode = of_usb_get_dr_mode(np);
+	else
+		tegra_phy->mode = USB_DR_MODE_HOST;
 
-	tegra_phy->dev = &pdev->dev;
+	if (tegra_phy->mode == USB_DR_MODE_UNKNOWN) {
+		dev_err(&pdev->dev, "dr_mode is invalid\n");
+		return -EINVAL;
+	}
+
+	/* On some boards, the VBUS regulator doesn't need to be controlled */
+	if (of_find_property(np, "vbus-supply", NULL)) {
+		tegra_phy->vbus = devm_regulator_get(&pdev->dev, "vbus");
+		if (IS_ERR(tegra_phy->vbus))
+			return PTR_ERR(tegra_phy->vbus);
+	} else {
+		dev_notice(&pdev->dev, "no vbus regulator");
+		tegra_phy->vbus = ERR_PTR(-ENODEV);
+	}
+
+	tegra_phy->u_phy.dev = &pdev->dev;
 	err = tegra_usb_phy_init(tegra_phy);
 	if (err < 0)
 		return err;
@@ -859,18 +1064,29 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	tegra_phy->u_phy.shutdown = tegra_usb_phy_close;
 	tegra_phy->u_phy.set_suspend = tegra_usb_phy_suspend;
 
-	dev_set_drvdata(&pdev->dev, tegra_phy);
+	platform_set_drvdata(pdev, tegra_phy);
+
+	err = usb_add_phy_dev(&tegra_phy->u_phy);
+	if (err < 0) {
+		tegra_usb_phy_close(&tegra_phy->u_phy);
+		return err;
+	}
+
 	return 0;
 }
 
-static struct of_device_id tegra_usb_phy_id_table[] = {
-	{ .compatible = "nvidia,tegra20-usb-phy", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, tegra_usb_phy_id_table);
+static int tegra_usb_phy_remove(struct platform_device *pdev)
+{
+	struct tegra_usb_phy *tegra_phy = platform_get_drvdata(pdev);
+
+	usb_remove_phy(&tegra_phy->u_phy);
+
+	return 0;
+}
 
 static struct platform_driver tegra_usb_phy_driver = {
 	.probe		= tegra_usb_phy_probe,
+	.remove		= tegra_usb_phy_remove,
 	.driver		= {
 		.name	= "tegra-phy",
 		.owner	= THIS_MODULE,
@@ -878,30 +1094,6 @@ static struct platform_driver tegra_usb_phy_driver = {
 	},
 };
 module_platform_driver(tegra_usb_phy_driver);
-
-static int tegra_usb_phy_match(struct device *dev, void *data)
-{
-	struct tegra_usb_phy *tegra_phy = dev_get_drvdata(dev);
-	struct device_node *dn = data;
-
-	return (tegra_phy->dev->of_node == dn) ? 1 : 0;
-}
-
-struct usb_phy *tegra_usb_get_phy(struct device_node *dn)
-{
-	struct device *dev;
-	struct tegra_usb_phy *tegra_phy;
-
-	dev = driver_find_device(&tegra_usb_phy_driver.driver, NULL, dn,
-				 tegra_usb_phy_match);
-	if (!dev)
-		return ERR_PTR(-EPROBE_DEFER);
-
-	tegra_phy = dev_get_drvdata(dev);
-
-	return &tegra_phy->u_phy;
-}
-EXPORT_SYMBOL_GPL(tegra_usb_get_phy);
 
 MODULE_DESCRIPTION("Tegra USB PHY driver");
 MODULE_LICENSE("GPL v2");

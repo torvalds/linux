@@ -1163,12 +1163,11 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		if (np->np_thread_state == ISCSI_NP_THREAD_RESET) {
 			spin_unlock_bh(&np->np_thread_lock);
 			complete(&np->np_restart_comp);
-			if (ret == -ENODEV) {
-				iscsit_put_transport(conn->conn_transport);
-				kfree(conn);
-				conn = NULL;
+			iscsit_put_transport(conn->conn_transport);
+			kfree(conn);
+			conn = NULL;
+			if (ret == -ENODEV)
 				goto out;
-			}
 			/* Get another socket */
 			return 1;
 		}

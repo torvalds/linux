@@ -139,38 +139,10 @@ enum {
 
 extern struct lu_fld_hash fld_hash[];
 
-
-struct fld_thread_info {
-	struct req_capsule *fti_pill;
-	__u64	       fti_key;
-	struct lu_seq_range fti_rec;
-	struct lu_seq_range fti_lrange;
-	struct lu_seq_range fti_irange;
-};
-
-extern struct lu_context_key fld_thread_key;
-
-int fld_index_init(const struct lu_env *env, struct lu_server_fld *fld,
-		   struct dt_device *dt);
-
-void fld_index_fini(const struct lu_env *env, struct lu_server_fld *fld);
-
-int fld_declare_index_create(const struct lu_env *env,
-			     struct lu_server_fld *fld,
-			     const struct lu_seq_range *new,
-			     struct thandle *th);
-
-int fld_index_create(const struct lu_env *env, struct lu_server_fld *fld,
-		     const struct lu_seq_range *new, struct thandle *th);
-
-int fld_index_lookup(const struct lu_env *env, struct lu_server_fld *fld,
-		     seqno_t seq, struct lu_seq_range *range);
-
 int fld_client_rpc(struct obd_export *exp,
 		   struct lu_seq_range *range, __u32 fld_op);
 
 #ifdef LPROCFS
-extern struct lprocfs_vars fld_server_proc_list[];
 extern struct lprocfs_vars fld_client_proc_list[];
 #endif
 
@@ -218,6 +190,5 @@ fld_target_name(struct lu_fld_target *tar)
 	return (const char *)tar->ft_exp->exp_obd->obd_name;
 }
 
-extern proc_dir_entry_t *fld_type_proc_dir;
-extern struct file_operations fld_proc_seq_fops;
+extern struct proc_dir_entry *fld_type_proc_dir;
 #endif /* __FLD_INTERNAL_H */

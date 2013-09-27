@@ -103,8 +103,8 @@ static int parse_one(char *param,
 			    || params[i].level > max_level)
 				return 0;
 			/* No one handled NULL, so do it here. */
-			if (!val && params[i].ops->set != param_set_bool
-			    && params[i].ops->set != param_set_bint)
+			if (!val &&
+			    !(params[i].ops->flags & KERNEL_PARAM_FL_NOARG))
 				return -EINVAL;
 			pr_debug("handling %s with %p\n", param,
 				params[i].ops->set);
@@ -241,7 +241,8 @@ int parse_args(const char *doing,
 	}								\
 	int param_get_##name(char *buffer, const struct kernel_param *kp) \
 	{								\
-		return sprintf(buffer, format, *((type *)kp->arg));	\
+		return scnprintf(buffer, PAGE_SIZE, format,		\
+				*((type *)kp->arg));			\
 	}								\
 	struct kernel_param_ops param_ops_##name = {			\
 		.set = param_set_##name,				\
@@ -252,7 +253,7 @@ int parse_args(const char *doing,
 	EXPORT_SYMBOL(param_ops_##name)
 
 
-STANDARD_PARAM_DEF(byte, unsigned char, "%c", unsigned long, strict_strtoul);
+STANDARD_PARAM_DEF(byte, unsigned char, "%hhu", unsigned long, strict_strtoul);
 STANDARD_PARAM_DEF(short, short, "%hi", long, strict_strtol);
 STANDARD_PARAM_DEF(ushort, unsigned short, "%hu", unsigned long, strict_strtoul);
 STANDARD_PARAM_DEF(int, int, "%i", long, strict_strtol);
@@ -285,7 +286,7 @@ EXPORT_SYMBOL(param_set_charp);
 
 int param_get_charp(char *buffer, const struct kernel_param *kp)
 {
-	return sprintf(buffer, "%s", *((char **)kp->arg));
+	return scnprintf(buffer, PAGE_SIZE, "%s", *((char **)kp->arg));
 }
 EXPORT_SYMBOL(param_get_charp);
 
@@ -320,6 +321,7 @@ int param_get_bool(char *buffer, const struct kernel_param *kp)
 EXPORT_SYMBOL(param_get_bool);
 
 struct kernel_param_ops param_ops_bool = {
+	.flags = KERNEL_PARAM_FL_NOARG,
 	.set = param_set_bool,
 	.get = param_get_bool,
 };
@@ -370,6 +372,7 @@ int param_set_bint(const char *val, const struct kernel_param *kp)
 EXPORT_SYMBOL(param_set_bint);
 
 struct kernel_param_ops param_ops_bint = {
+	.flags = KERNEL_PARAM_FL_NOARG,
 	.set = param_set_bint,
 	.get = param_get_int,
 };
@@ -827,7 +830,7 @@ ssize_t __modver_version_show(struct module_attribute *mattr,
 	struct module_version_attribute *vattr =
 		container_of(mattr, struct module_version_attribute, mattr);
 
-	return sprintf(buf, "%s\n", vattr->version);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", vattr->version);
 }
 
 extern const struct module_version_attribute *__start___modver[];
@@ -912,7 +915,14 @@ static const struct kset_uevent_ops module_uevent_ops = {
 struct kset *module_kset;
 int module_sysfs_initialized;
 
+static void module_kobj_release(struct kobject *kobj)
+{
+	struct module_kobject *mk = to_module_kobject(kobj);
+	complete(mk->kobj_completion);
+}
+
 struct kobj_type module_ktype = {
+	.release   =	module_kobj_release,
 	.sysfs_ops =	&module_sysfs_ops,
 };
 

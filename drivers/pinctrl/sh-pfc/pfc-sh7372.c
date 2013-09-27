@@ -23,27 +23,18 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
-
-#include <mach/irqs.h>
-#include <mach/sh7372.h>
+#include <linux/sh_intc.h>
 
 #include "core.h"
 #include "sh_pfc.h"
 
-#define CPU_ALL_PORT(fn, pfx, sfx) \
-	PORT_10(fn, pfx, sfx),		PORT_90(fn, pfx, sfx), \
-	PORT_10(fn, pfx##10, sfx),	PORT_10(fn, pfx##11, sfx), \
-	PORT_10(fn, pfx##12, sfx),	PORT_10(fn, pfx##13, sfx), \
-	PORT_10(fn, pfx##14, sfx),	PORT_10(fn, pfx##15, sfx), \
-	PORT_10(fn, pfx##16, sfx),	PORT_10(fn, pfx##17, sfx), \
-	PORT_10(fn, pfx##18, sfx),	PORT_1(fn, pfx##190, sfx)
-
-#undef _GPIO_PORT
-#define _GPIO_PORT(gpio, sfx)						\
-	[gpio] = {							\
-		.name = __stringify(PORT##gpio),			\
-		.enum_id = PORT##gpio##_DATA,				\
-	}
+#define CPU_ALL_PORT(fn, pfx, sfx)					\
+	PORT_10(0,  fn, pfx, sfx),	PORT_90(0,  fn, pfx, sfx),	\
+	PORT_10(100, fn, pfx##10, sfx),	PORT_10(110, fn, pfx##11, sfx),	\
+	PORT_10(120, fn, pfx##12, sfx),	PORT_10(130, fn, pfx##13, sfx),	\
+	PORT_10(140, fn, pfx##14, sfx),	PORT_10(150, fn, pfx##15, sfx),	\
+	PORT_10(160, fn, pfx##16, sfx),	PORT_10(170, fn, pfx##17, sfx),	\
+	PORT_10(180, fn, pfx##18, sfx),	PORT_1(190, fn, pfx##190, sfx)
 
 #define IRQC_PIN_MUX(irq, pin)						\
 static const unsigned int intc_irq##irq##_pins[] = {			\
@@ -391,11 +382,8 @@ enum {
 	PINMUX_MARK_END,
 };
 
-#define _PORT_DATA(pfx, sfx)	PORT_DATA_IO(pfx)
-#define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_PORT_DATA, , unused)
-
-static const pinmux_enum_t pinmux_data[] = {
-	PINMUX_DATA_GP_ALL(),
+static const u16 pinmux_data[] = {
+	PINMUX_DATA_ALL(),
 
 	/* IRQ */
 	PINMUX_DATA(IRQ0_6_MARK,	PORT6_FN0, 	MSEL1CR_0_0),
@@ -839,13 +827,6 @@ static const pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(MFIv4_MARK,		MSEL4CR_6_1),
 };
 
-#define SH7372_PIN(pin, cfgs)						\
-	{								\
-		.name = __stringify(PORT##pin),				\
-		.enum_id = PORT##pin##_DATA,				\
-		.configs = cfgs,					\
-	}
-
 #define __I		(SH_PFC_PIN_CFG_INPUT)
 #define __O		(SH_PFC_PIN_CFG_OUTPUT)
 #define __IO		(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
@@ -853,15 +834,15 @@ static const pinmux_enum_t pinmux_data[] = {
 #define __PU		(SH_PFC_PIN_CFG_PULL_UP)
 #define __PUD		(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
 
-#define SH7372_PIN_I_PD(pin)		SH7372_PIN(pin, __I | __PD)
-#define SH7372_PIN_I_PU(pin)		SH7372_PIN(pin, __I | __PU)
-#define SH7372_PIN_I_PU_PD(pin)		SH7372_PIN(pin, __I | __PUD)
-#define SH7372_PIN_IO(pin)		SH7372_PIN(pin, __IO)
-#define SH7372_PIN_IO_PD(pin)		SH7372_PIN(pin, __IO | __PD)
-#define SH7372_PIN_IO_PU(pin)		SH7372_PIN(pin, __IO | __PU)
-#define SH7372_PIN_IO_PU_PD(pin)	SH7372_PIN(pin, __IO | __PUD)
-#define SH7372_PIN_O(pin)		SH7372_PIN(pin, __O)
-#define SH7372_PIN_O_PU_PD(pin)		SH7372_PIN(pin, __O | __PUD)
+#define SH7372_PIN_I_PD(pin)		SH_PFC_PIN_CFG(pin, __I | __PD)
+#define SH7372_PIN_I_PU(pin)		SH_PFC_PIN_CFG(pin, __I | __PU)
+#define SH7372_PIN_I_PU_PD(pin)		SH_PFC_PIN_CFG(pin, __I | __PUD)
+#define SH7372_PIN_IO(pin)		SH_PFC_PIN_CFG(pin, __IO)
+#define SH7372_PIN_IO_PD(pin)		SH_PFC_PIN_CFG(pin, __IO | __PD)
+#define SH7372_PIN_IO_PU(pin)		SH_PFC_PIN_CFG(pin, __IO | __PU)
+#define SH7372_PIN_IO_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __IO | __PUD)
+#define SH7372_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
+#define SH7372_PIN_O_PU_PD(pin)		SH_PFC_PIN_CFG(pin, __O | __PUD)
 
 static struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 57-1 (I/O and Pull U/D) */

@@ -1122,9 +1122,13 @@ static int gsc_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ret = gsc_register_m2m_device(gsc);
+	ret = v4l2_device_register(dev, &gsc->v4l2_dev);
 	if (ret)
 		goto err_clk;
+
+	ret = gsc_register_m2m_device(gsc);
+	if (ret)
+		goto err_v4l2;
 
 	platform_set_drvdata(pdev, gsc);
 	pm_runtime_enable(dev);
@@ -1147,6 +1151,8 @@ err_pm:
 	pm_runtime_put(dev);
 err_m2m:
 	gsc_unregister_m2m_device(gsc);
+err_v4l2:
+	v4l2_device_unregister(&gsc->v4l2_dev);
 err_clk:
 	gsc_clk_put(gsc);
 	return ret;
@@ -1157,6 +1163,7 @@ static int gsc_remove(struct platform_device *pdev)
 	struct gsc_dev *gsc = platform_get_drvdata(pdev);
 
 	gsc_unregister_m2m_device(gsc);
+	v4l2_device_unregister(&gsc->v4l2_dev);
 
 	vb2_dma_contig_cleanup_ctx(gsc->alloc_ctx);
 	pm_runtime_disable(&pdev->dev);
@@ -1210,12 +1217,12 @@ static int gsc_resume(struct device *dev)
 		spin_unlock_irqrestore(&gsc->slock, flags);
 		return 0;
 	}
-	gsc_hw_set_sw_reset(gsc);
-	gsc_wait_reset(gsc);
-
 	spin_unlock_irqrestore(&gsc->slock, flags);
 
-	return gsc_m2m_resume(gsc);
+	if (!pm_runtime_suspended(dev))
+		return gsc_runtime_resume(dev);
+
+	return 0;
 }
 
 static int gsc_suspend(struct device *dev)
@@ -1227,7 +1234,10 @@ static int gsc_suspend(struct device *dev)
 	if (test_and_set_bit(ST_SUSPEND, &gsc->state))
 		return 0;
 
-	return gsc_m2m_suspend(gsc);
+	if (!pm_runtime_suspended(dev))
+		return gsc_runtime_suspend(dev);
+
+	return 0;
 }
 
 static const struct dev_pm_ops gsc_pm_ops = {

@@ -58,7 +58,7 @@ static int __net_init ip6table_security_net_init(struct net *net)
 	net->ipv6.ip6table_security =
 		ip6t_register_table(net, &security_table, repl);
 	kfree(repl);
-	return PTR_RET(net->ipv6.ip6table_security);
+	return PTR_ERR_OR_ZERO(net->ipv6.ip6table_security);
 }
 
 static void __net_exit ip6table_security_net_exit(struct net *net)

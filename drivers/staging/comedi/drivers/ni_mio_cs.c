@@ -36,6 +36,7 @@ See the notes in the ni_atmio.o driver.
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>

@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/of_i2c.h>
+#include <linux/i2c.h>
 #include <linux/clk.h>
 #include <sound/soc.h>
 
@@ -129,8 +129,10 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	}
 
 	data->codec_clk = devm_clk_get(&codec_dev->dev, NULL);
-	if (IS_ERR(data->codec_clk))
+	if (IS_ERR(data->codec_clk)) {
+		ret = PTR_ERR(data->codec_clk);
 		goto fail;
+	}
 
 	data->clk_frequency = clk_get_rate(data->codec_clk);
 

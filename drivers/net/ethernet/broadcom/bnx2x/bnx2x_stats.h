@@ -539,6 +539,9 @@ struct bnx2x;
 void bnx2x_memset_stats(struct bnx2x *bp);
 void bnx2x_stats_init(struct bnx2x *bp);
 void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event);
+void bnx2x_stats_safe_exec(struct bnx2x *bp,
+			   void (func_to_exec)(void *cookie),
+			   void *cookie);
 
 /**
  * bnx2x_save_statistics - save statistics when unloading.

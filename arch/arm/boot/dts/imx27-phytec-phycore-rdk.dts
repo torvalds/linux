@@ -35,3 +35,16 @@
 	fsl,uart-has-rtscts;
 	status = "okay";
 };
+
+&weim {
+	can@d4000000 {
+		compatible = "nxp,sja1000";
+		reg = <4 0x00000000 0x00000100>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <19 0x2>;
+		nxp,external-clock-frequency = <16000000>;
+		nxp,tx-output-config = <0x16>;
+		nxp,no-comparator-bypass;
+		fsl,weim-cs-timing = <0x0000dcf6 0x444a0301 0x44443302>;
+	};
+};

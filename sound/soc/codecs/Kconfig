@@ -10,6 +10,7 @@ config SND_SOC_I2C_AND_SPI
 
 config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
+	depends on COMPILE_TEST
 	select SND_SOC_88PM860X if MFD_88PM860X
 	select SND_SOC_L3
 	select SND_SOC_AB8500_CODEC if ABX500_CORE
@@ -20,6 +21,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AD73311
 	select SND_SOC_ADAU1373 if I2C
 	select SND_SOC_ADAV80X if SND_SOC_I2C_AND_SPI
+	select SND_SOC_ADAU1701 if I2C
 	select SND_SOC_ADS117X
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
@@ -54,6 +56,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
 	select SND_SOC_HDMI_CODEC
+	select SND_SOC_PCM1681 if I2C
+	select SND_SOC_PCM1792A if SPI_MASTER
 	select SND_SOC_PCM3008
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5640 if I2C
@@ -122,6 +126,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8994 if MFD_WM8994
 	select SND_SOC_WM8995 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8996 if I2C
+	select SND_SOC_WM8997 if MFD_WM8997
 	select SND_SOC_WM9081 if I2C
 	select SND_SOC_WM9090 if I2C
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
@@ -145,8 +150,10 @@ config SND_SOC_ARIZONA
 	tristate
 	default y if SND_SOC_WM5102=y
 	default y if SND_SOC_WM5110=y
+	default y if SND_SOC_WM8997=y
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
+	default m if SND_SOC_WM8997=m
 
 config SND_SOC_WM_HUBS
 	tristate
@@ -196,6 +203,9 @@ config SND_SOC_AK4104
 	tristate
 
 config SND_SOC_AK4535
+	tristate
+
+config SND_SOC_AK4554
 	tristate
 
 config SND_SOC_AK4641
@@ -290,6 +300,12 @@ config SND_SOC_MAX9850
 	tristate
 
 config SND_SOC_HDMI_CODEC
+       tristate
+
+config SND_SOC_PCM1681
+       tristate
+
+config SND_SOC_PCM1792A
        tristate
 
 config SND_SOC_PCM3008
@@ -498,6 +514,9 @@ config SND_SOC_WM8995
 	tristate
 
 config SND_SOC_WM8996
+	tristate
+
+config SND_SOC_WM8997
 	tristate
 
 config SND_SOC_WM9081

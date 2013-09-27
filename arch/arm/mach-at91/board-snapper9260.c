@@ -26,7 +26,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

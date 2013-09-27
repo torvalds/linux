@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2011 Freescale Semiconductor, Inc.
+ * Copyright 2010-2011, 2013 Freescale Semiconductor, Inc.
  *
  * Author: Roy Zang <tie-fei.zang@freescale.com>
  *
@@ -86,6 +86,7 @@ static void __init mpc85xx_rds_setup_arch(void)
 }
 
 machine_arch_initcall(p1023_rds, mpc85xx_common_publish_devices);
+machine_arch_initcall(p1023_rdb, mpc85xx_common_publish_devices);
 
 static void __init mpc85xx_rds_pic_init(void)
 {
@@ -106,6 +107,14 @@ static int __init p1023_rds_probe(void)
 
 }
 
+static int __init p1023_rdb_probe(void)
+{
+	unsigned long root = of_get_flat_dt_root();
+
+	return of_flat_dt_is_compatible(root, "fsl,P1023RDB");
+
+}
+
 define_machine(p1023_rds) {
 	.name			= "P1023 RDS",
 	.probe			= p1023_rds_probe,
@@ -120,3 +129,16 @@ define_machine(p1023_rds) {
 #endif
 };
 
+define_machine(p1023_rdb) {
+	.name			= "P1023 RDB",
+	.probe			= p1023_rdb_probe,
+	.setup_arch		= mpc85xx_rds_setup_arch,
+	.init_IRQ		= mpc85xx_rds_pic_init,
+	.get_irq		= mpic_get_irq,
+	.restart		= fsl_rstcr_restart,
+	.calibrate_decr		= generic_calibrate_decr,
+	.progress		= udbg_progress,
+#ifdef CONFIG_PCI
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+#endif
+};

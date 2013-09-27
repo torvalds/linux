@@ -23,6 +23,10 @@ Required Properties:
 Please refer to gpio.txt in this directory for details of gpio-ranges property
 and the common GPIO bindings used by client devices.
 
+The GPIO controller also acts as an interrupt controller. It uses the default
+two cells specifier as described in Documentation/devicetree/bindings/
+interrupt-controller/interrupts.txt.
+
 Example: R8A7779 (R-Car H1) GPIO controller nodes
 
 	gpio0: gpio@ffc40000 {
@@ -33,6 +37,8 @@ Example: R8A7779 (R-Car H1) GPIO controller nodes
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 0 32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 	};
 	...
 	gpio6: gpio@ffc46000 {
@@ -43,4 +49,6 @@ Example: R8A7779 (R-Car H1) GPIO controller nodes
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 192 9>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 	};

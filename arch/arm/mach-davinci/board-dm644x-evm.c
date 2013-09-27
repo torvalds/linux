@@ -727,10 +727,6 @@ static struct platform_device *davinci_evm_devices[] __initdata = {
 	&rtc_dev,
 };
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 static void __init
 davinci_evm_map_io(void)
 {
@@ -792,7 +788,7 @@ static __init void davinci_evm_init(void)
 	davinci_setup_mmc(0, &dm6446evm_mmc_config);
 	dm644x_init_video(&dm644xevm_capture_cfg, &dm644xevm_display_cfg);
 
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm644x_serial_device);
 	dm644x_init_asp(&dm644x_evm_snd_data);
 
 	/* irlml6401 switches over 1A, in under 8 msec */

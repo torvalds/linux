@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "exynos5250.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
@@ -37,6 +38,28 @@
 		s5m8767_pmic@66 {
 			compatible = "samsung,s5m8767-pmic";
 			reg = <0x66>;
+			interrupt-parent = <&gpx3>;
+			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+
+			vinb1-supply = <&main_dc_reg>;
+			vinb2-supply = <&main_dc_reg>;
+			vinb3-supply = <&main_dc_reg>;
+			vinb4-supply = <&main_dc_reg>;
+			vinb5-supply = <&main_dc_reg>;
+			vinb6-supply = <&main_dc_reg>;
+			vinb7-supply = <&main_dc_reg>;
+			vinb8-supply = <&main_dc_reg>;
+			vinb9-supply = <&main_dc_reg>;
+
+			vinl1-supply = <&buck7_reg>;
+			vinl2-supply = <&buck7_reg>;
+			vinl3-supply = <&buck7_reg>;
+			vinl4-supply = <&main_dc_reg>;
+			vinl5-supply = <&main_dc_reg>;
+			vinl6-supply = <&main_dc_reg>;
+			vinl7-supply = <&main_dc_reg>;
+			vinl8-supply = <&buck8_reg>;
+			vinl9-supply = <&buck8_reg>;
 
 			s5m8767,pmic-buck2-dvs-voltage = <1300000>;
 			s5m8767,pmic-buck3-dvs-voltage = <1100000>;
@@ -276,6 +299,16 @@
 					op_mode = <1>;
 				};
 
+				buck7_reg: BUCK7 {
+					regulator-name = "PVDD_BUCK7";
+					regulator-always-on;
+				};
+
+				buck8_reg: BUCK8 {
+					regulator-name = "PVDD_BUCK8";
+					regulator-always-on;
+				};
+
 				buck9_reg: BUCK9 {
 					regulator-name = "VDD_33_OFF_EXT1";
 					regulator-min-microvolt = <750000>;
@@ -295,7 +328,22 @@
 	};
 
 	i2c@12C90000 {
-		status = "disabled";
+		wm1811a@1a {
+			compatible = "wlf,wm1811";
+			reg = <0x1a>;
+
+			AVDD2-supply = <&main_dc_reg>;
+			CPVDD-supply = <&main_dc_reg>;
+			DBVDD1-supply = <&main_dc_reg>;
+			DBVDD2-supply = <&main_dc_reg>;
+			DBVDD3-supply = <&main_dc_reg>;
+			LDO1VDD-supply = <&main_dc_reg>;
+			SPKVDD1-supply = <&main_dc_reg>;
+			SPKVDD2-supply = <&main_dc_reg>;
+
+			wlf,ldo1ena = <&gpb0 0 0>;
+			wlf,ldo2ena = <&gpb0 1 0>;
+		};
 	};
 
 	i2c@12CA0000 {
@@ -429,18 +477,29 @@
 		vdd-supply = <&ldo8_reg>;
 	};
 
-	mmc_reg: voltage-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "VDD_33ON_2.8V";
-		regulator-min-microvolt = <2800000>;
-		regulator-max-microvolt = <2800000>;
-		gpio = <&gpx1 1 1>;
-		enable-active-high;
-	};
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	reg_hdmi_en: fixedregulator@0 {
-		compatible = "regulator-fixed";
-		regulator-name = "hdmi-en";
+		main_dc_reg: fixedregulator@1 {
+			compatible = "regulator-fixed";
+			regulator-name = "MAIN_DC";
+		};
+
+		mmc_reg: voltage-regulator {
+			compatible = "regulator-fixed";
+			regulator-name = "VDD_33ON_2.8V";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			gpio = <&gpx1 1 1>;
+			enable-active-high;
+		};
+
+		reg_hdmi_en: fixedregulator@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "hdmi-en";
+		};
 	};
 
 	fixed-rate-clocks {
@@ -450,16 +509,18 @@
 		};
 	};
 
-	dp-controller {
+	dp-controller@145B0000 {
 		samsung,color-space = <0>;
 		samsung,dynamic-range = <0>;
 		samsung,ycbcr-coeff = <0>;
 		samsung,color-depth = <1>;
 		samsung,link-rate = <0x0a>;
 		samsung,lane-count = <4>;
+		status = "okay";
 	};
 
 	fimd: fimd@14400000 {
+		status = "okay";
 		display-timings {
 			native-mode = <&timing0>;
 			timing0: timing@0 {
@@ -479,5 +540,23 @@
 
 	rtc {
 		status = "okay";
+	};
+
+	usb_hub_bus {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		// SMSC USB3503 connected in hardware only mode as a PHY
+		usb_hub: usb_hub {
+			compatible = "smsc,usb3503a";
+
+			reset-gpios = <&gpx3 5 1>;
+			connect-gpios = <&gpd1 7 1>;
+		};
+	};
+
+	usb@12110000 {
+		usb-phy = <&usb2_phy>;
 	};
 };

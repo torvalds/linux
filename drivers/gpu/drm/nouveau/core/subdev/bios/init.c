@@ -2165,7 +2165,7 @@ nvbios_init(struct nouveau_subdev *subdev, bool execute)
 	u16 data;
 
 	if (execute)
-		nv_info(bios, "running init tables\n");
+		nv_suspend(bios, "running init tables\n");
 	while (!ret && (data = (init_script(bios, ++i)))) {
 		struct nvbios_init init = {
 			.subdev = subdev,

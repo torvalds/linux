@@ -472,10 +472,22 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	lpfc_sli_read_link_ste(phba);
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
-	if (phba->cfg_hba_queue_depth > (mb->un.varRdConfig.max_xri+1))
-		phba->cfg_hba_queue_depth =
-			(mb->un.varRdConfig.max_xri + 1) -
-					lpfc_sli4_get_els_iocb_cnt(phba);
+	i = (mb->un.varRdConfig.max_xri + 1);
+	if (phba->cfg_hba_queue_depth > i) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"3359 HBA queue depth changed from %d to %d\n",
+				phba->cfg_hba_queue_depth, i);
+		phba->cfg_hba_queue_depth = i;
+	}
+
+	/* Reset the DFT_LUN_Q_DEPTH to (max xri >> 3)  */
+	i = (mb->un.varRdConfig.max_xri >> 3);
+	if (phba->pport->cfg_lun_queue_depth > i) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"3360 LUN queue depth changed from %d to %d\n",
+				phba->pport->cfg_lun_queue_depth, i);
+		phba->pport->cfg_lun_queue_depth = i;
+	}
 
 	phba->lmt = mb->un.varRdConfig.lmt;
 
@@ -4901,9 +4913,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	lpfc_get_cfgparam(phba);
 	phba->max_vpi = LPFC_MAX_VPI;
 
-	/* Eventually cfg_fcp_eq_count / cfg_fcp_wq_count will be depricated */
-	phba->cfg_fcp_io_channel = phba->cfg_fcp_eq_count;
-
 	/* This will be set to correct value after the read_config mbox */
 	phba->max_vports = 0;
 
@@ -6664,12 +6673,14 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		goto read_cfg_out;
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
-	if (phba->cfg_hba_queue_depth >
-		(phba->sli4_hba.max_cfg_param.max_xri -
-			lpfc_sli4_get_els_iocb_cnt(phba)))
-		phba->cfg_hba_queue_depth =
-			phba->sli4_hba.max_cfg_param.max_xri -
-				lpfc_sli4_get_els_iocb_cnt(phba);
+	length = phba->sli4_hba.max_cfg_param.max_xri -
+			lpfc_sli4_get_els_iocb_cnt(phba);
+	if (phba->cfg_hba_queue_depth > length) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"3361 HBA queue depth changed from %d to %d\n",
+				phba->cfg_hba_queue_depth, length);
+		phba->cfg_hba_queue_depth = length;
+	}
 
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
 	    LPFC_SLI_INTF_IF_TYPE_2)
@@ -6859,11 +6870,7 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 		cfg_fcp_io_channel = phba->sli4_hba.max_cfg_param.max_eq;
 	}
 
-	/* Eventually cfg_fcp_eq_count / cfg_fcp_wq_count will be depricated */
-
 	/* The actual number of FCP event queues adopted */
-	phba->cfg_fcp_eq_count = cfg_fcp_io_channel;
-	phba->cfg_fcp_wq_count = cfg_fcp_io_channel;
 	phba->cfg_fcp_io_channel = cfg_fcp_io_channel;
 
 	/* Get EQ depth from module parameter, fake the default for now */
@@ -9154,6 +9161,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	sli4_params->mqv = bf_get(cfg_mqv, mbx_sli4_parameters);
 	sli4_params->wqv = bf_get(cfg_wqv, mbx_sli4_parameters);
 	sli4_params->rqv = bf_get(cfg_rqv, mbx_sli4_parameters);
+	sli4_params->wqsize = bf_get(cfg_wqsize, mbx_sli4_parameters);
 	sli4_params->sgl_pages_max = bf_get(cfg_sgl_page_cnt,
 					    mbx_sli4_parameters);
 	sli4_params->sgl_pp_align = bf_get(cfg_sgl_pp_align,

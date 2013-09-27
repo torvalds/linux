@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 
 struct device;
+struct device_node;
 struct v4l2_device;
 struct v4l2_subdev;
 struct v4l2_async_notifier;
@@ -22,10 +23,11 @@ struct v4l2_async_notifier;
 /* A random max subdevice number, used to allocate an array on stack */
 #define V4L2_MAX_SUBDEVS 128U
 
-enum v4l2_async_bus_type {
-	V4L2_ASYNC_BUS_CUSTOM,
-	V4L2_ASYNC_BUS_PLATFORM,
-	V4L2_ASYNC_BUS_I2C,
+enum v4l2_async_match_type {
+	V4L2_ASYNC_MATCH_CUSTOM,
+	V4L2_ASYNC_MATCH_DEVNAME,
+	V4L2_ASYNC_MATCH_I2C,
+	V4L2_ASYNC_MATCH_OF,
 };
 
 /**
@@ -36,11 +38,14 @@ enum v4l2_async_bus_type {
  *		probed, to a notifier->waiting list
  */
 struct v4l2_async_subdev {
-	enum v4l2_async_bus_type bus_type;
+	enum v4l2_async_match_type match_type;
 	union {
 		struct {
+			const struct device_node *node;
+		} of;
+		struct {
 			const char *name;
-		} platform;
+		} device_name;
 		struct {
 			int adapter_id;
 			unsigned short address;
@@ -57,25 +62,12 @@ struct v4l2_async_subdev {
 };
 
 /**
- * v4l2_async_subdev_list - provided by subdevices
- * @list:	links struct v4l2_async_subdev_list objects to a global list
- *		before probing, and onto notifier->done after probing
- * @asd:	pointer to respective struct v4l2_async_subdev
- * @notifier:	pointer to managing notifier
- */
-struct v4l2_async_subdev_list {
-	struct list_head list;
-	struct v4l2_async_subdev *asd;
-	struct v4l2_async_notifier *notifier;
-};
-
-/**
  * v4l2_async_notifier - v4l2_device notifier data
  * @num_subdevs:number of subdevices
- * @subdev:	array of pointers to subdevice descriptors
+ * @subdevs:	array of pointers to subdevice descriptors
  * @v4l2_dev:	pointer to struct v4l2_device
  * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
- * @done:	list of struct v4l2_async_subdev_list, already probed
+ * @done:	list of struct v4l2_subdev, already probed
  * @list:	member in a global list of notifiers
  * @bound:	a subdevice driver has successfully probed one of subdevices
  * @complete:	all subdevices have been probed successfully
@@ -83,7 +75,7 @@ struct v4l2_async_subdev_list {
  */
 struct v4l2_async_notifier {
 	unsigned int num_subdevs;
-	struct v4l2_async_subdev **subdev;
+	struct v4l2_async_subdev **subdevs;
 	struct v4l2_device *v4l2_dev;
 	struct list_head waiting;
 	struct list_head done;
