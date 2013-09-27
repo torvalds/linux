@@ -3837,7 +3837,10 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC6_THRESHOLD, 0xc350);
 
 	/* allows RC6 residency counter to work */
-	I915_WRITE(0x138104, _MASKED_BIT_ENABLE(0x3));
+	I915_WRITE(VLV_COUNTER_CONTROL,
+		   _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH |
+				      VLV_MEDIA_RC6_COUNT_EN |
+				      VLV_RENDER_RC6_COUNT_EN));
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
 		rc6_mode = GEN7_RC_CTL_TO_MODE;
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
