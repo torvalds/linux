@@ -1212,28 +1212,29 @@ static int be_set_vf_vlan(struct net_device *netdev,
 			int vf, u16 vlan, u8 qos)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
 	int status = 0;
 
 	if (!sriov_enabled(adapter))
 		return -EPERM;
 
-	if (vf >= adapter->num_vfs || vlan > 4095)
+	if (vf >= adapter->num_vfs || vlan > 4095 || qos > 7)
 		return -EINVAL;
 
-	if (vlan) {
-		if (adapter->vf_cfg[vf].vlan_tag != vlan) {
+	if (vlan || qos) {
+		vlan |= qos << VLAN_PRIO_SHIFT;
+		if (vf_cfg->vlan_tag != vlan) {
 			/* If this is new value, program it. Else skip. */
-			adapter->vf_cfg[vf].vlan_tag = vlan;
-
-			status = be_cmd_set_hsw_config(adapter, vlan,
-				vf + 1, adapter->vf_cfg[vf].if_handle, 0);
+			vf_cfg->vlan_tag = vlan;
+			status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
+						       vf_cfg->if_handle, 0);
 		}
 	} else {
 		/* Reset Transparent Vlan Tagging. */
-		adapter->vf_cfg[vf].vlan_tag = 0;
-		vlan = adapter->vf_cfg[vf].def_vid;
+		vf_cfg->vlan_tag = 0;
+		vlan = vf_cfg->def_vid;
 		status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
-			adapter->vf_cfg[vf].if_handle, 0);
+					       vf_cfg->if_handle, 0);
 	}
 
 
