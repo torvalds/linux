@@ -1239,11 +1239,16 @@ static void ad_port_selection_logic(struct port *port)
 {
 	struct aggregator *aggregator, *free_aggregator = NULL, *temp_aggregator;
 	struct port *last_port = NULL, *curr_port;
+	struct list_head *iter;
+	struct bonding *bond;
+	struct slave *slave;
 	int found = 0;
 
 	// if the port is already Selected, do nothing
 	if (port->sm_vars & AD_PORT_SELECTED)
 		return;
+
+	bond = __get_bond_by_port(port);
 
 	// if the port is connected to other aggregator, detach it
 	if (port->aggregator) {
@@ -1285,8 +1290,8 @@ static void ad_port_selection_logic(struct port *port)
 		}
 	}
 	// search on all aggregators for a suitable aggregator for this port
-	for (aggregator = __get_first_agg(port); aggregator;
-	     aggregator = __get_next_agg(aggregator)) {
+	bond_for_each_slave(bond, slave, iter) {
+		aggregator = &(SLAVE_AD_INFO(slave).aggregator);
 
 		// keep a free aggregator for later use(if needed)
 		if (!aggregator->lag_ports) {
