@@ -1266,6 +1266,18 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_get_edid);
 
+/**
+ * drm_edid_duplicate - duplicate an EDID and the extensions
+ * @edid: EDID to duplicate
+ *
+ * Return duplicate edid or NULL on allocation failure.
+ */
+struct edid *drm_edid_duplicate(const struct edid *edid)
+{
+	return kmemdup(edid, (edid->extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+}
+EXPORT_SYMBOL(drm_edid_duplicate);
+
 /*** EDID parsing ***/
 
 /**
