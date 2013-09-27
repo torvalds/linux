@@ -197,11 +197,8 @@ static void nslu2_power_off(void)
 {
 	/* This causes the box to drop the power and go dead. */
 
-	/* enable the pwr cntl gpio */
-	gpio_line_config(NSLU2_PO_GPIO, IXP4XX_GPIO_OUT);
-
-	/* do the deed */
-	gpio_line_set(NSLU2_PO_GPIO, IXP4XX_GPIO_HIGH);
+	/* enable the pwr cntl gpio and assert power off */
+	gpio_direction_output(NSLU2_PO_GPIO, 1);
 }
 
 static irqreturn_t nslu2_power_handler(int irq, void *dev_id)
@@ -222,6 +219,16 @@ static irqreturn_t nslu2_reset_handler(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+
+static int __init nslu2_gpio_init(void)
+{
+	if (!machine_is_nslu2())
+		return 0;
+
+	/* Request the power off GPIO */
+	return gpio_request(NSLU2_PO_GPIO, "power off");
+}
+device_initcall(nslu2_gpio_init);
 
 static void __init nslu2_timer_init(void)
 {
