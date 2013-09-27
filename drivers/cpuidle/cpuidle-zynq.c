@@ -28,7 +28,6 @@
 #include <linux/init.h>
 #include <linux/cpu_pm.h>
 #include <linux/cpuidle.h>
-#include <linux/of.h>
 #include <asm/proc-fns.h>
 #include <asm/cpuidle.h>
 
@@ -72,9 +71,6 @@ static struct cpuidle_driver zynq_idle_driver = {
 /* Initialize CPU idle by registering the idle states */
 static int __init zynq_cpuidle_init(void)
 {
-	if (!of_machine_is_compatible("xlnx,zynq-7000"))
-		return -ENODEV;
-
 	pr_info("Xilinx Zynq CpuIdle Driver started\n");
 
 	return cpuidle_register(&zynq_idle_driver, NULL);
