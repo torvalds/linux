@@ -1890,78 +1890,6 @@ static int ext4_writepage(struct page *page,
 	return ret;
 }
 
-#define BH_FLAGS ((1 << BH_Unwritten) | (1 << BH_Delay))
-
-/*
- * mballoc gives us at most this number of blocks...
- * XXX: That seems to be only a limitation of ext4_mb_normalize_request().
- * The rest of mballoc seems to handle chunks upto full group size.
- */
-#define MAX_WRITEPAGES_EXTENT_LEN 2048
-
-/*
- * mpage_add_bh_to_extent - try to add bh to extent of blocks to map
- *
- * @mpd - extent of blocks
- * @lblk - logical number of the block in the file
- * @b_state - b_state of the buffer head added
- *
- * the function is used to collect contig. blocks in same state
- */
-static int mpage_add_bh_to_extent(struct mpage_da_data *mpd, ext4_lblk_t lblk,
-				  unsigned long b_state)
-{
-	struct ext4_map_blocks *map = &mpd->map;
-
-	/* Don't go larger than mballoc is willing to allocate */
-	if (map->m_len >= MAX_WRITEPAGES_EXTENT_LEN)
-		return 0;
-
-	/* First block in the extent? */
-	if (map->m_len == 0) {
-		map->m_lblk = lblk;
-		map->m_len = 1;
-		map->m_flags = b_state & BH_FLAGS;
-		return 1;
-	}
-
-	/* Can we merge the block to our big extent? */
-	if (lblk == map->m_lblk + map->m_len &&
-	    (b_state & BH_FLAGS) == map->m_flags) {
-		map->m_len++;
-		return 1;
-	}
-	return 0;
-}
-
-static bool add_page_bufs_to_extent(struct mpage_da_data *mpd,
-				    struct buffer_head *head,
-				    struct buffer_head *bh,
-				    ext4_lblk_t lblk)
-{
-	struct inode *inode = mpd->inode;
-	ext4_lblk_t blocks = (i_size_read(inode) + (1 << inode->i_blkbits) - 1)
-							>> inode->i_blkbits;
-
-	do {
-		BUG_ON(buffer_locked(bh));
-
-		if (!buffer_dirty(bh) || !buffer_mapped(bh) ||
-		    (!buffer_delay(bh) && !buffer_unwritten(bh)) ||
-		    lblk >= blocks) {
-			/* Found extent to map? */
-			if (mpd->map.m_len)
-				return false;
-			if (lblk >= blocks)
-				return true;
-			continue;
-		}
-		if (!mpage_add_bh_to_extent(mpd, lblk, bh->b_state))
-			return false;
-	} while (lblk++, (bh = bh->b_this_page) != head);
-	return true;
-}
-
 static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
 {
 	int len;
@@ -1980,6 +1908,110 @@ static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
 	mpd->first_page++;
 
 	return err;
+}
+
+#define BH_FLAGS ((1 << BH_Unwritten) | (1 << BH_Delay))
+
+/*
+ * mballoc gives us at most this number of blocks...
+ * XXX: That seems to be only a limitation of ext4_mb_normalize_request().
+ * The rest of mballoc seems to handle chunks upto full group size.
+ */
+#define MAX_WRITEPAGES_EXTENT_LEN 2048
+
+/*
+ * mpage_add_bh_to_extent - try to add bh to extent of blocks to map
+ *
+ * @mpd - extent of blocks
+ * @lblk - logical number of the block in the file
+ * @bh - buffer head we want to add to the extent
+ *
+ * The function is used to collect contig. blocks in the same state. If the
+ * buffer doesn't require mapping for writeback and we haven't started the
+ * extent of buffers to map yet, the function returns 'true' immediately - the
+ * caller can write the buffer right away. Otherwise the function returns true
+ * if the block has been added to the extent, false if the block couldn't be
+ * added.
+ */
+static bool mpage_add_bh_to_extent(struct mpage_da_data *mpd, ext4_lblk_t lblk,
+				   struct buffer_head *bh)
+{
+	struct ext4_map_blocks *map = &mpd->map;
+
+	/* Buffer that doesn't need mapping for writeback? */
+	if (!buffer_dirty(bh) || !buffer_mapped(bh) ||
+	    (!buffer_delay(bh) && !buffer_unwritten(bh))) {
+		/* So far no extent to map => we write the buffer right away */
+		if (map->m_len == 0)
+			return true;
+		return false;
+	}
+
+	/* First block in the extent? */
+	if (map->m_len == 0) {
+		map->m_lblk = lblk;
+		map->m_len = 1;
+		map->m_flags = bh->b_state & BH_FLAGS;
+		return true;
+	}
+
+	/* Don't go larger than mballoc is willing to allocate */
+	if (map->m_len >= MAX_WRITEPAGES_EXTENT_LEN)
+		return false;
+
+	/* Can we merge the block to our big extent? */
+	if (lblk == map->m_lblk + map->m_len &&
+	    (bh->b_state & BH_FLAGS) == map->m_flags) {
+		map->m_len++;
+		return true;
+	}
+	return false;
+}
+
+/*
+ * mpage_process_page_bufs - submit page buffers for IO or add them to extent
+ *
+ * @mpd - extent of blocks for mapping
+ * @head - the first buffer in the page
+ * @bh - buffer we should start processing from
+ * @lblk - logical number of the block in the file corresponding to @bh
+ *
+ * Walk through page buffers from @bh upto @head (exclusive) and either submit
+ * the page for IO if all buffers in this page were mapped and there's no
+ * accumulated extent of buffers to map or add buffers in the page to the
+ * extent of buffers to map. The function returns 1 if the caller can continue
+ * by processing the next page, 0 if it should stop adding buffers to the
+ * extent to map because we cannot extend it anymore. It can also return value
+ * < 0 in case of error during IO submission.
+ */
+static int mpage_process_page_bufs(struct mpage_da_data *mpd,
+				   struct buffer_head *head,
+				   struct buffer_head *bh,
+				   ext4_lblk_t lblk)
+{
+	struct inode *inode = mpd->inode;
+	int err;
+	ext4_lblk_t blocks = (i_size_read(inode) + (1 << inode->i_blkbits) - 1)
+							>> inode->i_blkbits;
+
+	do {
+		BUG_ON(buffer_locked(bh));
+
+		if (lblk >= blocks || !mpage_add_bh_to_extent(mpd, lblk, bh)) {
+			/* Found extent to map? */
+			if (mpd->map.m_len)
+				return 0;
+			/* Everything mapped so far and we hit EOF */
+			break;
+		}
+	} while (lblk++, (bh = bh->b_this_page) != head);
+	/* So far everything mapped? Submit the page for IO. */
+	if (mpd->map.m_len == 0) {
+		err = mpage_submit_page(mpd, head->b_page);
+		if (err < 0)
+			return err;
+	}
+	return lblk < blocks;
 }
 
 /*
@@ -2003,8 +2035,6 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 	struct inode *inode = mpd->inode;
 	struct buffer_head *head, *bh;
 	int bpp_bits = PAGE_CACHE_SHIFT - inode->i_blkbits;
-	ext4_lblk_t blocks = (i_size_read(inode) + (1 << inode->i_blkbits) - 1)
-							>> inode->i_blkbits;
 	pgoff_t start, end;
 	ext4_lblk_t lblk;
 	sector_t pblock;
@@ -2039,18 +2069,26 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 					 */
 					mpd->map.m_len = 0;
 					mpd->map.m_flags = 0;
-					add_page_bufs_to_extent(mpd, head, bh,
-								lblk);
+					/*
+					 * FIXME: If dioread_nolock supports
+					 * blocksize < pagesize, we need to make
+					 * sure we add size mapped so far to
+					 * io_end->size as the following call
+					 * can submit the page for IO.
+					 */
+					err = mpage_process_page_bufs(mpd, head,
+								      bh, lblk);
 					pagevec_release(&pvec);
-					return 0;
+					if (err > 0)
+						err = 0;
+					return err;
 				}
 				if (buffer_delay(bh)) {
 					clear_buffer_delay(bh);
 					bh->b_blocknr = pblock++;
 				}
 				clear_buffer_unwritten(bh);
-			} while (++lblk < blocks &&
-				 (bh = bh->b_this_page) != head);
+			} while (lblk++, (bh = bh->b_this_page) != head);
 
 			/*
 			 * FIXME: This is going to break if dioread_nolock
@@ -2319,14 +2357,10 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			lblk = ((ext4_lblk_t)page->index) <<
 				(PAGE_CACHE_SHIFT - blkbits);
 			head = page_buffers(page);
-			if (!add_page_bufs_to_extent(mpd, head, head, lblk))
+			err = mpage_process_page_bufs(mpd, head, head, lblk);
+			if (err <= 0)
 				goto out;
-			/* So far everything mapped? Submit the page for IO. */
-			if (mpd->map.m_len == 0) {
-				err = mpage_submit_page(mpd, page);
-				if (err < 0)
-					goto out;
-			}
+			err = 0;
 
 			/*
 			 * Accumulated enough dirty pages? This doesn't apply
@@ -4566,7 +4600,9 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 		ext4_journal_stop(handle);
 	}
 
-	if (attr->ia_valid & ATTR_SIZE) {
+	if (attr->ia_valid & ATTR_SIZE && attr->ia_size != inode->i_size) {
+		handle_t *handle;
+		loff_t oldsize = inode->i_size;
 
 		if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 			struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
@@ -4574,73 +4610,60 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 			if (attr->ia_size > sbi->s_bitmap_maxbytes)
 				return -EFBIG;
 		}
-	}
-
-	if (S_ISREG(inode->i_mode) &&
-	    attr->ia_valid & ATTR_SIZE &&
-	    (attr->ia_size < inode->i_size)) {
-		handle_t *handle;
-
-		handle = ext4_journal_start(inode, EXT4_HT_INODE, 3);
-		if (IS_ERR(handle)) {
-			error = PTR_ERR(handle);
-			goto err_out;
-		}
-		if (ext4_handle_valid(handle)) {
-			error = ext4_orphan_add(handle, inode);
-			orphan = 1;
-		}
-		EXT4_I(inode)->i_disksize = attr->ia_size;
-		rc = ext4_mark_inode_dirty(handle, inode);
-		if (!error)
-			error = rc;
-		ext4_journal_stop(handle);
-
-		if (ext4_should_order_data(inode)) {
-			error = ext4_begin_ordered_truncate(inode,
+		if (S_ISREG(inode->i_mode) &&
+		    (attr->ia_size < inode->i_size)) {
+			if (ext4_should_order_data(inode)) {
+				error = ext4_begin_ordered_truncate(inode,
 							    attr->ia_size);
-			if (error) {
-				/* Do as much error cleanup as possible */
-				handle = ext4_journal_start(inode,
-							    EXT4_HT_INODE, 3);
-				if (IS_ERR(handle)) {
-					ext4_orphan_del(NULL, inode);
+				if (error)
 					goto err_out;
-				}
-				ext4_orphan_del(handle, inode);
-				orphan = 0;
-				ext4_journal_stop(handle);
+			}
+			handle = ext4_journal_start(inode, EXT4_HT_INODE, 3);
+			if (IS_ERR(handle)) {
+				error = PTR_ERR(handle);
+				goto err_out;
+			}
+			if (ext4_handle_valid(handle)) {
+				error = ext4_orphan_add(handle, inode);
+				orphan = 1;
+			}
+			EXT4_I(inode)->i_disksize = attr->ia_size;
+			rc = ext4_mark_inode_dirty(handle, inode);
+			if (!error)
+				error = rc;
+			ext4_journal_stop(handle);
+			if (error) {
+				ext4_orphan_del(NULL, inode);
 				goto err_out;
 			}
 		}
-	}
 
-	if (attr->ia_valid & ATTR_SIZE) {
-		if (attr->ia_size != inode->i_size) {
-			loff_t oldsize = inode->i_size;
-
-			i_size_write(inode, attr->ia_size);
-			/*
-			 * Blocks are going to be removed from the inode. Wait
-			 * for dio in flight.  Temporarily disable
-			 * dioread_nolock to prevent livelock.
-			 */
-			if (orphan) {
-				if (!ext4_should_journal_data(inode)) {
-					ext4_inode_block_unlocked_dio(inode);
-					inode_dio_wait(inode);
-					ext4_inode_resume_unlocked_dio(inode);
-				} else
-					ext4_wait_for_tail_page_commit(inode);
-			}
-			/*
-			 * Truncate pagecache after we've waited for commit
-			 * in data=journal mode to make pages freeable.
-			 */
-			truncate_pagecache(inode, oldsize, inode->i_size);
+		i_size_write(inode, attr->ia_size);
+		/*
+		 * Blocks are going to be removed from the inode. Wait
+		 * for dio in flight.  Temporarily disable
+		 * dioread_nolock to prevent livelock.
+		 */
+		if (orphan) {
+			if (!ext4_should_journal_data(inode)) {
+				ext4_inode_block_unlocked_dio(inode);
+				inode_dio_wait(inode);
+				ext4_inode_resume_unlocked_dio(inode);
+			} else
+				ext4_wait_for_tail_page_commit(inode);
 		}
-		ext4_truncate(inode);
+		/*
+		 * Truncate pagecache after we've waited for commit
+		 * in data=journal mode to make pages freeable.
+		 */
+		truncate_pagecache(inode, oldsize, inode->i_size);
 	}
+	/*
+	 * We want to call ext4_truncate() even if attr->ia_size ==
+	 * inode->i_size for cases like truncation of fallocated space
+	 */
+	if (attr->ia_valid & ATTR_SIZE)
+		ext4_truncate(inode);
 
 	if (!rc) {
 		setattr_copy(inode, attr);

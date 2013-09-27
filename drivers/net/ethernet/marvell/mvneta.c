@@ -138,7 +138,9 @@
 #define      MVNETA_GMAC_FORCE_LINK_PASS         BIT(1)
 #define      MVNETA_GMAC_CONFIG_MII_SPEED        BIT(5)
 #define      MVNETA_GMAC_CONFIG_GMII_SPEED       BIT(6)
+#define      MVNETA_GMAC_AN_SPEED_EN             BIT(7)
 #define      MVNETA_GMAC_CONFIG_FULL_DUPLEX      BIT(12)
+#define      MVNETA_GMAC_AN_DUPLEX_EN            BIT(13)
 #define MVNETA_MIB_COUNTERS_BASE                 0x3080
 #define      MVNETA_MIB_LATE_COLLISION           0x7c
 #define MVNETA_DA_FILT_SPEC_MCAST                0x3400
@@ -914,6 +916,13 @@ static void mvneta_defaults_set(struct mvneta_port *pp)
 
 	/* Assign port SDMA configuration */
 	mvreg_write(pp, MVNETA_SDMA_CONFIG, val);
+
+	/* Disable PHY polling in hardware, since we're using the
+	 * kernel phylib to do this.
+	 */
+	val = mvreg_read(pp, MVNETA_UNIT_CONTROL);
+	val &= ~MVNETA_PHY_POLLING_ENABLE;
+	mvreg_write(pp, MVNETA_UNIT_CONTROL, val);
 
 	mvneta_set_ucast_table(pp, -1);
 	mvneta_set_special_mcast_table(pp, -1);
@@ -2307,7 +2316,9 @@ static void mvneta_adjust_link(struct net_device *ndev)
 			val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 			val &= ~(MVNETA_GMAC_CONFIG_MII_SPEED |
 				 MVNETA_GMAC_CONFIG_GMII_SPEED |
-				 MVNETA_GMAC_CONFIG_FULL_DUPLEX);
+				 MVNETA_GMAC_CONFIG_FULL_DUPLEX |
+				 MVNETA_GMAC_AN_SPEED_EN |
+				 MVNETA_GMAC_AN_DUPLEX_EN);
 
 			if (phydev->duplex)
 				val |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;

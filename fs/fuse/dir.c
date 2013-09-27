@@ -1174,6 +1174,8 @@ static int parse_dirfile(char *buf, size_t nbytes, struct file *file,
 			return -EIO;
 		if (reclen > nbytes)
 			break;
+		if (memchr(dirent->name, '/', dirent->namelen) != NULL)
+			return -EIO;
 
 		if (!dir_emit(ctx, dirent->name, dirent->namelen,
 			       dirent->ino, dirent->type))
@@ -1320,6 +1322,8 @@ static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
 			return -EIO;
 		if (reclen > nbytes)
 			break;
+		if (memchr(dirent->name, '/', dirent->namelen) != NULL)
+			return -EIO;
 
 		if (!over) {
 			/* We fill entries into dstbuf only as much as
@@ -1590,6 +1594,7 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 		    struct file *file)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_req *req;
 	struct fuse_setattr_in inarg;
 	struct fuse_attr_out outarg;
@@ -1617,8 +1622,10 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	if (is_truncate)
+	if (is_truncate) {
 		fuse_set_nowrite(inode);
+		set_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
+	}
 
 	memset(&inarg, 0, sizeof(inarg));
 	memset(&outarg, 0, sizeof(outarg));
@@ -1680,12 +1687,14 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 		invalidate_inode_pages2(inode->i_mapping);
 	}
 
+	clear_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
 	return 0;
 
 error:
 	if (is_truncate)
 		fuse_release_nowrite(inode);
 
+	clear_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
 	return err;
 }
 
@@ -1749,6 +1758,8 @@ static int fuse_setxattr(struct dentry *entry, const char *name,
 		fc->no_setxattr = 1;
 		err = -EOPNOTSUPP;
 	}
+	if (!err)
+		fuse_invalidate_attr(inode);
 	return err;
 }
 
@@ -1878,6 +1889,8 @@ static int fuse_removexattr(struct dentry *entry, const char *name)
 		fc->no_removexattr = 1;
 		err = -EOPNOTSUPP;
 	}
+	if (!err)
+		fuse_invalidate_attr(inode);
 	return err;
 }
 

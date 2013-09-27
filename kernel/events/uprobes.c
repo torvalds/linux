@@ -1682,12 +1682,10 @@ static bool handle_trampoline(struct pt_regs *regs)
 		tmp = ri;
 		ri = ri->next;
 		kfree(tmp);
+		utask->depth--;
 
 		if (!chained)
 			break;
-
-		utask->depth--;
-
 		BUG_ON(!ri);
 	}
 

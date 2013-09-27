@@ -32,11 +32,20 @@
 #define MCI_STATUS_PCC   (1ULL<<57)  /* processor context corrupt */
 #define MCI_STATUS_S	 (1ULL<<56)  /* Signaled machine check */
 #define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
-#define MCACOD		  0xffff     /* MCA Error Code */
+
+/*
+ * Note that the full MCACOD field of IA32_MCi_STATUS MSR is
+ * bits 15:0.  But bit 12 is the 'F' bit, defined for corrected
+ * errors to indicate that errors are being filtered by hardware.
+ * We should mask out bit 12 when looking for specific signatures
+ * of uncorrected errors - so the F bit is deliberately skipped
+ * in this #define.
+ */
+#define MCACOD		  0xefff     /* MCA Error Code */
 
 /* Architecturally defined codes from SDM Vol. 3B Chapter 15 */
 #define MCACOD_SCRUB	0x00C0	/* 0xC0-0xCF Memory Scrubbing */
-#define MCACOD_SCRUBMSK	0xfff0
+#define MCACOD_SCRUBMSK	0xeff0	/* Skip bit 12 ('F' bit) */
 #define MCACOD_L3WB	0x017A	/* L3 Explicit Writeback */
 #define MCACOD_DATA	0x0134	/* Data Load */
 #define MCACOD_INSTR	0x0150	/* Instruction Fetch */

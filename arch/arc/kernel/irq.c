@@ -24,7 +24,6 @@
  * -Needed for each CPU (hence not foldable into init_IRQ)
  *
  * what it does ?
- * -setup Vector Table Base Reg - in case Linux not linked at 0x8000_0000
  * -Disable all IRQs (on CPU side)
  * -Optionally, setup the High priority Interrupts as Level 2 IRQs
  */

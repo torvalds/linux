@@ -1949,7 +1949,7 @@ static int __core_scsi3_write_aptpl_to_file(
 		pr_debug("Error writing APTPL metadata file: %s\n", path);
 	fput(file);
 
-	return ret ? -EIO : 0;
+	return (ret < 0) ? -EIO : 0;
 }
 
 /*

@@ -868,8 +868,15 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 		goto err_del_dev;
 	}
 
+	mutex_lock(&fw_lock);
+	list_add(&buf->pending_list, &pending_fw_head);
+	mutex_unlock(&fw_lock);
+
 	retval = device_create_file(f_dev, &dev_attr_loading);
 	if (retval) {
+		mutex_lock(&fw_lock);
+		list_del_init(&buf->pending_list);
+		mutex_unlock(&fw_lock);
 		dev_err(f_dev, "%s: device_create_file failed\n", __func__);
 		goto err_del_bin_attr;
 	}
@@ -883,10 +890,6 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 
 		kobject_uevent(&fw_priv->dev.kobj, KOBJ_ADD);
 	}
-
-	mutex_lock(&fw_lock);
-	list_add(&buf->pending_list, &pending_fw_head);
-	mutex_unlock(&fw_lock);
 
 	wait_for_completion(&buf->completion);
 
