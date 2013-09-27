@@ -1013,18 +1013,40 @@ static int be_vid_config(struct be_adapter *adapter)
 	status = be_cmd_vlan_config(adapter, adapter->if_handle,
 				    vids, num, 1, 0);
 
-	/* Set to VLAN promisc mode as setting VLAN filter failed */
 	if (status) {
-		dev_info(&adapter->pdev->dev, "Exhausted VLAN HW filters.\n");
-		dev_info(&adapter->pdev->dev, "Disabling HW VLAN filtering.\n");
-		goto set_vlan_promisc;
+		/* Set to VLAN promisc mode as setting VLAN filter failed */
+		if (status == MCC_ADDL_STS_INSUFFICIENT_RESOURCES)
+			goto set_vlan_promisc;
+		dev_err(&adapter->pdev->dev,
+			"Setting HW VLAN filtering failed.\n");
+	} else {
+		if (adapter->flags & BE_FLAGS_VLAN_PROMISC) {
+			/* hw VLAN filtering re-enabled. */
+			status = be_cmd_rx_filter(adapter,
+						  BE_FLAGS_VLAN_PROMISC, OFF);
+			if (!status) {
+				dev_info(&adapter->pdev->dev,
+					 "Disabling VLAN Promiscuous mode.\n");
+				adapter->flags &= ~BE_FLAGS_VLAN_PROMISC;
+				dev_info(&adapter->pdev->dev,
+					 "Re-Enabling HW VLAN filtering\n");
+			}
+		}
 	}
 
 	return status;
 
 set_vlan_promisc:
-	status = be_cmd_vlan_config(adapter, adapter->if_handle,
-				    NULL, 0, 1, 1);
+	dev_warn(&adapter->pdev->dev, "Exhausted VLAN HW filters.\n");
+
+	status = be_cmd_rx_filter(adapter, BE_FLAGS_VLAN_PROMISC, ON);
+	if (!status) {
+		dev_info(&adapter->pdev->dev, "Enable VLAN Promiscuous mode\n");
+		dev_info(&adapter->pdev->dev, "Disabling HW VLAN filtering\n");
+		adapter->flags |= BE_FLAGS_VLAN_PROMISC;
+	} else
+		dev_err(&adapter->pdev->dev,
+			"Failed to enable VLAN Promiscuous mode.\n");
 	return status;
 }
 
