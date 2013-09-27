@@ -31,17 +31,25 @@ static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct bonding *bond = seq->private;
-	struct slave *slave = v;
+	struct list_head *iter;
+	struct slave *slave;
+	bool found = false;
 
 	++*pos;
 	if (v == SEQ_START_TOKEN)
 		return bond_first_slave(bond);
 
-	if (bond_is_last_slave(bond, slave))
+	if (bond_is_last_slave(bond, v))
 		return NULL;
-	slave = bond_next_slave(bond, slave);
 
-	return slave;
+	bond_for_each_slave(bond, slave, iter) {
+		if (found)
+			return slave;
+		if (slave == v)
+			found = true;
+	}
+
+	return NULL;
 }
 
 static void bond_info_seq_stop(struct seq_file *seq, void *v)
