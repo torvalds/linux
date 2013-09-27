@@ -382,6 +382,8 @@
 #define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
 
 /* vlv2 north clock has */
+#define CCK_FUSE_REG				0x8
+#define  CCK_FUSE_HPLL_FREQ_MASK		0x3
 #define CCK_REG_DSI_PLL_FUSE			0x44
 #define CCK_REG_DSI_PLL_CONTROL			0x48
 #define  DSI_PLL_VCO_EN				(1 << 31)
@@ -1428,6 +1430,12 @@
 #define  FW_CSPWRDWNEN		(1<<15)
 
 #define MI_ARB_VLV		(VLV_DISPLAY_BASE + 0x6504)
+
+#define CZCLK_CDCLK_FREQ_RATIO	(VLV_DISPLAY_BASE + 0x6508)
+#define   CDCLK_FREQ_SHIFT	4
+#define   CDCLK_FREQ_MASK	(0x1f << CDCLK_FREQ_SHIFT)
+#define   CZCLK_FREQ_MASK	0xf
+#define GMBUSFREQ_VLV		(VLV_DISPLAY_BASE + 0x6510)
 
 /*
  * Palette regs
