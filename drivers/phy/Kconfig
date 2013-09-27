@@ -1,0 +1,18 @@
+#
+# PHY
+#
+
+menu "PHY Subsystem"
+
+config GENERIC_PHY
+	tristate "PHY Core"
+	help
+	  Generic PHY support.
+
+	  This framework is designed to provide a generic interface for PHY
+	  devices present in the kernel. This layer will have the generic
+	  API by which phy drivers can create PHY using the phy framework and
+	  phy users can obtain reference to the PHY. All the users of this
+	  framework should select this config.
+
+endmenu
