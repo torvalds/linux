@@ -74,7 +74,6 @@ struct adau1373 {
 #define ADAU1373_PLL_CTRL4(x)	(0x2c + (x) * 7)
 #define ADAU1373_PLL_CTRL5(x)	(0x2d + (x) * 7)
 #define ADAU1373_PLL_CTRL6(x)	(0x2e + (x) * 7)
-#define ADAU1373_PLL_CTRL7(x)	(0x2f + (x) * 7)
 #define ADAU1373_HEADDECT	0x36
 #define ADAU1373_ADC_DAC_STATUS	0x37
 #define ADAU1373_ADC_CTRL	0x3c
