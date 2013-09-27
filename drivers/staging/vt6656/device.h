@@ -384,7 +384,7 @@ struct vnt_private {
 
 	struct tasklet_struct CmdWorkItem;
 	struct tasklet_struct EventWorkItem;
-	struct tasklet_struct ReadWorkItem;
+	struct work_struct read_work_item;
 	struct tasklet_struct RxMngWorkItem;
 
 	u32 rx_buf_sz;

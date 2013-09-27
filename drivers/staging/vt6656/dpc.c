@@ -1332,8 +1332,10 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
     return true;
 }
 
-void RXvWorkItem(struct vnt_private *pDevice)
+void RXvWorkItem(struct work_struct *work)
 {
+	struct vnt_private *pDevice =
+		container_of(work, struct vnt_private, read_work_item);
 	int ntStatus;
 	struct vnt_rcb *pRCB = NULL;
 
@@ -1383,7 +1385,7 @@ void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb)
         (pDevice->bIsRxWorkItemQueued == false) ) {
 
         pDevice->bIsRxWorkItemQueued = true;
-        tasklet_schedule(&pDevice->ReadWorkItem);
+	schedule_work(&pDevice->read_work_item);
     }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",pDevice->NumRecvFreeList, pDevice->NumRecvMngList);
 }
