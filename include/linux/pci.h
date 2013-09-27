@@ -330,8 +330,6 @@ struct pci_dev {
 	unsigned int	msix_enabled:1;
 	unsigned int	ari_enabled:1;	/* ARI forwarding */
 	unsigned int	is_managed:1;
-	unsigned int	is_pcie:1;	/* Obsolete. Will be removed.
-					   Use pci_is_pcie() instead */
 	unsigned int    needs_freset:1; /* Dev requires fundamental reset */
 	unsigned int	state_saved:1;
 	unsigned int	is_physfn:1;
@@ -472,6 +470,10 @@ struct pci_bus {
 /*
  * Returns true if the pci bus is root (behind host-pci bridge),
  * false otherwise
+ *
+ * Some code assumes that "bus->self == NULL" means that bus is a root bus.
+ * This is incorrect because "virtual" buses added for SR-IOV (via
+ * virtfn_add_bus()) have "bus->self == NULL" but are not root buses.
  */
 static inline bool pci_is_root_bus(struct pci_bus *pbus)
 {
@@ -1749,11 +1751,11 @@ static inline int pci_pcie_cap(struct pci_dev *dev)
  * pci_is_pcie - check if the PCI device is PCI Express capable
  * @dev: PCI device
  *
- * Retrun true if the PCI device is PCI Express capable, false otherwise.
+ * Returns: true if the PCI device is PCI Express capable, false otherwise.
  */
 static inline bool pci_is_pcie(struct pci_dev *dev)
 {
-	return !!pci_pcie_cap(dev);
+	return pci_pcie_cap(dev);
 }
 
 /**

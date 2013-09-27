@@ -2854,7 +2854,7 @@ void __weak pcibios_set_master(struct pci_dev *dev)
 		lat = pcibios_max_latency;
 	else
 		return;
-	dev_printk(KERN_DEBUG, &dev->dev, "setting latency timer to %d\n", lat);
+
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
 }
 
