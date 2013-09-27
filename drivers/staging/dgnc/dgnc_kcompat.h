@@ -28,11 +28,6 @@
 #ifndef __DGNC_KCOMPAT_H
 #define __DGNC_KCOMPAT_H
 
-# ifndef KERNEL_VERSION
-#  define KERNEL_VERSION(a,b,c)  (((a) << 16) + ((b) << 8) + (c))
-# endif
-
-
 #if !defined(TTY_FLIPBUF_SIZE)
 # define TTY_FLIPBUF_SIZE 512
 #endif
