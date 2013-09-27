@@ -1201,8 +1201,8 @@ static int be_get_vf_config(struct net_device *netdev, int vf,
 
 	vi->vf = vf;
 	vi->tx_rate = vf_cfg->tx_rate;
-	vi->vlan = vf_cfg->vlan_tag;
-	vi->qos = 0;
+	vi->vlan = vf_cfg->vlan_tag & VLAN_VID_MASK;
+	vi->qos = vf_cfg->vlan_tag >> VLAN_PRIO_SHIFT;
 	memcpy(&vi->mac, vf_cfg->mac_addr, ETH_ALEN);
 
 	return 0;
