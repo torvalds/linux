@@ -308,14 +308,16 @@ static void wa_xfer_id_init(struct wa_xfer *xfer)
 	xfer->id = atomic_add_return(1, &xfer->wa->xfer_id_count);
 }
 
-/*
- * Return the xfer's ID associated with xfer
- *
- * Need to generate a
- */
-static u32 wa_xfer_id(struct wa_xfer *xfer)
+/* Return the xfer's ID. */
+static inline u32 wa_xfer_id(struct wa_xfer *xfer)
 {
 	return xfer->id;
+}
+
+/* Return the xfer's ID in transport format (little endian). */
+static inline __le32 wa_xfer_id_le32(struct wa_xfer *xfer)
+{
+	return cpu_to_le32(xfer->id);
 }
 
 /*
@@ -381,7 +383,7 @@ static void __wa_xfer_abort(struct wa_xfer *xfer)
 	b->cmd.bLength =  sizeof(b->cmd);
 	b->cmd.bRequestType = WA_XFER_ABORT;
 	b->cmd.wRPipe = rpipe->descr.wRPipeIndex;
-	b->cmd.dwTransferID = wa_xfer_id(xfer);
+	b->cmd.dwTransferID = wa_xfer_id_le32(xfer);
 
 	usb_init_urb(&b->urb);
 	usb_fill_bulk_urb(&b->urb, xfer->wa->usb_dev,
@@ -477,7 +479,7 @@ static void __wa_xfer_setup_hdr0(struct wa_xfer *xfer,
 	xfer_hdr0->bLength = xfer_hdr_size;
 	xfer_hdr0->bRequestType = xfer_type;
 	xfer_hdr0->wRPipe = rpipe->descr.wRPipeIndex;
-	xfer_hdr0->dwTransferID = wa_xfer_id(xfer);
+	xfer_hdr0->dwTransferID = wa_xfer_id_le32(xfer);
 	xfer_hdr0->bTransferSegment = 0;
 	switch (xfer_type) {
 	case WA_XFER_TYPE_CTL: {
@@ -1750,7 +1752,7 @@ static void wa_dti_cb(struct urb *urb)
 		if (usb_status == WA_XFER_STATUS_NOT_FOUND)
 			/* taken care of already */
 			break;
-		xfer_id = xfer_result->dwTransferID;
+		xfer_id = le32_to_cpu(xfer_result->dwTransferID);
 		xfer = wa_xfer_get_by_id(wa, xfer_id);
 		if (xfer == NULL) {
 			/* FIXME: transaction might have been cancelled */
