@@ -136,19 +136,6 @@ static inline struct bonding *__get_bond_by_port(struct port *port)
 }
 
 /**
- * __get_first_port - get the first port in the bond
- * @bond: the bond we're looking at
- *
- * Return the port of the first slave in @bond, or %NULL if it can't be found.
- */
-static inline struct port *__get_first_port(struct bonding *bond)
-{
-	struct slave *first_slave = bond_first_slave(bond);
-
-	return first_slave ? &(SLAVE_AD_INFO(first_slave).port) : NULL;
-}
-
-/**
  * __get_first_agg - get the first aggregator in the bond
  * @bond: the bond we're looking at
  *
@@ -2104,8 +2091,11 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 
 	// check if agg_select_timer timer after initialize is timed out
 	if (BOND_AD_INFO(bond).agg_select_timer && !(--BOND_AD_INFO(bond).agg_select_timer)) {
+		slave = bond_first_slave(bond);
+		port = slave ? &(SLAVE_AD_INFO(slave).port) : NULL;
+
 		// select the active aggregator for the bond
-		if ((port = __get_first_port(bond))) {
+		if (port) {
 			if (!port->slave) {
 				pr_warning("%s: Warning: bond's first port is uninitialized\n",
 					   bond->dev->name);
