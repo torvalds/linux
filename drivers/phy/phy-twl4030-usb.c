@@ -422,25 +422,20 @@ static void twl4030_phy_power(struct twl4030_usb *twl, int on)
 	}
 }
 
-static void twl4030_phy_suspend(struct twl4030_usb *twl, int controller_off)
-{
-	if (twl->asleep)
-		return;
-
-	twl4030_phy_power(twl, 0);
-	twl->asleep = 1;
-	dev_dbg(twl->dev, "%s\n", __func__);
-}
-
 static int twl4030_phy_power_off(struct phy *phy)
 {
 	struct twl4030_usb *twl = phy_get_drvdata(phy);
 
-	twl4030_phy_suspend(twl, 0);
+	if (twl->asleep)
+		return 0;
+
+	twl4030_phy_power(twl, 0);
+	twl->asleep = 1;
+	dev_dbg(twl->dev, "%s\n", __func__);
 	return 0;
 }
 
-static void __twl4030_phy_resume(struct twl4030_usb *twl)
+static void __twl4030_phy_power_on(struct twl4030_usb *twl)
 {
 	twl4030_phy_power(twl, 1);
 	twl4030_i2c_access(twl, 1);
@@ -449,11 +444,13 @@ static void __twl4030_phy_resume(struct twl4030_usb *twl)
 		twl4030_i2c_access(twl, 0);
 }
 
-static void twl4030_phy_resume(struct twl4030_usb *twl)
+static int twl4030_phy_power_on(struct phy *phy)
 {
+	struct twl4030_usb *twl = phy_get_drvdata(phy);
+
 	if (!twl->asleep)
-		return;
-	__twl4030_phy_resume(twl);
+		return 0;
+	__twl4030_phy_power_on(twl);
 	twl->asleep = 0;
 	dev_dbg(twl->dev, "%s\n", __func__);
 
@@ -466,13 +463,6 @@ static void twl4030_phy_resume(struct twl4030_usb *twl)
 		cancel_delayed_work(&twl->id_workaround_work);
 		schedule_delayed_work(&twl->id_workaround_work, HZ);
 	}
-}
-
-static int twl4030_phy_power_on(struct phy *phy)
-{
-	struct twl4030_usb *twl = phy_get_drvdata(phy);
-
-	twl4030_phy_resume(twl);
 	return 0;
 }
 
@@ -604,9 +594,9 @@ static void twl4030_id_workaround_work(struct work_struct *work)
 	}
 }
 
-static int twl4030_usb_phy_init(struct usb_phy *phy)
+static int twl4030_phy_init(struct phy *phy)
 {
-	struct twl4030_usb *twl = phy_to_twl(phy);
+	struct twl4030_usb *twl = phy_get_drvdata(phy);
 	enum omap_musb_vbus_id_status status;
 
 	/*
@@ -621,29 +611,10 @@ static int twl4030_usb_phy_init(struct usb_phy *phy)
 
 	if (status == OMAP_MUSB_ID_GROUND || status == OMAP_MUSB_VBUS_VALID) {
 		omap_musb_mailbox(twl->linkstat);
-		twl4030_phy_resume(twl);
+		twl4030_phy_power_on(phy);
 	}
 
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
-	return 0;
-}
-
-static int twl4030_phy_init(struct phy *phy)
-{
-	struct twl4030_usb *twl = phy_get_drvdata(phy);
-
-	return twl4030_usb_phy_init(&twl->phy);
-}
-
-static int twl4030_set_suspend(struct usb_phy *x, int suspend)
-{
-	struct twl4030_usb *twl = phy_to_twl(x);
-
-	if (suspend)
-		twl4030_phy_suspend(twl, 1);
-	else
-		twl4030_phy_resume(twl);
-
 	return 0;
 }
 
@@ -719,8 +690,6 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	twl->phy.label		= "twl4030";
 	twl->phy.otg		= otg;
 	twl->phy.type		= USB_PHY_TYPE_USB2;
-	twl->phy.set_suspend	= twl4030_set_suspend;
-	twl->phy.init		= twl4030_usb_phy_init;
 
 	otg->phy		= &twl->phy;
 	otg->set_host		= twl4030_set_host;
