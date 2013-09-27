@@ -158,9 +158,9 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		iounmap(map);
 
 		/* determine chipset and derive architecture from it */
-		if ((boot0 & 0x0f000000) > 0) {
-			device->chipset = (boot0 & 0xff00000) >> 20;
-			switch (device->chipset & 0xf0) {
+		if ((boot0 & 0x1f000000) > 0) {
+			device->chipset = (boot0 & 0x1ff00000) >> 20;
+			switch (device->chipset & 0x1f0) {
 			case 0x10: {
 				if (0x461 & (1 << (device->chipset & 0xf)))
 					device->card_type = NV_10;
