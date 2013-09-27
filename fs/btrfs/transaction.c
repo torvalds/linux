@@ -950,16 +950,19 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 		return ret;
 
 	ret = btrfs_run_dev_stats(trans, root->fs_info);
-	WARN_ON(ret);
+	if (ret)
+		return ret;
 	ret = btrfs_run_dev_replace(trans, root->fs_info);
-	WARN_ON(ret);
-
+	if (ret)
+		return ret;
 	ret = btrfs_run_qgroups(trans, root->fs_info);
-	BUG_ON(ret);
+	if (ret)
+		return ret;
 
 	/* run_qgroups might have added some more refs */
 	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
-	BUG_ON(ret);
+	if (ret)
+		return ret;
 
 	while (!list_empty(&fs_info->dirty_cowonly_roots)) {
 		next = fs_info->dirty_cowonly_roots.next;
