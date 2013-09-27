@@ -88,6 +88,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define BE_MIN_MTU		256
 
 #define BE_NUM_VLANS_SUPPORTED	64
+#define BE_UMC_NUM_VLANS_SUPPORTED	15
 #define BE_MAX_EQD		96u
 #define	BE_MAX_TX_FRAG_COUNT	30
 

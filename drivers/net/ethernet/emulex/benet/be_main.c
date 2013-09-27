@@ -2985,6 +2985,8 @@ static void BEx_get_resources(struct be_adapter *adapter,
 
 	if (adapter->function_mode & FLEX10_MODE)
 		res->max_vlans = BE_NUM_VLANS_SUPPORTED/8;
+	else if (adapter->function_mode & UMC_ENABLED)
+		res->max_vlans = BE_UMC_NUM_VLANS_SUPPORTED;
 	else
 		res->max_vlans = BE_NUM_VLANS_SUPPORTED;
 	res->max_mcast_mac = BE_MAX_MC;
