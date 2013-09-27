@@ -906,6 +906,9 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 			s3c64xx_spi_config(sdd);
 		}
 
+		/* Slave Select */
+		enable_cs(sdd, spi);
+
 		/* Polling method for xfers not bigger than FIFO capacity */
 		use_dma = 0;
 		if (!is_polling(sdd) &&
@@ -920,9 +923,6 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		sdd->state &= ~TXBUSY;
 
 		enable_datapath(sdd, spi, xfer, use_dma);
-
-		/* Slave Select */
-		enable_cs(sdd, spi);
 
 		/* Start the signals */
 		writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
