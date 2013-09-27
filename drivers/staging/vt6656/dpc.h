@@ -34,7 +34,7 @@
 
 void RXvWorkItem(struct work_struct *work);
 
-void RXvMngWorkItem(void *Context);
+void RXvMngWorkItem(struct work_struct *work);
 
 void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb);
 

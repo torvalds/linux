@@ -559,7 +559,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, struct vnt_rcb *pRCB,
             }
             if (pDevice->bIsRxMngWorkItemQueued == false) {
                 pDevice->bIsRxMngWorkItemQueued = true;
-                tasklet_schedule(&pDevice->RxMngWorkItem);
+		schedule_work(&pDevice->rx_mng_work_item);
             }
 
         }
@@ -1390,8 +1390,10 @@ void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb)
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",pDevice->NumRecvFreeList, pDevice->NumRecvMngList);
 }
 
-void RXvMngWorkItem(struct vnt_private *pDevice)
+void RXvMngWorkItem(struct work_struct *work)
 {
+	struct vnt_private *pDevice =
+		container_of(work, struct vnt_private, rx_mng_work_item);
 	struct vnt_rcb *pRCB = NULL;
 	struct vnt_rx_mgmt *pRxPacket;
 	int bReAllocSkb = false;

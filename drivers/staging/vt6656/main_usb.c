@@ -705,6 +705,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	INIT_DELAYED_WORK(&pDevice->run_command_work, vRunCommand);
 	INIT_DELAYED_WORK(&pDevice->second_callback_work, BSSvSecondCallBack);
 	INIT_WORK(&pDevice->read_work_item, RXvWorkItem);
+	INIT_WORK(&pDevice->rx_mng_work_item, RXvMngWorkItem);
 
 	pDevice->tx_80211 = device_dma0_tx_80211;
 	pDevice->vnt_mgmt.pAdapter = (void *) pDevice;
@@ -984,7 +985,7 @@ static int  device_open(struct net_device *dev)
     }
 
     vMgrObjectInit(pDevice);
-    tasklet_init(&pDevice->RxMngWorkItem, (void *)RXvMngWorkItem, (unsigned long)pDevice);
+
     tasklet_init(&pDevice->EventWorkItem, (void *)INTvWorkItem, (unsigned long)pDevice);
 
 	schedule_delayed_work(&pDevice->second_callback_work, HZ);
@@ -1091,8 +1092,8 @@ static int device_close(struct net_device *dev)
         del_timer(&pDevice->TimerSQ3Tmax2);
         del_timer(&pDevice->TimerSQ3Tmax3);
     }
-    tasklet_kill(&pDevice->RxMngWorkItem);
 
+	cancel_work_sync(&pDevice->rx_mng_work_item);
 	cancel_work_sync(&pDevice->read_work_item);
 
     tasklet_kill(&pDevice->EventWorkItem);
