@@ -607,11 +607,11 @@ int arizona_dev_init(struct arizona *arizona)
 	dev_set_drvdata(arizona->dev, arizona);
 	mutex_init(&arizona->clk_lock);
 
-	arizona_of_get_core_pdata(arizona);
-
 	if (dev_get_platdata(arizona->dev))
 		memcpy(&arizona->pdata, dev_get_platdata(arizona->dev),
 		       sizeof(arizona->pdata));
+	else
+		arizona_of_get_core_pdata(arizona);
 
 	regcache_cache_only(arizona->regmap, true);
 
