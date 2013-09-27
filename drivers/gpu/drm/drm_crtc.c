@@ -1319,6 +1319,9 @@ static int drm_crtc_convert_umode(struct drm_display_mode *out,
 	if (in->clock > INT_MAX || in->vrefresh > INT_MAX)
 		return -ERANGE;
 
+	if ((in->flags & DRM_MODE_FLAG_3D_MASK) > DRM_MODE_FLAG_3D_MAX)
+		return -EINVAL;
+
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
 	out->hsync_start = in->hsync_start;

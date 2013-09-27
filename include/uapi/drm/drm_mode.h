@@ -58,6 +58,10 @@
 #define DRM_MODE_FLAG_PIXMUX			(1<<11)
 #define DRM_MODE_FLAG_DBLCLK			(1<<12)
 #define DRM_MODE_FLAG_CLKDIV2			(1<<13)
+ /*
+  * When adding a new stereo mode don't forget to adjust DRM_MODE_FLAGS_3D_MAX
+  * (define not exposed to user space).
+  */
 #define DRM_MODE_FLAG_3D_MASK			(0x1f<<14)
 #define  DRM_MODE_FLAG_3D_NONE			(0<<14)
 #define  DRM_MODE_FLAG_3D_FRAME_PACKING		(1<<14)

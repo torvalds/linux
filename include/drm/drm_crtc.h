@@ -128,6 +128,8 @@ enum drm_mode_status {
 #define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
 #define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
 
+#define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
+
 struct drm_display_mode {
 	/* Header */
 	struct list_head head;
