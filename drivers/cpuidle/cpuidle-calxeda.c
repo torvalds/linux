@@ -24,10 +24,10 @@
 #include <linux/cpu_pm.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/of.h>
 #include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/suspend.h>
+#include <linux/platform_device.h>
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
 #include <asm/smp_scu.h>
@@ -92,11 +92,17 @@ static struct cpuidle_driver calxeda_idle_driver = {
 	.state_count = 2,
 };
 
-static int __init calxeda_cpuidle_init(void)
+static int __init calxeda_cpuidle_probe(struct platform_device *pdev)
 {
-	if (!of_machine_is_compatible("calxeda,highbank"))
-		return -ENODEV;
-
 	return cpuidle_register(&calxeda_idle_driver, NULL);
 }
-module_init(calxeda_cpuidle_init);
+
+static struct platform_driver calxeda_cpuidle_plat_driver = {
+        .driver = {
+                .name = "cpuidle-calxeda",
+                .owner = THIS_MODULE,
+        },
+        .probe = calxeda_cpuidle_probe,
+};
+
+module_platform_driver(calxeda_cpuidle_plat_driver);

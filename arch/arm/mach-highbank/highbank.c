@@ -25,6 +25,7 @@
 #include <linux/of_address.h>
 #include <linux/amba/bus.h>
 #include <linux/clk-provider.h>
+#include <linux/platform_device.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
@@ -153,6 +154,10 @@ static struct notifier_block highbank_platform_nb = {
 	.notifier_call = highbank_platform_notifier,
 };
 
+static struct platform_device highbank_cpuidle_device = {
+	.name = "cpuidle-calxeda",
+};
+
 static void __init highbank_init(void)
 {
 	pm_power_off = highbank_power_off;
@@ -162,6 +167,9 @@ static void __init highbank_init(void)
 	bus_register_notifier(&amba_bustype, &highbank_amba_nb);
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+
+	if (of_machine_is_compatible("calxeda,highbank"))
+		platform_device_register(&highbank_cpuidle_device);
 }
 
 static const char *highbank_match[] __initconst = {
