@@ -1161,10 +1161,12 @@ void ohci_init_driver(struct hc_driver *drv,
 	/* Copy the generic table to drv and then apply the overrides */
 	*drv = ohci_hc_driver;
 
-	drv->product_desc = over->product_desc;
-	drv->hcd_priv_size += over->extra_priv_size;
-	if (over->reset)
-		drv->reset = over->reset;
+	if (over) {
+		drv->product_desc = over->product_desc;
+		drv->hcd_priv_size += over->extra_priv_size;
+		if (over->reset)
+			drv->reset = over->reset;
+	}
 }
 EXPORT_SYMBOL_GPL(ohci_init_driver);
 
