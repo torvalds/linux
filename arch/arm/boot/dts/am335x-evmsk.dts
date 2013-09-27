@@ -423,4 +423,5 @@
 &mmc1 {
 	status = "okay";
 	vmmc-supply = <&vmmc_reg>;
+	bus-width = <4>;
 };
