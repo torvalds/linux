@@ -27,9 +27,7 @@
 #include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 
-#include <asm/cacheflush.h>
-#include <asm/cputype.h>
-#include <asm/smp_plat.h>
+#include <asm/psci.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -50,17 +48,6 @@ static void __init highbank_scu_map_io(void)
 	scu_base_addr = ioremap(base, SZ_4K);
 }
 
-#define HB_JUMP_TABLE_PHYS(cpu)		(0x40 + (0x10 * (cpu)))
-#define HB_JUMP_TABLE_VIRT(cpu)		phys_to_virt(HB_JUMP_TABLE_PHYS(cpu))
-
-void highbank_set_cpu_jump(int cpu, void *jump_addr)
-{
-	cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(cpu), 0);
-	writel(virt_to_phys(jump_addr), HB_JUMP_TABLE_VIRT(cpu));
-	__cpuc_flush_dcache_area(HB_JUMP_TABLE_VIRT(cpu), 16);
-	outer_clean_range(HB_JUMP_TABLE_PHYS(cpu),
-			  HB_JUMP_TABLE_PHYS(cpu) + 15);
-}
 
 static void highbank_l2x0_disable(void)
 {
@@ -182,7 +169,6 @@ DT_MACHINE_START(HIGHBANK, "Highbank")
 #if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
 	.dma_zone_size	= (4ULL * SZ_1G),
 #endif
-	.smp		= smp_ops(highbank_smp_ops),
 	.init_irq	= highbank_init_irq,
 	.init_time	= highbank_timer_init,
 	.init_machine	= highbank_init,
