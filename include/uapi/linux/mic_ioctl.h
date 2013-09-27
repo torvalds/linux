@@ -21,6 +21,8 @@
 #ifndef _MIC_IOCTL_H_
 #define _MIC_IOCTL_H_
 
+#include <linux/types.h>
+
 /*
  * mic_copy - MIC virtio descriptor copy.
  *
