@@ -744,8 +744,10 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		btrfs_run_delayed_iputs(root);
 
 	if (trans->aborted ||
-	    test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state))
+	    test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state)) {
+		wake_up_process(info->transaction_kthread);
 		err = -EIO;
+	}
 	assert_qgroups_uptodate(trans);
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);

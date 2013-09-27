@@ -1800,6 +1800,9 @@ sleep:
 		wake_up_process(root->fs_info->cleaner_kthread);
 		mutex_unlock(&root->fs_info->transaction_kthread_mutex);
 
+		if (unlikely(test_bit(BTRFS_FS_STATE_ERROR,
+				      &root->fs_info->fs_state)))
+			btrfs_cleanup_transaction(root);
 		if (!try_to_freeze()) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (!kthread_should_stop() &&
