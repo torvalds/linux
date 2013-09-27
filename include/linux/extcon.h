@@ -93,7 +93,7 @@ struct extcon_cable;
  *			name of the extcon device.
  * @print_state:	An optional callback to override the method to print the
  *			status of the extcon device.
- * @dev:		Device of this extcon. Do not provide at register-time.
+ * @dev:		Device of this extcon.
  * @state:		Attach/detach state of this extcon. Do not provide at
  *			register-time.
  * @nh:			Notifier for the state change events from this extcon
@@ -121,7 +121,7 @@ struct extcon_dev {
 	ssize_t	(*print_state)(struct extcon_dev *edev, char *buf);
 
 	/* Internal data. Please do not set. */
-	struct device *dev;
+	struct device dev;
 	struct raw_notifier_head nh;
 	struct list_head entry;
 	int max_supported;
