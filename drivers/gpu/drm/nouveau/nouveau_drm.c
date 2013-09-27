@@ -93,7 +93,7 @@ nouveau_drm_vblank_enable(struct drm_device *dev, int head)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
 
-	if (WARN_ON_ONCE(head > ARRAY_SIZE(drm->vblank)))
+	if (WARN_ON_ONCE(head >= ARRAY_SIZE(drm->vblank)))
 		return -EIO;
 	WARN_ON_ONCE(drm->vblank[head].func);
 	drm->vblank[head].func = nouveau_drm_vblank_handler;
