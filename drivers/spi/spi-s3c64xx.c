@@ -960,6 +960,8 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 			goto out;
 		}
 
+		flush_fifo(sdd);
+
 		if (xfer->delay_usecs)
 			udelay(xfer->delay_usecs);
 
@@ -972,8 +974,6 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		}
 
 		msg->actual_length += xfer->len;
-
-		flush_fifo(sdd);
 	}
 
 out:
