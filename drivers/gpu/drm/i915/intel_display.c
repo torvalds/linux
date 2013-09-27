@@ -335,6 +335,14 @@ static const intel_limit_t intel_limits_vlv_hdmi = {
 		.p2_slow = 2, .p2_fast = 20 },
 };
 
+static void vlv_clock(int refclk, intel_clock_t *clock)
+{
+	clock->m = clock->m1 * clock->m2;
+	clock->p = clock->p1 * clock->p2;
+	clock->vco = refclk * clock->m / clock->n;
+	clock->dot = clock->vco / clock->p;
+}
+
 /**
  * Returns whether any output on the specified pipe is of the specified type
  */
@@ -669,66 +677,50 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 		   int target, int refclk, intel_clock_t *match_clock,
 		   intel_clock_t *best_clock)
 {
-	u32 p1, p2, m1, m2, vco, bestn, bestm1, bestm2, bestp1, bestp2;
-	u32 m, n, fastclk;
-	u32 updrate, minupdate, p;
+	intel_clock_t clock;
+	u32 minupdate = 19200;
 	unsigned int bestppm = 1000000;
-	int dotclk, flag;
 
-	flag = 0;
-	dotclk = target * 1000;
-	fastclk = dotclk / (2*100);
-	updrate = 0;
-	minupdate = 19200;
-	n = p = p1 = p2 = m = m1 = m2 = vco = bestn = 0;
-	bestm1 = bestm2 = bestp1 = bestp2 = 0;
+	target *= 5; /* fast clock */
+
+	memset(best_clock, 0, sizeof(*best_clock));
 
 	/* based on hardware requirement, prefer smaller n to precision */
-	for (n = limit->n.min; n <= ((refclk) / minupdate); n++) {
-		updrate = refclk / n;
-		for (p1 = limit->p1.max; p1 > limit->p1.min; p1--) {
-			for (p2 = limit->p2.p2_fast+1; p2 > 0; p2--) {
-				if (p2 > 10)
-					p2 = p2 - 1;
-				p = p1 * p2;
+	for (clock.n = limit->n.min; clock.n <= ((refclk) / minupdate); clock.n++) {
+		for (clock.p1 = limit->p1.max; clock.p1 > limit->p1.min; clock.p1--) {
+			for (clock.p2 = limit->p2.p2_fast+1; clock.p2 > 0; clock.p2--) {
+				if (clock.p2 > 10)
+					clock.p2--;
+				clock.p = clock.p1 * clock.p2;
 				/* based on hardware requirement, prefer bigger m1,m2 values */
-				for (m1 = limit->m1.min; m1 <= limit->m1.max; m1++) {
+				for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) {
 					unsigned int ppm, diff;
 
-					m2 = DIV_ROUND_CLOSEST(fastclk * p * n, refclk * m1);
-					m = m1 * m2;
-					vco = updrate * m;
+					clock.m2 = DIV_ROUND_CLOSEST(target * clock.p * clock.n,
+								     refclk * clock.m1);
 
-					if (vco < limit->vco.min || vco >= limit->vco.max)
+					vlv_clock(refclk, &clock);
+
+					if (clock.vco < limit->vco.min ||
+					    clock.vco >= limit->vco.max)
 						continue;
 
-					diff = abs(vco / p - fastclk);
-					ppm = div_u64(1000000ULL * diff, fastclk);
-					if (ppm < 100 && ((p1 * p2) > (bestp1 * bestp2))) {
+					diff = abs(clock.dot - target);
+					ppm = div_u64(1000000ULL * diff, target);
+
+					if (ppm < 100 && clock.p > best_clock->p) {
 						bestppm = 0;
-						flag = 1;
+						*best_clock = clock;
 					}
+
 					if (bestppm >= 10 && ppm < bestppm - 10) {
 						bestppm = ppm;
-						flag = 1;
-					}
-					if (flag) {
-						bestn = n;
-						bestm1 = m1;
-						bestm2 = m2;
-						bestp1 = p1;
-						bestp2 = p2;
-						flag = 0;
+						*best_clock = clock;
 					}
 				}
 			}
 		}
 	}
-	best_clock->n = bestn;
-	best_clock->m1 = bestm1;
-	best_clock->m2 = bestm2;
-	best_clock->p1 = bestp1;
-	best_clock->p2 = bestp2;
 
 	return true;
 }
