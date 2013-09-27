@@ -720,16 +720,15 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
  */
 static struct aggregator *__get_active_agg(struct aggregator *aggregator)
 {
-	struct aggregator *retval = NULL;
+	struct bonding *bond = aggregator->slave->bond;
+	struct list_head *iter;
+	struct slave *slave;
 
-	for (; aggregator; aggregator = __get_next_agg(aggregator)) {
-		if (aggregator->is_active) {
-			retval = aggregator;
-			break;
-		}
-	}
+	bond_for_each_slave(bond, slave, iter)
+		if (SLAVE_AD_INFO(slave).aggregator.is_active)
+			return &(SLAVE_AD_INFO(slave).aggregator);
 
-	return retval;
+	return NULL;
 }
 
 /**
