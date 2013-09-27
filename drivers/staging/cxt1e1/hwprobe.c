@@ -309,7 +309,7 @@ c4hw_attach_all (void)
     if (!found)
     {
         pr_warning("No boards found\n");
-        return ENODEV;
+        return -ENODEV;
     }
     /* sanity check for consistent hardware found */
     for (i = 0, hi = hdw_info; i < MAX_BOARDS; i++, hi++)
@@ -318,7 +318,7 @@ c4hw_attach_all (void)
         {
             pr_warning("%s: something very wrong with pci_get_device\n",
                        hi->devname);
-            return EIO;
+            return -EIO;
         }
     }
     /* bring board's memory regions on/line */
@@ -333,7 +333,7 @@ c4hw_attach_all (void)
                 pr_warning("%s: memory in use, addr=0x%lx, len=0x%lx ?\n",
                            hi->devname, hi->addr[j], hi->len[j]);
                 cleanup_ioremap ();
-                return ENOMEM;
+                return -ENOMEM;
             }
             hi->addr_mapped[j] = (unsigned long) ioremap (hi->addr[j], hi->len[j]);
             if (!hi->addr_mapped[j])
@@ -341,7 +341,7 @@ c4hw_attach_all (void)
                 pr_warning("%s: ioremap fails, addr=0x%lx, len=0x%lx ?\n",
                            hi->devname, hi->addr[j], hi->len[j]);
                 cleanup_ioremap ();
-                return ENOMEM;
+                return -ENOMEM;
             }
 #ifdef SBE_MAP_DEBUG
             pr_warning("%s: io remapped from phys %x to virt %x\n",
@@ -365,7 +365,7 @@ c4hw_attach_all (void)
                        hi->devname, i, hi->pci_slot);
             cleanup_devs ();
             cleanup_ioremap ();
-            return EIO;
+            return -EIO;
         }
         pci_set_master (hi->pdev[0]);
         pci_set_master (hi->pdev[1]);
