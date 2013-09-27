@@ -1484,19 +1484,23 @@ static int agg_device_up(const struct aggregator *agg)
 static void ad_agg_selection_logic(struct aggregator *agg)
 {
 	struct aggregator *best, *active, *origin;
+	struct bonding *bond = agg->slave->bond;
+	struct list_head *iter;
+	struct slave *slave;
 	struct port *port;
 
 	origin = agg;
 	active = __get_active_agg(agg);
 	best = (active && agg_device_up(active)) ? active : NULL;
 
-	do {
+	bond_for_each_slave(bond, slave, iter) {
+		agg = &(SLAVE_AD_INFO(slave).aggregator);
+
 		agg->is_active = 0;
 
 		if (agg->num_of_ports && agg_device_up(agg))
 			best = ad_agg_selection_test(best, agg);
-
-	} while ((agg = __get_next_agg(agg)));
+	}
 
 	if (best &&
 	    __get_agg_selection_mode(best->lag_ports) == BOND_AD_STABLE) {
@@ -1534,8 +1538,8 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 			 best->lag_ports, best->slave,
 			 best->slave ? best->slave->dev->name : "NULL");
 
-		for (agg = __get_first_agg(best->lag_ports); agg;
-		     agg = __get_next_agg(agg)) {
+		bond_for_each_slave(bond, slave, iter) {
+			agg = &(SLAVE_AD_INFO(slave).aggregator);
 
 			pr_debug("Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
 				 agg->aggregator_identifier, agg->num_of_ports,
@@ -1583,13 +1587,7 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 		}
 	}
 
-	if (origin->slave) {
-		struct bonding *bond;
-
-		bond = bond_get_bond_by_slave(origin->slave);
-		if (bond)
-			bond_3ad_set_carrier(bond);
-	}
+	bond_3ad_set_carrier(bond);
 }
 
 /**
