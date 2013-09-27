@@ -24,7 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 

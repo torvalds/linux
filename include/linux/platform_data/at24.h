@@ -28,7 +28,7 @@
  *
  * void get_mac_addr(struct memory_accessor *mem_acc, void *context)
  * {
- * 	u8 *mac_addr = ethernet_pdata->mac_addr;
+ *	u8 *mac_addr = ethernet_pdata->mac_addr;
  *	off_t offset = context;
  *
  *	// Read MAC addr from EEPROM

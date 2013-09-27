@@ -27,7 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/fb.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
