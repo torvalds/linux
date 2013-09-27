@@ -359,6 +359,8 @@ struct ath10k {
 	const void *firmware_data;
 	size_t firmware_len;
 
+	int fw_api;
+
 	struct {
 		struct completion started;
 		struct completion completed;

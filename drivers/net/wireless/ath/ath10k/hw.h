@@ -32,6 +32,25 @@
 #define QCA988X_HW_2_0_BOARD_DATA_FILE	"board.bin"
 #define QCA988X_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
+#define ATH10K_FW_API2_FILE		"firmware-2.bin"
+
+/* includes also the null byte */
+#define ATH10K_FIRMWARE_MAGIC               "QCA-ATH10K"
+
+struct ath10k_fw_ie {
+	__le32 id;
+	__le32 len;
+	u8 data[0];
+};
+
+enum ath10k_fw_ie_type {
+	ATH10K_FW_IE_FW_VERSION = 0,
+	ATH10K_FW_IE_TIMESTAMP = 1,
+	ATH10K_FW_IE_FEATURES = 2,
+	ATH10K_FW_IE_FW_IMAGE = 3,
+	ATH10K_FW_IE_OTP_IMAGE = 4,
+};
+
 /* Known pecularities:
  *  - current FW doesn't support raw rx mode (last tested v599)
  *  - current FW dumps upon raw tx mode (last tested v599)

@@ -1559,7 +1559,8 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	ar->phy_capability = __le32_to_cpu(ev->phy_capability);
 	ar->num_rf_chains = __le32_to_cpu(ev->num_rf_chains);
 
-	if (ar->fw_version_build > 636)
+	/* only manually set fw features when not using FW IE format */
+	if (ar->fw_api == 1 && ar->fw_version_build > 636)
 		set_bit(ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX, ar->fw_features);
 
 	if (ar->num_rf_chains > WMI_MAX_SPATIAL_STREAM) {
