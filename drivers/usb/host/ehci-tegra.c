@@ -388,7 +388,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 	err = clk_prepare_enable(tegra->clk);
 	if (err)
-		goto cleanup_clk_get;
+		goto cleanup_hcd_create;
 
 	tegra_periph_reset_assert(tegra->clk);
 	udelay(1);
@@ -465,8 +465,6 @@ cleanup_phy:
 	usb_phy_shutdown(hcd->phy);
 cleanup_clk_en:
 	clk_disable_unprepare(tegra->clk);
-cleanup_clk_get:
-	clk_put(tegra->clk);
 cleanup_hcd_create:
 	usb_put_hcd(hcd);
 	return err;
