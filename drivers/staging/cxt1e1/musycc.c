@@ -746,7 +746,7 @@ musycc_init(ci_t *ci)
 
     regaddr = OS_kmalloc((INT_QUEUE_SIZE + 1) * sizeof(u_int32_t));
     if (!regaddr)
-	return ENOMEM;
+	return -ENOMEM;
     ci->iqd_p_saved = regaddr;      /* save orig value for free's usage */
     ci->iqd_p = (u_int32_t *) ((unsigned long) (regaddr + INT_QUEUE_BOUNDARY - 1) &
 			       (~(INT_QUEUE_BOUNDARY - 1)));    /* this calculates
@@ -772,7 +772,7 @@ musycc_init(ci_t *ci)
 		OS_kfree(pi->reg);
 		pi->reg = NULL;
 	    }
-	    return ENOMEM;
+	    return -ENOMEM;
 	}
 	pi->regram_saved = regaddr; /* save orig value for free's usage */
 	pi->regram = (struct musycc_groupr *) ((unsigned long) (regaddr + GROUP_BOUNDARY - 1) &
