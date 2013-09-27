@@ -348,8 +348,16 @@ struct ath10k {
 	} hw_params;
 
 	const struct firmware *board;
+	const void *board_data;
+	size_t board_len;
+
 	const struct firmware *otp;
+	const void *otp_data;
+	size_t otp_len;
+
 	const struct firmware *firmware;
+	const void *firmware_data;
+	size_t firmware_len;
 
 	struct {
 		struct completion started;

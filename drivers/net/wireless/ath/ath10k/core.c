@@ -168,8 +168,7 @@ static const struct firmware *ath10k_fetch_fw_file(struct ath10k *ar,
 	return fw;
 }
 
-static int ath10k_push_board_ext_data(struct ath10k *ar,
-				      const struct firmware *fw)
+static int ath10k_push_board_ext_data(struct ath10k *ar)
 {
 	u32 board_data_size = QCA988X_BOARD_DATA_SZ;
 	u32 board_ext_data_size = QCA988X_BOARD_EXT_DATA_SZ;
@@ -189,14 +188,14 @@ static int ath10k_push_board_ext_data(struct ath10k *ar,
 	if (board_ext_data_addr == 0)
 		return 0;
 
-	if (fw->size != (board_data_size + board_ext_data_size)) {
+	if (ar->board_len != (board_data_size + board_ext_data_size)) {
 		ath10k_err("invalid board (ext) data sizes %zu != %d+%d\n",
-			   fw->size, board_data_size, board_ext_data_size);
+			   ar->board_len, board_data_size, board_ext_data_size);
 		return -EINVAL;
 	}
 
 	ret = ath10k_bmi_write_memory(ar, board_ext_data_addr,
-				      fw->data + board_data_size,
+				      ar->board_data + board_data_size,
 				      board_ext_data_size);
 	if (ret) {
 		ath10k_err("could not write board ext data (%d)\n", ret);
@@ -215,12 +214,11 @@ static int ath10k_push_board_ext_data(struct ath10k *ar,
 
 static int ath10k_download_board_data(struct ath10k *ar)
 {
-	const struct firmware *fw = ar->board;
 	u32 board_data_size = QCA988X_BOARD_DATA_SZ;
 	u32 address;
 	int ret;
 
-	ret = ath10k_push_board_ext_data(ar, fw);
+	ret = ath10k_push_board_ext_data(ar);
 	if (ret) {
 		ath10k_err("could not push board ext data (%d)\n", ret);
 		goto exit;
@@ -232,8 +230,9 @@ static int ath10k_download_board_data(struct ath10k *ar)
 		goto exit;
 	}
 
-	ret = ath10k_bmi_write_memory(ar, address, fw->data,
-				      min_t(u32, board_data_size, fw->size));
+	ret = ath10k_bmi_write_memory(ar, address, ar->board_data,
+				      min_t(u32, board_data_size,
+					    ar->board_len));
 	if (ret) {
 		ath10k_err("could not write board data (%d)\n", ret);
 		goto exit;
@@ -251,17 +250,16 @@ exit:
 
 static int ath10k_download_and_run_otp(struct ath10k *ar)
 {
-	const struct firmware *fw = ar->otp;
 	u32 address = ar->hw_params.patch_load_addr;
 	u32 exec_param;
 	int ret;
 
 	/* OTP is optional */
 
-	if (!ar->otp)
+	if (!ar->otp_data || !ar->otp_len)
 		return 0;
 
-	ret = ath10k_bmi_fast_download(ar, address, fw->data, fw->size);
+	ret = ath10k_bmi_fast_download(ar, address, ar->otp_data, ar->otp_len);
 	if (ret) {
 		ath10k_err("could not write otp (%d)\n", ret);
 		goto exit;
@@ -280,13 +278,13 @@ exit:
 
 static int ath10k_download_fw(struct ath10k *ar)
 {
-	const struct firmware *fw = ar->firmware;
 	u32 address;
 	int ret;
 
 	address = ar->hw_params.patch_load_addr;
 
-	ret = ath10k_bmi_fast_download(ar, address, fw->data, fw->size);
+	ret = ath10k_bmi_fast_download(ar, address, ar->firmware_data,
+				       ar->firmware_len);
 	if (ret) {
 		ath10k_err("could not write fw (%d)\n", ret);
 		goto exit;
@@ -308,8 +306,16 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 		release_firmware(ar->firmware);
 
 	ar->board = NULL;
+	ar->board_data = NULL;
+	ar->board_len = 0;
+
 	ar->otp = NULL;
+	ar->otp_data = NULL;
+	ar->otp_len = 0;
+
 	ar->firmware = NULL;
+	ar->firmware_data = NULL;
+	ar->firmware_len = 0;
 }
 
 static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
@@ -335,6 +341,9 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 		goto err;
 	}
 
+	ar->board_data = ar->board->data;
+	ar->board_len = ar->board->size;
+
 	ar->firmware = ath10k_fetch_fw_file(ar,
 					    ar->hw_params.fw.dir,
 					    ar->hw_params.fw.fw);
@@ -343,6 +352,9 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 		ath10k_err("could not fetch firmware (%d)\n", ret);
 		goto err;
 	}
+
+	ar->firmware_data = ar->firmware->data;
+	ar->firmware_len = ar->firmware->size;
 
 	/* OTP may be undefined. If so, don't fetch it at all */
 	if (ar->hw_params.fw.otp == NULL)
@@ -356,6 +368,9 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 		ath10k_err("could not fetch otp (%d)\n", ret);
 		goto err;
 	}
+
+	ar->otp_data = ar->otp->data;
+	ar->otp_len = ar->otp->size;
 
 	return 0;
 
