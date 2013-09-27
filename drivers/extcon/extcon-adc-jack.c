@@ -110,6 +110,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	data->edev.dev.parent = &pdev->dev;
 	data->edev.supported_cable = pdata->cable_names;
 
 	/* Check the length of array and set num_cables */
@@ -148,7 +149,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	err = extcon_dev_register(&data->edev, &pdev->dev);
+	err = extcon_dev_register(&data->edev);
 	if (err)
 		goto out;
 

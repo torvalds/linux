@@ -183,7 +183,7 @@ struct extcon_specific_cable_nb {
  * Following APIs are for notifiers or configurations.
  * Notifiers are the external port and connection devices.
  */
-extern int extcon_dev_register(struct extcon_dev *edev, struct device *dev);
+extern int extcon_dev_register(struct extcon_dev *edev);
 extern void extcon_dev_unregister(struct extcon_dev *edev);
 extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
 
@@ -241,8 +241,7 @@ extern int extcon_register_notifier(struct extcon_dev *edev,
 extern int extcon_unregister_notifier(struct extcon_dev *edev,
 				      struct notifier_block *nb);
 #else /* CONFIG_EXTCON */
-static inline int extcon_dev_register(struct extcon_dev *edev,
-				      struct device *dev)
+static inline int extcon_dev_register(struct extcon_dev *edev)
 {
 	return 0;
 }

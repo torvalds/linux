@@ -25,8 +25,10 @@ MyungJoo Ham <myungjoo.ham@samsung.com>
     @print_state: no change but type change (switch_dev->extcon_dev)
 
 - switch_dev_register(sdev, dev)
-	=> extcon_dev_register(edev, dev)
-	: no change but type change (sdev->edev)
+	=> extcon_dev_register(edev)
+	: type change (sdev->edev)
+	: remove second param('dev'). if edev has parent device, should store
+	  'dev' to 'edev.dev.parent' before registering extcon device
 - switch_dev_unregister(sdev)
 	=> extcon_dev_unregister(edev)
 	: no change but type change (sdev->edev)

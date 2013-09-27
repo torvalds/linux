@@ -178,9 +178,10 @@ static int palmas_usb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, palmas_usb);
 
 	palmas_usb->edev.supported_cable = palmas_extcon_cable;
+	palmas_usb->edev.dev.parent = palmas_usb->dev;
 	palmas_usb->edev.mutually_exclusive = mutually_exclusive;
 
-	status = extcon_dev_register(&palmas_usb->edev, palmas_usb->dev);
+	status = extcon_dev_register(&palmas_usb->edev);
 	if (status) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		return status;

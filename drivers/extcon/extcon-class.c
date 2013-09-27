@@ -566,14 +566,13 @@ static void dummy_sysfs_dev_release(struct device *dev)
 /**
  * extcon_dev_register() - Register a new extcon device
  * @edev	: the new extcon device (should be allocated before calling)
- * @dev		: the parent device for this extcon device.
  *
  * Among the members of edev struct, please set the "user initializing data"
  * in any case and set the "optional callbacks" if required. However, please
  * do not set the values of "internal data", which are initialized by
  * this function.
  */
-int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
+int extcon_dev_register(struct extcon_dev *edev)
 {
 	int ret, index = 0;
 
@@ -597,11 +596,15 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 		return -EINVAL;
 	}
 
-	edev->dev.parent = dev;
 	edev->dev.class = extcon_class;
 	edev->dev.release = extcon_dev_release;
 
-	edev->name = edev->name ? edev->name : dev_name(dev);
+	edev->name = edev->name ? edev->name : dev_name(edev->dev.parent);
+	if (IS_ERR_OR_NULL(edev->name)) {
+		dev_err(&edev->dev,
+			"extcon device name is null\n");
+		return -EINVAL;
+	}
 	dev_set_name(&edev->dev, "%s", edev->name);
 
 	if (edev->max_supported) {

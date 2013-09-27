@@ -1130,9 +1130,10 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	}
 
 	info->edev.name = "Headset Jack";
+	info->edev.dev.parent = arizona->dev;
 	info->edev.supported_cable = arizona_cable;
 
-	ret = extcon_dev_register(&info->edev, arizona->dev);
+	ret = extcon_dev_register(&info->edev);
 	if (ret < 0) {
 		dev_err(arizona->dev, "extcon_dev_register() failed: %d\n",
 			ret);

@@ -98,6 +98,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	extcon_data->edev.name = pdata->name;
+	extcon_data->edev.dev.parent = &pdev->dev;
 	extcon_data->gpio = pdata->gpio;
 	extcon_data->gpio_active_low = pdata->gpio_active_low;
 	extcon_data->state_on = pdata->state_on;
@@ -112,7 +113,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 				msecs_to_jiffies(pdata->debounce);
 	}
 
-	ret = extcon_dev_register(&extcon_data->edev, &pdev->dev);
+	ret = extcon_dev_register(&extcon_data->edev);
 	if (ret < 0)
 		return ret;
 

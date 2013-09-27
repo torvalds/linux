@@ -705,8 +705,9 @@ static int max8997_muic_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 	info->edev->name = DEV_NAME;
+	info->edev->dev.parent = &pdev->dev;
 	info->edev->supported_cable = max8997_extcon_cable;
-	ret = extcon_dev_register(info->edev, NULL);
+	ret = extcon_dev_register(info->edev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		goto err_irq;
