@@ -75,8 +75,15 @@ static const struct radeon_hdmi_acr r600_hdmi_predefined_acr[] = {
  */
 static void r600_hdmi_calc_cts(uint32_t clock, int *CTS, int N, int freq)
 {
-	if (*CTS == 0)
-		*CTS = clock * N / (128 * freq) * 1000;
+	u64 n;
+	u32 d;
+
+	if (*CTS == 0) {
+		n = (u64)clock * (u64)N * 1000ULL;
+		d = 128 * freq;
+		do_div(n, d);
+		*CTS = n;
+	}
 	DRM_DEBUG("Using ACR timing N=%d CTS=%d for frequency %d\n",
 		  N, *CTS, freq);
 }
