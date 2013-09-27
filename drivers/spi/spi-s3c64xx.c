@@ -205,7 +205,6 @@ struct s3c64xx_spi_driver_data {
 #endif
 	struct s3c64xx_spi_port_config	*port_conf;
 	unsigned int			port_id;
-	unsigned long			gpios[4];
 	bool				cs_gpio;
 };
 
