@@ -66,17 +66,6 @@ config OMAP_CONTROL_USB
 	  power on the USB2 PHY is present in OMAP4 and OMAP5. OMAP5 has an
 	  additional register to power on USB3 PHY.
 
-config OMAP_USB2
-	tristate "OMAP USB2 PHY Driver"
-	depends on ARCH_OMAP2PLUS
-	select OMAP_CONTROL_USB
-	select USB_PHY
-	help
-	  Enable this to support the transceiver that is part of SOC. This
-	  driver takes care of all the PHY functionality apart from comparator.
-	  The USB OTG controller communicates with the comparator using this
-	  driver.
-
 config OMAP_USB3
 	tristate "OMAP USB3 PHY Driver"
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
