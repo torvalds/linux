@@ -238,64 +238,6 @@ static void wa_xfer_completion(struct wa_xfer *xfer)
 }
 
 /*
- * If transfer is done, wrap it up and return true
- *
- * xfer->lock has to be locked
- */
-static unsigned __wa_xfer_is_done(struct wa_xfer *xfer)
-{
-	struct device *dev = &xfer->wa->usb_iface->dev;
-	unsigned result, cnt;
-	struct wa_seg *seg;
-	struct urb *urb = xfer->urb;
-	unsigned found_short = 0;
-
-	result = xfer->segs_done == xfer->segs_submitted;
-	if (result == 0)
-		goto out;
-	urb->actual_length = 0;
-	for (cnt = 0; cnt < xfer->segs; cnt++) {
-		seg = xfer->seg[cnt];
-		switch (seg->status) {
-		case WA_SEG_DONE:
-			if (found_short && seg->result > 0) {
-				dev_dbg(dev, "xfer %p#%u: bad short segments (%zu)\n",
-					xfer, cnt, seg->result);
-				urb->status = -EINVAL;
-				goto out;
-			}
-			urb->actual_length += seg->result;
-			if (seg->result < xfer->seg_size
-			    && cnt != xfer->segs-1)
-				found_short = 1;
-			dev_dbg(dev, "xfer %p#%u: DONE short %d "
-				"result %zu urb->actual_length %d\n",
-				xfer, seg->index, found_short, seg->result,
-				urb->actual_length);
-			break;
-		case WA_SEG_ERROR:
-			xfer->result = seg->result;
-			dev_dbg(dev, "xfer %p#%u: ERROR result %zu\n",
-				xfer, seg->index, seg->result);
-			goto out;
-		case WA_SEG_ABORTED:
-			dev_dbg(dev, "xfer %p#%u ABORTED: result %d\n",
-				xfer, seg->index, urb->status);
-			xfer->result = urb->status;
-			goto out;
-		default:
-			dev_warn(dev, "xfer %p#%u: is_done bad state %d\n",
-				 xfer, cnt, seg->status);
-			xfer->result = -EINVAL;
-			goto out;
-		}
-	}
-	xfer->result = 0;
-out:
-	return result;
-}
-
-/*
  * Initialize a transfer's ID
  *
  * We need to use a sequential number; if we use the pointer or the
@@ -318,6 +260,67 @@ static inline u32 wa_xfer_id(struct wa_xfer *xfer)
 static inline __le32 wa_xfer_id_le32(struct wa_xfer *xfer)
 {
 	return cpu_to_le32(xfer->id);
+}
+
+/*
+ * If transfer is done, wrap it up and return true
+ *
+ * xfer->lock has to be locked
+ */
+static unsigned __wa_xfer_is_done(struct wa_xfer *xfer)
+{
+	struct device *dev = &xfer->wa->usb_iface->dev;
+	unsigned result, cnt;
+	struct wa_seg *seg;
+	struct urb *urb = xfer->urb;
+	unsigned found_short = 0;
+
+	result = xfer->segs_done == xfer->segs_submitted;
+	if (result == 0)
+		goto out;
+	urb->actual_length = 0;
+	for (cnt = 0; cnt < xfer->segs; cnt++) {
+		seg = xfer->seg[cnt];
+		switch (seg->status) {
+		case WA_SEG_DONE:
+			if (found_short && seg->result > 0) {
+				dev_dbg(dev, "xfer %p ID %08X#%u: bad short segments (%zu)\n",
+					xfer, wa_xfer_id(xfer), cnt,
+					seg->result);
+				urb->status = -EINVAL;
+				goto out;
+			}
+			urb->actual_length += seg->result;
+			if (seg->result < xfer->seg_size
+			    && cnt != xfer->segs-1)
+				found_short = 1;
+			dev_dbg(dev, "xfer %p ID %08X#%u: DONE short %d "
+				"result %zu urb->actual_length %d\n",
+				xfer, wa_xfer_id(xfer), seg->index, found_short,
+				seg->result, urb->actual_length);
+			break;
+		case WA_SEG_ERROR:
+			xfer->result = seg->result;
+			dev_dbg(dev, "xfer %p ID %08X#%u: ERROR result %zu(0x%08X)\n",
+				xfer, wa_xfer_id(xfer), seg->index, seg->result,
+				seg->result);
+			goto out;
+		case WA_SEG_ABORTED:
+			dev_dbg(dev, "xfer %p ID %08X#%u ABORTED: result %d\n",
+				xfer, wa_xfer_id(xfer), seg->index,
+				urb->status);
+			xfer->result = urb->status;
+			goto out;
+		default:
+			dev_warn(dev, "xfer %p ID %08X#%u: is_done bad state %d\n",
+				 xfer, wa_xfer_id(xfer), cnt, seg->status);
+			xfer->result = -EINVAL;
+			goto out;
+		}
+	}
+	xfer->result = 0;
+out:
+	return result;
 }
 
 /*
@@ -618,8 +621,9 @@ static void wa_seg_tr_cb(struct urb *urb)
 		dev = &wa->usb_iface->dev;
 		rpipe = xfer->ep->hcpriv;
 		if (printk_ratelimit())
-			dev_err(dev, "xfer %p#%u: request error %d\n",
-				xfer, seg->index, urb->status);
+			dev_err(dev, "xfer %p ID 0x%08X#%u: request error %d\n",
+				xfer, wa_xfer_id(xfer), seg->index,
+				urb->status);
 		if (edc_inc(&wa->nep_edc, EDC_MAX_ERRORS,
 			    EDC_ERROR_TIMEFRAME)){
 			dev_err(dev, "DTO: URB max acceptable errors "
@@ -964,8 +968,9 @@ static void wa_xfer_delayed_run(struct wa_rpipe *rpipe)
 		list_del(&seg->list_node);
 		xfer = seg->xfer;
 		result = __wa_seg_submit(rpipe, xfer, seg);
-		dev_dbg(dev, "xfer %p#%u submitted from delayed [%d segments available] %d\n",
-			xfer, seg->index, atomic_read(&rpipe->segs_available), result);
+		dev_dbg(dev, "xfer %p ID %08X#%u submitted from delayed [%d segments available] %d\n",
+			xfer, wa_xfer_id(xfer), seg->index,
+			atomic_read(&rpipe->segs_available), result);
 		if (unlikely(result < 0)) {
 			spin_unlock_irqrestore(&rpipe->seg_lock, flags);
 			spin_lock_irqsave(&xfer->lock, flags);
@@ -1009,11 +1014,10 @@ static int __wa_xfer_submit(struct wa_xfer *xfer)
 		available = atomic_read(&rpipe->segs_available);
 		empty = list_empty(&rpipe->seg_list);
 		seg = xfer->seg[cnt];
-		dev_dbg(dev, "xfer %p#%u: available %u empty %u (%s)\n",
-			xfer, cnt, available, empty,
+		dev_dbg(dev, "xfer %p ID 0x%08X#%u: available %u empty %u (%s)\n",
+			xfer, wa_xfer_id(xfer), cnt, available, empty,
 			available == 0 || !empty ? "delayed" : "submitted");
 		if (available == 0 || !empty) {
-			dev_dbg(dev, "xfer %p#%u: delayed\n", xfer, cnt);
 			seg->status = WA_SEG_DELAYED;
 			list_add_tail(&seg->list_node, &rpipe->seg_list);
 		} else {
@@ -1463,8 +1467,8 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 	seg = xfer->seg[seg_idx];
 	rpipe = xfer->ep->hcpriv;
 	usb_status = xfer_result->bTransferStatus;
-	dev_dbg(dev, "xfer %p#%u: bTransferStatus 0x%02x (seg status %u)\n",
-		xfer, seg_idx, usb_status, seg->status);
+	dev_dbg(dev, "xfer %p ID 0x%08X#%u: bTransferStatus 0x%02x (seg status %u)\n",
+		xfer, wa_xfer_id(xfer), seg_idx, usb_status, seg->status);
 	if (seg->status == WA_SEG_ABORTED
 	    || seg->status == WA_SEG_ERROR)	/* already handled */
 		goto segment_aborted;
