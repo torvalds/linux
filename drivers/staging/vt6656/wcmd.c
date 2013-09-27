@@ -690,7 +690,7 @@ void vRunCommand(struct work_struct *work)
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState == WLAN_CMD_AP_MODE_START\n");
 
             if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
-                del_timer(&pMgmt->sTimerSecondCallback);
+		cancel_delayed_work_sync(&pDevice->second_callback_work);
                 pMgmt->eCurrState = WMAC_STATE_IDLE;
                 pMgmt->eCurrMode = WMAC_MODE_STANDBY;
                 pDevice->bLinkPass = false;
@@ -718,7 +718,7 @@ void vRunCommand(struct work_struct *work)
                 }
                 pDevice->bLinkPass = true;
                 ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
-                add_timer(&pMgmt->sTimerSecondCallback);
+		schedule_delayed_work(&pDevice->second_callback_work, HZ);
             }
             s_bCommandComplete(pDevice);
             break;

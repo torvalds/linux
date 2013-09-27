@@ -708,6 +708,8 @@ struct vnt_private {
 
 	/* command timer */
 	struct delayed_work run_command_work;
+	/* One second callback */
+	struct delayed_work second_callback_work;
 
 	struct timer_list sTimerTxData;
 	unsigned long nTxDataTimeCout;

@@ -703,6 +703,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	device_set_options(pDevice);
 	spin_lock_init(&pDevice->lock);
 	INIT_DELAYED_WORK(&pDevice->run_command_work, vRunCommand);
+	INIT_DELAYED_WORK(&pDevice->second_callback_work, BSSvSecondCallBack);
 
 	pDevice->tx_80211 = device_dma0_tx_80211;
 	pDevice->vnt_mgmt.pAdapter = (void *) pDevice;
@@ -985,7 +986,9 @@ static int  device_open(struct net_device *dev)
     tasklet_init(&pDevice->RxMngWorkItem, (void *)RXvMngWorkItem, (unsigned long)pDevice);
     tasklet_init(&pDevice->ReadWorkItem, (void *)RXvWorkItem, (unsigned long)pDevice);
     tasklet_init(&pDevice->EventWorkItem, (void *)INTvWorkItem, (unsigned long)pDevice);
-	add_timer(&pDevice->vnt_mgmt.sTimerSecondCallback);
+
+	schedule_delayed_work(&pDevice->second_callback_work, HZ);
+
 	pDevice->int_interval = 100;  /* max 100 microframes */
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
@@ -1079,8 +1082,7 @@ static int device_close(struct net_device *dev)
     pDevice->fKillEventPollingThread = true;
 
 	cancel_delayed_work_sync(&pDevice->run_command_work);
-
-    del_timer(&pMgmt->sTimerSecondCallback);
+	cancel_delayed_work_sync(&pDevice->second_callback_work);
 
     del_timer(&pDevice->sTimerTxData);
 

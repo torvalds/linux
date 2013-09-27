@@ -813,8 +813,10 @@ void BSSvAddMulticastNode(struct vnt_private *pDevice)
  *
 -*/
 
-void BSSvSecondCallBack(struct vnt_private *pDevice)
+void BSSvSecondCallBack(struct work_struct *work)
 {
+	struct vnt_private *pDevice = container_of(work,
+			struct vnt_private, second_callback_work.work);
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	int ii;
 	PWLAN_IE_SSID pItemSSID, pCurrSSID;
@@ -1126,8 +1128,7 @@ else {
 
     spin_unlock_irq(&pDevice->lock);
 
-    pMgmt->sTimerSecondCallback.expires = RUN_AT(HZ);
-    add_timer(&pMgmt->sTimerSecondCallback);
+	schedule_delayed_work(&pDevice->second_callback_work, HZ);
 }
 
 /*+
