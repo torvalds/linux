@@ -1540,6 +1540,8 @@ static int adau1373_i2c_probe(struct i2c_client *client,
 	if (IS_ERR(adau1373->regmap))
 		return PTR_ERR(adau1373->regmap);
 
+	regmap_write(adau1373->regmap, ADAU1373_SOFT_RESET, 0x00);
+
 	dev_set_drvdata(&client->dev, adau1373);
 
 	ret = snd_soc_register_codec(&client->dev, &adau1373_codec_driver,
