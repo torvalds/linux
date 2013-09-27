@@ -80,14 +80,6 @@ static __always_inline bool __preempt_count_dec_and_test(void)
 }
 
 /*
- * Returns true when we need to resched -- even if we can not.
- */
-static __always_inline bool need_resched(void)
-{
-	return unlikely(test_preempt_need_resched());
-}
-
-/*
  * Returns true when we need to resched and can (barring IRQ state).
  */
 static __always_inline bool should_resched(void)
