@@ -610,9 +610,9 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			  struct pt_regs *regs)
 {
 	int set, way, n;
-	unsigned int pd0[4], pd1[4];	/* assume max 4 ways */
 	unsigned long flags, is_valid;
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	unsigned int pd0[mmu->ways], pd1[mmu->ways];
 
 	local_irq_save(flags);
 
@@ -637,7 +637,7 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			continue;
 
 		/* Scan the set for duplicate ways: needs a nested loop */
-		for (way = 0; way < mmu->ways; way++) {
+		for (way = 0; way < mmu->ways - 1; way++) {
 			if (!pd0[way])
 				continue;
 
