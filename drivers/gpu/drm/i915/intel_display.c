@@ -310,7 +310,13 @@ static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
 };
 
 static const intel_limit_t intel_limits_vlv = {
-	.dot = { .min = 25000, .max = 270000 },
+	 /*
+	  * These are the data rate limits (measured in fast clocks)
+	  * since those are the strictest limits we have. The fast
+	  * clock and actual rate limits are more relaxed, so checking
+	  * them would make no difference.
+	  */
+	.dot = { .min = 25000 * 5, .max = 270000 * 5 },
 	.vco = { .min = 4000000, .max = 6000000 },
 	.n = { .min = 1, .max = 7 },
 	.m1 = { .min = 2, .max = 3 },
@@ -451,20 +457,26 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 			       const intel_limit_t *limit,
 			       const intel_clock_t *clock)
 {
+	if (clock->n   < limit->n.min   || limit->n.max   < clock->n)
+		INTELPllInvalid("n out of range\n");
 	if (clock->p1  < limit->p1.min  || limit->p1.max  < clock->p1)
 		INTELPllInvalid("p1 out of range\n");
-	if (clock->p   < limit->p.min   || limit->p.max   < clock->p)
-		INTELPllInvalid("p out of range\n");
 	if (clock->m2  < limit->m2.min  || limit->m2.max  < clock->m2)
 		INTELPllInvalid("m2 out of range\n");
 	if (clock->m1  < limit->m1.min  || limit->m1.max  < clock->m1)
 		INTELPllInvalid("m1 out of range\n");
-	if (clock->m1 <= clock->m2 && !IS_PINEVIEW(dev))
-		INTELPllInvalid("m1 <= m2\n");
-	if (clock->m   < limit->m.min   || limit->m.max   < clock->m)
-		INTELPllInvalid("m out of range\n");
-	if (clock->n   < limit->n.min   || limit->n.max   < clock->n)
-		INTELPllInvalid("n out of range\n");
+
+	if (!IS_PINEVIEW(dev) && !IS_VALLEYVIEW(dev))
+		if (clock->m1 <= clock->m2)
+			INTELPllInvalid("m1 <= m2\n");
+
+	if (!IS_VALLEYVIEW(dev)) {
+		if (clock->p < limit->p.min || limit->p.max < clock->p)
+			INTELPllInvalid("p out of range\n");
+		if (clock->m < limit->m.min || limit->m.max < clock->m)
+			INTELPllInvalid("m out of range\n");
+	}
+
 	if (clock->vco < limit->vco.min || limit->vco.max < clock->vco)
 		INTELPllInvalid("vco out of range\n");
 	/* XXX: We may need to be checking "Dot clock" depending on the multiplier,
@@ -658,6 +670,7 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 		   int target, int refclk, intel_clock_t *match_clock,
 		   intel_clock_t *best_clock)
 {
+	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
 	unsigned int bestppm = 1000000;
 	/* min update 19.2 MHz */
@@ -683,8 +696,8 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 
 					vlv_clock(refclk, &clock);
 
-					if (clock.vco < limit->vco.min ||
-					    clock.vco >= limit->vco.max)
+					if (!intel_PLL_is_valid(dev, limit,
+								&clock))
 						continue;
 
 					diff = abs(clock.dot - target);
