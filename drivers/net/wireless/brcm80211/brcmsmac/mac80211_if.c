@@ -457,6 +457,8 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	if (err != 0)
 		brcms_err(wl->wlc->hw->d11core, "%s: brcms_up() returned %d\n",
 			  __func__, err);
+
+	bcma_core_pci_power_save(wl->wlc->hw->d11core->bus, true);
 	return err;
 }
 
@@ -478,6 +480,8 @@ static void brcms_ops_stop(struct ieee80211_hw *hw)
 			  "wl: brcms_ops_stop: chipmatch failed\n");
 		return;
 	}
+
+	bcma_core_pci_power_save(wl->wlc->hw->d11core->bus, false);
 
 	/* put driver in down state */
 	spin_lock_bh(&wl->lock);

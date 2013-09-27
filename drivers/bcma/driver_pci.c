@@ -210,25 +210,6 @@ static void bcma_core_pci_config_fixup(struct bcma_drv_pci *pc)
 	}
 }
 
-static void bcma_core_pci_power_save(struct bcma_drv_pci *pc, bool up)
-{
-	u16 data;
-
-	if (pc->core->id.rev >= 15 && pc->core->id.rev <= 20) {
-		data = up ? 0x74 : 0x7C;
-		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
-					 BCMA_CORE_PCI_MDIO_BLK1_MGMT1, 0x7F64);
-		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
-					 BCMA_CORE_PCI_MDIO_BLK1_MGMT3, data);
-	} else if (pc->core->id.rev >= 21 && pc->core->id.rev <= 22) {
-		data = up ? 0x75 : 0x7D;
-		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
-					 BCMA_CORE_PCI_MDIO_BLK1_MGMT1, 0x7E65);
-		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
-					 BCMA_CORE_PCI_MDIO_BLK1_MGMT3, data);
-	}
-}
-
 /**************************************************
  * Init.
  **************************************************/
@@ -254,6 +235,32 @@ void bcma_core_pci_init(struct bcma_drv_pci *pc)
 	if (!pc->hostmode)
 		bcma_core_pci_clientmode_init(pc);
 }
+
+void bcma_core_pci_power_save(struct bcma_bus *bus, bool up)
+{
+	struct bcma_drv_pci *pc;
+	u16 data;
+
+	if (bus->hosttype != BCMA_HOSTTYPE_PCI)
+		return;
+
+	pc = &bus->drv_pci[0];
+
+	if (pc->core->id.rev >= 15 && pc->core->id.rev <= 20) {
+		data = up ? 0x74 : 0x7C;
+		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
+					 BCMA_CORE_PCI_MDIO_BLK1_MGMT1, 0x7F64);
+		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
+					 BCMA_CORE_PCI_MDIO_BLK1_MGMT3, data);
+	} else if (pc->core->id.rev >= 21 && pc->core->id.rev <= 22) {
+		data = up ? 0x75 : 0x7D;
+		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
+					 BCMA_CORE_PCI_MDIO_BLK1_MGMT1, 0x7E65);
+		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
+					 BCMA_CORE_PCI_MDIO_BLK1_MGMT3, data);
+	}
+}
+EXPORT_SYMBOL_GPL(bcma_core_pci_power_save);
 
 int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc, struct bcma_device *core,
 			  bool enable)
@@ -310,8 +317,6 @@ void bcma_core_pci_up(struct bcma_bus *bus)
 
 	pc = &bus->drv_pci[0];
 
-	bcma_core_pci_power_save(pc, true);
-
 	bcma_core_pci_extend_L1timer(pc, true);
 }
 EXPORT_SYMBOL_GPL(bcma_core_pci_up);
@@ -326,7 +331,5 @@ void bcma_core_pci_down(struct bcma_bus *bus)
 	pc = &bus->drv_pci[0];
 
 	bcma_core_pci_extend_L1timer(pc, false);
-
-	bcma_core_pci_power_save(pc, false);
 }
 EXPORT_SYMBOL_GPL(bcma_core_pci_down);
