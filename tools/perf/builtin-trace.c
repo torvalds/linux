@@ -975,30 +975,9 @@ struct trace {
 	double			runtime_ms;
 };
 
-static int thread__read_fd_path(struct thread *thread, int fd)
+static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pathname)
 {
 	struct thread_trace *ttrace = thread->priv;
-	char linkname[PATH_MAX], pathname[PATH_MAX];
-	struct stat st;
-	int ret;
-
-	if (thread->pid_ == thread->tid) {
-		scnprintf(linkname, sizeof(linkname),
-			  "/proc/%d/fd/%d", thread->pid_, fd);
-	} else {
-		scnprintf(linkname, sizeof(linkname),
-			  "/proc/%d/task/%d/fd/%d", thread->pid_, thread->tid, fd);
-	}
-
-	if (lstat(linkname, &st) < 0 || st.st_size + 1 > (off_t)sizeof(pathname))
-		return -1;
-
-	ret = readlink(linkname, pathname, sizeof(pathname));
-
-	if (ret < 0 || ret > st.st_size)
-		return -1;
-
-	pathname[ret] = '\0';
 
 	if (fd > ttrace->paths.max) {
 		char **npath = realloc(ttrace->paths.table, (fd + 1) * sizeof(char *));
@@ -1020,6 +999,32 @@ static int thread__read_fd_path(struct thread *thread, int fd)
 	ttrace->paths.table[fd] = strdup(pathname);
 
 	return ttrace->paths.table[fd] != NULL ? 0 : -1;
+}
+
+static int thread__read_fd_path(struct thread *thread, int fd)
+{
+	char linkname[PATH_MAX], pathname[PATH_MAX];
+	struct stat st;
+	int ret;
+
+	if (thread->pid_ == thread->tid) {
+		scnprintf(linkname, sizeof(linkname),
+			  "/proc/%d/fd/%d", thread->pid_, fd);
+	} else {
+		scnprintf(linkname, sizeof(linkname),
+			  "/proc/%d/task/%d/fd/%d", thread->pid_, thread->tid, fd);
+	}
+
+	if (lstat(linkname, &st) < 0 || st.st_size + 1 > (off_t)sizeof(pathname))
+		return -1;
+
+	ret = readlink(linkname, pathname, sizeof(pathname));
+
+	if (ret < 0 || ret > st.st_size)
+		return -1;
+
+	pathname[ret] = '\0';
+	return trace__set_fd_pathname(thread, fd, pathname);
 }
 
 static const char *thread__fd_path(struct thread *thread, int fd, bool live)
