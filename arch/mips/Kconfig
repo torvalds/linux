@@ -301,7 +301,7 @@ config MIPS_MALTA
 	select CEVT_R4K
 	select CSRC_R4K
 	select CSRC_GIC
-	select DMA_NONCOHERENT
+	select DMA_MAYBE_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
 	select IRQ_CPU
@@ -892,6 +892,10 @@ config FW_CFE
 
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool (HIGHMEM && 64BIT_PHYS_ADDR) || 64BIT
+
+config DMA_MAYBE_COHERENT
+	select DMA_NONCOHERENT
+	bool
 
 config DMA_COHERENT
 	bool
