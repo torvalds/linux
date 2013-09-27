@@ -72,7 +72,7 @@ static inline void frontswap_tmem_exclusive_gets(bool b)
 /* enable (or fix code) when Seth's patches are accepted upstream */
 #define zcache_writeback_enabled 0
 
-static bool zcache_enabled __read_mostly;
+static bool zcache_enabled __read_mostly = true;
 static bool disable_cleancache __read_mostly;
 static bool disable_frontswap __read_mostly;
 static bool disable_frontswap_ignore_nonactive __read_mostly;
@@ -1728,12 +1728,12 @@ struct frontswap_ops *zcache_frontswap_register_ops(void)
  */
 
 #ifndef CONFIG_ZCACHE_MODULE
-static int __init enable_zcache(char *s)
+static int __init disable_zcache(char *s)
 {
-	zcache_enabled = true;
+	zcache_enabled = false;
 	return 1;
 }
-__setup("zcache", enable_zcache);
+__setup("nozcache", disable_zcache);
 
 static int __init enable_ramster(char *s)
 {
@@ -1841,9 +1841,6 @@ static int zcache_init(void)
 {
 	int ret = 0;
 
-#ifdef CONFIG_ZCACHE_MODULE
-	zcache_enabled = 1;
-#endif
 	if (ramster_enabled) {
 		namestr = "ramster";
 		ramster_register_pamops(&zcache_pamops);
