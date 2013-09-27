@@ -1088,8 +1088,14 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 	 * is done here.
 	 */
 	if (!mpic_is_ipi(mpic, hw) && (mpic->flags & MPIC_NO_RESET)) {
+		int cpu;
+
+		preempt_disable();
+		cpu = mpic_processor_id(mpic);
+		preempt_enable();
+
 		mpic_set_vector(virq, hw);
-		mpic_set_destination(virq, mpic_processor_id(mpic));
+		mpic_set_destination(virq, cpu);
 		mpic_irq_set_priority(virq, 8);
 	}
 
