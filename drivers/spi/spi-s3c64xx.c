@@ -927,6 +927,9 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		/* Start the signals */
 		writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
+		/* Start the signals */
+		writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
+
 		spin_unlock_irqrestore(&sdd->lock, flags);
 
 		status = wait_for_xfer(sdd, xfer, use_dma);
