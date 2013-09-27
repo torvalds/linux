@@ -179,15 +179,6 @@ struct drm_display_mode {
 	int hsync;		/* in kHz */
 };
 
-#define DRM_MODE_FLAG_3D_MASK	(DRM_MODE_FLAG_3D_FRAME_PACKING		| \
-				 DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE	| \
-				 DRM_MODE_FLAG_3D_LINE_ALTERNATIVE	| \
-				 DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL	| \
-				 DRM_MODE_FLAG_3D_L_DEPTH		| \
-				 DRM_MODE_FLAG_3D_L_DEPTH_GFX_GFX_DEPTH | \
-				 DRM_MODE_FLAG_3D_TOP_AND_BOTTOM	| \
-				 DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF)
-
 static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
 {
 	return mode->flags & DRM_MODE_FLAG_3D_MASK;
