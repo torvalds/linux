@@ -348,6 +348,7 @@ struct beiscsi_hba {
 	bool ue_detected;
 	struct delayed_work beiscsi_hw_check_task;
 
+	bool mac_addr_set;
 	u8 mac_address[ETH_ALEN];
 	char fw_ver_str[BEISCSI_VER_STRLEN];
 	char wq_name[20];

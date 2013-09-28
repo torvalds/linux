@@ -840,7 +840,7 @@ int beiscsi_get_macaddr(char *buf, struct beiscsi_hba *phba)
 	struct be_cmd_get_nic_conf_resp resp;
 	int rc;
 
-	if (strlen(phba->mac_address))
+	if (phba->mac_addr_set)
 		return sysfs_format_mac(buf, phba->mac_address, ETH_ALEN);
 
 	memset(&resp, 0, sizeof(resp));
@@ -848,6 +848,7 @@ int beiscsi_get_macaddr(char *buf, struct beiscsi_hba *phba)
 	if (rc)
 		return rc;
 
+	phba->mac_addr_set = true;
 	memcpy(phba->mac_address, resp.mac_address, ETH_ALEN);
 	return sysfs_format_mac(buf, phba->mac_address, ETH_ALEN);
 }
