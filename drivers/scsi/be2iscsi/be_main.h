@@ -425,6 +425,7 @@ struct beiscsi_conn {
 	struct iscsi_conn *conn;
 	struct beiscsi_hba *phba;
 	u32 exp_statsn;
+	u32 doorbell_offset;
 	u32 beiscsi_conn_cid;
 	struct beiscsi_endpoint *ep;
 	unsigned short login_in_progress;

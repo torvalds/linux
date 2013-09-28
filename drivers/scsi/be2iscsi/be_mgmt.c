@@ -628,6 +628,16 @@ unsigned int mgmt_upload_connection(struct beiscsi_hba *phba,
 	return tag;
 }
 
+/**
+ * mgmt_open_connection()- Establish a TCP CXN
+ * @dst_addr: Destination Address
+ * @beiscsi_ep: ptr to device endpoint struct
+ * @nonemb_cmd: ptr to memory allocated for command
+ *
+ * return
+ *	Success: Tag number of the MBX Command issued
+ *	Failure: Error code
+ **/
 int mgmt_open_connection(struct beiscsi_hba *phba,
 			 struct sockaddr *dst_addr,
 			 struct beiscsi_endpoint *beiscsi_ep,
@@ -645,14 +655,17 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	struct phys_addr template_address = { 0, 0 };
 	struct phys_addr *ptemplate_address;
 	unsigned int tag = 0;
-	unsigned int i;
+	unsigned int i, ulp_num;
 	unsigned short cid = beiscsi_ep->ep_cid;
 	struct be_sge *sge;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
-	def_hdr_id = (unsigned short)HWI_GET_DEF_HDRQ_ID(phba, 0);
-	def_data_id = (unsigned short)HWI_GET_DEF_BUFQ_ID(phba, 0);
+
+	ulp_num = phwi_ctrlr->wrb_context[BE_GET_CRI_FROM_CID(cid)].ulp_num;
+
+	def_hdr_id = (unsigned short)HWI_GET_DEF_HDRQ_ID(phba, ulp_num);
+	def_data_id = (unsigned short)HWI_GET_DEF_BUFQ_ID(phba, ulp_num);
 
 	ptemplate_address = &template_address;
 	ISCSI_GET_PDU_TEMPLATE_ADDRESS(phba, ptemplate_address);

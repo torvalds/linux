@@ -194,6 +194,8 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	struct hwi_controller *phwi_ctrlr = phba->phwi_ctrlr;
+	struct hwi_wrb_context *pwrb_context;
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct iscsi_endpoint *ep;
 
@@ -214,9 +216,13 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 		return -EEXIST;
 	}
 
+	pwrb_context = &phwi_ctrlr->wrb_context[BE_GET_CRI_FROM_CID(
+						beiscsi_ep->ep_cid)];
+
 	beiscsi_conn->beiscsi_conn_cid = beiscsi_ep->ep_cid;
 	beiscsi_conn->ep = beiscsi_ep;
 	beiscsi_ep->conn = beiscsi_conn;
+	beiscsi_conn->doorbell_offset = pwrb_context->doorbell_offset;
 
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 		    "BS_%d : beiscsi_conn=%p conn=%p ep_cid=%d\n",
