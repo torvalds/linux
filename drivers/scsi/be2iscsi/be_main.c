@@ -3758,8 +3758,19 @@ static void find_num_cpus(struct beiscsi_hba *phba)
 				  BEISCSI_MAX_NUM_CPUS : num_cpus;
 		break;
 	case BE_GEN4:
-		phba->num_cpus = (num_cpus > OC_SKH_MAX_NUM_CPUS) ?
-				  OC_SKH_MAX_NUM_CPUS : num_cpus;
+		/*
+		 * If eqid_count == 1 fall back to
+		 * INTX mechanism
+		 **/
+		if (phba->fw_config.eqid_count == 1) {
+			enable_msix = 0;
+			phba->num_cpus = 1;
+			return;
+		}
+
+		phba->num_cpus =
+			(num_cpus > (phba->fw_config.eqid_count - 1)) ?
+			(phba->fw_config.eqid_count - 1) : num_cpus;
 		break;
 	default:
 		phba->num_cpus = 1;
@@ -5275,20 +5286,6 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		phba->generation = 0;
 	}
 
-	if (enable_msix)
-		find_num_cpus(phba);
-	else
-		phba->num_cpus = 1;
-
-	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
-		    "BM_%d : num_cpus = %d\n",
-		    phba->num_cpus);
-
-	if (enable_msix) {
-		beiscsi_msix_enable(phba);
-		if (!phba->msix_enabled)
-			phba->num_cpus = 1;
-	}
 	ret = be_ctrl_init(phba, pcidev);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
@@ -5320,6 +5317,22 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 			    "BM_%d : Error getting fw config\n");
 		goto free_port;
 	}
+
+	if (enable_msix)
+		find_num_cpus(phba);
+	else
+		phba->num_cpus = 1;
+
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+		    "BM_%d : num_cpus = %d\n",
+		    phba->num_cpus);
+
+	if (enable_msix) {
+		beiscsi_msix_enable(phba);
+		if (!phba->msix_enabled)
+			phba->num_cpus = 1;
+	}
+
 	phba->shost->max_id = phba->params.cxns_per_ctrl;
 	beiscsi_get_params(phba);
 	phba->shost->can_queue = phba->params.ios_per_ctrl;

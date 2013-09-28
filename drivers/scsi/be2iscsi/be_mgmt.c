@@ -311,6 +311,17 @@ int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 		struct be_fw_cfg *pfw_cfg;
 		pfw_cfg = req;
 
+		if (!is_chip_be2_be3r(phba)) {
+			phba->fw_config.eqid_count = pfw_cfg->eqid_count;
+			phba->fw_config.cqid_count = pfw_cfg->cqid_count;
+
+			beiscsi_log(phba, KERN_INFO,
+				    BEISCSI_LOG_INIT,
+				    "BG_%d : EQ_Count : %d CQ_Count : %d\n",
+				    phba->fw_config.eqid_count,
+				    phba->fw_config.cqid_count);
+		}
+
 		for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
 			if (pfw_cfg->ulp[ulp_num].ulp_mode &
 			    BEISCSI_ULP_ISCSI_INI_MODE)

@@ -65,7 +65,6 @@
 
 #define MAX_CPUS		64
 #define BEISCSI_MAX_NUM_CPUS	7
-#define OC_SKH_MAX_NUM_CPUS	31
 
 #define BEISCSI_VER_STRLEN 32
 
@@ -377,6 +376,8 @@ struct beiscsi_hba {
 		 * for cid to cri conversion
 		 */
 		unsigned int phys_port;
+		unsigned int eqid_count;
+		unsigned int cqid_count;
 		unsigned int iscsi_cid_start[BEISCSI_ULP_COUNT];
 #define BEISCSI_GET_CID_COUNT(phba, ulp_num) \
 		(phba->fw_config.iscsi_cid_count[ulp_num])
