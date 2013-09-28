@@ -2174,8 +2174,8 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 
 	/* Now associate this queue with this PCI function */
 	qtx_ctl = I40E_QTX_CTL_PF_QUEUE;
-	qtx_ctl |= ((hw->hmc.hmc_fn_id << I40E_QTX_CTL_PF_INDX_SHIFT)
-						& I40E_QTX_CTL_PF_INDX_MASK);
+	qtx_ctl |= ((hw->pf_id << I40E_QTX_CTL_PF_INDX_SHIFT) &
+		    I40E_QTX_CTL_PF_INDX_MASK);
 	wr32(hw, I40E_QTX_CTL(pf_q), qtx_ctl);
 	i40e_flush(hw);
 
