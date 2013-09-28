@@ -397,7 +397,6 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 {
 	struct max1363_state *st = iio_priv(indio_dev);
 	int ret;
-	unsigned long scale_uv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
@@ -406,10 +405,9 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = st->vref_uv >> st->chip_info->bits;
-		*val = scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = st->vref_uv / 1000;
+		*val2 = st->chip_info->bits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		return -EINVAL;
 	}
