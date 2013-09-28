@@ -559,8 +559,6 @@ static void i40e_update_dynamic_itr(struct i40e_q_vector *q_vector)
 	i40e_set_new_dynamic_itr(&q_vector->tx);
 	if (old_itr != q_vector->tx.itr)
 		wr32(hw, reg_addr, q_vector->tx.itr);
-
-	i40e_flush(hw);
 }
 
 /**

@@ -2560,7 +2560,7 @@ void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector)
 	      I40E_PFINT_DYN_CTLN_CLEARPBA_MASK |
 	      (I40E_ITR_NONE << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT);
 	wr32(hw, I40E_PFINT_DYN_CTLN(vector - 1), val);
-	i40e_flush(hw);
+	/* skip the flush */
 }
 
 /**
@@ -2709,6 +2709,7 @@ static int i40e_vsi_enable_irq(struct i40e_vsi *vsi)
 		i40e_irq_dynamic_enable_icr0(pf);
 	}
 
+	i40e_flush(&pf->hw);
 	return 0;
 }
 
