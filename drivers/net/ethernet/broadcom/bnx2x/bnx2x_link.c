@@ -3121,7 +3121,7 @@ static void bnx2x_bsc_module_sel(struct link_params *params)
 }
 
 static int bnx2x_bsc_read(struct link_params *params,
-			  struct bnx2x_phy *phy,
+			  struct bnx2x *bp,
 			  u8 sl_devid,
 			  u16 sl_addr,
 			  u8 lc_addr,
@@ -3130,7 +3130,6 @@ static int bnx2x_bsc_read(struct link_params *params,
 {
 	u32 val, i;
 	int rc = 0;
-	struct bnx2x *bp = params->bp;
 
 	if (xfer_cnt > 16) {
 		DP(NETIF_MSG_LINK, "invalid xfer_cnt %d. Max is 16 bytes\n",
@@ -7886,7 +7885,7 @@ static int bnx2x_warpcore_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 			usleep_range(1000, 2000);
 			bnx2x_warpcore_power_module(params, 1);
 		}
-		rc = bnx2x_bsc_read(params, phy, dev_addr, addr32, 0, byte_cnt,
+		rc = bnx2x_bsc_read(params, bp, dev_addr, addr32, 0, byte_cnt,
 				    data_array);
 	} while ((rc != 0) && (++cnt < I2C_WA_RETRY_CNT));
 
