@@ -251,7 +251,7 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_idx,
 		reg_idx = I40E_VPINT_LNKLST0(vf->vf_id);
 	else
 		reg_idx = I40E_VPINT_LNKLSTN(
-			    ((pf->hw.func_caps.num_msix_vectors_vf - 1)
+					   (pf->hw.func_caps.num_msix_vectors_vf
 					      * vf->vf_id) + (vector_id - 1));
 
 	if (vecmap->rxq_map == 0 && vecmap->txq_map == 0) {
