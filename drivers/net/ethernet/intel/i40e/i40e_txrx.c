@@ -1300,27 +1300,6 @@ static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 }
 
 /**
- * i40e_tx_csum - is checksum offload requested
- * @tx_ring:  ptr to the ring to send
- * @skb:      ptr to the skb we're sending
- * @tx_flags: the collected send information
- * @protocol: the send protocol
- *
- * Returns true if checksum offload is requested
- **/
-static bool i40e_tx_csum(struct i40e_ring *tx_ring, struct sk_buff *skb,
-			 u32 tx_flags, __be16 protocol)
-{
-	if ((skb->ip_summed != CHECKSUM_PARTIAL) &&
-	    !(tx_flags & I40E_TX_FLAGS_TXSW)) {
-		if (!(tx_flags & I40E_TX_FLAGS_HW_VLAN))
-			return false;
-	}
-
-	return skb->ip_summed == CHECKSUM_PARTIAL;
-}
-
-/**
  * i40e_tso - set up the tso context descriptor
  * @tx_ring:  ptr to the ring to send
  * @skb:      ptr to the skb we're sending
@@ -1785,16 +1764,16 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-	/* Always offload the checksum, since it's in the data descriptor */
-	if (i40e_tx_csum(tx_ring, skb, tx_flags, protocol))
-		tx_flags |= I40E_TX_FLAGS_CSUM;
-
-	/* always enable offload insertion */
+	/* always enable CRC insertion offload */
 	td_cmd |= I40E_TX_DESC_CMD_ICRC;
 
-	if (tx_flags & I40E_TX_FLAGS_CSUM)
+	/* Always offload the checksum, since it's in the data descriptor */
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		tx_flags |= I40E_TX_FLAGS_CSUM;
+
 		i40e_tx_enable_csum(skb, tx_flags, &td_cmd, &td_offset,
 				    tx_ring, &cd_tunneling);
+	}
 
 	i40e_create_tx_ctx(tx_ring, cd_type_cmd_tso_mss,
 			   cd_tunneling, cd_l2tag2);
