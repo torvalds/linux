@@ -19,8 +19,8 @@
 #endif
 
 #ifdef CONFIG_MACH_JZ4740
-#define UART0_BASE  0xB0030000
-#define PORT(offset) (UART0_BASE + (4 * offset))
+#include <asm/mach-jz4740/base.h>
+#define PORT(offset) (CKSEG1ADDR(JZ4740_UART0_BASE_ADDR) + (4 * offset))
 #endif
 
 #ifdef CONFIG_CPU_XLR
