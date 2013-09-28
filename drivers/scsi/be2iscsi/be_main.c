@@ -5002,14 +5002,13 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	ret = beiscsi_cmd_reset_function(phba);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : Reset Failed. Aborting Crashdump\n");
+			    "BM_%d : Reset Failed\n");
 		goto hba_free;
 	}
 	ret = be_chk_reset_complete(phba);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : Failed to get out of reset."
-			    "Aborting Crashdump\n");
+			    "BM_%d : Failed to get out of reset.\n");
 		goto hba_free;
 	}
 

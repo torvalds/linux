@@ -490,33 +490,47 @@ int be_mcc_notify_wait(struct beiscsi_hba *phba)
  **/
 static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 {
+#define BEISCSI_MBX_RDY_BIT_TIMEOUT	4000	/* 4sec */
 	void __iomem *db = ctrl->db + MPU_MAILBOX_DB_OFFSET;
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
-	uint32_t wait = 0;
+	unsigned long timeout;
+	bool read_flag = false;
+	int ret = 0, i;
 	u32 ready;
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(rdybit_check_q);
+
+	if (beiscsi_error(phba))
+		return -EIO;
+
+	timeout = jiffies + (HZ * 110);
 
 	do {
-
-		if (beiscsi_error(phba))
-			return -EIO;
-
-		ready = ioread32(db) & MPU_MAILBOX_DB_RDY_MASK;
-		if (ready)
-			break;
-
-		if (wait > BEISCSI_HOST_MBX_TIMEOUT) {
-			beiscsi_log(phba, KERN_ERR,
-				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-				    "BC_%d : FW Timed Out\n");
-			phba->fw_timeout = true;
-			beiscsi_ue_detect(phba);
-			return -EBUSY;
+		for (i = 0; i < BEISCSI_MBX_RDY_BIT_TIMEOUT; i++) {
+			ready = ioread32(db) & MPU_MAILBOX_DB_RDY_MASK;
+			if (ready) {
+				read_flag = true;
+				break;
+			}
+			mdelay(1);
 		}
 
-		mdelay(1);
-		wait++;
-	} while (true);
-	return 0;
+		if (!read_flag) {
+			wait_event_timeout(rdybit_check_q,
+					  (read_flag != true),
+					   HZ * 5);
+		}
+	} while ((time_before(jiffies, timeout)) && !read_flag);
+
+	if (!read_flag) {
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d : FW Timed Out\n");
+			phba->fw_timeout = true;
+			beiscsi_ue_detect(phba);
+			ret = -EBUSY;
+	}
+
+	return ret;
 }
 
 /*
