@@ -461,14 +461,12 @@ v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
 	int n;
 	loff_t i_size;
 	size_t total = 0;
-	struct p9_client *clnt;
 	loff_t origin = *offset;
 	unsigned long pg_start, pg_end;
 
 	p9_debug(P9_DEBUG_VFS, "data %p count %d offset %x\n",
 		 data, (int)count, (int)*offset);
 
-	clnt = fid->clnt;
 	do {
 		n = p9_client_write(fid, NULL, data+total, origin+total, count);
 		if (n <= 0)
