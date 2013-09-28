@@ -401,8 +401,6 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 	return 0;
 }
 
-extern volatile int session_done;
-
 static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;
@@ -567,6 +565,9 @@ static int __cmd_report(struct perf_report *rep)
 			hists__link(leader_hists, hists);
 		}
 	}
+
+	if (session_done())
+		return 0;
 
 	if (nr_samples == 0) {
 		ui__error("The %s file has no samples!\n", session->filename);
@@ -744,6 +745,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		.tool = {
 			.sample		 = process_sample_event,
 			.mmap		 = perf_event__process_mmap,
+			.mmap2		 = perf_event__process_mmap2,
 			.comm		 = perf_event__process_comm,
 			.exit		 = perf_event__process_exit,
 			.fork		 = perf_event__process_fork,

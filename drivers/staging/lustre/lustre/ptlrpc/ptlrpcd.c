@@ -615,7 +615,7 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 	init_completion(&pc->pc_starting);
 	init_completion(&pc->pc_finishing);
 	spin_lock_init(&pc->pc_lock);
-	strncpy(pc->pc_name, name, sizeof(pc->pc_name) - 1);
+	strlcpy(pc->pc_name, name, sizeof(pc->pc_name));
 	pc->pc_set = ptlrpc_prep_set();
 	if (pc->pc_set == NULL)
 		GOTO(out, rc = -ENOMEM);
@@ -638,7 +638,7 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 				GOTO(out, rc);
 		}
 
-		task = kthread_run(ptlrpcd, pc, pc->pc_name);
+		task = kthread_run(ptlrpcd, pc, "%s", pc->pc_name);
 		if (IS_ERR(task))
 			GOTO(out, rc = PTR_ERR(task));
 
@@ -745,7 +745,7 @@ static int ptlrpcd_init(void)
 	if (ptlrpcds == NULL)
 		GOTO(out, rc = -ENOMEM);
 
-	snprintf(name, 15, "ptlrpcd_rcv");
+	snprintf(name, sizeof(name), "ptlrpcd_rcv");
 	set_bit(LIOD_RECOVERY, &ptlrpcds->pd_thread_rcv.pc_flags);
 	rc = ptlrpcd_start(-1, nthreads, name, &ptlrpcds->pd_thread_rcv);
 	if (rc < 0)
@@ -764,7 +764,7 @@ static int ptlrpcd_init(void)
 	 *      unnecessary dependency. But how to distribute async RPCs load
 	 *      among all the ptlrpc daemons becomes another trouble. */
 	for (i = 0; i < nthreads; i++) {
-		snprintf(name, 15, "ptlrpcd_%d", i);
+		snprintf(name, sizeof(name), "ptlrpcd_%d", i);
 		rc = ptlrpcd_start(i, nthreads, name, &ptlrpcds->pd_threads[i]);
 		if (rc < 0)
 			GOTO(out, rc);

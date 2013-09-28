@@ -263,6 +263,8 @@ static bool intel_dvo_compute_config(struct intel_encoder *encoder,
 		C(vtotal);
 		C(clock);
 #undef C
+
+		drm_mode_set_crtcinfo(adjusted_mode, 0);
 	}
 
 	if (intel_dvo->dev.dev_ops->mode_fixup)

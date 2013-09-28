@@ -138,17 +138,9 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name))
-		return -EBUSY;
-
-	ep93xx_rtc->mmio_base = devm_ioremap(&pdev->dev, res->start,
-					     resource_size(res));
-	if (!ep93xx_rtc->mmio_base)
-		return -ENXIO;
+	ep93xx_rtc->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ep93xx_rtc->mmio_base))
+		return PTR_ERR(ep93xx_rtc->mmio_base);
 
 	pdev->dev.platform_data = ep93xx_rtc;
 	platform_set_drvdata(pdev, ep93xx_rtc);

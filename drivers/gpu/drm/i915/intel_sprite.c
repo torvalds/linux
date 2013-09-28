@@ -260,8 +260,11 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (obj->tiling_mode != I915_TILING_NONE)
 		sprctl |= SPRITE_TILED;
 
-	/* must disable */
-	sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
+	if (IS_HASWELL(dev))
+		sprctl &= ~SPRITE_TRICKLE_FEED_DISABLE;
+	else
+		sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
+
 	sprctl |= SPRITE_ENABLE;
 
 	if (IS_HASWELL(dev))

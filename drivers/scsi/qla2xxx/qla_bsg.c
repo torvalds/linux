@@ -1895,7 +1895,7 @@ done:
 	bsg_job->reply->reply_payload_rcv_len = 0;
 	bsg_job->reply->result = (DID_OK) << 16;
 	bsg_job->job_done(bsg_job);
-	/* Always retrun success, vendor rsp carries correct status */
+	/* Always return success, vendor rsp carries correct status */
 	return 0;
 }
 

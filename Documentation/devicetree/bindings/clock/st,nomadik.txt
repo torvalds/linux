@@ -17,7 +17,7 @@ Optional properties for the SRC node:
 - disable-mxtal: if present this will disable the MXTALO,
   i.e. the driver output for the main (~19.2 MHz) chrystal,
   if the board has its own circuitry for providing this
-  osciallator
+  oscillator
 
 
 PLL nodes: these nodes represent the two PLLs on the system,

@@ -91,6 +91,18 @@ Valid values for pin and group names are:
     gmh, gpv, lcd1, lcd2, owr, sdio1, sdio2, sdio3, spi, uaa, uab, uart2,
     uart3, uda, vi1.
 
+Valid values for nvidia,functions are:
+
+  blink, cec, clk_12m_out, clk_32k_in, core_pwr_req, cpu_pwr_req, crt,
+  dap, ddr, dev3, displaya, displayb, dtv, extperiph1, extperiph2,
+  extperiph3, gmi, gmi_alt, hda, hdcp, hdmi, hsi, i2c1, i2c2, i2c3,
+  i2c4, i2cpwr, i2s0, i2s1, i2s2, i2s3, i2s4, invalid, kbc, mio, nand,
+  nand_alt, owr, pcie, pwm0, pwm1, pwm2, pwm3, pwr_int_n, rsvd1, rsvd2,
+  rsvd3, rsvd4, rtck, sata, sdmmc1, sdmmc2, sdmmc3, sdmmc4, spdif, spi1,
+  spi2, spi2_alt, spi3, spi4, spi5, spi6, sysclk, test, trace, uarta,
+  uartb, uartc, uartd, uarte, ulpi, vgp1, vgp2, vgp3, vgp4, vgp5, vgp6,
+  vi, vi_alt1, vi_alt2, vi_alt3
+
 Example:
 
 	pinctrl@70000000 {

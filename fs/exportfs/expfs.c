@@ -231,7 +231,7 @@ static int filldir_one(void * __buf, const char * name, int len,
 	int result = 0;
 
 	buf->sequence++;
-	if (buf->ino == ino) {
+	if (buf->ino == ino && len <= NAME_MAX) {
 		memcpy(buf->name, name, len);
 		buf->name[len] = '\0';
 		buf->found = 1;

@@ -97,7 +97,7 @@ IPv4 addresses:
 
 	%pI4	1.2.3.4
 	%pi4	001.002.003.004
-	%p[Ii][hnbl]
+	%p[Ii]4[hnbl]
 
 	For printing IPv4 dot-separated decimal addresses. The 'I4' and 'i4'
 	specifiers result in a printed address with ('i4') or without ('I4')
@@ -194,11 +194,11 @@ struct va_format:
 
 u64 SHOULD be printed with %llu/%llx, (unsigned long long):
 
-	printk("%llu", (unsigned long long)u64_var);
+	printk("%llu", u64_var);
 
 s64 SHOULD be printed with %lld/%llx, (long long):
 
-	printk("%lld", (long long)s64_var);
+	printk("%lld", s64_var);
 
 If <type> is dependent on a config option for its size (e.g., sector_t,
 blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a

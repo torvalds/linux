@@ -31,7 +31,7 @@ Semantics
 
 Each relay channel has one buffer per CPU, each buffer has one or more
 sub-buffers.  Messages are written to the first sub-buffer until it is
-too full to contain a new message, in which case it it is written to
+too full to contain a new message, in which case it is written to
 the next (if available).  Messages are never split across sub-buffers.
 At this point, userspace can be notified so it empties the first
 sub-buffer, while the kernel continues writing to the next.

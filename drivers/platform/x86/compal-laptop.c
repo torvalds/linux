@@ -425,7 +425,8 @@ static ssize_t pwm_enable_store(struct device *dev,
 	struct compal_data *data = dev_get_drvdata(dev);
 	long val;
 	int err;
-	err = strict_strtol(buf, 10, &val);
+
+	err = kstrtol(buf, 10, &val);
 	if (err)
 		return err;
 	if (val < 0)
@@ -463,7 +464,8 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
 	struct compal_data *data = dev_get_drvdata(dev);
 	long val;
 	int err;
-	err = strict_strtol(buf, 10, &val);
+
+	err = kstrtol(buf, 10, &val);
 	if (err)
 		return err;
 	if (val < 0 || val > 255)
@@ -1081,7 +1083,6 @@ static int compal_remove(struct platform_device *pdev)
 	hwmon_device_unregister(data->hwmon_dev);
 	power_supply_unregister(&data->psy);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
 	sysfs_remove_group(&pdev->dev.kobj, &compal_attribute_group);

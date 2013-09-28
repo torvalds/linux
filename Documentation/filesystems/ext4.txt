@@ -2,7 +2,7 @@
 Ext4 Filesystem
 ===============
 
-Ext4 is an an advanced level of the ext3 filesystem which incorporates
+Ext4 is an advanced level of the ext3 filesystem which incorporates
 scalability and reliability enhancements for supporting large filesystems
 (64 bit) in keeping with increasing disk capacities and state-of-the-art
 feature requirements.

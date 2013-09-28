@@ -204,8 +204,6 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 		return -EINVAL;
 	}
 
-	lock_device_hotplug();
-
 	/*
 	 * Carry out two passes here and ignore errors in the first pass,
 	 * because if the devices in question are memory blocks and
@@ -236,9 +234,6 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 					    ACPI_UINT32_MAX,
 					    acpi_bus_online_companions, NULL,
 					    NULL, NULL);
-
-			unlock_device_hotplug();
-
 			put_device(&device->dev);
 			return -EBUSY;
 		}
@@ -248,8 +243,6 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 		"Hot-removing device %s...\n", dev_name(&device->dev)));
 
 	acpi_bus_trim(device);
-
-	unlock_device_hotplug();
 
 	/* Device node has been unregistered. */
 	put_device(&device->dev);
@@ -289,6 +282,7 @@ static void acpi_bus_device_eject(void *context)
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	int error;
 
+	lock_device_hotplug();
 	mutex_lock(&acpi_scan_lock);
 
 	acpi_bus_get_device(handle, &device);
@@ -312,6 +306,7 @@ static void acpi_bus_device_eject(void *context)
 
  out:
 	mutex_unlock(&acpi_scan_lock);
+	unlock_device_hotplug();
 	return;
 
  err_out:
@@ -326,8 +321,8 @@ static void acpi_scan_bus_device_check(acpi_handle handle, u32 ost_source)
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	int error;
 
-	mutex_lock(&acpi_scan_lock);
 	lock_device_hotplug();
+	mutex_lock(&acpi_scan_lock);
 
 	if (ost_source != ACPI_NOTIFY_BUS_CHECK) {
 		acpi_bus_get_device(handle, &device);
@@ -353,9 +348,9 @@ static void acpi_scan_bus_device_check(acpi_handle handle, u32 ost_source)
 		kobject_uevent(&device->dev.kobj, KOBJ_ONLINE);
 
  out:
-	unlock_device_hotplug();
 	acpi_evaluate_hotplug_ost(handle, ost_source, ost_code, NULL);
 	mutex_unlock(&acpi_scan_lock);
+	unlock_device_hotplug();
 }
 
 static void acpi_scan_bus_check(void *context)
@@ -446,6 +441,7 @@ void acpi_bus_hot_remove_device(void *context)
 	acpi_handle handle = device->handle;
 	int error;
 
+	lock_device_hotplug();
 	mutex_lock(&acpi_scan_lock);
 
 	error = acpi_scan_hot_remove(device);
@@ -455,6 +451,7 @@ void acpi_bus_hot_remove_device(void *context)
 					  NULL);
 
 	mutex_unlock(&acpi_scan_lock);
+	unlock_device_hotplug();
 	kfree(context);
 }
 EXPORT_SYMBOL(acpi_bus_hot_remove_device);

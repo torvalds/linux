@@ -430,7 +430,7 @@ struct qlcnic_hardware_context {
 	u8 diag_test;
 	u8 num_msix;
 	u8 nic_mode;
-	char diag_cnt;
+	int diag_cnt;
 
 	u16 max_uc_count;
 	u16 port_type;

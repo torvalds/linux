@@ -4,7 +4,6 @@
 #include <linux/sh_clk.h>
 #include <linux/pm_domain.h>
 #include <linux/sh_eth.h>
-#include <linux/platform_data/usb-rcar-phy.h>
 #include <linux/platform_data/camera-rcar.h>
 
 struct platform_device;
@@ -26,7 +25,6 @@ static inline struct r8a7779_pm_ch *to_r8a7779_ch(struct generic_pm_domain *d)
 }
 
 extern void r8a7779_init_delay(void);
-extern void r8a7779_init_irq(void);
 extern void r8a7779_init_irq_extpin(int irlm);
 extern void r8a7779_init_irq_dt(void);
 extern void r8a7779_map_io(void);
@@ -35,7 +33,6 @@ extern void r8a7779_add_early_devices(void);
 extern void r8a7779_add_standard_devices(void);
 extern void r8a7779_add_standard_devices_dt(void);
 extern void r8a7779_add_ether_device(struct sh_eth_plat_data *pdata);
-extern void r8a7779_add_usb_phy_device(struct rcar_phy_platform_data *pdata);
 extern void r8a7779_add_vin_device(int idx,
 				   struct rcar_vin_platform_data *pdata);
 extern void r8a7779_init_late(void);

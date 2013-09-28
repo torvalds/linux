@@ -261,7 +261,7 @@ void intel_uncore_init(struct drm_device *dev)
 	}
 }
 
-void intel_uncore_sanitize(struct drm_device *dev)
+static void intel_uncore_forcewake_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -272,6 +272,11 @@ void intel_uncore_sanitize(struct drm_device *dev)
 		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 			__gen6_gt_force_wake_mt_reset(dev_priv);
 	}
+}
+
+void intel_uncore_sanitize(struct drm_device *dev)
+{
+	intel_uncore_forcewake_reset(dev);
 
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
 	intel_disable_gt_powersave(dev);
@@ -548,6 +553,8 @@ static int gen6_do_reset(struct drm_device *dev)
 
 	/* Spin waiting for the device to ack the reset request */
 	ret = wait_for((__raw_i915_read32(dev_priv, GEN6_GDRST) & GEN6_GRDOM_FULL) == 0, 500);
+
+	intel_uncore_forcewake_reset(dev);
 
 	/* If reset with a user forcewake, try to restore, otherwise turn it off */
 	if (dev_priv->uncore.forcewake_count)

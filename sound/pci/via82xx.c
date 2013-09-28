@@ -1940,7 +1940,7 @@ static int snd_via686_create_gameport(struct via82xx *chip, unsigned char *legac
 
 	r = request_region(JOYSTICK_ADDR, 8, "VIA686 gameport");
 	if (!r) {
-		printk(KERN_WARNING "via82xx: cannot reserve joystick port 0x%#x\n",
+		printk(KERN_WARNING "via82xx: cannot reserve joystick port %#x\n",
 		       JOYSTICK_ADDR);
 		return -EBUSY;
 	}

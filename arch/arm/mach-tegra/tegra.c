@@ -80,28 +80,6 @@ out:
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
 }
 
-static void __init trimslice_init(void)
-{
-#ifdef CONFIG_TEGRA_PCI
-	int ret;
-
-	ret = tegra_pcie_init(true, true);
-	if (ret)
-		pr_err("tegra_pci_init() failed: %d\n", ret);
-#endif
-}
-
-static void __init harmony_init(void)
-{
-#ifdef CONFIG_TEGRA_PCI
-	int ret;
-
-	ret = harmony_pcie_init();
-	if (ret)
-		pr_err("harmony_pcie_init() failed: %d\n", ret);
-#endif
-}
-
 static void __init paz00_init(void)
 {
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
@@ -112,8 +90,6 @@ static struct {
 	char *machine;
 	void (*init)(void);
 } board_init_funcs[] = {
-	{ "compulab,trimslice", trimslice_init },
-	{ "nvidia,harmony", harmony_init },
 	{ "compal,paz00", paz00_init },
 };
 

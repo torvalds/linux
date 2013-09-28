@@ -860,8 +860,13 @@ bool esas2r_process_fs_ioctl(struct esas2r_adapter *a,
 		return false;
 	}
 
+	if (fsc->command >= cmdcnt) {
+		fs->status = ATTO_STS_INV_FUNC;
+		return false;
+	}
+
 	func = cmd_to_fls_func[fsc->command];
-	if (fsc->command >= cmdcnt || func == 0xFF) {
+	if (func == 0xFF) {
 		fs->status = ATTO_STS_INV_FUNC;
 		return false;
 	}
@@ -1355,7 +1360,7 @@ void esas2r_nvram_set_defaults(struct esas2r_adapter *a)
 	u32 time = jiffies_to_msecs(jiffies);
 
 	esas2r_lock_clear_flags(&a->flags, AF_NVR_VALID);
-	memcpy(n, &default_sas_nvram, sizeof(struct esas2r_sas_nvram));
+	*n = default_sas_nvram;
 	n->sas_addr[3] |= 0x0F;
 	n->sas_addr[4] = HIBYTE(LOWORD(time));
 	n->sas_addr[5] = LOBYTE(LOWORD(time));
@@ -1373,7 +1378,7 @@ void esas2r_nvram_get_defaults(struct esas2r_adapter *a,
 	 * address out first.
 	 */
 	memcpy(&sas_addr[0], a->nvram->sas_addr, 8);
-	memcpy(nvram, &default_sas_nvram, sizeof(struct esas2r_sas_nvram));
+	*nvram = default_sas_nvram;
 	memcpy(&nvram->sas_addr[0], &sas_addr[0], 8);
 }
 

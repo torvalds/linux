@@ -157,9 +157,9 @@ static int rsnd_scu_start(struct rsnd_mod *mod,
 	int ret;
 
 	/*
-	 * SCU will be used if it has RSND_SCU_USB_HPBIF flags
+	 * SCU will be used if it has RSND_SCU_USE_HPBIF flags
 	 */
-	if (!(flags & RSND_SCU_USB_HPBIF)) {
+	if (!(flags & RSND_SCU_USE_HPBIF)) {
 		/* it use PIO transter */
 		dev_dbg(dev, "%s%d is not used\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));

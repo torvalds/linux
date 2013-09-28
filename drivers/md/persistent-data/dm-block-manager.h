@@ -108,6 +108,11 @@ int dm_bm_unlock(struct dm_block *b);
 int dm_bm_flush_and_unlock(struct dm_block_manager *bm,
 			   struct dm_block *superblock);
 
+ /*
+  * Request data be prefetched into the cache.
+  */
+void dm_bm_prefetch(struct dm_block_manager *bm, dm_block_t b);
+
 /*
  * Switches the bm to a read only mode.  Once read-only mode
  * has been entered the following functions will return -EPERM.

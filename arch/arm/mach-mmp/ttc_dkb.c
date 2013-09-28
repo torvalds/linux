@@ -15,7 +15,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/onenand.h>
 #include <linux/interrupt.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/gpio.h>
 #include <linux/gpio-pxa.h>
 #include <linux/mfd/88pm860x.h>

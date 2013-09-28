@@ -42,6 +42,10 @@
 #include <pwd.h>
 #include <grp.h>
 
+#ifndef VIRTIO_F_ANY_LAYOUT
+#define VIRTIO_F_ANY_LAYOUT		27
+#endif
+
 /*L:110
  * We can ignore the 43 include files we need for this program, but I do want
  * to draw attention to the use of kernel-style types.
@@ -1544,6 +1548,8 @@ static void setup_tun_net(char *arg)
 	add_feature(dev, VIRTIO_NET_F_HOST_ECN);
 	/* We handle indirect ring entries */
 	add_feature(dev, VIRTIO_RING_F_INDIRECT_DESC);
+	/* We're compliant with the damn spec. */
+	add_feature(dev, VIRTIO_F_ANY_LAYOUT);
 	set_config(dev, sizeof(conf), &conf);
 
 	/* We don't need the socket any more; setup is done. */

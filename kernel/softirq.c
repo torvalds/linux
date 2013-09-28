@@ -876,7 +876,6 @@ int __init __weak early_irq_init(void)
 	return 0;
 }
 
-#ifdef CONFIG_GENERIC_HARDIRQS
 int __init __weak arch_probe_nr_irqs(void)
 {
 	return NR_IRQS_LEGACY;
@@ -886,4 +885,3 @@ int __init __weak arch_early_irq_init(void)
 {
 	return 0;
 }
-#endif

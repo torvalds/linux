@@ -18,28 +18,6 @@ config PLATFORM_GENERIC
 
 endchoice
 
-config SELFMOD
-	bool "Use self modified code for intc/timer"
-	depends on NO_MMU
-	default n
-	help
-	  This choice enables self-modified code for interrupt controller
-	  and timer.
-
-config SELFMOD_INTC
-	bool "Use self modified code for intc"
-	depends on SELFMOD
-	default y
-	help
-	  This choice enables self-modified code for interrupt controller.
-
-config SELFMOD_TIMER
-	bool "Use self modified code for timer"
-	depends on SELFMOD
-	default y
-	help
-	  This choice enables self-modified code for timer.
-
 config OPT_LIB_FUNCTION
 	bool "Optimalized lib function"
 	default y

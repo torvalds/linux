@@ -335,7 +335,8 @@ static int imx_audmux_probe(struct platform_device *pdev)
 	if (audmux_type == IMX31_AUDMUX)
 		audmux_debugfs_init();
 
-	imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_node);
+	if (of_id)
+		imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_node);
 
 	return 0;
 }

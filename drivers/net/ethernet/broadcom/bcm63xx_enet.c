@@ -926,13 +926,13 @@ static int bcm_enet_open(struct net_device *dev)
 	if (ret)
 		goto out_phy_disconnect;
 
-	ret = request_irq(priv->irq_rx, bcm_enet_isr_dma, IRQF_DISABLED,
+	ret = request_irq(priv->irq_rx, bcm_enet_isr_dma, 0,
 			  dev->name, dev);
 	if (ret)
 		goto out_freeirq;
 
 	ret = request_irq(priv->irq_tx, bcm_enet_isr_dma,
-			  IRQF_DISABLED, dev->name, dev);
+			  0, dev->name, dev);
 	if (ret)
 		goto out_freeirq_rx;
 
@@ -2156,13 +2156,13 @@ static int bcm_enetsw_open(struct net_device *dev)
 	enet_dmac_writel(priv, 0, ENETDMAC_IRMASK, priv->tx_chan);
 
 	ret = request_irq(priv->irq_rx, bcm_enet_isr_dma,
-			  IRQF_DISABLED, dev->name, dev);
+			  0, dev->name, dev);
 	if (ret)
 		goto out_freeirq;
 
 	if (priv->irq_tx != -1) {
 		ret = request_irq(priv->irq_tx, bcm_enet_isr_dma,
-				  IRQF_DISABLED, dev->name, dev);
+				  0, dev->name, dev);
 		if (ret)
 			goto out_freeirq_rx;
 	}

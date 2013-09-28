@@ -571,7 +571,7 @@ mode "640x480-60"
 #                   160 chars   800 lines
 #   Blank Time      4.798 us    0.564 ms
 #                   50 chars    28 lines
-#   Polarity        negtive    positive
+#   Polarity        negative    positive
 #
     mode "1280x800-60"
 # D: 83.500 MHz, H: 49.702 kHz, V: 60.00 Hz

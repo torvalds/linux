@@ -29,6 +29,7 @@ struct perf_tool {
 	event_sample	sample,
 			read;
 	event_op	mmap,
+			mmap2,
 			comm,
 			fork,
 			exit,

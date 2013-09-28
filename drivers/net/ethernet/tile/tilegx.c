@@ -1734,7 +1734,8 @@ static void tso_headers_prepare(struct sk_buff *skb, unsigned char *headers,
 	unsigned int data_len = skb->len - sh_len;
 	unsigned char *data = skb->data;
 	unsigned int ih_off, th_off, p_len;
-	unsigned int isum_seed, tsum_seed, id, seq;
+	unsigned int isum_seed, tsum_seed, seq;
+	unsigned int uninitialized_var(id);
 	int is_ipv6;
 	long f_id = -1;    /* id of the current fragment */
 	long f_size = skb_headlen(skb) - sh_len;  /* current fragment size */
@@ -1781,7 +1782,7 @@ static void tso_headers_prepare(struct sk_buff *skb, unsigned char *headers,
 		} else {
 			ih = (struct iphdr *)(buf + ih_off);
 			ih->tot_len = htons(sh_len + p_len - ih_off);
-			ih->id = htons(id);
+			ih->id = htons(id++);
 			ih->check = csum_long(isum_seed + ih->tot_len +
 					      ih->id) ^ 0xffff;
 		}
@@ -1818,7 +1819,6 @@ static void tso_headers_prepare(struct sk_buff *skb, unsigned char *headers,
 			slot++;
 		}
 
-		id++;
 		seq += p_len;
 
 		/* The last segment may be less than gso_size. */

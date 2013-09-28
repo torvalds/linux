@@ -4,6 +4,7 @@ Partitions can be represented by sub-nodes of an mtd device. This can be used
 on platforms which have strong conventions about which portions of a flash are
 used for what purposes, but which don't use an on-flash partition table such
 as RedBoot.
+NOTE: if the sub-node has a compatible string, then it is not a partition.
 
 #address-cells & #size-cells must both be present in the mtd device. There are
 two valid values for both:

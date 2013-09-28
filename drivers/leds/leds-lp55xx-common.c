@@ -593,6 +593,9 @@ int lp55xx_of_populate_pdata(struct device *dev, struct device_node *np)
 	of_property_read_string(np, "label", &pdata->label);
 	of_property_read_u8(np, "clock-mode", &pdata->clock_mode);
 
+	/* LP8501 specific */
+	of_property_read_u8(np, "pwr-sel", (u8 *)&pdata->pwr_sel);
+
 	dev->platform_data = pdata;
 
 	return 0;

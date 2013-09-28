@@ -155,7 +155,11 @@ struct  intel_ring_buffer {
 
 	struct intel_ring_hangcheck hangcheck;
 
-	void *private;
+	struct {
+		struct drm_i915_gem_object *obj;
+		u32 gtt_offset;
+		volatile u32 *cpu_page;
+	} scratch;
 };
 
 static inline bool

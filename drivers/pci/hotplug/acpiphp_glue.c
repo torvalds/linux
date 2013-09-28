@@ -487,7 +487,6 @@ static void acpiphp_bus_add(acpi_handle handle)
 {
 	struct acpi_device *adev = NULL;
 
-	acpiphp_bus_trim(handle);
 	acpi_bus_scan(handle);
 	acpi_bus_get_device(handle, &adev);
 	if (adev)
@@ -529,6 +528,16 @@ static void check_hotplug_bridge(struct acpiphp_slot *slot, struct pci_dev *dev)
 	}
 }
 
+static int acpiphp_rescan_slot(struct acpiphp_slot *slot)
+{
+	struct acpiphp_func *func;
+
+	list_for_each_entry(func, &slot->funcs, sibling)
+		acpiphp_bus_add(func_to_handle(func));
+
+	return pci_scan_slot(slot->bus, PCI_DEVFN(slot->device, 0));
+}
+
 /**
  * enable_slot - enable, configure a slot
  * @slot: slot to be enabled
@@ -543,12 +552,9 @@ static void __ref enable_slot(struct acpiphp_slot *slot)
 	struct acpiphp_func *func;
 	int max, pass;
 	LIST_HEAD(add_list);
+	int nr_found;
 
-	list_for_each_entry(func, &slot->funcs, sibling)
-		acpiphp_bus_add(func_to_handle(func));
-
-	pci_scan_slot(bus, PCI_DEVFN(slot->device, 0));
-
+	nr_found = acpiphp_rescan_slot(slot);
 	max = acpiphp_max_busnr(bus);
 	for (pass = 0; pass < 2; pass++) {
 		list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -567,8 +573,11 @@ static void __ref enable_slot(struct acpiphp_slot *slot)
 			}
 		}
 	}
-
 	__pci_bus_assign_resources(bus, &add_list, NULL);
+	/* Nothing more to do here if there are no new devices on this bus. */
+	if (!nr_found && (slot->flags & SLOT_ENABLED))
+		return;
+
 	acpiphp_sanitize_bus(bus);
 	acpiphp_set_hpp_values(bus);
 	acpiphp_set_acpi_region(slot);
@@ -837,11 +846,22 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		/* device check */
 		dbg("%s: Device check notify on %s\n", __func__, objname);
-		if (bridge)
+		if (bridge) {
 			acpiphp_check_bridge(bridge);
-		else
-			acpiphp_check_bridge(func->parent);
+		} else {
+			struct acpiphp_slot *slot = func->slot;
+			int ret;
 
+			/*
+			 * Check if anything has changed in the slot and rescan
+			 * from the parent if that's the case.
+			 */
+			mutex_lock(&slot->crit_sect);
+			ret = acpiphp_rescan_slot(slot);
+			mutex_unlock(&slot->crit_sect);
+			if (ret)
+				acpiphp_check_bridge(func->parent);
+		}
 		break;
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
@@ -867,6 +887,8 @@ static void hotplug_event_work(struct work_struct *work)
 	hotplug_event(hp_work->handle, hp_work->type, context);
 
 	acpi_scan_lock_release();
+	acpi_evaluate_hotplug_ost(hp_work->handle, hp_work->type,
+				  ACPI_OST_SC_SUCCESS, NULL);
 	kfree(hp_work); /* allocated in handle_hotplug_event() */
 	put_bridge(context->func.parent);
 }
@@ -882,11 +904,15 @@ static void hotplug_event_work(struct work_struct *work)
 static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 {
 	struct acpiphp_context *context;
+	u32 ost_code = ACPI_OST_SC_SUCCESS;
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
+		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
+		ost_code = ACPI_OST_SC_EJECT_IN_PROGRESS;
+		acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
 		break;
 
 	case ACPI_NOTIFY_DEVICE_WAKE:
@@ -895,20 +921,21 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
 		acpi_handle_err(handle, "Device cannot be configured due "
 				"to a frequency mismatch\n");
-		return;
+		goto out;
 
 	case ACPI_NOTIFY_BUS_MODE_MISMATCH:
 		acpi_handle_err(handle, "Device cannot be configured due "
 				"to a bus mode mismatch\n");
-		return;
+		goto out;
 
 	case ACPI_NOTIFY_POWER_FAULT:
 		acpi_handle_err(handle, "Device has suffered a power fault\n");
-		return;
+		goto out;
 
 	default:
 		acpi_handle_warn(handle, "Unsupported event type 0x%x\n", type);
-		return;
+		ost_code = ACPI_OST_SC_UNRECOGNIZED_NOTIFY;
+		goto out;
 	}
 
 	mutex_lock(&acpiphp_context_lock);
@@ -917,8 +944,14 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 		get_bridge(context->func.parent);
 		acpiphp_put_context(context);
 		alloc_acpi_hp_work(handle, type, context, hotplug_event_work);
+		mutex_unlock(&acpiphp_context_lock);
+		return;
 	}
 	mutex_unlock(&acpiphp_context_lock);
+	ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
+
+ out:
+	acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
 }
 
 /*

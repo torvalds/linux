@@ -544,6 +544,7 @@ static inline int dio_bio_reap(struct dio *dio, struct dio_submit *sdio)
  */
 static int sb_init_dio_done_wq(struct super_block *sb)
 {
+	struct workqueue_struct *old;
 	struct workqueue_struct *wq = alloc_workqueue("dio/%s",
 						      WQ_MEM_RECLAIM, 0,
 						      sb->s_id);
@@ -552,9 +553,9 @@ static int sb_init_dio_done_wq(struct super_block *sb)
 	/*
 	 * This has to be atomic as more DIOs can race to create the workqueue
 	 */
-	cmpxchg(&sb->s_dio_done_wq, NULL, wq);
+	old = cmpxchg(&sb->s_dio_done_wq, NULL, wq);
 	/* Someone created workqueue before us? Free ours... */
-	if (wq != sb->s_dio_done_wq)
+	if (old)
 		destroy_workqueue(wq);
 	return 0;
 }

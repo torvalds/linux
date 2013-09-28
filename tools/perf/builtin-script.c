@@ -542,6 +542,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 static struct perf_tool perf_script = {
 	.sample		 = process_sample_event,
 	.mmap		 = perf_event__process_mmap,
+	.mmap2		 = perf_event__process_mmap2,
 	.comm		 = perf_event__process_comm,
 	.exit		 = perf_event__process_exit,
 	.fork		 = perf_event__process_fork,
@@ -551,8 +552,6 @@ static struct perf_tool perf_script = {
 	.ordered_samples = true,
 	.ordering_requires_timestamps = true,
 };
-
-extern volatile int session_done;
 
 static void sig_handler(int sig __maybe_unused)
 {

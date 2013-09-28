@@ -40,7 +40,7 @@
  * to glue code.  These bitbang setup() and cleanup() routines are always
  * used, though maybe they're called from controller-aware code.
  *
- * chipselect() and friends may use use spi_device->controller_data and
+ * chipselect() and friends may use spi_device->controller_data and
  * controller registers as appropriate.
  *
  *

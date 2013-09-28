@@ -25,44 +25,46 @@
 #include <linux/seq_file.h>
 
 static unsigned int test_buf_size = 16384;
-module_param(test_buf_size, uint, S_IRUGO);
+module_param(test_buf_size, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(test_buf_size, "Size of the memcpy test buffer");
 
 static char test_channel[20];
-module_param_string(channel, test_channel, sizeof(test_channel), S_IRUGO);
+module_param_string(channel, test_channel, sizeof(test_channel),
+		S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(channel, "Bus ID of the channel to test (default: any)");
 
 static char test_device[20];
-module_param_string(device, test_device, sizeof(test_device), S_IRUGO);
+module_param_string(device, test_device, sizeof(test_device),
+		S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(device, "Bus ID of the DMA Engine to test (default: any)");
 
 static unsigned int threads_per_chan = 1;
-module_param(threads_per_chan, uint, S_IRUGO);
+module_param(threads_per_chan, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(threads_per_chan,
 		"Number of threads to start per channel (default: 1)");
 
 static unsigned int max_channels;
-module_param(max_channels, uint, S_IRUGO);
+module_param(max_channels, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_channels,
 		"Maximum number of channels to use (default: all)");
 
 static unsigned int iterations;
-module_param(iterations, uint, S_IRUGO);
+module_param(iterations, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(iterations,
 		"Iterations before stopping test (default: infinite)");
 
 static unsigned int xor_sources = 3;
-module_param(xor_sources, uint, S_IRUGO);
+module_param(xor_sources, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(xor_sources,
 		"Number of xor source buffers (default: 3)");
 
 static unsigned int pq_sources = 3;
-module_param(pq_sources, uint, S_IRUGO);
+module_param(pq_sources, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(pq_sources,
 		"Number of p+q source buffers (default: 3)");
 
 static int timeout = 3000;
-module_param(timeout, uint, S_IRUGO);
+module_param(timeout, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
 		 "Pass -1 for infinite timeout");
 
@@ -193,7 +195,6 @@ struct dmatest_info {
 
 	/* debugfs related stuff */
 	struct dentry		*root;
-	struct dmatest_params	dbgfs_params;
 
 	/* Test results */
 	struct list_head	results;
@@ -406,7 +407,11 @@ static int thread_result_add(struct dmatest_info *info,
 	list_add_tail(&tr->node, &r->results);
 	mutex_unlock(&info->results_lock);
 
-	pr_warn("%s\n", thread_result_get(r->name, tr));
+	if (tr->type == DMATEST_ET_OK)
+		pr_debug("%s\n", thread_result_get(r->name, tr));
+	else
+		pr_warn("%s\n", thread_result_get(r->name, tr));
+
 	return 0;
 }
 
@@ -1007,7 +1012,15 @@ static int __restart_threaded_test(struct dmatest_info *info, bool run)
 	result_free(info, NULL);
 
 	/* Copy test parameters */
-	memcpy(params, &info->dbgfs_params, sizeof(*params));
+	params->buf_size = test_buf_size;
+	strlcpy(params->channel, strim(test_channel), sizeof(params->channel));
+	strlcpy(params->device, strim(test_device), sizeof(params->device));
+	params->threads_per_chan = threads_per_chan;
+	params->max_channels = max_channels;
+	params->iterations = iterations;
+	params->xor_sources = xor_sources;
+	params->pq_sources = pq_sources;
+	params->timeout = timeout;
 
 	/* Run test with new parameters */
 	return __run_threaded_test(info);
@@ -1028,71 +1041,6 @@ static bool __is_threaded_test_run(struct dmatest_info *info)
 
 	return false;
 }
-
-static ssize_t dtf_write_string(void *to, size_t available, loff_t *ppos,
-		const void __user *from, size_t count)
-{
-	char tmp[20];
-	ssize_t len;
-
-	len = simple_write_to_buffer(tmp, sizeof(tmp) - 1, ppos, from, count);
-	if (len >= 0) {
-		tmp[len] = '\0';
-		strlcpy(to, strim(tmp), available);
-	}
-
-	return len;
-}
-
-static ssize_t dtf_read_channel(struct file *file, char __user *buf,
-		size_t count, loff_t *ppos)
-{
-	struct dmatest_info *info = file->private_data;
-	return simple_read_from_buffer(buf, count, ppos,
-			info->dbgfs_params.channel,
-			strlen(info->dbgfs_params.channel));
-}
-
-static ssize_t dtf_write_channel(struct file *file, const char __user *buf,
-		size_t size, loff_t *ppos)
-{
-	struct dmatest_info *info = file->private_data;
-	return dtf_write_string(info->dbgfs_params.channel,
-				sizeof(info->dbgfs_params.channel),
-				ppos, buf, size);
-}
-
-static const struct file_operations dtf_channel_fops = {
-	.read	= dtf_read_channel,
-	.write	= dtf_write_channel,
-	.open	= simple_open,
-	.llseek	= default_llseek,
-};
-
-static ssize_t dtf_read_device(struct file *file, char __user *buf,
-		size_t count, loff_t *ppos)
-{
-	struct dmatest_info *info = file->private_data;
-	return simple_read_from_buffer(buf, count, ppos,
-			info->dbgfs_params.device,
-			strlen(info->dbgfs_params.device));
-}
-
-static ssize_t dtf_write_device(struct file *file, const char __user *buf,
-		size_t size, loff_t *ppos)
-{
-	struct dmatest_info *info = file->private_data;
-	return dtf_write_string(info->dbgfs_params.device,
-				sizeof(info->dbgfs_params.device),
-				ppos, buf, size);
-}
-
-static const struct file_operations dtf_device_fops = {
-	.read	= dtf_read_device,
-	.write	= dtf_write_device,
-	.open	= simple_open,
-	.llseek	= default_llseek,
-};
 
 static ssize_t dtf_read_run(struct file *file, char __user *user_buf,
 		size_t count, loff_t *ppos)
@@ -1187,8 +1135,6 @@ static const struct file_operations dtf_results_fops = {
 static int dmatest_register_dbgfs(struct dmatest_info *info)
 {
 	struct dentry *d;
-	struct dmatest_params *params = &info->dbgfs_params;
-	int ret = -ENOMEM;
 
 	d = debugfs_create_dir("dmatest", NULL);
 	if (IS_ERR(d))
@@ -1198,81 +1144,24 @@ static int dmatest_register_dbgfs(struct dmatest_info *info)
 
 	info->root = d;
 
-	/* Copy initial values */
-	memcpy(params, &info->params, sizeof(*params));
-
-	/* Test parameters */
-
-	d = debugfs_create_u32("test_buf_size", S_IWUSR | S_IRUGO, info->root,
-			       (u32 *)&params->buf_size);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
-
-	d = debugfs_create_file("channel", S_IRUGO | S_IWUSR, info->root,
-				info, &dtf_channel_fops);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
-
-	d = debugfs_create_file("device", S_IRUGO | S_IWUSR, info->root,
-				info, &dtf_device_fops);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
-
-	d = debugfs_create_u32("threads_per_chan", S_IWUSR | S_IRUGO, info->root,
-			       (u32 *)&params->threads_per_chan);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
-
-	d = debugfs_create_u32("max_channels", S_IWUSR | S_IRUGO, info->root,
-			       (u32 *)&params->max_channels);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
-
-	d = debugfs_create_u32("iterations", S_IWUSR | S_IRUGO, info->root,
-			       (u32 *)&params->iterations);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
-
-	d = debugfs_create_u32("xor_sources", S_IWUSR | S_IRUGO, info->root,
-			       (u32 *)&params->xor_sources);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
-
-	d = debugfs_create_u32("pq_sources", S_IWUSR | S_IRUGO, info->root,
-			       (u32 *)&params->pq_sources);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
-
-	d = debugfs_create_u32("timeout", S_IWUSR | S_IRUGO, info->root,
-			       (u32 *)&params->timeout);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
-
 	/* Run or stop threaded test */
-	d = debugfs_create_file("run", S_IWUSR | S_IRUGO, info->root,
-				info, &dtf_run_fops);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
+	debugfs_create_file("run", S_IWUSR | S_IRUGO, info->root, info,
+			    &dtf_run_fops);
 
 	/* Results of test in progress */
-	d = debugfs_create_file("results", S_IRUGO, info->root, info,
-				&dtf_results_fops);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
+	debugfs_create_file("results", S_IRUGO, info->root, info,
+			    &dtf_results_fops);
 
 	return 0;
 
-err_node:
-	debugfs_remove_recursive(info->root);
 err_root:
 	pr_err("dmatest: Failed to initialize debugfs\n");
-	return ret;
+	return -ENOMEM;
 }
 
 static int __init dmatest_init(void)
 {
 	struct dmatest_info *info = &test_info;
-	struct dmatest_params *params = &info->params;
 	int ret;
 
 	memset(info, 0, sizeof(*info));
@@ -1282,17 +1171,6 @@ static int __init dmatest_init(void)
 
 	mutex_init(&info->results_lock);
 	INIT_LIST_HEAD(&info->results);
-
-	/* Set default parameters */
-	params->buf_size = test_buf_size;
-	strlcpy(params->channel, test_channel, sizeof(params->channel));
-	strlcpy(params->device, test_device, sizeof(params->device));
-	params->threads_per_chan = threads_per_chan;
-	params->max_channels = max_channels;
-	params->iterations = iterations;
-	params->xor_sources = xor_sources;
-	params->pq_sources = pq_sources;
-	params->timeout = timeout;
 
 	ret = dmatest_register_dbgfs(info);
 	if (ret)

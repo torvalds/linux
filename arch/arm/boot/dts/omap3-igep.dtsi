@@ -48,6 +48,15 @@
 		>;
 	};
 
+	mcbsp2_pins: pinmux_mcbsp2_pins {
+		pinctrl-single,pins = <
+			0x10c (PIN_INPUT | MUX_MODE0)		/* mcbsp2_fsx.mcbsp2_fsx */
+			0x10e (PIN_INPUT | MUX_MODE0)		/* mcbsp2_clkx.mcbsp2_clkx */
+			0x110 (PIN_INPUT | MUX_MODE0)		/* mcbsp2_dr.mcbsp2.dr */
+			0x112 (PIN_OUTPUT | MUX_MODE0)		/* mcbsp2_dx.mcbsp2_dx */
+		>;
+	};
+
 	mmc1_pins: pinmux_mmc1_pins {
 		pinctrl-single,pins = <
 			0x114 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_clk.sdmmc1_clk */
@@ -91,6 +100,11 @@
 
 &i2c2 {
 	clock-frequency = <400000>;
+};
+
+&mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
 };
 
 &mmc1 {

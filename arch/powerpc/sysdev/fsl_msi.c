@@ -28,6 +28,18 @@
 #include "fsl_msi.h"
 #include "fsl_pci.h"
 
+#define MSIIR_OFFSET_MASK	0xfffff
+#define MSIIR_IBS_SHIFT		0
+#define MSIIR_SRS_SHIFT		5
+#define MSIIR1_IBS_SHIFT	4
+#define MSIIR1_SRS_SHIFT	0
+#define MSI_SRS_MASK		0xf
+#define MSI_IBS_MASK		0x1f
+
+#define msi_hwirq(msi, msir_index, intr_index) \
+		((msir_index) << (msi)->srs_shift | \
+		 ((intr_index) << (msi)->ibs_shift))
+
 static LIST_HEAD(msi_head);
 
 struct fsl_msi_feature {
@@ -80,18 +92,19 @@ static const struct irq_domain_ops fsl_msi_host_ops = {
 
 static int fsl_msi_init_allocator(struct fsl_msi *msi_data)
 {
-	int rc;
+	int rc, hwirq;
 
-	rc = msi_bitmap_alloc(&msi_data->bitmap, NR_MSI_IRQS,
+	rc = msi_bitmap_alloc(&msi_data->bitmap, NR_MSI_IRQS_MAX,
 			      msi_data->irqhost->of_node);
 	if (rc)
 		return rc;
 
-	rc = msi_bitmap_reserve_dt_hwirqs(&msi_data->bitmap);
-	if (rc < 0) {
-		msi_bitmap_free(&msi_data->bitmap);
-		return rc;
-	}
+	/*
+	 * Reserve all the hwirqs
+	 * The available hwirqs will be released in fsl_msi_setup_hwirq()
+	 */
+	for (hwirq = 0; hwirq < NR_MSI_IRQS_MAX; hwirq++)
+		msi_bitmap_reserve_hwirq(&msi_data->bitmap, hwirq);
 
 	return 0;
 }
@@ -144,8 +157,9 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 
 	msg->data = hwirq;
 
-	pr_debug("%s: allocated srs: %d, ibs: %d\n",
-		__func__, hwirq / IRQS_PER_MSI_REG, hwirq % IRQS_PER_MSI_REG);
+	pr_debug("%s: allocated srs: %d, ibs: %d\n", __func__,
+		 (hwirq >> msi_data->srs_shift) & MSI_SRS_MASK,
+		 (hwirq >> msi_data->ibs_shift) & MSI_IBS_MASK);
 }
 
 static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
@@ -255,7 +269,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 
 	msir_index = cascade_data->index;
 
-	if (msir_index >= NR_MSI_REG)
+	if (msir_index >= NR_MSI_REG_MAX)
 		cascade_irq = NO_IRQ;
 
 	irqd_set_chained_irq_inprogress(idata);
@@ -285,8 +299,8 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		intr_index = ffs(msir_value) - 1;
 
 		cascade_irq = irq_linear_revmap(msi_data->irqhost,
-				msir_index * IRQS_PER_MSI_REG +
-					intr_index + have_shift);
+				msi_hwirq(msi_data, msir_index,
+					  intr_index + have_shift));
 		if (cascade_irq != NO_IRQ)
 			generic_handle_irq(cascade_irq);
 		have_shift += intr_index + 1;
@@ -316,7 +330,7 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 
 	if (msi->list.prev != NULL)
 		list_del(&msi->list);
-	for (i = 0; i < NR_MSI_REG; i++) {
+	for (i = 0; i < NR_MSI_REG_MAX; i++) {
 		virq = msi->msi_virqs[i];
 		if (virq != NO_IRQ) {
 			cascade_data = irq_get_handler_data(virq);
@@ -339,7 +353,7 @@ static int fsl_msi_setup_hwirq(struct fsl_msi *msi, struct platform_device *dev,
 			       int offset, int irq_index)
 {
 	struct fsl_msi_cascade_data *cascade_data = NULL;
-	int virt_msir;
+	int virt_msir, i;
 
 	virt_msir = irq_of_parse_and_map(dev->dev.of_node, irq_index);
 	if (virt_msir == NO_IRQ) {
@@ -360,6 +374,11 @@ static int fsl_msi_setup_hwirq(struct fsl_msi *msi, struct platform_device *dev,
 	irq_set_handler_data(virt_msir, cascade_data);
 	irq_set_chained_handler(virt_msir, fsl_msi_cascade);
 
+	/* Release the hwirqs corresponding to this MSI register */
+	for (i = 0; i < IRQS_PER_MSI_REG; i++)
+		msi_bitmap_free_hwirqs(&msi->bitmap,
+				       msi_hwirq(msi, offset, i), 1);
+
 	return 0;
 }
 
@@ -368,14 +387,12 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 {
 	const struct of_device_id *match;
 	struct fsl_msi *msi;
-	struct resource res;
+	struct resource res, msiir;
 	int err, i, j, irq_index, count;
-	int rc;
 	const u32 *p;
 	const struct fsl_msi_feature *features;
 	int len;
 	u32 offset;
-	static const u32 all_avail[] = { 0, NR_MSI_IRQS };
 
 	match = of_match_device(fsl_of_msi_ids, &dev->dev);
 	if (!match)
@@ -392,7 +409,7 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, msi);
 
 	msi->irqhost = irq_domain_add_linear(dev->dev.of_node,
-				      NR_MSI_IRQS, &fsl_msi_host_ops, msi);
+				      NR_MSI_IRQS_MAX, &fsl_msi_host_ops, msi);
 
 	if (msi->irqhost == NULL) {
 		dev_err(&dev->dev, "No memory for MSI irqhost\n");
@@ -421,6 +438,16 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 		}
 		msi->msiir_offset =
 			features->msiir_offset + (res.start & 0xfffff);
+
+		/*
+		 * First read the MSIIR/MSIIR1 offset from dts
+		 * On failure use the hardcode MSIIR offset
+		 */
+		if (of_address_to_resource(dev->dev.of_node, 1, &msiir))
+			msi->msiir_offset = features->msiir_offset +
+					    (res.start & MSIIR_OFFSET_MASK);
+		else
+			msi->msiir_offset = msiir.start & MSIIR_OFFSET_MASK;
 	}
 
 	msi->feature = features->fsl_pic_ip;
@@ -431,42 +458,66 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	 */
 	msi->phandle = dev->dev.of_node->phandle;
 
-	rc = fsl_msi_init_allocator(msi);
-	if (rc) {
+	err = fsl_msi_init_allocator(msi);
+	if (err) {
 		dev_err(&dev->dev, "Error allocating MSI bitmap\n");
 		goto error_out;
 	}
 
 	p = of_get_property(dev->dev.of_node, "msi-available-ranges", &len);
-	if (p && len % (2 * sizeof(u32)) != 0) {
-		dev_err(&dev->dev, "%s: Malformed msi-available-ranges property\n",
-			__func__);
-		err = -EINVAL;
-		goto error_out;
-	}
 
-	if (!p) {
-		p = all_avail;
-		len = sizeof(all_avail);
-	}
+	if (of_device_is_compatible(dev->dev.of_node, "fsl,mpic-msi-v4.3")) {
+		msi->srs_shift = MSIIR1_SRS_SHIFT;
+		msi->ibs_shift = MSIIR1_IBS_SHIFT;
+		if (p)
+			dev_warn(&dev->dev, "%s: dose not support msi-available-ranges property\n",
+				__func__);
 
-	for (irq_index = 0, i = 0; i < len / (2 * sizeof(u32)); i++) {
-		if (p[i * 2] % IRQS_PER_MSI_REG ||
-		    p[i * 2 + 1] % IRQS_PER_MSI_REG) {
-			printk(KERN_WARNING "%s: %s: msi available range of %u at %u is not IRQ-aligned\n",
-			       __func__, dev->dev.of_node->full_name,
-			       p[i * 2 + 1], p[i * 2]);
+		for (irq_index = 0; irq_index < NR_MSI_REG_MSIIR1;
+		     irq_index++) {
+			err = fsl_msi_setup_hwirq(msi, dev,
+						  irq_index, irq_index);
+			if (err)
+				goto error_out;
+		}
+	} else {
+		static const u32 all_avail[] =
+			{ 0, NR_MSI_REG_MSIIR * IRQS_PER_MSI_REG };
+
+		msi->srs_shift = MSIIR_SRS_SHIFT;
+		msi->ibs_shift = MSIIR_IBS_SHIFT;
+
+		if (p && len % (2 * sizeof(u32)) != 0) {
+			dev_err(&dev->dev, "%s: Malformed msi-available-ranges property\n",
+				__func__);
 			err = -EINVAL;
 			goto error_out;
 		}
 
-		offset = p[i * 2] / IRQS_PER_MSI_REG;
-		count = p[i * 2 + 1] / IRQS_PER_MSI_REG;
+		if (!p) {
+			p = all_avail;
+			len = sizeof(all_avail);
+		}
 
-		for (j = 0; j < count; j++, irq_index++) {
-			err = fsl_msi_setup_hwirq(msi, dev, offset + j, irq_index);
-			if (err)
+		for (irq_index = 0, i = 0; i < len / (2 * sizeof(u32)); i++) {
+			if (p[i * 2] % IRQS_PER_MSI_REG ||
+			    p[i * 2 + 1] % IRQS_PER_MSI_REG) {
+				pr_warn("%s: %s: msi available range of %u at %u is not IRQ-aligned\n",
+				       __func__, dev->dev.of_node->full_name,
+				       p[i * 2 + 1], p[i * 2]);
+				err = -EINVAL;
 				goto error_out;
+			}
+
+			offset = p[i * 2] / IRQS_PER_MSI_REG;
+			count = p[i * 2 + 1] / IRQS_PER_MSI_REG;
+
+			for (j = 0; j < count; j++, irq_index++) {
+				err = fsl_msi_setup_hwirq(msi, dev, offset + j,
+							  irq_index);
+				if (err)
+					goto error_out;
+			}
 		}
 	}
 
@@ -506,6 +557,10 @@ static const struct fsl_msi_feature vmpic_msi_feature = {
 static const struct of_device_id fsl_of_msi_ids[] = {
 	{
 		.compatible = "fsl,mpic-msi",
+		.data = &mpic_msi_feature,
+	},
+	{
+		.compatible = "fsl,mpic-msi-v4.3",
 		.data = &mpic_msi_feature,
 	},
 	{

@@ -217,7 +217,7 @@ struct kvm_vcpu *kvmppc_find_vcpu(struct kvm *kvm, int id)
 
 static void init_vpa(struct kvm_vcpu *vcpu, struct lppaca *vpa)
 {
-	vpa->shared_proc = 1;
+	vpa->__old_status |= LPPACA_OLD_SHARED_PROC;
 	vpa->yield_count = 1;
 }
 

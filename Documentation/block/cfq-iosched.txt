@@ -69,7 +69,7 @@ one, this value should be decreased relative to fifo_expire_async.
 group_idle
 -----------
 This parameter forces idling at the CFQ group level instead of CFQ
-queue level. This was introduced after after a bottleneck was observed
+queue level. This was introduced after a bottleneck was observed
 in higher end storage due to idle on sequential queue and allow dispatch
 from a single queue. The idea with this parameter is that it can be run with
 slice_idle=0 and group_idle=8, so that idling does not happen on individual

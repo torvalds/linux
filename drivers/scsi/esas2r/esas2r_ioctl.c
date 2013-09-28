@@ -415,7 +415,7 @@ static int csmi_ioctl_callback(struct esas2r_adapter *a,
 		lun = tm->lun;
 	}
 
-	if (path > 0 || tid > ESAS2R_MAX_ID) {
+	if (path > 0) {
 		rq->func_rsp.ioctl_rsp.csmi.csmi_status = cpu_to_le32(
 			CSMI_STS_INV_PARAM);
 		return false;

@@ -29,6 +29,10 @@
 #include <asm/kvm_book3s_asm.h>
 #include <asm/mmu-hash64.h>
 
+#ifdef __LITTLE_ENDIAN__
+#error Need to fix lppaca and SLB shadow accesses in little endian mode
+#endif
+
 /*****************************************************************************
  *                                                                           *
  *        Real Mode handlers that need to be in the linear mapping           *
@@ -389,7 +393,11 @@ toc_tlbie_lock:
 	.tc	native_tlbie_lock[TC],native_tlbie_lock
 	.previous
 	ld	r3,toc_tlbie_lock@toc(2)
+#ifdef __BIG_ENDIAN__
 	lwz	r8,PACA_LOCK_TOKEN(r13)
+#else
+	lwz	r8,PACAPACAINDEX(r13)
+#endif
 24:	lwarx	r0,0,r3
 	cmpwi	r0,0
 	bne	24b
@@ -964,7 +972,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 32:	ld	r4,VCPU_KVM(r9)		/* pointer to struct kvm */
 
 	/* Take the guest's tlbie_lock */
+#ifdef __BIG_ENDIAN__
 	lwz	r8,PACA_LOCK_TOKEN(r13)
+#else
+	lwz	r8,PACAPACAINDEX(r13)
+#endif
 	addi	r3,r4,KVM_TLBIE_LOCK
 24:	lwarx	r0,0,r3
 	cmpwi	r0,0

@@ -1178,6 +1178,7 @@ static int __parse_flow_nlattrs(const struct nlattr *attr,
 		if (type > OVS_KEY_ATTR_MAX) {
 			OVS_NLERR("Unknown key attribute (type=%d, max=%d).\n",
 				  type, OVS_KEY_ATTR_MAX);
+			return -EINVAL;
 		}
 
 		if (attrs & (1 << type)) {

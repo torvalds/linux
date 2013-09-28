@@ -349,6 +349,8 @@ static ssize_t bonding_store_mode(struct device *d,
 		goto out;
 	}
 
+	/* don't cache arp_validate between modes */
+	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
 	bond->params.mode = new_value;
 	bond_set_mode_ops(bond, bond->params.mode);
 	pr_info("%s: setting mode to %s (%d).\n",
@@ -419,27 +421,39 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	int new_value;
 	struct bonding *bond = to_bond(d);
+	int new_value, ret = count;
 
+	if (!rtnl_trylock())
+		return restart_syscall();
 	new_value = bond_parse_parm(buf, arp_validate_tbl);
 	if (new_value < 0) {
 		pr_err("%s: Ignoring invalid arp_validate value %s\n",
 		       bond->dev->name, buf);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
-	if (new_value && (bond->params.mode != BOND_MODE_ACTIVEBACKUP)) {
+	if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
 		pr_err("%s: arp_validate only supported in active-backup mode.\n",
 		       bond->dev->name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 	pr_info("%s: setting arp_validate to %s (%d).\n",
 		bond->dev->name, arp_validate_tbl[new_value].modename,
 		new_value);
 
+	if (bond->dev->flags & IFF_UP) {
+		if (!new_value)
+			bond->recv_probe = NULL;
+		else if (bond->params.arp_interval)
+			bond->recv_probe = bond_arp_rcv;
+	}
 	bond->params.arp_validate = new_value;
+out:
+	rtnl_unlock();
 
-	return count;
+	return ret;
 }
 
 static DEVICE_ATTR(arp_validate, S_IRUGO | S_IWUSR, bonding_show_arp_validate,
@@ -555,8 +569,8 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
+	int new_value, ret = count;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -599,8 +613,13 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 		 * is called.
 		 */
 		if (!new_value) {
+			if (bond->params.arp_validate)
+				bond->recv_probe = NULL;
 			cancel_delayed_work_sync(&bond->arp_work);
 		} else {
+			/* arp_validate can be set only in active-backup mode */
+			if (bond->params.arp_validate)
+				bond->recv_probe = bond_arp_rcv;
 			cancel_delayed_work_sync(&bond->mii_work);
 			queue_delayed_work(bond->wq, &bond->arp_work, 0);
 		}
@@ -1680,6 +1699,44 @@ out:
 static DEVICE_ATTR(resend_igmp, S_IRUGO | S_IWUSR,
 		   bonding_show_resend_igmp, bonding_store_resend_igmp);
 
+
+static ssize_t bonding_show_lp_interval(struct device *d,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	return sprintf(buf, "%d\n", bond->params.lp_interval);
+}
+
+static ssize_t bonding_store_lp_interval(struct device *d,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int new_value, ret = count;
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		pr_err("%s: no lp interval value specified.\n",
+			bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (new_value <= 0) {
+		pr_err ("%s: lp_interval must be between 1 and %d\n",
+			bond->dev->name, INT_MAX);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	bond->params.lp_interval = new_value;
+out:
+	return ret;
+}
+
+static DEVICE_ATTR(lp_interval, S_IRUGO | S_IWUSR,
+		   bonding_show_lp_interval, bonding_store_lp_interval);
+
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
 	&dev_attr_mode.attr,
@@ -1710,6 +1767,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_all_slaves_active.attr,
 	&dev_attr_resend_igmp.attr,
 	&dev_attr_min_links.attr,
+	&dev_attr_lp_interval.attr,
 	NULL,
 };
 

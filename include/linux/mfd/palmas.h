@@ -184,6 +184,50 @@ enum palmas_regulators {
 	PALMAS_NUM_REGS,
 };
 
+/* External controll signal name */
+enum {
+	PALMAS_EXT_CONTROL_ENABLE1      = 0x1,
+	PALMAS_EXT_CONTROL_ENABLE2      = 0x2,
+	PALMAS_EXT_CONTROL_NSLEEP       = 0x4,
+};
+
+/*
+ * Palmas device resources can be controlled externally for
+ * enabling/disabling it rather than register write through i2c.
+ * Add the external controlled requestor ID for different resources.
+ */
+enum palmas_external_requestor_id {
+	PALMAS_EXTERNAL_REQSTR_ID_REGEN1,
+	PALMAS_EXTERNAL_REQSTR_ID_REGEN2,
+	PALMAS_EXTERNAL_REQSTR_ID_SYSEN1,
+	PALMAS_EXTERNAL_REQSTR_ID_SYSEN2,
+	PALMAS_EXTERNAL_REQSTR_ID_CLK32KG,
+	PALMAS_EXTERNAL_REQSTR_ID_CLK32KGAUDIO,
+	PALMAS_EXTERNAL_REQSTR_ID_REGEN3,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS12,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS3,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS45,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS6,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS7,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS8,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS9,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS10,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO1,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO2,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO3,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO4,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO5,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO6,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO7,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO8,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO9,
+	PALMAS_EXTERNAL_REQSTR_ID_LDOLN,
+	PALMAS_EXTERNAL_REQSTR_ID_LDOUSB,
+
+	/* Last entry */
+	PALMAS_EXTERNAL_REQSTR_ID_MAX,
+};
+
 struct palmas_pmic_platform_data {
 	/* An array of pointers to regulator init data indexed by regulator
 	 * ID
@@ -259,6 +303,7 @@ struct palmas_platform_data {
 	 */
 	int mux_from_pdata;
 	u8 pad1, pad2;
+	bool pm_off;
 
 	struct palmas_pmic_platform_data *pmic_pdata;
 	struct palmas_gpadc_platform_data *gpadc_pdata;
@@ -2877,5 +2922,10 @@ static inline int palmas_irq_get_virq(struct palmas *palmas, int irq)
 {
 	return regmap_irq_get_virq(palmas->irq_data, irq);
 }
+
+
+int palmas_ext_control_req_config(struct palmas *palmas,
+	enum palmas_external_requestor_id ext_control_req_id,
+	int ext_ctrl, bool enable);
 
 #endif /*  __LINUX_MFD_PALMAS_H */

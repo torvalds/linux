@@ -791,7 +791,7 @@
 					regulator-boot-on;
 				};
 
-				dcdc3 {
+				tps65090_dcdc3_reg: dcdc3 {
 					regulator-name = "vdd-ao";
 					regulator-always-on;
 					regulator-boot-on;
@@ -836,6 +836,182 @@
 				};
 			};
 		};
+
+		palmas: tps65913 {
+			compatible = "ti,palmas";
+			reg = <0x58>;
+			interrupts = <0 86 IRQ_TYPE_LEVEL_LOW>;
+
+			#interrupt-cells = <2>;
+			interrupt-controller;
+
+			ti,system-power-controller;
+
+			palmas_gpio: gpio {
+				compatible = "ti,palmas-gpio";
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			pmic {
+				compatible = "ti,tps65913-pmic", "ti,palmas-pmic";
+				smps1-in-supply = <&tps65090_dcdc3_reg>;
+				smps3-in-supply = <&tps65090_dcdc3_reg>;
+				smps4-in-supply = <&tps65090_dcdc2_reg>;
+				smps7-in-supply = <&tps65090_dcdc2_reg>;
+				smps8-in-supply = <&tps65090_dcdc2_reg>;
+				smps9-in-supply = <&tps65090_dcdc2_reg>;
+				ldo1-in-supply = <&tps65090_dcdc2_reg>;
+				ldo2-in-supply = <&tps65090_dcdc2_reg>;
+				ldo3-in-supply = <&palmas_smps3_reg>;
+				ldo4-in-supply = <&tps65090_dcdc2_reg>;
+				ldo5-in-supply = <&vdd_ac_bat_reg>;
+				ldo6-in-supply = <&tps65090_dcdc2_reg>;
+				ldo7-in-supply = <&tps65090_dcdc2_reg>;
+				ldo8-in-supply = <&tps65090_dcdc3_reg>;
+				ldo9-in-supply = <&palmas_smps9_reg>;
+				ldoln-in-supply = <&tps65090_dcdc1_reg>;
+				ldousb-in-supply = <&tps65090_dcdc1_reg>;
+
+				regulators {
+					smps12 {
+						regulator-name = "vddio-ddr";
+						regulator-min-microvolt = <1350000>;
+						regulator-max-microvolt = <1350000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					palmas_smps3_reg: smps3 {
+						regulator-name = "vddio-1v8";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					smps45 {
+						regulator-name = "vdd-core";
+						regulator-min-microvolt = <900000>;
+						regulator-max-microvolt = <1400000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					smps457 {
+						regulator-name = "vdd-core";
+						regulator-min-microvolt = <900000>;
+						regulator-max-microvolt = <1400000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					smps8 {
+						regulator-name = "avdd-pll";
+						regulator-min-microvolt = <1050000>;
+						regulator-max-microvolt = <1050000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					palmas_smps9_reg: smps9 {
+						regulator-name = "sdhci-vdd-sd-slot";
+						regulator-min-microvolt = <2800000>;
+						regulator-max-microvolt = <2800000>;
+						regulator-always-on;
+					};
+
+					ldo1 {
+						regulator-name = "avdd-cam1";
+						regulator-min-microvolt = <2800000>;
+						regulator-max-microvolt = <2800000>;
+					};
+
+					ldo2 {
+						regulator-name = "avdd-cam2";
+						regulator-min-microvolt = <2800000>;
+						regulator-max-microvolt = <2800000>;
+					};
+
+					ldo3 {
+						regulator-name = "avdd-dsi-csi";
+						regulator-min-microvolt = <1200000>;
+						regulator-max-microvolt = <1200000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					ldo4 {
+						regulator-name = "vpp-fuse";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					ldo6 {
+						regulator-name = "vdd-sensor-2v85";
+						regulator-min-microvolt = <2850000>;
+						regulator-max-microvolt = <2850000>;
+					};
+
+					ldo7 {
+						regulator-name = "vdd-af-cam1";
+						regulator-min-microvolt = <2800000>;
+						regulator-max-microvolt = <2800000>;
+					};
+
+					ldo8 {
+						regulator-name = "vdd-rtc";
+						regulator-min-microvolt = <900000>;
+						regulator-max-microvolt = <900000>;
+						regulator-always-on;
+						regulator-boot-on;
+						ti,enable-ldo8-tracking;
+					};
+
+					ldo9 {
+						regulator-name = "vddio-sdmmc-2";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					ldoln {
+						regulator-name = "hvdd-usb";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ldousb {
+						regulator-name = "avdd-usb";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					regen1 {
+						regulator-name = "rail-3v3";
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					regen2 {
+						regulator-name = "rail-5v0";
+						regulator-max-microvolt = <5000000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+				};
+			};
+
+			rtc {
+				compatible = "ti,palmas-rtc";
+				interrupt-parent = <&palmas>;
+				interrupts = <8 0>;
+			};
+		};
 	};
 
 	spi@7000da00 {
@@ -850,6 +1026,13 @@
 
 	pmc {
 		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <1>;
+		nvidia,cpu-pwr-good-time = <500>;
+		nvidia,cpu-pwr-off-time = <300>;
+		nvidia,core-pwr-good-time = <641 3845>;
+		nvidia,core-pwr-off-time = <61036>;
+		nvidia,core-power-req-active-high;
+		nvidia,sys-clock-req-active-high;
 	};
 
 	ahub {
@@ -870,6 +1053,15 @@
 		non-removable;
 	};
 
+	usb@7d008000 {
+		status = "okay";
+	};
+
+	usb-phy@7d008000 {
+		status = "okay";
+		vbus-supply = <&usb3_vbus_reg>;
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -880,6 +1072,35 @@
 			reg=<0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		home {
+			label = "Home";
+			gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
+			linux,code = <102>; /* KEY_HOME */
+		};
+
+		power {
+			label = "Power";
+			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+
+		volume_down {
+			label = "Volume Down";
+			gpios = <&gpio TEGRA_GPIO(R, 1) GPIO_ACTIVE_LOW>;
+			linux,code = <114>; /* KEY_VOLUMEDOWN */
+		};
+
+		volume_up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(R, 2) GPIO_ACTIVE_LOW>;
+			linux,code = <115>; /* KEY_VOLUMEUP */
 		};
 	};
 
@@ -951,6 +1172,16 @@
 			gpio = <&gpio TEGRA_GPIO(K, 1) GPIO_ACTIVE_HIGH>;
 			vin-supply = <&tps65090_dcdc1_reg>;
 		};
+
+		vdd_cam_1v8_reg: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			regulator-name = "vdd_cam_1v8_reg";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			enable-active-high;
+			gpio = <&palmas_gpio 6 0>;
+		};
 	};
 
 	sound {
@@ -964,7 +1195,9 @@
 			"Speakers", "SPORP",
 			"Speakers", "SPORN",
 			"Speakers", "SPOLP",
-			"Speakers", "SPOLN";
+			"Speakers", "SPOLN",
+			"Mic Jack", "MICBIAS1",
+			"IN2P", "Mic Jack";
 
 		nvidia,i2s-controller = <&tegra_i2s1>;
 		nvidia,audio-codec = <&rt5640>;

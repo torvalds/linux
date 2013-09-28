@@ -370,9 +370,9 @@ static int sst25l_probe(struct spi_device *spi)
 
 	flash->spi = spi;
 	mutex_init(&flash->lock);
-	dev_set_drvdata(&spi->dev, flash);
+	spi_set_drvdata(spi, flash);
 
-	data = spi->dev.platform_data;
+	data = dev_get_platdata(&spi->dev);
 	if (data && data->name)
 		flash->mtd.name = data->name;
 	else
@@ -404,7 +404,7 @@ static int sst25l_probe(struct spi_device *spi)
 					data ? data->nr_parts : 0);
 	if (ret) {
 		kfree(flash);
-		dev_set_drvdata(&spi->dev, NULL);
+		spi_set_drvdata(spi, NULL);
 		return -ENODEV;
 	}
 
@@ -413,7 +413,7 @@ static int sst25l_probe(struct spi_device *spi)
 
 static int sst25l_remove(struct spi_device *spi)
 {
-	struct sst25l_flash *flash = dev_get_drvdata(&spi->dev);
+	struct sst25l_flash *flash = spi_get_drvdata(spi);
 	int ret;
 
 	ret = mtd_device_unregister(&flash->mtd);

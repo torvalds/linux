@@ -805,10 +805,8 @@ static void imxdma_free_chan_resources(struct dma_chan *chan)
 	}
 	INIT_LIST_HEAD(&imxdmac->ld_free);
 
-	if (imxdmac->sg_list) {
-		kfree(imxdmac->sg_list);
-		imxdmac->sg_list = NULL;
-	}
+	kfree(imxdmac->sg_list);
+	imxdmac->sg_list = NULL;
 }
 
 static struct dma_async_tx_descriptor *imxdma_prep_slave_sg(

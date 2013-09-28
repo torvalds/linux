@@ -22,14 +22,6 @@
 
 #include <linux/linkage.h>
 
-/* On TILE64, we wrap these functions via arch/tile/lib/memcpy_tile64.c */
-#if !CHIP_HAS_COHERENT_LOCAL_CACHE()
-#define memcpy __memcpy_asm
-#define __copy_to_user_inatomic __copy_to_user_inatomic_asm
-#define __copy_from_user_inatomic __copy_from_user_inatomic_asm
-#define __copy_from_user_zeroing __copy_from_user_zeroing_asm
-#endif
-
 #define IS_MEMCPY	  0
 #define IS_COPY_FROM_USER  1
 #define IS_COPY_FROM_USER_ZEROING  2
@@ -44,6 +36,7 @@
  */
 #define EX \
 	.pushsection __ex_table, "a"; \
+	.align 4; \
 	.word 9f, memcpy_common_fixup; \
 	.popsection; \
 	9
@@ -158,12 +151,9 @@ EX:	{ sw r0, r3; addi r0, r0, 4; addi r2, r2, -4 }
 
 	{ addi r3, r1, 60; andi r9, r9, -64 }
 
-#if CHIP_HAS_WH64()
 	/* No need to prefetch dst, we'll just do the wh64
 	 * right before we copy a line.
 	 */
-#endif
-
 EX:	{ lw r5, r3; addi r3, r3, 64; movei r4, 1 }
 	/* Intentionally stall for a few cycles to leave L2 cache alone. */
 	{ bnzt zero, .; move r27, lr }
@@ -171,21 +161,6 @@ EX:	{ lw r6, r3; addi r3, r3, 64 }
 	/* Intentionally stall for a few cycles to leave L2 cache alone. */
 	{ bnzt zero, . }
 EX:	{ lw r7, r3; addi r3, r3, 64 }
-#if !CHIP_HAS_WH64()
-	/* Prefetch the dest */
-	/* Intentionally stall for a few cycles to leave L2 cache alone. */
-	{ bnzt zero, . }
-	/* Use a real load to cause a TLB miss if necessary.  We aren't using
-	 * r28, so this should be fine.
-	 */
-EX:	{ lw r28, r9; addi r9, r9, 64 }
-	/* Intentionally stall for a few cycles to leave L2 cache alone. */
-	{ bnzt zero, . }
-	{ prefetch r9; addi r9, r9, 64 }
-	/* Intentionally stall for a few cycles to leave L2 cache alone. */
-	{ bnzt zero, . }
-	{ prefetch r9; addi r9, r9, 64 }
-#endif
 	/* Intentionally stall for a few cycles to leave L2 cache alone. */
 	{ bz zero, .Lbig_loop2 }
 
@@ -286,13 +261,8 @@ EX:	{ lw r7, r3; addi r3, r3, 64 }
 	/* Fill second L1D line. */
 EX:	{ lw r17, r17; addi r1, r1, 48; mvz r3, r13, r1 } /* r17 = WORD_4 */
 
-#if CHIP_HAS_WH64()
 	/* Prepare destination line for writing. */
 EX:	{ wh64 r9; addi r9, r9, 64 }
-#else
-	/* Prefetch dest line */
-	{ prefetch r9; addi r9, r9, 64 }
-#endif
 	/* Load seven words that are L1D hits to cover wh64 L2 usage. */
 
 	/* Load the three remaining words from the last L1D line, which
@@ -330,16 +300,7 @@ EX:	{ lw r18, r1; addi r1, r1, 4 }                  /* r18 = WORD_8 */
 EX:	{ sw r0, r16; addi r0, r0, 4; add r16, r0, r2 } /* store(WORD_0) */
 EX:	{ sw r0, r13; addi r0, r0, 4; andi r16, r16, -64 } /* store(WORD_1) */
 EX:	{ sw r0, r14; addi r0, r0, 4; slt_u r16, r9, r16 } /* store(WORD_2) */
-#if CHIP_HAS_WH64()
 EX:	{ sw r0, r15; addi r0, r0, 4; addi r13, sp, -64 } /* store(WORD_3) */
-#else
-	/* Back up the r9 to a cache line we are already storing to
-	 * if it gets past the end of the dest vector.  Strictly speaking,
-	 * we don't need to back up to the start of a cache line, but it's free
-	 * and tidy, so why not?
-	 */
-EX:	{ sw r0, r15; addi r0, r0, 4; andi r13, r0, -64 } /* store(WORD_3) */
-#endif
 	/* Store second L1D line. */
 EX:	{ sw r0, r17; addi r0, r0, 4; mvz r9, r16, r13 }/* store(WORD_4) */
 EX:	{ sw r0, r19; addi r0, r0, 4 }                  /* store(WORD_5) */
@@ -403,7 +364,6 @@ EX:	{ sb r0, r3;   addi r0, r0, 1; addi r2, r2, -1 }
 
 .Ldest_is_word_aligned:
 
-#if CHIP_HAS_DWORD_ALIGN()
 EX:	{ andi r8, r0, 63; lwadd_na r6, r1, 4}
 	{ slti_u r9, r2, 64; bz r8, .Ldest_is_L2_line_aligned }
 
@@ -511,26 +471,6 @@ EX:	{ swadd r0, r13, 4; addi r2, r2, -32 }
 	/* Move r1 back to the point where it corresponds to r0. */
 	{ addi r1, r1, -4 }
 
-#else /* !CHIP_HAS_DWORD_ALIGN() */
-
-	/* Compute right/left shift counts and load initial source words. */
-	{ andi r5, r1, -4; andi r3, r1, 3 }
-EX:	{ lw r6, r5; addi r5, r5, 4; shli r3, r3, 3 }
-EX:	{ lw r7, r5; addi r5, r5, 4; sub r4, zero, r3 }
-
-	/* Load and store one word at a time, using shifts and ORs
-	 * to correct for the misaligned src.
-	 */
-.Lcopy_unaligned_src_loop:
-	{ shr r6, r6, r3; shl r8, r7, r4 }
-EX:	{ lw r7, r5; or r8, r8, r6; move r6, r7 }
-EX:	{ sw r0, r8; addi r0, r0, 4; addi r2, r2, -4 }
-	{ addi r5, r5, 4; slti_u r8, r2, 8 }
-	{ bzt r8, .Lcopy_unaligned_src_loop; addi r1, r1, 4 }
-
-	{ bz r2, .Lcopy_unaligned_done }
-#endif /* !CHIP_HAS_DWORD_ALIGN() */
-
 	/* Fall through */
 
 /*
@@ -614,5 +554,6 @@ memcpy_fixup_loop:
 	.size memcpy_common_fixup, . - memcpy_common_fixup
 
 	.section __ex_table,"a"
+	.align 4
 	.word .Lcfu, .Lcopy_from_user_fixup_zero_remainder
 	.word .Lctu, .Lcopy_to_user_fixup_done

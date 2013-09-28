@@ -109,6 +109,16 @@ probably didn't even receive earlier versions of the patch.
 If the patch fixes a logged bug entry, refer to that bug entry by
 number and URL.
 
+If you want to refer to a specific commit, don't just refer to the
+SHA-1 ID of the commit. Please also include the oneline summary of
+the commit, to make it easier for reviewers to know what it is about.
+Example:
+
+	Commit e21d2170f36602ae2708 ("video: remove unnecessary
+	platform_set_drvdata()") removed the unnecessary
+	platform_set_drvdata(), but left the variable "dev" unused,
+	delete it.
+
 
 3) Separate your changes.
 

@@ -725,7 +725,7 @@ static int hp_wmi_rfkill_setup(struct platform_device *device)
 					   (void *) HPWMI_WWAN);
 		if (!wwan_rfkill) {
 			err = -ENOMEM;
-			goto register_gps_error;
+			goto register_bluetooth_error;
 		}
 		rfkill_init_sw_state(wwan_rfkill,
 				     hp_wmi_get_sw_state(HPWMI_WWAN));
@@ -733,7 +733,7 @@ static int hp_wmi_rfkill_setup(struct platform_device *device)
 				    hp_wmi_get_hw_state(HPWMI_WWAN));
 		err = rfkill_register(wwan_rfkill);
 		if (err)
-			goto register_wwan_err;
+			goto register_wwan_error;
 	}
 
 	if (wireless & 0x8) {
@@ -743,7 +743,7 @@ static int hp_wmi_rfkill_setup(struct platform_device *device)
 						(void *) HPWMI_GPS);
 		if (!gps_rfkill) {
 			err = -ENOMEM;
-			goto register_bluetooth_error;
+			goto register_wwan_error;
 		}
 		rfkill_init_sw_state(gps_rfkill,
 				     hp_wmi_get_sw_state(HPWMI_GPS));
@@ -755,16 +755,16 @@ static int hp_wmi_rfkill_setup(struct platform_device *device)
 	}
 
 	return 0;
-register_wwan_err:
-	rfkill_destroy(wwan_rfkill);
-	wwan_rfkill = NULL;
-	if (gps_rfkill)
-		rfkill_unregister(gps_rfkill);
 register_gps_error:
 	rfkill_destroy(gps_rfkill);
 	gps_rfkill = NULL;
 	if (bluetooth_rfkill)
 		rfkill_unregister(bluetooth_rfkill);
+register_wwan_error:
+	rfkill_destroy(wwan_rfkill);
+	wwan_rfkill = NULL;
+	if (gps_rfkill)
+		rfkill_unregister(gps_rfkill);
 register_bluetooth_error:
 	rfkill_destroy(bluetooth_rfkill);
 	bluetooth_rfkill = NULL;

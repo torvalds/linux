@@ -780,7 +780,7 @@ static bool guid_already_parsed(const char *guid_string)
 /*
  * Parse the _WDG method for the GUID data blocks
  */
-static acpi_status parse_wdg(acpi_handle handle)
+static int parse_wdg(acpi_handle handle)
 {
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *obj;
@@ -812,7 +812,7 @@ static acpi_status parse_wdg(acpi_handle handle)
 
 		wblock = kzalloc(sizeof(struct wmi_block), GFP_KERNEL);
 		if (!wblock)
-			return AE_NO_MEMORY;
+			return -ENOMEM;
 
 		wblock->handle = handle;
 		wblock->gblock = gblock[i];

@@ -1,0 +1,98 @@
+Gate clock outputs
+------------------
+
+  * AXI gates ("allwinner,sun4i-axi-gates-clk")
+
+    DRAM					0
+
+  * AHB gates ("allwinner,sun7i-a20-ahb-gates-clk")
+
+    USB0					0
+    EHCI0					1
+    OHCI0					2
+    EHCI1					3
+    OHCI1					4
+    SS						5
+    DMA						6
+    BIST					7
+    MMC0					8
+    MMC1					9
+    MMC2					10
+    MMC3					11
+    MS						12
+    NAND					13
+    SDRAM					14
+
+    ACE						16
+    EMAC					17
+    TS						18
+
+    SPI0					20
+    SPI1					21
+    SPI2					22
+    SPI3					23
+
+    SATA					25
+
+    HSTIMER					28
+
+    VE						32
+    TVD						33
+    TVE0					34
+    TVE1					35
+    LCD0					36
+    LCD1					37
+
+    CSI0					40
+    CSI1					41
+
+    HDMI1					42
+    HDMI0					43
+    DE_BE0					44
+    DE_BE1					45
+    DE_FE1					46
+    DE_FE1					47
+
+    GMAC					49
+    MP						50
+
+    MALI400					52
+
+  * APB0 gates ("allwinner,sun7i-a20-apb0-gates-clk")
+
+    CODEC					0
+    SPDIF					1
+    AC97					2
+    IIS0					3
+    IIS1					4
+    PIO						5
+    IR0						6
+    IR1						7
+    IIS2					8
+
+    KEYPAD					10
+
+  * APB1 gates ("allwinner,sun7i-a20-apb1-gates-clk")
+
+    I2C0					0
+    I2C1					1
+    I2C2					2
+    I2C3					3
+    CAN						4
+    SCR						5
+    PS20					6
+    PS21					7
+
+    I2C4					15
+    UART0					16
+    UART1					17
+    UART2					18
+    UART3					19
+    UART4					20
+    UART5					21
+    UART6					22
+    UART7					23
+
+Notation:
+ [*]:  The datasheet didn't mention these, but they are present on AW code
+ [**]: The datasheet had this marked as "NC" but they are used on AW code

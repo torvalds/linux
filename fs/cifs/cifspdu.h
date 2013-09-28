@@ -1495,11 +1495,12 @@ struct reparse_data {
 	__u32	ReparseTag;
 	__u16	ReparseDataLength;
 	__u16	Reserved;
-	__u16	AltNameOffset;
-	__u16	AltNameLen;
-	__u16	TargetNameOffset;
-	__u16	TargetNameLen;
-	char	LinkNamesBuf[1];
+	__u16	SubstituteNameOffset;
+	__u16	SubstituteNameLength;
+	__u16	PrintNameOffset;
+	__u16	PrintNameLength;
+	__u32	Flags;
+	char	PathBuffer[0];
 } __attribute__((packed));
 
 struct cifs_quota_data {

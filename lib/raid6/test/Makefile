@@ -40,12 +40,15 @@ else ifeq ($(HAS_NEON),yes)
         OBJS   += neon.o neon1.o neon2.o neon4.o neon8.o
         CFLAGS += -DCONFIG_KERNEL_MODE_NEON=1
 else
-        HAS_ALTIVEC := $(shell echo -e '\#include <altivec.h>\nvector int a;' |\
+        HAS_ALTIVEC := $(shell printf '\#include <altivec.h>\nvector int a;\n' |\
                          gcc -c -x c - >&/dev/null && \
                          rm ./-.o && echo yes)
         ifeq ($(HAS_ALTIVEC),yes)
                 OBJS += altivec1.o altivec2.o altivec4.o altivec8.o
         endif
+endif
+ifeq ($(ARCH),tilegx)
+OBJS += tilegx8.o
 endif
 
 .c.o:
@@ -109,11 +112,15 @@ int16.c: int.uc ../unroll.awk
 int32.c: int.uc ../unroll.awk
 	$(AWK) ../unroll.awk -vN=32 < int.uc > $@
 
+tilegx8.c: tilegx.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=8 < tilegx.uc > $@
+
 tables.c: mktables
 	./mktables > tables.c
 
 clean:
 	rm -f *.o *.a mktables mktables.c *.uc int*.c altivec*.c neon*.c tables.c raid6test
+	rm -f tilegx*.c
 
 spotless: clean
 	rm -f *~

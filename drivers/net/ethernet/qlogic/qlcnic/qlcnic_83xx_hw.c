@@ -3148,7 +3148,7 @@ int qlcnic_83xx_set_settings(struct qlcnic_adapter *adapter,
 	status = qlcnic_83xx_set_port_config(adapter);
 	if (status) {
 		dev_info(&adapter->pdev->dev,
-			 "Faild to Set Link Speed and autoneg.\n");
+			 "Failed to Set Link Speed and autoneg.\n");
 		adapter->ahw->port_config = config;
 	}
 	return status;

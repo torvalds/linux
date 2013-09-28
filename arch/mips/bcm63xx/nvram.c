@@ -35,6 +35,8 @@ struct bcm963xx_nvram {
 	u32	checksum_high;
 };
 
+#define BCM63XX_DEFAULT_PSI_SIZE	64
+
 static struct bcm963xx_nvram nvram;
 static int mac_addr_used;
 
@@ -114,3 +116,12 @@ int bcm63xx_nvram_get_mac_address(u8 *mac)
 	return 0;
 }
 EXPORT_SYMBOL(bcm63xx_nvram_get_mac_address);
+
+int bcm63xx_nvram_get_psi_size(void)
+{
+	if (nvram.psi_size > 0)
+		return nvram.psi_size;
+
+	return BCM63XX_DEFAULT_PSI_SIZE;
+}
+EXPORT_SYMBOL(bcm63xx_nvram_get_psi_size);

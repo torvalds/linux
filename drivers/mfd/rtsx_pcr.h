@@ -1,6 +1,6 @@
 /* Driver for Realtek PCI-Express card reader
  *
- * Copyright(c) 2009 Realtek Semiconductor Corp. All rights reserved.
+ * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,7 +17,6 @@
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
- *   No. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
  */
 
 #ifndef __RTSX_PCR_H
@@ -34,5 +33,34 @@ void rtl8411_init_params(struct rtsx_pcr *pcr);
 void rts5227_init_params(struct rtsx_pcr *pcr);
 void rts5249_init_params(struct rtsx_pcr *pcr);
 void rtl8411b_init_params(struct rtsx_pcr *pcr);
+
+static inline u8 map_sd_drive(int idx)
+{
+	u8 sd_drive[4] = {
+		0x01,	/* Type D */
+		0x02,	/* Type C */
+		0x05,	/* Type A */
+		0x03	/* Type B */
+	};
+
+	return sd_drive[idx];
+}
+
+#define rtsx_vendor_setting_valid(reg)		(!((reg) & 0x1000000))
+#define rts5209_vendor_setting1_valid(reg)	(!((reg) & 0x80))
+#define rts5209_vendor_setting2_valid(reg)	((reg) & 0x80)
+
+#define rtsx_reg_to_aspm(reg)			(((reg) >> 28) & 0x03)
+#define rtsx_reg_to_sd30_drive_sel_1v8(reg)	(((reg) >> 26) & 0x03)
+#define rtsx_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 5) & 0x03)
+#define rtsx_reg_to_card_drive_sel(reg)		((((reg) >> 25) & 0x01) << 6)
+#define rtsx_reg_check_reverse_socket(reg)	((reg) & 0x4000)
+#define rts5209_reg_to_aspm(reg)		(((reg) >> 5) & 0x03)
+#define rts5209_reg_check_ms_pmos(reg)		(!((reg) & 0x08))
+#define rts5209_reg_to_sd30_drive_sel_1v8(reg)	(((reg) >> 3) & 0x07)
+#define rts5209_reg_to_sd30_drive_sel_3v3(reg)	((reg) & 0x07)
+#define rts5209_reg_to_card_drive_sel(reg)	((reg) >> 8)
+#define rtl8411_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 5) & 0x07)
+#define rtl8411b_reg_to_sd30_drive_sel_3v3(reg)	((reg) & 0x03)
 
 #endif

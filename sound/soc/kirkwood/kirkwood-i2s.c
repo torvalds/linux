@@ -559,7 +559,8 @@ static int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static struct of_device_id mvebu_audio_of_match[] = {
-	{ .compatible = "marvell,mvebu-audio" },
+	{ .compatible = "marvell,kirkwood-audio" },
+	{ .compatible = "marvell,dove-audio" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mvebu_audio_of_match);

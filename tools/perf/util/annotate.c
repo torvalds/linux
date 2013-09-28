@@ -809,7 +809,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 		    end = map__rip_2objdump(map, sym->end);
 
 		offset = line_ip - start;
-		if (offset < 0 || (u64)line_ip > end)
+		if ((u64)line_ip < start || (u64)line_ip > end)
 			offset = -1;
 		else
 			parsed_line = tmp2 + 1;

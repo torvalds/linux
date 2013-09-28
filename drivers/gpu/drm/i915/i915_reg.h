@@ -33,21 +33,6 @@
 #define _MASKED_BIT_ENABLE(a) (((a) << 16) | (a))
 #define _MASKED_BIT_DISABLE(a) ((a) << 16)
 
-/*
- * The Bridge device's PCI config space has information about the
- * fb aperture size and the amount of pre-reserved memory.
- * This is all handled in the intel-gtt.ko module. i915.ko only
- * cares about the vga bit for the vga rbiter.
- */
-#define INTEL_GMCH_CTRL		0x52
-#define INTEL_GMCH_VGA_DISABLE  (1 << 1)
-#define SNB_GMCH_CTRL		0x50
-#define    SNB_GMCH_GGMS_SHIFT	8 /* GTT Graphics Memory Size */
-#define    SNB_GMCH_GGMS_MASK	0x3
-#define    SNB_GMCH_GMS_SHIFT   3 /* Graphics Mode Select */
-#define    SNB_GMCH_GMS_MASK    0x1f
-
-
 /* PCI config space */
 
 #define HPLLCC	0xc0 /* 855 only */
@@ -245,6 +230,7 @@
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*x-1)
+#define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*x-1)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
 #define   MI_INVALIDATE_TLB		(1<<18)
@@ -693,6 +679,23 @@
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
 
 #define DERRMR		0x44050
+#define   DERRMR_PIPEA_SCANLINE		(1<<0)
+#define   DERRMR_PIPEA_PRI_FLIP_DONE	(1<<1)
+#define   DERRMR_PIPEA_SPR_FLIP_DONE	(1<<2)
+#define   DERRMR_PIPEA_VBLANK		(1<<3)
+#define   DERRMR_PIPEA_HBLANK		(1<<5)
+#define   DERRMR_PIPEB_SCANLINE 	(1<<8)
+#define   DERRMR_PIPEB_PRI_FLIP_DONE	(1<<9)
+#define   DERRMR_PIPEB_SPR_FLIP_DONE	(1<<10)
+#define   DERRMR_PIPEB_VBLANK		(1<<11)
+#define   DERRMR_PIPEB_HBLANK		(1<<13)
+/* Note that PIPEC is not a simple translation of PIPEA/PIPEB */
+#define   DERRMR_PIPEC_SCANLINE		(1<<14)
+#define   DERRMR_PIPEC_PRI_FLIP_DONE	(1<<15)
+#define   DERRMR_PIPEC_SPR_FLIP_DONE	(1<<20)
+#define   DERRMR_PIPEC_VBLANK		(1<<21)
+#define   DERRMR_PIPEC_HBLANK		(1<<22)
+
 
 /* GM45+ chicken bits -- debug workaround bits that may be required
  * for various sorts of correct behavior.  The top 16 bits of each are
@@ -3310,6 +3313,7 @@
 #define   MCURSOR_PIPE_A	0x00
 #define   MCURSOR_PIPE_B	(1 << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
+#define   CURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
 #define _CURABASE		(dev_priv->info->display_mmio_offset + 0x70084)
 #define _CURAPOS		(dev_priv->info->display_mmio_offset + 0x70088)
 #define   CURSOR_POS_MASK       0x007FF

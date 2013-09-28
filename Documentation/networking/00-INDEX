@@ -86,6 +86,8 @@ generic_netlink.txt
 	- info on Generic Netlink
 gianfar.txt
 	- Gianfar Ethernet Driver.
+i40e.txt
+	- README for the Intel Ethernet Controller XL710 Driver (i40e).
 ieee802154.txt
 	- Linux IEEE 802.15.4 implementation, API and drivers
 igb.txt

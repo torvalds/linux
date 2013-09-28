@@ -266,6 +266,15 @@ int os_write_file(int fd, const void *buf, int len)
 	return n;
 }
 
+int os_sync_file(int fd)
+{
+	int n = fsync(fd);
+
+	if (n < 0)
+		return -errno;
+	return n;
+}
+
 int os_file_size(const char *file, unsigned long long *size_out)
 {
 	struct uml_stat buf;

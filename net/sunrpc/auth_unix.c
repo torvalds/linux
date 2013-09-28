@@ -33,7 +33,7 @@ static struct rpc_auth		unix_auth;
 static const struct rpc_credops	unix_credops;
 
 static struct rpc_auth *
-unx_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
+unx_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	dprintk("RPC:       creating UNIX authenticator for client %p\n",
 			clnt);
@@ -192,13 +192,13 @@ unx_validate(struct rpc_task *task, __be32 *p)
 	    flavor != RPC_AUTH_UNIX &&
 	    flavor != RPC_AUTH_SHORT) {
 		printk("RPC: bad verf flavor: %u\n", flavor);
-		return NULL;
+		return ERR_PTR(-EIO);
 	}
 
 	size = ntohl(*p++);
 	if (size > RPC_MAX_AUTH_SIZE) {
 		printk("RPC: giant verf size: %u\n", size);
-		return NULL;
+		return ERR_PTR(-EIO);
 	}
 	task->tk_rqstp->rq_cred->cr_auth->au_rslack = (size >> 2) + 2;
 	p += (size >> 2);

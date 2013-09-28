@@ -393,22 +393,24 @@ static struct irq_chip ucb1x00_irqchip = {
 static int ucb1x00_add_dev(struct ucb1x00 *ucb, struct ucb1x00_driver *drv)
 {
 	struct ucb1x00_dev *dev;
-	int ret = -ENOMEM;
+	int ret;
 
 	dev = kmalloc(sizeof(struct ucb1x00_dev), GFP_KERNEL);
-	if (dev) {
-		dev->ucb = ucb;
-		dev->drv = drv;
+	if (!dev)
+		return -ENOMEM;
 
-		ret = drv->add(dev);
+	dev->ucb = ucb;
+	dev->drv = drv;
 
-		if (ret == 0) {
-			list_add_tail(&dev->dev_node, &ucb->devs);
-			list_add_tail(&dev->drv_node, &drv->devs);
-		} else {
-			kfree(dev);
-		}
+	ret = drv->add(dev);
+	if (ret) {
+		kfree(dev);
+		return ret;
 	}
+
+	list_add_tail(&dev->dev_node, &ucb->devs);
+	list_add_tail(&dev->drv_node, &drv->devs);
+
 	return ret;
 }
 
@@ -669,9 +671,10 @@ void ucb1x00_unregister_driver(struct ucb1x00_driver *drv)
 	mutex_unlock(&ucb1x00_mutex);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ucb1x00_suspend(struct device *dev)
 {
-	struct ucb1x00_plat_data *pdata = dev->platform_data;
+	struct ucb1x00_plat_data *pdata = dev_get_platdata(dev);
 	struct ucb1x00 *ucb = dev_get_drvdata(dev);
 	struct ucb1x00_dev *udev;
 
@@ -703,7 +706,7 @@ static int ucb1x00_suspend(struct device *dev)
 
 static int ucb1x00_resume(struct device *dev)
 {
-	struct ucb1x00_plat_data *pdata = dev->platform_data;
+	struct ucb1x00_plat_data *pdata = dev_get_platdata(dev);
 	struct ucb1x00 *ucb = dev_get_drvdata(dev);
 	struct ucb1x00_dev *udev;
 
@@ -736,6 +739,7 @@ static int ucb1x00_resume(struct device *dev)
 	mutex_unlock(&ucb1x00_mutex);
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops ucb1x00_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ucb1x00_suspend, ucb1x00_resume)

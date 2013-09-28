@@ -170,8 +170,7 @@ static int __init parse_tag_fdt(const bp_tag_t *tag)
 
 __tagtable(BP_TAG_FDT, parse_tag_fdt);
 
-void __init early_init_dt_setup_initrd_arch(unsigned long start,
-		unsigned long end)
+void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
 {
 	initrd_start = (void *)__va(start);
 	initrd_end = (void *)__va(end);
@@ -585,8 +584,8 @@ c_show(struct seq_file *f, void *slot)
 		     "bogomips\t: %lu.%02lu\n",
 		     XCHAL_BUILD_UNIQUE_ID,
 		     XCHAL_HAVE_BE ?  "big" : "little",
-		     CCOUNT_PER_JIFFY/(1000000/HZ),
-		     (CCOUNT_PER_JIFFY/(10000/HZ)) % 100,
+		     ccount_freq/1000000,
+		     (ccount_freq/10000) % 100,
 		     loops_per_jiffy/(500000/HZ),
 		     (loops_per_jiffy/(5000/HZ)) % 100);
 

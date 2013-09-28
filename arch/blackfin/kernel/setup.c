@@ -35,6 +35,9 @@
 #ifdef CONFIG_BF60x
 #include <mach/pm.h>
 #endif
+#ifdef CONFIG_SCB_PRIORITY
+#include <asm/scb.h>
+#endif
 
 u16 _bfin_swrst;
 EXPORT_SYMBOL(_bfin_swrst);
@@ -1101,6 +1104,9 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	init_exception_vectors();
 	bfin_cache_init();	/* Initialize caches for the boot CPU */
+#ifdef CONFIG_SCB_PRIORITY
+	init_scb();
+#endif
 }
 
 static int __init topology_init(void)

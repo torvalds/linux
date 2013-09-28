@@ -19,7 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/input.h>
 #include <linux/input/tps6507x-ts.h>
 #include <linux/mfd/tps6507x.h>
@@ -744,10 +744,6 @@ static struct i2c_board_info __initdata da850_evm_i2c_devices[] = {
 static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
 	.bus_freq	= 100,	/* kHz */
 	.bus_delay	= 0,	/* usec */
-};
-
-static struct davinci_uart_config da850_evm_uart_config __initdata = {
-	.enabled_uarts = 0x7,
 };
 
 /* davinci da850 evm audio machine driver */
@@ -1492,7 +1488,7 @@ static __init void da850_evm_init(void)
 				__func__, ret);
 	}
 
-	davinci_serial_init(&da850_evm_uart_config);
+	davinci_serial_init(da8xx_serial_device);
 
 	i2c_register_board_info(1, da850_evm_i2c_devices,
 			ARRAY_SIZE(da850_evm_i2c_devices));

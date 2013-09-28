@@ -284,6 +284,7 @@ header-y += nfs_mount.h
 header-y += nfsacl.h
 header-y += nl80211.h
 header-y += nubus.h
+header-y += nvme.h
 header-y += nvram.h
 header-y += omap3isp.h
 header-y += omapfb.h

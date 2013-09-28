@@ -1845,17 +1845,17 @@ static const struct tty_operations tty3270_ops = {
 	.set_termios = tty3270_set_termios
 };
 
-void tty3270_create_cb(int minor)
+static void tty3270_create_cb(int minor)
 {
 	tty_register_device(tty3270_driver, minor - RAW3270_FIRSTMINOR, NULL);
 }
 
-void tty3270_destroy_cb(int minor)
+static void tty3270_destroy_cb(int minor)
 {
 	tty_unregister_device(tty3270_driver, minor - RAW3270_FIRSTMINOR);
 }
 
-struct raw3270_notifier tty3270_notifier =
+static struct raw3270_notifier tty3270_notifier =
 {
 	.create = tty3270_create_cb,
 	.destroy = tty3270_destroy_cb,

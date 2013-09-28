@@ -201,6 +201,9 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int bios_reserved = 0;
 
+	if (dev_priv->gtt.stolen_size == 0)
+		return 0;
+
 	dev_priv->mm.stolen_base = i915_stolen_to_physical(dev);
 	if (dev_priv->mm.stolen_base == 0)
 		return 0;

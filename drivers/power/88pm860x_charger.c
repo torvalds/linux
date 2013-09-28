@@ -554,7 +554,7 @@ static irqreturn_t pm860x_vchg_handler(int irq, void *data)
 					OVTEMP_AUTORECOVER,
 					OVTEMP_AUTORECOVER);
 			dev_dbg(info->dev,
-				"%s, pm8606 over-temp occure\n", __func__);
+				"%s, pm8606 over-temp occurred\n", __func__);
 		}
 	}
 
@@ -562,7 +562,7 @@ static irqreturn_t pm860x_vchg_handler(int irq, void *data)
 		set_vchg_threshold(info, VCHG_OVP_LOW, 0);
 		info->allowed = 0;
 		dev_dbg(info->dev,
-			"%s,pm8607 over-vchg occure,vchg = %dmv\n",
+			"%s,pm8607 over-vchg occurred,vchg = %dmv\n",
 			__func__, vchg);
 	} else if (vchg < VCHG_OVP_LOW) {
 		set_vchg_threshold(info, VCHG_NORMAL_LOW,

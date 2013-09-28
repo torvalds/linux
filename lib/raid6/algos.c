@@ -66,6 +66,9 @@ const struct raid6_calls * const raid6_algos[] = {
 	&raid6_altivec4,
 	&raid6_altivec8,
 #endif
+#if defined(CONFIG_TILEGX)
+	&raid6_tilegx8,
+#endif
 	&raid6_intx1,
 	&raid6_intx2,
 	&raid6_intx4,

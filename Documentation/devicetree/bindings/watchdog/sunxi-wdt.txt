@@ -1,0 +1,14 @@
+Allwinner SoCs Watchdog timer
+
+Required properties:
+
+- compatible : should be "allwinner,<soc-family>-wdt", the currently supported
+  SoC families being sun4i and sun6i
+- reg : Specifies base physical address and size of the registers.
+
+Example:
+
+wdt: watchdog@01c20c90 {
+	compatible = "allwinner,sun4i-wdt";
+	reg = <0x01c20c90 0x10>;
+};

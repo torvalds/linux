@@ -36,6 +36,9 @@ Optional nodes:
 	       ti,smps-range - OTP has the wrong range set for the hardware so override
 	       0 - low range, 1 - high range.
 
+- ti,system-power-controller: Telling whether or not this pmic is controlling
+			      the system power.
+
 Example:
 
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -47,6 +50,8 @@ pmic {
 	interrupts-name = "short-irq";
 
 	ti,ldo6-vibrator;
+
+	ti,system-power-controller;
 
 	regulators {
 		smps12_reg : smps12 {

@@ -36,13 +36,6 @@
 #include "powernv.h"
 #include "pci.h"
 
-/* Debugging option */
-#ifdef IODA_EEH_DBG_ON
-#define IODA_EEH_DBG(args...)	pr_info(args)
-#else
-#define IODA_EEH_DBG(args...)
-#endif
-
 static char *hub_diag = NULL;
 static int ioda_eeh_nb_init = 0;
 
@@ -823,17 +816,17 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 
 		/* If OPAL API returns error, we needn't proceed */
 		if (rc != OPAL_SUCCESS) {
-			IODA_EEH_DBG("%s: Invalid return value on "
-				     "PHB#%x (0x%lx) from opal_pci_next_error",
-				     __func__, hose->global_number, rc);
+			pr_devel("%s: Invalid return value on "
+				 "PHB#%x (0x%lx) from opal_pci_next_error",
+				 __func__, hose->global_number, rc);
 			continue;
 		}
 
 		/* If the PHB doesn't have error, stop processing */
 		if (err_type == OPAL_EEH_NO_ERROR ||
 		    severity == OPAL_EEH_SEV_NO_ERROR) {
-			IODA_EEH_DBG("%s: No error found on PHB#%x\n",
-				     __func__, hose->global_number);
+			pr_devel("%s: No error found on PHB#%x\n",
+				 __func__, hose->global_number);
 			continue;
 		}
 
@@ -842,8 +835,9 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		 * highest priority reported upon multiple errors on the
 		 * specific PHB.
 		 */
-		IODA_EEH_DBG("%s: Error (%d, %d, %d) on PHB#%x\n",
-			err_type, severity, pe_no, hose->global_number);
+		pr_devel("%s: Error (%d, %d, %llu) on PHB#%x\n",
+			 __func__, err_type, severity,
+			 frozen_pe_no, hose->global_number);
 		switch (err_type) {
 		case OPAL_EEH_IOC_ERROR:
 			if (severity == OPAL_EEH_SEV_IOC_DEAD) {

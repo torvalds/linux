@@ -622,7 +622,7 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 	struct dataflash		*priv;
 	struct mtd_info			*device;
 	struct mtd_part_parser_data	ppdata;
-	struct flash_platform_data	*pdata = spi->dev.platform_data;
+	struct flash_platform_data	*pdata = dev_get_platdata(&spi->dev);
 	char				*otp_tag = "";
 	int				err = 0;
 
@@ -661,7 +661,7 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 	dev_info(&spi->dev, "%s (%lld KBytes) pagesize %d bytes%s\n",
 			name, (long long)((device->size + 1023) >> 10),
 			pagesize, otp_tag);
-	dev_set_drvdata(&spi->dev, priv);
+	spi_set_drvdata(spi, priv);
 
 	ppdata.of_node = spi->dev.of_node;
 	err = mtd_device_parse_register(device, NULL, &ppdata,
@@ -671,7 +671,7 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 	if (!err)
 		return 0;
 
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	kfree(priv);
 	return err;
 }
@@ -895,14 +895,14 @@ static int dataflash_probe(struct spi_device *spi)
 
 static int dataflash_remove(struct spi_device *spi)
 {
-	struct dataflash	*flash = dev_get_drvdata(&spi->dev);
+	struct dataflash	*flash = spi_get_drvdata(spi);
 	int			status;
 
 	pr_debug("%s: remove\n", dev_name(&spi->dev));
 
 	status = mtd_device_unregister(&flash->mtd);
 	if (status == 0) {
-		dev_set_drvdata(&spi->dev, NULL);
+		spi_set_drvdata(spi, NULL);
 		kfree(flash);
 	}
 	return status;

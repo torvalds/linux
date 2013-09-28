@@ -244,8 +244,10 @@ static void __init lsmini_init(void)
 	orion5x_uart0_init();
 	orion5x_xor_init();
 
-	mvebu_mbus_add_window("devbus-boot", LSMINI_NOR_BOOT_BASE,
-			      LSMINI_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    LSMINI_NOR_BOOT_BASE,
+				    LSMINI_NOR_BOOT_SIZE);
 	platform_device_register(&lsmini_nor_flash);
 
 	platform_device_register(&lsmini_button_device);

@@ -33,18 +33,18 @@
 #define GXIO_MPIPE_INFO_OP_CHECK_MMIO_OFFSET IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x8001)
 
 
-int gxio_mpipe_info_instance_aux(gxio_mpipe_info_context_t * context,
+int gxio_mpipe_info_instance_aux(gxio_mpipe_info_context_t *context,
 				 _gxio_mpipe_link_name_t name);
 
-int gxio_mpipe_info_enumerate_aux(gxio_mpipe_info_context_t * context,
+int gxio_mpipe_info_enumerate_aux(gxio_mpipe_info_context_t *context,
 				  unsigned int idx,
-				  _gxio_mpipe_link_name_t * name,
-				  _gxio_mpipe_link_mac_t * mac);
+				  _gxio_mpipe_link_name_t *name,
+				  _gxio_mpipe_link_mac_t *mac);
 
-int gxio_mpipe_info_get_mmio_base(gxio_mpipe_info_context_t * context,
+int gxio_mpipe_info_get_mmio_base(gxio_mpipe_info_context_t *context,
 				  HV_PTE *base);
 
-int gxio_mpipe_info_check_mmio_offset(gxio_mpipe_info_context_t * context,
+int gxio_mpipe_info_check_mmio_offset(gxio_mpipe_info_context_t *context,
 				      unsigned long offset, unsigned long size);
 
 #endif /* !__GXIO_MPIPE_INFO_LINUX_RPC_H__ */

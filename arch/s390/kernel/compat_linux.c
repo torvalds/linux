@@ -221,25 +221,26 @@ static int groups16_from_user(struct group_info *group_info, u16 __user *groupli
 
 asmlinkage long sys32_getgroups16(int gidsetsize, u16 __user *grouplist)
 {
+	const struct cred *cred = current_cred();
 	int i;
 
 	if (gidsetsize < 0)
 		return -EINVAL;
 
-	get_group_info(current->cred->group_info);
-	i = current->cred->group_info->ngroups;
+	get_group_info(cred->group_info);
+	i = cred->group_info->ngroups;
 	if (gidsetsize) {
 		if (i > gidsetsize) {
 			i = -EINVAL;
 			goto out;
 		}
-		if (groups16_to_user(grouplist, current->cred->group_info)) {
+		if (groups16_to_user(grouplist, cred->group_info)) {
 			i = -EFAULT;
 			goto out;
 		}
 	}
 out:
-	put_group_info(current->cred->group_info);
+	put_group_info(cred->group_info);
 	return i;
 }
 

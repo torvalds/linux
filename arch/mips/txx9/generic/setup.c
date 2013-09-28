@@ -350,7 +350,7 @@ static void __init select_board(void)
 	}
 
 	/* select "default" board */
-#ifdef CONFIG_CPU_TX39XX
+#ifdef CONFIG_TOSHIBA_JMR3927
 	txx9_board_vec = &jmr3927_vec;
 #endif
 #ifdef CONFIG_CPU_TX49XX

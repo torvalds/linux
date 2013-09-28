@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6282.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6282.dtsi"
 
 / {
 	model = "NETGEAR ReadyNAS Duo v2";
@@ -14,6 +14,17 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	mbus {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
 	};
 
 	ocp@f1000000 {
@@ -52,12 +63,32 @@
 			};
 		};
 
+		clocks {
+		       #address-cells = <1>;
+		       #size-cells = <0>;
+
+		       g762_clk: fixedclk {
+				 compatible = "fixed-clock";
+				 #clock-cells = <0>;
+				 clock-frequency = <8192>;
+		       };
+		};
+
 		i2c@11000 {
 			status = "okay";
 
 			rs5c372a: rs5c372a@32 {
 				compatible = "ricoh,rs5c372a";
 				reg = <0x32>;
+			};
+
+			g762: g762@3e {
+				compatible = "gmt,g762";
+				reg = <0x3e>;
+				clocks = <&g762_clk>; /* input clock */
+				fan_gear_mode = <0>;
+				fan_startv = <1>;
+				pwm_polarity = <0>;
 			};
 		};
 
@@ -100,14 +131,6 @@
 		sata@80000 {
 			status = "okay";
 			nr-ports = <2>;
-		};
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
 		};
 	};
 
@@ -183,4 +206,20 @@
                         gpio = <&gpio1 14 0>;
                 };
         };
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
 };

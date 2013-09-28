@@ -311,8 +311,7 @@ void fput(struct file *file)
 				return;
 			/*
 			 * After this task has run exit_task_work(),
-			 * task_work_add() will fail.  free_ipc_ns()->
-			 * shm_destroy() can do this.  Fall through to delayed
+			 * task_work_add() will fail.  Fall through to delayed
 			 * fput to avoid leaking *file.
 			 */
 		}

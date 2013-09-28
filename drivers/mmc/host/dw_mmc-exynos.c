@@ -39,6 +39,7 @@ enum dw_mci_exynos_type {
 	DW_MCI_TYPE_EXYNOS4210,
 	DW_MCI_TYPE_EXYNOS4412,
 	DW_MCI_TYPE_EXYNOS5250,
+	DW_MCI_TYPE_EXYNOS5420,
 };
 
 /* Exynos implementation specific driver private data */
@@ -62,6 +63,9 @@ static struct dw_mci_exynos_compatible {
 	}, {
 		.compatible	= "samsung,exynos5250-dw-mshc",
 		.ctrl_type	= DW_MCI_TYPE_EXYNOS5250,
+	}, {
+		.compatible	= "samsung,exynos5420-dw-mshc",
+		.ctrl_type	= DW_MCI_TYPE_EXYNOS5420,
 	},
 };
 
@@ -90,7 +94,8 @@ static int dw_mci_exynos_setup_clock(struct dw_mci *host)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 
-	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS5250)
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS5250 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS5420)
 		host->bus_hz /= (priv->ciu_div + 1);
 	else if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS4412)
 		host->bus_hz /= EXYNOS4412_FIXED_CIU_CLK_DIV;
@@ -172,6 +177,8 @@ static const struct of_device_id dw_mci_exynos_match[] = {
 	{ .compatible = "samsung,exynos4412-dw-mshc",
 			.data = &exynos_drv_data, },
 	{ .compatible = "samsung,exynos5250-dw-mshc",
+			.data = &exynos_drv_data, },
+	{ .compatible = "samsung,exynos5420-dw-mshc",
 			.data = &exynos_drv_data, },
 	{},
 };

@@ -798,7 +798,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 	lpc32xx_wp_disable(host);
 
-	host->pdata = pdev->dev.platform_data;
+	host->pdata = dev_get_platdata(&pdev->dev);
 
 	mtd = &host->mtd;
 	chip = &host->nand_chip;
@@ -936,7 +936,6 @@ err_exit3:
 err_exit2:
 	clk_disable(host->clk);
 	clk_put(host->clk);
-	platform_set_drvdata(pdev, NULL);
 err_exit1:
 	lpc32xx_wp_enable(host);
 	gpio_free(host->ncfg->wp_gpio);
@@ -963,7 +962,6 @@ static int lpc32xx_nand_remove(struct platform_device *pdev)
 
 	clk_disable(host->clk);
 	clk_put(host->clk);
-	platform_set_drvdata(pdev, NULL);
 	lpc32xx_wp_enable(host);
 	gpio_free(host->ncfg->wp_gpio);
 

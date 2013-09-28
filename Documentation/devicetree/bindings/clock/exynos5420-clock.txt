@@ -59,6 +59,7 @@ clock which they consume.
   sclk_pwm		155
   sclk_gscl_wa		156
   sclk_gscl_wb		157
+  sclk_hdmiphy		158
 
    [Peripheral Clock Gates]
 
@@ -179,6 +180,17 @@ clock which they consume.
   fimc_lite3		495
   aclk_g3d		500
   g3d			501
+  smmu_mixer		502
+
+  Mux			ID
+  ----------------------------
+
+  mout_hdmi		640
+
+  Divider		ID
+  ----------------------------
+
+  dout_pixel		768
 
 Example 1: An example of a clock controller node is listed below.
 

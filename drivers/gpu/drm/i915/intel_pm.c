@@ -2096,16 +2096,16 @@ static uint32_t ilk_pipe_pixel_rate(struct drm_device *dev,
 				    struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	uint32_t pixel_rate, pfit_size;
+	uint32_t pixel_rate;
 
 	pixel_rate = intel_crtc->config.adjusted_mode.clock;
 
 	/* We only use IF-ID interlacing. If we ever use PF-ID we'll need to
 	 * adjust the pixel_rate here. */
 
-	pfit_size = intel_crtc->config.pch_pfit.size;
-	if (pfit_size) {
+	if (intel_crtc->config.pch_pfit.enabled) {
 		uint64_t pipe_w, pipe_h, pfit_w, pfit_h;
+		uint32_t pfit_size = intel_crtc->config.pch_pfit.size;
 
 		pipe_w = intel_crtc->config.requested_mode.hdisplay;
 		pipe_h = intel_crtc->config.requested_mode.vdisplay;
@@ -3447,14 +3447,24 @@ int intel_enable_rc6(const struct drm_device *dev)
 static void gen6_enable_rps_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 enabled_intrs;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir);
 	snb_enable_pm_irq(dev_priv, GEN6_PM_RPS_EVENTS);
 	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->irq_lock);
+
 	/* only unmask PM interrupts we need. Mask all others. */
-	I915_WRITE(GEN6_PMINTRMSK, ~GEN6_PM_RPS_EVENTS);
+	enabled_intrs = GEN6_PM_RPS_EVENTS;
+
+	/* IVB and SNB hard hangs on looping batchbuffer
+	 * if GEN6_PM_UP_EI_EXPIRED is masked.
+	 */
+	if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
+		enabled_intrs |= GEN6_PM_RP_UP_EI_EXPIRED;
+
+	I915_WRITE(GEN6_PMINTRMSK, ~enabled_intrs);
 }
 
 static void gen6_enable_rps(struct drm_device *dev)
@@ -4949,8 +4959,6 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
 			I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 			GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
-
-	g4x_disable_trickle_feed(dev);
 
 	/* WaVSRefCountFullforceMissDisable:hsw */
 	gen7_setup_fixed_func_scheduler(dev_priv);

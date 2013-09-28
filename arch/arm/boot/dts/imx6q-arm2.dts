@@ -57,7 +57,7 @@
 	hog {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX6Q_PAD_EIM_D25__GPIO3_IO25 0x80000000
+				MX6QDL_PAD_EIM_D25__GPIO3_IO25 0x80000000
 			>;
 		};
 	};
@@ -65,8 +65,8 @@
 	arm2 {
 		pinctrl_usdhc3_arm2: usdhc3grp-arm2 {
 			fsl,pins = <
-				MX6Q_PAD_NANDF_CS0__GPIO6_IO11 0x80000000
-				MX6Q_PAD_NANDF_CS1__GPIO6_IO14 0x80000000
+				MX6QDL_PAD_NANDF_CS0__GPIO6_IO11 0x80000000
+				MX6QDL_PAD_NANDF_CS1__GPIO6_IO14 0x80000000
 			>;
 		};
 	};
@@ -94,6 +94,14 @@
 	vmmc-supply = <&reg_3p3v>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4_1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_2>;
+	fsl,dte-mode;
+	fsl,uart-has-rtscts;
 	status = "okay";
 };
 

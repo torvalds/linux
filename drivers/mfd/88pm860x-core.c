@@ -1130,7 +1130,7 @@ static int pm860x_dt_init(struct device_node *np,
 static int pm860x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct pm860x_platform_data *pdata = client->dev.platform_data;
+	struct pm860x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct device_node *node = client->dev.of_node;
 	struct pm860x_chip *chip;
 	int ret;

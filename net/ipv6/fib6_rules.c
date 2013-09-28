@@ -138,8 +138,8 @@ static bool fib6_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg
 	return false;
 
 suppress_route:
-		ip6_rt_put(rt);
-		return true;
+	ip6_rt_put(rt);
+	return true;
 }
 
 static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)

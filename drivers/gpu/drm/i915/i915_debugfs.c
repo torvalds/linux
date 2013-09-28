@@ -857,7 +857,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		u32 rpstat, cagf;
+		u32 rpstat, cagf, reqf;
 		u32 rpupei, rpcurup, rpprevup;
 		u32 rpdownei, rpcurdown, rpprevdown;
 		int max_freq;
@@ -868,6 +868,14 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 			return ret;
 
 		gen6_gt_force_wake_get(dev_priv);
+
+		reqf = I915_READ(GEN6_RPNSWREQ);
+		reqf &= ~GEN6_TURBO_DISABLE;
+		if (IS_HASWELL(dev))
+			reqf >>= 24;
+		else
+			reqf >>= 25;
+		reqf *= GT_FREQUENCY_MULTIPLIER;
 
 		rpstat = I915_READ(GEN6_RPSTAT1);
 		rpupei = I915_READ(GEN6_RP_CUR_UP_EI);
@@ -893,6 +901,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 			   gt_perf_status & 0xff);
 		seq_printf(m, "Render p-state limit: %d\n",
 			   rp_state_limits & 0xff);
+		seq_printf(m, "RPNSWREQ: %dMHz\n", reqf);
 		seq_printf(m, "CAGF: %dMHz\n", cagf);
 		seq_printf(m, "RP CUR UP EI: %dus\n", rpupei &
 			   GEN6_CURICONT_MASK);

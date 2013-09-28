@@ -1290,9 +1290,12 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * then we do not take part in VGA arbitration and the
 	 * vga_client_register() fails with -ENODEV.
 	 */
-	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
-	if (ret && ret != -ENODEV)
-		goto out;
+	if (!HAS_PCH_SPLIT(dev)) {
+		ret = vga_client_register(dev->pdev, dev, NULL,
+					  i915_vga_set_decode);
+		if (ret && ret != -ENODEV)
+			goto out;
+	}
 
 	intel_register_dsm_handler();
 
@@ -1347,6 +1350,12 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * tiny window where we will loose hotplug notifactions.
 	 */
 	intel_fbdev_initial_config(dev);
+
+	/*
+	 * Must do this after fbcon init so that
+	 * vgacon_save_screen() works during the handover.
+	 */
+	i915_disable_vga_mem(dev);
 
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	dev_priv->enable_hotplug_processing = true;
@@ -1667,7 +1676,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 out_gem_unload:
-	if (dev_priv->mm.inactive_shrinker.shrink)
+	if (dev_priv->mm.inactive_shrinker.scan_objects)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
 	if (dev->pdev->msi_enabled)
@@ -1706,7 +1715,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	i915_teardown_sysfs(dev);
 
-	if (dev_priv->mm.inactive_shrinker.shrink)
+	if (dev_priv->mm.inactive_shrinker.scan_objects)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
 	mutex_lock(&dev->struct_mutex);

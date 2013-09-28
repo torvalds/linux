@@ -53,27 +53,21 @@ void handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs);
 void do_notify_resume(struct pt_regs *regs);
 
-struct ext_code;
-void do_extint(struct pt_regs *regs);
+void __init init_IRQ(void);
+void do_IRQ(struct pt_regs *regs, int irq);
 void do_restart(void);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
-
+int setup_profiling_timer(unsigned int multiplier);
 void __init time_init(void);
+int pfn_is_nosave(unsigned long);
+void s390_early_resume(void);
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip);
 
 struct s390_mmap_arg_struct;
 struct fadvise64_64_args;
 struct old_sigaction;
 
-long sys_mmap2(struct s390_mmap_arg_struct __user  *arg);
-long sys_s390_ipc(uint call, int first, unsigned long second,
-	     unsigned long third, void __user *ptr);
-long sys_s390_personality(unsigned int personality);
-long sys_s390_fadvise64(int fd, u32 offset_high, u32 offset_low,
-		    size_t len, int advice);
-long sys_s390_fadvise64_64(struct fadvise64_64_args __user *args);
-long sys_s390_fallocate(int fd, int mode, loff_t offset, u32 len_high,
-			u32 len_low);
 long sys_sigreturn(void);
 long sys_rt_sigreturn(void);
 long sys32_sigreturn(void);

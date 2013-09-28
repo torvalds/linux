@@ -89,7 +89,7 @@ static int adp5520_gpio_direction_output(struct gpio_chip *chip,
 
 static int adp5520_gpio_probe(struct platform_device *pdev)
 {
-	struct adp5520_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct adp5520_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct adp5520_gpio *dev;
 	struct gpio_chip *gc;
 	int ret, i, gpios;

@@ -302,6 +302,8 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	address = trans_exc_code & __FAIL_ADDR_MASK;
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	if (user_mode(regs))
+		flags |= FAULT_FLAG_USER;
 	if (access == VM_WRITE || (trans_exc_code & store_indication) == 0x400)
 		flags |= FAULT_FLAG_WRITE;
 	down_read(&mm->mmap_sem);
@@ -673,7 +675,7 @@ static int __init pfault_irq_init(void)
 	rc = pfault_init() == 0 ? 0 : -EOPNOTSUPP;
 	if (rc)
 		goto out_pfault;
-	service_subclass_irq_register();
+	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
 	hotcpu_notifier(pfault_cpu_notify, 0);
 	return 0;
 

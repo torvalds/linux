@@ -322,6 +322,7 @@ struct mm_rss_stat {
 	atomic_long_t count[NR_MM_COUNTERS];
 };
 
+struct kioctx_table;
 struct mm_struct {
 	struct vm_area_struct * mmap;		/* list of VMAs */
 	struct rb_root mm_rb;
@@ -383,8 +384,8 @@ struct mm_struct {
 
 	struct core_state *core_state; /* coredumping support */
 #ifdef CONFIG_AIO
-	spinlock_t		ioctx_lock;
-	struct hlist_head	ioctx_list;
+	spinlock_t			ioctx_lock;
+	struct kioctx_table __rcu	*ioctx_table;
 #endif
 #ifdef CONFIG_MM_OWNER
 	/*

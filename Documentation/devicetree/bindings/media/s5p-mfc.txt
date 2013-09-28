@@ -16,9 +16,9 @@ Required properties:
 	  mapped region.
 
   - interrupts : MFC interrupt number to the CPU.
-  - clocks : from common clock binding: handle to mfc clocks.
-  - clock-names : from common clock binding: must contain "sclk_mfc" and "mfc",
-		  corresponding to entries in the clocks property.
+  - clocks : from common clock binding: handle to mfc clock.
+  - clock-names : from common clock binding: must contain "mfc",
+		  corresponding to entry in the clocks property.
 
   - samsung,mfc-r : Base address of the first memory bank used by MFC
 		    for DMA contiguous memory allocation and its size.
@@ -38,8 +38,8 @@ mfc: codec@13400000 {
 	reg = <0x13400000 0x10000>;
 	interrupts = <0 94 0>;
 	samsung,power-domain = <&pd_mfc>;
-	clocks = <&clock 170>, <&clock 273>;
-	clock-names = "sclk_mfc", "mfc";
+	clocks = <&clock 273>;
+	clock-names = "mfc";
 };
 
 Board specific DT entry:

@@ -204,7 +204,8 @@ void __init pxa910_clk_init(void)
 	clk_register_clkdev(clk, NULL, "pxa910-pwm.3");
 
 	clk = clk_register_mux(NULL, "uart0_mux", uart_parent,
-				ARRAY_SIZE(uart_parent), CLK_SET_RATE_PARENT,
+				ARRAY_SIZE(uart_parent),
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 				apbc_base + APBC_UART0, 4, 3, 0, &clk_lock);
 	clk_set_parent(clk, uart_pll);
 	clk_register_clkdev(clk, "uart_mux.0", NULL);
@@ -214,7 +215,8 @@ void __init pxa910_clk_init(void)
 	clk_register_clkdev(clk, NULL, "pxa2xx-uart.0");
 
 	clk = clk_register_mux(NULL, "uart1_mux", uart_parent,
-				ARRAY_SIZE(uart_parent), CLK_SET_RATE_PARENT,
+				ARRAY_SIZE(uart_parent),
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 				apbc_base + APBC_UART1, 4, 3, 0, &clk_lock);
 	clk_set_parent(clk, uart_pll);
 	clk_register_clkdev(clk, "uart_mux.1", NULL);
@@ -224,7 +226,8 @@ void __init pxa910_clk_init(void)
 	clk_register_clkdev(clk, NULL, "pxa2xx-uart.1");
 
 	clk = clk_register_mux(NULL, "uart2_mux", uart_parent,
-				ARRAY_SIZE(uart_parent), CLK_SET_RATE_PARENT,
+				ARRAY_SIZE(uart_parent),
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 				apbcp_base + APBCP_UART2, 4, 3, 0, &clk_lock);
 	clk_set_parent(clk, uart_pll);
 	clk_register_clkdev(clk, "uart_mux.2", NULL);
@@ -234,7 +237,8 @@ void __init pxa910_clk_init(void)
 	clk_register_clkdev(clk, NULL, "pxa2xx-uart.2");
 
 	clk = clk_register_mux(NULL, "ssp0_mux", ssp_parent,
-				ARRAY_SIZE(ssp_parent), CLK_SET_RATE_PARENT,
+				ARRAY_SIZE(ssp_parent),
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 				apbc_base + APBC_SSP0, 4, 3, 0, &clk_lock);
 	clk_register_clkdev(clk, "uart_mux.0", NULL);
 
@@ -243,7 +247,8 @@ void __init pxa910_clk_init(void)
 	clk_register_clkdev(clk, NULL, "mmp-ssp.0");
 
 	clk = clk_register_mux(NULL, "ssp1_mux", ssp_parent,
-				ARRAY_SIZE(ssp_parent), CLK_SET_RATE_PARENT,
+				ARRAY_SIZE(ssp_parent),
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 				apbc_base + APBC_SSP1, 4, 3, 0, &clk_lock);
 	clk_register_clkdev(clk, "ssp_mux.1", NULL);
 
@@ -256,7 +261,8 @@ void __init pxa910_clk_init(void)
 	clk_register_clkdev(clk, NULL, "pxa3xx-nand.0");
 
 	clk = clk_register_mux(NULL, "sdh0_mux", sdh_parent,
-				ARRAY_SIZE(sdh_parent), CLK_SET_RATE_PARENT,
+				ARRAY_SIZE(sdh_parent),
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 				apmu_base + APMU_SDH0, 6, 1, 0, &clk_lock);
 	clk_register_clkdev(clk, "sdh0_mux", NULL);
 
@@ -265,7 +271,8 @@ void __init pxa910_clk_init(void)
 	clk_register_clkdev(clk, NULL, "sdhci-pxa.0");
 
 	clk = clk_register_mux(NULL, "sdh1_mux", sdh_parent,
-				ARRAY_SIZE(sdh_parent), CLK_SET_RATE_PARENT,
+				ARRAY_SIZE(sdh_parent),
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 				apmu_base + APMU_SDH1, 6, 1, 0, &clk_lock);
 	clk_register_clkdev(clk, "sdh1_mux", NULL);
 
@@ -282,7 +289,8 @@ void __init pxa910_clk_init(void)
 	clk_register_clkdev(clk, "sph_clk", NULL);
 
 	clk = clk_register_mux(NULL, "disp0_mux", disp_parent,
-				ARRAY_SIZE(disp_parent), CLK_SET_RATE_PARENT,
+				ARRAY_SIZE(disp_parent),
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 				apmu_base + APMU_DISP0, 6, 1, 0, &clk_lock);
 	clk_register_clkdev(clk, "disp_mux.0", NULL);
 
@@ -291,7 +299,8 @@ void __init pxa910_clk_init(void)
 	clk_register_clkdev(clk, NULL, "mmp-disp.0");
 
 	clk = clk_register_mux(NULL, "ccic0_mux", ccic_parent,
-				ARRAY_SIZE(ccic_parent), CLK_SET_RATE_PARENT,
+				ARRAY_SIZE(ccic_parent),
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 				apmu_base + APMU_CCIC0, 6, 1, 0, &clk_lock);
 	clk_register_clkdev(clk, "ccic_mux.0", NULL);
 
@@ -301,8 +310,8 @@ void __init pxa910_clk_init(void)
 
 	clk = clk_register_mux(NULL, "ccic0_phy_mux", ccic_phy_parent,
 				ARRAY_SIZE(ccic_phy_parent),
-				CLK_SET_RATE_PARENT, apmu_base + APMU_CCIC0,
-				7, 1, 0, &clk_lock);
+				CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+				apmu_base + APMU_CCIC0, 7, 1, 0, &clk_lock);
 	clk_register_clkdev(clk, "ccic_phy_mux.0", NULL);
 
 	clk = mmp_clk_register_apmu("ccic0_phy", "ccic0_phy_mux",

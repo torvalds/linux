@@ -1781,7 +1781,7 @@ static int qlcnic_83xx_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring,
 			break;
 		default:
 			dev_info(&adapter->pdev->dev,
-				 "Unkonwn opcode: 0x%x\n", opcode);
+				 "Unknown opcode: 0x%x\n", opcode);
 			goto skip;
 		}
 
