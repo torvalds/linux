@@ -1176,6 +1176,8 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	/* Linksys */
 	{ USB_DEVICE(0x13b1, 0x002f) },
 	{ USB_DEVICE(0x1737, 0x0079) },
+	/* Logitec */
+	{ USB_DEVICE(0x0789, 0x0170) },
 	/* Ralink */
 	{ USB_DEVICE(0x148f, 0x3572) },
 	/* Sitecom */
@@ -1199,6 +1201,8 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x050d, 0x1103) },
 	/* Cameo */
 	{ USB_DEVICE(0x148f, 0xf301) },
+	/* D-Link */
+	{ USB_DEVICE(0x2001, 0x3c1f) },
 	/* Edimax */
 	{ USB_DEVICE(0x7392, 0x7733) },
 	/* Hawking */
@@ -1212,6 +1216,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x0789, 0x016b) },
 	/* NETGEAR */
 	{ USB_DEVICE(0x0846, 0x9012) },
+	{ USB_DEVICE(0x0846, 0x9013) },
 	{ USB_DEVICE(0x0846, 0x9019) },
 	/* Planex */
 	{ USB_DEVICE(0x2019, 0xed19) },
@@ -1220,6 +1225,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	/* Sitecom */
 	{ USB_DEVICE(0x0df6, 0x0067) },
 	{ USB_DEVICE(0x0df6, 0x006a) },
+	{ USB_DEVICE(0x0df6, 0x006e) },
 	/* ZyXEL */
 	{ USB_DEVICE(0x0586, 0x3421) },
 #endif
@@ -1236,6 +1242,9 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x2001, 0x3c1c) },
 	{ USB_DEVICE(0x2001, 0x3c1d) },
 	{ USB_DEVICE(0x2001, 0x3c1e) },
+	{ USB_DEVICE(0x2001, 0x3c20) },
+	{ USB_DEVICE(0x2001, 0x3c22) },
+	{ USB_DEVICE(0x2001, 0x3c23) },
 	/* LG innotek */
 	{ USB_DEVICE(0x043e, 0x7a22) },
 	{ USB_DEVICE(0x043e, 0x7a42) },
@@ -1258,12 +1267,17 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x043e, 0x7a32) },
 	/* AVM GmbH */
 	{ USB_DEVICE(0x057c, 0x8501) },
-	/* D-Link DWA-160-B2 */
+	/* Buffalo */
+	{ USB_DEVICE(0x0411, 0x0241) },
+	/* D-Link */
 	{ USB_DEVICE(0x2001, 0x3c1a) },
+	{ USB_DEVICE(0x2001, 0x3c21) },
 	/* Proware */
 	{ USB_DEVICE(0x043e, 0x7a13) },
 	/* Ralink */
 	{ USB_DEVICE(0x148f, 0x5572) },
+	/* TRENDnet */
+	{ USB_DEVICE(0x20f4, 0x724a) },
 #endif
 #ifdef CONFIG_RT2800USB_UNKNOWN
 	/*
@@ -1333,6 +1347,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x1d4d, 0x0010) },
 	/* Planex */
 	{ USB_DEVICE(0x2019, 0xab24) },
+	{ USB_DEVICE(0x2019, 0xab29) },
 	/* Qcom */
 	{ USB_DEVICE(0x18e8, 0x6259) },
 	/* RadioShack */
