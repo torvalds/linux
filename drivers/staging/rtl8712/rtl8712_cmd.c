@@ -471,11 +471,9 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	if (pevt_priv->event_seq > 127)
 		pevt_priv->event_seq = 0;
 	peventbuf = peventbuf + 2; /* move to event content, 8 bytes alignment */
-	if (peventbuf) {
-		event_callback = wlanevents[evt_code].event_callback;
-		if (event_callback)
-			event_callback(padapter, (u8 *)peventbuf);
-	}
+	event_callback = wlanevents[evt_code].event_callback;
+	if (event_callback)
+		event_callback(padapter, (u8 *)peventbuf);
 	pevt_priv->evt_done_cnt++;
 _abort_event_:
 	return;
