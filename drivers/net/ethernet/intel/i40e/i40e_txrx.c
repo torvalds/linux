@@ -240,6 +240,13 @@ void i40e_clean_tx_ring(struct i40e_ring *tx_ring)
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+
+	if (!tx_ring->netdev)
+		return;
+
+	/* cleanup Tx queue statistics */
+	netdev_tx_reset_queue(netdev_get_tx_queue(tx_ring->netdev,
+						  tx_ring->queue_index));
 }
 
 /**
@@ -435,6 +442,10 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		/* the adapter is about to reset, no point in enabling stuff */
 		return true;
 	}
+
+	netdev_tx_completed_queue(netdev_get_tx_queue(tx_ring->netdev,
+						      tx_ring->queue_index),
+				  total_packets, total_bytes);
 
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
 	if (unlikely(total_packets && netif_carrier_ok(tx_ring->netdev) &&
@@ -1601,6 +1612,10 @@ static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	tx_desc->cmd_type_offset_bsz =
 		build_ctob(td_cmd, td_offset, size, td_tag) |
 		cpu_to_le64((u64)I40E_TXD_CMD << I40E_TXD_QW1_CMD_SHIFT);
+
+	netdev_tx_sent_queue(netdev_get_tx_queue(tx_ring->netdev,
+						 tx_ring->queue_index),
+			     first->bytecount);
 
 	/* set the timestamp */
 	first->time_stamp = jiffies;
