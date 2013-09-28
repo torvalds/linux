@@ -234,26 +234,33 @@ static ssize_t i40e_dbg_dump_write(struct file *filp,
 			memcpy(p, vsi, len);
 			p += len;
 
-			len = (sizeof(struct i40e_q_vector)
-				* vsi->num_q_vectors);
-			memcpy(p, vsi->q_vectors, len);
-			p += len;
-
-			len = (sizeof(struct i40e_ring) * vsi->num_queue_pairs);
-			memcpy(p, vsi->tx_rings, len);
-			p += len;
-			memcpy(p, vsi->rx_rings, len);
-			p += len;
-
-			for (i = 0; i < vsi->num_queue_pairs; i++) {
-				len = sizeof(struct i40e_tx_buffer);
-				memcpy(p, vsi->tx_rings[i]->tx_bi, len);
+			if (vsi->num_q_vectors) {
+				len = (sizeof(struct i40e_q_vector)
+					* vsi->num_q_vectors);
+				memcpy(p, vsi->q_vectors, len);
 				p += len;
 			}
-			for (i = 0; i < vsi->num_queue_pairs; i++) {
-				len = sizeof(struct i40e_rx_buffer);
-				memcpy(p, vsi->rx_rings[i]->rx_bi, len);
+
+			if (vsi->num_queue_pairs) {
+				len = (sizeof(struct i40e_ring) *
+				      vsi->num_queue_pairs);
+				memcpy(p, vsi->tx_rings, len);
 				p += len;
+				memcpy(p, vsi->rx_rings, len);
+				p += len;
+			}
+
+			if (vsi->tx_rings[0]) {
+				len = sizeof(struct i40e_tx_buffer);
+				for (i = 0; i < vsi->num_queue_pairs; i++) {
+					memcpy(p, vsi->tx_rings[i]->tx_bi, len);
+					p += len;
+				}
+				len = sizeof(struct i40e_rx_buffer);
+				for (i = 0; i < vsi->num_queue_pairs; i++) {
+					memcpy(p, vsi->rx_rings[i]->rx_bi, len);
+					p += len;
+				}
 			}
 
 			/* macvlan filter list */
