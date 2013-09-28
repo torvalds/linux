@@ -90,6 +90,15 @@ config IP_SET_HASH_IPPORTNET
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_SET_HASH_NETPORTNET
+	tristate "hash:net,port,net set support"
+	depends on IP_SET
+	help
+	  This option adds the hash:net,port,net set type support, by which
+	  one can store two IPv4/IPv6 subnets, and a protocol/port in a set.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP_SET_HASH_NET
 	tristate "hash:net set support"
 	depends on IP_SET
