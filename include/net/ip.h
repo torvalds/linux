@@ -217,11 +217,7 @@ static inline void snmp_mib_free(void __percpu *ptr[SNMP_ARRAY_SZ])
 	}
 }
 
-extern struct local_ports {
-	seqlock_t	lock;
-	int		range[2];
-} sysctl_local_ports;
-void inet_get_local_port_range(int *low, int *high);
+void inet_get_local_port_range(struct net *net, int *low, int *high);
 
 extern unsigned long *sysctl_local_reserved_ports;
 static inline int inet_is_reserved_local_port(int port)

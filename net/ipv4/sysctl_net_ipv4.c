@@ -43,12 +43,12 @@ static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
 
 /* Update system visible IP port range */
-static void set_local_port_range(int range[2])
+static void set_local_port_range(struct net *net, int range[2])
 {
-	write_seqlock(&sysctl_local_ports.lock);
-	sysctl_local_ports.range[0] = range[0];
-	sysctl_local_ports.range[1] = range[1];
-	write_sequnlock(&sysctl_local_ports.lock);
+	write_seqlock(&net->ipv4.sysctl_local_ports.lock);
+	net->ipv4.sysctl_local_ports.range[0] = range[0];
+	net->ipv4.sysctl_local_ports.range[1] = range[1];
+	write_sequnlock(&net->ipv4.sysctl_local_ports.lock);
 }
 
 /* Validate changes from /proc interface. */
@@ -56,6 +56,8 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 				 void __user *buffer,
 				 size_t *lenp, loff_t *ppos)
 {
+	struct net *net =
+		container_of(table->data, struct net, ipv4.sysctl_local_ports.range);
 	int ret;
 	int range[2];
 	struct ctl_table tmp = {
@@ -66,14 +68,15 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 		.extra2 = &ip_local_port_range_max,
 	};
 
-	inet_get_local_port_range(range, range + 1);
+	inet_get_local_port_range(net, &range[0], &range[1]);
+
 	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
 		if (range[1] < range[0])
 			ret = -EINVAL;
 		else
-			set_local_port_range(range);
+			set_local_port_range(net, range);
 	}
 
 	return ret;
@@ -83,23 +86,27 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 static void inet_get_ping_group_range_table(struct ctl_table *table, kgid_t *low, kgid_t *high)
 {
 	kgid_t *data = table->data;
+	struct net *net =
+		container_of(table->data, struct net, ipv4.sysctl_ping_group_range);
 	unsigned int seq;
 	do {
-		seq = read_seqbegin(&sysctl_local_ports.lock);
+		seq = read_seqbegin(&net->ipv4.sysctl_local_ports.lock);
 
 		*low = data[0];
 		*high = data[1];
-	} while (read_seqretry(&sysctl_local_ports.lock, seq));
+	} while (read_seqretry(&net->ipv4.sysctl_local_ports.lock, seq));
 }
 
 /* Update system visible IP port range */
 static void set_ping_group_range(struct ctl_table *table, kgid_t low, kgid_t high)
 {
 	kgid_t *data = table->data;
-	write_seqlock(&sysctl_local_ports.lock);
+	struct net *net =
+		container_of(table->data, struct net, ipv4.sysctl_ping_group_range);
+	write_seqlock(&net->ipv4.sysctl_local_ports.lock);
 	data[0] = low;
 	data[1] = high;
-	write_sequnlock(&sysctl_local_ports.lock);
+	write_sequnlock(&net->ipv4.sysctl_local_ports.lock);
 }
 
 /* Validate changes from /proc interface. */
@@ -475,13 +482,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "ip_local_port_range",
-		.data		= &sysctl_local_ports.range,
-		.maxlen		= sizeof(sysctl_local_ports.range),
-		.mode		= 0644,
-		.proc_handler	= ipv4_local_port_range,
-	},
-	{
 		.procname	= "ip_local_reserved_ports",
 		.data		= NULL, /* initialized in sysctl_ipv4_init */
 		.maxlen		= 65536,
@@ -854,6 +854,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
+		.procname	= "ip_local_port_range",
+		.maxlen		= sizeof(init_net.ipv4.sysctl_local_ports.range),
+		.data		= &init_net.ipv4.sysctl_local_ports.range,
+		.mode		= 0644,
+		.proc_handler	= ipv4_local_port_range,
+	},
+	{
 		.procname	= "tcp_mem",
 		.maxlen		= sizeof(init_net.ipv4.sysctl_tcp_mem),
 		.mode		= 0644,
@@ -888,6 +895,8 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 			&net->ipv4.sysctl_ping_group_range;
 		table[7].data =
 			&net->ipv4.sysctl_tcp_ecn;
+		table[8].data =
+			&net->ipv4.sysctl_local_ports.range;
 
 		/* Don't export sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns)
@@ -900,6 +909,13 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 	 */
 	net->ipv4.sysctl_ping_group_range[0] = make_kgid(&init_user_ns, 1);
 	net->ipv4.sysctl_ping_group_range[1] = make_kgid(&init_user_ns, 0);
+
+	/*
+	 * Set defaults for local port range
+	 */
+	seqlock_init(&net->ipv4.sysctl_local_ports.lock);
+	net->ipv4.sysctl_local_ports.range[0] =  32768;
+	net->ipv4.sysctl_local_ports.range[1] =  61000;
 
 	tcp_init_mem(net);
 

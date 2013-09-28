@@ -29,27 +29,19 @@ const char inet_csk_timer_bug_msg[] = "inet_csk BUG: unknown timer value\n";
 EXPORT_SYMBOL(inet_csk_timer_bug_msg);
 #endif
 
-/*
- * This struct holds the first and last local port number.
- */
-struct local_ports sysctl_local_ports __read_mostly = {
-	.lock = __SEQLOCK_UNLOCKED(sysctl_local_ports.lock),
-	.range = { 32768, 61000 },
-};
-
 unsigned long *sysctl_local_reserved_ports;
 EXPORT_SYMBOL(sysctl_local_reserved_ports);
 
-void inet_get_local_port_range(int *low, int *high)
+void inet_get_local_port_range(struct net *net, int *low, int *high)
 {
 	unsigned int seq;
 
 	do {
-		seq = read_seqbegin(&sysctl_local_ports.lock);
+		seq = read_seqbegin(&net->ipv4.sysctl_local_ports.lock);
 
-		*low = sysctl_local_ports.range[0];
-		*high = sysctl_local_ports.range[1];
-	} while (read_seqretry(&sysctl_local_ports.lock, seq));
+		*low = net->ipv4.sysctl_local_ports.range[0];
+		*high = net->ipv4.sysctl_local_ports.range[1];
+	} while (read_seqretry(&net->ipv4.sysctl_local_ports.lock, seq));
 }
 EXPORT_SYMBOL(inet_get_local_port_range);
 
@@ -116,7 +108,7 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 		int remaining, rover, low, high;
 
 again:
-		inet_get_local_port_range(&low, &high);
+		inet_get_local_port_range(net, &low, &high);
 		remaining = (high - low) + 1;
 		smallest_rover = rover = net_random() % remaining + low;
 

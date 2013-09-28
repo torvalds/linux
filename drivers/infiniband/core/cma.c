@@ -2294,7 +2294,7 @@ static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
 	int low, high, remaining;
 	unsigned int rover;
 
-	inet_get_local_port_range(&low, &high);
+	inet_get_local_port_range(&init_net, &low, &high);
 	remaining = (high - low) + 1;
 	rover = net_random() % remaining + low;
 retry:

@@ -2089,7 +2089,7 @@ static void vxlan_setup(struct net_device *dev)
 	vxlan->age_timer.function = vxlan_cleanup;
 	vxlan->age_timer.data = (unsigned long) vxlan;
 
-	inet_get_local_port_range(&low, &high);
+	inet_get_local_port_range(dev_net(dev), &low, &high);
 	vxlan->port_min = low;
 	vxlan->port_max = high;
 	vxlan->dst_port = htons(vxlan_port);

@@ -494,7 +494,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		u32 offset = hint + port_offset;
 		struct inet_timewait_sock *tw = NULL;
 
-		inet_get_local_port_range(&low, &high);
+		inet_get_local_port_range(net, &low, &high);
 		remaining = (high - low) + 1;
 
 		local_bh_disable();
