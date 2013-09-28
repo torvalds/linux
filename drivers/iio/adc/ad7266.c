@@ -27,7 +27,7 @@
 struct ad7266_state {
 	struct spi_device	*spi;
 	struct regulator	*reg;
-	unsigned long		vref_uv;
+	unsigned long		vref_mv;
 
 	struct spi_transfer	single_xfer[3];
 	struct spi_message	single_msg;
@@ -156,7 +156,7 @@ static int ad7266_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long m)
 {
 	struct ad7266_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
+	unsigned long scale_mv;
 	int ret;
 
 	switch (m) {
@@ -174,16 +174,15 @@ static int ad7266_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = (st->vref_uv * 100);
+		scale_mv = st->vref_mv;
 		if (st->mode == AD7266_MODE_DIFF)
-			scale_uv *= 2;
+			scale_mv *= 2;
 		if (st->range == AD7266_RANGE_2VREF)
-			scale_uv *= 2;
+			scale_mv *= 2;
 
-		scale_uv >>= chan->scan_type.realbits;
-		*val =  scale_uv / 100000;
-		*val2 = (scale_uv % 100000) * 10;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = scale_mv;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
 		if (st->range == AD7266_RANGE_2VREF &&
 			st->mode != AD7266_MODE_DIFF)
@@ -414,10 +413,10 @@ static int ad7266_probe(struct spi_device *spi)
 		if (ret < 0)
 			goto error_disable_reg;
 
-		st->vref_uv = ret;
+		st->vref_mv = ret / 1000;
 	} else {
 		/* Use internal reference */
-		st->vref_uv = 2500000;
+		st->vref_mv = 2500;
 	}
 
 	if (pdata) {
