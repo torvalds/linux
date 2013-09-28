@@ -783,7 +783,6 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad7280_state *st = iio_priv(indio_dev);
-	unsigned int scale_uv;
 	int ret;
 
 	switch (m) {
@@ -804,13 +803,12 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		if ((chan->address & 0xFF) <= AD7280A_CELL_VOLTAGE_6)
-			scale_uv = (4000 * 1000) >> AD7280A_BITS;
+			*val = 4000;
 		else
-			scale_uv = (5000 * 1000) >> AD7280A_BITS;
+			*val = 5000;
 
-		*val =  scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val2 = AD7280A_BITS;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }
