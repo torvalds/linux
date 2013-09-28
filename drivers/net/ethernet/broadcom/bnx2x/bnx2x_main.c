@@ -11740,7 +11740,7 @@ static int bnx2x_open(struct net_device *dev)
 	rc = bnx2x_nic_load(bp, LOAD_OPEN);
 	if (rc)
 		return rc;
-	return bnx2x_open_epilog(bp);
+	return 0;
 }
 
 /* called with rtnl_lock */

@@ -3635,29 +3635,6 @@ alloc_mem_err:
 	return -ENOMEM;
 }
 
-int bnx2x_open_epilog(struct bnx2x *bp)
-{
-	/* Enable sriov via delayed work. This must be done via delayed work
-	 * because it causes the probe of the vf devices to be run, which invoke
-	 * register_netdevice which must have rtnl lock taken. As we are holding
-	 * the lock right now, that could only work if the probe would not take
-	 * the lock. However, as the probe of the vf may be called from other
-	 * contexts as well (such as passthrough to vm fails) it can't assume
-	 * the lock is being held for it. Using delayed work here allows the
-	 * probe code to simply take the lock (i.e. wait for it to be released
-	 * if it is being held). We only want to do this if the number of VFs
-	 * was set before PF driver was loaded.
-	 */
-	if (IS_SRIOV(bp) && BNX2X_NR_VIRTFN(bp)) {
-		smp_mb__before_clear_bit();
-		set_bit(BNX2X_SP_RTNL_ENABLE_SRIOV, &bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
-	}
-
-	return 0;
-}
-
 void bnx2x_iov_channel_down(struct bnx2x *bp)
 {
 	int vf_idx;
