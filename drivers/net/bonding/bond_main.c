@@ -3395,20 +3395,20 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
 
-	ASSERT_RTNL();
-
+	rcu_read_lock();
 	if (USES_PRIMARY(bond->params.mode)) {
-		slave = rtnl_dereference(bond->curr_active_slave);
+		slave = rcu_dereference(bond->curr_active_slave);
 		if (slave) {
 			dev_uc_sync(slave->dev, bond_dev);
 			dev_mc_sync(slave->dev, bond_dev);
 		}
 	} else {
-		bond_for_each_slave(bond, slave) {
+		bond_for_each_slave_rcu(bond, slave) {
 			dev_uc_sync_multiple(slave->dev, bond_dev);
 			dev_mc_sync_multiple(slave->dev, bond_dev);
 		}
 	}
+	rcu_read_unlock();
 }
 
 static int bond_neigh_init(struct neighbour *n)
