@@ -697,7 +697,7 @@ static struct drm_driver msm_driver = {
 	.gem_vm_ops         = &vm_ops,
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,
-	.dumb_destroy       = msm_gem_dumb_destroy,
+	.dumb_destroy       = drm_gem_dumb_destroy,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,
 	.debugfs_cleanup    = msm_debugfs_cleanup,
