@@ -9,6 +9,7 @@
 struct int_node {
 	struct rb_node rb_node;
 	int i;
+	void *priv;
 };
 
 struct intlist {

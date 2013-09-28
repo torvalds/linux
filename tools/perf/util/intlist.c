@@ -20,6 +20,7 @@ static struct rb_node *intlist__node_new(struct rblist *rblist __maybe_unused,
 
 	if (node != NULL) {
 		node->i = i;
+		node->priv = NULL;
 		rc = &node->rb_node;
 	}
 
