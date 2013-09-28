@@ -169,20 +169,9 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 		else
 			skb->pkt_type = PACKET_MULTICAST;
 	}
-
-	/*
-	 *      This ALLMULTI check should be redundant by 1.4
-	 *      so don't forget to remove it.
-	 *
-	 *      Seems, you forgot to remove it. All silly devices
-	 *      seems to set IFF_PROMISC.
-	 */
-
-	else if (1 /*dev->flags&IFF_PROMISC */) {
-		if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
-						      dev->dev_addr)))
-			skb->pkt_type = PACKET_OTHERHOST;
-	}
+	else if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
+						   dev->dev_addr)))
+		skb->pkt_type = PACKET_OTHERHOST;
 
 	/*
 	 * Some variants of DSA tagging don't have an ethertype field
