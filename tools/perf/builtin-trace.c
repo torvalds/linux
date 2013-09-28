@@ -1751,37 +1751,57 @@ static size_t trace__fprintf_threads_header(FILE *fp)
 	return printed;
 }
 
+/* struct used to pass data to per-thread function */
+struct summary_data {
+	FILE *fp;
+	struct trace *trace;
+	size_t printed;
+};
+
+static int trace__fprintf_one_thread(struct thread *thread, void *priv)
+{
+	struct summary_data *data = priv;
+	FILE *fp = data->fp;
+	size_t printed = data->printed;
+	struct trace *trace = data->trace;
+	struct thread_trace *ttrace = thread->priv;
+	const char *color;
+	double ratio;
+
+	if (ttrace == NULL)
+		return 0;
+
+	ratio = (double)ttrace->nr_events / trace->nr_events * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 50.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 25.0)
+		color = PERF_COLOR_GREEN;
+	else if (ratio > 5.0)
+		color = PERF_COLOR_YELLOW;
+
+	printed += color_fprintf(fp, color, "%20s", thread->comm);
+	printed += fprintf(fp, " - %-5d :%11lu   [", thread->tid, ttrace->nr_events);
+	printed += color_fprintf(fp, color, "%5.1f%%", ratio);
+	printed += fprintf(fp, " ] %10.3f ms\n", ttrace->runtime_ms);
+
+	data->printed += printed;
+
+	return 0;
+}
+
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 {
-	size_t printed = trace__fprintf_threads_header(fp);
-	struct rb_node *nd;
+	struct summary_data data = {
+		.fp = fp,
+		.trace = trace
+	};
+	data.printed = trace__fprintf_threads_header(fp);
 
-	for (nd = rb_first(&trace->host->threads); nd; nd = rb_next(nd)) {
-		struct thread *thread = rb_entry(nd, struct thread, rb_node);
-		struct thread_trace *ttrace = thread->priv;
-		const char *color;
-		double ratio;
+	machine__for_each_thread(trace->host, trace__fprintf_one_thread, &data);
 
-		if (ttrace == NULL)
-			continue;
-
-		ratio = (double)ttrace->nr_events / trace->nr_events * 100.0;
-
-		color = PERF_COLOR_NORMAL;
-		if (ratio > 50.0)
-			color = PERF_COLOR_RED;
-		else if (ratio > 25.0)
-			color = PERF_COLOR_GREEN;
-		else if (ratio > 5.0)
-			color = PERF_COLOR_YELLOW;
-
-		printed += color_fprintf(fp, color, "%20s", thread->comm);
-		printed += fprintf(fp, " - %-5d :%11lu   [", thread->tid, ttrace->nr_events);
-		printed += color_fprintf(fp, color, "%5.1f%%", ratio);
-		printed += fprintf(fp, " ] %10.3f ms\n", ttrace->runtime_ms);
-	}
-
-	return printed;
+	return data.printed;
 }
 
 static int trace__set_duration(const struct option *opt, const char *str,
