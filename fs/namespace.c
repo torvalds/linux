@@ -63,8 +63,6 @@ static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)
 	return tmp & (HASH_SIZE - 1);
 }
 
-#define MNT_WRITER_UNDERFLOW_LIMIT -(1<<16)
-
 /*
  * allocation is serialized by namespace_sem, but we need the spinlock to
  * serialize with freeing.
