@@ -1506,7 +1506,7 @@ static int __init init_hw_perf_events(void)
 		err = amd_pmu_init();
 		break;
 	default:
-		return 0;
+		err = -ENOTSUPP;
 	}
 	if (err != 0) {
 		pr_cont("no PMU driver, software events only.\n");
