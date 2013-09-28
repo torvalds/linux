@@ -5512,7 +5512,7 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 	spin_unlock_irq(&power_well->lock);
 }
 
-void intel_resume_power_well(struct drm_device *dev)
+static void intel_resume_power_well(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_power_well *power_well = &dev_priv->power_well;
