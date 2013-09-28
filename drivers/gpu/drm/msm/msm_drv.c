@@ -680,7 +680,10 @@ static const struct file_operations fops = {
 };
 
 static struct drm_driver msm_driver = {
-	.driver_features    = DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET,
+	.driver_features    = DRIVER_HAVE_IRQ |
+				DRIVER_GEM |
+				DRIVER_PRIME |
+				DRIVER_MODESET,
 	.load               = msm_load,
 	.unload             = msm_unload,
 	.open               = msm_open,
@@ -698,6 +701,16 @@ static struct drm_driver msm_driver = {
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,
 	.dumb_destroy       = drm_gem_dumb_destroy,
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export   = drm_gem_prime_export,
+	.gem_prime_import   = drm_gem_prime_import,
+	.gem_prime_pin      = msm_gem_prime_pin,
+	.gem_prime_unpin    = msm_gem_prime_unpin,
+	.gem_prime_get_sg_table = msm_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
+	.gem_prime_vmap     = msm_gem_prime_vmap,
+	.gem_prime_vunmap   = msm_gem_prime_vunmap,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,
 	.debugfs_cleanup    = msm_debugfs_cleanup,
