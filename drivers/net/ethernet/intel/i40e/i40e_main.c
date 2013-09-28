@@ -376,8 +376,12 @@ void i40e_vsi_reset_stats(struct i40e_vsi *vsi)
 	memset(&vsi->eth_stats_offsets, 0, sizeof(vsi->eth_stats_offsets));
 	if (vsi->rx_rings)
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
+			memset(&vsi->rx_rings[i].stats, 0 ,
+			       sizeof(vsi->rx_rings[i].stats));
 			memset(&vsi->rx_rings[i].rx_stats, 0 ,
 			       sizeof(vsi->rx_rings[i].rx_stats));
+			memset(&vsi->tx_rings[i].stats, 0 ,
+			       sizeof(vsi->tx_rings[i].stats));
 			memset(&vsi->tx_rings[i].tx_stats, 0,
 			       sizeof(vsi->tx_rings[i].tx_stats));
 		}
@@ -708,14 +712,14 @@ void i40e_update_stats(struct i40e_vsi *vsi)
 		struct i40e_ring *p;
 
 		p = &vsi->rx_rings[q];
-		rx_b += p->rx_stats.bytes;
-		rx_p += p->rx_stats.packets;
+		rx_b += p->stats.bytes;
+		rx_p += p->stats.packets;
 		rx_buf += p->rx_stats.alloc_rx_buff_failed;
 		rx_page += p->rx_stats.alloc_rx_page_failed;
 
 		p = &vsi->tx_rings[q];
-		tx_b += p->tx_stats.bytes;
-		tx_p += p->tx_stats.packets;
+		tx_b += p->stats.bytes;
+		tx_p += p->stats.packets;
 		tx_restart += p->tx_stats.restart_queue;
 		tx_busy += p->tx_stats.tx_busy;
 	}

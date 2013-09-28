@@ -587,13 +587,11 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 		data[i++] = (i40e_gstrings_net_stats[j].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
-	for (j = 0; j < vsi->num_queue_pairs; j++) {
-		data[i++] = vsi->tx_rings[j].tx_stats.packets;
-		data[i++] = vsi->tx_rings[j].tx_stats.bytes;
-	}
-	for (j = 0; j < vsi->num_queue_pairs; j++) {
-		data[i++] = vsi->rx_rings[j].rx_stats.packets;
-		data[i++] = vsi->rx_rings[j].rx_stats.bytes;
+	for (j = 0; j < vsi->num_queue_pairs; j++, i += 4) {
+		data[i] = vsi->tx_rings[j].stats.packets;
+		data[i + 1] = vsi->tx_rings[j].stats.bytes;
+		data[i + 2] = vsi->rx_rings[j].stats.packets;
+		data[i + 3] = vsi->rx_rings[j].stats.bytes;
 	}
 	if (vsi == pf->vsi[pf->lan_vsi]) {
 		for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
@@ -641,8 +639,6 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 			p += ETH_GSTRING_LEN;
 			snprintf(p, ETH_GSTRING_LEN, "tx-%u.tx_bytes", i);
 			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.rx_packets", i);
 			p += ETH_GSTRING_LEN;
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.rx_bytes", i);

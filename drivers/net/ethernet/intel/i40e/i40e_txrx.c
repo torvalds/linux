@@ -305,14 +305,14 @@ static bool i40e_check_tx_hang(struct i40e_ring *tx_ring)
 	 * run the check_tx_hang logic with a transmit completion
 	 * pending but without time to complete it yet.
 	 */
-	if ((tx_ring->tx_stats.tx_done_old == tx_ring->tx_stats.packets) &&
+	if ((tx_ring->tx_stats.tx_done_old == tx_ring->stats.packets) &&
 	    tx_pending) {
 		/* make sure it is true for two checks in a row */
 		ret = test_and_set_bit(__I40E_HANG_CHECK_ARMED,
 				       &tx_ring->state);
 	} else {
 		/* update completed stats and disarm the hang check */
-		tx_ring->tx_stats.tx_done_old = tx_ring->tx_stats.packets;
+		tx_ring->tx_stats.tx_done_old = tx_ring->stats.packets;
 		clear_bit(__I40E_HANG_CHECK_ARMED, &tx_ring->state);
 	}
 
@@ -411,8 +411,8 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 
 	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
-	tx_ring->tx_stats.bytes += total_bytes;
-	tx_ring->tx_stats.packets += total_packets;
+	tx_ring->stats.bytes += total_bytes;
+	tx_ring->stats.packets += total_packets;
 	tx_ring->q_vector->tx.total_bytes += total_bytes;
 	tx_ring->q_vector->tx.total_packets += total_packets;
 
@@ -1075,8 +1075,8 @@ next_desc:
 	}
 
 	rx_ring->next_to_clean = i;
-	rx_ring->rx_stats.packets += total_rx_packets;
-	rx_ring->rx_stats.bytes += total_rx_bytes;
+	rx_ring->stats.packets += total_rx_packets;
+	rx_ring->stats.bytes += total_rx_bytes;
 	rx_ring->q_vector->rx.total_packets += total_rx_packets;
 	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
 

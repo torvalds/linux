@@ -512,8 +512,8 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 				 vsi->rx_rings[i].ring_active);
 			dev_info(&pf->pdev->dev,
 				 "    rx_rings[%i]: rx_stats: packets = %lld, bytes = %lld, non_eop_descs = %lld\n",
-				 i, vsi->rx_rings[i].rx_stats.packets,
-				 vsi->rx_rings[i].rx_stats.bytes,
+				 i, vsi->rx_rings[i].stats.packets,
+				 vsi->rx_rings[i].stats.bytes,
 				 vsi->rx_rings[i].rx_stats.non_eop_descs);
 			dev_info(&pf->pdev->dev,
 				 "    rx_rings[%i]: rx_stats: alloc_rx_page_failed = %lld, alloc_rx_buff_failed = %lld\n",
@@ -556,8 +556,8 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 				 vsi->tx_rings[i].ring_active);
 			dev_info(&pf->pdev->dev,
 				 "    tx_rings[%i]: tx_stats: packets = %lld, bytes = %lld, restart_queue = %lld\n",
-				 i, vsi->tx_rings[i].tx_stats.packets,
-				 vsi->tx_rings[i].tx_stats.bytes,
+				 i, vsi->tx_rings[i].stats.packets,
+				 vsi->tx_rings[i].stats.bytes,
 				 vsi->tx_rings[i].tx_stats.restart_queue);
 			dev_info(&pf->pdev->dev,
 				 "    tx_rings[%i]: tx_stats: tx_busy = %lld, tx_done_old = %lld\n",

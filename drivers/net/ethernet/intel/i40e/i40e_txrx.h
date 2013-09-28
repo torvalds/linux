@@ -126,17 +126,18 @@ struct i40e_rx_buffer {
 	unsigned int page_offset;
 };
 
-struct i40e_tx_queue_stats {
+struct i40e_queue_stats {
 	u64 packets;
 	u64 bytes;
+};
+
+struct i40e_tx_queue_stats {
 	u64 restart_queue;
 	u64 tx_busy;
 	u64 tx_done_old;
 };
 
 struct i40e_rx_queue_stats {
-	u64 packets;
-	u64 bytes;
 	u64 non_eop_descs;
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
@@ -215,6 +216,7 @@ struct i40e_ring {
 	bool ring_active;		/* is ring online or not */
 
 	/* stats structs */
+	struct i40e_queue_stats	stats;
 	union {
 		struct i40e_tx_queue_stats tx_stats;
 		struct i40e_rx_queue_stats rx_stats;
