@@ -9,6 +9,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License.
  */
+#undef DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -26,8 +27,6 @@
 #include <asm/io.h>
 
 #include "8250.h"
-
-#undef SERIAL_DEBUG_PCI
 
 /*
  * init function returns:
@@ -63,7 +62,7 @@ static int pci_default_setup(struct serial_private*,
 
 static void moan_device(const char *str, struct pci_dev *dev)
 {
-	printk(KERN_WARNING
+	dev_err(&dev->dev,
 	       "%s: %s\n"
 	       "Please send the output of lspci -vv, this\n"
 	       "message (0x%04x,0x%04x,0x%04x,0x%04x), the\n"
@@ -233,7 +232,7 @@ static int pci_inteli960ni_init(struct pci_dev *dev)
 	/* is firmware started? */
 	pci_read_config_dword(dev, 0x44, (void *)&oldval);
 	if (oldval == 0x00001000L) { /* RESET value */
-		printk(KERN_DEBUG "Local i960 firmware missing");
+		dev_dbg(&dev->dev, "Local i960 firmware missing\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -827,7 +826,7 @@ static int pci_netmos_9900_numports(struct pci_dev *dev)
 		if (sub_serports > 0) {
 			return sub_serports;
 		} else {
-			printk(KERN_NOTICE "NetMos/Mostech serial driver ignoring port on ambiguous config.\n");
+			dev_err(&dev->dev, "NetMos/Mostech serial driver ignoring port on ambiguous config.\n");
 			return 0;
 		}
 	}
@@ -931,7 +930,7 @@ static int pci_ite887x_init(struct pci_dev *dev)
 	}
 
 	if (!inta_addr[i]) {
-		printk(KERN_ERR "ite887x: could not find iobase\n");
+		dev_err(&dev->dev, "ite887x: could not find iobase\n");
 		return -ENODEV;
 	}
 
@@ -1024,9 +1023,9 @@ static int pci_oxsemi_tornado_init(struct pci_dev *dev)
 	/* Tornado device */
 	if (deviceID == 0x07000200) {
 		number_uarts = ioread8(p + 4);
-		printk(KERN_DEBUG
+		dev_dbg(&dev->dev,
 			"%d ports detected on Oxford PCI Express device\n",
-								number_uarts);
+			number_uarts);
 	}
 	pci_iounmap(dev, p);
 	return number_uarts;
@@ -1463,12 +1462,10 @@ static int skip_tx_en_setup(struct serial_private *priv,
 			struct uart_8250_port *port, int idx)
 {
 	port->port.flags |= UPF_NO_TXEN_TEST;
-	printk(KERN_DEBUG "serial8250: skipping TxEn test for device "
-			  "[%04x:%04x] subsystem [%04x:%04x]\n",
-			  priv->dev->vendor,
-			  priv->dev->device,
-			  priv->dev->subsystem_vendor,
-			  priv->dev->subsystem_device);
+	dev_dbg(&priv->dev->dev,
+		"serial8250: skipping TxEn test for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		priv->dev->vendor, priv->dev->device,
+		priv->dev->subsystem_vendor, priv->dev->subsystem_device);
 
 	return pci_default_setup(priv, board, port, idx);
 }
@@ -3498,14 +3495,15 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 		if (quirk->setup(priv, board, &uart, i))
 			break;
 
-#ifdef SERIAL_DEBUG_PCI
-		printk(KERN_DEBUG "Setup PCI port: port %lx, irq %d, type %d\n",
-		       uart.port.iobase, uart.port.irq, uart.port.iotype);
-#endif
+		dev_dbg(&dev->dev, "Setup PCI port: port %lx, irq %d, type %d\n",
+			uart.port.iobase, uart.port.irq, uart.port.iotype);
 
 		priv->line[i] = serial8250_register_8250_port(&uart);
 		if (priv->line[i] < 0) {
-			printk(KERN_WARNING "Couldn't register serial port %s: %d\n", pci_name(dev), priv->line[i]);
+			dev_err(&dev->dev,
+				"Couldn't register serial port %lx, irq %d, type %d, error %d\n",
+				uart.port.iobase, uart.port.irq,
+				uart.port.iotype, priv->line[i]);
 			break;
 		}
 	}
@@ -3598,7 +3596,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	}
 
 	if (ent->driver_data >= ARRAY_SIZE(pci_boards)) {
-		printk(KERN_ERR "pci_init_one: invalid driver_data: %ld\n",
+		dev_err(&dev->dev, "invalid driver_data: %ld\n",
 			ent->driver_data);
 		return -EINVAL;
 	}
@@ -3689,7 +3687,7 @@ static int pciserial_resume_one(struct pci_dev *dev)
 		err = pci_enable_device(dev);
 		/* FIXME: We cannot simply error out here */
 		if (err)
-			printk(KERN_ERR "pciserial: Unable to re-enable ports, trying to continue.\n");
+			dev_err(&dev->dev, "Unable to re-enable ports, trying to continue.\n");
 		pciserial_resume_ports(priv);
 	}
 	return 0;
