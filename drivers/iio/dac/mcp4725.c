@@ -239,17 +239,15 @@ static int mcp4725_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long mask)
 {
 	struct mcp4725_data *data = iio_priv(indio_dev);
-	unsigned long scale_uv;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		*val = data->dac_value;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = (data->vref_mv * 1000) >> 12;
-		*val =  scale_uv / 1000000;
-		*val2 = scale_uv % 1000000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = data->vref_mv;
+		*val2 = 12;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }
