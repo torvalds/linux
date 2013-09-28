@@ -174,6 +174,10 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 			    BEISCSI_LOG_CONFIG,
 			    "BC_%d : MBX Cmd Completion timed out\n");
 		rc = -EAGAIN;
+
+		/* decrement the mccq used count */
+		atomic_dec(&phba->ctrl.mcc_obj.q.used);
+
 		goto release_mcc_tag;
 	} else
 		rc = 0;
@@ -699,7 +703,7 @@ struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba)
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 	struct be_mcc_wrb *wrb;
 
-	BUG_ON(atomic_read(&mccq->used) >= mccq->len);
+	WARN_ON(atomic_read(&mccq->used) >= mccq->len);
 	wrb = queue_head_node(mccq);
 	memset(wrb, 0, sizeof(*wrb));
 	wrb->tag0 = (mccq->head & 0x000000FF) << 16;
