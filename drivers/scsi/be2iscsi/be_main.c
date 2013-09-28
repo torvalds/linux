@@ -4433,10 +4433,16 @@ static void beiscsi_clean_port(struct beiscsi_hba *phba)
 	int mgmt_status, ulp_num;
 	struct ulp_cid_info *ptr_cid_info = NULL;
 
-	mgmt_status = mgmt_epfw_cleanup(phba, CMD_CONNECTION_CHUTE_0);
-	if (mgmt_status)
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_INIT,
-			    "BM_%d : mgmt_epfw_cleanup FAILED\n");
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported)) {
+			mgmt_status = mgmt_epfw_cleanup(phba, ulp_num);
+			if (mgmt_status)
+				beiscsi_log(phba, KERN_WARNING,
+					    BEISCSI_LOG_INIT,
+					    "BM_%d : mgmt_epfw_cleanup FAILED"
+					    " for ULP_%d\n", ulp_num);
+		}
+	}
 
 	hwi_purge_eq(phba);
 	hwi_cleanup(phba);
