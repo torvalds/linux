@@ -278,6 +278,18 @@ unsigned int mgmt_get_session_info(struct beiscsi_hba *phba,
 	return tag;
 }
 
+/**
+ * mgmt_get_fw_config()- Get the FW config for the function
+ * @ctrl: ptr to Ctrl Info
+ * @phba: ptr to the dev priv structure
+ *
+ * Get the FW config and resources available for the function.
+ * The resources are created based on the count received here.
+ *
+ * return
+ *	Success: 0
+ *	Failure: Non-Zero Value
+ **/
 int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 				struct beiscsi_hba *phba)
 {
@@ -291,31 +303,62 @@ int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			   OPCODE_COMMON_QUERY_FIRMWARE_CONFIG, sizeof(*req));
+			   OPCODE_COMMON_QUERY_FIRMWARE_CONFIG,
+			   EMBED_MBX_MAX_PAYLOAD_SIZE);
 	status = be_mbox_notify(ctrl);
 	if (!status) {
+		uint8_t ulp_num = 0;
 		struct be_fw_cfg *pfw_cfg;
 		pfw_cfg = req;
+
+		for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
+			if (pfw_cfg->ulp[ulp_num].ulp_mode &
+			    BEISCSI_ULP_ISCSI_INI_MODE)
+				set_bit(ulp_num,
+					&phba->fw_config.ulp_supported);
+
 		phba->fw_config.phys_port = pfw_cfg->phys_port;
-		phba->fw_config.iscsi_icd_start =
-					pfw_cfg->ulp[0].icd_base;
-		phba->fw_config.iscsi_icd_count =
-					pfw_cfg->ulp[0].icd_count;
-		phba->fw_config.iscsi_cid_start =
-					pfw_cfg->ulp[0].sq_base;
-		phba->fw_config.iscsi_cid_count =
-					pfw_cfg->ulp[0].sq_count;
-		if (phba->fw_config.iscsi_cid_count > (BE2_MAX_SESSIONS / 2)) {
-			beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
-				    "BG_%d : FW reported MAX CXNS as %d\t"
-				    "Max Supported = %d.\n",
-				    phba->fw_config.iscsi_cid_count,
-				    BE2_MAX_SESSIONS);
-			phba->fw_config.iscsi_cid_count = BE2_MAX_SESSIONS / 2;
+		for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+			if (test_bit(ulp_num, &phba->fw_config.ulp_supported)) {
+
+				phba->fw_config.iscsi_cid_start[ulp_num] =
+					pfw_cfg->ulp[ulp_num].sq_base;
+				phba->fw_config.iscsi_cid_count[ulp_num] =
+					pfw_cfg->ulp[ulp_num].sq_count;
+
+				phba->fw_config.iscsi_icd_start[ulp_num] =
+					pfw_cfg->ulp[ulp_num].icd_base;
+				phba->fw_config.iscsi_icd_count[ulp_num] =
+					pfw_cfg->ulp[ulp_num].icd_count;
+
+				phba->fw_config.iscsi_chain_start[ulp_num] =
+					pfw_cfg->chain_icd[ulp_num].chain_base;
+				phba->fw_config.iscsi_chain_count[ulp_num] =
+					pfw_cfg->chain_icd[ulp_num].chain_count;
+
+				beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+					    "BG_%d : Function loaded on ULP : %d\n"
+					    "\tiscsi_cid_count : %d\n"
+					    "\t iscsi_icd_count : %d\n",
+					    ulp_num,
+					    phba->fw_config.
+					    iscsi_cid_count[ulp_num],
+					    phba->fw_config.
+					    iscsi_icd_count[ulp_num]);
+			}
 		}
+
+		phba->fw_config.dual_ulp_aware = (pfw_cfg->function_mode &
+						  BEISCSI_FUNC_DUA_MODE);
+
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : DUA Mode : 0x%x\n",
+			    phba->fw_config.dual_ulp_aware);
+
 	} else {
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_INIT,
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 			    "BG_%d : Failed in mgmt_get_fw_config\n");
+		status = -EINVAL;
 	}
 
 	spin_unlock(&ctrl->mbox_lock);

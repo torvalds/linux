@@ -271,6 +271,12 @@ struct invalidate_command_table {
 #define chip_be2(phba)      (phba->generation == BE_GEN2)
 #define chip_be3_r(phba)    (phba->generation == BE_GEN3)
 #define is_chip_be2_be3r(phba) (chip_be3_r(phba) || (chip_be2(phba)))
+
+#define BEISCSI_ULP0    0
+#define BEISCSI_ULP1    1
+#define BEISCSI_ULP_COUNT   2
+#define BEISCSI_ULP0_LOADED 0x01
+#define BEISCSI_ULP1_LOADED 0x02
 struct beiscsi_hba {
 	struct hba_parameters params;
 	struct hwi_controller *phwi_ctrlr;
@@ -328,20 +334,19 @@ struct beiscsi_hba {
 		 * group together since they are used most frequently
 		 * for cid to cri conversion
 		 */
-		unsigned int iscsi_cid_start;
 		unsigned int phys_port;
+		unsigned int iscsi_cid_start[BEISCSI_ULP_COUNT];
+#define BEISCSI_GET_CID_COUNT(phba, ulp_num) \
+			      (phba->fw_config.iscsi_cid_count[ulp_num])
+		unsigned int iscsi_cid_count[BEISCSI_ULP_COUNT];
+		unsigned int iscsi_icd_count[BEISCSI_ULP_COUNT];
+		unsigned int iscsi_icd_start[BEISCSI_ULP_COUNT];
+		unsigned int iscsi_chain_start[BEISCSI_ULP_COUNT];
+		unsigned int iscsi_chain_count[BEISCSI_ULP_COUNT];
 
-		unsigned int isr_offset;
-		unsigned int iscsi_icd_start;
-		unsigned int iscsi_cid_count;
-		unsigned int iscsi_icd_count;
-		unsigned int pci_function;
-
-		unsigned short cid_alloc;
-		unsigned short cid_free;
-		unsigned short avlbl_cids;
 		unsigned short iscsi_features;
-		spinlock_t cid_lock;
+		uint16_t dual_ulp_aware;
+		unsigned long ulp_supported;
 	} fw_config;
 
 	unsigned int state;

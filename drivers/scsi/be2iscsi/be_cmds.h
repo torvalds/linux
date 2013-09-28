@@ -40,6 +40,7 @@ struct be_mcc_wrb {
 	u32 tag1;		/* dword 3 */
 	u32 rsvd;		/* dword 4 */
 	union {
+#define EMBED_MBX_MAX_PAYLOAD_SIZE  220
 		u8 embedded_payload[236];	/* used by embedded cmds */
 		struct be_sge sgl[19];	/* used by non-embedded cmds */
 	} payload;
@@ -1030,6 +1031,7 @@ union tcp_upload_params {
 } __packed;
 
 struct be_ulp_fw_cfg {
+#define BEISCSI_ULP_ISCSI_INI_MODE	0x10
 	u32 ulp_mode;
 	u32 etx_base;
 	u32 etx_count;
@@ -1045,14 +1047,26 @@ struct be_ulp_fw_cfg {
 	u32 icd_count;
 };
 
+struct be_ulp_chain_icd {
+	u32 chain_base;
+	u32 chain_count;
+};
+
 struct be_fw_cfg {
 	struct be_cmd_req_hdr hdr;
 	u32 be_config_number;
 	u32 asic_revision;
 	u32 phys_port;
+#define BEISCSI_FUNC_ISCSI_INI_MODE	0x10
+#define BEISCSI_FUNC_DUA_MODE	0x800
 	u32 function_mode;
 	struct be_ulp_fw_cfg ulp[2];
 	u32 function_caps;
+	u32 cqid_base;
+	u32 cqid_count;
+	u32 eqid_base;
+	u32 eqid_count;
+	struct be_ulp_chain_icd chain_icd[2];
 } __packed;
 
 struct be_cmd_get_all_if_id_req {

@@ -699,30 +699,38 @@ static int be_ctrl_init(struct beiscsi_hba *phba, struct pci_dev *pdev)
 	return status;
 }
 
+/**
+ * beiscsi_get_params()- Set the config paramters
+ * @phba: ptr  device priv structure
+ **/
 static void beiscsi_get_params(struct beiscsi_hba *phba)
 {
-	phba->params.ios_per_ctrl = (phba->fw_config.iscsi_icd_count
-				    - (phba->fw_config.iscsi_cid_count
-				    + BE2_TMFS
-				    + BE2_NOPOUT_REQ));
-	phba->params.cxns_per_ctrl = phba->fw_config.iscsi_cid_count;
-	phba->params.asyncpdus_per_ctrl = phba->fw_config.iscsi_cid_count;
-	phba->params.icds_per_ctrl = phba->fw_config.iscsi_icd_count;
+	uint32_t total_cid_count = 0;
+	uint32_t total_icd_count = 0;
+	uint8_t ulp_num = 0;
+
+	total_cid_count = BEISCSI_GET_CID_COUNT(phba, BEISCSI_ULP0) +
+			  BEISCSI_GET_CID_COUNT(phba, BEISCSI_ULP1);
+
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
+		if (test_bit(ulp_num, &phba->fw_config.ulp_supported)) {
+			total_icd_count = phba->fw_config.
+					  iscsi_icd_count[ulp_num];
+			break;
+		}
+
+	phba->params.ios_per_ctrl = (total_icd_count -
+				    (total_cid_count +
+				     BE2_TMFS + BE2_NOPOUT_REQ));
+	phba->params.cxns_per_ctrl = total_cid_count;
+	phba->params.asyncpdus_per_ctrl = total_cid_count;
+	phba->params.icds_per_ctrl = total_icd_count;
 	phba->params.num_sge_per_io = BE2_SGE;
 	phba->params.defpdu_hdr_sz = BE2_DEFPDU_HDR_SZ;
 	phba->params.defpdu_data_sz = BE2_DEFPDU_DATA_SZ;
 	phba->params.eq_timer = 64;
-	phba->params.num_eq_entries =
-	    (((BE2_CMDS_PER_CXN * 2 + phba->fw_config.iscsi_cid_count * 2
-				    + BE2_TMFS) / 512) + 1) * 512;
-	phba->params.num_eq_entries = (phba->params.num_eq_entries < 1024)
-				? 1024 : phba->params.num_eq_entries;
-	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
-		    "BM_%d : phba->params.num_eq_entries=%d\n",
-		    phba->params.num_eq_entries);
-	phba->params.num_cq_entries =
-	    (((BE2_CMDS_PER_CXN * 2 +  phba->fw_config.iscsi_cid_count * 2
-				    + BE2_TMFS) / 512) + 1) * 512;
+	phba->params.num_eq_entries = 1024;
+	phba->params.num_cq_entries = 1024;
 	phba->params.wrbs_per_cxn = 256;
 }
 
@@ -2482,6 +2490,10 @@ static void hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 	AMAP_SET_BITS(struct amap_iscsi_sge, last_sge, psgl, 1);
 }
 
+/**
+ * beiscsi_find_mem_req()- Find mem needed
+ * @phba: ptr to HBA struct
+ **/
 static void beiscsi_find_mem_req(struct beiscsi_hba *phba)
 {
 	unsigned int num_cq_pages, num_async_pdu_buf_pages;
@@ -2705,7 +2717,7 @@ static int beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
 	/* Allocate memory for WRBQ */
 	phwi_ctxt = phwi_ctrlr->phwi_ctxt;
 	phwi_ctxt->be_wrbq = kzalloc(sizeof(struct be_queue_info) *
-				     phba->fw_config.iscsi_cid_count,
+				     phba->params.cxns_per_ctrl,
 				     GFP_KERNEL);
 	if (!phwi_ctxt->be_wrbq) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
@@ -2804,7 +2816,7 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 	memset(pasync_ctx, 0, sizeof(*pasync_ctx));
 
 	pasync_ctx->async_entry = kzalloc(sizeof(struct hwi_async_entry) *
-					  phba->fw_config.iscsi_cid_count,
+					  phba->params.cxns_per_ctrl,
 					  GFP_KERNEL);
 	if (!pasync_ctx->async_entry) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
@@ -3303,14 +3315,14 @@ beiscsi_post_pages(struct beiscsi_hba *phba)
 	struct mem_array *pm_arr;
 	unsigned int page_offset, i;
 	struct be_dma_mem sgl;
-	int status;
+	int status, ulp_num = 0;
 
 	mem_descr = phba->init_mem;
 	mem_descr += HWI_MEM_SGE;
 	pm_arr = mem_descr->mem_array;
 
 	page_offset = (sizeof(struct iscsi_sge) * phba->params.num_sge_per_io *
-			phba->fw_config.iscsi_icd_start) / PAGE_SIZE;
+			phba->fw_config.iscsi_icd_start[ulp_num]) / PAGE_SIZE;
 	for (i = 0; i < mem_descr->num_elements; i++) {
 		hwi_build_be_sgl_arr(phba, pm_arr, &sgl);
 		status = be_cmd_iscsi_post_sgl_pages(&phba->ctrl, &sgl,
@@ -3767,7 +3779,7 @@ static int beiscsi_init_sgl_handle(struct beiscsi_hba *phba)
 	struct be_mem_descriptor *mem_descr_sglh, *mem_descr_sg;
 	struct sgl_handle *psgl_handle;
 	struct iscsi_sge *pfrag;
-	unsigned int arr_index, i, idx;
+	unsigned int arr_index, i, idx, ulp_num = 0;
 
 	phba->io_sgl_hndl_avbl = 0;
 	phba->eh_sgl_hndl_avbl = 0;
@@ -3853,7 +3865,8 @@ static int beiscsi_init_sgl_handle(struct beiscsi_hba *phba)
 			AMAP_SET_BITS(struct amap_iscsi_sge, addr_lo, pfrag, 0);
 			pfrag += phba->params.num_sge_per_io;
 			psgl_handle->sgl_index =
-				phba->fw_config.iscsi_icd_start + arr_index++;
+				phba->fw_config.iscsi_icd_start[ulp_num] +
+				arr_index++;
 		}
 		idx++;
 	}
@@ -5022,7 +5035,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 			    "BM_%d : Error getting fw config\n");
 		goto free_port;
 	}
-	phba->shost->max_id = phba->fw_config.iscsi_cid_count;
+	phba->shost->max_id = phba->params.cxns_per_ctrl;
 	beiscsi_get_params(phba);
 	phba->shost->can_queue = phba->params.ios_per_ctrl;
 	ret = beiscsi_init_port(phba);
