@@ -6344,9 +6344,15 @@ int bnx2x_set_led(struct link_params *params,
 			 * intended override.
 			 */
 			break;
-		} else
+		} else {
+			u32 nig_led_mode = ((params->hw_led_mode <<
+					     SHARED_HW_CFG_LED_MODE_SHIFT) ==
+					    SHARED_HW_CFG_LED_EXTPHY2) ?
+				(SHARED_HW_CFG_LED_PHY1 >>
+				 SHARED_HW_CFG_LED_MODE_SHIFT) : hw_led_mode;
 			REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4,
-			       hw_led_mode);
+			       nig_led_mode);
+		}
 
 		REG_WR(bp, NIG_REG_LED_CONTROL_OVERRIDE_TRAFFIC_P0 + port*4, 0);
 		/* Set blinking rate to ~15.9Hz */
@@ -10608,10 +10614,18 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 0x40);
 
 		} else {
+			/* EXTPHY2 LED mode indicate that the 100M/1G/10G LED
+			 * sources are all wired through LED1, rather than only
+			 * 10G in other modes.
+			 */
+			val = ((params->hw_led_mode <<
+				SHARED_HW_CFG_LED_MODE_SHIFT) ==
+			       SHARED_HW_CFG_LED_EXTPHY2) ? 0x98 : 0x80;
+
 			bnx2x_cl45_write(bp, phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
-					 0x80);
+					 val);
 
 			/* Tell LED3 to blink on source */
 			bnx2x_cl45_read(bp, phy,
