@@ -706,10 +706,13 @@ static void nsec_printout(int cpu, int nr, struct perf_evsel *evsel, double avg)
 {
 	double msecs = avg / 1e6;
 	const char *fmt = csv_output ? "%.6f%s%s" : "%18.6f%s%-25s";
+	char name[25];
 
 	aggr_printout(evsel, cpu, nr);
 
-	fprintf(output, fmt, msecs, csv_sep, perf_evsel__name(evsel));
+	scnprintf(name, sizeof(name), "%s%s",
+		  perf_evsel__name(evsel), csv_output ? "" : " (msec)");
+	fprintf(output, fmt, msecs, csv_sep, name);
 
 	if (evsel->cgrp)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
