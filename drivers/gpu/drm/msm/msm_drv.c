@@ -18,8 +18,6 @@
 #include "msm_drv.h"
 #include "msm_gpu.h"
 
-#include <mach/iommu.h>
-
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -62,6 +60,8 @@ int msm_iommu_attach(struct drm_device *dev, struct iommu_domain *iommu,
 	int i, ret;
 
 	for (i = 0; i < cnt; i++) {
+		/* TODO maybe some day msm iommu won't require this hack: */
+		struct device *msm_iommu_get_ctx(const char *ctx_name);
 		struct device *ctx = msm_iommu_get_ctx(names[i]);
 		if (!ctx)
 			continue;
