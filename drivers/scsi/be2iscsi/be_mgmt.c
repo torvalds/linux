@@ -1346,7 +1346,7 @@ beiscsi_fw_ver_disp(struct device *dev, struct device_attribute *attr,
 }
 
 /**
- * beiscsi_active_cid_disp()- Display Sessions Active
+ * beiscsi_active_session_disp()- Display Sessions Active
  * @dev: ptr to device not used.
  * @attr: device attribute, not used.
  * @buf: contains formatted text Session Count
@@ -1355,7 +1355,7 @@ beiscsi_fw_ver_disp(struct device *dev, struct device_attribute *attr,
  * size of the formatted string
  **/
 ssize_t
-beiscsi_active_cid_disp(struct device *dev, struct device_attribute *attr,
+beiscsi_active_session_disp(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
@@ -1370,6 +1370,36 @@ beiscsi_active_cid_disp(struct device *dev, struct device_attribute *attr,
 					"ULP%d : %d\n", ulp_num,
 					(total_cids - avlbl_cids));
 		} else
+			len += snprintf(buf+len, PAGE_SIZE - len,
+					"ULP%d : %d\n", ulp_num, 0);
+	}
+
+	return len;
+}
+
+/**
+ * beiscsi_free_session_disp()- Display Avaliable Session
+ * @dev: ptr to device not used.
+ * @attr: device attribute, not used.
+ * @buf: contains formatted text Session Count
+ *
+ * return
+ * size of the formatted string
+ **/
+ssize_t
+beiscsi_free_session_disp(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	uint16_t ulp_num, len = 0;
+
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported))
+			len += snprintf(buf+len, PAGE_SIZE - len,
+					"ULP%d : %d\n", ulp_num,
+					BEISCSI_ULP_AVLBL_CID(phba, ulp_num));
+		else
 			len += snprintf(buf+len, PAGE_SIZE - len,
 					"ULP%d : %d\n", ulp_num, 0);
 	}
