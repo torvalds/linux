@@ -5174,7 +5174,7 @@ static int si_set_mc_special_registers(struct radeon_device *rdev,
 					table->mc_reg_table_entry[k].mc_data[j] |= 0x100;
 			}
 			j++;
-			if (j > SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
+			if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
 				return -EINVAL;
 
 			if (!pi->mem_gddr5) {
@@ -5184,7 +5184,7 @@ static int si_set_mc_special_registers(struct radeon_device *rdev,
 					table->mc_reg_table_entry[k].mc_data[j] =
 						(table->mc_reg_table_entry[k].mc_data[i] & 0xffff0000) >> 16;
 				j++;
-				if (j > SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
+				if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
 					return -EINVAL;
 			}
 			break;
@@ -5197,7 +5197,7 @@ static int si_set_mc_special_registers(struct radeon_device *rdev,
 					(temp_reg & 0xffff0000) |
 					(table->mc_reg_table_entry[k].mc_data[i] & 0x0000ffff);
 			j++;
-			if (j > SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
+			if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
 				return -EINVAL;
 			break;
 		default:
