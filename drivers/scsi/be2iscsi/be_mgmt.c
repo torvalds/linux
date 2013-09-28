@@ -1411,10 +1411,6 @@ void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 
 	memset(pwrb, 0, sizeof(*pwrb));
 
-	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
-		      max_burst_length, pwrb, params->dw[offsetof
-		      (struct amap_beiscsi_offload_params,
-		      max_burst_length) / 32]);
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
 		      max_burst_length, pwrb, params->dw[offsetof
 		      (struct amap_beiscsi_offload_params,
@@ -1436,7 +1432,9 @@ void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 		      params->dw[offsetof(struct amap_beiscsi_offload_params,
 		      first_burst_length) / 32]);
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
-		      max_recv_dataseg_len, pwrb, BEISCSI_MAX_RECV_DATASEG_LEN);
+		      max_recv_dataseg_len, pwrb,
+		      params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      max_recv_data_segment_length) / 32]);
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
 		      max_cxns, pwrb, BEISCSI_MAX_CXNS);
 	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, erl, pwrb,

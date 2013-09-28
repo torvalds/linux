@@ -672,8 +672,7 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 			session->max_burst = 262144;
 		break;
 	case ISCSI_PARAM_MAX_XMIT_DLENGTH:
-		if ((conn->max_xmit_dlength > 65536) ||
-		    (conn->max_xmit_dlength == 0))
+		if (conn->max_xmit_dlength > 65536)
 			conn->max_xmit_dlength = 65536;
 	default:
 		return 0;
@@ -924,6 +923,10 @@ static void  beiscsi_set_params_for_offld(struct beiscsi_conn *beiscsi_conn,
 		      session->max_r2t);
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params, exp_statsn, params,
 		      (conn->exp_statsn - 1));
+	AMAP_SET_BITS(struct amap_beiscsi_offload_params,
+		      max_recv_data_segment_length, params,
+		      conn->max_recv_dlength);
+
 }
 
 /**

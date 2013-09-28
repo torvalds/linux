@@ -477,7 +477,7 @@ struct amap_iscsi_sge {
 };
 
 struct beiscsi_offload_params {
-	u32 dw[5];
+	u32 dw[6];
 };
 
 #define OFFLD_PARAMS_ERL	0x00000003
@@ -507,6 +507,7 @@ struct amap_beiscsi_offload_params {
 	u8 max_r2t[16];
 	u8 pad[8];
 	u8 exp_statsn[32];
+	u8 max_recv_data_segment_length[32];
 };
 
 /* void hwi_complete_drvr_msgs(struct beiscsi_conn *beiscsi_conn,
@@ -888,30 +889,32 @@ struct amap_iscsi_target_context_update_wrb_v2 {
 	u8 first_burst_length[24]; /* DWORD 3 */
 	u8 rsvd3[8]; /* DOWRD 3 */
 	u8 max_r2t[16]; /* DWORD 4 */
-	u8 rsvd4[10];   /* DWORD 4 */
+	u8 rsvd4;       /* DWORD 4 */
 	u8 hde;         /* DWORD 4 */
 	u8 dde;         /* DWORD 4 */
 	u8 erl[2];      /* DWORD 4 */
+	u8 rsvd5[6];    /* DWORD 4 */
 	u8 imd;         /* DWORD 4 */
 	u8 ir2t;        /* DWORD 4 */
+	u8 rsvd6[3];    /* DWORD 4 */
 	u8 stat_sn[32];     /* DWORD 5 */
-	u8 rsvd5[32];   /* DWORD 6 */
-	u8 rsvd6[32];   /* DWORD 7 */
+	u8 rsvd7[32];   /* DWORD 6 */
+	u8 rsvd8[32];   /* DWORD 7 */
 	u8 max_recv_dataseg_len[24];    /* DWORD 8 */
-	u8 rsvd7[8]; /* DWORD 8 */
-	u8 rsvd8[32];   /* DWORD 9 */
-	u8 rsvd9[32];   /* DWORD 10 */
+	u8 rsvd9[8]; /* DWORD 8 */
+	u8 rsvd10[32];   /* DWORD 9 */
+	u8 rsvd11[32];   /* DWORD 10 */
 	u8 max_cxns[16]; /* DWORD 11 */
-	u8 rsvd10[11]; /* DWORD  11*/
+	u8 rsvd12[11]; /* DWORD  11*/
 	u8 invld; /* DWORD 11 */
-	u8 rsvd11;/* DWORD 11*/
+	u8 rsvd13;/* DWORD 11*/
 	u8 dmsg; /* DWORD 11 */
 	u8 data_seq_inorder; /* DWORD 11 */
 	u8 pdu_seq_inorder; /* DWORD 11 */
-	u8 rsvd12[32]; /*DWORD 12 */
-	u8 rsvd13[32]; /* DWORD 13 */
-	u8 rsvd14[32]; /* DWORD 14 */
-	u8 rsvd15[32]; /* DWORD 15 */
+	u8 rsvd14[32]; /*DWORD 12 */
+	u8 rsvd15[32]; /* DWORD 13 */
+	u8 rsvd16[32]; /* DWORD 14 */
+	u8 rsvd17[32]; /* DWORD 15 */
 } __packed;
 
 
