@@ -411,8 +411,10 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 
 	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
+	u64_stats_update_begin(&tx_ring->syncp);
 	tx_ring->stats.bytes += total_bytes;
 	tx_ring->stats.packets += total_packets;
+	u64_stats_update_end(&tx_ring->syncp);
 	tx_ring->q_vector->tx.total_bytes += total_bytes;
 	tx_ring->q_vector->tx.total_packets += total_packets;
 
@@ -1075,8 +1077,10 @@ next_desc:
 	}
 
 	rx_ring->next_to_clean = i;
+	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->stats.packets += total_rx_packets;
 	rx_ring->stats.bytes += total_rx_bytes;
+	u64_stats_update_end(&rx_ring->syncp);
 	rx_ring->q_vector->rx.total_packets += total_rx_packets;
 	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
 

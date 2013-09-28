@@ -579,6 +579,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	char *p;
 	int j;
 	struct rtnl_link_stats64 *net_stats = i40e_get_vsi_stats_struct(vsi);
+	unsigned int start;
 
 	i40e_update_stats(vsi);
 
@@ -587,12 +588,30 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 		data[i++] = (i40e_gstrings_net_stats[j].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
+	rcu_read_lock();
 	for (j = 0; j < vsi->num_queue_pairs; j++, i += 4) {
-		data[i] = vsi->tx_rings[j]->stats.packets;
-		data[i + 1] = vsi->tx_rings[j]->stats.bytes;
-		data[i + 2] = vsi->rx_rings[j]->stats.packets;
-		data[i + 3] = vsi->rx_rings[j]->stats.bytes;
+		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
+		struct i40e_ring *rx_ring;
+
+		if (!tx_ring)
+			continue;
+
+		/* process Tx ring statistics */
+		do {
+			start = u64_stats_fetch_begin_bh(&tx_ring->syncp);
+			data[i] = tx_ring->stats.packets;
+			data[i + 1] = tx_ring->stats.bytes;
+		} while (u64_stats_fetch_retry_bh(&tx_ring->syncp, start));
+
+		/* Rx ring is the 2nd half of the queue pair */
+		rx_ring = &tx_ring[1];
+		do {
+			start = u64_stats_fetch_begin_bh(&rx_ring->syncp);
+			data[i + 2] = rx_ring->stats.packets;
+			data[i + 3] = rx_ring->stats.bytes;
+		} while (u64_stats_fetch_retry_bh(&rx_ring->syncp, start));
 	}
+	rcu_read_unlock();
 	if (vsi == pf->vsi[pf->lan_vsi]) {
 		for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
 			p = (char *)pf + i40e_gstrings_stats[j].stat_offset;

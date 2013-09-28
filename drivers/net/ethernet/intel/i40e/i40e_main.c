@@ -347,14 +347,53 @@ struct rtnl_link_stats64 *i40e_get_vsi_stats_struct(struct i40e_vsi *vsi)
  **/
 static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 					     struct net_device *netdev,
-					     struct rtnl_link_stats64 *storage)
+					     struct rtnl_link_stats64 *stats)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
+	struct rtnl_link_stats64 *vsi_stats = i40e_get_vsi_stats_struct(vsi);
+	int i;
 
-	*storage = *i40e_get_vsi_stats_struct(vsi);
+	rcu_read_lock();
+	for (i = 0; i < vsi->num_queue_pairs; i++) {
+		struct i40e_ring *tx_ring, *rx_ring;
+		u64 bytes, packets;
+		unsigned int start;
 
-	return storage;
+		tx_ring = ACCESS_ONCE(vsi->tx_rings[i]);
+		if (!tx_ring)
+			continue;
+
+		do {
+			start = u64_stats_fetch_begin_bh(&tx_ring->syncp);
+			packets = tx_ring->stats.packets;
+			bytes   = tx_ring->stats.bytes;
+		} while (u64_stats_fetch_retry_bh(&tx_ring->syncp, start));
+
+		stats->tx_packets += packets;
+		stats->tx_bytes   += bytes;
+		rx_ring = &tx_ring[1];
+
+		do {
+			start = u64_stats_fetch_begin_bh(&rx_ring->syncp);
+			packets = rx_ring->stats.packets;
+			bytes   = rx_ring->stats.bytes;
+		} while (u64_stats_fetch_retry_bh(&rx_ring->syncp, start));
+
+		stats->rx_packets += packets;
+		stats->rx_bytes   += bytes;
+	}
+	rcu_read_unlock();
+
+	/* following stats updated by ixgbe_watchdog_task() */
+	stats->multicast	= vsi_stats->multicast;
+	stats->tx_errors	= vsi_stats->tx_errors;
+	stats->tx_dropped	= vsi_stats->tx_dropped;
+	stats->rx_errors	= vsi_stats->rx_errors;
+	stats->rx_crc_errors	= vsi_stats->rx_crc_errors;
+	stats->rx_length_errors	= vsi_stats->rx_length_errors;
+
+	return stats;
 }
 
 /**
@@ -708,21 +747,38 @@ void i40e_update_stats(struct i40e_vsi *vsi)
 	tx_restart = tx_busy = 0;
 	rx_page = 0;
 	rx_buf = 0;
+	rcu_read_lock();
 	for (q = 0; q < vsi->num_queue_pairs; q++) {
 		struct i40e_ring *p;
+		u64 bytes, packets;
+		unsigned int start;
 
-		p = vsi->rx_rings[q];
-		rx_b += p->stats.bytes;
-		rx_p += p->stats.packets;
-		rx_buf += p->rx_stats.alloc_rx_buff_failed;
-		rx_page += p->rx_stats.alloc_rx_page_failed;
+		/* locate Tx ring */
+		p = ACCESS_ONCE(vsi->tx_rings[q]);
 
-		p = vsi->tx_rings[q];
-		tx_b += p->stats.bytes;
-		tx_p += p->stats.packets;
+		do {
+			start = u64_stats_fetch_begin_bh(&p->syncp);
+			packets = p->stats.packets;
+			bytes = p->stats.bytes;
+		} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+		tx_b += bytes;
+		tx_p += packets;
 		tx_restart += p->tx_stats.restart_queue;
 		tx_busy += p->tx_stats.tx_busy;
+
+		/* Rx queue is part of the same block as Tx queue */
+		p = &p[1];
+		do {
+			start = u64_stats_fetch_begin_bh(&p->syncp);
+			packets = p->stats.packets;
+			bytes = p->stats.bytes;
+		} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+		rx_b += bytes;
+		rx_p += packets;
+		rx_buf += p->rx_stats.alloc_rx_buff_failed;
+		rx_page += p->rx_stats.alloc_rx_page_failed;
 	}
+	rcu_read_unlock();
 	vsi->tx_restart = tx_restart;
 	vsi->tx_busy = tx_busy;
 	vsi->rx_page_failed = rx_page;

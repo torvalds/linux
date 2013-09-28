@@ -218,6 +218,7 @@ struct i40e_ring {
 
 	/* stats structs */
 	struct i40e_queue_stats	stats;
+	struct u64_stats_sync syncp;
 	union {
 		struct i40e_tx_queue_stats tx_stats;
 		struct i40e_rx_queue_stats rx_stats;
