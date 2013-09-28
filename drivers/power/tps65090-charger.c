@@ -15,15 +15,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <linux/slab.h>
+
 #include <linux/mfd/tps65090.h>
 
 #define TPS65090_REG_INTR_STS	0x00
@@ -185,10 +187,6 @@ static irqreturn_t tps65090_charger_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#if defined(CONFIG_OF)
-
-#include <linux/of_device.h>
-
 static struct tps65090_platform_data *
 		tps65090_parse_dt_charger_data(struct platform_device *pdev)
 {
@@ -210,13 +208,6 @@ static struct tps65090_platform_data *
 	return pdata;
 
 }
-#else
-static struct tps65090_platform_data *
-		tps65090_parse_dt_charger_data(struct platform_device *pdev)
-{
-	return NULL;
-}
-#endif
 
 static int tps65090_charger_probe(struct platform_device *pdev)
 {
@@ -228,7 +219,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(pdev->dev.parent);
 
-	if (!pdata && pdev->dev.of_node)
+	if (IS_ENABLED(CONFIG_OF) && !pdata && pdev->dev.of_node)
 		pdata = tps65090_parse_dt_charger_data(pdev);
 
 	if (!pdata) {
