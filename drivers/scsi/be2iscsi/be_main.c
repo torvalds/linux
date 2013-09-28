@@ -246,6 +246,11 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 		return SUCCESS;
 	}
 	spin_unlock_bh(&session->lock);
+	/* Invalidate WRB Posted for this Task */
+	AMAP_SET_BITS(struct amap_iscsi_wrb, invld,
+		      aborted_io_task->pwrb_handle->pwrb,
+		      1);
+
 	conn = aborted_task->conn;
 	beiscsi_conn = conn->dd_data;
 	phba = beiscsi_conn->phba;
@@ -322,6 +327,11 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 
 		if (abrt_task->sc->device->lun != abrt_task->sc->device->lun)
 			continue;
+
+		/* Invalidate WRB Posted for this Task */
+		AMAP_SET_BITS(struct amap_iscsi_wrb, invld,
+			      abrt_io_task->pwrb_handle->pwrb,
+			      1);
 
 		inv_tbl->cid = cid;
 		inv_tbl->icd = abrt_io_task->psgl_handle->sgl_index;
