@@ -297,6 +297,13 @@ struct hwi_wrb_context {
 	uint32_t doorbell_offset;
 };
 
+struct ulp_cid_info {
+	unsigned short *cid_array;
+	unsigned short avlbl_cids;
+	unsigned short cid_alloc;
+	unsigned short cid_free;
+};
+
 #include "be.h"
 #define chip_be2(phba)      (phba->generation == BE_GEN2)
 #define chip_be3_r(phba)    (phba->generation == BE_GEN3)
@@ -307,6 +314,14 @@ struct hwi_wrb_context {
 #define BEISCSI_ULP_COUNT   2
 #define BEISCSI_ULP0_LOADED 0x01
 #define BEISCSI_ULP1_LOADED 0x02
+
+#define BEISCSI_ULP_AVLBL_CID(phba, ulp_num) \
+	(((struct ulp_cid_info *)phba->cid_array_info[ulp_num])->avlbl_cids)
+#define BEISCSI_ULP0_AVLBL_CID(phba) \
+	BEISCSI_ULP_AVLBL_CID(phba, BEISCSI_ULP0)
+#define BEISCSI_ULP1_AVLBL_CID(phba) \
+	BEISCSI_ULP_AVLBL_CID(phba, BEISCSI_ULP1)
+
 struct beiscsi_hba {
 	struct hba_parameters params;
 	struct hwi_controller *phwi_ctrlr;
@@ -343,16 +358,13 @@ struct beiscsi_hba {
 	spinlock_t isr_lock;
 	spinlock_t async_pdu_lock;
 	unsigned int age;
-	unsigned short avlbl_cids;
-	unsigned short cid_alloc;
-	unsigned short cid_free;
 	struct list_head hba_queue;
 #define BE_MAX_SESSION 2048
 #define BE_SET_CID_TO_CRI(cri_index, cid) \
 			  (phba->cid_to_cri_map[cid] = cri_index)
 #define BE_GET_CRI_FROM_CID(cid) (phba->cid_to_cri_map[cid])
 	unsigned short cid_to_cri_map[BE_MAX_SESSION];
-	unsigned short *cid_array;
+	struct ulp_cid_info *cid_array_info[BEISCSI_ULP_COUNT];
 	struct iscsi_endpoint **ep_array;
 	struct beiscsi_conn **conn_table;
 	struct iscsi_boot_kset *boot_kset;

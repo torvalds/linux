@@ -964,15 +964,31 @@ int beiscsi_conn_start(struct iscsi_cls_conn *cls_conn)
  */
 static int beiscsi_get_cid(struct beiscsi_hba *phba)
 {
-	unsigned short cid = 0xFFFF;
+	unsigned short cid = 0xFFFF, cid_from_ulp;
+	struct ulp_cid_info *cid_info = NULL;
+	uint16_t cid_avlbl_ulp0, cid_avlbl_ulp1;
 
-	if (!phba->avlbl_cids)
-		return cid;
+	/* Find the ULP which has more CID available */
+	cid_avlbl_ulp0 = (phba->cid_array_info[BEISCSI_ULP0]) ?
+			  BEISCSI_ULP0_AVLBL_CID(phba) : 0;
+	cid_avlbl_ulp1 = (phba->cid_array_info[BEISCSI_ULP1]) ?
+			  BEISCSI_ULP1_AVLBL_CID(phba) : 0;
+	cid_from_ulp = (cid_avlbl_ulp0 > cid_avlbl_ulp1) ?
+			BEISCSI_ULP0 : BEISCSI_ULP1;
 
-	cid = phba->cid_array[phba->cid_alloc++];
-	if (phba->cid_alloc == phba->params.cxns_per_ctrl)
-		phba->cid_alloc = 0;
-	phba->avlbl_cids--;
+	if (test_bit(cid_from_ulp, (void *)&phba->fw_config.ulp_supported)) {
+		cid_info = phba->cid_array_info[cid_from_ulp];
+		if (!cid_info->avlbl_cids)
+			return cid;
+
+		cid = cid_info->cid_array[cid_info->cid_alloc++];
+
+		if (cid_info->cid_alloc == BEISCSI_GET_CID_COUNT(
+					   phba, cid_from_ulp))
+			cid_info->cid_alloc = 0;
+
+		cid_info->avlbl_cids--;
+	}
 	return cid;
 }
 
@@ -983,10 +999,22 @@ static int beiscsi_get_cid(struct beiscsi_hba *phba)
  */
 static void beiscsi_put_cid(struct beiscsi_hba *phba, unsigned short cid)
 {
-	phba->avlbl_cids++;
-	phba->cid_array[phba->cid_free++] = cid;
-	if (phba->cid_free == phba->params.cxns_per_ctrl)
-		phba->cid_free = 0;
+	uint16_t cid_post_ulp;
+	struct hwi_controller *phwi_ctrlr;
+	struct hwi_wrb_context *pwrb_context;
+	struct ulp_cid_info *cid_info = NULL;
+	uint16_t cri_index = BE_GET_CRI_FROM_CID(cid);
+
+	phwi_ctrlr = phba->phwi_ctrlr;
+	pwrb_context = &phwi_ctrlr->wrb_context[cri_index];
+	cid_post_ulp = pwrb_context->ulp_num;
+
+	cid_info = phba->cid_array_info[cid_post_ulp];
+	cid_info->avlbl_cids++;
+
+	cid_info->cid_array[cid_info->cid_free++] = cid;
+	if (cid_info->cid_free == BEISCSI_GET_CID_COUNT(phba, cid_post_ulp))
+		cid_info->cid_free = 0;
 }
 
 /**

@@ -4079,15 +4079,46 @@ static int beiscsi_init_sgl_handle(struct beiscsi_hba *phba)
 
 static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 {
-	int i;
+	int ret;
+	uint16_t i, ulp_num;
+	struct ulp_cid_info *ptr_cid_info = NULL;
 
-	phba->cid_array = kzalloc(sizeof(void *) * phba->params.cxns_per_ctrl,
-				  GFP_KERNEL);
-	if (!phba->cid_array) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : Failed to allocate memory in "
-			    "hba_setup_cid_tbls\n");
-		return -ENOMEM;
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported)) {
+			ptr_cid_info = kzalloc(sizeof(struct ulp_cid_info),
+					       GFP_KERNEL);
+
+			if (!ptr_cid_info) {
+				beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+					    "BM_%d : Failed to allocate memory"
+					    "for ULP_CID_INFO for ULP : %d\n",
+					    ulp_num);
+				ret = -ENOMEM;
+				goto free_memory;
+
+			}
+
+			/* Allocate memory for CID array */
+			ptr_cid_info->cid_array = kzalloc(sizeof(void *) *
+						  BEISCSI_GET_CID_COUNT(phba,
+						  ulp_num), GFP_KERNEL);
+			if (!ptr_cid_info->cid_array) {
+				beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+					    "BM_%d : Failed to allocate memory"
+					    "for CID_ARRAY for ULP : %d\n",
+					    ulp_num);
+				kfree(ptr_cid_info);
+				ptr_cid_info = NULL;
+				ret = -ENOMEM;
+
+				goto free_memory;
+			}
+			ptr_cid_info->avlbl_cids = BEISCSI_GET_CID_COUNT(
+						   phba, ulp_num);
+
+			/* Save the cid_info_array ptr */
+			phba->cid_array_info[ulp_num] = ptr_cid_info;
+		}
 	}
 	phba->ep_array = kzalloc(sizeof(struct iscsi_endpoint *) *
 				 phba->params.cxns_per_ctrl, GFP_KERNEL);
@@ -4095,9 +4126,9 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 			    "BM_%d : Failed to allocate memory in "
 			    "hba_setup_cid_tbls\n");
-		kfree(phba->cid_array);
-		phba->cid_array = NULL;
-		return -ENOMEM;
+		ret = -ENOMEM;
+
+		goto free_memory;
 	}
 
 	phba->conn_table = kzalloc(sizeof(struct beiscsi_conn *) *
@@ -4107,18 +4138,44 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 			    "BM_%d : Failed to allocate memory in"
 			    "hba_setup_cid_tbls\n");
 
-		kfree(phba->cid_array);
 		kfree(phba->ep_array);
-		phba->cid_array = NULL;
 		phba->ep_array = NULL;
-		return -ENOMEM;
+		ret = -ENOMEM;
 	}
 
-	for (i = 0; i < phba->params.cxns_per_ctrl; i++)
-		phba->cid_array[i] = phba->phwi_ctrlr->wrb_context[i].cid;
+	for (i = 0; i < phba->params.cxns_per_ctrl; i++) {
+		ulp_num = phba->phwi_ctrlr->wrb_context[i].ulp_num;
 
-	phba->avlbl_cids = phba->params.cxns_per_ctrl;
+		ptr_cid_info = phba->cid_array_info[ulp_num];
+		ptr_cid_info->cid_array[ptr_cid_info->cid_alloc++] =
+			phba->phwi_ctrlr->wrb_context[i].cid;
+
+	}
+
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported)) {
+			ptr_cid_info = phba->cid_array_info[ulp_num];
+
+			ptr_cid_info->cid_alloc = 0;
+			ptr_cid_info->cid_free = 0;
+		}
+	}
 	return 0;
+
+free_memory:
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported)) {
+			ptr_cid_info = phba->cid_array_info[ulp_num];
+
+			if (ptr_cid_info) {
+				kfree(ptr_cid_info->cid_array);
+				kfree(ptr_cid_info);
+				phba->cid_array_info[ulp_num] = NULL;
+			}
+		}
+	}
+
+	return ret;
 }
 
 static void hwi_enable_intr(struct beiscsi_hba *phba)
@@ -4373,7 +4430,8 @@ static void hwi_purge_eq(struct beiscsi_hba *phba)
 
 static void beiscsi_clean_port(struct beiscsi_hba *phba)
 {
-	int mgmt_status;
+	int mgmt_status, ulp_num;
+	struct ulp_cid_info *ptr_cid_info = NULL;
 
 	mgmt_status = mgmt_epfw_cleanup(phba, CMD_CONNECTION_CHUTE_0);
 	if (mgmt_status)
@@ -4384,9 +4442,21 @@ static void beiscsi_clean_port(struct beiscsi_hba *phba)
 	hwi_cleanup(phba);
 	kfree(phba->io_sgl_hndl_base);
 	kfree(phba->eh_sgl_hndl_base);
-	kfree(phba->cid_array);
 	kfree(phba->ep_array);
 	kfree(phba->conn_table);
+
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported)) {
+			ptr_cid_info = phba->cid_array_info[ulp_num];
+
+			if (ptr_cid_info) {
+				kfree(ptr_cid_info->cid_array);
+				kfree(ptr_cid_info);
+				phba->cid_array_info[ulp_num] = NULL;
+			}
+		}
+	}
+
 }
 
 /**

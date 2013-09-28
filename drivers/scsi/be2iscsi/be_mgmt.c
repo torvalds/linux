@@ -1338,9 +1338,21 @@ beiscsi_active_cid_disp(struct device *dev, struct device_attribute *attr,
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	uint16_t avlbl_cids = 0, ulp_num, len = 0, total_cids = 0;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-		       (phba->params.cxns_per_ctrl - phba->avlbl_cids));
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported)) {
+			avlbl_cids = BEISCSI_ULP_AVLBL_CID(phba, ulp_num);
+			total_cids = BEISCSI_GET_CID_COUNT(phba, ulp_num);
+			len += snprintf(buf+len, PAGE_SIZE - len,
+					"ULP%d : %d\n", ulp_num,
+					(total_cids - avlbl_cids));
+		} else
+			len += snprintf(buf+len, PAGE_SIZE - len,
+					"ULP%d : %d\n", ulp_num, 0);
+	}
+
+	return len;
 }
 
 /**
