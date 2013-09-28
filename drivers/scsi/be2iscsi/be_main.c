@@ -149,7 +149,8 @@ BEISCSI_RW_ATTR(log_enable, 0x00,
 		"\t\t\t\tMiscellaneous Events	: 0x04\n"
 		"\t\t\t\tError Handling		: 0x08\n"
 		"\t\t\t\tIO Path Events		: 0x10\n"
-		"\t\t\t\tConfiguration Path	: 0x20\n");
+		"\t\t\t\tConfiguration Path	: 0x20\n"
+		"\t\t\t\tiSCSI Protocol		: 0x40\n");
 
 DEVICE_ATTR(beiscsi_drvr_ver, S_IRUGO, beiscsi_drvr_ver_disp, NULL);
 DEVICE_ATTR(beiscsi_adapter_family, S_IRUGO, beiscsi_adap_family_disp, NULL);
@@ -5019,8 +5020,12 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 		struct beiscsi_hba *phba = NULL;
 
 		phba = ((struct beiscsi_conn *)conn->dd_data)->phba;
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_IO,
-			    "BM_%d : scsi_dma_map Failed\n");
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_IO | BEISCSI_LOG_ISCSI,
+			    "BM_%d : scsi_dma_map Failed "
+			    "Driver_ITT : 0x%x ITT : 0x%x Xferlen : 0x%x\n",
+			    be32_to_cpu(io_task->cmd_bhs->iscsi_hdr.itt),
+			    io_task->libiscsi_itt, scsi_bufflen(sc));
 
 		return num_sg;
 	}

@@ -1040,6 +1040,7 @@ struct hwi_context_memory {
 #define BEISCSI_LOG_EH		0x0008	/* Error Handler */
 #define BEISCSI_LOG_IO		0x0010	/* IO Code Path */
 #define BEISCSI_LOG_CONFIG	0x0020	/* CONFIG Code Path */
+#define BEISCSI_LOG_ISCSI	0x0040	/* SCSI/iSCSI Protocol related Logs */
 
 #define beiscsi_log(phba, level, mask, fmt, arg...) \
 do { \
