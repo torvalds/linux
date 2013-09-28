@@ -1104,6 +1104,51 @@ int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 	return status;
 }
 
+int be_cmd_iscsi_post_template_hdr(struct be_ctrl_info *ctrl,
+				    struct be_dma_mem *q_mem)
+{
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	struct be_post_template_pages_req *req = embedded_payload(wrb);
+	int status;
+
+	spin_lock(&ctrl->mbox_lock);
+
+	memset(wrb, 0, sizeof(*wrb));
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_ADD_TEMPLATE_HEADER_BUFFERS,
+			   sizeof(*req));
+
+	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
+	req->type = BEISCSI_TEMPLATE_HDR_TYPE_ISCSI;
+	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
+
+	status = be_mbox_notify(ctrl);
+	spin_unlock(&ctrl->mbox_lock);
+	return status;
+}
+
+int be_cmd_iscsi_remove_template_hdr(struct be_ctrl_info *ctrl)
+{
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	struct be_remove_template_pages_req *req = embedded_payload(wrb);
+	int status;
+
+	spin_lock(&ctrl->mbox_lock);
+
+	memset(wrb, 0, sizeof(*wrb));
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_REMOVE_TEMPLATE_HEADER_BUFFERS,
+			   sizeof(*req));
+
+	req->type = BEISCSI_TEMPLATE_HDR_TYPE_ISCSI;
+
+	status = be_mbox_notify(ctrl);
+	spin_unlock(&ctrl->mbox_lock);
+	return status;
+}
+
 int be_cmd_iscsi_post_sgl_pages(struct be_ctrl_info *ctrl,
 				struct be_dma_mem *q_mem,
 				u32 page_offset, u32 num_pages)

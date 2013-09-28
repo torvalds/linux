@@ -74,6 +74,7 @@
 
 #define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
 #define BEISCSI_MAX_SECTORS	2048	/* scsi_host->max_sectors */
+#define BEISCSI_TEMPLATE_HDR_PER_CXN_SIZE 128 /* Template size per cxn */
 
 #define BEISCSI_MAX_CMD_LEN	16	/* scsi_host->max_cmd_len */
 #define BEISCSI_NUM_MAX_LUN	256	/* scsi_host->max_lun */
@@ -165,6 +166,7 @@ enum be_mem_enum {
 	HWI_MEM_WRBH,
 	HWI_MEM_SGLH,
 	HWI_MEM_SGE,
+	HWI_MEM_TEMPLATE_HDR,
 	HWI_MEM_ASYNC_HEADER_BUF,	/* 5 */
 	HWI_MEM_ASYNC_DATA_BUF,
 	HWI_MEM_ASYNC_HEADER_RING,

@@ -162,6 +162,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
 #define OPCODE_COMMON_MCC_CREATE			21
+#define OPCODE_COMMON_ADD_TEMPLATE_HEADER_BUFFERS	24
+#define OPCODE_COMMON_REMOVE_TEMPLATE_HEADER_BUFFERS	25
 #define OPCODE_COMMON_GET_CNTL_ATTRIBUTES		32
 #define OPCODE_COMMON_GET_FW_VERSION			35
 #define OPCODE_COMMON_MODIFY_EQ_DELAY			41
@@ -217,6 +219,10 @@ struct phys_addr {
 	u32 hi;
 };
 
+struct virt_addr {
+	u32 lo;
+	u32 hi;
+};
 /**************************
  * BE Command definitions *
  **************************/
@@ -724,6 +730,11 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 				    struct be_queue_info *dq, int length,
 				    int entry_size);
 
+int be_cmd_iscsi_post_template_hdr(struct be_ctrl_info *ctrl,
+				    struct be_dma_mem *q_mem);
+
+int be_cmd_iscsi_remove_template_hdr(struct be_ctrl_info *ctrl);
+
 int be_cmd_iscsi_post_sgl_pages(struct be_ctrl_info *ctrl,
 				struct be_dma_mem *q_mem, u32 page_offset,
 				u32 num_pages);
@@ -784,6 +795,23 @@ struct be_defq_create_req {
 struct be_defq_create_resp {
 	struct be_cmd_req_hdr hdr;
 	u16 id;
+	u16 rsvd0;
+} __packed;
+
+struct be_post_template_pages_req {
+	struct be_cmd_req_hdr hdr;
+	u16 num_pages;
+#define BEISCSI_TEMPLATE_HDR_TYPE_ISCSI	0x1
+	u16 type;
+	struct phys_addr scratch_pa;
+	struct virt_addr scratch_va;
+	struct virt_addr pages_va;
+	struct phys_addr pages[16];
+} __packed;
+
+struct be_remove_template_pages_req {
+	struct be_cmd_req_hdr hdr;
+	u16 type;
 	u16 rsvd0;
 } __packed;
 
