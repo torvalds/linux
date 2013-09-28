@@ -744,7 +744,9 @@ int be_cmd_iscsi_post_sgl_pages(struct be_ctrl_info *ctrl,
 int beiscsi_cmd_reset_function(struct beiscsi_hba *phba);
 
 int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
-		       struct be_queue_info *wrbq);
+		       struct be_queue_info *wrbq,
+		       struct hwi_wrb_context *pwrb_context,
+		       uint8_t ulp_num);
 
 bool is_link_state_evt(u32 trailer);
 
@@ -836,14 +838,18 @@ struct be_wrbq_create_req {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
 	u8 ulp_num;
-	u8 rsvd0;
+	u8 dua_feature;
 	struct phys_addr pages[8];
 } __packed;
 
 struct be_wrbq_create_resp {
 	struct be_cmd_resp_hdr resp_hdr;
 	u16 cid;
-	u16 rsvd0;
+	u8 rsvd0;
+	u8 ulp_num;
+	u32 doorbell_offset;
+	u16 register_set;
+	u16 doorbell_format;
 } __packed;
 
 #define SOL_CID_MASK		0x0000FFC0

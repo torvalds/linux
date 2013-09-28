@@ -3507,13 +3507,15 @@ beiscsi_create_wrb_rings(struct beiscsi_hba *phba,
 {
 	unsigned int wrb_mem_index, offset, size, num_wrb_rings;
 	u64 pa_addr_lo;
-	unsigned int idx, num, i;
+	unsigned int idx, num, i, ulp_num;
 	struct mem_array *pwrb_arr;
 	void *wrb_vaddr;
 	struct be_dma_mem sgl;
 	struct be_mem_descriptor *mem_descr;
 	struct hwi_wrb_context *pwrb_context;
 	int status;
+	uint8_t ulp_count = 0, ulp_base_num = 0;
+	uint16_t cid_count_ulp[BEISCSI_ULP_COUNT] = { 0 };
 
 	idx = 0;
 	mem_descr = phba->init_mem;
@@ -3557,14 +3559,37 @@ beiscsi_create_wrb_rings(struct beiscsi_hba *phba,
 			num_wrb_rings--;
 		}
 	}
+
+	/* Get the ULP Count */
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
+		if (test_bit(ulp_num, &phba->fw_config.ulp_supported)) {
+			ulp_count++;
+			ulp_base_num = ulp_num;
+			cid_count_ulp[ulp_num] =
+				BEISCSI_GET_CID_COUNT(phba, ulp_num);
+		}
+
 	for (i = 0; i < phba->params.cxns_per_ctrl; i++) {
 		wrb_mem_index = 0;
 		offset = 0;
 		size = 0;
 
+		if (ulp_count > 1) {
+			ulp_base_num = (ulp_base_num + 1) % BEISCSI_ULP_COUNT;
+
+			if (!cid_count_ulp[ulp_base_num])
+				ulp_base_num = (ulp_base_num + 1) %
+						BEISCSI_ULP_COUNT;
+
+			cid_count_ulp[ulp_base_num]--;
+		}
+
+
 		hwi_build_be_sgl_by_offset(phba, &pwrb_arr[i], &sgl);
 		status = be_cmd_wrbq_create(&phba->ctrl, &sgl,
-					    &phwi_context->be_wrbq[i]);
+					    &phwi_context->be_wrbq[i],
+					    &phwi_ctrlr->wrb_context[i],
+					    ulp_base_num);
 		if (status != 0) {
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 				    "BM_%d : wrbq create failed.");
@@ -3572,7 +3597,6 @@ beiscsi_create_wrb_rings(struct beiscsi_hba *phba,
 			return status;
 		}
 		pwrb_context = &phwi_ctrlr->wrb_context[i];
-		pwrb_context->cid = phwi_context->be_wrbq[i].id;
 		BE_SET_CID_TO_CRI(i, pwrb_context->cid);
 	}
 	kfree(pwrb_arr);

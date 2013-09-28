@@ -17,9 +17,9 @@
 
 #include <scsi/iscsi_proto.h>
 
+#include "be_main.h"
 #include "be.h"
 #include "be_mgmt.h"
-#include "be_main.h"
 
 int beiscsi_pci_soft_reset(struct beiscsi_hba *phba)
 {
@@ -1135,12 +1135,27 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 	return status;
 }
 
-int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
-		       struct be_queue_info *wrbq)
+/**
+ * be_cmd_wrbq_create()- Create WRBQ
+ * @ctrl: ptr to ctrl_info
+ * @q_mem: memory details for the queue
+ * @wrbq: queue info
+ * @pwrb_context: ptr to wrb_context
+ * @ulp_num: ULP on which the WRBQ is to be created
+ *
+ * Create WRBQ on the passed ULP_NUM.
+ *
+ **/
+int be_cmd_wrbq_create(struct be_ctrl_info *ctrl,
+			struct be_dma_mem *q_mem,
+			struct be_queue_info *wrbq,
+			struct hwi_wrb_context *pwrb_context,
+			uint8_t ulp_num)
 {
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct be_wrbq_create_req *req = embedded_payload(wrb);
 	struct be_wrbq_create_resp *resp = embedded_payload(wrb);
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	int status;
 
 	spin_lock(&ctrl->mbox_lock);
@@ -1151,12 +1166,28 @@ int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 		OPCODE_COMMON_ISCSI_WRBQ_CREATE, sizeof(*req));
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
+
+	if (phba->fw_config.dual_ulp_aware) {
+		req->ulp_num = ulp_num;
+		req->dua_feature |= (1 << BEISCSI_DUAL_ULP_AWARE_BIT);
+		req->dua_feature |= (1 << BEISCSI_BIND_Q_TO_ULP_BIT);
+	}
+
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
 
 	status = be_mbox_notify(ctrl);
 	if (!status) {
 		wrbq->id = le16_to_cpu(resp->cid);
 		wrbq->created = true;
+
+		pwrb_context->cid = wrbq->id;
+		if (!phba->fw_config.dual_ulp_aware) {
+			pwrb_context->doorbell_offset = DB_TXULP0_OFFSET;
+			pwrb_context->ulp_num = BEISCSI_ULP0;
+		} else {
+			pwrb_context->ulp_num = resp->ulp_num;
+			pwrb_context->doorbell_offset = resp->doorbell_offset;
+		}
 	}
 	spin_unlock(&ctrl->mbox_lock);
 	return status;

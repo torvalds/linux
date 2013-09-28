@@ -34,7 +34,6 @@
 #include <scsi/libiscsi.h>
 #include <scsi/scsi_transport_iscsi.h>
 
-#include "be.h"
 #define DRV_NAME		"be2iscsi"
 #define BUILD_STR		"10.0.467.0"
 #define BE_NAME			"Emulex OneConnect" \
@@ -280,6 +279,25 @@ struct invalidate_command_table {
 	unsigned short cid;
 } __packed;
 
+#define BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cri) \
+	(phwi_ctrlr->wrb_context[cri].ulp_num)
+struct hwi_wrb_context {
+	struct list_head wrb_handle_list;
+	struct list_head wrb_handle_drvr_list;
+	struct wrb_handle **pwrb_handle_base;
+	struct wrb_handle **pwrb_handle_basestd;
+	struct iscsi_wrb *plast_wrb;
+	unsigned short alloc_index;
+	unsigned short free_index;
+	unsigned short wrb_handles_available;
+	unsigned short cid;
+	uint8_t ulp_num;	/* ULP to which CID binded */
+	uint16_t register_set;
+	uint16_t doorbell_format;
+	uint32_t doorbell_offset;
+};
+
+#include "be.h"
 #define chip_be2(phba)      (phba->generation == BE_GEN2)
 #define chip_be3_r(phba)    (phba->generation == BE_GEN3)
 #define is_chip_be2_be3r(phba) (chip_be3_r(phba) || (chip_be2(phba)))
@@ -953,21 +971,6 @@ struct be_ring {
 				 * should be last to allow 32 & 64 bit debugger
 				 * extensions to work.
 				 */
-};
-
-#define BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cri) \
-	(phwi_ctrlr->wrb_context[cri].ulp_num)
-struct hwi_wrb_context {
-	struct list_head wrb_handle_list;
-	struct list_head wrb_handle_drvr_list;
-	struct wrb_handle **pwrb_handle_base;
-	struct wrb_handle **pwrb_handle_basestd;
-	struct iscsi_wrb *plast_wrb;
-	unsigned short alloc_index;
-	unsigned short free_index;
-	unsigned short wrb_handles_available;
-	unsigned short cid;
-	uint8_t ulp_num;	/* ULP to which CID binded */
 };
 
 struct hwi_controller {
