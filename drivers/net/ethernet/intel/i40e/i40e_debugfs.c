@@ -1742,11 +1742,13 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			goto command_write_done;
 		}
 
-		/* Read at least 512 words */
-		if (buffer_len == 0)
-			buffer_len = 512;
+		/* set the max length */
+		buffer_len = min_t(u16, buffer_len, I40E_MAX_AQ_BUF_SIZE/2);
 
 		bytes = 2 * buffer_len;
+
+		/* read at least 1k bytes, no more than 4kB */
+		bytes = clamp(bytes, (u16)1024, (u16)I40E_MAX_AQ_BUF_SIZE);
 		buff = kzalloc(bytes, GFP_KERNEL);
 		if (!buff)
 			goto command_write_done;
