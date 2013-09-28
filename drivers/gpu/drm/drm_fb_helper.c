@@ -1357,7 +1357,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	struct drm_connector *connector;
 	struct drm_connector_helper_funcs *connector_funcs;
 	struct drm_encoder *encoder;
-	struct drm_fb_helper_crtc *best_crtc;
 	int my_score, best_score, score;
 	struct drm_fb_helper_crtc **crtcs, *crtc;
 	struct drm_fb_helper_connector *fb_helper_conn;
@@ -1369,7 +1368,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	connector = fb_helper_conn->connector;
 
 	best_crtcs[n] = NULL;
-	best_crtc = NULL;
 	best_score = drm_pick_crtcs(fb_helper, best_crtcs, modes, n+1, width, height);
 	if (modes[n] == NULL)
 		return best_score;
@@ -1418,7 +1416,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 		score = my_score + drm_pick_crtcs(fb_helper, crtcs, modes, n + 1,
 						  width, height);
 		if (score > best_score) {
-			best_crtc = crtc;
 			best_score = score;
 			memcpy(best_crtcs, crtcs,
 			       dev->mode_config.num_connector *
