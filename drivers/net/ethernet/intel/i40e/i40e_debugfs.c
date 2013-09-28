@@ -151,9 +151,7 @@ static ssize_t i40e_dbg_dump_write(struct file *filp,
 				   size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
-	char dump_request_buf[16];
 	bool seid_found = false;
-	int bytes_not_copied;
 	long seid = -1;
 	int buflen = 0;
 	int i, ret;
@@ -163,21 +161,12 @@ static ssize_t i40e_dbg_dump_write(struct file *filp,
 	/* don't allow partial writes */
 	if (*ppos != 0)
 		return 0;
-	if (count >= sizeof(dump_request_buf))
-		return -ENOSPC;
-
-	bytes_not_copied = copy_from_user(dump_request_buf, buffer, count);
-	if (bytes_not_copied < 0)
-		return bytes_not_copied;
-	if (bytes_not_copied > 0)
-		count -= bytes_not_copied;
-	dump_request_buf[count] = '\0';
 
 	/* decode the SEID given to be dumped */
-	ret = kstrtol(dump_request_buf, 0, &seid);
-	if (ret < 0) {
-		dev_info(&pf->pdev->dev, "bad seid value '%s'\n",
-			 dump_request_buf);
+	ret = kstrtol_from_user(buffer, count, 0, &seid);
+
+	if (ret) {
+		dev_info(&pf->pdev->dev, "bad seid value\n");
 	} else if (seid == 0) {
 		seid_found = true;
 
@@ -1023,11 +1012,11 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				      size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
+	char *cmd_buf, *cmd_buf_tmp;
 	int bytes_not_copied;
 	struct i40e_vsi *vsi;
 	u8 *print_buf_start;
 	u8 *print_buf;
-	char *cmd_buf;
 	int vsi_seid;
 	int veb_seid;
 	int cnt;
@@ -1045,6 +1034,12 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	if (bytes_not_copied > 0)
 		count -= bytes_not_copied;
 	cmd_buf[count] = '\0';
+
+	cmd_buf_tmp = strchr(cmd_buf, '\n');
+	if (cmd_buf_tmp) {
+		*cmd_buf_tmp = '\0';
+		count = cmd_buf_tmp - cmd_buf + 1;
+	}
 
 	print_buf_start = kzalloc(I40E_MAX_DEBUG_OUT_BUFFER, GFP_KERNEL);
 	if (!print_buf_start)
@@ -1900,6 +1895,7 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 	struct i40e_pf *pf = filp->private_data;
 	int bytes_not_copied;
 	struct i40e_vsi *vsi;
+	char *buf_tmp;
 	int vsi_seid;
 	int i, cnt;
 
@@ -1917,6 +1913,12 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 	else if (bytes_not_copied > 0)
 		count -= bytes_not_copied;
 	i40e_dbg_netdev_ops_buf[count] = '\0';
+
+	buf_tmp = strchr(i40e_dbg_netdev_ops_buf, '\n');
+	if (buf_tmp) {
+		*buf_tmp = '\0';
+		count = buf_tmp - i40e_dbg_netdev_ops_buf + 1;
+	}
 
 	if (strncmp(i40e_dbg_netdev_ops_buf, "tx_timeout", 10) == 0) {
 		cnt = sscanf(&i40e_dbg_netdev_ops_buf[11], "%i", &vsi_seid);
