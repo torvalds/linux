@@ -158,8 +158,10 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 	struct be_cmd_resp_hdr *ioctl_resp_hdr;
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
-	if (beiscsi_error(phba))
+	if (beiscsi_error(phba)) {
+		free_mcc_tag(&phba->ctrl, tag);
 		return -EIO;
+	}
 
 	/* wait for the mccq completion */
 	rc = wait_event_interruptible_timeout(
@@ -173,7 +175,7 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
 			    BEISCSI_LOG_CONFIG,
 			    "BC_%d : MBX Cmd Completion timed out\n");
-		rc = -EAGAIN;
+		rc = -EBUSY;
 
 		/* decrement the mccq used count */
 		atomic_dec(&phba->ctrl.mcc_obj.q.used);
@@ -212,10 +214,18 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 
 		if (status == MCC_STATUS_INSUFFICIENT_BUFFER) {
 			ioctl_resp_hdr = (struct be_cmd_resp_hdr *) ioctl_hdr;
-			if (ioctl_resp_hdr->response_length)
-				goto release_mcc_tag;
+			beiscsi_log(phba, KERN_WARNING,
+				    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
+				    BEISCSI_LOG_CONFIG,
+				    "BC_%d : Insufficent Buffer Error "
+				    "Resp_Len : %d Actual_Resp_Len : %d\n",
+				    ioctl_resp_hdr->response_length,
+				    ioctl_resp_hdr->actual_resp_len);
+
+			rc = -EAGAIN;
+			goto release_mcc_tag;
 		}
-		rc = -EAGAIN;
+		rc = -EIO;
 	}
 
 release_mcc_tag:

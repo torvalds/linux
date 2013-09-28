@@ -294,7 +294,7 @@ int mgmt_get_nic_conf(struct beiscsi_hba *phba,
 		      struct be_cmd_get_nic_conf_resp *mac);
 
 int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
-		     struct be_cmd_get_if_info_resp *if_info);
+		     struct be_cmd_get_if_info_resp **if_info);
 
 int mgmt_get_gateway(struct beiscsi_hba *phba, int ip_type,
 		     struct be_cmd_get_def_gateway_resp *gateway);

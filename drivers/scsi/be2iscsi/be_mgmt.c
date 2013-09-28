@@ -824,11 +824,14 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 
 	rc = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd->va);
 	if (rc) {
+		/* Check if the IOCTL needs to be re-issued */
+		if (rc == -EAGAIN)
+			return rc;
+
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 			    "BG_%d : mgmt_exec_nonemb_cmd Failed status\n");
 
-		rc = -EIO;
 		goto free_cmd;
 	}
 
@@ -937,7 +940,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 		uint32_t boot_proto)
 {
 	struct be_cmd_get_def_gateway_resp gtway_addr_set;
-	struct be_cmd_get_if_info_resp if_info;
+	struct be_cmd_get_if_info_resp *if_info;
 	struct be_cmd_set_dhcp_req *dhcpreq;
 	struct be_cmd_rel_dhcp_req *reldhcp;
 	struct be_dma_mem nonemb_cmd;
@@ -948,16 +951,17 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 	if (mgmt_get_all_if_id(phba))
 		return -EIO;
 
-	memset(&if_info, 0, sizeof(if_info));
 	ip_type = (ip_param->param == ISCSI_NET_PARAM_IPV6_ADDR) ?
 		BE2_IPV6 : BE2_IPV4 ;
 
 	rc = mgmt_get_if_info(phba, ip_type, &if_info);
-	if (rc)
+	if (rc) {
+		kfree(if_info);
 		return rc;
+	}
 
 	if (boot_proto == ISCSI_BOOTPROTO_DHCP) {
-		if (if_info.dhcp_state) {
+		if (if_info->dhcp_state) {
 			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
 				    "BG_%d : DHCP Already Enabled\n");
 			return 0;
@@ -970,9 +974,9 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 				IP_V6_LEN : IP_V4_LEN;
 
 	} else {
-		if (if_info.dhcp_state) {
+		if (if_info->dhcp_state) {
 
-			memset(&if_info, 0, sizeof(if_info));
+			memset(if_info, 0, sizeof(*if_info));
 			rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
 				OPCODE_COMMON_ISCSI_NTWK_REL_STATELESS_IP_ADDR,
 				sizeof(*reldhcp));
@@ -995,8 +999,8 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 	}
 
 	/* Delete the Static IP Set */
-	if (if_info.ip_addr.addr[0]) {
-		rc = mgmt_static_ip_modify(phba, &if_info, ip_param, NULL,
+	if (if_info->ip_addr.addr[0]) {
+		rc = mgmt_static_ip_modify(phba, if_info, ip_param, NULL,
 					   IP_ACTION_DEL);
 		if (rc)
 			return rc;
@@ -1042,7 +1046,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 
 		return mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
 	} else {
-		return mgmt_static_ip_modify(phba, &if_info, ip_param,
+		return mgmt_static_ip_modify(phba, if_info, ip_param,
 					     subnet_param, IP_ACTION_ADD);
 	}
 
@@ -1107,27 +1111,64 @@ int mgmt_get_gateway(struct beiscsi_hba *phba, int ip_type,
 }
 
 int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
-		     struct be_cmd_get_if_info_resp *if_info)
+		     struct be_cmd_get_if_info_resp **if_info)
 {
 	struct be_cmd_get_if_info_req *req;
 	struct be_dma_mem nonemb_cmd;
+	uint32_t ioctl_size = sizeof(struct be_cmd_get_if_info_resp);
 	int rc;
 
 	if (mgmt_get_all_if_id(phba))
 		return -EIO;
 
-	rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
-				 OPCODE_COMMON_ISCSI_NTWK_GET_IF_INFO,
-				 sizeof(*if_info));
-	if (rc)
-		return rc;
+	do {
+		rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
+					 OPCODE_COMMON_ISCSI_NTWK_GET_IF_INFO,
+					 ioctl_size);
+		if (rc)
+			return rc;
 
-	req = nonemb_cmd.va;
-	req->interface_hndl = phba->interface_handle;
-	req->ip_type = ip_type;
+		req = nonemb_cmd.va;
+		req->interface_hndl = phba->interface_handle;
+		req->ip_type = ip_type;
 
-	return mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, if_info,
-				    sizeof(*if_info));
+		/* Allocate memory for if_info */
+		*if_info = kzalloc(ioctl_size, GFP_KERNEL);
+		if (!*if_info) {
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+				    "BG_%d : Memory Allocation Failure\n");
+
+				/* Free the DMA memory for the IOCTL issuing */
+				pci_free_consistent(phba->ctrl.pdev,
+						    nonemb_cmd.size,
+						    nonemb_cmd.va,
+						    nonemb_cmd.dma);
+				return -ENOMEM;
+		}
+
+		rc =  mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, *if_info,
+					   ioctl_size);
+
+		/* Check if the error is because of Insufficent_Buffer */
+		if (rc == -EAGAIN) {
+
+			/* Get the new memory size */
+			ioctl_size = ((struct be_cmd_resp_hdr *)
+				      nonemb_cmd.va)->actual_resp_len;
+			ioctl_size += sizeof(struct be_cmd_req_hdr);
+
+			/* Free the previous allocated DMA memory */
+			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+					    nonemb_cmd.va,
+					    nonemb_cmd.dma);
+
+			/* Free the virtual memory */
+			kfree(*if_info);
+		} else
+			break;
+	} while (true);
+	return rc;
 }
 
 int mgmt_get_nic_conf(struct beiscsi_hba *phba,

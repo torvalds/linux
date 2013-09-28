@@ -271,13 +271,17 @@ static int beiscsi_create_ipv6_iface(struct beiscsi_hba *phba)
 
 void beiscsi_create_def_ifaces(struct beiscsi_hba *phba)
 {
-	struct be_cmd_get_if_info_resp if_info;
+	struct be_cmd_get_if_info_resp *if_info;
 
-	if (!mgmt_get_if_info(phba, BE2_IPV4, &if_info))
+	if (!mgmt_get_if_info(phba, BE2_IPV4, &if_info)) {
 		beiscsi_create_ipv4_iface(phba);
+		kfree(if_info);
+	}
 
-	if (!mgmt_get_if_info(phba, BE2_IPV6, &if_info))
+	if (!mgmt_get_if_info(phba, BE2_IPV6, &if_info)) {
 		beiscsi_create_ipv6_iface(phba);
+		kfree(if_info);
+	}
 }
 
 void beiscsi_destroy_def_ifaces(struct beiscsi_hba *phba)
@@ -518,59 +522,60 @@ static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
 		struct iscsi_iface *iface, int param,
 		char *buf)
 {
-	struct be_cmd_get_if_info_resp if_info;
+	struct be_cmd_get_if_info_resp *if_info;
 	int len, ip_type = BE2_IPV4;
-
-	memset(&if_info, 0, sizeof(if_info));
 
 	if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
 		ip_type = BE2_IPV6;
 
 	len = mgmt_get_if_info(phba, ip_type, &if_info);
-	if (len)
+	if (len) {
+		kfree(if_info);
 		return len;
+	}
 
 	switch (param) {
 	case ISCSI_NET_PARAM_IPV4_ADDR:
-		len = sprintf(buf, "%pI4\n", &if_info.ip_addr.addr);
+		len = sprintf(buf, "%pI4\n", if_info->ip_addr.addr);
 		break;
 	case ISCSI_NET_PARAM_IPV6_ADDR:
-		len = sprintf(buf, "%pI6\n", &if_info.ip_addr.addr);
+		len = sprintf(buf, "%pI6\n", if_info->ip_addr.addr);
 		break;
 	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
-		if (!if_info.dhcp_state)
+		if (!if_info->dhcp_state)
 			len = sprintf(buf, "static\n");
 		else
 			len = sprintf(buf, "dhcp\n");
 		break;
 	case ISCSI_NET_PARAM_IPV4_SUBNET:
-		len = sprintf(buf, "%pI4\n", &if_info.ip_addr.subnet_mask);
+		len = sprintf(buf, "%pI4\n", if_info->ip_addr.subnet_mask);
 		break;
 	case ISCSI_NET_PARAM_VLAN_ENABLED:
 		len = sprintf(buf, "%s\n",
-			     (if_info.vlan_priority == BEISCSI_VLAN_DISABLE)
+			     (if_info->vlan_priority == BEISCSI_VLAN_DISABLE)
 			     ? "Disabled\n" : "Enabled\n");
 		break;
 	case ISCSI_NET_PARAM_VLAN_ID:
-		if (if_info.vlan_priority == BEISCSI_VLAN_DISABLE)
+		if (if_info->vlan_priority == BEISCSI_VLAN_DISABLE)
 			return -EINVAL;
 		else
 			len = sprintf(buf, "%d\n",
-				     (if_info.vlan_priority &
+				     (if_info->vlan_priority &
 				     ISCSI_MAX_VLAN_ID));
 		break;
 	case ISCSI_NET_PARAM_VLAN_PRIORITY:
-		if (if_info.vlan_priority == BEISCSI_VLAN_DISABLE)
+		if (if_info->vlan_priority == BEISCSI_VLAN_DISABLE)
 			return -EINVAL;
 		else
 			len = sprintf(buf, "%d\n",
-				     ((if_info.vlan_priority >> 13) &
+				     ((if_info->vlan_priority >> 13) &
 				     ISCSI_MAX_VLAN_PRIORITY));
 		break;
 	default:
 		WARN_ON(1);
 	}
 
+	kfree(if_info);
 	return len;
 }
 
