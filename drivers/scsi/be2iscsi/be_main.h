@@ -26,6 +26,7 @@
 #include <linux/in.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
+#include <linux/aer.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -96,8 +97,12 @@
 
 #define INVALID_SESS_HANDLE	0xFFFFFFFF
 
-#define BE_ADAPTER_UP		0x00000000
-#define BE_ADAPTER_LINK_DOWN	0x00000001
+#define BE_ADAPTER_LINK_UP	0x001
+#define BE_ADAPTER_LINK_DOWN	0x002
+#define BE_ADAPTER_PCI_ERR	0x004
+
+#define BEISCSI_CLEAN_UNLOAD	0x01
+#define BEISCSI_EEH_UNLOAD	0x02
 /**
  * hardware needs the async PDU buffers to be posted in multiples of 8
  * So have atleast 8 of them by default

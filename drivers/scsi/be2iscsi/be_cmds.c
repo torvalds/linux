@@ -377,7 +377,7 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 	} else if ((evt->port_link_status & ASYNC_EVENT_LINK_UP) ||
 		    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
 		     (evt->port_fault == BEISCSI_PHY_LINK_FAULT_NONE))) {
-		phba->state = BE_ADAPTER_UP;
+		phba->state = BE_ADAPTER_LINK_UP;
 
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
