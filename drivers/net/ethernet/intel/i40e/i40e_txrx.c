@@ -73,11 +73,12 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 		goto dma_fail;
 
 	/* grab the next descriptor */
-	fdir_desc = I40E_TX_FDIRDESC(tx_ring, tx_ring->next_to_use);
-	tx_buf = &tx_ring->tx_bi[tx_ring->next_to_use];
-	tx_ring->next_to_use++;
-	if (tx_ring->next_to_use == tx_ring->count)
-		tx_ring->next_to_use = 0;
+	i = tx_ring->next_to_use;
+	fdir_desc = I40E_TX_FDIRDESC(tx_ring, i);
+	tx_buf = &tx_ring->tx_bi[i];
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32((fdir_data->q_index
 					     << I40E_TXD_FLTR_QW0_QINDEX_SHIFT)
@@ -134,11 +135,11 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	fdir_desc->fd_id = cpu_to_le32(fdir_data->fd_id);
 
 	/* Now program a dummy descriptor */
-	tx_desc = I40E_TX_DESC(tx_ring, tx_ring->next_to_use);
-	tx_buf = &tx_ring->tx_bi[tx_ring->next_to_use];
-	tx_ring->next_to_use++;
-	if (tx_ring->next_to_use == tx_ring->count)
-		tx_ring->next_to_use = 0;
+	i = tx_ring->next_to_use;
+	tx_desc = I40E_TX_DESC(tx_ring, i);
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
 	tx_desc->buffer_addr = cpu_to_le64(dma);
 	td_cmd = I40E_TX_DESC_CMD_EOP |
@@ -148,15 +149,15 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	tx_desc->cmd_type_offset_bsz =
 		build_ctob(td_cmd, 0, I40E_FDIR_MAX_RAW_PACKET_LOOKUP, 0);
 
-	/* Mark the data descriptor to be watched */
-	tx_buf->next_to_watch = tx_desc;
-
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.  (Only
 	 * applicable for weak-ordered memory model archs,
 	 * such as IA-64).
 	 */
 	wmb();
+
+	/* Mark the data descriptor to be watched */
+	tx_buf->next_to_watch = tx_desc;
 
 	writel(tx_ring->next_to_use, tx_ring->tail);
 	return 0;
@@ -1143,6 +1144,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	struct tcphdr *th;
 	unsigned int hlen;
 	u32 flex_ptype, dtype_cmd;
+	u16 i;
 
 	/* make sure ATR is enabled */
 	if (!(pf->flags & I40E_FLAG_FDIR_ATR_ENABLED))
@@ -1182,10 +1184,11 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	tx_ring->atr_count = 0;
 
 	/* grab the next descriptor */
-	fdir_desc = I40E_TX_FDIRDESC(tx_ring, tx_ring->next_to_use);
-	tx_ring->next_to_use++;
-	if (tx_ring->next_to_use == tx_ring->count)
-		tx_ring->next_to_use = 0;
+	i = tx_ring->next_to_use;
+	fdir_desc = I40E_TX_FDIRDESC(tx_ring, i);
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
 	flex_ptype = (tx_ring->queue_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT) &
 		      I40E_TXD_FLTR_QW0_QINDEX_MASK;
@@ -1481,15 +1484,16 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 			       const u32 cd_tunneling, const u32 cd_l2tag2)
 {
 	struct i40e_tx_context_desc *context_desc;
+	int i = tx_ring->next_to_use;
 
 	if (!cd_type_cmd_tso_mss && !cd_tunneling && !cd_l2tag2)
 		return;
 
 	/* grab the next descriptor */
-	context_desc = I40E_TX_CTXTDESC(tx_ring, tx_ring->next_to_use);
-	tx_ring->next_to_use++;
-	if (tx_ring->next_to_use == tx_ring->count)
-		tx_ring->next_to_use = 0;
+	context_desc = I40E_TX_CTXTDESC(tx_ring, i);
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
 	/* cpu_to_le32 and assign to struct fields */
 	context_desc->tunneling_params = cpu_to_le32(cd_tunneling);
