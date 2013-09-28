@@ -46,6 +46,23 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	return 0;
 }
 
+struct machine *machine__new_host(void)
+{
+	struct machine *machine = malloc(sizeof(*machine));
+
+	if (machine != NULL) {
+		machine__init(machine, "", HOST_KERNEL_ID);
+
+		if (machine__create_kernel_maps(machine) < 0)
+			goto out_delete;
+	}
+
+	return machine;
+out_delete:
+	free(machine);
+	return NULL;
+}
+
 static void dsos__delete(struct list_head *dsos)
 {
 	struct dso *pos, *n;

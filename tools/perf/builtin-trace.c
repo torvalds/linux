@@ -906,7 +906,7 @@ struct trace {
 		struct syscall  *table;
 	} syscalls;
 	struct perf_record_opts opts;
-	struct machine		host;
+	struct machine		*host;
 	u64			base_time;
 	bool			full_time;
 	FILE			*output;
@@ -1083,16 +1083,17 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	if (err)
 		return err;
 
-	machine__init(&trace->host, "", HOST_KERNEL_ID);
-	machine__create_kernel_maps(&trace->host);
+	trace->host = machine__new_host();
+	if (trace->host == NULL)
+		return -ENOMEM;
 
 	if (perf_target__has_task(&trace->opts.target)) {
 		err = perf_event__synthesize_thread_map(&trace->tool, evlist->threads,
 							trace__tool_process,
-							&trace->host);
+							trace->host);
 	} else {
 		err = perf_event__synthesize_threads(&trace->tool, trace__tool_process,
-						     &trace->host);
+						     trace->host);
 	}
 
 	if (err)
@@ -1304,8 +1305,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->filtered)
 		return 0;
 
-	thread = machine__findnew_thread(&trace->host, sample->pid,
-					 sample->tid);
+	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		return -1;
@@ -1357,8 +1357,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->filtered)
 		return 0;
 
-	thread = machine__findnew_thread(&trace->host, sample->pid,
-					 sample->tid);
+	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		return -1;
@@ -1414,7 +1413,7 @@ static int trace__sched_stat_runtime(struct trace *trace, struct perf_evsel *evs
 {
         u64 runtime = perf_evsel__intval(evsel, sample, "runtime");
 	double runtime_ms = (double)runtime / NSEC_PER_MSEC;
-	struct thread *thread = machine__findnew_thread(&trace->host,
+	struct thread *thread = machine__findnew_thread(trace->host,
 							sample->pid,
 							sample->tid);
 	struct thread_trace *ttrace = thread__trace(thread, trace->output);
@@ -1597,7 +1596,7 @@ again:
 				trace->base_time = sample.time;
 
 			if (type != PERF_RECORD_SAMPLE) {
-				trace__process_event(trace, &trace->host, event);
+				trace__process_event(trace, trace->host, event);
 				continue;
 			}
 
@@ -1681,6 +1680,8 @@ static int trace__replay(struct trace *trace)
 	if (session == NULL)
 		return -ENOMEM;
 
+	trace->host = &session->machines.host;
+
 	err = perf_session__set_tracepoints_handlers(session, handlers);
 	if (err)
 		goto out;
@@ -1728,7 +1729,7 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 	size_t printed = trace__fprintf_threads_header(fp);
 	struct rb_node *nd;
 
-	for (nd = rb_first(&trace->host.threads); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&trace->host->threads); nd; nd = rb_next(nd)) {
 		struct thread *thread = rb_entry(nd, struct thread, rb_node);
 		struct thread_trace *ttrace = thread->priv;
 		const char *color;

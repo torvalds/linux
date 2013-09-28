@@ -74,6 +74,7 @@ char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
 void machines__set_symbol_filter(struct machines *machines,
 				 symbol_filter_t symbol_filter);
 
+struct machine *machine__new_host(void);
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);
 void machine__delete_dead_threads(struct machine *machine);
