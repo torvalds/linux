@@ -3703,8 +3703,11 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 
 	if ((pf->hw.phy.link_info.link_info & I40E_AQ_LINK_UP) &&
 	    (vsi->netdev)) {
+		netdev_info(vsi->netdev, "NIC Link is Up\n");
 		netif_tx_start_all_queues(vsi->netdev);
 		netif_carrier_on(vsi->netdev);
+	} else if (vsi->netdev) {
+		netdev_info(vsi->netdev, "NIC Link is Down\n");
 	}
 	i40e_service_event_schedule(pf);
 
@@ -4153,8 +4156,9 @@ static void i40e_link_event(struct i40e_pf *pf)
 	if (new_link == old_link)
 		return;
 
-	netdev_info(pf->vsi[pf->lan_vsi]->netdev,
-		    "NIC Link is %s\n", (new_link ? "Up" : "Down"));
+	if (!test_bit(__I40E_DOWN, &pf->vsi[pf->lan_vsi]->state))
+		netdev_info(pf->vsi[pf->lan_vsi]->netdev,
+			    "NIC Link is %s\n", (new_link ? "Up" : "Down"));
 
 	/* Notify the base of the switch tree connected to
 	 * the link.  Floating VEBs are not notified.
