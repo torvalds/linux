@@ -2072,8 +2072,10 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 				    "BM_%d : Received %s[%d] on CID : %d\n",
 				    cqe_desc[code], code, cid);
 
+			spin_lock_bh(&phba->async_pdu_lock);
 			hwi_process_default_pdu_ring(beiscsi_conn, phba,
 					     (struct i_t_dpdu_cqe *)sol);
+			spin_unlock_bh(&phba->async_pdu_lock);
 			break;
 		case UNSOL_DATA_NOTIFY:
 			beiscsi_log(phba, KERN_INFO,
@@ -2081,8 +2083,10 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 				    "BM_%d : Received %s[%d] on CID : %d\n",
 				    cqe_desc[code], code, cid);
 
+			spin_lock_bh(&phba->async_pdu_lock);
 			hwi_process_default_pdu_ring(beiscsi_conn, phba,
 					     (struct i_t_dpdu_cqe *)sol);
+			spin_unlock_bh(&phba->async_pdu_lock);
 			break;
 		case CXN_INVALIDATE_INDEX_NOTIFY:
 		case CMD_INVALIDATED_NOTIFY:
@@ -2110,8 +2114,10 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
 				    "BM_%d :  Dropping %s[%d] on DPDU ring on CID : %d\n",
 				    cqe_desc[code], code, cid);
+			spin_lock_bh(&phba->async_pdu_lock);
 			hwi_flush_default_pdu_buffer(phba, beiscsi_conn,
 					     (struct i_t_dpdu_cqe *) sol);
+			spin_unlock_bh(&phba->async_pdu_lock);
 			break;
 		case CXN_KILLED_PDU_SIZE_EXCEEDS_DSL:
 		case CXN_KILLED_BURST_LEN_MISMATCH:
@@ -5010,6 +5016,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	spin_lock_init(&phba->io_sgl_lock);
 	spin_lock_init(&phba->mgmt_sgl_lock);
 	spin_lock_init(&phba->isr_lock);
+	spin_lock_init(&phba->async_pdu_lock);
 	ret = mgmt_get_fw_config(&phba->ctrl, phba);
 	if (ret != 0) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,

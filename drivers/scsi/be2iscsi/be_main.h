@@ -305,6 +305,7 @@ struct beiscsi_hba {
 	spinlock_t io_sgl_lock;
 	spinlock_t mgmt_sgl_lock;
 	spinlock_t isr_lock;
+	spinlock_t async_pdu_lock;
 	unsigned int age;
 	unsigned short avlbl_cids;
 	unsigned short cid_alloc;
