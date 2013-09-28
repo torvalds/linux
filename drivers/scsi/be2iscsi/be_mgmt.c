@@ -350,12 +350,18 @@ int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 				beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
 					    "BG_%d : Function loaded on ULP : %d\n"
 					    "\tiscsi_cid_count : %d\n"
-					    "\t iscsi_icd_count : %d\n",
+					    "\tiscsi_cid_start : %d\n"
+					    "\t iscsi_icd_count : %d\n"
+					    "\t iscsi_icd_start : %d\n",
 					    ulp_num,
 					    phba->fw_config.
 					    iscsi_cid_count[ulp_num],
 					    phba->fw_config.
-					    iscsi_icd_count[ulp_num]);
+					    iscsi_cid_start[ulp_num],
+					    phba->fw_config.
+					    iscsi_icd_count[ulp_num],
+					    phba->fw_config.
+					    iscsi_icd_start[ulp_num]);
 			}
 		}
 
