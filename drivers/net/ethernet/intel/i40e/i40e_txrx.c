@@ -64,7 +64,7 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	if (!vsi)
 		return -ENOENT;
 
-	tx_ring = &vsi->tx_rings[0];
+	tx_ring = vsi->tx_rings[0];
 	dev = tx_ring->dev;
 
 	dma = dma_map_single(dev, fdir_data->raw_packet,
@@ -1823,7 +1823,7 @@ netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
-	struct i40e_ring *tx_ring = &vsi->tx_rings[skb->queue_mapping];
+	struct i40e_ring *tx_ring = vsi->tx_rings[skb->queue_mapping];
 
 	/* hardware can't handle really short frames, hardware padding works
 	 * beyond this point

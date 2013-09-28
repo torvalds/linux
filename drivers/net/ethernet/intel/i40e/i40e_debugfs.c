@@ -258,12 +258,12 @@ static ssize_t i40e_dbg_dump_write(struct file *filp,
 
 			for (i = 0; i < vsi->num_queue_pairs; i++) {
 				len = sizeof(struct i40e_tx_buffer);
-				memcpy(p, vsi->tx_rings[i].tx_bi, len);
+				memcpy(p, vsi->tx_rings[i]->tx_bi, len);
 				p += len;
 			}
 			for (i = 0; i < vsi->num_queue_pairs; i++) {
 				len = sizeof(struct i40e_rx_buffer);
-				memcpy(p, vsi->rx_rings[i].rx_bi, len);
+				memcpy(p, vsi->rx_rings[i]->rx_bi, len);
 				p += len;
 			}
 
@@ -484,99 +484,104 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		 "    tx_restart = %d, tx_busy = %d, rx_buf_failed = %d, rx_page_failed = %d\n",
 		 vsi->tx_restart, vsi->tx_busy,
 		 vsi->rx_buf_failed, vsi->rx_page_failed);
-	if (vsi->rx_rings) {
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: desc = %p\n",
-				 i, vsi->rx_rings[i].desc);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: dev = %p, netdev = %p, rx_bi = %p\n",
-				 i, vsi->rx_rings[i].dev,
-				 vsi->rx_rings[i].netdev,
-				 vsi->rx_rings[i].rx_bi);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
-				 i, vsi->rx_rings[i].state,
-				 vsi->rx_rings[i].queue_index,
-				 vsi->rx_rings[i].reg_idx);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: rx_hdr_len = %d, rx_buf_len = %d, dtype = %d\n",
-				 i, vsi->rx_rings[i].rx_hdr_len,
-				 vsi->rx_rings[i].rx_buf_len,
-				 vsi->rx_rings[i].dtype);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
-				 i, vsi->rx_rings[i].hsplit,
-				 vsi->rx_rings[i].next_to_use,
-				 vsi->rx_rings[i].next_to_clean,
-				 vsi->rx_rings[i].ring_active);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: rx_stats: packets = %lld, bytes = %lld, non_eop_descs = %lld\n",
-				 i, vsi->rx_rings[i].stats.packets,
-				 vsi->rx_rings[i].stats.bytes,
-				 vsi->rx_rings[i].rx_stats.non_eop_descs);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: rx_stats: alloc_rx_page_failed = %lld, alloc_rx_buff_failed = %lld\n",
-				 i,
-				 vsi->rx_rings[i].rx_stats.alloc_rx_page_failed,
-				vsi->rx_rings[i].rx_stats.alloc_rx_buff_failed);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: size = %i, dma = 0x%08lx\n",
-				 i, vsi->rx_rings[i].size,
-				 (long unsigned int)vsi->rx_rings[i].dma);
-			dev_info(&pf->pdev->dev,
-				 "    rx_rings[%i]: vsi = %p, q_vector = %p\n",
-				 i, vsi->rx_rings[i].vsi,
-				 vsi->rx_rings[i].q_vector);
-		}
+	rcu_read_lock();
+	for (i = 0; i < vsi->num_queue_pairs; i++) {
+		struct i40e_ring *rx_ring = ACCESS_ONCE(vsi->rx_rings[i]);
+		if (!rx_ring)
+			continue;
+
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: desc = %p\n",
+			 i, rx_ring->desc);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: dev = %p, netdev = %p, rx_bi = %p\n",
+			 i, rx_ring->dev,
+			 rx_ring->netdev,
+			 rx_ring->rx_bi);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
+			 i, rx_ring->state,
+			 rx_ring->queue_index,
+			 rx_ring->reg_idx);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: rx_hdr_len = %d, rx_buf_len = %d, dtype = %d\n",
+			 i, rx_ring->rx_hdr_len,
+			 rx_ring->rx_buf_len,
+			 rx_ring->dtype);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
+			 i, rx_ring->hsplit,
+			 rx_ring->next_to_use,
+			 rx_ring->next_to_clean,
+			 rx_ring->ring_active);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: rx_stats: packets = %lld, bytes = %lld, non_eop_descs = %lld\n",
+			 i, rx_ring->stats.packets,
+			 rx_ring->stats.bytes,
+			 rx_ring->rx_stats.non_eop_descs);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: rx_stats: alloc_rx_page_failed = %lld, alloc_rx_buff_failed = %lld\n",
+			 i,
+			 rx_ring->rx_stats.alloc_rx_page_failed,
+			rx_ring->rx_stats.alloc_rx_buff_failed);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: size = %i, dma = 0x%08lx\n",
+			 i, rx_ring->size,
+			 (long unsigned int)rx_ring->dma);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: vsi = %p, q_vector = %p\n",
+			 i, rx_ring->vsi,
+			 rx_ring->q_vector);
 	}
-	if (vsi->tx_rings) {
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: desc = %p\n",
-				 i, vsi->tx_rings[i].desc);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: dev = %p, netdev = %p, tx_bi = %p\n",
-				 i, vsi->tx_rings[i].dev,
-				 vsi->tx_rings[i].netdev,
-				 vsi->tx_rings[i].tx_bi);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
-				 i, vsi->tx_rings[i].state,
-				 vsi->tx_rings[i].queue_index,
-				 vsi->tx_rings[i].reg_idx);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: dtype = %d\n",
-				 i, vsi->tx_rings[i].dtype);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
-				 i, vsi->tx_rings[i].hsplit,
-				 vsi->tx_rings[i].next_to_use,
-				 vsi->tx_rings[i].next_to_clean,
-				 vsi->tx_rings[i].ring_active);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: tx_stats: packets = %lld, bytes = %lld, restart_queue = %lld\n",
-				 i, vsi->tx_rings[i].stats.packets,
-				 vsi->tx_rings[i].stats.bytes,
-				 vsi->tx_rings[i].tx_stats.restart_queue);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: tx_stats: tx_busy = %lld, tx_done_old = %lld\n",
-				 i,
-				 vsi->tx_rings[i].tx_stats.tx_busy,
-				 vsi->tx_rings[i].tx_stats.tx_done_old);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: size = %i, dma = 0x%08lx\n",
-				 i, vsi->tx_rings[i].size,
-				 (long unsigned int)vsi->tx_rings[i].dma);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: vsi = %p, q_vector = %p\n",
-				 i, vsi->tx_rings[i].vsi,
-				 vsi->tx_rings[i].q_vector);
-			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: DCB tc = %d\n",
-				 i, vsi->tx_rings[i].dcb_tc);
-		}
+	for (i = 0; i < vsi->num_queue_pairs; i++) {
+		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[i]);
+		if (!tx_ring)
+			continue;
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: desc = %p\n",
+			 i, tx_ring->desc);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: dev = %p, netdev = %p, tx_bi = %p\n",
+			 i, tx_ring->dev,
+			 tx_ring->netdev,
+			 tx_ring->tx_bi);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
+			 i, tx_ring->state,
+			 tx_ring->queue_index,
+			 tx_ring->reg_idx);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: dtype = %d\n",
+			 i, tx_ring->dtype);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
+			 i, tx_ring->hsplit,
+			 tx_ring->next_to_use,
+			 tx_ring->next_to_clean,
+			 tx_ring->ring_active);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: tx_stats: packets = %lld, bytes = %lld, restart_queue = %lld\n",
+			 i, tx_ring->stats.packets,
+			 tx_ring->stats.bytes,
+			 tx_ring->tx_stats.restart_queue);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: tx_stats: tx_busy = %lld, tx_done_old = %lld\n",
+			 i,
+			 tx_ring->tx_stats.tx_busy,
+			 tx_ring->tx_stats.tx_done_old);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: size = %i, dma = 0x%08lx\n",
+			 i, tx_ring->size,
+			 (long unsigned int)tx_ring->dma);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: vsi = %p, q_vector = %p\n",
+			 i, tx_ring->vsi,
+			 tx_ring->q_vector);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: DCB tc = %d\n",
+			 i, tx_ring->dcb_tc);
 	}
+	rcu_read_unlock();
 	dev_info(&pf->pdev->dev,
 		 "    work_limit = %d, rx_itr_setting = %d (%s), tx_itr_setting = %d (%s)\n",
 		 vsi->work_limit, vsi->rx_itr_setting,
@@ -782,9 +787,9 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 		return;
 	}
 	if (is_rx_ring)
-		ring = vsi->rx_rings[ring_id];
+		ring = *vsi->rx_rings[ring_id];
 	else
-		ring = vsi->tx_rings[ring_id];
+		ring = *vsi->tx_rings[ring_id];
 	if (cnt == 2) {
 		dev_info(&pf->pdev->dev, "vsi = %02i %s ring = %02i\n",
 			 vsi_seid, is_rx_ring ? "rx" : "tx", ring_id);

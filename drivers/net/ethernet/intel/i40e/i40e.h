@@ -347,9 +347,9 @@ struct i40e_vsi {
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 
-	/* These are arrays of rings, allocated at run-time */
-	struct i40e_ring *rx_rings;
-	struct i40e_ring *tx_rings;
+	/* These are containers of ring pointers, allocated at run-time */
+	struct i40e_ring **rx_rings;
+	struct i40e_ring **tx_rings;
 
 	u16 work_limit;
 	/* high bit set means dynamic, use accessor routines to read/write.

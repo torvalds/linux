@@ -228,6 +228,8 @@ struct i40e_ring {
 
 	struct i40e_vsi *vsi;		/* Backreference to associated VSI */
 	struct i40e_q_vector *q_vector;	/* Backreference to associated vector */
+
+	struct rcu_head rcu;		/* to avoid race on free */
 } ____cacheline_internodealigned_in_smp;
 
 enum i40e_latency_range {

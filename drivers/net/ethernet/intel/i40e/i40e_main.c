@@ -376,14 +376,14 @@ void i40e_vsi_reset_stats(struct i40e_vsi *vsi)
 	memset(&vsi->eth_stats_offsets, 0, sizeof(vsi->eth_stats_offsets));
 	if (vsi->rx_rings)
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			memset(&vsi->rx_rings[i].stats, 0 ,
-			       sizeof(vsi->rx_rings[i].stats));
-			memset(&vsi->rx_rings[i].rx_stats, 0 ,
-			       sizeof(vsi->rx_rings[i].rx_stats));
-			memset(&vsi->tx_rings[i].stats, 0 ,
-			       sizeof(vsi->tx_rings[i].stats));
-			memset(&vsi->tx_rings[i].tx_stats, 0,
-			       sizeof(vsi->tx_rings[i].tx_stats));
+			memset(&vsi->rx_rings[i]->stats, 0 ,
+			       sizeof(vsi->rx_rings[i]->stats));
+			memset(&vsi->rx_rings[i]->rx_stats, 0 ,
+			       sizeof(vsi->rx_rings[i]->rx_stats));
+			memset(&vsi->tx_rings[i]->stats, 0 ,
+			       sizeof(vsi->tx_rings[i]->stats));
+			memset(&vsi->tx_rings[i]->tx_stats, 0,
+			       sizeof(vsi->tx_rings[i]->tx_stats));
 		}
 	vsi->stat_offsets_loaded = false;
 }
@@ -602,7 +602,7 @@ static void i40e_update_link_xoff_rx(struct i40e_pf *pf)
 			continue;
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			struct i40e_ring *ring = &vsi->tx_rings[i];
+			struct i40e_ring *ring = vsi->tx_rings[i];
 			clear_bit(__I40E_HANG_CHECK_ARMED, &ring->state);
 		}
 	}
@@ -656,7 +656,7 @@ static void i40e_update_prio_xoff_rx(struct i40e_pf *pf)
 			continue;
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			struct i40e_ring *ring = &vsi->tx_rings[i];
+			struct i40e_ring *ring = vsi->tx_rings[i];
 
 			tc = ring->dcb_tc;
 			if (xoff[tc])
@@ -711,13 +711,13 @@ void i40e_update_stats(struct i40e_vsi *vsi)
 	for (q = 0; q < vsi->num_queue_pairs; q++) {
 		struct i40e_ring *p;
 
-		p = &vsi->rx_rings[q];
+		p = vsi->rx_rings[q];
 		rx_b += p->stats.bytes;
 		rx_p += p->stats.packets;
 		rx_buf += p->rx_stats.alloc_rx_buff_failed;
 		rx_page += p->rx_stats.alloc_rx_page_failed;
 
-		p = &vsi->tx_rings[q];
+		p = vsi->tx_rings[q];
 		tx_b += p->stats.bytes;
 		tx_p += p->stats.packets;
 		tx_restart += p->tx_stats.restart_queue;
@@ -1992,7 +1992,7 @@ static int i40e_vsi_setup_tx_resources(struct i40e_vsi *vsi)
 	int i, err = 0;
 
 	for (i = 0; i < vsi->num_queue_pairs && !err; i++)
-		err = i40e_setup_tx_descriptors(&vsi->tx_rings[i]);
+		err = i40e_setup_tx_descriptors(vsi->tx_rings[i]);
 
 	return err;
 }
@@ -2008,8 +2008,8 @@ static void i40e_vsi_free_tx_resources(struct i40e_vsi *vsi)
 	int i;
 
 	for (i = 0; i < vsi->num_queue_pairs; i++)
-		if (vsi->tx_rings[i].desc)
-			i40e_free_tx_resources(&vsi->tx_rings[i]);
+		if (vsi->tx_rings[i]->desc)
+			i40e_free_tx_resources(vsi->tx_rings[i]);
 }
 
 /**
@@ -2027,7 +2027,7 @@ static int i40e_vsi_setup_rx_resources(struct i40e_vsi *vsi)
 	int i, err = 0;
 
 	for (i = 0; i < vsi->num_queue_pairs && !err; i++)
-		err = i40e_setup_rx_descriptors(&vsi->rx_rings[i]);
+		err = i40e_setup_rx_descriptors(vsi->rx_rings[i]);
 	return err;
 }
 
@@ -2042,8 +2042,8 @@ static void i40e_vsi_free_rx_resources(struct i40e_vsi *vsi)
 	int i;
 
 	for (i = 0; i < vsi->num_queue_pairs; i++)
-		if (vsi->rx_rings[i].desc)
-			i40e_free_rx_resources(&vsi->rx_rings[i]);
+		if (vsi->rx_rings[i]->desc)
+			i40e_free_rx_resources(vsi->rx_rings[i]);
 }
 
 /**
@@ -2227,8 +2227,8 @@ static int i40e_vsi_configure_tx(struct i40e_vsi *vsi)
 	int err = 0;
 	u16 i;
 
-	for (i = 0; (i < vsi->num_queue_pairs) && (!err); i++)
-		err = i40e_configure_tx_ring(&vsi->tx_rings[i]);
+	for (i = 0; (i < vsi->num_queue_pairs) && !err; i++)
+		err = i40e_configure_tx_ring(vsi->tx_rings[i]);
 
 	return err;
 }
@@ -2278,7 +2278,7 @@ static int i40e_vsi_configure_rx(struct i40e_vsi *vsi)
 
 	/* set up individual rings */
 	for (i = 0; i < vsi->num_queue_pairs && !err; i++)
-		err = i40e_configure_rx_ring(&vsi->rx_rings[i]);
+		err = i40e_configure_rx_ring(vsi->rx_rings[i]);
 
 	return err;
 }
@@ -2302,8 +2302,8 @@ static void i40e_vsi_config_dcb_rings(struct i40e_vsi *vsi)
 		qoffset = vsi->tc_config.tc_info[n].qoffset;
 		qcount = vsi->tc_config.tc_info[n].qcount;
 		for (i = qoffset; i < (qoffset + qcount); i++) {
-			struct i40e_ring *rx_ring = &vsi->rx_rings[i];
-			struct i40e_ring *tx_ring = &vsi->tx_rings[i];
+			struct i40e_ring *rx_ring = vsi->rx_rings[i];
+			struct i40e_ring *tx_ring = vsi->tx_rings[i];
 			rx_ring->dcb_tc = n;
 			tx_ring->dcb_tc = n;
 		}
@@ -2615,8 +2615,8 @@ static void i40e_vsi_disable_irq(struct i40e_vsi *vsi)
 	int i;
 
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
-		wr32(hw, I40E_QINT_TQCTL(vsi->tx_rings[i].reg_idx), 0);
-		wr32(hw, I40E_QINT_RQCTL(vsi->rx_rings[i].reg_idx), 0);
+		wr32(hw, I40E_QINT_TQCTL(vsi->tx_rings[i]->reg_idx), 0);
+		wr32(hw, I40E_QINT_RQCTL(vsi->rx_rings[i]->reg_idx), 0);
 	}
 
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
@@ -2786,8 +2786,8 @@ static irqreturn_t i40e_intr(int irq, void *data)
 static void map_vector_to_qp(struct i40e_vsi *vsi, int v_idx, int qp_idx)
 {
 	struct i40e_q_vector *q_vector = vsi->q_vectors[v_idx];
-	struct i40e_ring *tx_ring = &(vsi->tx_rings[qp_idx]);
-	struct i40e_ring *rx_ring = &(vsi->rx_rings[qp_idx]);
+	struct i40e_ring *tx_ring = vsi->tx_rings[qp_idx];
+	struct i40e_ring *rx_ring = vsi->rx_rings[qp_idx];
 
 	tx_ring->q_vector = q_vector;
 	tx_ring->next = q_vector->tx.ring;
@@ -3792,8 +3792,8 @@ void i40e_down(struct i40e_vsi *vsi)
 	i40e_napi_disable_all(vsi);
 
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
-		i40e_clean_tx_ring(&vsi->tx_rings[i]);
-		i40e_clean_rx_ring(&vsi->rx_rings[i]);
+		i40e_clean_tx_ring(vsi->tx_rings[i]);
+		i40e_clean_rx_ring(vsi->rx_rings[i]);
 	}
 }
 
@@ -4220,9 +4220,9 @@ static void i40e_check_hang_subtask(struct i40e_pf *pf)
 			continue;
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			set_check_for_tx_hang(&vsi->tx_rings[i]);
+			set_check_for_tx_hang(vsi->tx_rings[i]);
 			if (test_bit(__I40E_HANG_CHECK_ARMED,
-				     &vsi->tx_rings[i].state))
+				     &vsi->tx_rings[i]->state))
 				armed++;
 		}
 
@@ -4959,6 +4959,7 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	int ret = -ENODEV;
 	struct i40e_vsi *vsi;
 	int sz_vectors;
+	int sz_rings;
 	int vsi_idx;
 	int i;
 
@@ -5004,7 +5005,18 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	vsi->work_limit = I40E_DEFAULT_IRQ_WORK;
 	INIT_LIST_HEAD(&vsi->mac_filter_list);
 
-	i40e_set_num_rings_in_vsi(vsi);
+	ret = i40e_set_num_rings_in_vsi(vsi);
+	if (ret)
+		goto err_rings;
+
+	/* allocate memory for ring pointers */
+	sz_rings = sizeof(struct i40e_ring *) * vsi->alloc_queue_pairs * 2;
+	vsi->tx_rings = kzalloc(sz_rings, GFP_KERNEL);
+	if (!vsi->tx_rings) {
+		ret = -ENOMEM;
+		goto err_rings;
+	}
+	vsi->rx_rings = &vsi->tx_rings[vsi->alloc_queue_pairs];
 
 	/* allocate memory for q_vector pointers */
 	sz_vectors = sizeof(struct i40e_q_vectors *) * vsi->num_q_vectors;
@@ -5022,6 +5034,8 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	goto unlock_pf;
 
 err_vectors:
+ 	kfree(vsi->tx_rings);
+err_rings:
 	pf->next_vsi = i - 1;
 	kfree(vsi);
 unlock_pf:
@@ -5067,6 +5081,7 @@ static int i40e_vsi_clear(struct i40e_vsi *vsi)
 
 	/* free the ring and vector containers */
 	kfree(vsi->q_vectors);
+	kfree(vsi->tx_rings);
 
 	pf->vsi[vsi->idx] = NULL;
 	if (vsi->idx < pf->next_vsi)
@@ -5081,34 +5096,39 @@ free_vsi:
 }
 
 /**
+ * i40e_vsi_clear_rings - Deallocates the Rx and Tx rings for the provided VSI
+ * @vsi: the VSI being cleaned
+ **/
+static s32 i40e_vsi_clear_rings(struct i40e_vsi *vsi)
+{
+	int i;
+
+	for (i = 0; i < vsi->alloc_queue_pairs; i++) {
+		kfree_rcu(vsi->tx_rings[i], rcu);
+		vsi->tx_rings[i] = NULL;
+		vsi->rx_rings[i] = NULL;
+	}
+
+	return 0;
+}
+
+/**
  * i40e_alloc_rings - Allocates the Rx and Tx rings for the provided VSI
  * @vsi: the VSI being configured
  **/
 static int i40e_alloc_rings(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
-	int ret = 0;
 	int i;
-
-	vsi->rx_rings = kcalloc(vsi->alloc_queue_pairs,
-				sizeof(struct i40e_ring), GFP_KERNEL);
-	if (!vsi->rx_rings) {
-		ret = -ENOMEM;
-		goto err_alloc_rings;
-	}
-
-	vsi->tx_rings = kcalloc(vsi->alloc_queue_pairs,
-				sizeof(struct i40e_ring), GFP_KERNEL);
-	if (!vsi->tx_rings) {
-		ret = -ENOMEM;
-		kfree(vsi->rx_rings);
-		goto err_alloc_rings;
-	}
 
 	/* Set basic values in the rings to be used later during open() */
 	for (i = 0; i < vsi->alloc_queue_pairs; i++) {
-		struct i40e_ring *rx_ring = &vsi->rx_rings[i];
-		struct i40e_ring *tx_ring = &vsi->tx_rings[i];
+		struct i40e_ring *tx_ring;
+		struct i40e_ring *rx_ring;
+
+		tx_ring = kzalloc(sizeof(struct i40e_ring) * 2, GFP_KERNEL);
+		if (!tx_ring)
+			goto err_out;
 
 		tx_ring->queue_index = i;
 		tx_ring->reg_idx = vsi->base_queue + i;
@@ -5119,7 +5139,9 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 		tx_ring->count = vsi->num_desc;
 		tx_ring->size = 0;
 		tx_ring->dcb_tc = 0;
+		vsi->tx_rings[i] = tx_ring;
 
+		rx_ring = &tx_ring[1];
 		rx_ring->queue_index = i;
 		rx_ring->reg_idx = vsi->base_queue + i;
 		rx_ring->ring_active = false;
@@ -5133,24 +5155,14 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 			set_ring_16byte_desc_enabled(rx_ring);
 		else
 			clear_ring_16byte_desc_enabled(rx_ring);
-	}
-
-err_alloc_rings:
-	return ret;
-}
-
-/**
- * i40e_vsi_clear_rings - Deallocates the Rx and Tx rings for the provided VSI
- * @vsi: the VSI being cleaned
- **/
-static int i40e_vsi_clear_rings(struct i40e_vsi *vsi)
-{
-	if (vsi) {
-		kfree(vsi->rx_rings);
-		kfree(vsi->tx_rings);
+		vsi->rx_rings[i] = rx_ring;
 	}
 
 	return 0;
+
+err_out:
+	i40e_vsi_clear_rings(vsi);
+	return -ENOMEM;
 }
 
 /**
