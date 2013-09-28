@@ -434,26 +434,29 @@ static void rsxx_issue_dmas(struct rsxx_dma_ctrl *ctrl)
 			continue;
 		}
 
-		if (dma->cmd == HW_CMD_BLK_WRITE)
-			dir = PCI_DMA_TODEVICE;
-		else
-			dir = PCI_DMA_FROMDEVICE;
+		if (dma->cmd != HW_CMD_BLK_DISCARD) {
+			if (dma->cmd == HW_CMD_BLK_WRITE)
+				dir = PCI_DMA_TODEVICE;
+			else
+				dir = PCI_DMA_FROMDEVICE;
 
-		/*
-		 * The function pci_map_page is placed here because we can
-		 * only, by design, issue up to 255 commands to the hardware
-		 * at one time per DMA channel. So the maximum amount of mapped
-		 * memory would be 255 * 4 channels * 4096 Bytes which is less
-		 * than 2GB, the limit of a x8 Non-HWWD PCIe slot. This way the
-		 * pci_map_page function should never fail because of a
-		 * lack of mappable memory.
-		 */
-		dma->dma_addr = pci_map_page(ctrl->card->dev, dma->page,
-				     dma->pg_off, dma->sub_page.cnt << 9, dir);
-		if (pci_dma_mapping_error(ctrl->card->dev, dma->dma_addr)) {
-			push_tracker(ctrl->trackers, tag);
-			rsxx_complete_dma(ctrl, dma, DMA_CANCELLED);
-			continue;
+			/*
+			 * The function pci_map_page is placed here because we
+			 * can only, by design, issue up to 255 commands to the
+			 * hardware at one time per DMA channel. So the maximum
+			 * amount of mapped memory would be 255 * 4 channels *
+			 * 4096 Bytes which is less than 2GB, the limit of a x8
+			 * Non-HWWD PCIe slot. This way the pci_map_page
+			 * function should never fail because of a lack of
+			 * mappable memory.
+			 */
+			dma->dma_addr = pci_map_page(ctrl->card->dev, dma->page,
+					dma->pg_off, dma->sub_page.cnt << 9, dir);
+			if (pci_dma_mapping_error(ctrl->card->dev, dma->dma_addr)) {
+				push_tracker(ctrl->trackers, tag);
+				rsxx_complete_dma(ctrl, dma, DMA_CANCELLED);
+				continue;
+			}
 		}
 
 		set_tracker_dma(ctrl->trackers, tag, dma);
