@@ -180,6 +180,7 @@ enum i40e_ring_state_t {
 
 /* struct that defines a descriptor ring, associated with a VSI */
 struct i40e_ring {
+	struct i40e_ring *next;		/* pointer to next ring in q_vector */
 	void *desc;			/* Descriptor ring memory */
 	struct device *dev;		/* Used for DMA mapping */
 	struct net_device *netdev;	/* netdev ring maps to */
@@ -236,15 +237,18 @@ enum i40e_latency_range {
 };
 
 struct i40e_ring_container {
-#define I40E_MAX_RINGPAIR_PER_VECTOR 8
 	/* array of pointers to rings */
-	struct i40e_ring *ring[I40E_MAX_RINGPAIR_PER_VECTOR];
+	struct i40e_ring *ring;
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_packets;	/* total packets processed this int */
 	u16 count;
 	enum i40e_latency_range latency_range;
 	u16 itr;
 };
+
+/* iterator for handling rings in ring container */
+#define i40e_for_each_ring(pos, head) \
+	for (pos = (head).ring; pos != NULL; pos = pos->next)
 
 void i40e_alloc_rx_buffers(struct i40e_ring *rxr, u16 cleaned_count);
 netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev);

@@ -1100,27 +1100,28 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	struct i40e_q_vector *q_vector =
 			       container_of(napi, struct i40e_q_vector, napi);
 	struct i40e_vsi *vsi = q_vector->vsi;
+	struct i40e_ring *ring;
 	bool clean_complete = true;
 	int budget_per_ring;
-	int i;
 
 	if (test_bit(__I40E_DOWN, &vsi->state)) {
 		napi_complete(napi);
 		return 0;
 	}
 
-	/* We attempt to distribute budget to each Rx queue fairly, but don't
-	 * allow the budget to go below 1 because that would exit polling early.
-	 * Since the actual Tx work is minimal, we can give the Tx a larger
+	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
+	i40e_for_each_ring(ring, q_vector->tx)
+		clean_complete &= i40e_clean_tx_irq(ring, vsi->work_limit);
+
+	/* We attempt to distribute budget to each Rx queue fairly, but don't
+	 * allow the budget to go below 1 because that would exit polling early.
+	 */
 	budget_per_ring = max(budget/q_vector->num_ringpairs, 1);
-	for (i = 0; i < q_vector->num_ringpairs; i++) {
-		clean_complete &= i40e_clean_tx_irq(q_vector->tx.ring[i],
-						    vsi->work_limit);
-		clean_complete &= i40e_clean_rx_irq(q_vector->rx.ring[i],
-						    budget_per_ring);
-	}
+
+	i40e_for_each_ring(ring, q_vector->rx)
+		clean_complete &= i40e_clean_rx_irq(ring, budget_per_ring);
 
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete)

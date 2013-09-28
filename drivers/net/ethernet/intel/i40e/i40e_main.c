@@ -2516,7 +2516,7 @@ static irqreturn_t i40e_msix_clean_rings(int irq, void *data)
 {
 	struct i40e_q_vector *q_vector = data;
 
-	if (!q_vector->tx.ring[0] && !q_vector->rx.ring[0])
+	if (!q_vector->tx.ring && !q_vector->rx.ring)
 		return IRQ_HANDLED;
 
 	napi_schedule(&q_vector->napi);
@@ -2533,7 +2533,7 @@ static irqreturn_t i40e_fdir_clean_rings(int irq, void *data)
 {
 	struct i40e_q_vector *q_vector = data;
 
-	if (!q_vector->tx.ring[0] && !q_vector->rx.ring[0])
+	if (!q_vector->tx.ring && !q_vector->rx.ring)
 		return IRQ_HANDLED;
 
 	pr_info("fdir ring cleaning needed\n");
@@ -2560,14 +2560,14 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 	for (vector = 0; vector < q_vectors; vector++) {
 		struct i40e_q_vector *q_vector = vsi->q_vectors[vector];
 
-		if (q_vector->tx.ring[0] && q_vector->rx.ring[0]) {
+		if (q_vector->tx.ring && q_vector->rx.ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
 				 "%s-%s-%d", basename, "TxRx", rx_int_idx++);
 			tx_int_idx++;
-		} else if (q_vector->rx.ring[0]) {
+		} else if (q_vector->rx.ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
 				 "%s-%s-%d", basename, "rx", rx_int_idx++);
-		} else if (q_vector->tx.ring[0]) {
+		} else if (q_vector->tx.ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
 				 "%s-%s-%d", basename, "tx", tx_int_idx++);
 		} else {
@@ -2778,40 +2778,26 @@ static irqreturn_t i40e_intr(int irq, void *data)
 }
 
 /**
- * i40e_map_vector_to_rxq - Assigns the Rx queue to the vector
+ * i40e_map_vector_to_qp - Assigns the queue pair to the vector
  * @vsi: the VSI being configured
  * @v_idx: vector index
- * @r_idx: rx queue index
+ * @qp_idx: queue pair index
  **/
-static void map_vector_to_rxq(struct i40e_vsi *vsi, int v_idx, int r_idx)
+static void map_vector_to_qp(struct i40e_vsi *vsi, int v_idx, int qp_idx)
 {
 	struct i40e_q_vector *q_vector = vsi->q_vectors[v_idx];
-	struct i40e_ring *rx_ring = &(vsi->rx_rings[r_idx]);
-
-	rx_ring->q_vector = q_vector;
-	q_vector->rx.ring[q_vector->rx.count] = rx_ring;
-	q_vector->rx.count++;
-	q_vector->rx.latency_range = I40E_LOW_LATENCY;
-	q_vector->vsi = vsi;
-}
-
-/**
- * i40e_map_vector_to_txq - Assigns the Tx queue to the vector
- * @vsi: the VSI being configured
- * @v_idx: vector index
- * @t_idx: tx queue index
- **/
-static void map_vector_to_txq(struct i40e_vsi *vsi, int v_idx, int t_idx)
-{
-	struct i40e_q_vector *q_vector = vsi->q_vectors[v_idx];
-	struct i40e_ring *tx_ring = &(vsi->tx_rings[t_idx]);
+	struct i40e_ring *tx_ring = &(vsi->tx_rings[qp_idx]);
+	struct i40e_ring *rx_ring = &(vsi->rx_rings[qp_idx]);
 
 	tx_ring->q_vector = q_vector;
-	q_vector->tx.ring[q_vector->tx.count] = tx_ring;
+	tx_ring->next = q_vector->tx.ring;
+	q_vector->tx.ring = tx_ring;
 	q_vector->tx.count++;
-	q_vector->tx.latency_range = I40E_LOW_LATENCY;
-	q_vector->num_ringpairs++;
-	q_vector->vsi = vsi;
+
+	rx_ring->q_vector = q_vector;
+	rx_ring->next = q_vector->rx.ring;
+	q_vector->rx.ring = rx_ring;
+	q_vector->rx.count++;
 }
 
 /**
@@ -2827,7 +2813,7 @@ static void i40e_vsi_map_rings_to_vectors(struct i40e_vsi *vsi)
 {
 	int qp_remaining = vsi->num_queue_pairs;
 	int q_vectors = vsi->num_q_vectors;
-	int qp_per_vector;
+	int num_ringpairs;
 	int v_start = 0;
 	int qp_idx = 0;
 
@@ -2835,11 +2821,21 @@ static void i40e_vsi_map_rings_to_vectors(struct i40e_vsi *vsi)
 	 * group them so there are multiple queues per vector.
 	 */
 	for (; v_start < q_vectors && qp_remaining; v_start++) {
-		qp_per_vector = DIV_ROUND_UP(qp_remaining, q_vectors - v_start);
-		for (; qp_per_vector;
-		     qp_per_vector--, qp_idx++, qp_remaining--)	{
-			map_vector_to_rxq(vsi, v_start, qp_idx);
-			map_vector_to_txq(vsi, v_start, qp_idx);
+		struct i40e_q_vector *q_vector = vsi->q_vectors[v_start];
+
+		num_ringpairs = DIV_ROUND_UP(qp_remaining, q_vectors - v_start);
+
+		q_vector->num_ringpairs = num_ringpairs;
+
+		q_vector->rx.count = 0;
+		q_vector->tx.count = 0;
+		q_vector->rx.ring = NULL;
+		q_vector->tx.ring = NULL;
+
+		while (num_ringpairs--) {
+			map_vector_to_qp(vsi, v_start, qp_idx);
+			qp_idx++;
+			qp_remaining--;
 		}
 	}
 }
@@ -3179,16 +3175,17 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 static void i40e_free_q_vector(struct i40e_vsi *vsi, int v_idx)
 {
 	struct i40e_q_vector *q_vector = vsi->q_vectors[v_idx];
-	int r_idx;
+	struct i40e_ring *ring;
 
 	if (!q_vector)
 		return;
 
 	/* disassociate q_vector from rings */
-	for (r_idx = 0; r_idx < q_vector->tx.count; r_idx++)
-		q_vector->tx.ring[r_idx]->q_vector = NULL;
-	for (r_idx = 0; r_idx < q_vector->rx.count; r_idx++)
-		q_vector->rx.ring[r_idx]->q_vector = NULL;
+	i40e_for_each_ring(ring, q_vector->tx)
+		ring->q_vector = NULL;
+
+	i40e_for_each_ring(ring, q_vector->rx)
+		ring->q_vector = NULL;
 
 	/* only VSI w/ an associated netdev is set up w/ NAPI */
 	if (vsi->netdev)
@@ -5311,6 +5308,9 @@ static int i40e_alloc_q_vector(struct i40e_vsi *vsi, int v_idx)
 	if (vsi->netdev)
 		netif_napi_add(vsi->netdev, &q_vector->napi,
 			       i40e_napi_poll, vsi->work_limit);
+
+	q_vector->rx.latency_range = I40E_LOW_LATENCY;
+	q_vector->tx.latency_range = I40E_LOW_LATENCY;
 
 	/* tie q_vector and vsi together */
 	vsi->q_vectors[v_idx] = q_vector;
