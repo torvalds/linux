@@ -314,7 +314,7 @@ static ssize_t bus_rescan_store(struct bus_type *bus, const char *buf,
 }
 static BUS_ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, bus_rescan_store);
 
-struct attribute *pci_bus_attrs[] = {
+static struct attribute *pci_bus_attrs[] = {
 	&bus_attr_rescan.attr,
 	NULL,
 };
@@ -345,8 +345,9 @@ dev_rescan_store(struct device *dev, struct device_attribute *attr,
 	}
 	return count;
 }
-struct device_attribute dev_rescan_attr = __ATTR(rescan, (S_IWUSR|S_IWGRP),
-						 NULL, dev_rescan_store);
+static struct device_attribute dev_rescan_attr = __ATTR(rescan,
+							(S_IWUSR|S_IWGRP),
+							NULL, dev_rescan_store);
 
 static void remove_callback(struct device *dev)
 {
@@ -376,8 +377,9 @@ remove_store(struct device *dev, struct device_attribute *dummy,
 		count = ret;
 	return count;
 }
-struct device_attribute dev_remove_attr = __ATTR(remove, (S_IWUSR|S_IWGRP),
-						 NULL, remove_store);
+static struct device_attribute dev_remove_attr = __ATTR(remove,
+							(S_IWUSR|S_IWGRP),
+							NULL, remove_store);
 
 static ssize_t
 dev_bus_rescan_store(struct device *dev, struct device_attribute *attr,
@@ -510,7 +512,7 @@ static struct device_attribute sriov_numvfs_attr =
 		       sriov_numvfs_show, sriov_numvfs_store);
 #endif /* CONFIG_PCI_IOV */
 
-struct attribute *pci_dev_attrs[] = {
+static struct attribute *pci_dev_attrs[] = {
 	&dev_attr_resource.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_device.attr,
@@ -573,7 +575,7 @@ boot_vga_show(struct device *dev, struct device_attribute *attr, char *buf)
 		!!(pdev->resource[PCI_ROM_RESOURCE].flags &
 		   IORESOURCE_ROM_SHADOW));
 }
-struct device_attribute vga_attr = __ATTR_RO(boot_vga);
+static struct device_attribute vga_attr = __ATTR_RO(boot_vga);
 
 static ssize_t
 pci_read_config(struct file *filp, struct kobject *kobj,
