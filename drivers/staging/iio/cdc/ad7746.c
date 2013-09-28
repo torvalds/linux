@@ -656,20 +656,21 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_CAPACITANCE:
 			/* 8.192pf / 2^24 */
-			*val2 = 488;
 			*val =  0;
+			*val2 = 488;
+			ret = IIO_VAL_INT_PLUS_NANO;
 			break;
 		case IIO_VOLTAGE:
 			/* 1170mV / 2^23 */
-			*val2 = 139475;
-			*val =  0;
+			*val = 1170;
+			*val2 = 23;
+			ret = IIO_VAL_FRACTIONAL_LOG2;
 			break;
 		default:
-			ret =  -EINVAL;
-			goto out;
+			ret = -EINVAL;
+			break;
 		}
 
-		ret = IIO_VAL_INT_PLUS_NANO;
 		break;
 	default:
 		ret = -EINVAL;
