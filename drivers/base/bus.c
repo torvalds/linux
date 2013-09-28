@@ -591,37 +591,6 @@ void bus_remove_device(struct device *dev)
 	bus_put(dev->bus);
 }
 
-static int driver_add_attrs(struct bus_type *bus, struct device_driver *drv)
-{
-	int error = 0;
-	int i;
-
-	if (bus->drv_attrs) {
-		for (i = 0; bus->drv_attrs[i].attr.name; i++) {
-			error = driver_create_file(drv, &bus->drv_attrs[i]);
-			if (error)
-				goto err;
-		}
-	}
-done:
-	return error;
-err:
-	while (--i >= 0)
-		driver_remove_file(drv, &bus->drv_attrs[i]);
-	goto done;
-}
-
-static void driver_remove_attrs(struct bus_type *bus,
-				struct device_driver *drv)
-{
-	int i;
-
-	if (bus->drv_attrs) {
-		for (i = 0; bus->drv_attrs[i].attr.name; i++)
-			driver_remove_file(drv, &bus->drv_attrs[i]);
-	}
-}
-
 static int __must_check add_bind_files(struct device_driver *drv)
 {
 	int ret;
@@ -720,16 +689,12 @@ int bus_add_driver(struct device_driver *drv)
 		printk(KERN_ERR "%s: uevent attr (%s) failed\n",
 			__func__, drv->name);
 	}
-	error = driver_add_attrs(bus, drv);
+	error = driver_add_groups(drv, bus->drv_groups);
 	if (error) {
 		/* How the hell do we get out of this pickle? Give up */
-		printk(KERN_ERR "%s: driver_add_attrs(%s) failed\n",
-			__func__, drv->name);
-	}
-	error = driver_add_groups(drv, bus->drv_groups);
-	if (error)
 		printk(KERN_ERR "%s: driver_create_groups(%s) failed\n",
 			__func__, drv->name);
+	}
 
 	if (!drv->suppress_bind_attrs) {
 		error = add_bind_files(drv);
@@ -766,7 +731,6 @@ void bus_remove_driver(struct device_driver *drv)
 
 	if (!drv->suppress_bind_attrs)
 		remove_bind_files(drv);
-	driver_remove_attrs(drv->bus, drv);
 	driver_remove_groups(drv, drv->bus->drv_groups);
 	driver_remove_file(drv, &driver_attr_uevent);
 	klist_remove(&drv->p->knode_bus);
