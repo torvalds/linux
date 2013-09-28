@@ -110,15 +110,14 @@
 #define I40E_TX_FLAGS_VLAN_SHIFT	16
 
 struct i40e_tx_buffer {
-	struct sk_buff *skb;
-	dma_addr_t dma;
-	unsigned long time_stamp;
-	u16 length;
-	u32 tx_flags;
 	struct i40e_tx_desc *next_to_watch;
+	unsigned long time_stamp;
+	struct sk_buff *skb;
 	unsigned int bytecount;
-	u16 gso_segs;
-	u8 mapped_as_page;
+	unsigned short gso_segs;
+	DEFINE_DMA_UNMAP_ADDR(dma);
+	DEFINE_DMA_UNMAP_LEN(len);
+	u32 tx_flags;
 };
 
 struct i40e_rx_buffer {

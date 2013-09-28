@@ -195,20 +195,20 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u32 qw, u8 prog_id)
 static inline void i40e_unmap_tx_resource(struct i40e_ring *ring,
 					  struct i40e_tx_buffer *tx_buffer)
 {
-	if (tx_buffer->dma) {
+	if (dma_unmap_len(tx_buffer, len)) {
 		if (tx_buffer->tx_flags & I40E_TX_FLAGS_MAPPED_AS_PAGE)
 			dma_unmap_page(ring->dev,
-				       tx_buffer->dma,
-				       tx_buffer->length,
+				       dma_unmap_addr(tx_buffer, dma),
+				       dma_unmap_len(tx_buffer, len),
 				       DMA_TO_DEVICE);
 		else
 			dma_unmap_single(ring->dev,
-					 tx_buffer->dma,
-					 tx_buffer->length,
+					 dma_unmap_addr(tx_buffer, dma),
+					 dma_unmap_len(tx_buffer, len),
 					 DMA_TO_DEVICE);
 	}
-	tx_buffer->dma = 0;
 	tx_buffer->time_stamp = 0;
+	dma_unmap_len_set(tx_buffer, len, 0);
 }
 
 /**
@@ -1554,9 +1554,9 @@ static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		}
 
 		tx_bi = &tx_ring->tx_bi[i];
-		tx_bi->length = buf_offset + size;
+		dma_unmap_len_set(tx_bi, len, buf_offset + size);
+		dma_unmap_addr_set(tx_bi, dma, dma);
 		tx_bi->tx_flags = tx_flags;
-		tx_bi->dma = dma;
 
 		tx_desc->buffer_addr = cpu_to_le64(dma + buf_offset);
 		tx_desc->cmd_type_offset_bsz = build_ctob(td_cmd, td_offset,
