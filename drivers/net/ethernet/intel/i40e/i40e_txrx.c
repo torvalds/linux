@@ -99,9 +99,9 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 					   << I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT);
 	else
 		fdir_desc->qindex_flex_ptype_vsi |=
-					    cpu_to_le32((fdir_data->dest_vsi
-					    << I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT)
-					    & I40E_TXD_FLTR_QW0_DEST_VSI_MASK);
+			cpu_to_le32((((u32)fdir_data->dest_vsi) <<
+					  I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT) &
+				    I40E_TXD_FLTR_QW0_DEST_VSI_MASK);
 
 	fdir_desc->dtype_cmd_cntindex =
 				    cpu_to_le32(I40E_TX_DESC_DTYPE_FILTER_PROG);
@@ -127,9 +127,9 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 		fdir_desc->dtype_cmd_cntindex |=
 				    cpu_to_le32(I40E_TXD_FLTR_QW1_CNT_ENA_MASK);
 		fdir_desc->dtype_cmd_cntindex |=
-					    cpu_to_le32((fdir_data->cnt_index
-					    << I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT)
-					    & I40E_TXD_FLTR_QW1_CNTINDEX_MASK);
+			cpu_to_le32((((u32)fdir_data->cnt_index) <<
+					   I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
+				    I40E_TXD_FLTR_QW1_CNTINDEX_MASK);
 	}
 
 	fdir_desc->fd_id = cpu_to_le32(fdir_data->fd_id);
