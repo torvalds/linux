@@ -1445,6 +1445,25 @@ beiscsi_adap_family_disp(struct device *dev, struct device_attribute *attr,
 	}
 }
 
+/**
+ * beiscsi_phys_port()- Display Physical Port Identifier
+ * @dev: ptr to device not used.
+ * @attr: device attribute, not used.
+ * @buf: contains formatted text port identifier
+ *
+ * return
+ * size of the formatted string
+ **/
+ssize_t
+beiscsi_phys_port_disp(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+
+	return snprintf(buf, PAGE_SIZE, "Port Identifier : %d\n",
+			phba->fw_config.phys_port);
+}
 
 void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle,
