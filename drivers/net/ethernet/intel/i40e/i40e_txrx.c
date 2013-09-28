@@ -346,8 +346,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		      cpu_to_le64(I40E_TX_DESC_DTYPE_DESC_DONE)))
 			break;
 
-		/* count the packet as being completed */
-		tx_ring->tx_stats.completed++;
+		/* clear next_to_watch to prevent false hangs */
 		tx_buf->next_to_watch = NULL;
 		tx_buf->time_stamp = 0;
 

@@ -560,10 +560,9 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 				 vsi->tx_rings[i].tx_stats.bytes,
 				 vsi->tx_rings[i].tx_stats.restart_queue);
 			dev_info(&pf->pdev->dev,
-				 "    tx_rings[%i]: tx_stats: tx_busy = %lld, completed = %lld, tx_done_old = %lld\n",
+				 "    tx_rings[%i]: tx_stats: tx_busy = %lld, tx_done_old = %lld\n",
 				 i,
 				 vsi->tx_rings[i].tx_stats.tx_busy,
-				 vsi->tx_rings[i].tx_stats.completed,
 				 vsi->tx_rings[i].tx_stats.tx_done_old);
 			dev_info(&pf->pdev->dev,
 				 "    tx_rings[%i]: size = %i, dma = 0x%08lx\n",

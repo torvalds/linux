@@ -134,7 +134,6 @@ struct i40e_tx_queue_stats {
 	u64 bytes;
 	u64 restart_queue;
 	u64 tx_busy;
-	u64 completed;
 	u64 tx_done_old;
 };
 
