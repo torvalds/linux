@@ -466,8 +466,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
-			of_match_device(of_match_ptr(imx_ldb_dt_ids),
-					&pdev->dev);
+			of_match_device(imx_ldb_dt_ids, &pdev->dev);
 	struct device_node *child;
 	const u8 *edidp;
 	struct imx_ldb *imx_ldb;
