@@ -1147,9 +1147,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		i40e_veb_release(pf->veb[i]);
 
 	} else if (strncmp(cmd_buf, "add macaddr", 11) == 0) {
-		u8 ma[6];
-		int vlan = 0;
 		struct i40e_mac_filter *f;
+		int vlan = 0;
+		u8 ma[6];
 		int ret;
 
 		cnt = sscanf(&cmd_buf[11],
@@ -1185,8 +1185,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				 ma, vlan, vsi_seid, f, ret);
 
 	} else if (strncmp(cmd_buf, "del macaddr", 11) == 0) {
-		u8 ma[6];
 		int vlan = 0;
+		u8 ma[6];
 		int ret;
 
 		cnt = sscanf(&cmd_buf[11],
@@ -1222,9 +1222,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				 ma, vlan, vsi_seid, ret);
 
 	} else if (strncmp(cmd_buf, "add pvid", 8) == 0) {
-		int v;
-		u16 vid;
 		i40e_status ret;
+		u16 vid;
+		int v;
 
 		cnt = sscanf(&cmd_buf[8], "%i %u", &vsi_seid, &v);
 		if (cnt != 2) {
@@ -1535,10 +1535,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	} else if ((strncmp(cmd_buf, "add fd_filter", 13) == 0) ||
 		   (strncmp(cmd_buf, "rem fd_filter", 13) == 0)) {
 		struct i40e_fdir_data fd_data;
-		int ret;
 		u16 packet_len, i, j = 0;
 		char *asc_packet;
 		bool add = false;
+		int ret;
 
 		asc_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_LOOKUP,
 				     GFP_KERNEL);
@@ -1626,9 +1626,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			}
 		} else if (strncmp(&cmd_buf[5],
 			   "get local", 9) == 0) {
+			u16 llen, rlen;
 			int ret, i;
 			u8 *buff;
-			u16 llen, rlen;
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
 				goto command_write_done;
@@ -1659,9 +1659,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			kfree(buff);
 			buff = NULL;
 		} else if (strncmp(&cmd_buf[5], "get remote", 10) == 0) {
+			u16 llen, rlen;
 			int ret, i;
 			u8 *buff;
-			u16 llen, rlen;
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
 				goto command_write_done;
