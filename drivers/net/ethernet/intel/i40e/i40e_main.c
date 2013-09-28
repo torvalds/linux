@@ -2358,8 +2358,8 @@ static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 	 */
 	qp = vsi->base_queue;
 	vector = vsi->base_vector;
-	q_vector = vsi->q_vectors;
-	for (i = 0; i < vsi->num_q_vectors; i++, q_vector++, vector++) {
+	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
+		q_vector = vsi->q_vectors[i];
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 		q_vector->rx.latency_range = I40E_LOW_LATENCY;
 		wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1),
@@ -2439,7 +2439,7 @@ static void i40e_enable_misc_int_causes(struct i40e_hw *hw)
  **/
 static void i40e_configure_msi_and_legacy(struct i40e_vsi *vsi)
 {
-	struct i40e_q_vector *q_vector = vsi->q_vectors;
+	struct i40e_q_vector *q_vector = vsi->q_vectors[0];
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	u32 val;
@@ -2558,7 +2558,7 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 	int vector, err;
 
 	for (vector = 0; vector < q_vectors; vector++) {
-		struct i40e_q_vector *q_vector = &(vsi->q_vectors[vector]);
+		struct i40e_q_vector *q_vector = vsi->q_vectors[vector];
 
 		if (q_vector->tx.ring[0] && q_vector->rx.ring[0]) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
@@ -2709,7 +2709,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		i40e_flush(hw);
 
 		if (!test_bit(__I40E_DOWN, &pf->state))
-			napi_schedule(&pf->vsi[pf->lan_vsi]->q_vectors[0].napi);
+			napi_schedule(&pf->vsi[pf->lan_vsi]->q_vectors[0]->napi);
 	}
 
 	if (icr0 & I40E_PFINT_ICR0_ADMINQ_MASK) {
@@ -2785,7 +2785,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
  **/
 static void map_vector_to_rxq(struct i40e_vsi *vsi, int v_idx, int r_idx)
 {
-	struct i40e_q_vector *q_vector = &(vsi->q_vectors[v_idx]);
+	struct i40e_q_vector *q_vector = vsi->q_vectors[v_idx];
 	struct i40e_ring *rx_ring = &(vsi->rx_rings[r_idx]);
 
 	rx_ring->q_vector = q_vector;
@@ -2803,7 +2803,7 @@ static void map_vector_to_rxq(struct i40e_vsi *vsi, int v_idx, int r_idx)
  **/
 static void map_vector_to_txq(struct i40e_vsi *vsi, int v_idx, int t_idx)
 {
-	struct i40e_q_vector *q_vector = &(vsi->q_vectors[v_idx]);
+	struct i40e_q_vector *q_vector = vsi->q_vectors[v_idx];
 	struct i40e_ring *tx_ring = &(vsi->tx_rings[t_idx]);
 
 	tx_ring->q_vector = q_vector;
@@ -2891,7 +2891,7 @@ static void i40e_netpoll(struct net_device *netdev)
 	pf->flags |= I40E_FLAG_IN_NETPOLL;
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
 		for (i = 0; i < vsi->num_q_vectors; i++)
-			i40e_msix_clean_rings(0, &vsi->q_vectors[i]);
+			i40e_msix_clean_rings(0, vsi->q_vectors[i]);
 	} else {
 		i40e_intr(pf->pdev->irq, netdev);
 	}
@@ -3077,14 +3077,14 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 			u16 vector = i + base;
 
 			/* free only the irqs that were actually requested */
-			if (vsi->q_vectors[i].num_ringpairs == 0)
+			if (vsi->q_vectors[i]->num_ringpairs == 0)
 				continue;
 
 			/* clear the affinity_mask in the IRQ descriptor */
 			irq_set_affinity_hint(pf->msix_entries[vector].vector,
 					      NULL);
 			free_irq(pf->msix_entries[vector].vector,
-				 &vsi->q_vectors[i]);
+				 vsi->q_vectors[i]);
 
 			/* Tear down the interrupt queue link list
 			 *
@@ -3168,6 +3168,38 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 }
 
 /**
+ * i40e_free_q_vector - Free memory allocated for specific interrupt vector
+ * @vsi: the VSI being configured
+ * @v_idx: Index of vector to be freed
+ *
+ * This function frees the memory allocated to the q_vector.  In addition if
+ * NAPI is enabled it will delete any references to the NAPI struct prior
+ * to freeing the q_vector.
+ **/
+static void i40e_free_q_vector(struct i40e_vsi *vsi, int v_idx)
+{
+	struct i40e_q_vector *q_vector = vsi->q_vectors[v_idx];
+	int r_idx;
+
+	if (!q_vector)
+		return;
+
+	/* disassociate q_vector from rings */
+	for (r_idx = 0; r_idx < q_vector->tx.count; r_idx++)
+		q_vector->tx.ring[r_idx]->q_vector = NULL;
+	for (r_idx = 0; r_idx < q_vector->rx.count; r_idx++)
+		q_vector->rx.ring[r_idx]->q_vector = NULL;
+
+	/* only VSI w/ an associated netdev is set up w/ NAPI */
+	if (vsi->netdev)
+		netif_napi_del(&q_vector->napi);
+
+	vsi->q_vectors[v_idx] = NULL;
+
+	kfree_rcu(q_vector, rcu);
+}
+
+/**
  * i40e_vsi_free_q_vectors - Free memory allocated for interrupt vectors
  * @vsi: the VSI being un-configured
  *
@@ -3178,24 +3210,8 @@ static void i40e_vsi_free_q_vectors(struct i40e_vsi *vsi)
 {
 	int v_idx;
 
-	for (v_idx = 0; v_idx < vsi->num_q_vectors; v_idx++) {
-		struct i40e_q_vector *q_vector = &vsi->q_vectors[v_idx];
-		int r_idx;
-
-		if (!q_vector)
-			continue;
-
-		/* disassociate q_vector from rings */
-		for (r_idx = 0; r_idx < q_vector->tx.count; r_idx++)
-			q_vector->tx.ring[r_idx]->q_vector = NULL;
-		for (r_idx = 0; r_idx < q_vector->rx.count; r_idx++)
-			q_vector->rx.ring[r_idx]->q_vector = NULL;
-
-		/* only VSI w/ an associated netdev is set up w/ NAPI */
-		if (vsi->netdev)
-			netif_napi_del(&q_vector->napi);
-	}
-	kfree(vsi->q_vectors);
+	for (v_idx = 0; v_idx < vsi->num_q_vectors; v_idx++)
+		i40e_free_q_vector(vsi, v_idx);
 }
 
 /**
@@ -3245,7 +3261,7 @@ static void i40e_napi_enable_all(struct i40e_vsi *vsi)
 		return;
 
 	for (q_idx = 0; q_idx < vsi->num_q_vectors; q_idx++)
-		napi_enable(&vsi->q_vectors[q_idx].napi);
+		napi_enable(&vsi->q_vectors[q_idx]->napi);
 }
 
 /**
@@ -3260,7 +3276,7 @@ static void i40e_napi_disable_all(struct i40e_vsi *vsi)
 		return;
 
 	for (q_idx = 0; q_idx < vsi->num_q_vectors; q_idx++)
-		napi_disable(&vsi->q_vectors[q_idx].napi);
+		napi_disable(&vsi->q_vectors[q_idx]->napi);
 }
 
 /**
@@ -4945,6 +4961,7 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 {
 	int ret = -ENODEV;
 	struct i40e_vsi *vsi;
+	int sz_vectors;
 	int vsi_idx;
 	int i;
 
@@ -4970,14 +4987,14 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 		vsi_idx = i;             /* Found one! */
 	} else {
 		ret = -ENODEV;
-		goto err_alloc_vsi;  /* out of VSI slots! */
+		goto unlock_pf;  /* out of VSI slots! */
 	}
 	pf->next_vsi = ++i;
 
 	vsi = kzalloc(sizeof(*vsi), GFP_KERNEL);
 	if (!vsi) {
 		ret = -ENOMEM;
-		goto err_alloc_vsi;
+		goto unlock_pf;
 	}
 	vsi->type = type;
 	vsi->back = pf;
@@ -4992,12 +5009,25 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 
 	i40e_set_num_rings_in_vsi(vsi);
 
+	/* allocate memory for q_vector pointers */
+	sz_vectors = sizeof(struct i40e_q_vectors *) * vsi->num_q_vectors;
+	vsi->q_vectors = kzalloc(sz_vectors, GFP_KERNEL);
+	if (!vsi->q_vectors) {
+		ret = -ENOMEM;
+		goto err_vectors;
+	}
+
 	/* Setup default MSIX irq handler for VSI */
 	i40e_vsi_setup_irqhandler(vsi, i40e_msix_clean_rings);
 
 	pf->vsi[vsi_idx] = vsi;
 	ret = vsi_idx;
-err_alloc_vsi:
+	goto unlock_pf;
+
+err_vectors:
+	pf->next_vsi = i - 1;
+	kfree(vsi);
+unlock_pf:
 	mutex_unlock(&pf->switch_mutex);
 	return ret;
 }
@@ -5037,6 +5067,9 @@ static int i40e_vsi_clear(struct i40e_vsi *vsi)
 	/* updates the pf for this cleared vsi */
 	i40e_put_lump(pf->qp_pile, vsi->base_queue, vsi->idx);
 	i40e_put_lump(pf->irq_pile, vsi->base_vector, vsi->idx);
+
+	/* free the ring and vector containers */
+	kfree(vsi->q_vectors);
 
 	pf->vsi[vsi->idx] = NULL;
 	if (vsi->idx < pf->next_vsi)
@@ -5257,6 +5290,35 @@ static int i40e_init_msix(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_alloc_q_vector - Allocate memory for a single interrupt vector
+ * @vsi: the VSI being configured
+ * @v_idx: index of the vector in the vsi struct
+ *
+ * We allocate one q_vector.  If allocation fails we return -ENOMEM.
+ **/
+static int i40e_alloc_q_vector(struct i40e_vsi *vsi, int v_idx)
+{
+	struct i40e_q_vector *q_vector;
+
+	/* allocate q_vector */
+	q_vector = kzalloc(sizeof(struct i40e_q_vector), GFP_KERNEL);
+	if (!q_vector)
+		return -ENOMEM;
+
+	q_vector->vsi = vsi;
+	q_vector->v_idx = v_idx;
+	cpumask_set_cpu(v_idx, &q_vector->affinity_mask);
+	if (vsi->netdev)
+		netif_napi_add(vsi->netdev, &q_vector->napi,
+			       i40e_napi_poll, vsi->work_limit);
+
+	/* tie q_vector and vsi together */
+	vsi->q_vectors[v_idx] = q_vector;
+
+	return 0;
+}
+
+/**
  * i40e_alloc_q_vectors - Allocate memory for interrupt vectors
  * @vsi: the VSI being configured
  *
@@ -5267,6 +5329,7 @@ static int i40e_alloc_q_vectors(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
 	int v_idx, num_q_vectors;
+	int err;
 
 	/* if not MSIX, give the one vector only to the LAN VSI */
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
@@ -5276,22 +5339,19 @@ static int i40e_alloc_q_vectors(struct i40e_vsi *vsi)
 	else
 		return -EINVAL;
 
-	vsi->q_vectors = kcalloc(num_q_vectors,
-				 sizeof(struct i40e_q_vector),
-				 GFP_KERNEL);
-	if (!vsi->q_vectors)
-		return -ENOMEM;
-
 	for (v_idx = 0; v_idx < num_q_vectors; v_idx++) {
-		vsi->q_vectors[v_idx].vsi = vsi;
-		vsi->q_vectors[v_idx].v_idx = v_idx;
-		cpumask_set_cpu(v_idx, &vsi->q_vectors[v_idx].affinity_mask);
-		if (vsi->netdev)
-			netif_napi_add(vsi->netdev, &vsi->q_vectors[v_idx].napi,
-				       i40e_napi_poll, vsi->work_limit);
+		err = i40e_alloc_q_vector(vsi, v_idx);
+		if (err)
+			goto err_out;
 	}
 
 	return 0;
+
+err_out:
+	while (v_idx--)
+		i40e_free_q_vector(vsi, v_idx);
+
+	return err;
 }
 
 /**
@@ -5958,7 +6018,7 @@ static int i40e_vsi_setup_vectors(struct i40e_vsi *vsi)
 	int ret = -ENOENT;
 	struct i40e_pf *pf = vsi->back;
 
-	if (vsi->q_vectors) {
+	if (vsi->q_vectors[0]) {
 		dev_info(&pf->pdev->dev, "VSI %d has existing q_vectors\n",
 			 vsi->seid);
 		return -EEXIST;

@@ -586,15 +586,6 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 	dev_info(&pf->pdev->dev,
 		 "    max_frame = %d, rx_hdr_len = %d, rx_buf_len = %d dtype = %d\n",
 		 vsi->max_frame, vsi->rx_hdr_len, vsi->rx_buf_len, vsi->dtype);
-	if (vsi->q_vectors) {
-		for (i = 0; i < vsi->num_q_vectors; i++) {
-			dev_info(&pf->pdev->dev,
-				 "    q_vectors[%i]: base index = %ld\n",
-				 i, ((long int)*vsi->q_vectors[i].rx.ring-
-					(long int)*vsi->q_vectors[0].rx.ring)/
-					sizeof(struct i40e_ring));
-		}
-	}
 	dev_info(&pf->pdev->dev,
 		 "    num_q_vectors = %i, base_vector = %i\n",
 		 vsi->num_q_vectors, vsi->base_vector);
@@ -1995,7 +1986,7 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 			goto netdev_ops_write_done;
 		}
 		for (i = 0; i < vsi->num_q_vectors; i++)
-			napi_schedule(&vsi->q_vectors[i].napi);
+			napi_schedule(&vsi->q_vectors[i]->napi);
 		dev_info(&pf->pdev->dev, "napi called\n");
 	} else {
 		dev_info(&pf->pdev->dev, "unknown command '%s'\n",

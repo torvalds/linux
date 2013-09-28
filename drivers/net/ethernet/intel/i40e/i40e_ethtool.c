@@ -906,8 +906,8 @@ static int i40e_set_coalesce(struct net_device *netdev,
 	}
 
 	vector = vsi->base_vector;
-	q_vector = vsi->q_vectors;
-	for (i = 0; i < vsi->num_q_vectors; i++, vector++, q_vector++) {
+	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
+		q_vector = vsi->q_vectors[i];
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 		wr32(hw, I40E_PFINT_ITRN(0, vector - 1), q_vector->rx.itr);
 		q_vector->tx.itr = ITR_TO_REG(vsi->tx_itr_setting);

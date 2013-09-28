@@ -366,7 +366,7 @@ struct i40e_vsi {
 	u8  dtype;
 
 	/* List of q_vectors allocated to this VSI */
-	struct i40e_q_vector *q_vectors;
+	struct i40e_q_vector **q_vectors;
 	int num_q_vectors;
 	int base_vector;
 
@@ -422,8 +422,9 @@ struct i40e_q_vector {
 
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 
-	char name[IFNAMSIZ + 9];
 	cpumask_t affinity_mask;
+	struct rcu_head rcu;	/* to avoid race with update stats on free */
+	char name[IFNAMSIZ + 9];
 } ____cacheline_internodealigned_in_smp;
 
 /* lan device */
