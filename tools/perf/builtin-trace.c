@@ -1501,6 +1501,33 @@ static int parse_target_str(struct trace *trace)
 	return 0;
 }
 
+static int trace__record(int argc, const char **argv)
+{
+	unsigned int rec_argc, i, j;
+	const char **rec_argv;
+	const char * const record_args[] = {
+		"record",
+		"-R",
+		"-m", "1024",
+		"-c", "1",
+		"-e", "raw_syscalls:sys_enter,raw_syscalls:sys_exit",
+	};
+
+	rec_argc = ARRAY_SIZE(record_args) + argc;
+	rec_argv = calloc(rec_argc + 1, sizeof(char *));
+
+	if (rec_argv == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(record_args); i++)
+		rec_argv[i] = record_args[i];
+
+	for (j = 0; j < (unsigned int)argc; j++, i++)
+		rec_argv[i] = argv[j];
+
+	return cmd_record(i, rec_argv, NULL);
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = perf_evlist__new();
@@ -1788,6 +1815,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	const char * const trace_usage[] = {
 		"perf trace [<options>] [<command>]",
 		"perf trace [<options>] -- <command> [<options>]",
+		"perf trace record [<options>] [<command>]",
+		"perf trace record [<options>] -- <command> [<options>]",
 		NULL
 	};
 	struct trace trace = {
@@ -1843,6 +1872,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	};
 	int err;
 	char bf[BUFSIZ];
+
+	if ((argc > 1) && (strcmp(argv[1], "record") == 0))
+		return trace__record(argc-2, &argv[2]);
 
 	argc = parse_options(argc, argv, trace_options, trace_usage, 0);
 
