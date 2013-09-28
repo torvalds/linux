@@ -105,7 +105,8 @@
  * So have atleast 8 of them by default
  */
 
-#define HWI_GET_ASYNC_PDU_CTX(phwi)	(phwi->phwi_ctxt->pasync_ctx)
+#define HWI_GET_ASYNC_PDU_CTX(phwi, ulp_num)	\
+	(phwi->phwi_ctxt->pasync_ctx[ulp_num])
 
 /********* Memory BAR register ************/
 #define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET	0xfc
@@ -150,16 +151,19 @@
 #define DB_CQ_REARM_SHIFT		(29)	/* bit 29 */
 
 #define GET_HWI_CONTROLLER_WS(pc)	(pc->phwi_ctrlr)
-#define HWI_GET_DEF_BUFQ_ID(pc) (((struct hwi_controller *)\
-		(GET_HWI_CONTROLLER_WS(pc)))->default_pdu_data.id)
-#define HWI_GET_DEF_HDRQ_ID(pc) (((struct hwi_controller *)\
-		(GET_HWI_CONTROLLER_WS(pc)))->default_pdu_hdr.id)
+#define HWI_GET_DEF_BUFQ_ID(pc, ulp_num) (((struct hwi_controller *)\
+		(GET_HWI_CONTROLLER_WS(pc)))->default_pdu_data[ulp_num].id)
+#define HWI_GET_DEF_HDRQ_ID(pc, ulp_num) (((struct hwi_controller *)\
+		(GET_HWI_CONTROLLER_WS(pc)))->default_pdu_hdr[ulp_num].id)
 
 #define PAGES_REQUIRED(x) \
 	((x < PAGE_SIZE) ? 1 :  ((x + PAGE_SIZE - 1) / PAGE_SIZE))
 
 #define BEISCSI_MSI_NAME 20 /* size of msi_name string */
 
+#define MEM_DESCR_OFFSET 7
+#define BEISCSI_DEFQ_HDR 1
+#define BEISCSI_DEFQ_DATA 0
 enum be_mem_enum {
 	HWI_MEM_ADDN_CONTEXT,
 	HWI_MEM_WRB,
@@ -167,13 +171,20 @@ enum be_mem_enum {
 	HWI_MEM_SGLH,
 	HWI_MEM_SGE,
 	HWI_MEM_TEMPLATE_HDR,
-	HWI_MEM_ASYNC_HEADER_BUF,	/* 5 */
-	HWI_MEM_ASYNC_DATA_BUF,
-	HWI_MEM_ASYNC_HEADER_RING,
-	HWI_MEM_ASYNC_DATA_RING,
-	HWI_MEM_ASYNC_HEADER_HANDLE,
-	HWI_MEM_ASYNC_DATA_HANDLE,	/* 10 */
-	HWI_MEM_ASYNC_PDU_CONTEXT,
+	HWI_MEM_ASYNC_HEADER_BUF_ULP0,
+	HWI_MEM_ASYNC_DATA_BUF_ULP0,
+	HWI_MEM_ASYNC_HEADER_RING_ULP0,
+	HWI_MEM_ASYNC_DATA_RING_ULP0,
+	HWI_MEM_ASYNC_HEADER_HANDLE_ULP0,
+	HWI_MEM_ASYNC_DATA_HANDLE_ULP0,
+	HWI_MEM_ASYNC_PDU_CONTEXT_ULP0,
+	HWI_MEM_ASYNC_HEADER_BUF_ULP1,
+	HWI_MEM_ASYNC_DATA_BUF_ULP1,
+	HWI_MEM_ASYNC_HEADER_RING_ULP1,
+	HWI_MEM_ASYNC_DATA_RING_ULP1,
+	HWI_MEM_ASYNC_HEADER_HANDLE_ULP1,
+	HWI_MEM_ASYNC_DATA_HANDLE_ULP1,
+	HWI_MEM_ASYNC_PDU_CONTEXT_ULP1,
 	ISCSI_MEM_GLOBAL_HEADER,
 	SE_MEM_MAX
 };
@@ -337,7 +348,7 @@ struct beiscsi_hba {
 		unsigned int phys_port;
 		unsigned int iscsi_cid_start[BEISCSI_ULP_COUNT];
 #define BEISCSI_GET_CID_COUNT(phba, ulp_num) \
-			      (phba->fw_config.iscsi_cid_count[ulp_num])
+		(phba->fw_config.iscsi_cid_count[ulp_num])
 		unsigned int iscsi_cid_count[BEISCSI_ULP_COUNT];
 		unsigned int iscsi_icd_count[BEISCSI_ULP_COUNT];
 		unsigned int iscsi_icd_start[BEISCSI_ULP_COUNT];
@@ -577,7 +588,8 @@ struct hwi_async_pdu_context {
 
 	unsigned int buffer_size;
 	unsigned int num_entries;
-
+#define BE_GET_ASYNC_CRI_FROM_CID(cid) (pasync_ctx->cid_to_async_cri_map[cid])
+	unsigned short cid_to_async_cri_map[BE_MAX_SESSION];
 	/**
 	 * This is a varying size list! Do not add anything
 	 * after this entry!!
@@ -931,6 +943,10 @@ struct be_ring {
 	u32 cidx;		/* consumer index */
 	u32 pidx;		/* producer index -- not used by most rings */
 	u32 item_size;		/* size in bytes of one object */
+	u8 ulp_num;	/* ULP to which CID binded */
+	u16 register_set;
+	u16 doorbell_format;
+	u32 doorbell_offset;
 
 	void *va;		/* The virtual address of the ring.  This
 				 * should be last to allow 32 & 64 bit debugger
@@ -938,6 +954,8 @@ struct be_ring {
 				 */
 };
 
+#define BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cri) \
+	(phwi_ctrlr->wrb_context[cri].ulp_num)
 struct hwi_wrb_context {
 	struct list_head wrb_handle_list;
 	struct list_head wrb_handle_drvr_list;
@@ -948,6 +966,7 @@ struct hwi_wrb_context {
 	unsigned short free_index;
 	unsigned short wrb_handles_available;
 	unsigned short cid;
+	uint8_t ulp_num;	/* ULP to which CID binded */
 };
 
 struct hwi_controller {
@@ -958,8 +977,8 @@ struct hwi_controller {
 
 	struct hwi_wrb_context *wrb_context;
 	struct mcc_wrb *pmcc_wrb_base;
-	struct be_ring default_pdu_hdr;
-	struct be_ring default_pdu_data;
+	struct be_ring default_pdu_hdr[BEISCSI_ULP_COUNT];
+	struct be_ring default_pdu_data[BEISCSI_ULP_COUNT];
 	struct hwi_context_memory *phwi_ctxt;
 };
 
@@ -990,11 +1009,10 @@ struct hwi_context_memory {
 	struct be_eq_obj be_eq[MAX_CPUS];
 	struct be_queue_info be_cq[MAX_CPUS - 1];
 
-	struct be_queue_info be_def_hdrq;
-	struct be_queue_info be_def_dataq;
-
 	struct be_queue_info *be_wrbq;
-	struct hwi_async_pdu_context *pasync_ctx;
+	struct be_queue_info be_def_hdrq[BEISCSI_ULP_COUNT];
+	struct be_queue_info be_def_dataq[BEISCSI_ULP_COUNT];
+	struct hwi_async_pdu_context *pasync_ctx[BEISCSI_ULP_COUNT];
 };
 
 /* Logging related definitions */

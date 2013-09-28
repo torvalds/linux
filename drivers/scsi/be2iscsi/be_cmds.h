@@ -729,7 +729,8 @@ int be_mbox_notify(struct be_ctrl_info *ctrl);
 int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 				    struct be_queue_info *cq,
 				    struct be_queue_info *dq, int length,
-				    int entry_size);
+				    int entry_size, uint8_t is_header,
+				    uint8_t ulp_num);
 
 int be_cmd_iscsi_post_template_hdr(struct be_ctrl_info *ctrl,
 				    struct be_dma_mem *q_mem);
@@ -788,7 +789,9 @@ struct be_defq_create_req {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
 	u8 ulp_num;
-	u8 rsvd0;
+#define BEISCSI_DUAL_ULP_AWARE_BIT	0	/* Byte 3 - Bit 0 */
+#define BEISCSI_BIND_Q_TO_ULP_BIT	1	/* Byte 3 - Bit 1 */
+	u8 dua_feature;
 	struct be_default_pdu_context context;
 	struct phys_addr pages[8];
 } __packed;
@@ -796,7 +799,11 @@ struct be_defq_create_req {
 struct be_defq_create_resp {
 	struct be_cmd_req_hdr hdr;
 	u16 id;
-	u16 rsvd0;
+	u8 rsvd0;
+	u8 ulp_num;
+	u32 doorbell_offset;
+	u16 register_set;
+	u16 doorbell_format;
 } __packed;
 
 struct be_post_template_pages_req {

@@ -315,7 +315,7 @@ int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 			if (pfw_cfg->ulp[ulp_num].ulp_mode &
 			    BEISCSI_ULP_ISCSI_INI_MODE)
 				set_bit(ulp_num,
-					&phba->fw_config.ulp_supported);
+				&phba->fw_config.ulp_supported);
 
 		phba->fw_config.phys_port = pfw_cfg->phys_port;
 		for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
@@ -506,8 +506,8 @@ int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute)
 			   OPCODE_COMMON_ISCSI_CLEANUP, sizeof(*req));
 
 	req->chute = chute;
-	req->hdr_ring_id = cpu_to_le16(HWI_GET_DEF_HDRQ_ID(phba));
-	req->data_ring_id = cpu_to_le16(HWI_GET_DEF_BUFQ_ID(phba));
+	req->hdr_ring_id = cpu_to_le16(HWI_GET_DEF_HDRQ_ID(phba, 0));
+	req->data_ring_id = cpu_to_le16(HWI_GET_DEF_BUFQ_ID(phba, 0));
 
 	status =  be_mcc_notify_wait(phba);
 	if (status)
@@ -651,8 +651,8 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
-	def_hdr_id = (unsigned short)HWI_GET_DEF_HDRQ_ID(phba);
-	def_data_id = (unsigned short)HWI_GET_DEF_BUFQ_ID(phba);
+	def_hdr_id = (unsigned short)HWI_GET_DEF_HDRQ_ID(phba, 0);
+	def_data_id = (unsigned short)HWI_GET_DEF_BUFQ_ID(phba, 0);
 
 	ptemplate_address = &template_address;
 	ISCSI_GET_PDU_TEMPLATE_ADDRESS(phba, ptemplate_address);

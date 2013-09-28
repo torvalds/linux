@@ -1027,10 +1027,29 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 	return status;
 }
 
+/**
+ * be_cmd_create_default_pdu_queue()- Create DEFQ for the adapter
+ * @ctrl: ptr to ctrl_info
+ * @cq: Completion Queue
+ * @dq: Default Queue
+ * @lenght: ring size
+ * @entry_size: size of each entry in DEFQ
+ * @is_header: Header or Data DEFQ
+ * @ulp_num: Bind to which ULP
+ *
+ * Create HDR/Data DEFQ for the passed ULP. Unsol PDU are posted
+ * on this queue by the FW
+ *
+ * return
+ *	Success: 0
+ *	Failure: Non-Zero Value
+ *
+ **/
 int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 				    struct be_queue_info *cq,
 				    struct be_queue_info *dq, int length,
-				    int entry_size)
+				    int entry_size, uint8_t is_header,
+				    uint8_t ulp_num)
 {
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct be_defq_create_req *req = embedded_payload(wrb);
@@ -1048,6 +1067,11 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 			   OPCODE_COMMON_ISCSI_DEFQ_CREATE, sizeof(*req));
 
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
+	if (phba->fw_config.dual_ulp_aware) {
+		req->ulp_num = ulp_num;
+		req->dua_feature |= (1 << BEISCSI_DUAL_ULP_AWARE_BIT);
+		req->dua_feature |= (1 << BEISCSI_BIND_Q_TO_ULP_BIT);
+	}
 
 	if (is_chip_be2_be3r(phba)) {
 		AMAP_SET_BITS(struct amap_be_default_pdu_context,
@@ -1085,10 +1109,26 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 
 	status = be_mbox_notify(ctrl);
 	if (!status) {
+		struct be_ring *defq_ring;
 		struct be_defq_create_resp *resp = embedded_payload(wrb);
 
 		dq->id = le16_to_cpu(resp->id);
 		dq->created = true;
+		if (is_header)
+			defq_ring = &phba->phwi_ctrlr->default_pdu_hdr[ulp_num];
+		else
+			defq_ring = &phba->phwi_ctrlr->
+				    default_pdu_data[ulp_num];
+
+		defq_ring->id = dq->id;
+
+		if (!phba->fw_config.dual_ulp_aware) {
+			defq_ring->ulp_num = BEISCSI_ULP0;
+			defq_ring->doorbell_offset = DB_RXULP0_OFFSET;
+		} else {
+			defq_ring->ulp_num = resp->ulp_num;
+			defq_ring->doorbell_offset = resp->doorbell_offset;
+		}
 	}
 	spin_unlock(&ctrl->mbox_lock);
 
