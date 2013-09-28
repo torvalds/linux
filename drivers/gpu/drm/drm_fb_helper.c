@@ -852,7 +852,6 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_mode_set *modeset;
-	struct drm_crtc *crtc;
 	int ret = 0;
 	int i;
 
@@ -863,8 +862,6 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 	}
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
-		crtc = fb_helper->crtc_info[i].mode_set.crtc;
-
 		modeset = &fb_helper->crtc_info[i].mode_set;
 
 		modeset->x = var->xoffset;
