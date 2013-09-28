@@ -3088,7 +3088,8 @@ CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
 	bool is_unicode;
 	unsigned int sub_len;
 	char *sub_start;
-	struct reparse_data *reparse_buf;
+	struct reparse_symlink_data *reparse_buf;
+	struct reparse_posix_data *posix_buf;
 	__u32 data_offset, data_count;
 	char *end_of_smb;
 
@@ -3137,20 +3138,47 @@ CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
 		goto qreparse_out;
 	}
 	end_of_smb = 2 + get_bcc(&pSMBr->hdr) + (char *)&pSMBr->ByteCount;
-	reparse_buf = (struct reparse_data *)
+	reparse_buf = (struct reparse_symlink_data *)
 				((char *)&pSMBr->hdr.Protocol + data_offset);
 	if ((char *)reparse_buf >= end_of_smb) {
 		rc = -EIO;
 		goto qreparse_out;
 	}
-	if ((reparse_buf->PathBuffer + reparse_buf->PrintNameOffset +
-				reparse_buf->PrintNameLength) > end_of_smb) {
+	if (reparse_buf->ReparseTag == cpu_to_le32(IO_REPARSE_TAG_NFS)) {
+		cifs_dbg(FYI, "NFS style reparse tag\n");
+		posix_buf =  (struct reparse_posix_data *)reparse_buf;
+
+		if (posix_buf->InodeType != cpu_to_le64(NFS_SPECFILE_LNK)) {
+			cifs_dbg(FYI, "unsupported file type 0x%llx\n",
+				 le64_to_cpu(posix_buf->InodeType));
+			rc = -EOPNOTSUPP;
+			goto qreparse_out;
+		}
+		is_unicode = true;
+		sub_len = le16_to_cpu(reparse_buf->ReparseDataLength);
+		if (posix_buf->PathBuffer + sub_len > end_of_smb) {
+			cifs_dbg(FYI, "reparse buf beyond SMB\n");
+			rc = -EIO;
+			goto qreparse_out;
+		}
+		*symlinkinfo = cifs_strndup_from_utf16(posix_buf->PathBuffer,
+				sub_len, is_unicode, nls_codepage);
+		goto qreparse_out;
+	} else if (reparse_buf->ReparseTag !=
+			cpu_to_le32(IO_REPARSE_TAG_SYMLINK)) {
+		rc = -EOPNOTSUPP;
+		goto qreparse_out;
+	}
+
+	/* Reparse tag is NTFS symlink */
+	sub_start = le16_to_cpu(reparse_buf->SubstituteNameOffset) +
+				reparse_buf->PathBuffer;
+	sub_len = le16_to_cpu(reparse_buf->SubstituteNameLength);
+	if (sub_start + sub_len > end_of_smb) {
 		cifs_dbg(FYI, "reparse buf beyond SMB\n");
 		rc = -EIO;
 		goto qreparse_out;
 	}
-	sub_start = reparse_buf->SubstituteNameOffset + reparse_buf->PathBuffer;
-	sub_len = reparse_buf->SubstituteNameLength;
 	if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
 		is_unicode = true;
 	else
