@@ -3450,6 +3450,10 @@ beiscsi_post_pages(struct beiscsi_hba *phba)
 	mem_descr += HWI_MEM_SGE;
 	pm_arr = mem_descr->mem_array;
 
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
+		if (test_bit(ulp_num, &phba->fw_config.ulp_supported))
+			break;
+
 	page_offset = (sizeof(struct iscsi_sge) * phba->params.num_sge_per_io *
 			phba->fw_config.iscsi_icd_start[ulp_num]) / PAGE_SIZE;
 	for (i = 0; i < mem_descr->num_elements; i++) {
@@ -3946,7 +3950,8 @@ static int beiscsi_init_sgl_handle(struct beiscsi_hba *phba)
 	struct be_mem_descriptor *mem_descr_sglh, *mem_descr_sg;
 	struct sgl_handle *psgl_handle;
 	struct iscsi_sge *pfrag;
-	unsigned int arr_index, i, idx, ulp_num = 0;
+	unsigned int arr_index, i, idx;
+	unsigned int ulp_icd_start, ulp_num = 0;
 
 	phba->io_sgl_hndl_avbl = 0;
 	phba->eh_sgl_hndl_avbl = 0;
@@ -4013,6 +4018,12 @@ static int beiscsi_init_sgl_handle(struct beiscsi_hba *phba)
 		    "\n BM_%d : mem_descr_sg->num_elements=%d\n",
 		    mem_descr_sg->num_elements);
 
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
+		if (test_bit(ulp_num, &phba->fw_config.ulp_supported))
+			break;
+
+	ulp_icd_start = phba->fw_config.iscsi_icd_start[ulp_num];
+
 	arr_index = 0;
 	idx = 0;
 	while (idx < mem_descr_sg->num_elements) {
@@ -4031,9 +4042,7 @@ static int beiscsi_init_sgl_handle(struct beiscsi_hba *phba)
 			AMAP_SET_BITS(struct amap_iscsi_sge, addr_hi, pfrag, 0);
 			AMAP_SET_BITS(struct amap_iscsi_sge, addr_lo, pfrag, 0);
 			pfrag += phba->params.num_sge_per_io;
-			psgl_handle->sgl_index =
-				phba->fw_config.iscsi_icd_start[ulp_num] +
-				arr_index++;
+			psgl_handle->sgl_index = ulp_icd_start + arr_index++;
 		}
 		idx++;
 	}
