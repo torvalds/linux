@@ -872,28 +872,6 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	return ERR_PTR(err);
 }
 
-static inline void mntfree(struct mount *mnt)
-{
-	struct vfsmount *m = &mnt->mnt;
-	struct super_block *sb = m->mnt_sb;
-
-	/*
-	 * This probably indicates that somebody messed
-	 * up a mnt_want/drop_write() pair.  If this
-	 * happens, the filesystem was probably unable
-	 * to make r/w->r/o transitions.
-	 */
-	/*
-	 * The locking used to deal with mnt_count decrement provides barriers,
-	 * so mnt_get_writers() below is safe.
-	 */
-	WARN_ON(mnt_get_writers(mnt));
-	fsnotify_vfsmount_delete(m);
-	dput(m->mnt_root);
-	free_vfsmnt(mnt);
-	deactivate_super(sb);
-}
-
 static void mntput_no_expire(struct mount *mnt)
 {
 put_again:
@@ -929,7 +907,22 @@ put_again:
 
 	list_del(&mnt->mnt_instance);
 	br_write_unlock(&vfsmount_lock);
-	mntfree(mnt);
+
+	/*
+	 * This probably indicates that somebody messed
+	 * up a mnt_want/drop_write() pair.  If this
+	 * happens, the filesystem was probably unable
+	 * to make r/w->r/o transitions.
+	 */
+	/*
+	 * The locking used to deal with mnt_count decrement provides barriers,
+	 * so mnt_get_writers() below is safe.
+	 */
+	WARN_ON(mnt_get_writers(mnt));
+	fsnotify_vfsmount_delete(&mnt->mnt);
+	dput(mnt->mnt.mnt_root);
+	deactivate_super(mnt->mnt.mnt_sb);
+	free_vfsmnt(mnt);
 }
 
 void mntput(struct vfsmount *mnt)
