@@ -1142,7 +1142,8 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 			qval = rd32(hw, I40E_QINT_TQCTL(0));
 			qval |= I40E_QINT_TQCTL_CAUSE_ENA_MASK;
 			wr32(hw, I40E_QINT_TQCTL(0), qval);
-			i40e_flush(hw);
+
+			i40e_irq_dynamic_enable_icr0(vsi->back);
 		}
 	}
 

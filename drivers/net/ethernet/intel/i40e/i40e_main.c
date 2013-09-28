@@ -2532,7 +2532,7 @@ static void i40e_configure_msi_and_legacy(struct i40e_vsi *vsi)
  * i40e_irq_dynamic_enable_icr0 - Enable default interrupt generation for icr0
  * @pf: board private structure
  **/
-static void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf)
+void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	u32 val;
@@ -2742,13 +2742,13 @@ static irqreturn_t i40e_intr(int irq, void *data)
 
 	icr0 = rd32(hw, I40E_PFINT_ICR0);
 
-	/* if sharing a legacy IRQ, we might get called w/o an intr pending */
-	if ((icr0 & I40E_PFINT_ICR0_INTEVENT_MASK) == 0)
-		return IRQ_NONE;
-
 	val = rd32(hw, I40E_PFINT_DYN_CTL0);
 	val = val | I40E_PFINT_DYN_CTL0_CLEARPBA_MASK;
 	wr32(hw, I40E_PFINT_DYN_CTL0, val);
+
+	/* if sharing a legacy IRQ, we might get called w/o an intr pending */
+	if ((icr0 & I40E_PFINT_ICR0_INTEVENT_MASK) == 0)
+		return IRQ_NONE;
 
 	ena_mask = rd32(hw, I40E_PFINT_ICR0_ENA);
 
@@ -2763,7 +2763,6 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		qval = rd32(hw, I40E_QINT_TQCTL(0));
 		qval &= ~I40E_QINT_TQCTL_CAUSE_ENA_MASK;
 		wr32(hw, I40E_QINT_TQCTL(0), qval);
-		i40e_flush(hw);
 
 		if (!test_bit(__I40E_DOWN, &pf->state))
 			napi_schedule(&pf->vsi[pf->lan_vsi]->q_vectors[0]->napi);
@@ -2825,7 +2824,6 @@ static irqreturn_t i40e_intr(int irq, void *data)
 
 	/* re-enable interrupt causes */
 	wr32(hw, I40E_PFINT_ICR0_ENA, ena_mask);
-	i40e_flush(hw);
 	if (!test_bit(__I40E_DOWN, &pf->state)) {
 		i40e_service_event_schedule(pf);
 		i40e_irq_dynamic_enable_icr0(pf);
