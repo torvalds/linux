@@ -861,7 +861,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		return finish_no_open(file, res);
 
 	err = 0;
-	fid = NULL;
+
 	v9ses = v9fs_inode2v9ses(dir);
 	perm = unixmode2p9mode(v9ses, mode);
 	fid = v9fs_create(v9ses, dir, dentry, NULL, perm,
