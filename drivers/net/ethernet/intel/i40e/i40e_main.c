@@ -4615,7 +4615,8 @@ static void i40e_fdir_setup(struct i40e_pf *pf)
 	bool new_vsi = false;
 	int err, i;
 
-	if (!(pf->flags & (I40E_FLAG_FDIR_ENABLED|I40E_FLAG_FDIR_ATR_ENABLED)))
+	if (!(pf->flags & (I40E_FLAG_FDIR_ENABLED |
+			   I40E_FLAG_FDIR_ATR_ENABLED)))
 		return;
 
 	pf->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
@@ -5435,7 +5436,8 @@ static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
 		err = i40e_init_msix(pf);
 		if (err) {
-			pf->flags &= ~(I40E_FLAG_RSS_ENABLED	   |
+			pf->flags &= ~(I40E_FLAG_MSIX_ENABLED	   |
+					I40E_FLAG_RSS_ENABLED	   |
 					I40E_FLAG_MQ_ENABLED	   |
 					I40E_FLAG_DCB_ENABLED	   |
 					I40E_FLAG_SRIOV_ENABLED	   |
@@ -5450,13 +5452,16 @@ static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
 
 	if (!(pf->flags & I40E_FLAG_MSIX_ENABLED) &&
 	    (pf->flags & I40E_FLAG_MSI_ENABLED)) {
+		dev_info(&pf->pdev->dev, "MSIX not available, trying MSI\n");
 		err = pci_enable_msi(pf->pdev);
 		if (err) {
-			dev_info(&pf->pdev->dev,
-				 "MSI init failed (%d), trying legacy.\n", err);
+			dev_info(&pf->pdev->dev, "MSI init failed - %d\n", err);
 			pf->flags &= ~I40E_FLAG_MSI_ENABLED;
 		}
 	}
+
+	if (!(pf->flags & (I40E_FLAG_MSIX_ENABLED | I40E_FLAG_MSI_ENABLED)))
+		dev_info(&pf->pdev->dev, "MSIX and MSI not available, falling back to Legacy IRQ\n");
 
 	/* track first vector for misc interrupts */
 	err = i40e_get_lump(pf, pf->irq_pile, 1, I40E_PILE_VALID_BIT-1);
@@ -6110,8 +6115,9 @@ static int i40e_vsi_setup_vectors(struct i40e_vsi *vsi)
 		goto vector_setup_out;
 	}
 
-	vsi->base_vector = i40e_get_lump(pf, pf->irq_pile,
-					 vsi->num_q_vectors, vsi->idx);
+	if (vsi->num_q_vectors)
+		vsi->base_vector = i40e_get_lump(pf, pf->irq_pile,
+						 vsi->num_q_vectors, vsi->idx);
 	if (vsi->base_vector < 0) {
 		dev_info(&pf->pdev->dev,
 			 "failed to get q tracking for VSI %d, err=%d\n",
