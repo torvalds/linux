@@ -61,6 +61,7 @@ then
 fi
 cp $config_template $resdir/ConfigFragment
 echo ' ---' `date`: Starting build
+echo ' ---' Kconfig fragment at: $config_template
 cat << '___EOF___' >> $T
 CONFIG_RCU_TORTURE_TEST=y
 ___EOF___

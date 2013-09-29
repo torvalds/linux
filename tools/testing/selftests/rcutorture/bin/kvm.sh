@@ -51,6 +51,7 @@ configs=" sysidleY.2013.06.19a \
 	  NT1-nh \
 	  NT3-NH"
 ds=`date +%Y.%m.%d-%H:%M:%S`
+kversion=""
 
 usage () {
 	echo "Usage: $scriptname optional arguments:"
@@ -58,6 +59,7 @@ usage () {
 	echo "       --configs \"config-file list\""
 	echo "       --datestamp string"
 	echo "       --duration minutes"
+	echo "       --kversion vN.NN"
 	echo "       --rcu-kvm absolute-pathname"
 	echo "       --results absolute-pathname"
 	echo "       --relbuilddir relative-pathname"
@@ -108,6 +110,11 @@ do
 	--duration)
 		checkarg --duration "(minutes)" $# "$2" '^[0-9]*$' error
 		dur=$2
+		shift
+		;;
+	--kversion)
+		checkarg --kversion "(kernel version)" $# "$2" '^v[0-9.]*$' error
+		kversion=$2
 		shift
 		;;
 	--rcu-kvm)
@@ -174,6 +181,6 @@ do
 	rd=$resdir/$ds/$CF
 	mkdir $rd || :
 	echo Results directory: $rd
-	kvm-test-1-rcu.sh $CONFIGFRAG/$CF $builddir $rd $dur "-nographic" "rcutorture.test_no_idle_hz=1 rcutorture.n_barrier_cbs=4 rcutorture.verbose=1"
+	kvm-test-1-rcu.sh $CONFIGFRAG/$kversion/$CF $builddir $rd $dur "-nographic" "rcutorture.test_no_idle_hz=1 rcutorture.n_barrier_cbs=4 rcutorture.verbose=1"
 done
 # Tracing: trace_event=rcu:rcu_nocb_grace_period,rcu:rcu_grace_period,rcu:rcu_grace_period_init,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_torture_read,rcu:rcu_invoke_callback,rcu:rcu_fqs,rcu:rcu_dyntick,rcu:rcu_unlock_preempted_task
