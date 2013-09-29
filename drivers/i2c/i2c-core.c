@@ -248,17 +248,16 @@ static int i2c_device_probe(struct device *dev)
 	driver = to_i2c_driver(dev->driver);
 	if (!driver->probe || !driver->id_table)
 		return -ENODEV;
-	client->driver = driver;
+
 	if (!device_can_wakeup(&client->dev))
 		device_init_wakeup(&client->dev,
 					client->flags & I2C_CLIENT_WAKE);
 	dev_dbg(dev, "probe\n");
 
 	status = driver->probe(client, i2c_match_id(driver->id_table, client));
-	if (status) {
-		client->driver = NULL;
+	if (status)
 		i2c_set_clientdata(client, NULL);
-	}
+
 	return status;
 }
 
@@ -279,10 +278,9 @@ static int i2c_device_remove(struct device *dev)
 		dev->driver = NULL;
 		status = 0;
 	}
-	if (status == 0) {
-		client->driver = NULL;
+	if (status == 0)
 		i2c_set_clientdata(client, NULL);
-	}
+
 	return status;
 }
 
@@ -1606,9 +1604,14 @@ static int i2c_cmd(struct device *dev, void *_arg)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
 	struct i2c_cmd_arg	*arg = _arg;
+	struct i2c_driver	*driver;
 
-	if (client && client->driver && client->driver->command)
-		client->driver->command(client, arg->cmd, arg->arg);
+	if (!client || !client->dev.driver)
+		return 0;
+
+	driver = to_i2c_driver(client->dev.driver);
+	if (driver->command)
+		driver->command(client, arg->cmd, arg->arg);
 	return 0;
 }
 
