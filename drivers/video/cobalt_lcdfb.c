@@ -395,19 +395,7 @@ static struct platform_driver cobalt_lcdfb_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init cobalt_lcdfb_init(void)
-{
-	return platform_driver_register(&cobalt_lcdfb_driver);
-}
-
-static void __exit cobalt_lcdfb_exit(void)
-{
-	platform_driver_unregister(&cobalt_lcdfb_driver);
-}
-
-module_init(cobalt_lcdfb_init);
-module_exit(cobalt_lcdfb_exit);
+module_platform_driver(cobalt_lcdfb_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Yoichi Yuasa");
