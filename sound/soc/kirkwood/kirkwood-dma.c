@@ -159,7 +159,7 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 		 * Enable Error interrupts. We're only ack'ing them but
 		 * it's useful for diagnostics
 		 */
-		writel((unsigned long)-1, priv->io + KIRKWOOD_ERR_MASK);
+		writel((unsigned int)-1, priv->io + KIRKWOOD_ERR_MASK);
 	}
 
 	dram = mv_mbus_dram_info();
