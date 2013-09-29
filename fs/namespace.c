@@ -2080,11 +2080,9 @@ fail:
 void mnt_set_expiry(struct vfsmount *mnt, struct list_head *expiry_list)
 {
 	namespace_lock();
-	br_write_lock(&vfsmount_lock);
 
 	list_add_tail(&real_mount(mnt)->mnt_expire, expiry_list);
 
-	br_write_unlock(&vfsmount_lock);
 	namespace_unlock();
 }
 EXPORT_SYMBOL(mnt_set_expiry);
