@@ -1663,19 +1663,7 @@ static struct platform_driver da8xx_fb_driver = {
 		   .owner = THIS_MODULE,
 		   },
 };
-
-static int __init da8xx_fb_init(void)
-{
-	return platform_driver_register(&da8xx_fb_driver);
-}
-
-static void __exit da8xx_fb_cleanup(void)
-{
-	platform_driver_unregister(&da8xx_fb_driver);
-}
-
-module_init(da8xx_fb_init);
-module_exit(da8xx_fb_cleanup);
+module_platform_driver(da8xx_fb_driver);
 
 MODULE_DESCRIPTION("Framebuffer driver for TI da8xx/omap-l1xx");
 MODULE_AUTHOR("Texas Instruments");
