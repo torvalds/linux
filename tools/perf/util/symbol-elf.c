@@ -928,33 +928,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		 * to it...
 		 */
 		if (symbol_conf.demangle) {
-			/*
-			 * The demangler doesn't deal with cloned functions.
-			 * XXXX.clone.NUM or similar
-			 * Strip the dot part and readd it later.
-			 */
-			char *p = (char *)elf_name, *dot;
-			dot = strchr(elf_name, '.');
-			if (dot) {
-				p = strdup(elf_name);
-				if (!p)
-					goto new_symbol;
-				dot = strchr(p, '.');
-				*dot = 0;
-			}
-
-			demangled = bfd_demangle(NULL, p,
+			demangled = bfd_demangle(NULL, elf_name,
 						 DMGL_PARAMS | DMGL_ANSI);
-			if (dot)
-				*dot = '.';
-			if (demangled && dot) {
-				demangled = realloc(demangled, strlen(demangled) + strlen(dot) + 1);
-				if (!demangled)
-					goto new_symbol;
-				strcpy(demangled + (dot - p), dot);
-			}
-			if (p != elf_name)
-				free(p);
 			if (demangled != NULL)
 				elf_name = demangled;
 		}
