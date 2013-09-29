@@ -60,7 +60,6 @@
 #ifdef CONFIG_SECURITY
 #include <linux/security.h>
 #endif
-#include <net/netlink.h>
 #include <linux/freezer.h>
 #include <linux/tty.h>
 #include <linux/pid_namespace.h>
