@@ -655,7 +655,6 @@ int
 xfs_iomap_write_allocate(
 	xfs_inode_t	*ip,
 	xfs_off_t	offset,
-	size_t		count,
 	xfs_bmbt_irec_t *imap)
 {
 	xfs_mount_t	*mp = ip->i_mount;
