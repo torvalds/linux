@@ -95,10 +95,17 @@
 #define MXS_CMD_I2C_READ	(MXS_I2C_CTRL0_SEND_NAK_ON_LAST | \
 				 MXS_I2C_CTRL0_MASTER_MODE)
 
+enum mxs_i2c_devtype {
+	MXS_I2C_UNKNOWN = 0,
+	MXS_I2C_V1,
+	MXS_I2C_V2,
+};
+
 /**
  * struct mxs_i2c_dev - per device, private MXS-I2C data
  *
  * @dev: driver model device node
+ * @dev_type: distinguish i.MX23/i.MX28 features
  * @regs: IO registers pointer
  * @cmd_complete: completion object for transaction wait
  * @cmd_err: error code for last transaction
@@ -106,6 +113,7 @@
  */
 struct mxs_i2c_dev {
 	struct device *dev;
+	enum mxs_i2c_devtype dev_type;
 	void __iomem *regs;
 	struct completion cmd_complete;
 	int cmd_err;
@@ -495,6 +503,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	 * is set to 8 bytes, transfers shorter than 8 bytes are transfered
 	 * using PIO mode while longer transfers use DMA. The 8 byte border is
 	 * based on this empirical measurement and a lot of previous frobbing.
+	 * Note: this special feature only works on i.MX28 SoC
 	 */
 	i2c->cmd_err = 0;
 	if (0) {	/* disable PIO mode until a proper fix is made */
@@ -680,8 +689,28 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	return 0;
 }
 
+static struct platform_device_id mxs_i2c_devtype[] = {
+	{
+		.name = "imx23-i2c",
+		.driver_data = MXS_I2C_V1,
+	}, {
+		.name = "imx28-i2c",
+		.driver_data = MXS_I2C_V2,
+	}, { /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, mxs_i2c_devtype);
+
+static const struct of_device_id mxs_i2c_dt_ids[] = {
+	{ .compatible = "fsl,imx23-i2c", .data = &mxs_i2c_devtype[0], },
+	{ .compatible = "fsl,imx28-i2c", .data = &mxs_i2c_devtype[1], },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_i2c_dt_ids);
+
 static int mxs_i2c_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+				of_match_device(mxs_i2c_dt_ids, &pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct mxs_i2c_dev *i2c;
 	struct i2c_adapter *adap;
@@ -692,6 +721,11 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	i2c = devm_kzalloc(dev, sizeof(struct mxs_i2c_dev), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
+
+	if (of_id) {
+		const struct platform_device_id *device_id = of_id->data;
+		i2c->dev_type = device_id->driver_data;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -767,12 +801,6 @@ static int mxs_i2c_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id mxs_i2c_dt_ids[] = {
-	{ .compatible = "fsl,imx28-i2c", },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, mxs_i2c_dt_ids);
 
 static struct platform_driver mxs_i2c_driver = {
 	.driver = {
