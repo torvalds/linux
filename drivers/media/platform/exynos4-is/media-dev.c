@@ -411,8 +411,8 @@ static int fimc_md_of_add_sensor(struct fimc_md *fmd,
 
 	device_lock(&client->dev);
 
-	if (!client->driver ||
-	    !try_module_get(client->driver->driver.owner)) {
+	if (!client->dev.driver ||
+	    !try_module_get(client->dev.driver->owner)) {
 		ret = -EPROBE_DEFER;
 		v4l2_info(&fmd->v4l2_dev, "No driver found for %s\n",
 						node->full_name);
@@ -442,7 +442,7 @@ static int fimc_md_of_add_sensor(struct fimc_md *fmd,
 	fmd->num_sensors++;
 
 mod_put:
-	module_put(client->driver->driver.owner);
+	module_put(client->dev.driver->owner);
 dev_put:
 	device_unlock(&client->dev);
 	put_device(&client->dev);
