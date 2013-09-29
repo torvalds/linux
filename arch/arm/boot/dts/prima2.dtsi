@@ -485,16 +485,40 @@
                                                 sirf,function = "usp0";
                                         };
                                 };
+				usp0_uart_nostreamctrl_pins_a: usp0@1 {
+                                        usp0 {
+                                                sirf,pins =
+							"usp0_uart_nostreamctrl_grp";
+                                                sirf,function =
+							"usp0_uart_nostreamctrl";
+                                        };
+                                };
                                 usp1_pins_a: usp1@0 {
                                         usp1 {
                                                 sirf,pins = "usp1grp";
                                                 sirf,function = "usp1";
                                         };
                                 };
+				usp1_uart_nostreamctrl_pins_a: usp1@1 {
+                                        usp1 {
+                                                sirf,pins =
+							"usp1_uart_nostreamctrl_grp";
+                                                sirf,function =
+							"usp1_uart_nostreamctrl";
+                                        };
+                                };
                                 usp2_pins_a: usp2@0 {
                                         usp2 {
                                                 sirf,pins = "usp2grp";
                                                 sirf,function = "usp2";
+                                        };
+                                };
+				usp2_uart_nostreamctrl_pins_a: usp2@1 {
+                                        usp2 {
+                                                sirf,pins =
+							"usp2_uart_nostreamctrl_grp";
+                                                sirf,function =
+							"usp2_uart_nostreamctrl";
                                         };
                                 };
                                 usb0_utmi_drvbus_pins_a: usb0_utmi_drvbus@0 {
