@@ -5,9 +5,8 @@ config ARCH_ROCKCHIP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_GIC
 	select CACHE_L2X0
-	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_ARM_TWD if SMP
 	select HAVE_SMP
-	select LOCAL_TIMERS if SMP
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select DW_APB_TIMER_OF
