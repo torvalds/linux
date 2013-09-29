@@ -50,11 +50,13 @@ configs=" sysidleY.2013.06.19a \
 	  PT2-NH \
 	  NT1-nh \
 	  NT3-NH"
+ds=`date +%Y.%m.%d-%H:%M:%S`
 
 usage () {
 	echo "Usage: $scriptname optional arguments:"
 	echo "       --builddir absolute-pathname"
 	echo "       --configs \"config-file list\""
+	echo "       --datestamp string"
 	echo "       --duration minutes"
 	echo "       --rcu-kvm absolute-pathname"
 	echo "       --results absolute-pathname"
@@ -96,6 +98,11 @@ do
 	--configs)
 		checkarg --configs "(list of config files)" "$#" "$2" '^[^/]*$' '^--'
 		configs="$2"
+		shift
+		;;
+	--datestamp)
+		checkarg --datestamp "(relative pathname)" "$#" "$2" '^[^/]*$' '^--'
+		ds=$2
 		shift
 		;;
 	--duration)
@@ -147,13 +154,12 @@ if test -z "$resdir"
 then
 	resdir=$KVM/res
 	mkdir $resdir || :
-	ds=`date +%Y.%m.%d-%H:%M:%S`
-	mkdir $resdir/$ds
-	echo Datestamp: $ds
 else
-	mkdir -p "$resdir"
-	ds=""
+	mkdir -p "$resdir" || :
 fi
+mkdir $resdir/$ds
+echo Datestamp: $ds
+
 pwd > $resdir/$ds/testid.txt
 if test -d .git
 then
