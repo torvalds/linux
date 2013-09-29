@@ -1581,7 +1581,7 @@ static int s5c73m3_probe(struct i2c_client *client,
 	oif_sd = &state->oif_sd;
 
 	v4l2_subdev_init(sd, &s5c73m3_subdev_ops);
-	sd->owner = client->driver->driver.owner;
+	sd->owner = client->dev.driver->owner;
 	v4l2_set_subdevdata(sd, state);
 	strlcpy(sd->name, "S5C73M3", sizeof(sd->name));
 
