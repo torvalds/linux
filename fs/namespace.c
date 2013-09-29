@@ -1136,20 +1136,8 @@ static void namespace_unlock(void)
 	while (!list_empty(&head)) {
 		mnt = list_first_entry(&head, struct mount, mnt_hash);
 		list_del_init(&mnt->mnt_hash);
-		if (mnt_has_parent(mnt)) {
-			struct dentry *dentry;
-			struct mount *m;
-
-			br_write_lock(&vfsmount_lock);
-			dentry = mnt->mnt_mountpoint;
-			m = mnt->mnt_parent;
-			mnt->mnt_mountpoint = mnt->mnt.mnt_root;
-			mnt->mnt_parent = mnt;
-			m->mnt_ghosts--;
-			br_write_unlock(&vfsmount_lock);
-			dput(dentry);
-			mntput(&m->mnt);
-		}
+		if (mnt->mnt_ex_mountpoint.mnt)
+			path_put(&mnt->mnt_ex_mountpoint);
 		mntput(&mnt->mnt);
 	}
 }
@@ -1181,8 +1169,12 @@ void umount_tree(struct mount *mnt, int propagate)
 		p->mnt_ns = NULL;
 		list_del_init(&p->mnt_child);
 		if (mnt_has_parent(p)) {
-			p->mnt_parent->mnt_ghosts++;
 			put_mountpoint(p->mnt_mp);
+			/* move the reference to mountpoint into ->mnt_ex_mountpoint */
+			p->mnt_ex_mountpoint.dentry = p->mnt_mountpoint;
+			p->mnt_ex_mountpoint.mnt = &p->mnt_parent->mnt;
+			p->mnt_mountpoint = p->mnt.mnt_root;
+			p->mnt_parent = p;
 			p->mnt_mp = NULL;
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
