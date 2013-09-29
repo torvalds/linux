@@ -1,6 +1,7 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
+#include <linux/lglock.h>
 
 struct mnt_namespace {
 	atomic_t		count;
@@ -81,6 +82,18 @@ extern struct mount *__lookup_mnt(struct vfsmount *, struct dentry *, int);
 static inline void get_mnt_ns(struct mnt_namespace *ns)
 {
 	atomic_inc(&ns->count);
+}
+
+extern struct lglock vfsmount_lock;
+
+static inline void lock_mount_hash(void)
+{
+	br_write_lock(&vfsmount_lock);
+}
+
+static inline void unlock_mount_hash(void)
+{
+	br_write_unlock(&vfsmount_lock);
 }
 
 struct proc_mounts {

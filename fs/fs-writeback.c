@@ -26,6 +26,7 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/tracepoint.h>
+#include <linux/device.h>
 #include "internal.h"
 
 /*
