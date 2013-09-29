@@ -330,6 +330,7 @@ enum ad5446_supported_spi_device_ids {
 	ID_AD5601,
 	ID_AD5611,
 	ID_AD5621,
+	ID_AD5641,
 	ID_AD5620_2500,
 	ID_AD5620_1250,
 	ID_AD5640_2500,
@@ -392,6 +393,10 @@ static const struct ad5446_chip_info ad5446_spi_chip_info[] = {
 		.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 2),
 		.write = ad5446_write,
 	},
+	[ID_AD5641] = {
+		.channel = AD5446_CHANNEL_POWERDOWN(14, 16, 0),
+		.write = ad5446_write,
+	},
 	[ID_AD5620_2500] = {
 		.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 2),
 		.int_vref_mv = 2500,
@@ -446,6 +451,7 @@ static const struct spi_device_id ad5446_spi_ids[] = {
 	{"ad5601", ID_AD5601},
 	{"ad5611", ID_AD5611},
 	{"ad5621", ID_AD5621},
+	{"ad5641", ID_AD5641},
 	{"ad5620-2500", ID_AD5620_2500}, /* AD5620/40/60: */
 	{"ad5620-1250", ID_AD5620_1250}, /* part numbers may look differently */
 	{"ad5640-2500", ID_AD5640_2500},
