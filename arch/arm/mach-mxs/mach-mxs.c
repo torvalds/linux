@@ -332,6 +332,11 @@ static void __init crystalfontz_init(void)
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
 
+static void __init m28cu3_init(void)
+{
+	update_fec_mac_prop(OUI_DENX);
+}
+
 static const char __init *mxs_get_soc_id(void)
 {
 	struct device_node *np;
@@ -459,6 +464,8 @@ static void __init mxs_machine_init(void)
 		apx4devkit_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10036"))
 		crystalfontz_init();
+	else if (of_machine_is_compatible("msr,m28cu3"))
+		m28cu3_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     NULL, parent);
