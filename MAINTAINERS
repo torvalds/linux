@@ -824,7 +824,7 @@ S:	Maintained
 F:	arch/arm/mach-gemini/
 
 ARM/CSR SIRFPRIMA2 MACHINE SUPPORT
-M:	Barry Song <baohua.song@csr.com>
+M:	Barry Song <baohua@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/baohua/linux.git
 S:	Maintained
