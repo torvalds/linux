@@ -36,6 +36,7 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_OVERRIDE_AHB_BURST	BIT(9)
 #define CI_HDRC_OVERRIDE_TX_BURST	BIT(10)
 #define CI_HDRC_OVERRIDE_RX_BURST	BIT(11)
+#define CI_HDRC_IMX_EHCI_QUIRK		BIT(12)
 	enum usb_dr_mode	dr_mode;
 #define CI_HDRC_CONTROLLER_RESET_EVENT		0
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1
