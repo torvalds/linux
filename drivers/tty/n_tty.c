@@ -1758,8 +1758,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		canon_change = (old->c_lflag ^ tty->termios.c_lflag) & ICANON;
 	if (canon_change) {
 		bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
-		ldata->line_start = 0;
-		ldata->canon_head = ldata->read_tail;
+		ldata->line_start = ldata->canon_head = ldata->read_tail;
 		ldata->erasing = 0;
 		ldata->lnext = 0;
 	}
