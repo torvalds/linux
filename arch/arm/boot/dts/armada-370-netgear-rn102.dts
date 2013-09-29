@@ -57,6 +57,11 @@
 					marvell,pins = "mpp56";
 					marvell,function = "gpio";
 				};
+
+				poweroff: poweroff {
+					marvell,pins = "mpp8";
+					marvell,function = "gpio";
+				};
 			};
 
 			mdio {
@@ -174,6 +179,13 @@
 			linux,code = <133>;     /* KEY_COPY */
 			gpios = <&gpio1 26 1>;
 		};
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&poweroff>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 8 1>;
 	};
 
 };
