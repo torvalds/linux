@@ -33,23 +33,7 @@ dur=30
 KVM=`pwd`/tools/testing/selftests/rcutorture; export KVM
 builddir=${KVM}/b1
 resdir=""
-configs=" sysidleY.2013.06.19a \
-	  sysidleN.2013.06.19a \
-	  P1-S-T-NH-SD-SMP-HP \
-	  P2-2-t-nh-sd-SMP-hp \
-	  P3-3-T-nh-SD-SMP-hp \
-	  P4-A-t-NH-sd-SMP-HP \
-	  P5-U-T-NH-sd-SMP-hp \
-	  P6---t-nh-SD-smp-hp \
-	  N1-S-T-NH-SD-SMP-HP \
-	  N2-2-t-nh-sd-SMP-hp \
-	  N3-3-T-nh-SD-SMP-hp \
-	  N4-A-t-NH-sd-SMP-HP \
-	  N5-U-T-NH-sd-SMP-hp \
-	  PT1-nh \
-	  PT2-NH \
-	  NT1-nh \
-	  NT3-NH"
+configs=""
 ds=`date +%Y.%m.%d-%H:%M:%S`
 kversion=""
 
@@ -156,6 +140,12 @@ echo "resdir=$resdir"
 
 PATH=${KVM}/bin:$PATH; export PATH
 CONFIGFRAG=${KVM}/configs; export CONFIGFRAG
+KVPATH=${CONFIGFRAG}/$kversion; export KVPATH
+
+if test -z "$configs"
+then
+	configs="`cat $CONFIGFRAG/$kversion/CFLIST`"
+fi
 
 if test -z "$resdir"
 then
@@ -181,6 +171,6 @@ do
 	rd=$resdir/$ds/$CF
 	mkdir $rd || :
 	echo Results directory: $rd
-	kvm-test-1-rcu.sh $CONFIGFRAG/$kversion/$CF $builddir $rd $dur "-nographic" "rcutorture.test_no_idle_hz=1 rcutorture.n_barrier_cbs=4 rcutorture.verbose=1"
+	kvm-test-1-rcu.sh $CONFIGFRAG/$kversion/$CF $builddir $rd $dur "-nographic" "rcutorture.test_no_idle_hz=1 rcutorture.verbose=1"
 done
 # Tracing: trace_event=rcu:rcu_nocb_grace_period,rcu:rcu_grace_period,rcu:rcu_grace_period_init,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_torture_read,rcu:rcu_invoke_callback,rcu:rcu_fqs,rcu:rcu_dyntick,rcu:rcu_unlock_preempted_task

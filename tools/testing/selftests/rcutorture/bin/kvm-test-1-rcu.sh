@@ -44,6 +44,7 @@ T=/tmp/kvm-test-1-rcu.sh.$$
 trap 'rm -rf $T' 0
 
 . $KVM/bin/functions.sh
+. $KVPATH/ver_functions.sh
 
 config_template=${1}
 title=`echo $config_template | sed -e 's/^.*\///'`
@@ -133,14 +134,9 @@ else
 fi
 
 # Generate CPU-hotplug boot parameters
-if ! bootparam_hotplug_cpu "$bootargs"
-then
-	if configfrag_hotplug_cpu $builddir/.config
-	then
-		echo Kernel configured for CPU hotplug, adding rcutorture.
-		bootargs="$bootargs rcutorture.onoff_interval=3 rcutorture.onoff_holdoff=30"
-	fi
-fi
+boot_args="`rcutorture_param_onoff "$boot_args" $builddir/.config`"
+# Generate rcu_barrier() boot parameter
+boot_args="`rcutorture_param_n_barrier_cbs "$boot_args"`"
 
 echo $QEMU -name rcu-test -serial file:$builddir/console.log $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"noapic selinux=0 console=ttyS0 initcall_debug debug rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args\" > $resdir/qemu-cmd
 $QEMU -name rcu-test -serial file:$builddir/console.log $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append "noapic selinux=0 console=ttyS0 initcall_debug debug rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args" &

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Shell functions for the rest of the scripts.
+# Kernel-version-dependent shell functions for the rest of the scripts.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,22 +20,16 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-# bootparam_hotplug_cpu bootparam-string
+# rcutorture_param_n_barrier_cbs bootparam-string
 #
-# Returns 1 if the specified boot-parameter string tells rcutorture to
-# test CPU-hotplug operations.
-bootparam_hotplug_cpu () {
-	echo "$1" | grep -q "rcutorture\.onoff_"
+# Adds n_barrier_cbs rcutorture module parameter to kernels having it.
+rcutorture_param_n_barrier_cbs () {
+	echo $1
 }
 
-# configfrag_hotplug_cpu config-fragment-file
+# rcutorture_param_onoff bootparam-string config-file
 #
-# Returns 1 if the config fragment specifies hotplug CPU.
-configfrag_hotplug_cpu () {
-	if test ! -r "$1"
-	then
-		echo Unreadable config fragment "$1" 1>&2
-		exit -1
-	fi
-	grep -q '^CONFIG_HOTPLUG_CPU=y$' "$1"
+# Adds onoff rcutorture module parameters to kernels having it.
+rcutorture_param_onoff () {
+	echo $1
 }
