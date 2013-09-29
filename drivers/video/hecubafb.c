@@ -305,19 +305,7 @@ static struct platform_driver hecubafb_driver = {
 		.name	= "hecubafb",
 	},
 };
-
-static int __init hecubafb_init(void)
-{
-	return platform_driver_register(&hecubafb_driver);
-}
-
-static void __exit hecubafb_exit(void)
-{
-	platform_driver_unregister(&hecubafb_driver);
-}
-
-module_init(hecubafb_init);
-module_exit(hecubafb_exit);
+module_platform_driver(hecubafb_driver);
 
 MODULE_DESCRIPTION("fbdev driver for Hecuba/Apollo controller");
 MODULE_AUTHOR("Jaya Kumar");
