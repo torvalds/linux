@@ -515,6 +515,18 @@
                                                 sirf,function = "usb1_utmi_drvbus";
                                         };
                                 };
+                                usb1_dp_dn_pins_a: usb1_dp_dn@0 {
+                                        usb1_dp_dn {
+                                                sirf,pins = "usb1_dp_dngrp";
+                                                sirf,function = "usb1_dp_dn";
+                                        };
+                                };
+                                uart1_route_io_usb1_pins_a: uart1_route_io_usb1@0 {
+                                        uart1_route_io_usb1 {
+                                                sirf,pins = "uart1_route_io_usb1grp";
+                                                sirf,function = "uart1_route_io_usb1";
+                                        };
+                                };
                                 warm_rst_pins_a: warm_rst@0 {
                                         warm_rst {
                                                 sirf,pins = "warm_rstgrp";
