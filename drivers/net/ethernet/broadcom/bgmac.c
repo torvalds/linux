@@ -149,6 +149,8 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 	dma_desc->ctl0 = cpu_to_le32(ctl0);
 	dma_desc->ctl1 = cpu_to_le32(ctl1);
 
+	netdev_sent_queue(net_dev, skb->len);
+
 	wmb();
 
 	/* Increase ring->end to point empty slot. We tell hardware the first
@@ -178,6 +180,7 @@ static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 	struct device *dma_dev = bgmac->core->dma_dev;
 	int empty_slot;
 	bool freed = false;
+	unsigned bytes_compl = 0, pkts_compl = 0;
 
 	/* The last slot that hardware didn't consume yet */
 	empty_slot = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_TX_STATUS);
@@ -195,6 +198,9 @@ static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 					 slot->skb->len, DMA_TO_DEVICE);
 			slot->dma_addr = 0;
 
+			bytes_compl += slot->skb->len;
+			pkts_compl++;
+
 			/* Free memory! :) */
 			dev_kfree_skb(slot->skb);
 			slot->skb = NULL;
@@ -207,6 +213,8 @@ static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 			ring->start = 0;
 		freed = true;
 	}
+
+	netdev_completed_queue(bgmac->net_dev, pkts_compl, bytes_compl);
 
 	if (freed && netif_queue_stopped(bgmac->net_dev))
 		netif_wake_queue(bgmac->net_dev);
@@ -987,6 +995,8 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 		bgmac_set(bgmac, BGMAC_PHY_CNTL, BGMAC_PC_MTE);
 	bgmac_miiconfig(bgmac);
 	bgmac_phy_init(bgmac);
+
+	netdev_reset_queue(bgmac->net_dev);
 
 	bgmac->int_status = 0;
 }
