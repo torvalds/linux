@@ -43,7 +43,7 @@
 
 #define UNSET (-1U)
 
-#define PREFIX (t->i2c->driver->driver.name)
+#define PREFIX (t->i2c->dev.driver->name)
 
 /*
  * Driver modprobe parameters
@@ -452,7 +452,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	tuner_dbg("%s %s I2C addr 0x%02x with type %d used for 0x%02x\n",
-		  c->adapter->name, c->driver->driver.name, c->addr << 1, type,
+		  c->adapter->name, c->dev.driver->name, c->addr << 1, type,
 		  t->mode_mask);
 	return;
 
@@ -556,7 +556,7 @@ static void tuner_lookup(struct i2c_adapter *adap,
 		int mode_mask;
 
 		if (pos->i2c->adapter != adap ||
-		    strcmp(pos->i2c->driver->driver.name, "tuner"))
+		    strcmp(pos->i2c->dev.driver->name, "tuner"))
 			continue;
 
 		mode_mask = pos->mode_mask;
