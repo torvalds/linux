@@ -798,18 +798,7 @@ static struct platform_driver jzfb_driver = {
 		.pm = JZFB_PM_OPS,
 	},
 };
-
-static int __init jzfb_init(void)
-{
-	return platform_driver_register(&jzfb_driver);
-}
-module_init(jzfb_init);
-
-static void __exit jzfb_exit(void)
-{
-	platform_driver_unregister(&jzfb_driver);
-}
-module_exit(jzfb_exit);
+module_platform_driver(jzfb_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
