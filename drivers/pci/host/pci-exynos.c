@@ -599,18 +599,24 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 
 	elbi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	exynos_pcie->elbi_base = devm_ioremap_resource(&pdev->dev, elbi_base);
-	if (IS_ERR(exynos_pcie->elbi_base))
-		return PTR_ERR(exynos_pcie->elbi_base);
+	if (IS_ERR(exynos_pcie->elbi_base)) {
+		ret = PTR_ERR(exynos_pcie->elbi_base);
+		goto fail_bus_clk;
+	}
 
 	phy_base = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	exynos_pcie->phy_base = devm_ioremap_resource(&pdev->dev, phy_base);
-	if (IS_ERR(exynos_pcie->phy_base))
-		return PTR_ERR(exynos_pcie->phy_base);
+	if (IS_ERR(exynos_pcie->phy_base)) {
+		ret = PTR_ERR(exynos_pcie->phy_base);
+		goto fail_bus_clk;
+	}
 
 	block_base = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	exynos_pcie->block_base = devm_ioremap_resource(&pdev->dev, block_base);
-	if (IS_ERR(exynos_pcie->block_base))
-		return PTR_ERR(exynos_pcie->block_base);
+	if (IS_ERR(exynos_pcie->block_base)) {
+		ret = PTR_ERR(exynos_pcie->block_base);
+		goto fail_bus_clk;
+	}
 
 	ret = add_pcie_port(pp, pdev);
 	if (ret < 0)
