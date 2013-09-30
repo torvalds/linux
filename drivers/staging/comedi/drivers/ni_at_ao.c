@@ -110,7 +110,7 @@ Configuration options:
 #define BCD		0x01
 
 #define ATAO_2_RTSISHFT		0x06	/* W 8 */
-#define RSI		0x01
+#define ATAO_RTSISHFT_RSI	(1 << 0)
 
 #define ATAO_2_RTSISTRB		0x07	/* W 8 */
 
