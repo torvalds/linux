@@ -628,7 +628,7 @@ static struct platform_driver dsps_usbss_driver = {
 	.remove         = dsps_remove,
 	.driver         = {
 		.name   = "musb-dsps",
-		.of_match_table	= of_match_ptr(musb_dsps_of_match),
+		.of_match_table	= musb_dsps_of_match,
 	},
 };
 
