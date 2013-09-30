@@ -33,6 +33,7 @@
 #include "channel.h"
 #include "debug.h"
 #include "hw/host1x01.h"
+#include "hw/host1x02.h"
 
 void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -67,7 +68,17 @@ static const struct host1x_info host1x01_info = {
 	.sync_offset	= 0x3000,
 };
 
+static const struct host1x_info host1x02_info = {
+	.nb_channels = 9,
+	.nb_pts = 32,
+	.nb_mlocks = 16,
+	.nb_bases = 12,
+	.init = host1x02_init,
+	.sync_offset = 0x3000,
+};
+
 static struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra114-host1x", .data = &host1x02_info, },
 	{ .compatible = "nvidia,tegra30-host1x", .data = &host1x01_info, },
 	{ .compatible = "nvidia,tegra20-host1x", .data = &host1x01_info, },
 	{ },
