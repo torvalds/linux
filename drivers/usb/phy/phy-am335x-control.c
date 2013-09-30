@@ -171,7 +171,7 @@ static struct platform_driver am335x_control_driver = {
 	.driver		= {
 		.name	= "am335x-control-usb",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(omap_control_usb_id_table),
+		.of_match_table = omap_control_usb_id_table,
 	},
 };
 
