@@ -46,10 +46,6 @@
 #define DRX_I2C_MODEFLAGS     0xC0
 #define DRX_I2C_FLAGS         0xF0
 
-#ifndef SIZEOF_ARRAY
-#define SIZEOF_ARRAY(array) (sizeof((array))/sizeof((array)[0]))
-#endif
-
 #define DEFAULT_LOCK_TIMEOUT    1100
 
 #define DRX_CHANNEL_AUTO 0
