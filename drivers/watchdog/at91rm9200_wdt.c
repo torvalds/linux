@@ -269,7 +269,7 @@ static struct platform_driver at91wdt_driver = {
 	.driver		= {
 		.name	= "at91_wdt",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(at91_wdt_dt_ids),
+		.of_match_table = at91_wdt_dt_ids,
 	},
 };
 

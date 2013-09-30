@@ -207,7 +207,7 @@ static struct platform_driver orion_wdt_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "orion_wdt",
-		.of_match_table = of_match_ptr(orion_wdt_of_match_table),
+		.of_match_table = orion_wdt_of_match_table,
 	},
 };
 
