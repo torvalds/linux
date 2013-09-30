@@ -297,7 +297,7 @@ static struct platform_driver imx_pwm_driver = {
 	.driver		= {
 		.name	= "imx-pwm",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(imx_pwm_dt_ids),
+		.of_match_table = imx_pwm_dt_ids,
 	},
 	.probe		= imx_pwm_probe,
 	.remove		= imx_pwm_remove,
