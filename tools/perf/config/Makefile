@@ -89,6 +89,22 @@ CFLAGS += -std=gnu99
 
 EXTLIBS = -lelf -lpthread -lrt -lm -ldl
 
+feature_check = $(eval $(feature_check_code)); $(info CHK: config/feature-checks/test-$(1))
+define feature_check_code
+  feature-$(2) := $(shell make -C config/feature-checks test-$1 >/dev/null 2>/dev/null && echo 1 || echo 0)
+endef
+
+#
+# Build the feature check binaries in parallel, ignore errors, ignore return value and suppress output:
+#
+$(info Testing features:)
+$(shell make -i -j -C config/feature-checks >/dev/null 2>&1)
+$(info done)
+
+FEATURE_TESTS = hello
+
+$(foreach test,$(FEATURE_TESTS),$(call feature_check,$(test),$(test)))
+
 ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -fstack-protector-all,-fstack-protector-all),y)
   CFLAGS += -fstack-protector-all
 endif
