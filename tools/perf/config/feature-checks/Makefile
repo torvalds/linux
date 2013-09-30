@@ -6,6 +6,7 @@ FILES=					\
 	test-volatile-register-var	\
 	test-fortify-source		\
 	test-bionic			\
+	test-libelf			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -33,6 +34,9 @@ test-fortify-source:
 
 test-bionic:
 	$(BUILD)
+
+test-libelf:
+	$(BUILD) -lelf
 
 test-libnuma:
 	$(BUILD) -lnuma

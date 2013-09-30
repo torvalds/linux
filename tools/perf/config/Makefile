@@ -108,6 +108,7 @@ FEATURE_TESTS =				\
 	volatile-register-var		\
 	fortify-source			\
 	bionic				\
+	libelf				\
 	libnuma
 
 $(foreach test,$(FEATURE_TESTS),$(call feature_check,$(test),$(test)))
@@ -164,8 +165,7 @@ ifdef NO_LIBELF
   NO_DEMANGLE := 1
   NO_LIBUNWIND := 1
 else
-  FLAGS_LIBELF=$(CFLAGS) $(LDFLAGS) $(EXTLIBS)
-  ifneq ($(call try-cc,$(SOURCE_LIBELF),$(FLAGS_LIBELF),libelf),y)
+  ifeq ($(feature-libelf), 0)
     FLAGS_GLIBC=$(CFLAGS) $(LDFLAGS)
     ifeq ($(call try-cc,$(SOURCE_GLIBC),$(FLAGS_GLIBC),glibc),y)
       LIBC_SUPPORT := 1
