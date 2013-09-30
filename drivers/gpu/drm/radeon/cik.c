@@ -3494,7 +3494,8 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	int r;
 
 	WREG32(CP_SEM_WAIT_TIMER, 0x0);
-	WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
+	if (rdev->family != CHIP_HAWAII)
+		WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
 
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
@@ -4831,11 +4832,16 @@ void cik_vm_fini(struct radeon_device *rdev)
 static void cik_vm_decode_fault(struct radeon_device *rdev,
 				u32 status, u32 addr, u32 mc_client)
 {
-	u32 mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
+	u32 mc_id;
 	u32 vmid = (status & FAULT_VMID_MASK) >> FAULT_VMID_SHIFT;
 	u32 protections = (status & PROTECTIONS_MASK) >> PROTECTIONS_SHIFT;
 	char block[5] = { mc_client >> 24, (mc_client >> 16) & 0xff,
 		(mc_client >> 8) & 0xff, mc_client & 0xff, 0 };
+
+	if (rdev->family == CHIP_HAWAII)
+		mc_id = (status & HAWAII_MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
+	else
+		mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
 
 	printk("VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
 	       protections, vmid, addr,

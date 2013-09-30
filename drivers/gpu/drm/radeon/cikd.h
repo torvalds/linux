@@ -500,6 +500,7 @@
 		 * bit 4: write
 		 */
 #define		MEMORY_CLIENT_ID_MASK			(0xff << 12)
+#define		HAWAII_MEMORY_CLIENT_ID_MASK		(0x1ff << 12)
 #define		MEMORY_CLIENT_ID_SHIFT			12
 #define		MEMORY_CLIENT_RW_MASK			(1 << 24)
 #define		MEMORY_CLIENT_RW_SHIFT			24
