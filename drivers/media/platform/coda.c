@@ -39,7 +39,7 @@
 
 #define CODA_NAME		"coda"
 
-#define CODA_MAX_INSTANCES	4
+#define CODADX6_MAX_INSTANCES	4
 
 #define CODA_FMO_BUF_SIZE	32
 #define CODADX6_WORK_BUF_SIZE	(288 * 1024 + CODA_FMO_BUF_SIZE * 8 * 1024)
@@ -2371,7 +2371,13 @@ static int coda_queue_init(void *priv, struct vb2_queue *src_vq,
 
 static int coda_next_free_instance(struct coda_dev *dev)
 {
-	return ffz(dev->instance_mask);
+	int idx = ffz(dev->instance_mask);
+
+	if ((idx < 0) ||
+	    (dev->devtype->product == CODA_DX6 && idx > CODADX6_MAX_INSTANCES))
+		return -EBUSY;
+
+	return idx;
 }
 
 static int coda_open(struct file *file)
@@ -2386,8 +2392,8 @@ static int coda_open(struct file *file)
 		return -ENOMEM;
 
 	idx = coda_next_free_instance(dev);
-	if (idx >= CODA_MAX_INSTANCES) {
-		ret = -EBUSY;
+	if (idx < 0) {
+		ret = idx;
 		goto err_coda_max;
 	}
 	set_bit(idx, &dev->instance_mask);
