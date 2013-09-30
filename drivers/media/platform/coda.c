@@ -457,6 +457,8 @@ static int enum_fmt(void *priv, struct v4l2_fmtdesc *f,
 		fmt = &formats[i];
 		strlcpy(f->description, fmt->name, sizeof(f->description));
 		f->pixelformat = fmt->fourcc;
+		if (!coda_format_is_yuv(fmt->fourcc))
+			f->flags |= V4L2_FMT_FLAG_COMPRESSED;
 		return 0;
 	}
 
