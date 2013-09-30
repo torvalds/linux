@@ -1763,9 +1763,7 @@ void xhci_free_command(struct xhci_hcd *xhci,
 void xhci_mem_cleanup(struct xhci_hcd *xhci)
 {
 	struct pci_dev	*pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
-	struct dev_info	*dev_info, *next;
 	struct xhci_cd  *cur_cd, *next_cd;
-	unsigned long	flags;
 	int size;
 	int i, j, num_ports;
 
@@ -1823,13 +1821,6 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->dcbaa = NULL;
 
 	scratchpad_free(xhci);
-
-	spin_lock_irqsave(&xhci->lock, flags);
-	list_for_each_entry_safe(dev_info, next, &xhci->lpm_failed_devs, list) {
-		list_del(&dev_info->list);
-		kfree(dev_info);
-	}
-	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	if (!xhci->rh_bw)
 		goto no_bw;
@@ -2289,7 +2280,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	u32 page_size, temp;
 	int i;
 
-	INIT_LIST_HEAD(&xhci->lpm_failed_devs);
 	INIT_LIST_HEAD(&xhci->cancel_cmd_list);
 
 	page_size = xhci_readl(xhci, &xhci->op_regs->page_size);

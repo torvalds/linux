@@ -463,7 +463,7 @@ show_usb2_hardware_lpm(struct device *dev, struct device_attribute *attr,
 	struct usb_device *udev = to_usb_device(dev);
 	const char *p;
 
-	if (udev->usb2_hw_lpm_enabled == 1)
+	if (udev->usb2_hw_lpm_allowed == 1)
 		p = "enabled";
 	else
 		p = "disabled";
@@ -483,8 +483,10 @@ set_usb2_hardware_lpm(struct device *dev, struct device_attribute *attr,
 
 	ret = strtobool(buf, &value);
 
-	if (!ret)
+	if (!ret) {
+		udev->usb2_hw_lpm_allowed = value;
 		ret = usb_set_usb2_hardware_lpm(udev, value);
+	}
 
 	usb_unlock_device(udev);
 
