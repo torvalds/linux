@@ -19,6 +19,7 @@ FILES=					\
 	test-libperl			\
 	test-libpython			\
 	test-libpython-version		\
+	test-libbfd			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -111,6 +112,9 @@ test-libpython:
 
 test-libpython-version:
 	$(BUILD) $(FLAGS_PYTHON_EMBED)
+
+test-libbfd:
+	$(BUILD) -DPACKAGE='perf' -DPACKAGE=perf -lbfd -ldl
 
 -include *.d */*.d
 
