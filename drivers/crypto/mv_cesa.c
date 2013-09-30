@@ -1187,7 +1187,7 @@ static struct platform_driver marvell_crypto = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "mv_crypto",
-		.of_match_table = of_match_ptr(mv_cesa_of_match_table),
+		.of_match_table = mv_cesa_of_match_table,
 	},
 };
 MODULE_ALIAS("platform:mv_crypto");
