@@ -1684,6 +1684,10 @@ static void efx_start_all(struct efx_nic *efx)
 	}
 
 	efx->type->start_stats(efx);
+	efx->type->pull_stats(efx);
+	spin_lock_bh(&efx->stats_lock);
+	efx->type->update_stats(efx, NULL, NULL);
+	spin_unlock_bh(&efx->stats_lock);
 }
 
 /* Flush all delayed work. Should only be called when no more delayed work
@@ -1711,6 +1715,13 @@ static void efx_stop_all(struct efx_nic *efx)
 	if (!efx->port_enabled)
 		return;
 
+	/* update stats before we go down so we can accurately count
+	 * rx_nodesc_drops
+	 */
+	efx->type->pull_stats(efx);
+	spin_lock_bh(&efx->stats_lock);
+	efx->type->update_stats(efx, NULL, NULL);
+	spin_unlock_bh(&efx->stats_lock);
 	efx->type->stop_stats(efx);
 	efx_stop_port(efx);
 

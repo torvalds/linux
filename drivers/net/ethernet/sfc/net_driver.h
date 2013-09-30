@@ -857,6 +857,9 @@ struct efx_nic {
 	struct net_device *net_dev;
 
 	struct efx_buffer stats_buffer;
+	u64 rx_nodesc_drops_total;
+	u64 rx_nodesc_drops_while_down;
+	bool rx_nodesc_drops_prev_state;
 
 	unsigned int phy_type;
 	const struct efx_phy_operations *phy_op;
@@ -960,6 +963,7 @@ struct efx_mtd_partition {
  * @update_stats: Update statistics not provided by event handling.
  *	Either argument may be %NULL.
  * @start_stats: Start the regular fetching of statistics
+ * @pull_stats: Pull stats from the NIC and wait until they arrive.
  * @stop_stats: Stop the regular fetching of statistics
  * @set_id_led: Set state of identifying LED or revert to automatic function
  * @push_irq_moderation: Apply interrupt moderation value
@@ -1078,6 +1082,7 @@ struct efx_nic_type {
 	size_t (*update_stats)(struct efx_nic *efx, u64 *full_stats,
 			       struct rtnl_link_stats64 *core_stats);
 	void (*start_stats)(struct efx_nic *efx);
+	void (*pull_stats)(struct efx_nic *efx);
 	void (*stop_stats)(struct efx_nic *efx);
 	void (*set_id_led)(struct efx_nic *efx, enum efx_led_mode mode);
 	void (*push_irq_moderation)(struct efx_channel *channel);

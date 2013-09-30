@@ -927,12 +927,23 @@ bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
 	return MCDI_DWORD(outbuf, GET_LINK_OUT_MAC_FAULT) != 0;
 }
 
-static int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
-			      u32 dma_len, int enable, int clear)
+enum efx_stats_action {
+	EFX_STATS_ENABLE,
+	EFX_STATS_DISABLE,
+	EFX_STATS_PULL,
+};
+
+static int efx_mcdi_mac_stats(struct efx_nic *efx,
+			      enum efx_stats_action action, int clear)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAC_STATS_IN_LEN);
 	int rc;
-	int period = enable ? 1000 : 0;
+	int change = action == EFX_STATS_PULL ? 0 : 1;
+	int enable = action == EFX_STATS_ENABLE ? 1 : 0;
+	int period = action == EFX_STATS_ENABLE ? 1000 : 0;
+	dma_addr_t dma_addr = efx->stats_buffer.dma_addr;
+	u32 dma_len = action != EFX_STATS_DISABLE ?
+		MC_CMD_MAC_NSTATS * sizeof(u64) : 0;
 
 	BUILD_BUG_ON(MC_CMD_MAC_STATS_OUT_DMA_LEN != 0);
 
@@ -940,8 +951,8 @@ static int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 	MCDI_POPULATE_DWORD_7(inbuf, MAC_STATS_IN_CMD,
 			      MAC_STATS_IN_DMA, !!enable,
 			      MAC_STATS_IN_CLEAR, clear,
-			      MAC_STATS_IN_PERIODIC_CHANGE, 1,
-			      MAC_STATS_IN_PERIODIC_ENABLE, !!enable,
+			      MAC_STATS_IN_PERIODIC_CHANGE, change,
+			      MAC_STATS_IN_PERIODIC_ENABLE, enable,
 			      MAC_STATS_IN_PERIODIC_CLEAR, 0,
 			      MAC_STATS_IN_PERIODIC_NOEVENT, 1,
 			      MAC_STATS_IN_PERIOD_MS, period);
@@ -955,8 +966,8 @@ static int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 	return 0;
 
 fail:
-	netif_err(efx, hw, efx->net_dev, "%s: %s failed rc=%d\n",
-		  __func__, enable ? "enable" : "disable", rc);
+	netif_err(efx, hw, efx->net_dev, "%s: action %d failed rc=%d\n",
+		  __func__, action, rc);
 	return rc;
 }
 
@@ -966,13 +977,29 @@ void efx_mcdi_mac_start_stats(struct efx_nic *efx)
 
 	dma_stats[MC_CMD_MAC_GENERATION_END] = EFX_MC_STATS_GENERATION_INVALID;
 
-	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr,
-			   MC_CMD_MAC_NSTATS * sizeof(u64), 1, 0);
+	efx_mcdi_mac_stats(efx, EFX_STATS_ENABLE, 0);
 }
 
 void efx_mcdi_mac_stop_stats(struct efx_nic *efx)
 {
-	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr, 0, 0, 0);
+	efx_mcdi_mac_stats(efx, EFX_STATS_DISABLE, 0);
+}
+
+#define EFX_MAC_STATS_WAIT_US 100
+#define EFX_MAC_STATS_WAIT_ATTEMPTS 10
+
+void efx_mcdi_mac_pull_stats(struct efx_nic *efx)
+{
+	__le64 *dma_stats = efx->stats_buffer.addr;
+	int attempts = EFX_MAC_STATS_WAIT_ATTEMPTS;
+
+	dma_stats[MC_CMD_MAC_GENERATION_END] = EFX_MC_STATS_GENERATION_INVALID;
+	efx_mcdi_mac_stats(efx, EFX_STATS_PULL, 0);
+
+	while (dma_stats[MC_CMD_MAC_GENERATION_END] ==
+				EFX_MC_STATS_GENERATION_INVALID &&
+			attempts-- != 0)
+		udelay(EFX_MAC_STATS_WAIT_US);
 }
 
 int efx_mcdi_port_probe(struct efx_nic *efx)
@@ -1003,7 +1030,7 @@ int efx_mcdi_port_probe(struct efx_nic *efx)
 		  efx->stats_buffer.addr,
 		  (u64)virt_to_phys(efx->stats_buffer.addr));
 
-	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr, 0, 0, 1);
+	efx_mcdi_mac_stats(efx, EFX_STATS_DISABLE, 1);
 
 	return 0;
 }

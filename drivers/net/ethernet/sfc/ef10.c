@@ -902,6 +902,7 @@ static int efx_ef10_try_update_nic_stats(struct efx_nic *efx)
 		return -EAGAIN;
 
 	/* Update derived statistics */
+	efx_nic_fix_nodesc_drop_stat(efx, &stats[EF10_STAT_rx_nodesc_drops]);
 	stats[EF10_STAT_rx_good_bytes] =
 		stats[EF10_STAT_rx_bytes] -
 		stats[EF10_STAT_rx_bytes_minus_good_bytes];
@@ -3423,6 +3424,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.describe_stats = efx_ef10_describe_stats,
 	.update_stats = efx_ef10_update_stats,
 	.start_stats = efx_mcdi_mac_start_stats,
+	.pull_stats = efx_mcdi_mac_pull_stats,
 	.stop_stats = efx_mcdi_mac_stop_stats,
 	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = efx_ef10_push_irq_moderation,

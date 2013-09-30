@@ -458,6 +458,8 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 		return -EAGAIN;
 
 	/* Update derived statistics */
+	efx_nic_fix_nodesc_drop_stat(efx,
+				     &stats[SIENA_STAT_rx_nodesc_drop_cnt]);
 	efx_update_diff_stat(&stats[SIENA_STAT_tx_good_bytes],
 			     stats[SIENA_STAT_tx_bytes] -
 			     stats[SIENA_STAT_tx_bad_bytes]);
@@ -878,6 +880,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.describe_stats = siena_describe_nic_stats,
 	.update_stats = siena_update_nic_stats,
 	.start_stats = efx_mcdi_mac_start_stats,
+	.pull_stats = efx_mcdi_mac_pull_stats,
 	.stop_stats = efx_mcdi_mac_stop_stats,
 	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = siena_push_irq_moderation,
