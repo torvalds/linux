@@ -96,7 +96,7 @@ static int vexpress_regulator_probe(struct platform_device *pdev)
 	config.driver_data = reg;
 	config.of_node = pdev->dev.of_node;
 
-	reg->regdev = regulator_register(&reg->desc, &config);
+	reg->regdev = devm_regulator_register(&pdev->dev, &reg->desc, &config);
 	if (IS_ERR(reg->regdev)) {
 		err = PTR_ERR(reg->regdev);
 		goto error_regulator_register;
@@ -119,7 +119,6 @@ static int vexpress_regulator_remove(struct platform_device *pdev)
 	struct vexpress_regulator *reg = platform_get_drvdata(pdev);
 
 	vexpress_config_func_put(reg->func);
-	regulator_unregister(reg->regdev);
 
 	return 0;
 }
