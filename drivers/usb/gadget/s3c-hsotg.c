@@ -2092,12 +2092,14 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 }
 
 #define call_gadget(_hs, _entry) \
+do { \
 	if ((_hs)->gadget.speed != USB_SPEED_UNKNOWN &&	\
 	    (_hs)->driver && (_hs)->driver->_entry) { \
 		spin_unlock(&_hs->lock); \
 		(_hs)->driver->_entry(&(_hs)->gadget); \
 		spin_lock(&_hs->lock); \
-		}
+	} \
+} while (0)
 
 /**
  * s3c_hsotg_disconnect - disconnect service
@@ -2903,7 +2905,7 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 	int ret;
 
 	if (!hsotg) {
-		printk(KERN_ERR "%s: called with no device\n", __func__);
+		pr_err("%s: called with no device\n", __func__);
 		return -ENODEV;
 	}
 
@@ -3200,7 +3202,7 @@ static int state_show(struct seq_file *seq, void *v)
 		   readl(regs + GNPTXSTS),
 		   readl(regs + GRXSTSR));
 
-	seq_printf(seq, "\nEndpoint status:\n");
+	seq_puts(seq, "\nEndpoint status:\n");
 
 	for (idx = 0; idx < 15; idx++) {
 		u32 in, out;
@@ -3217,7 +3219,7 @@ static int state_show(struct seq_file *seq, void *v)
 		seq_printf(seq, ", DIEPTSIZ=0x%08x, DOEPTSIZ=0x%08x",
 			   in, out);
 
-		seq_printf(seq, "\n");
+		seq_puts(seq, "\n");
 	}
 
 	return 0;
@@ -3251,7 +3253,7 @@ static int fifo_show(struct seq_file *seq, void *v)
 	u32 val;
 	int idx;
 
-	seq_printf(seq, "Non-periodic FIFOs:\n");
+	seq_puts(seq, "Non-periodic FIFOs:\n");
 	seq_printf(seq, "RXFIFO: Size %d\n", readl(regs + GRXFSIZ));
 
 	val = readl(regs + GNPTXFSIZ);
@@ -3259,7 +3261,7 @@ static int fifo_show(struct seq_file *seq, void *v)
 		   val >> GNPTXFSIZ_NPTxFDep_SHIFT,
 		   val & GNPTXFSIZ_NPTxFStAddr_MASK);
 
-	seq_printf(seq, "\nPeriodic TXFIFOs:\n");
+	seq_puts(seq, "\nPeriodic TXFIFOs:\n");
 
 	for (idx = 1; idx <= 15; idx++) {
 		val = readl(regs + DPTXFSIZn(idx));
@@ -3330,7 +3332,7 @@ static int ep_show(struct seq_file *seq, void *v)
 		   readl(regs + DIEPTSIZ(index)),
 		   readl(regs + DOEPTSIZ(index)));
 
-	seq_printf(seq, "\n");
+	seq_puts(seq, "\n");
 	seq_printf(seq, "mps %d\n", ep->ep.maxpacket);
 	seq_printf(seq, "total_data=%ld\n", ep->total_data);
 
@@ -3341,7 +3343,7 @@ static int ep_show(struct seq_file *seq, void *v)
 
 	list_for_each_entry(req, &ep->queue, queue) {
 		if (--show_limit < 0) {
-			seq_printf(seq, "not showing more requests...\n");
+			seq_puts(seq, "not showing more requests...\n");
 			break;
 		}
 
