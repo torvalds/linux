@@ -14,6 +14,7 @@ FILES=					\
 	test-libunwind			\
 	test-libaudit			\
 	test-libslang			\
+	test-gtk2			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -68,6 +69,9 @@ test-libaudit:
 
 test-libslang:
 	$(BUILD) -I/usr/include/slang -lslang
+
+test-gtk2:
+	$(BUILD) $(shell pkg-config --libs --cflags gtk+-2.0 2>/dev/null)
 
 -include *.d */*.d
 
