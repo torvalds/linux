@@ -288,9 +288,9 @@ int divas_um_idi_delete_entity(int adapter_nr, void *entity)
 	cleanup_entity(e);
 	diva_os_free(0, e->os_context);
 	memset(e, 0x00, sizeof(*e));
-	diva_os_free(0, e);
 
 	DBG_LOG(("A(%d) remove E:%08x", adapter_nr, e));
+	diva_os_free(0, e);
 
 	return (0);
 }
