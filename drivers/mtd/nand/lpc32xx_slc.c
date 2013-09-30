@@ -1015,7 +1015,7 @@ static struct platform_driver lpc32xx_nand_driver = {
 	.driver		= {
 		.name	= LPC32XX_MODNAME,
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(lpc32xx_nand_match),
+		.of_match_table = lpc32xx_nand_match,
 	},
 };
 
