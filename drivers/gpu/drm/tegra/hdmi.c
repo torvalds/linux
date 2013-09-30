@@ -144,7 +144,7 @@ struct tmds_config {
 	u32 drive_current;
 };
 
-static const struct tmds_config tegra2_tmds_config[] = {
+static const struct tmds_config tegra20_tmds_config[] = {
 	{ /* slow pixel clock modes */
 		.pclk = 27000000,
 		.pll0 = SOR_PLL_BG_V17_S(3) | SOR_PLL_ICHPMP(1) |
@@ -177,7 +177,7 @@ static const struct tmds_config tegra2_tmds_config[] = {
 	},
 };
 
-static const struct tmds_config tegra3_tmds_config[] = {
+static const struct tmds_config tegra30_tmds_config[] = {
 	{ /* 480p modes */
 		.pclk = 27000000,
 		.pll0 = SOR_PLL_BG_V17_S(3) | SOR_PLL_ICHPMP(1) |
@@ -704,11 +704,11 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 
 	/* TMDS CONFIG */
 	if (of_device_is_compatible(node, "nvidia,tegra30-hdmi")) {
-		num_tmds = ARRAY_SIZE(tegra3_tmds_config);
-		tmds = tegra3_tmds_config;
+		num_tmds = ARRAY_SIZE(tegra30_tmds_config);
+		tmds = tegra30_tmds_config;
 	} else {
-		num_tmds = ARRAY_SIZE(tegra2_tmds_config);
-		tmds = tegra2_tmds_config;
+		num_tmds = ARRAY_SIZE(tegra20_tmds_config);
+		tmds = tegra20_tmds_config;
 	}
 
 	for (i = 0; i < num_tmds; i++) {
