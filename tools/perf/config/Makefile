@@ -113,6 +113,7 @@ FEATURE_TESTS =				\
 	dwarf				\
 	libelf-mmap			\
 	libelf-getphdrnum		\
+	libunwind			\
 	libnuma
 
 $(foreach test,$(FEATURE_TESTS),$(call feature_check,$(test),$(test)))
@@ -240,15 +241,17 @@ ifneq ($(ARCH),x86)
 endif
 
 ifndef NO_LIBUNWIND
-  # for linking with debug library, run like:
-  # make DEBUG=1 LIBUNWIND_DIR=/opt/libunwind/
+  #
+  # For linking with debug library, run like:
+  #
+  #   make DEBUG=1 LIBUNWIND_DIR=/opt/libunwind/
+  #
   ifdef LIBUNWIND_DIR
     LIBUNWIND_CFLAGS  := -I$(LIBUNWIND_DIR)/include
     LIBUNWIND_LDFLAGS := -L$(LIBUNWIND_DIR)/lib
   endif
 
-  FLAGS_UNWIND=$(LIBUNWIND_CFLAGS) $(CFLAGS) $(LIBUNWIND_LDFLAGS) $(LDFLAGS) $(EXTLIBS) $(LIBUNWIND_LIBS)
-  ifneq ($(call try-cc,$(SOURCE_LIBUNWIND),$(FLAGS_UNWIND),libunwind),y)
+  ifneq ($(feature-libunwind), 1)
     msg := $(warning No libunwind found, disabling post unwind support. Please install libunwind-dev[el] >= 0.99);
     NO_LIBUNWIND := 1
   endif
@@ -259,7 +262,7 @@ ifndef NO_LIBUNWIND
   EXTLIBS += $(LIBUNWIND_LIBS)
   CFLAGS += $(LIBUNWIND_CFLAGS)
   LDFLAGS += $(LIBUNWIND_LDFLAGS)
-endif # NO_LIBUNWIND
+endif
 
 ifndef NO_LIBAUDIT
   FLAGS_LIBAUDIT = $(CFLAGS) $(LDFLAGS) -laudit

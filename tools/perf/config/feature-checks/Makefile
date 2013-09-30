@@ -11,6 +11,7 @@ FILES=					\
 	test-dwarf			\
 	test-libelf-mmap		\
 	test-libelf-getphdrnum		\
+	test-libunwind			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -56,6 +57,9 @@ test-libelf-getphdrnum:
 
 test-libnuma:
 	$(BUILD) -lnuma
+
+test-libunwind:
+	$(BUILD) -lunwind -lunwind-x86_64 -lelf
 
 -include *.d */*.d
 
