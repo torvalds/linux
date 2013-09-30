@@ -125,7 +125,7 @@ static struct platform_driver am335x_phy_driver = {
 		.name   = "am335x-phy-driver",
 		.owner  = THIS_MODULE,
 		.pm = DEV_PM_OPS,
-		.of_match_table = of_match_ptr(am335x_phy_ids),
+		.of_match_table = am335x_phy_ids,
 	},
 };
 
