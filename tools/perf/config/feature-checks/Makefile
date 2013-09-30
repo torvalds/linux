@@ -15,6 +15,7 @@ FILES=					\
 	test-libaudit			\
 	test-libslang			\
 	test-gtk2			\
+	test-gtk2-infobar		\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -71,6 +72,9 @@ test-libslang:
 	$(BUILD) -I/usr/include/slang -lslang
 
 test-gtk2:
+	$(BUILD) $(shell pkg-config --libs --cflags gtk+-2.0 2>/dev/null)
+
+test-gtk2-infobar:
 	$(BUILD) $(shell pkg-config --libs --cflags gtk+-2.0 2>/dev/null)
 
 -include *.d */*.d
