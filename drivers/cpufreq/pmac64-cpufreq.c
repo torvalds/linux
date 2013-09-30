@@ -627,8 +627,10 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 	g5_cpu_freqs[0].frequency = max_freq;
 	g5_cpu_freqs[1].frequency = min_freq;
 
+	/* Based on a measurement on Xserve G5, rounded up. */
+	transition_latency = 10 * NSEC_PER_MSEC;
+
 	/* Set callbacks */
-	transition_latency = CPUFREQ_ETERNAL;
 	g5_switch_volt = g5_pfunc_switch_volt;
 	g5_switch_freq = g5_pfunc_switch_freq;
 	g5_query_freq = g5_pfunc_query_freq;
