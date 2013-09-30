@@ -109,7 +109,7 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 
 	data = nlmsg_data(nlh);
 
-	memcpy(data, msg, sizeof(*data) + msg->len);
+	memcpy(data, msg, size);
 
 	NETLINK_CB(skb).dst_group = group;
 
