@@ -721,7 +721,7 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 	list_add(&dpcm->list_be, &fe->dpcm[stream].be_clients);
 	list_add(&dpcm->list_fe, &be->dpcm[stream].fe_clients);
 
-	dev_dbg(fe->dev, "  connected new DPCM %s path %s %s %s\n",
+	dev_dbg(fe->dev, "connected new DPCM %s path %s %s %s\n",
 			stream ? "capture" : "playback",  fe->dai_link->name,
 			stream ? "<-" : "->", be->dai_link->name);
 
@@ -749,7 +749,7 @@ static void dpcm_be_reparent(struct snd_soc_pcm_runtime *fe,
 		if (dpcm->fe == fe)
 			continue;
 
-		dev_dbg(fe->dev, "  reparent %s path %s %s %s\n",
+		dev_dbg(fe->dev, "reparent %s path %s %s %s\n",
 			stream ? "capture" : "playback",
 			dpcm->fe->dai_link->name,
 			stream ? "<-" : "->", dpcm->be->dai_link->name);
@@ -773,7 +773,7 @@ static void dpcm_be_disconnect(struct snd_soc_pcm_runtime *fe, int stream)
 		if (dpcm->state != SND_SOC_DPCM_LINK_STATE_FREE)
 			continue;
 
-		dev_dbg(fe->dev, "  freed DSP %s path %s %s %s\n",
+		dev_dbg(fe->dev, "freed DSP %s path %s %s %s\n",
 			stream ? "capture" : "playback", fe->dai_link->name,
 			stream ? "<-" : "->", dpcm->be->dai_link->name);
 
@@ -2116,7 +2116,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 
 	pcm->private_free = platform->driver->pcm_free;
 out:
-	dev_info(rtd->card->dev, " %s <-> %s mapping ok\n", codec_dai->name,
+	dev_info(rtd->card->dev, "%s <-> %s mapping ok\n", codec_dai->name,
 		cpu_dai->name);
 	return ret;
 }
