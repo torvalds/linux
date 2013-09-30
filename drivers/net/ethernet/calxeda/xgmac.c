@@ -1342,8 +1342,8 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 	}
 
 out:
-	for (i = reg; i < XGMAC_MAX_FILTER_ADDR; i++)
-		xgmac_set_mac_addr(ioaddr, NULL, reg);
+	for (i = reg; i <= XGMAC_MAX_FILTER_ADDR; i++)
+		xgmac_set_mac_addr(ioaddr, NULL, i);
 	for (i = 0; i < XGMAC_NUM_HASH; i++)
 		writel(hash_filter[i], ioaddr + XGMAC_HASH(i));
 
