@@ -24,6 +24,15 @@ enum efx_hwmon_type {
 	EFX_HWMON_IN,		/* voltage */
 	EFX_HWMON_CURR,		/* current */
 	EFX_HWMON_POWER,	/* power */
+	EFX_HWMON_TYPES_COUNT
+};
+
+static const char *const efx_hwmon_unit[EFX_HWMON_TYPES_COUNT] = {
+	[EFX_HWMON_TEMP]  = " degC",
+	[EFX_HWMON_COOL]  = " rpm", /* though nonsense for a heatsink */
+	[EFX_HWMON_IN]    = " mV",
+	[EFX_HWMON_CURR]  = " mA",
+	[EFX_HWMON_POWER] = " W",
 };
 
 static const struct {
@@ -91,7 +100,8 @@ static const char *const sensor_status_names[] = {
 void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 {
 	unsigned int type, state, value;
-	const char *name = NULL, *state_txt;
+	enum efx_hwmon_type hwmon_type = EFX_HWMON_UNKNOWN;
+	const char *name = NULL, *state_txt, *unit;
 
 	type = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_MONITOR);
 	state = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_STATE);
@@ -99,16 +109,22 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 
 	/* Deal gracefully with the board having more drivers than we
 	 * know about, but do not expect new sensor states. */
-	if (type < ARRAY_SIZE(efx_mcdi_sensor_type))
+	if (type < ARRAY_SIZE(efx_mcdi_sensor_type)) {
 		name = efx_mcdi_sensor_type[type].label;
+		hwmon_type = efx_mcdi_sensor_type[type].hwmon_type;
+	}
 	if (!name)
 		name = "No sensor name available";
 	EFX_BUG_ON_PARANOID(state >= ARRAY_SIZE(sensor_status_names));
 	state_txt = sensor_status_names[state];
+	EFX_BUG_ON_PARANOID(hwmon_type >= EFX_HWMON_TYPES_COUNT);
+	unit = efx_hwmon_unit[hwmon_type];
+	if (!unit)
+		unit = "";
 
 	netif_err(efx, hw, efx->net_dev,
-		  "Sensor %d (%s) reports condition '%s' for raw value %d\n",
-		  type, name, state_txt, value);
+		  "Sensor %d (%s) reports condition '%s' for value %d%s\n",
+		  type, name, state_txt, value, unit);
 }
 
 #ifdef CONFIG_SFC_MCDI_MON
