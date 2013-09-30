@@ -169,7 +169,7 @@ static struct platform_driver lpc32xx_pwm_driver = {
 	.driver = {
 		.name = "lpc32xx-pwm",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(lpc32xx_pwm_dt_ids),
+		.of_match_table = lpc32xx_pwm_dt_ids,
 	},
 	.probe = lpc32xx_pwm_probe,
 	.remove = lpc32xx_pwm_remove,
