@@ -13,6 +13,7 @@ FILES=					\
 	test-libelf-getphdrnum		\
 	test-libunwind			\
 	test-libaudit			\
+	test-libslang			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -64,6 +65,9 @@ test-libunwind:
 
 test-libaudit:
 	$(BUILD) -laudit
+
+test-libslang:
+	$(BUILD) -I/usr/include/slang -lslang
 
 -include *.d */*.d
 
