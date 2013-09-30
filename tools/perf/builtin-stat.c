@@ -1659,8 +1659,9 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
 		big_num = false;
 
-	if (!argc && !perf_target__has_task(&target))
+	if (!argc && perf_target__none(&target))
 		usage_with_options(stat_usage, options);
+
 	if (run_count < 0) {
 		usage_with_options(stat_usage, options);
 	} else if (run_count == 0) {
