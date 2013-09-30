@@ -599,23 +599,16 @@ static int am35x_resume(struct device *dev)
 
 	return 0;
 }
-
-static struct dev_pm_ops am35x_pm_ops = {
-	.suspend	= am35x_suspend,
-	.resume		= am35x_resume,
-};
-
-#define DEV_PM_OPS	&am35x_pm_ops
-#else
-#define DEV_PM_OPS	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(am35x_pm_ops, am35x_suspend, am35x_resume);
 
 static struct platform_driver am35x_driver = {
 	.probe		= am35x_probe,
 	.remove		= am35x_remove,
 	.driver		= {
 		.name	= "musb-am35x",
-		.pm	= DEV_PM_OPS,
+		.pm	= &am35x_pm_ops,
 	},
 };
 
