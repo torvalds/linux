@@ -72,13 +72,6 @@ static void __init kirkwood_dt_time_init(void)
 	clocksource_of_init();
 }
 
-static void __init kirkwood_dt_init_early(void)
-{
-	mvebu_mbus_init("marvell,kirkwood-mbus",
-			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
-			DDR_WINDOW_CPU_BASE, DDR_WINDOW_CPU_SZ);
-}
-
 static void __init kirkwood_dt_init(void)
 {
 	pr_info("Kirkwood: %s, TCLK=%d.\n", kirkwood_id(), kirkwood_tclk);
@@ -122,7 +115,6 @@ static const char * const kirkwood_dt_board_compat[] = {
 DT_MACHINE_START(KIRKWOOD_DT, "Marvell Kirkwood (Flattened Device Tree)")
 	/* Maintainer: Jason Cooper <jason@lakedaemon.net> */
 	.map_io		= kirkwood_map_io,
-	.init_early	= kirkwood_dt_init_early,
 	.init_time	= kirkwood_dt_time_init,
 	.init_machine	= kirkwood_dt_init,
 	.restart	= kirkwood_restart,
