@@ -728,7 +728,7 @@ static int max77xxx_rtc_probe(struct platform_device *pdev)
 		info->reg = max77686_map;
 		config = &max77686_rtc_regmap_config;
 	}
-	info->max77xxx->rtc_regmap = regmap_init_i2c(info->rtc, config);
+	info->max77xxx->rtc_regmap = devm_regmap_init_i2c(info->rtc, config);
 	if (IS_ERR(info->max77xxx->rtc_regmap)) {
 		ret = PTR_ERR(info->max77xxx->rtc_regmap);
 		dev_err(&pdev->dev, "Failed to allocate register map: %d\n",

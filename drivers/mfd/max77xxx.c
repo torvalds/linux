@@ -185,7 +185,7 @@ static int max77xxx_i2c_probe(struct i2c_client *i2c,
 		config = &max77686_regmap_config;
 	else
 		config = &max77802_regmap_config;
-	max77xxx->regmap = regmap_init_i2c(i2c, config);
+	max77xxx->regmap = devm_regmap_init_i2c(i2c, config);
 	if (IS_ERR(max77xxx->regmap)) {
 		ret = PTR_ERR(max77xxx->regmap);
 		dev_err(max77xxx->dev, "Failed to allocate register map: %d\n",
