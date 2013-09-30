@@ -2074,10 +2074,8 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	coda_setup_iram(ctx);
 
 	if (dst_fourcc == V4L2_PIX_FMT_H264) {
-		value  = (FMO_SLICE_SAVE_BUF_SIZE << 7);
-		value |= (0 & CODA_FMOPARAM_TYPE_MASK) << CODA_FMOPARAM_TYPE_OFFSET;
-		value |=  0 & CODA_FMOPARAM_SLICENUM_MASK;
 		if (dev->devtype->product == CODA_DX6) {
+			value = FMO_SLICE_SAVE_BUF_SIZE << 7;
 			coda_write(dev, value, CODADX6_CMD_ENC_SEQ_FMO);
 		} else {
 			coda_write(dev, ctx->iram_info.search_ram_paddr,
