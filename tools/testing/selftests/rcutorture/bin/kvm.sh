@@ -28,6 +28,7 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 scriptname=$0
+args="$*"
 
 dur=30
 KVM=`pwd`/tools/testing/selftests/rcutorture; export KVM
@@ -73,7 +74,6 @@ checkarg () {
 
 while test $# -gt 0
 do
-	echo ":$1:"
 	case "$1" in
 	--builddir)
 		checkarg --builddir "(absolute pathname)" "$#" "$2" '^/' error
@@ -133,11 +133,6 @@ do
 	shift
 done
 
-echo "builddir=$builddir"
-echo "dur=$dur"
-echo "KVM=$KVM"
-echo "resdir=$resdir"
-
 PATH=${KVM}/bin:$PATH; export PATH
 CONFIGFRAG=${KVM}/configs; export CONFIGFRAG
 KVPATH=${CONFIGFRAG}/$kversion; export KVPATH
@@ -150,12 +145,19 @@ fi
 if test -z "$resdir"
 then
 	resdir=$KVM/res
-	mkdir $resdir || :
+	if ! test -e $resdir
+	then
+		mkdir $resdir || :
+	fi
 else
-	mkdir -p "$resdir" || :
+	if ! test -e $resdir
+	then
+		mkdir -p "$resdir" || :
+	fi
 fi
 mkdir $resdir/$ds
-echo Datestamp: $ds
+touch $resdir/$ds/log
+echo $scriptname $args >> $resdir/$ds/log
 
 pwd > $resdir/$ds/testid.txt
 if test -d .git
@@ -164,7 +166,10 @@ then
 	git rev-parse HEAD >> $resdir/$ds/testid.txt
 fi
 builddir=$KVM/b1
-mkdir $builddir || :
+if ! test -e $builddir
+then
+	mkdir $builddir || :
+fi
 
 for CF in $configs
 do

@@ -14,8 +14,6 @@
 # for example, "O=/tmp/foo".  If this argument is omitted, the .config
 # file will be generated directly in the current directory.
 
-echo configinit.sh $*
-
 T=/tmp/configinit.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
