@@ -83,7 +83,7 @@ void u8540_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 	clk_register_clkdev(clk, NULL, "lcd");
 	clk_register_clkdev(clk, "lcd", "mcde");
 
-	clk = clk_reg_prcmu_opp_gate("bmlclk", NULL, PRCMU_BML8580CLK,
+	clk = clk_reg_prcmu_opp_gate("bmlclk", NULL, PRCMU_BMLCLK,
 				CLK_IS_ROOT);
 	clk_register_clkdev(clk, NULL, "bml");
 
