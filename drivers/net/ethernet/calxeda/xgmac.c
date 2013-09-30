@@ -106,7 +106,6 @@
 #define XGMAC_DMA_HW_FEATURE	0x00000f58	/* Enabled Hardware Features */
 
 #define XGMAC_ADDR_AE		0x80000000
-#define XGMAC_MAX_FILTER_ADDR	31
 
 /* PMT Control and Status */
 #define XGMAC_PMT_POINTER_RESET	0x80000000
@@ -384,6 +383,7 @@ struct xgmac_priv {
 	struct device *device;
 	struct napi_struct napi;
 
+	int max_macs;
 	struct xgmac_extra_stats xstats;
 
 	spinlock_t stats_lock;
@@ -1296,7 +1296,7 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 
 	memset(hash_filter, 0, sizeof(hash_filter));
 
-	if (netdev_uc_count(dev) > XGMAC_MAX_FILTER_ADDR) {
+	if (netdev_uc_count(dev) > priv->max_macs) {
 		use_hash = true;
 		value |= XGMAC_FRAME_FILTER_HUC | XGMAC_FRAME_FILTER_HPF;
 	}
@@ -1319,7 +1319,7 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 		goto out;
 	}
 
-	if ((netdev_mc_count(dev) + reg - 1) > XGMAC_MAX_FILTER_ADDR) {
+	if ((netdev_mc_count(dev) + reg - 1) > priv->max_macs) {
 		use_hash = true;
 		value |= XGMAC_FRAME_FILTER_HMC | XGMAC_FRAME_FILTER_HPF;
 	} else {
@@ -1340,7 +1340,7 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 	}
 
 out:
-	for (i = reg; i <= XGMAC_MAX_FILTER_ADDR; i++)
+	for (i = reg; i <= priv->max_macs; i++)
 		xgmac_set_mac_addr(ioaddr, NULL, i);
 	for (i = 0; i < XGMAC_NUM_HASH; i++)
 		writel(hash_filter[i], ioaddr + XGMAC_HASH(i));
@@ -1758,6 +1758,13 @@ static int xgmac_probe(struct platform_device *pdev)
 
 	uid = readl(priv->base + XGMAC_VERSION);
 	netdev_info(ndev, "h/w version is 0x%x\n", uid);
+
+	/* Figure out how many valid mac address filter registers we have */
+	writel(1, priv->base + XGMAC_ADDR_HIGH(31));
+	if (readl(priv->base + XGMAC_ADDR_HIGH(31)) == 1)
+		priv->max_macs = 31;
+	else
+		priv->max_macs = 7;
 
 	writel(0, priv->base + XGMAC_DMA_INTR_ENA);
 	ndev->irq = platform_get_irq(pdev, 0);
