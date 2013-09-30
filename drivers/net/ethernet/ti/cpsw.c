@@ -2217,7 +2217,7 @@ static struct platform_driver cpsw_driver = {
 		.name	 = "cpsw",
 		.owner	 = THIS_MODULE,
 		.pm	 = &cpsw_pm_ops,
-		.of_match_table = of_match_ptr(cpsw_of_mtable),
+		.of_match_table = cpsw_of_mtable,
 	},
 	.probe = cpsw_probe,
 	.remove = cpsw_remove,
