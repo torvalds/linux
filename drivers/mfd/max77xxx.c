@@ -70,7 +70,7 @@ static bool max77xxx_is_volatile_reg(struct device *dev, unsigned int reg)
 		reg == MAX77XXX_REG_PWRON);
 }
 
-static struct regmap_config max77686_regmap_config = {
+static const struct regmap_config max77686_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.writeable_reg = max77686_is_accessible_reg,
@@ -80,7 +80,7 @@ static struct regmap_config max77686_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static struct regmap_config max77802_regmap_config = {
+static const struct regmap_config max77802_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.writeable_reg = max77802_is_accessible_reg,
@@ -91,7 +91,7 @@ static struct regmap_config max77802_regmap_config = {
 };
 
 #ifdef CONFIG_OF
-static struct of_device_id max77xxx_pmic_dt_match[] = {
+static const struct of_device_id max77xxx_pmic_dt_match[] = {
 	{.compatible = "maxim,max77686", .data = (void *)TYPE_MAX77686},
 	{.compatible = "maxim,max77802", .data = (void *)TYPE_MAX77802},
 	{},
@@ -156,7 +156,7 @@ static int max77xxx_i2c_probe(struct i2c_client *i2c,
 	unsigned int data;
 	int num_devs;
 	int ret = 0;
-	struct regmap_config *config;
+	const struct regmap_config *config;
 
 	if (i2c->dev.of_node)
 		pdata = max77xxx_i2c_parse_dt_pdata(&i2c->dev);
