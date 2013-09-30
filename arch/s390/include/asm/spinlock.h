@@ -44,6 +44,11 @@ extern void arch_spin_lock_wait_flags(arch_spinlock_t *, unsigned long flags);
 extern int arch_spin_trylock_retry(arch_spinlock_t *);
 extern void arch_spin_relax(arch_spinlock_t *lock);
 
+static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+	return lock.owner_cpu == 0;
+}
+
 static inline void arch_spin_lock(arch_spinlock_t *lp)
 {
 	int old;

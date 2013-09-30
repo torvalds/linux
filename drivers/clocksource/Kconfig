@@ -26,6 +26,7 @@ config DW_APB_TIMER_OF
 
 config ARMADA_370_XP_TIMER
 	bool
+	select CLKSRC_OF
 
 config ORION_TIMER
 	select CLKSRC_OF
