@@ -41,6 +41,13 @@
 			cache-level = <2>;
 		};
 
+		global-timer@1013c200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0x1013c200 0x20>;
+			interrupts = <GIC_PPI 11 0x304>;
+			clocks = <&dummy150m>;
+		};
+
 		local-timer@1013c600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x1013c600 0x20>;
