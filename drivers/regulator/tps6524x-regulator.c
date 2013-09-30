@@ -588,7 +588,6 @@ static int pmic_remove(struct spi_device *spi)
 		regulator_unregister(hw->rdev[i]);
 		hw->rdev[i] = NULL;
 	}
-	spi_set_drvdata(spi, NULL);
 	return 0;
 }
 
