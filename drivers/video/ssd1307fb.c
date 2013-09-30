@@ -569,7 +569,7 @@ static struct i2c_driver ssd1307fb_driver = {
 	.id_table = ssd1307fb_i2c_id,
 	.driver = {
 		.name = "ssd1307fb",
-		.of_match_table = of_match_ptr(ssd1307fb_of_match),
+		.of_match_table = ssd1307fb_of_match,
 		.owner = THIS_MODULE,
 	},
 };
