@@ -592,32 +592,6 @@ static int max77xxx_rtc_init_reg(struct max77xxx_rtc_info *info)
 	return ret;
 }
 
-static bool max77686_rtc_is_accessible_reg(struct device *dev,
-					   unsigned int reg)
-{
-	return (reg >= MAX77686_RTC_INT && reg < MAX77686_RTC_END);
-}
-
-static bool max77802_rtc_is_accessible_reg(struct device *dev,
-					   unsigned int reg)
-{
-	return (reg >= MAX77802_RTC_INT && reg < MAX77802_RTC_END);
-}
-
-static struct regmap_config max77686_rtc_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.writeable_reg = max77686_rtc_is_accessible_reg,
-	.readable_reg = max77686_rtc_is_accessible_reg,
-};
-
-static struct regmap_config max77802_rtc_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.writeable_reg = max77802_rtc_is_accessible_reg,
-	.readable_reg = max77802_rtc_is_accessible_reg,
-};
-
 /*
  * Sadly these two chips don't quite share register numbers. The elements
  * of these arrays must be in the same order, starting with the register
@@ -635,6 +609,96 @@ static u8 max77802_map[MAX77XXX_REG_COUNT] = {
 	0xca, 0xcb, 0xcc, 0xcd, 0xcf, 0xd0, 0xd1, 0xd2,
 	0xd3, 0xd4, 0xd5, 0xd7, 0xd8, 0xd9, 0xda, 0xdb,
 	0xdc, 0xdd, 0xce, 0xd6,
+};
+
+static bool max77686_rtc_is_accessible_reg(struct device *dev,
+					   unsigned int reg)
+{
+	return (reg >= MAX77686_RTC_INT && reg < MAX77686_RTC_END);
+}
+
+static bool max77802_rtc_is_accessible_reg(struct device *dev,
+					   unsigned int reg)
+{
+	return (reg >= MAX77802_RTC_INT && reg < MAX77802_RTC_END);
+}
+
+static bool max77xxx_rtc_is_precious_reg(enum max77xxx_types type,
+					 unsigned int reg)
+{
+	u8 *regs;
+
+	if (type == TYPE_MAX77686)
+		regs = max77686_map;
+	else
+		regs = max77802_map;
+	return ((type == TYPE_MAX77686 && reg == MAX77686_RTC_INT) ||
+		(type == TYPE_MAX77802 && reg == MAX77802_RTC_INT) ||
+		reg == regs[MAX77XXX_RTC_UPDATE0] ||
+		reg == regs[MAX77XXX_RTC_UPDATE1]);
+}
+
+static bool max77686_rtc_is_precious_reg(struct device *dev,
+					 unsigned int reg)
+{
+	return max77xxx_rtc_is_precious_reg(TYPE_MAX77686, reg);
+}
+
+static bool max77802_rtc_is_precious_reg(struct device *dev,
+					 unsigned int reg)
+{
+	return max77xxx_rtc_is_precious_reg(TYPE_MAX77802, reg);
+}
+
+static bool max77xxx_rtc_is_volatile_reg(enum max77xxx_types type,
+					 unsigned int reg)
+{
+	u8 *regs;
+
+	if (type == TYPE_MAX77686)
+		regs = max77686_map;
+	else
+		regs = max77802_map;
+	return (max77xxx_rtc_is_precious_reg(type, reg) ||
+		reg == regs[MAX77XXX_RTC_SEC] ||
+		reg == regs[MAX77XXX_RTC_MIN] ||
+		reg == regs[MAX77XXX_RTC_HOUR] ||
+		reg == regs[MAX77XXX_RTC_WEEKDAY] ||
+		reg == regs[MAX77XXX_RTC_MONTH] ||
+		reg == regs[MAX77XXX_RTC_YEAR] ||
+		reg == regs[MAX77XXX_RTC_DATE]);
+}
+
+static bool max77686_rtc_is_volatile_reg(struct device *dev,
+					 unsigned int reg)
+{
+	return max77xxx_rtc_is_volatile_reg(TYPE_MAX77686, reg);
+}
+
+static bool max77802_rtc_is_volatile_reg(struct device *dev,
+					 unsigned int reg)
+{
+	return max77xxx_rtc_is_volatile_reg(TYPE_MAX77802, reg);
+}
+
+static struct regmap_config max77686_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.writeable_reg = max77686_rtc_is_accessible_reg,
+	.readable_reg = max77686_rtc_is_accessible_reg,
+	.precious_reg = max77686_rtc_is_precious_reg,
+	.volatile_reg = max77686_rtc_is_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
+};
+
+static struct regmap_config max77802_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.writeable_reg = max77802_rtc_is_accessible_reg,
+	.readable_reg = max77802_rtc_is_accessible_reg,
+	.precious_reg = max77802_rtc_is_precious_reg,
+	.volatile_reg = max77802_rtc_is_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static int max77xxx_rtc_probe(struct platform_device *pdev)
