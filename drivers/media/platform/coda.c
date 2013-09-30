@@ -394,14 +394,32 @@ static struct coda_codec *coda_find_codec(struct coda_dev *dev, int src_fourcc,
 	return &codecs[k];
 }
 
+static char *coda_product_name(int product)
+{
+	static char buf[9];
+
+	switch (product) {
+	case CODA_DX6:
+		return "CodaDx6";
+	case CODA_7541:
+		return "CODA7541";
+	default:
+		snprintf(buf, sizeof(buf), "(0x%04x)", product);
+		return buf;
+	}
+}
+
 /*
  * V4L2 ioctl() operations.
  */
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
+	struct coda_ctx *ctx = fh_to_ctx(priv);
+
 	strlcpy(cap->driver, CODA_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, CODA_NAME, sizeof(cap->card));
+	strlcpy(cap->card, coda_product_name(ctx->dev->devtype->product),
+		sizeof(cap->card));
 	strlcpy(cap->bus_info, "platform:" CODA_NAME, sizeof(cap->bus_info));
 	/*
 	 * This is only a mem-to-mem video device. The capture and output
@@ -2866,21 +2884,6 @@ static bool coda_firmware_supported(u32 vernum)
 		if (vernum == coda_supported_firmwares[i])
 			return true;
 	return false;
-}
-
-static char *coda_product_name(int product)
-{
-	static char buf[9];
-
-	switch (product) {
-	case CODA_DX6:
-		return "CodaDx6";
-	case CODA_7541:
-		return "CODA7541";
-	default:
-		snprintf(buf, sizeof(buf), "(0x%04x)", product);
-		return buf;
-	}
 }
 
 static int coda_hw_init(struct coda_dev *dev)
