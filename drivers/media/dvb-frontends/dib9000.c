@@ -651,7 +651,7 @@ static int dib9000_risc_debug_buf(struct dib9000_state *state, u16 * data, u8 si
 		b++;
 		dprintk("%s", b);
 	} else
-		dprintk("RISC%d: %d.%04d %s", state->fe_id, ts / 10000, ts % 10000, *b ? b : "<emtpy>");
+		dprintk("RISC%d: %d.%04d %s", state->fe_id, ts / 10000, ts % 10000, *b ? b : "<empty>");
 	return 1;
 }
 
