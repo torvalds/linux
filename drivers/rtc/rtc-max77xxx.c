@@ -592,9 +592,30 @@ static int max77xxx_rtc_init_reg(struct max77xxx_rtc_info *info)
 	return ret;
 }
 
-static struct regmap_config max77xxx_rtc_regmap_config = {
+static bool max77686_rtc_is_accessible_reg(struct device *dev,
+					   unsigned int reg)
+{
+	return (reg >= MAX77686_RTC_INT && reg < MAX77686_RTC_END);
+}
+
+static bool max77802_rtc_is_accessible_reg(struct device *dev,
+					   unsigned int reg)
+{
+	return (reg >= MAX77802_RTC_INT && reg < MAX77802_RTC_END);
+}
+
+static struct regmap_config max77686_rtc_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.writeable_reg = max77686_rtc_is_accessible_reg,
+	.readable_reg = max77686_rtc_is_accessible_reg,
+};
+
+static struct regmap_config max77802_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.writeable_reg = max77802_rtc_is_accessible_reg,
+	.readable_reg = max77802_rtc_is_accessible_reg,
 };
 
 /*
@@ -621,6 +642,7 @@ static int max77xxx_rtc_probe(struct platform_device *pdev)
 	struct max77xxx_dev *max77xxx = dev_get_drvdata(pdev->dev.parent);
 	struct max77xxx_rtc_info *info;
 	int ret, virq;
+	struct regmap_config *config;
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
@@ -636,18 +658,18 @@ static int max77xxx_rtc_probe(struct platform_device *pdev)
 	if (!info->rtc)
 		info->rtc = max77xxx->i2c;
 	if (max77xxx->type == TYPE_MAX77802) {
-		info->max77xxx->rtc_regmap = info->max77xxx->regmap;
 		info->reg = max77802_map;
+		config = &max77802_rtc_regmap_config;
 	} else {
-		info->max77xxx->rtc_regmap = regmap_init_i2c(info->rtc,
-				&max77xxx_rtc_regmap_config);
-		if (IS_ERR(info->max77xxx->rtc_regmap)) {
-			ret = PTR_ERR(info->max77xxx->rtc_regmap);
-			dev_err(info->max77xxx->dev, "Failed to allocate register map: %d\n",
-				ret);
-			return ret;
-		}
 		info->reg = max77686_map;
+		config = &max77686_rtc_regmap_config;
+	}
+	info->max77xxx->rtc_regmap = regmap_init_i2c(info->rtc, config);
+	if (IS_ERR(info->max77xxx->rtc_regmap)) {
+		ret = PTR_ERR(info->max77xxx->rtc_regmap);
+		dev_err(&pdev->dev, "Failed to allocate register map: %d\n",
+			ret);
+		return ret;
 	}
 	platform_set_drvdata(pdev, info);
 	if (max77xxx->type == TYPE_MAX77802)

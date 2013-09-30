@@ -349,11 +349,13 @@ enum max77xxx_rtc_reg {
 enum max77686_rtc_reg {
 	MAX77686_RTC_INT = 0x0,
 	MAX77686_RTC_INTM = 0x1,
+	MAX77686_RTC_END = 0x1c,
 };
 
 enum max77802_rtc_reg {
 	MAX77802_RTC_INT = 0xc0,
 	MAX77802_RTC_INTM = 0xc1,
+	MAX77802_RTC_END = 0xde,
 };
 
 #define MAX77XXX_IRQSRC_PMIC	(0)

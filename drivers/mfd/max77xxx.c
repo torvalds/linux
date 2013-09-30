@@ -47,9 +47,28 @@ static struct mfd_cell max77xxx_devs[TYPE_COUNT][2] = {
 	},
 };
 
-static struct regmap_config max77xxx_regmap_config = {
+static bool max77686_is_accessible_reg(struct device *dev, unsigned int reg)
+{
+	return (reg >= MAX77XXX_REG_DEVICE_ID && reg < MAX77686_REG_PMIC_END);
+}
+
+static bool max77802_is_accessible_reg(struct device *dev, unsigned int reg)
+{
+	return (reg >= MAX77XXX_REG_DEVICE_ID && reg < MAX77802_REG_PMIC_END);
+}
+
+static struct regmap_config max77686_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.writeable_reg = max77686_is_accessible_reg,
+	.readable_reg = max77686_is_accessible_reg,
+};
+
+static struct regmap_config max77802_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.writeable_reg = max77802_is_accessible_reg,
+	.readable_reg = max77802_is_accessible_reg,
 };
 
 #ifdef CONFIG_OF
@@ -118,6 +137,7 @@ static int max77xxx_i2c_probe(struct i2c_client *i2c,
 	unsigned int data;
 	int num_devs;
 	int ret = 0;
+	struct regmap_config *config;
 
 	if (i2c->dev.of_node)
 		pdata = max77xxx_i2c_parse_dt_pdata(&i2c->dev);
@@ -142,7 +162,11 @@ static int max77xxx_i2c_probe(struct i2c_client *i2c,
 	max77xxx->irq_gpio = pdata->irq_gpio;
 	max77xxx->irq = i2c->irq;
 
-	max77xxx->regmap = regmap_init_i2c(i2c, &max77xxx_regmap_config);
+	if (max77xxx->type == TYPE_MAX77686)
+		config = &max77686_regmap_config;
+	else
+		config = &max77802_regmap_config;
+	max77xxx->regmap = regmap_init_i2c(i2c, config);
 	if (IS_ERR(max77xxx->regmap)) {
 		ret = PTR_ERR(max77xxx->regmap);
 		dev_err(max77xxx->dev, "Failed to allocate register map: %d\n",
