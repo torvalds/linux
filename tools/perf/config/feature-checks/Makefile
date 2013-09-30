@@ -5,6 +5,7 @@ FILES=					\
 	test-stackprotector		\
 	test-volatile-register-var	\
 	test-fortify-source		\
+	test-bionic			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -29,6 +30,9 @@ test-volatile-register-var:
 
 test-fortify-source:
 	$(BUILD) -O2 -Werror -D_FORTIFY_SOURCE=2
+
+test-bionic:
+	$(BUILD)
 
 test-libnuma:
 	$(BUILD) -lnuma
