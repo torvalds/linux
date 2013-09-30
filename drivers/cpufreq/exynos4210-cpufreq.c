@@ -60,20 +60,20 @@ static void exynos4210_set_clkdiv(unsigned int div_index)
 
 	tmp = apll_freq_4210[div_index].clk_div_cpu0;
 
-	__raw_writel(tmp, EXYNOS4_CLKDIV_CPU);
+	writel_relaxed(tmp, EXYNOS4_CLKDIV_CPU);
 
 	do {
-		tmp = __raw_readl(EXYNOS4_CLKDIV_STATCPU);
+		tmp = readl_relaxed(EXYNOS4_CLKDIV_STATCPU);
 	} while (tmp & 0x1111111);
 
 	/* Change Divider - CPU1 */
 
 	tmp = apll_freq_4210[div_index].clk_div_cpu1;
 
-	__raw_writel(tmp, EXYNOS4_CLKDIV_CPU1);
+	writel_relaxed(tmp, EXYNOS4_CLKDIV_CPU1);
 
 	do {
-		tmp = __raw_readl(EXYNOS4_CLKDIV_STATCPU1);
+		tmp = readl_relaxed(EXYNOS4_CLKDIV_STATCPU1);
 	} while (tmp & 0x11);
 }
 
@@ -85,7 +85,7 @@ static void exynos4210_set_apll(unsigned int index)
 	clk_set_parent(moutcore, mout_mpll);
 
 	do {
-		tmp = (__raw_readl(EXYNOS4_CLKMUX_STATCPU)
+		tmp = (readl_relaxed(EXYNOS4_CLKMUX_STATCPU)
 			>> EXYNOS4_CLKSRC_CPU_MUXCORE_SHIFT);
 		tmp &= 0x7;
 	} while (tmp != 0x2);
@@ -96,7 +96,7 @@ static void exynos4210_set_apll(unsigned int index)
 	clk_set_parent(moutcore, mout_apll);
 
 	do {
-		tmp = __raw_readl(EXYNOS4_CLKMUX_STATCPU);
+		tmp = readl_relaxed(EXYNOS4_CLKMUX_STATCPU);
 		tmp &= EXYNOS4_CLKMUX_STATCPU_MUXCORE_MASK;
 	} while (tmp != (0x1 << EXYNOS4_CLKSRC_CPU_MUXCORE_SHIFT));
 }

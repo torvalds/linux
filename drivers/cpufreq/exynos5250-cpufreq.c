@@ -87,17 +87,17 @@ static void set_clkdiv(unsigned int div_index)
 
 	tmp = apll_freq_5250[div_index].clk_div_cpu0;
 
-	__raw_writel(tmp, EXYNOS5_CLKDIV_CPU0);
+	writel_relaxed(tmp, EXYNOS5_CLKDIV_CPU0);
 
-	while (__raw_readl(EXYNOS5_CLKDIV_STATCPU0) & 0x11111111)
+	while (readl_relaxed(EXYNOS5_CLKDIV_STATCPU0) & 0x11111111)
 		cpu_relax();
 
 	/* Change Divider - CPU1 */
 	tmp = apll_freq_5250[div_index].clk_div_cpu1;
 
-	__raw_writel(tmp, EXYNOS5_CLKDIV_CPU1);
+	writel_relaxed(tmp, EXYNOS5_CLKDIV_CPU1);
 
-	while (__raw_readl(EXYNOS5_CLKDIV_STATCPU1) & 0x11)
+	while (readl_relaxed(EXYNOS5_CLKDIV_STATCPU1) & 0x11)
 		cpu_relax();
 }
 
@@ -111,7 +111,7 @@ static void set_apll(unsigned int index)
 
 	do {
 		cpu_relax();
-		tmp = (__raw_readl(EXYNOS5_CLKMUX_STATCPU) >> 16);
+		tmp = (readl_relaxed(EXYNOS5_CLKMUX_STATCPU) >> 16);
 		tmp &= 0x7;
 	} while (tmp != 0x2);
 
@@ -122,7 +122,7 @@ static void set_apll(unsigned int index)
 
 	do {
 		cpu_relax();
-		tmp = __raw_readl(EXYNOS5_CLKMUX_STATCPU);
+		tmp = readl_relaxed(EXYNOS5_CLKMUX_STATCPU);
 		tmp &= (0x7 << 16);
 	} while (tmp != (0x1 << 16));
 }

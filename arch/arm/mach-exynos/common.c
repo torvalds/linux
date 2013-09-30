@@ -274,7 +274,7 @@ static struct map_desc exynos5_iodesc[] __initdata = {
 
 void exynos4_restart(enum reboot_mode mode, const char *cmd)
 {
-	__raw_writel(0x1, S5P_SWRESET);
+	writel_relaxed(0x1, S5P_SWRESET);
 }
 
 void exynos5_restart(enum reboot_mode mode, const char *cmd)
@@ -291,15 +291,15 @@ void exynos5_restart(enum reboot_mode mode, const char *cmd)
 		np = of_find_compatible_node(NULL, NULL, "samsung,exynos5440-clock");
 
 		addr = of_iomap(np, 0) + 0xbc;
-		status = __raw_readl(addr);
+		status = readl_relaxed(addr);
 
 		addr = of_iomap(np, 0) + 0xcc;
-		val = __raw_readl(addr);
+		val = readl_relaxed(addr);
 
 		val = (val & 0xffff0000) | (status & 0xffff);
 	}
 
-	__raw_writel(val, addr);
+	writel_relaxed(val, addr);
 }
 
 static struct platform_device exynos_cpuidle = {

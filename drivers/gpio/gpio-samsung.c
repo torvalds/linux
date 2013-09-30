@@ -50,10 +50,10 @@ int samsung_gpio_setpull_updown(struct samsung_gpio_chip *chip,
 	int shift = off * 2;
 	u32 pup;
 
-	pup = __raw_readl(reg);
+	pup = readl_relaxed(reg);
 	pup &= ~(3 << shift);
 	pup |= pull << shift;
-	__raw_writel(pup, reg);
+	writel_relaxed(pup, reg);
 
 	return 0;
 }
@@ -63,7 +63,7 @@ samsung_gpio_pull_t samsung_gpio_getpull_updown(struct samsung_gpio_chip *chip,
 {
 	void __iomem *reg = chip->base + 0x08;
 	int shift = off * 2;
-	u32 pup = __raw_readl(reg);
+	u32 pup = readl_relaxed(reg);
 
 	pup >>= shift;
 	pup &= 0x3;
@@ -116,7 +116,7 @@ static int s3c24xx_gpio_setpull_1(struct samsung_gpio_chip *chip,
 				  samsung_gpio_pull_t updown)
 {
 	void __iomem *reg = chip->base + 0x08;
-	u32 pup = __raw_readl(reg);
+	u32 pup = readl_relaxed(reg);
 
 	if (pull == updown)
 		pup &= ~(1 << off);
@@ -125,7 +125,7 @@ static int s3c24xx_gpio_setpull_1(struct samsung_gpio_chip *chip,
 	else
 		return -EINVAL;
 
-	__raw_writel(pup, reg);
+	writel_relaxed(pup, reg);
 	return 0;
 }
 
@@ -134,7 +134,7 @@ static samsung_gpio_pull_t s3c24xx_gpio_getpull_1(struct samsung_gpio_chip *chip
 						  samsung_gpio_pull_t updown)
 {
 	void __iomem *reg = chip->base + 0x08;
-	u32 pup = __raw_readl(reg);
+	u32 pup = readl_relaxed(reg);
 
 	pup &= (1 << off);
 	return pup ? S3C_GPIO_PULL_NONE : updown;
@@ -193,10 +193,10 @@ static int samsung_gpio_setcfg_2bit(struct samsung_gpio_chip *chip,
 		cfg <<= shift;
 	}
 
-	con = __raw_readl(reg);
+	con = readl_relaxed(reg);
 	con &= ~(0x3 << shift);
 	con |= cfg;
-	__raw_writel(con, reg);
+	writel_relaxed(con, reg);
 
 	return 0;
 }
@@ -216,7 +216,7 @@ static unsigned int samsung_gpio_getcfg_2bit(struct samsung_gpio_chip *chip,
 {
 	u32 con;
 
-	con = __raw_readl(chip->base);
+	con = readl_relaxed(chip->base);
 	con >>= off * 2;
 	con &= 3;
 
@@ -256,10 +256,10 @@ static int samsung_gpio_setcfg_4bit(struct samsung_gpio_chip *chip,
 		cfg <<= shift;
 	}
 
-	con = __raw_readl(reg);
+	con = readl_relaxed(reg);
 	con &= ~(0xf << shift);
 	con |= cfg;
-	__raw_writel(con, reg);
+	writel_relaxed(con, reg);
 
 	return 0;
 }
@@ -286,7 +286,7 @@ static unsigned samsung_gpio_getcfg_4bit(struct samsung_gpio_chip *chip,
 	if (off < 8 && chip->chip.ngpio > 8)
 		reg -= 4;
 
-	con = __raw_readl(reg);
+	con = readl_relaxed(reg);
 	con >>= shift;
 	con &= 0xf;
 
@@ -324,10 +324,10 @@ static int s3c24xx_gpio_setcfg_abank(struct samsung_gpio_chip *chip,
 		cfg <<= shift;
 	}
 
-	con = __raw_readl(reg);
+	con = readl_relaxed(reg);
 	con &= ~(0x1 << shift);
 	con |= cfg;
-	__raw_writel(con, reg);
+	writel_relaxed(con, reg);
 
 	return 0;
 }
@@ -349,7 +349,7 @@ static unsigned s3c24xx_gpio_getcfg_abank(struct samsung_gpio_chip *chip,
 {
 	u32 con;
 
-	con = __raw_readl(chip->base);
+	con = readl_relaxed(chip->base);
 	con >>= off;
 	con &= 1;
 	con++;
@@ -389,10 +389,10 @@ static int s5p64x0_gpio_setcfg_rbank(struct samsung_gpio_chip *chip,
 		cfg <<= shift;
 	}
 
-	con = __raw_readl(reg);
+	con = readl_relaxed(reg);
 	con &= ~(0xf << shift);
 	con |= cfg;
-	__raw_writel(con, reg);
+	writel_relaxed(con, reg);
 
 	return 0;
 }
@@ -490,10 +490,10 @@ static int samsung_gpiolib_2bit_input(struct gpio_chip *chip, unsigned offset)
 
 	samsung_gpio_lock(ourchip, flags);
 
-	con = __raw_readl(base + 0x00);
+	con = readl_relaxed(base + 0x00);
 	con &= ~(3 << (offset * 2));
 
-	__raw_writel(con, base + 0x00);
+	writel_relaxed(con, base + 0x00);
 
 	samsung_gpio_unlock(ourchip, flags);
 	return 0;
@@ -510,18 +510,18 @@ static int samsung_gpiolib_2bit_output(struct gpio_chip *chip,
 
 	samsung_gpio_lock(ourchip, flags);
 
-	dat = __raw_readl(base + 0x04);
+	dat = readl_relaxed(base + 0x04);
 	dat &= ~(1 << offset);
 	if (value)
 		dat |= 1 << offset;
-	__raw_writel(dat, base + 0x04);
+	writel_relaxed(dat, base + 0x04);
 
-	con = __raw_readl(base + 0x00);
+	con = readl_relaxed(base + 0x00);
 	con &= ~(3 << (offset * 2));
 	con |= 1 << (offset * 2);
 
-	__raw_writel(con, base + 0x00);
-	__raw_writel(dat, base + 0x04);
+	writel_relaxed(con, base + 0x00);
+	writel_relaxed(dat, base + 0x04);
 
 	samsung_gpio_unlock(ourchip, flags);
 	return 0;
@@ -550,12 +550,12 @@ static int samsung_gpiolib_4bit_input(struct gpio_chip *chip,
 	void __iomem *base = ourchip->base;
 	unsigned long con;
 
-	con = __raw_readl(base + GPIOCON_OFF);
+	con = readl_relaxed(base + GPIOCON_OFF);
 	if (ourchip->bitmap_gpio_int & BIT(offset))
 		con |= 0xf << con_4bit_shift(offset);
 	else
 		con &= ~(0xf << con_4bit_shift(offset));
-	__raw_writel(con, base + GPIOCON_OFF);
+	writel_relaxed(con, base + GPIOCON_OFF);
 
 	pr_debug("%s: %p: CON now %08lx\n", __func__, base, con);
 
@@ -570,20 +570,20 @@ static int samsung_gpiolib_4bit_output(struct gpio_chip *chip,
 	unsigned long con;
 	unsigned long dat;
 
-	con = __raw_readl(base + GPIOCON_OFF);
+	con = readl_relaxed(base + GPIOCON_OFF);
 	con &= ~(0xf << con_4bit_shift(offset));
 	con |= 0x1 << con_4bit_shift(offset);
 
-	dat = __raw_readl(base + GPIODAT_OFF);
+	dat = readl_relaxed(base + GPIODAT_OFF);
 
 	if (value)
 		dat |= 1 << offset;
 	else
 		dat &= ~(1 << offset);
 
-	__raw_writel(dat, base + GPIODAT_OFF);
-	__raw_writel(con, base + GPIOCON_OFF);
-	__raw_writel(dat, base + GPIODAT_OFF);
+	writel_relaxed(dat, base + GPIODAT_OFF);
+	writel_relaxed(con, base + GPIOCON_OFF);
+	writel_relaxed(dat, base + GPIODAT_OFF);
 
 	pr_debug("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
 
@@ -625,9 +625,9 @@ static int samsung_gpiolib_4bit2_input(struct gpio_chip *chip,
 	else
 		regcon -= 4;
 
-	con = __raw_readl(regcon);
+	con = readl_relaxed(regcon);
 	con &= ~(0xf << con_4bit_shift(offset));
-	__raw_writel(con, regcon);
+	writel_relaxed(con, regcon);
 
 	pr_debug("%s: %p: CON %08lx\n", __func__, base, con);
 
@@ -649,20 +649,20 @@ static int samsung_gpiolib_4bit2_output(struct gpio_chip *chip,
 	else
 		regcon -= 4;
 
-	con = __raw_readl(regcon);
+	con = readl_relaxed(regcon);
 	con &= ~(0xf << con_4bit_shift(con_offset));
 	con |= 0x1 << con_4bit_shift(con_offset);
 
-	dat = __raw_readl(base + GPIODAT_OFF);
+	dat = readl_relaxed(base + GPIODAT_OFF);
 
 	if (value)
 		dat |= 1 << offset;
 	else
 		dat &= ~(1 << offset);
 
-	__raw_writel(dat, base + GPIODAT_OFF);
-	__raw_writel(con, regcon);
-	__raw_writel(dat, base + GPIODAT_OFF);
+	writel_relaxed(dat, base + GPIODAT_OFF);
+	writel_relaxed(con, regcon);
+	writel_relaxed(dat, base + GPIODAT_OFF);
 
 	pr_debug("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
 
@@ -688,19 +688,19 @@ static int s3c24xx_gpiolib_banka_output(struct gpio_chip *chip,
 
 	local_irq_save(flags);
 
-	con = __raw_readl(base + 0x00);
-	dat = __raw_readl(base + 0x04);
+	con = readl_relaxed(base + 0x00);
+	dat = readl_relaxed(base + 0x04);
 
 	dat &= ~(1 << offset);
 	if (value)
 		dat |= 1 << offset;
 
-	__raw_writel(dat, base + 0x04);
+	writel_relaxed(dat, base + 0x04);
 
 	con &= ~(1 << offset);
 
-	__raw_writel(con, base + 0x00);
-	__raw_writel(dat, base + 0x04);
+	writel_relaxed(con, base + 0x00);
+	writel_relaxed(dat, base + 0x04);
 
 	local_irq_restore(flags);
 	return 0;
@@ -736,9 +736,9 @@ static int s5p64x0_gpiolib_rbank_input(struct gpio_chip *chip,
 
 	samsung_gpio_lock(ourchip, flags);
 
-	con = __raw_readl(regcon);
+	con = readl_relaxed(regcon);
 	con &= ~(0xf << con_4bit_shift(offset));
-	__raw_writel(con, regcon);
+	writel_relaxed(con, regcon);
 
 	samsung_gpio_unlock(ourchip, flags);
 
@@ -774,18 +774,18 @@ static int s5p64x0_gpiolib_rbank_output(struct gpio_chip *chip,
 
 	samsung_gpio_lock(ourchip, flags);
 
-	con = __raw_readl(regcon);
+	con = readl_relaxed(regcon);
 	con &= ~(0xf << con_4bit_shift(con_offset));
 	con |= 0x1 << con_4bit_shift(con_offset);
 
-	dat = __raw_readl(base + GPIODAT_OFF);
+	dat = readl_relaxed(base + GPIODAT_OFF);
 	if (value)
 		dat |= 1 << offset;
 	else
 		dat &= ~(1 << offset);
 
-	__raw_writel(con, regcon);
-	__raw_writel(dat, base + GPIODAT_OFF);
+	writel_relaxed(con, regcon);
+	writel_relaxed(dat, base + GPIODAT_OFF);
 
 	samsung_gpio_unlock(ourchip, flags);
 
@@ -802,11 +802,11 @@ static void samsung_gpiolib_set(struct gpio_chip *chip,
 
 	samsung_gpio_lock(ourchip, flags);
 
-	dat = __raw_readl(base + 0x04);
+	dat = readl_relaxed(base + 0x04);
 	dat &= ~(1 << offset);
 	if (value)
 		dat |= 1 << offset;
-	__raw_writel(dat, base + 0x04);
+	writel_relaxed(dat, base + 0x04);
 
 	samsung_gpio_unlock(ourchip, flags);
 }
@@ -816,7 +816,7 @@ static int samsung_gpiolib_get(struct gpio_chip *chip, unsigned offset)
 	struct samsung_gpio_chip *ourchip = to_samsung_gpio(chip);
 	unsigned long val;
 
-	val = __raw_readl(ourchip->base + 0x04);
+	val = readl_relaxed(ourchip->base + 0x04);
 	val >>= offset;
 	val &= 1;
 
@@ -2289,7 +2289,7 @@ s5p_gpio_drvstr_t s5p_gpio_get_drvstr(unsigned int pin)
 	shift = off * 2;
 	reg = chip->base + 0x0C;
 
-	drvstr = __raw_readl(reg);
+	drvstr = readl_relaxed(reg);
 	drvstr = drvstr >> shift;
 	drvstr &= 0x3;
 
@@ -2312,11 +2312,11 @@ int s5p_gpio_set_drvstr(unsigned int pin, s5p_gpio_drvstr_t drvstr)
 	shift = off * 2;
 	reg = chip->base + 0x0C;
 
-	tmp = __raw_readl(reg);
+	tmp = readl_relaxed(reg);
 	tmp &= ~(0x3 << shift);
 	tmp |= drvstr << shift;
 
-	__raw_writel(tmp, reg);
+	writel_relaxed(tmp, reg);
 
 	return 0;
 }
@@ -2330,10 +2330,10 @@ unsigned int s3c2410_modify_misccr(unsigned int clear, unsigned int change)
 	unsigned long misccr;
 
 	local_irq_save(flags);
-	misccr = __raw_readl(S3C24XX_MISCCR);
+	misccr = readl_relaxed(S3C24XX_MISCCR);
 	misccr &= ~clear;
 	misccr ^= change;
-	__raw_writel(misccr, S3C24XX_MISCCR);
+	writel_relaxed(misccr, S3C24XX_MISCCR);
 	local_irq_restore(flags);
 
 	return misccr;

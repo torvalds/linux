@@ -87,7 +87,7 @@ static struct cpuidle_driver exynos4_idle_driver = {
 /* Ext-GIC nIRQ/nFIQ is the only wakeup source in AFTR */
 static void exynos4_set_wakeupmask(void)
 {
-	__raw_writel(0x0000ff3e, S5P_WAKEUP_MASK);
+	writel_relaxed(0x0000ff3e, S5P_WAKEUP_MASK);
 }
 
 static unsigned int g_pwr_ctrl, g_diag_reg;
@@ -127,15 +127,15 @@ static int exynos4_enter_core0_aftr(struct cpuidle_device *dev,
 	/* Set value of power down register for aftr mode */
 	exynos_sys_powerdown_conf(SYS_AFTR);
 
-	__raw_writel(virt_to_phys(s3c_cpu_resume), REG_DIRECTGO_ADDR);
-	__raw_writel(S5P_CHECK_AFTR, REG_DIRECTGO_FLAG);
+	writel_relaxed(virt_to_phys(s3c_cpu_resume), REG_DIRECTGO_ADDR);
+	writel_relaxed(S5P_CHECK_AFTR, REG_DIRECTGO_FLAG);
 
 	save_cpu_arch_register();
 
 	/* Setting Central Sequence Register for power down mode */
-	tmp = __raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
+	tmp = readl_relaxed(S5P_CENTRAL_SEQ_CONFIGURATION);
 	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
-	__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
+	writel_relaxed(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
 
 	cpu_pm_enter();
 	cpu_suspend(0, idle_finisher);
@@ -154,14 +154,14 @@ static int exynos4_enter_core0_aftr(struct cpuidle_device *dev,
 	 * S5P_CENTRAL_LOWPWR_CFG bit will not be set automatically
 	 * in this situation.
 	 */
-	tmp = __raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
+	tmp = readl_relaxed(S5P_CENTRAL_SEQ_CONFIGURATION);
 	if (!(tmp & S5P_CENTRAL_LOWPWR_CFG)) {
 		tmp |= S5P_CENTRAL_LOWPWR_CFG;
-		__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
+		writel_relaxed(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
 	}
 
 	/* Clear wakeup state register */
-	__raw_writel(0x0, S5P_WAKEUP_STAT);
+	writel_relaxed(0x0, S5P_WAKEUP_STAT);
 
 	return index;
 }
@@ -198,7 +198,7 @@ static void __init exynos5_core_down_clk(void)
 	      PWR_CTRL1_USE_CORE0_WFE	 | \
 	      PWR_CTRL1_USE_CORE1_WFI	 | \
 	      PWR_CTRL1_USE_CORE0_WFI;
-	__raw_writel(tmp, EXYNOS5_PWR_CTRL1);
+	writel_relaxed(tmp, EXYNOS5_PWR_CTRL1);
 
 	/*
 	 * Enable arm clock up (on exiting idle). Set arm divider
@@ -211,7 +211,7 @@ static void __init exynos5_core_down_clk(void)
 	      PWR_CTRL2_DUR_STANDBY1_VAL | \
 	      PWR_CTRL2_CORE2_UP_RATIO	 | \
 	      PWR_CTRL2_CORE1_UP_RATIO;
-	__raw_writel(tmp, EXYNOS5_PWR_CTRL2);
+	writel_relaxed(tmp, EXYNOS5_PWR_CTRL2);
 }
 
 static int exynos_cpuidle_probe(struct platform_device *pdev)

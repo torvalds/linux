@@ -47,12 +47,12 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 	base = pd->base;
 
 	pwr = power_on ? S5P_INT_LOCAL_PWR_EN : 0;
-	__raw_writel(pwr, base);
+	writel_relaxed(pwr, base);
 
 	/* Wait max 1ms */
 	timeout = 10;
 
-	while ((__raw_readl(base + 0x4) & S5P_INT_LOCAL_PWR_EN)	!= pwr) {
+	while ((readl_relaxed(base + 0x4) & S5P_INT_LOCAL_PWR_EN)	!= pwr) {
 		if (!timeout) {
 			op = (power_on) ? "enable" : "disable";
 			pr_err("Power domain %s %s failed\n", domain->name, op);
@@ -174,7 +174,7 @@ static __init int exynos4_pm_init_power_domain(void)
 
 		platform_set_drvdata(pdev, pd);
 
-		on = __raw_readl(pd->base + 0x4) & S5P_INT_LOCAL_PWR_EN;
+		on = readl_relaxed(pd->base + 0x4) & S5P_INT_LOCAL_PWR_EN;
 
 		pm_genpd_init(&pd->pd, NULL, !on);
 	}

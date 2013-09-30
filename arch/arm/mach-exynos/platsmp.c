@@ -109,14 +109,14 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	write_pen_release(phys_cpu);
 
-	if (!(__raw_readl(S5P_ARM_CORE1_STATUS + (0x80 * cpu) - 0x80) & S5P_CORE_LOCAL_PWR_EN)) {
-		__raw_writel(S5P_CORE_LOCAL_PWR_EN,
+	if (!(readl_relaxed(S5P_ARM_CORE1_STATUS + (0x80 * cpu) - 0x80) & S5P_CORE_LOCAL_PWR_EN)) {
+		writel_relaxed(S5P_CORE_LOCAL_PWR_EN,
 			S5P_ARM_CORE1_CONFIGURATION + (0x80 * cpu) - 0x80);
 
 		timeout = 10;
 
 		/* wait max 10 ms until cpu1 is on */
-		while ((__raw_readl(S5P_ARM_CORE1_STATUS + (0x80 * cpu) - 0x80)
+		while ((readl_relaxed(S5P_ARM_CORE1_STATUS + (0x80 * cpu) - 0x80)
 			& S5P_CORE_LOCAL_PWR_EN) != S5P_CORE_LOCAL_PWR_EN) {
 			if (timeout-- == 0)
 				break;
@@ -149,7 +149,7 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		 * and fall back to boot register if it fails.
 		 */
 		if (call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr))
-			__raw_writel(boot_addr, cpu_boot_reg(phys_cpu));
+			writel_relaxed(boot_addr, cpu_boot_reg(phys_cpu));
 
 		call_firmware_op(cpu_boot, phys_cpu);
 
@@ -224,7 +224,7 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 		boot_addr = virt_to_phys(exynos4_secondary_startup);
 
 		if (call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr))
-			__raw_writel(boot_addr, cpu_boot_reg(phys_cpu));
+			writel_relaxed(boot_addr, cpu_boot_reg(phys_cpu));
 	}
 }
 

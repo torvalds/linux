@@ -88,14 +88,14 @@ static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 {
 	void __iomem *regs = S3C_VA_UARTx(uart);
 
-	save->ulcon = __raw_readl(regs + S3C2410_ULCON);
-	save->ucon = __raw_readl(regs + S3C2410_UCON);
-	save->ufcon = __raw_readl(regs + S3C2410_UFCON);
-	save->umcon = __raw_readl(regs + S3C2410_UMCON);
-	save->ubrdiv = __raw_readl(regs + S3C2410_UBRDIV);
+	save->ulcon = readl_relaxed(regs + S3C2410_ULCON);
+	save->ucon = readl_relaxed(regs + S3C2410_UCON);
+	save->ufcon = readl_relaxed(regs + S3C2410_UFCON);
+	save->umcon = readl_relaxed(regs + S3C2410_UMCON);
+	save->ubrdiv = readl_relaxed(regs + S3C2410_UBRDIV);
 
 	if (pm_uart_udivslot)
-		save->udivslot = __raw_readl(regs + S3C2443_DIVSLOT);
+		save->udivslot = readl_relaxed(regs + S3C2443_DIVSLOT);
 
 	S3C_PMDBG("UART[%d]: ULCON=%04x, UCON=%04x, UFCON=%04x, UBRDIV=%04x\n",
 		  uart, save->ulcon, save->ucon, save->ufcon, save->ubrdiv);
@@ -112,14 +112,14 @@ static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 
 	s3c_pm_arch_update_uart(regs, save);
 
-	__raw_writel(save->ulcon, regs + S3C2410_ULCON);
-	__raw_writel(save->ucon,  regs + S3C2410_UCON);
-	__raw_writel(save->ufcon, regs + S3C2410_UFCON);
-	__raw_writel(save->umcon, regs + S3C2410_UMCON);
-	__raw_writel(save->ubrdiv, regs + S3C2410_UBRDIV);
+	writel_relaxed(save->ulcon, regs + S3C2410_ULCON);
+	writel_relaxed(save->ucon,  regs + S3C2410_UCON);
+	writel_relaxed(save->ufcon, regs + S3C2410_UFCON);
+	writel_relaxed(save->umcon, regs + S3C2410_UMCON);
+	writel_relaxed(save->ubrdiv, regs + S3C2410_UBRDIV);
 
 	if (pm_uart_udivslot)
-		__raw_writel(save->udivslot, regs + S3C2443_DIVSLOT);
+		writel_relaxed(save->udivslot, regs + S3C2443_DIVSLOT);
 }
 
 static void s3c_pm_restore_uarts(void)
@@ -168,7 +168,7 @@ int s3c_irqext_wake(struct irq_data *data, unsigned int state)
 void s3c_pm_do_save(struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++) {
-		ptr->val = __raw_readl(ptr->reg);
+		ptr->val = readl_relaxed(ptr->reg);
 		S3C_PMDBG("saved %p value %08lx\n", ptr->reg, ptr->val);
 	}
 }
@@ -188,9 +188,9 @@ void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++) {
 		printk(KERN_DEBUG "restore %p (restore %08lx, was %08x)\n",
-		       ptr->reg, ptr->val, __raw_readl(ptr->reg));
+		       ptr->reg, ptr->val, readl_relaxed(ptr->reg));
 
-		__raw_writel(ptr->val, ptr->reg);
+		writel_relaxed(ptr->val, ptr->reg);
 	}
 }
 
@@ -208,7 +208,7 @@ void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
 void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++)
-		__raw_writel(ptr->val, ptr->reg);
+		writel_relaxed(ptr->val, ptr->reg);
 }
 
 /* s3c2410_pm_show_resume_irqs

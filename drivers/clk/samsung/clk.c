@@ -31,7 +31,7 @@ static int samsung_clk_suspend(void)
 	unsigned long i;
 
 	for (i = 0; i < nr_reg_dump; i++, rd++)
-		rd->value = __raw_readl(reg_base + rd->offset);
+		rd->value = readl_relaxed(reg_base + rd->offset);
 
 	return 0;
 }
@@ -42,7 +42,7 @@ static void samsung_clk_resume(void)
 	unsigned long i;
 
 	for (i = 0; i < nr_reg_dump; i++, rd++)
-		__raw_writel(rd->value, reg_base + rd->offset);
+		writel_relaxed(rd->value, reg_base + rd->offset);
 }
 
 static struct syscore_ops samsung_clk_syscore_ops = {

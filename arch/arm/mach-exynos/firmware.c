@@ -40,7 +40,7 @@ static int exynos_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
 	if (!soc_is_exynos5420())
 		boot_reg += 4 * cpu;
 
-	__raw_writel(boot_addr, boot_reg);
+	writel_relaxed(boot_addr, boot_reg);
 	return 0;
 }
 
