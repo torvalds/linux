@@ -87,8 +87,8 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 /* delete keymap entries */
 void nf_ct_gre_keymap_destroy(struct nf_conn *ct);
 
-extern void nf_ct_gre_keymap_flush(struct net *net);
-extern void nf_nat_need_gre(void);
+void nf_ct_gre_keymap_flush(struct net *net);
+void nf_nat_need_gre(void);
 
 #endif /* __KERNEL__ */
 #endif /* _CONNTRACK_PROTO_GRE_H */
