@@ -952,7 +952,7 @@ static int handle_incoming_queue(struct net_device *dev,
 		u64_stats_update_end(&stats->syncp);
 
 		/* Pass it up. */
-		netif_receive_skb(skb);
+		napi_gro_receive(&np->napi, skb);
 	}
 
 	return packets_dropped;
@@ -1050,6 +1050,8 @@ err:
 
 	if (work_done < budget) {
 		int more_to_do = 0;
+
+		napi_gro_flush(napi, false);
 
 		local_irq_save(flags);
 
