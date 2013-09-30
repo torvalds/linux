@@ -2718,15 +2718,15 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	spin_unlock(&svcpt->scp_lock);
 
 	if (svcpt->scp_cpt >= 0) {
-		snprintf(thread->t_name, PTLRPC_THR_NAME_LEN, "%s%02d_%03d",
+		snprintf(thread->t_name, sizeof(thread->t_name), "%s%02d_%03d",
 			 svc->srv_thread_name, svcpt->scp_cpt, thread->t_id);
 	} else {
-		snprintf(thread->t_name, PTLRPC_THR_NAME_LEN, "%s_%04d",
+		snprintf(thread->t_name, sizeof(thread->t_name), "%s_%04d",
 			 svc->srv_thread_name, thread->t_id);
 	}
 
 	CDEBUG(D_RPCTRACE, "starting thread '%s'\n", thread->t_name);
-	rc = PTR_ERR(kthread_run(ptlrpc_main, thread, thread->t_name));
+	rc = PTR_ERR(kthread_run(ptlrpc_main, thread, "%s", thread->t_name));
 	if (IS_ERR_VALUE(rc)) {
 		CERROR("cannot start thread '%s': rc %d\n",
 		       thread->t_name, rc);

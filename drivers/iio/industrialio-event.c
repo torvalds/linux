@@ -72,7 +72,8 @@ EXPORT_SYMBOL(iio_push_event);
 static unsigned int iio_event_poll(struct file *filep,
 			     struct poll_table_struct *wait)
 {
-	struct iio_event_interface *ev_int = filep->private_data;
+	struct iio_dev *indio_dev = filep->private_data;
+	struct iio_event_interface *ev_int = indio_dev->event_interface;
 	unsigned int events = 0;
 
 	poll_wait(filep, &ev_int->wait, wait);
@@ -90,7 +91,8 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 				     size_t count,
 				     loff_t *f_ps)
 {
-	struct iio_event_interface *ev_int = filep->private_data;
+	struct iio_dev *indio_dev = filep->private_data;
+	struct iio_event_interface *ev_int = indio_dev->event_interface;
 	unsigned int copied;
 	int ret;
 
@@ -121,7 +123,8 @@ error_unlock:
 
 static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 {
-	struct iio_event_interface *ev_int = filep->private_data;
+	struct iio_dev *indio_dev = filep->private_data;
+	struct iio_event_interface *ev_int = indio_dev->event_interface;
 
 	spin_lock_irq(&ev_int->wait.lock);
 	__clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
@@ -132,6 +135,8 @@ static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 	 */
 	kfifo_reset_out(&ev_int->det_events);
 	spin_unlock_irq(&ev_int->wait.lock);
+
+	iio_device_put(indio_dev);
 
 	return 0;
 }
@@ -158,12 +163,15 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 		return -EBUSY;
 	}
 	spin_unlock_irq(&ev_int->wait.lock);
-	fd = anon_inode_getfd("iio:event",
-				&iio_event_chrdev_fileops, ev_int, O_RDONLY);
+	iio_device_get(indio_dev);
+
+	fd = anon_inode_getfd("iio:event", &iio_event_chrdev_fileops,
+				indio_dev, O_RDONLY);
 	if (fd < 0) {
 		spin_lock_irq(&ev_int->wait.lock);
 		__clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
 		spin_unlock_irq(&ev_int->wait.lock);
+		iio_device_put(indio_dev);
 	}
 	return fd;
 }
@@ -276,7 +284,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *indio_dev,
 			goto error_ret;
 		}
 		if (chan->modified)
-			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel,
+			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel2,
 						  i/IIO_EV_DIR_MAX,
 						  i%IIO_EV_DIR_MAX);
 		else if (chan->differential)

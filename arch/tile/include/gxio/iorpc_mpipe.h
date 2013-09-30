@@ -56,89 +56,89 @@
 #define GXIO_MPIPE_OP_GET_MMIO_BASE    IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x8000)
 #define GXIO_MPIPE_OP_CHECK_MMIO_OFFSET IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x8001)
 
-int gxio_mpipe_alloc_buffer_stacks(gxio_mpipe_context_t * context,
+int gxio_mpipe_alloc_buffer_stacks(gxio_mpipe_context_t *context,
 				   unsigned int count, unsigned int first,
 				   unsigned int flags);
 
-int gxio_mpipe_init_buffer_stack_aux(gxio_mpipe_context_t * context,
+int gxio_mpipe_init_buffer_stack_aux(gxio_mpipe_context_t *context,
 				     void *mem_va, size_t mem_size,
 				     unsigned int mem_flags, unsigned int stack,
 				     unsigned int buffer_size_enum);
 
 
-int gxio_mpipe_alloc_notif_rings(gxio_mpipe_context_t * context,
+int gxio_mpipe_alloc_notif_rings(gxio_mpipe_context_t *context,
 				 unsigned int count, unsigned int first,
 				 unsigned int flags);
 
-int gxio_mpipe_init_notif_ring_aux(gxio_mpipe_context_t * context, void *mem_va,
+int gxio_mpipe_init_notif_ring_aux(gxio_mpipe_context_t *context, void *mem_va,
 				   size_t mem_size, unsigned int mem_flags,
 				   unsigned int ring);
 
-int gxio_mpipe_request_notif_ring_interrupt(gxio_mpipe_context_t * context,
+int gxio_mpipe_request_notif_ring_interrupt(gxio_mpipe_context_t *context,
 					    int inter_x, int inter_y,
 					    int inter_ipi, int inter_event,
 					    unsigned int ring);
 
-int gxio_mpipe_enable_notif_ring_interrupt(gxio_mpipe_context_t * context,
+int gxio_mpipe_enable_notif_ring_interrupt(gxio_mpipe_context_t *context,
 					   unsigned int ring);
 
-int gxio_mpipe_alloc_notif_groups(gxio_mpipe_context_t * context,
+int gxio_mpipe_alloc_notif_groups(gxio_mpipe_context_t *context,
 				  unsigned int count, unsigned int first,
 				  unsigned int flags);
 
-int gxio_mpipe_init_notif_group(gxio_mpipe_context_t * context,
+int gxio_mpipe_init_notif_group(gxio_mpipe_context_t *context,
 				unsigned int group,
 				gxio_mpipe_notif_group_bits_t bits);
 
-int gxio_mpipe_alloc_buckets(gxio_mpipe_context_t * context, unsigned int count,
+int gxio_mpipe_alloc_buckets(gxio_mpipe_context_t *context, unsigned int count,
 			     unsigned int first, unsigned int flags);
 
-int gxio_mpipe_init_bucket(gxio_mpipe_context_t * context, unsigned int bucket,
+int gxio_mpipe_init_bucket(gxio_mpipe_context_t *context, unsigned int bucket,
 			   MPIPE_LBL_INIT_DAT_BSTS_TBL_t bucket_info);
 
-int gxio_mpipe_alloc_edma_rings(gxio_mpipe_context_t * context,
+int gxio_mpipe_alloc_edma_rings(gxio_mpipe_context_t *context,
 				unsigned int count, unsigned int first,
 				unsigned int flags);
 
-int gxio_mpipe_init_edma_ring_aux(gxio_mpipe_context_t * context, void *mem_va,
+int gxio_mpipe_init_edma_ring_aux(gxio_mpipe_context_t *context, void *mem_va,
 				  size_t mem_size, unsigned int mem_flags,
 				  unsigned int ring, unsigned int channel);
 
 
-int gxio_mpipe_commit_rules(gxio_mpipe_context_t * context, const void *blob,
+int gxio_mpipe_commit_rules(gxio_mpipe_context_t *context, const void *blob,
 			    size_t blob_size);
 
-int gxio_mpipe_register_client_memory(gxio_mpipe_context_t * context,
+int gxio_mpipe_register_client_memory(gxio_mpipe_context_t *context,
 				      unsigned int iotlb, HV_PTE pte,
 				      unsigned int flags);
 
-int gxio_mpipe_link_open_aux(gxio_mpipe_context_t * context,
+int gxio_mpipe_link_open_aux(gxio_mpipe_context_t *context,
 			     _gxio_mpipe_link_name_t name, unsigned int flags);
 
-int gxio_mpipe_link_close_aux(gxio_mpipe_context_t * context, int mac);
+int gxio_mpipe_link_close_aux(gxio_mpipe_context_t *context, int mac);
 
-int gxio_mpipe_link_set_attr_aux(gxio_mpipe_context_t * context, int mac,
+int gxio_mpipe_link_set_attr_aux(gxio_mpipe_context_t *context, int mac,
 				 uint32_t attr, int64_t val);
 
-int gxio_mpipe_get_timestamp_aux(gxio_mpipe_context_t * context, uint64_t * sec,
-				 uint64_t * nsec, uint64_t * cycles);
+int gxio_mpipe_get_timestamp_aux(gxio_mpipe_context_t *context, uint64_t *sec,
+				 uint64_t *nsec, uint64_t *cycles);
 
-int gxio_mpipe_set_timestamp_aux(gxio_mpipe_context_t * context, uint64_t sec,
+int gxio_mpipe_set_timestamp_aux(gxio_mpipe_context_t *context, uint64_t sec,
 				 uint64_t nsec, uint64_t cycles);
 
-int gxio_mpipe_adjust_timestamp_aux(gxio_mpipe_context_t * context,
+int gxio_mpipe_adjust_timestamp_aux(gxio_mpipe_context_t *context,
 				    int64_t nsec);
 
-int gxio_mpipe_adjust_timestamp_freq(gxio_mpipe_context_t * context,
+int gxio_mpipe_adjust_timestamp_freq(gxio_mpipe_context_t *context,
 				     int32_t ppb);
 
-int gxio_mpipe_arm_pollfd(gxio_mpipe_context_t * context, int pollfd_cookie);
+int gxio_mpipe_arm_pollfd(gxio_mpipe_context_t *context, int pollfd_cookie);
 
-int gxio_mpipe_close_pollfd(gxio_mpipe_context_t * context, int pollfd_cookie);
+int gxio_mpipe_close_pollfd(gxio_mpipe_context_t *context, int pollfd_cookie);
 
-int gxio_mpipe_get_mmio_base(gxio_mpipe_context_t * context, HV_PTE *base);
+int gxio_mpipe_get_mmio_base(gxio_mpipe_context_t *context, HV_PTE *base);
 
-int gxio_mpipe_check_mmio_offset(gxio_mpipe_context_t * context,
+int gxio_mpipe_check_mmio_offset(gxio_mpipe_context_t *context,
 				 unsigned long offset, unsigned long size);
 
 #endif /* !__GXIO_MPIPE_LINUX_RPC_H__ */
