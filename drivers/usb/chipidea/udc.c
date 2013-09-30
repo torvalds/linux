@@ -1673,13 +1673,13 @@ static int ci_udc_stop(struct usb_gadget *gadget,
 		if (ci->platdata->notify_event)
 			ci->platdata->notify_event(ci,
 			CI_HDRC_CONTROLLER_STOPPED_EVENT);
-		ci->driver = NULL;
 		spin_unlock_irqrestore(&ci->lock, flags);
 		_gadget_stop_activity(&ci->gadget);
 		spin_lock_irqsave(&ci->lock, flags);
 		pm_runtime_put(&ci->gadget.dev);
 	}
 
+	ci->driver = NULL;
 	spin_unlock_irqrestore(&ci->lock, flags);
 
 	return 0;

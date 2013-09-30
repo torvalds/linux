@@ -604,6 +604,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	dbg_remove_files(ci);
 	free_irq(ci->irq, ci);
 	ci_role_destroy(ci);
+	kfree(ci->hw_bank.regmap);
 
 	return 0;
 }
