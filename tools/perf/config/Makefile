@@ -101,7 +101,9 @@ $(info Testing features:)
 $(shell make -i -j -C config/feature-checks >/dev/null 2>&1)
 $(info done)
 
-FEATURE_TESTS = hello
+FEATURE_TESTS =				\
+	hello				\
+	libnuma
 
 $(foreach test,$(FEATURE_TESTS),$(call feature_check,$(test),$(test)))
 
@@ -434,8 +436,7 @@ ifndef NO_BACKTRACE
 endif
 
 ifndef NO_LIBNUMA
-  FLAGS_LIBNUMA = $(CFLAGS) $(LDFLAGS) -lnuma
-  ifneq ($(call try-cc,$(SOURCE_LIBNUMA),$(FLAGS_LIBNUMA),libnuma),y)
+  ifeq ($(feature-libnuma), 0)
     msg := $(warning No numa.h found, disables 'perf bench numa mem' benchmark, please install numa-libs-devel or libnuma-dev);
     NO_LIBNUMA := 1
   else

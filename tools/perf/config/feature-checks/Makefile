@@ -1,5 +1,7 @@
 
-FILES=test-hello
+FILES=					\
+	test-hello			\
+	test-libnuma
 
 CC := $(CC) -MD
 
@@ -11,6 +13,9 @@ BUILD = $(CC) -o $(OUTPUT)$@ $@.c
 
 test-hello:
 	$(BUILD)
+
+test-libnuma:
+	$(BUILD) -lnuma
 
 -include *.d */*.d
 
