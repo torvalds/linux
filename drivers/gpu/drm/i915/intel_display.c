@@ -2320,7 +2320,19 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	/* Update pipe size and adjust fitter if needed */
+	/*
+	 * Update pipe size and adjust fitter if needed: the reason for this is
+	 * that in compute_mode_changes we check the native mode (not the pfit
+	 * mode) to see if we can flip rather than do a full mode set. In the
+	 * fastboot case, we'll flip, but if we don't update the pipesrc and
+	 * pfit state, we'll end up with a big fb scanned out into the wrong
+	 * sized surface.
+	 *
+	 * To fix this properly, we need to hoist the checks up into
+	 * compute_mode_changes (or above), check the actual pfit state and
+	 * whether the platform allows pfit disable with pipe active, and only
+	 * then update the pipesrc and pfit state, even on the flip path.
+	 */
 	if (i915_fastboot) {
 		I915_WRITE(PIPESRC(intel_crtc->pipe),
 			   ((crtc->mode.hdisplay - 1) << 16) |
