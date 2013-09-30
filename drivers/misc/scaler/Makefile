@@ -1,0 +1,6 @@
+#
+# Makefile for the display core.
+#
+
+obj-$(CONFIG_SCALER_DEVICE) += chips/ 
+obj-$(CONFIG_SCALER_DEVICE) += scaler-core.o
