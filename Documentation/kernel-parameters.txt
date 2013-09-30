@@ -480,6 +480,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: <io>,<irq>,<mode>
 			See header of drivers/net/hamradio/baycom_ser_hdx.c.
 
+	blkdevparts=	Manual partition parsing of block device(s) for
+			embedded devices based on command line input.
+			See Documentation/block/cmdline-partition.txt
+
 	boot_delay=	Milliseconds to delay each printk during boot.
 			Values larger than 10 seconds (10000) are changed to
 			no delay (0).
