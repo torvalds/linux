@@ -57,11 +57,27 @@ static bool max77802_is_accessible_reg(struct device *dev, unsigned int reg)
 	return (reg >= MAX77XXX_REG_DEVICE_ID && reg < MAX77802_REG_PMIC_END);
 }
 
+static bool max77xxx_is_precious_reg(struct device *dev, unsigned int reg)
+{
+	return (reg == MAX77XXX_REG_INTSRC || reg == MAX77XXX_REG_INT1 ||
+		reg == MAX77XXX_REG_INT2);
+}
+
+static bool max77xxx_is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	return (max77xxx_is_precious_reg(dev, reg) ||
+		reg == MAX77XXX_REG_STATUS1 || reg == MAX77XXX_REG_STATUS2 ||
+		reg == MAX77XXX_REG_PWRON);
+}
+
 static struct regmap_config max77686_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.writeable_reg = max77686_is_accessible_reg,
 	.readable_reg = max77686_is_accessible_reg,
+	.precious_reg = max77xxx_is_precious_reg,
+	.volatile_reg = max77xxx_is_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static struct regmap_config max77802_regmap_config = {
@@ -69,6 +85,9 @@ static struct regmap_config max77802_regmap_config = {
 	.val_bits = 8,
 	.writeable_reg = max77802_is_accessible_reg,
 	.readable_reg = max77802_is_accessible_reg,
+	.precious_reg = max77xxx_is_precious_reg,
+	.volatile_reg = max77xxx_is_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 #ifdef CONFIG_OF
