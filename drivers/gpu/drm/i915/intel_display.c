@@ -2334,9 +2334,12 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	 * then update the pipesrc and pfit state, even on the flip path.
 	 */
 	if (i915_fastboot) {
+		const struct drm_display_mode *adjusted_mode =
+			&intel_crtc->config.adjusted_mode;
+
 		I915_WRITE(PIPESRC(intel_crtc->pipe),
-			   ((crtc->mode.hdisplay - 1) << 16) |
-			   (crtc->mode.vdisplay - 1));
+			   ((adjusted_mode->crtc_hdisplay - 1) << 16) |
+			   (adjusted_mode->crtc_vdisplay - 1));
 		if (!intel_crtc->config.pch_pfit.enabled &&
 		    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) ||
 		     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
