@@ -16,6 +16,7 @@ FILES=					\
 	test-libslang			\
 	test-gtk2			\
 	test-gtk2-infobar		\
+	test-libperl			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -76,6 +77,18 @@ test-gtk2:
 
 test-gtk2-infobar:
 	$(BUILD) $(shell pkg-config --libs --cflags gtk+-2.0 2>/dev/null)
+
+grep-libs  = $(filter -l%,$(1))
+strip-libs = $(filter-out -l%,$(1))
+
+PERL_EMBED_LDOPTS = $(shell perl -MExtUtils::Embed -e ldopts 2>/dev/null)
+PERL_EMBED_LDFLAGS = $(call strip-libs,$(PERL_EMBED_LDOPTS))
+PERL_EMBED_LIBADD = $(call grep-libs,$(PERL_EMBED_LDOPTS))
+PERL_EMBED_CCOPTS = `perl -MExtUtils::Embed -e ccopts 2>/dev/null`
+FLAGS_PERL_EMBED=$(PERL_EMBED_CCOPTS) $(PERL_EMBED_LDOPTS)
+
+test-libperl:
+	$(BUILD) $(FLAGS_PERL_EMBED)
 
 -include *.d */*.d
 
