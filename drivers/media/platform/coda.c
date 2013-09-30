@@ -1928,8 +1928,9 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (!(ctx->streamon_out & ctx->streamon_cap))
 		return 0;
 
-	/* Allow device_run with no buffers queued and after streamoff */
-	v4l2_m2m_set_src_buffered(ctx->m2m_ctx, true);
+	/* Allow decoder device_run with no new buffers queued */
+	if (ctx->inst_type == CODA_INST_DECODER)
+		v4l2_m2m_set_src_buffered(ctx->m2m_ctx, true);
 
 	ctx->gopcounter = ctx->params.gop_size - 1;
 	buf = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
