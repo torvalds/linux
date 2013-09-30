@@ -553,8 +553,6 @@ static struct perf_tool perf_script = {
 	.ordering_requires_timestamps = true,
 };
 
-extern volatile int session_done;
-
 static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;

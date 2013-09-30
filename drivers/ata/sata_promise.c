@@ -2,7 +2,7 @@
  *  sata_promise.c - Promise SATA
  *
  *  Maintained by:  Tejun Heo <tj@kernel.org>
- *		    Mikael Pettersson <mikpe@it.uu.se>
+ *		    Mikael Pettersson
  *  		    Please ALWAYS copy linux-ide@vger.kernel.org
  *		    on emails.
  *

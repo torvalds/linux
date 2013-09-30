@@ -1155,8 +1155,14 @@ static void pci_enable_bridge(struct pci_dev *dev)
 
 	pci_enable_bridge(dev->bus->self);
 
-	if (pci_is_enabled(dev))
+	if (pci_is_enabled(dev)) {
+		if (!dev->is_busmaster) {
+			dev_warn(&dev->dev, "driver skip pci_set_master, fix it!\n");
+			pci_set_master(dev);
+		}
 		return;
+	}
+
 	retval = pci_enable_device(dev);
 	if (retval)
 		dev_err(&dev->dev, "Error enabling bridge (%d), continuing\n",

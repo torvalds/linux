@@ -1201,6 +1201,9 @@ int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		}
 		return 0;
 	case TCFLSH:
+		retval = tty_check_change(tty);
+		if (retval)
+			return retval;
 		return __tty_perform_flush(tty, arg);
 	default:
 		/* Try the mode commands */

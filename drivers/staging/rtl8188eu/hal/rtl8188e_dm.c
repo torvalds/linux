@@ -57,7 +57,7 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 	u8 cut_ver, fab_ver;
 
 	/*  Init Value */
-	_rtw_memset(dm_odm, 0, sizeof(dm_odm));
+	_rtw_memset(dm_odm, 0, sizeof(*dm_odm));
 
 	dm_odm->Adapter = Adapter;
 
