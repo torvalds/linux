@@ -23,7 +23,7 @@ ifeq ($(ARCH),x86_64)
   endif
   ifeq (${IS_X86_64}, 1)
     RAW_ARCH := x86_64
-    CFLAGS += -DARCH_X86_64
+    CFLAGS += -DHAVE_ARCH_X86_64_SUPPORT
     ARCH_INCLUDE = ../../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memset_64.S
   endif
   NO_PERF_REGS := 0
@@ -31,7 +31,7 @@ ifeq ($(ARCH),x86_64)
 endif
 
 ifeq ($(NO_PERF_REGS),0)
-  CFLAGS += -DHAVE_PERF_REGS
+  CFLAGS += -DHAVE_PERF_REGS_SUPPORT
 endif
 
 ifeq ($(src-perf),)
@@ -175,13 +175,13 @@ endif # SOURCE_LIBELF
 endif # NO_LIBELF
 
 ifndef NO_LIBELF
-CFLAGS += -DLIBELF_SUPPORT
+CFLAGS += -DHAVE_LIBELF_SUPPORT
 FLAGS_LIBELF=$(CFLAGS) $(LDFLAGS) $(EXTLIBS)
-ifeq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_LIBELF),-DLIBELF_MMAP),y)
-  CFLAGS += -DLIBELF_MMAP
+ifeq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_LIBELF),-DHAVE_LIBELF_MMAP_SUPPORT),y)
+  CFLAGS += -DHAVE_LIBELF_MMAP_SUPPORT
 endif
-ifeq ($(call try-cc,$(SOURCE_ELF_GETPHDRNUM),$(FLAGS_LIBELF),-DHAVE_ELF_GETPHDRNUM),y)
-  CFLAGS += -DHAVE_ELF_GETPHDRNUM
+ifeq ($(call try-cc,$(SOURCE_ELF_GETPHDRNUM),$(FLAGS_LIBELF),-DHAVE_ELF_GETPHDRNUM_SUPPORT),y)
+  CFLAGS += -DHAVE_ELF_GETPHDRNUM_SUPPORT
 endif
 
 # include ARCH specific config
@@ -192,7 +192,7 @@ ifeq ($(origin PERF_HAVE_DWARF_REGS), undefined)
   msg := $(warning DWARF register mappings have not been defined for architecture $(ARCH), DWARF support disabled);
   NO_DWARF := 1
 else
-  CFLAGS += -DDWARF_SUPPORT $(LIBDW_CFLAGS)
+  CFLAGS += -DHAVE_DWARF_SUPPORT $(LIBDW_CFLAGS)
   LDFLAGS += $(LIBDW_LDFLAGS)
   EXTLIBS += -lelf -ldw
 endif # PERF_HAVE_DWARF_REGS
@@ -201,10 +201,10 @@ endif # NO_DWARF
 endif # NO_LIBELF
 
 ifndef NO_LIBELF
-CFLAGS += -DLIBELF_SUPPORT
+CFLAGS += -DHAVE_LIBELF_SUPPORT
 FLAGS_LIBELF=$(CFLAGS) $(LDFLAGS) $(EXTLIBS)
-ifeq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_LIBELF),-DLIBELF_MMAP),y)
-  CFLAGS += -DLIBELF_MMAP
+ifeq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_LIBELF),-DHAVE_LIBELF_MMAP_SUPPORT),y)
+  CFLAGS += -DHAVE_LIBELF_MMAP_SUPPORT
 endif # try-cc
 endif # NO_LIBELF
 
@@ -229,7 +229,7 @@ endif # Libunwind support
 endif # NO_LIBUNWIND
 
 ifndef NO_LIBUNWIND
-  CFLAGS += -DLIBUNWIND_SUPPORT
+  CFLAGS += -DHAVE_LIBUNWIND_SUPPORT
   EXTLIBS += $(LIBUNWIND_LIBS)
   CFLAGS += $(LIBUNWIND_CFLAGS)
   LDFLAGS += $(LIBUNWIND_LDFLAGS)
@@ -241,7 +241,7 @@ ifndef NO_LIBAUDIT
     msg := $(warning No libaudit.h found, disables 'trace' tool, please install audit-libs-devel or libaudit-dev);
     NO_LIBAUDIT := 1
   else
-    CFLAGS += -DLIBAUDIT_SUPPORT
+    CFLAGS += -DHAVE_LIBAUDIT_SUPPORT
     EXTLIBS += -laudit
   endif
 endif
@@ -258,7 +258,7 @@ ifndef NO_SLANG
   else
     # Fedora has /usr/include/slang/slang.h, but ubuntu /usr/include/slang.h
     CFLAGS += -I/usr/include/slang
-    CFLAGS += -DSLANG_SUPPORT
+    CFLAGS += -DHAVE_SLANG_SUPPORT
     EXTLIBS += -lslang
   endif
 endif
@@ -269,10 +269,10 @@ ifndef NO_GTK2
     msg := $(warning GTK2 not found, disables GTK2 support. Please install gtk2-devel or libgtk2.0-dev);
     NO_GTK2 := 1
   else
-    ifeq ($(call try-cc,$(SOURCE_GTK2_INFOBAR),$(FLAGS_GTK2),-DHAVE_GTK_INFO_BAR),y)
-      CFLAGS += -DHAVE_GTK_INFO_BAR
+    ifeq ($(call try-cc,$(SOURCE_GTK2_INFOBAR),$(FLAGS_GTK2),-DHAVE_GTK_INFO_BAR_SUPPORT),y)
+      CFLAGS += -DHAVE_GTK_INFO_BAR_SUPPORT
     endif
-    CFLAGS += -DGTK2_SUPPORT
+    CFLAGS += -DHAVE_GTK2_SUPPORT
     CFLAGS += $(shell pkg-config --cflags gtk+-2.0 2>/dev/null)
     EXTLIBS += $(shell pkg-config --libs gtk+-2.0 2>/dev/null)
   endif
@@ -365,9 +365,9 @@ endif
 ifdef NO_DEMANGLE
   CFLAGS += -DNO_DEMANGLE
 else
-  ifdef HAVE_CPLUS_DEMANGLE
+  ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
     EXTLIBS += -liberty
-    CFLAGS += -DHAVE_CPLUS_DEMANGLE
+    CFLAGS += -DHAVE_CPLUS_DEMANGLE_SUPPORT
   else
     FLAGS_BFD=$(CFLAGS) $(LDFLAGS) $(EXTLIBS) -DPACKAGE='perf' -lbfd
     has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD),libbfd)
@@ -388,7 +388,7 @@ else
           has_cplus_demangle := $(call try-cc,$(SOURCE_CPLUS_DEMANGLE),$(FLAGS_CPLUS_DEMANGLE),demangle)
           ifeq ($(has_cplus_demangle),y)
             EXTLIBS += -liberty
-            CFLAGS += -DHAVE_CPLUS_DEMANGLE
+            CFLAGS += -DHAVE_CPLUS_DEMANGLE_SUPPORT
           else
             msg := $(warning No bfd.h/libbfd found, install binutils-dev[el]/zlib-static to gain symbol demangling)
             CFLAGS += -DNO_DEMANGLE
@@ -400,20 +400,20 @@ else
 endif
 
 ifndef NO_STRLCPY
-  ifeq ($(call try-cc,$(SOURCE_STRLCPY),,-DHAVE_STRLCPY),y)
-    CFLAGS += -DHAVE_STRLCPY
+  ifeq ($(call try-cc,$(SOURCE_STRLCPY),,-DHAVE_STRLCPY_SUPPORT),y)
+    CFLAGS += -DHAVE_STRLCPY_SUPPORT
   endif
 endif
 
 ifndef NO_ON_EXIT
-  ifeq ($(call try-cc,$(SOURCE_ON_EXIT),,-DHAVE_ON_EXIT),y)
-    CFLAGS += -DHAVE_ON_EXIT
+  ifeq ($(call try-cc,$(SOURCE_ON_EXIT),,-DHAVE_ON_EXIT_SUPPORT),y)
+    CFLAGS += -DHAVE_ON_EXIT_SUPPORT
   endif
 endif
 
 ifndef NO_BACKTRACE
-  ifeq ($(call try-cc,$(SOURCE_BACKTRACE),,-DBACKTRACE_SUPPORT),y)
-    CFLAGS += -DBACKTRACE_SUPPORT
+  ifeq ($(call try-cc,$(SOURCE_BACKTRACE),,-DHAVE_BACKTRACE_SUPPORT),y)
+    CFLAGS += -DHAVE_BACKTRACE_SUPPORT
   endif
 endif
 
@@ -423,7 +423,7 @@ ifndef NO_LIBNUMA
     msg := $(warning No numa.h found, disables 'perf bench numa mem' benchmark, please install numa-libs-devel or libnuma-dev);
     NO_LIBNUMA := 1
   else
-    CFLAGS += -DLIBNUMA_SUPPORT
+    CFLAGS += -DHAVE_LIBNUMA_SUPPORT
     EXTLIBS += -lnuma
   endif
 endif

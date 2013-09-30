@@ -70,7 +70,7 @@ extern char *perf_path(const char *fmt, ...) __attribute__((format (printf, 1, 2
 extern char *perf_pathdup(const char *fmt, ...)
 	__attribute__((format (printf, 1, 2)));
 
-#ifndef HAVE_STRLCPY
+#ifndef HAVE_STRLCPY_SUPPORT
 extern size_t strlcpy(char *dest, const char *src, size_t size);
 #endif
 

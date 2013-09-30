@@ -12,7 +12,7 @@ struct perf_gtk_context {
 	GtkWidget *main_window;
 	GtkWidget *notebook;
 
-#ifdef HAVE_GTK_INFO_BAR
+#ifdef HAVE_GTK_INFO_BAR_SUPPORT
 	GtkWidget *info_bar;
 	GtkWidget *message_label;
 #endif
@@ -39,7 +39,7 @@ void perf_gtk__resize_window(GtkWidget *window);
 const char *perf_gtk__get_percent_color(double percent);
 GtkWidget *perf_gtk__setup_statusbar(void);
 
-#ifdef HAVE_GTK_INFO_BAR
+#ifdef HAVE_GTK_INFO_BAR_SUPPORT
 GtkWidget *perf_gtk__setup_info_bar(void);
 #else
 static inline GtkWidget *perf_gtk__setup_info_bar(void)

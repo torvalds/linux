@@ -29,7 +29,7 @@
 #include <sched.h>
 #include <sys/mman.h>
 
-#ifndef HAVE_ON_EXIT
+#ifndef HAVE_ON_EXIT_SUPPORT
 #ifndef ATEXIT_MAX
 #define ATEXIT_MAX 32
 #endif
@@ -687,7 +687,7 @@ error:
 	return ret;
 }
 
-#ifdef LIBUNWIND_SUPPORT
+#ifdef HAVE_LIBUNWIND_SUPPORT
 static int get_stack_size(char *str, unsigned long *_size)
 {
 	char *endptr;
@@ -713,7 +713,7 @@ static int get_stack_size(char *str, unsigned long *_size)
 	       max_size, str);
 	return -1;
 }
-#endif /* LIBUNWIND_SUPPORT */
+#endif /* HAVE_LIBUNWIND_SUPPORT */
 
 int record_parse_callchain_opt(const struct option *opt,
 			       const char *arg, int unset)
@@ -751,7 +751,7 @@ int record_parse_callchain_opt(const struct option *opt,
 				       "needed for -g fp\n");
 			break;
 
-#ifdef LIBUNWIND_SUPPORT
+#ifdef HAVE_LIBUNWIND_SUPPORT
 		/* Dwarf style */
 		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
 			const unsigned long default_stack_dump_size = 8192;
@@ -771,7 +771,7 @@ int record_parse_callchain_opt(const struct option *opt,
 			if (!ret)
 				pr_debug("callchain: stack dump size %d\n",
 					 opts->stack_dump_size);
-#endif /* LIBUNWIND_SUPPORT */
+#endif /* HAVE_LIBUNWIND_SUPPORT */
 		} else {
 			pr_err("callchain: Unknown -g option "
 			       "value: %s\n", arg);
@@ -818,7 +818,7 @@ static struct perf_record record = {
 
 #define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
 
-#ifdef LIBUNWIND_SUPPORT
+#ifdef HAVE_LIBUNWIND_SUPPORT
 const char record_callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
 #else
 const char record_callchain_help[] = CALLCHAIN_HELP "[fp]";

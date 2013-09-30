@@ -8,7 +8,7 @@
 #include "symbol.h"
 #include "debug.h"
 
-#ifndef HAVE_ELF_GETPHDRNUM
+#ifndef HAVE_ELF_GETPHDRNUM_SUPPORT
 static int elf_getphdrnum(Elf *elf, size_t *dst)
 {
 	GElf_Ehdr gehdr;
