@@ -1199,7 +1199,7 @@ static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 	wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
 	}
 	else if(int_reg & m_SCANNING_FLAG){
-		LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_STARTCLEAR, v_SCANNING_CLEAR(1));
+		LcdMskReg(lcdc_dev, INT_STATUS, m_SCANNING_CLEAR, v_SCANNING_CLEAR(1));
 	}
 	return IRQ_HANDLED;
 }
