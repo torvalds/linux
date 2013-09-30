@@ -137,6 +137,8 @@ fi
 boot_args="`rcutorture_param_onoff "$boot_args" $builddir/.config`"
 # Generate rcu_barrier() boot parameter
 boot_args="`rcutorture_param_n_barrier_cbs "$boot_args"`"
+# Pull in Kconfig-fragment boot parameters
+boot_args="`configfrag_boot_params "$boot_args" "$config_template"`"
 
 echo $QEMU -name rcu-test -serial file:$builddir/console.log $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"noapic selinux=0 console=ttyS0 initcall_debug debug rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args\" > $resdir/qemu-cmd
 $QEMU -name rcu-test -serial file:$builddir/console.log $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append "noapic selinux=0 console=ttyS0 initcall_debug debug rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args" &

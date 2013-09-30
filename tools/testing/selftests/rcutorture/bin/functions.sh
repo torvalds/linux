@@ -28,6 +28,18 @@ bootparam_hotplug_cpu () {
 	echo "$1" | grep -q "rcutorture\.onoff_"
 }
 
+# configfrag_boot_params bootparam-string config-fragment-file
+#
+# Adds boot parameters from the .boot file, if any.
+configfrag_boot_params () {
+	if test -r "$2.boot"
+	then
+		echo $1 `grep -v '^#' "$2.boot" | tr '\012' ' '`
+	else
+		echo $1
+	fi
+}
+
 # configfrag_hotplug_cpu config-fragment-file
 #
 # Returns 1 if the config fragment specifies hotplug CPU.
