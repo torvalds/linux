@@ -1,7 +1,6 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
-#include <linux/lglock.h>
 
 struct mnt_namespace {
 	atomic_t		count;
@@ -30,6 +29,7 @@ struct mount {
 	struct mount *mnt_parent;
 	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
+	struct rcu_head mnt_rcu;
 #ifdef CONFIG_SMP
 	struct mnt_pcp __percpu *mnt_pcp;
 #else
@@ -80,21 +80,23 @@ static inline int is_mounted(struct vfsmount *mnt)
 extern struct mount *__lookup_mnt(struct vfsmount *, struct dentry *);
 extern struct mount *__lookup_mnt_last(struct vfsmount *, struct dentry *);
 
+extern bool legitimize_mnt(struct vfsmount *, unsigned);
+
 static inline void get_mnt_ns(struct mnt_namespace *ns)
 {
 	atomic_inc(&ns->count);
 }
 
-extern struct lglock vfsmount_lock;
+extern seqlock_t mount_lock;
 
 static inline void lock_mount_hash(void)
 {
-	br_write_lock(&vfsmount_lock);
+	write_seqlock(&mount_lock);
 }
 
 static inline void unlock_mount_hash(void)
 {
-	br_write_unlock(&vfsmount_lock);
+	write_sequnlock(&mount_lock);
 }
 
 struct proc_mounts {
