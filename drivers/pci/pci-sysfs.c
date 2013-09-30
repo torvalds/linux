@@ -74,27 +74,10 @@ static ssize_t broken_parity_status_store(struct device *dev,
 	return count;
 }
 
-static ssize_t local_cpus_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{		
-	const struct cpumask *mask;
-	int len;
-
-#ifdef CONFIG_NUMA
-	mask = (dev_to_node(dev) == -1) ? cpu_online_mask :
-					  cpumask_of_node(dev_to_node(dev));
-#else
-	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
-#endif
-	len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
-	buf[len++] = '\n';
-	buf[len] = '\0';
-	return len;
-}
-
-
-static ssize_t local_cpulist_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t pci_dev_show_local_cpu(struct device *dev,
+		int type,
+		struct device_attribute *attr,
+		char *buf)
 {
 	const struct cpumask *mask;
 	int len;
@@ -105,10 +88,25 @@ static ssize_t local_cpulist_show(struct device *dev,
 #else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 #endif
-	len = cpulist_scnprintf(buf, PAGE_SIZE-2, mask);
+	len = type ?
+		cpumask_scnprintf(buf, PAGE_SIZE-2, mask) :
+		cpulist_scnprintf(buf, PAGE_SIZE-2, mask);
+
 	buf[len++] = '\n';
 	buf[len] = '\0';
 	return len;
+}
+
+static ssize_t local_cpus_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	return pci_dev_show_local_cpu(dev, 1, attr, buf);
+}
+
+static ssize_t local_cpulist_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	return pci_dev_show_local_cpu(dev, 0, attr, buf);
 }
 
 /*
