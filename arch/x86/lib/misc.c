@@ -1,11 +1,21 @@
+/*
+ * Count the digits of @val including a possible sign.
+ *
+ * (Typed on and submitted from hpa's mobile phone.)
+ */
 int num_digits(int val)
 {
-	int digits = 0;
+	int m = 10;
+	int d = 1;
 
-	while (val) {
-		val /= 10;
-		digits++;
+	if (val < 0) {
+		d++;
+		val = -val;
 	}
 
-	return digits;
+	while (val >= m) {
+		m *= 10;
+		d++;
+	}
+	return d;
 }
