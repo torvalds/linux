@@ -51,31 +51,6 @@ cp $builddir/.config $builddir/.config.new
 yes '' | make $buildloc oldconfig > $builddir/Make.modconfig.out 2>&1
 
 # verify new config matches specification.
+configcheck.sh $builddir/.config $c
 
-sed -e 's/"//g' < $c > $T/c
-sed -e 's/"//g' < $builddir/.config > $T/.config
-sed -e 's/\(.*\)=n/# \1 is not set/' -e 's/^#CHECK#//' < $c |
-awk	'
-	{
-		print "if grep -q \"" $0 "\" < '"$T/.config"'";
-		print "then";
-		print "\t:";
-		print "else";
-		if ($1 == "#") {
-			print "\tif grep -q \"" $2 "\" < '"$T/.config"'";
-			print "\tthen";
-			print "\t\techo \":" $2 ": improperly set\"";
-			print "\telse";
-			print "\t\t:";
-			print "\tfi";
-		} else {
-			print "\techo \":" $0 ": improperly set\"";
-		}
-		print "fi";
-	}' | sh > $T/diagnostics
-if test -s $T/diagnostics
-then
-	cat $T/diagnostics
-	exit 1
-fi
 exit 0
