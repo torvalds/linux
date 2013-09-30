@@ -367,15 +367,11 @@ static void __wa_xfer_abort_cb(struct urb *urb)
  *
  * The callback (see above) does nothing but freeing up the data by
  * putting the URB. Because the URB is allocated at the head of the
- * struct, the whole space we allocated is kfreed.
- *
- * We'll get an 'aborted transaction' xfer result on DTI, that'll
- * politely ignore because at this point the transaction has been
- * marked as aborted already.
+ * struct, the whole space we allocated is kfreed. *
  */
-static void __wa_xfer_abort(struct wa_xfer *xfer)
+static int __wa_xfer_abort(struct wa_xfer *xfer)
 {
-	int result;
+	int result = -ENOMEM;
 	struct device *dev = &xfer->wa->usb_iface->dev;
 	struct wa_xfer_abort_buffer *b;
 	struct wa_rpipe *rpipe = xfer->ep->hcpriv;
@@ -396,7 +392,7 @@ static void __wa_xfer_abort(struct wa_xfer *xfer)
 	result = usb_submit_urb(&b->urb, GFP_ATOMIC);
 	if (result < 0)
 		goto error_submit;
-	return;				/* callback frees! */
+	return result;				/* callback frees! */
 
 
 error_submit:
@@ -405,7 +401,7 @@ error_submit:
 			xfer, result);
 	kfree(b);
 error_kmalloc:
-	return;
+	return result;
 
 }
 
@@ -1295,7 +1291,7 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 	struct wa_xfer *xfer;
 	struct wa_seg *seg;
 	struct wa_rpipe *rpipe;
-	unsigned cnt;
+	unsigned cnt, done = 0, xfer_abort_pending;
 	unsigned rpipe_ready = 0;
 
 	xfer = urb->hcpriv;
@@ -1309,6 +1305,7 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 		goto out;
 	}
 	spin_lock_irqsave(&xfer->lock, flags);
+	pr_debug("%s: DEQUEUE xfer id 0x%08X\n", __func__, wa_xfer_id(xfer));
 	rpipe = xfer->ep->hcpriv;
 	if (rpipe == NULL) {
 		pr_debug("%s: xfer id 0x%08X has no RPIPE.  %s",
@@ -1324,9 +1321,11 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 	if (xfer->seg == NULL)  	/* still hasn't reached */
 		goto out_unlock;	/* setup(), enqueue_b() completes */
 	/* Ok, the xfer is in flight already, it's been setup and submitted.*/
-	__wa_xfer_abort(xfer);
+	xfer_abort_pending = __wa_xfer_abort(xfer) >= 0;
 	for (cnt = 0; cnt < xfer->segs; cnt++) {
 		seg = xfer->seg[cnt];
+		pr_debug("%s: xfer id 0x%08X#%d status = %d\n",
+			__func__, wa_xfer_id(xfer), cnt, seg->status);
 		switch (seg->status) {
 		case WA_SEG_NOTREADY:
 		case WA_SEG_READY:
@@ -1335,42 +1334,50 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 			WARN_ON(1);
 			break;
 		case WA_SEG_DELAYED:
+			/*
+			 * delete from rpipe delayed list.  If no segments on
+			 * this xfer have been submitted, __wa_xfer_is_done will
+			 * trigger a giveback below.  Otherwise, the submitted
+			 * segments will be completed in the DTI interrupt.
+			 */
 			seg->status = WA_SEG_ABORTED;
 			spin_lock_irqsave(&rpipe->seg_lock, flags2);
 			list_del(&seg->list_node);
 			xfer->segs_done++;
-			rpipe_ready = rpipe_avail_inc(rpipe);
 			spin_unlock_irqrestore(&rpipe->seg_lock, flags2);
-			break;
-		case WA_SEG_SUBMITTED:
-			seg->status = WA_SEG_ABORTED;
-			usb_unlink_urb(&seg->tr_urb);
-			if (xfer->is_inbound == 0)
-				usb_unlink_urb(seg->dto_urb);
-			xfer->segs_done++;
-			rpipe_ready = rpipe_avail_inc(rpipe);
-			break;
-		case WA_SEG_PENDING:
-			seg->status = WA_SEG_ABORTED;
-			xfer->segs_done++;
-			rpipe_ready = rpipe_avail_inc(rpipe);
-			break;
-		case WA_SEG_DTI_PENDING:
-			usb_unlink_urb(wa->dti_urb);
-			seg->status = WA_SEG_ABORTED;
-			xfer->segs_done++;
-			rpipe_ready = rpipe_avail_inc(rpipe);
 			break;
 		case WA_SEG_DONE:
 		case WA_SEG_ERROR:
 		case WA_SEG_ABORTED:
 			break;
+			/*
+			 * In the states below, the HWA device already knows
+			 * about the transfer.  If an abort request was sent,
+			 * allow the HWA to process it and wait for the
+			 * results.  Otherwise, the DTI state and seg completed
+			 * counts can get out of sync.
+			 */
+		case WA_SEG_SUBMITTED:
+		case WA_SEG_PENDING:
+		case WA_SEG_DTI_PENDING:
+			/*
+			 * Check if the abort was successfully sent.  This could
+			 * be false if the HWA has been removed but we haven't
+			 * gotten the disconnect notification yet.
+			 */
+			if (!xfer_abort_pending) {
+				seg->status = WA_SEG_ABORTED;
+				rpipe_ready = rpipe_avail_inc(rpipe);
+				xfer->segs_done++;
+			}
+			break;
 		}
 	}
 	xfer->result = urb->status;	/* -ENOENT or -ECONNRESET */
-	__wa_xfer_is_done(xfer);
+	done = __wa_xfer_is_done(xfer);
 	spin_unlock_irqrestore(&xfer->lock, flags);
-	wa_xfer_completion(xfer);
+	if (done)
+		wa_xfer_completion(xfer);
 	if (rpipe_ready)
 		wa_xfer_delayed_run(rpipe);
 	return 0;
@@ -1441,9 +1448,51 @@ static int wa_xfer_status_to_errno(u8 status)
 }
 
 /*
+ * If a last segment flag and/or a transfer result error is encountered,
+ * no other segment transfer results will be returned from the device.
+ * Mark the remaining submitted or pending xfers as completed so that
+ * the xfer will complete cleanly.
+ */
+static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
+		struct wa_seg *incoming_seg)
+{
+	int index;
+	struct wa_rpipe *rpipe = xfer->ep->hcpriv;
+
+	for (index = incoming_seg->index + 1; index < xfer->segs_submitted;
+		index++) {
+		struct wa_seg *current_seg = xfer->seg[index];
+
+		BUG_ON(current_seg == NULL);
+
+		switch (current_seg->status) {
+		case WA_SEG_SUBMITTED:
+		case WA_SEG_PENDING:
+		case WA_SEG_DTI_PENDING:
+			rpipe_avail_inc(rpipe);
+		/*
+		 * do not increment RPIPE avail for the WA_SEG_DELAYED case
+		 * since it has not been submitted to the RPIPE.
+		 */
+		case WA_SEG_DELAYED:
+			xfer->segs_done++;
+			current_seg->status = incoming_seg->status;
+			break;
+		case WA_SEG_ABORTED:
+			break;
+		default:
+			WARN(1, "%s: xfer 0x%08X#%d. bad seg status = %d\n",
+				__func__, wa_xfer_id(xfer), index,
+				current_seg->status);
+			break;
+		}
+	}
+}
+
+/*
  * Process a xfer result completion message
  *
- * inbound transfers: need to schedule a DTI read
+ * inbound transfers: need to schedule a buf_in_urb read
  *
  * FIXME: this function needs to be broken up in parts
  */
@@ -1484,6 +1533,8 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 		seg->result = wa_xfer_status_to_errno(usb_status);
 		dev_err(dev, "DTI: xfer %p#:%08X:%u failed (0x%02x)\n",
 			xfer, xfer->id, seg->index, usb_status);
+		seg->status = ((usb_status & 0x7F) == WA_XFER_STATUS_ABORTED) ?
+			WA_SEG_ABORTED : WA_SEG_ERROR;
 		goto error_complete;
 	}
 	/* FIXME: we ignore warnings, tally them for stats */
@@ -1569,10 +1620,11 @@ error_submit_buf_in:
 	wa->buf_in_urb->sg = NULL;
 error_sg_alloc:
 	__wa_xfer_abort(xfer);
-error_complete:
 	seg->status = WA_SEG_ERROR;
+error_complete:
 	xfer->segs_done++;
 	rpipe_ready = rpipe_avail_inc(rpipe);
+	wa_complete_remaining_xfer_segs(xfer, seg);
 	done = __wa_xfer_is_done(xfer);
 	/*
 	 * queue work item to clear STALL for control endpoints.
