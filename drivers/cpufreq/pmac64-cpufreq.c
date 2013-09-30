@@ -137,7 +137,7 @@ static void g5_vdnap_switch_volt(int speed_mode)
 		pmf_call_one(pfunc_vdnap0_complete, &args);
 		if (done)
 			break;
-		msleep(1);
+		usleep_range(1000, 1000);
 	}
 	if (done == 0)
 		printk(KERN_WARNING "cpufreq: Timeout in clock slewing !\n");
@@ -236,7 +236,7 @@ static void g5_pfunc_switch_volt(int speed_mode)
 		if (pfunc_cpu1_volt_low)
 			pmf_call_one(pfunc_cpu1_volt_low, NULL);
 	}
-	msleep(10); /* should be faster , to fix */
+	usleep_range(10000, 10000); /* should be faster , to fix */
 }
 
 /*
@@ -281,7 +281,7 @@ static int g5_pfunc_switch_freq(int speed_mode)
 		pmf_call_one(pfunc_slewing_done, &args);
 		if (done)
 			break;
-		msleep(1);
+		usleep_range(500, 500);
 	}
 	if (done == 0)
 		printk(KERN_WARNING "cpufreq: Timeout in clock slewing !\n");
