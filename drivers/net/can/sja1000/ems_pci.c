@@ -207,7 +207,6 @@ static void ems_pci_del_card(struct pci_dev *pdev)
 	kfree(card);
 
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static void ems_pci_card_reset(struct ems_pci_card *card)
