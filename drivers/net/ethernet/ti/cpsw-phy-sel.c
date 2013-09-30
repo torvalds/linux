@@ -152,7 +152,7 @@ static struct platform_driver cpsw_phy_sel_driver = {
 	.driver		= {
 		.name	= "cpsw-phy-sel",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(cpsw_phy_sel_id_table),
+		.of_match_table = cpsw_phy_sel_id_table,
 	},
 };
 
