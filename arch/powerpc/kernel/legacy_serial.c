@@ -35,7 +35,7 @@ static struct legacy_serial_info {
 	phys_addr_t			taddr;
 } legacy_serial_infos[MAX_LEGACY_SERIAL_PORTS];
 
-static struct __initdata of_device_id legacy_serial_parents[] = {
+static struct of_device_id legacy_serial_parents[] __initdata = {
 	{.type = "soc",},
 	{.type = "tsi-bridge",},
 	{.type = "opb", },
