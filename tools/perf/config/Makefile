@@ -123,6 +123,7 @@ FEATURE_TESTS =				\
 	libpython-version		\
 	strlcpy				\
 	libbfd				\
+	on-exit				\
 	libnuma
 
 $(foreach test,$(FEATURE_TESTS),$(call feature_check,$(test),$(test)))
@@ -441,7 +442,7 @@ ifndef NO_STRLCPY
 endif
 
 ifndef NO_ON_EXIT
-  ifeq ($(call try-cc,$(SOURCE_ON_EXIT),,-DHAVE_ON_EXIT_SUPPORT),y)
+  ifeq ($(feature-on-exit), 1)
     CFLAGS += -DHAVE_ON_EXIT_SUPPORT
   endif
 endif

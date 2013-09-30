@@ -21,6 +21,7 @@ FILES=					\
 	test-libpython-version		\
 	test-strlcpy			\
 	test-libbfd			\
+	test-on-exit			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -119,6 +120,9 @@ test-strlcpy:
 
 test-libbfd:
 	$(BUILD) -DPACKAGE='perf' -DPACKAGE=perf -lbfd -ldl
+
+test-on-exit:
+	$(BUILD)
 
 -include *.d */*.d
 
