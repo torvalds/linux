@@ -3,6 +3,7 @@ FILES=					\
 	test-hello			\
 	test-stackprotector-all		\
 	test-stackprotector		\
+	test-volatile-register-var	\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -21,6 +22,9 @@ test-stackprotector-all:
 
 test-stackprotector:
 	$(BUILD) -Werror -fstack-protector
+
+test-volatile-register-var:
+	$(BUILD) -Werror -Wvolatile-register-var
 
 test-libnuma:
 	$(BUILD) -lnuma
