@@ -18,6 +18,7 @@ FILES=					\
 	test-gtk2-infobar		\
 	test-libperl			\
 	test-libpython			\
+	test-libpython-version		\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -106,6 +107,9 @@ PYTHON_EMBED_CCOPTS = $(shell $(PYTHON_CONFIG_SQ) --cflags 2>/dev/null)
 FLAGS_PYTHON_EMBED = $(PYTHON_EMBED_CCOPTS) $(PYTHON_EMBED_LDOPTS)
 
 test-libpython:
+	$(BUILD) $(FLAGS_PYTHON_EMBED)
+
+test-libpython-version:
 	$(BUILD) $(FLAGS_PYTHON_EMBED)
 
 -include *.d */*.d
