@@ -1011,7 +1011,8 @@ static const struct ip_set_type_variant mtype_variant = {
 
 #ifdef IP_SET_EMIT_CREATE
 static int
-IPSET_TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
+IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
+			    struct nlattr *tb[], u32 flags)
 {
 	u32 hashsize = IPSET_DEFAULT_HASHSIZE, maxelem = IPSET_DEFAULT_MAXELEM;
 	u8 hbits;

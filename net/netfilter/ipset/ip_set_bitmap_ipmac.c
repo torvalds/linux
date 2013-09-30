@@ -309,7 +309,7 @@ init_map_ipmac(struct ip_set *set, struct bitmap_ipmac *map,
 }
 
 static int
-bitmap_ipmac_create(struct ip_set *set, struct nlattr *tb[],
+bitmap_ipmac_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		    u32 flags)
 {
 	u32 first_ip = 0, last_ip = 0;

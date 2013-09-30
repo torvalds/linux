@@ -184,7 +184,8 @@ struct ip_set_type {
 	u8 revision_min, revision_max;
 
 	/* Create set */
-	int (*create)(struct ip_set *set, struct nlattr *tb[], u32 flags);
+	int (*create)(struct net *net, struct ip_set *set,
+		      struct nlattr *tb[], u32 flags);
 
 	/* Attribute policies */
 	const struct nla_policy create_policy[IPSET_ATTR_CREATE_MAX + 1];
@@ -316,12 +317,13 @@ ip_set_init_counter(struct ip_set_counter *counter,
 }
 
 /* register and unregister set references */
-extern ip_set_id_t ip_set_get_byname(const char *name, struct ip_set **set);
-extern void ip_set_put_byindex(ip_set_id_t index);
-extern const char *ip_set_name_byindex(ip_set_id_t index);
-extern ip_set_id_t ip_set_nfnl_get(const char *name);
-extern ip_set_id_t ip_set_nfnl_get_byindex(ip_set_id_t index);
-extern void ip_set_nfnl_put(ip_set_id_t index);
+extern ip_set_id_t ip_set_get_byname(struct net *net,
+				     const char *name, struct ip_set **set);
+extern void ip_set_put_byindex(struct net *net, ip_set_id_t index);
+extern const char *ip_set_name_byindex(struct net *net, ip_set_id_t index);
+extern ip_set_id_t ip_set_nfnl_get(struct net *net, const char *name);
+extern ip_set_id_t ip_set_nfnl_get_byindex(struct net *net, ip_set_id_t index);
+extern void ip_set_nfnl_put(struct net *net, ip_set_id_t index);
 
 /* API for iptables set match, and SET target */
 

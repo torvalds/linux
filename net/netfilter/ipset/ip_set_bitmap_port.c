@@ -228,7 +228,8 @@ init_map_port(struct ip_set *set, struct bitmap_port *map,
 }
 
 static int
-bitmap_port_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
+bitmap_port_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
+		   u32 flags)
 {
 	struct bitmap_port *map;
 	u16 first_port, last_port;

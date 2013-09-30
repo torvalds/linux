@@ -242,7 +242,8 @@ init_map_ip(struct ip_set *set, struct bitmap_ip *map,
 }
 
 static int
-bitmap_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
+bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
+		 u32 flags)
 {
 	struct bitmap_ip *map;
 	u32 first_ip = 0, last_ip = 0, hosts;
