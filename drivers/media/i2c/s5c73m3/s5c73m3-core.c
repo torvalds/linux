@@ -1651,7 +1651,7 @@ static int s5c73m3_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto out_err;
 
-	v4l2_info(sd, "%s: completed succesfully\n", __func__);
+	v4l2_info(sd, "%s: completed successfully\n", __func__);
 	return 0;
 
 out_err:

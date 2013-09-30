@@ -1739,7 +1739,7 @@ void mlx4_opreq_action(struct work_struct *work)
 				   MLX4_CMD_GET_OP_REQ, MLX4_CMD_TIME_CLASS_A,
 				   MLX4_CMD_NATIVE);
 		if (err) {
-			mlx4_err(dev, "Failed to retreive required operation: %d\n",
+			mlx4_err(dev, "Failed to retrieve required operation: %d\n",
 				 err);
 			return;
 		}
