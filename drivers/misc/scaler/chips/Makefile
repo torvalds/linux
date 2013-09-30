@@ -1,1 +1,0 @@
-obj-$(CONFIG_SCALER_TV5735) += tv5735.o

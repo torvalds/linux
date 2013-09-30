@@ -63,4 +63,3 @@ obj-$(CONFIG_RK29_SC8800)	+=	sc8800.o
 obj-y += rk2928_callpad_misc/
 obj-$(CONFIG_MODEM_SOUND) += modem_sound.o
 obj-$(CONFIG_TCC_BT_DEV)       += tcc_bt_dev.o
-obj-$(CONFIG_SCALER_DEVICE)		+= scaler/

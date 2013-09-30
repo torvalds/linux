@@ -1,7 +1,0 @@
-#
-#config tv5735 support inport type and output type
-#
-
-config SCALER_TV5735
-	bool "Support tv5735 chip"
-	default n	
