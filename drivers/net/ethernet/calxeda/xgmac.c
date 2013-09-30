@@ -1291,10 +1291,8 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 	netdev_dbg(priv->dev, "# mcasts %d, # unicast %d\n",
 		 netdev_mc_count(dev), netdev_uc_count(dev));
 
-	if (dev->flags & IFF_PROMISC) {
-		writel(XGMAC_FRAME_FILTER_PR, ioaddr + XGMAC_FRAME_FILTER);
-		return;
-	}
+	if (dev->flags & IFF_PROMISC)
+		value |= XGMAC_FRAME_FILTER_PR;
 
 	memset(hash_filter, 0, sizeof(hash_filter));
 
