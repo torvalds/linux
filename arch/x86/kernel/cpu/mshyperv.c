@@ -15,6 +15,7 @@
 #include <linux/clocksource.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>
+#include <linux/efi.h>
 #include <linux/interrupt.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
@@ -23,6 +24,7 @@
 #include <asm/desc.h>
 #include <asm/idle.h>
 #include <asm/irq_regs.h>
+#include <asm/i8259.h>
 
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
@@ -67,6 +69,8 @@ static struct clocksource hyperv_cs = {
 
 static void __init ms_hyperv_init_platform(void)
 {
+	u64	hv_lapic_frequency;
+
 	/*
 	 * Extract the features and hints
 	 */
@@ -75,6 +79,26 @@ static void __init ms_hyperv_init_platform(void)
 
 	printk(KERN_INFO "HyperV: features 0x%x, hints 0x%x\n",
 	       ms_hyperv.features, ms_hyperv.hints);
+
+	if (ms_hyperv.features & HV_X64_MSR_APIC_FREQUENCY_AVAILABLE) {
+		/*
+		 * Get the APIC frequency.
+		 */
+		rdmsrl(HV_X64_MSR_APIC_FREQUENCY, hv_lapic_frequency);
+		hv_lapic_frequency = div_u64(hv_lapic_frequency, HZ);
+		lapic_timer_frequency = hv_lapic_frequency;
+		printk(KERN_INFO "HyperV: LAPIC Timer Frequency: %#x\n",
+				lapic_timer_frequency);
+
+		/*
+		 * On Hyper-V, when we are booting off an EFI firmware stack,
+		 * we do not have many legacy devices including PIC, PIT etc.
+		 */
+		if (efi_enabled(EFI_BOOT)) {
+			printk(KERN_INFO "HyperV: Using null_legacy_pic\n");
+			legacy_pic = &null_legacy_pic;
+		}
+	}
 
 	if (ms_hyperv.features & HV_X64_MSR_TIME_REF_COUNT_AVAILABLE)
 		clocksource_register_hz(&hyperv_cs, NSEC_PER_SEC/100);
