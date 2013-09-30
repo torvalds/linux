@@ -2744,7 +2744,6 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 
 	/* Get results from the coda */
-	coda_read(dev, CODA_RET_ENC_PIC_TYPE);
 	start_ptr = coda_read(dev, CODA_CMD_ENC_PIC_BB_START);
 	wr_ptr = coda_read(dev, CODA_REG_BIT_WR_PTR(ctx->reg_idx));
 
@@ -2764,7 +2763,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	coda_read(dev, CODA_RET_ENC_PIC_SLICE_NUM);
 	coda_read(dev, CODA_RET_ENC_PIC_FLAG);
 
-	if (src_buf->v4l2_buf.flags & V4L2_BUF_FLAG_KEYFRAME) {
+	if (coda_read(dev, CODA_RET_ENC_PIC_TYPE) == 0) {
 		dst_buf->v4l2_buf.flags |= V4L2_BUF_FLAG_KEYFRAME;
 		dst_buf->v4l2_buf.flags &= ~V4L2_BUF_FLAG_PFRAME;
 	} else {
