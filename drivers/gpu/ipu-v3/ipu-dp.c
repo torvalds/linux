@@ -19,7 +19,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 
-#include "imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
 #include "ipu-prv.h"
 
 #define DP_SYNC 0

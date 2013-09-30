@@ -20,8 +20,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include "../imx-drm.h"
-#include "imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
 #include "ipu-prv.h"
 
 #define DC_MAP_CONF_PTR(n)	(0x108 + ((n) & ~0x1) * 2)

@@ -17,7 +17,7 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 
-#include "imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
 #include "ipu-prv.h"
 
 #define DMFC_RD_CHAN		0x0000

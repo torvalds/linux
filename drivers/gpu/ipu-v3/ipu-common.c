@@ -31,7 +31,7 @@
 
 #include <drm/drm_fourcc.h>
 
-#include "imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
 #include "ipu-prv.h"
 
 static inline u32 ipu_cm_read(struct ipu_soc *ipu, unsigned offset)

@@ -22,7 +22,7 @@ struct ipu_soc;
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 
-#include "imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
 
 #define IPUV3_CHANNEL_CSI0			 0
 #define IPUV3_CHANNEL_CSI1			 1
