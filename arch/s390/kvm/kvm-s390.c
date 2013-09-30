@@ -561,6 +561,18 @@ static int kvm_arch_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu,
 		r = put_user(vcpu->arch.sie_block->ckc,
 			     (u64 __user *)reg->addr);
 		break;
+	case KVM_REG_S390_PFTOKEN:
+		r = put_user(vcpu->arch.pfault_token,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_PFCOMPARE:
+		r = put_user(vcpu->arch.pfault_compare,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_PFSELECT:
+		r = put_user(vcpu->arch.pfault_select,
+			     (u64 __user *)reg->addr);
+		break;
 	default:
 		break;
 	}
@@ -588,6 +600,18 @@ static int kvm_arch_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_S390_CLOCK_COMP:
 		r = get_user(vcpu->arch.sie_block->ckc,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_PFTOKEN:
+		r = get_user(vcpu->arch.pfault_token,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_PFCOMPARE:
+		r = get_user(vcpu->arch.pfault_compare,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_PFSELECT:
+		r = get_user(vcpu->arch.pfault_select,
 			     (u64 __user *)reg->addr);
 		break;
 	default:
