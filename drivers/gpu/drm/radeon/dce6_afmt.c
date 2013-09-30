@@ -28,22 +28,30 @@
 static u32 dce6_endpoint_rreg(struct radeon_device *rdev,
 			      u32 block_offset, u32 reg)
 {
+	unsigned long flags;
 	u32 r;
 
+	spin_lock_irqsave(&rdev->end_idx_lock, flags);
 	WREG32(AZ_F0_CODEC_ENDPOINT_INDEX + block_offset, reg);
 	r = RREG32(AZ_F0_CODEC_ENDPOINT_DATA + block_offset);
+	spin_unlock_irqrestore(&rdev->end_idx_lock, flags);
+
 	return r;
 }
 
 static void dce6_endpoint_wreg(struct radeon_device *rdev,
 			       u32 block_offset, u32 reg, u32 v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->end_idx_lock, flags);
 	if (ASIC_IS_DCE8(rdev))
 		WREG32(AZ_F0_CODEC_ENDPOINT_INDEX + block_offset, reg);
 	else
 		WREG32(AZ_F0_CODEC_ENDPOINT_INDEX + block_offset,
 		       AZ_ENDPOINT_REG_WRITE_EN | AZ_ENDPOINT_REG_INDEX(reg));
 	WREG32(AZ_F0_CODEC_ENDPOINT_DATA + block_offset, v);
+	spin_unlock_irqrestore(&rdev->end_idx_lock, flags);
 }
 
 #define RREG32_ENDPOINT(block, reg) dce6_endpoint_rreg(rdev, (block), (reg))
@@ -86,12 +94,12 @@ void dce6_afmt_select_pin(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	u32 offset = dig->afmt->offset;
-	u32 id = dig->afmt->pin->id;
 
 	if (!dig->afmt->pin)
 		return;
 
-	WREG32(AFMT_AUDIO_SRC_CONTROL + offset, AFMT_AUDIO_SRC_SELECT(id));
+	WREG32(AFMT_AUDIO_SRC_CONTROL + offset,
+	       AFMT_AUDIO_SRC_SELECT(dig->afmt->pin->id));
 }
 
 void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)

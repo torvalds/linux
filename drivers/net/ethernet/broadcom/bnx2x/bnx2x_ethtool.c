@@ -1387,9 +1387,9 @@ static bool bnx2x_is_nvm_accessible(struct bnx2x *bp)
 	u16 pm = 0;
 	struct net_device *dev = pci_get_drvdata(bp->pdev);
 
-	if (bp->pm_cap)
+	if (bp->pdev->pm_cap)
 		rc = pci_read_config_word(bp->pdev,
-					  bp->pm_cap + PCI_PM_CTRL, &pm);
+					  bp->pdev->pm_cap + PCI_PM_CTRL, &pm);
 
 	if ((rc && !netif_running(dev)) ||
 	    (!rc && ((pm & PCI_PM_CTRL_STATE_MASK) != (__force u16)PCI_D0)))

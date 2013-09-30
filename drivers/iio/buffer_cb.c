@@ -41,6 +41,8 @@ struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
 		goto error_ret;
 	}
 
+	iio_buffer_init(&cb_buff->buffer);
+
 	cb_buff->private = private;
 	cb_buff->cb = cb;
 	cb_buff->buffer.access = &iio_cb_access;

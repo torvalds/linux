@@ -870,6 +870,7 @@ static struct fwevent wlanevents[] = {
 	{0, NULL},
 	{0, NULL},
 	{0, &rtw_cpwm_event_callback},
+	{0, NULL},
 };
 
 #endif/* _RTL_MLME_EXT_C_ */

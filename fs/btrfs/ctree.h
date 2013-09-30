@@ -1118,15 +1118,6 @@ struct btrfs_space_info {
 	 */
 	struct percpu_counter total_bytes_pinned;
 
-	/*
-	 * we bump reservation progress every time we decrement
-	 * bytes_reserved.  This way people waiting for reservations
-	 * know something good has happened and they can check
-	 * for progress.  The number here isn't to be trusted, it
-	 * just shows reclaim activity
-	 */
-	unsigned long reservation_progress;
-
 	unsigned int full:1;	/* indicates that we cannot allocate any more
 				   chunks for this space */
 	unsigned int chunk_alloc:1;	/* set if we are allocating a chunk */
@@ -3135,7 +3126,7 @@ static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
 						 unsigned num_items)
 {
 	return (root->leafsize + root->nodesize * (BTRFS_MAX_LEVEL - 1)) *
-		3 * num_items;
+		2 * num_items;
 }
 
 /*
@@ -3939,9 +3930,9 @@ int btrfs_update_reloc_root(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
 int btrfs_recover_relocation(struct btrfs_root *root);
 int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len);
-void btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, struct extent_buffer *buf,
-			   struct extent_buffer *cow);
+int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root, struct extent_buffer *buf,
+			  struct extent_buffer *cow);
 void btrfs_reloc_pre_snapshot(struct btrfs_trans_handle *trans,
 			      struct btrfs_pending_snapshot *pending,
 			      u64 *bytes_to_reserve);

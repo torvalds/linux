@@ -461,7 +461,7 @@ static void tcm_vhost_release_cmd(struct se_cmd *se_cmd)
 		u32 i;
 		for (i = 0; i < tv_cmd->tvc_sgl_count; i++)
 			put_page(sg_page(&tv_cmd->tvc_sgl[i]));
-        }
+	}
 
 	tcm_vhost_put_inflight(tv_cmd->inflight);
 	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
@@ -1373,21 +1373,30 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 	return 0;
 }
 
+static void vhost_scsi_free(struct vhost_scsi *vs)
+{
+	if (is_vmalloc_addr(vs))
+		vfree(vs);
+	else
+		kfree(vs);
+}
+
 static int vhost_scsi_open(struct inode *inode, struct file *f)
 {
 	struct vhost_scsi *vs;
 	struct vhost_virtqueue **vqs;
-	int r, i;
+	int r = -ENOMEM, i;
 
-	vs = kzalloc(sizeof(*vs), GFP_KERNEL);
-	if (!vs)
-		return -ENOMEM;
+	vs = kzalloc(sizeof(*vs), GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+	if (!vs) {
+		vs = vzalloc(sizeof(*vs));
+		if (!vs)
+			goto err_vs;
+	}
 
 	vqs = kmalloc(VHOST_SCSI_MAX_VQ * sizeof(*vqs), GFP_KERNEL);
-	if (!vqs) {
-		kfree(vs);
-		return -ENOMEM;
-	}
+	if (!vqs)
+		goto err_vqs;
 
 	vhost_work_init(&vs->vs_completion_work, vhost_scsi_complete_cmd_work);
 	vhost_work_init(&vs->vs_event_work, tcm_vhost_evt_work);
@@ -1407,14 +1416,18 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 
 	tcm_vhost_init_inflight(vs, NULL);
 
-	if (r < 0) {
-		kfree(vqs);
-		kfree(vs);
-		return r;
-	}
+	if (r < 0)
+		goto err_init;
 
 	f->private_data = vs;
 	return 0;
+
+err_init:
+	kfree(vqs);
+err_vqs:
+	vhost_scsi_free(vs);
+err_vs:
+	return r;
 }
 
 static int vhost_scsi_release(struct inode *inode, struct file *f)
@@ -1431,7 +1444,7 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 	/* Jobs can re-queue themselves in evt kick handler. Do extra flush. */
 	vhost_scsi_flush(vs);
 	kfree(vs->dev.vqs);
-	kfree(vs);
+	vhost_scsi_free(vs);
 	return 0;
 }
 

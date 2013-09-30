@@ -1249,6 +1249,17 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
 	spin_lock_init(&rdev->mmio_idx_lock);
+	spin_lock_init(&rdev->smc_idx_lock);
+	spin_lock_init(&rdev->pll_idx_lock);
+	spin_lock_init(&rdev->mc_idx_lock);
+	spin_lock_init(&rdev->pcie_idx_lock);
+	spin_lock_init(&rdev->pciep_idx_lock);
+	spin_lock_init(&rdev->pif_idx_lock);
+	spin_lock_init(&rdev->cg_idx_lock);
+	spin_lock_init(&rdev->uvd_idx_lock);
+	spin_lock_init(&rdev->rcu_idx_lock);
+	spin_lock_init(&rdev->didt_idx_lock);
+	spin_lock_init(&rdev->end_idx_lock);
 	if (rdev->family >= CHIP_BONAIRE) {
 		rdev->rmmio_base = pci_resource_start(rdev->pdev, 5);
 		rdev->rmmio_size = pci_resource_len(rdev->pdev, 5);
