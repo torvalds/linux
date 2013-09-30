@@ -1357,6 +1357,12 @@ struct xfrm_tunnel {
 	int priority;
 };
 
+struct xfrm_tunnel_notifier {
+	int (*handler)(struct sk_buff *skb);
+	struct xfrm_tunnel_notifier __rcu *next;
+	int priority;
+};
+
 struct xfrm6_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -1499,9 +1505,9 @@ int xfrm4_output(struct sk_buff *skb);
 int xfrm4_output_finish(struct sk_buff *skb);
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
-int xfrm4_mode_tunnel_input_register(struct xfrm_tunnel *handler);
-int xfrm4_mode_tunnel_input_deregister(struct xfrm_tunnel *handler);
 void xfrm4_local_error(struct sk_buff *skb, u32 mtu);
+int xfrm4_mode_tunnel_input_register(struct xfrm_tunnel_notifier *handler);
+int xfrm4_mode_tunnel_input_deregister(struct xfrm_tunnel_notifier *handler);
 int xfrm6_extract_header(struct sk_buff *skb);
 int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi);
@@ -1509,9 +1515,9 @@ int xfrm6_transport_finish(struct sk_buff *skb, int async);
 int xfrm6_rcv(struct sk_buff *skb);
 int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto);
+void xfrm6_local_error(struct sk_buff *skb, u32 mtu);
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
-int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler,
-			    unsigned short family);
+int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family);
 __be32 xfrm6_tunnel_alloc_spi(struct net *net, xfrm_address_t *saddr);
 __be32 xfrm6_tunnel_spi_lookup(struct net *net, const xfrm_address_t *saddr);
 int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb);
@@ -1520,7 +1526,6 @@ int xfrm6_output(struct sk_buff *skb);
 int xfrm6_output_finish(struct sk_buff *skb);
 int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 			  u8 **prevhdr);
-void xfrm6_local_error(struct sk_buff *skb, u32 mtu);
 
 #ifdef CONFIG_XFRM
 int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb);
