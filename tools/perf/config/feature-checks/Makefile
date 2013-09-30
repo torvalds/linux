@@ -9,6 +9,7 @@ FILES=					\
 	test-libelf			\
 	test-glibc			\
 	test-dwarf			\
+	test-libelf-mmap		\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -45,6 +46,9 @@ test-glibc:
 
 test-dwarf:
 	$(BUILD) -ldw
+
+test-libelf-mmap:
+	$(BUILD) -lelf
 
 test-libnuma:
 	$(BUILD) -lnuma
