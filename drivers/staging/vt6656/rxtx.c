@@ -148,6 +148,8 @@ static void *s_vGetFreeContext(struct vnt_private *pDevice)
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GetFreeContext()\n");
 
     for (ii = 0; ii < pDevice->cbTD; ii++) {
+	if (!pDevice->apTD[ii])
+		return NULL;
         pContext = pDevice->apTD[ii];
         if (pContext->bBoolInUse == false) {
             pContext->bBoolInUse = true;
