@@ -37,6 +37,8 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	/* Get TCB and local buffer from common pool.
 	   (It is shared by CmdQ, MgntQ, and USB coalesce DataQ) */
 	skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + DataLen + 4);
+	if (!skb)
+		return RT_STATUS_FAILURE;
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tcb_desc->queue_index = TXCMD_QUEUE;
