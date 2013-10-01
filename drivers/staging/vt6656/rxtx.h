@@ -140,6 +140,7 @@ struct vnt_rts_ab {
 	u16 wDuration;
 	u16 wReserved;
 	struct ieee80211_rts data;
+	struct vnt_tx_datahead_ab data_head;
 } __packed;
 
 struct vnt_rts_a_fb {

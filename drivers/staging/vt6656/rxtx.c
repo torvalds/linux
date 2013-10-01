@@ -571,6 +571,20 @@ static u16 vnt_rxtx_datahead_a_fb(struct vnt_private *priv, u8 pkt_type,
 	return buf->wDuration;
 }
 
+static u16 vnt_rxtx_datahead_ab(struct vnt_private *priv, u8 pkt_type,
+		u16 rate, struct vnt_tx_datahead_ab *buf,
+		u32 frame_len, int need_ack)
+{
+	/* Get SignalField,ServiceField,Length */
+	BBvCalculateParameter(priv, frame_len, rate, pkt_type, &buf->ab);
+	/* Get Duration and TimeStampOff */
+	buf->wDuration = s_uGetDataDuration(priv, pkt_type, need_ack);
+
+	buf->wTimeStampOff = vnt_time_stamp_off(priv, rate);
+
+	return buf->wDuration;
+}
+
 static u32 s_uFillDataHead(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate, void *pTxDataHead, u32 cbFrameLength,
 	u32 uDMAIdx, int bNeedAck, u8 byFBOption)
@@ -583,28 +597,16 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
     if (byPktType == PK_TYPE_11A) {
 		struct vnt_tx_datahead_ab *pBuf =
 			(struct vnt_tx_datahead_ab *)pTxDataHead;
-            //Get SignalField,ServiceField,Length
-		BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate,
-			byPktType, &pBuf->ab);
-            //Get Duration and TimeStampOff
-		pBuf->wDuration = s_uGetDataDuration(pDevice,
-				byPktType, bNeedAck);
-		pBuf->wTimeStampOff = vnt_time_stamp_off(pDevice,
-								wCurrentRate);
-            return (pBuf->wDuration);
+
+		return vnt_rxtx_datahead_ab(pDevice, byPktType,	wCurrentRate,
+				pBuf, cbFrameLength, bNeedAck);
     }
     else if (byPktType == PK_TYPE_11B) {
 		struct vnt_tx_datahead_ab *pBuf =
 			(struct vnt_tx_datahead_ab *)pTxDataHead;
-            //Get SignalField,ServiceField,Length
-		BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate,
-			byPktType, &pBuf->ab);
-            //Get Duration and TimeStampOff
-		pBuf->wDuration = s_uGetDataDuration(pDevice,
-				byPktType, bNeedAck);
-		pBuf->wTimeStampOff = vnt_time_stamp_off(pDevice,
-								wCurrentRate);
-            return (pBuf->wDuration);
+
+		return vnt_rxtx_datahead_ab(pDevice, byPktType,	wCurrentRate,
+				pBuf, cbFrameLength, bNeedAck);
     }
     return 0;
 }
@@ -705,7 +707,8 @@ static u16 vnt_rxtx_rts_ab_head(struct vnt_private *priv,
 
 	vnt_fill_ieee80211_rts(priv, &buf->data, eth_hdr, buf->wDuration);
 
-	return 0;
+	return vnt_rxtx_datahead_ab(priv, pkt_type, current_rate,
+			&buf->data_head, frame_len, need_ack);
 }
 
 static u16 vnt_rxtx_rts_a_fb_head(struct vnt_private *priv,
@@ -766,7 +769,7 @@ static u16 s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 			break;
 		}
 	case PK_TYPE_11B:
-		vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
+		return vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
 			psEthHeader, byPktType, cbFrameLength,
 			bNeedAck, wCurrentRate, byFBOption);
 	}
@@ -949,7 +952,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 				cbFrameSize, wCurrentRate, bNeedACK);
 
 		/* Fill RTS */
-		s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
+		return s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
 			bNeedACK, psEthHeader, wCurrentRate, byFBOption);
 	} else {
             //Fill RsvTime
@@ -980,7 +983,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 		}
 
 		/* Fill RTS */
-		s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
+		return s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
 			bNeedACK, psEthHeader, wCurrentRate, byFBOption);
         }
         else { //RTS_needless, non PCF mode
@@ -1181,12 +1184,8 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     else {//802.11a/b packet
         if (byFBOption == AUTO_FB_NONE) {
             if (bRTS == true) {//RTS_need
-		pvTxDataHd = (struct vnt_tx_datahead_ab *)(pbyTxBufferAddr +
-			wTxBufSize + sizeof(struct vnt_rrv_time_ab) + cbMICHDR +
-						sizeof(struct vnt_rts_ab));
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_ab) +
-			cbMICHDR + sizeof(struct vnt_rts_ab) +
-				sizeof(struct vnt_tx_datahead_ab);
+			cbMICHDR + sizeof(struct vnt_rts_ab);
             }
             else if (bRTS == false) { //RTS_needless, no MICHDR
 		pvTxDataHd = (struct vnt_tx_datahead_ab *)(pbyTxBufferAddr +
