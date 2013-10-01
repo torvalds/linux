@@ -1176,16 +1176,9 @@ void hci_update_ad(struct hci_request *req)
 	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
 }
 
-/* ---- HCI ioctl helpers ---- */
-
-int hci_dev_open(__u16 dev)
+static int hci_dev_do_open(struct hci_dev *hdev)
 {
-	struct hci_dev *hdev;
 	int ret = 0;
-
-	hdev = hci_dev_get(dev);
-	if (!hdev)
-		return -ENODEV;
 
 	BT_DBG("%s %p", hdev->name, hdev);
 
@@ -1266,8 +1259,25 @@ int hci_dev_open(__u16 dev)
 
 done:
 	hci_req_unlock(hdev);
-	hci_dev_put(hdev);
 	return ret;
+}
+
+/* ---- HCI ioctl helpers ---- */
+
+int hci_dev_open(__u16 dev)
+{
+	struct hci_dev *hdev;
+	int err;
+
+	hdev = hci_dev_get(dev);
+	if (!hdev)
+		return -ENODEV;
+
+	err = hci_dev_do_open(hdev);
+
+	hci_dev_put(hdev);
+
+	return err;
 }
 
 static int hci_dev_do_close(struct hci_dev *hdev)
@@ -1665,7 +1675,7 @@ static void hci_power_on(struct work_struct *work)
 
 	BT_DBG("%s", hdev->name);
 
-	err = hci_dev_open(hdev->id);
+	err = hci_dev_do_open(hdev);
 	if (err < 0) {
 		mgmt_set_powered_failed(hdev, err);
 		return;
