@@ -1879,7 +1879,7 @@ static struct radeon_asic si_asic = {
 		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
-		.blit = NULL,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &si_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
