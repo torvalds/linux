@@ -1505,12 +1505,14 @@ static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_req *req)
 static struct fuse_file *fuse_write_file(struct fuse_conn *fc,
 					 struct fuse_inode *fi)
 {
-	struct fuse_file *ff;
+	struct fuse_file *ff = NULL;
 
 	spin_lock(&fc->lock);
-	BUG_ON(list_empty(&fi->write_files));
-	ff = list_entry(fi->write_files.next, struct fuse_file, write_entry);
-	fuse_file_get(ff);
+	if (!WARN_ON(list_empty(&fi->write_files))) {
+		ff = list_entry(fi->write_files.next, struct fuse_file,
+				write_entry);
+		fuse_file_get(ff);
+	}
 	spin_unlock(&fc->lock);
 
 	return ff;
@@ -1524,6 +1526,7 @@ static int fuse_writepage_locked(struct page *page)
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_req *req;
 	struct page *tmp_page;
+	int error = -ENOMEM;
 
 	set_page_writeback(page);
 
@@ -1536,7 +1539,11 @@ static int fuse_writepage_locked(struct page *page)
 	if (!tmp_page)
 		goto err_free;
 
+	error = -EIO;
 	req->ff = fuse_write_file(fc, fi);
+	if (!req->ff)
+		goto err_free;
+
 	fuse_write_fill(req, req->ff, page_offset(page), 0);
 
 	copy_highpage(tmp_page, page);
@@ -1566,7 +1573,7 @@ err_free:
 	fuse_request_free(req);
 err:
 	end_page_writeback(page);
-	return -ENOMEM;
+	return error;
 }
 
 static int fuse_writepage(struct page *page, struct writeback_control *wbc)
