@@ -964,7 +964,7 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 static int sh_mmcif_clk_update(struct sh_mmcif_host *host)
 {
-	int ret = clk_enable(host->hclk);
+	int ret = clk_prepare_enable(host->hclk);
 
 	if (!ret) {
 		host->clk = clk_get_rate(host->hclk);
@@ -1018,7 +1018,7 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 		if (host->power) {
 			pm_runtime_put_sync(&host->pd->dev);
-			clk_disable(host->hclk);
+			clk_disable_unprepare(host->hclk);
 			host->power = false;
 			if (ios->power_mode == MMC_POWER_OFF)
 				sh_mmcif_set_power(host, ios);
@@ -1466,7 +1466,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 
 	mutex_init(&host->thread_lock);
 
-	clk_disable(host->hclk);
+	clk_disable_unprepare(host->hclk);
 	ret = mmc_add_host(mmc);
 	if (ret < 0)
 		goto emmcaddh;
@@ -1487,7 +1487,7 @@ ereqirq1:
 ereqirq0:
 	pm_runtime_suspend(&pdev->dev);
 eresume:
-	clk_disable(host->hclk);
+	clk_disable_unprepare(host->hclk);
 eclkupdate:
 	clk_put(host->hclk);
 eclkget:
@@ -1505,7 +1505,7 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	int irq[2];
 
 	host->dying = true;
-	clk_enable(host->hclk);
+	clk_prepare_enable(host->hclk);
 	pm_runtime_get_sync(&pdev->dev);
 
 	dev_pm_qos_hide_latency_limit(&pdev->dev);
@@ -1530,7 +1530,7 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	if (irq[1] >= 0)
 		free_irq(irq[1], host);
 
-	clk_disable(host->hclk);
+	clk_disable_unprepare(host->hclk);
 	mmc_free_host(host->mmc);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
