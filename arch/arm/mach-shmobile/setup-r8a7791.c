@@ -28,6 +28,7 @@
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7791.h>
+#include <mach/rcar-gen2.h>
 #include <asm/mach/arch.h>
 
 #define SCIF_COMMON(scif_type, baseaddr, irq)			\
@@ -176,6 +177,7 @@ static const char *r8a7791_boards_compat_dt[] __initdata = {
 
 DT_MACHINE_START(R8A7791_DT, "Generic R8A7791 (Flattened Device Tree)")
 	.init_early	= r8a7791_init_early,
+	.init_time	= rcar_gen2_timer_init,
 	.dt_compat	= r8a7791_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */
