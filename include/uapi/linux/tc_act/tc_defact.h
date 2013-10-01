@@ -6,7 +6,7 @@
 struct tc_defact {
 	tc_gen;
 };
-                                                                                
+
 enum {
 	TCA_DEF_UNSPEC,
 	TCA_DEF_TM,
