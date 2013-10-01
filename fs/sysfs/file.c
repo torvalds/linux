@@ -25,15 +25,17 @@
 #include "sysfs.h"
 
 /*
- * There's one sysfs_buffer for each open file and one
- * sysfs_open_dirent for each sysfs_dirent with one or more open
- * files.
+ * There's one sysfs_buffer for each open file and one sysfs_open_dirent
+ * for each sysfs_dirent with one or more open files.
  *
- * filp->private_data points to sysfs_buffer and
- * sysfs_dirent->s_attr.open points to sysfs_open_dirent.  s_attr.open
- * is protected by sysfs_open_dirent_lock.
+ * sysfs_dirent->s_attr.open points to sysfs_open_dirent.  s_attr.open is
+ * protected by sysfs_open_dirent_lock.
+ *
+ * filp->private_data points to sysfs_buffer which is chained at
+ * sysfs_open_dirent->buffers, which is protected by sysfs_open_file_mutex.
  */
 static DEFINE_SPINLOCK(sysfs_open_dirent_lock);
+static DEFINE_MUTEX(sysfs_open_file_mutex);
 
 struct sysfs_open_dirent {
 	atomic_t		refcnt;
@@ -272,6 +274,7 @@ static int sysfs_get_open_dirent(struct sysfs_dirent *sd,
 	struct sysfs_open_dirent *od, *new_od = NULL;
 
  retry:
+	mutex_lock(&sysfs_open_file_mutex);
 	spin_lock_irq(&sysfs_open_dirent_lock);
 
 	if (!sd->s_attr.open && new_od) {
@@ -286,6 +289,7 @@ static int sysfs_get_open_dirent(struct sysfs_dirent *sd,
 	}
 
 	spin_unlock_irq(&sysfs_open_dirent_lock);
+	mutex_unlock(&sysfs_open_file_mutex);
 
 	if (od) {
 		kfree(new_od);
@@ -321,6 +325,7 @@ static void sysfs_put_open_dirent(struct sysfs_dirent *sd,
 	struct sysfs_open_dirent *od = sd->s_attr.open;
 	unsigned long flags;
 
+	mutex_lock(&sysfs_open_file_mutex);
 	spin_lock_irqsave(&sysfs_open_dirent_lock, flags);
 
 	list_del(&buffer->list);
@@ -330,6 +335,7 @@ static void sysfs_put_open_dirent(struct sysfs_dirent *sd,
 		od = NULL;
 
 	spin_unlock_irqrestore(&sysfs_open_dirent_lock, flags);
+	mutex_unlock(&sysfs_open_file_mutex);
 
 	kfree(od);
 }
