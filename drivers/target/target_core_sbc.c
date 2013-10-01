@@ -349,7 +349,16 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 
-	cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
+	/*
+	 * Only set SCF_COMPARE_AND_WRITE_POST to force a response fall-through
+	 * within target_complete_ok_work() if the command was successfully
+	 * sent to the backend driver.
+	 */
+	spin_lock_irq(&cmd->t_state_lock);
+	if ((cmd->transport_state & CMD_T_SENT) && !cmd->scsi_status)
+		cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
+	spin_unlock_irq(&cmd->t_state_lock);
+
 	/*
 	 * Unlock ->caw_sem originally obtained during sbc_compare_and_write()
 	 * before the original READ I/O submission.
