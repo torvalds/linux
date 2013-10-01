@@ -47,7 +47,6 @@ struct sysfs_buffer {
 	char			*page;
 	const struct sysfs_ops	*ops;
 	struct mutex		mutex;
-	int			needs_read_fill;
 	int			event;
 	struct list_head	list;
 };
@@ -95,12 +94,10 @@ static int fill_read_buffer(struct dentry *dentry, struct sysfs_buffer *buffer)
 		/* Try to struggle along */
 		count = PAGE_SIZE - 1;
 	}
-	if (count >= 0) {
-		buffer->needs_read_fill = 0;
+	if (count >= 0)
 		buffer->count = count;
-	} else {
+	else
 		ret = count;
-	}
 	return ret;
 }
 
@@ -130,7 +127,11 @@ sysfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	ssize_t retval = 0;
 
 	mutex_lock(&buffer->mutex);
-	if (buffer->needs_read_fill || *ppos == 0) {
+	/*
+	 * Fill on zero offset and the first read so that silly things like
+	 * "dd bs=1 skip=N" can work on sysfs files.
+	 */
+	if (*ppos == 0 || !buffer->page) {
 		retval = fill_read_buffer(file->f_path.dentry, buffer);
 		if (retval)
 			goto out;
@@ -166,13 +167,14 @@ static int fill_write_buffer(struct sysfs_buffer *buffer,
 	if (count >= PAGE_SIZE)
 		count = PAGE_SIZE - 1;
 	error = copy_from_user(buffer->page, buf, count);
-	buffer->needs_read_fill = 1;
-	/* if buf is assumed to contain a string, terminate it by \0,
-	   so e.g. sscanf() can scan the string easily */
+
+	/*
+	 * If buf is assumed to contain a string, terminate it by \0, so
+	 * e.g. sscanf() can scan the string easily.
+	 */
 	buffer->page[count] = 0;
 	return error ? -EFAULT : count;
 }
-
 
 /**
  *	flush_write_buffer - push buffer to kobject.
@@ -368,7 +370,6 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 		goto err_out;
 
 	mutex_init(&buffer->mutex);
-	buffer->needs_read_fill = 1;
 	buffer->ops = ops;
 	file->private_data = buffer;
 
@@ -435,7 +436,6 @@ static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
 	return DEFAULT_POLLMASK;
 
  trigger:
-	buffer->needs_read_fill = 1;
 	return DEFAULT_POLLMASK|POLLERR|POLLPRI;
 }
 
