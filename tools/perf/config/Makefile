@@ -89,17 +89,21 @@ CFLAGS += -std=gnu99
 
 EXTLIBS = -lelf -lpthread -lrt -lm -ldl
 
-feature_check = $(eval $(feature_check_code)); $(info CHK: config/feature-checks/test-$(1))
+feature_check = $(eval $(feature_check_code))
 define feature_check_code
-  feature-$(2) := $(shell make -C config/feature-checks test-$1 >/dev/null 2>/dev/null && echo 1 || echo 0)
+  feature-$(1) := $(shell $(MAKE) -C config/feature-checks test-$1 >/dev/null 2>/dev/null && echo 1 || echo 0)
+endef
+
+feature_set = $(eval $(feature_set_code))
+define feature_set_code
+  feature-$(1) := 1
 endef
 
 #
 # Build the feature check binaries in parallel, ignore errors, ignore return value and suppress output:
 #
-$(info Testing features:)
-$(shell make -i -j -C config/feature-checks >/dev/null 2>&1)
-$(info done)
+$(info )
+$(info Auto-detecting system features:)
 
 FEATURE_TESTS =				\
 	hello				\
@@ -126,7 +130,36 @@ FEATURE_TESTS =				\
 	backtrace			\
 	libnuma
 
-$(foreach test,$(FEATURE_TESTS),$(call feature_check,$(test),$(test)))
+#
+# Special fast-path for the 'all features are available' case:
+#
+$(call feature_check,all)
+
+ifeq ($(feature-all), 1)
+  $(foreach feat,$(FEATURE_TESTS),$(call feature_set,$(feat)))
+else
+  $(shell $(MAKE) -i -j -C config/feature-checks >/dev/null 2>&1)
+  $(foreach feat,$(FEATURE_TESTS),$(call feature_check,$(feat)))
+endif
+
+feature_print = $(eval $(feature_print_code))
+
+#
+# Print the result of the feature test:
+#
+define feature_print_code
+  ifeq ($(feature-$(1)), 1)
+    MSG := $(shell printf '...%30s: [ \033[32mon\033[m  ]' $(1))
+  else
+    MSG := $(shell printf '...%30s: [ \033[31mOFF\033[m ]' $(1))
+  endif
+  $(info $(MSG))
+endef
+
+$(foreach feat,$(FEATURE_TESTS) DUMMY,$(call feature_print,$(feat)))
+
+# newline at the end of the feature printouts:
+$(info )
 
 ifeq ($(feature-stackprotector-all), 1)
   CFLAGS += -fstack-protector-all
