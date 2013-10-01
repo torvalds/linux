@@ -57,7 +57,6 @@
 #include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-helper-board.h>
 
-#define CVMX_PREFETCH0(address) CVMX_PREFETCH(address, 0)
 #define CVMX_PREFETCH128(address) CVMX_PREFETCH(address, 128)
 // a normal prefetch
 #define CVMX_PREFETCH(address, offset) CVMX_PREFETCH_PREF0(address, offset)
@@ -2667,7 +2666,7 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_internal_state *usb, int chan
 	if (!pipe)
 		return 0;
 	transaction = pipe->head;
-	CVMX_PREFETCH0(transaction);
+	CVMX_PREFETCH(transaction, 0);
 
 	/*
 	 * Disconnect this pipe from the HW channel. Later the schedule
