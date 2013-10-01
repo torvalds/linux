@@ -110,14 +110,14 @@ Configuration options:
 #define ATAO_CFG1_DMARQ		(1 << 5)
 #define ATAO_CFG1_DMAEN		(1 << 4)
 #define ATAO_CFG1_CH(x)		(((x) & 0xf) << 0)
-#define ATAO_STATUS		0x0a	/* R 16 */
-#define FH			(1 << 6)
-#define FE			(1 << 5)
-#define FF			(1 << 4)
-#define INT2			(1 << 3)
-#define INT1			(1 << 2)
-#define TCINT			(1 << 1)
-#define PROMOUT			(1 << 0)
+#define ATAO_STATUS_REG		0x0a
+#define ATAO_STATUS_FH		(1 << 6)
+#define ATAO_STATUS_FE		(1 << 5)
+#define ATAO_STATUS_FF		(1 << 4)
+#define ATAO_STATUS_INT2	(1 << 3)
+#define ATAO_STATUS_INT1	(1 << 2)
+#define ATAO_STATUS_TCINT	(1 << 1)
+#define ATAO_STATUS_PROMOUT	(1 << 0)
 #define ATAO_FIFO_WRITE		0x0c	/* W 16 */
 #define ATAO_FIFO_CLEAR		0x0c	/* R 16 */
 #define ATAO_DACn(x)		(0x0c + ((x) * 2))	/* W */
