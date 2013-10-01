@@ -42,7 +42,8 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #include "comedi_fc.h"
 #include "mite.h"
 
-#define Port_Register(x)			(0x00+(x))
+#define NI6527_DI_REG(x)		(0x00 + (x))
+#define NI6527_DO_REG(x)		(0x03 + (x))
 #define NI6527_ID_REG			0x06
 
 #define Clear_Register				0x07
@@ -157,13 +158,18 @@ static int ni6527_di_insn_config(struct comedi_device *dev,
 
 static int ni6527_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct ni6527_private *devpriv = dev->private;
+	void __iomem *mmio = devpriv->mite->daq_io_addr;
+	unsigned int val;
 
-	data[1] = readb(devpriv->mite->daq_io_addr + Port_Register(0));
-	data[1] |= readb(devpriv->mite->daq_io_addr + Port_Register(1)) << 8;
-	data[1] |= readb(devpriv->mite->daq_io_addr + Port_Register(2)) << 16;
+	val = readb(mmio + NI6527_DI_REG(0));
+	val |= (readb(mmio + NI6527_DI_REG(1)) << 8);
+	val |= (readb(mmio + NI6527_DI_REG(2)) << 16);
+
+	data[1] = val;
 
 	return insn->n;
 }
@@ -174,23 +180,20 @@ static int ni6527_do_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct ni6527_private *devpriv = dev->private;
+	void __iomem *mmio = devpriv->mite->daq_io_addr;
 	unsigned int mask;
 
 	mask = comedi_dio_update_state(s, data);
 	if (mask) {
 		/* Outputs are inverted */
-		if (mask & 0x0000ff) {
-			writeb(s->state ^ 0xff,
-			       devpriv->mite->daq_io_addr + Port_Register(3));
-		}
-		if (mask & 0x00ff00) {
-			writeb((s->state >> 8) ^ 0xff,
-			       devpriv->mite->daq_io_addr + Port_Register(4));
-		}
-		if (mask & 0xff0000) {
-			writeb((s->state >> 16) ^ 0xff,
-			       devpriv->mite->daq_io_addr + Port_Register(5));
-		}
+		unsigned int val = s->state ^ 0xffffff;
+
+		if (mask & 0x0000ff)
+			writeb(val & 0xff, mmio + NI6527_DO_REG(0));
+		if (mask & 0x00ff00)
+			writeb((val >> 8) & 0xff, mmio + NI6527_DO_REG(1));
+		if (mask & 0xff0000)
+			writeb((val >> 16) & 0xff, mmio + NI6527_DO_REG(2));
 	}
 
 	data[1] = s->state;
