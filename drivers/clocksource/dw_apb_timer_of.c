@@ -138,12 +138,10 @@ static void __init dw_apb_timer_init(struct device_node *timer)
 	case 0:
 		pr_debug("%s: found clockevent timer\n", __func__);
 		add_clockevent(timer);
-		of_node_put(timer);
 		break;
 	case 1:
 		pr_debug("%s: found clocksource timer\n", __func__);
 		add_clocksource(timer);
-		of_node_put(timer);
 		init_sched_clock();
 		break;
 	default:

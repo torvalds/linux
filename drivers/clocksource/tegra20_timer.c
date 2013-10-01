@@ -181,8 +181,6 @@ static void __init tegra20_init_timer(struct device_node *np)
 		rate = clk_get_rate(clk);
 	}
 
-	of_node_put(np);
-
 	switch (rate) {
 	case 12000000:
 		timer_writel(0x000b, TIMERUS_USEC_CFG);
@@ -240,8 +238,6 @@ static void __init tegra20_init_rtc(struct device_node *np)
 		pr_warn("Unable to get rtc-tegra clock\n");
 	else
 		clk_prepare_enable(clk);
-
-	of_node_put(np);
 
 	register_persistent_clock(NULL, tegra_read_persistent_clock);
 }

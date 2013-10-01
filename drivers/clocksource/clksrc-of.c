@@ -32,5 +32,6 @@ void __init clocksource_of_init(void)
 	for_each_matching_node_and_match(np, __clksrc_of_table, &match) {
 		init_func = match->data;
 		init_func(np);
+		of_node_put(np);
 	}
 }
