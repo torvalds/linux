@@ -40,7 +40,6 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #include "../comedidev.h"
 
 #include "comedi_fc.h"
-#include "mite.h"
 
 #define NI6527_DI_REG(x)		(0x00 + (x))
 #define NI6527_DO_REG(x)		(0x03 + (x))
@@ -90,7 +89,7 @@ static const struct ni6527_board ni6527_boards[] = {
 };
 
 struct ni6527_private {
-	struct mite_struct *mite;
+	void __iomem *mmio_base;
 	unsigned int filter_interval;
 	unsigned int filter_enable;
 };
@@ -99,7 +98,7 @@ static void ni6527_set_filter_interval(struct comedi_device *dev,
 				       unsigned int val)
 {
 	struct ni6527_private *devpriv = dev->private;
-	void __iomem *mmio = devpriv->mite->daq_io_addr;
+	void __iomem *mmio = devpriv->mmio_base;
 
 	if (val != devpriv->filter_interval) {
 		writeb(val & 0xff, mmio + NI6527_FILT_INTERVAL_REG(0));
@@ -116,7 +115,7 @@ static void ni6527_set_filter_enable(struct comedi_device *dev,
 				     unsigned int val)
 {
 	struct ni6527_private *devpriv = dev->private;
-	void __iomem *mmio = devpriv->mite->daq_io_addr;
+	void __iomem *mmio = devpriv->mmio_base;
 
 	writeb(val & 0xff, mmio + NI6527_FILT_ENA_REG(0));
 	writeb((val >> 8) & 0xff, mmio + NI6527_FILT_ENA_REG(1));
@@ -163,7 +162,7 @@ static int ni6527_di_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct ni6527_private *devpriv = dev->private;
-	void __iomem *mmio = devpriv->mite->daq_io_addr;
+	void __iomem *mmio = devpriv->mmio_base;
 	unsigned int val;
 
 	val = readb(mmio + NI6527_DI_REG(0));
@@ -181,7 +180,7 @@ static int ni6527_do_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct ni6527_private *devpriv = dev->private;
-	void __iomem *mmio = devpriv->mite->daq_io_addr;
+	void __iomem *mmio = devpriv->mmio_base;
 	unsigned int mask;
 
 	mask = comedi_dio_update_state(s, data);
@@ -207,7 +206,7 @@ static irqreturn_t ni6527_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct ni6527_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	void __iomem *mmio = devpriv->mite->daq_io_addr;
+	void __iomem *mmio = devpriv->mmio_base;
 	unsigned int status;
 
 	status = readb(mmio + NI6527_STATUS_REG);
@@ -271,7 +270,7 @@ static int ni6527_intr_cmd(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
 	struct ni6527_private *devpriv = dev->private;
-	void __iomem *mmio = devpriv->mite->daq_io_addr;
+	void __iomem *mmio = devpriv->mmio_base;
 
 	writeb(NI6527_CLR_IRQS, mmio + NI6527_CLR_REG);
 	writeb(NI6527_CTRL_ENABLE_IRQS, mmio + NI6527_CTRL_REG);
@@ -283,7 +282,7 @@ static int ni6527_intr_cancel(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct ni6527_private *devpriv = dev->private;
-	void __iomem *mmio = devpriv->mite->daq_io_addr;
+	void __iomem *mmio = devpriv->mmio_base;
 
 	writeb(NI6527_CTRL_DISABLE_IRQS, mmio + NI6527_CTRL_REG);
 
@@ -303,7 +302,7 @@ static void ni6527_set_edge_detection(struct comedi_device *dev,
 				      unsigned int falling)
 {
 	struct ni6527_private *devpriv = dev->private;
-	void __iomem *mmio = devpriv->mite->daq_io_addr;
+	void __iomem *mmio = devpriv->mmio_base;
 
 	/* enable rising-edge detection channels */
 	writeb(rising & 0xff, mmio + NI6527_RISING_EDGE_REG(0));
@@ -359,18 +358,12 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	devpriv->mite = mite_alloc(pcidev);
-	if (!devpriv->mite)
+	devpriv->mmio_base = pci_ioremap_bar(pcidev, 1);
+	if (!devpriv->mmio_base)
 		return -ENOMEM;
 
-	ret = mite_setup(devpriv->mite);
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error setting up mite\n");
-		return ret;
-	}
-
 	/* make sure this is actually a 6527 device */
-	if (readb(devpriv->mite->daq_io_addr + NI6527_ID_REG) != 0x27)
+	if (readb(devpriv->mmio_base + NI6527_ID_REG) != 0x27)
 		return -ENODEV;
 
 	ret = comedi_alloc_subdevices(dev, 3);
@@ -410,16 +403,16 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	ni6527_set_filter_enable(dev, 0);
 
 	writeb(NI6527_CLR_IRQS | NI6527_CLR_RESET_FILT,
-	       devpriv->mite->daq_io_addr + NI6527_CLR_REG);
+	       devpriv->mmio_base + NI6527_CLR_REG);
 	writeb(NI6527_CTRL_DISABLE_IRQS,
-	       devpriv->mite->daq_io_addr + NI6527_CTRL_REG);
+	       devpriv->mmio_base + NI6527_CTRL_REG);
 
-	ret = request_irq(mite_irq(devpriv->mite), ni6527_interrupt,
+	ret = request_irq(pcidev->irq, ni6527_interrupt,
 			  IRQF_SHARED, dev->board_name, dev);
 	if (ret < 0)
 		dev_warn(dev->class_dev, "irq not available\n");
 	else
-		dev->irq = mite_irq(devpriv->mite);
+		dev->irq = pcidev->irq;
 
 	return 0;
 }
@@ -428,15 +421,11 @@ static void ni6527_detach(struct comedi_device *dev)
 {
 	struct ni6527_private *devpriv = dev->private;
 
-	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr)
+	if (devpriv && devpriv->mmio_base)
 		writeb(NI6527_CTRL_DISABLE_IRQS,
-		       devpriv->mite->daq_io_addr + NI6527_CTRL_REG);
+		       devpriv->mmio_base + NI6527_CTRL_REG);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (devpriv && devpriv->mite) {
-		mite_unsetup(devpriv->mite);
-		mite_free(devpriv->mite);
-	}
 	comedi_pci_disable(dev);
 }
 
