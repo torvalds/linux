@@ -8529,6 +8529,18 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	if (plane_bpp < 0)
 		goto fail;
 
+	/*
+	 * Determine the real pipe dimensions. Note that stereo modes can
+	 * increase the actual pipe size due to the frame doubling and
+	 * insertion of additional space for blanks between the frame. This
+	 * is stored in the crtc timings. We use the requested mode to do this
+	 * computation to clearly distinguish it from the adjusted mode, which
+	 * can be changed by the connectors in the below retry loop.
+	 */
+	drm_mode_set_crtcinfo(&pipe_config->requested_mode, CRTC_STEREO_DOUBLE);
+	pipe_config->pipe_src_w = pipe_config->requested_mode.crtc_hdisplay;
+	pipe_config->pipe_src_h = pipe_config->requested_mode.crtc_vdisplay;
+
 encoder_retry:
 	/* Ensure the port clock defaults are reset when retrying. */
 	pipe_config->port_clock = 0;
@@ -8536,10 +8548,6 @@ encoder_retry:
 
 	/* Fill in default crtc timings, allow encoders to overwrite them. */
 	drm_mode_set_crtcinfo(&pipe_config->adjusted_mode, CRTC_STEREO_DOUBLE);
-
-	/* set_crtcinfo() may have adjusted hdisplay/vdisplay */
-	pipe_config->pipe_src_w = pipe_config->adjusted_mode.crtc_hdisplay;
-	pipe_config->pipe_src_h = pipe_config->adjusted_mode.crtc_vdisplay;
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
