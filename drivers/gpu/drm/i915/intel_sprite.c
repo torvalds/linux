@@ -658,15 +658,20 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0,
 		.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0,
 	};
-
-	intel_plane->crtc_x = crtc_x;
-	intel_plane->crtc_y = crtc_y;
-	intel_plane->crtc_w = crtc_w;
-	intel_plane->crtc_h = crtc_h;
-	intel_plane->src_x = src_x;
-	intel_plane->src_y = src_y;
-	intel_plane->src_w = src_w;
-	intel_plane->src_h = src_h;
+	const struct {
+		int crtc_x, crtc_y;
+		unsigned int crtc_w, crtc_h;
+		uint32_t src_x, src_y, src_w, src_h;
+	} orig = {
+		.crtc_x = crtc_x,
+		.crtc_y = crtc_y,
+		.crtc_w = crtc_w,
+		.crtc_h = crtc_h,
+		.src_x = src_x,
+		.src_y = src_y,
+		.src_w = src_w,
+		.src_h = src_h,
+	};
 
 	/* Don't modify another pipe's plane */
 	if (intel_plane->pipe != intel_crtc->pipe) {
@@ -818,6 +823,14 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
+	intel_plane->crtc_x = orig.crtc_x;
+	intel_plane->crtc_y = orig.crtc_y;
+	intel_plane->crtc_w = orig.crtc_w;
+	intel_plane->crtc_h = orig.crtc_h;
+	intel_plane->src_x = orig.src_x;
+	intel_plane->src_y = orig.src_y;
+	intel_plane->src_w = orig.src_w;
+	intel_plane->src_h = orig.src_h;
 	intel_plane->obj = obj;
 
 	if (intel_crtc->active) {
