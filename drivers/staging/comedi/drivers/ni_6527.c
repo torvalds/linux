@@ -1,36 +1,31 @@
 /*
-    comedi/drivers/ni_6527.c
-    driver for National Instruments PCI-6527
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1999,2002,2003 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
-/*
-Driver: ni_6527
-Description: National Instruments 6527
-Author: ds
-Status: works
-Devices: [National Instruments] PCI-6527 (ni6527), PXI-6527
-Updated: Sat, 25 Jan 2003 13:24:40 -0800
-
-
-*/
+ * ni_6527.c
+ * Comedi driver for National Instruments PCI-6527
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999,2002,2003 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-   Manuals (available from ftp://ftp.natinst.com/support/manuals)
-
-	370106b.pdf	6527 Register Level Programmer Manual
-
+ * Driver: ni_6527
+ * Description: National Instruments 6527
+ * Devices: (National Instruments) PCI-6527 [pci-6527]
+ *          (National Instruments) PXI-6527 [pxi-6527]
+ * Author: David A. Schleef <ds@schleef.org>
+ * Updated: Sat, 25 Jan 2003 13:24:40 -0800
+ * Status: works
+ *
+ * Configuration Options: not applicable, uses PCI auto config
  */
 
 #include <linux/module.h>
@@ -41,6 +36,12 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 
 #include "comedi_fc.h"
 
+/*
+ * PCI BAR1 - Register memory map
+ *
+ * Manuals (available from ftp://ftp.natinst.com/support/manuals)
+ *	370106b.pdf	6527 Register Level Programmer Manual
+ */
 #define NI6527_DI_REG(x)		(0x00 + (x))
 #define NI6527_DO_REG(x)		(0x03 + (x))
 #define NI6527_ID_REG			0x06
