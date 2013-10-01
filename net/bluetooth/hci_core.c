@@ -1273,6 +1273,16 @@ int hci_dev_open(__u16 dev)
 	if (!hdev)
 		return -ENODEV;
 
+	/* We need to ensure that no other power on/off work is pending
+	 * before proceeding to call hci_dev_do_open. This is
+	 * particularly important if the setup procedure has not yet
+	 * completed.
+	 */
+	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+		cancel_delayed_work(&hdev->power_off);
+
+	flush_workqueue(hdev->req_workqueue);
+
 	err = hci_dev_do_open(hdev);
 
 	hci_dev_put(hdev);
