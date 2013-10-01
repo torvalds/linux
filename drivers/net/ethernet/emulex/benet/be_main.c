@@ -2967,8 +2967,9 @@ static void BEx_get_resources(struct be_adapter *adapter,
 		res->max_vlans = BE_NUM_VLANS_SUPPORTED;
 	res->max_mcast_mac = BE_MAX_MC;
 
+	/* For BE3 1Gb ports, F/W does not properly support multiple TXQs */
 	if (BE2_chip(adapter) || use_sriov || be_is_mc(adapter) ||
-	    !be_physfn(adapter))
+	    !be_physfn(adapter) || (adapter->port_num > 1))
 		res->max_tx_qs = 1;
 	else
 		res->max_tx_qs = BE3_MAX_TX_QS;
@@ -3008,14 +3009,6 @@ static int be_get_resources(struct be_adapter *adapter)
 	if (BEx_chip(adapter)) {
 		BEx_get_resources(adapter, &res);
 		adapter->res = res;
-	}
-
-	/* For BE3 only check if FW suggests a different max-txqs value */
-	if (BE3_chip(adapter)) {
-		status = be_cmd_get_profile_config(adapter, &res, 0);
-		if (!status && res.max_tx_qs)
-			adapter->res.max_tx_qs =
-				min(adapter->res.max_tx_qs, res.max_tx_qs);
 	}
 
 	/* For Lancer, SH etc read per-function resource limits from FW.
