@@ -1538,7 +1538,7 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sh_mmcif_suspend(struct device *dev)
 {
 	struct sh_mmcif_host *host = dev_get_drvdata(dev);
@@ -1552,10 +1552,7 @@ static int sh_mmcif_resume(struct device *dev)
 {
 	return 0;
 }
-#else
-#define sh_mmcif_suspend	NULL
-#define sh_mmcif_resume		NULL
-#endif	/* CONFIG_PM */
+#endif
 
 static const struct of_device_id mmcif_of_match[] = {
 	{ .compatible = "renesas,sh-mmcif" },
@@ -1564,8 +1561,7 @@ static const struct of_device_id mmcif_of_match[] = {
 MODULE_DEVICE_TABLE(of, mmcif_of_match);
 
 static const struct dev_pm_ops sh_mmcif_dev_pm_ops = {
-	.suspend = sh_mmcif_suspend,
-	.resume = sh_mmcif_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(sh_mmcif_suspend, sh_mmcif_resume)
 };
 
 static struct platform_driver sh_mmcif_driver = {
