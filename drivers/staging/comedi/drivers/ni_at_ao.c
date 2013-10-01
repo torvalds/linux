@@ -43,23 +43,15 @@ Configuration options:
  * Register map
  */
 #define ATAO_DIO_REG		0x00
-#define ATAO_CFG2		0x02	/* W 16 */
-#define CALLD1			(1 << 15)
-#define CALLD0			(1 << 14)
-#define FFRTEN			(1 << 13)
-#define DAC2S8			(1 << 12)
-#define DAC2S6			(1 << 11)
-#define DAC2S4			(1 << 10)
-#define DAC2S2			(1 << 9)
-#define DAC2S0			(1 << 8)
-#define LDAC8			(1 << 7)
-#define LDAC6			(1 << 6)
-#define LDAC4			(1 << 5)
-#define LDAC2			(1 << 4)
-#define LDAC0			(1 << 3)
-#define PROMEN			(1 << 2)
-#define SCLK			(1 << 1)
-#define SDATA			(1 << 0)
+#define ATAO_CFG2_REG		0x02
+#define ATAO_CFG2_CALLD_NOP	(0 << 14)
+#define ATAO_CFG2_CALLD(x)	((((x) >> 3) + 1) << 14)
+#define ATAO_CFG2_FFRTEN	(1 << 13)
+#define ATAO_CFG2_DACS(x)	(1 << (((x) / 2) + 8))
+#define ATAO_CFG2_LDAC(x)	(1 << (((x) / 2) + 3))
+#define ATAO_CFG2_PROMEN	(1 << 2)
+#define ATAO_CFG2_SCLK		(1 << 1)
+#define ATAO_CFG2_SDATA		(1 << 0)
 #define ATAO_CFG3		0x04	/* W 16 */
 #define DMAMODE			(1 << 6)
 #define CLKOUT			(1 << 5)
@@ -147,6 +139,9 @@ struct atao_private {
 
 	/* Used for AO readback */
 	unsigned int ao_readback[10];
+
+	/* Used for caldac readback */
+	unsigned char caldac[21];
 };
 
 static void atao_reset(struct comedi_device *dev)
@@ -162,7 +157,7 @@ static void atao_reset(struct comedi_device *dev)
 	outb(0x03, dev->iobase + ATAO_82C53_CNTR1);
 	outb(CNTRSEL0 | RWSEL0 | MODESEL2, dev->iobase + ATAO_82C53_CNTRCMD);
 
-	outw(0, dev->iobase + ATAO_CFG2);
+	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
 
 	devpriv->cfg3 = 0;
 	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3);
@@ -265,41 +260,83 @@ static int atao_dio_insn_config(struct comedi_device *dev,
 }
 
 /*
- * Figure 2-1 in the manual shows 3 chips labeled DAC8800, which
- * are 8-channel 8-bit DACs.  These are most likely the calibration
- * DACs.  It is not explicitly stated in the manual how to access
- * the caldacs, but we can guess.
+ * There are three DAC8800 TrimDACs on the board. These are 8-channel,
+ * 8-bit DACs that are used to calibrate the Analog Output channels.
+ * The factory default calibration values are stored in the EEPROM.
+ * The TrimDACs, and EEPROM addresses, are mapped as:
+ *
+ *        Channel       EEPROM  Description
+ *   -----------------  ------  -----------------------------------
+ *    0 - DAC0 Chan 0    0x30   AO Channel 0 Offset
+ *    1 - DAC0 Chan 1    0x31   AO Channel 0 Gain
+ *    2 - DAC0 Chan 2    0x32   AO Channel 1 Offset
+ *    3 - DAC0 Chan 3    0x33   AO Channel 1 Gain
+ *    4 - DAC0 Chan 4    0x34   AO Channel 2 Offset
+ *    5 - DAC0 Chan 5    0x35   AO Channel 2 Gain
+ *    6 - DAC0 Chan 6    0x36   AO Channel 3 Offset
+ *    7 - DAC0 Chan 7    0x37   AO Channel 3 Gain
+ *    8 - DAC1 Chan 0    0x38   AO Channel 4 Offset
+ *    9 - DAC1 Chan 1    0x39   AO Channel 4 Gain
+ *   10 - DAC1 Chan 2    0x3a   AO Channel 5 Offset
+ *   11 - DAC1 Chan 3    0x3b   AO Channel 5 Gain
+ *   12 - DAC1 Chan 4    0x3c   2.5V Offset
+ *   13 - DAC1 Chan 5    0x3d   AO Channel 6 Offset (at-ao-10 only)
+ *   14 - DAC1 Chan 6    0x3e   AO Channel 6 Gain   (at-ao-10 only)
+ *   15 - DAC1 Chan 7    0x3f   AO Channel 7 Offset (at-ao-10 only)
+ *   16 - DAC2 Chan 0    0x40   AO Channel 7 Gain   (at-ao-10 only)
+ *   17 - DAC2 Chan 1    0x41   AO Channel 8 Offset (at-ao-10 only)
+ *   18 - DAC2 Chan 2    0x42   AO Channel 8 Gain   (at-ao-10 only)
+ *   19 - DAC2 Chan 3    0x43   AO Channel 9 Offset (at-ao-10 only)
+ *   20 - DAC2 Chan 4    0x44   AO Channel 9 Gain   (at-ao-10 only)
+ *        DAC2 Chan 5    0x45   Reserved
+ *        DAC2 Chan 6    0x46   Reserved
+ *        DAC2 Chan 7    0x47   Reserved
  */
-static int atao_calib_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+static int atao_calib_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	int i;
-	for (i = 0; i < insn->n; i++)
-		data[i] = 0;	/* XXX */
+	struct atao_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int bitstring;
+	unsigned int val;
+	int bit;
+
+	if (insn->n == 0)
+		return 0;
+
+	devpriv->caldac[chan] = data[insn->n - 1] & s->maxdata;
+
+	/* write the channel and last data value to the caldac */
+	bitstring = ((chan & 0x7) << 8) | devpriv->caldac[chan];
+
+	/* clock the bitstring to the caldac; MSB -> LSB */
+	for (bit = 1 << 10; bit; bit >>= 1) {
+		val = (bit & bitstring) ? ATAO_CFG2_SDATA : 0;
+
+		outw(val, dev->iobase + ATAO_CFG2_REG);
+		outw(val | ATAO_CFG2_SCLK, dev->iobase + ATAO_CFG2_REG);
+	}
+
+	/* strobe the caldac to load the value */
+	outw(ATAO_CFG2_CALLD(chan), dev->iobase + ATAO_CFG2_REG);
+	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
+
 	return insn->n;
 }
 
-static int atao_calib_insn_write(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+static int atao_calib_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct atao_private *devpriv = dev->private;
-	unsigned int bitstring, bit;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	bitstring = ((chan & 0x7) << 8) | (data[insn->n - 1] & 0xff);
-
-	for (bit = 1 << (11 - 1); bit; bit >>= 1) {
-		outw(((bit & bitstring) ? SDATA : 0),
-		     dev->iobase + ATAO_CFG2);
-		outw(SCLK | ((bit & bitstring) ? SDATA : 0),
-		     dev->iobase + ATAO_CFG2);
-	}
-	/* strobe the appropriate caldac */
-	outw((((chan >> 3) + 1) << 14),
-	     dev->iobase + ATAO_CFG2);
-	outw(0, dev->iobase + ATAO_CFG2);
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->caldac[chan];
 
 	return insn->n;
 }
@@ -349,14 +386,14 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_bits = atao_dio_insn_bits;
 	s->insn_config = atao_dio_insn_config;
 
-	s = &dev->subdevices[2];
 	/* caldac subdevice */
-	s->type = COMEDI_SUBD_CALIB;
-	s->subdev_flags = SDF_WRITABLE | SDF_INTERNAL;
-	s->n_chan = 21;
-	s->maxdata = 0xff;
-	s->insn_read = atao_calib_insn_read;
-	s->insn_write = atao_calib_insn_write;
+	s = &dev->subdevices[2];
+	s->type		= COMEDI_SUBD_CALIB;
+	s->subdev_flags	= SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan	= (board->n_ao_chans * 2) + 1;
+	s->maxdata	= 0xff;
+	s->insn_read	= atao_calib_insn_read;
+	s->insn_write	= atao_calib_insn_write;
 
 	s = &dev->subdevices[3];
 	/* eeprom subdevice */
