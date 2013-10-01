@@ -84,7 +84,7 @@ bool esas2r_process_vda_ioctl(struct esas2r_adapter *a,
 		return false;
 	}
 
-	if (a->flags & AF_DEGRADED_MODE) {
+	if (test_bit(AF_DEGRADED_MODE, &a->flags)) {
 		vi->status = ATTO_STS_DEGRADED;
 		return false;
 	}
@@ -389,7 +389,7 @@ void esas2r_build_mgt_req(struct esas2r_adapter *a,
 	vrq->length = cpu_to_le32(length);
 
 	if (vrq->length) {
-		if (a->flags & AF_LEGACY_SGE_MODE) {
+		if (test_bit(AF_LEGACY_SGE_MODE, &a->flags)) {
 			vrq->sg_list_offset = (u8)offsetof(
 				struct atto_vda_mgmt_req, sge);
 
@@ -427,7 +427,7 @@ void esas2r_build_ae_req(struct esas2r_adapter *a, struct esas2r_request *rq)
 
 	vrq->length = cpu_to_le32(sizeof(struct atto_vda_ae_data));
 
-	if (a->flags & AF_LEGACY_SGE_MODE) {
+	if (test_bit(AF_LEGACY_SGE_MODE, &a->flags)) {
 		vrq->sg_list_offset =
 			(u8)offsetof(struct atto_vda_ae_req, sge);
 		vrq->sge[0].length = cpu_to_le32(SGE_LAST | vrq->length);
