@@ -272,12 +272,10 @@ static int ni6527_intr_cmd(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
 	struct ni6527_private *devpriv = dev->private;
-	/* struct comedi_cmd *cmd = &s->async->cmd; */
+	void __iomem *mmio = devpriv->mite->daq_io_addr;
 
-	writeb(NI6527_CLR_IRQS,
-	       devpriv->mite->daq_io_addr + NI6527_CLR_REG);
-	writeb(NI6527_CTRL_ENABLE_IRQS,
-	       devpriv->mite->daq_io_addr + NI6527_CTRL_REG);
+	writeb(NI6527_CLR_IRQS, mmio + NI6527_CLR_REG);
+	writeb(NI6527_CTRL_ENABLE_IRQS, mmio + NI6527_CTRL_REG);
 
 	return 0;
 }
