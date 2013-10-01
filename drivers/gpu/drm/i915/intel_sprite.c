@@ -623,14 +623,10 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		   uint32_t src_w, uint32_t src_h)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj, *old_obj;
-	int pipe = intel_plane->pipe;
-	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
-								      pipe);
 	int ret = 0;
 	bool disable_primary = false;
 	bool visible;
@@ -652,8 +648,8 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		.y2 = crtc_y + crtc_h,
 	};
 	const struct drm_rect clip = {
-		.x2 = intel_crtc->config.pipe_src_w,
-		.y2 = intel_crtc->config.pipe_src_h,
+		.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0,
+		.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0,
 	};
 
 	intel_fb = to_intel_framebuffer(fb);
@@ -669,12 +665,6 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	intel_plane->src_y = src_y;
 	intel_plane->src_w = src_w;
 	intel_plane->src_h = src_h;
-
-	/* Pipe must be running... */
-	if (!(I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_ENABLE)) {
-		DRM_DEBUG_KMS("Pipe disabled\n");
-		return -EINVAL;
-	}
 
 	/* Don't modify another pipe's plane */
 	if (intel_plane->pipe != intel_crtc->pipe) {
@@ -810,7 +800,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * we can disable the primary and save power.
 	 */
 	disable_primary = drm_rect_equals(&dst, &clip);
-	WARN_ON(disable_primary && !visible);
+	WARN_ON(disable_primary && !visible && intel_crtc->active);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -825,22 +815,24 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	intel_plane->obj = obj;
 
-	/*
-	 * Be sure to re-enable the primary before the sprite is no longer
-	 * covering it fully.
-	 */
-	if (!disable_primary)
-		intel_enable_primary(crtc);
+	if (intel_crtc->active) {
+		/*
+		 * Be sure to re-enable the primary before the sprite is no longer
+		 * covering it fully.
+		 */
+		if (!disable_primary)
+			intel_enable_primary(crtc);
 
-	if (visible)
-		intel_plane->update_plane(plane, crtc, fb, obj,
-					  crtc_x, crtc_y, crtc_w, crtc_h,
-					  src_x, src_y, src_w, src_h);
-	else
-		intel_plane->disable_plane(plane, crtc);
+		if (visible)
+			intel_plane->update_plane(plane, crtc, fb, obj,
+						  crtc_x, crtc_y, crtc_w, crtc_h,
+						  src_x, src_y, src_w, src_h);
+		else
+			intel_plane->disable_plane(plane, crtc);
 
-	if (disable_primary)
-		intel_disable_primary(crtc);
+		if (disable_primary)
+			intel_disable_primary(crtc);
+	}
 
 	/* Unpin old obj after new one is active to avoid ugliness */
 	if (old_obj) {
@@ -852,7 +844,8 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		 */
 		if (old_obj != obj) {
 			mutex_unlock(&dev->struct_mutex);
-			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
+			if (intel_crtc->active)
+				intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
 			mutex_lock(&dev->struct_mutex);
 		}
 		intel_unpin_fb_obj(old_obj);
@@ -868,6 +861,7 @@ intel_disable_plane(struct drm_plane *plane)
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct intel_crtc *intel_crtc;
 	int ret = 0;
 
 	if (!plane->fb)
@@ -876,13 +870,18 @@ intel_disable_plane(struct drm_plane *plane)
 	if (WARN_ON(!plane->crtc))
 		return -EINVAL;
 
-	intel_enable_primary(plane->crtc);
-	intel_plane->disable_plane(plane, plane->crtc);
+	intel_crtc = to_intel_crtc(plane->crtc);
+
+	if (intel_crtc->active) {
+		intel_enable_primary(plane->crtc);
+		intel_plane->disable_plane(plane, plane->crtc);
+	}
 
 	if (!intel_plane->obj)
 		goto out;
 
-	intel_wait_for_vblank(dev, intel_plane->pipe);
+	if (intel_crtc->active)
+		intel_wait_for_vblank(dev, intel_plane->pipe);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(intel_plane->obj);
