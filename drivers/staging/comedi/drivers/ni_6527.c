@@ -43,7 +43,7 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #include "mite.h"
 
 #define Port_Register(x)			(0x00+(x))
-#define ID_Register				0x06
+#define NI6527_ID_REG			0x06
 
 #define Clear_Register				0x07
 #define ClrEdge				0x08
@@ -342,8 +342,9 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 		return ret;
 	}
 
-	dev_info(dev->class_dev, "board: %s, ID=0x%02x\n", dev->board_name,
-		 readb(devpriv->mite->daq_io_addr + ID_Register));
+	/* make sure this is actually a 6527 device */
+	if (readb(devpriv->mite->daq_io_addr + NI6527_ID_REG) != 0x27)
+		return -ENODEV;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
