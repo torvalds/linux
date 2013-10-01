@@ -42,8 +42,7 @@ Configuration options:
 /*
  * Register map
  */
-#define ATAO_DIN		0x00	/* R 16 */
-#define ATAO_DOUT		0x00	/* W 16 */
+#define ATAO_DIO_REG		0x00
 #define ATAO_CFG2		0x02	/* W 16 */
 #define CALLD1			(1 << 15)
 #define CALLD0			(1 << 14)
@@ -228,9 +227,9 @@ static int atao_dio_insn_bits(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		outw(s->state, dev->iobase + ATAO_DOUT);
+		outw(s->state, dev->iobase + ATAO_DIO_REG);
 
-	data[1] = inw(dev->iobase + ATAO_DIN);
+	data[1] = inw(dev->iobase + ATAO_DIO_REG);
 
 	return insn->n;
 }
