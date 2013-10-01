@@ -442,10 +442,10 @@ static void ni6527_detach(struct comedi_device *dev)
 }
 
 static struct comedi_driver ni6527_driver = {
-	.driver_name = "ni_6527",
-	.module = THIS_MODULE,
-	.auto_attach = ni6527_auto_attach,
-	.detach = ni6527_detach,
+	.driver_name	= "ni_6527",
+	.module		= THIS_MODULE,
+	.auto_attach	= ni6527_auto_attach,
+	.detach		= ni6527_detach,
 };
 
 static int ni6527_pci_probe(struct pci_dev *dev,
