@@ -67,6 +67,7 @@
 struct mxs_spi {
 	struct mxs_ssp		ssp;
 	struct completion	c;
+	unsigned int		sck;	/* Rate requested (vs actual) */
 };
 
 static int mxs_spi_setup_transfer(struct spi_device *dev,
@@ -81,7 +82,19 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 		return -EINVAL;
 	}
 
-	mxs_ssp_set_clk_rate(ssp, hz);
+	if (hz != spi->sck) {
+		mxs_ssp_set_clk_rate(ssp, hz);
+		/*
+		 * Save requested rate, hz, rather than the actual rate,
+		 * ssp->clk_rate.  Otherwise we would set the rate every trasfer
+		 * when the actual rate is not quite the same as requested rate.
+		 */
+		spi->sck = hz;
+		/*
+		 * Perhaps we should return an error if the actual clock is
+		 * nowhere close to what was requested?
+		 */
+	}
 
 	writel(BM_SSP_CTRL0_LOCK_CS,
 		ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
