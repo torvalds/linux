@@ -455,8 +455,7 @@ enum cvmx_usb_initialize_flags {
 };
 
 /**
- * enum cvmx_usb_pipe_flags - flags for passing when a pipe is created.
- *			      Currently no flags need to be passed.
+ * enum cvmx_usb_pipe_flags - internal flags for a pipe.
  *
  * @__CVMX_USB_PIPE_FLAGS_OPEN:	     Used internally to determine if a pipe is
  *				     open. Do not use.
@@ -481,7 +480,6 @@ extern int cvmx_usb_disable(struct cvmx_usb_state *state);
 extern struct cvmx_usb_port_status cvmx_usb_get_status(struct cvmx_usb_state *state);
 extern void cvmx_usb_set_status(struct cvmx_usb_state *state, struct cvmx_usb_port_status port_status);
 extern int cvmx_usb_open_pipe(struct cvmx_usb_state *state,
-                              enum cvmx_usb_pipe_flags flags,
                               int device_addr, int endpoint_num,
                               enum cvmx_usb_speed device_speed, int max_packet,
                               enum cvmx_usb_transfer transfer_type,

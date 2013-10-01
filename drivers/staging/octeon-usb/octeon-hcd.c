@@ -277,7 +277,6 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			}
 		}
 		pipe_handle = cvmx_usb_open_pipe(&priv->usb,
-						 0,
 						 usb_pipedevice(urb->pipe),
 						 usb_pipeendpoint(urb->pipe),
 						 speed,

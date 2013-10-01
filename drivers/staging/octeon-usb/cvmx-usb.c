@@ -1109,8 +1109,6 @@ static inline int __cvmx_usb_get_pipe_handle(struct cvmx_usb_internal_state *usb
  *
  * @state:	     USB device state populated by
  *		     cvmx_usb_initialize().
- * @flags:	     Optional pipe flags defined in
- *		     enum cvmx_usb_pipe_flags.
  * @device_addr:
  *		     USB device address to open the pipe to
  *		     (0-127).
@@ -1158,7 +1156,7 @@ static inline int __cvmx_usb_get_pipe_handle(struct cvmx_usb_internal_state *usb
  * Returns: A non negative value is a pipe handle. Negative
  *	    values are error codes.
  */
-int cvmx_usb_open_pipe(struct cvmx_usb_state *state, enum cvmx_usb_pipe_flags flags,
+int cvmx_usb_open_pipe(struct cvmx_usb_state *state,
 		       int device_addr, int endpoint_num,
 		       enum cvmx_usb_speed device_speed, int max_packet,
 		       enum cvmx_usb_transfer transfer_type,
@@ -1200,7 +1198,7 @@ int cvmx_usb_open_pipe(struct cvmx_usb_state *state, enum cvmx_usb_pipe_flags fl
 	if (!pipe)
 		return -ENOMEM;
 	__cvmx_usb_remove_pipe(&usb->free_pipes, pipe);
-	pipe->flags = flags | __CVMX_USB_PIPE_FLAGS_OPEN;
+	pipe->flags = __CVMX_USB_PIPE_FLAGS_OPEN;
 	if ((device_speed == CVMX_USB_SPEED_HIGH) &&
 		(transfer_dir == CVMX_USB_DIRECTION_OUT) &&
 		(transfer_type == CVMX_USB_TRANSFER_BULK))
