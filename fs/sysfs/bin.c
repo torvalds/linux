@@ -72,7 +72,7 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 	int size = file_inode(file)->i_size;
 	loff_t offs = *off;
 	int count = min_t(size_t, bytes, PAGE_SIZE);
-	char *temp;
+	char *buf;
 
 	if (!bytes)
 		return 0;
@@ -84,23 +84,18 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 			count = size - offs;
 	}
 
-	temp = kmalloc(count, GFP_KERNEL);
-	if (!temp)
+	buf = kmalloc(count, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
 
 	mutex_lock(&bb->mutex);
-
-	count = fill_read(file, bb->buffer, offs, count);
-	if (count < 0) {
-		mutex_unlock(&bb->mutex);
-		goto out_free;
-	}
-
-	memcpy(temp, bb->buffer, count);
-
+	count = fill_read(file, buf, offs, count);
 	mutex_unlock(&bb->mutex);
 
-	if (copy_to_user(userbuf, temp, count)) {
+	if (count < 0)
+		goto out_free;
+
+	if (copy_to_user(userbuf, buf, count)) {
 		count = -EFAULT;
 		goto out_free;
 	}
@@ -110,7 +105,7 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 	*off = offs + count;
 
  out_free:
-	kfree(temp);
+	kfree(buf);
 	return count;
 }
 
