@@ -631,9 +631,10 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_device *dev = plane->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct intel_framebuffer *intel_fb;
-	struct drm_i915_gem_object *obj, *old_obj;
-	int ret = 0;
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct drm_i915_gem_object *old_obj = intel_plane->obj;
+	int ret;
 	bool disable_primary = false;
 	bool visible;
 	int hscale, vscale;
@@ -657,11 +658,6 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0,
 		.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0,
 	};
-
-	intel_fb = to_intel_framebuffer(fb);
-	obj = intel_fb->obj;
-
-	old_obj = intel_plane->obj;
 
 	intel_plane->crtc_x = crtc_x;
 	intel_plane->crtc_y = crtc_y;
@@ -852,7 +848,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		 * do the pin & ref bookkeeping.
 		 */
 		if (old_obj != obj && intel_crtc->active)
-			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
+			intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 		mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(old_obj);
