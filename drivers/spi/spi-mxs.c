@@ -106,9 +106,6 @@ static int mxs_spi_setup(struct spi_device *dev)
 	if (!dev->bits_per_word)
 		dev->bits_per_word = 8;
 
-	if (dev->mode & ~(SPI_CPOL | SPI_CPHA))
-		return -EINVAL;
-
 	return 0;
 }
 
