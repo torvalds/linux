@@ -163,17 +163,19 @@ static int atao_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int atao_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
+static int atao_ao_insn_read(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
 	struct atao_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
 	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
 
-	return i;
+	return insn->n;
 }
 
 static int atao_dio_insn_bits(struct comedi_device *dev,
@@ -366,7 +368,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	else
 		s->range_table = &range_bipolar10;
 	s->insn_write = atao_ao_insn_write;
-	s->insn_read = &atao_ao_rinsn;
+	s->insn_read = atao_ao_insn_read;
 
 	s = &dev->subdevices[1];
 	/* digital i/o subdevice */
