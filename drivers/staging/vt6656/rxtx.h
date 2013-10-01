@@ -149,6 +149,7 @@ struct vnt_rts_a_fb {
 	u16 wRTSDuration_f0;
 	u16 wRTSDuration_f1;
 	struct ieee80211_rts data;
+	struct vnt_tx_datahead_a_fb data_head;
 } __packed;
 
 /* CTS buffer header */
