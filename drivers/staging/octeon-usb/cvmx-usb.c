@@ -64,7 +64,6 @@
 // normal prefetches that use the pref instruction
 #define CVMX_PREFETCH_PREFX(X, address, offset) asm volatile ("pref %[type], %[off](%[rbase])" : : [rbase] "d" (address), [off] "I" (offset), [type] "n" (X))
 #define CVMX_PREFETCH_PREF0(address, offset) CVMX_PREFETCH_PREFX(0, address, offset)
-#define CVMX_CLZ(result, input) asm ("clz %[rd],%[rs]" : [rd] "=d" (result) : [rs] "d" (input))
 
 #define MAX_RETRIES		3		/* Maximum number of times to retry failed transactions */
 #define MAX_PIPES		32		/* Maximum number of pipes that can be open at once */
@@ -1893,8 +1892,7 @@ static void __cvmx_usb_schedule(struct cvmx_usb_internal_state *usb, int is_sof)
 
 	while (usb->idle_hardware_channels) {
 		/* Find an idle channel */
-		CVMX_CLZ(channel, usb->idle_hardware_channels);
-		channel = 31 - channel;
+		channel = __fls(usb->idle_hardware_channels);
 		if (unlikely(channel > 7))
 			break;
 
@@ -3121,8 +3119,8 @@ int cvmx_usb_poll(struct cvmx_usb_state *state)
 		usbc_haint.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HAINT(usb->index));
 		while (usbc_haint.u32) {
 			int channel;
-			CVMX_CLZ(channel, usbc_haint.u32);
-			channel = 31 - channel;
+
+			channel = __fls(usbc_haint.u32);
 			__cvmx_usb_poll_channel(usb, channel);
 			usbc_haint.u32 ^= 1<<channel;
 		}
