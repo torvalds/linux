@@ -471,5 +471,5 @@ static struct pci_driver ni6527_pci_driver = {
 module_comedi_pci_driver(ni6527_driver, ni6527_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for National Instruments PCI-6527");
 MODULE_LICENSE("GPL");
