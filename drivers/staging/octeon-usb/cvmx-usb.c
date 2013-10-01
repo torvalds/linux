@@ -552,20 +552,15 @@ static inline void __cvmx_usb_remove_pipe(struct cvmx_usb_pipe_list *list, struc
  *		 functions.
  * @usb_port_number:
  *		 Which Octeon USB port to initialize.
- * @flags:	 Flags to control hardware initialization. See
- *		 enum cvmx_usb_initialize_flags for the flag
- *		 definitions. Some flags are mandatory.
  *
  * Returns: 0 or a negative error code.
  */
-int cvmx_usb_initialize(struct cvmx_usb_state *state, int usb_port_number,
-			enum cvmx_usb_initialize_flags flags)
+int cvmx_usb_initialize(struct cvmx_usb_state *state, int usb_port_number)
 {
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
 	union cvmx_usbnx_usbp_ctl_status usbn_usbp_ctl_status;
 	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
-
-	usb->init_flags = flags;
+	enum cvmx_usb_initialize_flags flags = 0;
 
 	/* Make sure that state is large enough to store the internal state */
 	if (sizeof(*state) < sizeof(*usb))
@@ -577,31 +572,26 @@ int cvmx_usb_initialize(struct cvmx_usb_state *state, int usb_port_number,
 	if (!OCTEON_IS_MODEL(OCTEON_CN52XX) && (usb_port_number > 0))
 		return -EINVAL;
 	/* Try to determine clock type automatically */
-	if ((flags & (CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI |
-		      CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND)) == 0) {
-		if (octeon_usb_get_clock_type() == USB_CLOCK_TYPE_CRYSTAL_12)
-			flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI;  /* Only 12 MHZ crystals are supported */
-		else
-			flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND;
-	}
+	if (octeon_usb_get_clock_type() == USB_CLOCK_TYPE_CRYSTAL_12) {
+		/* Only 12 MHZ crystals are supported */
+		flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI;
+	} else {
+		flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND;
 
-	if (flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND) {
-		/* Check for auto ref clock frequency */
-		if (!(flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK))
-			switch (octeon_usb_get_clock_type()) {
-			case USB_CLOCK_TYPE_REF_12:
-				flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ;
-				break;
-			case USB_CLOCK_TYPE_REF_24:
-				flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_24MHZ;
-				break;
-			case USB_CLOCK_TYPE_REF_48:
-				flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ;
-				break;
-			default:
-				return -EINVAL;
-				break;
-			}
+		switch (octeon_usb_get_clock_type()) {
+		case USB_CLOCK_TYPE_REF_12:
+			flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ;
+			break;
+		case USB_CLOCK_TYPE_REF_24:
+			flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_24MHZ;
+			break;
+		case USB_CLOCK_TYPE_REF_48:
+			flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
 	}
 
 	memset(usb, 0, sizeof(*usb));

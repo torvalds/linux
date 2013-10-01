@@ -705,7 +705,7 @@ static int octeon_usb_driver_probe(struct device *dev)
 	tasklet_init(&priv->dequeue_tasklet, octeon_usb_urb_dequeue_work, (unsigned long)priv);
 	INIT_LIST_HEAD(&priv->dequeue_list);
 
-	status = cvmx_usb_initialize(&priv->usb, usb_num, CVMX_USB_INITIALIZE_FLAGS_CLOCK_AUTO);
+	status = cvmx_usb_initialize(&priv->usb, usb_num);
 	if (status) {
 		dev_dbg(dev, "USB initialization failed with %d\n", status);
 		kfree(hcd);

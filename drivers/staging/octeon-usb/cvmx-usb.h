@@ -427,7 +427,7 @@ typedef void (*cvmx_usb_callback_func_t)(struct cvmx_usb_state *state,
                                          int bytes_transferred, void *user_data);
 
 /**
- * enum cvmx_usb_initialize_flags - flags to pass the initialization function
+ * enum cvmx_usb_initialize_flags - flags used by the initialization function
  *
  * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI:    The USB port uses a 12MHz crystal
  *					      as clock source at USB_XO and
@@ -435,9 +435,6 @@ typedef void (*cvmx_usb_callback_func_t)(struct cvmx_usb_state *state,
  * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND:   The USB port uses 12/24/48MHz 2.5V
  *					      board clock source at USB_XO.
  *					      USB_XI should be tied to GND.
- * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_AUTO:     Automatically determine clock type
- *					      based on function in
- *					      cvmx-helper-board.c.
  * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK: Mask for clock speed field
  * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ:    Speed of reference clock or
  *					      crystal
@@ -449,7 +446,6 @@ typedef void (*cvmx_usb_callback_func_t)(struct cvmx_usb_state *state,
 enum cvmx_usb_initialize_flags {
 	CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI		= 1 << 0,
 	CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND		= 1 << 1,
-	CVMX_USB_INITIALIZE_FLAGS_CLOCK_AUTO		= 0,
 	CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK	= 3 << 3,
 	CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ		= 1 << 3,
 	CVMX_USB_INITIALIZE_FLAGS_CLOCK_24MHZ		= 2 << 3,
@@ -477,8 +473,8 @@ enum cvmx_usb_pipe_flags {
 };
 
 extern int cvmx_usb_get_num_ports(void);
-extern int cvmx_usb_initialize(struct cvmx_usb_state *state, int usb_port_number,
-			       enum cvmx_usb_initialize_flags flags);
+extern int cvmx_usb_initialize(struct cvmx_usb_state *state,
+			       int usb_port_number);
 extern int cvmx_usb_shutdown(struct cvmx_usb_state *state);
 extern int cvmx_usb_enable(struct cvmx_usb_state *state);
 extern int cvmx_usb_disable(struct cvmx_usb_state *state);
