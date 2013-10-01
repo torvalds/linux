@@ -502,23 +502,8 @@ extern int cvmx_usb_submit_control(struct cvmx_usb_state *state, int pipe_handle
                                    cvmx_usb_callback_func_t callback,
                                    void *user_data);
 
-/**
- * enum cvmx_usb_isochronous_flags - flags to pass the
- *				     cvmx_usb_submit_isochronous() function.
- *
- * @CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT: Do not return an error if a transfer
- *					    is less than the maximum packet size
- *					    of the device.
- * @CVMX_USB_ISOCHRONOUS_FLAGS_ASAP:	    Schedule the transaction as soon as
- *					    possible.
- */
-enum cvmx_usb_isochronous_flags {
-	CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT	= 1 << 0,
-	CVMX_USB_ISOCHRONOUS_FLAGS_ASAP		= 1 << 1,
-};
-
 extern int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state, int pipe_handle,
-                                       int start_frame, int flags,
+				       int start_frame,
                                        int number_packets,
                                        struct cvmx_usb_iso_packet packets[],
                                        uint64_t buffer, int buffer_length,

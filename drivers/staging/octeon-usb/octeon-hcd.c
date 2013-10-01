@@ -325,7 +325,6 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			urb->setup_packet = (char *)iso_packet;
 			submit_handle = cvmx_usb_submit_isochronous(&priv->usb, pipe_handle,
 							urb->start_frame,
-							0 /* flags */ ,
 							urb->number_of_packets,
 							iso_packet,
 							urb->transfer_dma,

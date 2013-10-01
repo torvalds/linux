@@ -2349,9 +2349,6 @@ int cvmx_usb_submit_control(struct cvmx_usb_state *state, int pipe_handle,
  * @start_frame:
  *		    Number of frames into the future to schedule
  *		    this transaction.
- * @flags:	    Flags to control the transfer. See
- *		    enum cvmx_usb_isochronous_flags for the flag
- *		    definitions.
  * @number_packets:
  *		    Number of sequential packets to transfer.
  *		    "packets" is a pointer to an array of this
@@ -2384,7 +2381,7 @@ int cvmx_usb_submit_control(struct cvmx_usb_state *state, int pipe_handle,
  *	    failure. Negative values are error codes.
  */
 int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state, int pipe_handle,
-				int start_frame, int flags,
+				int start_frame,
 				int number_packets,
 				struct cvmx_usb_iso_packet packets[],
 				uint64_t buffer, int buffer_length,
@@ -2397,8 +2394,6 @@ int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state, int pipe_handle,
 	/* Pipe handle checking is done later in a common place */
 	if (unlikely(start_frame < 0))
 		return -EINVAL;
-	if (unlikely(flags & ~(CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT | CVMX_USB_ISOCHRONOUS_FLAGS_ASAP)))
-		return -EINVAL;
 	if (unlikely(number_packets < 1))
 		return -EINVAL;
 	if (unlikely(!packets))
@@ -2410,7 +2405,7 @@ int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state, int pipe_handle,
 
 	submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
 						      CVMX_USB_TRANSFER_ISOCHRONOUS,
-						      flags,
+						      0,
 						      buffer,
 						      buffer_length,
 						      0, /* control_header */
