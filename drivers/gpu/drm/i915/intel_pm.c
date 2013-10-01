@@ -3864,8 +3864,6 @@ static void valleyview_enable_rps(struct drm_device *dev)
 				      dev_priv->rps.rpe_delay),
 			 dev_priv->rps.rpe_delay);
 
-	INIT_DELAYED_WORK(&dev_priv->rps.vlv_work, vlv_rps_timer_work);
-
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
 
 	gen6_enable_rps_interrupts(dev);
@@ -5681,5 +5679,7 @@ void intel_pm_init(struct drm_device *dev)
 
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
+
+	INIT_DELAYED_WORK(&dev_priv->rps.vlv_work, vlv_rps_timer_work);
 }
 
