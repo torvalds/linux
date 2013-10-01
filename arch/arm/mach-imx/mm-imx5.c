@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/of_address.h>
 
 #include <asm/mach/map.h>
 
@@ -100,7 +101,14 @@ void __init mx51_init_irq(void)
 
 void __init mx53_init_irq(void)
 {
-	tzic_init_irq(MX53_IO_ADDRESS(MX53_TZIC_BASE_ADDR));
+	struct device_node *np;
+	void __iomem *base;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx53-tzic");
+	base = of_iomap(np, 0);
+	WARN_ON(!base);
+
+	tzic_init_irq(base);
 }
 
 static struct sdma_platform_data imx51_sdma_pdata __initdata = {
