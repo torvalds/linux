@@ -220,6 +220,8 @@ int sysfs_add_file(struct sysfs_dirent *dir_sd,
 int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 			   const struct attribute *attr, int type,
 			   umode_t amode, const void *ns);
+void sysfs_unmap_bin_file(struct sysfs_dirent *sd);
+
 /*
  * bin.c
  */

@@ -595,6 +595,7 @@ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
 		acxt->removed = sd->u.removed_list;
 
 		sysfs_deactivate(sd);
+		sysfs_unmap_bin_file(sd);
 		unmap_bin_file(sd);
 		sysfs_put(sd);
 	}
