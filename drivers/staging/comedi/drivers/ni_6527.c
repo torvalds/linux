@@ -363,13 +363,13 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	ret = comedi_pci_enable(dev);
-	if (ret)
-		return ret;
-
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
+
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
 
 	devpriv->mmio_base = pci_ioremap_bar(pcidev, 1);
 	if (!devpriv->mmio_base)
@@ -390,22 +390,24 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 24;
-	s->range_table = &range_digital;
-	s->maxdata = 1;
-	s->insn_config = ni6527_di_insn_config;
-	s->insn_bits = ni6527_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 24;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_config	= ni6527_di_insn_config;
+	s->insn_bits	= ni6527_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 24;
-	s->range_table = &range_unknown;  /* FIXME: actually conductance */
-	s->maxdata = 1;
-	s->insn_bits = ni6527_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 24;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= ni6527_do_insn_bits;
 
 	/* Edge detection interrupt subdevice */
 	s = &dev->subdevices[2];
