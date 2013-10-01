@@ -581,13 +581,6 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
     }
 
     if (byPktType == PK_TYPE_11A) {
-	if (byFBOption != AUTO_FB_NONE) {
-		struct vnt_tx_datahead_a_fb *pBuf =
-			(struct vnt_tx_datahead_a_fb *)pTxDataHead;
-
-		return vnt_rxtx_datahead_a_fb(pDevice, byPktType, wCurrentRate,
-					pBuf, cbFrameLength, bNeedAck);
-        } else {
 		struct vnt_tx_datahead_ab *pBuf =
 			(struct vnt_tx_datahead_ab *)pTxDataHead;
             //Get SignalField,ServiceField,Length
@@ -599,7 +592,6 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 		pBuf->wTimeStampOff = vnt_time_stamp_off(pDevice,
 								wCurrentRate);
             return (pBuf->wDuration);
-        }
     }
     else if (byPktType == PK_TYPE_11B) {
 		struct vnt_tx_datahead_ab *pBuf =
@@ -940,6 +932,13 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
         }
     }
     else if (byPktType == PK_TYPE_11A) {
+	if (need_mic) {
+		*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
+		head = &tx_buffer->tx_head.tx_ab.tx.mic.head;
+	} else {
+		head = &tx_buffer->tx_head.tx_ab.tx.head;
+	}
+
 	if (need_rts) {
             //Fill RsvTime
 		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.tx_ab.ab;
@@ -949,13 +948,6 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 		pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice, byPktType,
 				cbFrameSize, wCurrentRate, bNeedACK);
 
-		if (need_mic) {
-			*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
-			head = &tx_buffer->tx_head.tx_ab.tx.mic.head;
-		} else {
-			head = &tx_buffer->tx_head.tx_ab.tx.head;
-		}
-
 		/* Fill RTS */
 		s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
 			bNeedACK, psEthHeader, wCurrentRate, byFBOption);
@@ -963,11 +955,11 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
             //Fill RsvTime
 		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.tx_ab.ab;
 
-		if (need_mic)
-			*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
-
 		pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11A,
 			cbFrameSize, wCurrentRate, bNeedACK);
+
+		return vnt_rxtx_datahead_a_fb(pDevice, byPktType, wCurrentRate,
+			&head->data_head_a_fb, cbFrameSize, bNeedACK);
         }
     }
     else if (byPktType == PK_TYPE_11B) {
@@ -1209,8 +1201,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 			cbMICHDR + sizeof(struct vnt_rts_a_fb);
             }
             else if (bRTS == false) { //RTS_needless
-		pvTxDataHd = (struct vnt_tx_datahead_a_fb *)(pbyTxBufferAddr +
-			wTxBufSize + sizeof(struct vnt_rrv_time_ab) + cbMICHDR);
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_ab) +
 			cbMICHDR + sizeof(struct vnt_tx_datahead_a_fb);
             }

@@ -183,6 +183,8 @@ union vnt_tx_data_head {
 	/* cts g */
 	struct vnt_cts cts_g;
 	struct vnt_cts_fb cts_g_fb;
+	/* no rts/cts */
+	struct vnt_tx_datahead_a_fb data_head_a_fb;
 };
 
 struct vnt_tx_mic_hdr {
