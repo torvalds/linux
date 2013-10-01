@@ -2867,7 +2867,6 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 			  u64 min_offset, u64 *last_offset_ret)
 {
 	struct btrfs_key min_key;
-	struct btrfs_key max_key;
 	struct btrfs_root *log = root->log_root;
 	struct extent_buffer *src;
 	int err = 0;
@@ -2879,9 +2878,6 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	u64 ino = btrfs_ino(inode);
 
 	log = root->log_root;
-	max_key.objectid = ino;
-	max_key.offset = (u64)-1;
-	max_key.type = key_type;
 
 	min_key.objectid = ino;
 	min_key.type = key_type;
@@ -2889,8 +2885,7 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 
 	path->keep_locks = 1;
 
-	ret = btrfs_search_forward(root, &min_key, &max_key,
-				   path, trans->transid);
+	ret = btrfs_search_forward(root, &min_key, path, trans->transid);
 
 	/*
 	 * we didn't find anything from this transaction, see if there
@@ -3719,7 +3714,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		ins_nr = 0;
-		ret = btrfs_search_forward(root, &min_key, &max_key,
+		ret = btrfs_search_forward(root, &min_key,
 					   path, trans->transid);
 		if (ret != 0)
 			break;

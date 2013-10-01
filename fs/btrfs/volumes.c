@@ -3488,7 +3488,7 @@ static int btrfs_uuid_scan_kthread(void *data)
 	path->keep_locks = 1;
 
 	while (1) {
-		ret = btrfs_search_forward(root, &key, &max_key, path, 0);
+		ret = btrfs_search_forward(root, &key, path, 0);
 		if (ret) {
 			if (ret > 0)
 				ret = 0;
