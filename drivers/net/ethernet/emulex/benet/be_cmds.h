@@ -1055,14 +1055,16 @@ struct be_cmd_resp_get_flow_control {
 } __packed;
 
 /******************** Modify EQ Delay *******************/
+struct be_set_eqd {
+	u32 eq_id;
+	u32 phase;
+	u32 delay_multiplier;
+};
+
 struct be_cmd_req_modify_eq_delay {
 	struct be_cmd_req_hdr hdr;
 	u32 num_eq;
-	struct {
-		u32 eq_id;
-		u32 phase;
-		u32 delay_multiplier;
-	} delay[8];
+	struct be_set_eqd set_eqd[MAX_EVT_QS];
 } __packed;
 
 struct be_cmd_resp_modify_eq_delay {
@@ -1894,8 +1896,7 @@ int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
 			       struct be_dma_mem *nonemb_cmd);
 int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver,
 		      char *fw_on_flash);
-
-int be_cmd_modify_eqd(struct be_adapter *adapter, u32 eq_id, u32 eqd);
+int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *, int num);
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
 		       u32 num, bool untagged, bool promiscuous);
 int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 status);

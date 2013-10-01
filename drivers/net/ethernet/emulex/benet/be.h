@@ -88,7 +88,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define BE_MIN_MTU		256
 
 #define BE_NUM_VLANS_SUPPORTED	64
-#define BE_MAX_EQD		96u
+#define BE_MAX_EQD		128u
 #define	BE_MAX_TX_FRAG_COUNT	30
 
 #define EVNT_Q_LEN		1024
@@ -200,6 +200,17 @@ struct be_eq_obj {
 	struct be_adapter *adapter;
 } ____cacheline_aligned_in_smp;
 
+struct be_aic_obj {		/* Adaptive interrupt coalescing (AIC) info */
+	bool enable;
+	u32 min_eqd;		/* in usecs */
+	u32 max_eqd;		/* in usecs */
+	u32 prev_eqd;		/* in usecs */
+	u32 et_eqd;		/* configured val when aic is off */
+	ulong jiffies;
+	u64 rx_pkts_prev;	/* Used to calculate RX pps */
+	u64 tx_reqs_prev;	/* Used to calculate TX pps */
+};
+
 struct be_mcc_obj {
 	struct be_queue_info q;
 	struct be_queue_info cq;
@@ -238,15 +249,12 @@ struct be_rx_page_info {
 struct be_rx_stats {
 	u64 rx_bytes;
 	u64 rx_pkts;
-	u64 rx_pkts_prev;
-	ulong rx_jiffies;
 	u32 rx_drops_no_skbs;	/* skb allocation errors */
 	u32 rx_drops_no_frags;	/* HW has no fetched frags */
 	u32 rx_post_fail;	/* page post alloc failures */
 	u32 rx_compl;
 	u32 rx_mcast_pkts;
 	u32 rx_compl_err;	/* completions with err set */
-	u32 rx_pps;		/* pkts per second */
 	struct u64_stats_sync sync;
 };
 
@@ -403,6 +411,7 @@ struct be_adapter {
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
 	struct be_drv_stats drv_stats;
+	struct be_aic_obj aic_obj[MAX_EVT_QS];
 	u16 vlans_added;
 	u8 vlan_tag[VLAN_N_VID];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
