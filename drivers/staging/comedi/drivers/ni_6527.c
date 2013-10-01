@@ -334,6 +334,19 @@ static int ni6527_intr_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
+static void ni6527_reset(struct comedi_device *dev)
+{
+	struct ni6527_private *devpriv = dev->private;
+	void __iomem *mmio = devpriv->mmio_base;
+
+	/* disable deglitch filters on all channels */
+	ni6527_set_filter_enable(dev, 0);
+
+	writeb(NI6527_CLR_IRQS | NI6527_CLR_RESET_FILT,
+	       mmio + NI6527_CLR_REG);
+	writeb(NI6527_CTRL_DISABLE_IRQS, mmio + NI6527_CTRL_REG);
+}
+
 static int ni6527_auto_attach(struct comedi_device *dev,
 			      unsigned long context)
 {
@@ -365,6 +378,8 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	/* make sure this is actually a 6527 device */
 	if (readb(devpriv->mmio_base + NI6527_ID_REG) != 0x27)
 		return -ENODEV;
+
+	ni6527_reset(dev);
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -400,13 +415,6 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	s->insn_bits = ni6527_intr_insn_bits;
 	s->insn_config = ni6527_intr_insn_config;
 
-	ni6527_set_filter_enable(dev, 0);
-
-	writeb(NI6527_CLR_IRQS | NI6527_CLR_RESET_FILT,
-	       devpriv->mmio_base + NI6527_CLR_REG);
-	writeb(NI6527_CTRL_DISABLE_IRQS,
-	       devpriv->mmio_base + NI6527_CTRL_REG);
-
 	ret = request_irq(pcidev->irq, ni6527_interrupt,
 			  IRQF_SHARED, dev->board_name, dev);
 	if (ret < 0)
@@ -422,8 +430,7 @@ static void ni6527_detach(struct comedi_device *dev)
 	struct ni6527_private *devpriv = dev->private;
 
 	if (devpriv && devpriv->mmio_base)
-		writeb(NI6527_CTRL_DISABLE_IRQS,
-		       devpriv->mmio_base + NI6527_CTRL_REG);
+		ni6527_reset(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	comedi_pci_disable(dev);
