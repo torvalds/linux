@@ -70,14 +70,6 @@
 #define MAX_TRANSFER_BYTES	((1<<19)-1)	/* The low level hardware can transfer a maximum of this number of bytes in each transfer. The field is 19 bits wide */
 #define MAX_TRANSFER_PACKETS	((1<<10)-1)	/* The low level hardware can transfer a maximum of this number of packets in each transfer. The field is 10 bits wide */
 
-/*
- * These defines disable the normal read and write csr. This is so I can add
- * extra debug stuff to the usb specific version and I won't use the normal
- * version by mistake
- */
-#define cvmx_read_csr use_cvmx_usb_read_csr64_instead_of_cvmx_read_csr
-#define cvmx_write_csr use_cvmx_usb_write_csr64_instead_of_cvmx_write_csr
-
 enum cvmx_usb_transaction_flags {
 	__CVMX_USB_TRANSACTION_FLAGS_IN_USE = 1<<16,
 };
