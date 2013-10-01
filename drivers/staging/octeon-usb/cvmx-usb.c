@@ -57,7 +57,6 @@
 #include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-helper-board.h>
 
-#define CVMX_PREFETCH128(address) CVMX_PREFETCH(address, 128)
 // a normal prefetch
 #define CVMX_PREFETCH(address, offset) CVMX_PREFETCH_PREF0(address, offset)
 // normal prefetches that use the pref instruction
