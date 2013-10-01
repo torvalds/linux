@@ -2353,3 +2353,28 @@ u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c)
 
 	return ret;
 }
+
+/*
+ * Returns true if smps_mode_new is strictly more restrictive than
+ * smps_mode_old.
+ */
+bool ieee80211_smps_is_restrictive(enum ieee80211_smps_mode smps_mode_old,
+				   enum ieee80211_smps_mode smps_mode_new)
+{
+	if (WARN_ON_ONCE(smps_mode_old == IEEE80211_SMPS_AUTOMATIC ||
+			 smps_mode_new == IEEE80211_SMPS_AUTOMATIC))
+		return false;
+
+	switch (smps_mode_old) {
+	case IEEE80211_SMPS_STATIC:
+		return false;
+	case IEEE80211_SMPS_DYNAMIC:
+		return smps_mode_new == IEEE80211_SMPS_STATIC;
+	case IEEE80211_SMPS_OFF:
+		return smps_mode_new != IEEE80211_SMPS_OFF;
+	default:
+		WARN_ON(1);
+	}
+
+	return false;
+}

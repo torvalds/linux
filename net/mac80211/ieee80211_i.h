@@ -262,6 +262,10 @@ struct ieee80211_if_ap {
 
 	struct ps_data ps;
 	atomic_t num_mcast_sta; /* number of stations receiving multicast */
+	enum ieee80211_smps_mode req_smps, /* requested smps mode */
+			 driver_smps_mode; /* smps mode request */
+
+	struct work_struct request_smps_work;
 };
 
 struct ieee80211_if_wds {
@@ -1435,7 +1439,10 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
 			       const u8 *bssid);
-void ieee80211_request_smps_work(struct work_struct *work);
+void ieee80211_request_smps_ap_work(struct work_struct *work);
+void ieee80211_request_smps_mgd_work(struct work_struct *work);
+bool ieee80211_smps_is_restrictive(enum ieee80211_smps_mode smps_mode_old,
+				   enum ieee80211_smps_mode smps_mode_new);
 
 void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				     u16 initiator, u16 reason, bool stop);
@@ -1653,8 +1660,10 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    struct ieee802_11_elems *elems,
 			    enum ieee80211_band band, u32 *basic_rates);
-int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
-			     enum ieee80211_smps_mode smps_mode);
+int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
+				 enum ieee80211_smps_mode smps_mode);
+int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
+				enum ieee80211_smps_mode smps_mode);
 void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata);
 
 size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
