@@ -46,7 +46,6 @@ usage () {
 	echo "       --duration minutes"
 	echo "       --kversion vN.NN"
 	echo "       --qemu-cmd qemu-system-..."
-	echo "       --rcu-kvm absolute-pathname"
 	echo "       --results absolute-pathname"
 	echo "       --relbuilddir relative-pathname"
 	exit 1
@@ -107,19 +106,6 @@ do
 		RCU_QEMU_CMD="$2"; export RCU_QEMU_CMD
 		shift
 		;;
-	--rcu-kvm)
-		checkarg --rcu-kvm "(absolute pathname)" "$#" "$2" '^/' error
-		KVM=$2; export KVM
-		if -z "$gotbuilddir"
-		then
-			builddir=${KVM}/b1
-		fi
-		if -n "$gotrelbuilddir"
-		then
-			builddir=${KVM}/${relbuilddir}
-		fi
-		shift
-		;;
 	--relbuilddir)
 		checkarg --relbuilddir "(relative pathname)" "$#" "$2" '^[^/]*$' '^--'
 		relbuilddir=$2
@@ -133,6 +119,7 @@ do
 		shift
 		;;
 	*)
+		echo Unknown argument $1
 		usage
 		;;
 	esac
