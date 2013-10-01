@@ -705,6 +705,10 @@ int cik_copy_dma(struct radeon_device *rdev,
 		 uint64_t src_offset, uint64_t dst_offset,
 		 unsigned num_gpu_pages,
 		 struct radeon_fence **fence);
+int cik_copy_cpdma(struct radeon_device *rdev,
+		   uint64_t src_offset, uint64_t dst_offset,
+		   unsigned num_gpu_pages,
+		   struct radeon_fence **fence);
 int cik_sdma_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
 int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 bool cik_sdma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);

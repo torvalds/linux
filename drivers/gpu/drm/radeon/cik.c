@@ -3094,6 +3094,85 @@ void cik_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
 }
 
+/**
+ * cik_copy_cpdma - copy pages using the CP DMA engine
+ *
+ * @rdev: radeon_device pointer
+ * @src_offset: src GPU address
+ * @dst_offset: dst GPU address
+ * @num_gpu_pages: number of GPU pages to xfer
+ * @fence: radeon fence object
+ *
+ * Copy GPU paging using the CP DMA engine (CIK+).
+ * Used by the radeon ttm implementation to move pages if
+ * registered as the asic copy callback.
+ */
+int cik_copy_cpdma(struct radeon_device *rdev,
+		   uint64_t src_offset, uint64_t dst_offset,
+		   unsigned num_gpu_pages,
+		   struct radeon_fence **fence)
+{
+	struct radeon_semaphore *sem = NULL;
+	int ring_index = rdev->asic->copy.blit_ring_index;
+	struct radeon_ring *ring = &rdev->ring[ring_index];
+	u32 size_in_bytes, cur_size_in_bytes, control;
+	int i, num_loops;
+	int r = 0;
+
+	r = radeon_semaphore_create(rdev, &sem);
+	if (r) {
+		DRM_ERROR("radeon: moving bo (%d).\n", r);
+		return r;
+	}
+
+	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
+	num_loops = DIV_ROUND_UP(size_in_bytes, 0x1fffff);
+	r = radeon_ring_lock(rdev, ring, num_loops * 7 + 18);
+	if (r) {
+		DRM_ERROR("radeon: moving bo (%d).\n", r);
+		radeon_semaphore_free(rdev, &sem, NULL);
+		return r;
+	}
+
+	if (radeon_fence_need_sync(*fence, ring->idx)) {
+		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
+					    ring->idx);
+		radeon_fence_note_sync(*fence, ring->idx);
+	} else {
+		radeon_semaphore_free(rdev, &sem, NULL);
+	}
+
+	for (i = 0; i < num_loops; i++) {
+		cur_size_in_bytes = size_in_bytes;
+		if (cur_size_in_bytes > 0x1fffff)
+			cur_size_in_bytes = 0x1fffff;
+		size_in_bytes -= cur_size_in_bytes;
+		control = 0;
+		if (size_in_bytes == 0)
+			control |= PACKET3_DMA_DATA_CP_SYNC;
+		radeon_ring_write(ring, PACKET3(PACKET3_DMA_DATA, 5));
+		radeon_ring_write(ring, control);
+		radeon_ring_write(ring, lower_32_bits(src_offset));
+		radeon_ring_write(ring, upper_32_bits(src_offset));
+		radeon_ring_write(ring, lower_32_bits(dst_offset));
+		radeon_ring_write(ring, upper_32_bits(dst_offset));
+		radeon_ring_write(ring, cur_size_in_bytes);
+		src_offset += cur_size_in_bytes;
+		dst_offset += cur_size_in_bytes;
+	}
+
+	r = radeon_fence_emit(rdev, fence, ring->idx);
+	if (r) {
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
+	}
+
+	radeon_ring_unlock_commit(rdev, ring);
+	radeon_semaphore_free(rdev, &sem, *fence);
+
+	return r;
+}
+
 /*
  * IB stuff
  */
