@@ -45,6 +45,8 @@ struct sysfs_open_dirent {
 };
 
 struct sysfs_open_file {
+	struct sysfs_dirent	*sd;
+	struct file		*file;
 	size_t			count;
 	char			*page;
 	struct mutex		mutex;
@@ -192,7 +194,6 @@ static int fill_write_buffer(struct sysfs_open_file *of,
 
 /**
  *	flush_write_buffer - push buffer to kobject.
- *	@dentry:	dentry to the attribute
  *	@of:		open file
  *	@count:		number of bytes
  *
@@ -200,22 +201,20 @@ static int fill_write_buffer(struct sysfs_open_file *of,
  *	dealing with, then call the store() method for the attribute,
  *	passing the buffer that we acquired in fill_write_buffer().
  */
-static int flush_write_buffer(struct dentry *dentry,
-			      struct sysfs_open_file *of, size_t count)
+static int flush_write_buffer(struct sysfs_open_file *of, size_t count)
 {
-	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
-	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
+	struct kobject *kobj = of->sd->s_parent->s_dir.kobj;
 	const struct sysfs_ops *ops;
 	int rc;
 
-	/* need attr_sd for attr and ops, its parent for kobj */
-	if (!sysfs_get_active(attr_sd))
+	/* need @of->sd for attr and ops, its parent for kobj */
+	if (!sysfs_get_active(of->sd))
 		return -ENODEV;
 
-	ops = sysfs_file_ops(attr_sd);
-	rc = ops->store(kobj, attr_sd->s_attr.attr, of->page, count);
+	ops = sysfs_file_ops(of->sd);
+	rc = ops->store(kobj, of->sd->s_attr.attr, of->page, count);
 
-	sysfs_put_active(attr_sd);
+	sysfs_put_active(of->sd);
 
 	return rc;
 }
@@ -245,7 +244,7 @@ static ssize_t sysfs_write_file(struct file *file, const char __user *buf,
 	mutex_lock(&of->mutex);
 	len = fill_write_buffer(of, buf, count);
 	if (len > 0)
-		len = flush_write_buffer(file->f_path.dentry, of, len);
+		len = flush_write_buffer(of, len);
 	if (len > 0)
 		*ppos += len;
 	mutex_unlock(&of->mutex);
@@ -385,6 +384,8 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 		goto err_out;
 
 	mutex_init(&of->mutex);
+	of->sd = attr_sd;
+	of->file = file;
 	file->private_data = of;
 
 	/* make sure we have open dirent struct */
