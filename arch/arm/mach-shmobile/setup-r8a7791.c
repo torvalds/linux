@@ -129,6 +129,11 @@ void __init r8a7791_add_dt_devices(void)
 	r8a7791_register_cmt(00);
 }
 
+void __init r8a7791_add_standard_devices(void)
+{
+	r8a7791_add_dt_devices();
+}
+
 void __init r8a7791_init_early(void)
 {
 #ifndef CONFIG_ARM_ARCH_TIMER
