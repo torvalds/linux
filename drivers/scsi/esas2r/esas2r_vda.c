@@ -310,9 +310,9 @@ static void esas2r_complete_vda_ioctl(struct esas2r_adapter *a,
 				le32_to_cpu(rsp->vda_version);
 			cfg->data.init.fw_build = rsp->fw_build;
 
-			snprintf(buf, sizeof(buf), "%1d.%02d",
-				(int)LOBYTE(le16_to_cpu(rsp->fw_release)),
-				(int)HIBYTE(le16_to_cpu(rsp->fw_release)));
+			snprintf(buf, sizeof(buf), "%1.1u.%2.2u",
+				 (int)LOBYTE(le16_to_cpu(rsp->fw_release)),
+				 (int)HIBYTE(le16_to_cpu(rsp->fw_release)));
 
 			memcpy(&cfg->data.init.fw_release, buf,
 			       sizeof(cfg->data.init.fw_release));
