@@ -38,4 +38,22 @@
 			<0 0xf1006000 0 0x2000>;
 		interrupts = <1 9 0xf04>;
 	};
+
+	irqc0: interrupt-controller@e61c0000 {
+		compatible = "renesas,irqc";
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		reg = <0 0xe61c0000 0 0x200>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 0 4>,
+			      <0 1 4>,
+			      <0 2 4>,
+			      <0 3 4>,
+			      <0 12 4>,
+			      <0 13 4>,
+			      <0 14 4>,
+			      <0 15 4>,
+			      <0 16 4>,
+			      <0 17 4>;
+	};
 };
