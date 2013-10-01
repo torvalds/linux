@@ -530,6 +530,30 @@ static u16 vnt_rxtx_datahead_g(struct vnt_private *priv, u8 pkt_type, u16 rate,
 	return buf->wDuration_a;
 }
 
+static u16 vnt_rxtx_datahead_g_fb(struct vnt_private *priv, u8 pkt_type,
+		u16 rate, struct vnt_tx_datahead_g_fb *buf,
+		u32 frame_len, int need_ack)
+{
+	/* Get SignalField,ServiceField,Length */
+	BBvCalculateParameter(priv, frame_len, rate, pkt_type, &buf->a);
+
+	BBvCalculateParameter(priv, frame_len, priv->byTopCCKBasicRate,
+						PK_TYPE_11B, &buf->b);
+
+	/* Get Duration and TimeStamp */
+	buf->wDuration_a = s_uGetDataDuration(priv, pkt_type, need_ack);
+	buf->wDuration_b = s_uGetDataDuration(priv, PK_TYPE_11B, need_ack);
+
+	buf->wDuration_a_f0 = s_uGetDataDuration(priv, pkt_type, need_ack);
+	buf->wDuration_a_f1 = s_uGetDataDuration(priv, pkt_type, need_ack);
+
+	buf->wTimeStampOff_a = vnt_time_stamp_off(priv, rate);
+	buf->wTimeStampOff_b = vnt_time_stamp_off(priv,
+						priv->byTopCCKBasicRate);
+
+	return buf->wDuration_a;
+}
+
 static u32 s_uFillDataHead(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate, void *pTxDataHead, u32 cbFrameLength,
 	u32 uDMAIdx, int bNeedAck, u8 byFBOption)
@@ -539,35 +563,7 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
         return 0;
     }
 
-    if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-            if (byFBOption == AUTO_FB_NONE) {
-		;
-             } else {
-                // Auto Fallback
-		struct vnt_tx_datahead_g_fb *pBuf =
-			(struct vnt_tx_datahead_g_fb *)pTxDataHead;
-                //Get SignalField,ServiceField,Length
-		BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate,
-			byPktType, &pBuf->a);
-		BBvCalculateParameter(pDevice, cbFrameLength,
-			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
-                //Get Duration and TimeStamp
-		pBuf->wDuration_a = s_uGetDataDuration(pDevice,
-							byPktType, bNeedAck);
-		pBuf->wDuration_b = s_uGetDataDuration(pDevice,
-							PK_TYPE_11B, bNeedAck);
-		pBuf->wDuration_a_f0 = s_uGetDataDuration(pDevice,
-							byPktType, bNeedAck);
-		pBuf->wDuration_a_f1 = s_uGetDataDuration(pDevice,
-							byPktType, bNeedAck);
-		pBuf->wTimeStampOff_a = vnt_time_stamp_off(pDevice,
-								wCurrentRate);
-		pBuf->wTimeStampOff_b = vnt_time_stamp_off(pDevice,
-						pDevice->byTopCCKBasicRate);
-                return (pBuf->wDuration_a);
-            } //if (byFBOption == AUTO_FB_NONE)
-    }
-    else if (byPktType == PK_TYPE_11A) {
+    if (byPktType == PK_TYPE_11A) {
 	if (byFBOption != AUTO_FB_NONE) {
 		struct vnt_tx_datahead_a_fb *pBuf =
 			(struct vnt_tx_datahead_a_fb *)pTxDataHead;
@@ -691,7 +687,8 @@ static u16 vnt_rxtx_rts_g_fb_head(struct vnt_private *priv,
 
 	vnt_fill_ieee80211_rts(priv, &buf->data, eth_hdr, buf->wDuration_aa);
 
-	return 0;
+	return vnt_rxtx_datahead_g_fb(priv, pkt_type, current_rate,
+			&buf->data_head, frame_len, need_ack);
 }
 
 static u16 vnt_rxtx_rts_ab_head(struct vnt_private *priv,
@@ -757,7 +754,7 @@ static u16 s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
 		else
-			vnt_rxtx_rts_g_fb_head(pDevice, &head->rts_g_fb,
+			return vnt_rxtx_rts_g_fb_head(pDevice, &head->rts_g_fb,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
 		break;
@@ -807,6 +804,9 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 		pBuf->data.duration = pBuf->wDuration_ba;
 		pBuf->data.frame_control = TYPE_CTL_CTS;
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
+
+		return vnt_rxtx_datahead_g_fb(pDevice, byPktType, wCurrentRate,
+				&pBuf->data_head, cbFrameLength, bNeedAck);
 	} else {
 		struct vnt_cts *pBuf = &head->cts_g;
 		/* Get SignalField,ServiceField,Length */
@@ -1169,20 +1169,12 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         } else {
             // Auto Fall Back
             if (bRTS == true) {//RTS_need
-		pvTxDataHd = (struct vnt_tx_datahead_g_fb *) (pbyTxBufferAddr +
-			wTxBufSize + sizeof(struct vnt_rrv_time_rts) +
-				cbMICHDR + sizeof(struct vnt_rts_g_fb));
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_rts) +
-			cbMICHDR + sizeof(struct vnt_rts_g_fb) +
-				sizeof(struct vnt_tx_datahead_g_fb);
+			cbMICHDR + sizeof(struct vnt_rts_g_fb);
             }
             else if (bRTS == false) { //RTS_needless
-		pvTxDataHd = (struct vnt_tx_datahead_g_fb *) (pbyTxBufferAddr +
-			wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
-				cbMICHDR + sizeof(struct vnt_cts_fb));
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
-				cbMICHDR + sizeof(struct vnt_cts_fb) +
-					sizeof(struct vnt_tx_datahead_g_fb);
+				cbMICHDR + sizeof(struct vnt_cts_fb);
             }
         } // Auto Fall Back
     }
