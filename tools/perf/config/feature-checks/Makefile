@@ -19,7 +19,6 @@ FILES=					\
 	test-libperl			\
 	test-libpython			\
 	test-libpython-version		\
-	test-strlcpy			\
 	test-libbfd			\
 	test-on-exit			\
 	test-backtrace			\
@@ -115,9 +114,6 @@ test-libpython:
 
 test-libpython-version:
 	$(BUILD) $(FLAGS_PYTHON_EMBED)
-
-test-strlcpy:
-	$(BUILD)
 
 test-libbfd:
 	$(BUILD) -DPACKAGE='perf' -DPACKAGE=perf -lbfd -ldl

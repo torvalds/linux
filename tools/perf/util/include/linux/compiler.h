@@ -23,4 +23,8 @@
 # define __force
 #endif
 
+#ifndef __weak
+# define __weak			__attribute__((weak))
+#endif
+
 #endif
