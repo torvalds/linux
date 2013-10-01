@@ -58,13 +58,16 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define NI6527_STATUS_IRQ		(1 << 2)
 #define NI6527_STATUS_OVERFLOW		(1 << 1)
 #define NI6527_STATUS_EDGE		(1 << 0)
-
-#define Master_Interrupt_Control		0x15
-#define FallingEdgeIntEnable		0x10
-#define RisingEdgeIntEnable		0x08
-#define MasterInterruptEnable		0x04
-#define OverflowIntEnable		0x02
-#define EdgeIntEnable			0x01
+#define NI6527_CTRL_REG			0x15
+#define NI6527_CTRL_FALLING		(1 << 4)
+#define NI6527_CTRL_RISING		(1 << 3)
+#define NI6527_CTRL_IRQ			(1 << 2)
+#define NI6527_CTRL_OVERFLOW		(1 << 1)
+#define NI6527_CTRL_EDGE		(1 << 0)
+#define NI6527_CTRL_DISABLE_IRQS	0
+#define NI6527_CTRL_ENABLE_IRQS		(NI6527_CTRL_FALLING | \
+					 NI6527_CTRL_RISING | \
+					 NI6527_CTRL_IRQ | NI6527_CTRL_EDGE)
 
 #define Rising_Edge_Detection_Enable(x)		(0x018+(x))
 #define Falling_Edge_Detection_Enable(x)	(0x020+(x))
@@ -273,9 +276,8 @@ static int ni6527_intr_cmd(struct comedi_device *dev,
 
 	writeb(NI6527_CLR_IRQS,
 	       devpriv->mite->daq_io_addr + NI6527_CLR_REG);
-	writeb(FallingEdgeIntEnable | RisingEdgeIntEnable |
-	       MasterInterruptEnable | EdgeIntEnable,
-	       devpriv->mite->daq_io_addr + Master_Interrupt_Control);
+	writeb(NI6527_CTRL_ENABLE_IRQS,
+	       devpriv->mite->daq_io_addr + NI6527_CTRL_REG);
 
 	return 0;
 }
@@ -285,7 +287,8 @@ static int ni6527_intr_cancel(struct comedi_device *dev,
 {
 	struct ni6527_private *devpriv = dev->private;
 
-	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
+	writeb(NI6527_CTRL_DISABLE_IRQS,
+	       devpriv->mite->daq_io_addr + NI6527_CTRL_REG);
 
 	return 0;
 }
@@ -402,7 +405,8 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 
 	writeb(NI6527_CLR_IRQS | NI6527_CLR_RESET_FILT,
 	       devpriv->mite->daq_io_addr + NI6527_CLR_REG);
-	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
+	writeb(NI6527_CTRL_DISABLE_IRQS,
+	       devpriv->mite->daq_io_addr + NI6527_CTRL_REG);
 
 	ret = request_irq(mite_irq(devpriv->mite), ni6527_interrupt,
 			  IRQF_SHARED, dev->board_name, dev);
@@ -419,8 +423,8 @@ static void ni6527_detach(struct comedi_device *dev)
 	struct ni6527_private *devpriv = dev->private;
 
 	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr)
-		writeb(0x00,
-		       devpriv->mite->daq_io_addr + Master_Interrupt_Control);
+		writeb(NI6527_CTRL_DISABLE_IRQS,
+		       devpriv->mite->daq_io_addr + NI6527_CTRL_REG);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv && devpriv->mite) {
