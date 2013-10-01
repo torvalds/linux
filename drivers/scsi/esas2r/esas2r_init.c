@@ -1235,8 +1235,8 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 				     0,
 				     NULL);
 		ci = (struct atto_vda_cfg_init *)&rq->vrq->cfg.data.init;
-		ci->sgl_page_size = sgl_page_size;
-		ci->epoch_time = now.tv_sec;
+		ci->sgl_page_size = cpu_to_le32(sgl_page_size);
+		ci->epoch_time = cpu_to_le32(now.tv_sec);
 		rq->flags |= RF_FAILURE_OK;
 		a->init_msg = ESAS2R_INIT_MSG_INIT;
 		break;
@@ -1246,12 +1246,15 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 		if (rq->req_stat == RS_SUCCESS) {
 			u32 major;
 			u32 minor;
+			u16 fw_release;
 
 			a->fw_version = le16_to_cpu(
 				rq->func_rsp.cfg_rsp.vda_version);
 			a->fw_build = rq->func_rsp.cfg_rsp.fw_build;
-			major = LOBYTE(rq->func_rsp.cfg_rsp.fw_release);
-			minor = HIBYTE(rq->func_rsp.cfg_rsp.fw_release);
+			fw_release = le16_to_cpu(
+				rq->func_rsp.cfg_rsp.fw_release);
+			major = LOBYTE(fw_release);
+			minor = HIBYTE(fw_release);
 			a->fw_version += (major << 16) + (minor << 24);
 		} else {
 			esas2r_hdebug("FAILED");

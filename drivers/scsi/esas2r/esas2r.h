@@ -1207,7 +1207,6 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 					  struct esas2r_adapter *a)
 {
 	union atto_vda_req *vrq = rq->vrq;
-	u32 handle;
 
 	INIT_LIST_HEAD(&rq->sg_table_head);
 	rq->data_buf = (void *)(vrq + 1);
@@ -1243,11 +1242,9 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 
 	/*
 	 * add a reference number to the handle to make it unique (until it
-	 * wraps of course) while preserving the upper word
+	 * wraps of course) while preserving the least significant word
 	 */
-
-	handle = be32_to_cpu(vrq->scsi.handle) & 0xFFFF0000;
-	vrq->scsi.handle = cpu_to_be32(handle + a->cmd_ref_no++);
+	vrq->scsi.handle = (a->cmd_ref_no++ << 16) | (u16)vrq->scsi.handle;
 
 	/*
 	 * the following formats a SCSI request.  the caller can override as
