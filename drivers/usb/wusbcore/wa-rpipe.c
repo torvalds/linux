@@ -361,8 +361,10 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 			epcd->bMaxSequence, 32U), 2U);
 	rpipe->descr.bMaxDataSequence = epcd_max_sequence - 1;
 	rpipe->descr.bInterval = ep->desc.bInterval;
-	/* FIXME: bOverTheAirInterval */
-	rpipe->descr.bOverTheAirInterval = 0;	/* 0 if not isoc */
+	if (usb_endpoint_xfer_isoc(&ep->desc))
+		rpipe->descr.bOverTheAirInterval = epcd->bOverTheAirInterval;
+	else
+		rpipe->descr.bOverTheAirInterval = 0;	/* 0 if not isoc */
 	/* FIXME: xmit power & preamble blah blah */
 	rpipe->descr.bmAttribute = (ep->desc.bmAttributes &
 					USB_ENDPOINT_XFERTYPE_MASK);
