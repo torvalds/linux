@@ -405,5 +405,5 @@ static struct comedi_driver ni_at_ao_driver = {
 module_comedi_driver(ni_at_ao_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for NI AT-AO-6/10 boards");
 MODULE_LICENSE("GPL");
