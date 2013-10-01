@@ -124,6 +124,17 @@ struct atao_private {
 	unsigned char caldac[21];
 };
 
+static void atao_select_reg_group(struct comedi_device *dev, int group)
+{
+	struct atao_private *devpriv = dev->private;
+
+	if (group)
+		devpriv->cfg1 |= ATAO_CFG1_GRP2WR;
+	else
+		devpriv->cfg1 &= ~ATAO_CFG1_GRP2WR;
+	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
+}
+
 static int atao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
@@ -134,15 +145,11 @@ static int atao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	for (i = 0; i < insn->n; i++) {
 		bits = data[i] - 0x800;
-		if (chan == 0) {
-			devpriv->cfg1 |= ATAO_CFG1_GRP2WR;
-			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
-		}
+		if (chan == 0)
+			atao_select_reg_group(dev, 1);
 		outw(bits, dev->iobase + ATAO_AO_REG(chan));
-		if (chan == 0) {
-			devpriv->cfg1 &= ~ATAO_CFG1_GRP2WR;
-			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
-		}
+		if (chan == 0)
+			atao_select_reg_group(dev, 0);
 		devpriv->ao_readback[chan] = data[i];
 	}
 
@@ -312,15 +319,11 @@ static void atao_reset(struct comedi_device *dev)
 
 	inw(dev->iobase + ATAO_FIFO_CLEAR_REG);
 
-	devpriv->cfg1 |= ATAO_CFG1_GRP2WR;
-	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
-
+	atao_select_reg_group(dev, 1);
 	outw(0, dev->iobase + ATAO_2_INT1CLR_REG);
 	outw(0, dev->iobase + ATAO_2_INT2CLR_REG);
 	outw(0, dev->iobase + ATAO_2_DMATCCLR_REG);
-
-	devpriv->cfg1 &= ~ATAO_CFG1_GRP2WR;
-	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
+	atao_select_reg_group(dev, 0);
 }
 
 static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
