@@ -284,9 +284,9 @@ static int ni6527_intr_cancel(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct ni6527_private *devpriv = dev->private;
+	void __iomem *mmio = devpriv->mite->daq_io_addr;
 
-	writeb(NI6527_CTRL_DISABLE_IRQS,
-	       devpriv->mite->daq_io_addr + NI6527_CTRL_REG);
+	writeb(NI6527_CTRL_DISABLE_IRQS, mmio + NI6527_CTRL_REG);
 
 	return 0;
 }
