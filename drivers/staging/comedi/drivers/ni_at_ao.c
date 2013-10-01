@@ -52,14 +52,14 @@ Configuration options:
 #define ATAO_CFG2_PROMEN	(1 << 2)
 #define ATAO_CFG2_SCLK		(1 << 1)
 #define ATAO_CFG2_SDATA		(1 << 0)
-#define ATAO_CFG3		0x04	/* W 16 */
-#define DMAMODE			(1 << 6)
-#define CLKOUT			(1 << 5)
-#define RCLKEN			(1 << 4)
-#define DOUTEN2			(1 << 3)
-#define DOUTEN1			(1 << 2)
-#define EN2_5V			(1 << 1)
-#define SCANEN			(1 << 0)
+#define ATAO_CFG3_REG		0x04
+#define ATAO_CFG3_DMAMODE	(1 << 6)
+#define ATAO_CFG3_CLKOUT	(1 << 5)
+#define ATAO_CFG3_RCLKEN	(1 << 4)
+#define ATAO_CFG3_DOUTEN2	(1 << 3)
+#define ATAO_CFG3_DOUTEN1	(1 << 2)
+#define ATAO_CFG3_EN2_5V	(1 << 1)
+#define ATAO_CFG3_SCANEN	(1 << 0)
 #define ATAO_82C53_BASE		0x06	/* RW 8 */
 #define ATAO_82C53_CNTR1	0x06	/* RW 8 */
 #define ATAO_82C53_CNTR2	0x07	/* RW 8 */
@@ -160,7 +160,7 @@ static void atao_reset(struct comedi_device *dev)
 	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
 
 	devpriv->cfg3 = 0;
-	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3);
+	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3_REG);
 
 	inw(dev->iobase + ATAO_FIFO_CLEAR);
 
@@ -246,15 +246,15 @@ static int atao_dio_insn_config(struct comedi_device *dev,
 		return ret;
 
 	if (s->io_bits & 0x0f)
-		devpriv->cfg3 |= DOUTEN1;
+		devpriv->cfg3 |= ATAO_CFG3_DOUTEN1;
 	else
-		devpriv->cfg3 &= ~DOUTEN1;
+		devpriv->cfg3 &= ~ATAO_CFG3_DOUTEN1;
 	if (s->io_bits & 0xf0)
-		devpriv->cfg3 |= DOUTEN2;
+		devpriv->cfg3 |= ATAO_CFG3_DOUTEN2;
 	else
-		devpriv->cfg3 &= ~DOUTEN2;
+		devpriv->cfg3 &= ~ATAO_CFG3_DOUTEN2;
 
-	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3);
+	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3_REG);
 
 	return insn->n;
 }
