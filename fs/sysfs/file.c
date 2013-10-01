@@ -54,6 +54,11 @@ struct sysfs_open_file {
 	struct list_head	list;
 };
 
+static bool sysfs_is_bin(struct sysfs_dirent *sd)
+{
+	return sysfs_type(sd) == SYSFS_KOBJ_BIN_ATTR;
+}
+
 static struct sysfs_open_file *sysfs_of(struct file *file)
 {
 	return ((struct seq_file *)file->private_data)->private;
@@ -138,16 +143,16 @@ static int sysfs_seq_show(struct seq_file *sf, void *v)
  * flush_write_buffer - push buffer to kobject
  * @of: open file
  * @buf: data buffer for file
+ * @off: file offset to write to
  * @count: number of bytes
  *
  * Get the correct pointers for the kobject and the attribute we're dealing
  * with, then call the store() method for it with @buf.
  */
-static int flush_write_buffer(struct sysfs_open_file *of, char *buf,
+static int flush_write_buffer(struct sysfs_open_file *of, char *buf, loff_t off,
 			      size_t count)
 {
 	struct kobject *kobj = of->sd->s_parent->s_dir.kobj;
-	const struct sysfs_ops *ops;
 	int rc = 0;
 
 	/*
@@ -161,8 +166,18 @@ static int flush_write_buffer(struct sysfs_open_file *of, char *buf,
 		return -ENODEV;
 	}
 
-	ops = sysfs_file_ops(of->sd);
-	rc = ops->store(kobj, of->sd->s_attr.attr, buf, count);
+	if (sysfs_is_bin(of->sd)) {
+		struct bin_attribute *battr = of->sd->s_bin_attr.bin_attr;
+
+		rc = -EIO;
+		if (battr->write)
+			rc = battr->write(of->file, kobj, battr, buf, off,
+					  count);
+	} else {
+		const struct sysfs_ops *ops = sysfs_file_ops(of->sd);
+
+		rc = ops->store(kobj, of->sd->s_attr.attr, buf, count);
+	}
 
 	sysfs_put_active(of->sd);
 	mutex_unlock(&of->mutex);
@@ -190,8 +205,16 @@ static ssize_t sysfs_write_file(struct file *file, const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
 	struct sysfs_open_file *of = sysfs_of(file);
-	ssize_t len = min_t(size_t, count, PAGE_SIZE - 1);
+	ssize_t len = min_t(size_t, count, PAGE_SIZE);
 	char *buf;
+
+	if (sysfs_is_bin(of->sd)) {
+		loff_t size = file_inode(file)->i_size;
+
+		if (size <= *ppos)
+			return 0;
+		len = min_t(ssize_t, len, size - *ppos);
+	}
 
 	if (!len)
 		return 0;
@@ -206,7 +229,7 @@ static ssize_t sysfs_write_file(struct file *file, const char __user *user_buf,
 	}
 	buf[len] = '\0';	/* guarantee string termination */
 
-	len = flush_write_buffer(of, buf, len);
+	len = flush_write_buffer(of, buf, *ppos, len);
 	if (len > 0)
 		*ppos += len;
 out_free:
@@ -469,6 +492,11 @@ const struct file_operations sysfs_file_operations = {
 	.open		= sysfs_open_file,
 	.release	= sysfs_release,
 	.poll		= sysfs_poll,
+};
+
+const struct file_operations sysfs_bin_operations = {
+	.write		= sysfs_write_file,
+	.llseek		= generic_file_llseek,
 };
 
 int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,

@@ -212,6 +212,7 @@ int sysfs_inode_init(void);
  * file.c
  */
 extern const struct file_operations sysfs_file_operations;
+extern const struct file_operations sysfs_bin_operations;
 
 int sysfs_add_file(struct sysfs_dirent *dir_sd,
 		   const struct attribute *attr, int type);
