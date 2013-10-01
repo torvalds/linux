@@ -420,6 +420,7 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 	struct fq_flow_head *head;
 	struct sk_buff *skb;
 	struct fq_flow *f;
+	u32 rate;
 
 	skb = fq_dequeue_head(sch, &q->internal);
 	if (skb)
@@ -468,28 +469,34 @@ begin:
 	f->time_next_packet = now;
 	f->credit -= qdisc_pkt_len(skb);
 
-	if (f->credit <= 0 &&
-	    q->rate_enable &&
-	    skb->sk && skb->sk->sk_state != TCP_TIME_WAIT) {
-		u32 rate = skb->sk->sk_pacing_rate ?: q->flow_default_rate;
+	if (f->credit > 0 || !q->rate_enable)
+		goto out;
+
+	if (skb->sk && skb->sk->sk_state != TCP_TIME_WAIT) {
+		rate = skb->sk->sk_pacing_rate ?: q->flow_default_rate;
 
 		rate = min(rate, q->flow_max_rate);
-		if (rate) {
-			u64 len = (u64)qdisc_pkt_len(skb) * NSEC_PER_SEC;
+	} else {
+		rate = q->flow_max_rate;
+		if (rate == ~0U)
+			goto out;
+	}
+	if (rate) {
+		u32 plen = max(qdisc_pkt_len(skb), q->quantum);
+		u64 len = (u64)plen * NSEC_PER_SEC;
 
-			do_div(len, rate);
-			/* Since socket rate can change later,
-			 * clamp the delay to 125 ms.
-			 * TODO: maybe segment the too big skb, as in commit
-			 * e43ac79a4bc ("sch_tbf: segment too big GSO packets")
-			 */
-			if (unlikely(len > 125 * NSEC_PER_MSEC)) {
-				len = 125 * NSEC_PER_MSEC;
-				q->stat_pkts_too_long++;
-			}
-
-			f->time_next_packet = now + len;
+		do_div(len, rate);
+		/* Since socket rate can change later,
+		 * clamp the delay to 125 ms.
+		 * TODO: maybe segment the too big skb, as in commit
+		 * e43ac79a4bc ("sch_tbf: segment too big GSO packets")
+		 */
+		if (unlikely(len > 125 * NSEC_PER_MSEC)) {
+			len = 125 * NSEC_PER_MSEC;
+			q->stat_pkts_too_long++;
 		}
+
+		f->time_next_packet = now + len;
 	}
 out:
 	qdisc_bstats_update(sch, skb);
