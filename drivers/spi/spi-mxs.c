@@ -70,17 +70,14 @@ struct mxs_spi {
 };
 
 static int mxs_spi_setup_transfer(struct spi_device *dev,
-				struct spi_transfer *t)
+				  const struct spi_transfer *t)
 {
 	struct mxs_spi *spi = spi_master_get_devdata(dev->master);
 	struct mxs_ssp *ssp = &spi->ssp;
-	uint32_t hz = 0;
+	const unsigned int hz = min(dev->max_speed_hz, t->speed_hz);
 
-	hz = dev->max_speed_hz;
-	if (t && t->speed_hz)
-		hz = min(hz, t->speed_hz);
 	if (hz == 0) {
-		dev_err(&dev->dev, "Cannot continue with zero clock\n");
+		dev_err(&dev->dev, "SPI clock rate of zero not allowed\n");
 		return -EINVAL;
 	}
 
@@ -88,12 +85,12 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 
 	writel(BM_SSP_CTRL0_LOCK_CS,
 		ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
+
 	writel(BF_SSP_CTRL1_SSP_MODE(BV_SSP_CTRL1_SSP_MODE__SPI) |
-		     BF_SSP_CTRL1_WORD_LENGTH
-		     (BV_SSP_CTRL1_WORD_LENGTH__EIGHT_BITS) |
-		     ((dev->mode & SPI_CPOL) ? BM_SSP_CTRL1_POLARITY : 0) |
-		     ((dev->mode & SPI_CPHA) ? BM_SSP_CTRL1_PHASE : 0),
-		     ssp->base + HW_SSP_CTRL1(ssp));
+	       BF_SSP_CTRL1_WORD_LENGTH(BV_SSP_CTRL1_WORD_LENGTH__EIGHT_BITS) |
+	       ((dev->mode & SPI_CPOL) ? BM_SSP_CTRL1_POLARITY : 0) |
+	       ((dev->mode & SPI_CPHA) ? BM_SSP_CTRL1_PHASE : 0),
+	       ssp->base + HW_SSP_CTRL1(ssp));
 
 	writel(0x0, ssp->base + HW_SSP_CMD0);
 	writel(0x0, ssp->base + HW_SSP_CMD1);
