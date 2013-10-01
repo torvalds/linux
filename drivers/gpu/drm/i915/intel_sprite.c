@@ -527,6 +527,7 @@ intel_enable_primary(struct drm_crtc *crtc)
 	intel_crtc->primary_disabled = false;
 
 	I915_WRITE(reg, I915_READ(reg) | DISPLAY_PLANE_ENABLE);
+	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
 
 	/*
 	 * FIXME IPS should be fine as long as one plane is
@@ -571,6 +572,7 @@ intel_disable_primary(struct drm_crtc *crtc)
 	hsw_disable_ips(intel_crtc);
 
 	I915_WRITE(reg, I915_READ(reg) & ~DISPLAY_PLANE_ENABLE);
+	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
 }
 
 static int
