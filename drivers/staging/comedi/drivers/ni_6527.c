@@ -45,9 +45,6 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #include "comedi_fc.h"
 #include "mite.h"
 
-#define NI6527_DIO_SIZE 4096
-#define NI6527_MITE_SIZE 4096
-
 #define Port_Register(x)			(0x00+(x))
 #define ID_Register				0x06
 
