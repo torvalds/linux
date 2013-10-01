@@ -23,7 +23,7 @@
 #include <linux/clk.h>
 #include <linux/sched_clock.h>
 
-static void timer_get_base_and_rate(struct device_node *np,
+static void __init timer_get_base_and_rate(struct device_node *np,
 				    void __iomem **base, u32 *rate)
 {
 	struct clk *timer_clk;
@@ -55,11 +55,11 @@ static void timer_get_base_and_rate(struct device_node *np,
 
 try_clock_freq:
 	if (of_property_read_u32(np, "clock-freq", rate) &&
-		of_property_read_u32(np, "clock-frequency", rate))
+	    of_property_read_u32(np, "clock-frequency", rate))
 		panic("No clock nor clock-frequency property for %s", np->name);
 }
 
-static void add_clockevent(struct device_node *event_timer)
+static void __init add_clockevent(struct device_node *event_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clock_event_device *ced;
@@ -82,7 +82,7 @@ static void add_clockevent(struct device_node *event_timer)
 static void __iomem *sched_io_base;
 static u32 sched_rate;
 
-static void add_clocksource(struct device_node *source_timer)
+static void __init add_clocksource(struct device_node *source_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clocksource *cs;
@@ -117,7 +117,7 @@ static const struct of_device_id sptimer_ids[] __initconst = {
 	{ /* Sentinel */ },
 };
 
-static void init_sched_clock(void)
+static void __init init_sched_clock(void)
 {
 	struct device_node *sched_timer;
 
