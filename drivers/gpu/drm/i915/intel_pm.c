@@ -43,14 +43,6 @@
  * i915.i915_enable_fbc parameter
  */
 
-static bool intel_crtc_active(struct drm_crtc *crtc)
-{
-	/* Be paranoid as we can arrive here with only partial
-	 * state retrieved from the hardware during setup.
-	 */
-	return to_intel_crtc(crtc)->active && crtc->fb && crtc->mode.clock;
-}
-
 static void i8xx_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -458,7 +450,8 @@ void intel_update_fbc(struct drm_device *dev)
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
-	unsigned int max_hdisplay, max_vdisplay;
+	const struct drm_display_mode *adjusted_mode;
+	unsigned int max_width, max_height;
 
 	if (!I915_HAS_FBC(dev)) {
 		set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED);
@@ -502,6 +495,7 @@ void intel_update_fbc(struct drm_device *dev)
 	fb = crtc->fb;
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
+	adjusted_mode = &intel_crtc->config.adjusted_mode;
 
 	if (i915_enable_fbc < 0 &&
 	    INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev)) {
@@ -514,8 +508,8 @@ void intel_update_fbc(struct drm_device *dev)
 			DRM_DEBUG_KMS("fbc disabled per module param\n");
 		goto out_disable;
 	}
-	if ((crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) ||
-	    (crtc->mode.flags & DRM_MODE_FLAG_DBLSCAN)) {
+	if ((adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ||
+	    (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
 		if (set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED_MODE))
 			DRM_DEBUG_KMS("mode incompatible with compression, "
 				      "disabling\n");
@@ -523,14 +517,14 @@ void intel_update_fbc(struct drm_device *dev)
 	}
 
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
-		max_hdisplay = 4096;
-		max_vdisplay = 2048;
+		max_width = 4096;
+		max_height = 2048;
 	} else {
-		max_hdisplay = 2048;
-		max_vdisplay = 1536;
+		max_width = 2048;
+		max_height = 1536;
 	}
-	if ((crtc->mode.hdisplay > max_hdisplay) ||
-	    (crtc->mode.vdisplay > max_vdisplay)) {
+	if (intel_crtc->config.pipe_src_w > max_width ||
+	    intel_crtc->config.pipe_src_h > max_height) {
 		if (set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE))
 			DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		goto out_disable;
@@ -1087,8 +1081,9 @@ static struct drm_crtc *single_enabled_crtc(struct drm_device *dev)
 	return enabled;
 }
 
-static void pineview_update_wm(struct drm_device *dev)
+static void pineview_update_wm(struct drm_crtc *unused_crtc)
 {
+	struct drm_device *dev = unused_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	const struct cxsr_latency *latency;
@@ -1105,7 +1100,7 @@ static void pineview_update_wm(struct drm_device *dev)
 
 	crtc = single_enabled_crtc(dev);
 	if (crtc) {
-		int clock = crtc->mode.clock;
+		int clock = to_intel_crtc(crtc)->config.adjusted_mode.clock;
 		int pixel_size = crtc->fb->bits_per_pixel / 8;
 
 		/* Display SR */
@@ -1166,6 +1161,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 			    int *cursor_wm)
 {
 	struct drm_crtc *crtc;
+	const struct drm_display_mode *adjusted_mode;
 	int htotal, hdisplay, clock, pixel_size;
 	int line_time_us, line_count;
 	int entries, tlb_miss;
@@ -1177,9 +1173,10 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 		return false;
 	}
 
-	htotal = crtc->mode.htotal;
-	hdisplay = crtc->mode.hdisplay;
-	clock = crtc->mode.clock;
+	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
+	clock = adjusted_mode->clock;
+	htotal = adjusted_mode->htotal;
+	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
 	/* Use the small buffer method to calculate plane watermark */
@@ -1250,6 +1247,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			     int *display_wm, int *cursor_wm)
 {
 	struct drm_crtc *crtc;
+	const struct drm_display_mode *adjusted_mode;
 	int hdisplay, htotal, pixel_size, clock;
 	unsigned long line_time_us;
 	int line_count, line_size;
@@ -1262,9 +1260,10 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	}
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	hdisplay = crtc->mode.hdisplay;
-	htotal = crtc->mode.htotal;
-	clock = crtc->mode.clock;
+	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
+	clock = adjusted_mode->clock;
+	htotal = adjusted_mode->htotal;
+	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
 	line_time_us = (htotal * 1000) / clock;
@@ -1303,7 +1302,7 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 	if (!intel_crtc_active(crtc))
 		return false;
 
-	clock = crtc->mode.clock;	/* VESA DOT Clock */
+	clock = to_intel_crtc(crtc)->config.adjusted_mode.clock;
 	pixel_size = crtc->fb->bits_per_pixel / 8;	/* BPP */
 
 	entries = (clock / 1000) * pixel_size;
@@ -1365,8 +1364,9 @@ static void vlv_update_drain_latency(struct drm_device *dev)
 
 #define single_plane_enabled(mask) is_power_of_2(mask)
 
-static void valleyview_update_wm(struct drm_device *dev)
+static void valleyview_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	static const int sr_latency_ns = 12000;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
@@ -1424,8 +1424,9 @@ static void valleyview_update_wm(struct drm_device *dev)
 		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
-static void g4x_update_wm(struct drm_device *dev)
+static void g4x_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	static const int sr_latency_ns = 12000;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
@@ -1476,8 +1477,9 @@ static void g4x_update_wm(struct drm_device *dev)
 		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
-static void i965_update_wm(struct drm_device *dev)
+static void i965_update_wm(struct drm_crtc *unused_crtc)
 {
+	struct drm_device *dev = unused_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	int srwm = 1;
@@ -1488,9 +1490,11 @@ static void i965_update_wm(struct drm_device *dev)
 	if (crtc) {
 		/* self-refresh has much higher latency */
 		static const int sr_latency_ns = 12000;
-		int clock = crtc->mode.clock;
-		int htotal = crtc->mode.htotal;
-		int hdisplay = crtc->mode.hdisplay;
+		const struct drm_display_mode *adjusted_mode =
+			&to_intel_crtc(crtc)->config.adjusted_mode;
+		int clock = adjusted_mode->clock;
+		int htotal = adjusted_mode->htotal;
+		int hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 		int pixel_size = crtc->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
@@ -1541,8 +1545,9 @@ static void i965_update_wm(struct drm_device *dev)
 	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
-static void i9xx_update_wm(struct drm_device *dev)
+static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 {
+	struct drm_device *dev = unused_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct intel_watermark_params *wm_info;
 	uint32_t fwater_lo;
@@ -1566,7 +1571,7 @@ static void i9xx_update_wm(struct drm_device *dev)
 		if (IS_GEN2(dev))
 			cpp = 4;
 
-		planea_wm = intel_calculate_wm(crtc->mode.clock,
+		planea_wm = intel_calculate_wm(to_intel_crtc(crtc)->config.adjusted_mode.clock,
 					       wm_info, fifo_size, cpp,
 					       latency_ns);
 		enabled = crtc;
@@ -1580,7 +1585,7 @@ static void i9xx_update_wm(struct drm_device *dev)
 		if (IS_GEN2(dev))
 			cpp = 4;
 
-		planeb_wm = intel_calculate_wm(crtc->mode.clock,
+		planeb_wm = intel_calculate_wm(to_intel_crtc(crtc)->config.adjusted_mode.clock,
 					       wm_info, fifo_size, cpp,
 					       latency_ns);
 		if (enabled == NULL)
@@ -1607,9 +1612,11 @@ static void i9xx_update_wm(struct drm_device *dev)
 	if (HAS_FW_BLC(dev) && enabled) {
 		/* self-refresh has much higher latency */
 		static const int sr_latency_ns = 6000;
-		int clock = enabled->mode.clock;
-		int htotal = enabled->mode.htotal;
-		int hdisplay = enabled->mode.hdisplay;
+		const struct drm_display_mode *adjusted_mode =
+			&to_intel_crtc(enabled)->config.adjusted_mode;
+		int clock = adjusted_mode->clock;
+		int htotal = adjusted_mode->htotal;
+		int hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 		int pixel_size = enabled->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
@@ -1658,8 +1665,9 @@ static void i9xx_update_wm(struct drm_device *dev)
 	}
 }
 
-static void i830_update_wm(struct drm_device *dev)
+static void i830_update_wm(struct drm_crtc *unused_crtc)
 {
+	struct drm_device *dev = unused_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	uint32_t fwater_lo;
@@ -1669,7 +1677,8 @@ static void i830_update_wm(struct drm_device *dev)
 	if (crtc == NULL)
 		return;
 
-	planea_wm = intel_calculate_wm(crtc->mode.clock, &i830_wm_info,
+	planea_wm = intel_calculate_wm(to_intel_crtc(crtc)->config.adjusted_mode.clock,
+				       &i830_wm_info,
 				       dev_priv->display.get_fifo_size(dev, 0),
 				       4, latency_ns);
 	fwater_lo = I915_READ(FW_BLC) & ~0xfff;
@@ -1741,6 +1750,7 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level, int plane,
 				  int *fbc_wm, int *display_wm, int *cursor_wm)
 {
 	struct drm_crtc *crtc;
+	const struct drm_display_mode *adjusted_mode;
 	unsigned long line_time_us;
 	int hdisplay, htotal, pixel_size, clock;
 	int line_count, line_size;
@@ -1753,9 +1763,10 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level, int plane,
 	}
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	hdisplay = crtc->mode.hdisplay;
-	htotal = crtc->mode.htotal;
-	clock = crtc->mode.clock;
+	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
+	clock = adjusted_mode->clock;
+	htotal = adjusted_mode->htotal;
+	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
 	line_time_us = (htotal * 1000) / clock;
@@ -1785,8 +1796,9 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level, int plane,
 				   display, cursor);
 }
 
-static void ironlake_update_wm(struct drm_device *dev)
+static void ironlake_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int fbc_wm, plane_wm, cursor_wm;
 	unsigned int enabled;
@@ -1868,8 +1880,9 @@ static void ironlake_update_wm(struct drm_device *dev)
 	 */
 }
 
-static void sandybridge_update_wm(struct drm_device *dev)
+static void sandybridge_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = dev_priv->wm.pri_latency[0] * 100;	/* In unit 0.1us */
 	u32 val;
@@ -1970,8 +1983,9 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		   cursor_wm);
 }
 
-static void ivybridge_update_wm(struct drm_device *dev)
+static void ivybridge_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = dev_priv->wm.pri_latency[0] * 100;	/* In unit 0.1us */
 	u32 val;
@@ -2107,8 +2121,8 @@ static uint32_t ilk_pipe_pixel_rate(struct drm_device *dev,
 		uint64_t pipe_w, pipe_h, pfit_w, pfit_h;
 		uint32_t pfit_size = intel_crtc->config.pch_pfit.size;
 
-		pipe_w = intel_crtc->config.requested_mode.hdisplay;
-		pipe_h = intel_crtc->config.requested_mode.vdisplay;
+		pipe_w = intel_crtc->config.pipe_src_w;
+		pipe_h = intel_crtc->config.pipe_src_h;
 		pfit_w = (pfit_size >> 16) & 0xFFFF;
 		pfit_h = pfit_size & 0xFFFF;
 		if (pipe_w < pfit_w)
@@ -2196,7 +2210,7 @@ struct intel_wm_config {
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_pri_wm(const struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value,
 				   bool is_lp)
 {
@@ -2225,7 +2239,7 @@ static uint32_t ilk_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_spr_wm(const struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
 	uint32_t method1, method2;
@@ -2248,7 +2262,7 @@ static uint32_t ilk_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_cur_wm(const struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
 	if (!params->active || !params->cur.enabled)
@@ -2262,7 +2276,7 @@ static uint32_t ilk_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
 }
 
 /* Only for WM_LP. */
-static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_fbc_wm(const struct hsw_pipe_wm_parameters *params,
 				   uint32_t pri_val)
 {
 	if (!params->active || !params->pri.enabled)
@@ -2413,7 +2427,7 @@ static bool ilk_check_wm(int level,
 
 static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
 				 int level,
-				 struct hsw_pipe_wm_parameters *p,
+				 const struct hsw_pipe_wm_parameters *p,
 				 struct intel_wm_level *result)
 {
 	uint16_t pri_latency = dev_priv->wm.pri_latency[level];
@@ -2435,8 +2449,8 @@ static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
 }
 
 static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
-			      int level, struct hsw_wm_maximums *max,
-			      struct hsw_pipe_wm_parameters *params,
+			      int level, const struct hsw_wm_maximums *max,
+			      const struct hsw_pipe_wm_parameters *params,
 			      struct intel_wm_level *result)
 {
 	enum pipe pipe;
@@ -2454,33 +2468,31 @@ static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
 	return ilk_check_wm(level, max, result);
 }
 
-static uint32_t hsw_compute_wm_pipe(struct drm_i915_private *dev_priv,
-				    enum pipe pipe,
-				    struct hsw_pipe_wm_parameters *params)
+
+static uint32_t hsw_compute_wm_pipe(struct drm_device *dev,
+				    const struct hsw_pipe_wm_parameters *params)
 {
-	uint32_t pri_val, cur_val, spr_val;
-	/* WM0 latency values stored in 0.1us units */
-	uint16_t pri_latency = dev_priv->wm.pri_latency[0];
-	uint16_t spr_latency = dev_priv->wm.spr_latency[0];
-	uint16_t cur_latency = dev_priv->wm.cur_latency[0];
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_wm_config config = {
+		.num_pipes_active = 1,
+		.sprites_enabled = params->spr.enabled,
+		.sprites_scaled = params->spr.scaled,
+	};
+	struct hsw_wm_maximums max;
+	struct intel_wm_level res;
 
-	pri_val = ilk_compute_pri_wm(params, pri_latency, false);
-	spr_val = ilk_compute_spr_wm(params, spr_latency);
-	cur_val = ilk_compute_cur_wm(params, cur_latency);
+	if (!params->active)
+		return 0;
 
-	WARN(pri_val > 127,
-	     "Primary WM error, mode not supported for pipe %c\n",
-	     pipe_name(pipe));
-	WARN(spr_val > 127,
-	     "Sprite WM error, mode not supported for pipe %c\n",
-	     pipe_name(pipe));
-	WARN(cur_val > 63,
-	     "Cursor WM error, mode not supported for pipe %c\n",
-	     pipe_name(pipe));
+	ilk_wm_max(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
 
-	return (pri_val << WM0_PIPE_PLANE_SHIFT) |
-	       (spr_val << WM0_PIPE_SPRITE_SHIFT) |
-	       cur_val;
+	ilk_compute_wm_level(dev_priv, 0, params, &res);
+
+	ilk_check_wm(0, &max, &res);
+
+	return (res.pri_val << WM0_PIPE_PLANE_SHIFT) |
+	       (res.spr_val << WM0_PIPE_SPRITE_SHIFT) |
+	       res.cur_val;
 }
 
 static uint32_t
@@ -2554,19 +2566,22 @@ static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
 		wm[3] *= 2;
 }
 
+static int ilk_wm_max_level(const struct drm_device *dev)
+{
+	/* how many WM levels are we expecting */
+	if (IS_HASWELL(dev))
+		return 4;
+	else if (INTEL_INFO(dev)->gen >= 6)
+		return 3;
+	else
+		return 2;
+}
+
 static void intel_print_wm_latency(struct drm_device *dev,
 				   const char *name,
 				   const uint16_t wm[5])
 {
-	int level, max_level;
-
-	/* how many WM levels are we expecting */
-	if (IS_HASWELL(dev))
-		max_level = 4;
-	else if (INTEL_INFO(dev)->gen >= 6)
-		max_level = 3;
-	else
-		max_level = 2;
+	int level, max_level = ilk_wm_max_level(dev);
 
 	for (level = 0; level <= max_level; level++) {
 		unsigned int latency = wm[level];
@@ -2633,8 +2648,7 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 		p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
 		p->pri.bytes_per_pixel = crtc->fb->bits_per_pixel / 8;
 		p->cur.bytes_per_pixel = 4;
-		p->pri.horiz_pixels =
-			intel_crtc->config.requested_mode.hdisplay;
+		p->pri.horiz_pixels = intel_crtc->config.pipe_src_w;
 		p->cur.horiz_pixels = 64;
 		/* TODO: for now, assume primary and cursor planes are always enabled. */
 		p->pri.enabled = true;
@@ -2664,8 +2678,8 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 }
 
 static void hsw_compute_wm_results(struct drm_device *dev,
-				   struct hsw_pipe_wm_parameters *params,
-				   struct hsw_wm_maximums *lp_maximums,
+				   const struct hsw_pipe_wm_parameters *params,
+				   const struct hsw_wm_maximums *lp_maximums,
 				   struct hsw_wm_values *results)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2709,7 +2723,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	}
 
 	for_each_pipe(pipe)
-		results->wm_pipe[pipe] = hsw_compute_wm_pipe(dev_priv, pipe,
+		results->wm_pipe[pipe] = hsw_compute_wm_pipe(dev,
 							     &params[pipe]);
 
 	for_each_pipe(pipe) {
@@ -2841,8 +2855,9 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(WM3_LP_ILK, results->wm_lp[2]);
 }
 
-static void haswell_update_wm(struct drm_device *dev)
+static void haswell_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
 	struct hsw_pipe_wm_parameters params[3];
@@ -2879,7 +2894,7 @@ static void haswell_update_sprite_wm(struct drm_plane *plane,
 	intel_plane->wm.horiz_pixels = sprite_width;
 	intel_plane->wm.bytes_per_pixel = pixel_size;
 
-	haswell_update_wm(plane->dev);
+	haswell_update_wm(crtc);
 }
 
 static bool
@@ -2898,7 +2913,7 @@ sandybridge_compute_sprite_wm(struct drm_device *dev, int plane,
 		return false;
 	}
 
-	clock = crtc->mode.clock;
+	clock = to_intel_crtc(crtc)->config.adjusted_mode.clock;
 
 	/* Use the small buffer method to calculate the sprite watermark */
 	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
@@ -2933,7 +2948,7 @@ sandybridge_compute_sprite_srwm(struct drm_device *dev, int plane,
 	}
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	clock = crtc->mode.clock;
+	clock = to_intel_crtc(crtc)->config.adjusted_mode.clock;
 	if (!clock) {
 		*sprite_wm = 0;
 		return false;
@@ -3076,12 +3091,12 @@ static void sandybridge_update_sprite_wm(struct drm_plane *plane,
  * We don't use the sprite, so we can ignore that.  And on Crestline we have
  * to set the non-SR watermarks to 8.
  */
-void intel_update_watermarks(struct drm_device *dev)
+void intel_update_watermarks(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 
 	if (dev_priv->display.update_wm)
-		dev_priv->display.update_wm(dev);
+		dev_priv->display.update_wm(crtc);
 }
 
 void intel_update_sprite_watermarks(struct drm_plane *plane,
@@ -3773,7 +3788,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	u32 gtfifodbg, val;
+	u32 gtfifodbg, val, rc6_mode = 0;
 	int i;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
@@ -3813,8 +3828,9 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(0x138104, _MASKED_BIT_ENABLE(0x3));
-	I915_WRITE(GEN6_RC_CONTROL,
-		   GEN7_RC_CTL_TO_MODE);
+	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
+		rc6_mode = GEN7_RC_CTL_TO_MODE;
+	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 	switch ((val >> 6) & 3) {
@@ -5267,6 +5283,7 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	case POWER_DOMAIN_PIPE_A:
 	case POWER_DOMAIN_TRANSCODER_EDP:
 		return true;
+	case POWER_DOMAIN_VGA:
 	case POWER_DOMAIN_PIPE_B:
 	case POWER_DOMAIN_PIPE_C:
 	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
@@ -5329,6 +5346,81 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 	}
 }
 
+static void __intel_power_well_get(struct i915_power_well *power_well)
+{
+	if (!power_well->count++)
+		__intel_set_power_well(power_well->device, true);
+}
+
+static void __intel_power_well_put(struct i915_power_well *power_well)
+{
+	WARN_ON(!power_well->count);
+	if (!--power_well->count)
+		__intel_set_power_well(power_well->device, false);
+}
+
+void intel_display_power_get(struct drm_device *dev,
+			     enum intel_display_power_domain domain)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_well *power_well = &dev_priv->power_well;
+
+	if (!HAS_POWER_WELL(dev))
+		return;
+
+	switch (domain) {
+	case POWER_DOMAIN_PIPE_A:
+	case POWER_DOMAIN_TRANSCODER_EDP:
+		return;
+	case POWER_DOMAIN_VGA:
+	case POWER_DOMAIN_PIPE_B:
+	case POWER_DOMAIN_PIPE_C:
+	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
+	case POWER_DOMAIN_TRANSCODER_A:
+	case POWER_DOMAIN_TRANSCODER_B:
+	case POWER_DOMAIN_TRANSCODER_C:
+		spin_lock_irq(&power_well->lock);
+		__intel_power_well_get(power_well);
+		spin_unlock_irq(&power_well->lock);
+		return;
+	default:
+		BUG();
+	}
+}
+
+void intel_display_power_put(struct drm_device *dev,
+			     enum intel_display_power_domain domain)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_well *power_well = &dev_priv->power_well;
+
+	if (!HAS_POWER_WELL(dev))
+		return;
+
+	switch (domain) {
+	case POWER_DOMAIN_PIPE_A:
+	case POWER_DOMAIN_TRANSCODER_EDP:
+		return;
+	case POWER_DOMAIN_VGA:
+	case POWER_DOMAIN_PIPE_B:
+	case POWER_DOMAIN_PIPE_C:
+	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
+	case POWER_DOMAIN_TRANSCODER_A:
+	case POWER_DOMAIN_TRANSCODER_B:
+	case POWER_DOMAIN_TRANSCODER_C:
+		spin_lock_irq(&power_well->lock);
+		__intel_power_well_put(power_well);
+		spin_unlock_irq(&power_well->lock);
+		return;
+	default:
+		BUG();
+	}
+}
+
 static struct i915_power_well *hsw_pwr;
 
 /* Display audio driver power well request */
@@ -5338,9 +5430,7 @@ void i915_request_power_well(void)
 		return;
 
 	spin_lock_irq(&hsw_pwr->lock);
-	if (!hsw_pwr->count++ &&
-			!hsw_pwr->i915_request)
-		__intel_set_power_well(hsw_pwr->device, true);
+	__intel_power_well_get(hsw_pwr);
 	spin_unlock_irq(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_request_power_well);
@@ -5352,10 +5442,7 @@ void i915_release_power_well(void)
 		return;
 
 	spin_lock_irq(&hsw_pwr->lock);
-	WARN_ON(!hsw_pwr->count);
-	if (!--hsw_pwr->count &&
-		       !hsw_pwr->i915_request)
-		__intel_set_power_well(hsw_pwr->device, false);
+	__intel_power_well_put(hsw_pwr);
 	spin_unlock_irq(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
@@ -5390,15 +5477,37 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 		return;
 
 	spin_lock_irq(&power_well->lock);
+
+	/*
+	 * This function will only ever contribute one
+	 * to the power well reference count. i915_request
+	 * is what tracks whether we have or have not
+	 * added the one to the reference count.
+	 */
+	if (power_well->i915_request == enable)
+		goto out;
+
 	power_well->i915_request = enable;
 
-	/* only reject "disable" power well request */
-	if (power_well->count && !enable) {
-		spin_unlock_irq(&power_well->lock);
-		return;
-	}
+	if (enable)
+		__intel_power_well_get(power_well);
+	else
+		__intel_power_well_put(power_well);
 
-	__intel_set_power_well(dev, enable);
+ out:
+	spin_unlock_irq(&power_well->lock);
+}
+
+void intel_resume_power_well(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_well *power_well = &dev_priv->power_well;
+
+	if (!HAS_POWER_WELL(dev))
+		return;
+
+	spin_lock_irq(&power_well->lock);
+	__intel_set_power_well(dev, power_well->count > 0);
 	spin_unlock_irq(&power_well->lock);
 }
 
@@ -5417,6 +5526,7 @@ void intel_init_power_well(struct drm_device *dev)
 
 	/* For now, we need the power well to be always enabled. */
 	intel_set_power_well(dev, true);
+	intel_resume_power_well(dev);
 
 	/* We're taking over the BIOS, so clear any requests made by it since
 	 * the driver is in charge now. */

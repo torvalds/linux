@@ -52,7 +52,7 @@
 	intel_ring_emit(LP_RING(dev_priv), x)
 
 #define ADVANCE_LP_RING() \
-	intel_ring_advance(LP_RING(dev_priv))
+	__intel_ring_advance(LP_RING(dev_priv))
 
 /**
  * Lock test for when it's just for synchronization of ring access.
@@ -1323,6 +1323,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 		goto cleanup_irq;
 
 	INIT_WORK(&dev_priv->console_resume_work, intel_console_resume);
+
+	intel_init_power_well(dev);
 
 	intel_modeset_gem_init(dev);
 

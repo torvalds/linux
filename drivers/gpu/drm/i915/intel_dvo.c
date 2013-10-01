@@ -153,6 +153,8 @@ static void intel_dvo_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
+
+	pipe_config->adjusted_mode.clock = pipe_config->port_clock;
 }
 
 static void intel_disable_dvo(struct intel_encoder *encoder)
@@ -266,11 +268,6 @@ static bool intel_dvo_compute_config(struct intel_encoder *encoder,
 
 		drm_mode_set_crtcinfo(adjusted_mode, 0);
 	}
-
-	if (intel_dvo->dev.dev_ops->mode_fixup)
-		return intel_dvo->dev.dev_ops->mode_fixup(&intel_dvo->dev,
-							  &pipe_config->requested_mode,
-							  adjusted_mode);
 
 	return true;
 }

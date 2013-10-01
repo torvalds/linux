@@ -92,6 +92,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 lvds_reg, tmp, flags = 0;
+	int dotclock;
 
 	if (HAS_PCH_SPLIT(dev))
 		lvds_reg = PCH_LVDS;
@@ -116,6 +117,13 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 
 		pipe_config->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
 	}
+
+	dotclock = pipe_config->port_clock;
+
+	if (HAS_PCH_SPLIT(dev_priv->dev))
+		ironlake_check_encoder_dotclock(pipe_config, dotclock);
+
+	pipe_config->adjusted_mode.clock = dotclock;
 }
 
 /* The LVDS pin pair needs to be on before the DPLLs are enabled.

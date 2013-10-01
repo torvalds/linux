@@ -65,6 +65,8 @@ show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6p_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6p);
+	if (IS_VALLEYVIEW(dminor->dev))
+		rc6p_residency = 0;
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6p_residency);
 }
 
@@ -73,6 +75,8 @@ show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6pp_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6pp);
+	if (IS_VALLEYVIEW(dminor->dev))
+		rc6pp_residency = 0;
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6pp_residency);
 }
 
@@ -97,7 +101,7 @@ static struct attribute_group rc6_attr_group = {
 
 static int l3_access_valid(struct drm_device *dev, loff_t offset)
 {
-	if (!HAS_L3_GPU_CACHE(dev))
+	if (!HAS_L3_DPF(dev))
 		return -EPERM;
 
 	if (offset % 4 != 0)
@@ -118,28 +122,31 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
-	uint32_t misccpctl;
-	int i, ret;
+	int slice = (int)(uintptr_t)attr->private;
+	int ret;
+
+	count = round_down(count, 4);
 
 	ret = l3_access_valid(drm_dev, offset);
 	if (ret)
 		return ret;
 
+	count = min_t(size_t, GEN7_L3LOG_SIZE - offset, count);
+
 	ret = i915_mutex_lock_interruptible(drm_dev);
 	if (ret)
 		return ret;
 
-	misccpctl = I915_READ(GEN7_MISCCPCTL);
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
-
-	for (i = offset; count >= 4 && i < GEN7_L3LOG_SIZE; i += 4, count -= 4)
-		*((uint32_t *)(&buf[i])) = I915_READ(GEN7_L3LOG_BASE + i);
-
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
+	if (dev_priv->l3_parity.remap_info[slice])
+		memcpy(buf,
+		       dev_priv->l3_parity.remap_info[slice] + (offset/4),
+		       count);
+	else
+		memset(buf, 0, count);
 
 	mutex_unlock(&drm_dev->struct_mutex);
 
-	return i - offset;
+	return count;
 }
 
 static ssize_t
@@ -151,18 +158,23 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	struct i915_hw_context *ctx;
 	u32 *temp = NULL; /* Just here to make handling failures easy */
+	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
 	ret = l3_access_valid(drm_dev, offset);
 	if (ret)
 		return ret;
 
+	if (dev_priv->hw_contexts_disabled)
+		return -ENXIO;
+
 	ret = i915_mutex_lock_interruptible(drm_dev);
 	if (ret)
 		return ret;
 
-	if (!dev_priv->l3_parity.remap_info) {
+	if (!dev_priv->l3_parity.remap_info[slice]) {
 		temp = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
 		if (!temp) {
 			mutex_unlock(&drm_dev->struct_mutex);
@@ -182,13 +194,13 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	 * at this point it is left as a TODO.
 	*/
 	if (temp)
-		dev_priv->l3_parity.remap_info = temp;
+		dev_priv->l3_parity.remap_info[slice] = temp;
 
-	memcpy(dev_priv->l3_parity.remap_info + (offset/4),
-	       buf + (offset/4),
-	       count);
+	memcpy(dev_priv->l3_parity.remap_info[slice] + (offset/4), buf, count);
 
-	i915_gem_l3_remap(drm_dev);
+	/* NB: We defer the remapping until we switch to the context */
+	list_for_each_entry(ctx, &dev_priv->context_list, link)
+		ctx->remap_slice |= (1<<slice);
 
 	mutex_unlock(&drm_dev->struct_mutex);
 
@@ -200,7 +212,17 @@ static struct bin_attribute dpf_attrs = {
 	.size = GEN7_L3LOG_SIZE,
 	.read = i915_l3_read,
 	.write = i915_l3_write,
-	.mmap = NULL
+	.mmap = NULL,
+	.private = (void *)0
+};
+
+static struct bin_attribute dpf_attrs_1 = {
+	.attr = {.name = "l3_parity_slice_1", .mode = (S_IRUSR | S_IWUSR)},
+	.size = GEN7_L3LOG_SIZE,
+	.read = i915_l3_read,
+	.write = i915_l3_write,
+	.mmap = NULL,
+	.private = (void *)1
 };
 
 static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
@@ -507,10 +529,17 @@ void i915_setup_sysfs(struct drm_device *dev)
 			DRM_ERROR("RC6 residency sysfs setup failed\n");
 	}
 #endif
-	if (HAS_L3_GPU_CACHE(dev)) {
+	if (HAS_L3_DPF(dev)) {
 		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
 		if (ret)
 			DRM_ERROR("l3 parity sysfs setup failed\n");
+
+		if (NUM_L3_SLICES(dev) > 1) {
+			ret = device_create_bin_file(&dev->primary->kdev,
+						     &dpf_attrs_1);
+			if (ret)
+				DRM_ERROR("l3 parity slice 1 setup failed\n");
+		}
 	}
 
 	ret = 0;
@@ -534,6 +563,7 @@ void i915_teardown_sysfs(struct drm_device *dev)
 		sysfs_remove_files(&dev->primary->kdev.kobj, vlv_attrs);
 	else
 		sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
+	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs_1);
 	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
 #ifdef CONFIG_PM
 	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);

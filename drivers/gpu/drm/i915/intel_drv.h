@@ -93,12 +93,16 @@
 #define INTEL_OUTPUT_HDMI 6
 #define INTEL_OUTPUT_DISPLAYPORT 7
 #define INTEL_OUTPUT_EDP 8
-#define INTEL_OUTPUT_UNKNOWN 9
+#define INTEL_OUTPUT_DSI 9
+#define INTEL_OUTPUT_UNKNOWN 10
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
 #define INTEL_DVO_CHIP_TMDS 2
 #define INTEL_DVO_CHIP_TVOUT 4
+
+#define INTEL_DSI_COMMAND_MODE	0
+#define INTEL_DSI_VIDEO_MODE	1
 
 struct intel_framebuffer {
 	struct drm_framebuffer base;
@@ -207,8 +211,21 @@ struct intel_crtc_config {
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS (1<<0) /* unreliable sync mode.flags */
 	unsigned long quirks;
 
+	/* User requested mode, only valid as a starting point to
+	 * compute adjusted_mode, except in the case of (S)DVO where
+	 * it's also for the output timings of the (S)DVO chip.
+	 * adjusted_mode will then correspond to the S(DVO) chip's
+	 * preferred input timings. */
 	struct drm_display_mode requested_mode;
+	/* Actual pipe timings ie. what we program into the pipe timing
+	 * registers. adjusted_mode.clock is the pipe pixel clock. */
 	struct drm_display_mode adjusted_mode;
+
+	/* Pipe source size (ie. panel fitter input size)
+	 * All planes will be positioned inside this space,
+	 * and get clipped at the edges. */
+	int pipe_src_w, pipe_src_h;
+
 	/* Whether to set up the PCH/FDI. Note that we never allow sharing
 	 * between pch encoders and cpu encoders. */
 	bool has_pch_encoder;
@@ -262,7 +279,8 @@ struct intel_crtc_config {
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
-	 * adjusted dotclock e.g. for DP or 12bpc hdmi mode.
+	 * adjusted dotclock e.g. for DP or 12bpc hdmi mode. This is also
+	 * already multiplied by pixel_multiplier.
 	 */
 	int port_clock;
 
@@ -288,6 +306,8 @@ struct intel_crtc_config {
 	struct intel_link_m_n fdi_m_n;
 
 	bool ips_enabled;
+
+	bool double_wide;
 };
 
 struct intel_crtc {
@@ -522,6 +542,7 @@ extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
 			       struct intel_ring_buffer *ring);
 extern void intel_mark_idle(struct drm_device *dev);
 extern void intel_lvds_init(struct drm_device *dev);
+extern bool intel_dsi_init(struct drm_device *dev);
 extern bool intel_is_dual_link_lvds(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int output_reg,
 			  enum port port);
@@ -708,9 +729,10 @@ extern void intel_write_eld(struct drm_encoder *encoder,
 extern void intel_prepare_ddi(struct drm_device *dev);
 extern void hsw_fdi_link_train(struct drm_crtc *crtc);
 extern void intel_ddi_init(struct drm_device *dev, enum port port);
+extern enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder);
 
 /* For use by IVB LP watermark workaround in intel_sprite.c */
-extern void intel_update_watermarks(struct drm_device *dev);
+extern void intel_update_watermarks(struct drm_crtc *crtc);
 extern void intel_update_sprite_watermarks(struct drm_plane *plane,
 					   struct drm_crtc *crtc,
 					   uint32_t sprite_width, int pixel_size,
@@ -741,8 +763,13 @@ extern void i915_remove_power_well(struct drm_device *dev);
 
 extern bool intel_display_power_enabled(struct drm_device *dev,
 					enum intel_display_power_domain domain);
+extern void intel_display_power_get(struct drm_device *dev,
+				    enum intel_display_power_domain domain);
+extern void intel_display_power_put(struct drm_device *dev,
+				    enum intel_display_power_domain domain);
 extern void intel_init_power_well(struct drm_device *dev);
 extern void intel_set_power_well(struct drm_device *dev, bool enable);
+extern void intel_resume_power_well(struct drm_device *dev);
 extern void intel_enable_gt_powersave(struct drm_device *dev);
 extern void intel_disable_gt_powersave(struct drm_device *dev);
 extern void ironlake_teardown_rc6(struct drm_device *dev);
@@ -793,6 +820,14 @@ extern void hsw_pc8_disable_interrupts(struct drm_device *dev);
 extern void hsw_pc8_restore_interrupts(struct drm_device *dev);
 extern void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 extern void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
+extern void intel_dp_get_m_n(struct intel_crtc *crtc,
+			     struct intel_crtc_config *pipe_config);
+extern int intel_dotclock_calculate(int link_freq,
+				    const struct intel_link_m_n *m_n);
+extern void ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
+					    int dotclock);
+
+extern bool intel_crtc_active(struct drm_crtc *crtc);
 extern void i915_disable_vga_mem(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */

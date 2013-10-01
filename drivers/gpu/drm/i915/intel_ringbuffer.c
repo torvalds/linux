@@ -41,6 +41,16 @@ static inline int ring_space(struct intel_ring_buffer *ring)
 	return space;
 }
 
+void __intel_ring_advance(struct intel_ring_buffer *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
+	ring->tail &= ring->size - 1;
+	if (dev_priv->gpu_error.stop_rings & intel_ring_flag(ring))
+		return;
+	ring->write_tail(ring, ring->tail);
+}
+
 static int
 gen2_render_ring_flush(struct intel_ring_buffer *ring,
 		       u32	invalidate_domains,
@@ -559,8 +569,8 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 	if (INTEL_INFO(dev)->gen >= 6)
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
-	if (HAS_L3_GPU_CACHE(dev))
-		I915_WRITE_IMR(ring, ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
+	if (HAS_L3_DPF(dev))
+		I915_WRITE_IMR(ring, ~GT_PARITY_ERROR(dev));
 
 	return ret;
 }
@@ -593,7 +603,7 @@ update_mboxes(struct intel_ring_buffer *ring,
 #define MBOX_UPDATE_DWORDS 4
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 	intel_ring_emit(ring, mmio_offset);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, MI_NOOP);
 }
 
@@ -629,9 +639,9 @@ gen6_add_request(struct intel_ring_buffer *ring)
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
-	intel_ring_advance(ring);
+	__intel_ring_advance(ring);
 
 	return 0;
 }
@@ -723,7 +733,7 @@ pc_render_add_request(struct intel_ring_buffer *ring)
 			PIPE_CONTROL_WRITE_FLUSH |
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE);
 	intel_ring_emit(ring, ring->scratch.gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, 0);
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
 	scratch_addr += 128; /* write to separate cachelines */
@@ -742,9 +752,9 @@ pc_render_add_request(struct intel_ring_buffer *ring)
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
 			PIPE_CONTROL_NOTIFY);
 	intel_ring_emit(ring, ring->scratch.gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, 0);
-	intel_ring_advance(ring);
+	__intel_ring_advance(ring);
 
 	return 0;
 }
@@ -963,9 +973,9 @@ i9xx_add_request(struct intel_ring_buffer *ring)
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
-	intel_ring_advance(ring);
+	__intel_ring_advance(ring);
 
 	return 0;
 }
@@ -987,10 +997,10 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
-		if (HAS_L3_GPU_CACHE(dev) && ring->id == RCS)
+		if (HAS_L3_DPF(dev) && ring->id == RCS)
 			I915_WRITE_IMR(ring,
 				       ~(ring->irq_enable_mask |
-					 GT_RENDER_L3_PARITY_ERROR_INTERRUPT));
+					 GT_PARITY_ERROR(dev)));
 		else
 			I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
 		ilk_enable_gt_irq(dev_priv, ring->irq_enable_mask);
@@ -1009,9 +1019,8 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0) {
-		if (HAS_L3_GPU_CACHE(dev) && ring->id == RCS)
-			I915_WRITE_IMR(ring,
-				       ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
+		if (HAS_L3_DPF(dev) && ring->id == RCS)
+			I915_WRITE_IMR(ring, ~GT_PARITY_ERROR(dev));
 		else
 			I915_WRITE_IMR(ring, ~0);
 		ilk_disable_gt_irq(dev_priv, ring->irq_enable_mask);
@@ -1414,6 +1423,9 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 	if (ret != -ENOSPC)
 		return ret;
 
+	/* force the tail write in case we have been skipping them */
+	__intel_ring_advance(ring);
+
 	trace_i915_ring_wait_begin(ring);
 	/* With GEM the hangcheck timer should kick us out of the loop,
 	 * leaving it early runs the risk of corrupting GEM state (due
@@ -1475,7 +1487,7 @@ int intel_ring_idle(struct intel_ring_buffer *ring)
 	int ret;
 
 	/* We need to add any requests required to flush the objects and ring */
-	if (ring->outstanding_lazy_request) {
+	if (ring->outstanding_lazy_seqno) {
 		ret = i915_add_request(ring, NULL);
 		if (ret)
 			return ret;
@@ -1495,10 +1507,20 @@ int intel_ring_idle(struct intel_ring_buffer *ring)
 static int
 intel_ring_alloc_seqno(struct intel_ring_buffer *ring)
 {
-	if (ring->outstanding_lazy_request)
+	if (ring->outstanding_lazy_seqno)
 		return 0;
 
-	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_request);
+	if (ring->preallocated_lazy_request == NULL) {
+		struct drm_i915_gem_request *request;
+
+		request = kmalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return -ENOMEM;
+
+		ring->preallocated_lazy_request = request;
+	}
+
+	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
 }
 
 static int __intel_ring_begin(struct intel_ring_buffer *ring,
@@ -1545,7 +1567,7 @@ void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
-	BUG_ON(ring->outstanding_lazy_request);
+	BUG_ON(ring->outstanding_lazy_seqno);
 
 	if (INTEL_INFO(ring->dev)->gen >= 6) {
 		I915_WRITE(RING_SYNC_0(ring->mmio_base), 0);
@@ -1557,17 +1579,6 @@ void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
 	ring->set_seqno(ring, seqno);
 	ring->hangcheck.seqno = seqno;
 }
-
-void intel_ring_advance(struct intel_ring_buffer *ring)
-{
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-
-	ring->tail &= ring->size - 1;
-	if (dev_priv->gpu_error.stop_rings & intel_ring_flag(ring))
-		return;
-	ring->write_tail(ring, ring->tail);
-}
-
 
 static void gen6_bsd_ring_write_tail(struct intel_ring_buffer *ring,
 				     u32 value)

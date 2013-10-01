@@ -1068,7 +1068,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 
 static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_config *pipe_config)
 {
-	unsigned dotclock = pipe_config->adjusted_mode.clock;
+	unsigned dotclock = pipe_config->port_clock;
 	struct dpll *clock = &pipe_config->dpll;
 
 	/* SDVO TV has fixed PLL values depend on its clock range,
@@ -1133,7 +1133,6 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	 */
 	pipe_config->pixel_multiplier =
 		intel_sdvo_get_pixel_multiplier(adjusted_mode);
-	adjusted_mode->clock *= pipe_config->pixel_multiplier;
 
 	if (intel_sdvo->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
@@ -1217,11 +1216,7 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 	    !intel_sdvo_set_tv_format(intel_sdvo))
 		return;
 
-	/* We have tried to get input timing in mode_fixup, and filled into
-	 * adjusted_mode.
-	 */
 	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
-	input_dtd.part1.clock /= crtc->config.pixel_multiplier;
 
 	if (intel_sdvo->is_tv || intel_sdvo->is_lvds)
 		input_dtd.part2.sdvo_flags = intel_sdvo->dtd_sdvo_flags;
@@ -1330,6 +1325,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct intel_sdvo_dtd dtd;
 	int encoder_pixel_multiplier = 0;
+	int dotclock;
 	u32 flags = 0, sdvox;
 	u8 val;
 	bool ret;
@@ -1367,6 +1363,13 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 			((sdvox & SDVO_PORT_MULTIPLY_MASK)
 			 >> SDVO_PORT_MULTIPLY_SHIFT) + 1;
 	}
+
+	dotclock = pipe_config->port_clock / pipe_config->pixel_multiplier;
+
+	if (HAS_PCH_SPLIT(dev))
+		ironlake_check_encoder_dotclock(pipe_config, dotclock);
+
+	pipe_config->adjusted_mode.clock = dotclock;
 
 	/* Cross check the port pixel multiplier with the sdvo encoder state. */
 	if (intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_CLOCK_RATE_MULT,

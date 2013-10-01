@@ -576,10 +576,19 @@ static void intel_resume_hotplug(struct drm_device *dev)
 	drm_helper_hpd_irq_event(dev);
 }
 
-static int __i915_drm_thaw(struct drm_device *dev)
+static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
+
+	intel_uncore_sanitize(dev);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
+	    restore_gtt_mappings) {
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_restore_gtt_mappings(dev);
+		mutex_unlock(&dev->struct_mutex);
+	}
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
@@ -595,6 +604,8 @@ static int __i915_drm_thaw(struct drm_device *dev)
 
 		/* We need working interrupts for modeset enabling ... */
 		drm_irq_install(dev);
+
+		intel_init_power_well(dev);
 
 		intel_modeset_init_hw(dev);
 
@@ -640,19 +651,7 @@ static int __i915_drm_thaw(struct drm_device *dev)
 
 static int i915_drm_thaw(struct drm_device *dev)
 {
-	int error = 0;
-
-	intel_uncore_sanitize(dev);
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_restore_gtt_mappings(dev);
-		mutex_unlock(&dev->struct_mutex);
-	}
-
-	__i915_drm_thaw(dev);
-
-	return error;
+	return __i915_drm_thaw(dev, true);
 }
 
 int i915_resume(struct drm_device *dev)
@@ -668,20 +667,12 @@ int i915_resume(struct drm_device *dev)
 
 	pci_set_master(dev->pdev);
 
-	intel_uncore_sanitize(dev);
-
 	/*
 	 * Platforms with opregion should have sane BIOS, older ones (gen3 and
-	 * earlier) need this since the BIOS might clear all our scratch PTEs.
+	 * earlier) need to restore the GTT mappings since the BIOS might clear
+	 * all our scratch PTEs.
 	 */
-	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
-	    !dev_priv->opregion.header) {
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_restore_gtt_mappings(dev);
-		mutex_unlock(&dev->struct_mutex);
-	}
-
-	ret = __i915_drm_thaw(dev);
+	ret = __i915_drm_thaw(dev, !dev_priv->opregion.header);
 	if (ret)
 		return ret;
 
@@ -719,24 +710,19 @@ int i915_reset(struct drm_device *dev)
 
 	simulated = dev_priv->gpu_error.stop_rings != 0;
 
-	if (!simulated && get_seconds() - dev_priv->gpu_error.last_reset < 5) {
-		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
-		ret = -ENODEV;
-	} else {
-		ret = intel_gpu_reset(dev);
+	ret = intel_gpu_reset(dev);
 
-		/* Also reset the gpu hangman. */
-		if (simulated) {
-			DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
-			dev_priv->gpu_error.stop_rings = 0;
-			if (ret == -ENODEV) {
-				DRM_ERROR("Reset not implemented, but ignoring "
-					  "error for simulated gpu hangs\n");
-				ret = 0;
-			}
-		} else
-			dev_priv->gpu_error.last_reset = get_seconds();
+	/* Also reset the gpu hangman. */
+	if (simulated) {
+		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
+		dev_priv->gpu_error.stop_rings = 0;
+		if (ret == -ENODEV) {
+			DRM_ERROR("Reset not implemented, but ignoring "
+				  "error for simulated gpu hangs\n");
+			ret = 0;
+		}
 	}
+
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
 		mutex_unlock(&dev->struct_mutex);
@@ -798,6 +784,12 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
+
+	if (IS_PRELIMINARY_HW(intel_info) && !i915_preliminary_hw_support) {
+		DRM_INFO("This hardware requires preliminary hardware support.\n"
+			 "See CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT, and/or modparam preliminary_hw_support\n");
+		return -ENODEV;
+	}
 
 	/* Only bind to function 0 of the device. Early generations
 	 * used function 1 as a placeholder for multi-head. This causes

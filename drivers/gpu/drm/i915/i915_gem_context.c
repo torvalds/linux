@@ -73,7 +73,7 @@
  *
  * There are two confusing terms used above:
  *  The "current context" means the context which is currently running on the
- *  GPU. The GPU has loaded it's state already and has stored away the gtt
+ *  GPU. The GPU has loaded its state already and has stored away the gtt
  *  offset of the BO. The GPU is not actively referencing the data at this
  *  offset, but it will on the next context switch. The only way to avoid this
  *  is to do a GPU reset.
@@ -129,6 +129,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	struct i915_hw_context *ctx = container_of(ctx_ref,
 						   typeof(*ctx), ref);
 
+	list_del(&ctx->link);
 	drm_gem_object_unreference(&ctx->obj->base);
 	kfree(ctx);
 }
@@ -147,6 +148,7 @@ create_hw_context(struct drm_device *dev,
 
 	kref_init(&ctx->ref);
 	ctx->obj = i915_gem_alloc_object(dev, dev_priv->hw_context_size);
+	INIT_LIST_HEAD(&ctx->link);
 	if (ctx->obj == NULL) {
 		kfree(ctx);
 		DRM_DEBUG_DRIVER("Context object allocated failed\n");
@@ -166,6 +168,7 @@ create_hw_context(struct drm_device *dev,
 	 * assertion in the context switch code.
 	 */
 	ctx->ring = &dev_priv->ring[RCS];
+	list_add_tail(&ctx->link, &dev_priv->context_list);
 
 	/* Default context will never have a file_priv */
 	if (file_priv == NULL)
@@ -178,6 +181,10 @@ create_hw_context(struct drm_device *dev,
 
 	ctx->file_priv = file_priv;
 	ctx->id = ret;
+	/* NB: Mark all slices as needing a remap so that when the context first
+	 * loads it will restore whatever remap state already exists. If there
+	 * is no remap info, it will be a NOP. */
+	ctx->remap_slice = (1 << NUM_L3_SLICES(dev)) - 1;
 
 	return ctx;
 
@@ -393,11 +400,11 @@ static int do_switch(struct i915_hw_context *to)
 	struct intel_ring_buffer *ring = to->ring;
 	struct i915_hw_context *from = ring->last_context;
 	u32 hw_flags = 0;
-	int ret;
+	int ret, i;
 
 	BUG_ON(from != NULL && from->obj != NULL && from->obj->pin_count == 0);
 
-	if (from == to)
+	if (from == to && !to->remap_slice)
 		return 0;
 
 	ret = i915_gem_obj_ggtt_pin(to->obj, CONTEXT_ALIGN, false, false);
@@ -420,13 +427,23 @@ static int do_switch(struct i915_hw_context *to)
 
 	if (!to->is_initialized || is_default_context(to))
 		hw_flags |= MI_RESTORE_INHIBIT;
-	else if (WARN_ON_ONCE(from == to)) /* not yet expected */
-		hw_flags |= MI_FORCE_RESTORE;
 
 	ret = mi_set_context(ring, to, hw_flags);
 	if (ret) {
 		i915_gem_object_unpin(to->obj);
 		return ret;
+	}
+
+	for (i = 0; i < MAX_L3_SLICES; i++) {
+		if (!(to->remap_slice & (1<<i)))
+			continue;
+
+		ret = i915_gem_l3_remap(ring, i);
+		/* If it failed, try again next round */
+		if (ret)
+			DRM_DEBUG_DRIVER("L3 remapping failed\n");
+		else
+			to->remap_slice &= ~(1<<i);
 	}
 
 	/* The backing object for the context is done after switching to the
@@ -451,17 +468,7 @@ static int do_switch(struct i915_hw_context *to)
 		from->obj->dirty = 1;
 		BUG_ON(from->obj->ring != ring);
 
-		ret = i915_add_request(ring, NULL);
-		if (ret) {
-			/* Too late, we've already scheduled a context switch.
-			 * Try to undo the change so that the hw state is
-			 * consistent with out tracking. In case of emergency,
-			 * scream.
-			 */
-			WARN_ON(mi_set_context(ring, from, MI_RESTORE_INHIBIT));
-			return ret;
-		}
-
+		/* obj is kept alive until the next request by its active ref */
 		i915_gem_object_unpin(from->obj);
 		i915_gem_context_unreference(from);
 	}
