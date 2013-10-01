@@ -57,7 +57,6 @@
 
 struct dw8250_data {
 	u8			usr_reg;
-	int			last_lcr;
 	int			last_mcr;
 	int			line;
 	struct clk		*clk;
@@ -77,17 +76,33 @@ static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 	return value;
 }
 
+static void dw8250_force_idle(struct uart_port *p)
+{
+	serial8250_clear_and_reinit_fifos(container_of
+					  (p, struct uart_8250_port, port));
+	(void)p->serial_in(p, UART_RX);
+}
+
 static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 {
 	struct dw8250_data *d = p->private_data;
-
-	if (offset == UART_LCR)
-		d->last_lcr = value;
 
 	if (offset == UART_MCR)
 		d->last_mcr = value;
 
 	writeb(value, p->membase + (offset << p->regshift));
+
+	/* Make sure LCR write wasn't ignored */
+	if (offset == UART_LCR) {
+		int tries = 1000;
+		while (tries--) {
+			if (value == p->serial_in(p, UART_LCR))
+				return;
+			dw8250_force_idle(p);
+			writeb(value, p->membase + (UART_LCR << p->regshift));
+		}
+		dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+	}
 }
 
 static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
@@ -108,13 +123,22 @@ static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 {
 	struct dw8250_data *d = p->private_data;
 
-	if (offset == UART_LCR)
-		d->last_lcr = value;
-
 	if (offset == UART_MCR)
 		d->last_mcr = value;
 
 	writel(value, p->membase + (offset << p->regshift));
+
+	/* Make sure LCR write wasn't ignored */
+	if (offset == UART_LCR) {
+		int tries = 1000;
+		while (tries--) {
+			if (value == p->serial_in(p, UART_LCR))
+				return;
+			dw8250_force_idle(p);
+			writel(value, p->membase + (UART_LCR << p->regshift));
+		}
+		dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+	}
 }
 
 static unsigned int dw8250_serial_in32(struct uart_port *p, int offset)
@@ -132,9 +156,8 @@ static int dw8250_handle_irq(struct uart_port *p)
 	if (serial8250_handle_irq(p, iir)) {
 		return 1;
 	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
-		/* Clear the USR and write the LCR again. */
+		/* Clear the USR */
 		(void)p->serial_in(p, d->usr_reg);
-		p->serial_out(p, UART_LCR, d->last_lcr);
 
 		return 1;
 	}
