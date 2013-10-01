@@ -1251,12 +1251,51 @@ static int davinci_mcasp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int davinci_mcasp_suspend(struct device *dev)
+{
+	struct davinci_audio_dev *a = dev_get_drvdata(dev);
+	void __iomem *base = a->base;
+
+	a->context.txfmtctl = mcasp_get_reg(base + DAVINCI_MCASP_TXFMCTL_REG);
+	a->context.rxfmtctl = mcasp_get_reg(base + DAVINCI_MCASP_RXFMCTL_REG);
+	a->context.txfmt = mcasp_get_reg(base + DAVINCI_MCASP_TXFMT_REG);
+	a->context.rxfmt = mcasp_get_reg(base + DAVINCI_MCASP_RXFMT_REG);
+	a->context.aclkxctl = mcasp_get_reg(base + DAVINCI_MCASP_ACLKXCTL_REG);
+	a->context.aclkrctl = mcasp_get_reg(base + DAVINCI_MCASP_ACLKRCTL_REG);
+	a->context.pdir = mcasp_get_reg(base + DAVINCI_MCASP_PDIR_REG);
+
+	return 0;
+}
+
+static int davinci_mcasp_resume(struct device *dev)
+{
+	struct davinci_audio_dev *a = dev_get_drvdata(dev);
+	void __iomem *base = a->base;
+
+	mcasp_set_reg(base + DAVINCI_MCASP_TXFMCTL_REG, a->context.txfmtctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_RXFMCTL_REG, a->context.rxfmtctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_TXFMT_REG, a->context.txfmt);
+	mcasp_set_reg(base + DAVINCI_MCASP_RXFMT_REG, a->context.rxfmt);
+	mcasp_set_reg(base + DAVINCI_MCASP_ACLKXCTL_REG, a->context.aclkxctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_ACLKRCTL_REG, a->context.aclkrctl);
+	mcasp_set_reg(base + DAVINCI_MCASP_PDIR_REG, a->context.pdir);
+
+	return 0;
+}
+#endif
+
+SIMPLE_DEV_PM_OPS(davinci_mcasp_pm_ops,
+		  davinci_mcasp_suspend,
+		  davinci_mcasp_resume);
+
 static struct platform_driver davinci_mcasp_driver = {
 	.probe		= davinci_mcasp_probe,
 	.remove		= davinci_mcasp_remove,
 	.driver		= {
 		.name	= "davinci-mcasp",
 		.owner	= THIS_MODULE,
+		.pm	= &davinci_mcasp_pm_ops,
 		.of_match_table = mcasp_dt_ids,
 	},
 };
