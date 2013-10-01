@@ -1052,7 +1052,7 @@ error_seg_submit:
  * result never kicks in, the xfer will timeout from the USB code and
  * dequeue() will be called.
  */
-static void wa_urb_enqueue_b(struct wa_xfer *xfer)
+static int wa_urb_enqueue_b(struct wa_xfer *xfer)
 {
 	int result;
 	unsigned long flags;
@@ -1063,18 +1063,22 @@ static void wa_urb_enqueue_b(struct wa_xfer *xfer)
 	unsigned done;
 
 	result = rpipe_get_by_ep(wa, xfer->ep, urb, xfer->gfp);
-	if (result < 0)
+	if (result < 0) {
+		pr_err("%s: error_rpipe_get\n", __func__);
 		goto error_rpipe_get;
+	}
 	result = -ENODEV;
 	/* FIXME: segmentation broken -- kills DWA */
 	mutex_lock(&wusbhc->mutex);		/* get a WUSB dev */
 	if (urb->dev == NULL) {
 		mutex_unlock(&wusbhc->mutex);
+		pr_err("%s: error usb dev gone\n", __func__);
 		goto error_dev_gone;
 	}
 	wusb_dev = __wusb_dev_get_by_usb_dev(wusbhc, urb->dev);
 	if (wusb_dev == NULL) {
 		mutex_unlock(&wusbhc->mutex);
+		pr_err("%s: error wusb dev gone\n", __func__);
 		goto error_dev_gone;
 	}
 	mutex_unlock(&wusbhc->mutex);
@@ -1082,21 +1086,28 @@ static void wa_urb_enqueue_b(struct wa_xfer *xfer)
 	spin_lock_irqsave(&xfer->lock, flags);
 	xfer->wusb_dev = wusb_dev;
 	result = urb->status;
-	if (urb->status != -EINPROGRESS)
+	if (urb->status != -EINPROGRESS) {
+		pr_err("%s: error_dequeued\n", __func__);
 		goto error_dequeued;
+	}
 
 	result = __wa_xfer_setup(xfer, urb);
-	if (result < 0)
+	if (result < 0) {
+		pr_err("%s: error_xfer_setup\n", __func__);
 		goto error_xfer_setup;
+	}
 	result = __wa_xfer_submit(xfer);
-	if (result < 0)
+	if (result < 0) {
+		pr_err("%s: error_xfer_submit\n", __func__);
 		goto error_xfer_submit;
+	}
 	spin_unlock_irqrestore(&xfer->lock, flags);
-	return;
+	return 0;
 
-	/* this is basically wa_xfer_completion() broken up wa_xfer_giveback()
-	 * does a wa_xfer_put() that will call wa_xfer_destroy() and clean
-	 * upundo setup().
+	/*
+	 * this is basically wa_xfer_completion() broken up wa_xfer_giveback()
+	 * does a wa_xfer_put() that will call wa_xfer_destroy() and undo
+	 * setup().
 	 */
 error_xfer_setup:
 error_dequeued:
@@ -1108,8 +1119,7 @@ error_dev_gone:
 	rpipe_put(xfer->ep->hcpriv);
 error_rpipe_get:
 	xfer->result = result;
-	wa_xfer_giveback(xfer);
-	return;
+	return result;
 
 error_xfer_submit:
 	done = __wa_xfer_is_done(xfer);
@@ -1117,6 +1127,8 @@ error_xfer_submit:
 	spin_unlock_irqrestore(&xfer->lock, flags);
 	if (done)
 		wa_xfer_completion(xfer);
+	/* return success since the completion routine will run. */
+	return 0;
 }
 
 /*
@@ -1150,7 +1162,8 @@ void wa_urb_enqueue_run(struct work_struct *ws)
 		list_del_init(&xfer->list_node);
 
 		urb = xfer->urb;
-		wa_urb_enqueue_b(xfer);
+		if (wa_urb_enqueue_b(xfer) < 0)
+			wa_xfer_giveback(xfer);
 		usb_put_urb(urb);	/* taken when queuing */
 	}
 }
@@ -1256,7 +1269,19 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 		spin_unlock_irqrestore(&wa->xfer_list_lock, my_flags);
 		queue_work(wusbd, &wa->xfer_enqueue_work);
 	} else {
-		wa_urb_enqueue_b(xfer);
+		result = wa_urb_enqueue_b(xfer);
+		if (result < 0) {
+			/*
+			 * URB submit/enqueue failed.  Clean up, return an
+			 * error and do not run the callback.  This avoids
+			 * an infinite submit/complete loop.
+			 */
+			dev_err(dev, "%s: URB enqueue failed: %d\n",
+			   __func__, result);
+			wa_put(xfer->wa);
+			wa_xfer_put(xfer);
+			return result;
+		}
 	}
 	return 0;
 
