@@ -511,6 +511,25 @@ static u16 s_uGetRTSCTSDuration(struct vnt_private *pDevice, u8 byDurType,
 	return cpu_to_le16((u16)uDurTime);
 }
 
+static u16 vnt_rxtx_datahead_g(struct vnt_private *priv, u8 pkt_type, u16 rate,
+		struct vnt_tx_datahead_g *buf, u32 frame_len, int need_ack)
+{
+	/* Get SignalField,ServiceField,Length */
+	BBvCalculateParameter(priv, frame_len, rate, pkt_type, &buf->a);
+	BBvCalculateParameter(priv, frame_len, priv->byTopCCKBasicRate,
+							PK_TYPE_11B, &buf->b);
+
+	/* Get Duration and TimeStamp */
+	buf->wDuration_a = s_uGetDataDuration(priv, pkt_type, need_ack);
+	buf->wDuration_b = s_uGetDataDuration(priv, PK_TYPE_11B, need_ack);
+
+	buf->wTimeStampOff_a = vnt_time_stamp_off(priv, rate);
+	buf->wTimeStampOff_b = vnt_time_stamp_off(priv,
+					priv->byTopCCKBasicRate);
+
+	return buf->wDuration_a;
+}
+
 static u32 s_uFillDataHead(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate, void *pTxDataHead, u32 cbFrameLength,
 	u32 uDMAIdx, int bNeedAck, u8 byFBOption)
@@ -522,24 +541,7 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
             if (byFBOption == AUTO_FB_NONE) {
-		struct vnt_tx_datahead_g *pBuf =
-				(struct vnt_tx_datahead_g *)pTxDataHead;
-                //Get SignalField,ServiceField,Length
-		BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate,
-			byPktType, &pBuf->a);
-		BBvCalculateParameter(pDevice, cbFrameLength,
-			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
-                //Get Duration and TimeStamp
-		pBuf->wDuration_a = s_uGetDataDuration(pDevice,
-							byPktType, bNeedAck);
-		pBuf->wDuration_b = s_uGetDataDuration(pDevice,
-							PK_TYPE_11B, bNeedAck);
-
-		pBuf->wTimeStampOff_a =	vnt_time_stamp_off(pDevice,
-								wCurrentRate);
-		pBuf->wTimeStampOff_b = vnt_time_stamp_off(pDevice,
-						pDevice->byTopCCKBasicRate);
-                return (pBuf->wDuration_a);
+		;
              } else {
                 // Auto Fallback
 		struct vnt_tx_datahead_g_fb *pBuf =
@@ -653,7 +655,8 @@ static u16 vnt_rxtx_rts_g_head(struct vnt_private *priv,
 
 	vnt_fill_ieee80211_rts(priv, &buf->data, eth_hdr, buf->wDuration_aa);
 
-	return 0;
+	return vnt_rxtx_datahead_g(priv, pkt_type, current_rate,
+			&buf->data_head, frame_len, need_ack);
 }
 
 static u16 vnt_rxtx_rts_g_fb_head(struct vnt_private *priv,
@@ -750,7 +753,7 @@ static u16 s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 	case PK_TYPE_11GB:
 	case PK_TYPE_11GA:
 		if (byFBOption == AUTO_FB_NONE)
-			vnt_rxtx_rts_g_head(pDevice, &head->rts_g,
+			return vnt_rxtx_rts_g_head(pDevice, &head->rts_g,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
 		else
@@ -817,6 +820,9 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 		pBuf->data.duration = pBuf->wDuration_ba;
 		pBuf->data.frame_control = TYPE_CTL_CTS;
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
+
+		return vnt_rxtx_datahead_g(pDevice, byPktType, wCurrentRate,
+				&pBuf->data_head, cbFrameLength, bNeedAck);
         }
 
 	return 0;
@@ -898,7 +904,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 		}
 
 		/* Fill RTS */
-		s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
+		return s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
 			bNeedACK, psEthHeader, wCurrentRate, byFBOption);
         }
         else {//RTS_needless, PCF mode
@@ -921,7 +927,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 		}
 
 		/* Fill CTS */
-		s_vFillCTSHead(pDevice, uDMAIdx, byPktType, head,
+		return s_vFillCTSHead(pDevice, uDMAIdx, byPktType, head,
 			cbFrameSize, bNeedACK, wCurrentRate, byFBOption);
         }
     }
@@ -1153,20 +1159,12 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
         if (byFBOption == AUTO_FB_NONE) {
             if (bRTS == true) {//RTS_need
-		pvTxDataHd = (struct vnt_tx_datahead_g *) (pbyTxBufferAddr +
-			wTxBufSize + sizeof(struct vnt_rrv_time_rts) +
-				cbMICHDR + sizeof(struct vnt_rts_g));
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_rts) +
-			cbMICHDR + sizeof(struct vnt_rts_g) +
-				sizeof(struct vnt_tx_datahead_g);
+			cbMICHDR + sizeof(struct vnt_rts_g);
             }
             else { //RTS_needless
-		pvTxDataHd = (struct vnt_tx_datahead_g *)(pbyTxBufferAddr +
-			wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
-				cbMICHDR + sizeof(struct vnt_cts));
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
-			cbMICHDR + sizeof(struct vnt_cts) +
-				sizeof(struct vnt_tx_datahead_g);
+			cbMICHDR + sizeof(struct vnt_cts);
             }
         } else {
             // Auto Fall Back
@@ -1235,13 +1233,13 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     //uDMAIdx = TYPE_AC0DMA;
     //pTxBufHead = (PSTxBufHead) &(pTxBufHead->adwTxKey[0]);
 
-    //Fill FIFO,RrvTime,RTS,and CTS
-    s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
-		tx_buffer, &pMICHDR, cbMICHDR,
-		cbFrameSize, bNeedACK, uDMAIdx, psEthHeader, bRTS);
+	/* Fill FIFO, RrvTime, RTS and CTS */
+	uDuration = s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
+			tx_buffer, &pMICHDR, cbMICHDR,
+			cbFrameSize, bNeedACK, uDMAIdx, psEthHeader, bRTS);
     //Fill DataHead
-    uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, uDMAIdx, bNeedACK,
-				byFBOption);
+    uDuration |= s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd,
+		cbFrameSize, uDMAIdx, bNeedACK,	byFBOption);
     // Generate TX MAC Header
     s_vGenerateMACHeader(pDevice, pbyMacHdr, (u16)uDuration, psEthHeader, bNeedEncryption,
                            byFragType, uDMAIdx, 0);
@@ -1607,10 +1605,8 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 
     //Set RrvTime/RTS/CTS Buffer
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
-	pvTxDataHd = (struct vnt_tx_datahead_g *)(pbyTxBufferAddr + wTxBufSize +
-		sizeof(struct vnt_rrv_time_cts) + sizeof(struct vnt_cts));
 	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
-		sizeof(struct vnt_cts) + sizeof(struct vnt_tx_datahead_g);
+		sizeof(struct vnt_cts);
     }
     else { // 802.11a/b packet
 	pvTxDataHd = (struct vnt_tx_datahead_ab *) (pbyTxBufferAddr +
@@ -1631,13 +1627,13 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     pTxBufHead->wFragCtl |= (u16)FRAGCTL_NONFRAG;
 
 	/* Fill FIFO,RrvTime,RTS,and CTS */
-	s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
+	uDuration = s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
 		pTX_Buffer, &pMICHDR, 0,
 		cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader, false);
 
     //Fill DataHead
-    uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, TYPE_TXDMA0, bNeedACK,
-				AUTO_FB_NONE);
+    uDuration |= s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd,
+		cbFrameSize, TYPE_TXDMA0, bNeedACK, AUTO_FB_NONE);
 
     pMACHeader = (struct ieee80211_hdr *) (pbyTxBufferAddr + cbHeaderSize);
 
@@ -1701,9 +1697,11 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         // in the same place of other packet's Duration-field).
         // And it will cause Cisco-AP to issue Disassociation-packet
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-		((struct vnt_tx_datahead_g *)pvTxDataHd)->wDuration_a =
+		struct vnt_tx_datahead_g *data_head = &pTX_Buffer->tx_head.
+						tx_cts.tx.head.cts_g.data_head;
+		data_head->wDuration_a =
 			cpu_to_le16(pPacket->p80211Header->sA2.wDurationID);
-		((struct vnt_tx_datahead_g *)pvTxDataHd)->wDuration_b =
+		data_head->wDuration_b =
 			cpu_to_le16(pPacket->p80211Header->sA2.wDurationID);
 	} else {
 		((struct vnt_tx_datahead_ab *)pvTxDataHd)->wDuration =
@@ -2010,11 +2008,8 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     //the rest of pTxBufHead->wFragCtl:FragTyp will be set later in s_vFillFragParameter()
 
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
-	pvTxDataHd = (struct vnt_tx_datahead_g *) (pbyTxBufferAddr +
-		wTxBufSize + sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
-					sizeof(struct vnt_cts));
 	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
-		sizeof(struct vnt_cts) + sizeof(struct vnt_tx_datahead_g);
+		sizeof(struct vnt_cts);
 
     }
     else {//802.11a/b packet
@@ -2035,13 +2030,13 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     pTxBufHead->wFragCtl |= (u16)FRAGCTL_NONFRAG;
 
 	/* Fill FIFO,RrvTime,RTS,and CTS */
-	s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
+	uDuration = s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
 		pTX_Buffer, &pMICHDR, cbMICHDR,
 		cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader, false);
 
     //Fill DataHead
-    uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, TYPE_TXDMA0, bNeedACK,
-				AUTO_FB_NONE);
+    uDuration |= s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd,
+		cbFrameSize, TYPE_TXDMA0, bNeedACK, AUTO_FB_NONE);
 
     pMACHeader = (struct ieee80211_hdr *) (pbyTxBufferAddr + cbHeaderSize);
 
@@ -2151,9 +2146,11 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
         // in the same place of other packet's Duration-field).
         // And it will cause Cisco-AP to issue Disassociation-packet
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-		((struct vnt_tx_datahead_g *)pvTxDataHd)->wDuration_a =
+		struct vnt_tx_datahead_g *data_head = &pTX_Buffer->tx_head.
+						tx_cts.tx.head.cts_g.data_head;
+		data_head->wDuration_a =
 			cpu_to_le16(p80211Header->sA2.wDurationID);
-		((struct vnt_tx_datahead_g *)pvTxDataHd)->wDuration_b =
+		data_head->wDuration_b =
 			cpu_to_le16(p80211Header->sA2.wDurationID);
 	} else {
 		((struct vnt_tx_datahead_ab *)pvTxDataHd)->wDuration =

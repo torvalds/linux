@@ -117,6 +117,7 @@ struct vnt_rts_g {
 	u16 wDuration_bb;
 	u16 wReserved;
 	struct ieee80211_rts data;
+	struct vnt_tx_datahead_g data_head;
 } __packed;
 
 struct vnt_rts_g_fb {
@@ -156,6 +157,7 @@ struct vnt_cts {
 	u16 wReserved;
 	struct ieee80211_cts data;
 	u16 reserved2;
+	struct vnt_tx_datahead_g data_head;
 } __packed;
 
 struct vnt_cts_fb {
