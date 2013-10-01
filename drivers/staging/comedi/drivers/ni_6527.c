@@ -51,7 +51,7 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define ClrFilter			0x02
 #define ClrInterval			0x01
 
-#define Filter_Interval(x)			(0x08+(x))
+#define NI6527_FILT_INTERVAL_REG(x)	(0x08 + (x))
 #define Filter_Enable(x)			(0x0c+(x))
 
 #define Change_Status				0x14
@@ -93,6 +93,23 @@ struct ni6527_private {
 	unsigned int filter_enable;
 };
 
+static void ni6527_set_filter_interval(struct comedi_device *dev,
+				       unsigned int val)
+{
+	struct ni6527_private *devpriv = dev->private;
+	void __iomem *mmio = devpriv->mite->daq_io_addr;
+
+	if (val != devpriv->filter_interval) {
+		writeb(val & 0xff, mmio + NI6527_FILT_INTERVAL_REG(0));
+		writeb((val >> 8) & 0xff, mmio + NI6527_FILT_INTERVAL_REG(1));
+		writeb((val >> 16) & 0x0f, mmio + NI6527_FILT_INTERVAL_REG(2));
+
+		writeb(ClrInterval, mmio + Clear_Register);
+
+		devpriv->filter_interval = val;
+	}
+}
+
 static int ni6527_di_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -111,19 +128,7 @@ static int ni6527_di_insn_config(struct comedi_device *dev,
 		interval = (data[1] + 100) / 200;
 		data[1] = interval * 200;
 
-		if (interval != devpriv->filter_interval) {
-			writeb(interval & 0xff,
-			       devpriv->mite->daq_io_addr + Filter_Interval(0));
-			writeb((interval >> 8) & 0xff,
-			       devpriv->mite->daq_io_addr + Filter_Interval(1));
-			writeb((interval >> 16) & 0x0f,
-			       devpriv->mite->daq_io_addr + Filter_Interval(2));
-
-			writeb(ClrInterval,
-			       devpriv->mite->daq_io_addr + Clear_Register);
-
-			devpriv->filter_interval = interval;
-		}
+		ni6527_set_filter_interval(dev, interval);
 
 		devpriv->filter_enable |= 1 << chan;
 	} else {
