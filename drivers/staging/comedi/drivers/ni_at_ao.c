@@ -96,20 +96,20 @@ Configuration options:
 #define MODE1			(1 << 2)
 #define MODE0			(1 << 1)
 #define BCD			(1 << 0)
-#define ATAO_CFG1		0x0a	/* W 16 */
-#define EXTINT2EN		(1 << 15)
-#define EXTINT1EN		(1 << 14)
-#define CNTINT2EN		(1 << 13)
-#define CNTINT1EN		(1 << 12)
-#define TCINTEN			(1 << 11)
-#define CNT1SRC			(1 << 10)
-#define CNT2SRC			(1 << 9)
-#define FIFOEN			(1 << 8)
-#define GRP2WR			(1 << 7)
-#define EXTUPDEN		(1 << 6)
-#define DMARQ			(1 << 5)
-#define DMAEN			(1 << 4)
-#define CH_mask			(0xf << 0)
+#define ATAO_CFG1_REG		0x0a
+#define ATAO_CFG1_EXTINT2EN	(1 << 15)
+#define ATAO_CFG1_EXTINT1EN	(1 << 14)
+#define ATAO_CFG1_CNTINT2EN	(1 << 13)
+#define ATAO_CFG1_CNTINT1EN	(1 << 12)
+#define ATAO_CFG1_TCINTEN	(1 << 11)
+#define ATAO_CFG1_CNT1SRC	(1 << 10)
+#define ATAO_CFG1_CNT2SRC	(1 << 9)
+#define ATAO_CFG1_FIFOEN	(1 << 8)
+#define ATAO_CFG1_GRP2WR	(1 << 7)
+#define ATAO_CFG1_EXTUPDEN	(1 << 6)
+#define ATAO_CFG1_DMARQ		(1 << 5)
+#define ATAO_CFG1_DMAEN		(1 << 4)
+#define ATAO_CFG1_CH(x)		(((x) & 0xf) << 0)
 #define ATAO_STATUS		0x0a	/* R 16 */
 #define FH			(1 << 6)
 #define FE			(1 << 5)
@@ -158,7 +158,7 @@ static void atao_reset(struct comedi_device *dev)
 	/* This is the reset sequence described in the manual */
 
 	devpriv->cfg1 = 0;
-	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1);
+	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 
 	outb(RWSEL0 | MODESEL2, dev->iobase + ATAO_82C53_CNTRCMD);
 	outb(0x03, dev->iobase + ATAO_82C53_CNTR1);
@@ -172,15 +172,15 @@ static void atao_reset(struct comedi_device *dev)
 
 	inw(dev->iobase + ATAO_FIFO_CLEAR);
 
-	devpriv->cfg1 |= GRP2WR;
-	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1);
+	devpriv->cfg1 |= ATAO_CFG1_GRP2WR;
+	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 
 	outw(0, dev->iobase + ATAO_2_INT1CLR);
 	outw(0, dev->iobase + ATAO_2_INT2CLR);
 	outw(0, dev->iobase + ATAO_2_DMATCCLR);
 
-	devpriv->cfg1 &= ~GRP2WR;
-	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1);
+	devpriv->cfg1 &= ~ATAO_CFG1_GRP2WR;
+	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 }
 
 static int atao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -194,13 +194,13 @@ static int atao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	for (i = 0; i < insn->n; i++) {
 		bits = data[i] - 0x800;
 		if (chan == 0) {
-			devpriv->cfg1 |= GRP2WR;
-			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1);
+			devpriv->cfg1 |= ATAO_CFG1_GRP2WR;
+			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 		}
 		outw(bits, dev->iobase + ATAO_DACn(chan));
 		if (chan == 0) {
-			devpriv->cfg1 &= ~GRP2WR;
-			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1);
+			devpriv->cfg1 &= ~ATAO_CFG1_GRP2WR;
+			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 		}
 		devpriv->ao_readback[chan] = data[i];
 	}
