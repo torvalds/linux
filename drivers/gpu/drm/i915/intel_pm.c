@@ -4773,7 +4773,7 @@ static void g4x_disable_trickle_feed(struct drm_device *dev)
 		I915_WRITE(DSPCNTR(pipe),
 			   I915_READ(DSPCNTR(pipe)) |
 			   DISPPLANE_TRICKLE_FEED_DISABLE);
-		intel_flush_display_plane(dev_priv, pipe);
+		intel_flush_primary_plane(dev_priv, pipe);
 	}
 }
 

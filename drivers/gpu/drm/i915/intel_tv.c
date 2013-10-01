@@ -1094,7 +1094,7 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 		unsigned int xsize, ysize;
 		/* Pipe must be off here */
 		I915_WRITE(dspcntr_reg, dspcntr & ~DISPLAY_PLANE_ENABLE);
-		intel_flush_display_plane(dev_priv, intel_crtc->plane);
+		intel_flush_primary_plane(dev_priv, intel_crtc->plane);
 
 		/* Wait for vblank for the disable to take effect */
 		if (IS_GEN2(dev))
@@ -1123,7 +1123,7 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 
 		I915_WRITE(pipeconf_reg, pipeconf);
 		I915_WRITE(dspcntr_reg, dspcntr);
-		intel_flush_display_plane(dev_priv, intel_crtc->plane);
+		intel_flush_primary_plane(dev_priv, intel_crtc->plane);
 	}
 
 	j = 0;
