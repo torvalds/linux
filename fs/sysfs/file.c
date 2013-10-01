@@ -139,6 +139,70 @@ static int sysfs_seq_show(struct seq_file *sf, void *v)
 	return 0;
 }
 
+/*
+ * Read method for bin files.  As reading a bin file can have side-effects,
+ * the exact offset and bytes specified in read(2) call should be passed to
+ * the read callback making it difficult to use seq_file.  Implement
+ * simplistic custom buffering for bin files.
+ */
+static ssize_t sysfs_bin_read(struct file *file, char __user *userbuf,
+			      size_t bytes, loff_t *off)
+{
+	struct sysfs_open_file *of = sysfs_of(file);
+	struct bin_attribute *battr = of->sd->s_bin_attr.bin_attr;
+	struct kobject *kobj = of->sd->s_parent->s_dir.kobj;
+	int size = file_inode(file)->i_size;
+	int count = min_t(size_t, bytes, PAGE_SIZE);
+	loff_t offs = *off;
+	char *buf;
+
+	if (!bytes)
+		return 0;
+
+	if (size) {
+		if (offs > size)
+			return 0;
+		if (offs + count > size)
+			count = size - offs;
+	}
+
+	buf = kmalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* need of->sd for battr, its parent for kobj */
+	mutex_lock(&of->mutex);
+	if (!sysfs_get_active(of->sd)) {
+		count = -ENODEV;
+		mutex_unlock(&of->mutex);
+		goto out_free;
+	}
+
+	if (battr->read)
+		count = battr->read(file, kobj, battr, buf, offs, count);
+	else
+		count = -EIO;
+
+	sysfs_put_active(of->sd);
+	mutex_unlock(&of->mutex);
+
+	if (count < 0)
+		goto out_free;
+
+	if (copy_to_user(userbuf, buf, count)) {
+		count = -EFAULT;
+		goto out_free;
+	}
+
+	pr_debug("offs = %lld, *off = %lld, count = %d\n", offs, *off, count);
+
+	*off = offs + count;
+
+ out_free:
+	kfree(buf);
+	return count;
+}
+
 /**
  * flush_write_buffer - push buffer to kobject
  * @of: open file
@@ -495,6 +559,7 @@ const struct file_operations sysfs_file_operations = {
 };
 
 const struct file_operations sysfs_bin_operations = {
+	.read		= sysfs_bin_read,
 	.write		= sysfs_write_file,
 	.llseek		= generic_file_llseek,
 };
