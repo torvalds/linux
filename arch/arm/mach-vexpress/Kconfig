@@ -4,14 +4,12 @@ config ARCH_VEXPRESS
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_TIMER_SP804
-	select CLKDEV_LOOKUP
 	select COMMON_CLK
 	select COMMON_CLK_VERSATILE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_CLK
 	select HAVE_PATA_PLATFORM
 	select HAVE_SMP
 	select ICST

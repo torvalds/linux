@@ -4,7 +4,6 @@ config ARCH_SOCFPGA
 	select ARM_AMBA
 	select ARM_GIC
 	select CACHE_L2X0
-	select CLKDEV_LOOKUP
 	select COMMON_CLK
 	select CPU_V7
 	select DW_APB_TIMER_OF

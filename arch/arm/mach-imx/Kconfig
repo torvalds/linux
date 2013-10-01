@@ -4,8 +4,8 @@ config ARCH_MXC
 	select ARM_CPU_SUSPEND if PM
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR if !ZBOOT_ROM
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select COMMON_CLK
 	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
@@ -92,14 +92,12 @@ config MACH_MX27
 config SOC_IMX1
 	bool
 	select ARCH_MX1
-	select COMMON_CLK
 	select CPU_ARM920T
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
 
 config SOC_IMX21
 	bool
-	select COMMON_CLK
 	select CPU_ARM926T
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
@@ -108,7 +106,6 @@ config SOC_IMX25
 	bool
 	select ARCH_MX25
 	select ARCH_MXC_IOMUX_V3
-	select COMMON_CLK
 	select CPU_ARM926T
 	select MXC_AVIC
 
@@ -116,7 +113,6 @@ config SOC_IMX27
 	bool
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
-	select COMMON_CLK
 	select CPU_ARM926T
 	select IMX_HAVE_IOMUX_V1
 	select MACH_MX27
@@ -124,7 +120,6 @@ config SOC_IMX27
 
 config SOC_IMX31
 	bool
-	select COMMON_CLK
 	select CPU_V6
 	select IMX_HAVE_PLATFORM_MXC_RNGA
 	select MXC_AVIC
@@ -133,7 +128,6 @@ config SOC_IMX31
 config SOC_IMX35
 	bool
 	select ARCH_MXC_IOMUX_V3
-	select COMMON_CLK
 	select CPU_V6K
 	select HAVE_EPIT
 	select MXC_AVIC
@@ -144,7 +138,6 @@ config SOC_IMX5
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select ARCH_MXC_IOMUX_V3
-	select COMMON_CLK
 	select CPU_V7
 	select MXC_TZIC
 
@@ -791,7 +784,6 @@ config SOC_IMX6Q
 	select ARM_ERRATA_764369 if SMP
 	select ARM_ERRATA_775420
 	select ARM_GIC
-	select COMMON_CLK
 	select CPU_V7
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
