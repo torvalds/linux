@@ -2481,8 +2481,7 @@ load_error_cnic2:
 load_error_cnic1:
 	bnx2x_napi_disable_cnic(bp);
 	/* Update the number of queues without the cnic queues */
-	rc = bnx2x_set_real_num_queues(bp, 0);
-	if (rc)
+	if (bnx2x_set_real_num_queues(bp, 0))
 		BNX2X_ERR("Unable to set real_num_queues not including cnic\n");
 load_error_cnic0:
 	BNX2X_ERR("CNIC-related load failed\n");

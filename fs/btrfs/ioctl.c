@@ -574,7 +574,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	if (ret)
 		return ret;
 
-	btrfs_wait_ordered_extents(root, 0);
+	btrfs_wait_ordered_extents(root);
 
 	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
 	if (!pending_snapshot)
@@ -2696,9 +2696,9 @@ out_unlock:
 static long btrfs_ioctl_file_extent_same(struct file *file,
 					 void __user *argp)
 {
-	struct btrfs_ioctl_same_args *args = argp;
-	struct btrfs_ioctl_same_args same;
-	struct btrfs_ioctl_same_extent_info info;
+	struct btrfs_ioctl_same_args tmp;
+	struct btrfs_ioctl_same_args *same;
+	struct btrfs_ioctl_same_extent_info *info;
 	struct inode *src = file->f_dentry->d_inode;
 	struct file *dst_file = NULL;
 	struct inode *dst;
@@ -2706,6 +2706,7 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 	u64 len;
 	int i;
 	int ret;
+	unsigned long size;
 	u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
 	bool is_admin = capable(CAP_SYS_ADMIN);
 
@@ -2716,15 +2717,30 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 	if (ret)
 		return ret;
 
-	if (copy_from_user(&same,
+	if (copy_from_user(&tmp,
 			   (struct btrfs_ioctl_same_args __user *)argp,
-			   sizeof(same))) {
+			   sizeof(tmp))) {
 		ret = -EFAULT;
 		goto out;
 	}
 
-	off = same.logical_offset;
-	len = same.length;
+	size = sizeof(tmp) +
+		tmp.dest_count * sizeof(struct btrfs_ioctl_same_extent_info);
+
+	same = kmalloc(size, GFP_NOFS);
+	if (!same) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (copy_from_user(same,
+			   (struct btrfs_ioctl_same_args __user *)argp, size)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	off = same->logical_offset;
+	len = same->length;
 
 	/*
 	 * Limit the total length we will dedupe for each operation.
@@ -2752,27 +2768,28 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 	if (!S_ISREG(src->i_mode))
 		goto out;
 
+	/* pre-format output fields to sane values */
+	for (i = 0; i < same->dest_count; i++) {
+		same->info[i].bytes_deduped = 0ULL;
+		same->info[i].status = 0;
+	}
+
 	ret = 0;
-	for (i = 0; i < same.dest_count; i++) {
-		if (copy_from_user(&info, &args->info[i], sizeof(info))) {
-			ret = -EFAULT;
-			goto out;
-		}
+	for (i = 0; i < same->dest_count; i++) {
+		info = &same->info[i];
 
-		info.bytes_deduped = 0;
-
-		dst_file = fget(info.fd);
+		dst_file = fget(info->fd);
 		if (!dst_file) {
-			info.status = -EBADF;
+			info->status = -EBADF;
 			goto next;
 		}
 
 		if (!(is_admin || (dst_file->f_mode & FMODE_WRITE))) {
-			info.status = -EINVAL;
+			info->status = -EINVAL;
 			goto next;
 		}
 
-		info.status = -EXDEV;
+		info->status = -EXDEV;
 		if (file->f_path.mnt != dst_file->f_path.mnt)
 			goto next;
 
@@ -2781,31 +2798,28 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 			goto next;
 
 		if (S_ISDIR(dst->i_mode)) {
-			info.status = -EISDIR;
+			info->status = -EISDIR;
 			goto next;
 		}
 
 		if (!S_ISREG(dst->i_mode)) {
-			info.status = -EACCES;
+			info->status = -EACCES;
 			goto next;
 		}
 
-		info.status = btrfs_extent_same(src, off, len, dst,
-						info.logical_offset);
-		if (info.status == 0)
-			info.bytes_deduped += len;
+		info->status = btrfs_extent_same(src, off, len, dst,
+						info->logical_offset);
+		if (info->status == 0)
+			info->bytes_deduped += len;
 
 next:
 		if (dst_file)
 			fput(dst_file);
-
-		if (__put_user_unaligned(info.status, &args->info[i].status) ||
-		    __put_user_unaligned(info.bytes_deduped,
-					 &args->info[i].bytes_deduped)) {
-			ret = -EFAULT;
-			goto out;
-		}                                                               
 	}
+
+	ret = copy_to_user(argp, same, size);
+	if (ret)
+		ret = -EFAULT;
 
 out:
 	mnt_drop_write_file(file);
@@ -3310,7 +3324,7 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	}
 
 	if (!objectid)
-		objectid = root->root_key.objectid;
+		objectid = BTRFS_FS_TREE_OBJECTID;
 
 	location.objectid = objectid;
 	location.type = BTRFS_ROOT_ITEM_KEY;

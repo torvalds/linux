@@ -56,7 +56,7 @@ struct synproxy_options {
 
 struct tcphdr;
 struct xt_synproxy_info;
-void synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
+bool synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 			    const struct tcphdr *th,
 			    struct synproxy_options *opts);
 unsigned int synproxy_options_size(const struct synproxy_options *opts);

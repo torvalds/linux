@@ -346,7 +346,7 @@ static int deadline_init_queue(struct request_queue *q, struct elevator_type *e)
 	if (!eq)
 		return -ENOMEM;
 
-	dd = kmalloc_node(sizeof(*dd), GFP_KERNEL | __GFP_ZERO, q->node);
+	dd = kzalloc_node(sizeof(*dd), GFP_KERNEL, q->node);
 	if (!dd) {
 		kobject_put(&eq->kobj);
 		return -ENOMEM;

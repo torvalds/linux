@@ -229,7 +229,7 @@ static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 	if (result < 0)
 		return -EINVAL;
 
-	*val = result;
+	*val = sign_extend32(result, 15);
 	return IIO_VAL_INT;
 }
 

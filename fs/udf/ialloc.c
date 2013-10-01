@@ -30,18 +30,17 @@ void udf_free_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
+	struct logicalVolIntegrityDescImpUse *lvidiu = udf_sb_lvidiu(sb);
 
-	mutex_lock(&sbi->s_alloc_mutex);
-	if (sbi->s_lvid_bh) {
-		struct logicalVolIntegrityDescImpUse *lvidiu =
-							udf_sb_lvidiu(sbi);
+	if (lvidiu) {
+		mutex_lock(&sbi->s_alloc_mutex);
 		if (S_ISDIR(inode->i_mode))
 			le32_add_cpu(&lvidiu->numDirs, -1);
 		else
 			le32_add_cpu(&lvidiu->numFiles, -1);
 		udf_updated_lvid(sb);
+		mutex_unlock(&sbi->s_alloc_mutex);
 	}
-	mutex_unlock(&sbi->s_alloc_mutex);
 
 	udf_free_blocks(sb, NULL, &UDF_I(inode)->i_location, 0, 1);
 }
@@ -55,6 +54,7 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode, int *err)
 	uint32_t start = UDF_I(dir)->i_location.logicalBlockNum;
 	struct udf_inode_info *iinfo;
 	struct udf_inode_info *dinfo = UDF_I(dir);
+	struct logicalVolIntegrityDescImpUse *lvidiu;
 
 	inode = new_inode(sb);
 
@@ -92,12 +92,10 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode, int *err)
 		return NULL;
 	}
 
-	if (sbi->s_lvid_bh) {
-		struct logicalVolIntegrityDescImpUse *lvidiu;
-
+	lvidiu = udf_sb_lvidiu(sb);
+	if (lvidiu) {
 		iinfo->i_unique = lvid_get_unique_id(sb);
 		mutex_lock(&sbi->s_alloc_mutex);
-		lvidiu = udf_sb_lvidiu(sbi);
 		if (S_ISDIR(mode))
 			le32_add_cpu(&lvidiu->numDirs, 1);
 		else
