@@ -318,9 +318,8 @@ static int mxs_spi_txrx_pio(struct mxs_spi *spi, int cs,
 {
 	struct mxs_ssp *ssp = &spi->ssp;
 
-	if (*first)
-		writel(BM_SSP_CTRL0_IGNORE_CRC,
-		       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
+	writel(BM_SSP_CTRL0_IGNORE_CRC,
+	       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
 
 	mxs_spi_set_cs(spi, cs);
 
