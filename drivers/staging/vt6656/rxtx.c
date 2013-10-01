@@ -98,7 +98,7 @@ static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
 
 static void *s_vGetFreeContext(struct vnt_private *pDevice);
 
-static void s_vGenerateTxParameter(struct vnt_private *pDevice,
+static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate,	struct vnt_tx_buffer *tx_buffer,
 	struct vnt_mic_hdr **mic_hdr, u32 need_mic, u32 cbFrameSize,
 	int bNeedACK, u32 uDMAIdx, struct ethhdr *psEthHeader, bool need_rts);
@@ -124,11 +124,11 @@ static unsigned int s_uGetTxRsvTime(struct vnt_private *pDevice, u8 byPktType,
 static u16 s_uGetRTSCTSRsvTime(struct vnt_private *pDevice, u8 byRTSRsvType,
 	u8 byPktType, u32 cbFrameLength, u16 wCurrentRate);
 
-static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
+static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 	u8 byPktType, union vnt_tx_data_head *head, u32 cbFrameLength,
 	int bNeedAck, u16 wCurrentRate, u8 byFBOption);
 
-static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
+static u16 s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 	union vnt_tx_data_head *head, u32 cbFrameLength, int bNeedAck,
 	struct ethhdr *psEthHeader, u16 wCurrentRate, u8 byFBOption);
 
@@ -632,7 +632,7 @@ static int vnt_fill_ieee80211_rts(struct vnt_private *priv,
 	return 0;
 }
 
-static int vnt_rxtx_rts_g_head(struct vnt_private *priv,
+static u16 vnt_rxtx_rts_g_head(struct vnt_private *priv,
 	struct vnt_rts_g *buf, struct ethhdr *eth_hdr,
 	u8 pkt_type, u32 frame_len, int need_ack,
 	u16 current_rate, u8 fb_option)
@@ -656,7 +656,7 @@ static int vnt_rxtx_rts_g_head(struct vnt_private *priv,
 	return 0;
 }
 
-static int vnt_rxtx_rts_g_fb_head(struct vnt_private *priv,
+static u16 vnt_rxtx_rts_g_fb_head(struct vnt_private *priv,
 	struct vnt_rts_g_fb *buf, struct ethhdr *eth_hdr,
 	u8 pkt_type, u32 frame_len, int need_ack,
 	u16 current_rate, u8 fb_option)
@@ -691,7 +691,7 @@ static int vnt_rxtx_rts_g_fb_head(struct vnt_private *priv,
 	return 0;
 }
 
-static int vnt_rxtx_rts_ab_head(struct vnt_private *priv,
+static u16 vnt_rxtx_rts_ab_head(struct vnt_private *priv,
 	struct vnt_rts_ab *buf, struct ethhdr *eth_hdr,
 	u8 pkt_type, u32 frame_len, int need_ack,
 	u16 current_rate, u8 fb_option)
@@ -709,7 +709,7 @@ static int vnt_rxtx_rts_ab_head(struct vnt_private *priv,
 	return 0;
 }
 
-static int vnt_rxtx_rts_a_fb_head(struct vnt_private *priv,
+static u16 vnt_rxtx_rts_a_fb_head(struct vnt_private *priv,
 	struct vnt_rts_a_fb *buf, struct ethhdr *eth_hdr,
 	u8 pkt_type, u32 frame_len, int need_ack,
 	u16 current_rate, u8 fb_option)
@@ -733,13 +733,13 @@ static int vnt_rxtx_rts_a_fb_head(struct vnt_private *priv,
 	return 0;
 }
 
-static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
+static u16 s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 	union vnt_tx_data_head *head, u32 cbFrameLength, int bNeedAck,
 	struct ethhdr *psEthHeader, u16 wCurrentRate, u8 byFBOption)
 {
 
 	if (!head)
-		return;
+		return 0;
 
 	/* Note: So far RTSHead doesn't appear in ATIM
 	*	& Beacom DMA, so we don't need to take them
@@ -770,16 +770,18 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 			psEthHeader, byPktType, cbFrameLength,
 			bNeedAck, wCurrentRate, byFBOption);
 	}
+
+	return 0;
 }
 
-static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
+static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 	u8 byPktType, union vnt_tx_data_head *head, u32 cbFrameLength,
 	int bNeedAck, u16 wCurrentRate, u8 byFBOption)
 {
 	u32 uCTSFrameLen = 14;
 
 	if (!head)
-		return;
+		return 0;
 
 	if (byFBOption != AUTO_FB_NONE) {
 		/* Auto Fall back */
@@ -816,6 +818,8 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 		pBuf->data.frame_control = TYPE_CTL_CTS;
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
         }
+
+	return 0;
 }
 
 /*+
@@ -841,7 +845,7 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
  *
 -*/
 
-static void s_vGenerateTxParameter(struct vnt_private *pDevice,
+static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate,	struct vnt_tx_buffer *tx_buffer,
 	struct vnt_mic_hdr **mic_hdr, u32 need_mic, u32 cbFrameSize,
 	int bNeedACK, u32 uDMAIdx, struct ethhdr *psEthHeader, bool need_rts)
@@ -864,7 +868,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
     }
 
 	if (!pFifoHead)
-		return;
+		return 0;
 
     if (pDevice->bLongHeader)
         cbMACHdLen = WLAN_HDR_ADDR3_LEN + 6;
@@ -985,6 +989,8 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
         }
     }
     //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_vGenerateTxParameter END.\n");
+
+	return 0;
 }
 /*
     u8 * pbyBuffer,//point to pTxBufHead
