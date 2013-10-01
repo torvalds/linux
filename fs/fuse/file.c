@@ -1633,7 +1633,7 @@ static int fuse_writepages_fill(struct page *page,
 		BUG_ON(!req->num_pages);
 		if (req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
 		    (req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write ||
-		    req->pages[req->num_pages - 1]->index + 1 != page->index) {
+		    data->orig_pages[req->num_pages - 1]->index + 1 != page->index) {
 
 			fuse_writepages_send(data);
 			data->req = NULL;
