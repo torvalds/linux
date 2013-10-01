@@ -1656,7 +1656,8 @@ static int igb_setup_loopback_test(struct igb_adapter *adapter)
 		if ((hw->device_id == E1000_DEV_ID_DH89XXCC_SGMII) ||
 		(hw->device_id == E1000_DEV_ID_DH89XXCC_SERDES) ||
 		(hw->device_id == E1000_DEV_ID_DH89XXCC_BACKPLANE) ||
-		(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP)) {
+		(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP) ||
+		(hw->device_id == E1000_DEV_ID_I354_SGMII)) {
 
 			/* Enable DH89xxCC MPHY for near end loopback */
 			reg = rd32(E1000_MPHY_ADDR_CTL);
@@ -1722,7 +1723,8 @@ static void igb_loopback_cleanup(struct igb_adapter *adapter)
 	if ((hw->device_id == E1000_DEV_ID_DH89XXCC_SGMII) ||
 	(hw->device_id == E1000_DEV_ID_DH89XXCC_SERDES) ||
 	(hw->device_id == E1000_DEV_ID_DH89XXCC_BACKPLANE) ||
-	(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP)) {
+	(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP) ||
+	(hw->device_id == E1000_DEV_ID_I354_SGMII)) {
 		u32 reg;
 
 		/* Disable near end loopback on DH89xxCC */
