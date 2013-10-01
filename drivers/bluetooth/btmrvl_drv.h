@@ -116,12 +116,6 @@ struct btmrvl_private {
 #define PS_SLEEP			0x01
 #define PS_AWAKE			0x00
 
-struct btmrvl_cmd {
-	__le16 ocf_ogf;
-	u8 length;
-	u8 data[4];
-} __packed;
-
 struct btmrvl_event {
 	u8 ec;		/* event counter */
 	u8 length;

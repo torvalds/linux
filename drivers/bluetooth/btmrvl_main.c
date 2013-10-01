@@ -170,20 +170,20 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 cmd_no,
 				const void *param, u8 len)
 {
 	struct sk_buff *skb;
-	struct btmrvl_cmd *cmd;
+	struct hci_command_hdr *hdr;
 
-	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
+	skb = bt_skb_alloc(HCI_COMMAND_HDR_SIZE + len, GFP_ATOMIC);
 	if (skb == NULL) {
 		BT_ERR("No free skb");
 		return -ENOMEM;
 	}
 
-	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
-	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, cmd_no));
-	cmd->length = len;
+	hdr = (struct hci_command_hdr *)skb_put(skb, HCI_COMMAND_HDR_SIZE);
+	hdr->opcode = cpu_to_le16(hci_opcode_pack(OGF, cmd_no));
+	hdr->plen = len;
 
 	if (len)
-		memcpy(cmd->data, param, len);
+		memcpy(skb_put(skb, len), param, len);
 
 	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
 
