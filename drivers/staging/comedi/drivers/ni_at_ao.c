@@ -98,14 +98,19 @@ Configuration options:
 #define ATAO_2_RTSISHFT_RSI	(1 << 0)
 #define ATAO_2_RTSISTRB_REG	0x07
 
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
 struct atao_board {
 	const char *name;
 	int n_ao_chans;
+};
+
+static const struct atao_board atao_boards[] = {
+	{
+		.name		= "ai-ao-6",
+		.n_ao_chans	= 6,
+	}, {
+		.name		= "ai-ao-10",
+		.n_ao_chans	= 10,
+	},
 };
 
 struct atao_private {
@@ -383,16 +388,6 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	return 0;
 }
-
-static const struct atao_board atao_boards[] = {
-	{
-		.name		= "ai-ao-6",
-		.n_ao_chans	= 6,
-	}, {
-		.name		= "ai-ao-10",
-		.n_ao_chans	= 10,
-	},
-};
 
 static struct comedi_driver ni_at_ao_driver = {
 	.driver_name	= "ni_at_ao",
