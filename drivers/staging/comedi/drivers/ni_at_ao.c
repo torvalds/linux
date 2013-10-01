@@ -42,8 +42,6 @@ Configuration options:
 /* board egisters */
 /* registers with _2_ are accessed when GRP2WR is set in CFG1 */
 
-#define ATAO_SIZE 0x20
-
 #define ATAO_2_DMATCCLR		0x00	/* W 16 */
 #define ATAO_DIN		0x00	/* R 16 */
 #define ATAO_DOUT		0x00	/* W 16 */
@@ -327,7 +325,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	ao_unipolar = it->options[3];
 
-	ret = comedi_request_region(dev, it->options[0], ATAO_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x20);
 	if (ret)
 		return ret;
 
