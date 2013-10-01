@@ -301,7 +301,7 @@ static unsigned __wa_xfer_is_done(struct wa_xfer *xfer)
 			break;
 		case WA_SEG_ERROR:
 			xfer->result = seg->result;
-			dev_dbg(dev, "xfer %p ID %08X#%u: ERROR result %zu(0x%08X)\n",
+			dev_dbg(dev, "xfer %p ID %08X#%u: ERROR result %zu(0x%08zX)\n",
 				xfer, wa_xfer_id(xfer), seg->index, seg->result,
 				seg->result);
 			goto out;
