@@ -45,8 +45,6 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #include "comedi_fc.h"
 #include "mite.h"
 
-#define DRIVER_NAME "ni_6527"
-
 #define NI6527_DIO_SIZE 4096
 #define NI6527_MITE_SIZE 4096
 
@@ -396,7 +394,7 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
 	ret = request_irq(mite_irq(devpriv->mite), ni6527_interrupt,
-			  IRQF_SHARED, DRIVER_NAME, dev);
+			  IRQF_SHARED, dev->board_name, dev);
 	if (ret < 0)
 		dev_warn(dev->class_dev, "irq not available\n");
 	else
@@ -422,7 +420,7 @@ static void ni6527_detach(struct comedi_device *dev)
 }
 
 static struct comedi_driver ni6527_driver = {
-	.driver_name = DRIVER_NAME,
+	.driver_name = "ni_6527",
 	.module = THIS_MODULE,
 	.auto_attach = ni6527_auto_attach,
 	.detach = ni6527_detach,
@@ -442,7 +440,7 @@ static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
 MODULE_DEVICE_TABLE(pci, ni6527_pci_table);
 
 static struct pci_driver ni6527_pci_driver = {
-	.name		= DRIVER_NAME,
+	.name		= "ni_6527",
 	.id_table	= ni6527_pci_table,
 	.probe		= ni6527_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
