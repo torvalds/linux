@@ -762,14 +762,39 @@ static struct snd_soc_dai_driver tas5086_dai = {
 };
 
 #ifdef CONFIG_PM
+static int tas5086_soc_suspend(struct snd_soc_codec *codec)
+{
+	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	/* Shut down all channels */
+	ret = regmap_write(priv->regmap, TAS5086_SYS_CONTROL_2, 0x60);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int tas5086_soc_resume(struct snd_soc_codec *codec)
 {
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
-	/* Restore codec state */
-	return regcache_sync(priv->regmap);
+	tas5086_reset(priv);
+	regcache_mark_dirty(priv->regmap);
+
+	ret = tas5086_init(codec->dev, priv);
+	if (ret < 0)
+		return ret;
+
+	ret = regcache_sync(priv->regmap);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 #else
+#define tas5086_soc_suspend	NULL
 #define tas5086_soc_resume	NULL
 #endif /* CONFIG_PM */
 
@@ -832,6 +857,7 @@ static int tas5086_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_tas5086 = {
 	.probe			= tas5086_probe,
 	.remove			= tas5086_remove,
+	.suspend		= tas5086_soc_suspend,
 	.resume			= tas5086_soc_resume,
 	.controls		= tas5086_controls,
 	.num_controls		= ARRAY_SIZE(tas5086_controls),
