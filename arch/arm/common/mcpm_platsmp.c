@@ -56,6 +56,15 @@ static void mcpm_secondary_init(unsigned int cpu)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
+static int mcpm_cpu_kill(unsigned int cpu)
+{
+	unsigned int pcpu, pcluster;
+
+	cpu_to_pcpu(cpu, &pcpu, &pcluster);
+
+	return !mcpm_cpu_power_down_finish(pcpu, pcluster);
+}
+
 static int mcpm_cpu_disable(unsigned int cpu)
 {
 	/*
@@ -82,6 +91,7 @@ static struct smp_operations __initdata mcpm_smp_ops = {
 	.smp_boot_secondary	= mcpm_boot_secondary,
 	.smp_secondary_init	= mcpm_secondary_init,
 #ifdef CONFIG_HOTPLUG_CPU
+	.cpu_kill		= mcpm_cpu_kill,
 	.cpu_disable		= mcpm_cpu_disable,
 	.cpu_die		= mcpm_cpu_die,
 #endif
