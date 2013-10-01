@@ -1065,10 +1065,12 @@ EXPORT_SYMBOL_GPL(gfn_to_hva);
 unsigned long gfn_to_hva_prot(struct kvm *kvm, gfn_t gfn, bool *writable)
 {
 	struct kvm_memory_slot *slot = gfn_to_memslot(kvm, gfn);
-	if (writable)
+	unsigned long hva = __gfn_to_hva_many(slot, gfn, NULL, false);
+
+	if (!kvm_is_error_hva(hva) && writable)
 		*writable = !memslot_is_readonly(slot);
 
-	return __gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL, false);
+	return hva;
 }
 
 static int kvm_read_hva(void *data, void __user *hva, int len)
