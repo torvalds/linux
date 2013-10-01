@@ -37,7 +37,10 @@ Configuration options:
  */
 
 #include <linux/module.h>
+
 #include "../comedidev.h"
+
+#include "8253.h"
 
 /*
  * Register map
@@ -60,34 +63,7 @@ Configuration options:
 #define ATAO_CFG3_DOUTEN1	(1 << 2)
 #define ATAO_CFG3_EN2_5V	(1 << 1)
 #define ATAO_CFG3_SCANEN	(1 << 0)
-#define ATAO_82C53_BASE		0x06	/* RW 8 */
-#define ATAO_82C53_CNTR1	0x06	/* RW 8 */
-#define ATAO_82C53_CNTR2	0x07	/* RW 8 */
-#define ATAO_82C53_CNTR3	0x08	/* RW 8 */
-#define ATAO_82C53_CNTRCMD	0x09	/* W 8 */
-#define CNTRSEL1		(1 << 7)
-#define CNTRSEL0		(1 << 6)
-#define RWSEL1			(1 << 5)
-#define RWSEL0			(1 << 4)
-#define MODESEL2		(1 << 3)
-#define MODESEL1		(1 << 2)
-#define MODESEL0		(1 << 1)
-#define BCDSEL			(1 << 0)
-  /* read-back command */
-#define COUNT			(1 << 5)
-#define STATUS			(1 << 4)
-#define CNTR3			(1 << 3)
-#define CNTR2			(1 << 2)
-#define CNTR1			(1 << 1)
-  /* status */
-#define OUT			(1 << 7)
-#define _NULL			(1 << 6)
-#define RW1			(1 << 5)
-#define RW0			(1 << 4)
-#define MODE2			(1 << 3)
-#define MODE1			(1 << 2)
-#define MODE0			(1 << 1)
-#define BCD			(1 << 0)
+#define ATAO_82C53_BASE		0x06
 #define ATAO_CFG1_REG		0x0a
 #define ATAO_CFG1_EXTINT2EN	(1 << 15)
 #define ATAO_CFG1_EXTINT1EN	(1 << 14)
@@ -153,9 +129,11 @@ static void atao_reset(struct comedi_device *dev)
 	devpriv->cfg1 = 0;
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 
-	outb(RWSEL0 | MODESEL2, dev->iobase + ATAO_82C53_CNTRCMD);
-	outb(0x03, dev->iobase + ATAO_82C53_CNTR1);
-	outb(CNTRSEL0 | RWSEL0 | MODESEL2, dev->iobase + ATAO_82C53_CNTRCMD);
+	/* Put outputs of counter 1 and counter 2 in a high state */
+	i8254_load(dev->iobase + ATAO_82C53_BASE, 0,
+		   0, 0x0003, I8254_MODE4 | I8254_BINARY);
+	i8254_set_mode(dev->iobase + ATAO_82C53_BASE, 0,
+		   1, I8254_MODE4 | I8254_BINARY);
 
 	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
 
