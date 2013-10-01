@@ -1812,13 +1812,13 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
  * Plane regs are double buffered, going from enabled->disabled needs a
  * trigger in order to latch.  The display address reg provides this.
  */
-void intel_flush_display_plane(struct drm_i915_private *dev_priv,
-				      enum plane plane)
+void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
+			       enum plane plane)
 {
-	if (dev_priv->info->gen >= 4)
-		I915_WRITE(DSPSURF(plane), I915_READ(DSPSURF(plane)));
-	else
-		I915_WRITE(DSPADDR(plane), I915_READ(DSPADDR(plane)));
+	u32 reg = dev_priv->info->gen >= 4 ? DSPSURF(plane) : DSPADDR(plane);
+
+	I915_WRITE(reg, I915_READ(reg));
+	POSTING_READ(reg);
 }
 
 /**
@@ -1848,7 +1848,7 @@ static void intel_enable_plane(struct drm_i915_private *dev_priv,
 		return;
 
 	I915_WRITE(reg, val | DISPLAY_PLANE_ENABLE);
-	intel_flush_display_plane(dev_priv, plane);
+	intel_flush_primary_plane(dev_priv, plane);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
@@ -1876,7 +1876,7 @@ static void intel_disable_plane(struct drm_i915_private *dev_priv,
 		return;
 
 	I915_WRITE(reg, val & ~DISPLAY_PLANE_ENABLE);
-	intel_flush_display_plane(dev_priv, plane);
+	intel_flush_primary_plane(dev_priv, plane);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
