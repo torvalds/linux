@@ -935,8 +935,10 @@ static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u32 start = txq->head;
 
 	skb = be_xmit_workarounds(adapter, skb, &skip_hw_vlan);
-	if (!skb)
+	if (!skb) {
+		tx_stats(txo)->tx_drv_drops++;
 		return NETDEV_TX_OK;
+	}
 
 	wrb_cnt = wrb_cnt_for_skb(adapter, skb, &dummy_wrb);
 
@@ -965,6 +967,7 @@ static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
 		be_tx_stats_update(txo, wrb_cnt, copied, gso_segs, stopped);
 	} else {
 		txq->head = start;
+		tx_stats(txo)->tx_drv_drops++;
 		dev_kfree_skb_any(skb);
 	}
 	return NETDEV_TX_OK;
