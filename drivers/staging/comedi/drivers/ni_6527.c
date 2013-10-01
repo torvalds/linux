@@ -52,7 +52,7 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define ClrInterval			0x01
 
 #define NI6527_FILT_INTERVAL_REG(x)	(0x08 + (x))
-#define Filter_Enable(x)			(0x0c+(x))
+#define NI6527_FILT_ENA_REG(x)		(0x0c + (x))
 
 #define Change_Status				0x14
 #define MasterInterruptStatus		0x04
@@ -110,6 +110,17 @@ static void ni6527_set_filter_interval(struct comedi_device *dev,
 	}
 }
 
+static void ni6527_set_filter_enable(struct comedi_device *dev,
+				     unsigned int val)
+{
+	struct ni6527_private *devpriv = dev->private;
+	void __iomem *mmio = devpriv->mite->daq_io_addr;
+
+	writeb(val & 0xff, mmio + NI6527_FILT_ENA_REG(0));
+	writeb((val >> 8) & 0xff, mmio + NI6527_FILT_ENA_REG(1));
+	writeb((val >> 16) & 0xff, mmio + NI6527_FILT_ENA_REG(2));
+}
+
 static int ni6527_di_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -135,12 +146,7 @@ static int ni6527_di_insn_config(struct comedi_device *dev,
 		devpriv->filter_enable &= ~(1 << chan);
 	}
 
-	writeb(devpriv->filter_enable,
-	       devpriv->mite->daq_io_addr + Filter_Enable(0));
-	writeb(devpriv->filter_enable >> 8,
-	       devpriv->mite->daq_io_addr + Filter_Enable(1));
-	writeb(devpriv->filter_enable >> 16,
-	       devpriv->mite->daq_io_addr + Filter_Enable(2));
+	ni6527_set_filter_enable(dev, devpriv->filter_enable);
 
 	return 2;
 }
@@ -385,9 +391,7 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	s->insn_bits = ni6527_intr_insn_bits;
 	s->insn_config = ni6527_intr_insn_config;
 
-	writeb(0x00, devpriv->mite->daq_io_addr + Filter_Enable(0));
-	writeb(0x00, devpriv->mite->daq_io_addr + Filter_Enable(1));
-	writeb(0x00, devpriv->mite->daq_io_addr + Filter_Enable(2));
+	ni6527_set_filter_enable(dev, 0);
 
 	writeb(ClrEdge | ClrOverflow | ClrFilter | ClrInterval,
 	       devpriv->mite->daq_io_addr + Clear_Register);
