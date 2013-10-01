@@ -123,32 +123,36 @@ static void ni6527_set_filter_enable(struct comedi_device *dev,
 
 static int ni6527_di_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct ni6527_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int interval;
 
-	if (insn->n != 2)
-		return -EINVAL;
-
-	if (data[0] != INSN_CONFIG_FILTER)
-		return -EINVAL;
-
-	if (data[1]) {
+	switch (data[0]) {
+	case INSN_CONFIG_FILTER:
+		/*
+		 * The deglitch filter interval is specified in nanoseconds.
+		 * The hardware supports intervals in 200ns increments. Round
+		 * the user values up and return the actual interval.
+		 */
 		interval = (data[1] + 100) / 200;
 		data[1] = interval * 200;
 
-		ni6527_set_filter_interval(dev, interval);
-
-		devpriv->filter_enable |= 1 << chan;
-	} else {
-		devpriv->filter_enable &= ~(1 << chan);
+		if (interval) {
+			ni6527_set_filter_interval(dev, interval);
+			devpriv->filter_enable |= 1 << chan;
+		} else {
+			devpriv->filter_enable &= ~(1 << chan);
+		}
+		ni6527_set_filter_enable(dev, devpriv->filter_enable);
+		break;
+	default:
+		return -EINVAL;
 	}
 
-	ni6527_set_filter_enable(dev, devpriv->filter_enable);
-
-	return 2;
+	return insn->n;
 }
 
 static int ni6527_di_insn_bits(struct comedi_device *dev,
