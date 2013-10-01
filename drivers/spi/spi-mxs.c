@@ -79,6 +79,8 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 
 	mxs_ssp_set_clk_rate(ssp, hz);
 
+	writel(BM_SSP_CTRL0_LOCK_CS,
+		ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 	writel(BF_SSP_CTRL1_SSP_MODE(BV_SSP_CTRL1_SSP_MODE__SPI) |
 		     BF_SSP_CTRL1_WORD_LENGTH
 		     (BV_SSP_CTRL1_WORD_LENGTH__EIGHT_BITS) |
@@ -147,8 +149,6 @@ static inline void mxs_spi_enable(struct mxs_spi *spi)
 {
 	struct mxs_ssp *ssp = &spi->ssp;
 
-	writel(BM_SSP_CTRL0_LOCK_CS,
-		ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 	writel(BM_SSP_CTRL0_IGNORE_CRC,
 		ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
 }
@@ -157,8 +157,6 @@ static inline void mxs_spi_disable(struct mxs_spi *spi)
 {
 	struct mxs_ssp *ssp = &spi->ssp;
 
-	writel(BM_SSP_CTRL0_LOCK_CS,
-		ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
 	writel(BM_SSP_CTRL0_IGNORE_CRC,
 		ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 }
@@ -232,8 +230,6 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi, int cs,
 	ctrl0 &= ~BM_SSP_CTRL0_XFER_COUNT;
 	ctrl0 |= BM_SSP_CTRL0_DATA_XFER | mxs_spi_cs_to_reg(cs);
 
-	if (*first)
-		ctrl0 |= BM_SSP_CTRL0_LOCK_CS;
 	if (!write)
 		ctrl0 |= BM_SSP_CTRL0_READ;
 
