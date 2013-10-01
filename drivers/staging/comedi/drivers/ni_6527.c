@@ -68,9 +68,8 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define NI6527_CTRL_ENABLE_IRQS		(NI6527_CTRL_FALLING | \
 					 NI6527_CTRL_RISING | \
 					 NI6527_CTRL_IRQ | NI6527_CTRL_EDGE)
-
-#define Rising_Edge_Detection_Enable(x)		(0x018+(x))
-#define Falling_Edge_Detection_Enable(x)	(0x020+(x))
+#define NI6527_RISING_EDGE_REG(x)	(0x18 + (x))
+#define NI6527_FALLING_EDGE_REG(x)	(0x20 + (x))
 
 enum ni6527_boardid {
 	BOARD_PCI6527,
@@ -299,32 +298,41 @@ static int ni6527_intr_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ni6527_intr_insn_config(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+static void ni6527_set_edge_detection(struct comedi_device *dev,
+				      unsigned int rising,
+				      unsigned int falling)
 {
 	struct ni6527_private *devpriv = dev->private;
+	void __iomem *mmio = devpriv->mite->daq_io_addr;
 
-	if (insn->n < 1)
+	/* enable rising-edge detection channels */
+	writeb(rising & 0xff, mmio + NI6527_RISING_EDGE_REG(0));
+	writeb((rising >> 8) & 0xff, mmio + NI6527_RISING_EDGE_REG(1));
+	writeb((rising >> 16) & 0xff, mmio + NI6527_RISING_EDGE_REG(2));
+
+	/* enable falling-edge detection channels */
+	writeb(falling & 0xff, mmio + NI6527_FALLING_EDGE_REG(0));
+	writeb((falling >> 8) & 0xff, mmio + NI6527_FALLING_EDGE_REG(1));
+	writeb((falling >> 16) & 0xff, mmio + NI6527_FALLING_EDGE_REG(2));
+}
+
+static int ni6527_intr_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	switch (data[0]) {
+	case INSN_CONFIG_CHANGE_NOTIFY:
+		/* check_insn_config_length() does not check this instruction */
+		if (insn->n != 3)
+			return -EINVAL;
+		ni6527_set_edge_detection(dev, data[1], data[2]);
+		break;
+	default:
 		return -EINVAL;
-	if (data[0] != INSN_CONFIG_CHANGE_NOTIFY)
-		return -EINVAL;
+	}
 
-	writeb(data[1],
-	       devpriv->mite->daq_io_addr + Rising_Edge_Detection_Enable(0));
-	writeb(data[1] >> 8,
-	       devpriv->mite->daq_io_addr + Rising_Edge_Detection_Enable(1));
-	writeb(data[1] >> 16,
-	       devpriv->mite->daq_io_addr + Rising_Edge_Detection_Enable(2));
-
-	writeb(data[2],
-	       devpriv->mite->daq_io_addr + Falling_Edge_Detection_Enable(0));
-	writeb(data[2] >> 8,
-	       devpriv->mite->daq_io_addr + Falling_Edge_Detection_Enable(1));
-	writeb(data[2] >> 16,
-	       devpriv->mite->daq_io_addr + Falling_Edge_Detection_Enable(2));
-
-	return 2;
+	return insn->n;
 }
 
 static int ni6527_auto_attach(struct comedi_device *dev,
