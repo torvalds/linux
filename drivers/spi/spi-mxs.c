@@ -145,22 +145,6 @@ static void mxs_spi_set_cs(struct mxs_spi *spi, unsigned cs)
 	writel(select, ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 }
 
-static inline void mxs_spi_enable(struct mxs_spi *spi)
-{
-	struct mxs_ssp *ssp = &spi->ssp;
-
-	writel(BM_SSP_CTRL0_IGNORE_CRC,
-		ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
-}
-
-static inline void mxs_spi_disable(struct mxs_spi *spi)
-{
-	struct mxs_ssp *ssp = &spi->ssp;
-
-	writel(BM_SSP_CTRL0_IGNORE_CRC,
-		ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
-}
-
 static int mxs_ssp_wait(struct mxs_spi *spi, int offset, int mask, bool set)
 {
 	const unsigned long timeout = jiffies + msecs_to_jiffies(SSP_TIMEOUT);
@@ -335,13 +319,15 @@ static int mxs_spi_txrx_pio(struct mxs_spi *spi, int cs,
 	struct mxs_ssp *ssp = &spi->ssp;
 
 	if (*first)
-		mxs_spi_enable(spi);
+		writel(BM_SSP_CTRL0_IGNORE_CRC,
+		       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
 
 	mxs_spi_set_cs(spi, cs);
 
 	while (len--) {
 		if (*last && len == 0)
-			mxs_spi_disable(spi);
+			writel(BM_SSP_CTRL0_IGNORE_CRC,
+			       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 
 		if (ssp->devid == IMX23_SSP) {
 			writel(BM_SSP_CTRL0_XFER_COUNT,
