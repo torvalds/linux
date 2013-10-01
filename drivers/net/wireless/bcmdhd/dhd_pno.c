@@ -1317,6 +1317,15 @@ _dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason)
 			plnetinfo++;
 		}
 	}
+	if (pscan_results->cnt_header == 0) {
+		/* In case that we didn't get any data from the firmware
+		 * Remove the current scan_result list from get_bach.scan_results_list.
+		 */
+		DHD_PNO(("NO BATCH DATA from Firmware, Delete current SCAN RESULT LIST\n"));
+		list_del(&pscan_results->list);
+		MFREE(dhd->osh, pscan_results, SCAN_RESULTS_SIZE);
+		_params->params_batch.get_batch.top_node_cnt--;
+	}
 	/* increase total scan count using current scan count */
 	_params->params_batch.get_batch.tot_scan_cnt += pscan_results->cnt_header;
 
@@ -1797,11 +1806,15 @@ dhd_pno_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data)
 	{
 		struct dhd_pno_batch_params *params_batch;
 		params_batch = &_pno_state->pno_params_arr[INDEX_OF_BATCH_PARAMS].params_batch;
-		DHD_PNO(("%s : WLC_E_PFN_BEST_BATCHING\n", __FUNCTION__));
-		params_batch->get_batch.buf = NULL;
-		params_batch->get_batch.bufsize = 0;
-		params_batch->get_batch.reason = PNO_STATUS_EVENT;
-		schedule_work(&_pno_state->work);
+		if (!waitqueue_active(&_pno_state->get_batch_done.wait)) {
+			DHD_PNO(("%s : WLC_E_PFN_BEST_BATCHING\n", __FUNCTION__));
+			params_batch->get_batch.buf = NULL;
+			params_batch->get_batch.bufsize = 0;
+			params_batch->get_batch.reason = PNO_STATUS_EVENT;
+			schedule_work(&_pno_state->work);
+		} else
+			DHD_PNO(("%s : WLC_E_PFN_BEST_BATCHING"
+				"will skip this event\n", __FUNCTION__));
 		break;
 	}
 	default:
