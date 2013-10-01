@@ -1879,14 +1879,15 @@ static int set_config_values(struct cache *cache, int argc, const char **argv)
 static int create_cache_policy(struct cache *cache, struct cache_args *ca,
 			       char **error)
 {
-	cache->policy =	dm_cache_policy_create(ca->policy_name,
-					       cache->cache_size,
-					       cache->origin_sectors,
-					       cache->sectors_per_block);
-	if (!cache->policy) {
+	struct dm_cache_policy *p = dm_cache_policy_create(ca->policy_name,
+							   cache->cache_size,
+							   cache->origin_sectors,
+							   cache->sectors_per_block);
+	if (IS_ERR(p)) {
 		*error = "Error creating cache's policy";
-		return -ENOMEM;
+		return PTR_ERR(p);
 	}
+	cache->policy = p;
 
 	return 0;
 }
