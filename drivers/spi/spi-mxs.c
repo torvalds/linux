@@ -103,21 +103,13 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 
 static int mxs_spi_setup(struct spi_device *dev)
 {
-	int err = 0;
-
 	if (!dev->bits_per_word)
 		dev->bits_per_word = 8;
 
 	if (dev->mode & ~(SPI_CPOL | SPI_CPHA))
 		return -EINVAL;
 
-	err = mxs_spi_setup_transfer(dev, NULL);
-	if (err) {
-		dev_err(&dev->dev,
-			"Failed to setup transfer, error = %d\n", err);
-	}
-
-	return err;
+	return 0;
 }
 
 static uint32_t mxs_spi_cs_to_reg(unsigned cs)
