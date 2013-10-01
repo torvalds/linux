@@ -310,7 +310,7 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 
 	for (m = propagation_next(parent, parent); m;
 	     		m = propagation_next(m, parent)) {
-		child = __lookup_mnt(&m->mnt, mnt->mnt_mountpoint, 0);
+		child = __lookup_mnt_last(&m->mnt, mnt->mnt_mountpoint);
 		if (child && list_empty(&child->mnt_mounts) &&
 		    (ret = do_refcount_check(child, 1)))
 			break;
@@ -332,8 +332,8 @@ static void __propagate_umount(struct mount *mnt)
 	for (m = propagation_next(parent, parent); m;
 			m = propagation_next(m, parent)) {
 
-		struct mount *child = __lookup_mnt(&m->mnt,
-					mnt->mnt_mountpoint, 0);
+		struct mount *child = __lookup_mnt_last(&m->mnt,
+						mnt->mnt_mountpoint);
 		/*
 		 * umount the child only if the child has no
 		 * other children

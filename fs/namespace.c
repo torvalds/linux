@@ -548,29 +548,33 @@ static void free_vfsmnt(struct mount *mnt)
 }
 
 /*
- * find the first or last mount at @dentry on vfsmount @mnt depending on
- * @dir. If @dir is set return the first mount else return the last mount.
+ * find the first mount at @dentry on vfsmount @mnt.
  * vfsmount_lock must be held for read or write.
  */
-struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry,
-			      int dir)
+struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
 {
 	struct list_head *head = mount_hashtable + hash(mnt, dentry);
-	struct list_head *tmp = head;
-	struct mount *p, *found = NULL;
+	struct mount *p;
 
-	for (;;) {
-		tmp = dir ? tmp->next : tmp->prev;
-		p = NULL;
-		if (tmp == head)
-			break;
-		p = list_entry(tmp, struct mount, mnt_hash);
-		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry) {
-			found = p;
-			break;
-		}
-	}
-	return found;
+	list_for_each_entry(p, head, mnt_hash)
+		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry)
+			return p;
+	return NULL;
+}
+
+/*
+ * find the last mount at @dentry on vfsmount @mnt.
+ * vfsmount_lock must be held for read or write.
+ */
+struct mount *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
+{
+	struct list_head *head = mount_hashtable + hash(mnt, dentry);
+	struct mount *p;
+
+	list_for_each_entry_reverse(p, head, mnt_hash)
+		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry)
+			return p;
+	return NULL;
 }
 
 /*
@@ -594,7 +598,7 @@ struct vfsmount *lookup_mnt(struct path *path)
 	struct mount *child_mnt;
 
 	br_read_lock(&vfsmount_lock);
-	child_mnt = __lookup_mnt(path->mnt, path->dentry, 1);
+	child_mnt = __lookup_mnt(path->mnt, path->dentry);
 	if (child_mnt) {
 		mnt_add_count(child_mnt, 1);
 		br_read_unlock(&vfsmount_lock);

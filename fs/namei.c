@@ -1111,7 +1111,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		if (!d_mountpoint(path->dentry))
 			break;
 
-		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
+		mounted = __lookup_mnt(path->mnt, path->dentry);
 		if (!mounted)
 			break;
 		path->mnt = &mounted->mnt;
@@ -1132,7 +1132,7 @@ static void follow_mount_rcu(struct nameidata *nd)
 {
 	while (d_mountpoint(nd->path.dentry)) {
 		struct mount *mounted;
-		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry, 1);
+		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry);
 		if (!mounted)
 			break;
 		nd->path.mnt = &mounted->mnt;
