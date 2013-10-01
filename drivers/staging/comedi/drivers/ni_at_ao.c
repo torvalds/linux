@@ -1,39 +1,37 @@
 /*
-    comedi/drivers/ni_at_ao.c
-    Driver for NI AT-AO-6/10 boards
+ * ni_at_ao.c
+ * Driver for NI AT-AO-6/10 boards
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000,2002 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000,2002 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: ni_at_ao
-Description: National Instruments AT-AO-6/10
-Devices: [National Instruments] AT-AO-6 (at-ao-6), AT-AO-10 (at-ao-10)
-Status: should work
-Author: ds
-Updated: Sun Dec 26 12:26:28 EST 2004
-
-Configuration options:
-  [0] - I/O port base address
-  [1] - IRQ (unused)
-  [2] - DMA (unused)
-  [3] - analog output range, set by jumpers on hardware (0 for -10 to 10V
-	bipolar, 1 for 0V to 10V unipolar)
-
-*/
-/*
- * Register-level programming information can be found in NI
- * document 320379.pdf.
+ * Driver: ni_at_ao
+ * Description: National Instruments AT-AO-6/10
+ * Devices: (National Instruments) AT-AO-6 [at-ao-6]
+ *          (National Instruments) AT-AO-10 [at-ao-10]
+ * Status: should work
+ * Author: David A. Schleef <ds@schleef.org>
+ * Updated: Sun Dec 26 12:26:28 EST 2004
+ *
+ * Configuration options:
+ *   [0] - I/O port base address
+ *   [1] - IRQ (unused)
+ *   [2] - DMA (unused)
+ *   [3] - analog output range, set by jumpers on hardware
+ *         0 for -10 to 10V bipolar
+ *         1 for 0V to 10V unipolar
  */
 
 #include <linux/module.h>
@@ -44,6 +42,9 @@ Configuration options:
 
 /*
  * Register map
+ *
+ * Register-level programming information can be found in NI
+ * document 320379.pdf.
  */
 #define ATAO_DIO_REG		0x00
 #define ATAO_CFG2_REG		0x02
