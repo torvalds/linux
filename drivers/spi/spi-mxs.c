@@ -140,18 +140,6 @@ static uint32_t mxs_spi_cs_to_reg(unsigned cs)
 	return select;
 }
 
-static void mxs_spi_set_cs(struct mxs_spi *spi, unsigned cs)
-{
-	const uint32_t mask =
-		BM_SSP_CTRL0_WAIT_FOR_CMD | BM_SSP_CTRL0_WAIT_FOR_IRQ;
-	uint32_t select;
-	struct mxs_ssp *ssp = &spi->ssp;
-
-	writel(mask, ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
-	select = mxs_spi_cs_to_reg(cs);
-	writel(select, ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
-}
-
 static int mxs_ssp_wait(struct mxs_spi *spi, int offset, int mask, bool set)
 {
 	const unsigned long timeout = jiffies + msecs_to_jiffies(SSP_TIMEOUT);
@@ -189,7 +177,7 @@ static irqreturn_t mxs_ssp_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int mxs_spi_txrx_dma(struct mxs_spi *spi, int cs,
+static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 			    unsigned char *buf, int len,
 			    unsigned int flags)
 {
@@ -217,10 +205,11 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi, int cs,
 
 	INIT_COMPLETION(spi->c);
 
+	/* Chip select was already programmed into CTRL0 */
 	ctrl0 = readl(ssp->base + HW_SSP_CTRL0);
 	ctrl0 &= ~(BM_SSP_CTRL0_XFER_COUNT | BM_SSP_CTRL0_IGNORE_CRC |
 		 BM_SSP_CTRL0_READ);
-	ctrl0 |= BM_SSP_CTRL0_DATA_XFER | mxs_spi_cs_to_reg(cs);
+	ctrl0 |= BM_SSP_CTRL0_DATA_XFER;
 
 	if (!(flags & TXRX_WRITE))
 		ctrl0 |= BM_SSP_CTRL0_READ;
@@ -324,7 +313,7 @@ err_mapped:
 	return ret;
 }
 
-static int mxs_spi_txrx_pio(struct mxs_spi *spi, int cs,
+static int mxs_spi_txrx_pio(struct mxs_spi *spi,
 			    unsigned char *buf, int len,
 			    unsigned int flags)
 {
@@ -332,8 +321,6 @@ static int mxs_spi_txrx_pio(struct mxs_spi *spi, int cs,
 
 	writel(BM_SSP_CTRL0_IGNORE_CRC,
 	       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
-
-	mxs_spi_set_cs(spi, cs);
 
 	while (len--) {
 		if (len == 0 && (flags & TXRX_DEASSERT_CS))
@@ -396,9 +383,12 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 	struct spi_transfer *t, *tmp_t;
 	unsigned int flag;
 	int status = 0;
-	int cs;
 
-	cs = m->spi->chip_select;
+	/* Program CS register bits here, it will be used for all transfers. */
+	writel(BM_SSP_CTRL0_WAIT_FOR_CMD | BM_SSP_CTRL0_WAIT_FOR_IRQ,
+	       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
+	writel(mxs_spi_cs_to_reg(m->spi->chip_select),
+	       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 
 	list_for_each_entry_safe(t, tmp_t, &m->transfers, transfer_list) {
 
@@ -431,11 +421,11 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 				STMP_OFFSET_REG_CLR);
 
 			if (t->tx_buf)
-				status = mxs_spi_txrx_pio(spi, cs,
+				status = mxs_spi_txrx_pio(spi,
 						(void *)t->tx_buf,
 						t->len, flag | TXRX_WRITE);
 			if (t->rx_buf)
-				status = mxs_spi_txrx_pio(spi, cs,
+				status = mxs_spi_txrx_pio(spi,
 						t->rx_buf, t->len,
 						flag);
 		} else {
@@ -444,11 +434,11 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 				STMP_OFFSET_REG_SET);
 
 			if (t->tx_buf)
-				status = mxs_spi_txrx_dma(spi, cs,
+				status = mxs_spi_txrx_dma(spi,
 						(void *)t->tx_buf, t->len,
 						flag | TXRX_WRITE);
 			if (t->rx_buf)
-				status = mxs_spi_txrx_dma(spi, cs,
+				status = mxs_spi_txrx_dma(spi,
 						t->rx_buf, t->len,
 						flag);
 		}
