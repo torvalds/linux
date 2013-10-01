@@ -39,105 +39,98 @@ Configuration options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-/* board egisters */
-/* registers with _2_ are accessed when GRP2WR is set in CFG1 */
-
-#define ATAO_2_DMATCCLR		0x00	/* W 16 */
+/*
+ * Register map
+ */
 #define ATAO_DIN		0x00	/* R 16 */
 #define ATAO_DOUT		0x00	/* W 16 */
-
 #define ATAO_CFG2		0x02	/* W 16 */
-#define CALLD1	0x8000
-#define CALLD0	0x4000
-#define FFRTEN	0x2000
-#define DAC2S8	0x1000
-#define DAC2S6	0x0800
-#define DAC2S4	0x0400
-#define DAC2S2	0x0200
-#define DAC2S0	0x0100
-#define LDAC8		0x0080
-#define LDAC6		0x0040
-#define LDAC4		0x0020
-#define LDAC2		0x0010
-#define LDAC0		0x0008
-#define PROMEN	0x0004
-#define SCLK		0x0002
-#define SDATA		0x0001
-
-#define ATAO_2_INT1CLR		0x02	/* W 16 */
-
+#define CALLD1			(1 << 15)
+#define CALLD0			(1 << 14)
+#define FFRTEN			(1 << 13)
+#define DAC2S8			(1 << 12)
+#define DAC2S6			(1 << 11)
+#define DAC2S4			(1 << 10)
+#define DAC2S2			(1 << 9)
+#define DAC2S0			(1 << 8)
+#define LDAC8			(1 << 7)
+#define LDAC6			(1 << 6)
+#define LDAC4			(1 << 5)
+#define LDAC2			(1 << 4)
+#define LDAC0			(1 << 3)
+#define PROMEN			(1 << 2)
+#define SCLK			(1 << 1)
+#define SDATA			(1 << 0)
 #define ATAO_CFG3		0x04	/* W 16 */
-#define DMAMODE	0x0040
-#define CLKOUT	0x0020
-#define RCLKEN	0x0010
-#define DOUTEN2	0x0008
-#define DOUTEN1	0x0004
-#define EN2_5V	0x0002
-#define SCANEN	0x0001
-
-#define ATAO_2_INT2CLR		0x04	/* W 16 */
-
+#define DMAMODE			(1 << 6)
+#define CLKOUT			(1 << 5)
+#define RCLKEN			(1 << 4)
+#define DOUTEN2			(1 << 3)
+#define DOUTEN1			(1 << 2)
+#define EN2_5V			(1 << 1)
+#define SCANEN			(1 << 0)
 #define ATAO_82C53_BASE		0x06	/* RW 8 */
-
 #define ATAO_82C53_CNTR1	0x06	/* RW 8 */
 #define ATAO_82C53_CNTR2	0x07	/* RW 8 */
 #define ATAO_82C53_CNTR3	0x08	/* RW 8 */
 #define ATAO_82C53_CNTRCMD	0x09	/* W 8 */
-#define CNTRSEL1	0x80
-#define CNTRSEL0	0x40
-#define RWSEL1	0x20
-#define RWSEL0	0x10
-#define MODESEL2	0x08
-#define MODESEL1	0x04
-#define MODESEL0	0x02
-#define BCDSEL	0x01
+#define CNTRSEL1		(1 << 7)
+#define CNTRSEL0		(1 << 6)
+#define RWSEL1			(1 << 5)
+#define RWSEL0			(1 << 4)
+#define MODESEL2		(1 << 3)
+#define MODESEL1		(1 << 2)
+#define MODESEL0		(1 << 1)
+#define BCDSEL			(1 << 0)
   /* read-back command */
-#define COUNT		0x20
-#define STATUS	0x10
-#define CNTR3		0x08
-#define CNTR2		0x04
-#define CNTR1		0x02
+#define COUNT			(1 << 5)
+#define STATUS			(1 << 4)
+#define CNTR3			(1 << 3)
+#define CNTR2			(1 << 2)
+#define CNTR1			(1 << 1)
   /* status */
-#define OUT		0x80
-#define _NULL		0x40
-#define RW1		0x20
-#define RW0		0x10
-#define MODE2		0x08
-#define MODE1		0x04
-#define MODE0		0x02
-#define BCD		0x01
-
-#define ATAO_2_RTSISHFT		0x06	/* W 8 */
-#define ATAO_RTSISHFT_RSI	(1 << 0)
-
-#define ATAO_2_RTSISTRB		0x07	/* W 8 */
-
+#define OUT			(1 << 7)
+#define _NULL			(1 << 6)
+#define RW1			(1 << 5)
+#define RW0			(1 << 4)
+#define MODE2			(1 << 3)
+#define MODE1			(1 << 2)
+#define MODE0			(1 << 1)
+#define BCD			(1 << 0)
 #define ATAO_CFG1		0x0a	/* W 16 */
-#define EXTINT2EN	0x8000
-#define EXTINT1EN	0x4000
-#define CNTINT2EN	0x2000
-#define CNTINT1EN	0x1000
-#define TCINTEN	0x0800
-#define CNT1SRC	0x0400
-#define CNT2SRC	0x0200
-#define FIFOEN	0x0100
-#define GRP2WR	0x0080
-#define EXTUPDEN	0x0040
-#define DMARQ		0x0020
-#define DMAEN		0x0010
-#define CH_mask	0x000f
+#define EXTINT2EN		(1 << 15)
+#define EXTINT1EN		(1 << 14)
+#define CNTINT2EN		(1 << 13)
+#define CNTINT1EN		(1 << 12)
+#define TCINTEN			(1 << 11)
+#define CNT1SRC			(1 << 10)
+#define CNT2SRC			(1 << 9)
+#define FIFOEN			(1 << 8)
+#define GRP2WR			(1 << 7)
+#define EXTUPDEN		(1 << 6)
+#define DMARQ			(1 << 5)
+#define DMAEN			(1 << 4)
+#define CH_mask			(0xf << 0)
 #define ATAO_STATUS		0x0a	/* R 16 */
-#define FH		0x0040
-#define FE		0x0020
-#define FF		0x0010
-#define INT2		0x0008
-#define INT1		0x0004
-#define TCINT		0x0002
-#define PROMOUT	0x0001
-
+#define FH			(1 << 6)
+#define FE			(1 << 5)
+#define FF			(1 << 4)
+#define INT2			(1 << 3)
+#define INT1			(1 << 2)
+#define TCINT			(1 << 1)
+#define PROMOUT			(1 << 0)
 #define ATAO_FIFO_WRITE		0x0c	/* W 16 */
 #define ATAO_FIFO_CLEAR		0x0c	/* R 16 */
-#define ATAO_DACn(x)		(0x0c + 2*(x))	/* W */
+#define ATAO_DACn(x)		(0x0c + ((x) * 2))	/* W */
+
+/* registers with _2_ are accessed when GRP2WR is set in CFG1 */
+
+#define ATAO_2_DMATCCLR		0x00	/* W 16 */
+#define ATAO_2_INT1CLR		0x02	/* W 16 */
+#define ATAO_2_INT2CLR		0x04	/* W 16 */
+#define ATAO_2_RTSISHFT		0x06	/* W 8 */
+#define ATAO_RTSISHFT_RSI	(1 << 0)
+#define ATAO_2_RTSISTRB		0x07	/* W 8 */
 
 /*
  * Board descriptions for two imaginary boards.  Describing the
