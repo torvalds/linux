@@ -109,12 +109,9 @@ boot_args=$6
 cd $KVM
 kstarttime=`awk 'BEGIN { print systime() }' < /dev/null`
 echo ' ---' `date`: Starting kernel
-if file linux-2.6/*.o | grep -q 64-bit
-then
-	QEMU=qemu-system-x86_64
-else
-	QEMU=qemu-system-i386
-fi
+
+# Determine the appropriate flavor of qemu command.
+QEMU="`identify_qemu $builddir/vmlinux.o`"
 
 # Generate -smp qemu argument.
 cpu_count=`configNR_CPUS.sh $config_template`

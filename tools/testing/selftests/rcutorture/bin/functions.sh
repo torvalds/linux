@@ -51,3 +51,30 @@ configfrag_hotplug_cpu () {
 	fi
 	grep -q '^CONFIG_HOTPLUG_CPU=y$' "$1"
 }
+
+# identify_qemu builddir
+#
+# Returns our best guess as to which qemu command is appropriate for
+# the kernel at hand.  Override with the RCU_QEMU_CMD environment variable.
+identify_qemu () {
+	local u="`file "$1"`"
+	if test -n "$RCU_QEMU_CMD"
+	then
+		echo $RCU_QEMU_CMD
+	elif echo $u | grep -q x86-64
+	then
+		echo qemu-system-x86_64
+	elif echo $u | grep -q "Intel 80386"
+	then
+		echo qemu-system-i386
+	elif uname -a | grep -q ppc64
+	then
+		echo qemu-system-ppc64
+	else
+		echo Cannot figure out what qemu command to use! 1>&2
+		# Usually this will be one of /usr/bin/qemu-system-*
+		# Use RCU_QEMU_CMD environment variable or appropriate
+		# argument to top-level script.
+		exit 1
+	fi
+}

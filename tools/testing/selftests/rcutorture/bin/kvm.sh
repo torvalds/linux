@@ -45,6 +45,7 @@ usage () {
 	echo "       --datestamp string"
 	echo "       --duration minutes"
 	echo "       --kversion vN.NN"
+	echo "       --qemu-cmd qemu-system-..."
 	echo "       --rcu-kvm absolute-pathname"
 	echo "       --results absolute-pathname"
 	echo "       --relbuilddir relative-pathname"
@@ -99,6 +100,11 @@ do
 	--kversion)
 		checkarg --kversion "(kernel version)" $# "$2" '^v[0-9.]*$' error
 		kversion=$2
+		shift
+		;;
+	--qemu-cmd)
+		checkarg --qemu-cmd "(qemu-system-...)" $# "$2" 'qemu-system-' '^--'
+		RCU_QEMU_CMD="$2"; export RCU_QEMU_CMD
 		shift
 		;;
 	--rcu-kvm)
