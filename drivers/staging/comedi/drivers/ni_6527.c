@@ -381,6 +381,11 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 
 	ni6527_reset(dev);
 
+	ret = request_irq(pcidev->irq, ni6527_interrupt, IRQF_SHARED,
+			  dev->board_name, dev);
+	if (ret == 0)
+		dev->irq = pcidev->irq;
+
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
@@ -402,25 +407,23 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->insn_bits = ni6527_do_insn_bits;
 
+	/* Edge detection interrupt subdevice */
 	s = &dev->subdevices[2];
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
-	s->n_chan = 1;
-	s->range_table = &range_unknown;
-	s->maxdata = 1;
-	s->do_cmdtest = ni6527_intr_cmdtest;
-	s->do_cmd = ni6527_intr_cmd;
-	s->cancel = ni6527_intr_cancel;
-	s->insn_bits = ni6527_intr_insn_bits;
-	s->insn_config = ni6527_intr_insn_config;
-
-	ret = request_irq(pcidev->irq, ni6527_interrupt,
-			  IRQF_SHARED, dev->board_name, dev);
-	if (ret < 0)
-		dev_warn(dev->class_dev, "irq not available\n");
-	else
-		dev->irq = pcidev->irq;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE | SDF_CMD_READ;
+		s->n_chan	= 1;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_config	= ni6527_intr_insn_config;
+		s->insn_bits	= ni6527_intr_insn_bits;
+		s->do_cmdtest	= ni6527_intr_cmdtest;
+		s->do_cmd	= ni6527_intr_cmd;
+		s->cancel	= ni6527_intr_cancel;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	return 0;
 }
