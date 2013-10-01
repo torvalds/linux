@@ -2874,6 +2874,88 @@ static int igb_set_rxfh_indir(struct net_device *netdev, const u32 *indir)
 	return 0;
 }
 
+static unsigned int igb_max_channels(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	unsigned int max_combined = 0;
+
+	switch (hw->mac.type) {
+	case e1000_i211:
+		max_combined = IGB_MAX_RX_QUEUES_I211;
+		break;
+	case e1000_82575:
+	case e1000_i210:
+		max_combined = IGB_MAX_RX_QUEUES_82575;
+		break;
+	case e1000_i350:
+		if (!!adapter->vfs_allocated_count) {
+			max_combined = 1;
+			break;
+		}
+		/* fall through */
+	case e1000_82576:
+		if (!!adapter->vfs_allocated_count) {
+			max_combined = 2;
+			break;
+		}
+		/* fall through */
+	case e1000_82580:
+	case e1000_i354:
+	default:
+		max_combined = IGB_MAX_RX_QUEUES;
+		break;
+	}
+
+	return max_combined;
+}
+
+static void igb_get_channels(struct net_device *netdev,
+			     struct ethtool_channels *ch)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+
+	/* Report maximum channels */
+	ch->max_combined = igb_max_channels(adapter);
+
+	/* Report info for other vector */
+	if (adapter->msix_entries) {
+		ch->max_other = NON_Q_VECTORS;
+		ch->other_count = NON_Q_VECTORS;
+	}
+
+	ch->combined_count = adapter->rss_queues;
+}
+
+static int igb_set_channels(struct net_device *netdev,
+			    struct ethtool_channels *ch)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	unsigned int count = ch->combined_count;
+
+	/* Verify they are not requesting separate vectors */
+	if (!count || ch->rx_count || ch->tx_count)
+		return -EINVAL;
+
+	/* Verify other_count is valid and has not been changed */
+	if (ch->other_count != NON_Q_VECTORS)
+		return -EINVAL;
+
+	/* Verify the number of channels doesn't exceed hw limits */
+	if (count > igb_max_channels(adapter))
+		return -EINVAL;
+
+	if (count != adapter->rss_queues) {
+		adapter->rss_queues = count;
+
+		/* Hardware has to reinitialize queues and interrupts to
+		 * match the new configuration.
+		 */
+		return igb_reinit_queues(adapter);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops igb_ethtool_ops = {
 	.get_settings		= igb_get_settings,
 	.set_settings		= igb_set_settings,
@@ -2910,6 +2992,8 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.get_rxfh_indir_size	= igb_get_rxfh_indir_size,
 	.get_rxfh_indir		= igb_get_rxfh_indir,
 	.set_rxfh_indir		= igb_set_rxfh_indir,
+	.get_channels		= igb_get_channels,
+	.set_channels		= igb_set_channels,
 	.begin			= igb_ethtool_begin,
 	.complete		= igb_ethtool_complete,
 };
