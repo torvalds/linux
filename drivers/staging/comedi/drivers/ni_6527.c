@@ -54,11 +54,10 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 
 #define NI6527_FILT_INTERVAL_REG(x)	(0x08 + (x))
 #define NI6527_FILT_ENA_REG(x)		(0x0c + (x))
-
-#define Change_Status				0x14
-#define MasterInterruptStatus		0x04
-#define Overflow			0x02
-#define EdgeStatus			0x01
+#define NI6527_STATUS_REG		0x14
+#define NI6527_STATUS_IRQ		(1 << 2)
+#define NI6527_STATUS_OVERFLOW		(1 << 1)
+#define NI6527_STATUS_EDGE		(1 << 0)
 
 #define Master_Interrupt_Control		0x15
 #define FallingEdgeIntEnable		0x10
@@ -206,20 +205,22 @@ static irqreturn_t ni6527_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct ni6527_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	void __iomem *mmio = devpriv->mite->daq_io_addr;
 	unsigned int status;
 
-	status = readb(devpriv->mite->daq_io_addr + Change_Status);
-	if ((status & MasterInterruptStatus) == 0)
+	status = readb(mmio + NI6527_STATUS_REG);
+	if (!(status & NI6527_STATUS_IRQ))
 		return IRQ_NONE;
-	if ((status & EdgeStatus) == 0)
-		return IRQ_NONE;
+
+	if (status & NI6527_STATUS_EDGE) {
+		comedi_buf_put(s->async, 0);
+		s->async->events |= COMEDI_CB_EOS;
+		comedi_event(dev, s);
+	}
 
 	writeb(ClrEdge | ClrOverflow,
-	       devpriv->mite->daq_io_addr + Clear_Register);
+	       mmio + Clear_Register);
 
-	comedi_buf_put(s->async, 0);
-	s->async->events |= COMEDI_CB_EOS;
-	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
