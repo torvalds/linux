@@ -966,6 +966,13 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
         }
     }
     else if (byPktType == PK_TYPE_11B) {
+	if (need_mic) {
+		*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
+		head = &tx_buffer->tx_head.tx_ab.tx.mic.head;
+	} else {
+		head = &tx_buffer->tx_head.tx_ab.tx.head;
+	}
+
 	if (need_rts) {
             //Fill RsvTime
 		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.tx_ab.ab;
@@ -975,13 +982,6 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 		pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11B,
 				cbFrameSize, wCurrentRate, bNeedACK);
 
-		if (need_mic) {
-			*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
-			head = &tx_buffer->tx_head.tx_ab.tx.mic.head;
-		} else {
-			head = &tx_buffer->tx_head.tx_ab.tx.head;
-		}
-
 		/* Fill RTS */
 		return s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
 			bNeedACK, psEthHeader, wCurrentRate, byFBOption);
@@ -990,11 +990,11 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
             //Fill RsvTime
 		struct vnt_rrv_time_ab *pBuf = &tx_buffer->tx_head.tx_ab.ab;
 
-		if (need_mic)
-			*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
-
 		pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11B,
 			cbFrameSize, wCurrentRate, bNeedACK);
+
+		return vnt_rxtx_datahead_ab(pDevice, byPktType, wCurrentRate,
+			&head->data_head_ab, cbFrameSize, bNeedACK);
         }
     }
     //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_vGenerateTxParameter END.\n");
@@ -1188,8 +1188,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 			cbMICHDR + sizeof(struct vnt_rts_ab);
             }
             else if (bRTS == false) { //RTS_needless, no MICHDR
-		pvTxDataHd = (struct vnt_tx_datahead_ab *)(pbyTxBufferAddr +
-			wTxBufSize + sizeof(struct vnt_rrv_time_ab) + cbMICHDR);
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_ab) +
 				cbMICHDR + sizeof(struct vnt_tx_datahead_ab);
             }
@@ -1222,10 +1220,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 	uDuration = s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
 			tx_buffer, &pMICHDR, cbMICHDR,
 			cbFrameSize, bNeedACK, uDMAIdx, psEthHeader, bRTS);
-    //Fill DataHead
-	if (pvTxDataHd)
-    		uDuration |= s_uFillDataHead(pDevice, byPktType, wCurrentRate,
-		pvTxDataHd, cbFrameSize, uDMAIdx, bNeedACK, byFBOption);
+
     // Generate TX MAC Header
     s_vGenerateMACHeader(pDevice, pbyMacHdr, (u16)uDuration, psEthHeader, bNeedEncryption,
                            byFragType, uDMAIdx, 0);
@@ -1458,7 +1453,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	struct ieee80211_hdr *pMACHeader;
 	struct ethhdr sEthHeader;
 	u8 byPktType, *pbyTxBufferAddr;
-	void *pvTxDataHd;
 	struct vnt_mic_hdr *pMICHDR = NULL;
 	u32 uDuration, cbReqCount, cbHeaderSize, cbFrameBodySize, cbFrameSize;
 	int bNeedACK, bIsPSPOLL = false;
@@ -1595,8 +1589,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 		sizeof(struct vnt_cts);
     }
     else { // 802.11a/b packet
-	pvTxDataHd = (struct vnt_tx_datahead_ab *) (pbyTxBufferAddr +
-		wTxBufSize + sizeof(struct vnt_rrv_time_ab));
 	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_ab) +
 		sizeof(struct vnt_tx_datahead_ab);
     }
@@ -1616,10 +1608,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	uDuration = s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
 		pTX_Buffer, &pMICHDR, 0,
 		cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader, false);
-
-    //Fill DataHead
-    uDuration |= s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd,
-		cbFrameSize, TYPE_TXDMA0, bNeedACK, AUTO_FB_NONE);
 
     pMACHeader = (struct ieee80211_hdr *) (pbyTxBufferAddr + cbHeaderSize);
 
@@ -1690,7 +1678,9 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 		data_head->wDuration_b =
 			cpu_to_le16(pPacket->p80211Header->sA2.wDurationID);
 	} else {
-		((struct vnt_tx_datahead_ab *)pvTxDataHd)->wDuration =
+		struct vnt_tx_datahead_ab *data_head = &pTX_Buffer->tx_head.
+					tx_ab.tx.head.data_head_ab;
+		data_head->wDuration =
 			cpu_to_le16(pPacket->p80211Header->sA2.wDurationID);
 	}
     }
@@ -1999,8 +1989,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 
     }
     else {//802.11a/b packet
-	pvTxDataHd = (struct vnt_tx_datahead_ab *)(pbyTxBufferAddr +
-		wTxBufSize + sizeof(struct vnt_rrv_time_ab) + cbMICHDR);
 	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_ab) + cbMICHDR +
 					sizeof(struct vnt_tx_datahead_ab);
     }
@@ -2139,7 +2127,9 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 		data_head->wDuration_b =
 			cpu_to_le16(p80211Header->sA2.wDurationID);
 	} else {
-		((struct vnt_tx_datahead_ab *)pvTxDataHd)->wDuration =
+		struct vnt_tx_datahead_ab *data_head = &pTX_Buffer->tx_head.
+					tx_ab.tx.head.data_head_ab;
+		data_head->wDuration =
 			cpu_to_le16(p80211Header->sA2.wDurationID);
 	}
     }
