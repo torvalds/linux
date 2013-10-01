@@ -528,6 +528,17 @@ intel_enable_primary(struct drm_crtc *crtc)
 
 	I915_WRITE(reg, I915_READ(reg) | DISPLAY_PLANE_ENABLE);
 
+	/*
+	 * FIXME IPS should be fine as long as one plane is
+	 * enabled, but in practice it seems to have problems
+	 * when going from primary only to sprite only and vice
+	 * versa.
+	 */
+	if (intel_crtc->config.ips_enabled) {
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+		hsw_enable_ips(intel_crtc);
+	}
+
 	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
@@ -550,6 +561,14 @@ intel_disable_primary(struct drm_crtc *crtc)
 	if (dev_priv->fbc.plane == intel_crtc->plane)
 		intel_disable_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
+
+	/*
+	 * FIXME IPS should be fine as long as one plane is
+	 * enabled, but in practice it seems to have problems
+	 * when going from primary only to sprite only and vice
+	 * versa.
+	 */
+	hsw_disable_ips(intel_crtc);
 
 	I915_WRITE(reg, I915_READ(reg) & ~DISPLAY_PLANE_ENABLE);
 }

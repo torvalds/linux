@@ -3329,7 +3329,7 @@ static void intel_disable_planes(struct drm_crtc *crtc)
 			intel_plane_disable(&intel_plane->base);
 }
 
-static void hsw_enable_ips(struct intel_crtc *crtc)
+void hsw_enable_ips(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
@@ -3344,7 +3344,7 @@ static void hsw_enable_ips(struct intel_crtc *crtc)
 	I915_WRITE(IPS_CTL, IPS_ENABLE);
 }
 
-static void hsw_disable_ips(struct intel_crtc *crtc)
+void hsw_disable_ips(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
