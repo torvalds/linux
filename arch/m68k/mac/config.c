@@ -26,7 +26,6 @@
 #include <linux/adb.h>
 #include <linux/cuda.h>
 
-#define BOOTINFO_COMPAT_1_0
 #include <asm/setup.h>
 #include <asm/bootinfo.h>
 

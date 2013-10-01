@@ -25,7 +25,6 @@
 #include <asm/mac_via.h>
 #include <asm/mac_oss.h>
 
-#define BOOTINFO_COMPAT_1_0
 #include <asm/bootinfo.h>
 #include <asm/machdep.h>
 
