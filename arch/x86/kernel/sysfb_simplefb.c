@@ -72,7 +72,7 @@ __init int create_simplefb(const struct screen_info *si,
 	 * the part that is occupied by the framebuffer */
 	len = mode->height * mode->stride;
 	len = PAGE_ALIGN(len);
-	if (len > si->lfb_size << 16) {
+	if (len > (u64)si->lfb_size << 16) {
 		printk(KERN_WARNING "sysfb: VRAM smaller than advertised\n");
 		return -EINVAL;
 	}
