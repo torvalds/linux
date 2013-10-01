@@ -45,11 +45,22 @@ struct sysfs_open_dirent {
 struct sysfs_buffer {
 	size_t			count;
 	char			*page;
-	const struct sysfs_ops	*ops;
 	struct mutex		mutex;
 	int			event;
 	struct list_head	list;
 };
+
+/*
+ * Determine ktype->sysfs_ops for the given sysfs_dirent.  This function
+ * must be called while holding an active reference.
+ */
+static const struct sysfs_ops *sysfs_file_ops(struct sysfs_dirent *sd)
+{
+	struct kobject *kobj = sd->s_parent->s_dir.kobj;
+
+	lockdep_assert_held(sd);
+	return kobj->ktype ? kobj->ktype->sysfs_ops : NULL;
+}
 
 /**
  *	fill_read_buffer - allocate and fill buffer from object.
@@ -66,7 +77,7 @@ static int fill_read_buffer(struct dentry *dentry, struct sysfs_buffer *buffer)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
-	const struct sysfs_ops *ops = buffer->ops;
+	const struct sysfs_ops *ops;
 	int ret = 0;
 	ssize_t count;
 
@@ -80,6 +91,8 @@ static int fill_read_buffer(struct dentry *dentry, struct sysfs_buffer *buffer)
 		return -ENODEV;
 
 	buffer->event = atomic_read(&attr_sd->s_attr.open->event);
+
+	ops = sysfs_file_ops(attr_sd);
 	count = ops->show(kobj, attr_sd->s_attr.attr, buffer->page);
 
 	sysfs_put_active(attr_sd);
@@ -191,20 +204,20 @@ static int flush_write_buffer(struct dentry *dentry,
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
-	const struct sysfs_ops *ops = buffer->ops;
+	const struct sysfs_ops *ops;
 	int rc;
 
 	/* need attr_sd for attr and ops, its parent for kobj */
 	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
+	ops = sysfs_file_ops(attr_sd);
 	rc = ops->store(kobj, attr_sd->s_attr.attr, buffer->page, count);
 
 	sysfs_put_active(attr_sd);
 
 	return rc;
 }
-
 
 /**
  *	sysfs_write_file - write an attribute.
@@ -334,14 +347,11 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 		return -ENODEV;
 
 	/* every kobject with an attribute needs a ktype assigned */
-	if (kobj->ktype && kobj->ktype->sysfs_ops)
-		ops = kobj->ktype->sysfs_ops;
-	else {
-		WARN(1, KERN_ERR
-		     "missing sysfs attribute operations for kobject: %s\n",
-		     kobject_name(kobj));
+	ops = sysfs_file_ops(attr_sd);
+	if (WARN(!ops, KERN_ERR
+		 "missing sysfs attribute operations for kobject: %s\n",
+		 kobject_name(kobj)))
 		goto err_out;
-	}
 
 	/* File needs write support.
 	 * The inode's perms must say it's ok,
@@ -370,7 +380,6 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 		goto err_out;
 
 	mutex_init(&buffer->mutex);
-	buffer->ops = ops;
 	file->private_data = buffer;
 
 	/* make sure we have open dirent struct */
