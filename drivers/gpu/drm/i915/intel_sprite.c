@@ -525,7 +525,10 @@ intel_enable_primary(struct drm_crtc *crtc)
 		return;
 
 	intel_crtc->primary_disabled = false;
+
+	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	I915_WRITE(reg, I915_READ(reg) | DISPLAY_PLANE_ENABLE);
 }
@@ -544,7 +547,10 @@ intel_disable_primary(struct drm_crtc *crtc)
 	I915_WRITE(reg, I915_READ(reg) & ~DISPLAY_PLANE_ENABLE);
 
 	intel_crtc->primary_disabled = true;
+
+	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static int
@@ -810,8 +816,11 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * the sprite planes only require 128KiB alignment and 32 PTE padding.
 	 */
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
+
+	mutex_unlock(&dev->struct_mutex);
+
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	intel_plane->obj = obj;
 
@@ -842,18 +851,15 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		 * wait for vblank to avoid ugliness, we only need to
 		 * do the pin & ref bookkeeping.
 		 */
-		if (old_obj != obj) {
-			mutex_unlock(&dev->struct_mutex);
-			if (intel_crtc->active)
-				intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
-			mutex_lock(&dev->struct_mutex);
-		}
+		if (old_obj != obj && intel_crtc->active)
+			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
+
+		mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(old_obj);
+		mutex_unlock(&dev->struct_mutex);
 	}
 
-out_unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
+	return 0;
 }
 
 static int
@@ -885,8 +891,9 @@ intel_disable_plane(struct drm_plane *plane)
 
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(intel_plane->obj);
-	intel_plane->obj = NULL;
 	mutex_unlock(&dev->struct_mutex);
+
+	intel_plane->obj = NULL;
 out:
 
 	return ret;
