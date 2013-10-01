@@ -22,16 +22,10 @@ config ARCH_EMEV2
 
 comment "SH-Mobile Board Type"
 
-config MACH_KZM9D_REFERENCE
-	bool "KZM9D board - Reference Device Tree Implementation"
+config MACH_KZM9D
+	bool "KZM9D board"
 	depends on ARCH_EMEV2
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	---help---
-	   Use reference implementation of KZM9D board support
-	   which makes a greater use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
 
 comment "SH-Mobile System Configuration"
 endif
