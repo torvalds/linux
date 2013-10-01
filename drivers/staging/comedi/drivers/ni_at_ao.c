@@ -86,18 +86,17 @@ Configuration options:
 #define ATAO_STATUS_INT1	(1 << 2)
 #define ATAO_STATUS_TCINT	(1 << 1)
 #define ATAO_STATUS_PROMOUT	(1 << 0)
-#define ATAO_FIFO_WRITE		0x0c	/* W 16 */
-#define ATAO_FIFO_CLEAR		0x0c	/* R 16 */
-#define ATAO_DACn(x)		(0x0c + ((x) * 2))	/* W */
+#define ATAO_FIFO_WRITE_REG	0x0c
+#define ATAO_FIFO_CLEAR_REG	0x0c
+#define ATAO_AO_REG(x)		(0x0c + ((x) * 2))
 
 /* registers with _2_ are accessed when GRP2WR is set in CFG1 */
-
-#define ATAO_2_DMATCCLR		0x00	/* W 16 */
-#define ATAO_2_INT1CLR		0x02	/* W 16 */
-#define ATAO_2_INT2CLR		0x04	/* W 16 */
-#define ATAO_2_RTSISHFT		0x06	/* W 8 */
-#define ATAO_RTSISHFT_RSI	(1 << 0)
-#define ATAO_2_RTSISTRB		0x07	/* W 8 */
+#define ATAO_2_DMATCCLR_REG	0x00
+#define ATAO_2_INT1CLR_REG	0x02
+#define ATAO_2_INT2CLR_REG	0x04
+#define ATAO_2_RTSISHFT_REG	0x06
+#define ATAO_2_RTSISHFT_RSI	(1 << 0)
+#define ATAO_2_RTSISTRB_REG	0x07
 
 /*
  * Board descriptions for two imaginary boards.  Describing the
@@ -140,14 +139,14 @@ static void atao_reset(struct comedi_device *dev)
 	devpriv->cfg3 = 0;
 	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3_REG);
 
-	inw(dev->iobase + ATAO_FIFO_CLEAR);
+	inw(dev->iobase + ATAO_FIFO_CLEAR_REG);
 
 	devpriv->cfg1 |= ATAO_CFG1_GRP2WR;
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 
-	outw(0, dev->iobase + ATAO_2_INT1CLR);
-	outw(0, dev->iobase + ATAO_2_INT2CLR);
-	outw(0, dev->iobase + ATAO_2_DMATCCLR);
+	outw(0, dev->iobase + ATAO_2_INT1CLR_REG);
+	outw(0, dev->iobase + ATAO_2_INT2CLR_REG);
+	outw(0, dev->iobase + ATAO_2_DMATCCLR_REG);
 
 	devpriv->cfg1 &= ~ATAO_CFG1_GRP2WR;
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
@@ -167,7 +166,7 @@ static int atao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			devpriv->cfg1 |= ATAO_CFG1_GRP2WR;
 			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 		}
-		outw(bits, dev->iobase + ATAO_DACn(chan));
+		outw(bits, dev->iobase + ATAO_AO_REG(chan));
 		if (chan == 0) {
 			devpriv->cfg1 &= ~ATAO_CFG1_GRP2WR;
 			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
