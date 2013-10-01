@@ -45,13 +45,13 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define NI6527_DI_REG(x)		(0x00 + (x))
 #define NI6527_DO_REG(x)		(0x03 + (x))
 #define NI6527_ID_REG			0x06
-
-#define Clear_Register				0x07
-#define ClrEdge				0x08
-#define ClrOverflow			0x04
-#define ClrFilter			0x02
-#define ClrInterval			0x01
-
+#define NI6527_CLR_REG			0x07
+#define NI6527_CLR_EDGE			(1 << 3)
+#define NI6527_CLR_OVERFLOW		(1 << 2)
+#define NI6527_CLR_FILT			(1 << 1)
+#define NI6527_CLR_INTERVAL		(1 << 0)
+#define NI6527_CLR_IRQS			(NI6527_CLR_EDGE | NI6527_CLR_OVERFLOW)
+#define NI6527_CLR_RESET_FILT		(NI6527_CLR_FILT | NI6527_CLR_INTERVAL)
 #define NI6527_FILT_INTERVAL_REG(x)	(0x08 + (x))
 #define NI6527_FILT_ENA_REG(x)		(0x0c + (x))
 #define NI6527_STATUS_REG		0x14
@@ -104,7 +104,7 @@ static void ni6527_set_filter_interval(struct comedi_device *dev,
 		writeb((val >> 8) & 0xff, mmio + NI6527_FILT_INTERVAL_REG(1));
 		writeb((val >> 16) & 0x0f, mmio + NI6527_FILT_INTERVAL_REG(2));
 
-		writeb(ClrInterval, mmio + Clear_Register);
+		writeb(NI6527_CLR_INTERVAL, mmio + NI6527_CLR_REG);
 
 		devpriv->filter_interval = val;
 	}
@@ -218,8 +218,7 @@ static irqreturn_t ni6527_interrupt(int irq, void *d)
 		comedi_event(dev, s);
 	}
 
-	writeb(ClrEdge | ClrOverflow,
-	       mmio + Clear_Register);
+	writeb(NI6527_CLR_IRQS, mmio + NI6527_CLR_REG);
 
 	return IRQ_HANDLED;
 }
@@ -272,8 +271,8 @@ static int ni6527_intr_cmd(struct comedi_device *dev,
 	struct ni6527_private *devpriv = dev->private;
 	/* struct comedi_cmd *cmd = &s->async->cmd; */
 
-	writeb(ClrEdge | ClrOverflow,
-	       devpriv->mite->daq_io_addr + Clear_Register);
+	writeb(NI6527_CLR_IRQS,
+	       devpriv->mite->daq_io_addr + NI6527_CLR_REG);
 	writeb(FallingEdgeIntEnable | RisingEdgeIntEnable |
 	       MasterInterruptEnable | EdgeIntEnable,
 	       devpriv->mite->daq_io_addr + Master_Interrupt_Control);
@@ -401,8 +400,8 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 
 	ni6527_set_filter_enable(dev, 0);
 
-	writeb(ClrEdge | ClrOverflow | ClrFilter | ClrInterval,
-	       devpriv->mite->daq_io_addr + Clear_Register);
+	writeb(NI6527_CLR_IRQS | NI6527_CLR_RESET_FILT,
+	       devpriv->mite->daq_io_addr + NI6527_CLR_REG);
 	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
 	ret = request_irq(mite_irq(devpriv->mite), ni6527_interrupt,
