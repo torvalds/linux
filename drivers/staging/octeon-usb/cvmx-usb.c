@@ -57,9 +57,8 @@
 #include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-helper-board.h>
 
-// normal prefetches that use the pref instruction
-#define CVMX_PREFETCH_PREFX(X, address, offset) asm volatile ("pref %[type], %[off](%[rbase])" : : [rbase] "d" (address), [off] "I" (offset), [type] "n" (X))
-#define CVMX_PREFETCH(address, offset) CVMX_PREFETCH_PREFX(0, address, offset)
+/* Normal prefetch that use the pref instruction. */
+#define CVMX_PREFETCH(address, offset) asm volatile ("pref %[type], %[off](%[rbase])" : : [rbase] "d" (address), [off] "I" (offset), [type] "n" (0))
 
 #define MAX_RETRIES		3		/* Maximum number of times to retry failed transactions */
 #define MAX_PIPES		32		/* Maximum number of pipes that can be open at once */
