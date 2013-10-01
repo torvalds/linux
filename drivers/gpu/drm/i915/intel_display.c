@@ -1840,6 +1840,8 @@ static void intel_enable_primary_plane(struct drm_i915_private *dev_priv,
 	/* If the pipe isn't enabled, we can't pump pixels and may hang */
 	assert_pipe_enabled(dev_priv, pipe);
 
+	WARN(!intel_crtc->primary_disabled, "Primary plane already enabled\n");
+
 	intel_crtc->primary_disabled = false;
 
 	reg = DSPCNTR(plane);
@@ -1867,6 +1869,8 @@ static void intel_disable_primary_plane(struct drm_i915_private *dev_priv,
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 	int reg;
 	u32 val;
+
+	WARN(intel_crtc->primary_disabled, "Primary plane already disabled\n");
 
 	intel_crtc->primary_disabled = true;
 
