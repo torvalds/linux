@@ -44,7 +44,6 @@ struct sysfs_open_dirent {
 
 struct sysfs_buffer {
 	size_t			count;
-	loff_t			pos;
 	char			*page;
 	const struct sysfs_ops	*ops;
 	struct mutex		mutex;
