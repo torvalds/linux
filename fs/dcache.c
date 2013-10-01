@@ -2889,6 +2889,7 @@ static int prepend_path(const struct path *path,
 	char *bptr;
 	int blen;
 
+	br_read_lock(&vfsmount_lock);
 	rcu_read_lock();
 restart:
 	bptr = *buffer;
@@ -2935,6 +2936,7 @@ restart:
 		goto restart;
 	}
 	done_seqretry(&rename_lock, seq);
+	br_read_unlock(&vfsmount_lock);
 
 	if (error >= 0 && bptr == *buffer) {
 		if (--blen < 0)
@@ -2971,9 +2973,7 @@ char *__d_path(const struct path *path,
 	int error;
 
 	prepend(&res, &buflen, "\0", 1);
-	br_read_lock(&vfsmount_lock);
 	error = prepend_path(path, root, &res, &buflen);
-	br_read_unlock(&vfsmount_lock);
 
 	if (error < 0)
 		return ERR_PTR(error);
@@ -2990,9 +2990,7 @@ char *d_absolute_path(const struct path *path,
 	int error;
 
 	prepend(&res, &buflen, "\0", 1);
-	br_read_lock(&vfsmount_lock);
 	error = prepend_path(path, &root, &res, &buflen);
-	br_read_unlock(&vfsmount_lock);
 
 	if (error > 1)
 		error = -EINVAL;
@@ -3067,9 +3065,7 @@ char *d_path(const struct path *path, char *buf, int buflen)
 
 	rcu_read_lock();
 	get_fs_root_rcu(current->fs, &root);
-	br_read_lock(&vfsmount_lock);
 	error = path_with_deleted(path, &root, &res, &buflen);
-	br_read_unlock(&vfsmount_lock);
 	rcu_read_unlock();
 
 	if (error < 0)
@@ -3224,7 +3220,6 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 	get_fs_root_and_pwd_rcu(current->fs, &root, &pwd);
 
 	error = -ENOENT;
-	br_read_lock(&vfsmount_lock);
 	if (!d_unlinked(pwd.dentry)) {
 		unsigned long len;
 		char *cwd = page + PATH_MAX;
@@ -3232,7 +3227,6 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 
 		prepend(&cwd, &buflen, "\0", 1);
 		error = prepend_path(&pwd, &root, &cwd, &buflen);
-		br_read_unlock(&vfsmount_lock);
 		rcu_read_unlock();
 
 		if (error < 0)
@@ -3253,7 +3247,6 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 				error = -EFAULT;
 		}
 	} else {
-		br_read_unlock(&vfsmount_lock);
 		rcu_read_unlock();
 	}
 
