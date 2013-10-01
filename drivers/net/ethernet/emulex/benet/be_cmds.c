@@ -3511,7 +3511,7 @@ int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain)
 	struct be_cmd_enable_disable_vf *req;
 	int status;
 
-	if (!lancer_chip(adapter))
+	if (BEx_chip(adapter))
 		return 0;
 
 	spin_lock_bh(&adapter->mcc_lock);
