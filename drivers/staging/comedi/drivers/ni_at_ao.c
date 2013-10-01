@@ -340,10 +340,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct atao_board *board = comedi_board(dev);
 	struct atao_private *devpriv;
 	struct comedi_subdevice *s;
-	int ao_unipolar;
 	int ret;
-
-	ao_unipolar = it->options[3];
 
 	ret = comedi_request_region(dev, it->options[0], 0x20);
 	if (ret)
@@ -357,28 +354,25 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[0];
-	/* analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = board->n_ao_chans;
-	s->maxdata = (1 << 12) - 1;
-	if (ao_unipolar)
-		s->range_table = &range_unipolar10;
-	else
-		s->range_table = &range_bipolar10;
-	s->insn_write = atao_ao_insn_write;
-	s->insn_read = atao_ao_insn_read;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= board->n_ao_chans;
+	s->maxdata	= 0x0fff;
+	s->range_table	= it->options[3] ? &range_unipolar10 : &range_bipolar10;
+	s->insn_write	= atao_ao_insn_write;
+	s->insn_read	= atao_ao_insn_read;
 
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[1];
-	/* digital i/o subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = atao_dio_insn_bits;
-	s->insn_config = atao_dio_insn_config;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= atao_dio_insn_bits;
+	s->insn_config	= atao_dio_insn_config;
 
 	/* caldac subdevice */
 	s = &dev->subdevices[2];
@@ -389,14 +383,11 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_read	= atao_calib_insn_read;
 	s->insn_write	= atao_calib_insn_write;
 
+	/* EEPROM subdevice */
 	s = &dev->subdevices[3];
-	/* eeprom subdevice */
-	/* s->type=COMEDI_SUBD_EEPROM; */
-	s->type = COMEDI_SUBD_UNUSED;
+	s->type		= COMEDI_SUBD_UNUSED;
 
 	atao_reset(dev);
-
-	printk(KERN_INFO "\n");
 
 	return 0;
 }
