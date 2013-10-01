@@ -470,8 +470,8 @@ struct be_adapter {
 
 #define be_physfn(adapter)		(!adapter->virtfn)
 #define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
-#define sriov_want(adapter)             (be_max_vfs(adapter) && num_vfs && \
-					 be_physfn(adapter))
+#define sriov_want(adapter)             (be_physfn(adapter) &&	\
+					 (num_vfs || pci_num_vf(adapter->pdev)))
 #define for_all_vfs(adapter, vf_cfg, i)					\
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
 		i++, vf_cfg++)

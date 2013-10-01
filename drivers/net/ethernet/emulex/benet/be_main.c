@@ -2948,12 +2948,12 @@ static void BEx_get_resources(struct be_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	bool use_sriov = false;
 
-	if (BE3_chip(adapter) && be_physfn(adapter)) {
+	if (BE3_chip(adapter) && sriov_want(adapter)) {
 		int max_vfs;
 
 		max_vfs = pci_sriov_get_totalvfs(pdev);
 		res->max_vfs = max_vfs > 0 ? min(MAX_VFS, max_vfs) : 0;
-		use_sriov = res->max_vfs && num_vfs;
+		use_sriov = res->max_vfs;
 	}
 
 	if (be_physfn(adapter))
@@ -3242,7 +3242,7 @@ static int be_setup(struct be_adapter *adapter)
 		be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					adapter->rx_fc);
 
-	if (be_physfn(adapter) && num_vfs) {
+	if (sriov_want(adapter)) {
 		if (be_max_vfs(adapter))
 			be_vf_setup(adapter);
 		else
