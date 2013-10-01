@@ -853,8 +853,10 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 	/* FB netdevice is special: we have one, and only one per netns.
 	 * Allowing to move it to another netns is clearly unsafe.
 	 */
-	if (!IS_ERR(itn->fb_tunnel_dev))
+	if (!IS_ERR(itn->fb_tunnel_dev)) {
 		itn->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
+		ip_tunnel_add(itn, netdev_priv(itn->fb_tunnel_dev));
+	}
 	rtnl_unlock();
 
 	return PTR_RET(itn->fb_tunnel_dev);
