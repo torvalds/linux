@@ -135,25 +135,32 @@ static void atao_select_reg_group(struct comedi_device *dev, int group)
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 }
 
-static int atao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
+static int atao_ao_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct atao_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
-	short bits;
+
+	if (chan == 0)
+		atao_select_reg_group(dev, 1);
 
 	for (i = 0; i < insn->n; i++) {
-		bits = data[i] - 0x800;
-		if (chan == 0)
-			atao_select_reg_group(dev, 1);
-		outw(bits, dev->iobase + ATAO_AO_REG(chan));
-		if (chan == 0)
-			atao_select_reg_group(dev, 0);
-		devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+		devpriv->ao_readback[chan] = val;
+
+		/* munge offset binary (unsigned) to two's complement */
+		val = comedi_offset_munge(s, val);
+		outw(val, dev->iobase + ATAO_AO_REG(chan));
 	}
 
-	return i;
+	if (chan == 0)
+		atao_select_reg_group(dev, 0);
+
+	return insn->n;
 }
 
 static int atao_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -358,7 +365,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->range_table = &range_unipolar10;
 	else
 		s->range_table = &range_bipolar10;
-	s->insn_write = &atao_ao_winsn;
+	s->insn_write = atao_ao_insn_write;
 	s->insn_read = &atao_ao_rinsn;
 
 	s = &dev->subdevices[1];
