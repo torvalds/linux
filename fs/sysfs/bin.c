@@ -44,30 +44,12 @@ struct bin_buffer {
 	struct hlist_node		list;
 };
 
-static int
-fill_read(struct file *file, char *buffer, loff_t off, size_t count)
+static ssize_t
+read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
-	int rc;
-
-	/* need attr_sd for attr, its parent for kobj */
-	if (!sysfs_get_active(attr_sd))
-		return -ENODEV;
-
-	rc = -EIO;
-	if (attr->read)
-		rc = attr->read(file, kobj, attr, buffer, off, count);
-
-	sysfs_put_active(attr_sd);
-
-	return rc;
-}
-
-static ssize_t
-read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
-{
 	struct bin_buffer *bb = file->private_data;
 	int size = file_inode(file)->i_size;
 	loff_t offs = *off;
@@ -88,8 +70,20 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 	if (!buf)
 		return -ENOMEM;
 
+	/* need attr_sd for attr, its parent for kobj */
 	mutex_lock(&bb->mutex);
-	count = fill_read(file, buf, offs, count);
+	if (!sysfs_get_active(attr_sd)) {
+		count = -ENODEV;
+		mutex_unlock(&bb->mutex);
+		goto out_free;
+	}
+
+	if (attr->read)
+		count = attr->read(file, kobj, attr, buf, offs, count);
+	else
+		count = -EIO;
+
+	sysfs_put_active(attr_sd);
 	mutex_unlock(&bb->mutex);
 
 	if (count < 0)
