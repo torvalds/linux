@@ -106,10 +106,10 @@ struct atao_board {
 
 static const struct atao_board atao_boards[] = {
 	{
-		.name		= "ai-ao-6",
+		.name		= "at-ao-6",
 		.n_ao_chans	= 6,
 	}, {
-		.name		= "ai-ao-10",
+		.name		= "at-ao-10",
 		.n_ao_chans	= 10,
 	},
 };
