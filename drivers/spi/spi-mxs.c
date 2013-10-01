@@ -399,12 +399,6 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 		/* De-assert on last transfer, inverted by cs_change flag */
 		flag = (&t->transfer_list == m->transfers.prev) ^ t->cs_change ?
 		       TXRX_DEASSERT_CS : 0;
-		if ((t->rx_buf && t->tx_buf) || (t->rx_dma && t->tx_dma)) {
-			dev_err(ssp->dev,
-				"Cannot send and receive simultaneously\n");
-			status = -EINVAL;
-			break;
-		}
 
 		/*
 		 * Small blocks can be transfered via PIO.
