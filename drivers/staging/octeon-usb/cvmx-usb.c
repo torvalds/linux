@@ -2063,7 +2063,6 @@ done:
  * @pipe_handle:
  *		    Which pipe to submit to. Will be validated in this function.
  * @type:	    Transaction type
- * @flags:	    Flags for the transaction
  * @buffer:	    User buffer for the transaction
  * @buffer_length:
  *		    User buffer's length in bytes
@@ -2084,7 +2083,6 @@ done:
 static int __cvmx_usb_submit_transaction(struct cvmx_usb_internal_state *usb,
 					 int pipe_handle,
 					 enum cvmx_usb_transfer type,
-					 int flags,
 					 uint64_t buffer,
 					 int buffer_length,
 					 uint64_t control_header,
@@ -2111,7 +2109,6 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_internal_state *usb,
 		return -ENOMEM;
 
 	transaction->type = type;
-	transaction->flags |= flags;
 	transaction->buffer = buffer;
 	transaction->buffer_length = buffer_length;
 	transaction->control_header = control_header;
@@ -2196,7 +2193,6 @@ int cvmx_usb_submit_bulk(struct cvmx_usb_state *state, int pipe_handle,
 
 	submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
 						      CVMX_USB_TRANSFER_BULK,
-						      0, /* flags */
 						      buffer,
 						      buffer_length,
 						      0, /* control_header */
@@ -2255,7 +2251,6 @@ int cvmx_usb_submit_interrupt(struct cvmx_usb_state *state, int pipe_handle,
 
 	submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
 						      CVMX_USB_TRANSFER_INTERRUPT,
-						      0, /* flags */
 						      buffer,
 						      buffer_length,
 						      0, /* control_header */
@@ -2326,7 +2321,6 @@ int cvmx_usb_submit_control(struct cvmx_usb_state *state, int pipe_handle,
 
 	submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
 						      CVMX_USB_TRANSFER_CONTROL,
-						      0, /* flags */
 						      buffer,
 						      buffer_length,
 						      control_header,
@@ -2405,7 +2399,6 @@ int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state, int pipe_handle,
 
 	submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
 						      CVMX_USB_TRANSFER_ISOCHRONOUS,
-						      0,
 						      buffer,
 						      buffer_length,
 						      0, /* control_header */
