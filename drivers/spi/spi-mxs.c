@@ -119,9 +119,9 @@ static int mxs_spi_setup(struct spi_device *dev)
 	return 0;
 }
 
-static uint32_t mxs_spi_cs_to_reg(unsigned cs)
+static u32 mxs_spi_cs_to_reg(unsigned cs)
 {
-	uint32_t select = 0;
+	u32 select = 0;
 
 	/*
 	 * i.MX28 Datasheet: 17.10.1: HW_SSP_CTRL0
@@ -143,7 +143,7 @@ static int mxs_ssp_wait(struct mxs_spi *spi, int offset, int mask, bool set)
 {
 	const unsigned long timeout = jiffies + msecs_to_jiffies(SSP_TIMEOUT);
 	struct mxs_ssp *ssp = &spi->ssp;
-	uint32_t reg;
+	u32 reg;
 
 	do {
 		reg = readl_relaxed(ssp->base + offset);
@@ -187,11 +187,11 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 	const int sgs = DIV_ROUND_UP(len, desc_len);
 	int sg_count;
 	int min, ret;
-	uint32_t ctrl0;
+	u32 ctrl0;
 	struct page *vm_page;
 	void *sg_buf;
 	struct {
-		uint32_t		pio[4];
+		u32			pio[4];
 		struct scatterlist	sg;
 	} *dma_xfer;
 
