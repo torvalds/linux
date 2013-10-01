@@ -868,7 +868,6 @@ intel_disable_plane(struct drm_plane *plane)
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_crtc *intel_crtc;
-	int ret = 0;
 
 	if (!plane->fb)
 		return 0;
@@ -883,20 +882,18 @@ intel_disable_plane(struct drm_plane *plane)
 		intel_plane->disable_plane(plane, plane->crtc);
 	}
 
-	if (!intel_plane->obj)
-		goto out;
+	if (intel_plane->obj) {
+		if (intel_crtc->active)
+			intel_wait_for_vblank(dev, intel_plane->pipe);
 
-	if (intel_crtc->active)
-		intel_wait_for_vblank(dev, intel_plane->pipe);
+		mutex_lock(&dev->struct_mutex);
+		intel_unpin_fb_obj(intel_plane->obj);
+		mutex_unlock(&dev->struct_mutex);
 
-	mutex_lock(&dev->struct_mutex);
-	intel_unpin_fb_obj(intel_plane->obj);
-	mutex_unlock(&dev->struct_mutex);
+		intel_plane->obj = NULL;
+	}
 
-	intel_plane->obj = NULL;
-out:
-
-	return ret;
+	return 0;
 }
 
 static void intel_destroy_plane(struct drm_plane *plane)
