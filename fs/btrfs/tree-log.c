@@ -3764,14 +3764,14 @@ next_slot:
 		}
 		btrfs_release_path(path);
 
-		if (min_key.offset < (u64)-1)
+		if (min_key.offset < (u64)-1) {
 			min_key.offset++;
-		else if (min_key.type < (u8)-1)
+		} else if (min_key.type < max_key.type) {
 			min_key.type++;
-		else if (min_key.objectid < (u64)-1)
-			min_key.objectid++;
-		else
+			min_key.offset = 0;
+		} else {
 			break;
+		}
 	}
 	if (ins_nr) {
 		ret = copy_items(trans, inode, dst_path, src, ins_start_slot,
