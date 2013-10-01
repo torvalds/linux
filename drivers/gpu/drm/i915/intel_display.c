@@ -1466,6 +1466,20 @@ static void i9xx_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	POSTING_READ(DPLL(pipe));
 }
 
+static void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	u32 val = 0;
+
+	/* Make sure the pipe isn't still relying on us */
+	assert_pipe_disabled(dev_priv, pipe);
+
+	/* Leave integrated clock source enabled */
+	if (pipe == PIPE_B)
+		val = DPLL_INTEGRATED_CRI_CLK_VLV;
+	I915_WRITE(DPLL(pipe), val);
+	POSTING_READ(DPLL(pipe));
+}
+
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv, int port)
 {
 	u32 port_mask;
@@ -3875,7 +3889,9 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	if (!intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI))
+	if (IS_VALLEYVIEW(dev) && !intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI))
+		vlv_disable_pll(dev_priv, pipe);
+	else if (!IS_VALLEYVIEW(dev))
 		i9xx_disable_pll(dev_priv, pipe);
 
 	intel_crtc->active = false;
@@ -4611,9 +4627,9 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	/* Enable DPIO clock input */
 	dpll = DPLL_EXT_BUFFER_ENABLE_VLV | DPLL_REFA_CLK_ENABLE_VLV |
 		DPLL_VGA_MODE_DIS | DPLL_INTEGRATED_CLOCK_VLV;
-	if (pipe)
+	/* We should never disable this, set it here for state tracking */
+	if (pipe == PIPE_B)
 		dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
-
 	dpll |= DPLL_VCO_ENABLE;
 	crtc->config.dpll_hw_state.dpll = dpll;
 
@@ -10279,9 +10295,16 @@ void i915_disable_vga_mem(struct drm_device *dev)
 
 void intel_modeset_init_hw(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	intel_prepare_ddi(dev);
 
 	intel_init_clock_gating(dev);
+
+	/* Enable the CRI clock source so we can get at the display */
+	if (IS_VALLEYVIEW(dev))
+		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+			   DPLL_INTEGRATED_CRI_CLK_VLV);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_enable_gt_powersave(dev);
