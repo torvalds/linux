@@ -508,6 +508,12 @@ sbc_compare_and_write(struct se_cmd *cmd)
 		cmd->transport_complete_callback = NULL;
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
+	/*
+	 * Reset cmd->data_length to individual block_size in order to not
+	 * confuse backend drivers that depend on this value matching the
+	 * size of the I/O being submitted.
+	 */
+	cmd->data_length = cmd->t_task_nolb * dev->dev_attrib.block_size;
 
 	ret = cmd->execute_rw(cmd, cmd->t_bidi_data_sg, cmd->t_bidi_data_nents,
 			      DMA_FROM_DEVICE);
