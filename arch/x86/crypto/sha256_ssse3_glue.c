@@ -281,7 +281,7 @@ static int __init sha256_ssse3_mod_init(void)
 	/* allow AVX to override SSSE3, it's a little faster */
 	if (avx_usable()) {
 #ifdef CONFIG_AS_AVX2
-		if (boot_cpu_has(X86_FEATURE_AVX2))
+		if (boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_BMI2))
 			sha256_transform_asm = sha256_transform_rorx;
 		else
 #endif
