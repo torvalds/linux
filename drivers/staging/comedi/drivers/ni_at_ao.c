@@ -142,9 +142,7 @@ struct atao_board {
 };
 
 struct atao_private {
-
 	unsigned short cfg1;
-	unsigned short cfg2;
 	unsigned short cfg3;
 
 	/* Used for AO readback */
@@ -164,8 +162,7 @@ static void atao_reset(struct comedi_device *dev)
 	outb(0x03, dev->iobase + ATAO_82C53_CNTR1);
 	outb(CNTRSEL0 | RWSEL0 | MODESEL2, dev->iobase + ATAO_82C53_CNTRCMD);
 
-	devpriv->cfg2 = 0;
-	outw(devpriv->cfg2, dev->iobase + ATAO_CFG2);
+	outw(0, dev->iobase + ATAO_CFG2);
 
 	devpriv->cfg3 = 0;
 	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3);
@@ -294,15 +291,15 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 	bitstring = ((chan & 0x7) << 8) | (data[insn->n - 1] & 0xff);
 
 	for (bit = 1 << (11 - 1); bit; bit >>= 1) {
-		outw(devpriv->cfg2 | ((bit & bitstring) ? SDATA : 0),
+		outw(((bit & bitstring) ? SDATA : 0),
 		     dev->iobase + ATAO_CFG2);
-		outw(devpriv->cfg2 | SCLK | ((bit & bitstring) ? SDATA : 0),
+		outw(SCLK | ((bit & bitstring) ? SDATA : 0),
 		     dev->iobase + ATAO_CFG2);
 	}
 	/* strobe the appropriate caldac */
-	outw(devpriv->cfg2 | (((chan >> 3) + 1) << 14),
+	outw((((chan >> 3) + 1) << 14),
 	     dev->iobase + ATAO_CFG2);
-	outw(devpriv->cfg2, dev->iobase + ATAO_CFG2);
+	outw(0, dev->iobase + ATAO_CFG2);
 
 	return insn->n;
 }
