@@ -2988,19 +2988,11 @@ intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 
 	/* use cached edid if we have one */
 	if (intel_connector->edid) {
-		struct edid *edid;
-		int size;
-
 		/* invalid edid */
 		if (IS_ERR(intel_connector->edid))
 			return NULL;
 
-		size = (intel_connector->edid->extensions + 1) * EDID_LENGTH;
-		edid = kmemdup(intel_connector->edid, size, GFP_KERNEL);
-		if (!edid)
-			return NULL;
-
-		return edid;
+		return drm_edid_duplicate(intel_connector->edid);
 	}
 
 	return drm_get_edid(connector, adapter);
