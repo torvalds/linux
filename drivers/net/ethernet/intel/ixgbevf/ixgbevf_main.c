@@ -756,37 +756,12 @@ static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector)
 static irqreturn_t ixgbevf_msix_other(int irq, void *data)
 {
 	struct ixgbevf_adapter *adapter = data;
-	struct pci_dev *pdev = adapter->pdev;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 msg;
-	bool got_ack = false;
 
 	hw->mac.get_link_status = 1;
-	if (!hw->mbx.ops.check_for_ack(hw))
-		got_ack = true;
 
-	if (!hw->mbx.ops.check_for_msg(hw)) {
-		hw->mbx.ops.read(hw, &msg, 1);
-
-		if ((msg & IXGBE_MBVFICR_VFREQ_MASK) == IXGBE_PF_CONTROL_MSG) {
-			mod_timer(&adapter->watchdog_timer,
-				  round_jiffies(jiffies + 1));
-			adapter->link_up = false;
-		}
-
-		if (msg & IXGBE_VT_MSGTYPE_NACK)
-			dev_info(&pdev->dev,
-				 "Last Request of type %2.2x to PF Nacked\n",
-				 msg & 0xFF);
-		hw->mbx.v2p_mailbox |= IXGBE_VFMAILBOX_PFSTS;
-	}
-
-	/* checking for the ack clears the PFACK bit.  Place
-	 * it back in the v2p_mailbox cache so that anyone
-	 * polling for an ack will not miss it
-	 */
-	if (got_ack)
-		hw->mbx.v2p_mailbox |= IXGBE_VFMAILBOX_PFACK;
+	if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
+		mod_timer(&adapter->watchdog_timer, jiffies);
 
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, adapter->eims_other);
 
@@ -1327,27 +1302,51 @@ static void ixgbevf_configure(struct ixgbevf_adapter *adapter)
 	}
 }
 
-#define IXGBE_MAX_RX_DESC_POLL 10
-static inline void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
-						int rxr)
+#define IXGBEVF_MAX_RX_DESC_POLL 10
+static void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
+					 int rxr)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	int wait_loop = IXGBEVF_MAX_RX_DESC_POLL;
+	u32 rxdctl;
 	int j = adapter->rx_ring[rxr].reg_idx;
-	int k;
 
-	for (k = 0; k < IXGBE_MAX_RX_DESC_POLL; k++) {
-		if (IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(j)) & IXGBE_RXDCTL_ENABLE)
-			break;
-		else
-			msleep(1);
-	}
-	if (k >= IXGBE_MAX_RX_DESC_POLL) {
-		hw_dbg(hw, "RXDCTL.ENABLE on Rx queue %d "
-		       "not set within the polling period\n", rxr);
-	}
+	do {
+		usleep_range(1000, 2000);
+		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(j));
+	} while (--wait_loop && !(rxdctl & IXGBE_RXDCTL_ENABLE));
 
-	ixgbevf_release_rx_desc(hw, &adapter->rx_ring[rxr],
-				adapter->rx_ring[rxr].count - 1);
+	if (!wait_loop)
+		hw_dbg(hw, "RXDCTL.ENABLE queue %d not set while polling\n",
+		       rxr);
+
+	ixgbevf_release_rx_desc(&adapter->hw, &adapter->rx_ring[rxr],
+				(adapter->rx_ring[rxr].count - 1));
+}
+
+static void ixgbevf_disable_rx_queue(struct ixgbevf_adapter *adapter,
+				     struct ixgbevf_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int wait_loop = IXGBEVF_MAX_RX_DESC_POLL;
+	u32 rxdctl;
+	u8 reg_idx = ring->reg_idx;
+
+	rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
+	rxdctl &= ~IXGBE_RXDCTL_ENABLE;
+
+	/* write value back with RXDCTL.ENABLE bit cleared */
+	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(reg_idx), rxdctl);
+
+	/* the hardware may take up to 100us to really disable the rx queue */
+	do {
+		udelay(10);
+		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
+	} while (--wait_loop && (rxdctl & IXGBE_RXDCTL_ENABLE));
+
+	if (!wait_loop)
+		hw_dbg(hw, "RXDCTL.ENABLE queue %d not cleared while polling\n",
+		       reg_idx);
 }
 
 static void ixgbevf_save_reset_stats(struct ixgbevf_adapter *adapter)
@@ -1545,8 +1544,6 @@ void ixgbevf_up(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	ixgbevf_negotiate_api(adapter);
-
 	ixgbevf_reset_queues(adapter);
 
 	ixgbevf_configure(adapter);
@@ -1679,7 +1676,10 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter)
 
 	/* signal that we are down to the interrupt handler */
 	set_bit(__IXGBEVF_DOWN, &adapter->state);
-	/* disable receives */
+
+	/* disable all enabled rx queues */
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		ixgbevf_disable_rx_queue(adapter, &adapter->rx_ring[i]);
 
 	netif_tx_disable(netdev);
 
@@ -1733,10 +1733,12 @@ void ixgbevf_reset(struct ixgbevf_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 
-	if (hw->mac.ops.reset_hw(hw))
+	if (hw->mac.ops.reset_hw(hw)) {
 		hw_dbg(hw, "PF still resetting\n");
-	else
+	} else {
 		hw->mac.ops.init_hw(hw);
+		ixgbevf_negotiate_api(adapter);
+	}
 
 	if (is_valid_ether_addr(adapter->hw.mac.addr)) {
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
@@ -2072,6 +2074,9 @@ static int ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	hw->mac.max_tx_queues = 2;
 	hw->mac.max_rx_queues = 2;
 
+	/* lock to protect mailbox accesses */
+	spin_lock_init(&adapter->mbx_lock);
+
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
 		dev_info(&pdev->dev,
@@ -2082,6 +2087,7 @@ static int ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 			pr_err("init_shared_code failed: %d\n", err);
 			goto out;
 		}
+		ixgbevf_negotiate_api(adapter);
 		err = hw->mac.ops.get_mac_addr(hw, hw->mac.addr);
 		if (err)
 			dev_info(&pdev->dev, "Error reading MAC address\n");
@@ -2096,9 +2102,6 @@ static int ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 		eth_hw_addr_random(netdev);
 		memcpy(hw->mac.addr, netdev->dev_addr, netdev->addr_len);
 	}
-
-	/* lock to protect mailbox accesses */
-	spin_lock_init(&adapter->mbx_lock);
 
 	/* Enable dynamic interrupt throttling rates */
 	adapter->rx_itr_setting = 1;
@@ -2619,8 +2622,6 @@ static int ixgbevf_open(struct net_device *netdev)
 			goto err_setup_reset;
 		}
 	}
-
-	ixgbevf_negotiate_api(adapter);
 
 	/* setup queue reg_idx and Rx queue count */
 	err = ixgbevf_setup_queues(adapter);
@@ -3216,6 +3217,8 @@ static int ixgbevf_resume(struct pci_dev *pdev)
 	}
 	pci_set_master(pdev);
 
+	ixgbevf_reset(adapter);
+
 	rtnl_lock();
 	err = ixgbevf_init_interrupt_scheme(adapter);
 	rtnl_unlock();
@@ -3223,8 +3226,6 @@ static int ixgbevf_resume(struct pci_dev *pdev)
 		dev_err(&pdev->dev, "Cannot initialize interrupts\n");
 		return err;
 	}
-
-	ixgbevf_reset(adapter);
 
 	if (netif_running(netdev)) {
 		err = ixgbevf_open(netdev);

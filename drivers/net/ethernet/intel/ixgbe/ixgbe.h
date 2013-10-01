@@ -55,7 +55,7 @@
 #include <net/busy_poll.h>
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
-#define LL_EXTENDED_STATS
+#define BP_EXTENDED_STATS
 #endif
 /* common prefix used by pr_<> macros */
 #undef pr_fmt
@@ -187,11 +187,11 @@ struct ixgbe_rx_buffer {
 struct ixgbe_queue_stats {
 	u64 packets;
 	u64 bytes;
-#ifdef LL_EXTENDED_STATS
+#ifdef BP_EXTENDED_STATS
 	u64 yields;
 	u64 misses;
 	u64 cleaned;
-#endif  /* LL_EXTENDED_STATS */
+#endif  /* BP_EXTENDED_STATS */
 };
 
 struct ixgbe_tx_queue_stats {
@@ -399,7 +399,7 @@ static inline bool ixgbe_qv_lock_napi(struct ixgbe_q_vector *q_vector)
 		WARN_ON(q_vector->state & IXGBE_QV_STATE_NAPI);
 		q_vector->state |= IXGBE_QV_STATE_NAPI_YIELD;
 		rc = false;
-#ifdef LL_EXTENDED_STATS
+#ifdef BP_EXTENDED_STATS
 		q_vector->tx.ring->stats.yields++;
 #endif
 	} else
@@ -432,7 +432,7 @@ static inline bool ixgbe_qv_lock_poll(struct ixgbe_q_vector *q_vector)
 	if ((q_vector->state & IXGBE_QV_LOCKED)) {
 		q_vector->state |= IXGBE_QV_STATE_POLL_YIELD;
 		rc = false;
-#ifdef LL_EXTENDED_STATS
+#ifdef BP_EXTENDED_STATS
 		q_vector->rx.ring->stats.yields++;
 #endif
 	} else
@@ -457,7 +457,7 @@ static inline bool ixgbe_qv_unlock_poll(struct ixgbe_q_vector *q_vector)
 }
 
 /* true if a socket is polling, even if it did not get the lock */
-static inline bool ixgbe_qv_ll_polling(struct ixgbe_q_vector *q_vector)
+static inline bool ixgbe_qv_busy_polling(struct ixgbe_q_vector *q_vector)
 {
 	WARN_ON(!(q_vector->state & IXGBE_QV_LOCKED));
 	return q_vector->state & IXGBE_QV_USER_PEND;
@@ -487,7 +487,7 @@ static inline bool ixgbe_qv_unlock_poll(struct ixgbe_q_vector *q_vector)
 	return false;
 }
 
-static inline bool ixgbe_qv_ll_polling(struct ixgbe_q_vector *q_vector)
+static inline bool ixgbe_qv_busy_polling(struct ixgbe_q_vector *q_vector)
 {
 	return false;
 }

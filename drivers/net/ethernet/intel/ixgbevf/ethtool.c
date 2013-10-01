@@ -140,58 +140,10 @@ static void ixgbevf_set_msglevel(struct net_device *netdev, u32 data)
 
 #define IXGBE_GET_STAT(_A_, _R_) (_A_->stats._R_)
 
-static char *ixgbevf_reg_names[] = {
-	"IXGBE_VFCTRL",
-	"IXGBE_VFSTATUS",
-	"IXGBE_VFLINKS",
-	"IXGBE_VFRXMEMWRAP",
-	"IXGBE_VFFRTIMER",
-	"IXGBE_VTEICR",
-	"IXGBE_VTEICS",
-	"IXGBE_VTEIMS",
-	"IXGBE_VTEIMC",
-	"IXGBE_VTEIAC",
-	"IXGBE_VTEIAM",
-	"IXGBE_VTEITR",
-	"IXGBE_VTIVAR",
-	"IXGBE_VTIVAR_MISC",
-	"IXGBE_VFRDBAL0",
-	"IXGBE_VFRDBAL1",
-	"IXGBE_VFRDBAH0",
-	"IXGBE_VFRDBAH1",
-	"IXGBE_VFRDLEN0",
-	"IXGBE_VFRDLEN1",
-	"IXGBE_VFRDH0",
-	"IXGBE_VFRDH1",
-	"IXGBE_VFRDT0",
-	"IXGBE_VFRDT1",
-	"IXGBE_VFRXDCTL0",
-	"IXGBE_VFRXDCTL1",
-	"IXGBE_VFSRRCTL0",
-	"IXGBE_VFSRRCTL1",
-	"IXGBE_VFPSRTYPE",
-	"IXGBE_VFTDBAL0",
-	"IXGBE_VFTDBAL1",
-	"IXGBE_VFTDBAH0",
-	"IXGBE_VFTDBAH1",
-	"IXGBE_VFTDLEN0",
-	"IXGBE_VFTDLEN1",
-	"IXGBE_VFTDH0",
-	"IXGBE_VFTDH1",
-	"IXGBE_VFTDT0",
-	"IXGBE_VFTDT1",
-	"IXGBE_VFTXDCTL0",
-	"IXGBE_VFTXDCTL1",
-	"IXGBE_VFTDWBAL0",
-	"IXGBE_VFTDWBAL1",
-	"IXGBE_VFTDWBAH0",
-	"IXGBE_VFTDWBAH1"
-};
-
-
 static int ixgbevf_get_regs_len(struct net_device *netdev)
 {
-	return (ARRAY_SIZE(ixgbevf_reg_names)) * sizeof(u32);
+#define IXGBE_REGS_LEN 45
+	return IXGBE_REGS_LEN * sizeof(u32);
 }
 
 static void ixgbevf_get_regs(struct net_device *netdev,
@@ -264,9 +216,6 @@ static void ixgbevf_get_regs(struct net_device *netdev,
 		regs_buff[41 + i] = IXGBE_READ_REG(hw, IXGBE_VFTDWBAL(i));
 	for (i = 0; i < 2; i++)
 		regs_buff[43 + i] = IXGBE_READ_REG(hw, IXGBE_VFTDWBAH(i));
-
-	for (i = 0; i < ARRAY_SIZE(ixgbevf_reg_names); i++)
-		hw_dbg(hw, "%s\t%8.8x\n", ixgbevf_reg_names[i], regs_buff[i]);
 }
 
 static void ixgbevf_get_drvinfo(struct net_device *netdev,

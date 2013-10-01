@@ -1585,7 +1585,7 @@ static void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
 
-	if (ixgbe_qv_ll_polling(q_vector))
+	if (ixgbe_qv_busy_polling(q_vector))
 		netif_receive_skb(skb);
 	else if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL))
 		napi_gro_receive(&q_vector->napi, skb);
@@ -2097,7 +2097,7 @@ static int ixgbe_low_latency_recv(struct napi_struct *napi)
 
 	ixgbe_for_each_ring(ring, q_vector->rx) {
 		found = ixgbe_clean_rx_irq(q_vector, ring, 4);
-#ifdef LL_EXTENDED_STATS
+#ifdef BP_EXTENDED_STATS
 		if (found)
 			ring->stats.cleaned += found;
 		else

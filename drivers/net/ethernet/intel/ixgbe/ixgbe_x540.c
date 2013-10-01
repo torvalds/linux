@@ -32,12 +32,12 @@
 #include "ixgbe.h"
 #include "ixgbe_phy.h"
 
-#define IXGBE_X540_MAX_TX_QUEUES 128
-#define IXGBE_X540_MAX_RX_QUEUES 128
-#define IXGBE_X540_RAR_ENTRIES   128
-#define IXGBE_X540_MC_TBL_SIZE   128
-#define IXGBE_X540_VFT_TBL_SIZE  128
-#define IXGBE_X540_RX_PB_SIZE	 384
+#define IXGBE_X540_MAX_TX_QUEUES	128
+#define IXGBE_X540_MAX_RX_QUEUES	128
+#define IXGBE_X540_RAR_ENTRIES		128
+#define IXGBE_X540_MC_TBL_SIZE		128
+#define IXGBE_X540_VFT_TBL_SIZE		128
+#define IXGBE_X540_RX_PB_SIZE		384
 
 static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw);
 static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw);
