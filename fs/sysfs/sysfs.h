@@ -223,12 +223,6 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 void sysfs_unmap_bin_file(struct sysfs_dirent *sd);
 
 /*
- * bin.c
- */
-extern const struct file_operations bin_fops;
-void unmap_bin_file(struct sysfs_dirent *attr_sd);
-
-/*
  * symlink.c
  */
 extern const struct inode_operations sysfs_symlink_inode_operations;
