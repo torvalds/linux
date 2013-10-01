@@ -536,7 +536,6 @@ static int mxs_spi_probe(struct platform_device *pdev)
 		goto out_dma_release;
 
 	clk_set_rate(ssp->clk, clk_freq);
-	ssp->clk_rate = clk_get_rate(ssp->clk) / 1000;
 
 	ret = stmp_reset_block(ssp->base);
 	if (ret)
