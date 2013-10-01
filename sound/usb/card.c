@@ -346,6 +346,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 	case USB_SPEED_LOW:
 	case USB_SPEED_FULL:
 	case USB_SPEED_HIGH:
+	case USB_SPEED_WIRELESS:
 	case USB_SPEED_SUPER:
 		break;
 	default:
