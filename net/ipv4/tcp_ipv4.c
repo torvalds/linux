@@ -1410,8 +1410,8 @@ static int tcp_v4_conn_req_fastopen(struct sock *sk,
 	inet_csk(child)->icsk_af_ops->rebuild_header(child);
 	tcp_init_congestion_control(child);
 	tcp_mtup_init(child);
-	tcp_init_buffer_space(child);
 	tcp_init_metrics(child);
+	tcp_init_buffer_space(child);
 
 	/* Queue the data carried in the SYN packet. We need to first
 	 * bump skb's refcnt because the caller will attempt to free it.
