@@ -1801,6 +1801,33 @@ struct dentry *d_instantiate_unique(struct dentry *entry, struct inode *inode)
 
 EXPORT_SYMBOL(d_instantiate_unique);
 
+/**
+ * d_instantiate_no_diralias - instantiate a non-aliased dentry
+ * @entry: dentry to complete
+ * @inode: inode to attach to this dentry
+ *
+ * Fill in inode information in the entry.  If a directory alias is found, then
+ * return an error (and drop inode).  Together with d_materialise_unique() this
+ * guarantees that a directory inode may never have more than one alias.
+ */
+int d_instantiate_no_diralias(struct dentry *entry, struct inode *inode)
+{
+	BUG_ON(!hlist_unhashed(&entry->d_alias));
+
+	spin_lock(&inode->i_lock);
+	if (S_ISDIR(inode->i_mode) && !hlist_empty(&inode->i_dentry)) {
+		spin_unlock(&inode->i_lock);
+		iput(inode);
+		return -EBUSY;
+	}
+	__d_instantiate(entry, inode);
+	spin_unlock(&inode->i_lock);
+	security_d_instantiate(entry, inode);
+
+	return 0;
+}
+EXPORT_SYMBOL(d_instantiate_no_diralias);
+
 struct dentry *d_make_root(struct inode *root_inode)
 {
 	struct dentry *res = NULL;

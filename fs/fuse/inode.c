@@ -565,7 +565,6 @@ void fuse_conn_init(struct fuse_conn *fc)
 {
 	memset(fc, 0, sizeof(*fc));
 	spin_lock_init(&fc->lock);
-	mutex_init(&fc->inst_mutex);
 	init_rwsem(&fc->killsb);
 	atomic_set(&fc->count, 1);
 	init_waitqueue_head(&fc->waitq);
@@ -596,7 +595,6 @@ void fuse_conn_put(struct fuse_conn *fc)
 	if (atomic_dec_and_test(&fc->count)) {
 		if (fc->destroy_req)
 			fuse_request_free(fc->destroy_req);
-		mutex_destroy(&fc->inst_mutex);
 		fc->release(fc);
 	}
 }
