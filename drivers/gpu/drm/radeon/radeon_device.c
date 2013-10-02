@@ -144,6 +144,11 @@ void radeon_program_register_sequence(struct radeon_device *rdev,
 	}
 }
 
+void radeon_pci_config_reset(struct radeon_device *rdev)
+{
+	pci_write_config_dword(rdev->pdev, 0x7c, RADEON_ASIC_RESET_DATA);
+}
+
 /**
  * radeon_surface_init - Clear GPU surface registers.
  *

@@ -140,6 +140,9 @@ extern int radeon_hard_reset;
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
 #define RADEON_IB_VM_MAX_SIZE			(64 << 10)
 
+/* hard reset data */
+#define RADEON_ASIC_RESET_DATA                  0x39d5e86b
+
 /* reset flags */
 #define RADEON_RESET_GFX			(1 << 0)
 #define RADEON_RESET_COMPUTE			(1 << 1)
@@ -2675,6 +2678,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 /* Common functions */
 /* AGP */
 extern int radeon_gpu_reset(struct radeon_device *rdev);
+extern void radeon_pci_config_reset(struct radeon_device *rdev);
 extern void r600_set_bios_scratch_engine_hung(struct radeon_device *rdev, bool hung);
 extern void radeon_agp_disable(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
