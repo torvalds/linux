@@ -11,6 +11,9 @@ FILES=					\
 	test-hello			\
 	test-libaudit			\
 	test-libbfd			\
+	test-liberty			\
+	test-liberty-z			\
+	test-cplus-demangle		\
 	test-libelf			\
 	test-libelf-getphdrnum		\
 	test-libelf-mmap		\
@@ -121,6 +124,15 @@ test-libpython-version:
 
 test-libbfd:
 	$(BUILD) -DPACKAGE='perf' -DPACKAGE=perf -lbfd -ldl
+
+test-liberty:
+	$(CC) -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='perf' -DPACKAGE=perf -lbfd -ldl -liberty
+
+test-liberty-z:
+	$(CC) -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='perf' -DPACKAGE=perf -lbfd -ldl -liberty -lz
+
+test-cplus-demangle:
+	$(BUILD) -liberty
 
 test-on-exit:
 	$(BUILD)
