@@ -1306,8 +1306,6 @@ static int __cpufreq_remove_dev_finish(struct device *dev,
  * __cpufreq_remove_dev - remove a CPU device
  *
  * Removes the cpufreq interface for a CPU device.
- * Caller should already have policy_rwsem in write mode for this CPU.
- * This routine frees the rwsem before returning.
  */
 static inline int __cpufreq_remove_dev(struct device *dev,
 				       struct subsys_interface *sif,
