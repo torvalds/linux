@@ -119,12 +119,22 @@ static const struct wiimod_ops wiimod_keys = {
  * the rumble motor, this flag shouldn't be set.
  */
 
+/* used by wiimod_rumble and wiipro_rumble */
+static void wiimod_rumble_worker(struct work_struct *work)
+{
+	struct wiimote_data *wdata = container_of(work, struct wiimote_data,
+						  rumble_worker);
+
+	spin_lock_irq(&wdata->state.lock);
+	wiiproto_req_rumble(wdata, wdata->state.cache_rumble);
+	spin_unlock_irq(&wdata->state.lock);
+}
+
 static int wiimod_rumble_play(struct input_dev *dev, void *data,
 			      struct ff_effect *eff)
 {
 	struct wiimote_data *wdata = input_get_drvdata(dev);
 	__u8 value;
-	unsigned long flags;
 
 	/*
 	 * The wiimote supports only a single rumble motor so if any magnitude
@@ -137,9 +147,10 @@ static int wiimod_rumble_play(struct input_dev *dev, void *data,
 	else
 		value = 0;
 
-	spin_lock_irqsave(&wdata->state.lock, flags);
-	wiiproto_req_rumble(wdata, value);
-	spin_unlock_irqrestore(&wdata->state.lock, flags);
+	/* Locking state.lock here might deadlock with input_event() calls.
+	 * schedule_work acts as barrier. Merging multiple changes is fine. */
+	wdata->state.cache_rumble = value;
+	schedule_work(&wdata->rumble_worker);
 
 	return 0;
 }
@@ -147,6 +158,8 @@ static int wiimod_rumble_play(struct input_dev *dev, void *data,
 static int wiimod_rumble_probe(const struct wiimod_ops *ops,
 			       struct wiimote_data *wdata)
 {
+	INIT_WORK(&wdata->rumble_worker, wiimod_rumble_worker);
+
 	set_bit(FF_RUMBLE, wdata->input->ffbit);
 	if (input_ff_create_memless(wdata->input, NULL, wiimod_rumble_play))
 		return -ENOMEM;
@@ -158,6 +171,8 @@ static void wiimod_rumble_remove(const struct wiimod_ops *ops,
 				 struct wiimote_data *wdata)
 {
 	unsigned long flags;
+
+	cancel_work_sync(&wdata->rumble_worker);
 
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wiiproto_req_rumble(wdata, 0);
@@ -1731,7 +1746,6 @@ static int wiimod_pro_play(struct input_dev *dev, void *data,
 {
 	struct wiimote_data *wdata = input_get_drvdata(dev);
 	__u8 value;
-	unsigned long flags;
 
 	/*
 	 * The wiimote supports only a single rumble motor so if any magnitude
@@ -1744,9 +1758,10 @@ static int wiimod_pro_play(struct input_dev *dev, void *data,
 	else
 		value = 0;
 
-	spin_lock_irqsave(&wdata->state.lock, flags);
-	wiiproto_req_rumble(wdata, value);
-	spin_unlock_irqrestore(&wdata->state.lock, flags);
+	/* Locking state.lock here might deadlock with input_event() calls.
+	 * schedule_work acts as barrier. Merging multiple changes is fine. */
+	wdata->state.cache_rumble = value;
+	schedule_work(&wdata->rumble_worker);
 
 	return 0;
 }
@@ -1755,6 +1770,8 @@ static int wiimod_pro_probe(const struct wiimod_ops *ops,
 			    struct wiimote_data *wdata)
 {
 	int ret, i;
+
+	INIT_WORK(&wdata->rumble_worker, wiimod_rumble_worker);
 
 	wdata->extension.input = input_allocate_device();
 	if (!wdata->extension.input)
@@ -1817,12 +1834,13 @@ static void wiimod_pro_remove(const struct wiimod_ops *ops,
 	if (!wdata->extension.input)
 		return;
 
+	input_unregister_device(wdata->extension.input);
+	wdata->extension.input = NULL;
+	cancel_work_sync(&wdata->rumble_worker);
+
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wiiproto_req_rumble(wdata, 0);
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
-
-	input_unregister_device(wdata->extension.input);
-	wdata->extension.input = NULL;
 }
 
 static const struct wiimod_ops wiimod_pro = {
