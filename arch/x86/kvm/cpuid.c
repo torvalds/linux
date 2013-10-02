@@ -182,7 +182,7 @@ static bool supported_xcr0_bit(unsigned bit)
 {
 	u64 mask = ((u64)1 << bit);
 
-	return mask & (XSTATE_FP | XSTATE_SSE | XSTATE_YMM) & host_xcr0;
+	return mask & KVM_SUPPORTED_XCR0 & host_xcr0;
 }
 
 #define F(x) bit(X86_FEATURE_##x)
@@ -383,6 +383,8 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	case 0xd: {
 		int idx, i;
 
+		entry->eax &= host_xcr0 & KVM_SUPPORTED_XCR0;
+		entry->edx &= (host_xcr0 & KVM_SUPPORTED_XCR0) >> 32;
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		for (idx = 1, i = 1; idx < 64; ++idx) {
 			if (*nent >= maxnent)
