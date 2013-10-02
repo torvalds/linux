@@ -848,6 +848,15 @@ struct hci_rp_set_reserved_lt_addr {
 	__u8	lt_addr;
 } __packed;
 
+#define HCI_OP_DELETE_RESERVED_LT_ADDR	0x0c75
+struct hci_cp_delete_reserved_lt_addr {
+	__u8	lt_addr;
+} __packed;
+struct hci_rp_delete_reserved_lt_addr {
+	__u8	status;
+	__u8	lt_addr;
+} __packed;
+
 #define HCI_OP_READ_SYNC_TRAIN_PARAMS	0x0c77
 
 #define HCI_OP_READ_LOCAL_VERSION	0x1001
