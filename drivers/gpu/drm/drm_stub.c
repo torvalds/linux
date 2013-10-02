@@ -363,8 +363,6 @@ static void drm_unplug_minor(struct drm_minor *minor)
  */
 void drm_put_dev(struct drm_device *dev)
 {
-	struct drm_map_list *r_list, *list_temp;
-
 	DRM_DEBUG("\n");
 
 	if (!dev) {
@@ -372,29 +370,7 @@ void drm_put_dev(struct drm_device *dev)
 		return;
 	}
 
-	drm_lastclose(dev);
-
-	if (dev->driver->unload)
-		dev->driver->unload(dev);
-
-	if (dev->driver->bus->agp_destroy)
-		dev->driver->bus->agp_destroy(dev);
-
-	drm_vblank_cleanup(dev);
-
-	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
-		drm_rmmap(dev, r_list->map);
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_put_minor(&dev->control);
-
-	if (dev->render)
-		drm_put_minor(&dev->render);
-
-	drm_put_minor(&dev->primary);
-
-	list_del(&dev->driver_item);
-
+	drm_dev_unregister(dev);
 	drm_dev_free(dev);
 }
 EXPORT_SYMBOL(drm_put_dev);
@@ -595,3 +571,38 @@ out_unlock:
 	return ret;
 }
 EXPORT_SYMBOL(drm_dev_register);
+
+/**
+ * drm_dev_unregister - Unregister DRM device
+ * @dev: Device to unregister
+ *
+ * Unregister the DRM device from the system. This does the reverse of
+ * drm_dev_register() but does not deallocate the device. The caller must call
+ * drm_dev_free() to free all resources.
+ */
+void drm_dev_unregister(struct drm_device *dev)
+{
+	struct drm_map_list *r_list, *list_temp;
+
+	drm_lastclose(dev);
+
+	if (dev->driver->unload)
+		dev->driver->unload(dev);
+
+	if (dev->driver->bus->agp_destroy)
+		dev->driver->bus->agp_destroy(dev);
+
+	drm_vblank_cleanup(dev);
+
+	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
+		drm_rmmap(dev, r_list->map);
+
+	if (dev->control)
+		drm_put_minor(&dev->control);
+	if (dev->render)
+		drm_put_minor(&dev->render);
+	drm_put_minor(&dev->primary);
+
+	list_del(&dev->driver_item);
+}
+EXPORT_SYMBOL(drm_dev_unregister);
