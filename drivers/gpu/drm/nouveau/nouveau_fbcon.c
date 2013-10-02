@@ -420,7 +420,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 		nouveau_bo_unmap(nouveau_fb->nvbo);
 		nouveau_bo_vma_del(nouveau_fb->nvbo, &nouveau_fb->vma);
 		nouveau_bo_unpin(nouveau_fb->nvbo);
-		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
+		drm_gem_object_unreference_unlocked(&nouveau_fb->nvbo->gem);
 		nouveau_fb->nvbo = NULL;
 	}
 	drm_fb_helper_fini(&fbcon->helper);

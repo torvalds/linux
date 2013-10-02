@@ -43,20 +43,17 @@ nouveau_gem_object_new(struct drm_gem_object *gem)
 void
 nouveau_gem_object_del(struct drm_gem_object *gem)
 {
-	struct nouveau_bo *nvbo = gem->driver_private;
+	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct ttm_buffer_object *bo = &nvbo->bo;
-
-	if (!nvbo)
-		return;
-	nvbo->gem = NULL;
 
 	if (gem->import_attach)
 		drm_prime_gem_destroy(gem, nvbo->bo.sg);
 
-	ttm_bo_unref(&bo);
-
 	drm_gem_object_release(gem);
-	kfree(gem);
+
+	/* reset filp so nouveau_bo_del_ttm() can test for it */
+	gem->filp = NULL;
+	ttm_bo_unref(&bo);
 }
 
 int
@@ -186,14 +183,15 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 	if (nv_device(drm->device)->card_type >= NV_50)
 		nvbo->valid_domains &= domain;
 
-	nvbo->gem = drm_gem_object_alloc(dev, nvbo->bo.mem.size);
-	if (!nvbo->gem) {
+	/* Initialize the embedded gem-object. We return a single gem-reference
+	 * to the caller, instead of a normal nouveau_bo ttm reference. */
+	ret = drm_gem_object_init(dev, &nvbo->gem, nvbo->bo.mem.size);
+	if (ret) {
 		nouveau_bo_ref(NULL, pnvbo);
 		return -ENOMEM;
 	}
 
-	nvbo->bo.persistent_swap_storage = nvbo->gem->filp;
-	nvbo->gem->driver_private = nvbo;
+	nvbo->bo.persistent_swap_storage = nvbo->gem.filp;
 	return 0;
 }
 
@@ -250,15 +248,15 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ret = drm_gem_handle_create(file_priv, nvbo->gem, &req->info.handle);
+	ret = drm_gem_handle_create(file_priv, &nvbo->gem, &req->info.handle);
 	if (ret == 0) {
-		ret = nouveau_gem_info(file_priv, nvbo->gem, &req->info);
+		ret = nouveau_gem_info(file_priv, &nvbo->gem, &req->info);
 		if (ret)
 			drm_gem_handle_delete(file_priv, req->info.handle);
 	}
 
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_unreference_unlocked(nvbo->gem);
+	drm_gem_object_unreference_unlocked(&nvbo->gem);
 	return ret;
 }
 
@@ -266,7 +264,7 @@ static int
 nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 		       uint32_t write_domains, uint32_t valid_domains)
 {
-	struct nouveau_bo *nvbo = gem->driver_private;
+	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	uint32_t domains = valid_domains & nvbo->valid_domains &
 		(write_domains ? write_domains : read_domains);
@@ -327,7 +325,7 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence,
 		list_del(&nvbo->entry);
 		nvbo->reserved_by = NULL;
 		ttm_bo_unreserve_ticket(&nvbo->bo, ticket);
-		drm_gem_object_unreference_unlocked(nvbo->gem);
+		drm_gem_object_unreference_unlocked(&nvbo->gem);
 	}
 }
 
@@ -376,7 +374,7 @@ retry:
 			validate_fini(op, NULL);
 			return -ENOENT;
 		}
-		nvbo = gem->driver_private;
+		nvbo = nouveau_gem_object(gem);
 		if (nvbo == res_bo) {
 			res_bo = NULL;
 			drm_gem_object_unreference_unlocked(gem);
@@ -478,7 +476,7 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 			return ret;
 		}
 
-		ret = nouveau_gem_set_domain(nvbo->gem, b->read_domains,
+		ret = nouveau_gem_set_domain(&nvbo->gem, b->read_domains,
 					     b->write_domains,
 					     b->valid_domains);
 		if (unlikely(ret)) {
