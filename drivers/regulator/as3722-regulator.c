@@ -99,7 +99,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD0_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD0_CONTROL_REG,
 		.mode_mask = AS3722_SD0_MODE_FAST,
-		.n_voltages = AS3722_SD0_VSEL_MAX,
+		.n_voltages = AS3722_SD0_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_SD1,
@@ -112,7 +112,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD1_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD1_CONTROL_REG,
 		.mode_mask = AS3722_SD1_MODE_FAST,
-		.n_voltages = AS3722_SD0_VSEL_MAX,
+		.n_voltages = AS3722_SD0_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_SD2,
@@ -126,7 +126,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD2_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD23_CONTROL_REG,
 		.mode_mask = AS3722_SD2_MODE_FAST,
-		.n_voltages = AS3722_SD2_VSEL_MAX,
+		.n_voltages = AS3722_SD2_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_SD3,
@@ -140,7 +140,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD3_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD23_CONTROL_REG,
 		.mode_mask = AS3722_SD3_MODE_FAST,
-		.n_voltages = AS3722_SD2_VSEL_MAX,
+		.n_voltages = AS3722_SD2_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_SD4,
@@ -154,7 +154,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD4_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD4_CONTROL_REG,
 		.mode_mask = AS3722_SD4_MODE_FAST,
-		.n_voltages = AS3722_SD2_VSEL_MAX,
+		.n_voltages = AS3722_SD2_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_SD5,
@@ -168,7 +168,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD5_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD5_CONTROL_REG,
 		.mode_mask = AS3722_SD5_MODE_FAST,
-		.n_voltages = AS3722_SD2_VSEL_MAX,
+		.n_voltages = AS3722_SD2_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_SD6,
@@ -181,7 +181,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD6_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD6_CONTROL_REG,
 		.mode_mask = AS3722_SD6_MODE_FAST,
-		.n_voltages = AS3722_SD0_VSEL_MAX,
+		.n_voltages = AS3722_SD0_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_LDO0,
