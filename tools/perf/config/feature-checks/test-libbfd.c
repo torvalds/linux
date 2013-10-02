@@ -1,7 +1,16 @@
 #include <bfd.h>
 
+extern int printf(const char *format, ...);
+
 int main(void)
 {
-	bfd_demangle(0, 0, 0);
+	char symbol[4096] = "FieldName__9ClassNameFd";
+	char *tmp;
+
+	tmp = bfd_demangle(0, symbol, 0);
+
+	printf("demangled symbol: {%s}\n", tmp);
+
 	return 0;
 }
+

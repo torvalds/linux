@@ -3,8 +3,12 @@
 
 int main(void)
 {
-	backtrace(NULL, 0);
-	backtrace_symbols(NULL, 0);
+	void *backtrace_fns[10];
+	size_t entries;
+
+	entries = backtrace(backtrace_fns, 10);
+	backtrace_symbols_fd(backtrace_fns, entries, 1);
 
 	return 0;
 }
+

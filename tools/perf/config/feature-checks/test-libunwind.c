@@ -10,11 +10,18 @@ extern int UNW_OBJ(dwarf_search_unwind_table) (unw_addr_space_t as,
 
 #define dwarf_search_unwind_table UNW_OBJ(dwarf_search_unwind_table)
 
+static unw_accessors_t accessors;
+
 int main(void)
 {
 	unw_addr_space_t addr_space;
-	addr_space = unw_create_addr_space(NULL, 0);
+
+	addr_space = unw_create_addr_space(&accessors, 0);
+	if (addr_space)
+		return 0;
+
 	unw_init_remote(NULL, addr_space, NULL);
 	dwarf_search_unwind_table(addr_space, 0, NULL, NULL, 0, NULL);
+
 	return 0;
 }
