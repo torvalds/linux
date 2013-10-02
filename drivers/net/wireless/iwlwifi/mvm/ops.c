@@ -291,6 +291,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(REDUCE_TX_POWER_CMD),
 	CMD(TX_ANT_CONFIGURATION_CMD),
 	CMD(D3_CONFIG_CMD),
+	CMD(D0I3_END_CMD),
 	CMD(PROT_OFFLOAD_CONFIG_CMD),
 	CMD(OFFLOADS_QUERY_CMD),
 	CMD(REMOTE_WAKE_CONFIG_CMD),
@@ -815,17 +816,27 @@ static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE;
+	struct iwl_d3_manager_config d3_cfg_cmd = {
+		.min_sleep_time = cpu_to_le32(1000),
+	};
 
 	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
-	return 0;
+
+	return iwl_mvm_send_cmd_pdu(mvm, D3_CONFIG_CMD,
+				    flags | CMD_MAKE_TRANS_IDLE,
+				    sizeof(d3_cfg_cmd), &d3_cfg_cmd);
 }
 
 static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE |
+		    CMD_WAKE_UP_TRANS;
 
 	IWL_DEBUG_RPM(mvm, "MVM exiting D0i3\n");
-	return 0;
+
+	return iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, flags, 0, NULL);
 }
 
 static const struct iwl_op_mode_ops iwl_mvm_ops = {

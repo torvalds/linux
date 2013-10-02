@@ -199,6 +199,7 @@ enum {
 	PROT_OFFLOAD_CONFIG_CMD = 0xd4,
 	OFFLOADS_QUERY_CMD = 0xd5,
 	REMOTE_WAKE_CONFIG_CMD = 0xd6,
+	D0I3_END_CMD = 0xed,
 
 	/* for WoWLAN in particular */
 	WOWLAN_PATTERNS = 0xe0,
