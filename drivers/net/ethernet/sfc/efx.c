@@ -253,7 +253,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 			efx_channel_get_rx_queue(channel);
 
 		efx_rx_flush_packet(channel);
-		efx_fast_push_rx_descriptors(rx_queue);
+		efx_fast_push_rx_descriptors(rx_queue, true);
 	}
 
 	return spent;
@@ -646,7 +646,9 @@ static void efx_start_datapath(struct efx_nic *efx)
 		efx_for_each_channel_rx_queue(rx_queue, channel) {
 			efx_init_rx_queue(rx_queue);
 			atomic_inc(&efx->active_queues);
-			efx_nic_generate_fill_event(rx_queue);
+			efx_stop_eventq(channel);
+			efx_fast_push_rx_descriptors(rx_queue, false);
+			efx_start_eventq(channel);
 		}
 
 		WARN_ON(channel->rx_pkt_n_frags);

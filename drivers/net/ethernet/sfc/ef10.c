@@ -1907,7 +1907,7 @@ static void efx_ef10_handle_driver_generated_event(struct efx_channel *channel,
 		 * events, so efx_process_channel() won't refill the
 		 * queue. Refill it here
 		 */
-		efx_fast_push_rx_descriptors(&channel->rx_queue);
+		efx_fast_push_rx_descriptors(&channel->rx_queue, true);
 		break;
 	default:
 		netif_err(efx, hw, efx->net_dev,

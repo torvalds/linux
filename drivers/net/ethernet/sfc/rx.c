@@ -149,7 +149,7 @@ static struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
  * 0 on success. If a single page can be used for multiple buffers,
  * then the page will either be inserted fully, or not at all.
  */
-static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue)
+static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue, bool atomic)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	struct efx_rx_buffer *rx_buf;
@@ -163,7 +163,8 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue)
 	do {
 		page = efx_reuse_page(rx_queue);
 		if (page == NULL) {
-			page = alloc_pages(__GFP_COLD | __GFP_COMP | GFP_ATOMIC,
+			page = alloc_pages(__GFP_COLD | __GFP_COMP |
+					   (atomic ? GFP_ATOMIC : GFP_KERNEL),
 					   efx->rx_buffer_order);
 			if (unlikely(page == NULL))
 				return -ENOMEM;
@@ -321,7 +322,7 @@ static void efx_discard_rx_packet(struct efx_channel *channel,
  * this means this function must run from the NAPI handler, or be called
  * when NAPI is disabled.
  */
-void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
+void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue, bool atomic)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	unsigned int fill_level, batch_size;
@@ -354,7 +355,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 
 
 	do {
-		rc = efx_init_rx_buffers(rx_queue);
+		rc = efx_init_rx_buffers(rx_queue, atomic);
 		if (unlikely(rc)) {
 			/* Ensure that we don't leave the rx queue empty */
 			if (rx_queue->added_count == rx_queue->removed_count)
