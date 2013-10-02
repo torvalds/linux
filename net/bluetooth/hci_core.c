@@ -519,6 +519,8 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 
 	if (lmp_bredr_capable(hdev))
 		bredr_setup(req);
+	else
+		clear_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
 
 	if (lmp_le_capable(hdev))
 		le_setup(req);
@@ -1034,6 +1036,11 @@ int hci_inquiry(void __user *arg)
 		goto done;
 	}
 
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+
 	hci_dev_lock(hdev);
 	if (inquiry_cache_age(hdev) > INQUIRY_CACHE_AGE_MAX ||
 	    inquiry_cache_empty(hdev) || ir.flags & IREQ_CACHE_FLUSH) {
@@ -1101,7 +1108,7 @@ static u8 create_ad(struct hci_dev *hdev, u8 *ptr)
 	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags))
 		flags |= LE_AD_GENERAL;
 
-	if (!lmp_bredr_capable(hdev))
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
 		flags |= LE_AD_NO_BREDR;
 
 	if (lmp_le_br_capable(hdev))
@@ -1490,6 +1497,11 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 
 	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
 		err = -EBUSY;
+		goto done;
+	}
+
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		err = -EOPNOTSUPP;
 		goto done;
 	}
 
@@ -2318,8 +2330,13 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	set_bit(HCI_SETUP, &hdev->dev_flags);
 
-	if (hdev->dev_type != HCI_AMP)
+	if (hdev->dev_type != HCI_AMP) {
 		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+		/* Assume BR/EDR support until proven otherwise (such as
+		 * through reading supported features during init.
+		 */
+		set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+	}
 
 	write_lock(&hci_dev_list_lock);
 	list_add(&hdev->list, &hci_dev_list);
