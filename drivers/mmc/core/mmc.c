@@ -1478,6 +1478,9 @@ static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 
 	mmc_claim_host(host);
 
+	if (mmc_card_suspended(host->card))
+		goto out;
+
 	if (mmc_card_doing_bkops(host->card)) {
 		err = mmc_stop_bkops(host->card);
 		if (err)
@@ -1497,8 +1500,10 @@ static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 		err = mmc_deselect_cards(host);
 	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
 
-	if (!err)
+	if (!err) {
 		mmc_power_off(host);
+		mmc_card_set_suspended(host->card);
+	}
 out:
 	mmc_release_host(host);
 	return err;
@@ -1513,14 +1518,6 @@ static int mmc_suspend(struct mmc_host *host)
 }
 
 /*
- * Shutdown callback
- */
-static int mmc_shutdown(struct mmc_host *host)
-{
-	return _mmc_suspend(host, false);
-}
-
-/*
  * Resume callback from host.
  *
  * This function tries to determine if the same card is still present
@@ -1528,19 +1525,45 @@ static int mmc_shutdown(struct mmc_host *host)
  */
 static int mmc_resume(struct mmc_host *host)
 {
-	int err;
+	int err = 0;
 
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
+
+	if (!mmc_card_suspended(host->card))
+		goto out;
+
 	mmc_power_up(host, host->card->ocr);
 	err = mmc_init_card(host, host->card->ocr, host->card);
-	mmc_release_host(host);
+	mmc_card_clr_suspended(host->card);
 
+out:
+	mmc_release_host(host);
 	return err;
 }
 
+/*
+ * Shutdown callback
+ */
+static int mmc_shutdown(struct mmc_host *host)
+{
+	int err = 0;
+
+	/*
+	 * In a specific case for poweroff notify, we need to resume the card
+	 * before we can shutdown it properly.
+	 */
+	if (mmc_can_poweroff_notify(host->card) &&
+		!(host->caps2 & MMC_CAP2_FULL_PWR_CYCLE))
+		err = mmc_resume(host);
+
+	if (!err)
+		err = _mmc_suspend(host, false);
+
+	return err;
+}
 
 /*
  * Callback for runtime_suspend.
