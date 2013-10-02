@@ -445,11 +445,6 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_CHANNEL_POLICY:
-		if (!enable_hs) {
-			err = -ENOPROTOOPT;
-			break;
-		}
-
 		if (put_user(chan->chan_policy, (u32 __user *) optval))
 			err = -EFAULT;
 		break;
@@ -720,11 +715,6 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_CHANNEL_POLICY:
-		if (!enable_hs) {
-			err = -ENOPROTOOPT;
-			break;
-		}
-
 		if (get_user(opt, (u32 __user *) optval)) {
 			err = -EFAULT;
 			break;

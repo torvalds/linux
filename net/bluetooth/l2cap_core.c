@@ -1016,13 +1016,12 @@ static bool __amp_capable(struct l2cap_chan *chan)
 {
 	struct l2cap_conn *conn = chan->conn;
 
-	if (enable_hs &&
-	    hci_amp_capable() &&
+	if (conn->hs_enabled && hci_amp_capable() &&
 	    chan->chan_policy == BT_CHANNEL_POLICY_AMP_PREFERRED &&
 	    conn->fixed_chan_mask & L2CAP_FC_A2MP)
 		return true;
-	else
-		return false;
+
+	return false;
 }
 
 static bool l2cap_check_efs(struct l2cap_chan *chan)
@@ -1637,6 +1636,10 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 	conn->dst = &hcon->dst;
 
 	conn->feat_mask = 0;
+
+	if (hcon->type == ACL_LINK)
+		conn->hs_enabled = test_bit(HCI_HS_ENABLED,
+					    &hcon->hdev->dev_flags);
 
 	spin_lock_init(&conn->lock);
 	mutex_init(&conn->chan_lock);
@@ -3084,14 +3087,14 @@ static inline __u8 l2cap_select_mode(__u8 mode, __u16 remote_feat_mask)
 	}
 }
 
-static inline bool __l2cap_ews_supported(struct l2cap_chan *chan)
+static inline bool __l2cap_ews_supported(struct l2cap_conn *conn)
 {
-	return enable_hs && chan->conn->feat_mask & L2CAP_FEAT_EXT_WINDOW;
+	return conn->hs_enabled && conn->feat_mask & L2CAP_FEAT_EXT_WINDOW;
 }
 
-static inline bool __l2cap_efs_supported(struct l2cap_chan *chan)
+static inline bool __l2cap_efs_supported(struct l2cap_conn *conn)
 {
-	return enable_hs && chan->conn->feat_mask & L2CAP_FEAT_EXT_FLOW;
+	return conn->hs_enabled && conn->feat_mask & L2CAP_FEAT_EXT_FLOW;
 }
 
 static void __l2cap_set_ertm_timeouts(struct l2cap_chan *chan,
@@ -3135,7 +3138,7 @@ static void __l2cap_set_ertm_timeouts(struct l2cap_chan *chan,
 static inline void l2cap_txwin_setup(struct l2cap_chan *chan)
 {
 	if (chan->tx_win > L2CAP_DEFAULT_TX_WINDOW &&
-	    __l2cap_ews_supported(chan)) {
+	    __l2cap_ews_supported(chan->conn)) {
 		/* use extended control field */
 		set_bit(FLAG_EXT_CTRL, &chan->flags);
 		chan->tx_win_max = L2CAP_DEFAULT_EXT_WINDOW;
@@ -3165,7 +3168,7 @@ static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
 		if (test_bit(CONF_STATE2_DEVICE, &chan->conf_state))
 			break;
 
-		if (__l2cap_efs_supported(chan))
+		if (__l2cap_efs_supported(chan->conn))
 			set_bit(FLAG_EFS_ENABLE, &chan->flags);
 
 		/* fall through */
@@ -3317,7 +3320,7 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 			break;
 
 		case L2CAP_CONF_EWS:
-			if (!enable_hs)
+			if (!chan->conn->hs_enabled)
 				return -ECONNREFUSED;
 
 			set_bit(FLAG_EXT_CTRL, &chan->flags);
@@ -3349,7 +3352,7 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 		}
 
 		if (remote_efs) {
-			if (__l2cap_efs_supported(chan))
+			if (__l2cap_efs_supported(chan->conn))
 				set_bit(FLAG_EFS_ENABLE, &chan->flags);
 			else
 				return -ECONNREFUSED;
@@ -4303,7 +4306,7 @@ static inline int l2cap_information_req(struct l2cap_conn *conn,
 		if (!disable_ertm)
 			feat_mask |= L2CAP_FEAT_ERTM | L2CAP_FEAT_STREAMING
 				| L2CAP_FEAT_FCS;
-		if (enable_hs)
+		if (conn->hs_enabled)
 			feat_mask |= L2CAP_FEAT_EXT_FLOW
 				| L2CAP_FEAT_EXT_WINDOW;
 
@@ -4314,7 +4317,7 @@ static inline int l2cap_information_req(struct l2cap_conn *conn,
 		u8 buf[12];
 		struct l2cap_info_rsp *rsp = (struct l2cap_info_rsp *) buf;
 
-		if (enable_hs)
+		if (conn->hs_enabled)
 			l2cap_fixed_chan[0] |= L2CAP_FC_A2MP;
 		else
 			l2cap_fixed_chan[0] &= ~L2CAP_FC_A2MP;
@@ -4411,7 +4414,7 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 	if (cmd_len != sizeof(*req))
 		return -EPROTO;
 
-	if (!enable_hs)
+	if (!conn->hs_enabled)
 		return -EINVAL;
 
 	psm = le16_to_cpu(req->psm);
@@ -4838,7 +4841,7 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 
 	BT_DBG("icid 0x%4.4x, dest_amp_id %d", icid, req->dest_amp_id);
 
-	if (!enable_hs)
+	if (!conn->hs_enabled)
 		return -EINVAL;
 
 	chan = l2cap_get_chan_by_dcid(conn, icid);

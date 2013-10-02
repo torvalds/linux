@@ -32,8 +32,6 @@
 #include <net/bluetooth/mgmt.h>
 #include <net/bluetooth/smp.h>
 
-bool enable_hs;
-
 #define MGMT_VERSION	1
 #define MGMT_REVISION	3
 
@@ -380,10 +378,8 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 		settings |= MGMT_SETTING_DISCOVERABLE;
 		settings |= MGMT_SETTING_BREDR;
 		settings |= MGMT_SETTING_LINK_SECURITY;
-	}
-
-	if (enable_hs)
 		settings |= MGMT_SETTING_HS;
+	}
 
 	if (lmp_le_capable(hdev)) {
 		settings |= MGMT_SETTING_LE;
@@ -1344,7 +1340,7 @@ static int set_hs(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	BT_DBG("request for %s", hdev->name);
 
-	if (!enable_hs)
+	if (!lmp_bredr_capable(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_HS,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
@@ -4396,6 +4392,3 @@ int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 	return mgmt_event(MGMT_EV_DEVICE_UNBLOCKED, hdev, &ev, sizeof(ev),
 			  cmd ? cmd->sk : NULL);
 }
-
-module_param(enable_hs, bool, 0644);
-MODULE_PARM_DESC(enable_hs, "Enable High Speed support");
