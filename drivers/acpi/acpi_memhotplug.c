@@ -152,8 +152,9 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
 	unsigned long long current_status;
 
 	/* Get device present/absent information from the _STA */
-	if (ACPI_FAILURE(acpi_evaluate_integer(mem_device->device->handle, "_STA",
-					       NULL, &current_status)))
+	if (ACPI_FAILURE(acpi_evaluate_integer(mem_device->device->handle,
+					       METHOD_NAME__STA, NULL,
+					       &current_status)))
 		return -ENODEV;
 	/*
 	 * Check for device status. Device should be
