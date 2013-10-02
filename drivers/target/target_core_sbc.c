@@ -372,7 +372,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *write_sg = NULL, *sg;
-	unsigned char *buf, *addr;
+	unsigned char *buf = NULL, *addr;
 	struct sg_mapping_iter m;
 	unsigned int offset = 0, len;
 	unsigned int nlbas = cmd->t_task_nolb;
@@ -387,6 +387,15 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 	 */
 	if (!cmd->t_data_sg || !cmd->t_bidi_data_sg)
 		return TCM_NO_SENSE;
+	/*
+	 * Immediately exit + release dev->caw_sem if command has already
+	 * been failed with a non-zero SCSI status.
+	 */
+	if (cmd->scsi_status) {
+		pr_err("compare_and_write_callback: non zero scsi_status:"
+			" 0x%02x\n", cmd->scsi_status);
+		goto out;
+	}
 
 	buf = kzalloc(cmd->data_length, GFP_KERNEL);
 	if (!buf) {
