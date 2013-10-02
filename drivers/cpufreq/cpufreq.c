@@ -1302,34 +1302,24 @@ static int __cpufreq_remove_dev_finish(struct device *dev,
 }
 
 /**
- * __cpufreq_remove_dev - remove a CPU device
+ * cpufreq_remove_dev - remove a CPU device
  *
  * Removes the cpufreq interface for a CPU device.
  */
-static inline int __cpufreq_remove_dev(struct device *dev,
-				       struct subsys_interface *sif,
-				       bool frozen)
-{
-	int ret;
-
-	ret = __cpufreq_remove_dev_prepare(dev, sif, frozen);
-
-	if (!ret)
-		ret = __cpufreq_remove_dev_finish(dev, sif, frozen);
-
-	return ret;
-}
-
 static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int cpu = dev->id;
-	int retval;
+	int ret;
 
 	if (cpu_is_offline(cpu))
 		return 0;
 
-	retval = __cpufreq_remove_dev(dev, sif, false);
-	return retval;
+	ret = __cpufreq_remove_dev_prepare(dev, sif, false);
+
+	if (!ret)
+		ret = __cpufreq_remove_dev_finish(dev, sif, false);
+
+	return ret;
 }
 
 static void handle_update(struct work_struct *work)
