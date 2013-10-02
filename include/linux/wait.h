@@ -763,25 +763,12 @@ do {									\
 	__ret;								\
 })
 
-#define __wait_event_interruptible_lock_irq_timeout(wq, condition,	\
-						    lock, ret)		\
-do {									\
-	DEFINE_WAIT(__wait);						\
-									\
-	for (;;) {							\
-		prepare_to_wait(&wq, &__wait, TASK_INTERRUPTIBLE);	\
-		if (___wait_cond_timeout(condition, ret))		\
-			break;						\
-		if (signal_pending(current)) {				\
-			ret = -ERESTARTSYS;				\
-			break;						\
-		}							\
-		spin_unlock_irq(&lock);					\
-		ret = schedule_timeout(ret);				\
-		spin_lock_irq(&lock);					\
-	}								\
-	finish_wait(&wq, &__wait);					\
-} while (0)
+#define __wait_event_interruptible_lock_irq_timeout(wq, condition, lock, ret) \
+	___wait_event(wq, ___wait_cond_timeout(condition, ret),		      \
+		      TASK_INTERRUPTIBLE, 0, ret,	      		      \
+		      spin_unlock_irq(&lock);				      \
+		      ret = schedule_timeout(ret);			      \
+		      spin_lock_irq(&lock));
 
 /**
  * wait_event_interruptible_lock_irq_timeout - sleep until a condition gets true or a timeout elapses.
