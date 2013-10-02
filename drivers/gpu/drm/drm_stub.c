@@ -363,7 +363,6 @@ static void drm_unplug_minor(struct drm_minor *minor)
  */
 void drm_put_dev(struct drm_device *dev)
 {
-	struct drm_driver *driver;
 	struct drm_map_list *r_list, *list_temp;
 
 	DRM_DEBUG("\n");
@@ -372,7 +371,6 @@ void drm_put_dev(struct drm_device *dev)
 		DRM_ERROR("cleanup called no dev\n");
 		return;
 	}
-	driver = dev->driver;
 
 	drm_lastclose(dev);
 
@@ -386,9 +384,6 @@ void drm_put_dev(struct drm_device *dev)
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_rmmap(dev, r_list->map);
-	drm_ht_remove(&dev->map_hash);
-
-	drm_ctxbitmap_cleanup(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);
@@ -396,14 +391,11 @@ void drm_put_dev(struct drm_device *dev)
 	if (dev->render)
 		drm_put_minor(&dev->render);
 
-	if (driver->driver_features & DRIVER_GEM)
-		drm_gem_destroy(dev);
-
 	drm_put_minor(&dev->primary);
 
 	list_del(&dev->driver_item);
-	kfree(dev->devname);
-	kfree(dev);
+
+	drm_dev_free(dev);
 }
 EXPORT_SYMBOL(drm_put_dev);
 
@@ -500,6 +492,29 @@ err_free:
 	return NULL;
 }
 EXPORT_SYMBOL(drm_dev_alloc);
+
+/**
+ * drm_dev_free - Free DRM device
+ * @dev: DRM device to free
+ *
+ * Free a DRM device that has previously been allocated via drm_dev_alloc().
+ * You must not use kfree() instead or you will leak memory.
+ *
+ * This must not be called once the device got registered. Use drm_put_dev()
+ * instead, which then calls drm_dev_free().
+ */
+void drm_dev_free(struct drm_device *dev)
+{
+	if (dev->driver->driver_features & DRIVER_GEM)
+		drm_gem_destroy(dev);
+
+	drm_ctxbitmap_cleanup(dev);
+	drm_ht_remove(&dev->map_hash);
+
+	kfree(dev->devname);
+	kfree(dev);
+}
+EXPORT_SYMBOL(drm_dev_free);
 
 /**
  * drm_dev_register - Register DRM device

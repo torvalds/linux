@@ -29,7 +29,7 @@ int drm_get_usb_dev(struct usb_interface *interface,
 	return 0;
 
 err_free:
-	kfree(dev);
+	drm_dev_free(dev);
 	return ret;
 
 }

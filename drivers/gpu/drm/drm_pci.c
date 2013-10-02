@@ -354,7 +354,7 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 err_pci:
 	pci_disable_device(pdev);
 err_free:
-	kfree(dev);
+	drm_dev_free(dev);
 	return ret;
 }
 EXPORT_SYMBOL(drm_get_pci_dev);

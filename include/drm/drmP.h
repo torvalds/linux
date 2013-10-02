@@ -1642,6 +1642,7 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 
 struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 				 struct device *parent);
+void drm_dev_free(struct drm_device *dev);
 int drm_dev_register(struct drm_device *dev, unsigned long flags);
 int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type);
 /*@}*/

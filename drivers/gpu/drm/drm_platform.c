@@ -64,7 +64,7 @@ static int drm_get_platform_dev(struct platform_device *platdev,
 	return 0;
 
 err_free:
-	kfree(dev);
+	drm_dev_free(dev);
 	return ret;
 }
 
