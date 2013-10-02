@@ -2533,6 +2533,7 @@ static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 	if (!ppdev)
 		return -ENOMEM;
 	ppdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	ppdev->dev.of_node = pnp;
 
 	ret = platform_device_add_resources(ppdev, &res, 1);
 	if (ret)
