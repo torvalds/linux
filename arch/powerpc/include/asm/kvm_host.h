@@ -63,11 +63,6 @@ extern void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 
 #endif
 
-/* We don't currently support large pages. */
-#define KVM_HPAGE_GFN_SHIFT(x)	0
-#define KVM_NR_PAGE_SIZES	1
-#define KVM_PAGES_PER_HPAGE(x)	(1UL<<31)
-
 #define HPTEG_CACHE_NUM			(1 << 15)
 #define HPTEG_HASH_BITS_PTE		13
 #define HPTEG_HASH_BITS_PTE_LONG	12
