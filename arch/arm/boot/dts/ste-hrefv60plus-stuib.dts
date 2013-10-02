@@ -1,0 +1,30 @@
+/*
+ * Copyright 2012 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ *
+ * Device Tree for the HREF version 60 or later with the ST UIB
+ */
+
+/dts-v1/;
+#include "ste-hrefv60plus.dtsi"
+#include "ste-href-stuib.dtsi"
+
+/ {
+	model = "ST-Ericsson HREF (v60+) and ST UIB";
+	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
+
+	soc {
+		/* Reset line for the BU21013 touchscreen */
+		i2c@80110000 {
+			bu21013_tp@0x5c {
+				reset-gpio = <&gpio4 15 0x4>;
+			};
+		};
+	};
+};

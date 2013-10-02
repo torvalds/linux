@@ -7,18 +7,14 @@
  *
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
+ *
+ * Device Tree for the HREF+ prior to the v60 variant.
  */
 
-/dts-v1/;
 #include "ste-dbx5x0.dtsi"
 #include "ste-href.dtsi"
-#include "ste-href-stuib.dtsi"
-#include "ste-href-tvk1281618.dtsi"
 
 / {
-	model = "ST-Ericsson HREF (pre-v60) platform with Device Tree";
-	compatible = "st-ericsson,mop500", "st-ericsson,u8500";
-
 	gpio_keys {
 		button@1 {
 			gpios = <&tc3589x_gpio 7 0x4>;
