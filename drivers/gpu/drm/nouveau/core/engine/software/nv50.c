@@ -147,12 +147,13 @@ nv50_software_vblsem_release(struct nouveau_eventh *event, int head)
 	return NVKM_EVENT_DROP;
 }
 
-static int
+int
 nv50_software_context_ctor(struct nouveau_object *parent,
 			   struct nouveau_object *engine,
 			   struct nouveau_oclass *oclass, void *data, u32 size,
 			   struct nouveau_object **pobject)
 {
+	struct nv50_software_cclass *pclass = (void *)oclass;
 	struct nv50_software_chan *chan;
 	int ret;
 
@@ -162,30 +163,32 @@ nv50_software_context_ctor(struct nouveau_object *parent,
 		return ret;
 
 	chan->vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
-	chan->vblank.event.func = nv50_software_vblsem_release;
+	chan->vblank.event.func = pclass->vblank;
 	return 0;
 }
 
-static struct nouveau_oclass
+static struct nv50_software_cclass
 nv50_software_cclass = {
-	.handle = NV_ENGCTX(SW, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.base.handle = NV_ENGCTX(SW, 0x50),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_software_context_ctor,
 		.dtor = _nouveau_software_context_dtor,
 		.init = _nouveau_software_context_init,
 		.fini = _nouveau_software_context_fini,
 	},
+	.vblank = nv50_software_vblsem_release,
 };
 
 /*******************************************************************************
  * software engine/subdev functions
  ******************************************************************************/
 
-static int
+int
 nv50_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		   struct nouveau_oclass *oclass, void *data, u32 size,
 		   struct nouveau_object **pobject)
 {
+	struct nv50_software_oclass *pclass = (void *)oclass;
 	struct nv50_software_priv *priv;
 	int ret;
 
@@ -194,8 +197,8 @@ nv50_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->cclass = &nv50_software_cclass;
-	nv_engine(priv)->sclass = nv50_software_sclass;
+	nv_engine(priv)->cclass = pclass->cclass;
+	nv_engine(priv)->sclass = pclass->sclass;
 	nv_subdev(priv)->intr = nv04_software_intr;
 	return 0;
 }
@@ -209,4 +212,6 @@ nv50_software_oclass = &(struct nv50_software_oclass) {
 		.init = _nouveau_software_init,
 		.fini = _nouveau_software_fini,
 	},
+	.cclass = &nv50_software_cclass.base,
+	.sclass =  nv50_software_sclass,
 }.base;

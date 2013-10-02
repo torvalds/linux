@@ -154,66 +154,31 @@ nvc0_software_vblsem_release(struct nouveau_eventh *event, int head)
 	return NVKM_EVENT_DROP;
 }
 
-static int
-nvc0_software_context_ctor(struct nouveau_object *parent,
-			   struct nouveau_object *engine,
-			   struct nouveau_oclass *oclass, void *data, u32 size,
-			   struct nouveau_object **pobject)
-{
-	struct nv50_software_chan *chan;
-	int ret;
-
-	ret = nouveau_software_context_create(parent, engine, oclass, &chan);
-	*pobject = nv_object(chan);
-	if (ret)
-		return ret;
-
-	chan->vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
-	chan->vblank.event.func = nvc0_software_vblsem_release;
-	return 0;
-}
-
-static struct nouveau_oclass
+static struct nv50_software_cclass
 nvc0_software_cclass = {
-	.handle = NV_ENGCTX(SW, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_software_context_ctor,
+	.base.handle = NV_ENGCTX(SW, 0xc0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_software_context_ctor,
 		.dtor = _nouveau_software_context_dtor,
 		.init = _nouveau_software_context_init,
 		.fini = _nouveau_software_context_fini,
 	},
+	.vblank = nvc0_software_vblsem_release,
 };
 
 /*******************************************************************************
  * software engine/subdev functions
  ******************************************************************************/
 
-static int
-nvc0_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 size,
-		   struct nouveau_object **pobject)
-{
-	struct nv50_software_priv *priv;
-	int ret;
-
-	ret = nouveau_software_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_engine(priv)->cclass = &nvc0_software_cclass;
-	nv_engine(priv)->sclass = nvc0_software_sclass;
-	nv_subdev(priv)->intr = nv04_software_intr;
-	return 0;
-}
-
 struct nouveau_oclass *
 nvc0_software_oclass = &(struct nv50_software_oclass) {
 	.base.handle = NV_ENGINE(SW, 0xc0),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_software_ctor,
+		.ctor = nv50_software_ctor,
 		.dtor = _nouveau_software_dtor,
 		.init = _nouveau_software_init,
 		.fini = _nouveau_software_fini,
 	},
+	.cclass = &nvc0_software_cclass.base,
+	.sclass =  nvc0_software_sclass,
 }.base;
