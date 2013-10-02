@@ -921,7 +921,7 @@ u16 iwl_mvm_bt_coex_agg_time_limit(struct iwl_mvm *mvm,
 	return LINK_QUAL_AGG_TIME_LIMIT_BT_ACT;
 }
 
-void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
 {
 	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWBT_COEX))
 		return;
