@@ -224,17 +224,8 @@ __out:	;								\
 } while (0)
 
 #define __wait_event(wq, condition) 					\
-do {									\
-	DEFINE_WAIT(__wait);						\
-									\
-	for (;;) {							\
-		prepare_to_wait(&wq, &__wait, TASK_UNINTERRUPTIBLE);	\
-		if (condition)						\
-			break;						\
-		schedule();						\
-	}								\
-	finish_wait(&wq, &__wait);					\
-} while (0)
+	___wait_event(wq, condition, TASK_UNINTERRUPTIBLE, 0,		\
+		      ___wait_nop_ret, schedule())
 
 /**
  * wait_event - sleep until a condition gets true
