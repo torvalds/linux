@@ -1651,6 +1651,7 @@ xlog_recover_reorder_trans(
 	int			pass)
 {
 	xlog_recover_item_t	*item, *n;
+	int			error = 0;
 	LIST_HEAD(sort_list);
 	LIST_HEAD(cancel_list);
 	LIST_HEAD(buffer_list);
@@ -1692,9 +1693,17 @@ xlog_recover_reorder_trans(
 				"%s: unrecognized type of log operation",
 				__func__);
 			ASSERT(0);
-			return XFS_ERROR(EIO);
+			/*
+			 * return the remaining items back to the transaction
+			 * item list so they can be freed in caller.
+			 */
+			if (!list_empty(&sort_list))
+				list_splice_init(&sort_list, &trans->r_itemq);
+			error = XFS_ERROR(EIO);
+			goto out;
 		}
 	}
+out:
 	ASSERT(list_empty(&sort_list));
 	if (!list_empty(&buffer_list))
 		list_splice(&buffer_list, &trans->r_itemq);
@@ -1704,7 +1713,7 @@ xlog_recover_reorder_trans(
 		list_splice_tail(&inode_buffer_list, &trans->r_itemq);
 	if (!list_empty(&cancel_list))
 		list_splice_tail(&cancel_list, &trans->r_itemq);
-	return 0;
+	return error;
 }
 
 /*
@@ -3608,8 +3617,10 @@ xlog_recover_process_data(
 				error = XFS_ERROR(EIO);
 				break;
 			}
-			if (error)
+			if (error) {
+				xlog_recover_free_trans(trans);
 				return error;
+			}
 		}
 		dp += be32_to_cpu(ohead->oh_len);
 		num_logops--;
