@@ -428,23 +428,24 @@ do {									\
 
 #define __wait_event_interruptible_exclusive(wq, condition, ret)	\
 do {									\
+	__label__ __out;						\
 	DEFINE_WAIT(__wait);						\
 									\
 	for (;;) {							\
 		prepare_to_wait_exclusive(&wq, &__wait,			\
 					TASK_INTERRUPTIBLE);		\
-		if (condition) {					\
-			finish_wait(&wq, &__wait);			\
+		if (condition)						\
 			break;						\
-		}							\
 		if (signal_pending(current)) {				\
 			ret = -ERESTARTSYS;				\
 			abort_exclusive_wait(&wq, &__wait, 		\
 				TASK_INTERRUPTIBLE, NULL);		\
-			break;						\
+			goto __out;					\
 		}							\
 		schedule();						\
 	}								\
+	finish_wait(&wq, &__wait);					\
+__out:	;								\
 } while (0)
 
 #define wait_event_interruptible_exclusive(wq, condition)		\
