@@ -1970,26 +1970,21 @@ static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
 /* WMI Initialization functions */
 int ath10k_wmi_attach(struct ath10k *ar)
 {
-	int ret;
-
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
-		ath10k_warn("Firmware 10.X is not yet supported\n");
 		ar->wmi.cmd = &wmi_10x_cmd_map;
 		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10x_pdev_param_map;
-		ret = -ENOTSUPP;
 	} else {
 		ar->wmi.cmd = &wmi_cmd_map;
 		ar->wmi.vdev_param = &wmi_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_pdev_param_map;
-		ret = 0;
 	}
 
 	init_completion(&ar->wmi.service_ready);
 	init_completion(&ar->wmi.unified_ready);
 	init_waitqueue_head(&ar->wmi.tx_credits_wq);
 
-	return ret;
+	return 0;
 }
 
 void ath10k_wmi_detach(struct ath10k *ar)
