@@ -9879,7 +9879,7 @@ static int bnx2x_prev_path_mark_eeh(struct bnx2x *bp)
 static bool bnx2x_prev_is_path_marked(struct bnx2x *bp)
 {
 	struct bnx2x_prev_path_list *tmp_list;
-	int rc = false;
+	bool rc = false;
 
 	if (down_trylock(&bnx2x_prev_sem))
 		return false;
