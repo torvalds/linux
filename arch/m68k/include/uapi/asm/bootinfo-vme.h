@@ -28,10 +28,31 @@
 #define VME_TYPE_BVME4000	0x4000	/* BVM Ltd. BVME4000 */
 #define VME_TYPE_BVME6000	0x6000	/* BVM Ltd. BVME6000 */
 
-/* BI_VME_BRDINFO is a 32 byte struct as returned by the Bug code on
+
+#ifndef __ASSEMBLY__
+
+/*
+ * Board ID data structure - pointer to this retrieved from Bug by head.S
+ *
+ * BI_VME_BRDINFO is a 32 byte struct as returned by the Bug code on
  * Motorola VME boards.  Contains board number, Bug version, board
- * configuration options, etc.  See include/asm/mvme16xhw.h for details.
+ * configuration options, etc.
+ *
+ * Note, bytes 12 and 13 are board no in BCD (0162,0166,0167,0177,etc)
  */
+
+typedef struct {
+	char	bdid[4];
+	u_char	rev, mth, day, yr;
+	u_short	size, reserved;
+	u_short	brdno;
+	char	brdsuffix[2];
+	u_long	options;
+	u_short	clun, dlun, ctype, dnum;
+	u_long	option2;
+} t_bdid, *p_bdid;
+
+#endif /* __ASSEMBLY__ */
 
 
     /*
