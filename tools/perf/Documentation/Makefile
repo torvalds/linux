@@ -192,12 +192,13 @@ do-install-man: man
 
 install-man: check-man-tools man
 
-try-install-man:
 ifdef missing_tools
-	$(warning Please install $(missing_tools) to have the man pages installed)
+  DO_INSTALL_MAN = $(warning Please install $(missing_tools) to have the man pages installed)
 else
-	$(MAKE) do-install-man
+  DO_INSTALL_MAN = do-install-man
 endif
+
+try-install-man: $(DO_INSTALL_MAN)
 
 install-info: info
 	$(INSTALL) -d -m 755 $(DESTDIR)$(infodir)
@@ -216,14 +217,6 @@ install-pdf: pdf
 #install-html: html
 #	'$(SHELL_PATH_SQ)' ./install-webdoc.sh $(DESTDIR)$(htmldir)
 
-ifneq ($(MAKECMDGOALS),clean)
-ifneq ($(MAKECMDGOALS),tags)
-$(OUTPUT)PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
-	$(QUIET_SUBDIR0)../ $(QUIET_SUBDIR1) $(OUTPUT)PERF-VERSION-FILE
-
--include $(OUTPUT)PERF-VERSION-FILE
-endif
-endif
 
 #
 # Determine "include::" file references in asciidoc files.
@@ -342,5 +335,3 @@ $(patsubst %.txt,%.html,$(wildcard howto/*.txt)): %.html : %.txt
 
 #quick-install-html:
 #	'$(SHELL_PATH_SQ)' ./install-doc-quick.sh $(HTML_REF) $(DESTDIR)$(htmldir)
-
-.PHONY: .FORCE-PERF-VERSION-FILE
