@@ -23,27 +23,19 @@
 #include <core/os.h>
 #include <core/event.h>
 
-static void
-nouveau_event_put_locked(struct nouveau_event *event, int index,
-			 struct nouveau_eventh *handler)
-{
-	if (__test_and_clear_bit(NVKM_EVENT_ENABLE, &handler->flags)) {
-		if (!--event->index[index].refs) {
-			if (event->disable)
-				event->disable(event, index);
-		}
-		list_del(&handler->head);
-	}
-}
-
 void
 nouveau_event_put(struct nouveau_eventh *handler)
 {
 	struct nouveau_event *event = handler->event;
 	unsigned long flags;
-	spin_lock_irqsave(&event->lock, flags);
-	nouveau_event_put_locked(handler->event, handler->index, handler);
-	spin_unlock_irqrestore(&event->lock, flags);
+	if (__test_and_clear_bit(NVKM_EVENT_ENABLE, &handler->flags)) {
+		spin_lock_irqsave(&event->refs_lock, flags);
+		if (!--event->index[handler->index].refs) {
+			if (event->disable)
+				event->disable(event, handler->index);
+		}
+		spin_unlock_irqrestore(&event->refs_lock, flags);
+	}
 }
 
 void
@@ -51,22 +43,25 @@ nouveau_event_get(struct nouveau_eventh *handler)
 {
 	struct nouveau_event *event = handler->event;
 	unsigned long flags;
-
-	spin_lock_irqsave(&event->lock, flags);
 	if (!__test_and_set_bit(NVKM_EVENT_ENABLE, &handler->flags)) {
-		list_add(&handler->head, &event->index[handler->index].list);
+		spin_lock_irqsave(&event->refs_lock, flags);
 		if (!event->index[handler->index].refs++) {
 			if (event->enable)
 				event->enable(event, handler->index);
 		}
+		spin_unlock_irqrestore(&event->refs_lock, flags);
 	}
-	spin_unlock_irqrestore(&event->lock, flags);
 }
 
 static void
 nouveau_event_fini(struct nouveau_eventh *handler)
 {
+	struct nouveau_event *event = handler->event;
+	unsigned long flags;
 	nouveau_event_put(handler);
+	spin_lock_irqsave(&event->list_lock, flags);
+	list_del(&handler->head);
+	spin_unlock_irqrestore(&event->list_lock, flags);
 }
 
 static int
@@ -74,13 +69,20 @@ nouveau_event_init(struct nouveau_event *event, int index,
 		   int (*func)(void *, int), void *priv,
 		   struct nouveau_eventh *handler)
 {
+	unsigned long flags;
+
 	if (index >= event->index_nr)
 		return -EINVAL;
+
 	handler->event = event;
 	handler->flags = 0;
 	handler->index = index;
 	handler->func = func;
 	handler->priv = priv;
+
+	spin_lock_irqsave(&event->list_lock, flags);
+	list_add_tail(&handler->head, &event->index[index].list);
+	spin_unlock_irqrestore(&event->list_lock, flags);
 	return 0;
 }
 
@@ -116,19 +118,19 @@ nouveau_event_ref(struct nouveau_eventh *handler, struct nouveau_eventh **ref)
 void
 nouveau_event_trigger(struct nouveau_event *event, int index)
 {
-	struct nouveau_eventh *handler, *temp;
+	struct nouveau_eventh *handler;
 	unsigned long flags;
 
-	if (index >= event->index_nr)
+	if (WARN_ON(index >= event->index_nr))
 		return;
 
-	spin_lock_irqsave(&event->lock, flags);
-	list_for_each_entry_safe(handler, temp, &event->index[index].list, head) {
-		if (handler->func(handler->priv, index) == NVKM_EVENT_DROP) {
-			nouveau_event_put_locked(event, index, handler);
-		}
+	spin_lock_irqsave(&event->list_lock, flags);
+	list_for_each_entry(handler, &event->index[index].list, head) {
+		if (test_bit(NVKM_EVENT_ENABLE, &handler->flags) &&
+		    handler->func(handler->priv, index) == NVKM_EVENT_DROP)
+			nouveau_event_put(handler);
 	}
-	spin_unlock_irqrestore(&event->lock, flags);
+	spin_unlock_irqrestore(&event->list_lock, flags);
 }
 
 void
@@ -152,7 +154,8 @@ nouveau_event_create(int index_nr, struct nouveau_event **pevent)
 	if (!event)
 		return -ENOMEM;
 
-	spin_lock_init(&event->lock);
+	spin_lock_init(&event->list_lock);
+	spin_lock_init(&event->refs_lock);
 	for (i = 0; i < index_nr; i++)
 		INIT_LIST_HEAD(&event->index[i].list);
 	event->index_nr = index_nr;

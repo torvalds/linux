@@ -18,7 +18,8 @@ struct nouveau_eventh {
 };
 
 struct nouveau_event {
-	spinlock_t lock;
+	spinlock_t list_lock;
+	spinlock_t refs_lock;
 
 	void *priv;
 	void (*enable)(struct nouveau_event *, int index);
