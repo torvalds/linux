@@ -1353,10 +1353,17 @@ static int set_hs(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	if (cp->val)
+	if (cp->val) {
 		changed = !test_and_set_bit(HCI_HS_ENABLED, &hdev->dev_flags);
-	else
+	} else {
+		if (hdev_is_powered(hdev)) {
+			err = cmd_status(sk, hdev->id, MGMT_OP_SET_HS,
+					 MGMT_STATUS_REJECTED);
+			goto unlock;
+		}
+
 		changed = test_and_clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+	}
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_HS, hdev);
 	if (err < 0)
