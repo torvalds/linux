@@ -1505,6 +1505,7 @@ static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_req *req)
 		struct fuse_req *next = req->misc.write.next;
 		req->misc.write.next = next->misc.write.next;
 		next->misc.write.next = NULL;
+		next->ff = fuse_file_get(req->ff);
 		list_add(&next->writepages_entry, &fi->writepages);
 
 		/*
