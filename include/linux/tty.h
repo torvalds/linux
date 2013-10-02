@@ -686,14 +686,13 @@ do {									\
 		prepare_to_wait(&wq, &__wait, TASK_INTERRUPTIBLE);	\
 		if (condition)						\
 			break;						\
-		if (!signal_pending(current)) {				\
-			tty_unlock(tty);					\
-			schedule();					\
-			tty_lock(tty);					\
-			continue;					\
+		if (signal_pending(current)) {				\
+			ret = -ERESTARTSYS;				\
+			break;						\
 		}							\
-		ret = -ERESTARTSYS;					\
-		break;							\
+		tty_unlock(tty);					\
+		schedule();						\
+		tty_lock(tty);						\
 	}								\
 	finish_wait(&wq, &__wait);					\
 } while (0)

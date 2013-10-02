@@ -261,12 +261,11 @@ do {									\
 		prepare_to_wait(&wq, &__wait, TASK_INTERRUPTIBLE);	\
 		if (condition)						\
 			break;						\
-		if (!signal_pending(current)) {				\
-			schedule();					\
-			continue;					\
+		if (signal_pending(current)) {				\
+			ret = -ERESTARTSYS;				\
+			break;						\
 		}							\
-		ret = -ERESTARTSYS;					\
-		break;							\
+		schedule();						\
 	}								\
 	finish_wait(&wq, &__wait);					\
 } while (0)
@@ -302,14 +301,13 @@ do {									\
 		prepare_to_wait(&wq, &__wait, TASK_INTERRUPTIBLE);	\
 		if (condition)						\
 			break;						\
-		if (!signal_pending(current)) {				\
-			ret = schedule_timeout(ret);			\
-			if (!ret)					\
-				break;					\
-			continue;					\
+		if (signal_pending(current)) {				\
+			ret = -ERESTARTSYS;				\
+			break;						\
 		}							\
-		ret = -ERESTARTSYS;					\
-		break;							\
+		ret = schedule_timeout(ret);				\
+		if (!ret)						\
+			break;						\
 	}								\
 	if (!ret && (condition))					\
 		ret = 1;						\
@@ -439,14 +437,13 @@ do {									\
 			finish_wait(&wq, &__wait);			\
 			break;						\
 		}							\
-		if (!signal_pending(current)) {				\
-			schedule();					\
-			continue;					\
-		}							\
-		ret = -ERESTARTSYS;					\
-		abort_exclusive_wait(&wq, &__wait, 			\
+		if (signal_pending(current)) {				\
+			ret = -ERESTARTSYS;				\
+			abort_exclusive_wait(&wq, &__wait, 		\
 				TASK_INTERRUPTIBLE, NULL);		\
-		break;							\
+			break;						\
+		}							\
+		schedule();						\
 	}								\
 } while (0)
 
