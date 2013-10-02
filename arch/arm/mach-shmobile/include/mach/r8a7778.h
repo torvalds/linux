@@ -38,6 +38,7 @@ extern void r8a7778_init_delay(void);
 extern void r8a7778_init_irq_dt(void);
 extern void r8a7778_clock_init(void);
 extern void r8a7778_init_irq_extpin(int irlm);
+extern void r8a7778_init_irq_extpin_dt(int irlm);
 extern void r8a7778_pinmux_init(void);
 
 extern int r8a7778_usb_phy_power(bool enable);
