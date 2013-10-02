@@ -486,6 +486,9 @@ static void rs780_activate_engine_clk_scaling(struct radeon_device *rdev,
 	    (new_state->sclk_low == old_state->sclk_low))
 		return;
 
+	if (new_state->sclk_high == new_state->sclk_low)
+		return;
+
 	rs780_clk_scaling_enable(rdev, true);
 }
 
@@ -717,12 +720,16 @@ static void rs780_parse_pplib_non_clock_info(struct radeon_device *rdev,
 	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
 		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
 		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
-	} else if (r600_is_uvd_state(rps->class, rps->class2)) {
-		rps->vclk = RS780_DEFAULT_VCLK_FREQ;
-		rps->dclk = RS780_DEFAULT_DCLK_FREQ;
 	} else {
 		rps->vclk = 0;
 		rps->dclk = 0;
+	}
+
+	if (r600_is_uvd_state(rps->class, rps->class2)) {
+		if ((rps->vclk == 0) || (rps->dclk == 0)) {
+			rps->vclk = RS780_DEFAULT_VCLK_FREQ;
+			rps->dclk = RS780_DEFAULT_DCLK_FREQ;
+		}
 	}
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_BOOT)

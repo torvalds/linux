@@ -1880,7 +1880,47 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_KAVERI:
-		/* TODO */
+		rdev->config.cik.max_shader_engines = 1;
+		rdev->config.cik.max_tile_pipes = 4;
+		if ((rdev->pdev->device == 0x1304) ||
+		    (rdev->pdev->device == 0x1305) ||
+		    (rdev->pdev->device == 0x130C) ||
+		    (rdev->pdev->device == 0x130F) ||
+		    (rdev->pdev->device == 0x1310) ||
+		    (rdev->pdev->device == 0x1311) ||
+		    (rdev->pdev->device == 0x131C)) {
+			rdev->config.cik.max_cu_per_sh = 8;
+			rdev->config.cik.max_backends_per_se = 2;
+		} else if ((rdev->pdev->device == 0x1309) ||
+			   (rdev->pdev->device == 0x130A) ||
+			   (rdev->pdev->device == 0x130D) ||
+			   (rdev->pdev->device == 0x1313) ||
+			   (rdev->pdev->device == 0x131D)) {
+			rdev->config.cik.max_cu_per_sh = 6;
+			rdev->config.cik.max_backends_per_se = 2;
+		} else if ((rdev->pdev->device == 0x1306) ||
+			   (rdev->pdev->device == 0x1307) ||
+			   (rdev->pdev->device == 0x130B) ||
+			   (rdev->pdev->device == 0x130E) ||
+			   (rdev->pdev->device == 0x1315) ||
+			   (rdev->pdev->device == 0x131B)) {
+			rdev->config.cik.max_cu_per_sh = 4;
+			rdev->config.cik.max_backends_per_se = 1;
+		} else {
+			rdev->config.cik.max_cu_per_sh = 3;
+			rdev->config.cik.max_backends_per_se = 1;
+		}
+		rdev->config.cik.max_sh_per_se = 1;
+		rdev->config.cik.max_texture_channel_caches = 4;
+		rdev->config.cik.max_gprs = 256;
+		rdev->config.cik.max_gs_threads = 16;
+		rdev->config.cik.max_hw_contexts = 8;
+
+		rdev->config.cik.sc_prim_fifo_size_frontend = 0x20;
+		rdev->config.cik.sc_prim_fifo_size_backend = 0x100;
+		rdev->config.cik.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.cik.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_KABINI:
 	default:
@@ -5763,6 +5803,10 @@ restart_ih:
 				break;
 			}
 			break;
+		case 124: /* UVD */
+			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
+			break;
 		case 146:
 		case 147:
 			addr = RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR);
@@ -5964,6 +6008,11 @@ static int cik_startup(struct radeon_device *rdev)
 	struct radeon_ring *ring;
 	int r;
 
+	/* scratch needs to be initialized before MC */
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
 	cik_mc_program(rdev);
 
 	if (rdev->flags & RADEON_IS_IGP) {
@@ -5992,10 +6041,6 @@ static int cik_startup(struct radeon_device *rdev)
 			return r;
 		}
 	}
-
-	r = r600_vram_scratch_init(rdev);
-	if (r)
-		return r;
 
 	r = cik_pcie_gart_enable(rdev);
 	if (r)
@@ -6398,8 +6443,8 @@ static u32 dce8_line_buffer_adjust(struct radeon_device *rdev,
 				   struct radeon_crtc *radeon_crtc,
 				   struct drm_display_mode *mode)
 {
-	u32 tmp;
-
+	u32 tmp, buffer_alloc, i;
+	u32 pipe_offset = radeon_crtc->crtc_id * 0x20;
 	/*
 	 * Line Buffer Setup
 	 * There are 6 line buffers, one for each display controllers.
@@ -6409,21 +6454,36 @@ static u32 dce8_line_buffer_adjust(struct radeon_device *rdev,
 	 * them using the stereo blender.
 	 */
 	if (radeon_crtc->base.enabled && mode) {
-		if (mode->crtc_hdisplay < 1920)
+		if (mode->crtc_hdisplay < 1920) {
 			tmp = 1;
-		else if (mode->crtc_hdisplay < 2560)
+			buffer_alloc = 2;
+		} else if (mode->crtc_hdisplay < 2560) {
 			tmp = 2;
-		else if (mode->crtc_hdisplay < 4096)
+			buffer_alloc = 2;
+		} else if (mode->crtc_hdisplay < 4096) {
 			tmp = 0;
-		else {
+			buffer_alloc = (rdev->flags & RADEON_IS_IGP) ? 2 : 4;
+		} else {
 			DRM_DEBUG_KMS("Mode too big for LB!\n");
 			tmp = 0;
+			buffer_alloc = (rdev->flags & RADEON_IS_IGP) ? 2 : 4;
 		}
-	} else
+	} else {
 		tmp = 1;
+		buffer_alloc = 0;
+	}
 
 	WREG32(LB_MEMORY_CTRL + radeon_crtc->crtc_offset,
 	       LB_MEMORY_CONFIG(tmp) | LB_MEMORY_SIZE(0x6B0));
+
+	WREG32(PIPE0_DMIF_BUFFER_CONTROL + pipe_offset,
+	       DMIF_BUFFERS_ALLOCATED(buffer_alloc));
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(PIPE0_DMIF_BUFFER_CONTROL + pipe_offset) &
+		    DMIF_BUFFERS_ALLOCATED_COMPLETED)
+			break;
+		udelay(1);
+	}
 
 	if (radeon_crtc->base.enabled && mode) {
 		switch (tmp) {

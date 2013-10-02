@@ -1146,6 +1146,7 @@ static struct radeon_asic rv6xx_asic = {
 		.set_pcie_lanes = &r600_set_pcie_lanes,
 		.set_clock_gating = NULL,
 		.get_temperature = &rv6xx_get_temp,
+		.set_uvd_clocks = &r600_set_uvd_clocks,
 	},
 	.dpm = {
 		.init = &rv6xx_dpm_init,
@@ -1257,6 +1258,7 @@ static struct radeon_asic rs780_asic = {
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
 		.get_temperature = &rv6xx_get_temp,
+		.set_uvd_clocks = &r600_set_uvd_clocks,
 	},
 	.dpm = {
 		.init = &rs780_dpm_init,

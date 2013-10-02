@@ -2147,12 +2147,16 @@ static void rv7xx_parse_pplib_non_clock_info(struct radeon_device *rdev,
 	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
 		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
 		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
-	} else if (r600_is_uvd_state(rps->class, rps->class2)) {
-		rps->vclk = RV770_DEFAULT_VCLK_FREQ;
-		rps->dclk = RV770_DEFAULT_DCLK_FREQ;
 	} else {
 		rps->vclk = 0;
 		rps->dclk = 0;
+	}
+
+	if (r600_is_uvd_state(rps->class, rps->class2)) {
+		if ((rps->vclk == 0) || (rps->dclk == 0)) {
+			rps->vclk = RV770_DEFAULT_VCLK_FREQ;
+			rps->dclk = RV770_DEFAULT_DCLK_FREQ;
+		}
 	}
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_BOOT)
@@ -2517,8 +2521,16 @@ u32 rv770_dpm_get_mclk(struct radeon_device *rdev, bool low)
 bool rv770_dpm_vblank_too_short(struct radeon_device *rdev)
 {
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
+	u32 switch_limit = 300;
 
-	if (vblank_time < 300)
+	/* quirks */
+	/* ASUS K70AF */
+	if ((rdev->pdev->device == 0x9553) &&
+	    (rdev->pdev->subsystem_vendor == 0x1043) &&
+	    (rdev->pdev->subsystem_device == 0x1c42))
+		switch_limit = 200;
+
+	if (vblank_time < switch_limit)
 		return true;
 	else
 		return false;

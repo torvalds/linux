@@ -119,6 +119,11 @@ u32 r600_get_xclk(struct radeon_device *rdev)
 	return rdev->clock.spll.reference_freq;
 }
 
+int r600_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	return 0;
+}
+
 /* get temperature in millidegrees */
 int rv6xx_get_temp(struct radeon_device *rdev)
 {
@@ -3334,6 +3339,11 @@ static int r600_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	r600_pcie_gen2_enable(rdev);
 
+	/* scratch needs to be initialized before MC */
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
 	r600_mc_program(rdev);
 
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
@@ -3343,10 +3353,6 @@ static int r600_startup(struct radeon_device *rdev)
 			return r;
 		}
 	}
-
-	r = r600_vram_scratch_init(rdev);
-	if (r)
-		return r;
 
 	if (rdev->flags & RADEON_IS_AGP) {
 		r600_agp_enable(rdev);
