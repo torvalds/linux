@@ -1,28 +1,29 @@
 
 FILES=					\
-	test-hello			\
-	test-stackprotector-all		\
-	test-stackprotector		\
-	test-volatile-register-var	\
-	test-fortify-source		\
+	test-all			\
+	test-backtrace			\
 	test-bionic			\
-	test-libelf			\
-	test-glibc			\
 	test-dwarf			\
-	test-libelf-mmap		\
-	test-libelf-getphdrnum		\
-	test-libunwind			\
-	test-libaudit			\
-	test-libslang			\
+	test-fortify-source		\
+	test-glibc			\
 	test-gtk2			\
 	test-gtk2-infobar		\
+	test-hello			\
+	test-libaudit			\
+	test-libbfd			\
+	test-libelf			\
+	test-libelf-getphdrnum		\
+	test-libelf-mmap		\
+	test-libnuma			\
 	test-libperl			\
 	test-libpython			\
 	test-libpython-version		\
-	test-libbfd			\
+	test-libslang			\
+	test-libunwind			\
 	test-on-exit			\
-	test-backtrace			\
-	test-libnuma
+	test-stackprotector-all		\
+	test-stackprotector		\
+	test-volatile-register-var
 
 CC := $(CC) -MD
 

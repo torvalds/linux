@@ -105,30 +105,36 @@ endef
 $(info )
 $(info Auto-detecting system features:)
 
-FEATURE_TESTS =				\
-	hello				\
-	stackprotector-all		\
-	stackprotector			\
-	volatile-register-var		\
-	fortify-source			\
-	bionic				\
-	libelf				\
-	glibc				\
+#
+# Note that this is not a complete list of all feature tests, just
+# those that are typically built on a fully configured system.
+#
+# [ Feature tests not mentioned here have to be built explicitly in
+#   the rule that uses them - an example for that is the 'bionic'
+#   feature check. ]
+#
+CORE_FEATURE_TESTS =			\
+	backtrace			\
 	dwarf				\
-	libelf-mmap			\
-	libelf-getphdrnum		\
-	libunwind			\
-	libaudit			\
-	libslang			\
+	fortify-source			\
+	glibc				\
 	gtk2				\
 	gtk2-infobar			\
+	libaudit			\
+	libbfd				\
+	libelf				\
+	libelf-getphdrnum		\
+	libelf-mmap			\
+	libnuma				\
 	libperl				\
 	libpython			\
 	libpython-version		\
-	libbfd				\
+	libslang			\
+	libunwind			\
 	on-exit				\
-	backtrace			\
-	libnuma
+	stackprotector			\
+	stackprotector-all		\
+	volatile-register-var
 
 #
 # Special fast-path for the 'all features are available' case:
@@ -136,10 +142,13 @@ FEATURE_TESTS =				\
 $(call feature_check,all)
 
 ifeq ($(feature-all), 1)
-  $(foreach feat,$(FEATURE_TESTS),$(call feature_set,$(feat)))
+  #
+  # test-all.c passed - just set all the core feature flags to 1:
+  #
+  $(foreach feat,$(CORE_FEATURE_TESTS),$(call feature_set,$(feat)))
 else
-  $(shell $(MAKE) -i -j -C config/feature-checks >/dev/null 2>&1)
-  $(foreach feat,$(FEATURE_TESTS),$(call feature_check,$(feat)))
+  $(shell $(MAKE) -i -j -C config/feature-checks $(CORE_FEATURE_TESTS) >/dev/null 2>&1)
+  $(foreach feat,$(CORE_FEATURE_TESTS),$(call feature_check,$(feat)))
 endif
 
 feature_print = $(eval $(feature_print_code))
@@ -156,7 +165,7 @@ define feature_print_code
   $(info $(MSG))
 endef
 
-$(foreach feat,$(FEATURE_TESTS) DUMMY,$(call feature_print,$(feat)))
+$(foreach feat,$(CORE_FEATURE_TESTS) DUMMY,$(call feature_print,$(feat)))
 
 # newline at the end of the feature printouts:
 $(info )
