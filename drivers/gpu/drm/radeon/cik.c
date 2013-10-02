@@ -4880,6 +4880,160 @@ static void cik_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	cik_print_gpu_status_regs(rdev);
 }
 
+struct kv_reset_save_regs {
+	u32 gmcon_reng_execute;
+	u32 gmcon_misc;
+	u32 gmcon_misc3;
+};
+
+static void kv_save_regs_for_reset(struct radeon_device *rdev,
+				   struct kv_reset_save_regs *save)
+{
+	save->gmcon_reng_execute = RREG32(GMCON_RENG_EXECUTE);
+	save->gmcon_misc = RREG32(GMCON_MISC);
+	save->gmcon_misc3 = RREG32(GMCON_MISC3);
+
+	WREG32(GMCON_RENG_EXECUTE, save->gmcon_reng_execute & ~RENG_EXECUTE_ON_PWR_UP);
+	WREG32(GMCON_MISC, save->gmcon_misc & ~(RENG_EXECUTE_ON_REG_UPDATE |
+						STCTRL_STUTTER_EN));
+}
+
+static void kv_restore_regs_for_reset(struct radeon_device *rdev,
+				      struct kv_reset_save_regs *save)
+{
+	int i;
+
+	WREG32(GMCON_PGFSM_WRITE, 0);
+	WREG32(GMCON_PGFSM_CONFIG, 0x200010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0);
+	WREG32(GMCON_PGFSM_CONFIG, 0x300010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x210000);
+	WREG32(GMCON_PGFSM_CONFIG, 0xa00010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x21003);
+	WREG32(GMCON_PGFSM_CONFIG, 0xb00010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x2b00);
+	WREG32(GMCON_PGFSM_CONFIG, 0xc00010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0);
+	WREG32(GMCON_PGFSM_CONFIG, 0xd00010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x420000);
+	WREG32(GMCON_PGFSM_CONFIG, 0x100010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x120202);
+	WREG32(GMCON_PGFSM_CONFIG, 0x500010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x3e3e36);
+	WREG32(GMCON_PGFSM_CONFIG, 0x600010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x373f3e);
+	WREG32(GMCON_PGFSM_CONFIG, 0x700010ff);
+
+	for (i = 0; i < 5; i++)
+		WREG32(GMCON_PGFSM_WRITE, 0);
+
+	WREG32(GMCON_PGFSM_WRITE, 0x3e1332);
+	WREG32(GMCON_PGFSM_CONFIG, 0xe00010ff);
+
+	WREG32(GMCON_MISC3, save->gmcon_misc3);
+	WREG32(GMCON_MISC, save->gmcon_misc);
+	WREG32(GMCON_RENG_EXECUTE, save->gmcon_reng_execute);
+}
+
+static void cik_gpu_pci_config_reset(struct radeon_device *rdev)
+{
+	struct evergreen_mc_save save;
+	struct kv_reset_save_regs kv_save = { 0 };
+	u32 tmp, i;
+
+	dev_info(rdev->dev, "GPU pci config reset\n");
+
+	/* disable dpm? */
+
+	/* disable cg/pg */
+	cik_fini_pg(rdev);
+	cik_fini_cg(rdev);
+
+	/* Disable GFX parsing/prefetching */
+	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);
+
+	/* Disable MEC parsing/prefetching */
+	WREG32(CP_MEC_CNTL, MEC_ME1_HALT | MEC_ME2_HALT);
+
+	/* sdma0 */
+	tmp = RREG32(SDMA0_ME_CNTL + SDMA0_REGISTER_OFFSET);
+	tmp |= SDMA_HALT;
+	WREG32(SDMA0_ME_CNTL + SDMA0_REGISTER_OFFSET, tmp);
+	/* sdma1 */
+	tmp = RREG32(SDMA0_ME_CNTL + SDMA1_REGISTER_OFFSET);
+	tmp |= SDMA_HALT;
+	WREG32(SDMA0_ME_CNTL + SDMA1_REGISTER_OFFSET, tmp);
+	/* XXX other engines? */
+
+	/* halt the rlc, disable cp internal ints */
+	cik_rlc_stop(rdev);
+
+	udelay(50);
+
+	/* disable mem access */
+	evergreen_mc_stop(rdev, &save);
+	if (evergreen_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timed out !\n");
+	}
+
+	if (rdev->flags & RADEON_IS_IGP)
+		kv_save_regs_for_reset(rdev, &kv_save);
+
+	/* disable BM */
+	pci_clear_master(rdev->pdev);
+	/* reset */
+	radeon_pci_config_reset(rdev);
+
+	udelay(100);
+
+	/* wait for asic to come out of reset */
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(CONFIG_MEMSIZE) != 0xffffffff)
+			break;
+		udelay(1);
+	}
+
+	/* does asic init need to be run first??? */
+	if (rdev->flags & RADEON_IS_IGP)
+		kv_restore_regs_for_reset(rdev, &kv_save);
+}
+
 /**
  * cik_asic_reset - soft reset GPU
  *
@@ -4898,7 +5052,14 @@ int cik_asic_reset(struct radeon_device *rdev)
 	if (reset_mask)
 		r600_set_bios_scratch_engine_hung(rdev, true);
 
+	/* try soft reset */
 	cik_gpu_soft_reset(rdev, reset_mask);
+
+	reset_mask = cik_gpu_check_soft_reset(rdev);
+
+	/* try pci config reset */
+	if (reset_mask && radeon_hard_reset)
+		cik_gpu_pci_config_reset(rdev);
 
 	reset_mask = cik_gpu_check_soft_reset(rdev);
 
