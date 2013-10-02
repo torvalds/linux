@@ -328,7 +328,7 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	ret = pci_enable_device(pdev);
 	if (ret)
-		goto err_g1;
+		goto err_free;
 
 	dev->pdev = pdev;
 	dev->pci_device = pdev->device;
@@ -338,65 +338,23 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	dev->hose = pdev->sysdata;
 #endif
 
-	mutex_lock(&drm_global_mutex);
-
-	if ((ret = drm_fill_in_dev(dev, ent, driver))) {
-		printk(KERN_ERR "DRM: Fill_in_dev failed.\n");
-		goto err_g2;
-	}
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		pci_set_drvdata(pdev, dev);
-		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
-		if (ret)
-			goto err_g2;
-	}
 
-	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
-		ret = drm_get_minor(dev, &dev->render, DRM_MINOR_RENDER);
-		if (ret)
-			goto err_g21;
-	}
-
-	if ((ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY)))
-		goto err_g3;
-
-	if (dev->driver->load) {
-		ret = dev->driver->load(dev, ent->driver_data);
-		if (ret)
-			goto err_g4;
-	}
-
-	/* setup the grouping for the legacy output */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_mode_group_init_legacy_group(dev,
-						&dev->primary->mode_group);
-		if (ret)
-			goto err_g4;
-	}
-
-	list_add_tail(&dev->driver_item, &driver->device_list);
+	ret = drm_dev_register(dev, ent->driver_data);
+	if (ret)
+		goto err_pci;
 
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
 		 driver->date, pci_name(pdev), dev->primary->index);
 
-	mutex_unlock(&drm_global_mutex);
 	return 0;
 
-err_g4:
-	drm_put_minor(&dev->primary);
-err_g3:
-	if (dev->render)
-		drm_put_minor(&dev->render);
-err_g21:
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_put_minor(&dev->control);
-err_g2:
+err_pci:
 	pci_disable_device(pdev);
-err_g1:
+err_free:
 	kfree(dev);
-	mutex_unlock(&drm_global_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(drm_get_pci_dev);

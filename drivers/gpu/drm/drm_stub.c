@@ -254,25 +254,6 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int drm_fill_in_dev(struct drm_device *dev,
-			   const struct pci_device_id *ent,
-			   struct drm_driver *driver)
-{
-	int retcode;
-
-	if (dev->driver->bus->agp_init) {
-		retcode = dev->driver->bus->agp_init(dev);
-		if (retcode) {
-			drm_lastclose(dev);
-			return retcode;
-		}
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_fill_in_dev);
-
-
 /**
  * Get a secondary minor number.
  *
@@ -452,6 +433,8 @@ EXPORT_SYMBOL(drm_unplug_dev);
  * @parent: Parent device object
  *
  * Allocate and initialize a new DRM device. No device registration is done.
+ * Call drm_dev_register() to advertice the device to user space and register it
+ * with other core subsystems.
  *
  * RETURNS:
  * Pointer to new DRM device, or NULL if out of memory.
@@ -517,3 +500,83 @@ err_free:
 	return NULL;
 }
 EXPORT_SYMBOL(drm_dev_alloc);
+
+/**
+ * drm_dev_register - Register DRM device
+ * @dev: Device to register
+ *
+ * Register the DRM device @dev with the system, advertise device to user-space
+ * and start normal device operation. @dev must be allocated via drm_dev_alloc()
+ * previously.
+ *
+ * Never call this twice on any device!
+ *
+ * RETURNS:
+ * 0 on success, negative error code on failure.
+ */
+int drm_dev_register(struct drm_device *dev, unsigned long flags)
+{
+	int ret;
+
+	mutex_lock(&drm_global_mutex);
+
+	if (dev->driver->bus->agp_init) {
+		ret = dev->driver->bus->agp_init(dev);
+		if (ret)
+			goto out_unlock;
+	}
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
+		if (ret)
+			goto err_agp;
+	}
+
+	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
+		ret = drm_get_minor(dev, &dev->render, DRM_MINOR_RENDER);
+		if (ret)
+			goto err_control_node;
+	}
+
+	ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY);
+	if (ret)
+		goto err_render_node;
+
+	if (dev->driver->load) {
+		ret = dev->driver->load(dev, flags);
+		if (ret)
+			goto err_primary_node;
+	}
+
+	/* setup grouping for legacy outputs */
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = drm_mode_group_init_legacy_group(dev,
+				&dev->primary->mode_group);
+		if (ret)
+			goto err_unload;
+	}
+
+	list_add_tail(&dev->driver_item, &dev->driver->device_list);
+
+	ret = 0;
+	goto out_unlock;
+
+err_unload:
+	if (dev->driver->unload)
+		dev->driver->unload(dev);
+err_primary_node:
+	drm_put_minor(&dev->primary);
+err_render_node:
+	if (dev->render)
+		drm_put_minor(&dev->render);
+err_control_node:
+	if (dev->control)
+		drm_put_minor(&dev->control);
+err_agp:
+	if (dev->driver->bus->agp_destroy)
+		dev->driver->bus->agp_destroy(dev);
+out_unlock:
+	mutex_unlock(&drm_global_mutex);
+	return ret;
+}
+EXPORT_SYMBOL(drm_dev_register);

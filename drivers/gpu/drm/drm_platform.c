@@ -53,48 +53,9 @@ static int drm_get_platform_dev(struct platform_device *platdev,
 
 	dev->platformdev = platdev;
 
-	mutex_lock(&drm_global_mutex);
-
-	ret = drm_fill_in_dev(dev, NULL, driver);
-
-	if (ret) {
-		printk(KERN_ERR "DRM: Fill_in_dev failed.\n");
-		goto err_g1;
-	}
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
-		if (ret)
-			goto err_g1;
-	}
-
-	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
-		ret = drm_get_minor(dev, &dev->render, DRM_MINOR_RENDER);
-		if (ret)
-			goto err_g11;
-	}
-
-	ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY);
+	ret = drm_dev_register(dev, 0);
 	if (ret)
-		goto err_g2;
-
-	if (dev->driver->load) {
-		ret = dev->driver->load(dev, 0);
-		if (ret)
-			goto err_g3;
-	}
-
-	/* setup the grouping for the legacy output */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_mode_group_init_legacy_group(dev,
-				&dev->primary->mode_group);
-		if (ret)
-			goto err_g3;
-	}
-
-	list_add_tail(&dev->driver_item, &driver->device_list);
-
-	mutex_unlock(&drm_global_mutex);
+		goto err_free;
 
 	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
@@ -102,17 +63,8 @@ static int drm_get_platform_dev(struct platform_device *platdev,
 
 	return 0;
 
-err_g3:
-	drm_put_minor(&dev->primary);
-err_g2:
-	if (dev->render)
-		drm_put_minor(&dev->render);
-err_g11:
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_put_minor(&dev->control);
-err_g1:
+err_free:
 	kfree(dev);
-	mutex_unlock(&drm_global_mutex);
 	return ret;
 }
 
