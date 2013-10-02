@@ -213,13 +213,13 @@ static struct freq_attr *bL_cpufreq_attr[] = {
 
 static struct cpufreq_driver bL_cpufreq_driver = {
 	.name			= "arm-big-little",
-	.flags			= CPUFREQ_STICKY,
+	.flags			= CPUFREQ_STICKY |
+					CPUFREQ_HAVE_GOVERNOR_PER_POLICY,
 	.verify			= bL_cpufreq_verify_policy,
 	.target			= bL_cpufreq_set_target,
 	.get			= bL_cpufreq_get,
 	.init			= bL_cpufreq_init,
 	.exit			= bL_cpufreq_exit,
-	.have_governor_per_policy = true,
 	.attr			= bL_cpufreq_attr,
 };
 
