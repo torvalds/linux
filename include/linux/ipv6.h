@@ -370,7 +370,7 @@ static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 
 #define INET6_MATCH(__sk, __net, __saddr, __daddr, __ports, __dif)	\
-	((inet_sk(__sk)->inet_portpair == (__ports))		&&	\
+	(((__sk)->sk_portpair == (__ports))			&&	\
 	 ((__sk)->sk_family == AF_INET6)			&&	\
 	 ipv6_addr_equal(&inet6_sk(__sk)->daddr, (__saddr))	&&	\
 	 ipv6_addr_equal(&inet6_sk(__sk)->rcv_saddr, (__daddr))	&&	\
@@ -379,7 +379,7 @@ static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 	 net_eq(sock_net(__sk), (__net)))
 
 #define INET6_TW_MATCH(__sk, __net, __saddr, __daddr, __ports, __dif)	   \
-	((inet_twsk(__sk)->tw_portpair == (__ports))			&& \
+	(((__sk)->sk_portpair == (__ports))				&& \
 	 ((__sk)->sk_family == AF_INET6)				&& \
 	 ipv6_addr_equal(&inet6_twsk(__sk)->tw_v6_daddr, (__saddr))	&& \
 	 ipv6_addr_equal(&inet6_twsk(__sk)->tw_v6_rcv_saddr, (__daddr)) && \

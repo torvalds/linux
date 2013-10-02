@@ -112,10 +112,8 @@ struct inet_timewait_sock {
 #define tw_net			__tw_common.skc_net
 #define tw_daddr        	__tw_common.skc_daddr
 #define tw_rcv_saddr    	__tw_common.skc_rcv_saddr
-#define tw_addrpair		__tw_common.skc_addrpair
 #define tw_dport		__tw_common.skc_dport
 #define tw_num			__tw_common.skc_num
-#define tw_portpair		__tw_common.skc_portpair
 
 	int			tw_timeout;
 	volatile unsigned char	tw_substate;
@@ -187,12 +185,6 @@ static inline int inet_twsk_del_dead_node(struct inet_timewait_sock *tw)
 static inline struct inet_timewait_sock *inet_twsk(const struct sock *sk)
 {
 	return (struct inet_timewait_sock *)sk;
-}
-
-static inline __be32 sk_rcv_saddr(const struct sock *sk)
-{
-/* both inet_sk() and inet_twsk() store rcv_saddr in skc_rcv_saddr */
-	return sk->__sk_common.skc_rcv_saddr;
 }
 
 void inet_twsk_put(struct inet_timewait_sock *tw);

@@ -302,34 +302,24 @@ static inline struct sock *inet_lookup_listener(struct net *net,
 				   ((__force __u64)(__be32)(__saddr)));
 #endif /* __BIG_ENDIAN */
 #define INET_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif)	\
-	((inet_sk(__sk)->inet_portpair == (__ports))		&&	\
-	 (inet_sk(__sk)->inet_addrpair == (__cookie))		&&	\
+	(((__sk)->sk_portpair == (__ports))			&&	\
+	 ((__sk)->sk_addrpair == (__cookie))			&&	\
 	 (!(__sk)->sk_bound_dev_if	||				\
 	   ((__sk)->sk_bound_dev_if == (__dif))) 		&& 	\
-	 net_eq(sock_net(__sk), (__net)))
-#define INET_TW_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif)\
-	((inet_twsk(__sk)->tw_portpair == (__ports))	&&		\
-	 (inet_twsk(__sk)->tw_addrpair == (__cookie))	&&		\
-	 (!(__sk)->sk_bound_dev_if	||				\
-	   ((__sk)->sk_bound_dev_if == (__dif)))	&&		\
 	 net_eq(sock_net(__sk), (__net)))
 #else /* 32-bit arch */
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr)
 #define INET_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif) \
-	((inet_sk(__sk)->inet_portpair == (__ports))	&&		\
-	 (inet_sk(__sk)->inet_daddr	== (__saddr))	&&		\
-	 (inet_sk(__sk)->inet_rcv_saddr	== (__daddr))	&&		\
-	 (!(__sk)->sk_bound_dev_if	||				\
-	   ((__sk)->sk_bound_dev_if == (__dif))) 	&&		\
-	 net_eq(sock_net(__sk), (__net)))
-#define INET_TW_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif) \
-	((inet_twsk(__sk)->tw_portpair == (__ports))	&&		\
-	 (inet_twsk(__sk)->tw_daddr	== (__saddr))	&&		\
-	 (inet_twsk(__sk)->tw_rcv_saddr	== (__daddr))	&&		\
+	(((__sk)->sk_portpair == (__ports))		&&		\
+	 ((__sk)->sk_daddr	== (__saddr))		&&		\
+	 ((__sk)->sk_rcv_saddr	== (__daddr))		&&		\
 	 (!(__sk)->sk_bound_dev_if	||				\
 	   ((__sk)->sk_bound_dev_if == (__dif))) 	&&		\
 	 net_eq(sock_net(__sk), (__net)))
 #endif /* 64-bit arch */
+
+#define INET_TW_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif)\
+	INET_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif)
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so we need

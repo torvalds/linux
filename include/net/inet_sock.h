@@ -146,10 +146,8 @@ struct inet_sock {
 	/* Socket demultiplex comparisons on incoming packets. */
 #define inet_daddr		sk.__sk_common.skc_daddr
 #define inet_rcv_saddr		sk.__sk_common.skc_rcv_saddr
-#define inet_addrpair		sk.__sk_common.skc_addrpair
 #define inet_dport		sk.__sk_common.skc_dport
 #define inet_num		sk.__sk_common.skc_num
-#define inet_portpair		sk.__sk_common.skc_portpair
 
 	__be32			inet_saddr;
 	__s16			uc_ttl;

@@ -300,6 +300,10 @@ struct sock {
 #define sk_dontcopy_begin	__sk_common.skc_dontcopy_begin
 #define sk_dontcopy_end		__sk_common.skc_dontcopy_end
 #define sk_hash			__sk_common.skc_hash
+#define sk_portpair		__sk_common.skc_portpair
+#define sk_addrpair		__sk_common.skc_addrpair
+#define sk_daddr		__sk_common.skc_daddr
+#define sk_rcv_saddr		__sk_common.skc_rcv_saddr
 #define sk_family		__sk_common.skc_family
 #define sk_state		__sk_common.skc_state
 #define sk_reuse		__sk_common.skc_reuse
