@@ -309,7 +309,7 @@ static void
 jme_load_macaddr(struct net_device *netdev)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
-	unsigned char macaddr[6];
+	unsigned char macaddr[ETH_ALEN];
 	u32 val;
 
 	spin_lock_bh(&jme->macaddr_lock);
@@ -321,7 +321,7 @@ jme_load_macaddr(struct net_device *netdev)
 	val = jread32(jme, JME_RXUMA_HI);
 	macaddr[4] = (val >>  0) & 0xFF;
 	macaddr[5] = (val >>  8) & 0xFF;
-	memcpy(netdev->dev_addr, macaddr, 6);
+	memcpy(netdev->dev_addr, macaddr, ETH_ALEN);
 	spin_unlock_bh(&jme->macaddr_lock);
 }
 

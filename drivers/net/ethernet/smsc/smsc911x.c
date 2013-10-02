@@ -2502,7 +2502,7 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 		SMSC_TRACE(pdata, probe,
 			   "MAC Address is specified by configuration");
 	} else if (is_valid_ether_addr(pdata->config.mac)) {
-		memcpy(dev->dev_addr, pdata->config.mac, 6);
+		memcpy(dev->dev_addr, pdata->config.mac, ETH_ALEN);
 		SMSC_TRACE(pdata, probe,
 			   "MAC Address specified by platform data");
 	} else {

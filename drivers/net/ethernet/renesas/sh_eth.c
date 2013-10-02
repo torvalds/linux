@@ -868,7 +868,7 @@ static void update_mac_address(struct net_device *ndev)
 static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 {
 	if (mac[0] || mac[1] || mac[2] || mac[3] || mac[4] || mac[5]) {
-		memcpy(ndev->dev_addr, mac, 6);
+		memcpy(ndev->dev_addr, mac, ETH_ALEN);
 	} else {
 		ndev->dev_addr[0] = (sh_eth_read(ndev, MAHR) >> 24);
 		ndev->dev_addr[1] = (sh_eth_read(ndev, MAHR) >> 16) & 0xFF;

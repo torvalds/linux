@@ -558,7 +558,7 @@ static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
 
-	memcpy(adapter->vfinfo[vf].vf_mac_addresses, mac_addr, 6);
+	memcpy(adapter->vfinfo[vf].vf_mac_addresses, mac_addr, ETH_ALEN);
 	hw->mac.ops.set_rar(hw, rar_entry, mac_addr, vf, IXGBE_RAH_AV);
 
 	return 0;
@@ -621,16 +621,13 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 {
-	unsigned char vf_mac_addr[6];
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	unsigned int vfn = (event_mask & 0x3f);
 
 	bool enable = ((event_mask & 0x10000000U) != 0);
 
-	if (enable) {
-		eth_zero_addr(vf_mac_addr);
-		memcpy(adapter->vfinfo[vfn].vf_mac_addresses, vf_mac_addr, 6);
-	}
+	if (enable)
+		eth_zero_addr(adapter->vfinfo[vfn].vf_mac_addresses);
 
 	return 0;
 }

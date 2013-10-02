@@ -242,7 +242,7 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	msgbuf[0] |= index << IXGBE_VT_MSGINFO_SHIFT;
 	msgbuf[0] |= IXGBE_VF_SET_MACVLAN;
 	if (addr)
-		memcpy(msg_addr, addr, 6);
+		memcpy(msg_addr, addr, ETH_ALEN);
 	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
 	if (!ret_val)
@@ -275,7 +275,7 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 
 	memset(msgbuf, 0, sizeof(msgbuf));
 	msgbuf[0] = IXGBE_VF_SET_MAC_ADDR;
-	memcpy(msg_addr, addr, 6);
+	memcpy(msg_addr, addr, ETH_ALEN);
 	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
 	if (!ret_val)

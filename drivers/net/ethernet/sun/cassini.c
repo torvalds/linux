@@ -3354,7 +3354,7 @@ use_random_mac_addr:
 #if defined(CONFIG_SPARC)
 	addr = of_get_property(cp->of_node, "local-mac-address", NULL);
 	if (addr != NULL) {
-		memcpy(dev_addr, addr, 6);
+		memcpy(dev_addr, addr, ETH_ALEN);
 		goto done;
 	}
 #endif

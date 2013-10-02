@@ -3164,7 +3164,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 
 	/* Walk the multicast list, and add each address */
 	netdev_for_each_mc_addr(ha, dev) {
-		memcpy(data, &ha->addr, 6);
+		memcpy(data, &ha->addr, ETH_ALEN);
 		cmd.data0 = ntohl(data[0]);
 		cmd.data1 = ntohl(data[1]);
 		err = myri10ge_send_cmd(mgp, MXGEFW_JOIN_MULTICAST_GROUP,
@@ -3207,7 +3207,7 @@ static int myri10ge_set_mac_address(struct net_device *dev, void *addr)
 	}
 
 	/* change the dev structure */
-	memcpy(dev->dev_addr, sa->sa_data, 6);
+	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	return 0;
 }
 

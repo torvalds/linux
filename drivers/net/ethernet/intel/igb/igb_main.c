@@ -5708,7 +5708,7 @@ static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 
 	/* reply to reset with ack and vf mac address */
 	msgbuf[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_ACK;
-	memcpy(addr, vf_mac, 6);
+	memcpy(addr, vf_mac, ETH_ALEN);
 	igb_write_mbx(hw, msgbuf, 3, vf);
 }
 

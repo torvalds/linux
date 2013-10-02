@@ -2698,7 +2698,7 @@ static u16 eeprom_read_u16(struct ipw_priv *priv, u8 addr)
 /* data's copy of the eeprom data                                 */
 static void eeprom_parse_mac(struct ipw_priv *priv, u8 * mac)
 {
-	memcpy(mac, &priv->eeprom[EEPROM_MAC_ADDRESS], 6);
+	memcpy(mac, &priv->eeprom[EEPROM_MAC_ADDRESS], ETH_ALEN);
 }
 
 static void ipw_read_eeprom(struct ipw_priv *priv)

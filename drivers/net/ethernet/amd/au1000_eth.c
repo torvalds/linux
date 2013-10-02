@@ -1138,7 +1138,7 @@ static int au1000_probe(struct platform_device *pdev)
 		aup->phy1_search_mac0 = 1;
 	} else {
 		if (is_valid_ether_addr(pd->mac)) {
-			memcpy(dev->dev_addr, pd->mac, 6);
+			memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
 		} else {
 			/* Set a random MAC since no valid provided by platform_data. */
 			eth_hw_addr_random(dev);

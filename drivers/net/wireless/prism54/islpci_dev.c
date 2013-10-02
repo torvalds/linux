@@ -837,7 +837,7 @@ islpci_setup(struct pci_dev *pdev)
 	/* ndev->set_multicast_list = &islpci_set_multicast_list; */
 	ndev->addr_len = ETH_ALEN;
 	/* Get a non-zero dummy MAC address for nameif. Jean II */
-	memcpy(ndev->dev_addr, dummy_mac, 6);
+	memcpy(ndev->dev_addr, dummy_mac, ETH_ALEN);
 
 	ndev->watchdog_timeo = ISLPCI_TX_TIMEOUT;
 

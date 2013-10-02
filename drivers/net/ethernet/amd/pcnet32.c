@@ -1675,7 +1675,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 				pr_cont(" warning: CSR address invalid,\n");
 				pr_info("    using instead PROM address of");
 			}
-			memcpy(dev->dev_addr, promaddr, 6);
+			memcpy(dev->dev_addr, promaddr, ETH_ALEN);
 		}
 	}
 

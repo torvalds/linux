@@ -2779,7 +2779,7 @@ static int gem_get_device_address(struct gem *gp)
 		return -1;
 #endif
 	}
-	memcpy(dev->dev_addr, addr, 6);
+	memcpy(dev->dev_addr, addr, ETH_ALEN);
 #else
 	get_gem_mac_nonobp(gp->pdev, gp->dev->dev_addr);
 #endif

@@ -77,13 +77,13 @@ DECLARE_EVENT_CLASS(local_sdata_addr_evt,
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
-		__array(char, addr, 6)
+		__array(char, addr, ETH_ALEN)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
-		memcpy(__entry->addr, sdata->vif.addr, 6);
+		memcpy(__entry->addr, sdata->vif.addr, ETH_ALEN);
 	),
 
 	TP_printk(

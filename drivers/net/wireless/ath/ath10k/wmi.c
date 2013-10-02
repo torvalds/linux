@@ -1918,7 +1918,7 @@ int ath10k_wmi_peer_set_param(struct ath10k *ar, u32 vdev_id,
 	cmd->vdev_id     = __cpu_to_le32(vdev_id);
 	cmd->param_id    = __cpu_to_le32(param_id);
 	cmd->param_value = __cpu_to_le32(param_value);
-	memcpy(&cmd->peer_macaddr.addr, peer_addr, 6);
+	memcpy(&cmd->peer_macaddr.addr, peer_addr, ETH_ALEN);
 
 	ath10k_dbg(ATH10K_DBG_WMI,
 		   "wmi vdev %d peer 0x%pM set param %d value %d\n",
