@@ -13,13 +13,30 @@ endif
 
 export JOBS
 
-$(info $(shell printf '# [ perf build: Doing '\''make \033[33m-j'$(JOBS)'\033[m'\'' parallel build. ]\n'))
+define print_msg
+  @printf '    BUILD: Doing '\''make \033[33m-j'$(JOBS)'\033[m'\'' parallel build\n'
+endef
+
+define make
+  @$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) $@
+endef
 
 #
 # Needed if no target specified:
 #
 all:
-	@$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) $@
+	$(print_msg)
+	$(make)
 
+#
+# The clean target is not really parallel, don't print the jobs info:
+#
+clean:
+	$(make)
+
+#
+# All other targets get passed through:
+#
 %:
-	@$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) $@
+	$(print_msg)
+	$(make)
