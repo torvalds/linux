@@ -3419,8 +3419,8 @@ out_unlock:
 	return 0;
 }
 
-static int nonpaging_init_context(struct kvm_vcpu *vcpu,
-				  struct kvm_mmu *context)
+static void nonpaging_init_context(struct kvm_vcpu *vcpu,
+				   struct kvm_mmu *context)
 {
 	context->page_fault = nonpaging_page_fault;
 	context->gva_to_gpa = nonpaging_gva_to_gpa;
@@ -3432,7 +3432,6 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->root_hpa = INVALID_PAGE;
 	context->direct_map = true;
 	context->nx = false;
-	return 0;
 }
 
 void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
@@ -3647,9 +3646,9 @@ static void update_last_pte_bitmap(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 	mmu->last_pte_bitmap = map;
 }
 
-static int paging64_init_context_common(struct kvm_vcpu *vcpu,
-					struct kvm_mmu *context,
-					int level)
+static void paging64_init_context_common(struct kvm_vcpu *vcpu,
+					 struct kvm_mmu *context,
+					 int level)
 {
 	context->nx = is_nx(vcpu);
 	context->root_level = level;
@@ -3667,17 +3666,16 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu,
 	context->shadow_root_level = level;
 	context->root_hpa = INVALID_PAGE;
 	context->direct_map = false;
-	return 0;
 }
 
-static int paging64_init_context(struct kvm_vcpu *vcpu,
-				 struct kvm_mmu *context)
+static void paging64_init_context(struct kvm_vcpu *vcpu,
+				  struct kvm_mmu *context)
 {
-	return paging64_init_context_common(vcpu, context, PT64_ROOT_LEVEL);
+	paging64_init_context_common(vcpu, context, PT64_ROOT_LEVEL);
 }
 
-static int paging32_init_context(struct kvm_vcpu *vcpu,
-				 struct kvm_mmu *context)
+static void paging32_init_context(struct kvm_vcpu *vcpu,
+				  struct kvm_mmu *context)
 {
 	context->nx = false;
 	context->root_level = PT32_ROOT_LEVEL;
@@ -3694,16 +3692,15 @@ static int paging32_init_context(struct kvm_vcpu *vcpu,
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->root_hpa = INVALID_PAGE;
 	context->direct_map = false;
-	return 0;
 }
 
-static int paging32E_init_context(struct kvm_vcpu *vcpu,
-				  struct kvm_mmu *context)
+static void paging32E_init_context(struct kvm_vcpu *vcpu,
+				   struct kvm_mmu *context)
 {
-	return paging64_init_context_common(vcpu, context, PT32E_ROOT_LEVEL);
+	paging64_init_context_common(vcpu, context, PT32E_ROOT_LEVEL);
 }
 
-static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
+static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *context = vcpu->arch.walk_mmu;
 
@@ -3743,37 +3740,32 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 
 	update_permission_bitmask(vcpu, context, false);
 	update_last_pte_bitmap(vcpu, context);
-
-	return 0;
 }
 
-int kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
+void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
 {
-	int r;
 	bool smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
 	ASSERT(vcpu);
 	ASSERT(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
 	if (!is_paging(vcpu))
-		r = nonpaging_init_context(vcpu, context);
+		nonpaging_init_context(vcpu, context);
 	else if (is_long_mode(vcpu))
-		r = paging64_init_context(vcpu, context);
+		paging64_init_context(vcpu, context);
 	else if (is_pae(vcpu))
-		r = paging32E_init_context(vcpu, context);
+		paging32E_init_context(vcpu, context);
 	else
-		r = paging32_init_context(vcpu, context);
+		paging32_init_context(vcpu, context);
 
 	vcpu->arch.mmu.base_role.nxe = is_nx(vcpu);
 	vcpu->arch.mmu.base_role.cr4_pae = !!is_pae(vcpu);
 	vcpu->arch.mmu.base_role.cr0_wp  = is_write_protection(vcpu);
 	vcpu->arch.mmu.base_role.smep_andnot_wp
 		= smep && !is_write_protection(vcpu);
-
-	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
 
-int kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
+void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
 		bool execonly)
 {
 	ASSERT(vcpu);
@@ -3793,24 +3785,19 @@ int kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
 
 	update_permission_bitmask(vcpu, context, true);
 	reset_rsvds_bits_mask_ept(vcpu, context, execonly);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_ept_mmu);
 
-static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
+static void init_kvm_softmmu(struct kvm_vcpu *vcpu)
 {
-	int r = kvm_init_shadow_mmu(vcpu, vcpu->arch.walk_mmu);
-
+	kvm_init_shadow_mmu(vcpu, vcpu->arch.walk_mmu);
 	vcpu->arch.walk_mmu->set_cr3           = kvm_x86_ops->set_cr3;
 	vcpu->arch.walk_mmu->get_cr3           = get_cr3;
 	vcpu->arch.walk_mmu->get_pdptr         = kvm_pdptr_read;
 	vcpu->arch.walk_mmu->inject_page_fault = kvm_inject_page_fault;
-
-	return r;
 }
 
-static int init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
+static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *g_context = &vcpu->arch.nested_mmu;
 
@@ -3847,11 +3834,9 @@ static int init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 
 	update_permission_bitmask(vcpu, g_context, false);
 	update_last_pte_bitmap(vcpu, g_context);
-
-	return 0;
 }
 
-static int init_kvm_mmu(struct kvm_vcpu *vcpu)
+static void init_kvm_mmu(struct kvm_vcpu *vcpu)
 {
 	if (mmu_is_nested(vcpu))
 		return init_kvm_nested_mmu(vcpu);
@@ -3861,12 +3846,12 @@ static int init_kvm_mmu(struct kvm_vcpu *vcpu)
 		return init_kvm_softmmu(vcpu);
 }
 
-int kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
+void kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 {
 	ASSERT(vcpu);
 
 	kvm_mmu_unload(vcpu);
-	return init_kvm_mmu(vcpu);
+	init_kvm_mmu(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_reset_context);
 
@@ -4250,12 +4235,12 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu)
 	return alloc_mmu_pages(vcpu);
 }
 
-int kvm_mmu_setup(struct kvm_vcpu *vcpu)
+void kvm_mmu_setup(struct kvm_vcpu *vcpu)
 {
 	ASSERT(vcpu);
 	ASSERT(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
-	return init_kvm_mmu(vcpu);
+	init_kvm_mmu(vcpu);
 }
 
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
