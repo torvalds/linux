@@ -21,7 +21,9 @@
 
 #include <linux/cpu.h>
 #include <linux/delay.h>
+#include <linux/kdb.h>
 #include <linux/kexec.h>
+#include <linux/kgdb.h>
 #include <linux/module.h>
 #include <linux/nmi.h>
 #include <linux/sched.h>
@@ -32,6 +34,7 @@
 #include <asm/kdebug.h>
 #include <asm/local64.h>
 #include <asm/nmi.h>
+#include <asm/traps.h>
 #include <asm/uv/uv.h>
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/uv_mmrs.h>
@@ -153,8 +156,9 @@ module_param_named(retry_count, uv_nmi_retry_count, int, 0644);
  *  "dump"	- dump process stack for each cpu
  *  "ips"	- dump IP info for each cpu
  *  "kdump"	- do crash dump
+ *  "kdb"	- enter KDB/KGDB (default)
  */
-static char uv_nmi_action[8] = "dump";
+static char uv_nmi_action[8] = "kdb";
 module_param_string(action, uv_nmi_action, sizeof(uv_nmi_action), 0644);
 
 static inline bool uv_nmi_action_is(const char *action)
@@ -540,6 +544,43 @@ static inline void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
 }
 #endif /* !CONFIG_KEXEC */
 
+#ifdef CONFIG_KGDB_KDB
+/* Call KDB from NMI handler */
+static void uv_call_kdb(int cpu, struct pt_regs *regs, int master)
+{
+	int ret;
+
+	if (master) {
+		/* call KGDB NMI handler as MASTER */
+		ret = kgdb_nmicallin(cpu, X86_TRAP_NMI, regs,
+					&uv_nmi_slave_continue);
+		if (ret) {
+			pr_alert("KDB returned error, is kgdboc set?\n");
+			atomic_set(&uv_nmi_slave_continue, SLAVE_EXIT);
+		}
+	} else {
+		/* wait for KGDB signal that it's ready for slaves to enter */
+		int sig;
+
+		do {
+			cpu_relax();
+			sig = atomic_read(&uv_nmi_slave_continue);
+		} while (!sig);
+
+		/* call KGDB as slave */
+		if (sig == SLAVE_CONTINUE)
+			kgdb_nmicallback(cpu, regs);
+	}
+	uv_nmi_sync_exit(master);
+}
+
+#else /* !CONFIG_KGDB_KDB */
+static inline void uv_call_kdb(int cpu, struct pt_regs *regs, int master)
+{
+	pr_err("UV: NMI error: KGDB/KDB is not enabled in this kernel\n");
+}
+#endif /* !CONFIG_KGDB_KDB */
+
 /*
  * UV NMI handler
  */
@@ -575,6 +616,10 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	/* Dump state of each cpu */
 	if (uv_nmi_action_is("ips") || uv_nmi_action_is("dump"))
 		uv_nmi_dump_state(cpu, regs, master);
+
+	/* Call KDB if enabled */
+	else if (uv_nmi_action_is("kdb"))
+		uv_call_kdb(cpu, regs, master);
 
 	/* Clear per_cpu "in nmi" flag */
 	atomic_set(&uv_cpu_nmi.state, UV_NMI_STATE_OUT);
