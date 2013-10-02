@@ -1701,11 +1701,14 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 
 	if (old_req->num_pages == 1 && (old_req->state == FUSE_REQ_INIT ||
 					old_req->state == FUSE_REQ_PENDING)) {
+		struct backing_dev_info *bdi = page->mapping->backing_dev_info;
+
 		copy_highpage(old_req->pages[0], page);
 		spin_unlock(&fc->lock);
 
-		dec_bdi_stat(page->mapping->backing_dev_info, BDI_WRITEBACK);
+		dec_bdi_stat(bdi, BDI_WRITEBACK);
 		dec_zone_page_state(page, NR_WRITEBACK_TEMP);
+		bdi_writeout_inc(bdi);
 		fuse_writepage_free(fc, new_req);
 		fuse_request_free(new_req);
 		goto out;
