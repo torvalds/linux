@@ -402,6 +402,15 @@ config MOXART_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called moxart_wdt.
 
+config SIRFSOC_WATCHDOG
+	tristate "SiRFSOC watchdog"
+	depends on ARCH_SIRF
+	select WATCHDOG_CORE
+	default y
+	help
+	  Support for CSR SiRFprimaII and SiRFatlasVI watchdog. When
+	  the watchdog triggers the system will be reset.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
