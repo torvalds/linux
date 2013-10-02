@@ -77,7 +77,7 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv10_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv10_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
@@ -96,7 +96,7 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv10_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv10_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
@@ -115,7 +115,7 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv10_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv10_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
@@ -134,7 +134,7 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv10_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv10_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
@@ -153,7 +153,7 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv10_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
@@ -172,7 +172,7 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv10_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
@@ -191,7 +191,7 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv10_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;

@@ -41,10 +41,10 @@ struct nouveau_software {
 #define _nouveau_software_init _nouveau_engine_init
 #define _nouveau_software_fini _nouveau_engine_fini
 
-extern struct nouveau_oclass nv04_software_oclass;
-extern struct nouveau_oclass nv10_software_oclass;
-extern struct nouveau_oclass nv50_software_oclass;
-extern struct nouveau_oclass nvc0_software_oclass;
+extern struct nouveau_oclass *nv04_software_oclass;
+extern struct nouveau_oclass *nv10_software_oclass;
+extern struct nouveau_oclass *nv50_software_oclass;
+extern struct nouveau_oclass *nvc0_software_oclass;
 
 void nv04_software_intr(struct nouveau_subdev *);
 

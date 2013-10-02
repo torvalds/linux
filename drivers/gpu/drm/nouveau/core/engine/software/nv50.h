@@ -3,6 +3,10 @@
 
 #include <engine/software.h>
 
+struct nv50_software_oclass {
+	struct nouveau_oclass base;
+};
+
 struct nv50_software_priv {
 	struct nouveau_software base;
 };

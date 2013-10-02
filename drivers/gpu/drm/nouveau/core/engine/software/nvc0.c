@@ -207,13 +207,13 @@ nvc0_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nvc0_software_oclass = {
-	.handle = NV_ENGINE(SW, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nvc0_software_oclass = &(struct nv50_software_oclass) {
+	.base.handle = NV_ENGINE(SW, 0xc0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_software_ctor,
 		.dtor = _nouveau_software_dtor,
 		.init = _nouveau_software_init,
 		.fini = _nouveau_software_fini,
 	},
-};
+}.base;
