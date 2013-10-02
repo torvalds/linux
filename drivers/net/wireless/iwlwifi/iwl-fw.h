@@ -154,7 +154,8 @@ enum iwl_ucode_sec {
  * For 16.0 uCode and above, there is no differentiation between sections,
  * just an offset to the HW address.
  */
-#define IWL_UCODE_SECTION_MAX 4
+#define IWL_UCODE_SECTION_MAX 6
+#define IWL_UCODE_FIRST_SECTION_OF_SECOND_CPU	(IWL_UCODE_SECTION_MAX/2)
 
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
@@ -171,6 +172,8 @@ struct fw_desc {
 
 struct fw_img {
 	struct fw_desc sec[IWL_UCODE_SECTION_MAX];
+	bool is_secure;
+	bool is_dual_cpus;
 };
 
 /* uCode version contains 4 values: Major/Minor/API/Serial */

@@ -483,6 +483,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	const u8 *tlv_data;
 	char buildstr[25];
 	u32 build;
+	int num_of_cpus;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(drv, "uCode has invalid length: %zd\n", len);
@@ -691,6 +692,42 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
 			drv->fw.phy_config = le32_to_cpup((__le32 *)tlv_data);
+			break;
+		 case IWL_UCODE_TLV_SECURE_SEC_RT:
+			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
+					    tlv_len);
+			drv->fw.mvm_fw = true;
+			drv->fw.img[IWL_UCODE_REGULAR].is_secure = true;
+			break;
+		case IWL_UCODE_TLV_SECURE_SEC_INIT:
+			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_INIT,
+					    tlv_len);
+			drv->fw.mvm_fw = true;
+			drv->fw.img[IWL_UCODE_INIT].is_secure = true;
+			break;
+		case IWL_UCODE_TLV_SECURE_SEC_WOWLAN:
+			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_WOWLAN,
+					    tlv_len);
+			drv->fw.mvm_fw = true;
+			drv->fw.img[IWL_UCODE_WOWLAN].is_secure = true;
+			break;
+		case IWL_UCODE_TLV_NUM_OF_CPU:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			num_of_cpus =
+				le32_to_cpup((__le32 *)tlv_data);
+
+			if (num_of_cpus == 2) {
+				drv->fw.img[IWL_UCODE_REGULAR].is_dual_cpus =
+					true;
+				drv->fw.img[IWL_UCODE_INIT].is_dual_cpus =
+					true;
+				drv->fw.img[IWL_UCODE_WOWLAN].is_dual_cpus =
+					true;
+			} else if ((num_of_cpus > 2) || (num_of_cpus < 1)) {
+				IWL_ERR(drv, "Driver support upto 2 CPUs\n");
+				return -EINVAL;
+			}
 			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
