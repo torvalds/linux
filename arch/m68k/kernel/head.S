@@ -257,6 +257,12 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-amiga.h>
+#include <asm/bootinfo-atari.h>
+#include <asm/bootinfo-hp300.h>
+#include <asm/bootinfo-mac.h>
+#include <asm/bootinfo-q40.h>
+#include <asm/bootinfo-vme.h>
 #include <asm/setup.h>
 #include <asm/entry.h>
 #include <asm/pgtable.h>

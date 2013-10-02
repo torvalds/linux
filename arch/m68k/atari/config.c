@@ -37,6 +37,7 @@
 #include <linux/module.h>
 
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-atari.h>
 #include <asm/setup.h>
 #include <asm/atarihw.h>
 #include <asm/atariints.h>

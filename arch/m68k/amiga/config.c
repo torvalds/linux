@@ -28,6 +28,7 @@
 #include <linux/keyboard.h>
 
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-amiga.h>
 #include <asm/byteorder.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>

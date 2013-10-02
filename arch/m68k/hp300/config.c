@@ -14,6 +14,7 @@
 #include <linux/console.h>
 
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-hp300.h>
 #include <asm/machdep.h>
 #include <asm/blinken.h>
 #include <asm/io.h>                               /* readb() and writeb() */

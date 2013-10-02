@@ -28,6 +28,7 @@
 #include <linux/bcd.h>
 
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-vme.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/irq.h>

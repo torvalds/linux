@@ -28,6 +28,7 @@
 
 #include <asm/setup.h>
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-mac.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

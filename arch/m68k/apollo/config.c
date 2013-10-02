@@ -10,6 +10,7 @@
 
 #include <asm/setup.h>
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-apollo.h>
 #include <asm/pgtable.h>
 #include <asm/apollohw.h>
 #include <asm/irq.h>
