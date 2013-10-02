@@ -3663,9 +3663,9 @@ void gen6_update_ring_freq(struct drm_device *dev)
 	/* Convert from kHz to MHz */
 	max_ia_freq /= 1000;
 
-	min_ring_freq = I915_READ(MCHBAR_MIRROR_BASE_SNB + DCLK);
-	/* convert DDR frequency from units of 133.3MHz to bandwidth */
-	min_ring_freq = (2 * 4 * min_ring_freq + 2) / 3;
+	min_ring_freq = I915_READ(MCHBAR_MIRROR_BASE_SNB + DCLK) & 0xf;
+	/* convert DDR frequency from units of 266.6MHz to bandwidth */
+	min_ring_freq = mult_frac(min_ring_freq, 8, 3);
 
 	/*
 	 * For each potential GPU frequency, load a ring frequency we'd like
@@ -3678,7 +3678,7 @@ void gen6_update_ring_freq(struct drm_device *dev)
 		unsigned int ia_freq = 0, ring_freq = 0;
 
 		if (IS_HASWELL(dev)) {
-			ring_freq = (gpu_freq * 5 + 3) / 4;
+			ring_freq = mult_frac(gpu_freq, 5, 4);
 			ring_freq = max(min_ring_freq, ring_freq);
 			/* leave ia_freq as the default, chosen by cpufreq */
 		} else {
