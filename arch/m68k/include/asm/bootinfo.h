@@ -167,45 +167,6 @@ struct bi_record {
 #define BI_MAC_IOP_SWIM		0x8020	/* Mac SWIM floppy IOP */
 #define BI_MAC_IOP_ADB		0x8021	/* Mac ADB IOP */
 
-    /*
-     * Mac: compatibility with old booter data format (temporarily)
-     * Fields unused with the new bootinfo can be deleted now; instead of
-     * adding new fields the struct might be splitted into a hardware address
-     * part and a hardware type part
-     */
-
-#ifndef __ASSEMBLY__
-
-struct mac_booter_data
-{
-	unsigned long videoaddr;
-	unsigned long videorow;
-	unsigned long videodepth;
-	unsigned long dimensions;
-	unsigned long args;
-	unsigned long boottime;
-	unsigned long gmtbias;
-	unsigned long bootver;
-	unsigned long videological;
-	unsigned long sccbase;
-	unsigned long id;
-	unsigned long memsize;
-	unsigned long serialmf;
-	unsigned long serialhsk;
-	unsigned long serialgpi;
-	unsigned long printmf;
-	unsigned long printhsk;
-	unsigned long printgpi;
-	unsigned long cpuid;
-	unsigned long rombase;
-	unsigned long adbdelay;
-	unsigned long timedbra;
-};
-
-extern struct mac_booter_data
-	mac_bi_data;
-
-#endif
 
     /*
      *  Apollo-specific tags

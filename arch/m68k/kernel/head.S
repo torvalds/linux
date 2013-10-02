@@ -3896,8 +3896,6 @@ BVME_SCC_DATA_A	= 0xffb0000f
 #endif
 
 #if defined(CONFIG_MAC)
-L(mac_booter_data):
-	.long	0
 L(mac_videobase):
 	.long	0
 L(mac_videodepth):

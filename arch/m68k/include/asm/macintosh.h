@@ -135,4 +135,27 @@ struct mac_model
 
 extern struct mac_model *macintosh_config;
 
+
+    /*
+     * Internal representation of the Mac hardware, filled in from bootinfo
+     */
+
+struct mac_booter_data
+{
+	unsigned long videoaddr;
+	unsigned long videorow;
+	unsigned long videodepth;
+	unsigned long dimensions;
+	unsigned long boottime;
+	unsigned long gmtbias;
+	unsigned long videological;
+	unsigned long sccbase;
+	unsigned long id;
+	unsigned long memsize;
+	unsigned long cpuid;
+	unsigned long rombase;
+};
+
+extern struct mac_booter_data mac_bi_data;
+
 #endif
