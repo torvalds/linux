@@ -720,16 +720,6 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 			"ath10k tx: data: ",
 			nbuf->data, nbuf->len);
 
-	/* Make sure we have resources to handle this request */
-	spin_lock_bh(&pipe_info->pipe_lock);
-	if (!pipe_info->num_sends_allowed) {
-		ath10k_warn("Pipe: %d is full\n", pipe_id);
-		spin_unlock_bh(&pipe_info->pipe_lock);
-		return -ENOSR;
-	}
-	pipe_info->num_sends_allowed--;
-	spin_unlock_bh(&pipe_info->pipe_lock);
-
 	ret = ath10k_ce_send(ce_hdl, nbuf, skb_cb->paddr, len, transfer_id,
 			     flags);
 	if (ret)
@@ -741,14 +731,7 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 static u16 ath10k_pci_hif_get_free_queue_number(struct ath10k *ar, u8 pipe)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ath10k_pci_pipe *pipe_info = &(ar_pci->pipe_info[pipe]);
-	int ret;
-
-	spin_lock_bh(&pipe_info->pipe_lock);
-	ret = pipe_info->num_sends_allowed;
-	spin_unlock_bh(&pipe_info->pipe_lock);
-
-	return ret;
+	return ath10k_ce_num_free_src_entries(ar_pci->pipe_info[pipe].ce_hdl);
 }
 
 static void ath10k_pci_hif_dump_area(struct ath10k *ar)
@@ -863,7 +846,6 @@ static int ath10k_pci_start_ce(struct ath10k *ar)
 						   ath10k_pci_ce_send_done,
 						   disable_interrupts);
 			completions += attr->src_nentries;
-			pipe_info->num_sends_allowed = attr->src_nentries - 1;
 		}
 
 		if (attr->dest_nentries) {
@@ -1033,7 +1015,6 @@ static void ath10k_pci_process_ce(struct ath10k *ar)
 		 */
 		spin_lock_bh(&compl->pipe_info->pipe_lock);
 		list_add_tail(&compl->list, &compl->pipe_info->compl_free);
-		compl->pipe_info->num_sends_allowed += send_done;
 		spin_unlock_bh(&compl->pipe_info->pipe_lock);
 	}
 

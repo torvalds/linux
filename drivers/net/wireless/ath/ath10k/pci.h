@@ -178,9 +178,6 @@ struct ath10k_pci_pipe {
 	/* List of free CE completion slots */
 	struct list_head compl_free;
 
-	/* Limit the number of outstanding send requests. */
-	int num_sends_allowed;
-
 	struct ath10k_pci *ar_pci;
 	struct tasklet_struct intr;
 };

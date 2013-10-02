@@ -283,7 +283,7 @@ static int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 
 	if (unlikely(CE_RING_DELTA(nentries_mask,
 				   write_index, sw_index - 1) <= 0)) {
-		ret = -EIO;
+		ret = -ENOSR;
 		goto exit;
 	}
 
@@ -336,6 +336,21 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 	spin_unlock_bh(&ar_pci->ce_lock);
 
 	return ret;
+}
+
+int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe)
+{
+	struct ath10k *ar = pipe->ar;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int delta;
+
+	spin_lock_bh(&ar_pci->ce_lock);
+	delta = CE_RING_DELTA(pipe->src_ring->nentries_mask,
+			      pipe->src_ring->write_index,
+			      pipe->src_ring->sw_index - 1);
+	spin_unlock_bh(&ar_pci->ce_lock);
+
+	return delta;
 }
 
 int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
