@@ -1643,6 +1643,8 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 extern int drm_fill_in_dev(struct drm_device *dev,
 			   const struct pci_device_id *ent,
 			   struct drm_driver *driver);
+struct drm_device *drm_dev_alloc(struct drm_driver *driver,
+				 struct device *parent);
 int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type);
 /*@}*/
 

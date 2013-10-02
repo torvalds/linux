@@ -7,18 +7,15 @@ int drm_get_usb_dev(struct usb_interface *interface,
 		    struct drm_driver *driver)
 {
 	struct drm_device *dev;
-	struct usb_device *usbdev;
 	int ret;
 
 	DRM_DEBUG("\n");
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = drm_dev_alloc(driver, &interface->dev);
 	if (!dev)
 		return -ENOMEM;
 
-	usbdev = interface_to_usbdev(interface);
-	dev->usbdev = usbdev;
-	dev->dev = &interface->dev;
+	dev->usbdev = interface_to_usbdev(interface);
 
 	mutex_lock(&drm_global_mutex);
 
