@@ -318,7 +318,6 @@ static ssize_t bonding_store_mode(struct device *d,
 	/* don't cache arp_validate between modes */
 	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
 	bond->params.mode = new_value;
-	bond_set_mode_ops(bond, bond->params.mode);
 	pr_info("%s: setting mode to %s (%d).\n",
 		bond->dev->name, bond_mode_tbl[new_value].modename,
 		new_value);
@@ -358,7 +357,6 @@ static ssize_t bonding_store_xmit_hash(struct device *d,
 		ret = -EINVAL;
 	} else {
 		bond->params.xmit_policy = new_value;
-		bond_set_mode_ops(bond, bond->params.mode);
 		pr_info("%s: setting xmit hash policy to %s (%d).\n",
 			bond->dev->name,
 			xmit_hashtype_tbl[new_value].modename, new_value);
