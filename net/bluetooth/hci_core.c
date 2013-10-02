@@ -1108,14 +1108,14 @@ static u8 create_ad(struct hci_dev *hdev, u8 *ptr)
 	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags))
 		flags |= LE_AD_GENERAL;
 
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		if (lmp_le_br_capable(hdev))
+			flags |= LE_AD_SIM_LE_BREDR_CTRL;
+		if (lmp_host_le_br_capable(hdev))
+			flags |= LE_AD_SIM_LE_BREDR_HOST;
+	} else {
 		flags |= LE_AD_NO_BREDR;
-
-	if (lmp_le_br_capable(hdev))
-		flags |= LE_AD_SIM_LE_BREDR_CTRL;
-
-	if (lmp_host_le_br_capable(hdev))
-		flags |= LE_AD_SIM_LE_BREDR_HOST;
+	}
 
 	if (flags) {
 		BT_DBG("adv flags 0x%02x", flags);
