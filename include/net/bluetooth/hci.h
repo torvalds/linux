@@ -644,6 +644,8 @@ struct hci_rp_set_csb {
 	__le16	interval;
 } __packed;
 
+#define HCI_OP_START_SYNC_TRAIN		0x0443
+
 #define HCI_OP_SNIFF_MODE		0x0803
 struct hci_cp_sniff_mode {
 	__le16   handle;
