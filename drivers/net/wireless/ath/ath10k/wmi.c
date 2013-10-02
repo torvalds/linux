@@ -2522,7 +2522,7 @@ void ath10k_wmi_start_scan_init(struct ath10k *ar,
 	arg->repeat_probe_time = 0;
 	arg->probe_spacing_time = 0;
 	arg->idle_time = 0;
-	arg->max_scan_time = 5000;
+	arg->max_scan_time = 20000;
 	arg->probe_delay = 5;
 	arg->notify_scan_events = WMI_SCAN_EVENT_STARTED
 		| WMI_SCAN_EVENT_COMPLETED
