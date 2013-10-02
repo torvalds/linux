@@ -103,7 +103,7 @@
 			};
 			bh1780@29 {
 				compatible = "rohm,bh1780gli";
-				reg = <0x33>;
+				reg = <0x29>;
 			};
 		};
 
