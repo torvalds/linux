@@ -1335,11 +1335,13 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 	switch (video->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		direction = "output";
-		video->pad.flags = MEDIA_PAD_FL_SINK;
+		video->pad.flags = MEDIA_PAD_FL_SINK
+				   | MEDIA_PAD_FL_MUST_CONNECT;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		direction = "input";
-		video->pad.flags = MEDIA_PAD_FL_SOURCE;
+		video->pad.flags = MEDIA_PAD_FL_SOURCE
+				   | MEDIA_PAD_FL_MUST_CONNECT;
 		video->video.vfl_dir = VFL_DIR_TX;
 		break;
 
