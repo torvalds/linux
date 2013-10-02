@@ -75,6 +75,9 @@ struct throttle_event {
 	 PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD |		\
 	 PERF_SAMPLE_IDENTIFIER)
 
+/* perf sample has 16 bits size limit */
+#define PERF_SAMPLE_MAX_SIZE (1 << 16)
+
 struct sample_event {
 	struct perf_event_header        header;
 	u64 array[];

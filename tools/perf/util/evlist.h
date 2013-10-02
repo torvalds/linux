@@ -21,7 +21,7 @@ struct perf_mmap {
 	void		 *base;
 	int		 mask;
 	unsigned int	 prev;
-	union perf_event event_copy;
+	char		 event_copy[PERF_SAMPLE_MAX_SIZE];
 };
 
 struct perf_evlist {
