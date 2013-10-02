@@ -102,8 +102,6 @@ endef
 #
 # Build the feature check binaries in parallel, ignore errors, ignore return value and suppress output:
 #
-$(info )
-$(info Auto-detecting system features:)
 
 #
 # Note that this is not a complete list of all feature tests, just
@@ -137,9 +135,33 @@ CORE_FEATURE_TESTS =			\
 	volatile-register-var
 
 #
+# So here we detect whether test-all was rebuilt, to be able
+# to skip the print-out of the long features list if the file
+# existed before and after it was built:
+#
+ifeq ($(wildcard config/feature-checks/test-all),)
+  test-all-failed := 1
+else
+  test-all-failed := 0
+endif
+
+#
 # Special fast-path for the 'all features are available' case:
 #
-$(call feature_check,all)
+$(call feature_check,all,$(MSG))
+
+#
+# Just in case the build freshly failed, make sure we print the
+# feature matrix:
+#
+ifeq ($(feature-all), 0)
+  test-all-failed := 1
+endif
+
+ifeq ($(test-all-failed),1)
+  $(info )
+  $(info Auto-detecting system features:)
+endif
 
 ifeq ($(feature-all), 1)
   #
@@ -151,11 +173,10 @@ else
   $(foreach feat,$(CORE_FEATURE_TESTS),$(call feature_check,$(feat)))
 endif
 
-feature_print = $(eval $(feature_print_code))
-
 #
 # Print the result of the feature test:
 #
+feature_print = $(eval $(feature_print_code))
 define feature_print_code
   ifeq ($(feature-$(1)), 1)
     MSG := $(shell printf '...%30s: [ \033[32mon\033[m  ]' $(1))
@@ -165,10 +186,13 @@ define feature_print_code
   $(info $(MSG))
 endef
 
-$(foreach feat,$(CORE_FEATURE_TESTS) DUMMY,$(call feature_print,$(feat)))
-
-# newline at the end of the feature printouts:
-$(info )
+#
+# Only print out our features if we rebuilt the testcases or if a test failed:
+#
+ifeq ($(test-all-failed), 1)
+  $(foreach feat,$(CORE_FEATURE_TESTS) DUMMY,$(call feature_print,$(feat)))
+  $(info )
+endif
 
 ifeq ($(feature-stackprotector-all), 1)
   CFLAGS += -fstack-protector-all
