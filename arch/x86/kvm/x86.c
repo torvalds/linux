@@ -586,7 +586,7 @@ int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 		return 1;
 	if ((xcr0 & XSTATE_YMM) && !(xcr0 & XSTATE_SSE))
 		return 1;
-	if (xcr0 & ~host_xcr0)
+	if (xcr0 & ~vcpu->arch.guest_supported_xcr0)
 		return 1;
 	kvm_put_guest_xcr0(vcpu);
 	vcpu->arch.xcr0 = xcr0;
@@ -3003,10 +3003,19 @@ static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
 	u64 xstate_bv =
 		*(u64 *)&guest_xsave->region[XSAVE_HDR_OFFSET / sizeof(u32)];
 
-	if (cpu_has_xsave)
+	if (cpu_has_xsave) {
+		/*
+		 * Here we allow setting states that are not present in
+		 * CPUID leaf 0xD, index 0, EDX:EAX.  This is for compatibility
+		 * with old userspace.
+		 */
+		if (xstate_bv & ~KVM_SUPPORTED_XCR0)
+			return -EINVAL;
+		if (xstate_bv & ~host_xcr0)
+			return -EINVAL;
 		memcpy(&vcpu->arch.guest_fpu.state->xsave,
 			guest_xsave->region, xstate_size);
-	else {
+	} else {
 		if (xstate_bv & ~XSTATE_FPSSE)
 			return -EINVAL;
 		memcpy(&vcpu->arch.guest_fpu.state->fxsave,
@@ -6940,6 +6949,9 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.ia32_tsc_adjust_msr = 0x0;
 	vcpu->arch.pv_time_enabled = false;
+
+	vcpu->arch.guest_supported_xcr0 = 0;
+
 	kvm_async_pf_hash_reset(vcpu);
 	kvm_pmu_init(vcpu);
 
