@@ -40,7 +40,7 @@
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 
-			cd-gpios  = <&tc3589x_gpio 3 0x4>;
+			cd-gpios  = <&gpio2 31 0x4>; // 95
 
 			status = "okay";
 		};
