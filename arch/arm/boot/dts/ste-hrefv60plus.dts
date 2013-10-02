@@ -20,7 +20,7 @@
 
 	gpio_keys {
 		button@1 {
-			gpios = <&gpio6 25 0x4>;
+			gpios = <&gpio5 25 0x4>;
 		};
 	};
 
