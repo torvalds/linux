@@ -63,30 +63,16 @@ enum {
 #undef MMU_DEBUG
 
 #ifdef MMU_DEBUG
+static bool dbg = 0;
+module_param(dbg, bool, 0644);
 
 #define pgprintk(x...) do { if (dbg) printk(x); } while (0)
 #define rmap_printk(x...) do { if (dbg) printk(x); } while (0)
-
+#define MMU_WARN_ON(x) WARN_ON(x)
 #else
-
 #define pgprintk(x...) do { } while (0)
 #define rmap_printk(x...) do { } while (0)
-
-#endif
-
-#ifdef MMU_DEBUG
-static bool dbg = 0;
-module_param(dbg, bool, 0644);
-#endif
-
-#ifndef MMU_DEBUG
-#define ASSERT(x) do { } while (0)
-#else
-#define ASSERT(x)							\
-	if (!(x)) {							\
-		printk(KERN_WARNING "assertion failed %s:%d: %s\n",	\
-		       __FILE__, __LINE__, #x);				\
-	}
+#define MMU_WARN_ON(x) do { } while (0)
 #endif
 
 #define PTE_PREFETCH_NUM		8
@@ -1536,7 +1522,7 @@ static inline void kvm_mod_used_mmu_pages(struct kvm *kvm, int nr)
 
 static void kvm_mmu_free_page(struct kvm_mmu_page *sp)
 {
-	ASSERT(is_empty_shadow_page(sp->spt));
+	MMU_WARN_ON(!is_empty_shadow_page(sp->spt));
 	hlist_del(&sp->hash_link);
 	list_del(&sp->link);
 	free_page((unsigned long)sp->spt);
@@ -3041,7 +3027,7 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 		for (i = 0; i < 4; ++i) {
 			hpa_t root = vcpu->arch.mmu.pae_root[i];
 
-			ASSERT(!VALID_PAGE(root));
+			MMU_WARN_ON(VALID_PAGE(root));
 			spin_lock(&vcpu->kvm->mmu_lock);
 			make_mmu_pages_available(vcpu);
 			sp = kvm_mmu_get_page(vcpu, i << (30 - PAGE_SHIFT),
@@ -3079,7 +3065,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.mmu.root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
 
-		ASSERT(!VALID_PAGE(root));
+		MMU_WARN_ON(VALID_PAGE(root));
 
 		spin_lock(&vcpu->kvm->mmu_lock);
 		make_mmu_pages_available(vcpu);
@@ -3104,7 +3090,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
-		ASSERT(!VALID_PAGE(root));
+		MMU_WARN_ON(VALID_PAGE(root));
 		if (vcpu->arch.mmu.root_level == PT32E_ROOT_LEVEL) {
 			pdptr = vcpu->arch.mmu.get_pdptr(vcpu, i);
 			if (!is_present_gpte(pdptr)) {
@@ -3329,7 +3315,7 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 	if (r)
 		return r;
 
-	ASSERT(VALID_PAGE(vcpu->arch.mmu.root_hpa));
+	MMU_WARN_ON(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
 	gfn = gva >> PAGE_SHIFT;
 
@@ -3395,7 +3381,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	int write = error_code & PFERR_WRITE_MASK;
 	bool map_writable;
 
-	ASSERT(VALID_PAGE(vcpu->arch.mmu.root_hpa));
+	MMU_WARN_ON(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
 	if (unlikely(error_code & PFERR_RSVD_MASK)) {
 		r = handle_mmio_page_fault(vcpu, gpa, error_code, true);
@@ -3716,7 +3702,7 @@ static void paging64_init_context_common(struct kvm_vcpu *vcpu,
 	update_permission_bitmask(vcpu, context, false);
 	update_last_pte_bitmap(vcpu, context);
 
-	ASSERT(is_pae(vcpu));
+	MMU_WARN_ON(!is_pae(vcpu));
 	context->page_fault = paging64_page_fault;
 	context->gva_to_gpa = paging64_gva_to_gpa;
 	context->sync_page = paging64_sync_page;
@@ -3806,7 +3792,7 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 	bool smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 
-	ASSERT(!VALID_PAGE(context->root_hpa));
+	MMU_WARN_ON(VALID_PAGE(context->root_hpa));
 
 	if (!is_paging(vcpu))
 		nonpaging_init_context(vcpu, context);
@@ -3829,7 +3815,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly)
 {
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 
-	ASSERT(!VALID_PAGE(context->root_hpa));
+	MMU_WARN_ON(VALID_PAGE(context->root_hpa));
 
 	context->shadow_root_level = kvm_x86_ops->get_tdp_level();
 
@@ -4293,7 +4279,7 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu)
 
 void kvm_mmu_setup(struct kvm_vcpu *vcpu)
 {
-	ASSERT(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
+	MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
 	init_kvm_mmu(vcpu);
 }
