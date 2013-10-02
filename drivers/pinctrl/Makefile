@@ -15,6 +15,7 @@ obj-$(CONFIG_PINCTRL_AB8540)	+= pinctrl-ab8540.o
 obj-$(CONFIG_PINCTRL_AB9540)	+= pinctrl-ab9540.o
 obj-$(CONFIG_PINCTRL_AB8505)	+= pinctrl-ab8505.o
 obj-$(CONFIG_PINCTRL_ADI2)	+= pinctrl-adi2.o
+obj-$(CONFIG_PINCTRL_AS3722)	+= pinctrl-as3722.o
 obj-$(CONFIG_PINCTRL_BF54x)	+= pinctrl-adi2-bf54x.o
 obj-$(CONFIG_PINCTRL_BF60x)	+= pinctrl-adi2-bf60x.o
 obj-$(CONFIG_PINCTRL_AT91)	+= pinctrl-at91.o
