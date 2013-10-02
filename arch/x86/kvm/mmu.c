@@ -3861,18 +3861,11 @@ static int init_kvm_mmu(struct kvm_vcpu *vcpu)
 		return init_kvm_softmmu(vcpu);
 }
 
-static void destroy_kvm_mmu(struct kvm_vcpu *vcpu)
-{
-	ASSERT(vcpu);
-	if (VALID_PAGE(vcpu->arch.mmu.root_hpa)) {
-		mmu_free_roots(vcpu);
-		WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
-	}
-}
-
 int kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 {
-	destroy_kvm_mmu(vcpu);
+	ASSERT(vcpu);
+
+	kvm_mmu_unload(vcpu);
 	return init_kvm_mmu(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_reset_context);
@@ -3898,6 +3891,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_load);
 void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 {
 	mmu_free_roots(vcpu);
+	WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unload);
 
@@ -4548,7 +4542,7 @@ void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
 {
 	ASSERT(vcpu);
 
-	destroy_kvm_mmu(vcpu);
+	kvm_mmu_unload(vcpu);
 	free_mmu_pages(vcpu);
 	mmu_free_memory_caches(vcpu);
 }
