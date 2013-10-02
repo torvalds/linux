@@ -123,6 +123,7 @@ _GLOBAL(tm_reclaim)
 	mr	r15, r14
 	ori	r15, r15, MSR_FP
 	li	r16, MSR_RI
+	ori	r16, r16, MSR_EE /* IRQs hard off */
 	andc	r15, r15, r16
 	oris	r15, r15, MSR_VEC@h
 #ifdef CONFIG_VSX
