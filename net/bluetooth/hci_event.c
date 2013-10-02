@@ -297,6 +297,11 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 		goto done;
 	}
 
+	/* We need to ensure that we set this back on if someone changed
+	 * the scan mode through a raw HCI socket.
+	 */
+	set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+
 	old_pscan = test_and_clear_bit(HCI_PSCAN, &hdev->flags);
 	old_iscan = test_and_clear_bit(HCI_ISCAN, &hdev->flags);
 

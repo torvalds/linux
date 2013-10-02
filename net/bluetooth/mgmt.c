@@ -75,6 +75,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_UNBLOCK_DEVICE,
 	MGMT_OP_SET_DEVICE_ID,
 	MGMT_OP_SET_ADVERTISING,
+	MGMT_OP_SET_BREDR,
 };
 
 static const u16 mgmt_events[] = {
@@ -3337,6 +3338,121 @@ unlock:
 	return err;
 }
 
+static void set_bredr_complete(struct hci_dev *hdev, u8 status)
+{
+	struct pending_cmd *cmd;
+
+	BT_DBG("status 0x%02x", status);
+
+	hci_dev_lock(hdev);
+
+	cmd = mgmt_pending_find(MGMT_OP_SET_BREDR, hdev);
+	if (!cmd)
+		goto unlock;
+
+	if (status) {
+		u8 mgmt_err = mgmt_status(status);
+
+		/* We need to restore the flag if related HCI commands
+		 * failed.
+		 */
+		clear_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+
+		cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
+	} else {
+		send_settings_rsp(cmd->sk, MGMT_OP_SET_BREDR, hdev);
+		new_settings(hdev, cmd->sk);
+	}
+
+	mgmt_pending_remove(cmd);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
+static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
+{
+	struct mgmt_mode *cp = data;
+	struct pending_cmd *cmd;
+	struct hci_request req;
+	int err;
+
+	BT_DBG("request for %s", hdev->name);
+
+	if (!lmp_bredr_capable(hdev) || !lmp_le_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
+	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
+				  MGMT_STATUS_REJECTED);
+
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
+				  MGMT_STATUS_INVALID_PARAMS);
+
+	hci_dev_lock(hdev);
+
+	if (cp->val == test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		err = send_settings_rsp(sk, MGMT_OP_SET_BREDR, hdev);
+		goto unlock;
+	}
+
+	if (!hdev_is_powered(hdev)) {
+		if (!cp->val) {
+			clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+			clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
+			clear_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
+			clear_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags);
+			clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+		}
+
+		change_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+
+		err = send_settings_rsp(sk, MGMT_OP_SET_BREDR, hdev);
+		if (err < 0)
+			goto unlock;
+
+		err = new_settings(hdev, sk);
+		goto unlock;
+	}
+
+	/* Reject disabling when powered on */
+	if (!cp->val) {
+		err = cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
+				 MGMT_STATUS_REJECTED);
+		goto unlock;
+	}
+
+	if (mgmt_pending_find(MGMT_OP_SET_BREDR, hdev)) {
+		err = cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
+				 MGMT_STATUS_BUSY);
+		goto unlock;
+	}
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_SET_BREDR, hdev, data, len);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	/* We need to flip the bit already here so that hci_update_ad
+	 * generates the correct flags.
+	 */
+	set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+
+	hci_req_init(&req, hdev);
+	hci_update_ad(&req);
+	err = hci_req_run(&req, set_bredr_complete);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
+unlock:
+	hci_dev_unlock(hdev);
+	return err;
+}
+
 static bool ltk_is_valid(struct mgmt_ltk_info *key)
 {
 	if (key->authenticated != 0x00 && key->authenticated != 0x01)
@@ -3452,6 +3568,7 @@ static const struct mgmt_handler {
 	{ unblock_device,         false, MGMT_UNBLOCK_DEVICE_SIZE },
 	{ set_device_id,          false, MGMT_SET_DEVICE_ID_SIZE },
 	{ set_advertising,        false, MGMT_SETTING_SIZE },
+	{ set_bredr,              false, MGMT_SETTING_SIZE },
 };
 
 
@@ -3633,6 +3750,9 @@ static int powered_update_hci(struct hci_dev *hdev)
 		    cp.simul != lmp_host_le_br_capable(hdev))
 			hci_req_add(&req, HCI_OP_WRITE_LE_HOST_SUPPORTED,
 				    sizeof(cp), &cp);
+
+		/* In case BR/EDR was toggled during the AUTO_OFF phase */
+		hci_update_ad(&req);
 	}
 
 	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags)) {
