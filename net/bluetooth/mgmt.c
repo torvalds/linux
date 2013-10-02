@@ -1337,6 +1337,8 @@ failed:
 static int set_hs(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
+	bool changed;
+	int err;
 
 	BT_DBG("request for %s", hdev->name);
 
@@ -1348,12 +1350,23 @@ static int set_hs(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_HS,
 				  MGMT_STATUS_INVALID_PARAMS);
 
-	if (cp->val)
-		set_bit(HCI_HS_ENABLED, &hdev->dev_flags);
-	else
-		clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+	hci_dev_lock(hdev);
 
-	return send_settings_rsp(sk, MGMT_OP_SET_HS, hdev);
+	if (cp->val)
+		changed = !test_and_set_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+	else
+		changed = test_and_clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+
+	err = send_settings_rsp(sk, MGMT_OP_SET_HS, hdev);
+	if (err < 0)
+		goto unlock;
+
+	if (changed)
+		err = new_settings(hdev, sk);
+
+unlock:
+	hci_dev_unlock(hdev);
+	return err;
 }
 
 static void le_enable_complete(struct hci_dev *hdev, u8 status)
