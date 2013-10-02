@@ -602,15 +602,15 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	};
 	int ret;
 
-	mutex_lock(&mvm->mutex);
+	lockdep_assert_held(&mvm->mutex);
 
 	/* Rssi update while not associated ?! */
 	if (WARN_ON_ONCE(mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT))
-		goto out_unlock;
+		return;
 
 	/* No open connection - reports should be disabled */
 	if (!BT_MBOX_MSG(&mvm->last_bt_notif, 3, OPEN_CON_2))
-		goto out_unlock;
+		return;
 
 	IWL_DEBUG_COEX(mvm, "RSSI for %pM is now %s\n", vif->bss_conf.bssid,
 		       rssi_event == RSSI_EVENT_HIGH ? "HIGH" : "LOW");
@@ -641,9 +641,6 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, data.reduced_tx_power))
 		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
-
- out_unlock:
-	mutex_unlock(&mvm->mutex);
 }
 
 void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
