@@ -1846,8 +1846,8 @@ static struct tegra_periph_init_data tegra_periph_clk_list[] = {
 	TEGRA_INIT_DATA_UART("uartb", NULL, "tegra_uart.1", mux_pllp_pllc_pllm_clkm, CLK_SOURCE_UARTB, 7, &periph_l_regs, TEGRA114_CLK_UARTB),
 	TEGRA_INIT_DATA_UART("uartc", NULL, "tegra_uart.2", mux_pllp_pllc_pllm_clkm, CLK_SOURCE_UARTC, 55, &periph_h_regs, TEGRA114_CLK_UARTC),
 	TEGRA_INIT_DATA_UART("uartd", NULL, "tegra_uart.3", mux_pllp_pllc_pllm_clkm, CLK_SOURCE_UARTD, 65, &periph_u_regs, TEGRA114_CLK_UARTD),
-	TEGRA_INIT_DATA_INT8("3d", NULL, "3d", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_3D, 24, &periph_l_regs, 0, TEGRA114_CLK_GR_3D),
-	TEGRA_INIT_DATA_INT8("2d", NULL, "2d", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_2D, 21, &periph_l_regs, 0, TEGRA114_CLK_GR_2D),
+	TEGRA_INIT_DATA_INT8("3d", NULL, "3d", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_3D, 24, &periph_l_regs, 0, TEGRA114_CLK_GR3D),
+	TEGRA_INIT_DATA_INT8("2d", NULL, "2d", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_2D, 21, &periph_l_regs, 0, TEGRA114_CLK_GR2D),
 	TEGRA_INIT_DATA_MUX("vi_sensor", "vi_sensor", "tegra_camera", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_VI_SENSOR, 20, &periph_l_regs, TEGRA_PERIPH_NO_RESET, TEGRA114_CLK_VI_SENSOR),
 	TEGRA_INIT_DATA_INT8("vi", "vi", "tegra_camera", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_VI, 20, &periph_l_regs, 0, TEGRA114_CLK_VI),
 	TEGRA_INIT_DATA_INT8("epp", NULL, "epp", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_EPP, 19, &periph_l_regs, 0, TEGRA114_CLK_EPP),
@@ -2186,8 +2186,8 @@ static struct tegra_clk_init_table init_table[] __initdata = {
 	{TEGRA114_CLK_HOST1X, TEGRA114_CLK_PLL_P, 136000000, 0},
 	{TEGRA114_CLK_DFLL_SOC, TEGRA114_CLK_PLL_P, 51000000, 1},
 	{TEGRA114_CLK_DFLL_REF, TEGRA114_CLK_PLL_P, 51000000, 1},
-	{TEGRA114_CLK_GR_2D, TEGRA114_CLK_PLL_C2, 300000000, 0},
-	{TEGRA114_CLK_GR_3D, TEGRA114_CLK_PLL_C2, 300000000, 0},
+	{TEGRA114_CLK_GR2D, TEGRA114_CLK_PLL_C2, 300000000, 0},
+	{TEGRA114_CLK_GR3D, TEGRA114_CLK_PLL_C2, 300000000, 0},
 
 	/* This MUST be the last entry. */
 	{TEGRA114_CLK_CLK_MAX, TEGRA114_CLK_CLK_MAX, 0, 0},

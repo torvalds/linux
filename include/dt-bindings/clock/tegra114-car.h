@@ -37,10 +37,10 @@
 #define TEGRA114_CLK_I2S2 18
 #define TEGRA114_CLK_EPP 19
 /* 20 (register bit affects vi and vi_sensor) */
-#define TEGRA114_CLK_GR_2D 21
+#define TEGRA114_CLK_GR2D 21
 #define TEGRA114_CLK_USBD 22
 #define TEGRA114_CLK_ISP 23
-#define TEGRA114_CLK_GR_3D 24
+#define TEGRA114_CLK_GR3D 24
 /* 25 */
 #define TEGRA114_CLK_DISP2 26
 #define TEGRA114_CLK_DISP1 27
