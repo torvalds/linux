@@ -689,26 +689,12 @@ do {									\
 } while (0)
 
 
-#define __wait_event_interruptible_lock_irq(wq, condition,		\
-					    lock, ret, cmd)		\
-do {									\
-	DEFINE_WAIT(__wait);						\
-									\
-	for (;;) {							\
-		prepare_to_wait(&wq, &__wait, TASK_INTERRUPTIBLE);	\
-		if (condition)						\
-			break;						\
-		if (signal_pending(current)) {				\
-			ret = -ERESTARTSYS;				\
-			break;						\
-		}							\
-		spin_unlock_irq(&lock);					\
-		cmd;							\
-		schedule();						\
-		spin_lock_irq(&lock);					\
-	}								\
-	finish_wait(&wq, &__wait);					\
-} while (0)
+#define __wait_event_interruptible_lock_irq(wq, condition, lock, ret, cmd) \
+	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, ret,	   \
+		      spin_unlock_irq(&lock);				   \
+		      cmd;						   \
+		      schedule();					   \
+		      spin_lock_irq(&lock))
 
 /**
  * wait_event_interruptible_lock_irq_cmd - sleep until a condition gets true.
