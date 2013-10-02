@@ -1510,6 +1510,8 @@ struct hci_ev_sync_train_complete {
 	__u8	status;
 } __packed;
 
+#define HCI_EV_SLAVE_PAGE_RESP_TIMEOUT	0x54
+
 /* Low energy meta events */
 #define LE_CONN_ROLE_MASTER	0x00
 
