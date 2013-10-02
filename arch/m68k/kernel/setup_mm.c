@@ -71,10 +71,10 @@ EXPORT_SYMBOL(m68k_num_memory);
 int m68k_realnum_memory;
 EXPORT_SYMBOL(m68k_realnum_memory);
 unsigned long m68k_memoffset;
-struct mem_info m68k_memory[NUM_MEMINFO];
+struct m68k_mem_info m68k_memory[NUM_MEMINFO];
 EXPORT_SYMBOL(m68k_memory);
 
-static struct mem_info m68k_ramdisk __initdata;
+static struct m68k_mem_info m68k_ramdisk __initdata;
 
 static char m68k_command_line[CL_SIZE] __initdata;
 

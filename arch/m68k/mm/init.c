@@ -59,7 +59,7 @@ EXPORT_SYMBOL(pg_data_table);
 void __init m68k_setup_node(int node)
 {
 #ifndef CONFIG_SINGLE_MEMORY_CHUNK
-	struct mem_info *info = m68k_memory + node;
+	struct m68k_mem_info *info = m68k_memory + node;
 	int i, end;
 
 	i = (unsigned long)phys_to_virt(info->addr) >> __virt_to_node_shift();
