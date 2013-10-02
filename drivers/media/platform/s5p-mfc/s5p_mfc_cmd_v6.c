@@ -108,6 +108,9 @@ static int s5p_mfc_open_inst_cmd_v6(struct s5p_mfc_ctx *ctx)
 	case S5P_MFC_CODEC_H263_ENC:
 		codec_type = S5P_FIMV_CODEC_H263_ENC_V6;
 		break;
+	case S5P_MFC_CODEC_VP8_ENC:
+		codec_type = S5P_FIMV_CODEC_VP8_ENC_V7;
+		break;
 	default:
 		codec_type = S5P_FIMV_CODEC_NONE_V6;
 	};

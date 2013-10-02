@@ -334,17 +334,17 @@ ksocknal_associate_route_conn_locked(ksock_route_t *route, ksock_conn_t *conn)
 	if (route->ksnr_myipaddr != conn->ksnc_myipaddr) {
 		if (route->ksnr_myipaddr == 0) {
 			/* route wasn't bound locally yet (the initial route) */
-			CDEBUG(D_NET, "Binding %s %u.%u.%u.%u to %u.%u.%u.%u\n",
+			CDEBUG(D_NET, "Binding %s %pI4h to %pI4h\n",
 			       libcfs_id2str(peer->ksnp_id),
-			       HIPQUAD(route->ksnr_ipaddr),
-			       HIPQUAD(conn->ksnc_myipaddr));
+			       &route->ksnr_ipaddr,
+			       &conn->ksnc_myipaddr);
 		} else {
-			CDEBUG(D_NET, "Rebinding %s %u.%u.%u.%u from "
-			       "%u.%u.%u.%u to %u.%u.%u.%u\n",
+			CDEBUG(D_NET, "Rebinding %s %pI4h from "
+			       "%pI4h to %pI4h\n",
 			       libcfs_id2str(peer->ksnp_id),
-			       HIPQUAD(route->ksnr_ipaddr),
-			       HIPQUAD(route->ksnr_myipaddr),
-			       HIPQUAD(conn->ksnc_myipaddr));
+			       &route->ksnr_ipaddr,
+			       &route->ksnr_myipaddr,
+			       &conn->ksnc_myipaddr);
 
 			iface = ksocknal_ip2iface(route->ksnr_peer->ksnp_ni,
 						  route->ksnr_myipaddr);
@@ -384,9 +384,9 @@ ksocknal_add_route_locked (ksock_peer_t *peer, ksock_route_t *route)
 		route2 = list_entry(tmp, ksock_route_t, ksnr_list);
 
 		if (route2->ksnr_ipaddr == route->ksnr_ipaddr) {
-			CERROR ("Duplicate route %s %u.%u.%u.%u\n",
+			CERROR("Duplicate route %s %pI4h\n",
 				libcfs_id2str(peer->ksnp_id),
-				HIPQUAD(route->ksnr_ipaddr));
+				&route->ksnr_ipaddr);
 			LBUG();
 		}
 	}
@@ -982,8 +982,8 @@ ksocknal_accept (lnet_ni_t *ni, socket_t *sock)
 	LIBCFS_ALLOC(cr, sizeof(*cr));
 	if (cr == NULL) {
 		LCONSOLE_ERROR_MSG(0x12f, "Dropping connection request from "
-				   "%u.%u.%u.%u: memory exhausted\n",
-				   HIPQUAD(peer_ip));
+				   "%pI4h: memory exhausted\n",
+				   &peer_ip);
 		return -ENOMEM;
 	}
 
@@ -1236,10 +1236,10 @@ ksocknal_create_conn (lnet_ni_t *ni, ksock_route_t *route,
 	 * code below probably isn't going to work. */
 	if (active &&
 	    route->ksnr_ipaddr != conn->ksnc_ipaddr) {
-		CERROR("Route %s %u.%u.%u.%u connected to %u.%u.%u.%u\n",
+		CERROR("Route %s %pI4h connected to %pI4h\n",
 		       libcfs_id2str(peer->ksnp_id),
-		       HIPQUAD(route->ksnr_ipaddr),
-		       HIPQUAD(conn->ksnc_ipaddr));
+		       &route->ksnr_ipaddr,
+		       &conn->ksnc_ipaddr);
 	}
 
 	/* Search for a route corresponding to the new connection and
@@ -1297,10 +1297,10 @@ ksocknal_create_conn (lnet_ni_t *ni, ksock_route_t *route,
 	 *	socket callbacks.
 	 */
 
-	CDEBUG(D_NET, "New conn %s p %d.x %u.%u.%u.%u -> %u.%u.%u.%u/%d"
+	CDEBUG(D_NET, "New conn %s p %d.x %pI4h -> %pI4h/%d"
 	       " incarnation:"LPD64" sched[%d:%d]\n",
 	       libcfs_id2str(peerid), conn->ksnc_proto->pro_version,
-	       HIPQUAD(conn->ksnc_myipaddr), HIPQUAD(conn->ksnc_ipaddr),
+	       &conn->ksnc_myipaddr, &conn->ksnc_ipaddr,
 	       conn->ksnc_port, incarnation, cpt,
 	       (int)(sched - &sched->kss_info->ksi_scheds[0]));
 
@@ -1441,7 +1441,7 @@ ksocknal_close_conn_locked (ksock_conn_t *conn, int error)
 
 		conn->ksnc_route = NULL;
 
-#if 0	   /* irrelevent with only eager routes */
+#if 0	   /* irrelevant with only eager routes */
 		/* make route least favourite */
 		list_del (&route->ksnr_list);
 		list_add_tail (&route->ksnr_list, &peer->ksnp_routes);
@@ -1496,7 +1496,7 @@ ksocknal_peer_failed (ksock_peer_t *peer)
 
 	/* There has been a connection failure or comms error; but I'll only
 	 * tell LNET I think the peer is dead if it's to another kernel and
-	 * there are no connections or connection attempts in existance. */
+	 * there are no connections or connection attempts in existence. */
 
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
@@ -1648,10 +1648,10 @@ ksocknal_destroy_conn (ksock_conn_t *conn)
 		last_rcv = conn->ksnc_rx_deadline -
 			   cfs_time_seconds(*ksocknal_tunables.ksnd_timeout);
 		CERROR("Completing partial receive from %s[%d]"
-		       ", ip %d.%d.%d.%d:%d, with error, wanted: %d, left: %d, "
+		       ", ip %pI4h:%d, with error, wanted: %d, left: %d, "
 		       "last alive is %ld secs ago\n",
 		       libcfs_id2str(conn->ksnc_peer->ksnp_id), conn->ksnc_type,
-		       HIPQUAD(conn->ksnc_ipaddr), conn->ksnc_port,
+		       &conn->ksnc_ipaddr, conn->ksnc_port,
 		       conn->ksnc_rx_nob_wanted, conn->ksnc_rx_nob_left,
 		       cfs_duration_sec(cfs_time_sub(cfs_time_current(),
 					last_rcv)));
@@ -1661,25 +1661,25 @@ ksocknal_destroy_conn (ksock_conn_t *conn)
 	case SOCKNAL_RX_LNET_HEADER:
 		if (conn->ksnc_rx_started)
 			CERROR("Incomplete receive of lnet header from %s"
-			       ", ip %d.%d.%d.%d:%d, with error, protocol: %d.x.\n",
+			       ", ip %pI4h:%d, with error, protocol: %d.x.\n",
 			       libcfs_id2str(conn->ksnc_peer->ksnp_id),
-			       HIPQUAD(conn->ksnc_ipaddr), conn->ksnc_port,
+			       &conn->ksnc_ipaddr, conn->ksnc_port,
 			       conn->ksnc_proto->pro_version);
 		break;
 	case SOCKNAL_RX_KSM_HEADER:
 		if (conn->ksnc_rx_started)
 			CERROR("Incomplete receive of ksock message from %s"
-			       ", ip %d.%d.%d.%d:%d, with error, protocol: %d.x.\n",
+			       ", ip %pI4h:%d, with error, protocol: %d.x.\n",
 			       libcfs_id2str(conn->ksnc_peer->ksnp_id),
-			       HIPQUAD(conn->ksnc_ipaddr), conn->ksnc_port,
+			       &conn->ksnc_ipaddr, conn->ksnc_port,
 			       conn->ksnc_proto->pro_version);
 		break;
 	case SOCKNAL_RX_SLOP:
 		if (conn->ksnc_rx_started)
 			CERROR("Incomplete receive of slops from %s"
-			       ", ip %d.%d.%d.%d:%d, with error\n",
+			       ", ip %pI4h:%d, with error\n",
 			       libcfs_id2str(conn->ksnc_peer->ksnp_id),
-			       HIPQUAD(conn->ksnc_ipaddr), conn->ksnc_port);
+			       &conn->ksnc_ipaddr, conn->ksnc_port);
 	       break;
 	default:
 		LBUG ();
@@ -2358,7 +2358,7 @@ ksocknal_new_incarnation (void)
 	/* The incarnation number is the time this module loaded and it
 	 * identifies this particular instance of the socknal.  Hopefully
 	 * we won't be able to reboot more frequently than 1MHz for the
-	 * forseeable future :) */
+	 * foreseeable future :) */
 
 	do_gettimeofday(&tv);
 
@@ -2898,5 +2898,7 @@ ksocknal_module_init (void)
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Kernel TCP Socket LND v3.0.0");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("3.0.0");
 
-cfs_module(ksocknal, "3.0.0", ksocknal_module_init, ksocknal_module_fini);
+module_init(ksocknal_module_init);
+module_exit(ksocknal_module_fini);

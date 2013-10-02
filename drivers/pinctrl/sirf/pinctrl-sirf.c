@@ -306,13 +306,13 @@ static int sirfsoc_gpio_of_xlate(struct gpio_chip *gc,
        u32 *flags)
 {
        if (gpiospec->args[0] > SIRFSOC_GPIO_NO_OF_BANKS * SIRFSOC_GPIO_BANK_SIZE)
-               return -EINVAL;
+		return -EINVAL;
 
        if (gc != &sgpio_bank[gpiospec->args[0] / SIRFSOC_GPIO_BANK_SIZE].chip.gc)
-               return -EINVAL;
+		return -EINVAL;
 
        if (flags)
-               *flags = gpiospec->args[1];
+		*flags = gpiospec->args[1];
 
        return gpiospec->args[0] % SIRFSOC_GPIO_BANK_SIZE;
 }
@@ -440,6 +440,8 @@ static int sirfsoc_pinmux_resume_noirq(struct device *dev)
 static const struct dev_pm_ops sirfsoc_pinmux_pm_ops = {
 	.suspend_noirq = sirfsoc_pinmux_suspend_noirq,
 	.resume_noirq = sirfsoc_pinmux_resume_noirq,
+	.freeze_noirq = sirfsoc_pinmux_suspend_noirq,
+	.restore_noirq = sirfsoc_pinmux_resume_noirq,
 };
 #endif
 
@@ -831,7 +833,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 {
 	int i, err = 0;
 	struct sirfsoc_gpio_bank *bank;
-	void *regs;
+	void __iomem *regs;
 	struct platform_device *pdev;
 	bool is_marco = false;
 

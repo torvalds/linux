@@ -40,7 +40,7 @@ static int __init clevo_mail_led_dmi_callback(const struct dmi_system_id *id)
  * detected as working, but in reality it is not) as low as
  * possible.
  */
-static struct dmi_system_id __initdata clevo_mail_led_dmi_table[] = {
+static struct dmi_system_id clevo_mail_led_dmi_table[] __initdata = {
 	{
 		.callback = clevo_mail_led_dmi_callback,
 		.ident = "Clevo D410J",

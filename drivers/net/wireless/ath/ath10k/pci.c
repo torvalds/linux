@@ -32,7 +32,7 @@
 #include "ce.h"
 #include "pci.h"
 
-unsigned int ath10k_target_ps;
+static unsigned int ath10k_target_ps;
 module_param(ath10k_target_ps, uint, 0644);
 MODULE_PARM_DESC(ath10k_target_ps, "Enable ath10k Target (SoC) PS option");
 
@@ -54,6 +54,10 @@ static int ath10k_pci_post_rx_pipe(struct hif_ce_pipe_info *pipe_info,
 					     int num);
 static void ath10k_pci_rx_pipe_cleanup(struct hif_ce_pipe_info *pipe_info);
 static void ath10k_pci_stop_ce(struct ath10k *ar);
+static void ath10k_pci_device_reset(struct ath10k *ar);
+static int ath10k_pci_reset_target(struct ath10k *ar);
+static int ath10k_pci_start_intr(struct ath10k *ar);
+static void ath10k_pci_stop_intr(struct ath10k *ar);
 
 static const struct ce_attr host_ce_config_wlan[] = {
 	/* host->target HTC control and raw streams */
@@ -718,6 +722,8 @@ static void ath10k_pci_hif_dump_area(struct ath10k *ar)
 			   reg_dump_values[i + 1],
 			   reg_dump_values[i + 2],
 			   reg_dump_values[i + 3]);
+
+	ieee80211_queue_work(ar->hw, &ar->restart_work);
 }
 
 static void ath10k_pci_hif_send_complete_check(struct ath10k *ar, u8 pipe,
@@ -744,8 +750,8 @@ static void ath10k_pci_hif_send_complete_check(struct ath10k *ar, u8 pipe,
 	ath10k_ce_per_engine_service(ar, pipe);
 }
 
-static void ath10k_pci_hif_post_init(struct ath10k *ar,
-				     struct ath10k_hif_cb *callbacks)
+static void ath10k_pci_hif_set_callbacks(struct ath10k *ar,
+					 struct ath10k_hif_cb *callbacks)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
@@ -1250,9 +1256,24 @@ static void ath10k_pci_ce_deinit(struct ath10k *ar)
 	}
 }
 
+static void ath10k_pci_disable_irqs(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int i;
+
+	for (i = 0; i < max(1, ar_pci->num_msi_intrs); i++)
+		disable_irq(ar_pci->pdev->irq + i);
+}
+
 static void ath10k_pci_hif_stop(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
 	ath10k_dbg(ATH10K_DBG_PCI, "%s\n", __func__);
+
+	/* Irqs are never explicitly re-enabled. They are implicitly re-enabled
+	 * by ath10k_pci_start_intr(). */
+	ath10k_pci_disable_irqs(ar);
 
 	ath10k_pci_stop_ce(ar);
 
@@ -1263,7 +1284,8 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	ath10k_pci_process_ce(ar);
 	ath10k_pci_cleanup_ce(ar);
 	ath10k_pci_buffer_cleanup(ar);
-	ath10k_pci_ce_deinit(ar);
+
+	ar_pci->started = 0;
 }
 
 static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
@@ -1735,6 +1757,124 @@ static void ath10k_pci_fw_interrupt_handler(struct ath10k *ar)
 	ath10k_pci_sleep(ar);
 }
 
+static int ath10k_pci_hif_power_up(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int ret;
+
+	ret = ath10k_pci_start_intr(ar);
+	if (ret) {
+		ath10k_err("could not start interrupt handling (%d)\n", ret);
+		goto err;
+	}
+
+	/*
+	 * Bring the target up cleanly.
+	 *
+	 * The target may be in an undefined state with an AUX-powered Target
+	 * and a Host in WoW mode. If the Host crashes, loses power, or is
+	 * restarted (without unloading the driver) then the Target is left
+	 * (aux) powered and running. On a subsequent driver load, the Target
+	 * is in an unexpected state. We try to catch that here in order to
+	 * reset the Target and retry the probe.
+	 */
+	ath10k_pci_device_reset(ar);
+
+	ret = ath10k_pci_reset_target(ar);
+	if (ret)
+		goto err_irq;
+
+	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
+		/* Force AWAKE forever */
+		ath10k_do_pci_wake(ar);
+
+	ret = ath10k_pci_ce_init(ar);
+	if (ret)
+		goto err_ps;
+
+	ret = ath10k_pci_init_config(ar);
+	if (ret)
+		goto err_ce;
+
+	ret = ath10k_pci_wake_target_cpu(ar);
+	if (ret) {
+		ath10k_err("could not wake up target CPU (%d)\n", ret);
+		goto err_ce;
+	}
+
+	return 0;
+
+err_ce:
+	ath10k_pci_ce_deinit(ar);
+err_ps:
+	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
+		ath10k_do_pci_sleep(ar);
+err_irq:
+	ath10k_pci_stop_intr(ar);
+err:
+	return ret;
+}
+
+static void ath10k_pci_hif_power_down(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	ath10k_pci_stop_intr(ar);
+
+	ath10k_pci_ce_deinit(ar);
+	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
+		ath10k_do_pci_sleep(ar);
+}
+
+#ifdef CONFIG_PM
+
+#define ATH10K_PCI_PM_CONTROL 0x44
+
+static int ath10k_pci_hif_suspend(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct pci_dev *pdev = ar_pci->pdev;
+	u32 val;
+
+	pci_read_config_dword(pdev, ATH10K_PCI_PM_CONTROL, &val);
+
+	if ((val & 0x000000ff) != 0x3) {
+		pci_save_state(pdev);
+		pci_disable_device(pdev);
+		pci_write_config_dword(pdev, ATH10K_PCI_PM_CONTROL,
+				       (val & 0xffffff00) | 0x03);
+	}
+
+	return 0;
+}
+
+static int ath10k_pci_hif_resume(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct pci_dev *pdev = ar_pci->pdev;
+	u32 val;
+
+	pci_read_config_dword(pdev, ATH10K_PCI_PM_CONTROL, &val);
+
+	if ((val & 0x000000ff) != 0) {
+		pci_restore_state(pdev);
+		pci_write_config_dword(pdev, ATH10K_PCI_PM_CONTROL,
+				       val & 0xffffff00);
+		/*
+		 * Suspend/Resume resets the PCI configuration space,
+		 * so we have to re-disable the RETRY_TIMEOUT register (0x41)
+		 * to keep PCI Tx retries from interfering with C3 CPU state
+		 */
+		pci_read_config_dword(pdev, 0x40, &val);
+
+		if ((val & 0x0000ff00) != 0)
+			pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
+	}
+
+	return 0;
+}
+#endif
+
 static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.send_head		= ath10k_pci_hif_send_head,
 	.exchange_bmi_msg	= ath10k_pci_hif_exchange_bmi_msg,
@@ -1743,8 +1883,14 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.map_service_to_pipe	= ath10k_pci_hif_map_service_to_pipe,
 	.get_default_pipe	= ath10k_pci_hif_get_default_pipe,
 	.send_complete_check	= ath10k_pci_hif_send_complete_check,
-	.init			= ath10k_pci_hif_post_init,
+	.set_callbacks		= ath10k_pci_hif_set_callbacks,
 	.get_free_queue_number	= ath10k_pci_hif_get_free_queue_number,
+	.power_up		= ath10k_pci_hif_power_up,
+	.power_down		= ath10k_pci_hif_power_down,
+#ifdef CONFIG_PM
+	.suspend		= ath10k_pci_hif_suspend,
+	.resume			= ath10k_pci_hif_resume,
+#endif
 };
 
 static void ath10k_pci_ce_tasklet(unsigned long ptr)
@@ -1872,8 +2018,13 @@ static int ath10k_pci_start_intr_msix(struct ath10k *ar, int num)
 	ret = request_irq(ar_pci->pdev->irq + MSI_ASSIGN_FW,
 			  ath10k_pci_msi_fw_handler,
 			  IRQF_SHARED, "ath10k_pci", ar);
-	if (ret)
+	if (ret) {
+		ath10k_warn("request_irq(%d) failed %d\n",
+			    ar_pci->pdev->irq + MSI_ASSIGN_FW, ret);
+
+		pci_disable_msi(ar_pci->pdev);
 		return ret;
+	}
 
 	for (i = MSI_ASSIGN_CE_INITIAL; i <= MSI_ASSIGN_CE_MAX; i++) {
 		ret = request_irq(ar_pci->pdev->irq + i,
@@ -2059,9 +2210,9 @@ static int ath10k_pci_reset_target(struct ath10k *ar)
 	return 0;
 }
 
-static void ath10k_pci_device_reset(struct ath10k_pci *ar_pci)
+static void ath10k_pci_device_reset(struct ath10k *ar)
 {
-	struct ath10k *ar = ar_pci->ar;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	void __iomem *mem = ar_pci->mem;
 	int i;
 	u32 val;
@@ -2118,8 +2269,11 @@ static void ath10k_pci_dump_features(struct ath10k_pci *ar_pci)
 		case ATH10K_PCI_FEATURE_MSI_X:
 			ath10k_dbg(ATH10K_DBG_PCI, "device supports MSI-X\n");
 			break;
-		case ATH10K_PCI_FEATURE_HW_1_0_WARKAROUND:
+		case ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND:
 			ath10k_dbg(ATH10K_DBG_PCI, "QCA988X_1.0 workaround enabled\n");
+			break;
+		case ATH10K_PCI_FEATURE_SOC_POWER_SAVE:
+			ath10k_dbg(ATH10K_DBG_PCI, "QCA98XX SoC power save enabled\n");
 			break;
 		}
 	}
@@ -2145,7 +2299,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	switch (pci_dev->device) {
 	case QCA988X_1_0_DEVICE_ID:
-		set_bit(ATH10K_PCI_FEATURE_HW_1_0_WARKAROUND, ar_pci->features);
+		set_bit(ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND, ar_pci->features);
 		break;
 	case QCA988X_2_0_DEVICE_ID:
 		set_bit(ATH10K_PCI_FEATURE_MSI_X, ar_pci->features);
@@ -2156,10 +2310,12 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_ar_pci;
 	}
 
+	if (ath10k_target_ps)
+		set_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features);
+
 	ath10k_pci_dump_features(ar_pci);
 
-	ar = ath10k_core_create(ar_pci, ar_pci->dev, ATH10K_BUS_PCI,
-				&ath10k_pci_hif_ops);
+	ar = ath10k_core_create(ar_pci, ar_pci->dev, &ath10k_pci_hif_ops);
 	if (!ar) {
 		ath10k_err("ath10k_core_create failed!\n");
 		ret = -EINVAL;
@@ -2167,7 +2323,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Enable QCA988X_1.0 HW workarounds */
-	if (test_bit(ATH10K_PCI_FEATURE_HW_1_0_WARKAROUND, ar_pci->features))
+	if (test_bit(ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND, ar_pci->features))
 		spin_lock_init(&ar_pci->hw_v1_workaround_lock);
 
 	ar_pci->ar = ar;
@@ -2241,62 +2397,14 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	ar_pci->cacheline_sz = dma_get_cache_alignment();
 
-	ret = ath10k_pci_start_intr(ar);
-	if (ret) {
-		ath10k_err("could not start interrupt handling (%d)\n", ret);
-		goto err_iomap;
-	}
-
-	/*
-	 * Bring the target up cleanly.
-	 *
-	 * The target may be in an undefined state with an AUX-powered Target
-	 * and a Host in WoW mode. If the Host crashes, loses power, or is
-	 * restarted (without unloading the driver) then the Target is left
-	 * (aux) powered and running. On a subsequent driver load, the Target
-	 * is in an unexpected state. We try to catch that here in order to
-	 * reset the Target and retry the probe.
-	 */
-	ath10k_pci_device_reset(ar_pci);
-
-	ret = ath10k_pci_reset_target(ar);
-	if (ret)
-		goto err_intr;
-
-	if (ath10k_target_ps) {
-		ath10k_dbg(ATH10K_DBG_PCI, "on-chip power save enabled\n");
-	} else {
-		/* Force AWAKE forever */
-		ath10k_dbg(ATH10K_DBG_PCI, "on-chip power save disabled\n");
-		ath10k_do_pci_wake(ar);
-	}
-
-	ret = ath10k_pci_ce_init(ar);
-	if (ret)
-		goto err_intr;
-
-	ret = ath10k_pci_init_config(ar);
-	if (ret)
-		goto err_ce;
-
-	ret = ath10k_pci_wake_target_cpu(ar);
-	if (ret) {
-		ath10k_err("could not wake up target CPU (%d)\n", ret);
-		goto err_ce;
-	}
-
 	ret = ath10k_core_register(ar);
 	if (ret) {
 		ath10k_err("could not register driver core (%d)\n", ret);
-		goto err_ce;
+		goto err_iomap;
 	}
 
 	return 0;
 
-err_ce:
-	ath10k_pci_ce_deinit(ar);
-err_intr:
-	ath10k_pci_stop_intr(ar);
 err_iomap:
 	pci_iounmap(pdev, mem);
 err_master:
@@ -2333,7 +2441,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	tasklet_kill(&ar_pci->msi_fw_err);
 
 	ath10k_core_unregister(ar);
-	ath10k_pci_stop_intr(ar);
 
 	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ar_pci->mem);
@@ -2345,128 +2452,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	kfree(ar_pci);
 }
 
-#if defined(CONFIG_PM_SLEEP)
-
-#define ATH10K_PCI_PM_CONTROL 0x44
-
-static int ath10k_pci_suspend(struct device *device)
-{
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct ath10k *ar = pci_get_drvdata(pdev);
-	struct ath10k_pci *ar_pci;
-	u32 val;
-	int ret, retval;
-
-	ath10k_dbg(ATH10K_DBG_PCI, "%s\n", __func__);
-
-	if (!ar)
-		return -ENODEV;
-
-	ar_pci = ath10k_pci_priv(ar);
-	if (!ar_pci)
-		return -ENODEV;
-
-	if (ath10k_core_target_suspend(ar))
-		return -EBUSY;
-
-	ret = wait_event_interruptible_timeout(ar->event_queue,
-						ar->is_target_paused == true,
-						1 * HZ);
-	if (ret < 0) {
-		ath10k_warn("suspend interrupted (%d)\n", ret);
-		retval = ret;
-		goto resume;
-	} else if (ret == 0) {
-		ath10k_warn("suspend timed out - target pause event never came\n");
-		retval = EIO;
-		goto resume;
-	}
-
-	/*
-	 * reset is_target_paused and host can check that in next time,
-	 * or it will always be TRUE and host just skip the waiting
-	 * condition, it causes target assert due to host already
-	 * suspend
-	 */
-	ar->is_target_paused = false;
-
-	pci_read_config_dword(pdev, ATH10K_PCI_PM_CONTROL, &val);
-
-	if ((val & 0x000000ff) != 0x3) {
-		pci_save_state(pdev);
-		pci_disable_device(pdev);
-		pci_write_config_dword(pdev, ATH10K_PCI_PM_CONTROL,
-				       (val & 0xffffff00) | 0x03);
-	}
-
-	return 0;
-resume:
-	ret = ath10k_core_target_resume(ar);
-	if (ret)
-		ath10k_warn("could not resume (%d)\n", ret);
-
-	return retval;
-}
-
-static int ath10k_pci_resume(struct device *device)
-{
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct ath10k *ar = pci_get_drvdata(pdev);
-	struct ath10k_pci *ar_pci;
-	int ret;
-	u32 val;
-
-	ath10k_dbg(ATH10K_DBG_PCI, "%s\n", __func__);
-
-	if (!ar)
-		return -ENODEV;
-	ar_pci = ath10k_pci_priv(ar);
-
-	if (!ar_pci)
-		return -ENODEV;
-
-	ret = pci_enable_device(pdev);
-	if (ret) {
-		ath10k_warn("cannot enable PCI device: %d\n", ret);
-		return ret;
-	}
-
-	pci_read_config_dword(pdev, ATH10K_PCI_PM_CONTROL, &val);
-
-	if ((val & 0x000000ff) != 0) {
-		pci_restore_state(pdev);
-		pci_write_config_dword(pdev, ATH10K_PCI_PM_CONTROL,
-				       val & 0xffffff00);
-		/*
-		 * Suspend/Resume resets the PCI configuration space,
-		 * so we have to re-disable the RETRY_TIMEOUT register (0x41)
-		 * to keep PCI Tx retries from interfering with C3 CPU state
-		 */
-		pci_read_config_dword(pdev, 0x40, &val);
-
-		if ((val & 0x0000ff00) != 0)
-			pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
-	}
-
-	ret = ath10k_core_target_resume(ar);
-	if (ret)
-		ath10k_warn("target resume failed: %d\n", ret);
-
-	return ret;
-}
-
-static SIMPLE_DEV_PM_OPS(ath10k_dev_pm_ops,
-			 ath10k_pci_suspend,
-			 ath10k_pci_resume);
-
-#define ATH10K_PCI_PM_OPS (&ath10k_dev_pm_ops)
-
-#else
-
-#define ATH10K_PCI_PM_OPS NULL
-
-#endif /* CONFIG_PM_SLEEP */
-
 MODULE_DEVICE_TABLE(pci, ath10k_pci_id_table);
 
 static struct pci_driver ath10k_pci_driver = {
@@ -2474,7 +2459,6 @@ static struct pci_driver ath10k_pci_driver = {
 	.id_table = ath10k_pci_id_table,
 	.probe = ath10k_pci_probe,
 	.remove = ath10k_pci_remove,
-	.driver.pm = ATH10K_PCI_PM_OPS,
 };
 
 static int __init ath10k_pci_init(void)

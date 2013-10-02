@@ -1313,15 +1313,7 @@ static enum dma_status ep93xx_dma_tx_status(struct dma_chan *chan,
 					    dma_cookie_t cookie,
 					    struct dma_tx_state *state)
 {
-	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
-	enum dma_status ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&edmac->lock, flags);
-	ret = dma_cookie_status(chan, cookie, state);
-	spin_unlock_irqrestore(&edmac->lock, flags);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, state);
 }
 
 /**

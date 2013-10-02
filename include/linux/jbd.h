@@ -57,16 +57,13 @@
 #define JBD_EXPENSIVE_CHECKING
 extern u8 journal_enable_debug;
 
-#define jbd_debug(n, f, a...)						\
-	do {								\
-		if ((n) <= journal_enable_debug) {			\
-			printk (KERN_DEBUG "(%s, %d): %s: ",		\
-				__FILE__, __LINE__, __func__);	\
-			printk (f, ## a);				\
-		}							\
-	} while (0)
+void __jbd_debug(int level, const char *file, const char *func,
+		 unsigned int line, const char *fmt, ...);
+
+#define jbd_debug(n, fmt, a...) \
+	__jbd_debug((n), __FILE__, __func__, __LINE__, (fmt), ##a)
 #else
-#define jbd_debug(f, a...)	/**/
+#define jbd_debug(n, fmt, a...)    /**/
 #endif
 
 static inline void *jbd_alloc(size_t size, gfp_t flags)
@@ -77,7 +74,7 @@ static inline void *jbd_alloc(size_t size, gfp_t flags)
 static inline void jbd_free(void *ptr, size_t size)
 {
 	free_pages((unsigned long)ptr, get_order(size));
-};
+}
 
 #define JFS_MIN_JOURNAL_BLOCKS 1024
 

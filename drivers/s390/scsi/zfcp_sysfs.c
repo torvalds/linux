@@ -107,7 +107,7 @@ static ssize_t zfcp_sysfs_port_failed_store(struct device *dev,
 	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val) || val != 0)
+	if (kstrtoul(buf, 0, &val) || val != 0)
 		return -EINVAL;
 
 	zfcp_erp_set_port_status(port, ZFCP_STATUS_COMMON_RUNNING);
@@ -146,7 +146,7 @@ static ssize_t zfcp_sysfs_unit_failed_store(struct device *dev,
 	unsigned long val;
 	struct scsi_device *sdev;
 
-	if (strict_strtoul(buf, 0, &val) || val != 0)
+	if (kstrtoul(buf, 0, &val) || val != 0)
 		return -EINVAL;
 
 	sdev = zfcp_unit_sdev(unit);
@@ -196,7 +196,7 @@ static ssize_t zfcp_sysfs_adapter_failed_store(struct device *dev,
 	if (!adapter)
 		return -ENODEV;
 
-	if (strict_strtoul(buf, 0, &val) || val != 0) {
+	if (kstrtoul(buf, 0, &val) || val != 0) {
 		retval = -EINVAL;
 		goto out;
 	}
@@ -248,7 +248,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	if (!adapter)
 		return -ENODEV;
 
-	if (strict_strtoull(buf, 0, (unsigned long long *) &wwpn))
+	if (kstrtoull(buf, 0, (unsigned long long *) &wwpn))
 		goto out;
 
 	port = zfcp_get_port_by_wwpn(adapter, wwpn);
@@ -309,7 +309,7 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	u64 fcp_lun;
 	int retval;
 
-	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
+	if (kstrtoull(buf, 0, (unsigned long long *) &fcp_lun))
 		return -EINVAL;
 
 	retval = zfcp_unit_add(port, fcp_lun);
@@ -327,7 +327,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
 	u64 fcp_lun;
 
-	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
+	if (kstrtoull(buf, 0, (unsigned long long *) &fcp_lun))
 		return -EINVAL;
 
 	if (zfcp_unit_remove(port, fcp_lun))

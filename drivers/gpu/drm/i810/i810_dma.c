@@ -113,7 +113,6 @@ static const struct file_operations i810_buffer_fops = {
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = i810_mmap_buffers,
-	.fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
 #endif
@@ -1241,7 +1240,7 @@ int i810_driver_dma_quiescent(struct drm_device *dev)
 	return 0;
 }
 
-struct drm_ioctl_desc i810_ioctls[] = {
+const struct drm_ioctl_desc i810_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I810_INIT, i810_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(I810_VERTEX, i810_dma_vertex, DRM_AUTH|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(I810_CLEAR, i810_clear_bufs, DRM_AUTH|DRM_UNLOCKED),

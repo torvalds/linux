@@ -21,6 +21,7 @@
 
 #include <linux/pci.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 #include "../comedidev.h"
 
 /*  #define DEBUG_MITE */

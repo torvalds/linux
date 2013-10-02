@@ -685,8 +685,10 @@ static u64 __hpp_get_##_field(struct hist_entry *he)			\
 	return he->stat._field;						\
 }									\
 									\
-static int hist_browser__hpp_color_##_type(struct perf_hpp *hpp,	\
-					   struct hist_entry *he)	\
+static int								\
+hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
+				struct perf_hpp *hpp,			\
+				struct hist_entry *he)			\
 {									\
 	return __hpp__color_fmt(hpp, he, __hpp_get_##_field, _cb);	\
 }
@@ -701,8 +703,6 @@ __HPP_COLOR_PERCENT_FN(overhead_guest_us, period_guest_us, NULL)
 
 void hist_browser__init_hpp(void)
 {
-	perf_hpp__column_enable(PERF_HPP__OVERHEAD);
-
 	perf_hpp__init();
 
 	perf_hpp__format[PERF_HPP__OVERHEAD].color =
@@ -762,9 +762,9 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			first = false;
 
 			if (fmt->color) {
-				width -= fmt->color(&hpp, entry);
+				width -= fmt->color(fmt, &hpp, entry);
 			} else {
-				width -= fmt->entry(&hpp, entry);
+				width -= fmt->entry(fmt, &hpp, entry);
 				slsmg_printf("%s", s);
 			}
 		}
@@ -1256,7 +1256,7 @@ static int hists__browser_title(struct hists *hists, char *bf, size_t size,
 		printed += scnprintf(bf + printed, size - printed,
 				    ", Thread: %s(%d)",
 				    (thread->comm_set ? thread->comm : ""),
-				    thread->pid);
+				    thread->tid);
 	if (dso)
 		printed += scnprintf(bf + printed, size - printed,
 				    ", DSO: %s", dso->short_name);
@@ -1579,7 +1579,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
 			     (browser->hists->thread_filter ? "out of" : "into"),
 			     (thread->comm_set ? thread->comm : ""),
-			     thread->pid) > 0)
+			     thread->tid) > 0)
 			zoom_thread = nr_options++;
 
 		if (dso != NULL &&
@@ -1702,7 +1702,7 @@ zoom_out_thread:
 			} else {
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
 						   thread->comm_set ? thread->comm : "",
-						   thread->pid);
+						   thread->tid);
 				browser->hists->thread_filter = thread;
 				sort_thread.elide = true;
 				pstack__push(fstack, &browser->hists->thread_filter);

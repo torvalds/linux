@@ -200,15 +200,6 @@ static int ohci_hcd_ppc_of_remove(struct platform_device *op)
 	return 0;
 }
 
-static void ohci_hcd_ppc_of_shutdown(struct platform_device *op)
-{
-	struct usb_hcd *hcd = platform_get_drvdata(op);
-
-        if (hcd->driver->shutdown)
-                hcd->driver->shutdown(hcd);
-}
-
-
 static const struct of_device_id ohci_hcd_ppc_of_match[] = {
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF_BE
 	{
@@ -243,7 +234,7 @@ MODULE_DEVICE_TABLE(of, ohci_hcd_ppc_of_match);
 static struct platform_driver ohci_hcd_ppc_of_driver = {
 	.probe		= ohci_hcd_ppc_of_probe,
 	.remove		= ohci_hcd_ppc_of_remove,
-	.shutdown 	= ohci_hcd_ppc_of_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "ppc-of-ohci",
 		.owner = THIS_MODULE,

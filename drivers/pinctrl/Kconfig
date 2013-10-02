@@ -61,7 +61,7 @@ config PINCTRL_AT91
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
 	depends on GPIOLIB && ACPI && X86
-        select IRQ_DOMAIN
+	select IRQ_DOMAIN
 	help
 	  driver for memory mapped GPIO functionality on Intel Baytrail
 	  platforms. Supports 3 banks with 102, 28 and 44 gpios.
@@ -252,7 +252,7 @@ config PINCTRL_SAMSUNG
 
 config PINCTRL_EXYNOS
 	bool "Pinctrl driver data for Samsung EXYNOS SoCs other than 5440"
-	depends on OF && GPIOLIB && ARCH_EXYNOS
+	depends on OF && GPIOLIB && (ARCH_EXYNOS || ARCH_S5PV210)
 	select PINCTRL_SAMSUNG
 
 config PINCTRL_EXYNOS5440
@@ -260,6 +260,17 @@ config PINCTRL_EXYNOS5440
 	depends on SOC_EXYNOS5440
 	select PINMUX
 	select PINCONF
+
+config PINCTRL_PALMAS
+	bool "Pinctrl driver for the PALMAS Series MFD devices"
+	depends on OF && MFD_PALMAS
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Palmas device supports the configuration of pins for different
+	  functionality. This driver supports the pinmux, push-pull and
+	  open drain configuration for the Palmas series devices like
+	  TPS65913, TPS80036 etc.
 
 config PINCTRL_S3C24XX
 	bool "Samsung S3C24XX SoC pinctrl driver"

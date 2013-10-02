@@ -45,7 +45,7 @@ static int pn544_mei_probe(struct mei_cl_device *device,
 
 	r = pn544_hci_probe(phy, &mei_phy_ops, LLC_NOP_NAME,
 			    MEI_NFC_HEADER_SIZE, 0, MEI_NFC_MAX_HCI_PAYLOAD,
-			    &phy->hdev);
+			    NULL, &phy->hdev);
 	if (r < 0) {
 		nfc_mei_phy_free(phy);
 

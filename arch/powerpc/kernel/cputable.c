@@ -2105,7 +2105,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 			MMU_FTR_USE_TLBILX,
 		.icache_bsize		= 64,
 		.dcache_bsize		= 64,
-		.num_pmcs		= 4,
+		.num_pmcs		= 6,
 		.oprofile_cpu_type	= "ppc/e6500",
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
 		.cpu_setup		= __setup_cpu_e6500,

@@ -145,6 +145,7 @@ do {                                            			\
 #define IWL_DL_RX		0x01000000
 #define IWL_DL_ISR		0x02000000
 #define IWL_DL_HT		0x04000000
+#define IWL_DL_EXTERNAL		0x08000000
 /* 0xF0000000 - 0x10000000 */
 #define IWL_DL_11H		0x10000000
 #define IWL_DL_STATS		0x20000000
@@ -153,6 +154,7 @@ do {                                            			\
 
 #define IWL_DEBUG_INFO(p, f, a...)	IWL_DEBUG(p, IWL_DL_INFO, f, ## a)
 #define IWL_DEBUG_MAC80211(p, f, a...)	IWL_DEBUG(p, IWL_DL_MAC80211, f, ## a)
+#define IWL_DEBUG_EXTERNAL(p, f, a...)	IWL_DEBUG(p, IWL_DL_EXTERNAL, f, ## a)
 #define IWL_DEBUG_TEMP(p, f, a...)	IWL_DEBUG(p, IWL_DL_TEMP, f, ## a)
 #define IWL_DEBUG_SCAN(p, f, a...)	IWL_DEBUG(p, IWL_DL_SCAN, f, ## a)
 #define IWL_DEBUG_RX(p, f, a...)	IWL_DEBUG(p, IWL_DL_RX, f, ## a)

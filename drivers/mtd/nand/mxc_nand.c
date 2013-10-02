@@ -266,7 +266,7 @@ static struct nand_ecclayout nandv2_hw_eccoob_4k = {
 	}
 };
 
-static const char const *part_probes[] = {
+static const char * const part_probes[] = {
 	"cmdlinepart", "RedBoot", "ofpart", NULL };
 
 static void memcpy32_fromio(void *trg, const void __iomem  *src, size_t size)
@@ -1432,7 +1432,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	err = mxcnd_probe_dt(host);
 	if (err > 0) {
-		struct mxc_nand_platform_data *pdata = pdev->dev.platform_data;
+		struct mxc_nand_platform_data *pdata =
+					dev_get_platdata(&pdev->dev);
 		if (pdata) {
 			host->pdata = *pdata;
 			host->devtype_data = (struct mxc_nand_devtype_data *)
@@ -1446,8 +1447,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	if (host->devtype_data->needs_ip) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return -ENODEV;
 		host->regs_ip = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(host->regs_ip))
 			return PTR_ERR(host->regs_ip);
@@ -1456,9 +1455,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 	} else {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	}
-
-	if (!res)
-		return -ENODEV;
 
 	host->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->base))
@@ -1577,8 +1573,6 @@ escan:
 static int mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	nand_release(&host->mtd);
 

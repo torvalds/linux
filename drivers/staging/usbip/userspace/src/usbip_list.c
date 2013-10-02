@@ -131,13 +131,13 @@ static int list_exported_devices(char *host)
 	int rc;
 	int sockfd;
 
-	sockfd = usbip_net_tcp_connect(host, USBIP_PORT_STRING);
+	sockfd = usbip_net_tcp_connect(host, usbip_port_string);
 	if (sockfd < 0) {
 		err("could not connect to %s:%s: %s", host,
-		    USBIP_PORT_STRING, gai_strerror(sockfd));
+		    usbip_port_string, gai_strerror(sockfd));
 		return -1;
 	}
-	dbg("connected to %s:%s", host, USBIP_PORT_STRING);
+	dbg("connected to %s:%s", host, usbip_port_string);
 
 	rc = get_exported_devices(host, sockfd);
 	if (rc < 0) {

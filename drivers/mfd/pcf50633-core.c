@@ -195,7 +195,7 @@ static int pcf50633_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
 {
 	struct pcf50633 *pcf;
-	struct pcf50633_platform_data *pdata = client->dev.platform_data;
+	struct pcf50633_platform_data *pdata = dev_get_platdata(&client->dev);
 	int i, ret;
 	int version, variant;
 

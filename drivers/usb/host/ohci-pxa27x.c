@@ -219,7 +219,7 @@ static int pxa27x_start_hc(struct pxa27x_ohci *ohci, struct device *dev)
 	struct pxaohci_platform_data *inf;
 	uint32_t uhchr;
 
-	inf = dev->platform_data;
+	inf = dev_get_platdata(dev);
 
 	clk_prepare_enable(ohci->clk);
 
@@ -256,7 +256,7 @@ static void pxa27x_stop_hc(struct pxa27x_ohci *ohci, struct device *dev)
 	struct pxaohci_platform_data *inf;
 	uint32_t uhccoms;
 
-	inf = dev->platform_data;
+	inf = dev_get_platdata(dev);
 
 	if (cpu_is_pxa3xx())
 		pxa3xx_u2d_stop_hc(&ohci_to_hcd(&ohci->ohci)->self);
@@ -364,7 +364,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 	if (retval)
 		return retval;
 
-	inf = pdev->dev.platform_data;
+	inf = dev_get_platdata(&pdev->dev);
 
 	if (!inf)
 		return -ENODEV;
@@ -577,7 +577,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct pxa27x_ohci *ohci = to_pxa27x_ohci(hcd);
-	struct pxaohci_platform_data *inf = dev->platform_data;
+	struct pxaohci_platform_data *inf = dev_get_platdata(dev);
 	int status;
 
 	if (time_before(jiffies, ohci->ohci.next_statechange))

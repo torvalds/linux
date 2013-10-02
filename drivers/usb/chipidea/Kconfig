@@ -1,6 +1,6 @@
 config USB_CHIPIDEA
 	tristate "ChipIdea Highspeed Dual Role Controller"
-	depends on USB || USB_GADGET
+	depends on ((USB_EHCI_HCD && USB_GADGET) || (USB_EHCI_HCD && !USB_GADGET) || (!USB_EHCI_HCD && USB_GADGET)) && HAS_DMA
 	help
 	  Say Y here if your system has a dual role high speed USB
 	  controller based on ChipIdea silicon IP. Currently, only the
@@ -12,15 +12,14 @@ if USB_CHIPIDEA
 
 config USB_CHIPIDEA_UDC
 	bool "ChipIdea device controller"
-	depends on USB_GADGET=y || (USB_CHIPIDEA=m && USB_GADGET=m)
+	depends on USB_GADGET
 	help
 	  Say Y here to enable device controller functionality of the
 	  ChipIdea driver.
 
 config USB_CHIPIDEA_HOST
 	bool "ChipIdea host controller"
-	depends on USB=y
-	depends on USB_EHCI_HCD=y || (USB_CHIPIDEA=m && USB_EHCI_HCD=m)
+	depends on USB_EHCI_HCD
 	select USB_EHCI_ROOT_HUB_TT
 	help
 	  Say Y here to enable host controller functionality of the

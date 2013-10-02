@@ -45,8 +45,8 @@ static void stmmac_config_sub_second_increment(void __iomem *ioaddr)
 	data = (1000000000ULL / 50000000);
 
 	/* 0.465ns accuracy */
-	if (value & PTP_TCR_TSCTRLSSR)
-		data = (data * 100) / 465;
+	if (!(value & PTP_TCR_TSCTRLSSR))
+		data = (data * 1000) / 465;
 
 	writel(data, ioaddr + PTP_SSIR);
 }

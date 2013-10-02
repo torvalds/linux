@@ -140,18 +140,30 @@
 			};
 		};
 		i2c0 {
+			i2c0_default_mux: i2c0_mux {
+				i2c0_default_mux {
+					ste,function = "i2c0";
+					ste,pins = "i2c0_a_1";
+				};
+			};
 			i2c0_default_mode: i2c0_default {
 				i2c0_default_cfg {
 					ste,pins = "GPIO62_D3", "GPIO63_D2";
-					ste,input = <1>;
+					ste,input = <0>;
 				};
 			};
 		};
 		i2c1 {
+			i2c1_default_mux: i2c1_mux {
+				i2c1_default_mux {
+					ste,function = "i2c1";
+					ste,pins = "i2c1_a_1";
+				};
+			};
 			i2c1_default_mode: i2c1_default {
 				i2c1_default_cfg {
 					ste,pins = "GPIO53_L4", "GPIO54_L3";
-					ste,input = <1>;
+					ste,input = <0>;
 				};
 			};
 		};
@@ -159,7 +171,7 @@
 			i2c2_default_mode: i2c2_default {
 				i2c2_default_cfg {
 					ste,pins = "GPIO73_C21", "GPIO74_C20";
-					ste,input = <1>;
+					ste,input = <0>;
 				};
 			};
 		};
@@ -682,13 +694,17 @@
 
 	/* I2C0 connected to the STw4811 power management chip */
 	i2c0 {
-		compatible = "i2c-gpio";
-		gpios = <&gpio1 31 0>, /* sda */
-			<&gpio1 30 0>; /* scl */
+		compatible = "st,nomadik-i2c", "arm,primecell";
+		reg = <0x101f8000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <20>;
+		clock-frequency = <100000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&i2c0clk>, <&pclki2c0>;
+		clock-names = "mclk", "apb_pclk";
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2c0_default_mode>;
+		pinctrl-0 = <&i2c0_default_mux>, <&i2c0_default_mode>;
 
 		stw4811@2d {
 			   compatible = "st,stw4811";
@@ -698,13 +714,17 @@
 
 	/* I2C1 connected to various sensors */
 	i2c1 {
-		compatible = "i2c-gpio";
-		gpios = <&gpio1 22 0>, /* sda */
-			<&gpio1 21 0>; /* scl */
+		compatible = "st,nomadik-i2c", "arm,primecell";
+		reg = <0x101f7000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <21>;
+		clock-frequency = <100000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&i2c1clk>, <&pclki2c1>;
+		clock-names = "mclk", "apb_pclk";
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2c1_default_mode>;
+		pinctrl-0 = <&i2c1_default_mux>, <&i2c1_default_mode>;
 
 		camera@2d {
 			   compatible = "st,camera";

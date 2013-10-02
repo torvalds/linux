@@ -73,6 +73,7 @@ static struct atmel_ssc_mask ssc_tx_mask = {
 	.ssc_disable	= SSC_BIT(CR_TXDIS),
 	.ssc_endx	= SSC_BIT(SR_ENDTX),
 	.ssc_endbuf	= SSC_BIT(SR_TXBUFE),
+	.ssc_error	= SSC_BIT(SR_OVRUN),
 	.pdc_enable	= ATMEL_PDC_TXTEN,
 	.pdc_disable	= ATMEL_PDC_TXTDIS,
 };
@@ -82,6 +83,7 @@ static struct atmel_ssc_mask ssc_rx_mask = {
 	.ssc_disable	= SSC_BIT(CR_RXDIS),
 	.ssc_endx	= SSC_BIT(SR_ENDRX),
 	.ssc_endbuf	= SSC_BIT(SR_RXBUFF),
+	.ssc_error	= SSC_BIT(SR_OVRUN),
 	.pdc_enable	= ATMEL_PDC_RXTEN,
 	.pdc_disable	= ATMEL_PDC_RXTDIS,
 };
@@ -196,15 +198,27 @@ static int atmel_ssc_startup(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct atmel_ssc_info *ssc_p = &ssc_info[dai->id];
-	int dir_mask;
+	struct atmel_pcm_dma_params *dma_params;
+	int dir, dir_mask;
 
 	pr_debug("atmel_ssc_startup: SSC_SR=0x%u\n",
 		ssc_readl(ssc_p->ssc->regs, SR));
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		dir = 0;
 		dir_mask = SSC_DIR_MASK_PLAYBACK;
-	else
+	} else {
+		dir = 1;
 		dir_mask = SSC_DIR_MASK_CAPTURE;
+	}
+
+	dma_params = &ssc_dma_params[dai->id][dir];
+	dma_params->ssc = ssc_p->ssc;
+	dma_params->substream = substream;
+
+	ssc_p->dma_params[dir] = dma_params;
+
+	snd_soc_dai_set_dma_data(dai, substream, dma_params);
 
 	spin_lock_irq(&ssc_p->lock);
 	if (ssc_p->dir_mask & dir_mask) {
@@ -325,7 +339,6 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	int id = dai->id;
 	struct atmel_ssc_info *ssc_p = &ssc_info[id];
 	struct atmel_pcm_dma_params *dma_params;
@@ -344,19 +357,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 	else
 		dir = 1;
 
-	dma_params = &ssc_dma_params[id][dir];
-	dma_params->ssc = ssc_p->ssc;
-	dma_params->substream = substream;
-
-	ssc_p->dma_params[dir] = dma_params;
-
-	/*
-	 * The snd_soc_pcm_stream->dma_data field is only used to communicate
-	 * the appropriate DMA parameters to the pcm driver hw_params()
-	 * function.  It should not be used for other purposes
-	 * as it is common to all substreams.
-	 */
-	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_params);
+	dma_params = ssc_p->dma_params[dir];
 
 	channels = params_channels(params);
 
@@ -648,6 +649,7 @@ static int atmel_ssc_prepare(struct snd_pcm_substream *substream,
 	dma_params = ssc_p->dma_params[dir];
 
 	ssc_writel(ssc_p->ssc->regs, CR, dma_params->mask->ssc_enable);
+	ssc_writel(ssc_p->ssc->regs, IDR, dma_params->mask->ssc_error);
 
 	pr_debug("%s enabled SSC_SR=0x%08x\n",
 			dir ? "receive" : "transmit",

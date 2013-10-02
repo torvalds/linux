@@ -1,6 +1,6 @@
 config LUSTRE_FS
 	tristate "Lustre file system client support"
-	depends on STAGING && INET && BROKEN
+	depends on INET && m && !MIPS && !XTENSA && !SUPERH
 	select LNET
 	select CRYPTO
 	select CRYPTO_CRC32
@@ -43,9 +43,18 @@ config LUSTRE_OBD_MAX_IOCTL_BUFFER
 config LUSTRE_DEBUG_EXPENSIVE_CHECK
 	bool "Enable Lustre DEBUG checks"
 	depends on LUSTRE_FS
-	default false
 	help
 	  This option is mainly for debug purpose. It enables Lustre code to do
 	  expensive checks that may have a performance impact.
 
 	  Use with caution. If unsure, say N.
+
+config LUSTRE_TRANSLATE_ERRNOS
+	bool
+	depends on LUSTRE_FS && !X86
+	default y
+
+config LUSTRE_LLITE_LLOOP
+	bool "Lustre virtual block device"
+	depends on LUSTRE_FS && BLOCK
+	default m

@@ -35,7 +35,6 @@
  */
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <linux/version.h>
 #include <lustre_lite.h>
 #include <lprocfs_status.h>
 #include <linux/seq_file.h>
@@ -243,9 +242,9 @@ static ssize_t ll_max_readahead_mb_seq_write(struct file *file, const char *buff
 	if (rc)
 		return rc;
 
-	if (pages_number < 0 || pages_number > num_physpages / 2) {
+	if (pages_number < 0 || pages_number > totalram_pages / 2) {
 		CERROR("can't set file readahead more than %lu MB\n",
-		       num_physpages >> (20 - PAGE_CACHE_SHIFT + 1)); /*1/2 of RAM*/
+		       totalram_pages >> (20 - PAGE_CACHE_SHIFT + 1)); /*1/2 of RAM*/
 		return -ERANGE;
 	}
 
@@ -380,23 +379,22 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file, const char *buffer,
 	int mult, rc, pages_number;
 	int diff = 0;
 	int nrpages = 0;
-	ENTRY;
 
 	mult = 1 << (20 - PAGE_CACHE_SHIFT);
 	buffer = lprocfs_find_named_value(buffer, "max_cached_mb:", &count);
 	rc = lprocfs_write_frac_helper(buffer, count, &pages_number, mult);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
-	if (pages_number < 0 || pages_number > num_physpages) {
+	if (pages_number < 0 || pages_number > totalram_pages) {
 		CERROR("%s: can't set max cache more than %lu MB\n",
 		       ll_get_fsname(sb, NULL, 0),
-		       num_physpages >> (20 - PAGE_CACHE_SHIFT));
-		RETURN(-ERANGE);
+		       totalram_pages >> (20 - PAGE_CACHE_SHIFT));
+		return -ERANGE;
 	}
 
 	if (sbi->ll_dt_exp == NULL)
-		RETURN(-ENODEV);
+		return -ENODEV;
 
 	spin_lock(&sbi->ll_lock);
 	diff = pages_number - cache->ccc_lru_max;
@@ -421,7 +419,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file, const char *buffer,
 				break;
 
 			nv = ov > diff ? ov - diff : 0;
-			rc = cfs_atomic_cmpxchg(&cache->ccc_lru_left, ov, nv);
+			rc = atomic_cmpxchg(&cache->ccc_lru_left, ov, nv);
 			if (likely(ov == rc)) {
 				diff -= ov - nv;
 				nrpages += ov - nv;
@@ -822,7 +820,8 @@ void ll_stats_ops_tally(struct ll_sb_info *sbi, int op, int count)
 		 sbi->ll_stats_track_id == current->parent->pid)
 		lprocfs_counter_add(sbi->ll_stats, op, count);
 	else if (sbi->ll_stats_track_type == STATS_TRACK_GID &&
-		 sbi->ll_stats_track_id == current_gid())
+		 sbi->ll_stats_track_id ==
+			from_kgid(&init_user_ns, current_gid()))
 		lprocfs_counter_add(sbi->ll_stats, op, count);
 }
 EXPORT_SYMBOL(ll_stats_ops_tally);
@@ -852,10 +851,9 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct obd_device *obd;
-	proc_dir_entry_t *dir;
+	struct proc_dir_entry *dir;
 	char name[MAX_STRING_SIZE + 1], *ptr;
 	int err, id, len, rc;
-	ENTRY;
 
 	memset(lvars, 0, sizeof(lvars));
 
@@ -880,7 +878,7 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	if (IS_ERR(sbi->ll_proc_root)) {
 		err = PTR_ERR(sbi->ll_proc_root);
 		sbi->ll_proc_root = NULL;
-		RETURN(err);
+		return err;
 	}
 
 	rc = lprocfs_seq_create(sbi->ll_proc_root, "dump_page_cache", 0444,
@@ -994,7 +992,7 @@ out:
 		lprocfs_free_stats(&sbi->ll_ra_stats);
 		lprocfs_free_stats(&sbi->ll_stats);
 	}
-	RETURN(err);
+	return err;
 }
 
 void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi)
@@ -1302,8 +1300,9 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 	/* We stored the discontiguous offsets here; print them first */
 	for(i = 0; i < LL_OFFSET_HIST_MAX; i++) {
 		if (offset[i].rw_pid != 0)
-			seq_printf(seq,"%3c %10d %14Lu %14Lu %17lu %17lu %14Lu",
-				   offset[i].rw_op ? 'W' : 'R',
+			seq_printf(seq,
+				   "%3c %10d %14Lu %14Lu %17lu %17lu %14Lu",
+				   offset[i].rw_op == READ ? 'R' : 'W',
 				   offset[i].rw_pid,
 				   offset[i].rw_range_start,
 				   offset[i].rw_range_end,
@@ -1314,8 +1313,9 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 	/* Then print the current offsets for each process */
 	for(i = 0; i < LL_PROCESS_HIST_MAX; i++) {
 		if (process[i].rw_pid != 0)
-			seq_printf(seq,"%3c %10d %14Lu %14Lu %17lu %17lu %14Lu",
-				   process[i].rw_op ? 'W' : 'R',
+			seq_printf(seq,
+				   "%3c %10d %14Lu %14Lu %17lu %17lu %14Lu",
+				   process[i].rw_op == READ ? 'R' : 'W',
 				   process[i].rw_pid,
 				   process[i].rw_range_start,
 				   process[i].rw_last_file_pos,

@@ -1425,62 +1425,75 @@ static int __cleanup_old_buffer(struct dm_buffer *b, gfp_t gfp,
 				unsigned long max_jiffies)
 {
 	if (jiffies - b->last_accessed < max_jiffies)
-		return 1;
+		return 0;
 
 	if (!(gfp & __GFP_IO)) {
 		if (test_bit(B_READING, &b->state) ||
 		    test_bit(B_WRITING, &b->state) ||
 		    test_bit(B_DIRTY, &b->state))
-			return 1;
+			return 0;
 	}
 
 	if (b->hold_count)
-		return 1;
+		return 0;
 
 	__make_buffer_clean(b);
 	__unlink_buffer(b);
 	__free_buffer_wake(b);
 
-	return 0;
+	return 1;
 }
 
-static void __scan(struct dm_bufio_client *c, unsigned long nr_to_scan,
-		   struct shrink_control *sc)
+static long __scan(struct dm_bufio_client *c, unsigned long nr_to_scan,
+		   gfp_t gfp_mask)
 {
 	int l;
 	struct dm_buffer *b, *tmp;
+	long freed = 0;
 
 	for (l = 0; l < LIST_SIZE; l++) {
-		list_for_each_entry_safe_reverse(b, tmp, &c->lru[l], lru_list)
-			if (!__cleanup_old_buffer(b, sc->gfp_mask, 0) &&
-			    !--nr_to_scan)
-				return;
+		list_for_each_entry_safe_reverse(b, tmp, &c->lru[l], lru_list) {
+			freed += __cleanup_old_buffer(b, gfp_mask, 0);
+			if (!--nr_to_scan)
+				break;
+		}
 		dm_bufio_cond_resched();
 	}
+	return freed;
 }
 
-static int shrink(struct shrinker *shrinker, struct shrink_control *sc)
+static unsigned long
+dm_bufio_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
-	struct dm_bufio_client *c =
-	    container_of(shrinker, struct dm_bufio_client, shrinker);
-	unsigned long r;
-	unsigned long nr_to_scan = sc->nr_to_scan;
+	struct dm_bufio_client *c;
+	unsigned long freed;
 
+	c = container_of(shrink, struct dm_bufio_client, shrinker);
 	if (sc->gfp_mask & __GFP_IO)
 		dm_bufio_lock(c);
 	else if (!dm_bufio_trylock(c))
-		return !nr_to_scan ? 0 : -1;
+		return SHRINK_STOP;
 
-	if (nr_to_scan)
-		__scan(c, nr_to_scan, sc);
-
-	r = c->n_buffers[LIST_CLEAN] + c->n_buffers[LIST_DIRTY];
-	if (r > INT_MAX)
-		r = INT_MAX;
-
+	freed  = __scan(c, sc->nr_to_scan, sc->gfp_mask);
 	dm_bufio_unlock(c);
+	return freed;
+}
 
-	return r;
+static unsigned long
+dm_bufio_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
+{
+	struct dm_bufio_client *c;
+	unsigned long count;
+
+	c = container_of(shrink, struct dm_bufio_client, shrinker);
+	if (sc->gfp_mask & __GFP_IO)
+		dm_bufio_lock(c);
+	else if (!dm_bufio_trylock(c))
+		return 0;
+
+	count = c->n_buffers[LIST_CLEAN] + c->n_buffers[LIST_DIRTY];
+	dm_bufio_unlock(c);
+	return count;
 }
 
 /*
@@ -1582,7 +1595,8 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	__cache_size_refresh();
 	mutex_unlock(&dm_bufio_clients_lock);
 
-	c->shrinker.shrink = shrink;
+	c->shrinker.count_objects = dm_bufio_shrink_count;
+	c->shrinker.scan_objects = dm_bufio_shrink_scan;
 	c->shrinker.seeks = 1;
 	c->shrinker.batch = 0;
 	register_shrinker(&c->shrinker);
@@ -1669,7 +1683,7 @@ static void cleanup_old_buffers(void)
 			struct dm_buffer *b;
 			b = list_entry(c->lru[LIST_CLEAN].prev,
 				       struct dm_buffer, lru_list);
-			if (__cleanup_old_buffer(b, 0, max_age * HZ))
+			if (!__cleanup_old_buffer(b, 0, max_age * HZ))
 				break;
 			dm_bufio_cond_resched();
 		}

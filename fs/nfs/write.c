@@ -31,6 +31,8 @@
 #include "fscache.h"
 #include "pnfs.h"
 
+#include "nfstrace.h"
+
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
 #define MIN_POOL_WRITE		(32)
@@ -861,7 +863,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 			return 0;
 		l_ctx = req->wb_lock_context;
 		do_flush = req->wb_page != page || req->wb_context != ctx;
-		if (l_ctx) {
+		if (l_ctx && ctx->dentry->d_inode->i_flock != NULL) {
 			do_flush |= l_ctx->lockowner.l_owner != current->files
 				|| l_ctx->lockowner.l_pid != current->tgid;
 		}
@@ -871,6 +873,33 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 		status = nfs_wb_page(page_file_mapping(page)->host, page);
 	} while (status == 0);
 	return status;
+}
+
+/*
+ * Avoid buffered writes when a open context credential's key would
+ * expire soon.
+ *
+ * Returns -EACCES if the key will expire within RPC_KEY_EXPIRE_FAIL.
+ *
+ * Return 0 and set a credential flag which triggers the inode to flush
+ * and performs  NFS_FILE_SYNC writes if the key will expired within
+ * RPC_KEY_EXPIRE_TIMEO.
+ */
+int
+nfs_key_timeout_notify(struct file *filp, struct inode *inode)
+{
+	struct nfs_open_context *ctx = nfs_file_open_context(filp);
+	struct rpc_auth *auth = NFS_SERVER(inode)->client->cl_auth;
+
+	return rpcauth_key_timeout_notify(auth, ctx->cred);
+}
+
+/*
+ * Test if the open context credential key is marked to expire soon.
+ */
+bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx)
+{
+	return rpcauth_cred_key_to_expire(ctx->cred);
 }
 
 /*
@@ -992,6 +1021,9 @@ int nfs_initiate_write(struct rpc_clnt *clnt,
 		(long long)NFS_FILEID(inode),
 		data->args.count,
 		(unsigned long long)data->args.offset);
+
+	nfs4_state_protect_write(NFS_SERVER(inode)->nfs_client,
+				 &task_setup_data.rpc_client, &msg, data);
 
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task)) {
@@ -1265,9 +1297,10 @@ EXPORT_SYMBOL_GPL(nfs_pageio_reset_write_mds);
 void nfs_write_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data *data = calldata;
-	NFS_PROTO(data->header->inode)->write_rpc_prepare(task, data);
-	if (unlikely(test_bit(NFS_CONTEXT_BAD, &data->args.context->flags)))
-		rpc_exit(task, -EIO);
+	int err;
+	err = NFS_PROTO(data->header->inode)->write_rpc_prepare(task, data);
+	if (err)
+		rpc_exit(task, err);
 }
 
 void nfs_commit_prepare(struct rpc_task *task, void *calldata)
@@ -1457,6 +1490,9 @@ int nfs_initiate_commit(struct rpc_clnt *clnt, struct nfs_commit_data *data,
 	NFS_PROTO(data->inode)->commit_setup(data, &msg);
 
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
+
+	nfs4_state_protect(NFS_SERVER(data->inode)->nfs_client,
+		NFS_SP4_MACH_CRED_COMMIT, &task_setup_data.rpc_client, &msg);
 
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
@@ -1732,8 +1768,14 @@ int nfs_wb_all(struct inode *inode)
 		.range_start = 0,
 		.range_end = LLONG_MAX,
 	};
+	int ret;
 
-	return sync_inode(inode, &wbc);
+	trace_nfs_writeback_inode_enter(inode);
+
+	ret = sync_inode(inode, &wbc);
+
+	trace_nfs_writeback_inode_exit(inode, ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nfs_wb_all);
 
@@ -1781,6 +1823,8 @@ int nfs_wb_page(struct inode *inode, struct page *page)
 	};
 	int ret;
 
+	trace_nfs_writeback_page_enter(inode);
+
 	for (;;) {
 		wait_on_page_writeback(page);
 		if (clear_page_dirty_for_io(page)) {
@@ -1789,14 +1833,15 @@ int nfs_wb_page(struct inode *inode, struct page *page)
 				goto out_error;
 			continue;
 		}
+		ret = 0;
 		if (!PagePrivate(page))
 			break;
 		ret = nfs_commit_inode(inode, FLUSH_SYNC);
 		if (ret < 0)
 			goto out_error;
 	}
-	return 0;
 out_error:
+	trace_nfs_writeback_page_exit(inode, ret);
 	return ret;
 }
 

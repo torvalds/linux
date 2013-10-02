@@ -22,24 +22,16 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
-#include <mach/r8a7740.h>
 #include <mach/irqs.h>
 
 #include "core.h"
 #include "sh_pfc.h"
 
 #define CPU_ALL_PORT(fn, pfx, sfx)					\
-	PORT_10(fn, pfx, sfx),		PORT_90(fn, pfx, sfx),		\
-	PORT_10(fn, pfx##10, sfx),	PORT_90(fn, pfx##1, sfx),	\
-	PORT_10(fn, pfx##20, sfx),					\
-	PORT_1(fn, pfx##210, sfx),	PORT_1(fn, pfx##211, sfx)
-
-#undef _GPIO_PORT
-#define _GPIO_PORT(gpio, sfx)						\
-	[gpio] = {							\
-		.name = __stringify(PORT##gpio),			\
-		.enum_id = PORT##gpio##_DATA,				\
-	}
+	PORT_10(0,  fn, pfx, sfx),	PORT_90(0,   fn, pfx, sfx),	\
+	PORT_10(100, fn, pfx##10, sfx),	PORT_90(100, fn, pfx##1, sfx),	\
+	PORT_10(200, fn, pfx##20, sfx),					\
+	PORT_1(210, fn, pfx##210, sfx),	PORT_1(211, fn, pfx##211, sfx)
 
 #define IRQC_PIN_MUX(irq, pin)						\
 static const unsigned int intc_irq##irq##_pins[] = {			\
@@ -590,11 +582,8 @@ enum {
 	PINMUX_MARK_END,
 };
 
-#define _PORT_DATA(pfx, sfx)	PORT_DATA_IO(pfx)
-#define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_PORT_DATA, , unused)
-
-static const pinmux_enum_t pinmux_data[] = {
-	PINMUX_DATA_GP_ALL(),
+static const u16 pinmux_data[] = {
+	PINMUX_DATA_ALL(),
 
 	/* Port0 */
 	PINMUX_DATA(DBGMDT2_MARK,		PORT0_FN1),
@@ -1537,13 +1526,6 @@ static const pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(TRACEAUD_FROM_MEMC_MARK,			MSEL5CR_30_1,	MSEL5CR_29_0),
 };
 
-#define R8A7740_PIN(pin, cfgs)						\
-	{								\
-		.name = __stringify(PORT##pin),				\
-		.enum_id = PORT##pin##_DATA,				\
-		.configs = cfgs,					\
-	}
-
 #define __I		(SH_PFC_PIN_CFG_INPUT)
 #define __O		(SH_PFC_PIN_CFG_OUTPUT)
 #define __IO		(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
@@ -1551,15 +1533,15 @@ static const pinmux_enum_t pinmux_data[] = {
 #define __PU		(SH_PFC_PIN_CFG_PULL_UP)
 #define __PUD		(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
 
-#define R8A7740_PIN_I_PD(pin)		R8A7740_PIN(pin, __I | __PD)
-#define R8A7740_PIN_I_PU(pin)		R8A7740_PIN(pin, __I | __PU)
-#define R8A7740_PIN_I_PU_PD(pin)		R8A7740_PIN(pin, __I | __PUD)
-#define R8A7740_PIN_IO(pin)		R8A7740_PIN(pin, __IO)
-#define R8A7740_PIN_IO_PD(pin)		R8A7740_PIN(pin, __IO | __PD)
-#define R8A7740_PIN_IO_PU(pin)		R8A7740_PIN(pin, __IO | __PU)
-#define R8A7740_PIN_IO_PU_PD(pin)	R8A7740_PIN(pin, __IO | __PUD)
-#define R8A7740_PIN_O(pin)		R8A7740_PIN(pin, __O)
-#define R8A7740_PIN_O_PU_PD(pin)		R8A7740_PIN(pin, __O | __PUD)
+#define R8A7740_PIN_I_PD(pin)		SH_PFC_PIN_CFG(pin, __I | __PD)
+#define R8A7740_PIN_I_PU(pin)		SH_PFC_PIN_CFG(pin, __I | __PU)
+#define R8A7740_PIN_I_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __I | __PUD)
+#define R8A7740_PIN_IO(pin)		SH_PFC_PIN_CFG(pin, __IO)
+#define R8A7740_PIN_IO_PD(pin)		SH_PFC_PIN_CFG(pin, __IO | __PD)
+#define R8A7740_PIN_IO_PU(pin)		SH_PFC_PIN_CFG(pin, __IO | __PU)
+#define R8A7740_PIN_IO_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __IO | __PUD)
+#define R8A7740_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
+#define R8A7740_PIN_O_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __O | __PUD)
 
 static struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 56-1 (I/O and Pull U/D) */

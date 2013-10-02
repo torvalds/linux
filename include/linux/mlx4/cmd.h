@@ -69,6 +69,7 @@ enum {
 	MLX4_CMD_SET_ICM_SIZE	 = 0xffd,
 	/*master notify fw on finish for slave's flr*/
 	MLX4_CMD_INFORM_FLR_DONE = 0x5b,
+	MLX4_CMD_GET_OP_REQ      = 0x59,
 
 	/* TPT commands */
 	MLX4_CMD_SW2HW_MPT	 = 0xd,

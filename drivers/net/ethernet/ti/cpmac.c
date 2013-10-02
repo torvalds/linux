@@ -636,7 +636,7 @@ static void cpmac_hw_stop(struct net_device *dev)
 {
 	int i;
 	struct cpmac_priv *priv = netdev_priv(dev);
-	struct plat_cpmac_data *pdata = priv->pdev->dev.platform_data;
+	struct plat_cpmac_data *pdata = dev_get_platdata(&priv->pdev->dev);
 
 	ar7_device_reset(pdata->reset_bit);
 	cpmac_write(priv->regs, CPMAC_RX_CONTROL,
@@ -659,7 +659,7 @@ static void cpmac_hw_start(struct net_device *dev)
 {
 	int i;
 	struct cpmac_priv *priv = netdev_priv(dev);
-	struct plat_cpmac_data *pdata = priv->pdev->dev.platform_data;
+	struct plat_cpmac_data *pdata = dev_get_platdata(&priv->pdev->dev);
 
 	ar7_device_reset(pdata->reset_bit);
 	for (i = 0; i < 8; i++) {
@@ -1118,7 +1118,7 @@ static int cpmac_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct plat_cpmac_data *pdata;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	if (external_switch || dumb_switch) {
 		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE); /* fixed phys bus */

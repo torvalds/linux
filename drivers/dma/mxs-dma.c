@@ -23,7 +23,6 @@
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/fsl/mxs-dma.h>
 #include <linux/stmp_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -197,24 +196,6 @@ static struct mxs_dma_chan *to_mxs_dma_chan(struct dma_chan *chan)
 	return container_of(chan, struct mxs_dma_chan, chan);
 }
 
-int mxs_dma_is_apbh(struct dma_chan *chan)
-{
-	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
-
-	return dma_is_apbh(mxs_dma);
-}
-EXPORT_SYMBOL_GPL(mxs_dma_is_apbh);
-
-int mxs_dma_is_apbx(struct dma_chan *chan)
-{
-	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
-
-	return !dma_is_apbh(mxs_dma);
-}
-EXPORT_SYMBOL_GPL(mxs_dma_is_apbx);
-
 static void mxs_dma_reset_chan(struct mxs_dma_chan *mxs_chan)
 {
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
@@ -349,12 +330,8 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-	struct mxs_dma_data *data = chan->private;
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
 	int ret;
-
-	if (data)
-		mxs_chan->chan_irq = data->chan_irq;
 
 	mxs_chan->ccw = dma_alloc_coherent(mxs_dma->dma_device.dev,
 				CCW_BLOCK_SIZE, &mxs_chan->ccw_phys,
@@ -622,10 +599,8 @@ static enum dma_status mxs_dma_tx_status(struct dma_chan *chan,
 			dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-	dma_cookie_t last_used;
 
-	last_used = chan->cookie;
-	dma_set_tx_state(txstate, chan->completed_cookie, last_used, 0);
+	dma_set_tx_state(txstate, chan->completed_cookie, chan->cookie, 0);
 
 	return mxs_chan->status;
 }

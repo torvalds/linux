@@ -29,6 +29,7 @@ struct tcm_qla2xxx_tpg_attrib {
 	int cache_dynamic_acls;
 	int demo_mode_write_protect;
 	int prod_mode_write_protect;
+	int demo_mode_login_only;
 };
 
 struct tcm_qla2xxx_tpg {

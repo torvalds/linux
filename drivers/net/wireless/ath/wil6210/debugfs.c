@@ -51,7 +51,7 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 			if ((i % 64) == 0 && (i != 0))
 				seq_printf(s, "\n");
 			seq_printf(s, "%s", (d->dma.status & BIT(0)) ?
-					"S" : (vring->ctx[i] ? "H" : "h"));
+					"S" : (vring->ctx[i].skb ? "H" : "h"));
 		}
 		seq_printf(s, "\n");
 	}
@@ -406,7 +406,7 @@ static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 		volatile struct vring_tx_desc *d =
 				&(vring->va[dbg_txdesc_index].tx);
 		volatile u32 *u = (volatile u32 *)d;
-		struct sk_buff *skb = vring->ctx[dbg_txdesc_index];
+		struct sk_buff *skb = vring->ctx[dbg_txdesc_index].skb;
 
 		seq_printf(s, "Tx[%3d] = {\n", dbg_txdesc_index);
 		seq_printf(s, "  MAC = 0x%08x 0x%08x 0x%08x 0x%08x\n",

@@ -74,22 +74,20 @@ static int adc081c_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	iio = iio_device_alloc(sizeof(*adc));
+	iio = devm_iio_device_alloc(&client->dev, sizeof(*adc));
 	if (!iio)
 		return -ENOMEM;
 
 	adc = iio_priv(iio);
 	adc->i2c = client;
 
-	adc->ref = regulator_get(&client->dev, "vref");
-	if (IS_ERR(adc->ref)) {
-		err = PTR_ERR(adc->ref);
-		goto iio_free;
-	}
+	adc->ref = devm_regulator_get(&client->dev, "vref");
+	if (IS_ERR(adc->ref))
+		return PTR_ERR(adc->ref);
 
 	err = regulator_enable(adc->ref);
 	if (err < 0)
-		goto regulator_put;
+		return err;
 
 	iio->dev.parent = &client->dev;
 	iio->name = dev_name(&client->dev);
@@ -109,10 +107,6 @@ static int adc081c_probe(struct i2c_client *client,
 
 regulator_disable:
 	regulator_disable(adc->ref);
-regulator_put:
-	regulator_put(adc->ref);
-iio_free:
-	iio_device_free(iio);
 
 	return err;
 }
@@ -124,8 +118,6 @@ static int adc081c_remove(struct i2c_client *client)
 
 	iio_device_unregister(iio);
 	regulator_disable(adc->ref);
-	regulator_put(adc->ref);
-	iio_device_free(iio);
 
 	return 0;
 }

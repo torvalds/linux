@@ -836,11 +836,6 @@ static int tegra_slink_transfer_one_message(struct spi_master *master,
 
 	msg->status = 0;
 	msg->actual_length = 0;
-	ret = pm_runtime_get_sync(tspi->dev);
-	if (ret < 0) {
-		dev_err(tspi->dev, "runtime get failed: %d\n", ret);
-		goto done;
-	}
 
 	single_xfer = list_is_singular(&msg->transfers);
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
@@ -878,8 +873,6 @@ static int tegra_slink_transfer_one_message(struct spi_master *master,
 exit:
 	tegra_slink_writel(tspi, tspi->def_command_reg, SLINK_COMMAND);
 	tegra_slink_writel(tspi, tspi->def_command2_reg, SLINK_COMMAND2);
-	pm_runtime_put(tspi->dev);
-done:
 	msg->status = ret;
 	spi_finalize_current_message(master);
 	return ret;
@@ -1086,6 +1079,7 @@ static int tegra_slink_probe(struct platform_device *pdev)
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->setup = tegra_slink_setup;
 	master->transfer_one_message = tegra_slink_transfer_one_message;
+	master->auto_runtime_pm = true;
 	master->num_chipselect = MAX_CHIP_SELECT;
 	master->bus_num = -1;
 

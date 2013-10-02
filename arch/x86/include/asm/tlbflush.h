@@ -62,6 +62,7 @@ static inline void __flush_tlb_all(void)
 
 static inline void __flush_tlb_one(unsigned long addr)
 {
+	count_vm_event(NR_TLB_LOCAL_FLUSH_ONE);
 	__flush_tlb_single(addr);
 }
 
@@ -84,14 +85,38 @@ static inline void __flush_tlb_one(unsigned long addr)
 
 #ifndef CONFIG_SMP
 
-#define flush_tlb() __flush_tlb()
-#define flush_tlb_all() __flush_tlb_all()
-#define local_flush_tlb() __flush_tlb()
+/* "_up" is for UniProcessor.
+ *
+ * This is a helper for other header functions.  *Not* intended to be called
+ * directly.  All global TLB flushes need to either call this, or to bump the
+ * vm statistics themselves.
+ */
+static inline void __flush_tlb_up(void)
+{
+	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
+	__flush_tlb();
+}
+
+static inline void flush_tlb_all(void)
+{
+	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
+	__flush_tlb_all();
+}
+
+static inline void flush_tlb(void)
+{
+	__flush_tlb_up();
+}
+
+static inline void local_flush_tlb(void)
+{
+	__flush_tlb_up();
+}
 
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
 	if (mm == current->active_mm)
-		__flush_tlb();
+		__flush_tlb_up();
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
@@ -105,14 +130,14 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
 	if (vma->vm_mm == current->active_mm)
-		__flush_tlb();
+		__flush_tlb_up();
 }
 
 static inline void flush_tlb_mm_range(struct mm_struct *mm,
 	   unsigned long start, unsigned long end, unsigned long vmflag)
 {
 	if (mm == current->active_mm)
-		__flush_tlb();
+		__flush_tlb_up();
 }
 
 static inline void native_flush_tlb_others(const struct cpumask *cpumask,

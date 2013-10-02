@@ -12,6 +12,9 @@ menuconfig RADIO_ADAPTERS
 
 if RADIO_ADAPTERS && VIDEO_V4L2
 
+config RADIO_TEA575X
+	tristate
+
 config RADIO_SI470X
 	bool "Silicon Labs Si470x FM Radio Receiver support"
 	depends on VIDEO_V4L2
@@ -61,7 +64,8 @@ config USB_DSBR
 
 config RADIO_MAXIRADIO
 	tristate "Guillemot MAXI Radio FM 2000 radio"
-	depends on VIDEO_V4L2 && PCI && SND
+	depends on VIDEO_V4L2 && PCI
+	select RADIO_TEA575X
 	---help---
 	  Choose Y here if you have this radio card.  This card may also be
 	  found as Gemtek PCI FM.
@@ -76,7 +80,8 @@ config RADIO_MAXIRADIO
 
 config RADIO_SHARK
 	tristate "Griffin radioSHARK USB radio receiver"
-	depends on USB && SND
+	depends on USB
+	select RADIO_TEA575X
 	---help---
 	  Choose Y here if you have this radio receiver.
 
@@ -209,7 +214,7 @@ config RADIO_TIMBERDALE
 
 config RADIO_WL1273
 	tristate "Texas Instruments WL1273 I2C FM Radio"
-	depends on I2C && VIDEO_V4L2 && GENERIC_HARDIRQS
+	depends on I2C && VIDEO_V4L2
 	select MFD_CORE
 	select MFD_WL1273_CORE
 	select FW_LOADER
@@ -393,7 +398,8 @@ config RADIO_SF16FMI
 
 config RADIO_SF16FMR2
 	tristate "SF16-FMR2/SF16-FMD2 Radio"
-	depends on ISA && VIDEO_V4L2 && SND
+	depends on ISA && VIDEO_V4L2
+	select RADIO_TEA575X
 	---help---
 	  Choose Y here if you have one of these FM radio cards.
 

@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/hardirq.h>
+#include <linux/of_device.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
@@ -477,7 +478,6 @@ static struct cpufreq_driver pmac_cpufreq_driver = {
 	.flags		= CPUFREQ_PM_NO_WARN,
 	.attr		= pmac_cpu_freqs_attr,
 	.name		= "powermac",
-	.owner		= THIS_MODULE,
 };
 
 
@@ -649,8 +649,8 @@ static int __init pmac_cpufreq_setup(void)
 	if (strstr(cmd_line, "nocpufreq"))
 		return 0;
 
-	/* Assume only one CPU */
-	cpunode = of_find_node_by_type(NULL, "cpu");
+	/* Get first CPU node */
+	cpunode = of_cpu_device_node_get(0);
 	if (!cpunode)
 		goto out;
 

@@ -53,6 +53,7 @@ static struct iowa_bus *iowa_pci_find(unsigned long vaddr, unsigned long paddr)
 	return NULL;
 }
 
+#ifdef CONFIG_PPC_INDIRECT_MMIO
 struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 {
 	unsigned hugepage_shift;
@@ -90,13 +91,25 @@ struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 
 	return bus;
 }
+#else /* CONFIG_PPC_INDIRECT_MMIO */
+struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
+{
+	return NULL;
+}
+#endif /* !CONFIG_PPC_INDIRECT_MMIO */
 
+#ifdef CONFIG_PPC_INDIRECT_PIO
 struct iowa_bus *iowa_pio_find_bus(unsigned long port)
 {
 	unsigned long vaddr = (unsigned long)pci_io_base + port;
 	return iowa_pci_find(vaddr, 0);
 }
-
+#else
+struct iowa_bus *iowa_pio_find_bus(unsigned long port)
+{
+	return NULL;
+}
+#endif
 
 #define DEF_PCI_AC_RET(name, ret, at, al, space, aa)		\
 static ret iowa_##name at					\
@@ -137,6 +150,7 @@ static const struct ppc_pci_io iowa_pci_io = {
 
 };
 
+#ifdef CONFIG_PPC_INDIRECT_MMIO
 static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 				  unsigned long flags, void *caller)
 {
@@ -151,6 +165,9 @@ static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 	}
 	return res;
 }
+#else /* CONFIG_PPC_INDIRECT_MMIO */
+#define iowa_ioremap NULL
+#endif /* !CONFIG_PPC_INDIRECT_MMIO */
 
 /* Enable IO workaround */
 static void io_workaround_init(void)

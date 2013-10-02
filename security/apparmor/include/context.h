@@ -98,7 +98,7 @@ static inline struct aa_profile *aa_cred_profile(const struct cred *cred)
 {
 	struct aa_task_cxt *cxt = cred_cxt(cred);
 	BUG_ON(!cxt || !cxt->profile);
-	return aa_newest_version(cxt->profile);
+	return cxt->profile;
 }
 
 /**
@@ -152,15 +152,14 @@ static inline struct aa_profile *aa_current_profile(void)
 	struct aa_profile *profile;
 	BUG_ON(!cxt || !cxt->profile);
 
-	profile = aa_newest_version(cxt->profile);
-	/*
-	 * Whether or not replacement succeeds, use newest profile so
-	 * there is no need to update it after replacement.
-	 */
-	if (unlikely((cxt->profile != profile)))
+	if (PROFILE_INVALID(cxt->profile)) {
+		profile = aa_get_newest_profile(cxt->profile);
 		aa_replace_current_profile(profile);
+		aa_put_profile(profile);
+		cxt = current_cxt();
+	}
 
-	return profile;
+	return cxt->profile;
 }
 
 /**

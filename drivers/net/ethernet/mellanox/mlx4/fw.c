@@ -1696,3 +1696,107 @@ int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port)
 			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 }
 EXPORT_SYMBOL_GPL(mlx4_wol_write);
+
+enum {
+	ADD_TO_MCG = 0x26,
+};
+
+
+void mlx4_opreq_action(struct work_struct *work)
+{
+	struct mlx4_priv *priv = container_of(work, struct mlx4_priv,
+					      opreq_task);
+	struct mlx4_dev *dev = &priv->dev;
+	int num_tasks = atomic_read(&priv->opreq_count);
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_mgm *mgm;
+	u32 *outbox;
+	u32 modifier;
+	u16 token;
+	u16 type_m;
+	u16 type;
+	int err;
+	u32 num_qps;
+	struct mlx4_qp qp;
+	int i;
+	u8 rem_mcg;
+	u8 prot;
+
+#define GET_OP_REQ_MODIFIER_OFFSET	0x08
+#define GET_OP_REQ_TOKEN_OFFSET		0x14
+#define GET_OP_REQ_TYPE_OFFSET		0x1a
+#define GET_OP_REQ_DATA_OFFSET		0x20
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox)) {
+		mlx4_err(dev, "Failed to allocate mailbox for GET_OP_REQ\n");
+		return;
+	}
+	outbox = mailbox->buf;
+
+	while (num_tasks) {
+		err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0,
+				   MLX4_CMD_GET_OP_REQ, MLX4_CMD_TIME_CLASS_A,
+				   MLX4_CMD_NATIVE);
+		if (err) {
+			mlx4_err(dev, "Failed to retreive required operation: %d\n",
+				 err);
+			return;
+		}
+		MLX4_GET(modifier, outbox, GET_OP_REQ_MODIFIER_OFFSET);
+		MLX4_GET(token, outbox, GET_OP_REQ_TOKEN_OFFSET);
+		MLX4_GET(type, outbox, GET_OP_REQ_TYPE_OFFSET);
+		type_m = type >> 12;
+		type &= 0xfff;
+
+		switch (type) {
+		case ADD_TO_MCG:
+			if (dev->caps.steering_mode ==
+			    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+				mlx4_warn(dev, "ADD MCG operation is not supported in DEVICE_MANAGED steering mode\n");
+				err = EPERM;
+				break;
+			}
+			mgm = (struct mlx4_mgm *)((u8 *)(outbox) +
+						  GET_OP_REQ_DATA_OFFSET);
+			num_qps = be32_to_cpu(mgm->members_count) &
+				  MGM_QPN_MASK;
+			rem_mcg = ((u8 *)(&mgm->members_count))[0] & 1;
+			prot = ((u8 *)(&mgm->members_count))[0] >> 6;
+
+			for (i = 0; i < num_qps; i++) {
+				qp.qpn = be32_to_cpu(mgm->qp[i]);
+				if (rem_mcg)
+					err = mlx4_multicast_detach(dev, &qp,
+								    mgm->gid,
+								    prot, 0);
+				else
+					err = mlx4_multicast_attach(dev, &qp,
+								    mgm->gid,
+								    mgm->gid[5]
+								    , 0, prot,
+								    NULL);
+				if (err)
+					break;
+			}
+			break;
+		default:
+			mlx4_warn(dev, "Bad type for required operation\n");
+			err = EINVAL;
+			break;
+		}
+		err = mlx4_cmd(dev, 0, ((u32) err | cpu_to_be32(token) << 16),
+			       1, MLX4_CMD_GET_OP_REQ, MLX4_CMD_TIME_CLASS_A,
+			       MLX4_CMD_NATIVE);
+		if (err) {
+			mlx4_err(dev, "Failed to acknowledge required request: %d\n",
+				 err);
+			goto out;
+		}
+		memset(outbox, 0, 0xffc);
+		num_tasks = atomic_dec_return(&priv->opreq_count);
+	}
+
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+}

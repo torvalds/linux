@@ -757,7 +757,8 @@ static int __init mvsd_probe(struct platform_device *pdev)
 		if (mvsd_data->gpio_card_detect &&
 		    gpio_is_valid(mvsd_data->gpio_card_detect)) {
 			ret = mmc_gpio_request_cd(mmc,
-						  mvsd_data->gpio_card_detect);
+						  mvsd_data->gpio_card_detect,
+						  0);
 			if (ret)
 				goto out;
 		} else {

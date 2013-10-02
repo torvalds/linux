@@ -345,7 +345,8 @@ static const struct iio_info magn_info = {
 	.write_raw = &st_magn_write_raw,
 };
 
-int st_magn_common_probe(struct iio_dev *indio_dev)
+int st_magn_common_probe(struct iio_dev *indio_dev,
+					struct st_sensors_platform_data *pdata)
 {
 	int err;
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
@@ -367,7 +368,7 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 						&mdata->sensor->fs.fs_avl[0];
 	mdata->odr = mdata->sensor->odr.odr_avl[0].hz;
 
-	err = st_sensors_init_sensor(indio_dev);
+	err = st_sensors_init_sensor(indio_dev, pdata);
 	if (err < 0)
 		goto st_magn_common_probe_error;
 
@@ -406,7 +407,6 @@ void st_magn_common_remove(struct iio_dev *indio_dev)
 		st_sensors_deallocate_trigger(indio_dev);
 		st_magn_deallocate_ring(indio_dev);
 	}
-	iio_device_free(indio_dev);
 }
 EXPORT_SYMBOL(st_magn_common_remove);
 

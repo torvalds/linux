@@ -232,4 +232,10 @@
 /* SH-SCI */
 #define PORT_HSCIF	104
 
+/* ST ASC type numbers */
+#define PORT_ASC       105
+
+/* Tilera TILE-Gx UART */
+#define PORT_TILEGX	106
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */

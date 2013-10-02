@@ -1555,18 +1555,6 @@ static int pl022_transfer_one_message(struct spi_master *master,
 	return 0;
 }
 
-static int pl022_prepare_transfer_hardware(struct spi_master *master)
-{
-	struct pl022 *pl022 = spi_master_get_devdata(master);
-
-	/*
-	 * Just make sure we have all we need to run the transfer by syncing
-	 * with the runtime PM framework.
-	 */
-	pm_runtime_get_sync(&pl022->adev->dev);
-	return 0;
-}
-
 static int pl022_unprepare_transfer_hardware(struct spi_master *master)
 {
 	struct pl022 *pl022 = spi_master_get_devdata(master);
@@ -1574,13 +1562,6 @@ static int pl022_unprepare_transfer_hardware(struct spi_master *master)
 	/* nothing more to do - disable spi/ssp and power off */
 	writew((readw(SSP_CR1(pl022->virtbase)) &
 		(~SSP_CR1_MASK_SSE)), SSP_CR1(pl022->virtbase));
-
-	if (pl022->master_info->autosuspend_delay > 0) {
-		pm_runtime_mark_last_busy(&pl022->adev->dev);
-		pm_runtime_put_autosuspend(&pl022->adev->dev);
-	} else {
-		pm_runtime_put(&pl022->adev->dev);
-	}
 
 	return 0;
 }
@@ -2091,7 +2072,8 @@ pl022_platform_data_dt_get(struct device *dev)
 static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
-	struct pl022_ssp_controller *platform_info = adev->dev.platform_data;
+	struct pl022_ssp_controller *platform_info =
+			dev_get_platdata(&adev->dev);
 	struct spi_master *master;
 	struct pl022 *pl022 = NULL;	/*Data for this driver */
 	struct device_node *np = adev->dev.of_node;
@@ -2139,7 +2121,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	master->num_chipselect = num_cs;
 	master->cleanup = pl022_cleanup;
 	master->setup = pl022_setup;
-	master->prepare_transfer_hardware = pl022_prepare_transfer_hardware;
+	master->auto_runtime_pm = true;
 	master->transfer_one_message = pl022_transfer_one_message;
 	master->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
 	master->rt = platform_info->rt;
@@ -2193,8 +2175,8 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		status = -ENOMEM;
 		goto err_no_ioremap;
 	}
-	printk(KERN_INFO "pl022: mapped registers from 0x%08x to %p\n",
-	       adev->res.start, pl022->virtbase);
+	printk(KERN_INFO "pl022: mapped registers from %pa to %p\n",
+	       &adev->res.start, pl022->virtbase);
 
 	pl022->clk = devm_clk_get(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {

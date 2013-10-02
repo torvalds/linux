@@ -47,10 +47,7 @@ void read_arc_build_cfg_regs(void)
 	READ_BCR(AUX_IDENTITY, cpu->core);
 
 	cpu->timers = read_aux_reg(ARC_REG_TIMERS_BCR);
-
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
-	if (cpu->vec_base == 0)
-		cpu->vec_base = (unsigned int)_int_vec_base_lds;
 
 	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
 	cpu->uncached_base = uncached_space.start << 24;
@@ -356,8 +353,6 @@ void __init setup_arch(char **cmdline_p)
 	 * But that is unlikely so keeping it as it is
 	 */
 	root_mountflags &= ~MS_RDONLY;
-
-	console_verbose();
 
 #if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;

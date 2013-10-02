@@ -86,7 +86,7 @@ static int mc33880_probe(struct spi_device *spi)
 	struct mc33880_platform_data *pdata;
 	int ret;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (!pdata || !pdata->base) {
 		dev_dbg(&spi->dev, "incorrect or missing platform data\n");
 		return -EINVAL;

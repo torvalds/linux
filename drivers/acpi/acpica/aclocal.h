@@ -942,6 +942,9 @@ struct acpi_interface_info {
 
 #define ACPI_OSI_INVALID                0x01
 #define ACPI_OSI_DYNAMIC                0x02
+#define ACPI_OSI_FEATURE                0x04
+#define ACPI_OSI_DEFAULT_INVALID        0x08
+#define ACPI_OSI_OPTIONAL_FEATURE       (ACPI_OSI_FEATURE | ACPI_OSI_DEFAULT_INVALID | ACPI_OSI_INVALID)
 
 struct acpi_port_info {
 	char *name;
@@ -1030,6 +1033,7 @@ struct acpi_external_list {
 	u8 type;
 	u8 flags;
 	u8 resolved;
+	u8 emitted;
 };
 
 /* Values for Flags field above */

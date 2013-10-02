@@ -1,7 +1,7 @@
 /*
  * SCSI Block Commands (SBC) parsing and emulation.
  *
- * (c) Copyright 2002-2012 RisingTide Systems LLC.
+ * (c) Copyright 2002-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -25,6 +25,7 @@
 #include <linux/ratelimit.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_tcq.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
@@ -280,13 +281,13 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	return 0;
 }
 
-static void xdreadwrite_callback(struct se_cmd *cmd)
+static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd)
 {
 	unsigned char *buf, *addr;
 	struct scatterlist *sg;
 	unsigned int offset;
-	int i;
-	int count;
+	sense_reason_t ret = TCM_NO_SENSE;
+	int i, count;
 	/*
 	 * From sbc3r22.pdf section 5.48 XDWRITEREAD (10) command
 	 *
@@ -301,7 +302,7 @@ static void xdreadwrite_callback(struct se_cmd *cmd)
 	buf = kmalloc(cmd->data_length, GFP_KERNEL);
 	if (!buf) {
 		pr_err("Unable to allocate xor_callback buf\n");
-		return;
+		return TCM_OUT_OF_RESOURCES;
 	}
 	/*
 	 * Copy the scatterlist WRITE buffer located at cmd->t_data_sg
@@ -320,8 +321,10 @@ static void xdreadwrite_callback(struct se_cmd *cmd)
 	offset = 0;
 	for_each_sg(cmd->t_bidi_data_sg, sg, cmd->t_bidi_data_nents, count) {
 		addr = kmap_atomic(sg_page(sg));
-		if (!addr)
+		if (!addr) {
+			ret = TCM_OUT_OF_RESOURCES;
 			goto out;
+		}
 
 		for (i = 0; i < sg->length; i++)
 			*(addr + sg->offset + i) ^= *(buf + offset + i);
@@ -332,6 +335,193 @@ static void xdreadwrite_callback(struct se_cmd *cmd)
 
 out:
 	kfree(buf);
+	return ret;
+}
+
+static sense_reason_t
+sbc_execute_rw(struct se_cmd *cmd)
+{
+	return cmd->execute_rw(cmd, cmd->t_data_sg, cmd->t_data_nents,
+			       cmd->data_direction);
+}
+
+static sense_reason_t compare_and_write_post(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+
+	cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
+	/*
+	 * Unlock ->caw_sem originally obtained during sbc_compare_and_write()
+	 * before the original READ I/O submission.
+	 */
+	up(&dev->caw_sem);
+
+	return TCM_NO_SENSE;
+}
+
+static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	struct scatterlist *write_sg = NULL, *sg;
+	unsigned char *buf, *addr;
+	struct sg_mapping_iter m;
+	unsigned int offset = 0, len;
+	unsigned int nlbas = cmd->t_task_nolb;
+	unsigned int block_size = dev->dev_attrib.block_size;
+	unsigned int compare_len = (nlbas * block_size);
+	sense_reason_t ret = TCM_NO_SENSE;
+	int rc, i;
+
+	/*
+	 * Handle early failure in transport_generic_request_failure(),
+	 * which will not have taken ->caw_mutex yet..
+	 */
+	if (!cmd->t_data_sg || !cmd->t_bidi_data_sg)
+		return TCM_NO_SENSE;
+
+	buf = kzalloc(cmd->data_length, GFP_KERNEL);
+	if (!buf) {
+		pr_err("Unable to allocate compare_and_write buf\n");
+		ret = TCM_OUT_OF_RESOURCES;
+		goto out;
+	}
+
+	write_sg = kzalloc(sizeof(struct scatterlist) * cmd->t_data_nents,
+			   GFP_KERNEL);
+	if (!write_sg) {
+		pr_err("Unable to allocate compare_and_write sg\n");
+		ret = TCM_OUT_OF_RESOURCES;
+		goto out;
+	}
+	/*
+	 * Setup verify and write data payloads from total NumberLBAs.
+	 */
+	rc = sg_copy_to_buffer(cmd->t_data_sg, cmd->t_data_nents, buf,
+			       cmd->data_length);
+	if (!rc) {
+		pr_err("sg_copy_to_buffer() failed for compare_and_write\n");
+		ret = TCM_OUT_OF_RESOURCES;
+		goto out;
+	}
+	/*
+	 * Compare against SCSI READ payload against verify payload
+	 */
+	for_each_sg(cmd->t_bidi_data_sg, sg, cmd->t_bidi_data_nents, i) {
+		addr = (unsigned char *)kmap_atomic(sg_page(sg));
+		if (!addr) {
+			ret = TCM_OUT_OF_RESOURCES;
+			goto out;
+		}
+
+		len = min(sg->length, compare_len);
+
+		if (memcmp(addr, buf + offset, len)) {
+			pr_warn("Detected MISCOMPARE for addr: %p buf: %p\n",
+				addr, buf + offset);
+			kunmap_atomic(addr);
+			goto miscompare;
+		}
+		kunmap_atomic(addr);
+
+		offset += len;
+		compare_len -= len;
+		if (!compare_len)
+			break;
+	}
+
+	i = 0;
+	len = cmd->t_task_nolb * block_size;
+	sg_miter_start(&m, cmd->t_data_sg, cmd->t_data_nents, SG_MITER_TO_SG);
+	/*
+	 * Currently assumes NoLB=1 and SGLs are PAGE_SIZE..
+	 */
+	while (len) {
+		sg_miter_next(&m);
+
+		if (block_size < PAGE_SIZE) {
+			sg_set_page(&write_sg[i], m.page, block_size,
+				    block_size);
+		} else {
+			sg_miter_next(&m);
+			sg_set_page(&write_sg[i], m.page, block_size,
+				    0);
+		}
+		len -= block_size;
+		i++;
+	}
+	sg_miter_stop(&m);
+	/*
+	 * Save the original SGL + nents values before updating to new
+	 * assignments, to be released in transport_free_pages() ->
+	 * transport_reset_sgl_orig()
+	 */
+	cmd->t_data_sg_orig = cmd->t_data_sg;
+	cmd->t_data_sg = write_sg;
+	cmd->t_data_nents_orig = cmd->t_data_nents;
+	cmd->t_data_nents = 1;
+
+	cmd->sam_task_attr = MSG_HEAD_TAG;
+	cmd->transport_complete_callback = compare_and_write_post;
+	/*
+	 * Now reset ->execute_cmd() to the normal sbc_execute_rw() handler
+	 * for submitting the adjusted SGL to write instance user-data.
+	 */
+	cmd->execute_cmd = sbc_execute_rw;
+
+	spin_lock_irq(&cmd->t_state_lock);
+	cmd->t_state = TRANSPORT_PROCESSING;
+	cmd->transport_state |= CMD_T_ACTIVE|CMD_T_BUSY|CMD_T_SENT;
+	spin_unlock_irq(&cmd->t_state_lock);
+
+	__target_execute_cmd(cmd);
+
+	kfree(buf);
+	return ret;
+
+miscompare:
+	pr_warn("Target/%s: Send MISCOMPARE check condition and sense\n",
+		dev->transport->name);
+	ret = TCM_MISCOMPARE_VERIFY;
+out:
+	/*
+	 * In the MISCOMPARE or failure case, unlock ->caw_sem obtained in
+	 * sbc_compare_and_write() before the original READ I/O submission.
+	 */
+	up(&dev->caw_sem);
+	kfree(write_sg);
+	kfree(buf);
+	return ret;
+}
+
+static sense_reason_t
+sbc_compare_and_write(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	sense_reason_t ret;
+	int rc;
+	/*
+	 * Submit the READ first for COMPARE_AND_WRITE to perform the
+	 * comparision using SGLs at cmd->t_bidi_data_sg..
+	 */
+	rc = down_interruptible(&dev->caw_sem);
+	if ((rc != 0) || signal_pending(current)) {
+		cmd->transport_complete_callback = NULL;
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
+
+	ret = cmd->execute_rw(cmd, cmd->t_bidi_data_sg, cmd->t_bidi_data_nents,
+			      DMA_FROM_DEVICE);
+	if (ret) {
+		cmd->transport_complete_callback = NULL;
+		up(&dev->caw_sem);
+		return ret;
+	}
+	/*
+	 * Unlock of dev->caw_sem to occur in compare_and_write_callback()
+	 * upon MISCOMPARE, or in compare_and_write_done() upon completion
+	 * of WRITE instance user-data.
+	 */
+	return TCM_NO_SENSE;
 }
 
 sense_reason_t
@@ -348,31 +538,36 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_6(cdb);
 		cmd->t_task_lba = transport_lba_21(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_cmd = ops->execute_rw;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case READ_10:
 		sectors = transport_get_sectors_10(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_cmd = ops->execute_rw;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case READ_12:
 		sectors = transport_get_sectors_12(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_cmd = ops->execute_rw;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case READ_16:
 		sectors = transport_get_sectors_16(cdb);
 		cmd->t_task_lba = transport_lba_64(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_cmd = ops->execute_rw;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_6:
 		sectors = transport_get_sectors_6(cdb);
 		cmd->t_task_lba = transport_lba_21(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_cmd = ops->execute_rw;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_10:
 	case WRITE_VERIFY:
@@ -381,7 +576,8 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_cmd = ops->execute_rw;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_12:
 		sectors = transport_get_sectors_12(cdb);
@@ -389,7 +585,8 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_cmd = ops->execute_rw;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_16:
 		sectors = transport_get_sectors_16(cdb);
@@ -397,7 +594,8 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_cmd = ops->execute_rw;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case XDWRITEREAD_10:
 		if (cmd->data_direction != DMA_TO_DEVICE ||
@@ -411,7 +609,8 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		/*
 		 * Setup BIDI XOR callback to be run after I/O completion.
 		 */
-		cmd->execute_cmd = ops->execute_rw;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_execute_rw;
 		cmd->transport_complete_callback = &xdreadwrite_callback;
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
@@ -434,7 +633,8 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			 * Setup BIDI XOR callback to be run during after I/O
 			 * completion.
 			 */
-			cmd->execute_cmd = ops->execute_rw;
+			cmd->execute_rw = ops->execute_rw;
+			cmd->execute_cmd = sbc_execute_rw;
 			cmd->transport_complete_callback = &xdreadwrite_callback;
 			if (cdb[1] & 0x8)
 				cmd->se_cmd_flags |= SCF_FUA;
@@ -461,6 +661,28 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		}
 		break;
 	}
+	case COMPARE_AND_WRITE:
+		sectors = cdb[13];
+		/*
+		 * Currently enforce COMPARE_AND_WRITE for a single sector
+		 */
+		if (sectors > 1) {
+			pr_err("COMPARE_AND_WRITE contains NoLB: %u greater"
+			       " than 1\n", sectors);
+			return TCM_INVALID_CDB_FIELD;
+		}
+		/*
+		 * Double size because we have two buffers, note that
+		 * zero is not an error..
+		 */
+		size = 2 * sbc_get_size(cmd, sectors);
+		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
+		cmd->t_task_nolb = sectors;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB | SCF_COMPARE_AND_WRITE;
+		cmd->execute_rw = ops->execute_rw;
+		cmd->execute_cmd = sbc_compare_and_write;
+		cmd->transport_complete_callback = compare_and_write_callback;
+		break;
 	case READ_CAPACITY:
 		size = READ_CAP_LEN;
 		cmd->execute_cmd = sbc_emulate_readcapacity;
@@ -600,7 +822,8 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return TCM_ADDRESS_OUT_OF_RANGE;
 		}
 
-		size = sbc_get_size(cmd, sectors);
+		if (!(cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE))
+			size = sbc_get_size(cmd, sectors);
 	}
 
 	return target_cmd_size_check(cmd, size);

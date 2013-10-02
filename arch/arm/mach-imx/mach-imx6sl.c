@@ -11,7 +11,6 @@
 #include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
@@ -26,7 +25,7 @@ static void __init imx6sl_init_machine(void)
 
 static void __init imx6sl_init_irq(void)
 {
-	l2x0_of_init(0, ~0UL);
+	imx_init_l2cache();
 	imx_src_init();
 	imx_gpc_init();
 	irqchip_init();

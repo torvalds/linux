@@ -361,7 +361,7 @@ brw_server_rpc_done (srpc_server_rpc_t *rpc)
 			blk->bk_sink ? "from" : "to",
 			libcfs_id2str(rpc->srpc_peer), rpc->srpc_status);
 	else
-		CDEBUG (D_NET, "Transfered %d pages bulk data %s %s\n",
+		CDEBUG (D_NET, "Transferred %d pages bulk data %s %s\n",
 			blk->bk_niov, blk->bk_sink ? "from" : "to",
 			libcfs_id2str(rpc->srpc_peer));
 

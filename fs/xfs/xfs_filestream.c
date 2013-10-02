@@ -16,18 +16,18 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
+#include "xfs_log.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inum.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_ag.h"
-#include "xfs_log.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_bmap.h"
+#include "xfs_bmap_util.h"
 #include "xfs_alloc.h"
-#include "xfs_utils.h"
 #include "xfs_mru_cache.h"
 #include "xfs_filestream.h"
 #include "xfs_trace.h"
@@ -668,8 +668,8 @@ exit:
  */
 int
 xfs_filestream_new_ag(
-	xfs_bmalloca_t	*ap,
-	xfs_agnumber_t	*agp)
+	struct xfs_bmalloca	*ap,
+	xfs_agnumber_t		*agp)
 {
 	int		flags, err;
 	xfs_inode_t	*ip, *pip = NULL;

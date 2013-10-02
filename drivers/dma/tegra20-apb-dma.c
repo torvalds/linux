@@ -767,13 +767,11 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	unsigned long flags;
 	unsigned int residual;
 
-	spin_lock_irqsave(&tdc->lock, flags);
-
 	ret = dma_cookie_status(dc, cookie, txstate);
-	if (ret == DMA_SUCCESS) {
-		spin_unlock_irqrestore(&tdc->lock, flags);
+	if (ret == DMA_SUCCESS)
 		return ret;
-	}
+
+	spin_lock_irqsave(&tdc->lock, flags);
 
 	/* Check on wait_ack desc status */
 	list_for_each_entry(dma_desc, &tdc->free_dma_desc, node) {

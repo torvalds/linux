@@ -391,9 +391,9 @@ clamp (double x)
 	else               return r;
 }
 
-y1 = (255 / 219.0) * (Y1 - 16);
-pb = (255 / 224.0) * (Cb - 128);
-pr = (255 / 224.0) * (Cr - 128);
+y1 = (Y1 - 16) / 219.0;
+pb = (Cb - 128) / 224.0;
+pr = (Cr - 128) / 224.0;
 
 r = 1.0 * y1 + 0     * pb + 1.402 * pr;
 g = 1.0 * y1 - 0.344 * pb - 0.714 * pr;
@@ -718,6 +718,7 @@ information.</para>
     &sub-nv12m;
     &sub-nv12mt;
     &sub-nv16;
+    &sub-nv16m;
     &sub-nv24;
     &sub-m420;
   </section>

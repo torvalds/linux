@@ -232,7 +232,6 @@ static int __exit amiga_parallel_remove(struct platform_device *pdev)
 	if (port->irq != PARPORT_IRQ_NONE)
 		free_irq(IRQ_AMIGA_CIAA_FLG, port);
 	parport_put_port(port);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

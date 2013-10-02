@@ -25,6 +25,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
@@ -136,11 +137,7 @@ static unsigned int ipv4_confirm(unsigned int hooknum,
 	/* adjust seqs for loopback traffic only in outgoing direction */
 	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status) &&
 	    !nf_is_loopback_packet(skb)) {
-		typeof(nf_nat_seq_adjust_hook) seq_adjust;
-
-		seq_adjust = rcu_dereference(nf_nat_seq_adjust_hook);
-		if (!seq_adjust ||
-		    !seq_adjust(skb, ct, ctinfo, ip_hdrlen(skb))) {
+		if (!nf_ct_seq_adjust(skb, ct, ctinfo, ip_hdrlen(skb))) {
 			NF_CT_STAT_INC_ATOMIC(nf_ct_net(ct), drop);
 			return NF_DROP;
 		}

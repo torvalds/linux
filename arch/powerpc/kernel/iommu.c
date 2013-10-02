@@ -105,7 +105,7 @@ static int __init fail_iommu_debugfs(void)
 	struct dentry *dir = fault_create_debugfs_attr("fail_iommu",
 						       NULL, &fail_iommu);
 
-	return PTR_RET(dir);
+	return PTR_ERR_OR_ZERO(dir);
 }
 late_initcall(fail_iommu_debugfs);
 

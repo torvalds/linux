@@ -934,7 +934,7 @@ static int serial_polled;
  ******************************************************************************
  */
 
-static int mpsc_rx_intr(struct mpsc_port_info *pi)
+static int mpsc_rx_intr(struct mpsc_port_info *pi, unsigned long *flags)
 {
 	struct mpsc_rx_desc *rxre;
 	struct tty_port *port = &pi->port.state->port;
@@ -969,8 +969,11 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 #endif
 		/* Following use of tty struct directly is deprecated */
 		if (tty_buffer_request_room(port, bytes_in) < bytes_in) {
-			if (port->low_latency)
+			if (port->low_latency) {
+				spin_unlock_irqrestore(&pi->port.lock, *flags);
 				tty_flip_buffer_push(port);
+				spin_lock_irqsave(&pi->port.lock, *flags);
+			}
 			/*
 			 * If this failed then we will throw away the bytes
 			 * but must do so to clear interrupts.
@@ -1080,7 +1083,9 @@ next_frame:
 	if ((readl(pi->sdma_base + SDMA_SDCM) & SDMA_SDCM_ERD) == 0)
 		mpsc_start_rx(pi);
 
+	spin_unlock_irqrestore(&pi->port.lock, *flags);
 	tty_flip_buffer_push(port);
+	spin_lock_irqsave(&pi->port.lock, *flags);
 	return rc;
 }
 
@@ -1222,7 +1227,7 @@ static irqreturn_t mpsc_sdma_intr(int irq, void *dev_id)
 
 	spin_lock_irqsave(&pi->port.lock, iflags);
 	mpsc_sdma_intr_ack(pi);
-	if (mpsc_rx_intr(pi))
+	if (mpsc_rx_intr(pi, &iflags))
 		rc = IRQ_HANDLED;
 	if (mpsc_tx_intr(pi))
 		rc = IRQ_HANDLED;
@@ -1884,7 +1889,7 @@ static int mpsc_shared_drv_probe(struct platform_device *dev)
 	if (dev->id == 0) {
 		if (!(rc = mpsc_shared_map_regs(dev))) {
 			pdata = (struct mpsc_shared_pdata *)
-				dev->dev.platform_data;
+				dev_get_platdata(&dev->dev);
 
 			mpsc_shared_regs.MPSC_MRR_m = pdata->mrr_val;
 			mpsc_shared_regs.MPSC_RCRR_m= pdata->rcrr_val;
@@ -2025,7 +2030,7 @@ static void mpsc_drv_get_platform_data(struct mpsc_port_info *pi,
 {
 	struct mpsc_pdata	*pdata;
 
-	pdata = (struct mpsc_pdata *)pd->dev.platform_data;
+	pdata = (struct mpsc_pdata *)dev_get_platdata(&pd->dev);
 
 	pi->port.uartclk = pdata->brg_clk_freq;
 	pi->port.iotype = UPIO_MEM;

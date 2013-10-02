@@ -174,6 +174,9 @@ static int ti_thermal_set_mode(struct thermal_zone_device *thermal,
 			       enum thermal_device_mode mode)
 {
 	struct ti_thermal_data *data = thermal->devdata;
+	struct ti_bandgap *bgp;
+
+	bgp = data->bgp;
 
 	if (!data->ti_thermal) {
 		dev_notice(&thermal->device, "thermal zone not registered\n");
@@ -190,6 +193,8 @@ static int ti_thermal_set_mode(struct thermal_zone_device *thermal,
 	mutex_unlock(&data->ti_thermal->lock);
 
 	data->mode = mode;
+	ti_bandgap_write_update_interval(bgp, data->sensor_id,
+					data->ti_thermal->polling_delay);
 	thermal_zone_device_update(data->ti_thermal);
 	dev_dbg(&thermal->device, "thermal polling set for duration=%d msec\n",
 		data->ti_thermal->polling_delay);
@@ -313,6 +318,8 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 	}
 	data->ti_thermal->polling_delay = FAST_TEMP_MONITORING_RATE;
 	ti_bandgap_set_sensor_data(bgp, id, data);
+	ti_bandgap_write_update_interval(bgp, data->sensor_id,
+					data->ti_thermal->polling_delay);
 
 	return 0;
 }

@@ -399,17 +399,17 @@ static int ad7266_probe(struct spi_device *spi)
 	unsigned int i;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = regulator_get(&spi->dev, "vref");
+	st->reg = devm_regulator_get(&spi->dev, "vref");
 	if (!IS_ERR_OR_NULL(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 
 		ret = regulator_get_voltage(st->reg);
 		if (ret < 0)
@@ -489,11 +489,6 @@ error_free_gpios:
 error_disable_reg:
 	if (!IS_ERR_OR_NULL(st->reg))
 		regulator_disable(st->reg);
-error_put_reg:
-	if (!IS_ERR_OR_NULL(st->reg))
-		regulator_put(st->reg);
-
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -507,11 +502,8 @@ static int ad7266_remove(struct spi_device *spi)
 	iio_triggered_buffer_cleanup(indio_dev);
 	if (!st->fixed_addr)
 		gpio_free_array(st->gpios, ARRAY_SIZE(st->gpios));
-	if (!IS_ERR_OR_NULL(st->reg)) {
+	if (!IS_ERR_OR_NULL(st->reg))
 		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
-	iio_device_free(indio_dev);
 
 	return 0;
 }

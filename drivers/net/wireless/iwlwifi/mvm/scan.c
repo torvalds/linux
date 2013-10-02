@@ -301,10 +301,12 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	 */
 	if (req->n_ssids > 0) {
 		cmd->passive2active = cpu_to_le16(1);
+		cmd->scan_flags |= SCAN_FLAGS_PASSIVE2ACTIVE;
 		ssid = req->ssids[0].ssid;
 		ssid_len = req->ssids[0].ssid_len;
 	} else {
 		cmd->passive2active = 0;
+		cmd->scan_flags &= ~SCAN_FLAGS_PASSIVE2ACTIVE;
 	}
 
 	iwl_mvm_scan_fill_ssids(cmd, req);

@@ -1,18 +1,15 @@
 * AT91's Analog to Digital Converter (ADC)
 
 Required properties:
-  - compatible: Should be "atmel,at91sam9260-adc"
+  - compatible: Should be "atmel,<chip>-adc"
+    <chip> can be "at91sam9260", "at91sam9g45" or "at91sam9x5"
   - reg: Should contain ADC registers location and length
   - interrupts: Should contain the IRQ line for the ADC
-  - atmel,adc-channel-base: Offset of the first channel data register
   - atmel,adc-channels-used: Bitmask of the channels muxed and enable for this
     device
-  - atmel,adc-drdy-mask: Mask of the DRDY interruption in the ADC
   - atmel,adc-num-channels: Number of channels available in the ADC
   - atmel,adc-startup-time: Startup Time of the ADC in microseconds as
     defined in the datasheet
-  - atmel,adc-status-register: Offset of the Interrupt Status Register
-  - atmel,adc-trigger-register: Offset of the Trigger Register
   - atmel,adc-vref: Reference voltage in millivolts for the conversions
   - atmel,adc-res: List of resolution in bits supported by the ADC. List size
 		   must be two at least.

@@ -495,6 +495,8 @@ static int cypress_generic_port_probe(struct usb_serial_port *port)
 	}
 	usb_set_serial_port_data(port, priv);
 
+	port->port.drain_delay = 256;
+
 	return 0;
 }
 
@@ -625,7 +627,7 @@ static int cypress_open(struct tty_struct *tty, struct usb_serial_port *port)
 							__func__, result);
 		cypress_set_dead(port);
 	}
-	port->port.drain_delay = 256;
+
 	return result;
 } /* cypress_open */
 

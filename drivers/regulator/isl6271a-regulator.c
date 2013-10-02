@@ -110,7 +110,7 @@ static int isl6271a_probe(struct i2c_client *i2c,
 				     const struct i2c_device_id *id)
 {
 	struct regulator_config config = { };
-	struct regulator_init_data *init_data	= i2c->dev.platform_data;
+	struct regulator_init_data *init_data	= dev_get_platdata(&i2c->dev);
 	struct isl_pmic *pmic;
 	int err, i;
 

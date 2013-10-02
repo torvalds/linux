@@ -11,13 +11,14 @@
 
 /dts-v1/;
 /include/ "r8a7779.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "marzen";
 	compatible = "renesas,marzen-reference", "renesas,r8a7779";
 
 	chosen {
-		bootargs = "console=ttySC2,115200 earlyprintk=sh-sci.2,115200 ignore_loglevel root=/dev/nfs ip=on";
+		bootargs = "console=ttySC2,115200 earlyprintk=sh-sci.2,115200 ignore_loglevel root=/dev/nfs ip=on rw";
 	};
 
 	memory {
@@ -37,11 +38,59 @@
 	lan0@18000000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
+		pinctrl-0 = <&lan0_pins>;
+		pinctrl-names = "default";
+
 		phy-mode = "mii";
 		interrupt-parent = <&gic>;
 		interrupts = <0 28 0x4>;
 		reg-io-width = <4>;
 		vddvario-supply = <&fixedregulator3v3>;
 		vdd33a-supply = <&fixedregulator3v3>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led2 {
+			gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		};
+		led3 {
+			gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		};
+		led4 {
+			gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&pfc {
+	pinctrl-0 = <&scif2_pins &scif4_pins &sdhi0_pins>;
+	pinctrl-names = "default";
+
+	lan0_pins: lan0 {
+		intc {
+			renesas,groups = "intc_irq1_b";
+			renesas,function = "intc";
+		};
+		lbsc {
+			renesas,groups = "lbsc_ex_cs0";
+			renesas,function = "lbsc";
+		};
+	};
+
+	scif2_pins: scif2 {
+		renesas,groups = "scif2_data_c";
+		renesas,function = "scif2";
+	};
+
+	scif4_pins: scif4 {
+		renesas,groups = "scif4_data";
+		renesas,function = "scif4";
+	};
+
+	sdhi0_pins: sdhi0 {
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd",
+				 "sdhi0_wp";
+		renesas,function = "sdhi0";
 	};
 };

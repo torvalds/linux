@@ -22,22 +22,15 @@
 #include "comet.h"
 #include "comet_tables.h"
 
-#ifdef SBE_INCLUDE_SYMBOLS
-#define STATIC
-#else
-#define STATIC  static
-#endif
-
-
 extern int  cxt1e1_log_level;
 
 #define COMET_NUM_SAMPLES   24  /* Number of entries in the waveform table */
 #define COMET_NUM_UNITS     5   /* Number of points per entry in table */
 
 /* forward references */
-STATIC void SetPwrLevel(comet_t *comet);
-STATIC void WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table);
-STATIC void WrtXmtWaveformTbl(ci_t *ci, comet_t *comet, u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS]);
+static void SetPwrLevel(comet_t *comet);
+static void WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table);
+static void WrtXmtWaveformTbl(ci_t *ci, comet_t *comet, u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS]);
 
 
 void       *TWV_table[12] = {
@@ -407,7 +400,7 @@ void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
 **                Write the data to the Pulse Waveform Storage Data register.
 ** Returns:     Nothing
 */
-STATIC void
+static void
 WrtXmtWaveform(ci_t *ci, comet_t *comet, u_int32_t sample, u_int32_t unit, u_int8_t data)
 {
 	u_int8_t    WaveformAddr;
@@ -425,7 +418,7 @@ WrtXmtWaveform(ci_t *ci, comet_t *comet, u_int32_t sample, u_int32_t unit, u_int
 **                for driving the transmitter DAC.
 ** Returns:     Nothing
 */
-STATIC void
+static void
 WrtXmtWaveformTbl(ci_t *ci, comet_t *comet,
 		  u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS])
 {
@@ -452,7 +445,7 @@ WrtXmtWaveformTbl(ci_t *ci, comet_t *comet,
 **           is coded with early setup of indirect address.
 */
 
-STATIC void
+static void
 WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table)
 {
 	u_int32_t   ramaddr;
@@ -516,7 +509,7 @@ WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table)
 ** Returns:     Nothing
 */
 
-STATIC void
+static void
 SetPwrLevel(comet_t *comet)
 {
 	volatile u_int32_t temp;
@@ -558,7 +551,7 @@ SetPwrLevel(comet_t *comet)
 ** Returns:     Nothing
 */
 #if 0
-STATIC void
+static void
 SetCometOps(comet_t *comet)
 {
 	volatile u_int8_t rd_value;

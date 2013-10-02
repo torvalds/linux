@@ -44,6 +44,9 @@ TODO:
 	Support use of both banks X and Y
 */
 
+#include <linux/module.h>
+#include <linux/slab.h>
+
 #include "ni_tio_internal.h"
 
 static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,

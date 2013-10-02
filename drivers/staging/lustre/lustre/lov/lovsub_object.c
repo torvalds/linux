@@ -61,7 +61,6 @@ int lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
 
 	int result;
 
-	ENTRY;
 	under = &dev->acid_next->cd_lu_dev;
 	below = under->ld_ops->ldo_object_alloc(env, obj->lo_header, under);
 	if (below != NULL) {
@@ -70,7 +69,7 @@ int lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
 		result = 0;
 	} else
 		result = -ENOMEM;
-	RETURN(result);
+	return result;
 
 }
 
@@ -78,7 +77,6 @@ static void lovsub_object_free(const struct lu_env *env, struct lu_object *obj)
 {
 	struct lovsub_object *los = lu2lovsub(obj);
 	struct lov_object    *lov = los->lso_super;
-	ENTRY;
 
 	/* We can't assume lov was assigned here, because of the shadow
 	 * object handling in lu_object_find.
@@ -94,7 +92,6 @@ static void lovsub_object_free(const struct lu_env *env, struct lu_object *obj)
 	lu_object_fini(obj);
 	lu_object_header_fini(&los->lso_header.coh_lu);
 	OBD_SLAB_FREE_PTR(los, lovsub_object_kmem);
-	EXIT;
 }
 
 static int lovsub_object_print(const struct lu_env *env, void *cookie,
@@ -110,9 +107,8 @@ static int lovsub_attr_set(const struct lu_env *env, struct cl_object *obj,
 {
 	struct lov_object *lov = cl2lovsub(obj)->lso_super;
 
-	ENTRY;
 	lov_r0(lov)->lo_attr_valid = 0;
-	RETURN(0);
+	return 0;
 }
 
 static int lovsub_object_glimpse(const struct lu_env *env,
@@ -121,8 +117,7 @@ static int lovsub_object_glimpse(const struct lu_env *env,
 {
 	struct lovsub_object *los = cl2lovsub(obj);
 
-	ENTRY;
-	RETURN(cl_object_glimpse(env, &los->lso_super->lo_cl, lvb));
+	return cl_object_glimpse(env, &los->lso_super->lo_cl, lvb);
 }
 
 
@@ -150,7 +145,6 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 	struct lovsub_object *los;
 	struct lu_object     *obj;
 
-	ENTRY;
 	OBD_SLAB_ALLOC_PTR_GFP(los, lovsub_object_kmem, __GFP_IO);
 	if (los != NULL) {
 		struct cl_object_header *hdr;
@@ -164,7 +158,7 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 		obj->lo_ops = &lovsub_lu_obj_ops;
 	} else
 		obj = NULL;
-	RETURN(obj);
+	return obj;
 }
 
 /** @} lov */

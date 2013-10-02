@@ -56,6 +56,7 @@
 #include <net/transp_v6.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
+#include <net/ndisc.h>
 #ifdef CONFIG_IPV6_TUNNEL
 #include <net/ip6_tunnel.h>
 #endif
@@ -766,6 +767,7 @@ static int __net_init inet6_net_init(struct net *net)
 
 	net->ipv6.sysctl.bindv6only = 0;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
+	atomic_set(&net->ipv6.rt_genid, 0);
 
 	err = ipv6_init_mibs(net);
 	if (err)
@@ -807,6 +809,15 @@ static void __net_exit inet6_net_exit(struct net *net)
 static struct pernet_operations inet6_net_ops = {
 	.init = inet6_net_init,
 	.exit = inet6_net_exit,
+};
+
+static const struct ipv6_stub ipv6_stub_impl = {
+	.ipv6_sock_mc_join = ipv6_sock_mc_join,
+	.ipv6_sock_mc_drop = ipv6_sock_mc_drop,
+	.ipv6_dst_lookup = ip6_dst_lookup,
+	.udpv6_encap_enable = udpv6_encap_enable,
+	.ndisc_send_na = ndisc_send_na,
+	.nd_tbl	= &nd_tbl,
 };
 
 static int __init inet6_init(void)
@@ -883,6 +894,9 @@ static int __init inet6_init(void)
 	err = igmp6_init();
 	if (err)
 		goto igmp_fail;
+
+	ipv6_stub = &ipv6_stub_impl;
+
 	err = ipv6_netfilter_init();
 	if (err)
 		goto netfilter_fail;
@@ -901,6 +915,9 @@ static int __init inet6_init(void)
 	err = ip6_route_init();
 	if (err)
 		goto ip6_route_fail;
+	err = ndisc_late_init();
+	if (err)
+		goto ndisc_late_fail;
 	err = ip6_flowlabel_init();
 	if (err)
 		goto ip6_flowlabel_fail;
@@ -967,6 +984,8 @@ ipv6_exthdrs_fail:
 addrconf_fail:
 	ip6_flowlabel_cleanup();
 ip6_flowlabel_fail:
+	ndisc_late_cleanup();
+ndisc_late_fail:
 	ip6_route_cleanup();
 ip6_route_fail:
 #ifdef CONFIG_PROC_FS
@@ -1029,6 +1048,7 @@ static void __exit inet6_exit(void)
 	ipv6_exthdrs_exit();
 	addrconf_cleanup();
 	ip6_flowlabel_cleanup();
+	ndisc_late_cleanup();
 	ip6_route_cleanup();
 #ifdef CONFIG_PROC_FS
 
@@ -1039,6 +1059,7 @@ static void __exit inet6_exit(void)
 	raw6_proc_exit();
 #endif
 	ipv6_netfilter_fini();
+	ipv6_stub = NULL;
 	igmp6_cleanup();
 	ndisc_cleanup();
 	ip6_mr_cleanup();

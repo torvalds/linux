@@ -157,7 +157,7 @@ static int pm860x_led_dt_init(struct platform_device *pdev,
 static int pm860x_led_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_led_pdata *pdata = pdev->dev.platform_data;
+	struct pm860x_led_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct pm860x_led *data;
 	struct resource *res;
 	int ret = 0;

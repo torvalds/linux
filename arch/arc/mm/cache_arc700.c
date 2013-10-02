@@ -622,12 +622,12 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 /*
  * General purpose helper to make I and D cache lines consistent.
  * @paddr is phy addr of region
- * @vaddr is typically user or kernel vaddr (vmalloc)
- *    Howver in one instance, flush_icache_range() by kprobe (for a breakpt in
+ * @vaddr is typically user vaddr (breakpoint) or kernel vaddr (vmalloc)
+ *    However in one instance, when called by kprobe (for a breakpt in
  *    builtin kernel code) @vaddr will be paddr only, meaning CDU operation will
  *    use a paddr to index the cache (despite VIPT). This is fine since since a
- *    built-in kernel page will not have any virtual mappings (not even kernel)
- *    kprobe on loadable module is different as it will have kvaddr.
+ *    builtin kernel page will not have any virtual mappings.
+ *    kprobe on loadable module will be kernel vaddr.
  */
 void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len)
 {

@@ -94,6 +94,15 @@ static const u32 uarts_sam9x5[] = {
 	0,
 };
 
+static const u32 uarts_sama5[] = {
+	AT91_BASE_DBGU1,
+	SAMA5D3_BASE_USART0,
+	SAMA5D3_BASE_USART1,
+	SAMA5D3_BASE_USART2,
+	SAMA5D3_BASE_USART3,
+	0,
+};
+
 static inline const u32* decomp_soc_detect(void __iomem *dbgu_base)
 {
 	u32 cidr, socid;
@@ -121,8 +130,12 @@ static inline const u32* decomp_soc_detect(void __iomem *dbgu_base)
 	case ARCH_ID_AT91SAM9RL64:
 		return uarts_sam9rl;
 
+	case ARCH_ID_AT91SAM9N12:
 	case ARCH_ID_AT91SAM9X5:
 		return uarts_sam9x5;
+
+	case ARCH_ID_SAMA5D3:
+		return uarts_sama5;
 	}
 
 	/* at91sam9g10 */

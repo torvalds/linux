@@ -123,14 +123,14 @@ static int irtty_change_speed(struct sir_dev *dev, unsigned speed)
 
 	tty = priv->tty;
 
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	old_termios = tty->termios;
 	cflag = tty->termios.c_cflag;
 	tty_encode_baud_rate(tty, speed, speed);
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);
 	priv->io.speed = speed;
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 
 	return 0;
 }
@@ -280,7 +280,7 @@ static inline void irtty_stop_receiver(struct tty_struct *tty, int stop)
 	struct ktermios old_termios;
 	int cflag;
 
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	old_termios = tty->termios;
 	cflag = tty->termios.c_cflag;
 	
@@ -292,7 +292,7 @@ static inline void irtty_stop_receiver(struct tty_struct *tty, int stop)
 	tty->termios.c_cflag = cflag;
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 }
 
 /*****************************************************************/

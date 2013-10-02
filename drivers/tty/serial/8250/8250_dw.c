@@ -57,10 +57,24 @@
 
 struct dw8250_data {
 	int		last_lcr;
+	int		last_mcr;
 	int		line;
 	struct clk	*clk;
 	u8		usr_reg;
 };
+
+static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
+{
+	struct dw8250_data *d = p->private_data;
+
+	/* If reading MSR, report CTS asserted when auto-CTS/RTS enabled */
+	if (offset == UART_MSR && d->last_mcr & UART_MCR_AFE) {
+		value |= UART_MSR_CTS;
+		value &= ~UART_MSR_DCTS;
+	}
+
+	return value;
+}
 
 static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 {
@@ -69,15 +83,17 @@ static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 	if (offset == UART_LCR)
 		d->last_lcr = value;
 
-	offset <<= p->regshift;
-	writeb(value, p->membase + offset);
+	if (offset == UART_MCR)
+		d->last_mcr = value;
+
+	writeb(value, p->membase + (offset << p->regshift));
 }
 
 static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
 {
-	offset <<= p->regshift;
+	unsigned int value = readb(p->membase + (offset << p->regshift));
 
-	return readb(p->membase + offset);
+	return dw8250_modify_msr(p, offset, value);
 }
 
 /* Read Back (rb) version to ensure register access ording. */
@@ -94,15 +110,17 @@ static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 	if (offset == UART_LCR)
 		d->last_lcr = value;
 
-	offset <<= p->regshift;
-	writel(value, p->membase + offset);
+	if (offset == UART_MCR)
+		d->last_mcr = value;
+
+	writel(value, p->membase + (offset << p->regshift));
 }
 
 static unsigned int dw8250_serial_in32(struct uart_port *p, int offset)
 {
-	offset <<= p->regshift;
+	unsigned int value = readl(p->membase + (offset << p->regshift));
 
-	return readl(p->membase + offset);
+	return dw8250_modify_msr(p, offset, value);
 }
 
 static int dw8250_handle_irq(struct uart_port *p)

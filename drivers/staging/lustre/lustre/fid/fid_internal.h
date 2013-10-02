@@ -41,44 +41,16 @@
 #define __FID_INTERNAL_H
 
 #include <lustre/lustre_idl.h>
-#include <dt_object.h>
-
 #include <linux/libcfs/libcfs.h>
 
-struct seq_thread_info {
-	struct req_capsule     *sti_pill;
-	struct lu_seq_range     sti_space;
-	struct lu_buf	   sti_buf;
-};
-
-enum {
-	SEQ_TXN_STORE_CREDITS = 20
-};
-
-extern struct lu_context_key seq_thread_key;
-
+/* Functions used internally in module. */
 int seq_client_alloc_super(struct lu_client_seq *seq,
 			   const struct lu_env *env);
-/* Store API functions. */
-int seq_store_init(struct lu_server_seq *seq,
-		   const struct lu_env *env,
-		   struct dt_device *dt);
 
-void seq_store_fini(struct lu_server_seq *seq,
-		    const struct lu_env *env);
-
-int seq_store_read(struct lu_server_seq *seq,
-		   const struct lu_env *env);
-
-int seq_store_update(const struct lu_env *env, struct lu_server_seq *seq,
-		     struct lu_seq_range *out, int sync);
-
-#ifdef LPROCFS
-extern struct lprocfs_vars seq_server_proc_list[];
+# ifdef LPROCFS
 extern struct lprocfs_vars seq_client_proc_list[];
-#endif
+# endif
 
-
-extern proc_dir_entry_t *seq_type_proc_dir;
+extern struct proc_dir_entry *seq_type_proc_dir;
 
 #endif /* __FID_INTERNAL_H */

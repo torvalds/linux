@@ -190,7 +190,6 @@ static const struct file_operations ast_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = ast_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
 #endif
@@ -198,7 +197,7 @@ static const struct file_operations ast_fops = {
 };
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_USE_MTRR | DRIVER_MODESET | DRIVER_GEM,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.dev_priv_size = 0,
 
 	.load = ast_driver_load,
@@ -216,7 +215,7 @@ static struct drm_driver driver = {
 	.gem_free_object = ast_gem_free_object,
 	.dumb_create = ast_dumb_create,
 	.dumb_map_offset = ast_dumb_mmap_offset,
-	.dumb_destroy = ast_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 
 };
 

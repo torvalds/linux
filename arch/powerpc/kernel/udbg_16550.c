@@ -18,23 +18,19 @@ extern void real_writeb(u8 data, volatile u8 __iomem *addr);
 extern u8 real_205_readb(volatile u8 __iomem  *addr);
 extern void real_205_writeb(u8 data, volatile u8 __iomem *addr);
 
-struct NS16550 {
-	/* this struct must be packed */
-	unsigned char rbr;  /* 0 */
-	unsigned char ier;  /* 1 */
-	unsigned char fcr;  /* 2 */
-	unsigned char lcr;  /* 3 */
-	unsigned char mcr;  /* 4 */
-	unsigned char lsr;  /* 5 */
-	unsigned char msr;  /* 6 */
-	unsigned char scr;  /* 7 */
-};
-
-#define thr rbr
-#define iir fcr
-#define dll rbr
-#define dlm ier
-#define dlab lcr
+#define UART_RBR	0
+#define UART_IER	1
+#define UART_FCR	2
+#define UART_LCR	3
+#define UART_MCR	4
+#define UART_LSR	5
+#define UART_MSR	6
+#define UART_SCR	7
+#define UART_THR	UART_RBR
+#define UART_IIR	UART_FCR
+#define UART_DLL	UART_RBR
+#define UART_DLM	UART_IER
+#define UART_DLAB	UART_LCR
 
 #define LSR_DR   0x01  /* Data ready */
 #define LSR_OE   0x02  /* Overrun */
@@ -47,51 +43,61 @@ struct NS16550 {
 
 #define LCR_DLAB 0x80
 
-static struct NS16550 __iomem *udbg_comport;
+static u8 (*udbg_uart_in)(unsigned int reg);
+static void (*udbg_uart_out)(unsigned int reg, u8 data);
 
-static void udbg_550_flush(void)
+static void udbg_uart_flush(void)
 {
-	if (udbg_comport) {
-		while ((in_8(&udbg_comport->lsr) & LSR_THRE) == 0)
-			/* wait for idle */;
-	}
+	if (!udbg_uart_in)
+		return;
+
+	/* wait for idle */
+	while ((udbg_uart_in(UART_LSR) & LSR_THRE) == 0)
+		cpu_relax();
 }
 
-static void udbg_550_putc(char c)
+static void udbg_uart_putc(char c)
 {
-	if (udbg_comport) {
-		if (c == '\n')
-			udbg_550_putc('\r');
-		udbg_550_flush();
-		out_8(&udbg_comport->thr, c);
-	}
+	if (!udbg_uart_out)
+		return;
+
+	if (c == '\n')
+		udbg_uart_putc('\r');
+	udbg_uart_flush();
+	udbg_uart_out(UART_THR, c);
 }
 
-static int udbg_550_getc_poll(void)
+static int udbg_uart_getc_poll(void)
 {
-	if (udbg_comport) {
-		if ((in_8(&udbg_comport->lsr) & LSR_DR) != 0)
-			return in_8(&udbg_comport->rbr);
-		else
-			return -1;
-	}
+	if (!udbg_uart_in || !(udbg_uart_in(UART_LSR) & LSR_DR))
+		return udbg_uart_in(UART_RBR);
 	return -1;
 }
 
-static int udbg_550_getc(void)
+static int udbg_uart_getc(void)
 {
-	if (udbg_comport) {
-		while ((in_8(&udbg_comport->lsr) & LSR_DR) == 0)
-			/* wait for char */;
-		return in_8(&udbg_comport->rbr);
-	}
-	return -1;
+	if (!udbg_uart_in)
+		return -1;
+	/* wait for char */
+	while (!(udbg_uart_in(UART_LSR) & LSR_DR))
+		cpu_relax();
+	return udbg_uart_in(UART_RBR);
 }
 
-void udbg_init_uart(void __iomem *comport, unsigned int speed,
-		    unsigned int clock)
+static void udbg_use_uart(void)
+{
+	udbg_putc = udbg_uart_putc;
+	udbg_flush = udbg_uart_flush;
+	udbg_getc = udbg_uart_getc;
+	udbg_getc_poll = udbg_uart_getc_poll;
+}
+
+void udbg_uart_setup(unsigned int speed, unsigned int clock)
 {
 	unsigned int dll, base_bauds;
+
+	if (!udbg_uart_out)
+		return;
 
 	if (clock == 0)
 		clock = 1843200;
@@ -101,51 +107,43 @@ void udbg_init_uart(void __iomem *comport, unsigned int speed,
 	base_bauds = clock / 16;
 	dll = base_bauds / speed;
 
-	if (comport) {
-		udbg_comport = (struct NS16550 __iomem *)comport;
-		out_8(&udbg_comport->lcr, 0x00);
-		out_8(&udbg_comport->ier, 0xff);
-		out_8(&udbg_comport->ier, 0x00);
-		out_8(&udbg_comport->lcr, LCR_DLAB);
-		out_8(&udbg_comport->dll, dll & 0xff);
-		out_8(&udbg_comport->dlm, dll >> 8);
-		/* 8 data, 1 stop, no parity */
-		out_8(&udbg_comport->lcr, 0x03);
-		/* RTS/DTR */
-		out_8(&udbg_comport->mcr, 0x03);
-		/* Clear & enable FIFOs */
-		out_8(&udbg_comport->fcr ,0x07);
-		udbg_putc = udbg_550_putc;
-		udbg_flush = udbg_550_flush;
-		udbg_getc = udbg_550_getc;
-		udbg_getc_poll = udbg_550_getc_poll;
-	}
+	udbg_uart_out(UART_LCR, 0x00);
+	udbg_uart_out(UART_IER, 0xff);
+	udbg_uart_out(UART_IER, 0x00);
+	udbg_uart_out(UART_LCR, LCR_DLAB);
+	udbg_uart_out(UART_DLL, dll & 0xff);
+	udbg_uart_out(UART_DLM, dll >> 8);
+	/* 8 data, 1 stop, no parity */
+	udbg_uart_out(UART_LCR, 0x3);
+	/* RTS/DTR */
+	udbg_uart_out(UART_MCR, 0x3);
+	/* Clear & enable FIFOs */
+	udbg_uart_out(UART_FCR, 0x7);
 }
 
-unsigned int udbg_probe_uart_speed(void __iomem *comport, unsigned int clock)
+unsigned int udbg_probe_uart_speed(unsigned int clock)
 {
 	unsigned int dll, dlm, divisor, prescaler, speed;
 	u8 old_lcr;
-	struct NS16550 __iomem *port = comport;
 
-	old_lcr = in_8(&port->lcr);
+	old_lcr = udbg_uart_in(UART_LCR);
 
 	/* select divisor latch registers.  */
-	out_8(&port->lcr, LCR_DLAB);
+	udbg_uart_out(UART_LCR, old_lcr | LCR_DLAB);
 
 	/* now, read the divisor */
-	dll = in_8(&port->dll);
-	dlm = in_8(&port->dlm);
+	dll = udbg_uart_in(UART_DLL);
+	dlm = udbg_uart_in(UART_DLM);
 	divisor = dlm << 8 | dll;
 
 	/* check prescaling */
-	if (in_8(&port->mcr) & 0x80)
+	if (udbg_uart_in(UART_MCR) & 0x80)
 		prescaler = 4;
 	else
 		prescaler = 1;
 
 	/* restore the LCR */
-	out_8(&port->lcr, old_lcr);
+	udbg_uart_out(UART_LCR, old_lcr);
 
 	/* calculate speed */
 	speed = (clock / prescaler) / (divisor * 16);
@@ -157,195 +155,155 @@ unsigned int udbg_probe_uart_speed(void __iomem *comport, unsigned int clock)
 	return speed;
 }
 
-#ifdef CONFIG_PPC_MAPLE
-void udbg_maple_real_flush(void)
+static union {
+	unsigned char __iomem *mmio_base;
+	unsigned long pio_base;
+} udbg_uart;
+
+static unsigned int udbg_uart_stride = 1;
+
+static u8 udbg_uart_in_pio(unsigned int reg)
 {
-	if (udbg_comport) {
-		while ((real_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
-			/* wait for idle */;
-	}
+	return inb(udbg_uart.pio_base + (reg * udbg_uart_stride));
 }
 
-void udbg_maple_real_putc(char c)
+static void udbg_uart_out_pio(unsigned int reg, u8 data)
 {
-	if (udbg_comport) {
-		if (c == '\n')
-			udbg_maple_real_putc('\r');
-		udbg_maple_real_flush();
-		real_writeb(c, &udbg_comport->thr); eieio();
-	}
+	outb(data, udbg_uart.pio_base + (reg * udbg_uart_stride));
+}
+
+void udbg_uart_init_pio(unsigned long port, unsigned int stride)
+{
+	if (!port)
+		return;
+	udbg_uart.pio_base = port;
+	udbg_uart_stride = stride;
+	udbg_uart_in = udbg_uart_in_pio;
+	udbg_uart_out = udbg_uart_out_pio;
+	udbg_use_uart();
+}
+
+static u8 udbg_uart_in_mmio(unsigned int reg)
+{
+	return in_8(udbg_uart.mmio_base + (reg * udbg_uart_stride));
+}
+
+static void udbg_uart_out_mmio(unsigned int reg, u8 data)
+{
+	out_8(udbg_uart.mmio_base + (reg * udbg_uart_stride), data);
+}
+
+
+void udbg_uart_init_mmio(void __iomem *addr, unsigned int stride)
+{
+	if (!addr)
+		return;
+	udbg_uart.mmio_base = addr;
+	udbg_uart_stride = stride;
+	udbg_uart_in = udbg_uart_in_mmio;
+	udbg_uart_out = udbg_uart_out_mmio;
+	udbg_use_uart();
+}
+
+#ifdef CONFIG_PPC_MAPLE
+
+#define UDBG_UART_MAPLE_ADDR	((void __iomem *)0xf40003f8)
+
+static u8 udbg_uart_in_maple(unsigned int reg)
+{
+	return real_readb(UDBG_UART_MAPLE_ADDR + reg);
+}
+
+static void udbg_uart_out_maple(unsigned int reg, u8 val)
+{
+	real_writeb(val, UDBG_UART_MAPLE_ADDR + reg);
 }
 
 void __init udbg_init_maple_realmode(void)
 {
-	udbg_comport = (struct NS16550 __iomem *)0xf40003f8;
-
-	udbg_putc = udbg_maple_real_putc;
-	udbg_flush = udbg_maple_real_flush;
-	udbg_getc = NULL;
-	udbg_getc_poll = NULL;
+	udbg_uart_in = udbg_uart_in_maple;
+	udbg_uart_out = udbg_uart_out_maple;
+	udbg_use_uart();
 }
+
 #endif /* CONFIG_PPC_MAPLE */
 
 #ifdef CONFIG_PPC_PASEMI
-void udbg_pas_real_flush(void)
+
+#define UDBG_UART_PAS_ADDR	((void __iomem *)0xfcff03f8UL)
+
+static u8 udbg_uart_in_pas(unsigned int reg)
 {
-	if (udbg_comport) {
-		while ((real_205_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
-			/* wait for idle */;
-	}
+	return real_205_readb(UDBG_UART_PAS_ADDR + reg);
 }
 
-void udbg_pas_real_putc(char c)
+static void udbg_uart_out_pas(unsigned int reg, u8 val)
 {
-	if (udbg_comport) {
-		if (c == '\n')
-			udbg_pas_real_putc('\r');
-		udbg_pas_real_flush();
-		real_205_writeb(c, &udbg_comport->thr); eieio();
-	}
+	real_205_writeb(val, UDBG_UART_PAS_ADDR + reg);
 }
 
-void udbg_init_pas_realmode(void)
+void __init udbg_init_pas_realmode(void)
 {
-	udbg_comport = (struct NS16550 __iomem *)0xfcff03f8UL;
-
-	udbg_putc = udbg_pas_real_putc;
-	udbg_flush = udbg_pas_real_flush;
-	udbg_getc = NULL;
-	udbg_getc_poll = NULL;
+	udbg_uart_in = udbg_uart_in_pas;
+	udbg_uart_out = udbg_uart_out_pas;
+	udbg_use_uart();
 }
-#endif /* CONFIG_PPC_MAPLE */
+
+#endif /* CONFIG_PPC_PASEMI */
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_44x
+
 #include <platforms/44x/44x.h>
 
-static void udbg_44x_as1_flush(void)
+static u8 udbg_uart_in_44x_as1(unsigned int reg)
 {
-	if (udbg_comport) {
-		while ((as1_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
-			/* wait for idle */;
-	}
+	return as1_readb((void __iomem *)PPC44x_EARLY_DEBUG_VIRTADDR + reg);
 }
 
-static void udbg_44x_as1_putc(char c)
+static void udbg_uart_out_44x_as1(unsigned int reg, u8 val)
 {
-	if (udbg_comport) {
-		if (c == '\n')
-			udbg_44x_as1_putc('\r');
-		udbg_44x_as1_flush();
-		as1_writeb(c, &udbg_comport->thr); eieio();
-	}
-}
-
-static int udbg_44x_as1_getc(void)
-{
-	if (udbg_comport) {
-		while ((as1_readb(&udbg_comport->lsr) & LSR_DR) == 0)
-			; /* wait for char */
-		return as1_readb(&udbg_comport->rbr);
-	}
-	return -1;
+	as1_writeb(val, (void __iomem *)PPC44x_EARLY_DEBUG_VIRTADDR + reg);
 }
 
 void __init udbg_init_44x_as1(void)
 {
-	udbg_comport =
-		(struct NS16550 __iomem *)PPC44x_EARLY_DEBUG_VIRTADDR;
-
-	udbg_putc = udbg_44x_as1_putc;
-	udbg_flush = udbg_44x_as1_flush;
-	udbg_getc = udbg_44x_as1_getc;
+	udbg_uart_in = udbg_uart_in_44x_as1;
+	udbg_uart_out = udbg_uart_out_44x_as1;
+	udbg_use_uart();
 }
+
 #endif /* CONFIG_PPC_EARLY_DEBUG_44x */
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_40x
-static void udbg_40x_real_flush(void)
+
+static u8 udbg_uart_in_40x(unsigned int reg)
 {
-	if (udbg_comport) {
-		while ((real_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
-			/* wait for idle */;
-	}
+	return real_readb((void __iomem *)CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR
+			  + reg);
 }
 
-static void udbg_40x_real_putc(char c)
+static void udbg_uart_out_40x(unsigned int reg, u8 val)
 {
-	if (udbg_comport) {
-		if (c == '\n')
-			udbg_40x_real_putc('\r');
-		udbg_40x_real_flush();
-		real_writeb(c, &udbg_comport->thr); eieio();
-	}
-}
-
-static int udbg_40x_real_getc(void)
-{
-	if (udbg_comport) {
-		while ((real_readb(&udbg_comport->lsr) & LSR_DR) == 0)
-			; /* wait for char */
-		return real_readb(&udbg_comport->rbr);
-	}
-	return -1;
+	real_writeb(val, (void __iomem *)CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR
+		    + reg);
 }
 
 void __init udbg_init_40x_realmode(void)
 {
-	udbg_comport = (struct NS16550 __iomem *)
-		CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR;
-
-	udbg_putc = udbg_40x_real_putc;
-	udbg_flush = udbg_40x_real_flush;
-	udbg_getc = udbg_40x_real_getc;
-	udbg_getc_poll = NULL;
+	udbg_uart_in = udbg_uart_in_40x;
+	udbg_uart_out = udbg_uart_out_40x;
+	udbg_use_uart();
 }
+
 #endif /* CONFIG_PPC_EARLY_DEBUG_40x */
 
+
 #ifdef CONFIG_PPC_EARLY_DEBUG_WSP
-static void udbg_wsp_flush(void)
-{
-	if (udbg_comport) {
-		while ((readb(&udbg_comport->lsr) & LSR_THRE) == 0)
-			/* wait for idle */;
-	}
-}
-
-static void udbg_wsp_putc(char c)
-{
-	if (udbg_comport) {
-		if (c == '\n')
-			udbg_wsp_putc('\r');
-		udbg_wsp_flush();
-		writeb(c, &udbg_comport->thr); eieio();
-	}
-}
-
-static int udbg_wsp_getc(void)
-{
-	if (udbg_comport) {
-		while ((readb(&udbg_comport->lsr) & LSR_DR) == 0)
-			; /* wait for char */
-		return readb(&udbg_comport->rbr);
-	}
-	return -1;
-}
-
-static int udbg_wsp_getc_poll(void)
-{
-	if (udbg_comport)
-		if (readb(&udbg_comport->lsr) & LSR_DR)
-			return readb(&udbg_comport->rbr);
-	return -1;
-}
 
 void __init udbg_init_wsp(void)
 {
-	udbg_comport = (struct NS16550 __iomem *)WSP_UART_VIRT;
-
-	udbg_init_uart(udbg_comport, 57600, 50000000);
-
-	udbg_putc = udbg_wsp_putc;
-	udbg_flush = udbg_wsp_flush;
-	udbg_getc = udbg_wsp_getc;
-	udbg_getc_poll = udbg_wsp_getc_poll;
+	udbg_uart_init_mmio((void *)WSP_UART_VIRT, 1);
+	udbg_uart_setup(57600, 50000000);
 }
+
 #endif /* CONFIG_PPC_EARLY_DEBUG_WSP */

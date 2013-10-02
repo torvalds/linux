@@ -53,7 +53,6 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/stat.h>
 #include <linux/list.h>
 #include <linux/kmod.h>
 #include <linux/sysctl.h>

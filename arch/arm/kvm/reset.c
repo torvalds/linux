@@ -40,7 +40,7 @@ static struct kvm_regs a15_regs_reset = {
 };
 
 static const struct kvm_irq_level a15_vtimer_irq = {
-	.irq = 27,
+	{ .irq = 27 },
 	.level = 1,
 };
 

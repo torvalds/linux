@@ -46,6 +46,10 @@ static unsigned int bufsize __read_mostly = 4096;
 MODULE_PARM_DESC(bufsize, "Log buffer size in packets (4096)");
 module_param(bufsize, uint, 0);
 
+static unsigned int fwmark __read_mostly = 0;
+MODULE_PARM_DESC(fwmark, "skb mark to match (0=no mark)");
+module_param(fwmark, uint, 0);
+
 static int full __read_mostly;
 MODULE_PARM_DESC(full, "Full log (1=every ack packet received,  0=only cwnd changes)");
 module_param(full, int, 0);
@@ -54,12 +58,16 @@ static const char procname[] = "tcpprobe";
 
 struct tcp_log {
 	ktime_t tstamp;
-	__be32	saddr, daddr;
-	__be16	sport, dport;
+	union {
+		struct sockaddr		raw;
+		struct sockaddr_in	v4;
+		struct sockaddr_in6	v6;
+	}	src, dst;
 	u16	length;
 	u32	snd_nxt;
 	u32	snd_una;
 	u32	snd_wnd;
+	u32	rcv_wnd;
 	u32	snd_cwnd;
 	u32	ssthresh;
 	u32	srtt;
@@ -86,19 +94,45 @@ static inline int tcp_probe_avail(void)
 	return bufsize - tcp_probe_used() - 1;
 }
 
+#define tcp_probe_copy_fl_to_si4(inet, si4, mem)		\
+	do {							\
+		si4.sin_family = AF_INET;			\
+		si4.sin_port = inet->inet_##mem##port;		\
+		si4.sin_addr.s_addr = inet->inet_##mem##addr;	\
+	} while (0)						\
+
+#if IS_ENABLED(CONFIG_IPV6)
+#define tcp_probe_copy_fl_to_si6(inet, si6, mem)		\
+	do {							\
+		struct ipv6_pinfo *pi6 = inet->pinet6;		\
+		si6.sin6_family = AF_INET6;			\
+		si6.sin6_port = inet->inet_##mem##port;		\
+		si6.sin6_addr = pi6->mem##addr;			\
+		si6.sin6_flowinfo = 0; /* No need here. */	\
+		si6.sin6_scope_id = 0;	/* No need here. */	\
+	} while (0)
+#else
+#define tcp_probe_copy_fl_to_si6(fl, si6, mem)			\
+	do {							\
+		memset(&si6, 0, sizeof(si6));			\
+	} while (0)
+#endif
+
 /*
  * Hook inserted to be called before each receive packet.
  * Note: arguments must match tcp_rcv_established()!
  */
-static int jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
-			       struct tcphdr *th, unsigned int len)
+static void jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
+				 const struct tcphdr *th, unsigned int len)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_sock *inet = inet_sk(sk);
 
-	/* Only update if port matches */
-	if ((port == 0 || ntohs(inet->inet_dport) == port ||
-	     ntohs(inet->inet_sport) == port) &&
+	/* Only update if port or skb mark matches */
+	if (((port == 0 && fwmark == 0) ||
+	     ntohs(inet->inet_dport) == port ||
+	     ntohs(inet->inet_sport) == port ||
+	     (fwmark > 0 && skb->mark == fwmark)) &&
 	    (full || tp->snd_cwnd != tcp_probe.lastcwnd)) {
 
 		spin_lock(&tcp_probe.lock);
@@ -107,15 +141,25 @@ static int jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			struct tcp_log *p = tcp_probe.log + tcp_probe.head;
 
 			p->tstamp = ktime_get();
-			p->saddr = inet->inet_saddr;
-			p->sport = inet->inet_sport;
-			p->daddr = inet->inet_daddr;
-			p->dport = inet->inet_dport;
+			switch (sk->sk_family) {
+			case AF_INET:
+				tcp_probe_copy_fl_to_si4(inet, p->src.v4, s);
+				tcp_probe_copy_fl_to_si4(inet, p->dst.v4, d);
+				break;
+			case AF_INET6:
+				tcp_probe_copy_fl_to_si6(inet, p->src.v6, s);
+				tcp_probe_copy_fl_to_si6(inet, p->dst.v6, d);
+				break;
+			default:
+				BUG();
+			}
+
 			p->length = skb->len;
 			p->snd_nxt = tp->snd_nxt;
 			p->snd_una = tp->snd_una;
 			p->snd_cwnd = tp->snd_cwnd;
 			p->snd_wnd = tp->snd_wnd;
+			p->rcv_wnd = tp->rcv_wnd;
 			p->ssthresh = tcp_current_ssthresh(sk);
 			p->srtt = tp->srtt >> 3;
 
@@ -128,7 +172,6 @@ static int jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	}
 
 	jprobe_return();
-	return 0;
 }
 
 static struct jprobe tcp_jprobe = {
@@ -157,13 +200,11 @@ static int tcpprobe_sprint(char *tbuf, int n)
 		= ktime_to_timespec(ktime_sub(p->tstamp, tcp_probe.start));
 
 	return scnprintf(tbuf, n,
-			"%lu.%09lu %pI4:%u %pI4:%u %d %#x %#x %u %u %u %u\n",
+			"%lu.%09lu %pISpc %pISpc %d %#x %#x %u %u %u %u %u\n",
 			(unsigned long) tv.tv_sec,
 			(unsigned long) tv.tv_nsec,
-			&p->saddr, ntohs(p->sport),
-			&p->daddr, ntohs(p->dport),
-			p->length, p->snd_nxt, p->snd_una,
-			p->snd_cwnd, p->ssthresh, p->snd_wnd, p->srtt);
+			&p->src, &p->dst, p->length, p->snd_nxt, p->snd_una,
+			p->snd_cwnd, p->ssthresh, p->snd_wnd, p->srtt, p->rcv_wnd);
 }
 
 static ssize_t tcpprobe_read(struct file *file, char __user *buf,
@@ -176,7 +217,7 @@ static ssize_t tcpprobe_read(struct file *file, char __user *buf,
 		return -EINVAL;
 
 	while (cnt < len) {
-		char tbuf[164];
+		char tbuf[256];
 		int width;
 
 		/* Wait for data in buffer */
@@ -223,6 +264,13 @@ static __init int tcpprobe_init(void)
 {
 	int ret = -ENOMEM;
 
+	/* Warning: if the function signature of tcp_rcv_established,
+	 * has been changed, you also have to change the signature of
+	 * jtcp_rcv_established, otherwise you end up right here!
+	 */
+	BUILD_BUG_ON(__same_type(tcp_rcv_established,
+				 jtcp_rcv_established) == 0);
+
 	init_waitqueue_head(&tcp_probe.wait);
 	spin_lock_init(&tcp_probe.lock);
 
@@ -241,7 +289,8 @@ static __init int tcpprobe_init(void)
 	if (ret)
 		goto err1;
 
-	pr_info("probe registered (port=%d) bufsize=%u\n", port, bufsize);
+	pr_info("probe registered (port=%d/fwmark=%u) bufsize=%u\n",
+		port, fwmark, bufsize);
 	return 0;
  err1:
 	remove_proc_entry(procname, init_net.proc_net);

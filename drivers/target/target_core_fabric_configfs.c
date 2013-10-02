@@ -4,7 +4,7 @@
  * This file contains generic fabric module configfs infrastructure for
  * TCM v4.x code
  *
- * (c) Copyright 2010-2012 RisingTide Systems LLC.
+ * (c) Copyright 2010-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@linux-iscsi.org>
 *
@@ -189,9 +189,11 @@ static ssize_t target_fabric_mappedlun_store_write_protect(
 	struct se_node_acl *se_nacl = lacl->se_lun_nacl;
 	struct se_portal_group *se_tpg = se_nacl->se_tpg;
 	unsigned long op;
+	int ret;
 
-	if (strict_strtoul(page, 0, &op))
-		return -EINVAL;
+	ret = kstrtoul(page, 0, &op);
+	if (ret)
+		return ret;
 
 	if ((op != 1) && (op != 0))
 		return -EINVAL;
@@ -350,7 +352,10 @@ static struct config_group *target_fabric_make_mappedlun(
 	 * Determine the Mapped LUN value.  This is what the SCSI Initiator
 	 * Port will actually see.
 	 */
-	if (strict_strtoul(buf + 4, 0, &mapped_lun) || mapped_lun > UINT_MAX) {
+	ret = kstrtoul(buf + 4, 0, &mapped_lun);
+	if (ret)
+		goto out;
+	if (mapped_lun > UINT_MAX) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -875,7 +880,10 @@ static struct config_group *target_fabric_make_lun(
 				" \"lun_$LUN_NUMBER\"\n");
 		return ERR_PTR(-EINVAL);
 	}
-	if (strict_strtoul(name + 4, 0, &unpacked_lun) || unpacked_lun > UINT_MAX)
+	errno = kstrtoul(name + 4, 0, &unpacked_lun);
+	if (errno)
+		return ERR_PTR(errno);
+	if (unpacked_lun > UINT_MAX)
 		return ERR_PTR(-EINVAL);
 
 	lun = core_get_lun_from_tpg(se_tpg, unpacked_lun);

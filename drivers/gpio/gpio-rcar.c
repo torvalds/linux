@@ -285,7 +285,7 @@ static struct irq_domain_ops gpio_rcar_irq_domain_ops = {
 
 static void gpio_rcar_parse_pdata(struct gpio_rcar_priv *p)
 {
-	struct gpio_rcar_config *pdata = p->pdev->dev.platform_data;
+	struct gpio_rcar_config *pdata = dev_get_platdata(&p->pdev->dev);
 	struct device_node *np = p->pdev->dev.of_node;
 	struct of_phandle_args args;
 	int ret;

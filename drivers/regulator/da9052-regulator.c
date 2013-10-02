@@ -349,7 +349,7 @@ static int da9052_regulator_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	da9052 = dev_get_drvdata(pdev->dev.parent);
-	pdata = da9052->dev->platform_data;
+	pdata = dev_get_platdata(da9052->dev);
 	regulator->da9052 = da9052;
 
 	regulator->info = find_regulator_info(regulator->da9052->chip_id,

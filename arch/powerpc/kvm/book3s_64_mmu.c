@@ -182,10 +182,13 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	hva_t ptegp;
 	u64 pteg[16];
 	u64 avpn = 0;
+	u64 v, r;
+	u64 v_val, v_mask;
+	u64 eaddr_mask;
 	int i;
-	u8 key = 0;
+	u8 pp, key = 0;
 	bool found = false;
-	int second = 0;
+	bool second = false;
 	ulong mp_ea = vcpu->arch.magic_page_ea;
 
 	/* Magic page override */
@@ -208,8 +211,16 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 		goto no_seg_found;
 
 	avpn = kvmppc_mmu_book3s_64_get_avpn(slbe, eaddr);
+	v_val = avpn & HPTE_V_AVPN;
+
 	if (slbe->tb)
-		avpn |= SLB_VSID_B_1T;
+		v_val |= SLB_VSID_B_1T;
+	if (slbe->large)
+		v_val |= HPTE_V_LARGE;
+	v_val |= HPTE_V_VALID;
+
+	v_mask = SLB_VSID_B | HPTE_V_AVPN | HPTE_V_LARGE | HPTE_V_VALID |
+		HPTE_V_SECONDARY;
 
 do_second:
 	ptegp = kvmppc_mmu_book3s_64_get_pteg(vcpu_book3s, slbe, eaddr, second);
@@ -227,90 +238,73 @@ do_second:
 		key = 4;
 
 	for (i=0; i<16; i+=2) {
-		u64 v = pteg[i];
-		u64 r = pteg[i+1];
-
-		/* Valid check */
-		if (!(v & HPTE_V_VALID))
-			continue;
-		/* Hash check */
-		if ((v & HPTE_V_SECONDARY) != second)
-			continue;
-
-		/* AVPN compare */
-		if (HPTE_V_COMPARE(avpn, v)) {
-			u8 pp = (r & HPTE_R_PP) | key;
-			int eaddr_mask = 0xFFF;
-
-			gpte->eaddr = eaddr;
-			gpte->vpage = kvmppc_mmu_book3s_64_ea_to_vp(vcpu,
-								    eaddr,
-								    data);
-			if (slbe->large)
-				eaddr_mask = 0xFFFFFF;
-			gpte->raddr = (r & HPTE_R_RPN) | (eaddr & eaddr_mask);
-			gpte->may_execute = ((r & HPTE_R_N) ? false : true);
-			gpte->may_read = false;
-			gpte->may_write = false;
-
-			switch (pp) {
-			case 0:
-			case 1:
-			case 2:
-			case 6:
-				gpte->may_write = true;
-				/* fall through */
-			case 3:
-			case 5:
-			case 7:
-				gpte->may_read = true;
-				break;
-			}
-
-			dprintk("KVM MMU: Translated 0x%lx [0x%llx] -> 0x%llx "
-				"-> 0x%lx\n",
-				eaddr, avpn, gpte->vpage, gpte->raddr);
+		/* Check all relevant fields of 1st dword */
+		if ((pteg[i] & v_mask) == v_val) {
 			found = true;
 			break;
 		}
 	}
 
+	if (!found) {
+		if (second)
+			goto no_page_found;
+		v_val |= HPTE_V_SECONDARY;
+		second = true;
+		goto do_second;
+	}
+
+	v = pteg[i];
+	r = pteg[i+1];
+	pp = (r & HPTE_R_PP) | key;
+	eaddr_mask = 0xFFF;
+
+	gpte->eaddr = eaddr;
+	gpte->vpage = kvmppc_mmu_book3s_64_ea_to_vp(vcpu, eaddr, data);
+	if (slbe->large)
+		eaddr_mask = 0xFFFFFF;
+	gpte->raddr = (r & HPTE_R_RPN & ~eaddr_mask) | (eaddr & eaddr_mask);
+	gpte->may_execute = ((r & HPTE_R_N) ? false : true);
+	gpte->may_read = false;
+	gpte->may_write = false;
+
+	switch (pp) {
+	case 0:
+	case 1:
+	case 2:
+	case 6:
+		gpte->may_write = true;
+		/* fall through */
+	case 3:
+	case 5:
+	case 7:
+		gpte->may_read = true;
+		break;
+	}
+
+	dprintk("KVM MMU: Translated 0x%lx [0x%llx] -> 0x%llx "
+		"-> 0x%lx\n",
+		eaddr, avpn, gpte->vpage, gpte->raddr);
+
 	/* Update PTE R and C bits, so the guest's swapper knows we used the
 	 * page */
-	if (found) {
-		u32 oldr = pteg[i+1];
-
-		if (gpte->may_read) {
-			/* Set the accessed flag */
-			pteg[i+1] |= HPTE_R_R;
-		}
-		if (gpte->may_write) {
-			/* Set the dirty flag */
-			pteg[i+1] |= HPTE_R_C;
-		} else {
-			dprintk("KVM: Mapping read-only page!\n");
-		}
-
-		/* Write back into the PTEG */
-		if (pteg[i+1] != oldr)
-			copy_to_user((void __user *)ptegp, pteg, sizeof(pteg));
-
-		if (!gpte->may_read)
-			return -EPERM;
-		return 0;
-	} else {
-		dprintk("KVM MMU: No PTE found (ea=0x%lx sdr1=0x%llx "
-			"ptegp=0x%lx)\n",
-			eaddr, to_book3s(vcpu)->sdr1, ptegp);
-		for (i = 0; i < 16; i += 2)
-			dprintk("   %02d: 0x%llx - 0x%llx (0x%llx)\n",
-				i, pteg[i], pteg[i+1], avpn);
-
-		if (!second) {
-			second = HPTE_V_SECONDARY;
-			goto do_second;
-		}
+	if (gpte->may_read) {
+		/* Set the accessed flag */
+		r |= HPTE_R_R;
 	}
+	if (data && gpte->may_write) {
+		/* Set the dirty flag -- XXX even if not writing */
+		r |= HPTE_R_C;
+	}
+
+	/* Write back into the PTEG */
+	if (pteg[i+1] != r) {
+		pteg[i+1] = r;
+		copy_to_user((void __user *)ptegp, pteg, sizeof(pteg));
+	}
+
+	if (!gpte->may_read)
+		return -EPERM;
+	return 0;
 
 no_page_found:
 	return -ENOENT;

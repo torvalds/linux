@@ -58,23 +58,22 @@ error:		kfree(ctx);
 	return err;
 }
 
-/* Computes the fastopen cookie for the peer.
- * The peer address is a 128 bits long (pad with zeros for IPv4).
+/* Computes the fastopen cookie for the IP path.
+ * The path is a 128 bits long (pad with zeros for IPv4).
  *
  * The caller must check foc->len to determine if a valid cookie
  * has been generated successfully.
 */
-void tcp_fastopen_cookie_gen(__be32 addr, struct tcp_fastopen_cookie *foc)
+void tcp_fastopen_cookie_gen(__be32 src, __be32 dst,
+			     struct tcp_fastopen_cookie *foc)
 {
-	__be32 peer_addr[4] = { addr, 0, 0, 0 };
+	__be32 path[4] = { src, dst, 0, 0 };
 	struct tcp_fastopen_context *ctx;
 
 	rcu_read_lock();
 	ctx = rcu_dereference(tcp_fastopen_ctx);
 	if (ctx) {
-		crypto_cipher_encrypt_one(ctx->tfm,
-					  foc->val,
-					  (__u8 *)peer_addr);
+		crypto_cipher_encrypt_one(ctx->tfm, foc->val, (__u8 *)path);
 		foc->len = TCP_FASTOPEN_COOKIE_SIZE;
 	}
 	rcu_read_unlock();

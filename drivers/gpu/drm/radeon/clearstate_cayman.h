@@ -1073,7 +1073,7 @@ static const struct cs_extent_def SECT_CTRLCONST_defs[] =
     {SECT_CTRLCONST_def_1, 0x0000f3fc, 2 },
     { 0, 0, 0 }
 };
-struct cs_section_def cayman_cs_data[] = {
+static const struct cs_section_def cayman_cs_data[] = {
     { SECT_CONTEXT_defs, SECT_CONTEXT },
     { SECT_CLEAR_defs, SECT_CLEAR },
     { SECT_CTRLCONST_defs, SECT_CTRLCONST },

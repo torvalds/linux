@@ -2407,7 +2407,7 @@ static struct pci_driver rhine_driver = {
 	.driver.pm	= RHINE_PM_OPS,
 };
 
-static struct dmi_system_id __initdata rhine_dmi_table[] = {
+static struct dmi_system_id rhine_dmi_table[] __initdata = {
 	{
 		.ident = "EPIA-M",
 		.matches = {

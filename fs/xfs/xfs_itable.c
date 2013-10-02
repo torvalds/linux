@@ -495,7 +495,7 @@ xfs_bulkstat(
 	/*
 	 * Done, we're either out of filesystem or space to put the data.
 	 */
-	kmem_free_large(irbuf);
+	kmem_free(irbuf);
 	*ubcountp = ubelem;
 	/*
 	 * Found some inodes, return them now and return the error next time.
@@ -541,8 +541,9 @@ xfs_bulkstat_single(
 	 * at the expense of the error case.
 	 */
 
-	ino = (xfs_ino_t)*lastinop;
-	error = xfs_bulkstat_one(mp, ino, buffer, sizeof(xfs_bstat_t), 0, &res);
+	ino = *lastinop;
+	error = xfs_bulkstat_one(mp, ino, buffer, sizeof(xfs_bstat_t),
+				 NULL, &res);
 	if (error) {
 		/*
 		 * Special case way failed, do it the "long" way

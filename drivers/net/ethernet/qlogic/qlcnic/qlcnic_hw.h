@@ -85,8 +85,11 @@ enum qlcnic_regs {
 #define QLCNIC_CMD_GET_TEMP_HDR			0x30
 #define QLCNIC_CMD_BC_EVENT_SETUP		0x31
 #define	QLCNIC_CMD_CONFIG_VPORT			0x32
+#define	QLCNIC_CMD_DCB_QUERY_CAP		0x34
+#define	QLCNIC_CMD_DCB_QUERY_PARAM		0x35
 #define QLCNIC_CMD_GET_MAC_STATS		0x37
 #define QLCNIC_CMD_82XX_SET_DRV_VER		0x38
+#define QLCNIC_CMD_MQ_TX_CONFIG_INTR		0x39
 #define QLCNIC_CMD_GET_LED_STATUS		0x3C
 #define QLCNIC_CMD_CONFIGURE_RSS		0x41
 #define QLCNIC_CMD_CONFIG_INTR_COAL		0x43
@@ -122,6 +125,7 @@ enum qlcnic_regs {
 #define QLCNIC_MBX_COMP_EVENT		0x8100
 #define QLCNIC_MBX_REQUEST_EVENT	0x8101
 #define QLCNIC_MBX_TIME_EXTEND_EVENT	0x8102
+#define QLCNIC_MBX_DCBX_CONFIG_CHANGE_EVENT	0x8110
 #define QLCNIC_MBX_SFP_INSERT_EVENT	0x8130
 #define QLCNIC_MBX_SFP_REMOVE_EVENT	0x8131
 
@@ -149,7 +153,6 @@ struct ethtool_stats;
 struct pci_device_id;
 struct qlcnic_host_sds_ring;
 struct qlcnic_host_tx_ring;
-struct qlcnic_host_tx_ring;
 struct qlcnic_hardware_context;
 struct qlcnic_adapter;
 
@@ -173,10 +176,12 @@ int qlcnic_82xx_set_lb_mode(struct qlcnic_adapter *, u8);
 void qlcnic_82xx_write_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 void qlcnic_82xx_read_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 void qlcnic_82xx_dev_request_reset(struct qlcnic_adapter *, u32);
-int qlcnic_82xx_setup_intr(struct qlcnic_adapter *, u8);
+int qlcnic_82xx_setup_intr(struct qlcnic_adapter *, u8, int);
 irqreturn_t qlcnic_82xx_clear_legacy_intr(struct qlcnic_adapter *);
 int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 			  struct qlcnic_cmd_args *);
+int qlcnic_82xx_mq_intrpt(struct qlcnic_adapter *, int);
+int qlcnic_82xx_config_intrpt(struct qlcnic_adapter *, u8);
 int qlcnic_82xx_fw_cmd_create_rx_ctx(struct qlcnic_adapter *);
 int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *,
 				     struct qlcnic_host_tx_ring *tx_ring, int);
@@ -184,7 +189,7 @@ void qlcnic_82xx_fw_cmd_del_rx_ctx(struct qlcnic_adapter *);
 void qlcnic_82xx_fw_cmd_del_tx_ctx(struct qlcnic_adapter *,
 				   struct qlcnic_host_tx_ring *);
 int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *, u8 *, u16, u8);
-int qlcnic_82xx_get_mac_address(struct qlcnic_adapter *, u8*);
+int qlcnic_82xx_get_mac_address(struct qlcnic_adapter *, u8*, u8);
 int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *, struct qlcnic_info *, u8);
 int qlcnic_82xx_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);
 int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *, struct qlcnic_pci_info*);

@@ -401,64 +401,71 @@ static const struct pinmux_ops exynos5440_pinmux_ops = {
 
 /* set the pin config settings for a specified pin */
 static int exynos5440_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
-				unsigned long config)
+				unsigned long *configs,
+				unsigned num_configs)
 {
 	struct exynos5440_pinctrl_priv_data *priv;
 	void __iomem *base;
-	enum pincfg_type cfg_type = PINCFG_UNPACK_TYPE(config);
-	u32 cfg_value = PINCFG_UNPACK_VALUE(config);
+	enum pincfg_type cfg_type;
+	u32 cfg_value;
 	u32 data;
+	int i;
 
 	priv = pinctrl_dev_get_drvdata(pctldev);
 	base = priv->reg_base;
 
-	switch (cfg_type) {
-	case PINCFG_TYPE_PUD:
-		/* first set pull enable/disable bit */
-		data = readl(base + GPIO_PE);
-		data &= ~(1 << pin);
-		if (cfg_value)
-			data |= (1 << pin);
-		writel(data, base + GPIO_PE);
+	for (i = 0; i < num_configs; i++) {
+		cfg_type = PINCFG_UNPACK_TYPE(configs[i]);
+		cfg_value = PINCFG_UNPACK_VALUE(configs[i]);
 
-		/* then set pull up/down bit */
-		data = readl(base + GPIO_PS);
-		data &= ~(1 << pin);
-		if (cfg_value == 2)
-			data |= (1 << pin);
-		writel(data, base + GPIO_PS);
-		break;
+		switch (cfg_type) {
+		case PINCFG_TYPE_PUD:
+			/* first set pull enable/disable bit */
+			data = readl(base + GPIO_PE);
+			data &= ~(1 << pin);
+			if (cfg_value)
+				data |= (1 << pin);
+			writel(data, base + GPIO_PE);
 
-	case PINCFG_TYPE_DRV:
-		/* set the first bit of the drive strength */
-		data = readl(base + GPIO_DS0);
-		data &= ~(1 << pin);
-		data |= ((cfg_value & 1) << pin);
-		writel(data, base + GPIO_DS0);
-		cfg_value >>= 1;
+			/* then set pull up/down bit */
+			data = readl(base + GPIO_PS);
+			data &= ~(1 << pin);
+			if (cfg_value == 2)
+				data |= (1 << pin);
+			writel(data, base + GPIO_PS);
+			break;
 
-		/* set the second bit of the driver strength */
-		data = readl(base + GPIO_DS1);
-		data &= ~(1 << pin);
-		data |= ((cfg_value & 1) << pin);
-		writel(data, base + GPIO_DS1);
-		break;
-	case PINCFG_TYPE_SKEW_RATE:
-		data = readl(base + GPIO_SR);
-		data &= ~(1 << pin);
-		data |= ((cfg_value & 1) << pin);
-		writel(data, base + GPIO_SR);
-		break;
-	case PINCFG_TYPE_INPUT_TYPE:
-		data = readl(base + GPIO_TYPE);
-		data &= ~(1 << pin);
-		data |= ((cfg_value & 1) << pin);
-		writel(data, base + GPIO_TYPE);
-		break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
+		case PINCFG_TYPE_DRV:
+			/* set the first bit of the drive strength */
+			data = readl(base + GPIO_DS0);
+			data &= ~(1 << pin);
+			data |= ((cfg_value & 1) << pin);
+			writel(data, base + GPIO_DS0);
+			cfg_value >>= 1;
+
+			/* set the second bit of the driver strength */
+			data = readl(base + GPIO_DS1);
+			data &= ~(1 << pin);
+			data |= ((cfg_value & 1) << pin);
+			writel(data, base + GPIO_DS1);
+			break;
+		case PINCFG_TYPE_SKEW_RATE:
+			data = readl(base + GPIO_SR);
+			data &= ~(1 << pin);
+			data |= ((cfg_value & 1) << pin);
+			writel(data, base + GPIO_SR);
+			break;
+		case PINCFG_TYPE_INPUT_TYPE:
+			data = readl(base + GPIO_TYPE);
+			data &= ~(1 << pin);
+			data |= ((cfg_value & 1) << pin);
+			writel(data, base + GPIO_TYPE);
+			break;
+		default:
+			WARN_ON(1);
+			return -EINVAL;
+		}
+	} /* for each config */
 
 	return 0;
 }
@@ -510,7 +517,8 @@ static int exynos5440_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 /* set the pin config settings for a specified pin group */
 static int exynos5440_pinconf_group_set(struct pinctrl_dev *pctldev,
-			unsigned group, unsigned long config)
+			unsigned group, unsigned long *configs,
+			unsigned num_configs)
 {
 	struct exynos5440_pinctrl_priv_data *priv;
 	const unsigned int *pins;
@@ -520,7 +528,8 @@ static int exynos5440_pinconf_group_set(struct pinctrl_dev *pctldev,
 	pins = priv->pin_groups[group].pins;
 
 	for (cnt = 0; cnt < priv->pin_groups[group].num_pins; cnt++)
-		exynos5440_pinconf_set(pctldev, pins[cnt], config);
+		exynos5440_pinconf_set(pctldev, pins[cnt], configs,
+				       num_configs);
 
 	return 0;
 }

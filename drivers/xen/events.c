@@ -56,6 +56,7 @@
 #include <xen/interface/hvm/params.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/sched.h>
+#include <xen/interface/vcpu.h>
 #include <asm/hw_irq.h>
 
 /*
@@ -1212,7 +1213,17 @@ EXPORT_SYMBOL_GPL(evtchn_put);
 
 void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector)
 {
-	int irq = per_cpu(ipi_to_irq, cpu)[vector];
+	int irq;
+
+#ifdef CONFIG_X86
+	if (unlikely(vector == XEN_NMI_VECTOR)) {
+		int rc =  HYPERVISOR_vcpu_op(VCPUOP_send_nmi, cpu, NULL);
+		if (rc < 0)
+			printk(KERN_WARNING "Sending nmi to CPU%d failed (rc:%d)\n", cpu, rc);
+		return;
+	}
+#endif
+	irq = per_cpu(ipi_to_irq, cpu)[vector];
 	BUG_ON(irq < 0);
 	notify_remote_via_irq(irq);
 }
@@ -1379,14 +1390,21 @@ static void __xen_evtchn_do_upcall(void)
 
 			pending_bits = active_evtchns(cpu, s, word_idx);
 			bit_idx = 0; /* usually scan entire word from start */
+			/*
+			 * We scan the starting word in two parts.
+			 *
+			 * 1st time: start in the middle, scanning the
+			 * upper bits.
+			 *
+			 * 2nd time: scan the whole word (not just the
+			 * parts skipped in the first pass) -- if an
+			 * event in the previously scanned bits is
+			 * pending again it would just be scanned on
+			 * the next loop anyway.
+			 */
 			if (word_idx == start_word_idx) {
-				/* We scan the starting word in two parts */
 				if (i == 0)
-					/* 1st time: start in the middle */
 					bit_idx = start_bit_idx;
-				else
-					/* 2nd time: mask bits done already */
-					bit_idx &= (1UL << start_bit_idx) - 1;
 			}
 
 			do {

@@ -211,13 +211,12 @@ static inline int lustre_cfg_len(__u32 bufcount, __u32 *buflens)
 {
 	int i;
 	int len;
-	ENTRY;
 
 	len = LCFG_HDR_SIZE(bufcount);
 	for (i = 0; i < bufcount; i++)
 		len += cfs_size_round(buflens[i]);
 
-	RETURN(cfs_size_round(len));
+	return cfs_size_round(len);
 }
 
 
@@ -230,12 +229,10 @@ static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 	char *ptr;
 	int i;
 
-	ENTRY;
-
 	OBD_ALLOC(lcfg, lustre_cfg_len(bufs->lcfg_bufcount,
 				       bufs->lcfg_buflen));
 	if (!lcfg)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	lcfg->lcfg_version = LUSTRE_CFG_VERSION;
 	lcfg->lcfg_command = cmd;
@@ -246,7 +243,7 @@ static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 		lcfg->lcfg_buflens[i] = bufs->lcfg_buflen[i];
 		LOGL((char *)bufs->lcfg_buf[i], bufs->lcfg_buflen[i], ptr);
 	}
-	RETURN(lcfg);
+	return lcfg;
 }
 
 static inline void lustre_cfg_free(struct lustre_cfg *lcfg)
@@ -256,43 +253,38 @@ static inline void lustre_cfg_free(struct lustre_cfg *lcfg)
 	len = lustre_cfg_len(lcfg->lcfg_bufcount, lcfg->lcfg_buflens);
 
 	OBD_FREE(lcfg, len);
-	EXIT;
 	return;
 }
 
 static inline int lustre_cfg_sanity_check(void *buf, int len)
 {
 	struct lustre_cfg *lcfg = (struct lustre_cfg *)buf;
-	ENTRY;
+
 	if (!lcfg)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	/* check that the first bits of the struct are valid */
 	if (len < LCFG_HDR_SIZE(0))
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	if (lcfg->lcfg_version != LUSTRE_CFG_VERSION)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	if (lcfg->lcfg_bufcount >= LUSTRE_CFG_MAX_BUFCOUNT)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	/* check that the buflens are valid */
 	if (len < LCFG_HDR_SIZE(lcfg->lcfg_bufcount))
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	/* make sure all the pointers point inside the data */
 	if (len < lustre_cfg_len(lcfg->lcfg_bufcount, lcfg->lcfg_buflens))
-		RETURN(-EINVAL);
+		return -EINVAL;
 
-	RETURN(0);
+	return 0;
 }
 
 #include <lustre/lustre_user.h>
-
-#ifndef INVALID_UID
-#define INVALID_UID     (-1)
-#endif
 
 /** @} cfg */
 

@@ -341,6 +341,8 @@ struct caam_ctrl {
 #define MCFGR_DMA_RESET		0x10000000
 #define MCFGR_LONG_PTR		0x00010000 /* Use >32-bit desc addressing */
 #define SCFGR_RDBENABLE		0x00000400
+#define DECORR_RQD0ENABLE	0x00000001 /* Enable DECO0 for direct access */
+#define DECORR_DEN0		0x00010000 /* DECO0 available for access*/
 
 /* AXI read cache control */
 #define MCFGR_ARCACHE_SHIFT	12
@@ -703,8 +705,15 @@ struct caam_deco {
 	struct deco_sg_table sctr_tbl[4];	/* DxSTR - Scatter Tables */
 	u32 rsvd29[48];
 	u32 descbuf[64];	/* DxDESB - Descriptor buffer */
-	u32 rsvd30[320];
+	u32 rscvd30[193];
+	u32 desc_dbg;		/* DxDDR - DECO Debug Register */
+	u32 rsvd31[126];
 };
+
+/* DECO DBG Register Valid Bit*/
+#define DECO_DBG_VALID		0x80000000
+#define DECO_JQCR_WHL		0x20000000
+#define DECO_JQCR_FOUR		0x10000000
 
 /*
  * Current top-level view of memory map is:
@@ -733,6 +742,7 @@ struct caam_full {
 	u64 rsvd[512];
 	struct caam_assurance assure;
 	struct caam_queue_if qi;
+	struct caam_deco deco;
 };
 
 #endif /* REGS_H */

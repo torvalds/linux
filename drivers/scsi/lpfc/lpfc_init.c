@@ -472,10 +472,22 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	lpfc_sli_read_link_ste(phba);
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
-	if (phba->cfg_hba_queue_depth > (mb->un.varRdConfig.max_xri+1))
-		phba->cfg_hba_queue_depth =
-			(mb->un.varRdConfig.max_xri + 1) -
-					lpfc_sli4_get_els_iocb_cnt(phba);
+	i = (mb->un.varRdConfig.max_xri + 1);
+	if (phba->cfg_hba_queue_depth > i) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"3359 HBA queue depth changed from %d to %d\n",
+				phba->cfg_hba_queue_depth, i);
+		phba->cfg_hba_queue_depth = i;
+	}
+
+	/* Reset the DFT_LUN_Q_DEPTH to (max xri >> 3)  */
+	i = (mb->un.varRdConfig.max_xri >> 3);
+	if (phba->pport->cfg_lun_queue_depth > i) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"3360 LUN queue depth changed from %d to %d\n",
+				phba->pport->cfg_lun_queue_depth, i);
+		phba->pport->cfg_lun_queue_depth = i;
+	}
 
 	phba->lmt = mb->un.varRdConfig.lmt;
 
@@ -3019,10 +3031,10 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 			phba->sli4_hba.scsi_xri_max);
 
 	spin_lock_irq(&phba->scsi_buf_list_get_lock);
-	spin_lock_irq(&phba->scsi_buf_list_put_lock);
+	spin_lock(&phba->scsi_buf_list_put_lock);
 	list_splice_init(&phba->lpfc_scsi_buf_list_get, &scsi_sgl_list);
 	list_splice(&phba->lpfc_scsi_buf_list_put, &scsi_sgl_list);
-	spin_unlock_irq(&phba->scsi_buf_list_put_lock);
+	spin_unlock(&phba->scsi_buf_list_put_lock);
 	spin_unlock_irq(&phba->scsi_buf_list_get_lock);
 
 	if (phba->sli4_hba.scsi_xri_cnt > phba->sli4_hba.scsi_xri_max) {
@@ -3058,10 +3070,10 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 		psb->cur_iocbq.sli4_xritag = phba->sli4_hba.xri_ids[lxri];
 	}
 	spin_lock_irq(&phba->scsi_buf_list_get_lock);
-	spin_lock_irq(&phba->scsi_buf_list_put_lock);
+	spin_lock(&phba->scsi_buf_list_put_lock);
 	list_splice_init(&scsi_sgl_list, &phba->lpfc_scsi_buf_list_get);
 	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
-	spin_unlock_irq(&phba->scsi_buf_list_put_lock);
+	spin_unlock(&phba->scsi_buf_list_put_lock);
 	spin_unlock_irq(&phba->scsi_buf_list_get_lock);
 
 	return 0;
@@ -4847,6 +4859,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	struct lpfc_mqe *mqe;
 	int longs;
 
+	/* Get all the module params for configuring this host */
+	lpfc_get_cfgparam(phba);
+
 	/* Before proceed, wait for POST done and device ready */
 	rc = lpfc_sli4_post_status_check(phba);
 	if (rc)
@@ -4890,19 +4905,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		sizeof(struct lpfc_mbox_ext_buf_ctx));
 	INIT_LIST_HEAD(&phba->mbox_ext_buf_ctx.ext_dmabuf_list);
 
-	/*
-	 * We need to do a READ_CONFIG mailbox command here before
-	 * calling lpfc_get_cfgparam. For VFs this will report the
-	 * MAX_XRI, MAX_VPI, MAX_RPI, MAX_IOCB, and MAX_VFI settings.
-	 * All of the resources allocated
-	 * for this Port are tied to these values.
-	 */
-	/* Get all the module params for configuring this host */
-	lpfc_get_cfgparam(phba);
 	phba->max_vpi = LPFC_MAX_VPI;
-
-	/* Eventually cfg_fcp_eq_count / cfg_fcp_wq_count will be depricated */
-	phba->cfg_fcp_io_channel = phba->cfg_fcp_eq_count;
 
 	/* This will be set to correct value after the read_config mbox */
 	phba->max_vports = 0;
@@ -6664,12 +6667,14 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		goto read_cfg_out;
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
-	if (phba->cfg_hba_queue_depth >
-		(phba->sli4_hba.max_cfg_param.max_xri -
-			lpfc_sli4_get_els_iocb_cnt(phba)))
-		phba->cfg_hba_queue_depth =
-			phba->sli4_hba.max_cfg_param.max_xri -
-				lpfc_sli4_get_els_iocb_cnt(phba);
+	length = phba->sli4_hba.max_cfg_param.max_xri -
+			lpfc_sli4_get_els_iocb_cnt(phba);
+	if (phba->cfg_hba_queue_depth > length) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"3361 HBA queue depth changed from %d to %d\n",
+				phba->cfg_hba_queue_depth, length);
+		phba->cfg_hba_queue_depth = length;
+	}
 
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
 	    LPFC_SLI_INTF_IF_TYPE_2)
@@ -6859,11 +6864,7 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 		cfg_fcp_io_channel = phba->sli4_hba.max_cfg_param.max_eq;
 	}
 
-	/* Eventually cfg_fcp_eq_count / cfg_fcp_wq_count will be depricated */
-
 	/* The actual number of FCP event queues adopted */
-	phba->cfg_fcp_eq_count = cfg_fcp_io_channel;
-	phba->cfg_fcp_wq_count = cfg_fcp_io_channel;
 	phba->cfg_fcp_io_channel = cfg_fcp_io_channel;
 
 	/* Get EQ depth from module parameter, fake the default for now */
@@ -7132,19 +7133,6 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 		}
 		kfree(phba->sli4_hba.fcp_wq);
 		phba->sli4_hba.fcp_wq = NULL;
-	}
-
-	if (phba->pci_bar0_memmap_p) {
-		iounmap(phba->pci_bar0_memmap_p);
-		phba->pci_bar0_memmap_p = NULL;
-	}
-	if (phba->pci_bar2_memmap_p) {
-		iounmap(phba->pci_bar2_memmap_p);
-		phba->pci_bar2_memmap_p = NULL;
-	}
-	if (phba->pci_bar4_memmap_p) {
-		iounmap(phba->pci_bar4_memmap_p);
-		phba->pci_bar4_memmap_p = NULL;
 	}
 
 	/* Release FCP CQ mapping array */
@@ -7935,9 +7923,9 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	 * particular PCI BARs regions is dependent on the type of
 	 * SLI4 device.
 	 */
-	if (pci_resource_start(pdev, 0)) {
-		phba->pci_bar0_map = pci_resource_start(pdev, 0);
-		bar0map_len = pci_resource_len(pdev, 0);
+	if (pci_resource_start(pdev, PCI_64BIT_BAR0)) {
+		phba->pci_bar0_map = pci_resource_start(pdev, PCI_64BIT_BAR0);
+		bar0map_len = pci_resource_len(pdev, PCI_64BIT_BAR0);
 
 		/*
 		 * Map SLI4 PCI Config Space Register base to a kernel virtual
@@ -7951,6 +7939,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 				   "registers.\n");
 			goto out;
 		}
+		phba->pci_bar0_memmap_p = phba->sli4_hba.conf_regs_memmap_p;
 		/* Set up BAR0 PCI config space register memory map */
 		lpfc_sli4_bar0_register_memmap(phba, if_type);
 	} else {
@@ -7973,13 +7962,13 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	}
 
 	if ((if_type == LPFC_SLI_INTF_IF_TYPE_0) &&
-	    (pci_resource_start(pdev, 2))) {
+	    (pci_resource_start(pdev, PCI_64BIT_BAR2))) {
 		/*
 		 * Map SLI4 if type 0 HBA Control Register base to a kernel
 		 * virtual address and setup the registers.
 		 */
-		phba->pci_bar1_map = pci_resource_start(pdev, 2);
-		bar1map_len = pci_resource_len(pdev, 2);
+		phba->pci_bar1_map = pci_resource_start(pdev, PCI_64BIT_BAR2);
+		bar1map_len = pci_resource_len(pdev, PCI_64BIT_BAR2);
 		phba->sli4_hba.ctrl_regs_memmap_p =
 				ioremap(phba->pci_bar1_map, bar1map_len);
 		if (!phba->sli4_hba.ctrl_regs_memmap_p) {
@@ -7987,17 +7976,18 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			   "ioremap failed for SLI4 HBA control registers.\n");
 			goto out_iounmap_conf;
 		}
+		phba->pci_bar2_memmap_p = phba->sli4_hba.ctrl_regs_memmap_p;
 		lpfc_sli4_bar1_register_memmap(phba);
 	}
 
 	if ((if_type == LPFC_SLI_INTF_IF_TYPE_0) &&
-	    (pci_resource_start(pdev, 4))) {
+	    (pci_resource_start(pdev, PCI_64BIT_BAR4))) {
 		/*
 		 * Map SLI4 if type 0 HBA Doorbell Register base to a kernel
 		 * virtual address and setup the registers.
 		 */
-		phba->pci_bar2_map = pci_resource_start(pdev, 4);
-		bar2map_len = pci_resource_len(pdev, 4);
+		phba->pci_bar2_map = pci_resource_start(pdev, PCI_64BIT_BAR4);
+		bar2map_len = pci_resource_len(pdev, PCI_64BIT_BAR4);
 		phba->sli4_hba.drbl_regs_memmap_p =
 				ioremap(phba->pci_bar2_map, bar2map_len);
 		if (!phba->sli4_hba.drbl_regs_memmap_p) {
@@ -8005,6 +7995,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			   "ioremap failed for SLI4 HBA doorbell registers.\n");
 			goto out_iounmap_ctrl;
 		}
+		phba->pci_bar4_memmap_p = phba->sli4_hba.drbl_regs_memmap_p;
 		error = lpfc_sli4_bar2_register_memmap(phba, LPFC_VF0);
 		if (error)
 			goto out_iounmap_all;
@@ -8398,7 +8389,8 @@ static int
 lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
 {
 	int i, idx, saved_chann, used_chann, cpu, phys_id;
-	int max_phys_id, num_io_channel, first_cpu;
+	int max_phys_id, min_phys_id;
+	int num_io_channel, first_cpu, chan;
 	struct lpfc_vector_map_info *cpup;
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
@@ -8416,6 +8408,7 @@ lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
 		phba->sli4_hba.num_present_cpu));
 
 	max_phys_id = 0;
+	min_phys_id = 0xff;
 	phys_id = 0;
 	num_io_channel = 0;
 	first_cpu = LPFC_VECTOR_MAP_EMPTY;
@@ -8439,9 +8432,12 @@ lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
 
 		if (cpup->phys_id > max_phys_id)
 			max_phys_id = cpup->phys_id;
+		if (cpup->phys_id < min_phys_id)
+			min_phys_id = cpup->phys_id;
 		cpup++;
 	}
 
+	phys_id = min_phys_id;
 	/* Now associate the HBA vectors with specific CPUs */
 	for (idx = 0; idx < vectors; idx++) {
 		cpup = phba->sli4_hba.cpu_map;
@@ -8452,11 +8448,23 @@ lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
 			for (i = 1; i < max_phys_id; i++) {
 				phys_id++;
 				if (phys_id > max_phys_id)
-					phys_id = 0;
+					phys_id = min_phys_id;
 				cpu = lpfc_find_next_cpu(phba, phys_id);
 				if (cpu == LPFC_VECTOR_MAP_EMPTY)
 					continue;
 				goto found;
+			}
+
+			/* Use round robin for scheduling */
+			phba->cfg_fcp_io_sched = LPFC_FCP_SCHED_ROUND_ROBIN;
+			chan = 0;
+			cpup = phba->sli4_hba.cpu_map;
+			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+				cpup->channel_id = chan;
+				cpup++;
+				chan++;
+				if (chan >= phba->cfg_fcp_io_channel)
+					chan = 0;
 			}
 
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -8496,7 +8504,7 @@ found:
 		/* Spread vector mapping across multple physical CPU nodes */
 		phys_id++;
 		if (phys_id > max_phys_id)
-			phys_id = 0;
+			phys_id = min_phys_id;
 	}
 
 	/*
@@ -8506,7 +8514,7 @@ found:
 	 * Base the remaining IO channel assigned, to IO channels already
 	 * assigned to other CPUs on the same phys_id.
 	 */
-	for (i = 0; i <= max_phys_id; i++) {
+	for (i = min_phys_id; i <= max_phys_id; i++) {
 		/*
 		 * If there are no io channels already mapped to
 		 * this phys_id, just round robin thru the io_channels.
@@ -8588,10 +8596,11 @@ out:
 	if (num_io_channel != phba->sli4_hba.num_present_cpu)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3333 Set affinity mismatch:"
-				"%d chann != %d cpus: %d vactors\n",
+				"%d chann != %d cpus: %d vectors\n",
 				num_io_channel, phba->sli4_hba.num_present_cpu,
 				vectors);
 
+	/* Enable using cpu affinity for scheduling */
 	phba->cfg_fcp_io_sched = LPFC_FCP_SCHED_BY_CPU;
 	return 1;
 }
@@ -8682,9 +8691,12 @@ enable_msix_vectors:
 
 cfg_fail_out:
 	/* free the irq already requested */
-	for (--index; index >= 0; index--)
+	for (--index; index >= 0; index--) {
+		irq_set_affinity_hint(phba->sli4_hba.msix_entries[index].
+					  vector, NULL);
 		free_irq(phba->sli4_hba.msix_entries[index].vector,
 			 &phba->sli4_hba.fcp_eq_hdl[index]);
+	}
 
 msi_fail_out:
 	/* Unconfigure MSI-X capability structure */
@@ -8705,9 +8717,12 @@ lpfc_sli4_disable_msix(struct lpfc_hba *phba)
 	int index;
 
 	/* Free up MSI-X multi-message vectors */
-	for (index = 0; index < phba->cfg_fcp_io_channel; index++)
+	for (index = 0; index < phba->cfg_fcp_io_channel; index++) {
+		irq_set_affinity_hint(phba->sli4_hba.msix_entries[index].
+					  vector, NULL);
 		free_irq(phba->sli4_hba.msix_entries[index].vector,
 			 &phba->sli4_hba.fcp_eq_hdl[index]);
+	}
 
 	/* Disable MSI-X */
 	pci_disable_msix(phba->pcidev);
@@ -9154,6 +9169,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	sli4_params->mqv = bf_get(cfg_mqv, mbx_sli4_parameters);
 	sli4_params->wqv = bf_get(cfg_wqv, mbx_sli4_parameters);
 	sli4_params->rqv = bf_get(cfg_rqv, mbx_sli4_parameters);
+	sli4_params->wqsize = bf_get(cfg_wqsize, mbx_sli4_parameters);
 	sli4_params->sgl_pages_max = bf_get(cfg_sgl_page_cnt,
 					    mbx_sli4_parameters);
 	sli4_params->sgl_pp_align = bf_get(cfg_sgl_pp_align,

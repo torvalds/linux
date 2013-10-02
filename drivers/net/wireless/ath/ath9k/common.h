@@ -44,8 +44,7 @@
 
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
 void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
-			       struct ieee80211_channel *chan,
-			       enum nl80211_channel_type channel_type);
+			       struct cfg80211_chan_def *chandef);
 struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
 					       struct ath_hw *ah);
 int ath9k_cmn_count_streams(unsigned int chainmask, int max);

@@ -1,6 +1,8 @@
 #
 # DAC drivers
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Digital to analog converters"
 
 config AD5064
@@ -15,7 +17,7 @@ config AD5064
 	  module will be called ad5064.
 
 config AD5360
-	tristate "Analog Devices Analog Devices AD5360/61/62/63/70/71/73 DAC driver"
+	tristate "Analog Devices AD5360/61/62/63/70/71/73 DAC driver"
 	depends on SPI
 	help
 	  Say yes here to build support for Analog Devices AD5360, AD5361,
@@ -48,13 +50,6 @@ config AD5421
 	  To compile this driver as module choose M here: the module will be called
 	  ad5421.
 
-config AD5624R_SPI
-	tristate "Analog Devices AD5624/44/64R DAC spi driver"
-	depends on SPI
-	help
-	  Say yes here to build support for Analog Devices AD5624R, AD5644R and
-	  AD5664R converters (DAC). This driver uses the common SPI interface.
-
 config AD5446
 	tristate "Analog Devices AD5446 and similar single channel DACs driver"
 	depends on (SPI_MASTER && I2C!=m) || I2C
@@ -68,7 +63,7 @@ config AD5446
 	  module will be called ad5446.
 
 config AD5449
-	tristate "Analog Device AD5449 and similar DACs driver"
+	tristate "Analog Devices AD5449 and similar DACs driver"
 	depends on SPI_MASTER
 	help
 	  Say yes here to build support for Analog Devices AD5415, AD5426, AD5429,
@@ -86,6 +81,24 @@ config AD5504
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5504.
+
+config AD5624R_SPI
+	tristate "Analog Devices AD5624/44/64R DAC spi driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5624R, AD5644R and
+	  AD5664R converters (DAC). This driver uses the common SPI interface.
+
+config AD5686
+	tristate "Analog Devices AD5686R/AD5685R/AD5684R DAC SPI driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5686R, AD5685R,
+	  AD5684R, AD5791 Voltage Output Digital to
+	  Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5686.
 
 config AD5755
 	tristate "Analog Devices AD5755/AD5755-1/AD5757/AD5735/AD5737 DAC driver"
@@ -119,19 +132,8 @@ config AD5791
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5791.
 
-config AD5686
-	tristate "Analog Devices AD5686R/AD5685R/AD5684R DAC SPI driver"
-	depends on SPI
-	help
-	  Say yes here to build support for Analog Devices AD5686R, AD5685R,
-	  AD5684R, AD5791 Voltage Output Digital to
-	  Analog Converter.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad5686.
-
 config AD7303
-	tristate "Analog Devices Analog Devices AD7303 DAC driver"
+	tristate "Analog Devices AD7303 DAC driver"
 	depends on SPI
 	help
 	  Say yes here to build support for Analog Devices AD7303 Digital to Analog

@@ -478,12 +478,20 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	}
 
 	/*
+	 * If we are here due to reconnect, free per-smb session key
+	 * in case signing was required.
+	 */
+	kfree(ses->auth_key.response);
+	ses->auth_key.response = NULL;
+
+	/*
 	 * If memory allocation is successful, caller of this function
 	 * frees it.
 	 */
 	ses->ntlmssp = kmalloc(sizeof(struct ntlmssp_auth), GFP_KERNEL);
 	if (!ses->ntlmssp)
 		return -ENOMEM;
+	ses->ntlmssp->sesskey_per_smbsess = true;
 
 	/* FIXME: allow for other auth types besides NTLMSSP (e.g. krb5) */
 	ses->sectype = RawNTLMSSP;
@@ -628,6 +636,40 @@ ssetup_exit:
 	/* if ntlmssp, and negotiate succeeded, proceed to authenticate phase */
 	if ((phase == NtLmChallenge) && (rc == 0))
 		goto ssetup_ntlmssp_authenticate;
+
+	if (!rc) {
+		mutex_lock(&server->srv_mutex);
+		if (server->sign && server->ops->generate_signingkey) {
+			rc = server->ops->generate_signingkey(ses);
+			kfree(ses->auth_key.response);
+			ses->auth_key.response = NULL;
+			if (rc) {
+				cifs_dbg(FYI,
+					"SMB3 session key generation failed\n");
+				mutex_unlock(&server->srv_mutex);
+				goto keygen_exit;
+			}
+		}
+		if (!server->session_estab) {
+			server->sequence_number = 0x2;
+			server->session_estab = true;
+		}
+		mutex_unlock(&server->srv_mutex);
+
+		cifs_dbg(FYI, "SMB2/3 session established successfully\n");
+		spin_lock(&GlobalMid_Lock);
+		ses->status = CifsGood;
+		ses->need_reconnect = false;
+		spin_unlock(&GlobalMid_Lock);
+	}
+
+keygen_exit:
+	if (!server->sign) {
+		kfree(ses->auth_key.response);
+		ses->auth_key.response = NULL;
+	}
+	kfree(ses->ntlmssp);
+
 	return rc;
 }
 
@@ -813,39 +855,6 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	return rc;
 }
 
-static struct create_lease *
-create_lease_buf(u8 *lease_key, u8 oplock)
-{
-	struct create_lease *buf;
-
-	buf = kzalloc(sizeof(struct create_lease), GFP_KERNEL);
-	if (!buf)
-		return NULL;
-
-	buf->lcontext.LeaseKeyLow = cpu_to_le64(*((u64 *)lease_key));
-	buf->lcontext.LeaseKeyHigh = cpu_to_le64(*((u64 *)(lease_key + 8)));
-	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE)
-		buf->lcontext.LeaseState = SMB2_LEASE_WRITE_CACHING |
-					   SMB2_LEASE_READ_CACHING;
-	else if (oplock == SMB2_OPLOCK_LEVEL_II)
-		buf->lcontext.LeaseState = SMB2_LEASE_READ_CACHING;
-	else if (oplock == SMB2_OPLOCK_LEVEL_BATCH)
-		buf->lcontext.LeaseState = SMB2_LEASE_HANDLE_CACHING |
-					   SMB2_LEASE_READ_CACHING |
-					   SMB2_LEASE_WRITE_CACHING;
-
-	buf->ccontext.DataOffset = cpu_to_le16(offsetof
-					(struct create_lease, lcontext));
-	buf->ccontext.DataLength = cpu_to_le32(sizeof(struct lease_context));
-	buf->ccontext.NameOffset = cpu_to_le16(offsetof
-				(struct create_lease, Name));
-	buf->ccontext.NameLength = cpu_to_le16(4);
-	buf->Name[0] = 'R';
-	buf->Name[1] = 'q';
-	buf->Name[2] = 'L';
-	buf->Name[3] = 's';
-	return buf;
-}
 
 static struct create_durable *
 create_durable_buf(void)
@@ -894,55 +903,49 @@ create_reconnect_durable_buf(struct cifs_fid *fid)
 }
 
 static __u8
-parse_lease_state(struct smb2_create_rsp *rsp)
+parse_lease_state(struct TCP_Server_Info *server, struct smb2_create_rsp *rsp,
+		  unsigned int *epoch)
 {
 	char *data_offset;
-	struct create_lease *lc;
-	bool found = false;
+	struct create_context *cc;
 	unsigned int next = 0;
 	char *name;
 
 	data_offset = (char *)rsp + 4 + le32_to_cpu(rsp->CreateContextsOffset);
-	lc = (struct create_lease *)data_offset;
+	cc = (struct create_context *)data_offset;
 	do {
-		lc = (struct create_lease *)((char *)lc + next);
-		name = le16_to_cpu(lc->ccontext.NameOffset) + (char *)lc;
-		if (le16_to_cpu(lc->ccontext.NameLength) != 4 ||
+		cc = (struct create_context *)((char *)cc + next);
+		name = le16_to_cpu(cc->NameOffset) + (char *)cc;
+		if (le16_to_cpu(cc->NameLength) != 4 ||
 		    strncmp(name, "RqLs", 4)) {
-			next = le32_to_cpu(lc->ccontext.Next);
+			next = le32_to_cpu(cc->Next);
 			continue;
 		}
-		if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS)
-			return SMB2_OPLOCK_LEVEL_NOCHANGE;
-		found = true;
-		break;
+		return server->ops->parse_lease_buf(cc, epoch);
 	} while (next != 0);
 
-	if (!found)
-		return 0;
-
-	return smb2_map_lease_to_oplock(lc->lcontext.LeaseState);
+	return 0;
 }
 
 static int
-add_lease_context(struct kvec *iov, unsigned int *num_iovec, __u8 *oplock)
+add_lease_context(struct TCP_Server_Info *server, struct kvec *iov,
+		  unsigned int *num_iovec, __u8 *oplock)
 {
 	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
-	iov[num].iov_base = create_lease_buf(oplock+1, *oplock);
+	iov[num].iov_base = server->ops->create_lease_buf(oplock+1, *oplock);
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
-	iov[num].iov_len = sizeof(struct create_lease);
+	iov[num].iov_len = server->vals->create_lease_size;
 	req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_LEASE;
 	if (!req->CreateContextsOffset)
 		req->CreateContextsOffset = cpu_to_le32(
 				sizeof(struct smb2_create_req) - 4 +
 				iov[num - 1].iov_len);
-	req->CreateContextsLength = cpu_to_le32(
-				le32_to_cpu(req->CreateContextsLength) +
-				sizeof(struct create_lease));
-	inc_rfc1001_len(&req->hdr, sizeof(struct create_lease));
+	le32_add_cpu(&req->CreateContextsLength,
+		     server->vals->create_lease_size);
+	inc_rfc1001_len(&req->hdr, server->vals->create_lease_size);
 	*num_iovec = num + 1;
 	return 0;
 }
@@ -967,9 +970,7 @@ add_durable_context(struct kvec *iov, unsigned int *num_iovec,
 		req->CreateContextsOffset =
 			cpu_to_le32(sizeof(struct smb2_create_req) - 4 +
 								iov[1].iov_len);
-	req->CreateContextsLength =
-			cpu_to_le32(le32_to_cpu(req->CreateContextsLength) +
-						sizeof(struct create_durable));
+	le32_add_cpu(&req->CreateContextsLength, sizeof(struct create_durable));
 	inc_rfc1001_len(&req->hdr, sizeof(struct create_durable));
 	*num_iovec = num + 1;
 	return 0;
@@ -977,7 +978,8 @@ add_durable_context(struct kvec *iov, unsigned int *num_iovec,
 
 int
 SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
-	  __u8 *oplock, struct smb2_file_all_info *buf)
+	  __u8 *oplock, struct smb2_file_all_info *buf,
+	  struct smb2_err_rsp **err_buf)
 {
 	struct smb2_create_req *req;
 	struct smb2_create_rsp *rsp;
@@ -1048,11 +1050,11 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	if (!server->oplocks)
 		*oplock = SMB2_OPLOCK_LEVEL_NONE;
 
-	if (!(tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING) ||
+	if (!(server->capabilities & SMB2_GLOBAL_CAP_LEASING) ||
 	    *oplock == SMB2_OPLOCK_LEVEL_NONE)
 		req->RequestedOplockLevel = *oplock;
 	else {
-		rc = add_lease_context(iov, &num_iovecs, oplock);
+		rc = add_lease_context(server, iov, &num_iovecs, oplock);
 		if (rc) {
 			cifs_small_buf_release(req);
 			kfree(copy_path);
@@ -1062,11 +1064,11 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 
 	if (*oplock == SMB2_OPLOCK_LEVEL_BATCH) {
 		/* need to set Next field of lease context if we request it */
-		if (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING) {
+		if (server->capabilities & SMB2_GLOBAL_CAP_LEASING) {
 			struct create_context *ccontext =
 			    (struct create_context *)iov[num_iovecs-1].iov_base;
 			ccontext->Next =
-				cpu_to_le32(sizeof(struct create_lease));
+				cpu_to_le32(server->vals->create_lease_size);
 		}
 		rc = add_durable_context(iov, &num_iovecs, oparms);
 		if (rc) {
@@ -1082,6 +1084,9 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 
 	if (rc != 0) {
 		cifs_stats_fail_inc(tcon, SMB2_CREATE_HE);
+		if (err_buf)
+			*err_buf = kmemdup(rsp, get_rfc1002_length(rsp) + 4,
+					   GFP_KERNEL);
 		goto creat_exit;
 	}
 
@@ -1098,7 +1103,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	}
 
 	if (rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE)
-		*oplock = parse_lease_state(rsp);
+		*oplock = parse_lease_state(server, rsp, &oparms->fid->epoch);
 	else
 		*oplock = rsp->OplockLevel;
 creat_exit:

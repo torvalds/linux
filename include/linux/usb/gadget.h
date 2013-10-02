@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/scatterlist.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 #include <linux/usb/ch9.h>
 
 struct usb_ep;
@@ -475,6 +476,7 @@ struct usb_gadget_ops {
 
 /**
  * struct usb_gadget - represents a usb slave device
+ * @work: (internal use) Workqueue to be used for sysfs_notify()
  * @ops: Function pointers used to access hardware-specific operations.
  * @ep0: Endpoint zero, used when reading or writing responses to
  *	driver setup() requests
@@ -520,6 +522,7 @@ struct usb_gadget_ops {
  * device is acting as a B-Peripheral (so is_a_peripheral is false).
  */
 struct usb_gadget {
+	struct work_struct		work;
 	/* readonly to gadget driver */
 	const struct usb_gadget_ops	*ops;
 	struct usb_ep			*ep0;
@@ -538,6 +541,7 @@ struct usb_gadget {
 	unsigned			out_epnum;
 	unsigned			in_epnum;
 };
+#define work_to_gadget(w)	(container_of((w), struct usb_gadget, work))
 
 static inline void set_gadget_data(struct usb_gadget *gadget, void *data)
 	{ dev_set_drvdata(&gadget->dev, data); }

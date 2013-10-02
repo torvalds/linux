@@ -107,26 +107,25 @@ typedef elf_gregset_t32 compat_elf_gregset_t;
 # define ELF_NVRREG	34	/* includes vscr & vrsave in split vectors */
 # define ELF_NVSRHALFREG 32	/* Half the vsx registers */
 # define ELF_GREG_TYPE	elf_greg_t64
+# define ELF_ARCH	EM_PPC64
+# define ELF_CLASS	ELFCLASS64
+typedef elf_greg_t64 elf_greg_t;
+typedef elf_gregset_t64 elf_gregset_t;
 #else
 # define ELF_NEVRREG	34	/* includes acc (as 2) */
 # define ELF_NVRREG	33	/* includes vscr */
 # define ELF_GREG_TYPE	elf_greg_t32
 # define ELF_ARCH	EM_PPC
 # define ELF_CLASS	ELFCLASS32
-# define ELF_DATA	ELFDATA2MSB
+typedef elf_greg_t32 elf_greg_t;
+typedef elf_gregset_t32 elf_gregset_t;
 #endif /* __powerpc64__ */
 
-#ifndef ELF_ARCH
-# define ELF_ARCH	EM_PPC64
-# define ELF_CLASS	ELFCLASS64
-# define ELF_DATA	ELFDATA2MSB
-  typedef elf_greg_t64 elf_greg_t;
-  typedef elf_gregset_t64 elf_gregset_t;
+#ifdef __BIG_ENDIAN__
+#define ELF_DATA	ELFDATA2MSB
 #else
-  /* Assumption: ELF_ARCH == EM_PPC and ELF_CLASS == ELFCLASS32 */
-  typedef elf_greg_t32 elf_greg_t;
-  typedef elf_gregset_t32 elf_gregset_t;
-#endif /* ELF_ARCH */
+#define ELF_DATA	ELFDATA2LSB
+#endif
 
 /* Floating point registers */
 typedef double elf_fpreg_t;

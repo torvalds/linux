@@ -4,9 +4,14 @@ config FB_OLPC_DCON
 	select I2C
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
-	  Add support for the OLPC XO DCON controller.  This controller is
-	  only available on OLPC platforms.   Unless you have one of these
-	  platforms, you will want to say 'N'.
+	  In order to support very low power operation, the XO laptop uses a
+	  secondary Display CONtroller, or DCON.  This secondary controller
+	  is present in the video pipeline between the primary display
+	  controller (integrate into the processor or chipset) and the LCD
+	  panel.  It allows the main processor/display controller to be
+	  completely powered off while still retaining an image on the display.
+	  This controller is only available on OLPC platforms.  Unless you have
+	  one of these platforms, you will want to say 'N'.
 
 config FB_OLPC_DCON_1
 	bool "OLPC XO-1 DCON support"

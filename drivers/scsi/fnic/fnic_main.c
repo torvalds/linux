@@ -74,6 +74,10 @@ module_param(fnic_trace_max_pages, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_trace_max_pages, "Total allocated memory pages "
 					"for fnic trace buffer");
 
+static unsigned int fnic_max_qdepth = FNIC_DFLT_QUEUE_DEPTH;
+module_param(fnic_max_qdepth, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(fnic_max_qdepth, "Queue depth to report for each LUN");
+
 static struct libfc_function_template fnic_transport_template = {
 	.frame_send = fnic_send,
 	.lport_set_port_id = fnic_set_port_id,
@@ -91,7 +95,7 @@ static int fnic_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	scsi_activate_tcq(sdev, FNIC_DFLT_QUEUE_DEPTH);
+	scsi_activate_tcq(sdev, fnic_max_qdepth);
 	return 0;
 }
 
@@ -126,6 +130,7 @@ fnic_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
 static void fnic_get_host_speed(struct Scsi_Host *shost);
 static struct scsi_transport_template *fnic_fc_transport;
 static struct fc_host_statistics *fnic_get_stats(struct Scsi_Host *);
+static void fnic_reset_host_stats(struct Scsi_Host *);
 
 static struct fc_function_template fnic_fc_functions = {
 
@@ -153,6 +158,7 @@ static struct fc_function_template fnic_fc_functions = {
 	.set_rport_dev_loss_tmo = fnic_set_rport_dev_loss_tmo,
 	.issue_fc_host_lip = fnic_reset,
 	.get_fc_host_stats = fnic_get_stats,
+	.reset_fc_host_stats = fnic_reset_host_stats,
 	.dd_fcrport_size = sizeof(struct fc_rport_libfc_priv),
 	.terminate_rport_io = fnic_terminate_rport_io,
 	.bsg_request = fc_lport_bsg_request,
@@ -206,11 +212,114 @@ static struct fc_host_statistics *fnic_get_stats(struct Scsi_Host *host)
 	stats->error_frames = vs->tx.tx_errors + vs->rx.rx_errors;
 	stats->dumped_frames = vs->tx.tx_drops + vs->rx.rx_drop;
 	stats->invalid_crc_count = vs->rx.rx_crc_errors;
-	stats->seconds_since_last_reset = (jiffies - lp->boot_time) / HZ;
+	stats->seconds_since_last_reset =
+			(jiffies - fnic->stats_reset_time) / HZ;
 	stats->fcp_input_megabytes = div_u64(fnic->fcp_input_bytes, 1000000);
 	stats->fcp_output_megabytes = div_u64(fnic->fcp_output_bytes, 1000000);
 
 	return stats;
+}
+
+/*
+ * fnic_dump_fchost_stats
+ * note : dumps fc_statistics into system logs
+ */
+void fnic_dump_fchost_stats(struct Scsi_Host *host,
+				struct fc_host_statistics *stats)
+{
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: seconds since last reset = %llu\n",
+			stats->seconds_since_last_reset);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: tx frames		= %llu\n",
+			stats->tx_frames);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: tx words		= %llu\n",
+			stats->tx_words);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: rx frames		= %llu\n",
+			stats->rx_frames);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: rx words		= %llu\n",
+			stats->rx_words);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: lip count		= %llu\n",
+			stats->lip_count);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: nos count		= %llu\n",
+			stats->nos_count);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: error frames		= %llu\n",
+			stats->error_frames);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: dumped frames	= %llu\n",
+			stats->dumped_frames);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: link failure count	= %llu\n",
+			stats->link_failure_count);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: loss of sync count	= %llu\n",
+			stats->loss_of_sync_count);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: loss of signal count	= %llu\n",
+			stats->loss_of_signal_count);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: prim seq protocol err count = %llu\n",
+			stats->prim_seq_protocol_err_count);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: invalid tx word count= %llu\n",
+			stats->invalid_tx_word_count);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: invalid crc count	= %llu\n",
+			stats->invalid_crc_count);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: fcp input requests	= %llu\n",
+			stats->fcp_input_requests);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: fcp output requests	= %llu\n",
+			stats->fcp_output_requests);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: fcp control requests	= %llu\n",
+			stats->fcp_control_requests);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: fcp input megabytes	= %llu\n",
+			stats->fcp_input_megabytes);
+	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+			"fnic: fcp output megabytes	= %llu\n",
+			stats->fcp_output_megabytes);
+	return;
+}
+
+/*
+ * fnic_reset_host_stats : clears host stats
+ * note : called when reset_statistics set under sysfs dir
+ */
+static void fnic_reset_host_stats(struct Scsi_Host *host)
+{
+	int ret;
+	struct fc_lport *lp = shost_priv(host);
+	struct fnic *fnic = lport_priv(lp);
+	struct fc_host_statistics *stats;
+	unsigned long flags;
+
+	/* dump current stats, before clearing them */
+	stats = fnic_get_stats(host);
+	fnic_dump_fchost_stats(host, stats);
+
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	ret = vnic_dev_stats_clear(fnic->vdev);
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+
+	if (ret) {
+		FNIC_MAIN_DBG(KERN_DEBUG, fnic->lport->host,
+				"fnic: Reset vnic stats failed"
+				" 0x%x", ret);
+		return;
+	}
+	fnic->stats_reset_time = jiffies;
+	memset(stats, 0, sizeof(*stats));
+
+	return;
 }
 
 void fnic_log_q_error(struct fnic *fnic)
@@ -447,13 +556,6 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host->transportt = fnic_fc_transport;
 
-	err = scsi_init_shared_tag_map(host, FNIC_MAX_IO_REQ);
-	if (err) {
-		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Unable to alloc shared tag map\n");
-		goto err_out_free_hba;
-	}
-
 	/* Setup PCI resources */
 	pci_set_drvdata(pdev, fnic);
 
@@ -476,10 +578,10 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	/* Query PCI controller on system for DMA addressing
-	 * limitation for the device.  Try 40-bit first, and
+	 * limitation for the device.  Try 64-bit first, and
 	 * fail to 32-bit.
 	 */
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(40));
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err) {
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
@@ -496,10 +598,10 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto err_out_release_regions;
 		}
 	} else {
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40));
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (err) {
 			shost_printk(KERN_ERR, fnic->lport->host,
-				     "Unable to obtain 40-bit DMA "
+				     "Unable to obtain 64-bit DMA "
 				     "for consistent allocations, aborting.\n");
 			goto err_out_release_regions;
 		}
@@ -566,6 +668,22 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     "aborting.\n");
 		goto err_out_dev_close;
 	}
+
+	/* Configure Maximum Outstanding IO reqs*/
+	if (fnic->config.io_throttle_count != FNIC_UCSM_DFLT_THROTTLE_CNT_BLD) {
+		host->can_queue = min_t(u32, FNIC_MAX_IO_REQ,
+					max_t(u32, FNIC_MIN_IO_REQ,
+					fnic->config.io_throttle_count));
+	}
+	fnic->fnic_max_tag_id = host->can_queue;
+
+	err = scsi_init_shared_tag_map(host, fnic->fnic_max_tag_id);
+	if (err) {
+		shost_printk(KERN_ERR, fnic->lport->host,
+			  "Unable to alloc shared tag map\n");
+		goto err_out_dev_close;
+	}
+
 	host->max_lun = fnic->config.luns_per_tgt;
 	host->max_id = FNIC_MAX_FCP_TARGET;
 	host->max_cmd_len = FCOE_MAX_CMD_LEN;
@@ -719,6 +837,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	fc_lport_init_stats(lp);
+	fnic->stats_reset_time = jiffies;
 
 	fc_lport_config(lp);
 

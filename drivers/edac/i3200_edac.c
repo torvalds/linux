@@ -260,8 +260,7 @@ static void i3200_check(struct mem_ctl_info *mci)
 	i3200_process_error_info(mci, &info);
 }
 
-
-void __iomem *i3200_map_mchbar(struct pci_dev *pdev)
+static void __iomem *i3200_map_mchbar(struct pci_dev *pdev)
 {
 	union {
 		u64 mchbar;

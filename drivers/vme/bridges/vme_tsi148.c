@@ -1267,7 +1267,7 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 	u32 aspace, cycle, dwidth;
 	struct vme_bus_error *vme_err = NULL;
 	struct vme_bridge *tsi148_bridge;
-	void *addr = image->kern_base + offset;
+	void __iomem *addr = image->kern_base + offset;
 	unsigned int done = 0;
 	unsigned int count32;
 
@@ -1348,7 +1348,7 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 	int retval = 0, enabled;
 	unsigned long long vme_base, size;
 	u32 aspace, cycle, dwidth;
-	void *addr = image->kern_base + offset;
+	void __iomem *addr = image->kern_base + offset;
 	unsigned int done = 0;
 	unsigned int count32;
 

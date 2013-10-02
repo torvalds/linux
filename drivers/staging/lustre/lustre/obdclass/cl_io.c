@@ -106,7 +106,6 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 
 	LINVRNT(cl_io_type_is_valid(io->ci_type));
 	LINVRNT(cl_io_invariant(io));
-	ENTRY;
 
 	while (!list_empty(&io->ci_layers)) {
 		slice = container_of(io->ci_layers.prev, struct cl_io_slice,
@@ -144,7 +143,6 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 	default:
 		LBUG();
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(cl_io_fini);
 
@@ -157,7 +155,6 @@ static int cl_io_init0(const struct lu_env *env, struct cl_io *io,
 	LINVRNT(io->ci_state == CIS_ZERO || io->ci_state == CIS_FINI);
 	LINVRNT(cl_io_type_is_valid(iot));
 	LINVRNT(cl_io_invariant(io));
-	ENTRY;
 
 	io->ci_type = iot;
 	INIT_LIST_HEAD(&io->ci_lockset.cls_todo);
@@ -175,7 +172,7 @@ static int cl_io_init0(const struct lu_env *env, struct cl_io *io,
 	}
 	if (result == 0)
 		io->ci_state = CIS_INIT;
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -228,7 +225,6 @@ int cl_io_rw_init(const struct lu_env *env, struct cl_io *io,
 {
 	LINVRNT(iot == CIT_READ || iot == CIT_WRITE);
 	LINVRNT(io->ci_obj != NULL);
-	ENTRY;
 
 	LU_OBJECT_HEADER(D_VFSTRACE, env, &io->ci_obj->co_lu,
 			 "io range: %u ["LPU64", "LPU64") %u %u\n",
@@ -236,7 +232,7 @@ int cl_io_rw_init(const struct lu_env *env, struct cl_io *io,
 			 io->u.ci_rw.crw_nonblock, io->u.ci_wr.wr_append);
 	io->u.ci_rw.crw_pos    = pos;
 	io->u.ci_rw.crw_count  = count;
-	RETURN(cl_io_init(env, io, iot, io->ci_obj));
+	return cl_io_init(env, io, iot, io->ci_obj);
 }
 EXPORT_SYMBOL(cl_io_rw_init);
 
@@ -288,7 +284,6 @@ static void cl_io_locks_sort(struct cl_io *io)
 {
 	int done = 0;
 
-	ENTRY;
 	/* hidden treasure: bubble sort for now. */
 	do {
 		struct cl_io_lock_link *curr;
@@ -325,7 +320,6 @@ static void cl_io_locks_sort(struct cl_io *io)
 			prev = curr;
 		}
 	} while (!done);
-	EXIT;
 }
 
 /**
@@ -339,12 +333,11 @@ int cl_queue_match(const struct list_head *queue,
 {
        struct cl_io_lock_link *scan;
 
-       ENTRY;
        list_for_each_entry(scan, queue, cill_linkage) {
 	       if (cl_lock_descr_match(&scan->cill_descr, need))
-		       RETURN(+1);
+		       return +1;
        }
-       RETURN(0);
+       return 0;
 }
 EXPORT_SYMBOL(cl_queue_match);
 
@@ -353,7 +346,6 @@ static int cl_queue_merge(const struct list_head *queue,
 {
        struct cl_io_lock_link *scan;
 
-       ENTRY;
        list_for_each_entry(scan, queue, cill_linkage) {
 	       if (cl_lock_descr_cmp(&scan->cill_descr, need))
 		       continue;
@@ -361,9 +353,9 @@ static int cl_queue_merge(const struct list_head *queue,
 	       CDEBUG(D_VFSTRACE, "lock: %d: [%lu, %lu]\n",
 		      scan->cill_descr.cld_mode, scan->cill_descr.cld_start,
 		      scan->cill_descr.cld_end);
-	       RETURN(+1);
+	       return +1;
        }
-       RETURN(0);
+       return 0;
 
 }
 
@@ -388,8 +380,6 @@ static int cl_lockset_lock_one(const struct lu_env *env,
 	struct cl_lock *lock;
 	int	     result;
 
-	ENTRY;
-
 	lock = cl_lock_request(env, io, &link->cill_descr, "io", io);
 
 	if (!IS_ERR(lock)) {
@@ -404,7 +394,7 @@ static int cl_lockset_lock_one(const struct lu_env *env,
 			result = 0;
 	} else
 		result = PTR_ERR(lock);
-	RETURN(result);
+	return result;
 }
 
 static void cl_lock_link_fini(const struct lu_env *env, struct cl_io *io,
@@ -412,7 +402,6 @@ static void cl_lock_link_fini(const struct lu_env *env, struct cl_io *io,
 {
 	struct cl_lock *lock = link->cill_lock;
 
-	ENTRY;
 	list_del_init(&link->cill_linkage);
 	if (lock != NULL) {
 		cl_lock_release(env, lock, "io", io);
@@ -420,7 +409,6 @@ static void cl_lock_link_fini(const struct lu_env *env, struct cl_io *io,
 	}
 	if (link->cill_fini != NULL)
 		link->cill_fini(env, link);
-	EXIT;
 }
 
 static int cl_lockset_lock(const struct lu_env *env, struct cl_io *io,
@@ -431,7 +419,6 @@ static int cl_lockset_lock(const struct lu_env *env, struct cl_io *io,
 	struct cl_lock	 *lock;
 	int result;
 
-	ENTRY;
 	result = 0;
 	list_for_each_entry_safe(link, temp, &set->cls_todo, cill_linkage) {
 		if (!cl_lockset_match(set, &link->cill_descr)) {
@@ -455,7 +442,7 @@ static int cl_lockset_lock(const struct lu_env *env, struct cl_io *io,
 				break;
 		}
 	}
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -474,7 +461,6 @@ int cl_io_lock(const struct lu_env *env, struct cl_io *io)
 	LINVRNT(io->ci_state == CIS_IT_STARTED);
 	LINVRNT(cl_io_invariant(io));
 
-	ENTRY;
 	cl_io_for_each(scan, io) {
 		if (scan->cis_iop->op[io->ci_type].cio_lock == NULL)
 			continue;
@@ -490,7 +476,7 @@ int cl_io_lock(const struct lu_env *env, struct cl_io *io)
 		cl_io_unlock(env, io);
 	else
 		io->ci_state = CIS_LOCKED;
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_io_lock);
 
@@ -508,7 +494,6 @@ void cl_io_unlock(const struct lu_env *env, struct cl_io *io)
 	LASSERT(CIS_IT_STARTED <= io->ci_state && io->ci_state < CIS_UNLOCKED);
 	LINVRNT(cl_io_invariant(io));
 
-	ENTRY;
 	set = &io->ci_lockset;
 
 	list_for_each_entry_safe(link, temp, &set->cls_todo, cill_linkage)
@@ -527,7 +512,6 @@ void cl_io_unlock(const struct lu_env *env, struct cl_io *io)
 	}
 	io->ci_state = CIS_UNLOCKED;
 	LASSERT(!cl_env_info(env)->clt_counters[CNL_TOP].ctc_nr_locks_acquired);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_io_unlock);
 
@@ -547,7 +531,6 @@ int cl_io_iter_init(const struct lu_env *env, struct cl_io *io)
 	LINVRNT(io->ci_state == CIS_INIT || io->ci_state == CIS_IT_ENDED);
 	LINVRNT(cl_io_invariant(io));
 
-	ENTRY;
 	result = 0;
 	cl_io_for_each(scan, io) {
 		if (scan->cis_iop->op[io->ci_type].cio_iter_init == NULL)
@@ -559,7 +542,7 @@ int cl_io_iter_init(const struct lu_env *env, struct cl_io *io)
 	}
 	if (result == 0)
 		io->ci_state = CIS_IT_STARTED;
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_io_iter_init);
 
@@ -576,13 +559,11 @@ void cl_io_iter_fini(const struct lu_env *env, struct cl_io *io)
 	LINVRNT(io->ci_state == CIS_UNLOCKED);
 	LINVRNT(cl_io_invariant(io));
 
-	ENTRY;
 	cl_io_for_each_reverse(scan, io) {
 		if (scan->cis_iop->op[io->ci_type].cio_iter_fini != NULL)
 			scan->cis_iop->op[io->ci_type].cio_iter_fini(env, scan);
 	}
 	io->ci_state = CIS_IT_ENDED;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_io_iter_fini);
 
@@ -598,8 +579,6 @@ void cl_io_rw_advance(const struct lu_env *env, struct cl_io *io, size_t nob)
 	LINVRNT(cl_io_is_loopable(io));
 	LINVRNT(cl_io_invariant(io));
 
-	ENTRY;
-
 	io->u.ci_rw.crw_pos   += nob;
 	io->u.ci_rw.crw_count -= nob;
 
@@ -609,7 +588,6 @@ void cl_io_rw_advance(const struct lu_env *env, struct cl_io *io, size_t nob)
 			scan->cis_iop->op[io->ci_type].cio_advance(env, scan,
 								   nob);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(cl_io_rw_advance);
 
@@ -621,14 +599,13 @@ int cl_io_lock_add(const struct lu_env *env, struct cl_io *io,
 {
 	int result;
 
-	ENTRY;
 	if (cl_lockset_merge(&io->ci_lockset, &link->cill_descr))
 		result = +1;
 	else {
 		list_add(&link->cill_linkage, &io->ci_lockset.cls_todo);
 		result = 0;
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_io_lock_add);
 
@@ -647,7 +624,6 @@ int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
 	struct cl_io_lock_link *link;
 	int result;
 
-	ENTRY;
 	OBD_ALLOC_PTR(link);
 	if (link != NULL) {
 		link->cill_descr     = *descr;
@@ -658,7 +634,7 @@ int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
 	} else
 		result = -ENOMEM;
 
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_io_lock_alloc_add);
 
@@ -673,7 +649,6 @@ int cl_io_start(const struct lu_env *env, struct cl_io *io)
 	LINVRNT(cl_io_is_loopable(io));
 	LINVRNT(io->ci_state == CIS_LOCKED);
 	LINVRNT(cl_io_invariant(io));
-	ENTRY;
 
 	io->ci_state = CIS_IO_GOING;
 	cl_io_for_each(scan, io) {
@@ -685,7 +660,7 @@ int cl_io_start(const struct lu_env *env, struct cl_io *io)
 	}
 	if (result >= 0)
 		result = 0;
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_io_start);
 
@@ -700,7 +675,6 @@ void cl_io_end(const struct lu_env *env, struct cl_io *io)
 	LINVRNT(cl_io_is_loopable(io));
 	LINVRNT(io->ci_state == CIS_IO_GOING);
 	LINVRNT(cl_io_invariant(io));
-	ENTRY;
 
 	cl_io_for_each_reverse(scan, io) {
 		if (scan->cis_iop->op[io->ci_type].cio_end != NULL)
@@ -708,7 +682,6 @@ void cl_io_end(const struct lu_env *env, struct cl_io *io)
 		/* TODO: error handling. */
 	}
 	io->ci_state = CIS_IO_FINISHED;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_io_end);
 
@@ -774,7 +747,6 @@ int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
 	LINVRNT(io->ci_state == CIS_IO_GOING || io->ci_state == CIS_LOCKED);
 	LINVRNT(cl_page_in_io(page, io));
 	LINVRNT(cl_io_invariant(io));
-	ENTRY;
 
 	queue = &io->ci_queue;
 
@@ -807,7 +779,7 @@ int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
 	 */
 	cl_page_list_disown(env, io, &queue->c2_qin);
 	cl_2queue_fini(env, queue);
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_io_read_page);
 
@@ -827,7 +799,6 @@ int cl_io_prepare_write(const struct lu_env *env, struct cl_io *io,
 	LINVRNT(io->ci_state == CIS_IO_GOING || io->ci_state == CIS_LOCKED);
 	LINVRNT(cl_io_invariant(io));
 	LASSERT(cl_page_in_io(page, io));
-	ENTRY;
 
 	cl_io_for_each_reverse(scan, io) {
 		if (scan->cis_iop->cio_prepare_write != NULL) {
@@ -841,7 +812,7 @@ int cl_io_prepare_write(const struct lu_env *env, struct cl_io *io,
 				break;
 		}
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_io_prepare_write);
 
@@ -867,7 +838,6 @@ int cl_io_commit_write(const struct lu_env *env, struct cl_io *io,
 	 */
 	LASSERT(cl_page_is_owned(page, io) || page->cp_parent != NULL);
 	LASSERT(cl_page_in_io(page, io));
-	ENTRY;
 
 	cl_io_for_each(scan, io) {
 		if (scan->cis_iop->cio_commit_write != NULL) {
@@ -882,7 +852,7 @@ int cl_io_commit_write(const struct lu_env *env, struct cl_io *io,
 		}
 	}
 	LINVRNT(result <= 0);
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_io_commit_write);
 
@@ -903,7 +873,6 @@ int cl_io_submit_rw(const struct lu_env *env, struct cl_io *io,
 	int result = 0;
 
 	LINVRNT(crt < ARRAY_SIZE(scan->cis_iop->req_op));
-	ENTRY;
 
 	cl_io_for_each(scan, io) {
 		if (scan->cis_iop->req_op[crt].cio_submit == NULL)
@@ -917,7 +886,7 @@ int cl_io_submit_rw(const struct lu_env *env, struct cl_io *io,
 	 * If ->cio_submit() failed, no pages were sent.
 	 */
 	LASSERT(ergo(result != 0, list_empty(&queue->c2_qout.pl_pages)));
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_io_submit_rw);
 
@@ -1009,7 +978,6 @@ int cl_io_loop(const struct lu_env *env, struct cl_io *io)
 	int result   = 0;
 
 	LINVRNT(cl_io_is_loopable(io));
-	ENTRY;
 
 	do {
 		size_t nob;
@@ -1043,7 +1011,7 @@ int cl_io_loop(const struct lu_env *env, struct cl_io *io)
 	} while (result == 0 && io->ci_continue);
 	if (result == 0)
 		result = io->ci_result;
-	RETURN(result < 0 ? result : 0);
+	return result < 0 ? result : 0;
 }
 EXPORT_SYMBOL(cl_io_loop);
 
@@ -1064,13 +1032,11 @@ void cl_io_slice_add(struct cl_io *io, struct cl_io_slice *slice,
 
 	LASSERT((linkage->prev == NULL && linkage->next == NULL) ||
 		list_empty(linkage));
-	ENTRY;
 
 	list_add_tail(linkage, &io->ci_layers);
 	slice->cis_io  = io;
 	slice->cis_obj = obj;
 	slice->cis_iop = ops;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_io_slice_add);
 
@@ -1080,11 +1046,9 @@ EXPORT_SYMBOL(cl_io_slice_add);
  */
 void cl_page_list_init(struct cl_page_list *plist)
 {
-	ENTRY;
 	plist->pl_nr = 0;
 	INIT_LIST_HEAD(&plist->pl_pages);
 	plist->pl_owner = current;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_list_init);
 
@@ -1093,7 +1057,6 @@ EXPORT_SYMBOL(cl_page_list_init);
  */
 void cl_page_list_add(struct cl_page_list *plist, struct cl_page *page)
 {
-	ENTRY;
 	/* it would be better to check that page is owned by "current" io, but
 	 * it is not passed here. */
 	LASSERT(page->cp_owner != NULL);
@@ -1105,9 +1068,8 @@ void cl_page_list_add(struct cl_page_list *plist, struct cl_page *page)
 	LASSERT(list_empty(&page->cp_batch));
 	list_add_tail(&page->cp_batch, &plist->pl_pages);
 	++plist->pl_nr;
-	page->cp_queue_ref = lu_ref_add(&page->cp_reference, "queue", plist);
+	lu_ref_add_at(&page->cp_reference, &page->cp_queue_ref, "queue", plist);
 	cl_page_get(page);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_list_add);
 
@@ -1120,15 +1082,13 @@ void cl_page_list_del(const struct lu_env *env,
 	LASSERT(plist->pl_nr > 0);
 	LINVRNT(plist->pl_owner == current);
 
-	ENTRY;
 	list_del_init(&page->cp_batch);
 	lockdep_off();
 	mutex_unlock(&page->cp_mutex);
 	lockdep_on();
 	--plist->pl_nr;
-	lu_ref_del_at(&page->cp_reference, page->cp_queue_ref, "queue", plist);
+	lu_ref_del_at(&page->cp_reference, &page->cp_queue_ref, "queue", plist);
 	cl_page_put(env, page);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_list_del);
 
@@ -1142,13 +1102,11 @@ void cl_page_list_move(struct cl_page_list *dst, struct cl_page_list *src,
 	LINVRNT(dst->pl_owner == current);
 	LINVRNT(src->pl_owner == current);
 
-	ENTRY;
 	list_move_tail(&page->cp_batch, &dst->pl_pages);
 	--src->pl_nr;
 	++dst->pl_nr;
-	lu_ref_set_at(&page->cp_reference,
-		      page->cp_queue_ref, "queue", src, dst);
-	EXIT;
+	lu_ref_set_at(&page->cp_reference, &page->cp_queue_ref, "queue",
+		      src, dst);
 }
 EXPORT_SYMBOL(cl_page_list_move);
 
@@ -1163,10 +1121,8 @@ void cl_page_list_splice(struct cl_page_list *list, struct cl_page_list *head)
 	LINVRNT(list->pl_owner == current);
 	LINVRNT(head->pl_owner == current);
 
-	ENTRY;
 	cl_page_list_for_each_safe(page, tmp, list)
 		cl_page_list_move(head, list, page);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_list_splice);
 
@@ -1184,7 +1140,6 @@ void cl_page_list_disown(const struct lu_env *env,
 
 	LINVRNT(plist->pl_owner == current);
 
-	ENTRY;
 	cl_page_list_for_each_safe(page, temp, plist) {
 		LASSERT(plist->pl_nr > 0);
 
@@ -1202,10 +1157,10 @@ void cl_page_list_disown(const struct lu_env *env,
 		 * XXX cl_page_disown0() will fail if page is not locked.
 		 */
 		cl_page_disown0(env, io, page);
-		lu_ref_del(&page->cp_reference, "queue", plist);
+		lu_ref_del_at(&page->cp_reference, &page->cp_queue_ref, "queue",
+			      plist);
 		cl_page_put(env, page);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_list_disown);
 
@@ -1219,11 +1174,9 @@ void cl_page_list_fini(const struct lu_env *env, struct cl_page_list *plist)
 
 	LINVRNT(plist->pl_owner == current);
 
-	ENTRY;
 	cl_page_list_for_each_safe(page, temp, plist)
 		cl_page_list_del(env, plist, page);
 	LASSERT(plist->pl_nr == 0);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_list_fini);
 
@@ -1240,7 +1193,6 @@ int cl_page_list_own(const struct lu_env *env,
 
 	LINVRNT(plist->pl_owner == current);
 
-	ENTRY;
 	result = 0;
 	cl_page_list_for_each_safe(page, temp, plist) {
 		LASSERT(index <= page->cp_index);
@@ -1250,7 +1202,7 @@ int cl_page_list_own(const struct lu_env *env,
 		else
 			cl_page_list_del(env, plist, page);
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_page_list_own);
 
@@ -1278,10 +1230,8 @@ void cl_page_list_discard(const struct lu_env *env, struct cl_io *io,
 	struct cl_page *page;
 
 	LINVRNT(plist->pl_owner == current);
-	ENTRY;
 	cl_page_list_for_each(page, plist)
 		cl_page_discard(env, io, page);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_list_discard);
 
@@ -1295,14 +1245,13 @@ int cl_page_list_unmap(const struct lu_env *env, struct cl_io *io,
 	int result;
 
 	LINVRNT(plist->pl_owner == current);
-	ENTRY;
 	result = 0;
 	cl_page_list_for_each(page, plist) {
 		result = cl_page_unmap(env, io, page);
 		if (result != 0)
 			break;
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_page_list_unmap);
 
@@ -1311,10 +1260,8 @@ EXPORT_SYMBOL(cl_page_list_unmap);
  */
 void cl_2queue_init(struct cl_2queue *queue)
 {
-	ENTRY;
 	cl_page_list_init(&queue->c2_qin);
 	cl_page_list_init(&queue->c2_qout);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_2queue_init);
 
@@ -1323,9 +1270,7 @@ EXPORT_SYMBOL(cl_2queue_init);
  */
 void cl_2queue_add(struct cl_2queue *queue, struct cl_page *page)
 {
-	ENTRY;
 	cl_page_list_add(&queue->c2_qin, page);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_2queue_add);
 
@@ -1335,10 +1280,8 @@ EXPORT_SYMBOL(cl_2queue_add);
 void cl_2queue_disown(const struct lu_env *env,
 		      struct cl_io *io, struct cl_2queue *queue)
 {
-	ENTRY;
 	cl_page_list_disown(env, io, &queue->c2_qin);
 	cl_page_list_disown(env, io, &queue->c2_qout);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_2queue_disown);
 
@@ -1348,10 +1291,8 @@ EXPORT_SYMBOL(cl_2queue_disown);
 void cl_2queue_discard(const struct lu_env *env,
 		       struct cl_io *io, struct cl_2queue *queue)
 {
-	ENTRY;
 	cl_page_list_discard(env, io, &queue->c2_qin);
 	cl_page_list_discard(env, io, &queue->c2_qout);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_2queue_discard);
 
@@ -1371,10 +1312,8 @@ EXPORT_SYMBOL(cl_2queue_assume);
  */
 void cl_2queue_fini(const struct lu_env *env, struct cl_2queue *queue)
 {
-	ENTRY;
 	cl_page_list_fini(env, &queue->c2_qout);
 	cl_page_list_fini(env, &queue->c2_qin);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_2queue_fini);
 
@@ -1383,10 +1322,8 @@ EXPORT_SYMBOL(cl_2queue_fini);
  */
 void cl_2queue_init_page(struct cl_2queue *queue, struct cl_page *page)
 {
-	ENTRY;
 	cl_2queue_init(queue);
 	cl_2queue_add(queue, page);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_2queue_init_page);
 
@@ -1397,10 +1334,9 @@ EXPORT_SYMBOL(cl_2queue_init_page);
  */
 struct cl_io *cl_io_top(struct cl_io *io)
 {
-	ENTRY;
 	while (io->ci_parent != NULL)
 		io = io->ci_parent;
-	RETURN(io);
+	return io;
 }
 EXPORT_SYMBOL(cl_io_top);
 
@@ -1425,12 +1361,10 @@ void cl_req_slice_add(struct cl_req *req, struct cl_req_slice *slice,
 		      struct cl_device *dev,
 		      const struct cl_req_operations *ops)
 {
-	ENTRY;
 	list_add_tail(&slice->crs_linkage, &req->crq_layers);
 	slice->crs_dev = dev;
 	slice->crs_ops = ops;
 	slice->crs_req = req;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_req_slice_add);
 
@@ -1442,14 +1376,13 @@ static void cl_req_free(const struct lu_env *env, struct cl_req *req)
 	LASSERT(req->crq_nrpages == 0);
 	LINVRNT(list_empty(&req->crq_layers));
 	LINVRNT(equi(req->crq_nrobjs > 0, req->crq_o != NULL));
-	ENTRY;
 
 	if (req->crq_o != NULL) {
 		for (i = 0; i < req->crq_nrobjs; ++i) {
 			struct cl_object *obj = req->crq_o[i].ro_obj;
 			if (obj != NULL) {
 				lu_object_ref_del_at(&obj->co_lu,
-						     req->crq_o[i].ro_obj_ref,
+						     &req->crq_o[i].ro_obj_ref,
 						     "cl_req", req);
 				cl_object_put(env, obj);
 			}
@@ -1457,7 +1390,6 @@ static void cl_req_free(const struct lu_env *env, struct cl_req *req)
 		OBD_FREE(req->crq_o, req->crq_nrobjs * sizeof req->crq_o[0]);
 	}
 	OBD_FREE_PTR(req);
-	EXIT;
 }
 
 static int cl_req_init(const struct lu_env *env, struct cl_req *req,
@@ -1467,7 +1399,6 @@ static int cl_req_init(const struct lu_env *env, struct cl_req *req,
 	struct cl_page_slice *slice;
 	int result;
 
-	ENTRY;
 	result = 0;
 	page = cl_page_top(page);
 	do {
@@ -1482,7 +1413,7 @@ static int cl_req_init(const struct lu_env *env, struct cl_req *req,
 		}
 		page = page->cp_child;
 	} while (page != NULL && result == 0);
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -1493,7 +1424,6 @@ void cl_req_completion(const struct lu_env *env, struct cl_req *req, int rc)
 {
 	struct cl_req_slice *slice;
 
-	ENTRY;
 	/*
 	 * for the lack of list_for_each_entry_reverse_safe()...
 	 */
@@ -1505,7 +1435,6 @@ void cl_req_completion(const struct lu_env *env, struct cl_req *req, int rc)
 			slice->crs_ops->cro_completion(env, slice, rc);
 	}
 	cl_req_free(env, req);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_req_completion);
 
@@ -1518,7 +1447,6 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 	struct cl_req *req;
 
 	LINVRNT(nr_objects > 0);
-	ENTRY;
 
 	OBD_ALLOC_PTR(req);
 	if (req != NULL) {
@@ -1539,7 +1467,7 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 		}
 	} else
 		req = ERR_PTR(-ENOMEM);
-	RETURN(req);
+	return req;
 }
 EXPORT_SYMBOL(cl_req_alloc);
 
@@ -1553,7 +1481,6 @@ void cl_req_page_add(const struct lu_env *env,
 	struct cl_req_obj *rqo;
 	int i;
 
-	ENTRY;
 	page = cl_page_top(page);
 
 	LASSERT(list_empty(&page->cp_flight));
@@ -1570,13 +1497,12 @@ void cl_req_page_add(const struct lu_env *env,
 		if (rqo->ro_obj == NULL) {
 			rqo->ro_obj = obj;
 			cl_object_get(obj);
-			rqo->ro_obj_ref = lu_object_ref_add(&obj->co_lu,
-							    "cl_req", req);
+			lu_object_ref_add_at(&obj->co_lu, &rqo->ro_obj_ref,
+					     "cl_req", req);
 			break;
 		}
 	}
 	LASSERT(i < req->crq_nrobjs);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_req_page_add);
 
@@ -1587,7 +1513,6 @@ void cl_req_page_done(const struct lu_env *env, struct cl_page *page)
 {
 	struct cl_req *req = page->cp_req;
 
-	ENTRY;
 	page = cl_page_top(page);
 
 	LASSERT(!list_empty(&page->cp_flight));
@@ -1596,7 +1521,6 @@ void cl_req_page_done(const struct lu_env *env, struct cl_page *page)
 	list_del_init(&page->cp_flight);
 	--req->crq_nrpages;
 	page->cp_req = NULL;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_req_page_done);
 
@@ -1610,7 +1534,6 @@ int cl_req_prep(const struct lu_env *env, struct cl_req *req)
 	int result;
 	const struct cl_req_slice *slice;
 
-	ENTRY;
 	/*
 	 * Check that the caller of cl_req_alloc() didn't lie about the number
 	 * of objects.
@@ -1626,7 +1549,7 @@ int cl_req_prep(const struct lu_env *env, struct cl_req *req)
 				break;
 		}
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_req_prep);
 
@@ -1643,7 +1566,6 @@ void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
 	int i;
 
 	LASSERT(!list_empty(&req->crq_pages));
-	ENTRY;
 
 	/* Take any page to use as a model. */
 	page = list_entry(req->crq_pages.next, struct cl_page, cp_flight);
@@ -1662,7 +1584,6 @@ void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
 							     attr + i, flags);
 		}
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(cl_req_attr_set);
 
@@ -1675,12 +1596,10 @@ EXPORT_SYMBOL(cl_req_attr_set);
  */
 void cl_sync_io_init(struct cl_sync_io *anchor, int nrpages)
 {
-	ENTRY;
 	init_waitqueue_head(&anchor->csi_waitq);
 	atomic_set(&anchor->csi_sync_nr, nrpages);
 	atomic_set(&anchor->csi_barrier, nrpages > 0);
 	anchor->csi_sync_rc = 0;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_sync_io_init);
 
@@ -1695,7 +1614,6 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_io *io,
 	struct l_wait_info lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(timeout),
 						  NULL, NULL, NULL);
 	int rc;
-	ENTRY;
 
 	LASSERT(timeout >= 0);
 
@@ -1725,7 +1643,7 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_io *io,
 	}
 
 	POISON(anchor, 0x5a, sizeof *anchor);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(cl_sync_io_wait);
 
@@ -1734,7 +1652,6 @@ EXPORT_SYMBOL(cl_sync_io_wait);
  */
 void cl_sync_io_note(struct cl_sync_io *anchor, int ioret)
 {
-	ENTRY;
 	if (anchor->csi_sync_rc == 0 && ioret < 0)
 		anchor->csi_sync_rc = ioret;
 	/*
@@ -1748,6 +1665,5 @@ void cl_sync_io_note(struct cl_sync_io *anchor, int ioret)
 		/* it's safe to nuke or reuse anchor now */
 		atomic_set(&anchor->csi_barrier, 0);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(cl_sync_io_note);

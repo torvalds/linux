@@ -1220,7 +1220,7 @@ static int qib_compatible_subctxts(int user_swmajor, int user_swminor)
 			return user_swminor == 3;
 		default:
 			/* >= 4 are compatible (or are expected to be) */
-			return user_swminor >= 4;
+			return user_swminor <= QIB_USER_SWMINOR;
 		}
 	}
 	/* make no promises yet for future major versions */

@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/prefetch.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 
 #include <asm/cacheflush.h>
 
@@ -451,7 +451,7 @@ static u64 bfin_dmamask = DMA_BIT_MASK(32);
 static int bfin_probe(struct platform_device *pdev)
 {
 	struct resource musb_resources[2];
-	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
+	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct platform_device		*musb;
 	struct bfin_glue		*glue;
 

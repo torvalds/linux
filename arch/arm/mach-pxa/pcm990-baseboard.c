@@ -408,7 +408,7 @@ struct pxacamera_platform_data pcm990_pxacamera_platform_data = {
 	.mclk_10khz = 1000,
 };
 
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 
 static struct pca953x_platform_data pca9536_data = {
 	.gpio_base	= PXA_NR_BUILTIN_GPIO,

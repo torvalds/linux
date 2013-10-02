@@ -411,7 +411,7 @@ static int jz_nand_probe(struct platform_device *pdev)
 	struct jz_nand *nand;
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
-	struct jz_nand_platform_data *pdata = pdev->dev.platform_data;
+	struct jz_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	size_t chipnr, bank_idx;
 	uint8_t nand_maf_id = 0, nand_dev_id = 0;
 
@@ -538,7 +538,6 @@ err_unclaim_banks:
 err_gpio_busy:
 	if (pdata && gpio_is_valid(pdata->busy_gpio))
 		gpio_free(pdata->busy_gpio);
-	platform_set_drvdata(pdev, NULL);
 err_iounmap_mmio:
 	jz_nand_iounmap_resource(nand->mem, nand->base);
 err_free:
@@ -549,7 +548,7 @@ err_free:
 static int jz_nand_remove(struct platform_device *pdev)
 {
 	struct jz_nand *nand = platform_get_drvdata(pdev);
-	struct jz_nand_platform_data *pdata = pdev->dev.platform_data;
+	struct jz_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	size_t i;
 
 	nand_release(&nand->mtd);
@@ -570,7 +569,6 @@ static int jz_nand_remove(struct platform_device *pdev)
 
 	jz_nand_iounmap_resource(nand->mem, nand->base);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(nand);
 
 	return 0;

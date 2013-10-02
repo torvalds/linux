@@ -117,8 +117,6 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			kvm_guest_exit();
 			continue;
 		}
-
-		trace_hardirqs_on();
 #endif
 
 		kvm_guest_enter();
@@ -418,6 +416,10 @@ void kvm_arch_free_memslot(struct kvm_memory_slot *free,
 int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 {
 	return kvmppc_core_create_memslot(slot, npages);
+}
+
+void kvm_arch_memslots_updated(struct kvm *kvm)
+{
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
@@ -823,39 +825,39 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 #endif
 #ifdef CONFIG_KVM_MPIC
 	case KVM_CAP_IRQ_MPIC: {
-		struct file *filp;
+		struct fd f;
 		struct kvm_device *dev;
 
 		r = -EBADF;
-		filp = fget(cap->args[0]);
-		if (!filp)
+		f = fdget(cap->args[0]);
+		if (!f.file)
 			break;
 
 		r = -EPERM;
-		dev = kvm_device_from_filp(filp);
+		dev = kvm_device_from_filp(f.file);
 		if (dev)
 			r = kvmppc_mpic_connect_vcpu(dev, vcpu, cap->args[1]);
 
-		fput(filp);
+		fdput(f);
 		break;
 	}
 #endif
 #ifdef CONFIG_KVM_XICS
 	case KVM_CAP_IRQ_XICS: {
-		struct file *filp;
+		struct fd f;
 		struct kvm_device *dev;
 
 		r = -EBADF;
-		filp = fget(cap->args[0]);
-		if (!filp)
+		f = fdget(cap->args[0]);
+		if (!f.file)
 			break;
 
 		r = -EPERM;
-		dev = kvm_device_from_filp(filp);
+		dev = kvm_device_from_filp(f.file);
 		if (dev)
 			r = kvmppc_xics_connect_vcpu(dev, vcpu, cap->args[1]);
 
-		fput(filp);
+		fdput(f);
 		break;
 	}
 #endif /* CONFIG_KVM_XICS */

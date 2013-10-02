@@ -48,13 +48,13 @@ enum {
  */
 struct flat_binder_object {
 	/* 8 bytes for large_flat_header. */
-	unsigned long		type;
-	unsigned long		flags;
+	__u32		type;
+	__u32		flags;
 
 	/* 8 bytes of data. */
 	union {
 		void __user	*binder;	/* local object */
-		signed long	handle;		/* remote object */
+		__u32	    handle;		/* remote object */
 	};
 
 	/* extra data associated with local object */
@@ -67,18 +67,18 @@ struct flat_binder_object {
  */
 
 struct binder_write_read {
-	signed long	write_size;	/* bytes to write */
-	signed long	write_consumed;	/* bytes consumed by driver */
+	size_t write_size;	/* bytes to write */
+	size_t write_consumed;	/* bytes consumed by driver */
 	unsigned long	write_buffer;
-	signed long	read_size;	/* bytes to read */
-	signed long	read_consumed;	/* bytes consumed by driver */
+	size_t read_size;	/* bytes to read */
+	size_t read_consumed;	/* bytes consumed by driver */
 	unsigned long	read_buffer;
 };
 
 /* Use with BINDER_VERSION, driver fills in fields. */
 struct binder_version {
 	/* driver protocol version -- increment with incompatible change */
-	signed long	protocol_version;
+	__s32       protocol_version;
 };
 
 /* This is the current protocol version. */
@@ -86,7 +86,7 @@ struct binder_version {
 
 #define BINDER_WRITE_READ		_IOWR('b', 1, struct binder_write_read)
 #define	BINDER_SET_IDLE_TIMEOUT		_IOW('b', 3, __s64)
-#define	BINDER_SET_MAX_THREADS		_IOW('b', 5, size_t)
+#define	BINDER_SET_MAX_THREADS		_IOW('b', 5, __u32)
 #define	BINDER_SET_IDLE_PRIORITY	_IOW('b', 6, __s32)
 #define	BINDER_SET_CONTEXT_MGR		_IOW('b', 7, __s32)
 #define	BINDER_THREAD_EXIT		_IOW('b', 8, __s32)
@@ -119,14 +119,14 @@ struct binder_transaction_data {
 	 * identifying the target and contents of the transaction.
 	 */
 	union {
-		size_t	handle;	/* target descriptor of command transaction */
+		__u32	handle;	/* target descriptor of command transaction */
 		void	*ptr;	/* target descriptor of return transaction */
 	} target;
 	void		*cookie;	/* target object cookie */
-	unsigned int	code;		/* transaction command */
+	__u32		code;		/* transaction command */
 
 	/* General information about the transaction. */
-	unsigned int	flags;
+	__u32	        flags;
 	pid_t		sender_pid;
 	uid_t		sender_euid;
 	size_t		data_size;	/* number of bytes of data */
@@ -143,7 +143,7 @@ struct binder_transaction_data {
 			/* offsets from buffer to flat_binder_object structs */
 			const void __user	*offsets;
 		} ptr;
-		uint8_t	buf[8];
+		__u8	buf[8];
 	} data;
 };
 
@@ -153,18 +153,18 @@ struct binder_ptr_cookie {
 };
 
 struct binder_pri_desc {
-	int priority;
-	int desc;
+	__s32 priority;
+	__u32 desc;
 };
 
 struct binder_pri_ptr_cookie {
-	int priority;
+	__s32 priority;
 	void *ptr;
 	void *cookie;
 };
 
 enum binder_driver_return_protocol {
-	BR_ERROR = _IOR('r', 0, int),
+	BR_ERROR = _IOR('r', 0, __s32),
 	/*
 	 * int: error code
 	 */
@@ -178,7 +178,7 @@ enum binder_driver_return_protocol {
 	 * binder_transaction_data: the received command.
 	 */
 
-	BR_ACQUIRE_RESULT = _IOR('r', 4, int),
+	BR_ACQUIRE_RESULT = _IOR('r', 4, __s32),
 	/*
 	 * not currently supported
 	 * int: 0 if the last bcATTEMPT_ACQUIRE was not successful.
@@ -258,22 +258,22 @@ enum binder_driver_command_protocol {
 	 * binder_transaction_data: the sent command.
 	 */
 
-	BC_ACQUIRE_RESULT = _IOW('c', 2, int),
+	BC_ACQUIRE_RESULT = _IOW('c', 2, __s32),
 	/*
 	 * not currently supported
 	 * int:  0 if the last BR_ATTEMPT_ACQUIRE was not successful.
 	 * Else you have acquired a primary reference on the object.
 	 */
 
-	BC_FREE_BUFFER = _IOW('c', 3, int),
+	BC_FREE_BUFFER = _IOW('c', 3, void *),
 	/*
 	 * void *: ptr to transaction data received on a read
 	 */
 
-	BC_INCREFS = _IOW('c', 4, int),
-	BC_ACQUIRE = _IOW('c', 5, int),
-	BC_RELEASE = _IOW('c', 6, int),
-	BC_DECREFS = _IOW('c', 7, int),
+	BC_INCREFS = _IOW('c', 4, __u32),
+	BC_ACQUIRE = _IOW('c', 5, __u32),
+	BC_RELEASE = _IOW('c', 6, __u32),
+	BC_DECREFS = _IOW('c', 7, __u32),
 	/*
 	 * int:	descriptor
 	 */

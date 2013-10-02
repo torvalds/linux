@@ -221,7 +221,6 @@ struct moschip_port {
 	__u8 shadowMCR;		/* last MCR value received */
 	char open;
 	char open_ports;
-	wait_queue_head_t wait_chase;	/* for handling sleeping while waiting for chase to finish */
 	struct usb_serial_port *port;	/* loop back to the owner of this object */
 
 	/* Offsets */
@@ -1100,9 +1099,6 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 		mos7840_port->read_urb_busy = false;
 	}
 
-	/* initialize our wait queues */
-	init_waitqueue_head(&mos7840_port->wait_chase);
-
 	/* initialize our port settings */
 	/* Must set to enable ints! */
 	mos7840_port->shadowMCR = MCR_MASTER_IE;
@@ -1228,47 +1224,6 @@ static void mos7840_close(struct usb_serial_port *port)
 	mos7840_port->open = 0;
 }
 
-/************************************************************************
- *
- * mos7840_block_until_chase_response
- *
- *	This function will block the close until one of the following:
- *		1. Response to our Chase comes from mos7840
- *		2. A timeout of 10 seconds without activity has expired
- *		   (1K of mos7840 data @ 2400 baud ==> 4 sec to empty)
- *
- ************************************************************************/
-
-static void mos7840_block_until_chase_response(struct tty_struct *tty,
-					struct moschip_port *mos7840_port)
-{
-	int timeout = msecs_to_jiffies(1000);
-	int wait = 10;
-	int count;
-
-	while (1) {
-		count = mos7840_chars_in_buffer(tty);
-
-		/* Check for Buffer status */
-		if (count <= 0)
-			return;
-
-		/* Block the thread for a while */
-		interruptible_sleep_on_timeout(&mos7840_port->wait_chase,
-					       timeout);
-		/* No activity.. count down section */
-		wait--;
-		if (wait == 0) {
-			dev_dbg(&mos7840_port->port->dev, "%s - TIMEOUT\n", __func__);
-			return;
-		} else {
-			/* Reset timeout value back to seconds */
-			wait = 10;
-		}
-	}
-
-}
-
 /*****************************************************************************
  * mos7840_break
  *	this function sends a break to the port
@@ -1291,9 +1246,6 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 
 	if (mos7840_port == NULL)
 		return;
-
-	/* flush and block until tx is empty */
-	mos7840_block_until_chase_response(tty, mos7840_port);
 
 	if (break_state == -1)
 		data = mos7840_port->shadowLCR | LCR_SET_BREAK;

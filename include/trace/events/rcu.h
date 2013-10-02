@@ -19,12 +19,12 @@
  */
 TRACE_EVENT(rcu_utilization,
 
-	TP_PROTO(char *s),
+	TP_PROTO(const char *s),
 
 	TP_ARGS(s),
 
 	TP_STRUCT__entry(
-		__field(char *, s)
+		__field(const char *, s)
 	),
 
 	TP_fast_assign(
@@ -51,14 +51,14 @@ TRACE_EVENT(rcu_utilization,
  */
 TRACE_EVENT(rcu_grace_period,
 
-	TP_PROTO(char *rcuname, unsigned long gpnum, char *gpevent),
+	TP_PROTO(const char *rcuname, unsigned long gpnum, const char *gpevent),
 
 	TP_ARGS(rcuname, gpnum, gpevent),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(unsigned long, gpnum)
-		__field(char *, gpevent)
+		__field(const char *, gpevent)
 	),
 
 	TP_fast_assign(
@@ -89,21 +89,21 @@ TRACE_EVENT(rcu_grace_period,
  */
 TRACE_EVENT(rcu_future_grace_period,
 
-	TP_PROTO(char *rcuname, unsigned long gpnum, unsigned long completed,
+	TP_PROTO(const char *rcuname, unsigned long gpnum, unsigned long completed,
 		 unsigned long c, u8 level, int grplo, int grphi,
-		 char *gpevent),
+		 const char *gpevent),
 
 	TP_ARGS(rcuname, gpnum, completed, c, level, grplo, grphi, gpevent),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(unsigned long, gpnum)
 		__field(unsigned long, completed)
 		__field(unsigned long, c)
 		__field(u8, level)
 		__field(int, grplo)
 		__field(int, grphi)
-		__field(char *, gpevent)
+		__field(const char *, gpevent)
 	),
 
 	TP_fast_assign(
@@ -132,13 +132,13 @@ TRACE_EVENT(rcu_future_grace_period,
  */
 TRACE_EVENT(rcu_grace_period_init,
 
-	TP_PROTO(char *rcuname, unsigned long gpnum, u8 level,
+	TP_PROTO(const char *rcuname, unsigned long gpnum, u8 level,
 		 int grplo, int grphi, unsigned long qsmask),
 
 	TP_ARGS(rcuname, gpnum, level, grplo, grphi, qsmask),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(unsigned long, gpnum)
 		__field(u8, level)
 		__field(int, grplo)
@@ -168,12 +168,12 @@ TRACE_EVENT(rcu_grace_period_init,
  */
 TRACE_EVENT(rcu_preempt_task,
 
-	TP_PROTO(char *rcuname, int pid, unsigned long gpnum),
+	TP_PROTO(const char *rcuname, int pid, unsigned long gpnum),
 
 	TP_ARGS(rcuname, pid, gpnum),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(unsigned long, gpnum)
 		__field(int, pid)
 	),
@@ -195,12 +195,12 @@ TRACE_EVENT(rcu_preempt_task,
  */
 TRACE_EVENT(rcu_unlock_preempted_task,
 
-	TP_PROTO(char *rcuname, unsigned long gpnum, int pid),
+	TP_PROTO(const char *rcuname, unsigned long gpnum, int pid),
 
 	TP_ARGS(rcuname, gpnum, pid),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(unsigned long, gpnum)
 		__field(int, pid)
 	),
@@ -224,14 +224,14 @@ TRACE_EVENT(rcu_unlock_preempted_task,
  */
 TRACE_EVENT(rcu_quiescent_state_report,
 
-	TP_PROTO(char *rcuname, unsigned long gpnum,
+	TP_PROTO(const char *rcuname, unsigned long gpnum,
 		 unsigned long mask, unsigned long qsmask,
 		 u8 level, int grplo, int grphi, int gp_tasks),
 
 	TP_ARGS(rcuname, gpnum, mask, qsmask, level, grplo, grphi, gp_tasks),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(unsigned long, gpnum)
 		__field(unsigned long, mask)
 		__field(unsigned long, qsmask)
@@ -268,15 +268,15 @@ TRACE_EVENT(rcu_quiescent_state_report,
  */
 TRACE_EVENT(rcu_fqs,
 
-	TP_PROTO(char *rcuname, unsigned long gpnum, int cpu, char *qsevent),
+	TP_PROTO(const char *rcuname, unsigned long gpnum, int cpu, const char *qsevent),
 
 	TP_ARGS(rcuname, gpnum, cpu, qsevent),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(unsigned long, gpnum)
 		__field(int, cpu)
-		__field(char *, qsevent)
+		__field(const char *, qsevent)
 	),
 
 	TP_fast_assign(
@@ -308,12 +308,12 @@ TRACE_EVENT(rcu_fqs,
  */
 TRACE_EVENT(rcu_dyntick,
 
-	TP_PROTO(char *polarity, long long oldnesting, long long newnesting),
+	TP_PROTO(const char *polarity, long long oldnesting, long long newnesting),
 
 	TP_ARGS(polarity, oldnesting, newnesting),
 
 	TP_STRUCT__entry(
-		__field(char *, polarity)
+		__field(const char *, polarity)
 		__field(long long, oldnesting)
 		__field(long long, newnesting)
 	),
@@ -352,12 +352,12 @@ TRACE_EVENT(rcu_dyntick,
  */
 TRACE_EVENT(rcu_prep_idle,
 
-	TP_PROTO(char *reason),
+	TP_PROTO(const char *reason),
 
 	TP_ARGS(reason),
 
 	TP_STRUCT__entry(
-		__field(char *, reason)
+		__field(const char *, reason)
 	),
 
 	TP_fast_assign(
@@ -376,13 +376,13 @@ TRACE_EVENT(rcu_prep_idle,
  */
 TRACE_EVENT(rcu_callback,
 
-	TP_PROTO(char *rcuname, struct rcu_head *rhp, long qlen_lazy,
+	TP_PROTO(const char *rcuname, struct rcu_head *rhp, long qlen_lazy,
 		 long qlen),
 
 	TP_ARGS(rcuname, rhp, qlen_lazy, qlen),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(void *, rhp)
 		__field(void *, func)
 		__field(long, qlen_lazy)
@@ -412,13 +412,13 @@ TRACE_EVENT(rcu_callback,
  */
 TRACE_EVENT(rcu_kfree_callback,
 
-	TP_PROTO(char *rcuname, struct rcu_head *rhp, unsigned long offset,
+	TP_PROTO(const char *rcuname, struct rcu_head *rhp, unsigned long offset,
 		 long qlen_lazy, long qlen),
 
 	TP_ARGS(rcuname, rhp, offset, qlen_lazy, qlen),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(void *, rhp)
 		__field(unsigned long, offset)
 		__field(long, qlen_lazy)
@@ -447,12 +447,12 @@ TRACE_EVENT(rcu_kfree_callback,
  */
 TRACE_EVENT(rcu_batch_start,
 
-	TP_PROTO(char *rcuname, long qlen_lazy, long qlen, long blimit),
+	TP_PROTO(const char *rcuname, long qlen_lazy, long qlen, long blimit),
 
 	TP_ARGS(rcuname, qlen_lazy, qlen, blimit),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(long, qlen_lazy)
 		__field(long, qlen)
 		__field(long, blimit)
@@ -477,12 +477,12 @@ TRACE_EVENT(rcu_batch_start,
  */
 TRACE_EVENT(rcu_invoke_callback,
 
-	TP_PROTO(char *rcuname, struct rcu_head *rhp),
+	TP_PROTO(const char *rcuname, struct rcu_head *rhp),
 
 	TP_ARGS(rcuname, rhp),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(void *, rhp)
 		__field(void *, func)
 	),
@@ -506,12 +506,12 @@ TRACE_EVENT(rcu_invoke_callback,
  */
 TRACE_EVENT(rcu_invoke_kfree_callback,
 
-	TP_PROTO(char *rcuname, struct rcu_head *rhp, unsigned long offset),
+	TP_PROTO(const char *rcuname, struct rcu_head *rhp, unsigned long offset),
 
 	TP_ARGS(rcuname, rhp, offset),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(void *, rhp)
 		__field(unsigned long, offset)
 	),
@@ -539,13 +539,13 @@ TRACE_EVENT(rcu_invoke_kfree_callback,
  */
 TRACE_EVENT(rcu_batch_end,
 
-	TP_PROTO(char *rcuname, int callbacks_invoked,
+	TP_PROTO(const char *rcuname, int callbacks_invoked,
 		 bool cb, bool nr, bool iit, bool risk),
 
 	TP_ARGS(rcuname, callbacks_invoked, cb, nr, iit, risk),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
+		__field(const char *, rcuname)
 		__field(int, callbacks_invoked)
 		__field(bool, cb)
 		__field(bool, nr)
@@ -577,13 +577,13 @@ TRACE_EVENT(rcu_batch_end,
  */
 TRACE_EVENT(rcu_torture_read,
 
-	TP_PROTO(char *rcutorturename, struct rcu_head *rhp,
+	TP_PROTO(const char *rcutorturename, struct rcu_head *rhp,
 		 unsigned long secs, unsigned long c_old, unsigned long c),
 
 	TP_ARGS(rcutorturename, rhp, secs, c_old, c),
 
 	TP_STRUCT__entry(
-		__field(char *, rcutorturename)
+		__field(const char *, rcutorturename)
 		__field(struct rcu_head *, rhp)
 		__field(unsigned long, secs)
 		__field(unsigned long, c_old)
@@ -623,13 +623,13 @@ TRACE_EVENT(rcu_torture_read,
  */
 TRACE_EVENT(rcu_barrier,
 
-	TP_PROTO(char *rcuname, char *s, int cpu, int cnt, unsigned long done),
+	TP_PROTO(const char *rcuname, const char *s, int cpu, int cnt, unsigned long done),
 
 	TP_ARGS(rcuname, s, cpu, cnt, done),
 
 	TP_STRUCT__entry(
-		__field(char *, rcuname)
-		__field(char *, s)
+		__field(const char *, rcuname)
+		__field(const char *, s)
 		__field(int, cpu)
 		__field(int, cnt)
 		__field(unsigned long, done)

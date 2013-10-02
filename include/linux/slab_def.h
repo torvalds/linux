@@ -3,20 +3,6 @@
 
 /*
  * Definitions unique to the original Linux SLAB allocator.
- *
- * What we provide here is a way to optimize the frequent kmalloc
- * calls in the kernel by selecting the appropriate general cache
- * if kmalloc was called with a size that can be established at
- * compile time.
- */
-
-#include <linux/init.h>
-#include <linux/compiler.h>
-
-/*
- * struct kmem_cache
- *
- * manages a cache.
  */
 
 struct kmem_cache {
@@ -101,97 +87,5 @@ struct kmem_cache {
 	 * Do not add fields after array[]
 	 */
 };
-
-void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
-void *__kmalloc(size_t size, gfp_t flags);
-
-#ifdef CONFIG_TRACING
-extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t, size_t);
-#else
-static __always_inline void *
-kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
-{
-	return kmem_cache_alloc(cachep, flags);
-}
-#endif
-
-static __always_inline void *kmalloc(size_t size, gfp_t flags)
-{
-	struct kmem_cache *cachep;
-	void *ret;
-
-	if (__builtin_constant_p(size)) {
-		int i;
-
-		if (!size)
-			return ZERO_SIZE_PTR;
-
-		if (WARN_ON_ONCE(size > KMALLOC_MAX_SIZE))
-			return NULL;
-
-		i = kmalloc_index(size);
-
-#ifdef CONFIG_ZONE_DMA
-		if (flags & GFP_DMA)
-			cachep = kmalloc_dma_caches[i];
-		else
-#endif
-			cachep = kmalloc_caches[i];
-
-		ret = kmem_cache_alloc_trace(cachep, flags, size);
-
-		return ret;
-	}
-	return __kmalloc(size, flags);
-}
-
-#ifdef CONFIG_NUMA
-extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
-extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
-
-#ifdef CONFIG_TRACING
-extern void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
-					 gfp_t flags,
-					 int nodeid,
-					 size_t size);
-#else
-static __always_inline void *
-kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
-			    gfp_t flags,
-			    int nodeid,
-			    size_t size)
-{
-	return kmem_cache_alloc_node(cachep, flags, nodeid);
-}
-#endif
-
-static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
-{
-	struct kmem_cache *cachep;
-
-	if (__builtin_constant_p(size)) {
-		int i;
-
-		if (!size)
-			return ZERO_SIZE_PTR;
-
-		if (WARN_ON_ONCE(size > KMALLOC_MAX_SIZE))
-			return NULL;
-
-		i = kmalloc_index(size);
-
-#ifdef CONFIG_ZONE_DMA
-		if (flags & GFP_DMA)
-			cachep = kmalloc_dma_caches[i];
-		else
-#endif
-			cachep = kmalloc_caches[i];
-
-		return kmem_cache_alloc_node_trace(cachep, flags, node, size);
-	}
-	return __kmalloc_node(size, flags, node);
-}
-
-#endif	/* CONFIG_NUMA */
 
 #endif	/* _LINUX_SLAB_DEF_H */

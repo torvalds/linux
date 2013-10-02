@@ -60,7 +60,7 @@ static inline void dumpVGAReg(void)
 
 static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 		struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned char modeno, unsigned char rateindex)
+		unsigned char modeno)
 {
 	unsigned short ModeNo = modeno;
 	unsigned short ModeIdIndex = 0, ClockIndex = 0;
@@ -68,7 +68,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	int Clock;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
-	XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr);
+	XGI_SearchModeID(ModeNo, &ModeIdIndex);
 
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
@@ -82,7 +82,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 
 static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 		struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned char modeno, unsigned char rateindex,
+		unsigned char modeno,
 		u32 *left_margin, u32 *right_margin, u32 *upper_margin,
 		u32 *lower_margin, u32 *hsync_len, u32 *vsync_len, u32 *sync,
 		u32 *vmode)
@@ -96,7 +96,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned char sr_data, cr_data, cr_data2;
 	int B, C, D, F, temp, j;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
-	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr))
+	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex))
 		return 0;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
@@ -1980,12 +1980,10 @@ static int xgifb_probe(struct pci_dev *pdev,
 	fb_info->var.pixclock = (u32) (1000000000 /
 			XGIfb_mode_rate_to_dclock(&xgifb_info->dev_info,
 				hw_info,
-				XGIbios_mode[xgifb_info->mode_idx].mode_no,
-				xgifb_info->rate_idx));
+				XGIbios_mode[xgifb_info->mode_idx].mode_no));
 
 	if (XGIfb_mode_rate_to_ddata(&xgifb_info->dev_info, hw_info,
 		XGIbios_mode[xgifb_info->mode_idx].mode_no,
-		xgifb_info->rate_idx,
 		&fb_info->var.left_margin,
 		&fb_info->var.right_margin,
 		&fb_info->var.upper_margin,

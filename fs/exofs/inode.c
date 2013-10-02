@@ -861,7 +861,7 @@ static int exofs_writepage(struct page *page, struct writeback_control *wbc)
 static void _write_failed(struct inode *inode, loff_t to)
 {
 	if (to > inode->i_size)
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 }
 
 int exofs_write_begin(struct file *file, struct address_space *mapping,

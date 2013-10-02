@@ -55,7 +55,7 @@ ENTRY(__kvm_tlb_flush_vmid_ipa)
 	mcrr	p15, 6, r2, r3, c2	@ Write VTTBR
 	isb
 	mcr     p15, 0, r0, c8, c3, 0	@ TLBIALLIS (rt ignored)
-	dsb
+	dsb	ish
 	isb
 	mov	r2, #0
 	mov	r3, #0
@@ -79,7 +79,7 @@ ENTRY(__kvm_flush_vm_context)
 	mcr     p15, 4, r0, c8, c3, 4
 	/* Invalidate instruction caches Inner Shareable (ICIALLUIS) */
 	mcr     p15, 0, r0, c7, c1, 0
-	dsb
+	dsb	ish
 	isb				@ Not necessary if followed by eret
 
 	bx	lr
@@ -492,10 +492,10 @@ __kvm_hyp_code_end:
 	.section ".rodata"
 
 und_die_str:
-	.ascii	"unexpected undefined exception in Hyp mode at: %#08x"
+	.ascii	"unexpected undefined exception in Hyp mode at: %#08x\n"
 pabt_die_str:
-	.ascii	"unexpected prefetch abort in Hyp mode at: %#08x"
+	.ascii	"unexpected prefetch abort in Hyp mode at: %#08x\n"
 dabt_die_str:
-	.ascii	"unexpected data abort in Hyp mode at: %#08x"
+	.ascii	"unexpected data abort in Hyp mode at: %#08x\n"
 svc_die_str:
-	.ascii	"unexpected HVC/SVC trap in Hyp mode at: %#08x"
+	.ascii	"unexpected HVC/SVC trap in Hyp mode at: %#08x\n"

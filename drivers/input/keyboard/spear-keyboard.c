@@ -191,12 +191,6 @@ static int spear_kbd_probe(struct platform_device *pdev)
 	int irq;
 	int error;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no keyboard resource defined\n");
-		return -EBUSY;
-	}
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "not able to get irq for the device\n");
@@ -228,6 +222,7 @@ static int spear_kbd_probe(struct platform_device *pdev)
 		kbd->suspended_rate = pdata->suspended_rate;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	kbd->io_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(kbd->io_base))
 		return PTR_ERR(kbd->io_base);

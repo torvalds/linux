@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/mbus.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
@@ -29,45 +30,43 @@
 #include "pmsu.h"
 #include "coherency.h"
 
+#define AXP_BOOTROM_BASE 0xfff00000
+#define AXP_BOOTROM_SIZE 0x100000
+
+static struct clk *__init get_cpu_clk(int cpu)
+{
+	struct clk *cpu_clk;
+	struct device_node *np = of_get_cpu_node(cpu, NULL);
+
+	if (WARN(!np, "missing cpu node\n"))
+		return NULL;
+	cpu_clk = of_clk_get(np, 0);
+	if (WARN_ON(IS_ERR(cpu_clk)))
+		return NULL;
+	return cpu_clk;
+}
+
 void __init set_secondary_cpus_clock(void)
 {
-	int thiscpu;
+	int thiscpu, cpu;
 	unsigned long rate;
-	struct clk *cpu_clk = NULL;
-	struct device_node *np = NULL;
+	struct clk *cpu_clk;
 
 	thiscpu = smp_processor_id();
-	for_each_node_by_type(np, "cpu") {
-		int err;
-		int cpu;
-
-		err = of_property_read_u32(np, "reg", &cpu);
-		if (WARN_ON(err))
-			return;
-
-		if (cpu == thiscpu) {
-			cpu_clk = of_clk_get(np, 0);
-			break;
-		}
-	}
-	if (WARN_ON(IS_ERR(cpu_clk)))
+	cpu_clk = get_cpu_clk(thiscpu);
+	if (!cpu_clk)
 		return;
 	clk_prepare_enable(cpu_clk);
 	rate = clk_get_rate(cpu_clk);
 
 	/* set all the other CPU clk to the same rate than the boot CPU */
-	for_each_node_by_type(np, "cpu") {
-		int err;
-		int cpu;
-
-		err = of_property_read_u32(np, "reg", &cpu);
-		if (WARN_ON(err))
+	for_each_possible_cpu(cpu) {
+		if (cpu == thiscpu)
+			continue;
+		cpu_clk = get_cpu_clk(cpu);
+		if (!cpu_clk)
 			return;
-
-		if (cpu != thiscpu) {
-			cpu_clk = of_clk_get(np, 0);
-			clk_set_rate(cpu_clk, rate);
-		}
+		clk_set_rate(cpu_clk, rate);
 	}
 }
 
@@ -87,37 +86,39 @@ static int armada_xp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init armada_xp_smp_init_cpus(void)
 {
-	struct device_node *np;
-	unsigned int i, ncores;
+	unsigned int ncores = num_possible_cpus();
 
-	np = of_find_node_by_name(NULL, "cpus");
-	if (!np)
-		panic("No 'cpus' node found\n");
-
-	ncores = of_get_child_count(np);
 	if (ncores == 0 || ncores > ARMADA_XP_MAX_CPUS)
 		panic("Invalid number of CPUs in DT\n");
-
-	/* Limit possible CPUs to defconfig */
-	if (ncores > nr_cpu_ids) {
-		pr_warn("SMP: %d CPUs physically present. Only %d configured.",
-			ncores, nr_cpu_ids);
-		pr_warn("Clipping CPU count to %d\n", nr_cpu_ids);
-		ncores = nr_cpu_ids;
-	}
-
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
 
 	set_smp_cross_call(armada_mpic_send_doorbell);
 }
 
 void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 {
+	struct device_node *node;
+	struct resource res;
+	int err;
+
 	set_secondary_cpus_clock();
 	flush_cache_all();
 	set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
-	mvebu_mbus_add_window("bootrom", 0xfff00000, SZ_1M);
+
+	/*
+	 * In order to boot the secondary CPUs we need to ensure
+	 * the bootROM is mapped at the correct address.
+	 */
+	node = of_find_compatible_node(NULL, NULL, "marvell,bootrom");
+	if (!node)
+		panic("Cannot find 'marvell,bootrom' compatible node");
+
+	err = of_address_to_resource(node, 0, &res);
+	if (err < 0)
+		panic("Cannot get 'bootrom' node address");
+
+	if (res.start != AXP_BOOTROM_BASE ||
+	    resource_size(&res) != AXP_BOOTROM_SIZE)
+		panic("The address for the BootROM is incorrect");
 }
 
 struct smp_operations armada_xp_smp_ops __initdata = {

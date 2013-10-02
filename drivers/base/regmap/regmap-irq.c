@@ -418,6 +418,31 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 				reg, ret);
 			goto err_alloc;
 		}
+
+		if (!chip->init_ack_masked)
+			continue;
+
+		/* Ack masked but set interrupts */
+		reg = chip->status_base +
+			(i * map->reg_stride * d->irq_reg_stride);
+		ret = regmap_read(map, reg, &d->status_buf[i]);
+		if (ret != 0) {
+			dev_err(map->dev, "Failed to read IRQ status: %d\n",
+				ret);
+			goto err_alloc;
+		}
+
+		if (d->status_buf[i] && chip->ack_base) {
+			reg = chip->ack_base +
+				(i * map->reg_stride * d->irq_reg_stride);
+			ret = regmap_write(map, reg,
+					d->status_buf[i] & d->mask_buf[i]);
+			if (ret != 0) {
+				dev_err(map->dev, "Failed to ack 0x%x: %d\n",
+					reg, ret);
+				goto err_alloc;
+			}
+		}
 	}
 
 	/* Wake is disabled by default */

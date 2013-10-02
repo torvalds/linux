@@ -347,7 +347,9 @@ static int ldisc_open(struct tty_struct *tty)
 	/* release devices to avoid name collision */
 	ser_release(NULL);
 
-	sprintf(name, "cf%s", tty->name);
+	result = snprintf(name, sizeof(name), "cf%s", tty->name);
+	if (result >= IFNAMSIZ)
+		return -EINVAL;
 	dev = alloc_netdev(sizeof(*ser), name, caifdev_setup);
 	if (!dev)
 		return -ENOMEM;

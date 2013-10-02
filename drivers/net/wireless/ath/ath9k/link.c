@@ -41,7 +41,7 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 				txq->axq_tx_inprogress = true;
 			}
 		}
-		ath_txq_unlock_complete(sc, txq);
+		ath_txq_unlock(sc, txq);
 	}
 
 	if (needreset) {

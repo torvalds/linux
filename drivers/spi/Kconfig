@@ -55,7 +55,6 @@ comment "SPI Master Controller Drivers"
 
 config SPI_ALTERA
 	tristate "Altera SPI Controller"
-	depends on GENERIC_HARDIRQS
 	select SPI_BITBANG
 	help
 	  This is the driver for the Altera SPI Controller.
@@ -70,14 +69,14 @@ config SPI_ATH79
 
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
-	depends on (ARCH_AT91 || AVR32)
+	depends on (ARCH_AT91 || AVR32 || COMPILE_TEST)
 	help
 	  This selects a driver for the Atmel SPI Controller, present on
 	  many AT32 (AVR32) and AT91 (ARM) chips.
 
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
-	depends on ARCH_BCM2835
+	depends on ARCH_BCM2835 || COMPILE_TEST
 	help
 	  This selects a driver for the Broadcom BCM2835 SPI master.
 
@@ -88,9 +87,16 @@ config SPI_BCM2835
 
 config SPI_BFIN5XX
 	tristate "SPI controller driver for ADI Blackfin5xx"
-	depends on BLACKFIN
+	depends on BLACKFIN && !BF60x
 	help
 	  This is the SPI controller master driver for Blackfin 5xx processor.
+
+config SPI_BFIN_V3
+	tristate "SPI controller v3 for Blackfin"
+	depends on BF60x
+	help
+	  This is the SPI controller v3 master driver
+	  found on Blackfin 60x processor.
 
 config SPI_BFIN_SPORT
 	tristate "SPI bus via Blackfin SPORT"
@@ -151,15 +157,22 @@ config SPI_COLDFIRE_QSPI
 
 config SPI_DAVINCI
 	tristate "Texas Instruments DaVinci/DA8x/OMAP-L/AM1x SoC SPI controller"
-	depends on ARCH_DAVINCI
+	depends on ARCH_DAVINCI || ARCH_KEYSTONE
 	select SPI_BITBANG
 	select TI_EDMA
 	help
 	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
 
+config SPI_EFM32
+	tristate "EFM32 SPI controller"
+	depends on OF && ARM && (ARCH_EFM32 || COMPILE_TEST)
+	select SPI_BITBANG
+	help
+	  Driver for the spi controller found on Energy Micro's EFM32 SoCs.
+
 config SPI_EP93XX
 	tristate "Cirrus Logic EP93xx SPI controller"
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	help
 	  This enables using the Cirrus EP93xx SPI controller in master
 	  mode.
@@ -191,7 +204,7 @@ config SPI_GPIO
 
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	select SPI_BITBANG
 	default m if IMX_HAVE_PLATFORM_SPI_IMX
 	help
@@ -248,6 +261,13 @@ config SPI_FSL_SPI
 	  This also enables using the Aeroflex Gaisler GRLIB SPI controller in
 	  master mode.
 
+config SPI_FSL_DSPI
+	tristate "Freescale DSPI controller"
+	select SPI_BITBANG
+	help
+	  This enables support for the Freescale DSPI controller in master
+	  mode. VF610 platform uses the controller.
+
 config SPI_FSL_ESPI
 	bool "Freescale eSPI controller"
 	depends on FSL_SOC
@@ -280,20 +300,28 @@ config SPI_OMAP_UWIRE
 
 config SPI_OMAP24XX
 	tristate "McSPI driver for OMAP"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  SPI master controller for OMAP24XX and later Multichannel SPI
 	  (McSPI) modules.
 
+config SPI_TI_QSPI
+	tristate "DRA7xxx QSPI controller support"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	help
+	  QSPI master controller for DRA7xxx used for flash devices.
+	  This device supports single, dual and quad read support, while
+	  it only supports single write mode.
+
 config SPI_OMAP_100K
 	tristate "OMAP SPI 100K"
-	depends on ARCH_OMAP850 || ARCH_OMAP730
+	depends on ARCH_OMAP850 || ARCH_OMAP730 || COMPILE_TEST
 	help
 	  OMAP SPI 100K master controller for omap7xx boards.
 
 config SPI_ORION
 	tristate "Orion SPI master"
-	depends on PLAT_ORION
+	depends on PLAT_ORION || COMPILE_TEST
 	help
 	  This enables using the SPI master controller on the Orion chips.
 
@@ -329,7 +357,7 @@ config SPI_PXA2XX_DMA
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on (ARCH_PXA || PCI || ACPI) && GENERIC_HARDIRQS
+	depends on (ARCH_PXA || PCI || ACPI)
 	select PXA_SSP if ARCH_PXA
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
@@ -341,7 +369,7 @@ config SPI_PXA2XX_PCI
 
 config SPI_RSPI
 	tristate "Renesas RSPI controller"
-	depends on SUPERH
+	depends on SUPERH && SH_DMAE_BASE
 	help
 	  SPI driver for Renesas RSPI blocks.
 
@@ -385,7 +413,7 @@ config SPI_SH_MSIOF
 
 config SPI_SH
 	tristate "SuperH SPI controller"
-	depends on SUPERH
+	depends on SUPERH || COMPILE_TEST
 	help
 	  SPI driver for SuperH SPI blocks.
 
@@ -398,13 +426,13 @@ config SPI_SH_SCI
 
 config SPI_SH_HSPI
 	tristate "SuperH HSPI controller"
-	depends on ARCH_SHMOBILE
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  SPI driver for SuperH HSPI blocks.
 
 config SPI_SIRF
 	tristate "CSR SiRFprimaII SPI controller"
-	depends on ARCH_SIRF
+	depends on SIRF_DMA
 	select SPI_BITBANG
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
@@ -418,7 +446,7 @@ config SPI_MXS
 
 config SPI_TEGRA114
 	tristate "NVIDIA Tegra114 SPI Controller"
-	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
 	help
 	  SPI driver for NVIDIA Tegra114 SPI Controller interface. This controller
 	  is different than the older SoCs SPI controller and also register interface
@@ -426,7 +454,7 @@ config SPI_TEGRA114
 
 config SPI_TEGRA20_SFLASH
 	tristate "Nvidia Tegra20 Serial flash Controller"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA || COMPILE_TEST
 	help
 	  SPI driver for Nvidia Tegra20 Serial flash Controller interface.
 	  The main usecase of this controller is to use spi flash as boot
@@ -434,7 +462,7 @@ config SPI_TEGRA20_SFLASH
 
 config SPI_TEGRA20_SLINK
 	tristate "Nvidia Tegra20/Tegra30 SLINK Controller"
-	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
 	help
 	  SPI driver for Nvidia Tegra20/Tegra30 SLINK Controller interface.
 
@@ -457,7 +485,7 @@ config SPI_TOPCLIFF_PCH
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"
-	depends on GPIOLIB && CPU_TX49XX
+	depends on GPIOLIB && (CPU_TX49XX || COMPILE_TEST)
 	help
 	  SPI driver for Toshiba TXx9 MIPS SoCs
 

@@ -194,6 +194,8 @@
 #define BRCMF_E_IF_DEL				2
 #define BRCMF_E_IF_CHANGE			3
 
+#define BRCMF_E_IF_FLAG_NOIF			1
+
 #define BRCMF_E_IF_ROLE_STA			0
 #define BRCMF_E_IF_ROLE_AP			1
 #define BRCMF_E_IF_ROLE_WDS			2
@@ -208,6 +210,8 @@
 #define BRCMF_DCMD_SMLEN	256
 #define BRCMF_DCMD_MEDLEN	1536
 #define BRCMF_DCMD_MAXLEN	8192
+
+#define BRCMF_AMPDU_RX_REORDER_MAXFLOWS		256
 
 /* Pattern matching filter. Specifies an offset within received packets to
  * start matching, the pattern to match, the size of the pattern, and a bitmask
@@ -505,6 +509,25 @@ struct brcmf_dcmd {
 	uint needed;		/* bytes needed (optional) */
 };
 
+/**
+ * struct brcmf_ampdu_rx_reorder - AMPDU receive reorder info
+ *
+ * @pktslots: dynamic allocated array for ordering AMPDU packets.
+ * @flow_id: AMPDU flow identifier.
+ * @cur_idx: last AMPDU index from firmware.
+ * @exp_idx: expected next AMPDU index.
+ * @max_idx: maximum amount of packets per AMPDU.
+ * @pend_pkts: number of packets currently in @pktslots.
+ */
+struct brcmf_ampdu_rx_reorder {
+	struct sk_buff **pktslots;
+	u8 flow_id;
+	u8 cur_idx;
+	u8 exp_idx;
+	u8 max_idx;
+	u8 pend_pkts;
+};
+
 /* Forward decls for struct brcmf_pub (see below) */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
@@ -536,9 +559,10 @@ struct brcmf_pub {
 
 	struct brcmf_fweh_info fweh;
 
-	bool fw_signals;
 	struct brcmf_fws_info *fws;
-	spinlock_t fws_spinlock;
+
+	struct brcmf_ampdu_rx_reorder
+		*reorder_flows[BRCMF_AMPDU_RX_REORDER_MAXFLOWS];
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif
@@ -604,6 +628,9 @@ struct brcmf_if {
 	wait_queue_head_t pend_8021x_wait;
 };
 
+struct brcmf_skb_reorder_data {
+	u8 *reorder;
+};
 
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 

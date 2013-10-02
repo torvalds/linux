@@ -35,12 +35,6 @@ unsigned int max_bh = 0;
 #include "pmcc4.h"
 #include "musycc.h"
 
-#ifdef SBE_INCLUDE_SYMBOLS
-#define STATIC
-#else
-#define STATIC  static
-#endif
-
 #define sd_find_chan(ci,ch)   c4_find_chan(ch)
 
 
@@ -65,7 +59,6 @@ void        c4_wk_chan_restart(mch_t *);
 void        musycc_bh_tx_eom(mpi_t *, int);
 int         musycc_chan_up(ci_t *, int);
 status_t __init musycc_init(ci_t *);
-STATIC void __init musycc_init_port(mpi_t *);
 void        musycc_intr_bh_tasklet(ci_t *);
 void        musycc_serv_req(mpi_t *, u_int32_t);
 void        musycc_update_timeslots(mpi_t *);
@@ -73,7 +66,7 @@ void        musycc_update_timeslots(mpi_t *);
 /*******************************************************************/
 
 #if 1
-STATIC int
+static int
 musycc_dump_rxbuffer_ring(mch_t *ch, int lockit)
 {
     struct mdesc *m;
@@ -139,7 +132,7 @@ musycc_dump_rxbuffer_ring(mch_t *ch, int lockit)
 #endif
 
 #if 1
-STATIC int
+static int
 musycc_dump_txbuffer_ring(mch_t *ch, int lockit)
 {
     struct mdesc *m;
@@ -702,7 +695,7 @@ musycc_chan_proto(int proto)
 }
 
 #ifdef SBE_WAN256T3_ENABLE
-STATIC void __init
+static void __init
 musycc_init_port(mpi_t *pi)
 {
     pci_write_32((u_int32_t *) &pi->reg->gbp, OS_vtophys(pi->regram));
@@ -1009,7 +1002,7 @@ musycc_bh_tx_eom(mpi_t *pi, int gchan)
 }
 
 
-STATIC void
+static void
 musycc_bh_rx_eom(mpi_t *pi, int gchan)
 {
     mch_t      *ch;

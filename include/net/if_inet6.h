@@ -171,12 +171,17 @@ struct inet6_dev {
 	struct ifmcaddr6	*mc_list;
 	struct ifmcaddr6	*mc_tomb;
 	spinlock_t		mc_lock;
-	unsigned char		mc_qrv;
+
+	unsigned char		mc_qrv;		/* Query Robustness Variable */
 	unsigned char		mc_gq_running;
 	unsigned char		mc_ifc_count;
 	unsigned char		mc_dad_count;
-	unsigned long		mc_v1_seen;
+
+	unsigned long		mc_v1_seen;	/* Max time we stay in MLDv1 mode */
+	unsigned long		mc_qi;		/* Query Interval */
+	unsigned long		mc_qri;		/* Query Response Interval */
 	unsigned long		mc_maxdelay;
+
 	struct timer_list	mc_gq_timer;	/* general query timer */
 	struct timer_list	mc_ifc_timer;	/* interface change timer */
 	struct timer_list	mc_dad_timer;	/* dad complete mc timer */

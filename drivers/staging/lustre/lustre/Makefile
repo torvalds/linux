@@ -1,2 +1,2 @@
-obj-$(CONFIG_LUSTRE_FS) := fid/ lvfs/ obdclass/ ptlrpc/ obdecho/ mgc/ lov/ \
-			   osc/ mdc/ lmv/ llite/ fld/ libcfs/
+obj-$(CONFIG_LUSTRE_FS) += libcfs/ lvfs/ obdclass/ ptlrpc/ fld/ osc/ mgc/ \
+			   fid/ lov/ mdc/ lmv/ llite/ obdecho/

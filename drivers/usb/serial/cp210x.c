@@ -670,9 +670,6 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	unsigned int bits;
 	unsigned int modem_ctl[4];
 
-	if (!tty)
-		return;
-
 	cflag = tty->termios.c_cflag;
 	old_cflag = old_termios->c_cflag;
 

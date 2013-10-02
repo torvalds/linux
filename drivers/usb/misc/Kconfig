@@ -200,6 +200,19 @@ config USB_TEST
 	  See <http://www.linux-usb.org/usbtest/> for more information,
 	  including sample test device firmware and "how to use it".
 
+config USB_EHSET_TEST_FIXTURE
+        tristate "USB EHSET Test Fixture driver"
+        help
+	  Say Y here if you want to support the special test fixture device
+	  used for the USB-IF Embedded Host High-Speed Electrical Test procedure.
+
+	  When the test fixture is connected, it can enumerate as one of several
+	  VID/PID pairs. This driver then initiates a corresponding test mode on
+	  the downstream port to which the test fixture is attached.
+
+	  See <http://www.usb.org/developers/onthego/EHSET_v1.01.pdf> for more
+	  information.
+
 config USB_ISIGHTFW
 	tristate "iSight firmware loading support"
 	select FW_LOADER
@@ -233,5 +246,6 @@ config USB_EZUSB_FX2
 config USB_HSIC_USB3503
        tristate "USB3503 HSIC to USB20 Driver"
        depends on I2C
+       select REGMAP
        help
          This option enables support for SMSC USB3503 HSIC to USB 2.0 Driver.

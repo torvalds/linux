@@ -33,7 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 
 #include <mach/cputype.h>
 #include <mach/hardware.h>
@@ -510,7 +510,7 @@ static u64 davinci_dmamask = DMA_BIT_MASK(32);
 static int davinci_probe(struct platform_device *pdev)
 {
 	struct resource musb_resources[2];
-	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
+	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct platform_device		*musb;
 	struct davinci_glue		*glue;
 	struct clk			*clk;

@@ -327,6 +327,137 @@ static int search_roland_implicit_fb(struct usb_device *dev, int ifnum,
 	return 0;
 }
 
+static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
+					 struct usb_device *dev,
+					 struct usb_interface_descriptor *altsd,
+					 unsigned int attr)
+{
+	struct usb_host_interface *alts;
+	struct usb_interface *iface;
+	unsigned int ep;
+
+	/* Implicit feedback sync EPs consumers are always playback EPs */
+	if (subs->direction != SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
+
+	switch (subs->stream->chip->usb_id) {
+	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
+	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C600 */
+		ep = 0x81;
+		iface = usb_ifnum_to_if(dev, 3);
+
+		if (!iface || iface->num_altsetting == 0)
+			return -EINVAL;
+
+		alts = &iface->altsetting[1];
+		goto add_sync_ep;
+		break;
+	case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
+	case USB_ID(0x0763, 0x2081):
+		ep = 0x81;
+		iface = usb_ifnum_to_if(dev, 2);
+
+		if (!iface || iface->num_altsetting == 0)
+			return -EINVAL;
+
+		alts = &iface->altsetting[1];
+		goto add_sync_ep;
+	}
+	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
+	    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
+	    altsd->bInterfaceProtocol == 2 &&
+	    altsd->bNumEndpoints == 1 &&
+	    USB_ID_VENDOR(subs->stream->chip->usb_id) == 0x0582 /* Roland */ &&
+	    search_roland_implicit_fb(dev, altsd->bInterfaceNumber + 1,
+				      altsd->bAlternateSetting,
+				      &alts, &ep) >= 0) {
+		goto add_sync_ep;
+	}
+
+	/* No quirk */
+	return 0;
+
+add_sync_ep:
+	subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
+						   alts, ep, !subs->direction,
+						   SND_USB_ENDPOINT_TYPE_DATA);
+	if (!subs->sync_endpoint)
+		return -EINVAL;
+
+	subs->data_endpoint->sync_master = subs->sync_endpoint;
+
+	return 0;
+}
+
+static int set_sync_endpoint(struct snd_usb_substream *subs,
+			     struct audioformat *fmt,
+			     struct usb_device *dev,
+			     struct usb_host_interface *alts,
+			     struct usb_interface_descriptor *altsd)
+{
+	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
+	unsigned int ep, attr;
+	bool implicit_fb;
+	int err;
+
+	/* we need a sync pipe in async OUT or adaptive IN mode */
+	/* check the number of EP, since some devices have broken
+	 * descriptors which fool us.  if it has only one EP,
+	 * assume it as adaptive-out or sync-in.
+	 */
+	attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
+
+	err = set_sync_ep_implicit_fb_quirk(subs, dev, altsd, attr);
+	if (err < 0)
+		return err;
+
+	if (altsd->bNumEndpoints < 2)
+		return 0;
+
+	if ((is_playback && attr != USB_ENDPOINT_SYNC_ASYNC) ||
+	    (!is_playback && attr != USB_ENDPOINT_SYNC_ADAPTIVE))
+		return 0;
+
+	/* check sync-pipe endpoint */
+	/* ... and check descriptor size before accessing bSynchAddress
+	   because there is a version of the SB Audigy 2 NX firmware lacking
+	   the audio fields in the endpoint descriptors */
+	if ((get_endpoint(alts, 1)->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_ISOC ||
+	    (get_endpoint(alts, 1)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
+	     get_endpoint(alts, 1)->bSynchAddress != 0)) {
+		snd_printk(KERN_ERR "%d:%d:%d : invalid sync pipe. bmAttributes %02x, bLength %d, bSynchAddress %02x\n",
+			   dev->devnum, fmt->iface, fmt->altsetting,
+			   get_endpoint(alts, 1)->bmAttributes,
+			   get_endpoint(alts, 1)->bLength,
+			   get_endpoint(alts, 1)->bSynchAddress);
+		return -EINVAL;
+	}
+	ep = get_endpoint(alts, 1)->bEndpointAddress;
+	if (get_endpoint(alts, 0)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
+	    ((is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress | USB_DIR_IN)) ||
+	     (!is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress & ~USB_DIR_IN)))) {
+		snd_printk(KERN_ERR "%d:%d:%d : invalid sync pipe. is_playback %d, ep %02x, bSynchAddress %02x\n",
+			   dev->devnum, fmt->iface, fmt->altsetting,
+			   is_playback, ep, get_endpoint(alts, 0)->bSynchAddress);
+		return -EINVAL;
+	}
+
+	implicit_fb = (get_endpoint(alts, 1)->bmAttributes & USB_ENDPOINT_USAGE_MASK)
+			== USB_ENDPOINT_USAGE_IMPLICIT_FB;
+
+	subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
+						   alts, ep, !subs->direction,
+						   implicit_fb ?
+							SND_USB_ENDPOINT_TYPE_DATA :
+							SND_USB_ENDPOINT_TYPE_SYNC);
+	if (!subs->sync_endpoint)
+		return -EINVAL;
+
+	subs->data_endpoint->sync_master = subs->sync_endpoint;
+
+	return 0;
+}
+
 /*
  * find a matching format and set up the interface
  */
@@ -336,9 +467,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
 	struct usb_interface *iface;
-	unsigned int ep, attr;
-	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
-	int err, implicit_fb = 0;
+	int err;
 
 	iface = usb_ifnum_to_if(dev, fmt->iface);
 	if (WARN_ON(!iface))
@@ -383,117 +512,21 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	subs->data_endpoint = snd_usb_add_endpoint(subs->stream->chip,
 						   alts, fmt->endpoint, subs->direction,
 						   SND_USB_ENDPOINT_TYPE_DATA);
+
 	if (!subs->data_endpoint)
 		return -EINVAL;
 
-	/* we need a sync pipe in async OUT or adaptive IN mode */
-	/* check the number of EP, since some devices have broken
-	 * descriptors which fool us.  if it has only one EP,
-	 * assume it as adaptive-out or sync-in.
-	 */
-	attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
+	err = set_sync_endpoint(subs, fmt, dev, alts, altsd);
+	if (err < 0)
+		return err;
 
-	switch (subs->stream->chip->usb_id) {
-	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
-	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C600 */
-		if (is_playback) {
-			implicit_fb = 1;
-			ep = 0x81;
-			iface = usb_ifnum_to_if(dev, 3);
-
-			if (!iface || iface->num_altsetting == 0)
-				return -EINVAL;
-
-			alts = &iface->altsetting[1];
-			goto add_sync_ep;
-		}
-		break;
-	case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
-	case USB_ID(0x0763, 0x2081):
-		if (is_playback) {
-			implicit_fb = 1;
-			ep = 0x81;
-			iface = usb_ifnum_to_if(dev, 2);
-
-			if (!iface || iface->num_altsetting == 0)
-				return -EINVAL;
-
-			alts = &iface->altsetting[1];
-			goto add_sync_ep;
-		}
-	}
-	if (is_playback &&
-	    attr == USB_ENDPOINT_SYNC_ASYNC &&
-	    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
-	    altsd->bInterfaceProtocol == 2 &&
-	    altsd->bNumEndpoints == 1 &&
-	    USB_ID_VENDOR(subs->stream->chip->usb_id) == 0x0582 /* Roland */ &&
-	    search_roland_implicit_fb(dev, altsd->bInterfaceNumber + 1,
-				      altsd->bAlternateSetting,
-				      &alts, &ep) >= 0) {
-		implicit_fb = 1;
-		goto add_sync_ep;
-	}
-
-	if (((is_playback && attr == USB_ENDPOINT_SYNC_ASYNC) ||
-	     (!is_playback && attr == USB_ENDPOINT_SYNC_ADAPTIVE)) &&
-	    altsd->bNumEndpoints >= 2) {
-		/* check sync-pipe endpoint */
-		/* ... and check descriptor size before accessing bSynchAddress
-		   because there is a version of the SB Audigy 2 NX firmware lacking
-		   the audio fields in the endpoint descriptors */
-		if ((get_endpoint(alts, 1)->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_ISOC ||
-		    (get_endpoint(alts, 1)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
-		     get_endpoint(alts, 1)->bSynchAddress != 0 &&
-		     !implicit_fb)) {
-			snd_printk(KERN_ERR "%d:%d:%d : invalid sync pipe. bmAttributes %02x, bLength %d, bSynchAddress %02x\n",
-				   dev->devnum, fmt->iface, fmt->altsetting,
-				   get_endpoint(alts, 1)->bmAttributes,
-				   get_endpoint(alts, 1)->bLength,
-				   get_endpoint(alts, 1)->bSynchAddress);
-			return -EINVAL;
-		}
-		ep = get_endpoint(alts, 1)->bEndpointAddress;
-		if (!implicit_fb &&
-		    get_endpoint(alts, 0)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
-		    (( is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress | USB_DIR_IN)) ||
-		     (!is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress & ~USB_DIR_IN)))) {
-			snd_printk(KERN_ERR "%d:%d:%d : invalid sync pipe. is_playback %d, ep %02x, bSynchAddress %02x\n",
-				   dev->devnum, fmt->iface, fmt->altsetting,
-				   is_playback, ep, get_endpoint(alts, 0)->bSynchAddress);
-			return -EINVAL;
-		}
-
-		implicit_fb = (get_endpoint(alts, 1)->bmAttributes & USB_ENDPOINT_USAGE_MASK)
-				== USB_ENDPOINT_USAGE_IMPLICIT_FB;
-
-add_sync_ep:
-		subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
-							   alts, ep, !subs->direction,
-							   implicit_fb ?
-								SND_USB_ENDPOINT_TYPE_DATA :
-								SND_USB_ENDPOINT_TYPE_SYNC);
-		if (!subs->sync_endpoint)
-			return -EINVAL;
-
-		subs->data_endpoint->sync_master = subs->sync_endpoint;
-	}
-
-	if ((err = snd_usb_init_pitch(subs->stream->chip, fmt->iface, alts, fmt)) < 0)
+	err = snd_usb_init_pitch(subs->stream->chip, fmt->iface, alts, fmt);
+	if (err < 0)
 		return err;
 
 	subs->cur_audiofmt = fmt;
 
 	snd_usb_set_format_quirk(subs, fmt);
-
-#if 0
-	printk(KERN_DEBUG
-	       "setting done: format = %d, rate = %d..%d, channels = %d\n",
-	       fmt->format, fmt->rate_min, fmt->rate_max, fmt->channels);
-	printk(KERN_DEBUG
-	       "  datapipe = 0x%0x, syncpipe = 0x%0x\n",
-	       subs->datapipe, subs->syncpipe);
-#endif
 
 	return 0;
 }

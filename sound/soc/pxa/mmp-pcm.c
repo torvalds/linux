@@ -17,6 +17,7 @@
 #include <linux/dmaengine.h>
 #include <linux/platform_data/dma-mmp_tdma.h>
 #include <linux/platform_data/mmp_audio.h>
+
 #include <sound/pxa2xx-lib.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -67,7 +68,7 @@ static int mmp_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct pxa2xx_pcm_dma_params *dma_params;
+	struct snd_dmaengine_dai_dma_data *dma_params;
 	struct dma_slave_config slave_config;
 	int ret;
 
@@ -80,10 +81,10 @@ static int mmp_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		slave_config.dst_addr     = dma_params->dev_addr;
+		slave_config.dst_addr     = dma_params->addr;
 		slave_config.dst_maxburst = 4;
 	} else {
-		slave_config.src_addr	  = dma_params->dev_addr;
+		slave_config.src_addr	  = dma_params->addr;
 		slave_config.src_maxburst = 4;
 	}
 

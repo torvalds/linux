@@ -65,9 +65,11 @@ struct vmci_guest_device {
 
 	void *data_buffer;
 	void *notification_bitmap;
+	dma_addr_t notification_base;
 };
 
 /* vmci_dev singleton device and supporting data*/
+struct pci_dev *vmci_pdev;
 static struct vmci_guest_device *vmci_dev_g;
 static DEFINE_SPINLOCK(vmci_dev_spinlock);
 
@@ -528,7 +530,9 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * well.
 	 */
 	if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
-		vmci_dev->notification_bitmap = vmalloc(PAGE_SIZE);
+		vmci_dev->notification_bitmap = dma_alloc_coherent(
+			&pdev->dev, PAGE_SIZE, &vmci_dev->notification_base,
+			GFP_KERNEL);
 		if (!vmci_dev->notification_bitmap) {
 			dev_warn(&pdev->dev,
 				 "Unable to allocate notification bitmap\n");
@@ -546,6 +550,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	/* Set up global device so that we can start sending datagrams */
 	spin_lock_irq(&vmci_dev_spinlock);
 	vmci_dev_g = vmci_dev;
+	vmci_pdev = pdev;
 	spin_unlock_irq(&vmci_dev_spinlock);
 
 	/*
@@ -553,9 +558,8 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * used.
 	 */
 	if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
-		struct page *page =
-			vmalloc_to_page(vmci_dev->notification_bitmap);
-		unsigned long bitmap_ppn = page_to_pfn(page);
+		unsigned long bitmap_ppn =
+			vmci_dev->notification_base >> PAGE_SHIFT;
 		if (!vmci_dbell_register_notification_bitmap(bitmap_ppn)) {
 			dev_warn(&pdev->dev,
 				 "VMCI device unable to register notification bitmap with PPN 0x%x\n",
@@ -665,11 +669,14 @@ err_remove_bitmap:
 	if (vmci_dev->notification_bitmap) {
 		iowrite32(VMCI_CONTROL_RESET,
 			  vmci_dev->iobase + VMCI_CONTROL_ADDR);
-		vfree(vmci_dev->notification_bitmap);
+		dma_free_coherent(&pdev->dev, PAGE_SIZE,
+				  vmci_dev->notification_bitmap,
+				  vmci_dev->notification_base);
 	}
 
 err_remove_vmci_dev_g:
 	spin_lock_irq(&vmci_dev_spinlock);
+	vmci_pdev = NULL;
 	vmci_dev_g = NULL;
 	spin_unlock_irq(&vmci_dev_spinlock);
 
@@ -699,6 +706,7 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 
 	spin_lock_irq(&vmci_dev_spinlock);
 	vmci_dev_g = NULL;
+	vmci_pdev = NULL;
 	spin_unlock_irq(&vmci_dev_spinlock);
 
 	dev_dbg(&pdev->dev, "Resetting vmci device\n");
@@ -727,7 +735,9 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 		 * device, so we can safely free it here.
 		 */
 
-		vfree(vmci_dev->notification_bitmap);
+		dma_free_coherent(&pdev->dev, PAGE_SIZE,
+				  vmci_dev->notification_bitmap,
+				  vmci_dev->notification_base);
 	}
 
 	vfree(vmci_dev->data_buffer);

@@ -226,7 +226,7 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 		*(bcc_ptr+1) = 0;
 	} else {
 		bytes_ret = cifs_strtoUTF16((__le16 *) bcc_ptr, ses->user_name,
-					    MAX_USERNAME_SIZE, nls_cp);
+					    CIFS_MAX_USERNAME_LEN, nls_cp);
 	}
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2; /* account for null termination */
@@ -246,8 +246,8 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 	/* BB what about null user mounts - check that we do this BB */
 	/* copy user */
 	if (ses->user_name != NULL) {
-		strncpy(bcc_ptr, ses->user_name, MAX_USERNAME_SIZE);
-		bcc_ptr += strnlen(ses->user_name, MAX_USERNAME_SIZE);
+		strncpy(bcc_ptr, ses->user_name, CIFS_MAX_USERNAME_LEN);
+		bcc_ptr += strnlen(ses->user_name, CIFS_MAX_USERNAME_LEN);
 	}
 	/* else null user mount */
 	*bcc_ptr = 0;
@@ -428,7 +428,8 @@ void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->sign) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
-		if (!ses->server->session_estab)
+		if (!ses->server->session_estab ||
+				ses->ntlmssp->sesskey_per_smbsess)
 			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 	}
 
@@ -466,7 +467,8 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->sign) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
-		if (!ses->server->session_estab)
+		if (!ses->server->session_estab ||
+				ses->ntlmssp->sesskey_per_smbsess)
 			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 	}
 
@@ -501,7 +503,7 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	} else {
 		int len;
 		len = cifs_strtoUTF16((__le16 *)tmp, ses->domainName,
-				      MAX_USERNAME_SIZE, nls_cp);
+				      CIFS_MAX_USERNAME_LEN, nls_cp);
 		len *= 2; /* unicode is 2 bytes each */
 		sec_blob->DomainName.BufferOffset = cpu_to_le32(tmp - pbuffer);
 		sec_blob->DomainName.Length = cpu_to_le16(len);
@@ -517,7 +519,7 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	} else {
 		int len;
 		len = cifs_strtoUTF16((__le16 *)tmp, ses->user_name,
-				      MAX_USERNAME_SIZE, nls_cp);
+				      CIFS_MAX_USERNAME_LEN, nls_cp);
 		len *= 2; /* unicode is 2 bytes each */
 		sec_blob->UserName.BufferOffset = cpu_to_le32(tmp - pbuffer);
 		sec_blob->UserName.Length = cpu_to_le16(len);
@@ -629,7 +631,8 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	type = select_sectype(ses->server, ses->sectype);
 	cifs_dbg(FYI, "sess setup type %d\n", type);
 	if (type == Unspecified) {
-		cifs_dbg(VFS, "Unable to select appropriate authentication method!");
+		cifs_dbg(VFS,
+			"Unable to select appropriate authentication method!");
 		return -EINVAL;
 	}
 
@@ -640,6 +643,8 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 		ses->ntlmssp = kmalloc(sizeof(struct ntlmssp_auth), GFP_KERNEL);
 		if (!ses->ntlmssp)
 			return -ENOMEM;
+		ses->ntlmssp->sesskey_per_smbsess = false;
+
 	}
 
 ssetup_ntlmssp_authenticate:
@@ -815,8 +820,9 @@ ssetup_ntlmssp_authenticate:
 		ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
 						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
-			cifs_dbg(VFS, "Kerberos can't allocate (%u bytes) memory",
-					msg->sesskey_len);
+			cifs_dbg(VFS,
+				"Kerberos can't allocate (%u bytes) memory",
+				msg->sesskey_len);
 			rc = -ENOMEM;
 			goto ssetup_exit;
 		}
@@ -1004,6 +1010,38 @@ ssetup_exit:
 	/* if ntlmssp, and negotiate succeeded, proceed to authenticate phase */
 	if ((phase == NtLmChallenge) && (rc == 0))
 		goto ssetup_ntlmssp_authenticate;
+
+	if (!rc) {
+		mutex_lock(&ses->server->srv_mutex);
+		if (!ses->server->session_estab) {
+			if (ses->server->sign) {
+				ses->server->session_key.response =
+					kmemdup(ses->auth_key.response,
+					ses->auth_key.len, GFP_KERNEL);
+				if (!ses->server->session_key.response) {
+					rc = -ENOMEM;
+					mutex_unlock(&ses->server->srv_mutex);
+					goto keycp_exit;
+				}
+				ses->server->session_key.len =
+							ses->auth_key.len;
+			}
+			ses->server->sequence_number = 0x2;
+			ses->server->session_estab = true;
+		}
+		mutex_unlock(&ses->server->srv_mutex);
+
+		cifs_dbg(FYI, "CIFS session established successfully\n");
+		spin_lock(&GlobalMid_Lock);
+		ses->status = CifsGood;
+		ses->need_reconnect = false;
+		spin_unlock(&GlobalMid_Lock);
+	}
+
+keycp_exit:
+	kfree(ses->auth_key.response);
+	ses->auth_key.response = NULL;
+	kfree(ses->ntlmssp);
 
 	return rc;
 }

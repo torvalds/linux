@@ -25,6 +25,7 @@
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/pgalloc.h>
 
 #include "internal.h"
 
@@ -62,8 +63,10 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 		return NULL;
 
 	pmd = pmd_alloc(mm, pud, addr);
-	if (!pmd)
+	if (!pmd) {
+		pud_free(mm, pud);
 		return NULL;
+	}
 
 	VM_BUG_ON(pmd_trans_huge(*pmd));
 

@@ -1,9 +1,7 @@
 /*******************************************************************************
  * This file contains main functions related to iSCSI Parameter negotiation.
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -1182,7 +1180,7 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 			unsigned long long tmp;
 			int rc;
 
-			rc = strict_strtoull(param->value, 0, &tmp);
+			rc = kstrtoull(param->value, 0, &tmp);
 			if (rc < 0)
 				return -1;
 

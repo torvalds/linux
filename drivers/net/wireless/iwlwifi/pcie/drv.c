@@ -273,9 +273,9 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x08B1, 0x4462, iwl7260_n_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0x4870, iwl7260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0x486E, iwl7260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4A70, iwl7260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4A6E, iwl7260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4A6C, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4A70, iwl7260_2ac_cfg_high_temp)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4A6E, iwl7260_2ac_cfg_high_temp)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4A6C, iwl7260_2ac_cfg_high_temp)},
 	{IWL_PCI_DEVICE(0x08B1, 0x4020, iwl7260_2n_cfg)},
 	{IWL_PCI_DEVICE(0x08B2, 0x4220, iwl7260_2n_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0x4420, iwl7260_2n_cfg)},
@@ -325,15 +325,15 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int ret;
 
 	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, cfg);
-	if (iwl_trans == NULL)
-		return -ENOMEM;
+	if (IS_ERR(iwl_trans))
+		return PTR_ERR(iwl_trans);
 
 	pci_set_drvdata(pdev, iwl_trans);
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
 	trans_pcie->drv = iwl_drv_start(iwl_trans, cfg);
 
-	if (IS_ERR_OR_NULL(trans_pcie->drv)) {
+	if (IS_ERR(trans_pcie->drv)) {
 		ret = PTR_ERR(trans_pcie->drv);
 		goto out_free_trans;
 	}
@@ -368,21 +368,19 @@ static void iwl_pci_remove(struct pci_dev *pdev)
 
 static int iwl_pci_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_trans *iwl_trans = pci_get_drvdata(pdev);
-
 	/* Before you put code here, think about WoWLAN. You cannot check here
 	 * whether WoWLAN is enabled or not, and your code will run even if
 	 * WoWLAN is enabled - don't kill the NIC, someone may need it in Sx.
 	 */
 
-	return iwl_trans_suspend(iwl_trans);
+	return 0;
 }
 
 static int iwl_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_trans *iwl_trans = pci_get_drvdata(pdev);
+	struct iwl_trans *trans = pci_get_drvdata(pdev);
+	bool hw_rfkill;
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
 	 * whether WoWLAN is enabled or not, and your code will run even if
@@ -395,7 +393,15 @@ static int iwl_pci_resume(struct device *device)
 	 */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
-	return iwl_trans_resume(iwl_trans);
+	if (!trans->op_mode)
+		return 0;
+
+	iwl_enable_rfkill_int(trans);
+
+	hw_rfkill = iwl_is_rfkill_set(trans);
+	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
+
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(iwl_dev_pm_ops, iwl_pci_suspend, iwl_pci_resume);

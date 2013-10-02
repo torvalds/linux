@@ -253,6 +253,7 @@ static const struct acpi_device_id dw_dma_acpi_id_table[] = {
 	{ "INTL9C60", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
 #endif
 
 #ifdef CONFIG_PM_SLEEP

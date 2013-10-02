@@ -74,7 +74,7 @@ static const struct dwc2_core_params dwc2_module_params = {
 	.max_packet_count		= 511,
 	.host_channels			= -1,
 	.phy_type			= -1,
-	.phy_utmi_width			= 16,	/* 16 bits - NOT DETECTABLE */
+	.phy_utmi_width			= -1,
 	.phy_ulpi_ddr			= -1,
 	.phy_ulpi_ext_vbus		= -1,
 	.i2c_enable			= -1,
@@ -83,7 +83,7 @@ static const struct dwc2_core_params dwc2_module_params = {
 	.host_ls_low_power_phy_clk	= -1,
 	.ts_dline			= -1,
 	.reload_ctl			= -1,
-	.ahb_single			= -1,
+	.ahbcfg				= -1,
 };
 
 /**

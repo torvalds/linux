@@ -118,6 +118,15 @@ struct tps65912_reg {
 	int eco_reg;
 };
 
+static const struct regulator_linear_range tps65912_ldo_ranges[] = {
+	{ .min_uV = 800000, .max_uV = 1600000, .min_sel =  0, .max_sel = 32,
+	  .uV_step = 25000 },
+	{ .min_uV = 1650000, .max_uV = 3000000, .min_sel = 33, .max_sel = 60,
+	  .uV_step = 50000 },
+	{ .min_uV = 3100000, .max_uV = 3300000, .min_sel = 61, .max_sel = 63,
+	  .uV_step = 100000 },
+};
+
 static int tps65912_get_range(struct tps65912_reg *pmic, int id)
 {
 	struct tps65912 *mfd = pmic->mfd;
@@ -180,20 +189,6 @@ static unsigned long tps65912_vsel_to_uv_range3(u8 vsel)
 		uv = 3800000;
 	else
 		uv = ((vsel * 50000) + 500000);
-
-	return uv;
-}
-
-static unsigned long tps65912_vsel_to_uv_ldo(u8 vsel)
-{
-	unsigned long uv = 0;
-
-	if (vsel <= 32)
-		uv = ((vsel * 25000) + 800000);
-	else if (vsel > 32 && vsel <= 60)
-		uv = (((vsel - 32) * 50000) + 1600000);
-	else if (vsel > 60)
-		uv = (((vsel - 60) * 100000) + 3000000);
 
 	return uv;
 }
@@ -376,9 +371,6 @@ static int tps65912_list_voltage(struct regulator_dev *dev, unsigned selector)
 	struct tps65912_reg *pmic = rdev_get_drvdata(dev);
 	int range, voltage = 0, id = rdev_get_id(dev);
 
-	if (id >= TPS65912_REG_LDO1 && id <= TPS65912_REG_LDO10)
-		return tps65912_vsel_to_uv_ldo(selector);
-
 	if (id > TPS65912_REG_DCDC4)
 		return -EINVAL;
 
@@ -456,7 +448,8 @@ static struct regulator_ops tps65912_ops_ldo = {
 	.disable = tps65912_reg_disable,
 	.get_voltage_sel = tps65912_get_voltage_sel,
 	.set_voltage_sel = tps65912_set_voltage_sel,
-	.list_voltage = tps65912_list_voltage,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.map_voltage = regulator_map_voltage_linear_range,
 };
 
 static int tps65912_probe(struct platform_device *pdev)
@@ -495,8 +488,14 @@ static int tps65912_probe(struct platform_device *pdev)
 		pmic->desc[i].name = info->name;
 		pmic->desc[i].id = i;
 		pmic->desc[i].n_voltages = 64;
-		pmic->desc[i].ops = (i > TPS65912_REG_DCDC4 ?
-			&tps65912_ops_ldo : &tps65912_ops_dcdc);
+		if (i > TPS65912_REG_DCDC4) {
+			pmic->desc[i].ops = &tps65912_ops_ldo;
+			pmic->desc[i].linear_ranges = tps65912_ldo_ranges;
+			pmic->desc[i].n_linear_ranges =
+					ARRAY_SIZE(tps65912_ldo_ranges);
+		} else {
+			pmic->desc[i].ops = &tps65912_ops_dcdc;
+		}
 		pmic->desc[i].type = REGULATOR_VOLTAGE;
 		pmic->desc[i].owner = THIS_MODULE;
 		range = tps65912_get_range(pmic, i);

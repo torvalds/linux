@@ -124,6 +124,12 @@
 DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 #define INITIAL_INTERRUPTS_ENABLED (1ULL << INT_MEM_ERROR)
 
+#ifdef CONFIG_DEBUG_PREEMPT
+/* Due to inclusion issues, we can't rely on <linux/smp.h> here. */
+extern unsigned int debug_smp_processor_id(void);
+# define smp_processor_id() debug_smp_processor_id()
+#endif
+
 /* Disable interrupts. */
 #define arch_local_irq_disable() \
 	interrupt_mask_set_mask(LINUX_MASKABLE_INTERRUPTS)
@@ -132,9 +138,18 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 #define arch_local_irq_disable_all() \
 	interrupt_mask_set_mask(-1ULL)
 
+/*
+ * Read the set of maskable interrupts.
+ * We avoid the preemption warning here via __this_cpu_ptr since even
+ * if irqs are already enabled, it's harmless to read the wrong cpu's
+ * enabled mask.
+ */
+#define arch_local_irqs_enabled() \
+	(*__this_cpu_ptr(&interrupts_enabled_mask))
+
 /* Re-enable all maskable interrupts. */
 #define arch_local_irq_enable() \
-	interrupt_mask_reset_mask(__get_cpu_var(interrupts_enabled_mask))
+	interrupt_mask_reset_mask(arch_local_irqs_enabled())
 
 /* Disable or enable interrupts based on flag argument. */
 #define arch_local_irq_restore(disabled) do { \
@@ -161,7 +176,7 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 
 /* Prevent the given interrupt from being enabled next time we enable irqs. */
 #define arch_local_irq_mask(interrupt) \
-	(__get_cpu_var(interrupts_enabled_mask) &= ~(1ULL << (interrupt)))
+	this_cpu_and(interrupts_enabled_mask, ~(1ULL << (interrupt)))
 
 /* Prevent the given interrupt from being enabled immediately. */
 #define arch_local_irq_mask_now(interrupt) do { \
@@ -171,7 +186,7 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 
 /* Allow the given interrupt to be enabled next time we enable irqs. */
 #define arch_local_irq_unmask(interrupt) \
-	(__get_cpu_var(interrupts_enabled_mask) |= (1ULL << (interrupt)))
+	this_cpu_or(interrupts_enabled_mask, (1ULL << (interrupt)))
 
 /* Allow the given interrupt to be enabled immediately, if !irqs_disabled. */
 #define arch_local_irq_unmask_now(interrupt) do { \

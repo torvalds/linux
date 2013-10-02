@@ -542,7 +542,6 @@ static int mid_thermal_remove(struct platform_device *pdev)
 	}
 
 	kfree(pinfo);
-	platform_set_drvdata(pdev, NULL);
 
 	/* Stop the ADC */
 	return configure_adc(0);

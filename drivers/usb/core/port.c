@@ -23,8 +23,8 @@
 
 static const struct attribute_group *port_dev_group[];
 
-static ssize_t show_port_connect_type(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t connect_type_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct usb_port *port_dev = to_usb_port(dev);
 	char *result;
@@ -46,8 +46,7 @@ static ssize_t show_port_connect_type(struct device *dev,
 
 	return sprintf(buf, "%s\n", result);
 }
-static DEVICE_ATTR(connect_type, S_IRUGO, show_port_connect_type,
-		NULL);
+static DEVICE_ATTR_RO(connect_type);
 
 static struct attribute *port_dev_attrs[] = {
 	&dev_attr_connect_type.attr,
@@ -89,22 +88,19 @@ static int usb_port_runtime_resume(struct device *dev)
 	retval = usb_hub_set_port_power(hdev, hub, port1, true);
 	if (port_dev->child && !retval) {
 		/*
-		 * Wait for usb hub port to be reconnected in order to make
-		 * the resume procedure successful.
+		 * Attempt to wait for usb hub port to be reconnected in order
+		 * to make the resume procedure successful.  The device may have
+		 * disconnected while the port was powered off, so ignore the
+		 * return status.
 		 */
 		retval = hub_port_debounce_be_connected(hub, port1);
-		if (retval < 0) {
+		if (retval < 0)
 			dev_dbg(&port_dev->dev, "can't get reconnection after setting port  power on, status %d\n",
 					retval);
-			goto out;
-		}
 		usb_clear_port_feature(hdev, port1, USB_PORT_FEAT_C_ENABLE);
-
-		/* Set return value to 0 if debounce successful */
 		retval = 0;
 	}
 
-out:
 	clear_bit(port1, hub->busy_bits);
 	usb_autopm_put_interface(intf);
 	return retval;

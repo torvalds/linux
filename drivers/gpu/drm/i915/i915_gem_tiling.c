@@ -268,18 +268,18 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 		return true;
 
 	if (INTEL_INFO(obj->base.dev)->gen == 3) {
-		if (obj->gtt_offset & ~I915_FENCE_START_MASK)
+		if (i915_gem_obj_ggtt_offset(obj) & ~I915_FENCE_START_MASK)
 			return false;
 	} else {
-		if (obj->gtt_offset & ~I830_FENCE_START_MASK)
+		if (i915_gem_obj_ggtt_offset(obj) & ~I830_FENCE_START_MASK)
 			return false;
 	}
 
 	size = i915_gem_get_gtt_size(obj->base.dev, obj->base.size, tiling_mode);
-	if (obj->gtt_space->size != size)
+	if (i915_gem_obj_ggtt_size(obj) != size)
 		return false;
 
-	if (obj->gtt_offset & (size - 1))
+	if (i915_gem_obj_ggtt_offset(obj) & (size - 1))
 		return false;
 
 	return true;
@@ -359,18 +359,19 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 */
 
 		obj->map_and_fenceable =
-			obj->gtt_space == NULL ||
-			(obj->gtt_offset + obj->base.size <= dev_priv->gtt.mappable_end &&
+			!i915_gem_obj_ggtt_bound(obj) ||
+			(i915_gem_obj_ggtt_offset(obj) +
+			 obj->base.size <= dev_priv->gtt.mappable_end &&
 			 i915_gem_object_fence_ok(obj, args->tiling_mode));
 
 		/* Rebind if we need a change of alignment */
 		if (!obj->map_and_fenceable) {
-			u32 unfenced_alignment =
+			u32 unfenced_align =
 				i915_gem_get_gtt_alignment(dev, obj->base.size,
 							    args->tiling_mode,
 							    false);
-			if (obj->gtt_offset & (unfenced_alignment - 1))
-				ret = i915_gem_object_unbind(obj);
+			if (i915_gem_obj_ggtt_offset(obj) & (unfenced_align - 1))
+				ret = i915_gem_object_ggtt_unbind(obj);
 		}
 
 		if (ret == 0) {

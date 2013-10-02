@@ -43,11 +43,9 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-# include <linux/libcfs/libcfs.h>
-# include <linux/module.h>
-
-#include <obd.h>
-#include <lu_object.h>
+#include <linux/libcfs/libcfs.h>
+#include <linux/module.h>
+#include <lustre/lustre_idl.h>
 #include <lustre_fid.h>
 
 /**
@@ -56,9 +54,9 @@
  *
  * Fid namespace:
  * <pre>
- * Normal FID:	seq:64 [2^33,2^64-1]      oid:32	  ver:32
- * IGIF      :	0:32, ino:32	      gen:32	  0:32
- * IDIF      :	0:31, 1:1, ost-index:16,  objd:48	 0:32
+ * Normal FID:        seq:64 [2^33,2^64-1]      oid:32          ver:32
+ * IGIF      :        0:32, ino:32              gen:32          0:32
+ * IDIF      :        0:31, 1:1, ost-index:16,  objd:48         0:32
  * </pre>
  *
  * The first 0x400 sequences of normal FID are reserved for special purpose.

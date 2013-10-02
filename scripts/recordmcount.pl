@@ -364,6 +364,10 @@ if ($arch eq "x86_64") {
 } elsif ($arch eq "blackfin") {
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s__mcount\$";
     $mcount_adjust = -4;
+} elsif ($arch eq "tilegx") {
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s__mcount\$";
+    $type = ".quad";
+    $alignment = 8;
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }

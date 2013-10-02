@@ -181,7 +181,6 @@ static struct cpufreq_driver cbe_cpufreq_driver = {
 	.init		= cbe_cpufreq_cpu_init,
 	.exit		= cbe_cpufreq_cpu_exit,
 	.name		= "cbe-cpufreq",
-	.owner		= THIS_MODULE,
 	.flags		= CPUFREQ_CONST_LOOPS,
 };
 

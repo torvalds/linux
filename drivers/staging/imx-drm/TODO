@@ -10,7 +10,6 @@ TODO:
 Missing features (not necessarily for moving out of staging):
 
 - Add KMS plane support for CRTC driver
-- Add LDB (LVDS Display Bridge) support
 - Add i.MX6 HDMI support
 - Add support for IC (Image converter)
 - Add support for CSI (CMOS Sensor interface)

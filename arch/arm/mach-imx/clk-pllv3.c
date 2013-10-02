@@ -48,7 +48,7 @@ struct clk_pllv3 {
 static int clk_pllv3_prepare(struct clk_hw *hw)
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	unsigned long timeout = jiffies + msecs_to_jiffies(10);
+	unsigned long timeout;
 	u32 val;
 
 	val = readl_relaxed(pll->base);
@@ -59,12 +59,19 @@ static int clk_pllv3_prepare(struct clk_hw *hw)
 		val &= ~BM_PLL_POWER;
 	writel_relaxed(val, pll->base);
 
+	timeout = jiffies + msecs_to_jiffies(10);
 	/* Wait for PLL to lock */
-	while (!(readl_relaxed(pll->base) & BM_PLL_LOCK))
+	do {
+		if (readl_relaxed(pll->base) & BM_PLL_LOCK)
+			break;
 		if (time_after(jiffies, timeout))
-			return -ETIMEDOUT;
+			break;
+	} while (1);
 
-	return 0;
+	if (readl_relaxed(pll->base) & BM_PLL_LOCK)
+		return 0;
+	else
+		return -ETIMEDOUT;
 }
 
 static void clk_pllv3_unprepare(struct clk_hw *hw)

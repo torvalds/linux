@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2010 Solarflare Communications Inc.
+ * Copyright 2005-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -306,7 +306,9 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 
 	while (read_ptr != stop_index) {
 		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
-		if (unlikely(buffer->len == 0)) {
+
+		if (!(buffer->flags & EFX_TX_BUF_OPTION) &&
+		    unlikely(buffer->len == 0)) {
 			netif_err(efx, tx_err, efx->net_dev,
 				  "TX queue %d spurious TX completion id %x\n",
 				  tx_queue->queue, read_ptr);
@@ -437,6 +439,9 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	efx_dequeue_buffers(tx_queue, index, &pkts_compl, &bytes_compl);
 	netdev_tx_completed_queue(tx_queue->core_txq, pkts_compl, bytes_compl);
 
+	if (pkts_compl > 1)
+		++tx_queue->merge_events;
+
 	/* See if we need to restart the netif queue.  This memory
 	 * barrier ensures that we write read_count (inside
 	 * efx_dequeue_buffers()) before reading the queue status.
@@ -543,9 +548,12 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->initialised = true;
 }
 
-void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
+void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 {
 	struct efx_tx_buffer *buffer;
+
+	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
+		  "shutting down TX queue %d\n", tx_queue->queue);
 
 	if (!tx_queue->buffer)
 		return;
@@ -559,22 +567,6 @@ void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
 		++tx_queue->read_count;
 	}
 	netdev_tx_reset_queue(tx_queue->core_txq);
-}
-
-void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
-{
-	if (!tx_queue->initialised)
-		return;
-
-	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
-		  "shutting down TX queue %d\n", tx_queue->queue);
-
-	tx_queue->initialised = false;
-
-	/* Flush TX queue, remove descriptor ring */
-	efx_nic_fini_tx(tx_queue);
-
-	efx_release_tx_buffers(tx_queue);
 }
 
 void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
@@ -708,7 +700,8 @@ static u8 *efx_tsoh_get_buffer(struct efx_tx_queue *tx_queue,
 			TSOH_STD_SIZE * (index % TSOH_PER_PAGE) + TSOH_OFFSET;
 
 		if (unlikely(!page_buf->addr) &&
-		    efx_nic_alloc_buffer(tx_queue->efx, page_buf, PAGE_SIZE))
+		    efx_nic_alloc_buffer(tx_queue->efx, page_buf, PAGE_SIZE,
+					 GFP_ATOMIC))
 			return NULL;
 
 		result = (u8 *)page_buf->addr + offset;

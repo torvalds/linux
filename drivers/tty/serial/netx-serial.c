@@ -196,7 +196,7 @@ static void netx_txint(struct uart_port *port)
 		uart_write_wakeup(port);
 }
 
-static void netx_rxint(struct uart_port *port)
+static void netx_rxint(struct uart_port *port, unsigned long *flags)
 {
 	unsigned char rx, flg, status;
 
@@ -236,7 +236,9 @@ static void netx_rxint(struct uart_port *port)
 		uart_insert_char(port, status, SR_OE, rx, flg);
 	}
 
+	spin_unlock_irqrestore(&port->lock, *flags);
 	tty_flip_buffer_push(&port->state->port);
+	spin_lock_irqsave(&port->lock, *flags);
 }
 
 static irqreturn_t netx_int(int irq, void *dev_id)
@@ -250,7 +252,7 @@ static irqreturn_t netx_int(int irq, void *dev_id)
 	status = readl(port->membase + UART_IIR) & IIR_MASK;
 	while (status) {
 		if (status & IIR_RIS)
-			netx_rxint(port);
+			netx_rxint(port, &flags);
 		if (status & IIR_TIS)
 			netx_txint(port);
 		if (status & IIR_MIS) {
@@ -692,8 +694,6 @@ static int serial_netx_probe(struct platform_device *pdev)
 static int serial_netx_remove(struct platform_device *pdev)
 {
 	struct netx_port *sport = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	if (sport)
 		uart_remove_one_port(&netx_reg, &sport->port);

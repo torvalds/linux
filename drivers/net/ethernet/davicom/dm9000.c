@@ -1384,7 +1384,7 @@ static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 static int
 dm9000_probe(struct platform_device *pdev)
 {
-	struct dm9000_plat_data *pdata = pdev->dev.platform_data;
+	struct dm9000_plat_data *pdata = dev_get_platdata(&pdev->dev);
 	struct board_info *db;	/* Point a board information structure */
 	struct net_device *ndev;
 	const unsigned char *mac_src;

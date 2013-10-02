@@ -2117,7 +2117,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 
 	/* other non-static parts of init */
 	dev->dev = &pdev->dev;
-	dev->mach = pdev->dev.platform_data;
+	dev->mach = dev_get_platdata(&pdev->dev);
 
 	dev->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 

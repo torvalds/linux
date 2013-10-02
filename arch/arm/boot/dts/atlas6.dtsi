@@ -329,6 +329,12 @@
 						sirf,function = "uart0";
 					};
 				};
+				uart0_noflow_pins_a: uart0@1 {
+					uart {
+						sirf,pins = "uart0_nostreamctrlgrp";
+						sirf,function = "uart0_nostreamctrl";
+					};
+				};
 				uart1_pins_a: uart1@0 {
 					uart {
 						sirf,pins = "uart1grp";

@@ -653,6 +653,7 @@ static void announce_cpu(int cpu, int apicid)
 {
 	static int current_node = -1;
 	int node = early_cpu_to_node(cpu);
+	int max_cpu_present = find_last_bit(cpumask_bits(cpu_present_mask), NR_CPUS);
 
 	if (system_state == SYSTEM_BOOTING) {
 		if (node != current_node) {
@@ -661,7 +662,7 @@ static void announce_cpu(int cpu, int apicid)
 			current_node = node;
 			pr_info("Booting Node %3d, Processors ", node);
 		}
-		pr_cont(" #%d%s", cpu, cpu == (nr_cpu_ids - 1) ? " OK\n" : "");
+		pr_cont(" #%4d%s", cpu, cpu == max_cpu_present ? " OK\n" : "");
 		return;
 	} else
 		pr_info("Booting Node %d Processor %d APIC 0x%x\n",

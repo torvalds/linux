@@ -15,7 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/of_i2c.h>
+#include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <sound/soc.h>
@@ -217,7 +217,8 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	codec_dev = of_find_i2c_device_by_node(codec_np);
 	if (!codec_dev || !codec_dev->driver) {
 		dev_err(&pdev->dev, "failed to find codec platform device\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);

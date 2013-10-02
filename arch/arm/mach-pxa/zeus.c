@@ -26,9 +26,11 @@
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pxa-i2c.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/apm-emulation.h>
 #include <linux/can/platform/mcp251x.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 
 #include <asm/mach-types.h>
 #include <asm/suspend.h>
@@ -391,33 +393,34 @@ static struct pxa2xx_spi_master pxa2xx_spi_ssp3_master_info = {
 };
 
 /* CAN bus on SPI */
-static int zeus_mcp2515_setup(struct spi_device *sdev)
-{
-	int err;
+static struct regulator_consumer_supply can_regulator_consumer =
+	REGULATOR_SUPPLY("vdd", "spi3.0");
 
-	err = gpio_request(ZEUS_CAN_SHDN_GPIO, "CAN shutdown");
-	if (err)
-		return err;
+static struct regulator_init_data can_regulator_init_data = {
+	.constraints	= {
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+	},
+	.consumer_supplies	= &can_regulator_consumer,
+	.num_consumer_supplies	= 1,
+};
 
-	err = gpio_direction_output(ZEUS_CAN_SHDN_GPIO, 1);
-	if (err) {
-		gpio_free(ZEUS_CAN_SHDN_GPIO);
-		return err;
-	}
+static struct fixed_voltage_config can_regulator_pdata = {
+	.supply_name	= "CAN_SHDN",
+	.microvolts	= 3300000,
+	.gpio		= ZEUS_CAN_SHDN_GPIO,
+	.init_data	= &can_regulator_init_data,
+};
 
-	return 0;
-}
-
-static int zeus_mcp2515_transceiver_enable(int enable)
-{
-	gpio_set_value(ZEUS_CAN_SHDN_GPIO, !enable);
-	return 0;
-}
+static struct platform_device can_regulator_device = {
+	.name	= "reg-fixed-volage",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &can_regulator_pdata,
+	},
+};
 
 static struct mcp251x_platform_data zeus_mcp2515_pdata = {
 	.oscillator_frequency	= 16*1000*1000,
-	.board_specific_setup	= zeus_mcp2515_setup,
-	.power_enable		= zeus_mcp2515_transceiver_enable,
 };
 
 static struct spi_board_info zeus_spi_board_info[] = {
@@ -516,6 +519,7 @@ static struct platform_device *zeus_devices[] __initdata = {
 	&zeus_leds_device,
 	&zeus_pcmcia_device,
 	&zeus_max6369_device,
+	&can_regulator_device,
 };
 
 /* AC'97 */

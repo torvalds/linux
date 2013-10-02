@@ -210,7 +210,7 @@ static int tmp421_init_client(struct i2c_client *client)
 	if (config < 0) {
 		dev_err(&client->dev,
 			"Could not read configuration register (%d)\n", config);
-		return -ENODEV;
+		return config;
 	}
 
 	config_orig = config;

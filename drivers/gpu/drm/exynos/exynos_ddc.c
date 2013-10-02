@@ -15,7 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-
+#include <linux/of.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_hdmi.h"
@@ -41,13 +41,6 @@ static int s5p_ddc_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id ddc_idtable[] = {
-	{"s5p_ddc", 0},
-	{"exynos5-hdmiddc", 0},
-	{ },
-};
-
-#ifdef CONFIG_OF
 static struct of_device_id hdmiddc_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmiddc",
@@ -57,15 +50,13 @@ static struct of_device_id hdmiddc_match_types[] = {
 		/* end node */
 	}
 };
-#endif
 
 struct i2c_driver ddc_driver = {
 	.driver = {
 		.name = "exynos-hdmiddc",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(hdmiddc_match_types),
+		.of_match_table = hdmiddc_match_types,
 	},
-	.id_table	= ddc_idtable,
 	.probe		= s5p_ddc_probe,
 	.remove		= s5p_ddc_remove,
 	.command		= NULL,

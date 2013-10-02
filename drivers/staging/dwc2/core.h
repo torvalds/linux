@@ -68,16 +68,18 @@ enum dwc2_lx_state {
 /**
  * struct dwc2_core_params - Parameters for configuring the core
  *
- * @otg_cap:            Specifies the OTG capabilities. The driver will
- *                      automatically detect the value for this parameter if
- *                      none is specified.
- *                       0 - HNP and SRP capable (default)
+ * @otg_cap:            Specifies the OTG capabilities.
+ *                       0 - HNP and SRP capable
  *                       1 - SRP Only capable
- *                       2 - No HNP/SRP capable
+ *                       2 - No HNP/SRP capable (always available)
+ *                      Defaults to best available option (0, 1, then 2)
+ * @otg_ver:            OTG version supported
+ *                       0 - 1.3 (default)
+ *                       1 - 2.0
  * @dma_enable:         Specifies whether to use slave or DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
  *                      value for this parameter if none is specified.
- *                       0 - Slave
+ *                       0 - Slave (always available)
  *                       1 - DMA (default, if available)
  * @dma_desc_enable:    When DMA mode is enabled, specifies whether to use
  *                      address DMA mode or descriptor DMA mode for accessing
@@ -88,39 +90,47 @@ enum dwc2_lx_state {
  * @speed:              Specifies the maximum speed of operation in host and
  *                      device mode. The actual speed depends on the speed of
  *                      the attached device and the value of phy_type.
- *                       0 - High Speed (default)
+ *                       0 - High Speed
+ *                           (default when phy_type is UTMI+ or ULPI)
  *                       1 - Full Speed
- * @host_support_fs_ls_low_power: Specifies whether low power mode is supported
- *                      when attached to a Full Speed or Low Speed device in
- *                      host mode.
- *                       0 - Don't support low power mode (default)
- *                       1 - Support low power mode
- * @host_ls_low_power_phy_clk: Specifies the PHY clock rate in low power mode
- *                      when connected to a Low Speed device in host mode. This
- *                      parameter is applicable only if
- *                      host_support_fs_ls_low_power is enabled. If phy_type is
- *                      set to FS then defaults to 6 MHZ otherwise 48 MHZ.
- *                       0 - 48 MHz
- *                       1 - 6 MHz
+ *                           (default when phy_type is Full Speed)
  * @enable_dynamic_fifo: 0 - Use coreConsultant-specified FIFO size parameters
- *                       1 - Allow dynamic FIFO sizing (default)
+ *                       1 - Allow dynamic FIFO sizing (default, if available)
+ * @en_multiple_tx_fifo: Specifies whether dedicated per-endpoint transmit FIFOs
+ *                      are enabled
  * @host_rx_fifo_size:  Number of 4-byte words in the Rx FIFO in host mode when
  *                      dynamic FIFO sizing is enabled
- *                       16 to 32768 (default 1024)
+ *                       16 to 32768
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
  * @host_nperio_tx_fifo_size: Number of 4-byte words in the non-periodic Tx FIFO
  *                      in host mode when dynamic FIFO sizing is enabled
- *                       16 to 32768 (default 1024)
+ *                       16 to 32768
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
  * @host_perio_tx_fifo_size: Number of 4-byte words in the periodic Tx FIFO in
  *                      host mode when dynamic FIFO sizing is enabled
- *                       16 to 32768 (default 1024)
+ *                       16 to 32768
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
  * @max_transfer_size:  The maximum transfer size supported, in bytes
- *                       2047 to 65,535 (default 65,535)
+ *                       2047 to 65,535
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
  * @max_packet_count:   The maximum number of packets in a transfer
- *                       15 to 511 (default 511)
+ *                       15 to 511
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
  * @host_channels:      The number of host channel registers to use
- *                       1 to 16 (default 12)
+ *                       1 to 16
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
  * @phy_type:           Specifies the type of PHY interface to use. By default,
  *                      the driver will automatically detect the phy_type.
+ *                       0 - Full Speed Phy
+ *                       1 - UTMI+ Phy
+ *                       2 - ULPI Phy
+ *                      Defaults to best available option (2, 1, then 0)
  * @phy_utmi_width:     Specifies the UTMI+ Data Width (in bits). This parameter
  *                      is applicable for a phy_type of UTMI+ or ULPI. (For a
  *                      ULPI phy_type, this parameter indicates the data width
@@ -129,7 +139,7 @@ enum dwc2_lx_state {
  *                      parameter was set to "8 and 16 bits", meaning that the
  *                      core has been configured to work at either data path
  *                      width.
- *                       8 or 16 (default 16)
+ *                       8 or 16 (default 16 if available)
  * @phy_ulpi_ddr:       Specifies whether the ULPI operates at double or single
  *                      data rate. This parameter is only applicable if phy_type
  *                      is ULPI.
@@ -139,27 +149,51 @@ enum dwc2_lx_state {
  *                           data bus
  * @phy_ulpi_ext_vbus:  For a ULPI phy, specifies whether to use the internal or
  *                      external supply to drive the VBus
+ *                       0 - Internal supply (default)
+ *                       1 - External supply
  * @i2c_enable:         Specifies whether to use the I2Cinterface for a full
  *                      speed PHY. This parameter is only applicable if phy_type
  *                      is FS.
  *                       0 - No (default)
  *                       1 - Yes
- * @ulpi_fs_ls:         True to make ULPI phy operate in FS/LS mode only
- * @ts_dline:           True to enable Term Select Dline pulsing
- * @en_multiple_tx_fifo: Specifies whether dedicated per-endpoint transmit FIFOs
- *                      are enabled
- * @reload_ctl:         True to allow dynamic reloading of HFIR register during
- *                      runtime
- * @ahb_single:         This bit enables SINGLE transfers for remainder data in
- *                      a transfer for DMA mode of operation.
- *                       0 - remainder data will be sent using INCR burst size
- *                       1 - remainder data will be sent using SINGLE burst size
- * @otg_ver:            OTG version supported
- *                       0 - 1.3
- *                       1 - 2.0
+ * @ulpi_fs_ls:         Make ULPI phy operate in FS/LS mode only
+ *                       0 - No (default)
+ *                       1 - Yes
+ * @host_support_fs_ls_low_power: Specifies whether low power mode is supported
+ *                      when attached to a Full Speed or Low Speed device in
+ *                      host mode.
+ *                       0 - Don't support low power mode (default)
+ *                       1 - Support low power mode
+ * @host_ls_low_power_phy_clk: Specifies the PHY clock rate in low power mode
+ *                      when connected to a Low Speed device in host
+ *                      mode. This parameter is applicable only if
+ *                      host_support_fs_ls_low_power is enabled.
+ *                       0 - 48 MHz
+ *                           (default when phy_type is UTMI+ or ULPI)
+ *                       1 - 6 MHz
+ *                           (default when phy_type is Full Speed)
+ * @ts_dline:           Enable Term Select Dline pulsing
+ *                       0 - No (default)
+ *                       1 - Yes
+ * @reload_ctl:         Allow dynamic reloading of HFIR register during runtime
+ *                       0 - No (default for core < 2.92a)
+ *                       1 - Yes (default for core >= 2.92a)
+ * @ahbcfg:             This field allows the default value of the GAHBCFG
+ *                      register to be overridden
+ *                       -1         - GAHBCFG value will be set to 0x06
+ *                                    (INCR4, default)
+ *                       all others - GAHBCFG value will be overridden with
+ *                                    this value
+ *                      Not all bits can be controlled like this, the
+ *                      bits defined by GAHBCFG_CTRL_MASK are controlled
+ *                      by the driver and are ignored in this
+ *                      configuration value.
  *
  * The following parameters may be specified when starting the module. These
- * parameters define how the DWC_otg controller should be configured.
+ * parameters define how the DWC_otg controller should be configured. A
+ * value of -1 (or any other out of range value) for any parameter means
+ * to read the value from hardware (if possible) or use the builtin
+ * default described above.
  */
 struct dwc2_core_params {
 	/*
@@ -189,7 +223,85 @@ struct dwc2_core_params {
 	int host_ls_low_power_phy_clk;
 	int ts_dline;
 	int reload_ctl;
-	int ahb_single;
+	int ahbcfg;
+};
+
+/**
+ * struct dwc2_hw_params - Autodetected parameters.
+ *
+ * These parameters are the various parameters read from hardware
+ * registers during initialization. They typically contain the best
+ * supported or maximum value that can be configured in the
+ * corresponding dwc2_core_params value.
+ *
+ * The values that are not in dwc2_core_params are documented below.
+ *
+ * @op_mode             Mode of Operation
+ *                       0 - HNP- and SRP-Capable OTG (Host & Device)
+ *                       1 - SRP-Capable OTG (Host & Device)
+ *                       2 - Non-HNP and Non-SRP Capable OTG (Host & Device)
+ *                       3 - SRP-Capable Device
+ *                       4 - Non-OTG Device
+ *                       5 - SRP-Capable Host
+ *                       6 - Non-OTG Host
+ * @arch                Architecture
+ *                       0 - Slave only
+ *                       1 - External DMA
+ *                       2 - Internal DMA
+ * @power_optimized     Are power optimizations enabled?
+ * @num_dev_ep          Number of device endpoints available
+ * @num_dev_perio_in_ep Number of device periodic IN endpoints
+ *                      avaialable
+ * @dev_token_q_depth   Device Mode IN Token Sequence Learning Queue
+ *                      Depth
+ *                       0 to 30
+ * @host_perio_tx_q_depth
+ *                      Host Mode Periodic Request Queue Depth
+ *                       2, 4 or 8
+ * @nperio_tx_q_depth
+ *                      Non-Periodic Request Queue Depth
+ *                       2, 4 or 8
+ * @hs_phy_type         High-speed PHY interface type
+ *                       0 - High-speed interface not supported
+ *                       1 - UTMI+
+ *                       2 - ULPI
+ *                       3 - UTMI+ and ULPI
+ * @fs_phy_type         Full-speed PHY interface type
+ *                       0 - Full speed interface not supported
+ *                       1 - Dedicated full speed interface
+ *                       2 - FS pins shared with UTMI+ pins
+ *                       3 - FS pins shared with ULPI pins
+ * @total_fifo_size:    Total internal RAM for FIFOs (bytes)
+ * @utmi_phy_data_width UTMI+ PHY data width
+ *                       0 - 8 bits
+ *                       1 - 16 bits
+ *                       2 - 8 or 16 bits
+ * @snpsid:             Value from SNPSID register
+ */
+struct dwc2_hw_params {
+	unsigned op_mode:3;
+	unsigned arch:2;
+	unsigned dma_desc_enable:1;
+	unsigned enable_dynamic_fifo:1;
+	unsigned en_multiple_tx_fifo:1;
+	unsigned host_rx_fifo_size:16;
+	unsigned host_nperio_tx_fifo_size:16;
+	unsigned host_perio_tx_fifo_size:16;
+	unsigned nperio_tx_q_depth:3;
+	unsigned host_perio_tx_q_depth:3;
+	unsigned dev_token_q_depth:5;
+	unsigned max_transfer_size:26;
+	unsigned max_packet_count:11;
+	unsigned host_channels:4;
+	unsigned hs_phy_type:2;
+	unsigned fs_phy_type:2;
+	unsigned i2c_enable:1;
+	unsigned num_dev_ep:4;
+	unsigned num_dev_perio_in_ep:4;
+	unsigned total_fifo_size:16;
+	unsigned power_optimized:1;
+	unsigned utmi_phy_data_width:2;
+	u32 snpsid;
 };
 
 /**
@@ -199,15 +311,8 @@ struct dwc2_core_params {
  * @dev:                The struct device pointer
  * @regs:		Pointer to controller regs
  * @core_params:        Parameters that define how the core should be configured
- * @hwcfg1:             Hardware Configuration - stored here for convenience
- * @hwcfg2:             Hardware Configuration - stored here for convenience
- * @hwcfg3:             Hardware Configuration - stored here for convenience
- * @hwcfg4:             Hardware Configuration - stored here for convenience
- * @hptxfsiz:           Hardware Configuration - stored here for convenience
- * @snpsid:             Value from SNPSID register
- * @total_fifo_size:    Total internal RAM for FIFOs (bytes)
- * @rx_fifo_size:       Size of Rx FIFO (bytes)
- * @nperio_tx_fifo_size: Size of Non-periodic Tx FIFO (Bytes)
+ * @hw_params:          Parameters that were autodetected from the
+ *                      hardware registers
  * @op_state:           The operational State, during transitions (a_host=>
  *                      a_peripheral and b_device=>b_host) this may not match
  *                      the core, but allows the software to determine
@@ -295,16 +400,10 @@ struct dwc2_core_params {
 struct dwc2_hsotg {
 	struct device *dev;
 	void __iomem *regs;
+	/** Params detected from hardware */
+	struct dwc2_hw_params hw_params;
+	/** Params to actually use */
 	struct dwc2_core_params *core_params;
-	u32 hwcfg1;
-	u32 hwcfg2;
-	u32 hwcfg3;
-	u32 hwcfg4;
-	u32 hptxfsiz;
-	u32 snpsid;
-	u16 total_fifo_size;
-	u16 rx_fifo_size;
-	u16 nperio_tx_fifo_size;
 	enum usb_otg_state op_state;
 
 	unsigned int queuing_high_bandwidth:1;
@@ -643,7 +742,7 @@ extern int dwc2_set_param_en_multiple_tx_fifo(struct dwc2_hsotg *hsotg,
 
 extern int dwc2_set_param_reload_ctl(struct dwc2_hsotg *hsotg, int val);
 
-extern int dwc2_set_param_ahb_single(struct dwc2_hsotg *hsotg, int val);
+extern int dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val);
 
 extern int dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val);
 

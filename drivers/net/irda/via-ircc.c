@@ -361,16 +361,16 @@ static int via_ircc_open(struct pci_dev *pdev, chipio_t *info, unsigned int id)
 
 	/* Allocate memory if needed */
 	self->rx_buff.head =
-		dma_alloc_coherent(&pdev->dev, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+		dma_zalloc_coherent(&pdev->dev, self->rx_buff.truesize,
+				    &self->rx_buff_dma, GFP_KERNEL);
 	if (self->rx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out2;
 	}
 
 	self->tx_buff.head =
-		dma_alloc_coherent(&pdev->dev, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+		dma_zalloc_coherent(&pdev->dev, self->tx_buff.truesize,
+				    &self->tx_buff_dma, GFP_KERNEL);
 	if (self->tx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out3;

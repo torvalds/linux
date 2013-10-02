@@ -1,0 +1,16 @@
+#
+# Temperature sensor drivers
+#
+menu "Temperature sensors"
+
+config TMP006
+	tristate "TMP006 infrared thermopile sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  TMP006 infrared thermopile sensor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tmp006.
+
+endmenu

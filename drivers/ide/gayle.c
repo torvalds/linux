@@ -132,7 +132,7 @@ static int __init amiga_gayle_ide_probe(struct platform_device *pdev)
 	if (!request_mem_region(res->start, resource_size(res), "IDE"))
 		return -EBUSY;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	pr_info("ide: Gayle IDE controller (A%u style%s)\n",
 		pdata->explicit_ack ? 1200 : 4000,
 		ide_doubler ? ", IDE doubler" : "");

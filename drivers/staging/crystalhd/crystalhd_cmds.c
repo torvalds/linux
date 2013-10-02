@@ -94,8 +94,7 @@ static enum BC_STATUS bc_cproc_notify_mode(struct crystalhd_cmd *ctx,
 	for (i = 0; i < BC_LINK_MAX_OPENS; i++) {
 		if (ctx->user[i].mode == DTS_DIAG_MODE ||
 		    ctx->user[i].mode == DTS_PLAYBACK_MODE) {
-			BCMLOG_ERR("multiple playback sessions are not "
-				   "supported..\n");
+			BCMLOG_ERR("multiple playback sessions are not supported..\n");
 			return BC_STS_ERR_USAGE;
 		}
 	}

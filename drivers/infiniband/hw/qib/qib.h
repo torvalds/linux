@@ -89,7 +89,6 @@ struct qlogic_ib_stats {
 
 extern struct qlogic_ib_stats qib_stats;
 extern const struct pci_error_handlers qib_pci_err_handler;
-extern struct pci_driver qib_driver;
 
 #define QIB_CHIP_SWVERSION QIB_CHIP_VERS_MAJ
 /*
@@ -576,11 +575,13 @@ struct qib_pportdata {
 	/* read/write using lock */
 	spinlock_t            sdma_lock ____cacheline_aligned_in_smp;
 	struct list_head      sdma_activelist;
+	struct list_head      sdma_userpending;
 	u64                   sdma_descq_added;
 	u64                   sdma_descq_removed;
 	u16                   sdma_descq_tail;
 	u16                   sdma_descq_head;
 	u8                    sdma_generation;
+	u8                    sdma_intrequest;
 
 	struct tasklet_struct sdma_sw_clean_up_task
 		____cacheline_aligned_in_smp;
@@ -1326,6 +1327,8 @@ int qib_setup_sdma(struct qib_pportdata *);
 void qib_teardown_sdma(struct qib_pportdata *);
 void __qib_sdma_intr(struct qib_pportdata *);
 void qib_sdma_intr(struct qib_pportdata *);
+void qib_user_sdma_send_desc(struct qib_pportdata *dd,
+			struct list_head *pktlist);
 int qib_sdma_verbs_send(struct qib_pportdata *, struct qib_sge_state *,
 			u32, struct qib_verbs_txreq *);
 /* ppd->sdma_lock should be locked before calling this. */

@@ -124,7 +124,7 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 	int ret;
 
 	/* registering iio */
-	indio_dev = iio_device_alloc(sizeof(*adc));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
 		return -ENOMEM;
@@ -142,16 +142,12 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 	ret = iio_device_register(indio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register iio (adc)");
-		goto error;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, indio_dev);
 
 	return 0;
-
-error:
-	iio_device_free(indio_dev);
-	return ret;
 }
 
 static int vprbrd_adc_remove(struct platform_device *pdev)
@@ -159,7 +155,6 @@ static int vprbrd_adc_remove(struct platform_device *pdev)
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 
 	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

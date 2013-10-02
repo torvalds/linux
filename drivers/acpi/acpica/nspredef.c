@@ -151,6 +151,15 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	}
 
 	/*
+	 *
+	 * 4) If there is no return value and it is optional, just return
+	 * AE_OK (_WAK).
+	 */
+	if (!(*return_object_ptr)) {
+		goto exit;
+	}
+
+	/*
 	 * For returned Package objects, check the type of all sub-objects.
 	 * Note: Package may have been newly created by call above.
 	 */
@@ -268,7 +277,12 @@ acpi_ns_check_object_type(struct acpi_evaluate_info *info,
 
 	acpi_ut_get_expected_return_types(type_buffer, expected_btypes);
 
-	if (package_index == ACPI_NOT_PACKAGE_ELEMENT) {
+	if (!return_object) {
+		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+				      info->node_flags,
+				      "Expected return object of type %s",
+				      type_buffer));
+	} else if (package_index == ACPI_NOT_PACKAGE_ELEMENT) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
 				      info->node_flags,
 				      "Return type mismatch - found %s, expected %s",

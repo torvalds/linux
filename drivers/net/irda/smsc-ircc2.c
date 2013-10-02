@@ -562,14 +562,14 @@ static int smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u8 dma, 
 	self->tx_buff.truesize = SMSC_IRCC2_TX_BUFF_TRUESIZE;
 
 	self->rx_buff.head =
-		dma_alloc_coherent(NULL, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+		dma_zalloc_coherent(NULL, self->rx_buff.truesize,
+				    &self->rx_buff_dma, GFP_KERNEL);
 	if (self->rx_buff.head == NULL)
 		goto err_out2;
 
 	self->tx_buff.head =
-		dma_alloc_coherent(NULL, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+		dma_zalloc_coherent(NULL, self->tx_buff.truesize,
+				    &self->tx_buff_dma, GFP_KERNEL);
 	if (self->tx_buff.head == NULL)
 		goto err_out3;
 

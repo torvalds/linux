@@ -42,9 +42,11 @@ static inline void __user *__gptr_to_uptr(struct kvm_vcpu *vcpu,
 ({								\
 	__typeof__(gptr) __uptr = __gptr_to_uptr(vcpu, gptr, 1);\
 	int __mask = sizeof(__typeof__(*(gptr))) - 1;		\
-	int __ret = PTR_RET((void __force *)__uptr);		\
+	int __ret;						\
 								\
-	if (!__ret) {						\
+	if (IS_ERR((void __force *)__uptr)) {			\
+		__ret = PTR_ERR((void __force *)__uptr);	\
+	} else {						\
 		BUG_ON((unsigned long)__uptr & __mask);		\
 		__ret = get_user(x, __uptr);			\
 	}							\
@@ -55,9 +57,11 @@ static inline void __user *__gptr_to_uptr(struct kvm_vcpu *vcpu,
 ({								\
 	__typeof__(gptr) __uptr = __gptr_to_uptr(vcpu, gptr, 1);\
 	int __mask = sizeof(__typeof__(*(gptr))) - 1;		\
-	int __ret = PTR_RET((void __force *)__uptr);		\
+	int __ret;						\
 								\
-	if (!__ret) {						\
+	if (IS_ERR((void __force *)__uptr)) {			\
+		__ret = PTR_ERR((void __force *)__uptr);	\
+	} else {						\
 		BUG_ON((unsigned long)__uptr & __mask);		\
 		__ret = put_user(x, __uptr);			\
 	}							\

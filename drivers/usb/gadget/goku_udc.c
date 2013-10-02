@@ -772,7 +772,7 @@ goku_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	} /* else pio or dma irq handler advances the queue. */
 
-	if (likely(req != 0))
+	if (likely(req != NULL))
 		list_add_tail(&req->queue, &ep->queue);
 
 	if (likely(!list_empty(&ep->queue))

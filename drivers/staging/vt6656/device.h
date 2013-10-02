@@ -166,8 +166,7 @@ typedef enum _CONTEXT_TYPE {
 } CONTEXT_TYPE;
 
 /* RCB (Receive Control Block) */
-typedef struct _RCB
-{
+struct vnt_rcb {
 	void *Next;
 	signed long Ref;
 	void *pDevice;
@@ -175,21 +174,20 @@ typedef struct _RCB
 	struct vnt_rx_mgmt sMngPacket;
 	struct sk_buff *skb;
 	int bBoolInUse;
-
-} RCB, *PRCB;
+};
 
 /* used to track bulk out irps */
-typedef struct _USB_SEND_CONTEXT {
-    void *pDevice;
-    struct sk_buff *pPacket;
-    struct urb      *pUrb;
-    unsigned int            uBufLen;
-    CONTEXT_TYPE    Type;
-    struct ethhdr sEthHeader;
-    void *Next;
-    bool            bBoolInUse;
-    unsigned char           Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
-} USB_SEND_CONTEXT, *PUSB_SEND_CONTEXT;
+struct vnt_usb_send_context {
+	void *pDevice;
+	struct sk_buff *pPacket;
+	struct urb *pUrb;
+	unsigned int uBufLen;
+	CONTEXT_TYPE Type;
+	struct ethhdr sEthHeader;
+	void *Next;
+	bool bBoolInUse;
+	unsigned char Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
+};
 
 /* structure got from configuration file as user-desired default settings */
 typedef struct _DEFAULT_CONFIG {
@@ -416,21 +414,21 @@ struct vnt_private {
 	u32 int_interval;
 
 	/* Variables to track resources for the BULK In Pipe */
-	PRCB pRCBMem;
-	PRCB apRCB[CB_MAX_RX_DESC];
+	struct vnt_rcb *pRCBMem;
+	struct vnt_rcb *apRCB[CB_MAX_RX_DESC];
 	u32 cbRD;
-	PRCB FirstRecvFreeList;
-	PRCB LastRecvFreeList;
+	struct vnt_rcb *FirstRecvFreeList;
+	struct vnt_rcb *LastRecvFreeList;
 	u32 NumRecvFreeList;
-	PRCB FirstRecvMngList;
-	PRCB LastRecvMngList;
+	struct vnt_rcb *FirstRecvMngList;
+	struct vnt_rcb *LastRecvMngList;
 	u32 NumRecvMngList;
 	int bIsRxWorkItemQueued;
 	int bIsRxMngWorkItemQueued;
 	unsigned long ulRcvRefCount; /* packets that have not returned back */
 
 	/* Variables to track resources for the BULK Out Pipe */
-	PUSB_SEND_CONTEXT apTD[CB_MAX_TX_DESC];
+	struct vnt_usb_send_context *apTD[CB_MAX_TX_DESC];
 	u32 cbTD;
 
 	/* Variables to track resources for the Interrupt In Pipe */
@@ -591,18 +589,11 @@ struct vnt_private {
 	u8 abyBSSID[ETH_ALEN];
 	u8 abyDesireBSSID[ETH_ALEN];
 
-	u16 wCTSDuration;       /* update while speed change */
-	u16 wACKDuration;
-	u16 wRTSTransmitLen;
-	u8 byRTSServiceField;
-	u8 byRTSSignalField;
-
 	u32 dwMaxReceiveLifetime;  /* dot11MaxReceiveLifetime */
 
 	int bCCK;
 	int bEncryptionEnable;
 	int bLongHeader;
-	int bSoftwareGenCrcErr;
 	int bShortSlotTime;
 	int bProtectMode;
 	int bNonERPPresent;
@@ -781,7 +772,7 @@ struct vnt_private {
 
 #define DequeueRCB(Head, Tail)                          \
 {                                                       \
-    PRCB   RCB = Head;                                  \
+    struct vnt_rcb *RCB = Head;                         \
     if (!RCB->Next) {                                   \
         Tail = NULL;                                    \
     }                                                   \

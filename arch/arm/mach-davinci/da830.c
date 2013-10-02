@@ -395,9 +395,9 @@ static struct clk_lookup da830_clks[] = {
 	CLK(NULL,		"tptc0",	&tptc0_clk),
 	CLK(NULL,		"tptc1",	&tptc1_clk),
 	CLK("da830-mmc.0",	NULL,		&mmcsd_clk),
-	CLK(NULL,		"uart0",	&uart0_clk),
-	CLK(NULL,		"uart1",	&uart1_clk),
-	CLK(NULL,		"uart2",	&uart2_clk),
+	CLK("serial8250.0",	NULL,		&uart0_clk),
+	CLK("serial8250.1",	NULL,		&uart1_clk),
+	CLK("serial8250.2",	NULL,		&uart2_clk),
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
 	CLK(NULL,		"ecap0",	&ecap0_clk),
@@ -417,6 +417,7 @@ static struct clk_lookup da830_clks[] = {
 	CLK(NULL,		"aintc",	&aintc_clk),
 	CLK(NULL,		"secu_mgr",	&secu_mgr_clk),
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
+	CLK("davinci_mdio.0",   "fck",          &emac_clk),
 	CLK(NULL,		"gpio",		&gpio_clk),
 	CLK("i2c_davinci.2",	NULL,		&i2c1_clk),
 	CLK(NULL,		"usb11",	&usb11_clk),
@@ -1199,7 +1200,6 @@ static struct davinci_soc_info davinci_soc_info_da830 = {
 	.gpio_base		= DA8XX_GPIO_BASE,
 	.gpio_num		= 128,
 	.gpio_irq		= IRQ_DA8XX_GPIO0,
-	.serial_dev		= &da8xx_serial_device,
 	.emac_pdata		= &da8xx_emac_pdata,
 };
 

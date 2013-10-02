@@ -143,15 +143,26 @@ void machine_restart(char *cmd)
 
 void __show_regs(struct pt_regs *regs)
 {
-	int i;
+	int i, top_reg;
+	u64 lr, sp;
+
+	if (compat_user_mode(regs)) {
+		lr = regs->compat_lr;
+		sp = regs->compat_sp;
+		top_reg = 12;
+	} else {
+		lr = regs->regs[30];
+		sp = regs->sp;
+		top_reg = 29;
+	}
 
 	show_regs_print_info(KERN_DEFAULT);
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
-	print_symbol("LR is at %s\n", regs->regs[30]);
+	print_symbol("LR is at %s\n", lr);
 	printk("pc : [<%016llx>] lr : [<%016llx>] pstate: %08llx\n",
-	       regs->pc, regs->regs[30], regs->pstate);
-	printk("sp : %016llx\n", regs->sp);
-	for (i = 29; i >= 0; i--) {
+	       regs->pc, lr, regs->pstate);
+	printk("sp : %016llx\n", sp);
+	for (i = top_reg; i >= 0; i--) {
 		printk("x%-2d: %016llx ", i, regs->regs[i]);
 		if (i % 2 == 0)
 			printk("\n");

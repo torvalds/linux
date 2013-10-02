@@ -15,4 +15,6 @@ static inline void pnv_pci_init(void) { }
 static inline void pnv_pci_shutdown(void) { }
 #endif
 
+extern void pnv_lpc_init(void);
+
 #endif /* _POWERNV_H */

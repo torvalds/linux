@@ -208,7 +208,7 @@ extern int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
  */
 extern int
 brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, struct sk_buff *pkt);
+		      uint flags, struct sk_buff_head *pktq);
 extern int
 brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, u8 *buf, uint nbytes);

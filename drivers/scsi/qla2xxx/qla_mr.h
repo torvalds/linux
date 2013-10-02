@@ -329,11 +329,13 @@ struct config_info_data {
 	uint64_t	adapter_id;
 
 	uint32_t	cluster_key_len;
-	uint8_t		cluster_key[10];
+	uint8_t		cluster_key[16];
 
 	uint64_t	cluster_master_id;
 	uint64_t	cluster_slave_id;
 	uint8_t		cluster_flags;
+	uint32_t	enabled_capabilities;
+	uint32_t	nominal_temp_value;
 } __packed;
 
 #define FXDISC_GET_CONFIG_INFO		0x01
@@ -342,10 +344,11 @@ struct config_info_data {
 #define FXDISC_GET_TGT_NODE_LIST	0x81
 #define FXDISC_REG_HOST_INFO		0x99
 
-#define QLAFX00_HBA_ICNTRL_REG		0x21B08
+#define QLAFX00_HBA_ICNTRL_REG		0x20B08
 #define QLAFX00_ICR_ENB_MASK            0x80000000
 #define QLAFX00_ICR_DIS_MASK            0x7fffffff
 #define QLAFX00_HST_RST_REG		0x18264
+#define QLAFX00_SOC_TEMP_REG		0x184C4
 #define QLAFX00_HST_TO_HBA_REG		0x20A04
 #define QLAFX00_HBA_TO_HOST_REG		0x21B70
 #define QLAFX00_HST_INT_STS_BITS	0x7
@@ -361,6 +364,9 @@ struct config_info_data {
 #define QLAFX00_INTR_ALL_CMPLT		0x7
 
 #define QLAFX00_MBA_SYSTEM_ERR		0x8002
+#define QLAFX00_MBA_TEMP_OVER		0x8005
+#define QLAFX00_MBA_TEMP_NORM		0x8006
+#define	QLAFX00_MBA_TEMP_CRIT		0x8007
 #define QLAFX00_MBA_LINK_UP		0x8011
 #define QLAFX00_MBA_LINK_DOWN		0x8012
 #define QLAFX00_MBA_PORT_UPDATE		0x8014
@@ -434,9 +440,11 @@ struct qla_mt_iocb_rqst_fx00 {
 
 	__le32 dataword_extra;
 
-	__le32 req_len;
+	__le16 req_len;
+	__le16 reserved_2;
 
-	__le32 rsp_len;
+	__le16 rsp_len;
+	__le16 reserved_3;
 };
 
 struct qla_mt_iocb_rsp_fx00 {
@@ -499,12 +507,37 @@ struct mr_data_fx00 {
 	uint32_t old_fw_hbt_cnt;
 	uint16_t fw_reset_timer_tick;
 	uint8_t fw_reset_timer_exp;
+	uint16_t fw_critemp_timer_tick;
 	uint32_t old_aenmbx0_state;
+	uint32_t critical_temperature;
+	bool extended_io_enabled;
 };
+
+#define QLAFX00_EXTENDED_IO_EN_MASK    0x20
+
+/*
+ * SoC Junction Temperature is stored in
+ * bits 9:1 of SoC Junction Temperature Register
+ * in a firmware specific format format.
+ * To get the temperature in Celsius degrees
+ * the value from this bitfiled should be converted
+ * using this formula:
+ * Temperature (degrees C) = ((3,153,000 - (10,000 * X)) / 13,825)
+ * where X is the bit field value
+ * this macro reads the register, extracts the bitfield value,
+ * performs the calcualtions and returns temperature in Celsius
+ */
+#define QLAFX00_GET_TEMPERATURE(ha) ((3153000 - (10000 * \
+	((QLAFX00_RD_REG(ha, QLAFX00_SOC_TEMP_REG) & 0x3FE) >> 1))) / 13825)
+
 
 #define QLAFX00_LOOP_DOWN_TIME		615     /* 600 */
 #define QLAFX00_HEARTBEAT_INTERVAL	6	/* number of seconds */
 #define QLAFX00_HEARTBEAT_MISS_CNT	3	/* number of miss */
 #define QLAFX00_RESET_INTERVAL		120	/* number of seconds */
 #define QLAFX00_MAX_RESET_INTERVAL	600	/* number of seconds */
+#define QLAFX00_CRITEMP_INTERVAL	60	/* number of seconds */
+
+#define QLAFX00_CRITEMP_THRSHLD		80	/* Celsius degrees */
+
 #endif

@@ -273,12 +273,21 @@ static void __init xen_smp_prepare_boot_cpu(void)
 	BUG_ON(smp_processor_id() != 0);
 	native_smp_prepare_boot_cpu();
 
-	/* We've switched to the "real" per-cpu gdt, so make sure the
-	   old memory can be recycled */
-	make_lowmem_page_readwrite(xen_initial_gdt);
+	if (xen_pv_domain()) {
+		/* We've switched to the "real" per-cpu gdt, so make sure the
+		   old memory can be recycled */
+		make_lowmem_page_readwrite(xen_initial_gdt);
 
-	xen_filter_cpu_maps();
-	xen_setup_vcpu_info_placement();
+		xen_filter_cpu_maps();
+		xen_setup_vcpu_info_placement();
+	}
+	/*
+	 * The alternative logic (which patches the unlock/lock) runs before
+	 * the smp bootup up code is activated. Hence we need to set this up
+	 * the core kernel is being patched. Otherwise we will have only
+	 * modules patched but not core code.
+	 */
+	xen_init_spinlocks();
 }
 
 static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
@@ -572,6 +581,12 @@ static inline int xen_map_vector(int vector)
 	case IRQ_WORK_VECTOR:
 		xen_vector = XEN_IRQ_WORK_VECTOR;
 		break;
+#ifdef CONFIG_X86_64
+	case NMI_VECTOR:
+	case APIC_DM_NMI: /* Some use that instead of NMI_VECTOR */
+		xen_vector = XEN_NMI_VECTOR;
+		break;
+#endif
 	default:
 		xen_vector = -1;
 		printk(KERN_ERR "xen: vector 0x%x is not implemented\n",
@@ -680,7 +695,6 @@ void __init xen_smp_init(void)
 {
 	smp_ops = xen_smp_ops;
 	xen_fill_possible_map();
-	xen_init_spinlocks();
 }
 
 static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
@@ -703,6 +717,15 @@ static int xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	WARN_ON(rc);
 	if (!rc)
 		rc =  native_cpu_up(cpu, tidle);
+
+	/*
+	 * We must initialize the slowpath CPU kicker _after_ the native
+	 * path has executed. If we initialized it before none of the
+	 * unlocker IPI kicks would reach the booting CPU as the booting
+	 * CPU had not set itself 'online' in cpu_online_mask. That mask
+	 * is checked when IPIs are sent (on HVM at least).
+	 */
+	xen_init_lock_cpu(cpu);
 	return rc;
 }
 
@@ -722,4 +745,5 @@ void __init xen_hvm_smp_init(void)
 	smp_ops.cpu_die = xen_hvm_cpu_die;
 	smp_ops.send_call_func_ipi = xen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi;
+	smp_ops.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu;
 }

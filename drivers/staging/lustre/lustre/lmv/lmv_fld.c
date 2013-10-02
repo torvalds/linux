@@ -38,7 +38,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <asm/div64.h>
 #include <linux/seq_file.h>
@@ -58,8 +57,6 @@ int lmv_fld_lookup(struct lmv_obd *lmv,
 		   mdsno_t *mds)
 {
 	int rc;
-	ENTRY;
-
 
 	/* FIXME: Currently ZFS still use local seq for ROOT unfortunately, and
 	 * this fid_is_local check should be removed once LU-2240 is fixed */
@@ -72,7 +69,7 @@ int lmv_fld_lookup(struct lmv_obd *lmv,
 	if (rc) {
 		CERROR("Error while looking for mds number. Seq "LPX64
 		       ", err = %d\n", fid_seq(fid), rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	CDEBUG(D_INODE, "FLD lookup got mds #%x for fid="DFID"\n",
@@ -84,5 +81,5 @@ int lmv_fld_lookup(struct lmv_obd *lmv,
 		       PFID(fid));
 		rc = -EINVAL;
 	}
-	RETURN(rc);
+	return rc;
 }

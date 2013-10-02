@@ -98,6 +98,8 @@
 /* Defn's shared with user-space. */
 #include <lustre/lustre_user.h>
 
+#include <lustre/lustre_errno.h>
+
 /*
  *  GENERAL STUFF
  */
@@ -911,7 +913,7 @@ static inline int lu_fid_cmp(const struct lu_fid *f0,
 		__diff_normalize(fid_ver(f0), fid_ver(f1));
 }
 
-static inline void ostid_cpu_to_le(struct ost_id *src_oi,
+static inline void ostid_cpu_to_le(const struct ost_id *src_oi,
 				   struct ost_id *dst_oi)
 {
 	if (fid_seq_is_mdt0(ostid_seq(src_oi))) {
@@ -922,7 +924,7 @@ static inline void ostid_cpu_to_le(struct ost_id *src_oi,
 	}
 }
 
-static inline void ostid_le_to_cpu(struct ost_id *src_oi,
+static inline void ostid_le_to_cpu(const struct ost_id *src_oi,
 				   struct ost_id *dst_oi)
 {
 	if (fid_seq_is_mdt0(ostid_seq(src_oi))) {
@@ -1544,10 +1546,16 @@ enum obdo_flags {
 #define LOV_MAGIC_V1_DEF  0x0CD10BD0
 #define LOV_MAGIC_V3_DEF  0x0CD30BD0
 
-#define LOV_PATTERN_RAID0 0x001   /* stripes are used round-robin */
-#define LOV_PATTERN_RAID1 0x002   /* stripes are mirrors of each other */
-#define LOV_PATTERN_FIRST 0x100   /* first stripe is not in round-robin */
-#define LOV_PATTERN_CMOBD 0x200
+#define LOV_PATTERN_RAID0	0x001   /* stripes are used round-robin */
+#define LOV_PATTERN_RAID1	0x002   /* stripes are mirrors of each other */
+#define LOV_PATTERN_FIRST	0x100   /* first stripe is not in round-robin */
+#define LOV_PATTERN_CMOBD	0x200
+
+#define LOV_PATTERN_F_MASK	0xffff0000
+#define LOV_PATTERN_F_RELEASED	0x80000000 /* HSM released file */
+
+#define lov_pattern(pattern)		(pattern & ~LOV_PATTERN_F_MASK)
+#define lov_pattern_flags(pattern)	(pattern & LOV_PATTERN_F_MASK)
 
 #define lov_ost_data lov_ost_data_v1
 struct lov_ost_data_v1 {	  /* per-stripe data structure (little-endian)*/
@@ -1661,6 +1669,17 @@ struct lov_mds_md_v3 {	    /* LOV EA mds/wire data (little-endian) */
 	char  lmm_pool_name[LOV_MAXPOOLNAME]; /* must be 32bit aligned */
 	struct lov_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 };
+
+static inline __u32 lov_mds_md_size(__u16 stripes, __u32 lmm_magic)
+{
+	if (lmm_magic == LOV_MAGIC_V3)
+		return sizeof(struct lov_mds_md_v3) +
+				stripes * sizeof(struct lov_ost_data_v1);
+	else
+		return sizeof(struct lov_mds_md_v1) +
+				stripes * sizeof(struct lov_ost_data_v1);
+}
+
 
 #define OBD_MD_FLID	(0x00000001ULL) /* object ID */
 #define OBD_MD_FLATIME     (0x00000002ULL) /* access time */
@@ -2671,6 +2690,10 @@ struct ldlm_res_id {
 	__u64 name[RES_NAME_SIZE];
 };
 
+#define DLDLMRES	"["LPX64":"LPX64":"LPX64"]."LPX64i
+#define PLDLMRES(res)	(res)->lr_name.name[0], (res)->lr_name.name[1], \
+			(res)->lr_name.name[2], (res)->lr_name.name[3]
+
 extern void lustre_swab_ldlm_res_id (struct ldlm_res_id *id);
 
 static inline int ldlm_res_eq(const struct ldlm_res_id *res0,
@@ -2963,6 +2986,7 @@ typedef enum {
 	/* LLOG_JOIN_REC	= LLOG_OP_MAGIC | 0x50000, obsolete  1.8.0 */
 	CHANGELOG_REC		= LLOG_OP_MAGIC | 0x60000,
 	CHANGELOG_USER_REC	= LLOG_OP_MAGIC | 0x70000,
+	HSM_AGENT_REC		= LLOG_OP_MAGIC | 0x80000,
 	LLOG_HDR_MAGIC		= LLOG_OP_MAGIC | 0x45539,
 	LLOG_LOGID_MAGIC	= LLOG_OP_MAGIC | 0x4553b,
 } llog_op_type;
@@ -3080,6 +3104,52 @@ struct llog_changelog_user_rec {
 	__u32		 cur_padding;
 	__u64		 cur_endrec;
 	struct llog_rec_tail  cur_tail;
+} __attribute__((packed));
+
+enum agent_req_status {
+	ARS_WAITING,
+	ARS_STARTED,
+	ARS_FAILED,
+	ARS_CANCELED,
+	ARS_SUCCEED,
+};
+
+static inline char *agent_req_status2name(enum agent_req_status ars)
+{
+	switch (ars) {
+	case ARS_WAITING:
+		return "WAITING";
+	case ARS_STARTED:
+		return "STARTED";
+	case ARS_FAILED:
+		return "FAILED";
+	case ARS_CANCELED:
+		return "CANCELED";
+	case ARS_SUCCEED:
+		return "SUCCEED";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static inline bool agent_req_in_final_state(enum agent_req_status ars)
+{
+	return ((ars == ARS_SUCCEED) || (ars == ARS_FAILED) ||
+		(ars == ARS_CANCELED));
+}
+
+struct llog_agent_req_rec {
+	struct llog_rec_hdr	arr_hdr;	/**< record header */
+	__u32			arr_status;	/**< status of the request */
+						/* must match enum
+						 * agent_req_status */
+	__u32			arr_archive_id;	/**< backend archive number */
+	__u64			arr_flags;	/**< req flags */
+	__u64			arr_compound_id;	/**< compound cookie */
+	__u64			arr_req_create;	/**< req. creation time */
+	__u64			arr_req_change;	/**< req. status change time */
+	struct hsm_action_item	arr_hai;	/**< req. to the agent */
+	struct llog_rec_tail	arr_tail; /**< record tail for_sizezof_only */
 } __attribute__((packed));
 
 /* Old llog gen for compatibility */

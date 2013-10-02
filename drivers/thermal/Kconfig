@@ -17,8 +17,17 @@ if THERMAL
 
 config THERMAL_HWMON
 	bool
+	prompt "Expose thermal sensors as hwmon device"
 	depends on HWMON=y || HWMON=THERMAL
 	default y
+	help
+	  In case a sensor is registered with the thermal
+	  framework, this option will also register it
+	  as a hwmon. The sensor will then have the common
+	  hwmon sysfs interface.
+
+	  Say 'Y' here if you want all thermal sensors to
+	  have hwmon sysfs interface too.
 
 choice
 	prompt "Default Thermal governor"
@@ -91,6 +100,17 @@ config THERMAL_EMULATION
 	  because userland can easily disable the thermal policy by simply
 	  flooding this sysfs node with low temperature values.
 
+config IMX_THERMAL
+	tristate "Temperature sensor driver for Freescale i.MX SoCs"
+	depends on CPU_THERMAL
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  Support for Temperature Monitor (TEMPMON) found on Freescale i.MX SoCs.
+	  It supports one critical trip point and one passive trip point.  The
+	  cpufreq is used as the cooling device to throttle CPUs when the
+	  passive trip is crossed.
+
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR
@@ -113,14 +133,6 @@ config KIRKWOOD_THERMAL
 	help
 	  Support for the Kirkwood thermal sensor driver into the Linux thermal
 	  framework. Only kirkwood 88F6282 and 88F6283 have this sensor.
-
-config EXYNOS_THERMAL
-	tristate "Temperature sensor on Samsung EXYNOS"
-	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5)
-	depends on CPU_THERMAL
-	help
-	  If you say yes here you get support for TMU (Thermal Management
-	  Unit) on SAMSUNG EXYNOS series of SoC.
 
 config DOVE_THERMAL
 	tristate "Temperature sensor on Marvell Dove SoCs"
@@ -182,6 +194,11 @@ config X86_PKG_TEMP_THERMAL
 
 menu "Texas Instruments thermal drivers"
 source "drivers/thermal/ti-soc-thermal/Kconfig"
+endmenu
+
+menu "Samsung thermal drivers"
+depends on PLAT_SAMSUNG
+source "drivers/thermal/samsung/Kconfig"
 endmenu
 
 endif

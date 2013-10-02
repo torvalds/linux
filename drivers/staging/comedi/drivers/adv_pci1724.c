@@ -52,6 +52,8 @@ supported PCI devices are configured as comedi devices automatically.
 
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -121,10 +123,6 @@ static const struct comedi_lrange ao_ranges_1724 = { 4,
 		RANGE_mA(4, 20),
 		RANGE_unitless(0, 1)
 	}
-};
-
-static const struct comedi_lrange *const ao_range_list_1724[NUM_AO_CHANNELS] = {
-	[0 ... NUM_AO_CHANNELS - 1] = &ao_ranges_1724,
 };
 
 /* this structure is for data unique to this hardware driver. */
@@ -306,7 +304,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 	s->n_chan = NUM_AO_CHANNELS;
 	s->maxdata = 0x3fff;
-	s->range_table_list = ao_range_list_1724;
+	s->range_table = &ao_ranges_1724;
 	s->insn_read = ao_readback_insn;
 	s->insn_write = ao_winsn;
 
@@ -340,10 +338,9 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 	int retval;
 	unsigned int board_id;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* init software copies of output values to indicate we don't know
 	 * what the output value is since it has never been written. */

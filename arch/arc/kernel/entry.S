@@ -267,12 +267,7 @@ ARC_EXIT handle_interrupt_level1
 
 ARC_ENTRY instr_service
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
@@ -289,15 +284,13 @@ ARC_EXIT instr_service
 
 ARC_ENTRY mem_service
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN r9
+
 	bl  do_memory_error
 	b   ret_from_exception
 ARC_EXIT mem_service
@@ -308,11 +301,7 @@ ARC_EXIT mem_service
 
 ARC_ENTRY EV_MachineCheck
 
-	EXCPN_PROLOG_FREEUP_REG r9
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r2, [ecr]
 	lr  r0, [efa]
@@ -342,13 +331,7 @@ ARC_EXIT EV_MachineCheck
 
 ARC_ENTRY EV_TLBProtV
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	;Which mode (user/kernel) was the system in when Exception occured
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	;---------(3) Save some more regs-----------------
 	;  vineetg: Mar 6th: Random Seg Fault issue #1
@@ -406,12 +389,7 @@ ARC_EXIT EV_TLBProtV
 ; ---------------------------------------------
 ARC_ENTRY EV_PrivilegeV
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
@@ -427,14 +405,13 @@ ARC_EXIT EV_PrivilegeV
 ; ---------------------------------------------
 ARC_ENTRY EV_Extension
 
-	EXCPN_PROLOG_FREEUP_REG r9
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN r9
+
 	bl  do_extension_fault
 	b   ret_from_exception
 ARC_EXIT EV_Extension
@@ -526,14 +503,7 @@ trap_with_param:
 
 ARC_ENTRY EV_Trap
 
-	; Need at least 1 reg to code the early exception prolog
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	;Which mode (user/kernel) was the system in when intr occured
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	;------- (4) What caused the Trap --------------
 	lr     r12, [ecr]
@@ -642,6 +612,9 @@ resume_kernel_mode:
 
 #ifdef CONFIG_PREEMPT
 
+	; This is a must for preempt_schedule_irq()
+	IRQ_DISABLE	r9
+
 	; Can't preempt if preemption disabled
 	GET_CURR_THR_INFO_FROM_SP   r10
 	ld  r8, [r10, THREAD_INFO_PREEMPT_COUNT]
@@ -650,8 +623,6 @@ resume_kernel_mode:
 	; check if this task's NEED_RESCHED flag set
 	ld  r9, [r10, THREAD_INFO_FLAGS]
 	bbit0  r9, TIF_NEED_RESCHED, restore_regs
-
-	IRQ_DISABLE	r9
 
 	; Invoke PREEMPTION
 	bl      preempt_schedule_irq
@@ -665,12 +636,11 @@ resume_kernel_mode:
 ;
 ; Restore the saved sys context (common exit-path for EXCPN/IRQ/Trap)
 ; IRQ shd definitely not happen between now and rtie
+; All 2 entry points to here already disable interrupts
 
 restore_regs :
 
-	; Disable Interrupts while restoring reg-file back
-	; XXX can this be optimised out
-	IRQ_DISABLE_SAVE    r9, r10	;@r10 has prisitine (pre-disable) copy
+	lr	r10, [status32]
 
 	; Restore REG File. In case multiple Events outstanding,
 	; use the same priorty as rtie: EXCPN, L2 IRQ, L1 IRQ, None

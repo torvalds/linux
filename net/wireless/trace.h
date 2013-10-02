@@ -1293,15 +1293,17 @@ TRACE_EVENT(rdev_return_int_int,
 
 #ifdef CONFIG_NL80211_TESTMODE
 TRACE_EVENT(rdev_testmode_cmd,
-	TP_PROTO(struct wiphy *wiphy),
-	TP_ARGS(wiphy),
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
+	TP_ARGS(wiphy, wdev),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
+		WDEV_ENTRY
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
+		WDEV_ASSIGN;
 	),
-	TP_printk(WIPHY_PR_FMT, WIPHY_PR_ARG)
+	TP_printk(WIPHY_PR_FMT WDEV_PR_FMT, WIPHY_PR_ARG, WDEV_PR_ARG)
 );
 
 TRACE_EVENT(rdev_testmode_dump,
@@ -1839,6 +1841,39 @@ TRACE_EVENT(rdev_crit_proto_stop,
 	),
 	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT,
 		  WIPHY_PR_ARG, WDEV_PR_ARG)
+);
+
+TRACE_EVENT(rdev_channel_switch,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_csa_settings *params),
+	TP_ARGS(wiphy, netdev, params),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		CHAN_DEF_ENTRY
+		__field(u16, counter_offset_beacon)
+		__field(u16, counter_offset_presp)
+		__field(bool, radar_required)
+		__field(bool, block_tx)
+		__field(u8, count)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		CHAN_DEF_ASSIGN(&params->chandef);
+		__entry->counter_offset_beacon = params->counter_offset_beacon;
+		__entry->counter_offset_presp = params->counter_offset_presp;
+		__entry->radar_required = params->radar_required;
+		__entry->block_tx = params->block_tx;
+		__entry->count = params->count;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT
+		  ", block_tx: %d, count: %u, radar_required: %d"
+		  ", counter offsets (beacon/presp): %u/%u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, CHAN_DEF_PR_ARG,
+		  __entry->block_tx, __entry->count, __entry->radar_required,
+		  __entry->counter_offset_beacon,
+		  __entry->counter_offset_presp)
 );
 
 /*************************************************************
@@ -2391,26 +2426,30 @@ TRACE_EVENT(cfg80211_get_bss,
 		  __entry->capa_mask, __entry->capa_val)
 );
 
-TRACE_EVENT(cfg80211_inform_bss_frame,
+TRACE_EVENT(cfg80211_inform_bss_width_frame,
 	TP_PROTO(struct wiphy *wiphy, struct ieee80211_channel *channel,
+		 enum nl80211_bss_scan_width scan_width,
 		 struct ieee80211_mgmt *mgmt, size_t len,
 		 s32 signal),
-	TP_ARGS(wiphy, channel, mgmt, len, signal),
+	TP_ARGS(wiphy, channel, scan_width, mgmt, len, signal),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		CHAN_ENTRY
+		__field(enum nl80211_bss_scan_width, scan_width)
 		__dynamic_array(u8, mgmt, len)
 		__field(s32, signal)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		CHAN_ASSIGN(channel);
+		__entry->scan_width = scan_width;
 		if (mgmt)
 			memcpy(__get_dynamic_array(mgmt), mgmt, len);
 		__entry->signal = signal;
 	),
-	TP_printk(WIPHY_PR_FMT ", " CHAN_PR_FMT "signal: %d",
-		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->signal)
+	TP_printk(WIPHY_PR_FMT ", " CHAN_PR_FMT "(scan_width: %d) signal: %d",
+		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->scan_width,
+		  __entry->signal)
 );
 
 DECLARE_EVENT_CLASS(cfg80211_bss_evt,

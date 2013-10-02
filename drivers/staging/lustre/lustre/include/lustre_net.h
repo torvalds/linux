@@ -1136,7 +1136,7 @@ struct ptlrpc_nrs_pol_conf {
 	 * different module to the one the NRS framework is held within
 	 * (currently ptlrpc), should set this field to THIS_MODULE.
 	 */
-	module_t			  *nc_owner;
+	struct module			  *nc_owner;
 	/**
 	 * Policy registration flags; a bitmast of \e nrs_policy_flags
 	 */
@@ -1211,7 +1211,7 @@ struct ptlrpc_nrs_pol_desc {
 	 *   then unregistration and lprocfs operations will be properly
 	 *   serialized.
 	 */
-	module_t			       *pd_owner;
+	struct module			       *pd_owner;
 	/**
 	 * Bitmask of \e nrs_policy_flags
 	 */
@@ -2322,8 +2322,13 @@ struct ptlrpc_thread {
 	pid_t t_pid;
 	/**
 	 * put watchdog in the structure per thread b=14840
+	 *
+	 * Lustre watchdog is removed for client in the hope
+	 * of a generic watchdog can be merged in kernel.
+	 * When that happens, we should add below back.
+	 *
+	 * struct lc_watchdog *t_watchdog;
 	 */
-	struct lc_watchdog *t_watchdog;
 	/**
 	 * the svc this thread belonged to b=18582
 	 */
@@ -2484,7 +2489,7 @@ struct ptlrpc_service {
 	/** limit of threads number for each partition */
 	int				srv_nthrs_cpt_limit;
 	/** Root of /proc dir tree for this service */
-	proc_dir_entry_t	   *srv_procroot;
+	struct proc_dir_entry	   *srv_procroot;
 	/** Pointer to statistic data for this service */
 	struct lprocfs_stats	   *srv_stats;
 	/** # hp per lp reqs to handle */
@@ -2631,7 +2636,7 @@ struct ptlrpc_service_part {
 	/** reqs waiting for replies */
 	struct ptlrpc_at_array		scp_at_array;
 	/** early reply timer */
-	timer_list_t			scp_at_timer;
+	struct timer_list		scp_at_timer;
 	/** debug */
 	cfs_time_t			scp_at_checktime;
 	/** check early replies */
@@ -3161,6 +3166,38 @@ lustre_shrink_reply(struct ptlrpc_request *req, int segment,
 	req->rq_replen = lustre_shrink_msg(req->rq_repmsg, segment,
 					   newlen, move_data);
 }
+
+#ifdef CONFIG_LUSTRE_TRANSLATE_ERRNOS
+
+static inline int ptlrpc_status_hton(int h)
+{
+	/*
+	 * Positive errnos must be network errnos, such as LUSTRE_EDEADLK,
+	 * ELDLM_LOCK_ABORTED, etc.
+	 */
+	if (h < 0)
+		return -lustre_errno_hton(-h);
+	else
+		return h;
+}
+
+static inline int ptlrpc_status_ntoh(int n)
+{
+	/*
+	 * See the comment in ptlrpc_status_hton().
+	 */
+	if (n < 0)
+		return -lustre_errno_ntoh(-n);
+	else
+		return n;
+}
+
+#else
+
+#define ptlrpc_status_hton(h) (h)
+#define ptlrpc_status_ntoh(n) (n)
+
+#endif
 /** @} */
 
 /** Change request phase of \a req to \a new_phase */

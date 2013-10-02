@@ -778,6 +778,9 @@ static int ax88178_change_mtu(struct net_device *net, int new_mtu)
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 	ax88178_set_mfb(dev);
 
+	/* max qlen depend on hard_mtu and rx_urb_size */
+	usbnet_update_max_qlen(dev);
+
 	return 0;
 }
 
@@ -942,8 +945,6 @@ static const struct driver_info hg20f9_info = {
 	.tx_fixup = asix_tx_fixup,
 	.data = FLAG_EEPROM_MAC,
 };
-
-extern const struct driver_info ax88172a_info;
 
 static const struct usb_device_id	products [] = {
 {

@@ -14,7 +14,7 @@
  ******************************************************************************
 
   Few modifications for Realtek's Wi-Fi drivers by
-  Andrea Merello <andreamrl@tiscali.it>
+  Andrea Merello <andrea.merello@gmail.com>
 
   A special thanks goes to Realtek for their support !
 
@@ -777,6 +777,8 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 
 		/* Allocate new skb for releasing to upper layer */
 		sub_skb = dev_alloc_skb(RTLLIB_SKBBUFFER_SIZE);
+		if (!sub_skb)
+			return 0;
 		skb_reserve(sub_skb, 12);
 		data_ptr = (u8 *)skb_put(sub_skb, skb->len);
 		memcpy(data_ptr, skb->data, skb->len);
@@ -825,6 +827,8 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 
 			/* Allocate new skb for releasing to upper layer */
 			sub_skb = dev_alloc_skb(nSubframe_Length + 12);
+			if (!sub_skb)
+				return 0;
 			skb_reserve(sub_skb, 12);
 			data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
 			memcpy(data_ptr, skb->data, nSubframe_Length);

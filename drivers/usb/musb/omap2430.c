@@ -255,7 +255,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 {
 	struct musb *musb = glue_to_musb(glue);
 	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *pdata = dev->platform_data;
+	struct musb_hdrc_platform_data *pdata = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = pdata->board_data;
 	struct usb_otg *otg = musb->xceiv->otg;
 
@@ -341,7 +341,7 @@ static int omap2430_musb_init(struct musb *musb)
 	int status = 0;
 	struct device *dev = musb->controller;
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
 
 	/* We require some kind of external transceiver, hooked
@@ -412,7 +412,7 @@ static void omap2430_musb_enable(struct musb *musb)
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct device *dev = musb->controller;
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
-	struct musb_hdrc_platform_data *pdata = dev->platform_data;
+	struct musb_hdrc_platform_data *pdata = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = pdata->board_data;
 
 	switch (glue->status) {
@@ -482,7 +482,7 @@ static u64 omap2430_dmamask = DMA_BIT_MASK(32);
 static int omap2430_probe(struct platform_device *pdev)
 {
 	struct resource			musb_resources[3];
-	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
+	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct omap_musb_board_data	*data;
 	struct platform_device		*musb;
 	struct omap2430_glue		*glue;

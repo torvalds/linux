@@ -551,31 +551,6 @@ static IIO_DEVICE_ATTR(enable_smbus_timeout, S_IRUGO | S_IWUSR,
 		adt7316_store_enable_smbus_timeout,
 		0);
 
-
-static ssize_t adt7316_store_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	struct iio_dev *dev_info = dev_to_iio_dev(dev);
-	struct adt7316_chip_info *chip = iio_priv(dev_info);
-	u8 config2;
-	int ret;
-
-	config2 = chip->config2 | ADT7316_RESET;
-
-	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG2, config2);
-	if (ret)
-		return -EIO;
-
-	return len;
-}
-
-static IIO_DEVICE_ATTR(reset, S_IWUSR,
-		NULL,
-		adt7316_store_reset,
-		0);
-
 static ssize_t adt7316_show_powerdown(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
@@ -1675,7 +1650,6 @@ static IIO_DEVICE_ATTR(bus_type, S_IRUGO, adt7316_show_bus_type, NULL, 0);
 static struct attribute *adt7316_attributes[] = {
 	&iio_dev_attr_all_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_enabled.dev_attr.attr,
 	&iio_dev_attr_ad_channel.dev_attr.attr,
 	&iio_dev_attr_all_ad_channels.dev_attr.attr,
@@ -1719,7 +1693,6 @@ static struct attribute *adt7516_attributes[] = {
 	&iio_dev_attr_all_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
 	&iio_dev_attr_select_ex_temp.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_enabled.dev_attr.attr,
 	&iio_dev_attr_ad_channel.dev_attr.attr,
 	&iio_dev_attr_all_ad_channels.dev_attr.attr,

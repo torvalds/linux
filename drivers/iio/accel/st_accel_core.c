@@ -65,7 +65,8 @@
 #define ST_ACCEL_1_BDU_ADDR			0x23
 #define ST_ACCEL_1_BDU_MASK			0x80
 #define ST_ACCEL_1_DRDY_IRQ_ADDR		0x22
-#define ST_ACCEL_1_DRDY_IRQ_MASK		0x10
+#define ST_ACCEL_1_DRDY_IRQ_INT1_MASK		0x10
+#define ST_ACCEL_1_DRDY_IRQ_INT2_MASK		0x08
 #define ST_ACCEL_1_MULTIREAD_BIT		true
 
 /* CUSTOM VALUES FOR SENSOR 2 */
@@ -89,7 +90,8 @@
 #define ST_ACCEL_2_BDU_ADDR			0x23
 #define ST_ACCEL_2_BDU_MASK			0x80
 #define ST_ACCEL_2_DRDY_IRQ_ADDR		0x22
-#define ST_ACCEL_2_DRDY_IRQ_MASK		0x02
+#define ST_ACCEL_2_DRDY_IRQ_INT1_MASK		0x02
+#define ST_ACCEL_2_DRDY_IRQ_INT2_MASK		0x10
 #define ST_ACCEL_2_MULTIREAD_BIT		true
 
 /* CUSTOM VALUES FOR SENSOR 3 */
@@ -121,7 +123,8 @@
 #define ST_ACCEL_3_BDU_ADDR			0x20
 #define ST_ACCEL_3_BDU_MASK			0x08
 #define ST_ACCEL_3_DRDY_IRQ_ADDR		0x23
-#define ST_ACCEL_3_DRDY_IRQ_MASK		0x80
+#define ST_ACCEL_3_DRDY_IRQ_INT1_MASK		0x80
+#define ST_ACCEL_3_DRDY_IRQ_INT2_MASK		0x00
 #define ST_ACCEL_3_IG1_EN_ADDR			0x23
 #define ST_ACCEL_3_IG1_EN_MASK			0x08
 #define ST_ACCEL_3_MULTIREAD_BIT		false
@@ -224,7 +227,8 @@ static const struct st_sensors st_accel_sensors[] = {
 		},
 		.drdy_irq = {
 			.addr = ST_ACCEL_1_DRDY_IRQ_ADDR,
-			.mask = ST_ACCEL_1_DRDY_IRQ_MASK,
+			.mask_int1 = ST_ACCEL_1_DRDY_IRQ_INT1_MASK,
+			.mask_int2 = ST_ACCEL_1_DRDY_IRQ_INT2_MASK,
 		},
 		.multi_read_bit = ST_ACCEL_1_MULTIREAD_BIT,
 		.bootime = 2,
@@ -285,7 +289,8 @@ static const struct st_sensors st_accel_sensors[] = {
 		},
 		.drdy_irq = {
 			.addr = ST_ACCEL_2_DRDY_IRQ_ADDR,
-			.mask = ST_ACCEL_2_DRDY_IRQ_MASK,
+			.mask_int1 = ST_ACCEL_2_DRDY_IRQ_INT1_MASK,
+			.mask_int2 = ST_ACCEL_2_DRDY_IRQ_INT2_MASK,
 		},
 		.multi_read_bit = ST_ACCEL_2_MULTIREAD_BIT,
 		.bootime = 2,
@@ -358,7 +363,8 @@ static const struct st_sensors st_accel_sensors[] = {
 		},
 		.drdy_irq = {
 			.addr = ST_ACCEL_3_DRDY_IRQ_ADDR,
-			.mask = ST_ACCEL_3_DRDY_IRQ_MASK,
+			.mask_int1 = ST_ACCEL_3_DRDY_IRQ_INT1_MASK,
+			.mask_int2 = ST_ACCEL_3_DRDY_IRQ_INT2_MASK,
 			.ig1 = {
 				.en_addr = ST_ACCEL_3_IG1_EN_ADDR,
 				.en_mask = ST_ACCEL_3_IG1_EN_MASK,
@@ -443,7 +449,8 @@ static const struct iio_trigger_ops st_accel_trigger_ops = {
 #define ST_ACCEL_TRIGGER_OPS NULL
 #endif
 
-int st_accel_common_probe(struct iio_dev *indio_dev)
+int st_accel_common_probe(struct iio_dev *indio_dev,
+				struct st_sensors_platform_data *plat_data)
 {
 	int err;
 	struct st_sensor_data *adata = iio_priv(indio_dev);
@@ -465,7 +472,11 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 						&adata->sensor->fs.fs_avl[0];
 	adata->odr = adata->sensor->odr.odr_avl[0].hz;
 
-	err = st_sensors_init_sensor(indio_dev);
+	if (!plat_data)
+		plat_data =
+			(struct st_sensors_platform_data *)&default_accel_pdata;
+
+	err = st_sensors_init_sensor(indio_dev, plat_data);
 	if (err < 0)
 		goto st_accel_common_probe_error;
 
@@ -506,7 +517,6 @@ void st_accel_common_remove(struct iio_dev *indio_dev)
 		st_sensors_deallocate_trigger(indio_dev);
 		st_accel_deallocate_ring(indio_dev);
 	}
-	iio_device_free(indio_dev);
 }
 EXPORT_SYMBOL(st_accel_common_remove);
 

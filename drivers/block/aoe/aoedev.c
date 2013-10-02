@@ -12,6 +12,7 @@
 #include <linux/bitmap.h>
 #include <linux/kdev_t.h>
 #include <linux/moduleparam.h>
+#include <linux/string.h>
 #include "aoe.h"
 
 static void dummy_timer(ulong);
@@ -241,16 +242,12 @@ aoedev_downdev(struct aoedev *d)
 static int
 user_req(char *s, size_t slen, struct aoedev *d)
 {
-	char *p;
+	const char *p;
 	size_t lim;
 
 	if (!d->gd)
 		return 0;
-	p = strrchr(d->gd->disk_name, '/');
-	if (!p)
-		p = d->gd->disk_name;
-	else
-		p += 1;
+	p = kbasename(d->gd->disk_name);
 	lim = sizeof(d->gd->disk_name);
 	lim -= p - d->gd->disk_name;
 	if (slen < lim)
@@ -278,6 +275,7 @@ freedev(struct aoedev *d)
 
 	del_timer_sync(&d->timer);
 	if (d->gd) {
+		aoedisk_rm_debugfs(d);
 		aoedisk_rm_sysfs(d);
 		del_gendisk(d->gd);
 		put_disk(d->gd);

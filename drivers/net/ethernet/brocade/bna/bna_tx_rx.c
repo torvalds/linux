@@ -1419,7 +1419,7 @@ static void bna_rx_sm_start_wait_entry(struct bna_rx *rx)
 	bna_bfi_rx_enet_start(rx);
 }
 
-void
+static void
 bna_rx_sm_stop_wait_entry(struct bna_rx *rx)
 {
 }
@@ -1472,7 +1472,7 @@ static void bna_rx_sm_rxf_start_wait_entry(struct bna_rx *rx)
 	bna_rxf_start(&rx->rxf);
 }
 
-void
+static void
 bna_rx_sm_rxf_stop_wait_entry(struct bna_rx *rx)
 {
 }
@@ -1528,7 +1528,7 @@ bna_rx_sm_start_stop_wait(struct bna_rx *rx, enum bna_rx_event event)
 	}
 }
 
-void
+static void
 bna_rx_sm_started_entry(struct bna_rx *rx)
 {
 	struct bna_rxp *rxp;
@@ -1593,12 +1593,12 @@ static void bna_rx_sm_rxf_start_wait(struct bna_rx *rx,
 	}
 }
 
-void
+static void
 bna_rx_sm_cleanup_wait_entry(struct bna_rx *rx)
 {
 }
 
-void
+static void
 bna_rx_sm_cleanup_wait(struct bna_rx *rx, enum bna_rx_event event)
 {
 	switch (event) {

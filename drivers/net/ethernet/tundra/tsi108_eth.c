@@ -1308,13 +1308,13 @@ static int tsi108_open(struct net_device *dev)
 		       data->id, dev->irq, dev->name);
 	}
 
-	data->rxring = dma_alloc_coherent(NULL, rxring_size, &data->rxdma,
-					  GFP_KERNEL | __GFP_ZERO);
+	data->rxring = dma_zalloc_coherent(NULL, rxring_size, &data->rxdma,
+					   GFP_KERNEL);
 	if (!data->rxring)
 		return -ENOMEM;
 
-	data->txring = dma_alloc_coherent(NULL, txring_size, &data->txdma,
-					  GFP_KERNEL | __GFP_ZERO);
+	data->txring = dma_zalloc_coherent(NULL, txring_size, &data->txdma,
+					   GFP_KERNEL);
 	if (!data->txring) {
 		pci_free_consistent(0, rxring_size, data->rxring, data->rxdma);
 		return -ENOMEM;
@@ -1558,7 +1558,7 @@ tsi108_init_one(struct platform_device *pdev)
 	hw_info *einfo;
 	int err = 0;
 
-	einfo = pdev->dev.platform_data;
+	einfo = dev_get_platdata(&pdev->dev);
 
 	if (NULL == einfo) {
 		printk(KERN_ERR "tsi-eth %d: Missing additional data!\n",

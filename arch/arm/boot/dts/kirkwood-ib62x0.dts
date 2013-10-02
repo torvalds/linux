@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "RaidSonic ICY BOX IB-NAS62x0 (Rev B)";
@@ -121,4 +121,20 @@
 	};
 
 
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@8 {
+		device_type = "ethernet-phy";
+		reg = <8>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
 };

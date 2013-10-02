@@ -360,12 +360,12 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 		gpio_set_value(asd->npcs_pin, !active);
 }
 
-static void atmel_spi_lock(struct atmel_spi *as)
+static void atmel_spi_lock(struct atmel_spi *as) __acquires(&as->lock)
 {
 	spin_lock_irqsave(&as->lock, as->flags);
 }
 
-static void atmel_spi_unlock(struct atmel_spi *as)
+static void atmel_spi_unlock(struct atmel_spi *as) __releases(&as->lock)
 {
 	spin_unlock_irqrestore(&as->lock, as->flags);
 }
@@ -629,9 +629,9 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 		goto err_dma;
 
 	dev_dbg(master->dev.parent,
-		"  start dma xfer %p: len %u tx %p/%08x rx %p/%08x\n",
-		xfer, xfer->len, xfer->tx_buf, xfer->tx_dma,
-		xfer->rx_buf, xfer->rx_dma);
+		"  start dma xfer %p: len %u tx %p/%08llx rx %p/%08llx\n",
+		xfer, xfer->len, xfer->tx_buf, (unsigned long long)xfer->tx_dma,
+		xfer->rx_buf, (unsigned long long)xfer->rx_dma);
 
 	/* Enable relevant interrupts */
 	spi_writel(as, IER, SPI_BIT(OVRES));
@@ -732,9 +732,10 @@ static void atmel_spi_pdc_next_xfer(struct spi_master *master,
 		spi_writel(as, TCR, len);
 
 		dev_dbg(&msg->spi->dev,
-			"  start xfer %p: len %u tx %p/%08x rx %p/%08x\n",
-			xfer, xfer->len, xfer->tx_buf, xfer->tx_dma,
-			xfer->rx_buf, xfer->rx_dma);
+			"  start xfer %p: len %u tx %p/%08llx rx %p/%08llx\n",
+			xfer, xfer->len, xfer->tx_buf,
+			(unsigned long long)xfer->tx_dma, xfer->rx_buf,
+			(unsigned long long)xfer->rx_dma);
 	} else {
 		xfer = as->next_transfer;
 		remaining = as->next_remaining_bytes;
@@ -771,9 +772,10 @@ static void atmel_spi_pdc_next_xfer(struct spi_master *master,
 		spi_writel(as, TNCR, len);
 
 		dev_dbg(&msg->spi->dev,
-			"  next xfer %p: len %u tx %p/%08x rx %p/%08x\n",
-			xfer, xfer->len, xfer->tx_buf, xfer->tx_dma,
-			xfer->rx_buf, xfer->rx_dma);
+			"  next xfer %p: len %u tx %p/%08llx rx %p/%08llx\n",
+			xfer, xfer->len, xfer->tx_buf,
+			(unsigned long long)xfer->tx_dma, xfer->rx_buf,
+			(unsigned long long)xfer->rx_dma);
 		ieval = SPI_BIT(ENDRX) | SPI_BIT(OVRES);
 	} else {
 		spi_writel(as, RNCR, 0);
@@ -1579,7 +1581,9 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		goto out_unmap_regs;
 
 	/* Initialize the hardware */
-	clk_enable(clk);
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		goto out_unmap_regs;
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	if (as->caps.has_wdrbt) {
@@ -1609,7 +1613,7 @@ out_free_dma:
 
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 	free_irq(irq, master);
 out_unmap_regs:
 	iounmap(as->regs);
@@ -1661,7 +1665,7 @@ static int atmel_spi_remove(struct platform_device *pdev)
 	dma_free_coherent(&pdev->dev, BUFFER_SIZE, as->buffer,
 			as->buffer_dma);
 
-	clk_disable(as->clk);
+	clk_disable_unprepare(as->clk);
 	clk_put(as->clk);
 	free_irq(as->irq, master);
 	iounmap(as->regs);
@@ -1678,7 +1682,7 @@ static int atmel_spi_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct spi_master	*master = platform_get_drvdata(pdev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 
-	clk_disable(as->clk);
+	clk_disable_unprepare(as->clk);
 	return 0;
 }
 
@@ -1687,7 +1691,7 @@ static int atmel_spi_resume(struct platform_device *pdev)
 	struct spi_master	*master = platform_get_drvdata(pdev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 
-	clk_enable(as->clk);
+	return clk_prepare_enable(as->clk);
 	return 0;
 }
 

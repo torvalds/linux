@@ -87,7 +87,8 @@ static struct dma_chan *dev_to_dma_chan(struct device *dev)
 	return chan_dev->chan;
 }
 
-static ssize_t show_memcpy_count(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t memcpy_count_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct dma_chan *chan;
 	unsigned long count = 0;
@@ -106,9 +107,10 @@ static ssize_t show_memcpy_count(struct device *dev, struct device_attribute *at
 
 	return err;
 }
+static DEVICE_ATTR_RO(memcpy_count);
 
-static ssize_t show_bytes_transferred(struct device *dev, struct device_attribute *attr,
-				      char *buf)
+static ssize_t bytes_transferred_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
 	struct dma_chan *chan;
 	unsigned long count = 0;
@@ -127,8 +129,10 @@ static ssize_t show_bytes_transferred(struct device *dev, struct device_attribut
 
 	return err;
 }
+static DEVICE_ATTR_RO(bytes_transferred);
 
-static ssize_t show_in_use(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t in_use_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct dma_chan *chan;
 	int err;
@@ -143,13 +147,15 @@ static ssize_t show_in_use(struct device *dev, struct device_attribute *attr, ch
 
 	return err;
 }
+static DEVICE_ATTR_RO(in_use);
 
-static struct device_attribute dma_attrs[] = {
-	__ATTR(memcpy_count, S_IRUGO, show_memcpy_count, NULL),
-	__ATTR(bytes_transferred, S_IRUGO, show_bytes_transferred, NULL),
-	__ATTR(in_use, S_IRUGO, show_in_use, NULL),
-	__ATTR_NULL
+static struct attribute *dma_dev_attrs[] = {
+	&dev_attr_memcpy_count.attr,
+	&dev_attr_bytes_transferred.attr,
+	&dev_attr_in_use.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(dma_dev);
 
 static void chan_dev_release(struct device *dev)
 {
@@ -167,7 +173,7 @@ static void chan_dev_release(struct device *dev)
 
 static struct class dma_devclass = {
 	.name		= "dma",
-	.dev_attrs	= dma_attrs,
+	.dev_groups	= dma_dev_groups,
 	.dev_release	= chan_dev_release,
 };
 
@@ -376,20 +382,30 @@ void dma_issue_pending_all(void)
 EXPORT_SYMBOL(dma_issue_pending_all);
 
 /**
- * nth_chan - returns the nth channel of the given capability
- * @cap: capability to match
- * @n: nth channel desired
- *
- * Defaults to returning the channel with the desired capability and the
- * lowest reference count when 'n' cannot be satisfied.  Must be called
- * under dma_list_mutex.
+ * dma_chan_is_local - returns true if the channel is in the same numa-node as the cpu
  */
-static struct dma_chan *nth_chan(enum dma_transaction_type cap, int n)
+static bool dma_chan_is_local(struct dma_chan *chan, int cpu)
+{
+	int node = dev_to_node(chan->device->dev);
+	return node == -1 || cpumask_test_cpu(cpu, cpumask_of_node(node));
+}
+
+/**
+ * min_chan - returns the channel with min count and in the same numa-node as the cpu
+ * @cap: capability to match
+ * @cpu: cpu index which the channel should be close to
+ *
+ * If some channels are close to the given cpu, the one with the lowest
+ * reference count is returned. Otherwise, cpu is ignored and only the
+ * reference count is taken into account.
+ * Must be called under dma_list_mutex.
+ */
+static struct dma_chan *min_chan(enum dma_transaction_type cap, int cpu)
 {
 	struct dma_device *device;
 	struct dma_chan *chan;
-	struct dma_chan *ret = NULL;
 	struct dma_chan *min = NULL;
+	struct dma_chan *localmin = NULL;
 
 	list_for_each_entry(device, &dma_device_list, global_node) {
 		if (!dma_has_cap(cap, device->cap_mask) ||
@@ -398,27 +414,22 @@ static struct dma_chan *nth_chan(enum dma_transaction_type cap, int n)
 		list_for_each_entry(chan, &device->channels, device_node) {
 			if (!chan->client_count)
 				continue;
-			if (!min)
-				min = chan;
-			else if (chan->table_count < min->table_count)
+			if (!min || chan->table_count < min->table_count)
 				min = chan;
 
-			if (n-- == 0) {
-				ret = chan;
-				break; /* done */
-			}
+			if (dma_chan_is_local(chan, cpu))
+				if (!localmin ||
+				    chan->table_count < localmin->table_count)
+					localmin = chan;
 		}
-		if (ret)
-			break; /* done */
 	}
 
-	if (!ret)
-		ret = min;
+	chan = localmin ? localmin : min;
 
-	if (ret)
-		ret->table_count++;
+	if (chan)
+		chan->table_count++;
 
-	return ret;
+	return chan;
 }
 
 /**
@@ -435,7 +446,6 @@ static void dma_channel_rebalance(void)
 	struct dma_device *device;
 	int cpu;
 	int cap;
-	int n;
 
 	/* undo the last distribution */
 	for_each_dma_cap_mask(cap, dma_cap_mask_all)
@@ -454,14 +464,9 @@ static void dma_channel_rebalance(void)
 		return;
 
 	/* redistribute available channels */
-	n = 0;
 	for_each_dma_cap_mask(cap, dma_cap_mask_all)
 		for_each_online_cpu(cpu) {
-			if (num_possible_cpus() > 1)
-				chan = nth_chan(cap, n++);
-			else
-				chan = nth_chan(cap, -1);
-
+			chan = min_chan(cap, cpu);
 			per_cpu_ptr(channel_table[cap], cpu)->chan = chan;
 		}
 }
@@ -504,7 +509,33 @@ static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
 }
 
 /**
- * dma_request_channel - try to allocate an exclusive channel
+ * dma_request_slave_channel - try to get specific channel exclusively
+ * @chan: target channel
+ */
+struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
+{
+	int err = -EBUSY;
+
+	/* lock against __dma_request_channel */
+	mutex_lock(&dma_list_mutex);
+
+	if (chan->client_count == 0) {
+		err = dma_chan_get(chan);
+		if (err)
+			pr_debug("%s: failed to get %s: (%d)\n",
+				__func__, dma_chan_name(chan), err);
+	} else
+		chan = NULL;
+
+	mutex_unlock(&dma_list_mutex);
+
+
+	return chan;
+}
+EXPORT_SYMBOL_GPL(dma_get_slave_channel);
+
+/**
+ * __dma_request_channel - try to allocate an exclusive channel
  * @mask: capabilities that the channel must satisfy
  * @fn: optional callback to disposition available channels
  * @fn_param: opaque parameter to pass to dma_filter_fn

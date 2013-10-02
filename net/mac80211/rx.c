@@ -87,17 +87,23 @@ ieee80211_rx_radiotap_space(struct ieee80211_local *local,
 	int len;
 
 	/* always present fields */
-	len = sizeof(struct ieee80211_radiotap_header) + 9;
+	len = sizeof(struct ieee80211_radiotap_header) + 8;
 
-	/* allocate extra bitmap */
+	/* allocate extra bitmaps */
 	if (status->vendor_radiotap_len)
 		len += 4;
+	if (status->chains)
+		len += 4 * hweight8(status->chains);
 
 	if (ieee80211_have_rx_timestamp(status)) {
 		len = ALIGN(len, 8);
 		len += 8;
 	}
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+		len += 1;
+
+	/* antenna field, if we don't have per-chain info */
+	if (!status->chains)
 		len += 1;
 
 	/* padding for RX_FLAGS if necessary */
@@ -114,6 +120,11 @@ ieee80211_rx_radiotap_space(struct ieee80211_local *local,
 	if (status->flag & RX_FLAG_VHT) {
 		len = ALIGN(len, 2);
 		len += 12;
+	}
+
+	if (status->chains) {
+		/* antenna and antenna signal fields */
+		len += 2 * hweight8(status->chains);
 	}
 
 	if (status->vendor_radiotap_len) {
@@ -145,8 +156,12 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_radiotap_header *rthdr;
 	unsigned char *pos;
+	__le32 *it_present;
+	u32 it_present_val;
 	u16 rx_flags = 0;
-	int mpdulen;
+	u16 channel_flags = 0;
+	int mpdulen, chain;
+	unsigned long chains = status->chains;
 
 	mpdulen = skb->len;
 	if (!(has_fcs && (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)))
@@ -154,24 +169,38 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 
 	rthdr = (struct ieee80211_radiotap_header *)skb_push(skb, rtap_len);
 	memset(rthdr, 0, rtap_len);
+	it_present = &rthdr->it_present;
 
 	/* radiotap header, set always present flags */
-	rthdr->it_present =
-		cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
-			    (1 << IEEE80211_RADIOTAP_CHANNEL) |
-			    (1 << IEEE80211_RADIOTAP_ANTENNA) |
-			    (1 << IEEE80211_RADIOTAP_RX_FLAGS));
 	rthdr->it_len = cpu_to_le16(rtap_len + status->vendor_radiotap_len);
+	it_present_val = BIT(IEEE80211_RADIOTAP_FLAGS) |
+			 BIT(IEEE80211_RADIOTAP_CHANNEL) |
+			 BIT(IEEE80211_RADIOTAP_RX_FLAGS);
 
-	pos = (unsigned char *)(rthdr + 1);
+	if (!status->chains)
+		it_present_val |= BIT(IEEE80211_RADIOTAP_ANTENNA);
+
+	for_each_set_bit(chain, &chains, IEEE80211_MAX_CHAINS) {
+		it_present_val |=
+			BIT(IEEE80211_RADIOTAP_EXT) |
+			BIT(IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE);
+		put_unaligned_le32(it_present_val, it_present);
+		it_present++;
+		it_present_val = BIT(IEEE80211_RADIOTAP_ANTENNA) |
+				 BIT(IEEE80211_RADIOTAP_DBM_ANTSIGNAL);
+	}
 
 	if (status->vendor_radiotap_len) {
-		rthdr->it_present |=
-			cpu_to_le32(BIT(IEEE80211_RADIOTAP_VENDOR_NAMESPACE)) |
-			cpu_to_le32(BIT(IEEE80211_RADIOTAP_EXT));
-		put_unaligned_le32(status->vendor_radiotap_bitmap, pos);
-		pos += 4;
+		it_present_val |= BIT(IEEE80211_RADIOTAP_VENDOR_NAMESPACE) |
+				  BIT(IEEE80211_RADIOTAP_EXT);
+		put_unaligned_le32(it_present_val, it_present);
+		it_present++;
+		it_present_val = status->vendor_radiotap_bitmap;
 	}
+
+	put_unaligned_le32(it_present_val, it_present);
+
+	pos = (void *)(it_present + 1);
 
 	/* the order of the following fields is important */
 
@@ -207,28 +236,35 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		 */
 		*pos = 0;
 	} else {
+		int shift = 0;
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
-		*pos = rate->bitrate / 5;
+		if (status->flag & RX_FLAG_10MHZ)
+			shift = 1;
+		else if (status->flag & RX_FLAG_5MHZ)
+			shift = 2;
+		*pos = DIV_ROUND_UP(rate->bitrate, 5 * (1 << shift));
 	}
 	pos++;
 
 	/* IEEE80211_RADIOTAP_CHANNEL */
 	put_unaligned_le16(status->freq, pos);
 	pos += 2;
+	if (status->flag & RX_FLAG_10MHZ)
+		channel_flags |= IEEE80211_CHAN_HALF;
+	else if (status->flag & RX_FLAG_5MHZ)
+		channel_flags |= IEEE80211_CHAN_QUARTER;
+
 	if (status->band == IEEE80211_BAND_5GHZ)
-		put_unaligned_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ,
-				   pos);
+		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ;
 	else if (status->flag & (RX_FLAG_HT | RX_FLAG_VHT))
-		put_unaligned_le16(IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ,
-				   pos);
+		channel_flags |= IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
 	else if (rate && rate->flags & IEEE80211_RATE_ERP_G)
-		put_unaligned_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ,
-				   pos);
+		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ;
 	else if (rate)
-		put_unaligned_le16(IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ,
-				   pos);
+		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ;
 	else
-		put_unaligned_le16(IEEE80211_CHAN_2GHZ, pos);
+		channel_flags |= IEEE80211_CHAN_2GHZ;
+	put_unaligned_le16(channel_flags, pos);
 	pos += 2;
 
 	/* IEEE80211_RADIOTAP_DBM_ANTSIGNAL */
@@ -242,9 +278,11 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 
 	/* IEEE80211_RADIOTAP_LOCK_QUALITY is missing */
 
-	/* IEEE80211_RADIOTAP_ANTENNA */
-	*pos = status->antenna;
-	pos++;
+	if (!status->chains) {
+		/* IEEE80211_RADIOTAP_ANTENNA */
+		*pos = status->antenna;
+		pos++;
+	}
 
 	/* IEEE80211_RADIOTAP_DB_ANTNOISE is not used */
 
@@ -339,6 +377,11 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		pos++;
 		/* partial_aid */
 		pos += 2;
+	}
+
+	for_each_set_bit(chain, &chains, IEEE80211_MAX_CHAINS) {
+		*pos++ = status->chain_signal[chain];
+		*pos++ = chain;
 	}
 
 	if (status->vendor_radiotap_len) {
@@ -1012,207 +1055,6 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 
 
 static ieee80211_rx_result debug_noinline
-ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
-{
-	struct sk_buff *skb = rx->skb;
-	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	int keyidx;
-	int hdrlen;
-	ieee80211_rx_result result = RX_DROP_UNUSABLE;
-	struct ieee80211_key *sta_ptk = NULL;
-	int mmie_keyidx = -1;
-	__le16 fc;
-
-	/*
-	 * Key selection 101
-	 *
-	 * There are four types of keys:
-	 *  - GTK (group keys)
-	 *  - IGTK (group keys for management frames)
-	 *  - PTK (pairwise keys)
-	 *  - STK (station-to-station pairwise keys)
-	 *
-	 * When selecting a key, we have to distinguish between multicast
-	 * (including broadcast) and unicast frames, the latter can only
-	 * use PTKs and STKs while the former always use GTKs and IGTKs.
-	 * Unless, of course, actual WEP keys ("pre-RSNA") are used, then
-	 * unicast frames can also use key indices like GTKs. Hence, if we
-	 * don't have a PTK/STK we check the key index for a WEP key.
-	 *
-	 * Note that in a regular BSS, multicast frames are sent by the
-	 * AP only, associated stations unicast the frame to the AP first
-	 * which then multicasts it on their behalf.
-	 *
-	 * There is also a slight problem in IBSS mode: GTKs are negotiated
-	 * with each station, that is something we don't currently handle.
-	 * The spec seems to expect that one negotiates the same key with
-	 * every station but there's no such requirement; VLANs could be
-	 * possible.
-	 */
-
-	/*
-	 * No point in finding a key and decrypting if the frame is neither
-	 * addressed to us nor a multicast frame.
-	 */
-	if (!(status->rx_flags & IEEE80211_RX_RA_MATCH))
-		return RX_CONTINUE;
-
-	/* start without a key */
-	rx->key = NULL;
-
-	if (rx->sta)
-		sta_ptk = rcu_dereference(rx->sta->ptk);
-
-	fc = hdr->frame_control;
-
-	if (!ieee80211_has_protected(fc))
-		mmie_keyidx = ieee80211_get_mmie_keyidx(rx->skb);
-
-	if (!is_multicast_ether_addr(hdr->addr1) && sta_ptk) {
-		rx->key = sta_ptk;
-		if ((status->flag & RX_FLAG_DECRYPTED) &&
-		    (status->flag & RX_FLAG_IV_STRIPPED))
-			return RX_CONTINUE;
-		/* Skip decryption if the frame is not protected. */
-		if (!ieee80211_has_protected(fc))
-			return RX_CONTINUE;
-	} else if (mmie_keyidx >= 0) {
-		/* Broadcast/multicast robust management frame / BIP */
-		if ((status->flag & RX_FLAG_DECRYPTED) &&
-		    (status->flag & RX_FLAG_IV_STRIPPED))
-			return RX_CONTINUE;
-
-		if (mmie_keyidx < NUM_DEFAULT_KEYS ||
-		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
-			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
-		if (rx->sta)
-			rx->key = rcu_dereference(rx->sta->gtk[mmie_keyidx]);
-		if (!rx->key)
-			rx->key = rcu_dereference(rx->sdata->keys[mmie_keyidx]);
-	} else if (!ieee80211_has_protected(fc)) {
-		/*
-		 * The frame was not protected, so skip decryption. However, we
-		 * need to set rx->key if there is a key that could have been
-		 * used so that the frame may be dropped if encryption would
-		 * have been expected.
-		 */
-		struct ieee80211_key *key = NULL;
-		struct ieee80211_sub_if_data *sdata = rx->sdata;
-		int i;
-
-		if (ieee80211_is_mgmt(fc) &&
-		    is_multicast_ether_addr(hdr->addr1) &&
-		    (key = rcu_dereference(rx->sdata->default_mgmt_key)))
-			rx->key = key;
-		else {
-			if (rx->sta) {
-				for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-					key = rcu_dereference(rx->sta->gtk[i]);
-					if (key)
-						break;
-				}
-			}
-			if (!key) {
-				for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-					key = rcu_dereference(sdata->keys[i]);
-					if (key)
-						break;
-				}
-			}
-			if (key)
-				rx->key = key;
-		}
-		return RX_CONTINUE;
-	} else {
-		u8 keyid;
-		/*
-		 * The device doesn't give us the IV so we won't be
-		 * able to look up the key. That's ok though, we
-		 * don't need to decrypt the frame, we just won't
-		 * be able to keep statistics accurate.
-		 * Except for key threshold notifications, should
-		 * we somehow allow the driver to tell us which key
-		 * the hardware used if this flag is set?
-		 */
-		if ((status->flag & RX_FLAG_DECRYPTED) &&
-		    (status->flag & RX_FLAG_IV_STRIPPED))
-			return RX_CONTINUE;
-
-		hdrlen = ieee80211_hdrlen(fc);
-
-		if (rx->skb->len < 8 + hdrlen)
-			return RX_DROP_UNUSABLE; /* TODO: count this? */
-
-		/*
-		 * no need to call ieee80211_wep_get_keyidx,
-		 * it verifies a bunch of things we've done already
-		 */
-		skb_copy_bits(rx->skb, hdrlen + 3, &keyid, 1);
-		keyidx = keyid >> 6;
-
-		/* check per-station GTK first, if multicast packet */
-		if (is_multicast_ether_addr(hdr->addr1) && rx->sta)
-			rx->key = rcu_dereference(rx->sta->gtk[keyidx]);
-
-		/* if not found, try default key */
-		if (!rx->key) {
-			rx->key = rcu_dereference(rx->sdata->keys[keyidx]);
-
-			/*
-			 * RSNA-protected unicast frames should always be
-			 * sent with pairwise or station-to-station keys,
-			 * but for WEP we allow using a key index as well.
-			 */
-			if (rx->key &&
-			    rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP40 &&
-			    rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP104 &&
-			    !is_multicast_ether_addr(hdr->addr1))
-				rx->key = NULL;
-		}
-	}
-
-	if (rx->key) {
-		if (unlikely(rx->key->flags & KEY_FLAG_TAINTED))
-			return RX_DROP_MONITOR;
-
-		rx->key->tx_rx_count++;
-		/* TODO: add threshold stuff again */
-	} else {
-		return RX_DROP_MONITOR;
-	}
-
-	switch (rx->key->conf.cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104:
-		result = ieee80211_crypto_wep_decrypt(rx);
-		break;
-	case WLAN_CIPHER_SUITE_TKIP:
-		result = ieee80211_crypto_tkip_decrypt(rx);
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-		result = ieee80211_crypto_ccmp_decrypt(rx);
-		break;
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		result = ieee80211_crypto_aes_cmac_decrypt(rx);
-		break;
-	default:
-		/*
-		 * We can reach here only with HW-only algorithms
-		 * but why didn't it decrypt the frame?!
-		 */
-		return RX_DROP_UNUSABLE;
-	}
-
-	/* the hdr variable is invalid after the decrypt handlers */
-
-	/* either the frame has been decrypted or will be dropped */
-	status->flag |= RX_FLAG_DECRYPTED;
-
-	return result;
-}
-
-static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_check_more_data(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_local *local;
@@ -1512,6 +1354,207 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 
 	return RX_CONTINUE;
 } /* ieee80211_rx_h_sta_process */
+
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
+{
+	struct sk_buff *skb = rx->skb;
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	int keyidx;
+	int hdrlen;
+	ieee80211_rx_result result = RX_DROP_UNUSABLE;
+	struct ieee80211_key *sta_ptk = NULL;
+	int mmie_keyidx = -1;
+	__le16 fc;
+
+	/*
+	 * Key selection 101
+	 *
+	 * There are four types of keys:
+	 *  - GTK (group keys)
+	 *  - IGTK (group keys for management frames)
+	 *  - PTK (pairwise keys)
+	 *  - STK (station-to-station pairwise keys)
+	 *
+	 * When selecting a key, we have to distinguish between multicast
+	 * (including broadcast) and unicast frames, the latter can only
+	 * use PTKs and STKs while the former always use GTKs and IGTKs.
+	 * Unless, of course, actual WEP keys ("pre-RSNA") are used, then
+	 * unicast frames can also use key indices like GTKs. Hence, if we
+	 * don't have a PTK/STK we check the key index for a WEP key.
+	 *
+	 * Note that in a regular BSS, multicast frames are sent by the
+	 * AP only, associated stations unicast the frame to the AP first
+	 * which then multicasts it on their behalf.
+	 *
+	 * There is also a slight problem in IBSS mode: GTKs are negotiated
+	 * with each station, that is something we don't currently handle.
+	 * The spec seems to expect that one negotiates the same key with
+	 * every station but there's no such requirement; VLANs could be
+	 * possible.
+	 */
+
+	/*
+	 * No point in finding a key and decrypting if the frame is neither
+	 * addressed to us nor a multicast frame.
+	 */
+	if (!(status->rx_flags & IEEE80211_RX_RA_MATCH))
+		return RX_CONTINUE;
+
+	/* start without a key */
+	rx->key = NULL;
+
+	if (rx->sta)
+		sta_ptk = rcu_dereference(rx->sta->ptk);
+
+	fc = hdr->frame_control;
+
+	if (!ieee80211_has_protected(fc))
+		mmie_keyidx = ieee80211_get_mmie_keyidx(rx->skb);
+
+	if (!is_multicast_ether_addr(hdr->addr1) && sta_ptk) {
+		rx->key = sta_ptk;
+		if ((status->flag & RX_FLAG_DECRYPTED) &&
+		    (status->flag & RX_FLAG_IV_STRIPPED))
+			return RX_CONTINUE;
+		/* Skip decryption if the frame is not protected. */
+		if (!ieee80211_has_protected(fc))
+			return RX_CONTINUE;
+	} else if (mmie_keyidx >= 0) {
+		/* Broadcast/multicast robust management frame / BIP */
+		if ((status->flag & RX_FLAG_DECRYPTED) &&
+		    (status->flag & RX_FLAG_IV_STRIPPED))
+			return RX_CONTINUE;
+
+		if (mmie_keyidx < NUM_DEFAULT_KEYS ||
+		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
+			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
+		if (rx->sta)
+			rx->key = rcu_dereference(rx->sta->gtk[mmie_keyidx]);
+		if (!rx->key)
+			rx->key = rcu_dereference(rx->sdata->keys[mmie_keyidx]);
+	} else if (!ieee80211_has_protected(fc)) {
+		/*
+		 * The frame was not protected, so skip decryption. However, we
+		 * need to set rx->key if there is a key that could have been
+		 * used so that the frame may be dropped if encryption would
+		 * have been expected.
+		 */
+		struct ieee80211_key *key = NULL;
+		struct ieee80211_sub_if_data *sdata = rx->sdata;
+		int i;
+
+		if (ieee80211_is_mgmt(fc) &&
+		    is_multicast_ether_addr(hdr->addr1) &&
+		    (key = rcu_dereference(rx->sdata->default_mgmt_key)))
+			rx->key = key;
+		else {
+			if (rx->sta) {
+				for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+					key = rcu_dereference(rx->sta->gtk[i]);
+					if (key)
+						break;
+				}
+			}
+			if (!key) {
+				for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+					key = rcu_dereference(sdata->keys[i]);
+					if (key)
+						break;
+				}
+			}
+			if (key)
+				rx->key = key;
+		}
+		return RX_CONTINUE;
+	} else {
+		u8 keyid;
+		/*
+		 * The device doesn't give us the IV so we won't be
+		 * able to look up the key. That's ok though, we
+		 * don't need to decrypt the frame, we just won't
+		 * be able to keep statistics accurate.
+		 * Except for key threshold notifications, should
+		 * we somehow allow the driver to tell us which key
+		 * the hardware used if this flag is set?
+		 */
+		if ((status->flag & RX_FLAG_DECRYPTED) &&
+		    (status->flag & RX_FLAG_IV_STRIPPED))
+			return RX_CONTINUE;
+
+		hdrlen = ieee80211_hdrlen(fc);
+
+		if (rx->skb->len < 8 + hdrlen)
+			return RX_DROP_UNUSABLE; /* TODO: count this? */
+
+		/*
+		 * no need to call ieee80211_wep_get_keyidx,
+		 * it verifies a bunch of things we've done already
+		 */
+		skb_copy_bits(rx->skb, hdrlen + 3, &keyid, 1);
+		keyidx = keyid >> 6;
+
+		/* check per-station GTK first, if multicast packet */
+		if (is_multicast_ether_addr(hdr->addr1) && rx->sta)
+			rx->key = rcu_dereference(rx->sta->gtk[keyidx]);
+
+		/* if not found, try default key */
+		if (!rx->key) {
+			rx->key = rcu_dereference(rx->sdata->keys[keyidx]);
+
+			/*
+			 * RSNA-protected unicast frames should always be
+			 * sent with pairwise or station-to-station keys,
+			 * but for WEP we allow using a key index as well.
+			 */
+			if (rx->key &&
+			    rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP40 &&
+			    rx->key->conf.cipher != WLAN_CIPHER_SUITE_WEP104 &&
+			    !is_multicast_ether_addr(hdr->addr1))
+				rx->key = NULL;
+		}
+	}
+
+	if (rx->key) {
+		if (unlikely(rx->key->flags & KEY_FLAG_TAINTED))
+			return RX_DROP_MONITOR;
+
+		rx->key->tx_rx_count++;
+		/* TODO: add threshold stuff again */
+	} else {
+		return RX_DROP_MONITOR;
+	}
+
+	switch (rx->key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		result = ieee80211_crypto_wep_decrypt(rx);
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		result = ieee80211_crypto_tkip_decrypt(rx);
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		result = ieee80211_crypto_ccmp_decrypt(rx);
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		result = ieee80211_crypto_aes_cmac_decrypt(rx);
+		break;
+	default:
+		/*
+		 * We can reach here only with HW-only algorithms
+		 * but why didn't it decrypt the frame?!
+		 */
+		return RX_DROP_UNUSABLE;
+	}
+
+	/* the hdr variable is invalid after the decrypt handlers */
+
+	/* either the frame has been decrypted or will be dropped */
+	status->flag |= RX_FLAG_DECRYPTED;
+
+	return result;
+}
 
 static inline struct ieee80211_fragment_entry *
 ieee80211_reassemble_add(struct ieee80211_sub_if_data *sdata,
@@ -2641,8 +2684,7 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 		sig = status->signal;
 
 	if (cfg80211_rx_mgmt(&rx->sdata->wdev, status->freq, sig,
-			     rx->skb->data, rx->skb->len,
-			     GFP_ATOMIC)) {
+			     rx->skb->data, rx->skb->len, 0, GFP_ATOMIC)) {
 		if (rx->sta)
 			rx->sta->rx_packets++;
 		dev_kfree_skb(rx->skb);
@@ -2896,10 +2938,10 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 		 */
 		rx->skb = skb;
 
-		CALL_RXH(ieee80211_rx_h_decrypt)
 		CALL_RXH(ieee80211_rx_h_check_more_data)
 		CALL_RXH(ieee80211_rx_h_uapsd_and_pspoll)
 		CALL_RXH(ieee80211_rx_h_sta_process)
+		CALL_RXH(ieee80211_rx_h_decrypt)
 		CALL_RXH(ieee80211_rx_h_defragment)
 		CALL_RXH(ieee80211_rx_h_michael_mic_verify)
 		/* must be after MMIC verify so header is counted in MPDU mic */

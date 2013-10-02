@@ -3,10 +3,10 @@
  * Linux device driver for RTL8180 / RTL8185
  *
  * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Based on the r8180 driver, which is:
- * Copyright 2004-2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2004-2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  *
  * Thanks to Realtek for their support!
  *
@@ -32,7 +32,7 @@
 #include "grf5101.h"
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
-MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
+MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
 MODULE_DESCRIPTION("RTL8180 / RTL8185 PCI wireless driver");
 MODULE_LICENSE("GPL");
 

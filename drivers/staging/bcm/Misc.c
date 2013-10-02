@@ -210,7 +210,7 @@ exit_download:
  * @ingroup ctrl_pkt_functions
  * This function copies the contents of given buffer
  * to the control packet and queues it for transmission.
- * @note Do not acquire the spinock, as it it already acquired.
+ * @note Do not acquire the spinlock, as it it already acquired.
  * @return  SUCCESS/FAILURE.
  * Arguments:
  * Logical Adapter

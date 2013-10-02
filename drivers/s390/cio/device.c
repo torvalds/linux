@@ -564,7 +564,7 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 		ret = 0;
 	} else {
 		force = 0;
-		ret = strict_strtoul(buf, 16, &i);
+		ret = kstrtoul(buf, 16, &i);
 	}
 	if (ret)
 		goto out;

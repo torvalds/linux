@@ -123,9 +123,13 @@ void panic(const char *fmt, ...)
 	 */
 	smp_send_stop();
 
-	kmsg_dump(KMSG_DUMP_PANIC);
-
+	/*
+	 * Run any panic handlers, including those that might need to
+	 * add information to the kmsg dump output.
+	 */
 	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
+
+	kmsg_dump(KMSG_DUMP_PANIC);
 
 	bust_spinlocks(0);
 

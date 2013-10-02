@@ -215,7 +215,7 @@ So for example arch/.../mach-*/board-*.c files might have code like:
 	/* if your mach-* infrastructure doesn't support kernels that can
 	 * run on multiple boards, pdata wouldn't benefit from "__init".
 	 */
-	static struct mysoc_spi_data __initdata pdata = { ... };
+	static struct mysoc_spi_data pdata __initdata = { ... };
 
 	static __init board_init(void)
 	{

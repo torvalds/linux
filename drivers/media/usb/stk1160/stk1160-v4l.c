@@ -379,6 +379,9 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	struct stk1160 *dev = video_drvdata(file);
 	struct vb2_queue *q = &dev->vb_vidq;
 
+	if (dev->norm == norm)
+		return 0;
+
 	if (vb2_is_busy(q))
 		return -EBUSY;
 
@@ -439,9 +442,6 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct stk1160 *dev = video_drvdata(file);
-
-	if (vb2_is_busy(&dev->vb_vidq))
-		return -EBUSY;
 
 	if (i > STK1160_MAX_INPUT)
 		return -EINVAL;

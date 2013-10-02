@@ -231,7 +231,7 @@ static void samsung_usb3phy_shutdown(struct usb_phy *phy)
 static int samsung_usb3phy_probe(struct platform_device *pdev)
 {
 	struct samsung_usbphy *sphy;
-	struct samsung_usbphy_data *pdata = pdev->dev.platform_data;
+	struct samsung_usbphy_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct resource *phy_mem;
 	void __iomem	*phy_base;

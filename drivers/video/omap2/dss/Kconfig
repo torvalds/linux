@@ -42,6 +42,7 @@ config OMAP2_DSS_DPI
 
 config OMAP2_DSS_RFBI
 	bool "RFBI support"
+	depends on BROKEN
         default n
 	help
 	  MIPI DBI support (RFBI, Remote Framebuffer Interface, in Texas

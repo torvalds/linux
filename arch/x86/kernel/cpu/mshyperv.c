@@ -27,20 +27,23 @@
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
 
-static bool __init ms_hyperv_platform(void)
+static uint32_t  __init ms_hyperv_platform(void)
 {
 	u32 eax;
 	u32 hyp_signature[3];
 
 	if (!boot_cpu_has(X86_FEATURE_HYPERVISOR))
-		return false;
+		return 0;
 
 	cpuid(HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS,
 	      &eax, &hyp_signature[0], &hyp_signature[1], &hyp_signature[2]);
 
-	return eax >= HYPERV_CPUID_MIN &&
-		eax <= HYPERV_CPUID_MAX &&
-		!memcmp("Microsoft Hv", hyp_signature, 12);
+	if (eax >= HYPERV_CPUID_MIN &&
+	    eax <= HYPERV_CPUID_MAX &&
+	    !memcmp("Microsoft Hv", hyp_signature, 12))
+		return HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS;
+
+	return 0;
 }
 
 static cycle_t read_hv_clock(struct clocksource *arg)

@@ -8,7 +8,7 @@ config INFINIBAND_QIB
 
 config INFINIBAND_QIB_DCA
 	bool "QIB DCA support"
-	depends on INFINIBAND_QIB && DCA && SMP && GENERIC_HARDIRQS && !(INFINIBAND_QIB=y && DCA=m)
+	depends on INFINIBAND_QIB && DCA && SMP && !(INFINIBAND_QIB=y && DCA=m)
 	default y
 	---help---
 	Setting this enables DCA support on some Intel chip sets

@@ -962,15 +962,14 @@ txx9dmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS) {
-		spin_lock_bh(&dc->lock);
-		txx9dmac_scan_descriptors(dc);
-		spin_unlock_bh(&dc->lock);
+	if (ret == DMA_SUCCESS)
+		return DMA_SUCCESS;
 
-		ret = dma_cookie_status(chan, cookie, txstate);
-	}
+	spin_lock_bh(&dc->lock);
+	txx9dmac_scan_descriptors(dc);
+	spin_unlock_bh(&dc->lock);
 
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static void txx9dmac_chain_dynamic(struct txx9dmac_chan *dc,
@@ -1118,9 +1117,10 @@ static void txx9dmac_off(struct txx9dmac_dev *ddev)
 
 static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 {
-	struct txx9dmac_chan_platform_data *cpdata = pdev->dev.platform_data;
+	struct txx9dmac_chan_platform_data *cpdata =
+			dev_get_platdata(&pdev->dev);
 	struct platform_device *dmac_dev = cpdata->dmac_dev;
-	struct txx9dmac_platform_data *pdata = dmac_dev->dev.platform_data;
+	struct txx9dmac_platform_data *pdata = dev_get_platdata(&dmac_dev->dev);
 	struct txx9dmac_chan *dc;
 	int err;
 	int ch = pdev->id % TXX9_DMA_MAX_NR_CHANNELS;
@@ -1203,7 +1203,7 @@ static int txx9dmac_chan_remove(struct platform_device *pdev)
 
 static int __init txx9dmac_probe(struct platform_device *pdev)
 {
-	struct txx9dmac_platform_data *pdata = pdev->dev.platform_data;
+	struct txx9dmac_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *io;
 	struct txx9dmac_dev *ddev;
 	u32 mcr;
@@ -1282,7 +1282,7 @@ static int txx9dmac_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
-	struct txx9dmac_platform_data *pdata = pdev->dev.platform_data;
+	struct txx9dmac_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	u32 mcr;
 
 	mcr = TXX9_DMA_MCR_MSTEN | MCR_LE;

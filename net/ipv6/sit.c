@@ -581,12 +581,10 @@ static int ipip6_rcv(struct sk_buff *skb)
 		    tunnel->parms.iph.protocol != 0)
 			goto out;
 
-		secpath_reset(skb);
 		skb->mac_header = skb->network_header;
 		skb_reset_network_header(skb);
 		IPCB(skb)->flags = 0;
 		skb->protocol = htons(ETH_P_IPV6);
-		skb->pkt_type = PACKET_HOST;
 
 		if (tunnel->dev->priv_flags & IFF_ISATAP) {
 			if (!isatap_chksrc(skb, iph, tunnel)) {
@@ -603,7 +601,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 			}
 		}
 
-		__skb_tunnel_rx(skb, tunnel->dev);
+		__skb_tunnel_rx(skb, tunnel->dev, tunnel->net);
 
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {
@@ -621,8 +619,6 @@ static int ipip6_rcv(struct sk_buff *skb)
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
 
-		if (tunnel->net != dev_net(tunnel->dev))
-			skb_scrub_packet(skb);
 		netif_rx(skb);
 
 		return 0;
@@ -858,9 +854,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			tunnel->err_count = 0;
 	}
 
-	if (tunnel->net != dev_net(dev))
-		skb_scrub_packet(skb);
-
 	/*
 	 * Okay, now see if we can stuff it in the buffer as-is.
 	 */
@@ -891,8 +884,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		skb->encapsulation = 1;
 	}
 
-	err = iptunnel_xmit(dev_net(dev), rt, skb, fl4.saddr, fl4.daddr,
-			    IPPROTO_IPV6, tos, ttl, df);
+	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, IPPROTO_IPV6, tos,
+			    ttl, df, !net_eq(tunnel->net, dev_net(dev)));
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 	return NETDEV_TX_OK;
 
@@ -1592,7 +1585,7 @@ static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_hea
 				/* If dev is in the same netns, it has already
 				 * been added to the list by the previous loop.
 				 */
-				if (dev_net(t->dev) != net)
+				if (!net_eq(dev_net(t->dev), net))
 					unregister_netdevice_queue(t->dev,
 								   head);
 				t = rtnl_dereference(t->next);

@@ -16,7 +16,6 @@
  * 02110-1301, USA
  */
 
-#ifdef CONFIG_OPENVSWITCH_GRE
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/if.h>
@@ -177,10 +176,10 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 
 	skb->local_df = 1;
 
-	return iptunnel_xmit(net, rt, skb, fl.saddr,
+	return iptunnel_xmit(rt, skb, fl.saddr,
 			     OVS_CB(skb)->tun_key->ipv4_dst, IPPROTO_GRE,
 			     OVS_CB(skb)->tun_key->ipv4_tos,
-			     OVS_CB(skb)->tun_key->ipv4_ttl, df);
+			     OVS_CB(skb)->tun_key->ipv4_ttl, df, false);
 err_free_rt:
 	ip_rt_put(rt);
 error:
@@ -271,5 +270,3 @@ const struct vport_ops ovs_gre_vport_ops = {
 	.get_name	= gre_get_name,
 	.send		= gre_tnl_send,
 };
-
-#endif /* OPENVSWITCH_GRE */

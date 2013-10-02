@@ -40,8 +40,6 @@
 #endif
 
 
-#include <linux/version.h>
-
 #include <asm/statfs.h>
 
 #include <linux/fs.h>

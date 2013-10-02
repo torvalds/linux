@@ -69,6 +69,8 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 #define LPSS_TX_HITHRESH_DFLT	224
 
 /* Offset from drv_data->lpss_base */
+#define GENERAL_REG		0x08
+#define GENERAL_REG_RXTO_HOLDOFF_DISABLE BIT(24)
 #define SSP_REG			0x0c
 #define SPI_CS_CONTROL		0x18
 #define SPI_CS_CONTROL_SW_MODE	BIT(0)
@@ -142,8 +144,13 @@ detection_done:
 	__lpss_ssp_write_priv(drv_data, SPI_CS_CONTROL, value);
 
 	/* Enable multiblock DMA transfers */
-	if (drv_data->master_info->enable_dma)
+	if (drv_data->master_info->enable_dma) {
 		__lpss_ssp_write_priv(drv_data, SSP_REG, 1);
+
+		value = __lpss_ssp_read_priv(drv_data, GENERAL_REG);
+		value |= GENERAL_REG_RXTO_HOLDOFF_DISABLE;
+		__lpss_ssp_write_priv(drv_data, GENERAL_REG, value);
+	}
 }
 
 static void lpss_ssp_cs_control(struct driver_data *drv_data, bool enable)
@@ -804,14 +811,6 @@ static int pxa2xx_spi_transfer_one_message(struct spi_master *master,
 	return 0;
 }
 
-static int pxa2xx_spi_prepare_transfer(struct spi_master *master)
-{
-	struct driver_data *drv_data = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(&drv_data->pdev->dev);
-	return 0;
-}
-
 static int pxa2xx_spi_unprepare_transfer(struct spi_master *master)
 {
 	struct driver_data *drv_data = spi_master_get_devdata(master);
@@ -820,8 +819,6 @@ static int pxa2xx_spi_unprepare_transfer(struct spi_master *master)
 	write_SSCR0(read_SSCR0(drv_data->ioaddr) & ~SSCR0_SSE,
 		    drv_data->ioaddr);
 
-	pm_runtime_mark_last_busy(&drv_data->pdev->dev);
-	pm_runtime_put_autosuspend(&drv_data->pdev->dev);
 	return 0;
 }
 
@@ -1134,8 +1131,8 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	master->cleanup = cleanup;
 	master->setup = setup;
 	master->transfer_one_message = pxa2xx_spi_transfer_one_message;
-	master->prepare_transfer_hardware = pxa2xx_spi_prepare_transfer;
 	master->unprepare_transfer_hardware = pxa2xx_spi_unprepare_transfer;
+	master->auto_runtime_pm = true;
 
 	drv_data->ssp_type = ssp->type;
 	drv_data->null_dma_buf = (u32 *)PTR_ALIGN(&drv_data[1], DMA_ALIGNMENT);

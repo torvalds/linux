@@ -150,6 +150,20 @@ struct smb2_err_rsp {
 	__u8   ErrorData[1];  /* variable length */
 } __packed;
 
+struct smb2_symlink_err_rsp {
+	__le32 SymLinkLength;
+	__le32 SymLinkErrorTag;
+	__le32 ReparseTag;
+	__le16 ReparseDataLength;
+	__le16 UnparsedPathLength;
+	__le16 SubstituteNameOffset;
+	__le16 SubstituteNameLength;
+	__le16 PrintNameOffset;
+	__le16 PrintNameLength;
+	__le32 Flags;
+	__u8  PathBuffer[0];
+} __packed;
+
 #define SMB2_CLIENT_GUID_SIZE 16
 
 extern __u8 cifs_client_guid[SMB2_CLIENT_GUID_SIZE];
@@ -462,6 +476,10 @@ struct create_context {
 	__u8 Buffer[0];
 } __packed;
 
+#define SMB2_LEASE_READ_CACHING_HE	0x01
+#define SMB2_LEASE_HANDLE_CACHING_HE	0x02
+#define SMB2_LEASE_WRITE_CACHING_HE	0x04
+
 #define SMB2_LEASE_NONE			__constant_cpu_to_le32(0x00)
 #define SMB2_LEASE_READ_CACHING		__constant_cpu_to_le32(0x01)
 #define SMB2_LEASE_HANDLE_CACHING	__constant_cpu_to_le32(0x02)
@@ -479,10 +497,29 @@ struct lease_context {
 	__le64 LeaseDuration;
 } __packed;
 
+struct lease_context_v2 {
+	__le64 LeaseKeyLow;
+	__le64 LeaseKeyHigh;
+	__le32 LeaseState;
+	__le32 LeaseFlags;
+	__le64 LeaseDuration;
+	__le64 ParentLeaseKeyLow;
+	__le64 ParentLeaseKeyHigh;
+	__le16 Epoch;
+	__le16 Reserved;
+} __packed;
+
 struct create_lease {
 	struct create_context ccontext;
 	__u8   Name[8];
 	struct lease_context lcontext;
+} __packed;
+
+struct create_lease_v2 {
+	struct create_context ccontext;
+	__u8   Name[8];
+	struct lease_context_v2 lcontext;
+	__u8   Pad[4];
 } __packed;
 
 struct create_durable {

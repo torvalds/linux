@@ -20,7 +20,7 @@
 #include <linux/leds.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pxa-i2c.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/corgi_lcd.h>

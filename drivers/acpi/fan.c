@@ -93,7 +93,7 @@ static int fan_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
 	if (result)
 		return result;
 
-	*state = (acpi_state == ACPI_STATE_D3 ? 0 :
+	*state = (acpi_state == ACPI_STATE_D3_COLD ? 0 :
 		 (acpi_state == ACPI_STATE_D0 ? 1 : -1));
 	return 0;
 }
@@ -108,7 +108,7 @@ fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 		return -EINVAL;
 
 	result = acpi_bus_set_power(device->handle,
-				state ? ACPI_STATE_D0 : ACPI_STATE_D3);
+				state ? ACPI_STATE_D0 : ACPI_STATE_D3_COLD);
 
 	return result;
 }

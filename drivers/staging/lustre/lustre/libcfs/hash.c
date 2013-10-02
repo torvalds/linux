@@ -1026,8 +1026,6 @@ cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
 	cfs_hash_t *hs;
 	int	 len;
 
-	ENTRY;
-
 	CLASSERT(CFS_HASH_THETA_BITS < 15);
 
 	LASSERT(name != NULL);
@@ -1055,7 +1053,7 @@ cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
 	      CFS_HASH_NAME_LEN : CFS_HASH_BIGNAME_LEN;
 	LIBCFS_ALLOC(hs, offsetof(cfs_hash_t, hs_name[len]));
 	if (hs == NULL)
-		RETURN(NULL);
+		return NULL;
 
 	strncpy(hs->hs_name, name, len);
 	hs->hs_name[len - 1] = '\0';
@@ -1087,7 +1085,7 @@ cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
 		return hs;
 
 	LIBCFS_FREE(hs, offsetof(cfs_hash_t, hs_name[len]));
-	RETURN(NULL);
+	return NULL;
 }
 EXPORT_SYMBOL(cfs_hash_create);
 
@@ -1101,7 +1099,6 @@ cfs_hash_destroy(cfs_hash_t *hs)
 	struct hlist_node     *pos;
 	cfs_hash_bd_t	 bd;
 	int		   i;
-	ENTRY;
 
 	LASSERT(hs != NULL);
 	LASSERT(!cfs_hash_is_exiting(hs) &&
@@ -1152,8 +1149,6 @@ cfs_hash_destroy(cfs_hash_t *hs)
 	i = cfs_hash_with_bigname(hs) ?
 	    CFS_HASH_BIGNAME_LEN : CFS_HASH_NAME_LEN;
 	LIBCFS_FREE(hs, offsetof(cfs_hash_t, hs_name[i]));
-
-	EXIT;
 }
 
 cfs_hash_t *cfs_hash_getref(cfs_hash_t *hs)
@@ -1449,7 +1444,6 @@ cfs_hash_for_each_tight(cfs_hash_t *hs, cfs_hash_for_each_cb_t func,
 	int		   excl  = !!remove_safe;
 	int		   loop  = 0;
 	int		   i;
-	ENTRY;
 
 	cfs_hash_for_each_enter(hs);
 
@@ -1489,7 +1483,7 @@ cfs_hash_for_each_tight(cfs_hash_t *hs, cfs_hash_for_each_cb_t func,
 	cfs_hash_unlock(hs, 0);
 
 	cfs_hash_for_each_exit(hs);
-	RETURN(count);
+	return count;
 }
 
 typedef struct {
@@ -1594,7 +1588,6 @@ cfs_hash_for_each_relax(cfs_hash_t *hs, cfs_hash_for_each_cb_t func, void *data)
 	int	       stop_on_change;
 	int	       rc;
 	int	       i;
-	ENTRY;
 
 	stop_on_change = cfs_hash_with_rehash_key(hs) ||
 			 !cfs_hash_with_no_itemref(hs) ||
@@ -1649,23 +1642,21 @@ int
 cfs_hash_for_each_nolock(cfs_hash_t *hs,
 			 cfs_hash_for_each_cb_t func, void *data)
 {
-	ENTRY;
-
 	if (cfs_hash_with_no_lock(hs) ||
 	    cfs_hash_with_rehash_key(hs) ||
 	    !cfs_hash_with_no_itemref(hs))
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	if (CFS_HOP(hs, get) == NULL ||
 	    (CFS_HOP(hs, put) == NULL &&
 	     CFS_HOP(hs, put_locked) == NULL))
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	cfs_hash_for_each_enter(hs);
 	cfs_hash_for_each_relax(hs, func, data);
 	cfs_hash_for_each_exit(hs);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(cfs_hash_for_each_nolock);
 
@@ -1685,7 +1676,6 @@ cfs_hash_for_each_empty(cfs_hash_t *hs,
 			cfs_hash_for_each_cb_t func, void *data)
 {
 	unsigned  i = 0;
-	ENTRY;
 
 	if (cfs_hash_with_no_lock(hs))
 		return -EOPNOTSUPP;
@@ -1701,7 +1691,7 @@ cfs_hash_for_each_empty(cfs_hash_t *hs,
 		       hs->hs_name, i++);
 	}
 	cfs_hash_for_each_exit(hs);
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(cfs_hash_for_each_empty);
 

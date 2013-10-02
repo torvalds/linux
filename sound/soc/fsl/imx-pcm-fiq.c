@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 
 #include <sound/core.h>
+#include <sound/dmaengine_pcm.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -32,6 +33,7 @@
 #include <linux/platform_data/asoc-imx-ssi.h>
 
 #include "imx-ssi.h"
+#include "imx-pcm.h"
 
 struct imx_pcm_runtime_data {
 	unsigned int period;
@@ -366,9 +368,9 @@ static struct snd_soc_platform_driver imx_soc_platform_fiq = {
 	.pcm_free	= imx_pcm_fiq_free,
 };
 
-int imx_pcm_fiq_init(struct platform_device *pdev)
+int imx_pcm_fiq_init(struct platform_device *pdev,
+		struct imx_pcm_fiq_params *params)
 {
-	struct imx_ssi *ssi = platform_get_drvdata(pdev);
 	int ret;
 
 	ret = claim_fiq(&fh);
@@ -377,15 +379,15 @@ int imx_pcm_fiq_init(struct platform_device *pdev)
 		return ret;
 	}
 
-	mxc_set_irq_fiq(ssi->irq, 1);
-	ssi_irq = ssi->irq;
+	mxc_set_irq_fiq(params->irq, 1);
+	ssi_irq = params->irq;
 
-	imx_pcm_fiq = ssi->irq;
+	imx_pcm_fiq = params->irq;
 
-	imx_ssi_fiq_base = (unsigned long)ssi->base;
+	imx_ssi_fiq_base = (unsigned long)params->base;
 
-	ssi->dma_params_tx.maxburst = 4;
-	ssi->dma_params_rx.maxburst = 6;
+	params->dma_params_tx->maxburst = 4;
+	params->dma_params_rx->maxburst = 6;
 
 	ret = snd_soc_register_platform(&pdev->dev, &imx_soc_platform_fiq);
 	if (ret)
@@ -406,3 +408,5 @@ void imx_pcm_fiq_exit(struct platform_device *pdev)
 	snd_soc_unregister_platform(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(imx_pcm_fiq_exit);
+
+MODULE_LICENSE("GPL");

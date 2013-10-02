@@ -924,7 +924,6 @@ static int swim_probe(struct platform_device *dev)
 	return 0;
 
 out_kfree:
-	platform_set_drvdata(dev, NULL);
 	kfree(swd);
 out_iounmap:
 	iounmap(swim_base);
@@ -962,7 +961,6 @@ static int swim_remove(struct platform_device *dev)
 	if (res)
 		release_mem_region(res->start, resource_size(res));
 
-	platform_set_drvdata(dev, NULL);
 	kfree(swd);
 
 	return 0;

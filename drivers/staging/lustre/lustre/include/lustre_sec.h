@@ -796,7 +796,7 @@ struct ptlrpc_sec_sops {
 };
 
 struct ptlrpc_sec_policy {
-	module_t		   *sp_owner;
+	struct module		   *sp_owner;
 	char			   *sp_name;
 	__u16			   sp_policy; /* policy number */
 	struct ptlrpc_sec_cops	 *sp_cops;   /* client ops */

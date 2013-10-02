@@ -1445,13 +1445,6 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 	}
 }
 
-static unsigned int wacom_calculate_touch_res(unsigned int logical_max,
-					      unsigned int physical_max)
-{
-       /* Touch physical dimensions are in 100th of mm */
-       return (logical_max * 100) / physical_max;
-}
-
 static void wacom_abs_set_axis(struct input_dev *input_dev,
 			       struct wacom_wac *wacom_wac)
 {
@@ -1475,11 +1468,9 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 			input_set_abs_params(input_dev, ABS_Y, 0,
 				features->y_max, features->y_fuzz, 0);
 			input_abs_set_res(input_dev, ABS_X,
-				wacom_calculate_touch_res(features->x_max,
-							features->x_phy));
+					  features->x_resolution);
 			input_abs_set_res(input_dev, ABS_Y,
-				wacom_calculate_touch_res(features->y_max,
-							features->y_phy));
+					  features->y_resolution);
 		}
 
 		if (features->touch_max > 1) {
@@ -1488,11 +1479,9 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 			input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0,
 				features->y_max, features->y_fuzz, 0);
 			input_abs_set_res(input_dev, ABS_MT_POSITION_X,
-				wacom_calculate_touch_res(features->x_max,
-							features->x_phy));
+					  features->x_resolution);
 			input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
-				wacom_calculate_touch_res(features->y_max,
-							features->y_phy));
+					  features->y_resolution);
 		}
 	}
 }

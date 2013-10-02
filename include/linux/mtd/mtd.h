@@ -173,6 +173,9 @@ struct mtd_info {
 	/* ECC layout structure pointer - read only! */
 	struct nand_ecclayout *ecclayout;
 
+	/* the ecc step size. */
+	unsigned int ecc_step_size;
+
 	/* max number of correctible bit errors per ecc step */
 	unsigned int ecc_strength;
 

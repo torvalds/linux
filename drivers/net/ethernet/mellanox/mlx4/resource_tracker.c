@@ -1909,7 +1909,8 @@ static int qp_get_mtt_size(struct mlx4_qp_context *qpc)
 	int log_rq_stride = qpc->rq_size_stride & 7;
 	int srq = (be32_to_cpu(qpc->srqn) >> 24) & 1;
 	int rss = (be32_to_cpu(qpc->flags) >> 13) & 1;
-	int xrc = (be32_to_cpu(qpc->local_qpn) >> 23) & 1;
+	u32 ts = (be32_to_cpu(qpc->flags) >> 16) & 0xff;
+	int xrc = (ts == MLX4_QP_ST_XRC) ? 1 : 0;
 	int sq_size;
 	int rq_size;
 	int total_pages;

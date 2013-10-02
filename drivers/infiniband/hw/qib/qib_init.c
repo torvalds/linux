@@ -1193,7 +1193,7 @@ static DEFINE_PCI_DEVICE_TABLE(qib_pci_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, qib_pci_tbl);
 
-struct pci_driver qib_driver = {
+static struct pci_driver qib_driver = {
 	.name = QIB_DRV_NAME,
 	.probe = qib_init_one,
 	.remove = qib_remove_one,

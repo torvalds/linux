@@ -324,8 +324,6 @@ static int nuc900_nand_remove(struct platform_device *pdev)
 
 	kfree(nuc900_nand);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

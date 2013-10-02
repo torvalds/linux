@@ -200,7 +200,7 @@ static inline void show_regs_print_info(const char *log_lvl)
 }
 #endif
 
-extern void dump_stack(void) __cold;
+extern asmlinkage void dump_stack(void) __cold;
 
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt

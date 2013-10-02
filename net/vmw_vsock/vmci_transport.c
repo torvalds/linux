@@ -34,8 +34,8 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <net/sock.h>
+#include <net/af_vsock.h>
 
-#include "af_vsock.h"
 #include "vmci_transport_notify.h"
 
 static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg);

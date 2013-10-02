@@ -1,6 +1,9 @@
 #
 # Makefile for the CAAM backend and dependent components
 #
+ifeq ($(CONFIG_CRYPTO_DEV_FSL_CAAM_DEBUG), y)
+	EXTRA_CFLAGS := -DDEBUG
+endif
 
 obj-$(CONFIG_CRYPTO_DEV_FSL_CAAM) += caam.o
 obj-$(CONFIG_CRYPTO_DEV_FSL_CAAM_CRYPTO_API) += caamalg.o

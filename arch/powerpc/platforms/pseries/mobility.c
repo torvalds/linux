@@ -28,7 +28,7 @@ struct update_props_workarea {
 	u32 state;
 	u64 reserved;
 	u32 nprops;
-};
+} __packed;
 
 #define NODE_ACTION_MASK	0xff000000
 #define NODE_COUNT_MASK		0x00ffffff
@@ -62,6 +62,7 @@ static int delete_dt_node(u32 phandle)
 		return -ENOENT;
 
 	dlpar_detach_node(dn);
+	of_node_put(dn);
 	return 0;
 }
 
@@ -119,7 +120,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 
 	if (!more) {
 		of_update_property(dn, new_prop);
-		new_prop = NULL;
+		*prop = NULL;
 	}
 
 	return 0;
@@ -130,7 +131,7 @@ static int update_dt_node(u32 phandle, s32 scope)
 	struct update_props_workarea *upwa;
 	struct device_node *dn;
 	struct property *prop = NULL;
-	int i, rc;
+	int i, rc, rtas_rc;
 	char *prop_data;
 	char *rtas_buf;
 	int update_properties_token;
@@ -154,25 +155,26 @@ static int update_dt_node(u32 phandle, s32 scope)
 	upwa->phandle = phandle;
 
 	do {
-		rc = mobility_rtas_call(update_properties_token, rtas_buf,
+		rtas_rc = mobility_rtas_call(update_properties_token, rtas_buf,
 					scope);
-		if (rc < 0)
+		if (rtas_rc < 0)
 			break;
 
 		prop_data = rtas_buf + sizeof(*upwa);
 
-		/* The first element of the buffer is the path of the node
-		 * being updated in the form of a 8 byte string length
-		 * followed by the string. Skip past this to get to the
-		 * properties being updated.
+		/* On the first call to ibm,update-properties for a node the
+		 * the first property value descriptor contains an empty
+		 * property name, the property value length encoded as u32,
+		 * and the property value is the node path being updated.
 		 */
-		vd = *prop_data++;
-		prop_data += vd;
+		if (*prop_data == 0) {
+			prop_data++;
+			vd = *(u32 *)prop_data;
+			prop_data += vd + sizeof(vd);
+			upwa->nprops--;
+		}
 
-		/* The path we skipped over is counted as one of the elements
-		 * returned so start counting at one.
-		 */
-		for (i = 1; i < upwa->nprops; i++) {
+		for (i = 0; i < upwa->nprops; i++) {
 			char *prop_name;
 
 			prop_name = prop_data;
@@ -202,7 +204,7 @@ static int update_dt_node(u32 phandle, s32 scope)
 				prop_data += vd;
 			}
 		}
-	} while (rc == 1);
+	} while (rtas_rc == 1);
 
 	of_node_put(dn);
 	kfree(rtas_buf);
@@ -215,17 +217,14 @@ static int add_dt_node(u32 parent_phandle, u32 drc_index)
 	struct device_node *parent_dn;
 	int rc;
 
-	dn = dlpar_configure_connector(drc_index);
+	parent_dn = of_find_node_by_phandle(parent_phandle);
+	if (!parent_dn)
+		return -ENOENT;
+
+	dn = dlpar_configure_connector(drc_index, parent_dn);
 	if (!dn)
 		return -ENOENT;
 
-	parent_dn = of_find_node_by_phandle(parent_phandle);
-	if (!parent_dn) {
-		dlpar_free_cc_nodes(dn);
-		return -ENOENT;
-	}
-
-	dn->parent = parent_dn;
 	rc = dlpar_attach_node(dn);
 	if (rc)
 		dlpar_free_cc_nodes(dn);

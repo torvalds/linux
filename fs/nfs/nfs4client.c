@@ -41,19 +41,138 @@ static int nfs_get_cb_ident_idr(struct nfs_client *clp, int minorversion)
 }
 
 #ifdef CONFIG_NFS_V4_1
-static void nfs4_shutdown_session(struct nfs_client *clp)
+/**
+ * Per auth flavor data server rpc clients
+ */
+struct nfs4_ds_server {
+	struct list_head	list;   /* ds_clp->cl_ds_clients */
+	struct rpc_clnt		*rpc_clnt;
+};
+
+/**
+ * Common lookup case for DS I/O
+ */
+static struct nfs4_ds_server *
+nfs4_find_ds_client(struct nfs_client *ds_clp, rpc_authflavor_t flavor)
+{
+	struct nfs4_ds_server *dss;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(dss, &ds_clp->cl_ds_clients, list) {
+		if (dss->rpc_clnt->cl_auth->au_flavor != flavor)
+			continue;
+		goto out;
+	}
+	dss = NULL;
+out:
+	rcu_read_unlock();
+	return dss;
+}
+
+static struct nfs4_ds_server *
+nfs4_add_ds_client(struct nfs_client *ds_clp, rpc_authflavor_t flavor,
+			   struct nfs4_ds_server *new)
+{
+	struct nfs4_ds_server *dss;
+
+	spin_lock(&ds_clp->cl_lock);
+	list_for_each_entry(dss, &ds_clp->cl_ds_clients, list) {
+		if (dss->rpc_clnt->cl_auth->au_flavor != flavor)
+			continue;
+		goto out;
+	}
+	if (new)
+		list_add_rcu(&new->list, &ds_clp->cl_ds_clients);
+	dss = new;
+out:
+	spin_unlock(&ds_clp->cl_lock); /* need some lock to protect list */
+	return dss;
+}
+
+static struct nfs4_ds_server *
+nfs4_alloc_ds_server(struct nfs_client *ds_clp, rpc_authflavor_t flavor)
+{
+	struct nfs4_ds_server *dss;
+
+	dss = kmalloc(sizeof(*dss), GFP_NOFS);
+	if (dss == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	dss->rpc_clnt = rpc_clone_client_set_auth(ds_clp->cl_rpcclient, flavor);
+	if (IS_ERR(dss->rpc_clnt)) {
+		int err = PTR_ERR(dss->rpc_clnt);
+		kfree (dss);
+		return ERR_PTR(err);
+	}
+	INIT_LIST_HEAD(&dss->list);
+
+	return dss;
+}
+
+static void
+nfs4_free_ds_server(struct nfs4_ds_server *dss)
+{
+	rpc_release_client(dss->rpc_clnt);
+	kfree(dss);
+}
+
+/**
+* Find or create a DS rpc client with th MDS server rpc client auth flavor
+* in the nfs_client cl_ds_clients list.
+*/
+struct rpc_clnt *
+nfs4_find_or_create_ds_client(struct nfs_client *ds_clp, struct inode *inode)
+{
+	struct nfs4_ds_server *dss, *new;
+	rpc_authflavor_t flavor = NFS_SERVER(inode)->client->cl_auth->au_flavor;
+
+	dss = nfs4_find_ds_client(ds_clp, flavor);
+	if (dss != NULL)
+		goto out;
+	new = nfs4_alloc_ds_server(ds_clp, flavor);
+	if (IS_ERR(new))
+		return ERR_CAST(new);
+	dss = nfs4_add_ds_client(ds_clp, flavor, new);
+	if (dss != new)
+		nfs4_free_ds_server(new);
+out:
+	return dss->rpc_clnt;
+}
+EXPORT_SYMBOL_GPL(nfs4_find_or_create_ds_client);
+
+static void
+nfs4_shutdown_ds_clients(struct nfs_client *clp)
+{
+	struct nfs4_ds_server *dss;
+	LIST_HEAD(shutdown_list);
+
+	while (!list_empty(&clp->cl_ds_clients)) {
+		dss = list_entry(clp->cl_ds_clients.next,
+					struct nfs4_ds_server, list);
+		list_del(&dss->list);
+		rpc_shutdown_client(dss->rpc_clnt);
+		kfree (dss);
+	}
+}
+
+void nfs41_shutdown_client(struct nfs_client *clp)
 {
 	if (nfs4_has_session(clp)) {
+		nfs4_shutdown_ds_clients(clp);
 		nfs4_destroy_session(clp->cl_session);
 		nfs4_destroy_clientid(clp);
 	}
 
 }
-#else /* CONFIG_NFS_V4_1 */
-static void nfs4_shutdown_session(struct nfs_client *clp)
+#endif	/* CONFIG_NFS_V4_1 */
+
+void nfs40_shutdown_client(struct nfs_client *clp)
 {
+	if (clp->cl_slot_tbl) {
+		nfs4_release_slot_table(clp->cl_slot_tbl);
+		kfree(clp->cl_slot_tbl);
+	}
 }
-#endif /* CONFIG_NFS_V4_1 */
 
 struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 {
@@ -73,6 +192,7 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 
 	spin_lock_init(&clp->cl_lock);
 	INIT_DELAYED_WORK(&clp->cl_renewd, nfs4_renew_state);
+	INIT_LIST_HEAD(&clp->cl_ds_clients);
 	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS client");
 	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
 	clp->cl_minorversion = cl_init->minorversion;
@@ -97,7 +217,7 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 {
 	if (__test_and_clear_bit(NFS_CS_RENEWD, &clp->cl_res_state))
 		nfs4_kill_renewd(clp);
-	nfs4_shutdown_session(clp);
+	clp->cl_mvops->shutdown_client(clp);
 	nfs4_destroy_callback(clp);
 	if (__test_and_clear_bit(NFS_CS_IDMAP, &clp->cl_res_state))
 		nfs_idmap_delete(clp);
@@ -144,34 +264,77 @@ static int nfs4_init_callback(struct nfs_client *clp)
 	return 0;
 }
 
+/**
+ * nfs40_init_client - nfs_client initialization tasks for NFSv4.0
+ * @clp - nfs_client to initialize
+ *
+ * Returns zero on success, or a negative errno if some error occurred.
+ */
+int nfs40_init_client(struct nfs_client *clp)
+{
+	struct nfs4_slot_table *tbl;
+	int ret;
+
+	tbl = kzalloc(sizeof(*tbl), GFP_NOFS);
+	if (tbl == NULL)
+		return -ENOMEM;
+
+	ret = nfs4_setup_slot_table(tbl, NFS4_MAX_SLOT_TABLE,
+					"NFSv4.0 transport Slot table");
+	if (ret) {
+		kfree(tbl);
+		return ret;
+	}
+
+	clp->cl_slot_tbl = tbl;
+	return 0;
+}
+
+#if defined(CONFIG_NFS_V4_1)
+
+/**
+ * nfs41_init_client - nfs_client initialization tasks for NFSv4.1+
+ * @clp - nfs_client to initialize
+ *
+ * Returns zero on success, or a negative errno if some error occurred.
+ */
+int nfs41_init_client(struct nfs_client *clp)
+{
+	struct nfs4_session *session = NULL;
+
+	/*
+	 * Create the session and mark it expired.
+	 * When a SEQUENCE operation encounters the expired session
+	 * it will do session recovery to initialize it.
+	 */
+	session = nfs4_alloc_session(clp);
+	if (!session)
+		return -ENOMEM;
+
+	clp->cl_session = session;
+
+	/*
+	 * The create session reply races with the server back
+	 * channel probe. Mark the client NFS_CS_SESSION_INITING
+	 * so that the client back channel can find the
+	 * nfs_client struct
+	 */
+	nfs_mark_client_ready(clp, NFS_CS_SESSION_INITING);
+	return 0;
+}
+
+#endif	/* CONFIG_NFS_V4_1 */
+
 /*
  * Initialize the minor version specific parts of an NFS4 client record
  */
 static int nfs4_init_client_minor_version(struct nfs_client *clp)
 {
-#if defined(CONFIG_NFS_V4_1)
-	if (clp->cl_mvops->minor_version) {
-		struct nfs4_session *session = NULL;
-		/*
-		 * Create the session and mark it expired.
-		 * When a SEQUENCE operation encounters the expired session
-		 * it will do session recovery to initialize it.
-		 */
-		session = nfs4_alloc_session(clp);
-		if (!session)
-			return -ENOMEM;
+	int ret;
 
-		clp->cl_session = session;
-		/*
-		 * The create session reply races with the server back
-		 * channel probe. Mark the client NFS_CS_SESSION_INITING
-		 * so that the client back channel can find the
-		 * nfs_client struct
-		 */
-		nfs_mark_client_ready(clp, NFS_CS_SESSION_INITING);
-	}
-#endif /* CONFIG_NFS_V4_1 */
-
+	ret = clp->cl_mvops->init_client(clp);
+	if (ret)
+		return ret;
 	return nfs4_init_callback(clp);
 }
 
@@ -187,8 +350,7 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
  */
 struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 				    const struct rpc_timeout *timeparms,
-				    const char *ip_addr,
-				    rpc_authflavor_t authflavour)
+				    const char *ip_addr)
 {
 	char buf[INET6_ADDRSTRLEN + 1];
 	struct nfs_client *old;
@@ -723,7 +885,7 @@ static void nfs4_session_set_rwsize(struct nfs_server *server)
 }
 
 static int nfs4_server_common_setup(struct nfs_server *server,
-		struct nfs_fh *mntfh)
+		struct nfs_fh *mntfh, bool auth_probe)
 {
 	struct nfs_fattr *fattr;
 	int error;
@@ -755,7 +917,7 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 
 
 	/* Probe the root fh to retrieve its FSID and filehandle */
-	error = nfs4_get_rootfh(server, mntfh);
+	error = nfs4_get_rootfh(server, mntfh, auth_probe);
 	if (error < 0)
 		goto out;
 
@@ -787,6 +949,7 @@ out:
 static int nfs4_init_server(struct nfs_server *server,
 		const struct nfs_parsed_mount_data *data)
 {
+	rpc_authflavor_t pseudoflavor = RPC_AUTH_UNIX;
 	struct rpc_timeout timeparms;
 	int error;
 
@@ -799,13 +962,16 @@ static int nfs4_init_server(struct nfs_server *server,
 	server->flags = data->flags;
 	server->options = data->options;
 
+	if (data->auth_flavor_len >= 1)
+		pseudoflavor = data->auth_flavors[0];
+
 	/* Get a client record */
 	error = nfs4_set_client(server,
 			data->nfs_server.hostname,
 			(const struct sockaddr *)&data->nfs_server.address,
 			data->nfs_server.addrlen,
 			data->client_address,
-			data->auth_flavors[0],
+			pseudoflavor,
 			data->nfs_server.protocol,
 			&timeparms,
 			data->minorversion,
@@ -825,7 +991,7 @@ static int nfs4_init_server(struct nfs_server *server,
 
 	server->port = data->nfs_server.port;
 
-	error = nfs_init_server_rpcclient(server, &timeparms, data->auth_flavors[0]);
+	error = nfs_init_server_rpcclient(server, &timeparms, pseudoflavor);
 
 error:
 	/* Done */
@@ -843,6 +1009,7 @@ struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
 				      struct nfs_subversion *nfs_mod)
 {
 	struct nfs_server *server;
+	bool auth_probe;
 	int error;
 
 	dprintk("--> nfs4_create_server()\n");
@@ -851,12 +1018,14 @@ struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
 	if (!server)
 		return ERR_PTR(-ENOMEM);
 
+	auth_probe = mount_info->parsed->auth_flavor_len < 1;
+
 	/* set up the general RPC client */
 	error = nfs4_init_server(server, mount_info->parsed);
 	if (error < 0)
 		goto error;
 
-	error = nfs4_server_common_setup(server, mount_info->mntfh);
+	error = nfs4_server_common_setup(server, mount_info->mntfh, auth_probe);
 	if (error < 0)
 		goto error;
 
@@ -909,7 +1078,8 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	if (error < 0)
 		goto error;
 
-	error = nfs4_server_common_setup(server, mntfh);
+	error = nfs4_server_common_setup(server, mntfh,
+			!(parent_server->flags & NFS_MOUNT_SECFLAVOUR));
 	if (error < 0)
 		goto error;
 

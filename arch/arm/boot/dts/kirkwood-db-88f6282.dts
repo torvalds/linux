@@ -11,14 +11,15 @@
 
 /dts-v1/;
 
-/include/ "kirkwood-db.dtsi"
-/include/ "kirkwood-6282.dtsi"
+#include "kirkwood-db.dtsi"
+#include "kirkwood-6282.dtsi"
 
 / {
 	model = "Marvell DB-88F6282-BP Development Board";
 	compatible = "marvell,db-88f6282-bp", "marvell,kirkwood-88f6282", "marvell,kirkwood";
 
-	ocp@f1000000 {
+	mbus {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 		pcie-controller {
 			status = "okay";
 

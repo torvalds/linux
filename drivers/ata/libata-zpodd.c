@@ -2,6 +2,7 @@
 #include <linux/cdrom.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
+#include <linux/pm_qos.h>
 #include <scsi/scsi_device.h>
 
 #include "libata.h"
@@ -190,8 +191,8 @@ void zpodd_enable_run_wake(struct ata_device *dev)
 	sdev_disable_disk_events(dev->sdev);
 
 	zpodd->powered_off = true;
-	device_set_run_wake(&dev->sdev->sdev_gendev, true);
-	acpi_pm_device_run_wake(&dev->sdev->sdev_gendev, true);
+	device_set_run_wake(&dev->tdev, true);
+	acpi_pm_device_run_wake(&dev->tdev, true);
 }
 
 /* Disable runtime wake capability if it is enabled */
@@ -200,8 +201,8 @@ void zpodd_disable_run_wake(struct ata_device *dev)
 	struct zpodd *zpodd = dev->zpodd;
 
 	if (zpodd->powered_off) {
-		acpi_pm_device_run_wake(&dev->sdev->sdev_gendev, false);
-		device_set_run_wake(&dev->sdev->sdev_gendev, false);
+		acpi_pm_device_run_wake(&dev->tdev, false);
+		device_set_run_wake(&dev->tdev, false);
 	}
 }
 
@@ -262,7 +263,7 @@ static void ata_acpi_add_pm_notifier(struct ata_device *dev)
 
 static void ata_acpi_remove_pm_notifier(struct ata_device *dev)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->sdev->sdev_gendev);
+	acpi_handle handle = ata_dev_acpi_handle(dev);
 	acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY, zpodd_wake_dev);
 }
 
@@ -290,6 +291,7 @@ void zpodd_init(struct ata_device *dev)
 	ata_acpi_add_pm_notifier(dev);
 	zpodd->dev = dev;
 	dev->zpodd = zpodd;
+	dev_pm_qos_expose_flags(&dev->tdev, 0);
 }
 
 void zpodd_exit(struct ata_device *dev)

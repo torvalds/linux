@@ -50,6 +50,7 @@
 #include <asm/pgtable.h>
 #include <asm/traps.h>
 #include <asm/ucontext.h>
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_MMU
 
@@ -181,6 +182,13 @@ static inline void push_cache (unsigned long vaddr)
 		asm volatile ("movec %0,%%caar\n\t"
 			      "movec %1,%%cacr"
 			      : : "r" (vaddr + 4), "r" (temp));
+	} else {
+		/* CPU_IS_COLDFIRE */
+#if defined(CONFIG_CACHE_COPYBACK)
+		flush_cf_dcache(0, DCACHE_MAX_ADDR);
+#endif
+		/* Invalidate instruction cache for the pushed bytes */
+		clear_cf_icache(vaddr, vaddr + 8);
 	}
 }
 

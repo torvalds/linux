@@ -60,6 +60,7 @@
 #include <asm/switch_to.h>
 #include <asm/tm.h>
 #include <asm/debug.h>
+#include <sysdev/fsl_pci.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
@@ -565,6 +566,8 @@ int machine_check_e500(struct pt_regs *regs)
 	if (reason & MCSR_BUS_RBERR) {
 		if (fsl_rio_mcheck_exception(regs))
 			return 1;
+		if (fsl_pci_mcheck_exception(regs))
+			return 1;
 	}
 
 	printk("Machine check in kernel mode.\n");
@@ -962,7 +965,7 @@ static int emulate_instruction(struct pt_regs *regs)
 	u32 instword;
 	u32 rd;
 
-	if (!user_mode(regs) || (regs->msr & MSR_LE))
+	if (!user_mode(regs))
 		return -EINVAL;
 	CHECK_FULL_REGS(regs);
 
@@ -1050,11 +1053,41 @@ int is_valid_bugaddr(unsigned long addr)
 	return is_kernel_addr(addr);
 }
 
+#ifdef CONFIG_MATH_EMULATION
+static int emulate_math(struct pt_regs *regs)
+{
+	int ret;
+	extern int do_mathemu(struct pt_regs *regs);
+
+	ret = do_mathemu(regs);
+	if (ret >= 0)
+		PPC_WARN_EMULATED(math, regs);
+
+	switch (ret) {
+	case 0:
+		emulate_single_step(regs);
+		return 0;
+	case 1: {
+			int code = 0;
+			code = __parse_fpscr(current->thread.fpscr.val);
+			_exception(SIGFPE, regs, code, regs->nip);
+			return 0;
+		}
+	case -EFAULT:
+		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+		return 0;
+	}
+
+	return -1;
+}
+#else
+static inline int emulate_math(struct pt_regs *regs) { return -1; }
+#endif
+
 void __kprobes program_check_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 	unsigned int reason = get_reason(regs);
-	extern int do_mathemu(struct pt_regs *regs);
 
 	/* We can now get here via a FP Unavailable exception if the core
 	 * has no FPU, in that case the reason flags will be 0 */
@@ -1116,11 +1149,20 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	}
 #endif
 
+	/*
+	 * If we took the program check in the kernel skip down to sending a
+	 * SIGILL. The subsequent cases all relate to emulating instructions
+	 * which we should only do for userspace. We also do not want to enable
+	 * interrupts for kernel faults because that might lead to further
+	 * faults, and loose the context of the original exception.
+	 */
+	if (!user_mode(regs))
+		goto sigill;
+
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-#ifdef CONFIG_MATH_EMULATION
 	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
 	 * but there seems to be a hardware bug on the 405GP (RevD)
 	 * that means ESR is sometimes set incorrectly - either to
@@ -1129,31 +1171,8 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	 * instruction or only on FP instructions, whether there is a
 	 * pattern to occurrences etc. -dgibson 31/Mar/2003
 	 */
-
-	/*
-	 * If we support a HW FPU, we need to ensure the FP state
-	 * if flushed into the thread_struct before attempting
-	 * emulation
-	 */
-#ifdef CONFIG_PPC_FPU
-	flush_fp_to_thread(current);
-#endif
-	switch (do_mathemu(regs)) {
-	case 0:
-		emulate_single_step(regs);
+	if (!emulate_math(regs))
 		goto bail;
-	case 1: {
-			int code = 0;
-			code = __parse_fpscr(current->thread.fpscr.val);
-			_exception(SIGFPE, regs, code, regs->nip);
-			goto bail;
-		}
-	case -EFAULT:
-		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
-		goto bail;
-	}
-	/* fall through on any other errors */
-#endif /* CONFIG_MATH_EMULATION */
 
 	/* Try to emulate it if we should. */
 	if (reason & (REASON_ILLEGAL | REASON_PRIVILEGED)) {
@@ -1168,6 +1187,7 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 		}
 	}
 
+sigill:
 	if (reason & REASON_PRIVILEGED)
 		_exception(SIGILL, regs, ILL_PRVOPC, regs->nip);
 	else
@@ -1322,13 +1342,10 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	if (status == FSCR_DSCR_LG) {
 		/* User is acessing the DSCR.  Set the inherit bit and allow
 		 * the user to set it directly in future by setting via the
-		 * H/FSCR DSCR bit.
+		 * FSCR DSCR bit.  We always leave HFSCR DSCR set.
 		 */
 		current->thread.dscr_inherit = 1;
-		if (hv)
-			mtspr(SPRN_HFSCR, value | HFSCR_DSCR);
-		else
-			mtspr(SPRN_FSCR,  value | FSCR_DSCR);
+		mtspr(SPRN_FSCR, value | FSCR_DSCR);
 		return;
 	}
 
@@ -1444,11 +1461,6 @@ void performance_monitor_exception(struct pt_regs *regs)
 #ifdef CONFIG_8xx
 void SoftwareEmulation(struct pt_regs *regs)
 {
-	extern int do_mathemu(struct pt_regs *);
-#if defined(CONFIG_MATH_EMULATION)
-	int errcode;
-#endif
-
 	CHECK_FULL_REGS(regs);
 
 	if (!user_mode(regs)) {
@@ -1456,31 +1468,10 @@ void SoftwareEmulation(struct pt_regs *regs)
 		die("Kernel Mode Software FPU Emulation", regs, SIGFPE);
 	}
 
-#ifdef CONFIG_MATH_EMULATION
-	errcode = do_mathemu(regs);
-	if (errcode >= 0)
-		PPC_WARN_EMULATED(math, regs);
+	if (!emulate_math(regs))
+		return;
 
-	switch (errcode) {
-	case 0:
-		emulate_single_step(regs);
-		return;
-	case 1: {
-			int code = 0;
-			code = __parse_fpscr(current->thread.fpscr.val);
-			_exception(SIGFPE, regs, code, regs->nip);
-			return;
-		}
-	case -EFAULT:
-		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
-		return;
-	default:
-		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-		return;
-	}
-#else
 	_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-#endif
 }
 #endif /* CONFIG_8xx */
 

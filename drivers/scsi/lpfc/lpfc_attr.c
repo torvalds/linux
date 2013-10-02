@@ -674,9 +674,6 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	int i;
 	int rc;
 
-	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
-		return 0;
-
 	init_completion(&online_compl);
 	rc = lpfc_workq_post_event(phba, &status, &online_compl,
 			      LPFC_EVT_OFFLINE_PREP);
@@ -744,14 +741,15 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 	int status = 0;
 	int rc;
 
-	if ((!phba->cfg_enable_hba_reset) ||
-	    (phba->pport->fc_flag & FC_OFFLINE_MODE))
+	if (!phba->cfg_enable_hba_reset)
 		return -EACCES;
 
-	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
+	if (!(phba->pport->fc_flag & FC_OFFLINE_MODE)) {
+		status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
-	if (status != 0)
-		return status;
+		if (status != 0)
+			return status;
+	}
 
 	init_completion(&online_compl);
 	rc = lpfc_workq_post_event(phba, &status, &online_compl,
@@ -818,7 +816,7 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
  * the readyness after performing a firmware reset.
  *
  * Returns:
- * zero for success, -EPERM when port does not have privilage to perform the
+ * zero for success, -EPERM when port does not have privilege to perform the
  * reset, -EIO when port timeout from recovering from the reset.
  *
  * Note:
@@ -835,7 +833,7 @@ lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 	lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 		   &portstat_reg.word0);
 
-	/* verify if privilaged for the request operation */
+	/* verify if privileged for the request operation */
 	if (!bf_get(lpfc_sliport_status_rn, &portstat_reg) &&
 	    !bf_get(lpfc_sliport_status_err, &portstat_reg))
 		return -EPERM;
@@ -927,9 +925,9 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	rc = lpfc_sli4_pdev_status_reg_wait(phba);
 
 	if (rc == -EPERM) {
-		/* no privilage for reset */
+		/* no privilege for reset */
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"3150 No privilage to perform the requested "
+				"3150 No privilege to perform the requested "
 				"access: x%x\n", reg_val);
 	} else if (rc == -EIO) {
 		/* reset failed, there is nothing more we can do */
@@ -1867,8 +1865,10 @@ lpfc_##attr##_set(struct lpfc_vport *vport, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
-			"3053 lpfc_" #attr " changed from %d to %d\n", \
-			vport->cfg_##attr, val); \
+			"3053 lpfc_" #attr \
+			" changed from %d (x%x) to %d (x%x)\n", \
+			vport->cfg_##attr, vport->cfg_##attr, \
+			val, val); \
 		vport->cfg_##attr = val;\
 		return 0;\
 	}\
@@ -2591,9 +2591,12 @@ LPFC_VPORT_ATTR_R(enable_da_id, 1, 0, 1,
 
 /*
 # lun_queue_depth:  This parameter is used to limit the number of outstanding
-# commands per FCP LUN. Value range is [1,128]. Default value is 30.
+# commands per FCP LUN. Value range is [1,512]. Default value is 30.
+# If this parameter value is greater than 1/8th the maximum number of exchanges
+# supported by the HBA port, then the lun queue depth will be reduced to
+# 1/8th the maximum number of exchanges.
 */
-LPFC_VPORT_ATTR_R(lun_queue_depth, 30, 1, 128,
+LPFC_VPORT_ATTR_R(lun_queue_depth, 30, 1, 512,
 		  "Max number of FCP commands we can queue to a specific LUN");
 
 /*
@@ -2601,7 +2604,7 @@ LPFC_VPORT_ATTR_R(lun_queue_depth, 30, 1, 128,
 # commands per target port. Value range is [10,65535]. Default value is 65535.
 */
 LPFC_VPORT_ATTR_R(tgt_queue_depth, 65535, 10, 65535,
-	"Max number of FCP commands we can queue to a specific target port");
+		  "Max number of FCP commands we can queue to a specific target port");
 
 /*
 # hba_queue_depth:  This parameter is used to limit the number of outstanding
@@ -3949,6 +3952,14 @@ LPFC_VPORT_ATTR_RW(use_adisc, 0, 0, 1,
 		   "Use ADISC on rediscovery to authenticate FCP devices");
 
 /*
+# lpfc_first_burst_size: First burst size to use on the NPorts
+# that support first burst.
+# Value range is [0,65536]. Default value is 0.
+*/
+LPFC_VPORT_ATTR_RW(first_burst_size, 0, 0, 65536,
+		   "First burst size for Targets that support first burst");
+
+/*
 # lpfc_max_scsicmpl_time: Use scsi command completion time to control I/O queue
 # depth. Default value is 0. When the value of this parameter is zero the
 # SCSI command completion time is not used for controlling I/O queue depth. When
@@ -4002,8 +4013,11 @@ LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 # For [0], FCP commands are issued to Work Queues ina round robin fashion.
 # For [1], FCP commands are issued to a Work Queue associated with the
 #          current CPU.
+# It would be set to 1 by the driver if it's able to set up cpu affinity
+# for FCP I/Os through Work Queue associated with the current CPU. Otherwise,
+# roundrobin scheduling of FCP I/Os through WQs will be used.
 */
-LPFC_ATTR_RW(fcp_io_sched, 0, 0, 1, "Determine scheduling algrithmn for "
+LPFC_ATTR_RW(fcp_io_sched, 0, 0, 1, "Determine scheduling algorithm for "
 		"issuing commands [0] - Round Robin, [1] - Current CPU");
 
 /*
@@ -4101,6 +4115,12 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 	     "Milliseconds driver will wait between polling FCP ring");
 
 /*
+# lpfc_task_mgmt_tmo: Maximum time to wait for task management commands
+# to complete in seconds. Value range is [5,180], default value is 60.
+*/
+LPFC_ATTR_RW(task_mgmt_tmo, 60, 5, 180,
+	     "Maximum time to wait for task management commands to complete");
+/*
 # lpfc_use_msi: Use MSI (Message Signaled Interrupts) in systems that
 #		support this feature
 #       0  = MSI disabled
@@ -4110,25 +4130,6 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 */
 LPFC_ATTR_R(use_msi, 2, 0, 2, "Use Message Signaled Interrupts (1) or "
 	    "MSI-X (2), if possible");
-
-/*
-# lpfc_fcp_wq_count: Set the number of fast-path FCP work queues
-# This parameter is ignored and will eventually be depricated
-#
-# Value range is [1,7]. Default value is 4.
-*/
-LPFC_ATTR_R(fcp_wq_count, LPFC_FCP_IO_CHAN_DEF, LPFC_FCP_IO_CHAN_MIN,
-	    LPFC_FCP_IO_CHAN_MAX,
-	    "Set the number of fast-path FCP work queues, if possible");
-
-/*
-# lpfc_fcp_eq_count: Set the number of FCP EQ/CQ/WQ IO channels
-#
-# Value range is [1,7]. Default value is 4.
-*/
-LPFC_ATTR_R(fcp_eq_count, LPFC_FCP_IO_CHAN_DEF, LPFC_FCP_IO_CHAN_MIN,
-	    LPFC_FCP_IO_CHAN_MAX,
-	    "Set the number of fast-path FCP event queues, if possible");
 
 /*
 # lpfc_fcp_io_channel: Set the number of FCP EQ/CQ/WQ IO channels
@@ -4276,6 +4277,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_devloss_tmo,
 	&dev_attr_lpfc_fcp_class,
 	&dev_attr_lpfc_use_adisc,
+	&dev_attr_lpfc_first_burst_size,
 	&dev_attr_lpfc_ack0,
 	&dev_attr_lpfc_topology,
 	&dev_attr_lpfc_scan_down,
@@ -4304,11 +4306,10 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_issue_reset,
 	&dev_attr_lpfc_poll,
 	&dev_attr_lpfc_poll_tmo,
+	&dev_attr_lpfc_task_mgmt_tmo,
 	&dev_attr_lpfc_use_msi,
 	&dev_attr_lpfc_fcp_imax,
 	&dev_attr_lpfc_fcp_cpu_map,
-	&dev_attr_lpfc_fcp_wq_count,
-	&dev_attr_lpfc_fcp_eq_count,
 	&dev_attr_lpfc_fcp_io_channel,
 	&dev_attr_lpfc_enable_bg,
 	&dev_attr_lpfc_soft_wwnn,
@@ -4352,6 +4353,7 @@ struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_lpfc_restrict_login,
 	&dev_attr_lpfc_fcp_class,
 	&dev_attr_lpfc_use_adisc,
+	&dev_attr_lpfc_first_burst_size,
 	&dev_attr_lpfc_fdmi_on,
 	&dev_attr_lpfc_max_luns,
 	&dev_attr_nport_evt_cnt,
@@ -5284,14 +5286,13 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_topology_init(phba, lpfc_topology);
 	lpfc_link_speed_init(phba, lpfc_link_speed);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
+	lpfc_task_mgmt_tmo_init(phba, lpfc_task_mgmt_tmo);
 	lpfc_enable_npiv_init(phba, lpfc_enable_npiv);
 	lpfc_fcf_failover_policy_init(phba, lpfc_fcf_failover_policy);
 	lpfc_enable_rrq_init(phba, lpfc_enable_rrq);
 	lpfc_use_msi_init(phba, lpfc_use_msi);
 	lpfc_fcp_imax_init(phba, lpfc_fcp_imax);
 	lpfc_fcp_cpu_map_init(phba, lpfc_fcp_cpu_map);
-	lpfc_fcp_wq_count_init(phba, lpfc_fcp_wq_count);
-	lpfc_fcp_eq_count_init(phba, lpfc_fcp_eq_count);
 	lpfc_fcp_io_channel_init(phba, lpfc_fcp_io_channel);
 	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
 	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
@@ -5331,6 +5332,7 @@ lpfc_get_vport_cfgparam(struct lpfc_vport *vport)
 	lpfc_restrict_login_init(vport, lpfc_restrict_login);
 	lpfc_fcp_class_init(vport, lpfc_fcp_class);
 	lpfc_use_adisc_init(vport, lpfc_use_adisc);
+	lpfc_first_burst_size_init(vport, lpfc_first_burst_size);
 	lpfc_max_scsicmpl_time_init(vport, lpfc_max_scsicmpl_time);
 	lpfc_fdmi_on_init(vport, lpfc_fdmi_on);
 	lpfc_discovery_threads_init(vport, lpfc_discovery_threads);

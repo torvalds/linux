@@ -238,6 +238,9 @@ static int exynos_target(struct cpufreq_policy *policy,
 	freqs.old = dvfs_info->cur_frequency;
 	freqs.new = freq_table[index].frequency;
 
+	if (freqs.old == freqs.new)
+		goto out;
+
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* Set the target frequency in all C0_3_PSTATE register */
@@ -454,7 +457,7 @@ err_free_table:
 	opp_free_cpufreq_table(dvfs_info->dev, &dvfs_info->freq_table);
 err_put_node:
 	of_node_put(np);
-	dev_err(dvfs_info->dev, "%s: failed initialization\n", __func__);
+	dev_err(&pdev->dev, "%s: failed initialization\n", __func__);
 	return ret;
 }
 

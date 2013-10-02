@@ -32,7 +32,7 @@ enum ocfs2_xattr_type {
 
 struct ocfs2_security_xattr_info {
 	int enable;
-	char *name;
+	const char *name;
 	void *value;
 	size_t value_len;
 };

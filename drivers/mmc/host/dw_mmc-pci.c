@@ -59,7 +59,9 @@ static int dw_mci_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	host->regs = pcim_iomap_table(pdev)[0];
+	host->regs = pcim_iomap_table(pdev)[PCI_BAR_NO];
+
+	pci_set_master(pdev);
 
 	ret = dw_mci_probe(host);
 	if (ret)

@@ -308,7 +308,7 @@ void xfrm_policy_destroy(struct xfrm_policy *policy)
 {
 	BUG_ON(!policy->walk.dead);
 
-	if (del_timer(&policy->timer))
+	if (del_timer(&policy->timer) || del_timer(&policy->polq.hold_timer))
 		BUG();
 
 	security_xfrm_policy_free(policy->security);
@@ -658,7 +658,13 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	xfrm_pol_hold(policy);
 	net->xfrm.policy_count[dir]++;
 	atomic_inc(&flow_cache_genid);
-	rt_genid_bump(net);
+
+	/* After previous checking, family can either be AF_INET or AF_INET6 */
+	if (policy->family == AF_INET)
+		rt_genid_bump_ipv4(net);
+	else
+		rt_genid_bump_ipv6(net);
+
 	if (delpol) {
 		xfrm_policy_requeue(delpol, policy);
 		__xfrm_policy_unlink(delpol, dir);
@@ -2119,8 +2125,6 @@ restart:
 		 * have the xfrm_state's. We need to wait for KM to
 		 * negotiate new SA's or bail out with error.*/
 		if (net->xfrm.sysctl_larval_drop) {
-			/* EREMOTE tells the caller to generate
-			 * a one-shot blackhole route. */
 			dst_release(dst);
 			xfrm_pols_put(pols, drop_pols);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTNOSTATES);

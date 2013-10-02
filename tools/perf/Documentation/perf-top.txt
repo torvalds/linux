@@ -155,6 +155,11 @@ Default is to monitor all CPUS.
 
 	Default: fractal,0.5,callee.
 
+--ignore-callees=<regex>::
+        Ignore callees of the function(s) matching the given regex.
+        This has the effect of collecting the callers of each such
+        function into one place in the call-graph tree.
+
 --percent-limit::
 	Do not show entries which have an overhead under that percent.
 	(Default: 0).

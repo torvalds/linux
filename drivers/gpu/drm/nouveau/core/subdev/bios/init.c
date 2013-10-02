@@ -579,8 +579,22 @@ static void
 init_reserved(struct nvbios_init *init)
 {
 	u8 opcode = nv_ro08(init->bios, init->offset);
-	trace("RESERVED\t0x%02x\n", opcode);
-	init->offset += 1;
+	u8 length, i;
+
+	switch (opcode) {
+	case 0xaa:
+		length = 4;
+		break;
+	default:
+		length = 1;
+		break;
+	}
+
+	trace("RESERVED 0x%02x\t", opcode);
+	for (i = 1; i < length; i++)
+		cont(" 0x%02x", nv_ro08(init->bios, init->offset + i));
+	cont("\n");
+	init->offset += length;
 }
 
 /**
@@ -1437,7 +1451,7 @@ init_configure_mem(struct nvbios_init *init)
 	data = init_rdvgai(init, 0x03c4, 0x01);
 	init_wrvgai(init, 0x03c4, 0x01, data | 0x20);
 
-	while ((addr = nv_ro32(bios, sdata)) != 0xffffffff) {
+	for (; (addr = nv_ro32(bios, sdata)) != 0xffffffff; sdata += 4) {
 		switch (addr) {
 		case 0x10021c: /* CKE_NORMAL */
 		case 0x1002d0: /* CMD_REFRESH */
@@ -2135,6 +2149,7 @@ static struct nvbios_init_opcode {
 	[0x99] = { init_zm_auxch },
 	[0x9a] = { init_i2c_long_if },
 	[0xa9] = { init_gpio_ne },
+	[0xaa] = { init_reserved },
 };
 
 #define init_opcode_nr (sizeof(init_opcode) / sizeof(init_opcode[0]))
@@ -2165,7 +2180,7 @@ nvbios_init(struct nouveau_subdev *subdev, bool execute)
 	u16 data;
 
 	if (execute)
-		nv_info(bios, "running init tables\n");
+		nv_suspend(bios, "running init tables\n");
 	while (!ret && (data = (init_script(bios, ++i)))) {
 		struct nvbios_init init = {
 			.subdev = subdev,

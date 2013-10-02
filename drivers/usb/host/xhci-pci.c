@@ -25,6 +25,7 @@
 #include <linux/module.h>
 
 #include "xhci.h"
+#include "xhci-trace.h"
 
 /* Device for a quirk */
 #define PCI_VENDOR_ID_FRESCO_LOGIC	0x1b73
@@ -64,16 +65,18 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		if (pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK &&
 				pdev->revision == 0x0) {
 			xhci->quirks |= XHCI_RESET_EP_QUIRK;
-			xhci_dbg(xhci, "QUIRK: Fresco Logic xHC needs configure"
-					" endpoint cmd after reset endpoint\n");
+			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"QUIRK: Fresco Logic xHC needs configure"
+				" endpoint cmd after reset endpoint");
 		}
 		/* Fresco Logic confirms: all revisions of this chip do not
 		 * support MSI, even though some of them claim to in their PCI
 		 * capabilities.
 		 */
 		xhci->quirks |= XHCI_BROKEN_MSI;
-		xhci_dbg(xhci, "QUIRK: Fresco Logic revision %u "
-				"has broken MSI implementation\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"QUIRK: Fresco Logic revision %u "
+				"has broken MSI implementation",
 				pdev->revision);
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 	}
@@ -110,7 +113,8 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_ETRON &&
 			pdev->device == PCI_DEVICE_ID_ASROCK_P67) {
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
-		xhci_dbg(xhci, "QUIRK: Resetting on resume\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"QUIRK: Resetting on resume");
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_VIA)
@@ -249,13 +253,15 @@ static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	 * writers.
 	 *
 	 * Unconditionally switch the ports back to xHCI after a system resume.
-	 * We can't tell whether the EHCI or xHCI controller will be resumed
-	 * first, so we have to do the port switchover in both drivers.  Writing
-	 * a '1' to the port switchover registers should have no effect if the
-	 * port was already switched over.
+	 * It should not matter whether the EHCI or xHCI controller is
+	 * resumed first. It's enough to do the switchover in xHCI because
+	 * USB core won't notice anything as the hub driver doesn't start
+	 * running again until after all the devices (including both EHCI and
+	 * xHCI host controllers) have been resumed.
 	 */
-	if (usb_is_intel_switchable_xhci(pdev))
-		usb_enable_xhci_ports(pdev);
+
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
+		usb_enable_intel_xhci_ports(pdev);
 
 	retval = xhci_resume(xhci, hibernated);
 	return retval;
@@ -345,7 +351,7 @@ static struct pci_driver xhci_pci_driver = {
 	/* suspend and resume implemented later */
 
 	.shutdown = 	usb_hcd_pci_shutdown,
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	.driver = {
 		.pm = &usb_hcd_pci_pm_ops
 	},

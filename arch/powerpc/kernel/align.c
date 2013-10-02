@@ -651,6 +651,10 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 	int sw = 0;
 	int i, j;
 
+	/* userland only */
+	if (unlikely(!user_mode(regs)))
+		return 0;
+
 	flush_vsx_to_thread(current);
 
 	if (reg < 32)
@@ -763,6 +767,16 @@ int fix_alignment(struct pt_regs *regs)
 	/* Lookup the operation in our table */
 	nb = aligninfo[instr].len;
 	flags = aligninfo[instr].flags;
+
+	/* ldbrx/stdbrx overlap lfs/stfs in the DSISR unfortunately */
+	if (IS_XFORM(instruction) && ((instruction >> 1) & 0x3ff) == 532) {
+		nb = 8;
+		flags = LD+SW;
+	} else if (IS_XFORM(instruction) &&
+		   ((instruction >> 1) & 0x3ff) == 660) {
+		nb = 8;
+		flags = ST+SW;
+	}
 
 	/* Byteswap little endian loads and stores */
 	swiz = 0;

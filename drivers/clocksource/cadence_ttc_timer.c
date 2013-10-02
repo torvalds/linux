@@ -21,7 +21,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/slab.h>
-#include <linux/clk-provider.h>
+#include <linux/sched_clock.h>
 
 /*
  * This driver configures the 2 16-bit count-up timers as follows:
@@ -95,6 +95,8 @@ struct ttc_timer_clockevent {
 #define to_ttc_timer_clkevent(x) \
 		container_of(x, struct ttc_timer_clockevent, ce)
 
+static void __iomem *ttc_sched_clock_val_reg;
+
 /**
  * ttc_set_interval - Set the timer interval value
  *
@@ -154,6 +156,11 @@ static cycle_t __ttc_clocksource_read(struct clocksource *cs)
 
 	return (cycle_t)__raw_readl(timer->base_addr +
 				TTC_COUNT_VAL_OFFSET);
+}
+
+static u32 notrace ttc_sched_clock_read(void)
+{
+	return __raw_readl(ttc_sched_clock_val_reg);
 }
 
 /**
@@ -297,6 +304,10 @@ static void __init ttc_setup_clocksource(struct clk *clk, void __iomem *base)
 		kfree(ttccs);
 		return;
 	}
+
+	ttc_sched_clock_val_reg = base + TTC_COUNT_VAL_OFFSET;
+	setup_sched_clock(ttc_sched_clock_read, 16,
+			clk_get_rate(ttccs->ttc.clk) / PRESCALE);
 }
 
 static int ttc_rate_change_clockevent_cb(struct notifier_block *nb,

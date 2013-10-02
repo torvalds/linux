@@ -14,7 +14,7 @@
  */
 
 /dts-v1/;
-/include/ "armada-370.dtsi"
+#include "armada-370.dtsi"
 
 / {
 	model = "Marvell Armada 370 Evaluation Board";
@@ -30,6 +30,9 @@
 	};
 
 	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
+
 		internal-regs {
 			serial@12000 {
 				clock-frequency = <200000000>;

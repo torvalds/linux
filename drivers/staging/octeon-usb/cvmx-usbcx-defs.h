@@ -140,7 +140,6 @@ union cvmx_usbcx_gahbcfg {
 		uint32_t glblintrmsk	: 1;
 	} s;
 };
-typedef union cvmx_usbcx_gahbcfg cvmx_usbcx_gahbcfg_t;
 
 /**
  * cvmx_usbc#_ghwcfg3
@@ -210,7 +209,6 @@ union cvmx_usbcx_ghwcfg3 {
 		uint32_t xfersizewidth				: 4;
 	} s;
 };
-typedef union cvmx_usbcx_ghwcfg3 cvmx_usbcx_ghwcfg3_t;
 
 /**
  * cvmx_usbc#_gintmsk
@@ -299,7 +297,6 @@ union cvmx_usbcx_gintmsk {
 		uint32_t reserved_0_0		: 1;
 	} s;
 };
-typedef union cvmx_usbcx_gintmsk cvmx_usbcx_gintmsk_t;
 
 /**
  * cvmx_usbc#_gintsts
@@ -529,7 +526,6 @@ union cvmx_usbcx_gintsts {
 		uint32_t curmod		: 1;
 	} s;
 };
-typedef union cvmx_usbcx_gintsts cvmx_usbcx_gintsts_t;
 
 /**
  * cvmx_usbc#_gnptxfsiz
@@ -556,7 +552,6 @@ union cvmx_usbcx_gnptxfsiz {
 		uint32_t nptxfstaddr	: 16;
 	} s;
 };
-typedef union cvmx_usbcx_gnptxfsiz cvmx_usbcx_gnptxfsiz_t;
 
 /**
  * cvmx_usbc#_gnptxsts
@@ -609,7 +604,6 @@ union cvmx_usbcx_gnptxsts {
 		uint32_t nptxfspcavail	: 16;
 	} s;
 };
-typedef union cvmx_usbcx_gnptxsts cvmx_usbcx_gnptxsts_t;
 
 /**
  * cvmx_usbc#_grstctl
@@ -737,7 +731,6 @@ union cvmx_usbcx_grstctl {
 		uint32_t csftrst	: 1;
 	} s;
 };
-typedef union cvmx_usbcx_grstctl cvmx_usbcx_grstctl_t;
 
 /**
  * cvmx_usbc#_grxfsiz
@@ -761,7 +754,6 @@ union cvmx_usbcx_grxfsiz {
 		uint32_t rxfdep		: 16;
 	} s;
 };
-typedef union cvmx_usbcx_grxfsiz cvmx_usbcx_grxfsiz_t;
 
 /**
  * cvmx_usbc#_grxstsph
@@ -807,7 +799,6 @@ union cvmx_usbcx_grxstsph {
 		uint32_t chnum		: 4;
 	} s;
 };
-typedef union cvmx_usbcx_grxstsph cvmx_usbcx_grxstsph_t;
 
 /**
  * cvmx_usbc#_gusbcfg
@@ -896,7 +887,6 @@ union cvmx_usbcx_gusbcfg {
 		uint32_t toutcal	: 3;
 	} s;
 };
-typedef union cvmx_usbcx_gusbcfg cvmx_usbcx_gusbcfg_t;
 
 /**
  * cvmx_usbc#_haint
@@ -922,7 +912,6 @@ union cvmx_usbcx_haint {
 		uint32_t haint		: 16;
 	} s;
 };
-typedef union cvmx_usbcx_haint cvmx_usbcx_haint_t;
 
 /**
  * cvmx_usbc#_haintmsk
@@ -947,7 +936,6 @@ union cvmx_usbcx_haintmsk {
 		uint32_t haintmsk	: 16;
 	} s;
 };
-typedef union cvmx_usbcx_haintmsk cvmx_usbcx_haintmsk_t;
 
 /**
  * cvmx_usbc#_hcchar#
@@ -1027,7 +1015,6 @@ union cvmx_usbcx_hccharx {
 		uint32_t mps		: 11;
 	} s;
 };
-typedef union cvmx_usbcx_hccharx cvmx_usbcx_hccharx_t;
 
 /**
  * cvmx_usbc#_hcfg
@@ -1075,7 +1062,6 @@ union cvmx_usbcx_hcfg {
 		uint32_t fslspclksel	: 2;
 	} s;
 };
-typedef union cvmx_usbcx_hcfg cvmx_usbcx_hcfg_t;
 
 /**
  * cvmx_usbc#_hcint#
@@ -1126,7 +1112,6 @@ union cvmx_usbcx_hcintx {
 		uint32_t xfercompl	: 1;
 	} s;
 };
-typedef union cvmx_usbcx_hcintx cvmx_usbcx_hcintx_t;
 
 /**
  * cvmx_usbc#_hcintmsk#
@@ -1168,7 +1153,6 @@ union cvmx_usbcx_hcintmskx {
 		uint32_t xfercomplmsk	: 1;
 	} s;
 };
-typedef union cvmx_usbcx_hcintmskx cvmx_usbcx_hcintmskx_t;
 
 /**
  * cvmx_usbc#_hcsplt#
@@ -1213,7 +1197,6 @@ union cvmx_usbcx_hcspltx {
 		uint32_t prtaddr	: 7;
 	} s;
 };
-typedef union cvmx_usbcx_hcspltx cvmx_usbcx_hcspltx_t;
 
 /**
  * cvmx_usbc#_hctsiz#
@@ -1257,7 +1240,6 @@ union cvmx_usbcx_hctsizx {
 		uint32_t xfersize	: 19;
 	} s;
 };
-typedef union cvmx_usbcx_hctsizx cvmx_usbcx_hctsizx_t;
 
 /**
  * cvmx_usbc#_hfir
@@ -1293,7 +1275,6 @@ union cvmx_usbcx_hfir {
 		uint32_t frint		: 16;
 	} s;
 };
-typedef union cvmx_usbcx_hfir cvmx_usbcx_hfir_t;
 
 /**
  * cvmx_usbc#_hfnum
@@ -1323,7 +1304,6 @@ union cvmx_usbcx_hfnum {
 		uint32_t frnum	: 16;
 	} s;
 };
-typedef union cvmx_usbcx_hfnum cvmx_usbcx_hfnum_t;
 
 /**
  * cvmx_usbc#_hprt
@@ -1464,7 +1444,6 @@ union cvmx_usbcx_hprt {
 		uint32_t prtconnsts	: 1;
 	} s;
 };
-typedef union cvmx_usbcx_hprt cvmx_usbcx_hprt_t;
 
 /**
  * cvmx_usbc#_hptxfsiz
@@ -1489,7 +1468,6 @@ union cvmx_usbcx_hptxfsiz {
 		uint32_t ptxfstaddr	: 16;
 	} s;
 };
-typedef union cvmx_usbcx_hptxfsiz cvmx_usbcx_hptxfsiz_t;
 
 /**
  * cvmx_usbc#_hptxsts
@@ -1546,6 +1524,5 @@ union cvmx_usbcx_hptxsts {
 		uint32_t ptxfspcavail	: 16;
 	} s;
 };
-typedef union cvmx_usbcx_hptxsts cvmx_usbcx_hptxsts_t;
 
 #endif

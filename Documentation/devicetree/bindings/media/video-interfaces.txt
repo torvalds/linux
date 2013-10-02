@@ -88,6 +88,8 @@ Optional endpoint properties
 - field-even-active: field signal level during the even field data transmission.
 - pclk-sample: sample data on rising (1) or falling (0) edge of the pixel clock
   signal.
+- sync-on-green-active: active state of Sync-on-green (SoG) signal, 0/1 for
+  LOW/HIGH respectively.
 - data-lanes: an array of physical data lane indexes. Position of an entry
   determines the logical lane number, while the value of an entry indicates
   physical lane, e.g. for 2-lane MIPI CSI-2 bus we could have

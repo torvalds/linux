@@ -19,6 +19,7 @@
 #include <asm/bootinfo.h>
 #include <asm/cacheops.h>
 #include <asm/cpu-features.h>
+#include <asm/cpu-type.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/r4kcache.h>
@@ -186,9 +187,10 @@ static void probe_octeon(void)
 	unsigned long dcache_size;
 	unsigned int config1;
 	struct cpuinfo_mips *c = &current_cpu_data;
+	int cputype = current_cpu_type();
 
 	config1 = read_c0_config1();
-	switch (c->cputype) {
+	switch (cputype) {
 	case CPU_CAVIUM_OCTEON:
 	case CPU_CAVIUM_OCTEON_PLUS:
 		c->icache.linesz = 2 << ((config1 >> 19) & 7);
@@ -199,7 +201,7 @@ static void probe_octeon(void)
 			c->icache.sets * c->icache.ways * c->icache.linesz;
 		c->icache.waybit = ffs(icache_size / c->icache.ways) - 1;
 		c->dcache.linesz = 128;
-		if (c->cputype == CPU_CAVIUM_OCTEON_PLUS)
+		if (cputype == CPU_CAVIUM_OCTEON_PLUS)
 			c->dcache.sets = 2; /* CN5XXX has two Dcache sets */
 		else
 			c->dcache.sets = 1; /* CN3XXX has one Dcache set */
@@ -214,6 +216,20 @@ static void probe_octeon(void)
 		c->icache.linesz = 2 << ((config1 >> 19) & 7);
 		c->icache.sets = 8;
 		c->icache.ways = 37;
+		c->icache.flags |= MIPS_CACHE_VTAG;
+		icache_size = c->icache.sets * c->icache.ways * c->icache.linesz;
+
+		c->dcache.linesz = 128;
+		c->dcache.ways = 32;
+		c->dcache.sets = 8;
+		dcache_size = c->dcache.sets * c->dcache.ways * c->dcache.linesz;
+		c->options |= MIPS_CPU_PREFETCH;
+		break;
+
+	case CPU_CAVIUM_OCTEON3:
+		c->icache.linesz = 128;
+		c->icache.sets = 16;
+		c->icache.ways = 39;
 		c->icache.flags |= MIPS_CACHE_VTAG;
 		icache_size = c->icache.sets * c->icache.ways * c->icache.linesz;
 

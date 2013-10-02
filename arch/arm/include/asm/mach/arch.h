@@ -35,7 +35,7 @@ struct machine_desc {
 	unsigned int		nr_irqs;	/* number of IRQs */
 
 #ifdef CONFIG_ZONE_DMA
-	unsigned long		dma_zone_size;	/* size of DMA-able area */
+	phys_addr_t		dma_zone_size;	/* size of DMA-able area */
 #endif
 
 	unsigned int		video_start;	/* start of video RAM	*/
@@ -65,12 +65,12 @@ struct machine_desc {
 /*
  * Current machine - only accessible during boot.
  */
-extern struct machine_desc *machine_desc;
+extern const struct machine_desc *machine_desc;
 
 /*
  * Machine type table - also only accessible during boot
  */
-extern struct machine_desc __arch_info_begin[], __arch_info_end[];
+extern const struct machine_desc __arch_info_begin[], __arch_info_end[];
 #define for_each_machine_desc(p)			\
 	for (p = __arch_info_begin; p < __arch_info_end; p++)
 

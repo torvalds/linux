@@ -161,6 +161,13 @@ static int hwahc_op_start(struct usb_hcd *usb_hcd)
 	usb_hcd->uses_new_polling = 1;
 	set_bit(HCD_FLAG_POLL_RH, &usb_hcd->flags);
 	usb_hcd->state = HC_STATE_RUNNING;
+
+	/*
+	 * prevent USB core from suspending the root hub since
+	 * bus_suspend and bus_resume are not yet supported.
+	 */
+	pm_runtime_get_noresume(&usb_hcd->self.root_hub->dev);
+
 	result = 0;
 out:
 	mutex_unlock(&wusbhc->mutex);

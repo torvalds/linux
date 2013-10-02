@@ -462,6 +462,14 @@ int wiphy_register(struct wiphy *wiphy)
 		return -EINVAL;
 #endif
 
+	if (WARN_ON(wiphy->coalesce &&
+		    (!wiphy->coalesce->n_rules ||
+		     !wiphy->coalesce->n_patterns) &&
+		    (!wiphy->coalesce->pattern_min_len ||
+		     wiphy->coalesce->pattern_min_len >
+			wiphy->coalesce->pattern_max_len)))
+		return -EINVAL;
+
 	if (WARN_ON(wiphy->ap_sme_capa &&
 		    !(wiphy->flags & WIPHY_FLAG_HAVE_AP_SME)))
 		return -EINVAL;
@@ -668,6 +676,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 		rdev_set_wakeup(rdev, false);
 #endif
 	cfg80211_rdev_free_wowlan(rdev);
+	cfg80211_rdev_free_coalesce(rdev);
 }
 EXPORT_SYMBOL(wiphy_unregister);
 

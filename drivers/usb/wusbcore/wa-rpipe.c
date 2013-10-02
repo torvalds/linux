@@ -527,3 +527,24 @@ void rpipe_ep_disable(struct wahc *wa, struct usb_host_endpoint *ep)
 	mutex_unlock(&wa->rpipe_mutex);
 }
 EXPORT_SYMBOL_GPL(rpipe_ep_disable);
+
+/* Clear the stalled status of an RPIPE. */
+void rpipe_clear_feature_stalled(struct wahc *wa, struct usb_host_endpoint *ep)
+{
+	struct wa_rpipe *rpipe;
+
+	mutex_lock(&wa->rpipe_mutex);
+	rpipe = ep->hcpriv;
+	if (rpipe != NULL) {
+		u16 index = le16_to_cpu(rpipe->descr.wRPipeIndex);
+
+		usb_control_msg(
+			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
+			USB_REQ_CLEAR_FEATURE,
+			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
+			RPIPE_STALL, index, NULL, 0, 1000);
+	}
+	mutex_unlock(&wa->rpipe_mutex);
+}
+EXPORT_SYMBOL_GPL(rpipe_clear_feature_stalled);
+

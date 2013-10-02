@@ -99,7 +99,6 @@
 #include <linux/completion.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
-#include <linux/swap.h>
 #include <linux/pagevec.h>
 
 #include <asm/uaccess.h>
@@ -574,7 +573,7 @@ static int loop_clr_fd(struct lloop_device *lo, struct block_device *bdev,
 	lo->lo_offset = 0;
 	lo->lo_sizelimit = 0;
 	lo->lo_flags = 0;
-	ll_invalidate_bdev(bdev, 0);
+	invalidate_bdev(bdev);
 	set_capacity(disks[lo->lo_number], 0);
 	bd_set_size(bdev, 0);
 	mapping_set_gfp_mask(filp->f_mapping, gfp);
@@ -618,7 +617,7 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	case LL_IOC_LLOOP_DETACH: {
 		err = loop_clr_fd(lo, bdev, 2);
 		if (err == 0)
-			ll_blkdev_put(bdev, 0); /* grabbed in LLOOP_ATTACH */
+			blkdev_put(bdev, 0); /* grabbed in LLOOP_ATTACH */
 		break;
 	}
 
@@ -713,7 +712,7 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 		err = loop_set_fd(lo, NULL, bdev, file);
 		if (err) {
 			fput(file);
-			ll_blkdev_put(bdev, 0);
+			blkdev_put(bdev, 0);
 		}
 
 		break;
@@ -737,7 +736,7 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 		bdev = lo->lo_device;
 		err = loop_clr_fd(lo, bdev, 1);
 		if (err == 0)
-			ll_blkdev_put(bdev, 0); /* grabbed in LLOOP_ATTACH */
+			blkdev_put(bdev, 0); /* grabbed in LLOOP_ATTACH */
 
 		break;
 	}
@@ -849,10 +848,8 @@ static void lloop_exit(void)
 		blk_cleanup_queue(loop_dev[i].lo_queue);
 		put_disk(disks[i]);
 	}
-	if (ll_unregister_blkdev(lloop_major, "lloop"))
-		CWARN("lloop: cannot unregister blkdev\n");
-	else
-		CDEBUG(D_CONFIG, "unregistered lloop major %d\n", lloop_major);
+
+	unregister_blkdev(lloop_major, "lloop");
 
 	OBD_FREE(disks, max_loop * sizeof(*disks));
 	OBD_FREE(loop_dev, max_loop * sizeof(*loop_dev));

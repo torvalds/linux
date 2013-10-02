@@ -112,11 +112,13 @@ static int get_parent_ino(struct inode *inode, nid_t *pino)
 	if (!dentry)
 		return 0;
 
-	inode = igrab(dentry->d_parent->d_inode);
-	dput(dentry);
+	if (update_dent_inode(inode, &dentry->d_name)) {
+		dput(dentry);
+		return 0;
+	}
 
-	*pino = inode->i_ino;
-	iput(inode);
+	*pino = parent_ino(dentry);
+	dput(dentry);
 	return 1;
 }
 
@@ -147,9 +149,10 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	mutex_lock(&inode->i_mutex);
 
-	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
-		goto out;
-
+	/*
+	 * Both of fdatasync() and fsync() are able to be recovered from
+	 * sudden-power-off.
+	 */
 	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
 		need_cp = true;
 	else if (file_wrong_pino(inode))
@@ -158,9 +161,13 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		need_cp = true;
 	else if (!is_checkpointed_node(sbi, F2FS_I(inode)->i_pino))
 		need_cp = true;
+	else if (F2FS_I(inode)->xattr_ver == cur_cp_version(F2FS_CKPT(sbi)))
+		need_cp = true;
 
 	if (need_cp) {
 		nid_t pino;
+
+		F2FS_I(inode)->xattr_ver = 0;
 
 		/* all the dirty node pages should be flushed for POR */
 		ret = f2fs_sync_fs(inode->i_sb, 1);
@@ -205,7 +212,7 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 	struct f2fs_node *raw_node;
 	__le32 *addr;
 
-	raw_node = page_address(dn->node_page);
+	raw_node = F2FS_NODE(dn->node_page);
 	addr = blkaddr_in_node(raw_node) + ofs;
 
 	for ( ; count > 0; count--, addr++, dn->ofs_in_node++) {
@@ -283,7 +290,7 @@ static int truncate_blocks(struct inode *inode, u64 from)
 	}
 
 	if (IS_INODE(dn.node_page))
-		count = ADDRS_PER_INODE;
+		count = ADDRS_PER_INODE(F2FS_I(inode));
 	else
 		count = ADDRS_PER_BLOCK;
 

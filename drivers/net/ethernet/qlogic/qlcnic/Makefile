@@ -11,3 +11,5 @@ qlcnic-y := qlcnic_hw.o qlcnic_main.o qlcnic_init.o \
 	qlcnic_minidump.o qlcnic_sriov_common.o
 
 qlcnic-$(CONFIG_QLCNIC_SRIOV) += qlcnic_sriov_pf.o
+
+qlcnic-$(CONFIG_QLCNIC_DCB) += qlcnic_dcb.o

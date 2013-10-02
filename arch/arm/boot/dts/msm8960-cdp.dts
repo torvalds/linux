@@ -38,7 +38,7 @@
 	};
 
 	serial@16440000 {
-		compatible = "qcom,msm-hsuart", "qcom,msm-uart";
+		compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 		reg = <0x16440000 0x1000>,
 		      <0x16400000 0x1000>;
 		interrupts = <0 154 0x0>;

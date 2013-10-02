@@ -8,6 +8,7 @@
 #define __ASM_SWITCH_TO_H
 
 #include <linux/thread_info.h>
+#include <asm/ptrace.h>
 
 extern struct task_struct *__switch_to(void *, void *);
 extern void update_cr_regs(struct task_struct *task);
@@ -68,12 +69,16 @@ static inline void restore_fp_regs(s390_fp_regs *fpregs)
 
 static inline void save_access_regs(unsigned int *acrs)
 {
-	asm volatile("stam 0,15,%0" : "=Q" (*acrs));
+	typedef struct { int _[NUM_ACRS]; } acrstype;
+
+	asm volatile("stam 0,15,%0" : "=Q" (*(acrstype *)acrs));
 }
 
 static inline void restore_access_regs(unsigned int *acrs)
 {
-	asm volatile("lam 0,15,%0" : : "Q" (*acrs));
+	typedef struct { int _[NUM_ACRS]; } acrstype;
+
+	asm volatile("lam 0,15,%0" : : "Q" (*(acrstype *)acrs));
 }
 
 #define switch_to(prev,next,last) do {					\

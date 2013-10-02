@@ -438,9 +438,9 @@ static int arizona_runtime_suspend(struct device *dev)
 		}
 	}
 
-	regulator_disable(arizona->dcvdd);
 	regcache_cache_only(arizona->regmap, true);
 	regcache_mark_dirty(arizona->regmap);
+	regulator_disable(arizona->dcvdd);
 
 	return 0;
 }

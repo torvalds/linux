@@ -100,7 +100,7 @@ static const struct hc_driver exynos_ohci_hc_driver = {
 
 static int exynos_ohci_probe(struct platform_device *pdev)
 {
-	struct exynos4_ohci_platdata *pdata = pdev->dev.platform_data;
+	struct exynos4_ohci_platdata *pdata = dev_get_platdata(&pdev->dev);
 	struct exynos_ohci_hcd *exynos_ohci;
 	struct usb_hcd *hcd;
 	struct ohci_hcd *ohci;

@@ -196,8 +196,8 @@ static int example_probe(struct i2c_client *i2c_client,
 
 Update the detach method, by changing the name to _remove and
 to delete the i2c_detach_client call. It is possible that you
-can also remove the ret variable as it is not not needed for
-any of the core functions.
+can also remove the ret variable as it is not needed for any
+of the core functions.
 
 - static int example_detach(struct i2c_client *client)
 + static int example_remove(struct i2c_client *client)

@@ -2,7 +2,15 @@
 
 Required SoC Specific Properties:
 
-- compatible : "samsung,i2s-v5"
+- compatible : should be one of the following.
+   - samsung,s3c6410-i2s: for 8/16/24bit stereo I2S.
+   - samsung,s5pv210-i2s: for 8/16/24bit multichannel(5.1) I2S with
+     secondary fifo, s/w reset control and internal mux for root clk src.
+   - samsung,exynos5420-i2s: for 8/16/24bit multichannel(7.1) I2S with
+     secondary fifo, s/w reset control, internal mux for root clk src and
+     TDM support. TDM (Time division multiplexing) is to allow transfer of
+     multiple channel audio data on single data line.
+
 - reg: physical base address of the controller and length of memory mapped
   region.
 - dmas: list of DMA controller phandle and DMA request line ordered pairs.
@@ -21,13 +29,6 @@ Required SoC Specific Properties:
 
 Optional SoC Specific Properties:
 
-- samsung,supports-6ch: If the I2S Primary sound source has 5.1 Channel
-  support, this flag is enabled.
-- samsung,supports-rstclr: This flag should be set if I2S software reset bit
-  control is required. When this flag is set I2S software reset bit will be
-  enabled or disabled based on need.
-- samsung,supports-secdai:If I2S block has a secondary FIFO and internal DMA,
-  then this flag is enabled.
 - samsung,idma-addr: Internal DMA register base address of the audio
   sub system(used in secondary sound source).
 - pinctrl-0: Should specify pin control groups used for this controller.
@@ -36,7 +37,7 @@ Optional SoC Specific Properties:
 Example:
 
 i2s0: i2s@03830000 {
-	compatible = "samsung,i2s-v5";
+	compatible = "samsung,s5pv210-i2s";
 	reg = <0x03830000 0x100>;
 	dmas = <&pdma0 10
 		&pdma0 9
@@ -46,9 +47,6 @@ i2s0: i2s@03830000 {
 		<&clock_audss EXYNOS_I2S_BUS>,
 		<&clock_audss EXYNOS_SCLK_I2S>;
 	clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
-	samsung,supports-6ch;
-	samsung,supports-rstclr;
-	samsung,supports-secdai;
 	samsung,idma-addr = <0x03000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s0_bus>;

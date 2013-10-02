@@ -36,7 +36,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/clk-provider.h>
+#include <linux/clk.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 #include "core.h"
@@ -167,18 +167,14 @@ static const inline struct rockchip_pin_group *pinctrl_name_to_group(
 					const struct rockchip_pinctrl *info,
 					const char *name)
 {
-	const struct rockchip_pin_group *grp = NULL;
 	int i;
 
 	for (i = 0; i < info->ngroups; i++) {
-		if (strcmp(info->groups[i].name, name))
-			continue;
-
-		grp = &info->groups[i];
-		break;
+		if (!strcmp(info->groups[i].name, name))
+			return &info->groups[i];
 	}
 
-	return grp;
+	return NULL;
 }
 
 /*
@@ -190,8 +186,7 @@ static struct rockchip_pin_bank *pin_to_bank(struct rockchip_pinctrl *info,
 {
 	struct rockchip_pin_bank *b = info->ctrl->pin_banks;
 
-	while ((pin >= b->pin_base) &&
-			((b->pin_base + b->nr_pins - 1) < pin))
+	while (pin >= (b->pin_base + b->nr_pins))
 		b++;
 
 	return b;
@@ -204,17 +199,12 @@ static struct rockchip_pin_bank *bank_num_to_bank(
 	struct rockchip_pin_bank *b = info->ctrl->pin_banks;
 	int i;
 
-	for (i = 0; i < info->ctrl->nr_banks; i++) {
+	for (i = 0; i < info->ctrl->nr_banks; i++, b++) {
 		if (b->bank_num == num)
-			break;
-
-		b++;
+			return b;
 	}
 
-	if (b->bank_num != num)
-		return ERR_PTR(-EINVAL);
-
-	return b;
+	return ERR_PTR(-EINVAL);
 }
 
 /*
@@ -584,32 +574,45 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 
 /* set the pin config settings for a specified pin */
 static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
-							unsigned long config)
+				unsigned long *configs, unsigned num_configs)
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct rockchip_pin_bank *bank = pin_to_bank(info, pin);
-	enum pin_config_param param = pinconf_to_config_param(config);
-	u16 arg = pinconf_to_config_argument(config);
+	enum pin_config_param param;
+	u16 arg;
+	int i;
+	int rc;
 
-	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-		return rockchip_set_pull(bank, pin - bank->pin_base, param);
-		break;
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-	case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
-		if (!rockchip_pinconf_pull_valid(info->ctrl, param))
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
+
+		switch (param) {
+		case PIN_CONFIG_BIAS_DISABLE:
+			rc =  rockchip_set_pull(bank, pin - bank->pin_base,
+				param);
+			if (rc)
+				return rc;
+			break;
+		case PIN_CONFIG_BIAS_PULL_UP:
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+		case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
+			if (!rockchip_pinconf_pull_valid(info->ctrl, param))
+				return -ENOTSUPP;
+
+			if (!arg)
+				return -EINVAL;
+
+			rc = rockchip_set_pull(bank, pin - bank->pin_base,
+				param);
+			if (rc)
+				return rc;
+			break;
+		default:
 			return -ENOTSUPP;
-
-		if (!arg)
-			return -EINVAL;
-
-		return rockchip_set_pull(bank, pin - bank->pin_base, param);
-		break;
-	default:
-		return -ENOTSUPP;
-		break;
-	}
+			break;
+		}
+	} /* for each config */
 
 	return 0;
 }
@@ -881,6 +884,16 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
  * GPIO handling
  */
 
+static int rockchip_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(chip->base + offset);
+}
+
+static void rockchip_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(chip->base + offset);
+}
+
 static void rockchip_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 {
 	struct rockchip_pin_bank *bank = gc_to_pin_bank(gc);
@@ -954,6 +967,8 @@ static int rockchip_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 }
 
 static const struct gpio_chip rockchip_gpiolib_chip = {
+	.request = rockchip_gpio_request,
+	.free = rockchip_gpio_free,
 	.set = rockchip_gpio_set,
 	.get = rockchip_gpio_get,
 	.direction_input = rockchip_gpio_direction_input,
@@ -1270,11 +1285,6 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	info->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "cannot find IO resource\n");
-		return -ENOENT;
-	}
-
 	info->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(info->reg_base))
 		return PTR_ERR(info->reg_base);
@@ -1379,7 +1389,7 @@ static struct platform_driver rockchip_pinctrl_driver = {
 	.driver = {
 		.name	= "rockchip-pinctrl",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(rockchip_pinctrl_dt_match),
+		.of_match_table = rockchip_pinctrl_dt_match,
 	},
 };
 
