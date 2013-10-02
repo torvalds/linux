@@ -978,6 +978,8 @@ struct hci_rp_le_read_local_features {
 	__u8     features[8];
 } __packed;
 
+#define HCI_OP_LE_SET_RANDOM_ADDR	0x2005
+
 #define HCI_OP_LE_READ_ADV_TX_POWER	0x2007
 struct hci_rp_le_read_adv_tx_power {
 	__u8	status;

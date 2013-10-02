@@ -356,6 +356,12 @@ struct mgmt_cp_set_device_id {
 
 #define MGMT_OP_SET_BREDR		0x002A
 
+#define MGMT_OP_SET_STATIC_ADDRESS	0x002B
+struct mgmt_cp_set_static_address {
+	bdaddr_t bdaddr;
+} __packed;
+#define MGMT_SET_STATIC_ADDRESS_SIZE	6
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;

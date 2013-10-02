@@ -76,6 +76,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_DEVICE_ID,
 	MGMT_OP_SET_ADVERTISING,
 	MGMT_OP_SET_BREDR,
+	MGMT_OP_SET_STATIC_ADDRESS,
 };
 
 static const u16 mgmt_events[] = {
@@ -3247,6 +3248,46 @@ unlock:
 	return err;
 }
 
+static int set_static_address(struct sock *sk, struct hci_dev *hdev,
+			      void *data, u16 len)
+{
+	struct mgmt_cp_set_static_address *cp = data;
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	if (!lmp_le_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_STATIC_ADDRESS,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
+	if (hdev_is_powered(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_STATIC_ADDRESS,
+				  MGMT_STATUS_REJECTED);
+
+	if (bacmp(&cp->bdaddr, BDADDR_ANY)) {
+		if (!bacmp(&cp->bdaddr, BDADDR_NONE))
+			return cmd_status(sk, hdev->id,
+					  MGMT_OP_SET_STATIC_ADDRESS,
+					  MGMT_STATUS_INVALID_PARAMS);
+
+		/* Two most significant bits shall be set */
+		if ((cp->bdaddr.b[5] & 0xc0) != 0xc0)
+			return cmd_status(sk, hdev->id,
+					  MGMT_OP_SET_STATIC_ADDRESS,
+					  MGMT_STATUS_INVALID_PARAMS);
+	}
+
+	hci_dev_lock(hdev);
+
+	bacpy(&hdev->static_addr, &cp->bdaddr);
+
+	err = cmd_complete(sk, hdev->id, MGMT_OP_SET_STATIC_ADDRESS, 0, NULL, 0);
+
+	hci_dev_unlock(hdev);
+
+	return err;
+}
+
 static void fast_connectable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct pending_cmd *cmd;
@@ -3576,6 +3617,7 @@ static const struct mgmt_handler {
 	{ set_device_id,          false, MGMT_SET_DEVICE_ID_SIZE },
 	{ set_advertising,        false, MGMT_SETTING_SIZE },
 	{ set_bredr,              false, MGMT_SETTING_SIZE },
+	{ set_static_address,     false, MGMT_SET_STATIC_ADDRESS_SIZE },
 };
 
 
@@ -3760,6 +3802,13 @@ static int powered_update_hci(struct hci_dev *hdev)
 
 		/* In case BR/EDR was toggled during the AUTO_OFF phase */
 		hci_update_ad(&req);
+	}
+
+	if (lmp_le_capable(hdev)) {
+		/* Set random address to static address if configured */
+		if (bacmp(&hdev->static_addr, BDADDR_ANY))
+			hci_req_add(&req, HCI_OP_LE_SET_RANDOM_ADDR, 6,
+				    &hdev->static_addr);
 	}
 
 	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags)) {
