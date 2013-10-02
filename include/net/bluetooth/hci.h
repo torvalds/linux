@@ -35,6 +35,8 @@
 
 #define HCI_MAX_AMP_ASSOC_SIZE	672
 
+#define HCI_MAX_CSB_DATA_SIZE	252
+
 /* HCI dev events */
 #define HCI_DEV_REG			1
 #define HCI_DEV_UNREG			2
@@ -853,6 +855,18 @@ struct hci_cp_delete_reserved_lt_addr {
 	__u8	lt_addr;
 } __packed;
 struct hci_rp_delete_reserved_lt_addr {
+	__u8	status;
+	__u8	lt_addr;
+} __packed;
+
+#define HCI_OP_SET_CSB_DATA		0x0c76
+struct hci_cp_set_csb_data {
+	__u8	lt_addr;
+	__u8	fragment;
+	__u8	data_length;
+	__u8	data[HCI_MAX_CSB_DATA_SIZE];
+} __packed;
+struct hci_rp_set_csb_data {
 	__u8	status;
 	__u8	lt_addr;
 } __packed;
