@@ -1421,6 +1421,19 @@ static u8 ath10k_tx_h_get_tid(struct ieee80211_hdr *hdr)
 	return ieee80211_get_qos_ctl(hdr)[0] & IEEE80211_QOS_CTL_TID_MASK;
 }
 
+static u8 ath10k_tx_h_get_vdev_id(struct ath10k *ar,
+				  struct ieee80211_tx_info *info)
+{
+	if (info->control.vif)
+		return ath10k_vif_to_arvif(info->control.vif)->vdev_id;
+
+	if (ar->monitor_enabled)
+		return ar->monitor_vdev_id;
+
+	ath10k_warn("could not resolve vdev id\n");
+	return 0;
+}
+
 /*
  * Frames sent to the FW have to be in "Native Wifi" format.
  * Strip the QoS field from the 802.11 header.
@@ -1785,16 +1798,7 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath10k *ar = hw->priv;
-	struct ath10k_vif *arvif = NULL;
-	u32 vdev_id = 0;
-	u8 tid;
-
-	if (info->control.vif) {
-		arvif = ath10k_vif_to_arvif(info->control.vif);
-		vdev_id = arvif->vdev_id;
-	} else if (ar->monitor_enabled) {
-		vdev_id = ar->monitor_vdev_id;
-	}
+	u8 tid, vdev_id;
 
 	/* We should disable CCK RATE due to P2P */
 	if (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
@@ -1803,6 +1807,7 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	/* we must calculate tid before we apply qos workaround
 	 * as we'd lose the qos control field */
 	tid = ath10k_tx_h_get_tid(hdr);
+	vdev_id = ath10k_tx_h_get_vdev_id(ar, info);
 
 	/* it makes no sense to process injected frames like that */
 	if (info->control.vif &&
