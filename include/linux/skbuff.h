@@ -2708,17 +2708,14 @@ static inline bool skb_rx_queue_recorded(const struct sk_buff *skb)
 u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 		  unsigned int num_tx_queues);
 
+static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
+{
 #ifdef CONFIG_XFRM
-static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
-{
 	return skb->sp;
-}
 #else
-static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
-{
 	return NULL;
-}
 #endif
+}
 
 /* Keeps track of mac header offset relative to skb->head.
  * It is useful for TSO of Tunneling protocol. e.g. GRE.
