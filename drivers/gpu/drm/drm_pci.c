@@ -326,7 +326,7 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	DRM_DEBUG("\n");
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = drm_dev_alloc(driver, &pdev->dev);
 	if (!dev)
 		return -ENOMEM;
 
@@ -335,8 +335,6 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 		goto err_g1;
 
 	dev->pdev = pdev;
-	dev->dev = &pdev->dev;
-
 	dev->pci_device = pdev->device;
 	dev->pci_vendor = pdev->vendor;
 

@@ -261,60 +261,15 @@ int drm_fill_in_dev(struct drm_device *dev,
 {
 	int retcode;
 
-	INIT_LIST_HEAD(&dev->filelist);
-	INIT_LIST_HEAD(&dev->ctxlist);
-	INIT_LIST_HEAD(&dev->vmalist);
-	INIT_LIST_HEAD(&dev->maplist);
-	INIT_LIST_HEAD(&dev->vblank_event_list);
-
-	spin_lock_init(&dev->count_lock);
-	spin_lock_init(&dev->event_lock);
-	mutex_init(&dev->struct_mutex);
-	mutex_init(&dev->ctxlist_mutex);
-
-	if (drm_ht_create(&dev->map_hash, 12)) {
-		return -ENOMEM;
-	}
-
-	/* the DRM has 6 basic counters */
-	dev->counters = 6;
-	dev->types[0] = _DRM_STAT_LOCK;
-	dev->types[1] = _DRM_STAT_OPENS;
-	dev->types[2] = _DRM_STAT_CLOSES;
-	dev->types[3] = _DRM_STAT_IOCTLS;
-	dev->types[4] = _DRM_STAT_LOCKS;
-	dev->types[5] = _DRM_STAT_UNLOCKS;
-
-	dev->driver = driver;
-
 	if (dev->driver->bus->agp_init) {
 		retcode = dev->driver->bus->agp_init(dev);
-		if (retcode)
-			goto error_out_unreg;
-	}
-
-
-
-	retcode = drm_ctxbitmap_init(dev);
-	if (retcode) {
-		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
-		goto error_out_unreg;
-	}
-
-	if (driver->driver_features & DRIVER_GEM) {
-		retcode = drm_gem_init(dev);
 		if (retcode) {
-			DRM_ERROR("Cannot initialize graphics execution "
-				  "manager (GEM)\n");
-			goto error_out_unreg;
+			drm_lastclose(dev);
+			return retcode;
 		}
 	}
 
 	return 0;
-
-      error_out_unreg:
-	drm_lastclose(dev);
-	return retcode;
 }
 EXPORT_SYMBOL(drm_fill_in_dev);
 
@@ -506,3 +461,75 @@ void drm_unplug_dev(struct drm_device *dev)
 	mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_unplug_dev);
+
+/**
+ * drm_dev_alloc - Allocate new drm device
+ * @driver: DRM driver to allocate device for
+ * @parent: Parent device object
+ *
+ * Allocate and initialize a new DRM device. No device registration is done.
+ *
+ * RETURNS:
+ * Pointer to new DRM device, or NULL if out of memory.
+ */
+struct drm_device *drm_dev_alloc(struct drm_driver *driver,
+				 struct device *parent)
+{
+	struct drm_device *dev;
+	int ret;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	dev->dev = parent;
+	dev->driver = driver;
+
+	INIT_LIST_HEAD(&dev->filelist);
+	INIT_LIST_HEAD(&dev->ctxlist);
+	INIT_LIST_HEAD(&dev->vmalist);
+	INIT_LIST_HEAD(&dev->maplist);
+	INIT_LIST_HEAD(&dev->vblank_event_list);
+
+	spin_lock_init(&dev->count_lock);
+	spin_lock_init(&dev->event_lock);
+	mutex_init(&dev->struct_mutex);
+	mutex_init(&dev->ctxlist_mutex);
+
+	/* the DRM has 6 basic counters */
+	dev->counters = 6;
+	dev->types[0] = _DRM_STAT_LOCK;
+	dev->types[1] = _DRM_STAT_OPENS;
+	dev->types[2] = _DRM_STAT_CLOSES;
+	dev->types[3] = _DRM_STAT_IOCTLS;
+	dev->types[4] = _DRM_STAT_LOCKS;
+	dev->types[5] = _DRM_STAT_UNLOCKS;
+
+	if (drm_ht_create(&dev->map_hash, 12))
+		goto err_free;
+
+	ret = drm_ctxbitmap_init(dev);
+	if (ret) {
+		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
+		goto err_ht;
+	}
+
+	if (driver->driver_features & DRIVER_GEM) {
+		ret = drm_gem_init(dev);
+		if (ret) {
+			DRM_ERROR("Cannot initialize graphics execution manager (GEM)\n");
+			goto err_ctxbitmap;
+		}
+	}
+
+	return dev;
+
+err_ctxbitmap:
+	drm_ctxbitmap_cleanup(dev);
+err_ht:
+	drm_ht_remove(&dev->map_hash);
+err_free:
+	kfree(dev);
+	return NULL;
+}
+EXPORT_SYMBOL(drm_dev_alloc);

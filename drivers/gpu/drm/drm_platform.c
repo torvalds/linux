@@ -47,12 +47,11 @@ int drm_get_platform_dev(struct platform_device *platdev,
 
 	DRM_DEBUG("\n");
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = drm_dev_alloc(driver, &platdev->dev);
 	if (!dev)
 		return -ENOMEM;
 
 	dev->platformdev = platdev;
-	dev->dev = &platdev->dev;
 
 	mutex_lock(&drm_global_mutex);
 
