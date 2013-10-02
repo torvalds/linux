@@ -50,9 +50,7 @@ static int davinci_verify_speed(struct cpufreq_policy *policy)
 	if (policy->cpu)
 		return -EINVAL;
 
-	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
-				     policy->cpuinfo.max_freq);
-
+	cpufreq_verify_within_cpu_limits(policy);
 	policy->min = clk_round_rate(armclk, policy->min * 1000) / 1000;
 	policy->max = clk_round_rate(armclk, policy->max * 1000) / 1000;
 	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
