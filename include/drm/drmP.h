@@ -667,8 +667,6 @@ struct drm_gem_object {
 	uint32_t pending_read_domains;
 	uint32_t pending_write_domain;
 
-	void *driver_private;
-
 	/**
 	 * dma_buf - dma buf associated with this GEM object
 	 *
@@ -922,7 +920,6 @@ struct drm_driver {
 	 *
 	 * Returns 0 on success.
 	 */
-	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
 	int (*gem_open_object) (struct drm_gem_object *, struct drm_file *);
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
@@ -1556,8 +1553,6 @@ int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
 void drm_gem_object_release(struct drm_gem_object *obj);
 void drm_gem_object_free(struct kref *kref);
-struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
-					    size_t size);
 int drm_gem_object_init(struct drm_device *dev,
 			struct drm_gem_object *obj, size_t size);
 void drm_gem_private_object_init(struct drm_device *dev,

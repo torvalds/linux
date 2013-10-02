@@ -938,7 +938,6 @@ static struct drm_driver driver = {
 	.debugfs_init = i915_debugfs_init,
 	.debugfs_cleanup = i915_debugfs_cleanup,
 #endif
-	.gem_init_object = i915_gem_init_object,
 	.gem_free_object = i915_gem_free_object,
 	.gem_vm_ops = &i915_gem_vm_ops,
 

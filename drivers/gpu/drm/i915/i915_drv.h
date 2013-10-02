@@ -1848,7 +1848,6 @@ int i915_gem_wait_ioctl(struct drm_device *dev, void *data,
 void i915_gem_load(struct drm_device *dev);
 void *i915_gem_object_alloc(struct drm_device *dev);
 void i915_gem_object_free(struct drm_i915_gem_object *obj);
-int i915_gem_init_object(struct drm_gem_object *obj);
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			 const struct drm_i915_gem_object_ops *ops);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,

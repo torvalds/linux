@@ -4107,13 +4107,6 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 	return obj;
 }
 
-int i915_gem_init_object(struct drm_gem_object *obj)
-{
-	BUG();
-
-	return 0;
-}
-
 void i915_gem_free_object(struct drm_gem_object *gem_obj)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);

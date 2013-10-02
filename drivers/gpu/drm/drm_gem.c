@@ -160,35 +160,6 @@ void drm_gem_private_object_init(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_gem_private_object_init);
 
-/**
- * Allocate a GEM object of the specified size with shmfs backing store
- */
-struct drm_gem_object *
-drm_gem_object_alloc(struct drm_device *dev, size_t size)
-{
-	struct drm_gem_object *obj;
-
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
-	if (!obj)
-		goto free;
-
-	if (drm_gem_object_init(dev, obj, size) != 0)
-		goto free;
-
-	if (dev->driver->gem_init_object != NULL &&
-	    dev->driver->gem_init_object(obj) != 0) {
-		goto fput;
-	}
-	return obj;
-fput:
-	/* Object_init mangles the global counters - readjust them. */
-	fput(obj->filp);
-free:
-	kfree(obj);
-	return NULL;
-}
-EXPORT_SYMBOL(drm_gem_object_alloc);
-
 static void
 drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 {

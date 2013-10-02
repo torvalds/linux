@@ -620,7 +620,6 @@ static struct drm_driver omap_drm_driver = {
 		.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 		.gem_prime_export = omap_gem_prime_export,
 		.gem_prime_import = omap_gem_prime_import,
-		.gem_init_object = omap_gem_init_object,
 		.gem_free_object = omap_gem_free_object,
 		.gem_vm_ops = &omap_gem_vm_ops,
 		.dumb_create = omap_gem_dumb_create,

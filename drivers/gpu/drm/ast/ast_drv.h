@@ -323,7 +323,6 @@ extern int ast_dumb_create(struct drm_file *file,
 			   struct drm_device *dev,
 			   struct drm_mode_create_dumb *args);
 
-extern int ast_gem_init_object(struct drm_gem_object *obj);
 extern void ast_gem_free_object(struct drm_gem_object *obj);
 extern int ast_dumb_mmap_offset(struct drm_file *file,
 				struct drm_device *dev,

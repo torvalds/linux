@@ -34,12 +34,6 @@
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
 
-int
-nouveau_gem_object_new(struct drm_gem_object *gem)
-{
-	return 0;
-}
-
 void
 nouveau_gem_object_del(struct drm_gem_object *gem)
 {

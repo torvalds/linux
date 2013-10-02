@@ -264,7 +264,6 @@ static struct drm_driver exynos_drm_driver = {
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
-	.gem_init_object	= exynos_drm_gem_init_object,
 	.gem_free_object	= exynos_drm_gem_free_object,
 	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
 	.dumb_create		= exynos_drm_gem_dumb_create,

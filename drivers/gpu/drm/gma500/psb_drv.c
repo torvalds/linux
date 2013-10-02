@@ -646,7 +646,6 @@ static struct drm_driver driver = {
 	.preclose = psb_driver_preclose,
 	.postclose = psb_driver_close,
 
-	.gem_init_object = psb_gem_init_object,
 	.gem_free_object = psb_gem_free_object,
 	.gem_vm_ops = &psb_gem_vm_ops,
 	.dumb_create = psb_gem_dumb_create,

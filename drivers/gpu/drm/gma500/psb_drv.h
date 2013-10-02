@@ -837,7 +837,6 @@ extern const struct drm_connector_helper_funcs
 extern const struct drm_connector_funcs psb_intel_lvds_connector_funcs;
 
 /* gem.c */
-extern int psb_gem_init_object(struct drm_gem_object *obj);
 extern void psb_gem_free_object(struct drm_gem_object *obj);
 extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);
