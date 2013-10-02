@@ -628,6 +628,22 @@ struct hci_rp_logical_link_cancel {
 	__u8     flow_spec_id;
 } __packed;
 
+#define HCI_OP_SET_CSB			0x0441
+struct hci_cp_set_csb {
+	__u8	enable;
+	__u8	lt_addr;
+	__u8	lpo_allowed;
+	__le16	packet_type;
+	__le16	interval_min;
+	__le16	interval_max;
+	__le16	csb_sv_tout;
+} __packed;
+struct hci_rp_set_csb {
+	__u8	status;
+	__u8	lt_addr;
+	__le16	interval;
+} __packed;
+
 #define HCI_OP_SNIFF_MODE		0x0803
 struct hci_cp_sniff_mode {
 	__le16   handle;
