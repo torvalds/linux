@@ -873,6 +873,18 @@ struct hci_rp_set_csb_data {
 
 #define HCI_OP_READ_SYNC_TRAIN_PARAMS	0x0c77
 
+#define HCI_OP_WRITE_SYNC_TRAIN_PARAMS	0x0c78
+struct hci_cp_write_sync_train_params {
+	__le16	interval_min;
+	__le16	interval_max;
+	__le32	sync_train_tout;
+	__u8	service_data;
+} __packed;
+struct hci_rp_write_sync_train_params {
+	__u8	status;
+	__le16	sync_train_int;
+} __packed;
+
 #define HCI_OP_READ_LOCAL_VERSION	0x1001
 struct hci_rp_read_local_version {
 	__u8     status;
