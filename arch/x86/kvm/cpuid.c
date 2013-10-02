@@ -23,6 +23,26 @@
 #include "mmu.h"
 #include "trace.h"
 
+static u32 xstate_required_size(u64 xstate_bv)
+{
+	int feature_bit = 0;
+	u32 ret = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
+
+	xstate_bv &= ~XSTATE_FPSSE;
+	while (xstate_bv) {
+		if (xstate_bv & 0x1) {
+		        u32 eax, ebx, ecx, edx;
+		        cpuid_count(0xD, feature_bit, &eax, &ebx, &ecx, &edx);
+			ret = max(ret, eax + ebx);
+		}
+
+		xstate_bv >>= 1;
+		feature_bit++;
+	}
+
+	return ret;
+}
+
 void kvm_update_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;
@@ -47,12 +67,16 @@ void kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	}
 
 	best = kvm_find_cpuid_entry(vcpu, 0xD, 0);
-	if (!best)
+	if (!best) {
 		vcpu->arch.guest_supported_xcr0 = 0;
-	else
+		vcpu->arch.guest_xstate_size = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
+	} else {
 		vcpu->arch.guest_supported_xcr0 =
 			(best->eax | ((u64)best->edx << 32)) &
 			host_xcr0 & KVM_SUPPORTED_XCR0;
+		vcpu->arch.guest_xstate_size =
+			xstate_required_size(vcpu->arch.guest_supported_xcr0);
+	}
 
 	kvm_pmu_cpuid_update(vcpu);
 }
