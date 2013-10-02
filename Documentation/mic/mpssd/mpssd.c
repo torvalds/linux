@@ -362,9 +362,9 @@ static inline void verify_out_len(struct mic_info *mic,
 	struct mic_copy_desc *copy)
 {
 	if (copy->out_len != sum_iovec_len(copy)) {
-		mpsslog("%s %s %d BUG copy->out_len 0x%x len 0x%x\n",
+		mpsslog("%s %s %d BUG copy->out_len 0x%x len 0x%zx\n",
 			mic->name, __func__, __LINE__,
-				copy->out_len, sum_iovec_len(copy));
+			copy->out_len, sum_iovec_len(copy));
 		assert(copy->out_len == sum_iovec_len(copy));
 	}
 }
@@ -377,7 +377,7 @@ disp_iovec(struct mic_info *mic, struct mic_copy_desc *copy,
 	int i;
 
 	for (i = 0; i < copy->iovcnt; i++)
-		mpsslog("%s %s %d copy->iov[%d] addr %p len 0x%lx\n",
+		mpsslog("%s %s %d copy->iov[%d] addr %p len 0x%zx\n",
 			mic->name, s, line, i,
 			copy->iov[i].iov_base, copy->iov[i].iov_len);
 }
@@ -630,7 +630,7 @@ virtio_net(void *arg)
 				disp_iovec(mic, &copy, __func__, __LINE__);
 				mpsslog("%s %s %d read failed %s ", mic->name,
 					__func__, __LINE__, strerror(errno));
-				mpsslog("cnt %d sum %d\n",
+				mpsslog("cnt %d sum %zd\n",
 					copy.iovcnt, sum_iovec_len(&copy));
 			}
 		}
@@ -680,8 +680,8 @@ virtio_net(void *arg)
 					if (len != sum_iovec_len(&copy)) {
 						mpsslog("Tun write failed %s ",
 							strerror(errno));
-						mpsslog("len 0x%x ", len);
-						mpsslog("read_len 0x%x\n",
+						mpsslog("len 0x%zx ", len);
+						mpsslog("read_len 0x%zx\n",
 							sum_iovec_len(&copy));
 					} else {
 #ifdef DEBUG
@@ -827,7 +827,7 @@ virtio_console(void *arg)
 				mpsslog("%s %s %d read failed %s ",
 					mic->name, __func__, __LINE__,
 					strerror(errno));
-				mpsslog("cnt %d sum %d\n",
+				mpsslog("cnt %d sum %zd\n",
 					copy.iovcnt, sum_iovec_len(&copy));
 			}
 		}
@@ -859,8 +859,8 @@ virtio_console(void *arg)
 					if (len != sum_iovec_len(&copy)) {
 						mpsslog("Tun write failed %s ",
 							strerror(errno));
-						mpsslog("len 0x%x ", len);
-						mpsslog("read_len 0x%x\n",
+						mpsslog("len 0x%zx ", len);
+						mpsslog("read_len 0x%zx\n",
 							sum_iovec_len(&copy));
 					} else {
 #ifdef DEBUG
@@ -953,7 +953,7 @@ set_backend_file(struct mic_info *mic)
 		return false;
 	mic->mic_virtblk.backend_file = malloc(strlen(evv) + 1);
 	if (mic->mic_virtblk.backend_file == NULL) {
-		mpsslog("can't allocate memory\n", mic->name, mic->id);
+		mpsslog("%s %d can't allocate memory\n", mic->name, mic->id);
 		return false;
 	}
 	strcpy(mic->mic_virtblk.backend_file, evv + 1);
@@ -1026,7 +1026,7 @@ close_backend(struct mic_info *mic)
 static bool
 start_virtblk(struct mic_info *mic, struct mic_vring *vring)
 {
-	if (((__u64)&virtblk_dev_page.blk_config % 8) != 0) {
+	if (((unsigned long)&virtblk_dev_page.blk_config % 8) != 0) {
 		mpsslog("%s: blk_config is not 8 byte aligned.\n",
 			mic->name);
 		return false;

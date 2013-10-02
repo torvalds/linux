@@ -94,6 +94,7 @@ struct mic_info {
 	struct mic_info *next;
 };
 
+__attribute__((format(printf, 1, 2)))
 void mpsslog(char *format, ...);
 char *readsysfs(char *dir, char *entry);
 int setsysfs(char *dir, char *entry, char *value);
