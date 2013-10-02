@@ -2134,6 +2134,35 @@ out:
 }
 
 /**
+ * gfs2_set_alloc_start - Set starting point for block allocation
+ * @rbm: The rbm which will be set to the required location
+ * @ip: The gfs2 inode
+ * @dinode: Flag to say if allocation includes a new inode
+ *
+ * This sets the starting point from the reservation if one is active
+ * otherwise it falls back to guessing a start point based on the
+ * inode's goal block or the last allocation point in the rgrp.
+ */
+
+static void gfs2_set_alloc_start(struct gfs2_rbm *rbm,
+				 const struct gfs2_inode *ip, bool dinode)
+{
+	u64 goal;
+
+	if (gfs2_rs_active(ip->i_res)) {
+		*rbm = ip->i_res->rs_rbm;
+		return;
+	}
+
+	if (!dinode && rgrp_contains_block(rbm->rgd, ip->i_goal))
+		goal = ip->i_goal;
+	else
+		goal = rbm->rgd->rd_last_alloc + rbm->rgd->rd_data0;
+
+	gfs2_rbm_from_block(rbm, goal);
+}
+
+/**
  * gfs2_alloc_blocks - Allocate one or more blocks of data and/or a dinode
  * @ip: the inode to allocate the block for
  * @bn: Used to return the starting block number
@@ -2151,22 +2180,14 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	struct buffer_head *dibh;
 	struct gfs2_rbm rbm = { .rgd = ip->i_rgd, };
 	unsigned int ndata;
-	u64 goal;
 	u64 block; /* block, within the file system scope */
 	int error;
 
-	if (gfs2_rs_active(ip->i_res))
-		goal = gfs2_rbm_to_block(&ip->i_res->rs_rbm);
-	else if (!dinode && rgrp_contains_block(rbm.rgd, ip->i_goal))
-		goal = ip->i_goal;
-	else
-		goal = rbm.rgd->rd_last_alloc + rbm.rgd->rd_data0;
-
-	gfs2_rbm_from_block(&rbm, goal);
+	gfs2_set_alloc_start(&rbm, ip, dinode);
 	error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, 0, ip, false);
 
 	if (error == -ENOSPC) {
-		gfs2_rbm_from_block(&rbm, goal);
+		gfs2_set_alloc_start(&rbm, ip, dinode);
 		error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, 0, NULL, false);
 	}
 
