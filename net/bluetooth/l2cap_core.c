@@ -5330,7 +5330,7 @@ static inline void l2cap_le_sig_channel(struct l2cap_conn *conn,
 	l2cap_raw_recv(conn, skb);
 
 	if (hcon->type != LE_LINK)
-		return;
+		goto drop;
 
 	while (len >= L2CAP_CMD_HDR_SIZE) {
 		u16 cmd_len;
@@ -5363,6 +5363,7 @@ static inline void l2cap_le_sig_channel(struct l2cap_conn *conn,
 		len  -= cmd_len;
 	}
 
+drop:
 	kfree_skb(skb);
 }
 
@@ -5378,7 +5379,7 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 	l2cap_raw_recv(conn, skb);
 
 	if (hcon->type != ACL_LINK)
-		return;
+		goto drop;
 
 	while (len >= L2CAP_CMD_HDR_SIZE) {
 		u16 cmd_len;
@@ -5411,6 +5412,7 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 		len  -= cmd_len;
 	}
 
+drop:
 	kfree_skb(skb);
 }
 
