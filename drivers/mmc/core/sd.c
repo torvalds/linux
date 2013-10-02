@@ -1116,30 +1116,6 @@ static void mmc_sd_detect(struct mmc_host *host)
 	}
 }
 
-static int _mmc_sd_suspend(struct mmc_host *host)
-{
-	int err = 0;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
-
-	mmc_claim_host(host);
-
-	if (mmc_card_suspended(host->card))
-		goto out;
-
-	if (!mmc_host_is_spi(host))
-		err = mmc_deselect_cards(host);
-	host->card->state &= ~MMC_STATE_HIGHSPEED;
-	if (!err) {
-		mmc_power_off(host);
-		mmc_card_set_suspended(host->card);
-	}
-
-out:
-	mmc_release_host(host);
-	return err;
-}
 
 /*
  * Callback for suspend
@@ -1148,13 +1124,25 @@ static int mmc_sd_suspend(struct mmc_host *host)
 {
 	int err;
 
-	err = _mmc_sd_suspend(host);
-	if (!err) {
-		pm_runtime_disable(&host->card->dev);
-		pm_runtime_set_suspended(&host->card->dev);
-	}
+	BUG_ON(!host);
+	BUG_ON(!host->card);
 
-	return err;
+	mmc_claim_host(host);
+
+	if (mmc_card_suspended(host->card))
+	    goto out;
+    if (!mmc_host_is_spi(host))
+        err = mmc_deselect_cards(host);
+
+    host->card->state &= ~MMC_STATE_HIGHSPEED;
+    if (!err) {
+        mmc_power_off(host);
+        mmc_card_set_suspended(host->card);
+    }
+out:
+    mmc_release_host(host);
+    return err;
+
 }
 
 /*
@@ -1196,6 +1184,8 @@ static int mmc_sd_resume(struct mmc_host *host)
 	}
 	pm_runtime_enable(&host->card->dev);
 
+out:
+	mmc_release_host(host);
 	return err;
 }
 
@@ -1209,7 +1199,7 @@ static int mmc_sd_runtime_suspend(struct mmc_host *host)
 	if (!(host->caps & MMC_CAP_AGGRESSIVE_PM))
 		return 0;
 
-	err = _mmc_sd_suspend(host);
+	err = mmc_sd_suspend(host);
 	if (err)
 		pr_err("%s: error %d doing aggessive suspend\n",
 			mmc_hostname(host), err);

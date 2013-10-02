@@ -1511,18 +1511,12 @@ out:
  */
 static int mmc_suspend(struct mmc_host *host)
 {
-	int err;
-
-	err = _mmc_suspend(host, true);
-	if (!err) {
-		pm_runtime_disable(&host->card->dev);
-		pm_runtime_set_suspended(&host->card->dev);
-	}
-
-	return err;
+	return  _mmc_suspend(host, true);
 }
 
 /*
+ * Resume callback from host.
+ *
  * This function tries to determine if the same card is still present
  * and, if so, restore all state to it.
  */
@@ -1547,26 +1541,6 @@ out:
 	return err;
 }
 
-/*
- * Shutdown callback
- */
-static int mmc_shutdown(struct mmc_host *host)
-{
-	int err = 0;
-
-	/*
-	 * In a specific case for poweroff notify, we need to resume the card
-	 * before we can shutdown it properly.
-	 */
-	if (mmc_can_poweroff_notify(host->card) &&
-		!(host->caps2 & MMC_CAP2_FULL_PWR_CYCLE))
-		err = _mmc_resume(host);
-
-	if (!err)
-		err = _mmc_suspend(host, false);
-
-	return err;
-}
 
 /*
  * Callback for resume.
@@ -1581,6 +1555,24 @@ static int mmc_resume(struct mmc_host *host)
 		pm_runtime_mark_last_busy(&host->card->dev);
 	}
 	pm_runtime_enable(&host->card->dev);
+}
+/*
+ * Shutdown callback
+ */
+static int mmc_shutdown(struct mmc_host *host)
+{
+	int err = 0;
+
+	/*
+	 * In a specific case for poweroff notify, we need to resume the card
+	 * before we can shutdown it properly.
+	 */
+	if (mmc_can_poweroff_notify(host->card) &&
+		!(host->caps2 & MMC_CAP2_FULL_PWR_CYCLE))
+		err = mmc_resume(host);
+
+	if (!err)
+		err = _mmc_suspend(host, false);
 
 	return err;
 }
