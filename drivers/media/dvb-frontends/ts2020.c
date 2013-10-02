@@ -344,6 +344,9 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 	priv->frequency_div = config->frequency_div;
 	fe->tuner_priv = priv;
 
+	if (!priv->frequency_div)
+		priv->frequency_div = 1060000;
+
 	/* Wake Up the tuner */
 	if ((0x03 & ts2020_readreg(fe, 0x00)) == 0x00) {
 		ts2020_writereg(fe, 0x00, 0x01);
