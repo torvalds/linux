@@ -687,7 +687,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			goto done;
 		}
 
-		if (!capable(CAP_NET_RAW)) {
+		if (!capable(CAP_NET_ADMIN)) {
 			err = -EPERM;
 			goto done;
 		}
