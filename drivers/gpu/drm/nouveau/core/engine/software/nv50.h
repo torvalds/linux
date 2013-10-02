@@ -19,13 +19,14 @@ int  nv50_software_ctor(struct nouveau_object *, struct nouveau_object *,
 
 struct nv50_software_cclass {
 	struct nouveau_oclass base;
-	int (*vblank)(struct nouveau_eventh *, int);
+	int (*vblank)(void *, int);
 };
 
 struct nv50_software_chan {
 	struct nouveau_software_chan base;
 	struct {
-		struct nouveau_eventh event;
+		struct nouveau_eventh **event;
+		int nr_event;
 		u32 channel;
 		u32 ctxdma;
 		u64 offset;
@@ -37,5 +38,10 @@ int  nv50_software_context_ctor(struct nouveau_object *,
 				struct nouveau_object *,
 				struct nouveau_oclass *, void *, u32,
 				struct nouveau_object **);
+void nv50_software_context_dtor(struct nouveau_object *);
+
+int nv50_software_mthd_vblsem_value(struct nouveau_object *, u32, void *, u32);
+int nv50_software_mthd_vblsem_release(struct nouveau_object *, u32, void *, u32);
+int nv50_software_mthd_flip(struct nouveau_object *, u32, void *, u32);
 
 #endif

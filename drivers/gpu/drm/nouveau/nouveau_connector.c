@@ -100,6 +100,7 @@ static void
 nouveau_connector_destroy(struct drm_connector *connector)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	nouveau_event_ref(NULL, &nv_connector->hpd_func);
 	kfree(nv_connector->edid);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
@@ -932,10 +933,9 @@ nouveau_connector_hotplug_work(struct work_struct *work)
 }
 
 static int
-nouveau_connector_hotplug(struct nouveau_eventh *event, int index)
+nouveau_connector_hotplug(void *data, int index)
 {
-	struct nouveau_connector *nv_connector =
-		container_of(event, struct nouveau_connector, hpd_func);
+	struct nouveau_connector *nv_connector = data;
 	schedule_work(&nv_connector->hpd_work);
 	return NVKM_EVENT_KEEP;
 }
@@ -1007,9 +1007,15 @@ nouveau_connector_create(struct drm_device *dev, int index)
 
 		ret = gpio->find(gpio, 0, hpd[ffs((entry & 0x07033000) >> 12)],
 				 DCB_GPIO_UNUSED, &nv_connector->hpd);
-		nv_connector->hpd_func.func = nouveau_connector_hotplug;
 		if (ret)
 			nv_connector->hpd.func = DCB_GPIO_UNUSED;
+
+		if (nv_connector->hpd.func != DCB_GPIO_UNUSED) {
+			nouveau_event_new(gpio->events, nv_connector->hpd.line,
+					  nouveau_connector_hotplug,
+					  nv_connector,
+					 &nv_connector->hpd_func);
+		}
 
 		nv_connector->type = nv_connector->dcb[0];
 		if (drm_conntype_from_dcb(nv_connector->type) ==

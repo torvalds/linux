@@ -78,37 +78,6 @@ module_param_named(runpm, nouveau_runtime_pm, int, 0400);
 
 static struct drm_driver driver;
 
-static int
-nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head)
-{
-	struct nouveau_drm *drm =
-		container_of(event, struct nouveau_drm, vblank[head]);
-	drm_handle_vblank(drm->dev, head);
-	return NVKM_EVENT_KEEP;
-}
-
-static int
-nouveau_drm_vblank_enable(struct drm_device *dev, int head)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-
-	if (WARN_ON_ONCE(head >= ARRAY_SIZE(drm->vblank)))
-		return -EIO;
-	drm->vblank[head].func = nouveau_drm_vblank_handler;
-	nouveau_event_get(pdisp->vblank, head, &drm->vblank[head]);
-	return 0;
-}
-
-static void
-nouveau_drm_vblank_disable(struct drm_device *dev, int head)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-
-	nouveau_event_put(pdisp->vblank, head, &drm->vblank[head]);
-}
-
 static u64
 nouveau_name(struct pci_dev *pdev)
 {
@@ -812,8 +781,8 @@ driver = {
 #endif
 
 	.get_vblank_counter = drm_vblank_count,
-	.enable_vblank = nouveau_drm_vblank_enable,
-	.disable_vblank = nouveau_drm_vblank_disable,
+	.enable_vblank = nouveau_display_vblank_enable,
+	.disable_vblank = nouveau_display_vblank_disable,
 
 	.ioctls = nouveau_ioctls,
 	.num_ioctls = ARRAY_SIZE(nouveau_ioctls),

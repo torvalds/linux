@@ -38,11 +38,84 @@
 
 #include "nouveau_fence.h"
 
-#include <subdev/bios/gpio.h>
-#include <subdev/gpio.h>
 #include <engine/disp.h>
 
 #include <core/class.h>
+
+static int
+nouveau_display_vblank_handler(void *data, int head)
+{
+	struct nouveau_drm *drm = data;
+	drm_handle_vblank(drm->dev, head);
+	return NVKM_EVENT_KEEP;
+}
+
+int
+nouveau_display_vblank_enable(struct drm_device *dev, int head)
+{
+	struct nouveau_display *disp = nouveau_display(dev);
+	if (disp) {
+		nouveau_event_get(disp->vblank[head]);
+		return 0;
+	}
+	return -EIO;
+}
+
+void
+nouveau_display_vblank_disable(struct drm_device *dev, int head)
+{
+	struct nouveau_display *disp = nouveau_display(dev);
+	if (disp)
+		nouveau_event_put(disp->vblank[head]);
+}
+
+static void
+nouveau_display_vblank_fini(struct drm_device *dev)
+{
+	struct nouveau_display *disp = nouveau_display(dev);
+	int i;
+
+	if (disp->vblank) {
+		for (i = 0; i < dev->mode_config.num_crtc; i++)
+			nouveau_event_ref(NULL, &disp->vblank[i]);
+		kfree(disp->vblank);
+		disp->vblank = NULL;
+	}
+
+	drm_vblank_cleanup(dev);
+}
+
+static int
+nouveau_display_vblank_init(struct drm_device *dev)
+{
+	struct nouveau_display *disp = nouveau_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
+	int ret, i;
+
+	disp->vblank = kzalloc(dev->mode_config.num_crtc *
+			       sizeof(*disp->vblank), GFP_KERNEL);
+	if (!disp->vblank)
+		return -ENOMEM;
+
+	for (i = 0; i < dev->mode_config.num_crtc; i++) {
+		ret = nouveau_event_new(pdisp->vblank, i,
+					nouveau_display_vblank_handler,
+					drm, &disp->vblank[i]);
+		if (ret) {
+			nouveau_display_vblank_fini(dev);
+			return ret;
+		}
+	}
+
+	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+	if (ret) {
+		nouveau_display_vblank_fini(dev);
+		return ret;
+	}
+
+	return 0;
+}
 
 static void
 nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
@@ -227,9 +300,7 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 int
 nouveau_display_init(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_display *disp = nouveau_display(dev);
-	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
 	struct drm_connector *connector;
 	int ret;
 
@@ -243,10 +314,7 @@ nouveau_display_init(struct drm_device *dev)
 	/* enable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		if (gpio && conn->hpd.func != DCB_GPIO_UNUSED) {
-			nouveau_event_get(gpio->events, conn->hpd.line,
-					 &conn->hpd_func);
-		}
+		if (conn->hpd_func) nouveau_event_get(conn->hpd_func);
 	}
 
 	return ret;
@@ -255,18 +323,13 @@ nouveau_display_init(struct drm_device *dev)
 void
 nouveau_display_fini(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_display *disp = nouveau_display(dev);
-	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
 	struct drm_connector *connector;
 
 	/* disable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		if (gpio && conn->hpd.func != DCB_GPIO_UNUSED) {
-			nouveau_event_put(gpio->events, conn->hpd.line,
-					 &conn->hpd_func);
-		}
+		if (conn->hpd_func) nouveau_event_put(conn->hpd_func);
 	}
 
 	drm_kms_helper_poll_disable(dev);
@@ -352,7 +415,7 @@ nouveau_display_create(struct drm_device *dev)
 		goto disp_create_err;
 
 	if (dev->mode_config.num_crtc) {
-		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+		ret = nouveau_display_vblank_init(dev);
 		if (ret)
 			goto vblank_err;
 	}
@@ -374,7 +437,7 @@ nouveau_display_destroy(struct drm_device *dev)
 	struct nouveau_display *disp = nouveau_display(dev);
 
 	nouveau_backlight_exit(dev);
-	drm_vblank_cleanup(dev);
+	nouveau_display_vblank_fini(dev);
 
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);

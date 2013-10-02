@@ -69,7 +69,7 @@ struct nouveau_connector {
 
 	struct dcb_gpio_func hpd;
 	struct work_struct hpd_work;
-	struct nouveau_eventh hpd_func;
+	struct nouveau_eventh *hpd_func;
 
 	int dithering_mode;
 	int dithering_depth;

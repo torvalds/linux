@@ -55,40 +55,6 @@ nvc0_software_mthd_vblsem_offset(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nvc0_software_mthd_vblsem_value(struct nouveau_object *object, u32 mthd,
-				void *args, u32 size)
-{
-	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
-	chan->vblank.value = *(u32 *)args;
-	return 0;
-}
-
-static int
-nvc0_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
-				  void *args, u32 size)
-{
-	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
-	struct nouveau_disp *disp = nouveau_disp(object);
-	u32 crtc = *(u32 *)args;
-
-	if ((nv_device(object)->card_type < NV_E0 && crtc > 1) || crtc > 3)
-		return -EINVAL;
-
-	nouveau_event_get(disp->vblank, crtc, &chan->vblank.event);
-	return 0;
-}
-
-static int
-nvc0_software_mthd_flip(struct nouveau_object *object, u32 mthd,
-			void *args, u32 size)
-{
-	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
-	if (chan->base.flip)
-		return chan->base.flip(chan->base.flip_data);
-	return -EINVAL;
-}
-
-static int
 nvc0_software_mthd_mp_control(struct nouveau_object *object, u32 mthd,
                               void *args, u32 size)
 {
@@ -118,9 +84,9 @@ static struct nouveau_omthds
 nvc0_software_omthds[] = {
 	{ 0x0400, 0x0400, nvc0_software_mthd_vblsem_offset },
 	{ 0x0404, 0x0404, nvc0_software_mthd_vblsem_offset },
-	{ 0x0408, 0x0408, nvc0_software_mthd_vblsem_value },
-	{ 0x040c, 0x040c, nvc0_software_mthd_vblsem_release },
-	{ 0x0500, 0x0500, nvc0_software_mthd_flip },
+	{ 0x0408, 0x0408, nv50_software_mthd_vblsem_value },
+	{ 0x040c, 0x040c, nv50_software_mthd_vblsem_release },
+	{ 0x0500, 0x0500, nv50_software_mthd_flip },
 	{ 0x0600, 0x0600, nvc0_software_mthd_mp_control },
 	{ 0x0644, 0x0644, nvc0_software_mthd_mp_control },
 	{ 0x06ac, 0x06ac, nvc0_software_mthd_mp_control },
@@ -138,10 +104,9 @@ nvc0_software_sclass[] = {
  ******************************************************************************/
 
 static int
-nvc0_software_vblsem_release(struct nouveau_eventh *event, int head)
+nvc0_software_vblsem_release(void *data, int head)
 {
-	struct nv50_software_chan *chan =
-		container_of(event, typeof(*chan), vblank.event);
+	struct nv50_software_chan *chan = data;
 	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 
