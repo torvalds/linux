@@ -1649,7 +1649,6 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 
 	spin_lock(&fc->lock);
 	list_del(&new_req->writepages_entry);
-	new_req->num_pages = 1;
 	list_for_each_entry(old_req, &fi->writepages, writepages_entry) {
 		BUG_ON(old_req->inode != new_req->inode);
 		curr_index = old_req->misc.write.in.offset >> PAGE_CACHE_SHIFT;
@@ -1659,9 +1658,12 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 			break;
 		}
 	}
-	if (!found)
+	if (!found) {
+		list_add(&new_req->writepages_entry, &fi->writepages);
 		goto out_unlock;
+	}
 
+	new_req->num_pages = 1;
 	for (tmp = old_req; tmp != NULL; tmp = tmp->misc.write.next) {
 		BUG_ON(tmp->inode != new_req->inode);
 		curr_index = tmp->misc.write.in.offset >> PAGE_CACHE_SHIFT;
