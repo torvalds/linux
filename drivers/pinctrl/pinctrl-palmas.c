@@ -891,9 +891,6 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 		param = pinconf_to_config_param(configs[i]);
 		param_val = pinconf_to_config_argument(configs[i]);
 
-		if (param == PIN_CONFIG_BIAS_PULL_PIN_DEFAULT)
-			continue;
-
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
 		case PIN_CONFIG_BIAS_PULL_UP:
