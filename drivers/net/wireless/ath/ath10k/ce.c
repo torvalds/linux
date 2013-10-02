@@ -338,40 +338,6 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 	return ret;
 }
 
-int ath10k_ce_sendlist_send(struct ath10k_ce_pipe *ce_state,
-			    void *per_transfer_context,
-			    unsigned int transfer_id,
-			    u32 paddr, unsigned int nbytes,
-			    u32 flags)
-{
-	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
-	struct ath10k *ar = ce_state->ar;
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	unsigned int nentries_mask = src_ring->nentries_mask;
-	unsigned int sw_index;
-	unsigned int write_index;
-	int delta, ret = -ENOMEM;
-
-	spin_lock_bh(&ar_pci->ce_lock);
-
-	sw_index = src_ring->sw_index;
-	write_index = src_ring->write_index;
-
-	delta = CE_RING_DELTA(nentries_mask, write_index, sw_index - 1);
-
-	if (delta >= 1) {
-		ret = ath10k_ce_send_nolock(ce_state, per_transfer_context,
-					    paddr, nbytes,
-					    transfer_id, flags);
-		if (ret)
-			ath10k_warn("CE send failed: %d\n", ret);
-	}
-
-	spin_unlock_bh(&ar_pci->ce_lock);
-
-	return ret;
-}
-
 int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
 			       void *per_recv_context,
 			       u32 buffer)

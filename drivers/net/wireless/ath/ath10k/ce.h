@@ -156,21 +156,6 @@ void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
 				void (*send_cb)(struct ath10k_ce_pipe *),
 				int disable_interrupts);
 
-/*
- * Queue a "sendlist" of buffers to be sent using gather to a single
- * anonymous destination buffer
- *   ce         - which copy engine to use
- *   sendlist        - list of simple buffers to send using gather
- *   transfer_id     - arbitrary ID; reflected to destination
- * Returns 0 on success; otherwise an error status.
- *
- * Implemenation note: Pushes multiple buffers with Gather to Source ring.
- */
-int ath10k_ce_sendlist_send(struct ath10k_ce_pipe *ce_state,
-			    void *per_transfer_context,
-			    unsigned int transfer_id,
-			    u32 paddr, unsigned int nbytes,
-			    u32 flags);
 
 /*==================Recv=======================*/
 

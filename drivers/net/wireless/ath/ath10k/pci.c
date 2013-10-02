@@ -730,8 +730,8 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 	pipe_info->num_sends_allowed--;
 	spin_unlock_bh(&pipe_info->pipe_lock);
 
-	ret = ath10k_ce_sendlist_send(ce_hdl, nbuf, transfer_id,
-				      skb_cb->paddr, len, flags);
+	ret = ath10k_ce_send(ce_hdl, nbuf, skb_cb->paddr, len, transfer_id,
+			     flags);
 	if (ret)
 		ath10k_warn("CE send failed: %p\n", nbuf);
 
