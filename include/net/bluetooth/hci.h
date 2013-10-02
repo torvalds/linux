@@ -1505,6 +1505,11 @@ struct hci_ev_num_comp_blocks {
 	struct hci_comp_blocks_info handles[0];
 } __packed;
 
+#define HCI_EV_SYNC_TRAIN_COMPLETE	0x4F
+struct hci_ev_sync_train_complete {
+	__u8	status;
+} __packed;
+
 /* Low energy meta events */
 #define LE_CONN_ROLE_MASTER	0x00
 
