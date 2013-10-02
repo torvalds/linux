@@ -1407,6 +1407,20 @@ static void ath10k_reg_notifier(struct wiphy *wiphy,
 /* TX handlers */
 /***************/
 
+static u8 ath10k_tx_h_get_tid(struct ieee80211_hdr *hdr)
+{
+	if (ieee80211_is_mgmt(hdr->frame_control))
+		return HTT_DATA_TX_EXT_TID_MGMT;
+
+	if (!ieee80211_is_data_qos(hdr->frame_control))
+		return HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
+
+	if (!is_unicast_ether_addr(ieee80211_get_DA(hdr)))
+		return HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
+
+	return ieee80211_get_qos_ctl(hdr)[0] & IEEE80211_QOS_CTL_TID_MASK;
+}
+
 /*
  * Frames sent to the FW have to be in "Native Wifi" format.
  * Strip the QoS field from the 802.11 header.
@@ -1788,14 +1802,7 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 
 	/* we must calculate tid before we apply qos workaround
 	 * as we'd lose the qos control field */
-	tid = HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
-	if (ieee80211_is_mgmt(hdr->frame_control)) {
-		tid = HTT_DATA_TX_EXT_TID_MGMT;
-	} else if (ieee80211_is_data_qos(hdr->frame_control) &&
-		   is_unicast_ether_addr(ieee80211_get_DA(hdr))) {
-		u8 *qc = ieee80211_get_qos_ctl(hdr);
-		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
-	}
+	tid = ath10k_tx_h_get_tid(hdr);
 
 	/* it makes no sense to process injected frames like that */
 	if (info->control.vif &&
