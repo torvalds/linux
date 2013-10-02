@@ -7,8 +7,6 @@
 
 /* Note, bytes 12 and 13 are board no in BCD (0162,0166,0167,0177,etc) */
 
-extern long mvme_bdid_ptr;
-
 typedef struct {
 	char	bdid[4];
 	u_char	rev, mth, day, yr;
