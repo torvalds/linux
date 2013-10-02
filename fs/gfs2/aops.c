@@ -611,12 +611,14 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		gfs2_write_calc_reserv(ip, len, &data_blocks, &ind_blocks);
 
 	if (alloc_required) {
+		struct gfs2_alloc_parms ap = { .aflags = 0, };
 		error = gfs2_quota_lock_check(ip);
 		if (error)
 			goto out_unlock;
 
 		requested = data_blocks + ind_blocks;
-		error = gfs2_inplace_reserve(ip, requested, 0);
+		ap.target = requested;
+		error = gfs2_inplace_reserve(ip, &ap);
 		if (error)
 			goto out_qunlock;
 	}
