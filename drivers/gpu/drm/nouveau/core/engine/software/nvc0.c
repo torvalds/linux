@@ -45,11 +45,11 @@ nvc0_software_mthd_vblsem_offset(struct nouveau_object *object, u32 mthd,
 	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
 	u64 data = *(u32 *)args;
 	if (mthd == 0x0400) {
-		chan->base.vblank.offset &= 0x00ffffffffULL;
-		chan->base.vblank.offset |= data << 32;
+		chan->vblank.offset &= 0x00ffffffffULL;
+		chan->vblank.offset |= data << 32;
 	} else {
-		chan->base.vblank.offset &= 0xff00000000ULL;
-		chan->base.vblank.offset |= data;
+		chan->vblank.offset &= 0xff00000000ULL;
+		chan->vblank.offset |= data;
 	}
 	return 0;
 }
@@ -59,7 +59,7 @@ nvc0_software_mthd_vblsem_value(struct nouveau_object *object, u32 mthd,
 				void *args, u32 size)
 {
 	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
-	chan->base.vblank.value = *(u32 *)args;
+	chan->vblank.value = *(u32 *)args;
 	return 0;
 }
 
@@ -74,7 +74,7 @@ nvc0_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
 	if ((nv_device(object)->card_type < NV_E0 && crtc > 1) || crtc > 3)
 		return -EINVAL;
 
-	nouveau_event_get(disp->vblank, crtc, &chan->base.vblank.event);
+	nouveau_event_get(disp->vblank, crtc, &chan->vblank.event);
 	return 0;
 }
 
@@ -140,8 +140,8 @@ nvc0_software_sclass[] = {
 static int
 nvc0_software_vblsem_release(struct nouveau_eventh *event, int head)
 {
-	struct nouveau_software_chan *chan =
-		container_of(event, struct nouveau_software_chan, vblank.event);
+	struct nv50_software_chan *chan =
+		container_of(event, typeof(*chan), vblank.event);
 	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 
@@ -168,8 +168,8 @@ nvc0_software_context_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	chan->base.vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
-	chan->base.vblank.event.func = nvc0_software_vblsem_release;
+	chan->vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
+	chan->vblank.event.func = nvc0_software_vblsem_release;
 	return 0;
 }
 

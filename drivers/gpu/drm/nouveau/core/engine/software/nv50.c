@@ -55,7 +55,7 @@ nv50_software_mthd_dma_vblsem(struct nouveau_object *object, u32 mthd,
 
 	if (nv_iclass(handle->object, NV_GPUOBJ_CLASS)) {
 		struct nouveau_gpuobj *gpuobj = nv_gpuobj(handle->object);
-		chan->base.vblank.ctxdma = gpuobj->node->offset >> 4;
+		chan->vblank.ctxdma = gpuobj->node->offset >> 4;
 		ret = 0;
 	}
 	nouveau_namedb_put(handle);
@@ -67,7 +67,7 @@ nv50_software_mthd_vblsem_offset(struct nouveau_object *object, u32 mthd,
 				 void *args, u32 size)
 {
 	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
-	chan->base.vblank.offset = *(u32 *)args;
+	chan->vblank.offset = *(u32 *)args;
 	return 0;
 }
 
@@ -76,7 +76,7 @@ nv50_software_mthd_vblsem_value(struct nouveau_object *object, u32 mthd,
 				void *args, u32 size)
 {
 	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
-	chan->base.vblank.value = *(u32 *)args;
+	chan->vblank.value = *(u32 *)args;
 	return 0;
 }
 
@@ -90,7 +90,7 @@ nv50_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
 	if (crtc > 1)
 		return -EINVAL;
 
-	nouveau_event_get(disp->vblank, crtc, &chan->base.vblank.event);
+	nouveau_event_get(disp->vblank, crtc, &chan->vblank.event);
 	return 0;
 }
 
@@ -127,8 +127,8 @@ nv50_software_sclass[] = {
 static int
 nv50_software_vblsem_release(struct nouveau_eventh *event, int head)
 {
-	struct nouveau_software_chan *chan =
-		container_of(event, struct nouveau_software_chan, vblank.event);
+	struct nv50_software_chan *chan =
+		container_of(event, typeof(*chan), vblank.event);
 	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 
@@ -161,8 +161,8 @@ nv50_software_context_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	chan->base.vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
-	chan->base.vblank.event.func = nv50_software_vblsem_release;
+	chan->vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
+	chan->vblank.event.func = nv50_software_vblsem_release;
 	return 0;
 }
 

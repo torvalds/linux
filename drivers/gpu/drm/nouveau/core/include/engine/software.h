@@ -3,18 +3,9 @@
 
 #include <core/engine.h>
 #include <core/engctx.h>
-#include <core/event.h>
 
 struct nouveau_software_chan {
 	struct nouveau_engctx base;
-
-	struct {
-		struct nouveau_eventh event;
-		u32 channel;
-		u32 ctxdma;
-		u64 offset;
-		u32 value;
-	} vblank;
 
 	int (*flip)(void *);
 	void *flip_data;
