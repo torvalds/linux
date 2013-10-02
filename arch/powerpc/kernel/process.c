@@ -597,11 +597,12 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	struct task_struct *new)
 {
 	struct thread_struct *new_thread, *old_thread;
-	unsigned long flags;
 	struct task_struct *last;
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct ppc64_tlb_batch *batch;
 #endif
+
+	WARN_ON(!irqs_disabled());
 
 	/* Back up the TAR across context switches.
 	 * Note that the TAR is not available for use in the kernel.  (To
@@ -722,8 +723,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
-	local_irq_save(flags);
-
 	/*
 	 * We can't take a PMU exception inside _switch() since there is a
 	 * window where the kernel stack SLB and the kernel stack are out
@@ -742,8 +741,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		batch->active = 1;
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
-
-	local_irq_restore(flags);
 
 	return last;
 }
