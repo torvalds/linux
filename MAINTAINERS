@@ -1785,6 +1785,7 @@ F:	include/net/bluetooth/
 
 BONDING DRIVER
 M:	Jay Vosburgh <fubar@us.ibm.com>
+M:	Veaceslav Falico <vfalico@redhat.com>
 M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/bonding/
