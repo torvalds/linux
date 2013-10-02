@@ -672,14 +672,14 @@ static inline void tty_wait_until_sent_from_close(struct tty_struct *tty,
 #define wait_event_interruptible_tty(tty, wq, condition)		\
 ({									\
 	int __ret = 0;							\
-	if (!(condition)) {						\
-		__wait_event_interruptible_tty(tty, wq, condition, __ret);	\
-	}								\
+	if (!(condition))						\
+		__ret = __wait_event_interruptible_tty(tty, wq,		\
+						       condition);	\
 	__ret;								\
 })
 
-#define __wait_event_interruptible_tty(tty, wq, condition, ret)		\
-	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, ret,	\
+#define __wait_event_interruptible_tty(tty, wq, condition)		\
+	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
 			tty_unlock(tty);				\
 			schedule();					\
 			tty_lock(tty))
