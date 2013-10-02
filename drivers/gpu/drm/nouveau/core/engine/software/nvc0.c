@@ -32,13 +32,7 @@
 #include <engine/software.h>
 #include <engine/disp.h>
 
-struct nvc0_software_priv {
-	struct nouveau_software base;
-};
-
-struct nvc0_software_chan {
-	struct nouveau_software_chan base;
-};
+#include "nv50.h"
 
 /*******************************************************************************
  * software object classes
@@ -48,7 +42,7 @@ static int
 nvc0_software_mthd_vblsem_offset(struct nouveau_object *object, u32 mthd,
 				 void *args, u32 size)
 {
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
 	u64 data = *(u32 *)args;
 	if (mthd == 0x0400) {
 		chan->base.vblank.offset &= 0x00ffffffffULL;
@@ -64,7 +58,7 @@ static int
 nvc0_software_mthd_vblsem_value(struct nouveau_object *object, u32 mthd,
 				void *args, u32 size)
 {
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
 	chan->base.vblank.value = *(u32 *)args;
 	return 0;
 }
@@ -73,7 +67,7 @@ static int
 nvc0_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
 				  void *args, u32 size)
 {
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
 	struct nouveau_disp *disp = nouveau_disp(object);
 	u32 crtc = *(u32 *)args;
 
@@ -88,7 +82,7 @@ static int
 nvc0_software_mthd_flip(struct nouveau_object *object, u32 mthd,
 			void *args, u32 size)
 {
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
 	if (chan->base.flip)
 		return chan->base.flip(chan->base.flip_data);
 	return -EINVAL;
@@ -98,8 +92,8 @@ static int
 nvc0_software_mthd_mp_control(struct nouveau_object *object, u32 mthd,
                               void *args, u32 size)
 {
-	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
-	struct nvc0_software_priv *priv = (void *)nv_object(chan)->engine;
+	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
 	u32 data = *(u32 *)args;
 
 	switch (mthd) {
@@ -148,7 +142,7 @@ nvc0_software_vblsem_release(struct nouveau_eventh *event, int head)
 {
 	struct nouveau_software_chan *chan =
 		container_of(event, struct nouveau_software_chan, vblank.event);
-	struct nvc0_software_priv *priv = (void *)nv_object(chan)->engine;
+	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 
 	nv_wr32(priv, 0x001718, 0x80000000 | chan->vblank.channel);
@@ -166,7 +160,7 @@ nvc0_software_context_ctor(struct nouveau_object *parent,
 			   struct nouveau_oclass *oclass, void *data, u32 size,
 			   struct nouveau_object **pobject)
 {
-	struct nvc0_software_chan *chan;
+	struct nv50_software_chan *chan;
 	int ret;
 
 	ret = nouveau_software_context_create(parent, engine, oclass, &chan);
@@ -199,7 +193,7 @@ nvc0_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		   struct nouveau_oclass *oclass, void *data, u32 size,
 		   struct nouveau_object **pobject)
 {
-	struct nvc0_software_priv *priv;
+	struct nv50_software_priv *priv;
 	int ret;
 
 	ret = nouveau_software_create(parent, engine, oclass, &priv);

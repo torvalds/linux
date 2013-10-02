@@ -32,16 +32,9 @@
 
 #include <subdev/bar.h>
 
-#include <engine/software.h>
 #include <engine/disp.h>
 
-struct nv50_software_priv {
-	struct nouveau_software base;
-};
-
-struct nv50_software_chan {
-	struct nouveau_software_chan base;
-};
+#include "nv50.h"
 
 /*******************************************************************************
  * software object classes
