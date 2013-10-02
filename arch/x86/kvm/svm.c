@@ -2003,8 +2003,8 @@ static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
 
 static void nested_svm_init_mmu_context(struct kvm_vcpu *vcpu)
 {
-	kvm_init_shadow_mmu(vcpu, &vcpu->arch.mmu);
-
+	WARN_ON(mmu_is_nested(vcpu));
+	kvm_init_shadow_mmu(vcpu);
 	vcpu->arch.mmu.set_cr3           = nested_svm_set_tdp_cr3;
 	vcpu->arch.mmu.get_cr3           = nested_svm_get_tdp_cr3;
 	vcpu->arch.mmu.get_pdptr         = nested_svm_get_tdp_pdptr;

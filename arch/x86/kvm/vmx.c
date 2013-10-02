@@ -8202,9 +8202,9 @@ static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu)
 
 static void nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)
 {
-	kvm_init_shadow_ept_mmu(vcpu, &vcpu->arch.mmu,
+	WARN_ON(mmu_is_nested(vcpu));
+	kvm_init_shadow_ept_mmu(vcpu,
 			nested_vmx_ept_caps & VMX_EPT_EXECUTE_ONLY_BIT);
-
 	vcpu->arch.mmu.set_cr3           = vmx_set_cr3;
 	vcpu->arch.mmu.get_cr3           = nested_ept_get_cr3;
 	vcpu->arch.mmu.inject_page_fault = nested_ept_inject_page_fault;
