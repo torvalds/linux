@@ -2872,8 +2872,8 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	if (args->bc_xprt->xpt_bc_xprt) {
 		/*
 		 * This server connection already has a backchannel
-		 * export; we can't create a new one, as we wouldn't be
-		 * able to match replies based on xid any more.  So,
+		 * transport; we can't create a new one, as we wouldn't
+		 * be able to match replies based on xid any more.  So,
 		 * reuse the already-existing one:
 		 */
 		 return args->bc_xprt->xpt_bc_xprt;
