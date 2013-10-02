@@ -679,23 +679,10 @@ static inline void tty_wait_until_sent_from_close(struct tty_struct *tty,
 })
 
 #define __wait_event_interruptible_tty(tty, wq, condition, ret)		\
-do {									\
-	DEFINE_WAIT(__wait);						\
-									\
-	for (;;) {							\
-		prepare_to_wait(&wq, &__wait, TASK_INTERRUPTIBLE);	\
-		if (condition)						\
-			break;						\
-		if (signal_pending(current)) {				\
-			ret = -ERESTARTSYS;				\
-			break;						\
-		}							\
-		tty_unlock(tty);					\
-		schedule();						\
-		tty_lock(tty);						\
-	}								\
-	finish_wait(&wq, &__wait);					\
-} while (0)
+	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, ret,	\
+			tty_unlock(tty);				\
+			schedule();					\
+			tty_lock(tty))
 
 #ifdef CONFIG_PROC_FS
 extern void proc_tty_register_driver(struct tty_driver *);
