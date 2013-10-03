@@ -375,6 +375,40 @@ void fsl_otg_uninit_timers(void)
 	kfree(b_vbus_pulse_tmr);
 }
 
+static struct fsl_otg_timer *fsl_otg_get_timer(enum otg_fsm_timer t)
+{
+	struct fsl_otg_timer *timer;
+
+	/* REVISIT: use array of pointers to timers instead */
+	switch (t) {
+	case A_WAIT_VRISE:
+		timer = a_wait_vrise_tmr;
+		break;
+	case A_WAIT_BCON:
+		timer = a_wait_vrise_tmr;
+		break;
+	case A_AIDL_BDIS:
+		timer = a_wait_vrise_tmr;
+		break;
+	case B_ASE0_BRST:
+		timer = a_wait_vrise_tmr;
+		break;
+	case B_SE0_SRP:
+		timer = a_wait_vrise_tmr;
+		break;
+	case B_SRP_FAIL:
+		timer = a_wait_vrise_tmr;
+		break;
+	case A_WAIT_ENUM:
+		timer = a_wait_vrise_tmr;
+		break;
+	default:
+		timer = NULL;
+	}
+
+	return timer;
+}
+
 /* Add timer to timer list */
 void fsl_otg_add_timer(struct otg_fsm *fsm, void *gtimer)
 {
@@ -394,6 +428,17 @@ void fsl_otg_add_timer(struct otg_fsm *fsm, void *gtimer)
 	list_add_tail(&timer->list, &active_timers);
 }
 
+static void fsl_otg_fsm_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
+{
+	struct fsl_otg_timer *timer;
+
+	timer = fsl_otg_get_timer(t);
+	if (!timer)
+		return;
+
+	fsl_otg_add_timer(fsm, timer);
+}
+
 /* Remove timer from the timer list; clear timeout status */
 void fsl_otg_del_timer(struct otg_fsm *fsm, void *gtimer)
 {
@@ -403,6 +448,17 @@ void fsl_otg_del_timer(struct otg_fsm *fsm, void *gtimer)
 	list_for_each_entry_safe(tmp_timer, del_tmp, &active_timers, list)
 		if (tmp_timer == timer)
 			list_del(&timer->list);
+}
+
+static void fsl_otg_fsm_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
+{
+	struct fsl_otg_timer *timer;
+
+	timer = fsl_otg_get_timer(t);
+	if (!timer)
+		return;
+
+	fsl_otg_del_timer(fsm, timer);
 }
 
 /*
@@ -757,8 +813,8 @@ static struct otg_fsm_ops fsl_otg_ops = {
 	.loc_sof = fsl_otg_loc_sof,
 	.start_pulse = fsl_otg_start_pulse,
 
-	.add_timer = fsl_otg_add_timer,
-	.del_timer = fsl_otg_del_timer,
+	.add_timer = fsl_otg_fsm_add_timer,
+	.del_timer = fsl_otg_fsm_del_timer,
 
 	.start_host = fsl_otg_start_host,
 	.start_gadget = fsl_otg_start_gadget,

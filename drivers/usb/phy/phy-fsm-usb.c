@@ -69,7 +69,7 @@ void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 {
 	switch (old_state) {
 	case OTG_STATE_B_IDLE:
-		otg_del_timer(fsm, b_se0_srp_tmr);
+		otg_del_timer(fsm, B_SE0_SRP);
 		fsm->b_se0_srp = 0;
 		break;
 	case OTG_STATE_B_SRP_INIT:
@@ -78,7 +78,7 @@ void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 	case OTG_STATE_B_PERIPHERAL:
 		break;
 	case OTG_STATE_B_WAIT_ACON:
-		otg_del_timer(fsm, b_ase0_brst_tmr);
+		otg_del_timer(fsm, B_ASE0_BRST);
 		fsm->b_ase0_brst_tmout = 0;
 		break;
 	case OTG_STATE_B_HOST:
@@ -86,25 +86,25 @@ void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 	case OTG_STATE_A_IDLE:
 		break;
 	case OTG_STATE_A_WAIT_VRISE:
-		otg_del_timer(fsm, a_wait_vrise_tmr);
+		otg_del_timer(fsm, A_WAIT_VRISE);
 		fsm->a_wait_vrise_tmout = 0;
 		break;
 	case OTG_STATE_A_WAIT_BCON:
-		otg_del_timer(fsm, a_wait_bcon_tmr);
+		otg_del_timer(fsm, A_WAIT_BCON);
 		fsm->a_wait_bcon_tmout = 0;
 		break;
 	case OTG_STATE_A_HOST:
-		otg_del_timer(fsm, a_wait_enum_tmr);
+		otg_del_timer(fsm, A_WAIT_ENUM);
 		break;
 	case OTG_STATE_A_SUSPEND:
-		otg_del_timer(fsm, a_aidl_bdis_tmr);
+		otg_del_timer(fsm, A_AIDL_BDIS);
 		fsm->a_aidl_bdis_tmout = 0;
 		fsm->a_suspend_req = 0;
 		break;
 	case OTG_STATE_A_PERIPHERAL:
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
-		otg_del_timer(fsm, a_wait_vrise_tmr);
+		otg_del_timer(fsm, A_WAIT_VRISE);
 		break;
 	case OTG_STATE_A_VBUS_ERR:
 		break;
@@ -128,13 +128,13 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_loc_conn(fsm, 0);
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_UNDEF);
-		otg_add_timer(fsm, b_se0_srp_tmr);
+		otg_add_timer(fsm, B_SE0_SRP);
 		break;
 	case OTG_STATE_B_SRP_INIT:
 		otg_start_pulse(fsm);
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_UNDEF);
-		otg_add_timer(fsm, b_srp_fail_tmr);
+		otg_add_timer(fsm, B_SRP_FAIL);
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		otg_chrg_vbus(fsm, 0);
@@ -147,7 +147,7 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_loc_conn(fsm, 0);
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_HOST);
-		otg_add_timer(fsm, b_ase0_brst_tmr);
+		otg_add_timer(fsm, B_ASE0_BRST);
 		fsm->a_bus_suspend = 0;
 		break;
 	case OTG_STATE_B_HOST:
@@ -170,14 +170,14 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_loc_conn(fsm, 0);
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_HOST);
-		otg_add_timer(fsm, a_wait_vrise_tmr);
+		otg_add_timer(fsm, A_WAIT_VRISE);
 		break;
 	case OTG_STATE_A_WAIT_BCON:
 		otg_drv_vbus(fsm, 1);
 		otg_loc_conn(fsm, 0);
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_HOST);
-		otg_add_timer(fsm, a_wait_bcon_tmr);
+		otg_add_timer(fsm, A_WAIT_BCON);
 		break;
 	case OTG_STATE_A_HOST:
 		otg_drv_vbus(fsm, 1);
@@ -189,14 +189,14 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		 * suspend too fast to complete a_set_b_hnp_en
 		 */
 		if (!fsm->a_bus_req || fsm->a_suspend_req)
-			otg_add_timer(fsm, a_wait_enum_tmr);
+			otg_add_timer(fsm, A_WAIT_ENUM);
 		break;
 	case OTG_STATE_A_SUSPEND:
 		otg_drv_vbus(fsm, 1);
 		otg_loc_conn(fsm, 0);
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_HOST);
-		otg_add_timer(fsm, a_aidl_bdis_tmr);
+		otg_add_timer(fsm, A_AIDL_BDIS);
 
 		break;
 	case OTG_STATE_A_PERIPHERAL:

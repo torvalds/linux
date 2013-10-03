@@ -34,6 +34,17 @@
 #define PROTO_HOST	(1)
 #define PROTO_GADGET	(2)
 
+enum otg_fsm_timer {
+	A_WAIT_VRISE,
+	A_WAIT_BCON,
+	A_AIDL_BDIS,
+	B_ASE0_BRST,
+	B_SE0_SRP,
+	B_SRP_FAIL,
+	A_WAIT_ENUM,
+	NUM_OTG_FSM_TIMERS,
+};
+
 /* OTG state machine according to the OTG spec */
 struct otg_fsm {
 	/* Input */
@@ -88,8 +99,8 @@ struct otg_fsm_ops {
 	void	(*loc_conn)(struct otg_fsm *fsm, int on);
 	void	(*loc_sof)(struct otg_fsm *fsm, int on);
 	void	(*start_pulse)(struct otg_fsm *fsm);
-	void	(*add_timer)(struct otg_fsm *fsm, void *timer);
-	void	(*del_timer)(struct otg_fsm *fsm, void *timer);
+	void	(*add_timer)(struct otg_fsm *fsm, enum otg_fsm_timer timer);
+	void	(*del_timer)(struct otg_fsm *fsm, enum otg_fsm_timer timer);
 	int	(*start_host)(struct otg_fsm *fsm, int on);
 	int	(*start_gadget)(struct otg_fsm *fsm, int on);
 };
@@ -144,7 +155,7 @@ static inline int otg_start_pulse(struct otg_fsm *fsm)
 	return 0;
 }
 
-static inline int otg_add_timer(struct otg_fsm *fsm, void *timer)
+static inline int otg_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer timer)
 {
 	if (!fsm->ops->add_timer)
 		return -EOPNOTSUPP;
@@ -152,7 +163,7 @@ static inline int otg_add_timer(struct otg_fsm *fsm, void *timer)
 	return 0;
 }
 
-static inline int otg_del_timer(struct otg_fsm *fsm, void *timer)
+static inline int otg_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer timer)
 {
 	if (!fsm->ops->del_timer)
 		return -EOPNOTSUPP;
@@ -175,8 +186,3 @@ static inline int otg_start_gadget(struct otg_fsm *fsm, int on)
 }
 
 int otg_statemachine(struct otg_fsm *fsm);
-
-/* Defined by device specific driver, for different timer implementation */
-extern struct fsl_otg_timer *a_wait_vrise_tmr, *a_wait_bcon_tmr,
-	*a_aidl_bdis_tmr, *b_ase0_brst_tmr, *b_se0_srp_tmr, *b_srp_fail_tmr,
-	*a_wait_enum_tmr;
