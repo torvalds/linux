@@ -95,48 +95,69 @@ struct otg_fsm_ops {
 };
 
 
-static inline void otg_chrg_vbus(struct otg_fsm *fsm, int on)
+static inline int otg_chrg_vbus(struct otg_fsm *fsm, int on)
 {
+	if (!fsm->ops->chrg_vbus)
+		return -EOPNOTSUPP;
 	fsm->ops->chrg_vbus(fsm, on);
+	return 0;
 }
 
-static inline void otg_drv_vbus(struct otg_fsm *fsm, int on)
+static inline int otg_drv_vbus(struct otg_fsm *fsm, int on)
 {
+	if (!fsm->ops->drv_vbus)
+		return -EOPNOTSUPP;
 	if (fsm->drv_vbus != on) {
 		fsm->drv_vbus = on;
 		fsm->ops->drv_vbus(fsm, on);
 	}
+	return 0;
 }
 
-static inline void otg_loc_conn(struct otg_fsm *fsm, int on)
+static inline int otg_loc_conn(struct otg_fsm *fsm, int on)
 {
+	if (!fsm->ops->loc_conn)
+		return -EOPNOTSUPP;
 	if (fsm->loc_conn != on) {
 		fsm->loc_conn = on;
 		fsm->ops->loc_conn(fsm, on);
 	}
+	return 0;
 }
 
-static inline void otg_loc_sof(struct otg_fsm *fsm, int on)
+static inline int otg_loc_sof(struct otg_fsm *fsm, int on)
 {
+	if (!fsm->ops->loc_sof)
+		return -EOPNOTSUPP;
 	if (fsm->loc_sof != on) {
 		fsm->loc_sof = on;
 		fsm->ops->loc_sof(fsm, on);
 	}
+	return 0;
 }
 
-static inline void otg_start_pulse(struct otg_fsm *fsm)
+static inline int otg_start_pulse(struct otg_fsm *fsm)
 {
+	if (!fsm->ops->start_pulse)
+		return -EOPNOTSUPP;
 	fsm->ops->start_pulse(fsm);
+	return 0;
 }
 
-static inline void otg_add_timer(struct otg_fsm *fsm, void *timer)
+static inline int otg_add_timer(struct otg_fsm *fsm, void *timer)
 {
+	if (!fsm->ops->add_timer)
+		return -EOPNOTSUPP;
 	fsm->ops->add_timer(fsm, timer);
+	return 0;
 }
 
-static inline void otg_del_timer(struct otg_fsm *fsm, void *timer)
+static inline int otg_del_timer(struct otg_fsm *fsm, void *timer)
 {
+	if (!fsm->ops->del_timer)
+		return -EOPNOTSUPP;
 	fsm->ops->del_timer(fsm, timer);
+	return 0;
 }
 
 int otg_statemachine(struct otg_fsm *fsm);
