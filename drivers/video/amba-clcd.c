@@ -594,8 +594,6 @@ static int clcdfb_remove(struct amba_device *dev)
 {
 	struct clcd_fb *fb = amba_get_drvdata(dev);
 
-	amba_set_drvdata(dev, NULL);
-
 	clcdfb_disable(fb);
 	unregister_framebuffer(&fb->fb);
 	if (fb->fb.cmap.len)
