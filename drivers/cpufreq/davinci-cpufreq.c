@@ -136,21 +136,13 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 			return result;
 	}
 
-	result = cpufreq_table_validate_and_show(policy, freq_table);
-	if (result) {
-		pr_err("%s: cpufreq_table_validate_and_show() failed",
-				__func__);
-		return result;
-	}
-
 	/*
 	 * Time measurement across the target() function yields ~1500-1800us
 	 * time taken with no drivers on notification list.
 	 * Setting the latency to 2000 us to accommodate addition of drivers
 	 * to pre/post change notification list.
 	 */
-	policy->cpuinfo.transition_latency = 2000 * 1000;
-	return 0;
+	return cpufreq_generic_init(policy, freq_table, 2000 * 1000);
 }
 
 static struct cpufreq_driver davinci_driver = {
