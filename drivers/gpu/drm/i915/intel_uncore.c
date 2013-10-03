@@ -301,10 +301,26 @@ static void intel_uncore_forcewake_reset(struct drm_device *dev)
 
 void intel_uncore_sanitize(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg_val;
+
 	intel_uncore_forcewake_reset(dev);
 
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
 	intel_disable_gt_powersave(dev);
+
+	/* Turn off power gate, require especially for the BIOS less system */
+	if (IS_VALLEYVIEW(dev)) {
+
+		mutex_lock(&dev_priv->rps.hw_lock);
+		reg_val = vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_STATUS);
+
+		if (reg_val & (RENDER_PWRGT | MEDIA_PWRGT | DISP2D_PWRGT))
+			vlv_punit_write(dev_priv, PUNIT_REG_PWRGT_CTRL, 0x0);
+
+		mutex_unlock(&dev_priv->rps.hw_lock);
+
+	}
 }
 
 /*
