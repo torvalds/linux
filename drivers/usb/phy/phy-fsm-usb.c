@@ -256,7 +256,7 @@ int otg_statemachine(struct otg_fsm *fsm)
 			otg_set_state(fsm, OTG_STATE_A_IDLE);
 		else if (fsm->b_sess_vld && fsm->otg->gadget)
 			otg_set_state(fsm, OTG_STATE_B_PERIPHERAL);
-		else if (fsm->b_bus_req && fsm->b_sess_end && fsm->b_se0_srp)
+		else if (fsm->b_bus_req && fsm->b_ssend_srp && fsm->b_se0_srp)
 			otg_set_state(fsm, OTG_STATE_B_SRP_INIT);
 		break;
 	case OTG_STATE_B_SRP_INIT:

@@ -1067,7 +1067,7 @@ static int show_fsl_usb2_otg_state(struct device *dev,
 			"b_bus_suspend: %d\n"
 			"b_conn: %d\n"
 			"b_se0_srp: %d\n"
-			"b_sess_end: %d\n"
+			"b_ssend_srp: %d\n"
 			"b_sess_vld: %d\n"
 			"id: %d\n",
 			fsm->a_bus_req,
@@ -1082,7 +1082,7 @@ static int show_fsl_usb2_otg_state(struct device *dev,
 			fsm->b_bus_suspend,
 			fsm->b_conn,
 			fsm->b_se0_srp,
-			fsm->b_sess_end,
+			fsm->b_ssend_srp,
 			fsm->b_sess_vld,
 			fsm->id);
 	size -= t;

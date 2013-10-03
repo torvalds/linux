@@ -67,7 +67,7 @@ struct otg_fsm {
 	int b_bus_suspend;
 	int b_conn;
 	int b_se0_srp;
-	int b_sess_end;
+	int b_ssend_srp;
 	int b_sess_vld;
 	int id;
 
