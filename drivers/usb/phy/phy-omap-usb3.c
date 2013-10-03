@@ -100,7 +100,7 @@ static int omap_usb3_suspend(struct usb_phy *x, int suspend)
 			udelay(1);
 		} while (--timeout);
 
-		omap_control_usb3_phy_power(phy->control_dev, 0);
+		omap_control_usb_phy_power(phy->control_dev, 0);
 
 		phy->is_suspended	= 1;
 	} else if (!suspend && phy->is_suspended) {
@@ -189,7 +189,7 @@ static int omap_usb3_init(struct usb_phy *x)
 	if (ret)
 		return ret;
 
-	omap_control_usb3_phy_power(phy->control_dev, 1);
+	omap_control_usb_phy_power(phy->control_dev, 1);
 
 	return 0;
 }
@@ -245,7 +245,7 @@ static int omap_usb3_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	omap_control_usb3_phy_power(phy->control_dev, 0);
+	omap_control_usb_phy_power(phy->control_dev, 0);
 	usb_add_phy_dev(&phy->phy);
 
 	platform_set_drvdata(pdev, phy);

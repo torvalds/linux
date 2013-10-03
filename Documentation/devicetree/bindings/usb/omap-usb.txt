@@ -83,22 +83,22 @@ omap_dwc3 {
 OMAP CONTROL USB
 
 Required properties:
- - compatible: Should be "ti,omap-control-usb"
+ - compatible: Should be one of
+ "ti,control-phy-otghs" - if it has otghs_control mailbox register as on OMAP4.
+ "ti,control-phy-usb2" - if it has Power down bit in control_dev_conf register
+			e.g. USB2_PHY on OMAP5.
+ "ti,control-phy-pipe3" - if it has DPLL and individual Rx & Tx power control
+			e.g. USB3 PHY and SATA PHY on OMAP5.
+ "ti,control-phy-dra7usb2" - if it has power down register like USB2 PHY on
+			DRA7 platform.
  - reg : Address and length of the register set for the device. It contains
-   the address of "control_dev_conf" and "otghs_control" or "phy_power_usb"
-   depending upon omap4 or omap5.
- - reg-names: The names of the register addresses corresponding to the registers
-   filled in "reg".
- - ti,type: This is used to differentiate whether the control module has
-   usb mailbox or usb3 phy power. omap4 has usb mailbox in control module to
-   notify events to the musb core and omap5 has usb3 phy power register to
-   power on usb3 phy. Should be "1" if it has mailbox and "2" if it has usb3
-   phy power.
+   the address of "otghs_control" for control-phy-otghs or "power" register
+   for other types.
+ - reg-names: should be "otghs_control" control-phy-otghs and "power" for
+   other types.
 
 omap_control_usb: omap-control-usb@4a002300 {
-	compatible = "ti,omap-control-usb";
-	reg = <0x4a002300 0x4>,
-	      <0x4a00233c 0x4>;
-	reg-names = "control_dev_conf", "otghs_control";
-	ti,type = <1>;
+	compatible = "ti,control-phy-otghs";
+	reg = <0x4a00233c 0x4>;
+	reg-names = "otghs_control";
 };
