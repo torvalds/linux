@@ -540,7 +540,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
 			if (arizona->pdata.gpio_defaults[i] > 0xffff)
 				arizona->pdata.gpio_defaults[i] = 0;
-			if (arizona->pdata.gpio_defaults[i] == 0)
+			else if (arizona->pdata.gpio_defaults[i] == 0)
 				arizona->pdata.gpio_defaults[i] = 0x10000;
 		}
 	} else {
