@@ -4471,19 +4471,34 @@ void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 
 	if (rt2x00_rt_rev(rt2x00dev, RT2860, REV_RT2860C))
 		return;
-	/*
-	 * When RSSI is better then -80 increase VGC level with 0x10, except
-	 * for rt5592 chip.
+
+	/* When RSSI is better than a certain threshold, increase VGC
+	 * with a chip specific value in order to improve the balance
+	 * between sensibility and noise isolation.
 	 */
 
 	vgc = rt2800_get_default_vgc(rt2x00dev);
 
-	if (rt2x00_rt(rt2x00dev, RT5592)) {
+	switch (rt2x00dev->chip.rt) {
+	case RT3572:
+	case RT3593:
+		if (qual->rssi > -65) {
+			if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ)
+				vgc += 0x20;
+			else
+				vgc += 0x10;
+		}
+		break;
+
+	case RT5592:
 		if (qual->rssi > -65)
 			vgc += 0x20;
-	} else {
+		break;
+
+	default:
 		if (qual->rssi > -80)
 			vgc += 0x10;
+		break;
 	}
 
 	rt2800_set_vgc(rt2x00dev, qual, vgc);
