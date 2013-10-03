@@ -396,7 +396,6 @@ static int pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		return -ENODEV;
 
 	policy->cpuinfo.transition_latency	= transition_latency;
-	policy->cur = cur_freq;
 
 	return cpufreq_table_validate_and_show(policy, pmac_cpu_freqs);
 }
