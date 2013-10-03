@@ -114,7 +114,7 @@ struct cpuidle_driver {
 	int			safe_state_index;
 
 	/* the driver handles the cpus in cpumask */
-	struct cpumask       *cpumask;
+	struct cpumask		*cpumask;
 };
 
 #ifdef CONFIG_CPU_IDLE
