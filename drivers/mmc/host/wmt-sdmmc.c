@@ -212,28 +212,14 @@ struct wmt_mci_priv {
 
 static void wmt_set_sd_power(struct wmt_mci_priv *priv, int enable)
 {
-	u32 reg_tmp;
-	if (enable) {
-		if (priv->power_inverted) {
-			reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-			writeb(reg_tmp | BM_SD_OFF,
-			       priv->sdmmc_base + SDMMC_BUSMODE);
-		} else {
-			reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-			writeb(reg_tmp & (~BM_SD_OFF),
-			       priv->sdmmc_base + SDMMC_BUSMODE);
-		}
-	} else {
-		if (priv->power_inverted) {
-			reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-			writeb(reg_tmp & (~BM_SD_OFF),
-			       priv->sdmmc_base + SDMMC_BUSMODE);
-		} else {
-			reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-			writeb(reg_tmp | BM_SD_OFF,
-			       priv->sdmmc_base + SDMMC_BUSMODE);
-		}
-	}
+	u32 reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
+
+	if (enable ^ priv->power_inverted)
+		reg_tmp &= ~BM_SD_OFF;
+	else
+		reg_tmp |= BM_SD_OFF;
+
+	writeb(reg_tmp, priv->sdmmc_base + SDMMC_BUSMODE);
 }
 
 static void wmt_mci_read_response(struct mmc_host *mmc)
