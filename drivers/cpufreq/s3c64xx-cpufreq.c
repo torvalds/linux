@@ -54,14 +54,6 @@ static struct cpufreq_frequency_table s3c64xx_freq_table[] = {
 };
 #endif
 
-static int s3c64xx_cpufreq_verify_speed(struct cpufreq_policy *policy)
-{
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	return cpufreq_frequency_table_verify(policy, s3c64xx_freq_table);
-}
-
 static unsigned int s3c64xx_cpufreq_get_speed(unsigned int cpu)
 {
 	if (cpu != 0)
@@ -264,7 +256,7 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver s3c64xx_cpufreq_driver = {
 	.flags          = 0,
-	.verify		= s3c64xx_cpufreq_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= s3c64xx_cpufreq_set_target,
 	.get		= s3c64xx_cpufreq_get_speed,
 	.init		= s3c64xx_cpufreq_driver_init,

@@ -416,14 +416,6 @@ static int __init s3c_cpufreq_initclks(void)
 	return 0;
 }
 
-static int s3c_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static struct cpufreq_frequency_table suspend_pll;
 static unsigned int suspend_freq;
@@ -473,7 +465,6 @@ static int s3c_cpufreq_resume(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver s3c24xx_driver = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= s3c_cpufreq_verify,
 	.target		= s3c_cpufreq_target,
 	.get		= s3c_cpufreq_get,
 	.init		= s3c_cpufreq_init,
