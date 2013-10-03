@@ -3755,6 +3755,13 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 	return rc;
 }
 
+static void delayed_free(struct rcu_head *p)
+{
+	struct cifs_sb_info *sbi = container_of(p, struct cifs_sb_info, rcu);
+	unload_nls(sbi->local_nls);
+	kfree(sbi);
+}
+
 void
 cifs_umount(struct cifs_sb_info *cifs_sb)
 {
@@ -3779,8 +3786,7 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 
 	bdi_destroy(&cifs_sb->bdi);
 	kfree(cifs_sb->mountdata);
-	unload_nls(cifs_sb->local_nls);
-	kfree(cifs_sb);
+	call_rcu(&cifs_sb->rcu, delayed_free);
 }
 
 int
