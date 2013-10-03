@@ -3280,15 +3280,13 @@ static int set_static_address(struct sock *sk, struct hci_dev *hdev,
 			      void *data, u16 len)
 {
 	struct mgmt_cp_set_static_address *cp = data;
-	u8 status;
 	int err;
 
 	BT_DBG("%s", hdev->name);
 
-	status = mgmt_le_support(hdev);
-	if (status)
+	if (!lmp_le_capable(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_STATIC_ADDRESS,
-				  status);
+				  MGMT_STATUS_NOT_SUPPORTED);
 
 	if (hdev_is_powered(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_STATIC_ADDRESS,
