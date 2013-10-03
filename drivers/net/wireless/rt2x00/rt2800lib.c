@@ -278,7 +278,6 @@ static const unsigned int rt2800_eeprom_map_ext[EEPROM_WORD_COUNT] = {
 	[EEPROM_LNA]			= 0x0026,
 	[EEPROM_EXT_LNA2]		= 0x0027,
 	[EEPROM_RSSI_BG]		= 0x0028,
-	[EEPROM_TXPOWER_DELTA]		= 0x0028, /* Overlaps with RSSI_BG */
 	[EEPROM_RSSI_BG2]		= 0x0029,
 	[EEPROM_RSSI_A]			= 0x002a,
 	[EEPROM_RSSI_A2]		= 0x002b,
