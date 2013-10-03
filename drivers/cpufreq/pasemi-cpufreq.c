@@ -69,11 +69,6 @@ static struct cpufreq_frequency_table pas_freqs[] = {
 	{0,	CPUFREQ_TABLE_END},
 };
 
-static struct freq_attr *pas_cpu_freqs_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 /*
  * hardware specific functions
  */
@@ -251,11 +246,6 @@ static int pas_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int pas_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, pas_freqs);
-}
-
 static int pas_cpufreq_target(struct cpufreq_policy *policy,
 			      unsigned int target_freq,
 			      unsigned int relation)
@@ -298,9 +288,9 @@ static struct cpufreq_driver pas_cpufreq_driver = {
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= pas_cpufreq_cpu_init,
 	.exit		= pas_cpufreq_cpu_exit,
-	.verify		= pas_cpufreq_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= pas_cpufreq_target,
-	.attr		= pas_cpu_freqs_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 /*
