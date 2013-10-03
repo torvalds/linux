@@ -1296,10 +1296,14 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
 	struct pending_cmd *cmd;
-	u8 val;
+	u8 val, status;
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
+
+	status = mgmt_bredr_support(hdev);
+	if (status)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_SSP, status);
 
 	if (!lmp_ssp_capable(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
