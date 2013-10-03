@@ -5327,8 +5327,6 @@ static inline void l2cap_le_sig_channel(struct l2cap_conn *conn,
 	struct l2cap_cmd_hdr cmd;
 	int err;
 
-	l2cap_raw_recv(conn, skb);
-
 	if (hcon->type != LE_LINK)
 		goto drop;
 
