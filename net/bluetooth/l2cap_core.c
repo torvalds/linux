@@ -6403,7 +6403,11 @@ done:
 static void l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm,
 				  struct sk_buff *skb)
 {
+	struct hci_conn *hcon = conn->hcon;
 	struct l2cap_chan *chan;
+
+	if (hcon->type != ACL_LINK)
+		goto drop;
 
 	chan = l2cap_global_chan_by_psm(0, psm, conn->src, conn->dst);
 	if (!chan)
