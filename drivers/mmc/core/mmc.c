@@ -1575,18 +1575,11 @@ static int mmc_runtime_suspend(struct mmc_host *host)
 	if (!(host->caps & MMC_CAP_AGGRESSIVE_PM))
 		return 0;
 
-	mmc_claim_host(host);
-
 	err = mmc_suspend(host);
-	if (err) {
+	if (err)
 		pr_err("%s: error %d doing aggessive suspend\n",
 			mmc_hostname(host), err);
-		goto out;
-	}
-	mmc_power_off(host);
 
-out:
-	mmc_release_host(host);
 	return err;
 }
 
@@ -1600,15 +1593,11 @@ static int mmc_runtime_resume(struct mmc_host *host)
 	if (!(host->caps & MMC_CAP_AGGRESSIVE_PM))
 		return 0;
 
-	mmc_claim_host(host);
-
-	mmc_power_up(host, host->card->ocr);
 	err = mmc_resume(host);
 	if (err)
 		pr_err("%s: error %d doing aggessive resume\n",
 			mmc_hostname(host), err);
 
-	mmc_release_host(host);
 	return 0;
 }
 
