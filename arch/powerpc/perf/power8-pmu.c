@@ -199,6 +199,7 @@
 #define MMCR1_UNIT_SHIFT(pmc)		(60 - (4 * ((pmc) - 1)))
 #define MMCR1_COMBINE_SHIFT(pmc)	(35 - ((pmc) - 1))
 #define MMCR1_PMCSEL_SHIFT(pmc)		(24 - (((pmc) - 1)) * 8)
+#define MMCR1_FAB_SHIFT			36
 #define MMCR1_DC_QUAL_SHIFT		47
 #define MMCR1_IC_QUAL_SHIFT		46
 
@@ -388,8 +389,8 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 		 * the threshold bits are used for the match value.
 		 */
 		if (event_is_fab_match(event[i])) {
-			mmcr1 |= (event[i] >> EVENT_THR_CTL_SHIFT) &
-				  EVENT_THR_CTL_MASK;
+			mmcr1 |= ((event[i] >> EVENT_THR_CTL_SHIFT) &
+				  EVENT_THR_CTL_MASK) << MMCR1_FAB_SHIFT;
 		} else {
 			val = (event[i] >> EVENT_THR_CTL_SHIFT) & EVENT_THR_CTL_MASK;
 			mmcra |= val << MMCRA_THR_CTL_SHIFT;
