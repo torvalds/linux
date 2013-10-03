@@ -824,15 +824,21 @@ S:	Maintained
 F:	arch/arm/mach-gemini/
 
 ARM/CSR SIRFPRIMA2 MACHINE SUPPORT
-M:	Barry Song <baohua.song@csr.com>
+M:	Barry Song <baohua@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/baohua/linux.git
 S:	Maintained
 F:	arch/arm/mach-prima2/
+F:	drivers/clk/clk-prima2.c
+F:	drivers/clocksource/timer-prima2.c
+F:	drivers/clocksource/timer-marco.c
 F:	drivers/dma/sirf-dma.c
 F:	drivers/i2c/busses/i2c-sirf.c
+F:	drivers/input/misc/sirfsoc-onkey.c
+F:	drivers/irqchip/irq-sirfsoc.c
 F:	drivers/mmc/host/sdhci-sirf.c
 F:	drivers/pinctrl/sirf/
+F:	drivers/rtc/rtc-sirfsoc.c
 F:	drivers/spi/spi-sirf.c
 
 ARM/EBSA110 MACHINE SUPPORT
