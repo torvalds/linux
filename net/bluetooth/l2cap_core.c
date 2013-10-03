@@ -6431,7 +6431,11 @@ drop:
 static void l2cap_att_channel(struct l2cap_conn *conn,
 			      struct sk_buff *skb)
 {
+	struct hci_conn *hcon = conn->hcon;
 	struct l2cap_chan *chan;
+
+	if (hcon->type != LE_LINK)
+		goto drop;
 
 	chan = l2cap_global_chan_by_scid(BT_CONNECTED, L2CAP_CID_ATT,
 					 conn->src, conn->dst);
