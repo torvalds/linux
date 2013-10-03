@@ -137,12 +137,6 @@ static int loongson2_cpufreq_cpu_init(struct cpufreq_policy *policy)
 					    &loongson2_clockmod_table[0]);
 }
 
-static int loongson2_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy,
-					      &loongson2_clockmod_table[0]);
-}
-
 static int loongson2_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	cpufreq_frequency_table_put_attr(policy->cpu);
@@ -150,19 +144,14 @@ static int loongson2_cpufreq_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct freq_attr *loongson2_table_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver loongson2_cpufreq_driver = {
 	.name = "loongson2",
 	.init = loongson2_cpufreq_cpu_init,
-	.verify = loongson2_cpufreq_verify,
+	.verify = cpufreq_generic_frequency_table_verify,
 	.target = loongson2_cpufreq_target,
 	.get = loongson2_cpufreq_get,
 	.exit = loongson2_cpufreq_exit,
-	.attr = loongson2_table_attr,
+	.attr = cpufreq_generic_attr,
 };
 
 static struct platform_device_id platform_device_ids[] = {
