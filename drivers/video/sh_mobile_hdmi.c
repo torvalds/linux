@@ -1290,7 +1290,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		}
 	}
 
-	hdmi = kzalloc(sizeof(*hdmi), GFP_KERNEL);
+	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi) {
 		dev_err(&pdev->dev, "Cannot allocate device data\n");
 		return -ENOMEM;
@@ -1304,7 +1304,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 	if (IS_ERR(hdmi->hdmi_clk)) {
 		ret = PTR_ERR(hdmi->hdmi_clk);
 		dev_err(&pdev->dev, "Unable to get clock: %d\n", ret);
-		goto egetclk;
+		return ret;
 	}
 
 	/* select register access functions */
@@ -1407,8 +1407,6 @@ ereqreg:
 	clk_disable(hdmi->hdmi_clk);
 erate:
 	clk_put(hdmi->hdmi_clk);
-egetclk:
-	kfree(hdmi);
 
 	return ret;
 }
@@ -1433,7 +1431,6 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 		iounmap(hdmi->htop1);
 	iounmap(hdmi->base);
 	release_mem_region(res->start, resource_size(res));
-	kfree(hdmi);
 
 	return 0;
 }
