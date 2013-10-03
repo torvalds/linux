@@ -332,11 +332,7 @@ static int sa1110_target(struct cpufreq_policy *policy,
 
 static int __init sa1110_cpu_init(struct cpufreq_policy *policy)
 {
-	if (policy->cpu != 0)
-		return -EINVAL;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-
-	return cpufreq_table_validate_and_show(policy, sa11x0_freq_table);
+	return cpufreq_generic_init(policy, sa11x0_freq_table, CPUFREQ_ETERNAL);
 }
 
 /* sa1110_driver needs __refdata because it must remain after init registers
