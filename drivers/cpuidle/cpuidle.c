@@ -516,7 +516,7 @@ int cpuidle_register(struct cpuidle_driver *drv,
 
 #ifdef CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED
 		/*
-		 * On multiplatform for ARM, the coupled idle states could
+		 * On multiplatform for ARM, the coupled idle states could be
 		 * enabled in the kernel even if the cpuidle driver does not
 		 * use it. Note, coupled_cpus is a struct copy.
 		 */

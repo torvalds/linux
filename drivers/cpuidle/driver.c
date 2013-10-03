@@ -56,7 +56,7 @@ static inline void __cpuidle_unset_driver(struct cpuidle_driver *drv)
 }
 
 /**
- * __cpuidle_set_driver - set per CPU driver variables the the given driver.
+ * __cpuidle_set_driver - set per CPU driver variables for the given driver.
  * @drv: a valid pointer to a struct cpuidle_driver
  *
  * For each CPU in the driver's cpumask, unset the registered driver per CPU
@@ -132,7 +132,7 @@ static inline void __cpuidle_unset_driver(struct cpuidle_driver *drv)
  * cpuidle_setup_broadcast_timer - enable/disable the broadcast timer
  * @arg: a void pointer used to match the SMP cross call API
  *
- * @arg is used as a value of type 'long' with on of the two values:
+ * @arg is used as a value of type 'long' with one of the two values:
  * - CLOCK_EVT_NOTIFY_BROADCAST_ON
  * - CLOCK_EVT_NOTIFY_BROADCAST_OFF
  *
@@ -169,7 +169,7 @@ static int __cpuidle_driver_init(struct cpuidle_driver *drv)
 	/*
 	 * Look for the timer stop flag in the different states, so that we know
 	 * if the broadcast timer has to be set up.  The loop is in the reverse
-	 * order, because usually on of the the deeper states has this flag set.
+	 * order, because usually one of the deeper states have this flag set.
 	 */
 	for (i = drv->state_count - 1; i >= 0 ; i--) {
 
