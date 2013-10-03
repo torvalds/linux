@@ -252,14 +252,6 @@ static int __exit corenet_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int corenet_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	struct cpufreq_frequency_table *table =
-		per_cpu(cpu_data, policy->cpu)->table;
-
-	return cpufreq_frequency_table_verify(policy, table);
-}
-
 static int corenet_cpufreq_target(struct cpufreq_policy *policy,
 		unsigned int target_freq, unsigned int relation)
 {
@@ -292,20 +284,15 @@ static int corenet_cpufreq_target(struct cpufreq_policy *policy,
 	return ret;
 }
 
-static struct freq_attr *corenet_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver ppc_corenet_cpufreq_driver = {
 	.name		= "ppc_cpufreq",
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= corenet_cpufreq_cpu_init,
 	.exit		= __exit_p(corenet_cpufreq_cpu_exit),
-	.verify		= corenet_cpufreq_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= corenet_cpufreq_target,
 	.get		= corenet_cpufreq_get_speed,
-	.attr		= corenet_cpufreq_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static const struct of_device_id node_matches[] __initdata = {
