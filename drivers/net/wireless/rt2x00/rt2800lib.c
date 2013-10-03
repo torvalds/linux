@@ -4442,11 +4442,17 @@ static inline void rt2800_set_vgc(struct rt2x00_dev *rt2x00dev,
 				  struct link_qual *qual, u8 vgc_level)
 {
 	if (qual->vgc_level != vgc_level) {
-		if (rt2x00_rt(rt2x00dev, RT5592)) {
+		if (rt2x00_rt(rt2x00dev, RT3572) ||
+		    rt2x00_rt(rt2x00dev, RT3593)) {
+			rt2800_bbp_write_with_rx_chain(rt2x00dev, 66,
+						       vgc_level);
+		} else if (rt2x00_rt(rt2x00dev, RT5592)) {
 			rt2800_bbp_write(rt2x00dev, 83, qual->rssi > -65 ? 0x4a : 0x7a);
 			rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, vgc_level);
-		} else
+		} else {
 			rt2800_bbp_write(rt2x00dev, 66, vgc_level);
+		}
+
 		qual->vgc_level = vgc_level;
 		qual->vgc_level_reg = vgc_level;
 	}
