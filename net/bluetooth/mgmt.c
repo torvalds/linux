@@ -3553,6 +3553,12 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 	u16 key_count, expected_len;
 	int i, err;
 
+	BT_DBG("request for %s", hdev->name);
+
+	if (!lmp_le_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_LONG_TERM_KEYS,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
 	key_count = __le16_to_cpu(cp->key_count);
 
 	expected_len = sizeof(*cp) + key_count *
