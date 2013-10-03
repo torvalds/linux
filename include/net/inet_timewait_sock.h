@@ -58,6 +58,11 @@ struct inet_hashinfo;
 # define INET_TWDR_RECYCLE_TICK (12 + 2 - INET_TWDR_RECYCLE_SLOTS_LOG)
 #endif
 
+static inline u32 inet_tw_time_stamp(void)
+{
+	return jiffies;
+}
+
 /* TIME_WAIT reaping mechanism. */
 #define INET_TWDR_TWKILL_SLOTS	8 /* Please keep this a power of 2. */
 
@@ -130,7 +135,7 @@ struct inet_timewait_sock {
 				tw_tos		: 8,
 				tw_ipv6_offset  : 16;
 	kmemcheck_bitfield_end(flags);
-	unsigned long		tw_ttd;
+	u32			tw_ttd;
 	struct inet_bind_bucket	*tw_tb;
 	struct hlist_node	tw_death_node;
 };

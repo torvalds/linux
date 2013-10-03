@@ -222,7 +222,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 			       u32 portid, u32 seq, u16 nlmsg_flags,
 			       const struct nlmsghdr *unlh)
 {
-	long tmo;
+	s32 tmo;
 	struct inet_diag_msg *r;
 	struct nlmsghdr *nlh;
 
@@ -234,7 +234,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	r = nlmsg_data(nlh);
 	BUG_ON(tw->tw_state != TCP_TIME_WAIT);
 
-	tmo = tw->tw_ttd - jiffies;
+	tmo = tw->tw_ttd - inet_tw_time_stamp();
 	if (tmo < 0)
 		tmo = 0;
 
@@ -248,7 +248,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	r->id.idiag_dst[0]    = tw->tw_daddr;
 	r->idiag_state	      = tw->tw_substate;
 	r->idiag_timer	      = 3;
-	r->idiag_expires      = DIV_ROUND_UP(tmo * 1000, HZ);
+	r->idiag_expires      = jiffies_to_msecs(tmo);
 	r->idiag_rqueue	      = 0;
 	r->idiag_wqueue	      = 0;
 	r->idiag_uid	      = 0;
