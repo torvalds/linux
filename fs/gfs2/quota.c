@@ -1140,7 +1140,7 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_quota_data **qda;
-	unsigned int max_qd = gfs2_tune_get(sdp, gt_quota_simul_sync);
+	unsigned int max_qd = PAGE_SIZE/sizeof(struct gfs2_holder);
 	unsigned int num_qd;
 	unsigned int x;
 	int error = 0;

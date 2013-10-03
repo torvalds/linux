@@ -537,7 +537,6 @@ struct gfs2_tune {
 
 	unsigned int gt_logd_secs;
 
-	unsigned int gt_quota_simul_sync; /* Max quotavals to sync at once */
 	unsigned int gt_quota_warn_period; /* Secs between quota warn msgs */
 	unsigned int gt_quota_scale_num; /* Numerator */
 	unsigned int gt_quota_scale_den; /* Denominator */
