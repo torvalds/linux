@@ -430,7 +430,7 @@
 #define  DPIO_MODSEL1			(1<<3) /* if ref clk b == 27 */
 #define  DPIO_MODSEL0			(1<<2) /* if ref clk a == 27 */
 #define  DPIO_SFR_BYPASS		(1<<1)
-#define  DPIO_RESET			(1<<0)
+#define  DPIO_CMNRST			(1<<0)
 
 #define _DPIO_TX3_SWING_CTL4_A		0x690
 #define _DPIO_TX3_SWING_CTL4_B		0x2a90

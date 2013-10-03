@@ -1360,6 +1360,26 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 	assert_pch_hdmi_disabled(dev_priv, pipe, PCH_HDMID);
 }
 
+static void intel_init_dpio(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_VALLEYVIEW(dev))
+		return;
+
+	/*
+	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
+	 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
+	 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
+	 *   b.	The other bits such as sfr settings / modesel may all be set
+	 *      to 0.
+	 *
+	 * This should only be done on init and resume from S3 with both
+	 * PLLs disabled, or we risk losing DPIO and PLL synchronization.
+	 */
+	I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) | DPIO_CMNRST);
+}
+
 static void vlv_enable_pll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -10369,6 +10389,8 @@ void intel_modeset_init_hw(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev))
 		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
 			   DPLL_INTEGRATED_CRI_CLK_VLV);
+
+	intel_init_dpio(dev);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_enable_gt_powersave(dev);
