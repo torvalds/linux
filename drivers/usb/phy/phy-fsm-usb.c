@@ -99,7 +99,7 @@ void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 	case OTG_STATE_A_SUSPEND:
 		otg_del_timer(fsm, A_AIDL_BDIS);
 		fsm->a_aidl_bdis_tmout = 0;
-		fsm->a_suspend_req = 0;
+		fsm->a_suspend_req_inf = 0;
 		break;
 	case OTG_STATE_A_PERIPHERAL:
 		otg_del_timer(fsm, A_BIDL_ADIS);
@@ -192,7 +192,7 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		 * When HNP is triggered while a_bus_req = 0, a_host will
 		 * suspend too fast to complete a_set_b_hnp_en
 		 */
-		if (!fsm->a_bus_req || fsm->a_suspend_req)
+		if (!fsm->a_bus_req || fsm->a_suspend_req_inf)
 			otg_add_timer(fsm, A_WAIT_ENUM);
 		break;
 	case OTG_STATE_A_SUSPEND:
@@ -307,7 +307,7 @@ int otg_statemachine(struct otg_fsm *fsm)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_VFALL);
 		break;
 	case OTG_STATE_A_HOST:
-		if ((!fsm->a_bus_req || fsm->a_suspend_req) &&
+		if ((!fsm->a_bus_req || fsm->a_suspend_req_inf) &&
 				fsm->otg->host->b_hnp_enable)
 			otg_set_state(fsm, OTG_STATE_A_SUSPEND);
 		else if (fsm->id || !fsm->b_conn || fsm->a_bus_drop)

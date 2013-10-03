@@ -54,9 +54,12 @@ enum otg_fsm_timer {
 /* OTG state machine according to the OTG spec */
 struct otg_fsm {
 	/* Input */
+	int a_bus_drop;
+	int a_bus_req;
 	int a_bus_resume;
 	int a_bus_suspend;
 	int a_conn;
+	int b_bus_req;
 	int a_sess_vld;
 	int a_srp_det;
 	int a_vbus_vld;
@@ -72,6 +75,7 @@ struct otg_fsm {
 	int a_set_b_hnp_en;
 	int b_srp_done;
 	int b_hnp_enable;
+	int a_clr_err;
 
 	/* Timeout indicator for timers */
 	int a_wait_vrise_tmout;
@@ -82,11 +86,11 @@ struct otg_fsm {
 	int a_bidl_adis_tmout;
 
 	/* Informative variables */
-	int a_bus_drop;
-	int a_bus_req;
-	int a_clr_err;
-	int a_suspend_req;
-	int b_bus_req;
+	int a_bus_drop_inf;
+	int a_bus_req_inf;
+	int a_clr_err_inf;
+	int a_suspend_req_inf;
+	int b_bus_req_inf;
 
 	/* Output */
 	int drv_vbus;

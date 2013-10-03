@@ -1113,7 +1113,7 @@ static long fsl_otg_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case SET_A_SUSPEND_REQ:
-		fsl_otg_dev->fsm.a_suspend_req = arg;
+		fsl_otg_dev->fsm.a_suspend_req_inf = arg;
 		break;
 
 	case SET_A_BUS_DROP:
