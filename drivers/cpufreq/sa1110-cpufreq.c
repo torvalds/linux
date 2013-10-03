@@ -344,7 +344,7 @@ static int __init sa1110_cpu_init(struct cpufreq_policy *policy)
  * it with cpufreq_register_driver() */
 static struct cpufreq_driver sa1110_driver __refdata = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= sa11x0_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= sa1110_target,
 	.get		= sa11x0_getspeed,
 	.init		= sa1110_cpu_init,
