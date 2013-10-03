@@ -78,11 +78,6 @@ static void sc520_freq_set_cpu_state(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 };
 
-static int sc520_freq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, &sc520_freq_table[0]);
-}
-
 static int sc520_freq_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq,
 			    unsigned int relation)
@@ -120,27 +115,14 @@ static int sc520_freq_cpu_init(struct cpufreq_policy *policy)
 }
 
 
-static int sc520_freq_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
-
-static struct freq_attr *sc520_freq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
-
 static struct cpufreq_driver sc520_freq_driver = {
 	.get	= sc520_freq_get_cpu_frequency,
-	.verify	= sc520_freq_verify,
+	.verify	= cpufreq_generic_frequency_table_verify,
 	.target	= sc520_freq_target,
 	.init	= sc520_freq_cpu_init,
-	.exit	= sc520_freq_cpu_exit,
+	.exit	= cpufreq_generic_exit,
 	.name	= "sc520_freq",
-	.attr	= sc520_freq_attr,
+	.attr	= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id sc520_ids[] = {
