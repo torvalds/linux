@@ -1039,7 +1039,7 @@ static int hdmi_enable(struct exynos5_hwc_composer_device_1_t *dev)
                            hdcp_enabled) < 0)
         ALOGE("%s: s_ctrl(CID_TV_HDCP_ENABLE) failed %d", __func__, errno);
 
-    int color_range = 3;	// FIXME: default color range?
+    int color_range = 2;	// FIXME: default color range?
 
     if (exynos_v4l2_s_ctrl(dev->hdmi_layers[1].fd, V4L2_CID_TV_SET_COLOR_RANGE,
                            color_range) < 0)
