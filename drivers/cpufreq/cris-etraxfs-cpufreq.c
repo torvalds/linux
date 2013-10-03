@@ -70,10 +70,7 @@ static int cris_freq_target(struct cpufreq_policy *policy,
 
 static int cris_freq_cpu_init(struct cpufreq_policy *policy)
 {
-	/* cpuinfo and default policy values */
-	policy->cpuinfo.transition_latency = 1000000;	/* 1ms */
-
-	return cpufreq_table_validate_and_show(policy, cris_freq_table);
+	return cpufreq_generic_init(policy, cris_freq_table, 1000000);
 }
 
 static struct cpufreq_driver cris_freq_driver = {
