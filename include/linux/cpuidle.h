@@ -195,16 +195,10 @@ struct cpuidle_governor {
 };
 
 #ifdef CONFIG_CPU_IDLE
-
 extern int cpuidle_register_governor(struct cpuidle_governor *gov);
-extern void cpuidle_unregister_governor(struct cpuidle_governor *gov);
-
 #else
-
 static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
 {return 0;}
-static inline void cpuidle_unregister_governor(struct cpuidle_governor *gov) { }
-
 #endif
 
 #ifdef CONFIG_ARCH_HAS_CPU_RELAX
