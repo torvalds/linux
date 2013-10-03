@@ -275,6 +275,14 @@ bool usb_amd_hang_symptom_quirk(void)
 }
 EXPORT_SYMBOL_GPL(usb_amd_hang_symptom_quirk);
 
+bool usb_amd_prefetch_quirk(void)
+{
+	usb_amd_find_chipset_info();
+	/* SB800 needs pre-fetch fix */
+	return amd_chipset.sb_type.gen == AMD_CHIPSET_SB800;
+}
+EXPORT_SYMBOL_GPL(usb_amd_prefetch_quirk);
+
 /*
  * The hardware normally enables the A-link power management feature, which
  * lets the system lower the power consumption in idle states.
