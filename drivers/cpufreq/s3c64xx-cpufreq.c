@@ -239,9 +239,8 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 	 * the PLLs, which we don't currently) is ~300us worst case,
 	 * but add some fudge.
 	 */
-	policy->cpuinfo.transition_latency = (500 * 1000) + regulator_latency;
-
-	ret = cpufreq_table_validate_and_show(policy, s3c64xx_freq_table);
+	ret = cpufreq_generic_init(policy, s3c64xx_freq_table,
+			(500 * 1000) + regulator_latency);
 	if (ret != 0) {
 		pr_err("Failed to configure frequency table: %d\n",
 		       ret);

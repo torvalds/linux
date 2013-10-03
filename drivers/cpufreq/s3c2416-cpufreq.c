@@ -479,10 +479,8 @@ static int __init s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 	/* Datasheet says PLL stabalisation time must be at least 300us,
 	 * so but add some fudge. (reference in LOCKCON0 register description)
 	 */
-	policy->cpuinfo.transition_latency = (500 * 1000) +
-					     s3c_freq->regulator_latency;
-
-	ret = cpufreq_table_validate_and_show(policy, s3c_freq->freq_table);
+	ret = cpufreq_generic_init(policy, s3c_freq->freq_table,
+			(500 * 1000) + s3c_freq->regulator_latency);
 	if (ret)
 		goto err_freq_table;
 
