@@ -420,19 +420,6 @@ static int centrino_cpu_exit(struct cpufreq_policy *policy)
 }
 
 /**
- * centrino_verify - verifies a new CPUFreq policy
- * @policy: new policy
- *
- * Limit must be within this model's frequency range at least one
- * border included.
- */
-static int centrino_verify (struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy,
-			per_cpu(centrino_model, policy->cpu)->op_points);
-}
-
-/**
  * centrino_setpolicy - set a new CPUFreq policy
  * @policy: new policy
  * @target_freq: the target frequency
@@ -553,20 +540,15 @@ out:
 	return retval;
 }
 
-static struct freq_attr* centrino_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver centrino_driver = {
 	.name		= "centrino", /* should be speedstep-centrino,
 					 but there's a 16 char limit */
 	.init		= centrino_cpu_init,
 	.exit		= centrino_cpu_exit,
-	.verify		= centrino_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= centrino_target,
 	.get		= get_cur_freq,
-	.attr           = centrino_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 /*

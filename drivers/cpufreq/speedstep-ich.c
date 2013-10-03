@@ -289,18 +289,6 @@ static int speedstep_target(struct cpufreq_policy *policy,
 }
 
 
-/**
- * speedstep_verify - verifies a new CPUFreq policy
- * @policy: new policy
- *
- * Limit must be within speedstep_low_freq and speedstep_high_freq, with
- * at least one border included.
- */
-static int speedstep_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, &speedstep_freqs[0]);
-}
-
 struct get_freqs {
 	struct cpufreq_policy *policy;
 	int ret;
@@ -352,26 +340,14 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 }
 
 
-static int speedstep_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
-static struct freq_attr *speedstep_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
-
 static struct cpufreq_driver speedstep_driver = {
 	.name	= "speedstep-ich",
-	.verify	= speedstep_verify,
+	.verify	= cpufreq_generic_frequency_table_verify,
 	.target	= speedstep_target,
 	.init	= speedstep_cpu_init,
-	.exit	= speedstep_cpu_exit,
+	.exit	= cpufreq_generic_exit,
 	.get	= speedstep_get,
-	.attr	= speedstep_attr,
+	.attr	= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id ss_smi_ids[] = {
