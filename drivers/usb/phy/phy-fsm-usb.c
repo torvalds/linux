@@ -41,17 +41,17 @@ static int otg_set_protocol(struct otg_fsm *fsm, int protocol)
 			fsm->protocol, protocol);
 		/* stop old protocol */
 		if (fsm->protocol == PROTO_HOST)
-			ret = fsm->ops->start_host(fsm, 0);
+			ret = otg_start_host(fsm, 0);
 		else if (fsm->protocol == PROTO_GADGET)
-			ret = fsm->ops->start_gadget(fsm, 0);
+			ret = otg_start_gadget(fsm, 0);
 		if (ret)
 			return ret;
 
 		/* start new protocol */
 		if (protocol == PROTO_HOST)
-			ret = fsm->ops->start_host(fsm, 1);
+			ret = otg_start_host(fsm, 1);
 		else if (protocol == PROTO_GADGET)
-			ret = fsm->ops->start_gadget(fsm, 1);
+			ret = otg_start_gadget(fsm, 1);
 		if (ret)
 			return ret;
 
