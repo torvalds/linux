@@ -703,6 +703,7 @@ struct xhci_ep_ctx {
 
 /* deq bitmasks */
 #define EP_CTX_CYCLE_MASK		(1 << 0)
+#define SCTX_DEQ_MASK			(~0xfL)
 
 
 /**

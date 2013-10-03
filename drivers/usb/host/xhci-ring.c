@@ -1081,12 +1081,14 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 	unsigned int stream_id;
 	struct xhci_ring *ep_ring;
 	struct xhci_virt_device *dev;
+	struct xhci_virt_ep *ep;
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_slot_ctx *slot_ctx;
 
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	stream_id = TRB_TO_STREAM_ID(le32_to_cpu(trb->generic.field[2]));
 	dev = xhci->devs[slot_id];
+	ep = &dev->eps[ep_index];
 
 	ep_ring = xhci_stream_id_to_ring(dev, ep_index, stream_id);
 	if (!ep_ring) {
@@ -1134,12 +1136,19 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 		 * cancelling URBs, which might not be an error...
 		 */
 	} else {
+		u64 deq;
+		/* 4.6.10 deq ptr is written to the stream ctx for streams */
+		if (ep->ep_state & EP_HAS_STREAMS) {
+			struct xhci_stream_ctx *ctx =
+				&ep->stream_info->stream_ctx_array[stream_id];
+			deq = le64_to_cpu(ctx->stream_ring) & SCTX_DEQ_MASK;
+		} else {
+			deq = le64_to_cpu(ep_ctx->deq) & ~EP_CTX_CYCLE_MASK;
+		}
 		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-			"Successful Set TR Deq Ptr cmd, deq = @%08llx",
-			 le64_to_cpu(ep_ctx->deq));
-		if (xhci_trb_virt_to_dma(dev->eps[ep_index].queued_deq_seg,
-					 dev->eps[ep_index].queued_deq_ptr) ==
-		    (le64_to_cpu(ep_ctx->deq) & ~(EP_CTX_CYCLE_MASK))) {
+			"Successful Set TR Deq Ptr cmd, deq = @%08llx", deq);
+		if (xhci_trb_virt_to_dma(ep->queued_deq_seg,
+					 ep->queued_deq_ptr) == deq) {
 			/* Update the ring's dequeue segment and dequeue pointer
 			 * to reflect the new position.
 			 */
@@ -1148,8 +1157,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 		} else {
 			xhci_warn(xhci, "Mismatch between completed Set TR Deq Ptr command & xHCI internal state.\n");
 			xhci_warn(xhci, "ep deq seg = %p, deq ptr = %p\n",
-					dev->eps[ep_index].queued_deq_seg,
-					dev->eps[ep_index].queued_deq_ptr);
+				  ep->queued_deq_seg, ep->queued_deq_ptr);
 		}
 	}
 
