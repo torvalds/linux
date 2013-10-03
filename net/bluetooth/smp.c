@@ -847,9 +847,15 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 
 int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 {
+	struct hci_conn *hcon = conn->hcon;
 	__u8 code = skb->data[0];
 	__u8 reason;
 	int err = 0;
+
+	if (hcon->type != LE_LINK) {
+		kfree_skb(skb);
+		return -ENOTSUPP;
+	}
 
 	if (!test_bit(HCI_LE_ENABLED, &conn->hcon->hdev->dev_flags)) {
 		err = -ENOTSUPP;
