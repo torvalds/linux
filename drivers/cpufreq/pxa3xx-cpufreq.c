@@ -150,11 +150,6 @@ static void __update_bus_freq(struct pxa3xx_freq_info *info)
 		cpu_relax();
 }
 
-static int pxa3xx_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, pxa3xx_freqs_table);
-}
-
 static unsigned int pxa3xx_cpufreq_get(unsigned int cpu)
 {
 	return pxa3xx_get_clk_frequency_khz(0);
@@ -229,17 +224,11 @@ static int pxa3xx_cpufreq_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int pxa3xx_cpufreq_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
 static struct cpufreq_driver pxa3xx_cpufreq_driver = {
-	.verify		= pxa3xx_cpufreq_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= pxa3xx_cpufreq_set,
 	.init		= pxa3xx_cpufreq_init,
-	.exit		= pxa3xx_cpufreq_exit,
+	.exit		= cpufreq_generic_exit,
 	.get		= pxa3xx_cpufreq_get,
 	.name		= "pxa3xx-cpufreq",
 };

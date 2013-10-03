@@ -262,23 +262,6 @@ static u32 mdrefr_dri(unsigned int freq)
 	return (interval - (cpu_is_pxa27x() ? 31 : 0)) / 32;
 }
 
-/* find a valid frequency point */
-static int pxa_verify_policy(struct cpufreq_policy *policy)
-{
-	struct cpufreq_frequency_table *pxa_freqs_table;
-	pxa_freqs_t *pxa_freqs;
-	int ret;
-
-	find_freq_tables(&pxa_freqs_table, &pxa_freqs);
-	ret = cpufreq_frequency_table_verify(policy, pxa_freqs_table);
-
-	if (freq_debug)
-		pr_debug("Verified CPU policy: %dKhz min to %dKhz max\n",
-			 policy->min, policy->max);
-
-	return ret;
-}
-
 static unsigned int pxa_cpufreq_get(unsigned int cpu)
 {
 	return get_clk_frequency_khz(0);
@@ -465,17 +448,11 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int pxa_cpufreq_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
 static struct cpufreq_driver pxa_cpufreq_driver = {
-	.verify	= pxa_verify_policy,
+	.verify	= cpufreq_generic_frequency_table_verify,
 	.target	= pxa_set_target,
 	.init	= pxa_cpufreq_init,
-	.exit	= pxa_cpufreq_exit,
+	.exit	= cpufreq_generic_exit,
 	.get	= pxa_cpufreq_get,
 	.name	= "PXA2xx",
 };
