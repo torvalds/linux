@@ -280,6 +280,31 @@ static bool __of_find_n_match_cpu_property(struct device_node *cpun,
 	return false;
 }
 
+/*
+ * arch_find_n_match_cpu_physical_id - See if the given device node is
+ * for the cpu corresponding to logical cpu 'cpu'.  Return true if so,
+ * else false.  If 'thread' is non-NULL, the local thread number within the
+ * core is returned in it.
+ */
+bool __weak arch_find_n_match_cpu_physical_id(struct device_node *cpun,
+					      int cpu, unsigned int *thread)
+{
+	/* Check for non-standard "ibm,ppc-interrupt-server#s" property
+	 * for thread ids on PowerPC. If it doesn't exist fallback to
+	 * standard "reg" property.
+	 */
+	if (IS_ENABLED(CONFIG_PPC) &&
+	    __of_find_n_match_cpu_property(cpun,
+					   "ibm,ppc-interrupt-server#s",
+					   cpu, thread))
+		return true;
+
+	if (__of_find_n_match_cpu_property(cpun, "reg", cpu, thread))
+		return true;
+
+	return false;
+}
+
 /**
  * of_get_cpu_node - Get device node associated with the given logical CPU
  *
@@ -300,24 +325,10 @@ static bool __of_find_n_match_cpu_property(struct device_node *cpun,
  */
 struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 {
-	struct device_node *cpun, *cpus;
+	struct device_node *cpun;
 
-	cpus = of_find_node_by_path("/cpus");
-	if (!cpus)
-		return NULL;
-
-	for_each_child_of_node(cpus, cpun) {
-		if (of_node_cmp(cpun->type, "cpu"))
-			continue;
-		/* Check for non-standard "ibm,ppc-interrupt-server#s" property
-		 * for thread ids on PowerPC. If it doesn't exist fallback to
-		 * standard "reg" property.
-		 */
-		if (IS_ENABLED(CONFIG_PPC) &&
-			__of_find_n_match_cpu_property(cpun,
-				"ibm,ppc-interrupt-server#s", cpu, thread))
-			return cpun;
-		if (__of_find_n_match_cpu_property(cpun, "reg", cpu, thread))
+	for_each_node_by_type(cpun, "cpu") {
+		if (arch_find_n_match_cpu_physical_id(cpun, cpu, thread))
 			return cpun;
 	}
 	return NULL;
