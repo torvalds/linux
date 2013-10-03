@@ -865,11 +865,13 @@ static void __init mvebu_mbus_get_pcie_resources(struct device_node *np,
 	int ret;
 
 	/*
-	 * These are optional, so we clear them and they'll
-	 * be zero if they are missing from the DT.
+	 * These are optional, so we make sure that resource_size(x) will
+	 * return 0.
 	 */
 	memset(mem, 0, sizeof(struct resource));
+	mem->end = -1;
 	memset(io, 0, sizeof(struct resource));
+	io->end = -1;
 
 	ret = of_property_read_u32_array(np, "pcie-mem-aperture", reg, ARRAY_SIZE(reg));
 	if (!ret) {
