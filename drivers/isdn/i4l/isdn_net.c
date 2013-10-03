@@ -885,7 +885,7 @@ isdn_net_log_skb(struct sk_buff *skb, isdn_net_local *lp)
 
 	addinfo[0] = '\0';
 	/* This check stolen from 2.1.72 dev_queue_xmit_nit() */
-	if (p < skb->data || skb->network_header >= skb->tail) {
+	if (p < skb->data || skb_network_header(skb) >= skb_tail_pointer(skb)) {
 		/* fall back to old isdn_net_log_packet method() */
 		char *buf = skb->data;
 
@@ -1385,7 +1385,7 @@ isdn_net_type_trans(struct sk_buff *skb, struct net_device *dev)
 		if (memcmp(eth->h_dest, dev->dev_addr, ETH_ALEN))
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
-	if (ntohs(eth->h_proto) >= 1536)
+	if (ntohs(eth->h_proto) >= ETH_P_802_3_MIN)
 		return eth->h_proto;
 
 	rawp = skb->data;

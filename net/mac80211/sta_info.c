@@ -149,6 +149,7 @@ static void cleanup_single_sta(struct sta_info *sta)
 	 * directly by station destruction.
 	 */
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+		kfree(sta->ampdu_mlme.tid_start_tx[i]);
 		tid_tx = rcu_dereference_raw(sta->ampdu_mlme.tid_tx[i]);
 		if (!tid_tx)
 			continue;
@@ -342,6 +343,12 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 	mutex_init(&sta->ampdu_mlme.mtx);
+#ifdef CONFIG_MAC80211_MESH
+	if (ieee80211_vif_is_mesh(&sdata->vif) &&
+	    !sdata->u.mesh.user_mpm)
+		init_timer(&sta->plink_timer);
+	sta->nonpeer_pm = NL80211_MESH_POWER_ACTIVE;
+#endif
 
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
 	sta->local = local;
@@ -353,6 +360,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	do_posix_clock_monotonic_gettime(&uptime);
 	sta->last_connected = uptime.tv_sec;
 	ewma_init(&sta->avg_signal, 1024, 8);
+	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
+		ewma_init(&sta->chain_signal_avg[i], 1024, 8);
 
 	if (sta_prepare_rate_control(local, sta, gfp)) {
 		kfree(sta);
@@ -551,6 +560,15 @@ static inline void __bss_tim_clear(u8 *tim, u16 id)
 	tim[id / 8] &= ~(1 << (id % 8));
 }
 
+static inline bool __bss_tim_get(u8 *tim, u16 id)
+{
+	/*
+	 * This format has been mandated by the IEEE specifications,
+	 * so this line may not be changed to use the test_bit() format.
+	 */
+	return tim[id / 8] & (1 << (id % 8));
+}
+
 static unsigned long ieee80211_tids_for_ac(int ac)
 {
 	/* If we ever support TIDs > 7, this obviously needs to be adjusted */
@@ -631,6 +649,9 @@ void sta_info_recalc_tim(struct sta_info *sta)
  done:
 	spin_lock_bh(&local->tim_lock);
 
+	if (indicate_tim == __bss_tim_get(ps->tim, id))
+		goto out_unlock;
+
 	if (indicate_tim)
 		__bss_tim_set(ps->tim, id);
 	else
@@ -642,6 +663,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 		local->tim_in_locked_section = false;
 	}
 
+out_unlock:
 	spin_unlock_bh(&local->tim_lock);
 }
 
@@ -765,8 +787,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 {
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
-	int ret, i;
-	bool have_key = false;
+	int ret;
 
 	might_sleep();
 
@@ -793,19 +814,8 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	list_del_rcu(&sta->list);
 
-	mutex_lock(&local->key_mtx);
-	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-		__ieee80211_key_free(key_mtx_dereference(local, sta->gtk[i]));
-		have_key = true;
-	}
-	if (sta->ptk) {
-		__ieee80211_key_free(key_mtx_dereference(local, sta->ptk));
-		have_key = true;
-	}
-	mutex_unlock(&local->key_mtx);
-
-	if (!have_key)
-		synchronize_net();
+	/* this always calls synchronize_net() */
+	ieee80211_free_sta_keys(local, sta);
 
 	sta->dead = true;
 
@@ -1124,6 +1134,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	 * ends the poll/service period.
 	 */
 	info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER |
+		       IEEE80211_TX_CTL_PS_RESPONSE |
 		       IEEE80211_TX_STATUS_EOSP |
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
@@ -1261,7 +1272,8 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			 * STA may still remain is PS mode after this frame
 			 * exchange.
 			 */
-			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER;
+			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER |
+				       IEEE80211_TX_CTL_PS_RESPONSE;
 
 			/*
 			 * Use MoreData flag to indicate whether there are
@@ -1391,30 +1403,16 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);
 
-void ieee80211_sta_eosp_irqsafe(struct ieee80211_sta *pubsta)
+void ieee80211_sta_eosp(struct ieee80211_sta *pubsta)
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 	struct ieee80211_local *local = sta->local;
-	struct sk_buff *skb;
-	struct skb_eosp_msg_data *data;
 
 	trace_api_eosp(local, pubsta);
 
-	skb = alloc_skb(0, GFP_ATOMIC);
-	if (!skb) {
-		/* too bad ... but race is better than loss */
-		clear_sta_flag(sta, WLAN_STA_SP);
-		return;
-	}
-
-	data = (void *)skb->cb;
-	memcpy(data->sta, pubsta->addr, ETH_ALEN);
-	memcpy(data->iface, sta->sdata->vif.addr, ETH_ALEN);
-	skb->pkt_type = IEEE80211_EOSP_MSG;
-	skb_queue_tail(&local->skb_queue, skb);
-	tasklet_schedule(&local->tasklet);
+	clear_sta_flag(sta, WLAN_STA_SP);
 }
-EXPORT_SYMBOL(ieee80211_sta_eosp_irqsafe);
+EXPORT_SYMBOL(ieee80211_sta_eosp);
 
 void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 				u8 tid, bool buffered)

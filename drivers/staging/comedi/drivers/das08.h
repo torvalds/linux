@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #ifndef _DAS08_H
@@ -32,7 +27,6 @@ enum das08_lrange { das08_pg_none, das08_bipolar5, das08_pgh, das08_pgl,
 
 struct das08_board_struct {
 	const char *name;
-	unsigned int id;	/*  id for pci/pcmcia boards */
 	bool is_jr;		/* true for 'JR' boards */
 	unsigned int ai_nbits;
 	enum das08_lrange ai_pg;
@@ -53,6 +47,5 @@ struct das08_private_struct {
 };
 
 int das08_common_attach(struct comedi_device *dev, unsigned long iobase);
-void das08_common_detach(struct comedi_device *dev);
 
 #endif /* _DAS08_H */

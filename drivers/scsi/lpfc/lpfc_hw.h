@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -1667,6 +1667,7 @@ enum lpfc_protgrp_type {
 #define	BG_OP_IN_CSUM_OUT_CSUM		0x5
 #define	BG_OP_IN_CRC_OUT_CSUM		0x6
 #define	BG_OP_IN_CSUM_OUT_CRC		0x7
+#define	BG_OP_RAW_MODE			0x8
 
 struct lpfc_pde5 {
 	uint32_t word0;

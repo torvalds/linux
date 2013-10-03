@@ -18,7 +18,7 @@ static inline long
 syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
 	if (user_mode(regs) && in_syscall(regs))
-		return regs->orig_r8;
+		return regs->r8;
 	else
 		return -1;
 }
@@ -26,8 +26,7 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 static inline void
 syscall_rollback(struct task_struct *task, struct pt_regs *regs)
 {
-	/* XXX: I can't fathom how pt_regs->r8 will be clobbered ? */
-	regs->r8 = regs->orig_r8;
+	regs->r0 = regs->orig_r0;
 }
 
 static inline long

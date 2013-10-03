@@ -286,7 +286,7 @@ static int bt8xxgpio_resume(struct pci_dev *pdev)
 	unsigned long flags;
 	int err;
 
-	pci_set_power_state(pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;

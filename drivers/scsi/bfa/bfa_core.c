@@ -1432,6 +1432,7 @@ bfa_iocfc_disable_cbfn(void *bfa_arg)
 {
 	struct bfa_s	*bfa = bfa_arg;
 
+	bfa->queue_process = BFA_FALSE;
 	bfa_fsm_send_event(&bfa->iocfc, IOCFC_E_IOC_DISABLED);
 }
 
@@ -1567,7 +1568,6 @@ bfa_iocfc_start(struct bfa_s *bfa)
 void
 bfa_iocfc_stop(struct bfa_s *bfa)
 {
-	bfa->queue_process = BFA_FALSE;
 	bfa_fsm_send_event(&bfa->iocfc, IOCFC_E_STOP);
 }
 
@@ -1674,7 +1674,6 @@ bfa_iocfc_disable(struct bfa_s *bfa)
 	bfa_plog_str(bfa->plog, BFA_PL_MID_HAL, BFA_PL_EID_MISC, 0,
 		     "IOC Disable");
 
-	bfa->queue_process = BFA_FALSE;
 	bfa_fsm_send_event(&bfa->iocfc, IOCFC_E_DISABLE);
 }
 

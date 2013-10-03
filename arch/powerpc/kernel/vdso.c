@@ -113,6 +113,10 @@ static struct vdso_patch_def vdso_patches[] = {
 		CPU_FTR_USE_TB, 0,
 		"__kernel_get_tbfreq", NULL
 	},
+	{
+		CPU_FTR_USE_TB, 0,
+		"__kernel_time", NULL
+	},
 };
 
 /*
@@ -707,7 +711,7 @@ static void __init vdso_setup_syscall_map(void)
 }
 
 #ifdef CONFIG_PPC64
-int __cpuinit vdso_getcpu_init(void)
+int vdso_getcpu_init(void)
 {
 	unsigned long cpu, node, val;
 

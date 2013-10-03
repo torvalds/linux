@@ -30,7 +30,7 @@
 #include <linux/basic_mmio_gpio.h>
 #include <linux/spi/spi.h>
 
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
 #include <video/platform_lcd.h>
@@ -64,6 +64,7 @@
 #include <plat/adc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/pm.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "crag6410.h"
@@ -119,7 +120,7 @@ static struct platform_device crag6410_backlight_device = {
 	.name		= "pwm-backlight",
 	.id		= -1,
 	.dev		= {
-		.parent	= &s3c_device_timer[0].dev,
+		.parent	= &samsung_device_pwm.dev,
 		.platform_data = &crag6410_backlight_data,
 	},
 };
@@ -374,7 +375,7 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_ohci,
 	&s3c_device_usb_hsotg,
-	&s3c_device_timer[0],
+	&samsung_device_pwm,
 	&s3c64xx_device_iis0,
 	&s3c64xx_device_iis1,
 	&samsung_device_keypad,
@@ -744,6 +745,7 @@ static void __init crag6410_map_io(void)
 	s3c64xx_init_io(NULL, 0);
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(crag6410_uartcfgs, ARRAY_SIZE(crag6410_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	/* LCD type and Bypass set by bootloader */
 }
@@ -868,6 +870,6 @@ MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

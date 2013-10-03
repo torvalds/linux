@@ -672,6 +672,7 @@ static int elantech_packet_check_v2(struct psmouse *psmouse)
  */
 static int elantech_packet_check_v3(struct psmouse *psmouse)
 {
+	struct elantech_data *etd = psmouse->private;
 	const u8 debounce_packet[] = { 0xc4, 0xff, 0xff, 0x02, 0xff, 0xff };
 	unsigned char *packet = psmouse->packet;
 
@@ -682,30 +683,59 @@ static int elantech_packet_check_v3(struct psmouse *psmouse)
 	if (!memcmp(packet, debounce_packet, sizeof(debounce_packet)))
 		return PACKET_DEBOUNCE;
 
-	if ((packet[0] & 0x0c) == 0x04 && (packet[3] & 0xcf) == 0x02)
-		return PACKET_V3_HEAD;
+	/*
+	 * If the hardware flag 'crc_enabled' is set the packets have
+	 * different signatures.
+	 */
+	if (etd->crc_enabled) {
+		if ((packet[3] & 0x09) == 0x08)
+			return PACKET_V3_HEAD;
 
-	if ((packet[0] & 0x0c) == 0x0c && (packet[3] & 0xce) == 0x0c)
-		return PACKET_V3_TAIL;
+		if ((packet[3] & 0x09) == 0x09)
+			return PACKET_V3_TAIL;
+	} else {
+		if ((packet[0] & 0x0c) == 0x04 && (packet[3] & 0xcf) == 0x02)
+			return PACKET_V3_HEAD;
+
+		if ((packet[0] & 0x0c) == 0x0c && (packet[3] & 0xce) == 0x0c)
+			return PACKET_V3_TAIL;
+	}
 
 	return PACKET_UNKNOWN;
 }
 
 static int elantech_packet_check_v4(struct psmouse *psmouse)
 {
+	struct elantech_data *etd = psmouse->private;
 	unsigned char *packet = psmouse->packet;
+	unsigned char packet_type = packet[3] & 0x03;
+	bool sanity_check;
 
-	if ((packet[0] & 0x0c) == 0x04 &&
-	    (packet[3] & 0x1f) == 0x11)
+	/*
+	 * Sanity check based on the constant bits of a packet.
+	 * The constant bits change depending on the value of
+	 * the hardware flag 'crc_enabled' but are the same for
+	 * every packet, regardless of the type.
+	 */
+	if (etd->crc_enabled)
+		sanity_check = ((packet[3] & 0x08) == 0x00);
+	else
+		sanity_check = ((packet[0] & 0x0c) == 0x04 &&
+				(packet[3] & 0x1c) == 0x10);
+
+	if (!sanity_check)
+		return PACKET_UNKNOWN;
+
+	switch (packet_type) {
+	case 0:
+		return PACKET_V4_STATUS;
+
+	case 1:
 		return PACKET_V4_HEAD;
 
-	if ((packet[0] & 0x0c) == 0x04 &&
-	    (packet[3] & 0x1f) == 0x12)
+	case 2:
 		return PACKET_V4_MOTION;
-
-	if ((packet[0] & 0x0c) == 0x04 &&
-	    (packet[3] & 0x1f) == 0x10)
-		return PACKET_V4_STATUS;
+	}
 
 	return PACKET_UNKNOWN;
 }
@@ -1282,6 +1312,7 @@ static int elantech_set_properties(struct elantech_data *etd)
 			etd->hw_version = 3;
 			break;
 		case 6:
+		case 7:
 			etd->hw_version = 4;
 			break;
 		default:
@@ -1311,6 +1342,12 @@ static int elantech_set_properties(struct elantech_data *etd)
 		if (etd->fw_version >= 0x020800)
 			etd->reports_pressure = true;
 	}
+
+	/*
+	 * The signatures of v3 and v4 packets change depending on the
+	 * value of this hardware flag.
+	 */
+	etd->crc_enabled = ((etd->fw_version & 0x4000) == 0x4000);
 
 	return 0;
 }

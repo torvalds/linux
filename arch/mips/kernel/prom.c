@@ -23,6 +23,23 @@
 #include <asm/page.h>
 #include <asm/prom.h>
 
+static char mips_machine_name[64] = "Unknown";
+
+__init void mips_set_machine_name(const char *name)
+{
+	if (name == NULL)
+		return;
+
+	strlcpy(mips_machine_name, name, sizeof(mips_machine_name));
+	pr_info("MIPS: machine is %s\n", mips_get_machine_name());
+}
+
+char *mips_get_machine_name(void)
+{
+	return mips_machine_name;
+}
+
+#ifdef CONFIG_OF
 int __init early_init_dt_scan_memory_arch(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
@@ -41,14 +58,25 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void __init early_init_dt_setup_initrd_arch(unsigned long start,
-					    unsigned long end)
+void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
 {
 	initrd_start = (unsigned long)__va(start);
 	initrd_end = (unsigned long)__va(end);
 	initrd_below_start_ok = 1;
 }
 #endif
+
+int __init early_init_dt_scan_model(unsigned long node,	const char *uname,
+				    int depth, void *data)
+{
+	if (!depth) {
+		char *model = of_get_flat_dt_prop(node, "model", NULL);
+
+		if (model)
+			mips_set_machine_name(model);
+	}
+	return 0;
+}
 
 void __init early_init_devtree(void *params)
 {
@@ -65,6 +93,9 @@ void __init early_init_devtree(void *params)
 	/* Scan memory nodes */
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_arch, NULL);
+
+	/* try to load the mips machine name */
+	of_scan_flat_dt(early_init_dt_scan_model, NULL);
 }
 
 void __init __dt_setup_arch(struct boot_param_header *bph)
@@ -79,3 +110,4 @@ void __init __dt_setup_arch(struct boot_param_header *bph)
 
 	early_init_devtree(initial_boot_params);
 }
+#endif

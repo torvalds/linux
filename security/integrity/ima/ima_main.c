@@ -57,7 +57,7 @@ __setup("ima_hash=", hash_setup);
 static void ima_rdwr_violation_check(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	fmode_t mode = file->f_mode;
 	int must_measure;
 	bool send_tomtou = false, send_writers = false;
@@ -189,11 +189,9 @@ static int process_measurement(struct file *file, const char *filename,
 	if (rc != 0)
 		goto out_digsig;
 
-	if (function != BPRM_CHECK)
-		pathname = ima_d_path(&file->f_path, &pathbuf);
-
+	pathname = !filename ? ima_d_path(&file->f_path, &pathbuf) : filename;
 	if (!pathname)
-		pathname = filename;
+		pathname = (const char *)file->f_dentry->d_name.name;
 
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname);
@@ -226,8 +224,7 @@ out:
 int ima_file_mmap(struct file *file, unsigned long prot)
 {
 	if (file && (prot & PROT_EXEC))
-		return process_measurement(file, file->f_dentry->d_name.name,
-					   MAY_EXEC, MMAP_CHECK);
+		return process_measurement(file, NULL, MAY_EXEC, MMAP_CHECK);
 	return 0;
 }
 
@@ -265,7 +262,7 @@ int ima_bprm_check(struct linux_binprm *bprm)
 int ima_file_check(struct file *file, int mask)
 {
 	ima_rdwr_violation_check(file);
-	return process_measurement(file, file->f_dentry->d_name.name,
+	return process_measurement(file, NULL,
 				 mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
 				 FILE_CHECK);
 }
@@ -290,8 +287,7 @@ int ima_module_check(struct file *file)
 #endif
 		return 0;	/* We rely on module signature checking */
 	}
-	return process_measurement(file, file->f_dentry->d_name.name,
-				   MAY_EXEC, MODULE_CHECK);
+	return process_measurement(file, NULL, MAY_EXEC, MODULE_CHECK);
 }
 
 static int __init init_ima(void)

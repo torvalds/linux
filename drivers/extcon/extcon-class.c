@@ -148,6 +148,7 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
+static DEVICE_ATTR_RW(state);
 
 static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -163,6 +164,7 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%s\n", dev_name(edev->dev));
 }
+static DEVICE_ATTR_RO(name);
 
 static ssize_t cable_name_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -183,26 +185,6 @@ static ssize_t cable_state_show(struct device *dev,
 	return sprintf(buf, "%d\n",
 		       extcon_get_cable_state_(cable->edev,
 					       cable->cable_index));
-}
-
-static ssize_t cable_state_store(struct device *dev,
-				 struct device_attribute *attr, const char *buf,
-				 size_t count)
-{
-	struct extcon_cable *cable = container_of(attr, struct extcon_cable,
-						  attr_state);
-	int ret, state;
-
-	ret = sscanf(buf, "%d", &state);
-	if (ret == 0)
-		ret = -EINVAL;
-	else
-		ret = extcon_set_cable_state_(cable->edev, cable->cable_index,
-					      state);
-
-	if (ret < 0)
-		return ret;
-	return count;
 }
 
 /**
@@ -501,6 +483,7 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 		return -ENODEV;
 	}
 }
+EXPORT_SYMBOL_GPL(extcon_register_interest);
 
 /**
  * extcon_unregister_interest() - Unregister the notifier registered by
@@ -515,6 +498,7 @@ int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
 
 	return raw_notifier_chain_unregister(&obj->edev->nh, &obj->internal_nb);
 }
+EXPORT_SYMBOL_GPL(extcon_unregister_interest);
 
 /**
  * extcon_register_notifier() - Register a notifiee to get notified by
@@ -545,11 +529,12 @@ int extcon_unregister_notifier(struct extcon_dev *edev,
 }
 EXPORT_SYMBOL_GPL(extcon_unregister_notifier);
 
-static struct device_attribute extcon_attrs[] = {
-	__ATTR(state, S_IRUGO | S_IWUSR, state_show, state_store),
-	__ATTR_RO(name),
-	__ATTR_NULL,
+static struct attribute *extcon_attrs[] = {
+	&dev_attr_state.attr,
+	&dev_attr_name.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(extcon);
 
 static int create_extcon_class(void)
 {
@@ -557,7 +542,7 @@ static int create_extcon_class(void)
 		extcon_class = class_create(THIS_MODULE, "extcon");
 		if (IS_ERR(extcon_class))
 			return PTR_ERR(extcon_class);
-		extcon_class->dev_attrs = extcon_attrs;
+		extcon_class->dev_groups = extcon_groups;
 
 #if defined(CONFIG_ANDROID)
 		switch_class = class_compat_register("switch");
@@ -620,7 +605,8 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 	edev->dev->class = extcon_class;
 	edev->dev->release = extcon_dev_release;
 
-	dev_set_name(edev->dev, edev->name ? edev->name : dev_name(dev));
+	edev->name = edev->name ? edev->name : dev_name(dev);
+	dev_set_name(edev->dev, "%s", edev->name);
 
 	if (edev->max_supported) {
 		char buf[10];
@@ -665,9 +651,8 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 
 			sysfs_attr_init(&cable->attr_state.attr);
 			cable->attr_state.attr.name = "state";
-			cable->attr_state.attr.mode = 0644;
+			cable->attr_state.attr.mode = 0444;
 			cable->attr_state.show = cable_state_show;
-			cable->attr_state.store = cable_state_store;
 		}
 	}
 

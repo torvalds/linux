@@ -2807,7 +2807,6 @@ static void snd_ice1712_remove(struct pci_dev *pci)
 	if (ice->card_info && ice->card_info->chip_exit)
 		ice->card_info->chip_exit(ice);
 	snd_card_free(card);
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver ice1712_driver = {

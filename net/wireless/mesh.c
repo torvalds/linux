@@ -18,6 +18,7 @@
 #define MESH_PATH_TO_ROOT_TIMEOUT      6000
 #define MESH_ROOT_INTERVAL     5000
 #define MESH_ROOT_CONFIRMATION_INTERVAL 2000
+#define MESH_DEFAULT_PLINK_TIMEOUT	1800 /* timeout in seconds */
 
 /*
  * Minimum interval between two consecutive PREQs originated by the same
@@ -75,6 +76,7 @@ const struct mesh_config default_mesh_config = {
 	.dot11MeshHWMPconfirmationInterval = MESH_ROOT_CONFIRMATION_INTERVAL,
 	.power_mode = NL80211_MESH_POWER_ACTIVE,
 	.dot11MeshAwakeWindowDuration = MESH_DEFAULT_AWAKE_WINDOW,
+	.plink_timeout = MESH_DEFAULT_PLINK_TIMEOUT,
 };
 
 const struct mesh_setup default_mesh_setup = {
@@ -82,9 +84,11 @@ const struct mesh_setup default_mesh_setup = {
 	.sync_method = IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET,
 	.path_sel_proto = IEEE80211_PATH_PROTOCOL_HWMP,
 	.path_metric = IEEE80211_PATH_METRIC_AIRTIME,
+	.auth_id = 0, /* open */
 	.ie = NULL,
 	.ie_len = 0,
 	.is_secure = false,
+	.user_mpm = false,
 	.beacon_interval = MESH_DEFAULT_BEACON_INTERVAL,
 	.dtim_period = MESH_DEFAULT_DTIM_PERIOD,
 };
@@ -158,6 +162,19 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		setup->chandef.center_freq1 = setup->chandef.chan->center_freq;
 	}
 
+	/*
+	 * check if basic rates are available otherwise use mandatory rates as
+	 * basic rates
+	 */
+	if (!setup->basic_rates) {
+		enum nl80211_bss_scan_width scan_width;
+		struct ieee80211_supported_band *sband =
+				rdev->wiphy.bands[setup->chandef.chan->band];
+		scan_width = cfg80211_chandef_to_scan_width(&setup->chandef);
+		setup->basic_rates = ieee80211_mandatory_rates(sband,
+							       scan_width);
+	}
+
 	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef))
 		return -EINVAL;
 
@@ -184,11 +201,9 @@ int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
 	err = __cfg80211_join_mesh(rdev, dev, setup, conf);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -232,20 +247,6 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 	wdev->preset_chandef = *chandef;
 	return 0;
 }
-
-void cfg80211_notify_new_peer_candidate(struct net_device *dev,
-		const u8 *macaddr, const u8* ie, u8 ie_len, gfp_t gfp)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-
-	trace_cfg80211_notify_new_peer_candidate(dev, macaddr);
-	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_MESH_POINT))
-		return;
-
-	nl80211_send_new_peer_candidate(wiphy_to_dev(wdev->wiphy), dev,
-			macaddr, ie, ie_len, gfp);
-}
-EXPORT_SYMBOL(cfg80211_notify_new_peer_candidate);
 
 static int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 				 struct net_device *dev)

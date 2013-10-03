@@ -33,6 +33,8 @@
  *
  */
 
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/bootmem.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
@@ -202,8 +204,8 @@ retry:
 			order--;
 		}
 		if (order != get_order(bytes)) {
-			pr_warn("Warning: only able to allocate %ld MB "
-				"for software IO TLB\n", (PAGE_SIZE << order) >> 20);
+			pr_warn("Warning: only able to allocate %ld MB for software IO TLB\n",
+				(PAGE_SIZE << order) >> 20);
 			xen_io_tlb_nslabs = SLABS_PER_PAGE << order;
 			bytes = xen_io_tlb_nslabs << IO_TLB_SHIFT;
 		}
@@ -242,11 +244,11 @@ error:
 	if (repeat--) {
 		xen_io_tlb_nslabs = max(1024UL, /* Min is 2MB */
 					(xen_io_tlb_nslabs >> 1));
-		printk(KERN_INFO "Xen-SWIOTLB: Lowering to %luMB\n",
-		      (xen_io_tlb_nslabs << IO_TLB_SHIFT) >> 20);
+		pr_info("Lowering to %luMB\n",
+			(xen_io_tlb_nslabs << IO_TLB_SHIFT) >> 20);
 		goto retry;
 	}
-	pr_err("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
+	pr_err("%s (rc:%d)\n", xen_swiotlb_error(m_ret), rc);
 	if (early)
 		panic("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
 	else
@@ -504,13 +506,13 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 				   to do proper error handling. */
 				xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
 							   attrs);
-				sgl[0].dma_length = 0;
+				sg_dma_len(sgl) = 0;
 				return DMA_ERROR_CODE;
 			}
 			sg->dma_address = xen_phys_to_bus(map);
 		} else
 			sg->dma_address = dev_addr;
-		sg->dma_length = sg->length;
+		sg_dma_len(sg) = sg->length;
 	}
 	return nelems;
 }
@@ -531,7 +533,7 @@ xen_swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 	BUG_ON(dir == DMA_NONE);
 
 	for_each_sg(sgl, sg, nelems, i)
-		xen_unmap_single(hwdev, sg->dma_address, sg->dma_length, dir);
+		xen_unmap_single(hwdev, sg->dma_address, sg_dma_len(sg), dir);
 
 }
 EXPORT_SYMBOL_GPL(xen_swiotlb_unmap_sg_attrs);
@@ -553,7 +555,7 @@ xen_swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sgl,
 
 	for_each_sg(sgl, sg, nelems, i)
 		xen_swiotlb_sync_single(hwdev, sg->dma_address,
-					sg->dma_length, dir, target);
+					sg_dma_len(sg), dir, target);
 }
 
 void

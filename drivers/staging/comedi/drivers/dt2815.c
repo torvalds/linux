@@ -14,11 +14,6 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
  */
 /*
 Driver: dt2815
@@ -56,16 +51,10 @@ Configuration options:
   [12] - Analog output 7 range configuration (same options)
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
 #include <linux/delay.h>
-
-static const struct comedi_lrange
-	range_dt2815_ao_32_current = {1, {RANGE_mA(0, 32)} };
-
-static const struct comedi_lrange
-	range_dt2815_ao_20_current = {1, {RANGE_mA(4, 20)} };
 
 #define DT2815_SIZE 2
 
@@ -166,27 +155,19 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int i;
 	const struct comedi_lrange *current_range_type, *voltage_range_type;
-	unsigned long iobase;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, DT2815_SIZE, "dt2815")) {
-		printk(KERN_WARNING "I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
-	dev->board_name = "dt2815";
+	ret = comedi_request_region(dev, it->options[0], DT2815_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	/* ao subdevice */
@@ -199,7 +180,7 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table_list = devpriv->range_type_list;
 
 	current_range_type = (it->options[3])
-	    ? &range_dt2815_ao_20_current : &range_dt2815_ao_32_current;
+	    ? &range_4_20mA : &range_0_32mA;
 	voltage_range_type = (it->options[2])
 	    ? &range_bipolar5 : &range_unipolar5;
 	for (i = 0; i < 8; i++) {
@@ -233,17 +214,11 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void dt2815_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, DT2815_SIZE);
-}
-
 static struct comedi_driver dt2815_driver = {
 	.driver_name	= "dt2815",
 	.module		= THIS_MODULE,
 	.attach		= dt2815_attach,
-	.detach		= dt2815_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(dt2815_driver);
 

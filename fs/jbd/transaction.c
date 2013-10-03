@@ -245,7 +245,6 @@ static handle_t *new_handle(int nblocks)
 	handle_t *handle = jbd_alloc_handle(GFP_NOFS);
 	if (!handle)
 		return NULL;
-	memset(handle, 0, sizeof(*handle));
 	handle->h_buffer_credits = nblocks;
 	handle->h_ref = 1;
 
@@ -2020,22 +2019,28 @@ zap_buffer_unlocked:
  * void journal_invalidatepage() - invalidate a journal page
  * @journal: journal to use for flush
  * @page:    page to flush
- * @offset:  length of page to invalidate.
+ * @offset:  offset of the range to invalidate
+ * @length:  length of the range to invalidate
  *
- * Reap page buffers containing data after offset in page.
+ * Reap page buffers containing data in specified range in page.
  */
 void journal_invalidatepage(journal_t *journal,
 		      struct page *page,
-		      unsigned long offset)
+		      unsigned int offset,
+		      unsigned int length)
 {
 	struct buffer_head *head, *bh, *next;
+	unsigned int stop = offset + length;
 	unsigned int curr_off = 0;
+	int partial_page = (offset || length < PAGE_CACHE_SIZE);
 	int may_free = 1;
 
 	if (!PageLocked(page))
 		BUG();
 	if (!page_has_buffers(page))
 		return;
+
+	BUG_ON(stop > PAGE_CACHE_SIZE || stop < length);
 
 	/* We will potentially be playing with lists other than just the
 	 * data lists (especially for journaled data mode), so be
@@ -2046,11 +2051,14 @@ void journal_invalidatepage(journal_t *journal,
 		unsigned int next_off = curr_off + bh->b_size;
 		next = bh->b_this_page;
 
+		if (next_off > stop)
+			return;
+
 		if (offset <= curr_off) {
 			/* This block is wholly outside the truncation point */
 			lock_buffer(bh);
 			may_free &= journal_unmap_buffer(journal, bh,
-							 offset > 0);
+							 partial_page);
 			unlock_buffer(bh);
 		}
 		curr_off = next_off;
@@ -2058,7 +2066,7 @@ void journal_invalidatepage(journal_t *journal,
 
 	} while (bh != head);
 
-	if (!offset) {
+	if (!partial_page) {
 		if (may_free && try_to_free_buffers(page))
 			J_ASSERT(!page_has_buffers(page));
 	}

@@ -388,7 +388,7 @@ sunzilog_receive_chars(struct uart_sunzilog_port *up,
 			else if (r1 & CRC_ERR)
 				flag = TTY_FRAME;
 		}
-		if (uart_handle_sysrq_char(&up->port, ch))
+		if (uart_handle_sysrq_char(&up->port, ch) || !port)
 			continue;
 
 		if (up->port.ignore_status_mask == 0xff ||
@@ -1495,7 +1495,7 @@ static int zs_probe(struct platform_device *op)
 		kbm_inst++;
 	}
 
-	dev_set_drvdata(&op->dev, &up[0]);
+	platform_set_drvdata(op, &up[0]);
 
 	return 0;
 }
@@ -1512,7 +1512,7 @@ static void zs_remove_one(struct uart_sunzilog_port *up)
 
 static int zs_remove(struct platform_device *op)
 {
-	struct uart_sunzilog_port *up = dev_get_drvdata(&op->dev);
+	struct uart_sunzilog_port *up = platform_get_drvdata(op);
 	struct zilog_layout __iomem *regs;
 
 	zs_remove_one(&up[0]);
@@ -1520,8 +1520,6 @@ static int zs_remove(struct platform_device *op)
 
 	regs = sunzilog_chip_regs[up[0].port.line / 2];
 	of_iounmap(&op->resource[0], regs, sizeof(struct zilog_layout));
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

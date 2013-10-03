@@ -32,7 +32,6 @@
 #include <crypto/scatterwalk.h>
 
 #include <linux/platform_data/crypto-ux500.h>
-#include <mach/hardware.h>
 
 #include "cryp_p.h"
 #include "cryp.h"
@@ -476,6 +475,19 @@ static int cryp_get_device_data(struct cryp_ctx *ctx,
 static void cryp_dma_setup_channel(struct cryp_device_data *device_data,
 				   struct device *dev)
 {
+	struct dma_slave_config mem2cryp = {
+		.direction = DMA_MEM_TO_DEV,
+		.dst_addr = device_data->phybase + CRYP_DMA_TX_FIFO,
+		.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
+		.dst_maxburst = 4,
+        };
+	struct dma_slave_config cryp2mem = {
+		.direction = DMA_DEV_TO_MEM,
+		.src_addr = device_data->phybase + CRYP_DMA_RX_FIFO,
+		.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
+		.src_maxburst = 4,
+        };
+
 	dma_cap_zero(device_data->dma.mask);
 	dma_cap_set(DMA_SLAVE, device_data->dma.mask);
 
@@ -490,6 +502,9 @@ static void cryp_dma_setup_channel(struct cryp_device_data *device_data,
 		dma_request_channel(device_data->dma.mask,
 				    stedma40_filter,
 				    device_data->dma.cfg_cryp2mem);
+
+	dmaengine_slave_config(device_data->dma.chan_mem2cryp, &mem2cryp);
+	dmaengine_slave_config(device_data->dma.chan_cryp2mem, &cryp2mem);
 
 	init_completion(&device_data->dma.cryp_dma_complete);
 }
@@ -538,10 +553,10 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 		dev_dbg(ctx->device->dev, "[%s]: Setting up DMA for buffer "
 			"(TO_DEVICE)", __func__);
 
-		desc = channel->device->device_prep_slave_sg(channel,
-					     ctx->device->dma.sg_src,
-					     ctx->device->dma.sg_src_len,
-					     direction, DMA_CTRL_ACK, NULL);
+		desc = dmaengine_prep_slave_sg(channel,
+				ctx->device->dma.sg_src,
+				ctx->device->dma.sg_src_len,
+				direction, DMA_CTRL_ACK);
 		break;
 
 	case DMA_FROM_DEVICE:
@@ -562,12 +577,12 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 		dev_dbg(ctx->device->dev, "[%s]: Setting up DMA for buffer "
 			"(FROM_DEVICE)", __func__);
 
-		desc = channel->device->device_prep_slave_sg(channel,
-					     ctx->device->dma.sg_dst,
-					     ctx->device->dma.sg_dst_len,
-					     direction,
-					     DMA_CTRL_ACK |
-					     DMA_PREP_INTERRUPT, NULL);
+		desc = dmaengine_prep_slave_sg(channel,
+				ctx->device->dma.sg_dst,
+				ctx->device->dma.sg_dst_len,
+				direction,
+				DMA_CTRL_ACK |
+				DMA_PREP_INTERRUPT);
 
 		desc->callback = cryp_dma_out_callback;
 		desc->callback_param = ctx;
@@ -579,7 +594,7 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 		return -EFAULT;
 	}
 
-	cookie = desc->tx_submit(desc);
+	cookie = dmaengine_submit(desc);
 	dma_async_issue_pending(channel);
 
 	return 0;
@@ -592,12 +607,12 @@ static void cryp_dma_done(struct cryp_ctx *ctx)
 	dev_dbg(ctx->device->dev, "[%s]: ", __func__);
 
 	chan = ctx->device->dma.chan_mem2cryp;
-	chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg_src,
 		     ctx->device->dma.sg_src_len, DMA_TO_DEVICE);
 
 	chan = ctx->device->dma.chan_cryp2mem;
-	chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg_dst,
 		     ctx->device->dma.sg_dst_len, DMA_FROM_DEVICE);
 }
@@ -1432,6 +1447,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 		goto out_kfree;
 	}
 
+	device_data->phybase = res->start;
 	device_data->base = ioremap(res->start, resource_size(res));
 	if (!device_data->base) {
 		dev_err(dev, "[%s]: ioremap failed!", __func__);
@@ -1459,11 +1475,17 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 		goto out_regulator;
 	}
 
+	ret = clk_prepare(device_data->clk);
+	if (ret) {
+		dev_err(dev, "[%s]: clk_prepare() failed!", __func__);
+		goto out_clk;
+	}
+
 	/* Enable device power (and clock) */
 	ret = cryp_enable_power(device_data->dev, device_data, false);
 	if (ret) {
 		dev_err(dev, "[%s]: cryp_enable_power() failed!", __func__);
-		goto out_clk;
+		goto out_clk_unprepare;
 	}
 
 	cryp_error = cryp_check(device_data);
@@ -1519,10 +1541,15 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 		goto out_power;
 	}
 
+	dev_info(dev, "successfully registered\n");
+
 	return 0;
 
 out_power:
 	cryp_disable_power(device_data->dev, device_data, false);
+
+out_clk_unprepare:
+	clk_unprepare(device_data->clk);
 
 out_clk:
 	clk_put(device_data->clk);
@@ -1594,6 +1621,7 @@ static int ux500_cryp_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "[%s]: cryp_disable_power() failed",
 			__func__);
 
+	clk_unprepare(device_data->clk);
 	clk_put(device_data->clk);
 	regulator_put(device_data->pwr_regulator);
 
@@ -1601,7 +1629,7 @@ static int ux500_cryp_remove(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res)
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 
 	kfree(device_data);
 
@@ -1744,13 +1772,19 @@ static int ux500_cryp_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(ux500_cryp_pm, ux500_cryp_suspend, ux500_cryp_resume);
 
+static const struct of_device_id ux500_cryp_match[] = {
+        { .compatible = "stericsson,ux500-cryp" },
+        { },
+};
+
 static struct platform_driver cryp_driver = {
 	.probe  = ux500_cryp_probe,
 	.remove = ux500_cryp_remove,
 	.shutdown = ux500_cryp_shutdown,
 	.driver = {
 		.owner = THIS_MODULE,
-		.name  = "cryp1"
+		.name  = "cryp1",
+		.of_match_table = ux500_cryp_match,
 		.pm    = &ux500_cryp_pm,
 	}
 };

@@ -47,7 +47,7 @@ extern int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *n,
 			     bool dinode, u64 *generation);
 
 extern int gfs2_rs_alloc(struct gfs2_inode *ip);
-extern void gfs2_rs_deltree(struct gfs2_inode *ip, struct gfs2_blkreserv *rs);
+extern void gfs2_rs_deltree(struct gfs2_blkreserv *rs);
 extern void gfs2_rs_delete(struct gfs2_inode *ip);
 extern void __gfs2_free_blocks(struct gfs2_inode *ip, u64 bstart, u32 blen, int meta);
 extern void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen);

@@ -169,7 +169,6 @@ static int get_lsr_info(struct e100_serial *info, unsigned int *value);
 
 
 #define DEF_BAUD 115200   /* 115.2 kbit/s */
-#define STD_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST)
 #define DEF_RX 0x20  /* or SERIAL_CTRL_W >> 8 */
 /* Default value of tx_ctrl register: has txd(bit 7)=1 (idle) as default */
 #define DEF_TX 0x80  /* or SERIAL_CTRL_B */
@@ -246,7 +245,6 @@ static struct e100_serial rs_table[] = {
 	  .ifirstadr   = R_DMA_CH7_FIRST,
 	  .icmdadr     = R_DMA_CH7_CMD,
 	  .idescradr   = R_DMA_CH7_DESCR,
-	  .flags       = STD_FLAGS,
 	  .rx_ctrl     = DEF_RX,
 	  .tx_ctrl     = DEF_TX,
 	  .iseteop     = 2,
@@ -300,7 +298,6 @@ static struct e100_serial rs_table[] = {
 	  .ifirstadr   = R_DMA_CH9_FIRST,
 	  .icmdadr     = R_DMA_CH9_CMD,
 	  .idescradr   = R_DMA_CH9_DESCR,
-	  .flags       = STD_FLAGS,
 	  .rx_ctrl     = DEF_RX,
 	  .tx_ctrl     = DEF_TX,
 	  .iseteop     = 3,
@@ -356,7 +353,6 @@ static struct e100_serial rs_table[] = {
 	  .ifirstadr   = R_DMA_CH3_FIRST,
 	  .icmdadr     = R_DMA_CH3_CMD,
 	  .idescradr   = R_DMA_CH3_DESCR,
-	  .flags       = STD_FLAGS,
 	  .rx_ctrl     = DEF_RX,
 	  .tx_ctrl     = DEF_TX,
 	  .iseteop     = 0,
@@ -410,7 +406,6 @@ static struct e100_serial rs_table[] = {
 	  .ifirstadr   = R_DMA_CH5_FIRST,
 	  .icmdadr     = R_DMA_CH5_CMD,
 	  .idescradr   = R_DMA_CH5_DESCR,
-	  .flags       = STD_FLAGS,
 	  .rx_ctrl     = DEF_RX,
 	  .tx_ctrl     = DEF_TX,
 	  .iseteop     = 1,
@@ -2263,8 +2258,7 @@ TODO: The break will be delayed until an F or V character is received.
 
 */
 
-static
-struct e100_serial * handle_ser_rx_interrupt_no_dma(struct e100_serial *info)
+static void handle_ser_rx_interrupt_no_dma(struct e100_serial *info)
 {
 	unsigned long data_read;
 
@@ -2370,10 +2364,9 @@ more_data:
 	}
 
 	tty_flip_buffer_push(&info->port);
-	return info;
 }
 
-static struct e100_serial* handle_ser_rx_interrupt(struct e100_serial *info)
+static void handle_ser_rx_interrupt(struct e100_serial *info)
 {
 	unsigned char rstat;
 
@@ -2382,7 +2375,8 @@ static struct e100_serial* handle_ser_rx_interrupt(struct e100_serial *info)
 #endif
 /*	DEBUG_LOG(info->line, "ser_interrupt stat %03X\n", rstat | (i << 8)); */
 	if (!info->uses_dma_in) {
-		return handle_ser_rx_interrupt_no_dma(info);
+		handle_ser_rx_interrupt_no_dma(info);
+		return;
 	}
 	/* DMA is used */
 	rstat = info->ioport[REG_STATUS];
@@ -2489,7 +2483,6 @@ static struct e100_serial* handle_ser_rx_interrupt(struct e100_serial *info)
 	/* Restarting the DMA never hurts */
 	*info->icmdadr = IO_STATE(R_DMA_CH6_CMD, cmd, restart);
 	START_FLUSH_FAST_TIMER(info, "ser_int");
-	return info;
 } /* handle_ser_rx_interrupt */
 
 static void handle_ser_tx_interrupt(struct e100_serial *info)
@@ -2534,8 +2527,7 @@ static void handle_ser_tx_interrupt(struct e100_serial *info)
 	}
 	/* Normal char-by-char interrupt */
 	if (info->xmit.head == info->xmit.tail
-	    || info->port.tty->stopped
-	    || info->port.tty->hw_stopped) {
+	    || info->port.tty->stopped) {
 		DFLOW(DEBUG_LOG(info->line, "tx_int: stopped %i\n",
 				info->port.tty->stopped));
 		e100_disable_serial_tx_ready_irq(info);
@@ -2722,7 +2714,7 @@ startup(struct e100_serial * info)
 
 	/* if it was already initialized, skip this */
 
-	if (info->flags & ASYNC_INITIALIZED) {
+	if (info->port.flags & ASYNC_INITIALIZED) {
 		local_irq_restore(flags);
 		free_page(xmit_page);
 		return 0;
@@ -2847,7 +2839,7 @@ startup(struct e100_serial * info)
 
 #endif /* CONFIG_SVINTO_SIM */
 
-	info->flags |= ASYNC_INITIALIZED;
+	info->port.flags |= ASYNC_INITIALIZED;
 
 	local_irq_restore(flags);
 	return 0;
@@ -2892,7 +2884,7 @@ shutdown(struct e100_serial * info)
 
 #endif /* CONFIG_SVINTO_SIM */
 
-	if (!(info->flags & ASYNC_INITIALIZED))
+	if (!(info->port.flags & ASYNC_INITIALIZED))
 		return;
 
 #ifdef SERIAL_DEBUG_OPEN
@@ -2923,7 +2915,7 @@ shutdown(struct e100_serial * info)
 	if (info->port.tty)
 		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
-	info->flags &= ~ASYNC_INITIALIZED;
+	info->port.flags &= ~ASYNC_INITIALIZED;
 	local_irq_restore(flags);
 }
 
@@ -2948,7 +2940,7 @@ change_speed(struct e100_serial *info)
 	/* possibly, the tx/rx should be disabled first to do this safely */
 
 	/* change baud-rate and write it to the hardware */
-	if ((info->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST) {
+	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST) {
 		/* Special baudrate */
 		u32 mask = 0xFF << (info->line*8); /* Each port has 8 bits */
 		unsigned long alt_source =
@@ -3098,7 +3090,6 @@ rs_flush_chars(struct tty_struct *tty)
 	if (info->tr_running ||
 	    info->xmit.head == info->xmit.tail ||
 	    tty->stopped ||
-	    tty->hw_stopped ||
 	    !info->xmit.buf)
 		return;
 
@@ -3176,7 +3167,6 @@ static int rs_raw_write(struct tty_struct *tty,
 
 	if (info->xmit.head != info->xmit.tail &&
 	    !tty->stopped &&
-	    !tty->hw_stopped &&
 	    !info->tr_running) {
 		start_transmit(info);
 	}
@@ -3400,10 +3390,10 @@ get_serial_info(struct e100_serial * info,
 	tmp.line = info->line;
 	tmp.port = (int)info->ioport;
 	tmp.irq = info->irq;
-	tmp.flags = info->flags;
+	tmp.flags = info->port.flags;
 	tmp.baud_base = info->baud_base;
-	tmp.close_delay = info->close_delay;
-	tmp.closing_wait = info->closing_wait;
+	tmp.close_delay = info->port.close_delay;
+	tmp.closing_wait = info->port.closing_wait;
 	tmp.custom_divisor = info->custom_divisor;
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -3425,16 +3415,16 @@ set_serial_info(struct e100_serial *info,
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		if ((new_serial.type != info->type) ||
-		    (new_serial.close_delay != info->close_delay) ||
+		    (new_serial.close_delay != info->port.close_delay) ||
 		    ((new_serial.flags & ~ASYNC_USR_MASK) !=
-		     (info->flags & ~ASYNC_USR_MASK)))
+		     (info->port.flags & ~ASYNC_USR_MASK)))
 			return -EPERM;
-		info->flags = ((info->flags & ~ASYNC_USR_MASK) |
+		info->port.flags = ((info->port.flags & ~ASYNC_USR_MASK) |
 			       (new_serial.flags & ASYNC_USR_MASK));
 		goto check_and_exit;
 	}
 
-	if (info->count > 1)
+	if (info->port.count > 1)
 		return -EBUSY;
 
 	/*
@@ -3443,16 +3433,16 @@ set_serial_info(struct e100_serial *info,
 	 */
 
 	info->baud_base = new_serial.baud_base;
-	info->flags = ((info->flags & ~ASYNC_FLAGS) |
+	info->port.flags = ((info->port.flags & ~ASYNC_FLAGS) |
 		       (new_serial.flags & ASYNC_FLAGS));
 	info->custom_divisor = new_serial.custom_divisor;
 	info->type = new_serial.type;
-	info->close_delay = new_serial.close_delay;
-	info->closing_wait = new_serial.closing_wait;
-	info->port.low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	info->port.close_delay = new_serial.close_delay;
+	info->port.closing_wait = new_serial.closing_wait;
+	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
-	if (info->flags & ASYNC_INITIALIZED) {
+	if (info->port.flags & ASYNC_INITIALIZED) {
 		change_speed(info);
 	} else
 		retval = startup(info);
@@ -3733,10 +3723,8 @@ rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios.c_cflag & CRTSCTS)) {
-		tty->hw_stopped = 0;
+	    !(tty->termios.c_cflag & CRTSCTS))
 		rs_start(tty);
-	}
 
 }
 
@@ -3772,7 +3760,7 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	printk("[%d] rs_close ttyS%d, count = %d\n", current->pid,
 	       info->line, info->count);
 #endif
-	if ((tty->count == 1) && (info->count != 1)) {
+	if ((tty->count == 1) && (info->port.count != 1)) {
 		/*
 		 * Uh, oh.  tty->count is 1, which means that the tty
 		 * structure will be freed.  Info->count should always
@@ -3782,32 +3770,32 @@ rs_close(struct tty_struct *tty, struct file * filp)
 		 */
 		printk(KERN_ERR
 		       "rs_close: bad serial port count; tty->count is 1, "
-		       "info->count is %d\n", info->count);
-		info->count = 1;
+		       "info->count is %d\n", info->port.count);
+		info->port.count = 1;
 	}
-	if (--info->count < 0) {
+	if (--info->port.count < 0) {
 		printk(KERN_ERR "rs_close: bad serial port count for ttyS%d: %d\n",
-		       info->line, info->count);
-		info->count = 0;
+		       info->line, info->port.count);
+		info->port.count = 0;
 	}
-	if (info->count) {
+	if (info->port.count) {
 		local_irq_restore(flags);
 		return;
 	}
-	info->flags |= ASYNC_CLOSING;
+	info->port.flags |= ASYNC_CLOSING;
 	/*
 	 * Save the termios structure, since this port may have
 	 * separate termios for callout and dialin.
 	 */
-	if (info->flags & ASYNC_NORMAL_ACTIVE)
+	if (info->port.flags & ASYNC_NORMAL_ACTIVE)
 		info->normal_termios = tty->termios;
 	/*
 	 * Now we wait for the transmit buffer to clear; and we notify
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	tty->closing = 1;
-	if (info->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, info->closing_wait);
+	if (info->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, info->port.closing_wait);
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the serial receiver and the DMA receive interrupt.
@@ -3820,7 +3808,7 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	e100_disable_rx(info);
 	e100_disable_rx_irq(info);
 
-	if (info->flags & ASYNC_INITIALIZED) {
+	if (info->port.flags & ASYNC_INITIALIZED) {
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
 		 * has completely drained; this is especially
@@ -3836,13 +3824,13 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	tty->closing = 0;
 	info->event = 0;
 	info->port.tty = NULL;
-	if (info->blocked_open) {
-		if (info->close_delay)
-			schedule_timeout_interruptible(info->close_delay);
-		wake_up_interruptible(&info->open_wait);
+	if (info->port.blocked_open) {
+		if (info->port.close_delay)
+			schedule_timeout_interruptible(info->port.close_delay);
+		wake_up_interruptible(&info->port.open_wait);
 	}
-	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&info->close_wait);
+	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
+	wake_up_interruptible(&info->port.close_wait);
 	local_irq_restore(flags);
 
 	/* port closed */
@@ -3935,10 +3923,10 @@ rs_hangup(struct tty_struct *tty)
 	rs_flush_buffer(tty);
 	shutdown(info);
 	info->event = 0;
-	info->count = 0;
-	info->flags &= ~ASYNC_NORMAL_ACTIVE;
+	info->port.count = 0;
+	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->port.tty = NULL;
-	wake_up_interruptible(&info->open_wait);
+	wake_up_interruptible(&info->port.open_wait);
 }
 
 /*
@@ -3960,11 +3948,11 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 	 * until it's done, and then try again.
 	 */
 	if (tty_hung_up_p(filp) ||
-	    (info->flags & ASYNC_CLOSING)) {
-		wait_event_interruptible_tty(tty, info->close_wait,
-			!(info->flags & ASYNC_CLOSING));
+	    (info->port.flags & ASYNC_CLOSING)) {
+		wait_event_interruptible_tty(tty, info->port.close_wait,
+			!(info->port.flags & ASYNC_CLOSING));
 #ifdef SERIAL_DO_RESTART
-		if (info->flags & ASYNC_HUP_NOTIFY)
+		if (info->port.flags & ASYNC_HUP_NOTIFY)
 			return -EAGAIN;
 		else
 			return -ERESTARTSYS;
@@ -3979,7 +3967,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 	 */
 	if ((filp->f_flags & O_NONBLOCK) ||
 	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		info->flags |= ASYNC_NORMAL_ACTIVE;
+		info->port.flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 
@@ -3990,23 +3978,23 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 	/*
 	 * Block waiting for the carrier detect and the line to become
 	 * free (i.e., not in use by the callout).  While we are in
-	 * this loop, info->count is dropped by one, so that
+	 * this loop, info->port.count is dropped by one, so that
 	 * rs_close() knows when to free things.  We restore it upon
 	 * exit, either normal or abnormal.
 	 */
 	retval = 0;
-	add_wait_queue(&info->open_wait, &wait);
+	add_wait_queue(&info->port.open_wait, &wait);
 #ifdef SERIAL_DEBUG_OPEN
 	printk("block_til_ready before block: ttyS%d, count = %d\n",
-	       info->line, info->count);
+	       info->line, info->port.count);
 #endif
 	local_irq_save(flags);
 	if (!tty_hung_up_p(filp)) {
 		extra_count++;
-		info->count--;
+		info->port.count--;
 	}
 	local_irq_restore(flags);
-	info->blocked_open++;
+	info->port.blocked_open++;
 	while (1) {
 		local_irq_save(flags);
 		/* assert RTS and DTR */
@@ -4015,9 +4003,9 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 		local_irq_restore(flags);
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
-		    !(info->flags & ASYNC_INITIALIZED)) {
+		    !(info->port.flags & ASYNC_INITIALIZED)) {
 #ifdef SERIAL_DO_RESTART
-			if (info->flags & ASYNC_HUP_NOTIFY)
+			if (info->port.flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
 				retval = -ERESTARTSYS;
@@ -4026,7 +4014,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 #endif
 			break;
 		}
-		if (!(info->flags & ASYNC_CLOSING) && do_clocal)
+		if (!(info->port.flags & ASYNC_CLOSING) && do_clocal)
 			/* && (do_clocal || DCD_IS_ASSERTED) */
 			break;
 		if (signal_pending(current)) {
@@ -4035,24 +4023,24 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 		}
 #ifdef SERIAL_DEBUG_OPEN
 		printk("block_til_ready blocking: ttyS%d, count = %d\n",
-		       info->line, info->count);
+		       info->line, info->port.count);
 #endif
 		tty_unlock(tty);
 		schedule();
 		tty_lock(tty);
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&info->open_wait, &wait);
+	remove_wait_queue(&info->port.open_wait, &wait);
 	if (extra_count)
-		info->count++;
-	info->blocked_open--;
+		info->port.count++;
+	info->port.blocked_open--;
 #ifdef SERIAL_DEBUG_OPEN
 	printk("block_til_ready after blocking: ttyS%d, count = %d\n",
-	       info->line, info->count);
+	       info->line, info->port.count);
 #endif
 	if (retval)
 		return retval;
-	info->flags |= ASYNC_NORMAL_ACTIVE;
+	info->port.flags |= ASYNC_NORMAL_ACTIVE;
 	return 0;
 }
 
@@ -4086,24 +4074,24 @@ rs_open(struct tty_struct *tty, struct file * filp)
 
 #ifdef SERIAL_DEBUG_OPEN
         printk("[%d] rs_open %s, count = %d\n", current->pid, tty->name,
- 	       info->count);
+ 	       info->port.count);
 #endif
 
-	info->count++;
+	info->port.count++;
 	tty->driver_data = info;
 	info->port.tty = tty;
 
-	info->port.low_latency = !!(info->flags & ASYNC_LOW_LATENCY);
+	info->port.low_latency = !!(info->port.flags & ASYNC_LOW_LATENCY);
 
 	/*
 	 * If the port is in the middle of closing, bail out now
 	 */
 	if (tty_hung_up_p(filp) ||
-	    (info->flags & ASYNC_CLOSING)) {
-		wait_event_interruptible_tty(tty, info->close_wait,
-			!(info->flags & ASYNC_CLOSING));
+	    (info->port.flags & ASYNC_CLOSING)) {
+		wait_event_interruptible_tty(tty, info->port.close_wait,
+			!(info->port.flags & ASYNC_CLOSING));
 #ifdef SERIAL_DO_RESTART
-		return ((info->flags & ASYNC_HUP_NOTIFY) ?
+		return ((info->port.flags & ASYNC_HUP_NOTIFY) ?
 			-EAGAIN : -ERESTARTSYS);
 #else
 		return -EAGAIN;
@@ -4113,7 +4101,7 @@ rs_open(struct tty_struct *tty, struct file * filp)
 	/*
 	 * If DMA is enabled try to allocate the irq's.
 	 */
-	if (info->count == 1) {
+	if (info->port.count == 1) {
 		allocated_resources = 1;
 		if (info->dma_in_enabled) {
 			if (request_irq(info->dma_in_irq_nbr,
@@ -4186,7 +4174,7 @@ rs_open(struct tty_struct *tty, struct file * filp)
 		if (allocated_resources)
 			deinit_port(info);
 
-		/* FIXME Decrease count info->count here too? */
+		/* FIXME Decrease count info->port.count here too? */
 		return retval;
 	}
 
@@ -4203,7 +4191,7 @@ rs_open(struct tty_struct *tty, struct file * filp)
 		return retval;
 	}
 
-	if ((info->count == 1) && (info->flags & ASYNC_SPLIT_TERMIOS)) {
+	if ((info->port.count == 1) && (info->port.flags & ASYNC_SPLIT_TERMIOS)) {
 		tty->termios = info->normal_termios;
 		change_speed(info);
 	}
@@ -4256,9 +4244,6 @@ static void seq_line_info(struct seq_file *m, struct e100_serial *info)
 		if (info->port.tty->stopped)
 			seq_printf(m, " stopped:%i",
 				   (int)info->port.tty->stopped);
-		if (info->port.tty->hw_stopped)
-			seq_printf(m, " hw_stopped:%i",
-				   (int)info->port.tty->hw_stopped);
 	}
 
 	{
@@ -4455,16 +4440,9 @@ static int __init rs_init(void)
 		info->forced_eop = 0;
 		info->baud_base = DEF_BAUD_BASE;
 		info->custom_divisor = 0;
-		info->flags = 0;
-		info->close_delay = 5*HZ/10;
-		info->closing_wait = 30*HZ;
 		info->x_char = 0;
 		info->event = 0;
-		info->count = 0;
-		info->blocked_open = 0;
 		info->normal_termios = driver->init_termios;
-		init_waitqueue_head(&info->open_wait);
-		init_waitqueue_head(&info->close_wait);
 		info->xmit.buf = NULL;
 		info->xmit.tail = info->xmit.head = 0;
 		info->first_recv_buffer = info->last_recv_buffer = NULL;

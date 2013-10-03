@@ -13,9 +13,11 @@
 #include <linux/init.h>
 #include <linux/mfd/as3711.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/slab.h>
 
 struct as3711_regulator_info {
@@ -27,102 +29,6 @@ struct as3711_regulator {
 	struct as3711_regulator_info *reg_info;
 	struct regulator_dev *rdev;
 };
-
-static int as3711_list_voltage_sd(struct regulator_dev *rdev,
-				  unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	if (!selector)
-		return 0;
-	if (selector < 0x41)
-		return 600000 + selector * 12500;
-	if (selector < 0x71)
-		return 1400000 + (selector - 0x40) * 25000;
-	return 2600000 + (selector - 0x70) * 50000;
-}
-
-static int as3711_list_voltage_aldo(struct regulator_dev *rdev,
-				    unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	if (selector < 0x10)
-		return 1200000 + selector * 50000;
-	return 1800000 + (selector - 0x10) * 100000;
-}
-
-static int as3711_list_voltage_dldo(struct regulator_dev *rdev,
-				    unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages ||
-	    (selector > 0x10 && selector < 0x20))
-		return -EINVAL;
-
-	if (selector < 0x11)
-		return 900000 + selector * 50000;
-	return 1750000 + (selector - 0x20) * 50000;
-}
-
-static int as3711_bound_check(struct regulator_dev *rdev,
-			      int *min_uV, int *max_uV)
-{
-	struct as3711_regulator *reg = rdev_get_drvdata(rdev);
-	struct as3711_regulator_info *info = reg->reg_info;
-
-	dev_dbg(&rdev->dev, "%s(), %d, %d, %d\n", __func__,
-		*min_uV, rdev->desc->min_uV, info->max_uV);
-
-	if (*max_uV < *min_uV ||
-	    *min_uV > info->max_uV || rdev->desc->min_uV > *max_uV)
-		return -EINVAL;
-
-	if (rdev->desc->n_voltages == 1)
-		return 0;
-
-	if (*max_uV > info->max_uV)
-		*max_uV = info->max_uV;
-
-	if (*min_uV < rdev->desc->min_uV)
-		*min_uV = rdev->desc->min_uV;
-
-	return *min_uV;
-}
-
-static int as3711_sel_check(int min, int max, int bottom, int step)
-{
-	int sel, voltage;
-
-	/* Round up min, when dividing: keeps us within the range */
-	sel = DIV_ROUND_UP(min - bottom, step);
-	voltage = sel * step + bottom;
-	pr_debug("%s(): select %d..%d in %d+N*%d: %d\n", __func__,
-	       min, max, bottom, step, sel);
-	if (voltage > max)
-		return -EINVAL;
-
-	return sel;
-}
-
-static int as3711_map_voltage_sd(struct regulator_dev *rdev,
-				 int min_uV, int max_uV)
-{
-	int ret;
-
-	ret = as3711_bound_check(rdev, &min_uV, &max_uV);
-	if (ret <= 0)
-		return ret;
-
-	if (min_uV <= 1400000)
-		return as3711_sel_check(min_uV, max_uV, 600000, 12500);
-
-	if (min_uV <= 2600000)
-		return as3711_sel_check(min_uV, max_uV, 1400000, 25000) + 0x40;
-
-	return as3711_sel_check(min_uV, max_uV, 2600000, 50000) + 0x70;
-}
 
 /*
  * The regulator API supports 4 modes of operataion: FAST, NORMAL, IDLE and
@@ -178,44 +84,14 @@ static unsigned int as3711_get_mode_sd(struct regulator_dev *rdev)
 	return -EINVAL;
 }
 
-static int as3711_map_voltage_aldo(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
-{
-	int ret;
-
-	ret = as3711_bound_check(rdev, &min_uV, &max_uV);
-	if (ret <= 0)
-		return ret;
-
-	if (min_uV <= 1800000)
-		return as3711_sel_check(min_uV, max_uV, 1200000, 50000);
-
-	return as3711_sel_check(min_uV, max_uV, 1800000, 100000) + 0x10;
-}
-
-static int as3711_map_voltage_dldo(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
-{
-	int ret;
-
-	ret = as3711_bound_check(rdev, &min_uV, &max_uV);
-	if (ret <= 0)
-		return ret;
-
-	if (min_uV <= 1700000)
-		return as3711_sel_check(min_uV, max_uV, 900000, 50000);
-
-	return as3711_sel_check(min_uV, max_uV, 1750000, 50000) + 0x20;
-}
-
 static struct regulator_ops as3711_sd_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= as3711_list_voltage_sd,
-	.map_voltage		= as3711_map_voltage_sd,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
 	.get_mode		= as3711_get_mode_sd,
 	.set_mode		= as3711_set_mode_sd,
 };
@@ -226,8 +102,8 @@ static struct regulator_ops as3711_aldo_ops = {
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= as3711_list_voltage_aldo,
-	.map_voltage		= as3711_map_voltage_aldo,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
 static struct regulator_ops as3711_dldo_ops = {
@@ -236,8 +112,31 @@ static struct regulator_ops as3711_dldo_ops = {
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= as3711_list_voltage_dldo,
-	.map_voltage		= as3711_map_voltage_dldo,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+};
+
+static const struct regulator_linear_range as3711_sd_ranges[] = {
+	{ .min_uV = 612500, .max_uV = 1400000,
+	  .min_sel = 0x1, .max_sel = 0x40, .uV_step = 12500 },
+	{ .min_uV = 1425000, .max_uV = 2600000,
+	  .min_sel = 0x41, .max_sel = 0x70, .uV_step = 25000 },
+	{ .min_uV = 2650000, .max_uV = 3350000,
+	  .min_sel = 0x71, .max_sel = 0x7f, .uV_step = 50000 },
+};
+
+static const struct regulator_linear_range as3711_aldo_ranges[] = {
+	{ .min_uV = 1200000, .max_uV = 1950000,
+	  .min_sel = 0, .max_sel = 0xf, .uV_step = 50000 },
+	{ .min_uV = 1800000, .max_uV = 3300000,
+	  .min_sel = 0x10, .max_sel = 0x1f, .uV_step = 100000 },
+};
+
+static const struct regulator_linear_range as3711_dldo_ranges[] = {
+	{ .min_uV = 900000, .max_uV = 1700000,
+	  .min_sel = 0, .max_sel = 0x10, .uV_step = 50000 },
+	{ .min_uV = 1750000, .max_uV = 3300000,
+	  .min_sel = 0x20, .max_sel = 0x3f, .uV_step = 50000 },
 };
 
 #define AS3711_REG(_id, _en_reg, _en_bit, _vmask, _vshift, _min_uV, _max_uV, _sfx)	\
@@ -254,6 +153,8 @@ static struct regulator_ops as3711_dldo_ops = {
 		.enable_reg = AS3711_ ## _en_reg,					\
 		.enable_mask = BIT(_en_bit),						\
 		.min_uV	= _min_uV,							\
+		.linear_ranges = as3711_ ## _sfx ## _ranges,				\
+		.n_linear_ranges = ARRAY_SIZE(as3711_ ## _sfx ## _ranges),		\
 	},										\
 	.max_uV = _max_uV,								\
 }
@@ -276,6 +177,53 @@ static struct as3711_regulator_info as3711_reg_info[] = {
 
 #define AS3711_REGULATOR_NUM ARRAY_SIZE(as3711_reg_info)
 
+static struct of_regulator_match
+as3711_regulator_matches[AS3711_REGULATOR_NUM] = {
+	[AS3711_REGULATOR_SD_1] = { .name = "sd1" },
+	[AS3711_REGULATOR_SD_2] = { .name = "sd2" },
+	[AS3711_REGULATOR_SD_3] = { .name = "sd3" },
+	[AS3711_REGULATOR_SD_4] = { .name = "sd4" },
+	[AS3711_REGULATOR_LDO_1] = { .name = "ldo1" },
+	[AS3711_REGULATOR_LDO_2] = { .name = "ldo2" },
+	[AS3711_REGULATOR_LDO_3] = { .name = "ldo3" },
+	[AS3711_REGULATOR_LDO_4] = { .name = "ldo4" },
+	[AS3711_REGULATOR_LDO_5] = { .name = "ldo5" },
+	[AS3711_REGULATOR_LDO_6] = { .name = "ldo6" },
+	[AS3711_REGULATOR_LDO_7] = { .name = "ldo7" },
+	[AS3711_REGULATOR_LDO_8] = { .name = "ldo8" },
+};
+
+static int as3711_regulator_parse_dt(struct device *dev,
+				struct device_node **of_node, const int count)
+{
+	struct as3711_regulator_pdata *pdata = dev_get_platdata(dev);
+	struct device_node *regulators =
+		of_find_node_by_name(dev->parent->of_node, "regulators");
+	struct of_regulator_match *match;
+	int ret, i;
+
+	if (!regulators) {
+		dev_err(dev, "regulator node not found\n");
+		return -ENODEV;
+	}
+
+	ret = of_regulator_match(dev->parent, regulators,
+				 as3711_regulator_matches, count);
+	of_node_put(regulators);
+	if (ret < 0) {
+		dev_err(dev, "Error parsing regulator init data: %d\n", ret);
+		return ret;
+	}
+
+	for (i = 0, match = as3711_regulator_matches; i < count; i++, match++)
+		if (match->of_node) {
+			pdata->init_data[i] = match->init_data;
+			of_node[i] = match->of_node;
+		}
+
+	return 0;
+}
+
 static int as3711_regulator_probe(struct platform_device *pdev)
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(&pdev->dev);
@@ -284,13 +232,24 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = {.dev = &pdev->dev,};
 	struct as3711_regulator *reg = NULL;
 	struct as3711_regulator *regs;
+	struct device_node *of_node[AS3711_REGULATOR_NUM] = {};
 	struct regulator_dev *rdev;
 	struct as3711_regulator_info *ri;
 	int ret;
 	int id;
 
-	if (!pdata)
-		dev_dbg(&pdev->dev, "No platform data...\n");
+	if (!pdata) {
+		dev_err(&pdev->dev, "No platform data...\n");
+		return -ENODEV;
+	}
+
+	if (pdev->dev.parent->of_node) {
+		ret = as3711_regulator_parse_dt(&pdev->dev, of_node, AS3711_REGULATOR_NUM);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "DT parsing failed: %d\n", ret);
+			return ret;
+		}
+	}
 
 	regs = devm_kzalloc(&pdev->dev, AS3711_REGULATOR_NUM *
 			sizeof(struct as3711_regulator), GFP_KERNEL);
@@ -300,7 +259,7 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 	}
 
 	for (id = 0, ri = as3711_reg_info; id < AS3711_REGULATOR_NUM; ++id, ri++) {
-		reg_data = pdata ? pdata->init_data[id] : NULL;
+		reg_data = pdata->init_data[id];
 
 		/* No need to register if there is no regulator data */
 		if (!reg_data)
@@ -312,6 +271,7 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 		config.init_data = reg_data;
 		config.driver_data = reg;
 		config.regmap = as3711->regmap;
+		config.of_node = of_node[id];
 
 		rdev = regulator_register(&ri->desc, &config);
 		if (IS_ERR(rdev)) {

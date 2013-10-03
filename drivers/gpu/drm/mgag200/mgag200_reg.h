@@ -235,7 +235,11 @@
 #define MGAREG_CRTCEXT_INDEX	0x1fde
 #define MGAREG_CRTCEXT_DATA	0x1fdf
 
-
+/* Cursor X and Y position */
+#define MGA_CURPOSXL 0x3c0c
+#define MGA_CURPOSXH 0x3c0d
+#define MGA_CURPOSYL 0x3c0e
+#define MGA_CURPOSYH 0x3c0f
 
 /* MGA bits for registers PCI_OPTION_REG */
 #define MGA1064_OPT_SYS_CLK_PCI   		( 0x00 << 0 )

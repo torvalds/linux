@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -471,5 +471,24 @@
 #define IWL_HOST_INT_CALIB_TIMEOUT_MAX	(0xFF)
 #define IWL_HOST_INT_CALIB_TIMEOUT_DEF	(0x10)
 #define IWL_HOST_INT_CALIB_TIMEOUT_MIN	(0x0)
+
+/*****************************************************************************
+ *                        7000/3000 series SHR DTS addresses                 *
+ *****************************************************************************/
+
+/* Diode Results Register Structure: */
+enum dtd_diode_reg {
+	DTS_DIODE_REG_DIG_VAL			= 0x000000FF, /* bits [7:0] */
+	DTS_DIODE_REG_VREF_LOW			= 0x0000FF00, /* bits [15:8] */
+	DTS_DIODE_REG_VREF_HIGH			= 0x00FF0000, /* bits [23:16] */
+	DTS_DIODE_REG_VREF_ID			= 0x03000000, /* bits [25:24] */
+	DTS_DIODE_REG_PASS_ONCE			= 0x80000000, /* bits [31:31] */
+	DTS_DIODE_REG_FLAGS_MSK			= 0xFF000000, /* bits [31:24] */
+/* Those are the masks INSIDE the flags bit-field: */
+	DTS_DIODE_REG_FLAGS_VREFS_ID_POS	= 0,
+	DTS_DIODE_REG_FLAGS_VREFS_ID		= 0x00000003, /* bits [1:0] */
+	DTS_DIODE_REG_FLAGS_PASS_ONCE_POS	= 7,
+	DTS_DIODE_REG_FLAGS_PASS_ONCE		= 0x00000080, /* bits [7:7] */
+};
 
 #endif /* !__iwl_csr_h__ */

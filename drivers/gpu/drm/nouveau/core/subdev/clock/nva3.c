@@ -32,47 +32,13 @@ struct nva3_clock_priv {
 	struct nouveau_clock base;
 };
 
-static int
-nva3_clock_pll_set(struct nouveau_clock *clk, u32 type, u32 freq)
-{
-	struct nva3_clock_priv *priv = (void *)clk;
-	struct nouveau_bios *bios = nouveau_bios(priv);
-	struct nvbios_pll info;
-	int N, fN, M, P;
-	int ret;
-
-	ret = nvbios_pll_parse(bios, type, &info);
-	if (ret)
-		return ret;
-
-	ret = nva3_pll_calc(clk, &info, freq, &N, &fN, &M, &P);
-	if (ret < 0)
-		return ret;
-
-	switch (info.type) {
-	case PLL_VPLL0:
-	case PLL_VPLL1:
-		nv_wr32(priv, info.reg + 0, 0x50000610);
-		nv_mask(priv, info.reg + 4, 0x003fffff,
-					    (P << 16) | (M << 8) | N);
-		nv_wr32(priv, info.reg + 8, fN);
-		break;
-	default:
-		nv_warn(priv, "0x%08x/%dKhz unimplemented\n", type, freq);
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
 int
 nva3_clock_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
 		    int clk, struct nouveau_pll_vals *pv)
 {
 	int ret, N, M, P;
 
-	ret = nva3_pll_calc(clock, info, clk, &N, NULL, &M, &P);
+	ret = nva3_pll_calc(nv_subdev(clock), info, clk, &N, NULL, &M, &P);
 
 	if (ret > 0) {
 		pv->refclk = info->refclk;
@@ -97,7 +63,6 @@ nva3_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.pll_set = nva3_clock_pll_set;
 	priv->base.pll_calc = nva3_clock_pll_calc;
 	return 0;
 }

@@ -245,6 +245,18 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 		}
 	}
 
+	if (!of_property_read_u32(node, "default-brightness", &val)) {
+		if (val < 0 ||
+			val > 100) {
+			dev_err(&pdev->dev,
+				"invalid 'default-brightness' value in the device tree\n");
+			err = ERR_PTR(-EINVAL);
+			goto err;
+		}
+
+		pdata->dft_brightness = val;
+	}
+
 	of_node_put(node);
 
 	return pdata;
@@ -311,7 +323,8 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 		return PTR_ERR(tps65217_bl->bl);
 	}
 
-	tps65217_bl->bl->props.brightness = 0;
+	tps65217_bl->bl->props.brightness = pdata->dft_brightness;
+	backlight_update_status(tps65217_bl->bl);
 	platform_set_drvdata(pdev, tps65217_bl);
 
 	return 0;

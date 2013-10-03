@@ -214,7 +214,7 @@ acpi_ut_check_address_range(acpi_adr_space_type space_id,
 
 	if ((space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY) &&
 	    (space_id != ACPI_ADR_SPACE_SYSTEM_IO)) {
-		return_VALUE(0);
+		return_UINT32(0);
 	}
 
 	range_info = acpi_gbl_address_range_list[space_id];
@@ -256,7 +256,7 @@ acpi_ut_check_address_range(acpi_adr_space_type space_id,
 		range_info = range_info->next;
 	}
 
-	return_VALUE(overlap_count);
+	return_UINT32(overlap_count);
 }
 
 /*******************************************************************************

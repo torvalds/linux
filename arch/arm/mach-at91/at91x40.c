@@ -55,8 +55,6 @@ static void at91x40_idle(void)
 void __init at91x40_initialize(unsigned long main_clock)
 {
 	arm_pm_idle = at91x40_idle;
-	at91_extern_irq = (1 << AT91X40_ID_IRQ0) | (1 << AT91X40_ID_IRQ1)
-			| (1 << AT91X40_ID_IRQ2);
 }
 
 /*
@@ -86,9 +84,10 @@ static unsigned int at91x40_default_irq_priority[NR_AIC_IRQS] __initdata = {
 
 void __init at91x40_init_interrupts(unsigned int priority[NR_AIC_IRQS])
 {
+	u32  extern_irq = (1 << AT91X40_ID_IRQ0) | (1 << AT91X40_ID_IRQ1)
+			| (1 << AT91X40_ID_IRQ2);
 	if (!priority)
 		priority = at91x40_default_irq_priority;
 
-	at91_aic_init(priority, at91_extern_irq);
+	at91_aic_init(priority, extern_irq);
 }
-

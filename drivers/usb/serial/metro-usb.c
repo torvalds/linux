@@ -177,10 +177,7 @@ static void metrousb_cleanup(struct usb_serial_port *port)
 	usb_unlink_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_in_urb);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected)
-		metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
-	mutex_unlock(&port->serial->disc_mutex);
+	metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
 }
 
 static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -227,8 +224,8 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 	result = metrousb_send_unidirectional_cmd(UNI_CMD_OPEN, port);
 	if (result) {
 		dev_err(&port->dev,
-			"%s - failed to configure device for port number=%d, error code=%d\n",
-			__func__, port->number, result);
+			"%s - failed to configure device, error code=%d\n",
+			__func__, result);
 		goto exit;
 	}
 

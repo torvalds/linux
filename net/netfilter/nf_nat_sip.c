@@ -20,6 +20,7 @@
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_expect.h>
+#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <linux/netfilter/nf_conntrack_sip.h>
 
 MODULE_LICENSE("GPL");
@@ -230,9 +231,10 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 					&ct->tuplehash[!dir].tuple.src.u3,
 					false);
 			if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
-					   poff, plen, buffer, buflen))
+					   poff, plen, buffer, buflen)) {
 				nf_ct_helper_log(skb, ct, "cannot mangle received");
 				return NF_DROP;
+			}
 		}
 
 		/* The rport= parameter (RFC 3581) contains the port number
@@ -307,7 +309,7 @@ static void nf_nat_sip_seq_adjust(struct sk_buff *skb, unsigned int protoff,
 		return;
 
 	th = (struct tcphdr *)(skb->data + protoff);
-	nf_nat_set_seq_adjust(ct, ctinfo, th->seq, off);
+	nf_ct_seqadj_set(ct, ctinfo, th->seq, off);
 }
 
 /* Handles expected signalling connections and media streams */

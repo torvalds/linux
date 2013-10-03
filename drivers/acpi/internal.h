@@ -23,6 +23,7 @@
 
 #define PREFIX "ACPI: "
 
+acpi_status acpi_os_initialize1(void);
 int init_acpi_device_notify(void);
 int acpi_scan_init(void);
 #ifdef	CONFIG_ACPI_PCI_SLOT
@@ -33,20 +34,48 @@ static inline void acpi_pci_slot_init(void) { }
 void acpi_pci_root_init(void);
 void acpi_pci_link_init(void);
 void acpi_pci_root_hp_init(void);
+void acpi_processor_init(void);
 void acpi_platform_init(void);
 int acpi_sysfs_init(void);
-void acpi_csrt_init(void);
 #ifdef CONFIG_ACPI_CONTAINER
 void acpi_container_init(void);
 #else
 static inline void acpi_container_init(void) {}
 #endif
+#ifdef CONFIG_ACPI_DOCK
+void acpi_dock_init(void);
+#else
+static inline void acpi_dock_init(void) {}
+#endif
+#ifdef CONFIG_ACPI_HOTPLUG_MEMORY
+void acpi_memory_hotplug_init(void);
+#else
+static inline void acpi_memory_hotplug_init(void) {}
+#endif
+#ifdef CONFIG_X86
+void acpi_cmos_rtc_init(void);
+#else
+static inline void acpi_cmos_rtc_init(void) {}
+#endif
+
+extern bool acpi_force_hot_remove;
+
+void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
+				    const char *name);
+int acpi_scan_add_handler_with_hotplug(struct acpi_scan_handler *handler,
+				       const char *hotplug_profile_name);
+void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val);
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *acpi_debugfs_dir;
 int acpi_debugfs_init(void);
 #else
 static inline void acpi_debugfs_init(void) { return; }
+#endif
+#ifdef CONFIG_X86_INTEL_LPSS
+void acpi_lpss_init(void);
+#else
+static inline void acpi_lpss_init(void) {}
 #endif
 
 /* --------------------------------------------------------------------------
@@ -60,7 +89,9 @@ int acpi_device_add(struct acpi_device *device,
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta);
 void acpi_device_add_finalize(struct acpi_device *device);
-void acpi_free_ids(struct acpi_device *device);
+void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
+int acpi_bind_one(struct device *dev, acpi_handle handle);
+int acpi_unbind_one(struct device *dev);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
@@ -130,5 +161,17 @@ static inline void suspend_nvs_restore(void) {}
 				Platform bus support
   -------------------------------------------------------------------------- */
 struct platform_device;
+
+int acpi_create_platform_device(struct acpi_device *adev,
+				const struct acpi_device_id *id);
+
+/*--------------------------------------------------------------------------
+					Video
+  -------------------------------------------------------------------------- */
+#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
+bool acpi_video_backlight_quirks(void);
+#else
+static inline bool acpi_video_backlight_quirks(void) { return false; }
+#endif
 
 #endif /* _ACPI_INTERNAL_H_ */

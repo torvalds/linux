@@ -27,6 +27,8 @@
 #include <linux/iio/common/st_sensors.h>
 #include "st_gyro.h"
 
+#define ST_GYRO_NUMBER_DATA_CHANNELS		3
+
 /* DEFAULT VALUE FOR SENSORS */
 #define ST_GYRO_DEFAULT_OUT_X_L_ADDR		0x28
 #define ST_GYRO_DEFAULT_OUT_Y_L_ADDR		0x2a
@@ -58,7 +60,7 @@
 #define ST_GYRO_1_BDU_ADDR			0x23
 #define ST_GYRO_1_BDU_MASK			0x80
 #define ST_GYRO_1_DRDY_IRQ_ADDR			0x22
-#define ST_GYRO_1_DRDY_IRQ_MASK			0x08
+#define ST_GYRO_1_DRDY_IRQ_INT2_MASK		0x08
 #define ST_GYRO_1_MULTIREAD_BIT			true
 
 /* CUSTOM VALUES FOR SENSOR 2 */
@@ -82,19 +84,22 @@
 #define ST_GYRO_2_BDU_ADDR			0x23
 #define ST_GYRO_2_BDU_MASK			0x80
 #define ST_GYRO_2_DRDY_IRQ_ADDR			0x22
-#define ST_GYRO_2_DRDY_IRQ_MASK			0x08
+#define ST_GYRO_2_DRDY_IRQ_INT2_MASK		0x08
 #define ST_GYRO_2_MULTIREAD_BIT			true
 
 static const struct iio_chan_spec st_gyro_16bit_channels[] = {
-	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL, ST_SENSORS_SCAN_X,
-		IIO_MOD_X, IIO_LE, ST_SENSORS_DEFAULT_16_REALBITS,
-						ST_GYRO_DEFAULT_OUT_X_L_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL, ST_SENSORS_SCAN_Y,
-		IIO_MOD_Y, IIO_LE, ST_SENSORS_DEFAULT_16_REALBITS,
-						ST_GYRO_DEFAULT_OUT_Y_L_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL, ST_SENSORS_SCAN_Z,
-		IIO_MOD_Z, IIO_LE, ST_SENSORS_DEFAULT_16_REALBITS,
-						ST_GYRO_DEFAULT_OUT_Z_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_X, 1, IIO_MOD_X, 's', IIO_LE, 16, 16,
+			ST_GYRO_DEFAULT_OUT_X_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Y, 1, IIO_MOD_Y, 's', IIO_LE, 16, 16,
+			ST_GYRO_DEFAULT_OUT_Y_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 16, 16,
+			ST_GYRO_DEFAULT_OUT_Z_L_ADDR),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
@@ -153,7 +158,7 @@ static const struct st_sensors st_gyro_sensors[] = {
 		},
 		.drdy_irq = {
 			.addr = ST_GYRO_1_DRDY_IRQ_ADDR,
-			.mask = ST_GYRO_1_DRDY_IRQ_MASK,
+			.mask_int2 = ST_GYRO_1_DRDY_IRQ_INT2_MASK,
 		},
 		.multi_read_bit = ST_GYRO_1_MULTIREAD_BIT,
 		.bootime = 2,
@@ -216,7 +221,7 @@ static const struct st_sensors st_gyro_sensors[] = {
 		},
 		.drdy_irq = {
 			.addr = ST_GYRO_2_DRDY_IRQ_ADDR,
-			.mask = ST_GYRO_2_DRDY_IRQ_MASK,
+			.mask_int2 = ST_GYRO_2_DRDY_IRQ_INT2_MASK,
 		},
 		.multi_read_bit = ST_GYRO_2_MULTIREAD_BIT,
 		.bootime = 2,
@@ -297,7 +302,8 @@ static const struct iio_trigger_ops st_gyro_trigger_ops = {
 #define ST_GYRO_TRIGGER_OPS NULL
 #endif
 
-int st_gyro_common_probe(struct iio_dev *indio_dev)
+int st_gyro_common_probe(struct iio_dev *indio_dev,
+					struct st_sensors_platform_data *pdata)
 {
 	int err;
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
@@ -310,6 +316,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_gyro_common_probe_error;
 
+	gdata->num_data_channels = ST_GYRO_NUMBER_DATA_CHANNELS;
 	gdata->multiread_bit = gdata->sensor->multi_read_bit;
 	indio_dev->channels = gdata->sensor->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
@@ -318,7 +325,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 						&gdata->sensor->fs.fs_avl[0];
 	gdata->odr = gdata->sensor->odr.odr_avl[0].hz;
 
-	err = st_sensors_init_sensor(indio_dev);
+	err = st_sensors_init_sensor(indio_dev, pdata);
 	if (err < 0)
 		goto st_gyro_common_probe_error;
 
@@ -359,7 +366,6 @@ void st_gyro_common_remove(struct iio_dev *indio_dev)
 		st_sensors_deallocate_trigger(indio_dev);
 		st_gyro_deallocate_ring(indio_dev);
 	}
-	iio_device_free(indio_dev);
 }
 EXPORT_SYMBOL(st_gyro_common_remove);
 

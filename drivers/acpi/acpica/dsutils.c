@@ -178,7 +178,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 
 	if (!op) {
 		ACPI_ERROR((AE_INFO, "Null Op"));
-		return_VALUE(TRUE);
+		return_UINT8(TRUE);
 	}
 
 	/*
@@ -210,7 +210,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 				  "At Method level, result of [%s] not used\n",
 				  acpi_ps_get_opcode_name(op->common.
 							  aml_opcode)));
-		return_VALUE(FALSE);
+		return_UINT8(FALSE);
 	}
 
 	/* Get info on the parent. The root_op is AML_SCOPE */
@@ -219,7 +219,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	    acpi_ps_get_opcode_info(op->common.parent->common.aml_opcode);
 	if (parent_info->class == AML_CLASS_UNKNOWN) {
 		ACPI_ERROR((AE_INFO, "Unknown parent opcode Op=%p", op));
-		return_VALUE(FALSE);
+		return_UINT8(FALSE);
 	}
 
 	/*
@@ -240,7 +240,6 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 
 		case AML_IF_OP:
 		case AML_WHILE_OP:
-
 			/*
 			 * If we are executing the predicate AND this is the predicate op,
 			 * we will use the return value
@@ -254,7 +253,9 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			break;
 
 		default:
+
 			/* Ignore other control opcodes */
+
 			break;
 		}
 
@@ -263,7 +264,6 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		goto result_not_used;
 
 	case AML_CLASS_CREATE:
-
 		/*
 		 * These opcodes allow term_arg(s) as operands and therefore
 		 * the operands can be method calls. The result is used.
@@ -292,7 +292,6 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		goto result_not_used;
 
 	default:
-
 		/*
 		 * In all other cases. the parent will actually use the return
 		 * object, so keep it.
@@ -307,7 +306,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			  acpi_ps_get_opcode_name(op->common.parent->common.
 						  aml_opcode), op));
 
-	return_VALUE(TRUE);
+	return_UINT8(TRUE);
 
       result_not_used:
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
@@ -316,7 +315,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			  acpi_ps_get_opcode_name(op->common.parent->common.
 						  aml_opcode), op));
 
-	return_VALUE(FALSE);
+	return_UINT8(FALSE);
 }
 
 /*******************************************************************************

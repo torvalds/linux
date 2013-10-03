@@ -302,6 +302,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 						ttusbir_bulk_complete, tt);
 
 	tt->led.name = "ttusbir:green:power";
+	tt->led.default_trigger = "rc-feedback";
 	tt->led.brightness_set = ttusbir_brightness_set;
 	tt->led.brightness_get = ttusbir_brightness_get;
 	tt->is_led_on = tt->led_on = true;
@@ -347,6 +348,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 	return 0;
 out3:
 	rc_unregister_device(rc);
+	rc = NULL;
 out2:
 	led_classdev_unregister(&tt->led);
 out:

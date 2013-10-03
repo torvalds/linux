@@ -17,6 +17,21 @@ config INTEGRITY_SIGNATURE
 	  This is useful for evm and module keyrings, when keys are
 	  usually only added from initramfs.
 
+config INTEGRITY_AUDIT
+	bool "Enables integrity auditing support "
+	depends on INTEGRITY && AUDIT
+	default y
+	help
+	  In addition to enabling integrity auditing support, this
+	  option adds a kernel parameter 'integrity_audit', which
+	  controls the level of integrity auditing messages.
+	  0 - basic integrity auditing messages (default)
+	  1 - additional integrity auditing messages
+
+	  Additional informational integrity auditing messages would
+	  be enabled by specifying 'integrity_audit=1' on the kernel
+	  command line.
+
 config INTEGRITY_ASYMMETRIC_KEYS
 	boolean "Enable asymmetric keys support"
 	depends on INTEGRITY_SIGNATURE

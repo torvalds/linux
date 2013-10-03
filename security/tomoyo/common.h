@@ -958,7 +958,7 @@ const struct tomoyo_path_info *tomoyo_path_matches_group
 (const struct tomoyo_path_info *pathname, const struct tomoyo_group *group);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
-int tomoyo_close_control(struct tomoyo_io_buffer *head);
+void tomoyo_close_control(struct tomoyo_io_buffer *head);
 int tomoyo_env_perm(struct tomoyo_request_info *r, const char *env);
 int tomoyo_execute_permission(struct tomoyo_request_info *r,
 			      const struct tomoyo_path_info *filename);

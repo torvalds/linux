@@ -54,8 +54,7 @@
                        (1<<BOOKE_INTERRUPT_DTLB_MISS) | \
                        (1<<BOOKE_INTERRUPT_ALIGNMENT))
 
-.macro KVM_HANDLER ivor_nr scratch srr0
-_GLOBAL(kvmppc_handler_\ivor_nr)
+.macro __KVM_HANDLER ivor_nr scratch srr0
 	/* Get pointer to vcpu and record exit number. */
 	mtspr	\scratch , r4
 	mfspr   r4, SPRN_SPRG_THREAD
@@ -74,6 +73,43 @@ _GLOBAL(kvmppc_handler_\ivor_nr)
 	ori	r6, r6, kvmppc_resume_host@l
 	mtctr	r6
 	bctr
+.endm
+
+.macro KVM_HANDLER ivor_nr scratch srr0
+_GLOBAL(kvmppc_handler_\ivor_nr)
+	__KVM_HANDLER \ivor_nr \scratch \srr0
+.endm
+
+.macro KVM_DBG_HANDLER ivor_nr scratch srr0
+_GLOBAL(kvmppc_handler_\ivor_nr)
+	mtspr   \scratch, r4
+	mfspr	r4, SPRN_SPRG_THREAD
+	lwz	r4, THREAD_KVM_VCPU(r4)
+	stw	r3, VCPU_CRIT_SAVE(r4)
+	mfcr	r3
+	mfspr	r4, SPRN_CSRR1
+	andi.	r4, r4, MSR_PR
+	bne	1f
+	/* debug interrupt happened in enter/exit path */
+	mfspr   r4, SPRN_CSRR1
+	rlwinm  r4, r4, 0, ~MSR_DE
+	mtspr   SPRN_CSRR1, r4
+	lis	r4, 0xffff
+	ori	r4, r4, 0xffff
+	mtspr	SPRN_DBSR, r4
+	mfspr	r4, SPRN_SPRG_THREAD
+	lwz	r4, THREAD_KVM_VCPU(r4)
+	mtcr	r3
+	lwz     r3, VCPU_CRIT_SAVE(r4)
+	mfspr   r4, \scratch
+	rfci
+1:	/* debug interrupt happened in guest */
+	mtcr	r3
+	mfspr	r4, SPRN_SPRG_THREAD
+	lwz	r4, THREAD_KVM_VCPU(r4)
+	lwz     r3, VCPU_CRIT_SAVE(r4)
+	mfspr   r4, \scratch
+	__KVM_HANDLER \ivor_nr \scratch \srr0
 .endm
 
 .macro KVM_HANDLER_ADDR ivor_nr
@@ -100,7 +136,7 @@ KVM_HANDLER BOOKE_INTERRUPT_FIT SPRN_SPRG_RSCRATCH0 SPRN_SRR0
 KVM_HANDLER BOOKE_INTERRUPT_WATCHDOG SPRN_SPRG_RSCRATCH_CRIT SPRN_CSRR0
 KVM_HANDLER BOOKE_INTERRUPT_DTLB_MISS SPRN_SPRG_RSCRATCH0 SPRN_SRR0
 KVM_HANDLER BOOKE_INTERRUPT_ITLB_MISS SPRN_SPRG_RSCRATCH0 SPRN_SRR0
-KVM_HANDLER BOOKE_INTERRUPT_DEBUG SPRN_SPRG_RSCRATCH_CRIT SPRN_CSRR0
+KVM_DBG_HANDLER BOOKE_INTERRUPT_DEBUG SPRN_SPRG_RSCRATCH_CRIT SPRN_CSRR0
 KVM_HANDLER BOOKE_INTERRUPT_SPE_UNAVAIL SPRN_SPRG_RSCRATCH0 SPRN_SRR0
 KVM_HANDLER BOOKE_INTERRUPT_SPE_FP_DATA SPRN_SPRG_RSCRATCH0 SPRN_SRR0
 KVM_HANDLER BOOKE_INTERRUPT_SPE_FP_ROUND SPRN_SPRG_RSCRATCH0 SPRN_SRR0

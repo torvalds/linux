@@ -84,7 +84,7 @@ static inline bool read_zero(struct kvm_vcpu *vcpu,
 static inline bool write_to_read_only(struct kvm_vcpu *vcpu,
 				      const struct coproc_params *params)
 {
-	kvm_debug("CP15 write to read-only register at: %08x\n",
+	kvm_debug("CP15 write to read-only register at: %08lx\n",
 		  *vcpu_pc(vcpu));
 	print_cp_instr(params);
 	return false;
@@ -93,7 +93,7 @@ static inline bool write_to_read_only(struct kvm_vcpu *vcpu,
 static inline bool read_from_write_only(struct kvm_vcpu *vcpu,
 					const struct coproc_params *params)
 {
-	kvm_debug("CP15 read to write-only register at: %08x\n",
+	kvm_debug("CP15 read to write-only register at: %08lx\n",
 		  *vcpu_pc(vcpu));
 	print_cp_instr(params);
 	return false;
@@ -135,6 +135,8 @@ static inline int cmp_reg(const struct coproc_reg *i1,
 		return -1;
 	if (i1->CRn != i2->CRn)
 		return i1->CRn - i2->CRn;
+	if (i1->is_64 != i2->is_64)
+		return i2->is_64 - i1->is_64;
 	if (i1->CRm != i2->CRm)
 		return i1->CRm - i2->CRm;
 	if (i1->Op1 != i2->Op1)
@@ -145,6 +147,7 @@ static inline int cmp_reg(const struct coproc_reg *i1,
 
 #define CRn(_x)		.CRn = _x
 #define CRm(_x) 	.CRm = _x
+#define CRm64(_x)       .CRn = _x, .CRm = 0
 #define Op1(_x) 	.Op1 = _x
 #define Op2(_x) 	.Op2 = _x
 #define is64		.is_64 = true

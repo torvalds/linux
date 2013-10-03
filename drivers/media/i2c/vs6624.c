@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
@@ -722,40 +721,16 @@ static int vs6624_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int vs6624_g_chip_ident(struct v4l2_subdev *sd,
-		struct v4l2_dbg_chip_ident *chip)
-{
-	int rev;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	rev = (vs6624_read(sd, VS6624_FW_VSN_MAJOR) << 8)
-		| vs6624_read(sd, VS6624_FW_VSN_MINOR);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_VS6624, rev);
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vs6624_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->val = vs6624_read(sd, reg->reg & 0xffff);
 	reg->size = 1;
 	return 0;
 }
 
-static int vs6624_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+static int vs6624_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	vs6624_write(sd, reg->reg & 0xffff, reg->val & 0xff);
 	return 0;
 }
@@ -766,7 +741,6 @@ static const struct v4l2_ctrl_ops vs6624_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops vs6624_core_ops = {
-	.g_chip_ident = vs6624_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = vs6624_g_register,
 	.s_register = vs6624_s_register,
@@ -805,20 +779,18 @@ static int vs6624_probe(struct i2c_client *client,
 	if (ce == NULL)
 		return -EINVAL;
 
-	ret = gpio_request(*ce, "VS6624 Chip Enable");
+	ret = devm_gpio_request_one(&client->dev, *ce, GPIOF_OUT_INIT_HIGH,
+				    "VS6624 Chip Enable");
 	if (ret) {
 		v4l_err(client, "failed to request GPIO %d\n", *ce);
 		return ret;
 	}
-	gpio_direction_output(*ce, 1);
 	/* wait 100ms before any further i2c writes are performed */
 	mdelay(100);
 
-	sensor = kzalloc(sizeof(*sensor), GFP_KERNEL);
-	if (sensor == NULL) {
-		gpio_free(*ce);
+	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
+	if (sensor == NULL)
 		return -ENOMEM;
-	}
 
 	sd = &sensor->sd;
 	v4l2_i2c_subdev_init(sd, client, &vs6624_ops);
@@ -866,30 +838,22 @@ static int vs6624_probe(struct i2c_client *client,
 		int err = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		kfree(sensor);
-		gpio_free(*ce);
 		return err;
 	}
 
 	/* initialize the hardware to the default control values */
 	ret = v4l2_ctrl_handler_setup(hdl);
-	if (ret) {
+	if (ret)
 		v4l2_ctrl_handler_free(hdl);
-		kfree(sensor);
-		gpio_free(*ce);
-	}
 	return ret;
 }
 
 static int vs6624_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct vs6624 *sensor = to_vs6624(sd);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	gpio_free(sensor->ce_pin);
-	kfree(sensor);
 	return 0;
 }
 

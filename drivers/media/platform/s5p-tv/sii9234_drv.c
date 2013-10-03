@@ -23,9 +23,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
 
-#include <mach/gpio.h>
-#include <plat/gpio-cfg.h>
-
 #include <media/sii9234.h>
 #include <media/v4l2-subdev.h>
 
@@ -252,7 +249,9 @@ static int sii9234_runtime_resume(struct device *dev)
 	int ret;
 
 	dev_info(dev, "resume start\n");
-	regulator_enable(ctx->power);
+	ret = regulator_enable(ctx->power);
+	if (ret < 0)
+		return ret;
 
 	ret = sii9234_reset(ctx);
 	if (ret)

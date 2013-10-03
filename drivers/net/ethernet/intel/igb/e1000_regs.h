@@ -65,6 +65,7 @@
 #define E1000_TIPG     0x00410  /* TX Inter-packet gap -RW */
 #define E1000_AIT      0x00458  /* Adaptive Interframe Spacing Throttle - RW */
 #define E1000_LEDCTL   0x00E00  /* LED Control - RW */
+#define E1000_LEDMUX   0x08130  /* LED MUX Control */
 #define E1000_PBA      0x01000  /* Packet Buffer Allocation - RW */
 #define E1000_PBS      0x01008  /* Packet Buffer Size */
 #define E1000_EEMNGCTL 0x01010  /* MNG EEprom Control */
@@ -83,6 +84,9 @@
 #define E1000_I2C_DATA_IN   0x00001000  /* I2C- Data In */
 #define E1000_I2C_CLK_OE_N  0x00002000  /* I2C- Clock Output Enable */
 #define E1000_I2C_CLK_IN    0x00004000  /* I2C- Clock In */
+#define E1000_MPHY_ADDR_CTRL	0x0024 /* GbE MPHY Address Control */
+#define E1000_MPHY_DATA		0x0E10 /* GBE MPHY Data */
+#define E1000_MPHY_STAT		0x0E0C /* GBE MPHY Statistics */
 
 /* IEEE 1588 TIMESYNCH */
 #define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */
@@ -117,21 +121,21 @@
 #define E1000_RQDPC(_n) (0x0C030 + ((_n) * 0x40))
 
 /* DMA Coalescing registers */
-#define E1000_DMACR             0x02508 /* Control Register */
-#define E1000_DMCTXTH           0x03550 /* Transmit Threshold */
-#define E1000_DMCTLX            0x02514 /* Time to Lx Request */
-#define E1000_DMCRTRH           0x05DD0 /* Receive Packet Rate Threshold */
-#define E1000_DMCCNT            0x05DD4 /* Current Rx Count */
-#define E1000_FCRTC             0x02170 /* Flow Control Rx high watermark */
-#define E1000_PCIEMISC          0x05BB8 /* PCIE misc config register */
+#define E1000_DMACR	0x02508 /* Control Register */
+#define E1000_DMCTXTH	0x03550 /* Transmit Threshold */
+#define E1000_DMCTLX	0x02514 /* Time to Lx Request */
+#define E1000_DMCRTRH	0x05DD0 /* Receive Packet Rate Threshold */
+#define E1000_DMCCNT	0x05DD4 /* Current Rx Count */
+#define E1000_FCRTC	0x02170 /* Flow Control Rx high watermark */
+#define E1000_PCIEMISC	0x05BB8 /* PCIE misc config register */
 
 /* TX Rate Limit Registers */
-#define E1000_RTTDQSEL	0x3604	/* Tx Desc Plane Queue Select - WO */
-#define E1000_RTTBCNRM	0x3690	/* Tx BCN Rate-scheduler MMW */
-#define E1000_RTTBCNRC	0x36B0	/* Tx BCN Rate-Scheduler Config - WO */
+#define E1000_RTTDQSEL	0x3604 /* Tx Desc Plane Queue Select - WO */
+#define E1000_RTTBCNRM	0x3690 /* Tx BCN Rate-scheduler MMW */
+#define E1000_RTTBCNRC	0x36B0 /* Tx BCN Rate-Scheduler Config - WO */
 
 /* Split and Replication RX Control - RW */
-#define E1000_RXPBS    0x02404  /* Rx Packet Buffer Size - RW */
+#define E1000_RXPBS	0x02404 /* Rx Packet Buffer Size - RW */
 
 /* Thermal sensor configuration and status registers */
 #define E1000_THMJT	0x08100 /* Junction Temperature */
@@ -140,8 +144,7 @@
 #define E1000_THHIGHTC	0x0810C /* High Threshold Control */
 #define E1000_THSTAT	0x08110 /* Thermal Sensor Status */
 
-/*
- * Convenience macros
+/* Convenience macros
  *
  * Note: "_n" is the queue number of the register to be written to.
  *
@@ -287,7 +290,7 @@
 #define E1000_RFCTL    0x05008  /* Receive Filter Control*/
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
 #define E1000_RA       0x05400  /* Receive Address - RW Array */
-#define E1000_RA2      0x054E0  /* 2nd half of receive address array - RW Array */
+#define E1000_RA2      0x054E0  /* 2nd half of Rx address array - RW Array */
 #define E1000_PSRTYPE(_i)       (0x05480 + ((_i) * 4))
 #define E1000_RAL(_i)  (((_i) <= 15) ? (0x05400 + ((_i) * 8)) : \
                                        (0x054E0 + ((_i - 16) * 8)))
@@ -360,21 +363,25 @@
 	(readl(hw->hw_addr + reg + ((offset) << 2)))
 
 /* DMA Coalescing registers */
-#define E1000_PCIEMISC          0x05BB8 /* PCIE misc config register */
+#define E1000_PCIEMISC	0x05BB8 /* PCIE misc config register */
 
 /* Energy Efficient Ethernet "EEE" register */
-#define E1000_IPCNFG  0x0E38  /* Internal PHY Configuration */
-#define E1000_EEER    0x0E30  /* Energy Efficient Ethernet */
-#define E1000_EEE_SU  0X0E34  /* EEE Setup */
+#define E1000_IPCNFG	0x0E38 /* Internal PHY Configuration */
+#define E1000_EEER	0x0E30 /* Energy Efficient Ethernet */
+#define E1000_EEE_SU	0X0E34 /* EEE Setup */
+#define E1000_EMIADD	0x10   /* Extended Memory Indirect Address */
+#define E1000_EMIDATA	0x11   /* Extended Memory Indirect Data */
+#define E1000_MMDAC	13     /* MMD Access Control */
+#define E1000_MMDAAD	14     /* MMD Access Address/Data */
 
 /* Thermal Sensor Register */
-#define E1000_THSTAT    0x08110 /* Thermal Sensor Status */
+#define E1000_THSTAT	0x08110 /* Thermal Sensor Status */
 
 /* OS2BMC Registers */
-#define E1000_B2OSPC    0x08FE0 /* BMC2OS packets sent by BMC */
-#define E1000_B2OGPRC   0x04158 /* BMC2OS packets received by host */
-#define E1000_O2BGPTC   0x08FE4 /* OS2BMC packets received by BMC */
-#define E1000_O2BSPC    0x0415C /* OS2BMC packets transmitted by host */
+#define E1000_B2OSPC	0x08FE0 /* BMC2OS packets sent by BMC */
+#define E1000_B2OGPRC	0x04158 /* BMC2OS packets received by host */
+#define E1000_O2BGPTC	0x08FE4 /* OS2BMC packets received by BMC */
+#define E1000_O2BSPC	0x0415C /* OS2BMC packets transmitted by host */
 
 #define E1000_SRWR		0x12018  /* Shadow Ram Write Register - RW */
 #define E1000_I210_FLMNGCTL	0x12038

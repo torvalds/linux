@@ -19,7 +19,7 @@
 static int adis_data_rdy_trigger_set_state(struct iio_trigger *trig,
 						bool state)
 {
-	struct adis *adis = trig->private_data;
+	struct adis *adis = iio_trigger_get_drvdata(trig);
 
 	return adis_enable_irq(adis, state);
 }
@@ -57,7 +57,7 @@ int adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev)
 
 	adis->trig->dev.parent = &adis->spi->dev;
 	adis->trig->ops = &adis_trigger_ops;
-	adis->trig->private_data = adis;
+	iio_trigger_set_drvdata(adis->trig, adis);
 	ret = iio_trigger_register(adis->trig);
 
 	indio_dev->trig = adis->trig;

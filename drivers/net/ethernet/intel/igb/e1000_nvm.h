@@ -44,6 +44,7 @@ struct e1000_fw_version {
 	u32 etrack_id;
 	u16 eep_major;
 	u16 eep_minor;
+	u16 eep_build;
 
 	u8 invm_major;
 	u8 invm_minor;

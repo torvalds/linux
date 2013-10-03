@@ -81,9 +81,11 @@ csio_mem_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		__be32 data[16];
 
 		if (mem == MEM_MC)
-			ret = csio_hw_mc_read(hw, pos, data, NULL);
+			ret = hw->chip_ops->chip_mc_read(hw, 0, pos,
+							 data, NULL);
 		else
-			ret = csio_hw_edc_read(hw, mem, pos, data, NULL);
+			ret = hw->chip_ops->chip_edc_read(hw, mem, pos,
+							  data, NULL);
 		if (ret)
 			return ret;
 
@@ -108,7 +110,7 @@ static const struct file_operations csio_mem_debugfs_fops = {
 	.llseek  = default_llseek,
 };
 
-static void csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
+void csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
 				 unsigned int idx, unsigned int size_mb)
 {
 	struct dentry *de;
@@ -131,9 +133,8 @@ static int csio_setup_debugfs(struct csio_hw *hw)
 		csio_add_debugfs_mem(hw, "edc0", MEM_EDC0, 5);
 	if (i & EDRAM1_ENABLE)
 		csio_add_debugfs_mem(hw, "edc1", MEM_EDC1, 5);
-	if (i & EXT_MEM_ENABLE)
-		csio_add_debugfs_mem(hw, "mc", MEM_MC,
-		      EXT_MEM_SIZE_GET(csio_rd_reg32(hw, MA_EXT_MEMORY_BAR)));
+
+	hw->chip_ops->chip_dfs_create_ext_mem(hw);
 	return 0;
 }
 
@@ -1169,7 +1170,7 @@ static struct pci_error_handlers csio_err_handler = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(csio_pci_tbl) = {
-	CSIO_DEVICE(CSIO_DEVID_T440DBG_FCOE, 0),	/* T440DBG FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T440DBG_FCOE, 0),        /* T4 DEBUG FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T420CR_FCOE, 0),		/* T420CR FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T422CR_FCOE, 0),		/* T422CR FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T440CR_FCOE, 0),		/* T440CR FCOE */
@@ -1184,8 +1185,34 @@ static DEFINE_PCI_DEVICE_TABLE(csio_pci_tbl) = {
 	CSIO_DEVICE(CSIO_DEVID_B404_FCOE, 0),		/* B404 FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T480CR_FCOE, 0),		/* T480 CR FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T440LPCR_FCOE, 0),	/* T440 LP-CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_PE10K, 0),		/* PE10K FCOE */
-	CSIO_DEVICE(CSIO_DEVID_PE10K_PF1, 0),	/* PE10K FCOE on PF1 */
+	CSIO_DEVICE(CSIO_DEVID_AMSTERDAM_T4_FCOE, 0),   /* AMSTERDAM T4 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_T480_FCOE, 0),    /* HUAWEI T480 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_T440_FCOE, 0),    /* HUAWEI T440 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_STG310_FCOE, 0),  /* HUAWEI STG FCOE */
+	CSIO_DEVICE(CSIO_DEVID_ACROMAG_XMC_XAUI, 0),    /* ACROMAG XAUI FCOE */
+	CSIO_DEVICE(CSIO_DEVID_QUANTA_MEZZ_SFP_FCOE, 0),/* QUANTA MEZZ FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_10GT_FCOE, 0),    /* HUAWEI 10GT FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_T440_TOE_FCOE, 0),/* HUAWEI T4 TOE FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T580DBG_FCOE, 0),        /* T5 DEBUG FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520CR_FCOE, 0),         /* T520CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T522CR_FCOE, 0),         /* T522CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T540CR_FCOE, 0),         /* T540CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520BCH_FCOE, 0),        /* T520BCH FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T540BCH_FCOE, 0),        /* T540BCH FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T540CH_FCOE, 0),         /* T540CH FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520SO_FCOE, 0),         /* T520SO FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520CX_FCOE, 0),         /* T520CX FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520BT_FCOE, 0),         /* T520BT FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T504BT_FCOE, 0),         /* T504BT FCOE */
+	CSIO_DEVICE(CSIO_DEVID_B520_FCOE, 0),           /* B520 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_B504_FCOE, 0),           /* B504 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T580CR2_FCOE, 0),	/* T580 CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T540LPCR_FCOE, 0),       /* T540 LP-CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_AMSTERDAM_T5_FCOE, 0),   /* AMSTERDAM T5 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T580LPCR_FCOE, 0),       /* T580 LP-CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520LLCR_FCOE, 0),       /* T520 LL-CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T560CR_FCOE, 0),         /* T560 CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T580CR_FCOE, 0),         /* T580 CR FCOE */
 	{ 0, 0, 0, 0, 0, 0, 0 }
 };
 
@@ -1259,4 +1286,5 @@ MODULE_DESCRIPTION(CSIO_DRV_DESC);
 MODULE_LICENSE(CSIO_DRV_LICENSE);
 MODULE_DEVICE_TABLE(pci, csio_pci_tbl);
 MODULE_VERSION(CSIO_DRV_VERSION);
-MODULE_FIRMWARE(CSIO_FW_FNAME);
+MODULE_FIRMWARE(FW_FNAME_T4);
+MODULE_FIRMWARE(FW_FNAME_T5);

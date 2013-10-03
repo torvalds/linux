@@ -19,6 +19,8 @@ struct ipv6_devconf {
 	__s32		rtr_solicit_interval;
 	__s32		rtr_solicit_delay;
 	__s32		force_mld_version;
+	__s32		mldv1_unsolicited_report_interval;
+	__s32		mldv2_unsolicited_report_interval;
 #ifdef CONFIG_IPV6_PRIVACY
 	__s32		use_tempaddr;
 	__s32		temp_valid_lft;
@@ -48,6 +50,7 @@ struct ipv6_devconf {
 	__s32		accept_dad;
 	__s32		force_tllao;
 	__s32           ndisc_notify;
+	__s32		suppress_frag_ndisc;
 	void		*sysctl;
 };
 
@@ -101,6 +104,7 @@ struct inet6_skb_parm {
 #define IP6SKB_FORWARDED	2
 #define IP6SKB_REROUTED		4
 #define IP6SKB_ROUTERALERT	8
+#define IP6SKB_FRAGMENTED      16
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))

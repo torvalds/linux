@@ -801,7 +801,17 @@ ENTRY(name)				\
 	CFI_ENDPROC;			\
 ENDPROC(name)
 
-#define BUILD_INTERRUPT(name, nr)	BUILD_INTERRUPT3(name, nr, smp_##name)
+
+#ifdef CONFIG_TRACING
+#define TRACE_BUILD_INTERRUPT(name, nr)		\
+	BUILD_INTERRUPT3(trace_##name, nr, smp_trace_##name)
+#else
+#define TRACE_BUILD_INTERRUPT(name, nr)
+#endif
+
+#define BUILD_INTERRUPT(name, nr) \
+	BUILD_INTERRUPT3(name, nr, smp_##name); \
+	TRACE_BUILD_INTERRUPT(name, nr)
 
 /* The include is where all of the SMP etc. interrupts come from */
 #include <asm/entry_arch.h>
@@ -1166,6 +1176,9 @@ ftrace_restore_flags:
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
 ENTRY(mcount)
+	cmpl $__PAGE_OFFSET, %esp
+	jb ftrace_stub		/* Paging not enabled yet? */
+
 	cmpl $0, function_trace_stop
 	jne  ftrace_stub
 

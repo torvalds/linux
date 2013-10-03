@@ -115,7 +115,7 @@ EXPORT_SYMBOL(ipv6_skip_exthdr);
 int ipv6_find_tlv(struct sk_buff *skb, int offset, int type)
 {
 	const unsigned char *nh = skb_network_header(skb);
-	int packet_len = skb->tail - skb->network_header;
+	int packet_len = skb_tail_pointer(skb) - skb_network_header(skb);
 	struct ipv6_opt_hdr *hdr;
 	int len;
 

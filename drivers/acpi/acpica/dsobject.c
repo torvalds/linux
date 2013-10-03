@@ -648,7 +648,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 	switch (obj_desc->common.type) {
 	case ACPI_TYPE_BUFFER:
-
 		/*
 		 * Defer evaluation of Buffer term_arg operand
 		 */
@@ -660,7 +659,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 		break;
 
 	case ACPI_TYPE_PACKAGE:
-
 		/*
 		 * Defer evaluation of Package term_arg operand
 		 */
@@ -741,6 +739,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			break;
 
 		default:
+
 			ACPI_ERROR((AE_INFO, "Unknown Integer type 0x%X",
 				    op_info->type));
 			status = AE_AML_OPERAND_TYPE;

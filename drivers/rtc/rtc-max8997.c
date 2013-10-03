@@ -24,7 +24,7 @@
 /* Module parameter for WTSR function control */
 static int wtsr_en = 1;
 module_param(wtsr_en, int, 0444);
-MODULE_PARM_DESC(wtsr_en, "Wachdog Timeout & Sofware Reset (default=on)");
+MODULE_PARM_DESC(wtsr_en, "Watchdog Timeout & Software Reset (default=on)");
 /* Module parameter for SMPL function control */
 static int smpl_en = 1;
 module_param(smpl_en, int, 0444);
@@ -104,7 +104,7 @@ static int max8997_rtc_tm_to_data(struct rtc_time *tm, u8 *data)
 	data[RTC_WEEKDAY] = 1 << tm->tm_wday;
 	data[RTC_DATE] = tm->tm_mday;
 	data[RTC_MONTH] = tm->tm_mon + 1;
-	data[RTC_YEAR] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0 ;
+	data[RTC_YEAR] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
 
 	if (tm->tm_year < 100) {
 		pr_warn("%s: MAX8997 RTC cannot handle the year %d."
@@ -479,8 +479,8 @@ static int max8997_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	info->rtc_dev = rtc_device_register("max8997-rtc", &pdev->dev,
-			&max8997_rtc_ops, THIS_MODULE);
+	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "max8997-rtc",
+					&max8997_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(info->rtc_dev)) {
 		ret = PTR_ERR(info->rtc_dev);
@@ -491,6 +491,7 @@ static int max8997_rtc_probe(struct platform_device *pdev)
 	virq = irq_create_mapping(max8997->irq_domain, MAX8997_PMICIRQ_RTCA1);
 	if (!virq) {
 		dev_err(&pdev->dev, "Failed to create mapping alarm IRQ\n");
+		ret = -ENXIO;
 		goto err_out;
 	}
 	info->virq = virq;
@@ -498,27 +499,12 @@ static int max8997_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(&pdev->dev, virq, NULL,
 				max8997_rtc_alarm_irq, 0,
 				"rtc-alarm0", info);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->virq, ret);
-		goto err_out;
-	}
-
-	return ret;
 
 err_out:
-	rtc_device_unregister(info->rtc_dev);
 	return ret;
-}
-
-static int max8997_rtc_remove(struct platform_device *pdev)
-{
-	struct max8997_rtc_info *info = platform_get_drvdata(pdev);
-
-	if (info)
-		rtc_device_unregister(info->rtc_dev);
-
-	return 0;
 }
 
 static void max8997_rtc_shutdown(struct platform_device *pdev)
@@ -540,7 +526,6 @@ static struct platform_driver max8997_rtc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8997_rtc_probe,
-	.remove		= max8997_rtc_remove,
 	.shutdown	= max8997_rtc_shutdown,
 	.id_table	= rtc_id,
 };

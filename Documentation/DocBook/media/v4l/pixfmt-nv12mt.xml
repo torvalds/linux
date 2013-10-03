@@ -24,7 +24,7 @@ into 64x32 macroblocks. The CbCr plane has the same width, in bytes, as the Y
 plane (and the image), but is half as tall in pixels. The chroma plane is also
 grouped into 64x32 macroblocks.</para>
 	<para>Width of the buffer has to be aligned to the multiple of 128, and
-height alignment is 32. Every four adjactent buffers - two horizontally and two
+height alignment is 32. Every four adjacent buffers - two horizontally and two
 vertically are grouped together and are located in memory in Z or flipped Z
 order. </para>
 	<para>Layout of macroblocks in memory is presented in the following

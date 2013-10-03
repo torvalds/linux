@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -91,11 +91,10 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		tx_flags |= TX_CMD_FLG_ACK | TX_CMD_FLG_BAR;
 
 	/* High prio packet (wrt. BT coex) if it is EAPOL, MCAST or MGMT */
-	if (info->band == IEEE80211_BAND_2GHZ        &&
-	    (skb->protocol == cpu_to_be16(ETH_P_PAE)  ||
-	     is_multicast_ether_addr(hdr->addr1)      ||
-	     ieee80211_is_back_req(fc)                ||
-	     ieee80211_is_mgmt(fc)))
+	if (info->band == IEEE80211_BAND_2GHZ &&
+	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO ||
+	     is_multicast_ether_addr(hdr->addr1) ||
+	     ieee80211_is_back_req(fc) || ieee80211_is_mgmt(fc)))
 		tx_flags |= TX_CMD_FLG_BT_DIS;
 
 	if (ieee80211_has_morefrags(fc))
@@ -123,6 +122,8 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		 * it
 		 */
 		WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_AMPDU);
+	} else if (skb->protocol == cpu_to_be16(ETH_P_PAE)) {
+		tx_cmd->pm_frame_timeout = cpu_to_le16(2);
 	} else {
 		tx_cmd->pm_frame_timeout = 0;
 	}
@@ -171,16 +172,17 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 	}
 
 	/*
-	 * for data packets, rate info comes from the table inside he fw. This
+	 * for data packets, rate info comes from the table inside the fw. This
 	 * table is controlled by LINK_QUALITY commands
 	 */
 
-	if (ieee80211_is_data(fc)) {
+	if (ieee80211_is_data(fc) && sta) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_STA_RATE);
 		return;
 	} else if (ieee80211_is_back_req(fc)) {
-		tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_STA_RATE);
+		tx_cmd->tx_flags |=
+			cpu_to_le32(TX_CMD_FLG_ACK | TX_CMD_FLG_BAR);
 	}
 
 	/* HT rate doesn't make sense for a non data frame */
@@ -205,7 +207,7 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(rate_idx);
 
 	mvm->mgmt_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, mvm->nvm_data->valid_tx_ant,
+		iwl_mvm_next_antenna(mvm, iwl_fw_valid_tx_ant(mvm->fw),
 				     mvm->mgmt_last_antenna_idx);
 	rate_flags = BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
 
@@ -365,7 +367,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
 
-	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_INVALID_STATION))
+	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
 		return -1;
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, sta, mvmsta->sta_id);
@@ -407,7 +409,6 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x\n", mvmsta->sta_id,
 		     tid, txq_id, seq_number);
 
-	/* NOTE: aggregation will need changes here (for txq id) */
 	if (iwl_trans_tx(mvm->trans, skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
@@ -416,9 +417,8 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	spin_unlock(&mvmsta->lock);
 
-	if (mvmsta->vif->type == NL80211_IFTYPE_AP &&
-	    txq_id < IWL_FIRST_AMPDU_QUEUE)
-		atomic_inc(&mvmsta->pending_frames);
+	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE)
+		atomic_inc(&mvm->pending_frames[mvmsta->sta_id]);
 
 	return 0;
 
@@ -606,12 +606,12 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 					     info);
 
 		/* Single frame failure in an AMPDU queue => send BAR */
-		if (txq_id >= IWL_FIRST_AMPDU_QUEUE &&
+		if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE &&
 		    !(info->flags & IEEE80211_TX_STAT_ACK))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
-		/* W/A FW bug: seq_ctl is wrong when the queue is flushed */
-		if (status == TX_STATUS_FAIL_FIFO_FLUSHED) {
+		/* W/A FW bug: seq_ctl is wrong when the status isn't success */
+		if (status != TX_STATUS_SUCCESS) {
 			struct ieee80211_hdr *hdr = (void *)skb->data;
 			seq_ctl = le16_to_cpu(hdr->seq_ctrl);
 		}
@@ -619,7 +619,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		ieee80211_tx_status_ni(mvm->hw, skb);
 	}
 
-	if (txq_id >= IWL_FIRST_AMPDU_QUEUE) {
+	if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE) {
 		/* If this is an aggregation queue, we use the ssn since:
 		 * ssn = wifi seq_num % 256.
 		 * The seq_ctl is the sequence control of the packet to which
@@ -637,14 +637,16 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		next_reclaimed = ssn;
 	} else {
 		/* The next packet to be reclaimed is the one after this one */
-		next_reclaimed = SEQ_TO_SN(seq_ctl + 0x10);
+		next_reclaimed = IEEE80211_SEQ_TO_SN(seq_ctl + 0x10);
 	}
 
 	IWL_DEBUG_TX_REPLY(mvm,
-			   "TXQ %d status %s (0x%08x)\n\t\t\t\tinitial_rate 0x%x "
-			    "retries %d, idx=%d ssn=%d next_reclaimed=0x%x seq_ctl=0x%x\n",
-			   txq_id, iwl_mvm_get_tx_fail_reason(status),
-			   status, le32_to_cpu(tx_resp->initial_rate),
+			   "TXQ %d status %s (0x%08x)\n",
+			   txq_id, iwl_mvm_get_tx_fail_reason(status), status);
+
+	IWL_DEBUG_TX_REPLY(mvm,
+			   "\t\t\t\tinitial_rate 0x%x retries %d, idx=%d ssn=%d next_reclaimed=0x%x seq_ctl=0x%x\n",
+			   le32_to_cpu(tx_resp->initial_rate),
 			   tx_resp->failure_frame, SEQ_TO_INDEX(sequence),
 			   ssn, next_reclaimed, seq_ctl);
 
@@ -678,16 +680,41 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	/*
 	 * If the txq is not an AMPDU queue, there is no chance we freed
 	 * several skbs. Check that out...
-	 * If there are no pending frames for this STA, notify mac80211 that
-	 * this station can go to sleep in its STA table.
 	 */
-	if (txq_id < IWL_FIRST_AMPDU_QUEUE && mvmsta &&
-	    !WARN_ON(skb_freed > 1) &&
-	    mvmsta->vif->type == NL80211_IFTYPE_AP &&
-	    atomic_sub_and_test(skb_freed, &mvmsta->pending_frames)) {
-		ieee80211_sta_block_awake(mvm->hw, sta, false);
-		set_bit(sta_id, mvm->sta_drained);
-		schedule_work(&mvm->sta_drained_wk);
+	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE && !WARN_ON(skb_freed > 1) &&
+	    atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id])) {
+		if (mvmsta) {
+			/*
+			 * If there are no pending frames for this STA, notify
+			 * mac80211 that this station can go to sleep in its
+			 * STA table.
+			 */
+			if (mvmsta->vif->type == NL80211_IFTYPE_AP)
+				ieee80211_sta_block_awake(mvm->hw, sta, false);
+			/*
+			 * We might very well have taken mvmsta pointer while
+			 * the station was being removed. The remove flow might
+			 * have seen a pending_frame (because we didn't take
+			 * the lock) even if now the queues are drained. So make
+			 * really sure now that this the station is not being
+			 * removed. If it is, run the drain worker to remove it.
+			 */
+			spin_lock_bh(&mvmsta->lock);
+			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+			if (IS_ERR_OR_NULL(sta)) {
+				/*
+				 * Station disappeared in the meantime:
+				 * so we are draining.
+				 */
+				set_bit(sta_id, mvm->sta_drained);
+				schedule_work(&mvm->sta_drained_wk);
+			}
+			spin_unlock_bh(&mvmsta->lock);
+		} else if (!mvmsta) {
+			/* Tx response without STA, so we are draining */
+			set_bit(sta_id, mvm->sta_drained);
+			schedule_work(&mvm->sta_drained_wk);
+		}
 	}
 
 	rcu_read_unlock();
@@ -750,7 +777,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	struct ieee80211_sta *sta;
 
-	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < IWL_FIRST_AMPDU_QUEUE))
+	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < IWL_MVM_FIRST_AGG_QUEUE))
 		return;
 
 	if (WARN_ON_ONCE(tid == IWL_TID_NON_QOS))

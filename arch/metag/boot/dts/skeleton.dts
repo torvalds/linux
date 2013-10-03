@@ -7,4 +7,4 @@
  */
 /dts-v1/;
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"

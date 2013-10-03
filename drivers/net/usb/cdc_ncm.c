@@ -362,8 +362,8 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	u8 iface_no;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (ctx == NULL)
-		return -ENODEV;
+	if (!ctx)
+		return -ENOMEM;
 
 	hrtimer_init(&ctx->tx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	ctx->tx_timer.function = &cdc_ncm_tx_timer_cb;
@@ -610,7 +610,7 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 	 * (carrier is OFF) during attach, so the IP network stack does not
 	 * start IPv6 negotiation and more.
 	 */
-	netif_carrier_off(dev->net);
+	usbnet_link_change(dev, 0, 0);
 	return ret;
 }
 
@@ -1106,12 +1106,9 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 			" %sconnected\n",
 			ctx->netdev->name, ctx->connected ? "" : "dis");
 
-		if (ctx->connected)
-			netif_carrier_on(dev->net);
-		else {
-			netif_carrier_off(dev->net);
+		usbnet_link_change(dev, ctx->connected, 0);
+		if (!ctx->connected)
 			ctx->tx_speed = ctx->rx_speed = 0;
-		}
 		break;
 
 	case USB_CDC_NOTIFY_SPEED_CHANGE:
@@ -1124,8 +1121,9 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		break;
 
 	default:
-		dev_err(&dev->udev->dev, "NCM: unexpected "
-			"notification 0x%02x!\n", event->bNotificationType);
+		dev_dbg(&dev->udev->dev,
+			"NCM: unexpected notification 0x%02x!\n",
+			event->bNotificationType);
 		break;
 	}
 }

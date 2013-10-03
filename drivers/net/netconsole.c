@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 #include <linux/console.h>
 #include <linux/moduleparam.h>
+#include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/netpoll.h>
 #include <linux/inet.h>
@@ -101,6 +102,7 @@ struct netconsole_target {
 	struct config_item	item;
 #endif
 	int			enabled;
+	struct mutex		mutex;
 	struct netpoll		np;
 };
 
@@ -180,6 +182,7 @@ static struct netconsole_target *alloc_param_target(char *target_config)
 	strlcpy(nt->np.dev_name, "eth0", IFNAMSIZ);
 	nt->np.local_port = 6665;
 	nt->np.remote_port = 6666;
+	mutex_init(&nt->mutex);
 	memset(nt->np.remote_mac, 0xff, ETH_ALEN);
 
 	/* Parse parameters and setup netpoll */
@@ -321,6 +324,7 @@ static ssize_t store_enabled(struct netconsole_target *nt,
 		return -EINVAL;
 	}
 
+	mutex_lock(&nt->mutex);
 	if (enabled) {	/* 1 */
 
 		/*
@@ -330,8 +334,10 @@ static ssize_t store_enabled(struct netconsole_target *nt,
 		netpoll_print_options(&nt->np);
 
 		err = netpoll_setup(&nt->np);
-		if (err)
+		if (err) {
+			mutex_unlock(&nt->mutex);
 			return err;
+		}
 
 		printk(KERN_INFO "netconsole: network logging started\n");
 
@@ -340,6 +346,7 @@ static ssize_t store_enabled(struct netconsole_target *nt,
 	}
 
 	nt->enabled = enabled;
+	mutex_unlock(&nt->mutex);
 
 	return strnlen(buf, count);
 }
@@ -596,6 +603,7 @@ static struct config_item *make_netconsole_target(struct config_group *group,
 	strlcpy(nt->np.dev_name, "eth0", IFNAMSIZ);
 	nt->np.local_port = 6665;
 	nt->np.remote_port = 6666;
+	mutex_init(&nt->mutex);
 	memset(nt->np.remote_mac, 0xff, ETH_ALEN);
 
 	/* Initialize the config_item member */
@@ -653,12 +661,11 @@ static struct configfs_subsystem netconsole_subsys = {
 
 /* Handle network interface device notifications */
 static int netconsole_netdev_event(struct notifier_block *this,
-				   unsigned long event,
-				   void *ptr)
+				   unsigned long event, void *ptr)
 {
 	unsigned long flags;
 	struct netconsole_target *nt;
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	bool stopped = false;
 
 	if (!(event == NETDEV_CHANGENAME || event == NETDEV_UNREGISTER ||
@@ -677,12 +684,13 @@ restart:
 			case NETDEV_RELEASE:
 			case NETDEV_JOIN:
 			case NETDEV_UNREGISTER:
-				/*
-				 * rtnl_lock already held
+				/* rtnl_lock already held
 				 * we might sleep in __netpoll_cleanup()
 				 */
 				spin_unlock_irqrestore(&target_list_lock, flags);
+
 				__netpoll_cleanup(&nt->np);
+
 				spin_lock_irqsave(&target_list_lock, flags);
 				dev_put(nt->np.dev);
 				nt->np.dev = NULL;

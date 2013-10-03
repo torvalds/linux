@@ -9,8 +9,6 @@
  *
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/backlight.h>
 #include <linux/device.h>
 #include <linux/fb.h>
@@ -40,11 +38,13 @@ static int jornada_bl_get_brightness(struct backlight_device *bd)
 	ret = jornada_ssp_byte(GETBRIGHTNESS);
 
 	if (jornada_ssp_byte(GETBRIGHTNESS) != TXDUMMY) {
-		pr_err("get brightness timeout\n");
+		dev_err(&bd->dev, "get brightness timeout\n");
 		jornada_ssp_end();
 		return -ETIMEDOUT;
-	} else /* exchange txdummy for value */
+	} else {
+		/* exchange txdummy for value */
 		ret = jornada_ssp_byte(TXDUMMY);
+	}
 
 	jornada_ssp_end();
 
@@ -61,7 +61,7 @@ static int jornada_bl_update_status(struct backlight_device *bd)
 	if ((bd->props.power != FB_BLANK_UNBLANK) || (bd->props.fb_blank != FB_BLANK_UNBLANK)) {
 		ret = jornada_ssp_byte(BRIGHTNESSOFF);
 		if (ret != TXDUMMY) {
-			pr_info("brightness off timeout\n");
+			dev_info(&bd->dev, "brightness off timeout\n");
 			/* turn off backlight */
 			PPSR &= ~PPC_LDD1;
 			PPDR |= PPC_LDD1;
@@ -72,7 +72,7 @@ static int jornada_bl_update_status(struct backlight_device *bd)
 
 		/* send command to our mcu */
 		if (jornada_ssp_byte(SETBRIGHTNESS) != TXDUMMY) {
-			pr_info("failed to set brightness\n");
+			dev_info(&bd->dev, "failed to set brightness\n");
 			ret = -ETIMEDOUT;
 			goto out;
 		}
@@ -86,7 +86,7 @@ static int jornada_bl_update_status(struct backlight_device *bd)
 		 */
 		if (jornada_ssp_byte(BL_MAX_BRIGHT - bd->props.brightness)
 			!= TXDUMMY) {
-			pr_err("set brightness failed\n");
+			dev_err(&bd->dev, "set brightness failed\n");
 			ret = -ETIMEDOUT;
 		}
 
@@ -120,7 +120,7 @@ static int jornada_bl_probe(struct platform_device *pdev)
 
 	if (IS_ERR(bd)) {
 		ret = PTR_ERR(bd);
-		pr_err("failed to register device, err=%x\n", ret);
+		dev_err(&pdev->dev, "failed to register device, err=%x\n", ret);
 		return ret;
 	}
 
@@ -134,7 +134,7 @@ static int jornada_bl_probe(struct platform_device *pdev)
 	jornada_bl_update_status(bd);
 
 	platform_set_drvdata(pdev, bd);
-	pr_info("HP Jornada 700 series backlight driver\n");
+	dev_info(&pdev->dev, "HP Jornada 700 series backlight driver\n");
 
 	return 0;
 }

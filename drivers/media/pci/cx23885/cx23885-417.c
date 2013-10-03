@@ -1217,19 +1217,18 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	struct cx23885_fh  *fh  = file->private_data;
 	struct cx23885_dev *dev = fh->dev;
 
-	call_all(dev, core, g_std, id);
-
+	*id = dev->tvnorm;
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct cx23885_fh  *fh  = file->private_data;
 	struct cx23885_dev *dev = fh->dev;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(cx23885_tvnorms); i++)
-		if (*id & cx23885_tvnorms[i].id)
+		if (id & cx23885_tvnorms[i].id)
 			break;
 	if (i == ARRAY_SIZE(cx23885_tvnorms))
 		return -EINVAL;
@@ -1237,7 +1236,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 
 	/* Have the drier core notify the subdevices */
 	mutex_lock(&dev->lock);
-	cx23885_set_tvnorm(dev, *id);
+	cx23885_set_tvnorm(dev, id);
 	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -1280,7 +1279,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct cx23885_fh  *fh  = file->private_data;
 	struct cx23885_dev *dev = fh->dev;
@@ -1311,7 +1310,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	return cx23885_set_frequency(file, priv, f);
 }
@@ -1661,7 +1660,6 @@ static struct v4l2_file_operations mpeg_fops = {
 };
 
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
-	.vidioc_querystd	 = vidioc_g_std,
 	.vidioc_g_std		 = vidioc_g_std,
 	.vidioc_s_std		 = vidioc_s_std,
 	.vidioc_enum_input	 = vidioc_enum_input,
@@ -1690,8 +1688,8 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_log_status	 = vidioc_log_status,
 	.vidioc_querymenu	 = vidioc_querymenu,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
-	.vidioc_g_chip_ident	 = cx23885_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_chip_info	 = cx23885_g_chip_info,
 	.vidioc_g_register	 = cx23885_g_register,
 	.vidioc_s_register	 = cx23885_s_register,
 #endif
@@ -1702,7 +1700,6 @@ static struct video_device cx23885_mpeg_template = {
 	.fops          = &mpeg_fops,
 	.ioctl_ops     = &mpeg_ioctl_ops,
 	.tvnorms       = CX23885_NORMS,
-	.current_norm  = V4L2_STD_NTSC_M,
 };
 
 void cx23885_417_unregister(struct cx23885_dev *dev)
@@ -1735,7 +1732,7 @@ static struct video_device *cx23885_video_dev_alloc(
 	*vfd = *template;
 	snprintf(vfd->name, sizeof(vfd->name), "%s (%s)",
 		cx23885_boards[tsport->dev->board].name, type);
-	vfd->parent  = &pci->dev;
+	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	return vfd;
 }

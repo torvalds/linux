@@ -700,12 +700,12 @@ static int pxa_irda_start(struct net_device *dev)
 
 	err = -ENOMEM;
 	si->dma_rx_buff = dma_alloc_coherent(si->dev, IRDA_FRAME_SIZE_LIMIT,
-					     &si->dma_rx_buff_phy, GFP_KERNEL );
+					     &si->dma_rx_buff_phy, GFP_KERNEL);
 	if (!si->dma_rx_buff)
 		goto err_dma_rx_buff;
 
 	si->dma_tx_buff = dma_alloc_coherent(si->dev, IRDA_FRAME_SIZE_LIMIT,
-					     &si->dma_tx_buff_phy, GFP_KERNEL );
+					     &si->dma_tx_buff_phy, GFP_KERNEL);
 	if (!si->dma_tx_buff)
 		goto err_dma_tx_buff;
 
@@ -915,7 +915,7 @@ static int pxa_irda_probe(struct platform_device *pdev)
 	err = register_netdev(dev);
 
 	if (err == 0)
-		dev_set_drvdata(&pdev->dev, dev);
+		platform_set_drvdata(pdev, dev);
 
 	if (err) {
 		if (si->pdata->shutdown)

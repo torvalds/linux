@@ -3,7 +3,7 @@
  * This file contains the Linux/SCSI LLD virtual SCSI initiator driver
  * for emulated SAS initiator ports
  *
- * © Copyright 2011 RisingTide Systems LLC.
+ * © Copyright 2011-2013 Datera, Inc.
  *
  * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
  *
@@ -79,11 +79,10 @@ static void tcm_loop_release_cmd(struct se_cmd *se_cmd)
 	kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
 }
 
-static int tcm_loop_proc_info(struct Scsi_Host *host, char *buffer,
-				char **start, off_t offset,
-				int length, int inout)
+static int tcm_loop_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
-	return sprintf(buffer, "tcm_loop_proc_info()\n");
+	seq_printf(m, "tcm_loop_proc_info()\n");
+	return 0;
 }
 
 static int tcm_loop_driver_probe(struct device *);
@@ -336,7 +335,7 @@ static int tcm_loop_slave_configure(struct scsi_device *sd)
 }
 
 static struct scsi_host_template tcm_loop_driver_template = {
-	.proc_info		= tcm_loop_proc_info,
+	.show_info		= tcm_loop_show_info,
 	.proc_name		= "tcm_loopback",
 	.name			= "TCM_Loopback",
 	.queuecommand		= tcm_loop_queuecommand,
@@ -787,7 +786,7 @@ static int tcm_loop_queue_status(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
+static void tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
 {
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
 	struct tcm_loop_tmr *tl_tmr = se_tmr->fabric_tmr_ptr;
@@ -797,7 +796,6 @@ static int tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
 	 */
 	atomic_set(&tl_tmr->tmr_complete, 1);
 	wake_up(&tl_tmr->tl_tmr_wait);
-	return 0;
 }
 
 static char *tcm_loop_dump_proto_id(struct tcm_loop_hba *tl_hba)

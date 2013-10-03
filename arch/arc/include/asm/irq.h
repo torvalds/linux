@@ -9,7 +9,8 @@
 #ifndef __ASM_ARC_IRQ_H
 #define __ASM_ARC_IRQ_H
 
-#define NR_IRQS		32
+#define NR_CPU_IRQS	32  /* number of interrupt lines of ARC770 CPU */
+#define NR_IRQS		128 /* allow some CPU external IRQ handling */
 
 /* Platform Independent IRQs */
 #define TIMER0_IRQ      3
@@ -20,6 +21,6 @@
 extern void __init arc_init_IRQ(void);
 extern int __init get_hw_config_num_irq(void);
 
-void __cpuinit arc_local_timer_setup(unsigned int cpu);
+void arc_local_timer_setup(unsigned int cpu);
 
 #endif

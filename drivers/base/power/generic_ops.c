@@ -12,29 +12,6 @@
 
 #ifdef CONFIG_PM_RUNTIME
 /**
- * pm_generic_runtime_idle - Generic runtime idle callback for subsystems.
- * @dev: Device to handle.
- *
- * If PM operations are defined for the @dev's driver and they include
- * ->runtime_idle(), execute it and return its error code, if nonzero.
- * Otherwise, execute pm_runtime_suspend() for the device and return 0.
- */
-int pm_generic_runtime_idle(struct device *dev)
-{
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-
-	if (pm && pm->runtime_idle) {
-		int ret = pm->runtime_idle(dev);
-		if (ret)
-			return ret;
-	}
-
-	pm_runtime_suspend(dev);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pm_generic_runtime_idle);
-
-/**
  * pm_generic_runtime_suspend - Generic runtime suspend callback for subsystems.
  * @dev: Device to suspend.
  *
@@ -324,6 +301,6 @@ void pm_generic_complete(struct device *dev)
 	 * Let runtime PM try to suspend devices that haven't been in use before
 	 * going into the system-wide sleep state we're resuming from.
 	 */
-	pm_runtime_idle(dev);
+	pm_request_idle(dev);
 }
 #endif /* CONFIG_PM_SLEEP */

@@ -17,6 +17,7 @@
 struct mmc_cid {
 	unsigned int		manfid;
 	char			prod_name[8];
+	unsigned char		prv;
 	unsigned int		serial;
 	unsigned short		oemid;
 	unsigned short		year;
@@ -93,7 +94,11 @@ struct mmc_ext_csd {
 	u8			raw_ext_csd_structure;	/* 194 */
 	u8			raw_card_type;		/* 196 */
 	u8			out_of_int_time;	/* 198 */
-	u8			raw_s_a_timeout;		/* 217 */
+	u8			raw_pwr_cl_52_195;	/* 200 */
+	u8			raw_pwr_cl_26_195;	/* 201 */
+	u8			raw_pwr_cl_52_360;	/* 202 */
+	u8			raw_pwr_cl_26_360;	/* 203 */
+	u8			raw_s_a_timeout;	/* 217 */
 	u8			raw_hc_erase_gap_size;	/* 221 */
 	u8			raw_erase_timeout_mult;	/* 223 */
 	u8			raw_hc_erase_grp_size;	/* 224 */
@@ -101,6 +106,10 @@ struct mmc_ext_csd {
 	u8			raw_sec_erase_mult;	/* 230 */
 	u8			raw_sec_feature_support;/* 231 */
 	u8			raw_trim_mult;		/* 232 */
+	u8			raw_pwr_cl_200_195;	/* 236 */
+	u8			raw_pwr_cl_200_360;	/* 237 */
+	u8			raw_pwr_cl_ddr_52_195;	/* 238 */
+	u8			raw_pwr_cl_ddr_52_360;	/* 239 */
 	u8			raw_bkops_status;	/* 246 */
 	u8			raw_sectors[4];		/* 212 - 4 bytes */
 
@@ -511,6 +520,7 @@ struct mmc_driver {
 	void (*remove)(struct mmc_card *);
 	int (*suspend)(struct mmc_card *);
 	int (*resume)(struct mmc_card *);
+	void (*shutdown)(struct mmc_card *);
 };
 
 extern int mmc_register_driver(struct mmc_driver *);

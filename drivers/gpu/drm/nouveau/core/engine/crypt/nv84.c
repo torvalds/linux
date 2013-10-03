@@ -141,13 +141,6 @@ nv84_crypt_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv84_crypt_tlb_flush(struct nouveau_engine *engine)
-{
-	nv50_vm_flush_engine(&engine->base, 0x0a);
-	return 0;
-}
-
-static int
 nv84_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
@@ -165,7 +158,6 @@ nv84_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->intr = nv84_crypt_intr;
 	nv_engine(priv)->cclass = &nv84_crypt_cclass;
 	nv_engine(priv)->sclass = nv84_crypt_sclass;
-	nv_engine(priv)->tlb_flush = nv84_crypt_tlb_flush;
 	return 0;
 }
 

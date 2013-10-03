@@ -723,6 +723,7 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 	wl->sched_scan_templ_id_2_4 = CMD_TEMPL_CFG_PROBE_REQ_2_4;
 	wl->sched_scan_templ_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
 	wl->max_channels_5 = WL12XX_MAX_CHANNELS_5GHZ;
+	wl->ba_rx_session_count_max = WL12XX_RX_BA_MAX_SESSIONS;
 out:
 	return ret;
 }

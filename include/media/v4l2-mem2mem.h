@@ -60,6 +60,7 @@ struct v4l2_m2m_queue_ctx {
 	struct list_head	rdy_queue;
 	spinlock_t		rdy_spinlock;
 	u8			num_rdy;
+	bool			buffered;
 };
 
 struct v4l2_m2m_ctx {
@@ -110,6 +111,8 @@ int v4l2_m2m_qbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		  struct v4l2_buffer *buf);
 int v4l2_m2m_dqbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		   struct v4l2_buffer *buf);
+int v4l2_m2m_create_bufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
+			 struct v4l2_create_buffers *create);
 
 int v4l2_m2m_expbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		   struct v4l2_exportbuffer *eb);
@@ -131,6 +134,18 @@ void v4l2_m2m_release(struct v4l2_m2m_dev *m2m_dev);
 struct v4l2_m2m_ctx *v4l2_m2m_ctx_init(struct v4l2_m2m_dev *m2m_dev,
 		void *drv_priv,
 		int (*queue_init)(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq));
+
+static inline void v4l2_m2m_set_src_buffered(struct v4l2_m2m_ctx *m2m_ctx,
+					     bool buffered)
+{
+	m2m_ctx->out_q_ctx.buffered = buffered;
+}
+
+static inline void v4l2_m2m_set_dst_buffered(struct v4l2_m2m_ctx *m2m_ctx,
+					     bool buffered)
+{
+	m2m_ctx->cap_q_ctx.buffered = buffered;
+}
 
 void v4l2_m2m_ctx_release(struct v4l2_m2m_ctx *m2m_ctx);
 

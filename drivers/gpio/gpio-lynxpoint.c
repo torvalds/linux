@@ -32,6 +32,7 @@
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/io.h>
 
 /* LynxPoint chipset has support for 94 gpio pins */
 
@@ -443,10 +444,10 @@ static int lp_gpio_remove(struct platform_device *pdev)
 {
 	struct lp_gpio *lg = platform_get_drvdata(pdev);
 	int err;
+	pm_runtime_disable(&pdev->dev);
 	err = gpiochip_remove(&lg->chip);
 	if (err)
 		dev_warn(&pdev->dev, "failed to remove gpio_chip.\n");
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

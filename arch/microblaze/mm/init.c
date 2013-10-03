@@ -71,28 +71,17 @@ static void __init highmem_init(void)
 	kmap_prot = PAGE_KERNEL;
 }
 
-static unsigned long highmem_setup(void)
+static void highmem_setup(void)
 {
 	unsigned long pfn;
-	unsigned long reservedpages = 0;
 
 	for (pfn = max_low_pfn; pfn < max_pfn; ++pfn) {
 		struct page *page = pfn_to_page(pfn);
 
 		/* FIXME not sure about */
-		if (memblock_is_reserved(pfn << PAGE_SHIFT))
-			continue;
-		ClearPageReserved(page);
-		init_page_count(page);
-		__free_page(page);
-		totalhigh_pages++;
-		reservedpages++;
+		if (!memblock_is_reserved(pfn << PAGE_SHIFT))
+			free_highmem_page(page);
 	}
-	totalram_pages += totalhigh_pages;
-	pr_info("High memory: %luk\n",
-					totalhigh_pages << (PAGE_SHIFT-10));
-
-	return reservedpages;
 }
 #endif /* CONFIG_HIGHMEM */
 
@@ -171,13 +160,12 @@ void __init setup_memory(void)
 	 * min_low_pfn - the first page (mm/bootmem.c - node_boot_start)
 	 * max_low_pfn
 	 * max_mapnr - the first unused page (mm/bootmem.c - node_low_pfn)
-	 * num_physpages - number of all pages
 	 */
 
 	/* memory start is from the kernel end (aligned) to higher addr */
 	min_low_pfn = memory_start >> PAGE_SHIFT; /* minimum for allocation */
 	/* RAM is assumed contiguous */
-	num_physpages = max_mapnr = memory_size >> PAGE_SHIFT;
+	max_mapnr = memory_size >> PAGE_SHIFT;
 	max_low_pfn = ((u64)memory_start + (u64)lowmem_size) >> PAGE_SHIFT;
 	max_pfn = ((u64)memory_start + (u64)memory_size) >> PAGE_SHIFT;
 
@@ -236,84 +224,29 @@ void __init setup_memory(void)
 	paging_init();
 }
 
-void free_init_pages(char *what, unsigned long begin, unsigned long end)
-{
-	unsigned long addr;
-
-	for (addr = begin; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		free_page(addr);
-		totalram_pages++;
-	}
-	pr_info("Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
-}
-
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	int pages = 0;
-	for (; start < end; start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(start));
-		init_page_count(virt_to_page(start));
-		free_page(start);
-		totalram_pages++;
-		pages++;
-	}
-	pr_notice("Freeing initrd memory: %dk freed\n",
-					(int)(pages * (PAGE_SIZE / 1024)));
+	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 }
 #endif
 
 void free_initmem(void)
 {
-	free_init_pages("unused kernel memory",
-			(unsigned long)(&__init_begin),
-			(unsigned long)(&__init_end));
+	free_initmem_default(-1);
 }
 
 void __init mem_init(void)
 {
-	pg_data_t *pgdat;
-	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
-
 	high_memory = (void *)__va(memory_start + lowmem_size - 1);
 
 	/* this will put all memory onto the freelists */
-	totalram_pages += free_all_bootmem();
-
-	for_each_online_pgdat(pgdat) {
-		unsigned long i;
-		struct page *page;
-
-		for (i = 0; i < pgdat->node_spanned_pages; i++) {
-			if (!pfn_valid(pgdat->node_start_pfn + i))
-				continue;
-			page = pgdat_page_nr(pgdat, i);
-			if (PageReserved(page))
-				reservedpages++;
-		}
-	}
-
+	free_all_bootmem();
 #ifdef CONFIG_HIGHMEM
-	reservedpages -= highmem_setup();
+	highmem_setup();
 #endif
 
-	codesize = (unsigned long)&_sdata - (unsigned long)&_stext;
-	datasize = (unsigned long)&_edata - (unsigned long)&_sdata;
-	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
-	bsssize = (unsigned long)&__bss_stop - (unsigned long)&__bss_start;
-
-	pr_info("Memory: %luk/%luk available (%luk kernel code, ",
-		nr_free_pages() << (PAGE_SHIFT-10),
-		num_physpages << (PAGE_SHIFT-10),
-		codesize >> 10);
-	pr_cont("%luk reserved, %luk data, %luk bss, %luk init)\n",
-		reservedpages << (PAGE_SHIFT-10),
-		datasize >> 10,
-		bsssize >> 10,
-		initsize >> 10);
-
+	mem_init_print_info(NULL);
 #ifdef CONFIG_MMU
 	pr_info("Kernel virtual memory layout:\n");
 	pr_info("  * 0x%08lx..0x%08lx  : fixmap\n", FIXADDR_START, FIXADDR_TOP);
@@ -432,10 +365,11 @@ asmlinkage void __init mmu_init(void)
 
 #if defined(CONFIG_BLK_DEV_INITRD)
 	/* Remove the init RAM disk from the available memory. */
-/*	if (initrd_start) {
-		mem_pieces_remove(&phys_avail, __pa(initrd_start),
-				  initrd_end - initrd_start, 1);
-	}*/
+	if (initrd_start) {
+		unsigned long size;
+		size = initrd_end - initrd_start;
+		memblock_reserve(virt_to_phys(initrd_start), size);
+	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 	/* Initialize the MMU hardware */

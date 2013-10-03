@@ -179,13 +179,12 @@ static void au1xac97c_ac97_cold_reset(struct snd_ac97 *ac97)
 }
 
 /* AC97 controller operations */
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops ac97c_bus_ops = {
 	.read		= au1xac97c_ac97_read,
 	.write		= au1xac97c_ac97_write,
 	.reset		= au1xac97c_ac97_cold_reset,
 	.warm_reset	= au1xac97c_ac97_warm_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);	/* globals be gone! */
 
 static int alchemy_ac97c_startup(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
@@ -221,6 +220,10 @@ static struct snd_soc_dai_driver au1xac97c_dai_driver = {
 		.channels_max	= 2,
 	},
 	.ops			= &alchemy_ac97c_ops,
+};
+
+static const struct snd_soc_component_driver au1xac97c_component = {
+	.name		= "au1xac97c",
 };
 
 static int au1xac97c_drvprobe(struct platform_device *pdev)
@@ -268,7 +271,12 @@ static int au1xac97c_drvprobe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = snd_soc_register_dai(&pdev->dev, &au1xac97c_dai_driver);
+	ret = snd_soc_set_ac97_ops(&ac97c_bus_ops);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_register_component(&pdev->dev, &au1xac97c_component,
+					 &au1xac97c_dai_driver, 1);
 	if (ret)
 		return ret;
 
@@ -280,7 +288,7 @@ static int au1xac97c_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *ctx = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	WR(ctx, AC97_ENABLE, EN_D);	/* clock off, disable */
 
@@ -333,19 +341,7 @@ static struct platform_driver au1xac97c_driver = {
 	.remove		= au1xac97c_drvremove,
 };
 
-static int __init au1xac97c_load(void)
-{
-	ac97c_workdata = NULL;
-	return platform_driver_register(&au1xac97c_driver);
-}
-
-static void __exit au1xac97c_unload(void)
-{
-	platform_driver_unregister(&au1xac97c_driver);
-}
-
-module_init(au1xac97c_load);
-module_exit(au1xac97c_unload);
+module_platform_driver(au1xac97c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au1000/1500/1100 AC97C ASoC driver");

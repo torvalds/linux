@@ -376,76 +376,40 @@ void __init paging_init(unsigned long mem_end)
 
 void __init mem_init(void)
 {
-	int nid;
-
 #ifdef CONFIG_HIGHMEM
 	unsigned long tmp;
-	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
-		struct page *page = pfn_to_page(tmp);
-		ClearPageReserved(page);
-		init_page_count(page);
-		__free_page(page);
-		totalhigh_pages++;
-	}
-	totalram_pages += totalhigh_pages;
-	num_physpages += totalhigh_pages;
+
+	/*
+	 * Explicitly reset zone->managed_pages because highmem pages are
+	 * freed before calling free_all_bootmem();
+	 */
+	reset_all_zones_managed_pages();
+	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++)
+		free_highmem_page(pfn_to_page(tmp));
 #endif /* CONFIG_HIGHMEM */
 
-	for_each_online_node(nid) {
-		pg_data_t *pgdat = NODE_DATA(nid);
-		unsigned long node_pages = 0;
-
-		num_physpages += pgdat->node_present_pages;
-
-		if (pgdat->node_spanned_pages)
-			node_pages = free_all_bootmem_node(pgdat);
-
-		totalram_pages += node_pages;
-	}
-
-	pr_info("Memory: %luk/%luk available\n",
-		(unsigned long)nr_free_pages() << (PAGE_SHIFT - 10),
-		num_physpages << (PAGE_SHIFT - 10));
-
+	free_all_bootmem();
+	mem_init_print_info(NULL);
 	show_mem(0);
-
-	return;
-}
-
-static void free_init_pages(char *what, unsigned long begin, unsigned long end)
-{
-	unsigned long addr;
-
-	for (addr = begin; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		free_page(addr);
-		totalram_pages++;
-	}
-	pr_info("Freeing %s: %luk freed\n", what, (end - begin) >> 10);
 }
 
 void free_initmem(void)
 {
-	free_init_pages("unused kernel memory",
-			(unsigned long)(&__init_begin),
-			(unsigned long)(&__init_end));
+	free_initmem_default(POISON_FREE_INITMEM);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	end = end & PAGE_MASK;
-	free_init_pages("initrd memory", start, end);
+	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
+			   "initrd");
 }
 #endif
 
 #ifdef CONFIG_OF_FLATTREE
-void __init early_init_dt_setup_initrd_arch(unsigned long start,
-					    unsigned long end)
+void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
 {
-	pr_err("%s(%lx, %lx)\n",
+	pr_err("%s(%llx, %llx)\n",
 	       __func__, start, end);
 }
 #endif /* CONFIG_OF_FLATTREE */

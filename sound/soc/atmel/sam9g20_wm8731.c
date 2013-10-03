@@ -38,8 +38,6 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 
-#include <linux/pinctrl/consumer.h>
-
 #include <linux/atmel-ssc.h>
 
 #include <sound/core.h>
@@ -203,14 +201,7 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 	struct device_node *codec_np, *cpu_np;
 	struct clk *pllb;
 	struct snd_soc_card *card = &snd_soc_at91sam9g20ek;
-	struct pinctrl *pinctrl;
 	int ret;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "Failed to request pinctrl for mck\n");
-		return PTR_ERR(pinctrl);
-	}
 
 	if (!np) {
 		if (!(machine_is_at91sam9g20ek() ||

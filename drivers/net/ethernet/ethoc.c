@@ -1030,8 +1030,8 @@ static int ethoc_probe(struct platform_device *pdev)
 	}
 
 	/* Allow the platform setup code to pass in a MAC address. */
-	if (pdev->dev.platform_data) {
-		struct ethoc_platform_data *pdata = pdev->dev.platform_data;
+	if (dev_get_platdata(&pdev->dev)) {
+		struct ethoc_platform_data *pdata = dev_get_platdata(&pdev->dev);
 		memcpy(netdev->dev_addr, pdata->hwaddr, IFHWADDRLEN);
 		priv->phy_id = pdata->phy_id;
 	} else {
@@ -1146,8 +1146,6 @@ static int ethoc_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = platform_get_drvdata(pdev);
 	struct ethoc *priv = netdev_priv(netdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	if (netdev) {
 		netif_napi_del(&priv->napi);

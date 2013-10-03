@@ -571,9 +571,10 @@ static int metapage_releasepage(struct page *page, gfp_t gfp_mask)
 	return ret;
 }
 
-static void metapage_invalidatepage(struct page *page, unsigned long offset)
+static void metapage_invalidatepage(struct page *page, unsigned int offset,
+				    unsigned int length)
 {
-	BUG_ON(offset);
+	BUG_ON(offset || length < PAGE_CACHE_SIZE);
 
 	BUG_ON(PageWriteback(page));
 
@@ -646,7 +647,7 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 	if (mp) {
 		if (mp->logical_size != size) {
 			jfs_error(inode->i_sb,
-				  "__get_metapage: mp->logical_size != size");
+				  "get_mp->logical_size != size\n");
 			jfs_err("logical_size = %d, size = %d",
 				mp->logical_size, size);
 			dump_stack();
@@ -657,8 +658,7 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 		if (test_bit(META_discard, &mp->flag)) {
 			if (!new) {
 				jfs_error(inode->i_sb,
-					  "__get_metapage: using a "
-					  "discarded metapage");
+					  "using a discarded metapage\n");
 				discard_metapage(mp);
 				goto unlock;
 			}

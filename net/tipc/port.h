@@ -2,7 +2,7 @@
  * net/tipc/port.h: Include file for TIPC port code
  *
  * Copyright (c) 1994-2007, Ericsson AB
- * Copyright (c) 2004-2007, 2010-2011, Wind River Systems
+ * Copyright (c) 2004-2007, 2010-2013, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,60 +43,12 @@
 #include "node_subscr.h"
 
 #define TIPC_FLOW_CONTROL_WIN 512
-
-typedef void (*tipc_msg_err_event) (void *usr_handle, u32 portref,
-		struct sk_buff **buf, unsigned char const *data,
-		unsigned int size, int reason,
-		struct tipc_portid const *attmpt_destid);
-
-typedef void (*tipc_named_msg_err_event) (void *usr_handle, u32 portref,
-		struct sk_buff **buf, unsigned char const *data,
-		unsigned int size, int reason,
-		struct tipc_name_seq const *attmpt_dest);
-
-typedef void (*tipc_conn_shutdown_event) (void *usr_handle, u32 portref,
-		struct sk_buff **buf, unsigned char const *data,
-		unsigned int size, int reason);
-
-typedef void (*tipc_msg_event) (void *usr_handle, u32 portref,
-		struct sk_buff **buf, unsigned char const *data,
-		unsigned int size, unsigned int importance,
-		struct tipc_portid const *origin);
-
-typedef void (*tipc_named_msg_event) (void *usr_handle, u32 portref,
-		struct sk_buff **buf, unsigned char const *data,
-		unsigned int size, unsigned int importance,
-		struct tipc_portid const *orig,
-		struct tipc_name_seq const *dest);
-
-typedef void (*tipc_conn_msg_event) (void *usr_handle, u32 portref,
-		struct sk_buff **buf, unsigned char const *data,
-		unsigned int size);
-
-typedef void (*tipc_continue_event) (void *usr_handle, u32 portref);
-
-/**
- * struct user_port - TIPC user port (used with native API)
- * @usr_handle: user-specified field
- * @ref: object reference to associated TIPC port
- *
- * <various callback routines>
- */
-struct user_port {
-	void *usr_handle;
-	u32 ref;
-	tipc_msg_err_event err_cb;
-	tipc_named_msg_err_event named_err_cb;
-	tipc_conn_shutdown_event conn_err_cb;
-	tipc_msg_event msg_cb;
-	tipc_named_msg_event named_msg_cb;
-	tipc_conn_msg_event conn_msg_cb;
-	tipc_continue_event continue_event_cb;
-};
+#define CONN_OVERLOAD_LIMIT	((TIPC_FLOW_CONTROL_WIN * 2 + 1) * \
+				SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
 
 /**
  * struct tipc_port - TIPC port structure
- * @usr_handle: pointer to additional user-defined information about port
+ * @sk: pointer to socket handle
  * @lock: pointer to spinlock for controlling access to port
  * @connected: non-zero if port is currently connected to a peer port
  * @conn_type: TIPC type used when connection was established
@@ -110,7 +62,6 @@ struct user_port {
  * @port_list: adjacent ports in TIPC's global list of ports
  * @dispatcher: ptr to routine which handles received messages
  * @wakeup: ptr to routine to call when port is no longer congested
- * @user_port: ptr to user port associated with port (if any)
  * @wait_list: adjacent ports in list of ports waiting on link congestion
  * @waiting_pkts:
  * @sent: # of non-empty messages sent by port
@@ -123,7 +74,7 @@ struct user_port {
  * @subscription: "node down" subscription used to terminate failed connections
  */
 struct tipc_port {
-	void *usr_handle;
+	struct sock *sk;
 	spinlock_t *lock;
 	int connected;
 	u32 conn_type;
@@ -137,7 +88,6 @@ struct tipc_port {
 	struct list_head port_list;
 	u32 (*dispatcher)(struct tipc_port *, struct sk_buff *);
 	void (*wakeup)(struct tipc_port *);
-	struct user_port *user_port;
 	struct list_head wait_list;
 	u32 waiting_pkts;
 	u32 sent;
@@ -156,23 +106,15 @@ struct tipc_port_list;
 /*
  * TIPC port manipulation routines
  */
-struct tipc_port *tipc_createport_raw(void *usr_handle,
-		u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
-		void (*wakeup)(struct tipc_port *), const u32 importance);
+struct tipc_port *tipc_createport(struct sock *sk,
+				  u32 (*dispatcher)(struct tipc_port *,
+				  struct sk_buff *),
+				  void (*wakeup)(struct tipc_port *),
+				  const u32 importance);
 
 int tipc_reject_msg(struct sk_buff *buf, u32 err);
 
-int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode);
-
 void tipc_acknowledge(u32 port_ref, u32 ack);
-
-int tipc_createport(void *usr_handle,
-		unsigned int importance, tipc_msg_err_event error_cb,
-		tipc_named_msg_err_event named_error_cb,
-		tipc_conn_shutdown_event conn_error_cb, tipc_msg_event msg_cb,
-		tipc_named_msg_event named_msg_cb,
-		tipc_conn_msg_event conn_msg_cb,
-		tipc_continue_event continue_event_cb, u32 *portref);
 
 int tipc_deleteport(u32 portref);
 
@@ -186,9 +128,9 @@ int tipc_portunreturnable(u32 portref, unsigned int *isunreturnable);
 int tipc_set_portunreturnable(u32 portref, unsigned int isunreturnable);
 
 int tipc_publish(u32 portref, unsigned int scope,
-		struct tipc_name_seq const *name_seq);
+		 struct tipc_name_seq const *name_seq);
 int tipc_withdraw(u32 portref, unsigned int scope,
-		struct tipc_name_seq const *name_seq);
+		  struct tipc_name_seq const *name_seq);
 
 int tipc_connect(u32 portref, struct tipc_portid const *port);
 
@@ -219,9 +161,6 @@ int tipc_send2name(u32 portref, struct tipc_name const *name, u32 domain,
 int tipc_send2port(u32 portref, struct tipc_portid const *dest,
 		   unsigned int num_sect, struct iovec const *msg_sect,
 		   unsigned int total_len);
-
-int tipc_send_buf2port(u32 portref, struct tipc_portid const *dest,
-		struct sk_buff *buf, unsigned int dsz);
 
 int tipc_multicast(u32 portref, struct tipc_name_seq const *seq,
 		   unsigned int section_count, struct iovec const *msg,

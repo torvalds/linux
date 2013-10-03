@@ -1,28 +1,20 @@
 /*
- * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  *
  * Display routines for display messages in MIPS boards ascii display.
+ *
+ * Copyright (C) 1999,2000,2012  MIPS Technologies, Inc.
+ * All rights reserved.
+ * Authors: Carsten Langgaard <carstenl@mips.com>
+ *          Steven J. Hill <sjhill@mips.com>
  */
-
 #include <linux/compiler.h>
 #include <linux/timer.h>
-#include <asm/io.h>
+#include <linux/io.h>
+
 #include <asm/mips-boards/generic.h>
-#include <asm/mips-boards/prom.h>
 
 extern const char display_string[];
 static unsigned int display_count;
@@ -36,11 +28,11 @@ void mips_display_message(const char *str)
 	if (unlikely(display == NULL))
 		display = ioremap(ASCII_DISPLAY_POS_BASE, 16*sizeof(int));
 
-	for (i = 0; i <= 14; i=i+2) {
-		 if (*str)
-			 __raw_writel(*str++, display + i);
-		 else
-			 __raw_writel(' ', display + i);
+	for (i = 0; i <= 14; i += 2) {
+		if (*str)
+			__raw_writel(*str++, display + i);
+		else
+			__raw_writel(' ', display + i);
 	}
 }
 

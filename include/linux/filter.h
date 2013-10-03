@@ -46,10 +46,25 @@ extern int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 extern int sk_detach_filter(struct sock *sk);
 extern int sk_chk_filter(struct sock_filter *filter, unsigned int flen);
 extern int sk_get_filter(struct sock *sk, struct sock_filter __user *filter, unsigned len);
+extern void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to);
 
 #ifdef CONFIG_BPF_JIT
+#include <stdarg.h>
+#include <linux/linkage.h>
+#include <linux/printk.h>
+
 extern void bpf_jit_compile(struct sk_filter *fp);
 extern void bpf_jit_free(struct sk_filter *fp);
+
+static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
+				u32 pass, void *image)
+{
+	pr_err("flen=%u proglen=%u pass=%u image=%pK\n",
+	       flen, proglen, pass, image);
+	if (image)
+		print_hex_dump(KERN_ERR, "JIT code: ", DUMP_PREFIX_OFFSET,
+			       16, 1, image, proglen, false);
+}
 #define SK_RUN_FILTER(FILTER, SKB) (*FILTER->bpf_func)(SKB, FILTER->insns)
 #else
 static inline void bpf_jit_compile(struct sk_filter *fp)
@@ -126,6 +141,7 @@ enum {
 	BPF_S_ANC_SECCOMP_LD_W,
 	BPF_S_ANC_VLAN_TAG,
 	BPF_S_ANC_VLAN_TAG_PRESENT,
+	BPF_S_ANC_PAY_OFFSET,
 };
 
 #endif /* __LINUX_FILTER_H__ */

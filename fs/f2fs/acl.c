@@ -250,7 +250,7 @@ static int f2fs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		}
 	}
 
-	error = f2fs_setxattr(inode, name_index, "", value, size);
+	error = f2fs_setxattr(inode, name_index, "", value, size, NULL);
 
 	kfree(value);
 	if (!error)
@@ -299,7 +299,7 @@ int f2fs_acl_chmod(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct posix_acl *acl;
 	int error;
-	mode_t mode = get_inode_mode(inode);
+	umode_t mode = get_inode_mode(inode);
 
 	if (!test_opt(sbi, POSIX_ACL))
 		return 0;

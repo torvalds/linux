@@ -506,7 +506,7 @@ drm_gtf_mode(struct drm_device *dev, int hdisplay, int vdisplay, int vrefresh,
 }
 EXPORT_SYMBOL(drm_gtf_mode);
 
-#if IS_ENABLED(CONFIG_VIDEOMODE)
+#ifdef CONFIG_VIDEOMODE_HELPERS
 int drm_display_mode_from_videomode(const struct videomode *vm,
 				    struct drm_display_mode *dmode)
 {
@@ -523,26 +523,27 @@ int drm_display_mode_from_videomode(const struct videomode *vm,
 	dmode->clock = vm->pixelclock / 1000;
 
 	dmode->flags = 0;
-	if (vm->dmt_flags & VESA_DMT_HSYNC_HIGH)
+	if (vm->flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		dmode->flags |= DRM_MODE_FLAG_PHSYNC;
-	else if (vm->dmt_flags & VESA_DMT_HSYNC_LOW)
+	else if (vm->flags & DISPLAY_FLAGS_HSYNC_LOW)
 		dmode->flags |= DRM_MODE_FLAG_NHSYNC;
-	if (vm->dmt_flags & VESA_DMT_VSYNC_HIGH)
+	if (vm->flags & DISPLAY_FLAGS_VSYNC_HIGH)
 		dmode->flags |= DRM_MODE_FLAG_PVSYNC;
-	else if (vm->dmt_flags & VESA_DMT_VSYNC_LOW)
+	else if (vm->flags & DISPLAY_FLAGS_VSYNC_LOW)
 		dmode->flags |= DRM_MODE_FLAG_NVSYNC;
-	if (vm->data_flags & DISPLAY_FLAGS_INTERLACED)
+	if (vm->flags & DISPLAY_FLAGS_INTERLACED)
 		dmode->flags |= DRM_MODE_FLAG_INTERLACE;
-	if (vm->data_flags & DISPLAY_FLAGS_DOUBLESCAN)
+	if (vm->flags & DISPLAY_FLAGS_DOUBLESCAN)
 		dmode->flags |= DRM_MODE_FLAG_DBLSCAN;
+	if (vm->flags & DISPLAY_FLAGS_DOUBLECLK)
+		dmode->flags |= DRM_MODE_FLAG_DBLCLK;
 	drm_mode_set_name(dmode);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(drm_display_mode_from_videomode);
-#endif
 
-#if IS_ENABLED(CONFIG_OF_VIDEOMODE)
+#ifdef CONFIG_OF
 /**
  * of_get_drm_display_mode - get a drm_display_mode from devicetree
  * @np: device_node with the timing specification
@@ -572,7 +573,8 @@ int of_get_drm_display_mode(struct device_node *np,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
-#endif
+#endif /* CONFIG_OF */
+#endif /* CONFIG_VIDEOMODE_HELPERS */
 
 /**
  * drm_mode_set_name - set the name on a mode
@@ -592,27 +594,6 @@ void drm_mode_set_name(struct drm_display_mode *mode)
 		 interlaced ? "i" : "");
 }
 EXPORT_SYMBOL(drm_mode_set_name);
-
-/**
- * drm_mode_list_concat - move modes from one list to another
- * @head: source list
- * @new: dst list
- *
- * LOCKING:
- * Caller must ensure both lists are locked.
- *
- * Move all the modes from @head to @new.
- */
-void drm_mode_list_concat(struct list_head *head, struct list_head *new)
-{
-
-	struct list_head *entry, *tmp;
-
-	list_for_each_safe(entry, tmp, head) {
-		list_move_tail(entry, new);
-	}
-}
-EXPORT_SYMBOL(drm_mode_list_concat);
 
 /**
  * drm_mode_width - get the width of a mode
@@ -787,16 +768,17 @@ EXPORT_SYMBOL(drm_mode_set_crtcinfo);
  * LOCKING:
  * None.
  *
- * Copy an existing mode into another mode, preserving the object id
- * of the destination mode.
+ * Copy an existing mode into another mode, preserving the object id and
+ * list head of the destination mode.
  */
 void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src)
 {
 	int id = dst->base.id;
+	struct list_head head = dst->head;
 
 	*dst = *src;
 	dst->base.id = id;
-	INIT_LIST_HEAD(&dst->head);
+	dst->head = head;
 }
 EXPORT_SYMBOL(drm_mode_copy);
 
@@ -848,6 +830,26 @@ bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_displ
 	} else if (mode1->clock != mode2->clock)
 		return false;
 
+	return drm_mode_equal_no_clocks(mode1, mode2);
+}
+EXPORT_SYMBOL(drm_mode_equal);
+
+/**
+ * drm_mode_equal_no_clocks - test modes for equality
+ * @mode1: first mode
+ * @mode2: second mode
+ *
+ * LOCKING:
+ * None.
+ *
+ * Check to see if @mode1 and @mode2 are equivalent, but
+ * don't check the pixel clocks.
+ *
+ * RETURNS:
+ * True if the modes are equal, false otherwise.
+ */
+bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2)
+{
 	if (mode1->hdisplay == mode2->hdisplay &&
 	    mode1->hsync_start == mode2->hsync_start &&
 	    mode1->hsync_end == mode2->hsync_end &&
@@ -863,7 +865,7 @@ bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_displ
 
 	return false;
 }
-EXPORT_SYMBOL(drm_mode_equal);
+EXPORT_SYMBOL(drm_mode_equal_no_clocks);
 
 /**
  * drm_mode_validate_size - make sure modes adhere to size constraints
@@ -898,43 +900,6 @@ void drm_mode_validate_size(struct drm_device *dev,
 	}
 }
 EXPORT_SYMBOL(drm_mode_validate_size);
-
-/**
- * drm_mode_validate_clocks - validate modes against clock limits
- * @dev: DRM device
- * @mode_list: list of modes to check
- * @min: minimum clock rate array
- * @max: maximum clock rate array
- * @n_ranges: number of clock ranges (size of arrays)
- *
- * LOCKING:
- * Caller must hold a lock protecting @mode_list.
- *
- * Some code may need to check a mode list against the clock limits of the
- * device in question.  This function walks the mode list, testing to make
- * sure each mode falls within a given range (defined by @min and @max
- * arrays) and sets @mode->status as needed.
- */
-void drm_mode_validate_clocks(struct drm_device *dev,
-			      struct list_head *mode_list,
-			      int *min, int *max, int n_ranges)
-{
-	struct drm_display_mode *mode;
-	int i;
-
-	list_for_each_entry(mode, mode_list, head) {
-		bool good = false;
-		for (i = 0; i < n_ranges; i++) {
-			if (mode->clock >= min[i] && mode->clock <= max[i]) {
-				good = true;
-				break;
-			}
-		}
-		if (!good)
-			mode->status = MODE_CLOCK_RANGE;
-	}
-}
-EXPORT_SYMBOL(drm_mode_validate_clocks);
 
 /**
  * drm_mode_prune_invalid - remove invalid modes from mode list
@@ -997,6 +962,11 @@ static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head
 	diff = b->hdisplay * b->vdisplay - a->hdisplay * a->vdisplay;
 	if (diff)
 		return diff;
+
+	diff = b->vrefresh - a->vrefresh;
+	if (diff)
+		return diff;
+
 	diff = b->clock - a->clock;
 	return diff;
 }
@@ -1123,6 +1093,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 				was_digit = false;
 			} else
 				goto done;
+			break;
 		case '0' ... '9':
 			was_digit = true;
 			break;

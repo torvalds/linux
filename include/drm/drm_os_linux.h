@@ -65,37 +65,12 @@ struct no_agp_kern {
 #define DRM_AGP_KERN            struct no_agp_kern
 #endif
 
-#if !(__OS_HAS_MTRR)
-static __inline__ int mtrr_add(unsigned long base, unsigned long size,
-			       unsigned int type, char increment)
-{
-	return -ENODEV;
-}
-
-static __inline__ int mtrr_del(int reg, unsigned long base, unsigned long size)
-{
-	return -ENODEV;
-}
-
-#define MTRR_TYPE_WRCOMB     1
-
-#endif
-
 /** Other copying of data to kernel space */
 #define DRM_COPY_FROM_USER(arg1, arg2, arg3)		\
 	copy_from_user(arg1, arg2, arg3)
 /** Other copying of data from kernel space */
 #define DRM_COPY_TO_USER(arg1, arg2, arg3)		\
 	copy_to_user(arg1, arg2, arg3)
-/* Macros for copyfrom user, but checking readability only once */
-#define DRM_VERIFYAREA_READ( uaddr, size )		\
-	(access_ok( VERIFY_READ, uaddr, size ) ? 0 : -EFAULT)
-#define DRM_COPY_FROM_USER_UNCHECKED(arg1, arg2, arg3)	\
-	__copy_from_user(arg1, arg2, arg3)
-#define DRM_COPY_TO_USER_UNCHECKED(arg1, arg2, arg3)	\
-	__copy_to_user(arg1, arg2, arg3)
-#define DRM_GET_USER_UNCHECKED(val, uaddr)		\
-	__get_user(val, uaddr)
 
 #define DRM_HZ HZ
 

@@ -11,7 +11,7 @@
 
 #ifdef CONFIG_X86_OOSTORE
 
-static u32 __cpuinit power2(u32 x)
+static u32 power2(u32 x)
 {
 	u32 s = 1;
 
@@ -25,7 +25,7 @@ static u32 __cpuinit power2(u32 x)
 /*
  * Set up an actual MCR
  */
-static void __cpuinit centaur_mcr_insert(int reg, u32 base, u32 size, int key)
+static void centaur_mcr_insert(int reg, u32 base, u32 size, int key)
 {
 	u32 lo, hi;
 
@@ -42,7 +42,7 @@ static void __cpuinit centaur_mcr_insert(int reg, u32 base, u32 size, int key)
  *
  * Shortcut: We know you can't put 4Gig of RAM on a winchip
  */
-static u32 __cpuinit ramtop(void)
+static u32 ramtop(void)
 {
 	u32 clip = 0xFFFFFFFFUL;
 	u32 top = 0;
@@ -91,7 +91,7 @@ static u32 __cpuinit ramtop(void)
 /*
  * Compute a set of MCR's to give maximum coverage
  */
-static int __cpuinit centaur_mcr_compute(int nr, int key)
+static int centaur_mcr_compute(int nr, int key)
 {
 	u32 mem = ramtop();
 	u32 root = power2(mem);
@@ -157,7 +157,7 @@ static int __cpuinit centaur_mcr_compute(int nr, int key)
 	return ct;
 }
 
-static void __cpuinit centaur_create_optimal_mcr(void)
+static void centaur_create_optimal_mcr(void)
 {
 	int used;
 	int i;
@@ -181,7 +181,7 @@ static void __cpuinit centaur_create_optimal_mcr(void)
 		wrmsr(MSR_IDT_MCR0+i, 0, 0);
 }
 
-static void __cpuinit winchip2_create_optimal_mcr(void)
+static void winchip2_create_optimal_mcr(void)
 {
 	u32 lo, hi;
 	int used;
@@ -217,7 +217,7 @@ static void __cpuinit winchip2_create_optimal_mcr(void)
 /*
  * Handle the MCR key on the Winchip 2.
  */
-static void __cpuinit winchip2_unprotect_mcr(void)
+static void winchip2_unprotect_mcr(void)
 {
 	u32 lo, hi;
 	u32 key;
@@ -229,7 +229,7 @@ static void __cpuinit winchip2_unprotect_mcr(void)
 	wrmsr(MSR_IDT_MCR_CTRL, lo, hi);
 }
 
-static void __cpuinit winchip2_protect_mcr(void)
+static void winchip2_protect_mcr(void)
 {
 	u32 lo, hi;
 
@@ -247,7 +247,7 @@ static void __cpuinit winchip2_protect_mcr(void)
 #define RNG_ENABLED	(1 << 3)
 #define RNG_ENABLE	(1 << 6)	/* MSR_VIA_RNG */
 
-static void __cpuinit init_c3(struct cpuinfo_x86 *c)
+static void init_c3(struct cpuinfo_x86 *c)
 {
 	u32  lo, hi;
 
@@ -318,7 +318,7 @@ enum {
 		EAMD3D		= 1<<20,
 };
 
-static void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
+static void early_init_centaur(struct cpuinfo_x86 *c)
 {
 	switch (c->x86) {
 #ifdef CONFIG_X86_32
@@ -337,7 +337,7 @@ static void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
+static void init_centaur(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_32
 	char *name;
@@ -468,7 +468,7 @@ static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 #endif
 }
 
-static unsigned int __cpuinit
+static unsigned int
 centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 {
 #ifdef CONFIG_X86_32
@@ -488,7 +488,7 @@ centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 	return size;
 }
 
-static const struct cpu_dev __cpuinitconst centaur_cpu_dev = {
+static const struct cpu_dev centaur_cpu_dev = {
 	.c_vendor	= "Centaur",
 	.c_ident	= { "CentaurHauls" },
 	.c_early_init	= early_init_centaur,

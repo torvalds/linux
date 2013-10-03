@@ -239,9 +239,9 @@ static int raw_enable_allfilters(struct net_device *dev, struct sock *sk)
 }
 
 static int raw_notifier(struct notifier_block *nb,
-			unsigned long msg, void *data)
+			unsigned long msg, void *ptr)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct raw_sock *ro = container_of(nb, struct raw_sock, notifier);
 	struct sock *sk = &ro->sk;
 
@@ -711,9 +711,8 @@ static int raw_sendmsg(struct kiocb *iocb, struct socket *sock,
 	err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
 	if (err < 0)
 		goto free_skb;
-	err = sock_tx_timestamp(sk, &skb_shinfo(skb)->tx_flags);
-	if (err < 0)
-		goto free_skb;
+
+	sock_tx_timestamp(sk, &skb_shinfo(skb)->tx_flags);
 
 	skb->dev = dev;
 	skb->sk  = sk;

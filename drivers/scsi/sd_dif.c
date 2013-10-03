@@ -93,14 +93,6 @@ static int sd_dif_type1_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
 		if (sdt->app_tag == 0xffff)
 			return 0;
 
-		/* Bad ref tag received from disk */
-		if (sdt->ref_tag == 0xffffffff) {
-			printk(KERN_ERR
-			       "%s: bad phys ref tag on sector %lu\n",
-			       bix->disk_name, (unsigned long)sector);
-			return -EIO;
-		}
-
 		if (be32_to_cpu(sdt->ref_tag) != (sector & 0xffffffff)) {
 			printk(KERN_ERR
 			       "%s: ref tag error on sector %lu (rcvd %u)\n",

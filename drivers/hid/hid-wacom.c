@@ -46,6 +46,7 @@ struct wacom_data {
 	__u8 battery_capacity;
 	__u8 power_raw;
 	__u8 ps_connected;
+	__u8 bat_charging;
 	struct power_supply battery;
 	struct power_supply ac;
 	__u8 led_selector;
@@ -62,6 +63,7 @@ static enum power_supply_property wacom_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_SCOPE,
+	POWER_SUPPLY_PROP_STATUS,
 };
 
 static enum power_supply_property wacom_ac_props[] = {
@@ -286,6 +288,15 @@ static int wacom_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = wdata->battery_capacity;
+		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		if (wdata->bat_charging)
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else
+			if (wdata->battery_capacity == 100 && wdata->ps_connected)
+				val->intval = POWER_SUPPLY_STATUS_FULL;
+			else
+				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 	default:
 		ret = -EINVAL;
@@ -727,7 +738,8 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 			if (power_raw != wdata->power_raw) {
 				wdata->power_raw = power_raw;
 				wdata->battery_capacity = batcap_i4[power_raw & 0x07];
-				wdata->ps_connected = power_raw & 0x08;
+				wdata->bat_charging = (power_raw & 0x08) ? 1 : 0;
+				wdata->ps_connected = (power_raw & 0x10) ? 1 : 0;
 			}
 
 			break;

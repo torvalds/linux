@@ -669,7 +669,7 @@ static irqreturn_t td_irq(int irq, void *devid)
 
 static int td_probe(struct platform_device *pdev)
 {
-	struct timb_dma_platform_data *pdata = pdev->dev.platform_data;
+	struct timb_dma_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct timb_dma *td;
 	struct resource *iomem;
 	int irq;
@@ -811,8 +811,6 @@ static int td_remove(struct platform_device *pdev)
 	kfree(td);
 	release_mem_region(iomem->start, resource_size(iomem));
 
-	platform_set_drvdata(pdev, NULL);
-
 	dev_dbg(&pdev->dev, "Removed...\n");
 	return 0;
 }
@@ -823,7 +821,7 @@ static struct platform_driver td_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe	= td_probe,
-	.remove	= __exit_p(td_remove),
+	.remove	= td_remove,
 };
 
 module_platform_driver(td_driver);

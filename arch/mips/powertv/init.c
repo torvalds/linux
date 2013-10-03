@@ -29,9 +29,10 @@
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
 
-#include <asm/mips-boards/prom.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mach-powertv/asic.h>
+
+#include "init.h"
 
 static int *_prom_envp;
 unsigned long _prom_memsize;
@@ -86,8 +87,4 @@ void __init prom_init(void)
 
 	configure_platform();
 	prom_meminit();
-
-#ifndef CONFIG_BOOTLOADER_DRIVER
-	pr_info("\nBootloader driver isn't loaded...\n");
-#endif
 }

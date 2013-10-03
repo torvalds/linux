@@ -16,7 +16,7 @@
 #include <net/addrconf.h>
 #include <net/inet_frag.h>
 
-static ctl_table ipv6_table_template[] = {
+static struct ctl_table ipv6_table_template[] = {
 	{
 		.procname	= "bindv6only",
 		.data		= &init_net.ipv6.sysctl.bindv6only,
@@ -27,7 +27,7 @@ static ctl_table ipv6_table_template[] = {
 	{ }
 };
 
-static ctl_table ipv6_rotable[] = {
+static struct ctl_table ipv6_rotable[] = {
 	{
 		.procname	= "mld_max_msf",
 		.data		= &sysctl_mld_max_msf,

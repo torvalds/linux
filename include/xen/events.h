@@ -76,6 +76,9 @@ unsigned irq_from_evtchn(unsigned int evtchn);
 
 /* Xen HVM evtchn vector callback */
 void xen_hvm_callback_vector(void);
+#ifdef CONFIG_TRACING
+#define trace_xen_hvm_callback_vector xen_hvm_callback_vector
+#endif
 extern int xen_have_vector_callback;
 int xen_set_callback_via(uint64_t via);
 void xen_evtchn_do_upcall(struct pt_regs *regs);
@@ -90,8 +93,7 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc);
 /* Bind an PSI pirq to an irq. */
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, int vector, const char *name,
-			     domid_t domid);
+			     int pirq, const char *name, domid_t domid);
 #endif
 
 /* De-allocates the above mentioned physical interrupt. */

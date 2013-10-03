@@ -27,6 +27,7 @@
 #include <linux/writeback.h>
 #include <linux/mpage.h>
 #include <linux/namei.h>
+#include <linux/aio.h>
 #include "ext3.h"
 #include "xattr.h"
 #include "acl.h"
@@ -218,7 +219,8 @@ void ext3_evict_inode (struct inode *inode)
 	 */
 	if (inode->i_nlink && ext3_should_journal_data(inode) &&
 	    EXT3_SB(inode->i_sb)->s_journal &&
-	    (S_ISLNK(inode->i_mode) || S_ISREG(inode->i_mode))) {
+	    (S_ISLNK(inode->i_mode) || S_ISREG(inode->i_mode)) &&
+	    inode->i_ino != EXT3_JOURNAL_INO) {
 		tid_t commit_tid = atomic_read(&ei->i_datasync_tid);
 		journal_t *journal = EXT3_SB(inode->i_sb)->s_journal;
 
@@ -1823,19 +1825,20 @@ ext3_readpages(struct file *file, struct address_space *mapping,
 	return mpage_readpages(mapping, pages, nr_pages, ext3_get_block);
 }
 
-static void ext3_invalidatepage(struct page *page, unsigned long offset)
+static void ext3_invalidatepage(struct page *page, unsigned int offset,
+				unsigned int length)
 {
 	journal_t *journal = EXT3_JOURNAL(page->mapping->host);
 
-	trace_ext3_invalidatepage(page, offset);
+	trace_ext3_invalidatepage(page, offset, length);
 
 	/*
 	 * If it's a full truncate we just forget about the pending dirtying
 	 */
-	if (offset == 0)
+	if (offset == 0 && length == PAGE_CACHE_SIZE)
 		ClearPageChecked(page);
 
-	journal_invalidatepage(journal, page, offset);
+	journal_invalidatepage(journal, page, offset, length);
 }
 
 static int ext3_releasepage(struct page *page, gfp_t wait)
@@ -1982,6 +1985,7 @@ static const struct address_space_operations ext3_ordered_aops = {
 	.direct_IO		= ext3_direct_IO,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate  = block_is_partially_uptodate,
+	.is_dirty_writeback	= buffer_check_dirty_writeback,
 	.error_remove_page	= generic_error_remove_page,
 };
 

@@ -68,7 +68,8 @@ struct s3c24xx_uart_port {
 /* register access controls */
 
 #define portaddr(port, reg) ((port)->membase + (reg))
-#define portaddrl(port, reg) ((unsigned long *)((port)->membase + (reg)))
+#define portaddrl(port, reg) \
+	((unsigned long *)(unsigned long)((port)->membase + (reg)))
 
 #define rd_regb(port, reg) (__raw_readb(portaddr(port, reg)))
 #define rd_regl(port, reg) (__raw_readl(portaddr(port, reg)))
@@ -76,7 +77,9 @@ struct s3c24xx_uart_port {
 #define wr_regb(port, reg, val) __raw_writeb(val, portaddr(port, reg))
 #define wr_regl(port, reg, val) __raw_writel(val, portaddr(port, reg))
 
-#ifdef CONFIG_SERIAL_SAMSUNG_DEBUG
+#if defined(CONFIG_SERIAL_SAMSUNG_DEBUG) && \
+    defined(CONFIG_DEBUG_LL) && \
+    !defined(MODULE)
 
 extern void printascii(const char *);
 

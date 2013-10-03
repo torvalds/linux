@@ -587,8 +587,7 @@ static int nuc900fb_probe(struct platform_device *pdev)
 	fbinfo->flags			= FBINFO_FLAG_DEFAULT;
 	fbinfo->pseudo_palette		= &fbi->pseudo_pal;
 
-	ret = request_irq(irq, nuc900fb_irqhandler, 0,
-			  pdev->name, fbinfo);
+	ret = request_irq(irq, nuc900fb_irqhandler, 0, pdev->name, fbi);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot register irq handler %d -err %d\n",
 			irq, ret);
@@ -707,7 +706,6 @@ static int nuc900fb_remove(struct platform_device *pdev)
 	release_resource(fbi->mem);
 	kfree(fbi->mem);
 
-	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);
 
 	return 0;

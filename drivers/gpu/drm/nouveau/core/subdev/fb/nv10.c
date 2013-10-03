@@ -24,24 +24,11 @@
  *
  */
 
-#include <subdev/fb.h>
+#include "priv.h"
 
 struct nv10_fb_priv {
 	struct nouveau_fb base;
 };
-
-static int
-nv10_fb_vram_init(struct nouveau_fb *pfb)
-{
-	u32 cfg0 = nv_rd32(pfb, 0x100200);
-	if (cfg0 & 0x00000001)
-		pfb->ram.type = NV_MEM_TYPE_DDR1;
-	else
-		pfb->ram.type = NV_MEM_TYPE_SDRAM;
-
-	pfb->ram.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
-	return 0;
-}
 
 void
 nv10_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
@@ -78,18 +65,17 @@ nv10_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv10_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	ret = nouveau_fb_create(parent, engine, oclass, &nv10_ram_oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.ram.init = nv10_fb_vram_init;
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv10_fb_tile_init;
 	priv->base.tile.fini = nv10_fb_tile_fini;
 	priv->base.tile.prog = nv10_fb_tile_prog;
-	return nouveau_fb_preinit(&priv->base);
+	return 0;
 }
 
 struct nouveau_oclass

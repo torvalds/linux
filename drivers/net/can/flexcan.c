@@ -24,7 +24,6 @@
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
 #include <linux/can/led.h>
-#include <linux/can/platform/flexcan.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/if_arp.h>
@@ -37,7 +36,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/consumer.h>
+#include <linux/regulator/consumer.h>
 
 #define DRV_NAME			"flexcan"
 
@@ -212,6 +211,7 @@ struct flexcan_priv {
 	struct clk *clk_per;
 	struct flexcan_platform_data *pdata;
 	const struct flexcan_devtype_data *devtype_data;
+	struct regulator *reg_xceiver;
 };
 
 static struct flexcan_devtype_data fsl_p1010_devtype_data = {
@@ -258,15 +258,6 @@ static inline void flexcan_write(u32 val, void __iomem *addr)
 	writel(val, addr);
 }
 #endif
-
-/*
- * Swtich transceiver on or off
- */
-static void flexcan_transceiver_switch(const struct flexcan_priv *priv, int on)
-{
-	if (priv->pdata && priv->pdata->transceiver_switch)
-		priv->pdata->transceiver_switch(on);
-}
 
 static inline int flexcan_has_and_handle_berr(const struct flexcan_priv *priv,
 					      u32 reg_esr)
@@ -711,7 +702,6 @@ static int flexcan_chip_start(struct net_device *dev)
 {
 	struct flexcan_priv *priv = netdev_priv(dev);
 	struct flexcan_regs __iomem *regs = priv->base;
-	unsigned int i;
 	int err;
 	u32 reg_mcr, reg_ctrl;
 
@@ -781,17 +771,6 @@ static int flexcan_chip_start(struct net_device *dev)
 	netdev_dbg(dev, "%s: writing ctrl=0x%08x", __func__, reg_ctrl);
 	flexcan_write(reg_ctrl, &regs->ctrl);
 
-	for (i = 0; i < ARRAY_SIZE(regs->cantxfg); i++) {
-		flexcan_write(0, &regs->cantxfg[i].can_ctrl);
-		flexcan_write(0, &regs->cantxfg[i].can_id);
-		flexcan_write(0, &regs->cantxfg[i].data[0]);
-		flexcan_write(0, &regs->cantxfg[i].data[1]);
-
-		/* put MB into rx queue */
-		flexcan_write(FLEXCAN_MB_CNT_CODE(0x4),
-			&regs->cantxfg[i].can_ctrl);
-	}
-
 	/* acceptance mask/acceptance code (accept everything) */
 	flexcan_write(0x0, &regs->rxgmask);
 	flexcan_write(0x0, &regs->rx14mask);
@@ -800,7 +779,11 @@ static int flexcan_chip_start(struct net_device *dev)
 	if (priv->devtype_data->features & FLEXCAN_HAS_V10_FEATURES)
 		flexcan_write(0x0, &regs->rxfgmask);
 
-	flexcan_transceiver_switch(priv, 1);
+	if (priv->reg_xceiver)	{
+		err = regulator_enable(priv->reg_xceiver);
+		if (err)
+			goto out;
+	}
 
 	/* synchronize with the can bus */
 	reg_mcr = flexcan_read(&regs->mcr);
@@ -843,7 +826,8 @@ static void flexcan_chip_stop(struct net_device *dev)
 	reg |= FLEXCAN_MCR_MDIS | FLEXCAN_MCR_HALT;
 	flexcan_write(reg, &regs->mcr);
 
-	flexcan_transceiver_switch(priv, 0);
+	if (priv->reg_xceiver)
+		regulator_disable(priv->reg_xceiver);
 	priv->can.state = CAN_STATE_STOPPED;
 
 	return;
@@ -854,12 +838,17 @@ static int flexcan_open(struct net_device *dev)
 	struct flexcan_priv *priv = netdev_priv(dev);
 	int err;
 
-	clk_prepare_enable(priv->clk_ipg);
-	clk_prepare_enable(priv->clk_per);
+	err = clk_prepare_enable(priv->clk_ipg);
+	if (err)
+		return err;
+
+	err = clk_prepare_enable(priv->clk_per);
+	if (err)
+		goto out_disable_ipg;
 
 	err = open_candev(dev);
 	if (err)
-		goto out;
+		goto out_disable_per;
 
 	err = request_irq(dev->irq, flexcan_irq, IRQF_SHARED, dev->name, dev);
 	if (err)
@@ -879,8 +868,9 @@ static int flexcan_open(struct net_device *dev)
 
  out_close:
 	close_candev(dev);
- out:
+ out_disable_per:
 	clk_disable_unprepare(priv->clk_per);
+ out_disable_ipg:
 	clk_disable_unprepare(priv->clk_ipg);
 
 	return err;
@@ -937,8 +927,13 @@ static int register_flexcandev(struct net_device *dev)
 	struct flexcan_regs __iomem *regs = priv->base;
 	u32 reg, err;
 
-	clk_prepare_enable(priv->clk_ipg);
-	clk_prepare_enable(priv->clk_per);
+	err = clk_prepare_enable(priv->clk_ipg);
+	if (err)
+		return err;
+
+	err = clk_prepare_enable(priv->clk_per);
+	if (err)
+		goto out_disable_ipg;
 
 	/* select "bus clock", chip must be disabled */
 	flexcan_chip_disable(priv);
@@ -963,15 +958,16 @@ static int register_flexcandev(struct net_device *dev)
 	if (!(reg & FLEXCAN_MCR_FEN)) {
 		netdev_err(dev, "Could not enable RX FIFO, unsupported core\n");
 		err = -ENODEV;
-		goto out;
+		goto out_disable_per;
 	}
 
 	err = register_candev(dev);
 
- out:
+ out_disable_per:
 	/* disable core and turn off clocks */
 	flexcan_chip_disable(priv);
 	clk_disable_unprepare(priv->clk_per);
+ out_disable_ipg:
 	clk_disable_unprepare(priv->clk_ipg);
 
 	return err;
@@ -1004,15 +1000,9 @@ static int flexcan_probe(struct platform_device *pdev)
 	struct flexcan_priv *priv;
 	struct resource *mem;
 	struct clk *clk_ipg = NULL, *clk_per = NULL;
-	struct pinctrl *pinctrl;
 	void __iomem *base;
-	resource_size_t mem_size;
 	int err, irq;
 	u32 clock_freq = 0;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		return PTR_ERR(pinctrl);
 
 	if (pdev->dev.of_node)
 		of_property_read_u32(pdev->dev.of_node,
@@ -1022,43 +1012,25 @@ static int flexcan_probe(struct platform_device *pdev)
 		clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 		if (IS_ERR(clk_ipg)) {
 			dev_err(&pdev->dev, "no ipg clock defined\n");
-			err = PTR_ERR(clk_ipg);
-			goto failed_clock;
+			return PTR_ERR(clk_ipg);
 		}
 		clock_freq = clk_get_rate(clk_ipg);
 
 		clk_per = devm_clk_get(&pdev->dev, "per");
 		if (IS_ERR(clk_per)) {
 			dev_err(&pdev->dev, "no per clock defined\n");
-			err = PTR_ERR(clk_per);
-			goto failed_clock;
+			return PTR_ERR(clk_per);
 		}
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!mem || irq <= 0) {
-		err = -ENODEV;
-		goto failed_get;
-	}
+	if (irq <= 0)
+		return -ENODEV;
 
-	mem_size = resource_size(mem);
-	if (!request_mem_region(mem->start, mem_size, pdev->name)) {
-		err = -EBUSY;
-		goto failed_get;
-	}
-
-	base = ioremap(mem->start, mem_size);
-	if (!base) {
-		err = -ENOMEM;
-		goto failed_map;
-	}
-
-	dev = alloc_candev(sizeof(struct flexcan_priv), 1);
-	if (!dev) {
-		err = -ENOMEM;
-		goto failed_alloc;
-	}
+	base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	of_id = of_match_device(flexcan_of_match, &pdev->dev);
 	if (of_id) {
@@ -1067,9 +1039,12 @@ static int flexcan_probe(struct platform_device *pdev)
 		devtype_data = (struct flexcan_devtype_data *)
 			pdev->id_entry->driver_data;
 	} else {
-		err = -ENODEV;
-		goto failed_devtype;
+		return -ENODEV;
 	}
+
+	dev = alloc_candev(sizeof(struct flexcan_priv), 1);
+	if (!dev)
+		return -ENOMEM;
 
 	dev->netdev_ops = &flexcan_netdev_ops;
 	dev->irq = irq;
@@ -1090,9 +1065,13 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv->pdata = pdev->dev.platform_data;
 	priv->devtype_data = devtype_data;
 
+	priv->reg_xceiver = devm_regulator_get(&pdev->dev, "xceiver");
+	if (IS_ERR(priv->reg_xceiver))
+		priv->reg_xceiver = NULL;
+
 	netif_napi_add(dev, &priv->napi, flexcan_poll, FLEXCAN_NAPI_WEIGHT);
 
-	dev_set_drvdata(&pdev->dev, dev);
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = register_flexcandev(dev);
@@ -1109,39 +1088,25 @@ static int flexcan_probe(struct platform_device *pdev)
 	return 0;
 
  failed_register:
- failed_devtype:
 	free_candev(dev);
- failed_alloc:
-	iounmap(base);
- failed_map:
-	release_mem_region(mem->start, mem_size);
- failed_get:
- failed_clock:
 	return err;
 }
 
 static int flexcan_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
-	struct flexcan_priv *priv = netdev_priv(dev);
-	struct resource *mem;
 
 	unregister_flexcandev(dev);
-	platform_set_drvdata(pdev, NULL);
-	iounmap(priv->base);
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, resource_size(mem));
 
 	free_candev(dev);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int flexcan_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int flexcan_suspend(struct device *device)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
 
 	flexcan_chip_disable(priv);
@@ -1155,9 +1120,9 @@ static int flexcan_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int flexcan_resume(struct platform_device *pdev)
+static int flexcan_resume(struct device *device)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
@@ -1169,21 +1134,19 @@ static int flexcan_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define flexcan_suspend NULL
-#define flexcan_resume NULL
-#endif
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(flexcan_pm_ops, flexcan_suspend, flexcan_resume);
 
 static struct platform_driver flexcan_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
+		.pm = &flexcan_pm_ops,
 		.of_match_table = flexcan_of_match,
 	},
 	.probe = flexcan_probe,
 	.remove = flexcan_remove,
-	.suspend = flexcan_suspend,
-	.resume = flexcan_resume,
 	.id_table = flexcan_id_table,
 };
 

@@ -1925,7 +1925,6 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 {
 	struct hso_serial *serial = urb->context;
 	int status = urb->status;
-	struct tty_struct *tty;
 
 	/* sanity check */
 	if (!serial) {
@@ -1941,11 +1940,7 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 		return;
 	}
 	hso_put_activity(serial->parent);
-	tty = tty_port_tty_get(&serial->port);
-	if (tty) {
-		tty_wakeup(tty);
-		tty_kref_put(tty);
-	}
+	tty_port_tty_wakeup(&serial->port);
 	hso_kick_transmit(serial);
 
 	D1(" ");
@@ -2008,12 +2003,8 @@ static void ctrl_callback(struct urb *urb)
 		put_rxbuf_data_and_resubmit_ctrl_urb(serial);
 		spin_unlock(&serial->serial_lock);
 	} else {
-		struct tty_struct *tty = tty_port_tty_get(&serial->port);
 		hso_put_activity(serial->parent);
-		if (tty) {
-			tty_wakeup(tty);
-			tty_kref_put(tty);
-		}
+		tty_port_tty_wakeup(&serial->port);
 		/* response to a write command */
 		hso_kick_transmit(serial);
 	}
@@ -2825,13 +2816,16 @@ exit:
 static int hso_get_config_data(struct usb_interface *interface)
 {
 	struct usb_device *usbdev = interface_to_usbdev(interface);
-	u8 config_data[17];
+	u8 *config_data = kmalloc(17, GFP_KERNEL);
 	u32 if_num = interface->altsetting->desc.bInterfaceNumber;
 	s32 result;
 
+	if (!config_data)
+		return -ENOMEM;
 	if (usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			    0x86, 0xC0, 0, 0, config_data, 17,
 			    USB_CTRL_SET_TIMEOUT) != 0x11) {
+		kfree(config_data);
 		return -EIO;
 	}
 
@@ -2882,6 +2876,7 @@ static int hso_get_config_data(struct usb_interface *interface)
 	if (config_data[16] & 0x1)
 		result |= HSO_INFO_CRC_BUG;
 
+	kfree(config_data);
 	return result;
 }
 
@@ -2895,6 +2890,11 @@ static int hso_probe(struct usb_interface *interface,
 	struct hso_shared_int *shared_int;
 	struct hso_device *tmp_dev = NULL;
 
+	if (interface->cur_altsetting->desc.bInterfaceClass != 0xFF) {
+		dev_err(&interface->dev, "Not our interface\n");
+		return -ENODEV;
+	}
+
 	if_num = interface->altsetting->desc.bInterfaceNumber;
 
 	/* Get the interface/port specification from either driver_info or from
@@ -2904,10 +2904,6 @@ static int hso_probe(struct usb_interface *interface,
 	else
 		port_spec = hso_get_config_data(interface);
 
-	if (interface->cur_altsetting->desc.bInterfaceClass != 0xFF) {
-		dev_err(&interface->dev, "Not our interface\n");
-		return -ENODEV;
-	}
 	/* Check if we need to switch to alt interfaces prior to port
 	 * configuration */
 	if (interface->num_altsetting > 1)
@@ -3133,18 +3129,13 @@ static void hso_serial_ref_free(struct kref *ref)
 static void hso_free_interface(struct usb_interface *interface)
 {
 	struct hso_serial *hso_dev;
-	struct tty_struct *tty;
 	int i;
 
 	for (i = 0; i < HSO_SERIAL_TTY_MINORS; i++) {
 		if (serial_table[i] &&
 		    (serial_table[i]->interface == interface)) {
 			hso_dev = dev2ser(serial_table[i]);
-			tty = tty_port_tty_get(&hso_dev->port);
-			if (tty) {
-				tty_hangup(tty);
-				tty_kref_put(tty);
-			}
+			tty_port_tty_hangup(&hso_dev->port, false);
 			mutex_lock(&hso_dev->parent->mutex);
 			hso_dev->parent->usb_gone = 1;
 			mutex_unlock(&hso_dev->parent->mutex);

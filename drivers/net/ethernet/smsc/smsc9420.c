@@ -848,10 +848,8 @@ static int smsc9420_alloc_rx_buffer(struct smsc9420_pdata *pd, int index)
 	BUG_ON(pd->rx_buffers[index].skb);
 	BUG_ON(pd->rx_buffers[index].mapping);
 
-	if (unlikely(!skb)) {
-		smsc_warn(RX_ERR, "Failed to allocate new skb!");
+	if (unlikely(!skb))
 		return -ENOMEM;
-	}
 
 	mapping = pci_map_single(pd->pdev, skb_tail_pointer(skb),
 				 PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
@@ -1358,8 +1356,7 @@ static int smsc9420_open(struct net_device *dev)
 	smsc9420_reg_write(pd, INT_STAT, 0xFFFFFFFF);
 	smsc9420_pci_flush_write(pd);
 
-	result = request_irq(irq, smsc9420_isr, IRQF_SHARED | IRQF_DISABLED,
-			     DRV_NAME, pd);
+	result = request_irq(irq, smsc9420_isr, IRQF_SHARED, DRV_NAME, pd);
 	if (result) {
 		smsc_warn(IFUP, "Unable to use IRQ = %d", irq);
 		result = -ENODEV;

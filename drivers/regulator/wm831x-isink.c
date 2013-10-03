@@ -151,7 +151,7 @@ static irqreturn_t wm831x_isink_irq(int irq, void *data)
 static int wm831x_isink_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
-	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	struct wm831x_pdata *pdata = dev_get_platdata(wm831x->dev);
 	struct wm831x_isink *isink;
 	int id = pdev->id % ARRAY_SIZE(pdata->isink);
 	struct regulator_config config = { };
@@ -224,8 +224,6 @@ err:
 static int wm831x_isink_remove(struct platform_device *pdev)
 {
 	struct wm831x_isink *isink = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	free_irq(wm831x_irq(isink->wm831x, platform_get_irq(pdev, 0)), isink);
 

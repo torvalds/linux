@@ -37,13 +37,8 @@
 #define __ARCH_WANT_SYS_VFORK
 #define __ARCH_WANT_SYS_FORK
 
-/*
- * "Conditional" syscalls
- *
- * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
- * but it doesn't work on all toolchains, so we just do it by hand
- */
-#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall");
-
 #endif /* __ASSEMBLY__ */
+
+#define __NR_syscalls         381
+
 #endif /* _ASM_MICROBLAZE_UNISTD_H */

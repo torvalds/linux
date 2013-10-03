@@ -12,6 +12,15 @@
 #include <linux/notifier.h>
 #include <linux/usb.h>
 
+enum usb_phy_interface {
+	USBPHY_INTERFACE_MODE_UNKNOWN,
+	USBPHY_INTERFACE_MODE_UTMI,
+	USBPHY_INTERFACE_MODE_UTMIW,
+	USBPHY_INTERFACE_MODE_ULPI,
+	USBPHY_INTERFACE_MODE_SERIAL,
+	USBPHY_INTERFACE_MODE_HSIC,
+};
+
 enum usb_phy_events {
 	USB_EVENT_NONE,         /* no events or cable disconnected */
 	USB_EVENT_VBUS,         /* vbus valid event */
@@ -91,6 +100,9 @@ struct usb_phy {
 	int	(*init)(struct usb_phy *x);
 	void	(*shutdown)(struct usb_phy *x);
 
+	/* enable/disable VBUS */
+	int	(*set_vbus)(struct usb_phy *x, int on);
+
 	/* effective for B devices, ignored for A-peripheral */
 	int	(*set_power)(struct usb_phy *x,
 				unsigned mA);
@@ -130,7 +142,7 @@ extern void usb_remove_phy(struct usb_phy *);
 /* helpers for direct access thru low-level io interface */
 static inline int usb_phy_io_read(struct usb_phy *x, u32 reg)
 {
-	if (x->io_ops && x->io_ops->read)
+	if (x && x->io_ops && x->io_ops->read)
 		return x->io_ops->read(x, reg);
 
 	return -EINVAL;
@@ -138,7 +150,7 @@ static inline int usb_phy_io_read(struct usb_phy *x, u32 reg)
 
 static inline int usb_phy_io_write(struct usb_phy *x, u32 val, u32 reg)
 {
-	if (x->io_ops && x->io_ops->write)
+	if (x && x->io_ops && x->io_ops->write)
 		return x->io_ops->write(x, val, reg);
 
 	return -EINVAL;
@@ -147,7 +159,7 @@ static inline int usb_phy_io_write(struct usb_phy *x, u32 val, u32 reg)
 static inline int
 usb_phy_init(struct usb_phy *x)
 {
-	if (x->init)
+	if (x && x->init)
 		return x->init(x);
 
 	return 0;
@@ -156,12 +168,30 @@ usb_phy_init(struct usb_phy *x)
 static inline void
 usb_phy_shutdown(struct usb_phy *x)
 {
-	if (x->shutdown)
+	if (x && x->shutdown)
 		x->shutdown(x);
 }
 
+static inline int
+usb_phy_vbus_on(struct usb_phy *x)
+{
+	if (!x || !x->set_vbus)
+		return 0;
+
+	return x->set_vbus(x, true);
+}
+
+static inline int
+usb_phy_vbus_off(struct usb_phy *x)
+{
+	if (!x || !x->set_vbus)
+		return 0;
+
+	return x->set_vbus(x, false);
+}
+
 /* for usb host and peripheral controller drivers */
-#ifdef CONFIG_USB_OTG_UTILS
+#if IS_ENABLED(CONFIG_USB_PHY)
 extern struct usb_phy *usb_get_phy(enum usb_phy_type type);
 extern struct usb_phy *devm_usb_get_phy(struct device *dev,
 	enum usb_phy_type type);
@@ -176,29 +206,29 @@ extern int usb_bind_phy(const char *dev_name, u8 index,
 #else
 static inline struct usb_phy *usb_get_phy(enum usb_phy_type type)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline struct usb_phy *devm_usb_get_phy(struct device *dev,
 	enum usb_phy_type type)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline struct usb_phy *usb_get_phy_dev(struct device *dev, u8 index)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline struct usb_phy *devm_usb_get_phy_dev(struct device *dev, u8 index)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
 	const char *phandle, u8 index)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline void usb_put_phy(struct usb_phy *x)
@@ -228,7 +258,7 @@ usb_phy_set_power(struct usb_phy *x, unsigned mA)
 static inline int
 usb_phy_set_suspend(struct usb_phy *x, int suspend)
 {
-	if (x->set_suspend != NULL)
+	if (x && x->set_suspend != NULL)
 		return x->set_suspend(x, suspend);
 	else
 		return 0;
@@ -237,7 +267,7 @@ usb_phy_set_suspend(struct usb_phy *x, int suspend)
 static inline int
 usb_phy_notify_connect(struct usb_phy *x, enum usb_device_speed speed)
 {
-	if (x->notify_connect)
+	if (x && x->notify_connect)
 		return x->notify_connect(x, speed);
 	else
 		return 0;
@@ -246,7 +276,7 @@ usb_phy_notify_connect(struct usb_phy *x, enum usb_device_speed speed)
 static inline int
 usb_phy_notify_disconnect(struct usb_phy *x, enum usb_device_speed speed)
 {
-	if (x->notify_disconnect)
+	if (x && x->notify_disconnect)
 		return x->notify_disconnect(x, speed);
 	else
 		return 0;

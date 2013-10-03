@@ -621,8 +621,6 @@ static int sdh_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (mmc) {
 		struct sdh_host *host = mmc_priv(mmc);
 

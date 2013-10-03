@@ -322,10 +322,12 @@
  * where a pointer to an object of type union acpi_operand_object can also
  * appear. This macro is used to distinguish them.
  *
- * The "Descriptor" field is the first field in both structures.
+ * The "DescriptorType" field is the second field in both structures.
  */
+#define ACPI_GET_DESCRIPTOR_PTR(d)      (((union acpi_descriptor *)(void *)(d))->common.common_pointer)
+#define ACPI_SET_DESCRIPTOR_PTR(d, p)   (((union acpi_descriptor *)(void *)(d))->common.common_pointer = (p))
 #define ACPI_GET_DESCRIPTOR_TYPE(d)     (((union acpi_descriptor *)(void *)(d))->common.descriptor_type)
-#define ACPI_SET_DESCRIPTOR_TYPE(d, t)  (((union acpi_descriptor *)(void *)(d))->common.descriptor_type = t)
+#define ACPI_SET_DESCRIPTOR_TYPE(d, t)  (((union acpi_descriptor *)(void *)(d))->common.descriptor_type = (t))
 
 /*
  * Macros for the master AML opcode table
@@ -372,10 +374,11 @@
  * the plist contains a set of parens to allow variable-length lists.
  * These macros are used for both the debug and non-debug versions of the code.
  */
-#define ACPI_ERROR_NAMESPACE(s, e)      acpi_ut_namespace_error (AE_INFO, s, e);
-#define ACPI_ERROR_METHOD(s, n, p, e)   acpi_ut_method_error (AE_INFO, s, n, p, e);
-#define ACPI_WARN_PREDEFINED(plist)     acpi_ut_predefined_warning plist
-#define ACPI_INFO_PREDEFINED(plist)     acpi_ut_predefined_info plist
+#define ACPI_ERROR_NAMESPACE(s, e)          acpi_ut_namespace_error (AE_INFO, s, e);
+#define ACPI_ERROR_METHOD(s, n, p, e)       acpi_ut_method_error (AE_INFO, s, n, p, e);
+#define ACPI_WARN_PREDEFINED(plist)         acpi_ut_predefined_warning plist
+#define ACPI_INFO_PREDEFINED(plist)         acpi_ut_predefined_info plist
+#define ACPI_BIOS_ERROR_PREDEFINED(plist)   acpi_ut_predefined_bios_error plist
 
 #else
 
@@ -385,6 +388,7 @@
 #define ACPI_ERROR_METHOD(s, n, p, e)
 #define ACPI_WARN_PREDEFINED(plist)
 #define ACPI_INFO_PREDEFINED(plist)
+#define ACPI_BIOS_ERROR_PREDEFINED(plist)
 
 #endif				/* ACPI_NO_ERROR_MESSAGES */
 

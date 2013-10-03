@@ -342,10 +342,6 @@ void tcp_retransmit_timer(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	if (tp->early_retrans_delayed) {
-		tcp_resume_early_retransmit(sk);
-		return;
-	}
 	if (tp->fastopen_rsk) {
 		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 			     sk->sk_state != TCP_FIN_WAIT1);
@@ -359,6 +355,8 @@ void tcp_retransmit_timer(struct sock *sk)
 		goto out;
 
 	WARN_ON(tcp_write_queue_empty(sk));
+
+	tp->tlp_high_seq = 0;
 
 	if (!tp->snd_wnd && !sock_flag(sk, SOCK_DEAD) &&
 	    !((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))) {
@@ -418,11 +416,7 @@ void tcp_retransmit_timer(struct sock *sk)
 		NET_INC_STATS_BH(sock_net(sk), mib_idx);
 	}
 
-	if (tcp_use_frto(sk)) {
-		tcp_enter_frto(sk);
-	} else {
-		tcp_enter_loss(sk, 0);
-	}
+	tcp_enter_loss(sk, 0);
 
 	if (tcp_retransmit_skb(sk, tcp_write_queue_head(sk)) > 0) {
 		/* Retransmission failed because of local congestion,
@@ -495,13 +489,20 @@ void tcp_write_timer_handler(struct sock *sk)
 	}
 
 	event = icsk->icsk_pending;
-	icsk->icsk_pending = 0;
 
 	switch (event) {
+	case ICSK_TIME_EARLY_RETRANS:
+		tcp_resume_early_retransmit(sk);
+		break;
+	case ICSK_TIME_LOSS_PROBE:
+		tcp_send_loss_probe(sk);
+		break;
 	case ICSK_TIME_RETRANS:
+		icsk->icsk_pending = 0;
 		tcp_retransmit_timer(sk);
 		break;
 	case ICSK_TIME_PROBE0:
+		icsk->icsk_pending = 0;
 		tcp_probe_timer(sk);
 		break;
 	}

@@ -380,10 +380,6 @@ static int vprbrd_gpiob_direction_output(struct gpio_chip *chip,
 	struct vprbrd *vb = gpio->vb;
 
 	gpio->gpiob_out |= (1 << offset);
-	if (value)
-		gpio->gpiob_val |= (1 << offset);
-	else
-		gpio->gpiob_val &= ~(1 << offset);
 
 	mutex_lock(&vb->lock);
 
@@ -450,7 +446,8 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	return ret;
 
 err_gpiob:
-	ret = gpiochip_remove(&vb_gpio->gpioa);
+	if (gpiochip_remove(&vb_gpio->gpioa))
+		dev_err(&pdev->dev, "%s gpiochip_remove failed\n", __func__);
 
 err_gpioa:
 	return ret;

@@ -1,6 +1,6 @@
 /*
    This is part of rtl8180 OpenSource driver.
-   Copyright (C) Andrea Merello 2004-2005  <andreamrl@tiscali.it>
+   Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
    Released under the terms of GPL (General Public Licence)
 
    Parts of this driver are based on the GPL part of the
@@ -372,7 +372,6 @@ typedef struct r8180_priv
 	struct Stats stats;
 	struct _link_detect_t link_detect;  //YJ,add,080828
 	struct iw_statistics wstats;
-	struct proc_dir_entry *dir_dev;
 
 	/*RX stuff*/
 	u32 *rxring;

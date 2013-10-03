@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/power_supply.h>
 #include <linux/platform_data/lp8727.h>
+#include <linux/of.h>
 
 #define LP8788_NUM_INTREGS	2
 #define DEFAULT_DEBOUNCE_MSEC	270
@@ -481,6 +482,60 @@ static void lp8727_unregister_psy(struct lp8727_chg *pchg)
 	power_supply_unregister(&psy->batt);
 }
 
+#ifdef CONFIG_OF
+static struct lp8727_chg_param
+*lp8727_parse_charge_pdata(struct device *dev, struct device_node *np)
+{
+	struct lp8727_chg_param *param;
+
+	param = devm_kzalloc(dev, sizeof(*param), GFP_KERNEL);
+	if (!param)
+		goto out;
+
+	of_property_read_u8(np, "eoc-level", (u8 *)&param->eoc_level);
+	of_property_read_u8(np, "charging-current", (u8 *)&param->ichg);
+out:
+	return param;
+}
+
+static int lp8727_parse_dt(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct device_node *child;
+	struct lp8727_platform_data *pdata;
+	const char *type;
+
+	/* If charging parameter is not defined, just skip parsing the dt */
+	if (of_get_child_count(np) == 0)
+		goto out;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	of_property_read_u32(np, "debounce-ms", &pdata->debounce_msec);
+
+	for_each_child_of_node(np, child) {
+		of_property_read_string(child, "charger-type", &type);
+
+		if (!strcmp(type, "ac"))
+			pdata->ac = lp8727_parse_charge_pdata(dev, child);
+
+		if (!strcmp(type, "usb"))
+			pdata->usb = lp8727_parse_charge_pdata(dev, child);
+	}
+
+	dev->platform_data = pdata;
+out:
+	return 0;
+}
+#else
+static int lp8727_parse_dt(struct device *dev)
+{
+	return 0;
+}
+#endif
+
 static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp8727_chg *pchg;
@@ -488,6 +543,12 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
+
+	if (cl->dev.of_node) {
+		ret = lp8727_parse_dt(&cl->dev);
+		if (ret)
+			return ret;
+	}
 
 	pchg = devm_kzalloc(&cl->dev, sizeof(*pchg), GFP_KERNEL);
 	if (!pchg)
@@ -531,6 +592,12 @@ static int lp8727_remove(struct i2c_client *cl)
 	return 0;
 }
 
+static const struct of_device_id lp8727_dt_ids[] = {
+	{ .compatible = "ti,lp8727", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, lp8727_dt_ids);
+
 static const struct i2c_device_id lp8727_ids[] = {
 	{"lp8727", 0},
 	{ }
@@ -540,6 +607,7 @@ MODULE_DEVICE_TABLE(i2c, lp8727_ids);
 static struct i2c_driver lp8727_driver = {
 	.driver = {
 		   .name = "lp8727",
+		   .of_match_table = of_match_ptr(lp8727_dt_ids),
 		   },
 	.probe = lp8727_probe,
 	.remove = lp8727_remove,

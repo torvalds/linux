@@ -33,6 +33,8 @@
 			calxeda,port-phys = <&combophy5 0 &combophy0 0
 					     &combophy0 1 &combophy0 2
 					     &combophy0 3>;
+			calxeda,sgpio-gpio =<&gpioh 5 1 &gpioh 6 1 &gpioh 7 1>;
+			calxeda,led-order = <4 0 1 2 3>;
 		};
 
 		sdhci@ffe0e000 {

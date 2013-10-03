@@ -741,7 +741,7 @@ asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
 	die_if_kernel("exception", regs, ex);
 }
 
-void __cpuinit per_cpu_trap_init(void)
+void per_cpu_trap_init(void)
 {
 	extern void *vbr_base;
 

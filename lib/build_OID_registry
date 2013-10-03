@@ -50,8 +50,6 @@ my @indices = ();
 my @lengths = ();
 my $total_length = 0;
 
-print "Compiling ", $#names + 1, " OIDs\n";
-
 for (my $i = 0; $i <= $#names; $i++) {
     my $name = $names[$i];
     my $oid = $oids[$i];

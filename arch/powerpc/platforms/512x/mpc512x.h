@@ -12,17 +12,12 @@
 #ifndef __MPC512X_H__
 #define __MPC512X_H__
 extern void __init mpc512x_init_IRQ(void);
+extern void __init mpc512x_init_early(void);
 extern void __init mpc512x_init(void);
+extern void __init mpc512x_setup_arch(void);
 extern int __init mpc5121_clk_init(void);
-void __init mpc512x_declare_of_platform_devices(void);
+extern const char *mpc512x_select_psc_compat(void);
+extern const char *mpc512x_select_reset_compat(void);
 extern void mpc512x_restart(char *cmd);
-
-#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-void mpc512x_init_diu(void);
-void mpc512x_setup_diu(void);
-#else
-#define mpc512x_init_diu NULL
-#define mpc512x_setup_diu NULL
-#endif
 
 #endif				/* __MPC512X_H__ */

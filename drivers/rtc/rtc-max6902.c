@@ -93,24 +93,24 @@ static int max6902_set_time(struct device *dev, struct rtc_time *dt)
 	dt->tm_year = dt->tm_year + 1900;
 
 	/* Remove write protection */
-	max6902_set_reg(dev, 0xF, 0);
+	max6902_set_reg(dev, MAX6902_REG_CONTROL, 0);
 
-	max6902_set_reg(dev, 0x01, bin2bcd(dt->tm_sec));
-	max6902_set_reg(dev, 0x03, bin2bcd(dt->tm_min));
-	max6902_set_reg(dev, 0x05, bin2bcd(dt->tm_hour));
+	max6902_set_reg(dev, MAX6902_REG_SECONDS, bin2bcd(dt->tm_sec));
+	max6902_set_reg(dev, MAX6902_REG_MINUTES, bin2bcd(dt->tm_min));
+	max6902_set_reg(dev, MAX6902_REG_HOURS, bin2bcd(dt->tm_hour));
 
-	max6902_set_reg(dev, 0x07, bin2bcd(dt->tm_mday));
-	max6902_set_reg(dev, 0x09, bin2bcd(dt->tm_mon + 1));
-	max6902_set_reg(dev, 0x0B, bin2bcd(dt->tm_wday));
-	max6902_set_reg(dev, 0x0D, bin2bcd(dt->tm_year % 100));
-	max6902_set_reg(dev, 0x13, bin2bcd(dt->tm_year / 100));
+	max6902_set_reg(dev, MAX6902_REG_DATE, bin2bcd(dt->tm_mday));
+	max6902_set_reg(dev, MAX6902_REG_MONTH, bin2bcd(dt->tm_mon + 1));
+	max6902_set_reg(dev, MAX6902_REG_DAY, bin2bcd(dt->tm_wday));
+	max6902_set_reg(dev, MAX6902_REG_YEAR, bin2bcd(dt->tm_year % 100));
+	max6902_set_reg(dev, MAX6902_REG_CENTURY, bin2bcd(dt->tm_year / 100));
 
 	/* Compulab used a delay here. However, the datasheet
 	 * does not mention a delay being required anywhere... */
 	/* delay(2000); */
 
 	/* Write protect */
-	max6902_set_reg(dev, 0xF, 0x80);
+	max6902_set_reg(dev, MAX6902_REG_CONTROL, 0x80);
 
 	return 0;
 }
@@ -134,20 +134,12 @@ static int max6902_probe(struct spi_device *spi)
 	if (res != 0)
 		return res;
 
-	rtc = rtc_device_register("max6902",
-				&spi->dev, &max6902_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&spi->dev, "max6902",
+				&max6902_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	dev_set_drvdata(&spi->dev, rtc);
-	return 0;
-}
-
-static int max6902_remove(struct spi_device *spi)
-{
-	struct rtc_device *rtc = dev_get_drvdata(&spi->dev);
-
-	rtc_device_unregister(rtc);
+	spi_set_drvdata(spi, rtc);
 	return 0;
 }
 
@@ -157,12 +149,11 @@ static struct spi_driver max6902_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= max6902_probe,
-	.remove = max6902_remove,
 };
 
 module_spi_driver(max6902_driver);
 
-MODULE_DESCRIPTION ("max6902 spi RTC driver");
-MODULE_AUTHOR ("Raphael Assenat");
-MODULE_LICENSE ("GPL");
+MODULE_DESCRIPTION("max6902 spi RTC driver");
+MODULE_AUTHOR("Raphael Assenat");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:rtc-max6902");

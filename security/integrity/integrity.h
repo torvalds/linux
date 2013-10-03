@@ -113,5 +113,19 @@ static inline int asymmetric_verify(struct key *keyring, const char *sig,
 }
 #endif
 
+#ifdef CONFIG_INTEGRITY_AUDIT
+/* declarations */
+void integrity_audit_msg(int audit_msgno, struct inode *inode,
+			 const unsigned char *fname, const char *op,
+			 const char *cause, int result, int info);
+#else
+static inline void integrity_audit_msg(int audit_msgno, struct inode *inode,
+				       const unsigned char *fname,
+				       const char *op, const char *cause,
+				       int result, int info)
+{
+}
+#endif
+
 /* set during initialization */
 extern int iint_initialized;

@@ -35,7 +35,6 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_cmnd.h>
-#include <linux/netlink.h>
 #include <net/netlink.h>
 #include <scsi/scsi_netlink_fc.h>
 #include <scsi/scsi_bsg_fc.h>
@@ -436,7 +435,7 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 
 	snprintf(fc_host->work_q_name, sizeof(fc_host->work_q_name),
 		 "fc_wq_%d", shost->host_no);
-	fc_host->work_q = alloc_workqueue(fc_host->work_q_name, 0, 0);
+	fc_host->work_q = alloc_workqueue("%s", 0, 0, fc_host->work_q_name);
 	if (!fc_host->work_q)
 		return -ENOMEM;
 
@@ -444,8 +443,8 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	snprintf(fc_host->devloss_work_q_name,
 		 sizeof(fc_host->devloss_work_q_name),
 		 "fc_dl_%d", shost->host_no);
-	fc_host->devloss_work_q =
-			alloc_workqueue(fc_host->devloss_work_q_name, 0, 0);
+	fc_host->devloss_work_q = alloc_workqueue("%s", 0, 0,
+					fc_host->devloss_work_q_name);
 	if (!fc_host->devloss_work_q) {
 		destroy_workqueue(fc_host->work_q);
 		fc_host->work_q = NULL;
@@ -534,7 +533,7 @@ fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
 	struct nlmsghdr	*nlh;
 	struct fc_nl_event *event;
 	const char *name;
-	u32 len, skblen;
+	u32 len;
 	int err;
 
 	if (!scsi_nl_sock) {
@@ -543,21 +542,19 @@ fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
 	}
 
 	len = FC_NL_MSGALIGN(sizeof(*event));
-	skblen = NLMSG_SPACE(len);
 
-	skb = alloc_skb(skblen, GFP_KERNEL);
+	skb = nlmsg_new(len, GFP_KERNEL);
 	if (!skb) {
 		err = -ENOBUFS;
 		goto send_fail;
 	}
 
-	nlh = nlmsg_put(skb, 0, 0, SCSI_TRANSPORT_MSG,
-				skblen - sizeof(*nlh), 0);
+	nlh = nlmsg_put(skb, 0, 0, SCSI_TRANSPORT_MSG, len, 0);
 	if (!nlh) {
 		err = -ENOBUFS;
 		goto send_fail_skb;
 	}
-	event = NLMSG_DATA(nlh);
+	event = nlmsg_data(nlh);
 
 	INIT_SCSI_NL_HDR(&event->snlh, SCSI_NL_TRANSPORT_FC,
 				FC_NL_ASYNC_EVENT, len);
@@ -604,7 +601,7 @@ fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 	struct sk_buff *skb;
 	struct nlmsghdr	*nlh;
 	struct fc_nl_event *event;
-	u32 len, skblen;
+	u32 len;
 	int err;
 
 	if (!scsi_nl_sock) {
@@ -613,21 +610,19 @@ fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 	}
 
 	len = FC_NL_MSGALIGN(sizeof(*event) + data_len);
-	skblen = NLMSG_SPACE(len);
 
-	skb = alloc_skb(skblen, GFP_KERNEL);
+	skb = nlmsg_new(len, GFP_KERNEL);
 	if (!skb) {
 		err = -ENOBUFS;
 		goto send_vendor_fail;
 	}
 
-	nlh = nlmsg_put(skb, 0, 0, SCSI_TRANSPORT_MSG,
-				skblen - sizeof(*nlh), 0);
+	nlh = nlmsg_put(skb, 0, 0, SCSI_TRANSPORT_MSG, len, 0);
 	if (!nlh) {
 		err = -ENOBUFS;
 		goto send_vendor_fail_skb;
 	}
-	event = NLMSG_DATA(nlh);
+	event = nlmsg_data(nlh);
 
 	INIT_SCSI_NL_HDR(&event->snlh, SCSI_NL_TRANSPORT_FC,
 				FC_NL_ASYNC_EVENT, len);

@@ -89,7 +89,7 @@ static int hspi_status_check_timeout(struct hspi_priv *hspi, u32 mask, u32 val)
 		if ((mask & hspi_read(hspi, SPSR)) == val)
 			return 0;
 
-		msleep(20);
+		udelay(10);
 	}
 
 	dev_err(hspi->dev, "timeout\n");
@@ -99,21 +99,6 @@ static int hspi_status_check_timeout(struct hspi_priv *hspi, u32 mask, u32 val)
 /*
  *		spi master function
  */
-static int hspi_prepare_transfer(struct spi_master *master)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(hspi->dev);
-	return 0;
-}
-
-static int hspi_unprepare_transfer(struct spi_master *master)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(master);
-
-	pm_runtime_put_sync(hspi->dev);
-	return 0;
-}
 
 #define hspi_hw_cs_enable(hspi)		hspi_hw_cs_ctrl(hspi, 0)
 #define hspi_hw_cs_disable(hspi)	hspi_hw_cs_ctrl(hspi, 1)
@@ -297,7 +282,7 @@ static int hspi_probe(struct platform_device *pdev)
 	}
 
 	hspi = spi_master_get_devdata(master);
-	dev_set_drvdata(&pdev->dev, hspi);
+	platform_set_drvdata(pdev, hspi);
 
 	/* init hspi */
 	hspi->master	= master;
@@ -316,9 +301,8 @@ static int hspi_probe(struct platform_device *pdev)
 	master->setup		= hspi_setup;
 	master->cleanup		= hspi_cleanup;
 	master->mode_bits	= SPI_CPOL | SPI_CPHA;
-	master->prepare_transfer_hardware	= hspi_prepare_transfer;
+	master->auto_runtime_pm = true;
 	master->transfer_one_message		= hspi_transfer_one_message;
-	master->unprepare_transfer_hardware	= hspi_unprepare_transfer;
 	ret = spi_register_master(master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
@@ -326,8 +310,6 @@ static int hspi_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
-
-	dev_info(&pdev->dev, "probed\n");
 
 	return 0;
 
@@ -341,7 +323,7 @@ static int hspi_probe(struct platform_device *pdev)
 
 static int hspi_remove(struct platform_device *pdev)
 {
-	struct hspi_priv *hspi = dev_get_drvdata(&pdev->dev);
+	struct hspi_priv *hspi = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 

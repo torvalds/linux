@@ -63,7 +63,7 @@ struct csio_rnode_stats {
 	uint32_t	n_err_nomem;	/* error nomem */
 	uint32_t	n_evt_unexp;	/* unexpected event */
 	uint32_t	n_evt_drop;	/* unexpected event */
-	uint32_t	n_evt_fw[RSCN_DEV_LOST];	/* fw events */
+	uint32_t	n_evt_fw[PROTO_ERR_IMPL_LOGO + 1];	/* fw events */
 	enum csio_rn_ev	n_evt_sm[CSIO_RNFE_MAX_EVENT];	/* State m/c events */
 	uint32_t	n_lun_rst;	/* Number of resets of
 					 * of LUNs under this

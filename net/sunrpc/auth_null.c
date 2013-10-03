@@ -18,7 +18,7 @@ static struct rpc_auth null_auth;
 static struct rpc_cred null_cred;
 
 static struct rpc_auth *
-nul_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
+nul_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	atomic_inc(&null_auth.au_count);
 	return &null_auth;
@@ -88,13 +88,13 @@ nul_validate(struct rpc_task *task, __be32 *p)
 	flavor = ntohl(*p++);
 	if (flavor != RPC_AUTH_NULL) {
 		printk("RPC: bad verf flavor: %u\n", flavor);
-		return NULL;
+		return ERR_PTR(-EIO);
 	}
 
 	size = ntohl(*p++);
 	if (size != 0) {
 		printk("RPC: bad verf size: %u\n", size);
-		return NULL;
+		return ERR_PTR(-EIO);
 	}
 
 	return p;

@@ -13,29 +13,8 @@
 #include <asm/page.h>
 #include <asm/pci_io.h>
 
-/*
- * Change virtual addresses to physical addresses and vv.
- * These are pretty trivial
- */
-static inline unsigned long virt_to_phys(volatile void * address)
-{
-	unsigned long real_address;
-	asm volatile(
-		 "	lra	%0,0(%1)\n"
-		 "	jz	0f\n"
-		 "	la	%0,0\n"
-		 "0:"
-		 : "=a" (real_address) : "a" (address) : "cc");
-	return real_address;
-}
-#define virt_to_phys virt_to_phys
-
-static inline void * phys_to_virt(unsigned long address)
-{
-	return (void *) address;
-}
-
 void *xlate_dev_mem_ptr(unsigned long phys);
+#define xlate_dev_mem_ptr xlate_dev_mem_ptr
 void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
 
 /*
@@ -49,10 +28,6 @@ void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
 
 #define ioremap_nocache(addr, size)	ioremap(addr, size)
 #define ioremap_wc			ioremap_nocache
-
-/* TODO: s390 cannot support io_remap_pfn_range... */
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot) 	       \
-	remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {

@@ -34,6 +34,10 @@
 
 #ifdef __x86_64__
 .data
+.align 16
+.Lgf128mul_x_ble_mask:
+	.octa 0x00000000000000010000000000000087
+
 POLY:   .octa 0xC2000000000000000000000000000001
 TWOONE: .octa 0x00000001000000000000000000000001
 
@@ -104,6 +108,8 @@ enc:        .octa 0x2
 #define BSWAP_MASK %xmm10
 #define CTR	%xmm11
 #define INC	%xmm12
+
+#define GF128MUL_MASK %xmm10
 
 #ifdef __x86_64__
 #define AREG	%rax
@@ -2636,4 +2642,131 @@ ENTRY(aesni_ctr_enc)
 .Lctr_enc_just_ret:
 	ret
 ENDPROC(aesni_ctr_enc)
+
+/*
+ * _aesni_gf128mul_x_ble:		internal ABI
+ *	Multiply in GF(2^128) for XTS IVs
+ * input:
+ *	IV:	current IV
+ *	GF128MUL_MASK == mask with 0x87 and 0x01
+ * output:
+ *	IV:	next IV
+ * changed:
+ *	CTR:	== temporary value
+ */
+#define _aesni_gf128mul_x_ble() \
+	pshufd $0x13, IV, CTR; \
+	paddq IV, IV; \
+	psrad $31, CTR; \
+	pand GF128MUL_MASK, CTR; \
+	pxor CTR, IV;
+
+/*
+ * void aesni_xts_crypt8(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
+ *			 bool enc, u8 *iv)
+ */
+ENTRY(aesni_xts_crypt8)
+	cmpb $0, %cl
+	movl $0, %ecx
+	movl $240, %r10d
+	leaq _aesni_enc4, %r11
+	leaq _aesni_dec4, %rax
+	cmovel %r10d, %ecx
+	cmoveq %rax, %r11
+
+	movdqa .Lgf128mul_x_ble_mask, GF128MUL_MASK
+	movups (IVP), IV
+
+	mov 480(KEYP), KLEN
+	addq %rcx, KEYP
+
+	movdqa IV, STATE1
+	movdqu 0x00(INP), INC
+	pxor INC, STATE1
+	movdqu IV, 0x00(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE2
+	movdqu 0x10(INP), INC
+	pxor INC, STATE2
+	movdqu IV, 0x10(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE3
+	movdqu 0x20(INP), INC
+	pxor INC, STATE3
+	movdqu IV, 0x20(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE4
+	movdqu 0x30(INP), INC
+	pxor INC, STATE4
+	movdqu IV, 0x30(OUTP)
+
+	call *%r11
+
+	movdqu 0x00(OUTP), INC
+	pxor INC, STATE1
+	movdqu STATE1, 0x00(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE1
+	movdqu 0x40(INP), INC
+	pxor INC, STATE1
+	movdqu IV, 0x40(OUTP)
+
+	movdqu 0x10(OUTP), INC
+	pxor INC, STATE2
+	movdqu STATE2, 0x10(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE2
+	movdqu 0x50(INP), INC
+	pxor INC, STATE2
+	movdqu IV, 0x50(OUTP)
+
+	movdqu 0x20(OUTP), INC
+	pxor INC, STATE3
+	movdqu STATE3, 0x20(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE3
+	movdqu 0x60(INP), INC
+	pxor INC, STATE3
+	movdqu IV, 0x60(OUTP)
+
+	movdqu 0x30(OUTP), INC
+	pxor INC, STATE4
+	movdqu STATE4, 0x30(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE4
+	movdqu 0x70(INP), INC
+	pxor INC, STATE4
+	movdqu IV, 0x70(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movups IV, (IVP)
+
+	call *%r11
+
+	movdqu 0x40(OUTP), INC
+	pxor INC, STATE1
+	movdqu STATE1, 0x40(OUTP)
+
+	movdqu 0x50(OUTP), INC
+	pxor INC, STATE2
+	movdqu STATE2, 0x50(OUTP)
+
+	movdqu 0x60(OUTP), INC
+	pxor INC, STATE3
+	movdqu STATE3, 0x60(OUTP)
+
+	movdqu 0x70(OUTP), INC
+	pxor INC, STATE4
+	movdqu STATE4, 0x70(OUTP)
+
+	ret
+ENDPROC(aesni_xts_crypt8)
+
 #endif

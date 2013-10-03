@@ -558,11 +558,11 @@ ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length)
 				kfree(newstr);
 				return -EINVAL;
 			}
-			spk_lock(flags);
+			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			if (speakup_msgs[index] != speakup_default_msgs[index])
 				kfree(speakup_msgs[index]);
 			speakup_msgs[index] = newstr;
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		} else {
 			rc = -ENOMEM;
 		}
@@ -595,14 +595,14 @@ void spk_reset_msg_group(struct msg_group_t *group)
 	unsigned long flags;
 	enum msg_index_t i;
 
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 
 	for (i = group->start; i <= group->end; i++) {
 		if (speakup_msgs[i] != speakup_default_msgs[i])
 			kfree(speakup_msgs[i]);
 		speakup_msgs[i] = speakup_default_msgs[i];
 	}
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
 /* Called at initialization time, to establish default messages. */
@@ -618,12 +618,12 @@ void spk_free_user_msgs(void)
 	enum msg_index_t index;
 	unsigned long flags;
 
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	for (index = MSG_FIRST_INDEX; index < MSG_LAST_INDEX; index++) {
 		if (speakup_msgs[index] != speakup_default_msgs[index]) {
 			kfree(speakup_msgs[index]);
 			speakup_msgs[index] = speakup_default_msgs[index];
 		}
 	}
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }

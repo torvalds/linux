@@ -44,7 +44,8 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 	v4l2_dev->dev = dev;
 	if (dev == NULL) {
 		/* If dev == NULL, then name must be filled in by the caller */
-		WARN_ON(!v4l2_dev->name[0]);
+		if (WARN_ON(!v4l2_dev->name[0]))
+			return -EINVAL;
 		return 0;
 	}
 
@@ -105,7 +106,9 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 {
 	struct v4l2_subdev *sd, *next;
 
-	if (v4l2_dev == NULL)
+	/* Just return if v4l2_dev is NULL or if it was already
+	 * unregistered before. */
+	if (v4l2_dev == NULL || !v4l2_dev->name[0])
 		return;
 	v4l2_device_disconnect(v4l2_dev);
 
@@ -135,6 +138,8 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 		}
 #endif
 	}
+	/* Mark as unregistered, thus preventing duplicate unregistrations */
+	v4l2_dev->name[0] = '\0';
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 
@@ -269,8 +274,10 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 	sd->v4l2_dev = NULL;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (v4l2_dev->mdev)
+	if (v4l2_dev->mdev) {
+		media_entity_remove_links(&sd->entity);
 		media_device_unregister_entity(&sd->entity);
+	}
 #endif
 	video_unregister_device(sd->devnode);
 	module_put(sd->owner);

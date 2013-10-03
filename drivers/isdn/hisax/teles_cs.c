@@ -197,16 +197,4 @@ static struct pcmcia_driver teles_cs_driver = {
 	.suspend	= teles_suspend,
 	.resume		= teles_resume,
 };
-
-static int __init init_teles_cs(void)
-{
-	return pcmcia_register_driver(&teles_cs_driver);
-}
-
-static void __exit exit_teles_cs(void)
-{
-	pcmcia_unregister_driver(&teles_cs_driver);
-}
-
-module_init(init_teles_cs);
-module_exit(exit_teles_cs);
+module_pcmcia_driver(teles_cs_driver);

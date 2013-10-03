@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <linux/of_i2c.h>
 #include <linux/of_gpio.h>
 
 struct gpiomux {
@@ -148,12 +147,14 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mux);
 
-	if (!pdev->dev.platform_data) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		ret = i2c_mux_gpio_probe_dt(mux, pdev);
 		if (ret < 0)
 			return ret;
-	} else
-		memcpy(&mux->data, pdev->dev.platform_data, sizeof(mux->data));
+	} else {
+		memcpy(&mux->data, dev_get_platdata(&pdev->dev),
+			sizeof(mux->data));
+	}
 
 	/*
 	 * If a GPIO chip name is provided, the GPIO pin numbers provided are
@@ -201,10 +202,21 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < mux->data.n_gpios; i++) {
 		ret = gpio_request(gpio_base + mux->data.gpios[i], "i2c-mux-gpio");
-		if (ret)
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to request GPIO %d\n",
+				mux->data.gpios[i]);
 			goto err_request_gpio;
-		gpio_direction_output(gpio_base + mux->data.gpios[i],
-				      initial_state & (1 << i));
+		}
+
+		ret = gpio_direction_output(gpio_base + mux->data.gpios[i],
+					    initial_state & (1 << i));
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to set direction of GPIO %d to output\n",
+				mux->data.gpios[i]);
+			i++;	/* gpio_request above succeeded, so must free */
+			goto err_request_gpio;
+		}
 	}
 
 	for (i = 0; i < mux->data.n_values; i++) {

@@ -578,6 +578,7 @@ data_sock_getname(struct socket *sock, struct sockaddr *addr,
 	lock_sock(sk);
 
 	*addr_len = sizeof(*maddr);
+	maddr->family = AF_ISDN;
 	maddr->dev = _pms(sk)->dev->id;
 	maddr->channel = _pms(sk)->ch.nr;
 	maddr->sapi = _pms(sk)->ch.addr & 0xff;

@@ -153,9 +153,7 @@ err_irq:
 
 static int ehci_hcd_grlib_remove(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
-
-	dev_set_drvdata(&op->dev, NULL);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 
 	dev_dbg(&op->dev, "stopping GRLIB GRUSBHC EHCI USB Controller\n");
 
@@ -166,15 +164,6 @@ static int ehci_hcd_grlib_remove(struct platform_device *op)
 	usb_put_hcd(hcd);
 
 	return 0;
-}
-
-
-static void ehci_hcd_grlib_shutdown(struct platform_device *op)
-{
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
 }
 
 
@@ -193,7 +182,7 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_grlib_of_match);
 static struct platform_driver ehci_grlib_driver = {
 	.probe		= ehci_hcd_grlib_probe,
 	.remove		= ehci_hcd_grlib_remove,
-	.shutdown	= ehci_hcd_grlib_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "grlib-ehci",
 		.owner = THIS_MODULE,

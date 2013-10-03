@@ -46,7 +46,8 @@ static LIST_HEAD(shutdown_files);
 
 static const struct file_operations snd_shutdown_f_ops;
 
-static unsigned int snd_cards_lock;	/* locked for registering/using */
+/* locked for registering/using */
+static DECLARE_BITMAP(snd_cards_lock, SNDRV_CARDS);
 struct snd_card *snd_cards[SNDRV_CARDS];
 EXPORT_SYMBOL(snd_cards);
 
@@ -144,7 +145,7 @@ static inline int init_info_for_card(struct snd_card *card)
  *  space for the driver to use freely.  The allocated struct is stored
  *  in the given card_ret pointer.
  *
- *  Returns zero if successful or a negative error code.
+ *  Return: Zero if successful or a negative error code.
  */
 int snd_card_create(int idx, const char *xid,
 		    struct module *module, int extra_size,
@@ -167,29 +168,35 @@ int snd_card_create(int idx, const char *xid,
 	err = 0;
 	mutex_lock(&snd_card_mutex);
 	if (idx < 0) {
-		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
+		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++) {
 			/* idx == -1 == 0xffff means: take any free slot */
-			if (~snd_cards_lock & idx & 1<<idx2) {
+			if (idx2 < sizeof(int) && !(idx & (1U << idx2)))
+				continue;
+			if (!test_bit(idx2, snd_cards_lock)) {
 				if (module_slot_match(module, idx2)) {
 					idx = idx2;
 					break;
 				}
 			}
+		}
 	}
 	if (idx < 0) {
-		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
+		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++) {
 			/* idx == -1 == 0xffff means: take any free slot */
-			if (~snd_cards_lock & idx & 1<<idx2) {
+			if (idx2 < sizeof(int) && !(idx & (1U << idx2)))
+				continue;
+			if (!test_bit(idx2, snd_cards_lock)) {
 				if (!slots[idx2] || !*slots[idx2]) {
 					idx = idx2;
 					break;
 				}
 			}
+		}
 	}
 	if (idx < 0)
 		err = -ENODEV;
 	else if (idx < snd_ecards_limit) {
-		if (snd_cards_lock & (1 << idx))
+		if (test_bit(idx, snd_cards_lock))
 			err = -EBUSY;	/* invalid */
 	} else if (idx >= SNDRV_CARDS)
 		err = -ENODEV;
@@ -199,7 +206,7 @@ int snd_card_create(int idx, const char *xid,
 			 idx, snd_ecards_limit - 1, err);
 		goto __error;
 	}
-	snd_cards_lock |= 1 << idx;		/* lock it */
+	set_bit(idx, snd_cards_lock);		/* lock it */
 	if (idx >= snd_ecards_limit)
 		snd_ecards_limit = idx + 1; /* increase the limit */
 	mutex_unlock(&snd_card_mutex);
@@ -249,7 +256,7 @@ int snd_card_locked(int card)
 	int locked;
 
 	mutex_lock(&snd_card_mutex);
-	locked = snd_cards_lock & (1 << card);
+	locked = test_bit(card, snd_cards_lock);
 	mutex_unlock(&snd_card_mutex);
 	return locked;
 }
@@ -337,7 +344,7 @@ static const struct file_operations snd_shutdown_f_ops =
  *
  *  Disconnects all APIs from the file-operations (user space).
  *
- *  Returns zero, otherwise a negative error code.
+ *  Return: Zero, otherwise a negative error code.
  *
  *  Note: The current implementation replaces all active file->f_op with special
  *        dummy file operations (they do nothing except release).
@@ -361,7 +368,7 @@ int snd_card_disconnect(struct snd_card *card)
 	/* phase 1: disable fops (user space) operations for ALSA API */
 	mutex_lock(&snd_card_mutex);
 	snd_cards[card->number] = NULL;
-	snd_cards_lock &= ~(1 << card->number);
+	clear_bit(card->number, snd_cards_lock);
 	mutex_unlock(&snd_card_mutex);
 	
 	/* phase 2: replace file->f_op with special dummy operations */
@@ -415,7 +422,7 @@ EXPORT_SYMBOL(snd_card_disconnect);
  *  devices automatically.  That is, you don't have to release the devices
  *  by yourself.
  *
- *  Returns zero. Frees all associated devices and frees the control
+ *  Return: Zero. Frees all associated devices and frees the control
  *  interface associated to given soundcard.
  */
 static int snd_card_do_free(struct snd_card *card)
@@ -549,7 +556,6 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *src,
 				    const char *nid)
 {
 	int len, loops;
-	bool with_suffix;
 	bool is_default = false;
 	char *id;
 	
@@ -565,26 +571,23 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *src,
 		is_default = true;
 	}
 
-	with_suffix = false;
+	len = strlen(id);
 	for (loops = 0; loops < SNDRV_CARDS; loops++) {
+		char *spos;
+		char sfxstr[5]; /* "_012" */
+		int sfxlen;
+
 		if (card_id_ok(card, id))
 			return; /* OK */
 
-		len = strlen(id);
-		if (!with_suffix) {
-			/* add the "_X" suffix */
-			char *spos = id + len;
-			if (len >  sizeof(card->id) - 3)
-				spos = id + sizeof(card->id) - 3;
-			strcpy(spos, "_1");
-			with_suffix = true;
-		} else {
-			/* modify the existing suffix */
-			if (id[len - 1] != '9')
-				id[len - 1]++;
-			else
-				id[len - 1] = 'A';
-		}
+		/* Add _XYZ suffix */
+		sprintf(sfxstr, "_%X", loops + 1);
+		sfxlen = strlen(sfxstr);
+		if (len + sfxlen >= sizeof(card->id))
+			spos = id + sizeof(card->id) - sfxlen - 1;
+		else
+			spos = id + len;
+		strcpy(spos, sfxstr);
 	}
 	/* fallback to the default id */
 	if (!is_default) {
@@ -677,7 +680,7 @@ static struct device_attribute card_number_attrs =
  *  external accesses.  Thus, you should call this function at the end
  *  of the initialization of the card.
  *
- *  Returns zero otherwise a negative error code if the registration failed.
+ *  Return: Zero otherwise a negative error code if the registration failed.
  */
 int snd_card_register(struct snd_card *card)
 {
@@ -849,7 +852,7 @@ int __exit snd_card_info_done(void)
  *  This function adds the component id string to the supported list.
  *  The component can be referred from the alsa-lib.
  *
- *  Returns zero otherwise a negative error code.
+ *  Return: Zero otherwise a negative error code.
  */
   
 int snd_component_add(struct snd_card *card, const char *component)
@@ -883,7 +886,7 @@ EXPORT_SYMBOL(snd_component_add);
  *  This linked-list is used to keep tracking the connection state,
  *  and to avoid the release of busy resources by hotplug.
  *
- *  Returns zero or a negative error code.
+ *  Return: zero or a negative error code.
  */
 int snd_card_file_add(struct snd_card *card, struct file *file)
 {
@@ -920,7 +923,7 @@ EXPORT_SYMBOL(snd_card_file_add);
  *  called beforehand, it processes the pending release of
  *  resources.
  *
- *  Returns zero or a negative error code.
+ *  Return: Zero or a negative error code.
  */
 int snd_card_file_remove(struct snd_card *card, struct file *file)
 {
@@ -958,6 +961,8 @@ EXPORT_SYMBOL(snd_card_file_remove);
  *  @power_state: expected power state
  *
  *  Waits until the power-state is changed.
+ *
+ *  Return: Zero if successful, or a negative error code.
  *
  *  Note: the power lock must be active before call.
  */

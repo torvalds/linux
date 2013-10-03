@@ -398,6 +398,69 @@ nilfs_palloc_rest_groups_in_desc_block(const struct inode *inode,
 }
 
 /**
+ * nilfs_palloc_count_desc_blocks - count descriptor blocks number
+ * @inode: inode of metadata file using this allocator
+ * @desc_blocks: descriptor blocks number [out]
+ */
+static int nilfs_palloc_count_desc_blocks(struct inode *inode,
+					    unsigned long *desc_blocks)
+{
+	unsigned long blknum;
+	int ret;
+
+	ret = nilfs_bmap_last_key(NILFS_I(inode)->i_bmap, &blknum);
+	if (likely(!ret))
+		*desc_blocks = DIV_ROUND_UP(
+			blknum, NILFS_MDT(inode)->mi_blocks_per_desc_block);
+	return ret;
+}
+
+/**
+ * nilfs_palloc_mdt_file_can_grow - check potential opportunity for
+ *					MDT file growing
+ * @inode: inode of metadata file using this allocator
+ * @desc_blocks: known current descriptor blocks count
+ */
+static inline bool nilfs_palloc_mdt_file_can_grow(struct inode *inode,
+						    unsigned long desc_blocks)
+{
+	return (nilfs_palloc_groups_per_desc_block(inode) * desc_blocks) <
+			nilfs_palloc_groups_count(inode);
+}
+
+/**
+ * nilfs_palloc_count_max_entries - count max number of entries that can be
+ *					described by descriptor blocks count
+ * @inode: inode of metadata file using this allocator
+ * @nused: current number of used entries
+ * @nmaxp: max number of entries [out]
+ */
+int nilfs_palloc_count_max_entries(struct inode *inode, u64 nused, u64 *nmaxp)
+{
+	unsigned long desc_blocks = 0;
+	u64 entries_per_desc_block, nmax;
+	int err;
+
+	err = nilfs_palloc_count_desc_blocks(inode, &desc_blocks);
+	if (unlikely(err))
+		return err;
+
+	entries_per_desc_block = (u64)nilfs_palloc_entries_per_group(inode) *
+				nilfs_palloc_groups_per_desc_block(inode);
+	nmax = entries_per_desc_block * desc_blocks;
+
+	if (nused == nmax &&
+			nilfs_palloc_mdt_file_can_grow(inode, desc_blocks))
+		nmax += entries_per_desc_block;
+
+	if (nused > nmax)
+		return -ERANGE;
+
+	*nmaxp = nmax;
+	return 0;
+}
+
+/**
  * nilfs_palloc_prepare_alloc_entry - prepare to allocate a persistent object
  * @inode: inode of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the allocation

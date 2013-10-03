@@ -96,7 +96,8 @@ static void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 
 static void gfs2_print_trans(const struct gfs2_trans *tr)
 {
-	print_symbol(KERN_WARNING "GFS2: Transaction created at: %s\n", tr->tr_ip);
+	printk(KERN_WARNING "GFS2: Transaction created at: %pSR\n",
+	       (void *)tr->tr_ip);
 	printk(KERN_WARNING "GFS2: blocks=%u revokes=%u reserved=%u touched=%d\n",
 	       tr->tr_blocks, tr->tr_revokes, tr->tr_reserved, tr->tr_touched);
 	printk(KERN_WARNING "GFS2: Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
@@ -135,8 +136,10 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	if (tr->tr_t_gh.gh_gl) {
 		gfs2_glock_dq(&tr->tr_t_gh);
 		gfs2_holder_uninit(&tr->tr_t_gh);
-		kfree(tr);
+		if (!tr->tr_attached)
+			kfree(tr);
 	}
+	up_read(&sdp->sd_log_flush_lock);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
 		gfs2_log_flush(sdp, NULL);
@@ -267,19 +270,12 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 
 void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
-	struct gfs2_glock *gl = bd->bd_gl;
 	struct gfs2_trans *tr = current->journal_info;
 
 	BUG_ON(!list_empty(&bd->bd_list));
-	BUG_ON(!list_empty(&bd->bd_ail_st_list));
-	BUG_ON(!list_empty(&bd->bd_ail_gl_list));
-	bd->bd_ops = &gfs2_revoke_lops;
+	gfs2_add_revoke(sdp, bd);
 	tr->tr_touched = 1;
 	tr->tr_num_revoke++;
-	sdp->sd_log_num_revoke++;
-	atomic_inc(&gl->gl_revokes);
-	set_bit(GLF_LFLUSH, &gl->gl_flags);
-	list_add(&bd->bd_list, &sdp->sd_log_le_revoke);
 }
 
 void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)

@@ -88,6 +88,7 @@ static struct davinci_nand_pdata davinci_ntosd2_nandflash_data = {
 	.parts		= davinci_ntosd2_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_ntosd2_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
+	.ecc_bits	= 1,
 	.bbt_options	= NAND_BBT_USE_FLASH,
 };
 
@@ -153,10 +154,6 @@ static struct platform_device *davinci_ntosd2_devices[] __initdata = {
 	&ntosd2_leds_dev,
 };
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 static void __init davinci_ntosd2_map_io(void)
 {
 	dm644x_init();
@@ -164,23 +161,11 @@ static void __init davinci_ntosd2_map_io(void)
 
 static struct davinci_mmc_config davinci_ntosd2_mmc_config = {
 	.wires		= 4,
-	.version	= MMC_CTLR_VERSION_1
 };
 
+#define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
 
-#if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
-	defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
-#define HAS_ATA 1
-#else
-#define HAS_ATA 0
-#endif
-
-#if defined(CONFIG_MTD_NAND_DAVINCI) || \
-	defined(CONFIG_MTD_NAND_DAVINCI_MODULE)
-#define HAS_NAND 1
-#else
-#define HAS_NAND 0
-#endif
+#define HAS_NAND	IS_ENABLED(CONFIG_MTD_NAND_DAVINCI)
 
 static __init void davinci_ntosd2_init(void)
 {
@@ -209,7 +194,7 @@ static __init void davinci_ntosd2_init(void)
 	platform_add_devices(davinci_ntosd2_devices,
 				ARRAY_SIZE(davinci_ntosd2_devices));
 
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm644x_serial_device);
 	dm644x_init_asp(&dm644x_ntosd2_snd_data);
 
 	soc_info->emac_pdata->phy_id = NEUROS_OSD2_PHY_ID;

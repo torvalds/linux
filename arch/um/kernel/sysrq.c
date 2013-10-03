@@ -35,23 +35,11 @@ void show_trace(struct task_struct *task, unsigned long * stack)
 }
 #endif
 
-/*
- * stack dumps generator - this is used by arch-independent code.
- * And this is identical to i386 currently.
- */
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_trace(current, &stack);
-}
-EXPORT_SYMBOL(dump_stack);
-
 /*Stolen from arch/i386/kernel/traps.c */
 static const int kstack_depth_to_print = 24;
 
 /* This recently started being used in arch-independent code too, as in
- * kernel/sched.c.*/
+ * kernel/sched/core.c.*/
 void show_stack(struct task_struct *task, unsigned long *esp)
 {
 	unsigned long *stack;

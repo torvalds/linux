@@ -22,9 +22,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/module.h>
 #include <linux/thermal.h>
 
 #include "thermal_core.h"
@@ -46,23 +43,15 @@ static int notify_user_space(struct thermal_zone_device *tz, int trip)
 static struct thermal_governor thermal_gov_user_space = {
 	.name		= "user_space",
 	.throttle	= notify_user_space,
-	.owner		= THIS_MODULE,
 };
 
-static int __init thermal_gov_user_space_init(void)
+int thermal_gov_user_space_register(void)
 {
 	return thermal_register_governor(&thermal_gov_user_space);
 }
 
-static void __exit thermal_gov_user_space_exit(void)
+void thermal_gov_user_space_unregister(void)
 {
 	thermal_unregister_governor(&thermal_gov_user_space);
 }
 
-/* This should load after thermal framework */
-fs_initcall(thermal_gov_user_space_init);
-module_exit(thermal_gov_user_space_exit);
-
-MODULE_AUTHOR("Durgadoss R");
-MODULE_DESCRIPTION("A user space Thermal notifier");
-MODULE_LICENSE("GPL");

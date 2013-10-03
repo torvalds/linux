@@ -443,35 +443,36 @@ static int __init test_devices_support(unsigned long addr)
 }
 /*
  * Init function for virtio
- * devices are in a single page above top of "normal" mem
+ * devices are in a single page above top of "normal" + standby mem
  */
 static int __init kvm_devices_init(void)
 {
 	int rc;
+	unsigned long total_memory_size = sclp_get_rzm() * sclp_get_rnmax();
 
 	if (!MACHINE_IS_KVM)
 		return -ENODEV;
 
-	if (test_devices_support(real_memory_size) < 0)
+	if (test_devices_support(total_memory_size) < 0)
 		return -ENODEV;
 
-	rc = vmem_add_mapping(real_memory_size, PAGE_SIZE);
+	rc = vmem_add_mapping(total_memory_size, PAGE_SIZE);
 	if (rc)
 		return rc;
 
-	kvm_devices = (void *) real_memory_size;
+	kvm_devices = (void *) total_memory_size;
 
 	kvm_root = root_device_register("kvm_s390");
 	if (IS_ERR(kvm_root)) {
 		rc = PTR_ERR(kvm_root);
 		printk(KERN_ERR "Could not register kvm_s390 root device");
-		vmem_remove_mapping(real_memory_size, PAGE_SIZE);
+		vmem_remove_mapping(total_memory_size, PAGE_SIZE);
 		return rc;
 	}
 
 	INIT_WORK(&hotplug_work, hotplug_devices);
 
-	service_subclass_irq_register();
+	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
 	register_external_interrupt(0x2603, kvm_extint_handler);
 
 	scan_devices();

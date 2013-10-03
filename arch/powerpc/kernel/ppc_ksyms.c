@@ -96,7 +96,9 @@ EXPORT_SYMBOL(pci_dram_offset);
 
 EXPORT_SYMBOL(start_thread);
 
+#ifdef CONFIG_PPC_FPU
 EXPORT_SYMBOL(giveup_fpu);
+#endif
 #ifdef CONFIG_ALTIVEC
 EXPORT_SYMBOL(giveup_altivec);
 #endif /* CONFIG_ALTIVEC */
@@ -111,7 +113,6 @@ EXPORT_SYMBOL(giveup_spe);
 #ifndef CONFIG_PPC64
 EXPORT_SYMBOL(flush_instruction_cache);
 #endif
-EXPORT_SYMBOL(__flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
 
 #ifdef CONFIG_SMP
@@ -143,7 +144,8 @@ EXPORT_SYMBOL(__lshrdi3);
 int __ucmpdi2(unsigned long long, unsigned long long);
 EXPORT_SYMBOL(__ucmpdi2);
 #endif
-
+long long __bswapdi2(long long);
+EXPORT_SYMBOL(__bswapdi2);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);

@@ -302,6 +302,8 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	address = trans_exc_code & __FAIL_ADDR_MASK;
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	if (user_mode(regs))
+		flags |= FAULT_FLAG_USER;
 	if (access == VM_WRITE || (trans_exc_code & store_indication) == 0x400)
 		flags |= FAULT_FLAG_WRITE;
 	down_read(&mm->mmap_sem);
@@ -395,8 +397,13 @@ void __kprobes do_protection_exception(struct pt_regs *regs)
 	int fault;
 
 	trans_exc_code = regs->int_parm_long;
-	/* Protection exception is suppressing, decrement psw address. */
-	regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
+	/*
+	 * Protection exceptions are suppressing, decrement psw address.
+	 * The exception to this rule are aborted transactions, for these
+	 * the PSW already points to the correct location.
+	 */
+	if (!(regs->int_code & 0x200))
+		regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
 	/*
 	 * Check for low-address protection.  This needs to be treated
 	 * as a special case because the translation exception code
@@ -634,8 +641,8 @@ out:
 	put_task_struct(tsk);
 }
 
-static int __cpuinit pfault_cpu_notify(struct notifier_block *self,
-				       unsigned long action, void *hcpu)
+static int pfault_cpu_notify(struct notifier_block *self, unsigned long action,
+			     void *hcpu)
 {
 	struct thread_struct *thread, *next;
 	struct task_struct *tsk;
@@ -668,7 +675,7 @@ static int __init pfault_irq_init(void)
 	rc = pfault_init() == 0 ? 0 : -EOPNOTSUPP;
 	if (rc)
 		goto out_pfault;
-	service_subclass_irq_register();
+	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
 	hotcpu_notifier(pfault_cpu_notify, 0);
 	return 0;
 

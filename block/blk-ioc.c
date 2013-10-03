@@ -144,7 +144,8 @@ void put_io_context(struct io_context *ioc)
 	if (atomic_long_dec_and_test(&ioc->refcount)) {
 		spin_lock_irqsave(&ioc->lock, flags);
 		if (!hlist_empty(&ioc->icq_list))
-			schedule_work(&ioc->release_work);
+			queue_work(system_power_efficient_wq,
+					&ioc->release_work);
 		else
 			free_ioc = true;
 		spin_unlock_irqrestore(&ioc->lock, flags);
@@ -366,7 +367,7 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 	if (!icq)
 		return NULL;
 
-	if (radix_tree_preload(gfp_mask) < 0) {
+	if (radix_tree_maybe_preload(gfp_mask) < 0) {
 		kmem_cache_free(et->icq_cache, icq);
 		return NULL;
 	}

@@ -47,7 +47,6 @@ struct task_struct;
  */
 
 #define task_pt_regs(task) user_regs(task_thread_info(task))
-#define current_regs() task_pt_regs(current)
 
 unsigned long get_wchan(struct task_struct *p);
 
@@ -64,13 +63,6 @@ static inline void release_thread(struct task_struct *dead_task)
 #define init_stack      (init_thread_union.stack)
 
 #define cpu_relax()     barrier()
-
-/*
- * disable hlt during certain critical i/o operations
- */
-#define HAVE_DISABLE_HLT
-void disable_hlt(void);
-void enable_hlt(void);
 
 void default_idle(void);
 

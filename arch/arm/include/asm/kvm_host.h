@@ -23,9 +23,14 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 #include <asm/fpstate.h>
-#include <asm/kvm_arch_timer.h>
+#include <kvm/arm_arch_timer.h>
 
+#if defined(CONFIG_KVM_ARM_MAX_VCPUS)
 #define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
+#else
+#define KVM_MAX_VCPUS 0
+#endif
+
 #define KVM_USER_MEM_SLOTS 32
 #define KVM_PRIVATE_MEM_SLOTS 4
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
@@ -38,7 +43,7 @@
 #define KVM_NR_PAGE_SIZES	1
 #define KVM_PAGES_PER_HPAGE(x)	(1UL<<31)
 
-#include <asm/kvm_vgic.h>
+#include <kvm/arm_vgic.h>
 
 struct kvm_vcpu;
 u32 *kvm_vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num, u32 mode);
@@ -80,6 +85,15 @@ struct kvm_mmu_memory_cache {
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
+struct kvm_vcpu_fault_info {
+	u32 hsr;		/* Hyp Syndrome Register */
+	u32 hxfar;		/* Hyp Data/Inst. Fault Address Register */
+	u32 hpfar;		/* Hyp IPA Fault Address Register */
+	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
+};
+
+typedef struct vfp_hard_struct kvm_cpu_context_t;
+
 struct kvm_vcpu_arch {
 	struct kvm_regs regs;
 
@@ -93,13 +107,13 @@ struct kvm_vcpu_arch {
 	u32 midr;
 
 	/* Exception Information */
-	u32 hsr;		/* Hyp Syndrome Register */
-	u32 hxfar;		/* Hyp Data/Inst Fault Address Register */
-	u32 hpfar;		/* Hyp IPA Fault Address Register */
+	struct kvm_vcpu_fault_info fault;
 
 	/* Floating point registers (VFP and Advanced SIMD/NEON) */
 	struct vfp_hard_struct vfp_guest;
-	struct vfp_hard_struct *vfp_host;
+
+	/* Host FP context */
+	kvm_cpu_context_t *host_cpu_context;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
@@ -121,9 +135,6 @@ struct kvm_vcpu_arch {
 
 	/* Interrupt related fields */
 	u32 irq_lines;		/* IRQ and FIQ levels */
-
-	/* Hyp exception information */
-	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
 
 	/* Cache some mmu pages needed inside spinlock regions */
 	struct kvm_mmu_memory_cache mmu_page_cache;
@@ -180,5 +191,42 @@ unsigned long kvm_arm_num_coproc_regs(struct kvm_vcpu *vcpu);
 struct kvm_one_reg;
 int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
 int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
+
+int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
+		int exception_index);
+
+static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
+				       phys_addr_t pgd_ptr,
+				       unsigned long hyp_stack_ptr,
+				       unsigned long vector_ptr)
+{
+	/*
+	 * Call initialization code, and switch to the full blown HYP
+	 * code. The init code doesn't need to preserve these
+	 * registers as r0-r3 are already callee saved according to
+	 * the AAPCS.
+	 * Note that we slightly misuse the prototype by casing the
+	 * stack pointer to a void *.
+	 *
+	 * We don't have enough registers to perform the full init in
+	 * one go.  Install the boot PGD first, and then install the
+	 * runtime PGD, stack pointer and vectors. The PGDs are always
+	 * passed as the third argument, in order to be passed into
+	 * r2-r3 to the init code (yes, this is compliant with the
+	 * PCS!).
+	 */
+
+	kvm_call_hyp(NULL, 0, boot_pgd_ptr);
+
+	kvm_call_hyp((void*)hyp_stack_ptr, vector_ptr, pgd_ptr);
+}
+
+static inline int kvm_arch_dev_ioctl_check_extension(long ext)
+{
+	return 0;
+}
+
+int kvm_perf_init(void);
+int kvm_perf_teardown(void);
 
 #endif /* __ARM_KVM_HOST_H__ */

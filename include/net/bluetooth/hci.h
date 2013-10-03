@@ -104,10 +104,10 @@ enum {
 enum {
 	HCI_SETUP,
 	HCI_AUTO_OFF,
+	HCI_RFKILLED,
 	HCI_MGMT,
 	HCI_PAIRABLE,
 	HCI_SERVICE_CACHE,
-	HCI_LINK_KEYS,
 	HCI_DEBUG_KEYS,
 	HCI_UNREGISTER,
 
@@ -119,9 +119,15 @@ enum {
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
 	HCI_LINK_SECURITY,
-	HCI_PENDING_CLASS,
 	HCI_PERIODIC_INQ,
+	HCI_FAST_CONNECTABLE,
 };
+
+/* A mask for the flags that are supposed to remain when a reset happens
+ * or the HCI device is closed.
+ */
+#define HCI_PERSISTENT_MASK (BIT(HCI_LE_SCAN) | BIT(HCI_PERIODIC_INQ) | \
+			      BIT(HCI_FAST_CONNECTABLE))
 
 /* HCI ioctl defines */
 #define HCIDEVUP	_IOW('H', 201, int)
@@ -233,6 +239,7 @@ enum {
 #define LMP_CVSD	0x01
 #define LMP_PSCHEME	0x02
 #define LMP_PCONTROL	0x04
+#define LMP_TRANSPARENT	0x08
 
 #define LMP_RSSI_INQ	0x40
 #define LMP_ESCO	0x80
@@ -290,6 +297,12 @@ enum {
 #define HCI_AT_DEDICATED_BONDING_MITM	0x03
 #define HCI_AT_GENERAL_BONDING		0x04
 #define HCI_AT_GENERAL_BONDING_MITM	0x05
+
+/* I/O capabilities */
+#define HCI_IO_DISPLAY_ONLY	0x00
+#define HCI_IO_DISPLAY_YESNO	0x01
+#define HCI_IO_KEYBOARD_ONLY	0x02
+#define HCI_IO_NO_INPUT_OUTPUT	0x03
 
 /* Link Key types */
 #define HCI_LK_COMBINATION		0x00
@@ -881,10 +894,23 @@ struct hci_rp_read_data_block_size {
 	__le16   num_blocks;
 } __packed;
 
+#define HCI_OP_READ_PAGE_SCAN_ACTIVITY	0x0c1b
+struct hci_rp_read_page_scan_activity {
+	__u8     status;
+	__le16   interval;
+	__le16   window;
+} __packed;
+
 #define HCI_OP_WRITE_PAGE_SCAN_ACTIVITY	0x0c1c
 struct hci_cp_write_page_scan_activity {
 	__le16   interval;
 	__le16   window;
+} __packed;
+
+#define HCI_OP_READ_PAGE_SCAN_TYPE	0x0c46
+struct hci_rp_read_page_scan_type {
+	__u8     status;
+	__u8     type;
 } __packed;
 
 #define HCI_OP_WRITE_PAGE_SCAN_TYPE	0x0c47
@@ -965,6 +991,9 @@ struct hci_cp_le_set_adv_data {
 
 #define HCI_OP_LE_SET_ADV_ENABLE	0x200a
 
+#define LE_SCAN_PASSIVE			0x00
+#define LE_SCAN_ACTIVE			0x01
+
 #define HCI_OP_LE_SET_SCAN_PARAM	0x200b
 struct hci_cp_le_set_scan_param {
 	__u8    type;
@@ -974,8 +1003,10 @@ struct hci_cp_le_set_scan_param {
 	__u8    filter_policy;
 } __packed;
 
-#define LE_SCANNING_DISABLED		0x00
-#define LE_SCANNING_ENABLED		0x01
+#define LE_SCAN_DISABLE			0x00
+#define LE_SCAN_ENABLE			0x01
+#define LE_SCAN_FILTER_DUP_DISABLE	0x00
+#define LE_SCAN_FILTER_DUP_ENABLE	0x01
 
 #define HCI_OP_LE_SET_SCAN_ENABLE	0x200c
 struct hci_cp_le_set_scan_enable {

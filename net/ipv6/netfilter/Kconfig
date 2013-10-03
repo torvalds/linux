@@ -105,7 +105,7 @@ config IP6_NF_MATCH_MH
 
 config IP6_NF_MATCH_RPFILTER
 	tristate '"rpfilter" reverse path filter match support'
-	depends on NETFILTER_ADVANCED
+	depends on NETFILTER_ADVANCED && (IP6_NF_MANGLE || IP6_NF_RAW)
 	---help---
 	  This option allows you to match packets whose replies would
 	  go out via the interface the packet came in.
@@ -152,6 +152,19 @@ config IP6_NF_TARGET_REJECT
 	  than silently being dropped.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_TARGET_SYNPROXY
+	tristate "SYNPROXY target support"
+	depends on NF_CONNTRACK && NETFILTER_ADVANCED
+	select NETFILTER_SYNPROXY
+	select SYN_COOKIES
+	help
+	  The SYNPROXY target allows you to intercept TCP connections and
+	  establish them using syncookies before they are passed on to the
+	  server. This allows to avoid conntrack and server resource usage
+	  during SYN-flood attacks.
+
+	  To compile it as a module, choose M here. If unsure, say N.
 
 config IP6_NF_MANGLE
 	tristate "Packet mangling"

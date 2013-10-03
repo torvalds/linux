@@ -25,6 +25,9 @@ menuconfig NETDEVICES
 # that for each of the symbols.
 if NETDEVICES
 
+config MII
+	tristate
+
 config NET_CORE
 	default y
 	bool "Network core driver support"
@@ -100,13 +103,6 @@ config NET_FC
 	  adaptor below. You also should have said Y to "SCSI support" and
 	  "SCSI generic support".
 
-config MII
-	tristate "Generic Media Independent Interface device support"
-	help
-	  Most ethernet controllers have MII transceiver either as an external
-	  or internal device.  It is safe to say Y or M here even if your
-	  ethernet card lacks MII.
-
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
@@ -151,6 +147,7 @@ config MACVTAP
 config VXLAN
        tristate "Virtual eXtensible Local Area Network (VXLAN)"
        depends on INET
+       select NET_IP_TUNNEL
        ---help---
 	  This allows one to create vxlan virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
@@ -242,6 +239,16 @@ config VIRTIO_NET
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
 	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+
+config NLMON
+	tristate "Virtual netlink monitoring device"
+	---help---
+	  This option enables a monitoring net device for netlink skbs. The
+	  purpose of this is to analyze netlink messages with packet sockets.
+	  Thus applications like tcpdump will be able to see local netlink
+	  messages if they tap into the netlink device, record pcaps for further
+	  diagnostics, etc. This is mostly intended for developers or support
+	  to debug netlink issues. If unsure, say N.
 
 endif # NET_CORE
 

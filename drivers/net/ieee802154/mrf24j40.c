@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <net/wpan-phy.h>
 #include <net/mac802154.h>
+#include <net/ieee802154.h>
 
 /* MRF24J40 Short Address Registers */
 #define REG_RXMCR    0x00  /* Receive MAC control */
@@ -91,9 +92,8 @@ struct mrf24j40 {
 #define MRF24J40_READLONG(reg) (1 << 15 | (reg) << 5)
 #define MRF24J40_WRITELONG(reg) (1 << 15 | (reg) << 5 | 1 << 4)
 
-/* Maximum speed to run the device at. TODO: Get the real max value from
- * someone at Microchip since it isn't in the datasheet. */
-#define MAX_SPI_SPEED_HZ 1000000
+/* The datasheet indicates the theoretical maximum for SCK to be 10MHz */
+#define MAX_SPI_SPEED_HZ 10000000
 
 #define printdev(X) (&X->spi->dev)
 
@@ -349,7 +349,9 @@ static int mrf24j40_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
 	if (ret)
 		goto err;
 	val |= 0x1;
-	val &= ~0x4;
+	/* Set TXNACKREQ if the ACK bit is set in the packet. */
+	if (skb->data[0] & IEEE802154_FC_ACK_REQ)
+		val |= 0x4;
 	write_short_reg(devrec, REG_TXNCON, val);
 
 	INIT_COMPLETION(devrec->tx_complete);
@@ -361,6 +363,7 @@ static int mrf24j40_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
 	if (ret == -ERESTARTSYS)
 		goto err;
 	if (ret == 0) {
+		dev_warn(printdev(devrec), "Timeout waiting for TX interrupt\n");
 		ret = -ETIMEDOUT;
 		goto err;
 	}
@@ -370,7 +373,7 @@ static int mrf24j40_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
 	if (ret)
 		goto err;
 	if (val & 0x1) {
-		dev_err(printdev(devrec), "Error Sending. Retry count exceeded\n");
+		dev_dbg(printdev(devrec), "Error Sending. Retry count exceeded\n");
 		ret = -ECOMM; /* TODO: Better error code ? */
 	} else
 		dev_dbg(printdev(devrec), "Packet Sent\n");
@@ -477,7 +480,7 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 		int i;
 		for (i = 0; i < 8; i++)
 			write_short_reg(devrec, REG_EADR0+i,
-					filt->ieee_addr[i]);
+					filt->ieee_addr[7-i]);
 
 #ifdef DEBUG
 		printk(KERN_DEBUG "Set long addr to: ");
@@ -641,7 +644,7 @@ static int mrf24j40_probe(struct spi_device *spi)
 	init_completion(&devrec->tx_complete);
 	INIT_WORK(&devrec->irqwork, mrf24j40_isrwork);
 	devrec->spi = spi;
-	dev_set_drvdata(&spi->dev, devrec);
+	spi_set_drvdata(spi, devrec);
 
 	/* Register with the 802154 subsystem */
 
@@ -713,7 +716,7 @@ err_devrec:
 
 static int mrf24j40_remove(struct spi_device *spi)
 {
-	struct mrf24j40 *devrec = dev_get_drvdata(&spi->dev);
+	struct mrf24j40 *devrec = spi_get_drvdata(spi);
 
 	dev_dbg(printdev(devrec), "remove\n");
 
@@ -725,7 +728,7 @@ static int mrf24j40_remove(struct spi_device *spi)
 	 * complete? */
 
 	/* Clean up the SPI stuff. */
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	kfree(devrec->buf);
 	kfree(devrec);
 	return 0;
@@ -749,18 +752,7 @@ static struct spi_driver mrf24j40_driver = {
 	.remove = mrf24j40_remove,
 };
 
-static int __init mrf24j40_init(void)
-{
-	return spi_register_driver(&mrf24j40_driver);
-}
-
-static void __exit mrf24j40_exit(void)
-{
-	spi_unregister_driver(&mrf24j40_driver);
-}
-
-module_init(mrf24j40_init);
-module_exit(mrf24j40_exit);
+module_spi_driver(mrf24j40_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alan Ott");

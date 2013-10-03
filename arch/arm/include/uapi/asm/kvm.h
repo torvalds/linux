@@ -53,12 +53,12 @@
 #define KVM_ARM_FIQ_spsr	fiq_regs[7]
 
 struct kvm_regs {
-	struct pt_regs usr_regs;/* R0_usr - R14_usr, PC, CPSR */
-	__u32 svc_regs[3];	/* SP_svc, LR_svc, SPSR_svc */
-	__u32 abt_regs[3];	/* SP_abt, LR_abt, SPSR_abt */
-	__u32 und_regs[3];	/* SP_und, LR_und, SPSR_und */
-	__u32 irq_regs[3];	/* SP_irq, LR_irq, SPSR_irq */
-	__u32 fiq_regs[8];	/* R8_fiq - R14_fiq, SPSR_fiq */
+	struct pt_regs usr_regs;	/* R0_usr - R14_usr, PC, CPSR */
+	unsigned long svc_regs[3];	/* SP_svc, LR_svc, SPSR_svc */
+	unsigned long abt_regs[3];	/* SP_abt, LR_abt, SPSR_abt */
+	unsigned long und_regs[3];	/* SP_und, LR_und, SPSR_und */
+	unsigned long irq_regs[3];	/* SP_irq, LR_irq, SPSR_irq */
+	unsigned long fiq_regs[8];	/* R8_fiq - R14_fiq, SPSR_fiq */
 };
 
 /* Supported Processor Types */

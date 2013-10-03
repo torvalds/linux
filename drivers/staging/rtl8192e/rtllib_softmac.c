@@ -1,5 +1,5 @@
 /* IEEE 802.11 SoftMAC layer
- * Copyright (c) 2005 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright (c) 2005 Andrea Merello <andrea.merello@gmail.com>
  *
  * Mostly extracted from the rtl8180-sa2400 driver for the
  * in-kernel generic ieee802.11 stack.
@@ -1801,8 +1801,9 @@ static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
 
 		if (*(t++) == MFIE_TYPE_CHALLENGE) {
 			*chlen = *(t++);
-			*challenge = kmalloc(*chlen, GFP_ATOMIC);
-			memcpy(*challenge, t, *chlen);	/*TODO - check here*/
+			*challenge = kmemdup(t, *chlen, GFP_ATOMIC);
+			if (!*challenge)
+				return -ENOMEM;
 		}
 	}
 	return cpu_to_le16(a->status);

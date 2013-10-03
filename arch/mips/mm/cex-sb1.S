@@ -49,8 +49,6 @@
 	 * (0x170-0x17f) are used to preserve k0, k1, and ra.
 	 */
 
-	__CPUINIT
-
 LEAF(except_vec2_sb1)
 	/*
 	 * If this error is recoverable, we need to exit the handler
@@ -141,8 +139,6 @@ unrecoverable:
 #endif
 
 END(except_vec2_sb1)
-
-	__FINIT
 
 	LEAF(handle_vec2_sb1)
 	mfc0	k0,CP0_CONFIG

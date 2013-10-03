@@ -94,7 +94,32 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a
 					     &lcdif_pins_apx4>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <32>;
+					bus-width = <24>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <30000000>;
+							hactive = <800>;
+							vactive = <480>;
+							hback-porch = <88>;
+							hfront-porch = <40>;
+							vback-porch = <32>;
+							vfront-porch = <13>;
+							hsync-len = <48>;
+							vsync-len = <3>;
+							hsync-active = <1>;
+							vsync-active = <1>;
+							de-active = <1>;
+							pixelclk-active = <0>;
+						};
+					};
+				};
 			};
 		};
 
@@ -122,7 +147,7 @@
 					reg = <0x0a>;
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
-
+					clocks = <&saif0>;
 				};
 
 				pcf8563: rtc@51 {

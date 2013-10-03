@@ -96,6 +96,8 @@ static int mfd_add_device(struct device *parent, int id,
 
 	pdev->dev.parent = parent;
 	pdev->dev.type = &mfd_dev_type;
+	pdev->dev.dma_mask = parent->dma_mask;
+	pdev->dev.dma_parms = parent->dma_parms;
 
 	if (parent->of_node && cell->of_compatible) {
 		for_each_child_of_node(parent->of_node, np) {

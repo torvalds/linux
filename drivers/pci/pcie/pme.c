@@ -19,8 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/pcieport_if.h>
-#include <linux/acpi.h>
-#include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 
 #include "../pci.h"
@@ -410,7 +408,7 @@ static int pcie_pme_resume(struct pcie_device *srv)
 
 /**
  * pcie_pme_remove - Prepare PCIe PME service device for removal.
- * @srv - PCIe service device to resume.
+ * @srv - PCIe service device to remove.
  */
 static void pcie_pme_remove(struct pcie_device *srv)
 {

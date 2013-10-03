@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/io.h>
-#include <linux/irqchip/arm-gic.h>
 
 #include <asm/smp_scu.h>
 
@@ -25,12 +24,7 @@
 
 extern void secondary_startup(void);
 
-static void __cpuinit highbank_secondary_init(unsigned int cpu)
-{
-	gic_secondary_init(0);
-}
-
-static int __cpuinit highbank_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int highbank_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	highbank_set_cpu_jump(cpu, secondary_startup);
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
@@ -67,7 +61,6 @@ static void __init highbank_smp_prepare_cpus(unsigned int max_cpus)
 struct smp_operations highbank_smp_ops __initdata = {
 	.smp_init_cpus		= highbank_smp_init_cpus,
 	.smp_prepare_cpus	= highbank_smp_prepare_cpus,
-	.smp_secondary_init	= highbank_secondary_init,
 	.smp_boot_secondary	= highbank_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= highbank_cpu_die,

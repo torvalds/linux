@@ -90,6 +90,8 @@ extern bool dump_sensor;
 
 int ov7660_probe(struct sd *sd);
 int ov7660_init(struct sd *sd);
+int ov7660_init(struct sd *sd);
+int ov7660_init_controls(struct sd *sd);
 int ov7660_start(struct sd *sd);
 int ov7660_stop(struct sd *sd);
 void ov7660_disconnect(struct sd *sd);
@@ -100,6 +102,7 @@ static const struct m5602_sensor ov7660 = {
 	.i2c_regW = 1,
 	.probe = ov7660_probe,
 	.init = ov7660_init,
+	.init_controls = ov7660_init_controls,
 	.start = ov7660_start,
 	.stop = ov7660_stop,
 	.disconnect = ov7660_disconnect,

@@ -330,7 +330,7 @@ static __inline__ void __ipxitf_put(struct ipx_interface *intrfc)
 static int ipxitf_device_event(struct notifier_block *notifier,
 				unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct ipx_interface *i, *tmp;
 
 	if (!net_eq(dev_net(dev), &init_net))

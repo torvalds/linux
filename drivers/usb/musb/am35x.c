@@ -33,7 +33,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 #include <linux/platform_data/usb-omap.h>
 
 #include "musb_core.h"
@@ -149,7 +149,7 @@ static void otg_timer(unsigned long _musb)
 	 */
 	devctl = musb_readb(mregs, MUSB_DEVCTL);
 	dev_dbg(musb->controller, "Poll devctl %02x (%s)\n", devctl,
-		otg_state_string(musb->xceiv->state));
+		usb_otg_state_string(musb->xceiv->state));
 
 	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->state) {
@@ -195,7 +195,7 @@ static void am35x_musb_try_idle(struct musb *musb, unsigned long timeout)
 	if (musb->is_active || (musb->a_wait_bcon == 0 &&
 				musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
-			otg_state_string(musb->xceiv->state));
+			usb_otg_state_string(musb->xceiv->state));
 		del_timer(&otg_workaround);
 		last_timer = jiffies;
 		return;
@@ -208,7 +208,7 @@ static void am35x_musb_try_idle(struct musb *musb, unsigned long timeout)
 	last_timer = timeout;
 
 	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
-		otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->state),
 		jiffies_to_msecs(timeout - jiffies));
 	mod_timer(&otg_workaround, timeout);
 }
@@ -218,7 +218,7 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 	struct musb  *musb = hci;
 	void __iomem *reg_base = musb->ctrl_base;
 	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
 	struct usb_otg *otg = musb->xceiv->otg;
 	unsigned long flags;
@@ -298,7 +298,7 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 		/* NOTE: this must complete power-on within 100 ms. */
 		dev_dbg(musb->controller, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
-				otg_state_string(musb->xceiv->state),
+				usb_otg_state_string(musb->xceiv->state),
 				err ? " ERROR" : "",
 				devctl);
 		ret = IRQ_HANDLED;
@@ -335,7 +335,7 @@ eoi:
 static int am35x_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
 	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
 	int     retval = 0;
 
@@ -350,7 +350,7 @@ static int am35x_musb_set_mode(struct musb *musb, u8 musb_mode)
 static int am35x_musb_init(struct musb *musb)
 {
 	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
 	void __iomem *reg_base = musb->ctrl_base;
 	u32 rev;
@@ -394,7 +394,7 @@ static int am35x_musb_init(struct musb *musb)
 static int am35x_musb_exit(struct musb *musb)
 {
 	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
 
 	del_timer_sync(&otg_workaround);
@@ -456,7 +456,7 @@ static u64 am35x_dmamask = DMA_BIT_MASK(32);
 
 static int am35x_probe(struct platform_device *pdev)
 {
-	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
+	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct platform_device		*musb;
 	struct am35x_glue		*glue;
 
@@ -577,7 +577,7 @@ static int am35x_remove(struct platform_device *pdev)
 static int am35x_suspend(struct device *dev)
 {
 	struct am35x_glue	*glue = dev_get_drvdata(dev);
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
 
 	/* Shutdown the on-chip PHY and its PLL. */
@@ -593,7 +593,7 @@ static int am35x_suspend(struct device *dev)
 static int am35x_resume(struct device *dev)
 {
 	struct am35x_glue	*glue = dev_get_drvdata(dev);
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
 	int			ret;
 

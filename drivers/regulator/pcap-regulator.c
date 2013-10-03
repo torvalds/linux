@@ -243,7 +243,7 @@ static int pcap_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 
 	config.dev = &pdev->dev;
-	config.init_data = pdev->dev.platform_data;
+	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = pcap;
 
 	rdev = regulator_register(&pcap_regulators[pdev->id], &config);
@@ -260,7 +260,6 @@ static int pcap_regulator_remove(struct platform_device *pdev)
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 
 	regulator_unregister(rdev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

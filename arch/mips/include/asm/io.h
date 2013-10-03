@@ -118,7 +118,7 @@ static inline void set_io_port_base(unsigned long base)
  */
 static inline unsigned long virt_to_phys(volatile const void *address)
 {
-	return (unsigned long)address - PAGE_OFFSET + PHYS_OFFSET;
+	return __pa(address);
 }
 
 /*
@@ -169,6 +169,11 @@ static inline void * isa_bus_to_virt(unsigned long address)
 
 extern void __iomem * __ioremap(phys_t offset, phys_t size, unsigned long flags);
 extern void __iounmap(const volatile void __iomem *addr);
+
+#ifndef CONFIG_PCI
+struct pci_dev;
+static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
+#endif
 
 static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	unsigned long flags)
@@ -448,6 +453,11 @@ __BUILDIO(q, u64)
 #define readw_relaxed			readw
 #define readl_relaxed			readl
 #define readq_relaxed			readq
+
+#define writeb_relaxed			writeb
+#define writew_relaxed			writew
+#define writel_relaxed			writel
+#define writeq_relaxed			writeq
 
 #define readb_be(addr)							\
 	__raw_readb((__force unsigned *)(addr))

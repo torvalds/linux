@@ -37,12 +37,6 @@ static int dbx500_cpufreq_target(struct cpufreq_policy *policy,
 	unsigned int idx;
 	int ret;
 
-	/* scale the target frequency to one of the extremes supported */
-	if (target_freq < policy->cpuinfo.min_freq)
-		target_freq = policy->cpuinfo.min_freq;
-	if (target_freq > policy->cpuinfo.max_freq)
-		target_freq = policy->cpuinfo.max_freq;
-
 	/* Lookup the next frequency */
 	if (cpufreq_frequency_table_target(policy, freq_table, target_freq,
 					relation, &idx))
@@ -55,8 +49,7 @@ static int dbx500_cpufreq_target(struct cpufreq_policy *policy,
 		return 0;
 
 	/* pre-change notification */
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* update armss clk frequency */
 	ret = clk_set_rate(armss_clk, freqs.new * 1000);
@@ -64,14 +57,13 @@ static int dbx500_cpufreq_target(struct cpufreq_policy *policy,
 	if (ret) {
 		pr_err("dbx500-cpufreq: Failed to set armss_clk to %d Hz: error %d\n",
 		       freqs.new * 1000, ret);
-		return ret;
+		freqs.new = freqs.old;
 	}
 
 	/* post change notification */
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
-	return 0;
+	return ret;
 }
 
 static unsigned int dbx500_cpufreq_getspeed(unsigned int cpu)
@@ -79,18 +71,18 @@ static unsigned int dbx500_cpufreq_getspeed(unsigned int cpu)
 	int i = 0;
 	unsigned long freq = clk_get_rate(armss_clk) / 1000;
 
-	while (freq_table[i].frequency != CPUFREQ_TABLE_END) {
-		if (freq <= freq_table[i].frequency)
+	/* The value is rounded to closest frequency in the defined table. */
+	while (freq_table[i + 1].frequency != CPUFREQ_TABLE_END) {
+		if (freq < freq_table[i].frequency +
+		   (freq_table[i + 1].frequency - freq_table[i].frequency) / 2)
 			return freq_table[i].frequency;
 		i++;
 	}
 
-	/* We could not find a corresponding frequency. */
-	pr_err("dbx500-cpufreq: Failed to find cpufreq speed\n");
-	return 0;
+	return freq_table[i].frequency;
 }
 
-static int __cpuinit dbx500_cpufreq_init(struct cpufreq_policy *policy)
+static int dbx500_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int res;
 

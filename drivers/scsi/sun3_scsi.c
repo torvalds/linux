@@ -626,6 +626,7 @@ static int sun3scsi_dma_finish(int write_flag)
 #include "sun3_NCR5380.c"
 
 static struct scsi_host_template driver_template = {
+	.show_info		= sun3scsi_show_info,
 	.name			= SUN3_SCSI_NAME,
 	.detect			= sun3scsi_detect,
 	.release		= sun3scsi_release,

@@ -570,6 +570,13 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 		  mdev->tconn->agreed_pro_version < 88)
 		rv = SS_NOT_SUPPORTED;
 
+	else if (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE)
+		rv = SS_NO_UP_TO_DATE_DISK;
+
+	else if ((ns.conn == C_STARTING_SYNC_S || ns.conn == C_STARTING_SYNC_T) &&
+                 ns.pdsk == D_UNKNOWN)
+		rv = SS_NEED_CONNECTION;
+
 	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
 		rv = SS_CONNECTED_OUTDATES;
 
@@ -634,6 +641,10 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_t
 	if ((ns.conn == C_SYNC_TARGET || ns.conn == C_SYNC_SOURCE)
 	    && os.conn < C_WF_REPORT_PARAMS)
 		rv = SS_NEED_CONNECTION; /* No NetworkFailure -> SyncTarget etc... */
+
+	if (ns.conn == C_DISCONNECTING && ns.pdsk == D_OUTDATED &&
+	    os.conn < C_CONNECTED && os.pdsk > D_OUTDATED)
+		rv = SS_OUTDATE_WO_CONN;
 
 	return rv;
 }
@@ -1104,8 +1115,10 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		drbd_thread_restart_nowait(&mdev->tconn->receiver);
 
 	/* Resume AL writing if we get a connection */
-	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
+	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
 		drbd_resume_al(mdev);
+		mdev->tconn->connect_cnt++;
+	}
 
 	/* remember last attach time so request_timer_fn() won't
 	 * kill newly established sessions while we are still trying to thaw
@@ -1376,13 +1389,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		drbd_queue_bitmap_io(mdev,
 			&drbd_bmio_set_n_write, &abw_start_sync,
 			"set_n_write from StartingSync", BM_LOCKED_TEST_ALLOWED);
-
-	/* We are invalidating our self... */
-	if (os.conn < C_CONNECTED && ns.conn < C_CONNECTED &&
-	    os.disk > D_INCONSISTENT && ns.disk == D_INCONSISTENT)
-		/* other bitmap operation expected during this phase */
-		drbd_queue_bitmap_io(mdev, &drbd_bmio_set_n_write, NULL,
-			"set_n_write from invalidate", BM_LOCKED_MASK);
 
 	/* first half of local IO error, failure to attach,
 	 * or administrative detach */
@@ -1748,13 +1754,9 @@ _conn_rq_cond(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state 
 	if (test_and_clear_bit(CONN_WD_ST_CHG_FAIL, &tconn->flags))
 		return SS_CW_FAILED_BY_PEER;
 
-	rv = tconn->cstate != C_WF_REPORT_PARAMS ? SS_CW_NO_NEED : SS_UNKNOWN_ERROR;
-
-	if (rv == SS_UNKNOWN_ERROR)
-		rv = conn_is_valid_transition(tconn, mask, val, 0);
-
-	if (rv == SS_SUCCESS)
-		rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
+	rv = conn_is_valid_transition(tconn, mask, val, 0);
+	if (rv == SS_SUCCESS && tconn->cstate == C_WF_REPORT_PARAMS)
+		rv = SS_UNKNOWN_ERROR; /* continue waiting */
 
 	return rv;
 }

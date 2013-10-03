@@ -90,6 +90,7 @@ static struct davinci_nand_pdata davinci_nand_data = {
 	.parts			= davinci_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
 	.ecc_mode		= NAND_ECC_HW,
+	.ecc_bits		= 1,
 	.options		= 0,
 };
 
@@ -117,12 +118,7 @@ static struct platform_device davinci_nand_device = {
 	},
 };
 
-#if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
-    defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
-#define HAS_ATA 1
-#else
-#define HAS_ATA 0
-#endif
+#define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
 
 /* CPLD Register 0 bits to control ATA */
 #define DM646X_EVM_ATA_RST		BIT(0)
@@ -514,7 +510,7 @@ static const struct vpif_output dm6467_ch0_outputs[] = {
 			.index = 1,
 			.name = "Component",
 			.type = V4L2_OUTPUT_TYPE_ANALOG,
-			.capabilities = V4L2_OUT_CAP_CUSTOM_TIMINGS,
+			.capabilities = V4L2_OUT_CAP_DV_TIMINGS,
 		},
 		.subdev_name = "adv7343",
 		.output_route = ADV7343_COMPONENT_ID,
@@ -754,10 +750,6 @@ static void __init davinci_map_io(void)
 	cdce_clk_init();
 }
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 #define DM646X_EVM_PHY_ID		"davinci_mdio-0:01"
 /*
  * The following EDMA channels/slots are not being used by drivers (for
@@ -797,7 +789,7 @@ static __init void evm_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	evm_init_i2c();
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm646x_serial_device);
 	dm646x_init_mcasp0(&dm646x_evm_snd_data[0]);
 	dm646x_init_mcasp1(&dm646x_evm_snd_data[1]);
 

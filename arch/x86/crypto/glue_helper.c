@@ -1,7 +1,7 @@
 /*
  * Shared glue code for 128bit block ciphers
  *
- * Copyright (c) 2012 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
+ * Copyright © 2012-2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
  *
  * CBC & ECB parts based on code (crypto/cbc.c,ecb.c) by:
  *   Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
@@ -303,5 +303,100 @@ int glue_ctr_crypt_128bit(const struct common_glue_ctx *gctx,
 	return err;
 }
 EXPORT_SYMBOL_GPL(glue_ctr_crypt_128bit);
+
+static unsigned int __glue_xts_crypt_128bit(const struct common_glue_ctx *gctx,
+					    void *ctx,
+					    struct blkcipher_desc *desc,
+					    struct blkcipher_walk *walk)
+{
+	const unsigned int bsize = 128 / 8;
+	unsigned int nbytes = walk->nbytes;
+	u128 *src = (u128 *)walk->src.virt.addr;
+	u128 *dst = (u128 *)walk->dst.virt.addr;
+	unsigned int num_blocks, func_bytes;
+	unsigned int i;
+
+	/* Process multi-block batch */
+	for (i = 0; i < gctx->num_funcs; i++) {
+		num_blocks = gctx->funcs[i].num_blocks;
+		func_bytes = bsize * num_blocks;
+
+		if (nbytes >= func_bytes) {
+			do {
+				gctx->funcs[i].fn_u.xts(ctx, dst, src,
+							(le128 *)walk->iv);
+
+				src += num_blocks;
+				dst += num_blocks;
+				nbytes -= func_bytes;
+			} while (nbytes >= func_bytes);
+
+			if (nbytes < bsize)
+				goto done;
+		}
+	}
+
+done:
+	return nbytes;
+}
+
+/* for implementations implementing faster XTS IV generator */
+int glue_xts_crypt_128bit(const struct common_glue_ctx *gctx,
+			  struct blkcipher_desc *desc, struct scatterlist *dst,
+			  struct scatterlist *src, unsigned int nbytes,
+			  void (*tweak_fn)(void *ctx, u8 *dst, const u8 *src),
+			  void *tweak_ctx, void *crypt_ctx)
+{
+	const unsigned int bsize = 128 / 8;
+	bool fpu_enabled = false;
+	struct blkcipher_walk walk;
+	int err;
+
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+
+	err = blkcipher_walk_virt(desc, &walk);
+	nbytes = walk.nbytes;
+	if (!nbytes)
+		return err;
+
+	/* set minimum length to bsize, for tweak_fn */
+	fpu_enabled = glue_fpu_begin(bsize, gctx->fpu_blocks_limit,
+				     desc, fpu_enabled,
+				     nbytes < bsize ? bsize : nbytes);
+
+	/* calculate first value of T */
+	tweak_fn(tweak_ctx, walk.iv, walk.iv);
+
+	while (nbytes) {
+		nbytes = __glue_xts_crypt_128bit(gctx, crypt_ctx, desc, &walk);
+
+		err = blkcipher_walk_done(desc, &walk, nbytes);
+		nbytes = walk.nbytes;
+	}
+
+	glue_fpu_end(fpu_enabled);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(glue_xts_crypt_128bit);
+
+void glue_xts_crypt_128bit_one(void *ctx, u128 *dst, const u128 *src, le128 *iv,
+			       common_glue_func_t fn)
+{
+	le128 ivblk = *iv;
+
+	/* generate next IV */
+	le128_gf128mul_x_ble(iv, &ivblk);
+
+	/* CC <- T xor C */
+	u128_xor(dst, src, (u128 *)&ivblk);
+
+	/* PP <- D(Key2,CC) */
+	fn(ctx, (u8 *)dst, (u8 *)dst);
+
+	/* P <- T xor PP */
+	u128_xor(dst, dst, (u128 *)&ivblk);
+}
+EXPORT_SYMBOL_GPL(glue_xts_crypt_128bit_one);
 
 MODULE_LICENSE("GPL");

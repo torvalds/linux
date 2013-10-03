@@ -12,7 +12,7 @@
 #include <linux/utsname.h>
 #include <generated/utsrelease.h>
 #include <linux/version.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 
 #ifndef CONFIG_KALLSYMS
 #define version(a) Version_ ## a

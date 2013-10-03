@@ -36,7 +36,9 @@ int abx500_register_ops(struct device *dev, struct abx500_ops *ops)
 {
 	struct abx500_device_entry *dev_entry;
 
-	dev_entry = kzalloc(sizeof(struct abx500_device_entry), GFP_KERNEL);
+	dev_entry = devm_kzalloc(dev,
+				 sizeof(struct abx500_device_entry),
+				 GFP_KERNEL);
 	if (!dev_entry) {
 		dev_err(dev, "register_ops kzalloc failed");
 		return -ENOMEM;
@@ -54,12 +56,8 @@ void abx500_remove_ops(struct device *dev)
 	struct abx500_device_entry *dev_entry, *tmp;
 
 	list_for_each_entry_safe(dev_entry, tmp, &abx500_list, list)
-	{
-		if (dev_entry->dev == dev) {
+		if (dev_entry->dev == dev)
 			list_del(&dev_entry->list);
-			kfree(dev_entry);
-		}
-	}
 }
 EXPORT_SYMBOL(abx500_remove_ops);
 
@@ -156,7 +154,7 @@ EXPORT_SYMBOL(abx500_startup_irq_enabled);
 void abx500_dump_all_banks(void)
 {
 	struct abx500_ops *ops;
-	struct device dummy_child = {0};
+	struct device dummy_child = {NULL};
 	struct abx500_device_entry *dev_entry;
 
 	list_for_each_entry(dev_entry, &abx500_list, list) {

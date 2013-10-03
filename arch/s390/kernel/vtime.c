@@ -19,6 +19,7 @@
 #include <asm/irq_regs.h>
 #include <asm/cputime.h>
 #include <asm/vtimer.h>
+#include <asm/vtime.h>
 #include <asm/irq.h>
 #include "entry.h"
 
@@ -158,8 +159,6 @@ void __kprobes vtime_stop_cpu(void)
 	unsigned long psw_mask;
 
 	trace_hardirqs_on();
-	/* Don't trace preempt off for idle. */
-	stop_critical_timings();
 
 	/* Wait for external, I/O or machine check interrupt. */
 	psw_mask = psw_kernel_bits | PSW_MASK_WAIT | PSW_MASK_DAT |
@@ -168,9 +167,6 @@ void __kprobes vtime_stop_cpu(void)
 
 	/* Call the assembler magic in entry.S */
 	psw_idle(idle, psw_mask);
-
-	/* Reenable preemption tracer. */
-	start_critical_timings();
 
 	/* Account time spent with enabled wait psw loaded as idle time. */
 	idle->sequence++;
@@ -376,14 +372,14 @@ EXPORT_SYMBOL(del_virt_timer);
 /*
  * Start the virtual CPU timer on the current CPU.
  */
-void __cpuinit init_cpu_vtimer(void)
+void init_cpu_vtimer(void)
 {
 	/* set initial cpu timer */
 	set_vtimer(VTIMER_MAX_SLICE);
 }
 
-static int __cpuinit s390_nohz_notify(struct notifier_block *self,
-				      unsigned long action, void *hcpu)
+static int s390_nohz_notify(struct notifier_block *self, unsigned long action,
+			    void *hcpu)
 {
 	struct s390_idle_data *idle;
 	long cpu = (long) hcpu;

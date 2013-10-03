@@ -201,9 +201,9 @@ static int ad7266_read_raw(struct iio_dev *indio_dev,
 	.indexed = 1,					\
 	.channel = (_chan),				\
 	.address = (_chan),				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT	\
-		| IIO_CHAN_INFO_SCALE_SHARED_BIT	\
-		| IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) \
+		| BIT(IIO_CHAN_INFO_OFFSET),			\
 	.scan_index = (_chan),				\
 	.scan_type = {					\
 		.sign = (_sign),			\
@@ -249,9 +249,9 @@ static AD7266_DECLARE_SINGLE_ENDED_CHANNELS_FIXED(s, 's');
 	.channel = (_chan) * 2,				\
 	.channel2 = (_chan) * 2 + 1,			\
 	.address = (_chan),				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT	\
-		| IIO_CHAN_INFO_SCALE_SHARED_BIT	\
-		| IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE)	\
+		| BIT(IIO_CHAN_INFO_OFFSET),			\
 	.scan_index = (_chan),				\
 	.scan_type = {					\
 		.sign = _sign,			\
@@ -399,17 +399,17 @@ static int ad7266_probe(struct spi_device *spi)
 	unsigned int i;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = regulator_get(&spi->dev, "vref");
+	st->reg = devm_regulator_get(&spi->dev, "vref");
 	if (!IS_ERR_OR_NULL(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 
 		ret = regulator_get_voltage(st->reg);
 		if (ret < 0)
@@ -489,11 +489,6 @@ error_free_gpios:
 error_disable_reg:
 	if (!IS_ERR_OR_NULL(st->reg))
 		regulator_disable(st->reg);
-error_put_reg:
-	if (!IS_ERR_OR_NULL(st->reg))
-		regulator_put(st->reg);
-
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -507,11 +502,8 @@ static int ad7266_remove(struct spi_device *spi)
 	iio_triggered_buffer_cleanup(indio_dev);
 	if (!st->fixed_addr)
 		gpio_free_array(st->gpios, ARRAY_SIZE(st->gpios));
-	if (!IS_ERR_OR_NULL(st->reg)) {
+	if (!IS_ERR_OR_NULL(st->reg))
 		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
-	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -290,7 +290,6 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	    sysctl_legacy_va_layout) {
 		mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
 		mm->get_unmapped_area = arch_get_unmapped_area;
-		mm->unmap_area = arch_unmap_area;
 	} else {
 		/* We know it's 32-bit */
 		unsigned long task_size = STACK_TOP32;
@@ -302,7 +301,6 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 
 		mm->mmap_base = PAGE_ALIGN(task_size - gap - random_factor);
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
-		mm->unmap_area = arch_unmap_area_topdown;
 	}
 }
 
@@ -353,7 +351,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		case SEMCTL: {
 			err = sys_semctl(first, second,
 					 (int)third | IPC_64,
-					 (union semun) ptr);
+					 (unsigned long) ptr);
 			goto out;
 		}
 		default:
@@ -470,10 +468,6 @@ SYSCALL_DEFINE2(64_munmap, unsigned long, addr, size_t, len)
 
 	return vm_munmap(addr, len);
 }
-
-extern unsigned long do_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, unsigned long new_addr);
                 
 SYSCALL_DEFINE5(64_mremap, unsigned long, addr,	unsigned long, old_len,
 		unsigned long, new_len, unsigned long, flags,

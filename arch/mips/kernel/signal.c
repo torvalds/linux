@@ -8,6 +8,7 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/cache.h>
+#include <linux/context_tracking.h>
 #include <linux/irqflags.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -35,6 +36,7 @@
 #include <asm/war.h>
 #include <asm/vdso.h>
 #include <asm/dsp.h>
+#include <asm/inst.h>
 
 #include "signal-common.h"
 
@@ -480,7 +482,15 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 	sigset_t *oldset = sigmask_to_save();
 	int ret;
 	struct mips_abi *abi = current->thread.abi;
+#ifdef CONFIG_CPU_MICROMIPS
+	void *vdso;
+	unsigned int tmp = (unsigned int)current->mm->context.vdso;
+
+	set_isa16_mode(tmp);
+	vdso = (void *)tmp;
+#else
 	void *vdso = current->mm->context.vdso;
+#endif
 
 	if (regs->regs[0]) {
 		switch(regs->regs[2]) {
@@ -564,6 +574,8 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 {
 	local_irq_enable();
 
+	user_exit();
+
 	/* deal with pending signal delivery */
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
@@ -572,6 +584,8 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
 	}
+
+	user_enter();
 }
 
 #ifdef CONFIG_SMP

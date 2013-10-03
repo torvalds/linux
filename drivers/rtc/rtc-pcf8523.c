@@ -307,21 +307,12 @@ static int pcf8523_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-	pcf->rtc = rtc_device_register(DRIVER_NAME, &client->dev,
+	pcf->rtc = devm_rtc_device_register(&client->dev, DRIVER_NAME,
 				       &pcf8523_rtc_ops, THIS_MODULE);
 	if (IS_ERR(pcf->rtc))
 		return PTR_ERR(pcf->rtc);
 
 	i2c_set_clientdata(client, pcf);
-
-	return 0;
-}
-
-static int pcf8523_remove(struct i2c_client *client)
-{
-	struct pcf8523 *pcf = i2c_get_clientdata(client);
-
-	rtc_device_unregister(pcf->rtc);
 
 	return 0;
 }
@@ -347,7 +338,6 @@ static struct i2c_driver pcf8523_driver = {
 		.of_match_table = of_match_ptr(pcf8523_of_match),
 	},
 	.probe = pcf8523_probe,
-	.remove = pcf8523_remove,
 	.id_table = pcf8523_id,
 };
 module_i2c_driver(pcf8523_driver);

@@ -61,7 +61,7 @@ struct dmfc_channel_data {
 
 static const struct dmfc_channel_data dmfcdata[] = {
 	{
-		.ipu_channel	= 23,
+		.ipu_channel	= IPUV3_CHANNEL_MEM_BG_SYNC,
 		.channel_reg	= DMFC_DP_CHAN,
 		.shift		= DMFC_DP_CHAN_5B_23,
 		.eot_shift	= 20,
@@ -73,13 +73,13 @@ static const struct dmfc_channel_data dmfcdata[] = {
 		.eot_shift	= 22,
 		.max_fifo_lines	= 1,
 	}, {
-		.ipu_channel	= 27,
+		.ipu_channel	= IPUV3_CHANNEL_MEM_FG_SYNC,
 		.channel_reg	= DMFC_DP_CHAN,
 		.shift		= DMFC_DP_CHAN_5F_27,
 		.eot_shift	= 21,
 		.max_fifo_lines	= 2,
 	}, {
-		.ipu_channel	= 28,
+		.ipu_channel	= IPUV3_CHANNEL_MEM_DC_SYNC,
 		.channel_reg	= DMFC_WR_CHAN,
 		.shift		= DMFC_WR_CHAN_1_28,
 		.eot_shift	= 16,
@@ -292,7 +292,7 @@ int ipu_dmfc_alloc_bandwidth(struct dmfc_channel *dmfc,
 {
 	struct ipu_dmfc_priv *priv = dmfc->priv;
 	int slots = dmfc_bandwidth_to_slots(priv, bandwidth_pixel_per_second);
-	int segment = 0, ret = 0;
+	int segment = -1, ret = 0;
 
 	dev_dbg(priv->dev, "dmfc: trying to allocate %ldMpixel/s for IPU channel %d\n",
 			bandwidth_pixel_per_second / 1000000,
@@ -307,7 +307,17 @@ int ipu_dmfc_alloc_bandwidth(struct dmfc_channel *dmfc,
 		goto out;
 	}
 
-	segment = dmfc_find_slots(priv, slots);
+	/* Always allocate at least 128*4 bytes (2 slots) */
+	if (slots < 2)
+		slots = 2;
+
+	/* For the MEM_BG channel, first try to allocate twice the slots */
+	if (dmfc->data->ipu_channel == IPUV3_CHANNEL_MEM_BG_SYNC)
+		segment = dmfc_find_slots(priv, slots * 2);
+	if (segment >= 0)
+		slots *= 2;
+	else
+		segment = dmfc_find_slots(priv, slots);
 	if (segment < 0) {
 		ret = -EBUSY;
 		goto out;
@@ -391,7 +401,7 @@ int ipu_dmfc_init(struct ipu_soc *ipu, struct device *dev, unsigned long base,
 	 * We have a total bandwidth of clkrate * 4pixel divided
 	 * into 8 slots.
 	 */
-	priv->bandwidth_per_slot = clk_get_rate(ipu_clk) / 8;
+	priv->bandwidth_per_slot = clk_get_rate(ipu_clk) * 4 / 8;
 
 	dev_dbg(dev, "dmfc: 8 slots with %ldMpixel/s bandwidth each\n",
 			priv->bandwidth_per_slot / 1000000);

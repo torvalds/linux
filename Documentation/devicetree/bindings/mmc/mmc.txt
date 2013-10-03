@@ -28,6 +28,7 @@ Optional properties:
 - cap-mmc-highspeed: MMC high-speed timing is supported
 - cap-power-off-card: powering off the card is safe
 - cap-sdio-irq: enable SDIO IRQ signalling on this interface
+- full-pwr-cycle: full power cycle of the card is supported
 
 *NOTE* on CD and WP polarity. To use common for all SD/MMC host controllers line
 polarity properties, we have to fix the meaning of the "normal" and "inverted"

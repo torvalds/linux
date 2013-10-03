@@ -21,35 +21,13 @@
 static loff_t
 proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 {
-	loff_t new = -1;
-	struct inode *inode = file_inode(file);
-
-	mutex_lock(&inode->i_mutex);
-	switch (whence) {
-	case 0:
-		new = off;
-		break;
-	case 1:
-		new = file->f_pos + off;
-		break;
-	case 2:
-		new = sizeof(struct ConfigDev) + off;
-		break;
-	}
-	if (new < 0 || new > sizeof(struct ConfigDev))
-		new = -EINVAL;
-	else
-		file->f_pos = new;
-	mutex_unlock(&inode->i_mutex);
-	return new;
+	return fixed_size_llseek(file, off, whence, sizeof(struct ConfigDev));
 }
 
 static ssize_t
 proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	struct inode *ino = file_inode(file);
-	struct proc_dir_entry *dp = PDE(ino);
-	struct zorro_dev *z = dp->data;
+	struct zorro_dev *z = PDE_DATA(file_inode(file));
 	struct ConfigDev cd;
 	loff_t pos = *ppos;
 
@@ -141,7 +119,7 @@ static int __init zorro_proc_attach_device(unsigned int slot)
 				 &zorro_autocon[slot]);
 	if (!entry)
 		return -ENOMEM;
-	entry->size = sizeof(struct zorro_dev);
+	proc_set_size(entry, sizeof(struct zorro_dev));
 	return 0;
 }
 

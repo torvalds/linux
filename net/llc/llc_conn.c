@@ -478,8 +478,8 @@ static inline bool llc_estab_match(const struct llc_sap *sap,
 
 	return llc->laddr.lsap == laddr->lsap &&
 		llc->daddr.lsap == daddr->lsap &&
-		llc_mac_match(llc->laddr.mac, laddr->mac) &&
-		llc_mac_match(llc->daddr.mac, daddr->mac);
+		ether_addr_equal(llc->laddr.mac, laddr->mac) &&
+		ether_addr_equal(llc->daddr.mac, daddr->mac);
 }
 
 /**
@@ -550,7 +550,7 @@ static inline bool llc_listener_match(const struct llc_sap *sap,
 
 	return sk->sk_type == SOCK_STREAM && sk->sk_state == TCP_LISTEN &&
 		llc->laddr.lsap == laddr->lsap &&
-		llc_mac_match(llc->laddr.mac, laddr->mac);
+		ether_addr_equal(llc->laddr.mac, laddr->mac);
 }
 
 static struct sock *__llc_lookup_listener(struct llc_sap *sap,

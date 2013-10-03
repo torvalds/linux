@@ -4,7 +4,7 @@
  * This file contains the TCM Virtual Device and Disk Transport
  * agnostic related functions.
  *
- * (c) Copyright 2003-2012 RisingTide Systems LLC.
+ * (c) Copyright 2003-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -47,6 +47,9 @@
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
+DEFINE_MUTEX(g_device_mutex);
+LIST_HEAD(g_device_list);
+
 static struct se_hba *lun0_hba;
 /* not static, needed by tpg.c */
 struct se_device *g_lun0_dev;
@@ -68,7 +71,6 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		struct se_dev_entry *deve = se_cmd->se_deve;
 
 		deve->total_cmds++;
-		deve->total_bytes += se_cmd->data_length;
 
 		if ((se_cmd->data_direction == DMA_TO_DEVICE) &&
 		    (deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)) {
@@ -84,8 +86,6 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 			deve->write_bytes += se_cmd->data_length;
 		else if (se_cmd->data_direction == DMA_FROM_DEVICE)
 			deve->read_bytes += se_cmd->data_length;
-
-		deve->deve_cmds++;
 
 		se_lun = deve->se_lun;
 		se_cmd->se_lun = deve->se_lun;
@@ -273,17 +273,6 @@ int core_free_device_list_for_node(
 	nacl->device_list = NULL;
 
 	return 0;
-}
-
-void core_dec_lacl_count(struct se_node_acl *se_nacl, struct se_cmd *se_cmd)
-{
-	struct se_dev_entry *deve;
-	unsigned long flags;
-
-	spin_lock_irqsave(&se_nacl->device_list_lock, flags);
-	deve = se_nacl->device_list[se_cmd->orig_fe_lun];
-	deve->deve_cmds--;
-	spin_unlock_irqrestore(&se_nacl->device_list_lock, flags);
 }
 
 void core_update_device_list_access(
@@ -904,6 +893,32 @@ int se_dev_set_emulate_tpws(struct se_device *dev, int flag)
 	return 0;
 }
 
+int se_dev_set_emulate_caw(struct se_device *dev, int flag)
+{
+	if (flag != 0 && flag != 1) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	dev->dev_attrib.emulate_caw = flag;
+	pr_debug("dev[%p]: SE Device CompareAndWrite (AtomicTestandSet): %d\n",
+		 dev, flag);
+
+	return 0;
+}
+
+int se_dev_set_emulate_3pc(struct se_device *dev, int flag)
+{
+	if (flag != 0 && flag != 1) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	dev->dev_attrib.emulate_3pc = flag;
+	pr_debug("dev[%p]: SE Device 3rd Party Copy (EXTENDED_COPY): %d\n",
+		dev, flag);
+
+	return 0;
+}
+
 int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 {
 	if ((flag != 0) && (flag != 1)) {
@@ -1407,6 +1422,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
 	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
+	INIT_LIST_HEAD(&dev->g_dev_node);
 	spin_lock_init(&dev->stats_lock);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
@@ -1414,6 +1430,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	spin_lock_init(&dev->se_port_lock);
 	spin_lock_init(&dev->se_tmr_lock);
 	spin_lock_init(&dev->qf_cmd_lock);
+	sema_init(&dev->caw_sem, 1);
 	atomic_set(&dev->dev_ordered_id, 0);
 	INIT_LIST_HEAD(&dev->t10_wwn.t10_vpd_list);
 	spin_lock_init(&dev->t10_wwn.t10_vpd_lock);
@@ -1424,7 +1441,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->t10_alua.tg_pt_gps_list);
 	spin_lock_init(&dev->t10_alua.tg_pt_gps_lock);
 
-	dev->t10_pr.pr_aptpl_buf_len = PR_APTPL_BUF_LEN;
 	dev->t10_wwn.t10_dev = dev;
 	dev->t10_alua.t10_dev = dev;
 
@@ -1438,6 +1454,8 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.emulate_tas = DA_EMULATE_TAS;
 	dev->dev_attrib.emulate_tpu = DA_EMULATE_TPU;
 	dev->dev_attrib.emulate_tpws = DA_EMULATE_TPWS;
+	dev->dev_attrib.emulate_caw = DA_EMULATE_CAW;
+	dev->dev_attrib.emulate_3pc = DA_EMULATE_3PC;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
 	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
 	dev->dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;
@@ -1525,6 +1543,11 @@ int target_configure_device(struct se_device *dev)
 	spin_lock(&hba->device_lock);
 	hba->dev_count++;
 	spin_unlock(&hba->device_lock);
+
+	mutex_lock(&g_device_mutex);
+	list_add_tail(&dev->g_dev_node, &g_device_list);
+	mutex_unlock(&g_device_mutex);
+
 	return 0;
 
 out_free_alua:
@@ -1543,6 +1566,10 @@ void target_free_device(struct se_device *dev)
 	if (dev->dev_flags & DF_CONFIGURED) {
 		destroy_workqueue(dev->tmr_wq);
 
+		mutex_lock(&g_device_mutex);
+		list_del(&dev->g_dev_node);
+		mutex_unlock(&g_device_mutex);
+
 		spin_lock(&hba->device_lock);
 		hba->dev_count--;
 		spin_unlock(&hba->device_lock);
@@ -1559,7 +1586,7 @@ int core_dev_setup_virtual_lun0(void)
 {
 	struct se_hba *hba;
 	struct se_device *dev;
-	char buf[16];
+	char buf[] = "rd_pages=8,rd_nullio=1";
 	int ret;
 
 	hba = core_alloc_hba("rd_mcp", 0, HBA_FLAGS_INTERNAL_USE);
@@ -1572,8 +1599,6 @@ int core_dev_setup_virtual_lun0(void)
 		goto out_free_hba;
 	}
 
-	memset(buf, 0, 16);
-	sprintf(buf, "rd_pages=8");
 	hba->transport->set_configfs_dev_params(dev, buf, sizeof(buf));
 
 	ret = target_configure_device(dev);

@@ -20,6 +20,7 @@
 #include <asm/cacheflush.h>
 #include <linux/fdtable.h>
 #include <linux/file.h>
+#include <linux/freezer.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/miscdevice.h>
@@ -790,7 +791,7 @@ static void binder_delete_free_buffer(struct binder_proc *proc,
 	list_del(&buffer->entry);
 	if (free_page_start || free_page_end) {
 		binder_debug(BINDER_DEBUG_BUFFER_ALLOC,
-			     "%d: merge free, buffer %p do not share page%s%s with with %p or %p\n",
+			     "%d: merge free, buffer %p do not share page%s%s with %p or %p\n",
 			     proc->pid, buffer, free_page_start ? "" : " end",
 			     free_page_end ? "" : " start", prev, next);
 		binder_update_page_range(proc, 0, free_page_start ?
@@ -1247,7 +1248,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		struct flat_binder_object *fp;
 		if (*offp > buffer->data_size - sizeof(*fp) ||
 		    buffer->data_size < sizeof(*fp) ||
-		    !IS_ALIGNED(*offp, sizeof(void *))) {
+		    !IS_ALIGNED(*offp, sizeof(u32))) {
 			pr_err("transaction release %d bad offset %zd, size %zd\n",
 			 debug_id, *offp, buffer->data_size);
 			continue;
@@ -1271,7 +1272,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		case BINDER_TYPE_WEAK_HANDLE: {
 			struct binder_ref *ref = binder_get_ref(proc, fp->handle);
 			if (ref == NULL) {
-				pr_err("transaction release %d bad handle %ld\n",
+				pr_err("transaction release %d bad handle %d\n",
 				 debug_id, fp->handle);
 				break;
 			}
@@ -1283,13 +1284,13 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 
 		case BINDER_TYPE_FD:
 			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        fd %ld\n", fp->handle);
+				     "        fd %d\n", fp->handle);
 			if (failed_at)
 				task_close_fd(proc, fp->handle);
 			break;
 
 		default:
-			pr_err("transaction release %d bad object type %lx\n",
+			pr_err("transaction release %d bad object type %x\n",
 				debug_id, fp->type);
 			break;
 		}
@@ -1496,7 +1497,7 @@ static void binder_transaction(struct binder_proc *proc,
 		struct flat_binder_object *fp;
 		if (*offp > t->buffer->data_size - sizeof(*fp) ||
 		    t->buffer->data_size < sizeof(*fp) ||
-		    !IS_ALIGNED(*offp, sizeof(void *))) {
+		    !IS_ALIGNED(*offp, sizeof(u32))) {
 			binder_user_error("%d:%d got transaction with invalid offset, %zd\n",
 					proc->pid, thread->pid, *offp);
 			return_error = BR_FAILED_REPLY;
@@ -1547,7 +1548,7 @@ static void binder_transaction(struct binder_proc *proc,
 		case BINDER_TYPE_WEAK_HANDLE: {
 			struct binder_ref *ref = binder_get_ref(proc, fp->handle);
 			if (ref == NULL) {
-				binder_user_error("%d:%d got transaction with invalid handle, %ld\n",
+				binder_user_error("%d:%d got transaction with invalid handle, %d\n",
 						proc->pid,
 						thread->pid, fp->handle);
 				return_error = BR_FAILED_REPLY;
@@ -1590,13 +1591,13 @@ static void binder_transaction(struct binder_proc *proc,
 
 			if (reply) {
 				if (!(in_reply_to->flags & TF_ACCEPT_FDS)) {
-					binder_user_error("%d:%d got reply with fd, %ld, but target does not allow fds\n",
+					binder_user_error("%d:%d got reply with fd, %d, but target does not allow fds\n",
 						proc->pid, thread->pid, fp->handle);
 					return_error = BR_FAILED_REPLY;
 					goto err_fd_not_allowed;
 				}
 			} else if (!target_node->accept_fds) {
-				binder_user_error("%d:%d got transaction with fd, %ld, but target does not allow fds\n",
+				binder_user_error("%d:%d got transaction with fd, %d, but target does not allow fds\n",
 					proc->pid, thread->pid, fp->handle);
 				return_error = BR_FAILED_REPLY;
 				goto err_fd_not_allowed;
@@ -1604,7 +1605,7 @@ static void binder_transaction(struct binder_proc *proc,
 
 			file = fget(fp->handle);
 			if (file == NULL) {
-				binder_user_error("%d:%d got transaction with invalid fd, %ld\n",
+				binder_user_error("%d:%d got transaction with invalid fd, %d\n",
 					proc->pid, thread->pid, fp->handle);
 				return_error = BR_FAILED_REPLY;
 				goto err_fget_failed;
@@ -1618,13 +1619,13 @@ static void binder_transaction(struct binder_proc *proc,
 			task_fd_install(target_proc, target_fd, file);
 			trace_binder_transaction_fd(t, fp->handle, target_fd);
 			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        fd %ld -> %d\n", fp->handle, target_fd);
+				     "        fd %d -> %d\n", fp->handle, target_fd);
 			/* TODO: fput? */
 			fp->handle = target_fd;
 		} break;
 
 		default:
-			binder_user_error("%d:%d got transaction with invalid object type, %lx\n",
+			binder_user_error("%d:%d got transaction with invalid object type, %x\n",
 				proc->pid, thread->pid, fp->type);
 			return_error = BR_FAILED_REPLY;
 			goto err_bad_object_type;
@@ -1700,7 +1701,7 @@ err_no_context_mgr_node:
 }
 
 int binder_thread_write(struct binder_proc *proc, struct binder_thread *thread,
-			void __user *buffer, int size, signed long *consumed)
+			void __user *buffer, size_t size, size_t *consumed)
 {
 	uint32_t cmd;
 	void __user *ptr = buffer + *consumed;
@@ -2080,8 +2081,8 @@ static int binder_has_thread_work(struct binder_thread *thread)
 
 static int binder_thread_read(struct binder_proc *proc,
 			      struct binder_thread *thread,
-			      void  __user *buffer, int size,
-			      signed long *consumed, int non_block)
+			      void  __user *buffer, size_t size,
+			      size_t *consumed, int non_block)
 {
 	void __user *ptr = buffer + *consumed;
 	void __user *end = buffer + size;
@@ -2140,13 +2141,13 @@ retry:
 			if (!binder_has_proc_work(proc, thread))
 				ret = -EAGAIN;
 		} else
-			ret = wait_event_interruptible_exclusive(proc->wait, binder_has_proc_work(proc, thread));
+			ret = wait_event_freezable_exclusive(proc->wait, binder_has_proc_work(proc, thread));
 	} else {
 		if (non_block) {
 			if (!binder_has_thread_work(thread))
 				ret = -EAGAIN;
 		} else
-			ret = wait_event_interruptible(thread->wait, binder_has_thread_work(thread));
+			ret = wait_event_freezable(thread->wait, binder_has_thread_work(thread));
 	}
 
 	binder_lock(__func__);
@@ -2578,7 +2579,7 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto err;
 		}
 		binder_debug(BINDER_DEBUG_READ_WRITE,
-			     "%d:%d write %ld at %08lx, read %ld at %08lx\n",
+			     "%d:%d write %zd at %016lx, read %zd at %016lx\n",
 			     proc->pid, thread->pid, bwr.write_size,
 			     bwr.write_buffer, bwr.read_size, bwr.read_buffer);
 
@@ -2604,7 +2605,7 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			}
 		}
 		binder_debug(BINDER_DEBUG_READ_WRITE,
-			     "%d:%d wrote %ld of %ld, read return %ld of %ld\n",
+			     "%d:%d wrote %zd of %zd, read return %zd of %zd\n",
 			     proc->pid, thread->pid, bwr.write_consumed, bwr.write_size,
 			     bwr.read_consumed, bwr.read_size);
 		if (copy_to_user(ubuf, &bwr, sizeof(bwr))) {
@@ -2878,82 +2879,109 @@ static int binder_release(struct inode *nodp, struct file *filp)
 	return 0;
 }
 
+static int binder_node_release(struct binder_node *node, int refs)
+{
+	struct binder_ref *ref;
+	int death = 0;
+
+	list_del_init(&node->work.entry);
+	binder_release_work(&node->async_todo);
+
+	if (hlist_empty(&node->refs)) {
+		kfree(node);
+		binder_stats_deleted(BINDER_STAT_NODE);
+
+		return refs;
+	}
+
+	node->proc = NULL;
+	node->local_strong_refs = 0;
+	node->local_weak_refs = 0;
+	hlist_add_head(&node->dead_node, &binder_dead_nodes);
+
+	hlist_for_each_entry(ref, &node->refs, node_entry) {
+		refs++;
+
+		if (!ref->death)
+			goto out;
+
+		death++;
+
+		if (list_empty(&ref->death->work.entry)) {
+			ref->death->work.type = BINDER_WORK_DEAD_BINDER;
+			list_add_tail(&ref->death->work.entry,
+				      &ref->proc->todo);
+			wake_up_interruptible(&ref->proc->wait);
+		} else
+			BUG();
+	}
+
+out:
+	binder_debug(BINDER_DEBUG_DEAD_BINDER,
+		     "node %d now dead, refs %d, death %d\n",
+		     node->debug_id, refs, death);
+
+	return refs;
+}
+
 static void binder_deferred_release(struct binder_proc *proc)
 {
 	struct binder_transaction *t;
 	struct rb_node *n;
-	int threads, nodes, incoming_refs, outgoing_refs, buffers, active_transactions, page_count;
+	int threads, nodes, incoming_refs, outgoing_refs, buffers,
+		active_transactions, page_count;
 
 	BUG_ON(proc->vma);
 	BUG_ON(proc->files);
 
 	hlist_del(&proc->proc_node);
+
 	if (binder_context_mgr_node && binder_context_mgr_node->proc == proc) {
 		binder_debug(BINDER_DEBUG_DEAD_BINDER,
-			     "binder_release: %d context_mgr_node gone\n",
-			     proc->pid);
+			     "%s: %d context_mgr_node gone\n",
+			     __func__, proc->pid);
 		binder_context_mgr_node = NULL;
 	}
 
 	threads = 0;
 	active_transactions = 0;
 	while ((n = rb_first(&proc->threads))) {
-		struct binder_thread *thread = rb_entry(n, struct binder_thread, rb_node);
+		struct binder_thread *thread;
+
+		thread = rb_entry(n, struct binder_thread, rb_node);
 		threads++;
 		active_transactions += binder_free_thread(proc, thread);
 	}
+
 	nodes = 0;
 	incoming_refs = 0;
 	while ((n = rb_first(&proc->nodes))) {
-		struct binder_node *node = rb_entry(n, struct binder_node, rb_node);
+		struct binder_node *node;
 
+		node = rb_entry(n, struct binder_node, rb_node);
 		nodes++;
 		rb_erase(&node->rb_node, &proc->nodes);
-		list_del_init(&node->work.entry);
-		binder_release_work(&node->async_todo);
-		if (hlist_empty(&node->refs)) {
-			kfree(node);
-			binder_stats_deleted(BINDER_STAT_NODE);
-		} else {
-			struct binder_ref *ref;
-			int death = 0;
-
-			node->proc = NULL;
-			node->local_strong_refs = 0;
-			node->local_weak_refs = 0;
-			hlist_add_head(&node->dead_node, &binder_dead_nodes);
-
-			hlist_for_each_entry(ref, &node->refs, node_entry) {
-				incoming_refs++;
-				if (ref->death) {
-					death++;
-					if (list_empty(&ref->death->work.entry)) {
-						ref->death->work.type = BINDER_WORK_DEAD_BINDER;
-						list_add_tail(&ref->death->work.entry, &ref->proc->todo);
-						wake_up_interruptible(&ref->proc->wait);
-					} else
-						BUG();
-				}
-			}
-			binder_debug(BINDER_DEBUG_DEAD_BINDER,
-				     "node %d now dead, refs %d, death %d\n",
-				      node->debug_id, incoming_refs, death);
-		}
+		incoming_refs = binder_node_release(node, incoming_refs);
 	}
+
 	outgoing_refs = 0;
 	while ((n = rb_first(&proc->refs_by_desc))) {
-		struct binder_ref *ref = rb_entry(n, struct binder_ref,
-						  rb_node_desc);
+		struct binder_ref *ref;
+
+		ref = rb_entry(n, struct binder_ref, rb_node_desc);
 		outgoing_refs++;
 		binder_delete_ref(ref);
 	}
+
 	binder_release_work(&proc->todo);
 	binder_release_work(&proc->delivered_death);
-	buffers = 0;
 
+	buffers = 0;
 	while ((n = rb_first(&proc->allocated_buffers))) {
-		struct binder_buffer *buffer = rb_entry(n, struct binder_buffer,
-							rb_node);
+		struct binder_buffer *buffer;
+
+		buffer = rb_entry(n, struct binder_buffer, rb_node);
+
 		t = buffer->transaction;
 		if (t) {
 			t->buffer = NULL;
@@ -2962,6 +2990,7 @@ static void binder_deferred_release(struct binder_proc *proc)
 			       proc->pid, t->debug_id);
 			/*BUG();*/
 		}
+
 		binder_free_buf(proc, buffer);
 		buffers++;
 	}
@@ -2971,18 +3000,20 @@ static void binder_deferred_release(struct binder_proc *proc)
 	page_count = 0;
 	if (proc->pages) {
 		int i;
+
 		for (i = 0; i < proc->buffer_size / PAGE_SIZE; i++) {
-			if (proc->pages[i]) {
-				void *page_addr = proc->buffer + i * PAGE_SIZE;
-				binder_debug(BINDER_DEBUG_BUFFER_ALLOC,
-					     "binder_release: %d: page %d at %p not freed\n",
-					     proc->pid, i,
-					     page_addr);
-				unmap_kernel_range((unsigned long)page_addr,
-					PAGE_SIZE);
-				__free_page(proc->pages[i]);
-				page_count++;
-			}
+			void *page_addr;
+
+			if (!proc->pages[i])
+				continue;
+
+			page_addr = proc->buffer + i * PAGE_SIZE;
+			binder_debug(BINDER_DEBUG_BUFFER_ALLOC,
+				     "%s: %d: page %d at %p not freed\n",
+				     __func__, proc->pid, i, page_addr);
+			unmap_kernel_range((unsigned long)page_addr, PAGE_SIZE);
+			__free_page(proc->pages[i]);
+			page_count++;
 		}
 		kfree(proc->pages);
 		vfree(proc->buffer);
@@ -2991,9 +3022,9 @@ static void binder_deferred_release(struct binder_proc *proc)
 	put_task_struct(proc->tsk);
 
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE,
-		     "binder_release: %d threads %d, nodes %d (ref %d), refs %d, active transactions %d, buffers %d, pages %d\n",
-		     proc->pid, threads, nodes, incoming_refs, outgoing_refs,
-		     active_transactions, buffers, page_count);
+		     "%s: %d threads %d, nodes %d (ref %d), refs %d, active transactions %d, buffers %d, pages %d\n",
+		     __func__, proc->pid, threads, nodes, incoming_refs,
+		     outgoing_refs, active_transactions, buffers, page_count);
 
 	kfree(proc);
 }

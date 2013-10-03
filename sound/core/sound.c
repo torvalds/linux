@@ -102,6 +102,9 @@ static void snd_request_other(int minor)
  * This function increments the reference counter of the card instance
  * if an associated instance with the given minor number and type is found.
  * The caller must call snd_card_unref() appropriately later.
+ *
+ * Return: The user data pointer if the specified device is found. %NULL
+ * otherwise.
  */
 void *snd_lookup_minor_data(unsigned int minor, int type)
 {
@@ -261,7 +264,7 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
  * Registers an ALSA device file for the given card.
  * The operators have to be set in reg parameter.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 				const struct file_operations *f_ops,
@@ -339,7 +342,7 @@ static int find_snd_minor(int type, struct snd_card *card, int dev)
  * Unregisters the device file already registered via
  * snd_register_device().
  *
- * Returns zero if sucecessful, or a negative error code on failure
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_unregister_device(int type, struct snd_card *card, int dev)
 {

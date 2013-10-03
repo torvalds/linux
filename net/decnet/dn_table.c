@@ -19,7 +19,6 @@
 #include <linux/sockios.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
-#include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/proc_fs.h>
 #include <linux/netdevice.h>
@@ -224,26 +223,27 @@ static struct dn_zone *dn_new_zone(struct dn_hash *table, int z)
 }
 
 
-static int dn_fib_nh_match(struct rtmsg *r, struct nlmsghdr *nlh, struct dn_kern_rta *rta, struct dn_fib_info *fi)
+static int dn_fib_nh_match(struct rtmsg *r, struct nlmsghdr *nlh, struct nlattr *attrs[], struct dn_fib_info *fi)
 {
 	struct rtnexthop *nhp;
 	int nhlen;
 
-	if (rta->rta_priority && *rta->rta_priority != fi->fib_priority)
+	if (attrs[RTA_PRIORITY] &&
+	    nla_get_u32(attrs[RTA_PRIORITY]) != fi->fib_priority)
 		return 1;
 
-	if (rta->rta_oif || rta->rta_gw) {
-		if ((!rta->rta_oif || *rta->rta_oif == fi->fib_nh->nh_oif) &&
-		    (!rta->rta_gw  || memcmp(rta->rta_gw, &fi->fib_nh->nh_gw, 2) == 0))
+	if (attrs[RTA_OIF] || attrs[RTA_GATEWAY]) {
+		if ((!attrs[RTA_OIF] || nla_get_u32(attrs[RTA_OIF]) == fi->fib_nh->nh_oif) &&
+		    (!attrs[RTA_GATEWAY]  || nla_get_le16(attrs[RTA_GATEWAY]) != fi->fib_nh->nh_gw))
 			return 0;
 		return 1;
 	}
 
-	if (rta->rta_mp == NULL)
+	if (!attrs[RTA_MULTIPATH])
 		return 0;
 
-	nhp = RTA_DATA(rta->rta_mp);
-	nhlen = RTA_PAYLOAD(rta->rta_mp);
+	nhp = nla_data(attrs[RTA_MULTIPATH]);
+	nhlen = nla_len(attrs[RTA_MULTIPATH]);
 
 	for_nexthops(fi) {
 		int attrlen = nhlen - sizeof(struct rtnexthop);
@@ -254,7 +254,10 @@ static int dn_fib_nh_match(struct rtmsg *r, struct nlmsghdr *nlh, struct dn_kern
 		if (nhp->rtnh_ifindex && nhp->rtnh_ifindex != nh->nh_oif)
 			return 1;
 		if (attrlen) {
-			gw = dn_fib_get_attr16(RTNH_DATA(nhp), attrlen, RTA_GATEWAY);
+			struct nlattr *gw_attr;
+
+			gw_attr = nla_find((struct nlattr *) (nhp + 1), attrlen, RTA_GATEWAY);
+			gw = gw_attr ? nla_get_le16(gw_attr) : 0;
 
 			if (gw && gw != nh->nh_gw)
 				return 1;
@@ -488,7 +491,7 @@ int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!net_eq(net, &init_net))
 		return 0;
 
-	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
+	if (nlmsg_len(cb->nlh) >= sizeof(struct rtmsg) &&
 		((struct rtmsg *)nlmsg_data(cb->nlh))->rtm_flags&RTM_F_CLONED)
 			return dn_cache_dump(skb, cb);
 
@@ -517,7 +520,8 @@ out:
 	return skb->len;
 }
 
-static int dn_fib_table_insert(struct dn_fib_table *tb, struct rtmsg *r, struct dn_kern_rta *rta, struct nlmsghdr *n, struct netlink_skb_parms *req)
+static int dn_fib_table_insert(struct dn_fib_table *tb, struct rtmsg *r, struct nlattr *attrs[],
+			       struct nlmsghdr *n, struct netlink_skb_parms *req)
 {
 	struct dn_hash *table = (struct dn_hash *)tb->data;
 	struct dn_fib_node *new_f, *f, **fp, **del_fp;
@@ -536,15 +540,14 @@ static int dn_fib_table_insert(struct dn_fib_table *tb, struct rtmsg *r, struct 
 		return -ENOBUFS;
 
 	dz_key_0(key);
-	if (rta->rta_dst) {
-		__le16 dst;
-		memcpy(&dst, rta->rta_dst, 2);
+	if (attrs[RTA_DST]) {
+		__le16 dst = nla_get_le16(attrs[RTA_DST]);
 		if (dst & ~DZ_MASK(dz))
 			return -EINVAL;
 		key = dz_key(dst, dz);
 	}
 
-	if ((fi = dn_fib_create_info(r, rta, n, &err)) == NULL)
+	if ((fi = dn_fib_create_info(r, attrs, n, &err)) == NULL)
 		return err;
 
 	if (dz->dz_nent > (dz->dz_divisor << 2) &&
@@ -654,7 +657,8 @@ out:
 }
 
 
-static int dn_fib_table_delete(struct dn_fib_table *tb, struct rtmsg *r, struct dn_kern_rta *rta, struct nlmsghdr *n, struct netlink_skb_parms *req)
+static int dn_fib_table_delete(struct dn_fib_table *tb, struct rtmsg *r, struct nlattr *attrs[],
+			       struct nlmsghdr *n, struct netlink_skb_parms *req)
 {
 	struct dn_hash *table = (struct dn_hash*)tb->data;
 	struct dn_fib_node **fp, **del_fp, *f;
@@ -671,9 +675,8 @@ static int dn_fib_table_delete(struct dn_fib_table *tb, struct rtmsg *r, struct 
 		return -ESRCH;
 
 	dz_key_0(key);
-	if (rta->rta_dst) {
-		__le16 dst;
-		memcpy(&dst, rta->rta_dst, 2);
+	if (attrs[RTA_DST]) {
+		__le16 dst = nla_get_le16(attrs[RTA_DST]);
 		if (dst & ~DZ_MASK(dz))
 			return -EINVAL;
 		key = dz_key(dst, dz);
@@ -703,7 +706,7 @@ static int dn_fib_table_delete(struct dn_fib_table *tb, struct rtmsg *r, struct 
 				(r->rtm_scope == RT_SCOPE_NOWHERE || f->fn_scope == r->rtm_scope) &&
 				(!r->rtm_protocol ||
 					fi->fib_protocol == r->rtm_protocol) &&
-				dn_fib_nh_match(r, n, rta, fi) == 0)
+				dn_fib_nh_match(r, n, attrs, fi) == 0)
 			del_fp = fp;
 	}
 

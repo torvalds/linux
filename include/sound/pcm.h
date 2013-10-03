@@ -181,6 +181,8 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_FMTBIT_G723_24_1B	_SNDRV_PCM_FMTBIT(G723_24_1B)
 #define SNDRV_PCM_FMTBIT_G723_40	_SNDRV_PCM_FMTBIT(G723_40)
 #define SNDRV_PCM_FMTBIT_G723_40_1B	_SNDRV_PCM_FMTBIT(G723_40_1B)
+#define SNDRV_PCM_FMTBIT_DSD_U8		_SNDRV_PCM_FMTBIT(DSD_U8)
+#define SNDRV_PCM_FMTBIT_DSD_U16_LE	_SNDRV_PCM_FMTBIT(DSD_U16_LE)
 
 #ifdef SNDRV_LITTLE_ENDIAN
 #define SNDRV_PCM_FMTBIT_S16		SNDRV_PCM_FMTBIT_S16_LE
@@ -382,7 +384,7 @@ struct snd_pcm_substream {
 	unsigned int dma_buf_id;
 	size_t dma_max;
 	/* -- hardware operations -- */
-	struct snd_pcm_ops *ops;
+	const struct snd_pcm_ops *ops;
 	/* -- runtime information -- */
 	struct snd_pcm_runtime *runtime;
         /* -- timer section -- */
@@ -659,7 +661,7 @@ static inline snd_pcm_sframes_t snd_pcm_capture_hw_avail(struct snd_pcm_runtime 
  *
  * Checks whether enough free space is available on the playback buffer.
  *
- * Returns non-zero if available, or zero if not.
+ * Return: Non-zero if available, or zero if not.
  */
 static inline int snd_pcm_playback_ready(struct snd_pcm_substream *substream)
 {
@@ -673,7 +675,7 @@ static inline int snd_pcm_playback_ready(struct snd_pcm_substream *substream)
  *
  * Checks whether enough capture data is available on the capture buffer.
  *
- * Returns non-zero if available, or zero if not.
+ * Return: Non-zero if available, or zero if not.
  */
 static inline int snd_pcm_capture_ready(struct snd_pcm_substream *substream)
 {
@@ -685,10 +687,10 @@ static inline int snd_pcm_capture_ready(struct snd_pcm_substream *substream)
  * snd_pcm_playback_data - check whether any data exists on the playback buffer
  * @substream: the pcm substream instance
  *
- * Checks whether any data exists on the playback buffer. If stop_threshold
- * is bigger or equal to boundary, then this function returns always non-zero.
+ * Checks whether any data exists on the playback buffer.
  *
- * Returns non-zero if exists, or zero if not.
+ * Return: Non-zero if any data exists, or zero if not. If stop_threshold
+ * is bigger or equal to boundary, then this function returns always non-zero.
  */
 static inline int snd_pcm_playback_data(struct snd_pcm_substream *substream)
 {
@@ -705,7 +707,7 @@ static inline int snd_pcm_playback_data(struct snd_pcm_substream *substream)
  *
  * Checks whether the playback buffer is empty.
  *
- * Returns non-zero if empty, or zero if not.
+ * Return: Non-zero if empty, or zero if not.
  */
 static inline int snd_pcm_playback_empty(struct snd_pcm_substream *substream)
 {
@@ -719,7 +721,7 @@ static inline int snd_pcm_playback_empty(struct snd_pcm_substream *substream)
  *
  * Checks whether the capture buffer is empty.
  *
- * Returns non-zero if empty, or zero if not.
+ * Return: Non-zero if empty, or zero if not.
  */
 static inline int snd_pcm_capture_empty(struct snd_pcm_substream *substream)
 {
@@ -852,7 +854,7 @@ int snd_pcm_format_big_endian(snd_pcm_format_t format);
  * snd_pcm_format_cpu_endian - Check the PCM format is CPU-endian
  * @format: the format to check
  *
- * Returns 1 if the given PCM format is CPU-endian, 0 if
+ * Return: 1 if the given PCM format is CPU-endian, 0 if
  * opposite, or a negative error code if endian not specified.
  */
 int snd_pcm_format_cpu_endian(snd_pcm_format_t format);
@@ -867,9 +869,10 @@ int snd_pcm_format_physical_width(snd_pcm_format_t format);		/* in bits */
 ssize_t snd_pcm_format_size(snd_pcm_format_t format, size_t samples);
 const unsigned char *snd_pcm_format_silence_64(snd_pcm_format_t format);
 int snd_pcm_format_set_silence(snd_pcm_format_t format, void *buf, unsigned int frames);
-snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsignd, int big_endian);
+snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsigned, int big_endian);
 
-void snd_pcm_set_ops(struct snd_pcm * pcm, int direction, struct snd_pcm_ops *ops);
+void snd_pcm_set_ops(struct snd_pcm * pcm, int direction,
+		     const struct snd_pcm_ops *ops);
 void snd_pcm_set_sync(struct snd_pcm_substream *substream);
 int snd_pcm_lib_interleave_len(struct snd_pcm_substream *substream);
 int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
@@ -963,7 +966,7 @@ struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
  * contiguous in kernel virtual space, but not in physical memory.  Use this
  * if the buffer is accessed by kernel code but not by device DMA.
  *
- * Returns 1 if the buffer was changed, 0 if not changed, or a negative error
+ * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
  * code.
  */
 static int snd_pcm_lib_alloc_vmalloc_buffer
@@ -975,6 +978,9 @@ static int snd_pcm_lib_alloc_vmalloc_buffer
  *
  * This function works like snd_pcm_lib_alloc_vmalloc_buffer(), but uses
  * vmalloc_32(), i.e., the pages are allocated from 32-bit-addressable memory.
+ *
+ * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
+ * code.
  */
 static int snd_pcm_lib_alloc_vmalloc_32_buffer
 			(struct snd_pcm_substream *substream, size_t size);
@@ -1070,6 +1076,8 @@ const char *snd_pcm_format_name(snd_pcm_format_t format);
 /**
  * snd_pcm_stream_str - Get a string naming the direction of a stream
  * @substream: the pcm substream instance
+ *
+ * Return: A string naming the direction of the stream.
  */
 static inline const char *snd_pcm_stream_str(struct snd_pcm_substream *substream)
 {
@@ -1125,5 +1133,11 @@ int snd_pcm_add_chmap_ctls(struct snd_pcm *pcm, int stream,
 			   int max_channels,
 			   unsigned long private_value,
 			   struct snd_pcm_chmap **info_ret);
+
+/* Strong-typed conversion of pcm_format to bitwise */
+static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
+{
+	return 1ULL << (__force int) pcm_format;
+}
 
 #endif /* __SOUND_PCM_H */

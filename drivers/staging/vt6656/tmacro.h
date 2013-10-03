@@ -29,32 +29,24 @@
 #ifndef __TMACRO_H__
 #define __TMACRO_H__
 
-#include "ttype.h"
-
 /****** Common helper macros ***********************************************/
 
 #if !defined(LOBYTE)
-#define LOBYTE(w)           ((BYTE)(w))
+#define LOBYTE(w)           ((u8)(w))
 #endif
 #if !defined(HIBYTE)
-#define HIBYTE(w)           ((BYTE)(((WORD)(w) >> 8) & 0xFF))
+#define HIBYTE(w)           ((u8)(((u16)(w) >> 8) & 0xFF))
 #endif
 
 #if !defined(LOWORD)
-#define LOWORD(d)           ((WORD)(d))
+#define LOWORD(d)           ((u16)(d))
 #endif
 #if !defined(HIWORD)
-#define HIWORD(d)           ((WORD)((((DWORD)(d)) >> 16) & 0xFFFF))
+#define HIWORD(d)           ((u16)((((u32)(d)) >> 16) & 0xFFFF))
 #endif
-
-#define LODWORD(q)          ((q).u.dwLowDword)
-#define HIDWORD(q)          ((q).u.dwHighDword)
 
 #if !defined(MAKEWORD)
-#define MAKEWORD(lb, hb)    ((WORD)(((BYTE)(lb)) | (((WORD)((BYTE)(hb))) << 8)))
-#endif
-#if !defined(MAKEDWORD)
-#define MAKEDWORD(lw, hw)   ((DWORD)(((WORD)(lw)) | (((DWORD)((WORD)(hw))) << 16)))
+#define MAKEWORD(lb, hb)    ((u16)(((u8)(lb)) | (((u16)((u8)(hb))) << 8)))
 #endif
 
 #endif /* __TMACRO_H__ */

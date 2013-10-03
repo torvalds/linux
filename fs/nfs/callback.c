@@ -125,6 +125,9 @@ nfs41_callback_svc(void *vrqstp)
 	set_freezable();
 
 	while (!kthread_should_stop()) {
+		if (try_to_freeze())
+			continue;
+
 		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_INTERRUPTIBLE);
 		spin_lock_bh(&serv->sv_cb_lock);
 		if (!list_empty(&serv->sv_cb_list)) {
@@ -208,7 +211,6 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 	struct svc_rqst *rqstp;
 	int (*callback_svc)(void *vrqstp);
 	struct nfs_callback_data *cb_info = &nfs_callback_info[minorversion];
-	char svc_name[12];
 	int ret;
 
 	nfs_callback_bc_serv(minorversion, xprt, serv);
@@ -232,10 +234,10 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 
 	svc_sock_update_bufs(serv);
 
-	sprintf(svc_name, "nfsv4.%u-svc", minorversion);
 	cb_info->serv = serv;
 	cb_info->rqst = rqstp;
-	cb_info->task = kthread_run(callback_svc, cb_info->rqst, svc_name);
+	cb_info->task = kthread_run(callback_svc, cb_info->rqst,
+				    "nfsv4.%u-svc", minorversion);
 	if (IS_ERR(cb_info->task)) {
 		ret = PTR_ERR(cb_info->task);
 		svc_exit_thread(cb_info->rqst);
@@ -279,6 +281,7 @@ static int nfs_callback_up_net(int minorversion, struct svc_serv *serv, struct n
 			ret = nfs4_callback_up_net(serv, net);
 			break;
 		case 1:
+		case 2:
 			ret = nfs41_callback_up_net(serv, net);
 			break;
 		default:

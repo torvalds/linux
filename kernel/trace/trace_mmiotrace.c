@@ -31,7 +31,7 @@ static void mmio_reset_data(struct trace_array *tr)
 	overrun_detected = false;
 	prev_overruns = 0;
 
-	tracing_reset_online_cpus(tr);
+	tracing_reset_online_cpus(&tr->trace_buffer);
 }
 
 static int mmio_trace_init(struct trace_array *tr)
@@ -90,7 +90,7 @@ static int mmio_print_pcidev(struct trace_seq *s, const struct pci_dev *dev)
 	if (drv)
 		ret += trace_seq_printf(s, " %s\n", drv->name);
 	else
-		ret += trace_seq_printf(s, " \n");
+		ret += trace_seq_puts(s, " \n");
 	return ret;
 }
 
@@ -107,7 +107,7 @@ static void mmio_pipe_open(struct trace_iterator *iter)
 	struct header_iter *hiter;
 	struct trace_seq *s = &iter->seq;
 
-	trace_seq_printf(s, "VERSION 20070824\n");
+	trace_seq_puts(s, "VERSION 20070824\n");
 
 	hiter = kzalloc(sizeof(*hiter), GFP_KERNEL);
 	if (!hiter)
@@ -128,7 +128,7 @@ static void mmio_close(struct trace_iterator *iter)
 static unsigned long count_overruns(struct trace_iterator *iter)
 {
 	unsigned long cnt = atomic_xchg(&dropped_count, 0);
-	unsigned long over = ring_buffer_overruns(iter->tr->buffer);
+	unsigned long over = ring_buffer_overruns(iter->trace_buffer->buffer);
 
 	if (over > prev_overruns)
 		cnt += over - prev_overruns;
@@ -209,7 +209,7 @@ static enum print_line_t mmio_print_rw(struct trace_iterator *iter)
 			(rw->value >> 0) & 0xff, rw->pc, 0);
 		break;
 	default:
-		ret = trace_seq_printf(s, "rw what?\n");
+		ret = trace_seq_puts(s, "rw what?\n");
 		break;
 	}
 	if (ret)
@@ -245,7 +245,7 @@ static enum print_line_t mmio_print_map(struct trace_iterator *iter)
 			secs, usec_rem, m->map_id, 0UL, 0);
 		break;
 	default:
-		ret = trace_seq_printf(s, "map what?\n");
+		ret = trace_seq_puts(s, "map what?\n");
 		break;
 	}
 	if (ret)
@@ -309,7 +309,7 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 				struct mmiotrace_rw *rw)
 {
 	struct ftrace_event_call *call = &event_mmiotrace_rw;
-	struct ring_buffer *buffer = tr->buffer;
+	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_rw *entry;
 	int pc = preempt_count();
@@ -330,7 +330,7 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 void mmio_trace_rw(struct mmiotrace_rw *rw)
 {
 	struct trace_array *tr = mmio_trace_array;
-	struct trace_array_cpu *data = tr->data[smp_processor_id()];
+	struct trace_array_cpu *data = per_cpu_ptr(tr->trace_buffer.data, smp_processor_id());
 	__trace_mmiotrace_rw(tr, data, rw);
 }
 
@@ -339,7 +339,7 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 				struct mmiotrace_map *map)
 {
 	struct ftrace_event_call *call = &event_mmiotrace_map;
-	struct ring_buffer *buffer = tr->buffer;
+	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_map *entry;
 	int pc = preempt_count();
@@ -363,7 +363,7 @@ void mmio_trace_mapping(struct mmiotrace_map *map)
 	struct trace_array_cpu *data;
 
 	preempt_disable();
-	data = tr->data[smp_processor_id()];
+	data = per_cpu_ptr(tr->trace_buffer.data, smp_processor_id());
 	__trace_mmiotrace_map(tr, data, map);
 	preempt_enable();
 }

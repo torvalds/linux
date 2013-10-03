@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -121,7 +121,6 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 				target_freq, relation, &index))
 		return -EINVAL;
 
-	freqs.cpu = policy->cpu;
 	freqs.old = spear_cpufreq_get(0);
 
 	newfreq = spear_cpufreq.freq_tbl[index].frequency * 1000;
@@ -158,8 +157,7 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 	freqs.new = newfreq / 1000;
 	freqs.new /= mult;
 
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	if (mult == 2)
 		ret = spear1340_set_cpu_rate(srcclk, newfreq);
@@ -172,8 +170,7 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 		freqs.new = clk_get_rate(spear_cpufreq.clk) / 1000;
 	}
 
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	return ret;
 }
 
@@ -226,7 +223,7 @@ static int spear_cpufreq_driver_init(void)
 	const __be32 *val;
 	int cnt, i, ret;
 
-	np = of_find_node_by_path("/cpus/cpu@0");
+	np = of_cpu_device_node_get(0);
 	if (!np) {
 		pr_err("No cpu node found");
 		return -ENODEV;
@@ -253,11 +250,11 @@ static int spear_cpufreq_driver_init(void)
 	}
 
 	for (i = 0; i < cnt; i++) {
-		freq_tbl[i].index = i;
+		freq_tbl[i].driver_data = i;
 		freq_tbl[i].frequency = be32_to_cpup(val++);
 	}
 
-	freq_tbl[i].index = i;
+	freq_tbl[i].driver_data = i;
 	freq_tbl[i].frequency = CPUFREQ_TABLE_END;
 
 	spear_cpufreq.freq_tbl = freq_tbl;

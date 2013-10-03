@@ -61,6 +61,7 @@ static unsigned int fmax = 515633;
  * @pwrreg_powerup: power up value for MMCIPOWER register
  * @signal_direction: input/out direction of bus signals can be indicated
  * @pwrreg_clkgate: MMCIPOWER register must be used to gate the clock
+ * @busy_detect: true if busy detection on dat0 is supported
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -74,6 +75,7 @@ struct variant_data {
 	u32			pwrreg_powerup;
 	bool			signal_direction;
 	bool			pwrreg_clkgate;
+	bool			busy_detect;
 };
 
 static struct variant_data variant_arm = {
@@ -132,6 +134,7 @@ static struct variant_data variant_ux500 = {
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
+	.busy_detect		= true,
 };
 
 static struct variant_data variant_ux500v2 = {
@@ -146,7 +149,27 @@ static struct variant_data variant_ux500v2 = {
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
+	.busy_detect		= true,
 };
+
+static int mmci_card_busy(struct mmc_host *mmc)
+{
+	struct mmci_host *host = mmc_priv(mmc);
+	unsigned long flags;
+	int busy = 0;
+
+	pm_runtime_get_sync(mmc_dev(mmc));
+
+	spin_lock_irqsave(&host->lock, flags);
+	if (readl(host->base + MMCISTATUS) & MCI_ST_CARDBUSY)
+		busy = 1;
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	pm_runtime_mark_last_busy(mmc_dev(mmc));
+	pm_runtime_put_autosuspend(mmc_dev(mmc));
+
+	return busy;
+}
 
 /*
  * Validate mmc prerequisites
@@ -191,10 +214,27 @@ static void mmci_write_pwrreg(struct mmci_host *host, u32 pwr)
 /*
  * This must be called with host->lock held
  */
+static void mmci_write_datactrlreg(struct mmci_host *host, u32 datactrl)
+{
+	/* Keep ST Micro busy mode if enabled */
+	datactrl |= host->datactrl_reg & MCI_ST_DPSM_BUSYMODE;
+
+	if (host->datactrl_reg != datactrl) {
+		host->datactrl_reg = datactrl;
+		writel(datactrl, host->base + MMCIDATACTRL);
+	}
+}
+
+/*
+ * This must be called with host->lock held
+ */
 static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 {
 	struct variant_data *variant = host->variant;
 	u32 clk = variant->clkreg;
+
+	/* Make sure cclk reflects the current calculated clock */
+	host->cclk = 0;
 
 	if (desired) {
 		if (desired >= host->mclk) {
@@ -229,6 +269,9 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 		/* This hasn't proven to be worthwhile */
 		/* clk |= MCI_CLK_PWRSAVE; */
 	}
+
+	/* Set actual clock for debug */
+	host->mmc->actual_clock = host->cclk;
 
 	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4)
 		clk |= MCI_4BIT_BUS;
@@ -275,7 +318,7 @@ static void mmci_set_mask1(struct mmci_host *host, unsigned int mask)
 
 static void mmci_stop_data(struct mmci_host *host)
 {
-	writel(0, host->base + MMCIDATACTRL);
+	mmci_write_datactrlreg(host, 0);
 	mmci_set_mask1(host, 0);
 	host->data = NULL;
 }
@@ -304,10 +347,8 @@ static void mmci_dma_setup(struct mmci_host *host)
 	const char *rxname, *txname;
 	dma_cap_mask_t mask;
 
-	if (!plat || !plat->dma_filter) {
-		dev_info(mmc_dev(host->mmc), "no DMA platform data\n");
-		return;
-	}
+	host->dma_rx_channel = dma_request_slave_channel(mmc_dev(host->mmc), "rx");
+	host->dma_tx_channel = dma_request_slave_channel(mmc_dev(host->mmc), "tx");
 
 	/* initialize pre request cookie */
 	host->next_data.cookie = 1;
@@ -316,29 +357,32 @@ static void mmci_dma_setup(struct mmci_host *host)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
+	if (plat && plat->dma_filter) {
+		if (!host->dma_rx_channel && plat->dma_rx_param) {
+			host->dma_rx_channel = dma_request_channel(mask,
+							   plat->dma_filter,
+							   plat->dma_rx_param);
+			/* E.g if no DMA hardware is present */
+			if (!host->dma_rx_channel)
+				dev_err(mmc_dev(host->mmc), "no RX DMA channel\n");
+		}
+
+		if (!host->dma_tx_channel && plat->dma_tx_param) {
+			host->dma_tx_channel = dma_request_channel(mask,
+							   plat->dma_filter,
+							   plat->dma_tx_param);
+			if (!host->dma_tx_channel)
+				dev_warn(mmc_dev(host->mmc), "no TX DMA channel\n");
+		}
+	}
+
 	/*
 	 * If only an RX channel is specified, the driver will
 	 * attempt to use it bidirectionally, however if it is
 	 * is specified but cannot be located, DMA will be disabled.
 	 */
-	if (plat->dma_rx_param) {
-		host->dma_rx_channel = dma_request_channel(mask,
-							   plat->dma_filter,
-							   plat->dma_rx_param);
-		/* E.g if no DMA hardware is present */
-		if (!host->dma_rx_channel)
-			dev_err(mmc_dev(host->mmc), "no RX DMA channel\n");
-	}
-
-	if (plat->dma_tx_param) {
-		host->dma_tx_channel = dma_request_channel(mask,
-							   plat->dma_filter,
-							   plat->dma_tx_param);
-		if (!host->dma_tx_channel)
-			dev_warn(mmc_dev(host->mmc), "no TX DMA channel\n");
-	} else {
+	if (host->dma_rx_channel && !host->dma_tx_channel)
 		host->dma_tx_channel = host->dma_rx_channel;
-	}
 
 	if (host->dma_rx_channel)
 		rxname = dma_chan_name(host->dma_rx_channel);
@@ -552,7 +596,7 @@ static int mmci_dma_start_data(struct mmci_host *host, unsigned int datactrl)
 	datactrl |= MCI_DPSM_DMAENABLE;
 
 	/* Trigger the DMA transfer */
-	writel(datactrl, host->base + MMCIDATACTRL);
+	mmci_write_datactrlreg(host, datactrl);
 
 	/*
 	 * Let the MMCI say when the data is ended and it's time
@@ -750,7 +794,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 		irqmask = MCI_TXFIFOHALFEMPTYMASK;
 	}
 
-	writel(datactrl, base + MMCIDATACTRL);
+	mmci_write_datactrlreg(host, datactrl);
 	writel(readl(base + MMCIMASK0) & ~MCI_DATAENDMASK, base + MMCIMASK0);
 	mmci_set_mask1(host, irqmask);
 }
@@ -842,7 +886,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 			/* The error clause is handled above, success! */
 			data->bytes_xfered = data->blksz * data->blocks;
 
-		if (!data->stop) {
+		if (!data->stop || host->mrq->sbc) {
 			mmci_request_end(host, data->mrq);
 		} else {
 			mmci_start_command(host, data->stop, 0);
@@ -855,6 +899,7 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 	     unsigned int status)
 {
 	void __iomem *base = host->base;
+	bool sbc = (cmd == host->mrq->sbc);
 
 	host->cmd = NULL;
 
@@ -869,7 +914,7 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 		cmd->resp[3] = readl(base + MMCIRESPONSE3);
 	}
 
-	if (!cmd->data || cmd->error) {
+	if ((!sbc && !cmd->data) || cmd->error) {
 		if (host->data) {
 			/* Terminate the DMA transfer */
 			if (dma_inprogress(host)) {
@@ -878,7 +923,9 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 			}
 			mmci_stop_data(host);
 		}
-		mmci_request_end(host, cmd->mrq);
+		mmci_request_end(host, host->mrq);
+	} else if (sbc) {
+		mmci_start_command(host, host->mrq->cmd, 0);
 	} else if (!(cmd->data->flags & MMC_DATA_READ)) {
 		mmci_start_data(host, cmd->data);
 	}
@@ -1119,7 +1166,10 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (mrq->data && mrq->data->flags & MMC_DATA_READ)
 		mmci_start_data(host, mrq->data);
 
-	mmci_start_command(host, mrq->cmd, 0);
+	if (mrq->sbc)
+		mmci_start_command(host, mrq->sbc, 0);
+	else
+		mmci_start_command(host, mrq->cmd, 0);
 
 	spin_unlock_irqrestore(&host->lock, flags);
 }
@@ -1130,6 +1180,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct variant_data *variant = host->variant;
 	u32 pwr = 0;
 	unsigned long flags;
+	int ret;
 
 	pm_runtime_get_sync(mmc_dev(mmc));
 
@@ -1141,6 +1192,12 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_OFF:
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+
+		if (!IS_ERR(mmc->supply.vqmmc) && host->vqmmc_enabled) {
+			regulator_disable(mmc->supply.vqmmc);
+			host->vqmmc_enabled = false;
+		}
+
 		break;
 	case MMC_POWER_UP:
 		if (!IS_ERR(mmc->supply.vmmc))
@@ -1155,6 +1212,15 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		break;
 	case MMC_POWER_ON:
+		if (!IS_ERR(mmc->supply.vqmmc) && !host->vqmmc_enabled) {
+			ret = regulator_enable(mmc->supply.vqmmc);
+			if (ret < 0)
+				dev_err(mmc_dev(mmc),
+					"failed to enable vqmmc regulator\n");
+			else
+				host->vqmmc_enabled = true;
+		}
+
 		pwr |= MCI_PWR_ON;
 		break;
 	}
@@ -1237,6 +1303,39 @@ static int mmci_get_cd(struct mmc_host *mmc)
 	return status;
 }
 
+static int mmci_sig_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	int ret = 0;
+
+	if (!IS_ERR(mmc->supply.vqmmc)) {
+
+		pm_runtime_get_sync(mmc_dev(mmc));
+
+		switch (ios->signal_voltage) {
+		case MMC_SIGNAL_VOLTAGE_330:
+			ret = regulator_set_voltage(mmc->supply.vqmmc,
+						2700000, 3600000);
+			break;
+		case MMC_SIGNAL_VOLTAGE_180:
+			ret = regulator_set_voltage(mmc->supply.vqmmc,
+						1700000, 1950000);
+			break;
+		case MMC_SIGNAL_VOLTAGE_120:
+			ret = regulator_set_voltage(mmc->supply.vqmmc,
+						1100000, 1300000);
+			break;
+		}
+
+		if (ret)
+			dev_warn(mmc_dev(mmc), "Voltage switch failed\n");
+
+		pm_runtime_mark_last_busy(mmc_dev(mmc));
+		pm_runtime_put_autosuspend(mmc_dev(mmc));
+	}
+
+	return ret;
+}
+
 static irqreturn_t mmci_cd_irq(int irq, void *dev_id)
 {
 	struct mmci_host *host = dev_id;
@@ -1246,13 +1345,14 @@ static irqreturn_t mmci_cd_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static const struct mmc_host_ops mmci_ops = {
+static struct mmc_host_ops mmci_ops = {
 	.request	= mmci_request,
 	.pre_req	= mmci_pre_request,
 	.post_req	= mmci_post_request,
 	.set_ios	= mmci_set_ios,
 	.get_ro		= mmci_get_ro,
 	.get_cd		= mmci_get_cd,
+	.start_signal_voltage_switch = mmci_sig_volt_switch,
 };
 
 #ifdef CONFIG_OF
@@ -1348,16 +1448,15 @@ static int mmci_probe(struct amba_device *dev,
 	dev_dbg(mmc_dev(mmc), "designer ID = 0x%02x\n", host->hw_designer);
 	dev_dbg(mmc_dev(mmc), "revision = 0x%01x\n", host->hw_revision);
 
-	host->clk = clk_get(&dev->dev, NULL);
+	host->clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
-		host->clk = NULL;
 		goto host_free;
 	}
 
 	ret = clk_prepare_enable(host->clk);
 	if (ret)
-		goto clk_free;
+		goto host_free;
 
 	host->plat = plat;
 	host->variant = variant;
@@ -1380,6 +1479,11 @@ static int mmci_probe(struct amba_device *dev,
 	if (!host->base) {
 		ret = -ENOMEM;
 		goto clk_disable;
+	}
+
+	if (variant->busy_detect) {
+		mmci_ops.card_busy = mmci_card_busy;
+		mmci_write_datactrlreg(host, MCI_ST_DPSM_BUSYMODE);
 	}
 
 	mmc->ops = &mmci_ops;
@@ -1562,8 +1666,6 @@ static int mmci_probe(struct amba_device *dev,
 	iounmap(host->base);
  clk_disable:
 	clk_disable_unprepare(host->clk);
- clk_free:
-	clk_put(host->clk);
  host_free:
 	mmc_free_host(mmc);
  rel_regions:
@@ -1609,7 +1711,6 @@ static int mmci_remove(struct amba_device *dev)
 
 		iounmap(host->base);
 		clk_disable_unprepare(host->clk);
-		clk_put(host->clk);
 
 		mmc_free_host(mmc);
 

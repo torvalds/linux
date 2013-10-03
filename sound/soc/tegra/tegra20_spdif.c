@@ -32,6 +32,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include "tegra20_spdif.h"
 
@@ -182,6 +183,10 @@ static struct snd_soc_dai_driver tegra20_spdif_dai = {
 	.ops = &tegra20_spdif_dai_ops,
 };
 
+static const struct snd_soc_component_driver tegra20_spdif_component = {
+	.name		= DRV_NAME,
+};
+
 static bool tegra20_spdif_wr_rd_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -318,9 +323,9 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 	}
 
 	spdif->playback_dma_data.addr = mem->start + TEGRA20_SPDIF_DATA_OUT;
-	spdif->playback_dma_data.wrap = 4;
-	spdif->playback_dma_data.width = 32;
-	spdif->playback_dma_data.req_sel = dmareq->start;
+	spdif->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	spdif->playback_dma_data.maxburst = 4;
+	spdif->playback_dma_data.slave_id = dmareq->start;
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
@@ -329,7 +334,8 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	ret = snd_soc_register_dai(&pdev->dev, &tegra20_spdif_dai);
+	ret = snd_soc_register_component(&pdev->dev, &tegra20_spdif_component,
+				   &tegra20_spdif_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
 		ret = -ENOMEM;
@@ -339,13 +345,13 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 	ret = tegra_pcm_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
-		goto err_unregister_dai;
+		goto err_unregister_component;
 	}
 
 	return 0;
 
-err_unregister_dai:
-	snd_soc_unregister_dai(&pdev->dev);
+err_unregister_component:
+	snd_soc_unregister_component(&pdev->dev);
 err_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra20_spdif_runtime_suspend(&pdev->dev);
@@ -366,7 +372,7 @@ static int tegra20_spdif_platform_remove(struct platform_device *pdev)
 		tegra20_spdif_runtime_suspend(&pdev->dev);
 
 	tegra_pcm_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	clk_put(spdif->clk_spdif_out);
 

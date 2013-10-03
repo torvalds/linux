@@ -2,6 +2,10 @@ Kernel driver ltc2978
 =====================
 
 Supported chips:
+  * Linear Technology LTC2974
+    Prefix: 'ltc2974'
+    Addresses scanned: -
+    Datasheet: http://www.linear.com/product/ltc2974
   * Linear Technology LTC2978
     Prefix: 'ltc2978'
     Addresses scanned: -
@@ -10,6 +14,10 @@ Supported chips:
     Prefix: 'ltc3880'
     Addresses scanned: -
     Datasheet: http://www.linear.com/product/ltc3880
+  * Linear Technology LTC3883
+    Prefix: 'ltc3883'
+    Addresses scanned: -
+    Datasheet: http://www.linear.com/product/ltc3883
 
 Author: Guenter Roeck <linux@roeck-us.net>
 
@@ -17,9 +25,9 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-The LTC2978 is an octal power supply monitor, supervisor, sequencer and
-margin controller. The LTC3880 is a dual, PolyPhase DC/DC synchronous
-step-down switching regulator controller.
+LTC2974 is a quad digital power supply manager. LTC2978 is an octal power supply
+monitor. LTC3880 is a dual output poly-phase step-down DC/DC controller. LTC3883
+is a single phase step-down DC/DC controller.
 
 
 Usage Notes
@@ -41,63 +49,90 @@ Sysfs attributes
 in1_label		"vin"
 in1_input		Measured input voltage.
 in1_min			Minimum input voltage.
-in1_max			Maximum input voltage.
-in1_lcrit		Critical minimum input voltage.
+in1_max			Maximum input voltage. LTC2974 and LTC2978 only.
+in1_lcrit		Critical minimum input voltage. LTC2974 and LTC2978
+			only.
 in1_crit		Critical maximum input voltage.
 in1_min_alarm		Input voltage low alarm.
-in1_max_alarm		Input voltage high alarm.
-in1_lcrit_alarm		Input voltage critical low alarm.
+in1_max_alarm		Input voltage high alarm. LTC2974 and LTC2978 only.
+in1_lcrit_alarm		Input voltage critical low alarm. LTC2974 and LTC2978
+			only.
 in1_crit_alarm		Input voltage critical high alarm.
-in1_lowest		Lowest input voltage. LTC2978 only.
+in1_lowest		Lowest input voltage. LTC2974 and LTC2978 only.
 in1_highest		Highest input voltage.
-in1_reset_history	Reset history. Writing into this attribute will reset
-			history for all attributes.
+in1_reset_history	Reset input voltage history.
 
-in[2-9]_label		"vout[1-8]". Channels 3 to 9 on LTC2978 only.
-in[2-9]_input		Measured output voltage.
-in[2-9]_min		Minimum output voltage.
-in[2-9]_max		Maximum output voltage.
-in[2-9]_lcrit		Critical minimum output voltage.
-in[2-9]_crit		Critical maximum output voltage.
-in[2-9]_min_alarm	Output voltage low alarm.
-in[2-9]_max_alarm	Output voltage high alarm.
-in[2-9]_lcrit_alarm	Output voltage critical low alarm.
-in[2-9]_crit_alarm	Output voltage critical high alarm.
-in[2-9]_lowest		Lowest output voltage. LTC2978 only.
-in[2-9]_highest		Lowest output voltage.
-in[2-9]_reset_history	Reset history. Writing into this attribute will reset
-			history for all attributes.
+in[N]_label		"vout[1-8]".
+			LTC2974: N=2-5
+			LTC2978: N=2-9
+			LTC3880: N=2-3
+			LTC3883: N=2
+in[N]_input		Measured output voltage.
+in[N]_min		Minimum output voltage.
+in[N]_max		Maximum output voltage.
+in[N]_lcrit		Critical minimum output voltage.
+in[N]_crit		Critical maximum output voltage.
+in[N]_min_alarm		Output voltage low alarm.
+in[N]_max_alarm		Output voltage high alarm.
+in[N]_lcrit_alarm	Output voltage critical low alarm.
+in[N]_crit_alarm	Output voltage critical high alarm.
+in[N]_lowest		Lowest output voltage. LTC2974 and LTC2978 only.
+in[N]_highest		Highest output voltage.
+in[N]_reset_history	Reset output voltage history.
 
-temp[1-3]_input		Measured temperature.
+temp[N]_input		Measured temperature.
+			On LTC2974, temp[1-4] report external temperatures,
+			and temp5 reports the chip temperature.
 			On LTC2978, only one temperature measurement is
-			supported and reflects the internal temperature.
+			supported and reports the chip temperature.
 			On LTC3880, temp1 and temp2 report external
-			temperatures, and temp3 reports the internal
-			temperature.
-temp[1-3]_min		Mimimum temperature.
-temp[1-3]_max		Maximum temperature.
-temp[1-3]_lcrit		Critical low temperature.
-temp[1-3]_crit		Critical high temperature.
-temp[1-3]_min_alarm	Chip temperature low alarm.
-temp[1-3]_max_alarm	Chip temperature high alarm.
-temp[1-3]_lcrit_alarm	Chip temperature critical low alarm.
-temp[1-3]_crit_alarm	Chip temperature critical high alarm.
-temp[1-3]_lowest	Lowest measured temperature. LTC2978 only.
-temp[1-3]_highest	Highest measured temperature.
-temp[1-3]_reset_history	Reset history. Writing into this attribute will reset
-			history for all attributes.
+			temperatures, and temp3 reports the chip temperature.
+			On LTC3883, temp1 reports an external temperature,
+			and temp2 reports the chip temperature.
+temp[N]_min		Mimimum temperature. LTC2974 and LTC2978 only.
+temp[N]_max		Maximum temperature.
+temp[N]_lcrit		Critical low temperature.
+temp[N]_crit		Critical high temperature.
+temp[N]_min_alarm	Temperature low alarm. LTC2974 and LTC2978 only.
+temp[N]_max_alarm	Temperature high alarm.
+temp[N]_lcrit_alarm	Temperature critical low alarm.
+temp[N]_crit_alarm	Temperature critical high alarm.
+temp[N]_lowest		Lowest measured temperature. LTC2974 and LTC2978 only.
+			Not supported for chip temperature sensor on LTC2974.
+temp[N]_highest		Highest measured temperature. Not supported for chip
+			temperature sensor on LTC2974.
+temp[N]_reset_history	Reset temperature history. Not supported for chip
+			temperature sensor on LTC2974.
 
-power[1-2]_label	"pout[1-2]". LTC3880 only.
-power[1-2]_input	Measured power.
+power1_label		"pin". LTC3883 only.
+power1_input		Measured input power.
 
-curr1_label		"iin". LTC3880 only.
+power[N]_label		"pout[1-4]".
+			LTC2974: N=1-4
+			LTC2978: Not supported
+			LTC3880: N=1-2
+			LTC3883: N=2
+power[N]_input		Measured output power.
+
+curr1_label		"iin". LTC3880 and LTC3883 only.
 curr1_input		Measured input current.
 curr1_max		Maximum input current.
 curr1_max_alarm		Input current high alarm.
+curr1_highest		Highest input current. LTC3883 only.
+curr1_reset_history	Reset input current history. LTC3883 only.
 
-curr[2-3]_label		"iout[1-2]". LTC3880 only.
-curr[2-3]_input		Measured input current.
-curr[2-3]_max		Maximum input current.
-curr[2-3]_crit		Critical input current.
-curr[2-3]_max_alarm	Input current high alarm.
-curr[2-3]_crit_alarm	Input current critical high alarm.
+curr[N]_label		"iout[1-4]".
+			LTC2974: N=1-4
+			LTC2978: not supported
+			LTC3880: N=2-3
+			LTC3883: N=2
+curr[N]_input		Measured output current.
+curr[N]_max		Maximum output current.
+curr[N]_crit		Critical high output current.
+curr[N]_lcrit		Critical low output current. LTC2974 only.
+curr[N]_max_alarm	Output current high alarm.
+curr[N]_crit_alarm	Output current critical high alarm.
+curr[N]_lcrit_alarm	Output current critical low alarm. LTC2974 only.
+curr[N]_lowest		Lowest output current. LTC2974 only.
+curr[N]_highest		Highest output current.
+curr[N]_reset_history	Reset output current history.

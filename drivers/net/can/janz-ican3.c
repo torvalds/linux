@@ -1734,7 +1734,7 @@ static ssize_t ican3_sysfs_set_term(struct device *dev,
 	unsigned long enable;
 	int ret;
 
-	if (strict_strtoul(buf, 0, &enable))
+	if (kstrtoul(buf, 0, &enable))
 		return -EINVAL;
 
 	ret = ican3_set_termination(mod, enable);

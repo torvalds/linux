@@ -46,7 +46,7 @@
 #define     IQM_RC_ADJ_SEL_B_QAM                                            0x1
 #define     IQM_RC_ADJ_SEL_B_VSB                                            0x2
 
-enum OperationMode {
+enum operation_mode {
 	OM_NONE,
 	OM_QAM_ITU_A,
 	OM_QAM_ITU_B,
@@ -54,7 +54,7 @@ enum OperationMode {
 	OM_DVBT
 };
 
-enum DRXPowerMode {
+enum drx_power_mode {
 	DRX_POWER_UP = 0,
 	DRX_POWER_MODE_1,
 	DRX_POWER_MODE_2,
@@ -77,24 +77,29 @@ enum DRXPowerMode {
 };
 
 
-/** /brief Intermediate power mode for DRXK, power down OFDM clock domain */
+/* Intermediate power mode for DRXK, power down OFDM clock domain */
 #ifndef DRXK_POWER_DOWN_OFDM
 #define DRXK_POWER_DOWN_OFDM        DRX_POWER_MODE_1
 #endif
 
-/** /brief Intermediate power mode for DRXK, power down core (sysclk) */
+/* Intermediate power mode for DRXK, power down core (sysclk) */
 #ifndef DRXK_POWER_DOWN_CORE
 #define DRXK_POWER_DOWN_CORE        DRX_POWER_MODE_9
 #endif
 
-/** /brief Intermediate power mode for DRXK, power down pll (only osc runs) */
+/* Intermediate power mode for DRXK, power down pll (only osc runs) */
 #ifndef DRXK_POWER_DOWN_PLL
 #define DRXK_POWER_DOWN_PLL         DRX_POWER_MODE_10
 #endif
 
 
-enum AGC_CTRL_MODE { DRXK_AGC_CTRL_AUTO = 0, DRXK_AGC_CTRL_USER, DRXK_AGC_CTRL_OFF };
-enum EDrxkState {
+enum agc_ctrl_mode {
+	DRXK_AGC_CTRL_AUTO = 0,
+	DRXK_AGC_CTRL_USER,
+	DRXK_AGC_CTRL_OFF
+};
+
+enum e_drxk_state {
 	DRXK_UNINITIALIZED = 0,
 	DRXK_STOPPED,
 	DRXK_DTV_STARTED,
@@ -103,7 +108,7 @@ enum EDrxkState {
 	DRXK_NO_DEV			/* If drxk init failed */
 };
 
-enum EDrxkCoefArrayIndex {
+enum e_drxk_coef_array_index {
 	DRXK_COEF_IDX_MN = 0,
 	DRXK_COEF_IDX_FM    ,
 	DRXK_COEF_IDX_L     ,
@@ -113,13 +118,13 @@ enum EDrxkCoefArrayIndex {
 	DRXK_COEF_IDX_I     ,
 	DRXK_COEF_IDX_MAX
 };
-enum EDrxkSifAttenuation {
+enum e_drxk_sif_attenuation {
 	DRXK_SIF_ATTENUATION_0DB,
 	DRXK_SIF_ATTENUATION_3DB,
 	DRXK_SIF_ATTENUATION_6DB,
 	DRXK_SIF_ATTENUATION_9DB
 };
-enum EDrxkConstellation {
+enum e_drxk_constellation {
 	DRX_CONSTELLATION_BPSK = 0,
 	DRX_CONSTELLATION_QPSK,
 	DRX_CONSTELLATION_PSK8,
@@ -133,7 +138,7 @@ enum EDrxkConstellation {
 	DRX_CONSTELLATION_UNKNOWN = DRX_UNKNOWN,
 	DRX_CONSTELLATION_AUTO    = DRX_AUTO
 };
-enum EDrxkInterleaveMode {
+enum e_drxk_interleave_mode {
 	DRXK_QAM_I12_J17    = 16,
 	DRXK_QAM_I_UNKNOWN  = DRX_UNKNOWN
 };
@@ -144,14 +149,14 @@ enum {
 	DRXK_SPIN_UNKNOWN
 };
 
-enum DRXKCfgDvbtSqiSpeed {
+enum drxk_cfg_dvbt_sqi_speed {
 	DRXK_DVBT_SQI_SPEED_FAST = 0,
 	DRXK_DVBT_SQI_SPEED_MEDIUM,
 	DRXK_DVBT_SQI_SPEED_SLOW,
 	DRXK_DVBT_SQI_SPEED_UNKNOWN = DRX_UNKNOWN
 } ;
 
-enum DRXFftmode_t {
+enum drx_fftmode_t {
 	DRX_FFTMODE_2K = 0,
 	DRX_FFTMODE_4K,
 	DRX_FFTMODE_8K,
@@ -159,47 +164,47 @@ enum DRXFftmode_t {
 	DRX_FFTMODE_AUTO    = DRX_AUTO
 };
 
-enum DRXMPEGStrWidth_t {
+enum drxmpeg_str_width_t {
 	DRX_MPEG_STR_WIDTH_1,
 	DRX_MPEG_STR_WIDTH_8
 };
 
-enum DRXQamLockRange_t {
+enum drx_qam_lock_range_t {
 	DRX_QAM_LOCKRANGE_NORMAL,
 	DRX_QAM_LOCKRANGE_EXTENDED
 };
 
-struct DRXKCfgDvbtEchoThres_t {
+struct drxk_cfg_dvbt_echo_thres_t {
 	u16             threshold;
-	enum DRXFftmode_t      fftMode;
+	enum drx_fftmode_t      fft_mode;
 } ;
 
-struct SCfgAgc {
-	enum AGC_CTRL_MODE     ctrlMode;        /* off, user, auto */
-	u16            outputLevel;     /* range dependent on AGC */
-	u16            minOutputLevel;  /* range dependent on AGC */
-	u16            maxOutputLevel;  /* range dependent on AGC */
+struct s_cfg_agc {
+	enum agc_ctrl_mode     ctrl_mode;        /* off, user, auto */
+	u16            output_level;     /* range dependent on AGC */
+	u16            min_output_level;  /* range dependent on AGC */
+	u16            max_output_level;  /* range dependent on AGC */
 	u16            speed;           /* range dependent on AGC */
 	u16            top;             /* rf-agc take over point */
-	u16            cutOffCurrent;   /* rf-agc is accelerated if output current
+	u16            cut_off_current;   /* rf-agc is accelerated if output current
 					   is below cut-off current */
-	u16            IngainTgtMax;
-	u16            FastClipCtrlDelay;
+	u16            ingain_tgt_max;
+	u16            fast_clip_ctrl_delay;
 };
 
-struct SCfgPreSaw {
+struct s_cfg_pre_saw {
 	u16        reference; /* pre SAW reference value, range 0 .. 31 */
-	bool          usePreSaw; /* TRUE algorithms must use pre SAW sense */
+	bool          use_pre_saw; /* TRUE algorithms must use pre SAW sense */
 };
 
-struct DRXKOfdmScCmd_t {
-	u16 cmd;        /**< Command number */
-	u16 subcmd;     /**< Sub-command parameter*/
-	u16 param0;     /**< General purpous param */
-	u16 param1;     /**< General purpous param */
-	u16 param2;     /**< General purpous param */
-	u16 param3;     /**< General purpous param */
-	u16 param4;     /**< General purpous param */
+struct drxk_ofdm_sc_cmd_t {
+	u16 cmd;        /* Command number */
+	u16 subcmd;     /* Sub-command parameter*/
+	u16 param0;     /* General purpous param */
+	u16 param1;     /* General purpous param */
+	u16 param2;     /* General purpous param */
+	u16 param3;     /* General purpous param */
+	u16 param4;     /* General purpous param */
 };
 
 struct drxk_state {
@@ -213,121 +218,121 @@ struct drxk_state {
 
 	struct mutex mutex;
 
-	u32    m_Instance;           /**< Channel 1,2,3 or 4 */
+	u32    m_instance;           /* Channel 1,2,3 or 4 */
 
-	int    m_ChunkSize;
-	u8 Chunk[256];
+	int    m_chunk_size;
+	u8 chunk[256];
 
-	bool   m_hasLNA;
-	bool   m_hasDVBT;
-	bool   m_hasDVBC;
-	bool   m_hasAudio;
-	bool   m_hasATV;
-	bool   m_hasOOB;
-	bool   m_hasSAWSW;         /**< TRUE if mat_tx is available */
-	bool   m_hasGPIO1;         /**< TRUE if mat_rx is available */
-	bool   m_hasGPIO2;         /**< TRUE if GPIO is available */
-	bool   m_hasIRQN;          /**< TRUE if IRQN is available */
-	u16    m_oscClockFreq;
-	u16    m_HICfgTimingDiv;
-	u16    m_HICfgBridgeDelay;
-	u16    m_HICfgWakeUpKey;
-	u16    m_HICfgTimeout;
-	u16    m_HICfgCtrl;
-	s32    m_sysClockFreq;      /**< system clock frequency in kHz */
+	bool   m_has_lna;
+	bool   m_has_dvbt;
+	bool   m_has_dvbc;
+	bool   m_has_audio;
+	bool   m_has_atv;
+	bool   m_has_oob;
+	bool   m_has_sawsw;         /* TRUE if mat_tx is available */
+	bool   m_has_gpio1;         /* TRUE if mat_rx is available */
+	bool   m_has_gpio2;         /* TRUE if GPIO is available */
+	bool   m_has_irqn;          /* TRUE if IRQN is available */
+	u16    m_osc_clock_freq;
+	u16    m_hi_cfg_timing_div;
+	u16    m_hi_cfg_bridge_delay;
+	u16    m_hi_cfg_wake_up_key;
+	u16    m_hi_cfg_timeout;
+	u16    m_hi_cfg_ctrl;
+	s32    m_sys_clock_freq;      /* system clock frequency in kHz */
 
-	enum EDrxkState    m_DrxkState;      /**< State of Drxk (init,stopped,started) */
-	enum OperationMode m_OperationMode;  /**< digital standards */
-	struct SCfgAgc     m_vsbRfAgcCfg;    /**< settings for VSB RF-AGC */
-	struct SCfgAgc     m_vsbIfAgcCfg;    /**< settings for VSB IF-AGC */
-	u16                m_vsbPgaCfg;      /**< settings for VSB PGA */
-	struct SCfgPreSaw  m_vsbPreSawCfg;   /**< settings for pre SAW sense */
-	s32    m_Quality83percent;  /**< MER level (*0.1 dB) for 83% quality indication */
-	s32    m_Quality93percent;  /**< MER level (*0.1 dB) for 93% quality indication */
-	bool   m_smartAntInverted;
-	bool   m_bDebugEnableBridge;
-	bool   m_bPDownOpenBridge;  /**< only open DRXK bridge before power-down once it has been accessed */
-	bool   m_bPowerDown;        /**< Power down when not used */
+	enum e_drxk_state    m_drxk_state;      /* State of Drxk (init,stopped,started) */
+	enum operation_mode m_operation_mode;  /* digital standards */
+	struct s_cfg_agc     m_vsb_rf_agc_cfg;    /* settings for VSB RF-AGC */
+	struct s_cfg_agc     m_vsb_if_agc_cfg;    /* settings for VSB IF-AGC */
+	u16                m_vsb_pga_cfg;      /* settings for VSB PGA */
+	struct s_cfg_pre_saw  m_vsb_pre_saw_cfg;   /* settings for pre SAW sense */
+	s32    m_Quality83percent;  /* MER level (*0.1 dB) for 83% quality indication */
+	s32    m_Quality93percent;  /* MER level (*0.1 dB) for 93% quality indication */
+	bool   m_smart_ant_inverted;
+	bool   m_b_debug_enable_bridge;
+	bool   m_b_p_down_open_bridge;  /* only open DRXK bridge before power-down once it has been accessed */
+	bool   m_b_power_down;        /* Power down when not used */
 
-	u32    m_IqmFsRateOfs;      /**< frequency shift as written to DRXK register (28bit fixpoint) */
+	u32    m_iqm_fs_rate_ofs;      /* frequency shift as written to DRXK register (28bit fixpoint) */
 
-	bool   m_enableMPEGOutput;  /**< If TRUE, enable MPEG output */
-	bool   m_insertRSByte;      /**< If TRUE, insert RS byte */
-	bool   m_enableParallel;    /**< If TRUE, parallel out otherwise serial */
-	bool   m_invertDATA;        /**< If TRUE, invert DATA signals */
-	bool   m_invertERR;         /**< If TRUE, invert ERR signal */
-	bool   m_invertSTR;         /**< If TRUE, invert STR signals */
-	bool   m_invertVAL;         /**< If TRUE, invert VAL signals */
-	bool   m_invertCLK;         /**< If TRUE, invert CLK signals */
-	bool   m_DVBCStaticCLK;
-	bool   m_DVBTStaticCLK;     /**< If TRUE, static MPEG clockrate will
+	bool   m_enable_mpeg_output;  /* If TRUE, enable MPEG output */
+	bool   m_insert_rs_byte;      /* If TRUE, insert RS byte */
+	bool   m_enable_parallel;    /* If TRUE, parallel out otherwise serial */
+	bool   m_invert_data;        /* If TRUE, invert DATA signals */
+	bool   m_invert_err;         /* If TRUE, invert ERR signal */
+	bool   m_invert_str;         /* If TRUE, invert STR signals */
+	bool   m_invert_val;         /* If TRUE, invert VAL signals */
+	bool   m_invert_clk;         /* If TRUE, invert CLK signals */
+	bool   m_dvbc_static_clk;
+	bool   m_dvbt_static_clk;     /* If TRUE, static MPEG clockrate will
 					 be used, otherwise clockrate will
 					 adapt to the bitrate of the TS */
-	u32    m_DVBTBitrate;
-	u32    m_DVBCBitrate;
+	u32    m_dvbt_bitrate;
+	u32    m_dvbc_bitrate;
 
-	u8     m_TSDataStrength;
-	u8     m_TSClockkStrength;
+	u8     m_ts_data_strength;
+	u8     m_ts_clockk_strength;
 
 	bool   m_itut_annex_c;      /* If true, uses ITU-T DVB-C Annex C, instead of Annex A */
 
-	enum DRXMPEGStrWidth_t  m_widthSTR;    /**< MPEG start width */
-	u32    m_mpegTsStaticBitrate;          /**< Maximum bitrate in b/s in case
+	enum drxmpeg_str_width_t  m_width_str;    /* MPEG start width */
+	u32    m_mpeg_ts_static_bitrate;          /* Maximum bitrate in b/s in case
 						    static clockrate is selected */
 
-	/* LARGE_INTEGER   m_StartTime; */     /**< Contains the time of the last demod start */
-	s32    m_MpegLockTimeOut;      /**< WaitForLockStatus Timeout (counts from start time) */
-	s32    m_DemodLockTimeOut;     /**< WaitForLockStatus Timeout (counts from start time) */
+	/* LARGE_INTEGER   m_startTime; */     /* Contains the time of the last demod start */
+	s32    m_mpeg_lock_time_out;      /* WaitForLockStatus Timeout (counts from start time) */
+	s32    m_demod_lock_time_out;     /* WaitForLockStatus Timeout (counts from start time) */
 
-	bool   m_disableTEIhandling;
+	bool   m_disable_te_ihandling;
 
-	bool   m_RfAgcPol;
-	bool   m_IfAgcPol;
+	bool   m_rf_agc_pol;
+	bool   m_if_agc_pol;
 
-	struct SCfgAgc    m_atvRfAgcCfg;  /**< settings for ATV RF-AGC */
-	struct SCfgAgc    m_atvIfAgcCfg;  /**< settings for ATV IF-AGC */
-	struct SCfgPreSaw m_atvPreSawCfg; /**< settings for ATV pre SAW sense */
-	bool              m_phaseCorrectionBypass;
-	s16               m_atvTopVidPeak;
-	u16               m_atvTopNoiseTh;
-	enum EDrxkSifAttenuation m_sifAttenuation;
-	bool              m_enableCVBSOutput;
-	bool              m_enableSIFOutput;
-	bool              m_bMirrorFreqSpect;
-	enum EDrxkConstellation  m_Constellation; /**< Constellation type of the channel */
-	u32               m_CurrSymbolRate;       /**< Current QAM symbol rate */
-	struct SCfgAgc    m_qamRfAgcCfg;          /**< settings for QAM RF-AGC */
-	struct SCfgAgc    m_qamIfAgcCfg;          /**< settings for QAM IF-AGC */
-	u16               m_qamPgaCfg;            /**< settings for QAM PGA */
-	struct SCfgPreSaw m_qamPreSawCfg;         /**< settings for QAM pre SAW sense */
-	enum EDrxkInterleaveMode m_qamInterleaveMode; /**< QAM Interleave mode */
-	u16               m_fecRsPlen;
-	u16               m_fecRsPrescale;
+	struct s_cfg_agc    m_atv_rf_agc_cfg;  /* settings for ATV RF-AGC */
+	struct s_cfg_agc    m_atv_if_agc_cfg;  /* settings for ATV IF-AGC */
+	struct s_cfg_pre_saw m_atv_pre_saw_cfg; /* settings for ATV pre SAW sense */
+	bool              m_phase_correction_bypass;
+	s16               m_atv_top_vid_peak;
+	u16               m_atv_top_noise_th;
+	enum e_drxk_sif_attenuation m_sif_attenuation;
+	bool              m_enable_cvbs_output;
+	bool              m_enable_sif_output;
+	bool              m_b_mirror_freq_spect;
+	enum e_drxk_constellation  m_constellation; /* constellation type of the channel */
+	u32               m_curr_symbol_rate;       /* Current QAM symbol rate */
+	struct s_cfg_agc    m_qam_rf_agc_cfg;          /* settings for QAM RF-AGC */
+	struct s_cfg_agc    m_qam_if_agc_cfg;          /* settings for QAM IF-AGC */
+	u16               m_qam_pga_cfg;            /* settings for QAM PGA */
+	struct s_cfg_pre_saw m_qam_pre_saw_cfg;         /* settings for QAM pre SAW sense */
+	enum e_drxk_interleave_mode m_qam_interleave_mode; /* QAM Interleave mode */
+	u16               m_fec_rs_plen;
+	u16               m_fec_rs_prescale;
 
-	enum DRXKCfgDvbtSqiSpeed m_sqiSpeed;
+	enum drxk_cfg_dvbt_sqi_speed m_sqi_speed;
 
-	u16               m_GPIO;
-	u16               m_GPIOCfg;
+	u16               m_gpio;
+	u16               m_gpio_cfg;
 
-	struct SCfgAgc    m_dvbtRfAgcCfg;     /**< settings for QAM RF-AGC */
-	struct SCfgAgc    m_dvbtIfAgcCfg;     /**< settings for QAM IF-AGC */
-	struct SCfgPreSaw m_dvbtPreSawCfg;    /**< settings for QAM pre SAW sense */
+	struct s_cfg_agc    m_dvbt_rf_agc_cfg;     /* settings for QAM RF-AGC */
+	struct s_cfg_agc    m_dvbt_if_agc_cfg;     /* settings for QAM IF-AGC */
+	struct s_cfg_pre_saw m_dvbt_pre_saw_cfg;    /* settings for QAM pre SAW sense */
 
-	u16               m_agcFastClipCtrlDelay;
-	bool              m_adcCompPassed;
+	u16               m_agcfast_clip_ctrl_delay;
+	bool              m_adc_comp_passed;
 	u16               m_adcCompCoef[64];
-	u16               m_adcState;
+	u16               m_adc_state;
 
 	u8               *m_microcode;
 	int               m_microcode_length;
-	bool		  m_DRXK_A3_ROM_CODE;
-	bool              m_DRXK_A3_PATCH_CODE;
+	bool		  m_drxk_a3_rom_code;
+	bool              m_drxk_a3_patch_code;
 
 	bool              m_rfmirror;
-	u8                m_deviceSpin;
-	u32               m_iqmRcRate;
+	u8                m_device_spin;
+	u32               m_iqm_rc_rate;
 
-	enum DRXPowerMode m_currentPowerMode;
+	enum drx_power_mode m_current_power_mode;
 
 	/* when true, avoids other devices to use the I2C bus */
 	bool		  drxk_i2c_exclusive_lock;
@@ -337,13 +342,15 @@ struct drxk_state {
 	 * at struct drxk_config.
 	 */
 
-	u16	UIO_mask;	/* Bits used by UIO */
+	u16	uio_mask;	/* Bits used by UIO */
 
 	bool	enable_merr_cfg;
 	bool	single_master;
 	bool	no_i2c_bridge;
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
+
+	fe_status_t fe_status;
 
 	/* Firmware */
 	const char *microcode_name;

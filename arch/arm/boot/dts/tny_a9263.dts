@@ -6,7 +6,7 @@
  * Licensed under GPLv2 only
  */
 /dts-v1/;
-/include/ "at91sam9263.dtsi"
+#include "at91sam9263.dtsi"
 
 / {
 	model = "Calao TNY A9263";
@@ -38,7 +38,7 @@
 			};
 
 			usb1: gadget@fff78000 {
-				atmel,vbus-gpio = <&pioB 11 0>;
+				atmel,vbus-gpio = <&pioB 11 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 		};

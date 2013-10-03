@@ -11,6 +11,21 @@
 / {
 	compatible = "wm,wm8650";
 
+	cpus {
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			device_type = "cpu";
+			compatible = "arm,arm926ej-s";
+		};
+	};
+
+ 	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -34,11 +49,13 @@
 			interrupts = <56 57 58 59 60 61 62 63>;
 		};
 
-		gpio: gpio-controller@d8110000 {
-			compatible = "wm,wm8650-gpio";
-			gpio-controller;
+		pinctrl: pinctrl@d8110000 {
+			compatible = "wm,wm8650-pinctrl";
 			reg = <0xd8110000 0x10000>;
-			#gpio-cells = <3>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		pmc@d8130000 {
@@ -75,6 +92,55 @@
 					reg = <0x204>;
 				};
 
+				pllc: pllc {
+					#clock-cells = <0>;
+					compatible = "wm,wm8650-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x208>;
+				};
+
+				plld: plld {
+					#clock-cells = <0>;
+					compatible = "wm,wm8650-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x20c>;
+				};
+
+				plle: plle {
+					#clock-cells = <0>;
+					compatible = "wm,wm8650-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x210>;
+				};
+
+				clkarm: arm {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&plla>;
+					divisor-reg = <0x300>;
+				};
+
+				clkahb: ahb {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&pllb>;
+					divisor-reg = <0x304>;
+				};
+
+				clkapb: apb {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&pllb>;
+					divisor-reg = <0x320>;
+				};
+
+				clkddr: ddr {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&plld>;
+					divisor-reg = <0x310>;
+				};
+
 				clkuart0: uart0 {
  					#clock-cells = <0>;
  					compatible = "via,vt8500-device-clock";
@@ -91,14 +157,7 @@
 					enable-bit = <2>;
 				};
 
-				arm: arm {
-					#clock-cells = <0>;
-					compatible = "via,vt8500-device-clock";
-					clocks = <&plla>;
-					divisor-reg = <0x300>;
-				};
-
-				sdhc: sdhc {
+				clksdhc: sdhc {
 					#clock-cells = <0>;
 					compatible = "via,vt8500-device-clock";
 					clocks = <&pllb>;
@@ -128,11 +187,9 @@
 			interrupts = <43>;
 		};
 
-		fb@d8050800 {
+		fb: fb@d8050800 {
 			compatible = "wm,wm8505-fb";
 			reg = <0xd8050800 0x200>;
-			display = <&display>;
-			default-mode = <&mode0>;
 		};
 
 		ge_rops@d8050400 {
@@ -140,18 +197,20 @@
 			reg = <0xd8050400 0x100>;
 		};
 
-		uart@d8200000 {
+		uart0: serial@d8200000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd8200000 0x1040>;
 			interrupts = <32>;
 			clocks = <&clkuart0>;
+			status = "disabled";
 		};
 
-		uart@d82b0000 {
+		uart1: serial@d82b0000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd82b0000 0x1040>;
 			interrupts = <33>;
 			clocks = <&clkuart1>;
+			status = "disabled";
 		};
 
 		rtc@d8100000 {

@@ -596,12 +596,6 @@ void jsm_input(struct jsm_channel *ch)
 
 	jsm_dbg(READ, &ch->ch_bd->pci_dev, "start 2\n");
 
-	if (data_len <= 0) {
-		spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
-		jsm_dbg(READ, &ch->ch_bd->pci_dev, "jsm_input 1\n");
-		return;
-	}
-
 	len = tty_buffer_request_room(port, data_len);
 	n = len;
 

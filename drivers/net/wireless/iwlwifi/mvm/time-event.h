@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -162,6 +162,7 @@ int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
  * that the vif type is NL80211_IFTYPE_P2P_DEVICE
  * @duration: the requested duration in millisecond for the fw to be on the
  * channel that is bound to the vif.
+ * @type: the remain on channel request type
  *
  * This function can be used to issue a remain on channel session,
  * which means that the fw will stay in the channel for the request %duration
@@ -172,7 +173,7 @@ int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
  * another notification to the driver.
  */
 int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			  int duration);
+			  int duration, enum ieee80211_roc_type type);
 
 /**
  * iwl_mvm_stop_p2p_roc - stop remain on channel for p2p device functionlity

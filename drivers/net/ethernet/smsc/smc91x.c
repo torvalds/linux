@@ -465,8 +465,6 @@ static inline void  smc_rcv(struct net_device *dev)
 		 */
 		skb = netdev_alloc_skb(dev, packet_len);
 		if (unlikely(skb == NULL)) {
-			printk(KERN_NOTICE "%s: Low memory, packet dropped.\n",
-				dev->name);
 			SMC_WAIT_MMU_BUSY(lp);
 			SMC_SET_MMU_CMD(lp, MC_RELEASE);
 			dev->stats.rx_dropped++;
@@ -2204,7 +2202,7 @@ static void smc_release_datacs(struct platform_device *pdev, struct net_device *
  */
 static int smc_drv_probe(struct platform_device *pdev)
 {
-	struct smc91x_platdata *pd = pdev->dev.platform_data;
+	struct smc91x_platdata *pd = dev_get_platdata(&pdev->dev);
 	struct smc_local *lp;
 	struct net_device *ndev;
 	struct resource *res, *ires;
@@ -2301,7 +2299,6 @@ static int smc_drv_probe(struct platform_device *pdev)
 	return 0;
 
  out_iounmap:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(addr);
  out_release_attrib:
 	smc_release_attrib(pdev, ndev);
@@ -2320,8 +2317,6 @@ static int smc_drv_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct smc_local *lp = netdev_priv(ndev);
 	struct resource *res;
-
-	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
 

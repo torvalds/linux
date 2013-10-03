@@ -39,8 +39,8 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
-#include "omap-pcm.h"
 #include "omap-dmic.h"
 
 struct omap_dmic {
@@ -55,13 +55,8 @@ struct omap_dmic {
 	u32 ch_enabled;
 	bool active;
 	struct mutex mutex;
-};
 
-/*
- * Stream DMA parameters
- */
-static struct omap_pcm_dma_data omap_dmic_dai_dma_params = {
-	.name		= "DMIC capture",
+	struct snd_dmaengine_dai_dma_data dma_data;
 };
 
 static inline void omap_dmic_write(struct omap_dmic *dmic, u16 reg, u32 val)
@@ -118,7 +113,7 @@ static int omap_dmic_dai_startup(struct snd_pcm_substream *substream,
 
 	mutex_unlock(&dmic->mutex);
 
-	snd_soc_dai_set_dma_data(dai, substream, &omap_dmic_dai_dma_params);
+	snd_soc_dai_set_dma_data(dai, substream, &dmic->dma_data);
 	return ret;
 }
 
@@ -203,7 +198,7 @@ static int omap_dmic_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
 	struct omap_dmic *dmic = snd_soc_dai_get_drvdata(dai);
-	struct omap_pcm_dma_data *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	int channels;
 
 	dmic->clk_div = omap_dmic_select_divider(dmic, params_rate(params));
@@ -230,7 +225,7 @@ static int omap_dmic_dai_hw_params(struct snd_pcm_substream *substream,
 
 	/* packet size is threshold * channels */
 	dma_data = snd_soc_dai_get_dma_data(dai, substream);
-	dma_data->packet_size = dmic->threshold * channels;
+	dma_data->maxburst = dmic->threshold * channels;
 
 	return 0;
 }
@@ -448,6 +443,10 @@ static struct snd_soc_dai_driver omap_dmic_dai = {
 	.ops = &omap_dmic_dai_ops,
 };
 
+static const struct snd_soc_component_driver omap_dmic_component = {
+	.name		= "omap-dmic",
+};
+
 static int asoc_dmic_probe(struct platform_device *pdev)
 {
 	struct omap_dmic *dmic;
@@ -476,38 +475,20 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err_put_clk;
 	}
-	omap_dmic_dai_dma_params.port_addr = res->start + OMAP_DMIC_DATA_REG;
+	dmic->dma_data.addr = res->start + OMAP_DMIC_DATA_REG;
 
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!res) {
-		dev_err(dmic->dev, "invalid dma resource\n");
-		ret = -ENODEV;
-		goto err_put_clk;
-	}
-	omap_dmic_dai_dma_params.dma_req = res->start;
+	dmic->dma_data.filter_data = "up_link";
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
-	if (!res) {
-		dev_err(dmic->dev, "invalid memory resource\n");
-		ret = -ENODEV;
+	dmic->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dmic->io_base)) {
+		ret = PTR_ERR(dmic->io_base);
 		goto err_put_clk;
 	}
 
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name)) {
-		dev_err(dmic->dev, "memory region already claimed\n");
-		ret = -ENODEV;
-		goto err_put_clk;
-	}
 
-	dmic->io_base = devm_ioremap(&pdev->dev, res->start,
-				     resource_size(res));
-	if (!dmic->io_base) {
-		ret = -ENOMEM;
-		goto err_put_clk;
-	}
-
-	ret = snd_soc_register_dai(&pdev->dev, &omap_dmic_dai);
+	ret = snd_soc_register_component(&pdev->dev, &omap_dmic_component,
+					 &omap_dmic_dai, 1);
 	if (ret)
 		goto err_put_clk;
 
@@ -522,7 +503,7 @@ static int asoc_dmic_remove(struct platform_device *pdev)
 {
 	struct omap_dmic *dmic = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	clk_put(dmic->fclk);
 
 	return 0;

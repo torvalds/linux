@@ -1,0 +1,29 @@
+config DRM_TEGRA
+	bool "NVIDIA Tegra DRM"
+	depends on DRM
+	select DRM_KMS_HELPER
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	help
+	  Choose this option if you have an NVIDIA Tegra SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tegra-drm.
+
+if DRM_TEGRA
+
+config DRM_TEGRA_STAGING
+	bool "Enable HOST1X interface"
+	depends on STAGING
+	help
+	  Say yes if HOST1X should be available for userspace DRM users.
+
+	  If unsure, choose N.
+
+config DRM_TEGRA_DEBUG
+	bool "NVIDIA Tegra DRM debug support"
+	help
+	  Say yes here to enable debugging support.
+
+endif

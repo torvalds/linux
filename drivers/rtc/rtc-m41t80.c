@@ -168,7 +168,7 @@ static int m41t80_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	buf[M41T80_REG_MIN] =
 		bin2bcd(tm->tm_min) | (buf[M41T80_REG_MIN] & ~0x7f);
 	buf[M41T80_REG_HOUR] =
-		bin2bcd(tm->tm_hour) | (buf[M41T80_REG_HOUR] & ~0x3f) ;
+		bin2bcd(tm->tm_hour) | (buf[M41T80_REG_HOUR] & ~0x3f);
 	buf[M41T80_REG_WDAY] =
 		(tm->tm_wday & 0x07) | (buf[M41T80_REG_WDAY] & ~0x07);
 	buf[M41T80_REG_DAY] =
@@ -637,7 +637,8 @@ static int m41t80_probe(struct i2c_client *client,
 	dev_info(&client->dev,
 		 "chip found, driver version " DRV_VERSION "\n");
 
-	clientdata = kzalloc(sizeof(*clientdata), GFP_KERNEL);
+	clientdata = devm_kzalloc(&client->dev, sizeof(*clientdata),
+				GFP_KERNEL);
 	if (!clientdata) {
 		rc = -ENOMEM;
 		goto exit;
@@ -646,8 +647,8 @@ static int m41t80_probe(struct i2c_client *client,
 	clientdata->features = id->driver_data;
 	i2c_set_clientdata(client, clientdata);
 
-	rtc = rtc_device_register(client->name, &client->dev,
-				  &m41t80_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&client->dev, client->name,
+					&m41t80_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		rc = PTR_ERR(rtc);
 		rtc = NULL;
@@ -718,26 +719,19 @@ ht_err:
 	goto exit;
 
 exit:
-	if (rtc)
-		rtc_device_unregister(rtc);
-	kfree(clientdata);
 	return rc;
 }
 
 static int m41t80_remove(struct i2c_client *client)
 {
-	struct m41t80_data *clientdata = i2c_get_clientdata(client);
-	struct rtc_device *rtc = clientdata->rtc;
-
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
+	struct m41t80_data *clientdata = i2c_get_clientdata(client);
+
 	if (clientdata->features & M41T80_FEATURE_HT) {
 		misc_deregister(&wdt_dev);
 		unregister_reboot_notifier(&wdt_notifier);
 	}
 #endif
-	if (rtc)
-		rtc_device_unregister(rtc);
-	kfree(clientdata);
 
 	return 0;
 }

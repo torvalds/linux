@@ -354,6 +354,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 
 	}
 	resource->end.type = ACPI_RESOURCE_TYPE_END_TAG;
+	resource->end.length = sizeof(struct acpi_resource);
 
 	/* Attempt to set the resource */
 	status = acpi_set_current_resources(link->device->handle, &buffer);

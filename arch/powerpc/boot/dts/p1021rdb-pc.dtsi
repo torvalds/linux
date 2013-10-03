@@ -62,9 +62,17 @@
 		};
 
 		partition@400000 {
-			/* 11MB for JFFS2 based Root file System */
-			reg = <0x00400000 0x00b00000>;
+			/* 10.75MB for JFFS2 based Root file System */
+			reg = <0x00400000 0x00ac0000>;
 			label = "NOR JFFS2 Root File System";
+		};
+
+		partition@ec0000 {
+			/* This location must not be altered  */
+			/* 256KB for QE ucode firmware*/
+			reg = <0x00ec0000 0x00040000>;
+			label = "NOR QE microcode firmware";
+			read-only;
 		};
 
 		partition@f00000 {

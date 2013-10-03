@@ -3062,7 +3062,7 @@ void serial8250_resume_port(int line)
  */
 static int serial8250_probe(struct platform_device *dev)
 {
-	struct plat_serial8250_port *p = dev->dev.platform_data;
+	struct plat_serial8250_port *p = dev_get_platdata(&dev->dev);
 	struct uart_8250_port uart;
 	int ret, i, irqflag = 0;
 
@@ -3246,6 +3246,10 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.fifosize	= up->port.fifosize;
 		uart->tx_loadsz		= up->tx_loadsz;
 		uart->capabilities	= up->capabilities;
+
+		/* Take tx_loadsz from fifosize if it wasn't set separately */
+		if (uart->port.fifosize && !uart->tx_loadsz)
+			uart->tx_loadsz = uart->port.fifosize;
 
 		if (up->port.dev)
 			uart->port.dev = up->port.dev;

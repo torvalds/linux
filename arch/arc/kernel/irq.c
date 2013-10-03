@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip.h>
+#include "../../drivers/irqchip/irqchip.h"
 #include <asm/sections.h>
 #include <asm/irq.h>
 #include <asm/mach_desc.h>
@@ -22,29 +24,20 @@
  * -Needed for each CPU (hence not foldable into init_IRQ)
  *
  * what it does ?
- * -setup Vector Table Base Reg - in case Linux not linked at 0x8000_0000
  * -Disable all IRQs (on CPU side)
  * -Optionally, setup the High priority Interrupts as Level 2 IRQs
  */
-void __init arc_init_IRQ(void)
+void arc_init_IRQ(void)
 {
 	int level_mask = 0;
-
-	write_aux_reg(AUX_INTR_VEC_BASE, _int_vec_base_lds);
 
 	/* Disable all IRQs: enable them as devices request */
 	write_aux_reg(AUX_IENABLE, 0);
 
        /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
-#ifdef CONFIG_ARC_IRQ3_LV2
-	level_mask |= (1 << 3);
-#endif
-#ifdef CONFIG_ARC_IRQ5_LV2
-	level_mask |= (1 << 5);
-#endif
-#ifdef CONFIG_ARC_IRQ6_LV2
-	level_mask |= (1 << 6);
-#endif
+	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ3_LV2) << 3;
+	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ5_LV2) << 5;
+	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ6_LV2) << 6;
 
 	if (level_mask) {
 		pr_info("Level-2 interrupts bitset %x\n", level_mask);
@@ -97,15 +90,13 @@ static const struct irq_domain_ops arc_intc_domain_ops = {
 
 static struct irq_domain *root_domain;
 
-void __init init_onchip_IRQ(void)
+static int __init
+init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
-	struct device_node *intc = NULL;
+	if (parent)
+		panic("DeviceTree incore intc not a root irq controller\n");
 
-	intc = of_find_compatible_node(NULL, NULL, "snps,arc700-intc");
-	if(!intc)
-		panic("DeviceTree Missing incore intc\n");
-
-	root_domain = irq_domain_add_legacy(intc, NR_IRQS, 0, 0,
+	root_domain = irq_domain_add_legacy(intc, NR_CPU_IRQS, 0, 0,
 					    &arc_intc_domain_ops, NULL);
 
 	if (!root_domain)
@@ -113,7 +104,11 @@ void __init init_onchip_IRQ(void)
 
 	/* with this we don't need to export root_domain */
 	irq_set_default_host(root_domain);
+
+	return 0;
 }
+
+IRQCHIP_DECLARE(arc_intc, "snps,arc700-intc", init_onchip_IRQ);
 
 /*
  * Late Interrupt system init called from start_kernel for Boot CPU only
@@ -123,11 +118,12 @@ void __init init_onchip_IRQ(void)
  */
 void __init init_IRQ(void)
 {
-	init_onchip_IRQ();
-
 	/* Any external intc can be setup here */
 	if (machine_desc->init_irq)
 		machine_desc->init_irq();
+
+	/* process the entire interrupt tree in one go */
+	irqchip_init();
 
 #ifdef CONFIG_SMP
 	/* Master CPU can initialize it's side of IPI */

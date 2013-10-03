@@ -996,7 +996,7 @@ static int __init cops_module_init(void)
 		printk(KERN_WARNING "%s: You shouldn't autoprobe with insmod\n",
 			cardname);
 	cops_dev = cops_probe(-1);
-	return PTR_RET(cops_dev);
+	return PTR_ERR_OR_ZERO(cops_dev);
 }
 
 static void __exit cops_module_exit(void)

@@ -53,8 +53,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 80
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.80"
+#define _NETXEN_NIC_LINUX_SUBVERSION 81
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.81"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -955,9 +955,10 @@ typedef struct nx_mac_list_s {
 	uint8_t mac_addr[ETH_ALEN+2];
 } nx_mac_list_t;
 
-struct nx_vlan_ip_list {
+struct nx_ip_list {
 	struct list_head list;
 	__be32 ip_addr;
+	bool master;
 };
 
 /*
@@ -1170,7 +1171,6 @@ typedef struct {
 
 #define NETXEN_DB_MAPSIZE_BYTES    	0x1000
 
-#define NETXEN_NETDEV_WEIGHT 128
 #define NETXEN_ADAPTER_UP_MAGIC 777
 #define NETXEN_NIC_PEG_TUNE 0
 
@@ -1605,7 +1605,7 @@ struct netxen_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct list_head mac_list;
-	struct list_head vlan_ip_list;
+	struct list_head ip_list;
 
 	spinlock_t tx_clean_lock;
 
@@ -1854,7 +1854,7 @@ static const struct netxen_brdinfo netxen_boards[] = {
 
 #define NUM_SUPPORTED_BOARDS ARRAY_SIZE(netxen_boards)
 
-static inline void get_brd_name_by_type(u32 type, char *name)
+static inline int netxen_nic_get_brd_name_by_type(u32 type, char *name)
 {
 	int i, found = 0;
 	for (i = 0; i < NUM_SUPPORTED_BOARDS; ++i) {
@@ -1863,10 +1863,14 @@ static inline void get_brd_name_by_type(u32 type, char *name)
 			found = 1;
 			break;
 		}
-
 	}
-	if (!found)
-		name = "Unknown";
+
+	if (!found) {
+		strcpy(name, "Unknown");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static inline u32 netxen_tx_avail(struct nx_host_tx_ring *tx_ring)

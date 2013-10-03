@@ -74,6 +74,7 @@ struct task_struct *last_task_used_vsx = NULL;
 struct task_struct *last_task_used_spe = NULL;
 #endif
 
+#ifdef CONFIG_PPC_FPU
 /*
  * Make sure the floating-point register state in the
  * the thread_struct is up to date for task tsk.
@@ -107,6 +108,7 @@ void flush_fp_to_thread(struct task_struct *tsk)
 	}
 }
 EXPORT_SYMBOL_GPL(flush_fp_to_thread);
+#endif
 
 void enable_kernel_fp(void)
 {
@@ -339,6 +341,13 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 
 static void prime_debug_regs(struct thread_struct *thread)
 {
+	/*
+	 * We could have inherited MSR_DE from userspace, since
+	 * it doesn't get cleared on exception entry.  Make sure
+	 * MSR_DE is clear before we enable any debug events.
+	 */
+	mtmsr(mfmsr() & ~MSR_DE);
+
 	mtspr(SPRN_IAC1, thread->iac1);
 	mtspr(SPRN_IAC2, thread->iac2);
 #if CONFIG_PPC_ADV_DEBUG_IACS > 2
@@ -392,7 +401,8 @@ static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	mtspr(SPRN_DABR, dabr);
-	mtspr(SPRN_DABRX, dabrx);
+	if (cpu_has_feature(CPU_FTR_DABRX))
+		mtspr(SPRN_DABRX, dabrx);
 	return 0;
 }
 #else
@@ -555,10 +565,12 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 		new->thread.regs->msr |=
 			(MSR_FP | new->thread.fpexc_mode);
 	}
+#ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
 		do_load_up_transact_altivec(&new->thread);
 		new->thread.regs->msr |= MSR_VEC;
 	}
+#endif
 	/* We may as well turn on VSX too since all the state is restored now */
 	if (msr & MSR_VSX)
 		new->thread.regs->msr |= MSR_VSX;
@@ -589,6 +601,16 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct ppc64_tlb_batch *batch;
 #endif
+
+	/* Back up the TAR across context switches.
+	 * Note that the TAR is not available for use in the kernel.  (To
+	 * provide this, the TAR should be backed up/restored on exception
+	 * entry/exit instead, and be in pt_regs.  FIXME, this should be in
+	 * pt_regs anyway (for debug).)
+	 * Save the TAR here before we do treclaim/trecheckpoint as these
+	 * will change the TAR.
+	 */
+	save_tar(&prev->thread);
 
 	__switch_to_tm(prev);
 
@@ -829,6 +851,8 @@ void show_regs(struct pt_regs * regs)
 {
 	int i, trap;
 
+	show_regs_print_info(KERN_DEFAULT);
+
 	printk("NIP: "REG" LR: "REG" CTR: "REG"\n",
 	       regs->nip, regs->link, regs->ctr);
 	printk("REGS: %p TRAP: %04lx   %s  (%s)\n",
@@ -848,12 +872,6 @@ void show_regs(struct pt_regs * regs)
 #else
 		printk("DAR: "REG", DSISR: %08lx\n", regs->dar, regs->dsisr);
 #endif
-	printk("TASK = %p[%d] '%s' THREAD: %p",
-	       current, task_pid_nr(current), current->comm, task_thread_info(current));
-
-#ifdef CONFIG_SMP
-	printk(" CPU: %d", raw_smp_processor_id());
-#endif /* CONFIG_SMP */
 
 	for (i = 0;  i < 32;  i++) {
 		if ((i % REGS_PER_LINE) == 0)
@@ -910,11 +928,11 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	flush_altivec_to_thread(src);
 	flush_vsx_to_thread(src);
 	flush_spe_to_thread(src);
-#ifdef CONFIG_HAVE_HW_BREAKPOINT
-	flush_ptrace_hw_breakpoint(src);
-#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 
 	*dst = *src;
+
+	clear_task_ebb(dst);
+
 	return 0;
 }
 
@@ -977,12 +995,18 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * do some house keeping and then return from the fork or clone
 	 * system call, using the stack frame created above.
 	 */
+	((unsigned long *)sp)[0] = 0;
 	sp -= sizeof(struct pt_regs);
 	kregs = (struct pt_regs *) sp;
 	sp -= STACK_FRAME_OVERHEAD;
 	p->thread.ksp = sp;
+#ifdef CONFIG_PPC32
 	p->thread.ksp_limit = (unsigned long)task_stack_page(p) +
 				_ALIGN_UP(sizeof(struct thread_info), 16);
+#endif
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	p->thread.ptrace_bps[0] = NULL;
+#endif
 
 #ifdef CONFIG_PPC_STD_MMU_64
 	if (mmu_has_feature(MMU_FTR_SLB)) {
@@ -1360,15 +1384,9 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	} while (count++ < kstack_depth_to_print);
 }
 
-void dump_stack(void)
-{
-	show_stack(current, NULL);
-}
-EXPORT_SYMBOL(dump_stack);
-
 #ifdef CONFIG_PPC64
 /* Called with hard IRQs off */
-void __ppc64_runlatch_on(void)
+void notrace __ppc64_runlatch_on(void)
 {
 	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;
@@ -1381,7 +1399,7 @@ void __ppc64_runlatch_on(void)
 }
 
 /* Called with hard IRQs off */
-void __ppc64_runlatch_off(void)
+void notrace __ppc64_runlatch_off(void)
 {
 	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;

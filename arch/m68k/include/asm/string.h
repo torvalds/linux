@@ -4,34 +4,6 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 
-static inline size_t __kernel_strlen(const char *s)
-{
-	const char *sc;
-
-	for (sc = s; *sc++; )
-		;
-	return sc - s - 1;
-}
-
-static inline char *__kernel_strcpy(char *dest, const char *src)
-{
-	char *xdest = dest;
-
-	asm volatile ("\n"
-		"1:	move.b	(%1)+,(%0)+\n"
-		"	jne	1b"
-		: "+a" (dest), "+a" (src)
-		: : "memory");
-	return xdest;
-}
-
-#ifndef __IN_STRING_C
-
-#define __HAVE_ARCH_STRLEN
-#define strlen(s)	(__builtin_constant_p(s) ?	\
-			 __builtin_strlen(s) :		\
-			 __kernel_strlen(s))
-
 #define __HAVE_ARCH_STRNLEN
 static inline size_t strnlen(const char *s, size_t count)
 {
@@ -47,16 +19,6 @@ static inline size_t strnlen(const char *s, size_t count)
 		: "+a" (sc), "+d" (count));
 	return sc - s;
 }
-
-#define __HAVE_ARCH_STRCPY
-#if __GNUC__ >= 4
-#define strcpy(d, s)	(__builtin_constant_p(s) &&	\
-			 __builtin_strlen(s) <= 32 ?	\
-			 __builtin_strcpy(d, s) :	\
-			 __kernel_strcpy(d, s))
-#else
-#define strcpy(d, s)	__kernel_strcpy(d, s)
-#endif
 
 #define __HAVE_ARCH_STRNCPY
 static inline char *strncpy(char *dest, const char *src, size_t n)
@@ -74,12 +36,6 @@ static inline char *strncpy(char *dest, const char *src, size_t n)
 		: : "memory");
 	return xdest;
 }
-
-#define __HAVE_ARCH_STRCAT
-#define strcat(d, s)	({			\
-	char *__d = (d);			\
-	strcpy(__d + strlen(__d), (s));		\
-})
 
 #ifndef CONFIG_COLDFIRE
 #define __HAVE_ARCH_STRCMP
@@ -113,7 +69,5 @@ extern void *memset(void *, int, __kernel_size_t);
 #define __HAVE_ARCH_MEMCPY
 extern void *memcpy(void *, const void *, __kernel_size_t);
 #define memcpy(d, s, n) __builtin_memcpy(d, s, n)
-
-#endif
 
 #endif /* _M68K_STRING_H_ */

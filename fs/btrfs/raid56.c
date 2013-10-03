@@ -410,7 +410,7 @@ static void remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
 /*
  * remove everything in the cache
  */
-void btrfs_clear_rbio_cache(struct btrfs_fs_info *info)
+static void btrfs_clear_rbio_cache(struct btrfs_fs_info *info)
 {
 	struct btrfs_stripe_hash_table *table;
 	unsigned long flags;
@@ -1010,12 +1010,12 @@ static int alloc_rbio_parity_pages(struct btrfs_raid_bio *rbio)
  * this will try to merge into existing bios if possible, and returns
  * zero if all went well.
  */
-int rbio_add_io_page(struct btrfs_raid_bio *rbio,
-		     struct bio_list *bio_list,
-		     struct page *page,
-		     int stripe_nr,
-		     unsigned long page_index,
-		     unsigned long bio_max_len)
+static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
+			    struct bio_list *bio_list,
+			    struct page *page,
+			    int stripe_nr,
+			    unsigned long page_index,
+			    unsigned long bio_max_len)
 {
 	struct bio *last = bio_list->tail;
 	u64 last_end = 0;
@@ -1050,7 +1050,7 @@ int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	}
 
 	/* put a new bio on the list */
-	bio = bio_alloc(GFP_NOFS, bio_max_len >> PAGE_SHIFT?:1);
+	bio = btrfs_io_bio_alloc(GFP_NOFS, bio_max_len >> PAGE_SHIFT?:1);
 	if (!bio)
 		return -ENOMEM;
 
@@ -1540,8 +1540,10 @@ static int full_stripe_write(struct btrfs_raid_bio *rbio)
 	int ret;
 
 	ret = alloc_rbio_parity_pages(rbio);
-	if (ret)
+	if (ret) {
+		__free_raid_bio(rbio);
 		return ret;
+	}
 
 	ret = lock_stripe_add(rbio);
 	if (ret == 0)
@@ -1687,11 +1689,8 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 	struct blk_plug_cb *cb;
 
 	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
-	if (IS_ERR(rbio)) {
-		kfree(raid_map);
-		kfree(bbio);
+	if (IS_ERR(rbio))
 		return PTR_ERR(rbio);
-	}
 	bio_list_add(&rbio->bio_list, bio);
 	rbio->bio_list_bytes = bio->bi_size;
 
@@ -2041,9 +2040,8 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 	int ret;
 
 	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
-	if (IS_ERR(rbio)) {
+	if (IS_ERR(rbio))
 		return PTR_ERR(rbio);
-	}
 
 	rbio->read_rebuild = 1;
 	bio_list_add(&rbio->bio_list, bio);
@@ -2052,6 +2050,8 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
 		BUG();
+		kfree(raid_map);
+		kfree(bbio);
 		kfree(rbio);
 		return -EIO;
 	}

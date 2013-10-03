@@ -6259,12 +6259,11 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	retword |= i2c_read(gspca_dev, 0x01);		/* ID 1 */
 	PDEBUG(D_PROBE, "probe 3wr vga 2 0x%04x", retword);
 	if (retword == 0x2030) {
-#ifdef GSPCA_DEBUG
 		u8 retbyte;
 
 		retbyte = i2c_read(gspca_dev, 0x02);	/* revision number */
 		PDEBUG(D_PROBE, "sensor PO2030 rev 0x%02x", retbyte);
-#endif
+
 		send_unknown(gspca_dev, SENSOR_PO2030);
 		return retword;
 	}

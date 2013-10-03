@@ -183,13 +183,22 @@ The relational-operators depend on the type of the field being tested:
 
 The operators available for numeric fields are:
 
-==, !=, <, <=, >, >=
+==, !=, <, <=, >, >=, &
 
 And for string fields they are:
 
-==, !=
+==, !=, ~
 
-Currently, only exact string matches are supported.
+The glob (~) only accepts a wild card character (*) at the start and or
+end of the string. For example:
+
+  prev_comm ~ "*sh"
+  prev_comm ~ "sh*"
+  prev_comm ~ "*sh*"
+
+But does not allow for it to be within the string:
+
+  prev_comm ~ "ba*sh"   <-- is invalid
 
 5.2 Setting filters
 -------------------

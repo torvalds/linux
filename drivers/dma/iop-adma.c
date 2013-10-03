@@ -518,7 +518,7 @@ static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
 	struct iop_adma_desc_slot *slot = NULL;
 	int init = iop_chan->slots_allocated ? 0 : 1;
 	struct iop_adma_platform_data *plat_data =
-		iop_chan->device->pdev->dev.platform_data;
+		dev_get_platdata(&iop_chan->device->pdev->dev);
 	int num_descs_in_pool = plat_data->pool_size/IOP_ADMA_SLOT_SIZE;
 
 	/* Allocate descriptor slots */
@@ -623,39 +623,6 @@ iop_adma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dma_dest,
 		iop_desc_set_byte_count(grp_start, iop_chan, len);
 		iop_desc_set_dest_addr(grp_start, iop_chan, dma_dest);
 		iop_desc_set_memcpy_src_addr(grp_start, dma_src);
-		sw_desc->unmap_src_cnt = 1;
-		sw_desc->unmap_len = len;
-		sw_desc->async_tx.flags = flags;
-	}
-	spin_unlock_bh(&iop_chan->lock);
-
-	return sw_desc ? &sw_desc->async_tx : NULL;
-}
-
-static struct dma_async_tx_descriptor *
-iop_adma_prep_dma_memset(struct dma_chan *chan, dma_addr_t dma_dest,
-			 int value, size_t len, unsigned long flags)
-{
-	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
-	struct iop_adma_desc_slot *sw_desc, *grp_start;
-	int slot_cnt, slots_per_op;
-
-	if (unlikely(!len))
-		return NULL;
-	BUG_ON(len > IOP_ADMA_MAX_BYTE_COUNT);
-
-	dev_dbg(iop_chan->device->common.dev, "%s len: %u\n",
-		__func__, len);
-
-	spin_lock_bh(&iop_chan->lock);
-	slot_cnt = iop_chan_memset_slot_count(len, &slots_per_op);
-	sw_desc = iop_adma_alloc_slots(iop_chan, slot_cnt, slots_per_op);
-	if (sw_desc) {
-		grp_start = sw_desc->group_head;
-		iop_desc_init_memset(grp_start, flags);
-		iop_desc_set_byte_count(grp_start, iop_chan, len);
-		iop_desc_set_block_fill_val(grp_start, value);
-		iop_desc_set_dest_addr(grp_start, iop_chan, dma_dest);
 		sw_desc->unmap_src_cnt = 1;
 		sw_desc->unmap_len = len;
 		sw_desc->async_tx.flags = flags;
@@ -1050,7 +1017,7 @@ iop_adma_xor_val_self_test(struct iop_adma_device *device)
 	struct page *xor_srcs[IOP_ADMA_NUM_SRC_TEST];
 	struct page *zero_sum_srcs[IOP_ADMA_NUM_SRC_TEST + 1];
 	dma_addr_t dma_srcs[IOP_ADMA_NUM_SRC_TEST + 1];
-	dma_addr_t dma_addr, dest_dma;
+	dma_addr_t dest_dma;
 	struct dma_async_tx_descriptor *tx;
 	struct dma_chan *dma_chan;
 	dma_cookie_t cookie;
@@ -1174,33 +1141,6 @@ iop_adma_xor_val_self_test(struct iop_adma_device *device)
 			"Self-test zero sum failed compare, disabling\n");
 		err = -ENODEV;
 		goto free_resources;
-	}
-
-	/* test memset */
-	dma_addr = dma_map_page(dma_chan->device->dev, dest, 0,
-			PAGE_SIZE, DMA_FROM_DEVICE);
-	tx = iop_adma_prep_dma_memset(dma_chan, dma_addr, 0, PAGE_SIZE,
-				      DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-
-	cookie = iop_adma_tx_submit(tx);
-	iop_adma_issue_pending(dma_chan);
-	msleep(8);
-
-	if (iop_adma_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
-		dev_err(dma_chan->device->dev,
-			"Self-test memset timed out, disabling\n");
-		err = -ENODEV;
-		goto free_resources;
-	}
-
-	for (i = 0; i < PAGE_SIZE/sizeof(u32); i++) {
-		u32 *ptr = page_address(dest);
-		if (ptr[i]) {
-			dev_err(dma_chan->device->dev,
-				"Self-test memset failed compare, disabling\n");
-			err = -ENODEV;
-			goto free_resources;
-		}
 	}
 
 	/* test for non-zero parity sum */
@@ -1411,7 +1351,7 @@ static int iop_adma_remove(struct platform_device *dev)
 	struct iop_adma_device *device = platform_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 	struct iop_adma_chan *iop_chan;
-	struct iop_adma_platform_data *plat_data = dev->dev.platform_data;
+	struct iop_adma_platform_data *plat_data = dev_get_platdata(&dev->dev);
 
 	dma_async_device_unregister(&device->common);
 
@@ -1436,7 +1376,7 @@ static int iop_adma_probe(struct platform_device *pdev)
 	struct iop_adma_device *adev;
 	struct iop_adma_chan *iop_chan;
 	struct dma_device *dma_dev;
-	struct iop_adma_platform_data *plat_data = pdev->dev.platform_data;
+	struct iop_adma_platform_data *plat_data = dev_get_platdata(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -1487,8 +1427,6 @@ static int iop_adma_probe(struct platform_device *pdev)
 	/* set prep routines based on capability */
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask))
 		dma_dev->device_prep_dma_memcpy = iop_adma_prep_dma_memcpy;
-	if (dma_has_cap(DMA_MEMSET, dma_dev->cap_mask))
-		dma_dev->device_prep_dma_memset = iop_adma_prep_dma_memset;
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		dma_dev->max_xor = iop_adma_get_max_xor();
 		dma_dev->device_prep_dma_xor = iop_adma_prep_dma_xor;
@@ -1556,8 +1494,7 @@ static int iop_adma_probe(struct platform_device *pdev)
 			goto err_free_iop_chan;
 	}
 
-	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask) ||
-	    dma_has_cap(DMA_MEMSET, dma_dev->cap_mask)) {
+	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		ret = iop_adma_xor_val_self_test(adev);
 		dev_dbg(&pdev->dev, "xor self test returned %d\n", ret);
 		if (ret)
@@ -1579,12 +1516,11 @@ static int iop_adma_probe(struct platform_device *pdev)
 			goto err_free_iop_chan;
 	}
 
-	dev_info(&pdev->dev, "Intel(R) IOP: ( %s%s%s%s%s%s%s)\n",
+	dev_info(&pdev->dev, "Intel(R) IOP: ( %s%s%s%s%s%s)\n",
 		 dma_has_cap(DMA_PQ, dma_dev->cap_mask) ? "pq " : "",
 		 dma_has_cap(DMA_PQ_VAL, dma_dev->cap_mask) ? "pq_val " : "",
 		 dma_has_cap(DMA_XOR, dma_dev->cap_mask) ? "xor " : "",
 		 dma_has_cap(DMA_XOR_VAL, dma_dev->cap_mask) ? "xor_val " : "",
-		 dma_has_cap(DMA_MEMSET, dma_dev->cap_mask)  ? "fill " : "",
 		 dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask) ? "cpy " : "",
 		 dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask) ? "intr " : "");
 

@@ -70,12 +70,6 @@
 
 static const u8 ar9170_qmap[__AR9170_NUM_TXQ] = { 3, 2, 1, 0 };
 
-enum carl9170_rf_init_mode {
-	CARL9170_RFI_NONE,
-	CARL9170_RFI_WARM,
-	CARL9170_RFI_COLD,
-};
-
 #define CARL9170_MAX_RX_BUFFER_SIZE		8192
 
 enum carl9170_device_state {
@@ -139,6 +133,9 @@ struct carl9170_sta_tid {
 
 	/* Preaggregation reorder queue */
 	struct sk_buff_head queue;
+
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif;
 };
 
 #define CARL9170_QUEUE_TIMEOUT		256
@@ -599,7 +596,7 @@ int carl9170_led_set_state(struct ar9170 *ar, const u32 led_state);
 
 /* PHY / RF */
 int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
-	enum nl80211_channel_type bw, enum carl9170_rf_init_mode rfi);
+			 enum nl80211_channel_type bw);
 int carl9170_get_noisefloor(struct ar9170 *ar);
 
 /* FW */

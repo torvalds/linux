@@ -48,6 +48,7 @@ void (*flush_icache_all)(void);
 
 EXPORT_SYMBOL_GPL(local_flush_data_cache_page);
 EXPORT_SYMBOL(flush_data_cache_page);
+EXPORT_SYMBOL(flush_icache_all);
 
 #ifdef CONFIG_DMA_NONCOHERENT
 
@@ -181,7 +182,7 @@ static inline void setup_protection_map(void)
 	}
 }
 
-void __cpuinit cpu_cache_init(void)
+void cpu_cache_init(void)
 {
 	if (cpu_has_3k_cache) {
 		extern void __weak r3k_cache_init(void);

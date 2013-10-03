@@ -30,11 +30,6 @@
 #define SetCRT2ToDualEdge   0x8000
 
 #define ReserveTVOption     0x0008
-#define GatingCRT           0x0800
-#define DisableChB          0x1000
-#define EnableChB           0x2000
-#define DisableChA          0x4000
-#define EnableChA           0x8000
 
 #define SetTVLowResolution   0x0400
 #define TVSimuMode           0x0800
@@ -62,10 +57,6 @@
 #define EnableVBCLKDRVLOW    0x4000
 #define EnablePLLSPLOW       0x8000
 
-#define LCDBToA              0x20   /* LCD SetFlag */
-#define StLCDBToA            0x40
-#define LockLCDBToA          0x80
-#define   LCDToFull          0x10
 #define AVIDEOSense          0x01   /* CR32 */
 #define SVIDEOSense          0x02
 #define SCARTSense           0x04

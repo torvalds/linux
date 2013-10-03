@@ -750,15 +750,23 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	struct i7300_dimm_info *dinfo;
 	int rc = -ENODEV;
 	int mtr;
-	int ch, branch, slot, channel;
+	int ch, branch, slot, channel, max_channel, max_branch;
 	struct dimm_info *dimm;
 
 	pvt = mci->pvt_info;
 
 	edac_dbg(2, "Memory Technology Registers:\n");
 
+	if (IS_SINGLE_MODE(pvt->mc_settings_a)) {
+		max_branch = 1;
+		max_channel = 1;
+	} else {
+		max_branch = MAX_BRANCHES;
+		max_channel = MAX_CH_PER_BRANCH;
+	}
+
 	/* Get the AMB present registers for the four channels */
-	for (branch = 0; branch < MAX_BRANCHES; branch++) {
+	for (branch = 0; branch < max_branch; branch++) {
 		/* Read and dump branch 0's MTRs */
 		channel = to_channel(0, branch);
 		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
@@ -766,6 +774,9 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 				&pvt->ambpresent[channel]);
 		edac_dbg(2, "\t\tAMB-present CH%d = 0x%x:\n",
 			 channel, pvt->ambpresent[channel]);
+
+		if (max_channel == 1)
+			continue;
 
 		channel = to_channel(1, branch);
 		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
@@ -778,11 +789,11 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	/* Get the set of MTR[0-7] regs by each branch */
 	for (slot = 0; slot < MAX_SLOTS; slot++) {
 		int where = mtr_regs[slot];
-		for (branch = 0; branch < MAX_BRANCHES; branch++) {
+		for (branch = 0; branch < max_branch; branch++) {
 			pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
 					where,
 					&pvt->mtr[slot][branch]);
-			for (ch = 0; ch < MAX_CH_PER_BRANCH; ch++) {
+			for (ch = 0; ch < max_channel; ch++) {
 				int channel = to_channel(ch, branch);
 
 				dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,

@@ -20,11 +20,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: pcl726
@@ -67,9 +62,8 @@ Interrupts are not supported.
     their web page.  (http://www.cir.com/)
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
 
 #undef ACL6126_IRQ		/* no interrupt support (yet) */
 
@@ -89,9 +83,6 @@ Interrupts are not supported.
 #define PCL727_DO_LO 25
 #define PCL727_DI_HI  0
 #define PCL727_DI_LO  1
-
-static const struct comedi_lrange range_4_20mA = { 1, {RANGE_mA(4, 20)} };
-static const struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
 
 static const struct comedi_lrange *const rangelist_726[] = {
 	&range_unipolar5, &range_unipolar10,
@@ -228,30 +219,18 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl726_board *board = comedi_board(dev);
 	struct pcl726_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
-	unsigned int iorange;
 	int ret, i;
 #ifdef ACL6126_IRQ
 	unsigned int irq;
 #endif
 
-	iobase = it->options[0];
-	iorange = board->io_range;
-	printk(KERN_WARNING "comedi%d: pcl726: board=%s, 0x%03lx ", dev->minor,
-	       board->name, iobase);
-	if (!request_region(iobase, iorange, "pcl726")) {
-		printk(KERN_WARNING "I/O port conflict\n");
-		return -EIO;
-	}
+	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	if (ret)
+		return ret;
 
-	dev->iobase = iobase;
-
-	dev->board_name = board->name;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	for (i = 0; i < 12; i++) {
 		devpriv->bipolar[i] = 0;
@@ -271,7 +250,7 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (request_irq(irq, interrupt_pcl818, 0,
-						"pcl726", dev)) {
+						dev->board_name, dev)) {
 					printk(KERN_WARNING
 						", unable to allocate IRQ %d,"
 						" DISABLING IT", irq);
@@ -349,23 +328,11 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void pcl726_detach(struct comedi_device *dev)
-{
-	const struct pcl726_board *board = comedi_board(dev);
-
-#ifdef ACL6126_IRQ
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-#endif
-	if (dev->iobase)
-		release_region(dev->iobase, board->io_range);
-}
-
 static struct comedi_driver pcl726_driver = {
 	.driver_name	= "pcl726",
 	.module		= THIS_MODULE,
 	.attach		= pcl726_attach,
-	.detach		= pcl726_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boardtypes[0].name,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct pcl726_board),

@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -75,13 +75,15 @@ enum iwl_d3_wakeup_flags {
  * struct iwl_d3_manager_config - D3 manager configuration command
  * @min_sleep_time: minimum sleep time (in usec)
  * @wakeup_flags: wakeup flags, see &enum iwl_d3_wakeup_flags
+ * @wakeup_host_timer: force wakeup after this many seconds
  *
  * The structure is used for the D3_CONFIG_CMD command.
  */
 struct iwl_d3_manager_config {
 	__le32 min_sleep_time;
 	__le32 wakeup_flags;
-} __packed; /* D3_MANAGER_CONFIG_CMD_S_VER_3 */
+	__le32 wakeup_host_timer;
+} __packed; /* D3_MANAGER_CONFIG_CMD_S_VER_4 */
 
 
 /* TODO: OFFLOADS_QUERY_API_S_VER_1 */
@@ -96,33 +98,62 @@ enum iwl_proto_offloads {
 	IWL_D3_PROTO_OFFLOAD_NS = BIT(1),
 };
 
-#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS	2
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1	2
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2	6
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX	6
 
 /**
- * struct iwl_proto_offload_cmd - ARP/NS offload configuration
+ * struct iwl_proto_offload_cmd_common - ARP/NS offload common part
  * @enabled: enable flags
  * @remote_ipv4_addr: remote address to answer to (or zero if all)
  * @host_ipv4_addr: our IPv4 address to respond to queries for
  * @arp_mac_addr: our MAC address for ARP responses
+ * @reserved: unused
+ */
+struct iwl_proto_offload_cmd_common {
+	__le32 enabled;
+	__be32 remote_ipv4_addr;
+	__be32 host_ipv4_addr;
+	u8 arp_mac_addr[ETH_ALEN];
+	__le16 reserved;
+} __packed;
+
+/**
+ * struct iwl_proto_offload_cmd_v1 - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
  * @remote_ipv6_addr: remote address to answer to (or zero if all)
  * @solicited_node_ipv6_addr: broken -- solicited node address exists
  *	for each target address
  * @target_ipv6_addr: our target addresses
  * @ndp_mac_addr: neighbor soliciation response MAC address
  */
-struct iwl_proto_offload_cmd {
-	__le32 enabled;
-	__be32 remote_ipv4_addr;
-	__be32 host_ipv4_addr;
-	u8 arp_mac_addr[ETH_ALEN];
-	__le16 reserved1;
-
+struct iwl_proto_offload_cmd_v1 {
+	struct iwl_proto_offload_cmd_common common;
 	u8 remote_ipv6_addr[16];
 	u8 solicited_node_ipv6_addr[16];
-	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS][16];
+	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1][16];
 	u8 ndp_mac_addr[ETH_ALEN];
 	__le16 reserved2;
 } __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_1 */
+
+/**
+ * struct iwl_proto_offload_cmd_v2 - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
+ * @remote_ipv6_addr: remote address to answer to (or zero if all)
+ * @solicited_node_ipv6_addr: broken -- solicited node address exists
+ *	for each target address
+ * @target_ipv6_addr: our target addresses
+ * @ndp_mac_addr: neighbor soliciation response MAC address
+ */
+struct iwl_proto_offload_cmd_v2 {
+	struct iwl_proto_offload_cmd_common common;
+	u8 remote_ipv6_addr[16];
+	u8 solicited_node_ipv6_addr[16];
+	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2][16];
+	u8 ndp_mac_addr[ETH_ALEN];
+	u8 numValidIPv6Addresses;
+	u8 reserved2[3];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_2 */
 
 
 /*
@@ -258,7 +289,7 @@ enum iwl_wowlan_wakeup_reason {
 	IWL_WOWLAN_WAKEUP_BY_FOUR_WAY_HANDSHAKE			= BIT(8),
 	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_LINK_LOSS			= BIT(9),
 	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_SIGNATURE_TABLE		= BIT(10),
-	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_TCP_EXTERNAL		= BIT(11),
+	/* BIT(11) reserved */
 	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_WAKEUP_PACKET		= BIT(12),
 }; /* WOWLAN_WAKE_UP_REASON_API_E_VER_2 */
 
@@ -276,6 +307,55 @@ struct iwl_wowlan_status {
 	__le32 wake_packet_bufsize;
 	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
 } __packed; /* WOWLAN_STATUSES_API_S_VER_4 */
+
+#define IWL_WOWLAN_TCP_MAX_PACKET_LEN		64
+#define IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN	128
+#define IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS	2048
+
+struct iwl_tcp_packet_info {
+	__le16 tcp_pseudo_header_checksum;
+	__le16 tcp_payload_length;
+} __packed; /* TCP_PACKET_INFO_API_S_VER_2 */
+
+struct iwl_tcp_packet {
+	struct iwl_tcp_packet_info info;
+	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
+	u8 data[IWL_WOWLAN_TCP_MAX_PACKET_LEN];
+} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
+
+struct iwl_remote_wake_packet {
+	struct iwl_tcp_packet_info info;
+	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
+	u8 data[IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN];
+} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
+
+struct iwl_wowlan_remote_wake_config {
+	__le32 connection_max_time; /* unused */
+	/* TCP_PROTOCOL_CONFIG_API_S_VER_1 */
+	u8 max_syn_retries;
+	u8 max_data_retries;
+	u8 tcp_syn_ack_timeout;
+	u8 tcp_ack_timeout;
+
+	struct iwl_tcp_packet syn_tx;
+	struct iwl_tcp_packet synack_rx;
+	struct iwl_tcp_packet keepalive_ack_rx;
+	struct iwl_tcp_packet fin_tx;
+
+	struct iwl_remote_wake_packet keepalive_tx;
+	struct iwl_remote_wake_packet wake_rx;
+
+	/* REMOTE_WAKE_OFFSET_INFO_API_S_VER_1 */
+	u8 sequence_number_offset;
+	u8 sequence_number_length;
+	u8 token_offset;
+	u8 token_length;
+	/* REMOTE_WAKE_PROTOCOL_PARAMS_API_S_VER_1 */
+	__le32 initial_sequence_number;
+	__le16 keepalive_interval;
+	__le16 num_tokens;
+	u8 tokens[IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS];
+} __packed; /* REMOTE_WAKE_CONFIG_API_S_VER_2 */
 
 /* TODO: NetDetect API */
 

@@ -212,7 +212,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	if (!lvds_options)
 		return;
 
-	dev_priv->lvds_dither = lvds_options->pixel_dither;
+	dev_priv->vbt.lvds_dither = lvds_options->pixel_dither;
 	if (lvds_options->panel_type == 0xff)
 		return;
 
@@ -226,7 +226,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	if (!lvds_lfp_data_ptrs)
 		return;
 
-	dev_priv->lvds_vbt = 1;
+	dev_priv->vbt.lvds_vbt = 1;
 
 	panel_dvo_timing = get_lvds_dvo_timing(lvds_lfp_data,
 					       lvds_lfp_data_ptrs,
@@ -238,7 +238,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 
 	fill_detail_timing_data(panel_fixed_mode, panel_dvo_timing);
 
-	dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
+	dev_priv->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
 
 	DRM_DEBUG_KMS("Found panel mode in BIOS VBT tables:\n");
 	drm_mode_debug_printmodeline(panel_fixed_mode);
@@ -274,9 +274,9 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 		/* check the resolution, just to be sure */
 		if (fp_timing->x_res == panel_fixed_mode->hdisplay &&
 		    fp_timing->y_res == panel_fixed_mode->vdisplay) {
-			dev_priv->bios_lvds_val = fp_timing->lvds_reg_val;
+			dev_priv->vbt.bios_lvds_val = fp_timing->lvds_reg_val;
 			DRM_DEBUG_KMS("VBT initial LVDS value %x\n",
-				      dev_priv->bios_lvds_val);
+				      dev_priv->vbt.bios_lvds_val);
 		}
 	}
 }
@@ -316,7 +316,7 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 
 	fill_detail_timing_data(panel_fixed_mode, dvo_timing + index);
 
-	dev_priv->sdvo_lvds_vbt_mode = panel_fixed_mode;
+	dev_priv->vbt.sdvo_lvds_vbt_mode = panel_fixed_mode;
 
 	DRM_DEBUG_KMS("Found SDVO panel mode in BIOS VBT tables:\n");
 	drm_mode_debug_printmodeline(panel_fixed_mode);
@@ -345,18 +345,20 @@ parse_general_features(struct drm_i915_private *dev_priv,
 
 	general = find_section(bdb, BDB_GENERAL_FEATURES);
 	if (general) {
-		dev_priv->int_tv_support = general->int_tv_support;
-		dev_priv->int_crt_support = general->int_crt_support;
-		dev_priv->lvds_use_ssc = general->enable_ssc;
-		dev_priv->lvds_ssc_freq =
+		dev_priv->vbt.int_tv_support = general->int_tv_support;
+		dev_priv->vbt.int_crt_support = general->int_crt_support;
+		dev_priv->vbt.lvds_use_ssc = general->enable_ssc;
+		dev_priv->vbt.lvds_ssc_freq =
 			intel_bios_ssc_frequency(dev, general->ssc_freq);
-		dev_priv->display_clock_mode = general->display_clock_mode;
-		DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d\n",
-			      dev_priv->int_tv_support,
-			      dev_priv->int_crt_support,
-			      dev_priv->lvds_use_ssc,
-			      dev_priv->lvds_ssc_freq,
-			      dev_priv->display_clock_mode);
+		dev_priv->vbt.display_clock_mode = general->display_clock_mode;
+		dev_priv->vbt.fdi_rx_polarity_inverted = general->fdi_rx_polarity_inverted;
+		DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
+			      dev_priv->vbt.int_tv_support,
+			      dev_priv->vbt.int_crt_support,
+			      dev_priv->vbt.lvds_use_ssc,
+			      dev_priv->vbt.lvds_ssc_freq,
+			      dev_priv->vbt.display_clock_mode,
+			      dev_priv->vbt.fdi_rx_polarity_inverted);
 	}
 }
 
@@ -373,7 +375,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 			int bus_pin = general->crt_ddc_gmbus_pin;
 			DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
 			if (intel_gmbus_is_port_valid(bus_pin))
-				dev_priv->crt_ddc_pin = bus_pin;
+				dev_priv->vbt.crt_ddc_pin = bus_pin;
 		} else {
 			DRM_DEBUG_KMS("BDB_GD too small (%d). Invalid.\n",
 				      block_size);
@@ -484,7 +486,7 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 
 	if (SUPPORTS_EDP(dev) &&
 	    driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
-		dev_priv->edp.support = 1;
+		dev_priv->vbt.edp_support = 1;
 
 	if (driver->dual_frequency)
 		dev_priv->render_reclock_avail = true;
@@ -499,20 +501,20 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
-		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp.support)
+		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->vbt.edp_support)
 			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported.\n");
 		return;
 	}
 
 	switch ((edp->color_depth >> (panel_type * 2)) & 3) {
 	case EDP_18BPP:
-		dev_priv->edp.bpp = 18;
+		dev_priv->vbt.edp_bpp = 18;
 		break;
 	case EDP_24BPP:
-		dev_priv->edp.bpp = 24;
+		dev_priv->vbt.edp_bpp = 24;
 		break;
 	case EDP_30BPP:
-		dev_priv->edp.bpp = 30;
+		dev_priv->vbt.edp_bpp = 30;
 		break;
 	}
 
@@ -520,48 +522,48 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	edp_pps = &edp->power_seqs[panel_type];
 	edp_link_params = &edp->link_params[panel_type];
 
-	dev_priv->edp.pps = *edp_pps;
+	dev_priv->vbt.edp_pps = *edp_pps;
 
-	dev_priv->edp.rate = edp_link_params->rate ? DP_LINK_BW_2_7 :
+	dev_priv->vbt.edp_rate = edp_link_params->rate ? DP_LINK_BW_2_7 :
 		DP_LINK_BW_1_62;
 	switch (edp_link_params->lanes) {
 	case 0:
-		dev_priv->edp.lanes = 1;
+		dev_priv->vbt.edp_lanes = 1;
 		break;
 	case 1:
-		dev_priv->edp.lanes = 2;
+		dev_priv->vbt.edp_lanes = 2;
 		break;
 	case 3:
 	default:
-		dev_priv->edp.lanes = 4;
+		dev_priv->vbt.edp_lanes = 4;
 		break;
 	}
 	switch (edp_link_params->preemphasis) {
 	case 0:
-		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_0;
+		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_0;
 		break;
 	case 1:
-		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_3_5;
+		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_3_5;
 		break;
 	case 2:
-		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_6;
+		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_6;
 		break;
 	case 3:
-		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_9_5;
+		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_9_5;
 		break;
 	}
 	switch (edp_link_params->vswing) {
 	case 0:
-		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_400;
+		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_400;
 		break;
 	case 1:
-		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_600;
+		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_600;
 		break;
 	case 2:
-		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_800;
+		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_800;
 		break;
 	case 3:
-		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_1200;
+		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_1200;
 		break;
 	}
 }
@@ -609,13 +611,13 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
 		return;
 	}
-	dev_priv->child_dev = kcalloc(count, sizeof(*p_child), GFP_KERNEL);
-	if (!dev_priv->child_dev) {
+	dev_priv->vbt.child_dev = kcalloc(count, sizeof(*p_child), GFP_KERNEL);
+	if (!dev_priv->vbt.child_dev) {
 		DRM_DEBUG_KMS("No memory space for child device\n");
 		return;
 	}
 
-	dev_priv->child_dev_num = count;
+	dev_priv->vbt.child_dev_num = count;
 	count = 0;
 	for (i = 0; i < child_device_num; i++) {
 		p_child = &(p_defs->devices[i]);
@@ -623,7 +625,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 			/* skip the device block if device type is invalid */
 			continue;
 		}
-		child_dev_ptr = dev_priv->child_dev + count;
+		child_dev_ptr = dev_priv->vbt.child_dev + count;
 		count++;
 		memcpy((void *)child_dev_ptr, (void *)p_child,
 					sizeof(*p_child));
@@ -636,23 +638,23 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	dev_priv->crt_ddc_pin = GMBUS_PORT_VGADDC;
+	dev_priv->vbt.crt_ddc_pin = GMBUS_PORT_VGADDC;
 
 	/* LFP panel data */
-	dev_priv->lvds_dither = 1;
-	dev_priv->lvds_vbt = 0;
+	dev_priv->vbt.lvds_dither = 1;
+	dev_priv->vbt.lvds_vbt = 0;
 
 	/* SDVO panel data */
-	dev_priv->sdvo_lvds_vbt_mode = NULL;
+	dev_priv->vbt.sdvo_lvds_vbt_mode = NULL;
 
 	/* general features */
-	dev_priv->int_tv_support = 1;
-	dev_priv->int_crt_support = 1;
+	dev_priv->vbt.int_tv_support = 1;
+	dev_priv->vbt.int_crt_support = 1;
 
 	/* Default to using SSC */
-	dev_priv->lvds_use_ssc = 1;
-	dev_priv->lvds_ssc_freq = intel_bios_ssc_frequency(dev, 1);
-	DRM_DEBUG_KMS("Set default to SSC at %dMHz\n", dev_priv->lvds_ssc_freq);
+	dev_priv->vbt.lvds_use_ssc = 1;
+	dev_priv->vbt.lvds_ssc_freq = intel_bios_ssc_frequency(dev, 1);
+	DRM_DEBUG_KMS("Set default to SSC at %dMHz\n", dev_priv->vbt.lvds_ssc_freq);
 }
 
 static int __init intel_no_opregion_vbt_callback(const struct dmi_system_id *id)
@@ -691,6 +693,9 @@ intel_parse_bios(struct drm_device *dev)
 	struct pci_dev *pdev = dev->pdev;
 	struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
+
+	if (HAS_PCH_NOP(dev))
+		return -ENODEV;
 
 	init_vbt_defaults(dev_priv);
 

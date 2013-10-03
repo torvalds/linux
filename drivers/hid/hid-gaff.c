@@ -29,13 +29,11 @@
 
 #include <linux/input.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 #include <linux/hid.h>
 #include <linux/module.h>
 #include "hid-ids.h"
 
 #ifdef CONFIG_GREENASIA_FF
-#include "usbhid/usbhid.h"
 
 struct gaff_device {
 	struct hid_report *report;
@@ -63,14 +61,14 @@ static int hid_gaff_play(struct input_dev *dev, void *data,
 	gaff->report->field[0]->value[4] = left;
 	gaff->report->field[0]->value[5] = 0;
 	dbg_hid("running with 0x%02x 0x%02x", left, right);
-	usbhid_submit_report(hid, gaff->report, USB_DIR_OUT);
+	hid_hw_request(hid, gaff->report, HID_REQ_SET_REPORT);
 
 	gaff->report->field[0]->value[0] = 0xfa;
 	gaff->report->field[0]->value[1] = 0xfe;
 	gaff->report->field[0]->value[2] = 0x0;
 	gaff->report->field[0]->value[4] = 0x0;
 
-	usbhid_submit_report(hid, gaff->report, USB_DIR_OUT);
+	hid_hw_request(hid, gaff->report, HID_REQ_SET_REPORT);
 
 	return 0;
 }
@@ -122,12 +120,12 @@ static int gaff_init(struct hid_device *hid)
 	gaff->report->field[0]->value[1] = 0x00;
 	gaff->report->field[0]->value[2] = 0x00;
 	gaff->report->field[0]->value[3] = 0x00;
-	usbhid_submit_report(hid, gaff->report, USB_DIR_OUT);
+	hid_hw_request(hid, gaff->report, HID_REQ_SET_REPORT);
 
 	gaff->report->field[0]->value[0] = 0xfa;
 	gaff->report->field[0]->value[1] = 0xfe;
 
-	usbhid_submit_report(hid, gaff->report, USB_DIR_OUT);
+	hid_hw_request(hid, gaff->report, HID_REQ_SET_REPORT);
 
 	hid_info(hid, "Force Feedback for GreenAsia 0x12 devices by Lukasz Lubojanski <lukasz@lubojanski.info>\n");
 

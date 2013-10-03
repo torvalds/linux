@@ -1645,12 +1645,12 @@ int dm_thin_get_highest_mapped_block(struct dm_thin_device *td,
 	return r;
 }
 
-static int __resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
+static int __resize_space_map(struct dm_space_map *sm, dm_block_t new_count)
 {
 	int r;
 	dm_block_t old_count;
 
-	r = dm_sm_get_nr_blocks(pmd->data_sm, &old_count);
+	r = dm_sm_get_nr_blocks(sm, &old_count);
 	if (r)
 		return r;
 
@@ -1658,11 +1658,11 @@ static int __resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
 		return 0;
 
 	if (new_count < old_count) {
-		DMERR("cannot reduce size of data device");
+		DMERR("cannot reduce size of space map");
 		return -EINVAL;
 	}
 
-	return dm_sm_extend(pmd->data_sm, new_count - old_count);
+	return dm_sm_extend(sm, new_count - old_count);
 }
 
 int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
@@ -1671,7 +1671,19 @@ int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
 
 	down_write(&pmd->root_lock);
 	if (!pmd->fail_io)
-		r = __resize_data_dev(pmd, new_count);
+		r = __resize_space_map(pmd->data_sm, new_count);
+	up_write(&pmd->root_lock);
+
+	return r;
+}
+
+int dm_pool_resize_metadata_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
+{
+	int r = -EINVAL;
+
+	down_write(&pmd->root_lock);
+	if (!pmd->fail_io)
+		r = __resize_space_map(pmd->metadata_sm, new_count);
 	up_write(&pmd->root_lock);
 
 	return r;
@@ -1683,4 +1695,18 @@ void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd)
 	pmd->read_only = true;
 	dm_bm_set_read_only(pmd->bm);
 	up_write(&pmd->root_lock);
+}
+
+int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
+					dm_block_t threshold,
+					dm_sm_threshold_fn fn,
+					void *context)
+{
+	int r;
+
+	down_write(&pmd->root_lock);
+	r = dm_sm_register_threshold_callback(pmd->metadata_sm, threshold, fn, context);
+	up_write(&pmd->root_lock);
+
+	return r;
 }

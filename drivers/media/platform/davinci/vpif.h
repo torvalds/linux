@@ -638,7 +638,7 @@ struct vpif_channel_config_params {
 };
 
 extern const unsigned int vpif_ch_params_count;
-extern const struct vpif_channel_config_params ch_params[];
+extern const struct vpif_channel_config_params vpif_ch_params[];
 
 struct vpif_video_params;
 struct vpif_params;

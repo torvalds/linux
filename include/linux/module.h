@@ -42,6 +42,7 @@ struct module_kobject {
 	struct module *mod;
 	struct kobject *drivers_dir;
 	struct module_param_attrs *mp;
+	struct completion *kobj_completion;
 };
 
 struct module_attribute {
@@ -96,6 +97,11 @@ extern const struct gtype##_id __mod_##gtype##_table		\
 
 /* For userspace: you can also call me... */
 #define MODULE_ALIAS(_alias) MODULE_INFO(alias, _alias)
+
+/* Soft module dependencies. See man modprobe.d for details.
+ * Example: MODULE_SOFTDEP("pre: module-foo module-bar post: module-baz")
+ */
+#define MODULE_SOFTDEP(_softdep) MODULE_INFO(softdep, _softdep)
 
 /*
  * The following license idents are currently accepted as indicating free
@@ -190,7 +196,7 @@ extern int modules_disabled; /* for sysctl */
 /* Get/put a kernel symbol (calls must be symmetric) */
 void *__symbol_get(const char *symbol);
 void *__symbol_get_gpl(const char *symbol);
-#define symbol_get(x) ((typeof(&x))(__symbol_get(MODULE_SYMBOL_PREFIX #x)))
+#define symbol_get(x) ((typeof(&x))(__symbol_get(VMLINUX_SYMBOL_STR(x))))
 
 /* modules using other modules: kdb wants to see this. */
 struct module_use {
@@ -453,7 +459,7 @@ extern void __module_put_and_exit(struct module *mod, long code)
 #ifdef CONFIG_MODULE_UNLOAD
 unsigned long module_refcount(struct module *mod);
 void __symbol_put(const char *symbol);
-#define symbol_put(x) __symbol_put(MODULE_SYMBOL_PREFIX #x)
+#define symbol_put(x) __symbol_put(VMLINUX_SYMBOL_STR(x))
 void symbol_put_addr(void *addr);
 
 /* Sometimes we know we already have a refcount, and it's easier not

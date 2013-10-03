@@ -369,7 +369,7 @@ struct tpacpi_led_classdev {
 	struct led_classdev led_classdev;
 	struct work_struct work;
 	enum led_status_t new_state;
-	unsigned int led;
+	int led;
 };
 
 /* brightness level capabilities */
@@ -844,14 +844,14 @@ static int dispatch_proc_show(struct seq_file *m, void *v)
 
 static int dispatch_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dispatch_proc_show, PDE(inode)->data);
+	return single_open(file, dispatch_proc_show, PDE_DATA(inode));
 }
 
 static ssize_t dispatch_proc_write(struct file *file,
 			const char __user *userbuf,
 			size_t count, loff_t *pos)
 {
-	struct ibm_struct *ibm = PDE(file_inode(file))->data;
+	struct ibm_struct *ibm = PDE_DATA(file_inode(file));
 	char *kernbuf;
 	int ret;
 
@@ -1964,9 +1964,6 @@ struct tp_nvram_state {
 /* kthread for the hotkey poller */
 static struct task_struct *tpacpi_hotkey_task;
 
-/* Acquired while the poller kthread is running, use to sync start/stop */
-static struct mutex hotkey_thread_mutex;
-
 /*
  * Acquire mutex to write poller control variables as an
  * atomic block.
@@ -2024,8 +2021,6 @@ static u32 hotkey_reserved_mask;	/* events better left disabled */
 static u32 hotkey_driver_mask;		/* events needed by the driver */
 static u32 hotkey_user_mask;		/* events visible to userspace */
 static u32 hotkey_acpi_mask;		/* events enabled in firmware */
-
-static unsigned int hotkey_report_mode;
 
 static u16 *hotkey_keycode_map;
 
@@ -2285,10 +2280,6 @@ static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
 static void tpacpi_hotkey_send_key(unsigned int scancode)
 {
 	tpacpi_input_send_key_masked(scancode);
-	if (hotkey_report_mode < 2) {
-		acpi_bus_generate_proc_event(ibm_hotkey_acpidriver.device,
-				0x80, TP_HKEY_EV_HOTKEY_BASE + scancode);
-	}
 }
 
 static void hotkey_read_nvram(struct tp_nvram_state *n, const u32 m)
@@ -2462,8 +2453,6 @@ static int hotkey_kthread(void *data)
 	unsigned int poll_freq;
 	bool was_frozen;
 
-	mutex_lock(&hotkey_thread_mutex);
-
 	if (tpacpi_lifecycle == TPACPI_LIFE_EXITING)
 		goto exit;
 
@@ -2523,7 +2512,6 @@ static int hotkey_kthread(void *data)
 	}
 
 exit:
-	mutex_unlock(&hotkey_thread_mutex);
 	return 0;
 }
 
@@ -2533,9 +2521,6 @@ static void hotkey_poll_stop_sync(void)
 	if (tpacpi_hotkey_task) {
 		kthread_stop(tpacpi_hotkey_task);
 		tpacpi_hotkey_task = NULL;
-		mutex_lock(&hotkey_thread_mutex);
-		/* at this point, the thread did exit */
-		mutex_unlock(&hotkey_thread_mutex);
 	}
 }
 
@@ -2891,18 +2876,6 @@ static void hotkey_tablet_mode_notify_change(void)
 			     "hotkey_tablet_mode");
 }
 
-/* sysfs hotkey report_mode -------------------------------------------- */
-static ssize_t hotkey_report_mode_show(struct device *dev,
-			   struct device_attribute *attr,
-			   char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-		(hotkey_report_mode != 0) ? hotkey_report_mode : 1);
-}
-
-static struct device_attribute dev_attr_hotkey_report_mode =
-	__ATTR(hotkey_report_mode, S_IRUGO, hotkey_report_mode_show, NULL);
-
 /* sysfs wakeup reason (pollable) -------------------------------------- */
 static ssize_t hotkey_wakeup_reason_show(struct device *dev,
 			   struct device_attribute *attr,
@@ -2944,7 +2917,6 @@ static struct attribute *hotkey_attributes[] __initdata = {
 	&dev_attr_hotkey_enable.attr,
 	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_bios_mask.attr,
-	&dev_attr_hotkey_report_mode.attr,
 	&dev_attr_hotkey_wakeup_reason.attr,
 	&dev_attr_hotkey_wakeup_hotunplug_complete.attr,
 	&dev_attr_hotkey_mask.attr,
@@ -3234,7 +3206,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	mutex_init(&hotkey_mutex);
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
-	mutex_init(&hotkey_thread_mutex);
 	mutex_init(&hotkey_thread_data_mutex);
 #endif
 
@@ -3448,11 +3419,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 		"initial masks: user=0x%08x, fw=0x%08x, poll=0x%08x\n",
 		hotkey_user_mask, hotkey_acpi_mask, hotkey_source_mask);
-
-	dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
-			"legacy ibm/hotkey event reporting over procfs %s\n",
-			(hotkey_report_mode < 2) ?
-				"enabled" : "disabled");
 
 	tpacpi_inputdev->open = &hotkey_inputdev_open;
 	tpacpi_inputdev->close = &hotkey_inputdev_close;
@@ -3745,13 +3711,6 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			pr_notice("unhandled HKEY event 0x%04x\n", hkey);
 			pr_notice("please report the conditions when this "
 				  "event happened to %s\n", TPACPI_MAIL);
-		}
-
-		/* Legacy events */
-		if (!ignore_acpi_ev &&
-		    (send_acpi_ev || hotkey_report_mode < 2)) {
-			acpi_bus_generate_proc_event(ibm->acpi->device,
-						     event, hkey);
 		}
 
 		/* netlink events */
@@ -5337,6 +5296,16 @@ static int __init led_init(struct ibm_init_struct *iibm)
 
 	led_supported = led_init_detect_mode();
 
+	if (led_supported != TPACPI_LED_NONE) {
+		useful_leds = tpacpi_check_quirks(led_useful_qtable,
+				ARRAY_SIZE(led_useful_qtable));
+
+		if (!useful_leds) {
+			led_handle = NULL;
+			led_supported = TPACPI_LED_NONE;
+		}
+	}
+
 	vdbg_printk(TPACPI_DBG_INIT, "LED commands are %s, mode %d\n",
 		str_supported(led_supported), led_supported);
 
@@ -5350,10 +5319,9 @@ static int __init led_init(struct ibm_init_struct *iibm)
 		return -ENOMEM;
 	}
 
-	useful_leds = tpacpi_check_quirks(led_useful_qtable,
-					  ARRAY_SIZE(led_useful_qtable));
-
 	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
+		tpacpi_leds[i].led = -1;
+
 		if (!tpacpi_is_led_restricted(i) &&
 		    test_bit(i, &useful_leds)) {
 			rc = tpacpi_init_led(i);
@@ -5411,8 +5379,12 @@ static int led_write(char *buf)
 		return -ENODEV;
 
 	while ((cmd = next_cmd(&buf))) {
-		if (sscanf(cmd, "%d", &led) != 1 || led < 0 || led > 15)
+		if (sscanf(cmd, "%d", &led) != 1)
 			return -EINVAL;
+
+		if (led < 0 || led > (TPACPI_LED_NUMLEDS - 1) ||
+				tpacpi_leds[led].led < 0)
+			return -ENODEV;
 
 		if (strstr(cmd, "off")) {
 			s = TPACPI_LED_OFF;
@@ -8850,11 +8822,6 @@ module_param(brightness_enable, uint, 0444);
 MODULE_PARM_DESC(brightness_enable,
 		 "Enables backlight control when 1, disables when 0");
 
-module_param(hotkey_report_mode, uint, 0444);
-MODULE_PARM_DESC(hotkey_report_mode,
-		 "used for backwards compatibility with userspace, "
-		 "see documentation");
-
 #ifdef CONFIG_THINKPAD_ACPI_ALSA_SUPPORT
 module_param_named(volume_mode, volume_mode, uint, 0444);
 MODULE_PARM_DESC(volume_mode,
@@ -8984,10 +8951,6 @@ static int __init thinkpad_acpi_module_init(void)
 	int ret, i;
 
 	tpacpi_lifecycle = TPACPI_LIFE_INIT;
-
-	/* Parameter checking */
-	if (hotkey_report_mode > 2)
-		return -EINVAL;
 
 	/* Driver-level probe */
 

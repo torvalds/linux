@@ -871,7 +871,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
 		goto error;
 
 	for (lut_idx = 0; lut_idx < omap_dmm->num_lut; lut_idx++) {
-		memset(map, 0, sizeof(h_adj * sizeof(*map)));
+		memset(map, 0, h_adj * sizeof(*map));
 		memset(global_map, ' ', (w_adj + 1) * h_adj);
 
 		for (i = 0; i < omap_dmm->container_height; i++) {

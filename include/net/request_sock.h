@@ -27,19 +27,13 @@ struct sk_buff;
 struct dst_entry;
 struct proto;
 
-/* empty to "strongly type" an otherwise void parameter.
- */
-struct request_values {
-};
-
 struct request_sock_ops {
 	int		family;
 	int		obj_size;
 	struct kmem_cache	*slab;
 	char		*slab_name;
 	int		(*rtx_syn_ack)(struct sock *sk,
-				       struct request_sock *req,
-				       struct request_values *rvp);
+				       struct request_sock *req);
 	void		(*send_ack)(struct sock *sk, struct sk_buff *skb,
 				    struct request_sock *req);
 	void		(*send_reset)(struct sock *sk,
@@ -54,7 +48,7 @@ extern int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req);
 /* struct request_sock - mini sock to represent a connection request
  */
 struct request_sock {
-	struct request_sock		*dl_next; /* Must be first member! */
+	struct request_sock		*dl_next;
 	u16				mss;
 	u8				num_retrans; /* number of retransmits */
 	u8				cookie_ts:1; /* syncookie: encode tcpopts in timestamp */

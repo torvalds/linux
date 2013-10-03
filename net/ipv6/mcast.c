@@ -44,6 +44,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/pkt_sched.h>
 #include <net/mld.h>
 
 #include <linux/netfilter.h>
@@ -94,6 +95,7 @@ static void mld_ifc_event(struct inet6_dev *idev);
 static void mld_add_delrec(struct inet6_dev *idev, struct ifmcaddr6 *pmc);
 static void mld_del_delrec(struct inet6_dev *idev, const struct in6_addr *addr);
 static void mld_clear_delrec(struct inet6_dev *idev);
+static bool mld_in_v1_mode(const struct inet6_dev *idev);
 static int sf_setstate(struct ifmcaddr6 *pmc);
 static void sf_markstate(struct ifmcaddr6 *pmc);
 static void ip6_mc_clear_src(struct ifmcaddr6 *pmc);
@@ -106,14 +108,15 @@ static int ip6_mc_add_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 			    struct inet6_dev *idev);
 
-
-#define IGMP6_UNSOLICITED_IVAL	(10*HZ)
 #define MLD_QRV_DEFAULT		2
+/* RFC3810, 9.2. Query Interval */
+#define MLD_QI_DEFAULT		(125 * HZ)
+/* RFC3810, 9.3. Query Response Interval */
+#define MLD_QRI_DEFAULT		(10 * HZ)
 
-#define MLD_V1_SEEN(idev) (dev_net((idev)->dev)->ipv6.devconf_all->force_mld_version == 1 || \
-		(idev)->cnf.force_mld_version == 1 || \
-		((idev)->mc_v1_seen && \
-		time_before(jiffies, (idev)->mc_v1_seen)))
+/* RFC3810, 8.1 Query Version Distinctions */
+#define MLD_V1_QUERY_LEN	24
+#define MLD_V2_QUERY_LEN_MIN	28
 
 #define IPV6_MLD_MAX_MSF	64
 
@@ -127,6 +130,18 @@ int sysctl_mld_max_msf __read_mostly = IPV6_MLD_MAX_MSF;
 	for (pmc = rcu_dereference(np->ipv6_mc_list);		\
 	     pmc != NULL;					\
 	     pmc = rcu_dereference(pmc->next))
+
+static int unsolicited_report_interval(struct inet6_dev *idev)
+{
+	int iv;
+
+	if (mld_in_v1_mode(idev))
+		iv = idev->cnf.mldv1_unsolicited_report_interval;
+	else
+		iv = idev->cnf.mldv2_unsolicited_report_interval;
+
+	return iv > 0 ? iv : 1;
+}
 
 int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
@@ -676,7 +691,7 @@ static void igmp6_group_added(struct ifmcaddr6 *mc)
 	if (!(dev->flags & IFF_UP) || (mc->mca_flags & MAF_NOREPORT))
 		return;
 
-	if (MLD_V1_SEEN(mc->idev)) {
+	if (mld_in_v1_mode(mc->idev)) {
 		igmp6_join_group(mc);
 		return;
 	}
@@ -984,19 +999,47 @@ bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 
 static void mld_gq_start_timer(struct inet6_dev *idev)
 {
-	int tv = net_random() % idev->mc_maxdelay;
+	unsigned long tv = net_random() % idev->mc_maxdelay;
 
 	idev->mc_gq_running = 1;
 	if (!mod_timer(&idev->mc_gq_timer, jiffies+tv+2))
 		in6_dev_hold(idev);
 }
 
-static void mld_ifc_start_timer(struct inet6_dev *idev, int delay)
+static void mld_gq_stop_timer(struct inet6_dev *idev)
 {
-	int tv = net_random() % delay;
+	idev->mc_gq_running = 0;
+	if (del_timer(&idev->mc_gq_timer))
+		__in6_dev_put(idev);
+}
+
+static void mld_ifc_start_timer(struct inet6_dev *idev, unsigned long delay)
+{
+	unsigned long tv = net_random() % delay;
 
 	if (!mod_timer(&idev->mc_ifc_timer, jiffies+tv+2))
 		in6_dev_hold(idev);
+}
+
+static void mld_ifc_stop_timer(struct inet6_dev *idev)
+{
+	idev->mc_ifc_count = 0;
+	if (del_timer(&idev->mc_ifc_timer))
+		__in6_dev_put(idev);
+}
+
+static void mld_dad_start_timer(struct inet6_dev *idev, unsigned long delay)
+{
+	unsigned long tv = net_random() % delay;
+
+	if (!mod_timer(&idev->mc_dad_timer, jiffies+tv+2))
+		in6_dev_hold(idev);
+}
+
+static void mld_dad_stop_timer(struct inet6_dev *idev)
+{
+	if (del_timer(&idev->mc_dad_timer))
+		__in6_dev_put(idev);
 }
 
 /*
@@ -1017,12 +1060,9 @@ static void igmp6_group_queried(struct ifmcaddr6 *ma, unsigned long resptime)
 		delay = ma->mca_timer.expires - jiffies;
 	}
 
-	if (delay >= resptime) {
-		if (resptime)
-			delay = net_random() % resptime;
-		else
-			delay = 1;
-	}
+	if (delay >= resptime)
+		delay = net_random() % resptime;
+
 	ma->mca_timer.expires = jiffies + delay;
 	if (!mod_timer(&ma->mca_timer, jiffies + delay))
 		atomic_inc(&ma->mca_refcnt);
@@ -1089,6 +1129,158 @@ static bool mld_marksources(struct ifmcaddr6 *pmc, int nsrcs,
 	return true;
 }
 
+static int mld_force_mld_version(const struct inet6_dev *idev)
+{
+	/* Normally, both are 0 here. If enforcement to a particular is
+	 * being used, individual device enforcement will have a lower
+	 * precedence over 'all' device (.../conf/all/force_mld_version).
+	 */
+
+	if (dev_net(idev->dev)->ipv6.devconf_all->force_mld_version != 0)
+		return dev_net(idev->dev)->ipv6.devconf_all->force_mld_version;
+	else
+		return idev->cnf.force_mld_version;
+}
+
+static bool mld_in_v2_mode_only(const struct inet6_dev *idev)
+{
+	return mld_force_mld_version(idev) == 2;
+}
+
+static bool mld_in_v1_mode_only(const struct inet6_dev *idev)
+{
+	return mld_force_mld_version(idev) == 1;
+}
+
+static bool mld_in_v1_mode(const struct inet6_dev *idev)
+{
+	if (mld_in_v2_mode_only(idev))
+		return false;
+	if (mld_in_v1_mode_only(idev))
+		return true;
+	if (idev->mc_v1_seen && time_before(jiffies, idev->mc_v1_seen))
+		return true;
+
+	return false;
+}
+
+static void mld_set_v1_mode(struct inet6_dev *idev)
+{
+	/* RFC3810, relevant sections:
+	 *  - 9.1. Robustness Variable
+	 *  - 9.2. Query Interval
+	 *  - 9.3. Query Response Interval
+	 *  - 9.12. Older Version Querier Present Timeout
+	 */
+	unsigned long switchback;
+
+	switchback = (idev->mc_qrv * idev->mc_qi) + idev->mc_qri;
+
+	idev->mc_v1_seen = jiffies + switchback;
+}
+
+static void mld_update_qrv(struct inet6_dev *idev,
+			   const struct mld2_query *mlh2)
+{
+	/* RFC3810, relevant sections:
+	 *  - 5.1.8. QRV (Querier's Robustness Variable)
+	 *  - 9.1. Robustness Variable
+	 */
+
+	/* The value of the Robustness Variable MUST NOT be zero,
+	 * and SHOULD NOT be one. Catch this here if we ever run
+	 * into such a case in future.
+	 */
+	WARN_ON(idev->mc_qrv == 0);
+
+	if (mlh2->mld2q_qrv > 0)
+		idev->mc_qrv = mlh2->mld2q_qrv;
+
+	if (unlikely(idev->mc_qrv < 2)) {
+		net_warn_ratelimited("IPv6: MLD: clamping QRV from %u to %u!\n",
+				     idev->mc_qrv, MLD_QRV_DEFAULT);
+		idev->mc_qrv = MLD_QRV_DEFAULT;
+	}
+}
+
+static void mld_update_qi(struct inet6_dev *idev,
+			  const struct mld2_query *mlh2)
+{
+	/* RFC3810, relevant sections:
+	 *  - 5.1.9. QQIC (Querier's Query Interval Code)
+	 *  - 9.2. Query Interval
+	 *  - 9.12. Older Version Querier Present Timeout
+	 *    (the [Query Interval] in the last Query received)
+	 */
+	unsigned long mc_qqi;
+
+	if (mlh2->mld2q_qqic < 128) {
+		mc_qqi = mlh2->mld2q_qqic;
+	} else {
+		unsigned long mc_man, mc_exp;
+
+		mc_exp = MLDV2_QQIC_EXP(mlh2->mld2q_qqic);
+		mc_man = MLDV2_QQIC_MAN(mlh2->mld2q_qqic);
+
+		mc_qqi = (mc_man | 0x10) << (mc_exp + 3);
+	}
+
+	idev->mc_qi = mc_qqi * HZ;
+}
+
+static void mld_update_qri(struct inet6_dev *idev,
+			   const struct mld2_query *mlh2)
+{
+	/* RFC3810, relevant sections:
+	 *  - 5.1.3. Maximum Response Code
+	 *  - 9.3. Query Response Interval
+	 */
+	idev->mc_qri = msecs_to_jiffies(mldv2_mrc(mlh2));
+}
+
+static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
+			  unsigned long *max_delay)
+{
+	unsigned long mldv1_md;
+
+	/* Ignore v1 queries */
+	if (mld_in_v2_mode_only(idev))
+		return -EINVAL;
+
+	/* MLDv1 router present */
+	mldv1_md = ntohs(mld->mld_maxdelay);
+	*max_delay = max(msecs_to_jiffies(mldv1_md), 1UL);
+
+	mld_set_v1_mode(idev);
+
+	/* cancel MLDv2 report timer */
+	mld_gq_stop_timer(idev);
+	/* cancel the interface change timer */
+	mld_ifc_stop_timer(idev);
+	/* clear deleted report items */
+	mld_clear_delrec(idev);
+
+	return 0;
+}
+
+static int mld_process_v2(struct inet6_dev *idev, struct mld2_query *mld,
+			  unsigned long *max_delay)
+{
+	/* hosts need to stay in MLDv1 mode, discard MLDv2 queries */
+	if (mld_in_v1_mode(idev))
+		return -EINVAL;
+
+	*max_delay = max(msecs_to_jiffies(mldv2_mrc(mld)), 1UL);
+
+	mld_update_qrv(idev, mld);
+	mld_update_qi(idev, mld);
+	mld_update_qri(idev, mld);
+
+	idev->mc_maxdelay = *max_delay;
+
+	return 0;
+}
+
 /* called with rcu_read_lock() */
 int igmp6_event_query(struct sk_buff *skb)
 {
@@ -1100,7 +1292,7 @@ int igmp6_event_query(struct sk_buff *skb)
 	struct mld_msg *mld;
 	int group_type;
 	int mark = 0;
-	int len;
+	int len, err;
 
 	if (!pskb_may_pull(skb, sizeof(struct in6_addr)))
 		return -EINVAL;
@@ -1114,7 +1306,6 @@ int igmp6_event_query(struct sk_buff *skb)
 		return -EINVAL;
 
 	idev = __in6_dev_get(skb->dev);
-
 	if (idev == NULL)
 		return 0;
 
@@ -1126,35 +1317,23 @@ int igmp6_event_query(struct sk_buff *skb)
 	    !(group_type&IPV6_ADDR_MULTICAST))
 		return -EINVAL;
 
-	if (len == 24) {
-		int switchback;
-		/* MLDv1 router present */
-
-		/* Translate milliseconds to jiffies */
-		max_delay = (ntohs(mld->mld_maxdelay)*HZ)/1000;
-
-		switchback = (idev->mc_qrv + 1) * max_delay;
-		idev->mc_v1_seen = jiffies + switchback;
-
-		/* cancel the interface change timer */
-		idev->mc_ifc_count = 0;
-		if (del_timer(&idev->mc_ifc_timer))
-			__in6_dev_put(idev);
-		/* clear deleted report items */
-		mld_clear_delrec(idev);
-	} else if (len >= 28) {
+	if (len == MLD_V1_QUERY_LEN) {
+		err = mld_process_v1(idev, mld, &max_delay);
+		if (err < 0)
+			return err;
+	} else if (len >= MLD_V2_QUERY_LEN_MIN) {
 		int srcs_offset = sizeof(struct mld2_query) -
 				  sizeof(struct icmp6hdr);
+
 		if (!pskb_may_pull(skb, srcs_offset))
 			return -EINVAL;
 
 		mlh2 = (struct mld2_query *)skb_transport_header(skb);
-		max_delay = (MLDV2_MRC(ntohs(mlh2->mld2q_mrc))*HZ)/1000;
-		if (!max_delay)
-			max_delay = 1;
-		idev->mc_maxdelay = max_delay;
-		if (mlh2->mld2q_qrv)
-			idev->mc_qrv = mlh2->mld2q_qrv;
+
+		err = mld_process_v2(idev, mlh2, &max_delay);
+		if (err < 0)
+			return err;
+
 		if (group_type == IPV6_ADDR_ANY) { /* general query */
 			if (mlh2->mld2q_nsrcs)
 				return -EINVAL; /* no sources allowed */
@@ -1343,8 +1522,9 @@ static void ip6_mc_hdr(struct sock *sk, struct sk_buff *skb,
 	hdr->daddr = *daddr;
 }
 
-static struct sk_buff *mld_newpack(struct net_device *dev, int size)
+static struct sk_buff *mld_newpack(struct inet6_dev *idev, int size)
 {
+	struct net_device *dev = idev->dev;
 	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.igmp_sk;
 	struct sk_buff *skb;
@@ -1367,9 +1547,10 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 	if (!skb)
 		return NULL;
 
+	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(skb, hlen);
 
-	if (ipv6_get_lladdr(dev, &addr_buf, IFA_F_TENTATIVE)) {
+	if (__ipv6_get_lladdr(idev, &addr_buf, IFA_F_TENTATIVE)) {
 		/* <draft-ietf-magma-mld-source-05.txt>:
 		 * use unspecified address as the source address
 		 * when a valid link-local address is not available.
@@ -1409,8 +1590,9 @@ static void mld_sendpack(struct sk_buff *skb)
 	idev = __in6_dev_get(skb->dev);
 	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
 
-	payload_len = (skb->tail - skb->network_header) - sizeof(*pip6);
-	mldlen = skb->tail - skb->transport_header;
+	payload_len = (skb_tail_pointer(skb) - skb_network_header(skb)) -
+		sizeof(*pip6);
+	mldlen = skb_tail_pointer(skb) - skb_transport_header(skb);
 	pip6->payload_len = htons(payload_len);
 
 	pmr->mld2r_cksum = csum_ipv6_magic(&pip6->saddr, &pip6->daddr, mldlen,
@@ -1465,7 +1647,7 @@ static struct sk_buff *add_grhead(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 	struct mld2_grec *pgr;
 
 	if (!skb)
-		skb = mld_newpack(dev, dev->mtu);
+		skb = mld_newpack(pmc->idev, dev->mtu);
 	if (!skb)
 		return NULL;
 	pgr = (struct mld2_grec *)skb_put(skb, sizeof(struct mld2_grec));
@@ -1485,7 +1667,8 @@ static struct sk_buff *add_grhead(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 	int type, int gdeleted, int sdeleted)
 {
-	struct net_device *dev = pmc->idev->dev;
+	struct inet6_dev *idev = pmc->idev;
+	struct net_device *dev = idev->dev;
 	struct mld2_report *pmr;
 	struct mld2_grec *pgr = NULL;
 	struct ip6_sf_list *psf, *psf_next, *psf_prev, **psf_list;
@@ -1514,7 +1697,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 		    AVAILABLE(skb) < grec_size(pmc, type, gdeleted, sdeleted)) {
 			if (skb)
 				mld_sendpack(skb);
-			skb = mld_newpack(dev, dev->mtu);
+			skb = mld_newpack(idev, dev->mtu);
 		}
 	}
 	first = 1;
@@ -1541,7 +1724,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 				pgr->grec_nsrcs = htons(scount);
 			if (skb)
 				mld_sendpack(skb);
-			skb = mld_newpack(dev, dev->mtu);
+			skb = mld_newpack(idev, dev->mtu);
 			first = 1;
 			scount = 0;
 		}
@@ -1596,8 +1779,8 @@ static void mld_send_report(struct inet6_dev *idev, struct ifmcaddr6 *pmc)
 	struct sk_buff *skb = NULL;
 	int type;
 
+	read_lock_bh(&idev->lock);
 	if (!pmc) {
-		read_lock_bh(&idev->lock);
 		for (pmc=idev->mc_list; pmc; pmc=pmc->next) {
 			if (pmc->mca_flags & MAF_NOREPORT)
 				continue;
@@ -1609,7 +1792,6 @@ static void mld_send_report(struct inet6_dev *idev, struct ifmcaddr6 *pmc)
 			skb = add_grec(skb, pmc, type, 0, 0);
 			spin_unlock_bh(&pmc->mca_lock);
 		}
-		read_unlock_bh(&idev->lock);
 	} else {
 		spin_lock_bh(&pmc->mca_lock);
 		if (pmc->mca_sfcount[MCAST_EXCLUDE])
@@ -1619,6 +1801,7 @@ static void mld_send_report(struct inet6_dev *idev, struct ifmcaddr6 *pmc)
 		skb = add_grec(skb, pmc, type, 0, 0);
 		spin_unlock_bh(&pmc->mca_lock);
 	}
+	read_unlock_bh(&idev->lock);
 	if (skb)
 		mld_sendpack(skb);
 }
@@ -1758,7 +1941,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		rcu_read_unlock();
 		return;
 	}
-
+	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(skb, hlen);
 
 	if (ipv6_get_lladdr(dev, &addr_buf, IFA_F_TENTATIVE)) {
@@ -1814,6 +1997,46 @@ err_out:
 	goto out;
 }
 
+static void mld_resend_report(struct inet6_dev *idev)
+{
+	if (mld_in_v1_mode(idev)) {
+		struct ifmcaddr6 *mcaddr;
+		read_lock_bh(&idev->lock);
+		for (mcaddr = idev->mc_list; mcaddr; mcaddr = mcaddr->next) {
+			if (!(mcaddr->mca_flags & MAF_NOREPORT))
+				igmp6_send(&mcaddr->mca_addr, idev->dev,
+					   ICMPV6_MGM_REPORT);
+		}
+		read_unlock_bh(&idev->lock);
+	} else {
+		mld_send_report(idev, NULL);
+	}
+}
+
+void ipv6_mc_dad_complete(struct inet6_dev *idev)
+{
+	idev->mc_dad_count = idev->mc_qrv;
+	if (idev->mc_dad_count) {
+		mld_resend_report(idev);
+		idev->mc_dad_count--;
+		if (idev->mc_dad_count)
+			mld_dad_start_timer(idev, idev->mc_maxdelay);
+	}
+}
+
+static void mld_dad_timer_expire(unsigned long data)
+{
+	struct inet6_dev *idev = (struct inet6_dev *)data;
+
+	mld_resend_report(idev);
+	if (idev->mc_dad_count) {
+		idev->mc_dad_count--;
+		if (idev->mc_dad_count)
+			mld_dad_start_timer(idev, idev->mc_maxdelay);
+	}
+	in6_dev_put(idev);
+}
+
 static int ip6_mc_del1_src(struct ifmcaddr6 *pmc, int sfmode,
 	const struct in6_addr *psfsrc)
 {
@@ -1840,7 +2063,7 @@ static int ip6_mc_del1_src(struct ifmcaddr6 *pmc, int sfmode,
 		else
 			pmc->mca_sources = psf->sf_next;
 		if (psf->sf_oldin && !(pmc->mca_flags & MAF_NOREPORT) &&
-		    !MLD_V1_SEEN(idev)) {
+		    !mld_in_v1_mode(idev)) {
 			psf->sf_crcount = idev->mc_qrv;
 			psf->sf_next = pmc->mca_tomb;
 			pmc->mca_tomb = psf;
@@ -2105,7 +2328,7 @@ static void igmp6_join_group(struct ifmcaddr6 *ma)
 
 	igmp6_send(&ma->mca_addr, ma->idev->dev, ICMPV6_MGM_REPORT);
 
-	delay = net_random() % IGMP6_UNSOLICITED_IVAL;
+	delay = net_random() % unsolicited_report_interval(ma->idev);
 
 	spin_lock_bh(&ma->mca_lock);
 	if (del_timer(&ma->mca_timer)) {
@@ -2140,7 +2363,7 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 
 static void igmp6_leave_group(struct ifmcaddr6 *ma)
 {
-	if (MLD_V1_SEEN(ma->idev)) {
+	if (mld_in_v1_mode(ma->idev)) {
 		if (ma->mca_flags & MAF_LAST_REPORTER)
 			igmp6_send(&ma->mca_addr, ma->idev->dev,
 				ICMPV6_MGM_REDUCTION);
@@ -2156,7 +2379,7 @@ static void mld_gq_timer_expire(unsigned long data)
 
 	idev->mc_gq_running = 0;
 	mld_send_report(idev, NULL);
-	__in6_dev_put(idev);
+	in6_dev_put(idev);
 }
 
 static void mld_ifc_timer_expire(unsigned long data)
@@ -2169,12 +2392,12 @@ static void mld_ifc_timer_expire(unsigned long data)
 		if (idev->mc_ifc_count)
 			mld_ifc_start_timer(idev, idev->mc_maxdelay);
 	}
-	__in6_dev_put(idev);
+	in6_dev_put(idev);
 }
 
 static void mld_ifc_event(struct inet6_dev *idev)
 {
-	if (MLD_V1_SEEN(idev))
+	if (mld_in_v1_mode(idev))
 		return;
 	idev->mc_ifc_count = idev->mc_qrv;
 	mld_ifc_start_timer(idev, 1);
@@ -2185,7 +2408,7 @@ static void igmp6_timer_handler(unsigned long data)
 {
 	struct ifmcaddr6 *ma = (struct ifmcaddr6 *) data;
 
-	if (MLD_V1_SEEN(ma->idev))
+	if (mld_in_v1_mode(ma->idev))
 		igmp6_send(&ma->mca_addr, ma->idev->dev, ICMPV6_MGM_REPORT);
 	else
 		mld_send_report(ma->idev, ma);
@@ -2225,12 +2448,9 @@ void ipv6_mc_down(struct inet6_dev *idev)
 	/* Withdraw multicast list */
 
 	read_lock_bh(&idev->lock);
-	idev->mc_ifc_count = 0;
-	if (del_timer(&idev->mc_ifc_timer))
-		__in6_dev_put(idev);
-	idev->mc_gq_running = 0;
-	if (del_timer(&idev->mc_gq_timer))
-		__in6_dev_put(idev);
+	mld_ifc_stop_timer(idev);
+	mld_gq_stop_timer(idev);
+	mld_dad_stop_timer(idev);
 
 	for (i = idev->mc_list; i; i=i->next)
 		igmp6_group_dropped(i);
@@ -2267,8 +2487,14 @@ void ipv6_mc_init_dev(struct inet6_dev *idev)
 	idev->mc_ifc_count = 0;
 	setup_timer(&idev->mc_ifc_timer, mld_ifc_timer_expire,
 			(unsigned long)idev);
+	setup_timer(&idev->mc_dad_timer, mld_dad_timer_expire,
+		    (unsigned long)idev);
+
 	idev->mc_qrv = MLD_QRV_DEFAULT;
-	idev->mc_maxdelay = IGMP6_UNSOLICITED_IVAL;
+	idev->mc_qi = MLD_QI_DEFAULT;
+	idev->mc_qri = MLD_QRI_DEFAULT;
+
+	idev->mc_maxdelay = unsolicited_report_interval(idev);
 	idev->mc_v1_seen = 0;
 	write_unlock_bh(&idev->lock);
 }

@@ -28,12 +28,6 @@
 #include "util.h"
 #include "trace-event.h"
 
-int header_page_size_size;
-int header_page_ts_size;
-int header_page_data_offset;
-
-bool latency_format;
-
 struct pevent *read_trace_init(int file_bigendian, int host_bigendian)
 {
 	struct pevent *pevent = pevent_alloc();
@@ -183,43 +177,6 @@ void event_format__print(struct event_format *event,
 	trace_seq_do_printf(&s);
 }
 
-void print_trace_event(struct pevent *pevent, int cpu, void *data, int size)
-{
-	int type = trace_parse_common_type(pevent, data);
-	struct event_format *event = pevent_find_event(pevent, type);
-
-	if (!event) {
-		warning("ug! no event found for type %d", type);
-		return;
-	}
-
-	event_format__print(event, cpu, data, size);
-}
-
-void print_event(struct pevent *pevent, int cpu, void *data, int size,
-		 unsigned long long nsecs, char *comm)
-{
-	struct pevent_record record;
-	struct trace_seq s;
-	int pid;
-
-	pevent->latency_format = latency_format;
-
-	record.ts = nsecs;
-	record.cpu = cpu;
-	record.size = size;
-	record.data = data;
-	pid = pevent_data_pid(pevent, &record);
-
-	if (!pevent_pid_is_registered(pevent, pid))
-		pevent_register_comm(pevent, comm, pid);
-
-	trace_seq_init(&s);
-	pevent_print_event(pevent, &s, &record);
-	trace_seq_do_printf(&s);
-	printf("\n");
-}
-
 void parse_proc_kallsyms(struct pevent *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {
@@ -229,7 +186,7 @@ void parse_proc_kallsyms(struct pevent *pevent,
 	char *next = NULL;
 	char *addr_str;
 	char *mod;
-	char *fmt;
+	char *fmt = NULL;
 
 	line = strtok_r(file, "\n", &next);
 	while (line) {

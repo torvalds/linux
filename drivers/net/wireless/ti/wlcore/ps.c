@@ -29,6 +29,7 @@
 #define WL1271_WAKEUP_TIMEOUT 500
 
 #define ELP_ENTRY_DELAY  30
+#define ELP_ENTRY_DELAY_FORCE_PS  5
 
 void wl1271_elp_work(struct work_struct *work)
 {
@@ -98,7 +99,8 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 			return;
 	}
 
-	timeout = ELP_ENTRY_DELAY;
+	timeout = wl->conf.conn.forced_ps ?
+			ELP_ENTRY_DELAY_FORCE_PS : ELP_ENTRY_DELAY;
 	ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
 				     msecs_to_jiffies(timeout));
 }
@@ -108,7 +110,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 	DECLARE_COMPLETION_ONSTACK(compl);
 	unsigned long flags;
 	int ret;
-	u32 start_time = jiffies;
+	unsigned long start_time = jiffies;
 	bool pending = false;
 
 	/*

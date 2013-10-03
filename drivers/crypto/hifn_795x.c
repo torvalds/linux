@@ -2676,7 +2676,7 @@ err_out_stop_device:
 	hifn_reset_dma(dev, 1);
 	hifn_stop_device(dev);
 err_out_free_irq:
-	free_irq(dev->irq, dev->name);
+	free_irq(dev->irq, dev);
 	tasklet_kill(&dev->tasklet);
 err_out_free_desc:
 	pci_free_consistent(pdev, sizeof(struct hifn_dma),
@@ -2711,7 +2711,7 @@ static void hifn_remove(struct pci_dev *pdev)
 		hifn_reset_dma(dev, 1);
 		hifn_stop_device(dev);
 
-		free_irq(dev->irq, dev->name);
+		free_irq(dev->irq, dev);
 		tasklet_kill(&dev->tasklet);
 
 		hifn_flush(dev);

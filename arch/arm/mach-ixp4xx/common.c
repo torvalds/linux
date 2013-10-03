@@ -29,6 +29,8 @@
 #include <linux/io.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
+#include <linux/cpu.h>
+#include <linux/sched_clock.h>
 
 #include <mach/udc.h>
 #include <mach/hardware.h>
@@ -37,7 +39,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
-#include <asm/sched_clock.h>
 #include <asm/system_misc.h>
 
 #include <asm/mach/map.h>
@@ -239,7 +240,7 @@ void __init ixp4xx_init_irq(void)
 	 * ixp4xx does not implement the XScale PWRMODE register
 	 * so it must not call cpu_do_idle().
 	 */
-	disable_hlt();
+	cpu_idle_poll_ctrl(true);
 
 	/* Route all sources to IRQ instead of FIQ */
 	*IXP4XX_ICLR = 0x0;
@@ -530,9 +531,9 @@ static void __init ixp4xx_clockevent_init(void)
 					0xf, 0xfffffffe);
 }
 
-void ixp4xx_restart(char mode, const char *cmd)
+void ixp4xx_restart(enum reboot_mode mode, const char *cmd)
 {
-	if ( 1 && mode == 's') {
+	if ( 1 && mode == REBOOT_SOFT) {
 		/* Jump into ROM at address 0 */
 		soft_restart(0);
 	} else {
@@ -558,7 +559,7 @@ void ixp4xx_restart(char mode, const char *cmd)
  * fallback to the default.
  */
 
-static void __iomem *ixp4xx_ioremap_caller(unsigned long addr, size_t size,
+static void __iomem *ixp4xx_ioremap_caller(phys_addr_t addr, size_t size,
 					   unsigned int mtype, void *caller)
 {
 	if (!is_pci_memory(addr))

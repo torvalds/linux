@@ -18,12 +18,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-************************************************************************
 */
 /*
 Driver: ni_labpc_cs
@@ -59,10 +53,10 @@ NI manuals:
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>
-#include <linux/slab.h>
 
 #include "8253.h"
 #include "8255.h"
@@ -73,17 +67,12 @@ NI manuals:
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-static const struct labpc_board_struct labpc_cs_boards[] = {
+static const struct labpc_boardinfo labpc_cs_boards[] = {
 	{
 		.name			= "daqcard-1200",
-		.device_id		= 0x103,
 		.ai_speed		= 10000,
-		.bustype		= pcmcia_bustype,
-		.register_layout	= labpc_1200_layout,
 		.has_ao			= 1,
-		.ai_range_table		= &range_labpc_1200_ai,
-		.ai_range_code		= labpc_1200_ai_gain_bits,
-		.ai_range_is_unipolar	= labpc_1200_is_unipolar,
+		.is_labpc1200		= 1,
 	},
 };
 
@@ -107,25 +96,18 @@ static int labpc_auto_attach(struct comedi_device *dev,
 	if (!link->irq)
 		return -EINVAL;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
-	return labpc_common_attach(dev, dev->iobase, link->irq, 0);
-}
-
-static void labpc_detach(struct comedi_device *dev)
-{
-	labpc_common_detach(dev);
-	comedi_pcmcia_disable(dev);
+	return labpc_common_attach(dev, link->irq, IRQF_SHARED);
 }
 
 static struct comedi_driver driver_labpc_cs = {
 	.driver_name	= "ni_labpc_cs",
 	.module		= THIS_MODULE,
 	.auto_attach	= labpc_auto_attach,
-	.detach		= labpc_detach,
+	.detach		= comedi_pcmcia_disable,
 };
 
 static int labpc_cs_attach(struct pcmcia_device *link)

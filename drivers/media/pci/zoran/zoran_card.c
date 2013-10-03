@@ -1050,7 +1050,7 @@ static int zr36057_init (struct zoran *zr)
 	 *   Now add the template and register the device unit.
 	 */
 	memcpy(zr->video_dev, &zoran_template, sizeof(zoran_template));
-	zr->video_dev->parent = &zr->pci_dev->dev;
+	zr->video_dev->v4l2_dev = &zr->v4l2_dev;
 	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
 	/* It's not a mem2mem device, but you can both capture and output from
 	   one and the same device. This should really be split up into two

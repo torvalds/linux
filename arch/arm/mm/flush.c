@@ -17,6 +17,7 @@
 #include <asm/highmem.h>
 #include <asm/smp_plat.h>
 #include <asm/tlbflush.h>
+#include <linux/hugetlb.h>
 
 #include "mm.h"
 
@@ -168,17 +169,24 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 	 * coherent with the kernels mapping.
 	 */
 	if (!PageHighMem(page)) {
-		__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
+		size_t page_size = PAGE_SIZE << compound_order(page);
+		__cpuc_flush_dcache_area(page_address(page), page_size);
 	} else {
-		void *addr = kmap_high_get(page);
-		if (addr) {
-			__cpuc_flush_dcache_area(addr, PAGE_SIZE);
-			kunmap_high(page);
-		} else if (cache_is_vipt()) {
-			/* unmapped pages might still be cached */
-			addr = kmap_atomic(page);
-			__cpuc_flush_dcache_area(addr, PAGE_SIZE);
-			kunmap_atomic(addr);
+		unsigned long i;
+		if (cache_is_vipt_nonaliasing()) {
+			for (i = 0; i < (1 << compound_order(page)); i++) {
+				void *addr = kmap_atomic(page);
+				__cpuc_flush_dcache_area(addr, PAGE_SIZE);
+				kunmap_atomic(addr);
+			}
+		} else {
+			for (i = 0; i < (1 << compound_order(page)); i++) {
+				void *addr = kmap_high_get(page);
+				if (addr) {
+					__cpuc_flush_dcache_area(addr, PAGE_SIZE);
+					kunmap_high(page);
+				}
+			}
 		}
 	}
 
@@ -284,7 +292,7 @@ void flush_dcache_page(struct page *page)
 	mapping = page_mapping(page);
 
 	if (!cache_ops_need_broadcast() &&
-	    mapping && !mapping_mapped(mapping))
+	    mapping && !page_mapped(page))
 		clear_bit(PG_dcache_clean, &page->flags);
 	else {
 		__flush_dcache_page(mapping, page);
@@ -296,6 +304,39 @@ void flush_dcache_page(struct page *page)
 	}
 }
 EXPORT_SYMBOL(flush_dcache_page);
+
+/*
+ * Ensure cache coherency for the kernel mapping of this page. We can
+ * assume that the page is pinned via kmap.
+ *
+ * If the page only exists in the page cache and there are no user
+ * space mappings, this is a no-op since the page was already marked
+ * dirty at creation.  Otherwise, we need to flush the dirty kernel
+ * cache lines directly.
+ */
+void flush_kernel_dcache_page(struct page *page)
+{
+	if (cache_is_vivt() || cache_is_vipt_aliasing()) {
+		struct address_space *mapping;
+
+		mapping = page_mapping(page);
+
+		if (!mapping || mapping_mapped(mapping)) {
+			void *addr;
+
+			addr = page_address(page);
+			/*
+			 * kmap_atomic() doesn't set the page virtual
+			 * address for highmem pages, and
+			 * kunmap_atomic() takes care of cache
+			 * flushing already.
+			 */
+			if (!IS_ENABLED(CONFIG_HIGHMEM) || addr)
+				__cpuc_flush_dcache_area(addr, PAGE_SIZE);
+		}
+	}
+}
+EXPORT_SYMBOL(flush_kernel_dcache_page);
 
 /*
  * Flush an anonymous page so that users of get_user_pages()

@@ -21,6 +21,7 @@
 #ifndef DVB_ZL10036_H
 #define DVB_ZL10036_H
 
+#include <linux/kconfig.h>
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
@@ -37,8 +38,7 @@ struct zl10036_config {
 	int rf_loop_enable;
 };
 
-#if defined(CONFIG_DVB_ZL10036) || \
-	(defined(CONFIG_DVB_ZL10036_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_ZL10036)
 extern struct dvb_frontend *zl10036_attach(struct dvb_frontend *fe,
 	const struct zl10036_config *config, struct i2c_adapter *i2c);
 #else

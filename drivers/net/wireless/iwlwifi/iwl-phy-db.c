@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -65,6 +65,7 @@
 #include <linux/string.h>
 #include <linux/export.h>
 
+#include "iwl-drv.h"
 #include "iwl-phy-db.h"
 #include "iwl-debug.h"
 #include "iwl-op-mode.h"
@@ -91,12 +92,8 @@ struct iwl_phy_db_entry {
 struct iwl_phy_db {
 	struct iwl_phy_db_entry	cfg;
 	struct iwl_phy_db_entry	calib_nch;
-	struct iwl_phy_db_entry	calib_ch;
 	struct iwl_phy_db_entry	calib_ch_group_papd[IWL_NUM_PAPD_CH_GROUPS];
 	struct iwl_phy_db_entry	calib_ch_group_txp[IWL_NUM_TXP_CH_GROUPS];
-
-	u32 channel_num;
-	u32 channel_size;
 
 	struct iwl_trans *trans;
 };
@@ -104,7 +101,7 @@ struct iwl_phy_db {
 enum iwl_phy_db_section_type {
 	IWL_PHY_DB_CFG = 1,
 	IWL_PHY_DB_CALIB_NCH,
-	IWL_PHY_DB_CALIB_CH,
+	IWL_PHY_DB_UNUSED,
 	IWL_PHY_DB_CALIB_CHG_PAPD,
 	IWL_PHY_DB_CALIB_CHG_TXP,
 	IWL_PHY_DB_MAX
@@ -149,7 +146,7 @@ struct iwl_phy_db *iwl_phy_db_init(struct iwl_trans *trans)
 	/* TODO: add default values of the phy db. */
 	return phy_db;
 }
-EXPORT_SYMBOL(iwl_phy_db_init);
+IWL_EXPORT_SYMBOL(iwl_phy_db_init);
 
 /*
  * get phy db section: returns a pointer to a phy db section specified by
@@ -168,8 +165,6 @@ iwl_phy_db_get_section(struct iwl_phy_db *phy_db,
 		return &phy_db->cfg;
 	case IWL_PHY_DB_CALIB_NCH:
 		return &phy_db->calib_nch;
-	case IWL_PHY_DB_CALIB_CH:
-		return &phy_db->calib_ch;
 	case IWL_PHY_DB_CALIB_CHG_PAPD:
 		if (chg_id >= IWL_NUM_PAPD_CH_GROUPS)
 			return NULL;
@@ -207,7 +202,6 @@ void iwl_phy_db_free(struct iwl_phy_db *phy_db)
 
 	iwl_phy_db_free_section(phy_db, IWL_PHY_DB_CFG, 0);
 	iwl_phy_db_free_section(phy_db, IWL_PHY_DB_CALIB_NCH, 0);
-	iwl_phy_db_free_section(phy_db, IWL_PHY_DB_CALIB_CH, 0);
 	for (i = 0; i < IWL_NUM_PAPD_CH_GROUPS; i++)
 		iwl_phy_db_free_section(phy_db, IWL_PHY_DB_CALIB_CHG_PAPD, i);
 	for (i = 0; i < IWL_NUM_TXP_CH_GROUPS; i++)
@@ -215,7 +209,7 @@ void iwl_phy_db_free(struct iwl_phy_db *phy_db)
 
 	kfree(phy_db);
 }
-EXPORT_SYMBOL(iwl_phy_db_free);
+IWL_EXPORT_SYMBOL(iwl_phy_db_free);
 
 int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
 			   gfp_t alloc_ctx)
@@ -247,20 +241,13 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
 
 	entry->size = size;
 
-	if (type == IWL_PHY_DB_CALIB_CH) {
-		phy_db->channel_num =
-			le32_to_cpup((__le32 *)phy_db_notif->data);
-		phy_db->channel_size =
-			(size - CHANNEL_NUM_SIZE) / phy_db->channel_num;
-	}
-
 	IWL_DEBUG_INFO(phy_db->trans,
 		       "%s(%d): [PHYDB]SET: Type %d , Size: %d\n",
 		       __func__, __LINE__, type, size);
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_phy_db_set_section);
+IWL_EXPORT_SYMBOL(iwl_phy_db_set_section);
 
 static int is_valid_channel(u16 ch_id)
 {
@@ -327,10 +314,7 @@ int iwl_phy_db_get_section_data(struct iwl_phy_db *phy_db,
 				u32 type, u8 **data, u16 *size, u16 ch_id)
 {
 	struct iwl_phy_db_entry *entry;
-	u32 channel_num;
-	u32 channel_size;
 	u16 ch_group_id = 0;
-	u16 index;
 
 	if (!phy_db)
 		return -EINVAL;
@@ -345,21 +329,8 @@ int iwl_phy_db_get_section_data(struct iwl_phy_db *phy_db,
 	if (!entry)
 		return -EINVAL;
 
-	if (type == IWL_PHY_DB_CALIB_CH) {
-		index = ch_id_to_ch_index(ch_id);
-		channel_num = phy_db->channel_num;
-		channel_size = phy_db->channel_size;
-		if (index >= channel_num) {
-			IWL_ERR(phy_db->trans, "Wrong channel number %d\n",
-				ch_id);
-			return -EINVAL;
-		}
-		*data = entry->data + CHANNEL_NUM_SIZE + index * channel_size;
-		*size = channel_size;
-	} else {
-		*data = entry->data;
-		*size = entry->size;
-	}
+	*data = entry->data;
+	*size = entry->size;
 
 	IWL_DEBUG_INFO(phy_db->trans,
 		       "%s(%d): [PHYDB] GET: Type %d , Size: %d\n",
@@ -411,6 +382,9 @@ static int iwl_phy_db_send_all_channel_groups(
 					       i);
 		if (!entry)
 			return -EINVAL;
+
+		if (WARN_ON_ONCE(!entry->size))
+			continue;
 
 		/* Send the requested PHY DB section */
 		err = iwl_send_phy_db_cmd(phy_db,
@@ -495,4 +469,4 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 		       "Finished sending phy db non channel data\n");
 	return 0;
 }
-EXPORT_SYMBOL(iwl_send_phy_db_data);
+IWL_EXPORT_SYMBOL(iwl_send_phy_db_data);

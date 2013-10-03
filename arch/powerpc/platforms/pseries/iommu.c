@@ -48,8 +48,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/udbg.h>
 #include <asm/mmzone.h>
-
-#include "plpar_wrappers.h"
+#include <asm/plpar_wrappers.h>
 
 
 static void tce_invalidate_pSeries_sw(struct iommu_table *tbl,
@@ -530,7 +529,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 static void iommu_table_setparms_lpar(struct pci_controller *phb,
 				      struct device_node *dn,
 				      struct iommu_table *tbl,
-				      const void *dma_window)
+				      const __be32 *dma_window)
 {
 	unsigned long offset, size;
 
@@ -614,6 +613,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 
 	iommu_table_setparms(pci->phb, dn, tbl);
 	pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
+	iommu_register_group(tbl, pci_domain_nr(bus), 0);
 
 	/* Divide the rest (1.75GB) among the children */
 	pci->phb->dma_window_size = 0x80000000ul;
@@ -629,7 +629,7 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	struct iommu_table *tbl;
 	struct device_node *dn, *pdn;
 	struct pci_dn *ppci;
-	const void *dma_window = NULL;
+	const __be32 *dma_window = NULL;
 
 	dn = pci_bus_to_OF_node(bus);
 
@@ -658,6 +658,7 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 				   ppci->phb->node);
 		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window);
 		ppci->iommu_table = iommu_init_table(tbl, ppci->phb->node);
+		iommu_register_group(tbl, pci_domain_nr(bus), 0);
 		pr_debug("  created table: %p\n", ppci->iommu_table);
 	}
 }
@@ -684,6 +685,7 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 				   phb->node);
 		iommu_table_setparms(phb, dn, tbl);
 		PCI_DN(dn)->iommu_table = iommu_init_table(tbl, phb->node);
+		iommu_register_group(tbl, pci_domain_nr(phb->bus), 0);
 		set_iommu_table_base(&dev->dev, PCI_DN(dn)->iommu_table);
 		return;
 	}
@@ -924,6 +926,13 @@ static void restore_default_window(struct pci_dev *dev,
 	__restore_default_window(pci_dev_to_eeh_dev(dev), ddw_restore_token);
 }
 
+struct failed_ddw_pdn {
+	struct device_node *pdn;
+	struct list_head list;
+};
+
+static LIST_HEAD(failed_ddw_pdn_list);
+
 /*
  * If the PE supports dynamic dma windows, and there is space for a table
  * that can map all pages in a linear offset, then setup such a table,
@@ -951,12 +960,25 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	struct dynamic_dma_window_prop *ddwprop;
 	const void *dma_window = NULL;
 	unsigned long liobn, offset, size;
+	struct failed_ddw_pdn *fpdn;
 
 	mutex_lock(&direct_window_init_mutex);
 
 	dma_addr = find_existing_ddw(pdn);
 	if (dma_addr != 0)
 		goto out_unlock;
+
+	/*
+	 * If we already went through this for a previous function of
+	 * the same device and failed, we don't want to muck with the
+	 * DMA window again, as it will race with in-flight operations
+	 * and can lead to EEHs. The above mutex protects access to the
+	 * list.
+	 */
+	list_for_each_entry(fpdn, &failed_ddw_pdn_list, list) {
+		if (!strcmp(fpdn->pdn->full_name, pdn->full_name))
+			goto out_unlock;
+	}
 
 	/*
 	 * the ibm,ddw-applicable property holds the tokens for:
@@ -1114,6 +1136,12 @@ out_restore_window:
 	if (ddw_restore_token)
 		restore_default_window(dev, ddw_restore_token);
 
+	fpdn = kzalloc(sizeof(*fpdn), GFP_KERNEL);
+	if (!fpdn)
+		goto out_unlock;
+	fpdn->pdn = pdn;
+	list_add(&fpdn->list, &failed_ddw_pdn_list);
+
 out_unlock:
 	mutex_unlock(&direct_window_init_mutex);
 	return dma_addr;
@@ -1123,7 +1151,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 {
 	struct device_node *pdn, *dn;
 	struct iommu_table *tbl;
-	const void *dma_window = NULL;
+	const __be32 *dma_window = NULL;
 	struct pci_dn *pci;
 
 	pr_debug("pci_dma_dev_setup_pSeriesLP: %s\n", pci_name(dev));
@@ -1158,6 +1186,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 				   pci->phb->node);
 		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window);
 		pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
+		iommu_register_group(tbl, pci_domain_nr(pci->phb->bus), 0);
 		pr_debug("  created table: %p\n", pci->iommu_table);
 	} else {
 		pr_debug("  found DMA window, table: %p\n", pci->iommu_table);
@@ -1171,7 +1200,7 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 	bool ddw_enabled = false;
 	struct device_node *pdn, *dn;
 	struct pci_dev *pdev;
-	const void *dma_window = NULL;
+	const __be32 *dma_window = NULL;
 	u64 dma_offset;
 
 	if (!dev->dma_mask)

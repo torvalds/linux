@@ -44,7 +44,7 @@
 #include <plat/keypad.h>
 #include <plat/pm.h>
 #include <plat/fb.h>
-#include <plat/s5p-time.h>
+#include <plat/samsung-time.h>
 #include <plat/backlight.h>
 #include <plat/mfc.h>
 #include <plat/clock.h>
@@ -218,6 +218,7 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
 	&s3c_device_i2c2,
+	&samsung_device_pwm,
 	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_usb_hsotg,
@@ -285,7 +286,7 @@ static void __init smdkv210_map_io(void)
 	s5pv210_init_io(NULL, 0);
 	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdkv210_uartcfgs, ARRAY_SIZE(smdkv210_uartcfgs));
-	s5p_set_timer_source(S5P_PWM2, S5P_PWM4);
+	samsung_set_timer_source(SAMSUNG_PWM2, SAMSUNG_PWM4);
 }
 
 static void __init smdkv210_reserve(void)
@@ -316,11 +317,11 @@ static void __init smdkv210_machine_init(void)
 
 	s3c_fb_set_platdata(&smdkv210_lcd0_pdata);
 
-	samsung_bl_set(&smdkv210_bl_gpio_info, &smdkv210_bl_data);
-
 	s3c_hsotg_set_platdata(&smdkv210_hsotg_pdata);
 
 	platform_add_devices(smdkv210_devices, ARRAY_SIZE(smdkv210_devices));
+
+	samsung_bl_set(&smdkv210_bl_gpio_info, &smdkv210_bl_data);
 }
 
 MACHINE_START(SMDKV210, "SMDKV210")
@@ -329,7 +330,7 @@ MACHINE_START(SMDKV210, "SMDKV210")
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= smdkv210_map_io,
 	.init_machine	= smdkv210_machine_init,
-	.init_time	= s5p_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s5pv210_restart,
 	.reserve	= &smdkv210_reserve,
 MACHINE_END

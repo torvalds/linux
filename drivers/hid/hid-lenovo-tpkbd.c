@@ -68,7 +68,7 @@ static int tpkbd_features_set(struct hid_device *hdev)
 	report->field[2]->value[0] = data_pointer->sensitivity;
 	report->field[3]->value[0] = data_pointer->press_speed;
 
-	usbhid_submit_report(hdev, report, USB_DIR_OUT);
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 	return 0;
 }
 
@@ -228,8 +228,6 @@ static ssize_t pointer_press_speed_show(struct device *dev,
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
-	data_pointer = hid_get_drvdata(hdev);
-
 	return snprintf(buf, PAGE_SIZE, "%u\n",
 		data_pointer->press_speed);
 }
@@ -332,7 +330,7 @@ static void tpkbd_led_brightness_set(struct led_classdev *led_cdev,
 	report = hdev->report_enum[HID_OUTPUT_REPORT].report_id_hash[3];
 	report->field[0]->value[0] = (data_pointer->led_state >> 0) & 1;
 	report->field[0]->value[1] = (data_pointer->led_state >> 1) & 1;
-	usbhid_submit_report(hdev, report, USB_DIR_OUT);
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 }
 
 static int tpkbd_probe_tp(struct hid_device *hdev)
@@ -341,7 +339,15 @@ static int tpkbd_probe_tp(struct hid_device *hdev)
 	struct tpkbd_data_pointer *data_pointer;
 	size_t name_sz = strlen(dev_name(dev)) + 16;
 	char *name_mute, *name_micmute;
-	int ret;
+	int i, ret;
+
+	/* Validate required reports. */
+	for (i = 0; i < 4; i++) {
+		if (!hid_validate_values(hdev, HID_FEATURE_REPORT, 4, i, 1))
+			return -ENODEV;
+	}
+	if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, 3, 0, 2))
+		return -ENODEV;
 
 	if (sysfs_create_group(&hdev->dev.kobj,
 				&tpkbd_attr_group_pointer)) {
@@ -408,22 +414,27 @@ static int tpkbd_probe(struct hid_device *hdev,
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "hid_parse failed\n");
-		goto err_free;
+		goto err;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "hid_hw_start failed\n");
-		goto err_free;
+		goto err;
 	}
 
 	uhdev = (struct usbhid_device *) hdev->driver_data;
 
-	if (uhdev->ifnum == 1)
-		return tpkbd_probe_tp(hdev);
+	if (uhdev->ifnum == 1) {
+		ret = tpkbd_probe_tp(hdev);
+		if (ret)
+			goto err_hid;
+	}
 
 	return 0;
-err_free:
+err_hid:
+	hid_hw_stop(hdev);
+err:
 	return ret;
 }
 

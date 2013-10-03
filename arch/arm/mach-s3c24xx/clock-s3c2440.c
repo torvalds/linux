@@ -123,6 +123,11 @@ static struct clk s3c2440_clk_ac97 = {
 	.ctrlbit	= S3C2440_CLKCON_AC97,
 };
 
+#define S3C24XX_VA_UART0      (S3C_VA_UART)
+#define S3C24XX_VA_UART1      (S3C_VA_UART + 0x4000 )
+#define S3C24XX_VA_UART2      (S3C_VA_UART + 0x8000 )
+#define S3C24XX_VA_UART3      (S3C_VA_UART + 0xC000 )
+
 static unsigned long  s3c2440_fclk_n_getrate(struct clk *clk)
 {
 	unsigned long ucon0, ucon1, ucon2, divisor;
@@ -161,6 +166,9 @@ static struct clk_lookup s3c2440_clk_lookup[] = {
 	CLKDEV_INIT(NULL, "clk_uart_baud1", &s3c24xx_uclk),
 	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_p),
 	CLKDEV_INIT(NULL, "clk_uart_baud3", &s3c2440_clk_fclk_n),
+	CLKDEV_INIT("s3c2440-uart.0", "uart", &s3c24xx_clk_uart0),
+	CLKDEV_INIT("s3c2440-uart.1", "uart", &s3c24xx_clk_uart1),
+	CLKDEV_INIT("s3c2440-uart.2", "uart", &s3c24xx_clk_uart2),
 	CLKDEV_INIT("s3c2440-camif", "camera", &s3c2440_clk_cam_upll),
 };
 

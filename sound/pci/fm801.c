@@ -37,7 +37,7 @@
 #include <asm/io.h>
 
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
-#include <sound/tea575x-tuner.h>
+#include <media/tea575x.h>
 #endif
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -1370,7 +1370,6 @@ static int snd_card_fm801_probe(struct pci_dev *pci,
 static void snd_card_fm801_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

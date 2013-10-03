@@ -93,7 +93,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/input.h>
-#include <media/v4l2-chip-ident.h>
 #include "gspca.h"
 /* Include pac common sof detection functions */
 #include "pac_common.h"
@@ -344,13 +343,10 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 			reg_w_page(gspca_dev, page3, page3_len);
 			break;
 		default:
-#ifdef GSPCA_DEBUG
 			if (len > USB_BUF_SZ) {
-				PDEBUG(D_ERR|D_STREAM,
-					"Incorrect variable sequence");
+				PERR("Incorrect variable sequence");
 				return;
 			}
-#endif
 			while (len > 0) {
 				if (len < 8) {
 					reg_w_buf(gspca_dev,
@@ -795,7 +791,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	u8 *image;
 	u8 *sof;
 
-	sof = pac_find_sof(&sd->sof_read, data, len);
+	sof = pac_find_sof(gspca_dev, &sd->sof_read, data, len);
 	if (sof) {
 		int n, lum_offset, footer_length;
 
@@ -843,7 +839,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
-			struct v4l2_dbg_register *reg)
+			const struct v4l2_dbg_register *reg)
 {
 	u8 index;
 	u8 value;
@@ -852,8 +848,7 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 	 * reg->reg: bit0..15: reserved for register index (wIndex is 16bit
 	 *		       long on the USB bus)
 	 */
-	if (reg->match.type == V4L2_CHIP_MATCH_HOST &&
-	    reg->match.addr == 0 &&
+	if (reg->match.addr == 0 &&
 	    (reg->reg < 0x000000ff) &&
 	    (reg->val <= 0x000000ff)
 	) {
@@ -873,20 +868,6 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 		reg_w(gspca_dev, 0xdc, 0x01);
 	}
 	return gspca_dev->usb_err;
-}
-
-static int sd_chip_ident(struct gspca_dev *gspca_dev,
-			struct v4l2_dbg_chip_ident *chip)
-{
-	int ret = -EINVAL;
-
-	if (chip->match.type == V4L2_CHIP_MATCH_HOST &&
-	    chip->match.addr == 0) {
-		chip->revision = 0;
-		chip->ident = V4L2_IDENT_UNKNOWN;
-		ret = 0;
-	}
-	return ret;
 }
 #endif
 
@@ -934,7 +915,6 @@ static const struct sd_desc sd_desc = {
 	.dq_callback = do_autogain,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.set_register = sd_dbg_s_register,
-	.get_chip_ident = sd_chip_ident,
 #endif
 #if IS_ENABLED(CONFIG_INPUT)
 	.int_pkt_scan = sd_int_pkt_scan,

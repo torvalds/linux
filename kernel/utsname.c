@@ -15,7 +15,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/user_namespace.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 
 static struct uts_namespace *create_uts_ns(void)
 {
@@ -114,7 +114,7 @@ static int utsns_install(struct nsproxy *nsproxy, void *new)
 	struct uts_namespace *ns = new;
 
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
-	    !nsown_capable(CAP_SYS_ADMIN))
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
 	get_uts_ns(ns);

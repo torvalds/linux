@@ -42,7 +42,7 @@ nodiscard(*)	block device when blocks are freed. This is useful for SSD
 		devices and sparse/thinly-provisioned LUNs.  The FITRIM ioctl
 		command is also available together with the nodiscard option.
 		The value of minlen specifies the minimum blockcount, when
-		a TRIM command to the block device is considered usefull.
+		a TRIM command to the block device is considered useful.
 		When no value is given to the discard option, it defaults to
 		64 blocks, which means 256KiB in JFS.
 		The minlen value of discard overrides the minlen value given

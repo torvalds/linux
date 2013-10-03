@@ -1456,29 +1456,6 @@ zoran_set_norm (struct zoran *zr,
 		return -EINVAL;
 	}
 
-	if (norm == V4L2_STD_ALL) {
-		unsigned int status = 0;
-		v4l2_std_id std = 0;
-
-		decoder_call(zr, video, querystd, &std);
-		decoder_call(zr, core, s_std, std);
-
-		/* let changes come into effect */
-		ssleep(2);
-
-		decoder_call(zr, video, g_input_status, &status);
-		if (status & V4L2_IN_ST_NO_SIGNAL) {
-			dprintk(1,
-				KERN_ERR
-				"%s: %s - no norm detected\n",
-				ZR_DEVNAME(zr), __func__);
-			/* reset norm */
-			decoder_call(zr, core, s_std, zr->norm);
-			return -EIO;
-		}
-
-		norm = std;
-	}
 	if (norm & V4L2_STD_SECAM)
 		zr->timing = zr->card.tvn[2];
 	else if (norm & V4L2_STD_NTSC)
@@ -2435,14 +2412,14 @@ static int zoran_g_std(struct file *file, void *__fh, v4l2_std_id *std)
 	return 0;
 }
 
-static int zoran_s_std(struct file *file, void *__fh, v4l2_std_id *std)
+static int zoran_s_std(struct file *file, void *__fh, v4l2_std_id std)
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
 	int res = 0;
 
 	mutex_lock(&zr->resource_lock);
-	res = zoran_set_norm(zr, *std);
+	res = zoran_set_norm(zr, std);
 	if (res)
 		goto sstd_unlock_and_return;
 
@@ -2803,8 +2780,7 @@ static void
 zoran_vm_open (struct vm_area_struct *vma)
 {
 	struct zoran_mapping *map = vma->vm_private_data;
-
-	map->count++;
+	atomic_inc(&map->count);
 }
 
 static void
@@ -2815,7 +2791,7 @@ zoran_vm_close (struct vm_area_struct *vma)
 	struct zoran *zr = fh->zr;
 	int i;
 
-	if (--map->count > 0)
+	if (!atomic_dec_and_mutex_lock(&map->count, &zr->resource_lock))
 		return;
 
 	dprintk(3, KERN_INFO "%s: %s - munmap(%s)\n", ZR_DEVNAME(zr),
@@ -2828,14 +2804,16 @@ zoran_vm_close (struct vm_area_struct *vma)
 	kfree(map);
 
 	/* Any buffers still mapped? */
-	for (i = 0; i < fh->buffers.num_buffers; i++)
-		if (fh->buffers.buffer[i].map)
+	for (i = 0; i < fh->buffers.num_buffers; i++) {
+		if (fh->buffers.buffer[i].map) {
+			mutex_unlock(&zr->resource_lock);
 			return;
+		}
+	}
 
 	dprintk(3, KERN_INFO "%s: %s - free %s buffers\n", ZR_DEVNAME(zr),
 		__func__, mode_name(fh->map_mode));
 
-	mutex_lock(&zr->resource_lock);
 
 	if (fh->map_mode == ZORAN_MAP_MODE_RAW) {
 		if (fh->buffers.active != ZORAN_FREE) {
@@ -2939,7 +2917,7 @@ zoran_mmap (struct file           *file,
 		goto mmap_unlock_and_return;
 	}
 	map->fh = fh;
-	map->count = 1;
+	atomic_set(&map->count, 1);
 
 	vma->vm_ops = &zoran_vm_ops;
 	vma->vm_flags |= VM_DONTEXPAND;

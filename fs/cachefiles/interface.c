@@ -13,8 +13,6 @@
 #include <linux/mount.h>
 #include "internal.h"
 
-#define list_to_page(head) (list_entry((head)->prev, struct page, lru))
-
 struct cachefiles_lookup_data {
 	struct cachefiles_xattr	*auxdata;	/* auxiliary data */
 	char			*key;		/* key path */
@@ -212,20 +210,29 @@ static void cachefiles_update_object(struct fscache_object *_object)
 	object = container_of(_object, struct cachefiles_object, fscache);
 	cache = container_of(object->fscache.cache, struct cachefiles_cache,
 			     cache);
+
+	if (!fscache_use_cookie(_object)) {
+		_leave(" [relinq]");
+		return;
+	}
+
 	cookie = object->fscache.cookie;
 
 	if (!cookie->def->get_aux) {
+		fscache_unuse_cookie(_object);
 		_leave(" [no aux]");
 		return;
 	}
 
 	auxdata = kmalloc(2 + 512 + 3, cachefiles_gfp);
 	if (!auxdata) {
+		fscache_unuse_cookie(_object);
 		_leave(" [nomem]");
 		return;
 	}
 
 	auxlen = cookie->def->get_aux(cookie->netfs_data, auxdata->data, 511);
+	fscache_unuse_cookie(_object);
 	ASSERTCMP(auxlen, <, 511);
 
 	auxdata->len = auxlen + 1;
@@ -263,7 +270,7 @@ static void cachefiles_drop_object(struct fscache_object *_object)
 #endif
 
 	/* delete retired objects */
-	if (object->fscache.state == FSCACHE_OBJECT_RECYCLING &&
+	if (test_bit(FSCACHE_COOKIE_RETIRED, &object->fscache.cookie->flags) &&
 	    _object != cache->cache.fsdef
 	    ) {
 		_debug("- retire object OBJ%x", object->fscache.debug_id);
@@ -368,6 +375,31 @@ static void cachefiles_sync_cache(struct fscache_cache *_cache)
 				    "Attempt to sync backing fs superblock"
 				    " returned error %d",
 				    ret);
+}
+
+/*
+ * check if the backing cache is updated to FS-Cache
+ * - called by FS-Cache when evaluates if need to invalidate the cache
+ */
+static bool cachefiles_check_consistency(struct fscache_operation *op)
+{
+	struct cachefiles_object *object;
+	struct cachefiles_cache *cache;
+	const struct cred *saved_cred;
+	int ret;
+
+	_enter("{OBJ%x}", op->object->debug_id);
+
+	object = container_of(op->object, struct cachefiles_object, fscache);
+	cache = container_of(object->fscache.cache,
+			     struct cachefiles_cache, cache);
+
+	cachefiles_begin_secure(cache, &saved_cred);
+	ret = cachefiles_check_auxdata(object);
+	cachefiles_end_secure(cache, saved_cred);
+
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -515,4 +547,5 @@ const struct fscache_cache_ops cachefiles_cache_ops = {
 	.write_page		= cachefiles_write_page,
 	.uncache_page		= cachefiles_uncache_page,
 	.dissociate_pages	= cachefiles_dissociate_pages,
+	.check_consistency	= cachefiles_check_consistency,
 };

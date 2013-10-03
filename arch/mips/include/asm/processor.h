@@ -28,7 +28,6 @@
 /*
  * System setup and hardware flags..
  */
-extern void (*cpu_wait)(void);
 
 extern unsigned int vced_count, vcei_count;
 
@@ -44,11 +43,16 @@ extern unsigned int vced_count, vcei_count;
 #define SPECIAL_PAGES_SIZE PAGE_SIZE
 
 #ifdef CONFIG_32BIT
+#ifdef CONFIG_KVM_GUEST
+/* User space process size is limited to 1GB in KVM Guest Mode */
+#define TASK_SIZE	0x3fff8000UL
+#else
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
  */
 #define TASK_SIZE	0x7fff8000UL
+#endif
 
 #ifdef __KERNEL__
 #define STACK_TOP_MAX	TASK_SIZE
@@ -133,7 +137,7 @@ union mips_watch_reg_state {
 	struct mips3264_watch_reg_state mips3264;
 };
 
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
+#if defined(CONFIG_CPU_CAVIUM_OCTEON)
 
 struct octeon_cop2_state {
 	/* DMFC2 rt, 0x0201 */
@@ -178,13 +182,26 @@ struct octeon_cop2_state {
 	/* DMFC2 rt, 0x025A; DMFC2 rt, 0x025B - Pass2 */
 	unsigned long	cop2_gfm_result[2];
 };
-#define INIT_OCTEON_COP2 {0,}
+#define COP2_INIT						\
+	.cp2			= {0,},
 
 struct octeon_cvmseg_state {
 	unsigned long cvmseg[CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE]
 			    [cpu_dcache_line_size() / sizeof(unsigned long)];
 };
 
+#elif defined(CONFIG_CPU_XLP)
+struct nlm_cop2_state {
+	u64	rx[4];
+	u64	tx[4];
+	u32	tx_msg_status;
+	u32	rx_msg_status;
+};
+
+#define COP2_INIT						\
+	.cp2			= {{0}, {0}, 0, 0},
+#else
+#define COP2_INIT
 #endif
 
 typedef struct {
@@ -227,8 +244,11 @@ struct thread_struct {
 	unsigned long cp0_baduaddr;	/* Last kernel fault accessing USEG */
 	unsigned long error_code;
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
-    struct octeon_cop2_state cp2 __attribute__ ((__aligned__(128)));
-    struct octeon_cvmseg_state cvmseg __attribute__ ((__aligned__(128)));
+	struct octeon_cop2_state cp2 __attribute__ ((__aligned__(128)));
+	struct octeon_cvmseg_state cvmseg __attribute__ ((__aligned__(128)));
+#endif
+#ifdef CONFIG_CPU_XLP
+	struct nlm_cop2_state cp2;
 #endif
 	struct mips_abi *abi;
 };
@@ -240,13 +260,6 @@ struct thread_struct {
 #else
 #define FPAFF_INIT
 #endif /* CONFIG_MIPS_MT_FPAFF */
-
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-#define OCTEON_INIT						\
-	.cp2			= INIT_OCTEON_COP2,
-#else
-#define OCTEON_INIT
-#endif /* CONFIG_CPU_CAVIUM_OCTEON */
 
 #define INIT_THREAD  {						\
 	/*							\
@@ -296,9 +309,9 @@ struct thread_struct {
 	.cp0_baduaddr		= 0,				\
 	.error_code		= 0,				\
 	/*							\
-	 * Cavium Octeon specifics (null if not Octeon)		\
+	 * Platform specific cop2 registers(null if no COP2)	\
 	 */							\
-	OCTEON_INIT						\
+	COP2_INIT						\
 }
 
 struct task_struct;

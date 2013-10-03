@@ -341,27 +341,26 @@ out:
 /*
  * ashmem_shrink - our cache shrinker, called from mm/vmscan.c :: shrink_slab
  *
- * 'nr_to_scan' is the number of objects (pages) to prune, or 0 to query how
- * many objects (pages) we have in total.
+ * 'nr_to_scan' is the number of objects to scan for freeing.
  *
  * 'gfp_mask' is the mask of the allocation that got us into this mess.
  *
- * Return value is the number of objects (pages) remaining, or -1 if we cannot
+ * Return value is the number of objects freed or -1 if we cannot
  * proceed without risk of deadlock (due to gfp_mask).
  *
  * We approximate LRU via least-recently-unpinned, jettisoning unpinned partial
  * chunks of ashmem regions LRU-wise one-at-a-time until we hit 'nr_to_scan'
  * pages freed.
  */
-static int ashmem_shrink(struct shrinker *s, struct shrink_control *sc)
+static unsigned long
+ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct ashmem_range *range, *next;
+	unsigned long freed = 0;
 
 	/* We might recurse into filesystem code, so bail out if necessary */
-	if (sc->nr_to_scan && !(sc->gfp_mask & __GFP_FS))
-		return -1;
-	if (!sc->nr_to_scan)
-		return lru_count;
+	if (!(sc->gfp_mask & __GFP_FS))
+		return SHRINK_STOP;
 
 	mutex_lock(&ashmem_mutex);
 	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
@@ -374,17 +373,32 @@ static int ashmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		range->purged = ASHMEM_WAS_PURGED;
 		lru_del(range);
 
-		sc->nr_to_scan -= range_size(range);
-		if (sc->nr_to_scan <= 0)
+		freed += range_size(range);
+		if (--sc->nr_to_scan <= 0)
 			break;
 	}
 	mutex_unlock(&ashmem_mutex);
+	return freed;
+}
 
+static unsigned long
+ashmem_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
+{
+	/*
+	 * note that lru_count is count of pages on the lru, not a count of
+	 * objects on the list. This means the scan function needs to return the
+	 * number of pages freed, not the number of objects scanned.
+	 */
 	return lru_count;
 }
 
 static struct shrinker ashmem_shrinker = {
-	.shrink = ashmem_shrink,
+	.count_objects = ashmem_shrink_count,
+	.scan_objects = ashmem_shrink_scan,
+	/*
+	 * XXX (dchinner): I wish people would comment on why they need on
+	 * significant changes to the default value here
+	 */
 	.seeks = DEFAULT_SEEKS * 4,
 };
 
@@ -414,20 +428,29 @@ out:
 static int set_name(struct ashmem_area *asma, void __user *name)
 {
 	int ret = 0;
+	char local_name[ASHMEM_NAME_LEN];
+
+	/*
+	 * Holding the ashmem_mutex while doing a copy_from_user might cause
+	 * an data abort which would try to access mmap_sem. If another
+	 * thread has invoked ashmem_mmap then it will be holding the
+	 * semaphore and will be waiting for ashmem_mutex, there by leading to
+	 * deadlock. We'll release the mutex  and take the name to a local
+	 * variable that does not need protection and later copy the local
+	 * variable to the structure member with lock held.
+	 */
+	if (copy_from_user(local_name, name, ASHMEM_NAME_LEN))
+		return -EFAULT;
 
 	mutex_lock(&ashmem_mutex);
-
 	/* cannot change an existing mapping's name */
 	if (unlikely(asma->file)) {
 		ret = -EINVAL;
 		goto out;
 	}
-
-	if (unlikely(copy_from_user(asma->name + ASHMEM_NAME_PREFIX_LEN,
-				    name, ASHMEM_NAME_LEN)))
-		ret = -EFAULT;
+	memcpy(asma->name + ASHMEM_NAME_PREFIX_LEN,
+		local_name, ASHMEM_NAME_LEN);
 	asma->name[ASHMEM_FULL_NAME_LEN-1] = '\0';
-
 out:
 	mutex_unlock(&ashmem_mutex);
 
@@ -437,26 +460,36 @@ out:
 static int get_name(struct ashmem_area *asma, void __user *name)
 {
 	int ret = 0;
+	size_t len;
+	/*
+	 * Have a local variable to which we'll copy the content
+	 * from asma with the lock held. Later we can copy this to the user
+	 * space safely without holding any locks. So even if we proceed to
+	 * wait for mmap_sem, it won't lead to deadlock.
+	 */
+	char local_name[ASHMEM_NAME_LEN];
 
 	mutex_lock(&ashmem_mutex);
 	if (asma->name[ASHMEM_NAME_PREFIX_LEN] != '\0') {
-		size_t len;
 
 		/*
 		 * Copying only `len', instead of ASHMEM_NAME_LEN, bytes
 		 * prevents us from revealing one user's stack to another.
 		 */
 		len = strlen(asma->name + ASHMEM_NAME_PREFIX_LEN) + 1;
-		if (unlikely(copy_to_user(name,
-				asma->name + ASHMEM_NAME_PREFIX_LEN, len)))
-			ret = -EFAULT;
+		memcpy(local_name, asma->name + ASHMEM_NAME_PREFIX_LEN, len);
 	} else {
-		if (unlikely(copy_to_user(name, ASHMEM_NAME_DEF,
-					  sizeof(ASHMEM_NAME_DEF))))
-			ret = -EFAULT;
+		len = sizeof(ASHMEM_NAME_DEF);
+		memcpy(local_name, ASHMEM_NAME_DEF, len);
 	}
 	mutex_unlock(&ashmem_mutex);
 
+	/*
+	 * Now we are just copying from the stack variable to userland
+	 * No lock held
+	 */
+	if (unlikely(copy_to_user(name, local_name, len)))
+		ret = -EFAULT;
 	return ret;
 }
 
@@ -671,17 +704,35 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (capable(CAP_SYS_ADMIN)) {
 			struct shrink_control sc = {
 				.gfp_mask = GFP_KERNEL,
-				.nr_to_scan = 0,
+				.nr_to_scan = LONG_MAX,
 			};
-			ret = ashmem_shrink(&ashmem_shrinker, &sc);
-			sc.nr_to_scan = ret;
-			ashmem_shrink(&ashmem_shrinker, &sc);
+
+			nodes_setall(sc.nodes_to_scan);
+			ashmem_shrink_scan(&ashmem_shrinker, &sc);
 		}
 		break;
 	}
 
 	return ret;
 }
+
+/* support of 32bit userspace on 64bit platforms */
+#ifdef CONFIG_COMPAT
+static long compat_ashmem_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
+{
+
+	switch (cmd) {
+	case COMPAT_ASHMEM_SET_SIZE:
+		cmd = ASHMEM_SET_SIZE;
+		break;
+	case COMPAT_ASHMEM_SET_PROT_MASK:
+		cmd = ASHMEM_SET_PROT_MASK;
+		break;
+	}
+	return ashmem_ioctl(file, cmd, arg);
+}
+#endif
 
 static const struct file_operations ashmem_fops = {
 	.owner = THIS_MODULE,
@@ -691,7 +742,9 @@ static const struct file_operations ashmem_fops = {
 	.llseek = ashmem_llseek,
 	.mmap = ashmem_mmap,
 	.unlocked_ioctl = ashmem_ioctl,
-	.compat_ioctl = ashmem_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = compat_ashmem_ioctl,
+#endif
 };
 
 static struct miscdevice ashmem_misc = {

@@ -352,8 +352,7 @@ spider_net_init_chain(struct spider_net_card *card,
 	alloc_size = chain->num_desc * sizeof(struct spider_net_hw_descr);
 
 	chain->hwring = dma_alloc_coherent(&card->pdev->dev, alloc_size,
-		&chain->dma_addr, GFP_KERNEL);
-
+					   &chain->dma_addr, GFP_KERNEL);
 	if (!chain->hwring)
 		return -ENOMEM;
 
@@ -1991,7 +1990,8 @@ spider_net_open(struct net_device *netdev)
 		goto alloc_rx_failed;
 
 	/* Allocate rx skbs */
-	if (spider_net_alloc_rx_skbs(card))
+	result = spider_net_alloc_rx_skbs(card);
+	if (result)
 		goto alloc_skbs_failed;
 
 	spider_net_set_multi(netdev);
@@ -2330,8 +2330,8 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	if (SPIDER_NET_RX_CSUM_DEFAULT)
 		netdev->features |= NETIF_F_RXCSUM;
 	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_LLTX;
-	/* some time: NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-	 *		NETIF_F_HW_VLAN_FILTER */
+	/* some time: NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+	 *		NETIF_F_HW_VLAN_CTAG_FILTER */
 
 	netdev->irq = card->pdev->irq;
 	card->num_rx_ints = 0;

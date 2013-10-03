@@ -61,7 +61,7 @@ config LIS3L02DQ
 	depends on SPI
 	select IIO_TRIGGER if IIO_BUFFER
 	depends on !IIO_BUFFER || IIO_KFIFO_BUF
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  Say yes here to build SPI support for the ST microelectronics
 	  accelerometer. The driver supplies direct access via sysfs files

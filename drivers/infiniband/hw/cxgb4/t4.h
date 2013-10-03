@@ -36,9 +36,9 @@
 #include "t4_msg.h"
 #include "t4fw_ri_api.h"
 
-#define T4_MAX_NUM_QP (1<<16)
-#define T4_MAX_NUM_CQ (1<<15)
-#define T4_MAX_NUM_PD (1<<15)
+#define T4_MAX_NUM_QP 65536
+#define T4_MAX_NUM_CQ 65536
+#define T4_MAX_NUM_PD 65536
 #define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
 #define T4_MAX_EQ_SIZE (65520 - T4_EQ_STATUS_ENTRIES)
 #define T4_MAX_IQ_SIZE (65520 - 1)
@@ -47,7 +47,7 @@
 #define T4_MAX_QP_DEPTH (T4_MAX_RQ_SIZE - 1)
 #define T4_MAX_CQ_DEPTH (T4_MAX_IQ_SIZE - 1)
 #define T4_MAX_NUM_STAG (1<<15)
-#define T4_MAX_MR_SIZE (~0ULL - 1)
+#define T4_MAX_MR_SIZE (~0ULL)
 #define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
@@ -84,7 +84,7 @@ struct t4_status_page {
 			sizeof(struct fw_ri_isgl)) / sizeof(struct fw_ri_sge))
 #define T4_MAX_FR_IMMD ((T4_SQ_NUM_BYTES - sizeof(struct fw_ri_fr_nsmr_wr) - \
 			sizeof(struct fw_ri_immd)) & ~31UL)
-#define T4_MAX_FR_DEPTH (T4_MAX_FR_IMMD / sizeof(u64))
+#define T4_MAX_FR_DEPTH (1024 / sizeof(u64))
 
 #define T4_RQ_NUM_SLOTS 2
 #define T4_RQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_RQ_NUM_SLOTS)
@@ -269,6 +269,7 @@ struct t4_swsqe {
 	int			complete;
 	int			signaled;
 	u16			idx;
+	int                     flushed;
 };
 
 static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
@@ -277,15 +278,6 @@ static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
 	return pgprot_writecombine(prot);
 #else
 	return pgprot_noncached(prot);
-#endif
-}
-
-static inline int t4_ocqp_supported(void)
-{
-#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
-	return 1;
-#else
-	return 0;
 #endif
 }
 
@@ -309,6 +301,7 @@ struct t4_sq {
 	u16 pidx;
 	u16 wq_pidx;
 	u16 flags;
+	short flush_cidx;
 };
 
 struct t4_swrqe {
@@ -339,6 +332,7 @@ struct t4_wq {
 	void __iomem *db;
 	void __iomem *gts;
 	struct c4iw_rdev *rdev;
+	int flushed;
 };
 
 static inline int t4_rqes_posted(struct t4_wq *wq)
@@ -421,6 +415,9 @@ static inline void t4_sq_produce(struct t4_wq *wq, u8 len16)
 
 static inline void t4_sq_consume(struct t4_wq *wq)
 {
+	BUG_ON(wq->sq.in_use < 1);
+	if (wq->sq.cidx == wq->sq.flush_cidx)
+		wq->sq.flush_cidx = -1;
 	wq->sq.in_use--;
 	if (++wq->sq.cidx == wq->sq.size)
 		wq->sq.cidx = 0;
@@ -514,12 +511,18 @@ static inline int t4_arm_cq(struct t4_cq *cq, int se)
 static inline void t4_swcq_produce(struct t4_cq *cq)
 {
 	cq->sw_in_use++;
+	if (cq->sw_in_use == cq->size) {
+		PDBG("%s cxgb4 sw cq overflow cqid %u\n", __func__, cq->cqid);
+		cq->error = 1;
+		BUG_ON(1);
+	}
 	if (++cq->sw_pidx == cq->size)
 		cq->sw_pidx = 0;
 }
 
 static inline void t4_swcq_consume(struct t4_cq *cq)
 {
+	BUG_ON(cq->sw_in_use < 1);
 	cq->sw_in_use--;
 	if (++cq->sw_cidx == cq->size)
 		cq->sw_cidx = 0;
@@ -528,7 +531,7 @@ static inline void t4_swcq_consume(struct t4_cq *cq)
 static inline void t4_hwcq_consume(struct t4_cq *cq)
 {
 	cq->bits_type_ts = cq->queue[cq->cidx].bits_type_ts;
-	if (++cq->cidx_inc == (cq->size >> 4)) {
+	if (++cq->cidx_inc == (cq->size >> 4) || cq->cidx_inc == CIDXINC_MASK) {
 		u32 val;
 
 		val = SEINTARM(0) | CIDXINC(cq->cidx_inc) | TIMERREG(7) |
@@ -561,6 +564,7 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 		ret = -EOVERFLOW;
 		cq->error = 1;
 		printk(KERN_ERR MOD "cq overflow cqid %u\n", cq->cqid);
+		BUG_ON(1);
 	} else if (t4_valid_cqe(cq, &cq->queue[cq->cidx])) {
 		*cqe = &cq->queue[cq->cidx];
 		ret = 0;
@@ -571,6 +575,12 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 
 static inline struct t4_cqe *t4_next_sw_cqe(struct t4_cq *cq)
 {
+	if (cq->sw_in_use == cq->size) {
+		PDBG("%s cxgb4 sw cq overflow cqid %u\n", __func__, cq->cqid);
+		cq->error = 1;
+		BUG_ON(1);
+		return NULL;
+	}
 	if (cq->sw_in_use)
 		return &cq->sw_queue[cq->sw_cidx];
 	return NULL;

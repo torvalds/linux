@@ -1,0 +1,26 @@
+NVIDIA Tegra114 SPI controller.
+
+Required properties:
+- compatible : should be "nvidia,tegra114-spi".
+- reg: Should contain SPI registers location and length.
+- interrupts: Should contain SPI interrupts.
+- nvidia,dma-request-selector : The Tegra DMA controller's phandle and
+  request selector for this SPI controller.
+- This is also require clock named "spi" as per binding document
+  Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Recommended properties:
+- spi-max-frequency: Definition as per
+                     Documentation/devicetree/bindings/spi/spi-bus.txt
+Example:
+
+spi@7000d600 {
+	compatible = "nvidia,tegra114-spi";
+	reg = <0x7000d600 0x200>;
+	interrupts = <0 82 0x04>;
+	nvidia,dma-request-selector = <&apbdma 16>;
+	spi-max-frequency = <25000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "disabled";
+};

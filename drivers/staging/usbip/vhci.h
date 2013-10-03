@@ -95,7 +95,6 @@ struct vhci_hcd {
 
 extern struct vhci_hcd *the_controller;
 extern const struct attribute_group dev_attr_group;
-#define hardware (&the_controller->pdev.dev)
 
 /* vhci_hcd.c */
 void rh_port_connect(int rhport, enum usb_device_speed speed);

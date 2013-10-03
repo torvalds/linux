@@ -1190,8 +1190,7 @@ static int __init pc87360_find(int sioaddr, u8 *devid,
 				confreg[3] = superio_inb(sioaddr, 0x25);
 
 				if (confreg[2] & 0x40) {
-					pr_info("Using thermistors for "
-						"temperature monitoring\n");
+					pr_info("Using thermistors for temperature monitoring\n");
 				}
 				if (confreg[3] & 0xE0) {
 					pr_info("VID inputs routed (mode %u)\n",
@@ -1271,9 +1270,9 @@ static int pc87360_probe(struct platform_device *pdev)
 		if (data->address[i]
 		 && !devm_request_region(dev, extra_isa[i], PC87360_EXTENT,
 					 pc87360_driver.driver.name)) {
-			dev_err(dev, "Region 0x%x-0x%x already "
-				"in use!\n", extra_isa[i],
-				extra_isa[i]+PC87360_EXTENT-1);
+			dev_err(dev,
+				"Region 0x%x-0x%x already in use!\n",
+				extra_isa[i], extra_isa[i]+PC87360_EXTENT-1);
 			return -EBUSY;
 		}
 	}
@@ -1435,8 +1434,8 @@ static void pc87360_init_device(struct platform_device *pdev,
 	if (init >= 2 && data->innr) {
 		reg = pc87360_read_value(data, LD_IN, NO_BANK,
 					 PC87365_REG_IN_CONVRATE);
-		dev_info(&pdev->dev, "VLM conversion set to "
-			 "1s period, 160us delay\n");
+		dev_info(&pdev->dev,
+			 "VLM conversion set to 1s period, 160us delay\n");
 		pc87360_write_value(data, LD_IN, NO_BANK,
 				    PC87365_REG_IN_CONVRATE,
 				    (reg & 0xC0) | 0x11);
@@ -1450,8 +1449,8 @@ static void pc87360_init_device(struct platform_device *pdev,
 		if (init >= init_in[i]) {
 			/* Forcibly enable voltage channel */
 			if (!(reg & CHAN_ENA)) {
-				dev_dbg(&pdev->dev, "Forcibly "
-					"enabling in%d\n", i);
+				dev_dbg(&pdev->dev, "Forcibly enabling in%d\n",
+					i);
 				pc87360_write_value(data, LD_IN, i,
 						    PC87365_REG_IN_STATUS,
 						    (reg & 0x68) | 0x87);
@@ -1575,8 +1574,8 @@ static void pc87360_autodiv(struct device *dev, int nr)
 			data->fan_status[nr] += 0x20;
 			data->fan_min[nr] >>= 1;
 			data->fan[nr] >>= 1;
-			dev_dbg(dev, "Increasing "
-				"clock divider to %d for fan %d\n",
+			dev_dbg(dev,
+				"Increasing clock divider to %d for fan %d\n",
 				FAN_DIV_FROM_REG(data->fan_status[nr]), nr + 1);
 		}
 	} else {
@@ -1587,8 +1586,8 @@ static void pc87360_autodiv(struct device *dev, int nr)
 			data->fan_status[nr] -= 0x20;
 			data->fan_min[nr] <<= 1;
 			data->fan[nr] <<= 1;
-			dev_dbg(dev, "Decreasing "
-				"clock divider to %d for fan %d\n",
+			dev_dbg(dev,
+				"Decreasing clock divider to %d for fan %d\n",
 				FAN_DIV_FROM_REG(data->fan_status[nr]),
 				nr + 1);
 		}

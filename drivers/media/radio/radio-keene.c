@@ -93,7 +93,7 @@ static int keene_cmd_main(struct keene_device *radio, unsigned freq, bool play)
 	/* If bit 4 is set, then tune to the frequency.
 	   If bit 3 is set, then unmute; if bit 2 is set, then mute.
 	   If bit 1 is set, then enter idle mode; if bit 0 is set,
-	   then enter transit mode.
+	   then enter transmit mode.
 	 */
 	radio->buffer[5] = (radio->muted ? 4 : 8) | (play ? 1 : 2) |
 							(freq ? 0x10 : 0);
@@ -215,15 +215,15 @@ static int vidioc_s_modulator(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct keene_device *radio = video_drvdata(file);
+	unsigned freq = f->frequency;
 
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
-	f->frequency = clamp(f->frequency,
-			FREQ_MIN * FREQ_MUL, FREQ_MAX * FREQ_MUL);
-	return keene_cmd_main(radio, f->frequency, true);
+	freq = clamp(freq, FREQ_MIN * FREQ_MUL, FREQ_MAX * FREQ_MUL);
+	return keene_cmd_main(radio, freq, true);
 }
 
 static int vidioc_g_frequency(struct file *file, void *priv,
@@ -350,7 +350,6 @@ static int usb_keene_probe(struct usb_interface *intf,
 	radio->pa = 118;
 	radio->tx = 0x32;
 	radio->stereo = true;
-	radio->curfreq = 95.16 * FREQ_MUL;
 	if (hdl->error) {
 		retval = hdl->error;
 
@@ -382,6 +381,10 @@ static int usb_keene_probe(struct usb_interface *intf,
 
 	video_set_drvdata(&radio->vdev, radio);
 	set_bit(V4L2_FL_USE_FH_PRIO, &radio->vdev.flags);
+
+	/* at least 11ms is needed in order to settle hardware */
+	msleep(20);
+	keene_cmd_main(radio, 95.16 * FREQ_MUL, false);
 
 	retval = video_register_device(&radio->vdev, VFL_TYPE_RADIO, -1);
 	if (retval < 0) {

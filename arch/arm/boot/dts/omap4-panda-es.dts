@@ -5,7 +5,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-/include/ "omap4-panda.dts"
+/dts-v1/;
+
+#include "omap4460.dtsi"
+#include "omap4-panda-common.dtsi"
 
 /* Audio routing is differnet between PandaBoard4430 and PandaBoardES */
 &sound {
@@ -26,8 +29,36 @@
 /* PandaboardES has external pullups on SCL & SDA */
 &dss_hdmi_pins {
 	pinctrl-single,pins = <
-		0x5a 0x118	/* hdmi_cec.hdmi_cec INPUT PULLUP | MODE 0 */
-		0x5c 0x100	/* hdmi_scl.hdmi_scl INPUT | MODE 0 */
-		0x5e 0x100	/* hdmi_sda.hdmi_sda INPUT | MODE 0 */
+		0x5a (PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
+		0x5c (PIN_INPUT | MUX_MODE0)		/* hdmi_scl.hdmi_scl */
+		0x5e (PIN_INPUT | MUX_MODE0)		/* hdmi_sda.hdmi_sda */
 		>;
+};
+
+&omap4_pmx_core {
+	led_gpio_pins: gpio_led_pmx {
+		pinctrl-single,pins = <
+			0xb6 (PIN_OUTPUT | MUX_MODE3)	/* gpio_110 */
+		>;
+	};
+};
+
+&led_wkgpio_pins {
+	pinctrl-single,pins = <
+		0x1c (PIN_OUTPUT | MUX_MODE3)	/* gpio_wk8 */
+	>;
+};
+
+&leds {
+	pinctrl-0 = <
+		&led_gpio_pins
+		&led_wkgpio_pins
+	>;
+
+	heartbeat {
+		gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
+	};
+	mmc {
+		gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+	};
 };

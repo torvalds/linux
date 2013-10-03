@@ -25,6 +25,7 @@
 #include <linux/opp.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
 #include <asm/smp_plat.h>
@@ -88,16 +89,9 @@ static int omap_target(struct cpufreq_policy *policy,
 	}
 
 	freqs.old = omap_getspeed(policy->cpu);
-	freqs.cpu = policy->cpu;
 
 	if (freqs.old == freqs.new && policy->cur == freqs.new)
 		return ret;
-
-	/* notifiers */
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	}
 
 	freq = freqs.new * 1000;
 	ret = clk_round_rate(mpu_clk, freq);
@@ -128,6 +122,9 @@ static int omap_target(struct cpufreq_policy *policy,
 		freqs.old / 1000, volt_old ? volt_old / 1000 : -1,
 		freqs.new / 1000, volt ? volt / 1000 : -1);
 
+	/* notifiers */
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+
 	/* scaling up?  scale voltage before frequency */
 	if (mpu_reg && (freqs.new > freqs.old)) {
 		r = regulator_set_voltage(mpu_reg, volt - tol, volt + tol);
@@ -157,10 +154,7 @@ static int omap_target(struct cpufreq_policy *policy,
 
 done:
 	/* notifiers */
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return ret;
 }
@@ -171,7 +165,7 @@ static inline void freq_table_free(void)
 		opp_free_cpufreq_table(mpu_dev, &freq_table);
 }
 
-static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
+static int omap_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
 
@@ -184,7 +178,7 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 		goto fail_ck;
 	}
 
-	policy->cur = policy->min = policy->max = omap_getspeed(policy->cpu);
+	policy->cur = omap_getspeed(policy->cpu);
 
 	if (!freq_table)
 		result = opp_init_cpufreq_table(mpu_dev, &freq_table);
@@ -203,8 +197,6 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
 
-	policy->min = policy->cpuinfo.min_freq;
-	policy->max = policy->cpuinfo.max_freq;
 	policy->cur = omap_getspeed(policy->cpu);
 
 	/*
@@ -252,7 +244,7 @@ static struct cpufreq_driver omap_driver = {
 	.attr		= omap_cpufreq_attr,
 };
 
-static int __init omap_cpufreq_init(void)
+static int omap_cpufreq_probe(struct platform_device *pdev)
 {
 	mpu_dev = get_cpu_device(0);
 	if (!mpu_dev) {
@@ -280,12 +272,20 @@ static int __init omap_cpufreq_init(void)
 	return cpufreq_register_driver(&omap_driver);
 }
 
-static void __exit omap_cpufreq_exit(void)
+static int omap_cpufreq_remove(struct platform_device *pdev)
 {
-	cpufreq_unregister_driver(&omap_driver);
+	return cpufreq_unregister_driver(&omap_driver);
 }
+
+static struct platform_driver omap_cpufreq_platdrv = {
+	.driver = {
+		.name	= "omap-cpufreq",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= omap_cpufreq_probe,
+	.remove		= omap_cpufreq_remove,
+};
+module_platform_driver(omap_cpufreq_platdrv);
 
 MODULE_DESCRIPTION("cpufreq driver for OMAP SoCs");
 MODULE_LICENSE("GPL");
-module_init(omap_cpufreq_init);
-module_exit(omap_cpufreq_exit);

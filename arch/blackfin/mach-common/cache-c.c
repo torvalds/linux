@@ -52,7 +52,7 @@ bfin_cache_init(struct cplb_entry *cplb_tbl, unsigned long cplb_addr,
 }
 
 #ifdef CONFIG_BFIN_ICACHE
-void __cpuinit bfin_icache_init(struct cplb_entry *icplb_tbl)
+void bfin_icache_init(struct cplb_entry *icplb_tbl)
 {
 	bfin_cache_init(icplb_tbl, ICPLB_ADDR0, ICPLB_DATA0, IMEM_CONTROL,
 		(IMC | ENICPLB));
@@ -60,7 +60,7 @@ void __cpuinit bfin_icache_init(struct cplb_entry *icplb_tbl)
 #endif
 
 #ifdef CONFIG_BFIN_DCACHE
-void __cpuinit bfin_dcache_init(struct cplb_entry *dcplb_tbl)
+void bfin_dcache_init(struct cplb_entry *dcplb_tbl)
 {
 	/*
 	 *  Anomaly notes:

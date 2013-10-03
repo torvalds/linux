@@ -10,6 +10,7 @@
 #include <linux/poll.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 #include "dvb_frontend.h"
 #include "dvbdev.h"
@@ -25,7 +26,6 @@
 #define POSEIDON_STATE_ANALOG		(0x0001)
 #define POSEIDON_STATE_FM		(0x0002)
 #define POSEIDON_STATE_DVBT		(0x0004)
-#define POSEIDON_STATE_VBI		(0x0008)
 #define POSEIDON_STATE_DISCONNECT	(0x0080)
 
 #define PM_SUSPEND_DELAY	3
@@ -35,11 +35,11 @@
 #define V4L_PAL_VBI_FRAMESIZE	(V4L_PAL_VBI_LINES * 1440 * 2)
 #define V4L_NTSC_VBI_FRAMESIZE	(V4L_NTSC_VBI_LINES * 1440 * 2)
 
-#define TUNER_FREQ_MIN		(45000000)
-#define TUNER_FREQ_MAX		(862000000)
+#define TUNER_FREQ_MIN		(45000000U)
+#define TUNER_FREQ_MAX		(862000000U)
 
 struct vbi_data {
-	struct video_device	*v_dev;
+	struct video_device	v_dev;
 	struct video_data	*video;
 	struct front_face	*front;
 
@@ -62,7 +62,8 @@ struct running_context {
 
 struct video_data {
 	/* v4l2 video device */
-	struct video_device	*v_dev;
+	struct video_device	v_dev;
+	struct v4l2_ctrl_handler ctrl_handler;
 
 	/* the working context */
 	struct running_context	context;
@@ -115,10 +116,10 @@ struct poseidon_audio {
 
 struct radio_data {
 	__u32		fm_freq;
-	int		users;
 	unsigned int	is_radio_streaming;
 	int		pre_emphasis;
-	struct video_device *fm_dev;
+	struct video_device fm_dev;
+	struct v4l2_ctrl_handler ctrl_handler;
 };
 
 #define DVB_SBUF_NUM		4
@@ -233,7 +234,6 @@ void dvb_stop_streaming(struct pd_dvb_adapter *);
 /* FM */
 int poseidon_fm_init(struct poseidon *);
 int poseidon_fm_exit(struct poseidon *);
-struct video_device *vdev_init(struct poseidon *, struct video_device *);
 
 /* vendor command ops */
 int send_set_req(struct poseidon*, u8, s32, s32*);
@@ -249,7 +249,6 @@ void free_all_urb_generic(struct urb **urb_array, int num);
 
 /* misc */
 void poseidon_delete(struct kref *kref);
-void destroy_video_device(struct video_device **v_dev);
 extern int debug_mode;
 void set_debug_mode(struct video_device *vfd, int debug_mode);
 
@@ -269,13 +268,4 @@ void set_debug_mode(struct video_device *vfd, int debug_mode);
 				log();\
 		} while (0)
 
-#define logs(f) do { \
-			if ((debug_mode & 0x4) && \
-				(f)->type == V4L2_BUF_TYPE_VBI_CAPTURE) \
-					log("type : VBI");\
-								\
-			if ((debug_mode & 0x8) && \
-				(f)->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) \
-					log("type : VIDEO");\
-		} while (0)
 #endif

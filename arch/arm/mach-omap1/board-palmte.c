@@ -38,14 +38,12 @@
 #include <mach/mux.h>
 #include <mach/tc.h>
 #include <linux/omap-dma.h>
-#include <mach/irda.h>
 #include <linux/platform_data/keypad-omap.h>
 
 #include <mach/hardware.h>
 #include <mach/usb.h>
 
 #include "common.h"
-#include "dma.h"
 
 #define PALMTE_USBDETECT_GPIO	0
 #define PALMTE_USB_OR_DC_GPIO	1
@@ -167,40 +165,11 @@ static struct platform_device palmte_backlight_device = {
 	},
 };
 
-static struct omap_irda_config palmte_irda_config = {
-	.transceiver_cap	= IR_SIRMODE,
-	.rx_channel		= OMAP_DMA_UART3_RX,
-	.tx_channel		= OMAP_DMA_UART3_TX,
-	.dest_start		= UART3_THR,
-	.src_start		= UART3_RHR,
-	.tx_trigger		= 0,
-	.rx_trigger		= 0,
-};
-
-static struct resource palmte_irda_resources[] = {
-	[0]	= {
-		.start	= INT_UART3,
-		.end	= INT_UART3,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device palmte_irda_device = {
-	.name		= "omapirda",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &palmte_irda_config,
-	},
-	.num_resources	= ARRAY_SIZE(palmte_irda_resources),
-	.resource	= palmte_irda_resources,
-};
-
 static struct platform_device *palmte_devices[] __initdata = {
 	&palmte_rom_device,
 	&palmte_kp_device,
 	&palmte_lcd_device,
 	&palmte_backlight_device,
-	&palmte_irda_device,
 };
 
 static struct omap_usb_config palmte_usb_config __initdata = {

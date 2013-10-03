@@ -33,6 +33,7 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/syscalls.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
@@ -48,7 +49,6 @@
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/irq.h>
-#include <asm/syscalls.h>
 
 /*
  * Known problems:
@@ -202,36 +202,32 @@ out:
 static int do_vm86_irq_handling(int subfunction, int irqnumber);
 static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk);
 
-int sys_vm86old(struct vm86_struct __user *v86)
+SYSCALL_DEFINE1(vm86old, struct vm86_struct __user *, v86)
 {
 	struct kernel_vm86_struct info; /* declare this _on top_,
 					 * this avoids wasting of stack space.
 					 * This remains on the stack until we
 					 * return to 32 bit user space.
 					 */
-	struct task_struct *tsk;
-	int tmp, ret = -EPERM;
+	struct task_struct *tsk = current;
+	int tmp;
 
-	tsk = current;
 	if (tsk->thread.saved_sp0)
-		goto out;
+		return -EPERM;
 	tmp = copy_vm86_regs_from_user(&info.regs, &v86->regs,
 				       offsetof(struct kernel_vm86_struct, vm86plus) -
 				       sizeof(info.regs));
-	ret = -EFAULT;
 	if (tmp)
-		goto out;
+		return -EFAULT;
 	memset(&info.vm86plus, 0, (int)&info.regs32 - (int)&info.vm86plus);
 	info.regs32 = current_pt_regs();
 	tsk->thread.vm86_info = v86;
 	do_sys_vm86(&info, tsk);
-	ret = 0;	/* we never return here */
-out:
-	return ret;
+	return 0;	/* we never return here */
 }
 
 
-int sys_vm86(unsigned long cmd, unsigned long arg)
+SYSCALL_DEFINE2(vm86, unsigned long, cmd, unsigned long, arg)
 {
 	struct kernel_vm86_struct info; /* declare this _on top_,
 					 * this avoids wasting of stack space.
@@ -239,7 +235,7 @@ int sys_vm86(unsigned long cmd, unsigned long arg)
 					 * return to 32 bit user space.
 					 */
 	struct task_struct *tsk;
-	int tmp, ret;
+	int tmp;
 	struct vm86plus_struct __user *v86;
 
 	tsk = current;
@@ -248,8 +244,7 @@ int sys_vm86(unsigned long cmd, unsigned long arg)
 	case VM86_FREE_IRQ:
 	case VM86_GET_IRQ_BITS:
 	case VM86_GET_AND_RESET_IRQ:
-		ret = do_vm86_irq_handling(cmd, (int)arg);
-		goto out;
+		return do_vm86_irq_handling(cmd, (int)arg);
 	case VM86_PLUS_INSTALL_CHECK:
 		/*
 		 * NOTE: on old vm86 stuff this will return the error
@@ -257,28 +252,23 @@ int sys_vm86(unsigned long cmd, unsigned long arg)
 		 *  interpreted as (invalid) address to vm86_struct.
 		 *  So the installation check works.
 		 */
-		ret = 0;
-		goto out;
+		return 0;
 	}
 
 	/* we come here only for functions VM86_ENTER, VM86_ENTER_NO_BYPASS */
-	ret = -EPERM;
 	if (tsk->thread.saved_sp0)
-		goto out;
+		return -EPERM;
 	v86 = (struct vm86plus_struct __user *)arg;
 	tmp = copy_vm86_regs_from_user(&info.regs, &v86->regs,
 				       offsetof(struct kernel_vm86_struct, regs32) -
 				       sizeof(info.regs));
-	ret = -EFAULT;
 	if (tmp)
-		goto out;
+		return -EFAULT;
 	info.regs32 = current_pt_regs();
 	info.vm86plus.is_vm86pus = 1;
 	tsk->thread.vm86_info = (struct vm86_struct __user *)v86;
 	do_sys_vm86(&info, tsk);
-	ret = 0;	/* we never return here */
-out:
-	return ret;
+	return 0;	/* we never return here */
 }
 
 

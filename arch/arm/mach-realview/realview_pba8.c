@@ -29,6 +29,7 @@
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/clk-realview.h>
+#include <linux/reboot.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -264,7 +265,7 @@ static void __init realview_pba8_timer_init(void)
 	realview_timer_init(IRQ_PBA8_TIMER0_1);
 }
 
-static void realview_pba8_restart(char mode, const char *cmd)
+static void realview_pba8_restart(enum reboot_mode mode, const char *cmd)
 {
 	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
 	void __iomem *lock_ctrl = __io_address(REALVIEW_SYS_LOCK);

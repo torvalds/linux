@@ -95,7 +95,8 @@ const struct st_bits_data spk_punc_info[] = {
 
 static char mark_cut_flag;
 #define MAX_KEY 160
-u_char *spk_our_keys[MAX_KEY], *spk_shift_table;
+static u_char *spk_shift_table;
+u_char *spk_our_keys[MAX_KEY];
 u_char spk_key_buf[600];
 const u_char spk_key_defaults[] = {
 #include "speakupmap.h"
@@ -457,7 +458,7 @@ static void speak_char(u_char ch)
 	synth_buffer_add(SPACE);
 }
 
-static u16 get_char(struct vc_data *vc, u16 * pos, u_char * attribs)
+static u16 get_char(struct vc_data *vc, u16 *pos, u_char *attribs)
 {
 	u16 ch = ' ';
 	if (vc && pos) {
@@ -1129,7 +1130,7 @@ static void do_handle_shift(struct vc_data *vc, u_char value, char up_flag)
 	unsigned long flags;
 	if (synth == NULL || up_flag || spk_killed)
 		return;
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (cursor_track == read_all_mode) {
 		switch (value) {
 		case KVAL(K_SHIFT):
@@ -1151,20 +1152,20 @@ static void do_handle_shift(struct vc_data *vc, u_char value, char up_flag)
 	}
 	if (spk_say_ctrl && value < NUM_CTL_LABELS)
 		synth_printf("%s", spk_msg_get(MSG_CTL_START + value));
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
 static void do_handle_latin(struct vc_data *vc, u_char value, char up_flag)
 {
 	unsigned long flags;
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (up_flag) {
 		spk_lastkey = spk_keydown = 0;
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return;
 	}
 	if (synth == NULL || spk_killed) {
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return;
 	}
 	spk_shut_up &= 0xfe;
@@ -1173,7 +1174,7 @@ static void do_handle_latin(struct vc_data *vc, u_char value, char up_flag)
 	spk_parked &= 0xfe;
 	if (spk_key_echo == 2 && value >= MINECHOCHAR)
 		speak_char(value);
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
 int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
@@ -1282,7 +1283,7 @@ static int edit_bits(struct vc_data *vc, u_char type, u_char ch, u_short key)
 }
 
 /* Allocation concurrency is protected by the console semaphore */
-int speakup_allocate(struct vc_data *vc)
+static int speakup_allocate(struct vc_data *vc)
 {
 	int vc_num;
 
@@ -1299,7 +1300,7 @@ int speakup_allocate(struct vc_data *vc)
 	return 0;
 }
 
-void speakup_deallocate(struct vc_data *vc)
+static void speakup_deallocate(struct vc_data *vc)
 {
 	int vc_num;
 
@@ -1449,21 +1450,21 @@ static void handle_cursor_read_all(struct vc_data *vc, int command)
 static int pre_handle_cursor(struct vc_data *vc, u_char value, char up_flag)
 {
 	unsigned long flags;
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (cursor_track == read_all_mode) {
 		spk_parked &= 0xfe;
 		if (synth == NULL || up_flag || spk_shut_up) {
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			return NOTIFY_STOP;
 		}
 		del_timer(&cursor_timer);
 		spk_shut_up &= 0xfe;
 		spk_do_flush();
 		start_read_all_timer(vc, value + 1);
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return NOTIFY_STOP;
 	}
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return NOTIFY_OK;
 }
 
@@ -1472,10 +1473,10 @@ static void do_handle_cursor(struct vc_data *vc, u_char value, char up_flag)
 	unsigned long flags;
 	struct var_t *cursor_timeout;
 
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	spk_parked &= 0xfe;
 	if (synth == NULL || up_flag || spk_shut_up || cursor_track == CT_Off) {
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return;
 	}
 	spk_shut_up &= 0xfe;
@@ -1494,7 +1495,7 @@ static void do_handle_cursor(struct vc_data *vc, u_char value, char up_flag)
 	cursor_timeout = spk_get_var(CURSOR_TIME);
 	mod_timer(&cursor_timer,
 		  jiffies + msecs_to_jiffies(cursor_timeout->u.n.value));
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
 static void update_color_buffer(struct vc_data *vc, const char *ic, int len)
@@ -1619,7 +1620,7 @@ static void cursor_done(u_long data)
 	struct vc_data *vc = vc_cons[cursor_con].d;
 	unsigned long flags;
 	del_timer(&cursor_timer);
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (cursor_con != fg_console) {
 		is_cursor = 0;
 		goto out;
@@ -1650,7 +1651,7 @@ static void cursor_done(u_long data)
 		say_char(vc);
 	spk_keydown = is_cursor = 0;
 out:
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
 /* called by: vt_notifier_call() */
@@ -1659,13 +1660,13 @@ static void speakup_bs(struct vc_data *vc)
 	unsigned long flags;
 	if (!speakup_console[vc->vc_num])
 		return;
-	if (!spk_trylock(flags))
+	if (!spin_trylock_irqsave(&speakup_info.spinlock, flags))
 		/* Speakup output, discard */
 		return;
 	if (!spk_parked)
 		speakup_date(vc);
 	if (spk_shut_up || synth == NULL) {
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return;
 	}
 	if (vc->vc_num == fg_console && spk_keydown) {
@@ -1673,7 +1674,7 @@ static void speakup_bs(struct vc_data *vc)
 		if (!is_cursor)
 			say_char(vc);
 	}
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
 /* called by: vt_notifier_call() */
@@ -1682,7 +1683,7 @@ static void speakup_con_write(struct vc_data *vc, const char *str, int len)
 	unsigned long flags;
 	if ((vc->vc_num != fg_console) || spk_shut_up || synth == NULL)
 		return;
-	if (!spk_trylock(flags))
+	if (!spin_trylock_irqsave(&speakup_info.spinlock, flags))
 		/* Speakup output, discard */
 		return;
 	if (spk_bell_pos && spk_keydown && (vc->vc_x == spk_bell_pos - 1))
@@ -1690,31 +1691,31 @@ static void speakup_con_write(struct vc_data *vc, const char *str, int len)
 	if ((is_cursor) || (cursor_track == read_all_mode)) {
 		if (cursor_track == CT_Highlight)
 			update_color_buffer(vc, str, len);
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return;
 	}
 	if (win_enabled) {
 		if (vc->vc_x >= win_left && vc->vc_x <= win_right &&
 		    vc->vc_y >= win_top && vc->vc_y <= win_bottom) {
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			return;
 		}
 	}
 
 	spkup_write(str, len);
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
-void speakup_con_update(struct vc_data *vc)
+static void speakup_con_update(struct vc_data *vc)
 {
 	unsigned long flags;
 	if (speakup_console[vc->vc_num] == NULL || spk_parked)
 		return;
-	if (!spk_trylock(flags))
+	if (!spin_trylock_irqsave(&speakup_info.spinlock, flags))
 		/* Speakup output, discard */
 		return;
 	speakup_date(vc);
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
 static void do_handle_spec(struct vc_data *vc, u_char value, char up_flag)
@@ -1724,7 +1725,7 @@ static void do_handle_spec(struct vc_data *vc, u_char value, char up_flag)
 	char *label;
 	if (synth == NULL || up_flag || spk_killed)
 		return;
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	spk_shut_up &= 0xfe;
 	if (spk_no_intr)
 		spk_do_flush();
@@ -1745,13 +1746,13 @@ static void do_handle_spec(struct vc_data *vc, u_char value, char up_flag)
 		break;
 	default:
 		spk_parked &= 0xfe;
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return;
 	}
 	if (on_off < 2)
 		synth_printf("%s %s\n",
 			     label, spk_msg_get(MSG_STATUS_START + on_off));
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
 static int inc_dec_var(u_char value)
@@ -1892,7 +1893,7 @@ oops:
 		spk_special_handler = NULL;
 		return 1;
 	}
-	cp = speakup_s2i(goto_buf, &go_pos);
+	go_pos = kstrtol(goto_buf, 10, (long *)&cp);
 	goto_pos = (u_long) go_pos;
 	if (*cp == 'x') {
 		if (*goto_buf < '0')
@@ -1964,7 +1965,7 @@ static void speakup_lock(struct vc_data *vc)
 }
 
 typedef void (*spkup_hand) (struct vc_data *);
-spkup_hand spkup_handler[] = {
+static spkup_hand spkup_handler[] = {
 	/* must be ordered same as defines in speakup.h */
 	do_nothing, speakup_goto, speech_kill, speakup_shut_up,
 	speakup_cut, speakup_paste, say_first_char, say_last_char,
@@ -2002,7 +2003,7 @@ static void do_spkup(struct vc_data *vc, u_char value)
 
 static const char *pad_chars = "0123456789+-*/\015,.?()";
 
-int
+static int
 speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 	    int up_flag)
 {
@@ -2015,7 +2016,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 	if (synth == NULL)
 		return 0;
 
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	tty = vc->port.tty;
 	if (type >= 0xf0)
 		type -= 0xf0;
@@ -2033,7 +2034,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 	if (keycode >= MAX_KEY)
 		goto no_map;
 	key_info = spk_our_keys[keycode];
-	if (key_info == 0)
+	if (!key_info)
 		goto no_map;
 	/* Check valid read all mode keys */
 	if ((cursor_track == read_all_mode) && (!up_flag)) {
@@ -2114,7 +2115,7 @@ no_map:
 	}
 	last_keycode = 0;
 out:
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return ret;
 }
 
@@ -2265,7 +2266,7 @@ static int __init speakup_init(void)
 	     (var->var_id >= 0) && (var->var_id < MAXVARS); var++)
 		speakup_register_var(var);
 	for (i = 1; spk_punc_info[i].mask != 0; i++)
-		spk_set_mask_bits(0, i, 2);
+		spk_set_mask_bits(NULL, i, 2);
 
 	spk_set_key_info(spk_key_defaults, spk_key_buf);
 

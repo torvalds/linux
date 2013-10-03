@@ -54,7 +54,10 @@ EXPORT_SYMBOL_GPL(at91_pmc_base);
  */
 #define cpu_has_utmi()		(  cpu_is_at91sam9rl() \
 				|| cpu_is_at91sam9g45() \
-				|| cpu_is_at91sam9x5())
+				|| cpu_is_at91sam9x5() \
+				|| cpu_is_sama5d3())
+
+#define cpu_has_1056M_plla()	(cpu_is_sama5d3())
 
 #define cpu_has_800M_plla()	(  cpu_is_at91sam9g20() \
 				|| cpu_is_at91sam9g45() \
@@ -72,10 +75,11 @@ EXPORT_SYMBOL_GPL(at91_pmc_base);
 #define cpu_has_pllb()		(!(cpu_is_at91sam9rl() \
 				|| cpu_is_at91sam9g45() \
 				|| cpu_is_at91sam9x5() \
-				|| cpu_is_at91sam9n12()))
+				|| cpu_is_sama5d3()))
 
 #define cpu_has_upll()		(cpu_is_at91sam9g45() \
-				|| cpu_is_at91sam9x5())
+				|| cpu_is_at91sam9x5() \
+				|| cpu_is_sama5d3())
 
 /* USB host HS & FS */
 #define cpu_has_uhp()		(!cpu_is_at91sam9rl())
@@ -83,18 +87,22 @@ EXPORT_SYMBOL_GPL(at91_pmc_base);
 /* USB device FS only */
 #define cpu_has_udpfs()		(!(cpu_is_at91sam9rl() \
 				|| cpu_is_at91sam9g45() \
-				|| cpu_is_at91sam9x5()))
+				|| cpu_is_at91sam9x5() \
+				|| cpu_is_sama5d3()))
 
 #define cpu_has_plladiv2()	(cpu_is_at91sam9g45() \
 				|| cpu_is_at91sam9x5() \
-				|| cpu_is_at91sam9n12())
+				|| cpu_is_at91sam9n12() \
+				|| cpu_is_sama5d3())
 
 #define cpu_has_mdiv3()		(cpu_is_at91sam9g45() \
 				|| cpu_is_at91sam9x5() \
-				|| cpu_is_at91sam9n12())
+				|| cpu_is_at91sam9n12() \
+				|| cpu_is_sama5d3())
 
 #define cpu_has_alt_prescaler()	(cpu_is_at91sam9x5() \
-				|| cpu_is_at91sam9n12())
+				|| cpu_is_at91sam9n12() \
+				|| cpu_is_sama5d3())
 
 static LIST_HEAD(clocks);
 static DEFINE_SPINLOCK(clk_lock);
@@ -210,10 +218,26 @@ struct clk mck = {
 
 static void pmc_periph_mode(struct clk *clk, int is_on)
 {
-	if (is_on)
-		at91_pmc_write(AT91_PMC_PCER, clk->pmc_mask);
-	else
-		at91_pmc_write(AT91_PMC_PCDR, clk->pmc_mask);
+	u32 regval = 0;
+
+	/*
+	 * With sama5d3 devices, we are managing clock division so we have to
+	 * use the Peripheral Control Register introduced from at91sam9x5
+	 * devices.
+	 */
+	if (cpu_is_sama5d3()) {
+		regval |= AT91_PMC_PCR_CMD; /* write command */
+		regval |= clk->pid & AT91_PMC_PCR_PID; /* peripheral selection */
+		regval |= AT91_PMC_PCR_DIV(clk->div);
+		if (is_on)
+			regval |= AT91_PMC_PCR_EN; /* enable clock */
+		at91_pmc_write(AT91_PMC_PCR, regval);
+	} else {
+		if (is_on)
+			at91_pmc_write(AT91_PMC_PCER, clk->pmc_mask);
+		else
+			at91_pmc_write(AT91_PMC_PCDR, clk->pmc_mask);
+	}
 }
 
 static struct clk __init *at91_css_to_clk(unsigned long css)
@@ -443,14 +467,18 @@ static void __init init_programmable_clock(struct clk *clk)
 
 static int at91_clk_show(struct seq_file *s, void *unused)
 {
-	u32		scsr, pcsr, uckr = 0, sr;
+	u32		scsr, pcsr, pcsr1 = 0, uckr = 0, sr;
 	struct clk	*clk;
 
 	scsr = at91_pmc_read(AT91_PMC_SCSR);
 	pcsr = at91_pmc_read(AT91_PMC_PCSR);
+	if (cpu_is_sama5d3())
+		pcsr1 = at91_pmc_read(AT91_PMC_PCSR1);
 	sr = at91_pmc_read(AT91_PMC_SR);
 	seq_printf(s, "SCSR = %8x\n", scsr);
 	seq_printf(s, "PCSR = %8x\n", pcsr);
+	if (cpu_is_sama5d3())
+		seq_printf(s, "PCSR1 = %8x\n", pcsr1);
 	seq_printf(s, "MOR  = %8x\n", at91_pmc_read(AT91_CKGR_MOR));
 	seq_printf(s, "MCFR = %8x\n", at91_pmc_read(AT91_CKGR_MCFR));
 	seq_printf(s, "PLLA = %8x\n", at91_pmc_read(AT91_CKGR_PLLAR));
@@ -461,7 +489,7 @@ static int at91_clk_show(struct seq_file *s, void *unused)
 		seq_printf(s, "UCKR = %8x\n", uckr);
 	}
 	seq_printf(s, "MCKR = %8x\n", at91_pmc_read(AT91_PMC_MCKR));
-	if (cpu_has_upll())
+	if (cpu_has_upll() || cpu_is_at91sam9n12())
 		seq_printf(s, "USB  = %8x\n", at91_pmc_read(AT91_PMC_USB));
 	seq_printf(s, "SR   = %8x\n", sr);
 
@@ -470,20 +498,30 @@ static int at91_clk_show(struct seq_file *s, void *unused)
 	list_for_each_entry(clk, &clocks, node) {
 		char	*state;
 
-		if (clk->mode == pmc_sys_mode)
+		if (clk->mode == pmc_sys_mode) {
 			state = (scsr & clk->pmc_mask) ? "on" : "off";
-		else if (clk->mode == pmc_periph_mode)
-			state = (pcsr & clk->pmc_mask) ? "on" : "off";
-		else if (clk->mode == pmc_uckr_mode)
-			state = (uckr & clk->pmc_mask) ? "on" : "off";
-		else if (clk->pmc_mask)
-			state = (sr & clk->pmc_mask) ? "on" : "off";
-		else if (clk == &clk32k || clk == &main_clk)
-			state = "on";
-		else
-			state = "";
+		} else if (clk->mode == pmc_periph_mode) {
+			if (cpu_is_sama5d3()) {
+				u32 pmc_mask = 1 << (clk->pid % 32);
 
-		seq_printf(s, "%-10s users=%2d %-3s %9ld Hz %s\n",
+				if (clk->pid > 31)
+					state = (pcsr1 & pmc_mask) ? "on" : "off";
+				else
+					state = (pcsr & pmc_mask) ? "on" : "off";
+			} else {
+				state = (pcsr & clk->pmc_mask) ? "on" : "off";
+			}
+		} else if (clk->mode == pmc_uckr_mode) {
+			state = (uckr & clk->pmc_mask) ? "on" : "off";
+		} else if (clk->pmc_mask) {
+			state = (sr & clk->pmc_mask) ? "on" : "off";
+		} else if (clk == &clk32k || clk == &main_clk) {
+			state = "on";
+		} else {
+			state = "";
+		}
+
+		seq_printf(s, "%-10s users=%2d %-3s %9lu Hz %s\n",
 			clk->name, clk->users, state, clk_get_rate(clk),
 			clk->parent ? clk->parent->name : "");
 	}
@@ -530,6 +568,9 @@ int __init clk_register(struct clk *clk)
 	if (clk_is_peripheral(clk)) {
 		if (!clk->parent)
 			clk->parent = &mck;
+		if (cpu_is_sama5d3())
+			clk->rate_hz = DIV_ROUND_UP(clk->parent->rate_hz,
+						    1 << clk->div);
 		clk->mode = pmc_periph_mode;
 	}
 	else if (clk_is_sys(clk)) {
@@ -555,7 +596,11 @@ static u32 __init at91_pll_rate(struct clk *pll, u32 freq, u32 reg)
 	unsigned mul, div;
 
 	div = reg & 0xff;
-	mul = (reg >> 16) & 0x7ff;
+	if (cpu_is_sama5d3())
+		mul = AT91_PMC3_MUL_GET(reg);
+	else
+		mul = AT91_PMC_MUL_GET(reg);
+
 	if (div && mul) {
 		freq /= div;
 		freq *= mul + 1;
@@ -569,6 +614,8 @@ static u32 __init at91_usb_rate(struct clk *pll, u32 freq, u32 reg)
 {
 	if (pll == &pllb && (reg & AT91_PMC_USB96M))
 		return freq / 2;
+	else if (pll == &utmi_clk || cpu_is_at91sam9n12())
+		return freq / (1 + ((reg & AT91_PMC_OHCIUSBDIV) >> 8));
 	else
 		return freq;
 }
@@ -638,6 +685,8 @@ static struct clk *const standard_pmc_clocks[] __initconst = {
 /* PLLB generated USB full speed clock init */
 static void __init at91_pllb_usbfs_clock_init(unsigned long main_clock)
 {
+	unsigned int reg;
+
 	/*
 	 * USB clock init:  choose 48 MHz PLLB value,
 	 * disable 48MHz clock during usb peripheral suspend.
@@ -646,22 +695,35 @@ static void __init at91_pllb_usbfs_clock_init(unsigned long main_clock)
 	 */
 	uhpck.parent = &pllb;
 
-	at91_pllb_usb_init = at91_pll_calc(main_clock, 48000000 * 2) | AT91_PMC_USB96M;
+	reg = at91_pllb_usb_init = at91_pll_calc(main_clock, 48000000 * 2);
 	pllb.rate_hz = at91_pll_rate(&pllb, main_clock, at91_pllb_usb_init);
 	if (cpu_is_at91rm9200()) {
+		reg = at91_pllb_usb_init |= AT91_PMC_USB96M;
 		uhpck.pmc_mask = AT91RM9200_PMC_UHP;
 		udpck.pmc_mask = AT91RM9200_PMC_UDP;
 		at91_pmc_write(AT91_PMC_SCER, AT91RM9200_PMC_MCKUDP);
 	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() ||
 		   cpu_is_at91sam9263() || cpu_is_at91sam9g20() ||
 		   cpu_is_at91sam9g10()) {
+		reg = at91_pllb_usb_init |= AT91_PMC_USB96M;
+		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
+		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
+	} else if (cpu_is_at91sam9n12()) {
+		/* Divider for USB clock is in USB clock register for 9n12 */
+		reg = AT91_PMC_USBS_PLLB;
+
+		/* For PLLB output 96M, set usb divider 2 (USBDIV + 1) */
+		reg |= AT91_PMC_OHCIUSBDIV_2;
+		at91_pmc_write(AT91_PMC_USB, reg);
+
+		/* Still setup masks */
 		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
 		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
 	}
 	at91_pmc_write(AT91_CKGR_PLLBR, 0);
 
-	udpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, at91_pllb_usb_init);
-	uhpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, at91_pllb_usb_init);
+	udpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, reg);
+	uhpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, reg);
 }
 
 /* UPLL generated USB full speed clock init */
@@ -680,8 +742,7 @@ static void __init at91_upll_usbfs_clock_init(unsigned long main_clock)
 	/* Now set uhpck values */
 	uhpck.parent = &utmi_clk;
 	uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
-	uhpck.rate_hz = utmi_clk.rate_hz;
-	uhpck.rate_hz /= 1 + ((at91_pmc_read(AT91_PMC_USB) & AT91_PMC_OHCIUSBDIV) >> 8);
+	uhpck.rate_hz = at91_usb_rate(&utmi_clk, utmi_clk.rate_hz, usbr);
 }
 
 static int __init at91_pmc_init(unsigned long main_clock)
@@ -706,11 +767,14 @@ static int __init at91_pmc_init(unsigned long main_clock)
 
 	/* report if PLLA is more than mildly overclocked */
 	plla.rate_hz = at91_pll_rate(&plla, main_clock, at91_pmc_read(AT91_CKGR_PLLAR));
-	if (cpu_has_300M_plla()) {
-		if (plla.rate_hz > 300000000)
+	if (cpu_has_1056M_plla()) {
+		if (plla.rate_hz > 1056000000)
 			pll_overclock = true;
 	} else if (cpu_has_800M_plla()) {
 		if (plla.rate_hz > 800000000)
+			pll_overclock = true;
+	} else if (cpu_has_300M_plla()) {
+		if (plla.rate_hz > 300000000)
 			pll_overclock = true;
 	} else if (cpu_has_240M_plla()) {
 		if (plla.rate_hz > 240000000)
@@ -872,6 +936,7 @@ int __init at91_clock_init(unsigned long main_clock)
 static int __init at91_clock_reset(void)
 {
 	unsigned long pcdr = 0;
+	unsigned long pcdr1 = 0;
 	unsigned long scdr = 0;
 	struct clk *clk;
 
@@ -879,8 +944,17 @@ static int __init at91_clock_reset(void)
 		if (clk->users > 0)
 			continue;
 
-		if (clk->mode == pmc_periph_mode)
-			pcdr |= clk->pmc_mask;
+		if (clk->mode == pmc_periph_mode) {
+			if (cpu_is_sama5d3()) {
+				u32 pmc_mask = 1 << (clk->pid % 32);
+
+				if (clk->pid > 31)
+					pcdr1 |= pmc_mask;
+				else
+					pcdr |= pmc_mask;
+			} else
+				pcdr |= clk->pmc_mask;
+		}
 
 		if (clk->mode == pmc_sys_mode)
 			scdr |= clk->pmc_mask;
@@ -888,8 +962,9 @@ static int __init at91_clock_reset(void)
 		pr_debug("Clocks: disable unused %s\n", clk->name);
 	}
 
-	at91_pmc_write(AT91_PMC_PCDR, pcdr);
 	at91_pmc_write(AT91_PMC_SCDR, scdr);
+	if (cpu_is_sama5d3())
+		at91_pmc_write(AT91_PMC_PCDR1, pcdr1);
 
 	return 0;
 }

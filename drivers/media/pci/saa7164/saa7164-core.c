@@ -54,7 +54,7 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 
 unsigned int fw_debug;
 module_param(fw_debug, int, 0644);
-MODULE_PARM_DESC(fw_debug, "Firware debug level def:2");
+MODULE_PARM_DESC(fw_debug, "Firmware debug level def:2");
 
 unsigned int encoder_buffers = SAA7164_MAX_ENCODER_BUFFERS;
 module_param(encoder_buffers, int, 0644);
@@ -1196,6 +1196,12 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 	if (NULL == dev)
 		return -ENOMEM;
 
+	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
+	if (err < 0) {
+		dev_err(&pci_dev->dev, "v4l2_device_register failed\n");
+		goto fail_free;
+	}
+
 	/* pci init */
 	dev->pci = pci_dev;
 	if (pci_enable_device(pci_dev)) {
@@ -1367,6 +1373,7 @@ fail_fw:
 fail_irq:
 	saa7164_dev_unregister(dev);
 fail_free:
+	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 	return err;
 }
@@ -1439,6 +1446,7 @@ static void saa7164_finidev(struct pci_dev *pci_dev)
 	mutex_unlock(&devlist);
 
 	saa7164_dev_unregister(dev);
+	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 }
 

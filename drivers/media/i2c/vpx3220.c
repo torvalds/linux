@@ -27,7 +27,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 
 MODULE_DESCRIPTION("vpx3220a/vpx3216b/vpx3214c video decoder driver");
@@ -49,7 +48,6 @@ struct vpx3220 {
 	unsigned char reg[255];
 
 	v4l2_std_id norm;
-	int ident;
 	int input;
 	int enable;
 };
@@ -297,7 +295,7 @@ static int vpx3220_init(struct v4l2_subdev *sd, u32 val)
 static int vpx3220_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd)
 {
 	int res = V4L2_IN_ST_NO_SIGNAL, status;
-	v4l2_std_id std = 0;
+	v4l2_std_id std = pstd ? *pstd : V4L2_STD_ALL;
 
 	status = vpx3220_fp_read(sd, 0x0f3);
 
@@ -314,19 +312,21 @@ static int vpx3220_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pst
 		case 0x10:
 		case 0x14:
 		case 0x18:
-			std = V4L2_STD_PAL;
+			std &= V4L2_STD_PAL;
 			break;
 
 		case 0x08:
-			std = V4L2_STD_SECAM;
+			std &= V4L2_STD_SECAM;
 			break;
 
 		case 0x04:
 		case 0x0c:
 		case 0x1c:
-			std = V4L2_STD_NTSC;
+			std &= V4L2_STD_NTSC;
 			break;
 		}
+	} else {
+		std = V4L2_STD_UNKNOWN;
 	}
 	if (pstd)
 		*pstd = std;
@@ -442,14 +442,6 @@ static int vpx3220_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-static int vpx3220_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct vpx3220 *decoder = to_vpx3220(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, decoder->ident, 0);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_ctrl_ops vpx3220_ctrl_ops = {
@@ -457,7 +449,6 @@ static const struct v4l2_ctrl_ops vpx3220_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops vpx3220_core_ops = {
-	.g_chip_ident = vpx3220_g_chip_ident,
 	.init = vpx3220_init,
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
@@ -499,7 +490,7 @@ static int vpx3220_probe(struct i2c_client *client,
 		I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	decoder = kzalloc(sizeof(struct vpx3220), GFP_KERNEL);
+	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
 	if (decoder == NULL)
 		return -ENOMEM;
 	sd = &decoder->sd;
@@ -521,7 +512,6 @@ static int vpx3220_probe(struct i2c_client *client,
 		int err = decoder->hdl.error;
 
 		v4l2_ctrl_handler_free(&decoder->hdl);
-		kfree(decoder);
 		return err;
 	}
 	v4l2_ctrl_handler_setup(&decoder->hdl);
@@ -529,7 +519,6 @@ static int vpx3220_probe(struct i2c_client *client,
 	ver = i2c_smbus_read_byte_data(client, 0x00);
 	pn = (i2c_smbus_read_byte_data(client, 0x02) << 8) +
 		i2c_smbus_read_byte_data(client, 0x01);
-	decoder->ident = V4L2_IDENT_VPX3220A;
 	if (ver == 0xec) {
 		switch (pn) {
 		case 0x4680:
@@ -537,11 +526,9 @@ static int vpx3220_probe(struct i2c_client *client,
 			break;
 		case 0x4260:
 			name = "vpx3216b";
-			decoder->ident = V4L2_IDENT_VPX3216B;
 			break;
 		case 0x4280:
 			name = "vpx3214c";
-			decoder->ident = V4L2_IDENT_VPX3214C;
 			break;
 		}
 	}
@@ -566,7 +553,7 @@ static int vpx3220_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&decoder->hdl);
-	kfree(decoder);
+
 	return 0;
 }
 

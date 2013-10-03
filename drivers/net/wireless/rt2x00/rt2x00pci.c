@@ -33,182 +33,6 @@
 #include "rt2x00pci.h"
 
 /*
- * Register access.
- */
-int rt2x00pci_regbusy_read(struct rt2x00_dev *rt2x00dev,
-			   const unsigned int offset,
-			   const struct rt2x00_field32 field,
-			   u32 *reg)
-{
-	unsigned int i;
-
-	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		return 0;
-
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2x00pci_register_read(rt2x00dev, offset, reg);
-		if (!rt2x00_get_field32(*reg, field))
-			return 1;
-		udelay(REGISTER_BUSY_DELAY);
-	}
-
-	ERROR(rt2x00dev, "Indirect register access failed: "
-	      "offset=0x%.08x, value=0x%.08x\n", offset, *reg);
-	*reg = ~0;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rt2x00pci_regbusy_read);
-
-bool rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue = rt2x00dev->rx;
-	struct queue_entry *entry;
-	struct queue_entry_priv_pci *entry_priv;
-	struct skb_frame_desc *skbdesc;
-	int max_rx = 16;
-
-	while (--max_rx) {
-		entry = rt2x00queue_get_entry(queue, Q_INDEX);
-		entry_priv = entry->priv_data;
-
-		if (rt2x00dev->ops->lib->get_entry_state(entry))
-			break;
-
-		/*
-		 * Fill in desc fields of the skb descriptor
-		 */
-		skbdesc = get_skb_frame_desc(entry->skb);
-		skbdesc->desc = entry_priv->desc;
-		skbdesc->desc_len = entry->queue->desc_size;
-
-		/*
-		 * DMA is already done, notify rt2x00lib that
-		 * it finished successfully.
-		 */
-		rt2x00lib_dmastart(entry);
-		rt2x00lib_dmadone(entry);
-
-		/*
-		 * Send the frame to rt2x00lib for further processing.
-		 */
-		rt2x00lib_rxdone(entry, GFP_ATOMIC);
-	}
-
-	return !max_rx;
-}
-EXPORT_SYMBOL_GPL(rt2x00pci_rxdone);
-
-void rt2x00pci_flush_queue(struct data_queue *queue, bool drop)
-{
-	unsigned int i;
-
-	for (i = 0; !rt2x00queue_empty(queue) && i < 10; i++)
-		msleep(10);
-}
-EXPORT_SYMBOL_GPL(rt2x00pci_flush_queue);
-
-/*
- * Device initialization handlers.
- */
-static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
-				     struct data_queue *queue)
-{
-	struct queue_entry_priv_pci *entry_priv;
-	void *addr;
-	dma_addr_t dma;
-	unsigned int i;
-
-	/*
-	 * Allocate DMA memory for descriptor and buffer.
-	 */
-	addr = dma_alloc_coherent(rt2x00dev->dev,
-				  queue->limit * queue->desc_size,
-				  &dma, GFP_KERNEL);
-	if (!addr)
-		return -ENOMEM;
-
-	memset(addr, 0, queue->limit * queue->desc_size);
-
-	/*
-	 * Initialize all queue entries to contain valid addresses.
-	 */
-	for (i = 0; i < queue->limit; i++) {
-		entry_priv = queue->entries[i].priv_data;
-		entry_priv->desc = addr + i * queue->desc_size;
-		entry_priv->desc_dma = dma + i * queue->desc_size;
-	}
-
-	return 0;
-}
-
-static void rt2x00pci_free_queue_dma(struct rt2x00_dev *rt2x00dev,
-				     struct data_queue *queue)
-{
-	struct queue_entry_priv_pci *entry_priv =
-	    queue->entries[0].priv_data;
-
-	if (entry_priv->desc)
-		dma_free_coherent(rt2x00dev->dev,
-				  queue->limit * queue->desc_size,
-				  entry_priv->desc, entry_priv->desc_dma);
-	entry_priv->desc = NULL;
-}
-
-int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-	int status;
-
-	/*
-	 * Allocate DMA
-	 */
-	queue_for_each(rt2x00dev, queue) {
-		status = rt2x00pci_alloc_queue_dma(rt2x00dev, queue);
-		if (status)
-			goto exit;
-	}
-
-	/*
-	 * Register interrupt handler.
-	 */
-	status = request_irq(rt2x00dev->irq,
-			     rt2x00dev->ops->lib->irq_handler,
-			     IRQF_SHARED, rt2x00dev->name, rt2x00dev);
-	if (status) {
-		ERROR(rt2x00dev, "IRQ %d allocation failed (error %d).\n",
-		      rt2x00dev->irq, status);
-		goto exit;
-	}
-
-	return 0;
-
-exit:
-	queue_for_each(rt2x00dev, queue)
-		rt2x00pci_free_queue_dma(rt2x00dev, queue);
-
-	return status;
-}
-EXPORT_SYMBOL_GPL(rt2x00pci_initialize);
-
-void rt2x00pci_uninitialize(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-
-	/*
-	 * Free irq line.
-	 */
-	free_irq(rt2x00dev->irq, rt2x00dev);
-
-	/*
-	 * Free DMA
-	 */
-	queue_for_each(rt2x00dev, queue)
-		rt2x00pci_free_queue_dma(rt2x00dev, queue);
-}
-EXPORT_SYMBOL_GPL(rt2x00pci_uninitialize);
-
-/*
  * PCI driver handlers.
  */
 static void rt2x00pci_free_reg(struct rt2x00_dev *rt2x00dev)
@@ -244,7 +68,7 @@ static int rt2x00pci_alloc_reg(struct rt2x00_dev *rt2x00dev)
 	return 0;
 
 exit:
-	ERROR_PROBE("Failed to allocate registers.\n");
+	rt2x00_probe_err("Failed to allocate registers\n");
 
 	rt2x00pci_free_reg(rt2x00dev);
 
@@ -260,32 +84,34 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 
 	retval = pci_enable_device(pci_dev);
 	if (retval) {
-		ERROR_PROBE("Enable device failed.\n");
+		rt2x00_probe_err("Enable device failed\n");
 		return retval;
 	}
 
 	retval = pci_request_regions(pci_dev, pci_name(pci_dev));
 	if (retval) {
-		ERROR_PROBE("PCI request regions failed.\n");
+		rt2x00_probe_err("PCI request regions failed\n");
 		goto exit_disable_device;
 	}
 
 	pci_set_master(pci_dev);
 
 	if (pci_set_mwi(pci_dev))
-		ERROR_PROBE("MWI not available.\n");
+		rt2x00_probe_err("MWI not available\n");
 
 	if (dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32))) {
-		ERROR_PROBE("PCI DMA not supported.\n");
+		rt2x00_probe_err("PCI DMA not supported\n");
 		retval = -EIO;
 		goto exit_release_regions;
 	}
 
+	pci_enable_msi(pci_dev);
+
 	hw = ieee80211_alloc_hw(sizeof(struct rt2x00_dev), ops->hw);
 	if (!hw) {
-		ERROR_PROBE("Failed to allocate hardware.\n");
+		rt2x00_probe_err("Failed to allocate hardware\n");
 		retval = -ENOMEM;
-		goto exit_release_regions;
+		goto exit_disable_msi;
 	}
 
 	pci_set_drvdata(pci_dev, hw);
@@ -326,6 +152,9 @@ exit_free_reg:
 exit_free_device:
 	ieee80211_free_hw(hw);
 
+exit_disable_msi:
+	pci_disable_msi(pci_dev);
+
 exit_release_regions:
 	pci_release_regions(pci_dev);
 
@@ -349,6 +178,8 @@ void rt2x00pci_remove(struct pci_dev *pci_dev)
 	rt2x00lib_remove_dev(rt2x00dev);
 	rt2x00pci_free_reg(rt2x00dev);
 	ieee80211_free_hw(hw);
+
+	pci_disable_msi(pci_dev);
 
 	/*
 	 * Free the PCI device data.
@@ -383,7 +214,7 @@ int rt2x00pci_resume(struct pci_dev *pci_dev)
 
 	if (pci_set_power_state(pci_dev, PCI_D0) ||
 	    pci_enable_device(pci_dev)) {
-		ERROR(rt2x00dev, "Failed to resume device.\n");
+		rt2x00_err(rt2x00dev, "Failed to resume device\n");
 		return -EIO;
 	}
 

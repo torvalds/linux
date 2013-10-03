@@ -1,6 +1,6 @@
 config NET_CALXEDA_XGMAC
 	tristate "Calxeda 1G/10G XGMAC Ethernet driver"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && HAS_DMA
 	select CRC32
 	help
 	  This is the driver for the XGMAC Ethernet IP block found on Calxeda

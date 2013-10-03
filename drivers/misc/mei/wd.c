@@ -31,12 +31,6 @@
 static const u8 mei_start_wd_params[] = { 0x02, 0x12, 0x13, 0x10 };
 static const u8 mei_stop_wd_params[] = { 0x02, 0x02, 0x14, 0x10 };
 
-const u8 mei_wd_state_independence_msg[3][4] = {
-	{0x05, 0x02, 0x51, 0x10},
-	{0x05, 0x02, 0x52, 0x10},
-	{0x07, 0x02, 0x01, 0x10}
-};
-
 /*
  * AMT Watchdog Device
  */
@@ -58,6 +52,7 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
  * mei_wd_host_init - connect to the watchdog client
  *
  * @dev: the device structure
+ *
  * returns -ENENT if wd client cannot be found
  *         -EIO if write has failed
  *         0 on success
@@ -317,7 +312,8 @@ end:
  *
  * returns 0 if success, negative errno code for failure
  */
-static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev, unsigned int timeout)
+static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev,
+		unsigned int timeout)
 {
 	struct mei_device *dev;
 

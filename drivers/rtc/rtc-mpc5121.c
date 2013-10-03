@@ -68,7 +68,7 @@ struct mpc5121_rtc_regs {
 	u32 target_time;	/* RTC + 0x20 */
 	/*
 	 * actual_time:
-	 * 	readonly time since VBAT_RTC was last connected
+	 *	readonly time since VBAT_RTC was last connected
 	 */
 	u32 actual_time;	/* RTC + 0x24 */
 	u32 keep_alive;		/* RTC + 0x28 */
@@ -312,20 +312,19 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 	struct mpc5121_rtc_data *rtc;
 	int err = 0;
 
-	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc(&op->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
 	rtc->regs = of_iomap(op->dev.of_node, 0);
 	if (!rtc->regs) {
 		dev_err(&op->dev, "%s: couldn't map io space\n", __func__);
-		err = -ENOSYS;
-		goto out_free;
+		return -ENOSYS;
 	}
 
 	device_init_wakeup(&op->dev, 1);
 
-	dev_set_drvdata(&op->dev, rtc);
+	platform_set_drvdata(op, rtc);
 
 	rtc->irq = irq_of_parse_and_map(op->dev.of_node, 1);
 	err = request_irq(rtc->irq, mpc5121_rtc_handler, 0,
@@ -354,10 +353,10 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 			out_be32(&rtc->regs->keep_alive, ka);
 		}
 
-		rtc->rtc = rtc_device_register("mpc5121-rtc", &op->dev,
+		rtc->rtc = devm_rtc_device_register(&op->dev, "mpc5121-rtc",
 						&mpc5121_rtc_ops, THIS_MODULE);
 	} else {
-		rtc->rtc = rtc_device_register("mpc5200-rtc", &op->dev,
+		rtc->rtc = devm_rtc_device_register(&op->dev, "mpc5200-rtc",
 						&mpc5200_rtc_ops, THIS_MODULE);
 	}
 
@@ -377,29 +376,24 @@ out_dispose2:
 out_dispose:
 	irq_dispose_mapping(rtc->irq);
 	iounmap(rtc->regs);
-out_free:
-	kfree(rtc);
 
 	return err;
 }
 
 static int mpc5121_rtc_remove(struct platform_device *op)
 {
-	struct mpc5121_rtc_data *rtc = dev_get_drvdata(&op->dev);
+	struct mpc5121_rtc_data *rtc = platform_get_drvdata(op);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 
 	/* disable interrupt, so there are no nasty surprises */
 	out_8(&regs->alm_enable, 0);
 	out_8(&regs->int_enable, in_8(&regs->int_enable) & ~0x1);
 
-	rtc_device_unregister(rtc->rtc);
 	iounmap(rtc->regs);
 	free_irq(rtc->irq, &op->dev);
 	free_irq(rtc->irq_periodic, &op->dev);
 	irq_dispose_mapping(rtc->irq);
 	irq_dispose_mapping(rtc->irq_periodic);
-	dev_set_drvdata(&op->dev, NULL);
-	kfree(rtc);
 
 	return 0;
 }

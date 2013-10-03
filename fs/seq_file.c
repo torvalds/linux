@@ -599,6 +599,24 @@ int single_open(struct file *file, int (*show)(struct seq_file *, void *),
 }
 EXPORT_SYMBOL(single_open);
 
+int single_open_size(struct file *file, int (*show)(struct seq_file *, void *),
+		void *data, size_t size)
+{
+	char *buf = kmalloc(size, GFP_KERNEL);
+	int ret;
+	if (!buf)
+		return -ENOMEM;
+	ret = single_open(file, show, data);
+	if (ret) {
+		kfree(buf);
+		return ret;
+	}
+	((struct seq_file *)file->private_data)->buf = buf;
+	((struct seq_file *)file->private_data)->size = size;
+	return 0;
+}
+EXPORT_SYMBOL(single_open_size);
+
 int single_release(struct inode *inode, struct file *file)
 {
 	const struct seq_operations *op = ((struct seq_file *)file->private_data)->op;
@@ -903,3 +921,57 @@ struct hlist_node *seq_hlist_next_rcu(void *v,
 		return rcu_dereference(node->next);
 }
 EXPORT_SYMBOL(seq_hlist_next_rcu);
+
+/**
+ * seq_hlist_start_precpu - start an iteration of a percpu hlist array
+ * @head: pointer to percpu array of struct hlist_heads
+ * @cpu:  pointer to cpu "cursor"
+ * @pos:  start position of sequence
+ *
+ * Called at seq_file->op->start().
+ */
+struct hlist_node *
+seq_hlist_start_percpu(struct hlist_head __percpu *head, int *cpu, loff_t pos)
+{
+	struct hlist_node *node;
+
+	for_each_possible_cpu(*cpu) {
+		hlist_for_each(node, per_cpu_ptr(head, *cpu)) {
+			if (pos-- == 0)
+				return node;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(seq_hlist_start_percpu);
+
+/**
+ * seq_hlist_next_percpu - move to the next position of the percpu hlist array
+ * @v:    pointer to current hlist_node
+ * @head: pointer to percpu array of struct hlist_heads
+ * @cpu:  pointer to cpu "cursor"
+ * @pos:  start position of sequence
+ *
+ * Called at seq_file->op->next().
+ */
+struct hlist_node *
+seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head,
+			int *cpu, loff_t *pos)
+{
+	struct hlist_node *node = v;
+
+	++*pos;
+
+	if (node->next)
+		return node->next;
+
+	for (*cpu = cpumask_next(*cpu, cpu_possible_mask); *cpu < nr_cpu_ids;
+	     *cpu = cpumask_next(*cpu, cpu_possible_mask)) {
+		struct hlist_head *bucket = per_cpu_ptr(head, *cpu);
+
+		if (!hlist_empty(bucket))
+			return bucket->first;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(seq_hlist_next_percpu);

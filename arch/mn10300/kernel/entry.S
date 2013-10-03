@@ -60,6 +60,7 @@ ENTRY(ret_from_kernel_thread)
 	mov	(REG_D0,fp),d0
 	mov	(REG_A0,fp),a0
 	calls	(a0)
+	GET_THREAD_INFO a2		# A2 must be set on return from sys_exit()
 	clr	d0
 	mov	d0,(REG_D0,fp)
 	jmp	syscall_exit
@@ -107,10 +108,10 @@ syscall_exit_work:
 	and	EPSW_nSL,d0
 	beq	resume_kernel		# returning to supervisor mode
 
-	btst	_TIF_SYSCALL_TRACE,d2
-	beq	work_pending
 	LOCAL_IRQ_ENABLE		# could let syscall_trace_exit() call
 					# schedule() instead
+	btst	_TIF_SYSCALL_TRACE,d2
+	beq	work_pending
 	mov	fp,d0
 	call	syscall_trace_exit[],0	# do_syscall_trace(regs)
 	jmp	resume_userspace
@@ -123,6 +124,7 @@ work_pending:
 work_resched:
 	call	schedule[],0
 
+resume_userspace:
 	# make sure we don't miss an interrupt setting need_resched or
 	# sigpending between sampling and the rti
 	LOCAL_IRQ_DISABLE
@@ -131,6 +133,8 @@ work_resched:
 	mov	(TI_flags,a2),d2
 	btst	_TIF_WORK_MASK,d2
 	beq	restore_all
+
+	LOCAL_IRQ_ENABLE
 	btst	_TIF_NEED_RESCHED,d2
 	bne	work_resched
 
@@ -167,21 +171,10 @@ ret_from_intr:
 	mov	(REG_EPSW,fp),d0	# need to deliver signals before
 					# returning to userspace
 	and	EPSW_nSL,d0
-	beq	resume_kernel		# returning to supervisor mode
-
-ENTRY(resume_userspace)
-	# make sure we don't miss an interrupt setting need_resched or
-	# sigpending between sampling and the rti
-	LOCAL_IRQ_DISABLE
-
-	# is there any work to be done on int/exception return?
-	mov	(TI_flags,a2),d2
-	btst	_TIF_WORK_MASK,d2
-	bne	work_pending
-	jmp	restore_all
+	bne	resume_userspace	# returning to userspace
 
 #ifdef CONFIG_PREEMPT
-ENTRY(resume_kernel)
+resume_kernel:
 	LOCAL_IRQ_DISABLE
 	mov	(TI_preempt_count,a2),d0	# non-zero preempt_count ?
 	cmp	0,d0
@@ -196,6 +189,8 @@ need_resched:
 	bne	restore_all
 	call	preempt_schedule_irq[],0
 	jmp	need_resched
+#else
+	jmp	resume_kernel
 #endif
 
 

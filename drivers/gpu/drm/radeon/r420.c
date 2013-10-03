@@ -160,18 +160,25 @@ void r420_pipes_init(struct radeon_device *rdev)
 
 u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg)
 {
+	unsigned long flags;
 	u32 r;
 
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_0001F8_MC_IND_INDEX, S_0001F8_MC_IND_ADDR(reg));
 	r = RREG32(R_0001FC_MC_IND_DATA);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 	return r;
 }
 
 void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_0001F8_MC_IND_INDEX, S_0001F8_MC_IND_ADDR(reg) |
 		S_0001F8_MC_IND_WR_EN(1));
 	WREG32(R_0001FC_MC_IND_DATA, v);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
 static void r420_debugfs(struct radeon_device *rdev)
@@ -265,6 +272,12 @@ static int r420_startup(struct radeon_device *rdev)
 	}
 
 	/* Enable IRQ */
+	if (!rdev->irq.installed) {
+		r = radeon_irq_kms_init(rdev);
+		if (r)
+			return r;
+	}
+
 	r100_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
@@ -408,10 +421,6 @@ int r420_init(struct radeon_device *rdev)
 	r420_debugfs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
-	if (r) {
-		return r;
-	}
-	r = radeon_irq_kms_init(rdev);
 	if (r) {
 		return r;
 	}

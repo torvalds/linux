@@ -183,7 +183,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	else
 		flock.length = fl->fl_end - fl->fl_start + 1;
 	flock.proc_id = fl->fl_pid;
-	flock.client_id = utsname()->nodename;
+	flock.client_id = fid->clnt->name;
 	if (IS_SETLKW(cmd))
 		flock.flags = P9_LOCK_FLAGS_BLOCK;
 
@@ -260,7 +260,7 @@ static int v9fs_file_getlock(struct file *filp, struct file_lock *fl)
 	else
 		glock.length = fl->fl_end - fl->fl_start + 1;
 	glock.proc_id = fl->fl_pid;
-	glock.client_id = utsname()->nodename;
+	glock.client_id = fid->clnt->name;
 
 	res = p9_client_getlock_dotl(fid, &glock);
 	if (res < 0)

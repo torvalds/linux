@@ -381,8 +381,6 @@ memory_squeeze:
 					dev->stats.rx_packets++;
 					dev->stats.rx_bytes += len;
 				} else {
-					printk(KERN_NOTICE "%s: Memory squeeze, deferring packet.\n",
-						dev->name);
 					dev->stats.rx_dropped++;
 				}
 			} else {
@@ -723,7 +721,7 @@ static const struct net_device_ops sgiseeq_netdev_ops = {
 
 static int sgiseeq_probe(struct platform_device *pdev)
 {
-	struct sgiseeq_platform_data *pd = pdev->dev.platform_data;
+	struct sgiseeq_platform_data *pd = dev_get_platdata(&pdev->dev);
 	struct hpc3_regs *hpcregs = pd->hpc;
 	struct sgiseeq_init_block *sr;
 	unsigned int irq = pd->irq;
@@ -820,7 +818,6 @@ static int __exit sgiseeq_remove(struct platform_device *pdev)
 	dma_free_noncoherent(&pdev->dev, sizeof(*sp->srings), sp->srings,
 			     sp->srings_dma);
 	free_netdev(dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

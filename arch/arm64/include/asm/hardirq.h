@@ -49,4 +49,9 @@ static inline void ack_bad_irq(unsigned int irq)
 
 extern void handle_IRQ(unsigned int, struct pt_regs *);
 
+/*
+ * No arch-specific IRQ flags.
+ */
+#define set_irq_flags(irq, flags)
+
 #endif /* __ASM_HARDIRQ_H */

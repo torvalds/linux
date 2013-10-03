@@ -3,7 +3,6 @@
 #
 config USB_DEBUG
 	bool "USB verbose debug messages"
-	depends on USB
 	help
 	  Say Y here if you want the USB core & hub drivers to produce a bunch
 	  of debug messages to the system log. Select this if you are having a
@@ -11,7 +10,6 @@ config USB_DEBUG
 
 config USB_ANNOUNCE_NEW_DEVICES
 	bool "USB announce new devices"
-	depends on USB
 	default N
 	help
 	  Say Y here if you want the USB core to always announce the
@@ -25,11 +23,24 @@ config USB_ANNOUNCE_NEW_DEVICES
 	  log, or have any doubts about this, say N here.
 
 comment "Miscellaneous USB options"
-	depends on USB
+
+config USB_DEFAULT_PERSIST
+	bool "Enable USB persist by default"
+	default y
+	help
+	  Say N here if you don't want USB power session persistance
+	  enabled by default.  If you say N it will make suspended USB
+	  devices that lose power get reenumerated as if they had been
+	  unplugged, causing any mounted filesystems to be lost.  The
+	  persist feature can still be enabled for individual devices
+	  through the power/persist sysfs node. See
+	  Documentation/usb/persist.txt for more info.
+
+	  If you have any questions about this, say Y here, only say N
+	  if you know exactly what you are doing.
 
 config USB_DYNAMIC_MINORS
 	bool "Dynamic USB minor allocation"
-	depends on USB
 	help
 	  If you say Y here, the USB subsystem will use dynamic minor
 	  allocation for any device that uses the USB major number.
@@ -38,26 +49,9 @@ config USB_DYNAMIC_MINORS
 
 	  If you are unsure about this, say N here.
 
-config USB_SUSPEND
-	bool "USB runtime power management (autosuspend) and wakeup"
-	depends on USB && PM_RUNTIME
-	help
-	  If you say Y here, you can use driver calls or the sysfs
-	  "power/control" file to enable or disable autosuspend for
-	  individual USB peripherals (see
-	  Documentation/usb/power-management.txt for more details).
-
-	  Also, USB "remote wakeup" signaling is supported, whereby some
-	  USB devices (like keyboards and network adapters) can wake up
-	  their parent hub.  That wakeup cascades up the USB tree, and
-	  could wake the system from states like suspend-to-RAM.
-
-	  If you are unsure about this, say N here.
-
 config USB_OTG
 	bool "OTG support"
-	depends on USB
-	depends on USB_SUSPEND
+	depends on PM_RUNTIME
 	default n
 	help
 	  The most notable feature of USB OTG is support for a

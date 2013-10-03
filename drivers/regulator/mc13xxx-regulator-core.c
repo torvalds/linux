@@ -180,14 +180,12 @@ EXPORT_SYMBOL_GPL(mc13xxx_get_num_regulators_dt);
 
 struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
-	int num_regulators, int *num_parsed)
+	int num_regulators)
 {
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
 	struct mc13xxx_regulator_init_data *data, *p;
 	struct device_node *parent, *child;
 	int i, parsed = 0;
-
-	*num_parsed = 0;
 
 	of_node_get(pdev->dev.parent->of_node);
 	parent = of_find_node_by_name(pdev->dev.parent->of_node, "regulators");
@@ -204,10 +202,13 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 	p = data;
 
 	for_each_child_of_node(parent, child) {
+		int found = 0;
+
 		for (i = 0; i < num_regulators; i++) {
+			if (!regulators[i].desc.name)
+				continue;
 			if (!of_node_cmp(child->name,
 					 regulators[i].desc.name)) {
-
 				p->id = i;
 				p->init_data = of_get_regulator_init_data(
 							&pdev->dev, child);
@@ -215,13 +216,19 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 				p++;
 
 				parsed++;
+				found = 1;
 				break;
 			}
 		}
+
+		if (!found)
+			dev_warn(&pdev->dev,
+				 "Unknown regulator: %s\n", child->name);
 	}
 	of_node_put(parent);
 
-	*num_parsed = parsed;
+	priv->num_regulators = parsed;
+
 	return data;
 }
 EXPORT_SYMBOL_GPL(mc13xxx_parse_regulators_dt);

@@ -357,7 +357,7 @@ static int s5c73m3_load_fw(struct v4l2_subdev *sd)
 		return -EINVAL;
 	}
 
-	v4l2_info(sd, "Loading firmware (%s, %d B)\n", fw_name, fw->size);
+	v4l2_info(sd, "Loading firmware (%s, %zu B)\n", fw_name, fw->size);
 
 	ret = s5c73m3_spi_write(state, fw->data, fw->size, 64);
 
@@ -956,7 +956,7 @@ static int s5c73m3_oif_enum_frame_interval(struct v4l2_subdev *sd,
 
 	if (fie->pad != OIF_SOURCE_PAD)
 		return -EINVAL;
-	if (fie->index > ARRAY_SIZE(s5c73m3_intervals))
+	if (fie->index >= ARRAY_SIZE(s5c73m3_intervals))
 		return -EINVAL;
 
 	mutex_lock(&state->lock);
@@ -1111,6 +1111,11 @@ static int s5c73m3_oif_set_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
 		*mf = fmt->format;
+		if (fmt->pad == OIF_ISP_PAD) {
+			mf = v4l2_subdev_get_try_format(fh, OIF_SOURCE_PAD);
+			mf->width = fmt->format.width;
+			mf->height = fmt->format.height;
+		}
 	} else {
 		switch (fmt->pad) {
 		case OIF_ISP_PAD:
@@ -1385,9 +1390,12 @@ static int __s5c73m3_power_off(struct s5c73m3 *state)
 	}
 	return 0;
 err:
-	for (++i; i < S5C73M3_MAX_SUPPLIES; i++)
-		regulator_enable(state->supplies[i].consumer);
-
+	for (++i; i < S5C73M3_MAX_SUPPLIES; i++) {
+		int r = regulator_enable(state->supplies[i].consumer);
+		if (r < 0)
+			v4l2_err(&state->oif_sd, "Failed to reenable %s: %d\n",
+				 state->supplies[i].supply, r);
+	}
 	return ret;
 }
 
@@ -1457,6 +1465,12 @@ static int s5c73m3_oif_registered(struct v4l2_subdev *sd)
 	return ret;
 }
 
+static void s5c73m3_oif_unregistered(struct v4l2_subdev *sd)
+{
+	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
+	v4l2_device_unregister_subdev(&state->sensor_sd);
+}
+
 static const struct v4l2_subdev_internal_ops s5c73m3_internal_ops = {
 	.open		= s5c73m3_open,
 };
@@ -1474,6 +1488,7 @@ static const struct v4l2_subdev_ops s5c73m3_subdev_ops = {
 
 static const struct v4l2_subdev_internal_ops oif_internal_ops = {
 	.registered	= s5c73m3_oif_registered,
+	.unregistered	= s5c73m3_oif_unregistered,
 	.open		= s5c73m3_oif_open,
 };
 
@@ -1504,59 +1519,40 @@ static const struct v4l2_subdev_ops oif_subdev_ops = {
 	.video	= &s5c73m3_oif_video_ops,
 };
 
-static int s5c73m3_configure_gpio(int nr, int val, const char *name)
-{
-	unsigned long flags = val ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-	int ret;
-
-	if (!gpio_is_valid(nr))
-		return 0;
-	ret = gpio_request_one(nr, flags, name);
-	if (!ret)
-		gpio_export(nr, 0);
-	return ret;
-}
-
-static int s5c73m3_free_gpios(struct s5c73m3 *state)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(state->gpio); i++) {
-		if (!gpio_is_valid(state->gpio[i].gpio))
-			continue;
-		gpio_free(state->gpio[i].gpio);
-		state->gpio[i].gpio = -EINVAL;
-	}
-	return 0;
-}
-
 static int s5c73m3_configure_gpios(struct s5c73m3 *state,
 				   const struct s5c73m3_platform_data *pdata)
 {
-	const struct s5c73m3_gpio *gpio = &pdata->gpio_stby;
+	struct device *dev = &state->i2c_client->dev;
+	const struct s5c73m3_gpio *gpio;
+	unsigned long flags;
 	int ret;
 
 	state->gpio[STBY].gpio = -EINVAL;
 	state->gpio[RST].gpio  = -EINVAL;
 
-	ret = s5c73m3_configure_gpio(gpio->gpio, gpio->level, "S5C73M3_STBY");
-	if (ret) {
-		s5c73m3_free_gpios(state);
-		return ret;
+	gpio = &pdata->gpio_stby;
+	if (gpio_is_valid(gpio->gpio)) {
+		flags = (gpio->level ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW)
+		      | GPIOF_EXPORT;
+		ret = devm_gpio_request_one(dev, gpio->gpio, flags,
+					    "S5C73M3_STBY");
+		if (ret < 0)
+			return ret;
+
+		state->gpio[STBY] = *gpio;
 	}
-	state->gpio[STBY] = *gpio;
-	if (gpio_is_valid(gpio->gpio))
-		gpio_set_value(gpio->gpio, 0);
 
 	gpio = &pdata->gpio_reset;
-	ret = s5c73m3_configure_gpio(gpio->gpio, gpio->level, "S5C73M3_RST");
-	if (ret) {
-		s5c73m3_free_gpios(state);
-		return ret;
+	if (gpio_is_valid(gpio->gpio)) {
+		flags = (gpio->level ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW)
+		      | GPIOF_EXPORT;
+		ret = devm_gpio_request_one(dev, gpio->gpio, flags,
+					    "S5C73M3_RST");
+		if (ret < 0)
+			return ret;
+
+		state->gpio[RST] = *gpio;
 	}
-	state->gpio[RST] = *gpio;
-	if (gpio_is_valid(gpio->gpio))
-		gpio_set_value(gpio->gpio, 0);
 
 	return 0;
 }
@@ -1619,10 +1615,11 @@ static int s5c73m3_probe(struct i2c_client *client,
 
 	state->mclk_frequency = pdata->mclk_frequency;
 	state->bus_type = pdata->bus_type;
+	state->i2c_client = client;
 
 	ret = s5c73m3_configure_gpios(state, pdata);
 	if (ret)
-		goto out_err1;
+		goto out_err;
 
 	for (i = 0; i < S5C73M3_MAX_SUPPLIES; i++)
 		state->supplies[i].supply = s5c73m3_supply_names[i];
@@ -1631,12 +1628,12 @@ static int s5c73m3_probe(struct i2c_client *client,
 			       state->supplies);
 	if (ret) {
 		dev_err(dev, "failed to get regulators\n");
-		goto out_err2;
+		goto out_err;
 	}
 
 	ret = s5c73m3_init_controls(state);
 	if (ret)
-		goto out_err2;
+		goto out_err;
 
 	state->sensor_pix_size[RES_ISP] = &s5c73m3_isp_resolutions[1];
 	state->sensor_pix_size[RES_JPEG] = &s5c73m3_jpeg_resolutions[1];
@@ -1652,32 +1649,31 @@ static int s5c73m3_probe(struct i2c_client *client,
 
 	ret = s5c73m3_register_spi_driver(state);
 	if (ret < 0)
-		goto out_err2;
-
-	state->i2c_client = client;
+		goto out_err;
 
 	v4l2_info(sd, "%s: completed succesfully\n", __func__);
 	return 0;
 
-out_err2:
-	s5c73m3_free_gpios(state);
-out_err1:
+out_err:
 	media_entity_cleanup(&sd->entity);
 	return ret;
 }
 
 static int s5c73m3_remove(struct i2c_client *client)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct s5c73m3 *state = sensor_sd_to_s5c73m3(sd);
+	struct v4l2_subdev *oif_sd = i2c_get_clientdata(client);
+	struct s5c73m3 *state = oif_sd_to_s5c73m3(oif_sd);
+	struct v4l2_subdev *sensor_sd = &state->sensor_sd;
 
-	v4l2_device_unregister_subdev(sd);
+	v4l2_device_unregister_subdev(oif_sd);
 
-	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	media_entity_cleanup(&sd->entity);
+	v4l2_ctrl_handler_free(oif_sd->ctrl_handler);
+	media_entity_cleanup(&oif_sd->entity);
+
+	v4l2_device_unregister_subdev(sensor_sd);
+	media_entity_cleanup(&sensor_sd->entity);
 
 	s5c73m3_unregister_spi_driver(state);
-	s5c73m3_free_gpios(state);
 
 	return 0;
 }

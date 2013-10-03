@@ -1,0 +1,74 @@
+/*
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx6sl.dtsi"
+
+/ {
+	model = "Freescale i.MX6 SoloLite EVK Board";
+	compatible = "fsl,imx6sl-evk", "fsl,imx6sl";
+
+	memory {
+		reg = <0x80000000 0x40000000>;
+	};
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec_1>;
+	phy-mode = "rmii";
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hog {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX6SL_PAD_KEY_ROW7__GPIO4_IO07    0x17059
+				MX6SL_PAD_KEY_COL7__GPIO4_IO06    0x17059
+				MX6SL_PAD_SD2_DAT7__GPIO5_IO00    0x17059
+				MX6SL_PAD_SD2_DAT6__GPIO4_IO29    0x17059
+				MX6SL_PAD_REF_CLK_32K__GPIO3_IO22 0x17059
+			>;
+		};
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1_1>;
+	status = "okay";
+};
+
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1_1>;
+	bus-width = <8>;
+	cd-gpios = <&gpio4 7 0>;
+	wp-gpios = <&gpio4 6 0>;
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2_1>;
+	cd-gpios = <&gpio5 0 0>;
+	wp-gpios = <&gpio4 29 0>;
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3_1>;
+	cd-gpios = <&gpio3 22 0>;
+	status = "okay";
+};

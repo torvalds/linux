@@ -176,7 +176,7 @@ static u32	mac[  SBNI_MAX_NUM_CARDS ] __initdata;
 
 #ifndef MODULE
 typedef u32  iarr[];
-static iarr __initdata *dest[5] = { &io, &irq, &baud, &rxl, &mac };
+static iarr *dest[5] __initdata = { &io, &irq, &baud, &rxl, &mac };
 #endif
 
 /* A zero-terminated list of I/O addresses to be probed on ISA bus */

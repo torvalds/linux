@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2013 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006, 2007, 2008, 2010 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -34,8 +35,10 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/kthread.h>
 
 #include "qib_verbs.h"
+#include "qib.h"
 
 /**
  * qib_cq_enter - add a new entry to the completion queue
@@ -102,13 +105,18 @@ void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int solicited)
 	if (cq->notify == IB_CQ_NEXT_COMP ||
 	    (cq->notify == IB_CQ_SOLICITED &&
 	     (solicited || entry->status != IB_WC_SUCCESS))) {
-		cq->notify = IB_CQ_NONE;
-		cq->triggered++;
+		struct kthread_worker *worker;
 		/*
 		 * This will cause send_complete() to be called in
 		 * another thread.
 		 */
-		queue_work(qib_cq_wq, &cq->comptask);
+		smp_rmb();
+		worker = cq->dd->worker;
+		if (likely(worker)) {
+			cq->notify = IB_CQ_NONE;
+			cq->triggered++;
+			queue_kthread_work(worker, &cq->comptask);
+		}
 	}
 
 	spin_unlock_irqrestore(&cq->lock, flags);
@@ -163,7 +171,7 @@ bail:
 	return npolled;
 }
 
-static void send_complete(struct work_struct *work)
+static void send_complete(struct kthread_work *work)
 {
 	struct qib_cq *cq = container_of(work, struct qib_cq, comptask);
 
@@ -287,11 +295,12 @@ struct ib_cq *qib_create_cq(struct ib_device *ibdev, int entries,
 	 * The number of entries should be >= the number requested or return
 	 * an error.
 	 */
+	cq->dd = dd_from_dev(dev);
 	cq->ibcq.cqe = entries;
 	cq->notify = IB_CQ_NONE;
 	cq->triggered = 0;
 	spin_lock_init(&cq->lock);
-	INIT_WORK(&cq->comptask, send_complete);
+	init_kthread_work(&cq->comptask, send_complete);
 	wc->head = 0;
 	wc->tail = 0;
 	cq->queue = wc;
@@ -323,7 +332,7 @@ int qib_destroy_cq(struct ib_cq *ibcq)
 	struct qib_ibdev *dev = to_idev(ibcq->device);
 	struct qib_cq *cq = to_icq(ibcq);
 
-	flush_work(&cq->comptask);
+	flush_kthread_work(&cq->comptask);
 	spin_lock(&dev->n_cqs_lock);
 	dev->n_cqs_allocated--;
 	spin_unlock(&dev->n_cqs_lock);
@@ -482,4 +491,50 @@ bail_free:
 	vfree(wc);
 bail:
 	return ret;
+}
+
+int qib_cq_init(struct qib_devdata *dd)
+{
+	int ret = 0;
+	int cpu;
+	struct task_struct *task;
+
+	if (dd->worker)
+		return 0;
+	dd->worker = kzalloc(sizeof(*dd->worker), GFP_KERNEL);
+	if (!dd->worker)
+		return -ENOMEM;
+	init_kthread_worker(dd->worker);
+	task = kthread_create_on_node(
+		kthread_worker_fn,
+		dd->worker,
+		dd->assigned_node_id,
+		"qib_cq%d", dd->unit);
+	if (IS_ERR(task))
+		goto task_fail;
+	cpu = cpumask_first(cpumask_of_node(dd->assigned_node_id));
+	kthread_bind(task, cpu);
+	wake_up_process(task);
+out:
+	return ret;
+task_fail:
+	ret = PTR_ERR(task);
+	kfree(dd->worker);
+	dd->worker = NULL;
+	goto out;
+}
+
+void qib_cq_exit(struct qib_devdata *dd)
+{
+	struct kthread_worker *worker;
+
+	worker = dd->worker;
+	if (!worker)
+		return;
+	/* blocks future queuing from send_complete() */
+	dd->worker = NULL;
+	smp_wmb();
+	flush_kthread_worker(worker);
+	kthread_stop(worker->task);
+	kfree(worker);
 }

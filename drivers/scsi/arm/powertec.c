@@ -237,32 +237,20 @@ powertecscsi_set_proc_info(struct Scsi_Host *host, char *buffer, int length)
  *	      inout   - 0 for reading, 1 for writing.
  * Returns  : length of data written to buffer.
  */
-int powertecscsi_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
-			    int length, int inout)
+static int powertecscsi_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
 	struct powertec_info *info;
-	char *p = buffer;
-	int pos;
-
-	if (inout == 1)
-		return powertecscsi_set_proc_info(host, buffer, length);
 
 	info = (struct powertec_info *)host->hostdata;
 
-	p += sprintf(p, "PowerTec SCSI driver v%s\n", VERSION);
-	p += fas216_print_host(&info->info, p);
-	p += sprintf(p, "Term    : o%s\n",
+	seq_printf(m, "PowerTec SCSI driver v%s\n", VERSION);
+	fas216_print_host(&info->info, m);
+	seq_printf(m, "Term    : o%s\n",
 			info->term_ctl ? "n" : "ff");
 
-	p += fas216_print_stats(&info->info, p);
-	p += fas216_print_devices(&info->info, p);
-
-	*start = buffer + offset;
-	pos = p - buffer - offset;
-	if (pos > length)
-		pos = length;
-
-	return pos;
+	fas216_print_stats(&info->info, m);
+	fas216_print_devices(&info->info, m);
+	return 0;
 }
 
 static ssize_t powertecscsi_show_term(struct device *dev, struct device_attribute *attr, char *buf)
@@ -291,7 +279,8 @@ static DEVICE_ATTR(bus_term, S_IRUGO | S_IWUSR,
 
 static struct scsi_host_template powertecscsi_template = {
 	.module				= THIS_MODULE,
-	.proc_info			= powertecscsi_proc_info,
+	.show_info			= powertecscsi_show_info,
+	.write_info			= powertecscsi_set_proc_info,
 	.name				= "PowerTec SCSI",
 	.info				= powertecscsi_info,
 	.queuecommand			= fas216_queue_command,

@@ -25,7 +25,7 @@
 #include <drm/drmP.h>
 #include "nouveau_drm.h"
 #include "nouveau_bios.h"
-#include "nouveau_hw.h"
+#include "dispnv04/hw.h"
 #include "nouveau_pm.h"
 #include "nouveau_hwsq.h"
 
@@ -493,12 +493,12 @@ mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
 	struct hwsq_ucode *hwsq = &info->mclk_hwsq;
 
 	if (mr <= 1) {
-		if (pfb->ram.ranks > 1)
+		if (pfb->ram->ranks > 1)
 			hwsq_wr32(hwsq, 0x1002c8 + ((mr - 0) * 4), data);
 		hwsq_wr32(hwsq, 0x1002c0 + ((mr - 0) * 4), data);
 	} else
 	if (mr <= 3) {
-		if (pfb->ram.ranks > 1)
+		if (pfb->ram->ranks > 1)
 			hwsq_wr32(hwsq, 0x1002e8 + ((mr - 2) * 4), data);
 		hwsq_wr32(hwsq, 0x1002e0 + ((mr - 2) * 4), data);
 	}

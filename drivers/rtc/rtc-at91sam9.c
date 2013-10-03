@@ -20,6 +20,7 @@
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/platform_data/atmel.h>
+#include <linux/io.h>
 
 #include <mach/at91_rtt.h>
 #include <mach/cpu.h>
@@ -309,7 +310,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	rtc = kzalloc(sizeof *rtc, GFP_KERNEL);
+	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
@@ -320,18 +321,17 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		device_init_wakeup(&pdev->dev, 1);
 
 	platform_set_drvdata(pdev, rtc);
-	rtc->rtt = ioremap(r->start, resource_size(r));
+	rtc->rtt = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!rtc->rtt) {
 		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
-		ret = -ENOMEM;
-		goto fail;
+		return -ENOMEM;
 	}
 
-	rtc->gpbr = ioremap(r_gpbr->start, resource_size(r_gpbr));
+	rtc->gpbr = devm_ioremap(&pdev->dev, r_gpbr->start,
+				resource_size(r_gpbr));
 	if (!rtc->gpbr) {
 		dev_err(&pdev->dev, "failed to map gpbr registers, aborting.\n");
-		ret = -ENOMEM;
-		goto fail_gpbr;
+		return -ENOMEM;
 	}
 
 	mr = rtt_readl(rtc, MR);
@@ -346,20 +346,17 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	mr &= ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN);
 	rtt_writel(rtc, MR, mr);
 
-	rtc->rtcdev = rtc_device_register(pdev->name, &pdev->dev,
-				&at91_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtcdev)) {
-		ret = PTR_ERR(rtc->rtcdev);
-		goto fail_register;
-	}
+	rtc->rtcdev = devm_rtc_device_register(&pdev->dev, pdev->name,
+					&at91_rtc_ops, THIS_MODULE);
+	if (IS_ERR(rtc->rtcdev))
+		return PTR_ERR(rtc->rtcdev);
 
 	/* register irq handler after we know what name we'll use */
-	ret = request_irq(rtc->irq, at91_rtc_interrupt, IRQF_SHARED,
-				dev_name(&rtc->rtcdev->dev), rtc);
+	ret = devm_request_irq(&pdev->dev, rtc->irq, at91_rtc_interrupt,
+				IRQF_SHARED, dev_name(&rtc->rtcdev->dev), rtc);
 	if (ret) {
 		dev_dbg(&pdev->dev, "can't share IRQ %d?\n", rtc->irq);
-		rtc_device_unregister(rtc->rtcdev);
-		goto fail_register;
+		return ret;
 	}
 
 	/* NOTE:  sam9260 rev A silicon has a ROM bug which resets the
@@ -373,15 +370,6 @@ static int at91_rtc_probe(struct platform_device *pdev)
 				dev_name(&rtc->rtcdev->dev));
 
 	return 0;
-
-fail_register:
-	iounmap(rtc->gpbr);
-fail_gpbr:
-	iounmap(rtc->rtt);
-fail:
-	platform_set_drvdata(pdev, NULL);
-	kfree(rtc);
-	return ret;
 }
 
 /*
@@ -394,14 +382,7 @@ static int at91_rtc_remove(struct platform_device *pdev)
 
 	/* disable all interrupts */
 	rtt_writel(rtc, MR, mr & ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN));
-	free_irq(rtc->irq, rtc);
 
-	rtc_device_unregister(rtc->rtcdev);
-
-	iounmap(rtc->gpbr);
-	iounmap(rtc->rtt);
-	platform_set_drvdata(pdev, NULL);
-	kfree(rtc);
 	return 0;
 }
 
@@ -414,14 +395,13 @@ static void at91_rtc_shutdown(struct platform_device *pdev)
 	rtt_writel(rtc, MR, mr & ~rtc->imr);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 /* AT91SAM9 RTC Power management control */
 
-static int at91_rtc_suspend(struct platform_device *pdev,
-					pm_message_t state)
+static int at91_rtc_suspend(struct device *dev)
 {
-	struct sam9_rtc	*rtc = platform_get_drvdata(pdev);
+	struct sam9_rtc	*rtc = dev_get_drvdata(dev);
 	u32		mr = rtt_readl(rtc, MR);
 
 	/*
@@ -430,7 +410,7 @@ static int at91_rtc_suspend(struct platform_device *pdev,
 	 */
 	rtc->imr = mr & (AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN);
 	if (rtc->imr) {
-		if (device_may_wakeup(&pdev->dev) && (mr & AT91_RTT_ALMIEN)) {
+		if (device_may_wakeup(dev) && (mr & AT91_RTT_ALMIEN)) {
 			enable_irq_wake(rtc->irq);
 			/* don't let RTTINC cause wakeups */
 			if (mr & AT91_RTT_RTTINCIEN)
@@ -442,13 +422,13 @@ static int at91_rtc_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int at91_rtc_resume(struct platform_device *pdev)
+static int at91_rtc_resume(struct device *dev)
 {
-	struct sam9_rtc	*rtc = platform_get_drvdata(pdev);
+	struct sam9_rtc	*rtc = dev_get_drvdata(dev);
 	u32		mr;
 
 	if (rtc->imr) {
-		if (device_may_wakeup(&pdev->dev))
+		if (device_may_wakeup(dev))
 			disable_irq_wake(rtc->irq);
 		mr = rtt_readl(rtc, MR);
 		rtt_writel(rtc, MR, mr | rtc->imr);
@@ -456,20 +436,18 @@ static int at91_rtc_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define at91_rtc_suspend	NULL
-#define at91_rtc_resume		NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(at91_rtc_pm_ops, at91_rtc_suspend, at91_rtc_resume);
 
 static struct platform_driver at91_rtc_driver = {
 	.probe		= at91_rtc_probe,
 	.remove		= at91_rtc_remove,
 	.shutdown	= at91_rtc_shutdown,
-	.suspend	= at91_rtc_suspend,
-	.resume		= at91_rtc_resume,
 	.driver		= {
 		.name	= "rtc-at91sam9",
 		.owner	= THIS_MODULE,
+		.pm	= &at91_rtc_pm_ops,
 	},
 };
 

@@ -154,8 +154,14 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 	u16 ht_opmode;
 	bool non_ht_sta = false, ht20_sta = false;
 
-	if (sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	switch (sdata->vif.bss_conf.chandef.width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_5:
+	case NL80211_CHAN_WIDTH_10:
 		return 0;
+	default:
+		break;
+	}
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
@@ -373,7 +379,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	u32 rates, basic_rates = 0, changed = 0;
 
 	sband = local->hw.wiphy->bands[band];
-	rates = ieee80211_sta_get_rates(local, elems, band, &basic_rates);
+	rates = ieee80211_sta_get_rates(sdata, elems, band, &basic_rates);
 
 	spin_lock_bh(&sta->lock);
 	sta->last_rx = jiffies;
@@ -420,7 +426,6 @@ __mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *hw_addr)
 		return NULL;
 
 	sta->plink_state = NL80211_PLINK_LISTEN;
-	init_timer(&sta->plink_timer);
 
 	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
 	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
@@ -437,8 +442,9 @@ mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *addr,
 {
 	struct sta_info *sta = NULL;
 
-	/* Userspace handles peer allocation when security is enabled */
-	if (sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED)
+	/* Userspace handles station allocation */
+	if (sdata->u.mesh.user_mpm ||
+	    sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED)
 		cfg80211_notify_new_peer_candidate(sdata->dev, addr,
 						   elems->ie_start,
 						   elems->total_len,
@@ -534,10 +540,8 @@ static void mesh_plink_timer(unsigned long data)
 	 */
 	sta = (struct sta_info *) data;
 
-	if (sta->sdata->local->quiescing) {
-		sta->plink_timer_was_running = true;
+	if (sta->sdata->local->quiescing)
 		return;
-	}
 
 	spin_lock_bh(&sta->lock);
 	if (sta->ignore_plink_timer) {
@@ -546,8 +550,8 @@ static void mesh_plink_timer(unsigned long data)
 		return;
 	}
 	mpl_dbg(sta->sdata,
-		"Mesh plink timer for %pM fired on state %d\n",
-		sta->sta.addr, sta->plink_state);
+		"Mesh plink timer for %pM fired on state %s\n",
+		sta->sta.addr, mplstates[sta->plink_state]);
 	reason = 0;
 	llid = sta->llid;
 	plid = sta->plid;
@@ -597,29 +601,6 @@ static void mesh_plink_timer(unsigned long data)
 		break;
 	}
 }
-
-#ifdef CONFIG_PM
-void mesh_plink_quiesce(struct sta_info *sta)
-{
-	if (!ieee80211_vif_is_mesh(&sta->sdata->vif))
-		return;
-
-	/* no kernel mesh sta timers have been initialized */
-	if (sta->sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE)
-		return;
-
-	if (del_timer_sync(&sta->plink_timer))
-		sta->plink_timer_was_running = true;
-}
-
-void mesh_plink_restart(struct sta_info *sta)
-{
-	if (sta->plink_timer_was_running) {
-		add_timer(&sta->plink_timer);
-		sta->plink_timer_was_running = false;
-	}
-}
-#endif
 
 static inline void mesh_plink_timer_set(struct sta_info *sta, int timeout)
 {
@@ -695,6 +676,10 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 	if (len < IEEE80211_MIN_ACTION_SIZE + 3)
 		return;
 
+	if (sdata->u.mesh.user_mpm)
+		/* userspace must register for these */
+		return;
+
 	if (is_multicast_ether_addr(mgmt->da)) {
 		mpl_dbg(sdata,
 			"Mesh plink: ignore frame from multicast address\n");
@@ -708,7 +693,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 		baseaddr += 4;
 		baselen += 4;
 	}
-	ieee802_11_parse_elems(baseaddr, len - baselen, &elems);
+	ieee802_11_parse_elems(baseaddr, len - baselen, true, &elems);
 
 	if (!elems.peering) {
 		mpl_dbg(sdata,

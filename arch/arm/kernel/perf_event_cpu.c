@@ -118,7 +118,8 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 			continue;
 		}
 
-		err = request_irq(irq, handler, IRQF_NOBALANCING, "arm-pmu",
+		err = request_irq(irq, handler,
+				  IRQF_NOBALANCING | IRQF_NO_THREAD, "arm-pmu",
 				  cpu_pmu);
 		if (err) {
 			pr_err("unable to request IRQ%d for ARM PMU counters\n",
@@ -157,8 +158,8 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
  * UNKNOWN at reset, the PMU must be explicitly reset to avoid reading
  * junk values out of them.
  */
-static int __cpuinit cpu_pmu_notify(struct notifier_block *b,
-				    unsigned long action, void *hcpu)
+static int cpu_pmu_notify(struct notifier_block *b, unsigned long action,
+			  void *hcpu)
 {
 	if ((action & ~CPU_TASKS_FROZEN) != CPU_STARTING)
 		return NOTIFY_DONE;
@@ -171,7 +172,7 @@ static int __cpuinit cpu_pmu_notify(struct notifier_block *b,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata cpu_pmu_hotplug_notifier = {
+static struct notifier_block cpu_pmu_hotplug_notifier = {
 	.notifier_call = cpu_pmu_notify,
 };
 

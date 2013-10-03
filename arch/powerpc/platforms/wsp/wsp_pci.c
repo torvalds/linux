@@ -502,7 +502,7 @@ static void __init wsp_pcie_configure_hw(struct pci_controller *hose)
 		 (~(hose->mem_resources[0].end -
 		    hose->mem_resources[0].start)) & 0x3ffffff0000ul);
 	out_be64(hose->cfg_data + PCIE_REG_M32A_START_ADDR,
-		 (hose->mem_resources[0].start - hose->pci_mem_offset) | 1);
+		 (hose->mem_resources[0].start - hose->mem_offset[0]) | 1);
 
 	/* Clear all TVT entries
 	 *

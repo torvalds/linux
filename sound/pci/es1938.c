@@ -1881,7 +1881,6 @@ static int snd_es1938_probe(struct pci_dev *pci,
 static void snd_es1938_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver es1938_driver = {

@@ -19,7 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/input.h>
 #include <linux/input/tps6507x-ts.h>
 #include <linux/mfd/tps6507x.h>
@@ -335,12 +335,7 @@ static const short da850_evm_nor_pins[] = {
 	-1
 };
 
-#if defined(CONFIG_MMC_DAVINCI) || \
-    defined(CONFIG_MMC_DAVINCI_MODULE)
-#define HAS_MMC 1
-#else
-#define HAS_MMC 0
-#endif
+#define HAS_MMC		IS_ENABLED(CONFIG_MMC_DAVINCI)
 
 static inline void da850_evm_setup_nor_nand(void)
 {
@@ -401,7 +396,7 @@ enum da850_evm_ui_exp_pins {
 	DA850_EVM_UI_EXP_PB1,
 };
 
-static const char const *da850_evm_ui_exp[] = {
+static const char * const da850_evm_ui_exp[] = {
 	[DA850_EVM_UI_EXP_SEL_C]        = "sel_c",
 	[DA850_EVM_UI_EXP_SEL_B]        = "sel_b",
 	[DA850_EVM_UI_EXP_SEL_A]        = "sel_a",
@@ -565,7 +560,7 @@ enum da850_evm_bb_exp_pins {
 	DA850_EVM_BB_EXP_USER_SW8
 };
 
-static const char const *da850_evm_bb_exp[] = {
+static const char * const da850_evm_bb_exp[] = {
 	[DA850_EVM_BB_EXP_DEEP_SLEEP_EN]	= "deep_sleep_en",
 	[DA850_EVM_BB_EXP_SW_RST]		= "sw_rst",
 	[DA850_EVM_BB_EXP_TP_23]		= "tp_23",
@@ -751,10 +746,6 @@ static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
 	.bus_delay	= 0,	/* usec */
 };
 
-static struct davinci_uart_config da850_evm_uart_config __initdata = {
-	.enabled_uarts = 0x7,
-};
-
 /* davinci da850 evm audio machine driver */
 static u8 da850_iis_serializer_direction[] = {
 	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
@@ -802,7 +793,6 @@ static struct davinci_mmc_config da850_mmc_config = {
 	.wires		= 4,
 	.max_freq	= 50000000,
 	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
-	.version	= MMC_CTLR_VERSION_2,
 };
 
 static const short da850_evm_mmcsd0_pins[] __initconst = {
@@ -991,7 +981,6 @@ static struct regulator_init_data tps65070_regulator_data[] = {
 static struct touchscreen_init_data tps6507x_touchscreen_data = {
 	.poll_period =  30,	/* ms between touch samples */
 	.min_pressure = 0x30,	/* minimum pressure to trigger touch */
-	.vref = 0,		/* turn off vref when not using A/D */
 	.vendor = 0,		/* /sys/class/input/input?/id/vendor */
 	.product = 65070,	/* /sys/class/input/input?/id/product */
 	.version = 0x100,	/* /sys/class/input/input?/id/version */
@@ -1256,12 +1245,10 @@ static struct vpif_capture_config da850_vpif_capture_config = {
 
 static struct adv7343_platform_data adv7343_pdata = {
 	.mode_config = {
-		.dac_3 = 1,
-		.dac_2 = 1,
-		.dac_1 = 1,
+		.dac = { 1, 1, 1 },
 	},
 	.sd_config = {
-		.sd_dac_out1 = 1,
+		.sd_dac_out = { 1 },
 	},
 };
 
@@ -1372,7 +1359,6 @@ static struct davinci_mmc_config da850_wl12xx_mmc_config = {
 	.max_freq	= 25000000,
 	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_NONREMOVABLE |
 			  MMC_CAP_POWER_OFF_CARD,
-	.version	= MMC_CTLR_VERSION_2,
 };
 
 static const short da850_wl12xx_pins[] __initconst = {
@@ -1502,7 +1488,7 @@ static __init void da850_evm_init(void)
 				__func__, ret);
 	}
 
-	davinci_serial_init(&da850_evm_uart_config);
+	davinci_serial_init(da8xx_serial_device);
 
 	i2c_register_board_info(1, da850_evm_i2c_devices,
 			ARRAY_SIZE(da850_evm_i2c_devices));
@@ -1579,6 +1565,11 @@ static __init void da850_evm_init(void)
 		pr_warn("%s: SATA registration failed: %d\n", __func__, ret);
 
 	da850_evm_setup_mac_addr();
+
+	ret = da8xx_register_rproc();
+	if (ret)
+		pr_warn("%s: dsp/rproc registration failed: %d\n",
+			__func__, ret);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
@@ -1606,4 +1597,5 @@ MACHINE_START(DAVINCI_DA850_EVM, "DaVinci DA850/OMAP-L138/AM18x EVM")
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
 	.restart	= da8xx_restart,
+	.reserve	= da8xx_rproc_reserve_cma,
 MACHINE_END

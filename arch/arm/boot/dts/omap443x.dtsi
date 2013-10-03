@@ -1,0 +1,33 @@
+/*
+ * Device Tree Source for OMAP443x SoC
+ *
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include "omap4.dtsi"
+
+/ {
+	cpus {
+		cpu@0 {
+			/* OMAP443x variants OPP50-OPPNT */
+			operating-points = <
+				/* kHz    uV */
+				300000  1025000
+				600000  1200000
+				800000  1313000
+				1008000 1375000
+			>;
+			clock-latency = <300000>; /* From legacy driver */
+		};
+	};
+
+	bandgap {
+		reg = <0x4a002260 0x4
+		       0x4a00232C 0x4>;
+		compatible = "ti,omap4430-bandgap";
+	};
+};

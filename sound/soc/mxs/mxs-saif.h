@@ -117,7 +117,6 @@ struct mxs_saif {
 	unsigned int mclk_in_use;
 	void __iomem *base;
 	int irq;
-	struct mxs_pcm_dma_params dma_param;
 	unsigned int id;
 	unsigned int master_id;
 	unsigned int cur_rate;

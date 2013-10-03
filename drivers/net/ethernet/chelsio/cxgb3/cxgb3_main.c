@@ -1181,14 +1181,15 @@ static void cxgb_vlan_mode(struct net_device *dev, netdev_features_t features)
 
 	if (adapter->params.rev > 0) {
 		t3_set_vlan_accel(adapter, 1 << pi->port_id,
-				  features & NETIF_F_HW_VLAN_RX);
+				  features & NETIF_F_HW_VLAN_CTAG_RX);
 	} else {
 		/* single control for all ports */
-		unsigned int i, have_vlans = features & NETIF_F_HW_VLAN_RX;
+		unsigned int i, have_vlans = features & NETIF_F_HW_VLAN_CTAG_RX;
 
 		for_each_port(adapter, i)
 			have_vlans |=
-				adapter->port[i]->features & NETIF_F_HW_VLAN_RX;
+				adapter->port[i]->features &
+				NETIF_F_HW_VLAN_CTAG_RX;
 
 		t3_set_vlan_accel(adapter, 1, have_vlans);
 	}
@@ -2563,10 +2564,10 @@ static netdev_features_t cxgb_fix_features(struct net_device *dev,
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -2575,7 +2576,7 @@ static int cxgb_set_features(struct net_device *dev, netdev_features_t features)
 {
 	netdev_features_t changed = dev->features ^ features;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		cxgb_vlan_mode(dev, features);
 
 	return 0;
@@ -3036,7 +3037,9 @@ static void t3_io_resume(struct pci_dev *pdev)
 	CH_ALERT(adapter, "adapter recovering, PEX ERR 0x%x\n",
 		 t3_read_reg(adapter, A_PCIE_PEX_ERR));
 
+	rtnl_lock();
 	t3_resume_ports(adapter);
+	rtnl_unlock();
 }
 
 static const struct pci_error_handlers t3_err_handler = {
@@ -3288,8 +3291,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->mem_start = mmio_start;
 		netdev->mem_end = mmio_start + mmio_len - 1;
 		netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
-			NETIF_F_TSO | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_RX;
-		netdev->features |= netdev->hw_features | NETIF_F_HW_VLAN_TX;
+			NETIF_F_TSO | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX;
+		netdev->features |= netdev->hw_features |
+				    NETIF_F_HW_VLAN_CTAG_TX;
 		netdev->vlan_features |= netdev->features & VLAN_FEAT;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;

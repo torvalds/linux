@@ -195,68 +195,67 @@ static inline void *neighbour_priv(const struct neighbour *n)
 #define NEIGH_UPDATE_F_ISROUTER			0x40000000
 #define NEIGH_UPDATE_F_ADMIN			0x80000000
 
-extern void			neigh_table_init(struct neigh_table *tbl);
-extern int			neigh_table_clear(struct neigh_table *tbl);
-extern struct neighbour *	neigh_lookup(struct neigh_table *tbl,
-					     const void *pkey,
-					     struct net_device *dev);
-extern struct neighbour *	neigh_lookup_nodev(struct neigh_table *tbl,
-						   struct net *net,
-						   const void *pkey);
-extern struct neighbour *	__neigh_create(struct neigh_table *tbl,
-					       const void *pkey,
-					       struct net_device *dev,
-					       bool want_ref);
+void neigh_table_init(struct neigh_table *tbl);
+int neigh_table_clear(struct neigh_table *tbl);
+struct neighbour *neigh_lookup(struct neigh_table *tbl, const void *pkey,
+			       struct net_device *dev);
+struct neighbour *neigh_lookup_nodev(struct neigh_table *tbl, struct net *net,
+				     const void *pkey);
+struct neighbour *__neigh_create(struct neigh_table *tbl, const void *pkey,
+				 struct net_device *dev, bool want_ref);
 static inline struct neighbour *neigh_create(struct neigh_table *tbl,
 					     const void *pkey,
 					     struct net_device *dev)
 {
 	return __neigh_create(tbl, pkey, dev, true);
 }
-extern void			neigh_destroy(struct neighbour *neigh);
-extern int			__neigh_event_send(struct neighbour *neigh, struct sk_buff *skb);
-extern int			neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, 
-					     u32 flags);
-extern void			neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev);
-extern int			neigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
-extern int			neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb);
-extern int			neigh_connected_output(struct neighbour *neigh, struct sk_buff *skb);
-extern int			neigh_compat_output(struct neighbour *neigh, struct sk_buff *skb);
-extern int			neigh_direct_output(struct neighbour *neigh, struct sk_buff *skb);
-extern struct neighbour 	*neigh_event_ns(struct neigh_table *tbl,
+void neigh_destroy(struct neighbour *neigh);
+int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb);
+int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, u32 flags);
+void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev);
+int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
+int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb);
+int neigh_connected_output(struct neighbour *neigh, struct sk_buff *skb);
+int neigh_compat_output(struct neighbour *neigh, struct sk_buff *skb);
+int neigh_direct_output(struct neighbour *neigh, struct sk_buff *skb);
+struct neighbour *neigh_event_ns(struct neigh_table *tbl,
 						u8 *lladdr, void *saddr,
 						struct net_device *dev);
 
-extern struct neigh_parms	*neigh_parms_alloc(struct net_device *dev, struct neigh_table *tbl);
-extern void			neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms);
+struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
+				      struct neigh_table *tbl);
+void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms);
 
 static inline
-struct net			*neigh_parms_net(const struct neigh_parms *parms)
+struct net *neigh_parms_net(const struct neigh_parms *parms)
 {
 	return read_pnet(&parms->net);
 }
 
-extern unsigned long		neigh_rand_reach_time(unsigned long base);
+unsigned long neigh_rand_reach_time(unsigned long base);
 
-extern void			pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
-					       struct sk_buff *skb);
-extern struct pneigh_entry	*pneigh_lookup(struct neigh_table *tbl, struct net *net, const void *key, struct net_device *dev, int creat);
-extern struct pneigh_entry	*__pneigh_lookup(struct neigh_table *tbl,
-						 struct net *net,
-						 const void *key,
-						 struct net_device *dev);
-extern int			pneigh_delete(struct neigh_table *tbl, struct net *net, const void *key, struct net_device *dev);
+void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
+		    struct sk_buff *skb);
+struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl, struct net *net,
+				   const void *key, struct net_device *dev,
+				   int creat);
+struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl, struct net *net,
+				     const void *key, struct net_device *dev);
+int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *key,
+		  struct net_device *dev);
 
-static inline
-struct net			*pneigh_net(const struct pneigh_entry *pneigh)
+static inline struct net *pneigh_net(const struct pneigh_entry *pneigh)
 {
 	return read_pnet(&pneigh->net);
 }
 
-extern void neigh_app_ns(struct neighbour *n);
-extern void neigh_for_each(struct neigh_table *tbl, void (*cb)(struct neighbour *, void *), void *cookie);
-extern void __neigh_for_each_release(struct neigh_table *tbl, int (*cb)(struct neighbour *));
-extern void pneigh_for_each(struct neigh_table *tbl, void (*cb)(struct pneigh_entry *));
+void neigh_app_ns(struct neighbour *n);
+void neigh_for_each(struct neigh_table *tbl,
+		    void (*cb)(struct neighbour *, void *), void *cookie);
+void __neigh_for_each_release(struct neigh_table *tbl,
+			      int (*cb)(struct neighbour *));
+void pneigh_for_each(struct neigh_table *tbl,
+		     void (*cb)(struct pneigh_entry *));
 
 struct neigh_seq_state {
 	struct seq_net_private p;
@@ -270,15 +269,14 @@ struct neigh_seq_state {
 #define NEIGH_SEQ_IS_PNEIGH	0x00000002
 #define NEIGH_SEQ_SKIP_NOARP	0x00000004
 };
-extern void *neigh_seq_start(struct seq_file *, loff_t *, struct neigh_table *, unsigned int);
-extern void *neigh_seq_next(struct seq_file *, void *, loff_t *);
-extern void neigh_seq_stop(struct seq_file *, void *);
+void *neigh_seq_start(struct seq_file *, loff_t *, struct neigh_table *,
+		      unsigned int);
+void *neigh_seq_next(struct seq_file *, void *, loff_t *);
+void neigh_seq_stop(struct seq_file *, void *);
 
-extern int			neigh_sysctl_register(struct net_device *dev, 
-						      struct neigh_parms *p,
-						      char *p_name,
-						      proc_handler *proc_handler);
-extern void			neigh_sysctl_unregister(struct neigh_parms *p);
+int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
+			  char *p_name, proc_handler *proc_handler);
+void neigh_sysctl_unregister(struct neigh_parms *p);
 
 static inline void __neigh_parms_put(struct neigh_parms *parms)
 {

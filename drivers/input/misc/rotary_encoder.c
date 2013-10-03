@@ -317,8 +317,6 @@ static int rotary_encoder_remove(struct platform_device *pdev)
 	if (!dev_get_platdata(&pdev->dev))
 		kfree(pdata);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

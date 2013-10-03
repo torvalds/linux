@@ -83,4 +83,8 @@
 
 #define SO_LOCK_FILTER		44
 
+#define SO_SELECT_ERR_QUEUE	45
+
+#define SO_BUSY_POLL		46
+
 #endif	/* _XTENSA_SOCKET_H */

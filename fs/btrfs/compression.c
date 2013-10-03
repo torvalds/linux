@@ -82,6 +82,10 @@ struct compressed_bio {
 	u32 sums;
 };
 
+static int btrfs_decompress_biovec(int type, struct page **pages_in,
+				   u64 disk_start, struct bio_vec *bvec,
+				   int vcnt, size_t srclen);
+
 static inline int compressed_bio_size(struct btrfs_root *root,
 				      unsigned long disk_size)
 {
@@ -106,7 +110,6 @@ static int check_compressed_csum(struct inode *inode,
 				 u64 disk_start)
 {
 	int ret;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct page *page;
 	unsigned long i;
 	char *kaddr;
@@ -121,7 +124,7 @@ static int check_compressed_csum(struct inode *inode,
 		csum = ~(u32)0;
 
 		kaddr = kmap_atomic(page);
-		csum = btrfs_csum_data(root, kaddr, csum, PAGE_CACHE_SIZE);
+		csum = btrfs_csum_data(kaddr, csum, PAGE_CACHE_SIZE);
 		btrfs_csum_final(csum, (char *)&csum);
 		kunmap_atomic(kaddr);
 
@@ -129,9 +132,8 @@ static int check_compressed_csum(struct inode *inode,
 			printk(KERN_INFO "btrfs csum failed ino %llu "
 			       "extent %llu csum %u "
 			       "wanted %u mirror %d\n",
-			       (unsigned long long)btrfs_ino(inode),
-			       (unsigned long long)disk_start,
-			       csum, *cb_sum, cb->mirror_num);
+			       btrfs_ino(inode), disk_start, csum, *cb_sum,
+			       cb->mirror_num);
 			ret = -EIO;
 			goto fail;
 		}
@@ -636,7 +638,11 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	faili = nr_pages - 1;
 	cb->nr_pages = nr_pages;
 
-	add_ra_bio_pages(inode, em_start + em_len, cb);
+	/* In the parent-locked case, we only locked the range we are
+	 * interested in.  In all other cases, we can opportunistically
+	 * cache decompressed data that goes beyond the requested range. */
+	if (!(bio_flags & EXTENT_BIO_PARENT_LOCKED))
+		add_ra_bio_pages(inode, em_start + em_len, cb);
 
 	/* include any pages we added in add_ra-bio_pages */
 	uncompressed_len = bio->bi_vcnt * PAGE_CACHE_SIZE;
@@ -739,7 +745,7 @@ static int comp_num_workspace[BTRFS_COMPRESS_TYPES];
 static atomic_t comp_alloc_workspace[BTRFS_COMPRESS_TYPES];
 static wait_queue_head_t comp_workspace_wait[BTRFS_COMPRESS_TYPES];
 
-struct btrfs_compress_op *btrfs_compress_op[] = {
+static struct btrfs_compress_op *btrfs_compress_op[] = {
 	&btrfs_zlib_compress,
 	&btrfs_lzo_compress,
 };
@@ -910,8 +916,9 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
  * be contiguous.  They all correspond to the range of bytes covered by
  * the compressed extent.
  */
-int btrfs_decompress_biovec(int type, struct page **pages_in, u64 disk_start,
-			    struct bio_vec *bvec, int vcnt, size_t srclen)
+static int btrfs_decompress_biovec(int type, struct page **pages_in,
+				   u64 disk_start, struct bio_vec *bvec,
+				   int vcnt, size_t srclen)
 {
 	struct list_head *workspace;
 	int ret;

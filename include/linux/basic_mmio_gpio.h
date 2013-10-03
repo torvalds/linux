@@ -72,5 +72,6 @@ int bgpio_init(struct bgpio_chip *bgc, struct device *dev,
 #define BGPIOF_BIG_ENDIAN		BIT(0)
 #define BGPIOF_UNREADABLE_REG_SET	BIT(1) /* reg_set is unreadable */
 #define BGPIOF_UNREADABLE_REG_DIR	BIT(2) /* reg_dir is unreadable */
+#define BGPIOF_BIG_ENDIAN_BYTE_ORDER	BIT(3)
 
 #endif /* __BASIC_MMIO_GPIO_H */

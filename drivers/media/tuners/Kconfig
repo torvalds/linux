@@ -1,23 +1,3 @@
-config MEDIA_ATTACH
-	bool "Load and attach frontend and tuner driver modules as needed"
-	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT
-	depends on MODULES
-	default y if !EXPERT
-	help
-	  Remove the static dependency of DVB card drivers on all
-	  frontend modules for all possible card variants. Instead,
-	  allow the card drivers to only load the frontend modules
-	  they require.
-
-	  Also, tuner module will automatically load a tuner driver
-	  when needed, for analog mode.
-
-	  This saves several KBytes of memory.
-
-	  Note: You will need module-init-tools v3.2 or later for this feature.
-
-	  If unsure say Y.
-
 # Analog TV tuners, auto-loaded via tuner.ko
 config MEDIA_TUNER
 	tristate
@@ -241,4 +221,18 @@ config MEDIA_TUNER_TUA9001
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Infineon TUA 9001 silicon tuner driver.
+
+config MEDIA_TUNER_IT913X
+	tristate "ITE Tech IT913x silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  ITE Tech IT913x silicon tuner driver.
+
+config MEDIA_TUNER_R820T
+	tristate "Rafael Micro R820T silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Rafael Micro R820T silicon tuner driver.
 endmenu

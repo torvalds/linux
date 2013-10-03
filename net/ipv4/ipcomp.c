@@ -47,12 +47,9 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 	if (!x)
 		return;
 
-	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH) {
-		atomic_inc(&flow_cache_genid);
-		rt_genid_bump(net);
-
+	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
 		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_COMP, 0);
-	} else
+	else
 		ipv4_redirect(skb, net, 0, 0, IPPROTO_COMP, 0);
 	xfrm_state_put(x);
 }
@@ -75,6 +72,7 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t->props.mode = x->props.mode;
 	t->props.saddr.a4 = x->props.saddr.a4;
 	t->props.flags = x->props.flags;
+	t->props.extra_flags = x->props.extra_flags;
 	memcpy(&t->mark, &x->mark, sizeof(t->mark));
 
 	if (xfrm_init_state(t))

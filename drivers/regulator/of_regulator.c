@@ -21,6 +21,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 {
 	const __be32 *min_uV, *max_uV, *uV_offset;
 	const __be32 *min_uA, *max_uA, *ramp_delay;
+	struct property *prop;
 	struct regulation_constraints *constraints = &(*init_data)->constraints;
 
 	constraints->name = of_get_property(np, "regulator-name", NULL);
@@ -61,9 +62,17 @@ static void of_get_regulation_constraints(struct device_node *np,
 	else /* status change should be possible if not always on. */
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_STATUS;
 
-	ramp_delay = of_get_property(np, "regulator-ramp-delay", NULL);
-	if (ramp_delay)
-		constraints->ramp_delay = be32_to_cpu(*ramp_delay);
+	if (of_property_read_bool(np, "regulator-allow-bypass"))
+		constraints->valid_ops_mask |= REGULATOR_CHANGE_BYPASS;
+
+	prop = of_find_property(np, "regulator-ramp-delay", NULL);
+	if (prop && prop->value) {
+		ramp_delay = prop->value;
+		if (*ramp_delay)
+			constraints->ramp_delay = be32_to_cpu(*ramp_delay);
+		else
+			constraints->ramp_disable = true;
+	}
 }
 
 /**

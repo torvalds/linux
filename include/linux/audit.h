@@ -84,7 +84,12 @@ extern int audit_classify_arch(int arch);
 #define	AUDIT_TYPE_CHILD_DELETE 3	/* a child being deleted */
 #define	AUDIT_TYPE_CHILD_CREATE 4	/* a child being created */
 
+/* maximized args number that audit_socketcall can process */
+#define AUDITSC_ARGS		6
+
 struct filename;
+
+extern void audit_log_session_info(struct audit_buffer *ab);
 
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
@@ -98,8 +103,11 @@ extern void __audit_syscall_exit(int ret_success, long ret_value);
 extern struct filename *__audit_reusename(const __user char *uptr);
 extern void __audit_getname(struct filename *name);
 extern void audit_putname(struct filename *name);
+
+#define AUDIT_INODE_PARENT	1	/* dentry represents the parent */
+#define AUDIT_INODE_HIDDEN	2	/* audit record should be hidden */
 extern void __audit_inode(struct filename *name, const struct dentry *dentry,
-				unsigned int parent);
+				unsigned int flags);
 extern void __audit_inode_child(const struct inode *parent,
 				const struct dentry *dentry,
 				const unsigned char type);
@@ -120,7 +128,7 @@ static inline void audit_syscall_entry(int arch, int major, unsigned long a0,
 				       unsigned long a1, unsigned long a2,
 				       unsigned long a3)
 {
-	if (unlikely(!audit_dummy_context()))
+	if (unlikely(current->audit_context))
 		__audit_syscall_entry(arch, major, a0, a1, a2, a3);
 }
 static inline void audit_syscall_exit(void *pt_regs)
@@ -143,10 +151,22 @@ static inline void audit_getname(struct filename *name)
 	if (unlikely(!audit_dummy_context()))
 		__audit_getname(name);
 }
-static inline void audit_inode(struct filename *name, const struct dentry *dentry,
+static inline void audit_inode(struct filename *name,
+				const struct dentry *dentry,
 				unsigned int parent) {
+	if (unlikely(!audit_dummy_context())) {
+		unsigned int flags = 0;
+		if (parent)
+			flags |= AUDIT_INODE_PARENT;
+		__audit_inode(name, dentry, flags);
+	}
+}
+static inline void audit_inode_parent_hidden(struct filename *name,
+						const struct dentry *dentry)
+{
 	if (unlikely(!audit_dummy_context()))
-		__audit_inode(name, dentry, parent);
+		__audit_inode(name, dentry,
+				AUDIT_INODE_PARENT | AUDIT_INODE_HIDDEN);
 }
 static inline void audit_inode_child(const struct inode *parent,
 				     const struct dentry *dentry,
@@ -185,12 +205,10 @@ static inline int audit_get_sessionid(struct task_struct *tsk)
 	return tsk->sessionid;
 }
 
-extern void audit_log_task_context(struct audit_buffer *ab);
-extern void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk);
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
 extern int __audit_bprm(struct linux_binprm *bprm);
-extern void __audit_socketcall(int nargs, unsigned long *args);
+extern int __audit_socketcall(int nargs, unsigned long *args);
 extern int __audit_sockaddr(int len, void *addr);
 extern void __audit_fd_pair(int fd1, int fd2);
 extern void __audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr);
@@ -224,10 +242,11 @@ static inline int audit_bprm(struct linux_binprm *bprm)
 		return __audit_bprm(bprm);
 	return 0;
 }
-static inline void audit_socketcall(int nargs, unsigned long *args)
+static inline int audit_socketcall(int nargs, unsigned long *args)
 {
 	if (unlikely(!audit_dummy_context()))
-		__audit_socketcall(nargs, args);
+		return __audit_socketcall(nargs, args);
+	return 0;
 }
 static inline int audit_sockaddr(int len, void *addr)
 {
@@ -307,7 +326,7 @@ static inline void audit_putname(struct filename *name)
 { }
 static inline void __audit_inode(struct filename *name,
 					const struct dentry *dentry,
-					unsigned int parent)
+					unsigned int flags)
 { }
 static inline void __audit_inode_child(const struct inode *parent,
 					const struct dentry *dentry,
@@ -316,6 +335,9 @@ static inline void __audit_inode_child(const struct inode *parent,
 static inline void audit_inode(struct filename *name,
 				const struct dentry *dentry,
 				unsigned int parent)
+{ }
+static inline void audit_inode_parent_hidden(struct filename *name,
+				const struct dentry *dentry)
 { }
 static inline void audit_inode_child(const struct inode *parent,
 				     const struct dentry *dentry,
@@ -340,11 +362,6 @@ static inline int audit_get_sessionid(struct task_struct *tsk)
 {
 	return -1;
 }
-static inline void audit_log_task_context(struct audit_buffer *ab)
-{ }
-static inline void audit_log_task_info(struct audit_buffer *ab,
-				       struct task_struct *tsk)
-{ }
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 { }
 static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid,
@@ -354,8 +371,10 @@ static inline int audit_bprm(struct linux_binprm *bprm)
 {
 	return 0;
 }
-static inline void audit_socketcall(int nargs, unsigned long *args)
-{ }
+static inline int audit_socketcall(int nargs, unsigned long *args)
+{
+	return 0;
+}
 static inline void audit_fd_pair(int fd1, int fd2)
 { }
 static inline int audit_sockaddr(int len, void *addr)
@@ -389,6 +408,11 @@ static inline void audit_ptrace(struct task_struct *t)
 #define audit_n_rules 0
 #define audit_signals 0
 #endif /* CONFIG_AUDITSYSCALL */
+
+static inline bool audit_loginuid_set(struct task_struct *tsk)
+{
+	return uid_valid(audit_get_loginuid(tsk));
+}
 
 #ifdef CONFIG_AUDIT
 /* These are defined in audit.c */
@@ -429,14 +453,17 @@ static inline void	    audit_log_secctx(struct audit_buffer *ab, u32 secid)
 { }
 #endif
 
+extern int audit_log_task_context(struct audit_buffer *ab);
+extern void audit_log_task_info(struct audit_buffer *ab,
+				struct task_struct *tsk);
+
 extern int		    audit_update_lsm_rules(void);
 
 				/* Private API (for audit.c only) */
-extern int audit_filter_user(void);
+extern int audit_filter_user(int type);
 extern int audit_filter_type(int type);
 extern int  audit_receive_filter(int type, int pid, int seq,
-				void *data, size_t datasz, kuid_t loginuid,
-				u32 sessionid, u32 sid);
+				void *data, size_t datasz);
 extern int audit_enabled;
 #else /* CONFIG_AUDIT */
 static inline __printf(4, 5)
@@ -475,6 +502,13 @@ static inline void audit_log_link_denied(const char *string,
 					 const struct path *link)
 { }
 static inline void audit_log_secctx(struct audit_buffer *ab, u32 secid)
+{ }
+static inline int audit_log_task_context(struct audit_buffer *ab)
+{
+	return 0;
+}
+static inline void audit_log_task_info(struct audit_buffer *ab,
+				       struct task_struct *tsk)
 { }
 #define audit_enabled 0
 #endif /* CONFIG_AUDIT */

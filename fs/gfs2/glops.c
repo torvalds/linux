@@ -47,32 +47,28 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
  * None of the buffers should be dirty, locked, or pinned.
  */
 
-static void __gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
+static void __gfs2_ail_flush(struct gfs2_glock *gl, bool fsync,
+			     unsigned int nr_revokes)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct list_head *head = &gl->gl_ail_list;
 	struct gfs2_bufdata *bd, *tmp;
 	struct buffer_head *bh;
 	const unsigned long b_state = (1UL << BH_Dirty)|(1UL << BH_Pinned)|(1UL << BH_Lock);
-	sector_t blocknr;
 
 	gfs2_log_lock(sdp);
 	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry_safe(bd, tmp, head, bd_ail_gl_list) {
+	list_for_each_entry_safe_reverse(bd, tmp, head, bd_ail_gl_list) {
+		if (nr_revokes == 0)
+			break;
 		bh = bd->bd_bh;
 		if (bh->b_state & b_state) {
 			if (fsync)
 				continue;
 			gfs2_ail_error(gl, bh);
 		}
-		blocknr = bh->b_blocknr;
-		bh->b_private = NULL;
-		gfs2_remove_from_ail(bd); /* drops ref on bh */
-
-		bd->bd_bh = NULL;
-		bd->bd_blkno = blocknr;
-
 		gfs2_trans_add_revoke(sdp, bd);
+		nr_revokes--;
 	}
 	GLOCK_BUG_ON(gl, !fsync && atomic_read(&gl->gl_ail_count));
 	spin_unlock(&sdp->sd_ail_lock);
@@ -99,7 +95,7 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	WARN_ON_ONCE(current->journal_info);
 	current->journal_info = &tr;
 
-	__gfs2_ail_flush(gl, 0);
+	__gfs2_ail_flush(gl, 0, tr.tr_revokes);
 
 	gfs2_trans_end(sdp);
 	gfs2_log_flush(sdp, NULL);
@@ -109,15 +105,19 @@ void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	unsigned int revokes = atomic_read(&gl->gl_ail_count);
+	unsigned int max_revokes = (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_log_descriptor)) / sizeof(u64);
 	int ret;
 
 	if (!revokes)
 		return;
 
-	ret = gfs2_trans_begin(sdp, 0, revokes);
+	while (revokes > max_revokes)
+		max_revokes += (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header)) / sizeof(u64);
+
+	ret = gfs2_trans_begin(sdp, 0, max_revokes);
 	if (ret)
 		return;
-	__gfs2_ail_flush(gl, fsync);
+	__gfs2_ail_flush(gl, fsync, max_revokes);
 	gfs2_trans_end(sdp);
 	gfs2_log_flush(sdp, NULL);
 }
@@ -515,12 +515,12 @@ static int trans_go_demote_ok(const struct gfs2_glock *gl)
  *
  * gl_spin lock is held while calling this
  */
-static void iopen_go_callback(struct gfs2_glock *gl)
+static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 {
 	struct gfs2_inode *ip = (struct gfs2_inode *)gl->gl_object;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 
-	if (sdp->sd_vfs->s_flags & MS_RDONLY)
+	if (!remote || (sdp->sd_vfs->s_flags & MS_RDONLY))
 		return;
 
 	if (gl->gl_demote_state == LM_ST_UNLOCKED &&

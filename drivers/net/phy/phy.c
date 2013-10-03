@@ -294,7 +294,8 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 	cmd->duplex = phydev->duplex;
 	cmd->port = PORT_MII;
 	cmd->phy_address = phydev->addr;
-	cmd->transceiver = XCVR_EXTERNAL;
+	cmd->transceiver = phy_is_internal(phydev) ?
+		XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->autoneg = phydev->autoneg;
 
 	return 0;
@@ -419,8 +420,6 @@ out_unlock:
 EXPORT_SYMBOL(phy_start_aneg);
 
 
-static void phy_change(struct work_struct *work);
-
 /**
  * phy_start_machine - start PHY state machine tracking
  * @phydev: the phy_device struct
@@ -439,7 +438,7 @@ void phy_start_machine(struct phy_device *phydev,
 {
 	phydev->adjust_state = handler;
 
-	schedule_delayed_work(&phydev->state_queue, HZ);
+	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue, HZ);
 }
 
 /**
@@ -461,33 +460,6 @@ void phy_stop_machine(struct phy_device *phydev)
 
 	phydev->adjust_state = NULL;
 }
-
-/**
- * phy_force_reduction - reduce PHY speed/duplex settings by one step
- * @phydev: target phy_device struct
- *
- * Description: Reduces the speed/duplex settings by one notch,
- *   in this order--
- *   1000/FULL, 1000/HALF, 100/FULL, 100/HALF, 10/FULL, 10/HALF.
- *   The function bottoms out at 10/HALF.
- */
-static void phy_force_reduction(struct phy_device *phydev)
-{
-	int idx;
-
-	idx = phy_find_setting(phydev->speed, phydev->duplex);
-	
-	idx++;
-
-	idx = phy_find_valid(idx, phydev->supported);
-
-	phydev->speed = settings[idx].speed;
-	phydev->duplex = settings[idx].duplex;
-
-	pr_info("Trying %d/%s\n",
-		phydev->speed, DUPLEX_FULL == phydev->duplex ? "FULL" : "HALF");
-}
-
 
 /**
  * phy_error - enter HALTED state for this PHY device
@@ -527,7 +499,7 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	disable_irq_nosync(irq);
 	atomic_inc(&phydev->irq_disable);
 
-	schedule_work(&phydev->phy_queue);
+	queue_work(system_power_efficient_wq, &phydev->phy_queue);
 
 	return IRQ_HANDLED;
 }
@@ -592,8 +564,6 @@ int phy_start_interrupts(struct phy_device *phydev)
 {
 	int err = 0;
 
-	INIT_WORK(&phydev->phy_queue, phy_change);
-
 	atomic_set(&phydev->irq_disable, 0);
 	if (request_irq(phydev->irq, phy_interrupt,
 				IRQF_SHARED,
@@ -650,7 +620,7 @@ EXPORT_SYMBOL(phy_stop_interrupts);
  * phy_change - Scheduled by the phy_interrupt/timer to handle PHY changes
  * @work: work_struct that describes the work to be done
  */
-static void phy_change(struct work_struct *work)
+void phy_change(struct work_struct *work)
 {
 	int err;
 	struct phy_device *phydev =
@@ -682,7 +652,7 @@ static void phy_change(struct work_struct *work)
 
 	/* reschedule state queue work to run as soon as possible */
 	cancel_delayed_work_sync(&phydev->state_queue);
-	schedule_delayed_work(&phydev->state_queue, 0);
+	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue, 0);
 
 	return;
 
@@ -709,7 +679,7 @@ void phy_stop(struct phy_device *phydev)
 	if (PHY_HALTED == phydev->state)
 		goto out_unlock;
 
-	if (phydev->irq != PHY_POLL) {
+	if (phy_interrupt_is_valid(phydev)) {
 		/* Disable PHY Interrupts */
 		phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
 
@@ -818,30 +788,11 @@ void phy_state_machine(struct work_struct *work)
 				phydev->adjust_link(phydev->attached_dev);
 
 			} else if (0 == phydev->link_timeout--) {
-				int idx;
-
 				needs_aneg = 1;
 				/* If we have the magic_aneg bit,
 				 * we try again */
 				if (phydev->drv->flags & PHY_HAS_MAGICANEG)
 					break;
-
-				/* The timer expired, and we still
-				 * don't have a setting, so we try
-				 * forcing it until we find one that
-				 * works, starting from the fastest speed,
-				 * and working our way down */
-				idx = phy_find_valid(0, phydev->supported);
-
-				phydev->speed = settings[idx].speed;
-				phydev->duplex = settings[idx].duplex;
-
-				phydev->autoneg = AUTONEG_DISABLE;
-
-				pr_info("Trying %d/%s\n",
-					phydev->speed,
-					DUPLEX_FULL == phydev->duplex ?
-					"FULL" : "HALF");
 			}
 			break;
 		case PHY_NOLINK:
@@ -866,18 +817,17 @@ void phy_state_machine(struct work_struct *work)
 				phydev->state = PHY_RUNNING;
 				netif_carrier_on(phydev->attached_dev);
 			} else {
-				if (0 == phydev->link_timeout--) {
-					phy_force_reduction(phydev);
+				if (0 == phydev->link_timeout--)
 					needs_aneg = 1;
-				}
 			}
 
 			phydev->adjust_link(phydev->attached_dev);
 			break;
 		case PHY_RUNNING:
 			/* Only register a CHANGE if we are
-			 * polling */
-			if (PHY_POLL == phydev->irq)
+			 * polling or ignoring interrupts
+			 */
+			if (!phy_interrupt_is_valid(phydev))
 				phydev->state = PHY_CHANGELINK;
 			break;
 		case PHY_CHANGELINK:
@@ -896,7 +846,7 @@ void phy_state_machine(struct work_struct *work)
 
 			phydev->adjust_link(phydev->attached_dev);
 
-			if (PHY_POLL != phydev->irq)
+			if (phy_interrupt_is_valid(phydev))
 				err = phy_config_interrupt(phydev,
 						PHY_INTERRUPT_ENABLED);
 			break;
@@ -966,8 +916,17 @@ void phy_state_machine(struct work_struct *work)
 	if (err < 0)
 		phy_error(phydev);
 
-	schedule_delayed_work(&phydev->state_queue, PHY_STATE_TIME * HZ);
+	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue,
+			PHY_STATE_TIME * HZ);
 }
+
+void phy_mac_interrupt(struct phy_device *phydev, int new_link)
+{
+	cancel_work_sync(&phydev->phy_queue);
+	phydev->link = new_link;
+	schedule_work(&phydev->phy_queue);
+}
+EXPORT_SYMBOL(phy_mac_interrupt);
 
 static inline void mmd_phy_indirect(struct mii_bus *bus, int prtad, int devad,
 				    int addr)
@@ -1092,7 +1051,7 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 		adv = mmd_eee_adv_to_ethtool_adv_t(eee_adv);
 		lp = mmd_eee_adv_to_ethtool_adv_t(eee_lp);
 		idx = phy_find_setting(phydev->speed, phydev->duplex);
-		if ((lp & adv & settings[idx].setting))
+		if (!(lp & adv & settings[idx].setting))
 			goto eee_exit;
 
 		if (clk_stop_enable) {
@@ -1188,3 +1147,19 @@ int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 	return 0;
 }
 EXPORT_SYMBOL(phy_ethtool_set_eee);
+
+int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	if (phydev->drv->set_wol)
+		return phydev->drv->set_wol(phydev, wol);
+
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(phy_ethtool_set_wol);
+
+void phy_ethtool_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	if (phydev->drv->get_wol)
+		phydev->drv->get_wol(phydev, wol);
+}
+EXPORT_SYMBOL(phy_ethtool_get_wol);

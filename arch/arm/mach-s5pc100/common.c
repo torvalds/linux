@@ -22,8 +22,10 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/serial_core.h>
+#include <clocksource/samsung_pwm.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
+#include <linux/reboot.h>
 
 #include <asm/irq.h>
 #include <asm/proc-fns.h>
@@ -45,6 +47,7 @@
 #include <plat/fb-core.h>
 #include <plat/iic-core.h>
 #include <plat/onenand-core.h>
+#include <plat/pwm-core.h>
 #include <plat/spi-core.h>
 #include <plat/regs-serial.h>
 #include <plat/watchdog-reset.h>
@@ -131,6 +134,30 @@ static struct map_desc s5pc100_iodesc[] __initdata = {
 	}
 };
 
+static struct samsung_pwm_variant s5pc100_pwm_variant = {
+	.bits		= 32,
+	.div_base	= 0,
+	.has_tint_cstat	= true,
+	.tclk_mask	= (1 << 5),
+};
+
+void __init samsung_set_timer_source(unsigned int event, unsigned int source)
+{
+	s5pc100_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
+	s5pc100_pwm_variant.output_mask &= ~(BIT(event) | BIT(source));
+}
+
+void __init samsung_timer_init(void)
+{
+	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
+		IRQ_TIMER0_VIC, IRQ_TIMER1_VIC, IRQ_TIMER2_VIC,
+		IRQ_TIMER3_VIC, IRQ_TIMER4_VIC,
+	};
+
+	samsung_pwm_clocksource_init(S3C_VA_TIMER,
+					timer_irqs, &s5pc100_pwm_variant);
+}
+
 /*
  * s5pc100_map_io
  *
@@ -148,6 +175,8 @@ void __init s5pc100_init_io(struct map_desc *mach_desc, int size)
 	s5p_init_cpu(S5P_VA_CHIPID);
 
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
+
+	samsung_pwm_set_platdata(&s5pc100_pwm_variant);
 }
 
 void __init s5pc100_map_io(void)
@@ -178,6 +207,7 @@ void __init s5pc100_init_clocks(int xtal)
 	s5p_register_clocks(xtal);
 	s5pc100_register_clocks();
 	s5pc100_setup_clocks();
+	samsung_wdt_reset_init(S3C_VA_WATCHDOG);
 }
 
 void __init s5pc100_init_irq(void)
@@ -216,10 +246,10 @@ void __init s5pc100_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	s3c24xx_init_uartdevs("s3c6400-uart", s5p_uart_resources, cfg, no);
 }
 
-void s5pc100_restart(char mode, const char *cmd)
+void s5pc100_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode != 's')
-		arch_wdt_reset();
+	if (mode != REBOOT_SOFT)
+		samsung_wdt_reset();
 
 	soft_restart(0);
 }

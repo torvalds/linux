@@ -144,33 +144,83 @@ static int scsi_bus_restore(struct device *dev)
 
 #ifdef CONFIG_PM_RUNTIME
 
+static int sdev_blk_runtime_suspend(struct scsi_device *sdev,
+					int (*cb)(struct device *))
+{
+	int err;
+
+	err = blk_pre_runtime_suspend(sdev->request_queue);
+	if (err)
+		return err;
+	if (cb)
+		err = cb(&sdev->sdev_gendev);
+	blk_post_runtime_suspend(sdev->request_queue, err);
+
+	return err;
+}
+
+static int sdev_runtime_suspend(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	int (*cb)(struct device *) = pm ? pm->runtime_suspend : NULL;
+	struct scsi_device *sdev = to_scsi_device(dev);
+	int err;
+
+	if (sdev->request_queue->dev)
+		return sdev_blk_runtime_suspend(sdev, cb);
+
+	err = scsi_dev_type_suspend(dev, cb);
+	if (err == -EAGAIN)
+		pm_schedule_suspend(dev, jiffies_to_msecs(
+					round_jiffies_up_relative(HZ/10)));
+	return err;
+}
+
 static int scsi_runtime_suspend(struct device *dev)
 {
 	int err = 0;
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	dev_dbg(dev, "scsi_runtime_suspend\n");
-	if (scsi_is_sdev_device(dev)) {
-		err = scsi_dev_type_suspend(dev,
-				pm ? pm->runtime_suspend : NULL);
-		if (err == -EAGAIN)
-			pm_schedule_suspend(dev, jiffies_to_msecs(
-				round_jiffies_up_relative(HZ/10)));
-	}
+	if (scsi_is_sdev_device(dev))
+		err = sdev_runtime_suspend(dev);
 
 	/* Insert hooks here for targets, hosts, and transport classes */
 
 	return err;
 }
 
+static int sdev_blk_runtime_resume(struct scsi_device *sdev,
+					int (*cb)(struct device *))
+{
+	int err = 0;
+
+	blk_pre_runtime_resume(sdev->request_queue);
+	if (cb)
+		err = cb(&sdev->sdev_gendev);
+	blk_post_runtime_resume(sdev->request_queue, err);
+
+	return err;
+}
+
+static int sdev_runtime_resume(struct device *dev)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	int (*cb)(struct device *) = pm ? pm->runtime_resume : NULL;
+
+	if (sdev->request_queue->dev)
+		return sdev_blk_runtime_resume(sdev, cb);
+	else
+		return scsi_dev_type_resume(dev, cb);
+}
+
 static int scsi_runtime_resume(struct device *dev)
 {
 	int err = 0;
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	dev_dbg(dev, "scsi_runtime_resume\n");
 	if (scsi_is_sdev_device(dev))
-		err = scsi_dev_type_resume(dev, pm ? pm->runtime_resume : NULL);
+		err = sdev_runtime_resume(dev);
 
 	/* Insert hooks here for targets, hosts, and transport classes */
 
@@ -179,17 +229,20 @@ static int scsi_runtime_resume(struct device *dev)
 
 static int scsi_runtime_idle(struct device *dev)
 {
-	int err;
-
 	dev_dbg(dev, "scsi_runtime_idle\n");
 
 	/* Insert hooks here for targets, hosts, and transport classes */
 
-	if (scsi_is_sdev_device(dev))
-		err = pm_schedule_suspend(dev, 100);
-	else
-		err = pm_runtime_suspend(dev);
-	return err;
+	if (scsi_is_sdev_device(dev)) {
+		struct scsi_device *sdev = to_scsi_device(dev);
+
+		if (sdev->request_queue->dev) {
+			pm_runtime_mark_last_busy(dev);
+			pm_runtime_autosuspend(dev);
+			return -EBUSY;
+		}
+	}
+	return 0;
 }
 
 int scsi_autopm_get_device(struct scsi_device *sdev)

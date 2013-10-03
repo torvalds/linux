@@ -52,7 +52,6 @@ enum {
 #define ALREADYACTIVE_SWITCH		0
 #define FORCEWAKEUP_SWITCH		1
 #define LOWPOWERSTATE_SWITCH		2
-#define ERROR_SWITCH			3
 
 /* pwrdm_list contains all registered struct powerdomains */
 static LIST_HEAD(pwrdm_list);
@@ -103,6 +102,10 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	if (_pwrdm_lookup(pwrdm->name))
 		return -EEXIST;
 
+	if (arch_pwrdm && arch_pwrdm->pwrdm_has_voltdm)
+		if (!arch_pwrdm->pwrdm_has_voltdm())
+			goto skip_voltdm;
+
 	voltdm = voltdm_lookup(pwrdm->voltdm.name);
 	if (!voltdm) {
 		pr_err("powerdomain: %s: voltagedomain %s does not exist\n",
@@ -112,6 +115,7 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	pwrdm->voltdm.ptr = voltdm;
 	INIT_LIST_HEAD(&pwrdm->voltdm_node);
 	voltdm_add_pwrdm(voltdm, pwrdm);
+skip_voltdm:
 	spin_lock_init(&pwrdm->_lock);
 
 	list_add(&pwrdm->node, &pwrdm_list);
@@ -233,10 +237,7 @@ static u8 _pwrdm_save_clkdm_state_and_activate(struct powerdomain *pwrdm,
 {
 	u8 sleep_switch;
 
-	if (curr_pwrst < 0) {
-		WARN_ON(1);
-		sleep_switch = ERROR_SWITCH;
-	} else if (curr_pwrst < PWRDM_POWER_ON) {
+	if (curr_pwrst < PWRDM_POWER_ON) {
 		if (curr_pwrst > pwrst &&
 		    pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE &&
 		    arch_pwrdm->pwrdm_set_lowpwrstchange) {
@@ -1091,7 +1092,8 @@ int pwrdm_post_transition(struct powerdomain *pwrdm)
  */
 int omap_set_pwrdm_state(struct powerdomain *pwrdm, u8 pwrst)
 {
-	u8 curr_pwrst, next_pwrst, sleep_switch;
+	u8 next_pwrst, sleep_switch;
+	int curr_pwrst;
 	int ret = 0;
 	bool hwsup = false;
 
@@ -1107,16 +1109,17 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u8 pwrst)
 	pwrdm_lock(pwrdm);
 
 	curr_pwrst = pwrdm_read_pwrst(pwrdm);
+	if (curr_pwrst < 0) {
+		ret = -EINVAL;
+		goto osps_out;
+	}
+
 	next_pwrst = pwrdm_read_next_pwrst(pwrdm);
 	if (curr_pwrst == pwrst && next_pwrst == pwrst)
 		goto osps_out;
 
 	sleep_switch = _pwrdm_save_clkdm_state_and_activate(pwrdm, curr_pwrst,
 							    pwrst, &hwsup);
-	if (sleep_switch == ERROR_SWITCH) {
-		ret = -EINVAL;
-		goto osps_out;
-	}
 
 	ret = pwrdm_set_next_pwrst(pwrdm, pwrst);
 	if (ret)
@@ -1182,7 +1185,7 @@ bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
 {
 	int i;
 
-	if (IS_ERR_OR_NULL(pwrdm)) {
+	if (!pwrdm) {
 		pr_debug("powerdomain: %s: invalid powerdomain pointer\n",
 			 __func__);
 		return 1;

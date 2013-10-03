@@ -49,10 +49,8 @@ void MIC_vGetMIC(unsigned long *pdwL, unsigned long *pdwR);
 /*---------------------  Export Macros ------------------------------*/
 
 // Rotation functions on 32 bit values
-#define ROL32( A, n ) \
- ( ((A) << (n)) | ( ((A)>>(32-(n)))  & ( (1UL << (n)) - 1 ) ) )
-#define ROR32( A, n ) ROL32( (A), 32-(n) )
+#define ROL32(A, n)							\
+	(((A) << (n)) | (((A)>>(32-(n)))  & ((1UL << (n)) - 1)))
+#define ROR32(A, n) ROL32((A), 32-(n))
 
 #endif //__MICHAEL_H__
-
-

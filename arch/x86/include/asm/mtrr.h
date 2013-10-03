@@ -26,7 +26,10 @@
 #include <uapi/asm/mtrr.h>
 
 
-/*  The following functions are for use by other drivers  */
+/*
+ * The following functions are for use by other drivers that cannot use
+ * arch_phys_wc_add and arch_phys_wc_del.
+ */
 # ifdef CONFIG_MTRR
 extern u8 mtrr_type_lookup(u64 addr, u64 end);
 extern void mtrr_save_fixed_ranges(void *);
@@ -45,6 +48,7 @@ extern void mtrr_aps_init(void);
 extern void mtrr_bp_restore(void);
 extern int mtrr_trim_uncached_memory(unsigned long end_pfn);
 extern int amd_special_default_mtrr(void);
+extern int phys_wc_to_mtrr_index(int handle);
 #  else
 static inline u8 mtrr_type_lookup(u64 addr, u64 end)
 {
@@ -79,6 +83,10 @@ static inline int mtrr_trim_uncached_memory(unsigned long end_pfn)
 }
 static inline void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi)
 {
+}
+static inline int phys_wc_to_mtrr_index(int handle)
+{
+	return -1;
 }
 
 #define mtrr_ap_init() do {} while (0)

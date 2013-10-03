@@ -149,6 +149,6 @@ static inline void itg3200_buffer_unconfigure(struct iio_dev *indio_dev)
 {
 }
 
-#endif  /* CONFIG_IIO_RING_BUFFER */
+#endif  /* CONFIG_IIO_BUFFER */
 
 #endif /* ITG3200_H_ */

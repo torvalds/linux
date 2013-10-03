@@ -1298,7 +1298,7 @@ static ssize_t spacc_stat_irq_thresh_store(struct device *dev,
 	struct spacc_engine *engine = spacc_dev_to_engine(dev);
 	unsigned long thresh;
 
-	if (strict_strtoul(buf, 0, &thresh))
+	if (kstrtoul(buf, 0, &thresh))
 		return -EINVAL;
 
 	thresh = clamp(thresh, 1UL, engine->fifo_sz - 1);
@@ -1688,8 +1688,6 @@ static const struct of_device_id spacc_of_id_table[] = {
 	{ .compatible = "picochip,spacc-l2" },
 	{}
 };
-#else /* CONFIG_OF */
-#define spacc_of_id_table NULL
 #endif /* CONFIG_OF */
 
 static bool spacc_is_compatible(struct platform_device *pdev,
@@ -1874,7 +1872,7 @@ static struct platform_driver spacc_driver = {
 #ifdef CONFIG_PM
 		.pm	= &spacc_pm_ops,
 #endif /* CONFIG_PM */
-		.of_match_table	= spacc_of_id_table,
+		.of_match_table	= of_match_ptr(spacc_of_id_table),
 	},
 	.id_table	= spacc_id_table,
 };

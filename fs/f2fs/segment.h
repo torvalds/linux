@@ -8,10 +8,13 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/blkdev.h>
+
 /* constant macro */
 #define NULL_SEGNO			((unsigned int)(~0))
+#define NULL_SECNO			((unsigned int)(~0))
 
-/* V: Logical segment # in volume, R: Relative segment # in main area */
+/* L: Logical segment # in volume, R: Relative segment # in main area */
 #define GET_L2R_SEGNO(free_i, segno)	(segno - free_i->start_segno)
 #define GET_R2L_SEGNO(free_i, segno)	(segno + free_i->start_segno)
 
@@ -23,13 +26,13 @@
 	((t == CURSEG_HOT_NODE) || (t == CURSEG_COLD_NODE) ||		\
 	(t == CURSEG_WARM_NODE))
 
-#define IS_CURSEG(sbi, segno)						\
-	((segno == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno))
+#define IS_CURSEG(sbi, seg)						\
+	((seg == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno))
 
 #define IS_CURSEC(sbi, secno)						\
 	((secno == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno /		\
@@ -81,9 +84,12 @@
 #define f2fs_bitmap_size(nr)			\
 	(BITS_TO_LONGS(nr) * sizeof(unsigned long))
 #define TOTAL_SEGS(sbi)	(SM_I(sbi)->main_segments)
+#define TOTAL_SECS(sbi)	(sbi->total_sections)
 
 #define SECTOR_FROM_BLOCK(sbi, blk_addr)				\
 	(blk_addr << ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
+#define SECTOR_TO_BLOCK(sbi, sectors)					\
+	(sectors >> ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
 
 /* during checkpoint, bio_private is used to synchronize the last bio */
 struct bio_private {
@@ -136,6 +142,7 @@ struct victim_sel_policy {
 	int alloc_mode;			/* LFS or SSR */
 	int gc_mode;			/* GC_CB or GC_GREEDY */
 	unsigned long *dirty_segmap;	/* dirty segment bitmap */
+	unsigned int max_search;	/* maximum # of segments to search */
 	unsigned int offset;		/* last scanned bitmap offset */
 	unsigned int ofs_unit;		/* bitmap search unit */
 	unsigned int min_cost;		/* minimum cost */
@@ -213,7 +220,7 @@ struct dirty_seglist_info {
 	unsigned long *dirty_segmap[NR_DIRTY_TYPE];
 	struct mutex seglist_lock;		/* lock for segment bitmaps */
 	int nr_dirty[NR_DIRTY_TYPE];		/* # of dirty segments */
-	unsigned long *victim_segmap[2];	/* BG_GC, FG_GC */
+	unsigned long *victim_secmap;		/* background GC victims */
 };
 
 /* victim selection function for cleaning and SSR */
@@ -447,7 +454,8 @@ static inline int reserved_sections(struct f2fs_sb_info *sbi)
 
 static inline bool need_SSR(struct f2fs_sb_info *sbi)
 {
-	return (free_sections(sbi) < overprovision_sections(sbi));
+	return ((prefree_segments(sbi) / sbi->segs_per_sec)
+			+ free_sections(sbi) < overprovision_sections(sbi));
 }
 
 static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
@@ -464,8 +472,7 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 
 static inline int utilization(struct f2fs_sb_info *sbi)
 {
-	return (long int)valid_user_blocks(sbi) * 100 /
-			(long int)sbi->user_block_count;
+	return div_u64((u64)valid_user_blocks(sbi) * 100, sbi->user_block_count);
 }
 
 /*
@@ -615,4 +622,18 @@ static inline block_t sum_blk_addr(struct f2fs_sb_info *sbi, int base, int type)
 	return __start_cp_addr(sbi) +
 		le32_to_cpu(F2FS_CKPT(sbi)->cp_pack_total_block_count)
 				- (base + 1) + type;
+}
+
+static inline bool sec_usage_check(struct f2fs_sb_info *sbi, unsigned int secno)
+{
+	if (IS_CURSEC(sbi, secno) || (sbi->cur_victim_sec == secno))
+		return true;
+	return false;
+}
+
+static inline unsigned int max_hw_blocks(struct f2fs_sb_info *sbi)
+{
+	struct block_device *bdev = sbi->sb->s_bdev;
+	struct request_queue *q = bdev_get_queue(bdev);
+	return SECTOR_TO_BLOCK(sbi, queue_max_sectors(q));
 }

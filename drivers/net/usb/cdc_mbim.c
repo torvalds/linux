@@ -101,7 +101,7 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->flags |= IFF_NOARP;
 
 	/* no need to put the VLAN tci in the packet headers */
-	dev->net->features |= NETIF_F_HW_VLAN_TX;
+	dev->net->features |= NETIF_F_HW_VLAN_CTAG_TX;
 err:
 	return ret;
 }
@@ -134,7 +134,7 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 		goto error;
 
 	if (skb) {
-		if (skb->len <= sizeof(ETH_HLEN))
+		if (skb->len <= ETH_HLEN)
 			goto error;
 
 		/* mapping VLANs to MBIM sessions:
@@ -221,7 +221,7 @@ static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_
 
 	/* map MBIM session to VLAN */
 	if (tci)
-		vlan_put_tag(skb, tci);
+		vlan_put_tag(skb, htons(ETH_P_8021Q), tci);
 err:
 	return skb;
 }
@@ -323,6 +323,11 @@ static int cdc_mbim_suspend(struct usb_interface *intf, pm_message_t message)
 		goto error;
 	}
 
+	/*
+	 * Both usbnet_suspend() and subdriver->suspend() MUST return 0
+	 * in system sleep context, otherwise, the resume callback has
+	 * to recover device from previous suspend failure.
+	 */
 	ret = usbnet_suspend(intf, message);
 	if (ret < 0)
 		goto error;
@@ -393,6 +398,10 @@ static const struct usb_device_id mbim_devs[] = {
 	},
 	/* Sierra Wireless MC7710 need ZLPs */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x68a2, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
+	},
+	/* HP hs2434 Mobile Broadband Module needs ZLPs */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x3f0, 0x4b1d, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
 	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
 	},
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),

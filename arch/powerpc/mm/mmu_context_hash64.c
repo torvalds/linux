@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 
 #include "icswx.h"
 
@@ -85,6 +86,9 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	spin_lock_init(mm->context.cop_lockp);
 #endif /* CONFIG_PPC_ICSWX */
 
+#ifdef CONFIG_PPC_64K_PAGES
+	mm->context.pte_frag = NULL;
+#endif
 	return 0;
 }
 
@@ -96,13 +100,46 @@ void __destroy_context(int context_id)
 }
 EXPORT_SYMBOL_GPL(__destroy_context);
 
+#ifdef CONFIG_PPC_64K_PAGES
+static void destroy_pagetable_page(struct mm_struct *mm)
+{
+	int count;
+	void *pte_frag;
+	struct page *page;
+
+	pte_frag = mm->context.pte_frag;
+	if (!pte_frag)
+		return;
+
+	page = virt_to_page(pte_frag);
+	/* drop all the pending references */
+	count = ((unsigned long)pte_frag & ~PAGE_MASK) >> PTE_FRAG_SIZE_SHIFT;
+	/* We allow PTE_FRAG_NR fragments from a PTE page */
+	count = atomic_sub_return(PTE_FRAG_NR - count, &page->_count);
+	if (!count) {
+		pgtable_page_dtor(page);
+		free_hot_cold_page(page, 0);
+	}
+}
+
+#else
+static inline void destroy_pagetable_page(struct mm_struct *mm)
+{
+	return;
+}
+#endif
+
+
 void destroy_context(struct mm_struct *mm)
 {
+
 #ifdef CONFIG_PPC_ICSWX
 	drop_cop(mm->context.acop, mm);
 	kfree(mm->context.cop_lockp);
 	mm->context.cop_lockp = NULL;
 #endif /* CONFIG_PPC_ICSWX */
+
+	destroy_pagetable_page(mm);
 	__destroy_context(mm->context.id);
 	subpage_prot_free(mm);
 	mm->context.id = MMU_NO_CONTEXT;

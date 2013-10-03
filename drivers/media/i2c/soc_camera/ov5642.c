@@ -24,7 +24,7 @@
 #include <linux/v4l2-mediabus.h>
 
 #include <media/soc_camera.h>
-#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-clk.h>
 #include <media/v4l2-subdev.h>
 
 /* OV5642 registers */
@@ -610,6 +610,7 @@ struct ov5642 {
 	struct v4l2_subdev		subdev;
 	const struct ov5642_datafmt	*fmt;
 	struct v4l2_rect                crop_rect;
+	struct v4l2_clk			*clk;
 
 	/* blanking information */
 	int total_width;
@@ -708,7 +709,7 @@ static int ov5642_get_register(struct v4l2_subdev *sd, struct v4l2_dbg_register 
 	return ret;
 }
 
-static int ov5642_set_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+static int ov5642_set_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -848,23 +849,6 @@ static int ov5642_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 	return 0;
 }
 
-static int ov5642_g_chip_ident(struct v4l2_subdev *sd,
-			       struct v4l2_dbg_chip_ident *id)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-
-	if (id->match.addr != client->addr)
-		return -ENODEV;
-
-	id->ident	= V4L2_IDENT_OV5642;
-	id->revision	= 0;
-
-	return 0;
-}
-
 static int ov5642_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -935,12 +919,13 @@ static int ov5642_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
+	struct ov5642 *priv = to_ov5642(client);
 	int ret;
 
 	if (!on)
-		return soc_camera_power_off(&client->dev, ssdd);
+		return soc_camera_power_off(&client->dev, ssdd, priv->clk);
 
-	ret = soc_camera_power_on(&client->dev, ssdd);
+	ret = soc_camera_power_on(&client->dev, ssdd, priv->clk);
 	if (ret < 0)
 		return ret;
 
@@ -966,7 +951,6 @@ static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
 
 static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
 	.s_power	= ov5642_s_power,
-	.g_chip_ident	= ov5642_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ov5642_get_register,
 	.s_register	= ov5642_set_register,
@@ -1021,6 +1005,7 @@ static int ov5642_probe(struct i2c_client *client,
 {
 	struct ov5642 *priv;
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
+	int ret;
 
 	if (!ssdd) {
 		dev_err(&client->dev, "OV5642: missing platform data!\n");
@@ -1042,13 +1027,23 @@ static int ov5642_probe(struct i2c_client *client,
 	priv->total_width = OV5642_DEFAULT_WIDTH + BLANKING_EXTRA_WIDTH;
 	priv->total_height = BLANKING_MIN_HEIGHT;
 
-	return ov5642_video_probe(client);
+	priv->clk = v4l2_clk_get(&client->dev, "mclk");
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
+	ret = ov5642_video_probe(client);
+	if (ret < 0)
+		v4l2_clk_put(priv->clk);
+
+	return ret;
 }
 
 static int ov5642_remove(struct i2c_client *client)
 {
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
+	struct ov5642 *priv = to_ov5642(client);
 
+	v4l2_clk_put(priv->clk);
 	if (ssdd->free_bus)
 		ssdd->free_bus(ssdd);
 

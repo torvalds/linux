@@ -64,7 +64,7 @@ static u32 mv_desc_get_src_addr(struct mv_xor_desc_slot *desc,
 				int src_idx)
 {
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
-	return hw_desc->phy_src_addr[src_idx];
+	return hw_desc->phy_src_addr[mv_phy_src_idx(src_idx)];
 }
 
 
@@ -89,11 +89,6 @@ static void mv_desc_clear_next_desc(struct mv_xor_desc_slot *desc)
 	hw_desc->phy_next_desc = 0;
 }
 
-static void mv_desc_set_block_fill_val(struct mv_xor_desc_slot *desc, u32 val)
-{
-	desc->value = val;
-}
-
 static void mv_desc_set_dest_addr(struct mv_xor_desc_slot *desc,
 				  dma_addr_t addr)
 {
@@ -112,48 +107,32 @@ static void mv_desc_set_src_addr(struct mv_xor_desc_slot *desc,
 				 int index, dma_addr_t addr)
 {
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
-	hw_desc->phy_src_addr[index] = addr;
+	hw_desc->phy_src_addr[mv_phy_src_idx(index)] = addr;
 	if (desc->type == DMA_XOR)
 		hw_desc->desc_command |= (1 << index);
 }
 
 static u32 mv_chan_get_current_desc(struct mv_xor_chan *chan)
 {
-	return __raw_readl(XOR_CURR_DESC(chan));
+	return readl_relaxed(XOR_CURR_DESC(chan));
 }
 
 static void mv_chan_set_next_descriptor(struct mv_xor_chan *chan,
 					u32 next_desc_addr)
 {
-	__raw_writel(next_desc_addr, XOR_NEXT_DESC(chan));
-}
-
-static void mv_chan_set_dest_pointer(struct mv_xor_chan *chan, u32 desc_addr)
-{
-	__raw_writel(desc_addr, XOR_DEST_POINTER(chan));
-}
-
-static void mv_chan_set_block_size(struct mv_xor_chan *chan, u32 block_size)
-{
-	__raw_writel(block_size, XOR_BLOCK_SIZE(chan));
-}
-
-static void mv_chan_set_value(struct mv_xor_chan *chan, u32 value)
-{
-	__raw_writel(value, XOR_INIT_VALUE_LOW(chan));
-	__raw_writel(value, XOR_INIT_VALUE_HIGH(chan));
+	writel_relaxed(next_desc_addr, XOR_NEXT_DESC(chan));
 }
 
 static void mv_chan_unmask_interrupts(struct mv_xor_chan *chan)
 {
-	u32 val = __raw_readl(XOR_INTR_MASK(chan));
+	u32 val = readl_relaxed(XOR_INTR_MASK(chan));
 	val |= XOR_INTR_MASK_VALUE << (chan->idx * 16);
-	__raw_writel(val, XOR_INTR_MASK(chan));
+	writel_relaxed(val, XOR_INTR_MASK(chan));
 }
 
 static u32 mv_chan_get_intr_cause(struct mv_xor_chan *chan)
 {
-	u32 intr_cause = __raw_readl(XOR_INTR_CAUSE(chan));
+	u32 intr_cause = readl_relaxed(XOR_INTR_CAUSE(chan));
 	intr_cause = (intr_cause >> (chan->idx * 16)) & 0xFFFF;
 	return intr_cause;
 }
@@ -170,13 +149,13 @@ static void mv_xor_device_clear_eoc_cause(struct mv_xor_chan *chan)
 {
 	u32 val = ~(1 << (chan->idx * 16));
 	dev_dbg(mv_chan_to_devp(chan), "%s, val 0x%08x\n", __func__, val);
-	__raw_writel(val, XOR_INTR_CAUSE(chan));
+	writel_relaxed(val, XOR_INTR_CAUSE(chan));
 }
 
 static void mv_xor_device_clear_err_status(struct mv_xor_chan *chan)
 {
 	u32 val = 0xFFFF0000 >> (chan->idx * 16);
-	__raw_writel(val, XOR_INTR_CAUSE(chan));
+	writel_relaxed(val, XOR_INTR_CAUSE(chan));
 }
 
 static int mv_can_chain(struct mv_xor_desc_slot *desc)
@@ -186,8 +165,6 @@ static int mv_can_chain(struct mv_xor_desc_slot *desc)
 
 	if (chain_old_tail->type != desc->type)
 		return 0;
-	if (desc->type == DMA_MEMSET)
-		return 0;
 
 	return 1;
 }
@@ -196,7 +173,7 @@ static void mv_set_mode(struct mv_xor_chan *chan,
 			       enum dma_transaction_type type)
 {
 	u32 op_mode;
-	u32 config = __raw_readl(XOR_CONFIG(chan));
+	u32 config = readl_relaxed(XOR_CONFIG(chan));
 
 	switch (type) {
 	case DMA_XOR:
@@ -204,9 +181,6 @@ static void mv_set_mode(struct mv_xor_chan *chan,
 		break;
 	case DMA_MEMCPY:
 		op_mode = XOR_OPERATION_MODE_MEMCPY;
-		break;
-	case DMA_MEMSET:
-		op_mode = XOR_OPERATION_MODE_MEMSET;
 		break;
 	default:
 		dev_err(mv_chan_to_devp(chan),
@@ -218,7 +192,14 @@ static void mv_set_mode(struct mv_xor_chan *chan,
 
 	config &= ~0x7;
 	config |= op_mode;
-	__raw_writel(config, XOR_CONFIG(chan));
+
+#if defined(__BIG_ENDIAN)
+	config |= XOR_DESCRIPTOR_SWAP;
+#else
+	config &= ~XOR_DESCRIPTOR_SWAP;
+#endif
+
+	writel_relaxed(config, XOR_CONFIG(chan));
 	chan->current_type = type;
 }
 
@@ -227,14 +208,14 @@ static void mv_chan_activate(struct mv_xor_chan *chan)
 	u32 activation;
 
 	dev_dbg(mv_chan_to_devp(chan), " activate chan.\n");
-	activation = __raw_readl(XOR_ACTIVATION(chan));
+	activation = readl_relaxed(XOR_ACTIVATION(chan));
 	activation |= 0x1;
-	__raw_writel(activation, XOR_ACTIVATION(chan));
+	writel_relaxed(activation, XOR_ACTIVATION(chan));
 }
 
 static char mv_chan_is_busy(struct mv_xor_chan *chan)
 {
-	u32 state = __raw_readl(XOR_ACTIVATION(chan));
+	u32 state = readl_relaxed(XOR_ACTIVATION(chan));
 
 	state = (state >> 4) & 0x3;
 
@@ -274,18 +255,9 @@ static void mv_xor_start_new_chain(struct mv_xor_chan *mv_chan,
 	if (sw_desc->type != mv_chan->current_type)
 		mv_set_mode(mv_chan, sw_desc->type);
 
-	if (sw_desc->type == DMA_MEMSET) {
-		/* for memset requests we need to program the engine, no
-		 * descriptors used.
-		 */
-		struct mv_xor_desc *hw_desc = sw_desc->hw_desc;
-		mv_chan_set_dest_pointer(mv_chan, hw_desc->phy_dest_addr);
-		mv_chan_set_block_size(mv_chan, sw_desc->unmap_len);
-		mv_chan_set_value(mv_chan, sw_desc->value);
-	} else {
-		/* set the hardware chain */
-		mv_chan_set_next_descriptor(mv_chan, sw_desc->async_tx.phys);
-	}
+	/* set the hardware chain */
+	mv_chan_set_next_descriptor(mv_chan, sw_desc->async_tx.phys);
+
 	mv_chan->pending += sw_desc->slot_cnt;
 	mv_xor_issue_pending(&mv_chan->dmachan);
 }
@@ -682,45 +654,8 @@ mv_xor_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 	dev_dbg(mv_chan_to_devp(mv_chan),
 		"%s sw_desc %p async_tx %p\n",
-		__func__, sw_desc, sw_desc ? &sw_desc->async_tx : 0);
+		__func__, sw_desc, sw_desc ? &sw_desc->async_tx : NULL);
 
-	return sw_desc ? &sw_desc->async_tx : NULL;
-}
-
-static struct dma_async_tx_descriptor *
-mv_xor_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
-		       size_t len, unsigned long flags)
-{
-	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
-	struct mv_xor_desc_slot *sw_desc, *grp_start;
-	int slot_cnt;
-
-	dev_dbg(mv_chan_to_devp(mv_chan),
-		"%s dest: %x len: %u flags: %ld\n",
-		__func__, dest, len, flags);
-	if (unlikely(len < MV_XOR_MIN_BYTE_COUNT))
-		return NULL;
-
-	BUG_ON(len > MV_XOR_MAX_BYTE_COUNT);
-
-	spin_lock_bh(&mv_chan->lock);
-	slot_cnt = mv_chan_memset_slot_count(len);
-	sw_desc = mv_xor_alloc_slots(mv_chan, slot_cnt, 1);
-	if (sw_desc) {
-		sw_desc->type = DMA_MEMSET;
-		sw_desc->async_tx.flags = flags;
-		grp_start = sw_desc->group_head;
-		mv_desc_init(grp_start, flags);
-		mv_desc_set_byte_count(grp_start, len);
-		mv_desc_set_dest_addr(sw_desc->group_head, dest);
-		mv_desc_set_block_fill_val(grp_start, value);
-		sw_desc->unmap_src_cnt = 1;
-		sw_desc->unmap_len = len;
-	}
-	spin_unlock_bh(&mv_chan->lock);
-	dev_dbg(mv_chan_to_devp(mv_chan),
-		"%s sw_desc %p async_tx %p \n",
-		__func__, sw_desc, &sw_desc->async_tx);
 	return sw_desc ? &sw_desc->async_tx : NULL;
 }
 
@@ -827,22 +762,22 @@ static void mv_dump_xor_regs(struct mv_xor_chan *chan)
 {
 	u32 val;
 
-	val = __raw_readl(XOR_CONFIG(chan));
+	val = readl_relaxed(XOR_CONFIG(chan));
 	dev_err(mv_chan_to_devp(chan), "config       0x%08x\n", val);
 
-	val = __raw_readl(XOR_ACTIVATION(chan));
+	val = readl_relaxed(XOR_ACTIVATION(chan));
 	dev_err(mv_chan_to_devp(chan), "activation   0x%08x\n", val);
 
-	val = __raw_readl(XOR_INTR_CAUSE(chan));
+	val = readl_relaxed(XOR_INTR_CAUSE(chan));
 	dev_err(mv_chan_to_devp(chan), "intr cause   0x%08x\n", val);
 
-	val = __raw_readl(XOR_INTR_MASK(chan));
+	val = readl_relaxed(XOR_INTR_MASK(chan));
 	dev_err(mv_chan_to_devp(chan), "intr mask    0x%08x\n", val);
 
-	val = __raw_readl(XOR_ERROR_CAUSE(chan));
+	val = readl_relaxed(XOR_ERROR_CAUSE(chan));
 	dev_err(mv_chan_to_devp(chan), "error cause  0x%08x\n", val);
 
-	val = __raw_readl(XOR_ERROR_ADDR(chan));
+	val = readl_relaxed(XOR_ERROR_ADDR(chan));
 	dev_err(mv_chan_to_devp(chan), "error addr   0x%08x\n", val);
 }
 
@@ -1101,10 +1036,8 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	struct dma_device *dma_dev;
 
 	mv_chan = devm_kzalloc(&pdev->dev, sizeof(*mv_chan), GFP_KERNEL);
-	if (!mv_chan) {
-		ret = -ENOMEM;
-		goto err_free_dma;
-	}
+	if (!mv_chan)
+		return ERR_PTR(-ENOMEM);
 
 	mv_chan->idx = idx;
 	mv_chan->irq = irq;
@@ -1137,8 +1070,6 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	/* set prep routines based on capability */
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask))
 		dma_dev->device_prep_dma_memcpy = mv_xor_prep_dma_memcpy;
-	if (dma_has_cap(DMA_MEMSET, dma_dev->cap_mask))
-		dma_dev->device_prep_dma_memset = mv_xor_prep_dma_memset;
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		dma_dev->max_xor = 8;
 		dma_dev->device_prep_dma_xor = mv_xor_prep_dma_xor;
@@ -1187,9 +1118,8 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 			goto err_free_irq;
 	}
 
-	dev_info(&pdev->dev, "Marvell XOR: ( %s%s%s%s)\n",
+	dev_info(&pdev->dev, "Marvell XOR: ( %s%s%s)\n",
 		 dma_has_cap(DMA_XOR, dma_dev->cap_mask) ? "xor " : "",
-		 dma_has_cap(DMA_MEMSET, dma_dev->cap_mask)  ? "fill " : "",
 		 dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask) ? "cpy " : "",
 		 dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask) ? "intr " : "");
 
@@ -1241,7 +1171,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 {
 	const struct mbus_dram_target_info *dram;
 	struct mv_xor_device *xordev;
-	struct mv_xor_platform_data *pdata = pdev->dev.platform_data;
+	struct mv_xor_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res;
 	int i, ret;
 
@@ -1298,8 +1228,6 @@ static int mv_xor_probe(struct platform_device *pdev)
 				dma_cap_set(DMA_MEMCPY, cap_mask);
 			if (of_property_read_bool(np, "dmacap,xor"))
 				dma_cap_set(DMA_XOR, cap_mask);
-			if (of_property_read_bool(np, "dmacap,memset"))
-				dma_cap_set(DMA_MEMSET, cap_mask);
 			if (of_property_read_bool(np, "dmacap,interrupt"))
 				dma_cap_set(DMA_INTERRUPT, cap_mask);
 

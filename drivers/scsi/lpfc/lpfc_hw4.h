@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009-2012 Emulex.  All rights reserved.                *
+ * Copyright (C) 2009-2013 Emulex.  All rights reserved.                *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -200,6 +200,11 @@ struct lpfc_sli_intf {
 #define LPFC_MAX_IMAX          5000000
 #define LPFC_DEF_IMAX          50000
 
+#define LPFC_MIN_CPU_MAP       0
+#define LPFC_MAX_CPU_MAP       2
+#define LPFC_HBA_CPU_MAP       1
+#define LPFC_DRIVER_CPU_MAP    2  /* Default */
+
 /* PORT_CAPABILITIES constants. */
 #define LPFC_MAX_SUPPORTED_PAGES	8
 
@@ -228,6 +233,9 @@ struct ulp_bde64 {
 	uint32_t addrLow;
 	uint32_t addrHigh;
 };
+
+/* Maximun size of immediate data that can fit into a 128 byte WQE */
+#define LPFC_MAX_BDE_IMM_SIZE	64
 
 struct lpfc_sli4_flags {
 	uint32_t word0;
@@ -621,7 +629,7 @@ struct lpfc_register {
 #define lpfc_sliport_status_rdy_SHIFT	23
 #define lpfc_sliport_status_rdy_MASK	0x1
 #define lpfc_sliport_status_rdy_WORD	word0
-#define MAX_IF_TYPE_2_RESETS	1000
+#define MAX_IF_TYPE_2_RESETS		6
 
 #define LPFC_CTL_PORT_CTL_OFFSET	0x408
 #define lpfc_sliport_ctrl_end_SHIFT	30
@@ -1958,6 +1966,9 @@ struct lpfc_mbx_init_vfi {
 
 struct lpfc_mbx_reg_vfi {
 	uint32_t word1;
+#define lpfc_reg_vfi_upd_SHIFT		29
+#define lpfc_reg_vfi_upd_MASK		0x00000001
+#define lpfc_reg_vfi_upd_WORD		word1
 #define lpfc_reg_vfi_vp_SHIFT		28
 #define lpfc_reg_vfi_vp_MASK		0x00000001
 #define lpfc_reg_vfi_vp_WORD		word1
@@ -2577,6 +2588,9 @@ struct lpfc_sli4_parameters {
 #define cfg_mqv_WORD				word6
 	uint32_t word7;
 	uint32_t word8;
+#define cfg_wqsize_SHIFT			8
+#define cfg_wqsize_MASK				0x0000000f
+#define cfg_wqsize_WORD				word8
 #define cfg_wqv_SHIFT				14
 #define cfg_wqv_MASK				0x00000003
 #define cfg_wqv_WORD				word8
@@ -3611,6 +3625,13 @@ union lpfc_wqe {
 	struct xmit_bls_rsp64_wqe xmit_bls_rsp;
 	struct xmit_els_rsp64_wqe xmit_els_rsp;
 	struct els_request64_wqe els_req;
+	struct gen_req64_wqe gen_req;
+};
+
+union lpfc_wqe128 {
+	uint32_t words[32];
+	struct lpfc_wqe_generic generic;
+	struct xmit_seq64_wqe xmit_sequence;
 	struct gen_req64_wqe gen_req;
 };
 

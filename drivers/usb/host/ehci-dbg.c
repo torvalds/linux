@@ -18,7 +18,7 @@
 
 /* this file is part of ehci-hcd.c */
 
-#ifdef	DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 
 /* check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
@@ -62,7 +62,7 @@ static inline void dbg_hcs_params (struct ehci_hcd *ehci, char *label) {}
 
 #endif
 
-#ifdef	DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 
 /* check the values in the HCCPARAMS register
  * (host controller _Capability_ parameters)
@@ -101,7 +101,7 @@ static inline void dbg_hcc_params (struct ehci_hcd *ehci, char *label) {}
 
 #endif
 
-#ifdef	DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 
 static void __maybe_unused
 dbg_qtd (const char *label, struct ehci_hcd *ehci, struct ehci_qtd *qtd)
@@ -301,7 +301,7 @@ static inline int __maybe_unused
 dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 { return 0; }
 
-#endif	/* DEBUG */
+#endif	/* DEBUG || CONFIG_DYNAMIC_DEBUG */
 
 /* functions have the "wrong" filename when they're output... */
 #define dbg_status(ehci, label, status) { \
@@ -336,7 +336,6 @@ static inline void remove_debug_files (struct ehci_hcd *bus) { }
 static int debug_async_open(struct inode *, struct file *);
 static int debug_periodic_open(struct inode *, struct file *);
 static int debug_registers_open(struct inode *, struct file *);
-static int debug_async_open(struct inode *, struct file *);
 
 static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
 static int debug_close(struct inode *, struct file *);
@@ -510,14 +509,16 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (qh = ehci->async->qh_next.qh; size > 0 && qh; qh = qh->qh_next.qh)
 		qh_lines (ehci, qh, &next, &size);
-	if (ehci->async_unlink && size > 0) {
+	if (!list_empty(&ehci->async_unlink) && size > 0) {
 		temp = scnprintf(next, size, "\nunlink =\n");
 		size -= temp;
 		next += temp;
 
-		for (qh = ehci->async_unlink; size > 0 && qh;
-				qh = qh->unlink_next)
-			qh_lines (ehci, qh, &next, &size);
+		list_for_each_entry(qh, &ehci->async_unlink, unlink_node) {
+			if (size <= 0)
+				break;
+			qh_lines(ehci, qh, &next, &size);
+		}
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
@@ -814,9 +815,10 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		}
 	}
 
-	if (ehci->async_unlink) {
+	if (!list_empty(&ehci->async_unlink)) {
 		temp = scnprintf(next, size, "async unlink qh %p\n",
-				ehci->async_unlink);
+				list_first_entry(&ehci->async_unlink,
+						struct ehci_qh, unlink_node));
 		size -= temp;
 		next += temp;
 	}

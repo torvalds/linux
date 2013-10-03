@@ -73,7 +73,7 @@ unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 
 void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
 {
-	bd->bd_ail = NULL;
+	bd->bd_tr = NULL;
 	list_del_init(&bd->bd_ail_st_list);
 	list_del_init(&bd->bd_ail_gl_list);
 	atomic_dec(&bd->bd_gl->gl_ail_count);
@@ -90,7 +90,7 @@ void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
 
 static int gfs2_ail1_start_one(struct gfs2_sbd *sdp,
 			       struct writeback_control *wbc,
-			       struct gfs2_ail *ai)
+			       struct gfs2_trans *tr)
 __releases(&sdp->sd_ail_lock)
 __acquires(&sdp->sd_ail_lock)
 {
@@ -99,15 +99,15 @@ __acquires(&sdp->sd_ail_lock)
 	struct gfs2_bufdata *bd, *s;
 	struct buffer_head *bh;
 
-	list_for_each_entry_safe_reverse(bd, s, &ai->ai_ail1_list, bd_ail_st_list) {
+	list_for_each_entry_safe_reverse(bd, s, &tr->tr_ail1_list, bd_ail_st_list) {
 		bh = bd->bd_bh;
 
-		gfs2_assert(sdp, bd->bd_ail == ai);
+		gfs2_assert(sdp, bd->bd_tr == tr);
 
 		if (!buffer_busy(bh)) {
 			if (!buffer_uptodate(bh))
 				gfs2_io_error_bh(sdp, bh);
-			list_move(&bd->bd_ail_st_list, &ai->ai_ail2_list);
+			list_move(&bd->bd_ail_st_list, &tr->tr_ail2_list);
 			continue;
 		}
 
@@ -116,7 +116,7 @@ __acquires(&sdp->sd_ail_lock)
 		if (gl == bd->bd_gl)
 			continue;
 		gl = bd->bd_gl;
-		list_move(&bd->bd_ail_st_list, &ai->ai_ail1_list);
+		list_move(&bd->bd_ail_st_list, &tr->tr_ail1_list);
 		mapping = bh->b_page->mapping;
 		if (!mapping)
 			continue;
@@ -144,15 +144,15 @@ __acquires(&sdp->sd_ail_lock)
 void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 {
 	struct list_head *head = &sdp->sd_ail1_list;
-	struct gfs2_ail *ai;
+	struct gfs2_trans *tr;
 
 	trace_gfs2_ail_flush(sdp, wbc, 1);
 	spin_lock(&sdp->sd_ail_lock);
 restart:
-	list_for_each_entry_reverse(ai, head, ai_list) {
+	list_for_each_entry_reverse(tr, head, tr_list) {
 		if (wbc->nr_to_write <= 0)
 			break;
-		if (gfs2_ail1_start_one(sdp, wbc, ai))
+		if (gfs2_ail1_start_one(sdp, wbc, tr))
 			goto restart;
 	}
 	spin_unlock(&sdp->sd_ail_lock);
@@ -183,20 +183,20 @@ static void gfs2_ail1_start(struct gfs2_sbd *sdp)
  *
  */
 
-static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
+static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	struct gfs2_bufdata *bd, *s;
 	struct buffer_head *bh;
 
-	list_for_each_entry_safe_reverse(bd, s, &ai->ai_ail1_list,
+	list_for_each_entry_safe_reverse(bd, s, &tr->tr_ail1_list,
 					 bd_ail_st_list) {
 		bh = bd->bd_bh;
-		gfs2_assert(sdp, bd->bd_ail == ai);
+		gfs2_assert(sdp, bd->bd_tr == tr);
 		if (buffer_busy(bh))
 			continue;
 		if (!buffer_uptodate(bh))
 			gfs2_io_error_bh(sdp, bh);
-		list_move(&bd->bd_ail_st_list, &ai->ai_ail2_list);
+		list_move(&bd->bd_ail_st_list, &tr->tr_ail2_list);
 	}
 
 }
@@ -210,16 +210,17 @@ static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 
 static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 {
-	struct gfs2_ail *ai, *s;
+	struct gfs2_trans *tr, *s;
+	int oldest_tr = 1;
 	int ret;
 
 	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry_safe_reverse(ai, s, &sdp->sd_ail1_list, ai_list) {
-		gfs2_ail1_empty_one(sdp, ai);
-		if (list_empty(&ai->ai_ail1_list))
-			list_move(&ai->ai_list, &sdp->sd_ail2_list);
+	list_for_each_entry_safe_reverse(tr, s, &sdp->sd_ail1_list, tr_list) {
+		gfs2_ail1_empty_one(sdp, tr);
+		if (list_empty(&tr->tr_ail1_list) && oldest_tr)
+			list_move(&tr->tr_list, &sdp->sd_ail2_list);
 		else
-			break;
+			oldest_tr = 0;
 	}
 	ret = list_empty(&sdp->sd_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
@@ -229,13 +230,13 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 
 static void gfs2_ail1_wait(struct gfs2_sbd *sdp)
 {
-	struct gfs2_ail *ai;
+	struct gfs2_trans *tr;
 	struct gfs2_bufdata *bd;
 	struct buffer_head *bh;
 
 	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry_reverse(ai, &sdp->sd_ail1_list, ai_list) {
-		list_for_each_entry(bd, &ai->ai_ail1_list, bd_ail_st_list) {
+	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
+		list_for_each_entry(bd, &tr->tr_ail1_list, bd_ail_st_list) {
 			bh = bd->bd_bh;
 			if (!buffer_locked(bh))
 				continue;
@@ -256,40 +257,40 @@ static void gfs2_ail1_wait(struct gfs2_sbd *sdp)
  *
  */
 
-static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
+static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
-	struct list_head *head = &ai->ai_ail2_list;
+	struct list_head *head = &tr->tr_ail2_list;
 	struct gfs2_bufdata *bd;
 
 	while (!list_empty(head)) {
 		bd = list_entry(head->prev, struct gfs2_bufdata,
 				bd_ail_st_list);
-		gfs2_assert(sdp, bd->bd_ail == ai);
+		gfs2_assert(sdp, bd->bd_tr == tr);
 		gfs2_remove_from_ail(bd);
 	}
 }
 
 static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
 {
-	struct gfs2_ail *ai, *safe;
+	struct gfs2_trans *tr, *safe;
 	unsigned int old_tail = sdp->sd_log_tail;
 	int wrap = (new_tail < old_tail);
 	int a, b, rm;
 
 	spin_lock(&sdp->sd_ail_lock);
 
-	list_for_each_entry_safe(ai, safe, &sdp->sd_ail2_list, ai_list) {
-		a = (old_tail <= ai->ai_first);
-		b = (ai->ai_first < new_tail);
+	list_for_each_entry_safe(tr, safe, &sdp->sd_ail2_list, tr_list) {
+		a = (old_tail <= tr->tr_first);
+		b = (tr->tr_first < new_tail);
 		rm = (wrap) ? (a || b) : (a && b);
 		if (!rm)
 			continue;
 
-		gfs2_ail2_empty_one(sdp, ai);
-		list_del(&ai->ai_list);
-		gfs2_assert_warn(sdp, list_empty(&ai->ai_ail1_list));
-		gfs2_assert_warn(sdp, list_empty(&ai->ai_ail2_list));
-		kfree(ai);
+		gfs2_ail2_empty_one(sdp, tr);
+		list_del(&tr->tr_list);
+		gfs2_assert_warn(sdp, list_empty(&tr->tr_ail1_list));
+		gfs2_assert_warn(sdp, list_empty(&tr->tr_ail2_list));
+		kfree(tr);
 	}
 
 	spin_unlock(&sdp->sd_ail_lock);
@@ -317,7 +318,7 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
 
 int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 {
-	unsigned reserved_blks = 6 * (4096 / sdp->sd_vfs->s_blocksize);
+	unsigned reserved_blks = 7 * (4096 / sdp->sd_vfs->s_blocksize);
 	unsigned wanted = blks + reserved_blks;
 	DEFINE_WAIT(wait);
 	int did_wait = 0;
@@ -435,7 +436,7 @@ static unsigned int calc_reserved(struct gfs2_sbd *sdp)
 
 static unsigned int current_tail(struct gfs2_sbd *sdp)
 {
-	struct gfs2_ail *ai;
+	struct gfs2_trans *tr;
 	unsigned int tail;
 
 	spin_lock(&sdp->sd_ail_lock);
@@ -443,8 +444,9 @@ static unsigned int current_tail(struct gfs2_sbd *sdp)
 	if (list_empty(&sdp->sd_ail1_list)) {
 		tail = sdp->sd_log_head;
 	} else {
-		ai = list_entry(sdp->sd_ail1_list.prev, struct gfs2_ail, ai_list);
-		tail = ai->ai_first;
+		tr = list_entry(sdp->sd_ail1_list.prev, struct gfs2_trans,
+				tr_list);
+		tail = tr->tr_first;
 	}
 
 	spin_unlock(&sdp->sd_ail_lock);
@@ -544,6 +546,76 @@ void gfs2_ordered_del_inode(struct gfs2_inode *ip)
 	spin_unlock(&sdp->sd_ordered_lock);
 }
 
+void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
+{
+	struct buffer_head *bh = bd->bd_bh;
+	struct gfs2_glock *gl = bd->bd_gl;
+
+	gfs2_remove_from_ail(bd);
+	bd->bd_bh = NULL;
+	bh->b_private = NULL;
+	bd->bd_blkno = bh->b_blocknr;
+	bd->bd_ops = &gfs2_revoke_lops;
+	sdp->sd_log_num_revoke++;
+	atomic_inc(&gl->gl_revokes);
+	set_bit(GLF_LFLUSH, &gl->gl_flags);
+	list_add(&bd->bd_list, &sdp->sd_log_le_revoke);
+}
+
+void gfs2_write_revokes(struct gfs2_sbd *sdp)
+{
+	struct gfs2_trans *tr;
+	struct gfs2_bufdata *bd, *tmp;
+	int have_revokes = 0;
+	int max_revokes = (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_log_descriptor)) / sizeof(u64);
+
+	gfs2_ail1_empty(sdp);
+	spin_lock(&sdp->sd_ail_lock);
+	list_for_each_entry(tr, &sdp->sd_ail1_list, tr_list) {
+		list_for_each_entry(bd, &tr->tr_ail2_list, bd_ail_st_list) {
+			if (list_empty(&bd->bd_list)) {
+				have_revokes = 1;
+				goto done;
+			}
+		}
+	}
+done:
+	spin_unlock(&sdp->sd_ail_lock);
+	if (have_revokes == 0)
+		return;
+	while (sdp->sd_log_num_revoke > max_revokes)
+		max_revokes += (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header)) / sizeof(u64);
+	max_revokes -= sdp->sd_log_num_revoke;
+	if (!sdp->sd_log_num_revoke) {
+		atomic_dec(&sdp->sd_log_blks_free);
+		/* If no blocks have been reserved, we need to also
+		 * reserve a block for the header */
+		if (!sdp->sd_log_blks_reserved)
+			atomic_dec(&sdp->sd_log_blks_free);
+	}
+	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_ail_lock);
+	list_for_each_entry(tr, &sdp->sd_ail1_list, tr_list) {
+		list_for_each_entry_safe(bd, tmp, &tr->tr_ail2_list, bd_ail_st_list) {
+			if (max_revokes == 0)
+				goto out_of_blocks;
+			if (!list_empty(&bd->bd_list))
+				continue;
+			gfs2_add_revoke(sdp, bd);
+			max_revokes--;
+		}
+	}
+out_of_blocks:
+	spin_unlock(&sdp->sd_ail_lock);
+	gfs2_log_unlock(sdp);
+
+	if (!sdp->sd_log_num_revoke) {
+		atomic_inc(&sdp->sd_log_blks_free);
+		if (!sdp->sd_log_blks_reserved)
+			atomic_inc(&sdp->sd_log_blks_free);
+	}
+}
+
 /**
  * log_write_header - Get and initialize a journal header buffer
  * @sdp: The GFS2 superblock
@@ -561,7 +633,6 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 	lh = page_address(page);
 	clear_page(lh);
 
-	gfs2_ail1_empty(sdp);
 	tail = current_tail(sdp);
 
 	lh->lh_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
@@ -600,7 +671,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 
 void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 {
-	struct gfs2_ail *ai;
+	struct gfs2_trans *tr;
 
 	down_write(&sdp->sd_log_flush_lock);
 
@@ -611,9 +682,12 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	}
 	trace_gfs2_log_flush(sdp, 1);
 
-	ai = kzalloc(sizeof(struct gfs2_ail), GFP_NOFS | __GFP_NOFAIL);
-	INIT_LIST_HEAD(&ai->ai_ail1_list);
-	INIT_LIST_HEAD(&ai->ai_ail2_list);
+	tr = sdp->sd_log_tr;
+	if (tr) {
+		sdp->sd_log_tr = NULL;
+		INIT_LIST_HEAD(&tr->tr_ail1_list);
+		INIT_LIST_HEAD(&tr->tr_ail2_list);
+	}
 
 	if (sdp->sd_log_num_buf != sdp->sd_log_commited_buf) {
 		printk(KERN_INFO "GFS2: log buf %u %u\n", sdp->sd_log_num_buf,
@@ -630,7 +704,8 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 
 	sdp->sd_log_flush_head = sdp->sd_log_head;
 	sdp->sd_log_flush_wrapped = 0;
-	ai->ai_first = sdp->sd_log_flush_head;
+	if (tr)
+		tr->tr_first = sdp->sd_log_flush_head;
 
 	gfs2_ordered_write(sdp);
 	lops_before_commit(sdp);
@@ -643,7 +718,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 		trace_gfs2_log_blocks(sdp, -1);
 		log_write_header(sdp, 0);
 	}
-	lops_after_commit(sdp, ai);
+	lops_after_commit(sdp, tr);
 
 	gfs2_log_lock(sdp);
 	sdp->sd_log_head = sdp->sd_log_flush_head;
@@ -653,16 +728,16 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	sdp->sd_log_commited_revoke = 0;
 
 	spin_lock(&sdp->sd_ail_lock);
-	if (!list_empty(&ai->ai_ail1_list)) {
-		list_add(&ai->ai_list, &sdp->sd_ail1_list);
-		ai = NULL;
+	if (tr && !list_empty(&tr->tr_ail1_list)) {
+		list_add(&tr->tr_list, &sdp->sd_ail1_list);
+		tr = NULL;
 	}
 	spin_unlock(&sdp->sd_ail_lock);
 	gfs2_log_unlock(sdp);
 	trace_gfs2_log_flush(sdp, 0);
 	up_write(&sdp->sd_log_flush_lock);
 
-	kfree(ai);
+	kfree(tr);
 }
 
 static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
@@ -687,6 +762,12 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 			     sdp->sd_jdesc->jd_blocks);
 	sdp->sd_log_blks_reserved = reserved;
 
+	if (sdp->sd_log_tr == NULL &&
+	    (tr->tr_num_buf_new || tr->tr_num_databuf_new)) {
+		gfs2_assert_withdraw(sdp, tr->tr_t_gh.gh_gl);
+		sdp->sd_log_tr = tr;
+		tr->tr_attached = 1;
+	}
 	gfs2_log_unlock(sdp);
 }
 
@@ -708,7 +789,6 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	log_refund(sdp, tr);
-	up_read(&sdp->sd_log_flush_lock);
 
 	if (atomic_read(&sdp->sd_log_pinned) > atomic_read(&sdp->sd_log_thresh1) ||
 	    ((sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free)) >

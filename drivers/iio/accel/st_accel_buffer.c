@@ -25,7 +25,7 @@
 
 int st_accel_trig_set_state(struct iio_trigger *trig, bool state)
 {
-	struct iio_dev *indio_dev = trig->private_data;
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 
 	return st_sensors_set_dataready_irq(indio_dev, state);
 }

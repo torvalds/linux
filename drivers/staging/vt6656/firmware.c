@@ -35,8 +35,6 @@
 #include "control.h"
 #include "rndis.h"
 
-/*---------------------  Static Definitions -------------------------*/
-
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
@@ -44,17 +42,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 #define FIRMWARE_NAME		"vntwusb.fw"
 
 #define FIRMWARE_CHUNK_SIZE	0x400
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
 
 int FIRMWAREbDownload(struct vnt_private *pDevice)
 {
@@ -65,7 +52,6 @@ int FIRMWAREbDownload(struct vnt_private *pDevice)
 	bool result = false;
 	u16 wLength;
 	int ii, rc;
-
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Download firmware\n");
 	spin_unlock_irq(&pDevice->lock);
@@ -132,7 +118,6 @@ int FIRMWAREbBrach2Sram(struct vnt_private *pDevice)
     }
 }
 
-
 int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
 {
 	int ntStatus;
@@ -142,7 +127,7 @@ int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
                                     0,
                                     MESSAGE_REQUEST_VERSION,
                                     2,
-                                    (PBYTE) &(pDevice->wFirmwareVersion));
+                                    (u8 *) &(pDevice->wFirmwareVersion));
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
     if (ntStatus != STATUS_SUCCESS) {

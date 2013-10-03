@@ -60,8 +60,11 @@
 
 static void auok1900_init(struct auok190xfb_par *par)
 {
+	struct device *dev = par->info->device;
 	struct auok190x_board *board = par->board;
 	u16 init_param = 0;
+
+	pm_runtime_get_sync(dev);
 
 	init_param |= AUOK1900_INIT_TEMP_AVERAGE;
 	init_param |= AUOK1900_INIT_ROTATE(par->rotation);
@@ -74,6 +77,9 @@ static void auok1900_init(struct auok190xfb_par *par)
 
 	/* let the controller finish */
 	board->wait_for_rdy(par);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 }
 
 static void auok1900_update_region(struct auok190xfb_par *par, int mode,
@@ -82,6 +88,7 @@ static void auok1900_update_region(struct auok190xfb_par *par, int mode,
 	struct device *dev = par->info->device;
 	unsigned char *buf = (unsigned char *)par->info->screen_base;
 	int xres = par->info->var.xres;
+	int line_length = par->info->fix.line_length;
 	u16 args[4];
 
 	pm_runtime_get_sync(dev);
@@ -100,9 +107,9 @@ static void auok1900_update_region(struct auok190xfb_par *par, int mode,
 	args[1] = y1 + 1;
 	args[2] = xres;
 	args[3] = y2 - y1;
-	buf += y1 * xres;
+	buf += y1 * line_length;
 	auok190x_send_cmdargs_pixels(par, AUOK1900_CMD_PARTIALDISP, 4, args,
-				     ((y2 - y1) * xres)/2, (u16 *) buf);
+				     ((y2 - y1) * line_length)/2, (u16 *) buf);
 	auok190x_send_command(par, AUOK190X_CMD_DATA_STOP);
 
 	par->update_cnt++;

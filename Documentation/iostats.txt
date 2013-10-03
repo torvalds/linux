@@ -71,6 +71,8 @@ Field  4 -- # of milliseconds spent reading
     measured from __make_request() to end_that_request_last()).
 Field  5 -- # of writes completed
     This is the total number of writes completed successfully.
+Field  6 -- # of writes merged
+    See the description of field 2.
 Field  7 -- # of sectors written
     This is the total number of sectors written successfully.
 Field  8 -- # of milliseconds spent writing

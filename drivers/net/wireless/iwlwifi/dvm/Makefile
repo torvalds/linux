@@ -8,6 +8,5 @@ iwldvm-objs		+= scan.o led.o
 iwldvm-objs		+= rxon.o devices.o
 
 iwldvm-$(CONFIG_IWLWIFI_DEBUGFS) += debugfs.o
-iwldvm-$(CONFIG_IWLWIFI_DEVICE_TESTMODE) += testmode.o
 
 ccflags-y += -D__CHECK_ENDIAN__ -I$(src)/../

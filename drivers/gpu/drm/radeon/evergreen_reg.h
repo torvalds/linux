@@ -24,7 +24,16 @@
 #ifndef __EVERGREEN_REG_H__
 #define __EVERGREEN_REG_H__
 
+/* trinity */
+#define TN_SMC_IND_INDEX_0                              0x200
+#define TN_SMC_IND_DATA_0                               0x204
+
 /* evergreen */
+#define EVERGREEN_PIF_PHY0_INDEX                        0x8
+#define EVERGREEN_PIF_PHY0_DATA                         0xc
+#define EVERGREEN_PIF_PHY1_INDEX                        0x10
+#define EVERGREEN_PIF_PHY1_DATA                         0x14
+
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS               0x310
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS_HIGH          0x324
 #define EVERGREEN_D3VGA_CONTROL                         0x3e0
@@ -39,6 +48,9 @@
 #define EVERGREEN_AUDIO_PLL1_MUL			0x5b0
 #define EVERGREEN_AUDIO_PLL1_DIV			0x5b4
 #define EVERGREEN_AUDIO_PLL1_UNK			0x5bc
+
+#define EVERGREEN_CG_IND_ADDR                           0x8f8
+#define EVERGREEN_CG_IND_DATA                           0x8fc
 
 #define EVERGREEN_AUDIO_ENABLE				0x5e78
 #define EVERGREEN_AUDIO_VENDOR_ID			0x5ec0
@@ -226,6 +238,8 @@
 #define EVERGREEN_CRTC_STATUS_HV_COUNT                  0x6ea0
 #define EVERGREEN_MASTER_UPDATE_MODE                    0x6ef8
 #define EVERGREEN_CRTC_UPDATE_LOCK                      0x6ed4
+#define EVERGREEN_MASTER_UPDATE_LOCK                    0x6ef4
+#define EVERGREEN_MASTER_UPDATE_MODE                    0x6ef8
 
 #define EVERGREEN_DC_GPIO_HPD_MASK                      0x64b0
 #define EVERGREEN_DC_GPIO_HPD_A                         0x64b4

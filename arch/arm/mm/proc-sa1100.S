@@ -172,7 +172,7 @@ ENTRY(cpu_sa1100_set_pte_ext)
 
 .globl	cpu_sa1100_suspend_size
 .equ	cpu_sa1100_suspend_size, 4 * 3
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ARM_CPU_SUSPEND
 ENTRY(cpu_sa1100_do_suspend)
 	stmfd	sp!, {r4 - r6, lr}
 	mrc	p15, 0, r4, c3, c0, 0		@ domain ID
@@ -197,8 +197,6 @@ ENTRY(cpu_sa1100_do_resume)
 	b	cpu_resume_mmu
 ENDPROC(cpu_sa1100_do_resume)
 #endif
-
-	__CPUINIT
 
 	.type	__sa1100_setup, #function
 __sa1100_setup:

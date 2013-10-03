@@ -22,8 +22,8 @@ static void usb_urb_complete(struct urb *urb)
 	int i;
 	u8 *b;
 
-	dev_dbg_ratelimited(&stream->udev->dev, "%s: %s urb completed " \
-			"status=%d length=%d/%d pack_num=%d errors=%d\n",
+	dev_dbg_ratelimited(&stream->udev->dev,
+			"%s: %s urb completed status=%d length=%d/%d pack_num=%d errors=%d\n",
 			__func__, ptype == PIPE_ISOCHRONOUS ? "isoc" : "bulk",
 			urb->status, urb->actual_length,
 			urb->transfer_buffer_length,
@@ -49,8 +49,8 @@ static void usb_urb_complete(struct urb *urb)
 	case PIPE_ISOCHRONOUS:
 		for (i = 0; i < urb->number_of_packets; i++) {
 			if (urb->iso_frame_desc[i].status != 0)
-				dev_dbg(&stream->udev->dev, "%s: iso frame " \
-						"descriptor has an error=%d\n",
+				dev_dbg(&stream->udev->dev,
+						"%s: iso frame descriptor has an error=%d\n",
 						__func__,
 						urb->iso_frame_desc[i].status);
 			else if (urb->iso_frame_desc[i].actual_length > 0)
@@ -67,8 +67,9 @@ static void usb_urb_complete(struct urb *urb)
 			stream->complete(stream, b, urb->actual_length);
 		break;
 	default:
-		dev_err(&stream->udev->dev, "%s: unknown endpoint type in " \
-				"completition handler\n", KBUILD_MODNAME);
+		dev_err(&stream->udev->dev,
+				"%s: unknown endpoint type in completition handler\n",
+				KBUILD_MODNAME);
 		return;
 	}
 	usb_submit_urb(urb, GFP_ATOMIC);
@@ -101,8 +102,8 @@ int usb_urb_submitv2(struct usb_data_stream *stream,
 		dev_dbg(&stream->udev->dev, "%s: submit urb=%d\n", __func__, i);
 		ret = usb_submit_urb(stream->urb_list[i], GFP_ATOMIC);
 		if (ret) {
-			dev_err(&stream->udev->dev, "%s: could not submit " \
-					"urb no. %d - get them all back\n",
+			dev_err(&stream->udev->dev,
+					"%s: could not submit urb no. %d - get them all back\n",
 					KBUILD_MODNAME, i);
 			usb_urb_killv2(stream);
 			return ret;
@@ -229,8 +230,9 @@ static int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
 	stream->buf_num = 0;
 	stream->buf_size = size;
 
-	dev_dbg(&stream->udev->dev, "%s: all in all I will use %lu bytes for " \
-			"streaming\n", __func__,  num * size);
+	dev_dbg(&stream->udev->dev,
+			"%s: all in all I will use %lu bytes for streaming\n",
+			__func__,  num * size);
 
 	for (stream->buf_num = 0; stream->buf_num < num; stream->buf_num++) {
 		stream->buf_list[stream->buf_num] = usb_alloc_coherent(
@@ -274,8 +276,8 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 	}
 
 	if (stream->buf_num < props->count || stream->buf_size < buf_size) {
-		dev_err(&stream->udev->dev, "%s: cannot reconfigure as " \
-				"allocated buffers are too small\n",
+		dev_err(&stream->udev->dev,
+				"%s: cannot reconfigure as allocated buffers are too small\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}
@@ -321,8 +323,9 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 	memcpy(&stream->props, props, sizeof(*props));
 
 	if (!stream->complete) {
-		dev_err(&stream->udev->dev, "%s: there is no data callback - " \
-				"this doesn't make sense\n", KBUILD_MODNAME);
+		dev_err(&stream->udev->dev,
+				"%s: there is no data callback - this doesn't make sense\n",
+				KBUILD_MODNAME);
 		return -EINVAL;
 	}
 
@@ -343,8 +346,9 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 
 		return usb_urb_alloc_isoc_urbs(stream);
 	default:
-		dev_err(&stream->udev->dev, "%s: unknown urb-type for data " \
-				"transfer\n", KBUILD_MODNAME);
+		dev_err(&stream->udev->dev,
+				"%s: unknown urb-type for data transfer\n",
+				KBUILD_MODNAME);
 		return -EINVAL;
 	}
 }

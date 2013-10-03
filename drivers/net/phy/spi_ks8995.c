@@ -281,7 +281,7 @@ static int ks8995_probe(struct spi_device *spi)
 	mutex_init(&ks->lock);
 	ks->pdata = pdata;
 	ks->spi = spi_dev_get(spi);
-	dev_set_drvdata(&spi->dev, ks);
+	spi_set_drvdata(spi, ks);
 
 	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;
@@ -325,7 +325,7 @@ static int ks8995_probe(struct spi_device *spi)
 	return 0;
 
 err_drvdata:
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	kfree(ks);
 	return err;
 }
@@ -334,10 +334,10 @@ static int ks8995_remove(struct spi_device *spi)
 {
 	struct ks8995_data      *ks8995;
 
-	ks8995 = dev_get_drvdata(&spi->dev);
+	ks8995 = spi_get_drvdata(spi);
 	sysfs_remove_bin_file(&spi->dev.kobj, &ks8995_registers_attr);
 
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	kfree(ks8995);
 
 	return 0;
@@ -354,19 +354,7 @@ static struct spi_driver ks8995_driver = {
 	.remove	  = ks8995_remove,
 };
 
-static int __init ks8995_init(void)
-{
-	pr_info(DRV_DESC " version " DRV_VERSION "\n");
-
-	return spi_register_driver(&ks8995_driver);
-}
-module_init(ks8995_init);
-
-static void __exit ks8995_exit(void)
-{
-	spi_unregister_driver(&ks8995_driver);
-}
-module_exit(ks8995_exit);
+module_spi_driver(ks8995_driver);
 
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_VERSION(DRV_VERSION);

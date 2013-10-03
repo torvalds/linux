@@ -20,6 +20,12 @@
 #define IP_VS_SVC_F_PERSISTENT	0x0001		/* persistent port */
 #define IP_VS_SVC_F_HASHED	0x0002		/* hashed entry */
 #define IP_VS_SVC_F_ONEPACKET	0x0004		/* one-packet scheduling */
+#define IP_VS_SVC_F_SCHED1	0x0008		/* scheduler flag 1 */
+#define IP_VS_SVC_F_SCHED2	0x0010		/* scheduler flag 2 */
+#define IP_VS_SVC_F_SCHED3	0x0020		/* scheduler flag 3 */
+
+#define IP_VS_SVC_F_SCHED_SH_FALLBACK	IP_VS_SVC_F_SCHED1 /* SH fallback */
+#define IP_VS_SVC_F_SCHED_SH_PORT	IP_VS_SVC_F_SCHED2 /* SH use port */
 
 /*
  *      Destination Server Flags
@@ -280,8 +286,8 @@ struct ip_vs_daemon_user {
 #define IPVS_GENL_VERSION	0x1
 
 struct ip_vs_flags {
-	__be32 flags;
-	__be32 mask;
+	__u32 flags;
+	__u32 mask;
 };
 
 /* Generic Netlink command attributes */

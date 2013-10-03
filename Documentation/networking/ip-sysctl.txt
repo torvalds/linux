@@ -29,7 +29,7 @@ route/max_size - INTEGER
 neigh/default/gc_thresh1 - INTEGER
 	Minimum number of entries to keep.  Garbage collector will not
 	purge entries if there are fewer than this number.
-	Default: 256
+	Default: 128
 
 neigh/default/gc_thresh3 - INTEGER
 	Maximum number of neighbor entries allowed.  Increase this
@@ -175,14 +175,6 @@ tcp_congestion_control - STRING
 	is inherited.
 	[see setsockopt(listenfd, SOL_TCP, TCP_CONGESTION, "name" ...) ]
 
-tcp_cookie_size - INTEGER
-	Default size of TCP Cookie Transactions (TCPCT) option, that may be
-	overridden on a per socket basis by the TCPCT socket option.
-	Values greater than the maximum (16) are interpreted as the maximum.
-	Values greater than zero and less than the minimum (8) are interpreted
-	as the minimum.  Odd values are interpreted as the next even value.
-	Default: 0 (off).
-
 tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
@@ -190,7 +182,9 @@ tcp_early_retrans - INTEGER
 	Enable Early Retransmit (ER), per RFC 5827. ER lowers the threshold
 	for triggering fast retransmit when the amount of outstanding data is
 	small and when no previously unsent data can be transmitted (such
-	that limited transmit could be used).
+	that limited transmit could be used). Also controls the use of
+	Tail loss probe (TLP) that converts RTOs occurring due to tail
+	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
 	Possible values:
 		0 disables ER
 		1 enables ER
@@ -198,7 +192,9 @@ tcp_early_retrans - INTEGER
 		  by a fourth of RTT. This mitigates connection falsely
 		  recovers when network has a small degree of reordering
 		  (less than 3 packets).
-	Default: 2
+		3 enables delayed ER and TLP.
+		4 enables TLP only.
+	Default: 3
 
 tcp_ecn - INTEGER
 	Control use of Explicit Congestion Notification (ECN) by TCP.
@@ -229,36 +225,13 @@ tcp_fin_timeout - INTEGER
 	Default: 60 seconds
 
 tcp_frto - INTEGER
-	Enables Forward RTO-Recovery (F-RTO) defined in RFC4138.
+	Enables Forward RTO-Recovery (F-RTO) defined in RFC5682.
 	F-RTO is an enhanced recovery algorithm for TCP retransmission
-	timeouts.  It is particularly beneficial in wireless environments
-	where packet loss is typically due to random radio interference
-	rather than intermediate router congestion.  F-RTO is sender-side
-	only modification. Therefore it does not require any support from
-	the peer.
+	timeouts.  It is particularly beneficial in networks where the
+	RTT fluctuates (e.g., wireless). F-RTO is sender-side only
+	modification. It does not require any support from the peer.
 
-	If set to 1, basic version is enabled.  2 enables SACK enhanced
-	F-RTO if flow uses SACK.  The basic version can be used also when
-	SACK is in use though scenario(s) with it exists where F-RTO
-	interacts badly with the packet counting of the SACK enabled TCP
-	flow.
-
-tcp_frto_response - INTEGER
-	When F-RTO has detected that a TCP retransmission timeout was
-	spurious (i.e, the timeout would have been avoided had TCP set a
-	longer retransmission timeout), TCP has several options what to do
-	next. Possible values are:
-		0 Rate halving based; a smooth and conservative response,
-		  results in halved cwnd and ssthresh after one RTT
-		1 Very conservative response; not recommended because even
-		  though being valid, it interacts poorly with the rest of
-		  Linux TCP, halves cwnd and ssthresh immediately
-		2 Aggressive response; undoes congestion control measures
-		  that are now known to be unnecessary (ignoring the
-		  possibility of a lost retransmission that would require
-		  TCP to be more cautious), cwnd and ssthresh are restored
-		  to the values prior timeout
-	Default: 0 (rate halving based)
+	By default it's enabled with a non-zero value. 0 disables F-RTO.
 
 tcp_keepalive_time - INTEGER
 	How often TCP sends out keepalive messages when keepalive is enabled.
@@ -447,10 +420,10 @@ tcp_synack_retries - INTEGER
 	for a passive TCP connection will happen after 63seconds.
 
 tcp_syncookies - BOOLEAN
-	Only valid when the kernel was compiled with CONFIG_SYNCOOKIES
+	Only valid when the kernel was compiled with CONFIG_SYN_COOKIES
 	Send out syncookies when the syn backlog queue of a socket
 	overflows. This is to prevent against the common 'SYN flood attack'
-	Default: FALSE
+	Default: 1
 
 	Note, that syncookies is fallback facility.
 	It MUST NOT be used to help highly loaded servers to stand
@@ -466,6 +439,10 @@ tcp_syncookies - BOOLEAN
 	but your clients and relays, contacting you. While you see
 	SYN flood warnings in logs not being really flooded, your server
 	is seriously misconfigured.
+
+	If you want to test which effects syncookies have to your
+	network connections you can set this knob to 2 to enable
+	unconditionally generation of syncookies.
 
 tcp_fastopen - INTEGER
 	Enable TCP Fast Open feature (draft-ietf-tcpm-fastopen) to send data
@@ -505,6 +482,15 @@ tcp_syn_retries - INTEGER
 tcp_timestamps - BOOLEAN
 	Enable timestamps as defined in RFC1323.
 
+tcp_min_tso_segs - INTEGER
+	Minimal number of segments per TSO frame.
+	Since linux-3.12, TCP does an automatic sizing of TSO frames,
+	depending on flow rate, instead of filling 64Kbytes packets.
+	For specific usages, it's possible to force TCP to build big
+	TSO frames. Note that TCP stack might split too big TSO packets
+	if available window is too small.
+	Default: 2
+
 tcp_tso_win_divisor - INTEGER
 	This allows control over what percentage of the congestion window
 	can be consumed by a single TSO frame.
@@ -542,6 +528,19 @@ tcp_wmem - vector of 3 INTEGERs: min, default, max
 	automatic tuning of that socket's send buffer size, in which case
 	this value is ignored.
 	Default: between 64K and 4MB, depending on RAM size.
+
+tcp_notsent_lowat - UNSIGNED INTEGER
+	A TCP socket can control the amount of unsent bytes in its write queue,
+	thanks to TCP_NOTSENT_LOWAT socket option. poll()/select()/epoll()
+	reports POLLOUT events if the amount of unsent bytes is below a per
+	socket value, and if the write queue is not full. sendmsg() will
+	also not add new buffers if the limit is hit.
+
+	This global variable controls the amount of unsent data for
+	sockets not using TCP_NOTSENT_LOWAT. For these sockets, a change
+	to the global variable has immediate effect.
+
+	Default: UINT_MAX (0xFFFFFFFF)
 
 tcp_workaround_signed_windows - BOOLEAN
 	If set, assume no receipt of a window scaling option means the
@@ -712,6 +711,15 @@ ip_dynaddr - BOOLEAN
 	occurs.
 	Default: 0
 
+ip_early_demux - BOOLEAN
+	Optimize input packet processing down to one demux for
+	certain kinds of local sockets.  Currently we only do this
+	for established TCP sockets.
+
+	It may add an additional cost for pure routing workloads that
+	reduces overall throughput, in such case you should disable it.
+	Default: 1
+
 icmp_echo_ignore_all - BOOLEAN
 	If set non-zero, then the kernel will ignore all ICMP ECHO
 	requests sent to it.
@@ -756,7 +764,7 @@ icmp_ignore_bogus_error_responses - BOOLEAN
 	frames.  Such violations are normally logged via a kernel warning.
 	If this is set to TRUE, the kernel will not give such warnings, which
 	will avoid log file clutter.
-	Default: FALSE
+	Default: 1
 
 icmp_errors_use_inbound_ifaddr - BOOLEAN
 
@@ -1040,7 +1048,15 @@ disable_policy - BOOLEAN
 disable_xfrm - BOOLEAN
 	Disable IPSEC encryption on this interface, whatever the policy
 
+igmpv2_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	IGMPv1 or IGMPv2 report retransmit will take place.
+	Default: 10000 (10 seconds)
 
+igmpv3_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	IGMPv3 report retransmit will take place.
+	Default: 1000 (1 seconds)
 
 tag - INTEGER
 	Allows you to write a number, which can be used as required.
@@ -1331,6 +1347,27 @@ ndisc_notify - BOOLEAN
 	0 - (default): do nothing
 	1 - Generate unsolicited neighbour advertisements when device is brought
 	    up or hardware address changes.
+
+mldv1_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	MLDv1 report retransmit will take place.
+	Default: 10000 (10 seconds)
+
+mldv2_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	MLDv2 report retransmit will take place.
+	Default: 1000 (1 second)
+
+force_mld_version - INTEGER
+	0 - (default) No enforcement of a MLD version, MLDv1 fallback allowed
+	1 - Enforce to use MLD version 1
+	2 - Enforce to use MLD version 2
+
+suppress_frag_ndisc - INTEGER
+	Control RFC 6980 (Security Implications of IPv6 Fragmentation
+	with IPv6 Neighbor Discovery) behavior:
+	1 - (default) discard fragmented neighbor discovery packets
+	0 - allow fragmented neighbor discovery packets
 
 icmp/*:
 ratelimit - INTEGER

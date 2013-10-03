@@ -11,7 +11,7 @@
  * Modification history kernel/time.c
  *
  * 1993-09-02    Philip Gladstone
- *      Created file with time related functions from sched.c and adjtimex()
+ *      Created file with time related functions from sched/core.c and adjtimex()
  * 1993-10-08    Torsten Duwe
  *      adjtime interface update and CMOS clock write code
  * 1995-08-13    Torsten Duwe
@@ -138,13 +138,14 @@ int persistent_clock_is_local;
  */
 static inline void warp_clock(void)
 {
-	struct timespec adjust;
+	if (sys_tz.tz_minuteswest != 0) {
+		struct timespec adjust;
 
-	adjust = current_kernel_time();
-	if (sys_tz.tz_minuteswest != 0)
 		persistent_clock_is_local = 1;
-	adjust.tv_sec += sys_tz.tz_minuteswest * 60;
-	do_settimeofday(&adjust);
+		adjust.tv_sec = sys_tz.tz_minuteswest * 60;
+		adjust.tv_nsec = 0;
+		timekeeping_inject_offset(&adjust);
+	}
 }
 
 /*

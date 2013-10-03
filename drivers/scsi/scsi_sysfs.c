@@ -560,6 +560,35 @@ sdev_store_timeout (struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(timeout, S_IRUGO | S_IWUSR, sdev_show_timeout, sdev_store_timeout);
 
 static ssize_t
+sdev_show_eh_timeout(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev;
+	sdev = to_scsi_device(dev);
+	return snprintf(buf, 20, "%u\n", sdev->eh_timeout / HZ);
+}
+
+static ssize_t
+sdev_store_eh_timeout(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct scsi_device *sdev;
+	unsigned int eh_timeout;
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	sdev = to_scsi_device(dev);
+	err = kstrtouint(buf, 10, &eh_timeout);
+	if (err)
+		return err;
+	sdev->eh_timeout = eh_timeout * HZ;
+
+	return count;
+}
+static DEVICE_ATTR(eh_timeout, S_IRUGO | S_IWUSR, sdev_show_eh_timeout, sdev_store_eh_timeout);
+
+static ssize_t
 store_rescan_field (struct device *dev, struct device_attribute *attr,
 		    const char *buf, size_t count)
 {
@@ -710,6 +739,11 @@ sdev_store_evt_##name(struct device *dev, struct device_attribute *attr,\
 #define REF_EVT(name) &dev_attr_evt_##name.attr
 
 DECLARE_EVT(media_change, MEDIA_CHANGE)
+DECLARE_EVT(inquiry_change_reported, INQUIRY_CHANGE_REPORTED)
+DECLARE_EVT(capacity_change_reported, CAPACITY_CHANGE_REPORTED)
+DECLARE_EVT(soft_threshold_reached, SOFT_THRESHOLD_REACHED_REPORTED)
+DECLARE_EVT(mode_parameter_change_reported, MODE_PARAMETER_CHANGE_REPORTED)
+DECLARE_EVT(lun_change_reported, LUN_CHANGE_REPORTED)
 
 /* Default template for device attributes.  May NOT be modified */
 static struct attribute *scsi_sdev_attrs[] = {
@@ -723,12 +757,18 @@ static struct attribute *scsi_sdev_attrs[] = {
 	&dev_attr_delete.attr,
 	&dev_attr_state.attr,
 	&dev_attr_timeout.attr,
+	&dev_attr_eh_timeout.attr,
 	&dev_attr_iocounterbits.attr,
 	&dev_attr_iorequest_cnt.attr,
 	&dev_attr_iodone_cnt.attr,
 	&dev_attr_ioerr_cnt.attr,
 	&dev_attr_modalias.attr,
 	REF_EVT(media_change),
+	REF_EVT(inquiry_change_reported),
+	REF_EVT(capacity_change_reported),
+	REF_EVT(soft_threshold_reached),
+	REF_EVT(mode_parameter_change_reported),
+	REF_EVT(lun_change_reported),
 	NULL
 };
 

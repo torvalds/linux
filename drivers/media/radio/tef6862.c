@@ -25,14 +25,13 @@
 #include <linux/slab.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 #define DRIVER_NAME "tef6862"
 
 #define FREQ_MUL 16000
 
-#define TEF6862_LO_FREQ (875 * FREQ_MUL / 10)
-#define TEF6862_HI_FREQ (108 * FREQ_MUL)
+#define TEF6862_LO_FREQ (875U * FREQ_MUL / 10)
+#define TEF6862_HI_FREQ (108U * FREQ_MUL)
 
 /* Write mode sub addresses */
 #define WM_SUB_BANDWIDTH	0x0
@@ -96,15 +95,16 @@ static int tef6862_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
 	return 0;
 }
 
-static int tef6862_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
+static int tef6862_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *v)
 {
 	return v->index ? -EINVAL : 0;
 }
 
-static int tef6862_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
+static int tef6862_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *f)
 {
 	struct tef6862_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	unsigned freq = f->frequency;
 	u16 pll;
 	u8 i2cmsg[3];
 	int err;
@@ -112,7 +112,8 @@ static int tef6862_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	if (f->tuner != 0)
 		return -EINVAL;
 
-	pll = 1964 + ((f->frequency - TEF6862_LO_FREQ) * 20) / FREQ_MUL;
+	clamp(freq, TEF6862_LO_FREQ, TEF6862_HI_FREQ);
+	pll = 1964 + ((freq - TEF6862_LO_FREQ) * 20) / FREQ_MUL;
 	i2cmsg[0] = (MODE_PRESET << MODE_SHIFT) | WM_SUB_PLLM;
 	i2cmsg[1] = (pll >> 8) & 0xff;
 	i2cmsg[2] = pll & 0xff;
@@ -121,7 +122,7 @@ static int tef6862_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	if (err != sizeof(i2cmsg))
 		return err < 0 ? err : -EIO;
 
-	state->freq = f->frequency;
+	state->freq = freq;
 	return 0;
 }
 
@@ -136,14 +137,6 @@ static int tef6862_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	return 0;
 }
 
-static int tef6862_g_chip_ident(struct v4l2_subdev *sd,
-	struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TEF6862, 0);
-}
-
 static const struct v4l2_subdev_tuner_ops tef6862_tuner_ops = {
 	.g_tuner = tef6862_g_tuner,
 	.s_tuner = tef6862_s_tuner,
@@ -151,12 +144,7 @@ static const struct v4l2_subdev_tuner_ops tef6862_tuner_ops = {
 	.g_frequency = tef6862_g_frequency,
 };
 
-static const struct v4l2_subdev_core_ops tef6862_core_ops = {
-	.g_chip_ident = tef6862_g_chip_ident,
-};
-
 static const struct v4l2_subdev_ops tef6862_ops = {
-	.core = &tef6862_core_ops,
 	.tuner = &tef6862_tuner_ops,
 };
 

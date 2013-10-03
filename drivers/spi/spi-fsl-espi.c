@@ -144,10 +144,6 @@ static int fsl_espi_setup_transfer(struct spi_device *spi,
 	if (!bits_per_word)
 		bits_per_word = spi->bits_per_word;
 
-	/* Make sure its a bit width we support [4..16] */
-	if ((bits_per_word < 4) || (bits_per_word > 16))
-		return -EINVAL;
-
 	if (!hz)
 		hz = spi->max_speed_hz;
 
@@ -157,12 +153,10 @@ static int fsl_espi_setup_transfer(struct spi_device *spi,
 	cs->get_tx = mpc8xxx_spi_tx_buf_u32;
 	if (bits_per_word <= 8) {
 		cs->rx_shift = 8 - bits_per_word;
-	} else if (bits_per_word <= 16) {
+	} else {
 		cs->rx_shift = 16 - bits_per_word;
 		if (spi->mode & SPI_LSB_FIRST)
 			cs->get_tx = fsl_espi_tx_buf_lsb;
-	} else {
-		return -EINVAL;
 	}
 
 	mpc8xxx_spi->rx_shift = cs->rx_shift;
@@ -590,7 +584,7 @@ static void fsl_espi_remove(struct mpc8xxx_spi *mspi)
 static struct spi_master * fsl_espi_probe(struct device *dev,
 		struct resource *mem, unsigned int irq)
 {
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct spi_master *master;
 	struct mpc8xxx_spi *mpc8xxx_spi;
 	struct fsl_espi_reg *reg_base;
@@ -609,6 +603,7 @@ static struct spi_master * fsl_espi_probe(struct device *dev,
 	if (ret)
 		goto err_probe;
 
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 	master->setup = fsl_espi_setup;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
@@ -670,7 +665,7 @@ err:
 static int of_fsl_espi_get_chipselects(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	const u32 *prop;
 	int len;
 

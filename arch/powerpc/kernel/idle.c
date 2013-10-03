@@ -33,11 +33,6 @@
 #include <asm/runlatch.h>
 #include <asm/smp.h>
 
-#ifdef CONFIG_HOTPLUG_CPU
-#define cpu_should_die()	cpu_is_offline(smp_processor_id())
-#else
-#define cpu_should_die()	0
-#endif
 
 unsigned long cpuidle_disable = IDLE_NO_OVERRIDE;
 EXPORT_SYMBOL(cpuidle_disable);
@@ -50,64 +45,38 @@ static int __init powersave_off(char *arg)
 }
 __setup("powersave=off", powersave_off);
 
-/*
- * The body of the idle task.
- */
-void cpu_idle(void)
+#ifdef CONFIG_HOTPLUG_CPU
+void arch_cpu_idle_dead(void)
 {
-	set_thread_flag(TIF_POLLING_NRFLAG);
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
+	sched_preempt_enable_no_resched();
+	cpu_die();
+}
+#endif
 
-		while (!need_resched() && !cpu_should_die()) {
-			ppc64_runlatch_off();
+void arch_cpu_idle(void)
+{
+	ppc64_runlatch_off();
 
-			if (ppc_md.power_save) {
-				clear_thread_flag(TIF_POLLING_NRFLAG);
-				/*
-				 * smp_mb is so clearing of TIF_POLLING_NRFLAG
-				 * is ordered w.r.t. need_resched() test.
-				 */
-				smp_mb();
-				local_irq_disable();
-
-				/* Don't trace irqs off for idle */
-				stop_critical_timings();
-
-				/* check again after disabling irqs */
-				if (!need_resched() && !cpu_should_die())
-					ppc_md.power_save();
-
-				start_critical_timings();
-
-				/* Some power_save functions return with
-				 * interrupts enabled, some don't.
-				 */
-				if (irqs_disabled())
-					local_irq_enable();
-				set_thread_flag(TIF_POLLING_NRFLAG);
-
-			} else {
-				/*
-				 * Go into low thread priority and possibly
-				 * low power mode.
-				 */
-				HMT_low();
-				HMT_very_low();
-			}
-		}
-
-		HMT_medium();
-		ppc64_runlatch_on();
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		if (cpu_should_die()) {
-			sched_preempt_enable_no_resched();
-			cpu_die();
-		}
-		schedule_preempt_disabled();
+	if (ppc_md.power_save) {
+		ppc_md.power_save();
+		/*
+		 * Some power_save functions return with
+		 * interrupts enabled, some don't.
+		 */
+		if (irqs_disabled())
+			local_irq_enable();
+	} else {
+		local_irq_enable();
+		/*
+		 * Go into low thread priority and possibly
+		 * low power mode.
+		 */
+		HMT_low();
+		HMT_very_low();
 	}
+
+	HMT_medium();
+	ppc64_runlatch_on();
 }
 
 int powersave_nap;
@@ -116,7 +85,7 @@ int powersave_nap;
 /*
  * Register the sysctl to set/clear powersave_nap.
  */
-static ctl_table powersave_nap_ctl_table[]={
+static struct ctl_table powersave_nap_ctl_table[] = {
 	{
 		.procname	= "powersave-nap",
 		.data		= &powersave_nap,
@@ -126,7 +95,7 @@ static ctl_table powersave_nap_ctl_table[]={
 	},
 	{}
 };
-static ctl_table powersave_nap_sysctl_root[] = {
+static struct ctl_table powersave_nap_sysctl_root[] = {
 	{
 		.procname	= "kernel",
 		.mode		= 0555,

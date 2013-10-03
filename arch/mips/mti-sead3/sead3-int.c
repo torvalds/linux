@@ -20,7 +20,6 @@
 #define SEAD_CONFIG_BASE		0x1b100110
 #define SEAD_CONFIG_SIZE		4
 
-int gic_present;
 static unsigned long sead3_config_reg;
 
 /*

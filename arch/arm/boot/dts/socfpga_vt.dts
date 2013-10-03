@@ -33,6 +33,19 @@
 	};
 
 	soc {
+		clkmgr@ffd04000 {
+			clocks {
+				osc1 {
+					clock-frequency = <10000000>;
+				};
+			};
+		};
+
+		ethernet@ff700000 {
+			phy-mode = "gmii";
+			status = "okay";
+		};
+
 		timer0@ffc08000 {
 			clock-frequency = <7000000>;
 		};

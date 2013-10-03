@@ -578,14 +578,12 @@ u32 tipc_bclink_acks_missing(struct tipc_node *n_ptr)
  * Returns 0 (packet sent successfully) under all circumstances,
  * since the broadcast link's pseudo-bearer never blocks
  */
-static int tipc_bcbearer_send(struct sk_buff *buf,
-			      struct tipc_bearer *unused1,
+static int tipc_bcbearer_send(struct sk_buff *buf, struct tipc_bearer *unused1,
 			      struct tipc_media_addr *unused2)
 {
 	int bp_index;
 
-	/*
-	 * Prepare broadcast link message for reliable transmission,
+	/* Prepare broadcast link message for reliable transmission,
 	 * if first time trying to send it;
 	 * preparation is skipped for broadcast link protocol messages
 	 * since they are sent in an unreliable manner and don't need it
@@ -611,30 +609,43 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 	for (bp_index = 0; bp_index < MAX_BEARERS; bp_index++) {
 		struct tipc_bearer *p = bcbearer->bpairs[bp_index].primary;
 		struct tipc_bearer *s = bcbearer->bpairs[bp_index].secondary;
+		struct tipc_bearer *b = p;
+		struct sk_buff *tbuf;
 
 		if (!p)
-			break;	/* no more bearers to try */
+			break; /* No more bearers to try */
 
-		tipc_nmap_diff(&bcbearer->remains, &p->nodes, &bcbearer->remains_new);
+		if (tipc_bearer_blocked(p)) {
+			if (!s || tipc_bearer_blocked(s))
+				continue; /* Can't use either bearer */
+			b = s;
+		}
+
+		tipc_nmap_diff(&bcbearer->remains, &b->nodes,
+			       &bcbearer->remains_new);
 		if (bcbearer->remains_new.count == bcbearer->remains.count)
-			continue;	/* bearer pair doesn't add anything */
+			continue; /* Nothing added by bearer pair */
 
-		if (!tipc_bearer_blocked(p))
-			tipc_bearer_send(p, buf, &p->media->bcast_addr);
-		else if (s && !tipc_bearer_blocked(s))
-			/* unable to send on primary bearer */
-			tipc_bearer_send(s, buf, &s->media->bcast_addr);
-		else
-			/* unable to send on either bearer */
-			continue;
+		if (bp_index == 0) {
+			/* Use original buffer for first bearer */
+			tipc_bearer_send(b, buf, &b->bcast_addr);
+		} else {
+			/* Avoid concurrent buffer access */
+			tbuf = pskb_copy(buf, GFP_ATOMIC);
+			if (!tbuf)
+				break;
+			tipc_bearer_send(b, tbuf, &b->bcast_addr);
+			kfree_skb(tbuf); /* Bearer keeps a clone */
+		}
 
+		/* Swap bearers for next packet */
 		if (s) {
 			bcbearer->bpairs[bp_index].primary = s;
 			bcbearer->bpairs[bp_index].secondary = p;
 		}
 
 		if (bcbearer->remains_new.count == 0)
-			break;	/* all targets reached */
+			break; /* All targets reached */
 
 		bcbearer->remains = bcbearer->remains_new;
 	}

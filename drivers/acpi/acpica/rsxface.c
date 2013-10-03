@@ -402,6 +402,7 @@ acpi_resource_to_address64(struct acpi_resource *resource,
 		break;
 
 	default:
+
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -563,11 +564,17 @@ acpi_walk_resource_buffer(struct acpi_buffer * buffer,
 
 	while (resource < resource_end) {
 
-		/* Sanity check the resource */
+		/* Sanity check the resource type */
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
 			status = AE_AML_INVALID_RESOURCE_TYPE;
 			break;
+		}
+
+		/* Sanity check the length. It must not be zero, or we loop forever */
+
+		if (!resource->length) {
+			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
 		}
 
 		/* Invoke the user function, abort on any error returned */

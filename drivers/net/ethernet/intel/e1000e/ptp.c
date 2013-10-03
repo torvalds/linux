@@ -145,8 +145,7 @@ static int e1000e_phc_settime(struct ptp_clock_info *ptp,
 	unsigned long flags;
 	u64 ns;
 
-	ns = ts->tv_sec * NSEC_PER_SEC;
-	ns += ts->tv_nsec;
+	ns = timespec_to_ns(ts);
 
 	/* reset the timecounter */
 	spin_lock_irqsave(&adapter->systim_lock, flags);

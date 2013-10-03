@@ -16,8 +16,9 @@
 #include "sdhci.h"
 
 struct sdhci_pltfm_data {
-	struct sdhci_ops *ops;
+	const struct sdhci_ops *ops;
 	unsigned int quirks;
+	unsigned int quirks2;
 };
 
 struct sdhci_pltfm_host {
@@ -27,6 +28,8 @@ struct sdhci_pltfm_host {
 	/* migrate from sdhci_of_host */
 	unsigned int clock;
 	u16 xfer_mode_shadow;
+
+	unsigned long private[0] ____cacheline_aligned;
 };
 
 #ifdef CONFIG_MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
@@ -91,14 +94,21 @@ static inline void sdhci_be32bs_writeb(struct sdhci_host *host, u8 val, int reg)
 extern void sdhci_get_of_property(struct platform_device *pdev);
 
 extern struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
-					   struct sdhci_pltfm_data *pdata);
+					  const struct sdhci_pltfm_data *pdata,
+					  size_t priv_size);
 extern void sdhci_pltfm_free(struct platform_device *pdev);
 
 extern int sdhci_pltfm_register(struct platform_device *pdev,
-				struct sdhci_pltfm_data *pdata);
+				const struct sdhci_pltfm_data *pdata,
+				size_t priv_size);
 extern int sdhci_pltfm_unregister(struct platform_device *pdev);
 
 extern unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host);
+
+static inline void *sdhci_pltfm_priv(struct sdhci_pltfm_host *host)
+{
+	return (void *)host->private;
+}
 
 #ifdef CONFIG_PM
 extern const struct dev_pm_ops sdhci_pltfm_pmops;

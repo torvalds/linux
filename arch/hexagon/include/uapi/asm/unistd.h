@@ -27,6 +27,9 @@
  */
 
 #define sys_mmap2 sys_mmap_pgoff
+#define __ARCH_WANT_SYS_EXECVE
 #define __ARCH_WANT_SYS_CLONE
+#define __ARCH_WANT_SYS_VFORK
+#define __ARCH_WANT_SYS_FORK
 
 #include <asm-generic/unistd.h>

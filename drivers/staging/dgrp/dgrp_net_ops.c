@@ -35,7 +35,7 @@
 
 #include <linux/module.h>
 #include <linux/proc_fs.h>
-#include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/device.h>
 #include <linux/tty.h>
@@ -72,7 +72,7 @@ static long dgrp_net_ioctl(struct file *file, unsigned int cmd,
 static unsigned int dgrp_net_select(struct file *file,
 				    struct poll_table_struct *table);
 
-static const struct file_operations net_ops = {
+const struct file_operations dgrp_net_ops = {
 	.owner   =  THIS_MODULE,
 	.read    =  dgrp_net_read,
 	.write   =  dgrp_net_write,
@@ -81,23 +81,6 @@ static const struct file_operations net_ops = {
 	.open    =  dgrp_net_open,
 	.release =  dgrp_net_release,
 };
-
-static struct inode_operations net_inode_ops = {
-	.permission = dgrp_inode_permission
-};
-
-void dgrp_register_net_hook(struct proc_dir_entry *de)
-{
-	struct nd_struct *node = de->data;
-
-	de->proc_iops = &net_inode_ops;
-	de->proc_fops = &net_ops;
-	node->nd_net_de = de;
-	sema_init(&node->nd_net_semaphore, 1);
-	node->nd_state = NS_CLOSED;
-	dgrp_create_node_class_sysfs_files(node);
-}
-
 
 /**
  * dgrp_dump() -- prints memory for debugging purposes.
@@ -295,7 +278,7 @@ static void parity_scan(struct ch_struct *ch, unsigned char *cbuf,
 		switch (ch->ch_pscan_state) {
 		default:
 			/* reset to sanity and fall through */
-			ch->ch_pscan_state = 0 ;
+			ch->ch_pscan_state = 0;
 
 		case 0:
 			/* No FF seen yet */
@@ -801,7 +784,6 @@ out_err:
 static int dgrp_net_open(struct inode *inode, struct file *file)
 {
 	struct nd_struct *nd;
-	struct proc_dir_entry *de;
 	ulong  lock_flags;
 	int rtn;
 
@@ -825,13 +807,7 @@ static int dgrp_net_open(struct inode *inode, struct file *file)
 	/*
 	 *  Get the node pointer, and fail if it doesn't exist.
 	 */
-	de = PDE(inode);
-	if (!de) {
-		rtn = -ENXIO;
-		goto done;
-	}
-
-	nd = (struct nd_struct *) de->data;
+	nd = PDE_DATA(inode);
 	if (!nd) {
 		rtn = -ENXIO;
 		goto done;
@@ -1631,7 +1607,7 @@ static int dgrp_send(struct nd_struct *nd, long tmax)
 					if ((ch->ch_pun.un_flag & UN_LOW) != 0 ?
 					    (n <= TBUF_LOW) :
 					    (ch->ch_pun.un_flag & UN_TIME) != 0 ?
-					    ((jiffies - ch->ch_waketime) >= 0) :
+					    time_is_before_jiffies(ch->ch_waketime) :
 					    (n == 0 && ch->ch_s_tpos == ch->ch_s_tin) &&
 					    ((ch->ch_pun.un_flag & UN_EMPTY) != 0 ||
 					    ((ch->ch_tun.un_open_count &&
@@ -3107,7 +3083,7 @@ check_query:
 						nd->nd_hw_ver = (b[8] << 8) | b[9];
 						nd->nd_sw_ver = (b[10] << 8) | b[11];
 						nd->nd_hw_id = b[6];
-						desclen = ((plen - 12) > MAX_DESC_LEN) ? MAX_DESC_LEN :
+						desclen = (plen - 12 > MAX_DESC_LEN - 1) ? MAX_DESC_LEN - 1 :
 							plen - 12;
 
 						if (desclen <= 0) {
@@ -3405,7 +3381,7 @@ static long dgrp_net_ioctl(struct file *file, unsigned int cmd,
 		if (size != sizeof(struct link_struct))
 			return -EINVAL;
 
-		if (copy_from_user((void *)(&link), (void __user *) arg, size))
+		if (copy_from_user(&link, (void __user *)arg, size))
 			return -EFAULT;
 
 		if (link.lk_fast_rate < 9600)

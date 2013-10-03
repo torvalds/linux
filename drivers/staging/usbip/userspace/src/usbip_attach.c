@@ -36,7 +36,7 @@
 
 static const char usbip_attach_usage_string[] =
 	"usbip attach <args>\n"
-	"    -h, --host=<host>      The machine with exported USB devices\n"
+	"    -r, --remote=<host>      The machine with exported USB devices\n"
 	"    -b, --busid=<busid>    Busid of the device on <host>\n";
 
 void usbip_attach_usage(void)
@@ -144,7 +144,7 @@ static int query_import_device(int sockfd, char *busid)
 		return -1;
 	}
 
-	/* recieve a reply */
+	/* receive a reply */
 	rc = usbip_net_recv_op_common(sockfd, &code);
 	if (rc < 0) {
 		err("recv op_common");
@@ -175,7 +175,7 @@ static int attach_device(char *host, char *busid)
 	int rc;
 	int rhport;
 
-	sockfd = usbip_net_tcp_connect(host, USBIP_PORT_STRING);
+	sockfd = usbip_net_tcp_connect(host, usbip_port_string);
 	if (sockfd < 0) {
 		err("tcp connect");
 		return -1;
@@ -189,7 +189,7 @@ static int attach_device(char *host, char *busid)
 
 	close(sockfd);
 
-	rc = record_connection(host, USBIP_PORT_STRING, busid, rhport);
+	rc = record_connection(host, usbip_port_string, busid, rhport);
 	if (rc < 0) {
 		err("record connection");
 		return -1;
@@ -201,9 +201,9 @@ static int attach_device(char *host, char *busid)
 int usbip_attach(int argc, char *argv[])
 {
 	static const struct option opts[] = {
-		{ "host", required_argument, NULL, 'h' },
-		{ "busid", required_argument, NULL, 'b' },
-		{ NULL, 0, NULL, 0 }
+		{ "remote", required_argument, NULL, 'r' },
+		{ "busid",  required_argument, NULL, 'b' },
+		{ NULL, 0,  NULL, 0 }
 	};
 	char *host = NULL;
 	char *busid = NULL;
@@ -211,13 +211,13 @@ int usbip_attach(int argc, char *argv[])
 	int ret = -1;
 
 	for (;;) {
-		opt = getopt_long(argc, argv, "h:b:", opts, NULL);
+		opt = getopt_long(argc, argv, "r:b:", opts, NULL);
 
 		if (opt == -1)
 			break;
 
 		switch (opt) {
-		case 'h':
+		case 'r':
 			host = optarg;
 			break;
 		case 'b':

@@ -53,14 +53,20 @@ static void clk_gate_endisable(struct clk_hw *hw, int enable)
 	if (gate->lock)
 		spin_lock_irqsave(gate->lock, flags);
 
-	reg = readl(gate->reg);
+	if (gate->flags & CLK_GATE_HIWORD_MASK) {
+		reg = BIT(gate->bit_idx + 16);
+		if (set)
+			reg |= BIT(gate->bit_idx);
+	} else {
+		reg = clk_readl(gate->reg);
 
-	if (set)
-		reg |= BIT(gate->bit_idx);
-	else
-		reg &= ~BIT(gate->bit_idx);
+		if (set)
+			reg |= BIT(gate->bit_idx);
+		else
+			reg &= ~BIT(gate->bit_idx);
+	}
 
-	writel(reg, gate->reg);
+	clk_writel(reg, gate->reg);
 
 	if (gate->lock)
 		spin_unlock_irqrestore(gate->lock, flags);
@@ -83,7 +89,7 @@ static int clk_gate_is_enabled(struct clk_hw *hw)
 	u32 reg;
 	struct clk_gate *gate = to_clk_gate(hw);
 
-	reg = readl(gate->reg);
+	reg = clk_readl(gate->reg);
 
 	/* if a set bit disables this clk, flip it before masking */
 	if (gate->flags & CLK_GATE_SET_TO_DISABLE)
@@ -121,6 +127,13 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
 	struct clk *clk;
 	struct clk_init_data init;
 
+	if (clk_gate_flags & CLK_GATE_HIWORD_MASK) {
+		if (bit_idx > 16) {
+			pr_err("gate bit exceeds LOWORD field\n");
+			return ERR_PTR(-EINVAL);
+		}
+	}
+
 	/* allocate the gate */
 	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
 	if (!gate) {
@@ -148,3 +161,4 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
 
 	return clk;
 }
+EXPORT_SYMBOL_GPL(clk_register_gate);

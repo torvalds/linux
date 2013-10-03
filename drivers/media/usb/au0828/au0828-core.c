@@ -125,6 +125,26 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 	return status;
 }
 
+static void au0828_usb_release(struct au0828_dev *dev)
+{
+	/* I2C */
+	au0828_i2c_unregister(dev);
+
+	kfree(dev);
+}
+
+#ifdef CONFIG_VIDEO_AU0828_V4L2
+static void au0828_usb_v4l2_release(struct v4l2_device *v4l2_dev)
+{
+	struct au0828_dev *dev =
+		container_of(v4l2_dev, struct au0828_dev, v4l2_dev);
+
+	v4l2_ctrl_handler_free(&dev->v4l2_ctrl_hdl);
+	v4l2_device_unregister(&dev->v4l2_dev);
+	au0828_usb_release(dev);
+}
+#endif
+
 static void au0828_usb_disconnect(struct usb_interface *interface)
 {
 	struct au0828_dev *dev = usb_get_intfdata(interface);
@@ -134,26 +154,19 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
 
-#ifdef CONFIG_VIDEO_AU0828_V4L2
-	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED)
-		au0828_analog_unregister(dev);
-#endif
-
-	/* I2C */
-	au0828_i2c_unregister(dev);
-
-#ifdef CONFIG_VIDEO_AU0828_V4L2
-	v4l2_device_unregister(&dev->v4l2_dev);
-#endif
-
 	usb_set_intfdata(interface, NULL);
-
 	mutex_lock(&dev->mutex);
 	dev->usbdev = NULL;
 	mutex_unlock(&dev->mutex);
-
-	kfree(dev);
-
+#ifdef CONFIG_VIDEO_AU0828_V4L2
+	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED) {
+		au0828_analog_unregister(dev);
+		v4l2_device_disconnect(&dev->v4l2_dev);
+		v4l2_device_put(&dev->v4l2_dev);
+		return;
+	}
+#endif
+	au0828_usb_release(dev);
 }
 
 static int au0828_usb_probe(struct usb_interface *interface,
@@ -202,15 +215,27 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	dev->boardnr = id->driver_info;
 
 #ifdef CONFIG_VIDEO_AU0828_V4L2
+	dev->v4l2_dev.release = au0828_usb_v4l2_release;
+
 	/* Create the v4l2_device */
 	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
-		printk(KERN_ERR "%s() v4l2_device_register failed\n",
+		pr_err("%s() v4l2_device_register failed\n",
 		       __func__);
 		mutex_unlock(&dev->lock);
 		kfree(dev);
-		return -EIO;
+		return retval;
 	}
+	/* This control handler will inherit the controls from au8522 */
+	retval = v4l2_ctrl_handler_init(&dev->v4l2_ctrl_hdl, 4);
+	if (retval) {
+		pr_err("%s() v4l2_ctrl_handler_init failed\n",
+		       __func__);
+		mutex_unlock(&dev->lock);
+		kfree(dev);
+		return retval;
+	}
+	dev->v4l2_dev.ctrl_handler = &dev->v4l2_ctrl_hdl;
 #endif
 
 	/* Power Up the bridge */

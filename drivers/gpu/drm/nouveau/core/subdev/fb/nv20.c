@@ -24,28 +24,11 @@
  *
  */
 
-#include <subdev/fb.h>
+#include "priv.h"
 
 struct nv20_fb_priv {
 	struct nouveau_fb base;
 };
-
-int
-nv20_fb_vram_init(struct nouveau_fb *pfb)
-{
-	u32 pbus1218 = nv_rd32(pfb, 0x001218);
-
-	switch (pbus1218 & 0x00000300) {
-	case 0x00000000: pfb->ram.type = NV_MEM_TYPE_SDRAM; break;
-	case 0x00000100: pfb->ram.type = NV_MEM_TYPE_DDR1; break;
-	case 0x00000200: pfb->ram.type = NV_MEM_TYPE_GDDR3; break;
-	case 0x00000300: pfb->ram.type = NV_MEM_TYPE_GDDR2; break;
-	}
-	pfb->ram.size  = (nv_rd32(pfb, 0x10020c) & 0xff000000);
-	pfb->ram.parts = (nv_rd32(pfb, 0x100200) & 0x00000003) + 1;
-
-	return nv_rd32(pfb, 0x100320);
-}
 
 void
 nv20_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
@@ -65,7 +48,7 @@ nv20_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 		  struct nouveau_fb_tile *tile)
 {
 	u32 tiles = DIV_ROUND_UP(size, 0x40);
-	u32 tags  = round_up(tiles / pfb->ram.parts, 0x40);
+	u32 tags  = round_up(tiles / pfb->ram->parts, 0x40);
 	if (!nouveau_mm_head(&pfb->tags, 1, tags, tags, 1, &tile->tag)) {
 		if (!(flags & 2)) tile->zcomp = 0x00000000; /* Z16 */
 		else              tile->zcomp = 0x04000000; /* Z24S8 */
@@ -105,19 +88,18 @@ nv20_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv20_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	ret = nouveau_fb_create(parent, engine, oclass, &nv20_ram_oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.ram.init = nv20_fb_vram_init;
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv20_fb_tile_init;
 	priv->base.tile.comp = nv20_fb_tile_comp;
 	priv->base.tile.fini = nv20_fb_tile_fini;
 	priv->base.tile.prog = nv20_fb_tile_prog;
-	return nouveau_fb_preinit(&priv->base);
+	return 0;
 }
 
 struct nouveau_oclass

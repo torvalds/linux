@@ -15,11 +15,18 @@ static inline struct nlmsghdr *nlmsg_hdr(const struct sk_buff *skb)
 	return (struct nlmsghdr *)skb->data;
 }
 
+enum netlink_skb_flags {
+	NETLINK_SKB_MMAPED	= 0x1,		/* Packet data is mmaped */
+	NETLINK_SKB_TX		= 0x2,		/* Packet was sent by userspace */
+	NETLINK_SKB_DELIVERED	= 0x4,		/* Packet was delivered */
+};
+
 struct netlink_skb_parms {
 	struct scm_creds	creds;		/* Skb credentials	*/
 	__u32			portid;
 	__u32			dst_group;
-	struct sock		*ssk;
+	__u32			flags;
+	struct sock		*sk;
 };
 
 #define NETLINK_CB(skb)		(*(struct netlink_skb_parms*)&((skb)->cb))
@@ -39,6 +46,7 @@ struct netlink_kernel_cfg {
 	void		(*input)(struct sk_buff *skb);
 	struct mutex	*cb_mutex;
 	void		(*bind)(int group);
+	bool		(*compare)(struct net *net, struct sock *sk);
 };
 
 extern struct sock *__netlink_kernel_create(struct net *net, int unit,
@@ -57,6 +65,8 @@ extern void __netlink_clear_multicast_users(struct sock *sk, unsigned int group)
 extern void netlink_clear_multicast_users(struct sock *sk, unsigned int group);
 extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
 extern int netlink_has_listeners(struct sock *sk, unsigned int group);
+extern struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
+					 u32 dst_portid, gfp_t gfp_mask);
 extern int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
 extern int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
 			     __u32 group, gfp_t allocation);
@@ -74,6 +84,22 @@ int netlink_attachskb(struct sock *sk, struct sk_buff *skb,
 		      long *timeo, struct sock *ssk);
 void netlink_detachskb(struct sock *sk, struct sk_buff *skb);
 int netlink_sendskb(struct sock *sk, struct sk_buff *skb);
+
+static inline struct sk_buff *
+netlink_skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
+{
+	struct sk_buff *nskb;
+
+	nskb = skb_clone(skb, gfp_mask);
+	if (!nskb)
+		return NULL;
+
+	/* This is a large skb, set destructor callback to release head */
+	if (is_vmalloc_addr(skb->head))
+		nskb->destructor = skb->destructor;
+
+	return nskb;
+}
 
 /*
  *	skb should fit one page. This choice is good for headerless malloc.
@@ -134,5 +160,15 @@ static inline int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 
 	return __netlink_dump_start(ssk, skb, nlh, control);
 }
+
+struct netlink_tap {
+	struct net_device *dev;
+	struct module *module;
+	struct list_head list;
+};
+
+extern int netlink_add_tap(struct netlink_tap *nt);
+extern int __netlink_remove_tap(struct netlink_tap *nt);
+extern int netlink_remove_tap(struct netlink_tap *nt);
 
 #endif	/* __LINUX_NETLINK_H */

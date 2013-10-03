@@ -10,10 +10,40 @@ Optional properties:
 - fsl,mc13xxx-uses-touch : Indicate the touchscreen controller is being used
 
 Sub-nodes:
-- regulators : Contain the regulator nodes.  The MC13892 regulators are
-  bound using their names as listed below with their registers and bits
-  for enabling.
+- regulators : Contain the regulator nodes. The regulators are bound using
+  their names as listed below with their registers and bits for enabling.
 
+MC13783 regulators:
+    sw1a      : regulator SW1A      (register 24, bit 0)
+    sw1b      : regulator SW1B      (register 25, bit 0)
+    sw2a      : regulator SW2A      (register 26, bit 0)
+    sw2b      : regulator SW2B      (register 27, bit 0)
+    sw3       : regulator SW3       (register 29, bit 20)
+    vaudio    : regulator VAUDIO    (register 32, bit 0)
+    viohi     : regulator VIOHI     (register 32, bit 3)
+    violo     : regulator VIOLO     (register 32, bit 6)
+    vdig      : regulator VDIG      (register 32, bit 9)
+    vgen      : regulator VGEN      (register 32, bit 12)
+    vrfdig    : regulator VRFDIG    (register 32, bit 15)
+    vrfref    : regulator VRFREF    (register 32, bit 18)
+    vrfcp     : regulator VRFCP     (register 32, bit 21)
+    vsim      : regulator VSIM      (register 33, bit 0)
+    vesim     : regulator VESIM     (register 33, bit 3)
+    vcam      : regulator VCAM      (register 33, bit 6)
+    vrfbg     : regulator VRFBG     (register 33, bit 9)
+    vvib      : regulator VVIB      (register 33, bit 11)
+    vrf1      : regulator VRF1      (register 33, bit 12)
+    vrf2      : regulator VRF2      (register 33, bit 15)
+    vmmc1     : regulator VMMC1     (register 33, bit 18)
+    vmmc2     : regulator VMMC2     (register 33, bit 21)
+    gpo1      : regulator GPO1      (register 34, bit 6)
+    gpo2      : regulator GPO2      (register 34, bit 8)
+    gpo3      : regulator GPO3      (register 34, bit 10)
+    gpo4      : regulator GPO4      (register 34, bit 12)
+    pwgt1spi  : regulator PWGT1SPI  (register 34, bit 15)
+    pwgt2spi  : regulator PWGT2SPI  (register 34, bit 16)
+
+MC13892 regulators:
     vcoincell : regulator VCOINCELL (register 13, bit 23)
     sw1       : regulator SW1	    (register 24, bit 0)
     sw2       : regulator SW2	    (register 25, bit 0)

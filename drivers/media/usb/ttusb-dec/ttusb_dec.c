@@ -951,34 +951,34 @@ static int ttusb_dec_start_ts_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	switch (dvbdmxfeed->pes_type) {
 
-	case DMX_TS_PES_VIDEO:
-		dprintk("  pes_type: DMX_TS_PES_VIDEO\n");
+	case DMX_PES_VIDEO:
+		dprintk("  pes_type: DMX_PES_VIDEO\n");
 		dec->pid[DMX_PES_PCR] = dvbdmxfeed->pid;
 		dec->pid[DMX_PES_VIDEO] = dvbdmxfeed->pid;
 		dec->video_filter = dvbdmxfeed->filter;
 		ttusb_dec_set_pids(dec);
 		break;
 
-	case DMX_TS_PES_AUDIO:
-		dprintk("  pes_type: DMX_TS_PES_AUDIO\n");
+	case DMX_PES_AUDIO:
+		dprintk("  pes_type: DMX_PES_AUDIO\n");
 		dec->pid[DMX_PES_AUDIO] = dvbdmxfeed->pid;
 		dec->audio_filter = dvbdmxfeed->filter;
 		ttusb_dec_set_pids(dec);
 		break;
 
-	case DMX_TS_PES_TELETEXT:
+	case DMX_PES_TELETEXT:
 		dec->pid[DMX_PES_TELETEXT] = dvbdmxfeed->pid;
-		dprintk("  pes_type: DMX_TS_PES_TELETEXT(not supported)\n");
+		dprintk("  pes_type: DMX_PES_TELETEXT(not supported)\n");
 		return -ENOSYS;
 
-	case DMX_TS_PES_PCR:
-		dprintk("  pes_type: DMX_TS_PES_PCR\n");
+	case DMX_PES_PCR:
+		dprintk("  pes_type: DMX_PES_PCR\n");
 		dec->pid[DMX_PES_PCR] = dvbdmxfeed->pid;
 		ttusb_dec_set_pids(dec);
 		break;
 
-	case DMX_TS_PES_OTHER:
-		dprintk("  pes_type: DMX_TS_PES_OTHER(not supported)\n");
+	case DMX_PES_OTHER:
+		dprintk("  pes_type: DMX_PES_OTHER(not supported)\n");
 		return -ENOSYS;
 
 	default:

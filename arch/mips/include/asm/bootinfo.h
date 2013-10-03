@@ -104,6 +104,7 @@ struct boot_mem_map {
 extern struct boot_mem_map boot_mem_map;
 
 extern void add_memory_region(phys_t start, phys_t size, long type);
+extern void detect_memory_region(phys_t start, phys_t sz_min,  phys_t sz_max);
 
 extern void prom_init(void);
 extern void prom_free_prom_memory(void);

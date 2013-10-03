@@ -739,14 +739,32 @@ static const unsigned int max98088_micboost_tlv[] = {
        2, 2, TLV_DB_SCALE_ITEM(3000, 0, 0),
 };
 
+static const unsigned int max98088_hp_tlv[] = {
+	TLV_DB_RANGE_HEAD(5),
+	0, 6, TLV_DB_SCALE_ITEM(-6700, 400, 0),
+	7, 14, TLV_DB_SCALE_ITEM(-4000, 300, 0),
+	15, 21, TLV_DB_SCALE_ITEM(-1700, 200, 0),
+	22, 27, TLV_DB_SCALE_ITEM(-400, 100, 0),
+	28, 31, TLV_DB_SCALE_ITEM(150, 50, 0),
+};
+
+static const unsigned int max98088_spk_tlv[] = {
+	TLV_DB_RANGE_HEAD(5),
+	0, 6, TLV_DB_SCALE_ITEM(-6200, 400, 0),
+	7, 14, TLV_DB_SCALE_ITEM(-3500, 300, 0),
+	15, 21, TLV_DB_SCALE_ITEM(-1200, 200, 0),
+	22, 27, TLV_DB_SCALE_ITEM(100, 100, 0),
+	28, 31, TLV_DB_SCALE_ITEM(650, 50, 0),
+};
+
 static const struct snd_kcontrol_new max98088_snd_controls[] = {
 
-       SOC_DOUBLE_R("Headphone Volume", M98088_REG_39_LVL_HP_L,
-               M98088_REG_3A_LVL_HP_R, 0, 31, 0),
-       SOC_DOUBLE_R("Speaker Volume", M98088_REG_3D_LVL_SPK_L,
-               M98088_REG_3E_LVL_SPK_R, 0, 31, 0),
-       SOC_DOUBLE_R("Receiver Volume", M98088_REG_3B_LVL_REC_L,
-               M98088_REG_3C_LVL_REC_R, 0, 31, 0),
+	SOC_DOUBLE_R_TLV("Headphone Volume", M98088_REG_39_LVL_HP_L,
+			 M98088_REG_3A_LVL_HP_R, 0, 31, 0, max98088_hp_tlv),
+	SOC_DOUBLE_R_TLV("Speaker Volume", M98088_REG_3D_LVL_SPK_L,
+			 M98088_REG_3E_LVL_SPK_R, 0, 31, 0, max98088_spk_tlv),
+	SOC_DOUBLE_R_TLV("Receiver Volume", M98088_REG_3B_LVL_REC_L,
+			 M98088_REG_3C_LVL_REC_R, 0, 31, 0, max98088_spk_tlv),
 
        SOC_DOUBLE_R("Headphone Switch", M98088_REG_39_LVL_HP_L,
                M98088_REG_3A_LVL_HP_R, 7, 1, 1),
@@ -1594,7 +1612,7 @@ static int max98088_dai2_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 
 static void max98088_sync_cache(struct snd_soc_codec *codec)
 {
-       u16 *reg_cache = codec->reg_cache;
+       u8 *reg_cache = codec->reg_cache;
        int i;
 
        if (!codec->cache_sync)
@@ -2006,7 +2024,7 @@ static int max98088_probe(struct snd_soc_codec *codec)
                        ret);
                goto err_access;
        }
-       dev_info(codec->dev, "revision %c\n", ret + 'A');
+       dev_info(codec->dev, "revision %c\n", ret - 0x40 + 'A');
 
        snd_soc_write(codec, M98088_REG_51_PWR_SYS, M98088_PWRSV);
 

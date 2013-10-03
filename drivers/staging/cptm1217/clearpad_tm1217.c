@@ -547,22 +547,23 @@ fail_gpio:
 fail:
 	/* Clean up before returning failure */
 	for (i = 0; i < TOUCH_SUPPORTED; i++) {
-		if (ts->cp_input_info[i].input) {
+		if (ts->cp_input_info[i].input)
 			input_unregister_device(ts->cp_input_info[i].input);
-			input_free_device(ts->cp_input_info[i].input);
-		}
 	}
 	kfree(ts);
 	return retval;
 
 }
 
+#ifdef CONFIG_PM_SLEEP
+
 /*
  * cp_tm1217 suspend
  *
  */
-static int cp_tm1217_suspend(struct i2c_client *client, pm_message_t mesg)
+static int cp_tm1217_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct cp_tm1217_device *ts = i2c_get_clientdata(client);
 	u8 req[2];
 	int retval;
@@ -583,8 +584,9 @@ static int cp_tm1217_suspend(struct i2c_client *client, pm_message_t mesg)
  * cp_tm1217_resume
  *
  */
-static int cp_tm1217_resume(struct i2c_client *client)
+static int cp_tm1217_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct cp_tm1217_device *ts = i2c_get_clientdata(client);
 	u8 req[2];
 	int retval;
@@ -618,6 +620,11 @@ static int cp_tm1217_resume(struct i2c_client *client)
 	return 0;
 }
 
+#endif
+
+static SIMPLE_DEV_PM_OPS(cp_tm1217_pm_ops, cp_tm1217_suspend,
+	cp_tm1217_resume);
+
 /*
  * cp_tm1217_remove
  *
@@ -647,12 +654,11 @@ static struct i2c_driver cp_tm1217_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= CPTM1217_DRIVER_NAME,
+		.pm	= &cp_tm1217_pm_ops,
 	},
 	.id_table	= cp_tm1217_idtable,
 	.probe		= cp_tm1217_probe,
 	.remove		= cp_tm1217_remove,
-	.suspend    = cp_tm1217_suspend,
-	.resume     = cp_tm1217_resume,
 };
 
 module_i2c_driver(cp_tm1217_driver);

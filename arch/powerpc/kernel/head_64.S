@@ -509,6 +509,7 @@ _GLOBAL(copy_and_flush)
 	sync
 	addi	r5,r5,8
 	addi	r6,r6,8
+	isync
 	blr
 
 .align 8
@@ -702,6 +703,7 @@ _GLOBAL(relative_toc)
 	mtlr	r0
 	blr
 
+.balign 8
 p_toc:	.llong	__toc_start + 0x8000 - 0b
 
 /*

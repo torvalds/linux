@@ -42,17 +42,17 @@ config SENSORS_LM25066
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for National
-	  Semiconductor LM25066, LM5064, and LM5066.
+	  Semiconductor LM25056, LM25066, LM5064, and LM5066.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called lm25066.
 
 config SENSORS_LTC2978
-	tristate "Linear Technologies LTC2978 and LTC3880"
+	tristate "Linear Technologies LTC2974, LTC2978, LTC3880, and LTC3883"
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for Linear
-	  Technology LTC2978 and LTC3880.
+	  Technology LTC2974, LTC2978, LTC3880, and LTC3883.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc2978.

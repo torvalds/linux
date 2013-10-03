@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/pci.h>
@@ -36,20 +32,25 @@ EXPORT_SYMBOL_GPL(comedi_to_pci_dev);
 
 /**
  * comedi_pci_enable() - Enable the PCI device and request the regions.
- * @pcidev: pci_dev struct
- * @res_name: name for the requested reqource
+ * @dev: comedi_device struct
  */
-int comedi_pci_enable(struct pci_dev *pcidev, const char *res_name)
+int comedi_pci_enable(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	int rc;
+
+	if (!pcidev)
+		return -ENODEV;
 
 	rc = pci_enable_device(pcidev);
 	if (rc < 0)
 		return rc;
 
-	rc = pci_request_regions(pcidev, res_name);
+	rc = pci_request_regions(pcidev, dev->board_name);
 	if (rc < 0)
 		pci_disable_device(pcidev);
+	else
+		dev->ioenabled = true;
 
 	return rc;
 }
@@ -57,14 +58,17 @@ EXPORT_SYMBOL_GPL(comedi_pci_enable);
 
 /**
  * comedi_pci_disable() - Release the regions and disable the PCI device.
- * @pcidev: pci_dev struct
- *
- * This must be matched with a previous successful call to comedi_pci_enable().
+ * @dev: comedi_device struct
  */
-void comedi_pci_disable(struct pci_dev *pcidev)
+void comedi_pci_disable(struct comedi_device *dev)
 {
-	pci_release_regions(pcidev);
-	pci_disable_device(pcidev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (pcidev && dev->ioenabled) {
+		pci_release_regions(pcidev);
+		pci_disable_device(pcidev);
+	}
+	dev->ioenabled = false;
 }
 EXPORT_SYMBOL_GPL(comedi_pci_disable);
 
@@ -72,13 +76,15 @@ EXPORT_SYMBOL_GPL(comedi_pci_disable);
  * comedi_pci_auto_config() - Configure/probe a comedi PCI driver.
  * @pcidev: pci_dev struct
  * @driver: comedi_driver struct
+ * @context: driver specific data, passed to comedi_auto_config()
  *
  * Typically called from the pci_driver (*probe) function.
  */
 int comedi_pci_auto_config(struct pci_dev *pcidev,
-			   struct comedi_driver *driver)
+			   struct comedi_driver *driver,
+			   unsigned long context)
 {
-	return comedi_auto_config(&pcidev->dev, driver, 0);
+	return comedi_auto_config(&pcidev->dev, driver, context);
 }
 EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
 

@@ -621,7 +621,7 @@ static int cpwd_probe(struct platform_device *op)
 			WD_BADMODEL);
 	}
 
-	dev_set_drvdata(&op->dev, p);
+	platform_set_drvdata(op, p);
 	cpwd_device = p;
 	err = 0;
 
@@ -642,7 +642,7 @@ out_free:
 
 static int cpwd_remove(struct platform_device *op)
 {
-	struct cpwd *p = dev_get_drvdata(&op->dev);
+	struct cpwd *p = platform_get_drvdata(op);
 	int i;
 
 	for (i = 0; i < WD_NUMDEVS; i++) {

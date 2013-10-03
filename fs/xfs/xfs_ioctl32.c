@@ -33,8 +33,6 @@
 #include "xfs_inode.h"
 #include "xfs_itable.h"
 #include "xfs_error.h"
-#include "xfs_dfrag.h"
-#include "xfs_vnodeops.h"
 #include "xfs_fsops.h"
 #include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
@@ -373,7 +371,7 @@ xfs_compat_attrlist_by_handle(
 		return PTR_ERR(dentry);
 
 	error = -ENOMEM;
-	kbuf = kmalloc(al_hreq.buflen, GFP_KERNEL);
+	kbuf = kmem_zalloc_large(al_hreq.buflen, KM_SLEEP);
 	if (!kbuf)
 		goto out_dput;
 
@@ -386,9 +384,9 @@ xfs_compat_attrlist_by_handle(
 	if (copy_to_user(compat_ptr(al_hreq.buffer), kbuf, al_hreq.buflen))
 		error = -EFAULT;
 
- out_kfree:
-	kfree(kbuf);
- out_dput:
+out_kfree:
+	kmem_free(kbuf);
+out_dput:
 	dput(dentry);
 	return error;
 }
@@ -638,7 +636,7 @@ xfs_file_compat_ioctl(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		error = xfs_swapext(&sxp);
+		error = xfs_ioc_swapext(&sxp);
 		mnt_drop_write_file(filp);
 		return -error;
 	}

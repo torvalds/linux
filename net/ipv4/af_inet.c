@@ -111,10 +111,10 @@
 #include <net/sock.h>
 #include <net/raw.h>
 #include <net/icmp.h>
-#include <net/ipip.h>
 #include <net/inet_common.h>
 #include <net/xfrm.h>
 #include <net/net_namespace.h>
+#include <net/secure_seq.h>
 #ifdef CONFIG_IP_MROUTE
 #include <linux/mroute.h>
 #endif
@@ -1283,9 +1283,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	int ihl;
 	int id;
 	unsigned int offset = 0;
-
-	if (!(features & NETIF_F_V4_CSUM))
-		features &= ~NETIF_F_SG;
+	bool tunnel;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
 		     ~(SKB_GSO_TCPV4 |
@@ -1293,6 +1291,9 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_GRE |
+		       SKB_GSO_TCPV6 |
+		       SKB_GSO_UDP_TUNNEL |
+		       SKB_GSO_MPLS |
 		       0)))
 		goto out;
 
@@ -1306,6 +1307,8 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 
 	if (unlikely(!pskb_may_pull(skb, ihl)))
 		goto out;
+
+	tunnel = !!skb->encapsulation;
 
 	__skb_pull(skb, ihl);
 	skb_reset_transport_header(skb);
@@ -1326,7 +1329,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	skb = segs;
 	do {
 		iph = ip_hdr(skb);
-		if (proto == IPPROTO_UDP) {
+		if (!tunnel && proto == IPPROTO_UDP) {
 			iph->id = htons(id);
 			iph->frag_off = htons(offset >> 3);
 			if (skb->next != NULL)
@@ -1380,7 +1383,7 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 		goto out_unlock;
 
 	id = ntohl(*(__be32 *)&iph->id);
-	flush = (u16)((ntohl(*(__be32 *)iph) ^ skb_gro_len(skb)) | (id ^ IP_DF));
+	flush = (u16)((ntohl(*(__be32 *)iph) ^ skb_gro_len(skb)) | (id & ~IP_DF));
 	id >>= 16;
 
 	for (p = *head; p; p = p->next) {
@@ -1402,6 +1405,7 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 		NAPI_GRO_CB(p)->flush |=
 			(iph->ttl ^ iph2->ttl) |
 			(iph->tos ^ iph2->tos) |
+			(__force int)((iph->frag_off ^ iph2->frag_off) & htons(IP_DF)) |
 			((u16)(ntohs(iph2->id) + NAPI_GRO_CB(p)->count) ^ id);
 
 		NAPI_GRO_CB(p)->flush |= flush;
@@ -1526,18 +1530,6 @@ int snmp_mib_init(void __percpu *ptr[2], size_t mibsize, size_t align)
 }
 EXPORT_SYMBOL_GPL(snmp_mib_init);
 
-void snmp_mib_free(void __percpu *ptr[SNMP_ARRAY_SZ])
-{
-	int i;
-
-	BUG_ON(ptr == NULL);
-	for (i = 0; i < SNMP_ARRAY_SZ; i++) {
-		free_percpu(ptr[i]);
-		ptr[i] = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(snmp_mib_free);
-
 #ifdef CONFIG_IP_MULTICAST
 static const struct net_protocol igmp_protocol = {
 	.handler =	igmp_rcv,
@@ -1553,27 +1545,11 @@ static const struct net_protocol tcp_protocol = {
 	.netns_ok	=	1,
 };
 
-static const struct net_offload tcp_offload = {
-	.callbacks = {
-		.gso_send_check	=	tcp_v4_gso_send_check,
-		.gso_segment	=	tcp_tso_segment,
-		.gro_receive	=	tcp4_gro_receive,
-		.gro_complete	=	tcp4_gro_complete,
-	},
-};
-
 static const struct net_protocol udp_protocol = {
 	.handler =	udp_rcv,
 	.err_handler =	udp_err,
 	.no_policy =	1,
 	.netns_ok =	1,
-};
-
-static const struct net_offload udp_offload = {
-	.callbacks = {
-		.gso_send_check = udp4_ufo_send_check,
-		.gso_segment = udp4_ufo_fragment,
-	},
 };
 
 static const struct net_protocol icmp_protocol = {
@@ -1675,10 +1651,10 @@ static int __init ipv4_offload_init(void)
 	/*
 	 * Add offloads
 	 */
-	if (inet_add_offload(&udp_offload, IPPROTO_UDP) < 0)
+	if (udpv4_offload_init() < 0)
 		pr_crit("%s: Cannot add UDP protocol offload\n", __func__);
-	if (inet_add_offload(&tcp_offload, IPPROTO_TCP) < 0)
-		pr_crit("%s: Cannot add TCP protocol offlaod\n", __func__);
+	if (tcpv4_offload_init() < 0)
+		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
 
 	dev_add_offload(&ip_packet_offload);
 	return 0;

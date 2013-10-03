@@ -200,8 +200,8 @@ static int k8temp_probe(struct pci_dev *pdev,
 	 */
 	if (model >= 0x40) {
 		data->swap_core_select = 1;
-		dev_warn(&pdev->dev, "Temperature readouts might be wrong - "
-			 "check erratum #141\n");
+		dev_warn(&pdev->dev,
+			 "Temperature readouts might be wrong - check erratum #141\n");
 	}
 
 	/*

@@ -3,7 +3,7 @@
  * controllers
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_ctl.c
- * Copyright (C) 2007-2012  LSI Corporation
+ * Copyright (C) 2007-2013  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -397,18 +397,22 @@ mpt2sas_ctl_add_to_event_log(struct MPT2SAS_ADAPTER *ioc,
  * This function merely adds a new work task into ioc->firmware_event_thread.
  * The tasks are worked from _firmware_event_work in user context.
  *
- * Return 1 meaning mf should be freed from _base_interrupt
- *        0 means the mf is freed from this function.
+ * Returns void.
  */
-u8
+void
 mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	u32 reply)
 {
 	Mpi2EventNotificationReply_t *mpi_reply;
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
+	if (unlikely(!mpi_reply)) {
+		printk(MPT2SAS_ERR_FMT "mpi_reply not valid at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		return;
+	}
 	mpt2sas_ctl_add_to_event_log(ioc, mpi_reply);
-	return 1;
+	return;
 }
 
 /**
@@ -502,19 +506,6 @@ static int
 _ctl_fasync(int fd, struct file *filep, int mode)
 {
 	return fasync_helper(fd, filep, mode, &async_queue);
-}
-
-/**
- * _ctl_release -
- * @inode -
- * @filep -
- *
- * Called when application releases the fasyn callback handler.
- */
-static int
-_ctl_release(struct inode *inode, struct file *filep)
-{
-	return fasync_helper(-1, filep, 0, &async_queue);
 }
 
 /**
@@ -3027,7 +3018,6 @@ struct device_attribute *mpt2sas_dev_attrs[] = {
 static const struct file_operations ctl_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = _ctl_ioctl,
-	.release = _ctl_release,
 	.poll = _ctl_poll,
 	.fasync = _ctl_fasync,
 #ifdef CONFIG_COMPAT

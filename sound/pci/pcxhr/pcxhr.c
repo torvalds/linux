@@ -1691,7 +1691,6 @@ static int pcxhr_probe(struct pci_dev *pci,
 static void pcxhr_remove(struct pci_dev *pci)
 {
 	pcxhr_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver pcxhr_driver = {

@@ -16,12 +16,17 @@
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
 #define free_user_page(page, addr)	free_page(addr)
 
-/* TBD: for now don't worry about VIPT D$ aliasing */
 #define clear_page(paddr)		memset((paddr), 0, PAGE_SIZE)
 #define copy_page(to, from)		memcpy((to), (from), PAGE_SIZE)
 
-#define clear_user_page(addr, vaddr, pg)	clear_page(addr)
-#define copy_user_page(vto, vfrom, vaddr, pg)	copy_page(vto, vfrom)
+struct vm_area_struct;
+struct page;
+
+#define __HAVE_ARCH_COPY_USER_HIGHPAGE
+
+void copy_user_highpage(struct page *to, struct page *from,
+			unsigned long u_vaddr, struct vm_area_struct *vma);
+void clear_user_page(void *to, unsigned long u_vaddr, struct page *page);
 
 #undef STRICT_MM_TYPECHECKS
 
@@ -91,13 +96,8 @@ typedef unsigned long pgtable_t;
 
 #define virt_addr_valid(kaddr)  pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
-/* Default Permissions for page, used in mmap.c */
-#ifdef CONFIG_ARC_STACK_NONEXEC
+/* Default Permissions for stack/heaps pages (Non Executable) */
 #define VM_DATA_DEFAULT_FLAGS   (VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE)
-#else
-#define VM_DATA_DEFAULT_FLAGS   (VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
-#endif
 
 #define WANT_PAGE_VIRTUAL   1
 

@@ -19,7 +19,7 @@
  */
 void __mips_set_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *a = addr;
+	unsigned long *a = (unsigned long *)addr;
 	unsigned bit = nr & SZLONG_MASK;
 	unsigned long mask;
 	unsigned long flags;
@@ -41,7 +41,7 @@ EXPORT_SYMBOL(__mips_set_bit);
  */
 void __mips_clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *a = addr;
+	unsigned long *a = (unsigned long *)addr;
 	unsigned bit = nr & SZLONG_MASK;
 	unsigned long mask;
 	unsigned long flags;
@@ -63,7 +63,7 @@ EXPORT_SYMBOL(__mips_clear_bit);
  */
 void __mips_change_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *a = addr;
+	unsigned long *a = (unsigned long *)addr;
 	unsigned bit = nr & SZLONG_MASK;
 	unsigned long mask;
 	unsigned long flags;
@@ -86,16 +86,16 @@ EXPORT_SYMBOL(__mips_change_bit);
 int __mips_test_and_set_bit(unsigned long nr,
 			    volatile unsigned long *addr)
 {
-	volatile unsigned long *a = addr;
+	unsigned long *a = (unsigned long *)addr;
 	unsigned bit = nr & SZLONG_MASK;
 	unsigned long mask;
 	unsigned long flags;
-	unsigned long res;
+	int res;
 
 	a += nr >> SZLONG_LOG;
 	mask = 1UL << bit;
 	raw_local_irq_save(flags);
-	res = (mask & *a);
+	res = (mask & *a) != 0;
 	*a |= mask;
 	raw_local_irq_restore(flags);
 	return res;
@@ -112,16 +112,16 @@ EXPORT_SYMBOL(__mips_test_and_set_bit);
 int __mips_test_and_set_bit_lock(unsigned long nr,
 				 volatile unsigned long *addr)
 {
-	volatile unsigned long *a = addr;
+	unsigned long *a = (unsigned long *)addr;
 	unsigned bit = nr & SZLONG_MASK;
 	unsigned long mask;
 	unsigned long flags;
-	unsigned long res;
+	int res;
 
 	a += nr >> SZLONG_LOG;
 	mask = 1UL << bit;
 	raw_local_irq_save(flags);
-	res = (mask & *a);
+	res = (mask & *a) != 0;
 	*a |= mask;
 	raw_local_irq_restore(flags);
 	return res;
@@ -137,16 +137,16 @@ EXPORT_SYMBOL(__mips_test_and_set_bit_lock);
  */
 int __mips_test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *a = addr;
+	unsigned long *a = (unsigned long *)addr;
 	unsigned bit = nr & SZLONG_MASK;
 	unsigned long mask;
 	unsigned long flags;
-	unsigned long res;
+	int res;
 
 	a += nr >> SZLONG_LOG;
 	mask = 1UL << bit;
 	raw_local_irq_save(flags);
-	res = (mask & *a);
+	res = (mask & *a) != 0;
 	*a &= ~mask;
 	raw_local_irq_restore(flags);
 	return res;
@@ -162,16 +162,16 @@ EXPORT_SYMBOL(__mips_test_and_clear_bit);
  */
 int __mips_test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *a = addr;
+	unsigned long *a = (unsigned long *)addr;
 	unsigned bit = nr & SZLONG_MASK;
 	unsigned long mask;
 	unsigned long flags;
-	unsigned long res;
+	int res;
 
 	a += nr >> SZLONG_LOG;
 	mask = 1UL << bit;
 	raw_local_irq_save(flags);
-	res = (mask & *a);
+	res = (mask & *a) != 0;
 	*a ^= mask;
 	raw_local_irq_restore(flags);
 	return res;

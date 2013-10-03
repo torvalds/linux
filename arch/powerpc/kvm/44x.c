@@ -124,6 +124,18 @@ int kvmppc_core_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 	return kvmppc_set_sregs_ivor(vcpu, sregs);
 }
 
+int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
+			union kvmppc_one_reg *val)
+{
+	return -EINVAL;
+}
+
+int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id,
+		       union kvmppc_one_reg *val)
+{
+	return -EINVAL;
+}
+
 struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 {
 	struct kvmppc_vcpu_44x *vcpu_44x;

@@ -23,6 +23,16 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
+static const struct snd_soc_dapm_widget ac97_widgets[] = {
+	SND_SOC_DAPM_INPUT("RX"),
+	SND_SOC_DAPM_OUTPUT("TX"),
+};
+
+static const struct snd_soc_dapm_route ac97_routes[] = {
+	{ "AC97 Capture", NULL, "RX" },
+	{ "TX", NULL, "AC97 Playback" },
+};
+
 static int ac97_prepare(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
@@ -62,13 +72,13 @@ static struct snd_soc_dai_driver ac97_dai = {
 static unsigned int ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
-	return soc_ac97_ops.read(codec->ac97, reg);
+	return soc_ac97_ops->read(codec->ac97, reg);
 }
 
 static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int val)
 {
-	soc_ac97_ops.write(codec->ac97, reg, val);
+	soc_ac97_ops->write(codec->ac97, reg, val);
 	return 0;
 }
 
@@ -79,7 +89,8 @@ static int ac97_soc_probe(struct snd_soc_codec *codec)
 	int ret;
 
 	/* add codec as bus device for standard ac97 */
-	ret = snd_ac97_bus(codec->card->snd_card, 0, &soc_ac97_ops, NULL, &ac97_bus);
+	ret = snd_ac97_bus(codec->card->snd_card, 0, soc_ac97_ops, NULL,
+			   &ac97_bus);
 	if (ret < 0)
 		return ret;
 
@@ -116,6 +127,11 @@ static struct snd_soc_codec_driver soc_codec_dev_ac97 = {
 	.probe = 	ac97_soc_probe,
 	.suspend =	ac97_soc_suspend,
 	.resume =	ac97_soc_resume,
+
+	.dapm_widgets = ac97_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(ac97_widgets),
+	.dapm_routes = ac97_routes,
+	.num_dapm_routes = ARRAY_SIZE(ac97_routes),
 };
 
 static int ac97_probe(struct platform_device *pdev)

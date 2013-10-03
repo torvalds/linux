@@ -34,7 +34,6 @@
 #include "ivtv-cards.h"
 #include <media/saa7127.h>
 #include <media/tveeprom.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-event.h>
 #include <linux/dvb/audio.h>
 
@@ -692,47 +691,27 @@ static int ivtv_s_fmt_vid_out_overlay(struct file *file, void *fh, struct v4l2_f
 	return ret;
 }
 
-static int ivtv_g_chip_ident(struct file *file, void *fh, struct v4l2_dbg_chip_ident *chip)
-{
-	struct ivtv *itv = fh2id(fh)->itv;
-
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-	if (chip->match.type == V4L2_CHIP_MATCH_HOST) {
-		if (v4l2_chip_match_host(&chip->match))
-			chip->ident = itv->has_cx23415 ? V4L2_IDENT_CX23415 : V4L2_IDENT_CX23416;
-		return 0;
-	}
-	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
-	    chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-	/* TODO: is this correct? */
-	return ivtv_call_all_err(itv, core, g_chip_ident, chip);
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-static int ivtv_itvc(struct ivtv *itv, unsigned int cmd, void *arg)
+static int ivtv_itvc(struct ivtv *itv, bool get, u64 reg, u64 *val)
 {
-	struct v4l2_dbg_register *regs = arg;
 	volatile u8 __iomem *reg_start;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	if (regs->reg >= IVTV_REG_OFFSET && regs->reg < IVTV_REG_OFFSET + IVTV_REG_SIZE)
+	if (reg & 0x3)
+		return -EINVAL;
+	if (reg >= IVTV_REG_OFFSET && reg < IVTV_REG_OFFSET + IVTV_REG_SIZE)
 		reg_start = itv->reg_mem - IVTV_REG_OFFSET;
-	else if (itv->has_cx23415 && regs->reg >= IVTV_DECODER_OFFSET &&
-			regs->reg < IVTV_DECODER_OFFSET + IVTV_DECODER_SIZE)
+	else if (itv->has_cx23415 && reg >= IVTV_DECODER_OFFSET &&
+			reg < IVTV_DECODER_OFFSET + IVTV_DECODER_SIZE)
 		reg_start = itv->dec_mem - IVTV_DECODER_OFFSET;
-	else if (regs->reg < IVTV_ENCODER_SIZE)
+	else if (reg < IVTV_ENCODER_SIZE)
 		reg_start = itv->enc_mem;
 	else
 		return -EINVAL;
 
-	regs->size = 4;
-	if (cmd == VIDIOC_DBG_G_REGISTER)
-		regs->val = readl(regs->reg + reg_start);
+	if (get)
+		*val = readl(reg + reg_start);
 	else
-		writel(regs->val, regs->reg + reg_start);
+		writel(*val, reg + reg_start);
 	return 0;
 }
 
@@ -740,24 +719,16 @@ static int ivtv_g_register(struct file *file, void *fh, struct v4l2_dbg_register
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
-	if (v4l2_chip_match_host(&reg->match))
-		return ivtv_itvc(itv, VIDIOC_DBG_G_REGISTER, reg);
-	/* TODO: subdev errors should not be ignored, this should become a
-	   subdev helper function. */
-	ivtv_call_all(itv, core, g_register, reg);
-	return 0;
+	reg->size = 4;
+	return ivtv_itvc(itv, true, reg->reg, &reg->val);
 }
 
-static int ivtv_s_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
+static int ivtv_s_register(struct file *file, void *fh, const struct v4l2_dbg_register *reg)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
+	u64 val = reg->val;
 
-	if (v4l2_chip_match_host(&reg->match))
-		return ivtv_itvc(itv, VIDIOC_DBG_S_REGISTER, reg);
-	/* TODO: subdev errors should not be ignored, this should become a
-	   subdev helper function. */
-	ivtv_call_all(itv, core, s_register, reg);
-	return 0;
+	return ivtv_itvc(itv, false, reg->reg, &val);
 }
 #endif
 
@@ -1078,7 +1049,7 @@ static int ivtv_g_frequency(struct file *file, void *fh, struct v4l2_frequency *
 	return 0;
 }
 
-int ivtv_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
+int ivtv_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *vf)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
@@ -1103,10 +1074,10 @@ static int ivtv_g_std(struct file *file, void *fh, v4l2_std_id *std)
 	return 0;
 }
 
-void ivtv_s_std_enc(struct ivtv *itv, v4l2_std_id *std)
+void ivtv_s_std_enc(struct ivtv *itv, v4l2_std_id std)
 {
-	itv->std = *std;
-	itv->is_60hz = (*std & V4L2_STD_525_60) ? 1 : 0;
+	itv->std = std;
+	itv->is_60hz = (std & V4L2_STD_525_60) ? 1 : 0;
 	itv->is_50hz = !itv->is_60hz;
 	cx2341x_handler_set_50hz(&itv->cxhdl, itv->is_50hz);
 	itv->cxhdl.width = 720;
@@ -1122,15 +1093,15 @@ void ivtv_s_std_enc(struct ivtv *itv, v4l2_std_id *std)
 	ivtv_call_all(itv, core, s_std, itv->std);
 }
 
-void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id *std)
+void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id std)
 {
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	DEFINE_WAIT(wait);
 	int f;
 
 	/* set display standard */
-	itv->std_out = *std;
-	itv->is_out_60hz = (*std & V4L2_STD_525_60) ? 1 : 0;
+	itv->std_out = std;
+	itv->is_out_60hz = (std & V4L2_STD_525_60) ? 1 : 0;
 	itv->is_out_50hz = !itv->is_out_60hz;
 	ivtv_call_all(itv, video, s_std_output, itv->std_out);
 
@@ -1168,14 +1139,14 @@ void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id *std)
 	}
 }
 
-static int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
+static int ivtv_s_std(struct file *file, void *fh, v4l2_std_id std)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
-	if ((*std & V4L2_STD_ALL) == 0)
+	if ((std & V4L2_STD_ALL) == 0)
 		return -EINVAL;
 
-	if (*std == itv->std)
+	if (std == itv->std)
 		return 0;
 
 	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ||
@@ -1196,7 +1167,7 @@ static int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	return 0;
 }
 
-static int ivtv_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
+static int ivtv_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *vt)
 {
 	struct ivtv_open_id *id = fh2id(fh);
 	struct ivtv *itv = id->itv;
@@ -1804,7 +1775,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 }
 
 static long ivtv_default(struct file *file, void *fh, bool valid_prio,
-			 int cmd, void *arg)
+			 unsigned int cmd, void *arg)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
@@ -1911,7 +1882,6 @@ static const struct v4l2_ioctl_ops ivtv_ioctl_ops = {
 	.vidioc_try_fmt_vid_out_overlay     = ivtv_try_fmt_vid_out_overlay,
 	.vidioc_try_fmt_sliced_vbi_out 	    = ivtv_try_fmt_sliced_vbi_out,
 	.vidioc_g_sliced_vbi_cap 	    = ivtv_g_sliced_vbi_cap,
-	.vidioc_g_chip_ident 		    = ivtv_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register 		    = ivtv_g_register,
 	.vidioc_s_register 		    = ivtv_s_register,

@@ -25,16 +25,7 @@ enum clk_reset_action {
 
 struct clk;
 
-/* Rate is minimum clock rate in Hz */
-int clk_set_min_rate(struct clk *clk, unsigned long rate);
-
-/* Rate is maximum clock rate in Hz */
-int clk_set_max_rate(struct clk *clk, unsigned long rate);
-
 /* Assert/Deassert reset to a hardware block associated with a clock */
 int clk_reset(struct clk *clk, enum clk_reset_action action);
-
-/* Set clock-specific configuration parameters */
-int clk_set_flags(struct clk *clk, unsigned long flags);
 
 #endif

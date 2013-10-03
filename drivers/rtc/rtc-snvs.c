@@ -283,22 +283,13 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	data->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	data->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 					&snvs_rtc_ops, THIS_MODULE);
 	if (IS_ERR(data->rtc)) {
 		ret = PTR_ERR(data->rtc);
 		dev_err(&pdev->dev, "failed to register rtc: %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int snvs_rtc_remove(struct platform_device *pdev)
-{
-	struct snvs_rtc_data *data = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(data->rtc);
 
 	return 0;
 }
@@ -341,7 +332,6 @@ static struct platform_driver snvs_rtc_driver = {
 		.of_match_table = of_match_ptr(snvs_dt_ids),
 	},
 	.probe		= snvs_rtc_probe,
-	.remove		= snvs_rtc_remove,
 };
 module_platform_driver(snvs_rtc_driver);
 

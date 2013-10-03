@@ -46,7 +46,7 @@ static const int eukrea_mbimx27_pins[] __initconst = {
 	PE10_PF_UART3_CTS,
 	PE11_PF_UART3_RTS,
 	/* UART4 */
-#if !defined(MACH_EUKREA_CPUIMX27_USEUART4)
+#if !defined(CONFIG_MACH_EUKREA_CPUIMX27_USEUART4)
 	PB26_AF_UART4_RTS,
 	PB28_AF_UART4_TXD,
 	PB29_AF_UART4_CTS,
@@ -306,7 +306,7 @@ void __init eukrea_mbimx27_baseboard_init(void)
 
 	imx27_add_imx_uart1(&uart_pdata);
 	imx27_add_imx_uart2(&uart_pdata);
-#if !defined(MACH_EUKREA_CPUIMX27_USEUART4)
+#if !defined(CONFIG_MACH_EUKREA_CPUIMX27_USEUART4)
 	imx27_add_imx_uart3(&uart_pdata);
 #endif
 

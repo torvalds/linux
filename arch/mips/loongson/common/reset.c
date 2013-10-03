@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 
+#include <asm/idle.h>
 #include <asm/reboot.h>
 
 #include <loongson.h>

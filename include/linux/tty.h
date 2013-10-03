@@ -10,6 +10,8 @@
 #include <linux/mutex.h>
 #include <linux/tty_flags.h>
 #include <uapi/linux/tty.h>
+#include <linux/rwsem.h>
+#include <linux/llist.h>
 
 
 
@@ -29,9 +31,10 @@
 #define __DISABLED_CHAR '\0'
 
 struct tty_buffer {
-	struct tty_buffer *next;
-	char *char_buf_ptr;
-	unsigned char *flag_buf_ptr;
+	union {
+		struct tty_buffer *next;
+		struct llist_node free;
+	};
 	int used;
 	int size;
 	int commit;
@@ -40,25 +43,25 @@ struct tty_buffer {
 	unsigned long data[0];
 };
 
-/*
- * We default to dicing tty buffer allocations to this many characters
- * in order to avoid multiple page allocations. We know the size of
- * tty_buffer itself but it must also be taken into account that the
- * the buffer is 256 byte aligned. See tty_buffer_find for the allocation
- * logic this must match
- */
+static inline unsigned char *char_buf_ptr(struct tty_buffer *b, int ofs)
+{
+	return ((unsigned char *)b->data) + ofs;
+}
 
-#define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
-
+static inline char *flag_buf_ptr(struct tty_buffer *b, int ofs)
+{
+	return (char *)char_buf_ptr(b, ofs) + b->size;
+}
 
 struct tty_bufhead {
-	struct work_struct work;
-	spinlock_t lock;
 	struct tty_buffer *head;	/* Queue head */
+	struct work_struct work;
+	struct mutex	   lock;
+	atomic_t	   priority;
+	struct tty_buffer sentinel;
+	struct llist_head free;		/* Free queue head */
+	atomic_t	   memory_used; /* In-use buffers excluding free list */
 	struct tty_buffer *tail;	/* Active buffer */
-	struct tty_buffer *free;	/* Free queue head */
-	int memory_used;		/* Buffer space used excluding
-								free queue */
 };
 /*
  * When a break, frame error, or parity error happens, these codes are
@@ -199,9 +202,6 @@ struct tty_port {
 	wait_queue_head_t	close_wait;	/* Close waiters */
 	wait_queue_head_t	delta_msr_wait;	/* Modem status change */
 	unsigned long		flags;		/* TTY flags ASY_*/
-	unsigned long		iflags;		/* TTYP_ internal flags */
-#define TTYP_FLUSHING			1  /* Flushing to ldisc in progress */
-#define TTYP_FLUSHPENDING		2  /* Queued buffer flush pending */
 	unsigned char		console:1,	/* port is a console */
 				low_latency:1;	/* direct buffer flush */
 	struct mutex		mutex;		/* Locking */
@@ -238,14 +238,16 @@ struct tty_struct {
 	int index;
 
 	/* Protects ldisc changes: Lock tty not pty */
-	struct mutex ldisc_mutex;
+	struct ld_semaphore ldisc_sem;
 	struct tty_ldisc *ldisc;
 
 	struct mutex atomic_write_lock;
 	struct mutex legacy_mutex;
-	struct mutex termios_mutex;
+	struct mutex throttle_mutex;
+	struct rw_semaphore termios_rwsem;
+	struct mutex winsize_mutex;
 	spinlock_t ctrl_lock;
-	/* Termios values are protected by the termios mutex */
+	/* Termios values are protected by the termios rwsem */
 	struct ktermios termios, termios_locked;
 	struct termiox *termiox;	/* May be NULL for unsupported */
 	char name[64];
@@ -253,11 +255,11 @@ struct tty_struct {
 	struct pid *session;
 	unsigned long flags;
 	int count;
-	struct winsize winsize;		/* termios mutex */
+	struct winsize winsize;		/* winsize_mutex */
 	unsigned char stopped:1, hw_stopped:1, flow_stopped:1, packet:1;
-	unsigned char warned:1;
 	unsigned char ctrl_status;	/* ctrl_lock */
 	unsigned int receive_room;	/* Bytes free for queue */
+	int flow_change;
 
 	struct tty_struct *link;
 	struct fasync_struct *fasync;
@@ -272,7 +274,6 @@ struct tty_struct {
 #define N_TTY_BUF_SIZE 4096
 
 	unsigned char closing:1;
-	unsigned short minimum_to_wake;
 	unsigned char *write_buf;
 	int write_cnt;
 	/* If the tty has a pending do_SAK, queue it here - akpm */
@@ -304,19 +305,30 @@ struct tty_file_private {
 #define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
 #define TTY_DEBUG 		4	/* Debugging */
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
-#define TTY_PUSH 		6	/* n_tty private */
 #define TTY_CLOSING 		7	/* ->close() in progress */
-#define TTY_LDISC 		9	/* Line discipline attached */
-#define TTY_LDISC_CHANGING 	10	/* Line discipline changing */
 #define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
-#define TTY_HW_COOK_OUT 	14	/* Hardware can do output cooking */
-#define TTY_HW_COOK_IN 		15	/* Hardware can do input cooking */
 #define TTY_PTY_LOCK 		16	/* pty private */
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
 #define TTY_HUPPED 		18	/* Post driver->hangup() */
 #define TTY_HUPPING 		21	/* ->hangup() in progress */
+#define TTY_LDISC_HALTED	22	/* Line discipline is halted */
 
 #define TTY_WRITE_FLUSH(tty) tty_write_flush((tty))
+
+/* Values for tty->flow_change */
+#define TTY_THROTTLE_SAFE 1
+#define TTY_UNTHROTTLE_SAFE 2
+
+static inline void __tty_set_flow_change(struct tty_struct *tty, int val)
+{
+	tty->flow_change = val;
+}
+
+static inline void tty_set_flow_change(struct tty_struct *tty, int val)
+{
+	tty->flow_change = val;
+	smp_mb();
+}
 
 #ifdef CONFIG_TTY
 extern void console_init(void);
@@ -400,6 +412,8 @@ extern int tty_write_room(struct tty_struct *tty);
 extern void tty_driver_flush_buffer(struct tty_struct *tty);
 extern void tty_throttle(struct tty_struct *tty);
 extern void tty_unthrottle(struct tty_struct *tty);
+extern int tty_throttle_safe(struct tty_struct *tty);
+extern int tty_unthrottle_safe(struct tty_struct *tty);
 extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 extern void tty_driver_remove_tty(struct tty_driver *driver,
 				  struct tty_struct *tty);
@@ -419,13 +433,28 @@ extern void tty_flush_to_ldisc(struct tty_struct *tty);
 extern void tty_buffer_free_all(struct tty_port *port);
 extern void tty_buffer_flush(struct tty_struct *tty);
 extern void tty_buffer_init(struct tty_port *port);
-extern speed_t tty_get_baud_rate(struct tty_struct *tty);
 extern speed_t tty_termios_baud_rate(struct ktermios *termios);
 extern speed_t tty_termios_input_baud_rate(struct ktermios *termios);
 extern void tty_termios_encode_baud_rate(struct ktermios *termios,
 						speed_t ibaud, speed_t obaud);
 extern void tty_encode_baud_rate(struct tty_struct *tty,
 						speed_t ibaud, speed_t obaud);
+
+/**
+ *	tty_get_baud_rate	-	get tty bit rates
+ *	@tty: tty to query
+ *
+ *	Returns the baud rate as an integer for this terminal. The
+ *	termios lock must be held by the caller and the terminal bit
+ *	flags may be updated.
+ *
+ *	Locking: none
+ */
+static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
+{
+	return tty_termios_baud_rate(&tty->termios);
+}
+
 extern void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
 extern int tty_termios_hw_change(struct ktermios *a, struct ktermios *b);
 extern int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
@@ -502,6 +531,8 @@ extern int tty_port_carrier_raised(struct tty_port *port);
 extern void tty_port_raise_dtr_rts(struct tty_port *port);
 extern void tty_port_lower_dtr_rts(struct tty_port *port);
 extern void tty_port_hangup(struct tty_port *port);
+extern void tty_port_tty_hangup(struct tty_port *port, bool check_clocal);
+extern void tty_port_tty_wakeup(struct tty_port *port);
 extern int tty_port_block_til_ready(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
 extern int tty_port_close_start(struct tty_port *port,
@@ -526,8 +557,19 @@ extern void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty);
 extern void tty_ldisc_init(struct tty_struct *tty);
 extern void tty_ldisc_deinit(struct tty_struct *tty);
 extern void tty_ldisc_begin(void);
-/* This last one is just for the tty layer internals and shouldn't be used elsewhere */
-extern void tty_ldisc_enable(struct tty_struct *tty);
+
+static inline int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
+					char *f, int count)
+{
+	if (ld->ops->receive_buf2)
+		count = ld->ops->receive_buf2(ld->tty, p, f, count);
+	else {
+		count = min_t(int, count, ld->tty->receive_room);
+		if (count)
+			ld->ops->receive_buf(ld->tty, p, f, count);
+	}
+	return count;
+}
 
 
 /* n_tty.c */
@@ -542,8 +584,7 @@ extern void tty_audit_exit(void);
 extern void tty_audit_fork(struct signal_struct *sig);
 extern void tty_audit_tiocsti(struct tty_struct *tty, char ch);
 extern void tty_audit_push(struct tty_struct *tty);
-extern int tty_audit_push_task(struct task_struct *tsk,
-			       kuid_t loginuid, u32 sessionid);
+extern int tty_audit_push_current(void);
 #else
 static inline void tty_audit_add_data(struct tty_struct *tty,
 		unsigned char *data, size_t size, unsigned icanon)
@@ -561,8 +602,7 @@ static inline void tty_audit_fork(struct signal_struct *sig)
 static inline void tty_audit_push(struct tty_struct *tty)
 {
 }
-static inline int tty_audit_push_task(struct task_struct *tsk,
-				      kuid_t loginuid, u32 sessionid)
+static inline int tty_audit_push_current(void)
 {
 	return 0;
 }
@@ -658,5 +698,12 @@ do {									\
 	finish_wait(&wq, &__wait);					\
 } while (0)
 
+#ifdef CONFIG_PROC_FS
+extern void proc_tty_register_driver(struct tty_driver *);
+extern void proc_tty_unregister_driver(struct tty_driver *);
+#else
+static inline void proc_tty_register_driver(struct tty_driver *d) {}
+static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
+#endif
 
 #endif

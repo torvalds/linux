@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "tegra20-colibri-512.dtsi"
+#include "tegra20-colibri-512.dtsi"
 
 / {
 	model = "Toradex Colibri T20 512MB on Iris";
@@ -38,10 +38,17 @@
 
 	usb@c5000000 {
 		status = "okay";
-		dr_mode = "otg";
+	};
+
+	usb-phy@c5000000 {
+		status = "okay";
 	};
 
 	usb@c5008000 {
+		status = "okay";
+	};
+
+	usb-phy@c5008000 {
 		status = "okay";
 	};
 
@@ -73,7 +80,7 @@
 			regulator-max-microvolt = <5000000>;
 			regulator-boot-on;
 			regulator-always-on;
-			gpio = <&gpio 178 0>;
+			gpio = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_HIGH>;
 		};
 
 		vcc_sd_reg: regulator@1 {

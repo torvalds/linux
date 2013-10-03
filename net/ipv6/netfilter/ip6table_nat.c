@@ -179,6 +179,7 @@ nf_nat_ipv6_out(unsigned int hooknum,
 #ifdef CONFIG_XFRM
 	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
+	int err;
 #endif
 	unsigned int ret;
 
@@ -197,9 +198,11 @@ nf_nat_ipv6_out(unsigned int hooknum,
 				      &ct->tuplehash[!dir].tuple.dst.u3) ||
 		    (ct->tuplehash[dir].tuple.dst.protonum != IPPROTO_ICMPV6 &&
 		     ct->tuplehash[dir].tuple.src.u.all !=
-		     ct->tuplehash[!dir].tuple.dst.u.all))
-			if (nf_xfrm_me_harder(skb, AF_INET6) < 0)
-				ret = NF_DROP;
+		     ct->tuplehash[!dir].tuple.dst.u.all)) {
+			err = nf_xfrm_me_harder(skb, AF_INET6);
+			if (err < 0)
+				ret = NF_DROP_ERR(err);
+		}
 	}
 #endif
 	return ret;
@@ -215,6 +218,7 @@ nf_nat_ipv6_local_fn(unsigned int hooknum,
 	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	unsigned int ret;
+	int err;
 
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct ipv6hdr))
@@ -227,16 +231,19 @@ nf_nat_ipv6_local_fn(unsigned int hooknum,
 
 		if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.dst.u3,
 				      &ct->tuplehash[!dir].tuple.src.u3)) {
-			if (ip6_route_me_harder(skb))
-				ret = NF_DROP;
+			err = ip6_route_me_harder(skb);
+			if (err < 0)
+				ret = NF_DROP_ERR(err);
 		}
 #ifdef CONFIG_XFRM
 		else if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
 			 ct->tuplehash[dir].tuple.dst.protonum != IPPROTO_ICMPV6 &&
 			 ct->tuplehash[dir].tuple.dst.u.all !=
-			 ct->tuplehash[!dir].tuple.src.u.all)
-			if (nf_xfrm_me_harder(skb, AF_INET6))
-				ret = NF_DROP;
+			 ct->tuplehash[!dir].tuple.src.u.all) {
+			err = nf_xfrm_me_harder(skb, AF_INET6);
+			if (err < 0)
+				ret = NF_DROP_ERR(err);
+		}
 #endif
 	}
 	return ret;
@@ -286,7 +293,7 @@ static int __net_init ip6table_nat_net_init(struct net *net)
 		return -ENOMEM;
 	net->ipv6.ip6table_nat = ip6t_register_table(net, &nf_nat_ipv6_table, repl);
 	kfree(repl);
-	return PTR_RET(net->ipv6.ip6table_nat);
+	return PTR_ERR_OR_ZERO(net->ipv6.ip6table_nat);
 }
 
 static void __net_exit ip6table_nat_net_exit(struct net *net)

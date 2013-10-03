@@ -36,12 +36,6 @@
 #include <asm/sstep.h>
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-#define MSR_SINGLESTEP	(MSR_DE)
-#else
-#define MSR_SINGLESTEP	(MSR_SE)
-#endif
-
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
@@ -104,19 +98,7 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 
 static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
-	/* We turn off async exceptions to ensure that the single step will
-	 * be for the instruction we have the kprobe on, if we dont its
-	 * possible we'd get the single step reported for an exception handler
-	 * like Decrementer or External Interrupt */
-	regs->msr &= ~MSR_EE;
-	regs->msr |= MSR_SINGLESTEP;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-	regs->msr &= ~MSR_CE;
-	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
-#ifdef CONFIG_PPC_47x
-	isync();
-#endif
-#endif
+	enable_single_step(regs);
 
 	/*
 	 * On powerpc we should single step on the original

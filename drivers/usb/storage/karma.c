@@ -106,7 +106,7 @@ static int rio_karma_send_command(char cmd, struct us_data *us)
 	static unsigned char seq = 1;
 	struct karma_data *data = (struct karma_data *) us->extra;
 
-	US_DEBUGP("karma: sending command %04x\n", cmd);
+	usb_stor_dbg(us, "sending command %04x\n", cmd);
 	memset(us->iobuf, 0, RIO_SEND_LEN);
 	memcpy(us->iobuf, RIO_PREFIX, RIO_PREFIX_LEN);
 	us->iobuf[5] = cmd;
@@ -139,10 +139,10 @@ static int rio_karma_send_command(char cmd, struct us_data *us)
 	if (seq == 0)
 		seq = 1;
 
-	US_DEBUGP("karma: sent command %04x\n", cmd);
+	usb_stor_dbg(us, "sent command %04x\n", cmd);
 	return 0;
 err:
-	US_DEBUGP("karma: command %04x failed\n", cmd);
+	usb_stor_dbg(us, "command %04x failed\n", cmd);
 	return USB_STOR_TRANSPORT_FAILED;
 }
 

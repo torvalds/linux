@@ -202,7 +202,6 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 static void snd_card_emu10k1_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 

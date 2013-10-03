@@ -860,7 +860,7 @@ static void u300_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, " " DRIVER_NAME);
 }
 
-static struct pinctrl_ops u300_pctrl_ops = {
+static const struct pinctrl_ops u300_pctrl_ops = {
 	.get_groups_count = u300_get_groups_count,
 	.get_group_name = u300_get_group_name,
 	.get_group_pins = u300_get_group_pins,
@@ -1003,7 +1003,7 @@ static int u300_pmx_get_groups(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static struct pinmux_ops u300_pmx_ops = {
+static const struct pinmux_ops u300_pmx_ops = {
 	.get_functions_count = u300_pmx_get_funcs_count,
 	.get_function_name = u300_pmx_get_func_name,
 	.get_function_groups = u300_pmx_get_groups,
@@ -1027,26 +1027,28 @@ static int u300_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 }
 
 static int u300_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
-			       unsigned long config)
+			       unsigned long *configs, unsigned num_configs)
 {
 	struct pinctrl_gpio_range *range =
 		pinctrl_find_gpio_range_from_pin(pctldev, pin);
-	int ret;
+	int ret, i;
 
 	if (!range)
 		return -EINVAL;
 
-	/* Note: none of these configurations take any argument */
-	ret = u300_gpio_config_set(range->gc,
-				   (pin - range->pin_base + range->base),
-				   pinconf_to_config_param(config));
-	if (ret)
-		return ret;
+	for (i = 0; i < num_configs; i++) {
+		/* Note: none of these configurations take any argument */
+		ret = u300_gpio_config_set(range->gc,
+			(pin - range->pin_base + range->base),
+			pinconf_to_config_param(configs[i]));
+		if (ret)
+			return ret;
+	} /* for each config */
 
 	return 0;
 }
 
-static struct pinconf_ops u300_pconf_ops = {
+static const struct pinconf_ops u300_pconf_ops = {
 	.is_generic = true,
 	.pin_config_get = u300_pin_config_get,
 	.pin_config_set = u300_pin_config_set,
@@ -1075,9 +1077,6 @@ static int u300_pmx_probe(struct platform_device *pdev)
 	upmx->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
 	upmx->virtbase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(upmx->virtbase))
 		return PTR_ERR(upmx->virtbase);
@@ -1100,15 +1099,21 @@ static int u300_pmx_remove(struct platform_device *pdev)
 	struct u300_pmx *upmx = platform_get_drvdata(pdev);
 
 	pinctrl_unregister(upmx->pctl);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
+
+static const struct of_device_id u300_pinctrl_match[] = {
+	{ .compatible = "stericsson,pinctrl-u300" },
+	{},
+};
+
 
 static struct platform_driver u300_pmx_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = u300_pinctrl_match,
 	},
 	.probe = u300_pmx_probe,
 	.remove = u300_pmx_remove,

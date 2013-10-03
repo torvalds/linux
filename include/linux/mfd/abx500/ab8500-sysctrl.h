@@ -12,6 +12,7 @@
 
 int ab8500_sysctrl_read(u16 reg, u8 *value);
 int ab8500_sysctrl_write(u16 reg, u8 mask, u8 value);
+void ab8500_restart(char mode, const char *cmd);
 
 #else
 
@@ -40,6 +41,7 @@ static inline int ab8500_sysctrl_clear(u16 reg, u8 bits)
 /* Configuration data for SysClkReq1RfClkBuf - SysClkReq8RfClkBuf */
 struct ab8500_sysctrl_platform_data {
 	u8 initial_req_buf_config[8];
+	u16 (*reboot_reason_code)(const char *cmd);
 };
 
 /* Registers */
@@ -276,8 +278,8 @@ struct ab8500_sysctrl_platform_data {
 
 #define AB9540_SYSCLK12CONFCTRL_PLL26TO38ENA BIT(0)
 #define AB9540_SYSCLK12CONFCTRL_SYSCLK12USBMUXSEL BIT(1)
-#define AB9540_SYSCLK12CONFCTRL_INT384MHZMUXSEL_MASK 0x0C
-#define AB9540_SYSCLK12CONFCTRL_INT384MHZMUXSEL_SHIFT 2
+#define AB9540_SYSCLK12CONFCTRL_INT384MHZMUXSEL0 BIT(2)
+#define AB9540_SYSCLK12CONFCTRL_INT384MHZMUXSEL1 BIT(3)
 #define AB9540_SYSCLK12CONFCTRL_SYSCLK12BUFMUX BIT(4)
 #define AB9540_SYSCLK12CONFCTRL_SYSCLK12PLLMUX BIT(5)
 #define AB9540_SYSCLK12CONFCTRL_SYSCLK2MUXVALID BIT(6)
@@ -298,5 +300,9 @@ struct ab8500_sysctrl_platform_data {
 
 #define AB9540_SYSCLK12BUF4VALID_SYSCLK12BUF4VALID_MASK 0xFF
 #define AB9540_SYSCLK12BUF4VALID_SYSCLK12BUF4VALID_SHIFT 0
+
+#define AB8500_ENABLE_WD 0x1
+#define AB8500_KICK_WD 0x2
+#define AB8500_WD_RESTART_ON_EXPIRE 0x10
 
 #endif /* __AB8500_SYSCTRL_H */

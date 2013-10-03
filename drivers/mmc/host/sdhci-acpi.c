@@ -31,10 +31,13 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/acpi.h>
+#include <linux/acpi_gpio.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/delay.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/pm.h>
@@ -83,8 +86,39 @@ static int sdhci_acpi_enable_dma(struct sdhci_host *host)
 	return 0;
 }
 
+static void sdhci_acpi_int_hw_reset(struct sdhci_host *host)
+{
+	u8 reg;
+
+	reg = sdhci_readb(host, SDHCI_POWER_CONTROL);
+	reg |= 0x10;
+	sdhci_writeb(host, reg, SDHCI_POWER_CONTROL);
+	/* For eMMC, minimum is 1us but give it 9us for good measure */
+	udelay(9);
+	reg &= ~0x10;
+	sdhci_writeb(host, reg, SDHCI_POWER_CONTROL);
+	/* For eMMC, minimum is 200us but give it 300us for good measure */
+	usleep_range(300, 1000);
+}
+
 static const struct sdhci_ops sdhci_acpi_ops_dflt = {
 	.enable_dma = sdhci_acpi_enable_dma,
+};
+
+static const struct sdhci_ops sdhci_acpi_ops_int = {
+	.enable_dma = sdhci_acpi_enable_dma,
+	.hw_reset   = sdhci_acpi_int_hw_reset,
+};
+
+static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
+	.ops = &sdhci_acpi_ops_int,
+};
+
+static const struct sdhci_acpi_slot sdhci_acpi_slot_int_emmc = {
+	.chip    = &sdhci_acpi_chip_int,
+	.caps    = MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE | MMC_CAP_HW_RESET,
+	.caps2   = MMC_CAP2_HC_ERASE_SZ,
+	.flags   = SDHCI_ACPI_RUNTIME_PM,
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
@@ -94,22 +128,121 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 	.pm_caps = MMC_PM_KEEP_POWER,
 };
 
+static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
+	.flags   = SDHCI_ACPI_SD_CD | SDHCI_ACPI_RUNTIME_PM,
+	.quirks2 = SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON,
+};
+
+struct sdhci_acpi_uid_slot {
+	const char *hid;
+	const char *uid;
+	const struct sdhci_acpi_slot *slot;
+};
+
+static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
+	{ "80860F14" , "1" , &sdhci_acpi_slot_int_emmc },
+	{ "80860F14" , "3" , &sdhci_acpi_slot_int_sd   },
+	{ "INT33BB"  , "2" , &sdhci_acpi_slot_int_sdio },
+	{ "INT33C6"  , NULL, &sdhci_acpi_slot_int_sdio },
+	{ "PNP0D40"  },
+	{ },
+};
+
 static const struct acpi_device_id sdhci_acpi_ids[] = {
-	{ "INT33C6", (kernel_ulong_t)&sdhci_acpi_slot_int_sdio },
-	{ "PNP0D40" },
+	{ "80860F14" },
+	{ "INT33BB"  },
+	{ "INT33C6"  },
+	{ "PNP0D40"  },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, sdhci_acpi_ids);
 
-static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(const char *hid)
+static const struct sdhci_acpi_slot *sdhci_acpi_get_slot_by_ids(const char *hid,
+								const char *uid)
 {
-	const struct acpi_device_id *id;
+	const struct sdhci_acpi_uid_slot *u;
 
-	for (id = sdhci_acpi_ids; id->id[0]; id++)
-		if (!strcmp(id->id, hid))
-			return (const struct sdhci_acpi_slot *)id->driver_data;
+	for (u = sdhci_acpi_uids; u->hid; u++) {
+		if (strcmp(u->hid, hid))
+			continue;
+		if (!u->uid)
+			return u->slot;
+		if (uid && !strcmp(u->uid, uid))
+			return u->slot;
+	}
 	return NULL;
 }
+
+static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(acpi_handle handle,
+							 const char *hid)
+{
+	const struct sdhci_acpi_slot *slot;
+	struct acpi_device_info *info;
+	const char *uid = NULL;
+	acpi_status status;
+
+	status = acpi_get_object_info(handle, &info);
+	if (!ACPI_FAILURE(status) && (info->valid & ACPI_VALID_UID))
+		uid = info->unique_id.string;
+
+	slot = sdhci_acpi_get_slot_by_ids(hid, uid);
+
+	kfree(info);
+	return slot;
+}
+
+#ifdef CONFIG_PM_RUNTIME
+
+static irqreturn_t sdhci_acpi_sd_cd(int irq, void *dev_id)
+{
+	mmc_detect_change(dev_id, msecs_to_jiffies(200));
+	return IRQ_HANDLED;
+}
+
+static int sdhci_acpi_add_own_cd(struct device *dev, int gpio,
+				 struct mmc_host *mmc)
+{
+	unsigned long flags;
+	int err, irq;
+
+	if (gpio < 0) {
+		err = gpio;
+		goto out;
+	}
+
+	err = devm_gpio_request_one(dev, gpio, GPIOF_DIR_IN, "sd_cd");
+	if (err)
+		goto out;
+
+	irq = gpio_to_irq(gpio);
+	if (irq < 0) {
+		err = irq;
+		goto out_free;
+	}
+
+	flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
+	err = devm_request_irq(dev, irq, sdhci_acpi_sd_cd, flags, "sd_cd", mmc);
+	if (err)
+		goto out_free;
+
+	return 0;
+
+out_free:
+	devm_gpio_free(dev, gpio);
+out:
+	dev_warn(dev, "failed to setup card detect wake up\n");
+	return err;
+}
+
+#else
+
+static int sdhci_acpi_add_own_cd(struct device *dev, int gpio,
+				 struct mmc_host *mmc)
+{
+	return 0;
+}
+
+#endif
 
 static int sdhci_acpi_probe(struct platform_device *pdev)
 {
@@ -121,7 +254,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	resource_size_t len;
 	const char *hid;
-	int err;
+	int err, gpio;
 
 	if (acpi_bus_get_device(handle, &device))
 		return -ENODEV;
@@ -146,9 +279,11 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
+	gpio = acpi_get_gpio_by_index(dev, 0, NULL);
+
 	c = sdhci_priv(host);
 	c->host = host;
-	c->slot = sdhci_acpi_get_slot(hid);
+	c->slot = sdhci_acpi_get_slot(handle, hid);
 	c->pdev = pdev;
 	c->use_runtime_pm = sdhci_acpi_flag(c, SDHCI_ACPI_RUNTIME_PM);
 
@@ -195,11 +330,19 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		host->mmc->pm_caps  |= c->slot->pm_caps;
 	}
 
+	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
+
 	err = sdhci_add_host(host);
 	if (err)
 		goto err_free;
 
+	if (sdhci_acpi_flag(c, SDHCI_ACPI_SD_CD)) {
+		if (sdhci_acpi_add_own_cd(dev, gpio, host->mmc))
+			c->use_runtime_pm = false;
+	}
+
 	if (c->use_runtime_pm) {
+		pm_runtime_set_active(dev);
 		pm_suspend_ignore_children(dev, 1);
 		pm_runtime_set_autosuspend_delay(dev, 50);
 		pm_runtime_use_autosuspend(dev);
@@ -209,7 +352,6 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	return 0;
 
 err_free:
-	platform_set_drvdata(pdev, NULL);
 	sdhci_free_host(c->host);
 	return err;
 }
@@ -228,7 +370,6 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 
 	dead = (sdhci_readl(c->host, SDHCI_INT_STATUS) == ~0);
 	sdhci_remove_host(c->host, dead);
-	platform_set_drvdata(pdev, NULL);
 	sdhci_free_host(c->host);
 
 	return 0;

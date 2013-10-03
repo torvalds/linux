@@ -715,7 +715,7 @@ static ssize_t spu_stat_show(struct device *dev,
 		spu->stats.libassist);
 }
 
-static DEVICE_ATTR(stat, 0644, spu_stat_show, NULL);
+static DEVICE_ATTR(stat, 0444, spu_stat_show, NULL);
 
 #ifdef CONFIG_KEXEC
 

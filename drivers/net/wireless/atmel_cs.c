@@ -245,16 +245,7 @@ static struct pcmcia_driver atmel_driver = {
 	.suspend	= atmel_suspend,
 	.resume		= atmel_resume,
 };
-
-static int __init atmel_cs_init(void)
-{
-        return pcmcia_register_driver(&atmel_driver);
-}
-
-static void __exit atmel_cs_cleanup(void)
-{
-        pcmcia_unregister_driver(&atmel_driver);
-}
+module_pcmcia_driver(atmel_driver);
 
 /*
     This program is free software; you can redistribute it and/or
@@ -294,6 +285,3 @@ static void __exit atmel_cs_cleanup(void)
     IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
 */
-
-module_init(atmel_cs_init);
-module_exit(atmel_cs_cleanup);

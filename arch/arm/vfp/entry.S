@@ -60,7 +60,7 @@ ENTRY(vfp_testing_entry)
 	str	r11, [r10, #TI_PREEMPT]
 #endif
 	ldr	r0, VFP_arch_address
-	str	r5, [r0]		@ known non-zero value
+	str	r0, [r0]		@ set to non-zero value
 	mov	pc, r9			@ we have handled the fault
 ENDPROC(vfp_testing_entry)
 

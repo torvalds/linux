@@ -28,14 +28,16 @@
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
+#include "xfs_bmap_util.h"
 #include "xfs_error.h"
-#include "xfs_vnodeops.h"
 #include "xfs_da_btree.h"
 #include "xfs_dir2_format.h"
+#include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_ioctl.h"
 #include "xfs_trace.h"
 
+#include <linux/aio.h>
 #include <linux/dcache.h>
 #include <linux/falloc.h>
 #include <linux/pagevec.h>
@@ -775,8 +777,6 @@ xfs_file_aio_write(
 	if (ocount == 0)
 		return 0;
 
-	sb_start_write(inode->i_sb);
-
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		ret = -EIO;
 		goto out;
@@ -800,7 +800,6 @@ xfs_file_aio_write(
 	}
 
 out:
-	sb_end_write(inode->i_sb);
 	return ret;
 }
 
@@ -893,7 +892,7 @@ xfs_dir_open(
 	 */
 	mode = xfs_ilock_map_shared(ip);
 	if (ip->i_d.di_nextents > 0)
-		xfs_dir2_data_readahead(NULL, ip, 0, -1);
+		xfs_dir3_data_readahead(NULL, ip, 0, -1);
 	xfs_iunlock(ip, mode);
 	return 0;
 }
@@ -908,11 +907,10 @@ xfs_file_release(
 
 STATIC int
 xfs_file_readdir(
-	struct file	*filp,
-	void		*dirent,
-	filldir_t	filldir)
+	struct file	*file,
+	struct dir_context *ctx)
 {
-	struct inode	*inode = file_inode(filp);
+	struct inode	*inode = file_inode(file);
 	xfs_inode_t	*ip = XFS_I(inode);
 	int		error;
 	size_t		bufsize;
@@ -931,8 +929,7 @@ xfs_file_readdir(
 	 */
 	bufsize = (size_t)min_t(loff_t, 32768, ip->i_d.di_size);
 
-	error = xfs_readdir(ip, dirent, bufsize,
-				(xfs_off_t *)&filp->f_pos, filldir);
+	error = xfs_readdir(ip, ctx, bufsize);
 	if (error)
 		return -error;
 	return 0;
@@ -1272,8 +1269,7 @@ xfs_seek_data(
 	}
 
 out:
-	if (offset != file->f_pos)
-		file->f_pos = offset;
+	offset = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 
 out_unlock:
 	xfs_iunlock_map_shared(ip, lock);
@@ -1381,8 +1377,7 @@ out:
 	 * situation in particular.
 	 */
 	offset = min_t(loff_t, offset, isize);
-	if (offset != file->f_pos)
-		file->f_pos = offset;
+	offset = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 
 out_unlock:
 	xfs_iunlock_map_shared(ip, lock);
@@ -1434,7 +1429,7 @@ const struct file_operations xfs_file_operations = {
 const struct file_operations xfs_dir_file_operations = {
 	.open		= xfs_dir_open,
 	.read		= generic_read_dir,
-	.readdir	= xfs_file_readdir,
+	.iterate	= xfs_file_readdir,
 	.llseek		= generic_file_llseek,
 	.unlocked_ioctl	= xfs_file_ioctl,
 #ifdef CONFIG_COMPAT

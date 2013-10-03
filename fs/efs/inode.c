@@ -57,7 +57,7 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
 	struct inode *inode;
 
 	inode = iget_locked(super, ino);
-	if (IS_ERR(inode))
+	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))
 		return inode;

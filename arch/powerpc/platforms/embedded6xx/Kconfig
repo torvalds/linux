@@ -9,7 +9,6 @@ config LINKSTATION
 	select FSL_SOC
 	select PPC_UDBG_16550 if SERIAL_8250
 	select DEFAULT_UIMAGE
-	select MPC10X_OPENPIC
 	select MPC10X_BRIDGE
 	help
 	  Select LINKSTATION if configuring for one of PPC- (MPC8241)
@@ -24,7 +23,6 @@ config STORCENTER
 	select MPIC
 	select FSL_SOC
 	select PPC_UDBG_16550 if SERIAL_8250
-	select MPC10X_OPENPIC
 	select MPC10X_BRIDGE
 	help
 	  Select STORCENTER if configuring for the iomega StorCenter
@@ -83,9 +81,6 @@ config MV64X60
 	bool
 	select PPC_INDIRECT_PCI
 	select CHECK_CACHE_COHERENCY
-
-config MPC10X_OPENPIC
-	bool
 
 config GAMECUBE_COMMON
 	bool

@@ -778,13 +778,11 @@ static int ftgmac100_alloc_buffers(struct ftgmac100 *priv)
 {
 	int i;
 
-	priv->descs = dma_alloc_coherent(priv->dev,
-					 sizeof(struct ftgmac100_descs),
-					 &priv->descs_dma_addr, GFP_KERNEL);
+	priv->descs = dma_zalloc_coherent(priv->dev,
+					  sizeof(struct ftgmac100_descs),
+					  &priv->descs_dma_addr, GFP_KERNEL);
 	if (!priv->descs)
 		return -ENOMEM;
-
-	memset(priv->descs, 0, sizeof(struct ftgmac100_descs));
 
 	/* initialize RX ring */
 	ftgmac100_rxdes_set_end_of_ring(&priv->descs->rxdes[RX_QUEUE_ENTRIES - 1]);
@@ -1312,7 +1310,6 @@ err_ioremap:
 	release_resource(priv->res);
 err_req_mem:
 	netif_napi_del(&priv->napi);
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 err_alloc_etherdev:
 	return err;
@@ -1336,7 +1333,6 @@ static int __exit ftgmac100_remove(struct platform_device *pdev)
 	release_resource(priv->res);
 
 	netif_napi_del(&priv->napi);
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 	return 0;
 }
@@ -1350,22 +1346,7 @@ static struct platform_driver ftgmac100_driver = {
 	},
 };
 
-/******************************************************************************
- * initialization / finalization
- *****************************************************************************/
-static int __init ftgmac100_init(void)
-{
-	pr_info("Loading version " DRV_VERSION " ...\n");
-	return platform_driver_register(&ftgmac100_driver);
-}
-
-static void __exit ftgmac100_exit(void)
-{
-	platform_driver_unregister(&ftgmac100_driver);
-}
-
-module_init(ftgmac100_init);
-module_exit(ftgmac100_exit);
+module_platform_driver(ftgmac100_driver);
 
 MODULE_AUTHOR("Po-Yu Chuang <ratbert@faraday-tech.com>");
 MODULE_DESCRIPTION("FTGMAC100 driver");

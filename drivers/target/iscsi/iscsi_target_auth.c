@@ -1,9 +1,7 @@
 /*******************************************************************************
  * This file houses the main functions for the iSCSI CHAP support
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -49,32 +47,6 @@ static void chap_binaryhex_to_asciihex(char *dst, char *src, int src_len)
 	}
 }
 
-static void chap_set_random(char *data, int length)
-{
-	long r;
-	unsigned n;
-
-	while (length > 0) {
-		get_random_bytes(&r, sizeof(long));
-		r = r ^ (r >> 8);
-		r = r ^ (r >> 4);
-		n = r & 0x7;
-
-		get_random_bytes(&r, sizeof(long));
-		r = r ^ (r >> 8);
-		r = r ^ (r >> 5);
-		n = (n << 3) | (r & 0x7);
-
-		get_random_bytes(&r, sizeof(long));
-		r = r ^ (r >> 8);
-		r = r ^ (r >> 5);
-		n = (n << 2) | (r & 0x3);
-
-		*data++ = n;
-		length--;
-	}
-}
-
 static void chap_gen_challenge(
 	struct iscsi_conn *conn,
 	int caller,
@@ -86,7 +58,7 @@ static void chap_gen_challenge(
 
 	memset(challenge_asciihex, 0, CHAP_CHALLENGE_LENGTH * 2 + 1);
 
-	chap_set_random(chap->challenge, CHAP_CHALLENGE_LENGTH);
+	get_random_bytes(chap->challenge, CHAP_CHALLENGE_LENGTH);
 	chap_binaryhex_to_asciihex(challenge_asciihex, chap->challenge,
 				CHAP_CHALLENGE_LENGTH);
 	/*

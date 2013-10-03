@@ -70,11 +70,6 @@ static int pwmss_probe(struct platform_device *pdev)
 	mutex_init(&info->pwmss_lock);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
-	}
-
 	info->mmio_base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(info->mmio_base))
 		return PTR_ERR(info->mmio_base);
@@ -101,6 +96,7 @@ static int pwmss_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int pwmss_suspend(struct device *dev)
 {
 	struct pwmss_info *info = dev_get_drvdata(dev);
@@ -118,6 +114,7 @@ static int pwmss_resume(struct device *dev)
 	writew(info->pwmss_clkconfig, info->mmio_base + PWMSS_CLKCONFIG);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(pwmss_pm_ops, pwmss_suspend, pwmss_resume);
 

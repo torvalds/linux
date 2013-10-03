@@ -21,6 +21,7 @@
 #include "delayed-inode.h"
 #include "disk-io.h"
 #include "transaction.h"
+#include "ctree.h"
 
 #define BTRFS_DELAYED_WRITEBACK		512
 #define BTRFS_DELAYED_BACKGROUND	128
@@ -202,7 +203,7 @@ static void btrfs_dequeue_delayed_node(struct btrfs_delayed_root *root,
 	spin_unlock(&root->lock);
 }
 
-struct btrfs_delayed_node *btrfs_first_delayed_node(
+static struct btrfs_delayed_node *btrfs_first_delayed_node(
 			struct btrfs_delayed_root *delayed_root)
 {
 	struct list_head *p;
@@ -221,7 +222,7 @@ out:
 	return node;
 }
 
-struct btrfs_delayed_node *btrfs_next_delayed_node(
+static struct btrfs_delayed_node *btrfs_next_delayed_node(
 						struct btrfs_delayed_node *node)
 {
 	struct btrfs_delayed_root *delayed_root;
@@ -282,7 +283,7 @@ static inline void btrfs_release_delayed_node(struct btrfs_delayed_node *node)
 	__btrfs_release_delayed_node(node, 0);
 }
 
-struct btrfs_delayed_node *btrfs_first_prepared_delayed_node(
+static struct btrfs_delayed_node *btrfs_first_prepared_delayed_node(
 					struct btrfs_delayed_root *delayed_root)
 {
 	struct list_head *p;
@@ -308,7 +309,7 @@ static inline void btrfs_release_prepared_delayed_node(
 	__btrfs_release_delayed_node(node, 1);
 }
 
-struct btrfs_delayed_item *btrfs_alloc_delayed_item(u32 data_len)
+static struct btrfs_delayed_item *btrfs_alloc_delayed_item(u32 data_len)
 {
 	struct btrfs_delayed_item *item;
 	item = kmalloc(sizeof(*item) + data_len, GFP_NOFS);
@@ -383,7 +384,7 @@ static struct btrfs_delayed_item *__btrfs_lookup_delayed_item(
 	return NULL;
 }
 
-struct btrfs_delayed_item *__btrfs_lookup_delayed_insertion_item(
+static struct btrfs_delayed_item *__btrfs_lookup_delayed_insertion_item(
 					struct btrfs_delayed_node *delayed_node,
 					struct btrfs_key *key)
 {
@@ -391,45 +392,6 @@ struct btrfs_delayed_item *__btrfs_lookup_delayed_insertion_item(
 
 	item = __btrfs_lookup_delayed_item(&delayed_node->ins_root, key,
 					   NULL, NULL);
-	return item;
-}
-
-struct btrfs_delayed_item *__btrfs_lookup_delayed_deletion_item(
-					struct btrfs_delayed_node *delayed_node,
-					struct btrfs_key *key)
-{
-	struct btrfs_delayed_item *item;
-
-	item = __btrfs_lookup_delayed_item(&delayed_node->del_root, key,
-					   NULL, NULL);
-	return item;
-}
-
-struct btrfs_delayed_item *__btrfs_search_delayed_insertion_item(
-					struct btrfs_delayed_node *delayed_node,
-					struct btrfs_key *key)
-{
-	struct btrfs_delayed_item *item, *next;
-
-	item = __btrfs_lookup_delayed_item(&delayed_node->ins_root, key,
-					   NULL, &next);
-	if (!item)
-		item = next;
-
-	return item;
-}
-
-struct btrfs_delayed_item *__btrfs_search_delayed_deletion_item(
-					struct btrfs_delayed_node *delayed_node,
-					struct btrfs_key *key)
-{
-	struct btrfs_delayed_item *item, *next;
-
-	item = __btrfs_lookup_delayed_item(&delayed_node->del_root, key,
-					   NULL, &next);
-	if (!item)
-		item = next;
-
 	return item;
 }
 
@@ -535,7 +497,7 @@ static void btrfs_release_delayed_item(struct btrfs_delayed_item *item)
 	}
 }
 
-struct btrfs_delayed_item *__btrfs_first_delayed_insertion_item(
+static struct btrfs_delayed_item *__btrfs_first_delayed_insertion_item(
 					struct btrfs_delayed_node *delayed_node)
 {
 	struct rb_node *p;
@@ -548,7 +510,7 @@ struct btrfs_delayed_item *__btrfs_first_delayed_insertion_item(
 	return item;
 }
 
-struct btrfs_delayed_item *__btrfs_first_delayed_deletion_item(
+static struct btrfs_delayed_item *__btrfs_first_delayed_deletion_item(
 					struct btrfs_delayed_node *delayed_node)
 {
 	struct rb_node *p;
@@ -561,7 +523,7 @@ struct btrfs_delayed_item *__btrfs_first_delayed_deletion_item(
 	return item;
 }
 
-struct btrfs_delayed_item *__btrfs_next_delayed_item(
+static struct btrfs_delayed_item *__btrfs_next_delayed_item(
 						struct btrfs_delayed_item *item)
 {
 	struct rb_node *p;
@@ -572,20 +534,6 @@ struct btrfs_delayed_item *__btrfs_next_delayed_item(
 		next = rb_entry(p, struct btrfs_delayed_item, rb_node);
 
 	return next;
-}
-
-static inline struct btrfs_root *btrfs_get_fs_root(struct btrfs_root *root,
-						   u64 root_id)
-{
-	struct btrfs_key root_key;
-
-	if (root->objectid == root_id)
-		return root;
-
-	root_key.objectid = root_id;
-	root_key.type = BTRFS_ROOT_ITEM_KEY;
-	root_key.offset = (u64)-1;
-	return btrfs_read_fs_root_no_name(root->fs_info, &root_key);
 }
 
 static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
@@ -766,10 +714,9 @@ static void btrfs_delayed_inode_release_metadata(struct btrfs_root *root,
  * This helper will insert some continuous items into the same leaf according
  * to the free space of the leaf.
  */
-static int btrfs_batch_insert_items(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root,
-				struct btrfs_path *path,
-				struct btrfs_delayed_item *item)
+static int btrfs_batch_insert_items(struct btrfs_root *root,
+				    struct btrfs_path *path,
+				    struct btrfs_delayed_item *item)
 {
 	struct btrfs_delayed_item *curr, *next;
 	int free_space;
@@ -848,7 +795,7 @@ static int btrfs_batch_insert_items(struct btrfs_trans_handle *trans,
 	btrfs_clear_path_blocking(path, NULL, 0);
 
 	/* insert the keys of the items */
-	setup_items_for_insert(trans, root, path, keys, data_size,
+	setup_items_for_insert(root, path, keys, data_size,
 			       total_data_size, total_size, nitems);
 
 	/* insert the dir index items */
@@ -932,7 +879,7 @@ do_again:
 	if (curr && btrfs_is_continuous_delayed_item(prev, curr)) {
 		/* insert the continuous items into the same leaf */
 		path->slots[0]++;
-		btrfs_batch_insert_items(trans, root, path, curr);
+		btrfs_batch_insert_items(root, path, curr);
 	}
 	btrfs_release_delayed_item(prev);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
@@ -1507,10 +1454,10 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 
 	dir_item = (struct btrfs_dir_item *)delayed_item->data;
 	dir_item->location = *disk_key;
-	dir_item->transid = cpu_to_le64(trans->transid);
-	dir_item->data_len = 0;
-	dir_item->name_len = cpu_to_le16(name_len);
-	dir_item->type = type;
+	btrfs_set_stack_dir_transid(dir_item, trans->transid);
+	btrfs_set_stack_dir_data_len(dir_item, 0);
+	btrfs_set_stack_dir_name_len(dir_item, name_len);
+	btrfs_set_stack_dir_type(dir_item, type);
 	memcpy((char *)(dir_item + 1), name, name_len);
 
 	ret = btrfs_delayed_item_reserve_metadata(trans, root, delayed_item);
@@ -1524,13 +1471,11 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	mutex_lock(&delayed_node->mutex);
 	ret = __btrfs_add_delayed_insertion_item(delayed_node, delayed_item);
 	if (unlikely(ret)) {
-		printk(KERN_ERR "err add delayed dir index item(name: %s) into "
-				"the insertion tree of the delayed node"
+		printk(KERN_ERR "err add delayed dir index item(name: %.*s) "
+				"into the insertion tree of the delayed node"
 				"(root id: %llu, inode id: %llu, errno: %d)\n",
-				name,
-				(unsigned long long)delayed_node->root->objectid,
-				(unsigned long long)delayed_node->inode_id,
-				ret);
+				name_len, name, delayed_node->root->objectid,
+				delayed_node->inode_id, ret);
 		BUG();
 	}
 	mutex_unlock(&delayed_node->mutex);
@@ -1601,9 +1546,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 		printk(KERN_ERR "err add delayed dir index item(index: %llu) "
 				"into the deletion tree of the delayed node"
 				"(root id: %llu, inode id: %llu, errno: %d)\n",
-				(unsigned long long)index,
-				(unsigned long long)node->root->objectid,
-				(unsigned long long)node->inode_id,
+				index, node->root->objectid, node->inode_id,
 				ret);
 		BUG();
 	}
@@ -1721,8 +1664,7 @@ int btrfs_should_delete_dir_index(struct list_head *del_list,
  * btrfs_readdir_delayed_dir_index - read dir info stored in the delayed tree
  *
  */
-int btrfs_readdir_delayed_dir_index(struct file *filp, void *dirent,
-				    filldir_t filldir,
+int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 				    struct list_head *ins_list)
 {
 	struct btrfs_dir_item *di;
@@ -1744,22 +1686,22 @@ int btrfs_readdir_delayed_dir_index(struct file *filp, void *dirent,
 	list_for_each_entry_safe(curr, next, ins_list, readdir_list) {
 		list_del(&curr->readdir_list);
 
-		if (curr->key.offset < filp->f_pos) {
+		if (curr->key.offset < ctx->pos) {
 			if (atomic_dec_and_test(&curr->refs))
 				kfree(curr);
 			continue;
 		}
 
-		filp->f_pos = curr->key.offset;
+		ctx->pos = curr->key.offset;
 
 		di = (struct btrfs_dir_item *)curr->data;
 		name = (char *)(di + 1);
-		name_len = le16_to_cpu(di->name_len);
+		name_len = btrfs_stack_dir_name_len(di);
 
 		d_type = btrfs_filetype_table[di->type];
 		btrfs_disk_key_to_cpu(&location, &di->location);
 
-		over = filldir(dirent, name, name_len, curr->key.offset,
+		over = !dir_emit(ctx, name, name_len,
 			       location.objectid, d_type);
 
 		if (atomic_dec_and_test(&curr->refs))
@@ -1770,27 +1712,6 @@ int btrfs_readdir_delayed_dir_index(struct file *filp, void *dirent,
 	}
 	return 0;
 }
-
-BTRFS_SETGET_STACK_FUNCS(stack_inode_generation, struct btrfs_inode_item,
-			 generation, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_sequence, struct btrfs_inode_item,
-			 sequence, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_transid, struct btrfs_inode_item,
-			 transid, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_size, struct btrfs_inode_item, size, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_nbytes, struct btrfs_inode_item,
-			 nbytes, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_block_group, struct btrfs_inode_item,
-			 block_group, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_nlink, struct btrfs_inode_item, nlink, 32);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_uid, struct btrfs_inode_item, uid, 32);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_gid, struct btrfs_inode_item, gid, 32);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_mode, struct btrfs_inode_item, mode, 32);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_rdev, struct btrfs_inode_item, rdev, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_inode_flags, struct btrfs_inode_item, flags, 64);
-
-BTRFS_SETGET_STACK_FUNCS(stack_timespec_sec, struct btrfs_timespec, sec, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_timespec_nsec, struct btrfs_timespec, nsec, 32);
 
 static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
 				  struct btrfs_inode_item *inode_item,

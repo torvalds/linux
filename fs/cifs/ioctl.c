@@ -44,7 +44,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 
 	xid = get_xid();
 
-	cFYI(1, "ioctl file %p  cmd %u  arg %lu", filep, command, arg);
+	cifs_dbg(FYI, "ioctl file %p  cmd %u  arg %lu\n", filep, command, arg);
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
@@ -83,11 +83,11 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				 *		       &ExtAttrMask);
 				 */
 			}
-			cFYI(1, "set flags not implemented yet");
+			cifs_dbg(FYI, "set flags not implemented yet\n");
 			break;
 #endif /* CONFIG_CIFS_POSIX */
 		default:
-			cFYI(1, "unsupported ioctl");
+			cifs_dbg(FYI, "unsupported ioctl\n");
 			break;
 	}
 

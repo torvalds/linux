@@ -690,7 +690,7 @@ static int sccb_check_status(struct gspca_dev *gspca_dev)
 		case 0x03:
 			break;
 		default:
-			PDEBUG(D_ERR, "sccb status 0x%02x, attempt %d/5",
+			PERR("sccb status 0x%02x, attempt %d/5",
 			       data, i + 1);
 		}
 	}
@@ -1305,8 +1305,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	ov534_set_led(gspca_dev, 1);
 	sccb_w_array(gspca_dev, sensor_init[sd->sensor].val,
 			sensor_init[sd->sensor].len);
-	if (sd->sensor == SENSOR_OV767x)
-		sd_start(gspca_dev);
+
 	sd_stopN(gspca_dev);
 /*	set_frame_rate(gspca_dev);	*/
 

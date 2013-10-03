@@ -114,11 +114,20 @@ static int black_path_count(struct rb_node *rb)
 	return count;
 }
 
-static void check(int nr_nodes)
+static void check_postorder(int nr_nodes)
 {
 	struct rb_node *rb;
 	int count = 0;
-	int blacks = 0;
+	for (rb = rb_first_postorder(&root); rb; rb = rb_next_postorder(rb))
+		count++;
+
+	WARN_ON_ONCE(count != nr_nodes);
+}
+
+static void check(int nr_nodes)
+{
+	struct rb_node *rb;
+	int count = 0, blacks = 0;
 	u32 prev_key = 0;
 
 	for (rb = rb_first(&root); rb; rb = rb_next(rb)) {
@@ -134,7 +143,11 @@ static void check(int nr_nodes)
 		prev_key = node->key;
 		count++;
 	}
+
 	WARN_ON_ONCE(count != nr_nodes);
+	WARN_ON_ONCE(count < (1 << black_path_count(rb_last(&root))) - 1);
+
+	check_postorder(nr_nodes);
 }
 
 static void check_augmented(int nr_nodes)
@@ -148,7 +161,7 @@ static void check_augmented(int nr_nodes)
 	}
 }
 
-static int rbtree_test_init(void)
+static int __init rbtree_test_init(void)
 {
 	int i, j;
 	cycles_t time1, time2, time;
@@ -221,7 +234,7 @@ static int rbtree_test_init(void)
 	return -EAGAIN; /* Fail will directly unload the module */
 }
 
-static void rbtree_test_exit(void)
+static void __exit rbtree_test_exit(void)
 {
 	printk(KERN_ALERT "test exit\n");
 }

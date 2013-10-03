@@ -83,7 +83,7 @@ static void do_hw_reset(void)
 	writel_relaxed(readl_relaxed(OSCR) + 368640, OSMR3);
 }
 
-void pxa_restart(char mode, const char *cmd)
+void pxa_restart(enum reboot_mode mode, const char *cmd)
 {
 	local_irq_disable();
 	local_fiq_disable();
@@ -91,14 +91,14 @@ void pxa_restart(char mode, const char *cmd)
 	clear_reset_status(RESET_STATUS_ALL);
 
 	switch (mode) {
-	case 's':
+	case REBOOT_SOFT:
 		/* Jump into ROM at address 0 */
 		soft_restart(0);
 		break;
-	case 'g':
+	case REBOOT_GPIO:
 		do_gpio_reset();
 		break;
-	case 'h':
+	case REBOOT_HARD:
 	default:
 		do_hw_reset();
 		break;

@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/clk.h>
@@ -37,8 +38,6 @@
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/s3c2410.h>
-#include <plat/s3c244x.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -135,6 +134,7 @@ void __init s3c244x_init_clocks(int xtal)
 	s3c24xx_register_baseclocks(xtal);
 	s3c244x_setup_clocks();
 	s3c2410_baseclk_add();
+	samsung_wdt_reset_init(S3C24XX_VA_WATCHDOG);
 }
 
 /* Since the S3C2442 and S3C2440 share items, put both subsystems here */
@@ -199,12 +199,12 @@ struct syscore_ops s3c244x_pm_syscore_ops = {
 	.resume		= s3c244x_resume,
 };
 
-void s3c244x_restart(char mode, const char *cmd)
+void s3c244x_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode == 's')
+	if (mode == REBOOT_SOFT)
 		soft_restart(0);
 
-	arch_wdt_reset();
+	samsung_wdt_reset();
 
 	/* we'll take a jump through zero as a poor second */
 	soft_restart(0);

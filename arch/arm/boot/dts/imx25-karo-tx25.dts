@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx25.dtsi"
+#include "imx25.dtsi"
 
 / {
 	model = "Ka-Ro TX25";

@@ -235,6 +235,9 @@ extern struct device_node *of_find_node_with_property(
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
+extern int of_property_read_u32_index(const struct device_node *np,
+				       const char *propname,
+				       u32 index, u32 *out_value);
 extern int of_property_read_u8_array(const struct device_node *np,
 			const char *propname, u8 *out_values, size_t sz);
 extern int of_property_read_u16_array(const struct device_node *np,
@@ -263,6 +266,7 @@ extern int of_device_is_available(const struct device_node *device);
 extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
+extern struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 #define for_each_property_of_node(dn, pp) \
 	for (pp = dn->properties; pp != NULL; pp = pp->next)
 
@@ -276,6 +280,9 @@ extern struct device_node *of_parse_phandle(const struct device_node *np,
 					    int index);
 extern int of_parse_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name, int index,
+	struct of_phandle_args *out_args);
+extern int of_parse_phandle_with_fixed_args(const struct device_node *np,
+	const char *list_name, int cells_count, int index,
 	struct of_phandle_args *out_args);
 extern int of_count_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name);
@@ -320,12 +327,6 @@ extern int of_detach_node(struct device_node *);
  */
 const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
 			       u32 *pu);
-#define of_property_for_each_u32(np, propname, prop, p, u)	\
-	for (prop = of_find_property(np, propname, NULL),	\
-		p = of_prop_next_u32(prop, NULL, &u);		\
-		p;						\
-		p = of_prop_next_u32(prop, p, &u))
-
 /*
  * struct property *prop;
  * const char *s;
@@ -334,11 +335,8 @@ const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
  *         printk("String value: %s\n", s);
  */
 const char *of_prop_next_string(struct property *prop, const char *cur);
-#define of_property_for_each_string(np, propname, prop, s)	\
-	for (prop = of_find_property(np, propname, NULL),	\
-		s = of_prop_next_string(prop, NULL);		\
-		s;						\
-		s = of_prop_next_string(prop, s))
+
+int of_device_is_stdout_path(struct device_node *dn);
 
 #else /* CONFIG_OF */
 
@@ -349,6 +347,11 @@ static inline const char* of_node_full_name(struct device_node *np)
 
 static inline struct device_node *of_find_node_by_name(struct device_node *from,
 	const char *name)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_get_parent(const struct device_node *node)
 {
 	return NULL;
 }
@@ -379,6 +382,11 @@ static inline int of_device_is_compatible(const struct device_node *device,
 	return 0;
 }
 
+static inline int of_device_is_available(const struct device_node *device)
+{
+	return 0;
+}
+
 static inline struct property *of_find_property(const struct device_node *np,
 						const char *name,
 						int *lenp)
@@ -392,6 +400,12 @@ static inline struct device_node *of_find_compatible_node(
 						const char *compat)
 {
 	return NULL;
+}
+
+static inline int of_property_read_u32_index(const struct device_node *np,
+			const char *propname, u32 index, u32 *out_value)
+{
+	return -ENOSYS;
 }
 
 static inline int of_property_read_u8_array(const struct device_node *np,
@@ -440,6 +454,12 @@ static inline const void *of_get_property(const struct device_node *node,
 	return NULL;
 }
 
+static inline struct device_node *of_get_cpu_node(int cpu,
+					unsigned int *thread)
+{
+	return NULL;
+}
+
 static inline int of_property_read_u64(const struct device_node *np,
 				       const char *propname, u64 *out_value)
 {
@@ -469,6 +489,13 @@ static inline int of_parse_phandle_with_args(struct device_node *np,
 	return -ENOSYS;
 }
 
+static inline int of_parse_phandle_with_fixed_args(const struct device_node *np,
+	const char *list_name, int cells_count, int index,
+	struct of_phandle_args *out_args)
+{
+	return -ENOSYS;
+}
+
 static inline int of_count_phandle_with_args(struct device_node *np,
 					     const char *list_name,
 					     const char *cells_name)
@@ -486,12 +513,25 @@ static inline int of_machine_is_compatible(const char *compat)
 	return 0;
 }
 
+static inline int of_device_is_stdout_path(struct device_node *dn)
+{
+	return 0;
+}
+
+static inline const __be32 *of_prop_next_u32(struct property *prop,
+		const __be32 *cur, u32 *pu)
+{
+	return NULL;
+}
+
+static inline const char *of_prop_next_string(struct property *prop,
+		const char *cur)
+{
+	return NULL;
+}
+
 #define of_match_ptr(_ptr)	NULL
 #define of_match_node(_matches, _node)	NULL
-#define of_property_for_each_u32(np, propname, prop, p, u) \
-	while (0)
-#define of_property_for_each_string(np, propname, prop, s) \
-	while (0)
 #endif /* CONFIG_OF */
 
 #ifndef of_node_to_nid
@@ -539,5 +579,27 @@ static inline int of_property_read_u32(const struct device_node *np,
 {
 	return of_property_read_u32_array(np, propname, out_value, 1);
 }
+
+#define of_property_for_each_u32(np, propname, prop, p, u)	\
+	for (prop = of_find_property(np, propname, NULL),	\
+		p = of_prop_next_u32(prop, NULL, &u);		\
+		p;						\
+		p = of_prop_next_u32(prop, p, &u))
+
+#define of_property_for_each_string(np, propname, prop, s)	\
+	for (prop = of_find_property(np, propname, NULL),	\
+		s = of_prop_next_string(prop, NULL);		\
+		s;						\
+		s = of_prop_next_string(prop, s))
+
+#if defined(CONFIG_PROC_FS) && defined(CONFIG_PROC_DEVICETREE)
+extern void proc_device_tree_add_node(struct device_node *, struct proc_dir_entry *);
+extern void proc_device_tree_add_prop(struct proc_dir_entry *pde, struct property *prop);
+extern void proc_device_tree_remove_prop(struct proc_dir_entry *pde,
+					 struct property *prop);
+extern void proc_device_tree_update_prop(struct proc_dir_entry *pde,
+					 struct property *newprop,
+					 struct property *oldprop);
+#endif
 
 #endif /* _LINUX_OF_H */

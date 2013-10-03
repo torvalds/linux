@@ -235,7 +235,6 @@ config IXP4XX_QMGR
 config IXP4XX_NPE
 	tristate "IXP4xx Network Processor Engine support"
 	select FW_LOADER
-	select HOTPLUG
 	help
 	  This driver supports IXP4xx built-in network coprocessors
 	  and is automatically selected by Ethernet and HSS drivers.

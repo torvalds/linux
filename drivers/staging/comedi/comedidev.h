@@ -14,32 +14,12 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #ifndef _COMEDIDEV_H
 #define _COMEDIDEV_H
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/kdev_t.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/spinlock.h>
-#include <linux/mutex.h>
-#include <linux/wait.h>
-#include <linux/mm.h>
-#include <linux/init.h>
-#include <linux/vmalloc.h>
 #include <linux/dma-mapping.h>
-#include <linux/uaccess.h>
-#include <linux/io.h>
-#include <linux/timer.h>
 
 #include "comedi.h"
 
@@ -53,9 +33,7 @@
 	COMEDI_MINORVERSION, COMEDI_MICROVERSION)
 #define COMEDI_RELEASE VERSION
 
-#define COMEDI_NUM_MINORS 0x100
 #define COMEDI_NUM_BOARD_MINORS 0x30
-#define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
 
 struct comedi_subdevice {
 	struct comedi_device *device;
@@ -207,16 +185,18 @@ struct comedi_device {
 
 	const char *board_name;
 	const void *board_ptr;
-	int attached;
+	bool attached:1;
+	bool in_request_module:1;
+	bool ioenabled:1;
 	spinlock_t spinlock;
 	struct mutex mutex;
-	int in_request_module;
 
 	int n_subdevices;
 	struct comedi_subdevice *subdevices;
 
 	/* dumb */
 	unsigned long iobase;
+	unsigned long iolen;
 	unsigned int irq;
 
 	struct comedi_subdevice *read_subdev;
@@ -270,10 +250,13 @@ enum subdevice_runflags {
 	/* indicates an COMEDI_CB_ERROR event has occurred since the last
 	 * command was started */
 	SRF_ERROR = 0x00000004,
-	SRF_RUNNING = 0x08000000
+	SRF_RUNNING = 0x08000000,
+	SRF_FREE_SPRIV = 0x80000000,	/* free s->private on detach */
 };
 
 bool comedi_is_subdevice_running(struct comedi_subdevice *s);
+
+void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size);
 
 int comedi_check_chanlist(struct comedi_subdevice *s,
 			  int n,
@@ -293,6 +276,10 @@ extern const struct comedi_lrange range_bipolar5;
 extern const struct comedi_lrange range_bipolar2_5;
 extern const struct comedi_lrange range_unipolar10;
 extern const struct comedi_lrange range_unipolar5;
+extern const struct comedi_lrange range_unipolar2_5;
+extern const struct comedi_lrange range_0_20mA;
+extern const struct comedi_lrange range_4_20mA;
+extern const struct comedi_lrange range_0_32mA;
 extern const struct comedi_lrange range_unknown;
 
 #define range_digital		range_unipolar5
@@ -307,6 +294,18 @@ struct comedi_lrange {
 	int length;
 	struct comedi_krange range[GCC_ZERO_LENGTH_ARRAY];
 };
+
+static inline bool comedi_range_is_bipolar(struct comedi_subdevice *s,
+					   unsigned int range)
+{
+	return s->range_table->range[range].min < 0;
+}
+
+static inline bool comedi_range_is_unipolar(struct comedi_subdevice *s,
+					    unsigned int range)
+{
+	return s->range_table->range[range].min >= 0;
+}
 
 /* some silly little inline functions */
 
@@ -343,14 +342,32 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 
 /* drivers.c - general comedi driver functions */
 
+int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
+			   struct comedi_insn *, unsigned int *data,
+			   unsigned int mask);
+
+void *comedi_alloc_devpriv(struct comedi_device *, size_t);
 int comedi_alloc_subdevices(struct comedi_device *, int);
+
+int comedi_load_firmware(struct comedi_device *, struct device *,
+			 const char *name,
+			 int (*cb)(struct comedi_device *,
+				   const u8 *data, size_t size,
+				   unsigned long context),
+			 unsigned long context);
+
+int __comedi_request_region(struct comedi_device *,
+			    unsigned long start, unsigned long len);
+int comedi_request_region(struct comedi_device *,
+			  unsigned long start, unsigned long len);
+void comedi_legacy_detach(struct comedi_device *);
 
 int comedi_auto_config(struct device *, struct comedi_driver *,
 		       unsigned long context);
 void comedi_auto_unconfig(struct device *);
 
 int comedi_driver_register(struct comedi_driver *);
-int comedi_driver_unregister(struct comedi_driver *);
+void comedi_driver_unregister(struct comedi_driver *);
 
 /**
  * module_comedi_driver() - Helper macro for registering a comedi driver
@@ -373,7 +390,6 @@ int comedi_driver_unregister(struct comedi_driver *);
  */
 #define PCI_VENDOR_ID_KOLTER		0x1001
 #define PCI_VENDOR_ID_ICP		0x104c
-#define PCI_VENDOR_ID_AMCC		0x10e8
 #define PCI_VENDOR_ID_DT		0x1116
 #define PCI_VENDOR_ID_IOTECH		0x1616
 #define PCI_VENDOR_ID_CONTEC		0x1221
@@ -384,10 +400,11 @@ struct pci_driver;
 
 struct pci_dev *comedi_to_pci_dev(struct comedi_device *);
 
-int comedi_pci_enable(struct pci_dev *, const char *);
-void comedi_pci_disable(struct pci_dev *);
+int comedi_pci_enable(struct comedi_device *);
+void comedi_pci_disable(struct comedi_device *);
 
-int comedi_pci_auto_config(struct pci_dev *, struct comedi_driver *);
+int comedi_pci_auto_config(struct pci_dev *, struct comedi_driver *,
+			   unsigned long context);
 void comedi_pci_auto_unconfig(struct pci_dev *);
 
 int comedi_pci_driver_register(struct comedi_driver *, struct pci_driver *);
@@ -420,12 +437,12 @@ static inline struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev)
 	return NULL;
 }
 
-static inline int comedi_pci_enable(struct pci_dev *dev, const char *name)
+static inline int comedi_pci_enable(struct comedi_device *dev)
 {
 	return -ENOSYS;
 }
 
-static inline void comedi_pci_disable(struct pci_dev *dev)
+static inline void comedi_pci_disable(struct comedi_device *dev)
 {
 }
 
@@ -476,6 +493,7 @@ struct usb_driver;
 struct usb_interface;
 
 struct usb_interface *comedi_to_usb_interface(struct comedi_device *);
+struct usb_device *comedi_to_usb_dev(struct comedi_device *);
 
 int comedi_usb_auto_config(struct usb_interface *, struct comedi_driver *,
 			   unsigned long context);

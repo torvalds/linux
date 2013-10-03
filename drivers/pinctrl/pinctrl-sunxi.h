@@ -14,6 +14,7 @@
 #define __PINCTRL_SUNXI_H
 
 #include <linux/kernel.h>
+#include <linux/spinlock.h>
 
 #define PA_BASE	0
 #define PB_BASE	32
@@ -344,9 +345,31 @@
 #define PULL_PINS_BITS		2
 #define PULL_PINS_MASK		0x03
 
+#define SUNXI_IRQ_NUMBER	32
+
+#define IRQ_CFG_REG		0x200
+#define IRQ_CFG_IRQ_PER_REG		8
+#define IRQ_CFG_IRQ_BITS		4
+#define IRQ_CFG_IRQ_MASK		((1 << IRQ_CFG_IRQ_BITS) - 1)
+#define IRQ_CTRL_REG		0x210
+#define IRQ_CTRL_IRQ_PER_REG		32
+#define IRQ_CTRL_IRQ_BITS		1
+#define IRQ_CTRL_IRQ_MASK		((1 << IRQ_CTRL_IRQ_BITS) - 1)
+#define IRQ_STATUS_REG		0x214
+#define IRQ_STATUS_IRQ_PER_REG		32
+#define IRQ_STATUS_IRQ_BITS		1
+#define IRQ_STATUS_IRQ_MASK		((1 << IRQ_STATUS_IRQ_BITS) - 1)
+
+#define IRQ_EDGE_RISING		0x00
+#define IRQ_EDGE_FALLING	0x01
+#define IRQ_LEVEL_HIGH		0x02
+#define IRQ_LEVEL_LOW		0x03
+#define IRQ_EDGE_BOTH		0x04
+
 struct sunxi_desc_function {
 	const char	*name;
 	u8		muxval;
+	u8		irqnum;
 };
 
 struct sunxi_desc_pin {
@@ -378,10 +401,14 @@ struct sunxi_pinctrl {
 	struct gpio_chip		*chip;
 	struct sunxi_pinctrl_desc	*desc;
 	struct device			*dev;
+	struct irq_domain		*domain;
 	struct sunxi_pinctrl_function	*functions;
 	unsigned			nfunctions;
 	struct sunxi_pinctrl_group	*groups;
 	unsigned			ngroups;
+	int				irq;
+	int				irq_array[SUNXI_IRQ_NUMBER];
+	spinlock_t			lock;
 	struct pinctrl_dev		*pctl_dev;
 };
 
@@ -396,6 +423,13 @@ struct sunxi_pinctrl {
 	{							\
 		.name = _name,					\
 		.muxval = _val,					\
+	}
+
+#define SUNXI_FUNCTION_IRQ(_val, _irq)				\
+	{							\
+		.name = "irq",					\
+		.muxval = _val,					\
+		.irqnum = _irq,					\
 	}
 
 /*
@@ -473,6 +507,42 @@ static inline u32 sunxi_pull_offset(u16 pin)
 {
 	u32 pin_num = pin % PULL_PINS_PER_REG;
 	return pin_num * PULL_PINS_BITS;
+}
+
+static inline u32 sunxi_irq_cfg_reg(u16 irq)
+{
+	u8 reg = irq / IRQ_CFG_IRQ_PER_REG;
+	return reg + IRQ_CFG_REG;
+}
+
+static inline u32 sunxi_irq_cfg_offset(u16 irq)
+{
+	u32 irq_num = irq % IRQ_CFG_IRQ_PER_REG;
+	return irq_num * IRQ_CFG_IRQ_BITS;
+}
+
+static inline u32 sunxi_irq_ctrl_reg(u16 irq)
+{
+	u8 reg = irq / IRQ_CTRL_IRQ_PER_REG;
+	return reg + IRQ_CTRL_REG;
+}
+
+static inline u32 sunxi_irq_ctrl_offset(u16 irq)
+{
+	u32 irq_num = irq % IRQ_CTRL_IRQ_PER_REG;
+	return irq_num * IRQ_CTRL_IRQ_BITS;
+}
+
+static inline u32 sunxi_irq_status_reg(u16 irq)
+{
+	u8 reg = irq / IRQ_STATUS_IRQ_PER_REG;
+	return reg + IRQ_STATUS_REG;
+}
+
+static inline u32 sunxi_irq_status_offset(u16 irq)
+{
+	u32 irq_num = irq % IRQ_STATUS_IRQ_PER_REG;
+	return irq_num * IRQ_STATUS_IRQ_BITS;
 }
 
 #endif /* __PINCTRL_SUNXI_H */

@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <asm/io.h>
+#include <asm/irq.h>
 #include "pci-asb2305.h"
 
 unsigned int pci_probe = 1;

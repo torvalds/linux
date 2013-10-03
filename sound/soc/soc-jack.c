@@ -183,8 +183,6 @@ int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 		list_add(&(pins[i].list), &jack->pins);
 	}
 
-	snd_soc_dapm_new_widgets(&jack->codec->card->dapm);
-
 	/* Update to reflect the last reported status; canned jack
 	 * implementations are likely to set their state before the
 	 * card has an opportunity to associate pins.
@@ -263,7 +261,7 @@ static irqreturn_t gpio_handler(int irq, void *data)
 	if (device_may_wakeup(dev))
 		pm_wakeup_event(dev, gpio->debounce_time + 50);
 
-	schedule_delayed_work(&gpio->work,
+	queue_delayed_work(system_power_efficient_wq, &gpio->work,
 			      msecs_to_jiffies(gpio->debounce_time));
 
 	return IRQ_HANDLED;

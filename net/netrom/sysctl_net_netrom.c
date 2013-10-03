@@ -34,7 +34,7 @@ static int min_reset[]   = {0}, max_reset[]   = {1};
 
 static struct ctl_table_header *nr_table_header;
 
-static ctl_table nr_table[] = {
+static struct ctl_table nr_table[] = {
 	{
 		.procname	= "default_path_quality",
 		.data		= &sysctl_netrom_default_path_quality,

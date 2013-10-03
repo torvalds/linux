@@ -24,12 +24,6 @@
 #define ASCII_DISPLAY_POS_BASE	   0x1f000418
 
 /*
- * Reset register.
- */
-#define SOFTRES_REG	  0x1f000500
-#define GORESET		  0x42
-
-/*
  * Revision register.
  */
 #define MIPS_REVISION_REG		   0x1fc00010
@@ -82,5 +76,8 @@ extern void mips_pcibios_init(void);
 #else
 #define mips_pcibios_init() do { } while (0)
 #endif
+
+extern void mips_scroll_message(void);
+extern void mips_display_message(const char *str);
 
 #endif	/* __ASM_MIPS_BOARDS_GENERIC_H */

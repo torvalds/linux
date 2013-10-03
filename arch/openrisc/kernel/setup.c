@@ -267,7 +267,7 @@ void __init detect_unit_config(unsigned long upr, unsigned long mask,
  *
  */
 
-void __cpuinit calibrate_delay(void)
+void calibrate_delay(void)
 {
 	const int *val;
 	struct device_node *cpu = NULL;

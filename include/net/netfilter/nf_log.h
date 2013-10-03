@@ -30,7 +30,8 @@ struct nf_loginfo {
 	} u;
 };
 
-typedef void nf_logfn(u_int8_t pf,
+typedef void nf_logfn(struct net *net,
+		      u_int8_t pf,
 		      unsigned int hooknum,
 		      const struct sk_buff *skb,
 		      const struct net_device *in,
@@ -49,12 +50,18 @@ struct nf_logger {
 int nf_log_register(u_int8_t pf, struct nf_logger *logger);
 void nf_log_unregister(struct nf_logger *logger);
 
-int nf_log_bind_pf(u_int8_t pf, const struct nf_logger *logger);
-void nf_log_unbind_pf(u_int8_t pf);
+void nf_log_set(struct net *net, u_int8_t pf,
+		const struct nf_logger *logger);
+void nf_log_unset(struct net *net, const struct nf_logger *logger);
+
+int nf_log_bind_pf(struct net *net, u_int8_t pf,
+		   const struct nf_logger *logger);
+void nf_log_unbind_pf(struct net *net, u_int8_t pf);
 
 /* Calls the registered backend logging function */
-__printf(7, 8)
-void nf_log_packet(u_int8_t pf,
+__printf(8, 9)
+void nf_log_packet(struct net *net,
+		   u_int8_t pf,
 		   unsigned int hooknum,
 		   const struct sk_buff *skb,
 		   const struct net_device *in,

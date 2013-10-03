@@ -13,6 +13,7 @@
 
 #include "util/parse-events.h"
 #include "util/cache.h"
+#include "util/pmu.h"
 
 int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -37,6 +38,8 @@ int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 			else if (strcmp(argv[i], "cache") == 0 ||
 				 strcmp(argv[i], "hwcache") == 0)
 				print_hwcache_events(NULL, false);
+			else if (strcmp(argv[i], "pmu") == 0)
+				print_pmu_events(NULL, false);
 			else if (strcmp(argv[i], "--raw-dump") == 0)
 				print_events(NULL, true);
 			else {

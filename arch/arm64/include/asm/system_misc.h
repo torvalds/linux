@@ -23,6 +23,7 @@
 #include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <linux/irqflags.h>
+#include <linux/reboot.h>
 
 struct pt_regs;
 
@@ -41,7 +42,7 @@ extern void show_pte(struct mm_struct *mm, unsigned long addr);
 extern void __show_regs(struct pt_regs *);
 
 void soft_restart(unsigned long);
-extern void (*pm_restart)(const char *cmd);
+extern void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
 
 #define UDBG_UNDEFINED	(1 << 0)
 #define UDBG_SYSCALL	(1 << 1)

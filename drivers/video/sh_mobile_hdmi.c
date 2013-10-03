@@ -1445,17 +1445,7 @@ static struct platform_driver sh_hdmi_driver = {
 	},
 };
 
-static int __init sh_hdmi_init(void)
-{
-	return platform_driver_probe(&sh_hdmi_driver, sh_hdmi_probe);
-}
-module_init(sh_hdmi_init);
-
-static void __exit sh_hdmi_exit(void)
-{
-	platform_driver_unregister(&sh_hdmi_driver);
-}
-module_exit(sh_hdmi_exit);
+module_platform_driver_probe(sh_hdmi_driver, sh_hdmi_probe);
 
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");
 MODULE_DESCRIPTION("SuperH / ARM-shmobile HDMI driver");

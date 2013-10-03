@@ -288,10 +288,36 @@ static int metag_rp_state_set(struct task_struct *target,
 	return metag_rp_state_copyin(regs, pos, count, kbuf, ubuf);
 }
 
+static int metag_tls_get(struct task_struct *target,
+			const struct user_regset *regset,
+			unsigned int pos, unsigned int count,
+			void *kbuf, void __user *ubuf)
+{
+	void __user *tls = target->thread.tls_ptr;
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &tls, 0, -1);
+}
+
+static int metag_tls_set(struct task_struct *target,
+			const struct user_regset *regset,
+			unsigned int pos, unsigned int count,
+			const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+	void __user *tls;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &tls, 0, -1);
+	if (ret)
+		return ret;
+
+	target->thread.tls_ptr = tls;
+	return ret;
+}
+
 enum metag_regset {
 	REGSET_GENERAL,
 	REGSET_CBUF,
 	REGSET_READPIPE,
+	REGSET_TLS,
 };
 
 static const struct user_regset metag_regsets[] = {
@@ -318,6 +344,14 @@ static const struct user_regset metag_regsets[] = {
 		.align = sizeof(long long),
 		.get = metag_rp_state_get,
 		.set = metag_rp_state_set,
+	},
+	[REGSET_TLS] = {
+		.core_note_type = NT_METAG_TLS,
+		.n = 1,
+		.size = sizeof(void *),
+		.align = sizeof(void *),
+		.get = metag_tls_get,
+		.set = metag_tls_set,
 	},
 };
 

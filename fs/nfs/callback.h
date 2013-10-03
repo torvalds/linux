@@ -32,6 +32,8 @@ enum nfs4_callback_opnum {
 	OP_CB_WANTS_CANCELLED = 12,
 	OP_CB_NOTIFY_LOCK   = 13,
 	OP_CB_NOTIFY_DEVICEID = 14,
+/* Callback operations new to NFSv4.2 */
+	OP_CB_OFFLOAD = 15,
 	OP_CB_ILLEGAL = 10044,
 };
 
@@ -39,6 +41,7 @@ struct cb_process_state {
 	__be32			drc_status;
 	struct nfs_client	*clp;
 	u32			slotid;
+	u32			minorversion;
 	struct net		*net;
 };
 

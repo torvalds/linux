@@ -29,6 +29,8 @@ struct regcache_rbtree_node {
 	unsigned int base_reg;
 	/* block of adjacent registers */
 	void *block;
+	/* Which registers are present */
+	long *cache_present;
 	/* number of registers available in the block */
 	unsigned int blklen;
 } __attribute__ ((packed));
@@ -47,22 +49,22 @@ static inline void regcache_rbtree_get_base_top_reg(
 	*top = rbnode->base_reg + ((rbnode->blklen - 1) * map->reg_stride);
 }
 
-static unsigned int regcache_rbtree_get_register(
-	struct regcache_rbtree_node *rbnode, unsigned int idx,
-	unsigned int word_size)
+static unsigned int regcache_rbtree_get_register(struct regmap *map,
+	struct regcache_rbtree_node *rbnode, unsigned int idx)
 {
-	return regcache_get_val(rbnode->block, idx, word_size);
+	return regcache_get_val(map, rbnode->block, idx);
 }
 
-static void regcache_rbtree_set_register(struct regcache_rbtree_node *rbnode,
-					 unsigned int idx, unsigned int val,
-					 unsigned int word_size)
+static void regcache_rbtree_set_register(struct regmap *map,
+					 struct regcache_rbtree_node *rbnode,
+					 unsigned int idx, unsigned int val)
 {
-	regcache_set_val(rbnode->block, idx, val, word_size);
+	set_bit(idx, rbnode->cache_present);
+	regcache_set_val(map, rbnode->block, idx, val);
 }
 
 static struct regcache_rbtree_node *regcache_rbtree_lookup(struct regmap *map,
-	unsigned int reg)
+							   unsigned int reg)
 {
 	struct regcache_rbtree_ctx *rbtree_ctx = map->cache;
 	struct rb_node *node;
@@ -139,15 +141,21 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 	struct regcache_rbtree_node *n;
 	struct rb_node *node;
 	unsigned int base, top;
+	size_t mem_size;
 	int nodes = 0;
 	int registers = 0;
 	int this_registers, average;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
+
+	mem_size = sizeof(*rbtree_ctx);
 
 	for (node = rb_first(&rbtree_ctx->root); node != NULL;
 	     node = rb_next(node)) {
 		n = container_of(node, struct regcache_rbtree_node, node);
+		mem_size += sizeof(*n);
+		mem_size += (n->blklen * map->cache_word_size);
+		mem_size += BITS_TO_LONGS(n->blklen) * sizeof(long);
 
 		regcache_rbtree_get_base_top_reg(map, n, &base, &top);
 		this_registers = ((top - base) / map->reg_stride) + 1;
@@ -162,10 +170,10 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 	else
 		average = 0;
 
-	seq_printf(s, "%d nodes, %d registers, average %d registers\n",
-		   nodes, registers, average);
+	seq_printf(s, "%d nodes, %d registers, average %d registers, used %zu bytes\n",
+		   nodes, registers, average, mem_size);
 
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return 0;
 }
@@ -240,6 +248,7 @@ static int regcache_rbtree_exit(struct regmap *map)
 		rbtree_node = rb_entry(next, struct regcache_rbtree_node, node);
 		next = rb_next(&rbtree_node->node);
 		rb_erase(&rbtree_node->node, &rbtree_ctx->root);
+		kfree(rbtree_node->cache_present);
 		kfree(rbtree_node->block);
 		kfree(rbtree_node);
 	}
@@ -260,8 +269,9 @@ static int regcache_rbtree_read(struct regmap *map,
 	rbnode = regcache_rbtree_lookup(map, reg);
 	if (rbnode) {
 		reg_tmp = (reg - rbnode->base_reg) / map->reg_stride;
-		*value = regcache_rbtree_get_register(rbnode, reg_tmp,
-						      map->cache_word_size);
+		if (!test_bit(reg_tmp, rbnode->cache_present))
+			return -ENOENT;
+		*value = regcache_rbtree_get_register(map, rbnode, reg_tmp);
 	} else {
 		return -ENOENT;
 	}
@@ -270,30 +280,101 @@ static int regcache_rbtree_read(struct regmap *map,
 }
 
 
-static int regcache_rbtree_insert_to_block(struct regcache_rbtree_node *rbnode,
-					   unsigned int pos, unsigned int reg,
-					   unsigned int value, unsigned int word_size)
+static int regcache_rbtree_insert_to_block(struct regmap *map,
+					   struct regcache_rbtree_node *rbnode,
+					   unsigned int base_reg,
+					   unsigned int top_reg,
+					   unsigned int reg,
+					   unsigned int value)
 {
+	unsigned int blklen;
+	unsigned int pos, offset;
+	unsigned long *present;
 	u8 *blk;
 
+	blklen = (top_reg - base_reg) / map->reg_stride + 1;
+	pos = (reg - base_reg) / map->reg_stride;
+	offset = (rbnode->base_reg - base_reg) / map->reg_stride;
+
 	blk = krealloc(rbnode->block,
-		       (rbnode->blklen + 1) * word_size, GFP_KERNEL);
+		       blklen * map->cache_word_size,
+		       GFP_KERNEL);
 	if (!blk)
 		return -ENOMEM;
 
+	present = krealloc(rbnode->cache_present,
+		    BITS_TO_LONGS(blklen) * sizeof(*present), GFP_KERNEL);
+	if (!present) {
+		kfree(blk);
+		return -ENOMEM;
+	}
+
 	/* insert the register value in the correct place in the rbnode block */
-	memmove(blk + (pos + 1) * word_size,
-		blk + pos * word_size,
-		(rbnode->blklen - pos) * word_size);
+	if (pos == 0) {
+		memmove(blk + offset * map->cache_word_size,
+			blk, rbnode->blklen * map->cache_word_size);
+		bitmap_shift_right(present, present, offset, blklen);
+	}
 
 	/* update the rbnode block, its size and the base register */
 	rbnode->block = blk;
-	rbnode->blklen++;
-	if (!pos)
-		rbnode->base_reg = reg;
+	rbnode->blklen = blklen;
+	rbnode->base_reg = base_reg;
+	rbnode->cache_present = present;
 
-	regcache_rbtree_set_register(rbnode, pos, value, word_size);
+	regcache_rbtree_set_register(map, rbnode, pos, value);
 	return 0;
+}
+
+static struct regcache_rbtree_node *
+regcache_rbtree_node_alloc(struct regmap *map, unsigned int reg)
+{
+	struct regcache_rbtree_node *rbnode;
+	const struct regmap_range *range;
+	int i;
+
+	rbnode = kzalloc(sizeof(*rbnode), GFP_KERNEL);
+	if (!rbnode)
+		return NULL;
+
+	/* If there is a read table then use it to guess at an allocation */
+	if (map->rd_table) {
+		for (i = 0; i < map->rd_table->n_yes_ranges; i++) {
+			if (regmap_reg_in_range(reg,
+						&map->rd_table->yes_ranges[i]))
+				break;
+		}
+
+		if (i != map->rd_table->n_yes_ranges) {
+			range = &map->rd_table->yes_ranges[i];
+			rbnode->blklen = (range->range_max - range->range_min) /
+				map->reg_stride	+ 1;
+			rbnode->base_reg = range->range_min;
+		}
+	}
+
+	if (!rbnode->blklen) {
+		rbnode->blklen = 1;
+		rbnode->base_reg = reg;
+	}
+
+	rbnode->block = kmalloc(rbnode->blklen * map->cache_word_size,
+				GFP_KERNEL);
+	if (!rbnode->block)
+		goto err_free;
+
+	rbnode->cache_present = kzalloc(BITS_TO_LONGS(rbnode->blklen) *
+		sizeof(*rbnode->cache_present), GFP_KERNEL);
+	if (!rbnode->cache_present)
+		goto err_free_block;
+
+	return rbnode;
+
+err_free_block:
+	kfree(rbnode->block);
+err_free:
+	kfree(rbnode);
+	return NULL;
 }
 
 static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
@@ -302,67 +383,66 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 	struct regcache_rbtree_ctx *rbtree_ctx;
 	struct regcache_rbtree_node *rbnode, *rbnode_tmp;
 	struct rb_node *node;
-	unsigned int val;
 	unsigned int reg_tmp;
-	unsigned int pos;
-	int i;
 	int ret;
 
 	rbtree_ctx = map->cache;
+
 	/* if we can't locate it in the cached rbnode we'll have
 	 * to traverse the rbtree looking for it.
 	 */
 	rbnode = regcache_rbtree_lookup(map, reg);
 	if (rbnode) {
 		reg_tmp = (reg - rbnode->base_reg) / map->reg_stride;
-		val = regcache_rbtree_get_register(rbnode, reg_tmp,
-						   map->cache_word_size);
-		if (val == value)
-			return 0;
-		regcache_rbtree_set_register(rbnode, reg_tmp, value,
-					     map->cache_word_size);
+		regcache_rbtree_set_register(map, rbnode, reg_tmp, value);
 	} else {
+		unsigned int base_reg, top_reg;
+		unsigned int new_base_reg, new_top_reg;
+		unsigned int min, max;
+		unsigned int max_dist;
+
+		max_dist = map->reg_stride * sizeof(*rbnode_tmp) /
+			map->cache_word_size;
+		if (reg < max_dist)
+			min = 0;
+		else
+			min = reg - max_dist;
+		max = reg + max_dist;
+
 		/* look for an adjacent register to the one we are about to add */
 		for (node = rb_first(&rbtree_ctx->root); node;
 		     node = rb_next(node)) {
 			rbnode_tmp = rb_entry(node, struct regcache_rbtree_node,
 					      node);
-			for (i = 0; i < rbnode_tmp->blklen; i++) {
-				reg_tmp = rbnode_tmp->base_reg +
-						(i * map->reg_stride);
-				if (abs(reg_tmp - reg) != map->reg_stride)
-					continue;
-				/* decide where in the block to place our register */
-				if (reg_tmp + map->reg_stride == reg)
-					pos = i + 1;
-				else
-					pos = i;
-				ret = regcache_rbtree_insert_to_block(rbnode_tmp, pos,
-								      reg, value,
-								      map->cache_word_size);
-				if (ret)
-					return ret;
-				rbtree_ctx->cached_rbnode = rbnode_tmp;
-				return 0;
+
+			regcache_rbtree_get_base_top_reg(map, rbnode_tmp,
+				&base_reg, &top_reg);
+
+			if (base_reg <= max && top_reg >= min) {
+				new_base_reg = min(reg, base_reg);
+				new_top_reg = max(reg, top_reg);
+			} else {
+				continue;
 			}
+
+			ret = regcache_rbtree_insert_to_block(map, rbnode_tmp,
+							      new_base_reg,
+							      new_top_reg, reg,
+							      value);
+			if (ret)
+				return ret;
+			rbtree_ctx->cached_rbnode = rbnode_tmp;
+			return 0;
 		}
-		/* we did not manage to find a place to insert it in an existing
-		 * block so create a new rbnode with a single register in its block.
-		 * This block will get populated further if any other adjacent
-		 * registers get modified in the future.
+
+		/* We did not manage to find a place to insert it in
+		 * an existing block so create a new rbnode.
 		 */
-		rbnode = kzalloc(sizeof *rbnode, GFP_KERNEL);
+		rbnode = regcache_rbtree_node_alloc(map, reg);
 		if (!rbnode)
 			return -ENOMEM;
-		rbnode->blklen = 1;
-		rbnode->base_reg = reg;
-		rbnode->block = kmalloc(rbnode->blklen * map->cache_word_size,
-					GFP_KERNEL);
-		if (!rbnode->block) {
-			kfree(rbnode);
-			return -ENOMEM;
-		}
-		regcache_rbtree_set_register(rbnode, 0, value, map->cache_word_size);
+		regcache_rbtree_set_register(map, rbnode,
+					     reg - rbnode->base_reg, value);
 		regcache_rbtree_insert(map, &rbtree_ctx->root, rbnode);
 		rbtree_ctx->cached_rbnode = rbnode;
 	}
@@ -376,50 +456,72 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 	struct regcache_rbtree_ctx *rbtree_ctx;
 	struct rb_node *node;
 	struct regcache_rbtree_node *rbnode;
-	unsigned int regtmp;
-	unsigned int val;
+	unsigned int base_reg, top_reg;
+	unsigned int start, end;
 	int ret;
-	int i, base, end;
 
 	rbtree_ctx = map->cache;
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
 		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
 
-		if (rbnode->base_reg < min)
-			continue;
-		if (rbnode->base_reg > max)
+		regcache_rbtree_get_base_top_reg(map, rbnode, &base_reg,
+			&top_reg);
+		if (base_reg > max)
 			break;
-		if (rbnode->base_reg + rbnode->blklen < min)
+		if (top_reg < min)
 			continue;
 
-		if (min > rbnode->base_reg)
-			base = min - rbnode->base_reg;
+		if (min > base_reg)
+			start = (min - base_reg) / map->reg_stride;
 		else
-			base = 0;
+			start = 0;
 
-		if (max < rbnode->base_reg + rbnode->blklen)
-			end = rbnode->base_reg + rbnode->blklen - max;
+		if (max < top_reg)
+			end = (max - base_reg) / map->reg_stride + 1;
 		else
 			end = rbnode->blklen;
 
-		for (i = base; i < end; i++) {
-			regtmp = rbnode->base_reg + (i * map->reg_stride);
-			val = regcache_rbtree_get_register(rbnode, i,
-							   map->cache_word_size);
+		ret = regcache_sync_block(map, rbnode->block,
+					  rbnode->cache_present,
+					  rbnode->base_reg, start, end);
+		if (ret != 0)
+			return ret;
+	}
 
-			/* Is this the hardware default?  If so skip. */
-			ret = regcache_lookup_reg(map, regtmp);
-			if (ret >= 0 && val == map->reg_defaults[ret].def)
-				continue;
+	return regmap_async_complete(map);
+}
 
-			map->cache_bypass = 1;
-			ret = _regmap_write(map, regtmp, val);
-			map->cache_bypass = 0;
-			if (ret)
-				return ret;
-			dev_dbg(map->dev, "Synced register %#x, value %#x\n",
-				regtmp, val);
-		}
+static int regcache_rbtree_drop(struct regmap *map, unsigned int min,
+				unsigned int max)
+{
+	struct regcache_rbtree_ctx *rbtree_ctx;
+	struct regcache_rbtree_node *rbnode;
+	struct rb_node *node;
+	unsigned int base_reg, top_reg;
+	unsigned int start, end;
+
+	rbtree_ctx = map->cache;
+	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
+		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
+
+		regcache_rbtree_get_base_top_reg(map, rbnode, &base_reg,
+			&top_reg);
+		if (base_reg > max)
+			break;
+		if (top_reg < min)
+			continue;
+
+		if (min > base_reg)
+			start = (min - base_reg) / map->reg_stride;
+		else
+			start = 0;
+
+		if (max < top_reg)
+			end = (max - base_reg) / map->reg_stride + 1;
+		else
+			end = rbnode->blklen;
+
+		bitmap_clear(rbnode->cache_present, start, end - start);
 	}
 
 	return 0;
@@ -432,5 +534,6 @@ struct regcache_ops regcache_rbtree_ops = {
 	.exit = regcache_rbtree_exit,
 	.read = regcache_rbtree_read,
 	.write = regcache_rbtree_write,
-	.sync = regcache_rbtree_sync
+	.sync = regcache_rbtree_sync,
+	.drop = regcache_rbtree_drop,
 };

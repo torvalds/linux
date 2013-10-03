@@ -458,7 +458,7 @@ static void map_region(struct dm_io_region *io, struct mirror *m,
 {
 	io->bdev = m->dev->bdev;
 	io->sector = map_sector(m, bio);
-	io->count = bio->bi_size >> 9;
+	io->count = bio_sectors(bio);
 }
 
 static void hold_bio(struct mirror_set *ms, struct bio *bio)
@@ -1080,8 +1080,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->per_bio_data_size = sizeof(struct dm_raid1_bio_record);
 	ti->discard_zeroes_data_unsupported = true;
 
-	ms->kmirrord_wq = alloc_workqueue("kmirrord",
-					  WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
+	ms->kmirrord_wq = alloc_workqueue("kmirrord", WQ_MEM_RECLAIM, 0);
 	if (!ms->kmirrord_wq) {
 		DMERR("couldn't start kmirrord");
 		r = -ENOMEM;

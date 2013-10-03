@@ -58,7 +58,7 @@ Protocol 2.11:	(Kernel 3.6) Added a field for offset of EFI handover
 		protocol entry point.
 
 Protocol 2.12:	(Kernel 3.8) Added the xloadflags field and extension fields
-	 	to struct boot_params for for loading bzImage and ramdisk
+	 	to struct boot_params for loading bzImage and ramdisk
 		above 4G in 64bit.
 
 **** MEMORY LAYOUT
@@ -657,9 +657,10 @@ Protocol:	2.08+
   uncompressed data should be determined using the standard magic
   numbers.  The currently supported compression formats are gzip
   (magic numbers 1F 8B or 1F 9E), bzip2 (magic number 42 5A), LZMA
-  (magic number 5D 00), and XZ (magic number FD 37).  The uncompressed
-  payload is currently always ELF (magic number 7F 45 4C 46).
-  
+  (magic number 5D 00), XZ (magic number FD 37), and LZ4 (magic number
+  02 21).  The uncompressed payload is currently always ELF (magic
+  number 7F 45 4C 46).
+
 Field name:	payload_length
 Type:		read
 Offset/size:	0x24c/4

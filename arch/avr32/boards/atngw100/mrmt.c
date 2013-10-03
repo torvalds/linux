@@ -150,7 +150,6 @@ static struct ac97c_platform_data __initdata ac97c0_data = {
 static struct platform_device rmt_ts_device = {
 	.name	= "ucb1400_ts",
 	.id	= -1,
-	}
 };
 #endif
 

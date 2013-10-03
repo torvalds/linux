@@ -223,6 +223,8 @@ void scm_cluster_request_irq(struct scm_request *scmrq)
 
 bool scm_cluster_size_valid(void)
 {
-	return write_cluster_size == 0 || write_cluster_size == 32 ||
-		write_cluster_size == 64 || write_cluster_size == 128;
+	if (write_cluster_size == 1 || write_cluster_size > 128)
+		return false;
+
+	return !(write_cluster_size & (write_cluster_size - 1));
 }

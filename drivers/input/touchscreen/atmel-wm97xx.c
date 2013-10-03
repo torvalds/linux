@@ -372,7 +372,6 @@ static int __init atmel_wm97xx_probe(struct platform_device *pdev)
 err_irq:
 	free_irq(atmel_wm97xx->ac97c_irq, atmel_wm97xx);
 err:
-	platform_set_drvdata(pdev, NULL);
 	kfree(atmel_wm97xx);
 	return ret;
 }
@@ -386,7 +385,6 @@ static int __exit atmel_wm97xx_remove(struct platform_device *pdev)
 	free_irq(atmel_wm97xx->ac97c_irq, atmel_wm97xx);
 	del_timer_sync(&atmel_wm97xx->pen_timer);
 	wm97xx_unregister_mach_ops(wm);
-	platform_set_drvdata(pdev, NULL);
 	kfree(atmel_wm97xx);
 
 	return 0;
@@ -432,17 +430,7 @@ static struct platform_driver atmel_wm97xx_driver = {
 	},
 };
 
-static int __init atmel_wm97xx_init(void)
-{
-	return platform_driver_probe(&atmel_wm97xx_driver, atmel_wm97xx_probe);
-}
-module_init(atmel_wm97xx_init);
-
-static void __exit atmel_wm97xx_exit(void)
-{
-	platform_driver_unregister(&atmel_wm97xx_driver);
-}
-module_exit(atmel_wm97xx_exit);
+module_platform_driver_probe(atmel_wm97xx_driver, atmel_wm97xx_probe);
 
 MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("wm97xx continuous touch driver for Atmel AT91 and AVR32");

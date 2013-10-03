@@ -29,11 +29,6 @@
 #ifndef __CARD_H__
 #define __CARD_H__
 #include "device.h"
-#include "ttype.h"
-
-/*---------------------  Export Definitions -------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
 
 /* init card type */
 
@@ -55,9 +50,6 @@ typedef enum _CARD_OP_MODE {
 #define CB_MAX_CHANNEL_5G       42 /* add channel9(5045MHz), 41==>42 */
 #define CB_MAX_CHANNEL      (CB_MAX_CHANNEL_24G+CB_MAX_CHANNEL_5G)
 
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 struct vnt_private;
 
 void CARDbSetMediaChannel(struct vnt_private *pDevice, u32 uConnectionChannel);
@@ -70,16 +62,14 @@ void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
 		u64 qwBSSTimestamp, u64 qwLocalTSF);
 bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF);
 bool CARDbClearCurrentTSF(struct vnt_private *pDevice);
-void CARDvSetFirstNextTBTT(struct vnt_private *pDevice, WORD wBeaconInterval);
+void CARDvSetFirstNextTBTT(struct vnt_private *pDevice, u16 wBeaconInterval);
 void CARDvUpdateNextTBTT(struct vnt_private *pDevice, u64 qwTSF,
-			 WORD wBeaconInterval);
-u64 CARDqGetNextTBTT(u64 qwTSF, WORD wBeaconInterval);
-u64 CARDqGetTSFOffset(BYTE byRxRate, u64 qwTSF1, u64 qwTSF2);
+			 u16 wBeaconInterval);
+u64 CARDqGetNextTBTT(u64 qwTSF, u16 wBeaconInterval);
+u64 CARDqGetTSFOffset(u8 byRxRate, u64 qwTSF1, u64 qwTSF2);
 int CARDbRadioPowerOff(struct vnt_private *pDevice);
 int CARDbRadioPowerOn(struct vnt_private *pDevice);
 u8 CARDbyGetPktType(struct vnt_private *pDevice);
 void CARDvSetBSSMode(struct vnt_private *pDevice);
-int CARDbChannelSwitch(struct vnt_private *pDevice, u8 byMode,
-	u8 byNewChannel, u8 byCount);
 
 #endif /* __CARD_H__ */

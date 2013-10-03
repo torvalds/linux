@@ -20,11 +20,11 @@
 #include <linux/jiffies.h>
 #include <linux/smp.h>
 #include <linux/io.h>
-#include <linux/irqchip/arm-gic.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
+#include <asm/firmware.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
@@ -50,6 +50,8 @@ static inline void __iomem *cpu_boot_reg(int cpu)
 	boot_reg = cpu_boot_reg_base();
 	if (soc_is_exynos4412())
 		boot_reg += 4*cpu;
+	else if (soc_is_exynos5420())
+		boot_reg += 4;
 	return boot_reg;
 }
 
@@ -73,15 +75,8 @@ static void __iomem *scu_base_addr(void)
 
 static DEFINE_SPINLOCK(boot_lock);
 
-static void __cpuinit exynos_secondary_init(unsigned int cpu)
+static void exynos_secondary_init(unsigned int cpu)
 {
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-
 	/*
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
@@ -95,7 +90,7 @@ static void __cpuinit exynos_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static int __cpuinit exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	unsigned long phys_cpu = cpu_logical_map(cpu);
@@ -145,10 +140,21 @@ static int __cpuinit exynos_boot_secondary(unsigned int cpu, struct task_struct 
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
+		unsigned long boot_addr;
+
 		smp_rmb();
 
-		__raw_writel(virt_to_phys(exynos4_secondary_startup),
-							cpu_boot_reg(phys_cpu));
+		boot_addr = virt_to_phys(exynos4_secondary_startup);
+
+		/*
+		 * Try to set boot address using firmware first
+		 * and fall back to boot register if it fails.
+		 */
+		if (call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr))
+			__raw_writel(boot_addr, cpu_boot_reg(phys_cpu));
+
+		call_firmware_op(cpu_boot, phys_cpu);
+
 		arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
 		if (pen_release == -1)
@@ -176,10 +182,14 @@ static void __init exynos_smp_init_cpus(void)
 	void __iomem *scu_base = scu_base_addr();
 	unsigned int i, ncores;
 
-	if (soc_is_exynos5250())
-		ncores = 2;
-	else
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		ncores = scu_base ? scu_get_core_count(scu_base) : 1;
+	else
+		/*
+		 * CPU Nodes are passed thru DT and set_cpu_possible
+		 * is set by "arm_dt_init_cpu_maps".
+		 */
+		return;
 
 	/* sanity check */
 	if (ncores > nr_cpu_ids) {
@@ -196,7 +206,7 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
 
-	if (!(soc_is_exynos5250() || soc_is_exynos5440()))
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(scu_base_addr());
 
 	/*
@@ -204,10 +214,20 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 	 * system-wide flags register. The boot monitor waits
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
+	 *
+	 * Try using firmware operation first and fall back to
+	 * boot register if it fails.
 	 */
-	for (i = 1; i < max_cpus; ++i)
-		__raw_writel(virt_to_phys(exynos4_secondary_startup),
-					cpu_boot_reg(cpu_logical_map(i)));
+	for (i = 1; i < max_cpus; ++i) {
+		unsigned long phys_cpu;
+		unsigned long boot_addr;
+
+		phys_cpu = cpu_logical_map(i);
+		boot_addr = virt_to_phys(exynos4_secondary_startup);
+
+		if (call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr))
+			__raw_writel(boot_addr, cpu_boot_reg(phys_cpu));
+	}
 }
 
 struct smp_operations exynos_smp_ops __initdata = {

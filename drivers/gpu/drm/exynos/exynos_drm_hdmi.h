@@ -32,14 +32,11 @@ struct exynos_hdmi_ops {
 	bool (*is_connected)(void *ctx);
 	struct edid *(*get_edid)(void *ctx,
 			struct drm_connector *connector);
-	int (*check_timing)(void *ctx, struct fb_videomode *timing);
+	int (*check_mode)(void *ctx, struct drm_display_mode *mode);
 	int (*power_on)(void *ctx, int mode);
 
 	/* manager */
-	void (*mode_fixup)(void *ctx, struct drm_connector *connector,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode);
-	void (*mode_set)(void *ctx, void *mode);
+	void (*mode_set)(void *ctx, struct drm_display_mode *mode);
 	void (*get_max_resol)(void *ctx, unsigned int *width,
 				unsigned int *height);
 	void (*commit)(void *ctx);
@@ -60,7 +57,7 @@ struct exynos_mixer_ops {
 	void (*win_disable)(void *ctx, int zpos);
 
 	/* display */
-	int (*check_timing)(void *ctx, struct fb_videomode *timing);
+	int (*check_mode)(void *ctx, struct drm_display_mode *mode);
 };
 
 void exynos_hdmi_drv_attach(struct exynos_drm_hdmi_context *ctx);

@@ -123,7 +123,6 @@ static inline u16 ioat2_xferlen_to_descs(struct ioat2_dma_chan *ioat, size_t len
 struct ioat_ring_ent {
 	union {
 		struct ioat_dma_descriptor *hw;
-		struct ioat_fill_descriptor *fill;
 		struct ioat_xor_descriptor *xor;
 		struct ioat_xor_ext_descriptor *xor_ex;
 		struct ioat_pq_descriptor *pq;
@@ -137,6 +136,7 @@ struct ioat_ring_ent {
 	#ifdef DEBUG
 	int id;
 	#endif
+	struct ioat_sed_ent *sed;
 };
 
 static inline struct ioat_ring_ent *
@@ -157,6 +157,7 @@ static inline void ioat2_set_chainaddr(struct ioat2_dma_chan *ioat, u64 addr)
 
 int ioat2_dma_probe(struct ioatdma_device *dev, int dca);
 int ioat3_dma_probe(struct ioatdma_device *dev, int dca);
+void ioat3_dma_remove(struct ioatdma_device *dev);
 struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 int ioat2_check_space_lock(struct ioat2_dma_chan *ioat, int num_descs);

@@ -24,15 +24,21 @@
 unsigned int get_dcache_size(void)
 {
 	unsigned int config2 = metag_in32(METAC_CORE_CONFIG2);
-	return 0x1000 << ((config2 & METAC_CORECFG2_DCSZ_BITS)
-				>> METAC_CORECFG2_DCSZ_S);
+	unsigned int sz = 0x1000 << ((config2 & METAC_CORECFG2_DCSZ_BITS)
+				     >> METAC_CORECFG2_DCSZ_S);
+	if (config2 & METAC_CORECFG2_DCSMALL_BIT)
+		sz >>= 6;
+	return sz;
 }
 
 unsigned int get_icache_size(void)
 {
 	unsigned int config2 = metag_in32(METAC_CORE_CONFIG2);
-	return 0x1000 << ((config2 & METAC_CORE_C2ICSZ_BITS)
-				>> METAC_CORE_C2ICSZ_S);
+	unsigned int sz = 0x1000 << ((config2 & METAC_CORE_C2ICSZ_BITS)
+				     >> METAC_CORE_C2ICSZ_S);
+	if (config2 & METAC_CORECFG2_ICSMALL_BIT)
+		sz >>= 6;
+	return sz;
 }
 
 unsigned int get_global_dcache_size(void)
@@ -61,7 +67,7 @@ static unsigned int get_thread_cache_size(unsigned int cache, int thread_id)
 		return 0;
 #if PAGE_OFFSET >= LINGLOBAL_BASE
 	/* Checking for global cache */
-	cache_size = (cache == DCACHE ? get_global_dache_size() :
+	cache_size = (cache == DCACHE ? get_global_dcache_size() :
 		get_global_icache_size());
 	offset = 8;
 #else
@@ -94,22 +100,23 @@ void check_for_cache_aliasing(int thread_id)
 		thread_cache_size =
 				get_thread_cache_size(cache_type, thread_id);
 		if (thread_cache_size < 0)
-			pr_emerg("Can't read %s cache size", \
+			pr_emerg("Can't read %s cache size\n",
 				 cache_type ? "DCACHE" : "ICACHE");
 		else if (thread_cache_size == 0)
 			/* Cache is off. No need to check for aliasing */
 			continue;
 		if (thread_cache_size / CACHE_ASSOCIATIVITY > PAGE_SIZE) {
-			pr_emerg("Cache aliasing detected in %s on Thread %d",
+			pr_emerg("Potential cache aliasing detected in %s on Thread %d\n",
 				 cache_type ? "DCACHE" : "ICACHE", thread_id);
-			pr_warn("Total %s size: %u bytes",
-				cache_type ? "DCACHE" : "ICACHE ",
+			pr_warn("Total %s size: %u bytes\n",
+				cache_type ? "DCACHE" : "ICACHE",
 				cache_type ? get_dcache_size()
 				: get_icache_size());
-			pr_warn("Thread %s size: %d bytes",
+			pr_warn("Thread %s size: %d bytes\n",
 				cache_type ? "CACHE" : "ICACHE",
 				thread_cache_size);
-			pr_warn("Page Size: %lu bytes", PAGE_SIZE);
+			pr_warn("Page Size: %lu bytes\n", PAGE_SIZE);
+			panic("Potential cache aliasing detected");
 		}
 	}
 }

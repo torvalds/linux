@@ -19,6 +19,7 @@
 #ifndef VPORT_H
 #define VPORT_H 1
 
+#include <linux/if_tunnel.h>
 #include <linux/list.h>
 #include <linux/netlink.h>
 #include <linux/openvswitch.h>
@@ -32,6 +33,11 @@ struct vport;
 struct vport_parms;
 
 /* The following definitions are for users of the vport subsytem: */
+
+/* The following definitions are for users of the vport subsytem: */
+struct vport_net {
+	struct vport __rcu *gre_vport;
+};
 
 int ovs_vport_init(void);
 void ovs_vport_exit(void);
@@ -50,14 +56,6 @@ int ovs_vport_send(struct vport *, struct sk_buff *);
 
 /* The following definitions are for implementers of vport devices: */
 
-struct vport_percpu_stats {
-	u64 rx_bytes;
-	u64 rx_packets;
-	u64 tx_bytes;
-	u64 tx_packets;
-	struct u64_stats_sync sync;
-};
-
 struct vport_err_stats {
 	u64 rx_dropped;
 	u64 rx_errors;
@@ -68,10 +66,10 @@ struct vport_err_stats {
 /**
  * struct vport - one port within a datapath
  * @rcu: RCU callback head for deferred destruction.
- * @port_no: Index into @dp's @ports array.
  * @dp: Datapath to which this port belongs.
  * @upcall_portid: The Netlink port to use for packets received on this port that
  * miss the flow table.
+ * @port_no: Index into @dp's @ports array.
  * @hash_node: Element in @dev_table hash table in vport.c.
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
@@ -81,15 +79,15 @@ struct vport_err_stats {
  */
 struct vport {
 	struct rcu_head rcu;
-	u16 port_no;
 	struct datapath	*dp;
 	u32 upcall_portid;
+	u16 port_no;
 
 	struct hlist_node hash_node;
 	struct hlist_node dp_hash_node;
 	const struct vport_ops *ops;
 
-	struct vport_percpu_stats __percpu *percpu_stats;
+	struct pcpu_tstats __percpu *percpu_stats;
 
 	spinlock_t stats_lock;
 	struct vport_err_stats err_stats;
@@ -130,25 +128,21 @@ struct vport_parms {
  * existing vport to a &struct sk_buff.  May be %NULL for a vport that does not
  * have any configuration.
  * @get_name: Get the device's name.
- * @get_config: Get the device's configuration.
- * @get_ifindex: Get the system interface index associated with the device.
- * May be null if the device does not have an ifindex.
- * @send: Send a packet on the device.  Returns the length of the packet sent.
+ * @send: Send a packet on the device.  Returns the length of the packet sent,
+ * zero for dropped packets or negative for error.
  */
 struct vport_ops {
 	enum ovs_vport_type type;
 
-	/* Called with RTNL lock. */
+	/* Called with ovs_mutex. */
 	struct vport *(*create)(const struct vport_parms *);
 	void (*destroy)(struct vport *);
 
 	int (*set_options)(struct vport *, struct nlattr *);
 	int (*get_options)(const struct vport *, struct sk_buff *);
 
-	/* Called with rcu_read_lock or RTNL lock. */
+	/* Called with rcu_read_lock or ovs_mutex. */
 	const char *(*get_name)(const struct vport *);
-	void (*get_config)(const struct vport *, void *);
-	int (*get_ifindex)(const struct vport *);
 
 	int (*send)(struct vport *, struct sk_buff *);
 };
@@ -163,6 +157,7 @@ enum vport_err_type {
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *,
 			      const struct vport_parms *);
 void ovs_vport_free(struct vport *);
+void ovs_vport_deferred_free(struct vport *vport);
 
 #define VPORT_ALIGN 8
 
@@ -195,12 +190,22 @@ static inline struct vport *vport_from_priv(const void *priv)
 	return (struct vport *)(priv - ALIGN(sizeof(struct vport), VPORT_ALIGN));
 }
 
-void ovs_vport_receive(struct vport *, struct sk_buff *);
+void ovs_vport_receive(struct vport *, struct sk_buff *,
+		       struct ovs_key_ipv4_tunnel *);
 void ovs_vport_record_error(struct vport *, enum vport_err_type err_type);
 
 /* List of statically compiled vport implementations.  Don't forget to also
  * add yours to the list at the top of vport.c. */
 extern const struct vport_ops ovs_netdev_vport_ops;
 extern const struct vport_ops ovs_internal_vport_ops;
+extern const struct vport_ops ovs_gre_vport_ops;
+extern const struct vport_ops ovs_vxlan_vport_ops;
+
+static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
+				      const void *start, unsigned int len)
+{
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_add(skb->csum, csum_partial(start, len, 0));
+}
 
 #endif /* vport.h */

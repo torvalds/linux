@@ -56,7 +56,7 @@ Then fill in the following:
 
 - indio_dev->modes:
 	Specify whether direct access and / or ring buffer access is supported.
-- indio_dev->ring:
+- indio_dev->buffer:
 	An optional associated buffer.
 - indio_dev->pollfunc:
 	Poll function related elements. This controls what occurs when a trigger
@@ -67,7 +67,7 @@ Then fill in the following:
 - indio_dev->num_channels:
 	How many channels are there?
 
-Once these are set up, a call to iio_device_register(indio_dev),
+Once these are set up, a call to iio_device_register(indio_dev)
 will register the device with the iio core.
 
 Worth noting here is that, if a ring buffer is to be used, it can be

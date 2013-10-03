@@ -10,30 +10,26 @@
 #include <media/v4l2-device.h>
 #include <linux/mutex.h>
 
-/* compilation option */
-/*#define GSPCA_DEBUG 1*/
 
-#ifdef GSPCA_DEBUG
-/* GSPCA our debug messages */
+
+/* GSPCA debug codes */
+
+#define D_PROBE  1
+#define D_CONF   2
+#define D_STREAM 3
+#define D_FRAM   4
+#define D_PACK   5
+#define D_USBI   6
+#define D_USBO   7
+
 extern int gspca_debug;
-#define PDEBUG(level, fmt, ...)					\
-do {								\
-	if (gspca_debug & (level))				\
-		pr_info(fmt, ##__VA_ARGS__);			\
-} while (0)
 
-#define D_ERR  0x01
-#define D_PROBE 0x02
-#define D_CONF 0x04
-#define D_STREAM 0x08
-#define D_FRAM 0x10
-#define D_PACK 0x20
-#define D_USBI 0x00
-#define D_USBO 0x00
-#define D_V4L2 0x0100
-#else
-#define PDEBUG(level, fmt, ...) do {} while(0)
-#endif
+
+#define PDEBUG(level, fmt, ...) \
+	v4l2_dbg(level, gspca_debug, &gspca_dev->v4l2_dev, fmt, ##__VA_ARGS__)
+
+#define PERR(fmt, ...) \
+	v4l2_err(&gspca_dev->v4l2_dev, fmt, ##__VA_ARGS__)
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
 /* image transfers */
@@ -46,20 +42,11 @@ struct framerates {
 	int nrates;
 };
 
-/* control definition */
-struct gspca_ctrl {
-	s16 val;	/* current value */
-	s16 def;	/* default value */
-	s16 min, max;	/* minimum and maximum values */
-};
-
 /* device information - set at probe time */
 struct cam {
 	const struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	const struct framerates *mode_framerates; /* must have size nmodes,
 						   * just like cam_mode */
-	struct gspca_ctrl *ctrls;	/* control table - size nctrls */
-					/* may be NULL */
 	u32 bulk_size;		/* buffer size when image transfer by bulk */
 	u32 input_flags;	/* value for ENUM_INPUT status flags */
 	u8 nmodes;		/* size of cam_mode */
@@ -87,14 +74,14 @@ typedef int (*cam_get_jpg_op) (struct gspca_dev *,
 				struct v4l2_jpegcompression *);
 typedef int (*cam_set_jpg_op) (struct gspca_dev *,
 				const struct v4l2_jpegcompression *);
-typedef int (*cam_reg_op) (struct gspca_dev *,
+typedef int (*cam_get_reg_op) (struct gspca_dev *,
 				struct v4l2_dbg_register *);
-typedef int (*cam_ident_op) (struct gspca_dev *,
-				struct v4l2_dbg_chip_ident *);
+typedef int (*cam_set_reg_op) (struct gspca_dev *,
+				const struct v4l2_dbg_register *);
+typedef int (*cam_chip_info_op) (struct gspca_dev *,
+				struct v4l2_dbg_chip_info *);
 typedef void (*cam_streamparm_op) (struct gspca_dev *,
 				  struct v4l2_streamparm *);
-typedef int (*cam_qmnu_op) (struct gspca_dev *,
-			struct v4l2_querymenu *);
 typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
 				u8 *data,
 				int len);
@@ -102,20 +89,10 @@ typedef int (*cam_int_pkt_op) (struct gspca_dev *gspca_dev,
 				u8 *data,
 				int len);
 
-struct ctrl {
-	struct v4l2_queryctrl qctrl;
-	int (*set)(struct gspca_dev *, __s32);
-	int (*get)(struct gspca_dev *, __s32 *);
-	cam_v_op set_control;
-};
-
 /* subdriver description */
 struct sd_desc {
 /* information */
 	const char *name;	/* sub-driver name */
-/* controls */
-	const struct ctrl *ctrls;	/* static control definition */
-	int nctrls;
 /* mandatory operations */
 	cam_cf_op config;	/* called on probe */
 	cam_op init;		/* called on probe and resume */
@@ -130,14 +107,13 @@ struct sd_desc {
 	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_get_jpg_op get_jcomp;
 	cam_set_jpg_op set_jcomp;
-	cam_qmnu_op querymenu;
 	cam_streamparm_op get_streamparm;
 	cam_streamparm_op set_streamparm;
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	cam_reg_op set_register;
-	cam_reg_op get_register;
+	cam_set_reg_op set_register;
+	cam_get_reg_op get_register;
+	cam_chip_info_op get_chip_info;
 #endif
-	cam_ident_op get_chip_ident;
 #if IS_ENABLED(CONFIG_INPUT)
 	cam_int_pkt_op int_pkt_scan;
 	/* other_input makes the gspca core create gspca_dev->input even when
@@ -174,8 +150,6 @@ struct gspca_dev {
 
 	struct cam cam;				/* device information */
 	const struct sd_desc *sd_desc;		/* subdriver description */
-	unsigned ctrl_dis;		/* disabled controls (bit map) */
-	unsigned ctrl_inac;		/* inactive controls (bit map) */
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	/* autogain and exposure or gain control cluster, these are global as

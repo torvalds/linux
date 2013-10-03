@@ -713,7 +713,7 @@ static void serial_m3110_enable_ms(struct uart_port *port)
 {
 }
 
-struct uart_ops serial_m3110_ops = {
+static struct uart_ops serial_m3110_ops = {
 	.tx_empty	= serial_m3110_tx_empty,
 	.set_mctrl	= serial_m3110_set_mctrl,
 	.get_mctrl	= serial_m3110_get_mctrl,
@@ -743,9 +743,10 @@ static struct uart_driver serial_m3110_reg = {
 	.cons		= &serial_m3110_console,
 };
 
-#ifdef CONFIG_PM
-static int serial_m3110_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int serial_m3110_suspend(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct uart_max3110 *max = spi_get_drvdata(spi);
 
 	disable_irq(max->irq);
@@ -754,8 +755,9 @@ static int serial_m3110_suspend(struct spi_device *spi, pm_message_t state)
 	return 0;
 }
 
-static int serial_m3110_resume(struct spi_device *spi)
+static int serial_m3110_resume(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct uart_max3110 *max = spi_get_drvdata(spi);
 
 	max3110_out(max, max->cur_conf);
@@ -763,9 +765,13 @@ static int serial_m3110_resume(struct spi_device *spi)
 	enable_irq(max->irq);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(serial_m3110_pm_ops, serial_m3110_suspend,
+			serial_m3110_resume);
+#define SERIAL_M3110_PM_OPS (&serial_m3110_pm_ops)
+
 #else
-#define serial_m3110_suspend	NULL
-#define serial_m3110_resume	NULL
+#define SERIAL_M3110_PM_OPS NULL
 #endif
 
 static int serial_m3110_probe(struct spi_device *spi)
@@ -838,7 +844,7 @@ static int serial_m3110_probe(struct spi_device *spi)
 	pmax = max;
 
 	/* Give membase a psudo value to pass serial_core's check */
-	max->port.membase = (void *)0xff110000;
+	max->port.membase = (unsigned char __iomem *)0xff110000;
 	uart_add_one_port(&serial_m3110_reg, &max->port);
 
 	return 0;
@@ -872,11 +878,10 @@ static struct spi_driver uart_max3110_driver = {
 	.driver = {
 			.name	= "spi_max3111",
 			.owner	= THIS_MODULE,
+			.pm	= SERIAL_M3110_PM_OPS,
 	},
 	.probe		= serial_m3110_probe,
 	.remove		= serial_m3110_remove,
-	.suspend	= serial_m3110_suspend,
-	.resume		= serial_m3110_resume,
 };
 
 static int __init serial_m3110_init(void)

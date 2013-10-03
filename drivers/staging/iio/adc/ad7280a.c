@@ -503,9 +503,10 @@ static int ad7280_channel_init(struct ad7280_state *st)
 				st->channels[cnt].channel = (dev * 6) + ch - 6;
 			}
 			st->channels[cnt].indexed = 1;
-			st->channels[cnt].info_mask =
-				IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_SCALE_SHARED_BIT;
+			st->channels[cnt].info_mask_separate =
+				BIT(IIO_CHAN_INFO_RAW);
+			st->channels[cnt].info_mask_shared_by_type =
+				BIT(IIO_CHAN_INFO_SCALE);
 			st->channels[cnt].address =
 				AD7280A_DEVADDR(dev) << 8 | ch;
 			st->channels[cnt].scan_index = cnt;
@@ -521,9 +522,8 @@ static int ad7280_channel_init(struct ad7280_state *st)
 	st->channels[cnt].channel2 = dev * 6;
 	st->channels[cnt].address = AD7280A_ALL_CELLS;
 	st->channels[cnt].indexed = 1;
-	st->channels[cnt].info_mask =
-		IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-		IIO_CHAN_INFO_SCALE_SHARED_BIT;
+	st->channels[cnt].info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
+	st->channels[cnt].info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE);
 	st->channels[cnt].scan_index = cnt;
 	st->channels[cnt].scan_type.sign = 'u';
 	st->channels[cnt].scan_type.realbits = 32;
@@ -632,7 +632,7 @@ static ssize_t ad7280_write_channel_config(struct device *dev,
 	long val;
 	int ret;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 

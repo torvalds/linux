@@ -390,6 +390,9 @@ struct wl1271 {
 	/* number of currently active RX BA sessions */
 	int ba_rx_session_count;
 
+	/* Maximum number of supported RX BA sessions */
+	int ba_rx_session_count_max;
+
 	/* AP-mode - number of currently connected stations */
 	int active_sta_count;
 

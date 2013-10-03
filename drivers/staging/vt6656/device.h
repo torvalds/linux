@@ -45,7 +45,6 @@
 #include <linux/timer.h>
 #include <linux/usb.h>
 
-
 #ifdef SIOCETHTOOL
 #define DEVICE_ETHTOOL_IOCTL_SUPPORT
 #include <linux/ethtool.h>
@@ -66,7 +65,6 @@
  */
 
 #include "device_cfg.h"
-#include "ttype.h"
 #include "80211hdr.h"
 #include "tether.h"
 #include "wmgr.h"
@@ -78,7 +76,6 @@
 #include "key.h"
 #include "card.h"
 
-/*---------------------  Export Definitions -------------------------*/
 #define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
 
@@ -122,7 +119,6 @@
 #define ANT_RXA                 2
 #define ANT_RXB                 3
 
-
 #define MAXCHECKHANGCNT         4
 
 /* Packet type */
@@ -141,8 +137,6 @@
 #define RESERV_AC0DMA                   4
 
 #define PRIVATE_Message                 0
-
-/*---------------------  Export Types  ------------------------------*/
 
 #define DBG_PRT(l, p, args...) { if (l <= msglevel) printk(p, ##args); }
 #define PRINT_K(p, args...) { if (PRIVATE_Message) printk(p, ##args); }
@@ -172,8 +166,7 @@ typedef enum _CONTEXT_TYPE {
 } CONTEXT_TYPE;
 
 /* RCB (Receive Control Block) */
-typedef struct _RCB
-{
+struct vnt_rcb {
 	void *Next;
 	signed long Ref;
 	void *pDevice;
@@ -181,21 +174,20 @@ typedef struct _RCB
 	struct vnt_rx_mgmt sMngPacket;
 	struct sk_buff *skb;
 	int bBoolInUse;
-
-} RCB, *PRCB;
+};
 
 /* used to track bulk out irps */
-typedef struct _USB_SEND_CONTEXT {
-    void *pDevice;
-    struct sk_buff *pPacket;
-    struct urb      *pUrb;
-    unsigned int            uBufLen;
-    CONTEXT_TYPE    Type;
-    SEthernetHeader sEthHeader;
-    void *Next;
-    bool            bBoolInUse;
-    unsigned char           Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
-} USB_SEND_CONTEXT, *PUSB_SEND_CONTEXT;
+struct vnt_usb_send_context {
+	void *pDevice;
+	struct sk_buff *pPacket;
+	struct urb *pUrb;
+	unsigned int uBufLen;
+	CONTEXT_TYPE Type;
+	struct ethhdr sEthHeader;
+	void *Next;
+	bool bBoolInUse;
+	unsigned char Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
+};
 
 /* structure got from configuration file as user-desired default settings */
 typedef struct _DEFAULT_CONFIG {
@@ -212,7 +204,7 @@ typedef struct _DEFAULT_CONFIG {
  */
 typedef struct {
     unsigned int            uDataLen;
-    PBYTE           pDataBuf;
+    u8 *           pDataBuf;
   /* struct urb *pUrb; */
     bool            bInUse;
 } INT_BUFFER, *PINT_BUFFER;
@@ -251,7 +243,6 @@ typedef enum __DEVICE_NDIS_STATUS {
 /* PMKID Structures */
 typedef unsigned char   NDIS_802_11_PMKID_VALUE[16];
 
-
 typedef enum _NDIS_802_11_WEP_STATUS
 {
     Ndis802_11WEPEnabled,
@@ -269,7 +260,6 @@ typedef enum _NDIS_802_11_WEP_STATUS
 } NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
   NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
 
-
 typedef enum _NDIS_802_11_STATUS_TYPE
 {
 	Ndis802_11StatusType_Authentication,
@@ -283,7 +273,6 @@ typedef struct _PMKID_CANDIDATE {
     NDIS_802_11_MAC_ADDRESS BSSID;
     unsigned long Flags;
 } PMKID_CANDIDATE, *PPMKID_CANDIDATE;
-
 
 typedef struct _BSSID_INFO
 {
@@ -309,16 +298,16 @@ typedef struct tagSPMKIDCandidateEvent {
 
 typedef struct tagSQuietControl {
     bool        bEnable;
-    DWORD       dwStartTime;
-    BYTE        byPeriod;
-    WORD        wDuration;
+    u32       dwStartTime;
+    u8        byPeriod;
+    u16        wDuration;
 } SQuietControl, *PSQuietControl;
 
 /* The receive duplicate detection cache entry */
 typedef struct tagSCacheEntry{
-    WORD        wFmSequence;
-    BYTE        abyAddr2[ETH_ALEN];
-    WORD        wFrameCtl;
+    u16        wFmSequence;
+    u8        abyAddr2[ETH_ALEN];
+    u16        wFrameCtl;
 } SCacheEntry, *PSCacheEntry;
 
 typedef struct tagSCache{
@@ -335,12 +324,12 @@ typedef struct tagSCache{
  */
 typedef struct tagSDeFragControlBlock
 {
-    WORD            wSequence;
-    WORD            wFragNum;
-    BYTE            abyAddr2[ETH_ALEN];
+    u16            wSequence;
+    u16            wFragNum;
+    u8            abyAddr2[ETH_ALEN];
 	unsigned int            uLifetime;
     struct sk_buff* skb;
-    PBYTE           pbyRxBuffer;
+    u8 *           pbyRxBuffer;
     unsigned int            cbFrameLength;
     bool            bInUse;
 } SDeFragControlBlock, *PSDeFragControlBlock;
@@ -371,7 +360,6 @@ typedef struct tagSDeFragControlBlock
 /* for device_set_media_duplex */
 #define     DEVICE_LINK_CHANGE           0x00000001UL
 
-
 typedef struct __device_opt {
 	int nRxDescs0;  /* number of RX descriptors 0 */
 	int nTxDescs0;  /* number of TX descriptors 0, 1, 2, 3 */
@@ -385,7 +373,6 @@ typedef struct __device_opt {
     int         bbp_type;
     u32         flags;
 } OPTIONS, *POPTIONS;
-
 
 struct vnt_private {
 	/* netdev */
@@ -420,7 +407,6 @@ struct vnt_private {
 	u32 cbFreeDFCB;
 	u32 uCurrentDFCBIdx;
 
-
 	/* USB */
 	struct urb *pControlURB;
 	struct urb *pInterruptURB;
@@ -428,21 +414,21 @@ struct vnt_private {
 	u32 int_interval;
 
 	/* Variables to track resources for the BULK In Pipe */
-	PRCB pRCBMem;
-	PRCB apRCB[CB_MAX_RX_DESC];
+	struct vnt_rcb *pRCBMem;
+	struct vnt_rcb *apRCB[CB_MAX_RX_DESC];
 	u32 cbRD;
-	PRCB FirstRecvFreeList;
-	PRCB LastRecvFreeList;
+	struct vnt_rcb *FirstRecvFreeList;
+	struct vnt_rcb *LastRecvFreeList;
 	u32 NumRecvFreeList;
-	PRCB FirstRecvMngList;
-	PRCB LastRecvMngList;
+	struct vnt_rcb *FirstRecvMngList;
+	struct vnt_rcb *LastRecvMngList;
 	u32 NumRecvMngList;
 	int bIsRxWorkItemQueued;
 	int bIsRxMngWorkItemQueued;
 	unsigned long ulRcvRefCount; /* packets that have not returned back */
 
 	/* Variables to track resources for the BULK Out Pipe */
-	PUSB_SEND_CONTEXT apTD[CB_MAX_TX_DESC];
+	struct vnt_usb_send_context *apTD[CB_MAX_TX_DESC];
 	u32 cbTD;
 
 	/* Variables to track resources for the Interrupt In Pipe */
@@ -452,7 +438,6 @@ struct vnt_private {
 
 	/* default config from file by user setting */
 	DEFAULT_CONFIG config_file;
-
 
 	/* Statistic for USB */
 	unsigned long ulBulkInPosted;
@@ -470,13 +455,11 @@ struct vnt_private {
 	unsigned long ulIntInContCRCError;
 	unsigned long ulIntInBytesRead;
 
-
 	/* Version control */
 	u16 wFirmwareVersion;
 	u8 byLocalID;
 	u8 byRFType;
 	u8 byBBRxConf;
-
 
 	u8 byZoneType;
 	int bZoneRegExist;
@@ -571,7 +554,6 @@ struct vnt_private {
 	u8 byTopOFDMBasicRate;
 	u8 byTopCCKBasicRate;
 
-
 	u32 dwAotoRateTxOkCnt;
 	u32 dwAotoRateTxFailCnt;
 	u32 dwErrorRateThreshold[13];
@@ -607,18 +589,11 @@ struct vnt_private {
 	u8 abyBSSID[ETH_ALEN];
 	u8 abyDesireBSSID[ETH_ALEN];
 
-	u16 wCTSDuration;       /* update while speed change */
-	u16 wACKDuration;
-	u16 wRTSTransmitLen;
-	u8 byRTSServiceField;
-	u8 byRTSSignalField;
-
 	u32 dwMaxReceiveLifetime;  /* dot11MaxReceiveLifetime */
 
 	int bCCK;
 	int bEncryptionEnable;
 	int bLongHeader;
-	int bSoftwareGenCrcErr;
 	int bShortSlotTime;
 	int bProtectMode;
 	int bNonERPPresent;
@@ -684,7 +659,6 @@ struct vnt_private {
 	SKeyManagement sKey;
 	u32 dwIVCounter;
 
-
 	RC4Ext SBox;
 	u8 abyPRNG[WLAN_WEPMAX_KEYLEN+3];
 	u8 byKeyIndex;
@@ -701,12 +675,10 @@ struct vnt_private {
 	/* QoS */
 	int bGrpAckPolicy;
 
-
 	u8 byAutoFBCtrl;
 
 	int bTxMICFail;
 	int bRxMICFail;
-
 
 	/* For Update BaseBand VGA Gain Offset */
 	int bUpdateBBVGA;
@@ -718,7 +690,6 @@ struct vnt_private {
 
 	u8 byBBPreEDRSSI;
 	u8 byBBPreEDIndex;
-
 
 	int bRadioCmd;
 	u32 dwDiagRefCount;
@@ -747,8 +718,8 @@ struct vnt_private {
 	u8 byReAssocCount;
 	u8 byLinkWaitCount;
 
-	SEthernetHeader sTxEthHeader;
-	SEthernetHeader sRxEthHeader;
+	struct ethhdr sTxEthHeader;
+	struct ethhdr sRxEthHeader;
 	u8 abyBroadcastAddr[ETH_ALEN];
 	u8 abySNAP_RFC1042[ETH_ALEN];
 	u8 abySNAP_Bridgetunnel[ETH_ALEN];
@@ -756,7 +727,6 @@ struct vnt_private {
 	/* Pre-Authentication & PMK cache */
 	SPMKID gsPMKID;
 	SPMKIDCandidateEvent gsPMKIDCandidate;
-
 
 	/* for 802.11h */
 	int b11hEnable;
@@ -788,9 +758,6 @@ struct vnt_private {
 
 };
 
-
-
-
 #define EnqueueRCB(_Head, _Tail, _RCB)                  \
 {                                                       \
     if (!_Head) {                                       \
@@ -805,13 +772,12 @@ struct vnt_private {
 
 #define DequeueRCB(Head, Tail)                          \
 {                                                       \
-    PRCB   RCB = Head;                                  \
+    struct vnt_rcb *RCB = Head;                         \
     if (!RCB->Next) {                                   \
         Tail = NULL;                                    \
     }                                                   \
     Head = RCB->Next;                                   \
 }
-
 
 #define ADD_ONE_WITH_WRAP_AROUND(uVar, uModulo) {   \
     if ((uVar) >= ((uModulo) - 1))                  \
@@ -819,7 +785,6 @@ struct vnt_private {
     else                                            \
         (uVar)++;                                   \
 }
-
 
 #define fMP_RESET_IN_PROGRESS               0x00000001
 #define fMP_DISCONNECTED                    0x00000002
@@ -840,8 +805,6 @@ struct vnt_private {
 
 #define MP_IS_READY(_M)        (((_M)->Flags & \
                                  (fMP_DISCONNECTED | fMP_RESET_IN_PROGRESS | fMP_HALT_IN_PROGRESS | fMP_INIT_IN_PROGRESS | fMP_SURPRISE_REMOVED)) == 0)
-
-/*---------------------  Export Functions  --------------------------*/
 
 int device_alloc_frag_buf(struct vnt_private *, PSDeFragControlBlock pDeF);
 

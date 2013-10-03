@@ -476,7 +476,7 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 	dev_dbg(chan2dev(&pd_chan->chan), "scanned %d descriptors\n", i);
 
 	if (!ret) {
-		ret = pdc_alloc_desc(&pd_chan->chan, GFP_NOIO);
+		ret = pdc_alloc_desc(&pd_chan->chan, GFP_ATOMIC);
 		if (ret) {
 			spin_lock(&pd_chan->lock);
 			pd_chan->descs_allocated++;
@@ -564,14 +564,7 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 static enum dma_status pd_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				    struct dma_tx_state *txstate)
 {
-	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
-	enum dma_status ret;
-
-	spin_lock_irq(&pd_chan->lock);
-	ret = dma_cookie_status(chan, cookie, txstate);
-	spin_unlock_irq(&pd_chan->lock);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static void pd_issue_pending(struct dma_chan *chan)
@@ -867,6 +860,7 @@ static int pch_dma_probe(struct pci_dev *pdev,
 
 	if (!(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "Cannot find proper base address\n");
+		err = -ENODEV;
 		goto err_disable_pdev;
 	}
 
@@ -1035,3 +1029,4 @@ MODULE_DESCRIPTION("Intel EG20T PCH / LAPIS Semicon ML7213/ML7223/ML7831 IOH "
 		   "DMA controller driver");
 MODULE_AUTHOR("Yong Wang <yong.y.wang@intel.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(pci, pch_dma_id_table);

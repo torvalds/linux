@@ -43,13 +43,12 @@
  */
 static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 				     struct audioformat *fp,
-				     int format, void *_fmt,
-				     int protocol)
+				     unsigned int format, void *_fmt)
 {
 	int sample_width, sample_bytes;
-	u64 pcm_formats;
+	u64 pcm_formats = 0;
 
-	switch (protocol) {
+	switch (fp->protocol) {
 	case UAC_VERSION_1:
 	default: {
 		struct uac_format_type_i_discrete_descriptor *fmt = _fmt;
@@ -63,14 +62,17 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		struct uac_format_type_i_ext_descriptor *fmt = _fmt;
 		sample_width = fmt->bBitResolution;
 		sample_bytes = fmt->bSubslotSize;
+
+		if (format & UAC2_FORMAT_TYPE_I_RAW_DATA)
+			pcm_formats |= SNDRV_PCM_FMTBIT_SPECIAL;
+
 		format <<= 1;
 		break;
 	}
 	}
 
-	pcm_formats = 0;
-
-	if (format == 0 || format == (1 << UAC_FORMAT_TYPE_I_UNDEFINED)) {
+	if ((pcm_formats == 0) &&
+	    (format == 0 || format == (1 << UAC_FORMAT_TYPE_I_UNDEFINED))) {
 		/* some devices don't define this correctly... */
 		snd_printdd(KERN_INFO "%d:%u:%d : format type 0 is detected, processed as PCM\n",
 			    chip->dev->devnum, fp->iface, fp->altsetting);
@@ -133,6 +135,9 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		snd_printk(KERN_INFO "%d:%u:%d : unsupported format bits %#x\n",
 			   chip->dev->devnum, fp->iface, fp->altsetting, format);
 	}
+
+	pcm_formats |= snd_usb_interface_dsd_format_quirks(chip, fp, sample_bytes);
+
 	return pcm_formats;
 }
 
@@ -277,7 +282,7 @@ static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
 	struct usb_device *dev = chip->dev;
 	unsigned char tmp[2], *data;
 	int nr_triplets, data_size, ret = 0;
-	int clock = snd_usb_clock_find_source(chip, fp->clock);
+	int clock = snd_usb_clock_find_source(chip, fp->clock, false);
 
 	if (clock < 0) {
 		snd_printk(KERN_ERR "%s(): unable to find clock source (clock %d)\n",
@@ -353,13 +358,11 @@ err:
  * parse the format type I and III descriptors
  */
 static int parse_audio_format_i(struct snd_usb_audio *chip,
-				struct audioformat *fp, int format,
-				struct uac_format_type_i_continuous_descriptor *fmt,
-				struct usb_host_interface *iface)
+				struct audioformat *fp, unsigned int format,
+				struct uac_format_type_i_continuous_descriptor *fmt)
 {
-	struct usb_interface_descriptor *altsd = get_iface_desc(iface);
-	int protocol = altsd->bInterfaceProtocol;
-	int pcm_format, ret;
+	snd_pcm_format_t pcm_format;
+	int ret;
 
 	if (fmt->bFormatType == UAC_FORMAT_TYPE_III) {
 		/* FIXME: the format type is really IECxxx
@@ -378,10 +381,9 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 		default:
 			pcm_format = SNDRV_PCM_FORMAT_S16_LE;
 		}
-		fp->formats = 1uLL << pcm_format;
+		fp->formats = pcm_format_to_bits(pcm_format);
 	} else {
-		fp->formats = parse_audio_format_i_type(chip, fp, format,
-							fmt, protocol);
+		fp->formats = parse_audio_format_i_type(chip, fp, format, fmt);
 		if (!fp->formats)
 			return -EINVAL;
 	}
@@ -391,11 +393,8 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 	 * proprietary class specific descriptor.
 	 * audio class v2 uses class specific EP0 range requests for that.
 	 */
-	switch (protocol) {
+	switch (fp->protocol) {
 	default:
-		snd_printdd(KERN_WARNING "%d:%u:%d : invalid protocol version %d, assuming v1\n",
-			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
-		/* fall through */
 	case UAC_VERSION_1:
 		fp->channels = fmt->bNrChannels;
 		ret = parse_audio_format_rates_v1(chip, fp, (unsigned char *) fmt, 7);
@@ -420,12 +419,9 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
  */
 static int parse_audio_format_ii(struct snd_usb_audio *chip,
 				 struct audioformat *fp,
-				 int format, void *_fmt,
-				 struct usb_host_interface *iface)
+				 int format, void *_fmt)
 {
 	int brate, framesize, ret;
-	struct usb_interface_descriptor *altsd = get_iface_desc(iface);
-	int protocol = altsd->bInterfaceProtocol;
 
 	switch (format) {
 	case UAC_FORMAT_TYPE_II_AC3:
@@ -445,11 +441,8 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 
 	fp->channels = 1;
 
-	switch (protocol) {
+	switch (fp->protocol) {
 	default:
-		snd_printdd(KERN_WARNING "%d:%u:%d : invalid protocol version %d, assuming v1\n",
-			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
-		/* fall through */
 	case UAC_VERSION_1: {
 		struct uac_format_type_ii_discrete_descriptor *fmt = _fmt;
 		brate = le16_to_cpu(fmt->wMaxBitRate);
@@ -473,19 +466,20 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 	return ret;
 }
 
-int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp,
-			       int format, struct uac_format_type_i_continuous_descriptor *fmt,
-			       int stream, struct usb_host_interface *iface)
+int snd_usb_parse_audio_format(struct snd_usb_audio *chip,
+			       struct audioformat *fp, unsigned int format,
+			       struct uac_format_type_i_continuous_descriptor *fmt,
+			       int stream)
 {
 	int err;
 
 	switch (fmt->bFormatType) {
 	case UAC_FORMAT_TYPE_I:
 	case UAC_FORMAT_TYPE_III:
-		err = parse_audio_format_i(chip, fp, format, fmt, iface);
+		err = parse_audio_format_i(chip, fp, format, fmt);
 		break;
 	case UAC_FORMAT_TYPE_II:
-		err = parse_audio_format_ii(chip, fp, format, fmt, iface);
+		err = parse_audio_format_ii(chip, fp, format, fmt);
 		break;
 	default:
 		snd_printd(KERN_INFO "%d:%u:%d : format type %d is not supported yet\n",

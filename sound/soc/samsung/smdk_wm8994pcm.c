@@ -146,7 +146,6 @@ static int snd_smdk_probe(struct platform_device *pdev)
 static int snd_smdk_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_card(&smdk_pcm);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

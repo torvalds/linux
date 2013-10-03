@@ -56,7 +56,7 @@ struct max1586_data {
  *   set V6 to either 0V, 1.8V, 2.5V, 3V depending on (x & 0x3)
  * As regulator framework doesn't accept voltages to be 0V, we use 1uV.
  */
-static int v6_voltages_uv[] = { 1, 1800000, 2500000, 3000000 };
+static const unsigned int v6_voltages_uv[] = { 1, 1800000, 2500000, 3000000 };
 
 /*
  * V3 voltage
@@ -163,7 +163,7 @@ static int max1586_pmic_probe(struct i2c_client *client,
 					const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;
-	struct max1586_platform_data *pdata = client->dev.platform_data;
+	struct max1586_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct regulator_config config = { };
 	struct max1586_data *max1586;
 	int i, id, ret = -ENOMEM;
@@ -232,8 +232,7 @@ static int max1586_pmic_remove(struct i2c_client *client)
 	int i;
 
 	for (i = 0; i <= MAX1586_V6; i++)
-		if (max1586->rdev[i])
-			regulator_unregister(max1586->rdev[i]);
+		regulator_unregister(max1586->rdev[i]);
 	return 0;
 }
 

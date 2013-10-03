@@ -80,6 +80,7 @@
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <net/tcp.h>
+#include <net/checksum.h>
 
 #include <asm/div64.h>
 #include <asm/irq.h>
@@ -7919,7 +7920,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_RXCSUM | NETIF_F_LRO;
 	dev->features |= dev->hw_features |
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		dev->hw_features |= NETIF_F_UFO;
 		if (ufo)
@@ -8337,16 +8338,13 @@ static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro)
 {
 	struct iphdr *ip = lro->iph;
 	struct tcphdr *tcp = lro->tcph;
-	__sum16 nchk;
 	struct swStat *swstats = &sp->mac_control.stats_info->sw_stat;
 
 	DBG_PRINT(INFO_DBG, "%s: Been here...\n", __func__);
 
 	/* Update L3 header */
+	csum_replace2(&ip->check, ip->tot_len, htons(lro->total_len));
 	ip->tot_len = htons(lro->total_len);
-	ip->check = 0;
-	nchk = ip_fast_csum((u8 *)lro->iph, ip->ihl);
-	ip->check = nchk;
 
 	/* Update L4 header */
 	tcp->ack_seq = lro->tcp_ack;
@@ -8557,7 +8555,7 @@ static void queue_rx_frame(struct sk_buff *skb, u16 vlan_tag)
 
 	skb->protocol = eth_type_trans(skb, dev);
 	if (vlan_tag && sp->vlan_strip_flag)
-		__vlan_hwaccel_put_tag(skb, vlan_tag);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 	if (sp->config.napi)
 		netif_receive_skb(skb);
 	else

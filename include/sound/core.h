@@ -27,10 +27,11 @@
 #include <linux/rwsem.h>		/* struct rw_semaphore */
 #include <linux/pm.h>			/* pm_message_t */
 #include <linux/stringify.h>
+#include <linux/printk.h>
 
 /* number of supported soundcards */
 #ifdef CONFIG_SND_DYNAMIC_MINORS
-#define SNDRV_CARDS 32
+#define SNDRV_CARDS CONFIG_SND_MAX_CARDS
 #else
 #define SNDRV_CARDS 8		/* don't change - minor numbers */
 #endif
@@ -229,7 +230,7 @@ int snd_register_device_for_dev(int type, struct snd_card *card,
  * This function uses the card's device pointer to link to the
  * correct &struct device.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 static inline int snd_register_device(int type, struct snd_card *card, int dev,
 				      const struct file_operations *f_ops,
@@ -376,21 +377,18 @@ void __snd_printk(unsigned int level, const char *file, int line,
 #define snd_BUG()		WARN(1, "BUG?\n")
 
 /**
+ * Suppress high rates of output when CONFIG_SND_DEBUG is enabled.
+ */
+#define snd_printd_ratelimit() printk_ratelimit()
+
+/**
  * snd_BUG_ON - debugging check macro
  * @cond: condition to evaluate
  *
- * When CONFIG_SND_DEBUG is set, this macro evaluates the given condition,
- * and call WARN() and returns the value if it's non-zero.
- * 
- * When CONFIG_SND_DEBUG is not set, this just returns zero, and the given
- * condition is ignored.
- *
- * NOTE: the argument won't be evaluated at all when CONFIG_SND_DEBUG=n.
- * Thus, don't put any statement that influences on the code behavior,
- * such as pre/post increment, to the argument of this macro.
- * If you want to evaluate and give a warning, use standard WARN_ON().
+ * Has the same behavior as WARN_ON when CONFIG_SND_DEBUG is set,
+ * otherwise just evaluates the conditional and returns the value.
  */
-#define snd_BUG_ON(cond)	WARN((cond), "BUG? (%s)\n", __stringify(cond))
+#define snd_BUG_ON(cond)	WARN_ON((cond))
 
 #else /* !CONFIG_SND_DEBUG */
 
@@ -400,11 +398,13 @@ __printf(2, 3)
 static inline void _snd_printd(int level, const char *format, ...) {}
 
 #define snd_BUG()			do { } while (0)
-static inline int __snd_bug_on(int cond)
-{
-	return 0;
-}
-#define snd_BUG_ON(cond)	__snd_bug_on(0 && (cond))  /* always false */
+
+#define snd_BUG_ON(condition) ({ \
+	int __ret_warn_on = !!(condition); \
+	unlikely(__ret_warn_on); \
+})
+
+static inline bool snd_printd_ratelimit(void) { return false; }
 
 #endif /* CONFIG_SND_DEBUG */
 

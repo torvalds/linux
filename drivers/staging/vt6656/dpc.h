@@ -29,25 +29,16 @@
 #ifndef __DPC_H__
 #define __DPC_H__
 
-#include "ttype.h"
 #include "device.h"
 #include "wcmd.h"
-
-/*---------------------  Export Definitions -------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 void RXvWorkItem(void *Context);
 
 void RXvMngWorkItem(void *Context);
 
-void RXvFreeRCB(PRCB pRCB, int bReAllocSkb);
+void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb);
 
-int RXbBulkInProcessData(struct vnt_private *, PRCB pRCB,
+int RXbBulkInProcessData(struct vnt_private *, struct vnt_rcb *pRCB,
 	unsigned long BytesToIndicate);
 
 #endif /* __RXTX_H__ */

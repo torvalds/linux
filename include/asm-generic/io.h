@@ -343,8 +343,12 @@ extern void ioport_unmap(void __iomem *p);
 #endif /* CONFIG_GENERIC_IOMAP */
 #endif /* CONFIG_HAS_IOPORT */
 
+#ifndef xlate_dev_kmem_ptr
 #define xlate_dev_kmem_ptr(p)	p
+#endif
+#ifndef xlate_dev_mem_ptr
 #define xlate_dev_mem_ptr(p)	__va(p)
+#endif
 
 #ifdef CONFIG_VIRT_TO_BUS
 #ifndef virt_to_bus

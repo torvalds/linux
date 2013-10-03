@@ -35,6 +35,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/err.h>
 
 /*
  * UART Register offsets
@@ -169,7 +170,9 @@ static void handle_rx(struct uart_port *port)
 			tty_insert_flip_char(tport, c, flag);
 	}
 
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tport);
+	spin_lock(&port->lock);
 }
 
 static void handle_tx(struct uart_port *port)
@@ -585,9 +588,9 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	if (!vt8500_port)
 		return -ENOMEM;
 
-	vt8500_port->uart.membase = devm_request_and_ioremap(&pdev->dev, mmres);
-	if (!vt8500_port->uart.membase)
-		return -EADDRNOTAVAIL;
+	vt8500_port->uart.membase = devm_ioremap_resource(&pdev->dev, mmres);
+	if (IS_ERR(vt8500_port->uart.membase))
+		return PTR_ERR(vt8500_port->uart.membase);
 
 	vt8500_port->clk = of_clk_get(pdev->dev.of_node, 0);
 	if (IS_ERR(vt8500_port->clk)) {
@@ -629,7 +632,6 @@ static int vt8500_serial_remove(struct platform_device *pdev)
 {
 	struct vt8500_port *vt8500_port = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	clk_disable_unprepare(vt8500_port->clk);
 	uart_remove_one_port(&vt8500_uart_driver, &vt8500_port->uart);
 
@@ -647,7 +649,7 @@ static struct platform_driver vt8500_platform_driver = {
 	.driver = {
 		.name = "vt8500_serial",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(wmt_dt_ids),
+		.of_match_table = wmt_dt_ids,
 	},
 };
 

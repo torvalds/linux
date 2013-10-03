@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -250,7 +250,6 @@ enum iwl_mvm_agg_state {
  *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
  *	we are ready to finish the Tx AGG stop / start flow.
- * @wait_for_ba: Expect block-ack before next Tx reply
  */
 struct iwl_mvm_tid_data {
 	u16 seq_number;
@@ -260,7 +259,6 @@ struct iwl_mvm_tid_data {
 	enum iwl_mvm_agg_state state;
 	u16 txq_id;
 	u16 ssn;
-	bool wait_for_ba;
 };
 
 /**
@@ -271,10 +269,12 @@ struct iwl_mvm_tid_data {
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
  *	tid.
  * @max_agg_bufsize: the maximal size of the AGG buffer for this station
+ * @bt_reduced_txpower: is reduced tx power enabled for this station
  * @lock: lock to protect the whole struct. Since %tid_data is access from Tx
  * and from Tx response flow, it needs a spinlock.
- * @pending_frames: number of frames for this STA on the shared Tx queues.
  * @tid_data: per tid data. Look at %iwl_mvm_tid_data.
+ * @tx_protection: reference counter for controlling the Tx protection.
+ * @tt_tx_protection: is thermal throttling enable Tx protection?
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -287,8 +287,8 @@ struct iwl_mvm_sta {
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
 	u8 max_agg_bufsize;
+	bool bt_reduced_txpower;
 	spinlock_t lock;
-	atomic_t pending_frames;
 	struct iwl_mvm_tid_data tid_data[IWL_MAX_TID_COUNT];
 	struct iwl_lq_sta lq_sta;
 	struct ieee80211_vif *vif;
@@ -296,6 +296,10 @@ struct iwl_mvm_sta {
 #ifdef CONFIG_PM_SLEEP
 	u16 last_seq_ctl;
 #endif
+
+	/* Temporary, until the new TLC will control the Tx protection */
+	s8 tx_protection;
+	bool tt_tx_protection;
 };
 
 /**
@@ -347,6 +351,8 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u8 buf_size);
 int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta, u16 tid);
+int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid);
 
 int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm);

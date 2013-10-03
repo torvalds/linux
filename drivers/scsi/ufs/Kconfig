@@ -34,7 +34,7 @@
 
 config SCSI_UFSHCD
 	tristate "Universal Flash Storage Controller Driver Core"
-	depends on SCSI
+	depends on SCSI && SCSI_DMA
 	---help---
 	This selects the support for UFS devices in Linux, say Y and make
 	  sure that you know the name of your UFS host adapter (the card
@@ -55,5 +55,16 @@ config SCSI_UFSHCD_PCI
 	you have UFS Host Controller with PCI Interface.
 
 	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config SCSI_UFSHCD_PLATFORM
+	tristate "Platform bus based UFS Controller support"
+	depends on SCSI_UFSHCD
+	---help---
+	This selects the UFS host controller support. Select this if
+	you have an UFS controller on Platform bus.
+
+	If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.

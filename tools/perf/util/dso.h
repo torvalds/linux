@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/rbtree.h>
+#include <stdbool.h>
 #include "types.h"
 #include "map.h"
 
@@ -20,6 +21,8 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
 	DSO_BINARY_TYPE__GUEST_KMODULE,
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
+	DSO_BINARY_TYPE__KCORE,
+	DSO_BINARY_TYPE__GUEST_KCORE,
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
 
@@ -84,6 +87,7 @@ struct dso {
 	u8		 lname_alloc:1;
 	u8		 sorted_by_name;
 	u8		 loaded;
+	u8		 rel;
 	u8		 build_id[BUILD_ID_SIZE];
 	const char	 *short_name;
 	char		 *long_name;
@@ -133,7 +137,8 @@ struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 				const char *short_name, int dso_type);
 
 void dsos__add(struct list_head *head, struct dso *dso);
-struct dso *dsos__find(struct list_head *head, const char *name);
+struct dso *dsos__find(struct list_head *head, const char *name,
+		       bool cmp_short);
 struct dso *__dsos__findnew(struct list_head *head, const char *name);
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
 
@@ -145,4 +150,17 @@ size_t dso__fprintf_buildid(struct dso *dso, FILE *fp);
 size_t dso__fprintf_symbols_by_name(struct dso *dso,
 				    enum map_type type, FILE *fp);
 size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp);
+
+static inline bool dso__is_vmlinux(struct dso *dso)
+{
+	return dso->data_type == DSO_BINARY_TYPE__VMLINUX ||
+	       dso->data_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
+}
+
+static inline bool dso__is_kcore(struct dso *dso)
+{
+	return dso->data_type == DSO_BINARY_TYPE__KCORE ||
+	       dso->data_type == DSO_BINARY_TYPE__GUEST_KCORE;
+}
+
 #endif /* __PERF_DSO */

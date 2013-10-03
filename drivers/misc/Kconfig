@@ -93,6 +93,14 @@ config ATMEL_TCB_CLKSRC_BLOCK
 	  TC can be used for other purposes, such as PWM generation and
 	  interval timing.
 
+config DUMMY_IRQ
+	tristate "Dummy IRQ handler"
+	default n
+	---help---
+	  This module accepts a single 'irq' parameter, which it should register for.
+	  The sole purpose of this module is to help with debugging of systems on
+	  which spurious IRQs would happen on disabled IRQ vector.
+
 config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
 	depends on X86 && PCI && INPUT
@@ -127,7 +135,7 @@ config PHANTOM
 
 config INTEL_MID_PTI
 	tristate "Parallel Trace Interface for MIPI P1149.7 cJTAG standard"
-	depends on PCI && TTY
+	depends on PCI && TTY && (X86_INTEL_MID || COMPILE_TEST)
 	default n
 	help
 	  The PTI (Parallel Trace Interface) driver directs
@@ -398,7 +406,7 @@ config DS1682
 
 config SPEAR13XX_PCIE_GADGET
 	bool "PCIe gadget support for SPEAr13XX platform"
-	depends on ARCH_SPEAR13XX
+	depends on ARCH_SPEAR13XX && BROKEN
 	default n
 	help
 	 This option enables gadget support for PCIe controller. If
@@ -418,7 +426,7 @@ config TI_DAC7512
 
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
-	depends on X86
+	depends on X86 && HYPERVISOR_GUEST
 	help
 	  This is VMware physical memory management driver which acts
 	  like a "balloon" that can be inflated to reclaim physical pages
@@ -472,6 +480,7 @@ config BMP085_SPI
 
 config PCH_PHUB
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
+	select GENERIC_NET_UTILS
 	depends on PCI
 	help
 	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
@@ -509,6 +518,15 @@ config LATTICE_ECP3_CONFIG
 	  or loading) of the Lattice ECP3 FPGA family via SPI.
 
 	  If unsure, say N.
+
+config SRAM
+	bool "Generic on-chip SRAM driver"
+	depends on HAS_IOMEM
+	select GENERIC_ALLOCATOR
+	help
+	  This driver allows you to declare a memory region to be managed by
+	  the genalloc API. It is supposed to be used for small on-chip SRAM
+	  areas found on many SoCs.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

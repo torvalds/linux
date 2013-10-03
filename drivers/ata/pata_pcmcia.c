@@ -387,21 +387,9 @@ static struct pcmcia_driver pcmcia_driver = {
 	.probe		= pcmcia_init_one,
 	.remove		= pcmcia_remove_one,
 };
-
-static int __init pcmcia_init(void)
-{
-	return pcmcia_register_driver(&pcmcia_driver);
-}
-
-static void __exit pcmcia_exit(void)
-{
-	pcmcia_unregister_driver(&pcmcia_driver);
-}
+module_pcmcia_driver(pcmcia_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for PCMCIA ATA");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(pcmcia_init);
-module_exit(pcmcia_exit);

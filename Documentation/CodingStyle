@@ -389,7 +389,8 @@ Albeit deprecated by some people, the equivalent of the goto statement is
 used frequently by compilers in form of the unconditional jump instruction.
 
 The goto statement comes in handy when a function exits from multiple
-locations and some common work such as cleanup has to be done.
+locations and some common work such as cleanup has to be done.  If there is no
+cleanup needed then just return directly.
 
 The rationale is:
 

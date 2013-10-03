@@ -44,7 +44,6 @@
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
-#include <plat/s3c244x.h>
 #include <plat/pm.h>
 
 #include <plat/gpio-core.h>

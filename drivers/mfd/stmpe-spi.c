@@ -103,7 +103,7 @@ stmpe_spi_probe(struct spi_device *spi)
 
 static int stmpe_spi_remove(struct spi_device *spi)
 {
-	struct stmpe *stmpe = dev_get_drvdata(&spi->dev);
+	struct stmpe *stmpe = spi_get_drvdata(spi);
 
 	return stmpe_remove(stmpe);
 }

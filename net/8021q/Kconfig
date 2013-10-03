@@ -3,7 +3,7 @@
 #
 
 config VLAN_8021Q
-	tristate "802.1Q VLAN Support"
+	tristate "802.1Q/802.1ad VLAN Support"
 	---help---
 	  Select this and you will be able to create 802.1Q VLAN interfaces
 	  on your ethernet interfaces.  802.1Q VLAN supports almost

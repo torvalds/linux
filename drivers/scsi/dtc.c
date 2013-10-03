@@ -216,7 +216,8 @@ static int __init dtc_detect(struct scsi_host_template * tpnt)
 	int sig, count;
 
 	tpnt->proc_name = "dtc3x80";
-	tpnt->proc_info = &dtc_proc_info;
+	tpnt->show_info = dtc_show_info;
+	tpnt->write_info = dtc_write_info;
 
 	for (count = 0; current_override < NO_OVERRIDES; ++current_override) {
 		addr = 0;

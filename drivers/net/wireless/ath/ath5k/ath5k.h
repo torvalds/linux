@@ -29,6 +29,7 @@
 #include <linux/average.h>
 #include <linux/leds.h>
 #include <net/mac80211.h>
+#include <net/cfg80211.h>
 
 /* RX/TX descriptor hw structs
  * TODO: Driver part should only see sw structs */
@@ -1523,7 +1524,8 @@ int ath5k_hw_dma_stop(struct ath5k_hw *ah);
 /* EEPROM access functions */
 int ath5k_eeprom_init(struct ath5k_hw *ah);
 void ath5k_eeprom_detach(struct ath5k_hw *ah);
-
+int ath5k_eeprom_mode_from_channel(struct ath5k_hw *ah,
+		struct ieee80211_channel *channel);
 
 /* Protocol Control Unit Functions */
 /* Helpers */

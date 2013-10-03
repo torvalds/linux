@@ -20,6 +20,7 @@
 #include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/of_fdt.h>
+#include <linux/of_platform.h>
 #include <linux/pfn.h>
 #include <linux/root_dev.h>
 #include <linux/sched.h>
@@ -124,6 +125,7 @@ struct machine_desc *machine_desc __initdata;
 u8 cpu_2_hwthread_id[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = BAD_HWTHREAD_ID
 };
+EXPORT_SYMBOL_GPL(cpu_2_hwthread_id);
 
 /*
  * Map a hardware thread ID to a Linux CPU number
@@ -423,6 +425,9 @@ static int __init customize_machine(void)
 	/* customizes platform devices, or adds new ones */
 	if (machine_desc->init_machine)
 		machine_desc->init_machine();
+	else
+		of_platform_populate(NULL, of_default_bus_match_table, NULL,
+				     NULL);
 	return 0;
 }
 arch_initcall(customize_machine);
@@ -586,20 +591,20 @@ PTBI pTBI_get(unsigned int cpu)
 EXPORT_SYMBOL(pTBI_get);
 
 #if defined(CONFIG_METAG_DSP) && defined(CONFIG_METAG_FPU)
-char capabilites[] = "dsp fpu";
+static char capabilities[] = "dsp fpu";
 #elif defined(CONFIG_METAG_DSP)
-char capabilites[] = "dsp";
+static char capabilities[] = "dsp";
 #elif defined(CONFIG_METAG_FPU)
-char capabilites[] = "fpu";
+static char capabilities[] = "fpu";
 #else
-char capabilites[] = "";
+static char capabilities[] = "";
 #endif
 
 static struct ctl_table caps_kern_table[] = {
 	{
 		.procname	= "capabilities",
-		.data		= capabilites,
-		.maxlen		= sizeof(capabilites),
+		.data		= capabilities,
+		.maxlen		= sizeof(capabilities),
 		.mode		= 0444,
 		.proc_handler	= proc_dostring,
 	},

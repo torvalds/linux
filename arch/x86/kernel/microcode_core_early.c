@@ -18,6 +18,7 @@
  */
 #include <linux/module.h>
 #include <asm/microcode_intel.h>
+#include <asm/microcode_amd.h>
 #include <asm/processor.h>
 
 #define QCHAR(a, b, c, d) ((a) + ((b) << 8) + ((c) << 16) + ((d) << 24))
@@ -40,13 +41,10 @@
  *
  * x86_vendor() gets vendor information directly through cpuid.
  */
-static int __cpuinit x86_vendor(void)
+static int x86_vendor(void)
 {
 	u32 eax = 0x00000000;
 	u32 ebx, ecx = 0, edx;
-
-	if (!have_cpuid_p())
-		return X86_VENDOR_UNKNOWN;
 
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 
@@ -59,18 +57,85 @@ static int __cpuinit x86_vendor(void)
 	return X86_VENDOR_UNKNOWN;
 }
 
-void __init load_ucode_bsp(void)
+static int x86_family(void)
 {
-	int vendor = x86_vendor();
+	u32 eax = 0x00000001;
+	u32 ebx, ecx = 0, edx;
+	int x86;
 
-	if (vendor == X86_VENDOR_INTEL)
-		load_ucode_intel_bsp();
+	native_cpuid(&eax, &ebx, &ecx, &edx);
+
+	x86 = (eax >> 8) & 0xf;
+	if (x86 == 15)
+		x86 += (eax >> 20) & 0xff;
+
+	return x86;
 }
 
-void __cpuinit load_ucode_ap(void)
+void __init load_ucode_bsp(void)
 {
-	int vendor = x86_vendor();
+	int vendor, x86;
 
-	if (vendor == X86_VENDOR_INTEL)
-		load_ucode_intel_ap();
+	if (!have_cpuid_p())
+		return;
+
+	vendor = x86_vendor();
+	x86 = x86_family();
+
+	switch (vendor) {
+	case X86_VENDOR_INTEL:
+		if (x86 >= 6)
+			load_ucode_intel_bsp();
+		break;
+	case X86_VENDOR_AMD:
+		if (x86 >= 0x10)
+			load_ucode_amd_bsp();
+		break;
+	default:
+		break;
+	}
+}
+
+void load_ucode_ap(void)
+{
+	int vendor, x86;
+
+	if (!have_cpuid_p())
+		return;
+
+	vendor = x86_vendor();
+	x86 = x86_family();
+
+	switch (vendor) {
+	case X86_VENDOR_INTEL:
+		if (x86 >= 6)
+			load_ucode_intel_ap();
+		break;
+	case X86_VENDOR_AMD:
+		if (x86 >= 0x10)
+			load_ucode_amd_ap();
+		break;
+	default:
+		break;
+	}
+}
+
+int __init save_microcode_in_initrd(void)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	switch (c->x86_vendor) {
+	case X86_VENDOR_INTEL:
+		if (c->x86 >= 6)
+			save_microcode_in_initrd_intel();
+		break;
+	case X86_VENDOR_AMD:
+		if (c->x86 >= 0x10)
+			save_microcode_in_initrd_amd();
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }

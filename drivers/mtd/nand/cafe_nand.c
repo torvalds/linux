@@ -303,13 +303,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	case NAND_CMD_SEQIN:
 	case NAND_CMD_RNDIN:
 	case NAND_CMD_STATUS:
-	case NAND_CMD_DEPLETE1:
 	case NAND_CMD_RNDOUT:
-	case NAND_CMD_STATUS_ERROR:
-	case NAND_CMD_STATUS_ERROR0:
-	case NAND_CMD_STATUS_ERROR1:
-	case NAND_CMD_STATUS_ERROR2:
-	case NAND_CMD_STATUS_ERROR3:
 		cafe_writel(cafe, cafe->ctl2, NAND_CTRL2);
 		return;
 	}
@@ -536,8 +530,8 @@ static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 }
 
 static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int oob_required, int page,
-				int cached, int raw)
+			uint32_t offset, int data_len, const uint8_t *buf,
+			int oob_required, int page, int cached, int raw)
 {
 	int status;
 

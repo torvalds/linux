@@ -624,18 +624,7 @@ static struct platform_driver tx4939ide_driver = {
 	.resume = tx4939ide_resume,
 };
 
-static int __init tx4939ide_init(void)
-{
-	return platform_driver_probe(&tx4939ide_driver, tx4939ide_probe);
-}
-
-static void __exit tx4939ide_exit(void)
-{
-	platform_driver_unregister(&tx4939ide_driver);
-}
-
-module_init(tx4939ide_init);
-module_exit(tx4939ide_exit);
+module_platform_driver_probe(tx4939ide_driver, tx4939ide_probe);
 
 MODULE_DESCRIPTION("TX4939 internal IDE driver");
 MODULE_LICENSE("GPL");

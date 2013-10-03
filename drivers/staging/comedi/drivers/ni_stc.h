@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 /*
@@ -1420,10 +1415,6 @@ struct ni_board_struct {
 
 	enum caldac_enum caldac[3];
 };
-
-#define n_ni_boards  (sizeof(ni_boards)/sizeof(struct ni_board_struct))
-
-#define boardtype (*(struct ni_board_struct *)dev->board_ptr)
 
 #define MAX_N_AO_CHAN 8
 #define NUM_GPCT 2

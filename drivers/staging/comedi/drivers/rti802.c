@@ -14,11 +14,6 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
  */
 /*
 Driver: rti802
@@ -37,9 +32,8 @@ Configuration Options:
     [17] - dac#7 ...
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
 
 #define RTI802_SIZE 4
 
@@ -92,23 +86,15 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct rti802_private *devpriv;
 	struct comedi_subdevice *s;
 	int i;
-	unsigned long iobase;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: rti802: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, RTI802_SIZE, "rti802")) {
-		printk(KERN_WARNING "I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], RTI802_SIZE);
+	if (ret)
+		return ret;
 
-	dev->board_name = "rti802";
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -135,17 +121,11 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void rti802_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, RTI802_SIZE);
-}
-
 static struct comedi_driver rti802_driver = {
 	.driver_name	= "rti802",
 	.module		= THIS_MODULE,
 	.attach		= rti802_attach,
-	.detach		= rti802_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(rti802_driver);
 

@@ -20,7 +20,6 @@ if NET_VENDOR_INTEL
 config E100
 	tristate "Intel(R) PRO/100+ support"
 	depends on PCI
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports Intel(R) PRO/100 family of adapters.
@@ -241,5 +240,23 @@ config IXGBEVF
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbevf.  MSI-X interrupt support is required
 	  for this driver to work correctly.
+
+config I40E
+	tristate "Intel(R) Ethernet Controller XL710 Family support"
+	depends on PCI
+	---help---
+	  This driver supports Intel(R) Ethernet Controller XL710 Family of
+	  devices.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called i40e.
 
 endif # NET_VENDOR_INTEL

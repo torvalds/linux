@@ -53,7 +53,6 @@ nv50_bar_kmap(struct nouveau_bar *bar, struct nouveau_mem *mem,
 		return ret;
 
 	nouveau_vm_map(vma, mem);
-	nv50_vm_flush_engine(nv_subdev(bar), 6);
 	return 0;
 }
 
@@ -69,7 +68,6 @@ nv50_bar_umap(struct nouveau_bar *bar, struct nouveau_mem *mem,
 		return ret;
 
 	nouveau_vm_map(vma, mem);
-	nv50_vm_flush_engine(nv_subdev(bar), 6);
 	return 0;
 }
 
@@ -77,7 +75,6 @@ static void
 nv50_bar_unmap(struct nouveau_bar *bar, struct nouveau_vma *vma)
 {
 	nouveau_vm_unmap(vma);
-	nv50_vm_flush_engine(nv_subdev(bar), 6);
 	nouveau_vm_put(vma);
 }
 
@@ -122,18 +119,20 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x20000, 0, NVOBJ_FLAG_HEAP,
-				&priv->mem);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x20000, 0,
+				 NVOBJ_FLAG_HEAP, &priv->mem);
 	heap = nv_object(priv->mem);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, (device->chipset == 0x50) ?
-				 0x1400 : 0x0200, 0, 0, &priv->pad);
+	ret = nouveau_gpuobj_new(nv_object(priv), heap,
+				(device->chipset == 0x50) ? 0x1400 : 0x0200,
+				 0, 0, &priv->pad);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, 0x4000, 0, 0, &priv->pgd);
+	ret = nouveau_gpuobj_new(nv_object(priv), heap, 0x4000, 0,
+				 0, &priv->pgd);
 	if (ret)
 		return ret;
 
@@ -145,9 +144,11 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, ((limit-- - start) >> 12) * 8,
-				 0x1000, NVOBJ_FLAG_ZERO_ALLOC,
-				 &vm->pgt[0].obj[0]);
+	atomic_inc(&vm->engref[NVDEV_SUBDEV_BAR]);
+
+	ret = nouveau_gpuobj_new(nv_object(priv), heap,
+				 ((limit-- - start) >> 12) * 8, 0x1000,
+				 NVOBJ_FLAG_ZERO_ALLOC, &vm->pgt[0].obj[0]);
 	vm->pgt[0].refcount[0] = 1;
 	if (ret)
 		return ret;
@@ -157,7 +158,7 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, 24, 16, 0, &priv->bar3);
+	ret = nouveau_gpuobj_new(nv_object(priv), heap, 24, 16, 0, &priv->bar3);
 	if (ret)
 		return ret;
 
@@ -177,12 +178,14 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	atomic_inc(&vm->engref[NVDEV_SUBDEV_BAR]);
+
 	ret = nouveau_vm_ref(vm, &priv->bar1_vm, priv->pgd);
 	nouveau_vm_ref(NULL, &vm, NULL);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, 24, 16, 0, &priv->bar1);
+	ret = nouveau_gpuobj_new(nv_object(priv), heap, 24, 16, 0, &priv->bar1);
 	if (ret)
 		return ret;
 
@@ -235,7 +238,11 @@ nv50_bar_init(struct nouveau_object *object)
 
 	nv_mask(priv, 0x000200, 0x00000100, 0x00000000);
 	nv_mask(priv, 0x000200, 0x00000100, 0x00000100);
-	nv50_vm_flush_engine(nv_subdev(priv), 6);
+	nv_wr32(priv, 0x100c80, 0x00060001);
+	if (!nv_wait(priv, 0x100c80, 0x00000001, 0x00000000)) {
+		nv_error(priv, "vm flush timeout\n");
+		return -EBUSY;
+	}
 
 	nv_wr32(priv, 0x001704, 0x00000000 | priv->mem->addr >> 12);
 	nv_wr32(priv, 0x001704, 0x40000000 | priv->mem->addr >> 12);

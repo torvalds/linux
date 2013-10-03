@@ -3,7 +3,7 @@
  * controllers
  *
  * This code is based on drivers/scsi/mpt3sas/mpt3sas_ctl.c
- * Copyright (C) 2012  LSI Corporation
+ * Copyright (C) 2012-2013  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -500,19 +500,6 @@ static int
 _ctl_fasync(int fd, struct file *filep, int mode)
 {
 	return fasync_helper(fd, filep, mode, &async_queue);
-}
-
-/**
- * _ctl_release -
- * @inode -
- * @filep -
- *
- * Called when application releases the fasyn callback handler.
- */
-static int
-_ctl_release(struct inode *inode, struct file *filep)
-{
-	return fasync_helper(-1, filep, 0, &async_queue);
 }
 
 /**
@@ -3233,7 +3220,6 @@ struct device_attribute *mpt3sas_dev_attrs[] = {
 static const struct file_operations ctl_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = _ctl_ioctl,
-	.release = _ctl_release,
 	.poll = _ctl_poll,
 	.fasync = _ctl_fasync,
 #ifdef CONFIG_COMPAT

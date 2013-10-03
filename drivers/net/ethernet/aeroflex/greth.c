@@ -1464,34 +1464,22 @@ static int greth_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Allocate TX descriptor ring in coherent memory */
-	greth->tx_bd_base = (struct greth_bd *) dma_alloc_coherent(greth->dev,
-								   1024,
-								   &greth->tx_bd_base_phys,
-								   GFP_KERNEL);
-
+	greth->tx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
+						&greth->tx_bd_base_phys,
+						GFP_KERNEL);
 	if (!greth->tx_bd_base) {
-		if (netif_msg_probe(greth))
-			dev_err(&dev->dev, "could not allocate descriptor memory.\n");
 		err = -ENOMEM;
 		goto error3;
 	}
 
-	memset(greth->tx_bd_base, 0, 1024);
-
 	/* Allocate RX descriptor ring in coherent memory */
-	greth->rx_bd_base = (struct greth_bd *) dma_alloc_coherent(greth->dev,
-								   1024,
-								   &greth->rx_bd_base_phys,
-								   GFP_KERNEL);
-
+	greth->rx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
+						&greth->rx_bd_base_phys,
+						GFP_KERNEL);
 	if (!greth->rx_bd_base) {
-		if (netif_msg_probe(greth))
-			dev_err(greth->dev, "could not allocate descriptor memory.\n");
 		err = -ENOMEM;
 		goto error4;
 	}
-
-	memset(greth->rx_bd_base, 0, 1024);
 
 	/* Get MAC address from: module param, OF property or ID prom */
 	for (i = 0; i < 6; i++) {
@@ -1577,15 +1565,13 @@ error1:
 
 static int greth_of_remove(struct platform_device *of_dev)
 {
-	struct net_device *ndev = dev_get_drvdata(&of_dev->dev);
+	struct net_device *ndev = platform_get_drvdata(of_dev);
 	struct greth_private *greth = netdev_priv(ndev);
 
 	/* Free descriptor areas */
 	dma_free_coherent(&of_dev->dev, 1024, greth->rx_bd_base, greth->rx_bd_base_phys);
 
 	dma_free_coherent(&of_dev->dev, 1024, greth->tx_bd_base, greth->tx_bd_base_phys);
-
-	dev_set_drvdata(&of_dev->dev, NULL);
 
 	if (greth->phy)
 		phy_stop(greth->phy);

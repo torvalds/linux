@@ -1056,13 +1056,13 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 {
 	int rc = 0;
 	struct tm6000_fh *fh = priv;
 	struct tm6000_core *dev = fh->dev;
 
-	dev->norm = *norm;
+	dev->norm = norm;
 	rc = tm6000_init_analog_mode(dev);
 
 	fh->width  = dev->width;
@@ -1073,6 +1073,15 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
 
+	return 0;
+}
+
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+{
+	struct tm6000_fh *fh = priv;
+	struct tm6000_core *dev = fh->dev;
+
+	*norm = dev->norm;
 	return 0;
 }
 
@@ -1134,7 +1143,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 	dev->input = i;
 
-	rc = vidioc_s_std(file, priv, &dev->vfd->current_norm);
+	rc = vidioc_s_std(file, priv, dev->norm);
 
 	return rc;
 }
@@ -1215,7 +1224,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct tm6000_fh   *fh  = priv;
 	struct tm6000_core *dev = fh->dev;
@@ -1255,7 +1264,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct tm6000_fh   *fh  = priv;
 	struct tm6000_core *dev = fh->dev;
@@ -1293,18 +1302,14 @@ static int radio_g_tuner(struct file *file, void *priv,
 }
 
 static int radio_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *t)
+					const struct v4l2_tuner *t)
 {
 	struct tm6000_fh *fh = file->private_data;
 	struct tm6000_core *dev = fh->dev;
 
 	if (0 != t->index)
 		return -EINVAL;
-	if (t->audmode > V4L2_TUNER_MODE_STEREO)
-		t->audmode = V4L2_TUNER_MODE_STEREO;
-
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
-
 	return 0;
 }
 
@@ -1551,6 +1556,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
 	.vidioc_s_std             = vidioc_s_std,
+	.vidioc_g_std             = vidioc_g_std,
 	.vidioc_enum_input        = vidioc_enum_input,
 	.vidioc_g_input           = vidioc_g_input,
 	.vidioc_s_input           = vidioc_s_input,
@@ -1574,7 +1580,6 @@ static struct video_device tm6000_template = {
 	.ioctl_ops      = &video_ioctl_ops,
 	.release	= video_device_release,
 	.tvnorms        = TM6000_STD,
-	.current_norm   = V4L2_STD_NTSC_M,
 };
 
 static const struct v4l2_file_operations radio_fops = {

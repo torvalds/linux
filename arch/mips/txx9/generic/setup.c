@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <asm/bootinfo.h>
+#include <asm/idle.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
 #include <asm/r4kcache.h>
@@ -118,7 +119,7 @@ EXPORT_SYMBOL(clk_put);
 
 /* GPIO support */
 
-#ifdef CONFIG_GENERIC_GPIO
+#ifdef CONFIG_GPIOLIB
 int gpio_to_irq(unsigned gpio)
 {
 	return -EINVAL;
@@ -349,7 +350,7 @@ static void __init select_board(void)
 	}
 
 	/* select "default" board */
-#ifdef CONFIG_CPU_TX39XX
+#ifdef CONFIG_TOSHIBA_JMR3927
 	txx9_board_vec = &jmr3927_vec;
 #endif
 #ifdef CONFIG_CPU_TX49XX

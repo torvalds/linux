@@ -163,6 +163,7 @@ static int lp3971_ldo_set_voltage_sel(struct regulator_dev *dev,
 
 static struct regulator_ops lp3971_ldo_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3971_ldo_is_enabled,
 	.enable = lp3971_ldo_enable,
 	.disable = lp3971_ldo_disable,
@@ -236,6 +237,7 @@ static int lp3971_dcdc_set_voltage_sel(struct regulator_dev *dev,
 
 static struct regulator_ops lp3971_dcdc_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3971_dcdc_is_enabled,
 	.enable = lp3971_dcdc_enable,
 	.disable = lp3971_dcdc_disable,
@@ -423,7 +425,7 @@ static int lp3971_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct lp3971 *lp3971;
-	struct lp3971_platform_data *pdata = i2c->dev.platform_data;
+	struct lp3971_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret;
 	u16 val;
 
@@ -432,7 +434,7 @@ static int lp3971_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
-	lp3971 = kzalloc(sizeof(struct lp3971), GFP_KERNEL);
+	lp3971 = devm_kzalloc(&i2c->dev, sizeof(struct lp3971), GFP_KERNEL);
 	if (lp3971 == NULL)
 		return -ENOMEM;
 
@@ -447,19 +449,15 @@ static int lp3971_i2c_probe(struct i2c_client *i2c,
 		ret = -ENODEV;
 	if (ret < 0) {
 		dev_err(&i2c->dev, "failed to detect device\n");
-		goto err_detect;
+		return ret;
 	}
 
 	ret = setup_regulators(lp3971, pdata);
 	if (ret < 0)
-		goto err_detect;
+		return ret;
 
 	i2c_set_clientdata(i2c, lp3971);
 	return 0;
-
-err_detect:
-	kfree(lp3971);
-	return ret;
 }
 
 static int lp3971_i2c_remove(struct i2c_client *i2c)
@@ -471,7 +469,6 @@ static int lp3971_i2c_remove(struct i2c_client *i2c)
 		regulator_unregister(lp3971->rdev[i]);
 
 	kfree(lp3971->rdev);
-	kfree(lp3971);
 
 	return 0;
 }

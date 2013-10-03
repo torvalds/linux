@@ -7,16 +7,18 @@
 #include "util.h"
 #include "debug.h"
 
-struct thread *thread__new(pid_t pid)
+struct thread *thread__new(pid_t pid, pid_t tid)
 {
 	struct thread *self = zalloc(sizeof(*self));
 
 	if (self != NULL) {
 		map_groups__init(&self->mg);
-		self->pid = pid;
+		self->pid_ = pid;
+		self->tid = tid;
+		self->ppid = -1;
 		self->comm = malloc(32);
 		if (self->comm)
-			snprintf(self->comm, 32, ":%d", self->pid);
+			snprintf(self->comm, 32, ":%d", self->tid);
 	}
 
 	return self;
@@ -56,7 +58,7 @@ int thread__comm_len(struct thread *self)
 
 size_t thread__fprintf(struct thread *thread, FILE *fp)
 {
-	return fprintf(fp, "Thread %d %s\n", thread->pid, thread->comm) +
+	return fprintf(fp, "Thread %d %s\n", thread->tid, thread->comm) +
 	       map_groups__fprintf(&thread->mg, verbose, fp);
 }
 
@@ -82,5 +84,8 @@ int thread__fork(struct thread *self, struct thread *parent)
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		if (map_groups__clone(&self->mg, &parent->mg, i) < 0)
 			return -ENOMEM;
+
+	self->ppid = parent->tid;
+
 	return 0;
 }

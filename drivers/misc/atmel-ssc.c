@@ -19,7 +19,6 @@
 #include <linux/module.h>
 
 #include <linux/of.h>
-#include <linux/pinctrl/consumer.h>
 
 /* Serialize access to ssc_list and user count */
 static DEFINE_SPINLOCK(user_lock);
@@ -58,7 +57,7 @@ struct ssc_device *ssc_request(unsigned int ssc_num)
 	ssc->user++;
 	spin_unlock(&user_lock);
 
-	clk_enable(ssc->clk);
+	clk_prepare_enable(ssc->clk);
 
 	return ssc;
 }
@@ -66,14 +65,19 @@ EXPORT_SYMBOL(ssc_request);
 
 void ssc_free(struct ssc_device *ssc)
 {
+	bool disable_clk = true;
+
 	spin_lock(&user_lock);
-	if (ssc->user) {
+	if (ssc->user)
 		ssc->user--;
-		clk_disable(ssc->clk);
-	} else {
+	else {
+		disable_clk = false;
 		dev_dbg(&ssc->pdev->dev, "device already free\n");
 	}
 	spin_unlock(&user_lock);
+
+	if (disable_clk)
+		clk_disable_unprepare(ssc->clk);
 }
 EXPORT_SYMBOL(ssc_free);
 
@@ -132,13 +136,6 @@ static int ssc_probe(struct platform_device *pdev)
 	struct resource *regs;
 	struct ssc_device *ssc;
 	const struct atmel_ssc_platform_data *plat_dat;
-	struct pinctrl *pinctrl;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "Failed to request pinctrl\n");
-		return PTR_ERR(pinctrl);
-	}
 
 	ssc = devm_kzalloc(&pdev->dev, sizeof(struct ssc_device), GFP_KERNEL);
 	if (!ssc) {
@@ -154,11 +151,6 @@ static int ssc_probe(struct platform_device *pdev)
 	ssc->pdata = (struct atmel_ssc_platform_data *)plat_dat;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!regs) {
-		dev_dbg(&pdev->dev, "no mmio resource defined\n");
-		return -ENXIO;
-	}
-
 	ssc->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(ssc->regs))
 		return PTR_ERR(ssc->regs);
@@ -172,10 +164,10 @@ static int ssc_probe(struct platform_device *pdev)
 	}
 
 	/* disable all interrupts */
-	clk_enable(ssc->clk);
+	clk_prepare_enable(ssc->clk);
 	ssc_writel(ssc->regs, IDR, -1);
 	ssc_readl(ssc->regs, SR);
-	clk_disable(ssc->clk);
+	clk_disable_unprepare(ssc->clk);
 
 	ssc->irq = platform_get_irq(pdev, 0);
 	if (!ssc->irq) {

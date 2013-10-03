@@ -144,7 +144,7 @@ static int psm;
 static char *essid;
 
 /* Default to encapsulation unless translation requested */
-static int translate = 1;
+static bool translate = 1;
 
 static int country = USA;
 
@@ -178,7 +178,7 @@ module_param(hop_dwell, int, 0);
 module_param(beacon_period, int, 0);
 module_param(psm, int, 0);
 module_param(essid, charp, 0);
-module_param(translate, int, 0);
+module_param(translate, bool, 0);
 module_param(country, int, 0);
 module_param(sniffer, int, 0);
 module_param(bc, int, 0);
@@ -953,7 +953,7 @@ static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx,
 			   unsigned char *data, int len)
 {
 	__be16 proto = ((struct ethhdr *)data)->h_proto;
-	if (ntohs(proto) >= 1536) { /* DIX II ethernet frame */
+	if (ntohs(proto) >= ETH_P_802_3_MIN) { /* DIX II ethernet frame */
 		pr_debug("ray_cs translate_frame DIX II\n");
 		/* Copy LLC header to card buffer */
 		memcpy_toio(&ptx->var, eth2_llc, sizeof(eth2_llc));
@@ -1353,7 +1353,7 @@ static int ray_get_range(struct net_device *dev, struct iw_request_info *info,
 static int ray_set_framing(struct net_device *dev, struct iw_request_info *info,
 			   union iwreq_data *wrqu, char *extra)
 {
-	translate = *(extra);	/* Set framing mode */
+	translate = !!*(extra);	/* Set framing mode */
 
 	return 0;
 }
@@ -2778,7 +2778,7 @@ static ssize_t int_proc_write(struct file *file, const char __user *buffer,
 		nr = nr * 10 + c;
 		p++;
 	} while (--len);
-	*(int *)PDE(file_inode(file))->data = nr;
+	*(int *)PDE_DATA(file_inode(file)) = nr;
 	return count;
 }
 

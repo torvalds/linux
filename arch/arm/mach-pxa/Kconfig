@@ -51,11 +51,13 @@ config MACH_LITTLETON
 config MACH_TAVOREVB
 	bool "PXA930 Evaluation Board (aka TavorEVB)"
 	select CPU_PXA930
+	select CPU_PXA935
 	select PXA3xx
 
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
 	select CPU_PXA930
+	select CPU_PXA935
 	select PXA3xx
 
 comment "Third Party Dev Platforms (sorted by vendor name)"
@@ -160,7 +162,6 @@ config MACH_XCEP
 	select MTD
 	select MTD_CFI
 	select MTD_CFI_INTELEXT
-	select MTD_CHAR
 	select MTD_PHYSMAP
 	select PXA25x
 	select SMC91X
@@ -614,12 +615,14 @@ endmenu
 config PXA25x
 	bool
 	select CPU_XSCALE
+	select CPU_FREQ_TABLE if CPU_FREQ
 	help
 	  Select code specific to PXA21x/25x/26x variants
 
 config PXA27x
 	bool
 	select CPU_XSCALE
+	select CPU_FREQ_TABLE if CPU_FREQ
 	help
 	  Select code specific to PXA27x variants
 
@@ -632,6 +635,7 @@ config CPU_PXA26x
 config PXA3xx
 	bool
 	select CPU_XSC3
+	select CPU_FREQ_TABLE if CPU_FREQ
 	help
 	  Select code specific to PXA3xx variants
 

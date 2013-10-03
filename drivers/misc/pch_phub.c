@@ -633,16 +633,12 @@ static ssize_t show_pch_mac(struct device *dev, struct device_attribute *attr,
 static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	u8 mac[6];
+	u8 mac[ETH_ALEN];
 	ssize_t rom_size;
 	struct pch_phub_reg *chip = dev_get_drvdata(dev);
 
-	if (count != 18)
+	if (!mac_pton(buf, mac))
 		return -EINVAL;
-
-	sscanf(buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-		(u32 *)&mac[0], (u32 *)&mac[1], (u32 *)&mac[2], (u32 *)&mac[3],
-		(u32 *)&mac[4], (u32 *)&mac[5]);
 
 	chip->pch_phub_extrom_base_address = pci_map_rom(chip->pdev, &rom_size);
 	if (!chip->pch_phub_extrom_base_address)
@@ -669,8 +665,6 @@ static struct bin_attribute pch_bin_attr = {
 static int pch_phub_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
-	int retval;
-
 	int ret;
 	struct pch_phub_reg *chip;
 
@@ -713,13 +707,13 @@ static int pch_phub_probe(struct pci_dev *pdev,
 	if (id->driver_data == 1) { /* EG20T PCH */
 		const char *board_name;
 
-		retval = sysfs_create_file(&pdev->dev.kobj,
-					   &dev_attr_pch_mac.attr);
-		if (retval)
+		ret = sysfs_create_file(&pdev->dev.kobj,
+					&dev_attr_pch_mac.attr);
+		if (ret)
 			goto err_sysfs_create;
 
-		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
-		if (retval)
+		ret = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
+		if (ret)
 			goto exit_bin_attr;
 
 		pch_phub_read_modify_write_reg(chip,
@@ -743,8 +737,8 @@ static int pch_phub_probe(struct pci_dev *pdev,
 		chip->pch_opt_rom_start_address = PCH_PHUB_ROM_START_ADDR_EG20T;
 		chip->pch_mac_start_address = PCH_PHUB_MAC_START_ADDR_EG20T;
 	} else if (id->driver_data == 2) { /* ML7213 IOH */
-		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
-		if (retval)
+		ret = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
+		if (ret)
 			goto err_sysfs_create;
 		/* set the prefech value
 		 * Device2(USB OHCI #1/ USB EHCI #1/ USB Device):a
@@ -766,12 +760,12 @@ static int pch_phub_probe(struct pci_dev *pdev,
 						 PCH_PHUB_ROM_START_ADDR_ML7223;
 		chip->pch_mac_start_address = PCH_PHUB_MAC_START_ADDR_ML7223;
 	} else if (id->driver_data == 4) { /* ML7223 IOH Bus-n*/
-		retval = sysfs_create_file(&pdev->dev.kobj,
-					   &dev_attr_pch_mac.attr);
-		if (retval)
+		ret = sysfs_create_file(&pdev->dev.kobj,
+					&dev_attr_pch_mac.attr);
+		if (ret)
 			goto err_sysfs_create;
-		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
-		if (retval)
+		ret = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
+		if (ret)
 			goto exit_bin_attr;
 		/* set the prefech value
 		 * Device2(USB OHCI #0,1,2,3/ USB EHCI #0):a
@@ -783,13 +777,13 @@ static int pch_phub_probe(struct pci_dev *pdev,
 						 PCH_PHUB_ROM_START_ADDR_ML7223;
 		chip->pch_mac_start_address = PCH_PHUB_MAC_START_ADDR_ML7223;
 	} else if (id->driver_data == 5) { /* ML7831 */
-		retval = sysfs_create_file(&pdev->dev.kobj,
-					   &dev_attr_pch_mac.attr);
-		if (retval)
+		ret = sysfs_create_file(&pdev->dev.kobj,
+					&dev_attr_pch_mac.attr);
+		if (ret)
 			goto err_sysfs_create;
 
-		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
-		if (retval)
+		ret = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
+		if (ret)
 			goto exit_bin_attr;
 
 		/* set the prefech value */

@@ -71,6 +71,28 @@
 	set_fs(fs);			\
 	res; })
 
+/* slave list primitives */
+#define bond_to_slave(ptr) list_entry(ptr, struct slave, list)
+
+/* IMPORTANT: bond_first/last_slave can return NULL in case of an empty list */
+#define bond_first_slave(bond) \
+	list_first_entry_or_null(&(bond)->slave_list, struct slave, list)
+#define bond_last_slave(bond) \
+	(list_empty(&(bond)->slave_list) ? NULL : \
+					   bond_to_slave((bond)->slave_list.prev))
+
+#define bond_is_first_slave(bond, pos) ((pos)->list.prev == &(bond)->slave_list)
+#define bond_is_last_slave(bond, pos) ((pos)->list.next == &(bond)->slave_list)
+
+/* Since bond_first/last_slave can return NULL, these can return NULL too */
+#define bond_next_slave(bond, pos) \
+	(bond_is_last_slave(bond, pos) ? bond_first_slave(bond) : \
+					 bond_to_slave((pos)->list.next))
+
+#define bond_prev_slave(bond, pos) \
+	(bond_is_first_slave(bond, pos) ? bond_last_slave(bond) : \
+					  bond_to_slave((pos)->list.prev))
+
 /**
  * bond_for_each_slave_from - iterate the slaves list from a starting point
  * @bond:	the bond holding this list.
@@ -80,37 +102,33 @@
  *
  * Caller must hold bond->lock
  */
-#define bond_for_each_slave_from(bond, pos, cnt, start)	\
-	for (cnt = 0, pos = start;				\
-	     cnt < (bond)->slave_cnt;				\
-             cnt++, pos = (pos)->next)
+#define bond_for_each_slave_from(bond, pos, cnt, start) \
+	for (cnt = 0, pos = start; pos && cnt < (bond)->slave_cnt; \
+	     cnt++, pos = bond_next_slave(bond, pos))
 
 /**
- * bond_for_each_slave_from_to - iterate the slaves list from start point to stop point
- * @bond:	the bond holding this list.
- * @pos:	current slave.
- * @cnt:	counter for number max of moves
- * @start:	start point.
- * @stop:	stop point.
+ * bond_for_each_slave - iterate over all slaves
+ * @bond:	the bond holding this list
+ * @pos:	current slave
  *
  * Caller must hold bond->lock
  */
-#define bond_for_each_slave_from_to(bond, pos, cnt, start, stop)	\
-	for (cnt = 0, pos = start;					\
-	     ((cnt < (bond)->slave_cnt) && (pos != (stop)->next));	\
-             cnt++, pos = (pos)->next)
+#define bond_for_each_slave(bond, pos) \
+	list_for_each_entry(pos, &(bond)->slave_list, list)
+
+/* Caller must have rcu_read_lock */
+#define bond_for_each_slave_rcu(bond, pos) \
+	list_for_each_entry_rcu(pos, &(bond)->slave_list, list)
 
 /**
- * bond_for_each_slave - iterate the slaves list from head
- * @bond:	the bond holding this list.
- * @pos:	current slave.
- * @cnt:	counter for max number of moves
+ * bond_for_each_slave_reverse - iterate in reverse from a given position
+ * @bond:	the bond holding this list
+ * @pos:	slave to continue from
  *
  * Caller must hold bond->lock
  */
-#define bond_for_each_slave(bond, pos, cnt)	\
-		bond_for_each_slave_from(bond, pos, cnt, (bond)->first_slave)
-
+#define bond_for_each_slave_continue_reverse(bond, pos) \
+	list_for_each_entry_continue_reverse(pos, &(bond)->slave_list, list)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 extern atomic_t netpoll_block_tx;
@@ -144,6 +162,7 @@ struct bond_params {
 	u8 num_peer_notif;
 	int arp_interval;
 	int arp_validate;
+	int arp_all_targets;
 	int use_carrier;
 	int fail_over_mac;
 	int updelay;
@@ -157,6 +176,7 @@ struct bond_params {
 	int tx_queues;
 	int all_slaves_active;
 	int resend_igmp;
+	int lp_interval;
 };
 
 struct bond_parm_tbl {
@@ -166,19 +186,14 @@ struct bond_parm_tbl {
 
 #define BOND_MAX_MODENAME_LEN 20
 
-struct vlan_entry {
-	struct list_head vlan_list;
-	unsigned short vlan_id;
-};
-
 struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
-	struct slave *next;
-	struct slave *prev;
+	struct list_head list;
 	struct bonding *bond; /* our master */
 	int    delay;
 	unsigned long jiffies;
 	unsigned long last_arp_rx;
+	unsigned long target_last_arp_rx[BOND_MAX_ARP_TARGETS];
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     new_link;
 	u8     backup:1,   /* indicates backup slave. Value corresponds with
@@ -213,7 +228,7 @@ struct slave {
  */
 struct bonding {
 	struct   net_device *dev; /* first - useful for panic debug */
-	struct   slave *first_slave;
+	struct   list_head slave_list;
 	struct   slave *curr_active_slave;
 	struct   slave *current_arp_slave;
 	struct   slave *primary_slave;
@@ -224,20 +239,17 @@ struct bonding {
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
 	u8	 send_peer_notif;
-	s8	 setup_by_slave;
-	s8       igmp_retrans;
+	u8       igmp_retrans;
 #ifdef CONFIG_PROC_FS
 	struct   proc_dir_entry *proc_entry;
 	char     proc_file_name[IFNAMSIZ];
 #endif /* CONFIG_PROC_FS */
 	struct   list_head bond_list;
-	struct   netdev_hw_addr_list mc_list;
 	int      (*xmit_hash_policy)(struct sk_buff *, int);
 	u16      rr_tx_counter;
 	struct   ad_bond_info ad_info;
 	struct   alb_bond_info alb_info;
 	struct   bond_params params;
-	struct   list_head vlan_list;
 	struct   workqueue_struct *wq;
 	struct   delayed_work mii_work;
 	struct   delayed_work arp_work;
@@ -248,13 +260,7 @@ struct bonding {
 	/* debugging support via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
-	bool	dev_addr_from_first;
 };
-
-static inline bool bond_vlan_used(struct bonding *bond)
-{
-	return !list_empty(&bond->vlan_list);
-}
 
 #define bond_slave_get_rcu(dev) \
 	((struct slave *) rcu_dereference(dev->rx_handler_data))
@@ -271,13 +277,10 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond,
 						  struct net_device *slave_dev)
 {
 	struct slave *slave = NULL;
-	int i;
 
-	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev == slave_dev) {
+	bond_for_each_slave(bond, slave)
+		if (slave->dev == slave_dev)
 			return slave;
-		}
-	}
 
 	return NULL;
 }
@@ -323,6 +326,9 @@ static inline bool bond_is_active_slave(struct slave *slave)
 #define BOND_FOM_ACTIVE			1
 #define BOND_FOM_FOLLOW			2
 
+#define BOND_ARP_TARGETS_ANY		0
+#define BOND_ARP_TARGETS_ALL		1
+
 #define BOND_ARP_VALIDATE_NONE		0
 #define BOND_ARP_VALIDATE_ACTIVE	(1 << BOND_STATE_ACTIVE)
 #define BOND_ARP_VALIDATE_BACKUP	(1 << BOND_STATE_BACKUP)
@@ -335,11 +341,31 @@ static inline int slave_do_arp_validate(struct bonding *bond,
 	return bond->params.arp_validate & (1 << bond_slave_state(slave));
 }
 
+/* Get the oldest arp which we've received on this slave for bond's
+ * arp_targets.
+ */
+static inline unsigned long slave_oldest_target_arp_rx(struct bonding *bond,
+						       struct slave *slave)
+{
+	int i = 1;
+	unsigned long ret = slave->target_last_arp_rx[0];
+
+	for (; (i < BOND_MAX_ARP_TARGETS) && bond->params.arp_targets[i]; i++)
+		if (time_before(slave->target_last_arp_rx[i], ret))
+			ret = slave->target_last_arp_rx[i];
+
+	return ret;
+}
+
 static inline unsigned long slave_last_rx(struct bonding *bond,
 					struct slave *slave)
 {
-	if (slave_do_arp_validate(bond, slave))
-		return slave->last_arp_rx;
+	if (slave_do_arp_validate(bond, slave)) {
+		if (bond->params.arp_all_targets == BOND_ARP_TARGETS_ALL)
+			return slave_oldest_target_arp_rx(bond, slave);
+		else
+			return slave->last_arp_rx;
+	}
 
 	return slave->dev->last_rx;
 }
@@ -394,10 +420,21 @@ static inline __be32 bond_confirm_addr(struct net_device *dev, __be32 dst, __be3
 	return addr;
 }
 
+static inline bool slave_can_tx(struct slave *slave)
+{
+	if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP &&
+	    bond_is_active_slave(slave))
+		return true;
+	else
+		return false;
+}
+
 struct bond_net;
 
+int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
 struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr);
 int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
+void bond_xmit_slave_id(struct bonding *bond, struct sk_buff *skb, int slave_id);
 int bond_create(struct net *net, const char *name);
 int bond_create_sysfs(struct bond_net *net);
 void bond_destroy_sysfs(struct bond_net *net);
@@ -455,14 +492,29 @@ static inline void bond_destroy_proc_dir(struct bond_net *bn)
 static inline struct slave *bond_slave_has_mac(struct bonding *bond,
 					       const u8 *mac)
 {
-	int i = 0;
 	struct slave *tmp;
 
-	bond_for_each_slave(bond, tmp, i)
+	bond_for_each_slave(bond, tmp)
 		if (ether_addr_equal_64bits(mac, tmp->dev->dev_addr))
 			return tmp;
 
 	return NULL;
+}
+
+/* Check if the ip is present in arp ip list, or first free slot if ip == 0
+ * Returns -1 if not found, index if found
+ */
+static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
+{
+	int i;
+
+	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
+		if (targets[i] == ip)
+			return i;
+		else if (targets[i] == 0)
+			break;
+
+	return -1;
 }
 
 /* exported from bond_main.c */
@@ -471,6 +523,7 @@ extern const struct bond_parm_tbl bond_lacp_tbl[];
 extern const struct bond_parm_tbl bond_mode_tbl[];
 extern const struct bond_parm_tbl xmit_hashtype_tbl[];
 extern const struct bond_parm_tbl arp_validate_tbl[];
+extern const struct bond_parm_tbl arp_all_targets_tbl[];
 extern const struct bond_parm_tbl fail_over_mac_tbl[];
 extern const struct bond_parm_tbl pri_reselect_tbl[];
 extern struct bond_parm_tbl ad_select_tbl[];

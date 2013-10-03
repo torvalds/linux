@@ -56,6 +56,7 @@ struct vfio_pci_device {
 	bool			has_vga;
 	struct pci_saved_state	*pci_saved_state;
 	atomic_t		refcnt;
+	struct eventfd_ctx	*err_trigger;
 };
 
 #define is_intx(vdev) (vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX)

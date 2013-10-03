@@ -20,10 +20,13 @@
 #include "common.h"
 #include "prcm-common.h"
 #include "prm44xx.h"
+#include "prm54xx.h"
+#include "prm7xx.h"
 #include "prminst44xx.h"
 #include "prm-regbits-44xx.h"
 #include "prcm44xx.h"
 #include "prcm_mpu44xx.h"
+#include "soc.h"
 
 static void __iomem *_prm_bases[OMAP4_MAX_PRCM_PARTITIONS];
 
@@ -165,10 +168,19 @@ int omap4_prminst_deassert_hardreset(u8 shift, u8 part, s16 inst,
 void omap4_prminst_global_warm_sw_reset(void)
 {
 	u32 v;
+	s16 dev_inst;
 
-	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
-				    OMAP4430_PRM_DEVICE_INST,
-				    OMAP4_PRM_RSTCTRL_OFFSET);
+	if (cpu_is_omap44xx())
+		dev_inst = OMAP4430_PRM_DEVICE_INST;
+	else if (soc_is_omap54xx())
+		dev_inst = OMAP54XX_PRM_DEVICE_INST;
+	else if (soc_is_dra7xx())
+		dev_inst = DRA7XX_PRM_DEVICE_INST;
+	else
+		return;
+
+	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION, dev_inst,
+					OMAP4_PRM_RSTCTRL_OFFSET);
 	v |= OMAP4430_RST_GLOBAL_WARM_SW_MASK;
 	omap4_prminst_write_inst_reg(v, OMAP4430_PRM_PARTITION,
 				 OMAP4430_PRM_DEVICE_INST,

@@ -17,10 +17,56 @@
 #include <linux/of_fdt.h>
 #include <linux/of.h>
 
-#include <mach/map.h>
-#include <plat/devs.h>
-#include <plat/irqs.h>
 #include <plat/mfc.h>
+
+#ifdef CONFIG_SAMSUNG_ATAGS
+#include <mach/map.h>
+#include <mach/irqs.h>
+#include <plat/devs.h>
+
+static struct resource s5p_mfc_resource[] = {
+	[0] = DEFINE_RES_MEM(S5P_PA_MFC, SZ_64K),
+	[1] = DEFINE_RES_IRQ(IRQ_MFC),
+};
+
+struct platform_device s5p_device_mfc = {
+	.name		= "s5p-mfc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s5p_mfc_resource),
+	.resource	= s5p_mfc_resource,
+};
+
+/*
+ * MFC hardware has 2 memory interfaces which are modelled as two separate
+ * platform devices to let dma-mapping distinguish between them.
+ *
+ * MFC parent device (s5p_device_mfc) must be registered before memory
+ * interface specific devices (s5p_device_mfc_l and s5p_device_mfc_r).
+ */
+
+struct platform_device s5p_device_mfc_l = {
+	.name		= "s5p-mfc-l",
+	.id		= -1,
+	.dev		= {
+		.parent			= &s5p_device_mfc.dev,
+		.dma_mask		= &s5p_device_mfc_l.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+struct platform_device s5p_device_mfc_r = {
+	.name		= "s5p-mfc-r",
+	.id		= -1,
+	.dev		= {
+		.parent			= &s5p_device_mfc.dev,
+		.dma_mask		= &s5p_device_mfc_r.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+#else
+static struct platform_device s5p_device_mfc_l;
+static struct platform_device s5p_device_mfc_r;
+#endif
 
 struct s5p_mfc_reserved_mem {
 	phys_addr_t	base;
@@ -29,6 +75,7 @@ struct s5p_mfc_reserved_mem {
 };
 
 static struct s5p_mfc_reserved_mem s5p_mfc_mem[2] __initdata;
+
 
 void __init s5p_mfc_reserve_mem(phys_addr_t rbase, unsigned int rsize,
 				phys_addr_t lbase, unsigned int lsize)
@@ -53,6 +100,7 @@ void __init s5p_mfc_reserve_mem(phys_addr_t rbase, unsigned int rsize,
 	}
 }
 
+#ifdef CONFIG_SAMSUNG_ATAGS
 static int __init s5p_mfc_memory_init(void)
 {
 	int i;
@@ -71,6 +119,7 @@ static int __init s5p_mfc_memory_init(void)
 	return 0;
 }
 device_initcall(s5p_mfc_memory_init);
+#endif
 
 #ifdef CONFIG_OF
 int __init s5p_fdt_find_mfc_mem(unsigned long node, const char *uname,

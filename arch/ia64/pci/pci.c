@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -133,6 +134,10 @@ struct pci_root_info {
 	struct acpi_device *bridge;
 	struct pci_controller *controller;
 	struct list_head resources;
+	struct resource *res;
+	resource_size_t *res_offset;
+	unsigned int res_num;
+	struct list_head io_resources;
 	char *name;
 };
 
@@ -152,7 +157,7 @@ new_space (u64 phys_base, int sparse)
 			return i;
 
 	if (num_io_spaces == MAX_IO_SPACES) {
-		printk(KERN_ERR "PCI: Too many IO port spaces "
+		pr_err("PCI: Too many IO port spaces "
 			"(MAX_IO_SPACES=%lu)\n", MAX_IO_SPACES);
 		return ~0;
 	}
@@ -167,25 +172,22 @@ new_space (u64 phys_base, int sparse)
 static u64 add_io_space(struct pci_root_info *info,
 			struct acpi_resource_address64 *addr)
 {
+	struct iospace_resource *iospace;
 	struct resource *resource;
 	char *name;
 	unsigned long base, min, max, base_port;
 	unsigned int sparse = 0, space_nr, len;
 
-	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
-	if (!resource) {
-		printk(KERN_ERR "PCI: No memory for %s I/O port space\n",
-			info->name);
+	len = strlen(info->name) + 32;
+	iospace = kzalloc(sizeof(*iospace) + len, GFP_KERNEL);
+	if (!iospace) {
+		dev_err(&info->bridge->dev,
+				"PCI: No memory for %s I/O port space\n",
+				info->name);
 		goto out;
 	}
 
-	len = strlen(info->name) + 32;
-	name = kzalloc(len, GFP_KERNEL);
-	if (!name) {
-		printk(KERN_ERR "PCI: No memory for %s I/O port space name\n",
-			info->name);
-		goto free_resource;
-	}
+	name = (char *)(iospace + 1);
 
 	min = addr->minimum;
 	max = min + addr->address_length - 1;
@@ -194,7 +196,7 @@ static u64 add_io_space(struct pci_root_info *info,
 
 	space_nr = new_space(addr->translation_offset, sparse);
 	if (space_nr == ~0)
-		goto free_name;
+		goto free_resource;
 
 	base = __pa(io_space[space_nr].mmio_base);
 	base_port = IO_SPACE_BASE(space_nr);
@@ -209,18 +211,23 @@ static u64 add_io_space(struct pci_root_info *info,
 	if (space_nr == 0)
 		sparse = 1;
 
+	resource = &iospace->res;
 	resource->name  = name;
 	resource->flags = IORESOURCE_MEM;
 	resource->start = base + (sparse ? IO_SPACE_SPARSE_ENCODING(min) : min);
 	resource->end   = base + (sparse ? IO_SPACE_SPARSE_ENCODING(max) : max);
-	insert_resource(&iomem_resource, resource);
+	if (insert_resource(&iomem_resource, resource)) {
+		dev_err(&info->bridge->dev,
+				"can't allocate host bridge io space resource  %pR\n",
+				resource);
+		goto free_resource;
+	}
 
+	list_add_tail(&iospace->list, &info->io_resources);
 	return base_port;
 
-free_name:
-	kfree(name);
 free_resource:
-	kfree(resource);
+	kfree(iospace);
 out:
 	return ~0;
 }
@@ -264,7 +271,7 @@ static acpi_status count_window(struct acpi_resource *resource, void *data)
 static acpi_status add_window(struct acpi_resource *res, void *data)
 {
 	struct pci_root_info *info = data;
-	struct pci_window *window;
+	struct resource *resource;
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 	unsigned long flags, offset = 0;
@@ -288,38 +295,130 @@ static acpi_status add_window(struct acpi_resource *res, void *data)
 	} else
 		return AE_OK;
 
-	window = &info->controller->window[info->controller->windows++];
-	window->resource.name = info->name;
-	window->resource.flags = flags;
-	window->resource.start = addr.minimum + offset;
-	window->resource.end = window->resource.start + addr.address_length - 1;
-	window->offset = offset;
+	resource = &info->res[info->res_num];
+	resource->name = info->name;
+	resource->flags = flags;
+	resource->start = addr.minimum + offset;
+	resource->end = resource->start + addr.address_length - 1;
+	info->res_offset[info->res_num] = offset;
 
-	if (insert_resource(root, &window->resource)) {
+	if (insert_resource(root, resource)) {
 		dev_err(&info->bridge->dev,
 			"can't allocate host bridge window %pR\n",
-			&window->resource);
+			resource);
 	} else {
 		if (offset)
 			dev_info(&info->bridge->dev, "host bridge window %pR "
 				 "(PCI address [%#llx-%#llx])\n",
-				 &window->resource,
-				 window->resource.start - offset,
-				 window->resource.end - offset);
+				 resource,
+				 resource->start - offset,
+				 resource->end - offset);
 		else
 			dev_info(&info->bridge->dev,
-				 "host bridge window %pR\n",
-				 &window->resource);
+				 "host bridge window %pR\n", resource);
 	}
-
 	/* HP's firmware has a hack to work around a Windows bug.
 	 * Ignore these tiny memory ranges */
-	if (!((window->resource.flags & IORESOURCE_MEM) &&
-	      (window->resource.end - window->resource.start < 16)))
-		pci_add_resource_offset(&info->resources, &window->resource,
-					window->offset);
+	if (!((resource->flags & IORESOURCE_MEM) &&
+	      (resource->end - resource->start < 16)))
+		pci_add_resource_offset(&info->resources, resource,
+					info->res_offset[info->res_num]);
 
+	info->res_num++;
 	return AE_OK;
+}
+
+static void free_pci_root_info_res(struct pci_root_info *info)
+{
+	struct iospace_resource *iospace, *tmp;
+
+	list_for_each_entry_safe(iospace, tmp, &info->io_resources, list)
+		kfree(iospace);
+
+	kfree(info->name);
+	kfree(info->res);
+	info->res = NULL;
+	kfree(info->res_offset);
+	info->res_offset = NULL;
+	info->res_num = 0;
+	kfree(info->controller);
+	info->controller = NULL;
+}
+
+static void __release_pci_root_info(struct pci_root_info *info)
+{
+	int i;
+	struct resource *res;
+	struct iospace_resource *iospace;
+
+	list_for_each_entry(iospace, &info->io_resources, list)
+		release_resource(&iospace->res);
+
+	for (i = 0; i < info->res_num; i++) {
+		res = &info->res[i];
+
+		if (!res->parent)
+			continue;
+
+		if (!(res->flags & (IORESOURCE_MEM | IORESOURCE_IO)))
+			continue;
+
+		release_resource(res);
+	}
+
+	free_pci_root_info_res(info);
+	kfree(info);
+}
+
+static void release_pci_root_info(struct pci_host_bridge *bridge)
+{
+	struct pci_root_info *info = bridge->release_data;
+
+	__release_pci_root_info(info);
+}
+
+static int
+probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
+		int busnum, int domain)
+{
+	char *name;
+
+	name = kmalloc(16, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	sprintf(name, "PCI Bus %04x:%02x", domain, busnum);
+	info->bridge = device;
+	info->name = name;
+
+	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
+			&info->res_num);
+	if (info->res_num) {
+		info->res =
+			kzalloc_node(sizeof(*info->res) * info->res_num,
+				     GFP_KERNEL, info->controller->node);
+		if (!info->res) {
+			kfree(name);
+			return -ENOMEM;
+		}
+
+		info->res_offset =
+			kzalloc_node(sizeof(*info->res_offset) * info->res_num,
+					GFP_KERNEL, info->controller->node);
+		if (!info->res_offset) {
+			kfree(name);
+			kfree(info->res);
+			info->res = NULL;
+			return -ENOMEM;
+		}
+
+		info->res_num = 0;
+		acpi_walk_resources(device->handle, METHOD_NAME__CRS,
+			add_window, info);
+	} else
+		kfree(name);
+
+	return 0;
 }
 
 struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
@@ -328,15 +427,14 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	int domain = root->segment;
 	int bus = root->secondary.start;
 	struct pci_controller *controller;
-	unsigned int windows = 0;
-	struct pci_root_info info;
+	struct pci_root_info *info = NULL;
+	int busnum = root->secondary.start;
 	struct pci_bus *pbus;
-	char *name;
-	int pxm;
+	int pxm, ret;
 
 	controller = alloc_pci_controller(domain);
 	if (!controller)
-		goto out1;
+		return NULL;
 
 	controller->acpi_handle = device->handle;
 
@@ -346,29 +444,27 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		controller->node = pxm_to_node(pxm);
 #endif
 
-	INIT_LIST_HEAD(&info.resources);
-	/* insert busn resource at first */
-	pci_add_resource(&info.resources, &root->secondary);
-	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
-			&windows);
-	if (windows) {
-		controller->window =
-			kzalloc_node(sizeof(*controller->window) * windows,
-				     GFP_KERNEL, controller->node);
-		if (!controller->window)
-			goto out2;
-
-		name = kmalloc(16, GFP_KERNEL);
-		if (!name)
-			goto out3;
-
-		sprintf(name, "PCI Bus %04x:%02x", domain, bus);
-		info.bridge = device;
-		info.controller = controller;
-		info.name = name;
-		acpi_walk_resources(device->handle, METHOD_NAME__CRS,
-			add_window, &info);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		dev_err(&device->dev,
+				"pci_bus %04x:%02x: ignored (out of memory)\n",
+				domain, busnum);
+		kfree(controller);
+		return NULL;
 	}
+
+	info->controller = controller;
+	INIT_LIST_HEAD(&info->io_resources);
+	INIT_LIST_HEAD(&info->resources);
+
+	ret = probe_pci_root_info(info, device, busnum, domain);
+	if (ret) {
+		kfree(info->controller);
+		kfree(info);
+		return NULL;
+	}
+	/* insert busn resource at first */
+	pci_add_resource(&info->resources, &root->secondary);
 	/*
 	 * See arch/x86/pci/acpi.c.
 	 * The desired pci bus might already be scanned in a quirk. We
@@ -376,21 +472,17 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	 * such quirk. So we just ignore the case now.
 	 */
 	pbus = pci_create_root_bus(NULL, bus, &pci_root_ops, controller,
-				   &info.resources);
+				   &info->resources);
 	if (!pbus) {
-		pci_free_resource_list(&info.resources);
+		pci_free_resource_list(&info->resources);
+		__release_pci_root_info(info);
 		return NULL;
 	}
 
+	pci_set_host_bridge_release(to_pci_host_bridge(pbus->bridge),
+			release_pci_root_info, info);
 	pci_scan_child_bus(pbus);
 	return pbus;
-
-out3:
-	kfree(controller->window);
-out2:
-	kfree(controller);
-out1:
-	return NULL;
 }
 
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
@@ -456,6 +548,16 @@ void pcibios_fixup_bus(struct pci_bus *b)
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
 	platform_pci_fixup_bus(b);
+}
+
+void pcibios_add_bus(struct pci_bus *bus)
+{
+	acpi_pci_add_bus(bus);
+}
+
+void pcibios_remove_bus(struct pci_bus *bus)
+{
+	acpi_pci_remove_bus(bus);
 }
 
 void pcibios_set_master (struct pci_dev *dev)
@@ -680,7 +782,7 @@ static void __init set_pci_dfl_cacheline_size(void)
 
 	status = ia64_pal_cache_summary(&levels, &unique_caches);
 	if (status != 0) {
-		printk(KERN_ERR "%s: ia64_pal_cache_summary() failed "
+		pr_err("%s: ia64_pal_cache_summary() failed "
 			"(status=%ld)\n", __func__, status);
 		return;
 	}
@@ -688,7 +790,7 @@ static void __init set_pci_dfl_cacheline_size(void)
 	status = ia64_pal_cache_config_info(levels - 1,
 				/* cache_type (data_or_unified)= */ 2, &cci);
 	if (status != 0) {
-		printk(KERN_ERR "%s: ia64_pal_cache_config_info() failed "
+		pr_err("%s: ia64_pal_cache_config_info() failed "
 			"(status=%ld)\n", __func__, status);
 		return;
 	}

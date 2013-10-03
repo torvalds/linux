@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/pm_qos.h>
-#include <linux/uio.h>
+#include <linux/aio.h>
 #include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/control.h>
@@ -898,6 +898,8 @@ static struct action_ops snd_pcm_action_start = {
 /**
  * snd_pcm_start - start all linked streams
  * @substream: the PCM substream instance
+ *
+ * Return: Zero if successful, or a negative error code.
  */
 int snd_pcm_start(struct snd_pcm_substream *substream)
 {
@@ -951,6 +953,8 @@ static struct action_ops snd_pcm_action_stop = {
  * @state: PCM state after stopping the stream
  *
  * The state of each stream is then changed to the given state unconditionally.
+ *
+ * Return: Zero if succesful, or a negative error code.
  */
 int snd_pcm_stop(struct snd_pcm_substream *substream, snd_pcm_state_t state)
 {
@@ -965,6 +969,8 @@ EXPORT_SYMBOL(snd_pcm_stop);
  *
  * After stopping, the state is changed to SETUP.
  * Unlike snd_pcm_stop(), this affects only the given stream.
+ *
+ * Return: Zero if succesful, or a negative error code.
  */
 int snd_pcm_drain_done(struct snd_pcm_substream *substream)
 {
@@ -1098,6 +1104,9 @@ static struct action_ops snd_pcm_action_suspend = {
  * @substream: the PCM substream
  *
  * After this call, all streams are changed to SUSPENDED state.
+ *
+ * Return: Zero if successful (or @substream is %NULL), or a negative error
+ * code.
  */
 int snd_pcm_suspend(struct snd_pcm_substream *substream)
 {
@@ -1120,6 +1129,8 @@ EXPORT_SYMBOL(snd_pcm_suspend);
  * @pcm: the PCM instance
  *
  * After this call, all streams are changed to SUSPENDED state.
+ *
+ * Return: Zero if successful (or @pcm is %NULL), or a negative error code.
  */
 int snd_pcm_suspend_all(struct snd_pcm *pcm)
 {
@@ -1343,6 +1354,8 @@ static struct action_ops snd_pcm_action_prepare = {
  * snd_pcm_prepare - prepare the PCM substream to be triggerable
  * @substream: the PCM substream instance
  * @file: file to refer f_flags
+ *
+ * Return: Zero if successful, or a negative error code.
  */
 static int snd_pcm_prepare(struct snd_pcm_substream *substream,
 			   struct file *file)
@@ -1576,29 +1589,16 @@ static int snd_pcm_drop(struct snd_pcm_substream *substream)
 }
 
 
-/* WARNING: Don't forget to fput back the file */
-static struct file *snd_pcm_file_fd(int fd, int *fput_needed)
+static bool is_pcm_file(struct file *file)
 {
-	struct file *file;
-	struct inode *inode;
+	struct inode *inode = file_inode(file);
 	unsigned int minor;
 
-	file = fget_light(fd, fput_needed);
-	if (!file)
-		return NULL;
-	inode = file_inode(file);
-	if (!S_ISCHR(inode->i_mode) ||
-	    imajor(inode) != snd_major) {
-		fput_light(file, *fput_needed);
-		return NULL;
-	}
+	if (!S_ISCHR(inode->i_mode) || imajor(inode) != snd_major)
+		return false;
 	minor = iminor(inode);
-	if (!snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_PLAYBACK) &&
-	    !snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_CAPTURE)) {
-		fput_light(file, *fput_needed);
-		return NULL;
-	}
-	return file;
+	return snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_PLAYBACK) ||
+		snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_CAPTURE);
 }
 
 /*
@@ -1607,16 +1607,18 @@ static struct file *snd_pcm_file_fd(int fd, int *fput_needed)
 static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 {
 	int res = 0;
-	struct file *file;
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream1;
 	struct snd_pcm_group *group;
-	int fput_needed;
+	struct fd f = fdget(fd);
 
-	file = snd_pcm_file_fd(fd, &fput_needed);
-	if (!file)
+	if (!f.file)
 		return -EBADFD;
-	pcm_file = file->private_data;
+	if (!is_pcm_file(f.file)) {
+		res = -EBADFD;
+		goto _badf;
+	}
+	pcm_file = f.file->private_data;
 	substream1 = pcm_file->substream;
 	group = kmalloc(sizeof(*group), GFP_KERNEL);
 	if (!group) {
@@ -1636,6 +1638,7 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	}
 	if (!snd_pcm_stream_linked(substream)) {
 		substream->group = group;
+		group = NULL;
 		spin_lock_init(&substream->group->lock);
 		INIT_LIST_HEAD(&substream->group->substreams);
 		list_add_tail(&substream->link_list, &substream->group->substreams);
@@ -1649,9 +1652,9 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	up_write(&snd_pcm_link_rwsem);
  _nolock:
 	snd_card_unref(substream1->pcm->card);
-	fput_light(file, fput_needed);
-	if (res < 0)
-		kfree(group);
+	kfree(group);
+ _badf:
+	fdput(f);
 	return res;
 }
 
@@ -3222,18 +3225,10 @@ EXPORT_SYMBOL_GPL(snd_pcm_lib_default_mmap);
 int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 			   struct vm_area_struct *area)
 {
-	long size;
-	unsigned long offset;
+	struct snd_pcm_runtime *runtime = substream->runtime;;
 
 	area->vm_page_prot = pgprot_noncached(area->vm_page_prot);
-	area->vm_flags |= VM_IO;
-	size = area->vm_end - area->vm_start;
-	offset = area->vm_pgoff << PAGE_SHIFT;
-	if (io_remap_pfn_range(area, area->vm_start,
-				(substream->runtime->dma_addr + offset) >> PAGE_SHIFT,
-				size, area->vm_page_prot))
-		return -EAGAIN;
-	return 0;
+	return vm_iomap_memory(area, runtime->dma_addr, runtime->dma_bytes);
 }
 
 EXPORT_SYMBOL(snd_pcm_lib_mmap_iomem);

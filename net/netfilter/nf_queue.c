@@ -1,3 +1,8 @@
+/*
+ * Rusty Russell (C)2000 -- This code is GPL.
+ * Patrick McHardy (c) 2006-2012
+ */
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -40,7 +45,7 @@ void nf_unregister_queue_handler(void)
 }
 EXPORT_SYMBOL(nf_unregister_queue_handler);
 
-static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
+void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
 {
 	/* Release those devices we held, or Alexey will kill me. */
 	if (entry->indev)
@@ -60,12 +65,41 @@ static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
 	/* Drop reference to owner of hook which queued us. */
 	module_put(entry->elem->owner);
 }
+EXPORT_SYMBOL_GPL(nf_queue_entry_release_refs);
+
+/* Bump dev refs so they don't vanish while packet is out */
+bool nf_queue_entry_get_refs(struct nf_queue_entry *entry)
+{
+	if (!try_module_get(entry->elem->owner))
+		return false;
+
+	if (entry->indev)
+		dev_hold(entry->indev);
+	if (entry->outdev)
+		dev_hold(entry->outdev);
+#ifdef CONFIG_BRIDGE_NETFILTER
+	if (entry->skb->nf_bridge) {
+		struct nf_bridge_info *nf_bridge = entry->skb->nf_bridge;
+		struct net_device *physdev;
+
+		physdev = nf_bridge->physindev;
+		if (physdev)
+			dev_hold(physdev);
+		physdev = nf_bridge->physoutdev;
+		if (physdev)
+			dev_hold(physdev);
+	}
+#endif
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(nf_queue_entry_get_refs);
 
 /*
  * Any packet that leaves via this function must come back
  * through nf_reinject().
  */
-static int __nf_queue(struct sk_buff *skb,
+int nf_queue(struct sk_buff *skb,
 		      struct nf_hook_ops *elem,
 		      u_int8_t pf, unsigned int hook,
 		      struct net_device *indev,
@@ -75,10 +109,6 @@ static int __nf_queue(struct sk_buff *skb,
 {
 	int status = -ENOENT;
 	struct nf_queue_entry *entry = NULL;
-#ifdef CONFIG_BRIDGE_NETFILTER
-	struct net_device *physindev;
-	struct net_device *physoutdev;
-#endif
 	const struct nf_afinfo *afinfo;
 	const struct nf_queue_handler *qh;
 
@@ -109,28 +139,13 @@ static int __nf_queue(struct sk_buff *skb,
 		.indev	= indev,
 		.outdev	= outdev,
 		.okfn	= okfn,
+		.size	= sizeof(*entry) + afinfo->route_key_size,
 	};
 
-	/* If it's going away, ignore hook. */
-	if (!try_module_get(entry->elem->owner)) {
+	if (!nf_queue_entry_get_refs(entry)) {
 		status = -ECANCELED;
 		goto err_unlock;
 	}
-	/* Bump dev refs so they don't vanish while packet is out */
-	if (indev)
-		dev_hold(indev);
-	if (outdev)
-		dev_hold(outdev);
-#ifdef CONFIG_BRIDGE_NETFILTER
-	if (skb->nf_bridge) {
-		physindev = skb->nf_bridge->physindev;
-		if (physindev)
-			dev_hold(physindev);
-		physoutdev = skb->nf_bridge->physoutdev;
-		if (physoutdev)
-			dev_hold(physoutdev);
-	}
-#endif
 	skb_dst_force(skb);
 	afinfo->saveroute(skb, entry);
 	status = qh->outfn(entry, queuenum);
@@ -149,87 +164,6 @@ err_unlock:
 err:
 	kfree(entry);
 	return status;
-}
-
-#ifdef CONFIG_BRIDGE_NETFILTER
-/* When called from bridge netfilter, skb->data must point to MAC header
- * before calling skb_gso_segment(). Else, original MAC header is lost
- * and segmented skbs will be sent to wrong destination.
- */
-static void nf_bridge_adjust_skb_data(struct sk_buff *skb)
-{
-	if (skb->nf_bridge)
-		__skb_push(skb, skb->network_header - skb->mac_header);
-}
-
-static void nf_bridge_adjust_segmented_data(struct sk_buff *skb)
-{
-	if (skb->nf_bridge)
-		__skb_pull(skb, skb->network_header - skb->mac_header);
-}
-#else
-#define nf_bridge_adjust_skb_data(s) do {} while (0)
-#define nf_bridge_adjust_segmented_data(s) do {} while (0)
-#endif
-
-int nf_queue(struct sk_buff *skb,
-	     struct nf_hook_ops *elem,
-	     u_int8_t pf, unsigned int hook,
-	     struct net_device *indev,
-	     struct net_device *outdev,
-	     int (*okfn)(struct sk_buff *),
-	     unsigned int queuenum)
-{
-	struct sk_buff *segs;
-	int err = -EINVAL;
-	unsigned int queued;
-
-	if (!skb_is_gso(skb))
-		return __nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
-				  queuenum);
-
-	switch (pf) {
-	case NFPROTO_IPV4:
-		skb->protocol = htons(ETH_P_IP);
-		break;
-	case NFPROTO_IPV6:
-		skb->protocol = htons(ETH_P_IPV6);
-		break;
-	}
-
-	nf_bridge_adjust_skb_data(skb);
-	segs = skb_gso_segment(skb, 0);
-	/* Does not use PTR_ERR to limit the number of error codes that can be
-	 * returned by nf_queue.  For instance, callers rely on -ECANCELED to mean
-	 * 'ignore this hook'.
-	 */
-	if (IS_ERR(segs))
-		goto out_err;
-	queued = 0;
-	err = 0;
-	do {
-		struct sk_buff *nskb = segs->next;
-
-		segs->next = NULL;
-		if (err == 0) {
-			nf_bridge_adjust_segmented_data(segs);
-			err = __nf_queue(segs, elem, pf, hook, indev,
-					   outdev, okfn, queuenum);
-		}
-		if (err == 0)
-			queued++;
-		else
-			kfree_skb(segs);
-		segs = nskb;
-	} while (segs);
-
-	if (queued) {
-		kfree_skb(skb);
-		return 0;
-	}
-  out_err:
-	nf_bridge_adjust_segmented_data(skb);
-	return err;
 }
 
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
@@ -271,9 +205,9 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 		local_bh_enable();
 		break;
 	case NF_QUEUE:
-		err = __nf_queue(skb, elem, entry->pf, entry->hook,
-				 entry->indev, entry->outdev, entry->okfn,
-				 verdict >> NF_VERDICT_QBITS);
+		err = nf_queue(skb, elem, entry->pf, entry->hook,
+				entry->indev, entry->outdev, entry->okfn,
+				verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
 			if (err == -ECANCELED)
 				goto next_hook;

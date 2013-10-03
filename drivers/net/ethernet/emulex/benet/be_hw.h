@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -53,10 +53,12 @@
 #define PHYSDEV_CONTROL_OFFSET		0x414
 
 #define SLIPORT_STATUS_ERR_MASK		0x80000000
+#define SLIPORT_STATUS_DIP_MASK		0x02000000
 #define SLIPORT_STATUS_RN_MASK		0x01000000
 #define SLIPORT_STATUS_RDY_MASK		0x00800000
 #define SLI_PORT_CONTROL_IP_MASK	0x08000000
 #define PHYSDEV_CONTROL_FW_RESET_MASK	0x00000002
+#define PHYSDEV_CONTROL_DD_MASK		0x00000004
 #define PHYSDEV_CONTROL_INP_MASK	0x40000000
 
 #define SLIPORT_ERROR_NO_RESOURCE1	0x2
@@ -71,6 +73,10 @@
  * with the OS.
  */
 #define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
+
+/********* PCI Function Capability *********/
+#define BE_FUNCTION_CAPS_RSS			0x2
+#define BE_FUNCTION_CAPS_SUPER_NIC		0x40
 
 /********* Power management (WOL) **********/
 #define PCICFG_PM_CONTROL_OFFSET		0x44
@@ -352,7 +358,7 @@ struct amap_eth_rx_compl_v0 {
 	u8 ip_version;		/* dword 1 */
 	u8 macdst[6];		/* dword 1 */
 	u8 vtp;			/* dword 1 */
-	u8 rsvd0;		/* dword 1 */
+	u8 ip_frag;		/* dword 1 */
 	u8 fragndx[10];		/* dword 1 */
 	u8 ct[2];		/* dword 1 */
 	u8 sw;			/* dword 1 */
@@ -495,7 +501,8 @@ struct flash_file_hdr_g3 {
 	u32 antidote;
 	u32 num_imgs;
 	u8 build[24];
-	u8 rsvd[32];
+	u8 asic_type_rev;
+	u8 rsvd[31];
 };
 
 struct flash_section_hdr {

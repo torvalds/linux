@@ -8,8 +8,8 @@
 #define __BOARD_MOP500_H
 
 /* For NOMADIK_NR_GPIO */
-#include <mach/irqs.h>
-#include <mach/msp.h>
+#include "irqs.h"
+#include <linux/platform_data/asoc-ux500-msp.h>
 #include <linux/amba/mmci.h>
 
 /* Snowball specific GPIO assignments, this board has no GPIO expander */
@@ -93,6 +93,7 @@ extern struct amba_pl011_data uart0_plat;
 extern struct amba_pl011_data uart1_plat;
 extern struct amba_pl011_data uart2_plat;
 extern struct pl022_ssp_controller ssp0_plat;
+extern struct stedma40_platform_data dma40_plat_data;
 
 extern void mop500_sdi_init(struct device *parent);
 extern void snowball_sdi_init(struct device *parent);

@@ -166,8 +166,8 @@ static void rtl8723ae_dm_diginit(struct ieee80211_hw *hw)
 	dm_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
 	dm_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
 	dm_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
-	dm_digtable->rx_gain_range_max = DM_DIG_MAX;
-	dm_digtable->rx_gain_range_min = DM_DIG_MIN;
+	dm_digtable->rx_gain_max = DM_DIG_MAX;
+	dm_digtable->rx_gain_min = DM_DIG_MIN;
 	dm_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
 	dm_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
 	dm_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
@@ -291,11 +291,11 @@ static void rtl92c_dm_ctrl_initgain_by_rssi(struct ieee80211_hw *hw)
 	}
 
 	if ((dgtbl->rssi_val_min + 10 - dgtbl->back_val) >
-	    dgtbl->rx_gain_range_max)
-		dgtbl->cur_igvalue = dgtbl->rx_gain_range_max;
+	    dgtbl->rx_gain_max)
+		dgtbl->cur_igvalue = dgtbl->rx_gain_max;
 	else if ((dgtbl->rssi_val_min + 10 -
-		  dgtbl->back_val) < dgtbl->rx_gain_range_min)
-		dgtbl->cur_igvalue = dgtbl->rx_gain_range_min;
+		  dgtbl->back_val) < dgtbl->rx_gain_min)
+		dgtbl->cur_igvalue = dgtbl->rx_gain_min;
 	else
 		dgtbl->cur_igvalue = dgtbl->rssi_val_min + 10 - dgtbl->back_val;
 
@@ -707,6 +707,77 @@ void rtl8723ae_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw)
 		rtlpriv->dm.useramask = false;
 }
 
+static void rtl8723ae_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
+	struct rate_adaptive *p_ra = &(rtlpriv->ra);
+	u32 low_rssithresh_for_ra, high_rssithresh_for_ra;
+	struct ieee80211_sta *sta = NULL;
+
+	if (is_hal_stop(rtlhal)) {
+		RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
+			 " driver is going to unload\n");
+		return;
+	}
+
+	if (!rtlpriv->dm.useramask) {
+		RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
+			 " driver does not control rate adaptive mask\n");
+		return;
+	}
+
+	if (mac->link_state == MAC80211_LINKED &&
+	    mac->opmode == NL80211_IFTYPE_STATION) {
+		switch (p_ra->pre_ratr_state) {
+		case DM_RATR_STA_HIGH:
+			high_rssithresh_for_ra = 50;
+			low_rssithresh_for_ra = 20;
+			break;
+		case DM_RATR_STA_MIDDLE:
+			high_rssithresh_for_ra = 55;
+			low_rssithresh_for_ra = 20;
+			break;
+		case DM_RATR_STA_LOW:
+			high_rssithresh_for_ra = 50;
+			low_rssithresh_for_ra = 25;
+			break;
+		default:
+			high_rssithresh_for_ra = 50;
+			low_rssithresh_for_ra = 20;
+			break;
+		}
+
+		if (rtlpriv->dm.undec_sm_pwdb > high_rssithresh_for_ra)
+			p_ra->ratr_state = DM_RATR_STA_HIGH;
+		else if (rtlpriv->dm.undec_sm_pwdb > low_rssithresh_for_ra)
+			p_ra->ratr_state = DM_RATR_STA_MIDDLE;
+		else
+			p_ra->ratr_state = DM_RATR_STA_LOW;
+
+		if (p_ra->pre_ratr_state != p_ra->ratr_state) {
+			RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
+				 "RSSI = %ld\n",
+				 rtlpriv->dm.undec_sm_pwdb);
+			RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
+				 "RSSI_LEVEL = %d\n", p_ra->ratr_state);
+			RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
+				 "PreState = %d, CurState = %d\n",
+				 p_ra->pre_ratr_state, p_ra->ratr_state);
+
+			rcu_read_lock();
+			sta = rtl_find_sta(hw, mac->bssid);
+			if (sta)
+				rtlpriv->cfg->ops->update_rate_tbl(hw, sta,
+							   p_ra->ratr_state);
+			rcu_read_unlock();
+
+			p_ra->pre_ratr_state = p_ra->ratr_state;
+		}
+	}
+}
+
 static void rtl8723ae_dm_init_dynamic_bpowersaving(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -853,6 +924,9 @@ void rtl8723ae_dm_watchdog(struct ieee80211_hw *hw)
 	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_FWLPS_RF_ON,
 				      (u8 *) (&fw_ps_awake));
 
+	if (ppsc->p2p_ps_info.p2p_ps_mode)
+		fw_ps_awake = false;
+
 	if ((ppsc->rfpwr_state == ERFON) &&
 	    ((!fw_current_inpsmode) && fw_ps_awake) &&
 	    (!ppsc->rfchange_inprogress)) {
@@ -861,7 +935,7 @@ void rtl8723ae_dm_watchdog(struct ieee80211_hw *hw)
 		rtl8723ae_dm_false_alarm_counter_statistics(hw);
 		rtl8723ae_dm_dynamic_bpowersaving(hw);
 		rtl8723ae_dm_dynamic_txpower(hw);
-		/* rtl92c_dm_refresh_rate_adaptive_mask(hw); */
+		rtl8723ae_dm_refresh_rate_adaptive_mask(hw);
 		rtl8723ae_dm_bt_coexist(hw);
 		rtl8723ae_dm_check_edca_turbo(hw);
 	}

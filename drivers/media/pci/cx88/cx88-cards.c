@@ -59,6 +59,11 @@ MODULE_PARM_DESC(disable_ir, "Disable IR support");
 #define err_printk(core, fmt, arg...) \
 	printk(KERN_ERR "%s: " fmt, core->name , ## arg)
 
+#define dprintk(level,fmt, arg...)	do {				\
+	if (cx88_core_debug >= level)					\
+		printk(KERN_DEBUG "%s: " fmt, core->name , ## arg);	\
+	} while(0)
+
 
 /* ------------------------------------------------------------------ */
 /* board config info                                                  */
@@ -739,7 +744,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		/* Some variants use a tda9874 and so need the tvaudio module. */
-		.audio_chip     = V4L2_IDENT_TVAUDIO,
+		.audio_chip     = CX88_AUDIO_TVAUDIO,
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
@@ -971,7 +976,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.audio_chip	= V4L2_IDENT_WM8775,
+		.audio_chip	= CX88_AUDIO_WM8775,
 		.i2sinputcntl   = 2,
 		.input		= {{
 			.type	= CX88_VMUX_DVB,
@@ -1009,7 +1014,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.audio_chip = V4L2_IDENT_WM8775,
+		.audio_chip = CX88_AUDIO_WM8775,
 		.input		= {{
 			.type	= CX88_VMUX_DVB,
 			.vmux	= 0,
@@ -1371,7 +1376,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.audio_chip     = V4L2_IDENT_WM8775,
+		.audio_chip     = CX88_AUDIO_WM8775,
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
@@ -1456,7 +1461,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.audio_chip     = V4L2_IDENT_WM8775,
+		.audio_chip     = CX88_AUDIO_WM8775,
 		/*
 		 * gpio0 as reported by Mike Crash <mike AT mikecrash.com>
 		 */
@@ -1924,7 +1929,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.audio_chip     = V4L2_IDENT_WM8775,
+		.audio_chip     = CX88_AUDIO_WM8775,
 		/*
 		 * GPIO0 (WINTV2000)
 		 *
@@ -2855,6 +2860,7 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	core->board.tuner_type = tv.tuner_type;
 	core->tuner_formats = tv.tuner_formats;
 	core->board.radio.type = tv.has_radio ? CX88_RADIO : 0;
+	core->model = tv.model;
 
 	/* Make sure we support the board model */
 	switch (tv.model)
@@ -3133,7 +3139,7 @@ static int cx88_xc2028_tuner_callback(struct cx88_core *core,
 	case XC2028_TUNER_RESET:
 		switch (INPUT(core->input).type) {
 		case CX88_RADIO:
-			info_printk(core, "setting GPIO to radio!\n");
+			dprintk(1, "setting GPIO to radio!\n");
 			cx_write(MO_GP0_IO, 0x4ff);
 			mdelay(250);
 			cx_write(MO_GP2_IO, 0xff);
@@ -3141,7 +3147,7 @@ static int cx88_xc2028_tuner_callback(struct cx88_core *core,
 			break;
 		case CX88_VMUX_DVB:	/* Digital TV*/
 		default:		/* Analog TV */
-			info_printk(core, "setting GPIO to TV!\n");
+			dprintk(1, "setting GPIO to TV!\n");
 			break;
 		}
 		cx_write(MO_GP1_IO, 0x101010);
@@ -3199,8 +3205,7 @@ static int cx88_xc5000_tuner_callback(struct cx88_core *core,
 			   not having any tuning at all. */
 			return 0;
 		} else {
-			err_printk(core, "xc5000: unknown tuner "
-				   "callback command.\n");
+			dprintk(1, "xc5000: unknown tuner callback command.\n");
 			return -EINVAL;
 		}
 		break;
@@ -3211,8 +3216,7 @@ static int cx88_xc5000_tuner_callback(struct cx88_core *core,
 			cx_set(MO_GP0_IO, 0x00000010);
 			return 0;
 		} else {
-			printk(KERN_ERR
-				"xc5000: unknown tuner callback command.\n");
+			dprintk(1, "xc5000: unknown tuner callback command.\n");
 			return -EINVAL;
 		}
 		break;
@@ -3242,13 +3246,13 @@ int cx88_tuner_callback(void *priv, int component, int command, int arg)
 
 	switch (core->board.tuner_type) {
 		case TUNER_XC2028:
-			info_printk(core, "Calling XC2028/3028 callback\n");
+			dprintk(1, "Calling XC2028/3028 callback\n");
 			return cx88_xc2028_tuner_callback(core, command, arg);
 		case TUNER_XC4000:
-			info_printk(core, "Calling XC4000 callback\n");
+			dprintk(1, "Calling XC4000 callback\n");
 			return cx88_xc4000_tuner_callback(core, command, arg);
 		case TUNER_XC5000:
-			info_printk(core, "Calling XC5000 callback\n");
+			dprintk(1, "Calling XC5000 callback\n");
 			return cx88_xc5000_tuner_callback(core, command, arg);
 	}
 	err_printk(core, "Error: Calling callback for tuner %d\n",
@@ -3589,8 +3593,8 @@ static void cx88_card_setup(struct cx88_core *core)
 		memset(&xc2028_cfg, 0, sizeof(xc2028_cfg));
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
-		info_printk(core, "Asking xc2028/3028 to load firmware %s\n",
-			    ctl.fname);
+		dprintk(1, "Asking xc2028/3028 to load firmware %s\n",
+			ctl.fname);
 		call_all(core, tuner, s_config, &xc2028_cfg);
 	}
 	call_all(core, core, s_power, 0);
@@ -3759,8 +3763,8 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	if (radio[core->nr] != UNSET)
 		core->board.radio_type = radio[core->nr];
 
-	info_printk(core, "TV tuner type %d, Radio tuner type %d\n",
-		    core->board.tuner_type, core->board.radio_type);
+	dprintk(1, "TV tuner type %d, Radio tuner type %d\n",
+		core->board.tuner_type, core->board.radio_type);
 
 	/* init hardware */
 	cx88_reset(core);

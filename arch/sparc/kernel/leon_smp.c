@@ -54,7 +54,7 @@ extern ctxd_t *srmmu_ctx_table_phys;
 static int smp_processors_ready;
 extern volatile unsigned long cpu_callin_map[NR_CPUS];
 extern cpumask_t smp_commenced_mask;
-void __cpuinit leon_configure_cache_smp(void);
+void leon_configure_cache_smp(void);
 static void leon_ipi_init(void);
 
 /* IRQ number of LEON IPIs */
@@ -69,12 +69,12 @@ static inline unsigned long do_swap(volatile unsigned long *ptr,
 	return val;
 }
 
-void __cpuinit leon_cpu_pre_starting(void *arg)
+void leon_cpu_pre_starting(void *arg)
 {
 	leon_configure_cache_smp();
 }
 
-void __cpuinit leon_cpu_pre_online(void *arg)
+void leon_cpu_pre_online(void *arg)
 {
 	int cpuid = hard_smp_processor_id();
 
@@ -106,7 +106,7 @@ void __cpuinit leon_cpu_pre_online(void *arg)
 
 extern struct linux_prom_registers smp_penguin_ctable;
 
-void __cpuinit leon_configure_cache_smp(void)
+void leon_configure_cache_smp(void)
 {
 	unsigned long cfg = sparc_leon3_get_dcachecfg();
 	int me = smp_processor_id();
@@ -186,7 +186,7 @@ void __init leon_boot_cpus(void)
 
 }
 
-int __cpuinit leon_boot_one_cpu(int i, struct task_struct *idle)
+int leon_boot_one_cpu(int i, struct task_struct *idle)
 {
 	int timeout;
 
@@ -253,25 +253,13 @@ void __init leon_smp_done(void)
 
 	/* Free unneeded trap tables */
 	if (!cpu_present(1)) {
-		ClearPageReserved(virt_to_page(&trapbase_cpu1));
-		init_page_count(virt_to_page(&trapbase_cpu1));
-		free_page((unsigned long)&trapbase_cpu1);
-		totalram_pages++;
-		num_physpages++;
+		free_reserved_page(virt_to_page(&trapbase_cpu1));
 	}
 	if (!cpu_present(2)) {
-		ClearPageReserved(virt_to_page(&trapbase_cpu2));
-		init_page_count(virt_to_page(&trapbase_cpu2));
-		free_page((unsigned long)&trapbase_cpu2);
-		totalram_pages++;
-		num_physpages++;
+		free_reserved_page(virt_to_page(&trapbase_cpu2));
 	}
 	if (!cpu_present(3)) {
-		ClearPageReserved(virt_to_page(&trapbase_cpu3));
-		init_page_count(virt_to_page(&trapbase_cpu3));
-		free_page((unsigned long)&trapbase_cpu3);
-		totalram_pages++;
-		num_physpages++;
+		free_reserved_page(virt_to_page(&trapbase_cpu3));
 	}
 	/* Ok, they are spinning and ready to go. */
 	smp_processors_ready = 1;

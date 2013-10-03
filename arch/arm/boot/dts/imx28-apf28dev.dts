@@ -72,12 +72,38 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_16bit_pins_a
 						&lcdif_pins_apf28dev>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <16>;
+					bus-width = <16>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <33000033>;
+							hactive = <800>;
+							vactive = <480>;
+							hback-porch = <96>;
+							hfront-porch = <96>;
+							vback-porch = <20>;
+							vfront-porch = <21>;
+							hsync-len = <64>;
+							vsync-len = <4>;
+							hsync-active = <1>;
+							vsync-active = <1>;
+							de-active = <1>;
+							pixelclk-active = <0>;
+						};
+					};
+				};
 			};
 		};
 
 		apbx@80040000 {
 			lradc@80050000 {
+				fsl,lradc-touchscreen-wires = <4>;
 				status = "okay";
 			};
 

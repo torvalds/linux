@@ -337,5 +337,5 @@ void gfar_init_sysfs(struct net_device *dev)
 	rc |= device_create_file(&dev->dev, &dev_attr_fifo_starve);
 	rc |= device_create_file(&dev->dev, &dev_attr_fifo_starve_off);
 	if (rc)
-		dev_err(&dev->dev, "Error creating gianfar sysfs files.\n");
+		dev_err(&dev->dev, "Error creating gianfar sysfs files\n");
 }

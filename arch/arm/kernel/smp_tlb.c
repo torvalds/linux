@@ -12,6 +12,7 @@
 
 #include <asm/smp_plat.h>
 #include <asm/tlbflush.h>
+#include <asm/mmu_context.h>
 
 /**********************************************************************/
 
@@ -69,12 +70,42 @@ static inline void ipi_flush_bp_all(void *ignored)
 	local_flush_bp_all();
 }
 
+static void ipi_flush_tlb_a15_erratum(void *arg)
+{
+	dmb();
+}
+
+static void broadcast_tlb_a15_erratum(void)
+{
+	if (!erratum_a15_798181())
+		return;
+
+	dummy_flush_tlb_a15_erratum();
+	smp_call_function(ipi_flush_tlb_a15_erratum, NULL, 1);
+}
+
+static void broadcast_tlb_mm_a15_erratum(struct mm_struct *mm)
+{
+	int this_cpu;
+	cpumask_t mask = { CPU_BITS_NONE };
+
+	if (!erratum_a15_798181())
+		return;
+
+	dummy_flush_tlb_a15_erratum();
+	this_cpu = get_cpu();
+	a15_erratum_get_cpumask(this_cpu, mm, &mask);
+	smp_call_function_many(&mask, ipi_flush_tlb_a15_erratum, NULL, 1);
+	put_cpu();
+}
+
 void flush_tlb_all(void)
 {
 	if (tlb_ops_need_broadcast())
 		on_each_cpu(ipi_flush_tlb_all, NULL, 1);
 	else
-		local_flush_tlb_all();
+		__flush_tlb_all();
+	broadcast_tlb_a15_erratum();
 }
 
 void flush_tlb_mm(struct mm_struct *mm)
@@ -82,7 +113,8 @@ void flush_tlb_mm(struct mm_struct *mm)
 	if (tlb_ops_need_broadcast())
 		on_each_cpu_mask(mm_cpumask(mm), ipi_flush_tlb_mm, mm, 1);
 	else
-		local_flush_tlb_mm(mm);
+		__flush_tlb_mm(mm);
+	broadcast_tlb_mm_a15_erratum(mm);
 }
 
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
@@ -94,7 +126,8 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 		on_each_cpu_mask(mm_cpumask(vma->vm_mm), ipi_flush_tlb_page,
 					&ta, 1);
 	} else
-		local_flush_tlb_page(vma, uaddr);
+		__flush_tlb_page(vma, uaddr);
+	broadcast_tlb_mm_a15_erratum(vma->vm_mm);
 }
 
 void flush_tlb_kernel_page(unsigned long kaddr)
@@ -104,7 +137,8 @@ void flush_tlb_kernel_page(unsigned long kaddr)
 		ta.ta_start = kaddr;
 		on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1);
 	} else
-		local_flush_tlb_kernel_page(kaddr);
+		__flush_tlb_kernel_page(kaddr);
+	broadcast_tlb_a15_erratum();
 }
 
 void flush_tlb_range(struct vm_area_struct *vma,
@@ -119,6 +153,7 @@ void flush_tlb_range(struct vm_area_struct *vma,
 					&ta, 1);
 	} else
 		local_flush_tlb_range(vma, start, end);
+	broadcast_tlb_mm_a15_erratum(vma->vm_mm);
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
@@ -130,6 +165,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1);
 	} else
 		local_flush_tlb_kernel_range(start, end);
+	broadcast_tlb_a15_erratum();
 }
 
 void flush_bp_all(void)
@@ -137,5 +173,5 @@ void flush_bp_all(void)
 	if (tlb_ops_need_broadcast())
 		on_each_cpu(ipi_flush_bp_all, NULL, 1);
 	else
-		local_flush_bp_all();
+		__flush_bp_all();
 }

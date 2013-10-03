@@ -44,7 +44,7 @@ Split key generation-----------------------------------------------
 [06] 0x64260028    fifostr: class2 mdsplit-jdk len=40
 			@0xffe04000
 */
-u32 gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
+int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 		  int split_key_pad_len, const u8 *key_in, u32 keylen,
 		  u32 alg_op)
 {
@@ -95,9 +95,9 @@ u32 gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 			  LDST_CLASS_2_CCB | FIFOST_TYPE_SPLIT_KEK);
 
 #ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ctx.key@"xstr(__LINE__)": ",
+	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key_in, keylen, 1);
-	print_hex_dump(KERN_ERR, "jobdesc@"xstr(__LINE__)": ",
+	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
 
@@ -110,7 +110,7 @@ u32 gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 		wait_for_completion_interruptible(&result.completion);
 		ret = result.err;
 #ifdef DEBUG
-		print_hex_dump(KERN_ERR, "ctx.key@"xstr(__LINE__)": ",
+		print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 			       DUMP_PREFIX_ADDRESS, 16, 4, key_out,
 			       split_key_pad_len, 1);
 #endif

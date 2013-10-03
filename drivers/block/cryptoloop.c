@@ -25,9 +25,9 @@
 #include <linux/string.h>
 #include <linux/crypto.h>
 #include <linux/blkdev.h>
-#include <linux/loop.h>
 #include <linux/scatterlist.h>
 #include <asm/uaccess.h>
+#include "loop.h"
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("loop blockdevice transferfunction adaptor / CryptoAPI");

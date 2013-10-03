@@ -30,6 +30,8 @@ static inline size_t br_port_info_size(void)
 		+ nla_total_size(1)	/* IFLA_BRPORT_GUARD */
 		+ nla_total_size(1)	/* IFLA_BRPORT_PROTECT */
 		+ nla_total_size(1)	/* IFLA_BRPORT_FAST_LEAVE */
+		+ nla_total_size(1)	/* IFLA_BRPORT_LEARNING */
+		+ nla_total_size(1)	/* IFLA_BRPORT_UNICAST_FLOOD */
 		+ 0;
 }
 
@@ -56,7 +58,9 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 	    nla_put_u8(skb, IFLA_BRPORT_MODE, mode) ||
 	    nla_put_u8(skb, IFLA_BRPORT_GUARD, !!(p->flags & BR_BPDU_GUARD)) ||
 	    nla_put_u8(skb, IFLA_BRPORT_PROTECT, !!(p->flags & BR_ROOT_BLOCK)) ||
-	    nla_put_u8(skb, IFLA_BRPORT_FAST_LEAVE, !!(p->flags & BR_MULTICAST_FAST_LEAVE)))
+	    nla_put_u8(skb, IFLA_BRPORT_FAST_LEAVE, !!(p->flags & BR_MULTICAST_FAST_LEAVE)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_LEARNING, !!(p->flags & BR_LEARNING)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_UNICAST_FLOOD, !!(p->flags & BR_FLOOD)))
 		return -EMSGSIZE;
 
 	return 0;
@@ -128,7 +132,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		else
 			pv = br_get_vlan_info(br);
 
-		if (!pv || bitmap_empty(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN))
+		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID))
 			goto done;
 
 		af = nla_nest_start(skb, IFLA_AF_SPEC);
@@ -136,10 +140,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 			goto nla_put_failure;
 
 		pvid = br_get_pvid(pv);
-		for (vid = find_first_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN);
-		     vid < BR_VLAN_BITMAP_LEN;
-		     vid = find_next_bit(pv->vlan_bitmap,
-					 BR_VLAN_BITMAP_LEN, vid+1)) {
+		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
 			vinfo.vid = vid;
 			vinfo.flags = 0;
 			if (vid == pvid)
@@ -206,7 +207,7 @@ int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	       struct net_device *dev, u32 filter_mask)
 {
 	int err = 0;
-	struct net_bridge_port *port = br_port_get_rcu(dev);
+	struct net_bridge_port *port = br_port_get_rtnl(dev);
 
 	/* not a bridge port and  */
 	if (!port && !(filter_mask & RTEXT_FILTER_BRVLAN))
@@ -284,6 +285,8 @@ static const struct nla_policy ifla_brport_policy[IFLA_BRPORT_MAX + 1] = {
 	[IFLA_BRPORT_MODE]	= { .type = NLA_U8 },
 	[IFLA_BRPORT_GUARD]	= { .type = NLA_U8 },
 	[IFLA_BRPORT_PROTECT]	= { .type = NLA_U8 },
+	[IFLA_BRPORT_LEARNING]	= { .type = NLA_U8 },
+	[IFLA_BRPORT_UNICAST_FLOOD] = { .type = NLA_U8 },
 };
 
 /* Change the state of the port and notify spanning tree */
@@ -331,6 +334,8 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 	br_set_port_flag(p, tb, IFLA_BRPORT_GUARD, BR_BPDU_GUARD);
 	br_set_port_flag(p, tb, IFLA_BRPORT_FAST_LEAVE, BR_MULTICAST_FAST_LEAVE);
 	br_set_port_flag(p, tb, IFLA_BRPORT_PROTECT, BR_ROOT_BLOCK);
+	br_set_port_flag(p, tb, IFLA_BRPORT_LEARNING, BR_LEARNING);
+	br_set_port_flag(p, tb, IFLA_BRPORT_UNICAST_FLOOD, BR_FLOOD);
 
 	if (tb[IFLA_BRPORT_COST]) {
 		err = br_stp_set_path_cost(p, nla_get_u32(tb[IFLA_BRPORT_COST]));
@@ -355,17 +360,14 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 /* Change state and parameters on port. */
 int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 {
-	struct ifinfomsg *ifm;
 	struct nlattr *protinfo;
 	struct nlattr *afspec;
 	struct net_bridge_port *p;
 	struct nlattr *tb[IFLA_BRPORT_MAX + 1];
-	int err;
+	int err = 0;
 
-	ifm = nlmsg_data(nlh);
-
-	protinfo = nlmsg_find_attr(nlh, sizeof(*ifm), IFLA_PROTINFO);
-	afspec = nlmsg_find_attr(nlh, sizeof(*ifm), IFLA_AF_SPEC);
+	protinfo = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_PROTINFO);
+	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
 	if (!protinfo && !afspec)
 		return 0;
 
@@ -373,7 +375,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 	/* We want to accept dev as bridge itself if the AF_SPEC
 	 * is set to see if someone is setting vlan info on the brigde
 	 */
-	if (!p && ((dev->priv_flags & IFF_EBRIDGE) && !afspec))
+	if (!p && !afspec)
 		return -EINVAL;
 
 	if (p && protinfo) {
@@ -414,14 +416,11 @@ out:
 /* Delete port information */
 int br_dellink(struct net_device *dev, struct nlmsghdr *nlh)
 {
-	struct ifinfomsg *ifm;
 	struct nlattr *afspec;
 	struct net_bridge_port *p;
 	int err;
 
-	ifm = nlmsg_data(nlh);
-
-	afspec = nlmsg_find_attr(nlh, sizeof(*ifm), IFLA_AF_SPEC);
+	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
 	if (!afspec)
 		return 0;
 
@@ -452,7 +451,7 @@ static size_t br_get_link_af_size(const struct net_device *dev)
 	struct net_port_vlans *pv;
 
 	if (br_port_exists(dev))
-		pv = nbp_get_vlan_info(br_port_get_rcu(dev));
+		pv = nbp_get_vlan_info(br_port_get_rtnl(dev));
 	else if (dev->priv_flags & IFF_EBRIDGE)
 		pv = br_get_vlan_info((struct net_bridge *)netdev_priv(dev));
 	else

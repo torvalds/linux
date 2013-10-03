@@ -11108,7 +11108,7 @@ MODULE_VERSION(AIC7XXX_H_VERSION);
 
 
 static struct scsi_host_template driver_template = {
-	.proc_info		= aic7xxx_proc_info,
+	.show_info		= aic7xxx_show_info,
 	.detect			= aic7xxx_detect,
 	.release		= aic7xxx_release,
 	.info			= aic7xxx_info,	

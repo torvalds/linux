@@ -10,6 +10,8 @@
 #include <linux/sched.h>
 #include <linux/serial_8250.h>
 #include <linux/io.h>
+#include <linux/cpu.h>
+#include <linux/reboot.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -23,7 +25,7 @@
 #define ROMCARD_SIZE            0x08000000
 #define ROMCARD_START           0x10000000
 
-static void shark_restart(char mode, const char *cmd)
+static void shark_restart(enum reboot_mode mode, const char *cmd)
 {
         short temp;
         /* Reset the Machine via pc[3] of the sequoia chipset */
@@ -130,7 +132,7 @@ static void __init shark_timer_init(void)
 
 static void shark_init_early(void)
 {
-	disable_hlt();
+	cpu_idle_poll_ctrl(true);
 }
 
 MACHINE_START(SHARK, "Shark")

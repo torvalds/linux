@@ -3,10 +3,10 @@
  * Radio tuning for RTL8225 on RTL8180
  *
  * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Based on the r8180 driver, which is:
- * Copyright 2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  *
  * Thanks to Realtek for their support!
  *
@@ -719,7 +719,8 @@ static void rtl8225_rf_set_channel(struct ieee80211_hw *dev,
 				   struct ieee80211_conf *conf)
 {
 	struct rtl8180_priv *priv = dev->priv;
-	int chan = ieee80211_frequency_to_channel(conf->channel->center_freq);
+	int chan =
+		ieee80211_frequency_to_channel(conf->chandef.chan->center_freq);
 
 	if (priv->rf->init == rtl8225_rf_init)
 		rtl8225_rf_set_tx_power(dev, chan);

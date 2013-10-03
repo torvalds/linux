@@ -22,11 +22,12 @@
 #include <linux/kvm_host.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
+#include <asm/kvm_arm.h>
 
-u32 *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
-u32 *vcpu_spsr(struct kvm_vcpu *vcpu);
+unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
+unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu);
 
-int kvm_handle_wfi(struct kvm_vcpu *vcpu, struct kvm_run *run);
+bool kvm_condition_valid(struct kvm_vcpu *vcpu);
 void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr);
 void kvm_inject_undefined(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
@@ -37,14 +38,14 @@ static inline bool vcpu_mode_is_32bit(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static inline u32 *vcpu_pc(struct kvm_vcpu *vcpu)
+static inline unsigned long *vcpu_pc(struct kvm_vcpu *vcpu)
 {
-	return (u32 *)&vcpu->arch.regs.usr_regs.ARM_pc;
+	return &vcpu->arch.regs.usr_regs.ARM_pc;
 }
 
-static inline u32 *vcpu_cpsr(struct kvm_vcpu *vcpu)
+static inline unsigned long *vcpu_cpsr(struct kvm_vcpu *vcpu)
 {
-	return (u32 *)&vcpu->arch.regs.usr_regs.ARM_cpsr;
+	return &vcpu->arch.regs.usr_regs.ARM_cpsr;
 }
 
 static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
@@ -64,9 +65,96 @@ static inline bool vcpu_mode_priv(struct kvm_vcpu *vcpu)
 	return cpsr_mode > USR_MODE;;
 }
 
-static inline bool kvm_vcpu_reg_is_pc(struct kvm_vcpu *vcpu, int reg)
+static inline u32 kvm_vcpu_get_hsr(struct kvm_vcpu *vcpu)
 {
-	return reg == 15;
+	return vcpu->arch.fault.hsr;
+}
+
+static inline unsigned long kvm_vcpu_get_hfar(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.fault.hxfar;
+}
+
+static inline phys_addr_t kvm_vcpu_get_fault_ipa(struct kvm_vcpu *vcpu)
+{
+	return ((phys_addr_t)vcpu->arch.fault.hpfar & HPFAR_MASK) << 8;
+}
+
+static inline unsigned long kvm_vcpu_get_hyp_pc(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.fault.hyp_pc;
+}
+
+static inline bool kvm_vcpu_dabt_isvalid(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_ISV;
+}
+
+static inline bool kvm_vcpu_dabt_iswrite(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_WNR;
+}
+
+static inline bool kvm_vcpu_dabt_issext(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_SSE;
+}
+
+static inline int kvm_vcpu_dabt_get_rd(struct kvm_vcpu *vcpu)
+{
+	return (kvm_vcpu_get_hsr(vcpu) & HSR_SRT_MASK) >> HSR_SRT_SHIFT;
+}
+
+static inline bool kvm_vcpu_dabt_isextabt(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_DABT_EA;
+}
+
+static inline bool kvm_vcpu_dabt_iss1tw(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_DABT_S1PTW;
+}
+
+/* Get Access Size from a data abort */
+static inline int kvm_vcpu_dabt_get_as(struct kvm_vcpu *vcpu)
+{
+	switch ((kvm_vcpu_get_hsr(vcpu) >> 22) & 0x3) {
+	case 0:
+		return 1;
+	case 1:
+		return 2;
+	case 2:
+		return 4;
+	default:
+		kvm_err("Hardware is weird: SAS 0b11 is reserved\n");
+		return -EFAULT;
+	}
+}
+
+/* This one is not specific to Data Abort */
+static inline bool kvm_vcpu_trap_il_is32bit(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_IL;
+}
+
+static inline u8 kvm_vcpu_trap_get_class(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) >> HSR_EC_SHIFT;
+}
+
+static inline bool kvm_vcpu_trap_is_iabt(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_trap_get_class(vcpu) == HSR_EC_IABT;
+}
+
+static inline u8 kvm_vcpu_trap_get_fault(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC_TYPE;
+}
+
+static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK;
 }
 
 #endif /* __ARM_KVM_EMULATE_H__ */

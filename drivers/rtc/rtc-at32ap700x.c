@@ -141,7 +141,7 @@ static int at32_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	spin_lock_irq(&rtc->lock);
 
-	if(enabled) {
+	if (enabled) {
 		if (rtc_readl(rtc, VAL) > rtc->alarm_time) {
 			ret = -EINVAL;
 			goto out;
@@ -202,7 +202,8 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	rtc = kzalloc(sizeof(struct rtc_at32ap700x), GFP_KERNEL);
+	rtc = devm_kzalloc(&pdev->dev, sizeof(struct rtc_at32ap700x),
+			   GFP_KERNEL);
 	if (!rtc) {
 		dev_dbg(&pdev->dev, "out of memory\n");
 		return -ENOMEM;
@@ -211,23 +212,20 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
 		dev_dbg(&pdev->dev, "no mmio resource defined\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_dbg(&pdev->dev, "could not get irq\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
 	rtc->irq = irq;
-	rtc->regs = ioremap(regs->start, resource_size(regs));
+	rtc->regs = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
 	if (!rtc->regs) {
-		ret = -ENOMEM;
 		dev_dbg(&pdev->dev, "could not map I/O memory\n");
-		goto out;
+		return -ENOMEM;
 	}
 	spin_lock_init(&rtc->lock);
 
@@ -244,20 +242,20 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 				| RTC_BIT(CTRL_EN));
 	}
 
-	ret = request_irq(irq, at32_rtc_interrupt, IRQF_SHARED, "rtc", rtc);
+	ret = devm_request_irq(&pdev->dev, irq, at32_rtc_interrupt, IRQF_SHARED,
+				"rtc", rtc);
 	if (ret) {
 		dev_dbg(&pdev->dev, "could not request irq %d\n", irq);
-		goto out_iounmap;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, rtc);
 
-	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				&at32_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc)) {
 		dev_dbg(&pdev->dev, "could not register rtc device\n");
-		ret = PTR_ERR(rtc->rtc);
-		goto out_free_irq;
+		return PTR_ERR(rtc->rtc);
 	}
 
 	device_init_wakeup(&pdev->dev, 1);
@@ -266,28 +264,11 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 			(unsigned long)rtc->regs, rtc->irq);
 
 	return 0;
-
-out_free_irq:
-	platform_set_drvdata(pdev, NULL);
-	free_irq(irq, rtc);
-out_iounmap:
-	iounmap(rtc->regs);
-out:
-	kfree(rtc);
-	return ret;
 }
 
 static int __exit at32_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_at32ap700x *rtc = platform_get_drvdata(pdev);
-
 	device_init_wakeup(&pdev->dev, 0);
-
-	free_irq(rtc->irq, rtc);
-	iounmap(rtc->regs);
-	rtc_device_unregister(rtc->rtc);
-	kfree(rtc);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -302,17 +283,7 @@ static struct platform_driver at32_rtc_driver = {
 	},
 };
 
-static int __init at32_rtc_init(void)
-{
-	return platform_driver_probe(&at32_rtc_driver, at32_rtc_probe);
-}
-module_init(at32_rtc_init);
-
-static void __exit at32_rtc_exit(void)
-{
-	platform_driver_unregister(&at32_rtc_driver);
-}
-module_exit(at32_rtc_exit);
+module_platform_driver_probe(at32_rtc_driver, at32_rtc_probe);
 
 MODULE_AUTHOR("Hans-Christian Egtvedt <hcegtvedt@atmel.com>");
 MODULE_DESCRIPTION("Real time clock for AVR32 AT32AP700x");

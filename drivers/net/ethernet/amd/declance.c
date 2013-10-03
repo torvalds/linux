@@ -607,8 +607,6 @@ static int lance_rx(struct net_device *dev)
 			skb = netdev_alloc_skb(dev, len + 2);
 
 			if (skb == 0) {
-				printk("%s: Memory squeeze, deferring packet.\n",
-				       dev->name);
 				dev->stats.rx_dropped++;
 				*rds_ptr(rd, mblength, lp->type) = 0;
 				*rds_ptr(rd, rmd1, lp->type) =
@@ -727,6 +725,7 @@ static irqreturn_t lance_dma_merr_int(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 
+	clear_ioasic_dma_irq(irq);
 	printk(KERN_ERR "%s: DMA error\n", dev->name);
 	return IRQ_HANDLED;
 }

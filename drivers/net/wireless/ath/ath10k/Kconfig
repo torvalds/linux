@@ -1,0 +1,39 @@
+config ATH10K
+        tristate "Atheros 802.11ac wireless cards support"
+        depends on MAC80211 && HAS_DMA
+	select ATH_COMMON
+        ---help---
+          This module adds support for wireless adapters based on
+          Atheros IEEE 802.11ac family of chipsets.
+
+          If you choose to build a module, it'll be called ath10k.
+
+config ATH10K_PCI
+	tristate "Atheros ath10k PCI support"
+	depends on ATH10K && PCI
+	---help---
+	  This module adds support for PCIE bus
+
+config ATH10K_DEBUG
+	bool "Atheros ath10k debugging"
+	depends on ATH10K
+	---help---
+	  Enables debug support
+
+	  If unsure, say Y to make it easier to debug problems.
+
+config ATH10K_DEBUGFS
+	bool "Atheros ath10k debugfs support"
+	depends on ATH10K
+	---help---
+	  Enabled debugfs support
+
+	  If unsure, say Y to make it easier to debug problems.
+
+config ATH10K_TRACING
+	bool "Atheros ath10k tracing support"
+	depends on ATH10K
+	depends on EVENT_TRACING
+	---help---
+	  Select this to ath10k use tracing infrastructure.
+

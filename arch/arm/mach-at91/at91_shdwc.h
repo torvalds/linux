@@ -23,7 +23,7 @@ extern void __iomem *at91_shdwc_base;
 	__raw_readl(at91_shdwc_base + field)
 
 #define at91_shdwc_write(field, value) \
-	__raw_writel(value, at91_shdwc_base + field);
+	__raw_writel(value, at91_shdwc_base + field)
 #endif
 
 #define AT91_SHDW_CR		0x00			/* Shut Down Control Register */

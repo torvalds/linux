@@ -44,6 +44,7 @@ enum filter_op_ids
 	OP_LE,
 	OP_GT,
 	OP_GE,
+	OP_BAND,
 	OP_NONE,
 	OP_OPEN_PAREN,
 };
@@ -54,6 +55,7 @@ struct filter_op {
 	int precedence;
 };
 
+/* Order must be the same as enum filter_op_ids above */
 static struct filter_op filter_ops[] = {
 	{ OP_OR,	"||",		1 },
 	{ OP_AND,	"&&",		2 },
@@ -64,6 +66,7 @@ static struct filter_op filter_ops[] = {
 	{ OP_LE,	"<=",		5 },
 	{ OP_GT,	">",		5 },
 	{ OP_GE,	">=",		5 },
+	{ OP_BAND,	"&",		6 },
 	{ OP_NONE,	"OP_NONE",	0 },
 	{ OP_OPEN_PAREN, "(",		0 },
 };
@@ -155,6 +158,9 @@ static int filter_pred_##type(struct filter_pred *pred, void *event)	\
 		break;							\
 	case OP_GE:							\
 		match = (*addr >= val);					\
+		break;							\
+	case OP_BAND:							\
+		match = (*addr & val);					\
 		break;							\
 	default:							\
 		break;							\
@@ -631,17 +637,15 @@ static void append_filter_err(struct filter_parse_state *ps,
 	free_page((unsigned long) buf);
 }
 
+/* caller must hold event_mutex */
 void print_event_filter(struct ftrace_event_call *call, struct trace_seq *s)
 {
-	struct event_filter *filter;
+	struct event_filter *filter = call->filter;
 
-	mutex_lock(&event_mutex);
-	filter = call->filter;
 	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
-		trace_seq_printf(s, "none\n");
-	mutex_unlock(&event_mutex);
+		trace_seq_puts(s, "none\n");
 }
 
 void print_subsystem_event_filter(struct event_subsystem *system,
@@ -654,35 +658,8 @@ void print_subsystem_event_filter(struct event_subsystem *system,
 	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
-		trace_seq_printf(s, DEFAULT_SYS_FILTER_MESSAGE "\n");
+		trace_seq_puts(s, DEFAULT_SYS_FILTER_MESSAGE "\n");
 	mutex_unlock(&event_mutex);
-}
-
-static struct ftrace_event_field *
-__find_event_field(struct list_head *head, char *name)
-{
-	struct ftrace_event_field *field;
-
-	list_for_each_entry(field, head, link) {
-		if (!strcmp(field->name, name))
-			return field;
-	}
-
-	return NULL;
-}
-
-static struct ftrace_event_field *
-find_event_field(struct ftrace_event_call *call, char *name)
-{
-	struct ftrace_event_field *field;
-	struct list_head *head;
-
-	field = __find_event_field(&ftrace_common_fields, name);
-	if (field)
-		return field;
-
-	head = trace_get_fields(call);
-	return __find_event_field(head, name);
 }
 
 static int __alloc_pred_stack(struct pred_stack *stack, int n_preds)
@@ -777,7 +754,11 @@ static int filter_set_pred(struct event_filter *filter,
 
 static void __free_preds(struct event_filter *filter)
 {
+	int i;
+
 	if (filter->preds) {
+		for (i = 0; i < filter->n_preds; i++)
+			kfree(filter->preds[i].ops);
 		kfree(filter->preds);
 		filter->preds = NULL;
 	}
@@ -1337,7 +1318,7 @@ static struct filter_pred *create_pred(struct filter_parse_state *ps,
 		return NULL;
 	}
 
-	field = find_event_field(call, operand1);
+	field = trace_find_event_field(call, operand1);
 	if (!field) {
 		parse_error(ps, FILT_ERR_FIELD_NOT_FOUND, 0);
 		return NULL;
@@ -1858,23 +1839,22 @@ static int create_system_filter(struct event_subsystem *system,
 	return err;
 }
 
+/* caller must hold event_mutex */
 int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 {
 	struct event_filter *filter;
-	int err = 0;
-
-	mutex_lock(&event_mutex);
+	int err;
 
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_disable(call);
 		filter = call->filter;
 		if (!filter)
-			goto out_unlock;
+			return 0;
 		RCU_INIT_POINTER(call->filter, NULL);
 		/* Make sure the filter is not being used */
 		synchronize_sched();
 		__free_filter(filter);
-		goto out_unlock;
+		return 0;
 	}
 
 	err = create_filter(call, filter_string, true, &filter);
@@ -1901,22 +1881,21 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 			__free_filter(tmp);
 		}
 	}
-out_unlock:
-	mutex_unlock(&event_mutex);
 
 	return err;
 }
 
-int apply_subsystem_event_filter(struct event_subsystem *system,
+int apply_subsystem_event_filter(struct ftrace_subsystem_dir *dir,
 				 char *filter_string)
 {
+	struct event_subsystem *system = dir->subsystem;
 	struct event_filter *filter;
 	int err = 0;
 
 	mutex_lock(&event_mutex);
 
 	/* Make sure the system still has events */
-	if (!system->nr_events) {
+	if (!dir->nr_events) {
 		err = -ENODEV;
 		goto out_unlock;
 	}

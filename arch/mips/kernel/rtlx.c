@@ -40,6 +40,7 @@
 #include <asm/processor.h>
 #include <asm/vpe.h>
 #include <asm/rtlx.h>
+#include <asm/setup.h>
 
 static struct rtlx_info *rtlx;
 static int major;
@@ -436,7 +437,6 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 			  size_t count, loff_t * ppos)
 {
 	int minor = iminor(file_inode(file));
-	struct rtlx_channel *rt = &rtlx->channel[minor];
 
 	/* any space left... */
 	if (!rtlx_write_poll(minor)) {

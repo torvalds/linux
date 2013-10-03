@@ -34,6 +34,7 @@
 #include <asm/hardirq.h>
 #include <asm/hazards.h>
 #include <asm/irq.h>
+#include <asm/idle.h>
 #include <asm/mmu_context.h>
 #include <asm/mipsregs.h>
 #include <asm/cacheflush.h>
@@ -644,7 +645,7 @@ void smtc_prepare_cpus(int cpus)
  * (unsigned long)idle->thread_info the gp
  *
  */
-void __cpuinit smtc_boot_secondary(int cpu, struct task_struct *idle)
+void smtc_boot_secondary(int cpu, struct task_struct *idle)
 {
 	extern u32 kernelsp[NR_CPUS];
 	unsigned long flags;
@@ -858,7 +859,6 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 	unsigned long flags;
 	int mtflags;
 	unsigned long tcrestart;
-	extern void r4k_wait_irqoff(void), __pastwait(void);
 	int set_resched_flag = (type == LINUX_SMP_IPI &&
 				action == SMP_RESCHEDULE_YOURSELF);
 
@@ -914,8 +914,7 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 			 */
 			if (cpu_wait == r4k_wait_irqoff) {
 				tcrestart = read_tc_c0_tcrestart();
-				if (tcrestart >= (unsigned long)r4k_wait_irqoff
-				    && tcrestart < (unsigned long)__pastwait) {
+				if (address_is_in_r4k_wait_irqoff(tcrestart)) {
 					write_tc_c0_tcrestart(__pastwait);
 					tcstatus &= ~TCSTATUS_IXMT;
 					write_tc_c0_tcstatus(tcstatus);

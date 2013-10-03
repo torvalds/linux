@@ -2836,20 +2836,15 @@ char *acornscsi_info(struct Scsi_Host *host)
     return string;
 }
 
-int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, off_t offset,
-			int length, int inout)
+static int acornscsi_show_info(struct seq_file *m, struct Scsi_Host *instance)
 {
-    int pos, begin = 0, devidx;
+    int devidx;
     struct scsi_device *scd;
     AS_Host *host;
-    char *p = buffer;
-
-    if (inout == 1)
-	return -EINVAL;
 
     host  = (AS_Host *)instance->hostdata;
     
-    p += sprintf(p, "AcornSCSI driver v%d.%d.%d"
+    seq_printf(m, "AcornSCSI driver v%d.%d.%d"
 #ifdef CONFIG_SCSI_ACORNSCSI_SYNC
     " SYNC"
 #endif
@@ -2864,14 +2859,14 @@ int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, 
 #endif
 		"\n\n", VER_MAJOR, VER_MINOR, VER_PATCH);
 
-    p += sprintf(p,	"SBIC: WD33C93A  Address: %p    IRQ : %d\n",
+    seq_printf(m,	"SBIC: WD33C93A  Address: %p    IRQ : %d\n",
 			host->base + SBIC_REGIDX, host->scsi.irq);
 #ifdef USE_DMAC
-    p += sprintf(p,	"DMAC: uPC71071  Address: %p  IRQ : %d\n\n",
+    seq_printf(m,	"DMAC: uPC71071  Address: %p  IRQ : %d\n\n",
 			host->base + DMAC_OFFSET, host->scsi.irq);
 #endif
 
-    p += sprintf(p,	"Statistics:\n"
+    seq_printf(m,	"Statistics:\n"
 			"Queued commands: %-10u    Issued commands: %-10u\n"
 			"Done commands  : %-10u    Reads          : %-10u\n"
 			"Writes         : %-10u    Others         : %-10u\n"
@@ -2886,7 +2881,7 @@ int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, 
     for (devidx = 0; devidx < 9; devidx ++) {
 	unsigned int statptr, prev;
 
-	p += sprintf(p, "\n%c:", devidx == 8 ? 'H' : ('0' + devidx));
+	seq_printf(m, "\n%c:", devidx == 8 ? 'H' : ('0' + devidx));
 	statptr = host->status_ptr[devidx] - 10;
 
 	if ((signed int)statptr < 0)
@@ -2896,7 +2891,7 @@ int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, 
 
 	for (; statptr != host->status_ptr[devidx]; statptr = (statptr + 1) & (STATUS_BUFFER_SIZE - 1)) {
 	    if (host->status[devidx][statptr].when) {
-		p += sprintf(p, "%c%02X:%02X+%2ld",
+		seq_printf(m, "%c%02X:%02X+%2ld",
 			host->status[devidx][statptr].irq ? '-' : ' ',
 			host->status[devidx][statptr].ph,
 			host->status[devidx][statptr].ssr,
@@ -2907,51 +2902,32 @@ int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, 
 	}
     }
 
-    p += sprintf(p, "\nAttached devices:\n");
+    seq_printf(m, "\nAttached devices:\n");
 
     shost_for_each_device(scd, instance) {
-	p += sprintf(p, "Device/Lun TaggedQ      Sync\n");
-	p += sprintf(p, "     %d/%d   ", scd->id, scd->lun);
+	seq_printf(m, "Device/Lun TaggedQ      Sync\n");
+	seq_printf(m, "     %d/%d   ", scd->id, scd->lun);
 	if (scd->tagged_supported)
-		p += sprintf(p, "%3sabled(%3d) ",
+		seq_printf(m, "%3sabled(%3d) ",
 			     scd->simple_tags ? "en" : "dis",
 			     scd->current_tag);
 	else
-		p += sprintf(p, "unsupported  ");
+		seq_printf(m, "unsupported  ");
 
 	if (host->device[scd->id].sync_xfer & 15)
-		p += sprintf(p, "offset %d, %d ns\n",
+		seq_printf(m, "offset %d, %d ns\n",
 			     host->device[scd->id].sync_xfer & 15,
 			     acornscsi_getperiod(host->device[scd->id].sync_xfer));
 	else
-		p += sprintf(p, "async\n");
+		seq_printf(m, "async\n");
 
-	pos = p - buffer;
-	if (pos + begin < offset) {
-	    begin += pos;
-	    p = buffer;
-	}
-	pos = p - buffer;
-	if (pos + begin > offset + length) {
-	    scsi_device_put(scd);
-	    break;
-	}
     }
-
-    pos = p - buffer;
-
-    *start = buffer + (offset - begin);
-    pos -= offset - begin;
-
-    if (pos > length)
-	pos = length;
-
-    return pos;
+    return 0;
 }
 
 static struct scsi_host_template acornscsi_template = {
 	.module			= THIS_MODULE,
-	.proc_info		= acornscsi_proc_info,
+	.show_info		= acornscsi_show_info,
 	.name			= "AcornSCSI",
 	.info			= acornscsi_info,
 	.queuecommand		= acornscsi_queuecmd,

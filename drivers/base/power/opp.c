@@ -55,6 +55,7 @@
  * @rate:	Frequency in hertz
  * @u_volt:	Nominal voltage in microvolts corresponding to this OPP
  * @dev_opp:	points back to the device_opp struct this opp belongs to
+ * @head:	RCU callback head used for deferred freeing
  *
  * This structure stores the OPP information for a given device.
  */
@@ -459,6 +460,7 @@ int opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 	srcu_notifier_call_chain(&dev_opp->head, OPP_EVENT_ADD, new_opp);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(opp_add);
 
 /**
  * opp_set_availability() - helper to set the availability of an opp
@@ -647,14 +649,14 @@ int opp_init_cpufreq_table(struct device *dev,
 
 	list_for_each_entry(opp, &dev_opp->opp_list, node) {
 		if (opp->available) {
-			freq_table[i].index = i;
+			freq_table[i].driver_data = i;
 			freq_table[i].frequency = opp->rate / 1000;
 			i++;
 		}
 	}
 	mutex_unlock(&dev_opp_list_lock);
 
-	freq_table[i].index = i;
+	freq_table[i].driver_data = i;
 	freq_table[i].frequency = CPUFREQ_TABLE_END;
 
 	*table = &freq_table[0];

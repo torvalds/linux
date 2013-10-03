@@ -50,6 +50,7 @@
  */
 
 #include "ubifs.h"
+#include <linux/aio.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/slab.h>
@@ -1276,13 +1277,14 @@ int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 	return err;
 }
 
-static void ubifs_invalidatepage(struct page *page, unsigned long offset)
+static void ubifs_invalidatepage(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
 	struct inode *inode = page->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 	ubifs_assert(PagePrivate(page));
-	if (offset)
+	if (offset || length < PAGE_CACHE_SIZE)
 		/* Partial page remains dirty */
 		return;
 

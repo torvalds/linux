@@ -103,4 +103,5 @@ MACHINE_START(NAS4220B, "Raidsonic NAS IB-4220-B")
 	.init_irq	= gemini_init_irq,
 	.init_time	= gemini_timer_init,
 	.init_machine	= ib4220b_init,
+	.restart	= gemini_restart,
 MACHINE_END

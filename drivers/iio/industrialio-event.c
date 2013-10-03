@@ -46,10 +46,11 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 {
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
 	struct iio_event_data ev;
+	unsigned long flags;
 	int copied;
 
 	/* Does anyone care? */
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irqsave(&ev_int->wait.lock, flags);
 	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
 
 		ev.id = ev_code;
@@ -59,7 +60,7 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 		if (copied != 0)
 			wake_up_locked_poll(&ev_int->wait, POLLIN);
 	}
-	spin_unlock(&ev_int->wait.lock);
+	spin_unlock_irqrestore(&ev_int->wait.lock, flags);
 
 	return 0;
 }
@@ -71,15 +72,16 @@ EXPORT_SYMBOL(iio_push_event);
 static unsigned int iio_event_poll(struct file *filep,
 			     struct poll_table_struct *wait)
 {
-	struct iio_event_interface *ev_int = filep->private_data;
+	struct iio_dev *indio_dev = filep->private_data;
+	struct iio_event_interface *ev_int = indio_dev->event_interface;
 	unsigned int events = 0;
 
 	poll_wait(filep, &ev_int->wait, wait);
 
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irq(&ev_int->wait.lock);
 	if (!kfifo_is_empty(&ev_int->det_events))
 		events = POLLIN | POLLRDNORM;
-	spin_unlock(&ev_int->wait.lock);
+	spin_unlock_irq(&ev_int->wait.lock);
 
 	return events;
 }
@@ -89,21 +91,22 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 				     size_t count,
 				     loff_t *f_ps)
 {
-	struct iio_event_interface *ev_int = filep->private_data;
+	struct iio_dev *indio_dev = filep->private_data;
+	struct iio_event_interface *ev_int = indio_dev->event_interface;
 	unsigned int copied;
 	int ret;
 
 	if (count < sizeof(struct iio_event_data))
 		return -EINVAL;
 
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irq(&ev_int->wait.lock);
 	if (kfifo_is_empty(&ev_int->det_events)) {
 		if (filep->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
 			goto error_unlock;
 		}
 		/* Blocking on device; waiting for something to be there */
-		ret = wait_event_interruptible_locked(ev_int->wait,
+		ret = wait_event_interruptible_locked_irq(ev_int->wait,
 					!kfifo_is_empty(&ev_int->det_events));
 		if (ret)
 			goto error_unlock;
@@ -113,16 +116,17 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	ret = kfifo_to_user(&ev_int->det_events, buf, count, &copied);
 
 error_unlock:
-	spin_unlock(&ev_int->wait.lock);
+	spin_unlock_irq(&ev_int->wait.lock);
 
 	return ret ? ret : copied;
 }
 
 static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 {
-	struct iio_event_interface *ev_int = filep->private_data;
+	struct iio_dev *indio_dev = filep->private_data;
+	struct iio_event_interface *ev_int = indio_dev->event_interface;
 
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irq(&ev_int->wait.lock);
 	__clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
 	/*
 	 * In order to maintain a clean state for reopening,
@@ -130,7 +134,9 @@ static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 	 * any new __iio_push_event calls running.
 	 */
 	kfifo_reset_out(&ev_int->det_events);
-	spin_unlock(&ev_int->wait.lock);
+	spin_unlock_irq(&ev_int->wait.lock);
+
+	iio_device_put(indio_dev);
 
 	return 0;
 }
@@ -151,18 +157,21 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 	if (ev_int == NULL)
 		return -ENODEV;
 
-	spin_lock(&ev_int->wait.lock);
+	spin_lock_irq(&ev_int->wait.lock);
 	if (__test_and_set_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
-		spin_unlock(&ev_int->wait.lock);
+		spin_unlock_irq(&ev_int->wait.lock);
 		return -EBUSY;
 	}
-	spin_unlock(&ev_int->wait.lock);
-	fd = anon_inode_getfd("iio:event",
-				&iio_event_chrdev_fileops, ev_int, O_RDONLY);
+	spin_unlock_irq(&ev_int->wait.lock);
+	iio_device_get(indio_dev);
+
+	fd = anon_inode_getfd("iio:event", &iio_event_chrdev_fileops,
+				indio_dev, O_RDONLY);
 	if (fd < 0) {
-		spin_lock(&ev_int->wait.lock);
+		spin_lock_irq(&ev_int->wait.lock);
 		__clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
-		spin_unlock(&ev_int->wait.lock);
+		spin_unlock_irq(&ev_int->wait.lock);
+		iio_device_put(indio_dev);
 	}
 	return fd;
 }
@@ -275,7 +284,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *indio_dev,
 			goto error_ret;
 		}
 		if (chan->modified)
-			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel,
+			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel2,
 						  i/IIO_EV_DIR_MAX,
 						  i%IIO_EV_DIR_MAX);
 		else if (chan->differential)

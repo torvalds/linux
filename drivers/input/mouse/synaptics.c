@@ -1379,6 +1379,7 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	struct synaptics_data old_priv = *priv;
+	unsigned char param[2];
 	int retry = 0;
 	int error;
 
@@ -1394,6 +1395,7 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 			 */
 			ssleep(1);
 		}
+		ps2_command(&psmouse->ps2dev, param, PSMOUSE_CMD_GETID);
 		error = synaptics_detect(psmouse, 0);
 	} while (error && ++retry < 3);
 
@@ -1431,7 +1433,7 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 
 static bool impaired_toshiba_kbc;
 
-static const struct dmi_system_id __initconst toshiba_dmi_table[] = {
+static const struct dmi_system_id toshiba_dmi_table[] __initconst = {
 #if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
 		/* Toshiba Satellite */
@@ -1470,7 +1472,7 @@ static const struct dmi_system_id __initconst toshiba_dmi_table[] = {
 
 static bool broken_olpc_ec;
 
-static const struct dmi_system_id __initconst olpc_dmi_table[] = {
+static const struct dmi_system_id olpc_dmi_table[] __initconst = {
 #if defined(CONFIG_DMI) && defined(CONFIG_OLPC)
 	{
 		/* OLPC XO-1 or XO-1.5 */

@@ -131,6 +131,7 @@ static int vv6410_init(struct sd *sd)
 static int vv6410_start(struct sd *sd)
 {
 	int err;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 	struct cam *cam = &sd->gspca_dev.cam;
 	u32 priv = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 
@@ -163,6 +164,7 @@ static int vv6410_start(struct sd *sd)
 
 static int vv6410_stop(struct sd *sd)
 {
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 	int err;
 
 	/* Turn off LED */
@@ -208,7 +210,7 @@ static int vv6410_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	else
 		i2c_data &= ~VV6410_HFLIP;
 
-	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
+	PDEBUG(D_CONF, "Set horizontal flip to %d", val);
 	err = stv06xx_write_sensor(sd, VV6410_DATAFORMAT, i2c_data);
 
 	return (err < 0) ? err : 0;
@@ -229,7 +231,7 @@ static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	else
 		i2c_data &= ~VV6410_VFLIP;
 
-	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
+	PDEBUG(D_CONF, "Set vertical flip to %d", val);
 	err = stv06xx_write_sensor(sd, VV6410_DATAFORMAT, i2c_data);
 
 	return (err < 0) ? err : 0;
@@ -240,7 +242,7 @@ static int vv6410_set_analog_gain(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_V4L2, "Set analog gain to %d", val);
+	PDEBUG(D_CONF, "Set analog gain to %d", val);
 	err = stv06xx_write_sensor(sd, VV6410_ANALOGGAIN, 0xf0 | (val & 0xf));
 
 	return (err < 0) ? err : 0;
@@ -257,7 +259,7 @@ static int vv6410_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	fine = val % VV6410_CIF_LINELENGTH;
 	coarse = min(512, val / VV6410_CIF_LINELENGTH);
 
-	PDEBUG(D_V4L2, "Set coarse exposure to %d, fine expsure to %d",
+	PDEBUG(D_CONF, "Set coarse exposure to %d, fine expsure to %d",
 	       coarse, fine);
 
 	err = stv06xx_write_sensor(sd, VV6410_FINEH, fine >> 8);

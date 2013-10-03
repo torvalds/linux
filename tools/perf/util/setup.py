@@ -18,12 +18,14 @@ class install_lib(_install_lib):
         self.build_dir = build_lib
 
 
-cflags = ['-fno-strict-aliasing', '-Wno-write-strings']
-cflags += getenv('CFLAGS', '').split()
+cflags = getenv('CFLAGS', '').split()
+# switch off several checks (need to be at the end of cflags list)
+cflags += ['-fno-strict-aliasing', '-Wno-write-strings', '-Wno-unused-parameter' ]
 
 build_lib = getenv('PYTHON_EXTBUILD_LIB')
 build_tmp = getenv('PYTHON_EXTBUILD_TMP')
 libtraceevent = getenv('LIBTRACEEVENT')
+liblk = getenv('LIBLK')
 
 ext_sources = [f.strip() for f in file('util/python-ext-sources')
 				if len(f.strip()) > 0 and f[0] != '#']
@@ -32,7 +34,7 @@ perf = Extension('perf',
 		  sources = ext_sources,
 		  include_dirs = ['util/include'],
 		  extra_compile_args = cflags,
-		  extra_objects = [libtraceevent],
+		  extra_objects = [libtraceevent, liblk],
                  )
 
 setup(name='perf',

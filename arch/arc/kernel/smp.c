@@ -117,7 +117,7 @@ const char *arc_platform_smp_cpuinfo(void)
  * Called from asm stub in head.S
  * "current"/R25 already setup by low level boot code
  */
-void __cpuinit start_kernel_secondary(void)
+void start_kernel_secondary(void)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
@@ -141,7 +141,7 @@ void __cpuinit start_kernel_secondary(void)
 
 	local_irq_enable();
 	preempt_disable();
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 /*
@@ -154,7 +154,7 @@ void __cpuinit start_kernel_secondary(void)
  *
  * Essential requirements being where to run from (PC) and stack (SP)
 */
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
+int __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long wait_till;
 

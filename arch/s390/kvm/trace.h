@@ -67,7 +67,7 @@ TRACE_EVENT(kvm_s390_sie_fault,
 #define sie_intercept_code				\
 	{0x04, "Instruction"},				\
 	{0x08, "Program interruption"},			\
-	{0x0C, "Instruction and program interuption"},	\
+	{0x0C, "Instruction and program interruption"},	\
 	{0x10, "External request"},			\
 	{0x14, "External interruption"},		\
 	{0x18, "I/O request"},				\
@@ -117,7 +117,7 @@ TRACE_EVENT(kvm_s390_intercept_instruction,
 			   __entry->instruction,
 			   insn_to_mnemonic((unsigned char *)
 					    &__entry->instruction,
-					 __entry->insn) ?
+					 __entry->insn, sizeof(__entry->insn)) ?
 			   "unknown" : __entry->insn)
 	);
 

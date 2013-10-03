@@ -295,9 +295,9 @@ static int net_dm_cmd_trace(struct sk_buff *skb,
 }
 
 static int dropmon_net_event(struct notifier_block *ev_block,
-			unsigned long event, void *ptr)
+			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct dm_hw_stat_delta *new_stat = NULL;
 	struct dm_hw_stat_delta *tmp;
 

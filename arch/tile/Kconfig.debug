@@ -14,21 +14,12 @@ config EARLY_PRINTK
 	  with klogd/syslogd. You should normally N here,
 	  unless you want to debug such a crash.
 
-config DEBUG_STACKOVERFLOW
-	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL
+config TILE_HVGLUE_TRACE
+	bool "Provide wrapper functions for hypervisor ABI calls"
+	default n
 	help
-	  This option will cause messages to be printed if free stack space
-	  drops below a certain limit.
-
-config DEBUG_EXTRA_FLAGS
-	string "Additional compiler arguments when building with '-g'"
-	depends on DEBUG_INFO
-	default ""
-	help
-	  Debug info can be large, and flags like
-	  `-femit-struct-debug-baseonly' can reduce the kernel file
-	  size and build time noticeably.  Such flags are often
-	  helpful if the main use of debug info is line number info.
+	  Provide wrapper functions for the hypervisor ABI calls
+	  defined in arch/tile/kernel/hvglue.S.  This allows tracing
+	  mechanisms, etc., to have visibility into those calls.
 
 endmenu

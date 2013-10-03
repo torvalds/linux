@@ -70,6 +70,10 @@ Optional subnode-properties:
     0: Disable the internal pull-up
     1: Enable the internal pull-up
 
+Note that when enabling the pull-up, the internal pad keeper gets disabled.
+Also, some pins doesn't have a pull up, in that case, setting the fsl,pull-up
+will only disable the internal pad keeper.
+
 Examples:
 
 pinctrl@80018000 {

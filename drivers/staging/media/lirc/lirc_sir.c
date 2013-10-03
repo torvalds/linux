@@ -787,12 +787,6 @@ static int init_hardware(void)
 	spin_lock_irqsave(&hardware_lock, flags);
 	/* reset UART */
 #ifdef LIRC_ON_SA1100
-#ifdef CONFIG_SA1100_BITSY
-	if (machine_is_bitsy()) {
-		pr_info("Power on IR module\n");
-		set_bitsy_egpio(EGPIO_BITSY_IR_ON);
-	}
-#endif
 #ifdef CONFIG_SA1100_COLLIE
 	sa1100_irda_set_power_collie(3);	/* power on */
 #endif
@@ -942,10 +936,6 @@ static void drop_hardware(void)
 	Ser2UTCR3 = sr.utcr3;
 
 	Ser2HSCR0 = sr.hscr0;
-#ifdef CONFIG_SA1100_BITSY
-	if (machine_is_bitsy())
-		clr_bitsy_egpio(EGPIO_BITSY_IR_ON);
-#endif
 #ifdef CONFIG_SA1100_COLLIE
 	sa1100_irda_set_power_collie(0);	/* power off */
 #endif

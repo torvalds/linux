@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/atomic.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -28,6 +29,8 @@
 #include <asm/cachepart.h>
 #include <asm/core_reg.h>
 #include <asm/cpu.h>
+#include <asm/global_lock.h>
+#include <asm/metag_mem.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -36,6 +39,9 @@
 #include <asm/tlbflush.h>
 #include <asm/hwthread.h>
 #include <asm/traps.h>
+
+#define SYSC_DCPART(n)	(SYSC_DCPART0 + SYSC_xCPARTn_STRIDE * (n))
+#define SYSC_ICPART(n)	(SYSC_ICPART0 + SYSC_xCPARTn_STRIDE * (n))
 
 DECLARE_PER_CPU(PTBI, pTBI);
 
@@ -57,10 +63,12 @@ static DEFINE_PER_CPU(struct ipi_data, ipi_data) = {
 
 static DEFINE_SPINLOCK(boot_lock);
 
+static DECLARE_COMPLETION(cpu_running);
+
 /*
  * "thread" is assumed to be a valid Meta hardware thread ID.
  */
-int __cpuinit boot_secondary(unsigned int thread, struct task_struct *idle)
+int boot_secondary(unsigned int thread, struct task_struct *idle)
 {
 	u32 val;
 
@@ -99,7 +107,113 @@ int __cpuinit boot_secondary(unsigned int thread, struct task_struct *idle)
 	return 0;
 }
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
+/**
+ * describe_cachepart_change: describe a change to cache partitions.
+ * @thread:	Hardware thread number.
+ * @label:	Label of cache type, e.g. "dcache" or "icache".
+ * @sz:		Total size of the cache.
+ * @old:	Old cache partition configuration (*CPART* register).
+ * @new:	New cache partition configuration (*CPART* register).
+ *
+ * If the cache partition has changed, prints a message to the log describing
+ * those changes.
+ */
+static void describe_cachepart_change(unsigned int thread, const char *label,
+				      unsigned int sz, unsigned int old,
+				      unsigned int new)
+{
+	unsigned int lor1, land1, gor1, gand1;
+	unsigned int lor2, land2, gor2, gand2;
+	unsigned int diff = old ^ new;
+
+	if (!diff)
+		return;
+
+	pr_info("Thread %d: %s partition changed:", thread, label);
+	if (diff & (SYSC_xCPARTL_OR_BITS | SYSC_xCPARTL_AND_BITS)) {
+		lor1   = (old & SYSC_xCPARTL_OR_BITS)  >> SYSC_xCPARTL_OR_S;
+		lor2   = (new & SYSC_xCPARTL_OR_BITS)  >> SYSC_xCPARTL_OR_S;
+		land1  = (old & SYSC_xCPARTL_AND_BITS) >> SYSC_xCPARTL_AND_S;
+		land2  = (new & SYSC_xCPARTL_AND_BITS) >> SYSC_xCPARTL_AND_S;
+		pr_cont(" L:%#x+%#x->%#x+%#x",
+			(lor1 * sz) >> 4,
+			((land1 + 1) * sz) >> 4,
+			(lor2 * sz) >> 4,
+			((land2 + 1) * sz) >> 4);
+	}
+	if (diff & (SYSC_xCPARTG_OR_BITS | SYSC_xCPARTG_AND_BITS)) {
+		gor1   = (old & SYSC_xCPARTG_OR_BITS)  >> SYSC_xCPARTG_OR_S;
+		gor2   = (new & SYSC_xCPARTG_OR_BITS)  >> SYSC_xCPARTG_OR_S;
+		gand1  = (old & SYSC_xCPARTG_AND_BITS) >> SYSC_xCPARTG_AND_S;
+		gand2  = (new & SYSC_xCPARTG_AND_BITS) >> SYSC_xCPARTG_AND_S;
+		pr_cont(" G:%#x+%#x->%#x+%#x",
+			(gor1 * sz) >> 4,
+			((gand1 + 1) * sz) >> 4,
+			(gor2 * sz) >> 4,
+			((gand2 + 1) * sz) >> 4);
+	}
+	if (diff & SYSC_CWRMODE_BIT)
+		pr_cont(" %sWR",
+			(new & SYSC_CWRMODE_BIT) ? "+" : "-");
+	if (diff & SYSC_DCPART_GCON_BIT)
+		pr_cont(" %sGCOn",
+			(new & SYSC_DCPART_GCON_BIT) ? "+" : "-");
+	pr_cont("\n");
+}
+
+/**
+ * setup_smp_cache: ensure cache coherency for new SMP thread.
+ * @thread:	New hardware thread number.
+ *
+ * Ensures that coherency is enabled and that the threads share the same cache
+ * partitions.
+ */
+static void setup_smp_cache(unsigned int thread)
+{
+	unsigned int this_thread, lflags;
+	unsigned int dcsz, dcpart_this, dcpart_old, dcpart_new;
+	unsigned int icsz, icpart_old, icpart_new;
+
+	/*
+	 * Copy over the current thread's cache partition configuration to the
+	 * new thread so that they share cache partitions.
+	 */
+	__global_lock2(lflags);
+	this_thread = hard_processor_id();
+	/* Share dcache partition */
+	dcpart_this = metag_in32(SYSC_DCPART(this_thread));
+	dcpart_old = metag_in32(SYSC_DCPART(thread));
+	dcpart_new = dcpart_this;
+#if PAGE_OFFSET < LINGLOBAL_BASE
+	/*
+	 * For the local data cache to be coherent the threads must also have
+	 * GCOn enabled.
+	 */
+	dcpart_new |= SYSC_DCPART_GCON_BIT;
+	metag_out32(dcpart_new, SYSC_DCPART(this_thread));
+#endif
+	metag_out32(dcpart_new, SYSC_DCPART(thread));
+	/* Share icache partition too */
+	icpart_new = metag_in32(SYSC_ICPART(this_thread));
+	icpart_old = metag_in32(SYSC_ICPART(thread));
+	metag_out32(icpart_new, SYSC_ICPART(thread));
+	__global_unlock2(lflags);
+
+	/*
+	 * Log if the cache partitions were altered so the user is aware of any
+	 * potential unintentional cache wastage.
+	 */
+	dcsz = get_dcache_size();
+	icsz = get_dcache_size();
+	describe_cachepart_change(this_thread, "dcache", dcsz,
+				  dcpart_this, dcpart_new);
+	describe_cachepart_change(thread, "dcache", dcsz,
+				  dcpart_old, dcpart_new);
+	describe_cachepart_change(thread, "icache", icsz,
+				  icpart_old, icpart_new);
+}
+
+int __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned int thread = cpu_2_hwthread_id[cpu];
 	int ret;
@@ -107,6 +221,8 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	load_pgd(swapper_pg_dir, thread);
 
 	flush_tlb_all();
+
+	setup_smp_cache(thread);
 
 	/*
 	 * Tell the secondary CPU where to find its idle thread's stack.
@@ -120,20 +236,12 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 */
 	ret = boot_secondary(thread, idle);
 	if (ret == 0) {
-		unsigned long timeout;
-
 		/*
 		 * CPU was successfully started, wait for it
 		 * to come online or time out.
 		 */
-		timeout = jiffies + HZ;
-		while (time_before(jiffies, timeout)) {
-			if (cpu_online(cpu))
-				break;
-
-			udelay(10);
-			barrier();
-		}
+		wait_for_completion_timeout(&cpu_running,
+					    msecs_to_jiffies(1000));
 
 		if (!cpu_online(cpu))
 			ret = -EIO;
@@ -158,10 +266,9 @@ static DECLARE_COMPLETION(cpu_killed);
 /*
  * __cpu_disable runs on the processor to be shutdown.
  */
-int __cpuexit __cpu_disable(void)
+int __cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
-	struct task_struct *p;
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
@@ -181,12 +288,7 @@ int __cpuexit __cpu_disable(void)
 	flush_cache_all();
 	local_flush_tlb_all();
 
-	read_lock(&tasklist_lock);
-	for_each_process(p) {
-		if (p->mm)
-			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
-	}
-	read_unlock(&tasklist_lock);
+	clear_tasks_mm_cpumask(cpu);
 
 	return 0;
 }
@@ -195,7 +297,7 @@ int __cpuexit __cpu_disable(void)
  * called on the thread which is asking for a CPU to be shutdown -
  * waits until shutdown has completed, or it is timed out.
  */
-void __cpuexit __cpu_die(unsigned int cpu)
+void __cpu_die(unsigned int cpu)
 {
 	if (!wait_for_completion_timeout(&cpu_killed, msecs_to_jiffies(1)))
 		pr_err("CPU%u: unable to kill\n", cpu);
@@ -207,7 +309,7 @@ void __cpuexit __cpu_die(unsigned int cpu)
  * Note that we do not return from this function. If this cpu is
  * brought online again it will need to run secondary_startup().
  */
-void __cpuexit cpu_die(void)
+void cpu_die(void)
 {
 	local_irq_disable();
 	idle_task_exit();
@@ -222,7 +324,7 @@ void __cpuexit cpu_die(void)
  * Called by both boot and secondaries to move global data into
  * per-processor storage.
  */
-void __cpuinit smp_store_cpu_info(unsigned int cpuid)
+void smp_store_cpu_info(unsigned int cpuid)
 {
 	struct cpuinfo_metag *cpu_info = &per_cpu(cpu_data, cpuid);
 
@@ -270,12 +372,7 @@ asmlinkage void secondary_start_kernel(void)
 
 	setup_priv();
 
-	/*
-	 * Enable local interrupts.
-	 */
-	tbi_startup_interrupt(TBID_SIGNUM_TRT);
 	notify_cpu_starting(cpu);
-	local_irq_enable();
 
 	pr_info("CPU%u (thread %u): Booted secondary processor\n",
 		cpu, cpu_2_hwthread_id[cpu]);
@@ -287,17 +384,18 @@ asmlinkage void secondary_start_kernel(void)
 	 * OK, now it's safe to let the boot CPU continue
 	 */
 	set_cpu_online(cpu, true);
+	complete(&cpu_running);
 
 	/*
-	 * Check for cache aliasing.
-	 * Preemption is disabled
+	 * Enable local interrupts.
 	 */
-	check_for_cache_aliasing(cpu);
+	tbi_startup_interrupt(TBID_SIGNUM_TRT);
+	local_irq_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us
 	 */
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)

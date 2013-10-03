@@ -1107,6 +1107,7 @@ exit_release_cir_addr:
 	release_region(nvt->cir_addr, CIR_IOREG_LENGTH);
 exit_unregister_device:
 	rc_unregister_device(rdev);
+	rdev = NULL;
 exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(nvt);

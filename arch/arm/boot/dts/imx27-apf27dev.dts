@@ -1,0 +1,65 @@
+/*
+ * Copyright 2013 Armadeus Systems - <support@armadeus.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/* APF27Dev is a docking board for the APF27 SOM */
+#include "imx27-apf27.dts"
+
+/ {
+	model = "Armadeus Systems APF27Dev docking/development board";
+	compatible = "armadeus,imx27-apf27dev", "armadeus,imx27-apf27", "fsl,imx27";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		user-key {
+			label = "user";
+			gpios = <&gpio6 13 0>;
+			linux,code = <276>; /* BTN_EXTRA */
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user {
+			label = "Heartbeat";
+			gpios = <&gpio6 14 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&cspi1 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 28 1>;
+	status = "okay";
+};
+
+&cspi2 {
+	fsl,spi-num-chipselects = <3>;
+	cs-gpios = <&gpio4 21 1>, <&gpio4 27 1>,
+			<&gpio2 17 1>;
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	rtc@68 {
+		compatible = "dallas,ds1374";
+		reg = <0x68>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+};

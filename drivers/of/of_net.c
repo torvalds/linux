@@ -22,6 +22,7 @@ static const char *phy_modes[] = {
 	[PHY_INTERFACE_MODE_GMII]	= "gmii",
 	[PHY_INTERFACE_MODE_SGMII]	= "sgmii",
 	[PHY_INTERFACE_MODE_TBI]	= "tbi",
+	[PHY_INTERFACE_MODE_REVMII]	= "rev-mii",
 	[PHY_INTERFACE_MODE_RMII]	= "rmii",
 	[PHY_INTERFACE_MODE_RGMII]	= "rgmii",
 	[PHY_INTERFACE_MODE_RGMII_ID]	= "rgmii-id",
@@ -38,7 +39,7 @@ static const char *phy_modes[] = {
  * The function gets phy interface string from property 'phy-mode',
  * and return its index in phy_modes table, or errno in error case.
  */
-const int of_get_phy_mode(struct device_node *np)
+int of_get_phy_mode(struct device_node *np)
 {
 	const char *pm;
 	int err, i;

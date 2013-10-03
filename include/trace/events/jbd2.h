@@ -358,6 +358,27 @@ TRACE_EVENT(jbd2_write_superblock,
 		  MINOR(__entry->dev), __entry->write_op)
 );
 
+TRACE_EVENT(jbd2_lock_buffer_stall,
+
+	TP_PROTO(dev_t dev, unsigned long stall_ms),
+
+	TP_ARGS(dev, stall_ms),
+
+	TP_STRUCT__entry(
+		__field(        dev_t, dev	)
+		__field(unsigned long, stall_ms	)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= dev;
+		__entry->stall_ms	= stall_ms;
+	),
+
+	TP_printk("dev %d,%d stall_ms %lu",
+		MAJOR(__entry->dev), MINOR(__entry->dev),
+		__entry->stall_ms)
+);
+
 #endif /* _TRACE_JBD2_H */
 
 /* This part must be outside protection */

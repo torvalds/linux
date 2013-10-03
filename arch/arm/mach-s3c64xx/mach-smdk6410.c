@@ -69,6 +69,7 @@
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <plat/keypad.h>
 #include <plat/backlight.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "regs-modem.h"
@@ -273,6 +274,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_i2c1,
 	&s3c_device_fb,
 	&s3c_device_ohci,
+	&samsung_device_pwm,
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iisv4,
 	&samsung_device_keypad,
@@ -634,6 +636,7 @@ static void __init smdk6410_map_io(void)
 	s3c64xx_init_io(smdk6410_iodesc, ARRAY_SIZE(smdk6410_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdk6410_uartcfgs, ARRAY_SIZE(smdk6410_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	/* set the LCD type */
 
@@ -689,9 +692,9 @@ static void __init smdk6410_machine_init(void)
 
 	s3c_ide_set_platdata(&smdk6410_ide_pdata);
 
-	samsung_bl_set(&smdk6410_bl_gpio_info, &smdk6410_bl_data);
-
 	platform_add_devices(smdk6410_devices, ARRAY_SIZE(smdk6410_devices));
+
+	samsung_bl_set(&smdk6410_bl_gpio_info, &smdk6410_bl_data);
 }
 
 MACHINE_START(SMDK6410, "SMDK6410")
@@ -702,6 +705,6 @@ MACHINE_START(SMDK6410, "SMDK6410")
 	.map_io		= smdk6410_map_io,
 	.init_machine	= smdk6410_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -50,8 +51,10 @@ int s5p_csis_phy_enable(int id, bool on)
 {
 	return __s5p_mipi_phy_control(id, on, S5P_MIPI_DPHY_SRESETN);
 }
+EXPORT_SYMBOL(s5p_csis_phy_enable);
 
 int s5p_dsim_phy_enable(struct platform_device *pdev, bool on)
 {
 	return __s5p_mipi_phy_control(pdev->id, on, S5P_MIPI_DPHY_MRESETN);
 }
+EXPORT_SYMBOL(s5p_dsim_phy_enable);

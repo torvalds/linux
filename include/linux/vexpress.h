@@ -15,6 +15,7 @@
 #define _LINUX_VEXPRESS_H
 
 #include <linux/device.h>
+#include <linux/reboot.h>
 
 #define VEXPRESS_SITE_MB		0
 #define VEXPRESS_SITE_DB1		1
@@ -114,9 +115,6 @@ unsigned __vexpress_get_site(struct device *dev, struct device_node *node);
 
 void vexpress_sysreg_early_init(void __iomem *base);
 void vexpress_sysreg_of_early_init(void);
-
-void vexpress_power_off(void);
-void vexpress_restart(char str, const char *cmd);
 
 /* Clocks */
 

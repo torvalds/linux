@@ -240,22 +240,13 @@ static int rx8581_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
-	rtc = rtc_device_register(rx8581_driver.driver.name,
-				&client->dev, &rx8581_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&client->dev, rx8581_driver.driver.name,
+					&rx8581_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
 	i2c_set_clientdata(client, rtc);
-
-	return 0;
-}
-
-static int rx8581_remove(struct i2c_client *client)
-{
-	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	rtc_device_unregister(rtc);
 
 	return 0;
 }
@@ -272,7 +263,6 @@ static struct i2c_driver rx8581_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= rx8581_probe,
-	.remove		= rx8581_remove,
 	.id_table	= rx8581_id,
 };
 

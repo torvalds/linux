@@ -30,8 +30,6 @@
 
 #include <mach/irqs.h>
 
-#include "dma.h"
-
 #define OMAP1_DMA_BASE			(0xfffed800)
 #define OMAP1_LOGICAL_DMA_CH_COUNT	17
 #define OMAP1_DMA_STRIDE		0x40
@@ -301,7 +299,7 @@ static int __init omap1_system_dma_init(void)
 	if (ret) {
 		dev_err(&pdev->dev, "%s: Unable to add resources for %s%d\n",
 			__func__, pdev->name, pdev->id);
-		goto exit_device_put;
+		goto exit_iounmap;
 	}
 
 	p = kzalloc(sizeof(struct omap_system_dma_plat_info), GFP_KERNEL);
@@ -309,7 +307,7 @@ static int __init omap1_system_dma_init(void)
 		dev_err(&pdev->dev, "%s: Unable to allocate 'p' for %s\n",
 			__func__, pdev->name);
 		ret = -ENOMEM;
-		goto exit_device_del;
+		goto exit_iounmap;
 	}
 
 	d = kzalloc(sizeof(struct omap_dma_dev_attr), GFP_KERNEL);
@@ -345,6 +343,7 @@ static int __init omap1_system_dma_init(void)
 		dev_err(&pdev->dev,
 			"%s: Memory allocation failed for d->chan!\n",
 			__func__);
+		ret = -ENOMEM;
 		goto exit_release_d;
 	}
 
@@ -402,8 +401,8 @@ exit_release_d:
 	kfree(d);
 exit_release_p:
 	kfree(p);
-exit_device_del:
-	platform_device_del(pdev);
+exit_iounmap:
+	iounmap(dma_base);
 exit_device_put:
 	platform_device_put(pdev);
 

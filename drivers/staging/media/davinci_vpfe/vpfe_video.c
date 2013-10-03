@@ -39,7 +39,7 @@ static struct media_entity *vpfe_get_input_entity
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 	struct media_pad *remote;
 
-	remote = media_entity_remote_source(&vpfe_dev->vpfe_isif.pads[0]);
+	remote = media_entity_remote_pad(&vpfe_dev->vpfe_isif.pads[0]);
 	if (remote == NULL) {
 		pr_err("Invalid media connection to isif/ccdc\n");
 		return NULL;
@@ -56,7 +56,7 @@ static int vpfe_update_current_ext_subdev(struct vpfe_video_device *video)
 	struct media_pad *remote;
 	int i;
 
-	remote = media_entity_remote_source(&vpfe_dev->vpfe_isif.pads[0]);
+	remote = media_entity_remote_pad(&vpfe_dev->vpfe_isif.pads[0]);
 	if (remote == NULL) {
 		pr_err("Invalid media connection to isif/ccdc\n");
 		return -EINVAL;
@@ -89,7 +89,7 @@ static int vpfe_update_current_ext_subdev(struct vpfe_video_device *video)
 static struct v4l2_subdev *
 vpfe_video_remote_subdev(struct vpfe_video_device *video, u32 *pad)
 {
-	struct media_pad *remote = media_entity_remote_source(&video->pad);
+	struct media_pad *remote = media_entity_remote_pad(&video->pad);
 
 	if (remote == NULL || remote->entity->type != MEDIA_ENT_T_V4L2_SUBDEV)
 		return NULL;
@@ -114,7 +114,7 @@ __vpfe_video_get_format(struct vpfe_video_device *video,
 		return -EINVAL;
 
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	remote = media_entity_remote_source(&video->pad);
+	remote = media_entity_remote_pad(&video->pad);
 	fmt.pad = remote->index;
 
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
@@ -245,7 +245,7 @@ static int vpfe_video_validate_pipeline(struct vpfe_pipeline *pipe)
 			return -EPIPE;
 
 		/* Retrieve the source format */
-		pad = media_entity_remote_source(pad);
+		pad = media_entity_remote_pad(pad);
 		if (pad == NULL ||
 			pad->entity->type != MEDIA_ENT_T_V4L2_SUBDEV)
 			break;
@@ -357,7 +357,7 @@ static int vpfe_pipeline_disable(struct vpfe_pipeline *pipe)
  *
  * Set the pipeline to the given stream state.
  *
- * Return 0 if successfull, or the return value of the failed video::s_stream
+ * Return 0 if successful, or the return value of the failed video::s_stream
  * operation otherwise.
  */
 static int vpfe_pipeline_set_stream(struct vpfe_pipeline *pipe,
@@ -644,7 +644,7 @@ static int vpfe_g_fmt(struct file *file, void *priv,
  * fills v4l2_fmtdesc structure with output format set on adjacent subdev,
  * only one format is enumearted as subdevs are already configured
  *
- * Return 0 if successfull, error code otherwise
+ * Return 0 if successful, error code otherwise
  */
 static int vpfe_enum_fmt(struct file *file, void  *priv,
 				   struct v4l2_fmtdesc *fmt)
@@ -667,7 +667,7 @@ static int vpfe_enum_fmt(struct file *file, void  *priv,
 		return -EINVAL;
 	}
 	/* get the remote pad */
-	remote = media_entity_remote_source(&video->pad);
+	remote = media_entity_remote_pad(&video->pad);
 	if (remote == NULL) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
 			 "invalid remote pad for video node\n");
@@ -769,7 +769,7 @@ static int vpfe_try_fmt(struct file *file, void *priv,
  * fills v4l2_input structure with input available on media chain,
  * only one input is enumearted as media chain is setup by this time
  *
- * Return 0 if successfull, -EINVAL is media chain is invalid
+ * Return 0 if successful, -EINVAL is media chain is invalid
  */
 static int vpfe_enum_input(struct file *file, void *priv,
 				 struct v4l2_input *inp)
@@ -779,7 +779,7 @@ static int vpfe_enum_input(struct file *file, void *priv,
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_enum_input\n");
-	/* enumerate from the subdev user has choosen through mc */
+	/* enumerate from the subdev user has chosen through mc */
 	if (inp->index < sdinfo->num_inputs) {
 		memcpy(inp, &sdinfo->inputs[inp->index],
 		       sizeof(struct v4l2_input));
@@ -924,7 +924,7 @@ static int vpfe_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
  *
  * Return 0 on success, error code otherwise
  */
-static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpfe_video_device *video = video_drvdata(file);
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
@@ -945,13 +945,13 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 		goto unlock_out;
 	}
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, s_std, *std_id);
+					 core, s_std, std_id);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Failed to set standard\n");
 		video->stdid = V4L2_STD_UNKNOWN;
 		goto unlock_out;
 	}
-	video->stdid = *std_id;
+	video->stdid = std_id;
 unlock_out:
 	mutex_unlock(&video->lock);
 	return ret;
@@ -1016,12 +1016,12 @@ vpfe_query_dv_timings(struct file *file, void *fh,
 }
 
 /*
- * vpfe_s_dv_timings() - set dv_preset on external subdev
+ * vpfe_s_dv_timings() - set dv_timings on external subdev
  * @file: file pointer
  * @priv: void pointer
  * @timings: pointer to v4l2_dv_timings structure
  *
- * set dv_timings pointed by preset on external subdev through
+ * set dv_timings pointed by timings on external subdev through
  * v4l2_device_call_until_err, this configures amplifier also
  *
  * Return 0 on success, error code otherwise
@@ -1042,12 +1042,12 @@ vpfe_s_dv_timings(struct file *file, void *fh,
 }
 
 /*
- * vpfe_g_dv_timings() - get dv_preset which is set on external subdev
+ * vpfe_g_dv_timings() - get dv_timings which is set on external subdev
  * @file: file pointer
  * @priv: void pointer
  * @timings: pointer to v4l2_dv_timings structure
  *
- * get dv_preset which is set on external subdev through
+ * get dv_timings which is set on external subdev through
  * v4l2_subdev_call
  *
  * Return 0 on success, error code otherwise
@@ -1423,7 +1423,7 @@ static int vpfe_dqbuf(struct file *file, void *priv,
 }
 
 /*
- * vpfe_streamon() - get dv_preset which is set on external subdev
+ * vpfe_streamon() - start streaming
  * @file: file pointer
  * @priv: void pointer
  * @buf_type: enum v4l2_buf_type
@@ -1472,7 +1472,7 @@ static int vpfe_streamon(struct file *file, void *priv,
 }
 
 /*
- * vpfe_streamoff() - get dv_preset which is set on external subdev
+ * vpfe_streamoff() - stop streaming
  * @file: file pointer
  * @priv: void pointer
  * @buf_type: enum v4l2_buf_type
@@ -1614,7 +1614,7 @@ int vpfe_video_register(struct vpfe_video_device *video,
 void vpfe_video_unregister(struct vpfe_video_device *video)
 {
 	if (video_is_registered(&video->video_dev)) {
-		media_entity_cleanup(&video->video_dev.entity);
 		video_unregister_device(&video->video_dev);
+		media_entity_cleanup(&video->video_dev.entity);
 	}
 }

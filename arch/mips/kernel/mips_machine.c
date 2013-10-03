@@ -11,34 +11,15 @@
 #include <linux/slab.h>
 
 #include <asm/mips_machine.h>
+#include <asm/prom.h>
 
 static struct mips_machine *mips_machine __initdata;
-static char *mips_machine_name = "Unknown";
 
 #define for_each_machine(mach) \
 	for ((mach) = (struct mips_machine *)&__mips_machines_start; \
 	     (mach) && \
 	     (unsigned long)(mach) < (unsigned long)&__mips_machines_end; \
 	     (mach)++)
-
-__init void mips_set_machine_name(const char *name)
-{
-	char *p;
-
-	if (name == NULL)
-		return;
-
-	p = kstrdup(name, GFP_KERNEL);
-	if (!p)
-		pr_err("MIPS: no memory for machine_name\n");
-
-	mips_machine_name = p;
-}
-
-char *mips_get_machine_name(void)
-{
-	return mips_machine_name;
-}
 
 __init int mips_machtype_setup(char *id)
 {
@@ -79,7 +60,6 @@ __init void mips_machine_setup(void)
 		return;
 
 	mips_set_machine_name(mips_machine->mach_name);
-	pr_info("MIPS: machine is %s\n", mips_machine_name);
 
 	if (mips_machine->mach_setup)
 		mips_machine->mach_setup();

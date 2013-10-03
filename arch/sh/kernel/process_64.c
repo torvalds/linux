@@ -40,6 +40,7 @@ void show_regs(struct pt_regs *regs)
 	unsigned long long ah, al, bh, bl, ch, cl;
 
 	printk("\n");
+	show_regs_print_info(KERN_DEFAULT);
 
 	ah = (regs->pc) >> 32;
 	al = (regs->pc) & 0xffffffff;

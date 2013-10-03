@@ -8,9 +8,9 @@
 #undef  PROGNAME
 #define PROGNAME "libusbip"
 
-int usbip_use_syslog = 0;
-int usbip_use_stderr = 0;
-int usbip_use_debug  = 0;
+int usbip_use_syslog;
+int usbip_use_stderr;
+int usbip_use_debug;
 
 struct speed_string {
 	int num;
@@ -44,7 +44,7 @@ static struct portst_string portst_strings[] = {
 
 const char *usbip_status_string(int32_t status)
 {
-	for (int i=0; portst_strings[i].desc != NULL; i++)
+	for (int i = 0; portst_strings[i].desc != NULL; i++)
 		if (portst_strings[i].num == status)
 			return portst_strings[i].desc;
 
@@ -53,7 +53,7 @@ const char *usbip_status_string(int32_t status)
 
 const char *usbip_speed_string(int num)
 {
-	for (int i=0; speed_strings[i].speed != NULL; i++)
+	for (int i = 0; speed_strings[i].speed != NULL; i++)
 		if (speed_strings[i].num == num)
 			return speed_strings[i].desc;
 
@@ -109,7 +109,8 @@ void dump_usb_device(struct usbip_usb_device *udev)
 }
 
 
-int read_attr_value(struct sysfs_device *dev, const char *name, const char *format)
+int read_attr_value(struct sysfs_device *dev, const char *name,
+		    const char *format)
 {
 	char attrpath[SYSFS_PATH_MAX];
 	struct sysfs_attribute *attr;
@@ -172,7 +173,7 @@ int read_attr_speed(struct sysfs_device *dev)
 err:
 	sysfs_close_attribute(attr);
 
-	for (int i=0; speed_strings[i].speed != NULL; i++) {
+	for (int i = 0; speed_strings[i].speed != NULL; i++) {
 		if (!strcmp(speed, speed_strings[i].speed))
 			return speed_strings[i].num;
 	}
@@ -180,8 +181,11 @@ err:
 	return USB_SPEED_UNKNOWN;
 }
 
-#define READ_ATTR(object, type, dev, name, format)\
-	do { (object)->name = (type) read_attr_value(dev, to_string(name), format); } while (0)
+#define READ_ATTR(object, type, dev, name, format)			      \
+	do {								      \
+		(object)->name = (type) read_attr_value(dev, to_string(name), \
+							format);	      \
+	} while (0)
 
 
 int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev)
@@ -245,7 +249,8 @@ void usbip_names_free()
 	names_free();
 }
 
-void usbip_names_get_product(char *buff, size_t size, uint16_t vendor, uint16_t product)
+void usbip_names_get_product(char *buff, size_t size, uint16_t vendor,
+			     uint16_t product)
 {
 	const char *prod, *vend;
 
@@ -261,7 +266,8 @@ void usbip_names_get_product(char *buff, size_t size, uint16_t vendor, uint16_t 
 	snprintf(buff, size, "%s : %s (%04x:%04x)", vend, prod, vendor, product);
 }
 
-void usbip_names_get_class(char *buff, size_t size, uint8_t class, uint8_t subclass, uint8_t protocol)
+void usbip_names_get_class(char *buff, size_t size, uint8_t class,
+			   uint8_t subclass, uint8_t protocol)
 {
 	const char *c, *s, *p;
 

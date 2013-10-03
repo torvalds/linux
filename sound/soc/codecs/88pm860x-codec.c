@@ -120,10 +120,8 @@
  * before DAC & PGA in DAPM power-off sequence.
  */
 #define PM860X_DAPM_OUTPUT(wname, wevent)	\
-{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_NOPM, \
-	.shift = 0, .invert = 0, .kcontrol_news = NULL, \
-	.num_kcontrols = 0, .event = wevent, \
-	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD, }
+	SND_SOC_DAPM_PGA_E(wname, SND_SOC_NOPM, 0, 0, NULL, 0, wevent, \
+			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD)
 
 struct pm860x_det {
 	struct snd_soc_jack	*hp_jack;
@@ -350,6 +348,9 @@ static int snd_soc_put_volsw_2r_st(struct snd_kcontrol *kcontrol,
 
 	val = ucontrol->value.integer.value[0];
 	val2 = ucontrol->value.integer.value[1];
+
+	if (val >= ARRAY_SIZE(st_table) || val2 >= ARRAY_SIZE(st_table))
+		return -EINVAL;
 
 	err = snd_soc_update_bits(codec, reg, 0x3f, st_table[val].m);
 	if (err < 0)
@@ -1444,7 +1445,7 @@ static int pm860x_codec_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
 		if (!res) {
 			dev_err(&pdev->dev, "Failed to get IRQ resources\n");
-			goto out;
+			return -EINVAL;
 		}
 		pm860x->irq[i] = res->start + chip->irq_base;
 		strncpy(pm860x->name[i], res->name, MAX_NAME_LEN);
@@ -1454,19 +1455,14 @@ static int pm860x_codec_probe(struct platform_device *pdev)
 				     pm860x_dai, ARRAY_SIZE(pm860x_dai));
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register codec\n");
-		goto out;
+		return -EINVAL;
 	}
 	return ret;
-
-out:
-	platform_set_drvdata(pdev, NULL);
-	return -EINVAL;
 }
 
 static int pm860x_codec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

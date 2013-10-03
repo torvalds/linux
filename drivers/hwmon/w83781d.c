@@ -64,8 +64,8 @@ enum chips { w83781d, w83782d, w83783s, as99127f };
 /* Insmod parameters */
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
-MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
-		    "{bus, clientaddr, subclientaddr1, subclientaddr2}");
+MODULE_PARM_DESC(force_subclients,
+		 "List of subclient addresses: {bus, clientaddr, subclientaddr1, subclientaddr2}");
 
 static bool reset;
 module_param(reset, bool, 0);
@@ -826,8 +826,9 @@ store_sensor(struct device *dev, struct device_attribute *da,
 		data->sens[nr] = val;
 		break;
 	case W83781D_DEFAULT_BETA:
-		dev_warn(dev, "Sensor type %d is deprecated, please use 4 "
-			 "instead\n", W83781D_DEFAULT_BETA);
+		dev_warn(dev,
+			 "Sensor type %d is deprecated, please use 4 instead\n",
+			 W83781D_DEFAULT_BETA);
 		/* fall through */
 	case 4:		/* thermistor */
 		tmp = w83781d_read_value(data, W83781D_REG_SCFG1);
@@ -874,8 +875,8 @@ w83781d_detect_subclients(struct i2c_client *new_client)
 		for (i = 2; i <= 3; i++) {
 			if (force_subclients[i] < 0x48 ||
 			    force_subclients[i] > 0x4f) {
-				dev_err(&new_client->dev, "Invalid subclient "
-					"address %d; must be 0x48-0x4f\n",
+				dev_err(&new_client->dev,
+					"Invalid subclient address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
 				err = -EINVAL;
 				goto ERROR_SC_1;
@@ -910,9 +911,9 @@ w83781d_detect_subclients(struct i2c_client *new_client)
 	for (i = 0; i < num_sc; i++) {
 		data->lm75[i] = i2c_new_dummy(adapter, sc_addr[i]);
 		if (!data->lm75[i]) {
-			dev_err(&new_client->dev, "Subclient %d "
-				"registration at address 0x%x "
-				"failed.\n", i, sc_addr[i]);
+			dev_err(&new_client->dev,
+				"Subclient %d registration at address 0x%x failed.\n",
+				i, sc_addr[i]);
 			err = -ENOMEM;
 			if (i == 1)
 				goto ERROR_SC_3;
@@ -1176,8 +1177,9 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 		goto err_nodev;
 
 	if (val1 <= 0x30 && w83781d_alias_detect(client, val1)) {
-		dev_dbg(&adapter->dev, "Device at 0x%02x appears to "
-			"be the same as ISA device\n", address);
+		dev_dbg(&adapter->dev,
+			"Device at 0x%02x appears to be the same as ISA device\n",
+			address);
 		goto err_nodev;
 	}
 
@@ -1367,8 +1369,8 @@ w83781d_init_device(struct device *dev)
 		 * as I see very little reason why this would be needed at
 		 * all.
 		 */
-		dev_info(dev, "If reset=1 solved a problem you were "
-			 "having, please report!\n");
+		dev_info(dev,
+			 "If reset=1 solved a problem you were having, please report!\n");
 
 		/* save these registers */
 		i = w83781d_read_value(data, W83781D_REG_BEEP_CONFIG);
@@ -1425,8 +1427,8 @@ w83781d_init_device(struct device *dev)
 		/* Enable temp2 */
 		tmp = w83781d_read_value(data, W83781D_REG_TEMP2_CONFIG);
 		if (tmp & 0x01) {
-			dev_warn(dev, "Enabling temp2, readings "
-				 "might not make sense\n");
+			dev_warn(dev,
+				 "Enabling temp2, readings might not make sense\n");
 			w83781d_write_value(data, W83781D_REG_TEMP2_CONFIG,
 				tmp & 0xfe);
 		}
@@ -1436,8 +1438,8 @@ w83781d_init_device(struct device *dev)
 			tmp = w83781d_read_value(data,
 				W83781D_REG_TEMP3_CONFIG);
 			if (tmp & 0x01) {
-				dev_warn(dev, "Enabling temp3, "
-					 "readings might not make sense\n");
+				dev_warn(dev,
+					 "Enabling temp3, readings might not make sense\n");
 				w83781d_write_value(data,
 					W83781D_REG_TEMP3_CONFIG, tmp & 0xfe);
 			}

@@ -645,7 +645,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		p->info = sh_msiof_spi_parse_dt(&pdev->dev);
 	else
-		p->info = pdev->dev.platform_data;
+		p->info = dev_get_platdata(&pdev->dev);
 
 	if (!p->info) {
 		dev_err(&pdev->dev, "failed to obtain device info\n");
@@ -745,18 +745,6 @@ static int sh_msiof_spi_remove(struct platform_device *pdev)
 	return ret;
 }
 
-static int sh_msiof_spi_runtime_nop(struct device *dev)
-{
-	/* Runtime PM callback shared between ->runtime_suspend()
-	 * and ->runtime_resume(). Simply returns success.
-	 *
-	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
-	 * to save and restore registers here.
-	 */
-	return 0;
-}
-
 #ifdef CONFIG_OF
 static const struct of_device_id sh_msiof_match[] = {
 	{ .compatible = "renesas,sh-msiof", },
@@ -764,14 +752,7 @@ static const struct of_device_id sh_msiof_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, sh_msiof_match);
-#else
-#define sh_msiof_match NULL
 #endif
-
-static struct dev_pm_ops sh_msiof_spi_dev_pm_ops = {
-	.runtime_suspend = sh_msiof_spi_runtime_nop,
-	.runtime_resume = sh_msiof_spi_runtime_nop,
-};
 
 static struct platform_driver sh_msiof_spi_drv = {
 	.probe		= sh_msiof_spi_probe,
@@ -779,8 +760,7 @@ static struct platform_driver sh_msiof_spi_drv = {
 	.driver		= {
 		.name		= "spi_sh_msiof",
 		.owner		= THIS_MODULE,
-		.pm		= &sh_msiof_spi_dev_pm_ops,
-		.of_match_table = sh_msiof_match,
+		.of_match_table = of_match_ptr(sh_msiof_match),
 	},
 };
 module_platform_driver(sh_msiof_spi_drv);

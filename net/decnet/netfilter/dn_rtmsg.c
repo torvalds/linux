@@ -19,7 +19,7 @@
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/spinlock.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/netfilter_decnet.h>
 
 #include <net/sock.h>
@@ -39,21 +39,21 @@ static struct sk_buff *dnrmg_build_message(struct sk_buff *rt_skb, int *errp)
 	unsigned char *ptr;
 	struct nf_dn_rtmsg *rtm;
 
-	size = NLMSG_SPACE(rt_skb->len);
-	size += NLMSG_ALIGN(sizeof(struct nf_dn_rtmsg));
-	skb = alloc_skb(size, GFP_ATOMIC);
+	size = NLMSG_ALIGN(rt_skb->len) +
+	       NLMSG_ALIGN(sizeof(struct nf_dn_rtmsg));
+	skb = nlmsg_new(size, GFP_ATOMIC);
 	if (!skb) {
 		*errp = -ENOMEM;
 		return NULL;
 	}
 	old_tail = skb->tail;
-	nlh = nlmsg_put(skb, 0, 0, 0, size - sizeof(*nlh), 0);
+	nlh = nlmsg_put(skb, 0, 0, 0, size, 0);
 	if (!nlh) {
 		kfree_skb(skb);
 		*errp = -ENOMEM;
 		return NULL;
 	}
-	rtm = (struct nf_dn_rtmsg *)NLMSG_DATA(nlh);
+	rtm = (struct nf_dn_rtmsg *)nlmsg_data(nlh);
 	rtm->nfdn_ifindex = rt_skb->dev->ifindex;
 	ptr = NFDN_RTMSG(rtm);
 	skb_copy_from_linear_data(rt_skb, ptr, rt_skb->len);

@@ -25,8 +25,8 @@ When a w1 master driver registers with the w1 subsystem, the following occurs:
  - sysfs entries for that w1 master are created
  - the w1 bus is periodically searched for new slave devices
 
-When a device is found on the bus, w1 core checks if driver for its family is
-loaded. If so, the family driver is attached to the slave.
+When a device is found on the bus, w1 core tries to load the driver for its family
+and check if it is loaded. If so, the family driver is attached to the slave.
 If there is no driver for the family, default one is assigned, which allows to perform
 almost any kind of operations. Each logical operation is a transaction
 in nature, which can contain several (two or one) low-level operations.

@@ -41,7 +41,7 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 				txq->axq_tx_inprogress = true;
 			}
 		}
-		ath_txq_unlock_complete(sc, txq);
+		ath_txq_unlock(sc, txq);
 	}
 
 	if (needreset) {
@@ -214,7 +214,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_BE];
 
 	memset(tx_info, 0, sizeof(*tx_info));
-	tx_info->band = hw->conf.channel->band;
+	tx_info->band = hw->conf.chandef.chan->band;
 	tx_info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	tx_info->control.rates[0].idx = 0;
 	tx_info->control.rates[0].count = 1;
@@ -390,9 +390,7 @@ void ath_ani_calibrate(unsigned long data)
 	}
 
 	/* Verify whether we must check ANI */
-	if (sc->sc_ah->config.enable_ani
-	    && (timestamp - common->ani.checkani_timer) >=
-	    ah->config.ani_poll_interval) {
+	if ((timestamp - common->ani.checkani_timer) >= ah->config.ani_poll_interval) {
 		aniflag = true;
 		common->ani.checkani_timer = timestamp;
 	}
@@ -418,7 +416,6 @@ void ath_ani_calibrate(unsigned long data)
 		longcal ? "long" : "", shortcal ? "short" : "",
 		aniflag ? "ani" : "", common->ani.caldone ? "true" : "false");
 
-	ath9k_debug_samp_bb_mac(sc);
 	ath9k_ps_restore(sc);
 
 set_timer:
@@ -428,9 +425,7 @@ set_timer:
 	* short calibration and long calibration.
 	*/
 	cal_interval = ATH_LONG_CALINTERVAL;
-	if (sc->sc_ah->config.enable_ani)
-		cal_interval = min(cal_interval,
-				   (u32)ah->config.ani_poll_interval);
+	cal_interval = min(cal_interval, (u32)ah->config.ani_poll_interval);
 	if (!common->ani.caldone)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 

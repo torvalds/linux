@@ -165,9 +165,9 @@ static void overlay_set_win(struct mmp_overlay *overlay, struct mmp_win *win)
 
 static void dmafetch_onoff(struct mmp_overlay *overlay, int on)
 {
-	u32 mask = overlay_is_vid(overlay) ? CFG_GRA_ENA_MASK :
-		   CFG_DMA_ENA_MASK;
-	u32 enable = overlay_is_vid(overlay) ? CFG_GRA_ENA(1) : CFG_DMA_ENA(1);
+	u32 mask = overlay_is_vid(overlay) ? CFG_DMA_ENA_MASK :
+		   CFG_GRA_ENA_MASK;
+	u32 enable = overlay_is_vid(overlay) ? CFG_DMA_ENA(1) : CFG_GRA_ENA(1);
 	u32 tmp;
 	struct mmp_path *path = overlay->path;
 
@@ -238,7 +238,7 @@ static int overlay_set_addr(struct mmp_overlay *overlay, struct mmp_addr *addr)
 	struct lcd_regs *regs = path_regs(overlay->path);
 
 	/* FIXME: assert addr supported */
-	memcpy(&overlay->addr, addr, sizeof(struct mmp_win));
+	memcpy(&overlay->addr, addr, sizeof(struct mmp_addr));
 	writel(addr->phys[0], &regs->g_0);
 
 	return overlay->addr.phys[0];
@@ -514,7 +514,7 @@ static int mmphw_probe(struct platform_device *pdev)
 	if (IS_ERR(ctrl->clk)) {
 		dev_err(ctrl->dev, "unable to get clk %s\n", mi->clk_name);
 		ret = -ENOENT;
-		goto failed_get_clk;
+		goto failed;
 	}
 	clk_prepare_enable(ctrl->clk);
 
@@ -551,22 +551,8 @@ failed_path_init:
 		path_deinit(path_plat);
 	}
 
-	if (ctrl->clk) {
-		devm_clk_put(ctrl->dev, ctrl->clk);
-		clk_disable_unprepare(ctrl->clk);
-	}
-failed_get_clk:
-	devm_free_irq(ctrl->dev, ctrl->irq, ctrl);
+	clk_disable_unprepare(ctrl->clk);
 failed:
-	if (ctrl) {
-		if (ctrl->reg_base)
-			devm_iounmap(ctrl->dev, ctrl->reg_base);
-		devm_release_mem_region(ctrl->dev, res->start,
-				resource_size(res));
-		devm_kfree(ctrl->dev, ctrl);
-	}
-
-	platform_set_drvdata(pdev, NULL);
 	dev_err(&pdev->dev, "device init failed\n");
 
 	return ret;

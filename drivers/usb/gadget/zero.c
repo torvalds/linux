@@ -284,12 +284,16 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	ss_opts->bulk_buflen = gzero_options.bulk_buflen;
 
 	func_ss = usb_get_function(func_inst_ss);
-	if (IS_ERR(func_ss))
+	if (IS_ERR(func_ss)) {
+		status = PTR_ERR(func_ss);
 		goto err_put_func_inst_ss;
+	}
 
 	func_inst_lb = usb_get_function_instance("Loopback");
-	if (IS_ERR(func_inst_lb))
+	if (IS_ERR(func_inst_lb)) {
+		status = PTR_ERR(func_inst_lb);
 		goto err_put_func_ss;
+	}
 
 	lb_opts = container_of(func_inst_lb, struct f_lb_opts, func_inst);
 	lb_opts->bulk_buflen = gzero_options.bulk_buflen;
@@ -368,8 +372,10 @@ static int zero_unbind(struct usb_composite_dev *cdev)
 	del_timer_sync(&autoresume_timer);
 	if (!IS_ERR_OR_NULL(func_ss))
 		usb_put_function(func_ss);
+	usb_put_function_instance(func_inst_ss);
 	if (!IS_ERR_OR_NULL(func_lb))
 		usb_put_function(func_lb);
+	usb_put_function_instance(func_inst_lb);
 	return 0;
 }
 

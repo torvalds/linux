@@ -70,7 +70,6 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
-	freqs.cpu = policy->cpu;
 
 	if (freqs.new == freqs.old)
 		goto out;
@@ -105,8 +104,7 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 	}
 	arm_volt = volt_table[index];
 
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* When the new frequency is higher than current frequency */
 	if ((freqs.new > freqs.old) && !safe_arm_volt) {
@@ -115,7 +113,8 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 		if (ret) {
 			pr_err("%s: failed to set cpu voltage to %d\n",
 				__func__, arm_volt);
-			goto out;
+			freqs.new = freqs.old;
+			goto post_notify;
 		}
 	}
 
@@ -125,14 +124,18 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 		if (ret) {
 			pr_err("%s: failed to set cpu voltage to %d\n",
 				__func__, safe_arm_volt);
-			goto out;
+			freqs.new = freqs.old;
+			goto post_notify;
 		}
 	}
 
 	exynos_info->set_freq(old_index, index);
 
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+post_notify:
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+
+	if (ret)
+		goto out;
 
 	/* When the new frequency is lower than current frequency */
 	if ((freqs.new < freqs.old) ||
@@ -286,7 +289,7 @@ static int __init exynos_cpufreq_init(void)
 {
 	int ret = -EINVAL;
 
-	exynos_info = kzalloc(sizeof(struct exynos_dvfs_info), GFP_KERNEL);
+	exynos_info = kzalloc(sizeof(*exynos_info), GFP_KERNEL);
 	if (!exynos_info)
 		return -ENOMEM;
 
@@ -297,7 +300,7 @@ static int __init exynos_cpufreq_init(void)
 	else if (soc_is_exynos5250())
 		ret = exynos5250_cpufreq_init(exynos_info);
 	else
-		pr_err("%s: CPU type not found\n", __func__);
+		return 0;
 
 	if (ret)
 		goto err_vdd_arm;
@@ -329,7 +332,6 @@ err_cpufreq:
 	regulator_put(arm_regulator);
 err_vdd_arm:
 	kfree(exynos_info);
-	pr_debug("%s: failed initialization\n", __func__);
 	return -EINVAL;
 }
 late_initcall(exynos_cpufreq_init);

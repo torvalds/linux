@@ -82,9 +82,9 @@ static void vr_nor_destroy_mtd_setup(struct vr_nor_mtd *p)
 
 static int vr_nor_mtd_setup(struct vr_nor_mtd *p)
 {
-	static const char *probe_types[] =
+	static const char * const probe_types[] =
 	    { "cfi_probe", "jedec_probe", NULL };
-	const char **type;
+	const char * const *type;
 
 	for (type = probe_types; !p->info && *type; type++)
 		p->info = do_map_probe(*type, &p->map);

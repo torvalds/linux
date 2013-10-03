@@ -191,7 +191,7 @@ static int mdio_gpio_probe(struct platform_device *pdev)
 		pdata = mdio_gpio_of_get_data(pdev);
 		bus_id = of_alias_get_id(pdev->dev.of_node, "mdio-gpio");
 	} else {
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 		bus_id = pdev->id;
 	}
 
@@ -235,17 +235,7 @@ static struct platform_driver mdio_gpio_driver = {
 	},
 };
 
-static int __init mdio_gpio_init(void)
-{
-	return platform_driver_register(&mdio_gpio_driver);
-}
-module_init(mdio_gpio_init);
-
-static void __exit mdio_gpio_exit(void)
-{
-	platform_driver_unregister(&mdio_gpio_driver);
-}
-module_exit(mdio_gpio_exit);
+module_platform_driver(mdio_gpio_driver);
 
 MODULE_ALIAS("platform:mdio-gpio");
 MODULE_AUTHOR("Laurent Pinchart, Paulius Zaleckas");

@@ -185,7 +185,7 @@ static int pca954x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
-	struct pca954x_platform_data *pdata = client->dev.platform_data;
+	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
 	int num, force, class;
 	struct pca954x *data;
 	int ret = -ENODEV;
@@ -262,13 +262,11 @@ static int pca954x_remove(struct i2c_client *client)
 {
 	struct pca954x *data = i2c_get_clientdata(client);
 	const struct chip_desc *chip = &chips[data->type];
-	int i, err;
+	int i;
 
 	for (i = 0; i < chip->nchans; ++i)
 		if (data->virt_adaps[i]) {
-			err = i2c_del_mux_adapter(data->virt_adaps[i]);
-			if (err)
-				return err;
+			i2c_del_mux_adapter(data->virt_adaps[i]);
 			data->virt_adaps[i] = NULL;
 		}
 

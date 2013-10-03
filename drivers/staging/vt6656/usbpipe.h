@@ -30,16 +30,7 @@
 #ifndef __USBPIPE_H__
 #define __USBPIPE_H__
 
-#include "ttype.h"
 #include "device.h"
-
-/*---------------------  Export Definitions -------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 int PIPEnsControlOut(struct vnt_private *, u8 byRequest, u16 wValue,
 		u16 wIndex, u16 wLength, u8 *pbyBuffer);
@@ -49,7 +40,8 @@ int PIPEnsControlIn(struct vnt_private *, u8 byRequest, u16 wValue,
 	u16 wIndex, u16 wLength,  u8 *pbyBuffer);
 
 int PIPEnsInterruptRead(struct vnt_private *);
-int PIPEnsBulkInUsbRead(struct vnt_private *, PRCB pRCB);
-int PIPEnsSendBulkOut(struct vnt_private *, PUSB_SEND_CONTEXT pContext);
+int PIPEnsBulkInUsbRead(struct vnt_private *, struct vnt_rcb *pRCB);
+int PIPEnsSendBulkOut(struct vnt_private *,
+				struct vnt_usb_send_context *pContext);
 
 #endif /* __USBPIPE_H__ */

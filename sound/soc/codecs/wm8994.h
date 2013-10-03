@@ -79,6 +79,7 @@ struct wm8994_priv {
 	int sysclk_rate[2];
 	int mclk[2];
 	int aifclk[2];
+	int aifdiv[2];
 	int channels[2];
 	struct wm8994_fll_config fll[2], fll_suspend[2];
 	struct completion fll_locked[2];
@@ -133,6 +134,9 @@ struct wm8994_priv {
 	struct mutex accdet_lock;
 	struct wm8994_micdet micdet[2];
 	struct delayed_work mic_work;
+	struct delayed_work open_circuit_work;
+	struct delayed_work mic_complete_work;
+	u16 mic_status;
 	bool mic_detecting;
 	bool jack_mic;
 	int btn_mask;
@@ -145,8 +149,6 @@ struct wm8994_priv {
 	void *micd_cb_data;
 	wm1811_mic_id_cb mic_id_cb;
 	void *mic_id_cb_data;
-
-	int revision;
 
 	unsigned int aif1clk_enable:1;
 	unsigned int aif2clk_enable:1;

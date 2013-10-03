@@ -28,6 +28,7 @@
 #include "target.h"
 #include "debug.h"
 #include "cfg80211.h"
+#include "trace.h"
 
 struct ath6kl_sdio {
 	struct sdio_func *func;
@@ -179,6 +180,8 @@ static int ath6kl_sdio_io(struct sdio_func *func, u32 request, u32 addr,
 		   request & HIF_FIXED_ADDRESS ? " (fixed)" : "", buf, len);
 	ath6kl_dbg_dump(ATH6KL_DBG_SDIO_DUMP, NULL, "sdio ", buf, len);
 
+	trace_ath6kl_sdio(addr, request, buf, len);
+
 	return ret;
 }
 
@@ -309,6 +312,13 @@ static int ath6kl_sdio_scat_rw(struct ath6kl_sdio *ar_sdio,
 	sdio_claim_host(ar_sdio->func);
 
 	mmc_set_data_timeout(&data, ar_sdio->func->card);
+
+	trace_ath6kl_sdio_scat(scat_req->addr,
+			       scat_req->req,
+			       scat_req->len,
+			       scat_req->scat_entries,
+			       scat_req->scat_list);
+
 	/* synchronous call to process request */
 	mmc_wait_for_req(ar_sdio->func->card->host, &mmc_req);
 
@@ -335,17 +345,17 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 {
 	struct hif_scatter_req *s_req;
 	struct bus_request *bus_req;
-	int i, scat_req_sz, scat_list_sz, sg_sz, buf_sz;
+	int i, scat_req_sz, scat_list_sz, size;
 	u8 *virt_buf;
 
 	scat_list_sz = (n_scat_entry - 1) * sizeof(struct hif_scatter_item);
 	scat_req_sz = sizeof(*s_req) + scat_list_sz;
 
 	if (!virt_scat)
-		sg_sz = sizeof(struct scatterlist) * n_scat_entry;
+		size = sizeof(struct scatterlist) * n_scat_entry;
 	else
-		buf_sz =  2 * L1_CACHE_BYTES +
-			  ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER;
+		size =  2 * L1_CACHE_BYTES +
+			ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER;
 
 	for (i = 0; i < n_scat_req; i++) {
 		/* allocate the scatter request */
@@ -354,7 +364,7 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 			return -ENOMEM;
 
 		if (virt_scat) {
-			virt_buf = kzalloc(buf_sz, GFP_KERNEL);
+			virt_buf = kzalloc(size, GFP_KERNEL);
 			if (!virt_buf) {
 				kfree(s_req);
 				return -ENOMEM;
@@ -364,7 +374,7 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 				(u8 *)L1_CACHE_ALIGN((unsigned long)virt_buf);
 		} else {
 			/* allocate sglist */
-			s_req->sgentries = kzalloc(sg_sz, GFP_KERNEL);
+			s_req->sgentries = kzalloc(size, GFP_KERNEL);
 
 			if (!s_req->sgentries) {
 				kfree(s_req);
@@ -1123,10 +1133,12 @@ static int ath6kl_sdio_bmi_write(struct ath6kl *ar, u8 *buf, u32 len)
 
 	ret = ath6kl_sdio_read_write_sync(ar, addr, buf, len,
 					  HIF_WR_SYNC_BYTE_INC);
-	if (ret)
+	if (ret) {
 		ath6kl_err("unable to send the bmi data to the device\n");
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)

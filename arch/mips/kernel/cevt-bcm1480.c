@@ -109,7 +109,7 @@ static DEFINE_PER_CPU(struct clock_event_device, sibyte_hpt_clockevent);
 static DEFINE_PER_CPU(struct irqaction, sibyte_hpt_irqaction);
 static DEFINE_PER_CPU(char [18], sibyte_hpt_name);
 
-void __cpuinit sb1480_clockevent_init(void)
+void sb1480_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned int irq = K_BCM1480_INT_TIMER_0 + cpu;

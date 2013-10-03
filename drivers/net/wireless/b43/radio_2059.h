@@ -5,9 +5,9 @@
 
 #include "phy_ht.h"
 
-#define R2059_SYN			0x000
-#define R2059_TXRX0			0x400
-#define R2059_RXRX1			0x800
+#define R2059_C1			0x000
+#define R2059_C2			0x400
+#define R2059_C3			0x800
 #define R2059_ALL			0xC00
 
 /* Values for various registers uploaded on channel switching */
@@ -28,14 +28,6 @@ struct b43_phy_ht_channeltab_e_radio2059 {
 	u8 radio_syn41;
 	u8 radio_syn43;
 	u8 radio_syn47;
-	u8 radio_syn4a;
-	u8 radio_syn58;
-	u8 radio_syn5a;
-	u8 radio_syn6a;
-	u8 radio_syn6d;
-	u8 radio_syn6e;
-	u8 radio_syn92;
-	u8 radio_syn98;
 	u8 radio_rxtx4a;
 	u8 radio_rxtx58;
 	u8 radio_rxtx5a;

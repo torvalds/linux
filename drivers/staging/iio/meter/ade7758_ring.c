@@ -54,7 +54,7 @@ out:
 	return ret;
 }
 
-/* Whilst this makes a lot of calls to iio_sw_ring functions - it is to device
+/* Whilst this makes a lot of calls to iio_sw_ring functions - it is too device
  * specific to be rolled into the core.
  */
 static irqreturn_t ade7758_trigger_handler(int irq, void *p)

@@ -167,34 +167,3 @@ void dgrp_carrier(struct ch_struct *ch)
 		ch->ch_flag &= ~CH_PHYS_CD;
 
 }
-
-/**
- * dgrp_chk_perm() -- check permissions for net device
- * @inode: pointer to inode structure for the net communication device
- * @op: operation to be tested
- *
- * The file permissions and ownerships are tested to determine whether
- * the operation "op" is permitted on the file pointed to by the inode.
- * Returns 0 if the operation is permitted, -EACCESS otherwise
- */
-int dgrp_chk_perm(int mode, int op)
-{
-	if (!uid_eq(GLOBAL_ROOT_UID, current_euid()))
-		mode >>= 6;
-	else if (in_egroup_p(GLOBAL_ROOT_GID))
-		mode >>= 3;
-
-	if ((mode & op & 0007) == op)
-		return 0;
-
-	if (capable(CAP_SYS_ADMIN))
-		return 0;
-
-	return -EACCES;
-}
-
-/* dgrp_chk_perm wrapper for permission call in struct inode_operations */
-int dgrp_inode_permission(struct inode *inode, int op)
-{
-	return dgrp_chk_perm(inode->i_mode, op);
-}

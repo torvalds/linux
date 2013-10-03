@@ -61,7 +61,7 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
  * in flags for the GPIO.
  */
 int of_get_named_gpio_flags(struct device_node *np, const char *propname,
-                           int index, enum of_gpio_flags *flags)
+			   int index, enum of_gpio_flags *flags)
 {
 	/* Return -EPROBE_DEFER to support probe() functions to be called
 	 * later when the GPIO actually becomes available
@@ -76,7 +76,8 @@ int of_get_named_gpio_flags(struct device_node *np, const char *propname,
 	ret = of_parse_phandle_with_args(np, propname, "#gpio-cells", index,
 					 &gg_data.gpiospec);
 	if (ret) {
-		pr_debug("%s: can't parse gpios property\n", __func__);
+		pr_debug("%s: can't parse gpios property of node '%s[%d]'\n",
+			__func__, np->full_name, index);
 		return ret;
 	}
 
@@ -194,8 +195,8 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		return;
 
 	for (;; index++) {
-		ret = of_parse_phandle_with_args(np, "gpio-ranges",
-				"#gpio-range-cells", index, &pinspec);
+		ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3,
+				index, &pinspec);
 		if (ret)
 			break;
 
@@ -203,22 +204,11 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		if (!pctldev)
 			break;
 
-		/*
-		 * This assumes that the n GPIO pins are consecutive in the
-		 * GPIO number space, and that the pins are also consecutive
-		 * in their local number space. Currently it is not possible
-		 * to add different ranges for one and the same GPIO chip,
-		 * as the code assumes that we have one consecutive range
-		 * on both, mapping 1-to-1.
-		 *
-		 * TODO: make the OF bindings handle multiple sparse ranges
-		 * on the same GPIO chip.
-		 */
 		ret = gpiochip_add_pin_range(chip,
 					     pinctrl_dev_get_devname(pctldev),
-					     0, /* offset in gpiochip */
 					     pinspec.args[0],
-					     pinspec.args[1]);
+					     pinspec.args[1],
+					     pinspec.args[2]);
 
 		if (ret)
 			break;

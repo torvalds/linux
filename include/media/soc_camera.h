@@ -19,11 +19,13 @@
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
 #include <media/videobuf2-core.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 
 struct file;
 struct soc_camera_desc;
+struct soc_camera_async_client;
 
 struct soc_camera_device {
 	struct list_head list;		/* list of all registered devices */
@@ -49,6 +51,10 @@ struct soc_camera_device {
 	/* soc_camera.c private count. Only accessed with .host_lock held */
 	int use_count;
 	struct file *streamer;		/* stream owner */
+	struct v4l2_clk *clk;
+	/* Asynchronous subdevice management */
+	struct soc_camera_async_client *sasc;
+	/* video buffer queue */
 	union {
 		struct videobuf_queue vb_vidq;
 		struct vb2_queue vb2_vidq;
@@ -58,21 +64,38 @@ struct soc_camera_device {
 /* Host supports programmable stride */
 #define SOCAM_HOST_CAP_STRIDE		(1 << 0)
 
+enum soc_camera_subdev_role {
+	SOCAM_SUBDEV_DATA_SOURCE = 1,
+	SOCAM_SUBDEV_DATA_SINK,
+	SOCAM_SUBDEV_DATA_PROCESSOR,
+};
+
+struct soc_camera_async_subdev {
+	struct v4l2_async_subdev asd;
+	enum soc_camera_subdev_role role;
+};
+
 struct soc_camera_host {
 	struct v4l2_device v4l2_dev;
 	struct list_head list;
-	struct mutex host_lock;		/* Protect pipeline modifications */
+	struct mutex host_lock;		/* Main synchronisation lock */
+	struct mutex clk_lock;		/* Protect pipeline modifications */
 	unsigned char nr;		/* Host number */
 	u32 capabilities;
+	struct soc_camera_device *icd;	/* Currently attached client */
 	void *priv;
 	const char *drv_name;
 	struct soc_camera_host_ops *ops;
+	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
+	unsigned int *asd_sizes;	/* 0-terminated array of asd group sizes */
 };
 
 struct soc_camera_host_ops {
 	struct module *owner;
 	int (*add)(struct soc_camera_device *);
 	void (*remove)(struct soc_camera_device *);
+	int (*clock_start)(struct soc_camera_host *);
+	void (*clock_stop)(struct soc_camera_host *);
 	/*
 	 * .get_formats() is called for each client device format, but
 	 * .put_formats() is only called once. Further, if any of the calls to
@@ -157,6 +180,7 @@ struct soc_camera_host_desc {
 };
 
 /*
+ * Platform data for "soc-camera-pdrv"
  * This MUST be kept binary-identical to struct soc_camera_link below, until
  * it is completely replaced by this one, after which we can split it into its
  * two components.
@@ -292,12 +316,17 @@ struct soc_camera_sense {
 #define SOCAM_DATAWIDTH_8	SOCAM_DATAWIDTH(8)
 #define SOCAM_DATAWIDTH_9	SOCAM_DATAWIDTH(9)
 #define SOCAM_DATAWIDTH_10	SOCAM_DATAWIDTH(10)
+#define SOCAM_DATAWIDTH_12	SOCAM_DATAWIDTH(12)
 #define SOCAM_DATAWIDTH_15	SOCAM_DATAWIDTH(15)
 #define SOCAM_DATAWIDTH_16	SOCAM_DATAWIDTH(16)
+#define SOCAM_DATAWIDTH_18	SOCAM_DATAWIDTH(18)
+#define SOCAM_DATAWIDTH_24	SOCAM_DATAWIDTH(24)
 
 #define SOCAM_DATAWIDTH_MASK (SOCAM_DATAWIDTH_4 | SOCAM_DATAWIDTH_8 | \
 			      SOCAM_DATAWIDTH_9 | SOCAM_DATAWIDTH_10 | \
-			      SOCAM_DATAWIDTH_15 | SOCAM_DATAWIDTH_16)
+			      SOCAM_DATAWIDTH_12 | SOCAM_DATAWIDTH_15 | \
+			      SOCAM_DATAWIDTH_16 | SOCAM_DATAWIDTH_18 | \
+			      SOCAM_DATAWIDTH_24)
 
 static inline void soc_camera_limit_side(int *start, int *length,
 		unsigned int start_min,
@@ -317,14 +346,17 @@ static inline void soc_camera_limit_side(int *start, int *length,
 unsigned long soc_camera_apply_board_flags(struct soc_camera_subdev_desc *ssdd,
 					   const struct v4l2_mbus_config *cfg);
 
-int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd);
-int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd);
+int soc_camera_power_init(struct device *dev, struct soc_camera_subdev_desc *ssdd);
+int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd,
+			struct v4l2_clk *clk);
+int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd,
+			 struct v4l2_clk *clk);
 
 static inline int soc_camera_set_power(struct device *dev,
-				struct soc_camera_subdev_desc *ssdd, bool on)
+		struct soc_camera_subdev_desc *ssdd, struct v4l2_clk *clk, bool on)
 {
-	return on ? soc_camera_power_on(dev, ssdd)
-		  : soc_camera_power_off(dev, ssdd);
+	return on ? soc_camera_power_on(dev, ssdd, clk)
+		  : soc_camera_power_off(dev, ssdd, clk);
 }
 
 /* This is only temporary here - until v4l2-subdev begins to link to video_device */
@@ -341,9 +373,9 @@ static inline struct soc_camera_subdev_desc *soc_camera_i2c_to_desc(const struct
 	return client->dev.platform_data;
 }
 
-static inline struct v4l2_subdev *soc_camera_vdev_to_subdev(const struct video_device *vdev)
+static inline struct v4l2_subdev *soc_camera_vdev_to_subdev(struct video_device *vdev)
 {
-	struct soc_camera_device *icd = dev_get_drvdata(vdev->parent);
+	struct soc_camera_device *icd = video_get_drvdata(vdev);
 	return soc_camera_to_subdev(icd);
 }
 

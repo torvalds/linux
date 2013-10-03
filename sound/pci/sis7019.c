@@ -1341,7 +1341,8 @@ static int sis_chip_create(struct snd_card *card,
 	if (rc)
 		goto error_out;
 
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(30)) < 0) {
+	rc = pci_set_dma_mask(pci, DMA_BIT_MASK(30));
+	if (rc < 0) {
 		dev_err(&pci->dev, "architecture does not support 30-bit PCI busmaster DMA");
 		goto error_out_enabled;
 	}
@@ -1481,7 +1482,6 @@ error_out:
 static void snd_sis7019_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver sis7019_driver = {

@@ -1180,7 +1180,11 @@ static int cs42l73_pcm_hw_params(struct snd_pcm_substream *substream,
 		priv->config[id].mmcc &= 0xC0;
 		priv->config[id].mmcc |= cs42l73_mclk_coeffs[mclk_coeff].mmcc;
 		priv->config[id].spc &= 0xFC;
-		priv->config[id].spc |= MCK_SCLK_MCLK;
+		/* Use SCLK=64*Fs if internal MCLK >= 6.4MHz */
+		if (priv->mclk >= 6400000)
+			priv->config[id].spc |= MCK_SCLK_64FS;
+		else
+			priv->config[id].spc |= MCK_SCLK_MCLK;
 	} else {
 		/* CS42L73 Slave */
 		priv->config[id].spc &= 0xFC;

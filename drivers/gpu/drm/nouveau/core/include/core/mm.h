@@ -15,8 +15,6 @@ struct nouveau_mm {
 	struct list_head nodes;
 	struct list_head free;
 
-	struct mutex mutex;
-
 	u32 block_size;
 	int heap_nodes;
 };

@@ -2,7 +2,7 @@
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
  * Based on the r8180 driver, which is:
- * Copyright 2004-2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2004-2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -2128,10 +2128,11 @@ void rtl8192_update_ratr_table(struct net_device *dev)
 	struct rtllib_device *ieee = priv->rtllib;
 	u8 *pMcsRate = ieee->dot11HTOperationalRateSet;
 	u32 ratr_value = 0;
+	u16 rate_config = 0;
 	u8 rate_index = 0;
 
-	rtl8192_config_rate(dev, (u16 *)(&ratr_value));
-	ratr_value |= (*(u16 *)(pMcsRate)) << 12;
+	rtl8192_config_rate(dev, &rate_config);
+	ratr_value = rate_config | *pMcsRate << 12;
 	switch (ieee->mode) {
 	case IEEE_A:
 		ratr_value &= 0x00000FF0;

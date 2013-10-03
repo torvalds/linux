@@ -76,13 +76,13 @@ static bool access_dcsw(struct kvm_vcpu *vcpu,
 			const struct coproc_params *p,
 			const struct coproc_reg *r)
 {
-	u32 val;
+	unsigned long val;
 	int cpu;
-
-	cpu = get_cpu();
 
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p);
+
+	cpu = get_cpu();
 
 	cpumask_setall(&vcpu->arch.require_dcache_flush);
 	cpumask_clear_cpu(cpu, &vcpu->arch.require_dcache_flush);
@@ -146,7 +146,11 @@ static bool pm_fake(struct kvm_vcpu *vcpu,
 #define access_pmintenclr pm_fake
 
 /* Architected CP15 registers.
- * Important: Must be sorted ascending by CRn, CRM, Op1, Op2
+ * CRn denotes the primary register number, but is copied to the CRm in the
+ * user space API for 64-bit register access in line with the terminology used
+ * in the ARM ARM.
+ * Important: Must be sorted ascending by CRn, CRM, Op1, Op2 and with 64-bit
+ *            registers preceding 32-bit ones.
  */
 static const struct coproc_reg cp15_regs[] = {
 	/* CSSELR: swapped by interrupt.S. */
@@ -154,8 +158,8 @@ static const struct coproc_reg cp15_regs[] = {
 			NULL, reset_unknown, c0_CSSELR },
 
 	/* TTBR0/TTBR1: swapped by interrupt.S. */
-	{ CRm( 2), Op1( 0), is64, NULL, reset_unknown64, c2_TTBR0 },
-	{ CRm( 2), Op1( 1), is64, NULL, reset_unknown64, c2_TTBR1 },
+	{ CRm64( 2), Op1( 0), is64, NULL, reset_unknown64, c2_TTBR0 },
+	{ CRm64( 2), Op1( 1), is64, NULL, reset_unknown64, c2_TTBR1 },
 
 	/* TTBCR: swapped by interrupt.S. */
 	{ CRn( 2), CRm( 0), Op1( 0), Op2( 2), is32,
@@ -180,6 +184,10 @@ static const struct coproc_reg cp15_regs[] = {
 			NULL, reset_unknown, c6_DFAR },
 	{ CRn( 6), CRm( 0), Op1( 0), Op2( 2), is32,
 			NULL, reset_unknown, c6_IFAR },
+
+	/* PAR swapped by interrupt.S */
+	{ CRm64( 7), Op1( 0), is64, NULL, reset_unknown64, c7_PAR },
+
 	/*
 	 * DC{C,I,CI}SW operations:
 	 */
@@ -293,12 +301,12 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
-			kvm_skip_instr(vcpu, (vcpu->arch.hsr >> 25) & 1);
+			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
 			return 1;
 		}
 		/* If access function fails, it should complain. */
 	} else {
-		kvm_err("Unsupported guest CP15 access at: %08x\n",
+		kvm_err("Unsupported guest CP15 access at: %08lx\n",
 			*vcpu_pc(vcpu));
 		print_cp_instr(params);
 	}
@@ -315,14 +323,14 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	struct coproc_params params;
 
-	params.CRm = (vcpu->arch.hsr >> 1) & 0xf;
-	params.Rt1 = (vcpu->arch.hsr >> 5) & 0xf;
-	params.is_write = ((vcpu->arch.hsr & 1) == 0);
+	params.CRm = (kvm_vcpu_get_hsr(vcpu) >> 1) & 0xf;
+	params.Rt1 = (kvm_vcpu_get_hsr(vcpu) >> 5) & 0xf;
+	params.is_write = ((kvm_vcpu_get_hsr(vcpu) & 1) == 0);
 	params.is_64bit = true;
 
-	params.Op1 = (vcpu->arch.hsr >> 16) & 0xf;
+	params.Op1 = (kvm_vcpu_get_hsr(vcpu) >> 16) & 0xf;
 	params.Op2 = 0;
-	params.Rt2 = (vcpu->arch.hsr >> 10) & 0xf;
+	params.Rt2 = (kvm_vcpu_get_hsr(vcpu) >> 10) & 0xf;
 	params.CRn = 0;
 
 	return emulate_cp15(vcpu, &params);
@@ -347,14 +355,14 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	struct coproc_params params;
 
-	params.CRm = (vcpu->arch.hsr >> 1) & 0xf;
-	params.Rt1 = (vcpu->arch.hsr >> 5) & 0xf;
-	params.is_write = ((vcpu->arch.hsr & 1) == 0);
+	params.CRm = (kvm_vcpu_get_hsr(vcpu) >> 1) & 0xf;
+	params.Rt1 = (kvm_vcpu_get_hsr(vcpu) >> 5) & 0xf;
+	params.is_write = ((kvm_vcpu_get_hsr(vcpu) & 1) == 0);
 	params.is_64bit = false;
 
-	params.CRn = (vcpu->arch.hsr >> 10) & 0xf;
-	params.Op1 = (vcpu->arch.hsr >> 14) & 0x7;
-	params.Op2 = (vcpu->arch.hsr >> 17) & 0x7;
+	params.CRn = (kvm_vcpu_get_hsr(vcpu) >> 10) & 0xf;
+	params.Op1 = (kvm_vcpu_get_hsr(vcpu) >> 14) & 0x7;
+	params.Op2 = (kvm_vcpu_get_hsr(vcpu) >> 17) & 0x7;
 	params.Rt2 = 0;
 
 	return emulate_cp15(vcpu, &params);
@@ -395,12 +403,13 @@ static bool index_to_params(u64 id, struct coproc_params *params)
 			      | KVM_REG_ARM_OPC1_MASK))
 			return false;
 		params->is_64bit = true;
-		params->CRm = ((id & KVM_REG_ARM_CRM_MASK)
+		/* CRm to CRn: see cp15_to_index for details */
+		params->CRn = ((id & KVM_REG_ARM_CRM_MASK)
 			       >> KVM_REG_ARM_CRM_SHIFT);
 		params->Op1 = ((id & KVM_REG_ARM_OPC1_MASK)
 			       >> KVM_REG_ARM_OPC1_SHIFT);
 		params->Op2 = 0;
-		params->CRn = 0;
+		params->CRm = 0;
 		return true;
 	default:
 		return false;
@@ -894,7 +903,14 @@ static u64 cp15_to_index(const struct coproc_reg *reg)
 	if (reg->is_64) {
 		val |= KVM_REG_SIZE_U64;
 		val |= (reg->Op1 << KVM_REG_ARM_OPC1_SHIFT);
-		val |= (reg->CRm << KVM_REG_ARM_CRM_SHIFT);
+		/*
+		 * CRn always denotes the primary coproc. reg. nr. for the
+		 * in-kernel representation, but the user space API uses the
+		 * CRm for the encoding, because it is modelled after the
+		 * MRRC/MCRR instructions: see the ARM ARM rev. c page
+		 * B3-1445
+		 */
+		val |= (reg->CRn << KVM_REG_ARM_CRM_SHIFT);
 	} else {
 		val |= KVM_REG_SIZE_U32;
 		val |= (reg->Op1 << KVM_REG_ARM_OPC1_SHIFT);

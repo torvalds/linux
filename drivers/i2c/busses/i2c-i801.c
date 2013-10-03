@@ -58,6 +58,7 @@
   Wellsburg (PCH) MS    0x8d7d     32     hard     yes     yes     yes
   Wellsburg (PCH) MS    0x8d7e     32     hard     yes     yes     yes
   Wellsburg (PCH) MS    0x8d7f     32     hard     yes     yes     yes
+  Coleto Creek (PCH)    0x23b0     32     hard     yes     yes     yes
 
   Features supported by this driver:
   Software PEC                     no
@@ -86,7 +87,6 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/err.h>
-#include <linux/of_i2c.h>
 
 #if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
 		defined CONFIG_DMI
@@ -169,6 +169,7 @@
 #define PCI_DEVICE_ID_INTEL_PANTHERPOINT_SMBUS	0x1e22
 #define PCI_DEVICE_ID_INTEL_AVOTON_SMBUS	0x1f3c
 #define PCI_DEVICE_ID_INTEL_DH89XXCC_SMBUS	0x2330
+#define PCI_DEVICE_ID_INTEL_COLETOCREEK_SMBUS	0x23b0
 #define PCI_DEVICE_ID_INTEL_5_3400_SERIES_SMBUS	0x3b30
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_SMBUS	0x8c22
 #define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS	0x8d22
@@ -231,7 +232,11 @@ static const char *i801_feature_names[] = {
 
 static unsigned int disable_features;
 module_param(disable_features, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(disable_features, "Disable selected driver features");
+MODULE_PARM_DESC(disable_features, "Disable selected driver features:\n"
+	"\t\t  0x01  disable SMBus PEC\n"
+	"\t\t  0x02  disable the block buffer\n"
+	"\t\t  0x08  disable the I2C block read functionality\n"
+	"\t\t  0x10  don't use interrupts ");
 
 /* Make sure the SMBus host is ready to start transmitting.
    Return 0 if it is, -EBUSY if it is not. */
@@ -813,6 +818,7 @@ static DEFINE_PCI_DEVICE_TABLE(i801_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS1) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS2) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COLETOCREEK_SMBUS) },
 	{ 0, }
 };
 
@@ -1223,7 +1229,6 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto exit_free_irq;
 	}
 
-	of_i2c_register_devices(&priv->adapter);
 	i801_probe_optional_slaves(priv);
 	/* We ignore errors - multiplexing is optional */
 	i801_add_mux(priv);

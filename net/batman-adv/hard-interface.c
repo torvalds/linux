@@ -117,6 +117,58 @@ static int batadv_is_valid_iface(const struct net_device *net_dev)
 	return 1;
 }
 
+/**
+ * batadv_is_wifi_netdev - check if the given net_device struct is a wifi
+ *  interface
+ * @net_device: the device to check
+ *
+ * Returns true if the net device is a 802.11 wireless device, false otherwise.
+ */
+static bool batadv_is_wifi_netdev(struct net_device *net_device)
+{
+#ifdef CONFIG_WIRELESS_EXT
+	/* pre-cfg80211 drivers have to implement WEXT, so it is possible to
+	 * check for wireless_handlers != NULL
+	 */
+	if (net_device->wireless_handlers)
+		return true;
+#endif
+
+	/* cfg80211 drivers have to set ieee80211_ptr */
+	if (net_device->ieee80211_ptr)
+		return true;
+
+	return false;
+}
+
+/**
+ * batadv_is_wifi_iface - check if the given interface represented by ifindex
+ *  is a wifi interface
+ * @ifindex: interface index to check
+ *
+ * Returns true if the interface represented by ifindex is a 802.11 wireless
+ * device, false otherwise.
+ */
+bool batadv_is_wifi_iface(int ifindex)
+{
+	struct net_device *net_device = NULL;
+	bool ret = false;
+
+	if (ifindex == BATADV_NULL_IFINDEX)
+		goto out;
+
+	net_device = dev_get_by_index(&init_net, ifindex);
+	if (!net_device)
+		goto out;
+
+	ret = batadv_is_wifi_netdev(net_device);
+
+out:
+	if (net_device)
+		dev_put(net_device);
+	return ret;
+}
+
 static struct batadv_hard_iface *
 batadv_hardif_get_active(const struct net_device *soft_iface)
 {
@@ -307,11 +359,35 @@ batadv_hardif_deactivate_interface(struct batadv_hard_iface *hard_iface)
 	batadv_update_min_mtu(hard_iface->soft_iface);
 }
 
+/**
+ * batadv_master_del_slave - remove hard_iface from the current master interface
+ * @slave: the interface enslaved in another master
+ * @master: the master from which slave has to be removed
+ *
+ * Invoke ndo_del_slave on master passing slave as argument. In this way slave
+ * is free'd and master can correctly change its internal state.
+ * Return 0 on success, a negative value representing the error otherwise
+ */
+static int batadv_master_del_slave(struct batadv_hard_iface *slave,
+				   struct net_device *master)
+{
+	int ret;
+
+	if (!master)
+		return 0;
+
+	ret = -EBUSY;
+	if (master->netdev_ops->ndo_del_slave)
+		ret = master->netdev_ops->ndo_del_slave(master, slave->net_dev);
+
+	return ret;
+}
+
 int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 				   const char *iface_name)
 {
 	struct batadv_priv *bat_priv;
-	struct net_device *soft_iface;
+	struct net_device *soft_iface, *master;
 	__be16 ethertype = __constant_htons(ETH_P_BATMAN);
 	int ret;
 
@@ -320,11 +396,6 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 
 	if (!atomic_inc_not_zero(&hard_iface->refcount))
 		goto out;
-
-	/* hard-interface is part of a bridge */
-	if (hard_iface->net_dev->priv_flags & IFF_BRIDGE_PORT)
-		pr_err("You are about to enable batman-adv on '%s' which already is part of a bridge. Unless you know exactly what you are doing this is probably wrong and won't work the way you think it would.\n",
-		       hard_iface->net_dev->name);
 
 	soft_iface = dev_get_by_name(&init_net, iface_name);
 
@@ -347,12 +418,24 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 		goto err_dev;
 	}
 
+	/* check if the interface is enslaved in another virtual one and
+	 * in that case unlink it first
+	 */
+	master = netdev_master_upper_dev_get(hard_iface->net_dev);
+	ret = batadv_master_del_slave(hard_iface, master);
+	if (ret)
+		goto err_dev;
+
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
+	ret = netdev_master_upper_dev_link(hard_iface->net_dev, soft_iface);
+	if (ret)
+		goto err_dev;
+
 	ret = bat_priv->bat_algo_ops->bat_iface_enable(hard_iface);
 	if (ret < 0)
-		goto err_dev;
+		goto err_upper;
 
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
@@ -362,7 +445,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 		bat_priv->bat_algo_ops->bat_iface_disable(hard_iface);
 		bat_priv->num_ifaces--;
 		hard_iface->if_status = BATADV_IF_NOT_IN_USE;
-		goto err_dev;
+		goto err_upper;
 	}
 
 	hard_iface->batman_adv_ptype.type = ethertype;
@@ -401,14 +484,18 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 out:
 	return 0;
 
+err_upper:
+	netdev_upper_dev_unlink(hard_iface->net_dev, soft_iface);
 err_dev:
+	hard_iface->soft_iface = NULL;
 	dev_put(soft_iface);
 err:
 	batadv_hardif_free_ref(hard_iface);
 	return ret;
 }
 
-void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface)
+void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
+				     enum batadv_hard_if_cleanup autodel)
 {
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct batadv_hard_iface *primary_if = NULL;
@@ -446,9 +533,10 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface)
 	dev_put(hard_iface->soft_iface);
 
 	/* nobody uses this interface anymore */
-	if (!bat_priv->num_ifaces)
-		batadv_softif_destroy(hard_iface->soft_iface);
+	if (!bat_priv->num_ifaces && autodel == BATADV_IF_CLEANUP_AUTO)
+		batadv_softif_destroy_sysfs(hard_iface->soft_iface);
 
+	netdev_upper_dev_unlink(hard_iface->net_dev, hard_iface->soft_iface);
 	hard_iface->soft_iface = NULL;
 	batadv_hardif_free_ref(hard_iface);
 
@@ -489,7 +577,7 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	dev_hold(net_dev);
 
-	hard_iface = kmalloc(sizeof(*hard_iface), GFP_ATOMIC);
+	hard_iface = kzalloc(sizeof(*hard_iface), GFP_ATOMIC);
 	if (!hard_iface)
 		goto release_dev;
 
@@ -505,17 +593,15 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	INIT_WORK(&hard_iface->cleanup_work,
 		  batadv_hardif_remove_interface_finish);
 
+	hard_iface->num_bcasts = BATADV_NUM_BCASTS_DEFAULT;
+	if (batadv_is_wifi_netdev(net_dev))
+		hard_iface->num_bcasts = BATADV_NUM_BCASTS_WIRELESS;
+
 	/* extra reference for return */
 	atomic_set(&hard_iface->refcount, 2);
 
 	batadv_check_known_mac_addr(hard_iface->net_dev);
 	list_add_tail_rcu(&hard_iface->list, &batadv_hardif_list);
-
-	/* This can't be called via a bat_priv callback because
-	 * we have no bat_priv yet.
-	 */
-	atomic_set(&hard_iface->bat_iv.ogm_seqno, 1);
-	hard_iface->bat_iv.ogm_buff = NULL;
 
 	return hard_iface;
 
@@ -533,7 +619,8 @@ static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
 
 	/* first deactivate interface */
 	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
-		batadv_hardif_disable_interface(hard_iface);
+		batadv_hardif_disable_interface(hard_iface,
+						BATADV_IF_CLEANUP_AUTO);
 
 	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
 		return;
@@ -558,10 +645,15 @@ void batadv_hardif_remove_interfaces(void)
 static int batadv_hard_if_event(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
-	struct net_device *net_dev = ptr;
+	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
 	struct batadv_hard_iface *hard_iface;
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_priv *bat_priv;
+
+	if (batadv_softif_is_valid(net_dev) && event == NETDEV_REGISTER) {
+		batadv_sysfs_add_meshif(net_dev);
+		return NOTIFY_DONE;
+	}
 
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface && event == NETDEV_REGISTER)
@@ -613,38 +705,6 @@ out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 	return NOTIFY_DONE;
-}
-
-/* This function returns true if the interface represented by ifindex is a
- * 802.11 wireless device
- */
-bool batadv_is_wifi_iface(int ifindex)
-{
-	struct net_device *net_device = NULL;
-	bool ret = false;
-
-	if (ifindex == BATADV_NULL_IFINDEX)
-		goto out;
-
-	net_device = dev_get_by_index(&init_net, ifindex);
-	if (!net_device)
-		goto out;
-
-#ifdef CONFIG_WIRELESS_EXT
-	/* pre-cfg80211 drivers have to implement WEXT, so it is possible to
-	 * check for wireless_handlers != NULL
-	 */
-	if (net_device->wireless_handlers)
-		ret = true;
-	else
-#endif
-		/* cfg80211 drivers have to set ieee80211_ptr */
-		if (net_device->ieee80211_ptr)
-			ret = true;
-out:
-	if (net_device)
-		dev_put(net_device);
-	return ret;
 }
 
 struct notifier_block batadv_hard_if_notifier = {

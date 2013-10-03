@@ -49,24 +49,24 @@ extern struct dgrp_poll_data dgrp_poll_data;
 extern void dgrp_poll_handler(unsigned long arg);
 
 /* from dgrp_mon_ops.c */
-extern void dgrp_register_mon_hook(struct proc_dir_entry *de);
+extern const struct file_operations dgrp_mon_ops;
 
 /* from dgrp_tty.c */
 extern int dgrp_tty_init(struct nd_struct *nd);
 extern void dgrp_tty_uninit(struct nd_struct *nd);
 
 /* from dgrp_ports_ops.c */
-extern void dgrp_register_ports_hook(struct proc_dir_entry *de);
+extern const struct file_operations dgrp_ports_ops;
 
 /* from dgrp_net_ops.c */
-extern void dgrp_register_net_hook(struct proc_dir_entry *de);
+extern const struct file_operations dgrp_net_ops;
 
 /* from dgrp_dpa_ops.c */
-extern void dgrp_register_dpa_hook(struct proc_dir_entry *de);
+extern const struct file_operations dgrp_dpa_ops;
 extern void dgrp_dpa_data(struct nd_struct *, int, u8 *, int);
 
 /* from dgrp_sysfs.c */
-extern void dgrp_create_class_sysfs_files(void);
+extern int dgrp_create_class_sysfs_files(void);
 extern void dgrp_remove_class_sysfs_files(void);
 
 extern void dgrp_create_node_class_sysfs_files(struct nd_struct *nd);
@@ -76,61 +76,6 @@ extern void dgrp_create_tty_sysfs(struct un_struct *un, struct device *c);
 extern void dgrp_remove_tty_sysfs(struct device *c);
 
 /* from dgrp_specproc.c */
-/*
- *  The list of DGRP entries with r/w capabilities.  These
- *  magic numbers are used for identification purposes.
- */
-enum {
-	DGRP_CONFIG = 1,	/* Configure portservers */
-	DGRP_NETDIR = 2,	/* Directory for "net" devices */
-	DGRP_MONDIR = 3,	/* Directory for "mon" devices */
-	DGRP_PORTSDIR = 4,	/* Directory for "ports" devices */
-	DGRP_INFO = 5,		/* Get info. about the running module */
-	DGRP_NODEINFO = 6,	/* Get info. about the configured nodes */
-	DGRP_DPADIR = 7,	/* Directory for the "dpa" devices */
-};
-
-/*
- *  Directions for proc handlers
- */
-enum {
-	INBOUND = 1,		/* Data being written to kernel */
-	OUTBOUND = 2,		/* Data being read from the kernel */
-};
-
-/**
- * dgrp_proc_entry: structure for dgrp proc dirs
- * @id: ID number associated with this particular entry.  Should be
- *    unique across all of DGRP.
- * @name: text name associated with the /proc entry
- * @mode: file access permisssions for the /proc entry
- * @child: pointer to table describing a subdirectory for this entry
- * @de: pointer to directory entry for this object once registered.  Used
- *    to grab the handle of the object for unregistration
- * @excl_sem: semaphore to provide exclusive to struct
- * @excl_cnt: counter of current accesses
- *
- *  Each entry in a DGRP proc directory is described with a
- *  dgrp_proc_entry structure.  A collection of these
- *  entries (in an array) represents the members associated
- *  with a particular /proc directory, and is referred to
- *  as a table.  All tables are terminated by an entry with
- *  zeros for every member.
- */
-struct dgrp_proc_entry {
-	int                  id;          /* Integer identifier */
-	const char        *name;          /* ASCII identifier */
-	mode_t             mode;          /* File access permissions */
-	struct dgrp_proc_entry *child;    /* Child pointer */
-
-	/* file ops to use, pass NULL to use default */
-	struct file_operations *proc_file_ops;
-
-	struct proc_dir_entry *de;        /* proc entry pointer */
-	struct semaphore   excl_sem;      /* Protects exclusive access var */
-	int                excl_cnt;      /* Counts number of curr accesses */
-};
-
 extern void dgrp_unregister_proc(void);
 extern void dgrp_register_proc(void);
 
@@ -144,8 +89,6 @@ extern void dgrp_register_proc(void);
  *-----------------------------------------------------------------------*/
 
 void dgrp_carrier(struct ch_struct *ch);
-extern int dgrp_inode_permission(struct inode *inode, int op);
-extern int dgrp_chk_perm(int mode, int op);
 
 
 /*

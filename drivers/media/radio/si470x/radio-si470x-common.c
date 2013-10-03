@@ -636,7 +636,7 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
  * si470x_vidioc_s_tuner - set tuner attributes
  */
 static int si470x_vidioc_s_tuner(struct file *file, void *priv,
-		struct v4l2_tuner *tuner)
+		const struct v4l2_tuner *tuner)
 {
 	struct si470x_device *radio = video_drvdata(file);
 
@@ -678,7 +678,7 @@ static int si470x_vidioc_g_frequency(struct file *file, void *priv,
  * si470x_vidioc_s_frequency - set tuner or modulator radio frequency
  */
 static int si470x_vidioc_s_frequency(struct file *file, void *priv,
-		struct v4l2_frequency *freq)
+		const struct v4l2_frequency *freq)
 {
 	struct si470x_device *radio = video_drvdata(file);
 	int retval;

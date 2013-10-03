@@ -14,16 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
-#include <linux/netdevice.h>
-#include <linux/sched.h>
-#include <linux/etherdevice.h>
-#include <linux/wireless.h>
-#include <linux/ieee80211.h>
-#include <linux/slab.h>
-#include <linux/version.h>
-#include <net/cfg80211.h>
-
 #include "wil6210.h"
 #include "wmi.h"
 
@@ -292,7 +282,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 
 	/* WMI_CONNECT_CMD */
 	memset(&conn, 0, sizeof(conn));
-	switch (bss->capability & 0x03) {
+	switch (bss->capability & WLAN_CAPABILITY_DMG_TYPE_MASK) {
 	case WLAN_CAPABILITY_DMG_TYPE_AP:
 		conn.network_type = WMI_NETTYPE_INFRA;
 		break;
@@ -332,12 +322,16 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	 * FW don't support scan after connection attempt
 	 */
 	set_bit(wil_status_dontscan, &wil->status);
+	set_bit(wil_status_fwconnecting, &wil->status);
 
 	rc = wmi_send(wil, WMI_CONNECT_CMDID, &conn, sizeof(conn));
 	if (rc == 0) {
 		/* Connect can take lots of time */
 		mod_timer(&wil->connect_timer,
 			  jiffies + msecs_to_jiffies(2000));
+	} else {
+		clear_bit(wil_status_dontscan, &wil->status);
+		clear_bit(wil_status_fwconnecting, &wil->status);
 	}
 
  out:
@@ -408,6 +402,30 @@ static int wil_cfg80211_set_default_key(struct wiphy *wiphy,
 	return 0;
 }
 
+static int wil_fix_bcon(struct wil6210_priv *wil,
+			struct cfg80211_beacon_data *bcon)
+{
+	struct ieee80211_mgmt *f = (struct ieee80211_mgmt *)bcon->probe_resp;
+	size_t hlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+	int rc = 0;
+
+	if (bcon->probe_resp_len <= hlen)
+		return 0;
+
+	if (!bcon->proberesp_ies) {
+		bcon->proberesp_ies = f->u.probe_resp.variable;
+		bcon->proberesp_ies_len = bcon->probe_resp_len - hlen;
+		rc = 1;
+	}
+	if (!bcon->assocresp_ies) {
+		bcon->assocresp_ies = f->u.probe_resp.variable;
+		bcon->assocresp_ies_len = bcon->probe_resp_len - hlen;
+		rc = 1;
+	}
+
+	return rc;
+}
+
 static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 				 struct net_device *ndev,
 				 struct cfg80211_ap_settings *info)
@@ -429,15 +447,19 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
 			     info->ssid, info->ssid_len);
 
+	if (wil_fix_bcon(wil, bcon))
+		wil_dbg_misc(wil, "Fixed bcon\n");
+
 	rc = wil_reset(wil);
 	if (rc)
 		return rc;
 
-	rc = wmi_set_ssid(wil, info->ssid_len, info->ssid);
+	/* Rx VRING. */
+	rc = wil_rx_init(wil);
 	if (rc)
 		return rc;
 
-	rc = wmi_set_channel(wil, channel->hw_value);
+	rc = wmi_set_ssid(wil, info->ssid_len, info->ssid);
 	if (rc)
 		return rc;
 
@@ -446,8 +468,13 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	/* IE's */
 	/* bcon 'head IE's are not relevant for 60g band */
-	wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->beacon_ies_len,
-		   bcon->beacon_ies);
+	/*
+	 * FW do not form regular beacon, so bcon IE's are not set
+	 * For the DMG bcon, when it will be supported, bcon IE's will
+	 * be reused; add something like:
+	 * wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->beacon_ies_len,
+	 * bcon->beacon_ies);
+	 */
 	wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, bcon->proberesp_ies_len,
 		   bcon->proberesp_ies);
 	wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, bcon->assocresp_ies_len,
@@ -455,12 +482,11 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	wil->secure_pcp = info->privacy;
 
-	rc = wmi_set_bcon(wil, info->beacon_interval, wmi_nettype);
+	rc = wmi_pcp_start(wil, info->beacon_interval, wmi_nettype,
+			   channel->hw_value);
 	if (rc)
 		return rc;
 
-	/* Rx VRING. After MAC and beacon */
-	rc = wil_rx_init(wil);
 
 	netif_carrier_on(ndev);
 
@@ -472,11 +498,8 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 {
 	int rc = 0;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
-	struct wireless_dev *wdev = ndev->ieee80211_ptr;
-	u8 wmi_nettype = wil_iftype_nl2wmi(wdev->iftype);
 
-	/* To stop beaconing, set BI to 0 */
-	rc = wmi_set_bcon(wil, 0, wmi_nettype);
+	rc = wmi_pcp_stop(wil);
 
 	return rc;
 }

@@ -605,6 +605,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	/* Embedded Hypervisor Privilege */
 	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception, EXC_XFER_EE)
 
+interrupt_end:
+
 /*
  * Local functions
  */
@@ -944,16 +946,6 @@ _GLOBAL(giveup_spe)
 #endif /* !CONFIG_SMP */
 	blr
 #endif /* CONFIG_SPE */
-
-/*
- * extern void giveup_fpu(struct task_struct *prev)
- *
- * Not all FSL Book-E cores have an FPU
- */
-#ifndef CONFIG_PPC_FPU
-_GLOBAL(giveup_fpu)
-	blr
-#endif
 
 /*
  * extern void abort(void)

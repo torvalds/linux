@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/irqchip/arm-gic.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_scu.h>
@@ -30,20 +29,7 @@
 
 #include "core.h"
 
-extern void __iomem *sys_manager_base_addr;
-extern void __iomem *rst_manager_base_addr;
-
-static void __cpuinit socfpga_secondary_init(unsigned int cpu)
-{
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-}
-
-static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int trampoline_size = &secondary_trampoline_end - &secondary_trampoline;
 
@@ -109,7 +95,6 @@ static void socfpga_cpu_die(unsigned int cpu)
 struct smp_operations socfpga_smp_ops __initdata = {
 	.smp_init_cpus		= socfpga_smp_init_cpus,
 	.smp_prepare_cpus	= socfpga_smp_prepare_cpus,
-	.smp_secondary_init	= socfpga_secondary_init,
 	.smp_boot_secondary	= socfpga_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= socfpga_cpu_die,

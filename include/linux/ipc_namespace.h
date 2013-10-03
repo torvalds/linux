@@ -22,7 +22,7 @@ struct ipc_ids {
 	int in_use;
 	unsigned short seq;
 	unsigned short seq_max;
-	struct rw_semaphore rw_mutex;
+	struct rw_semaphore rwsem;
 	struct idr ipcs_idr;
 	int next_id;
 };
@@ -43,8 +43,8 @@ struct ipc_namespace {
 
 	size_t		shm_ctlmax;
 	size_t		shm_ctlall;
+	unsigned long	shm_tot;
 	int		shm_ctlmni;
-	int		shm_tot;
 	/*
 	 * Defines whether IPC_RMID is forced for _all_ shm segments regardless
 	 * of shmctl()

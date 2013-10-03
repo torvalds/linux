@@ -16,7 +16,7 @@
  *				- Use the generic rtc class
  *
  *  ??-???-2004: Someone at Compulab
- *  			- Initial driver creation.
+ *			- Initial driver creation.
  *
  */
 #include <linux/platform_device.h>
@@ -278,13 +278,13 @@ static int v3020_set_time(struct device *dev, struct rtc_time *dt)
 	dev_dbg(dev, "tm_year: %i\n", dt->tm_year);
 
 	/* Write all the values to ram... */
-	v3020_set_reg(chip, V3020_SECONDS, 	bin2bcd(dt->tm_sec));
-	v3020_set_reg(chip, V3020_MINUTES, 	bin2bcd(dt->tm_min));
-	v3020_set_reg(chip, V3020_HOURS, 	bin2bcd(dt->tm_hour));
+	v3020_set_reg(chip, V3020_SECONDS,	bin2bcd(dt->tm_sec));
+	v3020_set_reg(chip, V3020_MINUTES,	bin2bcd(dt->tm_min));
+	v3020_set_reg(chip, V3020_HOURS,	bin2bcd(dt->tm_hour));
 	v3020_set_reg(chip, V3020_MONTH_DAY,	bin2bcd(dt->tm_mday));
-	v3020_set_reg(chip, V3020_MONTH,     bin2bcd(dt->tm_mon + 1));
-	v3020_set_reg(chip, V3020_WEEK_DAY, 	bin2bcd(dt->tm_wday));
-	v3020_set_reg(chip, V3020_YEAR, 	bin2bcd(dt->tm_year % 100));
+	v3020_set_reg(chip, V3020_MONTH,	bin2bcd(dt->tm_mon + 1));
+	v3020_set_reg(chip, V3020_WEEK_DAY,	bin2bcd(dt->tm_wday));
+	v3020_set_reg(chip, V3020_YEAR,		bin2bcd(dt->tm_year % 100));
 
 	/* ...and set the clock. */
 	v3020_set_reg(chip, V3020_CMD_RAM2CLOCK, 0);
@@ -309,7 +309,7 @@ static int rtc_probe(struct platform_device *pdev)
 	int i;
 	int temp;
 
-	chip = kzalloc(sizeof *chip, GFP_KERNEL);
+	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -320,7 +320,7 @@ static int rtc_probe(struct platform_device *pdev)
 
 	retval = chip->ops->map_io(chip, pdev, pdata);
 	if (retval)
-		goto err_chip;
+		return retval;
 
 	/* Make sure the v3020 expects a communication cycle
 	 * by reading 8 times */
@@ -353,8 +353,8 @@ static int rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 
-	chip->rtc = rtc_device_register("v3020",
-				&pdev->dev, &v3020_rtc_ops, THIS_MODULE);
+	chip->rtc = devm_rtc_device_register(&pdev->dev, "v3020",
+					&v3020_rtc_ops, THIS_MODULE);
 	if (IS_ERR(chip->rtc)) {
 		retval = PTR_ERR(chip->rtc);
 		goto err_io;
@@ -364,8 +364,6 @@ static int rtc_probe(struct platform_device *pdev)
 
 err_io:
 	chip->ops->unmap_io(chip);
-err_chip:
-	kfree(chip);
 
 	return retval;
 }
@@ -373,13 +371,8 @@ err_chip:
 static int rtc_remove(struct platform_device *dev)
 {
 	struct v3020 *chip = platform_get_drvdata(dev);
-	struct rtc_device *rtc = chip->rtc;
-
-	if (rtc)
-		rtc_device_unregister(rtc);
 
 	chip->ops->unmap_io(chip);
-	kfree(chip);
 
 	return 0;
 }

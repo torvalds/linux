@@ -263,7 +263,8 @@ int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 	unsigned long flags;
 	netdev_features_t changed = features ^ netdev->features;
 
-	if (changed & (NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_HW_VLAN_RX)) {
+	if (changed & (NETIF_F_RXCSUM | NETIF_F_LRO |
+		       NETIF_F_HW_VLAN_CTAG_RX)) {
 		if (features & NETIF_F_RXCSUM)
 			adapter->shared->devRead.misc.uptFeatures |=
 			UPT1_F_RXCSUM;
@@ -279,7 +280,7 @@ int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 			adapter->shared->devRead.misc.uptFeatures &=
 							~UPT1_F_LRO;
 
-		if (features & NETIF_F_HW_VLAN_RX)
+		if (features & NETIF_F_HW_VLAN_CTAG_RX)
 			adapter->shared->devRead.misc.uptFeatures |=
 			UPT1_F_RXVLAN;
 		else

@@ -294,7 +294,7 @@ static int da9055_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 					&da9055_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
@@ -313,16 +313,6 @@ static int da9055_rtc_probe(struct platform_device *pdev)
 err_rtc:
 	return ret;
 
-}
-
-static int da9055_rtc_remove(struct platform_device *pdev)
-{
-	struct da9055_rtc *rtc = pdev->dev.platform_data;
-
-	rtc_device_unregister(rtc->rtc);
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -397,7 +387,6 @@ static const struct dev_pm_ops da9055_rtc_pm_ops = {
 
 static struct platform_driver da9055_rtc_driver = {
 	.probe  = da9055_rtc_probe,
-	.remove = da9055_rtc_remove,
 	.driver = {
 		.name   = "da9055-rtc",
 		.owner  = THIS_MODULE,

@@ -14,9 +14,9 @@
 #include <linux/irq.h>
 #include <linux/timex.h>
 #include <linux/clockchips.h>
+#include <linux/sched_clock.h>
 
 #include <asm/mach/time.h>
-#include <asm/sched_clock.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 

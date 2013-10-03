@@ -38,6 +38,7 @@
 #include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <video/platform_lcd.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "regs-modem.h"
@@ -156,7 +157,7 @@ static struct platform_pwm_backlight_data smartq_backlight_data = {
 static struct platform_device smartq_backlight_device = {
 	.name		= "pwm-backlight",
 	.dev		= {
-		.parent	= &s3c_device_timer[1].dev,
+		.parent	= &samsung_device_pwm.dev,
 		.platform_data = &smartq_backlight_data,
 	},
 };
@@ -245,7 +246,7 @@ static struct platform_device *smartq_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_ohci,
 	&s3c_device_rtc,
-	&s3c_device_timer[1],
+	&samsung_device_pwm,
 	&s3c_device_ts,
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iis0,
@@ -378,6 +379,7 @@ void __init smartq_map_io(void)
 	s3c64xx_init_io(smartq_iodesc, ARRAY_SIZE(smartq_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smartq_uartcfgs, ARRAY_SIZE(smartq_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	smartq_lcd_mode_set();
 }

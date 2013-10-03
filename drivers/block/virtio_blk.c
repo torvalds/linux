@@ -20,7 +20,7 @@ module_param(use_bio, bool, S_IRUGO);
 static int major;
 static DEFINE_IDA(vd_index_ida);
 
-struct workqueue_struct *virtblk_wq;
+static struct workqueue_struct *virtblk_wq;
 
 struct virtio_blk
 {
@@ -100,96 +100,103 @@ static inline struct virtblk_req *virtblk_alloc_req(struct virtio_blk *vblk,
 	return vbr;
 }
 
-static void virtblk_add_buf_wait(struct virtio_blk *vblk,
-				 struct virtblk_req *vbr,
-				 unsigned long out,
-				 unsigned long in)
+static int __virtblk_add_req(struct virtqueue *vq,
+			     struct virtblk_req *vbr,
+			     struct scatterlist *data_sg,
+			     bool have_data)
 {
-	DEFINE_WAIT(wait);
+	struct scatterlist hdr, status, cmd, sense, inhdr, *sgs[6];
+	unsigned int num_out = 0, num_in = 0;
+	int type = vbr->out_hdr.type & ~VIRTIO_BLK_T_OUT;
 
-	for (;;) {
+	sg_init_one(&hdr, &vbr->out_hdr, sizeof(vbr->out_hdr));
+	sgs[num_out++] = &hdr;
+
+	/*
+	 * If this is a packet command we need a couple of additional headers.
+	 * Behind the normal outhdr we put a segment with the scsi command
+	 * block, and before the normal inhdr we put the sense data and the
+	 * inhdr with additional status information.
+	 */
+	if (type == VIRTIO_BLK_T_SCSI_CMD) {
+		sg_init_one(&cmd, vbr->req->cmd, vbr->req->cmd_len);
+		sgs[num_out++] = &cmd;
+	}
+
+	if (have_data) {
+		if (vbr->out_hdr.type & VIRTIO_BLK_T_OUT)
+			sgs[num_out++] = data_sg;
+		else
+			sgs[num_out + num_in++] = data_sg;
+	}
+
+	if (type == VIRTIO_BLK_T_SCSI_CMD) {
+		sg_init_one(&sense, vbr->req->sense, SCSI_SENSE_BUFFERSIZE);
+		sgs[num_out + num_in++] = &sense;
+		sg_init_one(&inhdr, &vbr->in_hdr, sizeof(vbr->in_hdr));
+		sgs[num_out + num_in++] = &inhdr;
+	}
+
+	sg_init_one(&status, &vbr->status, sizeof(vbr->status));
+	sgs[num_out + num_in++] = &status;
+
+	return virtqueue_add_sgs(vq, sgs, num_out, num_in, vbr, GFP_ATOMIC);
+}
+
+static void virtblk_add_req(struct virtblk_req *vbr, bool have_data)
+{
+	struct virtio_blk *vblk = vbr->vblk;
+	DEFINE_WAIT(wait);
+	int ret;
+
+	spin_lock_irq(vblk->disk->queue->queue_lock);
+	while (unlikely((ret = __virtblk_add_req(vblk->vq, vbr, vbr->sg,
+						 have_data)) < 0)) {
 		prepare_to_wait_exclusive(&vblk->queue_wait, &wait,
 					  TASK_UNINTERRUPTIBLE);
 
-		spin_lock_irq(vblk->disk->queue->queue_lock);
-		if (virtqueue_add_buf(vblk->vq, vbr->sg, out, in, vbr,
-				      GFP_ATOMIC) < 0) {
-			spin_unlock_irq(vblk->disk->queue->queue_lock);
-			io_schedule();
-		} else {
-			virtqueue_kick(vblk->vq);
-			spin_unlock_irq(vblk->disk->queue->queue_lock);
-			break;
-		}
-
-	}
-
-	finish_wait(&vblk->queue_wait, &wait);
-}
-
-static inline void virtblk_add_req(struct virtblk_req *vbr,
-				   unsigned int out, unsigned int in)
-{
-	struct virtio_blk *vblk = vbr->vblk;
-
-	spin_lock_irq(vblk->disk->queue->queue_lock);
-	if (unlikely(virtqueue_add_buf(vblk->vq, vbr->sg, out, in, vbr,
-					GFP_ATOMIC) < 0)) {
 		spin_unlock_irq(vblk->disk->queue->queue_lock);
-		virtblk_add_buf_wait(vblk, vbr, out, in);
-		return;
+		io_schedule();
+		spin_lock_irq(vblk->disk->queue->queue_lock);
+
+		finish_wait(&vblk->queue_wait, &wait);
 	}
+
 	virtqueue_kick(vblk->vq);
 	spin_unlock_irq(vblk->disk->queue->queue_lock);
 }
 
-static int virtblk_bio_send_flush(struct virtblk_req *vbr)
+static void virtblk_bio_send_flush(struct virtblk_req *vbr)
 {
-	unsigned int out = 0, in = 0;
-
 	vbr->flags |= VBLK_IS_FLUSH;
 	vbr->out_hdr.type = VIRTIO_BLK_T_FLUSH;
 	vbr->out_hdr.sector = 0;
 	vbr->out_hdr.ioprio = 0;
-	sg_set_buf(&vbr->sg[out++], &vbr->out_hdr, sizeof(vbr->out_hdr));
-	sg_set_buf(&vbr->sg[out + in++], &vbr->status, sizeof(vbr->status));
 
-	virtblk_add_req(vbr, out, in);
-
-	return 0;
+	virtblk_add_req(vbr, false);
 }
 
-static int virtblk_bio_send_data(struct virtblk_req *vbr)
+static void virtblk_bio_send_data(struct virtblk_req *vbr)
 {
 	struct virtio_blk *vblk = vbr->vblk;
-	unsigned int num, out = 0, in = 0;
 	struct bio *bio = vbr->bio;
+	bool have_data;
 
 	vbr->flags &= ~VBLK_IS_FLUSH;
 	vbr->out_hdr.type = 0;
 	vbr->out_hdr.sector = bio->bi_sector;
 	vbr->out_hdr.ioprio = bio_prio(bio);
 
-	sg_set_buf(&vbr->sg[out++], &vbr->out_hdr, sizeof(vbr->out_hdr));
-
-	num = blk_bio_map_sg(vblk->disk->queue, bio, vbr->sg + out);
-
-	sg_set_buf(&vbr->sg[num + out + in++], &vbr->status,
-		   sizeof(vbr->status));
-
-	if (num) {
-		if (bio->bi_rw & REQ_WRITE) {
+	if (blk_bio_map_sg(vblk->disk->queue, bio, vbr->sg)) {
+		have_data = true;
+		if (bio->bi_rw & REQ_WRITE)
 			vbr->out_hdr.type |= VIRTIO_BLK_T_OUT;
-			out += num;
-		} else {
+		else
 			vbr->out_hdr.type |= VIRTIO_BLK_T_IN;
-			in += num;
-		}
-	}
+	} else
+		have_data = false;
 
-	virtblk_add_req(vbr, out, in);
-
-	return 0;
+	virtblk_add_req(vbr, have_data);
 }
 
 static void virtblk_bio_send_data_work(struct work_struct *work)
@@ -298,7 +305,7 @@ static void virtblk_done(struct virtqueue *vq)
 static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		   struct request *req)
 {
-	unsigned long num, out = 0, in = 0;
+	unsigned int num;
 	struct virtblk_req *vbr;
 
 	vbr = virtblk_alloc_req(vblk, GFP_ATOMIC);
@@ -335,40 +342,15 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		}
 	}
 
-	sg_set_buf(&vblk->sg[out++], &vbr->out_hdr, sizeof(vbr->out_hdr));
-
-	/*
-	 * If this is a packet command we need a couple of additional headers.
-	 * Behind the normal outhdr we put a segment with the scsi command
-	 * block, and before the normal inhdr we put the sense data and the
-	 * inhdr with additional status information before the normal inhdr.
-	 */
-	if (vbr->req->cmd_type == REQ_TYPE_BLOCK_PC)
-		sg_set_buf(&vblk->sg[out++], vbr->req->cmd, vbr->req->cmd_len);
-
-	num = blk_rq_map_sg(q, vbr->req, vblk->sg + out);
-
-	if (vbr->req->cmd_type == REQ_TYPE_BLOCK_PC) {
-		sg_set_buf(&vblk->sg[num + out + in++], vbr->req->sense, SCSI_SENSE_BUFFERSIZE);
-		sg_set_buf(&vblk->sg[num + out + in++], &vbr->in_hdr,
-			   sizeof(vbr->in_hdr));
-	}
-
-	sg_set_buf(&vblk->sg[num + out + in++], &vbr->status,
-		   sizeof(vbr->status));
-
+	num = blk_rq_map_sg(q, vbr->req, vblk->sg);
 	if (num) {
-		if (rq_data_dir(vbr->req) == WRITE) {
+		if (rq_data_dir(vbr->req) == WRITE)
 			vbr->out_hdr.type |= VIRTIO_BLK_T_OUT;
-			out += num;
-		} else {
+		else
 			vbr->out_hdr.type |= VIRTIO_BLK_T_IN;
-			in += num;
-		}
 	}
 
-	if (virtqueue_add_buf(vblk->vq, vblk->sg, out, in, vbr,
-			      GFP_ATOMIC) < 0) {
+	if (__virtblk_add_req(vblk->vq, vbr, vblk->sg, num) < 0) {
 		mempool_free(vbr, vblk->pool);
 		return false;
 	}
@@ -539,6 +521,7 @@ static void virtblk_config_changed_work(struct work_struct *work)
 	struct virtio_device *vdev = vblk->vdev;
 	struct request_queue *q = vblk->disk->queue;
 	char cap_str_2[10], cap_str_10[10];
+	char *envp[] = { "RESIZE=1", NULL };
 	u64 capacity, size;
 
 	mutex_lock(&vblk->config_lock);
@@ -568,6 +551,7 @@ static void virtblk_config_changed_work(struct work_struct *work)
 
 	set_capacity(vblk->disk, capacity);
 	revalidate_disk(vblk->disk);
+	kobject_uevent_env(&disk_to_dev(vblk->disk)->kobj, KOBJ_CHANGE, envp);
 done:
 	mutex_unlock(&vblk->config_lock);
 }

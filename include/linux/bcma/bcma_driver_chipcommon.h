@@ -104,6 +104,7 @@
 #define  BCMA_CC_CHIPST_4706_MIPS_BENDIAN	BIT(3) /* 0: little, 1: big endian */
 #define  BCMA_CC_CHIPST_4706_PCIE1_DISABLE	BIT(5) /* PCIE1 enable strap pin */
 #define  BCMA_CC_CHIPST_5357_NAND_BOOT		BIT(4) /* NAND boot, valid for CC rev 38 and/or BCM5357 */
+#define  BCMA_CC_CHIPST_4360_XTAL_40MZ		0x00000001
 #define BCMA_CC_JCMD			0x0030		/* Rev >= 10 only */
 #define  BCMA_CC_JCMD_START		0x80000000
 #define  BCMA_CC_JCMD_BUSY		0x80000000
@@ -315,6 +316,9 @@
 #define BCMA_CC_PMU_CTL			0x0600 /* PMU control */
 #define  BCMA_CC_PMU_CTL_ILP_DIV	0xFFFF0000 /* ILP div mask */
 #define  BCMA_CC_PMU_CTL_ILP_DIV_SHIFT	16
+#define  BCMA_CC_PMU_CTL_RES		0x00006000 /* reset control mask */
+#define  BCMA_CC_PMU_CTL_RES_SHIFT	13
+#define  BCMA_CC_PMU_CTL_RES_RELOAD	0x2	/* reload POR values */
 #define  BCMA_CC_PMU_CTL_PLL_UPD	0x00000400
 #define  BCMA_CC_PMU_CTL_NOILPONW	0x00000200 /* No ILP on wait */
 #define  BCMA_CC_PMU_CTL_HTREQEN	0x00000100 /* HT req enable */
@@ -326,6 +330,8 @@
 #define BCMA_CC_PMU_CAP			0x0604 /* PMU capabilities */
 #define  BCMA_CC_PMU_CAP_REVISION	0x000000FF /* Revision mask */
 #define BCMA_CC_PMU_STAT		0x0608 /* PMU status */
+#define  BCMA_CC_PMU_STAT_EXT_LPO_AVAIL	0x00000100
+#define  BCMA_CC_PMU_STAT_WDRESET	0x00000080
 #define  BCMA_CC_PMU_STAT_INTPEND	0x00000040 /* Interrupt pending */
 #define  BCMA_CC_PMU_STAT_SBCLKST	0x00000030 /* Backplane clock status? */
 #define  BCMA_CC_PMU_STAT_HAVEALP	0x00000008 /* ALP available */
@@ -351,6 +357,11 @@
 #define BCMA_CC_REGCTL_DATA		0x065C
 #define BCMA_CC_PLLCTL_ADDR		0x0660
 #define BCMA_CC_PLLCTL_DATA		0x0664
+#define BCMA_CC_PMU_STRAPOPT		0x0668 /* (corerev >= 28) */
+#define BCMA_CC_PMU_XTAL_FREQ		0x066C /* (pmurev >= 10) */
+#define  BCMA_CC_PMU_XTAL_FREQ_ILPCTL_MASK	0x00001FFF
+#define  BCMA_CC_PMU_XTAL_FREQ_MEASURE_MASK	0x80000000
+#define  BCMA_CC_PMU_XTAL_FREQ_MEASURE_SHIFT	31
 #define BCMA_CC_SPROM			0x0800 /* SPROM beginning */
 /* NAND flash MLC controller registers (corerev >= 38) */
 #define BCMA_CC_NAND_REVISION		0x0C00
@@ -431,6 +442,23 @@
 #define  BCMA_CC_PMU6_4706_PROC_NDIV_MODE_MASK	0x00000007
 #define  BCMA_CC_PMU6_4706_PROC_NDIV_MODE_SHIFT	0
 
+/* PMU rev 15 */
+#define BCMA_CC_PMU15_PLL_PLLCTL0	0
+#define  BCMA_CC_PMU15_PLL_PC0_CLKSEL_MASK	0x00000003
+#define  BCMA_CC_PMU15_PLL_PC0_CLKSEL_SHIFT	0
+#define  BCMA_CC_PMU15_PLL_PC0_FREQTGT_MASK	0x003FFFFC
+#define  BCMA_CC_PMU15_PLL_PC0_FREQTGT_SHIFT	2
+#define  BCMA_CC_PMU15_PLL_PC0_PRESCALE_MASK	0x00C00000
+#define  BCMA_CC_PMU15_PLL_PC0_PRESCALE_SHIFT	22
+#define  BCMA_CC_PMU15_PLL_PC0_KPCTRL_MASK	0x07000000
+#define  BCMA_CC_PMU15_PLL_PC0_KPCTRL_SHIFT	24
+#define  BCMA_CC_PMU15_PLL_PC0_FCNTCTRL_MASK	0x38000000
+#define  BCMA_CC_PMU15_PLL_PC0_FCNTCTRL_SHIFT	27
+#define  BCMA_CC_PMU15_PLL_PC0_FDCMODE_MASK	0x40000000
+#define  BCMA_CC_PMU15_PLL_PC0_FDCMODE_SHIFT	30
+#define  BCMA_CC_PMU15_PLL_PC0_CTRLBIAS_MASK	0x80000000
+#define  BCMA_CC_PMU15_PLL_PC0_CTRLBIAS_SHIFT	31
+
 /* ALP clock on pre-PMU chips */
 #define BCMA_CC_PMU_ALP_CLOCK		20000000
 /* HT clock for systems with PMU-enabled chipcommon */
@@ -502,6 +530,37 @@
 #define BCMA_CHIPCTL_5357_NFLASH		BIT(16)
 #define BCMA_CHIPCTL_5357_I2S_PINS_ENABLE	BIT(18)
 #define BCMA_CHIPCTL_5357_I2CSPI_PINS_ENABLE	BIT(19)
+
+#define BCMA_RES_4314_LPLDO_PU			BIT(0)
+#define BCMA_RES_4314_PMU_SLEEP_DIS		BIT(1)
+#define BCMA_RES_4314_PMU_BG_PU			BIT(2)
+#define BCMA_RES_4314_CBUCK_LPOM_PU		BIT(3)
+#define BCMA_RES_4314_CBUCK_PFM_PU		BIT(4)
+#define BCMA_RES_4314_CLDO_PU			BIT(5)
+#define BCMA_RES_4314_LPLDO2_LVM		BIT(6)
+#define BCMA_RES_4314_WL_PMU_PU			BIT(7)
+#define BCMA_RES_4314_LNLDO_PU			BIT(8)
+#define BCMA_RES_4314_LDO3P3_PU			BIT(9)
+#define BCMA_RES_4314_OTP_PU			BIT(10)
+#define BCMA_RES_4314_XTAL_PU			BIT(11)
+#define BCMA_RES_4314_WL_PWRSW_PU		BIT(12)
+#define BCMA_RES_4314_LQ_AVAIL			BIT(13)
+#define BCMA_RES_4314_LOGIC_RET			BIT(14)
+#define BCMA_RES_4314_MEM_SLEEP			BIT(15)
+#define BCMA_RES_4314_MACPHY_RET		BIT(16)
+#define BCMA_RES_4314_WL_CORE_READY		BIT(17)
+#define BCMA_RES_4314_ILP_REQ			BIT(18)
+#define BCMA_RES_4314_ALP_AVAIL			BIT(19)
+#define BCMA_RES_4314_MISC_PWRSW_PU		BIT(20)
+#define BCMA_RES_4314_SYNTH_PWRSW_PU		BIT(21)
+#define BCMA_RES_4314_RX_PWRSW_PU		BIT(22)
+#define BCMA_RES_4314_RADIO_PU			BIT(23)
+#define BCMA_RES_4314_VCO_LDO_PU		BIT(24)
+#define BCMA_RES_4314_AFE_LDO_PU		BIT(25)
+#define BCMA_RES_4314_RX_LDO_PU			BIT(26)
+#define BCMA_RES_4314_TX_LDO_PU			BIT(27)
+#define BCMA_RES_4314_HT_AVAIL			BIT(28)
+#define BCMA_RES_4314_MACPHY_CLK_AVAIL		BIT(29)
 
 /* Data for the PMU, if available.
  * Check availability with ((struct bcma_chipcommon)->capabilities & BCMA_CC_CAP_PMU)
@@ -606,6 +665,8 @@ extern void bcma_chipco_resume(struct bcma_drv_cc *cc);
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
 
 extern u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks);
+
+extern u32 bcma_chipco_get_alp_clock(struct bcma_drv_cc *cc);
 
 void bcma_chipco_irq_mask(struct bcma_drv_cc *cc, u32 mask, u32 value);
 

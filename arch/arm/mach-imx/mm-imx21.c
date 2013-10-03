@@ -66,7 +66,6 @@ void __init mx21_map_io(void)
 void __init imx21_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX21);
-	mxc_arch_reset_init(MX21_IO_ADDRESS(MX21_WDOG_BASE_ADDR));
 	imx_iomuxv1_init(MX21_IO_ADDRESS(MX21_GPIO_BASE_ADDR),
 			MX21_NUM_GPIO_PORT);
 }
@@ -82,6 +81,7 @@ static const struct resource imx21_audmux_res[] __initconst = {
 
 void __init imx21_soc_init(void)
 {
+	mxc_arch_reset_init(MX21_IO_ADDRESS(MX21_WDOG_BASE_ADDR));
 	mxc_device_init();
 
 	mxc_register_gpio("imx21-gpio", 0, MX21_GPIO1_BASE_ADDR, SZ_256, MX21_INT_GPIO, 0);

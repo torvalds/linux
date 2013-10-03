@@ -438,7 +438,6 @@
 	SAVE_SP  (%sr4, PT_SR4 (\regs))
 	SAVE_SP  (%sr5, PT_SR5 (\regs))
 	SAVE_SP  (%sr6, PT_SR6 (\regs))
-	SAVE_SP  (%sr7, PT_SR7 (\regs))
 
 	SAVE_CR  (%cr17, PT_IASQ0(\regs))
 	mtctl	 %r0,	%cr17

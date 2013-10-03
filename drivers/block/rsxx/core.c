@@ -31,6 +31,8 @@
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 #include <linux/genhd.h>
 #include <linux/idr.h>
@@ -39,8 +41,9 @@
 #include "rsxx_cfg.h"
 
 #define NO_LEGACY 0
+#define SYNC_START_TIMEOUT (10 * 60) /* 10 minutes */
 
-MODULE_DESCRIPTION("IBM FlashSystem 70/80 PCIe SSD Device Driver");
+MODULE_DESCRIPTION("IBM Flash Adapter 900GB Full Height Device Driver");
 MODULE_AUTHOR("Joshua Morris/Philip Kelleher, IBM");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);
@@ -49,8 +52,281 @@ static unsigned int force_legacy = NO_LEGACY;
 module_param(force_legacy, uint, 0444);
 MODULE_PARM_DESC(force_legacy, "Force the use of legacy type PCI interrupts");
 
+static unsigned int sync_start = 1;
+module_param(sync_start, uint, 0444);
+MODULE_PARM_DESC(sync_start, "On by Default: Driver load will not complete "
+			     "until the card startup has completed.");
+
 static DEFINE_IDA(rsxx_disk_ida);
 static DEFINE_SPINLOCK(rsxx_ida_lock);
+
+/* --------------------Debugfs Setup ------------------- */
+
+struct rsxx_cram {
+	u32 f_pos;
+	u32 offset;
+	void *i_private;
+};
+
+static int rsxx_attr_pci_regs_show(struct seq_file *m, void *p)
+{
+	struct rsxx_cardinfo *card = m->private;
+
+	seq_printf(m, "HWID		0x%08x\n",
+					ioread32(card->regmap + HWID));
+	seq_printf(m, "SCRATCH		0x%08x\n",
+					ioread32(card->regmap + SCRATCH));
+	seq_printf(m, "IER		0x%08x\n",
+					ioread32(card->regmap + IER));
+	seq_printf(m, "IPR		0x%08x\n",
+					ioread32(card->regmap + IPR));
+	seq_printf(m, "CREG_CMD		0x%08x\n",
+					ioread32(card->regmap + CREG_CMD));
+	seq_printf(m, "CREG_ADD		0x%08x\n",
+					ioread32(card->regmap + CREG_ADD));
+	seq_printf(m, "CREG_CNT		0x%08x\n",
+					ioread32(card->regmap + CREG_CNT));
+	seq_printf(m, "CREG_STAT	0x%08x\n",
+					ioread32(card->regmap + CREG_STAT));
+	seq_printf(m, "CREG_DATA0	0x%08x\n",
+					ioread32(card->regmap + CREG_DATA0));
+	seq_printf(m, "CREG_DATA1	0x%08x\n",
+					ioread32(card->regmap + CREG_DATA1));
+	seq_printf(m, "CREG_DATA2	0x%08x\n",
+					ioread32(card->regmap + CREG_DATA2));
+	seq_printf(m, "CREG_DATA3	0x%08x\n",
+					ioread32(card->regmap + CREG_DATA3));
+	seq_printf(m, "CREG_DATA4	0x%08x\n",
+					ioread32(card->regmap + CREG_DATA4));
+	seq_printf(m, "CREG_DATA5	0x%08x\n",
+					ioread32(card->regmap + CREG_DATA5));
+	seq_printf(m, "CREG_DATA6	0x%08x\n",
+					ioread32(card->regmap + CREG_DATA6));
+	seq_printf(m, "CREG_DATA7	0x%08x\n",
+					ioread32(card->regmap + CREG_DATA7));
+	seq_printf(m, "INTR_COAL	0x%08x\n",
+					ioread32(card->regmap + INTR_COAL));
+	seq_printf(m, "HW_ERROR		0x%08x\n",
+					ioread32(card->regmap + HW_ERROR));
+	seq_printf(m, "DEBUG0		0x%08x\n",
+					ioread32(card->regmap + PCI_DEBUG0));
+	seq_printf(m, "DEBUG1		0x%08x\n",
+					ioread32(card->regmap + PCI_DEBUG1));
+	seq_printf(m, "DEBUG2		0x%08x\n",
+					ioread32(card->regmap + PCI_DEBUG2));
+	seq_printf(m, "DEBUG3		0x%08x\n",
+					ioread32(card->regmap + PCI_DEBUG3));
+	seq_printf(m, "DEBUG4		0x%08x\n",
+					ioread32(card->regmap + PCI_DEBUG4));
+	seq_printf(m, "DEBUG5		0x%08x\n",
+					ioread32(card->regmap + PCI_DEBUG5));
+	seq_printf(m, "DEBUG6		0x%08x\n",
+					ioread32(card->regmap + PCI_DEBUG6));
+	seq_printf(m, "DEBUG7		0x%08x\n",
+					ioread32(card->regmap + PCI_DEBUG7));
+	seq_printf(m, "RECONFIG		0x%08x\n",
+					ioread32(card->regmap + PCI_RECONFIG));
+
+	return 0;
+}
+
+static int rsxx_attr_stats_show(struct seq_file *m, void *p)
+{
+	struct rsxx_cardinfo *card = m->private;
+	int i;
+
+	for (i = 0; i < card->n_targets; i++) {
+		seq_printf(m, "Ctrl %d CRC Errors	= %d\n",
+				i, card->ctrl[i].stats.crc_errors);
+		seq_printf(m, "Ctrl %d Hard Errors	= %d\n",
+				i, card->ctrl[i].stats.hard_errors);
+		seq_printf(m, "Ctrl %d Soft Errors	= %d\n",
+				i, card->ctrl[i].stats.soft_errors);
+		seq_printf(m, "Ctrl %d Writes Issued	= %d\n",
+				i, card->ctrl[i].stats.writes_issued);
+		seq_printf(m, "Ctrl %d Writes Failed	= %d\n",
+				i, card->ctrl[i].stats.writes_failed);
+		seq_printf(m, "Ctrl %d Reads Issued	= %d\n",
+				i, card->ctrl[i].stats.reads_issued);
+		seq_printf(m, "Ctrl %d Reads Failed	= %d\n",
+				i, card->ctrl[i].stats.reads_failed);
+		seq_printf(m, "Ctrl %d Reads Retried	= %d\n",
+				i, card->ctrl[i].stats.reads_retried);
+		seq_printf(m, "Ctrl %d Discards Issued	= %d\n",
+				i, card->ctrl[i].stats.discards_issued);
+		seq_printf(m, "Ctrl %d Discards Failed	= %d\n",
+				i, card->ctrl[i].stats.discards_failed);
+		seq_printf(m, "Ctrl %d DMA SW Errors	= %d\n",
+				i, card->ctrl[i].stats.dma_sw_err);
+		seq_printf(m, "Ctrl %d DMA HW Faults	= %d\n",
+				i, card->ctrl[i].stats.dma_hw_fault);
+		seq_printf(m, "Ctrl %d DMAs Cancelled	= %d\n",
+				i, card->ctrl[i].stats.dma_cancelled);
+		seq_printf(m, "Ctrl %d SW Queue Depth	= %d\n",
+				i, card->ctrl[i].stats.sw_q_depth);
+		seq_printf(m, "Ctrl %d HW Queue Depth	= %d\n",
+			i, atomic_read(&card->ctrl[i].stats.hw_q_depth));
+	}
+
+	return 0;
+}
+
+static int rsxx_attr_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rsxx_attr_stats_show, inode->i_private);
+}
+
+static int rsxx_attr_pci_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rsxx_attr_pci_regs_show, inode->i_private);
+}
+
+static ssize_t rsxx_cram_read(struct file *fp, char __user *ubuf,
+			      size_t cnt, loff_t *ppos)
+{
+	struct rsxx_cram *info = fp->private_data;
+	struct rsxx_cardinfo *card = info->i_private;
+	char *buf;
+	int st;
+
+	buf = kzalloc(sizeof(*buf) * cnt, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	info->f_pos = (u32)*ppos + info->offset;
+
+	st = rsxx_creg_read(card, CREG_ADD_CRAM + info->f_pos, cnt, buf, 1);
+	if (st)
+		return st;
+
+	st = copy_to_user(ubuf, buf, cnt);
+	if (st)
+		return st;
+
+	info->offset += cnt;
+
+	kfree(buf);
+
+	return cnt;
+}
+
+static ssize_t rsxx_cram_write(struct file *fp, const char __user *ubuf,
+			       size_t cnt, loff_t *ppos)
+{
+	struct rsxx_cram *info = fp->private_data;
+	struct rsxx_cardinfo *card = info->i_private;
+	char *buf;
+	int st;
+
+	buf = kzalloc(sizeof(*buf) * cnt, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	st = copy_from_user(buf, ubuf, cnt);
+	if (st)
+		return st;
+
+	info->f_pos = (u32)*ppos + info->offset;
+
+	st = rsxx_creg_write(card, CREG_ADD_CRAM + info->f_pos, cnt, buf, 1);
+	if (st)
+		return st;
+
+	info->offset += cnt;
+
+	kfree(buf);
+
+	return cnt;
+}
+
+static int rsxx_cram_open(struct inode *inode, struct file *file)
+{
+	struct rsxx_cram *info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->i_private = inode->i_private;
+	info->f_pos = file->f_pos;
+	file->private_data = info;
+
+	return 0;
+}
+
+static int rsxx_cram_release(struct inode *inode, struct file *file)
+{
+	struct rsxx_cram *info = file->private_data;
+
+	if (!info)
+		return 0;
+
+	kfree(info);
+	file->private_data = NULL;
+
+	return 0;
+}
+
+static const struct file_operations debugfs_cram_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rsxx_cram_open,
+	.read		= rsxx_cram_read,
+	.write		= rsxx_cram_write,
+	.release	= rsxx_cram_release,
+};
+
+static const struct file_operations debugfs_stats_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rsxx_attr_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static const struct file_operations debugfs_pci_regs_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rsxx_attr_pci_regs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void rsxx_debugfs_dev_new(struct rsxx_cardinfo *card)
+{
+	struct dentry *debugfs_stats;
+	struct dentry *debugfs_pci_regs;
+	struct dentry *debugfs_cram;
+
+	card->debugfs_dir = debugfs_create_dir(card->gendisk->disk_name, NULL);
+	if (IS_ERR_OR_NULL(card->debugfs_dir))
+		goto failed_debugfs_dir;
+
+	debugfs_stats = debugfs_create_file("stats", S_IRUGO,
+					    card->debugfs_dir, card,
+					    &debugfs_stats_fops);
+	if (IS_ERR_OR_NULL(debugfs_stats))
+		goto failed_debugfs_stats;
+
+	debugfs_pci_regs = debugfs_create_file("pci_regs", S_IRUGO,
+					       card->debugfs_dir, card,
+					       &debugfs_pci_regs_fops);
+	if (IS_ERR_OR_NULL(debugfs_pci_regs))
+		goto failed_debugfs_pci_regs;
+
+	debugfs_cram = debugfs_create_file("cram", S_IRUGO | S_IWUSR,
+					   card->debugfs_dir, card,
+					   &debugfs_cram_fops);
+	if (IS_ERR_OR_NULL(debugfs_cram))
+		goto failed_debugfs_cram;
+
+	return;
+failed_debugfs_cram:
+	debugfs_remove(debugfs_pci_regs);
+failed_debugfs_pci_regs:
+	debugfs_remove(debugfs_stats);
+failed_debugfs_stats:
+	debugfs_remove(card->debugfs_dir);
+failed_debugfs_dir:
+	card->debugfs_dir = NULL;
+}
 
 /*----------------- Interrupt Control & Handling -------------------*/
 
@@ -163,12 +439,13 @@ static irqreturn_t rsxx_isr(int irq, void *pdata)
 		}
 
 		if (isr & CR_INTR_CREG) {
-			schedule_work(&card->creg_ctrl.done_work);
+			queue_work(card->creg_ctrl.creg_wq,
+				   &card->creg_ctrl.done_work);
 			handled++;
 		}
 
 		if (isr & CR_INTR_EVENT) {
-			schedule_work(&card->event_work);
+			queue_work(card->event_wq, &card->event_work);
 			rsxx_disable_ier_and_isr(card, CR_INTR_EVENT);
 			handled++;
 		}
@@ -329,7 +606,7 @@ static int rsxx_eeh_frozen(struct pci_dev *dev)
 	int i;
 	int st;
 
-	dev_warn(&dev->dev, "IBM FlashSystem PCI: preparing for slot reset.\n");
+	dev_warn(&dev->dev, "IBM Flash Adapter PCI: preparing for slot reset.\n");
 
 	card->eeh_state = 1;
 	rsxx_mask_interrupts(card);
@@ -367,15 +644,26 @@ static void rsxx_eeh_failure(struct pci_dev *dev)
 {
 	struct rsxx_cardinfo *card = pci_get_drvdata(dev);
 	int i;
+	int cnt = 0;
 
-	dev_err(&dev->dev, "IBM FlashSystem PCI: disabling failed card.\n");
+	dev_err(&dev->dev, "IBM Flash Adapter PCI: disabling failed card.\n");
 
 	card->eeh_state = 1;
+	card->halt = 1;
 
-	for (i = 0; i < card->n_targets; i++)
-		del_timer_sync(&card->ctrl[i].activity_timer);
+	for (i = 0; i < card->n_targets; i++) {
+		spin_lock_bh(&card->ctrl[i].queue_lock);
+		cnt = rsxx_cleanup_dma_queue(&card->ctrl[i],
+					     &card->ctrl[i].queue);
+		spin_unlock_bh(&card->ctrl[i].queue_lock);
 
-	rsxx_eeh_cancel_dmas(card);
+		cnt += rsxx_dma_cancel(&card->ctrl[i]);
+
+		if (cnt)
+			dev_info(CARD_TO_DEV(card),
+				"Freed %d queued DMAs on channel %d\n",
+				cnt, card->ctrl[i].id);
+	}
 }
 
 static int rsxx_eeh_fifo_flush_poll(struct rsxx_cardinfo *card)
@@ -432,7 +720,7 @@ static pci_ers_result_t rsxx_slot_reset(struct pci_dev *dev)
 	int st;
 
 	dev_warn(&dev->dev,
-		"IBM FlashSystem PCI: recovering from slot reset.\n");
+		"IBM Flash Adapter PCI: recovering from slot reset.\n");
 
 	st = pci_enable_device(dev);
 	if (st)
@@ -485,7 +773,7 @@ static pci_ers_result_t rsxx_slot_reset(struct pci_dev *dev)
 				&card->ctrl[i].issue_dma_work);
 	}
 
-	dev_info(&dev->dev, "IBM FlashSystem PCI: recovery complete.\n");
+	dev_info(&dev->dev, "IBM Flash Adapter PCI: recovery complete.\n");
 
 	return PCI_ERS_RESULT_RECOVERED;
 
@@ -528,6 +816,7 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 {
 	struct rsxx_cardinfo *card;
 	int st;
+	unsigned int sync_timeout;
 
 	dev_info(&dev->dev, "PCI-Flash SSD discovered\n");
 
@@ -610,7 +899,11 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	}
 
 	/************* Setup Processor Command Interface *************/
-	rsxx_creg_setup(card);
+	st = rsxx_creg_setup(card);
+	if (st) {
+		dev_err(CARD_TO_DEV(card), "Failed to setup creg interface.\n");
+		goto failed_creg_setup;
+	}
 
 	spin_lock_irq(&card->irq_lock);
 	rsxx_enable_ier_and_isr(card, CR_INTR_CREG);
@@ -650,6 +943,12 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	}
 
 	/************* Setup Card Event Handler *************/
+	card->event_wq = create_singlethread_workqueue(DRIVER_NAME"_event");
+	if (!card->event_wq) {
+		dev_err(CARD_TO_DEV(card), "Failed card event setup.\n");
+		goto failed_event_handler;
+	}
+
 	INIT_WORK(&card->event_work, card_event_handler);
 
 	st = rsxx_setup_dev(card);
@@ -676,6 +975,33 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 		if (st)
 			dev_crit(CARD_TO_DEV(card),
 				"Failed issuing card startup\n");
+		if (sync_start) {
+			sync_timeout = SYNC_START_TIMEOUT;
+
+			dev_info(CARD_TO_DEV(card),
+				 "Waiting for card to startup\n");
+
+			do {
+				ssleep(1);
+				sync_timeout--;
+
+				rsxx_get_card_state(card, &card->state);
+			} while (sync_timeout &&
+				(card->state == CARD_STATE_STARTING));
+
+			if (card->state == CARD_STATE_STARTING) {
+				dev_warn(CARD_TO_DEV(card),
+					 "Card startup timed out\n");
+				card->size8 = 0;
+			} else {
+				dev_info(CARD_TO_DEV(card),
+					"card state: %s\n",
+					rsxx_card_state_to_str(card->state));
+				st = rsxx_get_card_size8(card, &card->size8);
+				if (st)
+					card->size8 = 0;
+			}
+		}
 	} else if (card->state == CARD_STATE_GOOD ||
 		   card->state == CARD_STATE_RD_ONLY_FAULT) {
 		st = rsxx_get_card_size8(card, &card->size8);
@@ -685,12 +1011,21 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 
 	rsxx_attach_dev(card);
 
+	/************* Setup Debugfs *************/
+	rsxx_debugfs_dev_new(card);
+
 	return 0;
 
 failed_create_dev:
+	destroy_workqueue(card->event_wq);
+	card->event_wq = NULL;
+failed_event_handler:
 	rsxx_dma_destroy(card);
 failed_dma_setup:
 failed_compatiblity_check:
+	destroy_workqueue(card->creg_ctrl.creg_wq);
+	card->creg_ctrl.creg_wq = NULL;
+failed_creg_setup:
 	spin_lock_irq(&card->irq_lock);
 	rsxx_disable_ier_and_isr(card, CR_INTR_ALL);
 	spin_unlock_irq(&card->irq_lock);
@@ -755,6 +1090,8 @@ static void rsxx_pci_remove(struct pci_dev *dev)
 
 	/* Prevent work_structs from re-queuing themselves. */
 	card->halt = 1;
+
+	debugfs_remove_recursive(card->debugfs_dir);
 
 	free_irq(dev->irq, card);
 

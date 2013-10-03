@@ -47,5 +47,8 @@ void rtl_swlps_wq_callback(void *data);
 void rtl_swlps_rfon_wq_callback(void *data);
 void rtl_swlps_rf_awake(struct ieee80211_hw *hw);
 void rtl_swlps_rf_sleep(struct ieee80211_hw *hw);
+void rtl_p2p_ps_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);
+void rtl_p2p_info(struct ieee80211_hw *hw, void *data, unsigned int len);
+void rtl_lps_change_work_callback(struct work_struct *work);
 
 #endif

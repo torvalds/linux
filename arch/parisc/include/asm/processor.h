@@ -17,10 +17,7 @@
 #include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/percpu.h>
-
 #endif /* __ASSEMBLY__ */
-
-#define KERNEL_STACK_SIZE 	(4*PAGE_SIZE)
 
 /*
  * Default implementation of macro that returns current
@@ -97,7 +94,6 @@ struct cpuinfo_parisc {
 	unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
 #ifdef CONFIG_SMP
 	unsigned long pending_ipi;  /* bitmap of type ipi_message_type */
-	unsigned long ipi_count;    /* number ipi Interrupts */
 #endif
 	unsigned long bh_count;     /* number of times bh was invoked */
 	unsigned long prof_counter; /* per CPU profiling support */

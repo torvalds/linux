@@ -19,12 +19,13 @@
 /*
  * LOCKING:
  *
- * We rely on new Alexander Viro's super-block locking.
+ * These guys are evicted from procfs as the very first step in ->kill_sb().
  *
  */
 
-static int show_version(struct seq_file *m, struct super_block *sb)
+static int show_version(struct seq_file *m, void *unused)
 {
+	struct super_block *sb = m->private;
 	char *format;
 
 	if (REISERFS_SB(sb)->s_properties & (1 << REISERFS_3_6)) {
@@ -66,8 +67,9 @@ static int show_version(struct seq_file *m, struct super_block *sb)
 #define DJP( x ) le32_to_cpu( jp -> x )
 #define JF( x ) ( r -> s_journal -> x )
 
-static int show_super(struct seq_file *m, struct super_block *sb)
+static int show_super(struct seq_file *m, void *unused)
 {
+	struct super_block *sb = m->private;
 	struct reiserfs_sb_info *r = REISERFS_SB(sb);
 
 	seq_printf(m, "state: \t%s\n"
@@ -128,8 +130,9 @@ static int show_super(struct seq_file *m, struct super_block *sb)
 	return 0;
 }
 
-static int show_per_level(struct seq_file *m, struct super_block *sb)
+static int show_per_level(struct seq_file *m, void *unused)
 {
+	struct super_block *sb = m->private;
 	struct reiserfs_sb_info *r = REISERFS_SB(sb);
 	int level;
 
@@ -186,8 +189,9 @@ static int show_per_level(struct seq_file *m, struct super_block *sb)
 	return 0;
 }
 
-static int show_bitmap(struct seq_file *m, struct super_block *sb)
+static int show_bitmap(struct seq_file *m, void *unused)
 {
+	struct super_block *sb = m->private;
 	struct reiserfs_sb_info *r = REISERFS_SB(sb);
 
 	seq_printf(m, "free_block: %lu\n"
@@ -218,8 +222,9 @@ static int show_bitmap(struct seq_file *m, struct super_block *sb)
 	return 0;
 }
 
-static int show_on_disk_super(struct seq_file *m, struct super_block *sb)
+static int show_on_disk_super(struct seq_file *m, void *unused)
 {
+	struct super_block *sb = m->private;
 	struct reiserfs_sb_info *sb_info = REISERFS_SB(sb);
 	struct reiserfs_super_block *rs = sb_info->s_rs;
 	int hash_code = DFL(s_hash_function_code);
@@ -261,8 +266,9 @@ static int show_on_disk_super(struct seq_file *m, struct super_block *sb)
 	return 0;
 }
 
-static int show_oidmap(struct seq_file *m, struct super_block *sb)
+static int show_oidmap(struct seq_file *m, void *unused)
 {
+	struct super_block *sb = m->private;
 	struct reiserfs_sb_info *sb_info = REISERFS_SB(sb);
 	struct reiserfs_super_block *rs = sb_info->s_rs;
 	unsigned int mapsize = le16_to_cpu(rs->s_v1.s_oid_cursize);
@@ -291,8 +297,9 @@ static int show_oidmap(struct seq_file *m, struct super_block *sb)
 	return 0;
 }
 
-static int show_journal(struct seq_file *m, struct super_block *sb)
+static int show_journal(struct seq_file *m, void *unused)
 {
+	struct super_block *sb = m->private;
 	struct reiserfs_sb_info *r = REISERFS_SB(sb);
 	struct reiserfs_super_block *rs = r->s_rs;
 	struct journal_params *jp = &rs->s_v1.s_journal;
@@ -383,85 +390,24 @@ static int show_journal(struct seq_file *m, struct super_block *sb)
 	return 0;
 }
 
-/* iterator */
-static int test_sb(struct super_block *sb, void *data)
-{
-	return data == sb;
-}
-
-static int set_sb(struct super_block *sb, void *data)
-{
-	return -ENOENT;
-}
-
-static void *r_start(struct seq_file *m, loff_t * pos)
-{
-	struct proc_dir_entry *de = m->private;
-	struct super_block *s = de->parent->data;
-	loff_t l = *pos;
-
-	if (l)
-		return NULL;
-
-	if (IS_ERR(sget(&reiserfs_fs_type, test_sb, set_sb, 0, s)))
-		return NULL;
-
-	up_write(&s->s_umount);
-	return s;
-}
-
-static void *r_next(struct seq_file *m, void *v, loff_t * pos)
-{
-	++*pos;
-	if (v)
-		deactivate_super(v);
-	return NULL;
-}
-
-static void r_stop(struct seq_file *m, void *v)
-{
-	if (v)
-		deactivate_super(v);
-}
-
-static int r_show(struct seq_file *m, void *v)
-{
-	struct proc_dir_entry *de = m->private;
-	int (*show) (struct seq_file *, struct super_block *) = de->data;
-	return show(m, v);
-}
-
-static const struct seq_operations r_ops = {
-	.start = r_start,
-	.next = r_next,
-	.stop = r_stop,
-	.show = r_show,
-};
-
 static int r_open(struct inode *inode, struct file *file)
 {
-	int ret = seq_open(file, &r_ops);
-
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = PDE(inode);
-	}
-	return ret;
+	return single_open(file, PDE_DATA(inode), 
+				proc_get_parent_data(inode));
 }
 
 static const struct file_operations r_file_operations = {
 	.open = r_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = seq_release,
-	.owner = THIS_MODULE,
+	.release = single_release,
 };
 
 static struct proc_dir_entry *proc_info_root = NULL;
 static const char proc_info_root_name[] = "fs/reiserfs";
 
 static void add_file(struct super_block *sb, char *name,
-		     int (*func) (struct seq_file *, struct super_block *))
+		     int (*func) (struct seq_file *, void *))
 {
 	proc_create_data(name, 0, REISERFS_SB(sb)->procdir,
 			 &r_file_operations, func);
@@ -479,9 +425,8 @@ int reiserfs_proc_info_init(struct super_block *sb)
 		*s = '!';
 
 	spin_lock_init(&__PINFO(sb).lock);
-	REISERFS_SB(sb)->procdir = proc_mkdir(b, proc_info_root);
+	REISERFS_SB(sb)->procdir = proc_mkdir_data(b, 0, proc_info_root, sb);
 	if (REISERFS_SB(sb)->procdir) {
-		REISERFS_SB(sb)->procdir->data = sb;
 		add_file(sb, "version", show_version);
 		add_file(sb, "super", show_super);
 		add_file(sb, "per-level", show_per_level);
@@ -499,29 +444,17 @@ int reiserfs_proc_info_init(struct super_block *sb)
 int reiserfs_proc_info_done(struct super_block *sb)
 {
 	struct proc_dir_entry *de = REISERFS_SB(sb)->procdir;
-	char b[BDEVNAME_SIZE];
-	char *s;
-
-	/* Some block devices use /'s */
-	strlcpy(b, reiserfs_bdevname(sb), BDEVNAME_SIZE);
-	s = strchr(b, '/');
-	if (s)
-		*s = '!';
-
 	if (de) {
-		remove_proc_entry("journal", de);
-		remove_proc_entry("oidmap", de);
-		remove_proc_entry("on-disk-super", de);
-		remove_proc_entry("bitmap", de);
-		remove_proc_entry("per-level", de);
-		remove_proc_entry("super", de);
-		remove_proc_entry("version", de);
-	}
-	spin_lock(&__PINFO(sb).lock);
-	__PINFO(sb).exiting = 1;
-	spin_unlock(&__PINFO(sb).lock);
-	if (proc_info_root) {
-		remove_proc_entry(b, proc_info_root);
+		char b[BDEVNAME_SIZE];
+		char *s;
+
+		/* Some block devices use /'s */
+		strlcpy(b, reiserfs_bdevname(sb), BDEVNAME_SIZE);
+		s = strchr(b, '/');
+		if (s)
+			*s = '!';
+
+		remove_proc_subtree(b, proc_info_root);
 		REISERFS_SB(sb)->procdir = NULL;
 	}
 	return 0;

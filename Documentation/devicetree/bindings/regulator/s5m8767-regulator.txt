@@ -1,6 +1,6 @@
 * Samsung S5M8767 Voltage and Current Regulator
 
-The Samsung S5M8767 is a multi-function device which includes volatage and
+The Samsung S5M8767 is a multi-function device which includes voltage and
 current regulators, rtc, charger controller and other sub-blocks. It is
 interfaced to the host controller using a i2c interface. Each sub-block is
 addressed by the host system using different i2c slave address. This document
@@ -103,13 +103,13 @@ Example:
 
 		s5m8767,pmic-buck-default-dvs-idx = <0>;
 
-		s5m8767,pmic-buck-dvs-gpios = <&gpx0 0 1 0 0>, /* DVS1 */
-						 <&gpx0 1 1 0 0>, /* DVS2 */
-						 <&gpx0 2 1 0 0>; /* DVS3 */
+		s5m8767,pmic-buck-dvs-gpios = <&gpx0 0 0>, /* DVS1 */
+						 <&gpx0 1 0>, /* DVS2 */
+						 <&gpx0 2 0>; /* DVS3 */
 
-		s5m8767,pmic-buck-ds-gpios = <&gpx2 3 1 0 0>, /* SET1 */
-						<&gpx2 4 1 0 0>, /* SET2 */
-						<&gpx2 5 1 0 0>; /* SET3 */
+		s5m8767,pmic-buck-ds-gpios = <&gpx2 3 0>, /* SET1 */
+						<&gpx2 4 0>, /* SET2 */
+						<&gpx2 5 0>; /* SET3 */
 
 		s5m8767,pmic-buck2-dvs-voltage = <1350000>, <1300000>,
 						 <1250000>, <1200000>,

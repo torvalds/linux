@@ -359,6 +359,9 @@ int braille_register_console(struct console *console, int index,
 		char *console_options, char *braille_options)
 {
 	int ret;
+
+	if (!(console->flags & CON_BRL))
+		return 0;
 	if (!console_options)
 		/* Only support VisioBraille for now */
 		console_options = "57600o8";
@@ -374,15 +377,17 @@ int braille_register_console(struct console *console, int index,
 	braille_co = console;
 	register_keyboard_notifier(&keyboard_notifier_block);
 	register_vt_notifier(&vt_notifier_block);
-	return 0;
+	return 1;
 }
 
 int braille_unregister_console(struct console *console)
 {
 	if (braille_co != console)
 		return -EINVAL;
+	if (!(console->flags & CON_BRL))
+		return 0;
 	unregister_keyboard_notifier(&keyboard_notifier_block);
 	unregister_vt_notifier(&vt_notifier_block);
 	braille_co = NULL;
-	return 0;
+	return 1;
 }

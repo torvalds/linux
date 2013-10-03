@@ -77,6 +77,7 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err = 0;
 	char name[25];
+	int timestamp_en = 0;
 	struct cpu_rmap *rmap =
 #ifdef CONFIG_RFS_ACCEL
 		priv->dev->rx_cpu_rmap;
@@ -123,8 +124,13 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	if (!cq->is_tx)
 		cq->size = priv->rx_ring[cq->ring].actual_size;
 
-	err = mlx4_cq_alloc(mdev->dev, cq->size, &cq->wqres.mtt, &mdev->priv_uar,
-			    cq->wqres.db.dma, &cq->mcq, cq->vector, 0);
+	if ((cq->is_tx && priv->hwtstamp_config.tx_type) ||
+	    (!cq->is_tx && priv->hwtstamp_config.rx_filter))
+		timestamp_en = 1;
+
+	err = mlx4_cq_alloc(mdev->dev, cq->size, &cq->wqres.mtt,
+			    &mdev->priv_uar, cq->wqres.db.dma, &cq->mcq,
+			    cq->vector, 0, timestamp_en);
 	if (err)
 		return err;
 
@@ -133,6 +139,7 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 
 	if (!cq->is_tx) {
 		netif_napi_add(cq->dev, &cq->napi, mlx4_en_poll_rx_cq, 64);
+		napi_hash_add(&cq->napi);
 		napi_enable(&cq->napi);
 	}
 
@@ -156,6 +163,8 @@ void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 {
 	if (!cq->is_tx) {
 		napi_disable(&cq->napi);
+		napi_hash_del(&cq->napi);
+		synchronize_rcu();
 		netif_napi_del(&cq->napi);
 	}
 

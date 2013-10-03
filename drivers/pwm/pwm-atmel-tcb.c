@@ -76,7 +76,7 @@ static int atmel_tcb_pwm_request(struct pwm_chip *chip,
 	if (!tcbpwm)
 		return -ENOMEM;
 
-	ret = clk_enable(tc->clk[group]);
+	ret = clk_prepare_enable(tc->clk[group]);
 	if (ret) {
 		devm_kfree(chip->dev, tcbpwm);
 		return ret;
@@ -124,7 +124,7 @@ static void atmel_tcb_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct atmel_tcb_pwm_device *tcbpwm = pwm_get_chip_data(pwm);
 	struct atmel_tc *tc = tcbpwmc->tc;
 
-	clk_disable(tc->clk[pwm->hwpwm / 2]);
+	clk_disable_unprepare(tc->clk[pwm->hwpwm / 2]);
 	tcbpwmc->pwms[pwm->hwpwm] = NULL;
 	devm_kfree(chip->dev, tcbpwm);
 }
@@ -358,6 +358,7 @@ static const struct pwm_ops atmel_tcb_pwm_ops = {
 	.set_polarity = atmel_tcb_pwm_set_polarity,
 	.enable = atmel_tcb_pwm_enable,
 	.disable = atmel_tcb_pwm_disable,
+	.owner = THIS_MODULE,
 };
 
 static int atmel_tcb_pwm_probe(struct platform_device *pdev)
@@ -433,6 +434,7 @@ MODULE_DEVICE_TABLE(of, atmel_tcb_pwm_dt_ids);
 static struct platform_driver atmel_tcb_pwm_driver = {
 	.driver = {
 		.name = "atmel-tcb-pwm",
+		.owner = THIS_MODULE,
 		.of_match_table = atmel_tcb_pwm_dt_ids,
 	},
 	.probe = atmel_tcb_pwm_probe,

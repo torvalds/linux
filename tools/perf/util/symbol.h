@@ -97,7 +97,8 @@ struct symbol_conf {
 			kptr_restrict,
 			annotate_asm_raw,
 			annotate_src,
-			event_group;
+			event_group,
+			demangle;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
@@ -155,6 +156,12 @@ struct branch_info {
 	struct branch_flags flags;
 };
 
+struct mem_info {
+	struct addr_map_symbol iaddr;
+	struct addr_map_symbol daddr;
+	union perf_mem_data_src data_src;
+};
+
 struct addr_location {
 	struct thread *thread;
 	struct map    *map;
@@ -208,6 +215,7 @@ struct symbol *dso__find_symbol(struct dso *dso, enum map_type type,
 				u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,
 					const char *name);
+struct symbol *dso__first_symbol(struct dso *dso, enum map_type type);
 
 int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
@@ -239,5 +247,9 @@ void symbols__insert(struct rb_root *symbols, struct symbol *sym);
 void symbols__fixup_duplicate(struct rb_root *symbols);
 void symbols__fixup_end(struct rb_root *symbols);
 void __map_groups__fixup_end(struct map_groups *mg, enum map_type type);
+
+typedef int (*mapfn_t)(u64 start, u64 len, u64 pgoff, void *data);
+int file__read_maps(int fd, bool exe, mapfn_t mapfn, void *data,
+		    bool *is_64_bit);
 
 #endif /* __PERF_SYMBOL */

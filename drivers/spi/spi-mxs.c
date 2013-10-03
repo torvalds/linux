@@ -46,7 +46,6 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mxs-spi.h>
@@ -68,18 +67,7 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 {
 	struct mxs_spi *spi = spi_master_get_devdata(dev->master);
 	struct mxs_ssp *ssp = &spi->ssp;
-	uint8_t bits_per_word;
 	uint32_t hz = 0;
-
-	bits_per_word = dev->bits_per_word;
-	if (t && t->bits_per_word)
-		bits_per_word = t->bits_per_word;
-
-	if (bits_per_word != 8) {
-		dev_err(&dev->dev, "%s, unsupported bits_per_word=%d\n",
-					__func__, bits_per_word);
-		return -EINVAL;
-	}
 
 	hz = dev->max_speed_hz;
 	if (t && t->speed_hz)
@@ -490,21 +478,6 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 	return status;
 }
 
-static bool mxs_ssp_dma_filter(struct dma_chan *chan, void *param)
-{
-	struct mxs_ssp *ssp = param;
-
-	if (!mxs_dma_is_apbh(chan))
-		return false;
-
-	if (chan->chan_id != ssp->dma_channel)
-		return false;
-
-	chan->private = &ssp->dma_data;
-
-	return true;
-}
-
 static const struct of_device_id mxs_spi_dt_ids[] = {
 	{ .compatible = "fsl,imx23-spi", .data = (void *) IMX23_SSP, },
 	{ .compatible = "fsl,imx28-spi", .data = (void *) IMX28_SSP, },
@@ -520,13 +493,11 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct mxs_spi *spi;
 	struct mxs_ssp *ssp;
-	struct resource *iores, *dmares;
-	struct pinctrl *pinctrl;
+	struct resource *iores;
 	struct clk *clk;
 	void __iomem *base;
-	int devid, dma_channel, clk_freq;
-	int ret = 0, irq_err, irq_dma;
-	dma_cap_mask_t mask;
+	int devid, clk_freq;
+	int ret = 0, irq_err;
 
 	/*
 	 * Default clock speed for the SPI core. 160MHz seems to
@@ -537,48 +508,22 @@ static int mxs_spi_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
-	irq_dma = platform_get_irq(pdev, 1);
-	if (!iores || irq_err < 0 || irq_dma < 0)
+	if (irq_err < 0)
 		return -EINVAL;
 
 	base = devm_ioremap_resource(&pdev->dev, iores);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		return PTR_ERR(pinctrl);
-
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	if (np) {
-		devid = (enum mxs_ssp_id) of_id->data;
-		/*
-		 * TODO: This is a temporary solution and should be changed
-		 * to use generic DMA binding later when the helpers get in.
-		 */
-		ret = of_property_read_u32(np, "fsl,ssp-dma-channel",
-					   &dma_channel);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"Failed to get DMA channel\n");
-			return -EINVAL;
-		}
-
-		ret = of_property_read_u32(np, "clock-frequency",
-					   &clk_freq);
-		if (ret)
-			clk_freq = clk_freq_default;
-	} else {
-		dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-		if (!dmares)
-			return -EINVAL;
-		devid = pdev->id_entry->driver_data;
-		dma_channel = dmares->start;
+	devid = (enum mxs_ssp_id) of_id->data;
+	ret = of_property_read_u32(np, "clock-frequency",
+				   &clk_freq);
+	if (ret)
 		clk_freq = clk_freq_default;
-	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*spi));
 	if (!master)
@@ -586,6 +531,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 
 	master->transfer_one_message = mxs_spi_transfer_one;
 	master->setup = mxs_spi_setup;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 	master->num_chipselect = 3;
 	master->dev.of_node = np;
@@ -597,7 +543,6 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	ssp->clk = clk;
 	ssp->base = base;
 	ssp->devid = devid;
-	ssp->dma_channel = dma_channel;
 
 	init_completion(&spi->c);
 
@@ -606,34 +551,38 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_master_free;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	ssp->dma_data.chan_irq = irq_dma;
-	ssp->dmach = dma_request_channel(mask, mxs_ssp_dma_filter, ssp);
+	ssp->dmach = dma_request_slave_channel(&pdev->dev, "rx-tx");
 	if (!ssp->dmach) {
 		dev_err(ssp->dev, "Failed to request DMA\n");
+		ret = -ENODEV;
 		goto out_master_free;
 	}
 
-	clk_prepare_enable(ssp->clk);
+	ret = clk_prepare_enable(ssp->clk);
+	if (ret)
+		goto out_dma_release;
+
 	clk_set_rate(ssp->clk, clk_freq);
 	ssp->clk_rate = clk_get_rate(ssp->clk) / 1000;
 
-	stmp_reset_block(ssp->base);
+	ret = stmp_reset_block(ssp->base);
+	if (ret)
+		goto out_disable_clk;
 
 	platform_set_drvdata(pdev, master);
 
 	ret = spi_register_master(master);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register SPI master, %d\n", ret);
-		goto out_free_dma;
+		goto out_disable_clk;
 	}
 
 	return 0;
 
-out_free_dma:
-	dma_release_channel(ssp->dmach);
+out_disable_clk:
 	clk_disable_unprepare(ssp->clk);
+out_dma_release:
+	dma_release_channel(ssp->dmach);
 out_master_free:
 	spi_master_put(master);
 	return ret;
@@ -650,11 +599,8 @@ static int mxs_spi_remove(struct platform_device *pdev)
 	ssp = &spi->ssp;
 
 	spi_unregister_master(master);
-
-	dma_release_channel(ssp->dmach);
-
 	clk_disable_unprepare(ssp->clk);
-
+	dma_release_channel(ssp->dmach);
 	spi_master_put(master);
 
 	return 0;

@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/string.h>
+#include "clk.h"
 
 /**
  * DOC: basic gatable clock which can gate and ungate it's ouput

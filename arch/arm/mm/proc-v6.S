@@ -80,12 +80,10 @@ ENTRY(cpu_v6_do_idle)
 	mov	pc, lr
 
 ENTRY(cpu_v6_dcache_clean_area)
-#ifndef TLB_CAN_READ_FROM_L1_CACHE
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #D_CACHE_LINE_SIZE
 	subs	r1, r1, #D_CACHE_LINE_SIZE
 	bhi	1b
-#endif
 	mov	pc, lr
 
 /*
@@ -138,12 +136,14 @@ ENTRY(cpu_v6_set_pte_ext)
 /* Suspend/resume support: taken from arch/arm/mach-s3c64xx/sleep.S */
 .globl	cpu_v6_suspend_size
 .equ	cpu_v6_suspend_size, 4 * 6
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ARM_CPU_SUSPEND
 ENTRY(cpu_v6_do_suspend)
 	stmfd	sp!, {r4 - r9, lr}
 	mrc	p15, 0, r4, c13, c0, 0	@ FCSE/PID
+#ifdef CONFIG_MMU
 	mrc	p15, 0, r5, c3, c0, 0	@ Domain ID
 	mrc	p15, 0, r6, c2, c0, 1	@ Translation table base 1
+#endif
 	mrc	p15, 0, r7, c1, c0, 1	@ auxiliary control register
 	mrc	p15, 0, r8, c1, c0, 2	@ co-processor access control
 	mrc	p15, 0, r9, c1, c0, 0	@ control register
@@ -160,14 +160,16 @@ ENTRY(cpu_v6_do_resume)
 	mcr	p15, 0, ip, c13, c0, 1	@ set reserved context ID
 	ldmia	r0, {r4 - r9}
 	mcr	p15, 0, r4, c13, c0, 0	@ FCSE/PID
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r5, c3, c0, 0	@ Domain ID
 	ALT_SMP(orr	r1, r1, #TTB_FLAGS_SMP)
 	ALT_UP(orr	r1, r1, #TTB_FLAGS_UP)
 	mcr	p15, 0, r1, c2, c0, 0	@ Translation table base 0
 	mcr	p15, 0, r6, c2, c0, 1	@ Translation table base 1
+	mcr	p15, 0, ip, c2, c0, 2	@ TTB control register
+#endif
 	mcr	p15, 0, r7, c1, c0, 1	@ auxiliary control register
 	mcr	p15, 0, r8, c1, c0, 2	@ co-processor access control
-	mcr	p15, 0, ip, c2, c0, 2	@ TTB control register
 	mcr	p15, 0, ip, c7, c5, 4	@ ISB
 	mov	r0, r9			@ control register
 	b	cpu_resume_mmu
@@ -177,8 +179,6 @@ ENDPROC(cpu_v6_do_resume)
 	string	cpu_v6_name, "ARMv6-compatible processor"
 
 	.align
-
-	__CPUINIT
 
 /*
  *	__v6_setup

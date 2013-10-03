@@ -394,14 +394,14 @@ static void ft_send_tm(struct ft_cmd *cmd)
 /*
  * Send status from completed task management request.
  */
-int ft_queue_tm_resp(struct se_cmd *se_cmd)
+void ft_queue_tm_resp(struct se_cmd *se_cmd)
 {
 	struct ft_cmd *cmd = container_of(se_cmd, struct ft_cmd, se_cmd);
 	struct se_tmr_req *tmr = se_cmd->se_tmr_req;
 	enum fcp_resp_rsp_codes code;
 
 	if (cmd->aborted)
-		return 0;
+		return;
 	switch (tmr->response) {
 	case TMR_FUNCTION_COMPLETE:
 		code = FCP_TMF_CMPL;
@@ -413,10 +413,7 @@ int ft_queue_tm_resp(struct se_cmd *se_cmd)
 		code = FCP_TMF_REJECTED;
 		break;
 	case TMR_TASK_DOES_NOT_EXIST:
-	case TMR_TASK_STILL_ALLEGIANT:
-	case TMR_TASK_FAILOVER_NOT_SUPPORTED:
 	case TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED:
-	case TMR_FUNCTION_AUTHORIZATION_FAILED:
 	default:
 		code = FCP_TMF_FAILED;
 		break;
@@ -424,7 +421,6 @@ int ft_queue_tm_resp(struct se_cmd *se_cmd)
 	pr_debug("tmr fn %d resp %d fcp code %d\n",
 		  tmr->function, tmr->response, code);
 	ft_send_resp_code(cmd, code);
-	return 0;
 }
 
 static void ft_send_work(struct work_struct *work);

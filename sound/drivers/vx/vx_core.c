@@ -205,7 +205,7 @@ static int vx_read_status(struct vx_core *chip, struct vx_rmh *rmh)
 
 	if (size < 1)
 		return 0;
-	if (snd_BUG_ON(size > SIZE_MAX_STATUS))
+	if (snd_BUG_ON(size >= SIZE_MAX_STATUS))
 		return -EINVAL;
 
 	for (i = 1; i <= size; i++) {

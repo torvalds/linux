@@ -5,23 +5,14 @@
  *
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
  */
-#include <linux/clocksource.h>
 #include <linux/init.h>
+#include <linux/time.h>
 
-#include <asm/time.h>
 #include <asm/gic.h>
 
 static cycle_t gic_hpt_read(struct clocksource *cs)
 {
-	unsigned int hi, hi2, lo;
-
-	do {
-		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_63_32), hi);
-		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_31_00), lo);
-		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_63_32), hi2);
-	} while (hi2 != hi);
-
-	return (((cycle_t) hi) << 32) + lo;
+	return gic_read_count();
 }
 
 static struct clocksource gic_clocksource = {

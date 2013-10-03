@@ -707,7 +707,6 @@ err_gpio_config:
 err_get_irq:
 	input_free_device(kp->input);
 err_alloc_device:
-	platform_set_drvdata(pdev, NULL);
 	kfree(kp);
 	return rc;
 }
@@ -722,7 +721,6 @@ static int pmic8xxx_kp_remove(struct platform_device *pdev)
 	input_unregister_device(kp->input);
 	kfree(kp);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

@@ -3329,7 +3329,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	port->blocked_open++;
 
 	while (1) {
-		if (tty->termios.c_cflag & CBAUD)
+		if (C_BAUD(tty) && test_bit(ASYNCB_INITIALIZED, &port->flags))
 			tty_port_raise_dtr_rts(port);
 
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -3478,7 +3478,7 @@ static int alloc_buf_list(SLMP_INFO *info)
 	for ( i = 0; i < info->rx_buf_count; i++ ) {
 		/* calculate and store physical address of this buffer entry */
 		info->rx_buf_list_ex[i].phys_entry =
-			info->buffer_list_phys + (i * sizeof(SCABUFSIZE));
+			info->buffer_list_phys + (i * SCABUFSIZE);
 
 		/* calculate and store physical address of */
 		/* next entry in cirular list of entries */

@@ -237,13 +237,12 @@ error_put:
 	return ret;
 }
 
-static int blktrans_release(struct gendisk *disk, fmode_t mode)
+static void blktrans_release(struct gendisk *disk, fmode_t mode)
 {
 	struct mtd_blktrans_dev *dev = blktrans_dev_get(disk);
-	int ret = 0;
 
 	if (!dev)
-		return ret;
+		return;
 
 	mutex_lock(&dev->lock);
 
@@ -254,13 +253,13 @@ static int blktrans_release(struct gendisk *disk, fmode_t mode)
 	module_put(dev->tr->owner);
 
 	if (dev->mtd) {
-		ret = dev->tr->release ? dev->tr->release(dev) : 0;
+		if (dev->tr->release)
+			dev->tr->release(dev);
 		__put_mtd_device(dev->mtd);
 	}
 unlock:
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
-	return ret;
 }
 
 static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)

@@ -83,7 +83,7 @@ static int em_ipset_match(struct sk_buff *skb, struct tcf_ematch *em,
 	opt.dim = set->dim;
 	opt.flags = set->flags;
 	opt.cmdflags = 0;
-	opt.timeout = ~0u;
+	opt.ext.timeout = ~0u;
 
 	network_offset = skb_network_offset(skb);
 	skb_pull(skb, network_offset);

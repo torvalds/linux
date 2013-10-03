@@ -472,13 +472,9 @@ static void ehv_bc_tx_dequeue(struct ehv_bc_data *bc)
 static irqreturn_t ehv_bc_tty_tx_isr(int irq, void *data)
 {
 	struct ehv_bc_data *bc = data;
-	struct tty_struct *ttys = tty_port_tty_get(&bc->port);
 
 	ehv_bc_tx_dequeue(bc);
-	if (ttys) {
-		tty_wakeup(ttys);
-		tty_kref_put(ttys);
-	}
+	tty_port_tty_wakeup(&bc->port);
 
 	return IRQ_HANDLED;
 }
@@ -863,6 +859,7 @@ error:
  */
 static void __exit ehv_bc_exit(void)
 {
+	platform_driver_unregister(&ehv_bc_tty_driver);
 	tty_unregister_driver(ehv_bc_driver);
 	put_tty_driver(ehv_bc_driver);
 	kfree(bcs);

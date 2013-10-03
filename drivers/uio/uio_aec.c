@@ -160,17 +160,5 @@ static struct pci_driver pci_driver = {
 	.remove = remove,
 };
 
-static int __init aectc_init(void)
-{
-	return pci_register_driver(&pci_driver);
-}
-
-static void __exit aectc_exit(void)
-{
-	pci_unregister_driver(&pci_driver);
-}
-
+module_pci_driver(pci_driver);
 MODULE_LICENSE("GPL");
-
-module_init(aectc_init);
-module_exit(aectc_exit);

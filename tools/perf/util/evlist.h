@@ -32,6 +32,9 @@ struct perf_evlist {
 	int		 nr_fds;
 	int		 nr_mmaps;
 	int		 mmap_len;
+	int		 id_pos;
+	int		 is_pos;
+	u64		 combined_sample_type;
 	struct {
 		int	cork_fd;
 		pid_t	pid;
@@ -49,8 +52,7 @@ struct perf_evsel_str_handler {
 	void	   *handler;
 };
 
-struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
-				     struct thread_map *threads);
+struct perf_evlist *perf_evlist__new(void);
 void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 		       struct thread_map *threads);
 void perf_evlist__exit(struct perf_evlist *evlist);
@@ -72,6 +74,10 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter);
 struct perf_evsel *
 perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id);
 
+struct perf_evsel *
+perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
+				     const char *name);
+
 void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id);
 
@@ -79,16 +85,22 @@ void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 
 struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 
+struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id);
+
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *self, int idx);
 
 int perf_evlist__open(struct perf_evlist *evlist);
+void perf_evlist__close(struct perf_evlist *evlist);
 
+void perf_evlist__set_id_pos(struct perf_evlist *evlist);
+bool perf_can_sample_identifier(void);
 void perf_evlist__config(struct perf_evlist *evlist,
 			 struct perf_record_opts *opts);
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,
-				  struct perf_record_opts *opts,
-				  const char *argv[]);
+				  struct perf_target *target,
+				  const char *argv[], bool pipe_output,
+				  bool want_signal);
 int perf_evlist__start_workload(struct perf_evlist *evlist);
 
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
@@ -97,6 +109,11 @@ void perf_evlist__munmap(struct perf_evlist *evlist);
 
 void perf_evlist__disable(struct perf_evlist *evlist);
 void perf_evlist__enable(struct perf_evlist *evlist);
+
+int perf_evlist__disable_event(struct perf_evlist *evlist,
+			       struct perf_evsel *evsel);
+int perf_evlist__enable_event(struct perf_evlist *evlist,
+			      struct perf_evsel *evsel);
 
 void perf_evlist__set_selected(struct perf_evlist *evlist,
 			       struct perf_evsel *evsel);
@@ -117,7 +134,9 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist);
 void __perf_evlist__set_leader(struct list_head *list);
 void perf_evlist__set_leader(struct perf_evlist *evlist);
 
-u64 perf_evlist__sample_type(struct perf_evlist *evlist);
+u64 perf_evlist__read_format(struct perf_evlist *evlist);
+u64 __perf_evlist__combined_sample_type(struct perf_evlist *evlist);
+u64 perf_evlist__combined_sample_type(struct perf_evlist *evlist);
 bool perf_evlist__sample_id_all(struct perf_evlist *evlist);
 u16 perf_evlist__id_hdr_size(struct perf_evlist *evlist);
 
@@ -126,6 +145,7 @@ int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *even
 
 bool perf_evlist__valid_sample_type(struct perf_evlist *evlist);
 bool perf_evlist__valid_sample_id_all(struct perf_evlist *evlist);
+bool perf_evlist__valid_read_format(struct perf_evlist *evlist);
 
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
 				   struct list_head *list,

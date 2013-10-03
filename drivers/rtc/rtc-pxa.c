@@ -324,37 +324,35 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 	int ret;
 	u32 rttr;
 
-	pxa_rtc = kzalloc(sizeof(struct pxa_rtc), GFP_KERNEL);
+	pxa_rtc = devm_kzalloc(dev, sizeof(*pxa_rtc), GFP_KERNEL);
 	if (!pxa_rtc)
 		return -ENOMEM;
 
 	spin_lock_init(&pxa_rtc->lock);
 	platform_set_drvdata(pdev, pxa_rtc);
 
-	ret = -ENXIO;
 	pxa_rtc->ress = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!pxa_rtc->ress) {
 		dev_err(dev, "No I/O memory resource defined\n");
-		goto err_ress;
+		return -ENXIO;
 	}
 
 	pxa_rtc->irq_1Hz = platform_get_irq(pdev, 0);
 	if (pxa_rtc->irq_1Hz < 0) {
 		dev_err(dev, "No 1Hz IRQ resource defined\n");
-		goto err_ress;
+		return -ENXIO;
 	}
 	pxa_rtc->irq_Alrm = platform_get_irq(pdev, 1);
 	if (pxa_rtc->irq_Alrm < 0) {
 		dev_err(dev, "No alarm IRQ resource defined\n");
-		goto err_ress;
+		return -ENXIO;
 	}
 	pxa_rtc_open(dev);
-	ret = -ENOMEM;
-	pxa_rtc->base = ioremap(pxa_rtc->ress->start,
+	pxa_rtc->base = devm_ioremap(dev, pxa_rtc->ress->start,
 				resource_size(pxa_rtc->ress));
 	if (!pxa_rtc->base) {
-		dev_err(&pdev->dev, "Unable to map pxa RTC I/O memory\n");
-		goto err_map;
+		dev_err(dev, "Unable to map pxa RTC I/O memory\n");
+		return -ENOMEM;
 	}
 
 	/*
@@ -370,41 +368,24 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 
 	rtsr_clear_bits(pxa_rtc, RTSR_PIALE | RTSR_RDALE1 | RTSR_HZE);
 
-	pxa_rtc->rtc = rtc_device_register("pxa-rtc", &pdev->dev, &pxa_rtc_ops,
-					   THIS_MODULE);
-	ret = PTR_ERR(pxa_rtc->rtc);
+	pxa_rtc->rtc = devm_rtc_device_register(&pdev->dev, "pxa-rtc",
+						&pxa_rtc_ops, THIS_MODULE);
 	if (IS_ERR(pxa_rtc->rtc)) {
+		ret = PTR_ERR(pxa_rtc->rtc);
 		dev_err(dev, "Failed to register RTC device -> %d\n", ret);
-		goto err_rtc_reg;
+		return ret;
 	}
 
 	device_init_wakeup(dev, 1);
 
 	return 0;
-
-err_rtc_reg:
-	 iounmap(pxa_rtc->base);
-err_ress:
-err_map:
-	kfree(pxa_rtc);
-	return ret;
 }
 
 static int __exit pxa_rtc_remove(struct platform_device *pdev)
 {
-	struct pxa_rtc *pxa_rtc = platform_get_drvdata(pdev);
-
 	struct device *dev = &pdev->dev;
+
 	pxa_rtc_release(dev);
-
-	rtc_device_unregister(pxa_rtc->rtc);
-
-	spin_lock_irq(&pxa_rtc->lock);
-	iounmap(pxa_rtc->base);
-	spin_unlock_irq(&pxa_rtc->lock);
-
-	kfree(pxa_rtc);
-
 	return 0;
 }
 
@@ -416,7 +397,7 @@ static struct of_device_id pxa_rtc_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, pxa_rtc_dt_ids);
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pxa_rtc_suspend(struct device *dev)
 {
 	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
@@ -434,36 +415,20 @@ static int pxa_rtc_resume(struct device *dev)
 		disable_irq_wake(pxa_rtc->irq_Alrm);
 	return 0;
 }
-
-static const struct dev_pm_ops pxa_rtc_pm_ops = {
-	.suspend	= pxa_rtc_suspend,
-	.resume		= pxa_rtc_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(pxa_rtc_pm_ops, pxa_rtc_suspend, pxa_rtc_resume);
 
 static struct platform_driver pxa_rtc_driver = {
 	.remove		= __exit_p(pxa_rtc_remove),
 	.driver		= {
 		.name	= "pxa-rtc",
 		.of_match_table = of_match_ptr(pxa_rtc_dt_ids),
-#ifdef CONFIG_PM
 		.pm	= &pxa_rtc_pm_ops,
-#endif
 	},
 };
 
-static int __init pxa_rtc_init(void)
-{
-	return platform_driver_probe(&pxa_rtc_driver, pxa_rtc_probe);
-}
-
-static void __exit pxa_rtc_exit(void)
-{
-	platform_driver_unregister(&pxa_rtc_driver);
-}
-
-module_init(pxa_rtc_init);
-module_exit(pxa_rtc_exit);
+module_platform_driver_probe(pxa_rtc_driver, pxa_rtc_probe);
 
 MODULE_AUTHOR("Robert Jarzmik <robert.jarzmik@free.fr>");
 MODULE_DESCRIPTION("PXA27x/PXA3xx Realtime Clock Driver (RTC)");

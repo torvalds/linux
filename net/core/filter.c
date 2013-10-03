@@ -348,6 +348,9 @@ load_b:
 		case BPF_S_ANC_VLAN_TAG_PRESENT:
 			A = !!vlan_tx_tag_present(skb);
 			continue;
+		case BPF_S_ANC_PAY_OFFSET:
+			A = __skb_get_poff(skb);
+			continue;
 		case BPF_S_ANC_NLATTR: {
 			struct nlattr *nla;
 
@@ -612,6 +615,7 @@ int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
 			ANCILLARY(ALU_XOR_X);
 			ANCILLARY(VLAN_TAG);
 			ANCILLARY(VLAN_TAG_PRESENT);
+			ANCILLARY(PAY_OFFSET);
 			}
 
 			/* ancillary operation unknown or unsupported */
@@ -774,7 +778,7 @@ int sk_detach_filter(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(sk_detach_filter);
 
-static void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to)
+void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to)
 {
 	static const u16 decodes[] = {
 		[BPF_S_ALU_ADD_K]	= BPF_ALU|BPF_ADD|BPF_K,
@@ -814,6 +818,7 @@ static void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to)
 		[BPF_S_ANC_SECCOMP_LD_W] = BPF_LD|BPF_B|BPF_ABS,
 		[BPF_S_ANC_VLAN_TAG]	= BPF_LD|BPF_B|BPF_ABS,
 		[BPF_S_ANC_VLAN_TAG_PRESENT] = BPF_LD|BPF_B|BPF_ABS,
+		[BPF_S_ANC_PAY_OFFSET]	= BPF_LD|BPF_B|BPF_ABS,
 		[BPF_S_LD_W_LEN]	= BPF_LD|BPF_W|BPF_LEN,
 		[BPF_S_LD_W_IND]	= BPF_LD|BPF_W|BPF_IND,
 		[BPF_S_LD_H_IND]	= BPF_LD|BPF_H|BPF_IND,

@@ -240,19 +240,19 @@ static int tosa_lcd_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tosa_lcd_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int tosa_lcd_suspend(struct device *dev)
 {
-	struct tosa_lcd_data *data = spi_get_drvdata(spi);
+	struct tosa_lcd_data *data = dev_get_drvdata(dev);
 
 	tosa_lcd_tg_off(data);
 
 	return 0;
 }
 
-static int tosa_lcd_resume(struct spi_device *spi)
+static int tosa_lcd_resume(struct device *dev)
 {
-	struct tosa_lcd_data *data = spi_get_drvdata(spi);
+	struct tosa_lcd_data *data = dev_get_drvdata(dev);
 
 	tosa_lcd_tg_init(data);
 	if (POWER_IS_ON(data->lcd_power))
@@ -262,20 +262,18 @@ static int tosa_lcd_resume(struct spi_device *spi)
 
 	return 0;
 }
-#else
-#define tosa_lcd_suspend	NULL
-#define tosa_lcd_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(tosa_lcd_pm_ops, tosa_lcd_suspend, tosa_lcd_resume);
 
 static struct spi_driver tosa_lcd_driver = {
 	.driver = {
 		.name		= "tosa-lcd",
 		.owner		= THIS_MODULE,
+		.pm		= &tosa_lcd_pm_ops,
 	},
 	.probe		= tosa_lcd_probe,
 	.remove		= tosa_lcd_remove,
-	.suspend	= tosa_lcd_suspend,
-	.resume		= tosa_lcd_resume,
 };
 
 module_spi_driver(tosa_lcd_driver);

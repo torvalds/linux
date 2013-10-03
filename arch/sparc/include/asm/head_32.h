@@ -55,15 +55,15 @@
 
 /* The Get Condition Codes software trap for userland. */
 #define GETCC_TRAP \
-        b getcc_trap_handler; mov %psr, %l0; nop; nop;
+        b getcc_trap_handler; rd %psr, %l0; nop; nop;
 
 /* The Set Condition Codes software trap for userland. */
 #define SETCC_TRAP \
-        b setcc_trap_handler; mov %psr, %l0; nop; nop;
+        b setcc_trap_handler; rd %psr, %l0; nop; nop;
 
 /* The Get PSR software trap for userland. */
 #define GETPSR_TRAP \
-	mov %psr, %i0; jmp %l2; rett %l2 + 4; nop;
+	rd %psr, %i0; jmp %l2; rett %l2 + 4; nop;
 
 /* This is for hard interrupts from level 1-14, 15 is non-maskable (nmi) and
  * gets handled with another macro.

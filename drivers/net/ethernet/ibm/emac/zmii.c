@@ -84,7 +84,7 @@ static inline u32 zmii_mode_mask(int mode, int input)
 
 int zmii_attach(struct platform_device *ofdev, int input, int *mode)
 {
-	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct zmii_instance *dev = platform_get_drvdata(ofdev);
 	struct zmii_regs __iomem *p = dev->base;
 
 	ZMII_DBG(dev, "init(%d, %d)" NL, input, *mode);
@@ -150,7 +150,7 @@ int zmii_attach(struct platform_device *ofdev, int input, int *mode)
 
 void zmii_get_mdio(struct platform_device *ofdev, int input)
 {
-	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct zmii_instance *dev = platform_get_drvdata(ofdev);
 	u32 fer;
 
 	ZMII_DBG2(dev, "get_mdio(%d)" NL, input);
@@ -163,7 +163,7 @@ void zmii_get_mdio(struct platform_device *ofdev, int input)
 
 void zmii_put_mdio(struct platform_device *ofdev, int input)
 {
-	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct zmii_instance *dev = platform_get_drvdata(ofdev);
 
 	ZMII_DBG2(dev, "put_mdio(%d)" NL, input);
 	mutex_unlock(&dev->lock);
@@ -172,7 +172,7 @@ void zmii_put_mdio(struct platform_device *ofdev, int input)
 
 void zmii_set_speed(struct platform_device *ofdev, int input, int speed)
 {
-	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct zmii_instance *dev = platform_get_drvdata(ofdev);
 	u32 ssr;
 
 	mutex_lock(&dev->lock);
@@ -193,7 +193,7 @@ void zmii_set_speed(struct platform_device *ofdev, int input, int speed)
 
 void zmii_detach(struct platform_device *ofdev, int input)
 {
-	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct zmii_instance *dev = platform_get_drvdata(ofdev);
 
 	BUG_ON(!dev || dev->users == 0);
 
@@ -218,7 +218,7 @@ int zmii_get_regs_len(struct platform_device *ofdev)
 
 void *zmii_dump_regs(struct platform_device *ofdev, void *buf)
 {
-	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct zmii_instance *dev = platform_get_drvdata(ofdev);
 	struct emac_ethtool_regs_subhdr *hdr = buf;
 	struct zmii_regs *regs = (struct zmii_regs *)(hdr + 1);
 
@@ -272,7 +272,7 @@ static int zmii_probe(struct platform_device *ofdev)
 	printk(KERN_INFO
 	       "ZMII %s initialized\n", ofdev->dev.of_node->full_name);
 	wmb();
-	dev_set_drvdata(&ofdev->dev, dev);
+	platform_set_drvdata(ofdev, dev);
 
 	return 0;
 
@@ -284,9 +284,7 @@ static int zmii_probe(struct platform_device *ofdev)
 
 static int zmii_remove(struct platform_device *ofdev)
 {
-	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
-
-	dev_set_drvdata(&ofdev->dev, NULL);
+	struct zmii_instance *dev = platform_get_drvdata(ofdev);
 
 	WARN_ON(dev->users != 0);
 

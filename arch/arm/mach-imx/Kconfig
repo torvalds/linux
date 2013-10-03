@@ -1,12 +1,15 @@
 config ARCH_MXC
 	bool "Freescale i.MX family" if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7
 	select ARCH_REQUIRE_GPIOLIB
+	select ARM_CPU_SUSPEND if PM
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR if !ZBOOT_ROM
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
+	select MIGHT_HAVE_CACHE_L2X0 if ARCH_MULTI_V6_V7
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	select USE_OF
@@ -55,15 +58,11 @@ config MXC_USE_EPIT
 	  uses the same clocks as the GPT. Anyway, on some systems the GPT
 	  may be in use for other purposes.
 
-config MXC_ULPI
-	bool
-
 config ARCH_HAS_RNGA
 	bool
 
-config IRAM_ALLOC
+config HAVE_IMX_ANATOP
 	bool
-	select GENERIC_ALLOCATOR
 
 config HAVE_IMX_GPC
 	bool
@@ -73,6 +72,7 @@ config HAVE_IMX_MMDC
 
 config HAVE_IMX_SRC
 	def_bool y if SMP
+	select ARCH_HAS_RESET_CONTROLLER
 
 config IMX_HAVE_IOMUX_V1
 	bool
@@ -83,22 +83,10 @@ config ARCH_MXC_IOMUX_V3
 config ARCH_MX1
 	bool
 
-config MACH_MX21
-	bool
-
 config ARCH_MX25
 	bool
 
 config MACH_MX27
-	bool
-
-config ARCH_MX5
-	bool
-
-config ARCH_MX51
-	bool
-
-config ARCH_MX53
 	bool
 
 config SOC_IMX1
@@ -114,7 +102,6 @@ config SOC_IMX21
 	select COMMON_CLK
 	select CPU_ARM926T
 	select IMX_HAVE_IOMUX_V1
-	select MACH_MX21
 	select MXC_AVIC
 
 config SOC_IMX25
@@ -123,11 +110,12 @@ config SOC_IMX25
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select CPU_ARM926T
-	select HAVE_CAN_FLEXCAN if CAN
 	select MXC_AVIC
 
 config SOC_IMX27
 	bool
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
 	select COMMON_CLK
 	select CPU_ARM926T
 	select IMX_HAVE_IOMUX_V1
@@ -147,7 +135,6 @@ config SOC_IMX35
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select CPU_V6K
-	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_EPIT
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
@@ -155,7 +142,7 @@ config SOC_IMX35
 config SOC_IMX5
 	bool
 	select ARCH_HAS_CPUFREQ
-	select ARCH_MX5
+	select ARCH_HAS_OPP
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select CPU_V7
@@ -163,8 +150,7 @@ config SOC_IMX5
 
 config	SOC_IMX51
 	bool
-	select ARCH_MX5
-	select ARCH_MX51
+	select HAVE_IMX_SRC
 	select PINCTRL
 	select PINCTRL_IMX51
 	select SOC_IMX5
@@ -187,6 +173,7 @@ config ARCH_MX1ADS
 config MACH_SCB9328
 	bool "Synertronixx scb9328"
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select SOC_IMX1
 	help
 	  Say Y here if you are using a Synertronixx scb9328 board
 
@@ -244,7 +231,7 @@ config MACH_EUKREA_CPUIMX25SD
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX25
 
 choice
@@ -295,7 +282,7 @@ config MACH_PCM038
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
 	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX27
 	help
 	  Include support for phyCORE-i.MX27 (aka pcm038) platform. This
@@ -325,7 +312,7 @@ config MACH_CPUIMX27
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX27
 	help
 	  Include support for Eukrea CPUIMX27 platform. This includes
@@ -380,7 +367,7 @@ config MACH_MX27_3DS
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select MXC_DEBUG_BOARD
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX27
 	help
 	  Include support for MX27PDK platform. This includes specific
@@ -425,7 +412,7 @@ config MACH_PCA100
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
 	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX27
 	help
 	  Include support for phyCARD-s (aka pca100) platform. This
@@ -481,8 +468,6 @@ config MACH_MX31ADS_WM1133_EV1
 	depends on MACH_MX31ADS
 	depends on MFD_WM8350_I2C
 	depends on REGULATOR_WM8350 = y
-	select MFD_WM8350_CONFIG_MODE_0
-	select MFD_WM8352_CONFIG_MODE_0
 	help
 	  Include support for the Wolfson Microelectronics 1133-EV1 PMU
 	  and audio module for the MX31ADS platform.
@@ -494,7 +479,7 @@ config MACH_MX31LILLY
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for mx31 based LILLY1131 modules. This includes
@@ -510,7 +495,7 @@ config MACH_MX31LITE
 	select IMX_HAVE_PLATFORM_MXC_RTC
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select LEDS_GPIO_REGISTER
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for MX31 LITEKIT platform. This includes specific
@@ -527,7 +512,7 @@ config MACH_PCM037
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for Phytec pcm037 platform. This includes
@@ -557,7 +542,7 @@ config MACH_MX31_3DS
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select MXC_DEBUG_BOARD
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for MX31PDK (3DS) platform. This includes specific
@@ -584,7 +569,7 @@ config MACH_MX31MOBOARD
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select LEDS_GPIO_REGISTER
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for mx31moboard platform. This includes specific
@@ -608,7 +593,7 @@ config MACH_ARMADILLO5X0
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_MXC_NAND
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for Atmark Armadillo-500 platform. This includes
@@ -652,7 +637,7 @@ config MACH_PCM043
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX35
 	help
 	  Include support for Phytec pcm043 platform. This includes
@@ -686,7 +671,7 @@ config MACH_EUKREA_CPUIMX35SD
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX35
 	help
 	  Include support for Eukrea CPUIMX35 platform. This includes
@@ -789,9 +774,7 @@ comment "Device tree only"
 
 config	SOC_IMX53
 	bool "i.MX53 support"
-	select ARCH_MX5
-	select ARCH_MX53
-	select HAVE_CAN_FLEXCAN if CAN
+	select HAVE_IMX_SRC
 	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select PINCTRL
 	select PINCTRL_IMX53
@@ -801,18 +784,18 @@ config	SOC_IMX53
 	  This enables support for Freescale i.MX53 processor.
 
 config SOC_IMX6Q
-	bool "i.MX6 Quad support"
+	bool "i.MX6 Quad/DualLite support"
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
-	select ARM_CPU_SUSPEND if PM
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
 	select ARM_ERRATA_775420
 	select ARM_GIC
 	select COMMON_CLK
 	select CPU_V7
-	select HAVE_ARM_SCU
-	select HAVE_CAN_FLEXCAN if CAN
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
@@ -827,6 +810,41 @@ config SOC_IMX6Q
 
 	help
 	  This enables support for Freescale i.MX6 Quad processor.
+
+config SOC_IMX6SL
+	bool "i.MX6 SoloLite support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_IMX_ANATOP
+	select HAVE_IMX_GPC
+	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
+	select MFD_SYSCON
+	select PINCTRL
+	select PINCTRL_IMX6SL
+	select PL310_ERRATA_588369 if CACHE_PL310
+	select PL310_ERRATA_727915 if CACHE_PL310
+	select PL310_ERRATA_769419 if CACHE_PL310
+
+	help
+	  This enables support for Freescale i.MX6 SoloLite processor.
+
+config SOC_VF610
+	bool "Vybrid Family VF610 support"
+	select CPU_V7
+	select ARM_GIC
+	select CLKSRC_OF
+	select PINCTRL
+	select PINCTRL_VF610
+	select VF_PIT_TIMER
+	select PL310_ERRATA_588369 if CACHE_PL310
+	select PL310_ERRATA_727915 if CACHE_PL310
+	select PL310_ERRATA_769419 if CACHE_PL310
+
+	help
+	  This enable support for Freescale Vybrid VF610 processor.
 
 endif
 

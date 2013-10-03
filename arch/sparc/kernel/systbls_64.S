@@ -23,9 +23,9 @@ sys_call_table32:
 /*10*/  .word sys_unlink, sunos_execv, sys_chdir, sys_chown16, sys_mknod
 /*15*/	.word sys_chmod, sys_lchown16, sys_brk, sys_nis_syscall, compat_sys_lseek
 /*20*/	.word sys_getpid, sys_capget, sys_capset, sys_setuid16, sys_getuid16
-/*25*/	.word sys32_vmsplice, compat_sys_ptrace, sys_alarm, compat_sys_sigaltstack, sys_pause
+/*25*/	.word compat_sys_vmsplice, compat_sys_ptrace, sys_alarm, compat_sys_sigaltstack, sys_pause
 /*30*/	.word compat_sys_utime, sys_lchown, sys_fchown, sys_access, sys_nice
-	.word sys_chown, sys_sync, sys_kill, compat_sys_newstat, sys32_sendfile
+	.word sys_chown, sys_sync, sys_kill, compat_sys_newstat, compat_sys_sendfile
 /*40*/	.word compat_sys_newlstat, sys_dup, sys_sparc_pipe, compat_sys_times, sys_getuid
 	.word sys_umount, sys_setgid16, sys_getgid16, sys_signal, sys_geteuid16
 /*50*/	.word sys_getegid16, sys_acct, sys_nis_syscall, sys_getgid, compat_sys_ioctl
@@ -41,7 +41,7 @@ sys_call_table32:
 /*100*/ .word sys_getpriority, sys32_rt_sigreturn, compat_sys_rt_sigaction, compat_sys_rt_sigprocmask, compat_sys_rt_sigpending
 	.word compat_sys_rt_sigtimedwait, compat_sys_rt_sigqueueinfo, compat_sys_rt_sigsuspend, sys_setresuid, sys_getresuid
 /*110*/	.word sys_setresgid, sys_getresgid, sys_setregid, sys_nis_syscall, sys_nis_syscall
-	.word sys_getgroups, compat_sys_gettimeofday, sys32_getrusage, sys_nis_syscall, sys_getcwd
+	.word sys_getgroups, compat_sys_gettimeofday, compat_sys_getrusage, sys_nis_syscall, sys_getcwd
 /*120*/	.word compat_sys_readv, compat_sys_writev, compat_sys_settimeofday, sys_fchown16, sys_fchmod
 	.word sys_nis_syscall, sys_setreuid16, sys_setregid16, sys_rename, compat_sys_truncate
 /*130*/	.word compat_sys_ftruncate, sys_flock, compat_sys_lstat64, sys_nis_syscall, sys_nis_syscall
@@ -59,7 +59,7 @@ sys_call_table32:
 /*190*/	.word sys_init_module, sys_sparc64_personality, sys_remap_file_pages, sys_epoll_create, sys_epoll_ctl
 	.word sys_epoll_wait, sys_ioprio_set, sys_getppid, compat_sys_sparc_sigaction, sys_sgetmask
 /*200*/	.word sys_ssetmask, sys_sigsuspend, compat_sys_newlstat, sys_uselib, compat_sys_old_readdir
-	.word sys32_readahead, sys32_socketcall, sys_syslog, sys32_lookup_dcookie, sys32_fadvise64
+	.word sys32_readahead, sys32_socketcall, sys_syslog, compat_sys_lookup_dcookie, sys32_fadvise64
 /*210*/	.word sys32_fadvise64_64, sys_tgkill, sys_waitpid, sys_swapoff, compat_sys_sysinfo
 	.word compat_sys_ipc, sys32_sigreturn, sys_clone, sys_ioprio_get, compat_sys_adjtimex
 /*220*/	.word compat_sys_sigprocmask, sys_ni_syscall, sys_delete_module, sys_ni_syscall, sys_getpgid
@@ -84,7 +84,7 @@ sys_call_table32:
 	.word compat_sys_timerfd_settime, compat_sys_timerfd_gettime, compat_sys_signalfd4, sys_eventfd2, sys_epoll_create1
 /*320*/	.word sys_dup3, sys_pipe2, sys_inotify_init1, sys_accept4, compat_sys_preadv
 	.word compat_sys_pwritev, compat_sys_rt_tgsigqueueinfo, sys_perf_event_open, compat_sys_recvmmsg, sys_fanotify_init
-/*330*/	.word sys32_fanotify_mark, sys_prlimit64, sys_name_to_handle_at, compat_sys_open_by_handle_at, compat_sys_clock_adjtime
+/*330*/	.word compat_sys_fanotify_mark, sys_prlimit64, sys_name_to_handle_at, compat_sys_open_by_handle_at, compat_sys_clock_adjtime
 	.word sys_syncfs, compat_sys_sendmmsg, sys_setns, compat_sys_process_vm_readv, compat_sys_process_vm_writev
 /*340*/	.word sys_kern_features, sys_kcmp, sys_finit_module
 

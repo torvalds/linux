@@ -70,6 +70,7 @@ static inline struct device *to_tps6586x_dev(struct regulator_dev *rdev)
 
 static struct regulator_ops tps6586x_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 
@@ -245,7 +246,7 @@ static int tps6586x_regulator_set_slew_rate(struct platform_device *pdev,
 		reg = TPS6586X_SM1SL;
 		break;
 	default:
-		dev_warn(&pdev->dev, "Only SM0/SM1 can set slew rate\n");
+		dev_err(&pdev->dev, "Only SM0/SM1 can set slew rate\n");
 		return -EINVAL;
 	}
 
@@ -304,13 +305,11 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 	}
 
 	err = of_regulator_match(&pdev->dev, regs, tps6586x_matches, num);
+	of_node_put(regs);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Regulator match failed, e %d\n", err);
-		of_node_put(regs);
 		return NULL;
 	}
-
-	of_node_put(regs);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -440,7 +439,7 @@ static int tps6586x_regulator_remove(struct platform_device *pdev)
 
 static struct platform_driver tps6586x_regulator_driver = {
 	.driver	= {
-		.name	= "tps6586x-pmic",
+		.name	= "tps6586x-regulator",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tps6586x_regulator_probe,

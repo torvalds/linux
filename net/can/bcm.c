@@ -226,7 +226,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 
 static int bcm_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, bcm_proc_show, PDE(inode)->data);
+	return single_open(file, bcm_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations bcm_proc_fops = {
@@ -1350,9 +1350,9 @@ static int bcm_sendmsg(struct kiocb *iocb, struct socket *sock,
  * notification handler for netdevice status changes
  */
 static int bcm_notifier(struct notifier_block *nb, unsigned long msg,
-			void *data)
+			void *ptr)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct bcm_sock *bo = container_of(nb, struct bcm_sock, notifier);
 	struct sock *sk = &bo->sk;
 	struct bcm_op *op;

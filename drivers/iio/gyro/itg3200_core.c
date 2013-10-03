@@ -248,12 +248,6 @@ err_ret:
 	return ret;
 }
 
-#define ITG3200_TEMP_INFO_MASK	(IIO_CHAN_INFO_OFFSET_SHARED_BIT | \
-				 IIO_CHAN_INFO_SCALE_SHARED_BIT | \
-				 IIO_CHAN_INFO_RAW_SEPARATE_BIT)
-#define ITG3200_GYRO_INFO_MASK	(IIO_CHAN_INFO_SCALE_SHARED_BIT | \
-				 IIO_CHAN_INFO_RAW_SEPARATE_BIT)
-
 #define ITG3200_ST						\
 	{ .sign = 's', .realbits = 16, .storagebits = 16, .endianness = IIO_BE }
 
@@ -261,7 +255,8 @@ err_ret:
 	.type = IIO_ANGL_VEL, \
 	.modified = 1, \
 	.channel2 = IIO_MOD_ ## _mod, \
-	.info_mask = ITG3200_GYRO_INFO_MASK, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 	.address = ITG3200_REG_GYRO_ ## _mod ## OUT_H, \
 	.scan_index = ITG3200_SCAN_GYRO_ ## _mod, \
 	.scan_type = ITG3200_ST, \
@@ -271,7 +266,9 @@ static const struct iio_chan_spec itg3200_channels[] = {
 	{
 		.type = IIO_TEMP,
 		.channel2 = IIO_NO_MOD,
-		.info_mask = ITG3200_TEMP_INFO_MASK,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE),
 		.address = ITG3200_REG_TEMP_OUT_H,
 		.scan_index = ITG3200_SCAN_TEMP,
 		.scan_type = ITG3200_ST,
@@ -312,11 +309,9 @@ static int itg3200_probe(struct i2c_client *client,
 
 	dev_dbg(&client->dev, "probe I2C dev with IRQ %i", client->irq);
 
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret =  -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -333,7 +328,7 @@ static int itg3200_probe(struct i2c_client *client,
 
 	ret = itg3200_buffer_configure(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	if (client->irq) {
 		ret = itg3200_probe_trigger(indio_dev);
@@ -356,9 +351,6 @@ error_remove_trigger:
 		itg3200_remove_trigger(indio_dev);
 error_unconfigure_buffer:
 	itg3200_buffer_unconfigure(indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
 	return ret;
 }
 
@@ -372,8 +364,6 @@ static int itg3200_remove(struct i2c_client *client)
 		itg3200_remove_trigger(indio_dev);
 
 	itg3200_buffer_unconfigure(indio_dev);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

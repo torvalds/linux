@@ -985,7 +985,6 @@ static int snd_serial_probe(struct platform_device *devptr)
 static int snd_serial_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
 

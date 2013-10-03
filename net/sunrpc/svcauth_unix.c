@@ -347,13 +347,13 @@ ip_map_cached_get(struct svc_xprt *xprt)
 		spin_lock(&xprt->xpt_lock);
 		ipm = xprt->xpt_auth_cache;
 		if (ipm != NULL) {
-			if (!cache_valid(&ipm->h)) {
+			sn = net_generic(xprt->xpt_net, sunrpc_net_id);
+			if (cache_is_expired(sn->ip_map_cache, &ipm->h)) {
 				/*
 				 * The entry has been invalidated since it was
 				 * remembered, e.g. by a second mount from the
 				 * same IP address.
 				 */
-				sn = net_generic(xprt->xpt_net, sunrpc_net_id);
 				xprt->xpt_auth_cache = NULL;
 				spin_unlock(&xprt->xpt_lock);
 				cache_put(&ipm->h, sn->ip_map_cache);
@@ -493,8 +493,6 @@ static int unix_gid_parse(struct cache_detail *cd,
 	if (rv)
 		return -EINVAL;
 	uid = make_kuid(&init_user_ns, id);
-	if (!uid_valid(uid))
-		return -EINVAL;
 	ug.uid = uid;
 
 	expiry = get_expiry(&mesg);
@@ -810,11 +808,15 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 		goto badcred;
 	argv->iov_base = (void*)((__be32*)argv->iov_base + slen);	/* skip machname */
 	argv->iov_len -= slen*4;
-
+	/*
+	 * Note: we skip uid_valid()/gid_valid() checks here for
+	 * backwards compatibility with clients that use -1 id's.
+	 * Instead, -1 uid or gid is later mapped to the
+	 * (export-specific) anonymous id by nfsd_setuser.
+	 * Supplementary gid's will be left alone.
+	 */
 	cred->cr_uid = make_kuid(&init_user_ns, svc_getnl(argv)); /* uid */
 	cred->cr_gid = make_kgid(&init_user_ns, svc_getnl(argv)); /* gid */
-	if (!uid_valid(cred->cr_uid) || !gid_valid(cred->cr_gid))
-		goto badcred;
 	slen = svc_getnl(argv);			/* gids length */
 	if (slen > 16 || (len -= (slen + 2)*4) < 0)
 		goto badcred;
@@ -823,8 +825,6 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 		return SVC_CLOSE;
 	for (i = 0; i < slen; i++) {
 		kgid_t kgid = make_kgid(&init_user_ns, svc_getnl(argv));
-		if (!gid_valid(kgid))
-			goto badcred;
 		GROUP_AT(cred->cr_group_info, i) = kgid;
 	}
 	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {

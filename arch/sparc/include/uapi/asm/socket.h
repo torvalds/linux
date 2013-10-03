@@ -68,6 +68,10 @@
 
 #define SO_LOCK_FILTER		0x0028
 
+#define SO_SELECT_ERR_QUEUE	0x0029
+
+#define SO_BUSY_POLL		0x0030
+
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001
 #define SO_SECURITY_ENCRYPTION_TRANSPORT	0x5002

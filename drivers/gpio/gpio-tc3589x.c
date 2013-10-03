@@ -282,9 +282,9 @@ static void tc3589x_gpio_irq_unmap(struct irq_domain *d, unsigned int virq)
 }
 
 static struct irq_domain_ops tc3589x_irq_ops = {
-        .map    = tc3589x_gpio_irq_map,
-        .unmap  = tc3589x_gpio_irq_unmap,
-        .xlate  = irq_domain_xlate_twocell,
+	.map    = tc3589x_gpio_irq_map,
+	.unmap  = tc3589x_gpio_irq_unmap,
+	.xlate  = irq_domain_xlate_twocell,
 };
 
 static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio,
@@ -344,7 +344,7 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	tc3589x_gpio->chip.base = (pdata) ? pdata->gpio_base : -1;
 
 #ifdef CONFIG_OF_GPIO
-        tc3589x_gpio->chip.of_node = np;
+	tc3589x_gpio->chip.of_node = np;
 #endif
 
 	tc3589x_gpio->irq_base = tc3589x->irq_base ?
@@ -407,7 +407,6 @@ static int tc3589x_gpio_remove(struct platform_device *pdev)
 
 	free_irq(irq, tc3589x_gpio);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(tc3589x_gpio);
 
 	return 0;

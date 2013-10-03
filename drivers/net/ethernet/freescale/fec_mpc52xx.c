@@ -14,6 +14,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 
@@ -858,13 +860,11 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	/* Reserve FEC control zone */
 	rv = of_address_to_resource(np, 0, &mem);
 	if (rv) {
-		printk(KERN_ERR DRIVER_NAME ": "
-				"Error while parsing device node resource\n" );
+		pr_err("Error while parsing device node resource\n");
 		goto err_netdev;
 	}
 	if (resource_size(&mem) < sizeof(struct mpc52xx_fec)) {
-		printk(KERN_ERR DRIVER_NAME
-		       " - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
+		pr_err("invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
 		       (unsigned long)resource_size(&mem),
 		       sizeof(struct mpc52xx_fec));
 		rv = -EINVAL;
@@ -902,7 +902,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	priv->tx_dmatsk = bcom_fec_tx_init(FEC_TX_NUM_BD, tx_fifo);
 
 	if (!priv->rx_dmatsk || !priv->tx_dmatsk) {
-		printk(KERN_ERR DRIVER_NAME ": Can not init SDMA tasks\n" );
+		pr_err("Can not init SDMA tasks\n");
 		rv = -ENOMEM;
 		goto err_rx_tx_dmatsk;
 	}
@@ -981,9 +981,9 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 		goto err_node;
 
 	/* We're done ! */
-	dev_set_drvdata(&op->dev, ndev);
-	printk(KERN_INFO "%s: %s MAC %pM\n",
-	       ndev->name, op->dev.of_node->full_name, ndev->dev_addr);
+	platform_set_drvdata(op, ndev);
+	netdev_info(ndev, "%s MAC %pM\n",
+		    op->dev.of_node->full_name, ndev->dev_addr);
 
 	return 0;
 
@@ -1010,7 +1010,7 @@ mpc52xx_fec_remove(struct platform_device *op)
 	struct net_device *ndev;
 	struct mpc52xx_fec_priv *priv;
 
-	ndev = dev_get_drvdata(&op->dev);
+	ndev = platform_get_drvdata(op);
 	priv = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
@@ -1030,14 +1030,13 @@ mpc52xx_fec_remove(struct platform_device *op)
 
 	free_netdev(ndev);
 
-	dev_set_drvdata(&op->dev, NULL);
 	return 0;
 }
 
 #ifdef CONFIG_PM
 static int mpc52xx_fec_of_suspend(struct platform_device *op, pm_message_t state)
 {
-	struct net_device *dev = dev_get_drvdata(&op->dev);
+	struct net_device *dev = platform_get_drvdata(op);
 
 	if (netif_running(dev))
 		mpc52xx_fec_close(dev);
@@ -1047,7 +1046,7 @@ static int mpc52xx_fec_of_suspend(struct platform_device *op, pm_message_t state
 
 static int mpc52xx_fec_of_resume(struct platform_device *op)
 {
-	struct net_device *dev = dev_get_drvdata(&op->dev);
+	struct net_device *dev = platform_get_drvdata(op);
 
 	mpc52xx_fec_hw_init(dev);
 	mpc52xx_fec_reset_stats(dev);
@@ -1094,7 +1093,7 @@ mpc52xx_fec_init(void)
 	int ret;
 	ret = platform_driver_register(&mpc52xx_fec_mdio_driver);
 	if (ret) {
-		printk(KERN_ERR DRIVER_NAME ": failed to register mdio driver\n");
+		pr_err("failed to register mdio driver\n");
 		return ret;
 	}
 #endif

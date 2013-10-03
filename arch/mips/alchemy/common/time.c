@@ -36,6 +36,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 
+#include <asm/idle.h>
 #include <asm/processor.h>
 #include <asm/time.h>
 #include <asm/mach-au1x00/au1000.h>

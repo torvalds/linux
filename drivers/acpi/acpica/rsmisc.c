@@ -194,7 +194,6 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			break;
 
 		case ACPI_RSC_COUNT_GPIO_RES:
-
 			/*
 			 * Vendor data is optional (length/offset may both be zero)
 			 * Examine vendor data length field first
@@ -410,12 +409,14 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			 */
 			switch (info->resource_offset) {
 			case ACPI_RSC_COMPARE_AML_LENGTH:
+
 				if (aml_resource_length != info->value) {
 					goto exit;
 				}
 				break;
 
 			case ACPI_RSC_COMPARE_VALUE:
+
 				if (ACPI_GET8(source) != info->value) {
 					goto exit;
 				}

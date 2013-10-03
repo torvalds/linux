@@ -189,7 +189,12 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 
 		/* Need to keep regulator on */
 		if (!bci->usb_enabled) {
-			regulator_enable(bci->usb_reg);
+			ret = regulator_enable(bci->usb_reg);
+			if (ret) {
+				dev_err(bci->dev,
+					"Failed to enable regulator\n");
+				return ret;
+			}
 			bci->usb_enabled = 1;
 		}
 
@@ -594,7 +599,6 @@ fail_chg_irq:
 fail_register_usb:
 	power_supply_unregister(&bci->ac);
 fail_register_ac:
-	platform_set_drvdata(pdev, NULL);
 	kfree(bci);
 
 	return ret;
@@ -622,7 +626,6 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 	free_irq(bci->irq_chg, bci);
 	power_supply_unregister(&bci->usb);
 	power_supply_unregister(&bci->ac);
-	platform_set_drvdata(pdev, NULL);
 	kfree(bci);
 
 	return 0;
@@ -636,17 +639,7 @@ static struct platform_driver twl4030_bci_driver = {
 	.remove	= __exit_p(twl4030_bci_remove),
 };
 
-static int __init twl4030_bci_init(void)
-{
-	return platform_driver_probe(&twl4030_bci_driver, twl4030_bci_probe);
-}
-module_init(twl4030_bci_init);
-
-static void __exit twl4030_bci_exit(void)
-{
-	platform_driver_unregister(&twl4030_bci_driver);
-}
-module_exit(twl4030_bci_exit);
+module_platform_driver_probe(twl4030_bci_driver, twl4030_bci_probe);
 
 MODULE_AUTHOR("Gražvydas Ignotas");
 MODULE_DESCRIPTION("TWL4030 Battery Charger Interface driver");

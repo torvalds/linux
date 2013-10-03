@@ -540,6 +540,12 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	ac.ac_swaps = encode_comp_t(0);
 
 	/*
+	 * Get freeze protection. If the fs is frozen, just skip the write
+	 * as we could deadlock the system otherwise.
+	 */
+	if (!file_start_write_trylock(file))
+		goto out;
+	/*
 	 * Kernel segment override to datasegment and write it
 	 * to the accounting file.
 	 */
@@ -554,6 +560,7 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 			       sizeof(acct_t), &file->f_pos);
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = flim;
 	set_fs(fs);
+	file_end_write(file);
 out:
 	revert_creds(orig_cred);
 }

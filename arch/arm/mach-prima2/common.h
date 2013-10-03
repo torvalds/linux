@@ -10,11 +10,13 @@
 #define __MACH_PRIMA2_COMMON_H__
 
 #include <linux/init.h>
+#include <linux/reboot.h>
+
 #include <asm/mach/time.h>
 #include <asm/exception.h>
 
-extern void sirfsoc_prima2_timer_init(void);
-extern void sirfsoc_marco_timer_init(void);
+#define SIRFSOC_VA_BASE		_AC(0xFEC00000, UL)
+#define SIRFSOC_VA(x)		(SIRFSOC_VA_BASE + ((x) & 0x00FFF000))
 
 extern struct smp_operations   sirfsoc_smp_ops;
 extern void sirfsoc_secondary_startup(void);
@@ -22,7 +24,7 @@ extern void sirfsoc_cpu_die(unsigned int cpu);
 
 extern void __init sirfsoc_of_irq_init(void);
 extern void __init sirfsoc_of_clk_init(void);
-extern void sirfsoc_restart(char, const char *);
+extern void sirfsoc_restart(enum reboot_mode, const char *);
 extern asmlinkage void __exception_irq_entry sirfsoc_handle_irq(struct pt_regs *regs);
 
 #ifndef CONFIG_DEBUG_LL

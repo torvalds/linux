@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
+#include <linux/phy.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <bcm47xx_nvram.h>
@@ -156,6 +157,7 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 	if (++ring->end >= BGMAC_TX_RING_SLOTS)
 		ring->end = 0;
 	bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_TX_INDEX,
+		    ring->index_base +
 		    ring->end * sizeof(struct bgmac_dma_desc));
 
 	/* Always keep one slot free to allow detecting bugged calls. */
@@ -179,6 +181,8 @@ static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 
 	/* The last slot that hardware didn't consume yet */
 	empty_slot = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_TX_STATUS);
+	empty_slot &= BGMAC_DMA_TX_STATDPTR;
+	empty_slot -= ring->index_base;
 	empty_slot &= BGMAC_DMA_TX_STATDPTR;
 	empty_slot /= sizeof(struct bgmac_dma_desc);
 
@@ -244,10 +248,8 @@ static int bgmac_dma_rx_skb_for_slot(struct bgmac *bgmac,
 
 	/* Alloc skb */
 	slot->skb = netdev_alloc_skb(bgmac->net_dev, BGMAC_RX_BUF_SIZE);
-	if (!slot->skb) {
-		bgmac_err(bgmac, "Allocation of skb failed!\n");
+	if (!slot->skb)
 		return -ENOMEM;
-	}
 
 	/* Poison - if everything goes fine, hardware will overwrite it */
 	rx = (struct bgmac_rx_header *)slot->skb->data;
@@ -274,6 +276,8 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 	int handled = 0;
 
 	end_slot = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_RX_STATUS);
+	end_slot &= BGMAC_DMA_RX_STATDPTR;
+	end_slot -= ring->index_base;
 	end_slot &= BGMAC_DMA_RX_STATDPTR;
 	end_slot /= sizeof(struct bgmac_dma_desc);
 
@@ -419,9 +423,6 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 		ring = &bgmac->tx_ring[i];
 		ring->num_slots = BGMAC_TX_RING_SLOTS;
 		ring->mmio_base = ring_base[i];
-		if (bgmac_dma_unaligned(bgmac, ring, BGMAC_DMA_RING_TX))
-			bgmac_warn(bgmac, "TX on ring 0x%X supports unaligned addressing but this feature is not implemented\n",
-				   ring->mmio_base);
 
 		/* Alloc ring of descriptors */
 		size = ring->num_slots * sizeof(struct bgmac_dma_desc);
@@ -436,6 +437,13 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 		if (ring->dma_base & 0xC0000000)
 			bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
 
+		ring->unaligned = bgmac_dma_unaligned(bgmac, ring,
+						      BGMAC_DMA_RING_TX);
+		if (ring->unaligned)
+			ring->index_base = lower_32_bits(ring->dma_base);
+		else
+			ring->index_base = 0;
+
 		/* No need to alloc TX slots yet */
 	}
 
@@ -445,9 +453,6 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 		ring = &bgmac->rx_ring[i];
 		ring->num_slots = BGMAC_RX_RING_SLOTS;
 		ring->mmio_base = ring_base[i];
-		if (bgmac_dma_unaligned(bgmac, ring, BGMAC_DMA_RING_RX))
-			bgmac_warn(bgmac, "RX on ring 0x%X supports unaligned addressing but this feature is not implemented\n",
-				   ring->mmio_base);
 
 		/* Alloc ring of descriptors */
 		size = ring->num_slots * sizeof(struct bgmac_dma_desc);
@@ -462,6 +467,13 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 		}
 		if (ring->dma_base & 0xC0000000)
 			bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
+
+		ring->unaligned = bgmac_dma_unaligned(bgmac, ring,
+						      BGMAC_DMA_RING_RX);
+		if (ring->unaligned)
+			ring->index_base = lower_32_bits(ring->dma_base);
+		else
+			ring->index_base = 0;
 
 		/* Alloc RX slots */
 		for (j = 0; j < ring->num_slots; j++) {
@@ -490,12 +502,14 @@ static void bgmac_dma_init(struct bgmac *bgmac)
 	for (i = 0; i < BGMAC_MAX_TX_RINGS; i++) {
 		ring = &bgmac->tx_ring[i];
 
-		/* We don't implement unaligned addressing, so enable first */
-		bgmac_dma_tx_enable(bgmac, ring);
+		if (!ring->unaligned)
+			bgmac_dma_tx_enable(bgmac, ring);
 		bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_TX_RINGLO,
 			    lower_32_bits(ring->dma_base));
 		bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_TX_RINGHI,
 			    upper_32_bits(ring->dma_base));
+		if (ring->unaligned)
+			bgmac_dma_tx_enable(bgmac, ring);
 
 		ring->start = 0;
 		ring->end = 0;	/* Points the slot that should *not* be read */
@@ -506,12 +520,14 @@ static void bgmac_dma_init(struct bgmac *bgmac)
 
 		ring = &bgmac->rx_ring[i];
 
-		/* We don't implement unaligned addressing, so enable first */
-		bgmac_dma_rx_enable(bgmac, ring);
+		if (!ring->unaligned)
+			bgmac_dma_rx_enable(bgmac, ring);
 		bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_RX_RINGLO,
 			    lower_32_bits(ring->dma_base));
 		bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_RX_RINGHI,
 			    upper_32_bits(ring->dma_base));
+		if (ring->unaligned)
+			bgmac_dma_rx_enable(bgmac, ring);
 
 		for (j = 0, dma_desc = ring->cpu_base; j < ring->num_slots;
 		     j++, dma_desc++) {
@@ -532,6 +548,7 @@ static void bgmac_dma_init(struct bgmac *bgmac)
 		}
 
 		bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_RX_INDEX,
+			    ring->index_base +
 			    ring->num_slots * sizeof(struct bgmac_dma_desc));
 
 		ring->start = 0;
@@ -909,10 +926,10 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 		struct bcma_drv_cc *cc = &bgmac->core->bus->drv_cc;
 		u8 et_swtype = 0;
 		u8 sw_type = BGMAC_CHIPCTL_1_SW_TYPE_EPHY |
-			     BGMAC_CHIPCTL_1_IF_TYPE_RMII;
-		char buf[2];
+			     BGMAC_CHIPCTL_1_IF_TYPE_MII;
+		char buf[4];
 
-		if (bcm47xx_nvram_getenv("et_swtype", buf, 1) > 0) {
+		if (bcm47xx_nvram_getenv("et_swtype", buf, sizeof(buf)) > 0) {
 			if (kstrtou8(buf, 0, &et_swtype))
 				bgmac_err(bgmac, "Failed to parse et_swtype (%s)\n",
 					  buf);
@@ -1313,6 +1330,73 @@ static const struct ethtool_ops bgmac_ethtool_ops = {
 };
 
 /**************************************************
+ * MII
+ **************************************************/
+
+static int bgmac_mii_read(struct mii_bus *bus, int mii_id, int regnum)
+{
+	return bgmac_phy_read(bus->priv, mii_id, regnum);
+}
+
+static int bgmac_mii_write(struct mii_bus *bus, int mii_id, int regnum,
+			   u16 value)
+{
+	return bgmac_phy_write(bus->priv, mii_id, regnum, value);
+}
+
+static int bgmac_mii_register(struct bgmac *bgmac)
+{
+	struct mii_bus *mii_bus;
+	int i, err = 0;
+
+	mii_bus = mdiobus_alloc();
+	if (!mii_bus)
+		return -ENOMEM;
+
+	mii_bus->name = "bgmac mii bus";
+	sprintf(mii_bus->id, "%s-%d-%d", "bgmac", bgmac->core->bus->num,
+		bgmac->core->core_unit);
+	mii_bus->priv = bgmac;
+	mii_bus->read = bgmac_mii_read;
+	mii_bus->write = bgmac_mii_write;
+	mii_bus->parent = &bgmac->core->dev;
+	mii_bus->phy_mask = ~(1 << bgmac->phyaddr);
+
+	mii_bus->irq = kmalloc_array(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
+	if (!mii_bus->irq) {
+		err = -ENOMEM;
+		goto err_free_bus;
+	}
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		mii_bus->irq[i] = PHY_POLL;
+
+	err = mdiobus_register(mii_bus);
+	if (err) {
+		bgmac_err(bgmac, "Registration of mii bus failed\n");
+		goto err_free_irq;
+	}
+
+	bgmac->mii_bus = mii_bus;
+
+	return err;
+
+err_free_irq:
+	kfree(mii_bus->irq);
+err_free_bus:
+	mdiobus_free(mii_bus);
+	return err;
+}
+
+static void bgmac_mii_unregister(struct bgmac *bgmac)
+{
+	struct mii_bus *mii_bus = bgmac->mii_bus;
+
+	mdiobus_unregister(mii_bus);
+	kfree(mii_bus->irq);
+	mdiobus_free(mii_bus);
+}
+
+/**************************************************
  * BCMA bus ops
  **************************************************/
 
@@ -1404,11 +1488,18 @@ static int bgmac_probe(struct bcma_device *core)
 	if (core->bus->sprom.boardflags_lo & BGMAC_BFL_ENETADM)
 		bgmac_warn(bgmac, "Support for ADMtek ethernet switch not implemented\n");
 
+	err = bgmac_mii_register(bgmac);
+	if (err) {
+		bgmac_err(bgmac, "Cannot register MDIO\n");
+		err = -ENOTSUPP;
+		goto err_dma_free;
+	}
+
 	err = register_netdev(bgmac->net_dev);
 	if (err) {
 		bgmac_err(bgmac, "Cannot register net device\n");
 		err = -ENOTSUPP;
-		goto err_dma_free;
+		goto err_mii_unregister;
 	}
 
 	netif_carrier_off(net_dev);
@@ -1417,6 +1508,8 @@ static int bgmac_probe(struct bcma_device *core)
 
 	return 0;
 
+err_mii_unregister:
+	bgmac_mii_unregister(bgmac);
 err_dma_free:
 	bgmac_dma_free(bgmac);
 
@@ -1433,6 +1526,7 @@ static void bgmac_remove(struct bcma_device *core)
 
 	netif_napi_del(&bgmac->napi);
 	unregister_netdev(bgmac->net_dev);
+	bgmac_mii_unregister(bgmac);
 	bgmac_dma_free(bgmac);
 	bcma_set_drvdata(core, NULL);
 	free_netdev(bgmac->net_dev);

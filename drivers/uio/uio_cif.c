@@ -135,19 +135,7 @@ static struct pci_driver hilscher_pci_driver = {
 	.remove = hilscher_pci_remove,
 };
 
-static int __init hilscher_init_module(void)
-{
-	return pci_register_driver(&hilscher_pci_driver);
-}
-
-static void __exit hilscher_exit_module(void)
-{
-	pci_unregister_driver(&hilscher_pci_driver);
-}
-
-module_init(hilscher_init_module);
-module_exit(hilscher_exit_module);
-
+module_pci_driver(hilscher_pci_driver);
 MODULE_DEVICE_TABLE(pci, hilscher_pci_ids);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Hans J. Koch, Benedikt Spranger");

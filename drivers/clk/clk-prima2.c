@@ -1034,7 +1034,7 @@ enum prima2_clk_index {
 	usb0,  usb1,  maxclk,
 };
 
-static __initdata struct clk_hw* prima2_clk_hw_array[maxclk] = {
+static struct clk_hw *prima2_clk_hw_array[maxclk] __initdata = {
 	NULL, /* dummy */
 	NULL,
 	&clk_pll1.hw,
@@ -1113,7 +1113,7 @@ void __init sirfsoc_of_clk_init(void)
 
 	for (i = pll1; i < maxclk; i++) {
 		prima2_clks[i] = clk_register(NULL, prima2_clk_hw_array[i]);
-		BUG_ON(!prima2_clks[i]);
+		BUG_ON(IS_ERR(prima2_clks[i]));
 	}
 	clk_register_clkdev(prima2_clks[cpu], NULL, "cpu");
 	clk_register_clkdev(prima2_clks[io],  NULL, "io");

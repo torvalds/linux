@@ -296,8 +296,7 @@ static inline int ccw_dev_id_is_equal(struct ccw_dev_id *dev_id1,
 	return 0;
 }
 
-extern void wait_cons_dev(void);
-
+void channel_subsystem_reinit(void);
 extern void css_schedule_reprobe(void);
 
 extern void reipl_ccw_dev(struct ccw_dev_id *id);

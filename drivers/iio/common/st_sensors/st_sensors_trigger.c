@@ -40,7 +40,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	if (err)
 		goto request_irq_error;
 
-	sdata->trig->private_data = indio_dev;
+	iio_trigger_set_drvdata(sdata->trig, indio_dev);
 	sdata->trig->ops = trigger_ops;
 	sdata->trig->dev.parent = sdata->dev;
 

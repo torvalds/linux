@@ -159,7 +159,7 @@ static int lxt973a2_update_link(struct phy_device *phydev)
 	return 0;
 }
 
-int lxt973a2_read_status(struct phy_device *phydev)
+static int lxt973a2_read_status(struct phy_device *phydev)
 {
 	int adv;
 	int err;

@@ -56,8 +56,8 @@ ENTRY(__boot_cpu_mode)
 	ldr	\reg3, [\reg2]
 	ldr	\reg1, [\reg2, \reg3]
 	cmp	\mode, \reg1		@ matches primary CPU boot mode?
-	orrne	r7, r7, #BOOT_CPU_MODE_MISMATCH
-	strne	r7, [r5, r6]		@ record what happened and give up
+	orrne	\reg1, \reg1, #BOOT_CPU_MODE_MISMATCH
+	strne	\reg1, [\reg2, \reg3]	@ record what happened and give up
 	.endm
 
 #else	/* ZIMAGE */
@@ -153,6 +153,13 @@ THUMB(	orr	r7, #(1 << 30)	)	@ HSCTLR.TE
 	mrc	p15, 4, r7, c14, c1, 0	@ CNTHCTL
 	orr	r7, r7, #3		@ PL1PCEN | PL1PCTEN
 	mcr	p15, 4, r7, c14, c1, 0	@ CNTHCTL
+	mov	r7, #0
+	mcrr	p15, 4, r7, r7, c14	@ CNTVOFF
+
+	@ Disable virtual timer in case it was counting
+	mrc	p15, 0, r7, c14, c3, 1	@ CNTV_CTL
+	bic	r7, #1			@ Clear ENABLE
+	mcr	p15, 0, r7, c14, c3, 1	@ CNTV_CTL
 1:
 #endif
 

@@ -27,8 +27,10 @@ static void
 nouveau_event_put_locked(struct nouveau_event *event, int index,
 			 struct nouveau_eventh *handler)
 {
-	if (!--event->index[index].refs)
-		event->disable(event, index);
+	if (!--event->index[index].refs) {
+		if (event->disable)
+			event->disable(event, index);
+	}
 	list_del(&handler->head);
 }
 
@@ -53,8 +55,10 @@ nouveau_event_get(struct nouveau_event *event, int index,
 	spin_lock_irqsave(&event->lock, flags);
 	if (index < event->index_nr) {
 		list_add(&handler->head, &event->index[index].list);
-		if (!event->index[index].refs++)
-			event->enable(event, index);
+		if (!event->index[index].refs++) {
+			if (event->enable)
+				event->enable(event, index);
+		}
 	}
 	spin_unlock_irqrestore(&event->lock, flags);
 }

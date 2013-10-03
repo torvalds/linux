@@ -19,6 +19,8 @@
 
 #undef DEBUG
 
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -270,19 +272,12 @@ static int map_grant_pages(struct grant_map *map)
 		 * with find_grant_ptes.
 		 */
 		for (i = 0; i < map->count; i++) {
-			unsigned level;
 			unsigned long address = (unsigned long)
 				pfn_to_kaddr(page_to_pfn(map->pages[i]));
-			pte_t *ptep;
-			u64 pte_maddr = 0;
 			BUG_ON(PageHighMem(map->pages[i]));
 
-			ptep = lookup_address(address, &level);
-			pte_maddr = arbitrary_virt_to_machine(ptep).maddr;
-			gnttab_set_map_op(&map->kmap_ops[i], pte_maddr,
-				map->flags |
-				GNTMAP_host_map |
-				GNTMAP_contains_pte,
+			gnttab_set_map_op(&map->kmap_ops[i], address,
+				map->flags | GNTMAP_host_map,
 				map->grants[i].ref,
 				map->grants[i].domid);
 		}
@@ -760,7 +755,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	if (use_ptemod && map->vma)
 		goto unlock_out;
 	if (use_ptemod && priv->mm != vma->vm_mm) {
-		printk(KERN_WARNING "Huh? Other mm?\n");
+		pr_warn("Huh? Other mm?\n");
 		goto unlock_out;
 	}
 
@@ -795,7 +790,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 					  vma->vm_end - vma->vm_start,
 					  find_grant_ptes, map);
 		if (err) {
-			printk(KERN_WARNING "find_grant_ptes() failure.\n");
+			pr_warn("find_grant_ptes() failure.\n");
 			goto out_put_map;
 		}
 	}
@@ -855,7 +850,7 @@ static int __init gntdev_init(void)
 
 	err = misc_register(&gntdev_miscdev);
 	if (err != 0) {
-		printk(KERN_ERR "Could not register gntdev device\n");
+		pr_err("Could not register gntdev device\n");
 		return err;
 	}
 	return 0;

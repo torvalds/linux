@@ -22,91 +22,6 @@
 #include "trace.h"
 #include "trace-s390.h"
 
-static int handle_lctlg(struct kvm_vcpu *vcpu)
-{
-	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
-	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
-	u64 useraddr;
-	int reg, rc;
-
-	vcpu->stat.instruction_lctlg++;
-
-	useraddr = kvm_s390_get_base_disp_rsy(vcpu);
-
-	if (useraddr & 7)
-		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-
-	reg = reg1;
-
-	VCPU_EVENT(vcpu, 5, "lctlg r1:%x, r3:%x, addr:%llx", reg1, reg3,
-		   useraddr);
-	trace_kvm_s390_handle_lctl(vcpu, 1, reg1, reg3, useraddr);
-
-	do {
-		rc = get_guest_u64(vcpu, useraddr,
-				   &vcpu->arch.sie_block->gcr[reg]);
-		if (rc == -EFAULT) {
-			kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-			break;
-		}
-		useraddr += 8;
-		if (reg == reg3)
-			break;
-		reg = (reg + 1) % 16;
-	} while (1);
-	return 0;
-}
-
-static int handle_lctl(struct kvm_vcpu *vcpu)
-{
-	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
-	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
-	u64 useraddr;
-	u32 val = 0;
-	int reg, rc;
-
-	vcpu->stat.instruction_lctl++;
-
-	useraddr = kvm_s390_get_base_disp_rs(vcpu);
-
-	if (useraddr & 3)
-		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-
-	VCPU_EVENT(vcpu, 5, "lctl r1:%x, r3:%x, addr:%llx", reg1, reg3,
-		   useraddr);
-	trace_kvm_s390_handle_lctl(vcpu, 0, reg1, reg3, useraddr);
-
-	reg = reg1;
-	do {
-		rc = get_guest_u32(vcpu, useraddr, &val);
-		if (rc == -EFAULT) {
-			kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-			break;
-		}
-		vcpu->arch.sie_block->gcr[reg] &= 0xffffffff00000000ul;
-		vcpu->arch.sie_block->gcr[reg] |= val;
-		useraddr += 4;
-		if (reg == reg3)
-			break;
-		reg = (reg + 1) % 16;
-	} while (1);
-	return 0;
-}
-
-static const intercept_handler_t eb_handlers[256] = {
-	[0x2f] = handle_lctlg,
-	[0x8a] = kvm_s390_handle_priv_eb,
-};
-
-static int handle_eb(struct kvm_vcpu *vcpu)
-{
-	intercept_handler_t handler;
-
-	handler = eb_handlers[vcpu->arch.sie_block->ipb & 0xff];
-	if (handler)
-		return handler(vcpu);
-	return -EOPNOTSUPP;
-}
 
 static const intercept_handler_t instruction_handlers[256] = {
 	[0x01] = kvm_s390_handle_01,
@@ -114,10 +29,10 @@ static const intercept_handler_t instruction_handlers[256] = {
 	[0x83] = kvm_s390_handle_diag,
 	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_b2,
-	[0xb7] = handle_lctl,
+	[0xb7] = kvm_s390_handle_lctl,
 	[0xb9] = kvm_s390_handle_b9,
 	[0xe5] = kvm_s390_handle_e5,
-	[0xeb] = handle_eb,
+	[0xeb] = kvm_s390_handle_eb,
 };
 
 static int handle_noop(struct kvm_vcpu *vcpu)
@@ -178,47 +93,12 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 static int handle_validity(struct kvm_vcpu *vcpu)
 {
-	unsigned long vmaddr;
 	int viwhy = vcpu->arch.sie_block->ipb >> 16;
-	int rc;
 
 	vcpu->stat.exit_validity++;
 	trace_kvm_s390_intercept_validity(vcpu, viwhy);
-	if (viwhy == 0x37) {
-		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix,
-				    vcpu->arch.gmap);
-		if (IS_ERR_VALUE(vmaddr)) {
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
-		rc = fault_in_pages_writeable((char __user *) vmaddr,
-			 PAGE_SIZE);
-		if (rc) {
-			/* user will receive sigsegv, exit to user */
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
-		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix + PAGE_SIZE,
-				    vcpu->arch.gmap);
-		if (IS_ERR_VALUE(vmaddr)) {
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
-		rc = fault_in_pages_writeable((char __user *) vmaddr,
-			 PAGE_SIZE);
-		if (rc) {
-			/* user will receive sigsegv, exit to user */
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
-	} else
-		rc = -EOPNOTSUPP;
-
-out:
-	if (rc)
-		VCPU_EVENT(vcpu, 2, "unhandled validity intercept code %d",
-			   viwhy);
-	return rc;
+	WARN_ONCE(true, "kvm: unhandled validity intercept 0x%x\n", viwhy);
+	return -EOPNOTSUPP;
 }
 
 static int handle_instruction(struct kvm_vcpu *vcpu)

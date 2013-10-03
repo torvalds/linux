@@ -2725,7 +2725,6 @@ snd_azf3328_remove(struct pci_dev *pci)
 {
 	snd_azf3328_dbgcallenter();
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 	snd_azf3328_dbgcallleave();
 }
 

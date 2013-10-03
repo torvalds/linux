@@ -292,9 +292,9 @@ static void phonet_route_autodel(struct net_device *dev)
 
 /* notify Phonet of device events */
 static int phonet_device_notify(struct notifier_block *me, unsigned long what,
-				void *arg)
+				void *ptr)
 {
-	struct net_device *dev = arg;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	switch (what) {
 	case NETDEV_REGISTER:

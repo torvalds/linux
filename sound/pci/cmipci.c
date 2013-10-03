@@ -3317,7 +3317,6 @@ static int snd_cmipci_probe(struct pci_dev *pci,
 static void snd_cmipci_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 

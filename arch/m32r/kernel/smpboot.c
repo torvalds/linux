@@ -343,7 +343,7 @@ static void __init do_boot_cpu(int phys_id)
 	}
 }
 
-int __cpuinit __cpu_up(unsigned int cpu_id, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu_id, struct task_struct *tidle)
 {
 	int timeout;
 
@@ -432,7 +432,7 @@ int __init start_secondary(void *unused)
 	 */
 	local_flush_tlb_all();
 
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 	return 0;
 }
 

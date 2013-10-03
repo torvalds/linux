@@ -44,7 +44,7 @@ unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host)
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_clk_get_max_clock);
 
-static struct sdhci_ops sdhci_pltfm_ops = {
+static const struct sdhci_ops sdhci_pltfm_ops = {
 };
 
 #ifdef CONFIG_OF
@@ -94,6 +94,7 @@ void sdhci_get_of_property(struct platform_device *pdev)
 
 		if (of_device_is_compatible(np, "fsl,p2020-esdhc") ||
 		    of_device_is_compatible(np, "fsl,p1010-esdhc") ||
+		    of_device_is_compatible(np, "fsl,t4240-esdhc") ||
 		    of_device_is_compatible(np, "fsl,mpc8536-esdhc"))
 			host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
@@ -114,10 +115,10 @@ void sdhci_get_of_property(struct platform_device *pdev) {}
 EXPORT_SYMBOL_GPL(sdhci_get_of_property);
 
 struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
-				    struct sdhci_pltfm_data *pdata)
+				    const struct sdhci_pltfm_data *pdata,
+				    size_t priv_size)
 {
 	struct sdhci_host *host;
-	struct sdhci_pltfm_host *pltfm_host;
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *iomem;
 	int ret;
@@ -133,24 +134,27 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 
 	/* Some PCI-based MFD need the parent here */
 	if (pdev->dev.parent != &platform_bus && !np)
-		host = sdhci_alloc_host(pdev->dev.parent, sizeof(*pltfm_host));
+		host = sdhci_alloc_host(pdev->dev.parent,
+			sizeof(struct sdhci_pltfm_host) + priv_size);
 	else
-		host = sdhci_alloc_host(&pdev->dev, sizeof(*pltfm_host));
+		host = sdhci_alloc_host(&pdev->dev,
+			sizeof(struct sdhci_pltfm_host) + priv_size);
 
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
 		goto err;
 	}
 
-	pltfm_host = sdhci_priv(host);
-
 	host->hw_name = dev_name(&pdev->dev);
 	if (pdata && pdata->ops)
 		host->ops = pdata->ops;
 	else
 		host->ops = &sdhci_pltfm_ops;
-	if (pdata)
+	if (pdata) {
 		host->quirks = pdata->quirks;
+		host->quirks2 = pdata->quirks2;
+	}
+
 	host->irq = platform_get_irq(pdev, 0);
 
 	if (!request_mem_region(iomem->start, resource_size(iomem),
@@ -196,17 +200,17 @@ void sdhci_pltfm_free(struct platform_device *pdev)
 	iounmap(host->ioaddr);
 	release_mem_region(iomem->start, resource_size(iomem));
 	sdhci_free_host(host);
-	platform_set_drvdata(pdev, NULL);
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_free);
 
 int sdhci_pltfm_register(struct platform_device *pdev,
-			 struct sdhci_pltfm_data *pdata)
+			const struct sdhci_pltfm_data *pdata,
+			size_t priv_size)
 {
 	struct sdhci_host *host;
 	int ret = 0;
 
-	host = sdhci_pltfm_init(pdev, pdata);
+	host = sdhci_pltfm_init(pdev, pdata, priv_size);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 

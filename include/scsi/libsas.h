@@ -118,7 +118,7 @@ struct ex_phy {
 
 	enum ex_phy_state phy_state;
 
-	enum sas_dev_type attached_dev_type;
+	enum sas_device_type attached_dev_type;
 	enum sas_linkrate linkrate;
 
 	u8   attached_sata_host:1;
@@ -195,7 +195,7 @@ enum {
 
 struct domain_device {
 	spinlock_t done_lock;
-        enum sas_dev_type dev_type;
+	enum sas_device_type dev_type;
 
         enum sas_linkrate linkrate;
         enum sas_linkrate min_linkrate;
@@ -608,7 +608,7 @@ struct sas_ssp_task {
 	u8     enable_first_burst:1;
 	enum   task_attribute task_attr;
 	u8     task_prio;
-	u8     cdb[16];
+	struct scsi_cmnd *cmd;
 };
 
 struct sas_task {

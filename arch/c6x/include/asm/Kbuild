@@ -55,3 +55,4 @@ generic-y += types.h
 generic-y += ucontext.h
 generic-y += user.h
 generic-y += vga.h
+generic-y += xor.h

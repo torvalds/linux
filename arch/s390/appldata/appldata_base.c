@@ -212,7 +212,9 @@ appldata_timer_handler(ctl_table *ctl, int write,
 		return 0;
 	}
 	if (!write) {
-		len = sprintf(buf, appldata_timer_active ? "1\n" : "0\n");
+		strncpy(buf, appldata_timer_active ? "1\n" : "0\n",
+			ARRAY_SIZE(buf));
+		len = strnlen(buf, ARRAY_SIZE(buf));
 		if (len > *lenp)
 			len = *lenp;
 		if (copy_to_user(buffer, buf, len))
@@ -317,7 +319,8 @@ appldata_generic_handler(ctl_table *ctl, int write,
 		return 0;
 	}
 	if (!write) {
-		len = sprintf(buf, ops->active ? "1\n" : "0\n");
+		strncpy(buf, ops->active ? "1\n" : "0\n", ARRAY_SIZE(buf));
+		len = strnlen(buf, ARRAY_SIZE(buf));
 		if (len > *lenp)
 			len = *lenp;
 		if (copy_to_user(buffer, buf, len)) {

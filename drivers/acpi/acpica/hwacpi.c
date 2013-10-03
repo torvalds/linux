@@ -66,6 +66,12 @@ acpi_status acpi_hw_set_mode(u32 mode)
 
 	ACPI_FUNCTION_TRACE(hw_set_mode);
 
+	/* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_ACPI_STATUS(AE_OK);
+	}
+
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
 	 * system does not support mode transition.
@@ -102,7 +108,6 @@ acpi_status acpi_hw_set_mode(u32 mode)
 		break;
 
 	case ACPI_SYS_MODE_LEGACY:
-
 		/*
 		 * BIOS should clear all fixed status bits and restore fixed event
 		 * enable bits to default
@@ -114,6 +119,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -146,23 +152,29 @@ u32 acpi_hw_get_mode(void)
 
 	ACPI_FUNCTION_TRACE(hw_get_mode);
 
+	/* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_UINT32(ACPI_SYS_MODE_ACPI);
+	}
+
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
 	 * system does not support mode transition.
 	 */
 	if (!acpi_gbl_FADT.smi_command) {
-		return_VALUE(ACPI_SYS_MODE_ACPI);
+		return_UINT32(ACPI_SYS_MODE_ACPI);
 	}
 
 	status = acpi_read_bit_register(ACPI_BITREG_SCI_ENABLE, &value);
 	if (ACPI_FAILURE(status)) {
-		return_VALUE(ACPI_SYS_MODE_LEGACY);
+		return_UINT32(ACPI_SYS_MODE_LEGACY);
 	}
 
 	if (value) {
-		return_VALUE(ACPI_SYS_MODE_ACPI);
+		return_UINT32(ACPI_SYS_MODE_ACPI);
 	} else {
-		return_VALUE(ACPI_SYS_MODE_LEGACY);
+		return_UINT32(ACPI_SYS_MODE_LEGACY);
 	}
 }
 

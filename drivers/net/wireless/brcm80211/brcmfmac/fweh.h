@@ -101,7 +101,8 @@ struct brcmf_event;
 	BRCMF_ENUM_DEF(P2P_PROBEREQ_MSG, 72) \
 	BRCMF_ENUM_DEF(DCS_REQUEST, 73) \
 	BRCMF_ENUM_DEF(FIFO_CREDIT_MAP, 74) \
-	BRCMF_ENUM_DEF(ACTION_FRAME_RX, 75)
+	BRCMF_ENUM_DEF(ACTION_FRAME_RX, 75) \
+	BRCMF_ENUM_DEF(BCMC_CREDIT_SUPPORT, 127)
 
 #define BRCMF_ENUM_DEF(id, val) \
 	BRCMF_E_##id = (val),
@@ -187,10 +188,10 @@ void brcmf_fweh_unregister(struct brcmf_pub *drvr,
 			   enum brcmf_fweh_event_code code);
 int brcmf_fweh_activate_events(struct brcmf_if *ifp);
 void brcmf_fweh_process_event(struct brcmf_pub *drvr,
-			      struct brcmf_event *event_packet, u8 *ifidx);
+			      struct brcmf_event *event_packet);
 
 static inline void brcmf_fweh_process_skb(struct brcmf_pub *drvr,
-					  struct sk_buff *skb, u8 *ifidx)
+					  struct sk_buff *skb)
 {
 	struct brcmf_event *event_packet;
 	u8 *data;
@@ -213,7 +214,7 @@ static inline void brcmf_fweh_process_skb(struct brcmf_pub *drvr,
 	if (usr_stype != BCMILCP_BCM_SUBTYPE_EVENT)
 		return;
 
-	brcmf_fweh_process_event(drvr, event_packet, ifidx);
+	brcmf_fweh_process_event(drvr, event_packet);
 }
 
 #endif /* FWEH_H_ */

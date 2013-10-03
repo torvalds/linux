@@ -176,7 +176,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 		length_max = 512 ; /* 64 doublewords */
 		/* DAWR region can't cross 512 boundary */
 		if ((bp->attr.bp_addr >> 10) != 
-		    ((bp->attr.bp_addr + bp->attr.bp_len) >> 10))
+		    ((bp->attr.bp_addr + bp->attr.bp_len - 1) >> 10))
 			return -EINVAL;
 	}
 	if (info->len >
@@ -250,6 +250,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	 * we still need to single-step the instruction, but we don't
 	 * generate an event.
 	 */
+	info->type &= ~HW_BRK_TYPE_EXTRANEOUS_IRQ;
 	if (!((bp->attr.bp_addr <= dar) &&
 	      (dar - bp->attr.bp_addr < bp->attr.bp_len)))
 		info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;

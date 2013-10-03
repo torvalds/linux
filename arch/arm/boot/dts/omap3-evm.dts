@@ -7,11 +7,17 @@
  */
 /dts-v1/;
 
-/include/ "omap3.dtsi"
+#include "omap34xx.dtsi"
 
 / {
 	model = "TI OMAP3 EVM (OMAP3530, AM/DM37x)";
 	compatible = "ti,omap3-evm", "ti,omap3";
+
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vcc>;
+		};
+	};
 
 	memory {
 		device_type = "memory";
@@ -22,7 +28,7 @@
 		compatible = "gpio-leds";
 		ledb {
 			label = "omap3evm::ledb";
-			gpios = <&twl_gpio 19 0>; /* LEDB */
+			gpios = <&twl_gpio 19 GPIO_ACTIVE_HIGH>; /* LEDB */
 			linux,default-trigger = "default-on";
 		};
 	};
@@ -38,7 +44,8 @@
 	};
 };
 
-/include/ "twl4030.dtsi"
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
 
 &i2c2 {
 	clock-frequency = <400000>;
@@ -58,4 +65,11 @@
 
 &twl_gpio {
 	ti,use-leds;
+};
+
+&usb_otg_hs {
+	interface-type = <0>;
+	usb-phy = <&usb2_phy>;
+	mode = <3>;
+	power = <50>;
 };

@@ -40,6 +40,7 @@
 #include "state.h"
 #include "nfsd.h"
 
+#define NFSD4_MAX_SEC_LABEL_LEN	2048
 #define NFSD4_MAX_TAGLEN	128
 #define XDR_LEN(n)                     (((n) + 3) & ~3)
 
@@ -118,6 +119,7 @@ struct nfsd4_create {
 	struct iattr	cr_iattr;           /* request */
 	struct nfsd4_change_info  cr_cinfo; /* response */
 	struct nfs4_acl *cr_acl;
+	struct xdr_netobj cr_label;
 };
 #define cr_linklen	u.link.namelen
 #define cr_linkname	u.link.name
@@ -184,7 +186,6 @@ struct nfsd4_lock {
 #define lk_old_lock_stateid     v.old.lock_stateid
 #define lk_old_lock_seqid       v.old.lock_seqid
 
-#define lk_rflags       u.ok.rflags
 #define lk_resp_stateid u.ok.stateid
 #define lk_denied       u.denied
 
@@ -237,6 +238,7 @@ struct nfsd4_open {
 	u32		op_share_deny;      /* request */
 	u32		op_deleg_want;      /* request */
 	stateid_t	op_stateid;         /* response */
+	__be32		op_xdr_error;       /* see nfsd4_open_omfg() */
 	u32		op_recall;          /* recall */
 	struct nfsd4_change_info  op_cinfo; /* response */
 	u32		op_rflags;          /* response */
@@ -246,6 +248,7 @@ struct nfsd4_open {
 	struct nfs4_file *op_file;          /* used during processing */
 	struct nfs4_ol_stateid *op_stp;	    /* used during processing */
 	struct nfs4_acl *op_acl;
+	struct xdr_netobj op_label;
 };
 #define op_iattr	iattr
 
@@ -330,6 +333,7 @@ struct nfsd4_setattr {
 	u32		sa_bmval[3];        /* request */
 	struct iattr	sa_iattr;           /* request */
 	struct nfs4_acl *sa_acl;
+	struct xdr_netobj sa_label;
 };
 
 struct nfsd4_setclientid {
@@ -623,6 +627,7 @@ extern __be32 nfsd4_test_stateid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_test_stateid *test_stateid);
 extern __be32 nfsd4_free_stateid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_free_stateid *free_stateid);
+extern void nfsd4_bump_seqid(struct nfsd4_compound_state *, __be32 nfserr);
 #endif
 
 /*

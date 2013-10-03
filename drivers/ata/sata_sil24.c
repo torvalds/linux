@@ -1353,7 +1353,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_PM
 static int sil24_pci_device_resume(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	void __iomem *host_base = host->iomap[SIL24_HOST_BAR];
 	int rc;
 

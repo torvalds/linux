@@ -524,6 +524,16 @@ static int __init intel_irq_remapping_supported(void)
 
 	if (disable_irq_remap)
 		return 0;
+	if (irq_remap_broken) {
+		WARN_TAINT(1, TAINT_FIRMWARE_WORKAROUND,
+			   "This system BIOS has enabled interrupt remapping\n"
+			   "on a chipset that contains an erratum making that\n"
+			   "feature unstable.  To maintain system stability\n"
+			   "interrupt remapping is being disabled.  Please\n"
+			   "contact your BIOS vendor for an update\n");
+		disable_irq_remap = 1;
+		return 0;
+	}
 
 	if (!dmar_ir_support())
 		return 0;
@@ -654,8 +664,7 @@ error:
 	 */
 
 	if (x2apic_present)
-		WARN(1, KERN_WARNING
-			"Failed to enable irq remapping.  You are vulnerable to irq-injection attacks.\n");
+		pr_warn("Failed to enable irq remapping.  You are vulnerable to irq-injection attacks.\n");
 
 	return -1;
 }

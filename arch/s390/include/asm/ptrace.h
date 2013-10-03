@@ -9,9 +9,7 @@
 #include <uapi/asm/ptrace.h>
 
 #ifndef __ASSEMBLY__
-#ifndef __s390x__
-#else /* __s390x__ */
-#endif /* __s390x__ */
+
 extern long psw_kernel_bits;
 extern long psw_user_bits;
 
@@ -26,6 +24,7 @@ struct pt_regs
 	unsigned long gprs[NUM_GPRS];
 	unsigned long orig_gpr2;
 	unsigned int int_code;
+	unsigned int int_parm;
 	unsigned long int_parm_long;
 };
 
@@ -77,8 +76,6 @@ struct per_struct_kernel {
 #define PER_CONTROL_SUSPENSION		0x00400000UL
 #define PER_CONTROL_ALTERATION		0x00200000UL
 
-#ifdef __s390x__
-#endif /* __s390x__ */
 /*
  * These are defined as per linux/ptrace.h, which see.
  */

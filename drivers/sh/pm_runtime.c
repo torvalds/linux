@@ -25,7 +25,7 @@
 static int default_platform_runtime_idle(struct device *dev)
 {
 	/* suspend synchronously to disable clocks immediately */
-	return pm_runtime_suspend(dev);
+	return 0;
 }
 
 static struct dev_pm_domain default_pm_domain = {

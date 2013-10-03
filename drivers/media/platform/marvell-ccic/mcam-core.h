@@ -53,6 +53,11 @@ enum mcam_buffer_mode {
 	B_DMA_sg = 2
 };
 
+enum mcam_chip_id {
+	MCAM_CAFE,
+	MCAM_ARMADA610,
+};
+
 /*
  * Is a given buffer mode supported by the current kernel configuration?
  */
@@ -83,6 +88,8 @@ struct mcam_frame_state {
 	unsigned int delivered;
 };
 
+#define NR_MCAM_CLK 3
+
 /*
  * A description of one of our devices.
  * Locking: controlled by s_mutex.  Certain fields, however, require
@@ -96,17 +103,40 @@ struct mcam_camera {
 	 */
 	struct i2c_adapter *i2c_adapter;
 	unsigned char __iomem *regs;
+	unsigned regs_size; /* size in bytes of the register space */
 	spinlock_t dev_lock;
 	struct device *dev; /* For messages, dma alloc */
-	unsigned int chip_id;
+	enum mcam_chip_id chip_id;
 	short int clock_speed;	/* Sensor clock speed, default 30 */
 	short int use_smbus;	/* SMBUS or straight I2c? */
 	enum mcam_buffer_mode buffer_mode;
+
+	int mclk_min;	/* The minimal value of mclk */
+	int mclk_src;	/* which clock source the mclk derives from */
+	int mclk_div;	/* Clock Divider Value for MCLK */
+
+	int ccic_id;
+	enum v4l2_mbus_type bus_type;
+	/* MIPI support */
+	/* The dphy config value, allocated in board file
+	 * dphy[0]: DPHY3
+	 * dphy[1]: DPHY5
+	 * dphy[2]: DPHY6
+	 */
+	int *dphy;
+	bool mipi_enabled;	/* flag whether mipi is enabled already */
+	int lane;			/* lane number */
+
+	/* clock tree support */
+	struct clk *clk[NR_MCAM_CLK];
+
 	/*
 	 * Callbacks from the core to the platform code.
 	 */
-	void (*plat_power_up) (struct mcam_camera *cam);
+	int (*plat_power_up) (struct mcam_camera *cam);
 	void (*plat_power_down) (struct mcam_camera *cam);
+	void (*calc_dphy) (struct mcam_camera *cam);
+	void (*ctlr_reset) (struct mcam_camera *cam);
 
 	/*
 	 * Everything below here is private to the mcam core and
@@ -152,7 +182,6 @@ struct mcam_camera {
 	void (*frame_complete)(struct mcam_camera *cam, int frame);
 
 	/* Current operating parameters */
-	u32 sensor_type;		/* Currently ov7670 only */
 	struct v4l2_pix_format pix_format;
 	enum v4l2_mbus_pixelcode mbus_code;
 
@@ -220,6 +249,23 @@ int mccic_resume(struct mcam_camera *cam);
 #define REG_Y0BAR	0x00
 #define REG_Y1BAR	0x04
 #define REG_Y2BAR	0x08
+#define REG_U0BAR	0x0c
+#define REG_U1BAR	0x10
+#define REG_U2BAR	0x14
+#define REG_V0BAR	0x18
+#define REG_V1BAR	0x1C
+#define REG_V2BAR	0x20
+
+/*
+ * register definitions for MIPI support
+ */
+#define REG_CSI2_CTRL0	0x100
+#define   CSI2_C0_MIPI_EN (0x1 << 0)
+#define   CSI2_C0_ACT_LANE(n) ((n-1) << 1)
+#define REG_CSI2_DPHY3	0x12c
+#define REG_CSI2_DPHY5	0x134
+#define REG_CSI2_DPHY6	0x138
+
 /* ... */
 
 #define REG_IMGPITCH	0x24	/* Image pitch register */
@@ -288,13 +334,16 @@ int mccic_resume(struct mcam_camera *cam);
 #define	  C0_YUVE_XUVY	  0x00020000	/* 420: .UVY		*/
 #define	  C0_YUVE_XVUY	  0x00030000	/* 420: .VUY		*/
 /* Bayer bits 18,19 if needed */
+#define	  C0_EOF_VSYNC	  0x00400000	/* Generate EOF by VSYNC */
+#define	  C0_VEDGE_CTRL   0x00800000	/* Detect falling edge of VSYNC */
 #define	  C0_HPOL_LOW	  0x01000000	/* HSYNC polarity active low */
 #define	  C0_VPOL_LOW	  0x02000000	/* VSYNC polarity active low */
 #define	  C0_VCLK_LOW	  0x04000000	/* VCLK on falling edge */
 #define	  C0_DOWNSCALE	  0x08000000	/* Enable downscaler */
-#define	  C0_SIFM_MASK	  0xc0000000	/* SIF mode bits */
+/* SIFMODE */
 #define	  C0_SIF_HVSYNC	  0x00000000	/* Use H/VSYNC */
-#define	  CO_SOF_NOSYNC	  0x40000000	/* Use inband active signaling */
+#define	  C0_SOF_NOSYNC	  0x40000000	/* Use inband active signaling */
+#define	  C0_SIFM_MASK	  0xc0000000	/* SIF mode bits */
 
 /* Bits below C1_444ALPHA are not present in Cafe */
 #define REG_CTRL1	0x40	/* Control 1 */

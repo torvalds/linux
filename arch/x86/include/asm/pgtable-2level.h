@@ -55,9 +55,53 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
 #endif
 
+#ifdef CONFIG_MEM_SOFT_DIRTY
+
+/*
+ * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE, _PAGE_BIT_SOFT_DIRTY and
+ * _PAGE_BIT_PROTNONE are taken, split up the 28 bits of offset
+ * into this range.
+ */
+#define PTE_FILE_MAX_BITS	28
+#define PTE_FILE_SHIFT1		(_PAGE_BIT_PRESENT + 1)
+#define PTE_FILE_SHIFT2		(_PAGE_BIT_FILE + 1)
+#define PTE_FILE_SHIFT3		(_PAGE_BIT_PROTNONE + 1)
+#define PTE_FILE_SHIFT4		(_PAGE_BIT_SOFT_DIRTY + 1)
+#define PTE_FILE_BITS1		(PTE_FILE_SHIFT2 - PTE_FILE_SHIFT1 - 1)
+#define PTE_FILE_BITS2		(PTE_FILE_SHIFT3 - PTE_FILE_SHIFT2 - 1)
+#define PTE_FILE_BITS3		(PTE_FILE_SHIFT4 - PTE_FILE_SHIFT3 - 1)
+
+#define pte_to_pgoff(pte)						\
+	((((pte).pte_low >> (PTE_FILE_SHIFT1))				\
+	  & ((1U << PTE_FILE_BITS1) - 1)))				\
+	+ ((((pte).pte_low >> (PTE_FILE_SHIFT2))			\
+	    & ((1U << PTE_FILE_BITS2) - 1))				\
+	   << (PTE_FILE_BITS1))						\
+	+ ((((pte).pte_low >> (PTE_FILE_SHIFT3))			\
+	    & ((1U << PTE_FILE_BITS3) - 1))				\
+	   << (PTE_FILE_BITS1 + PTE_FILE_BITS2))			\
+	+ ((((pte).pte_low >> (PTE_FILE_SHIFT4)))			\
+	    << (PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3))
+
+#define pgoff_to_pte(off)						\
+	((pte_t) { .pte_low =						\
+	 ((((off)) & ((1U << PTE_FILE_BITS1) - 1)) << PTE_FILE_SHIFT1)	\
+	 + ((((off) >> PTE_FILE_BITS1)					\
+	     & ((1U << PTE_FILE_BITS2) - 1))				\
+	    << PTE_FILE_SHIFT2)						\
+	 + ((((off) >> (PTE_FILE_BITS1 + PTE_FILE_BITS2))		\
+	     & ((1U << PTE_FILE_BITS3) - 1))				\
+	    << PTE_FILE_SHIFT3)						\
+	 + ((((off) >>							\
+	      (PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)))	\
+	    << PTE_FILE_SHIFT4)						\
+	 + _PAGE_FILE })
+
+#else /* CONFIG_MEM_SOFT_DIRTY */
+
 /*
  * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE and _PAGE_BIT_PROTNONE are taken,
- * split up the 29 bits of offset into this range:
+ * split up the 29 bits of offset into this range.
  */
 #define PTE_FILE_MAX_BITS	29
 #define PTE_FILE_SHIFT1		(_PAGE_BIT_PRESENT + 1)
@@ -87,6 +131,8 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 	 + (((off) >> (PTE_FILE_BITS1 + PTE_FILE_BITS2))		\
 	    << PTE_FILE_SHIFT3)						\
 	 + _PAGE_FILE })
+
+#endif /* CONFIG_MEM_SOFT_DIRTY */
 
 /* Encode and de-code a swap entry */
 #if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE

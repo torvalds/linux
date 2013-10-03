@@ -26,12 +26,12 @@
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
+#include <linux/platform_data/edma.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
 #include <mach/irqs.h>
-#include <mach/edma.h>
 #include <mach/mux.h>
 #include <mach/cp_intc.h>
 #include <mach/tnetv107x.h>
@@ -85,7 +85,6 @@ static struct davinci_mmc_config mmc_config = {
 	.wires		= 4,
 	.max_freq	= 50000000,
 	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
-	.version	= MMC_CTLR_VERSION_1,
 };
 
 static const short sdio1_pins[] __initconst = {

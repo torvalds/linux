@@ -32,10 +32,12 @@ enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
 	TPM_BUFSIZE = 4096,
 	TPM_NUM_DEVICES = 256,
+	TPM_RETRY = 50,		/* 5 seconds */
 };
 
 enum tpm_timeout {
 	TPM_TIMEOUT = 5,	/* msecs */
+	TPM_TIMEOUT_RETRY = 100 /* msecs */
 };
 
 /* TPM addresses */
@@ -44,6 +46,7 @@ enum tpm_addr {
 	TPM_ADDR = 0x4E,
 };
 
+#define TPM_WARN_RETRY          0x800
 #define TPM_WARN_DOING_SELFTEST 0x802
 #define TPM_ERR_DEACTIVATED     0x6
 #define TPM_ERR_DISABLED        0x7
@@ -269,7 +272,6 @@ typedef union {
 	struct	tpm_output_header out;
 } tpm_cmd_header;
 
-#define TPM_DIGEST_SIZE 20
 struct tpm_pcrread_out {
 	u8	pcr_result[TPM_DIGEST_SIZE];
 } __packed;
@@ -330,6 +332,7 @@ extern struct tpm_chip* tpm_register_hardware(struct device *,
 				 const struct tpm_vendor_specific *);
 extern int tpm_open(struct inode *, struct file *);
 extern int tpm_release(struct inode *, struct file *);
+extern void tpm_dev_release(struct device *dev);
 extern void tpm_dev_vendor_release(struct tpm_chip *);
 extern ssize_t tpm_write(struct file *, const char __user *, size_t,
 			 loff_t *);

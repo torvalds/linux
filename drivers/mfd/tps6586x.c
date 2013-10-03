@@ -107,7 +107,7 @@ static struct mfd_cell tps6586x_cell[] = {
 		.name = "tps6586x-gpio",
 	},
 	{
-		.name = "tps6586x-pmic",
+		.name = "tps6586x-regulator",
 	},
 	{
 		.name = "tps6586x-rtc",
@@ -462,7 +462,7 @@ static void tps6586x_power_off(void)
 static int tps6586x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	struct tps6586x_platform_data *pdata = client->dev.platform_data;
+	struct tps6586x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct tps6586x *tps6586x;
 	int ret;
 

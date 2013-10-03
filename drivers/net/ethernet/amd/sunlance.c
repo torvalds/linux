@@ -536,8 +536,6 @@ static void lance_rx_dvma(struct net_device *dev)
 			skb = netdev_alloc_skb(dev, len + 2);
 
 			if (skb == NULL) {
-				printk(KERN_INFO "%s: Memory squeeze, deferring packet.\n",
-				       dev->name);
 				dev->stats.rx_dropped++;
 				rd->mblength = 0;
 				rd->rmd1_bits = LE_R1_OWN;
@@ -708,8 +706,6 @@ static void lance_rx_pio(struct net_device *dev)
 			skb = netdev_alloc_skb(dev, len + 2);
 
 			if (skb == NULL) {
-				printk(KERN_INFO "%s: Memory squeeze, deferring packet.\n",
-				       dev->name);
 				dev->stats.rx_dropped++;
 				sbus_writew(0, &rd->mblength);
 				sbus_writeb(LE_R1_OWN, &rd->rmd1_bits);
@@ -1377,10 +1373,9 @@ static int sparc_lance_probe_one(struct platform_device *op,
 			dma_alloc_coherent(&op->dev,
 					   sizeof(struct lance_init_block),
 					   &lp->init_block_dvma, GFP_ATOMIC);
-		if (!lp->init_block_mem) {
-			printk(KERN_ERR "SunLance: Cannot allocate consistent DMA memory.\n");
+		if (!lp->init_block_mem)
 			goto fail;
-		}
+
 		lp->pio_buffer = 0;
 		lp->init_ring = lance_init_ring_dvma;
 		lp->rx = lance_rx_dvma;
@@ -1475,7 +1470,7 @@ no_link_test:
 		goto fail;
 	}
 
-	dev_set_drvdata(&op->dev, lp);
+	platform_set_drvdata(op, lp);
 
 	printk(KERN_INFO "%s: LANCE %pM\n",
 	       dev->name, dev->dev_addr);
@@ -1506,7 +1501,7 @@ static int sunlance_sbus_probe(struct platform_device *op)
 
 static int sunlance_sbus_remove(struct platform_device *op)
 {
-	struct lance_private *lp = dev_get_drvdata(&op->dev);
+	struct lance_private *lp = platform_get_drvdata(op);
 	struct net_device *net_dev = lp->dev;
 
 	unregister_netdev(net_dev);
@@ -1514,8 +1509,6 @@ static int sunlance_sbus_remove(struct platform_device *op)
 	lance_free_hwresources(lp);
 
 	free_netdev(net_dev);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

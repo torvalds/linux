@@ -108,7 +108,7 @@ acpi_ps_get_next_package_length(struct acpi_parse_state *parser_state)
 	/* Byte 0 is a special case, either bits [0:3] or [0:5] are used */
 
 	package_length |= (aml[0] & byte_zero_mask);
-	return_VALUE(package_length);
+	return_UINT32(package_length);
 }
 
 /*******************************************************************************
@@ -629,24 +629,28 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 				switch (opcode) {
 				case AML_BYTE_OP:	/* AML_BYTEDATA_ARG */
+
 					buffer_length =
 					    ACPI_GET8(parser_state->aml);
 					parser_state->aml += 1;
 					break;
 
 				case AML_WORD_OP:	/* AML_WORDDATA_ARG */
+
 					buffer_length =
 					    ACPI_GET16(parser_state->aml);
 					parser_state->aml += 2;
 					break;
 
 				case AML_DWORD_OP:	/* AML_DWORDATA_ARG */
+
 					buffer_length =
 					    ACPI_GET32(parser_state->aml);
 					parser_state->aml += 4;
 					break;
 
 				default:
+
 					buffer_length = 0;
 					break;
 				}

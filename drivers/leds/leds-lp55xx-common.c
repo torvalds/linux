@@ -1,5 +1,5 @@
 /*
- * LP5521/LP5523/LP55231 Common Driver
+ * LP5521/LP5523/LP55231/LP5562 Common Driver
  *
  * Copyright 2012 Texas Instruments
  *
@@ -12,14 +12,19 @@
  * Derived from leds-lp5521.c, leds-lp5523.c
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_data/leds-lp55xx.h>
+#include <linux/slab.h>
 
 #include "leds-lp55xx-common.h"
+
+/* External clock rate */
+#define LP55XX_CLK_32K			32768
 
 static struct lp55xx_led *cdev_to_lp55xx_led(struct led_classdev *cdev)
 {
@@ -80,7 +85,7 @@ static ssize_t lp55xx_show_current(struct device *dev,
 {
 	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
 
-	return sprintf(buf, "%d\n", led->led_current);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", led->led_current);
 }
 
 static ssize_t lp55xx_store_current(struct device *dev,
@@ -113,7 +118,7 @@ static ssize_t lp55xx_show_max_current(struct device *dev,
 {
 	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
 
-	return sprintf(buf, "%d\n", led->max_current);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", led->max_current);
 }
 
 static DEVICE_ATTR(led_current, S_IRUGO | S_IWUSR, lp55xx_show_current,
@@ -357,6 +362,35 @@ int lp55xx_update_bits(struct lp55xx_chip *chip, u8 reg, u8 mask, u8 val)
 }
 EXPORT_SYMBOL_GPL(lp55xx_update_bits);
 
+bool lp55xx_is_extclk_used(struct lp55xx_chip *chip)
+{
+	struct clk *clk;
+	int err;
+
+	clk = devm_clk_get(&chip->cl->dev, "32k_clk");
+	if (IS_ERR(clk))
+		goto use_internal_clk;
+
+	err = clk_prepare_enable(clk);
+	if (err)
+		goto use_internal_clk;
+
+	if (clk_get_rate(clk) != LP55XX_CLK_32K) {
+		clk_disable_unprepare(clk);
+		goto use_internal_clk;
+	}
+
+	dev_info(&chip->cl->dev, "%dHz external clock used\n",	LP55XX_CLK_32K);
+
+	chip->clk = clk;
+	return true;
+
+use_internal_clk:
+	dev_info(&chip->cl->dev, "internal clock used\n");
+	return false;
+}
+EXPORT_SYMBOL_GPL(lp55xx_is_extclk_used);
+
 int lp55xx_init_device(struct lp55xx_chip *chip)
 {
 	struct lp55xx_platform_data *pdata;
@@ -420,6 +454,9 @@ EXPORT_SYMBOL_GPL(lp55xx_init_device);
 void lp55xx_deinit_device(struct lp55xx_chip *chip)
 {
 	struct lp55xx_platform_data *pdata = chip->pdata;
+
+	if (chip->clk)
+		clk_disable_unprepare(chip->clk);
 
 	if (pdata->enable)
 		pdata->enable(0);
@@ -517,6 +554,53 @@ void lp55xx_unregister_sysfs(struct lp55xx_chip *chip)
 	sysfs_remove_group(&dev->kobj, &lp55xx_engine_attr_group);
 }
 EXPORT_SYMBOL_GPL(lp55xx_unregister_sysfs);
+
+int lp55xx_of_populate_pdata(struct device *dev, struct device_node *np)
+{
+	struct device_node *child;
+	struct lp55xx_platform_data *pdata;
+	struct lp55xx_led_config *cfg;
+	int num_channels;
+	int i = 0;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	num_channels = of_get_child_count(np);
+	if (num_channels == 0) {
+		dev_err(dev, "no LED channels\n");
+		return -EINVAL;
+	}
+
+	cfg = devm_kzalloc(dev, sizeof(*cfg) * num_channels, GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
+
+	pdata->led_config = &cfg[0];
+	pdata->num_channels = num_channels;
+
+	for_each_child_of_node(np, child) {
+		cfg[i].chan_nr = i;
+
+		of_property_read_string(child, "chan-name", &cfg[i].name);
+		of_property_read_u8(child, "led-cur", &cfg[i].led_current);
+		of_property_read_u8(child, "max-cur", &cfg[i].max_current);
+
+		i++;
+	}
+
+	of_property_read_string(np, "label", &pdata->label);
+	of_property_read_u8(np, "clock-mode", &pdata->clock_mode);
+
+	/* LP8501 specific */
+	of_property_read_u8(np, "pwr-sel", (u8 *)&pdata->pwr_sel);
+
+	dev->platform_data = pdata;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(lp55xx_of_populate_pdata);
 
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP55xx Common Driver");

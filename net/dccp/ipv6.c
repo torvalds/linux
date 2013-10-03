@@ -135,6 +135,7 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 		if (dst)
 			dst->ops->redirect(dst, sk, skb);
+		goto out;
 	}
 
 	if (type == ICMPV6_PKT_TOOBIG) {
@@ -213,8 +214,7 @@ out:
 }
 
 
-static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
-				 struct request_values *rv_unused)
+static int dccp_v6_send_response(struct sock *sk, struct request_sock *req)
 {
 	struct inet6_request_sock *ireq6 = inet6_rsk(req);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -428,7 +428,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	dreq->dreq_gss     = dreq->dreq_iss;
 	dreq->dreq_service = service;
 
-	if (dccp_v6_send_response(sk, req, NULL))
+	if (dccp_v6_send_response(sk, req))
 		goto drop_and_free;
 
 	inet6_csk_reqsk_queue_hash_add(sk, req, DCCP_TIMEOUT_INIT);

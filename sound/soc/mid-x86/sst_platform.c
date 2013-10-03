@@ -1,7 +1,7 @@
 /*
  *  sst_platform.c - Intel MID Platform driver
  *
- *  Copyright (C) 2010-2012 Intel Corp
+ *  Copyright (C) 2010-2013 Intel Corp
  *  Author: Vinod Koul <vinod.koul@intel.com>
  *  Author: Harsha Priya <priya.harsha@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -163,6 +163,10 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 },
+};
+
+static const struct snd_soc_component_driver sst_component = {
+	.name		= "sst",
 };
 
 /* helper functions */
@@ -652,11 +656,21 @@ static int sst_platform_compr_get_codec_caps(struct snd_compr_stream *cstream,
 	return stream->compr_ops->get_codec_caps(codec);
 }
 
+static int sst_platform_compr_set_metadata(struct snd_compr_stream *cstream,
+					struct snd_compr_metadata *metadata)
+{
+	struct sst_runtime_stream *stream  =
+		 cstream->runtime->private_data;
+
+	return stream->compr_ops->set_metadata(stream->id, metadata);
+}
+
 static struct snd_compr_ops sst_platform_compr_ops = {
 
 	.open = sst_platform_compr_open,
 	.free = sst_platform_compr_free,
 	.set_params = sst_platform_compr_set_params,
+	.set_metadata = sst_platform_compr_set_metadata,
 	.trigger = sst_platform_compr_trigger,
 	.pointer = sst_platform_compr_pointer,
 	.ack = sst_platform_compr_ack,
@@ -683,7 +697,7 @@ static int sst_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = snd_soc_register_dais(&pdev->dev,
+	ret = snd_soc_register_component(&pdev->dev, &sst_component,
 				sst_platform_dai, ARRAY_SIZE(sst_platform_dai));
 	if (ret) {
 		pr_err("registering cpu dais failed\n");
@@ -695,7 +709,7 @@ static int sst_platform_probe(struct platform_device *pdev)
 static int sst_platform_remove(struct platform_device *pdev)
 {
 
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(sst_platform_dai));
+	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_unregister_platform(&pdev->dev);
 	pr_debug("sst_platform_remove success\n");
 	return 0;

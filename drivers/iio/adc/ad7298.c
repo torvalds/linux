@@ -63,8 +63,8 @@ struct ad7298_state {
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
 		.channel = index,					\
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 		.address = index,					\
 		.scan_index = index,					\
 		.scan_type = {						\
@@ -80,9 +80,9 @@ static const struct iio_chan_spec ad7298_channels[] = {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
-			IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_OFFSET),
 		.address = AD7298_CH_TEMP,
 		.scan_index = -1,
 		.scan_type = {
@@ -296,9 +296,10 @@ static int ad7298_probe(struct spi_device *spi)
 {
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
-	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
+	struct iio_dev *indio_dev;
 	int ret;
 
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -308,14 +309,13 @@ static int ad7298_probe(struct spi_device *spi)
 		st->ext_ref = AD7298_EXTREF;
 
 	if (st->ext_ref) {
-		st->reg = regulator_get(&spi->dev, "vref");
-		if (IS_ERR(st->reg)) {
-			ret = PTR_ERR(st->reg);
-			goto error_free;
-		}
+		st->reg = devm_regulator_get(&spi->dev, "vref");
+		if (IS_ERR(st->reg))
+			return PTR_ERR(st->reg);
+
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 	}
 
 	spi_set_drvdata(spi, indio_dev);
@@ -361,11 +361,6 @@ error_cleanup_ring:
 error_disable_reg:
 	if (st->ext_ref)
 		regulator_disable(st->reg);
-error_put_reg:
-	if (st->ext_ref)
-		regulator_put(st->reg);
-error_free:
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -377,11 +372,8 @@ static int ad7298_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
-	if (st->ext_ref) {
+	if (st->ext_ref)
 		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
-	iio_device_free(indio_dev);
 
 	return 0;
 }

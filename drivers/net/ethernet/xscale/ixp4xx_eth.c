@@ -1384,7 +1384,7 @@ static int eth_init_one(struct platform_device *pdev)
 {
 	struct port *port;
 	struct net_device *dev;
-	struct eth_plat_info *plat = pdev->dev.platform_data;
+	struct eth_plat_info *plat = dev_get_platdata(&pdev->dev);
 	u32 regs_phys;
 	char phy_id[MII_BUS_ID_SIZE + 3];
 	int err;
@@ -1472,7 +1472,6 @@ err_phy_dis:
 	phy_disconnect(port->phydev);
 err_free_mem:
 	npe_port_tab[NPE_ID(port->id)] = NULL;
-	platform_set_drvdata(pdev, NULL);
 	release_resource(port->mem_res);
 err_npe_rel:
 	npe_release(port->npe);
@@ -1489,7 +1488,6 @@ static int eth_remove_one(struct platform_device *pdev)
 	unregister_netdev(dev);
 	phy_disconnect(port->phydev);
 	npe_port_tab[NPE_ID(port->id)] = NULL;
-	platform_set_drvdata(pdev, NULL);
 	npe_release(port->npe);
 	release_resource(port->mem_res);
 	free_netdev(dev);

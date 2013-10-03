@@ -121,7 +121,7 @@ static int pruss_probe(struct platform_device *dev)
 	struct uio_pruss_dev *gdev;
 	struct resource *regs_prussio;
 	int ret = -ENODEV, cnt = 0, len;
-	struct uio_pruss_pdata *pdata = dev->dev.platform_data;
+	struct uio_pruss_pdata *pdata = dev_get_platdata(&dev->dev);
 
 	gdev = kzalloc(sizeof(struct uio_pruss_dev), GFP_KERNEL);
 	if (!gdev)
@@ -136,9 +136,9 @@ static int pruss_probe(struct platform_device *dev)
 	gdev->pruss_clk = clk_get(&dev->dev, "pruss");
 	if (IS_ERR(gdev->pruss_clk)) {
 		dev_err(&dev->dev, "Failed to get clock\n");
+		ret = PTR_ERR(gdev->pruss_clk);
 		kfree(gdev->info);
 		kfree(gdev);
-		ret = PTR_ERR(gdev->pruss_clk);
 		return ret;
 	} else {
 		clk_enable(gdev->pruss_clk);
@@ -224,7 +224,6 @@ static int pruss_remove(struct platform_device *dev)
 	struct uio_pruss_dev *gdev = platform_get_drvdata(dev);
 
 	pruss_cleanup(dev, gdev);
-	platform_set_drvdata(dev, NULL);
 	return 0;
 }
 

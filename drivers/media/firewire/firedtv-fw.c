@@ -248,7 +248,7 @@ static const char * const model_names[] = {
 /* Adjust the template string if models with longer names appear. */
 #define MAX_MODEL_NAME_LEN sizeof("FireDTV ????")
 
-static int node_probe(struct device *dev)
+static int node_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 {
 	struct firedtv *fdtv;
 	char name[MAX_MODEL_NAME_LEN];
@@ -258,8 +258,8 @@ static int node_probe(struct device *dev)
 	if (!fdtv)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, fdtv);
-	fdtv->device		= dev;
+	dev_set_drvdata(&unit->device, fdtv);
+	fdtv->device		= &unit->device;
 	fdtv->isochannel	= -1;
 	fdtv->voltage		= 0xff;
 	fdtv->tone		= 0xff;
@@ -269,7 +269,7 @@ static int node_probe(struct device *dev)
 	mutex_init(&fdtv->demux_mutex);
 	INIT_WORK(&fdtv->remote_ctrl_work, avc_remote_ctrl_work);
 
-	name_len = fw_csr_string(fw_unit(dev)->directory, CSR_MODEL,
+	name_len = fw_csr_string(unit->directory, CSR_MODEL,
 				 name, sizeof(name));
 	for (i = ARRAY_SIZE(model_names); --i; )
 		if (strlen(model_names[i]) <= name_len &&
@@ -277,7 +277,7 @@ static int node_probe(struct device *dev)
 			break;
 	fdtv->type = i;
 
-	err = fdtv_register_rc(fdtv, dev);
+	err = fdtv_register_rc(fdtv, &unit->device);
 	if (err)
 		goto fail_free;
 
@@ -307,9 +307,9 @@ fail_free:
 	return err;
 }
 
-static int node_remove(struct device *dev)
+static void node_remove(struct fw_unit *unit)
 {
-	struct firedtv *fdtv = dev_get_drvdata(dev);
+	struct firedtv *fdtv = dev_get_drvdata(&unit->device);
 
 	fdtv_dvb_unregister(fdtv);
 
@@ -320,7 +320,6 @@ static int node_remove(struct device *dev)
 	fdtv_unregister_rc(fdtv);
 
 	kfree(fdtv);
-	return 0;
 }
 
 static void node_update(struct fw_unit *unit)
@@ -391,10 +390,10 @@ static struct fw_driver fdtv_driver = {
 		.owner  = THIS_MODULE,
 		.name   = "firedtv",
 		.bus    = &fw_bus_type,
-		.probe  = node_probe,
-		.remove = node_remove,
 	},
+	.probe    = node_probe,
 	.update   = node_update,
+	.remove   = node_remove,
 	.id_table = fdtv_id_table,
 };
 

@@ -1044,7 +1044,7 @@ void dm_cache_metadata_get_stats(struct dm_cache_metadata *cmd,
 				 struct dm_cache_statistics *stats)
 {
 	down_read(&cmd->root_lock);
-	memcpy(stats, &cmd->stats, sizeof(*stats));
+	*stats = cmd->stats;
 	up_read(&cmd->root_lock);
 }
 
@@ -1052,7 +1052,7 @@ void dm_cache_metadata_set_stats(struct dm_cache_metadata *cmd,
 				 struct dm_cache_statistics *stats)
 {
 	down_write(&cmd->root_lock);
-	memcpy(&cmd->stats, stats, sizeof(*stats));
+	cmd->stats = *stats;
 	up_write(&cmd->root_lock);
 }
 

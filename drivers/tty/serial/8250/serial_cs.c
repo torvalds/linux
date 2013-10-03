@@ -852,18 +852,6 @@ static struct pcmcia_driver serial_cs_driver = {
 	.suspend	= serial_suspend,
 	.resume		= serial_resume,
 };
-
-static int __init init_serial_cs(void)
-{
-	return pcmcia_register_driver(&serial_cs_driver);
-}
-
-static void __exit exit_serial_cs(void)
-{
-	pcmcia_unregister_driver(&serial_cs_driver);
-}
-
-module_init(init_serial_cs);
-module_exit(exit_serial_cs);
+module_pcmcia_driver(serial_cs_driver);
 
 MODULE_LICENSE("GPL");

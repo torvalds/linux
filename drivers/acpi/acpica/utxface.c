@@ -287,7 +287,10 @@ acpi_status acpi_install_interface(acpi_string interface_name)
 		return (AE_BAD_PARAMETER);
 	}
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
 	/* Check if the interface name is already in the global list */
 
@@ -336,7 +339,10 @@ acpi_status acpi_remove_interface(acpi_string interface_name)
 		return (AE_BAD_PARAMETER);
 	}
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
 	status = acpi_ut_remove_interface(interface_name);
 
@@ -362,9 +368,12 @@ ACPI_EXPORT_SYMBOL(acpi_remove_interface)
  ****************************************************************************/
 acpi_status acpi_install_interface_handler(acpi_interface_handler handler)
 {
-	acpi_status status = AE_OK;
+	acpi_status status;
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
 	if (handler && acpi_gbl_interface_handler) {
 		status = AE_ALREADY_EXISTS;
@@ -377,6 +386,34 @@ acpi_status acpi_install_interface_handler(acpi_interface_handler handler)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_install_interface_handler)
+
+/*****************************************************************************
+ *
+ * FUNCTION:    acpi_update_interfaces
+ *
+ * PARAMETERS:  action              - Actions to be performed during the
+ *                                    update
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Update _OSI interface strings, disabling or enabling OS vendor
+ *              string or/and feature group strings.
+ *
+ ****************************************************************************/
+acpi_status acpi_update_interfaces(u8 action)
+{
+	acpi_status status;
+
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	status = acpi_ut_update_interfaces(action);
+
+	acpi_os_release_mutex(acpi_gbl_osi_mutex);
+	return (status);
+}
 
 /*****************************************************************************
  *
@@ -393,6 +430,7 @@ ACPI_EXPORT_SYMBOL(acpi_install_interface_handler)
  *              ASL operation region address ranges.
  *
  ****************************************************************************/
+
 u32
 acpi_check_address_range(acpi_adr_space_type space_id,
 			 acpi_physical_address address,

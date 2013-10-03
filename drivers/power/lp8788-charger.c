@@ -49,7 +49,6 @@
 #define LP8788_CHG_START		0x11
 #define LP8788_CHG_END			0x1C
 
-#define LP8788_BUF_SIZE			40
 #define LP8788_ISEL_MAX			23
 #define LP8788_ISEL_STEP		50
 #define LP8788_VTERM_MIN		4100
@@ -633,7 +632,7 @@ static ssize_t lp8788_show_charger_status(struct device *dev,
 	lp8788_read_byte(pchg->lp, LP8788_CHG_STATUS, &data);
 	state = (data & LP8788_CHG_STATE_M) >> LP8788_CHG_STATE_S;
 
-	return scnprintf(buf, LP8788_BUF_SIZE, "%s\n", desc[state]);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", desc[state]);
 }
 
 static ssize_t lp8788_show_eoc_time(struct device *dev,
@@ -647,7 +646,7 @@ static ssize_t lp8788_show_eoc_time(struct device *dev,
 	lp8788_read_byte(pchg->lp, LP8788_CHG_EOC, &val);
 	val = (val & LP8788_CHG_EOC_TIME_M) >> LP8788_CHG_EOC_TIME_S;
 
-	return scnprintf(buf, LP8788_BUF_SIZE, "End Of Charge Time: %s\n",
+	return scnprintf(buf, PAGE_SIZE, "End Of Charge Time: %s\n",
 			stime[val]);
 }
 
@@ -667,8 +666,7 @@ static ssize_t lp8788_show_eoc_level(struct device *dev,
 	val = (val & LP8788_CHG_EOC_LEVEL_M) >> LP8788_CHG_EOC_LEVEL_S;
 	level = mode ? abs_level[val] : relative_level[val];
 
-	return scnprintf(buf, LP8788_BUF_SIZE, "End Of Charge Level: %s\n",
-			level);
+	return scnprintf(buf, PAGE_SIZE, "End Of Charge Level: %s\n", level);
 }
 
 static DEVICE_ATTR(charger_status, S_IRUSR, lp8788_show_charger_status, NULL);

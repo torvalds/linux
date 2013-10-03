@@ -1,0 +1,12 @@
+config EFIVAR_FS
+	tristate "EFI Variable filesystem"
+	depends on EFI
+	help
+	  efivarfs is a replacement filesystem for the old EFI
+	  variable support via sysfs, as it doesn't suffer from the
+	  same 1024-byte variable size limit.
+
+	  To compile this file system support as a module, choose M
+	  here. The module will be called efivarfs.
+
+	  If unsure, say N.

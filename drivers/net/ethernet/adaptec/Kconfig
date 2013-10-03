@@ -22,7 +22,6 @@ config ADAPTEC_STARFIRE
 	tristate "Adaptec Starfire/DuraLAN support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  Say Y here if you have an Adaptec Starfire (or DuraLAN) PCI network

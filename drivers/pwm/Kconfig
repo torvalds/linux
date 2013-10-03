@@ -28,6 +28,10 @@ menuconfig PWM
 
 if PWM
 
+config PWM_SYSFS
+	bool
+	default y if SYSFS
+
 config PWM_AB8500
 	tristate "AB8500 PWM support"
 	depends on AB8500_CORE && ARCH_U8500
@@ -97,6 +101,15 @@ config PWM_MXS
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-mxs.
 
+config PWM_PCA9685
+	tristate "NXP PCA9685 PWM driver"
+	depends on OF && REGMAP_I2C
+	help
+	  Generic PWM framework driver for NXP PCA9685 LED controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-pca9685.
+
 config PWM_PUV3
 	tristate "PKUnity NetBook-0916 PWM support"
 	depends on ARCH_PUV3
@@ -114,6 +127,16 @@ config PWM_PXA
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-pxa.
+
+config PWM_RENESAS_TPU
+	tristate "Renesas TPU PWM support"
+	depends on ARCH_SHMOBILE
+	help
+	  This driver exposes the Timer Pulse Unit (TPU) PWM controller found
+	  in Renesas chips through the PWM API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-renesas-tpu.
 
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
@@ -147,8 +170,7 @@ config PWM_TEGRA
 
 config  PWM_TIECAP
 	tristate "ECAP PWM support"
-	depends on SOC_AM33XX
-	select PWM_TIPWMSS
+	depends on SOC_AM33XX || ARCH_DAVINCI_DA8XX
 	help
 	  PWM driver support for the ECAP APWM controller found on AM33XX
 	  TI SOC
@@ -158,8 +180,7 @@ config  PWM_TIECAP
 
 config  PWM_TIEHRPWM
 	tristate "EHRPWM PWM support"
-	depends on SOC_AM33XX
-	select PWM_TIPWMSS
+	depends on SOC_AM33XX || ARCH_DAVINCI_DA8XX
 	help
 	  PWM driver support for the EHRPWM controller found on AM33XX
 	  TI SOC
@@ -169,7 +190,7 @@ config  PWM_TIEHRPWM
 
 config  PWM_TIPWMSS
 	bool
-	depends on SOC_AM33XX && (PWM_TIEHRPWM || PWM_TIECAP)
+	default y if SOC_AM33XX && (PWM_TIECAP || PWM_TIEHRPWM)
 	help
 	  PWM Subsystem driver support for AM33xx SOC.
 

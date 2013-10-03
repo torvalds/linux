@@ -1,6 +1,0 @@
-config TCM_VHOST
-	tristate "TCM_VHOST fabric module"
-	depends on TARGET_CORE && EVENTFD && m
-	default n
-	---help---
-	Say M here to enable the TCM_VHOST fabric module for use with virtio-scsi guests

@@ -15,10 +15,6 @@
 #ifndef __MACH_ARMADA_370_XP_H
 #define __MACH_ARMADA_370_XP_H
 
-#define ARMADA_370_XP_REGS_PHYS_BASE	0xd0000000
-#define ARMADA_370_XP_REGS_VIRT_BASE	IOMEM(0xfeb00000)
-#define ARMADA_370_XP_REGS_SIZE		SZ_1M
-
 #ifdef CONFIG_SMP
 #include <linux/cpumask.h>
 

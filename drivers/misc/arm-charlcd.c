@@ -291,7 +291,7 @@ static int __init charlcd_probe(struct platform_device *pdev)
 	lcd->virtbase = ioremap(lcd->phybase, lcd->physize);
 	if (!lcd->virtbase) {
 		ret = -ENOMEM;
-		goto out_no_remap;
+		goto out_no_memregion;
 	}
 
 	lcd->irq = platform_get_irq(pdev, 0);
@@ -320,8 +320,6 @@ static int __init charlcd_probe(struct platform_device *pdev)
 
 out_no_irq:
 	iounmap(lcd->virtbase);
-out_no_remap:
-	platform_set_drvdata(pdev, NULL);
 out_no_memregion:
 	release_mem_region(lcd->phybase, SZ_4K);
 out_no_resource:
@@ -337,7 +335,6 @@ static int __exit charlcd_remove(struct platform_device *pdev)
 		free_irq(lcd->irq, lcd);
 		iounmap(lcd->virtbase);
 		release_mem_region(lcd->phybase, lcd->physize);
-		platform_set_drvdata(pdev, NULL);
 		kfree(lcd);
 	}
 
@@ -378,18 +375,7 @@ static struct platform_driver charlcd_driver = {
 	.remove = __exit_p(charlcd_remove),
 };
 
-static int __init charlcd_init(void)
-{
-	return platform_driver_probe(&charlcd_driver, charlcd_probe);
-}
-
-static void __exit charlcd_exit(void)
-{
-	platform_driver_unregister(&charlcd_driver);
-}
-
-module_init(charlcd_init);
-module_exit(charlcd_exit);
+module_platform_driver_probe(charlcd_driver, charlcd_probe);
 
 MODULE_AUTHOR("Linus Walleij <triad@df.lth.se>");
 MODULE_DESCRIPTION("ARM Character LCD Driver");

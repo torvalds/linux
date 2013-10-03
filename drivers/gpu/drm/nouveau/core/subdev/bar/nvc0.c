@@ -51,7 +51,6 @@ nvc0_bar_kmap(struct nouveau_bar *bar, struct nouveau_mem *mem,
 		return ret;
 
 	nouveau_vm_map(vma, mem);
-	nvc0_vm_flush_engine(nv_subdev(bar), priv->bar[0].pgd->addr, 5);
 	return 0;
 }
 
@@ -68,18 +67,13 @@ nvc0_bar_umap(struct nouveau_bar *bar, struct nouveau_mem *mem,
 		return ret;
 
 	nouveau_vm_map(vma, mem);
-	nvc0_vm_flush_engine(nv_subdev(bar), priv->bar[1].pgd->addr, 5);
 	return 0;
 }
 
 static void
 nvc0_bar_unmap(struct nouveau_bar *bar, struct nouveau_vma *vma)
 {
-	struct nvc0_bar_priv *priv = (void *)bar;
-	int i = !(vma->vm == priv->bar[0].vm);
-
 	nouveau_vm_unmap(vma);
-	nvc0_vm_flush_engine(nv_subdev(bar), priv->bar[i].pgd->addr, 5);
 	nouveau_vm_put(vma);
 }
 
@@ -101,12 +95,14 @@ nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	/* BAR3 */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 0, 0, &priv->bar[0].mem);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 0, 0,
+				&priv->bar[0].mem);
 	mem = priv->bar[0].mem;
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x8000, 0, 0, &priv->bar[0].pgd);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0, 0,
+				&priv->bar[0].pgd);
 	if (ret)
 		return ret;
 
@@ -114,7 +110,9 @@ nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL,
+	atomic_inc(&vm->engref[NVDEV_SUBDEV_BAR]);
+
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL,
 				 (pci_resource_len(pdev, 3) >> 12) * 8,
 				 0x1000, NVOBJ_FLAG_ZERO_ALLOC,
 				 &vm->pgt[0].obj[0]);
@@ -133,18 +131,22 @@ nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_wo32(mem, 0x020c, upper_32_bits(pci_resource_len(pdev, 3) - 1));
 
 	/* BAR1 */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 0, 0, &priv->bar[1].mem);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 0, 0,
+				&priv->bar[1].mem);
 	mem = priv->bar[1].mem;
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x8000, 0, 0, &priv->bar[1].pgd);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0, 0,
+				&priv->bar[1].pgd);
 	if (ret)
 		return ret;
 
 	ret = nouveau_vm_new(device, 0, pci_resource_len(pdev, 1), 0, &vm);
 	if (ret)
 		return ret;
+
+	atomic_inc(&vm->engref[NVDEV_SUBDEV_BAR]);
 
 	ret = nouveau_vm_ref(vm, &priv->bar[1].vm, priv->bar[1].pgd);
 	nouveau_vm_ref(NULL, &vm, NULL);

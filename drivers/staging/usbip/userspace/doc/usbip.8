@@ -38,7 +38,7 @@ then exit.
 .PP
 
 .HP
-\fBattach\fR \-\-host=<\fIhost\fR> \-\-busid=<\fIbus_id\fR>
+\fBattach\fR \-\-remote=<\fIhost\fR> \-\-busid=<\fIbus_id\fR>
 .IP
 Attach a remote USB device.
 .PP
@@ -79,7 +79,7 @@ List local USB devices.
     client:# usbip list --remote=server
         - List exportable usb devices on the server.
 
-    client:# usbip attach --host=server --busid=1-2
+    client:# usbip attach --remote=server --busid=1-2
         - Connect the remote USB device.
 
     client:# usbip detach --port=0

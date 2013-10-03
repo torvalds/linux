@@ -283,7 +283,9 @@ static int __init sb1250_pcibios_init(void)
 	register_pci_controller(&sb1250_controller);
 
 #ifdef CONFIG_VGA_CONSOLE
-	take_over_console(&vga_con, 0, MAX_NR_CONSOLES - 1, 1);
+	console_lock();
+	do_take_over_console(&vga_con, 0, MAX_NR_CONSOLES - 1, 1);
+	console_unlock();
 #endif
 	return 0;
 }

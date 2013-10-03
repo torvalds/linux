@@ -695,7 +695,7 @@ static int cx18_create_in_workq(struct cx18 *cx)
 {
 	snprintf(cx->in_workq_name, sizeof(cx->in_workq_name), "%s-in",
 		 cx->v4l2_dev.name);
-	cx->in_work_queue = alloc_ordered_workqueue(cx->in_workq_name, 0);
+	cx->in_work_queue = alloc_ordered_workqueue("%s", 0, cx->in_workq_name);
 	if (cx->in_work_queue == NULL) {
 		CX18_ERR("Unable to create incoming mailbox handler thread\n");
 		return -ENOMEM;
@@ -1243,7 +1243,7 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	   in one place. */
 	cx->std++;		/* Force full standard initialization */
 	std = (cx->tuner_std == V4L2_STD_ALL) ? V4L2_STD_NTSC_M : cx->tuner_std;
-	cx18_s_std(NULL, &fh, &std);
+	cx18_s_std(NULL, &fh, std);
 	cx18_s_frequency(NULL, &fh, &vf);
 	return 0;
 }

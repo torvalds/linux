@@ -1,0 +1,51 @@
+* Samsung PWM timers
+
+Samsung SoCs contain PWM timer blocks which can be used for system clock source
+and clock event timers, as well as to drive SoC outputs with PWM signal. Each
+PWM timer block provides 5 PWM channels (not all of them can drive physical
+outputs - see SoC and board manual).
+
+Be aware that the clocksource driver supports only uniprocessor systems.
+
+Required properties:
+- compatible : should be one of following:
+    samsung,s3c2410-pwm - for 16-bit timers present on S3C24xx SoCs
+    samsung,s3c6400-pwm - for 32-bit timers present on S3C64xx SoCs
+    samsung,s5p6440-pwm - for 32-bit timers present on S5P64x0 SoCs
+    samsung,s5pc100-pwm - for 32-bit timers present on S5PC100, S5PV210,
+			  Exynos4210 rev0 SoCs
+    samsung,exynos4210-pwm - for 32-bit timers present on Exynos4210,
+                          Exynos4x12 and Exynos5250 SoCs
+- reg: base address and size of register area
+- interrupts: list of timer interrupts (one interrupt per timer, starting at
+  timer 0)
+- clock-names: should contain all following required clock names:
+    - "timers" - PWM base clock used to generate PWM signals,
+  and any subset of following optional clock names:
+    - "pwm-tclk0" - first external PWM clock source,
+    - "pwm-tclk1" - second external PWM clock source.
+  Note that not all IP variants allow using all external clock sources.
+  Refer to SoC documentation to learn which clock source configurations
+  are available.
+- clocks: should contain clock specifiers of all clocks, which input names
+  have been specified in clock-names property, in same order.
+- #pwm-cells: should be 3. See pwm.txt in this directory for a description of
+  the cells format. The only third cell flag supported by this binding is
+  PWM_POLARITY_INVERTED.
+
+Optional properties:
+- samsung,pwm-outputs: list of PWM channels used as PWM outputs on particular
+    platform - an array of up to 5 elements being indices of PWM channels
+    (from 0 to 4), the order does not matter.
+
+Example:
+	pwm@7f006000 {
+		compatible = "samsung,s3c6400-pwm";
+		reg = <0x7f006000 0x1000>;
+		interrupt-parent = <&vic0>;
+		interrupts = <23>, <24>, <25>, <27>, <28>;
+		clocks = <&clock 67>;
+		clock-names = "timers";
+		samsung,pwm-outputs = <0>, <1>;
+		#pwm-cells = <3>;
+	}

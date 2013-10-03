@@ -50,7 +50,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 	u32 rlen;
 	int err, tport;
 
-	while (skb->len >= NLMSG_SPACE(0)) {
+	while (skb->len >= NLMSG_HDRLEN) {
 		err = 0;
 
 		nlh = nlmsg_hdr(skb);
@@ -70,7 +70,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 			goto next_msg;
 		}
 
-		hdr = NLMSG_DATA(nlh);
+		hdr = nlmsg_data(nlh);
 		if ((hdr->version != SCSI_NL_VERSION) ||
 		    (hdr->magic != SCSI_NL_MAGIC)) {
 			err = -EPROTOTYPE;

@@ -13,10 +13,6 @@
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 /*
@@ -47,6 +43,9 @@ DAQ 6601/6602 User Manual (NI 322137B-01)
 TODO:
 	Support use of both banks X and Y
 */
+
+#include <linux/module.h>
+#include <linux/slab.h>
 
 #include "ni_tio_internal.h"
 

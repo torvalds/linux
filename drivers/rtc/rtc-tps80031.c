@@ -277,7 +277,7 @@ static int tps80031_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 			       &tps80031_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
@@ -292,18 +292,9 @@ static int tps80031_rtc_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request IRQ:%d failed, err = %d\n",
 			 rtc->irq, ret);
-		rtc_device_unregister(rtc->rtc);
 		return ret;
 	}
 	device_set_wakeup_capable(&pdev->dev, 1);
-	return 0;
-}
-
-static int tps80031_rtc_remove(struct platform_device *pdev)
-{
-	struct tps80031_rtc *rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtc->rtc);
 	return 0;
 }
 
@@ -327,9 +318,8 @@ static int tps80031_rtc_resume(struct device *dev)
 };
 #endif
 
-static const struct dev_pm_ops tps80031_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tps80031_rtc_suspend, tps80031_rtc_resume)
-};
+static SIMPLE_DEV_PM_OPS(tps80031_pm_ops, tps80031_rtc_suspend,
+			tps80031_rtc_resume);
 
 static struct platform_driver tps80031_rtc_driver = {
 	.driver	= {
@@ -338,7 +328,6 @@ static struct platform_driver tps80031_rtc_driver = {
 		.pm	= &tps80031_pm_ops,
 	},
 	.probe	= tps80031_rtc_probe,
-	.remove	= tps80031_rtc_remove,
 };
 
 module_platform_driver(tps80031_rtc_driver);

@@ -4,11 +4,10 @@
 
 comment "NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may"
 comment "also be needed; see USB_STORAGE Help for more info"
-	depends on USB
 
 config USB_STORAGE
 	tristate "USB Mass Storage support"
-	depends on USB && SCSI
+	depends on SCSI
 	---help---
 	  Say Y here if you want to connect USB mass storage devices to your
 	  computer's USB port. This is the driver you need for USB
@@ -188,7 +187,7 @@ config USB_STORAGE_CYPRESS_ATACB
 
 config USB_STORAGE_ENE_UB6250
 	tristate "USB ENE card reader support"
-	depends on USB && SCSI
+	depends on SCSI
 	depends on USB_STORAGE
 	---help---
 	  Say Y here if you wish to control a ENE SD/MS Card reader.
@@ -203,7 +202,7 @@ config USB_STORAGE_ENE_UB6250
 
 config USB_UAS
 	tristate "USB Attached SCSI"
-	depends on USB && SCSI && BROKEN
+	depends on SCSI && BROKEN
 	help
 	  The USB Attached SCSI protocol is supported by some USB
 	  storage devices.  It permits higher performance by supporting

@@ -13,9 +13,11 @@ static void gemini_idle(void)
 	 * will never wakeup... Acctualy it is not very good to enable
 	 * interrupts first since scheduler can miss a tick, but there is
 	 * no other way around this. Platforms that needs it for power saving
-	 * should call enable_hlt() in init code, since by default it is
+	 * should enable it in init code, since by default it is
 	 * disabled.
 	 */
+
+	/* FIXME: Enabling interrupts here is racy! */
 	local_irq_enable();
 	cpu_do_idle();
 }

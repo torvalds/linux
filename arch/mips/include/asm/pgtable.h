@@ -8,6 +8,7 @@
 #ifndef _ASM_PGTABLE_H
 #define _ASM_PGTABLE_H
 
+#include <linux/mm_types.h>
 #include <linux/mmzone.h>
 #ifdef CONFIG_32BIT
 #include <asm/pgtable-32.h>
@@ -393,9 +394,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 	phys_t phys_addr_high = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
 	return remap_pfn_range(vma, vaddr, phys_addr_high >> PAGE_SHIFT, size, prot);
 }
-#else
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
+#define io_remap_pfn_range io_remap_pfn_range
 #endif
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

@@ -57,16 +57,16 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 		pmd_t *pmd;
 		pte_t *pte;
 
-		if (pgd_none_or_clear_bad(pgd))
+		if (pgd_none(*pgd) || pgd_bad(*pgd))
 			break;
 
 		pud = pud_offset(pgd, addr);
-		if (pud_none_or_clear_bad(pud))
+		if (pud_none(*pud) || pud_bad(*pud))
 			break;
 
 		pmd = pmd_offset(pud, addr);
 		printk(", *pmd=%016llx", pmd_val(*pmd));
-		if (pmd_none_or_clear_bad(pmd))
+		if (pmd_none(*pmd) || pmd_bad(*pmd))
 			break;
 
 		pte = pte_offset_map(pmd, addr);
@@ -113,7 +113,8 @@ static void __do_user_fault(struct task_struct *tsk, unsigned long addr,
 {
 	struct siginfo si;
 
-	if (show_unhandled_signals) {
+	if (show_unhandled_signals && unhandled_signal(tsk, sig) &&
+	    printk_ratelimit()) {
 		pr_info("%s[%d]: unhandled %s (%d) at 0x%08lx, esr 0x%03x\n",
 			tsk->comm, task_pid_nr(tsk), fault_name(esr), sig,
 			addr, esr);
@@ -129,7 +130,7 @@ static void __do_user_fault(struct task_struct *tsk, unsigned long addr,
 	force_sig_info(sig, &si, tsk);
 }
 
-void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *regs)
+static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->active_mm;
@@ -148,27 +149,11 @@ void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 #define VM_FAULT_BADACCESS	0x020000
 
 #define ESR_WRITE		(1 << 6)
+#define ESR_CM			(1 << 8)
 #define ESR_LNX_EXEC		(1 << 24)
 
-/*
- * Check that the permissions on the VMA allow for the fault which occurred.
- * If we encountered a write fault, we must have write permission, otherwise
- * we allow any permission.
- */
-static inline bool access_error(unsigned int esr, struct vm_area_struct *vma)
-{
-	unsigned int mask = VM_READ | VM_WRITE | VM_EXEC;
-
-	if (esr & ESR_WRITE)
-		mask = VM_WRITE;
-	if (esr & ESR_LNX_EXEC)
-		mask = VM_EXEC;
-
-	return vma->vm_flags & mask ? false : true;
-}
-
 static int __do_page_fault(struct mm_struct *mm, unsigned long addr,
-			   unsigned int esr, unsigned int flags,
+			   unsigned int mm_flags, unsigned long vm_flags,
 			   struct task_struct *tsk)
 {
 	struct vm_area_struct *vma;
@@ -186,12 +171,17 @@ static int __do_page_fault(struct mm_struct *mm, unsigned long addr,
 	 * it.
 	 */
 good_area:
-	if (access_error(esr, vma)) {
+	/*
+	 * Check that the permissions on the VMA allow for the fault which
+	 * occurred. If we encountered a write or exec fault, we must have
+	 * appropriate permissions, otherwise we allow any permission.
+	 */
+	if (!(vma->vm_flags & vm_flags)) {
 		fault = VM_FAULT_BADACCESS;
 		goto out;
 	}
 
-	return handle_mm_fault(mm, vma, addr & PAGE_MASK, flags);
+	return handle_mm_fault(mm, vma, addr & PAGE_MASK, mm_flags);
 
 check_stack:
 	if (vma->vm_flags & VM_GROWSDOWN && !expand_stack(vma, addr))
@@ -206,9 +196,8 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	int fault, sig, code;
-	int write = esr & ESR_WRITE;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
-		(write ? FAULT_FLAG_WRITE : 0);
+	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC;
+	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	tsk = current;
 	mm  = tsk->mm;
@@ -223,6 +212,16 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	 */
 	if (in_atomic() || !mm)
 		goto no_context;
+
+	if (user_mode(regs))
+		mm_flags |= FAULT_FLAG_USER;
+
+	if (esr & ESR_LNX_EXEC) {
+		vm_flags = VM_EXEC;
+	} else if ((esr & ESR_WRITE) && !(esr & ESR_CM)) {
+		vm_flags = VM_WRITE;
+		mm_flags |= FAULT_FLAG_WRITE;
+	}
 
 	/*
 	 * As per x86, we may deadlock here. However, since the kernel only
@@ -246,7 +245,7 @@ retry:
 #endif
 	}
 
-	fault = __do_page_fault(mm, addr, esr, flags, tsk);
+	fault = __do_page_fault(mm, addr, mm_flags, vm_flags, tsk);
 
 	/*
 	 * If we need to retry but a fatal signal is pending, handle the
@@ -263,7 +262,7 @@ retry:
 	 */
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
-	if (flags & FAULT_FLAG_ALLOW_RETRY) {
+	if (mm_flags & FAULT_FLAG_ALLOW_RETRY) {
 		if (fault & VM_FAULT_MAJOR) {
 			tsk->maj_flt++;
 			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs,
@@ -278,7 +277,7 @@ retry:
 			 * Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk of
 			 * starvation.
 			 */
-			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			mm_flags &= ~FAULT_FLAG_ALLOW_RETRY;
 			goto retry;
 		}
 	}
@@ -292,6 +291,13 @@ retry:
 			      VM_FAULT_BADACCESS))))
 		return 0;
 
+	/*
+	 * If we are in kernel mode at this point, we have no context to
+	 * handle this fault with.
+	 */
+	if (!user_mode(regs))
+		goto no_context;
+
 	if (fault & VM_FAULT_OOM) {
 		/*
 		 * We ran out of memory, call the OOM killer, and return to
@@ -301,13 +307,6 @@ retry:
 		pagefault_out_of_memory();
 		return 0;
 	}
-
-	/*
-	 * If we are in kernel mode at this point, we have no context to
-	 * handle this fault with.
-	 */
-	if (!user_mode(regs))
-		goto no_context;
 
 	if (fault & VM_FAULT_SIGBUS) {
 		/*
@@ -363,17 +362,6 @@ static int __kprobes do_translation_fault(unsigned long addr,
 }
 
 /*
- * Some section permission faults need to be handled gracefully.  They can
- * happen due to a __{get,put}_user during an oops.
- */
-static int do_sect_fault(unsigned long addr, unsigned int esr,
-			 struct pt_regs *regs)
-{
-	do_bad_area(addr, esr, regs);
-	return 0;
-}
-
-/*
  * This abort handler always returns "fault".
  */
 static int do_bad(unsigned long addr, unsigned int esr, struct pt_regs *regs)
@@ -396,12 +384,12 @@ static struct fault_info {
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 2 translation fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_MAPERR,	"level 3 translation fault"	},
 	{ do_bad,		SIGBUS,  0,		"reserved access flag fault"	},
-	{ do_bad,		SIGSEGV, SEGV_ACCERR,	"level 1 access flag fault"	},
-	{ do_bad,		SIGSEGV, SEGV_ACCERR,	"level 2 access flag fault"	},
+	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 access flag fault"	},
+	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 access flag fault"	},
 	{ do_bad,		SIGBUS,  0,		"reserved permission fault"	},
-	{ do_bad,		SIGSEGV, SEGV_ACCERR,	"level 1 permission fault"	},
-	{ do_sect_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 permission fault"	},
+	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 permission fault"	},
+	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 permission fault"	},
 	{ do_bad,		SIGBUS,  0,		"synchronous external abort"	},
 	{ do_bad,		SIGBUS,  0,		"asynchronous external abort"	},

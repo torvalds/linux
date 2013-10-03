@@ -125,6 +125,9 @@
 #ifndef NSEC_PER_SEC
 # define NSEC_PER_SEC			1000000000ULL
 #endif
+#ifndef NSEC_PER_USEC
+# define NSEC_PER_USEC			1000ULL
+#endif
 
 static inline unsigned long long rdclock(void)
 {
@@ -218,6 +221,7 @@ struct perf_record_opts {
 	bool	     pipe_output;
 	bool	     raw_samples;
 	bool	     sample_address;
+	bool	     sample_weight;
 	bool	     sample_time;
 	bool	     period;
 	unsigned int freq;

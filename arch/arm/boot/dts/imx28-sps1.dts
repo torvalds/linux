@@ -70,7 +70,6 @@
 			i2c0: i2c@80058000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins_a>;
-				clock-frequency = <400000>;
 				status = "okay";
 
 				rtc: rtc@51 {

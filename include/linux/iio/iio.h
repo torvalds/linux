@@ -38,76 +38,6 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_HYSTERESIS,
 };
 
-#define IIO_CHAN_INFO_SHARED_BIT(type) BIT(type*2)
-#define IIO_CHAN_INFO_SEPARATE_BIT(type) BIT(type*2 + 1)
-#define IIO_CHAN_INFO_BITS(type) (IIO_CHAN_INFO_SHARED_BIT(type) | \
-				    IIO_CHAN_INFO_SEPARATE_BIT(type))
-
-#define IIO_CHAN_INFO_RAW_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_RAW)
-#define IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_PROCESSED)
-#define IIO_CHAN_INFO_SCALE_SEPARATE_BIT		\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_SCALE)
-#define IIO_CHAN_INFO_SCALE_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_SCALE)
-#define IIO_CHAN_INFO_OFFSET_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_OFFSET)
-#define IIO_CHAN_INFO_OFFSET_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_OFFSET)
-#define IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_CALIBSCALE)
-#define IIO_CHAN_INFO_CALIBSCALE_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_CALIBSCALE)
-#define IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_CALIBBIAS)
-#define IIO_CHAN_INFO_CALIBBIAS_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_CALIBBIAS)
-#define IIO_CHAN_INFO_PEAK_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_PEAK)
-#define IIO_CHAN_INFO_PEAK_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_PEAK)
-#define IIO_CHAN_INFO_PEAKSCALE_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_PEAKSCALE)
-#define IIO_CHAN_INFO_PEAKSCALE_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_PEAKSCALE)
-#define IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT	\
-	IIO_CHAN_INFO_SEPARATE_BIT(				\
-		IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW)
-#define IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED_BIT	\
-	IIO_CHAN_INFO_SHARED_BIT(				\
-		IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW)
-#define IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_AVERAGE_RAW)
-#define IIO_CHAN_INFO_AVERAGE_RAW_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_AVERAGE_RAW)
-#define IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SHARED_BIT \
-	IIO_CHAN_INFO_SHARED_BIT(			       \
-		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY)
-#define IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SEPARATE_BIT \
-	IIO_CHAN_INFO_SEPARATE_BIT(			       \
-		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY)
-#define IIO_CHAN_INFO_SAMP_FREQ_SEPARATE_BIT		\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_SAMP_FREQ)
-#define IIO_CHAN_INFO_SAMP_FREQ_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_SAMP_FREQ)
-#define IIO_CHAN_INFO_FREQUENCY_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_FREQUENCY)
-#define IIO_CHAN_INFO_FREQUENCY_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_FREQUENCY)
-#define IIO_CHAN_INFO_PHASE_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_PHASE)
-#define IIO_CHAN_INFO_PHASE_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_PHASE)
-#define IIO_CHAN_INFO_HARDWAREGAIN_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_HARDWAREGAIN)
-#define IIO_CHAN_INFO_HARDWAREGAIN_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_HARDWAREGAIN)
-#define IIO_CHAN_INFO_HYSTERESIS_SEPARATE_BIT			\
-	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_HYSTERESIS)
-#define IIO_CHAN_INFO_HYSTERESIS_SHARED_BIT			\
-	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_HYSTERESIS)
-
 enum iio_endian {
 	IIO_CPU,
 	IIO_BE,
@@ -218,6 +148,10 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  *			endianness:	little or big endian
  * @info_mask:		What information is to be exported about this channel.
  *			This includes calibbias, scale etc.
+ * @info_mask_separate: What information is to be exported that is specific to
+ *			this channel.
+ * @info_mask_shared_by_type: What information is to be exported that is shared
+*			by all channels of the same type.
  * @event_mask:		What events can this channel produce.
  * @ext_info:		Array of extended info attributes for this channel.
  *			The array is NULL terminated, the last element should
@@ -253,6 +187,8 @@ struct iio_chan_spec {
 		enum iio_endian endianness;
 	} scan_type;
 	long			info_mask;
+	long			info_mask_separate;
+	long			info_mask_shared_by_type;
 	long			event_mask;
 	const struct iio_chan_spec_ext_info *ext_info;
 	const char		*extend_name;
@@ -275,7 +211,8 @@ struct iio_chan_spec {
 static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
 	enum iio_chan_info_enum type)
 {
-	return chan->info_mask & IIO_CHAN_INFO_BITS(type);
+	return (chan->info_mask_separate & BIT(type)) |
+	       (chan->info_mask_shared_by_type & BIT(type));
 }
 
 #define IIO_ST(si, rb, sb, sh)						\
@@ -593,6 +530,60 @@ static inline struct iio_dev *iio_priv_to_dev(void *priv)
  * @indio_dev: 		the iio_dev associated with the device
  **/
 void iio_device_free(struct iio_dev *indio_dev);
+
+/**
+ * devm_iio_device_alloc - Resource-managed iio_device_alloc()
+ * @dev: 		Device to allocate iio_dev for
+ * @sizeof_priv: 	Space to allocate for private structure.
+ *
+ * Managed iio_device_alloc.  iio_dev allocated with this function is
+ * automatically freed on driver detach.
+ *
+ * If an iio_dev allocated with this function needs to be freed separately,
+ * devm_iio_device_free() must be used.
+ *
+ * RETURNS:
+ * Pointer to allocated iio_dev on success, NULL on failure.
+ */
+struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv);
+
+/**
+ * devm_iio_device_free - Resource-managed iio_device_free()
+ * @dev:		Device this iio_dev belongs to
+ * @indio_dev: 		the iio_dev associated with the device
+ *
+ * Free iio_dev allocated with devm_iio_device_alloc().
+ */
+void devm_iio_device_free(struct device *dev, struct iio_dev *indio_dev);
+
+/**
+ * devm_iio_trigger_alloc - Resource-managed iio_trigger_alloc()
+ * @dev:		Device to allocate iio_trigger for
+ * @fmt:		trigger name format. If it includes format
+ *			specifiers, the additional arguments following
+ *			format are formatted and inserted in the resulting
+ *			string replacing their respective specifiers.
+ *
+ * Managed iio_trigger_alloc.  iio_trigger allocated with this function is
+ * automatically freed on driver detach.
+ *
+ * If an iio_trigger allocated with this function needs to be freed separately,
+ * devm_iio_trigger_free() must be used.
+ *
+ * RETURNS:
+ * Pointer to allocated iio_trigger on success, NULL on failure.
+ */
+struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
+						const char *fmt, ...);
+
+/**
+ * devm_iio_trigger_free - Resource-managed iio_trigger_free()
+ * @dev:		Device this iio_dev belongs to
+ * @iio_trig:		the iio_trigger associated with the device
+ *
+ * Free iio_trigger allocated with devm_iio_trigger_alloc().
+ */
+void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig);
 
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled

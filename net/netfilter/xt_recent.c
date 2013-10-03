@@ -401,8 +401,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 		ret = -ENOMEM;
 		goto out;
 	}
-	pde->uid = uid;
-	pde->gid = gid;
+	proc_set_user(pde, uid, gid);
 #endif
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &recent_net->tables);
@@ -525,14 +524,13 @@ static const struct seq_operations recent_seq_ops = {
 
 static int recent_seq_open(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry *pde = PDE(inode);
 	struct recent_iter_state *st;
 
 	st = __seq_open_private(file, &recent_seq_ops, sizeof(*st));
 	if (st == NULL)
 		return -ENOMEM;
 
-	st->table    = pde->data;
+	st->table    = PDE_DATA(inode);
 	return 0;
 }
 
@@ -540,8 +538,7 @@ static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
 {
-	const struct proc_dir_entry *pde = PDE(file_inode(file));
-	struct recent_table *t = pde->data;
+	struct recent_table *t = PDE_DATA(file_inode(file));
 	struct recent_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
 	const char *c = buf;

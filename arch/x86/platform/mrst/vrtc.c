@@ -56,7 +56,7 @@ void vrtc_cmos_write(unsigned char val, unsigned char reg)
 }
 EXPORT_SYMBOL_GPL(vrtc_cmos_write);
 
-unsigned long vrtc_get_time(void)
+void vrtc_get_time(struct timespec *now)
 {
 	u8 sec, min, hour, mday, mon;
 	unsigned long flags;
@@ -82,30 +82,39 @@ unsigned long vrtc_get_time(void)
 	printk(KERN_INFO "vRTC: sec: %d min: %d hour: %d day: %d "
 		"mon: %d year: %d\n", sec, min, hour, mday, mon, year);
 
-	return mktime(year, mon, mday, hour, min, sec);
+	now->tv_sec = mktime(year, mon, mday, hour, min, sec);
+	now->tv_nsec = 0;
 }
 
-/* Only care about the minutes and seconds */
-int vrtc_set_mmss(unsigned long nowtime)
+int vrtc_set_mmss(const struct timespec *now)
 {
-	int real_sec, real_min;
 	unsigned long flags;
-	int vrtc_min;
+	struct rtc_time tm;
+	int year;
+	int retval = 0;
 
-	spin_lock_irqsave(&rtc_lock, flags);
-	vrtc_min = vrtc_cmos_read(RTC_MINUTES);
-
-	real_sec = nowtime % 60;
-	real_min = nowtime / 60;
-	if (((abs(real_min - vrtc_min) + 15)/30) & 1)
-		real_min += 30;
-	real_min %= 60;
-
-	vrtc_cmos_write(real_sec, RTC_SECONDS);
-	vrtc_cmos_write(real_min, RTC_MINUTES);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return 0;
+	rtc_time_to_tm(now->tv_sec, &tm);
+	if (!rtc_valid_tm(&tm) && tm.tm_year >= 72) {
+		/*
+		 * tm.year is the number of years since 1900, and the
+		 * vrtc need the years since 1972.
+		 */
+		year = tm.tm_year - 72;
+		spin_lock_irqsave(&rtc_lock, flags);
+		vrtc_cmos_write(year, RTC_YEAR);
+		vrtc_cmos_write(tm.tm_mon, RTC_MONTH);
+		vrtc_cmos_write(tm.tm_mday, RTC_DAY_OF_MONTH);
+		vrtc_cmos_write(tm.tm_hour, RTC_HOURS);
+		vrtc_cmos_write(tm.tm_min, RTC_MINUTES);
+		vrtc_cmos_write(tm.tm_sec, RTC_SECONDS);
+		spin_unlock_irqrestore(&rtc_lock, flags);
+	} else {
+		printk(KERN_ERR
+		       "%s: Invalid vRTC value: write of %lx to vRTC failed\n",
+			__FUNCTION__, now->tv_sec);
+		retval = -EINVAL;
+	}
+	return retval;
 }
 
 void __init mrst_rtc_init(void)

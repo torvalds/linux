@@ -161,6 +161,13 @@ static int hwahc_op_start(struct usb_hcd *usb_hcd)
 	usb_hcd->uses_new_polling = 1;
 	set_bit(HCD_FLAG_POLL_RH, &usb_hcd->flags);
 	usb_hcd->state = HC_STATE_RUNNING;
+
+	/*
+	 * prevent USB core from suspending the root hub since
+	 * bus_suspend and bus_resume are not yet supported.
+	 */
+	pm_runtime_get_noresume(&usb_hcd->self.root_hub->dev);
+
 	result = 0;
 out:
 	mutex_unlock(&wusbhc->mutex);
@@ -577,7 +584,7 @@ static struct hc_driver hwahc_hc_driver = {
 	.product_desc = "Wireless USB HWA host controller",
 	.hcd_priv_size = sizeof(struct hwahc) - sizeof(struct usb_hcd),
 	.irq = NULL,			/* FIXME */
-	.flags = HCD_USB2,		/* FIXME */
+	.flags = HCD_USB25,
 	.reset = hwahc_op_reset,
 	.start = hwahc_op_start,
 	.stop = hwahc_op_stop,
@@ -588,8 +595,6 @@ static struct hc_driver hwahc_hc_driver = {
 
 	.hub_status_data = wusbhc_rh_status_data,
 	.hub_control = wusbhc_rh_control,
-	.bus_suspend = wusbhc_rh_suspend,
-	.bus_resume = wusbhc_rh_resume,
 	.start_port_reset = wusbhc_rh_start_port_reset,
 };
 
@@ -685,12 +690,9 @@ static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface)
 	wa->usb_dev = usb_get_dev(usb_dev);	/* bind the USB device */
 	wa->usb_iface = usb_get_intf(iface);
 	wusbhc->dev = dev;
-	wusbhc->uwb_rc = uwb_rc_get_by_grandpa(iface->dev.parent);
-	if (wusbhc->uwb_rc == NULL) {
-		result = -ENODEV;
-		dev_err(dev, "Cannot get associated UWB Host Controller\n");
-		goto error_rc_get;
-	}
+	/* defer getting the uwb_rc handle until it is needed since it
+	 * may not have been registered by the hwa_rc driver yet. */
+	wusbhc->uwb_rc = NULL;
 	result = wa_fill_descr(wa);	/* Get the device descriptor */
 	if (result < 0)
 		goto error_fill_descriptor;
@@ -733,8 +735,6 @@ error_wusbhc_create:
 	/* WA Descr fill allocs no resources */
 error_security_create:
 error_fill_descriptor:
-	uwb_rc_put(wusbhc->uwb_rc);
-error_rc_get:
 	usb_put_intf(iface);
 	usb_put_dev(usb_dev);
 	return result;
@@ -776,6 +776,7 @@ static int hwahc_probe(struct usb_interface *usb_iface,
 		goto error_alloc;
 	}
 	usb_hcd->wireless = 1;
+	usb_hcd->self.sg_tablesize = ~0;
 	wusbhc = usb_hcd_to_wusbhc(usb_hcd);
 	hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	hwahc_init(hwahc);

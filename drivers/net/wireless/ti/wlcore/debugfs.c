@@ -598,8 +598,7 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 		VIF_STATE_PRINT_INT(last_rssi_event);
 		VIF_STATE_PRINT_INT(ba_support);
 		VIF_STATE_PRINT_INT(ba_allowed);
-		VIF_STATE_PRINT_LLHEX(tx_security_seq);
-		VIF_STATE_PRINT_INT(tx_security_last_seq_lsb);
+		VIF_STATE_PRINT_LLHEX(total_freed_pkts);
 	}
 
 #undef VIF_STATE_PRINT_INT
@@ -1057,7 +1056,7 @@ static ssize_t dev_mem_read(struct file *file,
 		return -EINVAL;
 
 	memset(&part, 0, sizeof(part));
-	part.mem.start = file->f_pos;
+	part.mem.start = *ppos;
 	part.mem.size = bytes;
 
 	buf = kmalloc(bytes, GFP_KERNEL);
@@ -1138,7 +1137,7 @@ static ssize_t dev_mem_write(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 
 	memset(&part, 0, sizeof(part));
-	part.mem.start = file->f_pos;
+	part.mem.start = *ppos;
 	part.mem.size = bytes;
 
 	buf = kmalloc(bytes, GFP_KERNEL);

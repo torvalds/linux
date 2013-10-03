@@ -8,7 +8,7 @@
  * kind, whether express or implied.
  */
 
-/include/ "omap2.dtsi"
+#include "omap2.dtsi"
 
 / {
 	compatible = "ti,omap2430", "ti,omap2";
@@ -29,6 +29,76 @@
 			pinctrl-single,function-mask = <0x3f>;
 		};
 
+		gpio1: gpio@4900c000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4900c000 0x200>;
+			interrupts = <29>;
+			ti,hwmods = "gpio1";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio2: gpio@4900e000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4900e000 0x200>;
+			interrupts = <30>;
+			ti,hwmods = "gpio2";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio3: gpio@49010000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x49010000 0x200>;
+			interrupts = <31>;
+			ti,hwmods = "gpio3";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio4: gpio@49012000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x49012000 0x200>;
+			interrupts = <32>;
+			ti,hwmods = "gpio4";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio5: gpio@480b6000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x480b6000 0x200>;
+			interrupts = <33>;
+			ti,hwmods = "gpio5";
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpmc: gpmc@6e000000 {
+			compatible = "ti,omap2430-gpmc";
+			reg = <0x6e000000 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			interrupts = <20>;
+			gpmc,num-cs = <8>;
+			gpmc,num-waitpins = <4>;
+			ti,hwmods = "gpmc";
+		};
+
 		mcbsp1: mcbsp@48074000 {
 			compatible = "ti,omap2430-mcbsp";
 			reg = <0x48074000 0xff>;
@@ -40,6 +110,9 @@
 			interrupt-names = "common", "tx", "rx", "rx_overflow";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp1";
+			dmas = <&sdma 31>,
+			       <&sdma 32>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp2: mcbsp@48076000 {
@@ -52,6 +125,9 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp2";
+			dmas = <&sdma 33>,
+			       <&sdma 34>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp3: mcbsp@4808c000 {
@@ -64,6 +140,9 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp3";
+			dmas = <&sdma 17>,
+			       <&sdma 18>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp4: mcbsp@4808e000 {
@@ -76,6 +155,9 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp4";
+			dmas = <&sdma 19>,
+			       <&sdma 20>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp5: mcbsp@48096000 {
@@ -88,10 +170,13 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp5";
+			dmas = <&sdma 21>,
+			       <&sdma 22>;
+			dma-names = "tx", "rx";
 		};
 
 		timer1: timer@49018000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap2420-timer";
 			reg = <0x49018000 0x400>;
 			interrupts = <37>;
 			ti,hwmods = "timer1";

@@ -482,7 +482,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 {
 	struct iphdr *iph;
 	int room;
-	struct icmp_bxm icmp_param;
+	struct icmp_bxm *icmp_param;
 	struct rtable *rt = skb_rtable(skb_in);
 	struct ipcm_cookie ipc;
 	struct flowi4 fl4;
@@ -503,7 +503,8 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	iph = ip_hdr(skb_in);
 
 	if ((u8 *)iph < skb_in->head ||
-	    (skb_in->network_header + sizeof(*iph)) > skb_in->tail)
+	    (skb_network_header(skb_in) + sizeof(*iph)) >
+	    skb_tail_pointer(skb_in))
 		goto out;
 
 	/*
@@ -557,9 +558,13 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		}
 	}
 
+	icmp_param = kmalloc(sizeof(*icmp_param), GFP_ATOMIC);
+	if (!icmp_param)
+		return;
+
 	sk = icmp_xmit_lock(net);
 	if (sk == NULL)
-		return;
+		goto out_free;
 
 	/*
 	 *	Construct source address and options.
@@ -585,7 +590,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 					   IPTOS_PREC_INTERNETCONTROL) :
 					  iph->tos;
 
-	if (ip_options_echo(&icmp_param.replyopts.opt.opt, skb_in))
+	if (ip_options_echo(&icmp_param->replyopts.opt.opt, skb_in))
 		goto out_unlock;
 
 
@@ -593,19 +598,19 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	 *	Prepare data for ICMP header.
 	 */
 
-	icmp_param.data.icmph.type	 = type;
-	icmp_param.data.icmph.code	 = code;
-	icmp_param.data.icmph.un.gateway = info;
-	icmp_param.data.icmph.checksum	 = 0;
-	icmp_param.skb	  = skb_in;
-	icmp_param.offset = skb_network_offset(skb_in);
+	icmp_param->data.icmph.type	 = type;
+	icmp_param->data.icmph.code	 = code;
+	icmp_param->data.icmph.un.gateway = info;
+	icmp_param->data.icmph.checksum	 = 0;
+	icmp_param->skb	  = skb_in;
+	icmp_param->offset = skb_network_offset(skb_in);
 	inet_sk(sk)->tos = tos;
 	ipc.addr = iph->saddr;
-	ipc.opt = &icmp_param.replyopts.opt;
+	ipc.opt = &icmp_param->replyopts.opt;
 	ipc.tx_flags = 0;
 
 	rt = icmp_route_lookup(net, &fl4, skb_in, iph, saddr, tos,
-			       type, code, &icmp_param);
+			       type, code, icmp_param);
 	if (IS_ERR(rt))
 		goto out_unlock;
 
@@ -617,19 +622,21 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	room = dst_mtu(&rt->dst);
 	if (room > 576)
 		room = 576;
-	room -= sizeof(struct iphdr) + icmp_param.replyopts.opt.opt.optlen;
+	room -= sizeof(struct iphdr) + icmp_param->replyopts.opt.opt.optlen;
 	room -= sizeof(struct icmphdr);
 
-	icmp_param.data_len = skb_in->len - icmp_param.offset;
-	if (icmp_param.data_len > room)
-		icmp_param.data_len = room;
-	icmp_param.head_len = sizeof(struct icmphdr);
+	icmp_param->data_len = skb_in->len - icmp_param->offset;
+	if (icmp_param->data_len > room)
+		icmp_param->data_len = room;
+	icmp_param->head_len = sizeof(struct icmphdr);
 
-	icmp_push_reply(&icmp_param, &fl4, &ipc, &rt);
+	icmp_push_reply(icmp_param, &fl4, &ipc, &rt);
 ende:
 	ip_rt_put(rt);
 out_unlock:
 	icmp_xmit_unlock(sk);
+out_free:
+	kfree(icmp_param);
 out:;
 }
 EXPORT_SYMBOL(icmp_send);
@@ -657,7 +664,8 @@ static void icmp_socket_deliver(struct sk_buff *skb, u32 info)
 }
 
 /*
- *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEED, and ICMP_QUENCH.
+ *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEED, ICMP_QUENCH, and
+ *	ICMP_PARAMETERPROB.
  */
 
 static void icmp_unreach(struct sk_buff *skb)
@@ -881,7 +889,7 @@ int icmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_NONE:
 		skb->csum = 0;
 		if (__skb_checksum_complete(skb))
-			goto error;
+			goto csum_error;
 	}
 
 	if (!pskb_pull(skb, sizeof(*icmph)))
@@ -929,6 +937,8 @@ int icmp_rcv(struct sk_buff *skb)
 drop:
 	kfree_skb(skb);
 	return 0;
+csum_error:
+	ICMP_INC_STATS_BH(net, ICMP_MIB_CSUMERRORS);
 error:
 	ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 	goto drop;
@@ -937,7 +947,8 @@ error:
 void icmp_err(struct sk_buff *skb, u32 info)
 {
 	struct iphdr *iph = (struct iphdr *)skb->data;
-	struct icmphdr *icmph = (struct icmphdr *)(skb->data+(iph->ihl<<2));
+	int offset = iph->ihl<<2;
+	struct icmphdr *icmph = (struct icmphdr *)(skb->data + offset);
 	int type = icmp_hdr(skb)->type;
 	int code = icmp_hdr(skb)->code;
 	struct net *net = dev_net(skb->dev);
@@ -947,7 +958,7 @@ void icmp_err(struct sk_buff *skb, u32 info)
 	 * triggered by ICMP_ECHOREPLY which sent from kernel.
 	 */
 	if (icmph->type != ICMP_ECHOREPLY) {
-		ping_err(skb, info);
+		ping_err(skb, offset, info);
 		return;
 	}
 

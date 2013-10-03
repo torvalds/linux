@@ -30,7 +30,7 @@
 #include <subdev/bios/dcb.h>
 
 #include <drm/drm_encoder_slave.h>
-#include "nv04_display.h"
+#include "dispnv04/disp.h"
 
 #define NV_DPMS_CLEARED 0x80
 

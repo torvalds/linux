@@ -152,6 +152,8 @@
 			compatible = "fsl,mpc5121-sdhc";
 			reg = <0x1500 0x100>;
 			interrupts = <8 0x8>;
+			dmas = <&dma0 30>;
+			dma-names = "rx-tx";
 		};
 
 		i2c@1700 {
@@ -384,7 +386,7 @@
 			interrupts = <40 0x8>;
 		};
 
-		dma@14000 {
+		dma0: dma@14000 {
 			compatible = "fsl,mpc5121-dma";
 			reg = <0x14000 0x1800>;
 			interrupts = <65 0x8>;

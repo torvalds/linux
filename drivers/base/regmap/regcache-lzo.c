@@ -260,8 +260,7 @@ static int regcache_lzo_read(struct regmap *map,
 	ret = regcache_lzo_decompress_cache_block(map, lzo_block);
 	if (ret >= 0)
 		/* fetch the value from the cache */
-		*value = regcache_get_val(lzo_block->dst, blkpos,
-					  map->cache_word_size);
+		*value = regcache_get_val(map, lzo_block->dst, blkpos);
 
 	kfree(lzo_block->dst);
 	/* restore the pointer and length of the compressed block */
@@ -304,8 +303,7 @@ static int regcache_lzo_write(struct regmap *map,
 	}
 
 	/* write the new value to the cache */
-	if (regcache_set_val(lzo_block->dst, blkpos, value,
-			     map->cache_word_size)) {
+	if (regcache_set_val(map, lzo_block->dst, blkpos, value)) {
 		kfree(lzo_block->dst);
 		goto out;
 	}

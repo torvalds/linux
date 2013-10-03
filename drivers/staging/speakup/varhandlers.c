@@ -137,18 +137,15 @@ struct st_var_header *spk_get_var_header(enum var_id_t var_id)
 struct st_var_header *spk_var_header_by_name(const char *name)
 {
 	int i;
-	struct st_var_header *where = NULL;
 
-	if (name != NULL) {
-		i = 0;
-		while ((i < MAXVARS) && (where == NULL)) {
-			if (strcmp(name, var_ptrs[i]->name) == 0)
-				where = var_ptrs[i];
-			else
-				i++;
-		}
+	if (!name)
+		return NULL;
+
+	for (i = 0; i < MAXVARS; i++) {
+		if (strcmp(name, var_ptrs[i]->name) == 0)
+			return var_ptrs[i];
 	}
-	return where;
+	return NULL;
 }
 
 struct var_t *spk_get_var(enum var_id_t var_id)
@@ -184,19 +181,19 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	char buf[32];
 	char *cp;
 	struct var_t *var_data = var->data;
+
 	if (var_data == NULL)
-		return E_UNDEF;
+		return -ENODATA;
 
 	if (how == E_NEW_DEFAULT) {
 		if (input < var_data->u.n.low || input > var_data->u.n.high)
-			ret = E_RANGE;
-		else
-			var_data->u.n.default_val = input;
-		return ret;
+			return -ERANGE;
+		var_data->u.n.default_val = input;
+		return 0;
 	}
 	if (how == E_DEFAULT) {
 		val = var_data->u.n.default_val;
-		ret = SET_DEFAULT;
+		ret = -ERESTART;
 	} else {
 		if (how == E_SET)
 			val = input;
@@ -207,7 +204,7 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 		else if (how == E_DEC)
 			val -= input;
 		if (val < var_data->u.n.low || val > var_data->u.n.high)
-			return E_RANGE;
+			return -ERANGE;
 	}
 	var_data->u.n.value = val;
 	if (var->var_type == VAR_TIME && p_val != NULL) {
@@ -246,25 +243,25 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 
 int spk_set_string_var(const char *page, struct st_var_header *var, int len)
 {
-	int ret = 0;
 	struct var_t *var_data = var->data;
+
 	if (var_data == NULL)
-		return E_UNDEF;
+		return -ENODATA;
 	if (len > MAXVARLEN)
-		return -E_TOOLONG;
+		return -E2BIG;
 	if (!len) {
 		if (!var_data->u.s.default_val)
 			return 0;
-		ret = SET_DEFAULT;
 		if (!var->p_val)
 			var->p_val = var_data->u.s.default_val;
 		if (var->p_val != var_data->u.s.default_val)
 			strcpy((char *)var->p_val, var_data->u.s.default_val);
+		return -ERESTART;
 	} else if (var->p_val)
 		strcpy((char *)var->p_val, page);
 	else
-		return -E_TOOLONG;
-	return ret;
+		return -E2BIG;
+	return 0;
 }
 
 /* spk_set_mask_bits sets or clears the punc/delim/repeat bits,
@@ -280,7 +277,7 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 			spk_chartab[*cp] &= ~mask;
 	}
 	cp = (u_char *)input;
-	if (cp == 0)
+	if (!cp)
 		cp = spk_punc_info[which].value;
 	else {
 		for ( ; *cp; cp++) {
@@ -319,86 +316,12 @@ char *spk_strlwr(char *s)
 	return s;
 }
 
-char *speakup_s2i(char *start, int *dest)
-{
-	int val;
-	char ch = *start;
-	if (ch == '-' || ch == '+')
-		start++;
-	if (*start < '0' || *start > '9')
-		return start;
-	val = (*start) - '0';
-	start++;
-	while (*start >= '0' && *start <= '9') {
-		val *= 10;
-		val += (*start) - '0';
-		start++;
-	}
-	if (ch == '-')
-		*dest = -val;
-	else
-		*dest = val;
-	return start;
-}
-
 char *spk_s2uchar(char *start, char *dest)
 {
 	int val = 0;
-	while (*start && *start <= SPACE)
-		start++;
-	while (*start >= '0' && *start <= '9') {
-		val *= 10;
-		val += (*start) - '0';
-		start++;
-	}
+	val = simple_strtoul(skip_spaces(start), &start, 10);
 	if (*start == ',')
 		start++;
 	*dest = (u_char)val;
 	return start;
-}
-
-char *spk_xlate(char *s)
-{
-	static const char finds[] = "nrtvafe";
-	static const char subs[] = "\n\r\t\013\001\014\033";
-	static const char hx[] = "0123456789abcdefABCDEF";
-	char *p = s, *p1, *p2, c;
-	int num;
-	while ((p = strchr(p, '\\'))) {
-		p1 = p+1;
-		p2 = strchr(finds, *p1);
-		if (p2) {
-			*p++ = subs[p2-finds];
-			p1++;
-		} else if (*p1 >= '0' && *p1 <= '7') {
-			num = (*p1++)&7;
-			while (num < 256 && *p1 >= '0' && *p1 <= '7') {
-				num <<= 3;
-				num = (*p1++)&7;
-			}
-			*p++ = num;
-		} else if (*p1 == 'x' &&
-				strchr(hx, p1[1]) && strchr(hx, p1[2])) {
-			p1++;
-			c = *p1++;
-			if (c > '9')
-				c = (c - '7') & 0x0f;
-			else
-				c -= '0';
-			num = c << 4;
-			c = *p1++;
-			if (c > '9')
-				c = (c-'7')&0x0f;
-			else
-				c -= '0';
-			num += c;
-			*p++ = num;
-		} else
-			*p++ = *p1++;
-		p2 = p;
-		while (*p1)
-			*p2++ = *p1++;
-		*p2 = '\0';
-	}
-	return s;
 }

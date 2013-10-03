@@ -10,7 +10,6 @@
 #include <linux/kprobes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
@@ -518,8 +517,7 @@ int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 	return 0;
 }
 
-void trap_is_kprobe(unsigned long cause, unsigned long address,
-		    struct pt_regs *regs)
+void trap_is_kprobe(unsigned long address, struct pt_regs *regs)
 {
-	notify_die(DIE_TRAP, "kprobe_trap", regs, address, cause, SIGTRAP);
+	notify_die(DIE_TRAP, "kprobe_trap", regs, address, 0, SIGTRAP);
 }

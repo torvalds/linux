@@ -21,6 +21,8 @@
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
 
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/linkage.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -54,6 +56,7 @@
 #include <xen/interface/hvm/params.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/sched.h>
+#include <xen/interface/vcpu.h>
 #include <asm/hw_irq.h>
 
 /*
@@ -85,8 +88,7 @@ enum xen_irq_type {
  * event channel - irq->event channel mapping
  * cpu - cpu this event channel is bound to
  * index - type-specific information:
- *    PIRQ - vector, with MSB being "needs EIO", or physical IRQ of the HVM
- *           guest, or GSI (real passthrough IRQ) of the device.
+ *    PIRQ - physical IRQ, GSI, flags, and owner domain
  *    VIRQ - virq number
  *    IPI - IPI vector
  *    EVTCHN -
@@ -105,7 +107,6 @@ struct irq_info {
 		struct {
 			unsigned short pirq;
 			unsigned short gsi;
-			unsigned char vector;
 			unsigned char flags;
 			uint16_t domid;
 		} pirq;
@@ -169,6 +170,8 @@ static void xen_irq_info_common_init(struct irq_info *info,
 	info->cpu = cpu;
 
 	evtchn_to_irq[evtchn] = irq;
+
+	irq_clear_status_flags(irq, IRQ_NOREQUEST|IRQ_NOAUTOEN);
 }
 
 static void xen_irq_info_evtchn_init(unsigned irq,
@@ -211,7 +214,6 @@ static void xen_irq_info_pirq_init(unsigned irq,
 				   unsigned short evtchn,
 				   unsigned short pirq,
 				   unsigned short gsi,
-				   unsigned short vector,
 				   uint16_t domid,
 				   unsigned char flags)
 {
@@ -221,7 +223,6 @@ static void xen_irq_info_pirq_init(unsigned irq,
 
 	info->u.pirq.pirq = pirq;
 	info->u.pirq.gsi = gsi;
-	info->u.pirq.vector = vector;
 	info->u.pirq.domid = domid;
 	info->u.pirq.flags = flags;
 }
@@ -348,7 +349,7 @@ static void init_evtchn_cpu_bindings(void)
 
 	for_each_possible_cpu(i)
 		memset(per_cpu(cpu_evtchn_mask, i),
-		       (i == 0) ? ~0 : 0, sizeof(*per_cpu(cpu_evtchn_mask, i)));
+		       (i == 0) ? ~0 : 0, NR_EVENT_CHANNELS/8);
 }
 
 static inline void clear_evtchn(int port)
@@ -519,6 +520,9 @@ static void xen_free_irq(unsigned irq)
 {
 	struct irq_info *info = irq_get_handler_data(irq);
 
+	if (WARN_ON(!info))
+		return;
+
 	list_del(&info->list);
 
 	irq_set_handler_data(irq, NULL);
@@ -599,8 +603,7 @@ static unsigned int __startup_pirq(unsigned int irq)
 	rc = HYPERVISOR_event_channel_op(EVTCHNOP_bind_pirq, &bind_pirq);
 	if (rc != 0) {
 		if (!probing_irq(irq))
-			printk(KERN_INFO "Failed to obtain physical IRQ %d\n",
-			       irq);
+			pr_info("Failed to obtain physical IRQ %d\n", irq);
 		return 0;
 	}
 	evtchn = bind_pirq.port;
@@ -692,8 +695,8 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 
 	irq = xen_irq_from_gsi(gsi);
 	if (irq != -1) {
-		printk(KERN_INFO "xen_map_pirq_gsi: returning irq %d for gsi %u\n",
-		       irq, gsi);
+		pr_info("%s: returning irq %d for gsi %u\n",
+			__func__, irq, gsi);
 		goto out;
 	}
 
@@ -714,7 +717,7 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 		goto out;
 	}
 
-	xen_irq_info_pirq_init(irq, 0, pirq, gsi, irq_op.vector, DOMID_SELF,
+	xen_irq_info_pirq_init(irq, 0, pirq, gsi, DOMID_SELF,
 			       shareable ? PIRQ_SHAREABLE : 0);
 
 	pirq_query_unmask(irq);
@@ -762,8 +765,7 @@ int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc)
 }
 
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, int vector, const char *name,
-			     domid_t domid)
+			     int pirq, const char *name, domid_t domid)
 {
 	int irq, ret;
 
@@ -776,7 +778,7 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_edge_irq,
 			name);
 
-	xen_irq_info_pirq_init(irq, 0, pirq, 0, vector, domid, 0);
+	xen_irq_info_pirq_init(irq, 0, pirq, 0, domid, 0);
 	ret = irq_set_msi_desc(irq, msidesc);
 	if (ret < 0)
 		goto error_irq;
@@ -812,10 +814,10 @@ int xen_destroy_irq(int irq)
 		 * (free_domain_pirqs).
 		 */
 		if ((rc == -ESRCH && info->u.pirq.domid != DOMID_SELF))
-			printk(KERN_INFO "domain %d does not have %d anymore\n",
+			pr_info("domain %d does not have %d anymore\n",
 				info->u.pirq.domid, info->u.pirq.pirq);
 		else if (rc) {
-			printk(KERN_WARNING "unmap irq failed %d\n", rc);
+			pr_warn("unmap irq failed %d\n", rc);
 			goto out;
 		}
 	}
@@ -876,7 +878,6 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 		struct irq_info *info = info_for_irq(irq);
 		WARN_ON(info == NULL || info->type != IRQT_EVTCHN);
 	}
-	irq_clear_status_flags(irq, IRQ_NOREQUEST|IRQ_NOAUTOEN);
 
 out:
 	mutex_unlock(&irq_mapping_update_lock);
@@ -1008,6 +1009,9 @@ static void unbind_from_irq(unsigned int irq)
 	int evtchn = evtchn_from_irq(irq);
 	struct irq_info *info = irq_get_handler_data(irq);
 
+	if (WARN_ON(!info))
+		return;
+
 	mutex_lock(&irq_mapping_update_lock);
 
 	if (info->refcnt > 0) {
@@ -1135,6 +1139,10 @@ int bind_ipi_to_irqhandler(enum ipi_vector ipi,
 
 void unbind_from_irqhandler(unsigned int irq, void *dev_id)
 {
+	struct irq_info *info = irq_get_handler_data(irq);
+
+	if (WARN_ON(!info))
+		return;
 	free_irq(irq, dev_id);
 	unbind_from_irq(irq);
 }
@@ -1205,7 +1213,17 @@ EXPORT_SYMBOL_GPL(evtchn_put);
 
 void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector)
 {
-	int irq = per_cpu(ipi_to_irq, cpu)[vector];
+	int irq;
+
+#ifdef CONFIG_X86
+	if (unlikely(vector == XEN_NMI_VECTOR)) {
+		int rc =  HYPERVISOR_vcpu_op(VCPUOP_send_nmi, cpu, NULL);
+		if (rc < 0)
+			printk(KERN_WARNING "Sending nmi to CPU%d failed (rc:%d)\n", cpu, rc);
+		return;
+	}
+#endif
+	irq = per_cpu(ipi_to_irq, cpu)[vector];
 	BUG_ON(irq < 0);
 	notify_remote_via_irq(irq);
 }
@@ -1316,7 +1334,7 @@ static void __xen_evtchn_do_upcall(void)
 {
 	int start_word_idx, start_bit_idx;
 	int word_idx, bit_idx;
-	int i;
+	int i, irq;
 	int cpu = get_cpu();
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
@@ -1324,6 +1342,8 @@ static void __xen_evtchn_do_upcall(void)
 
 	do {
 		xen_ulong_t pending_words;
+		xen_ulong_t pending_bits;
+		struct irq_desc *desc;
 
 		vcpu_info->evtchn_upcall_pending = 0;
 
@@ -1335,6 +1355,17 @@ static void __xen_evtchn_do_upcall(void)
 		 * selector flag. xchg_xen_ulong must contain an
 		 * appropriate barrier.
 		 */
+		if ((irq = per_cpu(virq_to_irq, cpu)[VIRQ_TIMER]) != -1) {
+			int evtchn = evtchn_from_irq(irq);
+			word_idx = evtchn / BITS_PER_LONG;
+			pending_bits = evtchn % BITS_PER_LONG;
+			if (active_evtchns(cpu, s, word_idx) & (1ULL << pending_bits)) {
+				desc = irq_to_desc(irq);
+				if (desc)
+					generic_handle_irq_desc(irq, desc);
+			}
+		}
+
 		pending_words = xchg_xen_ulong(&vcpu_info->evtchn_pending_sel, 0);
 
 		start_word_idx = __this_cpu_read(current_word_idx);
@@ -1343,7 +1374,6 @@ static void __xen_evtchn_do_upcall(void)
 		word_idx = start_word_idx;
 
 		for (i = 0; pending_words != 0; i++) {
-			xen_ulong_t pending_bits;
 			xen_ulong_t words;
 
 			words = MASK_LSBS(pending_words, word_idx);
@@ -1360,20 +1390,26 @@ static void __xen_evtchn_do_upcall(void)
 
 			pending_bits = active_evtchns(cpu, s, word_idx);
 			bit_idx = 0; /* usually scan entire word from start */
+			/*
+			 * We scan the starting word in two parts.
+			 *
+			 * 1st time: start in the middle, scanning the
+			 * upper bits.
+			 *
+			 * 2nd time: scan the whole word (not just the
+			 * parts skipped in the first pass) -- if an
+			 * event in the previously scanned bits is
+			 * pending again it would just be scanned on
+			 * the next loop anyway.
+			 */
 			if (word_idx == start_word_idx) {
-				/* We scan the starting word in two parts */
 				if (i == 0)
-					/* 1st time: start in the middle */
 					bit_idx = start_bit_idx;
-				else
-					/* 2nd time: mask bits done already */
-					bit_idx &= (1UL << start_bit_idx) - 1;
 			}
 
 			do {
 				xen_ulong_t bits;
-				int port, irq;
-				struct irq_desc *desc;
+				int port;
 
 				bits = MASK_LSBS(pending_bits, bit_idx);
 
@@ -1446,6 +1482,9 @@ void rebind_evtchn_irq(int evtchn, int irq)
 {
 	struct irq_info *info = info_for_irq(irq);
 
+	if (WARN_ON(!info))
+		return;
+
 	/* Make sure the irq is masked, since the new event channel
 	   will also be masked. */
 	disable_irq(irq);
@@ -1472,8 +1511,10 @@ void rebind_evtchn_irq(int evtchn, int irq)
 /* Rebind an evtchn so that it gets delivered to a specific cpu */
 static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 {
+	struct shared_info *s = HYPERVISOR_shared_info;
 	struct evtchn_bind_vcpu bind_vcpu;
 	int evtchn = evtchn_from_irq(irq);
+	int masked;
 
 	if (!VALID_EVTCHN(evtchn))
 		return -1;
@@ -1490,12 +1531,21 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 	bind_vcpu.vcpu = tcpu;
 
 	/*
+	 * Mask the event while changing the VCPU binding to prevent
+	 * it being delivered on an unexpected VCPU.
+	 */
+	masked = sync_test_and_set_bit(evtchn, BM(s->evtchn_mask));
+
+	/*
 	 * If this fails, it usually just indicates that we're dealing with a
 	 * virq or IPI channel, which don't actually need to be rebound. Ignore
 	 * it, but don't do the xenlinux-level rebind in that case.
 	 */
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_vcpu, &bind_vcpu) >= 0)
 		bind_evtchn_to_cpu(evtchn, tcpu);
+
+	if (!masked)
+		unmask_evtchn(evtchn);
 
 	return 0;
 }
@@ -1601,8 +1651,8 @@ static void restore_pirqs(void)
 
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
 		if (rc) {
-			printk(KERN_WARNING "xen map irq failed gsi=%d irq=%d pirq=%d rc=%d\n",
-					gsi, irq, pirq, rc);
+			pr_warn("xen map irq failed gsi=%d irq=%d pirq=%d rc=%d\n",
+				gsi, irq, pirq, rc);
 			xen_free_irq(irq);
 			continue;
 		}
@@ -1719,7 +1769,12 @@ void xen_poll_irq(int irq)
 int xen_test_irq_shared(int irq)
 {
 	struct irq_info *info = info_for_irq(irq);
-	struct physdev_irq_status_query irq_status = { .irq = info->u.pirq.pirq };
+	struct physdev_irq_status_query irq_status;
+
+	if (WARN_ON(!info))
+		return -ENOENT;
+
+	irq_status.irq = info->u.pirq.pirq;
 
 	if (HYPERVISOR_physdev_op(PHYSDEVOP_irq_status_query, &irq_status))
 		return 0;
@@ -1819,13 +1874,11 @@ void xen_callback_vector(void)
 		callback_via = HVM_CALLBACK_VECTOR(HYPERVISOR_CALLBACK_VECTOR);
 		rc = xen_set_callback_via(callback_via);
 		if (rc) {
-			printk(KERN_ERR "Request for Xen HVM callback vector"
-					" failed.\n");
+			pr_err("Request for Xen HVM callback vector failed\n");
 			xen_have_vector_callback = 0;
 			return;
 		}
-		printk(KERN_INFO "Xen HVM callback vector for event delivery is "
-				"enabled\n");
+		pr_info("Xen HVM callback vector for event delivery is enabled\n");
 		/* in the restore case the vector has already been allocated */
 		if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
 			alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,

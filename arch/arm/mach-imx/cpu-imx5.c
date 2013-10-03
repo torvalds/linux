@@ -18,6 +18,7 @@
 #include <linux/io.h>
 
 #include "hardware.h"
+#include "common.h"
 
 static int mx5_cpu_rev = -1;
 

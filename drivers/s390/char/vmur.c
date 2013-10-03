@@ -89,7 +89,7 @@ static DEFINE_MUTEX(vmur_mutex);
  * urd references:
  * - ur_probe gets a urd reference, ur_remove drops the reference
  *   dev_get_drvdata(&cdev->dev)
- * - ur_open gets a urd reference, ur_relase drops the reference
+ * - ur_open gets a urd reference, ur_release drops the reference
  *   (urf->urd)
  *
  * cdev references:

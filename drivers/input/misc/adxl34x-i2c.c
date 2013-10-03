@@ -105,7 +105,7 @@ static int adxl34x_i2c_remove(struct i2c_client *client)
 	return adxl34x_remove(ac);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int adxl34x_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);

@@ -47,7 +47,7 @@
  * generic accessors and iterators here
  */
 #define __real_pte(e,p) 	((real_pte_t) { \
-			(e), ((e) & _PAGE_COMBO) ? \
+			(e), (pte_val(e) & _PAGE_COMBO) ? \
 				(pte_val(*((p) + PTRS_PER_PTE))) : 0 })
 #define __rpte_to_hidx(r,index)	((pte_val((r).pte) & _PAGE_COMBO) ? \
         (((r).hidx >> ((index)<<2)) & 0xf) : ((pte_val((r).pte) >> 12) & 0xf))

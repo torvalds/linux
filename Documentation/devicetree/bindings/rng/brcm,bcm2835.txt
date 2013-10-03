@@ -1,0 +1,13 @@
+BCM2835 Random number generator
+
+Required properties:
+
+- compatible : should be "brcm,bcm2835-rng"
+- reg : Specifies base physical address and size of the registers.
+
+Example:
+
+rng {
+        compatible = "brcm,bcm2835-rng";
+        reg = <0x7e104000 0x10>;
+};

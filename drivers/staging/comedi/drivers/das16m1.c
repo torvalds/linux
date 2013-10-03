@@ -17,12 +17,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-************************************************************************
 */
 /*
 Driver: das16m1
@@ -58,7 +52,7 @@ Options:
 irq can be omitted, although the cmd interface will not work without it.
 */
 
-#include <linux/ioport.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
@@ -143,6 +137,7 @@ struct das16m1_private_struct {
 	unsigned int do_bits;	/*  saves status of digital output bits */
 	unsigned int divisor1;	/*  divides master clock to obtain conversion speed */
 	unsigned int divisor2;	/*  divides master clock to obtain conversion speed */
+	unsigned long extra_iobase;
 };
 
 static inline short munge_sample(short data)
@@ -499,7 +494,7 @@ static irqreturn_t das16m1_interrupt(int irq, void *d)
 	int status;
 	struct comedi_device *dev = d;
 
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
 		return IRQ_HANDLED;
 	}
@@ -571,28 +566,20 @@ static int das16m1_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned int irq;
-	unsigned long iobase;
 
-	dev->board_name = dev->driver->driver_name;
-
-	iobase = it->options[0];
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
-	if (!request_region(iobase, DAS16M1_SIZE, dev->board_name)) {
-		comedi_error(dev, "I/O port conflict\n");
-		return -EIO;
-	}
-	if (!request_region(iobase + DAS16M1_82C55, DAS16M1_SIZE2,
-			    dev->board_name)) {
-		release_region(iobase, DAS16M1_SIZE);
-		comedi_error(dev, "I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], DAS16M1_SIZE);
+	if (ret)
+		return ret;
+	/* Request an additional region for the 8255 */
+	ret = __comedi_request_region(dev, dev->iobase + DAS16M1_82C55,
+				      DAS16M1_SIZE2);
+	if (ret)
+		return ret;
+	devpriv->extra_iobase = dev->iobase + DAS16M1_82C55;
 
 	/* now for the irq */
 	irq = it->options[1];
@@ -654,7 +641,9 @@ static int das16m1_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[3];
 	/* 8255 */
-	subdev_8255_init(dev, s, NULL, dev->iobase + DAS16M1_82C55);
+	ret = subdev_8255_init(dev, s, NULL, devpriv->extra_iobase);
+	if (ret)
+		return ret;
 
 	/*  disable upper half of hardware conversion counter so it doesn't mess with us */
 	outb(TOTAL_CLEAR, dev->iobase + DAS16M1_8254_FIRST_CNTRL);
@@ -674,14 +663,11 @@ static int das16m1_attach(struct comedi_device *dev,
 
 static void das16m1_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[3]);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->iobase) {
-		release_region(dev->iobase, DAS16M1_SIZE);
-		release_region(dev->iobase + DAS16M1_82C55, DAS16M1_SIZE2);
-	}
+	struct das16m1_private_struct *devpriv = dev->private;
+
+	if (devpriv && devpriv->extra_iobase)
+		release_region(devpriv->extra_iobase, DAS16M1_SIZE2);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver das16m1_driver = {

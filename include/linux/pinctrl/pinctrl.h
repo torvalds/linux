@@ -49,7 +49,8 @@ struct pinctrl_pin_desc {
  * @name: a name for the chip in this range
  * @id: an ID number for the chip in this range
  * @base: base offset of the GPIO range
- * @pin_base: base pin number of the GPIO range
+ * @pin_base: base pin number of the GPIO range if pins == NULL
+ * @pins: enumeration of pins in GPIO range or NULL
  * @npins: number of pins in the GPIO range, including the base number
  * @gc: an optional pointer to a gpio_chip
  */
@@ -59,6 +60,7 @@ struct pinctrl_gpio_range {
 	unsigned int id;
 	unsigned int base;
 	unsigned int pin_base;
+	unsigned const *pins;
 	unsigned int npins;
 	struct gpio_chip *gc;
 };
@@ -118,9 +120,9 @@ struct pinctrl_desc {
 	const char *name;
 	struct pinctrl_pin_desc const *pins;
 	unsigned int npins;
-	struct pinctrl_ops *pctlops;
-	struct pinmux_ops *pmxops;
-	struct pinconf_ops *confops;
+	const struct pinctrl_ops *pctlops;
+	const struct pinmux_ops *pmxops;
+	const struct pinconf_ops *confops;
 	struct module *owner;
 };
 

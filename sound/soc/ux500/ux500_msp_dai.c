@@ -19,9 +19,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/dbx500-prcmu.h>
-
-#include <mach/hardware.h>
-#include <mach/msp.h>
+#include <linux/platform_data/asoc-ux500-msp.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
@@ -660,14 +658,11 @@ static int ux500_msp_dai_probe(struct snd_soc_dai *dai)
 {
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(dai->dev);
 
-	drvdata->playback_dma_data.dma_cfg = drvdata->msp->dma_cfg_tx;
-	drvdata->capture_dma_data.dma_cfg = drvdata->msp->dma_cfg_rx;
+	dai->playback_dma_data = &drvdata->msp->playback_dma_data;
+	dai->capture_dma_data = &drvdata->msp->capture_dma_data;
 
-	dai->playback_dma_data = &drvdata->playback_dma_data;
-	dai->capture_dma_data = &drvdata->capture_dma_data;
-
-	drvdata->playback_dma_data.data_size = drvdata->slot_width;
-	drvdata->capture_dma_data.data_size = drvdata->slot_width;
+	drvdata->msp->playback_dma_data.data_size = drvdata->slot_width;
+	drvdata->msp->capture_dma_data.data_size = drvdata->slot_width;
 
 	return 0;
 }
@@ -768,6 +763,11 @@ static struct snd_soc_dai_driver ux500_msp_dai_drv[UX500_NBR_OF_DAI] = {
 	},
 };
 
+static const struct snd_soc_component_driver ux500_msp_component = {
+	.name		= "ux500-msp",
+};
+
+
 static int ux500_msp_drv_probe(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata;
@@ -825,8 +825,8 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 	}
 	dev_set_drvdata(&pdev->dev, drvdata);
 
-	ret = snd_soc_register_dai(&pdev->dev,
-				&ux500_msp_dai_drv[drvdata->msp->id]);
+	ret = snd_soc_register_component(&pdev->dev, &ux500_msp_component,
+					 &ux500_msp_dai_drv[drvdata->msp->id], 1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error: %s: Failed to register MSP%d!\n",
 			__func__, drvdata->msp->id);
@@ -844,7 +844,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 	return 0;
 
 err_reg_plat:
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(ux500_msp_dai_drv));
+	snd_soc_unregister_component(&pdev->dev);
 err_init_msp:
 	clk_put(drvdata->clk);
 err_clk:
@@ -861,7 +861,7 @@ static int ux500_msp_drv_remove(struct platform_device *pdev)
 
 	ux500_pcm_unregister_platform(pdev);
 
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(ux500_msp_dai_drv));
+	snd_soc_unregister_component(&pdev->dev);
 
 	devm_regulator_put(drvdata->reg_vape);
 	prcmu_qos_remove_requirement(PRCMU_QOS_APE_OPP, "ux500_msp_i2s");

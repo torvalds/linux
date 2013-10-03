@@ -182,7 +182,7 @@ csio_mb_reset(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
  * @tmo: Command timeout.
  * @pf: PF number.
  * @vf: VF number.
- * @nparams: Number of paramters
+ * @nparams: Number of parameters
  * @params: Parameter mnemonic array.
  * @val: Parameter value array.
  * @wr: Write/Read PARAMS.
@@ -324,83 +324,6 @@ csio_mb_caps_config(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 		cmdp->fcoecaps |= htons(FW_CAPS_CONFIG_FCOE_INITIATOR);
 	if (tgt)
 		cmdp->fcoecaps |= htons(FW_CAPS_CONFIG_FCOE_TARGET);
-}
-
-void
-csio_rss_glb_config(struct csio_hw *hw, struct csio_mb *mbp,
-		    uint32_t tmo, uint8_t mode, unsigned int flags,
-		    void (*cbfn)(struct csio_hw *, struct csio_mb *))
-{
-	struct fw_rss_glb_config_cmd *cmdp =
-				(struct fw_rss_glb_config_cmd *)(mbp->mb);
-
-	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn, 1);
-
-	cmdp->op_to_write = htonl(FW_CMD_OP(FW_RSS_GLB_CONFIG_CMD) |
-				  FW_CMD_REQUEST | FW_CMD_WRITE);
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
-
-	if (mode == FW_RSS_GLB_CONFIG_CMD_MODE_MANUAL) {
-		cmdp->u.manual.mode_pkd =
-			htonl(FW_RSS_GLB_CONFIG_CMD_MODE(mode));
-	} else if (mode == FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL) {
-		cmdp->u.basicvirtual.mode_pkd =
-			htonl(FW_RSS_GLB_CONFIG_CMD_MODE(mode));
-		cmdp->u.basicvirtual.synmapen_to_hashtoeplitz = htonl(flags);
-	}
-}
-
-
-/*
- * csio_mb_pfvf - FW Write PF/VF capabilities command helper.
- * @hw: The HW structure
- * @mbp: Mailbox structure
- * @pf:
- * @vf:
- * @txq:
- * @txq_eht_ctrl:
- * @rxqi:
- * @rxq:
- * @tc:
- * @vi:
- * @pmask:
- * @rcaps:
- * @wxcaps:
- * @cbfn: Callback, if any.
- *
- */
-void
-csio_mb_pfvf(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
-	     unsigned int pf, unsigned int vf, unsigned int txq,
-	     unsigned int txq_eth_ctrl, unsigned int rxqi,
-	     unsigned int rxq, unsigned int tc, unsigned int vi,
-	     unsigned int cmask, unsigned int pmask, unsigned int nexactf,
-	     unsigned int rcaps, unsigned int wxcaps,
-	     void (*cbfn) (struct csio_hw *, struct csio_mb *))
-{
-	struct fw_pfvf_cmd *cmdp = (struct fw_pfvf_cmd *)(mbp->mb);
-
-	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn, 1);
-
-	cmdp->op_to_vfn = htonl(FW_CMD_OP(FW_PFVF_CMD)			|
-				FW_CMD_REQUEST				|
-				FW_CMD_WRITE				|
-				FW_PFVF_CMD_PFN(pf)			|
-				FW_PFVF_CMD_VFN(vf));
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
-	cmdp->niqflint_niq = htonl(FW_PFVF_CMD_NIQFLINT(rxqi)		|
-					     FW_PFVF_CMD_NIQ(rxq));
-
-	cmdp->type_to_neq = htonl(FW_PFVF_CMD_TYPE			|
-				  FW_PFVF_CMD_CMASK(cmask)		|
-				  FW_PFVF_CMD_PMASK(pmask)		|
-				  FW_PFVF_CMD_NEQ(txq));
-	cmdp->tc_to_nexactf = htonl(FW_PFVF_CMD_TC(tc)			|
-				    FW_PFVF_CMD_NVI(vi)			|
-				    FW_PFVF_CMD_NEXACTF(nexactf));
-	cmdp->r_caps_to_nethctrl = htonl(FW_PFVF_CMD_R_CAPS(rcaps)	|
-					 FW_PFVF_CMD_WX_CAPS(wxcaps)	|
-					 FW_PFVF_CMD_NETHCTRL(txq_eth_ctrl));
 }
 
 #define CSIO_ADVERT_MASK     (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
@@ -721,7 +644,7 @@ csio_mb_iq_free(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  * @mbp: Mailbox structure to initialize
  * @priv: Private data
  * @mb_tmo: Mailbox time-out period (in ms).
- * @eq_ofld_params: (Offload) Egress queue paramters.
+ * @eq_ofld_params: (Offload) Egress queue parameters.
  * @cbfn: The call-back function
  *
  *
@@ -752,7 +675,7 @@ csio_mb_eq_ofld_alloc(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  * @priv: Private data
  * @mb_tmo: Mailbox time-out period (in ms).
  * @cascaded_req: TRUE - if this request is cascased with Eq-alloc request.
- * @eq_ofld_params: (Offload) Egress queue paramters.
+ * @eq_ofld_params: (Offload) Egress queue parameters.
  * @cbfn: The call-back function
  *
  *
@@ -817,7 +740,7 @@ csio_mb_eq_ofld_write(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  * @mbp: Mailbox structure to initialize
  * @priv: Private data.
  * @mb_tmo: Mailbox time-out period (in ms).
- * @eq_ofld_params: (Offload) Egress queue paramters.
+ * @eq_ofld_params: (Offload) Egress queue parameters.
  * @cbfn: The call-back function
  *
  *
@@ -840,7 +763,7 @@ csio_mb_eq_ofld_alloc_write(struct csio_hw *hw, struct csio_mb *mbp,
  * @hw: The HW structure.
  * @mbp: Mailbox structure to initialize.
  * @retval: Firmware return value.
- * @eq_ofld_params: (Offload) Egress queue paramters.
+ * @eq_ofld_params: (Offload) Egress queue parameters.
  *
  */
 void
@@ -870,7 +793,7 @@ csio_mb_eq_ofld_alloc_write_rsp(struct csio_hw *hw,
  * @mbp: Mailbox structure to initialize
  * @priv: Private data area.
  * @mb_tmo: Mailbox time-out period (in ms).
- * @eq_ofld_params: (Offload) Egress queue paramters, that is to be freed.
+ * @eq_ofld_params: (Offload) Egress queue parameters, that is to be freed.
  * @cbfn: The call-back function
  *
  *

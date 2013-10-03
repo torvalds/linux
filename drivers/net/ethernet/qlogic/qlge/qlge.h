@@ -18,7 +18,7 @@
  */
 #define DRV_NAME  	"qlge"
 #define DRV_STRING 	"QLogic 10 Gigabit PCI-E Ethernet Driver "
-#define DRV_VERSION	"v1.00.00.31"
+#define DRV_VERSION	"v1.00.00.32"
 
 #define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
 
@@ -2149,7 +2149,7 @@ struct ql_adapter {
 	struct timer_list timer;
 	atomic_t lb_count;
 	/* Keep local copy of current mac address. */
-	char current_mac_addr[6];
+	char current_mac_addr[ETH_ALEN];
 };
 
 /*

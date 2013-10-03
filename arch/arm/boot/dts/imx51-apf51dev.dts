@@ -1,0 +1,97 @@
+/*
+ * Copyright 2013 Armadeus Systems - <support@armadeus.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/* APF51Dev is a docking board for the APF51 SOM */
+#include "imx51-apf51.dts"
+
+/ {
+	model = "Armadeus Systems APF51Dev docking/development board";
+	compatible = "armadeus,imx51-apf51dev", "armadeus,imx51-apf51", "fsl,imx51";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		user-key {
+			label = "user";
+			gpios = <&gpio1 3 0>;
+			linux,code = <256>; /* BTN_0 */
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user {
+			label = "Heartbeat";
+			gpios = <&gpio1 2 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1_1>;
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio4 24 0>, <&gpio4 25 0>;
+	status = "okay";
+};
+
+&ecspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2_1>;
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio3 28 1>, <&gpio3 27 1>;
+	status = "okay";
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1_1>;
+	cd-gpios = <&gpio2 29 0>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&esdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc2_1>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2_2>;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hog {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX51_PAD_EIM_EB2__GPIO2_22   0x0C5
+				MX51_PAD_EIM_EB3__GPIO2_23   0x0C5
+				MX51_PAD_EIM_CS4__GPIO2_29   0x100
+				MX51_PAD_NANDF_D13__GPIO3_27 0x0C5
+				MX51_PAD_NANDF_D12__GPIO3_28 0x0C5
+				MX51_PAD_CSPI1_SS0__GPIO4_24 0x0C5
+				MX51_PAD_CSPI1_SS1__GPIO4_25 0x0C5
+				MX51_PAD_GPIO1_2__GPIO1_2    0x0C5
+				MX51_PAD_GPIO1_3__GPIO1_3    0x0C5
+			>;
+		};
+	};
+};

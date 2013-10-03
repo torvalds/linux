@@ -324,9 +324,9 @@
 
 /* Helper macro */
 
-#define ACPI_TRACE_ENTRY(name, function, cast, param) \
+#define ACPI_TRACE_ENTRY(name, function, type, param) \
 	ACPI_FUNCTION_NAME (name) \
-	function (ACPI_DEBUG_PARAMETERS, cast (param))
+	function (ACPI_DEBUG_PARAMETERS, (type) (param))
 
 /* The actual entry trace macros */
 
@@ -335,13 +335,13 @@
 	acpi_ut_trace (ACPI_DEBUG_PARAMETERS)
 
 #define ACPI_FUNCTION_TRACE_PTR(name, pointer) \
-	ACPI_TRACE_ENTRY (name, acpi_ut_trace_ptr, (void *), pointer)
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_ptr, void *, pointer)
 
 #define ACPI_FUNCTION_TRACE_U32(name, value) \
-	ACPI_TRACE_ENTRY (name, acpi_ut_trace_u32, (u32), value)
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_u32, u32, value)
 
 #define ACPI_FUNCTION_TRACE_STR(name, string) \
-	ACPI_TRACE_ENTRY (name, acpi_ut_trace_str, (char *), string)
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_str, char *, string)
 
 #define ACPI_FUNCTION_ENTRY() \
 	acpi_ut_track_stack_ptr()
@@ -355,15 +355,36 @@
  *
  * One of the FUNCTION_TRACE macros above must be used in conjunction
  * with these macros so that "_AcpiFunctionName" is defined.
+ *
+ * There are two versions of most of the return macros. The default version is
+ * safer, since it avoids side-effects by guaranteeing that the argument will
+ * not be evaluated twice.
+ *
+ * A less-safe version of the macros is provided for optional use if the
+ * compiler uses excessive CPU stack (for example, this may happen in the
+ * debug case if code optimzation is disabled.)
  */
 
 /* Exit trace helper macro */
 
-#define ACPI_TRACE_EXIT(function, cast, param) \
+#ifndef ACPI_SIMPLE_RETURN_MACROS
+
+#define ACPI_TRACE_EXIT(function, type, param) \
 	ACPI_DO_WHILE0 ({ \
-		function (ACPI_DEBUG_PARAMETERS, cast (param)); \
-		return ((param)); \
+		register type _param = (type) (param); \
+		function (ACPI_DEBUG_PARAMETERS, _param); \
+		return (_param); \
 	})
+
+#else				/* Use original less-safe macros */
+
+#define ACPI_TRACE_EXIT(function, type, param) \
+	ACPI_DO_WHILE0 ({ \
+		function (ACPI_DEBUG_PARAMETERS, (type) (param)); \
+		return (param); \
+	})
+
+#endif				/* ACPI_SIMPLE_RETURN_MACROS */
 
 /* The actual exit macros */
 
@@ -374,13 +395,19 @@
 	})
 
 #define return_ACPI_STATUS(status) \
-	ACPI_TRACE_EXIT (acpi_ut_status_exit, (acpi_status), status)
+	ACPI_TRACE_EXIT (acpi_ut_status_exit, acpi_status, status)
 
 #define return_PTR(pointer) \
-	ACPI_TRACE_EXIT (acpi_ut_ptr_exit, (u8 *), pointer)
+	ACPI_TRACE_EXIT (acpi_ut_ptr_exit, void *, pointer)
 
 #define return_VALUE(value) \
-	ACPI_TRACE_EXIT (acpi_ut_value_exit, (u64), value)
+	ACPI_TRACE_EXIT (acpi_ut_value_exit, u64, value)
+
+#define return_UINT32(value) \
+	ACPI_TRACE_EXIT (acpi_ut_value_exit, u32, value)
+
+#define return_UINT8(value) \
+	ACPI_TRACE_EXIT (acpi_ut_value_exit, u8, value)
 
 /* Conditional execution */
 
@@ -401,35 +428,31 @@
  * This is the non-debug case -- make everything go away,
  * leaving no executable debug code!
  */
-#define ACPI_FUNCTION_NAME(a)
 #define ACPI_DEBUG_PRINT(pl)
 #define ACPI_DEBUG_PRINT_RAW(pl)
 #define ACPI_DEBUG_EXEC(a)
 #define ACPI_DEBUG_ONLY_MEMBERS(a)
+#define ACPI_FUNCTION_NAME(a)
 #define ACPI_FUNCTION_TRACE(a)
 #define ACPI_FUNCTION_TRACE_PTR(a, b)
 #define ACPI_FUNCTION_TRACE_U32(a, b)
 #define ACPI_FUNCTION_TRACE_STR(a, b)
-#define ACPI_FUNCTION_EXIT
-#define ACPI_FUNCTION_STATUS_EXIT(s)
-#define ACPI_FUNCTION_VALUE_EXIT(s)
 #define ACPI_FUNCTION_ENTRY()
 #define ACPI_DUMP_STACK_ENTRY(a)
 #define ACPI_DUMP_OPERANDS(a, b, c)
 #define ACPI_DUMP_ENTRY(a, b)
-#define ACPI_DUMP_TABLES(a, b)
 #define ACPI_DUMP_PATHNAME(a, b, c, d)
 #define ACPI_DUMP_BUFFER(a, b)
-#define ACPI_DEBUG_PRINT(pl)
-#define ACPI_DEBUG_PRINT_RAW(pl)
 #define ACPI_IS_DEBUG_ENABLED(level, component) 0
 
 /* Return macros must have a return statement at the minimum */
 
 #define return_VOID                     return
 #define return_ACPI_STATUS(s)           return(s)
-#define return_VALUE(s)                 return(s)
 #define return_PTR(s)                   return(s)
+#define return_VALUE(s)                 return(s)
+#define return_UINT8(s)                 return(s)
+#define return_UINT32(s)                return(s)
 
 #endif				/* ACPI_DEBUG_OUTPUT */
 

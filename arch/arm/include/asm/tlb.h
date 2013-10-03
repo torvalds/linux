@@ -33,18 +33,6 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
-/*
- * We need to delay page freeing for SMP as other CPUs can access pages
- * which have been removed but not yet had their TLB entries invalidated.
- * Also, as ARMv7 speculative prefetch can drag new entries into the TLB,
- * we need to apply this same delaying tactic to ensure correct operation.
- */
-#if defined(CONFIG_SMP) || defined(CONFIG_CPU_32v7)
-#define tlb_fast_mode(tlb)	0
-#else
-#define tlb_fast_mode(tlb)	1
-#endif
-
 #define MMU_GATHER_BUNDLE	8
 
 /*
@@ -55,6 +43,7 @@ struct mmu_gather {
 	struct mm_struct	*mm;
 	unsigned int		fullmm;
 	struct vm_area_struct	*vma;
+	unsigned long		start, end;
 	unsigned long		range_start;
 	unsigned long		range_end;
 	unsigned int		nr;
@@ -112,19 +101,19 @@ static inline void __tlb_alloc_page(struct mmu_gather *tlb)
 static inline void tlb_flush_mmu(struct mmu_gather *tlb)
 {
 	tlb_flush(tlb);
-	if (!tlb_fast_mode(tlb)) {
-		free_pages_and_swap_cache(tlb->pages, tlb->nr);
-		tlb->nr = 0;
-		if (tlb->pages == tlb->local)
-			__tlb_alloc_page(tlb);
-	}
+	free_pages_and_swap_cache(tlb->pages, tlb->nr);
+	tlb->nr = 0;
+	if (tlb->pages == tlb->local)
+		__tlb_alloc_page(tlb);
 }
 
 static inline void
-tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int fullmm)
+tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	tlb->mm = mm;
-	tlb->fullmm = fullmm;
+	tlb->fullmm = !(start | (end+1));
+	tlb->start = start;
+	tlb->end = end;
 	tlb->vma = NULL;
 	tlb->max = ARRAY_SIZE(tlb->local);
 	tlb->pages = tlb->local;
@@ -178,11 +167,6 @@ tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
 
 static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 {
-	if (tlb_fast_mode(tlb)) {
-		free_page_and_swap_cache(page);
-		return 1; /* avoid calling tlb_flush_mmu */
-	}
-
 	tlb->pages[tlb->nr++] = page;
 	VM_BUG_ON(tlb->nr > tlb->max);
 	return tlb->max - tlb->nr;
@@ -221,6 +205,12 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 	tlb_add_flush(tlb, addr);
 	tlb_remove_page(tlb, virt_to_page(pmdp));
 #endif
+}
+
+static inline void
+tlb_remove_pmd_tlb_entry(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr)
+{
+	tlb_add_flush(tlb, addr);
 }
 
 #define pte_free_tlb(tlb, ptep, addr)	__pte_free_tlb(tlb, ptep, addr)

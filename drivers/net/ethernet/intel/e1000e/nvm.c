@@ -117,7 +117,6 @@ static u16 e1000_shift_in_eec_bits(struct e1000_hw *hw, u16 count)
 	u16 data;
 
 	eecd = er32(EECD);
-
 	eecd &= ~(E1000_EECD_DO | E1000_EECD_DI);
 	data = 0;
 
@@ -630,7 +629,7 @@ void e1000e_reload_nvm_generic(struct e1000_hw *hw)
 {
 	u32 ctrl_ext;
 
-	udelay(10);
+	usleep_range(10, 20);
 	ctrl_ext = er32(CTRL_EXT);
 	ctrl_ext |= E1000_CTRL_EXT_EE_RST;
 	ew32(CTRL_EXT, ctrl_ext);

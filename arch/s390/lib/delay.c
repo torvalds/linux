@@ -44,7 +44,6 @@ static void __udelay_disabled(unsigned long long usecs)
 	do {
 		set_clock_comparator(end);
 		vtime_stop_cpu();
-		local_irq_disable();
 	} while (get_tod_clock() < end);
 	lockdep_on();
 	__ctl_load(cr0, 0, 0);
@@ -64,7 +63,6 @@ static void __udelay_enabled(unsigned long long usecs)
 			set_clock_comparator(end);
 		}
 		vtime_stop_cpu();
-		local_irq_disable();
 		if (clock_saved)
 			local_tick_enable(clock_saved);
 	} while (get_tod_clock() < end);

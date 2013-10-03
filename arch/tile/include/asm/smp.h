@@ -101,10 +101,8 @@ void print_disabled_cpus(void);
 extern struct cpumask cpu_lotar_map;
 #define cpu_is_valid_lotar(cpu) cpumask_test_cpu((cpu), &cpu_lotar_map)
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 /* Which processors are used for hash-for-home mapping */
 extern struct cpumask hash_for_home_map;
-#endif
 
 /* Which cpus can have their cache flushed by hv_flush_remote(). */
 extern struct cpumask cpu_cacheable_map;

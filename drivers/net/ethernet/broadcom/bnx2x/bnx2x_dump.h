@@ -13,12 +13,6 @@
  * consent.
  */
 
-
-/* This struct holds a signature to ensure the dump returned from the driver
- * match the meta data file inserted to grc_dump.tcl
- * The signature is time stamp, diag version and grc_dump version
- */
-
 #ifndef BNX2X_DUMP_H
 #define BNX2X_DUMP_H
 
@@ -27,7 +21,6 @@
 #define DRV_DUMP_TSTORM_WAITP_ADDRESS    0x1b8a80
 #define DRV_DUMP_USTORM_WAITP_ADDRESS    0x338a80
 #define DRV_DUMP_CSTORM_WAITP_ADDRESS    0x238a80
-
 
 /* Possible Chips */
 #define DUMP_CHIP_E1 1

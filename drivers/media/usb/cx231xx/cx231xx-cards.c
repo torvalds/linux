@@ -29,7 +29,6 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>
-#include <media/v4l2-chip-ident.h>
 
 #include <media/cx25840.h>
 #include "dvb-usb-ids.h"
@@ -263,7 +262,11 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_PAL,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.has_417 = 1,
+		.dont_use_port_3 = 1,
+		/* Actually, it has a 417, but it isn't working correctly.
+		 * So set to 0 for now until someone can manage to get this
+		 * to work reliably. */
+		.has_417 = 0,
 
 		.input = {{
 				.type = CX231XX_VMUX_COMPOSITE1,
@@ -421,6 +424,44 @@ struct cx231xx_board cx231xx_boards[] = {
 		.has_dvb = 1,
 		.demod_addr = 0x10,
 		.norm = V4L2_STD_PAL_M,
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
+	[CX231XX_BOARD_KWORLD_UB445_USB_HYBRID] = {
+		.name = "Kworld UB445 USB Hybrid",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x11,	/* According with PV cxPolaris.inf file */
+		.tuner_sif_gpio = -1,
+		.tuner_scl_gpio = -1,
+		.tuner_sda_gpio = -1,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 2,
+		.demod_i2c_master = 1,
+		.ir_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x10,
+		.norm = V4L2_STD_NTSC_M,
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
@@ -630,6 +671,39 @@ struct cx231xx_board cx231xx_boards[] = {
 			.gpio = NULL,
 		} },
 	},
+	[CX231XX_BOARD_OTG102] = {
+		.name = "Geniatech OTG102",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c, 
+			/* According with PV CxPlrCAP.inf file */
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_NTSC,
+		.no_alt_vanc = 1,
+		.external_av = 1,
+		.dont_use_port_3 = 1,
+		/*.has_417 = 1, */
+		/* This board is believed to have a hardware encoding chip
+		 * supporting mpeg1/2/4, but as the 417 is apparently not
+		 * working for the reference board it is not here either. */
+
+		.input = {{
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}
+		},
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -667,10 +741,14 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_PV_XCAPTURE_USB},
 	{USB_DEVICE(0x1b80, 0xe424),
 	 .driver_info = CX231XX_BOARD_KWORLD_UB430_USB_HYBRID},
+	{USB_DEVICE(0x1b80, 0xe421),
+	 .driver_info = CX231XX_BOARD_KWORLD_UB445_USB_HYBRID},
 	{USB_DEVICE(0x1f4d, 0x0237),
 	 .driver_info = CX231XX_BOARD_ICONBIT_U100},
 	{USB_DEVICE(0x0fd9, 0x0037),
 	 .driver_info = CX231XX_BOARD_ELGATO_VIDEO_CAPTURE_V2},
+	{USB_DEVICE(0x1f4d, 0x0102),
+	 .driver_info = CX231XX_BOARD_OTG102},
 	{},
 };
 
@@ -846,8 +924,6 @@ void cx231xx_card_setup(struct cx231xx *dev)
 int cx231xx_config(struct cx231xx *dev)
 {
 	/* TBD need to add cx231xx specific code */
-	dev->mute = 1;		/* maybe not the right place... */
-	dev->volume = 0x1f;
 
 	return 0;
 }
@@ -1187,8 +1263,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	uif = udev->actconfig->interface[dev->current_pcb_config.
 		       hs_config_info[0].interface_info.video_index + 1];
 
-	dev->video_mode.end_point_addr = le16_to_cpu(uif->altsetting[0].
-			endpoint[isoc_pipe].desc.bEndpointAddress);
+	dev->video_mode.end_point_addr = uif->altsetting[0].
+			endpoint[isoc_pipe].desc.bEndpointAddress;
 
 	dev->video_mode.num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1221,8 +1297,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 				       vanc_index + 1];
 
 	dev->vbi_mode.end_point_addr =
-	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress);
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
 
 	dev->vbi_mode.num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1256,8 +1332,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 				       hanc_index + 1];
 
 	dev->sliced_cc_mode.end_point_addr =
-	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress);
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
 
 	dev->sliced_cc_mode.num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1292,8 +1368,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 					       ts1_index + 1];
 
 		dev->ts1_mode.end_point_addr =
-		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].
-				desc.bEndpointAddress);
+		    uif->altsetting[0].endpoint[isoc_pipe].
+				desc.bEndpointAddress;
 
 		dev->ts1_mode.num_alt = uif->num_altsetting;
 		cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",

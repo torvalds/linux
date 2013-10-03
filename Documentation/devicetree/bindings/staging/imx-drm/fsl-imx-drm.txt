@@ -8,6 +8,8 @@ Required properties:
 - interrupts: Should contain sync interrupt and error interrupt,
   in this order.
 - #crtc-cells: 1, See below
+- resets: phandle pointing to the system reset controller and
+          reset line index, see reset/fsl,imx-src.txt for details
 
 example:
 
@@ -16,6 +18,7 @@ ipu: ipu@18000000 {
 	compatible = "fsl,imx53-ipu";
 	reg = <0x18000000 0x080000000>;
 	interrupts = <11 10>;
+	resets = <&src 2>;
 };
 
 Parallel display support
@@ -26,7 +29,7 @@ Required properties:
 - crtc: the crtc this display is connected to, see below
 Optional properties:
 - interface_pix_fmt: How this display is connected to the
-  crtc. Currently supported types: "rgb24", "rgb565"
+  crtc. Currently supported types: "rgb24", "rgb565", "bgr666"
 - edid: verbatim EDID data block describing attached display.
 - ddc: phandle describing the i2c bus handling the display data
   channel

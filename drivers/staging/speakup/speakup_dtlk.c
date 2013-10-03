@@ -200,42 +200,42 @@ static void do_catch_up(struct spk_synth *synth)
 
 	jiffy_delta = spk_get_var(JIFFY);
 	delay_time = spk_get_var(DELAY);
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	jiffy_delta_val = jiffy_delta->u.n.value;
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	jiff_max = jiffies + jiffy_delta_val;
 	while (!kthread_should_stop()) {
-		spk_lock(flags);
+		spin_lock_irqsave(&speakup_info.spinlock, flags);
 		if (speakup_info.flushing) {
 			speakup_info.flushing = 0;
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			synth->flush(synth);
 			continue;
 		}
 		if (synth_buffer_empty()) {
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		delay_time_val = delay_time->u.n.value;
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (synth_full()) {
 			schedule_timeout(msecs_to_jiffies(delay_time_val));
 			continue;
 		}
 		set_current_state(TASK_RUNNING);
-		spk_lock(flags);
+		spin_lock_irqsave(&speakup_info.spinlock, flags);
 		ch = synth_buffer_getc();
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (ch == '\n')
 			ch = PROCSPEECH;
 		spk_out(ch);
 		if ((jiffies >= jiff_max) && (ch == SPACE)) {
 			spk_out(PROCSPEECH);
-			spk_lock(flags);
+			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			delay_time_val = delay_time->u.n.value;
 			jiffy_delta_val = jiffy_delta->u.n.value;
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			schedule_timeout(msecs_to_jiffies(delay_time_val));
 			jiff_max = jiffies + jiffy_delta_val;
 		}
@@ -254,7 +254,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 		spk_out(ch);
 		buf++;
 	}
-	return 0;
+	return NULL;
 }
 
 static void synth_flush(struct spk_synth *synth)

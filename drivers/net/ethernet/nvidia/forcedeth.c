@@ -2200,6 +2200,7 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ring_desc *start_tx;
 	struct ring_desc *prev_tx;
 	struct nv_skb_map *prev_tx_ctx;
+	struct nv_skb_map *tmp_tx_ctx = NULL, *start_tx_ctx = NULL;
 	unsigned long flags;
 
 	/* add fragments to entries count */
@@ -2261,12 +2262,31 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		do {
 			prev_tx = put_tx;
 			prev_tx_ctx = np->put_tx_ctx;
+			if (!start_tx_ctx)
+				start_tx_ctx = tmp_tx_ctx = np->put_tx_ctx;
+
 			bcnt = (frag_size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : frag_size;
 			np->put_tx_ctx->dma = skb_frag_dma_map(
 							&np->pci_dev->dev,
 							frag, offset,
 							bcnt,
 							DMA_TO_DEVICE);
+			if (dma_mapping_error(&np->pci_dev->dev, np->put_tx_ctx->dma)) {
+
+				/* Unwind the mapped fragments */
+				do {
+					nv_unmap_txskb(np, start_tx_ctx);
+					if (unlikely(tmp_tx_ctx++ == np->last_tx_ctx))
+						tmp_tx_ctx = np->first_tx_ctx;
+				} while (tmp_tx_ctx != np->put_tx_ctx);
+				kfree_skb(skb);
+				np->put_tx_ctx = start_tx_ctx;
+				u64_stats_update_begin(&np->swstats_tx_syncp);
+				np->stat_tx_dropped++;
+				u64_stats_update_end(&np->swstats_tx_syncp);
+				return NETDEV_TX_OK;
+			}
+
 			np->put_tx_ctx->dma_len = bcnt;
 			np->put_tx_ctx->dma_single = 0;
 			put_tx->buf = cpu_to_le32(np->put_tx_ctx->dma);
@@ -2327,7 +2347,8 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 	struct ring_desc_ex *start_tx;
 	struct ring_desc_ex *prev_tx;
 	struct nv_skb_map *prev_tx_ctx;
-	struct nv_skb_map *start_tx_ctx;
+	struct nv_skb_map *start_tx_ctx = NULL;
+	struct nv_skb_map *tmp_tx_ctx = NULL;
 	unsigned long flags;
 
 	/* add fragments to entries count */
@@ -2392,11 +2413,29 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 			prev_tx = put_tx;
 			prev_tx_ctx = np->put_tx_ctx;
 			bcnt = (frag_size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : frag_size;
+			if (!start_tx_ctx)
+				start_tx_ctx = tmp_tx_ctx = np->put_tx_ctx;
 			np->put_tx_ctx->dma = skb_frag_dma_map(
 							&np->pci_dev->dev,
 							frag, offset,
 							bcnt,
 							DMA_TO_DEVICE);
+
+			if (dma_mapping_error(&np->pci_dev->dev, np->put_tx_ctx->dma)) {
+
+				/* Unwind the mapped fragments */
+				do {
+					nv_unmap_txskb(np, start_tx_ctx);
+					if (unlikely(tmp_tx_ctx++ == np->last_tx_ctx))
+						tmp_tx_ctx = np->first_tx_ctx;
+				} while (tmp_tx_ctx != np->put_tx_ctx);
+				kfree_skb(skb);
+				np->put_tx_ctx = start_tx_ctx;
+				u64_stats_update_begin(&np->swstats_tx_syncp);
+				np->stat_tx_dropped++;
+				u64_stats_update_end(&np->swstats_tx_syncp);
+				return NETDEV_TX_OK;
+			}
 			np->put_tx_ctx->dma_len = bcnt;
 			np->put_tx_ctx->dma_single = 0;
 			put_tx->bufhigh = cpu_to_le32(dma_high(np->put_tx_ctx->dma));
@@ -2922,15 +2961,15 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 			vlanflags = le32_to_cpu(np->get_rx.ex->buflow);
 
 			/*
-			 * There's need to check for NETIF_F_HW_VLAN_RX here.
-			 * Even if vlan rx accel is disabled,
+			 * There's need to check for NETIF_F_HW_VLAN_CTAG_RX
+			 * here. Even if vlan rx accel is disabled,
 			 * NV_RX3_VLAN_TAG_PRESENT is pseudo randomly set.
 			 */
-			if (dev->features & NETIF_F_HW_VLAN_RX &&
+			if (dev->features & NETIF_F_HW_VLAN_CTAG_RX &&
 			    vlanflags & NV_RX3_VLAN_TAG_PRESENT) {
 				u16 vid = vlanflags & NV_RX3_VLAN_TAG_MASK;
 
-				__vlan_hwaccel_put_tag(skb, vid);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 			}
 			napi_gro_receive(&np->napi, skb);
 			u64_stats_update_begin(&np->swstats_rx_syncp);
@@ -4777,7 +4816,7 @@ static netdev_features_t nv_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	/* vlan is dependent on rx checksum offload */
-	if (features & (NETIF_F_HW_VLAN_TX|NETIF_F_HW_VLAN_RX))
+	if (features & (NETIF_F_HW_VLAN_CTAG_TX|NETIF_F_HW_VLAN_CTAG_RX))
 		features |= NETIF_F_RXCSUM;
 
 	return features;
@@ -4789,12 +4828,12 @@ static void nv_vlan_mode(struct net_device *dev, netdev_features_t features)
 
 	spin_lock_irq(&np->lock);
 
-	if (features & NETIF_F_HW_VLAN_RX)
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
 		np->txrxctl_bits |= NVREG_TXRXCTL_VLANSTRIP;
 	else
 		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANSTRIP;
 
-	if (features & NETIF_F_HW_VLAN_TX)
+	if (features & NETIF_F_HW_VLAN_CTAG_TX)
 		np->txrxctl_bits |= NVREG_TXRXCTL_VLANINS;
 	else
 		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANINS;
@@ -4831,7 +4870,7 @@ static int nv_set_features(struct net_device *dev, netdev_features_t features)
 		spin_unlock_irq(&np->lock);
 	}
 
-	if (changed & (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX))
+	if (changed & (NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX))
 		nv_vlan_mode(dev, features);
 
 	return 0;
@@ -5025,7 +5064,6 @@ static int nv_loopback_test(struct net_device *dev)
 	pkt_len = ETH_DATA_LEN;
 	tx_skb = netdev_alloc_skb(dev, pkt_len);
 	if (!tx_skb) {
-		netdev_err(dev, "netdev_alloc_skb() failed during loopback test\n");
 		ret = 0;
 		goto out;
 	}
@@ -5667,7 +5705,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	np->vlanctl_bits = 0;
 	if (id->driver_data & DEV_HAS_VLAN) {
 		np->vlanctl_bits = NVREG_VLANCONTROL_ENABLE;
-		dev->hw_features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
+		dev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX |
+				    NETIF_F_HW_VLAN_CTAG_TX;
 	}
 
 	dev->features |= dev->hw_features;
@@ -5958,7 +5997,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		 dev->features & NETIF_F_HIGHDMA ? "highdma " : "",
 		 dev->features & (NETIF_F_IP_CSUM | NETIF_F_SG) ?
 			"csum " : "",
-		 dev->features & (NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX) ?
+		 dev->features & (NETIF_F_HW_VLAN_CTAG_RX |
+				  NETIF_F_HW_VLAN_CTAG_TX) ?
 			"vlan " : "",
 		 dev->features & (NETIF_F_LOOPBACK) ?
 			"loopback " : "",
@@ -6300,7 +6340,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci_tbl) = {
 	{0,},
 };
 
-static struct pci_driver driver = {
+static struct pci_driver forcedeth_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= pci_tbl,
 	.probe		= nv_probe,
@@ -6308,16 +6348,6 @@ static struct pci_driver driver = {
 	.shutdown	= nv_shutdown,
 	.driver.pm	= NV_PM_OPS,
 };
-
-static int __init init_nic(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit exit_nic(void)
-{
-	pci_unregister_driver(&driver);
-}
 
 module_param(max_interrupt_work, int, 0);
 MODULE_PARM_DESC(max_interrupt_work, "forcedeth maximum events handled per interrupt");
@@ -6339,11 +6369,8 @@ module_param(debug_tx_timeout, bool, 0);
 MODULE_PARM_DESC(debug_tx_timeout,
 		 "Dump tx related registers and ring when tx_timeout happens");
 
+module_pci_driver(forcedeth_pci_driver);
 MODULE_AUTHOR("Manfred Spraul <manfred@colorfullife.com>");
 MODULE_DESCRIPTION("Reverse Engineered nForce ethernet driver");
 MODULE_LICENSE("GPL");
-
 MODULE_DEVICE_TABLE(pci, pci_tbl);
-
-module_init(init_nic);
-module_exit(exit_nic);

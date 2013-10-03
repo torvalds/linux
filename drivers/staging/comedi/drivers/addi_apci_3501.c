@@ -20,15 +20,9 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * You should also find the complete GPL in the COPYING file accompanying
- * this source code.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -339,14 +333,11 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	int ao_n_chan;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 
@@ -423,16 +414,11 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 
 static void apci3501_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 	if (dev->iobase)
 		apci3501_reset(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci3501_driver = {
@@ -443,9 +429,9 @@ static struct comedi_driver apci3501_driver = {
 };
 
 static int apci3501_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci3501_driver);
+	return comedi_pci_auto_config(dev, &apci3501_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci3501_pci_table) = {

@@ -27,18 +27,12 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Jon Grimm             <jgrimm@us.ibm.com>
  *    La Monte H.P. Yarroll <piggy@acm.org>
  *    Sridhar Samudrala     <sri@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/slab.h>
@@ -68,7 +62,6 @@ struct sctp_ulpq *sctp_ulpq_init(struct sctp_ulpq *ulpq,
 	skb_queue_head_init(&ulpq->reasm);
 	skb_queue_head_init(&ulpq->lobby);
 	ulpq->pd_mode  = 0;
-	ulpq->malloced = 0;
 
 	return ulpq;
 }
@@ -96,8 +89,6 @@ void sctp_ulpq_flush(struct sctp_ulpq *ulpq)
 void sctp_ulpq_free(struct sctp_ulpq *ulpq)
 {
 	sctp_ulpq_flush(ulpq);
-	if (ulpq->malloced)
-		kfree(ulpq);
 }
 
 /* Process an incoming DATA chunk.  */

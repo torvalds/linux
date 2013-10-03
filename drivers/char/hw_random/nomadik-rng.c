@@ -51,7 +51,7 @@ static int nmk_rng_probe(struct amba_device *dev, const struct amba_id *id)
 		return ret;
 	}
 
-	clk_enable(rng_clk);
+	clk_prepare_enable(rng_clk);
 
 	ret = amba_request_regions(dev, dev->dev.init_name);
 	if (ret)

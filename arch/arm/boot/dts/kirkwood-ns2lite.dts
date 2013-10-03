@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "kirkwood-ns2-common.dtsi"
+#include "kirkwood-ns2-common.dtsi"
 
 / {
 	model = "LaCie Network Space Lite v2";
@@ -13,6 +13,8 @@
 
 	ocp@f1000000 {
 		sata@80000 {
+			pinctrl-0 = <&pmx_ns2_sata0>;
+			pinctrl-names = "default";
 			status = "okay";
 			nr-ports = <1>;
 		};
@@ -28,3 +30,5 @@
 		};
 	};
 };
+
+&ethphy0 { reg = <0>; };

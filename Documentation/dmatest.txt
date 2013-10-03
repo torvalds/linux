@@ -1,0 +1,82 @@
+				DMA Test Guide
+				==============
+
+		Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+
+This small document introduces how to test DMA drivers using dmatest module.
+
+	Part 1 - How to build the test module
+
+The menuconfig contains an option that could be found by following path:
+	Device Drivers -> DMA Engine support -> DMA Test client
+
+In the configuration file the option called CONFIG_DMATEST. The dmatest could
+be built as module or inside kernel. Let's consider those cases.
+
+	Part 2 - When dmatest is built as a module...
+
+After mounting debugfs and loading the module, the /sys/kernel/debug/dmatest
+folder with nodes will be created. There are two important files located. First
+is the 'run' node that controls run and stop phases of the test, and the second
+one, 'results', is used to get the test case results.
+
+Note that in this case test will not run on load automatically.
+
+Example of usage:
+	% echo dma0chan0 > /sys/module/dmatest/parameters/channel
+	% echo 2000 > /sys/module/dmatest/parameters/timeout
+	% echo 1 > /sys/module/dmatest/parameters/iterations
+	% echo 1 > /sys/kernel/debug/dmatest/run
+
+Hint: available channel list could be extracted by running the following
+command:
+	% ls -1 /sys/class/dma/
+
+After a while you will start to get messages about current status or error like
+in the original code.
+
+Note that running a new test will not stop any in progress test.
+
+The following command should return actual state of the test.
+	% cat /sys/kernel/debug/dmatest/run
+
+To wait for test done the user may perform a busy loop that checks the state.
+
+	% while [ $(cat /sys/kernel/debug/dmatest/run) = "Y" ]
+	> do
+	> 	echo -n "."
+	> 	sleep 1
+	> done
+	> echo
+
+	Part 3 - When built-in in the kernel...
+
+The module parameters that is supplied to the kernel command line will be used
+for the first performed test. After user gets a control, the test could be
+re-run with the same or different parameters. For the details see the above
+section "Part 2 - When dmatest is built as a module..."
+
+In both cases the module parameters are used as the actual values for the test
+case. You always could check them at run-time by running
+	% grep -H . /sys/module/dmatest/parameters/*
+
+	Part 4 - Gathering the test results
+
+The module provides a storage for the test results in the memory. The gathered
+data could be used after test is done.
+
+The special file 'results' in the debugfs represents gathered data of the in
+progress test. The messages collected are printed to the kernel log as well.
+
+Example of output:
+	% cat /sys/kernel/debug/dmatest/results
+	dma0chan0-copy0: #1: No errors with src_off=0x7bf dst_off=0x8ad len=0x3fea (0)
+
+The message format is unified across the different types of errors. A number in
+the parens represents additional information, e.g. error code, error counter,
+or status.
+
+Comparison between buffers is stored to the dedicated structure.
+
+Note that the verify result is now accessible only via file 'results' in the
+debugfs.

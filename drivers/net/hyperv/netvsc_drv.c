@@ -31,6 +31,7 @@
 #include <linux/inetdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/if_vlan.h>
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <net/arp.h>
@@ -241,13 +242,11 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 
 	if (status == 1) {
 		netif_carrier_on(net);
-		netif_wake_queue(net);
 		ndev_ctx = netdev_priv(net);
 		schedule_delayed_work(&ndev_ctx->dwork, 0);
 		schedule_delayed_work(&ndev_ctx->dwork, msecs_to_jiffies(20));
 	} else {
 		netif_carrier_off(net);
-		netif_tx_disable(net);
 	}
 }
 
@@ -286,7 +285,9 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 
 	skb->protocol = eth_type_trans(skb, net);
 	skb->ip_summed = CHECKSUM_NONE;
-	skb->vlan_tci = packet->vlan_tci;
+	if (packet->vlan_tci & VLAN_TAG_PRESENT)
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+				       packet->vlan_tci);
 
 	net->stats.rx_packets++;
 	net->stats.rx_bytes += packet->total_data_buflen;
@@ -305,7 +306,6 @@ static void netvsc_get_drvinfo(struct net_device *net,
 			       struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->version, HV_DRV_VERSION, sizeof(info->version));
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
@@ -430,8 +430,8 @@ static int netvsc_probe(struct hv_device *dev,
 	net->netdev_ops = &device_ops;
 
 	/* TODO: Add GSO and Checksum offload */
-	net->hw_features = NETIF_F_SG;
-	net->features = NETIF_F_SG | NETIF_F_HW_VLAN_TX;
+	net->hw_features = 0;
+	net->features = NETIF_F_HW_VLAN_CTAG_TX;
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, &dev->device);
@@ -528,7 +528,6 @@ static int __init netvsc_drv_init(void)
 }
 
 MODULE_LICENSE("GPL");
-MODULE_VERSION(HV_DRV_VERSION);
 MODULE_DESCRIPTION("Microsoft Hyper-V network driver");
 
 module_init(netvsc_drv_init);

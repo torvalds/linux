@@ -257,10 +257,10 @@ static struct iio_chan_spec_ext_info ad5380_ext_info[] = {
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
-		IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
-		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |		\
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+		BIT(IIO_CHAN_INFO_CALIBSCALE) |			\
+		BIT(IIO_CHAN_INFO_CALIBBIAS),			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 	.scan_type = IIO_ST('u', (_bits), 16, 14 - (_bits)),	\
 	.ext_info = ad5380_ext_info,				\
 }
@@ -369,11 +369,10 @@ static int ad5380_probe(struct device *dev, struct regmap *regmap,
 	unsigned int ctrl = 0;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(dev, "Failed to allocate iio device\n");
-		ret = -ENOMEM;
-		goto error_out;
+		return -ENOMEM;
 	}
 
 	st = iio_priv(indio_dev);
@@ -391,13 +390,13 @@ static int ad5380_probe(struct device *dev, struct regmap *regmap,
 	ret = ad5380_alloc_channels(indio_dev);
 	if (ret) {
 		dev_err(dev, "Failed to allocate channel spec: %d\n", ret);
-		goto error_free;
+		return ret;
 	}
 
 	if (st->chip_info->int_vref == 2500000)
 		ctrl |= AD5380_CTRL_INT_VREF_2V5;
 
-	st->vref_reg = regulator_get(dev, "vref");
+	st->vref_reg = devm_regulator_get(dev, "vref");
 	if (!IS_ERR(st->vref_reg)) {
 		ret = regulator_enable(st->vref_reg);
 		if (ret) {
@@ -434,13 +433,7 @@ error_disable_reg:
 	if (!IS_ERR(st->vref_reg))
 		regulator_disable(st->vref_reg);
 error_free_reg:
-	if (!IS_ERR(st->vref_reg))
-		regulator_put(st->vref_reg);
-
 	kfree(indio_dev->channels);
-error_free:
-	iio_device_free(indio_dev);
-error_out:
 
 	return ret;
 }
@@ -456,10 +449,7 @@ static int ad5380_remove(struct device *dev)
 
 	if (!IS_ERR(st->vref_reg)) {
 		regulator_disable(st->vref_reg);
-		regulator_put(st->vref_reg);
 	}
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -29,15 +29,14 @@
 
 #include <engine/disp.h>
 
-#include <subdev/timer.h>
-#include <subdev/fb.h>
-#include <subdev/clock.h>
-
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/disp.h>
 #include <subdev/bios/init.h>
 #include <subdev/bios/pll.h>
+#include <subdev/devinit.h>
+#include <subdev/fb.h>
+#include <subdev/timer.h>
 
 #include "nv50.h"
 
@@ -473,7 +472,8 @@ nvd0_disp_base_ctor(struct nouveau_object *parent,
 	priv->base.vblank->enable = nvd0_disp_base_vblank_enable;
 	priv->base.vblank->disable = nvd0_disp_base_vblank_disable;
 
-	return nouveau_ramht_new(parent, parent, 0x1000, 0, &base->ramht);
+	return nouveau_ramht_new(nv_object(base), nv_object(base), 0x1000, 0,
+				&base->ramht);
 }
 
 static void
@@ -737,10 +737,10 @@ nvd0_disp_intr_unk2_0(struct nv50_disp_priv *priv, int head)
 static void
 nvd0_disp_intr_unk2_1(struct nv50_disp_priv *priv, int head)
 {
-	struct nouveau_clock *clk = nouveau_clock(priv);
+	struct nouveau_devinit *devinit = nouveau_devinit(priv);
 	u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
 	if (pclk)
-		clk->pll_set(clk, PLL_VPLL0 + head, pclk);
+		devinit->pll_set(devinit, PLL_VPLL0 + head, pclk);
 	nv_wr32(priv, 0x612200 + (head * 0x800), 0x00000000);
 }
 
@@ -957,6 +957,9 @@ nvd0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv50_disp_priv *priv;
 	int heads = nv_rd32(parent, 0x022448);
 	int ret;
+
+	if (nv_rd32(parent, 0x022500) & 0x00000001)
+		return -ENODEV;
 
 	ret = nouveau_disp_create(parent, engine, oclass, heads,
 				  "PDISP", "display", &priv);

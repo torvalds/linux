@@ -229,7 +229,7 @@ static void clk_pllv2_unprepare(struct clk_hw *hw)
 	__raw_writel(reg, pllbase + MXC_PLL_DP_CTL);
 }
 
-struct clk_ops clk_pllv2_ops = {
+static struct clk_ops clk_pllv2_ops = {
 	.prepare = clk_pllv2_prepare,
 	.unprepare = clk_pllv2_unprepare,
 	.recalc_rate = clk_pllv2_recalc_rate,

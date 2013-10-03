@@ -77,17 +77,4 @@ extern struct speakup_info_t speakup_info;
 
 extern struct var_t synth_time_vars[];
 
-/* Protect the whole speakup machinery, must be taken at each kernel->speakup
- * transition and released at all corresponding speakup->kernel transitions
- * (flags must be the same variable between lock/trylock and unlock).
- *
- * The progression thread only interferes with the speakup machinery through
- * the synth buffer, and so only needs to take the lock while tinkering with
- * it.
- */
-/* Speakup needs to disable the keyboard IRQ, hence _irqsave/restore */
-#define spk_lock(flags) spin_lock_irqsave(&speakup_info.spinlock, flags)
-#define spk_trylock(flags) spin_trylock_irqsave(&speakup_info.spinlock, flags)
-#define spk_unlock(flags) spin_unlock_irqrestore(&speakup_info.spinlock, flags)
-
 #endif

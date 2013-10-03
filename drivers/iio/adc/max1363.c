@@ -427,15 +427,15 @@ static const enum max1363_modes max1363_mode_list[] = {
 #define MAX1363_EV_M						\
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)	\
 	 | IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
-#define MAX1363_INFO_MASK (IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-			   IIO_CHAN_INFO_SCALE_SHARED_BIT)
+
 #define MAX1363_CHAN_U(num, addr, si, bits, evmask)			\
 	{								\
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
 		.channel = num,						\
 		.address = addr,					\
-		.info_mask = MAX1363_INFO_MASK,				\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 		.datasheet_name = "AIN"#num,				\
 		.scan_type = {						\
 			.sign = 'u',					\
@@ -456,7 +456,8 @@ static const enum max1363_modes max1363_mode_list[] = {
 		.channel = num,						\
 		.channel2 = num2,					\
 		.address = addr,					\
-		.info_mask = MAX1363_INFO_MASK,				\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 		.datasheet_name = "AIN"#num"-AIN"#num2,			\
 		.scan_type = {						\
 			.sign = 's',					\
@@ -659,7 +660,7 @@ static ssize_t max1363_monitor_store_freq(struct device *dev,
 	unsigned long val;
 	bool found = false;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return -EINVAL;
 	for (i = 0; i < ARRAY_SIZE(max1363_monitor_speeds); i++)
@@ -1497,16 +1498,15 @@ static int max1363_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	struct regulator *vref;
 
-	indio_dev = iio_device_alloc(sizeof(struct max1363_state));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_out;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev,
+					  sizeof(struct max1363_state));
+	if (!indio_dev)
+		return -ENOMEM;
 
 	indio_dev->dev.of_node = client->dev.of_node;
 	ret = iio_map_array_register(indio_dev, client->dev.platform_data);
 	if (ret < 0)
-		goto error_free_device;
+		return ret;
 
 	st = iio_priv(indio_dev);
 
@@ -1589,9 +1589,6 @@ error_disable_reg:
 	regulator_disable(st->reg);
 error_unregister_map:
 	iio_map_array_unregister(indio_dev);
-error_free_device:
-	iio_device_free(indio_dev);
-error_out:
 	return ret;
 }
 
@@ -1606,7 +1603,6 @@ static int max1363_remove(struct i2c_client *client)
 		regulator_disable(st->vref);
 	regulator_disable(st->reg);
 	iio_map_array_unregister(indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

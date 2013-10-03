@@ -900,8 +900,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 #endif
 
 	alloc_size = 4 * ctx.idx;
-	ctx.target = module_alloc(max(sizeof(struct work_struct),
-				      alloc_size));
+	ctx.target = module_alloc(alloc_size);
 	if (unlikely(ctx.target == NULL))
 		goto out;
 
@@ -918,9 +917,8 @@ void bpf_jit_compile(struct sk_filter *fp)
 #endif
 
 	if (bpf_jit_enable > 1)
-		print_hex_dump(KERN_INFO, "BPF JIT code: ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, ctx.target,
-			       alloc_size, false);
+		/* there are 2 passes here */
+		bpf_jit_dump(fp->len, alloc_size, 2, ctx.target);
 
 	fp->bpf_func = (void *)ctx.target;
 out:
@@ -928,19 +926,8 @@ out:
 	return;
 }
 
-static void bpf_jit_free_worker(struct work_struct *work)
-{
-	module_free(NULL, work);
-}
-
 void bpf_jit_free(struct sk_filter *fp)
 {
-	struct work_struct *work;
-
-	if (fp->bpf_func != sk_run_filter) {
-		work = (struct work_struct *)fp->bpf_func;
-
-		INIT_WORK(work, bpf_jit_free_worker);
-		schedule_work(work);
-	}
+	if (fp->bpf_func != sk_run_filter)
+		module_free(NULL, fp->bpf_func);
 }

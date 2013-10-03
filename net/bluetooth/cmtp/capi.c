@@ -539,7 +539,7 @@ static int cmtp_proc_show(struct seq_file *m, void *v)
 
 static int cmtp_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, cmtp_proc_show, PDE(inode)->data);
+	return single_open(file, cmtp_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations cmtp_proc_fops = {

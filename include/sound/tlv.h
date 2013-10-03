@@ -74,7 +74,11 @@
 #define DECLARE_TLV_DB_LINEAR(name, min_dB, max_dB)	\
 	unsigned int name[] = { TLV_DB_LINEAR_ITEM(min_dB, max_dB) }
 
-/* dB range container */
+/* dB range container:
+ * Items in dB range container must be ordered by their values and by their
+ * dB values. This implies that larger values must correspond with larger
+ * dB values (which is also required for all other mixer controls).
+ */
 /* Each item is: <min> <max> <TLV> */
 #define TLV_DB_RANGE_ITEM(...) \
 	TLV_ITEM(SNDRV_CTL_TLVT_DB_RANGE, __VA_ARGS__)

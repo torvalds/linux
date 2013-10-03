@@ -184,8 +184,9 @@ static int do_one_async_hash_op(struct ahash_request *req,
 	return ret;
 }
 
-static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
-		     unsigned int tcount, bool use_digest)
+static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
+		       unsigned int tcount, bool use_digest,
+		       const int align_offset)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
 	unsigned int i, j, k, temp;
@@ -216,10 +217,15 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 		if (template[i].np)
 			continue;
 
+		ret = -EINVAL;
+		if (WARN_ON(align_offset + template[i].psize > PAGE_SIZE))
+			goto out;
+
 		j++;
 		memset(result, 0, 64);
 
 		hash_buff = xbuf[0];
+		hash_buff += align_offset;
 
 		memcpy(hash_buff, template[i].plaintext, template[i].psize);
 		sg_init_one(&sg[0], hash_buff, template[i].psize);
@@ -281,6 +287,10 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
+		/* alignment tests are only done with continuous buffers */
+		if (align_offset != 0)
+			break;
+
 		if (template[i].np) {
 			j++;
 			memset(result, 0, 64);
@@ -358,9 +368,36 @@ out_nobuf:
 	return ret;
 }
 
+static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
+		     unsigned int tcount, bool use_digest)
+{
+	unsigned int alignmask;
+	int ret;
+
+	ret = __test_hash(tfm, template, tcount, use_digest, 0);
+	if (ret)
+		return ret;
+
+	/* test unaligned buffers, check with one byte offset */
+	ret = __test_hash(tfm, template, tcount, use_digest, 1);
+	if (ret)
+		return ret;
+
+	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
+	if (alignmask) {
+		/* Check if alignment mask for tfm is correctly set. */
+		ret = __test_hash(tfm, template, tcount, use_digest,
+				  alignmask + 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int __test_aead(struct crypto_aead *tfm, int enc,
 		       struct aead_testvec *template, unsigned int tcount,
-		       const bool diff_dst)
+		       const bool diff_dst, const int align_offset)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
 	unsigned int i, j, k, n, temp;
@@ -423,15 +460,16 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		if (!template[i].np) {
 			j++;
 
-			/* some tepmplates have no input data but they will
+			/* some templates have no input data but they will
 			 * touch input
 			 */
 			input = xbuf[0];
+			input += align_offset;
 			assoc = axbuf[0];
 
 			ret = -EINVAL;
-			if (WARN_ON(template[i].ilen > PAGE_SIZE ||
-				    template[i].alen > PAGE_SIZE))
+			if (WARN_ON(align_offset + template[i].ilen >
+				    PAGE_SIZE || template[i].alen > PAGE_SIZE))
 				goto out;
 
 			memcpy(input, template[i].input, template[i].ilen);
@@ -470,6 +508,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 			if (diff_dst) {
 				output = xoutbuf[0];
+				output += align_offset;
 				sg_init_one(&sgout[0], output,
 					    template[i].ilen +
 						(enc ? authsize : 0));
@@ -530,6 +569,10 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	}
 
 	for (i = 0, j = 0; i < tcount; i++) {
+		/* alignment tests are only done with continuous buffers */
+		if (align_offset != 0)
+			break;
+
 		if (template[i].np) {
 			j++;
 
@@ -732,15 +775,34 @@ out_noxbuf:
 static int test_aead(struct crypto_aead *tfm, int enc,
 		     struct aead_testvec *template, unsigned int tcount)
 {
+	unsigned int alignmask;
 	int ret;
 
 	/* test 'dst == src' case */
-	ret = __test_aead(tfm, enc, template, tcount, false);
+	ret = __test_aead(tfm, enc, template, tcount, false, 0);
 	if (ret)
 		return ret;
 
 	/* test 'dst != src' case */
-	return __test_aead(tfm, enc, template, tcount, true);
+	ret = __test_aead(tfm, enc, template, tcount, true, 0);
+	if (ret)
+		return ret;
+
+	/* test unaligned buffers, check with one byte offset */
+	ret = __test_aead(tfm, enc, template, tcount, true, 1);
+	if (ret)
+		return ret;
+
+	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
+	if (alignmask) {
+		/* Check if alignment mask for tfm is correctly set. */
+		ret = __test_aead(tfm, enc, template, tcount, true,
+				  alignmask + 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int test_cipher(struct crypto_cipher *tfm, int enc,
@@ -820,7 +882,7 @@ out_nobuf:
 
 static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			   struct cipher_testvec *template, unsigned int tcount,
-			   const bool diff_dst)
+			   const bool diff_dst, const int align_offset)
 {
 	const char *algo =
 		crypto_tfm_alg_driver_name(crypto_ablkcipher_tfm(tfm));
@@ -876,10 +938,12 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			j++;
 
 			ret = -EINVAL;
-			if (WARN_ON(template[i].ilen > PAGE_SIZE))
+			if (WARN_ON(align_offset + template[i].ilen >
+				    PAGE_SIZE))
 				goto out;
 
 			data = xbuf[0];
+			data += align_offset;
 			memcpy(data, template[i].input, template[i].ilen);
 
 			crypto_ablkcipher_clear_flags(tfm, ~0);
@@ -900,6 +964,7 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			sg_init_one(&sg[0], data, template[i].ilen);
 			if (diff_dst) {
 				data = xoutbuf[0];
+				data += align_offset;
 				sg_init_one(&sgout[0], data, template[i].ilen);
 			}
 
@@ -941,6 +1006,9 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
+		/* alignment tests are only done with continuous buffers */
+		if (align_offset != 0)
+			break;
 
 		if (template[i].iv)
 			memcpy(iv, template[i].iv, MAX_IVLEN);
@@ -1075,15 +1143,34 @@ out_nobuf:
 static int test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			 struct cipher_testvec *template, unsigned int tcount)
 {
+	unsigned int alignmask;
 	int ret;
 
 	/* test 'dst == src' case */
-	ret = __test_skcipher(tfm, enc, template, tcount, false);
+	ret = __test_skcipher(tfm, enc, template, tcount, false, 0);
 	if (ret)
 		return ret;
 
 	/* test 'dst != src' case */
-	return __test_skcipher(tfm, enc, template, tcount, true);
+	ret = __test_skcipher(tfm, enc, template, tcount, true, 0);
+	if (ret)
+		return ret;
+
+	/* test unaligned buffers, check with one byte offset */
+	ret = __test_skcipher(tfm, enc, template, tcount, true, 1);
+	if (ret)
+		return ret;
+
+	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
+	if (alignmask) {
+		/* Check if alignment mask for tfm is correctly set. */
+		ret = __test_skcipher(tfm, enc, template, tcount, true,
+				      alignmask + 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
@@ -1645,6 +1732,9 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "__cbc-serpent-avx",
 		.test = alg_test_null,
 	}, {
+		.alg = "__cbc-serpent-avx2",
+		.test = alg_test_null,
+	}, {
 		.alg = "__cbc-serpent-sse2",
 		.test = alg_test_null,
 	}, {
@@ -1658,6 +1748,9 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "__driver-cbc-camellia-aesni",
 		.test = alg_test_null,
 	}, {
+		.alg = "__driver-cbc-camellia-aesni-avx2",
+		.test = alg_test_null,
+	}, {
 		.alg = "__driver-cbc-cast5-avx",
 		.test = alg_test_null,
 	}, {
@@ -1665,6 +1758,9 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 	}, {
 		.alg = "__driver-cbc-serpent-avx",
+		.test = alg_test_null,
+	}, {
+		.alg = "__driver-cbc-serpent-avx2",
 		.test = alg_test_null,
 	}, {
 		.alg = "__driver-cbc-serpent-sse2",
@@ -1680,6 +1776,9 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "__driver-ecb-camellia-aesni",
 		.test = alg_test_null,
 	}, {
+		.alg = "__driver-ecb-camellia-aesni-avx2",
+		.test = alg_test_null,
+	}, {
 		.alg = "__driver-ecb-cast5-avx",
 		.test = alg_test_null,
 	}, {
@@ -1687,6 +1786,9 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 	}, {
 		.alg = "__driver-ecb-serpent-avx",
+		.test = alg_test_null,
+	}, {
+		.alg = "__driver-ecb-serpent-avx2",
 		.test = alg_test_null,
 	}, {
 		.alg = "__driver-ecb-serpent-sse2",
@@ -1913,6 +2015,27 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "cmac(aes)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = aes_cmac128_tv_template,
+				.count = CMAC_AES_TEST_VECTORS
+			}
+		}
+	}, {
+		.alg = "cmac(des3_ede)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = des3_ede_cmac64_tv_template,
+				.count = CMAC_DES3_EDE_TEST_VECTORS
+			}
+		}
+	}, {
+		.alg = "compress_null",
+		.test = alg_test_null,
+	}, {
 		.alg = "crc32c",
 		.test = alg_test_crc32c,
 		.fips_allowed = 1,
@@ -1923,11 +2046,27 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "crct10dif",
+		.test = alg_test_hash,
+		.fips_allowed = 1,
+		.suite = {
+			.hash = {
+				.vecs = crct10dif_tv_template,
+				.count = CRCT10DIF_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "cryptd(__driver-cbc-aes-aesni)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
 		.alg = "cryptd(__driver-cbc-camellia-aesni)",
+		.test = alg_test_null,
+	}, {
+		.alg = "cryptd(__driver-cbc-camellia-aesni-avx2)",
+		.test = alg_test_null,
+	}, {
+		.alg = "cryptd(__driver-cbc-serpent-avx2)",
 		.test = alg_test_null,
 	}, {
 		.alg = "cryptd(__driver-ecb-aes-aesni)",
@@ -1937,6 +2076,9 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "cryptd(__driver-ecb-camellia-aesni)",
 		.test = alg_test_null,
 	}, {
+		.alg = "cryptd(__driver-ecb-camellia-aesni-avx2)",
+		.test = alg_test_null,
+	}, {
 		.alg = "cryptd(__driver-ecb-cast5-avx)",
 		.test = alg_test_null,
 	}, {
@@ -1944,6 +2086,9 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 	}, {
 		.alg = "cryptd(__driver-ecb-serpent-avx)",
+		.test = alg_test_null,
+	}, {
+		.alg = "cryptd(__driver-ecb-serpent-avx2)",
 		.test = alg_test_null,
 	}, {
 		.alg = "cryptd(__driver-ecb-serpent-sse2)",
@@ -2127,6 +2272,9 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "digest_null",
+		.test = alg_test_null,
+	}, {
 		.alg = "ecb(__aes-aesni)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
@@ -2236,6 +2384,9 @@ static const struct alg_test_desc alg_test_descs[] = {
 				}
 			}
 		}
+	}, {
+		.alg = "ecb(cipher_null)",
+		.test = alg_test_null,
 	}, {
 		.alg = "ecb(des)",
 		.test = alg_test_skcipher,
@@ -2696,8 +2847,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-
-
 		.alg = "rfc4309(ccm(aes))",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
@@ -2711,6 +2860,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 					.vecs = aes_ccm_rfc4309_dec_tv_template,
 					.count = AES_CCM_4309_DEC_TEST_VECTORS
 				}
+			}
+		}
+	}, {
+		.alg = "rfc4543(gcm(aes))",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = aes_gcm_rfc4543_enc_tv_template,
+					.count = AES_GCM_4543_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = aes_gcm_rfc4543_dec_tv_template,
+					.count = AES_GCM_4543_DEC_TEST_VECTORS
+				},
 			}
 		}
 	}, {
@@ -2977,6 +3141,35 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}
 };
 
+static bool alg_test_descs_checked;
+
+static void alg_test_descs_check_order(void)
+{
+	int i;
+
+	/* only check once */
+	if (alg_test_descs_checked)
+		return;
+
+	alg_test_descs_checked = true;
+
+	for (i = 1; i < ARRAY_SIZE(alg_test_descs); i++) {
+		int diff = strcmp(alg_test_descs[i - 1].alg,
+				  alg_test_descs[i].alg);
+
+		if (WARN_ON(diff > 0)) {
+			pr_warn("testmgr: alg_test_descs entries in wrong order: '%s' before '%s'\n",
+				alg_test_descs[i - 1].alg,
+				alg_test_descs[i].alg);
+		}
+
+		if (WARN_ON(diff == 0)) {
+			pr_warn("testmgr: duplicate alg_test_descs entry: '%s'\n",
+				alg_test_descs[i].alg);
+		}
+	}
+}
+
 static int alg_find_test(const char *alg)
 {
 	int start = 0;
@@ -3007,6 +3200,8 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	int i;
 	int j;
 	int rc;
+
+	alg_test_descs_check_order();
 
 	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_CIPHER) {
 		char nalg[CRYPTO_MAX_ALG_NAME];
@@ -3039,7 +3234,7 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	if (i >= 0)
 		rc |= alg_test_descs[i].test(alg_test_descs + i, driver,
 					     type, mask);
-	if (j >= 0)
+	if (j >= 0 && j != i)
 		rc |= alg_test_descs[j].test(alg_test_descs + j, driver,
 					     type, mask);
 

@@ -53,14 +53,13 @@
 /*
  * Power7 event codes.
  */
-#define	PME_PM_CYC			0x1e
-#define	PME_PM_GCT_NOSLOT_CYC		0x100f8
-#define	PME_PM_CMPLU_STALL		0x4000a
-#define	PME_PM_INST_CMPL		0x2
-#define	PME_PM_LD_REF_L1		0xc880
-#define	PME_PM_LD_MISS_L1		0x400f0
-#define	PME_PM_BRU_FIN			0x10068
-#define	PME_PM_BRU_MPRED		0x400f6
+#define EVENT(_name, _code) \
+	PME_##_name = _code,
+
+enum {
+#include "power7-events-list.h"
+};
+#undef EVENT
 
 /*
  * Layout of constraint bits:
@@ -326,7 +325,7 @@ static int power7_generic_events[] = {
 	[PERF_COUNT_HW_CACHE_REFERENCES] =		PME_PM_LD_REF_L1,
 	[PERF_COUNT_HW_CACHE_MISSES] =			PME_PM_LD_MISS_L1,
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PME_PM_BRU_FIN,
-	[PERF_COUNT_HW_BRANCH_MISSES] =			PME_PM_BRU_MPRED,
+	[PERF_COUNT_HW_BRANCH_MISSES] =			PME_PM_BR_MPRED,
 };
 
 #define C(x)	PERF_COUNT_HW_CACHE_##x
@@ -375,45 +374,35 @@ static int power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 };
 
 
-GENERIC_EVENT_ATTR(cpu-cycles,			CYC);
-GENERIC_EVENT_ATTR(stalled-cycles-frontend,	GCT_NOSLOT_CYC);
-GENERIC_EVENT_ATTR(stalled-cycles-backend,	CMPLU_STALL);
-GENERIC_EVENT_ATTR(instructions,		INST_CMPL);
-GENERIC_EVENT_ATTR(cache-references,		LD_REF_L1);
-GENERIC_EVENT_ATTR(cache-misses,		LD_MISS_L1);
-GENERIC_EVENT_ATTR(branch-instructions,		BRU_FIN);
-GENERIC_EVENT_ATTR(branch-misses,		BRU_MPRED);
+GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
+GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_GCT_NOSLOT_CYC);
+GENERIC_EVENT_ATTR(stalled-cycles-backend,	PM_CMPLU_STALL);
+GENERIC_EVENT_ATTR(instructions,		PM_INST_CMPL);
+GENERIC_EVENT_ATTR(cache-references,		PM_LD_REF_L1);
+GENERIC_EVENT_ATTR(cache-misses,		PM_LD_MISS_L1);
+GENERIC_EVENT_ATTR(branch-instructions,		PM_BRU_FIN);
+GENERIC_EVENT_ATTR(branch-misses,		PM_BR_MPRED);
 
-POWER_EVENT_ATTR(CYC,				CYC);
-POWER_EVENT_ATTR(GCT_NOSLOT_CYC,		GCT_NOSLOT_CYC);
-POWER_EVENT_ATTR(CMPLU_STALL,			CMPLU_STALL);
-POWER_EVENT_ATTR(INST_CMPL,			INST_CMPL);
-POWER_EVENT_ATTR(LD_REF_L1,			LD_REF_L1);
-POWER_EVENT_ATTR(LD_MISS_L1,			LD_MISS_L1);
-POWER_EVENT_ATTR(BRU_FIN,			BRU_FIN)
-POWER_EVENT_ATTR(BRU_MPRED,			BRU_MPRED);
+#define EVENT(_name, _code)     POWER_EVENT_ATTR(_name, _name);
+#include "power7-events-list.h"
+#undef EVENT
+
+#define EVENT(_name, _code)     POWER_EVENT_PTR(_name),
 
 static struct attribute *power7_events_attr[] = {
-	GENERIC_EVENT_PTR(CYC),
-	GENERIC_EVENT_PTR(GCT_NOSLOT_CYC),
-	GENERIC_EVENT_PTR(CMPLU_STALL),
-	GENERIC_EVENT_PTR(INST_CMPL),
-	GENERIC_EVENT_PTR(LD_REF_L1),
-	GENERIC_EVENT_PTR(LD_MISS_L1),
-	GENERIC_EVENT_PTR(BRU_FIN),
-	GENERIC_EVENT_PTR(BRU_MPRED),
+	GENERIC_EVENT_PTR(PM_CYC),
+	GENERIC_EVENT_PTR(PM_GCT_NOSLOT_CYC),
+	GENERIC_EVENT_PTR(PM_CMPLU_STALL),
+	GENERIC_EVENT_PTR(PM_INST_CMPL),
+	GENERIC_EVENT_PTR(PM_LD_REF_L1),
+	GENERIC_EVENT_PTR(PM_LD_MISS_L1),
+	GENERIC_EVENT_PTR(PM_BRU_FIN),
+	GENERIC_EVENT_PTR(PM_BR_MPRED),
 
-	POWER_EVENT_PTR(CYC),
-	POWER_EVENT_PTR(GCT_NOSLOT_CYC),
-	POWER_EVENT_PTR(CMPLU_STALL),
-	POWER_EVENT_PTR(INST_CMPL),
-	POWER_EVENT_PTR(LD_REF_L1),
-	POWER_EVENT_PTR(LD_MISS_L1),
-	POWER_EVENT_PTR(BRU_FIN),
-	POWER_EVENT_PTR(BRU_MPRED),
+	#include "power7-events-list.h"
+	#undef EVENT
 	NULL
 };
-
 
 static struct attribute_group power7_pmu_events_group = {
 	.name = "events",

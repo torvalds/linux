@@ -87,6 +87,48 @@ extern const char *acpi_gbl_fc_decode[];
 extern const char *acpi_gbl_pt_decode[];
 #endif
 
+/*
+ * For the iASL compiler case, the output is redirected to stderr so that
+ * any of the various ACPI errors and warnings do not appear in the output
+ * files, for either the compiler or disassembler portions of the tool.
+ */
+#ifdef ACPI_ASL_COMPILER
+
+#include <stdio.h>
+extern FILE *acpi_gbl_output_file;
+
+#define ACPI_MSG_REDIRECT_BEGIN \
+	FILE                            *output_file = acpi_gbl_output_file; \
+	acpi_os_redirect_output (stderr);
+
+#define ACPI_MSG_REDIRECT_END \
+	acpi_os_redirect_output (output_file);
+
+#else
+/*
+ * non-iASL case - no redirection, nothing to do
+ */
+#define ACPI_MSG_REDIRECT_BEGIN
+#define ACPI_MSG_REDIRECT_END
+#endif
+
+/*
+ * Common error message prefixes
+ */
+#define ACPI_MSG_ERROR          "ACPI Error: "
+#define ACPI_MSG_EXCEPTION      "ACPI Exception: "
+#define ACPI_MSG_WARNING        "ACPI Warning: "
+#define ACPI_MSG_INFO           "ACPI: "
+
+#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
+
+/*
+ * Common message suffix
+ */
+#define ACPI_MSG_SUFFIX \
+	acpi_os_printf (" (%8.8X/%s-%u)\n", ACPI_CA_VERSION, module_name, line_number)
+
 /* Types for Resource descriptor entries */
 
 #define ACPI_INVALID_RESOURCE           0
@@ -113,9 +155,10 @@ struct acpi_pkg_info {
 	u32 num_packages;
 };
 
+/* Object reference counts */
+
 #define REF_INCREMENT       (u16) 0
 #define REF_DECREMENT       (u16) 1
-#define REF_FORCE_DELETE    (u16) 2
 
 /* acpi_ut_dump_buffer */
 
@@ -421,15 +464,37 @@ acpi_ut_get_object_size(union acpi_operand_object *obj, acpi_size * obj_length);
  */
 acpi_status acpi_ut_initialize_interfaces(void);
 
-void acpi_ut_interface_terminate(void);
+acpi_status acpi_ut_interface_terminate(void);
 
 acpi_status acpi_ut_install_interface(acpi_string interface_name);
 
 acpi_status acpi_ut_remove_interface(acpi_string interface_name);
 
+acpi_status acpi_ut_update_interfaces(u8 action);
+
 struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name);
 
 acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state);
+
+/*
+ * utpredef - support for predefined names
+ */
+const union acpi_predefined_info *acpi_ut_get_next_predefined_method(const union
+								     acpi_predefined_info
+								     *this_name);
+
+const union acpi_predefined_info *acpi_ut_match_predefined_method(char *name);
+
+const union acpi_predefined_info *acpi_ut_match_resource_name(char *name);
+
+void
+acpi_ut_display_predefined_method(char *buffer,
+				  const union acpi_predefined_info *this_name,
+				  u8 multi_line);
+
+void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes);
+
+u32 acpi_ut_get_resource_bit_width(char *buffer, u16 types);
 
 /*
  * utstate - Generic state creation/cache routines
@@ -483,7 +548,8 @@ acpi_ut_short_divide(u64 in_dividend,
 /*
  * utmisc
  */
-const char *acpi_ut_validate_exception(acpi_status status);
+const struct acpi_exception_info *acpi_ut_validate_exception(acpi_status
+							     status);
 
 u8 acpi_ut_is_pci_root_bridge(char *id);
 
@@ -552,11 +618,11 @@ int acpi_ut_stricmp(char *string1, char *string2);
 
 acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
 
-void acpi_ut_print_string(char *string, u8 max_length);
+void acpi_ut_print_string(char *string, u16 max_length);
 
 void ut_convert_backslashes(char *pathname);
 
-u8 acpi_ut_valid_acpi_name(u32 name);
+u8 acpi_ut_valid_acpi_name(char *name);
 
 u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
@@ -647,6 +713,12 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_info(const char *module_name,
 			u32 line_number,
 			char *pathname, u8 node_flags, const char *format, ...);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_bios_error(const char *module_name,
+			      u32 line_number,
+			      char *pathname,
+			      u8 node_flags, const char *format, ...);
 
 void
 acpi_ut_namespace_error(const char *module_name,

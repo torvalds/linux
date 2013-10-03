@@ -228,7 +228,7 @@ gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 	 * need to wake up periodically and check that ourselves. */
 	I915_WRITE(GMBUS4 + reg_offset, gmbus4_irq_en);
 
-	for (i = 0; i < msecs_to_jiffies(50) + 1; i++) {
+	for (i = 0; i < msecs_to_jiffies_timeout(50); i++) {
 		prepare_to_wait(&dev_priv->gmbus_wait_queue, &wait,
 				TASK_UNINTERRUPTIBLE);
 
@@ -263,7 +263,8 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 	/* Important: The hw handles only the first bit, so set only one! */
 	I915_WRITE(GMBUS4 + reg_offset, GMBUS_IDLE_EN);
 
-	ret = wait_event_timeout(dev_priv->gmbus_wait_queue, C, 10);
+	ret = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
+				 msecs_to_jiffies_timeout(10));
 
 	I915_WRITE(GMBUS4 + reg_offset, 0);
 
@@ -397,6 +398,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	int i, reg_offset;
 	int ret = 0;
 
+	intel_aux_display_runtime_get(dev_priv);
 	mutex_lock(&dev_priv->gmbus_mutex);
 
 	if (bus->force_bit) {
@@ -496,6 +498,7 @@ timeout:
 
 out:
 	mutex_unlock(&dev_priv->gmbus_mutex);
+	intel_aux_display_runtime_put(dev_priv);
 	return ret;
 }
 
@@ -522,7 +525,9 @@ int intel_setup_gmbus(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_NOP(dev))
+		return 0;
+	else if (HAS_PCH_SPLIT(dev))
 		dev_priv->gpio_mmio_base = PCH_GPIOA - GPIOA;
 	else if (IS_VALLEYVIEW(dev))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;

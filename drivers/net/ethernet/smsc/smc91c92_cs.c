@@ -2054,16 +2054,4 @@ static struct pcmcia_driver smc91c92_cs_driver = {
 	.suspend	= smc91c92_suspend,
 	.resume		= smc91c92_resume,
 };
-
-static int __init init_smc91c92_cs(void)
-{
-	return pcmcia_register_driver(&smc91c92_cs_driver);
-}
-
-static void __exit exit_smc91c92_cs(void)
-{
-	pcmcia_unregister_driver(&smc91c92_cs_driver);
-}
-
-module_init(init_smc91c92_cs);
-module_exit(exit_smc91c92_cs);
+module_pcmcia_driver(smc91c92_cs_driver);

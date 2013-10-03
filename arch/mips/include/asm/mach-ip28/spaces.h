@@ -11,11 +11,14 @@
 #ifndef _ASM_MACH_IP28_SPACES_H
 #define _ASM_MACH_IP28_SPACES_H
 
-#define CAC_BASE		0xa800000000000000
+#define CAC_BASE	_AC(0xa800000000000000, UL)
 
-#define HIGHMEM_START		(~0UL)
+#define HIGHMEM_START	(~0UL)
 
-#define PHYS_OFFSET		_AC(0x20000000, UL)
+#define PHYS_OFFSET	_AC(0x20000000, UL)
+
+#define UNCAC_BASE	_AC(0xc0000000, UL)     /* 0xa0000000 + PHYS_OFFSET */
+#define IO_BASE		UNCAC_BASE
 
 #include <asm/mach-generic/spaces.h>
 

@@ -115,6 +115,7 @@ struct tuner_simple_priv {
 
 	u32 frequency;
 	u32 bandwidth;
+	bool radio_mode;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -189,7 +190,7 @@ static int simple_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	int signal;
 
-	if (priv->i2c_props.adap == NULL)
+	if (priv->i2c_props.adap == NULL || !priv->radio_mode)
 		return -EINVAL;
 
 	signal = tuner_signal(tuner_read_status(fe));
@@ -776,11 +777,13 @@ static int simple_set_params(struct dvb_frontend *fe,
 
 	switch (params->mode) {
 	case V4L2_TUNER_RADIO:
+		priv->radio_mode = true;
 		ret = simple_set_radio_freq(fe, params);
 		priv->frequency = params->frequency * 125 / 2;
 		break;
 	case V4L2_TUNER_ANALOG_TV:
 	case V4L2_TUNER_DIGITAL_TV:
+		priv->radio_mode = false;
 		ret = simple_set_tv_freq(fe, params);
 		priv->frequency = params->frequency * 62500;
 		break;

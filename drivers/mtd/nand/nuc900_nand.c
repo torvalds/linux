@@ -177,15 +177,6 @@ static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	case NAND_CMD_SEQIN:
 	case NAND_CMD_RNDIN:
 	case NAND_CMD_STATUS:
-	case NAND_CMD_DEPLETE1:
-		return;
-
-	case NAND_CMD_STATUS_ERROR:
-	case NAND_CMD_STATUS_ERROR0:
-	case NAND_CMD_STATUS_ERROR1:
-	case NAND_CMD_STATUS_ERROR2:
-	case NAND_CMD_STATUS_ERROR3:
-		udelay(chip->chip_delay);
 		return;
 
 	case NAND_CMD_RESET:
@@ -332,8 +323,6 @@ static int nuc900_nand_remove(struct platform_device *pdev)
 	clk_put(nuc900_nand->clk);
 
 	kfree(nuc900_nand);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

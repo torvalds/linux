@@ -153,7 +153,7 @@ static int migor_dai_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link migor_dai = {
 	.name = "wm8978",
 	.stream_name = "WM8978",
-	.cpu_dai_name = "siu-i2s-dai",
+	.cpu_dai_name = "siu-pcm-audio",
 	.codec_dai_name = "wm8978-hifi",
 	.platform_name = "siu-pcm-audio",
 	.codec_name = "wm8978.0-001a",

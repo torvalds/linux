@@ -16,7 +16,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/of_i2c.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/pinmux.h>
@@ -354,6 +353,8 @@ static int tfp410_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	mod->preferred_bpp = dvi_info.bpp;
+
 	i2c_node = of_find_node_by_phandle(i2c_phandle);
 	if (!i2c_node) {
 		dev_err(&pdev->dev, "could not get i2c bus node\n");
@@ -396,7 +397,6 @@ static struct of_device_id tfp410_of_match[] = {
 		{ .compatible = "ti,tilcdc,tfp410", },
 		{ },
 };
-MODULE_DEVICE_TABLE(of, tfp410_of_match);
 
 struct platform_driver tfp410_driver = {
 	.probe = tfp410_probe,

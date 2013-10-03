@@ -117,7 +117,7 @@ static struct acpi_fadt_info fadt_info_table[] = {
 	 ACPI_FADT_OFFSET(pm_timer_block),
 	 ACPI_FADT_OFFSET(pm_timer_length),
 	 ACPI_PM_TIMER_WIDTH,
-	 ACPI_FADT_REQUIRED},
+	 ACPI_FADT_SEPARATE_LENGTH},	/* ACPI 5.0A: Timer is optional */
 
 	{"Gpe0Block",
 	 ACPI_FADT_OFFSET(xgpe0_block),
@@ -559,8 +559,12 @@ static void acpi_tb_validate_fadt(void)
 		/*
 		 * For each extended field, check for length mismatch between the
 		 * legacy length field and the corresponding 64-bit X length field.
+		 * Note: If the legacy length field is > 0xFF bits, ignore this
+		 * check. (GPE registers can be larger than the 64-bit GAS structure
+		 * can accomodate, 0xFF bits).
 		 */
 		if (address64->address &&
+		    (ACPI_MUL_8(length) <= ACPI_UINT8_MAX) &&
 		    (address64->bit_width != ACPI_MUL_8(length))) {
 			ACPI_BIOS_WARNING((AE_INFO,
 					   "32/64X length mismatch in FADT/%s: %u/%u",
@@ -570,7 +574,7 @@ static void acpi_tb_validate_fadt(void)
 
 		if (fadt_info_table[i].type & ACPI_FADT_REQUIRED) {
 			/*
-			 * Field is required (Pm1a_event, Pm1a_control, pm_timer).
+			 * Field is required (Pm1a_event, Pm1a_control).
 			 * Both the address and length must be non-zero.
 			 */
 			if (!address64->address || !length) {

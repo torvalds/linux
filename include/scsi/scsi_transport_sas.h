@@ -10,13 +10,6 @@ struct scsi_transport_template;
 struct sas_rphy;
 struct request;
 
-enum sas_device_type {
-	SAS_PHY_UNUSED = 0,
-	SAS_END_DEVICE = 1,
-	SAS_EDGE_EXPANDER_DEVICE = 2,
-	SAS_FANOUT_EXPANDER_DEVICE = 3,
-};
-
 static inline int sas_protocol_ata(enum sas_protocol proto)
 {
 	return ((proto & SAS_PROTOCOL_SATA) ||

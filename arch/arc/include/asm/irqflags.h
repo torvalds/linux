@@ -19,6 +19,26 @@
 
 #include <asm/arcregs.h>
 
+/* status32 Reg bits related to Interrupt Handling */
+#define STATUS_E1_BIT		1	/* Int 1 enable */
+#define STATUS_E2_BIT		2	/* Int 2 enable */
+#define STATUS_A1_BIT		3	/* Int 1 active */
+#define STATUS_A2_BIT		4	/* Int 2 active */
+
+#define STATUS_E1_MASK		(1<<STATUS_E1_BIT)
+#define STATUS_E2_MASK		(1<<STATUS_E2_BIT)
+#define STATUS_A1_MASK		(1<<STATUS_A1_BIT)
+#define STATUS_A2_MASK		(1<<STATUS_A2_BIT)
+
+/* Other Interrupt Handling related Aux regs */
+#define AUX_IRQ_LEV		0x200	/* IRQ Priority: L1 or L2 */
+#define AUX_IRQ_HINT		0x201	/* For generating Soft Interrupts */
+#define AUX_IRQ_LV12		0x43	/* interrupt level register */
+
+#define AUX_IENABLE		0x40c
+#define AUX_ITRIGGER		0x40d
+#define AUX_IPULSE		0x415
+
 #ifndef __ASSEMBLY__
 
 /******************************************************************
@@ -39,7 +59,7 @@ static inline long arch_local_irq_save(void)
 	"	flag.nz %0		\n"
 	: "=r"(temp), "=r"(flags)
 	: "n"((STATUS_E1_MASK | STATUS_E2_MASK))
-	: "cc");
+	: "memory", "cc");
 
 	return flags;
 }
@@ -53,7 +73,8 @@ static inline void arch_local_irq_restore(unsigned long flags)
 	__asm__ __volatile__(
 	"	flag %0			\n"
 	:
-	: "r"(flags));
+	: "r"(flags)
+	: "memory");
 }
 
 /*
@@ -73,7 +94,8 @@ static inline void arch_local_irq_disable(void)
 	"	and %0, %0, %1		\n"
 	"	flag %0			\n"
 	: "=&r"(temp)
-	: "n"(~(STATUS_E1_MASK | STATUS_E2_MASK)));
+	: "n"(~(STATUS_E1_MASK | STATUS_E2_MASK))
+	: "memory");
 }
 
 /*
@@ -85,7 +107,9 @@ static inline long arch_local_save_flags(void)
 
 	__asm__ __volatile__(
 	"	lr  %0, [status32]	\n"
-	: "=&r"(temp));
+	: "=&r"(temp)
+	:
+	: "memory");
 
 	return temp;
 }
@@ -129,13 +153,6 @@ static inline void arch_unmask_irq(unsigned int irq)
 
 .macro IRQ_DISABLE  scratch
 	lr	\scratch, [status32]
-	bic	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
-	flag	\scratch
-.endm
-
-.macro IRQ_DISABLE_SAVE  scratch, save
-	lr	\scratch, [status32]
-	mov	\save, \scratch		/* Make a copy */
 	bic	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
 	flag	\scratch
 .endm

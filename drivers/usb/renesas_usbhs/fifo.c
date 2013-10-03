@@ -32,7 +32,6 @@
  */
 void usbhs_pkt_init(struct usbhs_pkt *pkt)
 {
-	pkt->dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD(&pkt->node);
 }
 

@@ -122,11 +122,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	add	r8,r8,r7
 	std	r8,HSTATE_DECEXP(r13)
 
+#ifdef CONFIG_SMP
 	/*
 	 * On PPC970, if the guest vcpu has an external interrupt pending,
 	 * send ourselves an IPI so as to interrupt the guest once it
 	 * enables interrupts.  (It must have interrupts disabled,
 	 * otherwise we would already have delivered the interrupt.)
+	 *
+	 * XXX If this is a UP build, smp_send_reschedule is not available,
+	 * so the interrupt will be delayed until the next time the vcpu
+	 * enters the guest with interrupts enabled.
 	 */
 BEGIN_FTR_SECTION
 	ld	r0, VCPU_PENDING_EXC(r4)
@@ -141,6 +146,7 @@ BEGIN_FTR_SECTION
 	mr	r4, r31
 32:
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
+#endif /* CONFIG_SMP */
 
 	/* Jump to partition switch code */
 	bl	.kvmppc_hv_entry_trampoline

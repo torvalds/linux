@@ -447,7 +447,7 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	end_win = ((start_win + win_size) - 1) & (MAX_TID_VALUE - 1);
 	del_timer(&tbl->timer_context.timer);
 	mod_timer(&tbl->timer_context.timer,
-		  jiffies + (MIN_FLUSH_TIMER_MS * win_size * HZ) / 1000);
+		  jiffies + msecs_to_jiffies(MIN_FLUSH_TIMER_MS * win_size));
 
 	/*
 	 * If seq_num is less then starting win then ignore and drop the

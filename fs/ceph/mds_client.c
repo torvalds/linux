@@ -265,7 +265,8 @@ static int parse_reply_info_extra(void **p, void *end,
 {
 	if (info->head->op == CEPH_MDS_OP_GETFILELOCK)
 		return parse_reply_info_filelock(p, end, info, features);
-	else if (info->head->op == CEPH_MDS_OP_READDIR)
+	else if (info->head->op == CEPH_MDS_OP_READDIR ||
+		 info->head->op == CEPH_MDS_OP_LSSNAP)
 		return parse_reply_info_dir(p, end, info, features);
 	else if (info->head->op == CEPH_MDS_OP_CREATE)
 		return parse_reply_info_create(p, end, info, features);
@@ -364,9 +365,9 @@ void ceph_put_mds_session(struct ceph_mds_session *s)
 	     atomic_read(&s->s_ref), atomic_read(&s->s_ref)-1);
 	if (atomic_dec_and_test(&s->s_ref)) {
 		if (s->s_auth.authorizer)
-		     s->s_mdsc->fsc->client->monc.auth->ops->destroy_authorizer(
-			     s->s_mdsc->fsc->client->monc.auth,
-			     s->s_auth.authorizer);
+			ceph_auth_destroy_authorizer(
+				s->s_mdsc->fsc->client->monc.auth,
+				s->s_auth.authorizer);
 		kfree(s);
 	}
 }
@@ -412,6 +413,9 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 						 int mds)
 {
 	struct ceph_mds_session *s;
+
+	if (mds >= mdsc->mdsmap->m_max_mds)
+		return ERR_PTR(-EINVAL);
 
 	s = kzalloc(sizeof(*s), GFP_NOFS);
 	if (!s)
@@ -1027,6 +1031,37 @@ static void remove_session_caps(struct ceph_mds_session *session)
 {
 	dout("remove_session_caps on %p\n", session);
 	iterate_session_caps(session, remove_session_caps_cb, NULL);
+
+	spin_lock(&session->s_cap_lock);
+	if (session->s_nr_caps > 0) {
+		struct super_block *sb = session->s_mdsc->fsc->sb;
+		struct inode *inode;
+		struct ceph_cap *cap, *prev = NULL;
+		struct ceph_vino vino;
+		/*
+		 * iterate_session_caps() skips inodes that are being
+		 * deleted, we need to wait until deletions are complete.
+		 * __wait_on_freeing_inode() is designed for the job,
+		 * but it is not exported, so use lookup inode function
+		 * to access it.
+		 */
+		while (!list_empty(&session->s_caps)) {
+			cap = list_entry(session->s_caps.next,
+					 struct ceph_cap, session_caps);
+			if (cap == prev)
+				break;
+			prev = cap;
+			vino = cap->ci->i_vino;
+			spin_unlock(&session->s_cap_lock);
+
+			inode = ceph_find_inode(sb, vino);
+			iput(inode);
+
+			spin_lock(&session->s_cap_lock);
+		}
+	}
+	spin_unlock(&session->s_cap_lock);
+
 	BUG_ON(session->s_nr_caps > 0);
 	BUG_ON(!list_empty(&session->s_cap_flushing));
 	cleanup_cap_releases(session);
@@ -1196,6 +1231,8 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	session->s_trim_caps--;
 	if (oissued) {
 		/* we aren't the only cap.. just remove us */
+		__queue_cap_release(session, ceph_ino(inode), cap->cap_id,
+				    cap->mseq, cap->issue_seq);
 		__ceph_remove_cap(cap);
 	} else {
 		/* try to drop referring dentries */
@@ -1388,6 +1425,7 @@ static void discard_cap_releases(struct ceph_mds_client *mdsc,
 	num = le32_to_cpu(head->num);
 	dout("discard_cap_releases mds%d %p %u\n", session->s_mds, msg, num);
 	head->num = cpu_to_le32(0);
+	msg->front.iov_len = sizeof(*head);
 	session->s_num_cap_releases += num;
 
 	/* requeue completed messages */
@@ -1550,7 +1588,7 @@ retry:
 	*base = ceph_ino(temp->d_inode);
 	*plen = len;
 	dout("build_path on %p %d built %llx '%.*s'\n",
-	     dentry, dentry->d_count, *base, len, path);
+	     dentry, d_count(dentry), *base, len, path);
 	return path;
 }
 
@@ -1718,8 +1756,12 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 
-	msg->pages = req->r_pages;
-	msg->nr_pages = req->r_num_pages;
+	if (req->r_data_len) {
+		/* outbound data set only by ceph_sync_setxattr() */
+		BUG_ON(!req->r_pages);
+		ceph_msg_data_add_pages(msg, req->r_pages, req->r_data_len, 0);
+	}
+
 	msg->hdr.data_len = cpu_to_le32(req->r_data_len);
 	msg->hdr.data_off = cpu_to_le16(0);
 
@@ -1913,6 +1955,7 @@ static void __wake_requests(struct ceph_mds_client *mdsc,
 		req = list_entry(tmp_list.next,
 				 struct ceph_mds_request, r_wait);
 		list_del_init(&req->r_wait);
+		dout(" wake request %p tid %llu\n", req, req->r_tid);
 		__do_request(mdsc, req);
 	}
 }
@@ -2026,20 +2069,16 @@ out:
 }
 
 /*
- * Invalidate dir D_COMPLETE, dentry lease state on an aborted MDS
+ * Invalidate dir's completeness, dentry lease state on an aborted MDS
  * namespace request.
  */
 void ceph_invalidate_dir_request(struct ceph_mds_request *req)
 {
 	struct inode *inode = req->r_locked_dir;
-	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	dout("invalidate_dir_request %p (D_COMPLETE, lease(s))\n", inode);
-	spin_lock(&ci->i_ceph_lock);
+	dout("invalidate_dir_request %p (complete, lease(s))\n", inode);
+
 	ceph_dir_clear_complete(inode);
-	ci->i_release_count++;
-	spin_unlock(&ci->i_ceph_lock);
-
 	if (req->r_dentry)
 		ceph_invalidate_dentry_lease(req->r_dentry);
 	if (req->r_old_dentry)
@@ -2450,6 +2489,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	spin_lock(&ci->i_ceph_lock);
 	cap->seq = 0;        /* reset cap seq */
 	cap->issue_seq = 0;  /* and issue_seq */
+	cap->mseq = 0;       /* and migrate_seq */
 
 	if (recon_state->flock) {
 		rec.v2.cap_id = cpu_to_le64(cap->cap_id);
@@ -2474,39 +2514,44 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 	if (recon_state->flock) {
 		int num_fcntl_locks, num_flock_locks;
-		struct ceph_pagelist_cursor trunc_point;
+		struct ceph_filelock *flocks;
 
-		ceph_pagelist_set_cursor(pagelist, &trunc_point);
-		do {
-			lock_flocks();
-			ceph_count_locks(inode, &num_fcntl_locks,
-					 &num_flock_locks);
-			rec.v2.flock_len = (2*sizeof(u32) +
-					    (num_fcntl_locks+num_flock_locks) *
-					    sizeof(struct ceph_filelock));
-			unlock_flocks();
-
-			/* pre-alloc pagelist */
-			ceph_pagelist_truncate(pagelist, &trunc_point);
-			err = ceph_pagelist_append(pagelist, &rec, reclen);
-			if (!err)
-				err = ceph_pagelist_reserve(pagelist,
-							    rec.v2.flock_len);
-
-			/* encode locks */
-			if (!err) {
-				lock_flocks();
-				err = ceph_encode_locks(inode,
-							pagelist,
-							num_fcntl_locks,
-							num_flock_locks);
-				unlock_flocks();
-			}
-		} while (err == -ENOSPC);
+encode_again:
+		spin_lock(&inode->i_lock);
+		ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
+		spin_unlock(&inode->i_lock);
+		flocks = kmalloc((num_fcntl_locks+num_flock_locks) *
+				 sizeof(struct ceph_filelock), GFP_NOFS);
+		if (!flocks) {
+			err = -ENOMEM;
+			goto out_free;
+		}
+		spin_lock(&inode->i_lock);
+		err = ceph_encode_locks_to_buffer(inode, flocks,
+						  num_fcntl_locks,
+						  num_flock_locks);
+		spin_unlock(&inode->i_lock);
+		if (err) {
+			kfree(flocks);
+			if (err == -ENOSPC)
+				goto encode_again;
+			goto out_free;
+		}
+		/*
+		 * number of encoded locks is stable, so copy to pagelist
+		 */
+		rec.v2.flock_len = cpu_to_le32(2*sizeof(u32) +
+				    (num_fcntl_locks+num_flock_locks) *
+				    sizeof(struct ceph_filelock));
+		err = ceph_pagelist_append(pagelist, &rec, reclen);
+		if (!err)
+			err = ceph_locks_to_pagelist(flocks, pagelist,
+						     num_fcntl_locks,
+						     num_flock_locks);
+		kfree(flocks);
 	} else {
 		err = ceph_pagelist_append(pagelist, &rec, reclen);
 	}
-
 out_free:
 	kfree(path);
 out_dput:
@@ -2599,11 +2644,13 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 			goto fail;
 	}
 
-	reply->pagelist = pagelist;
 	if (recon_state.flock)
 		reply->hdr.version = cpu_to_le16(2);
-	reply->hdr.data_len = cpu_to_le32(pagelist->length);
-	reply->nr_pages = calc_pages_for(0, pagelist->length);
+	if (pagelist->length) {
+		/* set up outbound data if we have any */
+		reply->hdr.data_len = cpu_to_le32(pagelist->length);
+		ceph_msg_data_add_pagelist(reply, pagelist);
+	}
 	ceph_con_send(&session->s_con, reply);
 
 	mutex_unlock(&session->s_mutex);
@@ -3029,8 +3076,10 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	fsc->mdsc = mdsc;
 	mutex_init(&mdsc->mutex);
 	mdsc->mdsmap = kzalloc(sizeof(*mdsc->mdsmap), GFP_NOFS);
-	if (mdsc->mdsmap == NULL)
+	if (mdsc->mdsmap == NULL) {
+		kfree(mdsc);
 		return -ENOMEM;
+	}
 
 	init_completion(&mdsc->safe_umount_waiters);
 	init_waitqueue_head(&mdsc->session_close_wq);
@@ -3433,13 +3482,17 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 	struct ceph_auth_handshake *auth = &s->s_auth;
 
 	if (force_new && auth->authorizer) {
-		if (ac->ops && ac->ops->destroy_authorizer)
-			ac->ops->destroy_authorizer(ac, auth->authorizer);
+		ceph_auth_destroy_authorizer(ac, auth->authorizer);
 		auth->authorizer = NULL;
 	}
-	if (!auth->authorizer && ac->ops && ac->ops->create_authorizer) {
-		int ret = ac->ops->create_authorizer(ac, CEPH_ENTITY_TYPE_MDS,
-							auth);
+	if (!auth->authorizer) {
+		int ret = ceph_auth_create_authorizer(ac, CEPH_ENTITY_TYPE_MDS,
+						      auth);
+		if (ret)
+			return ERR_PTR(ret);
+	} else {
+		int ret = ceph_auth_update_authorizer(ac, CEPH_ENTITY_TYPE_MDS,
+						      auth);
 		if (ret)
 			return ERR_PTR(ret);
 	}
@@ -3455,7 +3508,7 @@ static int verify_authorizer_reply(struct ceph_connection *con, int len)
 	struct ceph_mds_client *mdsc = s->s_mdsc;
 	struct ceph_auth_client *ac = mdsc->fsc->client->monc.auth;
 
-	return ac->ops->verify_authorizer_reply(ac, s->s_auth.authorizer, len);
+	return ceph_auth_verify_authorizer_reply(ac, s->s_auth.authorizer, len);
 }
 
 static int invalidate_authorizer(struct ceph_connection *con)
@@ -3464,10 +3517,30 @@ static int invalidate_authorizer(struct ceph_connection *con)
 	struct ceph_mds_client *mdsc = s->s_mdsc;
 	struct ceph_auth_client *ac = mdsc->fsc->client->monc.auth;
 
-	if (ac->ops->invalidate_authorizer)
-		ac->ops->invalidate_authorizer(ac, CEPH_ENTITY_TYPE_MDS);
+	ceph_auth_invalidate_authorizer(ac, CEPH_ENTITY_TYPE_MDS);
 
 	return ceph_monc_validate_auth(&mdsc->fsc->client->monc);
+}
+
+static struct ceph_msg *mds_alloc_msg(struct ceph_connection *con,
+				struct ceph_msg_header *hdr, int *skip)
+{
+	struct ceph_msg *msg;
+	int type = (int) le16_to_cpu(hdr->type);
+	int front_len = (int) le32_to_cpu(hdr->front_len);
+
+	if (con->in_msg)
+		return con->in_msg;
+
+	*skip = 0;
+	msg = ceph_msg_new(type, front_len, GFP_NOFS, false);
+	if (!msg) {
+		pr_err("unable to allocate msg type %d len %d\n",
+		       type, front_len);
+		return NULL;
+	}
+
+	return msg;
 }
 
 static const struct ceph_connection_operations mds_con_ops = {
@@ -3478,6 +3551,7 @@ static const struct ceph_connection_operations mds_con_ops = {
 	.verify_authorizer_reply = verify_authorizer_reply,
 	.invalidate_authorizer = invalidate_authorizer,
 	.peer_reset = peer_reset,
+	.alloc_msg = mds_alloc_msg,
 };
 
 /* eof */

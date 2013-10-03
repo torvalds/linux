@@ -912,7 +912,7 @@ int gfs2_glock_wait(struct gfs2_holder *gh)
  */
 
 static void handle_callback(struct gfs2_glock *gl, unsigned int state,
-			    unsigned long delay)
+			    unsigned long delay, bool remote)
 {
 	int bit = delay ? GLF_PENDING_DEMOTE : GLF_DEMOTE;
 
@@ -925,8 +925,8 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 		gl->gl_demote_state = LM_ST_UNLOCKED;
 	}
 	if (gl->gl_ops->go_callback)
-		gl->gl_ops->go_callback(gl);
-	trace_gfs2_demote_rq(gl);
+		gl->gl_ops->go_callback(gl, remote);
+	trace_gfs2_demote_rq(gl, remote);
 }
 
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
@@ -1017,11 +1017,11 @@ do_cancel:
 	return;
 
 trap_recursive:
-	print_symbol(KERN_ERR "original: %s\n", gh2->gh_ip);
+	printk(KERN_ERR "original: %pSR\n", (void *)gh2->gh_ip);
 	printk(KERN_ERR "pid: %d\n", pid_nr(gh2->gh_owner_pid));
 	printk(KERN_ERR "lock type: %d req lock state : %d\n",
 	       gh2->gh_gl->gl_name.ln_type, gh2->gh_state);
-	print_symbol(KERN_ERR "new: %s\n", gh->gh_ip);
+	printk(KERN_ERR "new: %pSR\n", (void *)gh->gh_ip);
 	printk(KERN_ERR "pid: %d\n", pid_nr(gh->gh_owner_pid));
 	printk(KERN_ERR "lock type: %d req lock state : %d\n",
 	       gh->gh_gl->gl_name.ln_type, gh->gh_state);
@@ -1091,7 +1091,7 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 
 	spin_lock(&gl->gl_spin);
 	if (gh->gh_flags & GL_NOCACHE)
-		handle_callback(gl, LM_ST_UNLOCKED, 0);
+		handle_callback(gl, LM_ST_UNLOCKED, 0, false);
 
 	list_del_init(&gh->gh_list);
 	if (find_first_holder(gl) == NULL) {
@@ -1279,19 +1279,6 @@ void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs)
 		gfs2_glock_dq(&ghs[num_gh]);
 }
 
-/**
- * gfs2_glock_dq_uninit_m - release multiple glocks
- * @num_gh: the number of structures
- * @ghs: an array of struct gfs2_holder structures
- *
- */
-
-void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs)
-{
-	while (num_gh--)
-		gfs2_glock_dq_uninit(&ghs[num_gh]);
-}
-
 void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 {
 	unsigned long delay = 0;
@@ -1309,7 +1296,7 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 	}
 
 	spin_lock(&gl->gl_spin);
-	handle_callback(gl, state, delay);
+	handle_callback(gl, state, delay, true);
 	spin_unlock(&gl->gl_spin);
 	if (queue_delayed_work(glock_workqueue, &gl->gl_work, delay) == 0)
 		gfs2_glock_put(gl);
@@ -1422,9 +1409,8 @@ __acquires(&lru_lock)
 		spin_unlock(&lru_lock);
 		spin_lock(&gl->gl_spin);
 		if (demote_ok(gl))
-			handle_callback(gl, LM_ST_UNLOCKED, 0);
+			handle_callback(gl, LM_ST_UNLOCKED, 0, false);
 		WARN_ON(!test_and_clear_bit(GLF_LOCK, &gl->gl_flags));
-		smp_mb__after_clear_bit();
 		if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
 			gfs2_glock_put_nolock(gl);
 		spin_unlock(&gl->gl_spin);
@@ -1441,21 +1427,22 @@ __acquires(&lru_lock)
  * gfs2_dispose_glock_lru() above.
  */
 
-static void gfs2_scan_glock_lru(int nr)
+static long gfs2_scan_glock_lru(int nr)
 {
 	struct gfs2_glock *gl;
 	LIST_HEAD(skipped);
 	LIST_HEAD(dispose);
+	long freed = 0;
 
 	spin_lock(&lru_lock);
-	while(nr && !list_empty(&lru_list)) {
+	while ((nr-- >= 0) && !list_empty(&lru_list)) {
 		gl = list_entry(lru_list.next, struct gfs2_glock, gl_lru);
 
 		/* Test for being demotable */
 		if (!test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
 			list_move(&gl->gl_lru, &dispose);
 			atomic_dec(&lru_count);
-			nr--;
+			freed++;
 			continue;
 		}
 
@@ -1465,23 +1452,28 @@ static void gfs2_scan_glock_lru(int nr)
 	if (!list_empty(&dispose))
 		gfs2_dispose_glock_lru(&dispose);
 	spin_unlock(&lru_lock);
+
+	return freed;
 }
 
-static int gfs2_shrink_glock_memory(struct shrinker *shrink,
-				    struct shrink_control *sc)
+static unsigned long gfs2_glock_shrink_scan(struct shrinker *shrink,
+					    struct shrink_control *sc)
 {
-	if (sc->nr_to_scan) {
-		if (!(sc->gfp_mask & __GFP_FS))
-			return -1;
-		gfs2_scan_glock_lru(sc->nr_to_scan);
-	}
+	if (!(sc->gfp_mask & __GFP_FS))
+		return SHRINK_STOP;
+	return gfs2_scan_glock_lru(sc->nr_to_scan);
+}
 
-	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
+static unsigned long gfs2_glock_shrink_count(struct shrinker *shrink,
+					     struct shrink_control *sc)
+{
+	return vfs_pressure_ratio(atomic_read(&lru_count));
 }
 
 static struct shrinker glock_shrinker = {
-	.shrink = gfs2_shrink_glock_memory,
 	.seeks = DEFAULT_SEEKS,
+	.count_objects = gfs2_glock_shrink_count,
+	.scan_objects = gfs2_glock_shrink_scan,
 };
 
 /**
@@ -1501,7 +1493,7 @@ static void examine_bucket(glock_examiner examiner, const struct gfs2_sbd *sdp,
 
 	rcu_read_lock();
 	hlist_bl_for_each_entry_rcu(gl, pos, head, gl_list) {
-		if ((gl->gl_sbd == sdp) && atomic_read(&gl->gl_ref))
+		if ((gl->gl_sbd == sdp) && atomic_inc_not_zero(&gl->gl_ref))
 			examiner(gl);
 	}
 	rcu_read_unlock();
@@ -1521,18 +1513,17 @@ static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
  * thaw_glock - thaw out a glock which has an unprocessed reply waiting
  * @gl: The glock to thaw
  *
- * N.B. When we freeze a glock, we leave a ref to the glock outstanding,
- * so this has to result in the ref count being dropped by one.
  */
 
 static void thaw_glock(struct gfs2_glock *gl)
 {
 	if (!test_and_clear_bit(GLF_FROZEN, &gl->gl_flags))
-		return;
+		goto out;
 	set_bit(GLF_REPLY_PENDING, &gl->gl_flags);
-	gfs2_glock_hold(gl);
-	if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
+	if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0) {
+out:
 		gfs2_glock_put(gl);
+	}
 }
 
 /**
@@ -1547,9 +1538,8 @@ static void clear_glock(struct gfs2_glock *gl)
 
 	spin_lock(&gl->gl_spin);
 	if (gl->gl_state != LM_ST_UNLOCKED)
-		handle_callback(gl, LM_ST_UNLOCKED, 0);
+		handle_callback(gl, LM_ST_UNLOCKED, 0, false);
 	spin_unlock(&gl->gl_spin);
-	gfs2_glock_hold(gl);
 	if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
 		gfs2_glock_put(gl);
 }
@@ -1590,6 +1580,7 @@ static void dump_glock_func(struct gfs2_glock *gl)
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 {
 	set_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags);
+	flush_workqueue(glock_workqueue);
 	glock_hash_walk(clear_glock, sdp);
 	flush_workqueue(glock_workqueue);
 	wait_event(sdp->sd_glock_wait, atomic_read(&sdp->sd_glock_disposal) == 0);
@@ -1850,14 +1841,14 @@ int __init gfs2_glock_init(void)
 
 	glock_workqueue = alloc_workqueue("glock_workqueue", WQ_MEM_RECLAIM |
 					  WQ_HIGHPRI | WQ_FREEZABLE, 0);
-	if (IS_ERR(glock_workqueue))
-		return PTR_ERR(glock_workqueue);
+	if (!glock_workqueue)
+		return -ENOMEM;
 	gfs2_delete_workqueue = alloc_workqueue("delete_workqueue",
 						WQ_MEM_RECLAIM | WQ_FREEZABLE,
 						0);
-	if (IS_ERR(gfs2_delete_workqueue)) {
+	if (!gfs2_delete_workqueue) {
 		destroy_workqueue(glock_workqueue);
-		return PTR_ERR(gfs2_delete_workqueue);
+		return -ENOMEM;
 	}
 
 	register_shrinker(&glock_shrinker);

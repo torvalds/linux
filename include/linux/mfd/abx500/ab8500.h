@@ -291,6 +291,8 @@ enum ab8500_version {
 #define AB8540_INT_FSYNC2R		213
 #define AB8540_INT_BITCLK2F		214
 #define AB8540_INT_BITCLK2R		215
+/* ab8540_irq_regoffset[27] -> IT[Source|Latch|Mask]33 */
+#define AB8540_INT_RTC_1S		216
 
 /*
  * AB8500_AB9540_NR_IRQS is used when configuring the IRQ numbers for the
@@ -362,10 +364,10 @@ struct ab8500 {
 	u8 *oldmask;
 	int mask_size;
 	const int *irq_reg_offset;
+	int it_latchhier_num;
 };
 
-struct regulator_reg_init;
-struct regulator_init_data;
+struct ab8500_regulator_platform_data;
 struct ab8500_gpio_platform_data;
 struct ab8500_codec_platform_data;
 struct ab8500_sysctrl_platform_data;
@@ -373,21 +375,13 @@ struct ab8500_sysctrl_platform_data;
 /**
  * struct ab8500_platform_data - AB8500 platform data
  * @irq_base: start of AB8500 IRQs, AB8500_NR_IRQS will be used
- * @pm_power_off: Should machine pm power off hook be registered or not
  * @init: board-specific initialization after detection of ab8500
- * @num_regulator_reg_init: number of regulator init registers
- * @regulator_reg_init: regulator init registers
- * @num_regulator: number of regulators
  * @regulator: machine-specific constraints for regulators
  */
 struct ab8500_platform_data {
 	int irq_base;
-	bool pm_power_off;
 	void (*init) (struct ab8500 *);
-	int num_regulator_reg_init;
-	struct ab8500_regulator_reg_init *regulator_reg_init;
-	int num_regulator;
-	struct regulator_init_data *regulator;
+	struct ab8500_regulator_platform_data *regulator;
 	struct abx500_gpio_platform_data *gpio;
 	struct ab8500_codec_platform_data *codec;
 	struct ab8500_sysctrl_platform_data *sysctrl;
@@ -511,6 +505,8 @@ static inline int is_ab9540_2p0_or_earlier(struct ab8500 *ab)
 {
 	return (is_ab9540(ab) && (ab->chip_id < AB8500_CUT2P0));
 }
+
+void ab8500_override_turn_on_stat(u8 mask, u8 set);
 
 #ifdef CONFIG_AB8500_DEBUG
 void ab8500_dump_all_banks(struct device *dev);

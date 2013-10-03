@@ -274,12 +274,14 @@ static int adp8870_led_probe(struct i2c_client *client)
 		if (led_dat->id > 7 || led_dat->id < 1) {
 			dev_err(&client->dev, "Invalid LED ID %d\n",
 				led_dat->id);
+			ret = -EINVAL;
 			goto err;
 		}
 
 		if (pdata->bl_led_assign & (1 << (led_dat->id - 1))) {
 			dev_err(&client->dev, "LED %d used by Backlight\n",
 				led_dat->id);
+			ret = -EBUSY;
 			goto err;
 		}
 
@@ -895,13 +897,13 @@ static int adp8870_probe(struct i2c_client *client,
 
 	data->bl = bl;
 
-	if (pdata->en_ambl_sens)
+	if (pdata->en_ambl_sens) {
 		ret = sysfs_create_group(&bl->dev.kobj,
 			&adp8870_bl_attr_group);
-
-	if (ret) {
-		dev_err(&client->dev, "failed to register sysfs\n");
-		goto out1;
+		if (ret) {
+			dev_err(&client->dev, "failed to register sysfs\n");
+			goto out1;
+		}
 	}
 
 	ret = adp8870_bl_setup(bl);
@@ -947,24 +949,28 @@ static int adp8870_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int adp8870_i2c_suspend(struct i2c_client *client, pm_message_t message)
+#ifdef CONFIG_PM_SLEEP
+static int adp8870_i2c_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	adp8870_clr_bits(client, ADP8870_MDCR, NSTBY);
 
 	return 0;
 }
 
-static int adp8870_i2c_resume(struct i2c_client *client)
+static int adp8870_i2c_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	adp8870_set_bits(client, ADP8870_MDCR, NSTBY | BLEN);
 
 	return 0;
 }
-#else
-#define adp8870_i2c_suspend NULL
-#define adp8870_i2c_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(adp8870_i2c_pm_ops, adp8870_i2c_suspend,
+			adp8870_i2c_resume);
 
 static const struct i2c_device_id adp8870_id[] = {
 	{ "adp8870", 0 },
@@ -974,12 +980,11 @@ MODULE_DEVICE_TABLE(i2c, adp8870_id);
 
 static struct i2c_driver adp8870_driver = {
 	.driver = {
-		.name = KBUILD_MODNAME,
+		.name	= KBUILD_MODNAME,
+		.pm	= &adp8870_i2c_pm_ops,
 	},
 	.probe    = adp8870_probe,
 	.remove   = adp8870_remove,
-	.suspend = adp8870_i2c_suspend,
-	.resume  = adp8870_i2c_resume,
 	.id_table = adp8870_id,
 };
 

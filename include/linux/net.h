@@ -79,9 +79,9 @@ enum sock_type {
 #endif /* ARCH_HAS_SOCKET_TYPES */
 
 enum sock_shutdown_cmd {
-	SHUT_RD		= 0,
-	SHUT_WR		= 1,
-	SHUT_RDWR	= 2,
+	SHUT_RD,
+	SHUT_WR,
+	SHUT_RDWR,
 };
 
 struct socket_wq {
@@ -240,8 +240,8 @@ do {								\
 #define net_dbg_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_debug, fmt, ##__VA_ARGS__)
 
-#define net_random()		random32()
-#define net_srandom(seed)	srandom32((__force u32)seed)
+#define net_random()		prandom_u32()
+#define net_srandom(seed)	prandom_seed((__force u32)(seed))
 
 extern int   	     kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 				    struct kvec *vec, size_t num, size_t len);

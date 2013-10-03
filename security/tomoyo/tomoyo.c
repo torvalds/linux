@@ -536,7 +536,7 @@ static struct security_operations tomoyo_security_ops = {
 };
 
 /* Lock for GC. */
-struct srcu_struct tomoyo_ss;
+DEFINE_SRCU(tomoyo_ss);
 
 /**
  * tomoyo_init - Register TOMOYO Linux as a LSM module.
@@ -550,8 +550,7 @@ static int __init tomoyo_init(void)
 	if (!security_module_enable(&tomoyo_security_ops))
 		return 0;
 	/* register ourselves with the security framework */
-	if (register_security(&tomoyo_security_ops) ||
-	    init_srcu_struct(&tomoyo_ss))
+	if (register_security(&tomoyo_security_ops))
 		panic("Failure registering TOMOYO Linux");
 	printk(KERN_INFO "TOMOYO Linux initialized\n");
 	cred->security = &tomoyo_kernel_domain;

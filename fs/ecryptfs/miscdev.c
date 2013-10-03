@@ -80,13 +80,6 @@ ecryptfs_miscdev_open(struct inode *inode, struct file *file)
 	int rc;
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
-	rc = try_module_get(THIS_MODULE);
-	if (rc == 0) {
-		rc = -EIO;
-		printk(KERN_ERR "%s: Error attempting to increment module use "
-		       "count; rc = [%d]\n", __func__, rc);
-		goto out_unlock_daemon_list;
-	}
 	rc = ecryptfs_find_daemon_by_euid(&daemon);
 	if (!rc) {
 		rc = -EINVAL;
@@ -96,7 +89,7 @@ ecryptfs_miscdev_open(struct inode *inode, struct file *file)
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to spawn daemon; "
 		       "rc = [%d]\n", __func__, rc);
-		goto out_module_put_unlock_daemon_list;
+		goto out_unlock_daemon_list;
 	}
 	mutex_lock(&daemon->mux);
 	if (daemon->flags & ECRYPTFS_DAEMON_MISCDEV_OPEN) {
@@ -108,9 +101,6 @@ ecryptfs_miscdev_open(struct inode *inode, struct file *file)
 	atomic_inc(&ecryptfs_num_miscdev_opens);
 out_unlock_daemon:
 	mutex_unlock(&daemon->mux);
-out_module_put_unlock_daemon_list:
-	if (rc)
-		module_put(THIS_MODULE);
 out_unlock_daemon_list:
 	mutex_unlock(&ecryptfs_daemon_hash_mux);
 	return rc;
@@ -147,7 +137,6 @@ ecryptfs_miscdev_release(struct inode *inode, struct file *file)
 		       "bug.\n", __func__, rc);
 		BUG();
 	}
-	module_put(THIS_MODULE);
 	return rc;
 }
 
@@ -471,6 +460,7 @@ out_free:
 
 
 static const struct file_operations ecryptfs_miscdev_fops = {
+	.owner   = THIS_MODULE,
 	.open    = ecryptfs_miscdev_open,
 	.poll    = ecryptfs_miscdev_poll,
 	.read    = ecryptfs_miscdev_read,

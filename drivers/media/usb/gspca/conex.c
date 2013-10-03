@@ -73,12 +73,11 @@ static void reg_r(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
-		pr_err("reg_r: buffer overflow\n");
+		PERR("reg_r: buffer overflow\n");
 		return;
 	}
-#endif
+
 	usb_control_msg(dev,
 			usb_rcvctrlpipe(dev, 0),
 			0,
@@ -113,13 +112,12 @@ static void reg_w(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
-		pr_err("reg_w: buffer overflow\n");
+		PERR("reg_w: buffer overflow\n");
 		return;
 	}
 	PDEBUG(D_USBO, "reg write [%02x] = %02x..", index, *buffer);
-#endif
+
 	memcpy(gspca_dev->usb_buf, buffer, len);
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
@@ -689,7 +687,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 		reg_w_val(gspca_dev, 0x0053, 0x00);
 	} while (--retry);
 	if (retry == 0)
-		PDEBUG(D_ERR, "Damned Errors sending jpeg Table");
+		PERR("Damned Errors sending jpeg Table");
 	/* send the qtable now */
 	reg_r(gspca_dev, 0x0001, 1);		/* -> 0x18 */
 	length = 8;

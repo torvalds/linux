@@ -650,8 +650,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 
 	proglen = cgctx.idx * 4;
 	alloclen = proglen + FUNCTION_DESCR_SIZE;
-	image = module_alloc(max_t(unsigned int, alloclen,
-				   sizeof(struct work_struct)));
+	image = module_alloc(alloclen);
 	if (!image)
 		goto out;
 
@@ -671,16 +670,12 @@ void bpf_jit_compile(struct sk_filter *fp)
 	}
 
 	if (bpf_jit_enable > 1)
-		pr_info("flen=%d proglen=%u pass=%d image=%p\n",
-		       flen, proglen, pass, image);
+		/* Note that we output the base address of the code_base
+		 * rather than image, since opcodes are in code_base.
+		 */
+		bpf_jit_dump(flen, proglen, pass, code_base);
 
 	if (image) {
-		if (bpf_jit_enable > 1)
-			print_hex_dump(KERN_ERR, "JIT code: ",
-				       DUMP_PREFIX_ADDRESS,
-				       16, 1, code_base,
-				       proglen, false);
-
 		bpf_flush_icache(code_base, code_base + (proglen/4));
 		/* Function descriptor nastiness: Address + TOC */
 		((u64 *)image)[0] = (u64)code_base;
@@ -692,20 +687,8 @@ out:
 	return;
 }
 
-static void jit_free_defer(struct work_struct *arg)
-{
-	module_free(NULL, arg);
-}
-
-/* run from softirq, we must use a work_struct to call
- * module_free() from process context
- */
 void bpf_jit_free(struct sk_filter *fp)
 {
-	if (fp->bpf_func != sk_run_filter) {
-		struct work_struct *work = (struct work_struct *)fp->bpf_func;
-
-		INIT_WORK(work, jit_free_defer);
-		schedule_work(work);
-	}
+	if (fp->bpf_func != sk_run_filter)
+		module_free(NULL, fp->bpf_func);
 }

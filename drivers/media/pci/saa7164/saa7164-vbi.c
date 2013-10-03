@@ -183,31 +183,41 @@ static int saa7164_vbi_initialize(struct saa7164_port *port)
 }
 
 /* -- V4L2 --------------------------------------------------------- */
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct saa7164_vbi_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 	unsigned int i;
 
-	dprintk(DBGLVL_VBI, "%s(id=0x%x)\n", __func__, (u32)*id);
+	dprintk(DBGLVL_VBI, "%s(id=0x%x)\n", __func__, (u32)id);
 
 	for (i = 0; i < ARRAY_SIZE(saa7164_tvnorms); i++) {
-		if (*id & saa7164_tvnorms[i].id)
+		if (id & saa7164_tvnorms[i].id)
 			break;
 	}
 	if (i == ARRAY_SIZE(saa7164_tvnorms))
 		return -EINVAL;
 
 	port->encodernorm = saa7164_tvnorms[i];
+	port->std = id;
 
 	/* Update the audio decoder while is not running in
 	 * auto detect mode.
 	 */
 	saa7164_api_set_audio_std(port);
 
-	dprintk(DBGLVL_VBI, "%s(id=0x%x) OK\n", __func__, (u32)*id);
+	dprintk(DBGLVL_VBI, "%s(id=0x%x) OK\n", __func__, (u32)id);
 
+	return 0;
+}
+
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7164_encoder_fh *fh = file->private_data;
+	struct saa7164_port *port = fh->port;
+
+	*id = port->std;
 	return 0;
 }
 
@@ -290,7 +300,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-	struct v4l2_tuner *t)
+	const struct v4l2_tuner *t)
 {
 	/* Update the A/V core */
 	return 0;
@@ -309,7 +319,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	struct saa7164_vbi_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
@@ -1236,6 +1246,7 @@ static const struct v4l2_file_operations vbi_fops = {
 
 static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
+	.vidioc_g_std		 = vidioc_g_std,
 	.vidioc_enum_input	 = vidioc_enum_input,
 	.vidioc_g_input		 = vidioc_g_input,
 	.vidioc_s_input		 = vidioc_s_input,
@@ -1254,15 +1265,6 @@ static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_s_ext_ctrls	 = vidioc_s_ext_ctrls,
 	.vidioc_try_ext_ctrls	 = vidioc_try_ext_ctrls,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
-#if 0
-	.vidioc_g_chip_ident	 = saa7164_g_chip_ident,
-#endif
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-#if 0
-	.vidioc_g_register	 = saa7164_g_register,
-	.vidioc_s_register	 = saa7164_s_register,
-#endif
-#endif
 	.vidioc_g_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_try_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_s_fmt_vbi_cap	 = saa7164_vbi_fmt,
@@ -1274,7 +1276,6 @@ static struct video_device saa7164_vbi_template = {
 	.ioctl_ops     = &vbi_ioctl_ops,
 	.minor         = -1,
 	.tvnorms       = SAA7164_NORMS,
-	.current_norm  = V4L2_STD_NTSC_M,
 };
 
 static struct video_device *saa7164_vbi_alloc(
@@ -1296,7 +1297,7 @@ static struct video_device *saa7164_vbi_alloc(
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name,
 		type, saa7164_boards[dev->board].name);
 
-	vfd->parent  = &pci->dev;
+	vfd->v4l2_dev  = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	return vfd;
 }
@@ -1333,6 +1334,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 		goto failed;
 	}
 
+	port->std = V4L2_STD_NTSC_M;
 	video_set_drvdata(port->v4l_device, port);
 	result = video_register_device(port->v4l_device,
 		VFL_TYPE_VBI, -1);

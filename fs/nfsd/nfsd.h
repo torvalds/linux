@@ -24,7 +24,7 @@
 /*
  * nfsd version
  */
-#define NFSD_SUPPORTED_MINOR_VERSION	1
+#define NFSD_SUPPORTED_MINOR_VERSION	2
 /*
  * Maximum blocksizes supported by daemon under various circumstances.
  */
@@ -53,7 +53,6 @@ struct readdir_cd {
 extern struct svc_program	nfsd_program;
 extern struct svc_version	nfsd_version2, nfsd_version3,
 				nfsd_version4;
-extern u32			nfsd_supported_minorversion;
 extern struct mutex		nfsd_mutex;
 extern spinlock_t		nfsd_drc_lock;
 extern unsigned long		nfsd_drc_max_mem;
@@ -243,6 +242,12 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_reject_deleg		cpu_to_be32(NFS4ERR_REJECT_DELEG)
 #define nfserr_returnconflict		cpu_to_be32(NFS4ERR_RETURNCONFLICT)
 #define nfserr_deleg_revoked		cpu_to_be32(NFS4ERR_DELEG_REVOKED)
+#define nfserr_partner_notsupp		cpu_to_be32(NFS4ERR_PARTNER_NOTSUPP)
+#define nfserr_partner_no_auth		cpu_to_be32(NFS4ERR_PARTNER_NO_AUTH)
+#define nfserr_metadata_notsupp		cpu_to_be32(NFS4ERR_METADATA_NOTSUPP)
+#define nfserr_offload_denied		cpu_to_be32(NFS4ERR_OFFLOAD_DENIED)
+#define nfserr_wrong_lfs		cpu_to_be32(NFS4ERR_WRONG_LFS)
+#define nfserr_badlabel		cpu_to_be32(NFS4ERR_BADLABEL)
 
 /* error codes for internal use */
 /* if a request fails due to kmalloc failure, it gets dropped.
@@ -322,6 +327,13 @@ void		nfsd_lockd_shutdown(void);
 #define NFSD4_1_SUPPORTED_ATTRS_WORD2 \
 	(NFSD4_SUPPORTED_ATTRS_WORD2 | FATTR4_WORD2_SUPPATTR_EXCLCREAT)
 
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+#define NFSD4_2_SUPPORTED_ATTRS_WORD2 \
+	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | FATTR4_WORD2_SECURITY_LABEL)
+#else
+#define NFSD4_2_SUPPORTED_ATTRS_WORD2 0
+#endif
+
 static inline u32 nfsd_suppattrs0(u32 minorversion)
 {
 	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD0
@@ -336,8 +348,11 @@ static inline u32 nfsd_suppattrs1(u32 minorversion)
 
 static inline u32 nfsd_suppattrs2(u32 minorversion)
 {
-	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD2
-			    : NFSD4_SUPPORTED_ATTRS_WORD2;
+	switch (minorversion) {
+	default: return NFSD4_2_SUPPORTED_ATTRS_WORD2;
+	case 1:  return NFSD4_1_SUPPORTED_ATTRS_WORD2;
+	case 0:  return NFSD4_SUPPORTED_ATTRS_WORD2;
+	}
 }
 
 /* These will return ERR_INVAL if specified in GETATTR or READDIR. */
@@ -350,7 +365,11 @@ static inline u32 nfsd_suppattrs2(u32 minorversion)
 #define NFSD_WRITEABLE_ATTRS_WORD1 \
 	(FATTR4_WORD1_MODE | FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP \
 	| FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET)
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+#define NFSD_WRITEABLE_ATTRS_WORD2 FATTR4_WORD2_SECURITY_LABEL
+#else
 #define NFSD_WRITEABLE_ATTRS_WORD2 0
+#endif
 
 #define NFSD_SUPPATTR_EXCLCREAT_WORD0 \
 	NFSD_WRITEABLE_ATTRS_WORD0

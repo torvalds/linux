@@ -130,26 +130,6 @@ static inline int iucv_dbf_passes(debug_info_t *dbf_grp, int level)
 /**
  * some more debug stuff
  */
-#define IUCV_HEXDUMP16(importance,header,ptr) \
-PRINT_##importance(header "%02x %02x %02x %02x  %02x %02x %02x %02x  " \
-		   "%02x %02x %02x %02x  %02x %02x %02x %02x\n", \
-		   *(((char*)ptr)),*(((char*)ptr)+1),*(((char*)ptr)+2), \
-		   *(((char*)ptr)+3),*(((char*)ptr)+4),*(((char*)ptr)+5), \
-		   *(((char*)ptr)+6),*(((char*)ptr)+7),*(((char*)ptr)+8), \
-		   *(((char*)ptr)+9),*(((char*)ptr)+10),*(((char*)ptr)+11), \
-		   *(((char*)ptr)+12),*(((char*)ptr)+13), \
-		   *(((char*)ptr)+14),*(((char*)ptr)+15)); \
-PRINT_##importance(header "%02x %02x %02x %02x  %02x %02x %02x %02x  " \
-		   "%02x %02x %02x %02x  %02x %02x %02x %02x\n", \
-		   *(((char*)ptr)+16),*(((char*)ptr)+17), \
-		   *(((char*)ptr)+18),*(((char*)ptr)+19), \
-		   *(((char*)ptr)+20),*(((char*)ptr)+21), \
-		   *(((char*)ptr)+22),*(((char*)ptr)+23), \
-		   *(((char*)ptr)+24),*(((char*)ptr)+25), \
-		   *(((char*)ptr)+26),*(((char*)ptr)+27), \
-		   *(((char*)ptr)+28),*(((char*)ptr)+29), \
-		   *(((char*)ptr)+30),*(((char*)ptr)+31));
-
 #define PRINTK_HEADER " iucv: "       /* for debugging */
 
 /* dummy device to make sure netiucv_pm functions are called */
@@ -2040,6 +2020,7 @@ static struct net_device *netiucv_init_netdevice(char *username, char *userdata)
 			   netiucv_setup_netdevice);
 	if (!dev)
 		return NULL;
+	rtnl_lock();
 	if (dev_alloc_name(dev, dev->name) < 0)
 		goto out_netdev;
 
@@ -2061,6 +2042,7 @@ static struct net_device *netiucv_init_netdevice(char *username, char *userdata)
 out_fsm:
 	kfree_fsm(privptr->fsm);
 out_netdev:
+	rtnl_unlock();
 	free_netdev(dev);
 	return NULL;
 }
@@ -2100,6 +2082,7 @@ static ssize_t conn_write(struct device_driver *drv,
 
 	rc = netiucv_register_device(dev);
 	if (rc) {
+		rtnl_unlock();
 		IUCV_DBF_TEXT_(setup, 2,
 			"ret %d from netiucv_register_device\n", rc);
 		goto out_free_ndev;
@@ -2109,7 +2092,8 @@ static ssize_t conn_write(struct device_driver *drv,
 	priv = netdev_priv(dev);
 	SET_NETDEV_DEV(dev, priv->dev);
 
-	rc = register_netdev(dev);
+	rc = register_netdevice(dev);
+	rtnl_unlock();
 	if (rc)
 		goto out_unreg;
 

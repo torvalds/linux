@@ -33,7 +33,6 @@
 
 #include <media/saa6588.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 
 /* insmod options */
@@ -435,7 +434,7 @@ static int saa6588_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int saa6588_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int saa6588_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct saa6588 *s = to_saa6588(sd);
 
@@ -443,17 +442,9 @@ static int saa6588_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int saa6588_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA6588, 0);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa6588_core_ops = {
-	.g_chip_ident = saa6588_g_chip_ident,
 	.ioctl = saa6588_ioctl,
 };
 
@@ -478,17 +469,15 @@ static int saa6588_probe(struct i2c_client *client,
 	v4l_info(client, "saa6588 found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	s = devm_kzalloc(&client->dev, sizeof(*s), GFP_KERNEL);
 	if (s == NULL)
 		return -ENOMEM;
 
 	s->buf_size = bufblocks * 3;
 
-	s->buffer = kmalloc(s->buf_size, GFP_KERNEL);
-	if (s->buffer == NULL) {
-		kfree(s);
+	s->buffer = devm_kzalloc(&client->dev, s->buf_size, GFP_KERNEL);
+	if (s->buffer == NULL)
 		return -ENOMEM;
-	}
 	sd = &s->sd;
 	v4l2_i2c_subdev_init(sd, client, &saa6588_ops);
 	spin_lock_init(&s->lock);
@@ -516,8 +505,6 @@ static int saa6588_remove(struct i2c_client *client)
 
 	cancel_delayed_work_sync(&s->work);
 
-	kfree(s->buffer);
-	kfree(s);
 	return 0;
 }
 

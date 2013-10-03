@@ -111,30 +111,16 @@ static int au1100fb_fb_blank(int blank_mode, struct fb_info *fbi)
 	switch (blank_mode) {
 
 	case VESA_NO_BLANKING:
-			/* Turn on panel */
-			fbdev->regs->lcd_control |= LCD_CONTROL_GO;
-#ifdef CONFIG_MIPS_PB1100
-			if (fbdev->panel_idx == 1) {
-				au_writew(au_readw(PB1100_G_CONTROL)
-					  | (PB1100_G_CONTROL_BL | PB1100_G_CONTROL_VDD),
-			PB1100_G_CONTROL);
-			}
-#endif
+		/* Turn on panel */
+		fbdev->regs->lcd_control |= LCD_CONTROL_GO;
 		au_sync();
 		break;
 
 	case VESA_VSYNC_SUSPEND:
 	case VESA_HSYNC_SUSPEND:
 	case VESA_POWERDOWN:
-			/* Turn off panel */
-			fbdev->regs->lcd_control &= ~LCD_CONTROL_GO;
-#ifdef CONFIG_MIPS_PB1100
-			if (fbdev->panel_idx == 1) {
-				au_writew(au_readw(PB1100_G_CONTROL)
-				  	  & ~(PB1100_G_CONTROL_BL | PB1100_G_CONTROL_VDD),
-			PB1100_G_CONTROL);
-			}
-#endif
+		/* Turn off panel */
+		fbdev->regs->lcd_control &= ~LCD_CONTROL_GO;
 		au_sync();
 		break;
 	default:
@@ -399,8 +385,6 @@ int au1100fb_fb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	pgprot_val(vma->vm_page_prot) |= (6 << 9); //CCA=6
 
-	vma->vm_flags |= VM_IO;
-
 	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 				vma->vm_end - vma->vm_start,
 				vma->vm_page_prot)) {
@@ -593,7 +577,6 @@ failed:
 	if (fbdev->info.cmap.len != 0) {
 		fb_dealloc_cmap(&fbdev->info.cmap);
 	}
-	platform_set_drvdata(dev, NULL);
 
 	return -ENODEV;
 }

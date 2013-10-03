@@ -49,14 +49,14 @@ static int gpio_fan[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 module_param_array(gpio_input, int, NULL, 0);
 MODULE_PARM_DESC(gpio_input, "List of GPIO pins (0-16) to program as inputs");
 module_param_array(gpio_output, int, NULL, 0);
-MODULE_PARM_DESC(gpio_output, "List of GPIO pins (0-16) to program as "
-	"outputs");
+MODULE_PARM_DESC(gpio_output,
+		 "List of GPIO pins (0-16) to program as outputs");
 module_param_array(gpio_inverted, int, NULL, 0);
-MODULE_PARM_DESC(gpio_inverted, "List of GPIO pins (0-16) to program as "
-	"inverted");
+MODULE_PARM_DESC(gpio_inverted,
+		 "List of GPIO pins (0-16) to program as inverted");
 module_param_array(gpio_normal, int, NULL, 0);
-MODULE_PARM_DESC(gpio_normal, "List of GPIO pins (0-16) to program as "
-	"normal/non-inverted");
+MODULE_PARM_DESC(gpio_normal,
+		 "List of GPIO pins (0-16) to program as normal/non-inverted");
 module_param_array(gpio_fan, int, NULL, 0);
 MODULE_PARM_DESC(gpio_fan, "List of GPIO pins (0-7) to program as fan tachs");
 
@@ -372,31 +372,31 @@ static void adm1026_init_client(struct i2c_client *client)
 	dev_dbg(&client->dev, "ADM1026_REG_CONFIG1 is: 0x%02x\n",
 		data->config1);
 	if ((data->config1 & CFG1_MONITOR) == 0) {
-		dev_dbg(&client->dev, "Monitoring not currently "
-			"enabled.\n");
+		dev_dbg(&client->dev,
+			"Monitoring not currently enabled.\n");
 	}
 	if (data->config1 & CFG1_INT_ENABLE) {
-		dev_dbg(&client->dev, "SMBALERT interrupts are "
-			"enabled.\n");
+		dev_dbg(&client->dev,
+			"SMBALERT interrupts are enabled.\n");
 	}
 	if (data->config1 & CFG1_AIN8_9) {
-		dev_dbg(&client->dev, "in8 and in9 enabled. "
-			"temp3 disabled.\n");
+		dev_dbg(&client->dev,
+			"in8 and in9 enabled. temp3 disabled.\n");
 	} else {
-		dev_dbg(&client->dev, "temp3 enabled.  in8 and "
-			"in9 disabled.\n");
+		dev_dbg(&client->dev,
+			"temp3 enabled.  in8 and in9 disabled.\n");
 	}
 	if (data->config1 & CFG1_THERM_HOT) {
-		dev_dbg(&client->dev, "Automatic THERM, PWM, "
-			"and temp limits enabled.\n");
+		dev_dbg(&client->dev,
+			"Automatic THERM, PWM, and temp limits enabled.\n");
 	}
 
 	if (data->config3 & CFG3_GPIO16_ENABLE) {
-		dev_dbg(&client->dev, "GPIO16 enabled.  THERM "
-			"pin disabled.\n");
+		dev_dbg(&client->dev,
+			"GPIO16 enabled.  THERM pin disabled.\n");
 	} else {
-		dev_dbg(&client->dev, "THERM pin enabled.  "
-			"GPIO16 disabled.\n");
+		dev_dbg(&client->dev,
+			"THERM pin enabled.  GPIO16 disabled.\n");
 	}
 	if (data->config3 & CFG3_VREF_250)
 		dev_dbg(&client->dev, "Vref is 2.50 Volts.\n");
@@ -1798,8 +1798,8 @@ static int adm1026_detect(struct i2c_client *client,
 	company = adm1026_read_value(client, ADM1026_REG_COMPANY);
 	verstep = adm1026_read_value(client, ADM1026_REG_VERSTEP);
 
-	dev_dbg(&adapter->dev, "Detecting device at %d,0x%02x with"
-		" COMPANY: 0x%02x and VERSTEP: 0x%02x\n",
+	dev_dbg(&adapter->dev,
+		"Detecting device at %d,0x%02x with COMPANY: 0x%02x and VERSTEP: 0x%02x\n",
 		i2c_adapter_id(client->adapter), client->addr,
 		company, verstep);
 
@@ -1811,11 +1811,12 @@ static int adm1026_detect(struct i2c_client *client,
 		/* Analog Devices ADM1026 */
 	} else if (company == ADM1026_COMPANY_ANALOG_DEV
 		&& (verstep & 0xf0) == ADM1026_VERSTEP_GENERIC) {
-		dev_err(&adapter->dev, "Unrecognized stepping "
-			"0x%02x. Defaulting to ADM1026.\n", verstep);
+		dev_err(&adapter->dev,
+			"Unrecognized stepping 0x%02x. Defaulting to ADM1026.\n",
+			verstep);
 	} else if ((verstep & 0xf0) == ADM1026_VERSTEP_GENERIC) {
-		dev_err(&adapter->dev, "Found version/stepping "
-			"0x%02x. Assuming generic ADM1026.\n",
+		dev_err(&adapter->dev,
+			"Found version/stepping 0x%02x. Assuming generic ADM1026.\n",
 			verstep);
 	} else {
 		dev_dbg(&adapter->dev, "Autodetection failed\n");

@@ -49,6 +49,44 @@ int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 }
 EXPORT_SYMBOL_GPL(sock_diag_put_meminfo);
 
+int sock_diag_put_filterinfo(struct user_namespace *user_ns, struct sock *sk,
+			     struct sk_buff *skb, int attrtype)
+{
+	struct nlattr *attr;
+	struct sk_filter *filter;
+	unsigned int len;
+	int err = 0;
+
+	if (!ns_capable(user_ns, CAP_NET_ADMIN)) {
+		nla_reserve(skb, attrtype, 0);
+		return 0;
+	}
+
+	rcu_read_lock();
+
+	filter = rcu_dereference(sk->sk_filter);
+	len = filter ? filter->len * sizeof(struct sock_filter) : 0;
+
+	attr = nla_reserve(skb, attrtype, len);
+	if (attr == NULL) {
+		err = -EMSGSIZE;
+		goto out;
+	}
+
+	if (filter) {
+		struct sock_filter *fb = (struct sock_filter *)nla_data(attr);
+		int i;
+
+		for (i = 0; i < filter->len; i++, fb++)
+			sk_decode_filter(&filter->insns[i], fb);
+	}
+
+out:
+	rcu_read_unlock();
+	return err;
+}
+EXPORT_SYMBOL(sock_diag_put_filterinfo);
+
 void sock_diag_register_inet_compat(int (*fn)(struct sk_buff *skb, struct nlmsghdr *nlh))
 {
 	mutex_lock(&sock_diag_table_mutex);

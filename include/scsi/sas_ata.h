@@ -32,8 +32,8 @@
 
 static inline int dev_is_sata(struct domain_device *dev)
 {
-	return dev->dev_type == SATA_DEV || dev->dev_type == SATA_PM ||
-	       dev->dev_type == SATA_PM_PORT || dev->dev_type == SATA_PENDING;
+	return dev->dev_type == SAS_SATA_DEV || dev->dev_type == SAS_SATA_PM ||
+	       dev->dev_type == SAS_SATA_PM_PORT || dev->dev_type == SAS_SATA_PENDING;
 }
 
 int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy);

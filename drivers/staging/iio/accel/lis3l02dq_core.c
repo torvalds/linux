@@ -257,6 +257,8 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 			ret = lis3l02dq_read_reg_s16(indio_dev, reg, val);
 		}
 		mutex_unlock(&indio_dev->mlock);
+		if (ret < 0)
+			goto error_ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
@@ -501,12 +503,6 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-#define LIS3L02DQ_INFO_MASK				\
-	(IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
-	 IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
-	 IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
-	 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT)
-
 #define LIS3L02DQ_EVENT_MASK					\
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) |	\
 	 IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
@@ -516,7 +512,10 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 		.type = IIO_ACCEL,				\
 		.modified = 1,					\
 		.channel2 = mod,				\
-		.info_mask =  LIS3L02DQ_INFO_MASK,		\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
+			BIT(IIO_CHAN_INFO_CALIBSCALE) |		\
+			BIT(IIO_CHAN_INFO_CALIBBIAS),		\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 		.address = index,				\
 		.scan_index = index,				\
 		.scan_type = {					\
@@ -669,11 +668,9 @@ static int lis3l02dq_probe(struct spi_device *spi)
 	struct lis3l02dq_state *st;
 	struct iio_dev *indio_dev;
 
-	indio_dev = iio_device_alloc(sizeof *st);
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	st = iio_priv(indio_dev);
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
@@ -691,7 +688,7 @@ static int lis3l02dq_probe(struct spi_device *spi)
 
 	ret = lis3l02dq_configure_buffer(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	ret = iio_buffer_register(indio_dev,
 				  lis3l02dq_channels,
@@ -737,9 +734,6 @@ error_uninitialize_buffer:
 	iio_buffer_unregister(indio_dev);
 error_unreg_buffer_funcs:
 	lis3l02dq_unconfigure_buffer(indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
 	return ret;
 }
 
@@ -786,8 +780,6 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	lis3l02dq_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	lis3l02dq_unconfigure_buffer(indio_dev);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

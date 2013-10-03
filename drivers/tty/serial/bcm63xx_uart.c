@@ -30,7 +30,6 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 
-#include <bcm63xx_clk.h>
 #include <bcm63xx_irq.h>
 #include <bcm63xx_regs.h>
 #include <bcm63xx_io.h>
@@ -303,7 +302,9 @@ static void bcm_uart_do_rx(struct uart_port *port)
 
 	} while (--max_count);
 
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tty_port);
+	spin_lock(&port->lock);
 }
 
 /*
@@ -853,7 +854,6 @@ static int bcm_uart_remove(struct platform_device *pdev)
 
 	port = platform_get_drvdata(pdev);
 	uart_remove_one_port(&bcm_uart_driver, port);
-	platform_set_drvdata(pdev, NULL);
 	/* mark port as free */
 	ports[pdev->id].membase = 0;
 	return 0;

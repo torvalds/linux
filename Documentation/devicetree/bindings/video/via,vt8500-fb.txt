@@ -5,58 +5,32 @@ Required properties:
 - compatible : "via,vt8500-fb"
 - reg : Should contain 1 register ranges(address and length)
 - interrupts : framebuffer controller interrupt
-- display: a phandle pointing to the display node
+- bits-per-pixel : bit depth of framebuffer (16 or 32)
 
-Required nodes:
-- display: a display node is required to initialize the lcd panel
-	This should be in the board dts.
-- default-mode: a videomode within the display with timing parameters
-	as specified below.
+Required subnodes:
+- display-timings: see display-timing.txt for information
 
 Example:
 
-	fb@d800e400 {
+	fb@d8050800 {
 		compatible = "via,vt8500-fb";
 		reg = <0xd800e400 0x400>;
 		interrupts = <12>;
-		display = <&display>;
-		default-mode = <&mode0>;
-	};
+		bits-per-pixel = <16>;
 
-VIA VT8500 Display
------------------------------------------------------
-Required properties (as per of_videomode_helper):
-
- - hactive, vactive: Display resolution
- - hfront-porch, hback-porch, hsync-len: Horizontal Display timing parameters
-   in pixels
-   vfront-porch, vback-porch, vsync-len: Vertical display timing parameters in
-   lines
- - clock: displayclock in Hz
- - bpp: lcd panel bit-depth.
-	<16> for RGB565, <32> for RGB888
-
-Optional properties (as per of_videomode_helper):
- - width-mm, height-mm: Display dimensions in mm
- - hsync-active-high (bool): Hsync pulse is active high
- - vsync-active-high (bool): Vsync pulse is active high
- - interlaced (bool): This is an interlaced mode
- - doublescan (bool): This is a doublescan mode
-
-Example:
-	display: display@0 {
-		modes {
-			mode0: mode@0 {
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: 800x480 {
+				clock-frequency = <0>; /* unused but required */
 				hactive = <800>;
 				vactive = <480>;
-				hback-porch = <88>;
 				hfront-porch = <40>;
+				hback-porch = <88>;
 				hsync-len = <0>;
 				vback-porch = <32>;
 				vfront-porch = <11>;
 				vsync-len = <1>;
-				clock = <0>;	/* unused but required */
-				bpp = <16>;	/* non-standard but required */
 			};
 		};
 	};
+

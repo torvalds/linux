@@ -169,7 +169,7 @@ periodic_usecs (struct ehci_hcd *ehci, unsigned frame, unsigned uframe)
 			break;
 		}
 	}
-#ifdef	DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	if (usecs > ehci->uframe_periodic_max)
 		ehci_err (ehci, "uframe %d sched overrun: %d usecs\n",
 			frame * 8 + uframe, usecs);
@@ -213,7 +213,7 @@ static inline unsigned char tt_start_uframe(struct ehci_hcd *ehci, __hc32 mask)
 }
 
 static const unsigned char
-max_tt_usecs[] = { 125, 125, 125, 125, 125, 125, 125, 25 };
+max_tt_usecs[] = { 125, 125, 125, 125, 125, 125, 30, 0 };
 
 /* carryover low/fullspeed bandwidth that crosses uframe boundries */
 static inline void carryover_tt_bandwidth(unsigned short tt_usecs[8])
@@ -327,17 +327,8 @@ static int tt_available (
 
 		periodic_tt_usecs (ehci, dev, frame, tt_usecs);
 
-		ehci_vdbg(ehci, "tt frame %d check %d usecs start uframe %d in"
-			" schedule %d/%d/%d/%d/%d/%d/%d/%d\n",
-			frame, usecs, uframe,
-			tt_usecs[0], tt_usecs[1], tt_usecs[2], tt_usecs[3],
-			tt_usecs[4], tt_usecs[5], tt_usecs[6], tt_usecs[7]);
-
-		if (max_tt_usecs[uframe] <= tt_usecs[uframe]) {
-			ehci_vdbg(ehci, "frame %d uframe %d fully scheduled\n",
-				frame, uframe);
+		if (max_tt_usecs[uframe] <= tt_usecs[uframe])
 			return 0;
-		}
 
 		/* special case for isoc transfers larger than 125us:
 		 * the first and each subsequent fully used uframe
@@ -348,13 +339,8 @@ static int tt_available (
 			int ufs = (usecs / 125);
 			int i;
 			for (i = uframe; i < (uframe + ufs) && i < 8; i++)
-				if (0 < tt_usecs[i]) {
-					ehci_vdbg(ehci,
-						"multi-uframe xfer can't fit "
-						"in frame %d uframe %d\n",
-						frame, i);
+				if (0 < tt_usecs[i])
 					return 0;
-				}
 		}
 
 		tt_usecs[uframe] += usecs;
@@ -362,12 +348,8 @@ static int tt_available (
 		carryover_tt_bandwidth(tt_usecs);
 
 		/* fail if the carryover pushed bw past the last uframe's limit */
-		if (max_tt_usecs[7] < tt_usecs[7]) {
-			ehci_vdbg(ehci,
-				"tt unavailable usecs %d frame %d uframe %d\n",
-				usecs, frame, uframe);
+		if (max_tt_usecs[7] < tt_usecs[7])
 			return 0;
-		}
 	}
 
 	return 1;
@@ -539,6 +521,7 @@ static void qh_link_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	}
 	qh->qh_state = QH_STATE_LINKED;
 	qh->xacterrs = 0;
+	qh->exception = 0;
 
 	/* update per-qh bandwidth for usbfs */
 	ehci_to_hcd(ehci)->self.bandwidth_allocated += qh->period
@@ -600,17 +583,28 @@ static void qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	list_del(&qh->intr_node);
 }
 
+static void cancel_unlink_wait_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
+{
+	if (qh->qh_state != QH_STATE_LINKED ||
+			list_empty(&qh->unlink_node))
+		return;
+
+	list_del_init(&qh->unlink_node);
+
+	/*
+	 * TODO: disable the event of EHCI_HRTIMER_START_UNLINK_INTR for
+	 * avoiding unnecessary CPU wakeup
+	 */
+}
+
 static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	/* If the QH isn't linked then there's nothing we can do
-	 * unless we were called during a giveback, in which case
-	 * qh_completions() has to deal with it.
-	 */
-	if (qh->qh_state != QH_STATE_LINKED) {
-		if (qh->qh_state == QH_STATE_COMPLETING)
-			qh->needs_rescan = 1;
+	/* If the QH isn't linked then there's nothing we can do. */
+	if (qh->qh_state != QH_STATE_LINKED)
 		return;
-	}
+
+	/* if the qh is waiting for unlink, cancel it now */
+	cancel_unlink_wait_intr(ehci, qh);
 
 	qh_unlink_periodic (ehci, qh);
 
@@ -625,19 +619,36 @@ static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->unlink_cycle = ehci->intr_unlink_cycle;
 
 	/* New entries go at the end of the intr_unlink list */
-	if (ehci->intr_unlink)
-		ehci->intr_unlink_last->unlink_next = qh;
-	else
-		ehci->intr_unlink = qh;
-	ehci->intr_unlink_last = qh;
+	list_add_tail(&qh->unlink_node, &ehci->intr_unlink);
 
 	if (ehci->intr_unlinking)
 		;	/* Avoid recursive calls */
 	else if (ehci->rh_state < EHCI_RH_RUNNING)
 		ehci_handle_intr_unlinks(ehci);
-	else if (ehci->intr_unlink == qh) {
+	else if (ehci->intr_unlink.next == &qh->unlink_node) {
 		ehci_enable_event(ehci, EHCI_HRTIMER_UNLINK_INTR, true);
 		++ehci->intr_unlink_cycle;
+	}
+}
+
+/*
+ * It is common only one intr URB is scheduled on one qh, and
+ * given complete() is run in tasklet context, introduce a bit
+ * delay to avoid unlink qh too early.
+ */
+static void start_unlink_intr_wait(struct ehci_hcd *ehci,
+				   struct ehci_qh *qh)
+{
+	qh->unlink_cycle = ehci->intr_unlink_wait_cycle;
+
+	/* New entries go at the end of the intr_unlink_wait list */
+	list_add_tail(&qh->unlink_node, &ehci->intr_unlink_wait);
+
+	if (ehci->rh_state < EHCI_RH_RUNNING)
+		ehci_handle_start_intr_unlinks(ehci);
+	else if (ehci->intr_unlink_wait.next == &qh->unlink_node) {
+		ehci_enable_event(ehci, EHCI_HRTIMER_START_UNLINK_INTR, true);
+		++ehci->intr_unlink_wait_cycle;
 	}
 }
 
@@ -649,11 +660,16 @@ static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->qh_state = QH_STATE_IDLE;
 	hw->hw_next = EHCI_LIST_END(ehci);
 
-	qh_completions(ehci, qh);
+	if (!list_empty(&qh->qtd_list))
+		qh_completions(ehci, qh);
 
 	/* reschedule QH iff another request is queued */
 	if (!list_empty(&qh->qtd_list) && ehci->rh_state == EHCI_RH_RUNNING) {
 		rc = qh_schedule(ehci, qh);
+		if (rc == 0) {
+			qh_refresh(ehci, qh);
+			qh_link_periodic(ehci, qh);
+		}
 
 		/* An error here likely indicates handshake failure
 		 * or no space left in the schedule.  Neither fault
@@ -661,9 +677,10 @@ static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		 *
 		 * FIXME kill the now-dysfunctional queued urbs
 		 */
-		if (rc != 0)
+		else {
 			ehci_err(ehci, "can't reschedule qh %p, err %d\n",
 					qh, rc);
+		}
 	}
 
 	/* maybe turn off periodic schedule */
@@ -792,7 +809,6 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	unsigned	frame;		/* 0..(qh->period - 1), or NO_FRAME */
 	struct ehci_qh_hw	*hw = qh->hw;
 
-	qh_refresh(ehci, qh);
 	hw->hw_next = EHCI_LIST_END(ehci);
 	frame = qh->start;
 
@@ -844,8 +860,6 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	} else
 		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
 
-	/* stuff into the periodic schedule */
-	qh_link_periodic(ehci, qh);
 done:
 	return status;
 }
@@ -891,6 +905,15 @@ static int intr_submit (
 	qh = qh_append_tds(ehci, urb, qtd_list, epnum, &urb->ep->hcpriv);
 	BUG_ON (qh == NULL);
 
+	/* stuff into the periodic schedule */
+	if (qh->qh_state == QH_STATE_IDLE) {
+		qh_refresh(ehci, qh);
+		qh_link_periodic(ehci, qh);
+	} else {
+		/* cancel unlink wait for the qh */
+		cancel_unlink_wait_intr(ehci, qh);
+	}
+
 	/* ... update usbfs periodic stats */
 	ehci_to_hcd(ehci)->self.bandwidth_int_reqs++;
 
@@ -911,7 +934,7 @@ static void scan_intr(struct ehci_hcd *ehci)
 
 	list_for_each_entry_safe(qh, ehci->qh_scan_next, &ehci->intr_qh_list,
 			intr_node) {
- rescan:
+
 		/* clean any finished work for this qh */
 		if (!list_empty(&qh->qtd_list)) {
 			int temp;
@@ -924,12 +947,11 @@ static void scan_intr(struct ehci_hcd *ehci)
 			 * in qh_unlink_periodic().
 			 */
 			temp = qh_completions(ehci, qh);
-			if (unlikely(qh->needs_rescan ||
-					(list_empty(&qh->qtd_list) &&
-						qh->qh_state == QH_STATE_LINKED)))
+			if (unlikely(temp))
 				start_unlink_intr(ehci, qh);
-			else if (temp != 0)
-				goto rescan;
+			else if (unlikely(list_empty(&qh->qtd_list) &&
+					qh->qh_state == QH_STATE_LINKED))
+				start_unlink_intr_wait(ehci, qh);
 		}
 	}
 }
@@ -1394,21 +1416,20 @@ iso_stream_schedule (
 
 		/* Behind the scheduling threshold? */
 		if (unlikely(start < next)) {
+			unsigned now2 = (now - base) & (mod - 1);
 
 			/* USB_ISO_ASAP: Round up to the first available slot */
 			if (urb->transfer_flags & URB_ISO_ASAP)
 				start += (next - start + period - 1) & -period;
 
 			/*
-			 * Not ASAP: Use the next slot in the stream.  If
-			 * the entire URB falls before the threshold, fail.
+			 * Not ASAP: Use the next slot in the stream,
+			 * no matter what.
 			 */
-			else if (start + span - period < next) {
-				ehci_dbg(ehci, "iso urb late %p (%u+%u < %u)\n",
+			else if (start + span - period < now2) {
+				ehci_dbg(ehci, "iso underrun %p (%u+%u < %u)\n",
 						urb, start + base,
-						span - period, next + base);
-				status = -EXDEV;
-				goto fail;
+						span - period, now2 + base);
 			}
 		}
 
@@ -1577,16 +1598,9 @@ static void itd_link_urb(
 
 	next_uframe = stream->next_uframe & (mod - 1);
 
-	if (unlikely (list_empty(&stream->td_list))) {
+	if (unlikely (list_empty(&stream->td_list)))
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				+= stream->bandwidth;
-		ehci_vdbg (ehci,
-			"schedule devp %s ep%d%s-iso period %d start %d.%d\n",
-			urb->dev->devpath, stream->bEndpointAddress & 0x0f,
-			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
-			urb->interval,
-			next_uframe >> 3, next_uframe & 0x7);
-	}
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
 		if (ehci->amd_pll_fix == 1)
@@ -1721,14 +1735,9 @@ static bool itd_complete(struct ehci_hcd *ehci, struct ehci_itd *itd)
 			usb_amd_quirk_pll_enable();
 	}
 
-	if (unlikely(list_is_singular(&stream->td_list))) {
+	if (unlikely(list_is_singular(&stream->td_list)))
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				-= stream->bandwidth;
-		ehci_vdbg (ehci,
-			"deschedule devp %s ep%d%s-iso\n",
-			dev->devpath, stream->bEndpointAddress & 0x0f,
-			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
-	}
 
 done:
 	itd->urb = NULL;
@@ -1986,17 +1995,10 @@ static void sitd_link_urb(
 
 	next_uframe = stream->next_uframe;
 
-	if (list_empty(&stream->td_list)) {
+	if (list_empty(&stream->td_list))
 		/* usbfs ignores TT bandwidth */
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				+= stream->bandwidth;
-		ehci_vdbg (ehci,
-			"sched devp %s ep%d%s-iso [%d] %dms/%04x\n",
-			urb->dev->devpath, stream->bEndpointAddress & 0x0f,
-			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
-			(next_uframe >> 3) & (ehci->periodic_size - 1),
-			stream->interval, hc32_to_cpu(ehci, stream->splits));
-	}
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
 		if (ehci->amd_pll_fix == 1)
@@ -2110,14 +2112,9 @@ static bool sitd_complete(struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 			usb_amd_quirk_pll_enable();
 	}
 
-	if (list_is_singular(&stream->td_list)) {
+	if (list_is_singular(&stream->td_list))
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				-= stream->bandwidth;
-		ehci_vdbg (ehci,
-			"deschedule devp %s ep%d%s-iso\n",
-			dev->devpath, stream->bEndpointAddress & 0x0f,
-			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
-	}
 
 done:
 	sitd->urb = NULL;

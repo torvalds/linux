@@ -982,7 +982,7 @@ done:
 	return ret;
 }
 
-static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
+static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tca[TCA_ACT_MAX + 1];

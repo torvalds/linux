@@ -154,6 +154,11 @@ struct in6_addr;
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 			__be32 sip, __be16 sport, __be16 vlan,
 			unsigned int queue);
+int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
+			 const struct in6_addr *sip, __be16 sport,
+			 unsigned int queue);
+int cxgb4_remove_server(const struct net_device *dev, unsigned int stid,
+			unsigned int queue, bool ipv6);
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			       __be32 sip, __be16 sport, __be16 vlan,
 			       unsigned int queue,
@@ -269,4 +274,7 @@ struct sk_buff *cxgb4_pktgl_to_skb(const struct pkt_gl *gl,
 				   unsigned int skb_len, unsigned int pull_len);
 int cxgb4_sync_txq_pidx(struct net_device *dev, u16 qid, u16 pidx, u16 size);
 int cxgb4_flush_eq_cache(struct net_device *dev);
+void cxgb4_disable_db_coalescing(struct net_device *dev);
+void cxgb4_enable_db_coalescing(struct net_device *dev);
+
 #endif  /* !__CXGB4_OFLD_H */

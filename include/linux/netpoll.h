@@ -40,7 +40,7 @@ struct netpoll_info {
 
 	unsigned long rx_flags;
 	spinlock_t rx_lock;
-	struct mutex dev_lock;
+	struct semaphore dev_lock;
 	struct list_head rx_np; /* netpolls that registered an rx_hook */
 
 	struct sk_buff_head neigh_tx; /* list of neigh requests to reply to */
@@ -53,10 +53,10 @@ struct netpoll_info {
 };
 
 #ifdef CONFIG_NETPOLL
-extern int netpoll_rx_disable(struct net_device *dev);
+extern void netpoll_rx_disable(struct net_device *dev);
 extern void netpoll_rx_enable(struct net_device *dev);
 #else
-static inline int netpoll_rx_disable(struct net_device *dev) { return 0; }
+static inline void netpoll_rx_disable(struct net_device *dev) { return; }
 static inline void netpoll_rx_enable(struct net_device *dev) { return; }
 #endif
 

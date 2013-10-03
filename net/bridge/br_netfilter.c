@@ -535,7 +535,8 @@ static struct net_device *brnf_get_logical_dev(struct sk_buff *skb, const struct
 	if (brnf_pass_vlan_indev == 0 || !vlan_tx_tag_present(skb))
 		return br;
 
-	vlan = __vlan_find_dev_deep(br, vlan_tx_tag_get(skb) & VLAN_VID_MASK);
+	vlan = __vlan_find_dev_deep(br, skb->vlan_proto,
+				    vlan_tx_tag_get(skb) & VLAN_VID_MASK);
 
 	return vlan ? vlan : br;
 }
@@ -991,7 +992,7 @@ static struct nf_hook_ops br_nf_ops[] __read_mostly = {
 
 #ifdef CONFIG_SYSCTL
 static
-int brnf_sysctl_call_tables(ctl_table * ctl, int write,
+int brnf_sysctl_call_tables(struct ctl_table *ctl, int write,
 			    void __user * buffer, size_t * lenp, loff_t * ppos)
 {
 	int ret;
@@ -1003,7 +1004,7 @@ int brnf_sysctl_call_tables(ctl_table * ctl, int write,
 	return ret;
 }
 
-static ctl_table brnf_table[] = {
+static struct ctl_table brnf_table[] = {
 	{
 		.procname	= "bridge-nf-call-arptables",
 		.data		= &brnf_call_arptables,

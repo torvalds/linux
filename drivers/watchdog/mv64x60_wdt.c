@@ -276,7 +276,7 @@ static int mv64x60_wdt_probe(struct platform_device *dev)
 	if (!r)
 		return -ENODEV;
 
-	mv64x60_wdt_regs = ioremap(r->start, resource_size(r));
+	mv64x60_wdt_regs = devm_ioremap(&dev->dev, r->start, resource_size(r));
 	if (mv64x60_wdt_regs == NULL)
 		return -ENOMEM;
 
@@ -292,8 +292,6 @@ static int mv64x60_wdt_remove(struct platform_device *dev)
 	misc_deregister(&mv64x60_wdt_miscdev);
 
 	mv64x60_wdt_handler_disable();
-
-	iounmap(mv64x60_wdt_regs);
 
 	return 0;
 }

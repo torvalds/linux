@@ -660,7 +660,8 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 			FE_CAN_GUARD_INTERVAL_AUTO	|
 			FE_CAN_HIERARCHY_AUTO		|
 			FE_CAN_MUTE_TS			|
-			FE_CAN_2G_MODULATION
+			FE_CAN_2G_MODULATION		|
+			FE_CAN_MULTISTREAM
 		},
 
 	.release		= cxd2820r_release,

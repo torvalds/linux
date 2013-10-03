@@ -47,7 +47,7 @@
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
 #include <plat/clock.h>
-#include <plat/s5p-time.h>
+#include <plat/samsung-time.h>
 #include <plat/mfc.h>
 #include <plat/camport.h>
 
@@ -580,12 +580,8 @@ static struct max8998_platform_data goni_max8998_pdata = {
 	.buck1_set1	= S5PV210_GPH0(3),
 	.buck1_set2	= S5PV210_GPH0(4),
 	.buck2_set3	= S5PV210_GPH0(5),
-	.buck1_voltage1	= 1200000,
-	.buck1_voltage2	= 1200000,
-	.buck1_voltage3	= 1200000,
-	.buck1_voltage4	= 1200000,
-	.buck2_voltage1	= 1200000,
-	.buck2_voltage2	= 1200000,
+	.buck1_voltage	= { 1200000, 1200000, 1200000, 1200000 },
+	.buck2_voltage	= { 1200000, 1200000 },
 };
 #endif
 
@@ -908,7 +904,7 @@ static void __init goni_map_io(void)
 	s5pv210_init_io(NULL, 0);
 	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(goni_uartcfgs, ARRAY_SIZE(goni_uartcfgs));
-	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init goni_reserve(void)
@@ -973,7 +969,7 @@ MACHINE_START(GONI, "GONI")
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= goni_map_io,
 	.init_machine	= goni_machine_init,
-	.init_time	= s5p_timer_init,
+	.init_time	= samsung_timer_init,
 	.reserve	= &goni_reserve,
 	.restart	= s5pv210_restart,
 MACHINE_END

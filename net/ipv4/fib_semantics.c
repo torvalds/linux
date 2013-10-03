@@ -169,7 +169,8 @@ static void free_nh_exceptions(struct fib_nh *nh)
 			
 			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
 
-			rt_fibinfo_free(&fnhe->fnhe_rth);
+			rt_fibinfo_free(&fnhe->fnhe_rth_input);
+			rt_fibinfo_free(&fnhe->fnhe_rth_output);
 
 			kfree(fnhe);
 

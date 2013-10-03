@@ -18,6 +18,7 @@
 struct iio_chan_spec;
 struct iio_dev;
 
+extern struct device_type iio_device_type;
 
 int __iio_add_chan_devattr(const char *postfix,
 			   struct iio_chan_spec const *chan,
@@ -48,10 +49,14 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 #define iio_buffer_poll_addr (&iio_buffer_poll)
 #define iio_buffer_read_first_n_outer_addr (&iio_buffer_read_first_n_outer)
 
+void iio_disable_all_buffers(struct iio_dev *indio_dev);
+
 #else
 
 #define iio_buffer_poll_addr NULL
 #define iio_buffer_read_first_n_outer_addr NULL
+
+static inline void iio_disable_all_buffers(struct iio_dev *indio_dev) {}
 
 #endif
 

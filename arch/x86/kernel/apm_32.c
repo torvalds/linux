@@ -373,7 +373,6 @@ static int apm_cpu_idle(struct cpuidle_device *dev,
 static struct cpuidle_driver apm_idle_driver = {
 	.name = "apm_idle",
 	.owner = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 	.states = {
 		{ /* entry 0 is for polling */ },
 		{ /* entry 1 is for APM idle */
@@ -393,7 +392,7 @@ static struct cpuidle_device apm_cpuidle_device;
 /*
  * Local variables
  */
-static struct {
+__visible struct {
 	unsigned long	offset;
 	unsigned short	segment;
 } apm_bios_entry;

@@ -20,7 +20,7 @@
 #include <linux/intel_pmic_gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
@@ -65,7 +65,7 @@
  * lapic (always-on,ARAT) ------ 150
  */
 
-__cpuinitdata enum mrst_timer_options mrst_timer_options;
+enum mrst_timer_options mrst_timer_options;
 
 static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
 static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];
@@ -248,7 +248,7 @@ static void __init mrst_time_init(void)
 	apbt_time_init();
 }
 
-static void __cpuinit mrst_arch_setup(void)
+static void mrst_arch_setup(void)
 {
 	if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x27)
 		__mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
@@ -356,8 +356,7 @@ static int __init sfi_parse_gpio(struct sfi_table_header *table)
 	num = SFI_GET_NUM_ENTRIES(sb, struct sfi_gpio_table_entry);
 	pentry = (struct sfi_gpio_table_entry *)sb->pentry;
 
-	gpio_table = (struct sfi_gpio_table_entry *)
-				kmalloc(num * sizeof(*pentry), GFP_KERNEL);
+	gpio_table = kmalloc(num * sizeof(*pentry), GFP_KERNEL);
 	if (!gpio_table)
 		return -1;
 	memcpy(gpio_table, pentry, num * sizeof(*pentry));

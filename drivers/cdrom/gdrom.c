@@ -503,12 +503,11 @@ static int gdrom_bdops_open(struct block_device *bdev, fmode_t mode)
 	return ret;
 }
 
-static int gdrom_bdops_release(struct gendisk *disk, fmode_t mode)
+static void gdrom_bdops_release(struct gendisk *disk, fmode_t mode)
 {
 	mutex_lock(&gdrom_mutex);
 	cdrom_release(gd.cd_info, mode);
 	mutex_unlock(&gdrom_mutex);
-	return 0;
 }
 
 static unsigned int gdrom_bdops_check_events(struct gendisk *disk,
@@ -831,9 +830,9 @@ probe_fail_cdrom_register:
 	del_gendisk(gd.disk);
 probe_fail_no_disk:
 	kfree(gd.cd_info);
+probe_fail_no_mem:
 	unregister_blkdev(gdrom_major, GDROM_DEV_NAME);
 	gdrom_major = 0;
-probe_fail_no_mem:
 	pr_warning("Probe failed - error is 0x%X\n", err);
 	return err;
 }

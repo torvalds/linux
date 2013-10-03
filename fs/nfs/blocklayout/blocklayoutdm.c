@@ -88,14 +88,8 @@ out:
  */
 static void nfs4_blk_metadev_release(struct pnfs_block_dev *bdev)
 {
-	int rv;
-
 	dprintk("%s Releasing\n", __func__);
-	rv = nfs4_blkdev_put(bdev->bm_mdev);
-	if (rv)
-		printk(KERN_ERR "NFS: %s nfs4_blkdev_put returns %d\n",
-				__func__, rv);
-
+	nfs4_blkdev_put(bdev->bm_mdev);
 	dev_remove(bdev->net, bdev->bm_mdev->bd_dev);
 }
 

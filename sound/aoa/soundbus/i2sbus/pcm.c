@@ -179,7 +179,7 @@ static int i2sbus_pcm_open(struct i2sbus_dev *i2sdev, int in)
 	 */
 	if (other->active) {
 		/* FIXME: is this guaranteed by the alsa api? */
-		hw->formats &= (1ULL << i2sdev->format);
+		hw->formats &= pcm_format_to_bits(i2sdev->format);
 		/* see above, restrict rates to the one we already have */
 		hw->rate_min = i2sdev->rate;
 		hw->rate_max = i2sdev->rate;

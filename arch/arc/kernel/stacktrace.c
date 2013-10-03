@@ -79,7 +79,7 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 		 * assembly code
 		 */
 		frame_info->regs.r27 = 0;
-		frame_info->regs.r28 += 64;
+		frame_info->regs.r28 += 60;
 		frame_info->call_frame = 0;
 
 	} else {
@@ -219,13 +219,6 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 {
 	show_stacktrace(tsk, NULL);
 }
-
-/* Expected by Rest of kernel code */
-void dump_stack(void)
-{
-	show_stacktrace(NULL, NULL);
-}
-EXPORT_SYMBOL(dump_stack);
 
 /* Another API expected by schedular, shows up in "ps" as Wait Channel
  * Ofcourse just returning schedule( ) would be pointless so unwind until

@@ -27,7 +27,6 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#include <media/v4l2-chip-ident.h>
 #include <linux/dmi.h>
 
 MODULE_AUTHOR("Brian Johnson <brijohn@gmail.com>, "
@@ -580,22 +579,6 @@ static const s16 hsv_blue_y[] = {
 	36,  34,  32,  30,  28,  26,  24,  22,
 	20,  18,  16,  14,  12,  10,   8,   6,
 	4,   2,   0,  -1,  -3,  -5,  -7,  -9, -11
-};
-
-static const u16 i2c_ident[] = {
-	V4L2_IDENT_OV9650,
-	V4L2_IDENT_OV9655,
-	V4L2_IDENT_SOI968,
-	V4L2_IDENT_OV7660,
-	V4L2_IDENT_OV7670,
-	V4L2_IDENT_MT9V011,
-	V4L2_IDENT_MT9V111,
-	V4L2_IDENT_MT9V112,
-	V4L2_IDENT_MT9M001C12ST,
-	V4L2_IDENT_MT9M111,
-	V4L2_IDENT_MT9M112,
-	V4L2_IDENT_HV7131R,
-[SENSOR_MT9VPRB] = V4L2_IDENT_UNKNOWN,
 };
 
 static const u16 bridge_init[][2] = {
@@ -1574,21 +1557,19 @@ static int sd_dbg_g_register(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_HOST:
-		if (reg->match.addr != 0)
-			return -EINVAL;
+	reg->size = 1;
+	switch (reg->match.addr) {
+	case 0:
 		if (reg->reg < 0x1000 || reg->reg > 0x11ff)
 			return -EINVAL;
 		reg_r(gspca_dev, reg->reg, 1);
 		reg->val = gspca_dev->usb_buf[0];
 		return gspca_dev->usb_err;
-	case V4L2_CHIP_MATCH_I2C_ADDR:
-		if (reg->match.addr != sd->i2c_addr)
-			return -EINVAL;
+	case 1:
 		if (sd->sensor >= SENSOR_MT9V011 &&
 		    sd->sensor <= SENSOR_MT9M112) {
 			i2c_r2(gspca_dev, reg->reg, (u16 *) &reg->val);
+			reg->size = 2;
 		} else {
 			i2c_r1(gspca_dev, reg->reg, (u8 *) &reg->val);
 		}
@@ -1598,21 +1579,17 @@ static int sd_dbg_g_register(struct gspca_dev *gspca_dev,
 }
 
 static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
-			struct v4l2_dbg_register *reg)
+			const struct v4l2_dbg_register *reg)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_HOST:
-		if (reg->match.addr != 0)
-			return -EINVAL;
+	switch (reg->match.addr) {
+	case 0:
 		if (reg->reg < 0x1000 || reg->reg > 0x11ff)
 			return -EINVAL;
 		reg_w1(gspca_dev, reg->reg, reg->val);
 		return gspca_dev->usb_err;
-	case V4L2_CHIP_MATCH_I2C_ADDR:
-		if (reg->match.addr != sd->i2c_addr)
-			return -EINVAL;
+	case 1:
 		if (sd->sensor >= SENSOR_MT9V011 &&
 		    sd->sensor <= SENSOR_MT9M112) {
 			i2c_w2(gspca_dev, reg->reg, reg->val);
@@ -1623,29 +1600,17 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 	}
 	return -EINVAL;
 }
-#endif
 
-static int sd_chip_ident(struct gspca_dev *gspca_dev,
-			struct v4l2_dbg_chip_ident *chip)
+static int sd_chip_info(struct gspca_dev *gspca_dev,
+			struct v4l2_dbg_chip_info *chip)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	switch (chip->match.type) {
-	case V4L2_CHIP_MATCH_HOST:
-		if (chip->match.addr != 0)
-			return -EINVAL;
-		chip->revision = 0;
-		chip->ident = V4L2_IDENT_SN9C20X;
-		return 0;
-	case V4L2_CHIP_MATCH_I2C_ADDR:
-		if (chip->match.addr != sd->i2c_addr)
-			return -EINVAL;
-		chip->revision = 0;
-		chip->ident = i2c_ident[sd->sensor];
-		return 0;
-	}
-	return -EINVAL;
+	if (chip->match.addr > 1)
+		return -EINVAL;
+	if (chip->match.addr == 1)
+		strlcpy(chip->name, "sensor", sizeof(chip->name));
+	return 0;
 }
+#endif
 
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
@@ -2356,8 +2321,8 @@ static const struct sd_desc sd_desc = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.set_register = sd_dbg_s_register,
 	.get_register = sd_dbg_g_register,
+	.get_chip_info = sd_chip_info,
 #endif
-	.get_chip_ident = sd_chip_ident,
 };
 
 #define SN9C20X(sensor, i2c_addr, flags) \

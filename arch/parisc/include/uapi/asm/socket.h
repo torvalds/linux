@@ -71,6 +71,10 @@
 
 #define SO_LOCK_FILTER		0x4025
 
+#define SO_SELECT_ERR_QUEUE	0x4026
+
+#define SO_BUSY_POLL		0x4027
+
 /* O_NONBLOCK clashes with the bits used for socket types.  Therefore we
  * have to define SOCK_NONBLOCK to a different value here.
  */

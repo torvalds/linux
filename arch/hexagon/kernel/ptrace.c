@@ -1,7 +1,7 @@
 /*
  * Ptrace support for Hexagon
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,6 +31,21 @@
 #include <linux/elf.h>
 
 #include <asm/user.h>
+
+#if arch_has_single_step()
+/*  Both called from ptrace_resume  */
+void user_enable_single_step(struct task_struct *child)
+{
+	pt_set_singlestep(task_pt_regs(child));
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	pt_clr_singlestep(task_pt_regs(child));
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
+}
+#endif
 
 static int genregs_get(struct task_struct *target,
 		   const struct user_regset *regset,
@@ -76,6 +91,10 @@ static int genregs_get(struct task_struct *target,
 	dummy = pt_cause(regs);
 	ONEXT(&dummy, cause);
 	ONEXT(&pt_badva(regs), badva);
+#if CONFIG_HEXAGON_ARCH_VERSION >=4
+	ONEXT(&regs->cs0, cs0);
+	ONEXT(&regs->cs1, cs1);
+#endif
 
 	/* Pad the rest with zeros, if needed */
 	if (!ret)
@@ -122,6 +141,11 @@ static int genregs_set(struct task_struct *target,
 	/* CAUSE and BADVA aren't writeable. */
 	INEXT(&bucket, cause);
 	INEXT(&bucket, badva);
+
+#if CONFIG_HEXAGON_ARCH_VERSION >=4
+	INEXT(&regs->cs0, cs0);
+	INEXT(&regs->cs1, cs1);
+#endif
 
 	/* Ignore the rest, if needed */
 	if (!ret)

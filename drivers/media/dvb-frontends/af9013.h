@@ -25,6 +25,7 @@
 #ifndef AF9013_H
 #define AF9013_H
 
+#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 /* AF9013/5 GPIOs (mostly guessed)
@@ -102,8 +103,7 @@ struct af9013_config {
 	u8 gpio[4];
 };
 
-#if defined(CONFIG_DVB_AF9013) || \
-	(defined(CONFIG_DVB_AF9013_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_AF9013)
 extern struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 	struct i2c_adapter *i2c);
 #else

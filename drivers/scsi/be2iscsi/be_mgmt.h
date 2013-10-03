@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2012 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -156,25 +156,25 @@ union invalidate_commands_params {
 } __packed;
 
 struct mgmt_hba_attributes {
-	u8 flashrom_version_string[32];
-	u8 manufacturer_name[32];
+	u8 flashrom_version_string[BEISCSI_VER_STRLEN];
+	u8 manufacturer_name[BEISCSI_VER_STRLEN];
 	u32 supported_modes;
 	u8 seeprom_version_lo;
 	u8 seeprom_version_hi;
 	u8 rsvd0[2];
 	u32 fw_cmd_data_struct_version;
 	u32 ep_fw_data_struct_version;
-	u32 future_reserved[12];
+	u8 ncsi_version_string[12];
 	u32 default_extended_timeout;
-	u8 controller_model_number[32];
+	u8 controller_model_number[BEISCSI_VER_STRLEN];
 	u8 controller_description[64];
-	u8 controller_serial_number[32];
-	u8 ip_version_string[32];
-	u8 firmware_version_string[32];
-	u8 bios_version_string[32];
-	u8 redboot_version_string[32];
-	u8 driver_version_string[32];
-	u8 fw_on_flash_version_string[32];
+	u8 controller_serial_number[BEISCSI_VER_STRLEN];
+	u8 ip_version_string[BEISCSI_VER_STRLEN];
+	u8 firmware_version_string[BEISCSI_VER_STRLEN];
+	u8 bios_version_string[BEISCSI_VER_STRLEN];
+	u8 redboot_version_string[BEISCSI_VER_STRLEN];
+	u8 driver_version_string[BEISCSI_VER_STRLEN];
+	u8 fw_on_flash_version_string[BEISCSI_VER_STRLEN];
 	u32 functionalities_supported;
 	u16 max_cdblength;
 	u8 asic_revision;
@@ -190,7 +190,8 @@ struct mgmt_hba_attributes {
 	u32 firmware_post_status;
 	u32 hba_mtu[8];
 	u8 iscsi_features;
-	u8 future_u8[3];
+	u8 asic_generation;
+	u8 future_u8[2];
 	u32 future_u32[3];
 } __packed;
 
@@ -207,7 +208,7 @@ struct mgmt_controller_attributes {
 	u64 unique_identifier;
 	u8 netfilters;
 	u8 rsvd0[3];
-	u8 future_u32[4];
+	u32 future_u32[4];
 } __packed;
 
 struct be_mgmt_controller_attributes {
@@ -310,6 +311,12 @@ int mgmt_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
 
 ssize_t beiscsi_drvr_ver_disp(struct device *dev,
 			       struct device_attribute *attr, char *buf);
+
+ssize_t beiscsi_fw_ver_disp(struct device *dev,
+			     struct device_attribute *attr, char *buf);
+
+ssize_t beiscsi_active_cid_disp(struct device *dev,
+				 struct device_attribute *attr, char *buf);
 
 ssize_t beiscsi_adap_family_disp(struct device *dev,
 				  struct device_attribute *attr, char *buf);

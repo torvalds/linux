@@ -204,7 +204,7 @@ static ssize_t tsl2550_store_power_state(struct device *dev,
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 	int ret;
 
-	if (val < 0 || val > 1)
+	if (val > 1)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -236,7 +236,7 @@ static ssize_t tsl2550_store_operating_mode(struct device *dev,
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 	int ret;
 
-	if (val < 0 || val > 1)
+	if (val > 1)
 		return -EINVAL;
 
 	if (data->power_state == 0)
@@ -417,24 +417,26 @@ static int tsl2550_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
-static int tsl2550_suspend(struct i2c_client *client, pm_message_t mesg)
+static int tsl2550_suspend(struct device *dev)
 {
-	return tsl2550_set_power_state(client, 0);
+	return tsl2550_set_power_state(to_i2c_client(dev), 0);
 }
 
-static int tsl2550_resume(struct i2c_client *client)
+static int tsl2550_resume(struct device *dev)
 {
-	return tsl2550_set_power_state(client, 1);
+	return tsl2550_set_power_state(to_i2c_client(dev), 1);
 }
+
+static SIMPLE_DEV_PM_OPS(tsl2550_pm_ops, tsl2550_suspend, tsl2550_resume);
+#define TSL2550_PM_OPS (&tsl2550_pm_ops)
 
 #else
 
-#define tsl2550_suspend		NULL
-#define tsl2550_resume		NULL
+#define TSL2550_PM_OPS NULL
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct i2c_device_id tsl2550_id[] = {
 	{ "tsl2550", 0 },
@@ -446,9 +448,8 @@ static struct i2c_driver tsl2550_driver = {
 	.driver = {
 		.name	= TSL2550_DRV_NAME,
 		.owner	= THIS_MODULE,
+		.pm	= TSL2550_PM_OPS,
 	},
-	.suspend = tsl2550_suspend,
-	.resume	= tsl2550_resume,
 	.probe	= tsl2550_probe,
 	.remove	= tsl2550_remove,
 	.id_table = tsl2550_id,

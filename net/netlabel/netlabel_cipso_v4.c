@@ -691,8 +691,8 @@ static int netlbl_cipsov4_remove_cb(struct netlbl_dom_map *entry, void *arg)
 {
 	struct netlbl_domhsh_walk_arg *cb_arg = arg;
 
-	if (entry->type == NETLBL_NLTYPE_CIPSOV4 &&
-	    entry->type_def.cipsov4->doi == cb_arg->doi)
+	if (entry->def.type == NETLBL_NLTYPE_CIPSOV4 &&
+	    entry->def.cipso->doi == cb_arg->doi)
 		return netlbl_domhsh_remove_entry(entry, cb_arg->audit_info);
 
 	return 0;

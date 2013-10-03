@@ -645,9 +645,11 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 	} else
 		goto drop;
 
-	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
-	ibp->opstats[opcode & 0x7f].n_bytes += tlen;
-	ibp->opstats[opcode & 0x7f].n_packets++;
+	opcode = (be32_to_cpu(ohdr->bth[0]) >> 24) & 0x7f;
+#ifdef CONFIG_DEBUG_FS
+	rcd->opstats->stats[opcode].n_bytes += tlen;
+	rcd->opstats->stats[opcode].n_packets++;
+#endif
 
 	/* Get the destination QP number. */
 	qp_num = be32_to_cpu(ohdr->bth[1]) & QIB_QPN_MASK;
@@ -2234,7 +2236,8 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	if (ret)
 		goto err_agents;
 
-	if (qib_verbs_register_sysfs(dd))
+	ret = qib_verbs_register_sysfs(dd);
+	if (ret)
 		goto err_class;
 
 	goto bail;

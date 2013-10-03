@@ -19,6 +19,7 @@
 #include <linux/rio_drv.h>
 #include <linux/rio_ids.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include "../rio.h"
 
 /* Global (broadcast) route registers */
@@ -129,18 +130,70 @@ tsi568_em_init(struct rio_dev *rdev)
 	return 0;
 }
 
-static int tsi568_switch_init(struct rio_dev *rdev, int do_enum)
+static struct rio_switch_ops tsi568_switch_ops = {
+	.owner = THIS_MODULE,
+	.add_entry = tsi568_route_add_entry,
+	.get_entry = tsi568_route_get_entry,
+	.clr_table = tsi568_route_clr_table,
+	.set_domain = NULL,
+	.get_domain = NULL,
+	.em_init = tsi568_em_init,
+	.em_handle = NULL,
+};
+
+static int tsi568_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
 	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
-	rdev->rswitch->add_entry = tsi568_route_add_entry;
-	rdev->rswitch->get_entry = tsi568_route_get_entry;
-	rdev->rswitch->clr_table = tsi568_route_clr_table;
-	rdev->rswitch->set_domain = NULL;
-	rdev->rswitch->get_domain = NULL;
-	rdev->rswitch->em_init = tsi568_em_init;
-	rdev->rswitch->em_handle = NULL;
 
+	spin_lock(&rdev->rswitch->lock);
+
+	if (rdev->rswitch->ops) {
+		spin_unlock(&rdev->rswitch->lock);
+		return -EINVAL;
+	}
+
+	rdev->rswitch->ops = &tsi568_switch_ops;
+	spin_unlock(&rdev->rswitch->lock);
 	return 0;
 }
 
-DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI568, tsi568_switch_init);
+static void tsi568_remove(struct rio_dev *rdev)
+{
+	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	spin_lock(&rdev->rswitch->lock);
+	if (rdev->rswitch->ops != &tsi568_switch_ops) {
+		spin_unlock(&rdev->rswitch->lock);
+		return;
+	}
+	rdev->rswitch->ops = NULL;
+	spin_unlock(&rdev->rswitch->lock);
+}
+
+static struct rio_device_id tsi568_id_table[] = {
+	{RIO_DEVICE(RIO_DID_TSI568, RIO_VID_TUNDRA)},
+	{ 0, }	/* terminate list */
+};
+
+static struct rio_driver tsi568_driver = {
+	.name = "tsi568",
+	.id_table = tsi568_id_table,
+	.probe = tsi568_probe,
+	.remove = tsi568_remove,
+};
+
+static int __init tsi568_init(void)
+{
+	return rio_register_driver(&tsi568_driver);
+}
+
+static void __exit tsi568_exit(void)
+{
+	rio_unregister_driver(&tsi568_driver);
+}
+
+device_initcall(tsi568_init);
+module_exit(tsi568_exit);
+
+MODULE_DESCRIPTION("IDT Tsi568 Serial RapidIO switch driver");
+MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_LICENSE("GPL");

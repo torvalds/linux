@@ -26,7 +26,7 @@ Required for all cases except "samsung,s3c2440-hdmiphy-i2c":
     - pinctrl-names: Should contain only one value - "default".
 
 Optional properties:
-  - samsung,i2c-slave-addr: Slave address in multi-master enviroment. If not
+  - samsung,i2c-slave-addr: Slave address in multi-master environment. If not
     specified, default value is 0.
   - samsung,i2c-max-bus-freq: Desired frequency in Hz of the bus. If not
     specified, the default value in Hz is 100000.

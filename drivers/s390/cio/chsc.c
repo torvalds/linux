@@ -20,6 +20,7 @@
 #include <asm/chpid.h>
 #include <asm/chsc.h>
 #include <asm/crw.h>
+#include <asm/isc.h>
 
 #include "css.h"
 #include "cio.h"
@@ -143,6 +144,65 @@ out:
 	spin_unlock_irq(&chsc_page_lock);
 	return ret;
 }
+
+/**
+ * chsc_ssqd() - store subchannel QDIO data (SSQD)
+ * @schid: id of the subchannel on which SSQD is performed
+ * @ssqd: request and response block for SSQD
+ *
+ * Returns 0 on success.
+ */
+int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd)
+{
+	memset(ssqd, 0, sizeof(*ssqd));
+	ssqd->request.length = 0x0010;
+	ssqd->request.code = 0x0024;
+	ssqd->first_sch = schid.sch_no;
+	ssqd->last_sch = schid.sch_no;
+	ssqd->ssid = schid.ssid;
+
+	if (chsc(ssqd))
+		return -EIO;
+
+	return chsc_error_from_response(ssqd->response.code);
+}
+EXPORT_SYMBOL_GPL(chsc_ssqd);
+
+/**
+ * chsc_sadc() - set adapter device controls (SADC)
+ * @schid: id of the subchannel on which SADC is performed
+ * @scssc: request and response block for SADC
+ * @summary_indicator_addr: summary indicator address
+ * @subchannel_indicator_addr: subchannel indicator address
+ *
+ * Returns 0 on success.
+ */
+int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
+	      u64 summary_indicator_addr, u64 subchannel_indicator_addr)
+{
+	memset(scssc, 0, sizeof(*scssc));
+	scssc->request.length = 0x0fe0;
+	scssc->request.code = 0x0021;
+	scssc->operation_code = 0;
+
+	scssc->summary_indicator_addr = summary_indicator_addr;
+	scssc->subchannel_indicator_addr = subchannel_indicator_addr;
+
+	scssc->ks = PAGE_DEFAULT_KEY >> 4;
+	scssc->kc = PAGE_DEFAULT_KEY >> 4;
+	scssc->isc = QDIO_AIRQ_ISC;
+	scssc->schid = schid;
+
+	/* enable the time delay disablement facility */
+	if (css_general_characteristics.aif_tdd)
+		scssc->word_with_d_bit = 0x10000000;
+
+	if (chsc(scssc))
+		return -EIO;
+
+	return chsc_error_from_response(scssc->response.code);
+}
+EXPORT_SYMBOL_GPL(chsc_sadc);
 
 static int s390_subchannel_remove_chpid(struct subchannel *sch, void *data)
 {
@@ -376,7 +436,7 @@ static void chsc_process_sei_chp_avail(struct chsc_sei_nt0_area *sei_area)
 			continue;
 		}
 		mutex_lock(&chp->lock);
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		chp_update_desc(chp);
 		mutex_unlock(&chp->lock);
 	}
 }
@@ -631,8 +691,8 @@ int chsc_chp_vary(struct chp_id chpid, int on)
 	 * Redo PathVerification on the devices the chpid connects to
 	 */
 	if (on) {
-		/* Try to update the channel path descritor. */
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		/* Try to update the channel path description. */
+		chp_update_desc(chp);
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_on,
 					   __s390_vary_chpid_on, &chpid);
 	} else
@@ -825,9 +885,10 @@ int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 {
 	struct chsc_response_struct *chsc_resp;
 	struct chsc_scpd *scpd_area;
+	unsigned long flags;
 	int ret;
 
-	spin_lock_irq(&chsc_page_lock);
+	spin_lock_irqsave(&chsc_page_lock, flags);
 	scpd_area = chsc_page;
 	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 1, 0, scpd_area);
 	if (ret)
@@ -835,7 +896,7 @@ int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 	chsc_resp = (void *)&scpd_area->response;
 	memcpy(desc, &chsc_resp->data, sizeof(*desc));
 out:
-	spin_unlock_irq(&chsc_page_lock);
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return ret;
 }
 

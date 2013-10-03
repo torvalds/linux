@@ -89,10 +89,16 @@ echo $code >> $T.s
 disas $T
 cat $T.dis >> $T.aa
 
+# (lines of whole $T.oo) - (lines of $T.aa, i.e. "Code starting") + 3,
+# i.e. the title + the "===..=" line (sed is counting from 1, 0 address is
+# special)
+faultlinenum=$(( $(wc -l $T.oo  | cut -d" " -f1) - \
+		 $(wc -l $T.aa  | cut -d" " -f1) + 3))
+
 faultline=`cat $T.dis | head -1 | cut -d":" -f2-`
 faultline=`echo "$faultline" | sed -e 's/\[/\\\[/g; s/\]/\\\]/g'`
 
-cat $T.oo | sed -e "s/\($faultline\)/\*\1     <-- trapping instruction/g"
+cat $T.oo | sed -e "${faultlinenum}s/^\(.*:\)\(.*\)/\1\*\2\t\t<-- trapping instruction/"
 echo
 cat $T.aa
 cleanup

@@ -33,12 +33,15 @@
 #ifndef MLX4_DEVICE_H
 #define MLX4_DEVICE_H
 
+#include <linux/if_ether.h>
 #include <linux/pci.h>
 #include <linux/completion.h>
 #include <linux/radix-tree.h>
 #include <linux/cpu_rmap.h>
 
 #include <linux/atomic.h>
+
+#include <linux/clocksource.h>
 
 #define MAX_MSIX_P_PORT		17
 #define MAX_MSIX		64
@@ -140,6 +143,7 @@ enum {
 	MLX4_DEV_CAP_FLAG_VEP_UC_STEER	= 1LL << 41,
 	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42,
 	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48,
+	MLX4_DEV_CAP_FLAG_SET_ETH_SCHED = 1LL << 53,
 	MLX4_DEV_CAP_FLAG_SENSE_SUPPORT	= 1LL << 55,
 	MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV = 1LL << 59,
 	MLX4_DEV_CAP_FLAG_64B_EQE	= 1LL << 61,
@@ -151,7 +155,11 @@ enum {
 	MLX4_DEV_CAP_FLAG2_RSS_TOP		= 1LL <<  1,
 	MLX4_DEV_CAP_FLAG2_RSS_XOR		= 1LL <<  2,
 	MLX4_DEV_CAP_FLAG2_FS_EN		= 1LL <<  3,
-	MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN	= 1LL <<  4
+	MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN	= 1LL <<  4,
+	MLX4_DEV_CAP_FLAG2_TS			= 1LL <<  5,
+	MLX4_DEV_CAP_FLAG2_VLAN_CONTROL		= 1LL <<  6,
+	MLX4_DEV_CAP_FLAG2_FSM			= 1LL <<  7,
+	MLX4_DEV_CAP_FLAG2_UPDATE_QP		= 1LL <<  8
 };
 
 enum {
@@ -200,6 +208,7 @@ enum mlx4_event {
 	MLX4_EVENT_TYPE_CMD		   = 0x0a,
 	MLX4_EVENT_TYPE_VEP_UPDATE	   = 0x19,
 	MLX4_EVENT_TYPE_COMM_CHANNEL	   = 0x18,
+	MLX4_EVENT_TYPE_OP_REQUIRED	   = 0x1a,
 	MLX4_EVENT_TYPE_FATAL_WARNING	   = 0x1b,
 	MLX4_EVENT_TYPE_FLR_EVENT	   = 0x1c,
 	MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT = 0x1d,
@@ -443,6 +452,7 @@ struct mlx4_caps {
 	u8			eqe_factor;
 	u32			userspace_caps; /* userspace must be aware of these */
 	u32			function_caps;  /* VFs must be aware of these */
+	u16			hca_core_clock;
 };
 
 struct mlx4_buf_list {
@@ -611,7 +621,7 @@ struct mlx4_eth_av {
 	u8		dgid[16];
 	u32		reserved4[2];
 	__be16		vlan;
-	u8		mac[6];
+	u8		mac[ETH_ALEN];
 };
 
 union mlx4_ext_av {
@@ -837,7 +847,7 @@ void mlx4_free_hwq_res(struct mlx4_dev *mdev, struct mlx4_hwq_resources *wqres,
 
 int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq,
-		  unsigned vector, int collapsed);
+		  unsigned vector, int collapsed, int timestamp_en);
 void mlx4_cq_free(struct mlx4_dev *dev, struct mlx4_cq *cq);
 
 int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align, int *base);
@@ -896,18 +906,19 @@ static inline int map_hw_to_sw_id(u16 header_id)
 }
 
 enum mlx4_net_trans_promisc_mode {
-	MLX4_FS_PROMISC_NONE = 0,
-	MLX4_FS_PROMISC_UPLINK,
-	/* For future use. Not implemented yet */
-	MLX4_FS_PROMISC_FUNCTION_PORT,
-	MLX4_FS_PROMISC_ALL_MULTI,
+	MLX4_FS_REGULAR = 1,
+	MLX4_FS_ALL_DEFAULT,
+	MLX4_FS_MC_DEFAULT,
+	MLX4_FS_UC_SNIFFER,
+	MLX4_FS_MC_SNIFFER,
+	MLX4_FS_MODE_NUM, /* should be last */
 };
 
 struct mlx4_spec_eth {
-	u8	dst_mac[6];
-	u8	dst_mac_msk[6];
-	u8	src_mac[6];
-	u8	src_mac_msk[6];
+	u8	dst_mac[ETH_ALEN];
+	u8	dst_mac_msk[ETH_ALEN];
+	u8	src_mac[ETH_ALEN];
+	u8	src_mac_msk[ETH_ALEN];
 	u8	ether_type_enable;
 	__be16	ether_type;
 	__be16	vlan_id_msk;
@@ -929,7 +940,7 @@ struct mlx4_spec_ipv4 {
 };
 
 struct mlx4_spec_ib {
-	__be32	r_qpn;
+	__be32  l3_qpn;
 	__be32	qpn_msk;
 	u8	dst_gid[16];
 	u8	dst_gid_msk[16];
@@ -960,6 +971,87 @@ struct mlx4_net_trans_rule {
 	u8	port;
 	u16	priority;
 	u32	qpn;
+};
+
+struct mlx4_net_trans_rule_hw_ctrl {
+	__be16 prio;
+	u8 type;
+	u8 flags;
+	u8 rsvd1;
+	u8 funcid;
+	u8 vep;
+	u8 port;
+	__be32 qpn;
+	__be32 rsvd2;
+};
+
+struct mlx4_net_trans_rule_hw_ib {
+	u8 size;
+	u8 rsvd1;
+	__be16 id;
+	u32 rsvd2;
+	__be32 l3_qpn;
+	__be32 qpn_mask;
+	u8 dst_gid[16];
+	u8 dst_gid_msk[16];
+} __packed;
+
+struct mlx4_net_trans_rule_hw_eth {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	u8	rsvd1[6];
+	u8	dst_mac[6];
+	u16	rsvd2;
+	u8	dst_mac_msk[6];
+	u16	rsvd3;
+	u8	src_mac[6];
+	u16	rsvd4;
+	u8	src_mac_msk[6];
+	u8      rsvd5;
+	u8      ether_type_enable;
+	__be16  ether_type;
+	__be16  vlan_tag_msk;
+	__be16  vlan_tag;
+} __packed;
+
+struct mlx4_net_trans_rule_hw_tcp_udp {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	__be16	rsvd1[3];
+	__be16	dst_port;
+	__be16	rsvd2;
+	__be16	dst_port_msk;
+	__be16	rsvd3;
+	__be16	src_port;
+	__be16	rsvd4;
+	__be16	src_port_msk;
+} __packed;
+
+struct mlx4_net_trans_rule_hw_ipv4 {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	__be32	rsvd1;
+	__be32	dst_ip;
+	__be32	dst_ip_msk;
+	__be32	src_ip;
+	__be32	src_ip_msk;
+} __packed;
+
+struct _rule_hw {
+	union {
+		struct {
+			u8 size;
+			u8 rsvd;
+			__be16 id;
+		};
+		struct mlx4_net_trans_rule_hw_eth eth;
+		struct mlx4_net_trans_rule_hw_ib ib;
+		struct mlx4_net_trans_rule_hw_ipv4 ipv4;
+		struct mlx4_net_trans_rule_hw_tcp_udp tcp_udp;
+	};
 };
 
 int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port, u32 qpn,
@@ -1011,6 +1103,11 @@ void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
 int mlx4_flow_attach(struct mlx4_dev *dev,
 		     struct mlx4_net_trans_rule *rule, u64 *reg_id);
 int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id);
+int mlx4_map_sw_to_hw_steering_mode(struct mlx4_dev *dev,
+				    enum mlx4_net_trans_promisc_mode flow_type);
+int mlx4_map_sw_to_hw_steering_id(struct mlx4_dev *dev,
+				  enum mlx4_net_trans_rule_id id);
+int mlx4_hw_rule_sz(struct mlx4_dev *dev, enum mlx4_net_trans_rule_id id);
 
 void mlx4_sync_pkey_table(struct mlx4_dev *dev, int slave, int port,
 			  int i, int val);
@@ -1027,5 +1124,7 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave, u8 port, int 
 
 void mlx4_put_slave_node_guid(struct mlx4_dev *dev, int slave, __be64 guid);
 __be64 mlx4_get_slave_node_guid(struct mlx4_dev *dev, int slave);
+
+cycle_t mlx4_read_clock(struct mlx4_dev *dev);
 
 #endif /* MLX4_DEVICE_H */

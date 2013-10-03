@@ -135,7 +135,6 @@
 #define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1ULL)
 #define PTRS_PER_S2_PGD	(1ULL << (KVM_PHYS_SHIFT - 30))
 #define S2_PGD_ORDER	get_order(PTRS_PER_S2_PGD * sizeof(pgd_t))
-#define S2_PGD_SIZE	(1 << S2_PGD_ORDER)
 
 /* Virtualization Translation Control Register (VTCR) bits */
 #define VTCR_SH0	(3 << 12)
@@ -210,5 +209,9 @@
 #define HSR_EC_DABT_HYP	(0x25)
 
 #define HSR_HVC_IMM_MASK	((1UL << 16) - 1)
+
+#define HSR_DABT_S1PTW		(1U << 7)
+#define HSR_DABT_CM		(1U << 8)
+#define HSR_DABT_EA		(1U << 9)
 
 #endif /* __ARM_KVM_ARM_H__ */

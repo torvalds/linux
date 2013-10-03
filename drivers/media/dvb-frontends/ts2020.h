@@ -22,6 +22,7 @@
 #ifndef TS2020_H
 #define TS2020_H
 
+#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct ts2020_config {
@@ -29,8 +30,7 @@ struct ts2020_config {
 	u8 clk_out_div;
 };
 
-#if defined(CONFIG_DVB_TS2020) || \
-	(defined(CONFIG_DVB_TS2020_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_TS2020)
 
 extern struct dvb_frontend *ts2020_attach(
 	struct dvb_frontend *fe,

@@ -33,11 +33,8 @@
 #ifndef __BASEBAND_H__
 #define __BASEBAND_H__
 
-#include "ttype.h"
 #include "tether.h"
 #include "device.h"
-
-/*---------------------  Export Definitions -------------------------*/
 
 #define PREAMBLE_LONG   0
 #define PREAMBLE_SHORT  1
@@ -84,28 +81,23 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
-
-/*---------------------  Export Types  ------------------------------*/
-
-/*---------------------  Export Macros ------------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
+/* Length, Service, and Signal fields of Phy for Tx */
+struct vnt_phy_field {
+	u8 signal;
+	u8 service;
+	__le16 len;
+} __packed;
 
 unsigned int
 BBuGetFrameTime(
-     BYTE byPreambleType,
-     BYTE byFreqType,
+     u8 byPreambleType,
+     u8 byFreqType,
      unsigned int cbFrameLength,
-     WORD wRate
+     u16 wRate
     );
 
 void BBvCalculateParameter(struct vnt_private *, u32 cbFrameLength,
-	u16 wRate, u8 byPacketType, u16 *pwPhyLen, u8 *pbyPhySrv,
-	u8 *pbyPhySgn);
+	u16 wRate, u8 byPacketType, struct vnt_phy_field *);
 
 /* timer for antenna diversity */
 
@@ -113,9 +105,6 @@ void TimerSQ3CallBack(struct vnt_private *);
 void TimerSQ3Tmax3CallBack(struct vnt_private *);
 
 void BBvAntennaDiversity(struct vnt_private *, u8 byRxRate, u8 bySQ3);
-void BBvLoopbackOn(struct vnt_private *);
-void BBvLoopbackOff(struct vnt_private *);
-void BBvSoftwareReset(struct vnt_private *);
 
 void BBvSetShortSlotTime(struct vnt_private *);
 void BBvSetVGAGainOffset(struct vnt_private *, u8 byData);

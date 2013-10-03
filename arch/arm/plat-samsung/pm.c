@@ -16,17 +16,23 @@
 #include <linux/suspend.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
 #include <asm/suspend.h>
-#include <mach/hardware.h>
-#include <mach/map.h>
 
 #include <plat/regs-serial.h>
+
+#ifdef CONFIG_SAMSUNG_ATAGS
+#include <mach/hardware.h>
+#include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-irq.h>
+#include <mach/irqs.h>
+#endif
+
 #include <asm/irq.h>
 
 #include <plat/pm.h>
@@ -74,7 +80,7 @@ unsigned char pm_uart_udivslot;
 
 #ifdef CONFIG_SAMSUNG_PM_DEBUG
 
-static struct pm_uart_save uart_save[CONFIG_SERIAL_SAMSUNG_UARTS];
+static struct pm_uart_save uart_save;
 
 static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 {
@@ -95,11 +101,7 @@ static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 
 static void s3c_pm_save_uarts(void)
 {
-	struct pm_uart_save *save = uart_save;
-	unsigned int uart;
-
-	for (uart = 0; uart < CONFIG_SERIAL_SAMSUNG_UARTS; uart++, save++)
-		s3c_pm_save_uart(uart, save);
+	s3c_pm_save_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
 }
 
 static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
@@ -120,11 +122,7 @@ static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 
 static void s3c_pm_restore_uarts(void)
 {
-	struct pm_uart_save *save = uart_save;
-	unsigned int uart;
-
-	for (uart = 0; uart < CONFIG_SERIAL_SAMSUNG_UARTS; uart++, save++)
-		s3c_pm_restore_uart(uart, save);
+	s3c_pm_restore_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
 }
 #else
 static void s3c_pm_save_uarts(void) { }
@@ -260,7 +258,8 @@ static int s3c_pm_enter(suspend_state_t state)
 	 * require a full power-cycle)
 	*/
 
-	if (!any_allowed(s3c_irqwake_intmask, s3c_irqwake_intallow) &&
+	if (!of_have_populated_dt() &&
+	    !any_allowed(s3c_irqwake_intmask, s3c_irqwake_intallow) &&
 	    !any_allowed(s3c_irqwake_eintmask, s3c_irqwake_eintallow)) {
 		printk(KERN_ERR "%s: No wake-up sources!\n", __func__);
 		printk(KERN_ERR "%s: Aborting sleep\n", __func__);
@@ -269,8 +268,11 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	/* save all necessary core registers not covered by the drivers */
 
-	samsung_pm_save_gpios();
-	samsung_pm_saved_gpios();
+	if (!of_have_populated_dt()) {
+		samsung_pm_save_gpios();
+		samsung_pm_saved_gpios();
+	}
+
 	s3c_pm_save_uarts();
 	s3c_pm_save_core();
 
@@ -309,8 +311,11 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	s3c_pm_restore_core();
 	s3c_pm_restore_uarts();
-	samsung_pm_restore_gpios();
-	s3c_pm_restored_gpios();
+
+	if (!of_have_populated_dt()) {
+		samsung_pm_restore_gpios();
+		s3c_pm_restored_gpios();
+	}
 
 	s3c_pm_debug_init();
 

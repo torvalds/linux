@@ -393,19 +393,6 @@ static struct fb_ops udlfb_ops = {
 	.fb_release = udl_fb_release,
 };
 
-static void udl_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-			   u16 blue, int regno)
-{
-}
-
-static void udl_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-			     u16 *blue, int regno)
-{
-	*red = 0;
-	*green = 0;
-	*blue = 0;
-}
-
 static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 				      struct drm_file *file,
 				      unsigned flags, unsigned color,
@@ -482,7 +469,7 @@ static int udlfb_create(struct drm_fb_helper *helper,
 	struct udl_fbdev *ufbdev = (struct udl_fbdev *)helper;
 	struct drm_device *dev = ufbdev->helper.dev;
 	struct fb_info *info;
-	struct device *device = &dev->usbdev->dev;
+	struct device *device = dev->dev;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct udl_gem_object *obj;
@@ -558,8 +545,6 @@ out:
 }
 
 static struct drm_fb_helper_funcs udl_fb_helper_funcs = {
-	.gamma_set = udl_crtc_fb_gamma_set,
-	.gamma_get = udl_crtc_fb_gamma_get,
 	.fb_probe = udlfb_create,
 };
 

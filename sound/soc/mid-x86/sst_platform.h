@@ -124,6 +124,8 @@ struct compress_sst_ops {
 	int (*close) (unsigned int str_id);
 	int (*get_caps) (struct snd_compr_caps *caps);
 	int (*get_codec_caps) (struct snd_compr_codec_caps *codec);
+	int (*set_metadata) (unsigned int str_id,
+			struct snd_compr_metadata *mdata);
 
 };
 

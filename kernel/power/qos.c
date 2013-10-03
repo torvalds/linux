@@ -44,6 +44,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/export.h>
+#include <trace/events/power.h>
 
 /*
  * locking rule: all changes to constraints or notifiers lists
@@ -202,6 +203,7 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 
 	spin_unlock_irqrestore(&pm_qos_lock, flags);
 
+	trace_pm_qos_update_target(action, prev_value, curr_value);
 	if (prev_value != curr_value) {
 		blocking_notifier_call_chain(c->notifiers,
 					     (unsigned long)curr_value,
@@ -272,6 +274,7 @@ bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 
 	spin_unlock_irqrestore(&pm_qos_lock, irqflags);
 
+	trace_pm_qos_update_flags(action, prev_value, curr_value);
 	return prev_value != curr_value;
 }
 
@@ -293,6 +296,17 @@ int pm_qos_request_active(struct pm_qos_request *req)
 }
 EXPORT_SYMBOL_GPL(pm_qos_request_active);
 
+static void __pm_qos_update_request(struct pm_qos_request *req,
+			   s32 new_value)
+{
+	trace_pm_qos_update_request(req->pm_qos_class, new_value);
+
+	if (new_value != req->node.prio)
+		pm_qos_update_target(
+			pm_qos_array[req->pm_qos_class]->constraints,
+			&req->node, PM_QOS_UPDATE_REQ, new_value);
+}
+
 /**
  * pm_qos_work_fn - the timeout handler of pm_qos_update_request_timeout
  * @work: work struct for the delayed work (timeout)
@@ -305,7 +319,7 @@ static void pm_qos_work_fn(struct work_struct *work)
 						  struct pm_qos_request,
 						  work);
 
-	pm_qos_update_request(req, PM_QOS_DEFAULT_VALUE);
+	__pm_qos_update_request(req, PM_QOS_DEFAULT_VALUE);
 }
 
 /**
@@ -333,6 +347,7 @@ void pm_qos_add_request(struct pm_qos_request *req,
 	}
 	req->pm_qos_class = pm_qos_class;
 	INIT_DELAYED_WORK(&req->work, pm_qos_work_fn);
+	trace_pm_qos_add_request(pm_qos_class, value);
 	pm_qos_update_target(pm_qos_array[pm_qos_class]->constraints,
 			     &req->node, PM_QOS_ADD_REQ, value);
 }
@@ -360,11 +375,7 @@ void pm_qos_update_request(struct pm_qos_request *req,
 	}
 
 	cancel_delayed_work_sync(&req->work);
-
-	if (new_value != req->node.prio)
-		pm_qos_update_target(
-			pm_qos_array[req->pm_qos_class]->constraints,
-			&req->node, PM_QOS_UPDATE_REQ, new_value);
+	__pm_qos_update_request(req, new_value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_update_request);
 
@@ -387,6 +398,8 @@ void pm_qos_update_request_timeout(struct pm_qos_request *req, s32 new_value,
 
 	cancel_delayed_work_sync(&req->work);
 
+	trace_pm_qos_update_request_timeout(req->pm_qos_class,
+					    new_value, timeout_us);
 	if (new_value != req->node.prio)
 		pm_qos_update_target(
 			pm_qos_array[req->pm_qos_class]->constraints,
@@ -416,6 +429,7 @@ void pm_qos_remove_request(struct pm_qos_request *req)
 
 	cancel_delayed_work_sync(&req->work);
 
+	trace_pm_qos_remove_request(req->pm_qos_class, PM_QOS_DEFAULT_VALUE);
 	pm_qos_update_target(pm_qos_array[req->pm_qos_class]->constraints,
 			     &req->node, PM_QOS_REMOVE_REQ,
 			     PM_QOS_DEFAULT_VALUE);
@@ -477,7 +491,7 @@ static int find_pm_qos_object_by_minor(int minor)
 {
 	int pm_qos_class;
 
-	for (pm_qos_class = 0;
+	for (pm_qos_class = PM_QOS_CPU_DMA_LATENCY;
 		pm_qos_class < PM_QOS_NUM_CLASSES; pm_qos_class++) {
 		if (minor ==
 			pm_qos_array[pm_qos_class]->pm_qos_power_miscdev.minor)
@@ -491,7 +505,7 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 	long pm_qos_class;
 
 	pm_qos_class = find_pm_qos_object_by_minor(iminor(inode));
-	if (pm_qos_class >= 0) {
+	if (pm_qos_class >= PM_QOS_CPU_DMA_LATENCY) {
 		struct pm_qos_request *req = kzalloc(sizeof(*req), GFP_KERNEL);
 		if (!req)
 			return -ENOMEM;
@@ -584,7 +598,7 @@ static int __init pm_qos_power_init(void)
 
 	BUILD_BUG_ON(ARRAY_SIZE(pm_qos_array) != PM_QOS_NUM_CLASSES);
 
-	for (i = 1; i < PM_QOS_NUM_CLASSES; i++) {
+	for (i = PM_QOS_CPU_DMA_LATENCY; i < PM_QOS_NUM_CLASSES; i++) {
 		ret = register_pm_qos_misc(pm_qos_array[i]);
 		if (ret < 0) {
 			printk(KERN_ERR "pm_qos_param: %s setup failed\n",

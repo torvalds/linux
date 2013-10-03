@@ -220,35 +220,6 @@ static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 	return ret;
 }
 
-static int pm8606_preg_enable(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return pm860x_set_bits(info->i2c, rdev->desc->enable_reg,
-			       1 << rdev->desc->enable_mask, 0);
-}
-
-static int pm8606_preg_disable(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return pm860x_set_bits(info->i2c, rdev->desc->enable_reg,
-			       1 << rdev->desc->enable_mask,
-			       1 << rdev->desc->enable_mask);
-}
-
-static int pm8606_preg_is_enabled(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	int ret;
-
-	ret = pm860x_reg_read(info->i2c, rdev->desc->enable_reg);
-	if (ret < 0)
-		return ret;
-
-	return !((unsigned char)ret & (1 << rdev->desc->enable_mask));
-}
-
 static struct regulator_ops pm8607_regulator_ops = {
 	.list_voltage	= pm8607_list_voltage,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -259,9 +230,9 @@ static struct regulator_ops pm8607_regulator_ops = {
 };
 
 static struct regulator_ops pm8606_preg_ops = {
-	.enable		= pm8606_preg_enable,
-	.disable	= pm8606_preg_disable,
-	.is_enabled	= pm8606_preg_is_enabled,
+	.enable		= regulator_enable_regmap,
+	.disable	= regulator_disable_regmap,
+	.is_enabled	= regulator_is_enabled_regmap,
 };
 
 #define PM8606_PREG(ereg, ebit)						\
@@ -274,6 +245,7 @@ static struct regulator_ops pm8606_preg_ops = {
 		.owner	= THIS_MODULE,					\
 		.enable_reg = PM8606_##ereg,				\
 		.enable_mask = (ebit),					\
+		.enable_is_inverted = true,				\
 	},								\
 }
 
@@ -374,7 +346,7 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm8607_regulator_info *info = NULL;
-	struct regulator_init_data *pdata = pdev->dev.platform_data;
+	struct regulator_init_data *pdata = dev_get_platdata(&pdev->dev);
 	struct regulator_config config = { };
 	struct resource *res;
 	int i;
@@ -434,7 +406,6 @@ static int pm8607_regulator_remove(struct platform_device *pdev)
 {
 	struct pm8607_regulator_info *info = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	regulator_unregister(info->regulator);
 	return 0;
 }

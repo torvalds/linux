@@ -136,7 +136,6 @@ static struct davinci_mmc_config da850_mmc_config = {
 	.wires		= 4,
 	.max_freq	= 50000000,
 	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
-	.version	= MMC_CTLR_VERSION_2,
 };
 
 static __init void omapl138_hawk_mmc_init(void)
@@ -287,15 +286,11 @@ usb11_setup_oc_fail:
 	gpio_free(DA850_USB1_VBUS_PIN);
 }
 
-static struct davinci_uart_config omapl138_hawk_uart_config __initdata = {
-	.enabled_uarts = 0x7,
-};
-
 static __init void omapl138_hawk_init(void)
 {
 	int ret;
 
-	davinci_serial_init(&omapl138_hawk_uart_config);
+	davinci_serial_init(da8xx_serial_device);
 
 	omapl138_hawk_config_emac();
 
@@ -310,6 +305,11 @@ static __init void omapl138_hawk_init(void)
 	ret = da8xx_register_watchdog();
 	if (ret)
 		pr_warn("%s: watchdog registration failed: %d\n",
+			__func__, ret);
+
+	ret = da8xx_register_rproc();
+	if (ret)
+		pr_warn("%s: dsp/rproc registration failed: %d\n",
 			__func__, ret);
 }
 
@@ -338,4 +338,5 @@ MACHINE_START(OMAPL138_HAWKBOARD, "AM18x/OMAP-L138 Hawkboard")
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
 	.restart	= da8xx_restart,
+	.reserve	= da8xx_rproc_reserve_cma,
 MACHINE_END

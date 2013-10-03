@@ -128,8 +128,8 @@ static struct resource sh_eth0_resources[] = {
 };
 
 static struct platform_device sh_eth0_device = {
-	.name = "sh-eth",
-	.id	= 0,
+	.name = "sh771x-ether",
+	.id = 0,
 	.dev = {
 		.platform_data = PHY_ID,
 	},
@@ -151,8 +151,8 @@ static struct resource sh_eth1_resources[] = {
 };
 
 static struct platform_device sh_eth1_device = {
-	.name = "sh-eth",
-	.id	= 1,
+	.name = "sh771x-ether",
+	.id = 1,
 	.dev = {
 		.platform_data = PHY_ID,
 	},

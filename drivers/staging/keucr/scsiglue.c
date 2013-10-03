@@ -73,7 +73,8 @@ static int slave_configure(struct scsi_device *sdev)
 		if (us->fflags & US_FL_CAPACITY_HEURISTICS)
 			sdev->guess_capacity = 1;
 		if (sdev->scsi_level > SCSI_2)
-			sdev->sdev_target->scsi_level = sdev->scsi_level = SCSI_2;
+			sdev->sdev_target->scsi_level = sdev->scsi_level
+								= SCSI_2;
 		sdev->retry_hwerror = 1;
 		sdev->allow_restart = 1;
 		sdev->last_sector_bug = 1;
@@ -144,7 +145,7 @@ static int command_abort(struct scsi_cmnd *srb)
 	scsi_lock(us_to_host(us));
 	if (us->srb != srb) {
 		scsi_unlock(us_to_host(us));
-		printk("-- nothing to abort\n");
+		dev_info(&us->pusb_dev->dev, "-- nothing to abort\n");
 		return FAILED;
 	}
 
@@ -229,25 +230,17 @@ void usb_stor_report_bus_reset(struct us_data *us)
 
 /* we use this macro to help us write into the buffer */
 #undef SPRINTF
-#define SPRINTF(args...) \
-	do { \
-		if (pos < buffer+length) \
-			pos += sprintf(pos, ## args); \
-	} while (0)
+#define SPRINTF(args...) seq_printf(m, ##args)
 
-/*
- * proc_info()
- */
-static int proc_info(struct Scsi_Host *host, char *buffer, char **start,
-					off_t offset, int length, int inout)
+static int write_info(struct Scsi_Host *host, char *buffer, int length)
+{
+	return length;
+}
+
+static int show_info(struct seq_file *m, struct Scsi_Host *host)
 {
 	struct us_data *us = host_to_us(host);
-	char *pos = buffer;
 	const char *string;
-
-	/* pr_info("scsiglue --- proc_info\n"); */
-	if (inout)
-		return length;
 
 	/* print the controller name */
 	SPRINTF("   Host scsi%d: usb-storage\n", host->host_no);
@@ -278,29 +271,17 @@ static int proc_info(struct Scsi_Host *host, char *buffer, char **start,
 	SPRINTF("    Transport: %s\n", us->transport_name);
 
 	/* show the device flags */
-	if (pos < buffer + length) {
-		pos += sprintf(pos, "       Quirks:");
+	SPRINTF("       Quirks:");
 
 #define US_FLAG(name, value) \
 	do { \
 		if (us->fflags & value) \
-			pos += sprintf(pos, " " #name); \
+			SPRINTF(" " #name); \
 	} while (0);
 US_DO_ALL_FLAGS
 #undef US_FLAG
-
-		*(pos++) = '\n';
-	}
-
-	/* Calculate start of next buffer, and return value. */
-	*start = buffer + offset;
-
-	if ((pos - buffer) < offset)
-		return 0;
-	else if ((pos - buffer - offset) < length)
-		return pos - buffer - offset;
-	else
-		return length;
+	seq_putc(m, '\n');
+	return 0;
 }
 
 /***********************************************************************
@@ -308,10 +289,7 @@ US_DO_ALL_FLAGS
  ***********************************************************************/
 
 /* Output routine for the sysfs max_sectors file */
-/*
- * show_max_sectors()
- */
-static ssize_t show_max_sectors(struct device *dev,
+static ssize_t max_sectors_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
@@ -321,10 +299,7 @@ static ssize_t show_max_sectors(struct device *dev,
 }
 
 /* Input routine for the sysfs max_sectors file */
-/*
- * store_max_sectors()
- */
-static ssize_t store_max_sectors(struct device *dev,
+static ssize_t max_sectors_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
@@ -338,9 +313,11 @@ static ssize_t store_max_sectors(struct device *dev,
 	}
 	return -EINVAL;
 }
+static DEVICE_ATTR_RW(max_sectors);
 
-static DEVICE_ATTR(max_sectors, S_IRUGO | S_IWUSR, show_max_sectors, store_max_sectors);
-static struct device_attribute *sysfs_device_attr_list[] = {&dev_attr_max_sectors, NULL, };
+static struct device_attribute *sysfs_device_attr_list[] = {
+	&dev_attr_max_sectors, NULL,
+};
 
 /* this defines our host template, with which we'll allocate hosts */
 
@@ -351,7 +328,8 @@ struct scsi_host_template usb_stor_host_template = {
 	/* basic userland interface stuff */
 	.name =				"eucr-storage",
 	.proc_name =			"eucr-storage",
-	.proc_info =			proc_info,
+	.write_info =			write_info,
+	.show_info =			show_info,
 	.info =				host_info,
 
 	/* command interface -- queued only */
@@ -412,8 +390,9 @@ unsigned char usb_stor_sense_invalidCDB[18] = {
 /*
  * usb_stor_access_xfer_buf()
  */
-unsigned int usb_stor_access_xfer_buf(struct us_data *us, unsigned char *buffer,
-	unsigned int buflen, struct scsi_cmnd *srb, struct scatterlist **sgptr,
+unsigned int usb_stor_access_xfer_buf(struct us_data *us,
+	unsigned char *buffer, unsigned int buflen,
+	struct scsi_cmnd *srb, struct scatterlist **sgptr,
 	unsigned int *offset, enum xfer_buf_dir dir)
 {
 	unsigned int cnt;
@@ -443,7 +422,7 @@ unsigned int usb_stor_access_xfer_buf(struct us_data *us, unsigned char *buffer,
 
 		while (sglen > 0) {
 			unsigned int plen = min(sglen,
-						(unsigned int)PAGE_SIZE - poff);
+					(unsigned int)PAGE_SIZE - poff);
 			unsigned char *ptr = kmap(page);
 
 			if (dir == TO_XFER_BUF)

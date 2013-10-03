@@ -111,6 +111,9 @@ static inline struct page *sg_page(struct scatterlist *sg)
 static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 			      unsigned int buflen)
 {
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(!virt_addr_valid(buf));
+#endif
 	sg_set_page(sg, virt_to_page(buf), buflen, offset_in_page(buf));
 }
 
@@ -172,6 +175,22 @@ static inline void sg_mark_end(struct scatterlist *sg)
 }
 
 /**
+ * sg_unmark_end - Undo setting the end of the scatterlist
+ * @sg:		 SG entryScatterlist
+ *
+ * Description:
+ *   Removes the termination marker from the given entry of the scatterlist.
+ *
+ **/
+static inline void sg_unmark_end(struct scatterlist *sg)
+{
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(sg->sg_magic != SG_MAGIC);
+#endif
+	sg->page_link &= ~0x02;
+}
+
+/**
  * sg_phys - Return physical address of an sg entry
  * @sg:	     SG entry
  *
@@ -225,6 +244,11 @@ size_t sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
 size_t sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 			 void *buf, size_t buflen);
 
+size_t sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
+			    void *buf, size_t buflen, off_t skip);
+size_t sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
+			  void *buf, size_t buflen, off_t skip);
+
 /*
  * Maximum number of entries that will be allocated in one piece, if
  * a list larger than this is required then chaining will be utilized.
@@ -235,13 +259,13 @@ size_t sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
  * sg page iterator
  *
  * Iterates over sg entries page-by-page.  On each successful iteration,
- * @piter->page points to the current page, @piter->sg to the sg holding this
- * page and @piter->sg_pgoffset to the page's page offset within the sg. The
- * iteration will stop either when a maximum number of sg entries was reached
- * or a terminating sg (sg_last(sg) == true) was reached.
+ * you can call sg_page_iter_page(@piter) and sg_page_iter_dma_address(@piter)
+ * to get the current page and its dma address. @piter->sg will point to the
+ * sg holding this page and @piter->sg_pgoffset to the page's page offset
+ * within the sg. The iteration will stop either when a maximum number of sg
+ * entries was reached or a terminating sg (sg_last(sg) == true) was reached.
  */
 struct sg_page_iter {
-	struct page		*page;		/* current page */
 	struct scatterlist	*sg;		/* sg holding the page */
 	unsigned int		sg_pgoffset;	/* page offset within the sg */
 
@@ -255,6 +279,24 @@ bool __sg_page_iter_next(struct sg_page_iter *piter);
 void __sg_page_iter_start(struct sg_page_iter *piter,
 			  struct scatterlist *sglist, unsigned int nents,
 			  unsigned long pgoffset);
+/**
+ * sg_page_iter_page - get the current page held by the page iterator
+ * @piter:	page iterator holding the page
+ */
+static inline struct page *sg_page_iter_page(struct sg_page_iter *piter)
+{
+	return nth_page(sg_page(piter->sg), piter->sg_pgoffset);
+}
+
+/**
+ * sg_page_iter_dma_address - get the dma address of the current page held by
+ * the page iterator.
+ * @piter:	page iterator holding the page
+ */
+static inline dma_addr_t sg_page_iter_dma_address(struct sg_page_iter *piter)
+{
+	return sg_dma_address(piter->sg) + (piter->sg_pgoffset << PAGE_SHIFT);
+}
 
 /**
  * for_each_sg_page - iterate over the pages of the given sg list

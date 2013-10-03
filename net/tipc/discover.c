@@ -70,8 +70,7 @@ struct tipc_link_req {
  * @dest_domain: network domain of node(s) which should respond to message
  * @b_ptr: ptr to bearer issuing message
  */
-static struct sk_buff *tipc_disc_init_msg(u32 type,
-					  u32 dest_domain,
+static struct sk_buff *tipc_disc_init_msg(u32 type, u32 dest_domain,
 					  struct tipc_bearer *b_ptr)
 {
 	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE);
@@ -129,7 +128,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	int link_fully_up;
 
 	media_addr.broadcast = 1;
-	b_ptr->media->msg2addr(&media_addr, msg_media_addr(msg));
+	b_ptr->media->msg2addr(b_ptr, &media_addr, msg_media_addr(msg));
 	kfree_skb(buf);
 
 	/* Ensure message from node is valid and communication is permitted */
@@ -346,8 +345,8 @@ exit:
  *
  * Returns 0 if successful, otherwise -errno.
  */
-int tipc_disc_create(struct tipc_bearer *b_ptr,
-		     struct tipc_media_addr *dest, u32 dest_domain)
+int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest,
+		     u32 dest_domain)
 {
 	struct tipc_link_req *req;
 

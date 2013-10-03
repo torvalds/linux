@@ -31,9 +31,6 @@
 /* Timing restrictions (ms) */
 #define PN544_HCI_RESETVEN_TIME		30
 
-#define HCI_MODE 0
-#define FW_MODE 1
-
 enum pn544_state {
 	PN544_ST_COLD,
 	PN544_ST_FW_READY,
@@ -130,6 +127,8 @@ struct pn544_hci_info {
 	int async_cb_type;
 	data_exchange_cb_t async_cb;
 	void *async_cb_context;
+
+	fw_download_t fw_download;
 };
 
 static int pn544_hci_open(struct nfc_hci_dev *hdev)
@@ -551,20 +550,25 @@ static int pn544_hci_complete_target_discovered(struct nfc_hci_dev *hdev,
 			return -EPROTO;
 		}
 
-		r = nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
-				     PN544_RF_READER_CMD_ACTIVATE_NEXT,
-				     uid_skb->data, uid_skb->len, NULL);
-		kfree_skb(uid_skb);
-
-		r = nfc_hci_send_cmd(hdev,
+		/* Type F NFC-DEP IDm has prefix 0x01FE */
+		if ((uid_skb->data[0] == 0x01) && (uid_skb->data[1] == 0xfe)) {
+			kfree_skb(uid_skb);
+			r = nfc_hci_send_cmd(hdev,
 					PN544_RF_READER_NFCIP1_INITIATOR_GATE,
 					PN544_HCI_CMD_CONTINUE_ACTIVATION,
 					NULL, 0, NULL);
-		if (r < 0)
-			return r;
+			if (r < 0)
+				return r;
 
-		target->hci_reader_gate = PN544_RF_READER_NFCIP1_INITIATOR_GATE;
-		target->supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+			target->supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+			target->hci_reader_gate =
+				PN544_RF_READER_NFCIP1_INITIATOR_GATE;
+		} else {
+			r = nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
+					     PN544_RF_READER_CMD_ACTIVATE_NEXT,
+					     uid_skb->data, uid_skb->len, NULL);
+			kfree_skb(uid_skb);
+		}
 	} else if (target->supported_protocols & NFC_PROTO_ISO14443_MASK) {
 		/*
 		 * TODO: maybe other ISO 14443 require some kind of continue
@@ -706,12 +710,9 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 		 return nfc_hci_send_cmd(hdev, NFC_HCI_RF_READER_A_GATE,
 				     PN544_RF_READER_CMD_ACTIVATE_NEXT,
 				     target->nfcid1, target->nfcid1_len, NULL);
-	} else if (target->supported_protocols & NFC_PROTO_JEWEL_MASK) {
-		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
-					PN544_JEWEL_RAW_CMD, NULL, 0, NULL);
-	} else if (target->supported_protocols & NFC_PROTO_FELICA_MASK) {
-		return nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
-					PN544_FELICA_RAW, NULL, 0, NULL);
+	} else if (target->supported_protocols & (NFC_PROTO_JEWEL_MASK |
+						NFC_PROTO_FELICA_MASK)) {
+		return -EOPNOTSUPP;
 	} else if (target->supported_protocols & NFC_PROTO_NFC_DEP_MASK) {
 		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
 					PN544_HCI_CMD_ATTREQUEST,
@@ -780,6 +781,17 @@ exit:
 	return r;
 }
 
+static int pn544_hci_fw_download(struct nfc_hci_dev *hdev,
+				 const char *firmware_name)
+{
+	struct pn544_hci_info *info = nfc_hci_get_clientdata(hdev);
+
+	if (info->fw_download == NULL)
+		return -ENOTSUPP;
+
+	return info->fw_download(info->phy_id, firmware_name);
+}
+
 static struct nfc_hci_ops pn544_hci_ops = {
 	.open = pn544_hci_open,
 	.close = pn544_hci_close,
@@ -794,14 +806,15 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.tm_send = pn544_hci_tm_send,
 	.check_presence = pn544_hci_check_presence,
 	.event_received = pn544_hci_event_received,
+	.fw_download = pn544_hci_fw_download,
 };
 
 int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    int phy_headroom, int phy_tailroom, int phy_payload,
-		    struct nfc_hci_dev **hdev)
+		    fw_download_t fw_download, struct nfc_hci_dev **hdev)
 {
 	struct pn544_hci_info *info;
-	u32 protocols, se;
+	u32 protocols;
 	struct nfc_hci_init_data init_data;
 	int r;
 
@@ -814,6 +827,7 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 
 	info->phy_ops = phy_ops;
 	info->phy_id = phy_id;
+	info->fw_download = fw_download;
 	info->state = PN544_ST_COLD;
 	mutex_init(&info->info_lock);
 
@@ -834,10 +848,8 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    NFC_PROTO_ISO14443_B_MASK |
 		    NFC_PROTO_NFC_DEP_MASK;
 
-	se = NFC_SE_UICC | NFC_SE_EMBEDDED;
-
 	info->hdev = nfc_hci_allocate_device(&pn544_hci_ops, &init_data, 0,
-					     protocols, se, llc_name,
+					     protocols, llc_name,
 					     phy_headroom + PN544_CMDS_HEADROOM,
 					     phy_tailroom, phy_payload);
 	if (!info->hdev) {

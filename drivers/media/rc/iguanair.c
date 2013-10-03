@@ -364,8 +364,8 @@ static int iguanair_tx(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 		periods = DIV_ROUND_CLOSEST(txbuf[i] * ir->carrier, 1000000);
 		bytes = DIV_ROUND_UP(periods, 127);
 		if (size + bytes > ir->bufsize) {
-			count = i;
-			break;
+			rc = -EINVAL;
+			goto out;
 		}
 		while (periods > 127) {
 			ir->packet->payload[size++] = 127 | space;

@@ -769,7 +769,10 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 						s->number);
 				ds->drained_count++;
 				if (ds->drained_count > 20) {
+					unsigned long flags;
+					snd_pcm_stream_lock_irqsave(s, flags);
 					snd_pcm_stop(s, SNDRV_PCM_STATE_XRUN);
+					snd_pcm_stream_unlock_irqrestore(s, flags);
 					continue;
 				}
 			} else {
@@ -966,7 +969,7 @@ static u64 snd_card_asihpi_playback_formats(struct snd_card_asihpi *asihpi,
 		if (!err)
 			err = hpi_outstream_query_format(h_stream, &hpi_format);
 		if (!err && (hpi_to_alsa_formats[format] != -1))
-			formats |= (1ULL << hpi_to_alsa_formats[format]);
+			formats |= pcm_format_to_bits(hpi_to_alsa_formats[format]);
 	}
 	return formats;
 }
@@ -1141,8 +1144,8 @@ static u64 snd_card_asihpi_capture_formats(struct snd_card_asihpi *asihpi,
 					format, sample_rate, 128000, 0);
 		if (!err)
 			err = hpi_instream_query_format(h_stream, &hpi_format);
-		if (!err)
-			formats |= (1ULL << hpi_to_alsa_formats[format]);
+		if (!err && (hpi_to_alsa_formats[format] != -1))
+			formats |= pcm_format_to_bits(hpi_to_alsa_formats[format]);
 	}
 	return formats;
 }
@@ -1278,7 +1281,7 @@ struct hpi_control {
 	u16 dst_node_type;
 	u16 dst_node_index;
 	u16 band;
-	char name[44]; /* copied to snd_ctl_elem_id.name[44]; */
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* copied to snd_ctl_elem_id.name[44]; */
 };
 
 static const char * const asihpi_tuner_band_names[] = {

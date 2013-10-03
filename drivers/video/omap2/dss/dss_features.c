@@ -414,7 +414,7 @@ static const char * const omap5_dss_clk_source_names[] = {
 };
 
 static const struct dss_param_range omap2_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]			= { 0, 173000000 },
+	[FEAT_PARAM_DSS_FCK]			= { 0, 133000000 },
 	[FEAT_PARAM_DSS_PCD]			= { 2, 255 },
 	[FEAT_PARAM_DSIPLL_REGN]		= { 0, 0 },
 	[FEAT_PARAM_DSIPLL_REGM]		= { 0, 0 },
@@ -459,15 +459,15 @@ static const struct dss_param_range omap4_dss_param_range[] = {
 };
 
 static const struct dss_param_range omap5_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]			= { 0, 200000000 },
+	[FEAT_PARAM_DSS_FCK]			= { 0, 209250000 },
 	[FEAT_PARAM_DSS_PCD]			= { 1, 255 },
 	[FEAT_PARAM_DSIPLL_REGN]		= { 0, (1 << 8) - 1 },
 	[FEAT_PARAM_DSIPLL_REGM]		= { 0, (1 << 12) - 1 },
 	[FEAT_PARAM_DSIPLL_REGM_DISPC]		= { 0, (1 << 5) - 1 },
 	[FEAT_PARAM_DSIPLL_REGM_DSI]		= { 0, (1 << 5) - 1 },
-	[FEAT_PARAM_DSIPLL_FINT]		= { 500000, 2500000 },
+	[FEAT_PARAM_DSIPLL_FINT]		= { 150000, 52000000 },
 	[FEAT_PARAM_DSIPLL_LPDIV]		= { 0, (1 << 13) - 1 },
-	[FEAT_PARAM_DSI_FCK]			= { 0, 170000000 },
+	[FEAT_PARAM_DSI_FCK]			= { 0, 209250000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 2048 },
 };
@@ -797,7 +797,6 @@ static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
 	.phy_enable		=	ti_hdmi_4xxx_phy_enable,
 	.phy_disable		=	ti_hdmi_4xxx_phy_disable,
 	.read_edid		=	ti_hdmi_4xxx_read_edid,
-	.detect			=	ti_hdmi_4xxx_detect,
 	.pll_enable		=	ti_hdmi_4xxx_pll_enable,
 	.pll_disable		=	ti_hdmi_4xxx_pll_disable,
 	.video_enable		=	ti_hdmi_4xxx_wp_video_start,

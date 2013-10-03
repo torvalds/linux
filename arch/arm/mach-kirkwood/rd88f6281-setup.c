@@ -69,6 +69,7 @@ static struct mv_sata_platform_data rd88f6281_sata_data = {
 
 static struct mvsdio_platform_data rd88f6281_mvsdio_data = {
 	.gpio_card_detect = 28,
+	.gpio_write_protect = -1,
 };
 
 static unsigned int rd88f6281_mpp_config[] __initdata = {
@@ -86,7 +87,9 @@ static void __init rd88f6281_init(void)
 	kirkwood_init();
 	kirkwood_mpp_conf(rd88f6281_mpp_config);
 
-	kirkwood_nand_init(ARRAY_AND_SIZE(rd88f6281_nand_parts), 25);
+	kirkwood_nand_init(rd88f6281_nand_parts,
+			   ARRAY_SIZE(rd88f6281_nand_parts),
+			   25);
 	kirkwood_ehci_init();
 
 	kirkwood_ge00_init(&rd88f6281_ge00_data);

@@ -57,6 +57,9 @@ struct m5602_sensor {
 	/* Performs a initialization sequence */
 	int (*init)(struct sd *sd);
 
+	/* Controls initialization, maybe NULL */
+	int (*init_controls)(struct sd *sd);
+
 	/* Executed when the camera starts to send data */
 	int (*start)(struct sd *sd);
 

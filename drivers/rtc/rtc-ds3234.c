@@ -73,7 +73,7 @@ static int ds3234_read_time(struct device *dev, struct rtc_time *dt)
 	dt->tm_wday	= bcd2bin(buf[3]) - 1; /* 0 = Sun */
 	dt->tm_mday	= bcd2bin(buf[4]);
 	dt->tm_mon	= bcd2bin(buf[5] & 0x1f) - 1; /* 0 = Jan */
-	dt->tm_year 	= bcd2bin(buf[6] & 0xff) + 100; /* Assume 20YY */
+	dt->tm_year	= bcd2bin(buf[6] & 0xff) + 100; /* Assume 20YY */
 
 	return rtc_valid_tm(dt);
 }
@@ -146,21 +146,13 @@ static int ds3234_probe(struct spi_device *spi)
 	ds3234_get_reg(&spi->dev, DS3234_REG_CONT_STAT, &tmp);
 	dev_info(&spi->dev, "Ctrl/Stat Reg: 0x%02x\n", tmp);
 
-	rtc = rtc_device_register("ds3234",
-				&spi->dev, &ds3234_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&spi->dev, "ds3234",
+				&ds3234_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	dev_set_drvdata(&spi->dev, rtc);
+	spi_set_drvdata(spi, rtc);
 
-	return 0;
-}
-
-static int ds3234_remove(struct spi_device *spi)
-{
-	struct rtc_device *rtc = spi_get_drvdata(spi);
-
-	rtc_device_unregister(rtc);
 	return 0;
 }
 
@@ -170,7 +162,6 @@ static struct spi_driver ds3234_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	 = ds3234_probe,
-	.remove = ds3234_remove,
 };
 
 module_spi_driver(ds3234_driver);

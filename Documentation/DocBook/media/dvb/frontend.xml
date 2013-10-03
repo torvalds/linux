@@ -233,7 +233,7 @@ typedef enum fe_status {
 <entry align="char">The frontend FEC inner coding (Viterbi, LDPC or other inner code) is stable</entry>
 </row><row>
 <entry align="char">FE_HAS_SYNC</entry>
-<entry align="char">Syncronization bytes was found</entry>
+<entry align="char">Synchronization bytes was found</entry>
 </row><row>
 <entry align="char">FE_HAS_LOCK</entry>
 <entry align="char">The DVB were locked and everything is working</entry>

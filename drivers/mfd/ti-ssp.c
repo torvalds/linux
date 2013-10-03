@@ -318,7 +318,7 @@ static irqreturn_t ti_ssp_interrupt(int irq, void *dev_data)
 static int ti_ssp_probe(struct platform_device *pdev)
 {
 	static struct ti_ssp *ssp;
-	const struct ti_ssp_data *pdata = pdev->dev.platform_data;
+	const struct ti_ssp_data *pdata = dev_get_platdata(&pdev->dev);
 	int error = 0, prediv = 0xff, id;
 	unsigned long sysclk;
 	struct device *dev = &pdev->dev;

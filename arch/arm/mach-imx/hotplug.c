@@ -11,8 +11,9 @@
  */
 
 #include <linux/errno.h>
-#include <asm/cacheflush.h>
+#include <linux/jiffies.h>
 #include <asm/cp15.h>
+#include <asm/proc-fns.h>
 
 #include "common.h"
 
@@ -20,7 +21,6 @@ static inline void cpu_enter_lowpower(void)
 {
 	unsigned int v;
 
-	flush_cache_all();
 	asm volatile(
 		"mcr	p15, 0, %1, c7, c5, 0\n"
 	"	mcr	p15, 0, %1, c7, c10, 4\n"
@@ -46,11 +46,23 @@ static inline void cpu_enter_lowpower(void)
 void imx_cpu_die(unsigned int cpu)
 {
 	cpu_enter_lowpower();
+	/*
+	 * We use the cpu jumping argument register to sync with
+	 * imx_cpu_kill() which is running on cpu0 and waiting for
+	 * the register being cleared to kill the cpu.
+	 */
+	imx_set_cpu_arg(cpu, ~0);
 	cpu_do_idle();
 }
 
 int imx_cpu_kill(unsigned int cpu)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(50);
+
+	while (imx_get_cpu_arg(cpu) == 0)
+		if (time_after(jiffies, timeout))
+			return 0;
 	imx_enable_cpu(cpu, false);
+	imx_set_cpu_arg(cpu, 0);
 	return 1;
 }

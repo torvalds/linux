@@ -8,6 +8,17 @@
 	memory {
 		reg = <0 0x10000000>;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		act {
+			label = "ACT";
+			gpios = <&gpio 16 1>;
+			default-state = "keep";
+			linux,default-trigger = "heartbeat";
+		};
+	};
 };
 
 &gpio {

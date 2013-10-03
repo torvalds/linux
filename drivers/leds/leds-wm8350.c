@@ -129,7 +129,10 @@ static void wm8350_led_disable(struct wm8350_led *led)
 	ret = regulator_disable(led->isink);
 	if (ret != 0) {
 		dev_err(led->cdev.dev, "Failed to disable ISINK: %d\n", ret);
-		regulator_enable(led->dcdc);
+		ret = regulator_enable(led->dcdc);
+		if (ret != 0)
+			dev_err(led->cdev.dev, "Failed to reenable DCDC: %d\n",
+				ret);
 		return;
 	}
 
@@ -200,7 +203,7 @@ static int wm8350_led_probe(struct platform_device *pdev)
 {
 	struct regulator *isink, *dcdc;
 	struct wm8350_led *led;
-	struct wm8350_led_platform_data *pdata = pdev->dev.platform_data;
+	struct wm8350_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int i;
 
 	if (pdata == NULL) {

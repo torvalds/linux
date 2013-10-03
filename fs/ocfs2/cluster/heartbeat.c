@@ -176,7 +176,7 @@ static void o2hb_dead_threshold_set(unsigned int threshold)
 	}
 }
 
-static int o2hb_global_hearbeat_mode_set(unsigned int hb_mode)
+static int o2hb_global_heartbeat_mode_set(unsigned int hb_mode)
 {
 	int ret = -1;
 
@@ -500,7 +500,7 @@ static int o2hb_issue_node_write(struct o2hb_region *reg,
 	}
 
 	atomic_inc(&write_wc->wc_num_reqs);
-	submit_bio(WRITE, bio);
+	submit_bio(WRITE_SYNC, bio);
 
 	status = 0;
 bail:
@@ -628,11 +628,9 @@ static void o2hb_fire_callbacks(struct o2hb_callback *hbcall,
 				struct o2nm_node *node,
 				int idx)
 {
-	struct list_head *iter;
 	struct o2hb_callback_func *f;
 
-	list_for_each(iter, &hbcall->list) {
-		f = list_entry(iter, struct o2hb_callback_func, hc_item);
+	list_for_each_entry(f, &hbcall->list, hc_item) {
 		mlog(ML_HEARTBEAT, "calling funcs %p\n", f);
 		(f->hc_func)(node, idx, f->hc_data);
 	}
@@ -641,15 +639,8 @@ static void o2hb_fire_callbacks(struct o2hb_callback *hbcall,
 /* Will run the list in order until we process the passed event */
 static void o2hb_run_event_list(struct o2hb_node_event *queued_event)
 {
-	int empty;
 	struct o2hb_callback *hbcall;
 	struct o2hb_node_event *event;
-
-	spin_lock(&o2hb_live_lock);
-	empty = list_empty(&queued_event->hn_item);
-	spin_unlock(&o2hb_live_lock);
-	if (empty)
-		return;
 
 	/* Holding callback sem assures we don't alter the callback
 	 * lists when doing this, and serializes ourselves with other
@@ -709,6 +700,7 @@ static void o2hb_shutdown_slot(struct o2hb_disk_slot *slot)
 	struct o2hb_node_event event =
 		{ .hn_item = LIST_HEAD_INIT(event.hn_item), };
 	struct o2nm_node *node;
+	int queued = 0;
 
 	node = o2nm_get_node_by_num(slot->ds_node_num);
 	if (!node)
@@ -726,11 +718,13 @@ static void o2hb_shutdown_slot(struct o2hb_disk_slot *slot)
 
 			o2hb_queue_node_event(&event, O2HB_NODE_DOWN_CB, node,
 					      slot->ds_node_num);
+			queued = 1;
 		}
 	}
 	spin_unlock(&o2hb_live_lock);
 
-	o2hb_run_event_list(&event);
+	if (queued)
+		o2hb_run_event_list(&event);
 
 	o2nm_node_put(node);
 }
@@ -790,6 +784,7 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 	unsigned int dead_ms = o2hb_dead_threshold * O2HB_REGION_TIMEOUT_MS;
 	unsigned int slot_dead_ms;
 	int tmp;
+	int queued = 0;
 
 	memcpy(hb_block, slot->ds_raw_block, reg->hr_block_bytes);
 
@@ -883,6 +878,7 @@ fire_callbacks:
 					      slot->ds_node_num);
 
 			changed = 1;
+			queued = 1;
 		}
 
 		list_add_tail(&slot->ds_live_item,
@@ -934,6 +930,7 @@ fire_callbacks:
 					      node, slot->ds_node_num);
 
 			changed = 1;
+			queued = 1;
 		}
 
 		/* We don't clear this because the node is still
@@ -949,7 +946,8 @@ fire_callbacks:
 out:
 	spin_unlock(&o2hb_live_lock);
 
-	o2hb_run_event_list(&event);
+	if (queued)
+		o2hb_run_event_list(&event);
 
 	if (node)
 		o2nm_node_put(node);
@@ -2271,7 +2269,7 @@ ssize_t o2hb_heartbeat_group_mode_store(struct o2hb_heartbeat_group *group,
 		if (strnicmp(page, o2hb_heartbeat_mode_desc[i], len))
 			continue;
 
-		ret = o2hb_global_hearbeat_mode_set(i);
+		ret = o2hb_global_heartbeat_mode_set(i);
 		if (!ret)
 			printk(KERN_NOTICE "o2hb: Heartbeat mode set to %s\n",
 			       o2hb_heartbeat_mode_desc[i]);
@@ -2304,7 +2302,7 @@ static struct configfs_attribute *o2hb_heartbeat_group_attrs[] = {
 	NULL,
 };
 
-static struct configfs_item_operations o2hb_hearbeat_group_item_ops = {
+static struct configfs_item_operations o2hb_heartbeat_group_item_ops = {
 	.show_attribute		= o2hb_heartbeat_group_show,
 	.store_attribute	= o2hb_heartbeat_group_store,
 };
@@ -2316,7 +2314,7 @@ static struct configfs_group_operations o2hb_heartbeat_group_group_ops = {
 
 static struct config_item_type o2hb_heartbeat_group_type = {
 	.ct_group_ops	= &o2hb_heartbeat_group_group_ops,
-	.ct_item_ops	= &o2hb_hearbeat_group_item_ops,
+	.ct_item_ops	= &o2hb_heartbeat_group_item_ops,
 	.ct_attrs	= o2hb_heartbeat_group_attrs,
 	.ct_owner	= THIS_MODULE,
 };
@@ -2389,6 +2387,9 @@ static int o2hb_region_pin(const char *region_uuid)
 	assert_spin_locked(&o2hb_live_lock);
 
 	list_for_each_entry(reg, &o2hb_all_regions, hr_all_item) {
+		if (reg->hr_item_dropped)
+			continue;
+
 		uuid = config_item_name(&reg->hr_item);
 
 		/* local heartbeat */
@@ -2439,6 +2440,9 @@ static void o2hb_region_unpin(const char *region_uuid)
 	assert_spin_locked(&o2hb_live_lock);
 
 	list_for_each_entry(reg, &o2hb_all_regions, hr_all_item) {
+		if (reg->hr_item_dropped)
+			continue;
+
 		uuid = config_item_name(&reg->hr_item);
 		if (region_uuid) {
 			if (strcmp(region_uuid, uuid))
@@ -2510,8 +2514,7 @@ unlock:
 int o2hb_register_callback(const char *region_uuid,
 			   struct o2hb_callback_func *hc)
 {
-	struct o2hb_callback_func *tmp;
-	struct list_head *iter;
+	struct o2hb_callback_func *f;
 	struct o2hb_callback *hbcall;
 	int ret;
 
@@ -2534,10 +2537,9 @@ int o2hb_register_callback(const char *region_uuid,
 
 	down_write(&o2hb_callback_sem);
 
-	list_for_each(iter, &hbcall->list) {
-		tmp = list_entry(iter, struct o2hb_callback_func, hc_item);
-		if (hc->hc_priority < tmp->hc_priority) {
-			list_add_tail(&hc->hc_item, iter);
+	list_for_each_entry(f, &hbcall->list, hc_item) {
+		if (hc->hc_priority < f->hc_priority) {
+			list_add_tail(&hc->hc_item, &f->hc_item);
 			break;
 		}
 	}
@@ -2654,6 +2656,9 @@ int o2hb_get_all_regions(char *region_uuids, u8 max_regions)
 
 	p = region_uuids;
 	list_for_each_entry(reg, &o2hb_all_regions, hr_all_item) {
+		if (reg->hr_item_dropped)
+			continue;
+
 		mlog(0, "Region: %s\n", config_item_name(&reg->hr_item));
 		if (numregs < max_regions) {
 			memcpy(p, config_item_name(&reg->hr_item),

@@ -102,6 +102,11 @@
  */
 #define X86_PLATFORM_IPI_VECTOR		0xf7
 
+/* Vector for KVM to deliver posted interrupt IPI */
+#ifdef CONFIG_HAVE_KVM
+#define POSTED_INTR_VECTOR		0xf2
+#endif
+
 /*
  * IRQ work vector:
  */

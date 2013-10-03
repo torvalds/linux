@@ -13,10 +13,10 @@ extern const struct imx_fec_data imx25_fec_data;
 	imx_add_fec(&imx25_fec_data, pdata)
 
 extern const struct imx_flexcan_data imx25_flexcan_data[];
-#define imx25_add_flexcan(id, pdata)	\
-	imx_add_flexcan(&imx25_flexcan_data[id], pdata)
-#define imx25_add_flexcan0(pdata)	imx25_add_flexcan(0, pdata)
-#define imx25_add_flexcan1(pdata)	imx25_add_flexcan(1, pdata)
+#define imx25_add_flexcan(id)	\
+	imx_add_flexcan(&imx25_flexcan_data[id])
+#define imx25_add_flexcan0()		imx25_add_flexcan(0)
+#define imx25_add_flexcan1()		imx25_add_flexcan(1)
 
 extern const struct imx_fsl_usb2_udc_data imx25_fsl_usb2_udc_data;
 #define imx25_add_fsl_usb2_udc(pdata)	\

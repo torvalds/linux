@@ -130,8 +130,9 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		if (!of_property_read_u32(pdev->dev.of_node,
 						"chip-delay", &val))
 			board->chip_delay = (u8)val;
-	} else
-		board = pdev->dev.platform_data;
+	} else {
+		board = dev_get_platdata(&pdev->dev);
+	}
 
 	mtd->priv = nc;
 	mtd->owner = THIS_MODULE;
@@ -186,7 +187,6 @@ no_dev:
 		clk_disable_unprepare(clk);
 		clk_put(clk);
 	}
-	platform_set_drvdata(pdev, NULL);
 	iounmap(io_base);
 no_res:
 	kfree(nc);
@@ -231,18 +231,7 @@ static struct platform_driver orion_nand_driver = {
 	},
 };
 
-static int __init orion_nand_init(void)
-{
-	return platform_driver_probe(&orion_nand_driver, orion_nand_probe);
-}
-
-static void __exit orion_nand_exit(void)
-{
-	platform_driver_unregister(&orion_nand_driver);
-}
-
-module_init(orion_nand_init);
-module_exit(orion_nand_exit);
+module_platform_driver_probe(orion_nand_driver, orion_nand_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tzachi Perelstein");

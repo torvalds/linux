@@ -14,6 +14,10 @@
 #include <asm/cacheflush.h>
 #include <asm/machdep.h>
 
+extern long hpte_insert_repeating(unsigned long hash, unsigned long vpn,
+				  unsigned long pa, unsigned long rlags,
+				  unsigned long vflags, int psize, int ssize);
+
 int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     pte_t *ptep, unsigned long trap, int local, int ssize,
 		     unsigned int shift, unsigned int mmu_psize)
@@ -77,19 +81,14 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		slot += (old_pte & _PAGE_F_GIX) >> 12;
 
 		if (ppc_md.hpte_updatepp(slot, rflags, vpn, mmu_psize,
-					 ssize, local) == -1)
+					 mmu_psize, ssize, local) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 
 	if (likely(!(old_pte & _PAGE_HASHPTE))) {
 		unsigned long hash = hpt_hash(vpn, shift, ssize);
-		unsigned long hpte_group;
 
 		pa = pte_pfn(__pte(old_pte)) << PAGE_SHIFT;
-
-repeat:
-		hpte_group = ((hash & htab_hash_mask) *
-			      HPTES_PER_GROUP) & ~0x7UL;
 
 		/* clear HPTE slot informations in new PTE */
 #ifdef CONFIG_PPC_64K_PAGES
@@ -101,26 +100,8 @@ repeat:
 		rflags |= (new_pte & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
 				      _PAGE_COHERENT | _PAGE_GUARDED));
 
-		/* Insert into the hash table, primary slot */
-		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, 0,
-					  mmu_psize, ssize);
-
-		/* Primary is full, try the secondary */
-		if (unlikely(slot == -1)) {
-			hpte_group = ((~hash & htab_hash_mask) *
-				      HPTES_PER_GROUP) & ~0x7UL;
-			slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags,
-						  HPTE_V_SECONDARY,
-						  mmu_psize, ssize);
-			if (slot == -1) {
-				if (mftb() & 0x1)
-					hpte_group = ((hash & htab_hash_mask) *
-						      HPTES_PER_GROUP)&~0x7UL;
-
-				ppc_md.hpte_remove(hpte_group);
-				goto repeat;
-                        }
-		}
+		slot = hpte_insert_repeating(hash, vpn, pa, rflags, 0,
+					     mmu_psize, ssize);
 
 		/*
 		 * Hypervisor failure. Restore old pte and return -1
@@ -129,7 +110,7 @@ repeat:
 		if (unlikely(slot == -2)) {
 			*ptep = __pte(old_pte);
 			hash_failure_debug(ea, access, vsid, trap, ssize,
-					   mmu_psize, old_pte);
+					   mmu_psize, mmu_psize, old_pte);
 			return -1;
 		}
 

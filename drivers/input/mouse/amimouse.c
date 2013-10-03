@@ -133,7 +133,6 @@ static int __exit amimouse_remove(struct platform_device *pdev)
 {
 	struct input_dev *dev = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	input_unregister_device(dev);
 	return 0;
 }
@@ -146,18 +145,6 @@ static struct platform_driver amimouse_driver = {
 	},
 };
 
-static int __init amimouse_init(void)
-{
-	return platform_driver_probe(&amimouse_driver, amimouse_probe);
-}
-
-module_init(amimouse_init);
-
-static void __exit amimouse_exit(void)
-{
-	platform_driver_unregister(&amimouse_driver);
-}
-
-module_exit(amimouse_exit);
+module_platform_driver_probe(amimouse_driver, amimouse_probe);
 
 MODULE_ALIAS("platform:amiga-mouse");

@@ -59,8 +59,10 @@ ctnl_timeout_parse_policy(struct ctnl_timeout *timeout,
 	if (likely(l4proto->ctnl_timeout.nlattr_to_obj)) {
 		struct nlattr *tb[l4proto->ctnl_timeout.nlattr_max+1];
 
-		nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max,
-				 attr, l4proto->ctnl_timeout.nla_policy);
+		ret = nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max,
+				       attr, l4proto->ctnl_timeout.nla_policy);
+		if (ret < 0)
+			return ret;
 
 		ret = l4proto->ctnl_timeout.nlattr_to_obj(tb, net,
 							  &timeout->data);
@@ -220,9 +222,12 @@ ctnl_timeout_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(cur, &cttimeout_list, head) {
-		if (last && cur != last)
-			continue;
+		if (last) {
+			if (cur != last)
+				continue;
 
+			last = NULL;
+		}
 		if (ctnl_timeout_fill_info(skb, NETLINK_CB(cb->skb).portid,
 					   cb->nlh->nlmsg_seq,
 					   NFNL_MSG_TYPE(cb->nlh->nlmsg_type),

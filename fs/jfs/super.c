@@ -92,16 +92,20 @@ static void jfs_handle_error(struct super_block *sb)
 	/* nothing is done for continue beyond marking the superblock dirty */
 }
 
-void jfs_error(struct super_block *sb, const char * function, ...)
+void jfs_error(struct super_block *sb, const char *fmt, ...)
 {
-	static char error_buf[256];
+	struct va_format vaf;
 	va_list args;
 
-	va_start(args, function);
-	vsnprintf(error_buf, sizeof(error_buf), function, args);
-	va_end(args);
+	va_start(args, fmt);
 
-	pr_err("ERROR: (device %s): %s\n", sb->s_id, error_buf);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_err("ERROR: (device %s): %pf: %pV\n",
+	       sb->s_id, __builtin_return_address(0), &vaf);
+
+	va_end(args);
 
 	jfs_handle_error(sb);
 }
@@ -611,11 +615,28 @@ static int jfs_freeze(struct super_block *sb)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
 	struct jfs_log *log = sbi->log;
+	int rc = 0;
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		txQuiesce(sb);
-		lmLogShutdown(log);
-		updateSuper(sb, FM_CLEAN);
+		rc = lmLogShutdown(log);
+		if (rc) {
+			jfs_error(sb, "lmLogShutdown failed\n");
+
+			/* let operations fail rather than hang */
+			txResume(sb);
+
+			return rc;
+		}
+		rc = updateSuper(sb, FM_CLEAN);
+		if (rc) {
+			jfs_err("jfs_freeze: updateSuper failed\n");
+			/*
+			 * Don't fail here. Everything succeeded except
+			 * marking the superblock clean, so there's really
+			 * no harm in leaving it frozen for now.
+			 */
+		}
 	}
 	return 0;
 }
@@ -627,13 +648,18 @@ static int jfs_unfreeze(struct super_block *sb)
 	int rc = 0;
 
 	if (!(sb->s_flags & MS_RDONLY)) {
-		updateSuper(sb, FM_MOUNT);
-		if ((rc = lmLogInit(log)))
-			jfs_err("jfs_unlock failed with return code %d", rc);
-		else
-			txResume(sb);
+		rc = updateSuper(sb, FM_MOUNT);
+		if (rc) {
+			jfs_error(sb, "updateSuper failed\n");
+			goto out;
+		}
+		rc = lmLogInit(log);
+		if (rc)
+			jfs_error(sb, "lmLogInit failed\n");
+out:
+		txResume(sb);
 	}
-	return 0;
+	return rc;
 }
 
 static struct dentry *jfs_do_mount(struct file_system_type *fs_type,

@@ -34,15 +34,27 @@ EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 
 EXPORT_SYMBOL(copy_page);
+EXPORT_SYMBOL(clear_page);
 
 EXPORT_SYMBOL(__copy_from_user);
 EXPORT_SYMBOL(__copy_to_user);
 EXPORT_SYMBOL(__clear_user);
 
-	/* bitops */
-#ifdef CONFIG_SMP
-EXPORT_SYMBOL(__atomic_hash);
-#endif
-
 	/* physical memory */
 EXPORT_SYMBOL(memstart_addr);
+
+	/* string / mem functions */
+EXPORT_SYMBOL(strchr);
+EXPORT_SYMBOL(strrchr);
+EXPORT_SYMBOL(memset);
+EXPORT_SYMBOL(memcpy);
+EXPORT_SYMBOL(memmove);
+EXPORT_SYMBOL(memchr);
+
+	/* atomic bitops */
+EXPORT_SYMBOL(set_bit);
+EXPORT_SYMBOL(test_and_set_bit);
+EXPORT_SYMBOL(clear_bit);
+EXPORT_SYMBOL(test_and_clear_bit);
+EXPORT_SYMBOL(change_bit);
+EXPORT_SYMBOL(test_and_change_bit);

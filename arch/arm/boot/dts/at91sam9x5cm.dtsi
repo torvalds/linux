@@ -24,6 +24,16 @@
 	};
 
 	ahb {
+		apb {
+			pinctrl@fffff400 {
+				1wire_cm {
+					pinctrl_1wire_cm: 1wire_cm-0 {
+						atmel,pins = <AT91_PIOB 18 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE>; /* PB18 multidrive, conflicts with led */
+					};
+				};
+			};
+		};
+
 		nand0: nand@40000000 {
 			nand-bus-width = <8>;
 			nand-ecc-mode = "hw";
@@ -65,13 +75,23 @@
 
 		pb18 {
 			label = "pb18";
-			gpios = <&pioB 18 1>;
+			gpios = <&pioB 18 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		pd21 {
 			label = "pd21";
-			gpios = <&pioD 21 0>;
+			gpios = <&pioD 21 GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	1wire_cm {
+		compatible = "w1-gpio";
+		gpios = <&pioB 18 GPIO_ACTIVE_HIGH>;
+		linux,open-drain;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_1wire_cm>;
+		status = "okay";
+	};
+
 };

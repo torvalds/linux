@@ -1292,6 +1292,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
 		context->sq_size_stride |= !!qp->sq_no_prefetch << 7;
 		context->xrcd = cpu_to_be32((u32) qp->xrcdn);
+		if (ibqp->qp_type == IB_QPT_RAW_PACKET)
+			context->param3 |= cpu_to_be32(1 << 30);
 	}
 
 	if (qp->ibqp.uobject)
@@ -1457,6 +1459,10 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			context->pri_path.sched_queue |= MLX4_IB_DEFAULT_SCHED_QUEUE;
 		}
 	}
+
+	if (qp->ibqp.qp_type == IB_QPT_RAW_PACKET)
+		context->pri_path.ackto = (context->pri_path.ackto & 0xf8) |
+					MLX4_IB_LINK_TYPE_ETH;
 
 	if (cur_state == IB_QPS_RTS && new_state == IB_QPS_SQD	&&
 	    attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY && attr->en_sqd_async_notify)

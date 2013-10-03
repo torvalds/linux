@@ -423,7 +423,7 @@ static const struct regmap_config lm355x_regmap = {
 static int lm355x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct lm355x_platform_data *pdata = client->dev.platform_data;
+	struct lm355x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct lm355x_chip_data *chip;
 
 	int err;
@@ -477,6 +477,7 @@ static int lm355x_probe(struct i2c_client *client,
 	chip->cdev_flash.name = "flash";
 	chip->cdev_flash.max_brightness = 16;
 	chip->cdev_flash.brightness_set = lm355x_strobe_brightness_set;
+	chip->cdev_flash.default_trigger = "flash";
 	err = led_classdev_register((struct device *)
 				    &client->dev, &chip->cdev_flash);
 	if (err < 0)
@@ -486,6 +487,7 @@ static int lm355x_probe(struct i2c_client *client,
 	chip->cdev_torch.name = "torch";
 	chip->cdev_torch.max_brightness = 8;
 	chip->cdev_torch.brightness_set = lm355x_torch_brightness_set;
+	chip->cdev_torch.default_trigger = "torch";
 	err = led_classdev_register((struct device *)
 				    &client->dev, &chip->cdev_torch);
 	if (err < 0)

@@ -6,6 +6,8 @@ config ARM64
 	select ARCH_WANT_FRAME_POINTERS
 	select ARM_AMBA
 	select ARM_ARCH_TIMER
+	select ARM_GIC
+	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
@@ -21,7 +23,6 @@ config ARM64
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
 	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_GENERIC_HARDIRQS
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_MEMBLOCK
 	select HAVE_PERF_EVENTS
@@ -31,6 +32,8 @@ config ARM64
 	select OF
 	select OF_EARLY_FLATTREE
 	select PERF_USE_VMALLOC
+	select POWER_RESET
+	select POWER_SUPPLY
 	select RTC_LIB
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
@@ -92,14 +95,29 @@ config SWIOTLB
 config IOMMU_HELPER
 	def_bool SWIOTLB
 
-config GENERIC_GPIO
-	bool
+config KERNEL_MODE_NEON
+	def_bool y
 
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
-menu "System Type"
+menu "Platform selection"
+
+config ARCH_VEXPRESS
+	bool "ARMv8 software model (Versatile Express)"
+	select ARCH_REQUIRE_GPIOLIB
+	select COMMON_CLK_VERSATILE
+	select POWER_RESET_VEXPRESS
+	select VEXPRESS_CONFIG
+	help
+	  This enables support for the ARMv8 software model (Versatile
+	  Express).
+
+config ARCH_XGENE
+	bool "AppliedMicro X-Gene SOC Family"
+	help
+	  This enables support for AppliedMicro X-Gene SOC Family
 
 endmenu
 
@@ -111,8 +129,6 @@ config ARM_AMBA
 endmenu
 
 menu "Kernel Features"
-
-source "kernel/time/Kconfig"
 
 config ARM64_64K_PAGES
 	bool "Enable 64KB pages support"
@@ -140,6 +156,8 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
+	# These have to remain sorted largest to smallest
+	default "8" if ARCH_XGENE
 	default "4"
 
 source kernel/Kconfig.preempt
@@ -172,7 +190,34 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
+config SYS_SUPPORTS_HUGETLBFS
+	def_bool y
+
+config ARCH_WANT_GENERAL_HUGETLB
+	def_bool y
+
+config ARCH_WANT_HUGE_PMD_SHARE
+	def_bool y if !ARM64_64K_PAGES
+
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	def_bool y
+
 source "mm/Kconfig"
+
+config XEN_DOM0
+	def_bool y
+	depends on XEN
+
+config XEN
+	bool "Xen guest support on ARM64 (EXPERIMENTAL)"
+	depends on ARM64 && OF
+	help
+	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM64.
+
+config FORCE_MAX_ZONEORDER
+	int
+	default "14" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
+	default "11"
 
 endmenu
 
@@ -226,6 +271,8 @@ source "net/Kconfig"
 source "drivers/Kconfig"
 
 source "fs/Kconfig"
+
+source "arch/arm64/kvm/Kconfig"
 
 source "arch/arm64/Kconfig.debug"
 

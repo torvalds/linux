@@ -42,7 +42,7 @@ int irq_to_slot[MAX_PCI_BUSSES * MAX_DEVICES_PER_PCIBUS];
 
 extern struct pci_ops bridge_pci_ops;
 
-int __cpuinit bridge_probe(nasid_t nasid, int widget_id, int masterwid)
+int bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 {
 	unsigned long offset = NODE_OFFSET(nasid);
 	struct bridge_controller *bc;
@@ -217,6 +217,7 @@ static void pci_fixup_ioc3(struct pci_dev *d)
 	pci_disable_swapping(d);
 }
 
+#ifdef CONFIG_NUMA
 int pcibus_to_node(struct pci_bus *bus)
 {
 	struct bridge_controller *bc = BRIDGE_CONTROLLER(bus);
@@ -224,6 +225,7 @@ int pcibus_to_node(struct pci_bus *bus)
 	return bc->nasid;
 }
 EXPORT_SYMBOL(pcibus_to_node);
+#endif /* CONFIG_NUMA */
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC3,
 	pci_fixup_ioc3);

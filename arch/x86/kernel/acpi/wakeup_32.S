@@ -1,4 +1,4 @@
-	.section .text..page_aligned
+	.text
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page_types.h>
@@ -18,7 +18,6 @@ wakeup_pmode_return:
 	movw	%ax, %gs
 
 	# reload the gdt, as we need the full 32 bit address
-	lgdt	saved_gdt
 	lidt	saved_idt
 	lldt	saved_ldt
 	ljmp	$(__KERNEL_CS), $1f
@@ -44,7 +43,6 @@ bogus_magic:
 
 
 save_registers:
-	sgdt	saved_gdt
 	sidt	saved_idt
 	sldt	saved_ldt
 	str	saved_tss
@@ -93,7 +91,6 @@ ENTRY(saved_magic)	.long	0
 ENTRY(saved_eip)	.long	0
 
 # saved registers
-saved_gdt:	.long	0,0
 saved_idt:	.long	0,0
 saved_ldt:	.long	0
 saved_tss:	.long	0

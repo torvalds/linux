@@ -693,7 +693,7 @@ p_status:
  * it's own message.
  * 
  * If MSG_OUT is == HOST_MSG, also interrupt the host and take a message.
- * This is done to allow the hsot to send messages outside of an identify
+ * This is done to allow the host to send messages outside of an identify
  * sequence while protecting the seqencer from testing the MK_MESSAGE bit
  * on an SCB that might not be for the current nexus. (For example, a
  * BDR message in response to a bad reselection would leave us pointed to

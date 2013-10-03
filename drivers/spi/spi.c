@@ -223,7 +223,7 @@ static const struct dev_pm_ops spi_pm = {
 	SET_RUNTIME_PM_OPS(
 		pm_generic_runtime_suspend,
 		pm_generic_runtime_resume,
-		pm_generic_runtime_idle
+		NULL
 	)
 };
 
@@ -334,7 +334,7 @@ struct spi_device *spi_alloc_device(struct spi_master *master)
 	spi->dev.parent = &master->dev;
 	spi->dev.bus = &spi_bus_type;
 	spi->dev.release = spidev_release;
-	spi->cs_gpio = -EINVAL;
+	spi->cs_gpio = -ENOENT;
 	device_initialize(&spi->dev);
 	return spi;
 }
@@ -543,17 +543,20 @@ static void spi_pump_messages(struct kthread_work *work)
 	/* Lock queue and check for queue work */
 	spin_lock_irqsave(&master->queue_lock, flags);
 	if (list_empty(&master->queue) || !master->running) {
-		if (master->busy && master->unprepare_transfer_hardware) {
-			ret = master->unprepare_transfer_hardware(master);
-			if (ret) {
-				spin_unlock_irqrestore(&master->queue_lock, flags);
-				dev_err(&master->dev,
-					"failed to unprepare transfer hardware\n");
-				return;
-			}
+		if (!master->busy) {
+			spin_unlock_irqrestore(&master->queue_lock, flags);
+			return;
 		}
 		master->busy = false;
 		spin_unlock_irqrestore(&master->queue_lock, flags);
+		if (master->unprepare_transfer_hardware &&
+		    master->unprepare_transfer_hardware(master))
+			dev_err(&master->dev,
+				"failed to unprepare transfer hardware\n");
+		if (master->auto_runtime_pm) {
+			pm_runtime_mark_last_busy(master->dev.parent);
+			pm_runtime_put_autosuspend(master->dev.parent);
+		}
 		return;
 	}
 
@@ -573,11 +576,23 @@ static void spi_pump_messages(struct kthread_work *work)
 		master->busy = true;
 	spin_unlock_irqrestore(&master->queue_lock, flags);
 
+	if (!was_busy && master->auto_runtime_pm) {
+		ret = pm_runtime_get_sync(master->dev.parent);
+		if (ret < 0) {
+			dev_err(&master->dev, "Failed to power device: %d\n",
+				ret);
+			return;
+		}
+	}
+
 	if (!was_busy && master->prepare_transfer_hardware) {
 		ret = master->prepare_transfer_hardware(master);
 		if (ret) {
 			dev_err(&master->dev,
 				"failed to prepare transfer hardware\n");
+
+			if (master->auto_runtime_pm)
+				pm_runtime_put(master->dev.parent);
 			return;
 		}
 	}
@@ -602,7 +617,7 @@ static int spi_init_queue(struct spi_master *master)
 
 	init_kthread_worker(&master->kworker);
 	master->kworker_task = kthread_run(kthread_worker_fn,
-					   &master->kworker,
+					   &master->kworker, "%s",
 					   dev_name(&master->dev));
 	if (IS_ERR(master->kworker_task)) {
 		dev_err(&master->dev, "failed to create message pump task\n");
@@ -775,7 +790,7 @@ static int spi_queued_transfer(struct spi_device *spi, struct spi_message *msg)
 	msg->status = -EINPROGRESS;
 
 	list_add_tail(&msg->queue, &master->queue);
-	if (master->running && !master->busy)
+	if (!master->busy)
 		queue_kthread_work(&master->kworker, &master->pump_messages);
 
 	spin_unlock_irqrestore(&master->queue_lock, flags);
@@ -869,6 +884,47 @@ static void of_register_spi_devices(struct spi_master *master)
 			spi->mode |= SPI_CS_HIGH;
 		if (of_find_property(nc, "spi-3wire", NULL))
 			spi->mode |= SPI_3WIRE;
+
+		/* Device DUAL/QUAD mode */
+		prop = of_get_property(nc, "spi-tx-bus-width", &len);
+		if (prop && len == sizeof(*prop)) {
+			switch (be32_to_cpup(prop)) {
+			case SPI_NBITS_SINGLE:
+				break;
+			case SPI_NBITS_DUAL:
+				spi->mode |= SPI_TX_DUAL;
+				break;
+			case SPI_NBITS_QUAD:
+				spi->mode |= SPI_TX_QUAD;
+				break;
+			default:
+				dev_err(&master->dev,
+					"spi-tx-bus-width %d not supported\n",
+					be32_to_cpup(prop));
+				spi_dev_put(spi);
+				continue;
+			}
+		}
+
+		prop = of_get_property(nc, "spi-rx-bus-width", &len);
+		if (prop && len == sizeof(*prop)) {
+			switch (be32_to_cpup(prop)) {
+			case SPI_NBITS_SINGLE:
+				break;
+			case SPI_NBITS_DUAL:
+				spi->mode |= SPI_RX_DUAL;
+				break;
+			case SPI_NBITS_QUAD:
+				spi->mode |= SPI_RX_QUAD;
+				break;
+			default:
+				dev_err(&master->dev,
+					"spi-rx-bus-width %d not supported\n",
+					be32_to_cpup(prop));
+				spi_dev_put(spi);
+				continue;
+			}
+		}
 
 		/* Device speed */
 		prop = of_get_property(nc, "spi-max-frequency", &len);
@@ -984,7 +1040,7 @@ static void acpi_register_spi_devices(struct spi_master *master)
 	acpi_status status;
 	acpi_handle handle;
 
-	handle = ACPI_HANDLE(&master->dev);
+	handle = ACPI_HANDLE(master->dev.parent);
 	if (!handle)
 		return;
 
@@ -1068,8 +1124,11 @@ static int of_spi_register_master(struct spi_master *master)
 	nb = of_gpio_named_count(np, "cs-gpios");
 	master->num_chipselect = max(nb, (int)master->num_chipselect);
 
-	if (nb < 1)
+	/* Return error only for an incorrectly formed cs-gpios property */
+	if (nb == 0 || nb == -ENOENT)
 		return 0;
+	else if (nb < 0)
+		return nb;
 
 	cs = devm_kzalloc(&master->dev,
 			  sizeof(int) * master->num_chipselect,
@@ -1080,7 +1139,7 @@ static int of_spi_register_master(struct spi_master *master)
 		return -ENOMEM;
 
 	for (i = 0; i < master->num_chipselect; i++)
-		cs[i] = -EINVAL;
+		cs[i] = -ENOENT;
 
 	for (i = 0; i < nb; i++)
 		cs[i] = of_get_named_gpio(np, "cs-gpios", i);
@@ -1167,7 +1226,7 @@ int spi_register_master(struct spi_master *master)
 	else {
 		status = spi_master_initialize_queue(master);
 		if (status) {
-			device_unregister(&master->dev);
+			device_del(&master->dev);
 			goto done;
 		}
 	}
@@ -1314,6 +1373,19 @@ int spi_setup(struct spi_device *spi)
 	unsigned	bad_bits;
 	int		status = 0;
 
+	/* check mode to prevent that DUAL and QUAD set at the same time
+	 */
+	if (((spi->mode & SPI_TX_DUAL) && (spi->mode & SPI_TX_QUAD)) ||
+		((spi->mode & SPI_RX_DUAL) && (spi->mode & SPI_RX_QUAD))) {
+		dev_err(&spi->dev,
+		"setup: can not select dual and quad at the same time\n");
+		return -EINVAL;
+	}
+	/* if it is SPI_3WIRE mode, DUAL and QUAD should be forbidden
+	 */
+	if ((spi->mode & SPI_3WIRE) && (spi->mode &
+		(SPI_TX_DUAL | SPI_TX_QUAD | SPI_RX_DUAL | SPI_RX_QUAD)))
+		return -EINVAL;
 	/* help drivers fail *cleanly* when they need options
 	 * that aren't supported with their current master
 	 */
@@ -1349,6 +1421,11 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 	struct spi_master *master = spi->master;
 	struct spi_transfer *xfer;
 
+	if (list_empty(&message->transfers))
+		return -EINVAL;
+	if (!message->complete)
+		return -EINVAL;
+
 	/* Half-duplex links include original MicroWire, and ones with
 	 * only one data pin like SPI_3WIRE (switches direction) or where
 	 * either MOSI or MISO is missing.  They can also be caused by
@@ -1371,12 +1448,76 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 	/**
 	 * Set transfer bits_per_word and max speed as spi device default if
 	 * it is not set for this transfer.
+	 * Set transfer tx_nbits and rx_nbits as single transfer default
+	 * (SPI_NBITS_SINGLE) if it is not set for this transfer.
 	 */
 	list_for_each_entry(xfer, &message->transfers, transfer_list) {
+		message->frame_length += xfer->len;
 		if (!xfer->bits_per_word)
 			xfer->bits_per_word = spi->bits_per_word;
-		if (!xfer->speed_hz)
+		if (!xfer->speed_hz) {
 			xfer->speed_hz = spi->max_speed_hz;
+			if (master->max_speed_hz &&
+			    xfer->speed_hz > master->max_speed_hz)
+				xfer->speed_hz = master->max_speed_hz;
+		}
+
+		if (master->bits_per_word_mask) {
+			/* Only 32 bits fit in the mask */
+			if (xfer->bits_per_word > 32)
+				return -EINVAL;
+			if (!(master->bits_per_word_mask &
+					BIT(xfer->bits_per_word - 1)))
+				return -EINVAL;
+		}
+
+		if (xfer->speed_hz && master->min_speed_hz &&
+		    xfer->speed_hz < master->min_speed_hz)
+			return -EINVAL;
+		if (xfer->speed_hz && master->max_speed_hz &&
+		    xfer->speed_hz > master->max_speed_hz)
+			return -EINVAL;
+
+		if (xfer->tx_buf && !xfer->tx_nbits)
+			xfer->tx_nbits = SPI_NBITS_SINGLE;
+		if (xfer->rx_buf && !xfer->rx_nbits)
+			xfer->rx_nbits = SPI_NBITS_SINGLE;
+		/* check transfer tx/rx_nbits:
+		 * 1. keep the value is not out of single, dual and quad
+		 * 2. keep tx/rx_nbits is contained by mode in spi_device
+		 * 3. if SPI_3WIRE, tx/rx_nbits should be in single
+		 */
+		if (xfer->tx_buf) {
+			if (xfer->tx_nbits != SPI_NBITS_SINGLE &&
+				xfer->tx_nbits != SPI_NBITS_DUAL &&
+				xfer->tx_nbits != SPI_NBITS_QUAD)
+				return -EINVAL;
+			if ((xfer->tx_nbits == SPI_NBITS_DUAL) &&
+				!(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD)))
+				return -EINVAL;
+			if ((xfer->tx_nbits == SPI_NBITS_QUAD) &&
+				!(spi->mode & SPI_TX_QUAD))
+				return -EINVAL;
+			if ((spi->mode & SPI_3WIRE) &&
+				(xfer->tx_nbits != SPI_NBITS_SINGLE))
+				return -EINVAL;
+		}
+		/* check transfer rx_nbits */
+		if (xfer->rx_buf) {
+			if (xfer->rx_nbits != SPI_NBITS_SINGLE &&
+				xfer->rx_nbits != SPI_NBITS_DUAL &&
+				xfer->rx_nbits != SPI_NBITS_QUAD)
+				return -EINVAL;
+			if ((xfer->rx_nbits == SPI_NBITS_DUAL) &&
+				!(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD)))
+				return -EINVAL;
+			if ((xfer->rx_nbits == SPI_NBITS_QUAD) &&
+				!(spi->mode & SPI_RX_QUAD))
+				return -EINVAL;
+			if ((spi->mode & SPI_3WIRE) &&
+				(xfer->rx_nbits != SPI_NBITS_SINGLE))
+				return -EINVAL;
+		}
 	}
 
 	message->spi = spi;

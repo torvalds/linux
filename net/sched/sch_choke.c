@@ -80,7 +80,7 @@ struct choke_sched_data {
 /* deliver a random number between 0 and N - 1 */
 static u32 random_N(unsigned int N)
 {
-	return reciprocal_divide(random32(), N);
+	return reciprocal_divide(prandom_u32(), N);
 }
 
 /* number of elements in queue including holes */
@@ -438,7 +438,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 	if (mask != q->tab_mask) {
 		struct sk_buff **ntab;
 
-		ntab = kcalloc(mask + 1, sizeof(struct sk_buff *), GFP_KERNEL);
+		ntab = kcalloc(mask + 1, sizeof(struct sk_buff *),
+			       GFP_KERNEL | __GFP_NOWARN);
 		if (!ntab)
 			ntab = vzalloc((mask + 1) * sizeof(struct sk_buff *));
 		if (!ntab)

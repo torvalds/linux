@@ -8,7 +8,7 @@
 #include <net/netlink.h>
 #include <linux/u64_stats_sync.h>
 
-#if defined(CONFIG_MACVTAP) || defined(CONFIG_MACVTAP_MODULE)
+#if IS_ENABLED(CONFIG_MACVTAP)
 struct socket *macvtap_get_socket(struct file *);
 #else
 #include <linux/err.h>
@@ -50,7 +50,7 @@ struct macvlan_pcpu_stats {
  * Maximum times a macvtap device can be opened. This can be used to
  * configure the number of receive queue, e.g. for multiqueue virtio.
  */
-#define MAX_MACVTAP_QUEUES	(NR_CPUS < 16 ? NR_CPUS : 16)
+#define MAX_MACVTAP_QUEUES	16
 
 #define MACVLAN_MC_FILTER_BITS	8
 #define MACVLAN_MC_FILTER_SZ	(1 << MACVLAN_MC_FILTER_BITS)
@@ -65,12 +65,18 @@ struct macvlan_dev {
 
 	DECLARE_BITMAP(mc_filter, MACVLAN_MC_FILTER_SZ);
 
+	netdev_features_t	set_features;
 	enum macvlan_mode	mode;
 	u16			flags;
 	int (*receive)(struct sk_buff *skb);
 	int (*forward)(struct net_device *dev, struct sk_buff *skb);
-	struct macvtap_queue	*taps[MAX_MACVTAP_QUEUES];
+	/* This array tracks active taps. */
+	struct macvtap_queue	__rcu *taps[MAX_MACVTAP_QUEUES];
+	/* This list tracks all taps (both enabled and disabled) */
+	struct list_head	queue_list;
 	int			numvtaps;
+	int			numqueues;
+	netdev_features_t	tap_features;
 	int			minor;
 };
 

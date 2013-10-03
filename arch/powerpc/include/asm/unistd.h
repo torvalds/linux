@@ -56,11 +56,5 @@
 #define __ARCH_WANT_SYS_VFORK
 #define __ARCH_WANT_SYS_CLONE
 
-/*
- * "Conditional" syscalls
- */
-#define cond_syscall(x) \
-	asmlinkage long x (void) __attribute__((weak,alias("sys_ni_syscall")))
-
 #endif		/* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_UNISTD_H_ */

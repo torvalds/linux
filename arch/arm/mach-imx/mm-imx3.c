@@ -65,7 +65,7 @@ static void imx3_idle(void)
 		: "=r" (reg));
 }
 
-static void __iomem *imx3_ioremap_caller(unsigned long phys_addr, size_t size,
+static void __iomem *imx3_ioremap_caller(phys_addr_t phys_addr, size_t size,
 					 unsigned int mtype, void *caller)
 {
 	if (mtype == MT_DEVICE) {
@@ -82,7 +82,7 @@ static void __iomem *imx3_ioremap_caller(unsigned long phys_addr, size_t size,
 	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
 }
 
-void __init imx3_init_l2x0(void)
+static void __init imx3_init_l2x0(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	void __iomem *l2x0_base;
@@ -138,7 +138,6 @@ void __init mx31_map_io(void)
 void __init imx31_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX31);
-	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 	arch_ioremap_caller = imx3_ioremap_caller;
 	arm_pm_idle = imx3_idle;
 	mx3_ccm_base = MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR);
@@ -174,6 +173,7 @@ void __init imx31_soc_init(void)
 
 	imx3_init_l2x0();
 
+	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 	mxc_device_init();
 
 	mxc_register_gpio("imx31-gpio", 0, MX31_GPIO1_BASE_ADDR, SZ_16K, MX31_INT_GPIO1, 0);
@@ -216,7 +216,6 @@ void __init imx35_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX35);
 	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
 	arm_pm_idle = imx3_idle;
 	arch_ioremap_caller = imx3_ioremap_caller;
 	mx3_ccm_base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);
@@ -272,6 +271,7 @@ void __init imx35_soc_init(void)
 
 	imx3_init_l2x0();
 
+	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
 	mxc_device_init();
 
 	mxc_register_gpio("imx35-gpio", 0, MX35_GPIO1_BASE_ADDR, SZ_16K, MX35_INT_GPIO1, 0);

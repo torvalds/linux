@@ -31,7 +31,7 @@ struct notifier_block br_device_notifier = {
  */
 static int br_device_event(struct notifier_block *unused, unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net_bridge_port *p;
 	struct net_bridge *br;
 	bool changed_addr;
@@ -102,6 +102,11 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* Forbid underlaying device to change its type. */
 		return NOTIFY_BAD;
+
+	case NETDEV_RESEND_IGMP:
+		/* Propagate to master device */
+		call_netdevice_notifiers(event, br->dev);
+		break;
 	}
 
 	/* Events that may cause spanning tree to refresh */

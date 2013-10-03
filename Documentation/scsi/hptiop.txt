@@ -151,7 +151,7 @@ To send a request to the controller:
       generated.
 
     - The host read the outbound list copy pointer shadow register and compare
-      with previous saved read ponter N. If they are different, the host will
+      with previous saved read pointer N. If they are different, the host will
       read the (N+1)th outbound list unit.
 
       The host get the index of the request from the (N+1)th outbound list

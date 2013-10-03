@@ -157,9 +157,6 @@ config ARCH_USE_BUILTIN_BSWAP
 	 instructions should set this. And it shouldn't hurt to set it
 	 on architectures that don't have such instructions.
 
-config HAVE_SYSCALL_WRAPPERS
-	bool
-
 config KRETPROBES
 	def_bool y
 	depends on KPROBES && HAVE_KRETPROBES
@@ -214,6 +211,9 @@ config USE_GENERIC_SMP_HELPERS
 	bool
 
 config GENERIC_SMP_IDLE_THREAD
+       bool
+
+config GENERIC_IDLE_POLL_SETUP
        bool
 
 # Select if arch init_task initializer is different to init/init_task.c
@@ -284,9 +284,6 @@ config HAVE_PERF_USER_STACK_DUMP
 	  architectures.
 
 config HAVE_ARCH_JUMP_LABEL
-	bool
-
-config HAVE_ARCH_MUTEX_CPU_RELAX
 	bool
 
 config HAVE_RCU_TABLE_FREE
@@ -365,6 +362,9 @@ config HAVE_IRQ_TIME_ACCOUNTING
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	bool
 
+config HAVE_ARCH_SOFT_DIRTY
+	bool
+
 config HAVE_MOD_ARCH_SPECIFIC
 	bool
 	help
@@ -384,6 +384,12 @@ config MODULES_USE_ELF_REL
 	  Modules only use ELF REL relocations.  Modules with ELF RELA
 	  relocations will give an error.
 
+config HAVE_UNDERSCORE_SYMBOL_PREFIX
+	bool
+	help
+	  Some architectures generate an _ in front of C symbols; things like
+	  module loading and assembly files need to know about this.
+
 #
 # ABI hall of shame
 #
@@ -397,6 +403,12 @@ config CLONE_BACKWARDS2
 	bool
 	help
 	  Architecture has the first two arguments of clone(2) swapped.
+
+config CLONE_BACKWARDS3
+	bool
+	help
+	  Architecture has tls passed as the 3rd argument of clone(2),
+	  not the 5th one.
 
 config ODD_RT_SIGACTION
 	bool

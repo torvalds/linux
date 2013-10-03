@@ -181,7 +181,6 @@ static int q40kbd_remove(struct platform_device *pdev)
 	free_irq(Q40_IRQ_KEYBOARD, q40kbd);
 	kfree(q40kbd);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -193,15 +192,4 @@ static struct platform_driver q40kbd_driver = {
 	.remove		= q40kbd_remove,
 };
 
-static int __init q40kbd_init(void)
-{
-	return platform_driver_probe(&q40kbd_driver, q40kbd_probe);
-}
-
-static void __exit q40kbd_exit(void)
-{
-	platform_driver_unregister(&q40kbd_driver);
-}
-
-module_init(q40kbd_init);
-module_exit(q40kbd_exit);
+module_platform_driver_probe(q40kbd_driver, q40kbd_probe);

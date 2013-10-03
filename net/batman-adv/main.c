@@ -19,6 +19,10 @@
 
 #include <linux/crc32c.h>
 #include <linux/highmem.h>
+#include <linux/if_vlan.h>
+#include <net/ip.h>
+#include <net/ipv6.h>
+#include <net/dsfield.h>
 #include "main.h"
 #include "sysfs.h"
 #include "debugfs.h"
@@ -35,6 +39,7 @@
 #include "vis.h"
 #include "hash.h"
 #include "bat_algo.h"
+#include "network-coding.h"
 
 
 /* List manipulations on hardif_list have to be rtnl_lock()'ed,
@@ -70,6 +75,7 @@ static int __init batadv_init(void)
 	batadv_debugfs_init();
 
 	register_netdevice_notifier(&batadv_hard_if_notifier);
+	rtnl_link_register(&batadv_link_ops);
 
 	pr_info("B.A.T.M.A.N. advanced %s (compatibility version %i) loaded\n",
 		BATADV_SOURCE_VERSION, BATADV_COMPAT_VERSION);
@@ -80,6 +86,7 @@ static int __init batadv_init(void)
 static void __exit batadv_exit(void)
 {
 	batadv_debugfs_destroy();
+	rtnl_link_unregister(&batadv_link_ops);
 	unregister_netdevice_notifier(&batadv_hard_if_notifier);
 	batadv_hardif_remove_interfaces();
 
@@ -135,6 +142,10 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	if (ret < 0)
 		goto err;
 
+	ret = batadv_nc_init(bat_priv);
+	if (ret < 0)
+		goto err;
+
 	atomic_set(&bat_priv->gw.reselect, 0);
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_ACTIVE);
 
@@ -156,26 +167,45 @@ void batadv_mesh_free(struct net_device *soft_iface)
 	batadv_vis_quit(bat_priv);
 
 	batadv_gw_node_purge(bat_priv);
-	batadv_originator_free(bat_priv);
-
-	batadv_tt_free(bat_priv);
-
+	batadv_nc_free(bat_priv);
+	batadv_dat_free(bat_priv);
 	batadv_bla_free(bat_priv);
 
-	batadv_dat_free(bat_priv);
+	/* Free the TT and the originator tables only after having terminated
+	 * all the other depending components which may use these structures for
+	 * their purposes.
+	 */
+	batadv_tt_free(bat_priv);
+
+	/* Since the originator table clean up routine is accessing the TT
+	 * tables as well, it has to be invoked after the TT tables have been
+	 * freed and marked as empty. This ensures that no cleanup RCU callbacks
+	 * accessing the TT data are scheduled for later execution.
+	 */
+	batadv_originator_free(bat_priv);
 
 	free_percpu(bat_priv->bat_counters);
+	bat_priv->bat_counters = NULL;
 
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_INACTIVE);
 }
 
-int batadv_is_my_mac(const uint8_t *addr)
+/**
+ * batadv_is_my_mac - check if the given mac address belongs to any of the real
+ * interfaces in the current mesh
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the address to check
+ */
+int batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr)
 {
 	const struct batadv_hard_iface *hard_iface;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
 		if (hard_iface->if_status != BATADV_IF_ACTIVE)
+			continue;
+
+		if (hard_iface->soft_iface != bat_priv->soft_iface)
 			continue;
 
 		if (batadv_compare_eth(hard_iface->net_dev->dev_addr, addr)) {
@@ -221,6 +251,60 @@ batadv_seq_print_text_primary_if_get(struct seq_file *seq)
 
 out:
 	return primary_if;
+}
+
+/**
+ * batadv_skb_set_priority - sets skb priority according to packet content
+ * @skb: the packet to be sent
+ * @offset: offset to the packet content
+ *
+ * This function sets a value between 256 and 263 (802.1d priority), which
+ * can be interpreted by the cfg80211 or other drivers.
+ */
+void batadv_skb_set_priority(struct sk_buff *skb, int offset)
+{
+	struct iphdr ip_hdr_tmp, *ip_hdr;
+	struct ipv6hdr ip6_hdr_tmp, *ip6_hdr;
+	struct ethhdr ethhdr_tmp, *ethhdr;
+	struct vlan_ethhdr *vhdr, vhdr_tmp;
+	u32 prio;
+
+	/* already set, do nothing */
+	if (skb->priority >= 256 && skb->priority <= 263)
+		return;
+
+	ethhdr = skb_header_pointer(skb, offset, sizeof(*ethhdr), &ethhdr_tmp);
+	if (!ethhdr)
+		return;
+
+	switch (ethhdr->h_proto) {
+	case htons(ETH_P_8021Q):
+		vhdr = skb_header_pointer(skb, offset + sizeof(*vhdr),
+					  sizeof(*vhdr), &vhdr_tmp);
+		if (!vhdr)
+			return;
+		prio = ntohs(vhdr->h_vlan_TCI) & VLAN_PRIO_MASK;
+		prio = prio >> VLAN_PRIO_SHIFT;
+		break;
+	case htons(ETH_P_IP):
+		ip_hdr = skb_header_pointer(skb, offset + sizeof(*ethhdr),
+					    sizeof(*ip_hdr), &ip_hdr_tmp);
+		if (!ip_hdr)
+			return;
+		prio = (ipv4_get_dsfield(ip_hdr) & 0xfc) >> 5;
+		break;
+	case htons(ETH_P_IPV6):
+		ip6_hdr = skb_header_pointer(skb, offset + sizeof(*ethhdr),
+					     sizeof(*ip6_hdr), &ip6_hdr_tmp);
+		if (!ip6_hdr)
+			return;
+		prio = (ipv6_get_dsfield(ip6_hdr) & 0xfc) >> 5;
+		break;
+	default:
+		return;
+	}
+
+	skb->priority = prio + 256;
 }
 
 static int batadv_recv_unhandled_packet(struct sk_buff *skb,
@@ -411,7 +495,7 @@ int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct batadv_algo_ops *bat_algo_ops;
 
-	seq_printf(seq, "Available routing algorithms:\n");
+	seq_puts(seq, "Available routing algorithms:\n");
 
 	hlist_for_each_entry(bat_algo_ops, &batadv_algo_list, list) {
 		seq_printf(seq, "%s\n", bat_algo_ops->name);
@@ -447,7 +531,6 @@ __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr)
 		crc = crc32c(crc, data, len);
 		consumed += len;
 	}
-	skb_abort_seq_read(&st);
 
 	return htonl(crc);
 }
@@ -458,7 +541,7 @@ static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)
 	char *algo_name = (char *)val;
 	size_t name_len = strlen(algo_name);
 
-	if (algo_name[name_len - 1] == '\n')
+	if (name_len > 0 && algo_name[name_len - 1] == '\n')
 		algo_name[name_len - 1] = '\0';
 
 	bat_algo_ops = batadv_algo_get(algo_name);

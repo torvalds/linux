@@ -40,7 +40,7 @@ void __init corenet_ds_pic_init(void)
 	if (ppc_md.get_irq == mpic_get_coreint_irq)
 		flags |= MPIC_ENABLE_COREINT;
 
-	mpic = mpic_alloc(NULL, 0, flags, 0, 256, " OpenPIC  ");
+	mpic = mpic_alloc(NULL, 0, flags, 0, 512, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
 
 	mpic_init(mpic);
@@ -52,12 +52,6 @@ void __init corenet_ds_pic_init(void)
 void __init corenet_ds_setup_arch(void)
 {
 	mpc85xx_smp_init();
-
-#if defined(CONFIG_PCI) && defined(CONFIG_PPC64)
-	pci_devs_phb_init();
-#endif
-
-	fsl_pci_assign_primary();
 
 	swiotlb_detect_4g();
 
@@ -82,6 +76,9 @@ static const struct of_device_id of_device_ids[] = {
 	},
 	{
 		.compatible	= "fsl,qoriq-pcie-v2.4",
+	},
+	{
+		.compatible	= "fsl,qoriq-pcie-v3.0",
 	},
 	/* The following two are for the Freescale hypervisor */
 	{

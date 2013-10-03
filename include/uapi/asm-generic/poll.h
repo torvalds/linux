@@ -30,6 +30,8 @@
 
 #define POLLFREE	0x4000	/* currently only for epoll */
 
+#define POLL_BUSY_LOOP	0x8000
+
 struct pollfd {
 	int fd;
 	short events;

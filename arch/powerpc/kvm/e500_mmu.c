@@ -396,6 +396,7 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 	struct kvm_book3e_206_tlb_entry *gtlbe;
 	int tlbsel, esel;
 	int recal = 0;
+	int idx;
 
 	tlbsel = get_tlb_tlbsel(vcpu);
 	esel = get_tlb_esel(vcpu, tlbsel);
@@ -430,6 +431,8 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 			kvmppc_set_tlb1map_range(vcpu, gtlbe);
 	}
 
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 	/* Invalidate shadow mappings for the about-to-be-clobbered TLBE. */
 	if (tlbe_is_host_safe(vcpu, gtlbe)) {
 		u64 eaddr = get_tlb_eaddr(gtlbe);
@@ -443,6 +446,8 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 		/* Premap the faulting page */
 		kvmppc_mmu_map(vcpu, eaddr, raddr, index_of(tlbsel, esel));
 	}
+
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 	kvmppc_set_exit_type(vcpu, EMULATED_TLBWE_EXITS);
 	return EMULATE_DONE;
@@ -596,6 +601,140 @@ int kvmppc_set_sregs_e500_tlb(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 	return 0;
 }
 
+int kvmppc_get_one_reg_e500_tlb(struct kvm_vcpu *vcpu, u64 id,
+				union kvmppc_one_reg *val)
+{
+	int r = 0;
+	long int i;
+
+	switch (id) {
+	case KVM_REG_PPC_MAS0:
+		*val = get_reg_val(id, vcpu->arch.shared->mas0);
+		break;
+	case KVM_REG_PPC_MAS1:
+		*val = get_reg_val(id, vcpu->arch.shared->mas1);
+		break;
+	case KVM_REG_PPC_MAS2:
+		*val = get_reg_val(id, vcpu->arch.shared->mas2);
+		break;
+	case KVM_REG_PPC_MAS7_3:
+		*val = get_reg_val(id, vcpu->arch.shared->mas7_3);
+		break;
+	case KVM_REG_PPC_MAS4:
+		*val = get_reg_val(id, vcpu->arch.shared->mas4);
+		break;
+	case KVM_REG_PPC_MAS6:
+		*val = get_reg_val(id, vcpu->arch.shared->mas6);
+		break;
+	case KVM_REG_PPC_MMUCFG:
+		*val = get_reg_val(id, vcpu->arch.mmucfg);
+		break;
+	case KVM_REG_PPC_EPTCFG:
+		*val = get_reg_val(id, vcpu->arch.eptcfg);
+		break;
+	case KVM_REG_PPC_TLB0CFG:
+	case KVM_REG_PPC_TLB1CFG:
+	case KVM_REG_PPC_TLB2CFG:
+	case KVM_REG_PPC_TLB3CFG:
+		i = id - KVM_REG_PPC_TLB0CFG;
+		*val = get_reg_val(id, vcpu->arch.tlbcfg[i]);
+		break;
+	case KVM_REG_PPC_TLB0PS:
+	case KVM_REG_PPC_TLB1PS:
+	case KVM_REG_PPC_TLB2PS:
+	case KVM_REG_PPC_TLB3PS:
+		i = id - KVM_REG_PPC_TLB0PS;
+		*val = get_reg_val(id, vcpu->arch.tlbps[i]);
+		break;
+	default:
+		r = -EINVAL;
+		break;
+	}
+
+	return r;
+}
+
+int kvmppc_set_one_reg_e500_tlb(struct kvm_vcpu *vcpu, u64 id,
+			       union kvmppc_one_reg *val)
+{
+	int r = 0;
+	long int i;
+
+	switch (id) {
+	case KVM_REG_PPC_MAS0:
+		vcpu->arch.shared->mas0 = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_MAS1:
+		vcpu->arch.shared->mas1 = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_MAS2:
+		vcpu->arch.shared->mas2 = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_MAS7_3:
+		vcpu->arch.shared->mas7_3 = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_MAS4:
+		vcpu->arch.shared->mas4 = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_MAS6:
+		vcpu->arch.shared->mas6 = set_reg_val(id, *val);
+		break;
+	/* Only allow MMU registers to be set to the config supported by KVM */
+	case KVM_REG_PPC_MMUCFG: {
+		u32 reg = set_reg_val(id, *val);
+		if (reg != vcpu->arch.mmucfg)
+			r = -EINVAL;
+		break;
+	}
+	case KVM_REG_PPC_EPTCFG: {
+		u32 reg = set_reg_val(id, *val);
+		if (reg != vcpu->arch.eptcfg)
+			r = -EINVAL;
+		break;
+	}
+	case KVM_REG_PPC_TLB0CFG:
+	case KVM_REG_PPC_TLB1CFG:
+	case KVM_REG_PPC_TLB2CFG:
+	case KVM_REG_PPC_TLB3CFG: {
+		/* MMU geometry (N_ENTRY/ASSOC) can be set only using SW_TLB */
+		u32 reg = set_reg_val(id, *val);
+		i = id - KVM_REG_PPC_TLB0CFG;
+		if (reg != vcpu->arch.tlbcfg[i])
+			r = -EINVAL;
+		break;
+	}
+	case KVM_REG_PPC_TLB0PS:
+	case KVM_REG_PPC_TLB1PS:
+	case KVM_REG_PPC_TLB2PS:
+	case KVM_REG_PPC_TLB3PS: {
+		u32 reg = set_reg_val(id, *val);
+		i = id - KVM_REG_PPC_TLB0PS;
+		if (reg != vcpu->arch.tlbps[i])
+			r = -EINVAL;
+		break;
+	}
+	default:
+		r = -EINVAL;
+		break;
+	}
+
+	return r;
+}
+
+static int vcpu_mmu_geometry_update(struct kvm_vcpu *vcpu,
+		struct kvm_book3e_206_tlb_params *params)
+{
+	vcpu->arch.tlbcfg[0] &= ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
+	if (params->tlb_sizes[0] <= 2048)
+		vcpu->arch.tlbcfg[0] |= params->tlb_sizes[0];
+	vcpu->arch.tlbcfg[0] |= params->tlb_ways[0] << TLBnCFG_ASSOC_SHIFT;
+
+	vcpu->arch.tlbcfg[1] &= ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
+	vcpu->arch.tlbcfg[1] |= params->tlb_sizes[1];
+	vcpu->arch.tlbcfg[1] |= params->tlb_ways[1] << TLBnCFG_ASSOC_SHIFT;
+	return 0;
+}
+
 int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 			      struct kvm_config_tlb *cfg)
 {
@@ -692,16 +831,8 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	vcpu_e500->gtlb_offset[0] = 0;
 	vcpu_e500->gtlb_offset[1] = params.tlb_sizes[0];
 
-	vcpu->arch.mmucfg = mfspr(SPRN_MMUCFG) & ~MMUCFG_LPIDSIZE;
-
-	vcpu->arch.tlbcfg[0] &= ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
-	if (params.tlb_sizes[0] <= 2048)
-		vcpu->arch.tlbcfg[0] |= params.tlb_sizes[0];
-	vcpu->arch.tlbcfg[0] |= params.tlb_ways[0] << TLBnCFG_ASSOC_SHIFT;
-
-	vcpu->arch.tlbcfg[1] &= ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
-	vcpu->arch.tlbcfg[1] |= params.tlb_sizes[1];
-	vcpu->arch.tlbcfg[1] |= params.tlb_ways[1] << TLBnCFG_ASSOC_SHIFT;
+	/* Update vcpu's MMU geometry based on SW_TLB input */
+	vcpu_mmu_geometry_update(vcpu, &params);
 
 	vcpu_e500->shared_tlb_pages = pages;
 	vcpu_e500->num_shared_tlb_pages = num_pages;
@@ -734,6 +865,39 @@ int kvm_vcpu_ioctl_dirty_tlb(struct kvm_vcpu *vcpu,
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	kvmppc_recalc_tlb1map_range(vcpu_e500);
 	kvmppc_core_flush_tlb(vcpu);
+	return 0;
+}
+
+/* Vcpu's MMU default configuration */
+static int vcpu_mmu_init(struct kvm_vcpu *vcpu,
+		       struct kvmppc_e500_tlb_params *params)
+{
+	/* Initialize RASIZE, PIDSIZE, NTLBS and MAVN fields with host values*/
+	vcpu->arch.mmucfg = mfspr(SPRN_MMUCFG) & ~MMUCFG_LPIDSIZE;
+
+	/* Initialize TLBnCFG fields with host values and SW_TLB geometry*/
+	vcpu->arch.tlbcfg[0] = mfspr(SPRN_TLB0CFG) &
+			     ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
+	vcpu->arch.tlbcfg[0] |= params[0].entries;
+	vcpu->arch.tlbcfg[0] |= params[0].ways << TLBnCFG_ASSOC_SHIFT;
+
+	vcpu->arch.tlbcfg[1] = mfspr(SPRN_TLB1CFG) &
+			     ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
+	vcpu->arch.tlbcfg[1] |= params[1].entries;
+	vcpu->arch.tlbcfg[1] |= params[1].ways << TLBnCFG_ASSOC_SHIFT;
+
+	if (has_feature(vcpu, VCPU_FTR_MMU_V2)) {
+		vcpu->arch.tlbps[0] = mfspr(SPRN_TLB0PS);
+		vcpu->arch.tlbps[1] = mfspr(SPRN_TLB1PS);
+
+		vcpu->arch.mmucfg &= ~MMUCFG_LRAT;
+
+		/* Guest mmu emulation currently doesn't handle E.PT */
+		vcpu->arch.eptcfg = 0;
+		vcpu->arch.tlbcfg[0] &= ~TLBnCFG_PT;
+		vcpu->arch.tlbcfg[1] &= ~TLBnCFG_IND;
+	}
+
 	return 0;
 }
 
@@ -781,18 +945,7 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	if (!vcpu_e500->g2h_tlb1_map)
 		goto err;
 
-	/* Init TLB configuration register */
-	vcpu->arch.tlbcfg[0] = mfspr(SPRN_TLB0CFG) &
-			     ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
-	vcpu->arch.tlbcfg[0] |= vcpu_e500->gtlb_params[0].entries;
-	vcpu->arch.tlbcfg[0] |=
-		vcpu_e500->gtlb_params[0].ways << TLBnCFG_ASSOC_SHIFT;
-
-	vcpu->arch.tlbcfg[1] = mfspr(SPRN_TLB1CFG) &
-			     ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
-	vcpu->arch.tlbcfg[1] |= vcpu_e500->gtlb_params[1].entries;
-	vcpu->arch.tlbcfg[1] |=
-		vcpu_e500->gtlb_params[1].ways << TLBnCFG_ASSOC_SHIFT;
+	vcpu_mmu_init(vcpu, vcpu_e500->gtlb_params);
 
 	kvmppc_recalc_tlb1map_range(vcpu_e500);
 	return 0;

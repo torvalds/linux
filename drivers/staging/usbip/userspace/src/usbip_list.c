@@ -131,13 +131,13 @@ static int list_exported_devices(char *host)
 	int rc;
 	int sockfd;
 
-	sockfd = usbip_net_tcp_connect(host, USBIP_PORT_STRING);
+	sockfd = usbip_net_tcp_connect(host, usbip_port_string);
 	if (sockfd < 0) {
 		err("could not connect to %s:%s: %s", host,
-		    USBIP_PORT_STRING, gai_strerror(sockfd));
+		    usbip_port_string, gai_strerror(sockfd));
 		return -1;
 	}
-	dbg("connected to %s:%s", host, USBIP_PORT_STRING);
+	dbg("connected to %s:%s", host, usbip_port_string);
 
 	rc = get_exported_devices(host, sockfd);
 	if (rc < 0) {
@@ -157,6 +157,12 @@ static void print_device(char *busid, char *vendor, char *product,
 		printf("busid=%s#usbid=%.4s:%.4s#", busid, vendor, product);
 	else
 		printf(" - busid %s (%.4s:%.4s)\n", busid, vendor, product);
+}
+
+static void print_product_name(char *product_name, bool parsable)
+{
+	if (!parsable)
+		printf("   %s\n", product_name);
 }
 
 static void print_interface(char *busid, char *driver, bool parsable)
@@ -189,6 +195,7 @@ static int list_devices(bool parsable)
 {
 	char bus_type[] = "usb";
 	char busid[SYSFS_BUS_ID_SIZE];
+	char product_name[128];
 	struct sysfs_bus *ubus;
 	struct sysfs_device *dev;
 	struct sysfs_device *intf;
@@ -231,8 +238,13 @@ static int list_devices(bool parsable)
 			goto err_out;
 		}
 
+		/* get product name */
+		usbip_names_get_product(product_name, sizeof(product_name),
+					strtol(idVendor->value, NULL, 16),
+					strtol(idProduct->value, NULL, 16));
 		print_device(dev->bus_id, idVendor->value, idProduct->value,
 			     parsable);
+		print_product_name(product_name, parsable);
 
 		for (i = 0; i < atoi(bNumIntfs->value); i++) {
 			snprintf(busid, sizeof(busid), "%s:%.1s.%d",

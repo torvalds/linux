@@ -41,6 +41,7 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 
@@ -122,7 +123,7 @@ static struct platform_pwm_backlight_data hmt_backlight_data = {
 static struct platform_device hmt_backlight_device = {
 	.name		= "pwm-backlight",
 	.dev		= {
-		.parent	= &s3c_device_timer[1].dev,
+		.parent	= &samsung_device_pwm.dev,
 		.platform_data = &hmt_backlight_data,
 	},
 };
@@ -238,7 +239,7 @@ static struct platform_device *hmt_devices[] __initdata = {
 	&s3c_device_nand,
 	&s3c_device_fb,
 	&s3c_device_ohci,
-	&s3c_device_timer[1],
+	&samsung_device_pwm,
 	&hmt_backlight_device,
 	&hmt_leds_device,
 };
@@ -248,6 +249,7 @@ static void __init hmt_map_io(void)
 	s3c64xx_init_io(hmt_iodesc, ARRAY_SIZE(hmt_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(hmt_uartcfgs, ARRAY_SIZE(hmt_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init hmt_machine_init(void)
@@ -275,6 +277,6 @@ MACHINE_START(HMT, "Airgoo-HMT")
 	.map_io		= hmt_map_io,
 	.init_machine	= hmt_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

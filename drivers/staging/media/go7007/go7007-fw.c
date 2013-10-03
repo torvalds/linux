@@ -36,6 +36,8 @@
 
 #include "go7007-priv.h"
 
+#define GO7007_FW_NAME "go7007/go7007tv.bin"
+
 /* Constants used in the source firmware image to describe code segments */
 
 #define	FLAG_MODE_MJPEG		(1)
@@ -455,9 +457,9 @@ static int mpeg1_frame_header(struct go7007 *go, unsigned char *buf,
 
 	CODE_ADD(c, frame == PFRAME ? 0x2 : 0x3, 13);
 	CODE_ADD(c, 0xffff, 16);
-	CODE_ADD(c, go->format == GO7007_FORMAT_MPEG2 ? 0x7 : 0x4, 4);
+	CODE_ADD(c, go->format == V4L2_PIX_FMT_MPEG2 ? 0x7 : 0x4, 4);
 	if (frame != PFRAME)
-		CODE_ADD(c, go->format == GO7007_FORMAT_MPEG2 ? 0x7 : 0x4, 4);
+		CODE_ADD(c, go->format == V4L2_PIX_FMT_MPEG2 ? 0x7 : 0x4, 4);
 	else
 		CODE_ADD(c, 0, 4); /* Is this supposed to be here?? */
 	CODE_ADD(c, 0, 3); /* What is this?? */
@@ -466,7 +468,7 @@ static int mpeg1_frame_header(struct go7007 *go, unsigned char *buf,
 	if (j != 8)
 		CODE_ADD(c, 0, j);
 
-	if (go->format == GO7007_FORMAT_MPEG2) {
+	if (go->format == V4L2_PIX_FMT_MPEG2) {
 		CODE_ADD(c, 0x1, 24);
 		CODE_ADD(c, 0xb5, 8);
 		CODE_ADD(c, 0x844, 12);
@@ -537,7 +539,7 @@ static int mpeg1_sequence_header(struct go7007 *go, unsigned char *buf, int ext)
 	int i, aspect_ratio, picture_rate;
 	CODE_GEN(c, buf + 6);
 
-	if (go->format == GO7007_FORMAT_MPEG1) {
+	if (go->format == V4L2_PIX_FMT_MPEG1) {
 		switch (go->aspect_ratio) {
 		case GO7007_RATIO_4_3:
 			aspect_ratio = go->standard == GO7007_STD_NTSC ? 3 : 2;
@@ -587,9 +589,9 @@ static int mpeg1_sequence_header(struct go7007 *go, unsigned char *buf, int ext)
 	CODE_ADD(c, go->height, 12);
 	CODE_ADD(c, aspect_ratio, 4);
 	CODE_ADD(c, picture_rate, 4);
-	CODE_ADD(c, go->format == GO7007_FORMAT_MPEG2 ? 20000 : 0x3ffff, 18);
+	CODE_ADD(c, go->format == V4L2_PIX_FMT_MPEG2 ? 20000 : 0x3ffff, 18);
 	CODE_ADD(c, 1, 1);
-	CODE_ADD(c, go->format == GO7007_FORMAT_MPEG2 ? 112 : 20, 10);
+	CODE_ADD(c, go->format == V4L2_PIX_FMT_MPEG2 ? 112 : 20, 10);
 	CODE_ADD(c, 0, 3);
 
 	/* Byte-align with zeros */
@@ -597,7 +599,7 @@ static int mpeg1_sequence_header(struct go7007 *go, unsigned char *buf, int ext)
 	if (i != 8)
 		CODE_ADD(c, 0, i);
 
-	if (go->format == GO7007_FORMAT_MPEG2) {
+	if (go->format == V4L2_PIX_FMT_MPEG2) {
 		CODE_ADD(c, 0x1, 24);
 		CODE_ADD(c, 0xb5, 8);
 		CODE_ADD(c, 0x148, 12);
@@ -930,10 +932,10 @@ static int brctrl_to_package(struct go7007 *go,
 					__le16 *code, int space, int *framelen)
 {
 	int converge_speed = 0;
-	int lambda = (go->format == GO7007_FORMAT_MJPEG || go->dvd_mode) ?
+	int lambda = (go->format == V4L2_PIX_FMT_MJPEG || go->dvd_mode) ?
 				100 : 0;
 	int peak_rate = 6 * go->bitrate / 5;
-	int vbv_buffer = go->format == GO7007_FORMAT_MJPEG ?
+	int vbv_buffer = go->format == V4L2_PIX_FMT_MJPEG ?
 				go->bitrate :
 				(go->dvd_mode ? 900000 : peak_rate);
 	int fps = go->sensor_framerate / go->fps_scale;
@@ -1096,10 +1098,10 @@ static int config_package(struct go7007 *go, __le16 *code, int space)
 		0xc003,		0x28b4,
 		0xc004,		0x3c5a,
 		0xdc05,		0x2a77,
-		0xc6c3,		go->format == GO7007_FORMAT_MPEG4 ? 0 :
-				(go->format == GO7007_FORMAT_H263 ? 0 : 1),
-		0xc680,		go->format == GO7007_FORMAT_MPEG4 ? 0xf1 :
-				(go->format == GO7007_FORMAT_H263 ? 0x61 :
+		0xc6c3,		go->format == V4L2_PIX_FMT_MPEG4 ? 0 :
+				(go->format == V4L2_PIX_FMT_H263 ? 0 : 1),
+		0xc680,		go->format == V4L2_PIX_FMT_MPEG4 ? 0xf1 :
+				(go->format == V4L2_PIX_FMT_H263 ? 0x61 :
 									0xd3),
 		0xc780,		0x0140,
 		0xe009,		0x0001,
@@ -1123,15 +1125,15 @@ static int config_package(struct go7007 *go, __le16 *code, int space)
 						(!go->interlace_coding) ?
 					0x0008 : 0x0009,
 		0xc404,		go->interlace_coding ? 0x44 :
-				(go->format == GO7007_FORMAT_MPEG4 ? 0x11 :
-				(go->format == GO7007_FORMAT_MPEG1 ? 0x02 :
-				(go->format == GO7007_FORMAT_MPEG2 ? 0x04 :
-				(go->format == GO7007_FORMAT_H263  ? 0x08 :
+				(go->format == V4L2_PIX_FMT_MPEG4 ? 0x11 :
+				(go->format == V4L2_PIX_FMT_MPEG1 ? 0x02 :
+				(go->format == V4L2_PIX_FMT_MPEG2 ? 0x04 :
+				(go->format == V4L2_PIX_FMT_H263  ? 0x08 :
 								     0x20)))),
-		0xbf0a,		(go->format == GO7007_FORMAT_MPEG4 ? 8 :
-				(go->format == GO7007_FORMAT_MPEG1 ? 1 :
-				(go->format == GO7007_FORMAT_MPEG2 ? 2 :
-				(go->format == GO7007_FORMAT_H263 ? 4 : 16)))) |
+		0xbf0a,		(go->format == V4L2_PIX_FMT_MPEG4 ? 8 :
+				(go->format == V4L2_PIX_FMT_MPEG1 ? 1 :
+				(go->format == V4L2_PIX_FMT_MPEG2 ? 2 :
+				(go->format == V4L2_PIX_FMT_H263 ? 4 : 16)))) |
 				((go->repeat_seqhead ? 1 : 0) << 6) |
 				((go->dvd_mode ? 1 : 0) << 9) |
 				((go->gop_header_enable ? 1 : 0) << 10),
@@ -1348,19 +1350,19 @@ static int final_package(struct go7007 *go, __le16 *code, int space)
 			0x41,
 		go->ipb ? 0xd4c : 0x36b,
 		(rows << 8) | (go->width >> 4),
-		go->format == GO7007_FORMAT_MPEG4 ? 0x0404 : 0,
+		go->format == V4L2_PIX_FMT_MPEG4 ? 0x0404 : 0,
 		(1 << 15) | ((go->interlace_coding ? 1 : 0) << 13) |
 			((go->closed_gop ? 1 : 0) << 12) |
-			((go->format == GO7007_FORMAT_MPEG4 ? 1 : 0) << 11) |
+			((go->format == V4L2_PIX_FMT_MPEG4 ? 1 : 0) << 11) |
 		/*	(1 << 9) |   */
 			((go->ipb ? 3 : 0) << 7) |
 			((go->modet_enable ? 1 : 0) << 2) |
 			((go->dvd_mode ? 1 : 0) << 1) | 1,
-		(go->format == GO7007_FORMAT_MPEG1 ? 0x89a0 :
-			(go->format == GO7007_FORMAT_MPEG2 ? 0x89a0 :
-			(go->format == GO7007_FORMAT_MJPEG ? 0x89a0 :
-			(go->format == GO7007_FORMAT_MPEG4 ? 0x8920 :
-			(go->format == GO7007_FORMAT_H263 ? 0x8920 : 0))))),
+		(go->format == V4L2_PIX_FMT_MPEG1 ? 0x89a0 :
+			(go->format == V4L2_PIX_FMT_MPEG2 ? 0x89a0 :
+			(go->format == V4L2_PIX_FMT_MJPEG ? 0x89a0 :
+			(go->format == V4L2_PIX_FMT_MPEG4 ? 0x8920 :
+			(go->format == V4L2_PIX_FMT_H263 ? 0x8920 : 0))))),
 		go->ipb ? 0x1f15 : 0x1f0b,
 		go->ipb ? 0x0015 : 0x000b,
 		go->ipb ? 0xa800 : 0x5800,
@@ -1503,13 +1505,13 @@ static int do_special(struct go7007 *go, u16 type, __le16 *code, int space,
 	switch (type) {
 	case SPECIAL_FRM_HEAD:
 		switch (go->format) {
-		case GO7007_FORMAT_MJPEG:
+		case V4L2_PIX_FMT_MJPEG:
 			return gen_mjpeghdr_to_package(go, code, space);
-		case GO7007_FORMAT_MPEG1:
-		case GO7007_FORMAT_MPEG2:
+		case V4L2_PIX_FMT_MPEG1:
+		case V4L2_PIX_FMT_MPEG2:
 			return gen_mpeg1hdr_to_package(go, code, space,
 								framelen);
-		case GO7007_FORMAT_MPEG4:
+		case V4L2_PIX_FMT_MPEG4:
 			return gen_mpeg4hdr_to_package(go, code, space,
 								framelen);
 		}
@@ -1519,11 +1521,11 @@ static int do_special(struct go7007 *go, u16 type, __le16 *code, int space,
 		return config_package(go, code, space);
 	case SPECIAL_SEQHEAD:
 		switch (go->format) {
-		case GO7007_FORMAT_MPEG1:
-		case GO7007_FORMAT_MPEG2:
+		case V4L2_PIX_FMT_MPEG1:
+		case V4L2_PIX_FMT_MPEG2:
 			return seqhead_to_package(go, code, space,
 					mpeg1_sequence_header);
-		case GO7007_FORMAT_MPEG4:
+		case V4L2_PIX_FMT_MPEG4:
 			return seqhead_to_package(go, code, space,
 					mpeg4_sequence_header);
 		default:
@@ -1553,25 +1555,25 @@ int go7007_construct_fw_image(struct go7007 *go, u8 **fw, int *fwlen)
 	int ret;
 
 	switch (go->format) {
-	case GO7007_FORMAT_MJPEG:
+	case V4L2_PIX_FMT_MJPEG:
 		mode_flag = FLAG_MODE_MJPEG;
 		break;
-	case GO7007_FORMAT_MPEG1:
+	case V4L2_PIX_FMT_MPEG1:
 		mode_flag = FLAG_MODE_MPEG1;
 		break;
-	case GO7007_FORMAT_MPEG2:
+	case V4L2_PIX_FMT_MPEG2:
 		mode_flag = FLAG_MODE_MPEG2;
 		break;
-	case GO7007_FORMAT_MPEG4:
+	case V4L2_PIX_FMT_MPEG4:
 		mode_flag = FLAG_MODE_MPEG4;
 		break;
 	default:
 		return -1;
 	}
-	if (request_firmware(&fw_entry, go->board_info->firmware, go->dev)) {
+	if (request_firmware(&fw_entry, GO7007_FW_NAME, go->dev)) {
 		dev_err(go->dev,
 			"unable to load firmware from file \"%s\"\n",
-			go->board_info->firmware);
+			GO7007_FW_NAME);
 		return -1;
 	}
 	code = kzalloc(codespace * 2, GFP_KERNEL);
@@ -1586,7 +1588,7 @@ int go7007_construct_fw_image(struct go7007 *go, u8 **fw, int *fwlen)
 		if (chunk_len + 2 > srclen) {
 			dev_err(go->dev,
 				"firmware file \"%s\" appears to be corrupted\n",
-				go->board_info->firmware);
+				GO7007_FW_NAME);
 			goto fw_failed;
 		}
 		if (chunk_flags & mode_flag) {
@@ -1622,3 +1624,5 @@ fw_failed:
 	release_firmware(fw_entry);
 	return -1;
 }
+
+MODULE_FIRMWARE(GO7007_FW_NAME);

@@ -24,6 +24,7 @@
 #include <media/videobuf2-core.h>
 #include "regs-mfc.h"
 #include "regs-mfc-v6.h"
+#include "regs-mfc-v7.h"
 
 /* Definitions related to MFC memory */
 
@@ -64,7 +65,7 @@ static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
 #define MFC_ENC_CAP_PLANE_COUNT	1
 #define MFC_ENC_OUT_PLANE_COUNT	2
 #define STUFF_BYTE		4
-#define MFC_MAX_CTRLS		70
+#define MFC_MAX_CTRLS		77
 
 #define S5P_MFC_CODEC_NONE		-1
 #define S5P_MFC_CODEC_H264_DEC		0
@@ -80,6 +81,7 @@ static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
 #define S5P_MFC_CODEC_H264_MVC_ENC	21
 #define S5P_MFC_CODEC_MPEG4_ENC		22
 #define S5P_MFC_CODEC_H263_ENC		23
+#define S5P_MFC_CODEC_VP8_ENC		24
 
 #define S5P_MFC_R2H_CMD_EMPTY			0
 #define S5P_MFC_R2H_CMD_SYS_INIT_RET		1
@@ -138,6 +140,7 @@ enum s5p_mfc_inst_state {
 	MFCINST_INIT = 100,
 	MFCINST_GOT_INST,
 	MFCINST_HEAD_PARSED,
+	MFCINST_HEAD_PRODUCED,
 	MFCINST_BUFS_SET,
 	MFCINST_RUNNING,
 	MFCINST_FINISHING,
@@ -231,7 +234,6 @@ struct s5p_mfc_variant {
 	unsigned int port_num;
 	struct s5p_mfc_buf_size *buf_size;
 	struct s5p_mfc_buf_align *buf_align;
-	char	*mclk_name;
 	char	*fw_name;
 };
 
@@ -408,6 +410,21 @@ struct s5p_mfc_mpeg4_enc_params {
 };
 
 /**
+ * struct s5p_mfc_vp8_enc_params - encoding parameters for vp8
+ */
+struct s5p_mfc_vp8_enc_params {
+	u8 imd_4x4;
+	enum v4l2_vp8_num_partitions num_partitions;
+	enum v4l2_vp8_num_ref_frames num_ref;
+	u8 filter_level;
+	u8 filter_sharpness;
+	u32 golden_frame_ref_period;
+	enum v4l2_vp8_golden_frame_sel golden_frame_sel;
+	u8 hier_layer;
+	u8 hier_layer_qp[3];
+};
+
+/**
  * struct s5p_mfc_enc_params - general encoding parameters
  */
 struct s5p_mfc_enc_params {
@@ -438,9 +455,10 @@ struct s5p_mfc_enc_params {
 	u32 rc_framerate_num;
 	u32 rc_framerate_denom;
 
-	union {
+	struct {
 		struct s5p_mfc_h264_enc_params h264;
 		struct s5p_mfc_mpeg4_enc_params mpeg4;
+		struct s5p_mfc_vp8_enc_params vp8;
 	} codec;
 
 };
@@ -602,7 +620,7 @@ struct s5p_mfc_ctx {
 	int after_packed_pb;
 	int sei_fp_parse;
 
-	int dpb_count;
+	int pb_count;
 	int total_dpb_count;
 	int mv_count;
 	/* Buffers */
@@ -683,6 +701,7 @@ void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
 #define HAS_PORTNUM(dev)	(dev ? (dev->variant ? \
 				(dev->variant->port_num ? 1 : 0) : 0) : 0)
 #define IS_TWOPORT(dev)		(dev->variant->port_num == 2 ? 1 : 0)
-#define IS_MFCV6(dev)		(dev->variant->version >= 0x60 ? 1 : 0)
+#define IS_MFCV6_PLUS(dev)	(dev->variant->version >= 0x60 ? 1 : 0)
+#define IS_MFCV7(dev)		(dev->variant->version >= 0x70 ? 1 : 0)
 
 #endif /* S5P_MFC_COMMON_H_ */

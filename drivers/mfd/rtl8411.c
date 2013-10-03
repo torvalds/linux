@@ -1,6 +1,6 @@
 /* Driver for Realtek PCI-Express card reader
  *
- * Copyright(c) 2009 Realtek Semiconductor Corp. All rights reserved.
+ * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,7 +17,7 @@
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
- *   No. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
+ *   Roger Tseng <rogerable@realtek.com>
  */
 
 #include <linux/module.h>
@@ -35,10 +35,89 @@ static u8 rtl8411_get_ic_version(struct rtsx_pcr *pcr)
 	return val & 0x0F;
 }
 
+static int rtl8411b_is_qfn48(struct rtsx_pcr *pcr)
+{
+	u8 val = 0;
+
+	rtsx_pci_read_register(pcr, RTL8411B_PACKAGE_MODE, &val);
+
+	if (val & 0x2)
+		return 1;
+	else
+		return 0;
+}
+
+static void rtl8411_fetch_vendor_settings(struct rtsx_pcr *pcr)
+{
+	u32 reg1;
+	u8 reg3;
+
+	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg1);
+	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg1);
+
+	if (!rtsx_vendor_setting_valid(reg1))
+		return;
+
+	pcr->aspm_en = rtsx_reg_to_aspm(reg1);
+	pcr->sd30_drive_sel_1v8 =
+		map_sd_drive(rtsx_reg_to_sd30_drive_sel_1v8(reg1));
+	pcr->card_drive_sel &= 0x3F;
+	pcr->card_drive_sel |= rtsx_reg_to_card_drive_sel(reg1);
+
+	rtsx_pci_read_config_byte(pcr, PCR_SETTING_REG3, &reg3);
+	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG3, reg3);
+	pcr->sd30_drive_sel_3v3 = rtl8411_reg_to_sd30_drive_sel_3v3(reg3);
+}
+
+static void rtl8411b_fetch_vendor_settings(struct rtsx_pcr *pcr)
+{
+	u32 reg;
+
+	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
+	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
+
+	if (!rtsx_vendor_setting_valid(reg))
+		return;
+
+	pcr->aspm_en = rtsx_reg_to_aspm(reg);
+	pcr->sd30_drive_sel_1v8 =
+		map_sd_drive(rtsx_reg_to_sd30_drive_sel_1v8(reg));
+	pcr->sd30_drive_sel_3v3 =
+		map_sd_drive(rtl8411b_reg_to_sd30_drive_sel_3v3(reg));
+}
+
+static void rtl8411_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
+{
+	rtsx_pci_write_register(pcr, FPDCTL, 0x07, 0x07);
+}
+
 static int rtl8411_extra_init_hw(struct rtsx_pcr *pcr)
 {
-	return rtsx_pci_write_register(pcr, CD_PAD_CTL,
+	rtsx_pci_init_cmd(pcr);
+
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD30_DRIVE_SEL,
+			0xFF, pcr->sd30_drive_sel_3v3);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CD_PAD_CTL,
 			CD_DISABLE_MASK | CD_AUTO_DISABLE, CD_ENABLE);
+
+	return rtsx_pci_send_cmd(pcr, 100);
+}
+
+static int rtl8411b_extra_init_hw(struct rtsx_pcr *pcr)
+{
+	rtsx_pci_init_cmd(pcr);
+
+	if (rtl8411b_is_qfn48(pcr))
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD,
+				CARD_PULL_CTL3, 0xFF, 0xF5);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD30_DRIVE_SEL,
+			0xFF, pcr->sd30_drive_sel_3v3);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CD_PAD_CTL,
+			CD_DISABLE_MASK | CD_AUTO_DISABLE, CD_ENABLE);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, FUNC_FORCE_CTL,
+			0x06, 0x00);
+
+	return rtsx_pci_send_cmd(pcr, 100);
 }
 
 static int rtl8411_turn_on_led(struct rtsx_pcr *pcr)
@@ -120,13 +199,13 @@ static int rtl8411_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 	mask = (BPP_REG_TUNED18 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_MASK;
 	if (voltage == OUTPUT_3V3) {
 		err = rtsx_pci_write_register(pcr,
-				SD30_DRIVE_SEL, 0x07, DRIVER_TYPE_D);
+				SD30_DRIVE_SEL, 0x07, pcr->sd30_drive_sel_3v3);
 		if (err < 0)
 			return err;
 		val = (BPP_ASIC_3V3 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_3V3;
 	} else if (voltage == OUTPUT_1V8) {
 		err = rtsx_pci_write_register(pcr,
-				SD30_DRIVE_SEL, 0x07, DRIVER_TYPE_B);
+				SD30_DRIVE_SEL, 0x07, pcr->sd30_drive_sel_1v8);
 		if (err < 0)
 			return err;
 		val = (BPP_ASIC_1V8 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_1V8;
@@ -201,6 +280,7 @@ static int rtl8411_conv_clk_and_div_n(int input, int dir)
 }
 
 static const struct pcr_ops rtl8411_pcr_ops = {
+	.fetch_vendor_settings = rtl8411_fetch_vendor_settings,
 	.extra_init_hw = rtl8411_extra_init_hw,
 	.optimize_phy = NULL,
 	.turn_on_led = rtl8411_turn_on_led,
@@ -212,6 +292,23 @@ static const struct pcr_ops rtl8411_pcr_ops = {
 	.switch_output_voltage = rtl8411_switch_output_voltage,
 	.cd_deglitch = rtl8411_cd_deglitch,
 	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
+	.force_power_down = rtl8411_force_power_down,
+};
+
+static const struct pcr_ops rtl8411b_pcr_ops = {
+	.fetch_vendor_settings = rtl8411b_fetch_vendor_settings,
+	.extra_init_hw = rtl8411b_extra_init_hw,
+	.optimize_phy = NULL,
+	.turn_on_led = rtl8411_turn_on_led,
+	.turn_off_led = rtl8411_turn_off_led,
+	.enable_auto_blink = rtl8411_enable_auto_blink,
+	.disable_auto_blink = rtl8411_disable_auto_blink,
+	.card_power_on = rtl8411_card_power_on,
+	.card_power_off = rtl8411_card_power_off,
+	.switch_output_voltage = rtl8411_switch_output_voltage,
+	.cd_deglitch = rtl8411_cd_deglitch,
+	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
+	.force_power_down = rtl8411_force_power_down,
 };
 
 /* SD Pull Control Enable:
@@ -276,15 +373,128 @@ static const u32 rtl8411_ms_pull_ctl_disable_tbl[] = {
 	0,
 };
 
+static const u32 rtl8411b_qfn64_sd_pull_ctl_enable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL1, 0xAA),
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0xAA),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x09 | 0xD0),
+	RTSX_REG_PAIR(CARD_PULL_CTL4, 0x09 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL5, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn48_sd_pull_ctl_enable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0xAA),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x69 | 0x90),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x08 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn64_sd_pull_ctl_disable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL1, 0x65),
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x05 | 0xD0),
+	RTSX_REG_PAIR(CARD_PULL_CTL4, 0x09 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL5, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn48_sd_pull_ctl_disable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x65 | 0x90),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn64_ms_pull_ctl_enable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL1, 0x65),
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x05 | 0xD0),
+	RTSX_REG_PAIR(CARD_PULL_CTL4, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL5, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn48_ms_pull_ctl_enable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x65 | 0x90),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn64_ms_pull_ctl_disable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL1, 0x65),
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x05 | 0xD0),
+	RTSX_REG_PAIR(CARD_PULL_CTL4, 0x09 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL5, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn48_ms_pull_ctl_disable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x65 | 0x90),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
 void rtl8411_init_params(struct rtsx_pcr *pcr)
 {
 	pcr->extra_caps = EXTRA_CAPS_SD_SDR50 | EXTRA_CAPS_SD_SDR104;
 	pcr->num_slots = 2;
 	pcr->ops = &rtl8411_pcr_ops;
 
+	pcr->flags = 0;
+	pcr->card_drive_sel = RTL8411_CARD_DRIVE_DEFAULT;
+	pcr->sd30_drive_sel_1v8 = DRIVER_TYPE_B;
+	pcr->sd30_drive_sel_3v3 = DRIVER_TYPE_D;
+	pcr->aspm_en = ASPM_L1_EN;
+	pcr->tx_initial_phase = SET_CLOCK_PHASE(23, 7, 14);
+	pcr->rx_initial_phase = SET_CLOCK_PHASE(4, 3, 10);
+
 	pcr->ic_version = rtl8411_get_ic_version(pcr);
 	pcr->sd_pull_ctl_enable_tbl = rtl8411_sd_pull_ctl_enable_tbl;
 	pcr->sd_pull_ctl_disable_tbl = rtl8411_sd_pull_ctl_disable_tbl;
 	pcr->ms_pull_ctl_enable_tbl = rtl8411_ms_pull_ctl_enable_tbl;
 	pcr->ms_pull_ctl_disable_tbl = rtl8411_ms_pull_ctl_disable_tbl;
+}
+
+void rtl8411b_init_params(struct rtsx_pcr *pcr)
+{
+	pcr->extra_caps = EXTRA_CAPS_SD_SDR50 | EXTRA_CAPS_SD_SDR104;
+	pcr->num_slots = 2;
+	pcr->ops = &rtl8411b_pcr_ops;
+
+	pcr->flags = 0;
+	pcr->card_drive_sel = RTL8411_CARD_DRIVE_DEFAULT;
+	pcr->sd30_drive_sel_1v8 = DRIVER_TYPE_B;
+	pcr->sd30_drive_sel_3v3 = DRIVER_TYPE_D;
+	pcr->aspm_en = ASPM_L1_EN;
+	pcr->tx_initial_phase = SET_CLOCK_PHASE(23, 7, 14);
+	pcr->rx_initial_phase = SET_CLOCK_PHASE(4, 3, 10);
+
+	pcr->ic_version = rtl8411_get_ic_version(pcr);
+
+	if (rtl8411b_is_qfn48(pcr)) {
+		pcr->sd_pull_ctl_enable_tbl =
+			rtl8411b_qfn48_sd_pull_ctl_enable_tbl;
+		pcr->sd_pull_ctl_disable_tbl =
+			rtl8411b_qfn48_sd_pull_ctl_disable_tbl;
+		pcr->ms_pull_ctl_enable_tbl =
+			rtl8411b_qfn48_ms_pull_ctl_enable_tbl;
+		pcr->ms_pull_ctl_disable_tbl =
+			rtl8411b_qfn48_ms_pull_ctl_disable_tbl;
+	} else {
+		pcr->sd_pull_ctl_enable_tbl =
+			rtl8411b_qfn64_sd_pull_ctl_enable_tbl;
+		pcr->sd_pull_ctl_disable_tbl =
+			rtl8411b_qfn64_sd_pull_ctl_disable_tbl;
+		pcr->ms_pull_ctl_enable_tbl =
+			rtl8411b_qfn64_ms_pull_ctl_enable_tbl;
+		pcr->ms_pull_ctl_disable_tbl =
+			rtl8411b_qfn64_ms_pull_ctl_disable_tbl;
+	}
 }

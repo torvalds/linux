@@ -48,9 +48,10 @@
 #define EM28XX_CHIPCFG2_TS_PACKETSIZE_752	0x03
 
 
-	/* GPIO/GPO registers */
-#define EM2880_R04_GPO	0x04    /* em2880-em2883 only */
-#define EM28XX_R08_GPIO	0x08	/* em2820 or upper */
+/* GPIO/GPO registers */
+#define EM2880_R04_GPO		0x04    /* em2880-em2883 only */
+#define EM2820_R08_GPIO_CTRL	0x08	/* em2820-em2873/83 only */
+#define EM2820_R09_GPIO_STATE	0x09	/* em2820-em2873/83 only */
 
 #define EM28XX_R06_I2C_CLK	0x06
 
@@ -67,7 +68,8 @@
 
 
 #define EM28XX_R0A_CHIPID	0x0a
-#define EM28XX_R0C_USBSUSP	0x0c	/* */
+#define EM28XX_R0C_USBSUSP	0x0c
+#define   EM28XX_R0C_USBSUSP_SNAPSHOT	0x20 /* 1=button pressed, needs reset */
 
 #define EM28XX_R0E_AUDIOSRC	0x0e
 #define EM28XX_R0F_XCLK	0x0f
@@ -120,12 +122,23 @@
 #define EM28XX_R1E_CWIDTH	0x1e
 #define EM28XX_R1F_CHEIGHT	0x1f
 
-#define EM28XX_R20_YGAIN	0x20
-#define EM28XX_R21_YOFFSET	0x21
-#define EM28XX_R22_UVGAIN	0x22
-#define EM28XX_R23_UOFFSET	0x23
-#define EM28XX_R24_VOFFSET	0x24
-#define EM28XX_R25_SHARPNESS	0x25
+#define EM28XX_R20_YGAIN	0x20 /* contrast [0:4]   */
+#define   CONTRAST_DEFAULT	0x10
+
+#define EM28XX_R21_YOFFSET	0x21 /* brightness       */	/* signed */
+#define   BRIGHTNESS_DEFAULT	0x00
+
+#define EM28XX_R22_UVGAIN	0x22 /* saturation [0:4] */
+#define   SATURATION_DEFAULT	0x10
+
+#define EM28XX_R23_UOFFSET	0x23 /* blue balance     */	/* signed */
+#define   BLUE_BALANCE_DEFAULT	0x00
+
+#define EM28XX_R24_VOFFSET	0x24 /* red balance      */	/* signed */
+#define   RED_BALANCE_DEFAULT	0x00
+
+#define EM28XX_R25_SHARPNESS	0x25 /* sharpness [0:4]  */
+#define   SHARPNESS_DEFAULT	0x00
 
 #define EM28XX_R26_COMPR	0x26
 #define EM28XX_R27_OUTFMT	0x27
@@ -152,8 +165,17 @@
 #define EM28XX_R31_HSCALEHIGH	0x31
 #define EM28XX_R32_VSCALELOW	0x32
 #define EM28XX_R33_VSCALEHIGH	0x33
+#define   EM28XX_HVSCALE_MAX	0x3fff /* => 20% */
+
 #define EM28XX_R34_VBI_START_H	0x34
 #define EM28XX_R35_VBI_START_V	0x35
+/*
+ * NOTE: the EM276x (and EM25xx, EM277x/8x ?) (camera bridges) use these
+ * registers for a different unknown purpose.
+ *   => register 0x34 is set to capture width / 16
+ *   => register 0x35 is set to capture height / 16
+ */
+
 #define EM28XX_R36_VBI_WIDTH	0x36
 #define EM28XX_R37_VBI_HEIGHT	0x37
 
@@ -173,7 +195,20 @@
 #define EM2874_R50_IR_CONFIG    0x50
 #define EM2874_R51_IR           0x51
 #define EM2874_R5F_TS_ENABLE    0x5f
-#define EM2874_R80_GPIO         0x80
+
+/* em2874/174/84, em25xx, em276x/7x/8x GPIO registers */
+/*
+ * NOTE: not all ports are bonded out;
+ * Some ports are multiplexed with special function I/O
+ */
+#define EM2874_R80_GPIO_P0_CTRL    0x80
+#define EM2874_R81_GPIO_P1_CTRL    0x81
+#define EM2874_R82_GPIO_P2_CTRL    0x82
+#define EM2874_R83_GPIO_P3_CTRL    0x83
+#define EM2874_R84_GPIO_P0_STATE   0x84
+#define EM2874_R85_GPIO_P1_STATE   0x85
+#define EM2874_R86_GPIO_P2_STATE   0x86
+#define EM2874_R87_GPIO_P3_STATE   0x87
 
 /* em2874 IR config register (0x50) */
 #define EM2874_IR_NEC           0x00
@@ -206,6 +241,7 @@ enum em28xx_chip_id {
 	CHIP_ID_EM2860 = 34,
 	CHIP_ID_EM2870 = 35,
 	CHIP_ID_EM2883 = 36,
+	CHIP_ID_EM2765 = 54,
 	CHIP_ID_EM2874 = 65,
 	CHIP_ID_EM2884 = 68,
 	CHIP_ID_EM28174 = 113,

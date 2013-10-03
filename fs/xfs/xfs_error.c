@@ -26,7 +26,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_utils.h"
 #include "xfs_error.h"
 
 #ifdef DEBUG
@@ -66,7 +65,7 @@ xfs_error_test(int error_tag, int *fsidp, char *expression,
 	int i;
 	int64_t fsid;
 
-	if (random32() % randfactor)
+	if (prandom_u32() % randfactor)
 		return 0;
 
 	memcpy(&fsid, fsidp, sizeof(xfs_fsid_t));
@@ -178,7 +177,7 @@ xfs_corruption_error(
 	inst_t			*ra)
 {
 	if (level <= xfs_error_level)
-		xfs_hex_dump(p, 16);
+		xfs_hex_dump(p, 64);
 	xfs_error_report(tag, level, mp, filename, linenum, ra);
 	xfs_alert(mp, "Corruption detected. Unmount and run xfs_repair");
 }

@@ -112,7 +112,7 @@ static struct gpio_chip template_chip = {
 static int wm8350_gpio_probe(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = dev_get_drvdata(pdev->dev.parent);
-	struct wm8350_platform_data *pdata = wm8350->dev->platform_data;
+	struct wm8350_platform_data *pdata = dev_get_platdata(wm8350->dev);
 	struct wm8350_gpio_data *wm8350_gpio;
 	int ret;
 

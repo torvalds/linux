@@ -5,5 +5,9 @@ header-y += arch-v32/
 
 generic-y += clkdev.h
 generic-y += exec.h
+generic-y += kvm_para.h
+generic-y += linkage.h
 generic-y += module.h
 generic-y += trace_clock.h
+generic-y += vga.h
+generic-y += xor.h

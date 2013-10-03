@@ -154,7 +154,7 @@ static struct nand_ecclayout omap_oobinfo;
  */
 static uint8_t scan_ff_pattern[] = { 0xff };
 static struct nand_bbt_descr bb_descrip_flashbased = {
-	.options = NAND_BBT_SCANEMPTY | NAND_BBT_SCANALLPAGES,
+	.options = NAND_BBT_SCANALLPAGES,
 	.offs = 0,
 	.len = 1,
 	.pattern = scan_ff_pattern,
@@ -1023,9 +1023,9 @@ static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	int status, state = this->state;
 
 	if (state == FL_ERASING)
-		timeo += (HZ * 400) / 1000;
+		timeo += msecs_to_jiffies(400);
 	else
-		timeo += (HZ * 20) / 1000;
+		timeo += msecs_to_jiffies(20);
 
 	writeb(NAND_CMD_STATUS & 0xFF, info->reg.gpmc_nand_command);
 	while (time_before(jiffies, timeo)) {
@@ -1701,8 +1701,9 @@ static int omap3_init_bch(struct mtd_info *mtd, int ecc_opt)
 		elm_node = of_find_node_by_phandle(be32_to_cpup(parp));
 		pdev = of_find_device_by_node(elm_node);
 		info->elm_dev = &pdev->dev;
-		elm_config(info->elm_dev, bch_type);
-		info->is_elm_used = true;
+
+		if (elm_config(info->elm_dev, bch_type) == 0)
+			info->is_elm_used = true;
 	}
 
 	if (info->is_elm_used && (mtd->writesize <= 4096)) {
@@ -1830,7 +1831,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	struct resource			*res;
 	struct mtd_part_parser_data	ppdata = {};
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "platform data missing\n");
 		return -ENODEV;
@@ -2086,7 +2087,6 @@ static int omap_nand_remove(struct platform_device *pdev)
 							mtd);
 	omap3_free_bch(&info->mtd);
 
-	platform_set_drvdata(pdev, NULL);
 	if (info->dma)
 		dma_release_channel(info->dma);
 

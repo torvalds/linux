@@ -5,7 +5,6 @@
 config NET_VENDOR_VIA
 	bool "VIA devices"
 	default y
-	depends on PCI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -22,7 +21,6 @@ config VIA_RHINE
 	tristate "VIA Rhine support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  If you have a VIA "Rhine" based network card (Rhine-I (VT86C100A),
@@ -45,10 +43,9 @@ config VIA_RHINE_MMIO
 
 config VIA_VELOCITY
 	tristate "VIA Velocity support"
-	depends on PCI
+	depends on (PCI || USE_OF)
 	select CRC32
 	select CRC_CCITT
-	select NET_CORE
 	select MII
 	---help---
 	  If you have a VIA "Velocity" based network card say Y here.

@@ -1548,9 +1548,6 @@ static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf *best = fip->sel_fcf;
-	struct fcoe_fcf *first;
-
-	first = list_first_entry(&fip->fcfs, struct fcoe_fcf, list);
 
 	list_for_each_entry(fcf, &fip->fcfs, list) {
 		LIBFCOE_FIP_DBG(fip, "consider FCF fab %16.16llx "
@@ -1568,17 +1565,15 @@ static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
 					"" : "un");
 			continue;
 		}
-		if (fcf->fabric_name != first->fabric_name ||
-		    fcf->vfid != first->vfid ||
-		    fcf->fc_map != first->fc_map) {
+		if (!best || fcf->pri < best->pri || best->flogi_sent)
+			best = fcf;
+		if (fcf->fabric_name != best->fabric_name ||
+		    fcf->vfid != best->vfid ||
+		    fcf->fc_map != best->fc_map) {
 			LIBFCOE_FIP_DBG(fip, "Conflicting fabric, VFID, "
 					"or FC-MAP\n");
 			return NULL;
 		}
-		if (fcf->flogi_sent)
-			continue;
-		if (!best || fcf->pri < best->pri || best->flogi_sent)
-			best = fcf;
 	}
 	fip->sel_fcf = best;
 	if (best) {
@@ -2095,7 +2090,11 @@ static struct fc_rport_operations fcoe_ctlr_vn_rport_ops = {
  */
 static void fcoe_ctlr_disc_stop_locked(struct fc_lport *lport)
 {
+	struct fc_rport_priv *rdata;
+
 	mutex_lock(&lport->disc.disc_mutex);
+	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers)
+		lport->tt.rport_logoff(rdata);
 	lport->disc.disc_callback = NULL;
 	mutex_unlock(&lport->disc.disc_mutex);
 }
@@ -2161,7 +2160,7 @@ static void fcoe_ctlr_vn_restart(struct fcoe_ctlr *fip)
 
 	if (fip->probe_tries < FIP_VN_RLIM_COUNT) {
 		fip->probe_tries++;
-		wait = random32() % FIP_VN_PROBE_WAIT;
+		wait = prandom_u32() % FIP_VN_PROBE_WAIT;
 	} else
 		wait = FIP_VN_RLIM_INT;
 	mod_timer(&fip->timer, jiffies + msecs_to_jiffies(wait));
@@ -2794,7 +2793,7 @@ static void fcoe_ctlr_vn_timeout(struct fcoe_ctlr *fip)
 					  fcoe_all_vn2vn, 0);
 			fip->port_ka_time = jiffies +
 				 msecs_to_jiffies(FIP_VN_BEACON_INT +
-					(random32() % FIP_VN_BEACON_FUZZ));
+					(prandom_u32() % FIP_VN_BEACON_FUZZ));
 		}
 		if (time_before(fip->port_ka_time, next_time))
 			next_time = fip->port_ka_time;

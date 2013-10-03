@@ -35,7 +35,7 @@ FEXPORT(__strnlen_user_nocheck_asm)
 	PTR_ADDU	a1, a0			# stop pointer
 1:	beq		v0, a1, 1f		# limit reached?
 	EX(lb, t0, (v0), .Lfault)
-	PTR_ADDU	v0, 1
+	PTR_ADDIU	v0, 1
 	bnez		t0, 1b
 1:	PTR_SUBU	v0, a0
 	jr		ra

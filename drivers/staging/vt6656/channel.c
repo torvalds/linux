@@ -39,14 +39,8 @@
 #include "channel.h"
 #include "rf.h"
 
-/*---------------------  Static Definitions -------------------------*/
 static int          msglevel                = MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Export Definitions -------------------------*/
-
 
 static SChannelTblElement sChannelTbl[CB_MAX_CHANNEL+1] =
 {
@@ -109,17 +103,15 @@ static SChannelTblElement sChannelTbl[CB_MAX_CHANNEL+1] =
   {165, 5825, true}  //56
 };
 
-
-
 /************************************************************************
  * The Radar regulation rules for each country
  ************************************************************************/
 static  struct
 {
-    BYTE    byChannelCountryCode;             /* The country code         */
+    u8    byChannelCountryCode;             /* The country code         */
     char    chCountryCode[2];
-    BYTE    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
-    BYTE    byPower[CB_MAX_CHANNEL];
+    u8    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
+    u8    byPower[CB_MAX_CHANNEL];
 }   ChannelRuleTab[] =
 {
 /************************************************************************
@@ -368,7 +360,6 @@ static  struct
 /*                                           1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38  39  40  41  42  43  44  45  46  47  48  49  50  51  52  53  54  55  56  */
 };
 
-/*---------------------  Export function  -------------------------*/
 /************************************************************************
  * Country Channel Valid
  *  Input:  CountryCode, ChannelNum
@@ -409,32 +400,6 @@ exit:
     return (bValid);
 
 } /* end ChannelValid */
-
-/************************************************************************
- * CHvChannelGetList
- * Get Available Channel List for a given country
- * Input:
- *      CountryCode     =   The country code defined in country.h
- * Output:
- *      ChannelBitMask  =   (QWORD *) correspondent bit mask
- *                          of available channels
- *                          0x0000000000000001 means channel 1 is supported
- *                          0x0000000000000003 means channel 1,2 are supported
- *                          0x000000000000000F means channel 1,2,..15 are supported
- ************************************************************************/
-bool
-CHvChannelGetList (
-      unsigned int       uCountryCodeIdx,
-     PBYTE      pbyChannelTable
-    )
-{
-    if (uCountryCodeIdx >= CCODE_MAX) {
-        return (false);
-    }
-    memcpy(pbyChannelTable, ChannelRuleTab[uCountryCodeIdx].bChannelIdxList, CB_MAX_CHANNEL);
-    return (true);
-}
-
 
 void CHvInitChannelTable(struct vnt_private *pDevice)
 {
@@ -506,16 +471,4 @@ void CHvInitChannelTable(struct vnt_private *pDevice)
             pDevice->abyLocalPwr[ii+1] = pDevice->abyOFDMDefaultPwr[ii+1];
         }*/
     }
-}
-
-BYTE CHbyGetChannelMapping(BYTE byChannelNumber)
-{
-BYTE    ii;
-BYTE    byCHMapping = 0;
-
-	for (ii = 1; ii <= CB_MAX_CHANNEL; ii++) {
-		if (sChannelTbl[ii].byChannelNumber == byChannelNumber)
-			byCHMapping = ii;
-    }
-    return byCHMapping;
 }

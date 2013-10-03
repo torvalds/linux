@@ -264,6 +264,7 @@ struct bfi_ioc_getattr_req_s {
 	union bfi_addr_u	attr_addr;
 };
 
+#define BFI_IOC_ATTR_UUID_SZ	16
 struct bfi_ioc_attr_s {
 	wwn_t		mfg_pwwn;	/*  Mfg port wwn	   */
 	wwn_t		mfg_nwwn;	/*  Mfg node wwn	   */
@@ -292,6 +293,7 @@ struct bfi_ioc_attr_s {
 	u8	mfg_day;	/* manufacturing day */
 	u8	mfg_month;	/* manufacturing month */
 	u16	mfg_year;	/* manufacturing year */
+	u8	uuid[BFI_IOC_ATTR_UUID_SZ];	/*!< chinook uuid */
 };
 
 /*
@@ -373,6 +375,10 @@ enum bfi_ioc_state {
 	BFI_IOC_FAIL		= 8,	/*  IOC heart-beat failure	     */
 	BFI_IOC_MEMTEST		= 9,	/*  IOC is doing memtest	     */
 };
+
+#define BFA_IOC_CB_JOIN_SH	16
+#define BFA_IOC_CB_FWSTATE_MASK	0x0000ffff
+#define BFA_IOC_CB_JOIN_MASK	0xffff0000
 
 #define BFI_IOC_ENDIAN_SIG  0x12345678
 
@@ -973,6 +979,7 @@ enum bfi_diag_i2h {
 	BFI_DIAG_I2H_LEDTEST = BFA_I2HM(BFI_DIAG_H2I_LEDTEST),
 	BFI_DIAG_I2H_QTEST      = BFA_I2HM(BFI_DIAG_H2I_QTEST),
 	BFI_DIAG_I2H_DPORT	= BFA_I2HM(BFI_DIAG_H2I_DPORT),
+	BFI_DIAG_I2H_DPORT_SCN	= BFA_I2HM(8),
 };
 
 #define BFI_DIAG_MAX_SGES	2
@@ -1064,16 +1071,73 @@ struct bfi_diag_qtest_req_s {
 enum bfi_dport_req {
 	BFI_DPORT_DISABLE	= 0,	/* disable dport request	*/
 	BFI_DPORT_ENABLE	= 1,	/* enable dport request		*/
+	BFI_DPORT_START		= 2,	/* start dport request	*/
+	BFI_DPORT_SHOW		= 3,	/* show dport request	*/
+	BFI_DPORT_DYN_DISABLE	= 4,	/* disable dynamic dport request */
+};
+
+enum bfi_dport_scn {
+	BFI_DPORT_SCN_TESTSTART		= 1,
+	BFI_DPORT_SCN_TESTCOMP		= 2,
+	BFI_DPORT_SCN_SFP_REMOVED	= 3,
+	BFI_DPORT_SCN_DDPORT_ENABLE	= 4,
+	BFI_DPORT_SCN_DDPORT_DISABLE	= 5,
+	BFI_DPORT_SCN_FCPORT_DISABLE	= 6,
+	BFI_DPORT_SCN_SUBTESTSTART	= 7,
+	BFI_DPORT_SCN_TESTSKIP		= 8,
+	BFI_DPORT_SCN_DDPORT_DISABLED	= 9,
 };
 
 struct bfi_diag_dport_req_s {
 	struct bfi_mhdr_s	mh;	/* 4 bytes                      */
-	u8			req;    /* request 1: enable 0: disable */
-	u8			status; /* reply status			*/
-	u8			rsvd[2];
-	u32			msgtag; /* msgtag for reply		*/
+	u8			req;	/* request 1: enable 0: disable	*/
+	u8			rsvd[3];
+	u32			lpcnt;
+	u32			payload;
 };
-#define bfi_diag_dport_rsp_t struct bfi_diag_dport_req_s
+
+struct bfi_diag_dport_rsp_s {
+	struct bfi_mhdr_s	mh;	/* header 4 bytes		*/
+	bfa_status_t		status;	/* reply status			*/
+	wwn_t			pwwn;	/* switch port wwn. 8 bytes	*/
+	wwn_t			nwwn;	/* switch node wwn. 8 bytes	*/
+};
+
+struct bfi_diag_dport_scn_teststart_s {
+	wwn_t	pwwn;	/* switch port wwn. 8 bytes */
+	wwn_t	nwwn;	/* switch node wwn. 8 bytes */
+	u8	type;	/* bfa_diag_dport_test_type_e */
+	u8	rsvd[3];
+	u32	numfrm; /* from switch uint in 1M */
+};
+
+struct bfi_diag_dport_scn_testcomp_s {
+	u8	status; /* bfa_diag_dport_test_status_e */
+	u8	speed;  /* bfa_port_speed_t  */
+	u16	numbuffer; /* from switch  */
+	u8	subtest_status[DPORT_TEST_MAX];  /* 4 bytes */
+	u32	latency;   /* from switch  */
+	u32	distance;  /* from swtich unit in meters  */
+			/* Buffers required to saturate the link */
+	u16	frm_sz;	/* from switch for buf_reqd */
+	u8	rsvd[2];
+};
+
+struct bfi_diag_dport_scn_s {		/* max size == RDS_RMESZ	*/
+	struct bfi_mhdr_s	mh;	/* header 4 bytes		*/
+	u8			state;  /* new state			*/
+	u8			rsvd[3];
+	union {
+		struct bfi_diag_dport_scn_teststart_s teststart;
+		struct bfi_diag_dport_scn_testcomp_s testcomp;
+	} info;
+};
+
+union bfi_diag_dport_msg_u {
+	struct bfi_diag_dport_req_s	req;
+	struct bfi_diag_dport_rsp_s	rsp;
+	struct bfi_diag_dport_scn_s	scn;
+};
 
 /*
  *	PHY module specific
@@ -1191,7 +1255,9 @@ enum bfi_fru_i2h_msgs {
 struct bfi_fru_write_req_s {
 	struct bfi_mhdr_s	mh;	/* Common msg header */
 	u8			last;
-	u8			rsv[3];
+	u8			rsv_1[3];
+	u8			trfr_cmpl;
+	u8			rsv_2[3];
 	u32			offset;
 	u32			length;
 	struct bfi_alen_s	alen;

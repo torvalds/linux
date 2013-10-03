@@ -24,27 +24,20 @@ static int st_accel_spi_probe(struct spi_device *spi)
 	struct st_sensor_data *adata;
 	int err;
 
-	indio_dev = iio_device_alloc(sizeof(*adata));
-	if (indio_dev == NULL) {
-		err = -ENOMEM;
-		goto iio_device_alloc_error;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adata));
+	if (!indio_dev)
+		return -ENOMEM;
 
 	adata = iio_priv(indio_dev);
 	adata->dev = &spi->dev;
 
 	st_sensors_spi_configure(indio_dev, spi, adata);
 
-	err = st_accel_common_probe(indio_dev);
+	err = st_accel_common_probe(indio_dev, spi->dev.platform_data);
 	if (err < 0)
-		goto st_accel_common_probe_error;
+		return err;
 
 	return 0;
-
-st_accel_common_probe_error:
-	iio_device_free(indio_dev);
-iio_device_alloc_error:
-	return err;
 }
 
 static int st_accel_spi_remove(struct spi_device *spi)

@@ -17,7 +17,9 @@ __le32 *hpfs_map_bitmap(struct super_block *s, unsigned bmp_block,
 			 struct quad_buffer_head *qbh, char *id)
 {
 	secno sec;
-	if (hpfs_sb(s)->sb_chk) if (bmp_block * 16384 > hpfs_sb(s)->sb_fs_size) {
+	__le32 *ret;
+	unsigned n_bands = (hpfs_sb(s)->sb_fs_size + 0x3fff) >> 14;
+	if (hpfs_sb(s)->sb_chk) if (bmp_block >= n_bands) {
 		hpfs_error(s, "hpfs_map_bitmap called with bad parameter: %08x at %s", bmp_block, id);
 		return NULL;
 	}
@@ -26,7 +28,23 @@ __le32 *hpfs_map_bitmap(struct super_block *s, unsigned bmp_block,
 		hpfs_error(s, "invalid bitmap block pointer %08x -> %08x at %s", bmp_block, sec, id);
 		return NULL;
 	}
-	return hpfs_map_4sectors(s, sec, qbh, 4);
+	ret = hpfs_map_4sectors(s, sec, qbh, 4);
+	if (ret) hpfs_prefetch_bitmap(s, bmp_block + 1);
+	return ret;
+}
+
+void hpfs_prefetch_bitmap(struct super_block *s, unsigned bmp_block)
+{
+	unsigned to_prefetch, next_prefetch;
+	unsigned n_bands = (hpfs_sb(s)->sb_fs_size + 0x3fff) >> 14;
+	if (unlikely(bmp_block >= n_bands))
+		return;
+	to_prefetch = le32_to_cpu(hpfs_sb(s)->sb_bmp_dir[bmp_block]);
+	if (unlikely(bmp_block + 1 >= n_bands))
+		next_prefetch = 0;
+	else
+		next_prefetch = le32_to_cpu(hpfs_sb(s)->sb_bmp_dir[bmp_block + 1]);
+	hpfs_prefetch_sectors(s, to_prefetch, 4 + 4 * (to_prefetch + 4 == next_prefetch));
 }
 
 /*

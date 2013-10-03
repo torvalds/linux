@@ -35,6 +35,7 @@
 #include <linux/spi/spi.h>
 #include <linux/export.h>
 #include <linux/irqchip/arm-vic.h>
+#include <linux/reboot.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/video-ep93xx.h>
@@ -280,7 +281,7 @@ static AMBA_APB_DEVICE(uart1, "apb:uart1", 0x00041010, EP93XX_UART1_PHYS_BASE,
 	{ IRQ_EP93XX_UART1 }, &ep93xx_uart_data);
 
 static AMBA_APB_DEVICE(uart2, "apb:uart2", 0x00041010, EP93XX_UART2_PHYS_BASE,
-	{ IRQ_EP93XX_UART2 }, &ep93xx_uart_data);
+	{ IRQ_EP93XX_UART2 }, NULL);
 
 static AMBA_APB_DEVICE(uart3, "apb:uart3", 0x00041010, EP93XX_UART3_PHYS_BASE,
 	{ IRQ_EP93XX_UART3 }, &ep93xx_uart_data);
@@ -921,7 +922,7 @@ void __init ep93xx_init_devices(void)
 	gpio_led_register_device(-1, &ep93xx_led_data);
 }
 
-void ep93xx_restart(char mode, const char *cmd)
+void ep93xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Set then clear the SWRST bit to initiate a software reset

@@ -287,7 +287,7 @@ static const struct attribute_group regulator_virtual_attr_group = {
 
 static int regulator_virtual_probe(struct platform_device *pdev)
 {
-	char *reg_id = pdev->dev.platform_data;
+	char *reg_id = dev_get_platdata(&pdev->dev);
 	struct virtual_consumer_data *drvdata;
 	int ret;
 
@@ -329,8 +329,6 @@ static int regulator_virtual_remove(struct platform_device *pdev)
 
 	if (drvdata->enabled)
 		regulator_disable(drvdata->regulator);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

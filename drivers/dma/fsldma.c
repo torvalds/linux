@@ -979,15 +979,7 @@ static enum dma_status fsl_tx_status(struct dma_chan *dchan,
 					dma_cookie_t cookie,
 					struct dma_tx_state *txstate)
 {
-	struct fsldma_chan *chan = to_fsl_chan(dchan);
-	enum dma_status ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&chan->desc_lock, flags);
-	ret = dma_cookie_status(dchan, cookie, txstate);
-	spin_unlock_irqrestore(&chan->desc_lock, flags);
-
-	return ret;
+	return dma_cookie_status(dchan, cookie, txstate);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1368,7 +1360,7 @@ static int fsldma_of_probe(struct platform_device *op)
 
 	dma_set_mask(&(op->dev), DMA_BIT_MASK(36));
 
-	dev_set_drvdata(&op->dev, fdev);
+	platform_set_drvdata(op, fdev);
 
 	/*
 	 * We cannot use of_platform_bus_probe() because there is no
@@ -1417,7 +1409,7 @@ static int fsldma_of_remove(struct platform_device *op)
 	struct fsldma_device *fdev;
 	unsigned int i;
 
-	fdev = dev_get_drvdata(&op->dev);
+	fdev = platform_get_drvdata(op);
 	dma_async_device_unregister(&fdev->common);
 
 	fsldma_free_irqs(fdev);
@@ -1428,7 +1420,6 @@ static int fsldma_of_remove(struct platform_device *op)
 	}
 
 	iounmap(fdev->regs);
-	dev_set_drvdata(&op->dev, NULL);
 	kfree(fdev);
 
 	return 0;

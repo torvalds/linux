@@ -226,7 +226,7 @@ struct pwc_device
 	struct list_head queued_bufs;
 	spinlock_t queued_bufs_lock; /* Protects queued_bufs */
 
-	/* Note if taking both locks v4l2_lock must always be locked first! */
+	/* If taking both locks vb_queue_lock must always be locked first! */
 	struct mutex v4l2_lock;      /* Protects everything else */
 	struct mutex vb_queue_lock;  /* Protects vb_queue and capt_file */
 

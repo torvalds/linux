@@ -9,6 +9,7 @@
  *  publishhed by the Free Software Foundation.
  */
 #include <linux/gpio.h>
+#include <linux/gpio-pxa.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -110,6 +111,10 @@ static unsigned long common_pin_config[] __initdata = {
 	GPIO121_KP_MKIN4,
 };
 
+static struct pxa_gpio_platform_data pxa168_gpio_pdata = {
+	.irq_base	= MMP_GPIO_TO_IRQ(0),
+};
+
 static struct smc91x_platdata smc91x_info = {
 	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
 };
@@ -205,7 +210,7 @@ struct pxa168fb_mach_info aspenite_lcd_info = {
 	.invert_pixclock	= 0,
 };
 
-static unsigned int aspenite_matrix_key_map[] = {
+static const unsigned int aspenite_matrix_key_map[] = {
 	KEY(0, 6, KEY_UP),	/* SW 4 */
 	KEY(0, 7, KEY_DOWN),	/* SW 5 */
 	KEY(1, 6, KEY_LEFT),	/* SW 6 */
@@ -214,22 +219,20 @@ static unsigned int aspenite_matrix_key_map[] = {
 	KEY(4, 7, KEY_ESC),	/* SW 9 */
 };
 
+static struct matrix_keymap_data aspenite_matrix_keymap_data = {
+	.keymap			= aspenite_matrix_key_map,
+	.keymap_size		= ARRAY_SIZE(aspenite_matrix_key_map),
+};
+
 static struct pxa27x_keypad_platform_data aspenite_keypad_info __initdata = {
 	.matrix_key_rows	= 5,
 	.matrix_key_cols	= 8,
-	.matrix_key_map		= aspenite_matrix_key_map,
-	.matrix_key_map_size	= ARRAY_SIZE(aspenite_matrix_key_map),
+	.matrix_keymap_data	= &aspenite_matrix_keymap_data,
 	.debounce_interval	= 30,
 };
 
 #if defined(CONFIG_USB_EHCI_MV)
-static char *pxa168_sph_clock_name[] = {
-	[0] = "PXA168-USBCLK",
-};
-
 static struct mv_usb_platform_data pxa168_sph_pdata = {
-	.clknum         = 1,
-	.clkname        = pxa168_sph_clock_name,
 	.mode           = MV_USB_MODE_HOST,
 	.phy_init	= pxa_usb_phy_init,
 	.phy_deinit	= pxa_usb_phy_deinit,
@@ -248,6 +251,8 @@ static void __init common_init(void)
 	pxa168_add_nand(&aspenite_nand_info);
 	pxa168_add_fb(&aspenite_lcd_info);
 	pxa168_add_keypad(&aspenite_keypad_info);
+	platform_device_add_data(&pxa168_device_gpio, &pxa168_gpio_pdata,
+				 sizeof(struct pxa_gpio_platform_data));
 	platform_device_register(&pxa168_device_gpio);
 
 	/* off-chip devices */

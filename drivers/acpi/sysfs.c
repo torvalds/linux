@@ -7,6 +7,8 @@
 #include <linux/moduleparam.h>
 #include <acpi/acpi_drivers.h>
 
+#include "internal.h"
+
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("sysfs");
 
@@ -249,6 +251,7 @@ module_param_call(acpica_version, NULL, param_get_acpica_version, NULL, 0444);
 static LIST_HEAD(acpi_table_attr_list);
 static struct kobject *tables_kobj;
 static struct kobject *dynamic_tables_kobj;
+static struct kobject *hotplug_kobj;
 
 struct acpi_table_attr {
 	struct bin_attribute attr;
@@ -674,10 +677,9 @@ void acpi_irq_stats_init(void)
 		else
 			sprintf(buffer, "bug%02X", i);
 
-		name = kzalloc(strlen(buffer) + 1, GFP_KERNEL);
+		name = kstrdup(buffer, GFP_KERNEL);
 		if (name == NULL)
 			goto fail;
-		strncpy(name, buffer, strlen(buffer) + 1);
 
 		sysfs_attr_init(&counter_attrs[i].attr);
 		counter_attrs[i].attr.name = name;
@@ -716,6 +718,94 @@ acpi_show_profile(struct device *dev, struct device_attribute *attr,
 static const struct device_attribute pm_profile_attr =
 	__ATTR(pm_profile, S_IRUGO, acpi_show_profile, NULL);
 
+static ssize_t hotplug_enabled_show(struct kobject *kobj,
+				    struct kobj_attribute *attr, char *buf)
+{
+	struct acpi_hotplug_profile *hotplug = to_acpi_hotplug_profile(kobj);
+
+	return sprintf(buf, "%d\n", hotplug->enabled);
+}
+
+static ssize_t hotplug_enabled_store(struct kobject *kobj,
+				     struct kobj_attribute *attr,
+				     const char *buf, size_t size)
+{
+	struct acpi_hotplug_profile *hotplug = to_acpi_hotplug_profile(kobj);
+	unsigned int val;
+
+	if (kstrtouint(buf, 10, &val) || val > 1)
+		return -EINVAL;
+
+	acpi_scan_hotplug_enabled(hotplug, val);
+	return size;
+}
+
+static struct kobj_attribute hotplug_enabled_attr =
+	__ATTR(enabled, S_IRUGO | S_IWUSR, hotplug_enabled_show,
+		hotplug_enabled_store);
+
+static struct attribute *hotplug_profile_attrs[] = {
+	&hotplug_enabled_attr.attr,
+	NULL
+};
+
+static struct kobj_type acpi_hotplug_profile_ktype = {
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_attrs = hotplug_profile_attrs,
+};
+
+void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
+				    const char *name)
+{
+	int error;
+
+	if (!hotplug_kobj)
+		goto err_out;
+
+	kobject_init(&hotplug->kobj, &acpi_hotplug_profile_ktype);
+	error = kobject_set_name(&hotplug->kobj, "%s", name);
+	if (error)
+		goto err_out;
+
+	hotplug->kobj.parent = hotplug_kobj;
+	error = kobject_add(&hotplug->kobj, hotplug_kobj, NULL);
+	if (error)
+		goto err_out;
+
+	kobject_uevent(&hotplug->kobj, KOBJ_ADD);
+	return;
+
+ err_out:
+	pr_err(PREFIX "Unable to add hotplug profile '%s'\n", name);
+}
+
+static ssize_t force_remove_show(struct kobject *kobj,
+				 struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", !!acpi_force_hot_remove);
+}
+
+static ssize_t force_remove_store(struct kobject *kobj,
+				  struct kobj_attribute *attr,
+				  const char *buf, size_t size)
+{
+	bool val;
+	int ret;
+
+	ret = strtobool(buf, &val);
+	if (ret < 0)
+		return ret;
+
+	lock_device_hotplug();
+	acpi_force_hot_remove = val;
+	unlock_device_hotplug();
+	return size;
+}
+
+static const struct kobj_attribute force_remove_attr =
+	__ATTR(force_remove, S_IRUGO | S_IWUSR, force_remove_show,
+	       force_remove_store);
+
 int __init acpi_sysfs_init(void)
 {
 	int result;
@@ -723,6 +813,12 @@ int __init acpi_sysfs_init(void)
 	result = acpi_tables_sysfs_init();
 	if (result)
 		return result;
+
+	hotplug_kobj = kobject_create_and_add("hotplug", acpi_kobj);
+	result = sysfs_create_file(hotplug_kobj, &force_remove_attr.attr);
+	if (result)
+		return result;
+
 	result = sysfs_create_file(acpi_kobj, &pm_profile_attr.attr);
 	return result;
 }

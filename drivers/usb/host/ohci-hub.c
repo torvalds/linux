@@ -176,7 +176,6 @@ __acquires(ohci->lock)
 	if (status == -EBUSY) {
 		if (!autostopped) {
 			spin_unlock_irq (&ohci->lock);
-			(void) ohci_init (ohci);
 			status = ohci_restart (ohci);
 
 			usb_root_hub_lost_power(hcd->self.root_hub);
@@ -580,14 +579,8 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 
 /* See usb 7.1.7.5:  root hubs must issue at least 50 msec reset signaling,
  * not necessarily continuous ... to guard against resume signaling.
- * The short timeout is safe for non-root hubs, and is backward-compatible
- * with earlier Linux hosts.
  */
-#ifdef	CONFIG_USB_SUSPEND
 #define	PORT_RESET_MSEC		50
-#else
-#define	PORT_RESET_MSEC		10
-#endif
 
 /* this timer value might be vendor-specific ... */
 #define	PORT_RESET_HW_MSEC	10

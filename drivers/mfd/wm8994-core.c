@@ -19,6 +19,9 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -191,42 +194,14 @@ static const char *wm8958_main_supplies[] = {
 	"SPKVDD2",
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_RUNTIME
 static int wm8994_suspend(struct device *dev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);
 	int ret;
 
 	/* Don't actually go through with the suspend if the CODEC is
-	 * still active (eg, for audio passthrough from CP. */
-	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_1);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
-	} else if (ret & WM8994_VMID_SEL_MASK) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-		return 0;
-	}
-
-	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_4);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
-	} else if (ret & (WM8994_AIF2ADCL_ENA | WM8994_AIF2ADCR_ENA |
-			  WM8994_AIF1ADC2L_ENA | WM8994_AIF1ADC2R_ENA |
-			  WM8994_AIF1ADC1L_ENA | WM8994_AIF1ADC1R_ENA)) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-		return 0;
-	}
-
-	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_5);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
-	} else if (ret & (WM8994_AIF2DACL_ENA | WM8994_AIF2DACR_ENA |
-			  WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA |
-			  WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA)) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-		return 0;
-	}
-
+	 * still active for accessory detect. */
 	switch (wm8994->type) {
 	case WM8958:
 	case WM1811:
@@ -234,34 +209,6 @@ static int wm8994_suspend(struct device *dev)
 		if (ret < 0) {
 			dev_err(dev, "Failed to read power status: %d\n", ret);
 		} else if (ret & WM8958_MICD_ENA) {
-			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-			return 0;
-		}
-		break;
-	default:
-		break;
-	}
-
-	switch (wm8994->type) {
-	case WM1811:
-		ret = wm8994_reg_read(wm8994, WM8994_ANTIPOP_2);
-		if (ret < 0) {
-			dev_err(dev, "Failed to read jackdet: %d\n", ret);
-		} else if (ret & WM1811_JACKDET_MODE_MASK) {
-			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-			return 0;
-		}
-		break;
-	default:
-		break;
-	}
-
-	switch (wm8994->type) {
-	case WM1811:
-		ret = wm8994_reg_read(wm8994, WM8994_ANTIPOP_2);
-		if (ret < 0) {
-			dev_err(dev, "Failed to read jackdet: %d\n", ret);
-		} else if (ret & WM1811_JACKDET_MODE_MASK) {
 			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
 			return 0;
 		}
@@ -396,6 +343,60 @@ static const struct reg_default wm1811_reva_patch[] = {
 	{ 0x102, 0x0 },
 };
 
+#ifdef CONFIG_OF
+static int wm8994_set_pdata_from_of(struct wm8994 *wm8994)
+{
+	struct device_node *np = wm8994->dev->of_node;
+	struct wm8994_pdata *pdata = &wm8994->pdata;
+	int i;
+
+	if (!np)
+		return 0;
+
+	if (of_property_read_u32_array(np, "wlf,gpio-cfg", pdata->gpio_defaults,
+				       ARRAY_SIZE(pdata->gpio_defaults)) >= 0) {
+		for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
+			if (wm8994->pdata.gpio_defaults[i] == 0)
+				pdata->gpio_defaults[i]
+					= WM8994_CONFIGURE_GPIO;
+		}
+	}
+
+	of_property_read_u32_array(np, "wlf,micbias-cfg", pdata->micbias,
+				   ARRAY_SIZE(pdata->micbias));
+
+	pdata->lineout1_diff = true;
+	pdata->lineout2_diff = true;
+	if (of_find_property(np, "wlf,lineout1-se", NULL))
+		pdata->lineout1_diff = false;
+	if (of_find_property(np, "wlf,lineout2-se", NULL))
+		pdata->lineout2_diff = false;
+
+	if (of_find_property(np, "wlf,lineout1-feedback", NULL))
+		pdata->lineout1fb = true;
+	if (of_find_property(np, "wlf,lineout2-feedback", NULL))
+		pdata->lineout2fb = true;
+
+	if (of_find_property(np, "wlf,ldoena-always-driven", NULL))
+		pdata->lineout2fb = true;
+
+	pdata->ldo[0].enable = of_get_named_gpio(np, "wlf,ldo1ena", 0);
+	if (pdata->ldo[0].enable < 0)
+		pdata->ldo[0].enable = 0;
+
+	pdata->ldo[1].enable = of_get_named_gpio(np, "wlf,ldo2ena", 0);
+	if (pdata->ldo[1].enable < 0)
+		pdata->ldo[1].enable = 0;
+
+	return 0;
+}
+#else
+static int wm8994_set_pdata_from_of(struct wm8994 *wm8994)
+{
+	return 0;
+}
+#endif
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
@@ -405,7 +406,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	struct regmap_config *regmap_config;
 	const struct reg_default *regmap_patch = NULL;
 	const char *devname;
-	int ret, i, patch_regs;
+	int ret, i, patch_regs = 0;
 	int pulls = 0;
 
 	if (dev_get_platdata(wm8994->dev)) {
@@ -413,6 +414,10 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		wm8994->pdata = *pdata;
 	}
 	pdata = &wm8994->pdata;
+
+	ret = wm8994_set_pdata_from_of(wm8994);
+	if (ret != 0)
+		return ret;
 
 	dev_set_drvdata(wm8994->dev, wm8994);
 
@@ -591,6 +596,17 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		return ret;
 	}
 
+	/* Explicitly put the device into reset in case regulators
+	 * don't get disabled in order to ensure we know the device
+	 * state.
+	 */
+	ret = wm8994_reg_write(wm8994, WM8994_SOFTWARE_RESET,
+			       wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET));
+	if (ret != 0) {
+		dev_err(wm8994->dev, "Failed to reset device: %d\n", ret);
+		return ret;
+	}
+
 	if (regmap_patch) {
 		ret = regmap_register_patch(wm8994->regmap, regmap_patch,
 					    patch_regs);
@@ -673,9 +689,9 @@ static void wm8994_device_exit(struct wm8994 *wm8994)
 }
 
 static const struct of_device_id wm8994_of_match[] = {
-	{ .compatible = "wlf,wm1811", },
-	{ .compatible = "wlf,wm8994", },
-	{ .compatible = "wlf,wm8958", },
+	{ .compatible = "wlf,wm1811", .data = (void *)WM1811 },
+	{ .compatible = "wlf,wm8994", .data = (void *)WM8994 },
+	{ .compatible = "wlf,wm8958", .data = (void *)WM8958 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, wm8994_of_match);
@@ -683,6 +699,7 @@ MODULE_DEVICE_TABLE(of, wm8994_of_match);
 static int wm8994_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
+	const struct of_device_id *of_id;
 	struct wm8994 *wm8994;
 	int ret;
 
@@ -693,7 +710,14 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, wm8994);
 	wm8994->dev = &i2c->dev;
 	wm8994->irq = i2c->irq;
-	wm8994->type = id->driver_data;
+
+	if (i2c->dev.of_node) {
+		of_id = of_match_device(wm8994_of_match, &i2c->dev);
+		if (of_id)
+			wm8994->type = (int)of_id->data;
+	} else {
+		wm8994->type = id->driver_data;
+	}
 
 	wm8994->regmap = devm_regmap_init_i2c(i2c, &wm8994_base_regmap_config);
 	if (IS_ERR(wm8994->regmap)) {
@@ -724,15 +748,16 @@ static const struct i2c_device_id wm8994_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8994_i2c_id);
 
-static UNIVERSAL_DEV_PM_OPS(wm8994_pm_ops, wm8994_suspend, wm8994_resume,
-			    NULL);
+static const struct dev_pm_ops wm8994_pm_ops = {
+	SET_RUNTIME_PM_OPS(wm8994_suspend, wm8994_resume, NULL)
+};
 
 static struct i2c_driver wm8994_i2c_driver = {
 	.driver = {
 		.name = "wm8994",
 		.owner = THIS_MODULE,
 		.pm = &wm8994_pm_ops,
-		.of_match_table = wm8994_of_match,
+		.of_match_table = of_match_ptr(wm8994_of_match),
 	},
 	.probe = wm8994_i2c_probe,
 	.remove = wm8994_i2c_remove,

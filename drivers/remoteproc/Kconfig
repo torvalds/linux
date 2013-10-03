@@ -4,16 +4,19 @@ menu "Remoteproc drivers"
 config REMOTEPROC
 	tristate
 	depends on HAS_DMA
-	select FW_CONFIG
+	select CRC32
+	select FW_LOADER
 	select VIRTIO
+	select VIRTUALIZATION
 
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
 	depends on HAS_DMA
-	depends on ARCH_OMAP4
+	depends on ARCH_OMAP4 || SOC_OMAP5
 	depends on OMAP_IOMMU
-	depends on OMAP_MBOX_FWK
 	select REMOTEPROC
+	select MAILBOX
+	select OMAP2PLUS_MBOX
 	select RPMSG
 	help
 	  Say y here to support OMAP's remote processors (dual M3
@@ -37,5 +40,28 @@ config STE_MODEM_RPROC
 	  Say y or m here to support STE-Modem shared memory driver.
 	  This can be either built-in or a loadable module.
 	  If unsure say N.
+
+config DA8XX_REMOTEPROC
+	tristate "DA8xx/OMAP-L13x remoteproc support"
+	depends on ARCH_DAVINCI_DA8XX
+	select CMA
+	select REMOTEPROC
+	select RPMSG
+	help
+	  Say y here to support DA8xx/OMAP-L13x remote processors via the
+	  remote processor framework.
+
+	  You want to say y here in order to enable AMP
+	  use-cases to run on your platform (multimedia codecs are
+	  offloaded to remote DSP processors using this framework).
+
+	  This module controls the name of the firmware file that gets
+	  loaded on the DSP.  This file must reside in the /lib/firmware
+	  directory.  It can be specified via the module parameter
+	  da8xx_fw_name=<filename>, and if not specified will default to
+	  "rproc-dsp-fw".
+
+	  It's safe to say n here if you're not interested in multimedia
+	  offloading.
 
 endmenu

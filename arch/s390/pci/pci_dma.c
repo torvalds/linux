@@ -10,6 +10,7 @@
 #include <linux/export.h>
 #include <linux/iommu-helper.h>
 #include <linux/dma-mapping.h>
+#include <linux/vmalloc.h>
 #include <linux/pci.h>
 #include <asm/pci_dma.h>
 
@@ -169,8 +170,9 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 		 * needs to be redone!
 		 */
 		goto no_refresh;
-	rc = rpcit_instr((u64) zdev->fh << 32, start_dma_addr,
-			  nr_pages * PAGE_SIZE);
+
+	rc = zpci_refresh_trans((u64) zdev->fh << 32, start_dma_addr,
+				nr_pages * PAGE_SIZE);
 
 no_refresh:
 	spin_unlock_irqrestore(&zdev->dma_table_lock, irq_flags);
@@ -262,13 +264,11 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 				     enum dma_data_direction direction,
 				     struct dma_attrs *attrs)
 {
-	struct zpci_dev *zdev = get_zdev(container_of(dev, struct pci_dev, dev));
+	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
 	unsigned long nr_pages, iommu_page_index;
 	unsigned long pa = page_to_phys(page) + offset;
 	int flags = ZPCI_PTE_VALID;
 	dma_addr_t dma_addr;
-
-	WARN_ON_ONCE(offset > PAGE_SIZE);
 
 	/* This rounds up number of pages based on size and offset */
 	nr_pages = iommu_num_pages(pa, size, PAGE_SIZE);
@@ -291,7 +291,7 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 
 	if (!dma_update_trans(zdev, pa, dma_addr, size, flags)) {
 		atomic64_add(nr_pages, (atomic64_t *) &zdev->fmb->mapped_pages);
-		return dma_addr + offset;
+		return dma_addr + (offset & ~PAGE_MASK);
 	}
 
 out_free:
@@ -305,7 +305,7 @@ static void s390_dma_unmap_pages(struct device *dev, dma_addr_t dma_addr,
 				 size_t size, enum dma_data_direction direction,
 				 struct dma_attrs *attrs)
 {
-	struct zpci_dev *zdev = get_zdev(container_of(dev, struct pci_dev, dev));
+	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
 	unsigned long iommu_page_index;
 	int npages;
 
@@ -324,7 +324,7 @@ static void *s390_dma_alloc(struct device *dev, size_t size,
 			    dma_addr_t *dma_handle, gfp_t flag,
 			    struct dma_attrs *attrs)
 {
-	struct zpci_dev *zdev = get_zdev(container_of(dev, struct pci_dev, dev));
+	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
 	struct page *page;
 	unsigned long pa;
 	dma_addr_t map;
@@ -408,7 +408,6 @@ static void s390_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 
 int zpci_dma_init_device(struct zpci_dev *zdev)
 {
-	unsigned int bitmap_order;
 	int rc;
 
 	spin_lock_init(&zdev->iommu_bitmap_lock);
@@ -422,12 +421,7 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 
 	zdev->iommu_size = (unsigned long) high_memory - PAGE_OFFSET;
 	zdev->iommu_pages = zdev->iommu_size >> PAGE_SHIFT;
-	bitmap_order = get_order(zdev->iommu_pages / 8);
-	pr_info("iommu_size: 0x%lx  iommu_pages: 0x%lx  bitmap_order: %i\n",
-		 zdev->iommu_size, zdev->iommu_pages, bitmap_order);
-
-	zdev->iommu_bitmap = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
-						       bitmap_order);
+	zdev->iommu_bitmap = vzalloc(zdev->iommu_pages / 8);
 	if (!zdev->iommu_bitmap) {
 		rc = -ENOMEM;
 		goto out_reg;
@@ -452,8 +446,7 @@ void zpci_dma_exit_device(struct zpci_dev *zdev)
 {
 	zpci_unregister_ioat(zdev, 0);
 	dma_cleanup_tables(zdev);
-	free_pages((unsigned long) zdev->iommu_bitmap,
-		   get_order(zdev->iommu_pages / 8));
+	vfree(zdev->iommu_bitmap);
 	zdev->iommu_bitmap = NULL;
 	zdev->next_bit = 0;
 }

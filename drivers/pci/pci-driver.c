@@ -390,9 +390,10 @@ static void pci_device_shutdown(struct device *dev)
 
 	/*
 	 * Turn off Bus Master bit on the device to tell it to not
-	 * continue to do DMA
+	 * continue to do DMA. Don't touch devices in D3cold or unknown states.
 	 */
-	pci_clear_master(pci_dev);
+	if (pci_dev->current_state <= PCI_D3hot)
+		pci_clear_master(pci_dev);
 }
 
 #ifdef CONFIG_PM
@@ -762,6 +763,13 @@ static int pci_pm_resume(struct device *dev)
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 
+
+/*
+ * pcibios_pm_ops - provide arch-specific hooks when a PCI device is doing
+ * a hibernate transition
+ */
+struct dev_pm_ops __weak pcibios_pm_ops;
+
 static int pci_pm_freeze(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
@@ -784,6 +792,9 @@ static int pci_pm_freeze(struct device *dev)
 		if (error)
 			return error;
 	}
+
+	if (pcibios_pm_ops.freeze)
+		return pcibios_pm_ops.freeze(dev);
 
 	return 0;
 }
@@ -810,6 +821,9 @@ static int pci_pm_freeze_noirq(struct device *dev)
 
 	pci_pm_set_unknown_state(pci_dev);
 
+	if (pcibios_pm_ops.freeze_noirq)
+		return pcibios_pm_ops.freeze_noirq(dev);
+
 	return 0;
 }
 
@@ -818,6 +832,12 @@ static int pci_pm_thaw_noirq(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct device_driver *drv = dev->driver;
 	int error = 0;
+
+	if (pcibios_pm_ops.thaw_noirq) {
+		error = pcibios_pm_ops.thaw_noirq(dev);
+		if (error)
+			return error;
+	}
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume_early(dev);
@@ -835,6 +855,12 @@ static int pci_pm_thaw(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int error = 0;
+
+	if (pcibios_pm_ops.thaw) {
+		error = pcibios_pm_ops.thaw(dev);
+		if (error)
+			return error;
+	}
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume(dev);
@@ -877,6 +903,9 @@ static int pci_pm_poweroff(struct device *dev)
  Fixup:
 	pci_fixup_device(pci_fixup_suspend, pci_dev);
 
+	if (pcibios_pm_ops.poweroff)
+		return pcibios_pm_ops.poweroff(dev);
+
 	return 0;
 }
 
@@ -910,6 +939,9 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 	if (pci_dev->class == PCI_CLASS_SERIAL_USB_EHCI)
 		pci_write_config_word(pci_dev, PCI_COMMAND, 0);
 
+	if (pcibios_pm_ops.poweroff_noirq)
+		return pcibios_pm_ops.poweroff_noirq(dev);
+
 	return 0;
 }
 
@@ -918,6 +950,12 @@ static int pci_pm_restore_noirq(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct device_driver *drv = dev->driver;
 	int error = 0;
+
+	if (pcibios_pm_ops.restore_noirq) {
+		error = pcibios_pm_ops.restore_noirq(dev);
+		if (error)
+			return error;
+	}
 
 	pci_pm_default_resume_early(pci_dev);
 
@@ -935,6 +973,12 @@ static int pci_pm_restore(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int error = 0;
+
+	if (pcibios_pm_ops.restore) {
+		error = pcibios_pm_ops.restore(dev);
+		if (error)
+			return error;
+	}
 
 	/*
 	 * This is necessary for the hibernation error path in which restore is
@@ -1049,26 +1093,22 @@ static int pci_pm_runtime_idle(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	int ret = 0;
 
 	/*
 	 * If pci_dev->driver is not set (unbound), the device should
 	 * always remain in D0 regardless of the runtime PM status
 	 */
 	if (!pci_dev->driver)
-		goto out;
+		return 0;
 
 	if (!pm)
 		return -ENOSYS;
 
-	if (pm->runtime_idle) {
-		int ret = pm->runtime_idle(dev);
-		if (ret)
-			return ret;
-	}
+	if (pm->runtime_idle)
+		ret = pm->runtime_idle(dev);
 
-out:
-	pm_runtime_suspend(dev);
-	return 0;
+	return ret;
 }
 
 #else /* !CONFIG_PM_RUNTIME */

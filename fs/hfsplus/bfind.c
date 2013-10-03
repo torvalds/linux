@@ -22,7 +22,7 @@ int hfs_find_init(struct hfs_btree *tree, struct hfs_find_data *fd)
 		return -ENOMEM;
 	fd->search_key = ptr;
 	fd->key = ptr + tree->max_key_len + 2;
-	dprint(DBG_BNODE_REFS, "find_init: %d (%p)\n",
+	hfs_dbg(BNODE_REFS, "find_init: %d (%p)\n",
 		tree->cnid, __builtin_return_address(0));
 	switch (tree->cnid) {
 	case HFSPLUS_CAT_CNID:
@@ -44,7 +44,7 @@ void hfs_find_exit(struct hfs_find_data *fd)
 {
 	hfs_bnode_put(fd->bnode);
 	kfree(fd->search_key);
-	dprint(DBG_BNODE_REFS, "find_exit: %d (%p)\n",
+	hfs_dbg(BNODE_REFS, "find_exit: %d (%p)\n",
 		fd->tree->cnid, __builtin_return_address(0));
 	mutex_unlock(&fd->tree->tree_lock);
 	fd->tree = NULL;
@@ -56,7 +56,8 @@ int hfs_find_1st_rec_by_cnid(struct hfs_bnode *bnode,
 				int *end,
 				int *cur_rec)
 {
-	__be32 cur_cnid, search_cnid;
+	__be32 cur_cnid;
+	__be32 search_cnid;
 
 	if (bnode->tree->cnid == HFSPLUS_EXT_CNID) {
 		cur_cnid = fd->key->ext.cnid;
@@ -67,8 +68,11 @@ int hfs_find_1st_rec_by_cnid(struct hfs_bnode *bnode,
 	} else if (bnode->tree->cnid == HFSPLUS_ATTR_CNID) {
 		cur_cnid = fd->key->attr.cnid;
 		search_cnid = fd->search_key->attr.cnid;
-	} else
+	} else {
+		cur_cnid = 0;	/* used-uninitialized warning */
+		search_cnid = 0;
 		BUG();
+	}
 
 	if (cur_cnid == search_cnid) {
 		(*end) = (*cur_rec);
@@ -204,7 +208,7 @@ int hfs_brec_find(struct hfs_find_data *fd, search_strategy_t do_key_compare)
 	return res;
 
 invalid:
-	printk(KERN_ERR "hfs: inconsistency in B*Tree (%d,%d,%d,%u,%u)\n",
+	pr_err("inconsistency in B*Tree (%d,%d,%d,%u,%u)\n",
 		height, bnode->height, bnode->type, nidx, parent);
 	res = -EIO;
 release:

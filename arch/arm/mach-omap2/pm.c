@@ -218,7 +218,7 @@ static int omap_pm_enter(suspend_state_t suspend_state)
 
 static int omap_pm_begin(suspend_state_t state)
 {
-	disable_hlt();
+	cpu_idle_poll_ctrl(true);
 	if (cpu_is_omap34xx())
 		omap_prcm_irq_prepare();
 	return 0;
@@ -226,8 +226,7 @@ static int omap_pm_begin(suspend_state_t state)
 
 static void omap_pm_end(void)
 {
-	enable_hlt();
-	return;
+	cpu_idle_poll_ctrl(false);
 }
 
 static void omap_pm_finish(void)
@@ -265,6 +264,12 @@ static void __init omap4_init_voltages(void)
 	omap2_set_init_voltage("iva", "dpll_iva_m5x2_ck", "iva");
 }
 
+static inline void omap_init_cpufreq(void)
+{
+	struct platform_device_info devinfo = { .name = "omap-cpufreq", };
+	platform_device_register_full(&devinfo);
+}
+
 static int __init omap2_common_pm_init(void)
 {
 	if (!of_have_populated_dt())
@@ -294,6 +299,9 @@ int __init omap2_common_pm_late_init(void)
 
 		/* Smartreflex device init */
 		omap_devinit_smartreflex();
+
+		/* cpufreq dummy device instantiation */
+		omap_init_cpufreq();
 	}
 
 #ifdef CONFIG_SUSPEND

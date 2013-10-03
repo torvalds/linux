@@ -56,6 +56,109 @@ void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc, u32 offset, u32 mask,
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_regctl_maskset);
 
+static u32 bcma_pmu_xtalfreq(struct bcma_drv_cc *cc)
+{
+	u32 ilp_ctl, alp_hz;
+
+	if (!(bcma_cc_read32(cc, BCMA_CC_PMU_STAT) &
+	      BCMA_CC_PMU_STAT_EXT_LPO_AVAIL))
+		return 0;
+
+	bcma_cc_write32(cc, BCMA_CC_PMU_XTAL_FREQ,
+			BIT(BCMA_CC_PMU_XTAL_FREQ_MEASURE_SHIFT));
+	usleep_range(1000, 2000);
+
+	ilp_ctl = bcma_cc_read32(cc, BCMA_CC_PMU_XTAL_FREQ);
+	ilp_ctl &= BCMA_CC_PMU_XTAL_FREQ_ILPCTL_MASK;
+
+	bcma_cc_write32(cc, BCMA_CC_PMU_XTAL_FREQ, 0);
+
+	alp_hz = ilp_ctl * 32768 / 4;
+	return (alp_hz + 50000) / 100000 * 100;
+}
+
+static void bcma_pmu2_pll_init0(struct bcma_drv_cc *cc, u32 xtalfreq)
+{
+	struct bcma_bus *bus = cc->core->bus;
+	u32 freq_tgt_target = 0, freq_tgt_current;
+	u32 pll0, mask;
+
+	switch (bus->chipinfo.id) {
+	case BCMA_CHIP_ID_BCM43142:
+		/* pmu2_xtaltab0_adfll_485 */
+		switch (xtalfreq) {
+		case 12000:
+			freq_tgt_target = 0x50D52;
+			break;
+		case 20000:
+			freq_tgt_target = 0x307FE;
+			break;
+		case 26000:
+			freq_tgt_target = 0x254EA;
+			break;
+		case 37400:
+			freq_tgt_target = 0x19EF8;
+			break;
+		case 52000:
+			freq_tgt_target = 0x12A75;
+			break;
+		}
+		break;
+	}
+
+	if (!freq_tgt_target) {
+		bcma_err(bus, "Unknown TGT frequency for xtalfreq %d\n",
+			 xtalfreq);
+		return;
+	}
+
+	pll0 = bcma_chipco_pll_read(cc, BCMA_CC_PMU15_PLL_PLLCTL0);
+	freq_tgt_current = (pll0 & BCMA_CC_PMU15_PLL_PC0_FREQTGT_MASK) >>
+		BCMA_CC_PMU15_PLL_PC0_FREQTGT_SHIFT;
+
+	if (freq_tgt_current == freq_tgt_target) {
+		bcma_debug(bus, "Target TGT frequency already set\n");
+		return;
+	}
+
+	/* Turn off PLL */
+	switch (bus->chipinfo.id) {
+	case BCMA_CHIP_ID_BCM43142:
+		mask = (u32)~(BCMA_RES_4314_HT_AVAIL |
+			      BCMA_RES_4314_MACPHY_CLK_AVAIL);
+
+		bcma_cc_mask32(cc, BCMA_CC_PMU_MINRES_MSK, mask);
+		bcma_cc_mask32(cc, BCMA_CC_PMU_MAXRES_MSK, mask);
+		bcma_wait_value(cc->core, BCMA_CLKCTLST,
+				BCMA_CLKCTLST_HAVEHT, 0, 20000);
+		break;
+	}
+
+	pll0 &= ~BCMA_CC_PMU15_PLL_PC0_FREQTGT_MASK;
+	pll0 |= freq_tgt_target << BCMA_CC_PMU15_PLL_PC0_FREQTGT_SHIFT;
+	bcma_chipco_pll_write(cc, BCMA_CC_PMU15_PLL_PLLCTL0, pll0);
+
+	/* Flush */
+	if (cc->pmu.rev >= 2)
+		bcma_cc_set32(cc, BCMA_CC_PMU_CTL, BCMA_CC_PMU_CTL_PLL_UPD);
+
+	/* TODO: Do we need to update OTP? */
+}
+
+static void bcma_pmu_pll_init(struct bcma_drv_cc *cc)
+{
+	struct bcma_bus *bus = cc->core->bus;
+	u32 xtalfreq = bcma_pmu_xtalfreq(cc);
+
+	switch (bus->chipinfo.id) {
+	case BCMA_CHIP_ID_BCM43142:
+		if (xtalfreq == 0)
+			xtalfreq = 20000;
+		bcma_pmu2_pll_init0(cc, xtalfreq);
+		break;
+	}
+}
+
 static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
@@ -65,6 +168,25 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 	case BCMA_CHIP_ID_BCM4313:
 		min_msk = 0x200D;
 		max_msk = 0xFFFF;
+		break;
+	case BCMA_CHIP_ID_BCM43142:
+		min_msk = BCMA_RES_4314_LPLDO_PU |
+			  BCMA_RES_4314_PMU_SLEEP_DIS |
+			  BCMA_RES_4314_PMU_BG_PU |
+			  BCMA_RES_4314_CBUCK_LPOM_PU |
+			  BCMA_RES_4314_CBUCK_PFM_PU |
+			  BCMA_RES_4314_CLDO_PU |
+			  BCMA_RES_4314_LPLDO2_LVM |
+			  BCMA_RES_4314_WL_PMU_PU |
+			  BCMA_RES_4314_LDO3P3_PU |
+			  BCMA_RES_4314_OTP_PU |
+			  BCMA_RES_4314_WL_PWRSW_PU |
+			  BCMA_RES_4314_LQ_AVAIL |
+			  BCMA_RES_4314_LOGIC_RET |
+			  BCMA_RES_4314_MEM_SLEEP |
+			  BCMA_RES_4314_MACPHY_RET |
+			  BCMA_RES_4314_WL_CORE_READY;
+		max_msk = 0x3FFFFFFF;
 		break;
 	default:
 		bcma_debug(bus, "PMU resource config unknown or not needed for device 0x%04X\n",
@@ -165,6 +287,7 @@ void bcma_pmu_init(struct bcma_drv_cc *cc)
 		bcma_cc_set32(cc, BCMA_CC_PMU_CTL,
 			     BCMA_CC_PMU_CTL_NOILPONW);
 
+	bcma_pmu_pll_init(cc);
 	bcma_pmu_resources_init(cc);
 	bcma_pmu_workarounds(cc);
 }
@@ -174,19 +297,35 @@ u32 bcma_pmu_get_alp_clock(struct bcma_drv_cc *cc)
 	struct bcma_bus *bus = cc->core->bus;
 
 	switch (bus->chipinfo.id) {
-	case BCMA_CHIP_ID_BCM4716:
-	case BCMA_CHIP_ID_BCM4748:
-	case BCMA_CHIP_ID_BCM47162:
 	case BCMA_CHIP_ID_BCM4313:
-	case BCMA_CHIP_ID_BCM5357:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
+	case BCMA_CHIP_ID_BCM43227:
+	case BCMA_CHIP_ID_BCM43228:
+	case BCMA_CHIP_ID_BCM4331:
+	case BCMA_CHIP_ID_BCM43421:
+	case BCMA_CHIP_ID_BCM43428:
+	case BCMA_CHIP_ID_BCM43431:
+	case BCMA_CHIP_ID_BCM4716:
+	case BCMA_CHIP_ID_BCM47162:
+	case BCMA_CHIP_ID_BCM4748:
 	case BCMA_CHIP_ID_BCM4749:
+	case BCMA_CHIP_ID_BCM5357:
 	case BCMA_CHIP_ID_BCM53572:
+	case BCMA_CHIP_ID_BCM6362:
 		/* always 20Mhz */
 		return 20000 * 1000;
-	case BCMA_CHIP_ID_BCM5356:
 	case BCMA_CHIP_ID_BCM4706:
+	case BCMA_CHIP_ID_BCM5356:
 		/* always 25Mhz */
 		return 25000 * 1000;
+	case BCMA_CHIP_ID_BCM43460:
+	case BCMA_CHIP_ID_BCM4352:
+	case BCMA_CHIP_ID_BCM4360:
+		if (cc->status & BCMA_CC_CHIPST_4360_XTAL_40MZ)
+			return 40000 * 1000;
+		else
+			return 20000 * 1000;
 	default:
 		bcma_warn(bus, "No ALP clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
 			  bus->chipinfo.id, cc->pmu.rev, BCMA_CC_PMU_ALP_CLOCK);
@@ -373,7 +512,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 		tmp |= (bcm5357_bcm43236_ndiv[spuravoid]) << BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_SHIFT;
 		bcma_cc_write32(cc, BCMA_CC_PLLCTL_DATA, tmp);
 
-		tmp = 1 << 10;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 
 	case BCMA_CHIP_ID_BCM4331:
@@ -394,7 +533,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 			bcma_pmu_spuravoid_pll_write(cc, BCMA_CC_PMU_PLL_CTL2,
 						     0x03000a08);
 		}
-		tmp = 1 << 10;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 
 	case BCMA_CHIP_ID_BCM43224:
@@ -427,7 +566,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 			bcma_pmu_spuravoid_pll_write(cc, BCMA_CC_PMU_PLL_CTL5,
 						     0x88888815);
 		}
-		tmp = 1 << 10;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 
 	case BCMA_CHIP_ID_BCM4716:
@@ -461,7 +600,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 						     0x88888815);
 		}
 
-		tmp = 3 << 9;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD | BCMA_CC_PMU_CTL_NOILPONW;
 		break;
 
 	case BCMA_CHIP_ID_BCM43227:
@@ -497,7 +636,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 			bcma_pmu_spuravoid_pll_write(cc, BCMA_CC_PMU_PLL_CTL5,
 						     0x88888815);
 		}
-		tmp = 1 << 10;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 	default:
 		bcma_err(bus, "Unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",

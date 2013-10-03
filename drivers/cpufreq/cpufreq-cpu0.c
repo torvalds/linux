@@ -12,6 +12,7 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -44,8 +45,9 @@ static int cpu0_set_target(struct cpufreq_policy *policy,
 {
 	struct cpufreq_freqs freqs;
 	struct opp *opp;
-	unsigned long freq_Hz, volt = 0, volt_old = 0, tol = 0;
-	unsigned int index, cpu;
+	unsigned long volt = 0, volt_old = 0, tol = 0;
+	long freq_Hz, freq_exact;
+	unsigned int index;
 	int ret;
 
 	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
@@ -59,24 +61,24 @@ static int cpu0_set_target(struct cpufreq_policy *policy,
 	freq_Hz = clk_round_rate(cpu_clk, freq_table[index].frequency * 1000);
 	if (freq_Hz < 0)
 		freq_Hz = freq_table[index].frequency * 1000;
+	freq_exact = freq_Hz;
 	freqs.new = freq_Hz / 1000;
 	freqs.old = clk_get_rate(cpu_clk) / 1000;
 
 	if (freqs.old == freqs.new)
 		return 0;
 
-	for_each_online_cpu(cpu) {
-		freqs.cpu = cpu;
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
-	if (cpu_reg) {
+	if (!IS_ERR(cpu_reg)) {
 		rcu_read_lock();
 		opp = opp_find_freq_ceil(cpu_dev, &freq_Hz);
 		if (IS_ERR(opp)) {
 			rcu_read_unlock();
 			pr_err("failed to find OPP for %ld\n", freq_Hz);
-			return PTR_ERR(opp);
+			freqs.new = freqs.old;
+			ret = PTR_ERR(opp);
+			goto post_notify;
 		}
 		volt = opp_get_voltage(opp);
 		rcu_read_unlock();
@@ -89,48 +91,43 @@ static int cpu0_set_target(struct cpufreq_policy *policy,
 		 freqs.new / 1000, volt ? volt / 1000 : -1);
 
 	/* scaling up?  scale voltage before frequency */
-	if (cpu_reg && freqs.new > freqs.old) {
+	if (!IS_ERR(cpu_reg) && freqs.new > freqs.old) {
 		ret = regulator_set_voltage_tol(cpu_reg, volt, tol);
 		if (ret) {
 			pr_err("failed to scale voltage up: %d\n", ret);
 			freqs.new = freqs.old;
-			return ret;
+			goto post_notify;
 		}
 	}
 
-	ret = clk_set_rate(cpu_clk, freqs.new * 1000);
+	ret = clk_set_rate(cpu_clk, freq_exact);
 	if (ret) {
 		pr_err("failed to set clock rate: %d\n", ret);
-		if (cpu_reg)
+		if (!IS_ERR(cpu_reg))
 			regulator_set_voltage_tol(cpu_reg, volt_old, tol);
-		return ret;
+		freqs.new = freqs.old;
+		goto post_notify;
 	}
 
 	/* scaling down?  scale voltage after frequency */
-	if (cpu_reg && freqs.new < freqs.old) {
+	if (!IS_ERR(cpu_reg) && freqs.new < freqs.old) {
 		ret = regulator_set_voltage_tol(cpu_reg, volt, tol);
 		if (ret) {
 			pr_err("failed to scale voltage down: %d\n", ret);
 			clk_set_rate(cpu_clk, freqs.old * 1000);
 			freqs.new = freqs.old;
-			return ret;
 		}
 	}
 
-	for_each_online_cpu(cpu) {
-		freqs.cpu = cpu;
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	}
+post_notify:
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
-	return 0;
+	return ret;
 }
 
 static int cpu0_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int ret;
-
-	if (policy->cpu != 0)
-		return -EINVAL;
 
 	ret = cpufreq_frequency_table_cpuinfo(policy, freq_table);
 	if (ret) {
@@ -181,30 +178,38 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int ret;
 
-	for_each_child_of_node(of_find_node_by_path("/cpus"), np) {
-		if (of_get_property(np, "operating-points", NULL))
-			break;
+	cpu_dev = get_cpu_device(0);
+	if (!cpu_dev) {
+		pr_err("failed to get cpu0 device\n");
+		return -ENODEV;
 	}
 
+	np = of_node_get(cpu_dev->of_node);
 	if (!np) {
 		pr_err("failed to find cpu0 node\n");
 		return -ENOENT;
 	}
 
-	cpu_dev = &pdev->dev;
-	cpu_dev->of_node = np;
+	cpu_reg = devm_regulator_get_optional(cpu_dev, "cpu0");
+	if (IS_ERR(cpu_reg)) {
+		/*
+		 * If cpu0 regulator supply node is present, but regulator is
+		 * not yet registered, we should try defering probe.
+		 */
+		if (PTR_ERR(cpu_reg) == -EPROBE_DEFER) {
+			dev_err(cpu_dev, "cpu0 regulator not ready, retry\n");
+			ret = -EPROBE_DEFER;
+			goto out_put_node;
+		}
+		pr_warn("failed to get cpu0 regulator: %ld\n",
+			PTR_ERR(cpu_reg));
+	}
 
 	cpu_clk = devm_clk_get(cpu_dev, NULL);
 	if (IS_ERR(cpu_clk)) {
 		ret = PTR_ERR(cpu_clk);
 		pr_err("failed to get cpu0 clock: %d\n", ret);
 		goto out_put_node;
-	}
-
-	cpu_reg = devm_regulator_get(cpu_dev, "cpu0");
-	if (IS_ERR(cpu_reg)) {
-		pr_warn("failed to get cpu0 regulator\n");
-		cpu_reg = NULL;
 	}
 
 	ret = of_init_opp_table(cpu_dev);

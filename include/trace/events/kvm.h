@@ -37,7 +37,7 @@ TRACE_EVENT(kvm_userspace_exit,
 		  __entry->errno < 0 ? -__entry->errno : __entry->reason)
 );
 
-#if defined(__KVM_HAVE_IRQ_LINE)
+#if defined(CONFIG_HAVE_KVM_IRQCHIP)
 TRACE_EVENT(kvm_set_irq,
 	TP_PROTO(unsigned int gsi, int level, int irq_source_id),
 	TP_ARGS(gsi, level, irq_source_id),
@@ -122,6 +122,10 @@ TRACE_EVENT(kvm_msi_set_irq,
 	{KVM_IRQCHIP_PIC_SLAVE,		"PIC slave"},		\
 	{KVM_IRQCHIP_IOAPIC,		"IOAPIC"}
 
+#endif /* defined(__KVM_HAVE_IOAPIC) */
+
+#if defined(CONFIG_HAVE_KVM_IRQCHIP)
+
 TRACE_EVENT(kvm_ack_irq,
 	TP_PROTO(unsigned int irqchip, unsigned int pin),
 	TP_ARGS(irqchip, pin),
@@ -136,14 +140,18 @@ TRACE_EVENT(kvm_ack_irq,
 		__entry->pin		= pin;
 	),
 
+#ifdef kvm_irqchips
 	TP_printk("irqchip %s pin %u",
 		  __print_symbolic(__entry->irqchip, kvm_irqchips),
 		 __entry->pin)
+#else
+	TP_printk("irqchip %d pin %u", __entry->irqchip, __entry->pin)
+#endif
 );
 
+#endif /* defined(CONFIG_HAVE_KVM_IRQCHIP) */
 
 
-#endif /* defined(__KVM_HAVE_IOAPIC) */
 
 #define KVM_TRACE_MMIO_READ_UNSATISFIED 0
 #define KVM_TRACE_MMIO_READ 1

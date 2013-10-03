@@ -429,6 +429,13 @@ int dib7000p_get_agc_values(struct dvb_frontend *fe,
 }
 EXPORT_SYMBOL(dib7000p_get_agc_values);
 
+int dib7000p_set_agc1_min(struct dvb_frontend *fe, u16 v)
+{
+	struct dib7000p_state *state = fe->demodulator_priv;
+	return dib7000p_write_word(state, 108,  v);
+}
+EXPORT_SYMBOL(dib7000p_set_agc1_min);
+
 static void dib7000p_reset_pll(struct dib7000p_state *state)
 {
 	struct dibx000_bandwidth_config *bw = &state->cfg.bw[0];
@@ -821,6 +828,7 @@ static int dib7000p_agc_startup(struct dvb_frontend *demod)
 	u8 agc_split;
 	u16 reg;
 	u32 upd_demod_gain_period = 0x1000;
+	s32 frequency_offset = 0;
 
 	switch (state->agc_state) {
 	case 0:
@@ -841,7 +849,14 @@ static int dib7000p_agc_startup(struct dvb_frontend *demod)
 		if (dib7000p_set_agc_config(state, BAND_OF_FREQUENCY(ch->frequency / 1000)) != 0)
 			return -1;
 
-		dib7000p_set_dds(state, 0);
+		if (demod->ops.tuner_ops.get_frequency) {
+			u32 frequency_tuner;
+
+			demod->ops.tuner_ops.get_frequency(demod, &frequency_tuner);
+			frequency_offset = (s32)frequency_tuner / 1000 - ch->frequency / 1000;
+		}
+
+		dib7000p_set_dds(state, frequency_offset);
 		ret = 7;
 		(*agc_state)++;
 		break;

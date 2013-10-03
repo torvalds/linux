@@ -126,11 +126,11 @@ static irqreturn_t ems_pcmcia_interrupt(int irq, void *dev_id)
 static inline int ems_pcmcia_check_chan(struct sja1000_priv *priv)
 {
 	/* Make sure SJA1000 is in reset mode */
-	ems_pcmcia_write_reg(priv, REG_MOD, 1);
-	ems_pcmcia_write_reg(priv, REG_CDR, CDR_PELICAN);
+	ems_pcmcia_write_reg(priv, SJA1000_MOD, 1);
+	ems_pcmcia_write_reg(priv, SJA1000_CDR, CDR_PELICAN);
 
 	/* read reset-values */
-	if (ems_pcmcia_read_reg(priv, REG_CDR) == CDR_PELICAN)
+	if (ems_pcmcia_read_reg(priv, SJA1000_CDR) == CDR_PELICAN)
 		return 1;
 
 	return 0;
@@ -316,15 +316,4 @@ static struct pcmcia_driver ems_pcmcia_driver = {
 	.remove = ems_pcmcia_remove,
 	.id_table = ems_pcmcia_tbl,
 };
-
-static int __init ems_pcmcia_init(void)
-{
-	return pcmcia_register_driver(&ems_pcmcia_driver);
-}
-module_init(ems_pcmcia_init);
-
-static void __exit ems_pcmcia_exit(void)
-{
-	pcmcia_unregister_driver(&ems_pcmcia_driver);
-}
-module_exit(ems_pcmcia_exit);
+module_pcmcia_driver(ems_pcmcia_driver);

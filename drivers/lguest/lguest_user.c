@@ -250,13 +250,13 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
  */
 static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 {
-	/* We have a limited number the number of CPUs in the lguest struct. */
+	/* We have a limited number of CPUs in the lguest struct. */
 	if (id >= ARRAY_SIZE(cpu->lg->cpus))
 		return -EINVAL;
 
 	/* Set up this CPU's id, and pointer back to the lguest struct. */
 	cpu->id = id;
-	cpu->lg = container_of((cpu - id), struct lguest, cpus[0]);
+	cpu->lg = container_of(cpu, struct lguest, cpus[id]);
 	cpu->lg->nr_cpus++;
 
 	/* Each CPU has a timer it can set. */
@@ -270,7 +270,7 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	if (!cpu->regs_page)
 		return -ENOMEM;
 
-	/* We actually put the registers at the bottom of the page. */
+	/* We actually put the registers at the end of the page. */
 	cpu->regs = (void *)cpu->regs_page + PAGE_SIZE - sizeof(*cpu->regs);
 
 	/*

@@ -45,6 +45,8 @@
 #include <linux/platform_data/tsl2563.h>
 #include <linux/lis3lv02d.h>
 
+#include <video/omap-panel-data.h>
+
 #if defined(CONFIG_IR_RX51) || defined(CONFIG_IR_RX51_MODULE)
 #include <media/ir-rx51.h>
 #endif
@@ -73,11 +75,11 @@
 #define LIS302_IRQ1_GPIO 181
 #define LIS302_IRQ2_GPIO 180  /* Not yet in use */
 
-/* list all spi devices here */
+/* List all SPI devices here. Note that the list/probe order seems to matter! */
 enum {
 	RX51_SPI_WL1251,
-	RX51_SPI_MIPID,		/* LCD panel */
 	RX51_SPI_TSC2005,	/* Touch Controller */
+	RX51_SPI_MIPID,		/* LCD panel */
 };
 
 static struct wl12xx_platform_data wl1251_pdata;
@@ -226,6 +228,15 @@ static struct lp55xx_platform_data rx51_lp5523_platform_data = {
 };
 #endif
 
+#define RX51_LCD_RESET_GPIO	90
+
+static struct panel_acx565akm_platform_data acx_pdata = {
+	.name		= "lcd",
+	.source		= "sdi.0",
+	.reset_gpio	= RX51_LCD_RESET_GPIO,
+	.datapairs	= 2,
+};
+
 static struct omap2_mcspi_device_config wl1251_mcspi_config = {
 	.turbo_mode	= 0,
 };
@@ -254,6 +265,7 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 		.chip_select		= 2,
 		.max_speed_hz		= 6000000,
 		.controller_data	= &mipid_mcspi_config,
+		.platform_data		= &acx_pdata,
 	},
 	[RX51_SPI_TSC2005] = {
 		.modalias		= "tsc2005",
@@ -547,12 +559,17 @@ static struct regulator_consumer_supply rx51_vio_supplies[] = {
 	REGULATOR_SUPPLY("DVDD", "2-0019"),
 	/* Si4713 IO supply */
 	REGULATOR_SUPPLY("vio", "2-0063"),
+	/* lis3lv02d */
+	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),
 };
 
 static struct regulator_consumer_supply rx51_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("vdds_sdi", "omapdss"),
+	REGULATOR_SUPPLY("vdds_sdi", "omapdss_sdi.0"),
 	/* Si4713 supply */
 	REGULATOR_SUPPLY("vdd", "2-0063"),
+	/* lis3lv02d */
+	REGULATOR_SUPPLY("Vdd", "3-001d"),
 };
 
 static struct regulator_init_data rx51_vaux1 = {

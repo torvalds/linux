@@ -79,6 +79,10 @@ to just make sure certain lists can't become empty.
 Most systems just mount another filesystem over rootfs and ignore it.  The
 amount of space an empty instance of ramfs takes up is tiny.
 
+If CONFIG_TMPFS is enabled, rootfs will use tmpfs instead of ramfs by
+default.  To force ramfs, add "rootfstype=ramfs" to the kernel command
+line.
+
 What is initramfs?
 ------------------
 

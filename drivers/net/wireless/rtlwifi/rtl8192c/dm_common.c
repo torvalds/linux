@@ -174,8 +174,8 @@ static void rtl92c_dm_diginit(struct ieee80211_hw *hw)
 	dm_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
 	dm_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
 	dm_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
-	dm_digtable->rx_gain_range_max = DM_DIG_MAX;
-	dm_digtable->rx_gain_range_min = DM_DIG_MIN;
+	dm_digtable->rx_gain_max = DM_DIG_MAX;
+	dm_digtable->rx_gain_min = DM_DIG_MIN;
 	dm_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
 	dm_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
 	dm_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
@@ -300,11 +300,11 @@ static void rtl92c_dm_ctrl_initgain_by_rssi(struct ieee80211_hw *hw)
 	}
 
 	if ((digtable->rssi_val_min + 10 - digtable->back_val) >
-	    digtable->rx_gain_range_max)
-		digtable->cur_igvalue = digtable->rx_gain_range_max;
+	    digtable->rx_gain_max)
+		digtable->cur_igvalue = digtable->rx_gain_max;
 	else if ((digtable->rssi_val_min + 10 -
-		  digtable->back_val) < digtable->rx_gain_range_min)
-		digtable->cur_igvalue = digtable->rx_gain_range_min;
+		  digtable->back_val) < digtable->rx_gain_min)
+		digtable->cur_igvalue = digtable->rx_gain_min;
 	else
 		digtable->cur_igvalue = digtable->rssi_val_min + 10 -
 		    digtable->back_val;
@@ -669,7 +669,7 @@ static void rtl92c_dm_txpower_tracking_callback_thermalmeter(struct ieee80211_hw
 	u8 thermalvalue, delta, delta_lck, delta_iqk;
 	long ele_a, ele_d, temp_cck, val_x, value32;
 	long val_y, ele_c = 0;
-	u8 ofdm_index[2], ofdm_index_old[2], cck_index_old = 0;
+	u8 ofdm_index[2], ofdm_index_old[2] = {0, 0}, cck_index_old = 0;
 	s8 cck_index = 0;
 	int i;
 	bool is2t = IS_92C_SERIAL(rtlhal->version);
@@ -717,7 +717,7 @@ static void rtl92c_dm_txpower_tracking_callback_thermalmeter(struct ieee80211_hw
 			for (i = 0; i < OFDM_TABLE_LENGTH; i++) {
 				if (ele_d == (ofdmswing_table[i] &
 				    MASKOFDM_D)) {
-
+					ofdm_index_old[1] = (u8) i;
 					RT_TRACE(rtlpriv, COMP_POWER_TRACKING,
 						 DBG_LOUD,
 						 "Initial pathB ele_d reg0x%x = 0x%lx, ofdm_index=0x%x\n",
@@ -1147,75 +1147,6 @@ void rtl92c_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(rtl92c_dm_init_rate_adaptive_mask);
 
-static void rtl92c_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct rate_adaptive *p_ra = &(rtlpriv->ra);
-	u32 low_rssi_thresh, high_rssi_thresh;
-	struct ieee80211_sta *sta = NULL;
-
-	if (is_hal_stop(rtlhal)) {
-		RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-			 "<---- driver is going to unload\n");
-		return;
-	}
-
-	if (!rtlpriv->dm.useramask) {
-		RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-			 "<---- driver does not control rate adaptive mask\n");
-		return;
-	}
-
-	if (mac->link_state == MAC80211_LINKED &&
-	    mac->opmode == NL80211_IFTYPE_STATION) {
-		switch (p_ra->pre_ratr_state) {
-		case DM_RATR_STA_HIGH:
-			high_rssi_thresh = 50;
-			low_rssi_thresh = 20;
-			break;
-		case DM_RATR_STA_MIDDLE:
-			high_rssi_thresh = 55;
-			low_rssi_thresh = 20;
-			break;
-		case DM_RATR_STA_LOW:
-			high_rssi_thresh = 50;
-			low_rssi_thresh = 25;
-			break;
-		default:
-			high_rssi_thresh = 50;
-			low_rssi_thresh = 20;
-			break;
-		}
-
-		if (rtlpriv->dm.undec_sm_pwdb > (long)high_rssi_thresh)
-			p_ra->ratr_state = DM_RATR_STA_HIGH;
-		else if (rtlpriv->dm.undec_sm_pwdb > (long)low_rssi_thresh)
-			p_ra->ratr_state = DM_RATR_STA_MIDDLE;
-		else
-			p_ra->ratr_state = DM_RATR_STA_LOW;
-
-		if (p_ra->pre_ratr_state != p_ra->ratr_state) {
-			RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD, "RSSI = %ld\n",
-				 rtlpriv->dm.undec_sm_pwdb);
-			RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-				 "RSSI_LEVEL = %d\n", p_ra->ratr_state);
-			RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-				 "PreState = %d, CurState = %d\n",
-				 p_ra->pre_ratr_state, p_ra->ratr_state);
-
-			rcu_read_lock();
-			sta = ieee80211_find_sta(mac->vif, mac->bssid);
-			rtlpriv->cfg->ops->update_rate_tbl(hw, sta,
-					p_ra->ratr_state);
-
-			p_ra->pre_ratr_state = p_ra->ratr_state;
-			rcu_read_unlock();
-		}
-	}
-}
-
 static void rtl92c_dm_init_dynamic_bb_powersaving(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1437,6 +1368,9 @@ void rtl92c_dm_watchdog(struct ieee80211_hw *hw)
 	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_FWLPS_RF_ON,
 				      (u8 *) (&fw_ps_awake));
 
+	if (ppsc->p2p_ps_info.p2p_ps_mode)
+		fw_ps_awake = false;
+
 	if ((ppsc->rfpwr_state == ERFON) && ((!fw_current_inpsmode) &&
 					     fw_ps_awake)
 	    && (!ppsc->rfchange_inprogress)) {
@@ -1446,7 +1380,7 @@ void rtl92c_dm_watchdog(struct ieee80211_hw *hw)
 		rtl92c_dm_dynamic_bb_powersaving(hw);
 		rtl92c_dm_dynamic_txpower(hw);
 		rtl92c_dm_check_txpower_tracking(hw);
-		rtl92c_dm_refresh_rate_adaptive_mask(hw);
+		/* rtl92c_dm_refresh_rate_adaptive_mask(hw); */
 		rtl92c_dm_bt_coexist(hw);
 		rtl92c_dm_check_edca_turbo(hw);
 	}
@@ -1651,7 +1585,7 @@ static void rtl92c_bt_set_normal(struct ieee80211_hw *hw)
 	}
 }
 
-static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw)
+static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw, u8 tmp1byte)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
@@ -1673,9 +1607,9 @@ static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw)
 			    BT_RSSI_STATE_SPECIAL_LOW)) {
 			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, 0xa0);
 		} else if (rtlpcipriv->bt_coexist.bt_service == BT_PAN) {
-			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, 0x00);
+			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, tmp1byte);
 		} else {
-			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, 0x00);
+			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, tmp1byte);
 		}
 	}
 
@@ -1726,12 +1660,17 @@ static void rtl92c_check_bt_change(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	u8 tmp1byte = 0;
 
+	if (IS_81xxC_VENDOR_UMC_B_CUT(rtlhal->version) &&
+	    rtlpcipriv->bt_coexist.bt_coexistence)
+		tmp1byte |= BIT(5);
 	if (rtlpcipriv->bt_coexist.bt_cur_state) {
 		if (rtlpcipriv->bt_coexist.bt_ant_isolation)
-			rtl92c_bt_ant_isolation(hw);
+			rtl92c_bt_ant_isolation(hw, tmp1byte);
 	} else {
-		rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, 0x00);
+		rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, tmp1byte);
 		rtlpriv->cfg->ops->set_rfreg(hw, RF90_PATH_A, 0x1e, 0xf0,
 				rtlpcipriv->bt_coexist.bt_rfreg_origin_1e);
 

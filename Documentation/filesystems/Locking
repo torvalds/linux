@@ -11,10 +11,8 @@ be able to use diff(1).
 prototypes:
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
-	int (*d_hash)(const struct dentry *, const struct inode *,
-			struct qstr *);
-	int (*d_compare)(const struct dentry *, const struct inode *,
-			const struct dentry *, const struct inode *,
+	int (*d_hash)(const struct dentry *, struct qstr *);
+	int (*d_compare)(const struct dentry *, const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(struct dentry *);
 	void (*d_release)(struct dentry *);
@@ -66,6 +64,7 @@ prototypes:
 	int (*atomic_open)(struct inode *, struct dentry *,
 				struct file *, unsigned open_flag,
 				umode_t create_mode, int *opened);
+	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
 
 locking rules:
 	all may block
@@ -93,6 +92,7 @@ removexattr:	yes
 fiemap:		no
 update_time:	no
 atomic_open:	yes
+tmpfile:	no
 
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
@@ -189,7 +189,7 @@ prototypes:
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
-	int (*invalidatepage) (struct page *, unsigned long);
+	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
 	int (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
@@ -310,8 +310,8 @@ filesystems and by the swapper. The latter will eventually go away.  Please,
 keep it that way and don't breed new callers.
 
 	->invalidatepage() is called when the filesystem must attempt to drop
-some or all of the buffers from the page when it is being truncated.  It
-returns zero on success.  If ->invalidatepage is zero, the kernel uses
+some or all of the buffers from the page when it is being truncated. It
+returns zero on success. If ->invalidatepage is zero, the kernel uses
 block_invalidatepage() instead.
 
 	->releasepage() is called when the kernel is about to try to drop the
@@ -344,25 +344,38 @@ prototypes:
 
 
 locking rules:
-			file_lock_lock	may block
+			inode->i_lock	may block
 fl_copy_lock:		yes		no
 fl_release_private:	maybe		no
 
 ----------------------- lock_manager_operations ---------------------------
 prototypes:
 	int (*lm_compare_owner)(struct file_lock *, struct file_lock *);
+	unsigned long (*lm_owner_key)(struct file_lock *);
 	void (*lm_notify)(struct file_lock *);  /* unblock callback */
 	int (*lm_grant)(struct file_lock *, struct file_lock *, int);
 	void (*lm_break)(struct file_lock *); /* break_lease callback */
 	int (*lm_change)(struct file_lock **, int);
 
 locking rules:
-			file_lock_lock	may block
-lm_compare_owner:	yes		no
-lm_notify:		yes		no
-lm_grant:		no		no
-lm_break:		yes		no
-lm_change		yes		no
+
+			inode->i_lock	blocked_lock_lock	may block
+lm_compare_owner:	yes[1]		maybe			no
+lm_owner_key		yes[1]		yes			no
+lm_notify:		yes		yes			no
+lm_grant:		no		no			no
+lm_break:		yes		no			no
+lm_change		yes		no			no
+
+[1]:	->lm_compare_owner and ->lm_owner_key are generally called with
+*an* inode->i_lock held. It may not be the i_lock of the inode
+associated with either file_lock argument! This is the case with deadlock
+detection, since the code has to chase down the owners of locks that may
+be entirely unrelated to the one on which the lock is being acquired.
+For deadlock detection however, the blocked_lock_lock is also held. The
+fact that these locks are held ensures that the file_locks do not
+disappear out from under you while doing the comparison or generating an
+owner key.
 
 --------------------------- buffer_head -----------------------------------
 prototypes:
@@ -414,7 +427,7 @@ prototypes:
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
-	int (*readdir) (struct file *, void *, filldir_t);
+	int (*iterate) (struct file *, struct dir_context *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);

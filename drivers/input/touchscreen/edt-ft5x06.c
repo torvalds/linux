@@ -440,8 +440,7 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 		return -EIO;
 	}
 
-	if (tsdata->raw_buffer)
-		kfree(tsdata->raw_buffer);
+	kfree(tsdata->raw_buffer);
 	tsdata->raw_buffer = NULL;
 
 	/* restore parameters */

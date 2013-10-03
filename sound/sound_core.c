@@ -292,7 +292,7 @@ retry:
 	}
 
 	device_create(sound_class, dev, MKDEV(SOUND_MAJOR, s->unit_minor),
-		      NULL, s->name+6);
+		      NULL, "%s", s->name+6);
 	return s->unit_minor;
 
 fail:
@@ -352,7 +352,9 @@ static struct sound_unit *chains[SOUND_STEP];
  *      @dev: device pointer
  *
  *	Allocate a special sound device by minor number from the sound
- *	subsystem. The allocated number is returned on success. On failure
+ *	subsystem.
+ *
+ *	Return: The allocated number is returned on success. On failure,
  *	a negative error code is returned.
  */
  
@@ -436,8 +438,10 @@ EXPORT_SYMBOL(register_sound_special);
  *	@dev: Unit number to allocate
  *
  *	Allocate a mixer device. Unit is the number of the mixer requested.
- *	Pass -1 to request the next free mixer unit. On success the allocated
- *	number is returned, on failure a negative error code is returned.
+ *	Pass -1 to request the next free mixer unit.
+ *
+ *	Return: On success, the allocated number is returned. On failure,
+ *	a negative error code is returned.
  */
 
 int register_sound_mixer(const struct file_operations *fops, int dev)
@@ -454,8 +458,10 @@ EXPORT_SYMBOL(register_sound_mixer);
  *	@dev: Unit number to allocate
  *
  *	Allocate a midi device. Unit is the number of the midi device requested.
- *	Pass -1 to request the next free midi unit. On success the allocated
- *	number is returned, on failure a negative error code is returned.
+ *	Pass -1 to request the next free midi unit.
+ *
+ *	Return: On success, the allocated number is returned. On failure,
+ *	a negative error code is returned.
  */
 
 int register_sound_midi(const struct file_operations *fops, int dev)
@@ -477,11 +483,13 @@ EXPORT_SYMBOL(register_sound_midi);
  *	@dev: Unit number to allocate
  *
  *	Allocate a DSP device. Unit is the number of the DSP requested.
- *	Pass -1 to request the next free DSP unit. On success the allocated
- *	number is returned, on failure a negative error code is returned.
+ *	Pass -1 to request the next free DSP unit.
  *
  *	This function allocates both the audio and dsp device entries together
  *	and will always allocate them as a matching pair - eg dsp3/audio3
+ *
+ *	Return: On success, the allocated number is returned. On failure,
+ *	a negative error code is returned.
  */
 
 int register_sound_dsp(const struct file_operations *fops, int dev)

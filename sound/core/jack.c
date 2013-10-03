@@ -98,8 +98,8 @@ static int snd_jack_dev_register(struct snd_device *device)
  *
  * Creates a new jack object.
  *
- * Returns zero if successful, or a negative error code on failure.
- * On success jjack will be initialised.
+ * Return: Zero if successful, or a negative error code on failure.
+ * On success @jjack will be initialised.
  */
 int snd_jack_new(struct snd_card *card, const char *id, int type,
 		 struct snd_jack **jjack)
@@ -189,6 +189,8 @@ EXPORT_SYMBOL(snd_jack_set_parent);
  * using this abstraction.
  *
  * This function may only be called prior to registration of the jack.
+ *
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_jack_set_key(struct snd_jack *jack, enum snd_jack_types type,
 		     int keytype)

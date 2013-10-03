@@ -337,6 +337,8 @@ static struct irq_chip normal_irq_type = {
 	.irq_disable = dummy,
 	.irq_enable = dummy,
 	.irq_ack = dummy,
+	.irq_mask = dummy,
+	.irq_unmask = dummy,
 };
 
 static struct irq_chip SIGVTALRM_irq_type = {
@@ -344,6 +346,8 @@ static struct irq_chip SIGVTALRM_irq_type = {
 	.irq_disable = dummy,
 	.irq_enable = dummy,
 	.irq_ack = dummy,
+	.irq_mask = dummy,
+	.irq_unmask = dummy,
 };
 
 void __init init_IRQ(void)

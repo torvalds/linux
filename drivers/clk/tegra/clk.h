@@ -1,4 +1,4 @@
-/*
+	/*
  * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -117,6 +117,42 @@ struct tegra_clk_pll_freq_table {
 };
 
 /**
+ * struct pdiv_map - map post divider to hw value
+ *
+ * @pdiv:		post divider
+ * @hw_val:		value to be written to the PLL hw
+ */
+struct pdiv_map {
+	u8 pdiv;
+	u8 hw_val;
+};
+
+/**
+ * struct div_nmp - offset and width of m,n and p fields
+ *
+ * @divn_shift:	shift to the feedback divider bit field
+ * @divn_width:	width of the feedback divider bit field
+ * @divm_shift:	shift to the input divider bit field
+ * @divm_width:	width of the input divider bit field
+ * @divp_shift:	shift to the post divider bit field
+ * @divp_width:	width of the post divider bit field
+ * @override_divn_shift: shift to the feedback divider bitfield in override reg
+ * @override_divm_shift: shift to the input divider bitfield in override reg
+ * @override_divp_shift: shift to the post divider bitfield in override reg
+ */
+struct div_nmp {
+	u8		divn_shift;
+	u8		divn_width;
+	u8		divm_shift;
+	u8		divm_width;
+	u8		divp_shift;
+	u8		divp_width;
+	u8		override_divn_shift;
+	u8		override_divm_shift;
+	u8		override_divp_shift;
+};
+
+/**
  * struct clk_pll_params - PLL parameters
  *
  * @input_min:			Minimum input frequency
@@ -143,9 +179,21 @@ struct tegra_clk_pll_params {
 	u32		base_reg;
 	u32		misc_reg;
 	u32		lock_reg;
-	u32		lock_bit_idx;
+	u32		lock_mask;
 	u32		lock_enable_bit_idx;
+	u32		iddq_reg;
+	u32		iddq_bit_idx;
+	u32		aux_reg;
+	u32		dyn_ramp_reg;
+	u32		ext_misc_reg[3];
+	u32		pmc_divnm_reg;
+	u32		pmc_divp_reg;
+	int		stepa_shift;
+	int		stepb_shift;
 	int		lock_delay;
+	int		max_p;
+	struct pdiv_map *pdiv_tohw;
+	struct div_nmp	*div_nmp;
 };
 
 /**
@@ -159,12 +207,6 @@ struct tegra_clk_pll_params {
  * @flags:	PLL flags
  * @fixed_rate:	PLL rate if it is fixed
  * @lock:	register lock
- * @divn_shift:	shift to the feedback divider bit field
- * @divn_width:	width of the feedback divider bit field
- * @divm_shift:	shift to the input divider bit field
- * @divm_width:	width of the input divider bit field
- * @divp_shift:	shift to the post divider bit field
- * @divp_width:	width of the post divider bit field
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
@@ -182,20 +224,18 @@ struct tegra_clk_pll_params {
  * TEGRA_PLL_FIXED - We are not supposed to change output frequency
  *     of some plls.
  * TEGRA_PLLE_CONFIGURE - Configure PLLE when enabling.
+ * TEGRA_PLL_LOCK_MISC - Lock bit is in the misc register instead of the
+ *     base register.
+ * TEGRA_PLL_BYPASS - PLL has bypass bit
+ * TEGRA_PLL_HAS_LOCK_ENABLE - PLL has bit to enable lock monitoring
  */
 struct tegra_clk_pll {
 	struct clk_hw	hw;
 	void __iomem	*clk_base;
 	void __iomem	*pmc;
-	u8		flags;
+	u32		flags;
 	unsigned long	fixed_rate;
 	spinlock_t	*lock;
-	u8		divn_shift;
-	u8		divn_width;
-	u8		divm_shift;
-	u8		divm_width;
-	u8		divp_shift;
-	u8		divp_width;
 	struct tegra_clk_pll_freq_table	*freq_table;
 	struct tegra_clk_pll_params	*params;
 };
@@ -210,19 +250,63 @@ struct tegra_clk_pll {
 #define TEGRA_PLLM BIT(5)
 #define TEGRA_PLL_FIXED BIT(6)
 #define TEGRA_PLLE_CONFIGURE BIT(7)
+#define TEGRA_PLL_LOCK_MISC BIT(8)
+#define TEGRA_PLL_BYPASS BIT(9)
+#define TEGRA_PLL_HAS_LOCK_ENABLE BIT(10)
 
 extern const struct clk_ops tegra_clk_pll_ops;
 extern const struct clk_ops tegra_clk_plle_ops;
 struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
 		unsigned long flags, unsigned long fixed_rate,
-		struct tegra_clk_pll_params *pll_params, u8 pll_flags,
+		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
 		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock);
+
 struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
 		unsigned long flags, unsigned long fixed_rate,
-		struct tegra_clk_pll_params *pll_params, u8 pll_flags,
+		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
 		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
+			    void __iomem *clk_base, void __iomem *pmc,
+			    unsigned long flags, unsigned long fixed_rate,
+			    struct tegra_clk_pll_params *pll_params,
+			    u32 pll_flags,
+			    struct tegra_clk_pll_freq_table *freq_table,
+			    spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
+			   void __iomem *clk_base, void __iomem *pmc,
+			   unsigned long flags, unsigned long fixed_rate,
+			   struct tegra_clk_pll_params *pll_params,
+			   u32 pll_flags,
+			   struct tegra_clk_pll_freq_table *freq_table,
+			   spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
+			   void __iomem *clk_base, void __iomem *pmc,
+			   unsigned long flags, unsigned long fixed_rate,
+			   struct tegra_clk_pll_params *pll_params,
+			   u32 pll_flags,
+			   struct tegra_clk_pll_freq_table *freq_table,
+			   spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
+			   void __iomem *clk_base, void __iomem *pmc,
+			   unsigned long flags, unsigned long fixed_rate,
+			   struct tegra_clk_pll_params *pll_params,
+			   u32 pll_flags,
+			   struct tegra_clk_pll_freq_table *freq_table,
+			   spinlock_t *lock, unsigned long parent_rate);
+
+struct clk *tegra_clk_register_plle_tegra114(const char *name,
+				const char *parent_name,
+				void __iomem *clk_base, unsigned long flags,
+				unsigned long fixed_rate,
+				struct tegra_clk_pll_params *pll_params,
+				struct tegra_clk_pll_freq_table *freq_table,
+				spinlock_t *lock);
 
 /**
  * struct tegra_clk_pll_out - PLL divider down clock
@@ -290,6 +374,7 @@ struct tegra_clk_periph_regs {
  * TEGRA_PERIPH_ON_APB - If peripheral is in the APB bus then read the
  *     bus to flush the write operation in apb bus. This flag indicates
  *     that this peripheral is in apb bus.
+ * TEGRA_PERIPH_WAR_1005168 - Apply workaround for Tegra114 MSENC bug
  */
 struct tegra_clk_periph_gate {
 	u32			magic;
@@ -309,6 +394,7 @@ struct tegra_clk_periph_gate {
 #define TEGRA_PERIPH_NO_RESET BIT(0)
 #define TEGRA_PERIPH_MANUAL_RESET BIT(1)
 #define TEGRA_PERIPH_ON_APB BIT(2)
+#define TEGRA_PERIPH_WAR_1005168 BIT(3)
 
 void tegra_periph_reset(struct tegra_clk_periph_gate *gate, bool assert);
 extern const struct clk_ops tegra_clk_periph_gate_ops;
@@ -349,21 +435,22 @@ extern const struct clk_ops tegra_clk_periph_ops;
 struct clk *tegra_clk_register_periph(const char *name,
 		const char **parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
-		u32 offset);
+		u32 offset, unsigned long flags);
 struct clk *tegra_clk_register_periph_nodiv(const char *name,
 		const char **parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset);
 
-#define TEGRA_CLK_PERIPH(_mux_shift, _mux_width, _mux_flags,		\
+#define TEGRA_CLK_PERIPH(_mux_shift, _mux_mask, _mux_flags,		\
 			 _div_shift, _div_width, _div_frac_width,	\
 			 _div_flags, _clk_num, _enb_refcnt, _regs,	\
-			 _gate_flags)					\
+			 _gate_flags, _table)				\
 	{								\
 		.mux = {						\
 			.flags = _mux_flags,				\
 			.shift = _mux_shift,				\
-			.width = _mux_width,				\
+			.mask = _mux_mask,				\
+			.table = _table,				\
 		},							\
 		.divider = {						\
 			.flags = _div_flags,				\
@@ -391,27 +478,40 @@ struct tegra_periph_init_data {
 	u32 offset;
 	const char *con_id;
 	const char *dev_id;
+	unsigned long flags;
 };
 
-#define TEGRA_INIT_DATA(_name, _con_id, _dev_id, _parent_names, _offset, \
-			_mux_shift, _mux_width, _mux_flags, _div_shift,	\
+#define TEGRA_INIT_DATA_TABLE(_name, _con_id, _dev_id, _parent_names, _offset,\
+			_mux_shift, _mux_mask, _mux_flags, _div_shift,	\
 			_div_width, _div_frac_width, _div_flags, _regs,	\
-			_clk_num, _enb_refcnt, _gate_flags, _clk_id)	\
+			_clk_num, _enb_refcnt, _gate_flags, _clk_id, _table,\
+			_flags) \
 	{								\
 		.name = _name,						\
 		.clk_id = _clk_id,					\
 		.parent_names = _parent_names,				\
 		.num_parents = ARRAY_SIZE(_parent_names),		\
-		.periph = TEGRA_CLK_PERIPH(_mux_shift, _mux_width,	\
+		.periph = TEGRA_CLK_PERIPH(_mux_shift, _mux_mask,	\
 					   _mux_flags, _div_shift,	\
 					   _div_width, _div_frac_width,	\
 					   _div_flags, _clk_num,	\
 					   _enb_refcnt, _regs,		\
-					   _gate_flags),		\
+					   _gate_flags, _table),	\
 		.offset = _offset,					\
 		.con_id = _con_id,					\
 		.dev_id = _dev_id,					\
+		.flags = _flags						\
 	}
+
+#define TEGRA_INIT_DATA(_name, _con_id, _dev_id, _parent_names, _offset,\
+			_mux_shift, _mux_width, _mux_flags, _div_shift,	\
+			_div_width, _div_frac_width, _div_flags, _regs,	\
+			_clk_num, _enb_refcnt, _gate_flags, _clk_id)	\
+	TEGRA_INIT_DATA_TABLE(_name, _con_id, _dev_id, _parent_names, _offset,\
+			_mux_shift, BIT(_mux_width) - 1, _mux_flags,	\
+			_div_shift, _div_width, _div_frac_width, _div_flags, \
+			_regs, _clk_num, _enb_refcnt, _gate_flags, _clk_id,\
+			NULL, 0)
 
 /**
  * struct clk_super_mux - super clock
@@ -487,16 +587,13 @@ void tegra_init_from_table(struct tegra_clk_init_table *tbl,
 void tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
 		struct clk *clks[], int clk_max);
 
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-void tegra20_clock_init(struct device_node *np);
-#else
-static inline void tegra20_clock_init(struct device_node *np) {}
-#endif /* CONFIG_ARCH_TEGRA_2x_SOC */
+void tegra114_clock_tune_cpu_trimmers_high(void);
+void tegra114_clock_tune_cpu_trimmers_low(void);
+void tegra114_clock_tune_cpu_trimmers_init(void);
+void tegra114_clock_assert_dfll_dvco_reset(void);
+void tegra114_clock_deassert_dfll_dvco_reset(void);
 
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
-void tegra30_clock_init(struct device_node *np);
-#else
-static inline void tegra30_clock_init(struct device_node *np) {}
-#endif /* CONFIG_ARCH_TEGRA_3x_SOC */
+typedef void (*tegra_clk_apply_init_table_func)(void);
+extern tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
 
 #endif /* TEGRA_CLK_H */

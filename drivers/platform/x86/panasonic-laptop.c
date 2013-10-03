@@ -464,9 +464,6 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 				 "error getting hotkey status\n"));
 		return;
 	}
-
-	acpi_bus_generate_proc_event(pcc->device, HKEY_NOTIFY, result);
-
 	if (!sparse_keymap_report_event(hotk_input_dev,
 					result & 0xf, result & 0x80, false))
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
@@ -646,23 +643,6 @@ out_hotkey:
 	return result;
 }
 
-static int __init acpi_pcc_init(void)
-{
-	int result = 0;
-
-	if (acpi_disabled)
-		return -ENODEV;
-
-	result = acpi_bus_register_driver(&acpi_pcc_driver);
-	if (result < 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error registering hotkey driver\n"));
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static int acpi_pcc_hotkey_remove(struct acpi_device *device)
 {
 	struct pcc_acpi *pcc = acpi_driver_data(device);
@@ -682,10 +662,4 @@ static int acpi_pcc_hotkey_remove(struct acpi_device *device)
 	return 0;
 }
 
-static void __exit acpi_pcc_exit(void)
-{
-	acpi_bus_unregister_driver(&acpi_pcc_driver);
-}
-
-module_init(acpi_pcc_init);
-module_exit(acpi_pcc_exit);
+module_acpi_driver(acpi_pcc_driver);

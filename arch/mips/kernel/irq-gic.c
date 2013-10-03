@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/irq.h>
+#include <linux/clocksource.h>
 
 #include <asm/io.h>
 #include <asm/gic.h>
@@ -19,6 +20,8 @@
 #include <linux/hardirq.h>
 #include <asm-generic/bitops/find.h>
 
+unsigned int gic_frequency;
+unsigned int gic_present;
 unsigned long _gic_base;
 unsigned int gic_irq_base;
 unsigned int gic_irq_flags[GIC_NUM_INTRS];
@@ -29,6 +32,39 @@ struct gic_shared_intr_map gic_shared_intr_map[GIC_NUM_INTRS];
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static struct gic_pending_regs pending_regs[NR_CPUS];
 static struct gic_intrmask_regs intrmask_regs[NR_CPUS];
+
+#if defined(CONFIG_CSRC_GIC) || defined(CONFIG_CEVT_GIC)
+cycle_t gic_read_count(void)
+{
+	unsigned int hi, hi2, lo;
+
+	do {
+		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_63_32), hi);
+		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_31_00), lo);
+		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_63_32), hi2);
+	} while (hi2 != hi);
+
+	return (((cycle_t) hi) << 32) + lo;
+}
+
+void gic_write_compare(cycle_t cnt)
+{
+	GICWRITE(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_HI),
+				(int)(cnt >> 32));
+	GICWRITE(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_LO),
+				(int)(cnt & 0xffffffff));
+}
+
+cycle_t gic_read_compare(void)
+{
+	unsigned int hi, lo;
+
+	GICREAD(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_HI), hi);
+	GICREAD(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_LO), lo);
+
+	return (((cycle_t) hi) << 32) + lo;
+}
+#endif
 
 unsigned int gic_get_timer_pending(void)
 {
@@ -116,6 +152,17 @@ static void __init vpe_local_setup(unsigned int numvpes)
 	}
 }
 
+unsigned int gic_compare_int(void)
+{
+	unsigned int pending;
+
+	GICREAD(GIC_REG(VPE_LOCAL, GIC_VPE_PEND), pending);
+	if (pending & GIC_VPE_PEND_CMP_MSK)
+		return 1;
+	else
+		return 0;
+}
+
 unsigned int gic_get_int(void)
 {
 	unsigned int i;
@@ -172,16 +219,15 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 
 	/* Assumption : cpumask refers to a single CPU */
 	spin_lock_irqsave(&gic_lock, flags);
-	for (;;) {
-		/* Re-route this IRQ */
-		GIC_SH_MAP_TO_VPE_SMASK(irq, first_cpu(tmp));
 
-		/* Update the pcpu_masks */
-		for (i = 0; i < NR_CPUS; i++)
-			clear_bit(irq, pcpu_masks[i].pcpu_mask);
-		set_bit(irq, pcpu_masks[first_cpu(tmp)].pcpu_mask);
+	/* Re-route this IRQ */
+	GIC_SH_MAP_TO_VPE_SMASK(irq, first_cpu(tmp));
 
-	}
+	/* Update the pcpu_masks */
+	for (i = 0; i < NR_CPUS; i++)
+		clear_bit(irq, pcpu_masks[i].pcpu_mask);
+	set_bit(irq, pcpu_masks[first_cpu(tmp)].pcpu_mask);
+
 	cpumask_copy(d->affinity, cpumask);
 	spin_unlock_irqrestore(&gic_lock, flags);
 

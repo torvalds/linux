@@ -5,6 +5,10 @@
 #include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <linux/igmp.h>
+#include <linux/icmp.h>
+#include <linux/sctp.h>
+#include <linux/dccp.h>
 #include <linux/if_tunnel.h>
 #include <linux/if_pppox.h>
 #include <linux/ppp_defs.h>
@@ -61,6 +65,7 @@ ipv6:
 		nhoff += sizeof(struct ipv6hdr);
 		break;
 	}
+	case __constant_htons(ETH_P_8021AD):
 	case __constant_htons(ETH_P_8021Q): {
 		const struct vlan_hdr *vlan;
 		struct vlan_hdr _vlan;
@@ -119,12 +124,27 @@ ipv6:
 				nhoff += 4;
 			if (hdr->flags & GRE_SEQ)
 				nhoff += 4;
+			if (proto == htons(ETH_P_TEB)) {
+				const struct ethhdr *eth;
+				struct ethhdr _eth;
+
+				eth = skb_header_pointer(skb, nhoff,
+							 sizeof(_eth), &_eth);
+				if (!eth)
+					return false;
+				proto = eth->h_proto;
+				nhoff += sizeof(*eth);
+			}
 			goto again;
 		}
 		break;
 	}
 	case IPPROTO_IPIP:
-		goto again;
+		proto = htons(ETH_P_IP);
+		goto ip;
+	case IPPROTO_IPV6:
+		proto = htons(ETH_P_IPV6);
+		goto ipv6;
 	default:
 		break;
 	}
@@ -134,8 +154,8 @@ ipv6:
 	if (poff >= 0) {
 		__be32 *ports, _ports;
 
-		nhoff += poff;
-		ports = skb_header_pointer(skb, nhoff, sizeof(_ports), &_ports);
+		ports = skb_header_pointer(skb, nhoff + poff,
+					   sizeof(_ports), &_ports);
 		if (ports)
 			flow->ports = *ports;
 	}
@@ -217,6 +237,59 @@ u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 }
 EXPORT_SYMBOL(__skb_tx_hash);
 
+/* __skb_get_poff() returns the offset to the payload as far as it could
+ * be dissected. The main user is currently BPF, so that we can dynamically
+ * truncate packets without needing to push actual payload to the user
+ * space and can analyze headers only, instead.
+ */
+u32 __skb_get_poff(const struct sk_buff *skb)
+{
+	struct flow_keys keys;
+	u32 poff = 0;
+
+	if (!skb_flow_dissect(skb, &keys))
+		return 0;
+
+	poff += keys.thoff;
+	switch (keys.ip_proto) {
+	case IPPROTO_TCP: {
+		const struct tcphdr *tcph;
+		struct tcphdr _tcph;
+
+		tcph = skb_header_pointer(skb, poff, sizeof(_tcph), &_tcph);
+		if (!tcph)
+			return poff;
+
+		poff += max_t(u32, sizeof(struct tcphdr), tcph->doff * 4);
+		break;
+	}
+	case IPPROTO_UDP:
+	case IPPROTO_UDPLITE:
+		poff += sizeof(struct udphdr);
+		break;
+	/* For the rest, we do not really care about header
+	 * extensions at this point for now.
+	 */
+	case IPPROTO_ICMP:
+		poff += sizeof(struct icmphdr);
+		break;
+	case IPPROTO_ICMPV6:
+		poff += sizeof(struct icmp6hdr);
+		break;
+	case IPPROTO_IGMP:
+		poff += sizeof(struct igmphdr);
+		break;
+	case IPPROTO_DCCP:
+		poff += sizeof(struct dccp_hdr);
+		break;
+	case IPPROTO_SCTP:
+		poff += sizeof(struct sctphdr);
+		break;
+	}
+
+	return poff;
+}
+
 static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
 {
 	if (unlikely(queue_index >= dev->real_num_tx_queues)) {
@@ -277,14 +350,9 @@ u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 		if (new_index < 0)
 			new_index = skb_tx_hash(dev, skb);
 
-		if (queue_index != new_index && sk) {
-			struct dst_entry *dst =
-				    rcu_dereference_check(sk->sk_dst_cache, 1);
-
-			if (dst && skb_dst(skb) == dst)
-				sk_tx_queue_set(sk, queue_index);
-
-		}
+		if (queue_index != new_index && sk &&
+		    rcu_access_pointer(sk->sk_dst_cache))
+			sk_tx_queue_set(sk, new_index);
 
 		queue_index = new_index;
 	}

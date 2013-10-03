@@ -417,6 +417,7 @@ static enum drbd_fencing_p highest_fencing_policy(struct drbd_tconn *tconn)
 
 bool conn_try_outdate_peer(struct drbd_tconn *tconn)
 {
+	unsigned int connect_cnt;
 	union drbd_state mask = { };
 	union drbd_state val = { };
 	enum drbd_fencing_p fp;
@@ -427,6 +428,10 @@ bool conn_try_outdate_peer(struct drbd_tconn *tconn)
 		conn_err(tconn, "Expected cstate < C_WF_REPORT_PARAMS\n");
 		return false;
 	}
+
+	spin_lock_irq(&tconn->req_lock);
+	connect_cnt = tconn->connect_cnt;
+	spin_unlock_irq(&tconn->req_lock);
 
 	fp = highest_fencing_policy(tconn);
 	switch (fp) {
@@ -492,8 +497,14 @@ bool conn_try_outdate_peer(struct drbd_tconn *tconn)
 	   here, because we might were able to re-establish the connection in the
 	   meantime. */
 	spin_lock_irq(&tconn->req_lock);
-	if (tconn->cstate < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &tconn->flags))
-		_conn_request_state(tconn, mask, val, CS_VERBOSE);
+	if (tconn->cstate < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &tconn->flags)) {
+		if (tconn->connect_cnt != connect_cnt)
+			/* In case the connection was established and droped
+			   while the fence-peer handler was running, ignore it */
+			conn_info(tconn, "Ignoring fence-peer exit code\n");
+		else
+			_conn_request_state(tconn, mask, val, CS_VERBOSE);
+	}
 	spin_unlock_irq(&tconn->req_lock);
 
 	return conn_highest_pdsk(tconn) <= D_OUTDATED;
@@ -696,37 +707,52 @@ out:
 	return 0;
 }
 
-/* initializes the md.*_offset members, so we are able to find
- * the on disk meta data */
+/* Initializes the md.*_offset members, so we are able to find
+ * the on disk meta data.
+ *
+ * We currently have two possible layouts:
+ * external:
+ *   |----------- md_size_sect ------------------|
+ *   [ 4k superblock ][ activity log ][  Bitmap  ]
+ *   | al_offset == 8 |
+ *   | bm_offset = al_offset + X      |
+ *  ==> bitmap sectors = md_size_sect - bm_offset
+ *
+ * internal:
+ *            |----------- md_size_sect ------------------|
+ * [data.....][  Bitmap  ][ activity log ][ 4k superblock ]
+ *                        | al_offset < 0 |
+ *            | bm_offset = al_offset - Y |
+ *  ==> bitmap sectors = Y = al_offset - bm_offset
+ *
+ *  Activity log size used to be fixed 32kB,
+ *  but is about to become configurable.
+ */
 static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 				       struct drbd_backing_dev *bdev)
 {
 	sector_t md_size_sect = 0;
-	int meta_dev_idx;
+	unsigned int al_size_sect = bdev->md.al_size_4k * 8;
 
-	rcu_read_lock();
-	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
+	bdev->md.md_offset = drbd_md_ss(bdev);
 
-	switch (meta_dev_idx) {
+	switch (bdev->md.meta_dev_idx) {
 	default:
 		/* v07 style fixed size indexed meta data */
-		bdev->md.md_size_sect = MD_RESERVED_SECT;
-		bdev->md.md_offset = drbd_md_ss__(mdev, bdev);
-		bdev->md.al_offset = MD_AL_OFFSET;
-		bdev->md.bm_offset = MD_BM_OFFSET;
+		bdev->md.md_size_sect = MD_128MB_SECT;
+		bdev->md.al_offset = MD_4kB_SECT;
+		bdev->md.bm_offset = MD_4kB_SECT + al_size_sect;
 		break;
 	case DRBD_MD_INDEX_FLEX_EXT:
 		/* just occupy the full device; unit: sectors */
 		bdev->md.md_size_sect = drbd_get_capacity(bdev->md_bdev);
-		bdev->md.md_offset = 0;
-		bdev->md.al_offset = MD_AL_OFFSET;
-		bdev->md.bm_offset = MD_BM_OFFSET;
+		bdev->md.al_offset = MD_4kB_SECT;
+		bdev->md.bm_offset = MD_4kB_SECT + al_size_sect;
 		break;
 	case DRBD_MD_INDEX_INTERNAL:
 	case DRBD_MD_INDEX_FLEX_INT:
-		bdev->md.md_offset = drbd_md_ss__(mdev, bdev);
 		/* al size is still fixed */
-		bdev->md.al_offset = -MD_AL_SECTORS;
+		bdev->md.al_offset = -al_size_sect;
 		/* we need (slightly less than) ~ this much bitmap sectors: */
 		md_size_sect = drbd_get_capacity(bdev->backing_bdev);
 		md_size_sect = ALIGN(md_size_sect, BM_SECT_PER_EXT);
@@ -735,14 +761,13 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 
 		/* plus the "drbd meta data super block",
 		 * and the activity log; */
-		md_size_sect += MD_BM_OFFSET;
+		md_size_sect += MD_4kB_SECT + al_size_sect;
 
 		bdev->md.md_size_sect = md_size_sect;
 		/* bitmap offset is adjusted by 'super' block size */
-		bdev->md.bm_offset   = -md_size_sect + MD_AL_OFFSET;
+		bdev->md.bm_offset   = -md_size_sect + MD_4kB_SECT;
 		break;
 	}
-	rcu_read_unlock();
 }
 
 /* input size is expected to be in KB */
@@ -802,15 +827,20 @@ void drbd_resume_io(struct drbd_conf *mdev)
  * Returns 0 on success, negative return values indicate errors.
  * You should call drbd_md_sync() after calling this function.
  */
-enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags) __must_hold(local)
+enum determine_dev_size
+drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags, struct resize_parms *rs) __must_hold(local)
 {
 	sector_t prev_first_sect, prev_size; /* previous meta location */
-	sector_t la_size, u_size;
+	sector_t la_size_sect, u_size;
+	struct drbd_md *md = &mdev->ldev->md;
+	u32 prev_al_stripe_size_4k;
+	u32 prev_al_stripes;
 	sector_t size;
 	char ppb[10];
+	void *buffer;
 
 	int md_moved, la_size_changed;
-	enum determine_dev_size rv = unchanged;
+	enum determine_dev_size rv = DS_UNCHANGED;
 
 	/* race:
 	 * application request passes inc_ap_bio,
@@ -822,21 +852,51 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 	 * still lock the act_log to not trigger ASSERTs there.
 	 */
 	drbd_suspend_io(mdev);
+	buffer = drbd_md_get_buffer(mdev); /* Lock meta-data IO */
+	if (!buffer) {
+		drbd_resume_io(mdev);
+		return DS_ERROR;
+	}
 
 	/* no wait necessary anymore, actually we could assert that */
 	wait_event(mdev->al_wait, lc_try_lock(mdev->act_log));
 
 	prev_first_sect = drbd_md_first_sector(mdev->ldev);
 	prev_size = mdev->ldev->md.md_size_sect;
-	la_size = mdev->ldev->md.la_size_sect;
+	la_size_sect = mdev->ldev->md.la_size_sect;
 
-	/* TODO: should only be some assert here, not (re)init... */
+	if (rs) {
+		/* rs is non NULL if we should change the AL layout only */
+
+		prev_al_stripes = md->al_stripes;
+		prev_al_stripe_size_4k = md->al_stripe_size_4k;
+
+		md->al_stripes = rs->al_stripes;
+		md->al_stripe_size_4k = rs->al_stripe_size / 4;
+		md->al_size_4k = (u64)rs->al_stripes * rs->al_stripe_size / 4;
+	}
+
 	drbd_md_set_sector_offsets(mdev, mdev->ldev);
 
 	rcu_read_lock();
 	u_size = rcu_dereference(mdev->ldev->disk_conf)->disk_size;
 	rcu_read_unlock();
 	size = drbd_new_dev_size(mdev, mdev->ldev, u_size, flags & DDSF_FORCED);
+
+	if (size < la_size_sect) {
+		if (rs && u_size == 0) {
+			/* Remove "rs &&" later. This check should always be active, but
+			   right now the receiver expects the permissive behavior */
+			dev_warn(DEV, "Implicit shrink not allowed. "
+				 "Use --size=%llus for explicit shrink.\n",
+				 (unsigned long long)size);
+			rv = DS_ERROR_SHRINK;
+		}
+		if (u_size > size)
+			rv = DS_ERROR_SPACE_MD;
+		if (rv != DS_UNCHANGED)
+			goto err_out;
+	}
 
 	if (drbd_get_capacity(mdev->this_bdev) != size ||
 	    drbd_bm_capacity(mdev) != size) {
@@ -853,7 +913,7 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 				    "Leaving size unchanged at size = %lu KB\n",
 				    (unsigned long)size);
 			}
-			rv = dev_size_error;
+			rv = DS_ERROR;
 		}
 		/* racy, see comments above. */
 		drbd_set_my_capacity(mdev, size);
@@ -861,38 +921,57 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 		dev_info(DEV, "size = %s (%llu KB)\n", ppsize(ppb, size>>1),
 		     (unsigned long long)size>>1);
 	}
-	if (rv == dev_size_error)
-		goto out;
+	if (rv <= DS_ERROR)
+		goto err_out;
 
-	la_size_changed = (la_size != mdev->ldev->md.la_size_sect);
+	la_size_changed = (la_size_sect != mdev->ldev->md.la_size_sect);
 
 	md_moved = prev_first_sect != drbd_md_first_sector(mdev->ldev)
 		|| prev_size	   != mdev->ldev->md.md_size_sect;
 
-	if (la_size_changed || md_moved) {
-		int err;
+	if (la_size_changed || md_moved || rs) {
+		u32 prev_flags;
 
 		drbd_al_shrink(mdev); /* All extents inactive. */
+
+		prev_flags = md->flags;
+		md->flags &= ~MDF_PRIMARY_IND;
+		drbd_md_write(mdev, buffer);
+
 		dev_info(DEV, "Writing the whole bitmap, %s\n",
 			 la_size_changed && md_moved ? "size changed and md moved" :
 			 la_size_changed ? "size changed" : "md moved");
 		/* next line implicitly does drbd_suspend_io()+drbd_resume_io() */
-		err = drbd_bitmap_io(mdev, md_moved ? &drbd_bm_write_all : &drbd_bm_write,
-				     "size changed", BM_LOCKED_MASK);
-		if (err) {
-			rv = dev_size_error;
-			goto out;
-		}
-		drbd_md_mark_dirty(mdev);
+		drbd_bitmap_io(mdev, md_moved ? &drbd_bm_write_all : &drbd_bm_write,
+			       "size changed", BM_LOCKED_MASK);
+		drbd_initialize_al(mdev, buffer);
+
+		md->flags = prev_flags;
+		drbd_md_write(mdev, buffer);
+
+		if (rs)
+			dev_info(DEV, "Changed AL layout to al-stripes = %d, al-stripe-size-kB = %d\n",
+				 md->al_stripes, md->al_stripe_size_4k * 4);
 	}
 
-	if (size > la_size)
-		rv = grew;
-	if (size < la_size)
-		rv = shrunk;
-out:
+	if (size > la_size_sect)
+		rv = DS_GREW;
+	if (size < la_size_sect)
+		rv = DS_SHRUNK;
+
+	if (0) {
+	err_out:
+		if (rs) {
+			md->al_stripes = prev_al_stripes;
+			md->al_stripe_size_4k = prev_al_stripe_size_4k;
+			md->al_size_4k = (u64)prev_al_stripes * prev_al_stripe_size_4k;
+
+			drbd_md_set_sector_offsets(mdev, mdev->ldev);
+		}
+	}
 	lc_unlock(mdev->act_log);
 	wake_up(&mdev->al_wait);
+	drbd_md_put_buffer(mdev);
 	drbd_resume_io(mdev);
 
 	return rv;
@@ -903,7 +982,7 @@ drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 		  sector_t u_size, int assume_peer_has_space)
 {
 	sector_t p_size = mdev->p_size;   /* partner's disk size. */
-	sector_t la_size = bdev->md.la_size_sect; /* last agreed size. */
+	sector_t la_size_sect = bdev->md.la_size_sect; /* last agreed size. */
 	sector_t m_size; /* my size */
 	sector_t size = 0;
 
@@ -917,8 +996,8 @@ drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 	if (p_size && m_size) {
 		size = min_t(sector_t, p_size, m_size);
 	} else {
-		if (la_size) {
-			size = la_size;
+		if (la_size_sect) {
+			size = la_size_sect;
 			if (m_size && m_size < size)
 				size = m_size;
 			if (p_size && p_size < size)
@@ -1127,15 +1206,32 @@ static bool should_set_defaults(struct genl_info *info)
 	return 0 != (flags & DRBD_GENL_F_SET_DEFAULTS);
 }
 
-static void enforce_disk_conf_limits(struct disk_conf *dc)
+static unsigned int drbd_al_extents_max(struct drbd_backing_dev *bdev)
 {
-	if (dc->al_extents < DRBD_AL_EXTENTS_MIN)
-		dc->al_extents = DRBD_AL_EXTENTS_MIN;
-	if (dc->al_extents > DRBD_AL_EXTENTS_MAX)
-		dc->al_extents = DRBD_AL_EXTENTS_MAX;
+	/* This is limited by 16 bit "slot" numbers,
+	 * and by available on-disk context storage.
+	 *
+	 * Also (u16)~0 is special (denotes a "free" extent).
+	 *
+	 * One transaction occupies one 4kB on-disk block,
+	 * we have n such blocks in the on disk ring buffer,
+	 * the "current" transaction may fail (n-1),
+	 * and there is 919 slot numbers context information per transaction.
+	 *
+	 * 72 transaction blocks amounts to more than 2**16 context slots,
+	 * so cap there first.
+	 */
+	const unsigned int max_al_nr = DRBD_AL_EXTENTS_MAX;
+	const unsigned int sufficient_on_disk =
+		(max_al_nr + AL_CONTEXT_PER_TRANSACTION -1)
+		/AL_CONTEXT_PER_TRANSACTION;
 
-	if (dc->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
-		dc->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
+	unsigned int al_size_4k = bdev->md.al_size_4k;
+
+	if (al_size_4k > sufficient_on_disk)
+		return max_al_nr;
+
+	return (al_size_4k - 1) * AL_CONTEXT_PER_TRANSACTION;
 }
 
 int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
@@ -1182,7 +1278,13 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	if (!expect(new_disk_conf->resync_rate >= 1))
 		new_disk_conf->resync_rate = 1;
 
-	enforce_disk_conf_limits(new_disk_conf);
+	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
+		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
+	if (new_disk_conf->al_extents > drbd_al_extents_max(mdev->ldev))
+		new_disk_conf->al_extents = drbd_al_extents_max(mdev->ldev);
+
+	if (new_disk_conf->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
+		new_disk_conf->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
 
 	fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
 	if (fifo_size != mdev->rs_plan_s->size) {
@@ -1330,7 +1432,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	enforce_disk_conf_limits(new_disk_conf);
+	if (new_disk_conf->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
+		new_disk_conf->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
 
 	new_plan = fifo_alloc((new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ);
 	if (!new_plan) {
@@ -1342,6 +1445,12 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		retcode = ERR_MD_IDX_INVALID;
 		goto fail;
 	}
+
+	write_lock_irq(&global_state_lock);
+	retcode = drbd_resync_after_valid(mdev, new_disk_conf->resync_after);
+	write_unlock_irq(&global_state_lock);
+	if (retcode != NO_ERROR)
+		goto fail;
 
 	rcu_read_lock();
 	nc = rcu_dereference(mdev->tconn->net_conf);
@@ -1399,8 +1508,16 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	/* RT - for drbd_get_max_capacity() DRBD_MD_INDEX_FLEX_INT */
-	drbd_md_set_sector_offsets(mdev, nbc);
+	/* Read our meta data super block early.
+	 * This also sets other on-disk offsets. */
+	retcode = drbd_md_read(mdev, nbc);
+	if (retcode != NO_ERROR)
+		goto fail;
+
+	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
+		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
+	if (new_disk_conf->al_extents > drbd_al_extents_max(nbc))
+		new_disk_conf->al_extents = drbd_al_extents_max(nbc);
 
 	if (drbd_get_max_capacity(nbc) < new_disk_conf->disk_size) {
 		dev_err(DEV, "max capacity %llu smaller than disk size %llu\n",
@@ -1416,7 +1533,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		min_md_device_sectors = (2<<10);
 	} else {
 		max_possible_sectors = DRBD_MAX_SECTORS;
-		min_md_device_sectors = MD_RESERVED_SECT * (new_disk_conf->meta_dev_idx + 1);
+		min_md_device_sectors = MD_128MB_SECT * (new_disk_conf->meta_dev_idx + 1);
 	}
 
 	if (drbd_get_capacity(nbc->md_bdev) < min_md_device_sectors) {
@@ -1467,18 +1584,12 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	if (!get_ldev_if_state(mdev, D_ATTACHING))
 		goto force_diskless;
 
-	drbd_md_set_sector_offsets(mdev, nbc);
-
 	if (!mdev->bitmap) {
 		if (drbd_bm_init(mdev)) {
 			retcode = ERR_NOMEM;
 			goto force_diskless_dec;
 		}
 	}
-
-	retcode = drbd_md_read(mdev, nbc);
-	if (retcode != NO_ERROR)
-		goto force_diskless_dec;
 
 	if (mdev->state.conn < C_CONNECTED &&
 	    mdev->state.role == R_PRIMARY &&
@@ -1561,11 +1672,11 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	    !drbd_md_test_flag(mdev->ldev, MDF_CONNECTED_IND))
 		set_bit(USE_DEGR_WFC_T, &mdev->flags);
 
-	dd = drbd_determine_dev_size(mdev, 0);
-	if (dd == dev_size_error) {
+	dd = drbd_determine_dev_size(mdev, 0, NULL);
+	if (dd <= DS_ERROR) {
 		retcode = ERR_NOMEM_BITMAP;
 		goto force_diskless_dec;
-	} else if (dd == grew)
+	} else if (dd == DS_GREW)
 		set_bit(RESYNC_AFTER_NEG, &mdev->flags);
 
 	if (drbd_md_test_flag(mdev->ldev, MDF_FULL_SYNC) ||
@@ -2158,8 +2269,11 @@ static enum drbd_state_rv conn_try_disconnect(struct drbd_tconn *tconn, bool for
 		return SS_SUCCESS;
 	case SS_PRIMARY_NOP:
 		/* Our state checking code wants to see the peer outdated. */
-		rv = conn_request_state(tconn, NS2(conn, C_DISCONNECTING,
-						pdsk, D_OUTDATED), CS_VERBOSE);
+		rv = conn_request_state(tconn, NS2(conn, C_DISCONNECTING, pdsk, D_OUTDATED), 0);
+
+		if (rv == SS_OUTDATE_WO_CONN) /* lost connection before graceful disconnect succeeded */
+			rv = conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_VERBOSE);
+
 		break;
 	case SS_CW_FAILED_BY_PEER:
 		/* The peer probably wants to see us outdated. */
@@ -2256,6 +2370,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 	struct drbd_conf *mdev;
 	enum drbd_ret_code retcode;
 	enum determine_dev_size dd;
+	bool change_al_layout = false;
 	enum dds_flags ddsf;
 	sector_t u_size;
 	int err;
@@ -2266,31 +2381,33 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 	if (retcode != NO_ERROR)
 		goto fail;
 
+	mdev = adm_ctx.mdev;
+	if (!get_ldev(mdev)) {
+		retcode = ERR_NO_DISK;
+		goto fail;
+	}
+
 	memset(&rs, 0, sizeof(struct resize_parms));
+	rs.al_stripes = mdev->ldev->md.al_stripes;
+	rs.al_stripe_size = mdev->ldev->md.al_stripe_size_4k * 4;
 	if (info->attrs[DRBD_NLA_RESIZE_PARMS]) {
 		err = resize_parms_from_attrs(&rs, info);
 		if (err) {
 			retcode = ERR_MANDATORY_TAG;
 			drbd_msg_put_info(from_attrs_err_to_txt(err));
-			goto fail;
+			goto fail_ldev;
 		}
 	}
 
-	mdev = adm_ctx.mdev;
 	if (mdev->state.conn > C_CONNECTED) {
 		retcode = ERR_RESIZE_RESYNC;
-		goto fail;
+		goto fail_ldev;
 	}
 
 	if (mdev->state.role == R_SECONDARY &&
 	    mdev->state.peer == R_SECONDARY) {
 		retcode = ERR_NO_PRIMARY;
-		goto fail;
-	}
-
-	if (!get_ldev(mdev)) {
-		retcode = ERR_NO_DISK;
-		goto fail;
+		goto fail_ldev;
 	}
 
 	if (rs.no_resync && mdev->tconn->agreed_pro_version < 93) {
@@ -2309,6 +2426,28 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
+	if (mdev->ldev->md.al_stripes != rs.al_stripes ||
+	    mdev->ldev->md.al_stripe_size_4k != rs.al_stripe_size / 4) {
+		u32 al_size_k = rs.al_stripes * rs.al_stripe_size;
+
+		if (al_size_k > (16 * 1024 * 1024)) {
+			retcode = ERR_MD_LAYOUT_TOO_BIG;
+			goto fail_ldev;
+		}
+
+		if (al_size_k < MD_32kB_SECT/2) {
+			retcode = ERR_MD_LAYOUT_TOO_SMALL;
+			goto fail_ldev;
+		}
+
+		if (mdev->state.conn != C_CONNECTED) {
+			retcode = ERR_MD_LAYOUT_CONNECTED;
+			goto fail_ldev;
+		}
+
+		change_al_layout = true;
+	}
+
 	if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev))
 		mdev->ldev->known_size = drbd_get_capacity(mdev->ldev->backing_bdev);
 
@@ -2324,16 +2463,22 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	ddsf = (rs.resize_force ? DDSF_FORCED : 0) | (rs.no_resync ? DDSF_NO_RESYNC : 0);
-	dd = drbd_determine_dev_size(mdev, ddsf);
+	dd = drbd_determine_dev_size(mdev, ddsf, change_al_layout ? &rs : NULL);
 	drbd_md_sync(mdev);
 	put_ldev(mdev);
-	if (dd == dev_size_error) {
+	if (dd == DS_ERROR) {
 		retcode = ERR_NOMEM_BITMAP;
+		goto fail;
+	} else if (dd == DS_ERROR_SPACE_MD) {
+		retcode = ERR_MD_LAYOUT_NO_FIT;
+		goto fail;
+	} else if (dd == DS_ERROR_SHRINK) {
+		retcode = ERR_IMPLICIT_SHRINK;
 		goto fail;
 	}
 
 	if (mdev->state.conn == C_CONNECTED) {
-		if (dd == grew)
+		if (dd == DS_GREW)
 			set_bit(RESIZE_PENDING, &mdev->flags);
 
 		drbd_send_uuids(mdev);
@@ -2406,22 +2551,19 @@ int drbd_adm_invalidate(struct sk_buff *skb, struct genl_info *info)
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
 	drbd_flush_workqueue(mdev);
 
-	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T), CS_ORDERED);
-
-	if (retcode < SS_SUCCESS && retcode != SS_NEED_CONNECTION)
+	/* If we happen to be C_STANDALONE R_SECONDARY, just change to
+	 * D_INCONSISTENT, and set all bits in the bitmap.  Otherwise,
+	 * try to start a resync handshake as sync target for full sync.
+	 */
+	if (mdev->state.conn == C_STANDALONE && mdev->state.role == R_SECONDARY) {
+		retcode = drbd_request_state(mdev, NS(disk, D_INCONSISTENT));
+		if (retcode >= SS_SUCCESS) {
+			if (drbd_bitmap_io(mdev, &drbd_bmio_set_n_write,
+				"set_n_write from invalidate", BM_LOCKED_MASK))
+				retcode = ERR_IO_MD_DISK;
+		}
+	} else
 		retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T));
-
-	while (retcode == SS_NEED_CONNECTION) {
-		spin_lock_irq(&mdev->tconn->req_lock);
-		if (mdev->state.conn < C_CONNECTED)
-			retcode = _drbd_set_state(_NS(mdev, disk, D_INCONSISTENT), CS_VERBOSE, NULL);
-		spin_unlock_irq(&mdev->tconn->req_lock);
-
-		if (retcode != SS_NEED_CONNECTION)
-			break;
-
-		retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T));
-	}
 	drbd_resume_io(mdev);
 
 out:
@@ -2475,21 +2617,22 @@ int drbd_adm_invalidate_peer(struct sk_buff *skb, struct genl_info *info)
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
 	drbd_flush_workqueue(mdev);
 
-	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S), CS_ORDERED);
-	if (retcode < SS_SUCCESS) {
-		if (retcode == SS_NEED_CONNECTION && mdev->state.role == R_PRIMARY) {
-			/* The peer will get a resync upon connect anyways.
-			 * Just make that into a full resync. */
-			retcode = drbd_request_state(mdev, NS(pdsk, D_INCONSISTENT));
-			if (retcode >= SS_SUCCESS) {
-				if (drbd_bitmap_io(mdev, &drbd_bmio_set_susp_al,
-						   "set_n_write from invalidate_peer",
-						   BM_LOCKED_SET_ALLOWED))
-					retcode = ERR_IO_MD_DISK;
-			}
-		} else
-			retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
-	}
+	/* If we happen to be C_STANDALONE R_PRIMARY, just set all bits
+	 * in the bitmap.  Otherwise, try to start a resync handshake
+	 * as sync source for full sync.
+	 */
+	if (mdev->state.conn == C_STANDALONE && mdev->state.role == R_PRIMARY) {
+		/* The peer will get a resync upon connect anyways. Just make that
+		   into a full resync. */
+		retcode = drbd_request_state(mdev, NS(pdsk, D_INCONSISTENT));
+		if (retcode >= SS_SUCCESS) {
+			if (drbd_bitmap_io(mdev, &drbd_bmio_set_susp_al,
+				"set_n_write from invalidate_peer",
+				BM_LOCKED_SET_ALLOWED))
+				retcode = ERR_IO_MD_DISK;
+		}
+	} else
+		retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
 	drbd_resume_io(mdev);
 
 out:
@@ -2611,7 +2754,6 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 		const struct sib_info *sib)
 {
 	struct state_info *si = NULL; /* for sizeof(si->member); */
-	struct net_conf *nc;
 	struct nlattr *nla;
 	int got_ldev;
 	int err = 0;
@@ -2641,13 +2783,19 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 		goto nla_put_failure;
 
 	rcu_read_lock();
-	if (got_ldev)
-		if (disk_conf_to_skb(skb, rcu_dereference(mdev->ldev->disk_conf), exclude_sensitive))
-			goto nla_put_failure;
+	if (got_ldev) {
+		struct disk_conf *disk_conf;
 
-	nc = rcu_dereference(mdev->tconn->net_conf);
-	if (nc)
-		err = net_conf_to_skb(skb, nc, exclude_sensitive);
+		disk_conf = rcu_dereference(mdev->ldev->disk_conf);
+		err = disk_conf_to_skb(skb, disk_conf, exclude_sensitive);
+	}
+	if (!err) {
+		struct net_conf *nc;
+
+		nc = rcu_dereference(mdev->tconn->net_conf);
+		if (nc)
+			err = net_conf_to_skb(skb, nc, exclude_sensitive);
+	}
 	rcu_read_unlock();
 	if (err)
 		goto nla_put_failure;
@@ -3162,6 +3310,7 @@ static enum drbd_ret_code adm_delete_minor(struct drbd_conf *mdev)
 				    CS_VERBOSE + CS_WAIT_COMPLETE);
 		idr_remove(&mdev->tconn->volumes, mdev->vnr);
 		idr_remove(&minors, mdev_to_minor(mdev));
+		destroy_workqueue(mdev->submit.wq);
 		del_gendisk(mdev->vdisk);
 		synchronize_rcu();
 		kref_put(&mdev->kref, &drbd_minor_destroy);

@@ -35,7 +35,7 @@
 
 #define DRIVER_NAME	"mvsdio"
 
-static int maxfreq = MVSD_CLOCKRATE_MAX;
+static int maxfreq;
 static int nodma;
 
 struct mvsd_host {
@@ -119,10 +119,8 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 		host->pio_size = data->blocks * data->blksz;
 		host->pio_ptr = sg_virt(data->sg);
 		if (!nodma)
-			pr_debug("%s: fallback to PIO for data "
-					  "at 0x%p size %d\n",
-					  mmc_hostname(host->mmc),
-					  host->pio_ptr, host->pio_size);
+			dev_dbg(host->dev, "fallback to PIO for data at 0x%p size %d\n",
+				host->pio_ptr, host->pio_size);
 		return 1;
 	} else {
 		dma_addr_t phys_addr;
@@ -473,8 +471,8 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 		if (mrq->data)
 			err_status = mvsd_finish_data(host, mrq->data, err_status);
 		if (err_status) {
-			pr_err("%s: unhandled error status %#04x\n",
-					mmc_hostname(host->mmc), err_status);
+			dev_err(host->dev, "unhandled error status %#04x\n",
+				err_status);
 			cmd->error = -ENOMSG;
 		}
 
@@ -491,9 +489,8 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 	if (irq_handled)
 		return IRQ_HANDLED;
 
-	pr_err("%s: unhandled interrupt status=0x%04x en=0x%04x "
-			"pio=%d\n", mmc_hostname(host->mmc), intr_status,
-			host->intr_en, host->pio_size);
+	dev_err(host->dev, "unhandled interrupt status=0x%04x en=0x%04x pio=%d\n",
+		intr_status, host->intr_en, host->pio_size);
 	return IRQ_NONE;
 }
 
@@ -507,13 +504,11 @@ static void mvsd_timeout_timer(unsigned long data)
 	spin_lock_irqsave(&host->lock, flags);
 	mrq = host->mrq;
 	if (mrq) {
-		pr_err("%s: Timeout waiting for hardware interrupt.\n",
-				mmc_hostname(host->mmc));
-		pr_err("%s: hw_state=0x%04x, intr_status=0x%04x "
-				"intr_en=0x%04x\n", mmc_hostname(host->mmc),
-				mvsd_read(MVSD_HW_STATE),
-				mvsd_read(MVSD_NOR_INTR_STATUS),
-				mvsd_read(MVSD_NOR_INTR_EN));
+		dev_err(host->dev, "Timeout waiting for hardware interrupt.\n");
+		dev_err(host->dev, "hw_state=0x%04x, intr_status=0x%04x intr_en=0x%04x\n",
+			mvsd_read(MVSD_HW_STATE),
+			mvsd_read(MVSD_NOR_INTR_STATUS),
+			mvsd_read(MVSD_NOR_INTR_EN));
 
 		host->mrq = NULL;
 
@@ -690,7 +685,6 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	const struct mbus_dram_target_info *dram;
 	struct resource *r;
 	int ret, irq;
-	int gpio_card_detect, gpio_write_protect;
 	struct pinctrl *pinctrl;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -723,6 +717,20 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	if (!IS_ERR(host->clk))
 		clk_prepare_enable(host->clk);
 
+	mmc->ops = &mvsd_ops;
+
+	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+
+	mmc->f_min = DIV_ROUND_UP(host->base_clock, MVSD_BASE_DIV_MAX);
+	mmc->f_max = MVSD_CLOCKRATE_MAX;
+
+	mmc->max_blk_size = 2048;
+	mmc->max_blk_count = 65535;
+
+	mmc->max_segs = 1;
+	mmc->max_seg_size = mmc->max_blk_size * mmc->max_blk_count;
+	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+
 	if (np) {
 		if (IS_ERR(host->clk)) {
 			dev_err(&pdev->dev, "DT platforms must have a clock associated\n");
@@ -731,35 +739,39 @@ static int __init mvsd_probe(struct platform_device *pdev)
 		}
 
 		host->base_clock = clk_get_rate(host->clk) / 2;
-		gpio_card_detect = of_get_named_gpio(np, "cd-gpios", 0);
-		gpio_write_protect = of_get_named_gpio(np, "wp-gpios", 0);
+		ret = mmc_of_parse(mmc);
+		if (ret < 0)
+			goto out;
 	} else {
 		const struct mvsdio_platform_data *mvsd_data;
+
 		mvsd_data = pdev->dev.platform_data;
 		if (!mvsd_data) {
 			ret = -ENXIO;
 			goto out;
 		}
+		mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ |
+			    MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
 		host->base_clock = mvsd_data->clock / 2;
-		gpio_card_detect = mvsd_data->gpio_card_detect;
-		gpio_write_protect = mvsd_data->gpio_write_protect;
+		/* GPIO 0 regarded as invalid for backward compatibility */
+		if (mvsd_data->gpio_card_detect &&
+		    gpio_is_valid(mvsd_data->gpio_card_detect)) {
+			ret = mmc_gpio_request_cd(mmc,
+						  mvsd_data->gpio_card_detect,
+						  0);
+			if (ret)
+				goto out;
+		} else {
+			mmc->caps |= MMC_CAP_NEEDS_POLL;
+		}
+
+		if (mvsd_data->gpio_write_protect &&
+		    gpio_is_valid(mvsd_data->gpio_write_protect))
+			mmc_gpio_request_ro(mmc, mvsd_data->gpio_write_protect);
 	}
 
-	mmc->ops = &mvsd_ops;
-
-	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ |
-		    MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
-
-	mmc->f_min = DIV_ROUND_UP(host->base_clock, MVSD_BASE_DIV_MAX);
-	mmc->f_max = maxfreq;
-
-	mmc->max_blk_size = 2048;
-	mmc->max_blk_count = 65535;
-
-	mmc->max_segs = 1;
-	mmc->max_seg_size = mmc->max_blk_size * mmc->max_blk_count;
-	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+	if (maxfreq)
+		mmc->f_max = maxfreq;
 
 	spin_lock_init(&host->lock);
 
@@ -778,18 +790,9 @@ static int __init mvsd_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, irq, mvsd_irq, 0, DRIVER_NAME, host);
 	if (ret) {
-		pr_err("%s: cannot assign irq %d\n", DRIVER_NAME, irq);
+		dev_err(&pdev->dev, "cannot assign irq %d\n", irq);
 		goto out;
 	}
-
-	if (gpio_is_valid(gpio_card_detect)) {
-		ret = mmc_gpio_request_cd(mmc, gpio_card_detect);
-		if (ret)
-			goto out;
-	} else
-		mmc->caps |= MMC_CAP_NEEDS_POLL;
-
-	mmc_gpio_request_ro(mmc, gpio_write_protect);
 
 	setup_timer(&host->timer, mvsd_timeout_timer, (unsigned long)host);
 	platform_set_drvdata(pdev, mmc);
@@ -797,13 +800,11 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-	pr_notice("%s: %s driver initialized, ",
-			   mmc_hostname(mmc), DRIVER_NAME);
 	if (!(mmc->caps & MMC_CAP_NEEDS_POLL))
-		printk("using GPIO %d for card detection\n",
-		       gpio_card_detect);
+		dev_notice(&pdev->dev, "using GPIO for card detection\n");
 	else
-		printk("lacking card detect (fall back to polling)\n");
+		dev_notice(&pdev->dev,
+			   "lacking card detect (fall back to polling)\n");
 	return 0;
 
 out:
@@ -834,7 +835,6 @@ static int __exit mvsd_remove(struct platform_device *pdev)
 		clk_disable_unprepare(host->clk);
 	mmc_free_host(mmc);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -881,18 +881,7 @@ static struct platform_driver mvsd_driver = {
 	},
 };
 
-static int __init mvsd_init(void)
-{
-	return platform_driver_probe(&mvsd_driver, mvsd_probe);
-}
-
-static void __exit mvsd_exit(void)
-{
-	platform_driver_unregister(&mvsd_driver);
-}
-
-module_init(mvsd_init);
-module_exit(mvsd_exit);
+module_platform_driver_probe(mvsd_driver, mvsd_probe);
 
 /* maximum card clock frequency (default 50MHz) */
 module_param(maxfreq, int, 0);

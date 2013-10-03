@@ -650,13 +650,14 @@ typedef u32 acpi_event_type;
  * The encoding of acpi_event_status is illustrated below.
  * Note that a set bit (1) indicates the property is TRUE
  * (e.g. if bit 0 is set then the event is enabled).
- * +-------------+-+-+-+
- * |   Bits 31:3 |2|1|0|
- * +-------------+-+-+-+
- *          |     | | |
- *          |     | | +- Enabled?
- *          |     | +--- Enabled for wake?
- *          |     +----- Set?
+ * +-------------+-+-+-+-+
+ * |   Bits 31:4 |3|2|1|0|
+ * +-------------+-+-+-+-+
+ *          |     | | | |
+ *          |     | | | +- Enabled?
+ *          |     | | +--- Enabled for wake?
+ *          |     | +----- Set?
+ *          |     +------- Has a handler?
  *          +----------- <Reserved>
  */
 typedef u32 acpi_event_status;
@@ -666,13 +667,6 @@ typedef u32 acpi_event_status;
 #define ACPI_EVENT_FLAG_WAKE_ENABLED    (acpi_event_status) 0x02
 #define ACPI_EVENT_FLAG_SET             (acpi_event_status) 0x04
 #define ACPI_EVENT_FLAG_HANDLE		(acpi_event_status) 0x08
-
-/*
- * General Purpose Events (GPE)
- */
-#define ACPI_GPE_INVALID                0xFF
-#define ACPI_GPE_MAX                    0xFF
-#define ACPI_NUM_GPE                    256
 
 /* Actions for acpi_set_gpe, acpi_gpe_wakeup, acpi_hw_low_set_gpe */
 
@@ -1128,7 +1122,6 @@ struct acpi_memory_list {
 	u16 object_size;
 	u16 max_depth;
 	u16 current_depth;
-	u16 link_offset;
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
@@ -1143,5 +1136,32 @@ struct acpi_memory_list {
 	u32 hits;
 #endif
 };
+
+/* Definitions of _OSI support */
+
+#define ACPI_VENDOR_STRINGS                 0x01
+#define ACPI_FEATURE_STRINGS                0x02
+#define ACPI_ENABLE_INTERFACES              0x00
+#define ACPI_DISABLE_INTERFACES             0x04
+
+#define ACPI_DISABLE_ALL_VENDOR_STRINGS     (ACPI_DISABLE_INTERFACES | ACPI_VENDOR_STRINGS)
+#define ACPI_DISABLE_ALL_FEATURE_STRINGS    (ACPI_DISABLE_INTERFACES | ACPI_FEATURE_STRINGS)
+#define ACPI_DISABLE_ALL_STRINGS            (ACPI_DISABLE_INTERFACES | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
+#define ACPI_ENABLE_ALL_VENDOR_STRINGS      (ACPI_ENABLE_INTERFACES | ACPI_VENDOR_STRINGS)
+#define ACPI_ENABLE_ALL_FEATURE_STRINGS     (ACPI_ENABLE_INTERFACES | ACPI_FEATURE_STRINGS)
+#define ACPI_ENABLE_ALL_STRINGS             (ACPI_ENABLE_INTERFACES | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
+
+#define ACPI_OSI_WIN_2000               0x01
+#define ACPI_OSI_WIN_XP                 0x02
+#define ACPI_OSI_WIN_XP_SP1             0x03
+#define ACPI_OSI_WINSRV_2003            0x04
+#define ACPI_OSI_WIN_XP_SP2             0x05
+#define ACPI_OSI_WINSRV_2003_SP1        0x06
+#define ACPI_OSI_WIN_VISTA              0x07
+#define ACPI_OSI_WINSRV_2008            0x08
+#define ACPI_OSI_WIN_VISTA_SP1          0x09
+#define ACPI_OSI_WIN_VISTA_SP2          0x0A
+#define ACPI_OSI_WIN_7                  0x0B
+#define ACPI_OSI_WIN_8                  0x0C
 
 #endif				/* __ACTYPES_H__ */

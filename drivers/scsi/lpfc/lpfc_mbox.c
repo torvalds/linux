@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -178,7 +178,8 @@ lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb->mbxOwner = OWN_HOST;
 	mb->un.varDmp.cv = 1;
 	mb->un.varDmp.type = DMP_NV_PARAMS;
-	mb->un.varDmp.entry_index = 0;
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		mb->un.varDmp.entry_index = 0;
 	mb->un.varDmp.region_id = WAKE_UP_PARMS_REGION_ID;
 	mb->un.varDmp.word_cnt = WAKE_UP_PARMS_WORD_SIZE;
 	mb->un.varDmp.co = 0;
@@ -361,7 +362,7 @@ lpfc_config_link(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	/* NEW_FEATURE
 	 * SLI-2, Coalescing Response Feature.
 	 */
-	if (phba->cfg_cr_delay) {
+	if (phba->cfg_cr_delay && (phba->sli_rev < LPFC_SLI_REV4)) {
 		mb->un.varCfgLnk.cr = 1;
 		mb->un.varCfgLnk.ci = 1;
 		mb->un.varCfgLnk.cr_delay = phba->cfg_cr_delay;
@@ -377,7 +378,7 @@ lpfc_config_link(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	mb->un.varCfgLnk.crtov = phba->fc_crtov;
 	mb->un.varCfgLnk.citov = phba->fc_citov;
 
-	if (phba->cfg_ack0)
+	if (phba->cfg_ack0 && (phba->sli_rev < LPFC_SLI_REV4))
 		mb->un.varCfgLnk.ack0_enable = 1;
 
 	mb->mbxCommand = MBX_CONFIG_LINK;
@@ -2126,33 +2127,44 @@ void
 lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 {
 	struct lpfc_mbx_reg_vfi *reg_vfi;
+	struct lpfc_hba *phba = vport->phba;
 
 	memset(mbox, 0, sizeof(*mbox));
 	reg_vfi = &mbox->u.mqe.un.reg_vfi;
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_REG_VFI);
 	bf_set(lpfc_reg_vfi_vp, reg_vfi, 1);
 	bf_set(lpfc_reg_vfi_vfi, reg_vfi,
-	       vport->phba->sli4_hba.vfi_ids[vport->vfi]);
-	bf_set(lpfc_reg_vfi_fcfi, reg_vfi, vport->phba->fcf.fcfi);
-	bf_set(lpfc_reg_vfi_vpi, reg_vfi, vport->phba->vpi_ids[vport->vpi]);
+	       phba->sli4_hba.vfi_ids[vport->vfi]);
+	bf_set(lpfc_reg_vfi_fcfi, reg_vfi, phba->fcf.fcfi);
+	bf_set(lpfc_reg_vfi_vpi, reg_vfi, phba->vpi_ids[vport->vpi]);
 	memcpy(reg_vfi->wwn, &vport->fc_portname, sizeof(struct lpfc_name));
 	reg_vfi->wwn[0] = cpu_to_le32(reg_vfi->wwn[0]);
 	reg_vfi->wwn[1] = cpu_to_le32(reg_vfi->wwn[1]);
-	reg_vfi->e_d_tov = vport->phba->fc_edtov;
-	reg_vfi->r_a_tov = vport->phba->fc_ratov;
+	reg_vfi->e_d_tov = phba->fc_edtov;
+	reg_vfi->r_a_tov = phba->fc_ratov;
 	reg_vfi->bde.addrHigh = putPaddrHigh(phys);
 	reg_vfi->bde.addrLow = putPaddrLow(phys);
 	reg_vfi->bde.tus.f.bdeSize = sizeof(vport->fc_sparam);
 	reg_vfi->bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
 	bf_set(lpfc_reg_vfi_nport_id, reg_vfi, vport->fc_myDID);
+
+	/* Only FC supports upd bit */
+	if ((phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_FC) &&
+	    (vport->fc_flag & FC_VFI_REGISTERED) &&
+	    (!phba->fc_topology_changed)) {
+		bf_set(lpfc_reg_vfi_vp, reg_vfi, 0);
+		bf_set(lpfc_reg_vfi_upd, reg_vfi, 1);
+	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_MBOX,
 			"3134 Register VFI, mydid:x%x, fcfi:%d, "
-			" vfi:%d, vpi:%d, fc_pname:%x%x\n",
+			" vfi:%d, vpi:%d, fc_pname:%x%x fc_flag:x%x"
+			" port_state:x%x topology chg:%d\n",
 			vport->fc_myDID,
-			vport->phba->fcf.fcfi,
-			vport->phba->sli4_hba.vfi_ids[vport->vfi],
-			vport->phba->vpi_ids[vport->vpi],
-			reg_vfi->wwn[0], reg_vfi->wwn[1]);
+			phba->fcf.fcfi,
+			phba->sli4_hba.vfi_ids[vport->vfi],
+			phba->vpi_ids[vport->vpi],
+			reg_vfi->wwn[0], reg_vfi->wwn[1], vport->fc_flag,
+			vport->port_state, phba->fc_topology_changed);
 }
 
 /**

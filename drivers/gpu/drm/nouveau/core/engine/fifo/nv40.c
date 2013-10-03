@@ -320,7 +320,7 @@ nv40_fifo_init(struct nouveau_object *object)
 		break;
 	default:
 		nv_wr32(priv, 0x002230, 0x00000000);
-		nv_wr32(priv, 0x002220, ((pfb->ram.size - 512 * 1024 +
+		nv_wr32(priv, 0x002220, ((pfb->ram->size - 512 * 1024 +
 					 priv->ramfc->addr) >> 16) |
 					0x00030000);
 		break;

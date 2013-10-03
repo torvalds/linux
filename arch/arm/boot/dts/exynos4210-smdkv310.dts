@@ -15,7 +15,7 @@
 */
 
 /dts-v1/;
-/include/ "exynos4210.dtsi"
+#include "exynos4210.dtsi"
 
 / {
 	model = "Samsung smdkv310 evaluation board based on Exynos4210";
@@ -30,16 +30,19 @@
 	};
 
 	sdhci@12530000 {
-		samsung,sdhci-bus-width = <4>;
-		linux,mmc_cap_4_bit_data;
-		samsung,sdhci-cd-internal;
-		gpio-cd = <&gpk2 2 2 3 3>;
-		gpios = <&gpk2 0 2 0 3>,
-			<&gpk2 1 2 0 3>,
-			<&gpk2 3 2 3 3>,
-			<&gpk2 4 2 3 3>,
-			<&gpk2 5 2 3 3>,
-			<&gpk2 6 2 3 3>;
+		bus-width = <4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
+		status = "okay";
+	};
+
+	g2d@12800000 {
+		status = "okay";
+	};
+
+	codec@13400000 {
+		samsung,mfc-r = <0x43000000 0x800000>;
+		samsung,mfc-l = <0x51000000 0x800000>;
 		status = "okay";
 	};
 
@@ -59,24 +62,31 @@
 		status = "okay";
 	};
 
+	pinctrl@11000000 {
+		keypad_rows: keypad-rows {
+			samsung,pins = "gpx2-0", "gpx2-1";
+			samsung,pin-function = <3>;
+			samsung,pin-pud = <3>;
+			samsung,pin-drv = <0>;
+		};
+
+		keypad_cols: keypad-cols {
+			samsung,pins = "gpx1-0", "gpx1-1", "gpx1-2", "gpx1-3",
+				       "gpx1-4", "gpx1-5", "gpx1-6", "gpx1-7";
+			samsung,pin-function = <3>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+	};
+
 	keypad@100A0000 {
 		samsung,keypad-num-rows = <2>;
 		samsung,keypad-num-columns = <8>;
 		linux,keypad-no-autorepeat;
 		linux,keypad-wakeup;
+		pinctrl-names = "default";
+		pinctrl-0 = <&keypad_rows &keypad_cols>;
 		status = "okay";
-
-		row-gpios = <&gpx2 0 3 3 0>,
-			    <&gpx2 1 3 3 0>;
-
-		col-gpios = <&gpx1 0 3 0 0>,
-			    <&gpx1 1 3 0 0>,
-			    <&gpx1 2 3 0 0>,
-			    <&gpx1 3 3 0 0>,
-			    <&gpx1 4 3 0 0>,
-			    <&gpx1 5 3 0 0>,
-			    <&gpx1 6 3 0 0>,
-			    <&gpx1 7 3 0 0>;
 
 		key_1 {
 			keypad,row = <0>;
@@ -143,9 +153,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		samsung,i2c-sda-delay = <100>;
-		samsung,i2c-max-bus-freq = <20000>;
-		gpios = <&gpd1 0 2 3 0>,
-			<&gpd1 1 2 3 0>;
+		samsung,i2c-max-bus-freq = <100000>;
 		status = "okay";
 
 		eeprom@50 {
@@ -160,9 +168,6 @@
 	};
 
 	spi_2: spi@13940000 {
-		gpios = <&gpc1 1 5 3 0>,
-			<&gpc1 3 5 3 0>,
-			<&gpc1 4 5 3 0>;
 		status = "okay";
 
 		w25x80@0 {
@@ -173,7 +178,7 @@
 			spi-max-frequency = <1000000>;
 
 			controller-data {
-				cs-gpio = <&gpc1 2 1 0 3>;
+				cs-gpio = <&gpc1 2 0>;
 				samsung,spi-feedback-delay = <0>;
 			};
 
@@ -187,6 +192,18 @@
 				label = "Kernel";
 				reg = <0x40000 0xc0000>;
 			};
+		};
+	};
+
+	fixed-rate-clocks {
+		xxti {
+			compatible = "samsung,clock-xxti";
+			clock-frequency = <12000000>;
+		};
+
+		xusbxti {
+			compatible = "samsung,clock-xusbxti";
+			clock-frequency = <24000000>;
 		};
 	};
 };

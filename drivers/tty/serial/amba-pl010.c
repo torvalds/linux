@@ -721,7 +721,7 @@ static int pl010_probe(struct amba_device *dev, const struct amba_id *id)
 	uap->port.flags = UPF_BOOT_AUTOCONF;
 	uap->port.line = i;
 	uap->dev = dev;
-	uap->data = dev->dev.platform_data;
+	uap->data = dev_get_platdata(&dev->dev);
 
 	amba_ports[i] = uap;
 

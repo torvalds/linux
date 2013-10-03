@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -71,7 +71,13 @@
 #define MAC_INDEX_MIN_DRIVER	0
 #define NUM_MAC_INDEX_DRIVER	MAC_INDEX_AUX
 
-#define AC_NUM	4 /* Number of access categories */
+enum iwl_ac {
+	AC_BK,
+	AC_BE,
+	AC_VI,
+	AC_VO,
+	AC_NUM,
+};
 
 /**
  * enum iwl_mac_protection_flags - MAC context flags

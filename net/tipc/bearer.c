@@ -39,7 +39,7 @@
 #include "bearer.h"
 #include "discover.h"
 
-#define MAX_ADDR_STR 32
+#define MAX_ADDR_STR 60
 
 static struct tipc_media *media_list[MAX_MEDIA];
 static u32 media_count;
@@ -88,9 +88,6 @@ int tipc_register_media(struct tipc_media *m_ptr)
 	write_lock_bh(&tipc_net_lock);
 
 	if ((strlen(m_ptr->name) + 1) > TIPC_MAX_MEDIA_NAME)
-		goto exit;
-	if ((m_ptr->bcast_addr.media_id != m_ptr->type_id) ||
-	    !m_ptr->bcast_addr.broadcast)
 		goto exit;
 	if (m_ptr->priority > TIPC_MAX_LINK_PRI)
 		goto exit;
@@ -407,7 +404,7 @@ restart:
 	INIT_LIST_HEAD(&b_ptr->links);
 	spin_lock_init(&b_ptr->lock);
 
-	res = tipc_disc_create(b_ptr, &m_ptr->bcast_addr, disc_domain);
+	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr, disc_domain);
 	if (res) {
 		bearer_disable(b_ptr);
 		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
@@ -463,6 +460,7 @@ static void bearer_disable(struct tipc_bearer *b_ptr)
 {
 	struct tipc_link *l_ptr;
 	struct tipc_link *temp_l_ptr;
+	struct tipc_link_req *temp_req;
 
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
@@ -471,9 +469,13 @@ static void bearer_disable(struct tipc_bearer *b_ptr)
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		tipc_link_delete(l_ptr);
 	}
-	if (b_ptr->link_req)
-		tipc_disc_delete(b_ptr->link_req);
+	temp_req = b_ptr->link_req;
+	b_ptr->link_req = NULL;
 	spin_unlock_bh(&b_ptr->lock);
+
+	if (temp_req)
+		tipc_disc_delete(temp_req);
+
 	memset(b_ptr, 0, sizeof(struct tipc_bearer));
 }
 

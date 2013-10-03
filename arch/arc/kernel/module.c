@@ -47,7 +47,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 		}
 	}
 #endif
-    return 0;
+	return 0;
 }
 
 void module_arch_cleanup(struct module *mod)
@@ -141,5 +141,5 @@ int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 		mod->arch.unw_info = unw;
 	}
 #endif
-    return 0;
+	return 0;
 }

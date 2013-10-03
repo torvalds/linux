@@ -43,7 +43,7 @@ config CPU_ARM740T
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
-	select CPU_CACHE_V3	# although the core is v4t
+	select CPU_CACHE_V4
 	select CPU_CP15_MPU
 	select CPU_PABRT_LEGACY
 	help
@@ -392,10 +392,27 @@ config CPU_V7
 	select CPU_CACHE_V7
 	select CPU_CACHE_VIPT
 	select CPU_COPY_V6 if MMU
-	select CPU_CP15_MMU
+	select CPU_CP15_MMU if MMU
+	select CPU_CP15_MPU if !MMU
 	select CPU_HAS_ASID if MMU
 	select CPU_PABRT_V7
 	select CPU_TLB_V7 if MMU
+
+# ARMv7M
+config CPU_V7M
+	bool
+	select CPU_32v7M
+	select CPU_ABRT_NOMMU
+	select CPU_CACHE_NOP
+	select CPU_PABRT_LEGACY
+	select CPU_THUMBONLY
+
+config CPU_THUMBONLY
+	bool
+	# There are no CPUs available with MMU that don't implement an ARM ISA:
+	depends on !MMU
+	help
+	  Select this if your CPU doesn't support the 32 bit ARM instructions.
 
 # Figure out what processor architecture version we should be using.
 # This defines the compiler instruction set which depends on the machine type.
@@ -404,24 +421,28 @@ config CPU_32v3
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select TLS_REG_EMUL if SMP || !MMU
+	select NEED_KUSER_HELPERS
 
 config CPU_32v4
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select TLS_REG_EMUL if SMP || !MMU
+	select NEED_KUSER_HELPERS
 
 config CPU_32v4T
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select TLS_REG_EMUL if SMP || !MMU
+	select NEED_KUSER_HELPERS
 
 config CPU_32v5
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select TLS_REG_EMUL if SMP || !MMU
+	select NEED_KUSER_HELPERS
 
 config CPU_32v6
 	bool
@@ -432,6 +453,9 @@ config CPU_32v6K
 	bool
 
 config CPU_32v7
+	bool
+
+config CPU_32v7M
 	bool
 
 # The abort model
@@ -469,9 +493,6 @@ config CPU_PABRT_V7
 	bool
 
 # The cache model
-config CPU_CACHE_V3
-	bool
-
 config CPU_CACHE_V4
 	bool
 
@@ -485,6 +506,9 @@ config CPU_CACHE_V6
 	bool
 
 config CPU_CACHE_V7
+	bool
+
+config CPU_CACHE_NOP
 	bool
 
 config CPU_CACHE_VIVT
@@ -608,8 +632,12 @@ config ARCH_DMA_ADDR_T_64BIT
 	bool
 
 config ARM_THUMB
-	bool "Support Thumb user binaries"
-	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_V6 || CPU_V6K || CPU_V7 || CPU_FEROCEON
+	bool "Support Thumb user binaries" if !CPU_THUMBONLY
+	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || \
+		CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || \
+		CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || \
+		CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_V6 || CPU_V6K || \
+		CPU_V7 || CPU_FEROCEON || CPU_V7M
 	default y
 	help
 	  Say Y if you want to include kernel support for running user space
@@ -752,6 +780,7 @@ config CPU_BPREDICT_DISABLE
 
 config TLS_REG_EMUL
 	bool
+	select NEED_KUSER_HELPERS
 	help
 	  An SMP system using a pre-ARMv6 processor (there are apparently
 	  a few prototypes like that in existence) and therefore access to
@@ -759,10 +788,42 @@ config TLS_REG_EMUL
 
 config NEEDS_SYSCALL_FOR_CMPXCHG
 	bool
+	select NEED_KUSER_HELPERS
 	help
 	  SMP on a pre-ARMv6 processor?  Well OK then.
 	  Forget about fast user space cmpxchg support.
 	  It is just not possible.
+
+config NEED_KUSER_HELPERS
+	bool
+
+config KUSER_HELPERS
+	bool "Enable kuser helpers in vector page" if !NEED_KUSER_HELPERS
+	default y
+	help
+	  Warning: disabling this option may break user programs.
+
+	  Provide kuser helpers in the vector page.  The kernel provides
+	  helper code to userspace in read only form at a fixed location
+	  in the high vector page to allow userspace to be independent of
+	  the CPU type fitted to the system.  This permits binaries to be
+	  run on ARMv4 through to ARMv7 without modification.
+
+	  See Documentation/arm/kernel_user_helpers.txt for details.
+
+	  However, the fixed address nature of these helpers can be used
+	  by ROP (return orientated programming) authors when creating
+	  exploits.
+
+	  If all of the binaries and libraries which run on your platform
+	  are built specifically for your platform, and make no use of
+	  these helpers, then you can turn this option off to hinder
+	  such exploits. However, in that case, if a binary or library
+	  relying on those helpers is run, it will receive a SIGILL signal,
+	  which will terminate the program.
+
+	  Say N here only if you are absolutely certain that you do not
+	  need these helpers; otherwise, the safe option is to say Y.
 
 config DMA_CACHE_RWFO
 	bool "Enable read/write for ownership DMA cache maintenance"

@@ -326,7 +326,7 @@ static ssize_t ad7192_write_frequency(struct device *dev,
 	unsigned long lval;
 	int div, ret;
 
-	ret = strict_strtoul(buf, 10, &lval);
+	ret = kstrtoul(buf, 10, &lval);
 	if (ret)
 		return ret;
 	if (lval == 0)

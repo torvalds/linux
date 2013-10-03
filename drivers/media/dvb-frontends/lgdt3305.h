@@ -22,6 +22,7 @@
 #ifndef _LGDT3305_H_
 #define _LGDT3305_H_
 
+#include <linux/kconfig.h>
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
@@ -73,8 +74,7 @@ struct lgdt3305_config {
 	enum lgdt_demod_chip_type demod_chip;
 };
 
-#if defined(CONFIG_DVB_LGDT3305) || (defined(CONFIG_DVB_LGDT3305_MODULE) && \
-				     defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_LGDT3305)
 extern
 struct dvb_frontend *lgdt3305_attach(const struct lgdt3305_config *config,
 				     struct i2c_adapter *i2c_adap);

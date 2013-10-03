@@ -493,7 +493,6 @@ static void path_rec_completion(int status,
 									       path,
 									       neigh));
 				if (!ipoib_cm_get(neigh)) {
-					list_del(&neigh->list);
 					ipoib_neigh_free(neigh);
 					continue;
 				}
@@ -618,7 +617,6 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 			if (!ipoib_cm_get(neigh))
 				ipoib_cm_set(neigh, ipoib_cm_create_tx(dev, path, neigh));
 			if (!ipoib_cm_get(neigh)) {
-				list_del(&neigh->list);
 				ipoib_neigh_free(neigh);
 				goto err_drop;
 			}
@@ -639,7 +637,7 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 		neigh->ah  = NULL;
 
 		if (!path->query && path_rec_start(dev, path))
-			goto err_list;
+			goto err_path;
 
 		__skb_queue_tail(&neigh->queue, skb);
 	}
@@ -647,9 +645,6 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 	spin_unlock_irqrestore(&priv->lock, flags);
 	ipoib_neigh_put(neigh);
 	return;
-
-err_list:
-	list_del(&neigh->list);
 
 err_path:
 	ipoib_neigh_free(neigh);
@@ -730,7 +725,8 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if ((header->proto != htons(ETH_P_IP)) &&
 		    (header->proto != htons(ETH_P_IPV6)) &&
 		    (header->proto != htons(ETH_P_ARP)) &&
-		    (header->proto != htons(ETH_P_RARP))) {
+		    (header->proto != htons(ETH_P_RARP)) &&
+		    (header->proto != htons(ETH_P_TIPC))) {
 			/* ethertype not supported by IPoIB */
 			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
@@ -751,6 +747,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	switch (header->proto) {
 	case htons(ETH_P_IP):
 	case htons(ETH_P_IPV6):
+	case htons(ETH_P_TIPC):
 		neigh = ipoib_neigh_get(dev, cb->hwaddr);
 		if (unlikely(!neigh)) {
 			neigh_add_path(skb, cb->hwaddr, dev);
@@ -828,7 +825,7 @@ static int ipoib_hard_header(struct sk_buff *skb,
 	 */
 	memcpy(cb->hwaddr, daddr, INFINIBAND_ALEN);
 
-	return 0;
+	return sizeof *header;
 }
 
 static void ipoib_set_mcast_list(struct net_device *dev)
@@ -1096,6 +1093,8 @@ void ipoib_neigh_free(struct ipoib_neigh *neigh)
 			rcu_assign_pointer(*np,
 					   rcu_dereference_protected(neigh->hnext,
 								     lockdep_is_held(&priv->lock)));
+			/* remove from parent list */
+			list_del(&neigh->list);
 			call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
 			return;
 		} else {
@@ -1459,7 +1458,7 @@ static ssize_t create_child(struct device *dev,
 	if (sscanf(buf, "%i", &pkey) != 1)
 		return -EINVAL;
 
-	if (pkey < 0 || pkey > 0xffff)
+	if (pkey <= 0 || pkey > 0xffff || pkey == 0x8000)
 		return -EINVAL;
 
 	/*

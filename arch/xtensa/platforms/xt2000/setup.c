@@ -69,7 +69,9 @@ void platform_restart(void)
 			      "wsr	a2, icountlevel\n\t"
 			      "movi	a2, 0\n\t"
 			      "wsr	a2, icount\n\t"
+#if XCHAL_NUM_IBREAK > 0
 			      "wsr	a2, ibreakenable\n\t"
+#endif
 			      "wsr	a2, lcount\n\t"
 			      "movi	a2, 0x1f\n\t"
 			      "wsr	a2, ps\n\t"

@@ -389,7 +389,8 @@ static int bfin_sir_startup(struct bfin_sir_port *port, struct net_device *dev)
 	set_dma_callback(port->rx_dma_channel, bfin_sir_dma_rx_int, dev);
 	set_dma_callback(port->tx_dma_channel, bfin_sir_dma_tx_int, dev);
 
-	port->rx_dma_buf.buf = (unsigned char *)dma_alloc_coherent(NULL, PAGE_SIZE, &dma_handle, GFP_DMA);
+	port->rx_dma_buf.buf = dma_alloc_coherent(NULL, PAGE_SIZE,
+						  &dma_handle, GFP_DMA);
 	port->rx_dma_buf.head = 0;
 	port->rx_dma_buf.tail = 0;
 	port->rx_dma_nrows = 0;
@@ -608,7 +609,7 @@ static int bfin_sir_open(struct net_device *dev)
 {
 	struct bfin_sir_self *self = netdev_priv(dev);
 	struct bfin_sir_port *port = self->sir_port;
-	int err = -ENOMEM;
+	int err;
 
 	self->newspeed = 0;
 	self->speed = 9600;
@@ -622,8 +623,10 @@ static int bfin_sir_open(struct net_device *dev)
 	bfin_sir_set_speed(port, 9600);
 
 	self->irlap = irlap_open(dev, &self->qos, DRIVER_NAME);
-	if (!self->irlap)
+	if (!self->irlap) {
+		err = -ENOMEM;
 		goto err_irlap;
+	}
 
 	INIT_WORK(&self->work, bfin_sir_send_work);
 
@@ -791,7 +794,6 @@ static int bfin_sir_remove(struct platform_device *pdev)
 	kfree(self->rx_buff.head);
 	free_netdev(dev);
 	kfree(sir_port);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

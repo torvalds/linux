@@ -1,5 +1,5 @@
 /*
- * Source for:
+ * cyttsp_i2c.c
  * Cypress TrueTouch(TM) Standard Product (TTSP) I2C touchscreen driver.
  * For use with Cypress Txx3xx parts.
  * Supported parts include:
@@ -19,11 +19,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contact Cypress Semiconductor at www.cypress.com <kev@cypress.com>
+ * Contact Cypress Semiconductor at www.cypress.com <ttdrivers@cypress.com>
  *
  */
 
@@ -33,47 +29,6 @@
 #include <linux/input.h>
 
 #define CY_I2C_DATA_SIZE	128
-
-static int cyttsp_i2c_read_block_data(struct cyttsp *ts,
-				      u8 addr, u8 length, void *values)
-{
-	struct i2c_client *client = to_i2c_client(ts->dev);
-	struct i2c_msg msgs[] = {
-		{
-			.addr = client->addr,
-			.flags = 0,
-			.len = 1,
-			.buf = &addr,
-		},
-		{
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = length,
-			.buf = values,
-		},
-	};
-	int retval;
-
-	retval = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (retval < 0)
-		return retval;
-
-	return retval != ARRAY_SIZE(msgs) ? -EIO : 0;
-}
-
-static int cyttsp_i2c_write_block_data(struct cyttsp *ts,
-				       u8 addr, u8 length, const void *values)
-{
-	struct i2c_client *client = to_i2c_client(ts->dev);
-	int retval;
-
-	ts->xfer_buf[0] = addr;
-	memcpy(&ts->xfer_buf[1], values, length);
-
-	retval = i2c_master_send(client, ts->xfer_buf, length + 1);
-
-	return retval < 0 ? retval : 0;
-}
 
 static const struct cyttsp_bus_ops cyttsp_i2c_bus_ops = {
 	.bustype	= BUS_I2C,
@@ -98,7 +53,6 @@ static int cyttsp_i2c_probe(struct i2c_client *client,
 		return PTR_ERR(ts);
 
 	i2c_set_clientdata(client, ts);
-
 	return 0;
 }
 

@@ -54,6 +54,13 @@ Description:	Interface for making ib_srp connect to a new target.
 		  ib_srp. Specifying a value that exceeds cmd_sg_entries is
 		  only safe with partial memory descriptor list support enabled
 		  (allow_ext_sg=1).
+		* comp_vector, a number in the range 0..n-1 specifying the
+		  MSI-X completion vector. Some HCA's allocate multiple (n)
+		  MSI-X vectors per HCA port. If the IRQ affinity masks of
+		  these interrupts have been configured such that each MSI-X
+		  interrupt is handled by a different CPU then the comp_vector
+		  parameter can be used to spread the SRP completion workload
+		  over multiple CPU's.
 
 What:		/sys/class/infiniband_srp/srp-<hca>-<port_number>/ibdev
 Date:		January 2, 2006

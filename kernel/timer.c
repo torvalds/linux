@@ -1,7 +1,7 @@
 /*
  *  linux/kernel/timer.c
  *
- *  Kernel internal timers, basic process system calls
+ *  Kernel internal timers
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -41,6 +41,7 @@
 #include <linux/sched.h>
 #include <linux/sched/sysctl.h>
 #include <linux/slab.h>
+#include <linux/compat.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -148,9 +149,11 @@ static unsigned long round_jiffies_common(unsigned long j, int cpu,
 	/* now that we have rounded, subtract the extra skew again */
 	j -= cpu * 3;
 
-	if (j <= jiffies) /* rounding ate our timeout entirely; */
-		return original;
-	return j;
+	/*
+	 * Make sure j is still in the future. Otherwise return the
+	 * unmodified value.
+	 */
+	return time_is_after_jiffies(j) ? j : original;
 }
 
 /**
@@ -738,7 +741,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 
 	cpu = smp_processor_id();
 
-#if defined(CONFIG_NO_HZ) && defined(CONFIG_SMP)
+#if defined(CONFIG_NO_HZ_COMMON) && defined(CONFIG_SMP)
 	if (!pinned && get_sysctl_timer_migration() && idle_cpu(cpu))
 		cpu = get_nohz_timer_target();
 #endif
@@ -930,14 +933,14 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	debug_activate(timer, timer->expires);
 	internal_add_timer(base, timer);
 	/*
-	 * Check whether the other CPU is idle and needs to be
-	 * triggered to reevaluate the timer wheel when nohz is
-	 * active. We are protected against the other CPU fiddling
+	 * Check whether the other CPU is in dynticks mode and needs
+	 * to be triggered to reevaluate the timer wheel.
+	 * We are protected against the other CPU fiddling
 	 * with the timer by holding the timer base lock. This also
-	 * makes sure that a CPU on the way to idle can not evaluate
-	 * the timer wheel.
+	 * makes sure that a CPU on the way to stop its tick can not
+	 * evaluate the timer wheel.
 	 */
-	wake_up_idle_cpu(cpu);
+	wake_up_nohz_cpu(cpu);
 	spin_unlock_irqrestore(&base->lock, flags);
 }
 EXPORT_SYMBOL_GPL(add_timer_on);
@@ -1188,7 +1191,7 @@ static inline void __run_timers(struct tvec_base *base)
 	spin_unlock_irq(&base->lock);
 }
 
-#ifdef CONFIG_NO_HZ
+#ifdef CONFIG_NO_HZ_COMMON
 /*
  * Find out when the next timer event is due to happen. This
  * is used on S/390 to stop all activity when a CPU is idle.
@@ -1395,61 +1398,6 @@ SYSCALL_DEFINE1(alarm, unsigned int, seconds)
 
 #endif
 
-/**
- * sys_getpid - return the thread group id of the current process
- *
- * Note, despite the name, this returns the tgid not the pid.  The tgid and
- * the pid are identical unless CLONE_THREAD was specified on clone() in
- * which case the tgid is the same in all threads of the same group.
- *
- * This is SMP safe as current->tgid does not change.
- */
-SYSCALL_DEFINE0(getpid)
-{
-	return task_tgid_vnr(current);
-}
-
-/*
- * Accessing ->real_parent is not SMP-safe, it could
- * change from under us. However, we can use a stale
- * value of ->real_parent under rcu_read_lock(), see
- * release_task()->call_rcu(delayed_put_task_struct).
- */
-SYSCALL_DEFINE0(getppid)
-{
-	int pid;
-
-	rcu_read_lock();
-	pid = task_tgid_vnr(rcu_dereference(current->real_parent));
-	rcu_read_unlock();
-
-	return pid;
-}
-
-SYSCALL_DEFINE0(getuid)
-{
-	/* Only we change this so SMP safe */
-	return from_kuid_munged(current_user_ns(), current_uid());
-}
-
-SYSCALL_DEFINE0(geteuid)
-{
-	/* Only we change this so SMP safe */
-	return from_kuid_munged(current_user_ns(), current_euid());
-}
-
-SYSCALL_DEFINE0(getgid)
-{
-	/* Only we change this so SMP safe */
-	return from_kgid_munged(current_user_ns(), current_gid());
-}
-
-SYSCALL_DEFINE0(getegid)
-{
-	/* Only we change this so SMP safe */
-	return from_kgid_munged(current_user_ns(), current_egid());
-}
-
 static void process_timeout(unsigned long __data)
 {
 	wake_up_process((struct task_struct *)__data);
@@ -1557,96 +1505,11 @@ signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 }
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
-/* Thread ID - the internal kernel "pid" */
-SYSCALL_DEFINE0(gettid)
-{
-	return task_pid_vnr(current);
-}
-
-/**
- * do_sysinfo - fill in sysinfo struct
- * @info: pointer to buffer to fill
- */
-int do_sysinfo(struct sysinfo *info)
-{
-	unsigned long mem_total, sav_total;
-	unsigned int mem_unit, bitcount;
-	struct timespec tp;
-
-	memset(info, 0, sizeof(struct sysinfo));
-
-	ktime_get_ts(&tp);
-	monotonic_to_bootbased(&tp);
-	info->uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
-
-	get_avenrun(info->loads, 0, SI_LOAD_SHIFT - FSHIFT);
-
-	info->procs = nr_threads;
-
-	si_meminfo(info);
-	si_swapinfo(info);
-
-	/*
-	 * If the sum of all the available memory (i.e. ram + swap)
-	 * is less than can be stored in a 32 bit unsigned long then
-	 * we can be binary compatible with 2.2.x kernels.  If not,
-	 * well, in that case 2.2.x was broken anyways...
-	 *
-	 *  -Erik Andersen <andersee@debian.org>
-	 */
-
-	mem_total = info->totalram + info->totalswap;
-	if (mem_total < info->totalram || mem_total < info->totalswap)
-		goto out;
-	bitcount = 0;
-	mem_unit = info->mem_unit;
-	while (mem_unit > 1) {
-		bitcount++;
-		mem_unit >>= 1;
-		sav_total = mem_total;
-		mem_total <<= 1;
-		if (mem_total < sav_total)
-			goto out;
-	}
-
-	/*
-	 * If mem_total did not overflow, multiply all memory values by
-	 * info->mem_unit and set it to 1.  This leaves things compatible
-	 * with 2.2.x, and also retains compatibility with earlier 2.4.x
-	 * kernels...
-	 */
-
-	info->mem_unit = 1;
-	info->totalram <<= bitcount;
-	info->freeram <<= bitcount;
-	info->sharedram <<= bitcount;
-	info->bufferram <<= bitcount;
-	info->totalswap <<= bitcount;
-	info->freeswap <<= bitcount;
-	info->totalhigh <<= bitcount;
-	info->freehigh <<= bitcount;
-
-out:
-	return 0;
-}
-
-SYSCALL_DEFINE1(sysinfo, struct sysinfo __user *, info)
-{
-	struct sysinfo val;
-
-	do_sysinfo(&val);
-
-	if (copy_to_user(info, &val, sizeof(struct sysinfo)))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int __cpuinit init_timers_cpu(int cpu)
+static int init_timers_cpu(int cpu)
 {
 	int j;
 	struct tvec_base *base;
-	static char __cpuinitdata tvec_base_done[NR_CPUS];
+	static char tvec_base_done[NR_CPUS];
 
 	if (!tvec_base_done[cpu]) {
 		static char boot_done;
@@ -1678,12 +1541,12 @@ static int __cpuinit init_timers_cpu(int cpu)
 			boot_done = 1;
 			base = &boot_tvec_bases;
 		}
+		spin_lock_init(&base->lock);
 		tvec_base_done[cpu] = 1;
 	} else {
 		base = per_cpu(tvec_bases, cpu);
 	}
 
-	spin_lock_init(&base->lock);
 
 	for (j = 0; j < TVN_SIZE; j++) {
 		INIT_LIST_HEAD(base->tv5.vec + j);
@@ -1714,7 +1577,7 @@ static void migrate_timer_list(struct tvec_base *new_base, struct list_head *hea
 	}
 }
 
-static void __cpuinit migrate_timers(int cpu)
+static void migrate_timers(int cpu)
 {
 	struct tvec_base *old_base;
 	struct tvec_base *new_base;
@@ -1747,7 +1610,7 @@ static void __cpuinit migrate_timers(int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int __cpuinit timer_cpu_notify(struct notifier_block *self,
+static int timer_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -1772,7 +1635,7 @@ static int __cpuinit timer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata timers_nb = {
+static struct notifier_block timers_nb = {
 	.notifier_call	= timer_cpu_notify,
 };
 

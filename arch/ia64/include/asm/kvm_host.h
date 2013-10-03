@@ -26,6 +26,7 @@
 #define KVM_USER_MEM_SLOTS 32
 
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#define KVM_IRQCHIP_NUM_PINS  KVM_IOAPIC_NUM_PINS
 
 /* define exit reasons from vmm to kvm*/
 #define EXIT_REASON_VM_PANIC		0

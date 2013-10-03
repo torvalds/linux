@@ -25,11 +25,14 @@
 #include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-
+#include <linux/nfc.h>
+#include <linux/firmware.h>
+#include <linux/unaligned/access_ok.h>
 #include <linux/platform_data/pn544.h>
 
 #include <net/nfc/hci.h>
 #include <net/nfc/llc.h>
+#include <net/nfc/nfc.h>
 
 #include "pn544.h"
 
@@ -55,6 +58,58 @@ MODULE_DEVICE_TABLE(i2c, pn544_hci_i2c_id_table);
 
 #define PN544_HCI_I2C_DRIVER_NAME "pn544_hci_i2c"
 
+#define PN544_FW_CMD_WRITE 0x08
+#define PN544_FW_CMD_CHECK 0x06
+
+struct pn544_i2c_fw_frame_write {
+	u8 cmd;
+	u16 be_length;
+	u8 be_dest_addr[3];
+	u16 be_datalen;
+	u8 data[];
+} __packed;
+
+struct pn544_i2c_fw_frame_check {
+	u8 cmd;
+	u16 be_length;
+	u8 be_start_addr[3];
+	u16 be_datalen;
+	u16 be_crc;
+} __packed;
+
+struct pn544_i2c_fw_frame_response {
+	u8 status;
+	u16 be_length;
+} __packed;
+
+struct pn544_i2c_fw_blob {
+	u32 be_size;
+	u32 be_destaddr;
+	u8 data[];
+};
+
+#define PN544_FW_CMD_RESULT_TIMEOUT 0x01
+#define PN544_FW_CMD_RESULT_BAD_CRC 0x02
+#define PN544_FW_CMD_RESULT_ACCESS_DENIED 0x08
+#define PN544_FW_CMD_RESULT_PROTOCOL_ERROR 0x0B
+#define PN544_FW_CMD_RESULT_INVALID_PARAMETER 0x11
+#define PN544_FW_CMD_RESULT_INVALID_LENGTH 0x18
+#define PN544_FW_CMD_RESULT_WRITE_FAILED 0x74
+
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+
+#define PN544_FW_WRITE_BUFFER_MAX_LEN 0x9f7
+#define PN544_FW_I2C_MAX_PAYLOAD PN544_HCI_I2C_LLC_MAX_SIZE
+#define PN544_FW_I2C_WRITE_FRAME_HEADER_LEN 8
+#define PN544_FW_I2C_WRITE_DATA_MAX_LEN MIN((PN544_FW_I2C_MAX_PAYLOAD -\
+					 PN544_FW_I2C_WRITE_FRAME_HEADER_LEN),\
+					 PN544_FW_WRITE_BUFFER_MAX_LEN)
+
+#define FW_WORK_STATE_IDLE 1
+#define FW_WORK_STATE_START 2
+#define FW_WORK_STATE_WAIT_WRITE_ANSWER 3
+#define FW_WORK_STATE_WAIT_CHECK_ANSWER 4
+
 struct pn544_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct nfc_hci_dev *hdev;
@@ -64,7 +119,18 @@ struct pn544_i2c_phy {
 	unsigned int gpio_fw;
 	unsigned int en_polarity;
 
+	struct work_struct fw_work;
+	int fw_work_state;
+	char firmware_name[NFC_FIRMWARE_NAME_MAXSIZE + 1];
+	const struct firmware *fw;
+	u32 fw_blob_dest_addr;
+	size_t fw_blob_size;
+	const u8 *fw_blob_data;
+	size_t fw_written;
+	int fw_cmd_result;
+
 	int powered;
+	int run_mode;
 
 	int hard_fault;		/*
 				 * < 0 if hardware error occured (e.g. i2c err)
@@ -122,15 +188,22 @@ out:
 	gpio_set_value(phy->gpio_en, !phy->en_polarity);
 }
 
+static void pn544_hci_i2c_enable_mode(struct pn544_i2c_phy *phy, int run_mode)
+{
+	gpio_set_value(phy->gpio_fw, run_mode == PN544_FW_MODE ? 1 : 0);
+	gpio_set_value(phy->gpio_en, phy->en_polarity);
+	usleep_range(10000, 15000);
+
+	phy->run_mode = run_mode;
+}
+
 static int pn544_hci_i2c_enable(void *phy_id)
 {
 	struct pn544_i2c_phy *phy = phy_id;
 
 	pr_info(DRIVER_DESC ": %s\n", __func__);
 
-	gpio_set_value(phy->gpio_fw, 0);
-	gpio_set_value(phy->gpio_en, phy->en_polarity);
-	usleep_range(10000, 15000);
+	pn544_hci_i2c_enable_mode(phy, PN544_HCI_MODE);
 
 	phy->powered = 1;
 
@@ -305,6 +378,42 @@ flush:
 	return r;
 }
 
+static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
+{
+	int r;
+	struct pn544_i2c_fw_frame_response response;
+	struct i2c_client *client = phy->i2c_dev;
+
+	r = i2c_master_recv(client, (char *) &response, sizeof(response));
+	if (r != sizeof(response)) {
+		dev_err(&client->dev, "cannot read fw status\n");
+		return -EIO;
+	}
+
+	usleep_range(3000, 6000);
+
+	switch (response.status) {
+	case 0:
+		return 0;
+	case PN544_FW_CMD_RESULT_TIMEOUT:
+		return -ETIMEDOUT;
+	case PN544_FW_CMD_RESULT_BAD_CRC:
+		return -ENODATA;
+	case PN544_FW_CMD_RESULT_ACCESS_DENIED:
+		return -EACCES;
+	case PN544_FW_CMD_RESULT_PROTOCOL_ERROR:
+		return -EPROTO;
+	case PN544_FW_CMD_RESULT_INVALID_PARAMETER:
+		return -EINVAL;
+	case PN544_FW_CMD_RESULT_INVALID_LENGTH:
+		return -EBADMSG;
+	case PN544_FW_CMD_RESULT_WRITE_FAILED:
+		return -EIO;
+	default:
+		return -EIO;
+	}
+}
+
 /*
  * Reads an shdlc frame from the chip. This is not as straightforward as it
  * seems. There are cases where we could loose the frame start synchronization.
@@ -339,19 +448,23 @@ static irqreturn_t pn544_hci_i2c_irq_thread_fn(int irq, void *phy_id)
 	if (phy->hard_fault != 0)
 		return IRQ_HANDLED;
 
-	r = pn544_hci_i2c_read(phy, &skb);
-	if (r == -EREMOTEIO) {
-		phy->hard_fault = r;
+	if (phy->run_mode == PN544_FW_MODE) {
+		phy->fw_cmd_result = pn544_hci_i2c_fw_read_status(phy);
+		schedule_work(&phy->fw_work);
+	} else {
+		r = pn544_hci_i2c_read(phy, &skb);
+		if (r == -EREMOTEIO) {
+			phy->hard_fault = r;
 
-		nfc_hci_recv_frame(phy->hdev, NULL);
+			nfc_hci_recv_frame(phy->hdev, NULL);
 
-		return IRQ_HANDLED;
-	} else if ((r == -ENOMEM) || (r == -EBADMSG)) {
-		return IRQ_HANDLED;
+			return IRQ_HANDLED;
+		} else if ((r == -ENOMEM) || (r == -EBADMSG)) {
+			return IRQ_HANDLED;
+		}
+
+		nfc_hci_recv_frame(phy->hdev, skb);
 	}
-
-	nfc_hci_recv_frame(phy->hdev, skb);
-
 	return IRQ_HANDLED;
 }
 
@@ -360,6 +473,215 @@ static struct nfc_phy_ops i2c_phy_ops = {
 	.enable = pn544_hci_i2c_enable,
 	.disable = pn544_hci_i2c_disable,
 };
+
+static int pn544_hci_i2c_fw_download(void *phy_id, const char *firmware_name)
+{
+	struct pn544_i2c_phy *phy = phy_id;
+
+	pr_info(DRIVER_DESC ": Starting Firmware Download (%s)\n",
+		firmware_name);
+
+	strcpy(phy->firmware_name, firmware_name);
+
+	phy->fw_work_state = FW_WORK_STATE_START;
+
+	schedule_work(&phy->fw_work);
+
+	return 0;
+}
+
+static void pn544_hci_i2c_fw_work_complete(struct pn544_i2c_phy *phy,
+					   int result)
+{
+	pr_info(DRIVER_DESC ": Firmware Download Complete, result=%d\n", result);
+
+	pn544_hci_i2c_disable(phy);
+
+	phy->fw_work_state = FW_WORK_STATE_IDLE;
+
+	if (phy->fw) {
+		release_firmware(phy->fw);
+		phy->fw = NULL;
+	}
+
+	nfc_fw_download_done(phy->hdev->ndev, phy->firmware_name, (u32) -result);
+}
+
+static int pn544_hci_i2c_fw_write_cmd(struct i2c_client *client, u32 dest_addr,
+				      const u8 *data, u16 datalen)
+{
+	u8 frame[PN544_FW_I2C_MAX_PAYLOAD];
+	struct pn544_i2c_fw_frame_write *framep;
+	u16 params_len;
+	int framelen;
+	int r;
+
+	if (datalen > PN544_FW_I2C_WRITE_DATA_MAX_LEN)
+		datalen = PN544_FW_I2C_WRITE_DATA_MAX_LEN;
+
+	framep = (struct pn544_i2c_fw_frame_write *) frame;
+
+	params_len = sizeof(framep->be_dest_addr) +
+		     sizeof(framep->be_datalen) + datalen;
+	framelen = params_len + sizeof(framep->cmd) +
+			     sizeof(framep->be_length);
+
+	framep->cmd = PN544_FW_CMD_WRITE;
+
+	put_unaligned_be16(params_len, &framep->be_length);
+
+	framep->be_dest_addr[0] = (dest_addr & 0xff0000) >> 16;
+	framep->be_dest_addr[1] = (dest_addr & 0xff00) >> 8;
+	framep->be_dest_addr[2] = dest_addr & 0xff;
+
+	put_unaligned_be16(datalen, &framep->be_datalen);
+
+	memcpy(framep->data, data, datalen);
+
+	r = i2c_master_send(client, frame, framelen);
+
+	if (r == framelen)
+		return datalen;
+	else if (r < 0)
+		return r;
+	else
+		return -EIO;
+}
+
+static int pn544_hci_i2c_fw_check_cmd(struct i2c_client *client, u32 start_addr,
+				      const u8 *data, u16 datalen)
+{
+	struct pn544_i2c_fw_frame_check frame;
+	int r;
+	u16 crc;
+
+	/* calculate local crc for the data we want to check */
+	crc = crc_ccitt(0xffff, data, datalen);
+
+	frame.cmd = PN544_FW_CMD_CHECK;
+
+	put_unaligned_be16(sizeof(frame.be_start_addr) +
+			   sizeof(frame.be_datalen) + sizeof(frame.be_crc),
+			   &frame.be_length);
+
+	/* tell the chip the memory region to which our crc applies */
+	frame.be_start_addr[0] = (start_addr & 0xff0000) >> 16;
+	frame.be_start_addr[1] = (start_addr & 0xff00) >> 8;
+	frame.be_start_addr[2] = start_addr & 0xff;
+
+	put_unaligned_be16(datalen, &frame.be_datalen);
+
+	/*
+	 * and give our local crc. Chip will calculate its own crc for the
+	 * region and compare with ours.
+	 */
+	put_unaligned_be16(crc, &frame.be_crc);
+
+	r = i2c_master_send(client, (const char *) &frame, sizeof(frame));
+
+	if (r == sizeof(frame))
+		return 0;
+	else if (r < 0)
+		return r;
+	else
+		return -EIO;
+}
+
+static int pn544_hci_i2c_fw_write_chunk(struct pn544_i2c_phy *phy)
+{
+	int r;
+
+	r = pn544_hci_i2c_fw_write_cmd(phy->i2c_dev,
+				       phy->fw_blob_dest_addr + phy->fw_written,
+				       phy->fw_blob_data + phy->fw_written,
+				       phy->fw_blob_size - phy->fw_written);
+	if (r < 0)
+		return r;
+
+	phy->fw_written += r;
+	phy->fw_work_state = FW_WORK_STATE_WAIT_WRITE_ANSWER;
+
+	return 0;
+}
+
+static void pn544_hci_i2c_fw_work(struct work_struct *work)
+{
+	struct pn544_i2c_phy *phy = container_of(work, struct pn544_i2c_phy,
+						fw_work);
+	int r;
+	struct pn544_i2c_fw_blob *blob;
+
+	switch (phy->fw_work_state) {
+	case FW_WORK_STATE_START:
+		pn544_hci_i2c_enable_mode(phy, PN544_FW_MODE);
+
+		r = request_firmware(&phy->fw, phy->firmware_name,
+				     &phy->i2c_dev->dev);
+		if (r < 0)
+			goto exit_state_start;
+
+		blob = (struct pn544_i2c_fw_blob *) phy->fw->data;
+		phy->fw_blob_size = get_unaligned_be32(&blob->be_size);
+		phy->fw_blob_dest_addr = get_unaligned_be32(&blob->be_destaddr);
+		phy->fw_blob_data = blob->data;
+
+		phy->fw_written = 0;
+		r = pn544_hci_i2c_fw_write_chunk(phy);
+
+exit_state_start:
+		if (r < 0)
+			pn544_hci_i2c_fw_work_complete(phy, r);
+		break;
+
+	case FW_WORK_STATE_WAIT_WRITE_ANSWER:
+		r = phy->fw_cmd_result;
+		if (r < 0)
+			goto exit_state_wait_write_answer;
+
+		if (phy->fw_written == phy->fw_blob_size) {
+			r = pn544_hci_i2c_fw_check_cmd(phy->i2c_dev,
+						       phy->fw_blob_dest_addr,
+						       phy->fw_blob_data,
+						       phy->fw_blob_size);
+			if (r < 0)
+				goto exit_state_wait_write_answer;
+			phy->fw_work_state = FW_WORK_STATE_WAIT_CHECK_ANSWER;
+			break;
+		}
+
+		r = pn544_hci_i2c_fw_write_chunk(phy);
+
+exit_state_wait_write_answer:
+		if (r < 0)
+			pn544_hci_i2c_fw_work_complete(phy, r);
+		break;
+
+	case FW_WORK_STATE_WAIT_CHECK_ANSWER:
+		r = phy->fw_cmd_result;
+		if (r < 0)
+			goto exit_state_wait_check_answer;
+
+		blob = (struct pn544_i2c_fw_blob *) (phy->fw_blob_data +
+		       phy->fw_blob_size);
+		phy->fw_blob_size = get_unaligned_be32(&blob->be_size);
+		if (phy->fw_blob_size != 0) {
+			phy->fw_blob_dest_addr =
+					get_unaligned_be32(&blob->be_destaddr);
+			phy->fw_blob_data = blob->data;
+
+			phy->fw_written = 0;
+			r = pn544_hci_i2c_fw_write_chunk(phy);
+		}
+
+exit_state_wait_check_answer:
+		if (r < 0 || phy->fw_blob_size == 0)
+			pn544_hci_i2c_fw_work_complete(phy, r);
+		break;
+
+	default:
+		break;
+	}
+}
 
 static int pn544_hci_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
@@ -383,6 +705,9 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 			"Cannot allocate memory for pn544 i2c phy.\n");
 		return -ENOMEM;
 	}
+
+	INIT_WORK(&phy->fw_work, pn544_hci_i2c_fw_work);
+	phy->fw_work_state = FW_WORK_STATE_IDLE;
 
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
@@ -420,7 +745,8 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 
 	r = pn544_hci_probe(phy, &i2c_phy_ops, LLC_SHDLC_NAME,
 			    PN544_I2C_FRAME_HEADROOM, PN544_I2C_FRAME_TAILROOM,
-			    PN544_HCI_I2C_LLC_MAX_PAYLOAD, &phy->hdev);
+			    PN544_HCI_I2C_LLC_MAX_PAYLOAD,
+			    pn544_hci_i2c_fw_download, &phy->hdev);
 	if (r < 0)
 		goto err_hci;
 
@@ -442,6 +768,10 @@ static int pn544_hci_i2c_remove(struct i2c_client *client)
 	struct pn544_nfc_platform_data *pdata = client->dev.platform_data;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
+
+	cancel_work_sync(&phy->fw_work);
+	if (phy->fw_work_state != FW_WORK_STATE_IDLE)
+		pn544_hci_i2c_fw_work_complete(phy, -ENODEV);
 
 	pn544_hci_remove(phy->hdev);
 

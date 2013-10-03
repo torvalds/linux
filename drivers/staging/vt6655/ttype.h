@@ -26,10 +26,8 @@
  *
  */
 
-
 #ifndef __TTYPE_H__
 #define __TTYPE_H__
-
 
 /******* Common definitions and typedefs ***********************************/
 
@@ -56,16 +54,16 @@
 // an 8-byte-aligned 8 byte long structure
 // which is NOT really a floating point number.
 typedef union tagUQuadWord {
-    struct {
-        unsigned int dwLowDword;
-        unsigned int dwHighDword;
-    } u;
-    double      DoNotUseThisField;
+	struct {
+		unsigned int dwLowDword;
+		unsigned int dwHighDword;
+	} u;
+	double      DoNotUseThisField;
 } UQuadWord;
 typedef UQuadWord       QWORD;          // 64-bit
 
 /****** Common pointer types ***********************************************/
 
-typedef QWORD *          PQWORD;
+typedef QWORD *PQWORD;
 
 #endif // __TTYPE_H__

@@ -1537,10 +1537,9 @@ static void deferred_unmap_destructor(struct sk_buff *skb)
 	dui = (struct deferred_unmap_info *)skb->head;
 	p = dui->addr;
 
-	if (skb->tail - skb->transport_header)
-		pci_unmap_single(dui->pdev, *p++,
-				 skb->tail - skb->transport_header,
-				 PCI_DMA_TODEVICE);
+	if (skb_tail_pointer(skb) - skb_transport_header(skb))
+		pci_unmap_single(dui->pdev, *p++, skb_tail_pointer(skb) -
+				 skb_transport_header(skb), PCI_DMA_TODEVICE);
 
 	si = skb_shinfo(skb);
 	for (i = 0; i < si->nr_frags; i++)
@@ -1627,7 +1626,7 @@ static inline unsigned int calc_tx_descs_ofld(const struct sk_buff *skb)
 
 	flits = skb_transport_offset(skb) / 8;	/* headers */
 	cnt = skb_shinfo(skb)->nr_frags;
-	if (skb->tail != skb->transport_header)
+	if (skb_tail_pointer(skb) != skb_transport_header(skb))
 		cnt++;
 	return flits_to_desc(flits + sgl_len(cnt));
 }
@@ -2030,7 +2029,7 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 
 	if (p->vlan_valid) {
 		qs->port_stats[SGE_PSTAT_VLANEX]++;
-		__vlan_hwaccel_put_tag(skb, ntohs(p->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(p->vlan));
 	}
 	if (rq->polling) {
 		if (lro)
@@ -2132,7 +2131,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 
 	if (cpl->vlan_valid) {
 		qs->port_stats[SGE_PSTAT_VLANEX]++;
-		__vlan_hwaccel_put_tag(skb, ntohs(cpl->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(cpl->vlan));
 	}
 	napi_gro_frags(&qs->napi);
 }

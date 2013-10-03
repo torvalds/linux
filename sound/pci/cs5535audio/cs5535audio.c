@@ -391,7 +391,6 @@ static void snd_cs5535audio_remove(struct pci_dev *pci)
 {
 	olpc_quirks_cleanup();
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver cs5535audio_driver = {

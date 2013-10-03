@@ -24,6 +24,7 @@
 #include <linux/io.h>
 
 #include <linux/amba/serial.h>
+#include <linux/serial_reg.h>
 
 static void __iomem *early_base;
 static void (*printch)(char ch);
@@ -40,6 +41,37 @@ static void pl011_printch(char ch)
 		;
 }
 
+/*
+ * Semihosting-based debug console
+ */
+static void smh_printch(char ch)
+{
+	asm volatile("mov  x1, %0\n"
+		     "mov  x0, #3\n"
+		     "hlt  0xf000\n"
+		     : : "r" (&ch) : "x0", "x1", "memory");
+}
+
+/*
+ * 8250/16550 (8-bit aligned registers) single character TX.
+ */
+static void uart8250_8bit_printch(char ch)
+{
+	while (!(readb_relaxed(early_base + UART_LSR) & UART_LSR_THRE))
+		;
+	writeb_relaxed(ch, early_base + UART_TX);
+}
+
+/*
+ * 8250/16550 (32-bit aligned registers) single character TX.
+ */
+static void uart8250_32bit_printch(char ch)
+{
+	while (!(readl_relaxed(early_base + (UART_LSR << 2)) & UART_LSR_THRE))
+		;
+	writel_relaxed(ch, early_base + (UART_TX << 2));
+}
+
 struct earlycon_match {
 	const char *name;
 	void (*printch)(char ch);
@@ -47,6 +79,9 @@ struct earlycon_match {
 
 static const struct earlycon_match earlycon_match[] __initconst = {
 	{ .name = "pl011", .printch = pl011_printch, },
+	{ .name = "smh", .printch = smh_printch, },
+	{ .name = "uart8250-8bit", .printch = uart8250_8bit_printch, },
+	{ .name = "uart8250-32bit", .printch = uart8250_32bit_printch, },
 	{}
 };
 
@@ -60,7 +95,7 @@ static void early_write(struct console *con, const char *s, unsigned n)
 	}
 }
 
-static struct console early_console = {
+static struct console early_console_dev = {
 	.name =		"earlycon",
 	.write =	early_write,
 	.flags =	CON_PRINTBUFFER | CON_BOOT,
@@ -110,7 +145,8 @@ static int __init setup_early_printk(char *buf)
 		early_base = early_io_map(paddr, EARLYCON_IOBASE);
 
 	printch = match->printch;
-	register_console(&early_console);
+	early_console = &early_console_dev;
+	register_console(&early_console_dev);
 
 	return 0;
 }

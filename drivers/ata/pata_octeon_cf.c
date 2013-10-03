@@ -926,7 +926,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 			goto free_cf_port;
 		}
 		cs1 = devm_ioremap_nocache(&pdev->dev, res_cs1->start,
-					   res_cs1->end - res_cs1->start + 1);
+					   resource_size(res_cs1));
 
 		if (!cs1)
 			goto free_cf_port;
@@ -1037,7 +1037,7 @@ static void octeon_cf_shutdown(struct device *dev)
 	union cvmx_mio_boot_dma_cfgx dma_cfg;
 	union cvmx_mio_boot_dma_intx dma_int;
 
-	struct octeon_cf_port *cf_port = dev->platform_data;
+	struct octeon_cf_port *cf_port = dev_get_platdata(dev);
 
 	if (cf_port->dma_base) {
 		/* Stop and clear the dma engine.  */

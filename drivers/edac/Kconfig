@@ -145,7 +145,7 @@ config EDAC_E7XXX
 
 config EDAC_E752X
 	tristate "Intel e752x (e7520, e7525, e7320) and 3100"
-	depends on EDAC_MM_EDAC && PCI && X86 && HOTPLUG
+	depends on EDAC_MM_EDAC && PCI && X86
 	help
 	  Support for error detection and correction on the Intel
 	  E7520, E7525, E7320 server chipsets.
@@ -349,21 +349,21 @@ config EDAC_OCTEON_PC
 
 config EDAC_OCTEON_L2C
 	tristate "Cavium Octeon Secondary Caches (L2C)"
-	depends on EDAC_MM_EDAC && CPU_CAVIUM_OCTEON
+	depends on EDAC_MM_EDAC && CAVIUM_OCTEON_SOC
 	help
 	  Support for error detection and correction on the
 	  Cavium Octeon family of SOCs.
 
 config EDAC_OCTEON_LMC
 	tristate "Cavium Octeon DRAM Memory Controller (LMC)"
-	depends on EDAC_MM_EDAC && CPU_CAVIUM_OCTEON
+	depends on EDAC_MM_EDAC && CAVIUM_OCTEON_SOC
 	help
 	  Support for error detection and correction on the
 	  Cavium Octeon family of SOCs.
 
 config EDAC_OCTEON_PCI
 	tristate "Cavium Octeon PCI Controller"
-	depends on EDAC_MM_EDAC && PCI && CPU_CAVIUM_OCTEON
+	depends on EDAC_MM_EDAC && PCI && CAVIUM_OCTEON_SOC
 	help
 	  Support for error detection and correction on the
 	  Cavium Octeon family of SOCs.

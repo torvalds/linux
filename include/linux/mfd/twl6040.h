@@ -125,7 +125,14 @@
 
 #define TWL6040_HSDACENA		(1 << 0)
 #define TWL6040_HSDACMODE		(1 << 1)
+#define TWL6040_HSDRVENA		(1 << 2)
 #define TWL6040_HSDRVMODE		(1 << 3)
+
+/* HFLCTL/R (0x14/0x16) fields */
+
+#define TWL6040_HFDACENA		(1 << 0)
+#define TWL6040_HFPGAENA		(1 << 1)
+#define TWL6040_HFDRVENA		(1 << 4)
 
 /* VIBCTLL/R (0x18/0x1A) fields */
 
@@ -178,6 +185,7 @@
 
 #define TWL6040_GPO_MAX	3
 
+/* TODO: All platform data struct can be removed */
 struct twl6040_codec_data {
 	u16 hs_left_step;
 	u16 hs_right_step;
@@ -222,7 +230,6 @@ struct twl6040 {
 	int audpwron;
 	int power_count;
 	int rev;
-	u8 vibra_ctrl_cache[2];
 
 	/* PLL configuration */
 	int pll;

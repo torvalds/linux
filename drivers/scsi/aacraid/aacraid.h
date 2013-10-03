@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 30000
+# define AAC_DRIVER_BUILD 30200
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -1918,6 +1918,10 @@ extern struct aac_common aac_config;
 #define	MONITOR_PANIC			0x00000020
 #define	KERNEL_UP_AND_RUNNING		0x00000080
 #define	KERNEL_PANIC			0x00000100
+#define	FLASH_UPD_PENDING		0x00002000
+#define	FLASH_UPD_SUCCESS		0x00004000
+#define	FLASH_UPD_FAILED		0x00008000
+#define	FWUPD_TIMEOUT			(5 * 60)
 
 /*
  *	Doorbell bit defines

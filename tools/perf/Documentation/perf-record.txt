@@ -65,16 +65,10 @@ OPTIONS
 -r::
 --realtime=::
 	Collect data with this RT SCHED_FIFO priority.
+
 -D::
 --no-delay::
 	Collect data without buffering.
--A::
---append::
-	Append to the output file to do incremental profiling.
-
--f::
---force::
-	Overwrite existing data file. (deprecated)
 
 -c::
 --count=::
@@ -181,6 +175,12 @@ levels are subject to permissions.  When sampling on multiple events, branch sta
 is enabled for all the sampling events. The sampled branch type is the same for all events.
 The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
 Note that this feature may not be available on all processors.
+
+-W::
+--weight::
+Enable weightened sampling. An additional weight is recorded per sample and can be
+displayed with the weight and local_weight sort keys.  This currently works for TSX
+abort events and some memory events in precise mode on modern Intel CPUs.
 
 SEE ALSO
 --------

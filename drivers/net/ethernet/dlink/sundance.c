@@ -469,6 +469,17 @@ static void sundance_reset(struct net_device *dev, unsigned long reset_cmd)
 	}
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void sundance_poll_controller(struct net_device *dev)
+{
+	struct netdev_private *np = netdev_priv(dev);
+
+	disable_irq(np->pci_dev->irq);
+	intr_handler(np->pci_dev->irq, dev);
+	enable_irq(np->pci_dev->irq);
+}
+#endif
+
 static const struct net_device_ops netdev_ops = {
 	.ndo_open		= netdev_open,
 	.ndo_stop		= netdev_close,
@@ -480,6 +491,9 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_change_mtu		= change_mtu,
 	.ndo_set_mac_address 	= sundance_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= sundance_poll_controller,
+#endif
 };
 
 static int sundance_probe1(struct pci_dev *pdev,

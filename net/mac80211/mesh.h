@@ -58,6 +58,7 @@ enum mesh_path_flags {
  * @MESH_WORK_ROOT: the mesh root station needs to send a frame
  * @MESH_WORK_DRIFT_ADJUST: time to compensate for clock drift relative to other
  * mesh nodes
+ * @MESH_WORK_MBSS_CHANGED: rebuild beacon and notify driver of BSS changes
  */
 enum mesh_deferred_task_flags {
 	MESH_WORK_HOUSEKEEPING,
@@ -65,6 +66,7 @@ enum mesh_deferred_task_flags {
 	MESH_WORK_GROW_MPP_TABLE,
 	MESH_WORK_ROOT,
 	MESH_WORK_DRIFT_ADJUST,
+	MESH_WORK_MBSS_CHANGED,
 };
 
 /**
@@ -188,7 +190,6 @@ struct mesh_rmc {
 	u32 idx_mask;
 };
 
-#define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
 #define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
 
 #define MESH_PATH_EXPIRE (600 * HZ)
@@ -275,7 +276,8 @@ void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop);
 void mesh_path_expire(struct ieee80211_sub_if_data *sdata);
 void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 			    struct ieee80211_mgmt *mgmt, size_t len);
-int mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst);
+struct mesh_path *
+mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst);
 
 int mesh_path_add_gate(struct mesh_path *mpath);
 int mesh_path_send_to_gates(struct mesh_path *mpath);
@@ -313,8 +315,6 @@ void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
 void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 			     struct sk_buff *skb);
-void mesh_path_quiesce(struct ieee80211_sub_if_data *sdata);
-void mesh_path_restart(struct ieee80211_sub_if_data *sdata);
 void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
 
 bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
@@ -325,14 +325,14 @@ static inline
 u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_inc(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
+	return mesh_accept_plinks_update(sdata) | BSS_CHANGED_BEACON;
 }
 
 static inline
 u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_dec(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
+	return mesh_accept_plinks_update(sdata) | BSS_CHANGED_BEACON;
 }
 
 static inline int mesh_plink_free_count(struct ieee80211_sub_if_data *sdata)
@@ -359,22 +359,12 @@ static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local);
 
-void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata);
-void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata);
-void mesh_plink_quiesce(struct sta_info *sta);
-void mesh_plink_restart(struct sta_info *sta);
 void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata);
 void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_stop(void);
 #else
 static inline void
 ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local) {}
-static inline void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
-{}
-static inline void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
-{}
-static inline void mesh_plink_quiesce(struct sta_info *sta) {}
-static inline void mesh_plink_restart(struct sta_info *sta) {}
 static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
 { return false; }
 static inline void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)

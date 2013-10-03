@@ -392,7 +392,7 @@ static unsigned long e6_pin_config[] __initdata = {
 
 /* KEYPAD */
 #ifdef CONFIG_MACH_EZX_A780
-static unsigned int a780_key_map[] = {
+static const unsigned int a780_key_map[] = {
 	KEY(0, 0, KEY_SEND),
 	KEY(0, 1, KEY_BACK),
 	KEY(0, 2, KEY_END),
@@ -424,11 +424,15 @@ static unsigned int a780_key_map[] = {
 	KEY(4, 4, KEY_DOWN),
 };
 
+static struct matrix_keymap_data a780_matrix_keymap_data = {
+	.keymap			= a780_key_map,
+	.keymap_size		= ARRAY_SIZE(a780_key_map),
+};
+
 static struct pxa27x_keypad_platform_data a780_keypad_platform_data = {
 	.matrix_key_rows = 5,
 	.matrix_key_cols = 5,
-	.matrix_key_map = a780_key_map,
-	.matrix_key_map_size = ARRAY_SIZE(a780_key_map),
+	.matrix_keymap_data = &a780_matrix_keymap_data,
 
 	.direct_key_map = { KEY_CAMERA },
 	.direct_key_num = 1,
@@ -438,7 +442,7 @@ static struct pxa27x_keypad_platform_data a780_keypad_platform_data = {
 #endif /* CONFIG_MACH_EZX_A780 */
 
 #ifdef CONFIG_MACH_EZX_E680
-static unsigned int e680_key_map[] = {
+static const unsigned int e680_key_map[] = {
 	KEY(0, 0, KEY_UP),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_RESERVED),
@@ -455,11 +459,15 @@ static unsigned int e680_key_map[] = {
 	KEY(2, 3, KEY_KPENTER),
 };
 
+static struct matrix_keymap_data e680_matrix_keymap_data = {
+	.keymap			= e680_key_map,
+	.keymap_size		= ARRAY_SIZE(e680_key_map),
+};
+
 static struct pxa27x_keypad_platform_data e680_keypad_platform_data = {
 	.matrix_key_rows = 3,
 	.matrix_key_cols = 4,
-	.matrix_key_map = e680_key_map,
-	.matrix_key_map_size = ARRAY_SIZE(e680_key_map),
+	.matrix_keymap_data = &e680_matrix_keymap_data,
 
 	.direct_key_map = {
 		KEY_CAMERA,
@@ -476,7 +484,7 @@ static struct pxa27x_keypad_platform_data e680_keypad_platform_data = {
 #endif /* CONFIG_MACH_EZX_E680 */
 
 #ifdef CONFIG_MACH_EZX_A1200
-static unsigned int a1200_key_map[] = {
+static const unsigned int a1200_key_map[] = {
 	KEY(0, 0, KEY_RESERVED),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_PAGEDOWN),
@@ -513,18 +521,22 @@ static unsigned int a1200_key_map[] = {
 	KEY(4, 5, KEY_RESERVED),
 };
 
+static struct matrix_keymap_data a1200_matrix_keymap_data = {
+	.keymap			= a1200_key_map,
+	.keymap_size		= ARRAY_SIZE(a1200_key_map),
+};
+
 static struct pxa27x_keypad_platform_data a1200_keypad_platform_data = {
 	.matrix_key_rows = 5,
 	.matrix_key_cols = 6,
-	.matrix_key_map = a1200_key_map,
-	.matrix_key_map_size = ARRAY_SIZE(a1200_key_map),
+	.matrix_keymap_data = &a1200_matrix_keymap_data,
 
 	.debounce_interval = 30,
 };
 #endif /* CONFIG_MACH_EZX_A1200 */
 
 #ifdef CONFIG_MACH_EZX_E6
-static unsigned int e6_key_map[] = {
+static const unsigned int e6_key_map[] = {
 	KEY(0, 0, KEY_RESERVED),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_PAGEDOWN),
@@ -561,18 +573,22 @@ static unsigned int e6_key_map[] = {
 	KEY(4, 5, KEY_PREVIOUSSONG),
 };
 
+static struct matrix_keymap_data e6_keymap_data = {
+	.keymap			= e6_key_map,
+	.keymap_size		= ARRAY_SIZE(e6_key_map),
+};
+
 static struct pxa27x_keypad_platform_data e6_keypad_platform_data = {
 	.matrix_key_rows = 5,
 	.matrix_key_cols = 6,
-	.matrix_key_map = e6_key_map,
-	.matrix_key_map_size = ARRAY_SIZE(e6_key_map),
+	.matrix_keymap_data = &e6_keymap_data,
 
 	.debounce_interval = 30,
 };
 #endif /* CONFIG_MACH_EZX_E6 */
 
 #ifdef CONFIG_MACH_EZX_A910
-static unsigned int a910_key_map[] = {
+static const unsigned int a910_key_map[] = {
 	KEY(0, 0, KEY_NUMERIC_6),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_PAGEDOWN),
@@ -609,18 +625,22 @@ static unsigned int a910_key_map[] = {
 	KEY(4, 5, KEY_RESERVED),
 };
 
+static struct matrix_keymap_data a910_matrix_keymap_data = {
+	.keymap			= a910_key_map,
+	.keymap_size		= ARRAY_SIZE(a910_key_map),
+};
+
 static struct pxa27x_keypad_platform_data a910_keypad_platform_data = {
 	.matrix_key_rows = 5,
 	.matrix_key_cols = 6,
-	.matrix_key_map = a910_key_map,
-	.matrix_key_map_size = ARRAY_SIZE(a910_key_map),
+	.matrix_keymap_data = &a910_matrix_keymap_data,
 
 	.debounce_interval = 30,
 };
 #endif /* CONFIG_MACH_EZX_A910 */
 
 #ifdef CONFIG_MACH_EZX_E2
-static unsigned int e2_key_map[] = {
+static const unsigned int e2_key_map[] = {
 	KEY(0, 0, KEY_NUMERIC_6),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_NUMERIC_9),
@@ -657,11 +677,15 @@ static unsigned int e2_key_map[] = {
 	KEY(4, 5, KEY_RESERVED),
 };
 
+static struct matrix_keymap_data e2_matrix_keymap_data = {
+	.keymap			= e2_key_map,
+	.keymap_size		= ARRAY_SIZE(e2_key_map),
+};
+
 static struct pxa27x_keypad_platform_data e2_keypad_platform_data = {
 	.matrix_key_rows = 5,
 	.matrix_key_cols = 6,
-	.matrix_key_map = e2_key_map,
-	.matrix_key_map_size = ARRAY_SIZE(e2_key_map),
+	.matrix_keymap_data = &e2_matrix_keymap_data,
 
 	.debounce_interval = 30,
 };

@@ -367,16 +367,4 @@ static struct pcmcia_driver vxp_cs_driver = {
 	.resume		= vxp_resume,
 #endif
 };
-
-static int __init init_vxpocket(void)
-{
-	return pcmcia_register_driver(&vxp_cs_driver);
-}
-
-static void __exit exit_vxpocket(void)
-{
-	pcmcia_unregister_driver(&vxp_cs_driver);
-}
-
-module_init(init_vxpocket);
-module_exit(exit_vxpocket);
+module_pcmcia_driver(vxp_cs_driver);

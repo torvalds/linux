@@ -162,7 +162,7 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 	return min((int)T4_MAX_NUM_STAG, (int)(rdev->lldi.vr->stag.size >> 5));
 }
 
-#define C4IW_WR_TO (10*HZ)
+#define C4IW_WR_TO (30*HZ)
 
 struct c4iw_wr_wait {
 	struct completion completion;
@@ -369,7 +369,6 @@ struct c4iw_fr_page_list {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	dma_addr_t dma_addr;
 	struct c4iw_dev *dev;
-	int size;
 };
 
 static inline struct c4iw_fr_page_list *to_c4iw_fr_page_list(
@@ -753,8 +752,8 @@ struct c4iw_ep_common {
 	enum c4iw_ep_state state;
 	struct kref kref;
 	struct mutex mutex;
-	struct sockaddr_in local_addr;
-	struct sockaddr_in remote_addr;
+	struct sockaddr_storage local_addr;
+	struct sockaddr_storage remote_addr;
 	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
 	unsigned long history;
@@ -815,6 +814,15 @@ static inline int compute_wscale(int win)
 	while (wscale < 14 && (65535<<wscale) < win)
 		wscale++;
 	return wscale;
+}
+
+static inline int ocqp_supported(const struct cxgb4_lld_info *infop)
+{
+#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
+	return infop->vr->ocq.size > 0;
+#else
+	return 0;
+#endif
 }
 
 u32 c4iw_id_alloc(struct c4iw_id_table *alloc);
@@ -909,12 +917,11 @@ void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 u32 c4iw_ocqp_pool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_ocqp_pool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb);
-void c4iw_flush_hw_cq(struct t4_cq *cq);
+void c4iw_flush_hw_cq(struct c4iw_cq *chp);
 void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
-void c4iw_count_scqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
 int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp);
 int c4iw_flush_rq(struct t4_wq *wq, struct t4_cq *cq, int count);
-int c4iw_flush_sq(struct t4_wq *wq, struct t4_cq *cq, int count);
+int c4iw_flush_sq(struct c4iw_qp *qhp);
 int c4iw_ev_handler(struct c4iw_dev *rnicp, u32 qid);
 u16 c4iw_rqes_posted(struct c4iw_qp *qhp);
 int c4iw_post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe);
@@ -930,6 +937,8 @@ extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
 extern int c4iw_max_read_depth;
 extern int db_fc_threshold;
+extern int db_coalescing_threshold;
+extern int use_dsgl;
 
 
 #endif

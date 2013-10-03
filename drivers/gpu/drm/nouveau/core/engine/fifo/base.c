@@ -91,6 +91,8 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 	if (!chan->user)
 		return -EFAULT;
 
+	nouveau_event_trigger(priv->cevent, 0);
+
 	chan->size = size;
 	return 0;
 }
@@ -167,6 +169,7 @@ nouveau_fifo_destroy(struct nouveau_fifo *priv)
 {
 	kfree(priv->channel);
 	nouveau_event_destroy(&priv->uevent);
+	nouveau_event_destroy(&priv->cevent);
 	nouveau_engine_destroy(&priv->base);
 }
 
@@ -190,6 +193,10 @@ nouveau_fifo_create_(struct nouveau_object *parent,
 	priv->channel = kzalloc(sizeof(*priv->channel) * (max + 1), GFP_KERNEL);
 	if (!priv->channel)
 		return -ENOMEM;
+
+	ret = nouveau_event_create(1, &priv->cevent);
+	if (ret)
+		return ret;
 
 	ret = nouveau_event_create(1, &priv->uevent);
 	if (ret)

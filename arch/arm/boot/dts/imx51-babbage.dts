@@ -11,7 +11,7 @@
  */
 
 /dts-v1/;
-/include/ "imx51.dtsi"
+#include "imx51.dtsi"
 
 / {
 	model = "Freescale i.MX51 Babbage Board";
@@ -61,6 +61,20 @@
 		mux-int-port = <2>;
 		mux-ext-port = <3>;
 	};
+
+	clocks {
+		ckih1 {
+			clock-frequency = <22579200>;
+		};
+
+		clk_26M: codec_clock {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <26000000>;
+			gpios = <&gpio4 26 1>;
+		};
+	};
 };
 
 &esdhc1 {
@@ -98,6 +112,7 @@
 		#size-cells = <0>;
 		compatible = "fsl,mc13892";
 		spi-max-frequency = <6000000>;
+		spi-cs-high;
 		reg = <0>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <8 0x4>;
@@ -222,13 +237,14 @@
 	hog {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				694  0x20d5	/* MX51_PAD_GPIO1_0__SD1_CD */
-				697  0x20d5	/* MX51_PAD_GPIO1_1__SD1_WP */
-				737  0x100	/* MX51_PAD_GPIO1_5__GPIO1_5 */
-				740  0x100	/* MX51_PAD_GPIO1_6__GPIO1_6 */
-				121  0x5	/* MX51_PAD_EIM_A27__GPIO2_21 */
-				402  0x85	/* MX51_PAD_CSPI1_SS0__GPIO4_24 */
-				405  0x85	/* MX51_PAD_CSPI1_SS1__GPIO4_25 */
+				MX51_PAD_GPIO1_0__SD1_CD     0x20d5
+				MX51_PAD_GPIO1_1__SD1_WP     0x20d5
+				MX51_PAD_GPIO1_5__GPIO1_5    0x100
+				MX51_PAD_GPIO1_6__GPIO1_6    0x100
+				MX51_PAD_EIM_A27__GPIO2_21   0x5
+				MX51_PAD_CSPI1_SS0__GPIO4_24 0x85
+				MX51_PAD_CSPI1_SS1__GPIO4_25 0x85
+				MX51_PAD_CSPI1_RDY__GPIO4_26 0x80000000
 			>;
 		};
 	};
@@ -255,7 +271,7 @@
 	sgtl5000: codec@0a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
-		clock-frequency = <26000000>;
+		clocks = <&clk_26M>;
 		VDDA-supply = <&vdig_reg>;
 		VDDIO-supply = <&vvideo_reg>;
 	};

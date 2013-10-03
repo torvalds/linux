@@ -705,21 +705,15 @@ static int ps3fb_pan_display(struct fb_var_screeninfo *var,
 
 static int ps3fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
-	unsigned long size, offset;
+	int r;
 
-	size = vma->vm_end - vma->vm_start;
-	offset = vma->vm_pgoff << PAGE_SHIFT;
-	if (offset + size > info->fix.smem_len)
-		return -EINVAL;
-
-	offset += info->fix.smem_start;
-	if (remap_pfn_range(vma, vma->vm_start, offset >> PAGE_SHIFT,
-			    size, vma->vm_page_prot))
-		return -EAGAIN;
+	r = vm_iomap_memory(vma, info->fix.smem_start, info->fix.smem_len);
 
 	dev_dbg(info->device, "ps3fb: mmap framebuffer P(%lx)->V(%lx)\n",
-		offset, vma->vm_start);
-	return 0;
+		info->fix.smem_start + (vma->vm_pgoff << PAGE_SHIFT),
+		vma->vm_start);
+
+	return r;
 }
 
     /*
@@ -958,7 +952,7 @@ static struct fb_ops ps3fb_ops = {
 	.fb_compat_ioctl = ps3fb_ioctl
 };
 
-static struct fb_fix_screeninfo ps3fb_fix __initdata = {
+static struct fb_fix_screeninfo ps3fb_fix = {
 	.id =		DEVICE_NAME,
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,

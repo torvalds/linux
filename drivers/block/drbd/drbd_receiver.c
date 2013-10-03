@@ -757,7 +757,8 @@ static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn, struct acc
 	rcu_read_unlock();
 
 	timeo = connect_int * HZ;
-	timeo += (random32() & 1) ? timeo / 7 : -timeo / 7; /* 28.5% random jitter */
+	/* 28.5% random jitter */
+	timeo += (prandom_u32() & 1) ? timeo / 7 : -timeo / 7;
 
 	err = wait_for_completion_interruptible_timeout(&ad->door_bell, timeo);
 	if (err <= 0)
@@ -849,6 +850,7 @@ int drbd_connected(struct drbd_conf *mdev)
 		err = drbd_send_current_state(mdev);
 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
 	clear_bit(RESIZE_PENDING, &mdev->flags);
+	atomic_set(&mdev->ap_in_flight, 0);
 	mod_timer(&mdev->request_timer, jiffies + HZ); /* just start it here. */
 	return err;
 }
@@ -953,7 +955,7 @@ retry:
 				conn_warn(tconn, "Error receiving initial packet\n");
 				sock_release(s);
 randomize:
-				if (random32() & 1)
+				if (prandom_u32() & 1)
 					goto retry;
 			}
 		}
@@ -1037,6 +1039,8 @@ randomize:
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		kref_get(&mdev->kref);
+		rcu_read_unlock();
+
 		/* Prevent a race between resync-handshake and
 		 * being promoted to Primary.
 		 *
@@ -1046,8 +1050,6 @@ randomize:
 		 */
 		mutex_lock(mdev->state_mutex);
 		mutex_unlock(mdev->state_mutex);
-
-		rcu_read_unlock();
 
 		if (discard_my_data)
 			set_bit(DISCARD_MY_DATA, &mdev->flags);
@@ -2265,7 +2267,7 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 		drbd_set_out_of_sync(mdev, peer_req->i.sector, peer_req->i.size);
 		peer_req->flags |= EE_CALL_AL_COMPLETE_IO;
 		peer_req->flags &= ~EE_MAY_SET_IN_SYNC;
-		drbd_al_begin_io(mdev, &peer_req->i);
+		drbd_al_begin_io(mdev, &peer_req->i, true);
 	}
 
 	err = drbd_submit_peer_request(mdev, peer_req, rw, DRBD_FAULT_DT_WR);
@@ -2661,7 +2663,6 @@ static int drbd_asb_recover_1p(struct drbd_conf *mdev) __must_hold(local)
 		if (hg == -1 && mdev->state.role == R_PRIMARY) {
 			enum drbd_state_rv rv2;
 
-			drbd_set_role(mdev, R_SECONDARY, 0);
 			 /* drbd_change_state() does not sleep while in SS_IN_TRANSIENT_STATE,
 			  * we might be here in C_WF_REPORT_PARAMS which is transient.
 			  * we do not need to wait for the after state change work either. */
@@ -3544,7 +3545,7 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
 {
 	struct drbd_conf *mdev;
 	struct p_sizes *p = pi->data;
-	enum determine_dev_size dd = unchanged;
+	enum determine_dev_size dd = DS_UNCHANGED;
 	sector_t p_size, p_usize, my_usize;
 	int ldsc = 0; /* local disk size changed */
 	enum dds_flags ddsf;
@@ -3616,9 +3617,9 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	ddsf = be16_to_cpu(p->dds_flags);
 	if (get_ldev(mdev)) {
-		dd = drbd_determine_dev_size(mdev, ddsf);
+		dd = drbd_determine_dev_size(mdev, ddsf, NULL);
 		put_ldev(mdev);
-		if (dd == dev_size_error)
+		if (dd == DS_ERROR)
 			return -EIO;
 		drbd_md_sync(mdev);
 	} else {
@@ -3646,7 +3647,7 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
 			drbd_send_sizes(mdev, 0, ddsf);
 		}
 		if (test_and_clear_bit(RESIZE_PENDING, &mdev->flags) ||
-		    (dd == grew && mdev->state.conn == C_CONNECTED)) {
+		    (dd == DS_GREW && mdev->state.conn == C_CONNECTED)) {
 			if (mdev->state.pdsk >= D_INCONSISTENT &&
 			    mdev->state.disk >= D_INCONSISTENT) {
 				if (ddsf & DDSF_NO_RESYNC)
@@ -3992,7 +3993,7 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	clear_bit(DISCARD_MY_DATA, &mdev->flags);
 
-	drbd_md_sync(mdev); /* update connected indicator, la_size, ... */
+	drbd_md_sync(mdev); /* update connected indicator, la_size_sect, ... */
 
 	return 0;
 }
@@ -4659,8 +4660,8 @@ static int drbd_do_features(struct drbd_tconn *tconn)
 #if !defined(CONFIG_CRYPTO_HMAC) && !defined(CONFIG_CRYPTO_HMAC_MODULE)
 static int drbd_do_auth(struct drbd_tconn *tconn)
 {
-	dev_err(DEV, "This kernel was build without CONFIG_CRYPTO_HMAC.\n");
-	dev_err(DEV, "You need to disable 'cram-hmac-alg' in drbd.conf.\n");
+	conn_err(tconn, "This kernel was build without CONFIG_CRYPTO_HMAC.\n");
+	conn_err(tconn, "You need to disable 'cram-hmac-alg' in drbd.conf.\n");
 	return -1;
 }
 #else
@@ -5257,9 +5258,11 @@ int drbd_asender(struct drbd_thread *thi)
 	bool ping_timeout_active = false;
 	struct net_conf *nc;
 	int ping_timeo, tcp_cork, ping_int;
+	struct sched_param param = { .sched_priority = 2 };
 
-	current->policy = SCHED_RR;  /* Make this a realtime task! */
-	current->rt_priority = 2;    /* more important than all other tasks */
+	rv = sched_setscheduler(current, SCHED_RR, &param);
+	if (rv < 0)
+		conn_err(tconn, "drbd_asender: ERROR set priority, ret=%d\n", rv);
 
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(thi);

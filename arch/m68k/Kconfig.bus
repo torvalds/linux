@@ -45,6 +45,16 @@ config ISA
 	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
 
+config ATARI_ROM_ISA
+	bool "Atari ROM port ISA adapter support"
+	depends on ATARI
+	help
+	  This option enables support for the ROM port ISA adapter used to
+	  operate ISA cards on Atari. Only 8  bit cards are supported, and
+	  no interrupt lines are connected.
+	  The only driver currently using this adapter is the EtherNEC
+	  driver for RTL8019AS based NE2000 compatible network cards.
+
 config GENERIC_ISA_DMA
 	def_bool ISA
 

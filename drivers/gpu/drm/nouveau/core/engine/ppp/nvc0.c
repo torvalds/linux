@@ -22,8 +22,7 @@
  * Authors: Maarten Lankhorst
  */
 
-#include <core/falcon.h>
-
+#include <engine/falcon.h>
 #include <engine/ppp.h>
 
 struct nvc0_ppp_priv {
@@ -91,6 +90,7 @@ nvc0_ppp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000002;
+	nv_subdev(priv)->intr = nouveau_falcon_intr;
 	nv_engine(priv)->cclass = &nvc0_ppp_cclass;
 	nv_engine(priv)->sclass = nvc0_ppp_sclass;
 	return 0;

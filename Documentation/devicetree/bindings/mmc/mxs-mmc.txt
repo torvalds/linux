@@ -9,15 +9,19 @@ and the properties used by the mxsmmc driver.
 Required properties:
 - compatible: Should be "fsl,<chip>-mmc".  The supported chips include
   imx23 and imx28.
-- interrupts: Should contain ERROR and DMA interrupts
-- fsl,ssp-dma-channel: APBH DMA channel for the SSP
+- interrupts: Should contain ERROR interrupt number
+- dmas: DMA specifier, consisting of a phandle to DMA controller node
+  and SSP DMA channel ID.
+  Refer to dma.txt and fsl-mxs-dma.txt for details.
+- dma-names: Must be "rx-tx".
 
 Examples:
 
 ssp0: ssp@80010000 {
 	compatible = "fsl,imx28-mmc";
 	reg = <0x80010000 2000>;
-	interrupts = <96 82>;
-	fsl,ssp-dma-channel = <0>;
+	interrupts = <96>;
+	dmas = <&dma_apbh 0>;
+	dma-names = "rx-tx";
 	bus-width = <8>;
 };

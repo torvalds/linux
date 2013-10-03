@@ -22,17 +22,18 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/reboot.h>
 #include <linux/irqchip.h>
-#include <linux/clk/tegra.h>
+#include <linux/clk-provider.h>
 
 #include <asm/hardware/cache-l2x0.h>
 
-#include <mach/powergate.h>
-
 #include "board.h"
 #include "common.h"
+#include "cpuidle.h"
 #include "fuse.h"
 #include "iomap.h"
+#include "irq.h"
 #include "pmc.h"
 #include "apbio.h"
 #include "sleep.h"
@@ -60,13 +61,15 @@ u32 tegra_uart_config[4] = {
 #ifdef CONFIG_OF
 void __init tegra_dt_init_irq(void)
 {
-	tegra_clocks_init();
+	of_clk_init(NULL);
+	tegra_pmc_init();
 	tegra_init_irq();
 	irqchip_init();
+	tegra_legacy_irq_syscore_init();
 }
 #endif
 
-void tegra_assert_system_reset(char mode, const char *cmd)
+void tegra_assert_system_reset(enum reboot_mode mode, const char *cmd)
 {
 	void __iomem *reset = IO_ADDRESS(TEGRA_PMC_BASE + 0);
 	u32 reg;
@@ -94,40 +97,19 @@ static void __init tegra_init_cache(void)
 
 }
 
-static void __init tegra_init_early(void)
+void __init tegra_init_early(void)
 {
 	tegra_cpu_reset_handler_init();
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra_init_cache();
-	tegra_pmc_init();
 	tegra_powergate_init();
+	tegra_hotplug_init();
 }
-
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-void __init tegra20_init_early(void)
-{
-	tegra_init_early();
-	tegra20_hotplug_init();
-}
-#endif
-
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
-void __init tegra30_init_early(void)
-{
-	tegra_init_early();
-	tegra30_hotplug_init();
-}
-#endif
-
-#ifdef CONFIG_ARCH_TEGRA_114_SOC
-void __init tegra114_init_early(void)
-{
-	tegra_init_early();
-}
-#endif
 
 void __init tegra_init_late(void)
 {
+	tegra_init_suspend();
+	tegra_cpuidle_init();
 	tegra_powergate_debugfs_init();
 }

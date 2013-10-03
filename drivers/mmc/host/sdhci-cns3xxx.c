@@ -16,7 +16,6 @@
 #include <linux/device.h>
 #include <linux/mmc/host.h>
 #include <linux/module.h>
-#include <mach/cns3xxx.h>
 #include "sdhci-pltfm.h"
 
 static unsigned int sdhci_cns3xxx_get_max_clk(struct sdhci_host *host)
@@ -80,12 +79,12 @@ out:
 	host->clock = clock;
 }
 
-static struct sdhci_ops sdhci_cns3xxx_ops = {
+static const struct sdhci_ops sdhci_cns3xxx_ops = {
 	.get_max_clock	= sdhci_cns3xxx_get_max_clk,
 	.set_clock	= sdhci_cns3xxx_set_clock,
 };
 
-static struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
+static const struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
 	.ops = &sdhci_cns3xxx_ops,
 	.quirks = SDHCI_QUIRK_BROKEN_DMA |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
@@ -97,7 +96,7 @@ static struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
 
 static int sdhci_cns3xxx_probe(struct platform_device *pdev)
 {
-	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata);
+	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata, 0);
 }
 
 static int sdhci_cns3xxx_remove(struct platform_device *pdev)

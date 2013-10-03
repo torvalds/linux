@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: dt2817
@@ -38,9 +33,8 @@ Configuration options:
   [0] - I/O port base base address
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
 
 #define DT2817_SIZE 5
 
@@ -49,28 +43,26 @@ Configuration options:
 
 static int dt2817_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	int mask;
-	int chan;
-	int oe = 0;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int oe = 0;
+	unsigned int mask;
+	int ret;
 
-	if (insn->n != 1)
-		return -EINVAL;
-
-	chan = CR_CHAN(insn->chanspec);
 	if (chan < 8)
-		mask = 0xff;
+		mask = 0x000000ff;
 	else if (chan < 16)
-		mask = 0xff00;
+		mask = 0x0000ff00;
 	else if (chan < 24)
-		mask = 0xff0000;
+		mask = 0x00ff0000;
 	else
 		mask = 0xff000000;
-	if (data[0])
-		s->io_bits |= mask;
-	else
-		s->io_bits &= ~mask;
+
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	if (s->io_bits & 0x000000ff)
 		oe |= 0x1;
@@ -83,7 +75,7 @@ static int dt2817_dio_insn_config(struct comedi_device *dev,
 
 	outb(oe, dev->iobase + DT2817_CR);
 
-	return 1;
+	return insn->n;
 }
 
 static int dt2817_dio_insn_bits(struct comedi_device *dev,
@@ -126,16 +118,10 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: dt2817: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, DT2817_SIZE, "dt2817")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-	dev->board_name = "dt2817";
+	ret = comedi_request_region(dev, it->options[0], DT2817_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -154,22 +140,14 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->state = 0;
 	outb(0, dev->iobase + DT2817_CR);
 
-	printk(KERN_INFO "\n");
-
 	return 0;
-}
-
-static void dt2817_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, DT2817_SIZE);
 }
 
 static struct comedi_driver dt2817_driver = {
 	.driver_name	= "dt2817",
 	.module		= THIS_MODULE,
 	.attach		= dt2817_attach,
-	.detach		= dt2817_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(dt2817_driver);
 

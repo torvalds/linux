@@ -33,9 +33,11 @@ static ssize_t dac7512_store_val(struct device *dev,
 	struct spi_device *spi = to_spi_device(dev);
 	unsigned char tmp[2];
 	unsigned long val;
+	int ret;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
-		return -EINVAL;
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
 
 	tmp[0] = val >> 8;
 	tmp[1] = val & 0xff;

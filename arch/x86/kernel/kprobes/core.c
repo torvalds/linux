@@ -353,7 +353,11 @@ int __kprobes __copy_instruction(u8 *dest, u8 *src)
 		 * have given.
 		 */
 		newdisp = (u8 *) src + (s64) insn.displacement.value - (u8 *) dest;
-		BUG_ON((s64) (s32) newdisp != newdisp); /* Sanity check.  */
+		if ((s64) (s32) newdisp != newdisp) {
+			pr_err("Kprobes error: new displacement does not fit into s32 (%llx)\n", newdisp);
+			pr_err("\tSrc: %p, Dest: %p, old disp: %x\n", src, dest, insn.displacement.value);
+			return 0;
+		}
 		disp = (u8 *) dest + insn_offset_displacement(&insn);
 		*(s32 *) disp = (s32) newdisp;
 	}
@@ -361,10 +365,14 @@ int __kprobes __copy_instruction(u8 *dest, u8 *src)
 	return insn.length;
 }
 
-static void __kprobes arch_copy_kprobe(struct kprobe *p)
+static int __kprobes arch_copy_kprobe(struct kprobe *p)
 {
+	int ret;
+
 	/* Copy an instruction with recovering if other optprobe modifies it.*/
-	__copy_instruction(p->ainsn.insn, p->addr);
+	ret = __copy_instruction(p->ainsn.insn, p->addr);
+	if (!ret)
+		return -EINVAL;
 
 	/*
 	 * __copy_instruction can modify the displacement of the instruction,
@@ -380,6 +388,8 @@ static void __kprobes arch_copy_kprobe(struct kprobe *p)
 
 	/* Also, displacement change doesn't affect the first byte */
 	p->opcode = p->ainsn.insn[0];
+
+	return 0;
 }
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
@@ -393,8 +403,8 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	p->ainsn.insn = get_insn_slot();
 	if (!p->ainsn.insn)
 		return -ENOMEM;
-	arch_copy_kprobe(p);
-	return 0;
+
+	return arch_copy_kprobe(p);
 }
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
@@ -651,7 +661,7 @@ static void __used __kprobes kretprobe_trampoline_holder(void)
 /*
  * Called from kretprobe_trampoline
  */
-static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
+__visible __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
@@ -1058,7 +1068,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 
 int __init arch_init_kprobes(void)
 {
-	return arch_init_optprobes();
+	return 0;
 }
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)

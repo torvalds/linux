@@ -525,7 +525,7 @@ void can_rx_unregister(struct net_device *dev, canid_t can_id, canid_t mask,
 
 	d = find_dev_rcv_lists(dev);
 	if (!d) {
-		printk(KERN_ERR "BUG: receive list not found for "
+		pr_err("BUG: receive list not found for "
 		       "dev %s, id %03X, mask %03X\n",
 		       DNAME(dev), can_id, mask);
 		goto out;
@@ -546,16 +546,13 @@ void can_rx_unregister(struct net_device *dev, canid_t can_id, canid_t mask,
 	}
 
 	/*
-	 * Check for bugs in CAN protocol implementations:
-	 * If no matching list item was found, the list cursor variable next
-	 * will be NULL, while r will point to the last item of the list.
+	 * Check for bugs in CAN protocol implementations using af_can.c:
+	 * 'r' will be NULL if no matching list item was found for removal.
 	 */
 
 	if (!r) {
-		printk(KERN_ERR "BUG: receive list entry not found for "
-		       "dev %s, id %03X, mask %03X\n",
-		       DNAME(dev), can_id, mask);
-		r = NULL;
+		WARN(1, "BUG: receive list entry not found for dev %s, "
+		     "id %03X, mask %03X\n", DNAME(dev), can_id, mask);
 		goto out;
 	}
 
@@ -749,8 +746,7 @@ int can_proto_register(const struct can_proto *cp)
 	int err = 0;
 
 	if (proto < 0 || proto >= CAN_NPROTO) {
-		printk(KERN_ERR "can: protocol number %d out of range\n",
-		       proto);
+		pr_err("can: protocol number %d out of range\n", proto);
 		return -EINVAL;
 	}
 
@@ -761,8 +757,7 @@ int can_proto_register(const struct can_proto *cp)
 	mutex_lock(&proto_tab_lock);
 
 	if (proto_tab[proto]) {
-		printk(KERN_ERR "can: protocol %d already registered\n",
-		       proto);
+		pr_err("can: protocol %d already registered\n", proto);
 		err = -EBUSY;
 	} else
 		RCU_INIT_POINTER(proto_tab[proto], cp);
@@ -799,9 +794,9 @@ EXPORT_SYMBOL(can_proto_unregister);
  * af_can notifier to create/remove CAN netdevice specific structs
  */
 static int can_notifier(struct notifier_block *nb, unsigned long msg,
-			void *data)
+			void *ptr)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct dev_rcv_lists *d;
 
 	if (!net_eq(dev_net(dev), &init_net))
@@ -816,11 +811,8 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 
 		/* create new dev_rcv_lists for this device */
 		d = kzalloc(sizeof(*d), GFP_KERNEL);
-		if (!d) {
-			printk(KERN_ERR
-			       "can: allocation of receive list failed\n");
+		if (!d)
 			return NOTIFY_DONE;
-		}
 		BUG_ON(dev->ml_priv);
 		dev->ml_priv = d;
 
@@ -838,8 +830,8 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 				dev->ml_priv = NULL;
 			}
 		} else
-			printk(KERN_ERR "can: notifier: receive list not "
-			       "found for dev %s\n", dev->name);
+			pr_err("can: notifier: receive list not found for dev "
+			       "%s\n", dev->name);
 
 		spin_unlock(&can_rcvlists_lock);
 
@@ -927,7 +919,7 @@ static __exit void can_exit(void)
 	/* remove created dev_rcv_lists from still registered CAN devices */
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
-		if (dev->type == ARPHRD_CAN && dev->ml_priv){
+		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
 
 			struct dev_rcv_lists *d = dev->ml_priv;
 

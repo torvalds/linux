@@ -22,15 +22,9 @@
  * Authors: Ben Skeggs
  */
 
-#include "nv04.h"
+#include <engine/graph/nv40.h>
 
-static inline int
-nv44_graph_class(struct nv04_instmem_priv *priv)
-{
-	if ((nv_device(priv)->chipset & 0xf0) == 0x60)
-		return 1;
-	return !(0x0baf & (1 << (nv_device(priv)->chipset & 0x0f)));
-}
+#include "nv04.h"
 
 static int
 nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -82,31 +76,33 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	/* 0x00000-0x10000: reserve for probable vbios image */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x10000, 0, 0, &priv->vbios);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x10000, 0, 0,
+				&priv->vbios);
 	if (ret)
 		return ret;
 
 	/* 0x10000-0x18000: reserve for RAMHT */
-	ret = nouveau_ramht_new(parent, NULL, 0x08000, 0, &priv->ramht);
+	ret = nouveau_ramht_new(nv_object(priv), NULL, 0x08000, 0,
+			       &priv->ramht);
 	if (ret)
 		return ret;
 
 	/* 0x18000-0x18200: reserve for RAMRO
 	 * 0x18200-0x20000: padding
 	 */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x08000, 0, 0, &priv->ramro);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x08000, 0, 0,
+				&priv->ramro);
 	if (ret)
 		return ret;
 
 	/* 0x20000-0x21000: reserve for RAMFC
 	 * 0x21000-0x40000: padding and some unknown crap
 	 */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x20000, 0,
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x20000, 0,
 				 NVOBJ_FLAG_ZERO_ALLOC, &priv->ramfc);
 	if (ret)
 		return ret;
 
-	priv->created = true;
 	return 0;
 }
 

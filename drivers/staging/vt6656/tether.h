@@ -30,9 +30,7 @@
 #define __TETHER_H__
 
 #include <linux/if_ether.h>
-#include "ttype.h"
 
-/*---------------------  Export Definitions -------------------------*/
 //
 // constants
 //
@@ -44,11 +42,6 @@
 
 #define TYPE_MGMT_PROBE_RSP 0x5000
 
-//
-// wFrameCtl field in the S802_11Header
-//
-// NOTE....
-//   in network byte order, high byte is going first
 #define FC_TODS             0x0001
 #define FC_FROMDS           0x0002
 #define FC_MOREFRAG         0x0004
@@ -71,8 +64,6 @@
 #define TYPE_CTL_CTS        0xc400
 #define TYPE_CTL_ACK        0xd400
 
-
-
 #else //if LITTLE_ENDIAN
 //
 // wType field in the SEthernetHeader
@@ -82,11 +73,6 @@
 
 #define TYPE_MGMT_PROBE_RSP 0x0050
 
-//
-// wFrameCtl field in the S802_11Header
-//
-// NOTE....
-//   in network byte order, high byte is going first
 #define FC_TODS             0x0100
 #define FC_FROMDS           0x0200
 #define FC_MOREFRAG         0x0400
@@ -109,58 +95,11 @@
 #define TYPE_CTL_CTS        0x00c4
 #define TYPE_CTL_ACK        0x00d4
 
-
-
 #endif //#ifdef __BIG_ENDIAN
 
 #define WEP_IV_MASK         0x00FFFFFF
 
-/*---------------------  Export Types  ------------------------------*/
-//
-// Ethernet packet
-//
-typedef struct tagSEthernetHeader {
-    BYTE    abyDstAddr[ETH_ALEN];
-    BYTE    abySrcAddr[ETH_ALEN];
-    WORD    wType;
-} __attribute__ ((__packed__))
-SEthernetHeader, *PSEthernetHeader;
-
-
-//
-// 802_3 packet
-//
-typedef struct tagS802_3Header {
-    BYTE    abyDstAddr[ETH_ALEN];
-    BYTE    abySrcAddr[ETH_ALEN];
-    WORD    wLen;
-} __attribute__ ((__packed__))
-S802_3Header, *PS802_3Header;
-
-//
-// 802_11 packet
-//
-typedef struct tagS802_11Header {
-    WORD    wFrameCtl;
-    WORD    wDurationID;
-    BYTE    abyAddr1[ETH_ALEN];
-    BYTE    abyAddr2[ETH_ALEN];
-    BYTE    abyAddr3[ETH_ALEN];
-    WORD    wSeqCtl;
-    BYTE    abyAddr4[ETH_ALEN];
-} __attribute__ ((__packed__))
-S802_11Header, *PS802_11Header;
-
-/*---------------------  Export Macros ------------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr);
-//BYTE ETHbyGetHashIndexByCrc(PBYTE pbyMultiAddr);
-bool ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, unsigned int cbFrameLength);
+//u8 ETHbyGetHashIndexByCrc(u8 * pbyMultiAddr);
+bool ETHbIsBufferCrc32Ok(u8 * pbyBuffer, unsigned int cbFrameLength);
 
 #endif /* __TETHER_H__ */

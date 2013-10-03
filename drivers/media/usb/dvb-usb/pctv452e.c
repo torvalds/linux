@@ -828,7 +828,7 @@ static struct stb0899_config stb0899_config = {
 	.block_sync_mode = STB0899_SYNC_FORCED, /* ? */
 
 	.xtal_freq       = 27000000,	 /* Assume Hz ? */
-	.inversion       = IQ_SWAP_ON,       /* ? */
+	.inversion       = IQ_SWAP_ON,
 
 	.lo_clk	  = 76500000,
 	.hi_clk	  = 99000000,

@@ -335,8 +335,6 @@ static int video_mode_to_dss_mode(struct omap_vout_device *vout)
 	ovl = ovid->overlays[0];
 
 	switch (pix->pixelformat) {
-	case 0:
-		break;
 	case V4L2_PIX_FMT_YUYV:
 		mode = OMAP_DSS_COLOR_YUV2;
 		break;
@@ -358,6 +356,7 @@ static int video_mode_to_dss_mode(struct omap_vout_device *vout)
 		break;
 	default:
 		mode = -EINVAL;
+		break;
 	}
 	return mode;
 }
@@ -648,9 +647,12 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 
 	/* First save the configuration in ovelray structure */
 	ret = omapvid_init(vout, addr);
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR VOUT_NAME
 			"failed to set overlay info\n");
+		goto vout_isr_err;
+	}
+
 	/* Enable the pipeline and set the Go bit */
 	ret = omapvid_apply_changes(vout);
 	if (ret)
@@ -1660,13 +1662,16 @@ static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 	mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD
 		| DISPC_IRQ_VSYNC2;
 
-	omap_dispc_register_isr(omap_vout_isr, vout, mask);
-
 	/* First save the configuration in ovelray structure */
 	ret = omapvid_init(vout, addr);
-	if (ret)
+	if (ret) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
 				"failed to set overlay info\n");
+		goto streamon_err1;
+	}
+
+	omap_dispc_register_isr(omap_vout_isr, vout, mask);
+
 	/* Enable the pipeline and set the Go bit */
 	ret = omapvid_apply_changes(vout);
 	if (ret)
@@ -2143,6 +2148,9 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	struct omap_dss_device *dssdev = NULL;
 	struct omap_dss_device *def_display;
 	struct omap2video_device *vid_dev = NULL;
+
+	if (omapdss_is_initialized() == false)
+		return -EPROBE_DEFER;
 
 	ret = omapdss_compat_init();
 	if (ret) {

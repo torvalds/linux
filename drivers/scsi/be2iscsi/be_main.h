@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2012 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,7 @@
 
 #include "be.h"
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"10.0.272.0"
+#define BUILD_STR		"10.0.467.0"
 #define BE_NAME			"Emulex OneConnect" \
 				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
@@ -66,8 +66,9 @@
 
 #define MAX_CPUS		64
 #define BEISCSI_MAX_NUM_CPUS	7
-#define OC_SKH_MAX_NUM_CPUS	63
+#define OC_SKH_MAX_NUM_CPUS	31
 
+#define BEISCSI_VER_STRLEN 32
 
 #define BEISCSI_SGLIST_ELEMENTS	30
 
@@ -265,7 +266,9 @@ struct invalidate_command_table {
 	unsigned short cid;
 } __packed;
 
-#define chip_skh_r(pdev)	(pdev->device == OC_SKH_ID1)
+#define chip_be2(phba)      (phba->generation == BE_GEN2)
+#define chip_be3_r(phba)    (phba->generation == BE_GEN3)
+#define is_chip_be2_be3r(phba) (chip_be3_r(phba) || (chip_be2(phba)))
 struct beiscsi_hba {
 	struct hba_parameters params;
 	struct hwi_controller *phwi_ctrlr;
@@ -304,10 +307,15 @@ struct beiscsi_hba {
 	unsigned short avlbl_cids;
 	unsigned short cid_alloc;
 	unsigned short cid_free;
-	struct beiscsi_conn *conn_table[BE2_MAX_SESSIONS * 2];
 	struct list_head hba_queue;
+#define BE_MAX_SESSION 2048
+#define BE_SET_CID_TO_CRI(cri_index, cid) \
+			  (phba->cid_to_cri_map[cid] = cri_index)
+#define BE_GET_CRI_FROM_CID(cid) (phba->cid_to_cri_map[cid])
+	unsigned short cid_to_cri_map[BE_MAX_SESSION];
 	unsigned short *cid_array;
 	struct iscsi_endpoint **ep_array;
+	struct beiscsi_conn **conn_table;
 	struct iscsi_boot_kset *boot_kset;
 	struct Scsi_Host *shost;
 	struct iscsi_iface *ipv4_iface;
@@ -339,6 +347,7 @@ struct beiscsi_hba {
 	struct delayed_work beiscsi_hw_check_task;
 
 	u8 mac_address[ETH_ALEN];
+	char fw_ver_str[BEISCSI_VER_STRLEN];
 	char wq_name[20];
 	struct workqueue_struct *wq;	/* The actuak work queue */
 	struct be_ctrl_info ctrl;
@@ -563,7 +572,7 @@ struct hwi_async_pdu_context {
 	 * This is a varying size list! Do not add anything
 	 * after this entry!!
 	 */
-	struct hwi_async_entry async_entry[BE2_MAX_SESSIONS * 2];
+	struct hwi_async_entry *async_entry;
 };
 
 #define PDUCQE_CODE_MASK	0x0000003F
@@ -749,6 +758,8 @@ void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
 void beiscsi_process_all_cqs(struct work_struct *work);
+void beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
+				     struct iscsi_task *task);
 
 static inline bool beiscsi_error(struct beiscsi_hba *phba)
 {
@@ -933,7 +944,7 @@ struct hwi_controller {
 	struct sgl_handle *psgl_handle_base;
 	unsigned int wrb_mem_index;
 
-	struct hwi_wrb_context wrb_context[BE2_MAX_SESSIONS * 2];
+	struct hwi_wrb_context *wrb_context;
 	struct mcc_wrb *pmcc_wrb_base;
 	struct be_ring default_pdu_hdr;
 	struct be_ring default_pdu_data;
@@ -970,9 +981,7 @@ struct hwi_context_memory {
 	struct be_queue_info be_def_hdrq;
 	struct be_queue_info be_def_dataq;
 
-	struct be_queue_info be_wrbq[BE2_MAX_SESSIONS];
-	struct be_mcc_wrb_context *pbe_mcc_context;
-
+	struct be_queue_info *be_wrbq;
 	struct hwi_async_pdu_context *pasync_ctx;
 };
 

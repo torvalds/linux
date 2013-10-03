@@ -138,23 +138,15 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name))
-		return -EBUSY;
-
-	ep93xx_rtc->mmio_base = devm_ioremap(&pdev->dev, res->start,
-					     resource_size(res));
-	if (!ep93xx_rtc->mmio_base)
-		return -ENXIO;
+	ep93xx_rtc->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ep93xx_rtc->mmio_base))
+		return PTR_ERR(ep93xx_rtc->mmio_base);
 
 	pdev->dev.platform_data = ep93xx_rtc;
 	platform_set_drvdata(pdev, ep93xx_rtc);
 
-	ep93xx_rtc->rtc = rtc_device_register(pdev->name,
-				&pdev->dev, &ep93xx_rtc_ops, THIS_MODULE);
+	ep93xx_rtc->rtc = devm_rtc_device_register(&pdev->dev,
+				pdev->name, &ep93xx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(ep93xx_rtc->rtc)) {
 		err = PTR_ERR(ep93xx_rtc->rtc);
 		goto exit;
@@ -162,25 +154,18 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 
 	err = sysfs_create_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
 	if (err)
-		goto fail;
+		goto exit;
 
 	return 0;
 
-fail:
-	rtc_device_unregister(ep93xx_rtc->rtc);
 exit:
-	platform_set_drvdata(pdev, NULL);
 	pdev->dev.platform_data = NULL;
 	return err;
 }
 
 static int ep93xx_rtc_remove(struct platform_device *pdev)
 {
-	struct ep93xx_rtc *ep93xx_rtc = platform_get_drvdata(pdev);
-
 	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
-	platform_set_drvdata(pdev, NULL);
-	rtc_device_unregister(ep93xx_rtc->rtc);
 	pdev->dev.platform_data = NULL;
 
 	return 0;

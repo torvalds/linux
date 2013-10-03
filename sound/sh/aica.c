@@ -598,7 +598,6 @@ static int snd_aica_remove(struct platform_device *devptr)
 		return -ENODEV;
 	snd_card_free(dreamcastcard->card);
 	kfree(dreamcastcard);
-	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
 

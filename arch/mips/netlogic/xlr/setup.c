@@ -36,6 +36,7 @@
 #include <linux/serial_8250.h>
 #include <linux/pm.h>
 
+#include <asm/idle.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/bootinfo.h>
@@ -195,6 +196,7 @@ void __init prom_init(void)
 {
 	int *argv, *envp;		/* passed as 32 bit ptrs */
 	struct psb_info *prom_infop;
+	void *reset_vec;
 #ifdef CONFIG_SMP
 	int i;
 #endif
@@ -206,6 +208,12 @@ void __init prom_init(void)
 
 	nlm_prom_info = *prom_infop;
 	nlm_init_node();
+
+	/* Update reset entry point with CPU init code */
+	reset_vec = (void *)CKSEG1ADDR(RESET_VEC_PHYS);
+	memset(reset_vec, 0, RESET_VEC_SIZE);
+	memcpy(reset_vec, (void *)nlm_reset_entry,
+			(nlm_reset_entry_end - nlm_reset_entry));
 
 	nlm_early_serial_setup();
 	build_arcs_cmdline(argv);

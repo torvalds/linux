@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <clocksource/samsung_pwm.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -47,13 +48,11 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
-#include <plat/s3c2410.h>
-#include <plat/s3c2412.h>
-#include <plat/s3c2416.h>
-#include <plat/s3c244x.h>
-#include <plat/s3c2443.h>
 #include <plat/cpu-freq.h>
 #include <plat/pll.h>
+#include <plat/pwm-core.h>
+
+#include "common.h"
 
 /* table of supported CPUs */
 
@@ -219,6 +218,13 @@ static void s3c24xx_default_idle(void)
 		     S3C2410_CLKCON);
 }
 
+static struct samsung_pwm_variant s3c24xx_pwm_variant = {
+	.bits		= 16,
+	.div_base	= 1,
+	.has_tint_cstat	= false,
+	.tclk_mask	= (1 << 4),
+};
+
 void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 {
 	arm_pm_idle = s3c24xx_default_idle;
@@ -235,9 +241,32 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 	s3c24xx_init_cpu();
 
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
+
+	samsung_pwm_set_platdata(&s3c24xx_pwm_variant);
+}
+
+void __init samsung_set_timer_source(unsigned int event, unsigned int source)
+{
+	s3c24xx_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
+	s3c24xx_pwm_variant.output_mask &= ~(BIT(event) | BIT(source));
+}
+
+void __init samsung_timer_init(void)
+{
+	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
+		IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2, IRQ_TIMER3, IRQ_TIMER4,
+	};
+
+	samsung_pwm_clocksource_init(S3C_VA_TIMER,
+					timer_irqs, &s3c24xx_pwm_variant);
 }
 
 /* Serial port registrations */
+
+#define S3C2410_PA_UART0      (S3C24XX_PA_UART)
+#define S3C2410_PA_UART1      (S3C24XX_PA_UART + 0x4000 )
+#define S3C2410_PA_UART2      (S3C24XX_PA_UART + 0x8000 )
+#define S3C2443_PA_UART3      (S3C24XX_PA_UART + 0xC000 )
 
 static struct resource s3c2410_uart0_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_PA_UART0, SZ_16K),

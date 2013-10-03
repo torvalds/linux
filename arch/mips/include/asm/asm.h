@@ -296,6 +296,7 @@ symbol		=	value
 #define LONG_SUBU	subu
 #define LONG_L		lw
 #define LONG_S		sw
+#define LONG_SP		swp
 #define LONG_SLL	sll
 #define LONG_SLLV	sllv
 #define LONG_SRL	srl
@@ -318,6 +319,7 @@ symbol		=	value
 #define LONG_SUBU	dsubu
 #define LONG_L		ld
 #define LONG_S		sd
+#define LONG_SP		sdp
 #define LONG_SLL	dsll
 #define LONG_SLLV	dsllv
 #define LONG_SRL	dsrl

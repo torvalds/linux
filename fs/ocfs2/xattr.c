@@ -2751,20 +2751,12 @@ static int ocfs2_xattr_ibody_set(struct inode *inode,
 {
 	int ret;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *)xs->inode_bh->b_data;
 	struct ocfs2_xa_loc loc;
 
 	if (inode->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE)
 		return -ENOSPC;
 
 	down_write(&oi->ip_alloc_sem);
-	if (!(oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL)) {
-		if (!ocfs2_xattr_has_space_inline(inode, di)) {
-			ret = -ENOSPC;
-			goto out;
-		}
-	}
-
 	if (!(oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL)) {
 		ret = ocfs2_xattr_ibody_init(inode, xs->inode_bh, ctxt);
 		if (ret) {
@@ -3513,7 +3505,7 @@ int ocfs2_xattr_set(struct inode *inode,
 	int ret, credits, ref_meta = 0, ref_credits = 0;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct inode *tl_inode = osb->osb_tl_inode;
-	struct ocfs2_xattr_set_ctxt ctxt = { NULL, NULL, };
+	struct ocfs2_xattr_set_ctxt ctxt = { NULL, NULL, NULL, };
 	struct ocfs2_refcount_tree *ref_tree = NULL;
 
 	struct ocfs2_xattr_info xi = {
@@ -3617,13 +3609,14 @@ int ocfs2_xattr_set(struct inode *inode,
 	if (IS_ERR(ctxt.handle)) {
 		ret = PTR_ERR(ctxt.handle);
 		mlog_errno(ret);
-		goto cleanup;
+		goto out_free_ac;
 	}
 
 	ret = __ocfs2_xattr_set_handle(inode, di, &xi, &xis, &xbs, &ctxt);
 
 	ocfs2_commit_trans(osb, ctxt.handle);
 
+out_free_ac:
 	if (ctxt.data_ac)
 		ocfs2_free_alloc_context(ctxt.data_ac);
 	if (ctxt.meta_ac)
@@ -5889,6 +5882,10 @@ static int ocfs2_xattr_value_attach_refcount(struct inode *inode,
 	while (cpos < clusters) {
 		ret = ocfs2_xattr_get_clusters(inode, cpos, &p_cluster,
 					       &num_clusters, el, &ext_flags);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
 
 		cpos += num_clusters;
 		if ((ext_flags & OCFS2_EXT_REFCOUNTED))
@@ -6499,6 +6496,16 @@ static int ocfs2_reflink_xattr_inline(struct ocfs2_xattr_reflink *args)
 	}
 
 	new_oi = OCFS2_I(args->new_inode);
+	/*
+	 * Adjust extent record count to reserve space for extended attribute.
+	 * Inline data count had been adjusted in ocfs2_duplicate_inline_data().
+	 */
+	if (!(new_oi->ip_dyn_features & OCFS2_INLINE_DATA_FL) &&
+	    !(ocfs2_inode_is_fast_symlink(args->new_inode))) {
+		struct ocfs2_extent_list *el = &new_di->id2.i_list;
+		le16_add_cpu(&el->l_count, -(inline_size /
+					sizeof(struct ocfs2_extent_rec)));
+	}
 	spin_lock(&new_oi->ip_lock);
 	new_oi->ip_dyn_features |= OCFS2_HAS_XATTR_FL | OCFS2_INLINE_XATTR_FL;
 	new_di->i_dyn_features = cpu_to_le16(new_oi->ip_dyn_features);
@@ -6795,7 +6802,7 @@ out:
 	if (ret) {
 		if (*meta_ac) {
 			ocfs2_free_alloc_context(*meta_ac);
-			meta_ac = NULL;
+			*meta_ac = NULL;
 		}
 	}
 

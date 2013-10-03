@@ -14,7 +14,6 @@
 #include <linux/device.h>
 #include <linux/jiffies.h>
 #include <linux/smp.h>
-#include <linux/irqchip/arm-gic.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
@@ -24,7 +23,7 @@
  * observers, irrespective of whether they're taking part in coherency
  * or not.  This is necessary for the hotplug code to work reliably.
  */
-static void __cpuinit write_pen_release(int val)
+static void write_pen_release(int val)
 {
 	pen_release = val;
 	smp_wmb();
@@ -34,15 +33,8 @@ static void __cpuinit write_pen_release(int val)
 
 static DEFINE_SPINLOCK(boot_lock);
 
-void __cpuinit versatile_secondary_init(unsigned int cpu)
+void versatile_secondary_init(unsigned int cpu)
 {
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-
 	/*
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
@@ -56,7 +48,7 @@ void __cpuinit versatile_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-int __cpuinit versatile_boot_secondary(unsigned int cpu, struct task_struct *idle)
+int versatile_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 

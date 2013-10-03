@@ -36,9 +36,6 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 
-#include <mach/mxs.h>
-#include <mach/common.h>
-
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger.h>
@@ -228,6 +225,9 @@ struct mxs_lradc {
 #define	LRADC_CTRL4_LRADCSELECT_MASK(n)		(0xf << ((n) * 4))
 #define	LRADC_CTRL4_LRADCSELECT_OFFSET(n)	((n) * 4)
 
+#define LRADC_RESOLUTION			12
+#define LRADC_SINGLE_SAMPLE_MASK		((1 << LRADC_RESOLUTION) - 1)
+
 /*
  * Raw I/O operations
  */
@@ -237,19 +237,12 @@ static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
 {
 	struct mxs_lradc *lradc = iio_priv(iio_dev);
 	int ret;
-	unsigned long mask;
 
 	if (m != IIO_CHAN_INFO_RAW)
 		return -EINVAL;
 
 	/* Check for invalid channel */
 	if (chan->channel > LRADC_MAX_TOTAL_CHANS)
-		return -EINVAL;
-
-	/* Validate the channel if it doesn't intersect with reserved chans. */
-	bitmap_set(&mask, chan->channel, 1);
-	ret = iio_validate_scan_mask_onehot(iio_dev, &mask);
-	if (ret)
 		return -EINVAL;
 
 	/*
@@ -550,9 +543,10 @@ static int mxs_lradc_ts_register(struct mxs_lradc *lradc)
 	__set_bit(EV_ABS, input->evbit);
 	__set_bit(EV_KEY, input->evbit);
 	__set_bit(BTN_TOUCH, input->keybit);
-	input_set_abs_params(input, ABS_X, 0, LRADC_CH_VALUE_MASK, 0, 0);
-	input_set_abs_params(input, ABS_Y, 0, LRADC_CH_VALUE_MASK, 0, 0);
-	input_set_abs_params(input, ABS_PRESSURE, 0, LRADC_CH_VALUE_MASK, 0, 0);
+	input_set_abs_params(input, ABS_X, 0, LRADC_SINGLE_SAMPLE_MASK, 0, 0);
+	input_set_abs_params(input, ABS_Y, 0, LRADC_SINGLE_SAMPLE_MASK, 0, 0);
+	input_set_abs_params(input, ABS_PRESSURE, 0, LRADC_SINGLE_SAMPLE_MASK,
+			     0, 0);
 
 	lradc->ts_input = input;
 	input_set_drvdata(input, lradc);
@@ -623,7 +617,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 		((LRADC_DELAY_TIMER_LOOP - 1) << LRADC_CH_NUM_SAMPLES_OFFSET);
 	unsigned int i, j = 0;
 
-	for_each_set_bit(i, iio->active_scan_mask, iio->masklength) {
+	for_each_set_bit(i, iio->active_scan_mask, LRADC_MAX_TOTAL_CHANS) {
 		lradc->buffer[j] = readl(lradc->base + LRADC_CH(j));
 		writel(chan_value, lradc->base + LRADC_CH(j));
 		lradc->buffer[j] &= LRADC_CH_VALUE_MASK;
@@ -646,7 +640,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 
 static int mxs_lradc_configure_trigger(struct iio_trigger *trig, bool state)
 {
-	struct iio_dev *iio = trig->private_data;
+	struct iio_dev *iio = iio_trigger_get_drvdata(trig);
 	struct mxs_lradc *lradc = iio_priv(iio);
 	const uint32_t st = state ? STMP_OFFSET_REG_SET : STMP_OFFSET_REG_CLR;
 
@@ -664,13 +658,14 @@ static int mxs_lradc_trigger_init(struct iio_dev *iio)
 {
 	int ret;
 	struct iio_trigger *trig;
+	struct mxs_lradc *lradc = iio_priv(iio);
 
 	trig = iio_trigger_alloc("%s-dev%i", iio->name, iio->id);
 	if (trig == NULL)
 		return -ENOMEM;
 
-	trig->dev.parent = iio->dev.parent;
-	trig->private_data = iio;
+	trig->dev.parent = lradc->dev;
+	iio_trigger_set_drvdata(trig, iio);
 	trig->ops = &mxs_lradc_trigger_ops;
 
 	ret = iio_trigger_register(trig);
@@ -679,21 +674,22 @@ static int mxs_lradc_trigger_init(struct iio_dev *iio)
 		return ret;
 	}
 
-	iio->trig = trig;
+	lradc->trig = trig;
 
 	return 0;
 }
 
 static void mxs_lradc_trigger_remove(struct iio_dev *iio)
 {
-	iio_trigger_unregister(iio->trig);
-	iio_trigger_free(iio->trig);
+	struct mxs_lradc *lradc = iio_priv(iio);
+
+	iio_trigger_unregister(lradc->trig);
+	iio_trigger_free(lradc->trig);
 }
 
 static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 {
 	struct mxs_lradc *lradc = iio_priv(iio);
-	struct iio_buffer *buffer = iio->buffer;
 	int ret = 0, chan, ofs = 0;
 	unsigned long enable = 0;
 	uint32_t ctrl4_set = 0;
@@ -701,7 +697,7 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 	uint32_t ctrl1_irq = 0;
 	const uint32_t chan_value = LRADC_CH_ACCUMULATE |
 		((LRADC_DELAY_TIMER_LOOP - 1) << LRADC_CH_NUM_SAMPLES_OFFSET);
-	const int len = bitmap_weight(buffer->scan_mask, LRADC_MAX_TOTAL_CHANS);
+	const int len = bitmap_weight(iio->active_scan_mask, LRADC_MAX_TOTAL_CHANS);
 
 	if (!len)
 		return -EINVAL;
@@ -728,7 +724,7 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 		lradc->base + LRADC_CTRL1 + STMP_OFFSET_REG_CLR);
 	writel(0xff, lradc->base + LRADC_CTRL0 + STMP_OFFSET_REG_CLR);
 
-	for_each_set_bit(chan, buffer->scan_mask, LRADC_MAX_TOTAL_CHANS) {
+	for_each_set_bit(chan, iio->active_scan_mask, LRADC_MAX_TOTAL_CHANS) {
 		ctrl4_set |= chan << LRADC_CTRL4_LRADCSELECT_OFFSET(ofs);
 		ctrl4_clr |= LRADC_CTRL4_LRADCSELECT_MASK(ofs);
 		ctrl1_irq |= LRADC_CTRL1_LRADC_IRQ_EN(ofs);
@@ -778,8 +774,7 @@ static bool mxs_lradc_validate_scan_mask(struct iio_dev *iio,
 					const unsigned long *mask)
 {
 	struct mxs_lradc *lradc = iio_priv(iio);
-	const int len = iio->masklength;
-	const int map_chans = bitmap_weight(mask, len);
+	const int map_chans = bitmap_weight(mask, LRADC_MAX_TOTAL_CHANS);
 	int rsvd_chans = 0;
 	unsigned long rsvd_mask = 0;
 
@@ -796,7 +791,7 @@ static bool mxs_lradc_validate_scan_mask(struct iio_dev *iio,
 		rsvd_chans++;
 
 	/* Test for attempts to map channels with special mode of operation. */
-	if (bitmap_intersects(mask, &rsvd_mask, len))
+	if (bitmap_intersects(mask, &rsvd_mask, LRADC_MAX_TOTAL_CHANS))
 		return false;
 
 	/* Test for attempts to map more channels then available slots. */
@@ -822,11 +817,11 @@ static const struct iio_buffer_setup_ops mxs_lradc_buffer_ops = {
 	.type = (chan_type),					\
 	.indexed = 1,						\
 	.scan_index = (idx),					\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 	.channel = (idx),					\
 	.scan_type = {						\
 		.sign = 'u',					\
-		.realbits = 18,					\
+		.realbits = LRADC_RESOLUTION,			\
 		.storagebits = 32,				\
 	},							\
 }
@@ -850,14 +845,16 @@ static const struct iio_chan_spec mxs_lradc_chan_spec[] = {
 	MXS_ADC_CHAN(15, IIO_VOLTAGE),	/* VDD5V */
 };
 
-static void mxs_lradc_hw_init(struct mxs_lradc *lradc)
+static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
 {
 	/* The ADC always uses DELAY CHANNEL 0. */
 	const uint32_t adc_cfg =
 		(1 << (LRADC_DELAY_TRIGGER_DELAYS_OFFSET + 0)) |
 		(LRADC_DELAY_TIMER_PER << LRADC_DELAY_DELAY_OFFSET);
 
-	stmp_reset_block(lradc->base);
+	int ret = stmp_reset_block(lradc->base);
+	if (ret)
+		return ret;
 
 	/* Configure DELAY CHANNEL 0 for generic ADC sampling. */
 	writel(adc_cfg, lradc->base + LRADC_DELAY(0));
@@ -878,6 +875,8 @@ static void mxs_lradc_hw_init(struct mxs_lradc *lradc)
 
 	/* Start internal temperature sensing. */
 	writel(0, lradc->base + LRADC_CTRL2);
+
+	return 0;
 }
 
 static void mxs_lradc_hw_stop(struct mxs_lradc *lradc)
@@ -914,7 +913,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	int i;
 
 	/* Allocate the IIO device. */
-	iio = iio_device_alloc(sizeof(*lradc));
+	iio = devm_iio_device_alloc(dev, sizeof(*lradc));
 	if (!iio) {
 		dev_err(dev, "Failed to allocate IIO device\n");
 		return -ENOMEM;
@@ -926,10 +925,8 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	lradc->dev = &pdev->dev;
 	lradc->base = devm_ioremap_resource(dev, iores);
-	if (IS_ERR(lradc->base)) {
-		ret = PTR_ERR(lradc->base);
-		goto err_addr;
-	}
+	if (IS_ERR(lradc->base))
+		return PTR_ERR(lradc->base);
 
 	INIT_WORK(&lradc->ts_work, mxs_lradc_ts_work);
 
@@ -949,16 +946,14 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	/* Grab all IRQ sources */
 	for (i = 0; i < of_cfg->irq_count; i++) {
 		lradc->irq[i] = platform_get_irq(pdev, i);
-		if (lradc->irq[i] < 0) {
-			ret = -EINVAL;
-			goto err_addr;
-		}
+		if (lradc->irq[i] < 0)
+			return -EINVAL;
 
 		ret = devm_request_irq(dev, lradc->irq[i],
 					mxs_lradc_handle_irq, 0,
 					of_cfg->irq_name[i], iio);
 		if (ret)
-			goto err_addr;
+			return ret;
 	}
 
 	platform_set_drvdata(pdev, iio);
@@ -972,16 +967,22 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	iio->modes = INDIO_DIRECT_MODE;
 	iio->channels = mxs_lradc_chan_spec;
 	iio->num_channels = ARRAY_SIZE(mxs_lradc_chan_spec);
+	iio->masklength = LRADC_MAX_TOTAL_CHANS;
 
 	ret = iio_triggered_buffer_setup(iio, &iio_pollfunc_store_time,
 				&mxs_lradc_trigger_handler,
 				&mxs_lradc_buffer_ops);
 	if (ret)
-		goto err_addr;
+		return ret;
 
 	ret = mxs_lradc_trigger_init(iio);
 	if (ret)
 		goto err_trig;
+
+	/* Configure the hardware. */
+	ret = mxs_lradc_hw_init(lradc);
+	if (ret)
+		goto err_dev;
 
 	/* Register the touchscreen input device. */
 	ret = mxs_lradc_ts_register(lradc);
@@ -995,9 +996,6 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 		goto err_ts;
 	}
 
-	/* Configure the hardware. */
-	mxs_lradc_hw_init(lradc);
-
 	return 0;
 
 err_ts:
@@ -1006,8 +1004,6 @@ err_dev:
 	mxs_lradc_trigger_remove(iio);
 err_trig:
 	iio_triggered_buffer_cleanup(iio);
-err_addr:
-	iio_device_free(iio);
 	return ret;
 }
 
@@ -1023,7 +1019,6 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 	iio_device_unregister(iio);
 	iio_triggered_buffer_cleanup(iio);
 	mxs_lradc_trigger_remove(iio);
-	iio_device_free(iio);
 
 	return 0;
 }

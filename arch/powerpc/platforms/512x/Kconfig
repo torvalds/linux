@@ -7,6 +7,8 @@ config PPC_MPC512x
 	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC
 
 config MPC5121_ADS
 	bool "Freescale MPC5121E ADS"
@@ -15,16 +17,16 @@ config MPC5121_ADS
 	help
 	  This option enables support for the MPC5121E ADS board.
 
-config MPC5121_GENERIC
-	bool "Generic support for simple MPC5121 based boards"
+config MPC512x_GENERIC
+	bool "Generic support for simple MPC512x based boards"
 	depends on PPC_MPC512x
 	select DEFAULT_UIMAGE
 	help
-	  This option enables support for simple MPC5121 based boards
+	  This option enables support for simple MPC512x based boards
 	  which do not need custom platform specific setup.
 
 	  Compatible boards include:  Protonic LVT base boards (ZANMCU
-	  and VICVT2).
+	  and VICVT2), Freescale MPC5125 Tower system.
 
 config PDM360NG
 	bool "ifm PDM360NG board"

@@ -28,18 +28,12 @@ config B43
 
 config B43_BCMA
 	bool "Support for BCMA bus"
-	depends on B43 && BCMA
-	default y
-
-config B43_BCMA_EXTRA
-	bool "Hardware support that overlaps with the brcmsmac driver"
-	depends on B43_BCMA
-	default n if BRCMSMAC
+	depends on B43 && (BCMA = y || BCMA = B43)
 	default y
 
 config B43_SSB
 	bool
-	depends on B43 && SSB
+	depends on B43 && (SSB = y || SSB = B43)
 	default y
 
 # Auto-select SSB PCI-HOST support, if possible
@@ -111,6 +105,7 @@ config B43_PIO
 config B43_PHY_N
 	bool "Support for 802.11n (N-PHY) devices"
 	depends on B43
+	default y
 	---help---
 	  Support for the N-PHY.
 
@@ -131,7 +126,8 @@ config B43_PHY_LP
 
 config B43_PHY_HT
 	bool "Support for HT-PHY (high throughput) devices"
-	depends on B43
+	depends on B43 && B43_BCMA
+	default y
 	---help---
 	  Support for the HT-PHY.
 
@@ -166,8 +162,8 @@ config B43_DEBUG
 	  Broadcom 43xx debugging.
 
 	  This adds additional runtime sanity checks and statistics to the driver.
-	  These checks and statistics might me expensive and hurt runtime performance
-	  of your system.
+	  These checks and statistics might be expensive and hurt the runtime
+	  performance of your system.
 	  This also adds the b43 debugfs interface.
 
 	  Do not enable this, unless you are debugging the driver.

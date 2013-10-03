@@ -24,16 +24,10 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Jon Grimm             <jgrimm@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/types.h>
@@ -74,7 +68,6 @@ struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out,
 	if (!sctp_ssnmap_init(retval, in, out))
 		goto fail_map;
 
-	retval->malloced = 1;
 	SCTP_DBG_OBJCNT_INC(ssnmap);
 
 	return retval;
@@ -118,14 +111,16 @@ void sctp_ssnmap_clear(struct sctp_ssnmap *map)
 /* Dispose of a ssnmap.  */
 void sctp_ssnmap_free(struct sctp_ssnmap *map)
 {
-	if (map && map->malloced) {
-		int size;
+	int size;
 
-		size = sctp_ssnmap_size(map->in.len, map->out.len);
-		if (size <= KMALLOC_MAX_SIZE)
-			kfree(map);
-		else
-			free_pages((unsigned long)map, get_order(size));
-		SCTP_DBG_OBJCNT_DEC(ssnmap);
-	}
+	if (unlikely(!map))
+		return;
+
+	size = sctp_ssnmap_size(map->in.len, map->out.len);
+	if (size <= KMALLOC_MAX_SIZE)
+		kfree(map);
+	else
+		free_pages((unsigned long)map, get_order(size));
+
+	SCTP_DBG_OBJCNT_DEC(ssnmap);
 }

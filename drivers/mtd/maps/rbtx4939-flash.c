@@ -34,10 +34,9 @@ static int rbtx4939_flash_remove(struct platform_device *dev)
 	info = platform_get_drvdata(dev);
 	if (!info)
 		return 0;
-	platform_set_drvdata(dev, NULL);
 
 	if (info->mtd) {
-		struct rbtx4939_flash_data *pdata = dev->dev.platform_data;
+		struct rbtx4939_flash_data *pdata = dev_get_platdata(&dev->dev);
 
 		mtd_device_unregister(info->mtd);
 		map_destroy(info->mtd);
@@ -45,18 +44,19 @@ static int rbtx4939_flash_remove(struct platform_device *dev)
 	return 0;
 }
 
-static const char *rom_probe_types[] = { "cfi_probe", "jedec_probe", NULL };
+static const char * const rom_probe_types[] = {
+	"cfi_probe", "jedec_probe", NULL };
 
 static int rbtx4939_flash_probe(struct platform_device *dev)
 {
 	struct rbtx4939_flash_data *pdata;
 	struct rbtx4939_flash_info *info;
 	struct resource *res;
-	const char **probe_type;
+	const char * const *probe_type;
 	int err = 0;
 	unsigned long size;
 
-	pdata = dev->dev.platform_data;
+	pdata = dev_get_platdata(&dev->dev);
 	if (!pdata)
 		return -ENODEV;
 

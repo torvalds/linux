@@ -22,23 +22,19 @@
 /*
  * Were we in an interrupt that interrupted kernel mode?
  *
- * For now, with eagerfpu we will return interrupted kernel FPU
- * state as not-idle. TBD: Ideally we can change the return value
- * to something like __thread_has_fpu(current). But we need to
- * be careful of doing __thread_clear_has_fpu() before saving
- * the FPU etc for supporting nested uses etc. For now, take
- * the simple route!
- *
  * On others, we can do a kernel_fpu_begin/end() pair *ONLY* if that
  * pair does nothing at all: the thread must not have fpu (so
  * that we don't try to save the FPU state), and TS must
  * be set (so that the clts/stts pair does nothing that is
  * visible in the interrupted kernel thread).
+ *
+ * Except for the eagerfpu case when we return 1 unless we've already
+ * been eager and saved the state in kernel_fpu_begin().
  */
 static inline bool interrupted_kernel_fpu_idle(void)
 {
 	if (use_eager_fpu())
-		return 0;
+		return __thread_has_fpu(current);
 
 	return !__thread_has_fpu(current) &&
 		(read_cr0() & X86_CR0_TS);
@@ -78,8 +74,8 @@ void __kernel_fpu_begin(void)
 	struct task_struct *me = current;
 
 	if (__thread_has_fpu(me)) {
-		__save_init_fpu(me);
 		__thread_clear_has_fpu(me);
+		__save_init_fpu(me);
 		/* We do 'stts()' in __kernel_fpu_end() */
 	} else if (!use_eager_fpu()) {
 		this_cpu_write(fpu_owner_task, NULL);
@@ -112,15 +108,15 @@ EXPORT_SYMBOL(unlazy_fpu);
 unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
 unsigned int xstate_size;
 EXPORT_SYMBOL_GPL(xstate_size);
-static struct i387_fxsave_struct fx_scratch __cpuinitdata;
+static struct i387_fxsave_struct fx_scratch;
 
-static void __cpuinit mxcsr_feature_mask_init(void)
+static void mxcsr_feature_mask_init(void)
 {
 	unsigned long mask = 0;
 
 	if (cpu_has_fxsr) {
 		memset(&fx_scratch, 0, sizeof(struct i387_fxsave_struct));
-		asm volatile("fxsave %0" : : "m" (fx_scratch));
+		asm volatile("fxsave %0" : "+m" (fx_scratch));
 		mask = fx_scratch.mxcsr_mask;
 		if (mask == 0)
 			mask = 0x0000ffbf;
@@ -128,14 +124,14 @@ static void __cpuinit mxcsr_feature_mask_init(void)
 	mxcsr_feature_mask &= mask;
 }
 
-static void __cpuinit init_thread_xstate(void)
+static void init_thread_xstate(void)
 {
 	/*
 	 * Note that xstate_size might be overwriten later during
 	 * xsave_init().
 	 */
 
-	if (!HAVE_HWFP) {
+	if (!cpu_has_fpu) {
 		/*
 		 * Disable xsave as we do not support it if i387
 		 * emulation is enabled.
@@ -157,11 +153,19 @@ static void __cpuinit init_thread_xstate(void)
  * into all processes.
  */
 
-void __cpuinit fpu_init(void)
+void fpu_init(void)
 {
 	unsigned long cr0;
 	unsigned long cr4_mask = 0;
 
+#ifndef CONFIG_MATH_EMULATION
+	if (!cpu_has_fpu) {
+		pr_emerg("No FPU found and no math emulation present\n");
+		pr_emerg("Giving up\n");
+		for (;;)
+			asm volatile("hlt");
+	}
+#endif
 	if (cpu_has_fxsr)
 		cr4_mask |= X86_CR4_OSFXSR;
 	if (cpu_has_xmm)
@@ -171,7 +175,7 @@ void __cpuinit fpu_init(void)
 
 	cr0 = read_cr0();
 	cr0 &= ~(X86_CR0_TS|X86_CR0_EM); /* clear TS and EM */
-	if (!HAVE_HWFP)
+	if (!cpu_has_fpu)
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
 
@@ -189,7 +193,7 @@ void __cpuinit fpu_init(void)
 
 void fpu_finit(struct fpu *fpu)
 {
-	if (!HAVE_HWFP) {
+	if (!cpu_has_fpu) {
 		finit_soft_fpu(&fpu->state->soft);
 		return;
 	}
@@ -218,7 +222,7 @@ int init_fpu(struct task_struct *tsk)
 	int ret;
 
 	if (tsk_used_math(tsk)) {
-		if (HAVE_HWFP && tsk == current)
+		if (cpu_has_fpu && tsk == current)
 			unlazy_fpu(tsk);
 		tsk->thread.fpu.last_cpu = ~0;
 		return 0;
@@ -515,14 +519,13 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	if (!HAVE_HWFP)
+	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr) {
+	if (!cpu_has_fxsr)
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					   &target->thread.fpu.state->fsave, 0,
 					   -1);
-	}
 
 	sanitize_i387_state(target);
 
@@ -549,13 +552,13 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 
 	sanitize_i387_state(target);
 
-	if (!HAVE_HWFP)
+	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr) {
+	if (!cpu_has_fxsr)
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-					  &target->thread.fpu.state->fsave, 0, -1);
-	}
+					  &target->thread.fpu.state->fsave, 0,
+					  -1);
 
 	if (pos > 0 || count < sizeof(env))
 		convert_from_fxsr(&env, target);
@@ -596,3 +599,33 @@ int dump_fpu(struct pt_regs *regs, struct user_i387_struct *fpu)
 EXPORT_SYMBOL(dump_fpu);
 
 #endif	/* CONFIG_X86_32 || CONFIG_IA32_EMULATION */
+
+static int __init no_387(char *s)
+{
+	setup_clear_cpu_cap(X86_FEATURE_FPU);
+	return 1;
+}
+
+__setup("no387", no_387);
+
+void fpu_detect(struct cpuinfo_x86 *c)
+{
+	unsigned long cr0;
+	u16 fsw, fcw;
+
+	fsw = fcw = 0xffff;
+
+	cr0 = read_cr0();
+	cr0 &= ~(X86_CR0_TS | X86_CR0_EM);
+	write_cr0(cr0);
+
+	asm volatile("fninit ; fnstsw %0 ; fnstcw %1"
+		     : "+m" (fsw), "+m" (fcw));
+
+	if (fsw == 0 && (fcw & 0x103f) == 0x003f)
+		set_cpu_cap(c, X86_FEATURE_FPU);
+	else
+		clear_cpu_cap(c, X86_FEATURE_FPU);
+
+	/* The final cr0 value is set in fpu_init() */
+}

@@ -902,8 +902,6 @@ snd_harmony_free(struct snd_harmony *h)
 	if (h->iobase)
 		iounmap(h->iobase);
 
-	parisc_set_drvdata(h->dev, NULL);
-
 	kfree(h);
 	return 0;
 }
@@ -1016,7 +1014,6 @@ static int
 snd_harmony_remove(struct parisc_device *padev)
 {
 	snd_card_free(parisc_get_drvdata(padev));
-	parisc_set_drvdata(padev, NULL);
 	return 0;
 }
 

@@ -35,7 +35,8 @@
 
 struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct data_queue *queue = entry->queue;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
 	unsigned int frame_size;
@@ -46,7 +47,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 	 * The frame size includes descriptor size, because the
 	 * hardware directly receive the frame into the skbuffer.
 	 */
-	frame_size = entry->queue->data_size + entry->queue->desc_size;
+	frame_size = queue->data_size + queue->desc_size + queue->winfo_size;
 
 	/*
 	 * The payload should be aligned to a 4-byte boundary,
@@ -531,18 +532,18 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	 */
 	if (unlikely(rt2x00dev->ops->lib->get_entry_state &&
 		     rt2x00dev->ops->lib->get_entry_state(entry))) {
-		ERROR(rt2x00dev,
-		      "Corrupt queue %d, accessing entry which is not ours.\n"
-		      "Please file bug report to %s.\n",
-		      entry->queue->qid, DRV_PROJECT);
+		rt2x00_err(rt2x00dev,
+			   "Corrupt queue %d, accessing entry which is not ours\n"
+			   "Please file bug report to %s\n",
+			   entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
 	}
 
 	/*
 	 * Add the requested extra tx headroom in front of the skb.
 	 */
-	skb_push(entry->skb, rt2x00dev->ops->extra_tx_headroom);
-	memset(entry->skb->data, 0, rt2x00dev->ops->extra_tx_headroom);
+	skb_push(entry->skb, rt2x00dev->extra_tx_headroom);
+	memset(entry->skb->data, 0, rt2x00dev->extra_tx_headroom);
 
 	/*
 	 * Call the driver's write_tx_data function, if it exists.
@@ -595,7 +596,7 @@ static void rt2x00queue_bar_check(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_bar *bar = (void *) (entry->skb->data +
-				    rt2x00dev->ops->extra_tx_headroom);
+				    rt2x00dev->extra_tx_headroom);
 	struct rt2x00_bar_list_entry *bar_entry;
 
 	if (likely(!ieee80211_is_back_req(bar->frame_control)))
@@ -698,8 +699,8 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	spin_lock(&queue->tx_lock);
 
 	if (unlikely(rt2x00queue_full(queue))) {
-		ERROR(queue->rt2x00dev,
-		      "Dropping frame due to full tx queue %d.\n", queue->qid);
+		rt2x00_err(queue->rt2x00dev, "Dropping frame due to full tx queue %d\n",
+			   queue->qid);
 		ret = -ENOBUFS;
 		goto out;
 	}
@@ -708,10 +709,10 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 
 	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
 				      &entry->flags))) {
-		ERROR(queue->rt2x00dev,
-		      "Arrived at non-free entry in the non-full queue %d.\n"
-		      "Please file bug report to %s.\n",
-		      queue->qid, DRV_PROJECT);
+		rt2x00_err(queue->rt2x00dev,
+			   "Arrived at non-free entry in the non-full queue %d\n"
+			   "Please file bug report to %s\n",
+			   queue->qid, DRV_PROJECT);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -832,7 +833,9 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 bool rt2x00queue_for_each_entry(struct data_queue *queue,
 				enum queue_index start,
 				enum queue_index end,
-				bool (*fn)(struct queue_entry *entry))
+				void *data,
+				bool (*fn)(struct queue_entry *entry,
+					   void *data))
 {
 	unsigned long irqflags;
 	unsigned int index_start;
@@ -840,9 +843,9 @@ bool rt2x00queue_for_each_entry(struct data_queue *queue,
 	unsigned int i;
 
 	if (unlikely(start >= Q_INDEX_MAX || end >= Q_INDEX_MAX)) {
-		ERROR(queue->rt2x00dev,
-		      "Entry requested from invalid index range (%d - %d)\n",
-		      start, end);
+		rt2x00_err(queue->rt2x00dev,
+			   "Entry requested from invalid index range (%d - %d)\n",
+			   start, end);
 		return true;
 	}
 
@@ -863,17 +866,17 @@ bool rt2x00queue_for_each_entry(struct data_queue *queue,
 	 */
 	if (index_start < index_end) {
 		for (i = index_start; i < index_end; i++) {
-			if (fn(&queue->entries[i]))
+			if (fn(&queue->entries[i], data))
 				return true;
 		}
 	} else {
 		for (i = index_start; i < queue->limit; i++) {
-			if (fn(&queue->entries[i]))
+			if (fn(&queue->entries[i], data))
 				return true;
 		}
 
 		for (i = 0; i < index_end; i++) {
-			if (fn(&queue->entries[i]))
+			if (fn(&queue->entries[i], data))
 				return true;
 		}
 	}
@@ -889,8 +892,8 @@ struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 	unsigned long irqflags;
 
 	if (unlikely(index >= Q_INDEX_MAX)) {
-		ERROR(queue->rt2x00dev,
-		      "Entry requested from invalid index type (%d)\n", index);
+		rt2x00_err(queue->rt2x00dev, "Entry requested from invalid index type (%d)\n",
+			   index);
 		return NULL;
 	}
 
@@ -910,8 +913,8 @@ void rt2x00queue_index_inc(struct queue_entry *entry, enum queue_index index)
 	unsigned long irqflags;
 
 	if (unlikely(index >= Q_INDEX_MAX)) {
-		ERROR(queue->rt2x00dev,
-		      "Index change on invalid index type (%d)\n", index);
+		rt2x00_err(queue->rt2x00dev,
+			   "Index change on invalid index type (%d)\n", index);
 		return;
 	}
 
@@ -933,13 +936,8 @@ void rt2x00queue_index_inc(struct queue_entry *entry, enum queue_index index)
 	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 }
 
-void rt2x00queue_pause_queue(struct data_queue *queue)
+static void rt2x00queue_pause_queue_nocheck(struct data_queue *queue)
 {
-	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
-	    !test_bit(QUEUE_STARTED, &queue->flags) ||
-	    test_and_set_bit(QUEUE_PAUSED, &queue->flags))
-		return;
-
 	switch (queue->qid) {
 	case QID_AC_VO:
 	case QID_AC_VI:
@@ -954,6 +952,15 @@ void rt2x00queue_pause_queue(struct data_queue *queue)
 	default:
 		break;
 	}
+}
+void rt2x00queue_pause_queue(struct data_queue *queue)
+{
+	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
+	    !test_bit(QUEUE_STARTED, &queue->flags) ||
+	    test_and_set_bit(QUEUE_PAUSED, &queue->flags))
+		return;
+
+	rt2x00queue_pause_queue_nocheck(queue);
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_pause_queue);
 
@@ -1016,7 +1023,7 @@ void rt2x00queue_stop_queue(struct data_queue *queue)
 		return;
 	}
 
-	rt2x00queue_pause_queue(queue);
+	rt2x00queue_pause_queue_nocheck(queue);
 
 	queue->rt2x00dev->ops->lib->stop_queue(queue);
 
@@ -1071,7 +1078,8 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	 * The queue flush has failed...
 	 */
 	if (unlikely(!rt2x00queue_empty(queue)))
-		WARNING(queue->rt2x00dev, "Queue %d failed to flush\n", queue->qid);
+		rt2x00_warn(queue->rt2x00dev, "Queue %d failed to flush\n",
+			    queue->qid);
 
 	/*
 	 * Restore the queue to the previous status
@@ -1157,8 +1165,7 @@ void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-static int rt2x00queue_alloc_entries(struct data_queue *queue,
-				     const struct data_queue_desc *qdesc)
+static int rt2x00queue_alloc_entries(struct data_queue *queue)
 {
 	struct queue_entry *entries;
 	unsigned int entry_size;
@@ -1166,15 +1173,10 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 
 	rt2x00queue_reset(queue);
 
-	queue->limit = qdesc->entry_num;
-	queue->threshold = DIV_ROUND_UP(qdesc->entry_num, 10);
-	queue->data_size = qdesc->data_size;
-	queue->desc_size = qdesc->desc_size;
-
 	/*
 	 * Allocate all queue entries.
 	 */
-	entry_size = sizeof(*entries) + qdesc->priv_size;
+	entry_size = sizeof(*entries) + queue->priv_size;
 	entries = kcalloc(queue->limit, entry_size, GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
@@ -1190,7 +1192,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 		entries[i].entry_idx = i;
 		entries[i].priv_data =
 		    QUEUE_ENTRY_PRIV_OFFSET(entries, i, queue->limit,
-					    sizeof(*entries), qdesc->priv_size);
+					    sizeof(*entries), queue->priv_size);
 	}
 
 #undef QUEUE_ENTRY_PRIV_OFFSET
@@ -1232,23 +1234,22 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	int status;
 
-	status = rt2x00queue_alloc_entries(rt2x00dev->rx, rt2x00dev->ops->rx);
+	status = rt2x00queue_alloc_entries(rt2x00dev->rx);
 	if (status)
 		goto exit;
 
 	tx_queue_for_each(rt2x00dev, queue) {
-		status = rt2x00queue_alloc_entries(queue, rt2x00dev->ops->tx);
+		status = rt2x00queue_alloc_entries(queue);
 		if (status)
 			goto exit;
 	}
 
-	status = rt2x00queue_alloc_entries(rt2x00dev->bcn, rt2x00dev->ops->bcn);
+	status = rt2x00queue_alloc_entries(rt2x00dev->bcn);
 	if (status)
 		goto exit;
 
 	if (test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags)) {
-		status = rt2x00queue_alloc_entries(rt2x00dev->atim,
-						   rt2x00dev->ops->atim);
+		status = rt2x00queue_alloc_entries(rt2x00dev->atim);
 		if (status)
 			goto exit;
 	}
@@ -1260,7 +1261,7 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	return 0;
 
 exit:
-	ERROR(rt2x00dev, "Queue entries allocation failed.\n");
+	rt2x00_err(rt2x00dev, "Queue entries allocation failed\n");
 
 	rt2x00queue_uninitialize(rt2x00dev);
 
@@ -1292,6 +1293,10 @@ static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 	queue->aifs = 2;
 	queue->cw_min = 5;
 	queue->cw_max = 10;
+
+	rt2x00dev->ops->queue_init(queue);
+
+	queue->threshold = DIV_ROUND_UP(queue->limit, 10);
 }
 
 int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
@@ -1312,7 +1317,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 
 	queue = kcalloc(rt2x00dev->data_queues, sizeof(*queue), GFP_KERNEL);
 	if (!queue) {
-		ERROR(rt2x00dev, "Queue allocation failed.\n");
+		rt2x00_err(rt2x00dev, "Queue allocation failed\n");
 		return -ENOMEM;
 	}
 

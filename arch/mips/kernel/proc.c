@@ -10,9 +10,10 @@
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/idle.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
-#include <asm/mips_machine.h>
+#include <asm/prom.h>
 
 unsigned int vced_count, vcei_count;
 
@@ -65,9 +66,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "]\n");
 	}
 	if (cpu_has_mips_r) {
-		seq_printf(m, "isa\t\t\t:");
-		if (cpu_has_mips_1)
-			seq_printf(m, "%s", "mips1");
+		seq_printf(m, "isa\t\t\t: mips1");
 		if (cpu_has_mips_2)
 			seq_printf(m, "%s", " mips2");
 		if (cpu_has_mips_3)
@@ -99,6 +98,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has_vz)		seq_printf(m, "%s", " vz");
 	seq_printf(m, "\n");
 
+	if (cpu_has_mmips) {
+		seq_printf(m, "micromips kernel\t: %s\n",
+		      (read_c0_config3() & MIPS_CONF3_ISA_OE) ?  "yes" : "no");
+	}
 	seq_printf(m, "shadow register sets\t: %d\n",
 		      cpu_data[n].srsets);
 	seq_printf(m, "kscratch registers\t: %d\n",

@@ -17,7 +17,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 #include <media/ov7670.h>
 #include <media/videobuf-dma-sg.h>
@@ -805,20 +804,6 @@ static const struct v4l2_file_operations viacam_fops = {
  * The long list of v4l2 ioctl ops
  */
 
-static int viacam_g_chip_ident(struct file *file, void *priv,
-		struct v4l2_dbg_chip_ident *ident)
-{
-	struct via_camera *cam = priv;
-
-	ident->ident = V4L2_IDENT_NONE;
-	ident->revision = 0;
-	if (v4l2_chip_match_host(&ident->match)) {
-		ident->ident = V4L2_IDENT_VIA_VX855;
-		return 0;
-	}
-	return sensor_call(cam, core, g_chip_ident, ident);
-}
-
 /*
  * Only one input.
  */
@@ -847,8 +832,14 @@ static int viacam_s_input(struct file *filp, void *priv, unsigned int i)
 	return 0;
 }
 
-static int viacam_s_std(struct file *filp, void *priv, v4l2_std_id *std)
+static int viacam_s_std(struct file *filp, void *priv, v4l2_std_id std)
 {
+	return 0;
+}
+
+static int viacam_g_std(struct file *filp, void *priv, v4l2_std_id *std)
+{
+	*std = V4L2_STD_NTSC_M;
 	return 0;
 }
 
@@ -1174,11 +1165,11 @@ static int viacam_enum_frameintervals(struct file *filp, void *priv,
 
 
 static const struct v4l2_ioctl_ops viacam_ioctl_ops = {
-	.vidioc_g_chip_ident	= viacam_g_chip_ident,
 	.vidioc_enum_input	= viacam_enum_input,
 	.vidioc_g_input		= viacam_g_input,
 	.vidioc_s_input		= viacam_s_input,
 	.vidioc_s_std		= viacam_s_std,
+	.vidioc_g_std		= viacam_g_std,
 	.vidioc_enum_fmt_vid_cap = viacam_enum_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap = viacam_try_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap	= viacam_g_fmt_vid_cap,
@@ -1266,7 +1257,6 @@ static struct video_device viacam_v4l_template = {
 	.name		= "via-camera",
 	.minor		= -1,
 	.tvnorms	= V4L2_STD_NTSC_M,
-	.current_norm	= V4L2_STD_NTSC_M,
 	.fops		= &viacam_fops,
 	.ioctl_ops	= &viacam_ioctl_ops,
 	.release	= video_device_release_empty, /* Check this */

@@ -257,16 +257,11 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "can't get device resources\n");
-		return -ENODEV;
-	}
-
 	imx2_wdt.base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(imx2_wdt.base))
 		return PTR_ERR(imx2_wdt.base);
 
-	imx2_wdt.clk = clk_get(&pdev->dev, NULL);
+	imx2_wdt.clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(imx2_wdt.clk)) {
 		dev_err(&pdev->dev, "can't get Watchdog clock\n");
 		return PTR_ERR(imx2_wdt.clk);
@@ -291,7 +286,6 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 
 fail:
 	imx2_wdt_miscdev.parent = NULL;
-	clk_put(imx2_wdt.clk);
 	return ret;
 }
 
@@ -304,8 +298,7 @@ static int __exit imx2_wdt_remove(struct platform_device *pdev)
 
 		dev_crit(imx2_wdt_miscdev.parent,
 			"Device removed: Expect reboot!\n");
-	} else
-		clk_put(imx2_wdt.clk);
+	}
 
 	imx2_wdt_miscdev.parent = NULL;
 	return 0;

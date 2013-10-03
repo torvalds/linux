@@ -299,7 +299,7 @@ static int lp8788_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(dev, 1);
 
-	rtc->rdev = rtc_device_register("lp8788_rtc", dev,
+	rtc->rdev = devm_rtc_device_register(dev, "lp8788_rtc",
 					&lp8788_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rdev)) {
 		dev_err(dev, "can not register rtc device\n");
@@ -312,19 +312,8 @@ static int lp8788_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int lp8788_rtc_remove(struct platform_device *pdev)
-{
-	struct lp8788_rtc *rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtc->rdev);
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver lp8788_rtc_driver = {
 	.probe = lp8788_rtc_probe,
-	.remove = lp8788_rtc_remove,
 	.driver = {
 		.name = LP8788_DEV_RTC,
 		.owner = THIS_MODULE,

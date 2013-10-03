@@ -1,6 +1,7 @@
 
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,6 +25,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
@@ -135,11 +137,7 @@ static unsigned int ipv4_confirm(unsigned int hooknum,
 	/* adjust seqs for loopback traffic only in outgoing direction */
 	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status) &&
 	    !nf_is_loopback_packet(skb)) {
-		typeof(nf_nat_seq_adjust_hook) seq_adjust;
-
-		seq_adjust = rcu_dereference(nf_nat_seq_adjust_hook);
-		if (!seq_adjust ||
-		    !seq_adjust(skb, ct, ctinfo, ip_hdrlen(skb))) {
+		if (!nf_ct_seq_adjust(skb, ct, ctinfo, ip_hdrlen(skb))) {
 			NF_CT_STAT_INC_ATOMIC(nf_ct_net(ct), drop);
 			return NF_DROP;
 		}
@@ -222,7 +220,7 @@ static struct nf_hook_ops ipv4_conntrack_ops[] __read_mostly = {
 static int log_invalid_proto_min = 0;
 static int log_invalid_proto_max = 255;
 
-static ctl_table ip_ct_sysctl_table[] = {
+static struct ctl_table ip_ct_sysctl_table[] = {
 	{
 		.procname	= "ip_conntrack_max",
 		.maxlen		= sizeof(int),

@@ -7,10 +7,12 @@ Required properties:
   - compatible : should be "fsl,<chip>-gpmi-nand"
   - reg : should contain registers location and length for gpmi and bch.
   - reg-names: Should contain the reg names "gpmi-nand" and "bch"
-  - interrupts : The first is the DMA interrupt number for GPMI.
-                 The second is the BCH interrupt number.
-  - interrupt-names : The interrupt names "gpmi-dma", "bch";
-  - fsl,gpmi-dma-channel : Should contain the dma channel it uses.
+  - interrupts : BCH interrupt number.
+  - interrupt-names : Should be "bch".
+  - dmas: DMA specifier, consisting of a phandle to DMA controller node
+    and GPMI DMA channel ID.
+    Refer to dma.txt and fsl-mxs-dma.txt for details.
+  - dma-names: Must be "rx-tx".
 
 Optional properties:
   - nand-on-flash-bbt: boolean to enable on flash bbt option if not
@@ -27,9 +29,10 @@ gpmi-nand@8000c000 {
 	#size-cells = <1>;
 	reg = <0x8000c000 2000>, <0x8000a000 2000>;
 	reg-names = "gpmi-nand", "bch";
-	interrupts = <88>, <41>;
-	interrupt-names = "gpmi-dma", "bch";
-	fsl,gpmi-dma-channel = <4>;
+	interrupts = <41>;
+	interrupt-names = "bch";
+	dmas = <&dma_apbh 4>;
+	dma-names = "rx-tx";
 
 	partition@0 {
 	...

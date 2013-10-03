@@ -2,7 +2,7 @@
  * Driver for RNDIS based wireless USB devices.
  *
  * Copyright (C) 2007 by Bjorge Dijkstra <bjd@jooz.net>
- * Copyright (C) 2008-2009 by Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
+ * Copyright (C) 2008-2009 by Jussi Kivilinna <jussi.kivilinna@iki.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -2839,8 +2839,7 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	} else if (priv->infra_mode == NDIS_80211_INFRA_ADHOC)
 		cfg80211_ibss_joined(usbdev->net, bssid, GFP_KERNEL);
 
-	if (info != NULL)
-		kfree(info);
+	kfree(info);
 
 	priv->connected = true;
 	memcpy(priv->bssid, bssid, ETH_ALEN);

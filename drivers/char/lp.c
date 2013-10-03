@@ -622,9 +622,12 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 				return -EFAULT;
 			break;
 		case LPGETSTATUS:
+			if (mutex_lock_interruptible(&lp_table[minor].port_mutex))
+				return -EINTR;
 			lp_claim_parport_or_block (&lp_table[minor]);
 			status = r_str(minor);
 			lp_release_parport (&lp_table[minor]);
+			mutex_unlock(&lp_table[minor].port_mutex);
 
 			if (copy_to_user(argp, &status, sizeof(int)))
 				return -EFAULT;

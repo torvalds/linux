@@ -195,7 +195,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	if (netdev_uses_trailer_tags(dev))
 		return htons(ETH_P_TRAILER);
 
-	if (ntohs(eth->h_proto) >= 1536)
+	if (ntohs(eth->h_proto) >= ETH_P_802_3_MIN)
 		return eth->h_proto;
 
 	/*
@@ -401,27 +401,8 @@ struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
 }
 EXPORT_SYMBOL(alloc_etherdev_mqs);
 
-static size_t _format_mac_addr(char *buf, int buflen,
-			       const unsigned char *addr, int len)
-{
-	int i;
-	char *cp = buf;
-
-	for (i = 0; i < len; i++) {
-		cp += scnprintf(cp, buflen - (cp - buf), "%02x", addr[i]);
-		if (i == len - 1)
-			break;
-		cp += scnprintf(cp, buflen - (cp - buf), ":");
-	}
-	return cp - buf;
-}
-
 ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len)
 {
-	size_t l;
-
-	l = _format_mac_addr(buf, PAGE_SIZE, addr, len);
-	l += scnprintf(buf + l, PAGE_SIZE - l, "\n");
-	return (ssize_t)l;
+	return scnprintf(buf, PAGE_SIZE, "%*phC\n", len, addr);
 }
 EXPORT_SYMBOL(sysfs_format_mac);

@@ -202,10 +202,10 @@ static void rose_kill_by_device(struct net_device *dev)
 /*
  *	Handle device status changes.
  */
-static int rose_device_event(struct notifier_block *this, unsigned long event,
-	void *ptr)
+static int rose_device_event(struct notifier_block *this,
+			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = (struct net_device *)ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -1253,6 +1253,7 @@ static int rose_recvmsg(struct kiocb *iocb, struct socket *sock,
 	skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
 
 	if (srose != NULL) {
+		memset(srose, 0, msg->msg_namelen);
 		srose->srose_family = AF_ROSE;
 		srose->srose_addr   = rose->dest_addr;
 		srose->srose_call   = rose->dest_call;

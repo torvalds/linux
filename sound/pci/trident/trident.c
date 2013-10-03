@@ -169,7 +169,6 @@ static int snd_trident_probe(struct pci_dev *pci,
 static void snd_trident_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver trident_driver = {

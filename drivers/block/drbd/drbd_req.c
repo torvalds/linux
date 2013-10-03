@@ -34,14 +34,14 @@
 static bool drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int size);
 
 /* Update disk stats at start of I/O request */
-static void _drbd_start_io_acct(struct drbd_conf *mdev, struct drbd_request *req, struct bio *bio)
+static void _drbd_start_io_acct(struct drbd_conf *mdev, struct drbd_request *req)
 {
-	const int rw = bio_data_dir(bio);
+	const int rw = bio_data_dir(req->master_bio);
 	int cpu;
 	cpu = part_stat_lock();
 	part_round_stats(cpu, &mdev->vdisk->part0);
 	part_stat_inc(cpu, &mdev->vdisk->part0, ios[rw]);
-	part_stat_add(cpu, &mdev->vdisk->part0, sectors[rw], bio_sectors(bio));
+	part_stat_add(cpu, &mdev->vdisk->part0, sectors[rw], req->i.size >> 9);
 	(void) cpu; /* The macro invocations above want the cpu argument, I do not like
 		       the compiler warning about cpu only assigned but never used... */
 	part_inc_in_flight(&mdev->vdisk->part0, rw);
@@ -263,8 +263,7 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 		else
 			root = &mdev->read_requests;
 		drbd_remove_request_interval(root, req);
-	} else if (!(s & RQ_POSTPONED))
-		D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
+	}
 
 	/* Before we can signal completion to the upper layers,
 	 * we may need to close the current transfer log epoch.
@@ -755,6 +754,11 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		mod_rq_state(req, m, RQ_NET_PENDING, RQ_NET_OK|RQ_NET_DONE);
 		break;
+
+	case QUEUE_AS_DRBD_BARRIER:
+		start_new_tl_epoch(mdev->tconn);
+		mod_rq_state(req, m, 0, RQ_NET_OK|RQ_NET_DONE);
+		break;
 	};
 
 	return rv;
@@ -861,8 +865,10 @@ static void maybe_pull_ahead(struct drbd_conf *mdev)
 	bool congested = false;
 	enum drbd_on_congestion on_congestion;
 
+	rcu_read_lock();
 	nc = rcu_dereference(tconn->net_conf);
 	on_congestion = nc ? nc->on_congestion : OC_BLOCK;
+	rcu_read_unlock();
 	if (on_congestion == OC_BLOCK ||
 	    tconn->agreed_pro_version < 96)
 		return;
@@ -956,14 +962,8 @@ static int drbd_process_write_request(struct drbd_request *req)
 	struct drbd_conf *mdev = req->w.mdev;
 	int remote, send_oos;
 
-	rcu_read_lock();
 	remote = drbd_should_do_remote(mdev->state);
-	if (remote) {
-		maybe_pull_ahead(mdev);
-		remote = drbd_should_do_remote(mdev->state);
-	}
 	send_oos = drbd_should_send_out_of_sync(mdev->state);
-	rcu_read_unlock();
 
 	/* Need to replicate writes.  Unless it is an empty flush,
 	 * which is better mapped to a DRBD P_BARRIER packet,
@@ -975,8 +975,8 @@ static int drbd_process_write_request(struct drbd_request *req)
 		/* The only size==0 bios we expect are empty flushes. */
 		D_ASSERT(req->master_bio->bi_rw & REQ_FLUSH);
 		if (remote)
-			start_new_tl_epoch(mdev->tconn);
-		return 0;
+			_req_mod(req, QUEUE_AS_DRBD_BARRIER);
+		return remote;
 	}
 
 	if (!remote && !send_oos)
@@ -1020,12 +1020,24 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 		bio_endio(bio, -EIO);
 }
 
-void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
+static void drbd_queue_write(struct drbd_conf *mdev, struct drbd_request *req)
 {
-	const int rw = bio_rw(bio);
-	struct bio_and_error m = { NULL, };
+	spin_lock(&mdev->submit.lock);
+	list_add_tail(&req->tl_requests, &mdev->submit.writes);
+	spin_unlock(&mdev->submit.lock);
+	queue_work(mdev->submit.wq, &mdev->submit.worker);
+}
+
+/* returns the new drbd_request pointer, if the caller is expected to
+ * drbd_send_and_submit() it (to save latency), or NULL if we queued the
+ * request on the submitter thread.
+ * Returns ERR_PTR(-ENOMEM) if we cannot allocate a drbd_request.
+ */
+struct drbd_request *
+drbd_request_prepare(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
+{
+	const int rw = bio_data_dir(bio);
 	struct drbd_request *req;
-	bool no_remote = false;
 
 	/* allocate outside of all locks; */
 	req = drbd_req_new(mdev, bio);
@@ -1035,7 +1047,7 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 		 * if user cannot handle io errors, that's not our business. */
 		dev_err(DEV, "could not kmalloc() req\n");
 		bio_endio(bio, -ENOMEM);
-		return;
+		return ERR_PTR(-ENOMEM);
 	}
 	req->start_time = start_time;
 
@@ -1044,18 +1056,26 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 		req->private_bio = NULL;
 	}
 
-	/* For WRITES going to the local disk, grab a reference on the target
-	 * extent.  This waits for any resync activity in the corresponding
-	 * resync extent to finish, and, if necessary, pulls in the target
-	 * extent into the activity log, which involves further disk io because
-	 * of transactional on-disk meta data updates.
-	 * Empty flushes don't need to go into the activity log, they can only
-	 * flush data for pending writes which are already in there. */
+	/* Update disk stats */
+	_drbd_start_io_acct(mdev, req);
+
 	if (rw == WRITE && req->private_bio && req->i.size
 	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
+		if (!drbd_al_begin_io_fastpath(mdev, &req->i)) {
+			drbd_queue_write(mdev, req);
+			return NULL;
+		}
 		req->rq_state |= RQ_IN_ACT_LOG;
-		drbd_al_begin_io(mdev, &req->i);
 	}
+
+	return req;
+}
+
+static void drbd_send_and_submit(struct drbd_conf *mdev, struct drbd_request *req)
+{
+	const int rw = bio_rw(req->master_bio);
+	struct bio_and_error m = { NULL, };
+	bool no_remote = false;
 
 	spin_lock_irq(&mdev->tconn->req_lock);
 	if (rw == WRITE) {
@@ -1063,9 +1083,13 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 		 * but will re-aquire it before it returns here.
 		 * Needs to be before the check on drbd_suspended() */
 		complete_conflicting_writes(req);
+		/* no more giving up req_lock from now on! */
+
+		/* check for congestion, and potentially stop sending
+		 * full data updates, but start sending "dirty bits" only. */
+		maybe_pull_ahead(mdev);
 	}
 
-	/* no more giving up req_lock from now on! */
 
 	if (drbd_suspended(mdev)) {
 		/* push back and retry: */
@@ -1077,9 +1101,6 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 		}
 		goto out;
 	}
-
-	/* Update disk stats */
-	_drbd_start_io_acct(mdev, req, bio);
 
 	/* We fail READ/READA early, if we can not serve it.
 	 * We must do this before req is registered on any lists.
@@ -1137,7 +1158,116 @@ out:
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
-	return;
+}
+
+void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
+{
+	struct drbd_request *req = drbd_request_prepare(mdev, bio, start_time);
+	if (IS_ERR_OR_NULL(req))
+		return;
+	drbd_send_and_submit(mdev, req);
+}
+
+static void submit_fast_path(struct drbd_conf *mdev, struct list_head *incoming)
+{
+	struct drbd_request *req, *tmp;
+	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
+		const int rw = bio_data_dir(req->master_bio);
+
+		if (rw == WRITE /* rw != WRITE should not even end up here! */
+		&& req->private_bio && req->i.size
+		&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
+			if (!drbd_al_begin_io_fastpath(mdev, &req->i))
+				continue;
+
+			req->rq_state |= RQ_IN_ACT_LOG;
+		}
+
+		list_del_init(&req->tl_requests);
+		drbd_send_and_submit(mdev, req);
+	}
+}
+
+static bool prepare_al_transaction_nonblock(struct drbd_conf *mdev,
+					    struct list_head *incoming,
+					    struct list_head *pending)
+{
+	struct drbd_request *req, *tmp;
+	int wake = 0;
+	int err;
+
+	spin_lock_irq(&mdev->al_lock);
+	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
+		err = drbd_al_begin_io_nonblock(mdev, &req->i);
+		if (err == -EBUSY)
+			wake = 1;
+		if (err)
+			continue;
+		req->rq_state |= RQ_IN_ACT_LOG;
+		list_move_tail(&req->tl_requests, pending);
+	}
+	spin_unlock_irq(&mdev->al_lock);
+	if (wake)
+		wake_up(&mdev->al_wait);
+
+	return !list_empty(pending);
+}
+
+void do_submit(struct work_struct *ws)
+{
+	struct drbd_conf *mdev = container_of(ws, struct drbd_conf, submit.worker);
+	LIST_HEAD(incoming);
+	LIST_HEAD(pending);
+	struct drbd_request *req, *tmp;
+
+	for (;;) {
+		spin_lock(&mdev->submit.lock);
+		list_splice_tail_init(&mdev->submit.writes, &incoming);
+		spin_unlock(&mdev->submit.lock);
+
+		submit_fast_path(mdev, &incoming);
+		if (list_empty(&incoming))
+			break;
+
+		wait_event(mdev->al_wait, prepare_al_transaction_nonblock(mdev, &incoming, &pending));
+		/* Maybe more was queued, while we prepared the transaction?
+		 * Try to stuff them into this transaction as well.
+		 * Be strictly non-blocking here, no wait_event, we already
+		 * have something to commit.
+		 * Stop if we don't make any more progres.
+		 */
+		for (;;) {
+			LIST_HEAD(more_pending);
+			LIST_HEAD(more_incoming);
+			bool made_progress;
+
+			/* It is ok to look outside the lock,
+			 * it's only an optimization anyways */
+			if (list_empty(&mdev->submit.writes))
+				break;
+
+			spin_lock(&mdev->submit.lock);
+			list_splice_tail_init(&mdev->submit.writes, &more_incoming);
+			spin_unlock(&mdev->submit.lock);
+
+			if (list_empty(&more_incoming))
+				break;
+
+			made_progress = prepare_al_transaction_nonblock(mdev, &more_incoming, &more_pending);
+
+			list_splice_tail_init(&more_pending, &pending);
+			list_splice_tail_init(&more_incoming, &incoming);
+
+			if (!made_progress)
+				break;
+		}
+		drbd_al_begin_io_commit(mdev, false);
+
+		list_for_each_entry_safe(req, tmp, &pending, tl_requests) {
+			list_del_init(&req->tl_requests);
+			drbd_send_and_submit(mdev, req);
+		}
+	}
 }
 
 void drbd_make_request(struct request_queue *q, struct bio *bio)

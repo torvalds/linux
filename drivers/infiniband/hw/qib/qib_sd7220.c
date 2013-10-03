@@ -44,7 +44,7 @@
 #include "qib.h"
 #include "qib_7220.h"
 
-#define SD7220_FW_NAME "intel/sd7220.fw"
+#define SD7220_FW_NAME "qlogic/sd7220.fw"
 MODULE_FIRMWARE(SD7220_FW_NAME);
 
 /*

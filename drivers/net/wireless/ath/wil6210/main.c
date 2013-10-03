@@ -14,12 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
-#include <linux/netdevice.h>
-#include <linux/sched.h>
-#include <linux/ieee80211.h>
-#include <linux/wireless.h>
-#include <linux/slab.h>
 #include <linux/moduleparam.h>
 #include <linux/if_arp.h>
 
@@ -62,27 +56,21 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 {
 	uint i;
 	struct net_device *ndev = wil_to_ndev(wil);
-	struct wireless_dev *wdev = wil->wdev;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	wil_link_off(wil);
-	clear_bit(wil_status_fwconnected, &wil->status);
-
-	switch (wdev->sme_state) {
-	case CFG80211_SME_CONNECTED:
-		cfg80211_disconnected(ndev, WLAN_STATUS_UNSPECIFIED_FAILURE,
+	if (test_bit(wil_status_fwconnected, &wil->status)) {
+		clear_bit(wil_status_fwconnected, &wil->status);
+		cfg80211_disconnected(ndev,
+				      WLAN_STATUS_UNSPECIFIED_FAILURE,
 				      NULL, 0, GFP_KERNEL);
-		break;
-	case CFG80211_SME_CONNECTING:
+	} else if (test_bit(wil_status_fwconnecting, &wil->status)) {
 		cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
 					GFP_KERNEL);
-		break;
-	default:
-		break;
 	}
-
+	clear_bit(wil_status_fwconnecting, &wil->status);
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++)
 		wil_vring_fini_tx(wil, i);
 
@@ -109,13 +97,24 @@ static void wil_connect_timer_fn(ulong x)
 	schedule_work(&wil->disconnect_worker);
 }
 
-static void wil_cache_mbox_regs(struct wil6210_priv *wil)
+static void wil_connect_worker(struct work_struct *work)
 {
-	/* make shadow copy of registers that should not change on run time */
-	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
-			     sizeof(struct wil6210_mbox_ctl));
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
+	int rc;
+	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
+						connect_worker);
+	int cid = wil->pending_connect_cid;
+
+	if (cid < 0) {
+		wil_err(wil, "No connection pending\n");
+		return;
+	}
+
+	wil_dbg_wmi(wil, "Configure for connection CID %d\n", cid);
+
+	rc = wil_vring_init_tx(wil, 0, WIL6210_TX_RING_SIZE, cid, 0);
+	wil->pending_connect_cid = -1;
+	if (rc == 0)
+		wil_link_on(wil);
 }
 
 int wil_priv_init(struct wil6210_priv *wil)
@@ -130,7 +129,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	wil->pending_connect_cid = -1;
 	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
 
-	INIT_WORK(&wil->wmi_connect_worker, wmi_connect_worker);
+	INIT_WORK(&wil->connect_worker, wil_connect_worker);
 	INIT_WORK(&wil->disconnect_worker, wil_disconnect_worker);
 	INIT_WORK(&wil->wmi_event_worker, wmi_event_worker);
 
@@ -146,8 +145,6 @@ int wil_priv_init(struct wil6210_priv *wil)
 		destroy_workqueue(wil->wmi_wq);
 		return -EAGAIN;
 	}
-
-	wil_cache_mbox_regs(wil);
 
 	return 0;
 }
@@ -185,14 +182,10 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	W(RGF_USER_USER_CPU_0, BIT(1)); /* user_cpu_man_rst */
 
-	msleep(100);
-
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000170);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FC00);
-
-	msleep(100);
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0);
@@ -202,12 +195,6 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000001);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00000080);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
-
-	msleep(2000);
-
-	W(RGF_USER_USER_CPU_0, BIT(0)); /* user_cpu_man_de_rst */
-
-	msleep(2000);
 
 	wil_dbg_misc(wil, "Reset completed\n");
 
@@ -265,8 +252,6 @@ int wil_reset(struct wil6210_priv *wil)
 	wil->pending_connect_cid = -1;
 	INIT_COMPLETION(wil->wmi_ready);
 
-	wil_cache_mbox_regs(wil);
-
 	/* TODO: release MAC reset */
 	wil6210_enable_irq(wil);
 
@@ -301,41 +286,36 @@ static int __wil_up(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
-	struct ieee80211_channel *channel = wdev->preset_chandef.chan;
 	int rc;
-	int bi;
-	u16 wmi_nettype = wil_iftype_nl2wmi(wdev->iftype);
 
 	rc = wil_reset(wil);
 	if (rc)
 		return rc;
 
-	/* FIXME Firmware works now in PBSS mode(ToDS=0, FromDS=0) */
-	wmi_nettype = wil_iftype_nl2wmi(NL80211_IFTYPE_ADHOC);
+	/* Rx VRING. After MAC and beacon */
+	rc = wil_rx_init(wil);
+	if (rc)
+		return rc;
+
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 		wil_dbg_misc(wil, "type: STATION\n");
-		bi = 0;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_AP:
 		wil_dbg_misc(wil, "type: AP\n");
-		bi = 100;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 		wil_dbg_misc(wil, "type: P2P_CLIENT\n");
-		bi = 0;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
 		wil_dbg_misc(wil, "type: P2P_GO\n");
-		bi = 100;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		wil_dbg_misc(wil, "type: Monitor\n");
-		bi = 0;
 		ndev->type = ARPHRD_IEEE80211_RADIOTAP;
 		/* ARPHRD_IEEE80211 or ARPHRD_IEEE80211_RADIOTAP ? */
 		break;
@@ -343,33 +323,12 @@ static int __wil_up(struct wil6210_priv *wil)
 		return -EOPNOTSUPP;
 	}
 
-	/* Apply profile in the following order: */
-	/* SSID and channel for the AP */
-	switch (wdev->iftype) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_P2P_GO:
-		if (wdev->ssid_len == 0) {
-			wil_err(wil, "SSID not set\n");
-			return -EINVAL;
-		}
-		wmi_set_ssid(wil, wdev->ssid_len, wdev->ssid);
-		if (channel)
-			wmi_set_channel(wil, channel->hw_value);
-		break;
-	default:
-		break;
-	}
-
 	/* MAC address - pre-requisite for other commands */
 	wmi_set_mac_address(wil, ndev->dev_addr);
 
-	/* Set up beaconing if required. */
-	rc = wmi_set_bcon(wil, bi, wmi_nettype);
-	if (rc)
-		return rc;
 
-	/* Rx VRING. After MAC and beacon */
-	wil_rx_init(wil);
+	napi_enable(&wil->napi_rx);
+	napi_enable(&wil->napi_tx);
 
 	return 0;
 }
@@ -387,6 +346,9 @@ int wil_up(struct wil6210_priv *wil)
 
 static int __wil_down(struct wil6210_priv *wil)
 {
+	napi_disable(&wil->napi_rx);
+	napi_disable(&wil->napi_tx);
+
 	if (wil->scan_request) {
 		cfg80211_scan_done(wil->scan_request, true);
 		wil->scan_request = NULL;

@@ -38,7 +38,7 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 	struct net_device *dev = priv->ndev;
 	int err;
 
-	pci_set_power_state(pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	err = pci_enable_device(pdev);
 	if (err) {
 		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",

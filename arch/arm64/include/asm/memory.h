@@ -90,6 +90,12 @@
 #define MT_NORMAL_NC		3
 #define MT_NORMAL		4
 
+/*
+ * Memory types for Stage-2 translation
+ */
+#define MT_S2_NORMAL		0xf
+#define MT_S2_DEVICE_nGnRE	0x1
+
 #ifndef __ASSEMBLY__
 
 extern phys_addr_t		memstart_addr;

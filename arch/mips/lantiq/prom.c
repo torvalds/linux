@@ -112,7 +112,7 @@ int __init plat_of_setup(void)
 	if (!of_have_populated_dt())
 		panic("device tree not present");
 
-	strncpy(of_ids[0].compatible, soc_info.compatible,
+	strlcpy(of_ids[0].compatible, soc_info.compatible,
 		sizeof(of_ids[0].compatible));
 	strncpy(of_ids[1].compatible, "simple-bus",
 		sizeof(of_ids[1].compatible));

@@ -32,6 +32,7 @@
 #include <linux/timer.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
+#include <linux/clocksource.h>
 
 #include <clocksource/arm_arch_timer.h>
 
@@ -67,20 +68,15 @@ unsigned long long notrace sched_clock(void)
 	return arch_timer_read_counter() * sched_clock_mult;
 }
 
-int read_current_timer(unsigned long *timer_value)
-{
-	*timer_value = arch_timer_read_counter();
-	return 0;
-}
-
 void __init time_init(void)
 {
 	u32 arch_timer_rate;
 
-	if (arch_timer_init())
-		panic("Unable to initialise architected timer.\n");
+	clocksource_of_init();
 
 	arch_timer_rate = arch_timer_get_rate();
+	if (!arch_timer_rate)
+		panic("Unable to initialise architected timer.\n");
 
 	/* Cache the sched_clock multiplier to save a divide in the hot path. */
 	sched_clock_mult = NSEC_PER_SEC / arch_timer_rate;

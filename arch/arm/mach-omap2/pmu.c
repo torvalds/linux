@@ -11,6 +11,8 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
+#include <linux/of.h>
+
 #include <asm/pmu.h>
 
 #include "soc.h"
@@ -52,16 +54,22 @@ static int __init omap2_init_pmu(unsigned oh_num, char *oh_names[])
 	WARN(IS_ERR(omap_pmu_dev), "Can't build omap_device for %s.\n",
 	     dev_name);
 
-	if (IS_ERR(omap_pmu_dev))
-		return PTR_ERR(omap_pmu_dev);
-
-	return 0;
+	return PTR_RET(omap_pmu_dev);
 }
 
 static int __init omap_init_pmu(void)
 {
 	unsigned oh_num;
 	char **oh_names;
+
+	/* XXX Remove this check when the CTI driver is available */
+	if (cpu_is_omap443x()) {
+		pr_info("ARM PMU: not yet supported on OMAP4430 due to missing CTI driver\n");
+		return 0;
+	}
+
+	if (of_have_populated_dt())
+		return 0;
 
 	/*
 	 * To create an ARM-PMU device the following HWMODs
@@ -75,9 +83,6 @@ static int __init omap_init_pmu(void)
 	if (cpu_is_omap443x()) {
 		oh_num = ARRAY_SIZE(omap4430_pmu_oh_names);
 		oh_names = omap4430_pmu_oh_names;
-		/* XXX Remove the next two lines when CTI driver available */
-		pr_info("ARM PMU: not yet supported on OMAP4430 due to missing CTI driver\n");
-		return 0;
 	} else if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
 		oh_num = ARRAY_SIZE(omap3_pmu_oh_names);
 		oh_names = omap3_pmu_oh_names;

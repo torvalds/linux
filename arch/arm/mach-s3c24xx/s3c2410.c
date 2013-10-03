@@ -22,6 +22,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/io.h>
 
 #include <asm/mach/arch.h>
@@ -37,7 +38,6 @@
 #include <mach/regs-clock.h>
 #include <plat/regs-serial.h>
 
-#include <plat/s3c2410.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
@@ -139,6 +139,7 @@ void __init s3c2410_init_clocks(int xtal)
 	s3c2410_baseclk_add();
 	s3c24xx_register_clock(&s3c2410_armclk);
 	clkdev_add_table(s3c2410_clk_lookup, ARRAY_SIZE(s3c2410_clk_lookup));
+	samsung_wdt_reset_init(S3C24XX_VA_WATCHDOG);
 }
 
 struct bus_type s3c2410_subsys = {
@@ -196,13 +197,13 @@ int __init s3c2410a_init(void)
 	return s3c2410_init();
 }
 
-void s3c2410_restart(char mode, const char *cmd)
+void s3c2410_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode == 's') {
+	if (mode == REBOOT_SOFT) {
 		soft_restart(0);
 	}
 
-	arch_wdt_reset();
+	samsung_wdt_reset();
 
 	/* we'll take a jump through zero as a poor second */
 	soft_restart(0);

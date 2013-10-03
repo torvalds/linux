@@ -1751,10 +1751,10 @@ static const struct media_entity_operations ipipe_media_ops = {
  */
 void vpfe_ipipe_unregister_entities(struct vpfe_ipipe_device *vpfe_ipipe)
 {
-	/* cleanup entity */
-	media_entity_cleanup(&vpfe_ipipe->subdev.entity);
 	/* unregister subdev */
 	v4l2_device_unregister_subdev(&vpfe_ipipe->subdev);
+	/* cleanup entity */
+	media_entity_cleanup(&vpfe_ipipe->subdev.entity);
 }
 
 /*
@@ -1859,5 +1859,5 @@ void vpfe_ipipe_cleanup(struct vpfe_ipipe_device *ipipe,
 	iounmap(ipipe->isp5_base_addr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
 	if (res)
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 }

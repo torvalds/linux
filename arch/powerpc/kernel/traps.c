@@ -35,6 +35,7 @@
 #include <linux/kdebug.h>
 #include <linux/debugfs.h>
 #include <linux/ratelimit.h>
+#include <linux/context_tracking.h>
 
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
@@ -43,15 +44,14 @@
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/pmc.h>
-#ifdef CONFIG_PPC32
 #include <asm/reg.h>
-#endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
 #endif
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #include <asm/processor.h>
+#include <asm/tm.h>
 #endif
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
@@ -60,6 +60,7 @@
 #include <asm/switch_to.h>
 #include <asm/tm.h>
 #include <asm/debug.h>
+#include <sysdev/fsl_pci.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
@@ -565,6 +566,8 @@ int machine_check_e500(struct pt_regs *regs)
 	if (reason & MCSR_BUS_RBERR) {
 		if (fsl_rio_mcheck_exception(regs))
 			return 1;
+		if (fsl_pci_mcheck_exception(regs))
+			return 1;
 	}
 
 	printk("Machine check in kernel mode.\n");
@@ -667,6 +670,7 @@ int machine_check_generic(struct pt_regs *regs)
 
 void machine_check_exception(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	int recover = 0;
 
 	__get_cpu_var(irq_stat).mce_exceptions++;
@@ -683,7 +687,7 @@ void machine_check_exception(struct pt_regs *regs)
 		recover = cur_cpu_spec->machine_check(regs);
 
 	if (recover > 0)
-		return;
+		goto bail;
 
 #if defined(CONFIG_8xx) && defined(CONFIG_PCI)
 	/* the qspan pci read routines can cause machine checks -- Cort
@@ -693,20 +697,23 @@ void machine_check_exception(struct pt_regs *regs)
 	 * -- BenH
 	 */
 	bad_page_fault(regs, regs->dar, SIGBUS);
-	return;
+	goto bail;
 #endif
 
 	if (debugger_fault_handler(regs))
-		return;
+		goto bail;
 
 	if (check_io_access(regs))
-		return;
+		goto bail;
 
 	die("Machine check", regs, SIGBUS);
 
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
 		panic("Unrecoverable Machine check");
+
+bail:
+	exception_exit(prev_state);
 }
 
 void SMIException(struct pt_regs *regs)
@@ -716,20 +723,29 @@ void SMIException(struct pt_regs *regs)
 
 void unknown_exception(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
+
 	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
 	       regs->nip, regs->msr, regs->trap);
 
 	_exception(SIGTRAP, regs, 0, 0);
+
+	exception_exit(prev_state);
 }
 
 void instruction_breakpoint_exception(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
+
 	if (notify_die(DIE_IABR_MATCH, "iabr_match", regs, 5,
 					5, SIGTRAP) == NOTIFY_STOP)
-		return;
+		goto bail;
 	if (debugger_iabr_match(regs))
-		return;
+		goto bail;
 	_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
+
+bail:
+	exception_exit(prev_state);
 }
 
 void RunModeException(struct pt_regs *regs)
@@ -739,15 +755,20 @@ void RunModeException(struct pt_regs *regs)
 
 void __kprobes single_step_exception(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
+
 	clear_single_step(regs);
 
 	if (notify_die(DIE_SSTEP, "single_step", regs, 5,
 					5, SIGTRAP) == NOTIFY_STOP)
-		return;
+		goto bail;
 	if (debugger_sstep(regs))
-		return;
+		goto bail;
 
 	_exception(SIGTRAP, regs, TRAP_TRACE, regs->nip);
+
+bail:
+	exception_exit(prev_state);
 }
 
 /*
@@ -846,6 +867,10 @@ static int emulate_string_inst(struct pt_regs *regs, u32 instword)
 		u8 val;
 		u32 shift = 8 * (3 - (pos & 0x3));
 
+		/* if process is 32-bit, clear upper 32 bits of EA */
+		if ((regs->msr & MSR_64BIT) == 0)
+			EA &= 0xFFFFFFFF;
+
 		switch ((instword & PPC_INST_STRING_MASK)) {
 			case PPC_INST_LSWX:
 			case PPC_INST_LSWI:
@@ -913,12 +938,34 @@ static int emulate_isel(struct pt_regs *regs, u32 instword)
 	return 0;
 }
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static inline bool tm_abort_check(struct pt_regs *regs, int cause)
+{
+        /* If we're emulating a load/store in an active transaction, we cannot
+         * emulate it as the kernel operates in transaction suspended context.
+         * We need to abort the transaction.  This creates a persistent TM
+         * abort so tell the user what caused it with a new code.
+	 */
+	if (MSR_TM_TRANSACTIONAL(regs->msr)) {
+		tm_enable();
+		tm_abort(cause);
+		return true;
+	}
+	return false;
+}
+#else
+static inline bool tm_abort_check(struct pt_regs *regs, int reason)
+{
+	return false;
+}
+#endif
+
 static int emulate_instruction(struct pt_regs *regs)
 {
 	u32 instword;
 	u32 rd;
 
-	if (!user_mode(regs) || (regs->msr & MSR_LE))
+	if (!user_mode(regs))
 		return -EINVAL;
 	CHECK_FULL_REGS(regs);
 
@@ -952,6 +999,9 @@ static int emulate_instruction(struct pt_regs *regs)
 
 	/* Emulate load/store string insn. */
 	if ((instword & PPC_INST_STRING_GEN_MASK) == PPC_INST_STRING) {
+		if (tm_abort_check(regs,
+				   TM_CAUSE_EMULATE | TM_CAUSE_PERSISTENT))
+			return -EINVAL;
 		PPC_WARN_EMULATED(string, regs);
 		return emulate_string_inst(regs, instword);
 	}
@@ -970,7 +1020,10 @@ static int emulate_instruction(struct pt_regs *regs)
 
 #ifdef CONFIG_PPC64
 	/* Emulate the mfspr rD, DSCR. */
-	if (((instword & PPC_INST_MFSPR_DSCR_MASK) == PPC_INST_MFSPR_DSCR) &&
+	if ((((instword & PPC_INST_MFSPR_DSCR_USER_MASK) ==
+		PPC_INST_MFSPR_DSCR_USER) ||
+	     ((instword & PPC_INST_MFSPR_DSCR_MASK) ==
+		PPC_INST_MFSPR_DSCR)) &&
 			cpu_has_feature(CPU_FTR_DSCR)) {
 		PPC_WARN_EMULATED(mfdscr, regs);
 		rd = (instword >> 21) & 0x1f;
@@ -978,7 +1031,10 @@ static int emulate_instruction(struct pt_regs *regs)
 		return 0;
 	}
 	/* Emulate the mtspr DSCR, rD. */
-	if (((instword & PPC_INST_MTSPR_DSCR_MASK) == PPC_INST_MTSPR_DSCR) &&
+	if ((((instword & PPC_INST_MTSPR_DSCR_USER_MASK) ==
+		PPC_INST_MTSPR_DSCR_USER) ||
+	     ((instword & PPC_INST_MTSPR_DSCR_MASK) ==
+		PPC_INST_MTSPR_DSCR)) &&
 			cpu_has_feature(CPU_FTR_DSCR)) {
 		PPC_WARN_EMULATED(mtdscr, regs);
 		rd = (instword >> 21) & 0x1f;
@@ -997,10 +1053,41 @@ int is_valid_bugaddr(unsigned long addr)
 	return is_kernel_addr(addr);
 }
 
+#ifdef CONFIG_MATH_EMULATION
+static int emulate_math(struct pt_regs *regs)
+{
+	int ret;
+	extern int do_mathemu(struct pt_regs *regs);
+
+	ret = do_mathemu(regs);
+	if (ret >= 0)
+		PPC_WARN_EMULATED(math, regs);
+
+	switch (ret) {
+	case 0:
+		emulate_single_step(regs);
+		return 0;
+	case 1: {
+			int code = 0;
+			code = __parse_fpscr(current->thread.fpscr.val);
+			_exception(SIGFPE, regs, code, regs->nip);
+			return 0;
+		}
+	case -EFAULT:
+		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+		return 0;
+	}
+
+	return -1;
+}
+#else
+static inline int emulate_math(struct pt_regs *regs) { return -1; }
+#endif
+
 void __kprobes program_check_exception(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	unsigned int reason = get_reason(regs);
-	extern int do_mathemu(struct pt_regs *regs);
 
 	/* We can now get here via a FP Unavailable exception if the core
 	 * has no FPU, in that case the reason flags will be 0 */
@@ -1008,26 +1095,26 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	if (reason & REASON_FP) {
 		/* IEEE FP exception */
 		parse_fpe(regs);
-		return;
+		goto bail;
 	}
 	if (reason & REASON_TRAP) {
 		/* Debugger is first in line to stop recursive faults in
 		 * rcu_lock, notify_die, or atomic_notifier_call_chain */
 		if (debugger_bpt(regs))
-			return;
+			goto bail;
 
 		/* trap exception */
 		if (notify_die(DIE_BPT, "breakpoint", regs, 5, 5, SIGTRAP)
 				== NOTIFY_STOP)
-			return;
+			goto bail;
 
 		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
 		    report_bug(regs->nip, regs) == BUG_TRAP_TYPE_WARN) {
 			regs->nip += 4;
-			return;
+			goto bail;
 		}
 		_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
-		return;
+		goto bail;
 	}
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (reason & REASON_TM) {
@@ -1043,7 +1130,7 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 		if (!user_mode(regs) &&
 		    report_bug(regs->nip, regs) == BUG_TRAP_TYPE_WARN) {
 			regs->nip += 4;
-			return;
+			goto bail;
 		}
 		/* If usermode caused this, it's done something illegal and
 		 * gets a SIGILL slap on the wrist.  We call it an illegal
@@ -1053,7 +1140,7 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 		 */
 		if (user_mode(regs)) {
 			_exception(SIGILL, regs, ILL_ILLOPN, regs->nip);
-			return;
+			goto bail;
 		} else {
 			printk(KERN_EMERG "Unexpected TM Bad Thing exception "
 			       "at %lx (msr 0x%x)\n", regs->nip, reason);
@@ -1062,34 +1149,30 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	}
 #endif
 
+	/*
+	 * If we took the program check in the kernel skip down to sending a
+	 * SIGILL. The subsequent cases all relate to emulating instructions
+	 * which we should only do for userspace. We also do not want to enable
+	 * interrupts for kernel faults because that might lead to further
+	 * faults, and loose the context of the original exception.
+	 */
+	if (!user_mode(regs))
+		goto sigill;
+
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-#ifdef CONFIG_MATH_EMULATION
 	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
 	 * but there seems to be a hardware bug on the 405GP (RevD)
 	 * that means ESR is sometimes set incorrectly - either to
 	 * ESR_DST (!?) or 0.  In the process of chasing this with the
 	 * hardware people - not sure if it can happen on any illegal
 	 * instruction or only on FP instructions, whether there is a
-	 * pattern to occurrences etc. -dgibson 31/Mar/2003 */
-	switch (do_mathemu(regs)) {
-	case 0:
-		emulate_single_step(regs);
-		return;
-	case 1: {
-			int code = 0;
-			code = __parse_fpscr(current->thread.fpscr.val);
-			_exception(SIGFPE, regs, code, regs->nip);
-			return;
-		}
-	case -EFAULT:
-		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
-		return;
-	}
-	/* fall through on any other errors */
-#endif /* CONFIG_MATH_EMULATION */
+	 * pattern to occurrences etc. -dgibson 31/Mar/2003
+	 */
+	if (!emulate_math(regs))
+		goto bail;
 
 	/* Try to emulate it if we should. */
 	if (reason & (REASON_ILLEGAL | REASON_PRIVILEGED)) {
@@ -1097,26 +1180,44 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 		case 0:
 			regs->nip += 4;
 			emulate_single_step(regs);
-			return;
+			goto bail;
 		case -EFAULT:
 			_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
-			return;
+			goto bail;
 		}
 	}
 
+sigill:
 	if (reason & REASON_PRIVILEGED)
 		_exception(SIGILL, regs, ILL_PRVOPC, regs->nip);
 	else
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+
+bail:
+	exception_exit(prev_state);
+}
+
+/*
+ * This occurs when running in hypervisor mode on POWER6 or later
+ * and an illegal instruction is encountered.
+ */
+void __kprobes emulation_assist_interrupt(struct pt_regs *regs)
+{
+	regs->msr |= REASON_ILLEGAL;
+	program_check_exception(regs);
 }
 
 void alignment_exception(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	int sig, code, fixed = 0;
 
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
+
+	if (tm_abort_check(regs, TM_CAUSE_ALIGNMENT | TM_CAUSE_PERSISTENT))
+		goto bail;
 
 	/* we don't implement logging of alignment exceptions */
 	if (!(current->thread.align_ctl & PR_UNALIGN_SIGBUS))
@@ -1125,7 +1226,7 @@ void alignment_exception(struct pt_regs *regs)
 	if (fixed == 1) {
 		regs->nip += 4;	/* skip over emulated instruction */
 		emulate_single_step(regs);
-		return;
+		goto bail;
 	}
 
 	/* Operand address was bad */
@@ -1140,6 +1241,9 @@ void alignment_exception(struct pt_regs *regs)
 		_exception(sig, regs, code, regs->dar);
 	else
 		bad_page_fault(regs, regs->dar, sig);
+
+bail:
+	exception_exit(prev_state);
 }
 
 void StackOverflow(struct pt_regs *regs)
@@ -1168,23 +1272,32 @@ void trace_syscall(struct pt_regs *regs)
 
 void kernel_fp_unavailable_exception(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
+
 	printk(KERN_EMERG "Unrecoverable FP Unavailable Exception "
 			  "%lx at %lx\n", regs->trap, regs->nip);
 	die("Unrecoverable FP Unavailable Exception", regs, SIGABRT);
+
+	exception_exit(prev_state);
 }
 
 void altivec_unavailable_exception(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
+
 	if (user_mode(regs)) {
 		/* A user program has executed an altivec instruction,
 		   but this kernel doesn't support altivec. */
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-		return;
+		goto bail;
 	}
 
 	printk(KERN_EMERG "Unrecoverable VMX/Altivec Unavailable Exception "
 			"%lx at %lx\n", regs->trap, regs->nip);
 	die("Unrecoverable VMX/Altivec Unavailable Exception", regs, SIGABRT);
+
+bail:
+	exception_exit(prev_state);
 }
 
 void vsx_unavailable_exception(struct pt_regs *regs)
@@ -1201,26 +1314,60 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 	die("Unrecoverable VSX Unavailable Exception", regs, SIGABRT);
 }
 
-void tm_unavailable_exception(struct pt_regs *regs)
+#ifdef CONFIG_PPC64
+void facility_unavailable_exception(struct pt_regs *regs)
 {
+	static char *facility_strings[] = {
+		[FSCR_FP_LG] = "FPU",
+		[FSCR_VECVSX_LG] = "VMX/VSX",
+		[FSCR_DSCR_LG] = "DSCR",
+		[FSCR_PM_LG] = "PMU SPRs",
+		[FSCR_BHRB_LG] = "BHRB",
+		[FSCR_TM_LG] = "TM",
+		[FSCR_EBB_LG] = "EBB",
+		[FSCR_TAR_LG] = "TAR",
+	};
+	char *facility = "unknown";
+	u64 value;
+	u8 status;
+	bool hv;
+
+	hv = (regs->trap == 0xf80);
+	if (hv)
+		value = mfspr(SPRN_HFSCR);
+	else
+		value = mfspr(SPRN_FSCR);
+
+	status = value >> 56;
+	if (status == FSCR_DSCR_LG) {
+		/* User is acessing the DSCR.  Set the inherit bit and allow
+		 * the user to set it directly in future by setting via the
+		 * FSCR DSCR bit.  We always leave HFSCR DSCR set.
+		 */
+		current->thread.dscr_inherit = 1;
+		mtspr(SPRN_FSCR, value | FSCR_DSCR);
+		return;
+	}
+
+	if ((status < ARRAY_SIZE(facility_strings)) &&
+	    facility_strings[status])
+		facility = facility_strings[status];
+
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-	/* Currently we never expect a TMU exception.  Catch
-	 * this and kill the process!
-	 */
-	printk(KERN_EMERG "Unexpected TM unavailable exception at %lx "
-	       "(msr %lx)\n",
-	       regs->nip, regs->msr);
+	pr_err("%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
+	       hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
 
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 		return;
 	}
 
-	die("Unexpected TM unavailable exception", regs, SIGABRT);
+	die("Unexpected facility unavailable exception", regs, SIGABRT);
 }
+#endif
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 
@@ -1314,12 +1461,6 @@ void performance_monitor_exception(struct pt_regs *regs)
 #ifdef CONFIG_8xx
 void SoftwareEmulation(struct pt_regs *regs)
 {
-	extern int do_mathemu(struct pt_regs *);
-	extern int Soft_emulate_8xx(struct pt_regs *);
-#if defined(CONFIG_MATH_EMULATION) || defined(CONFIG_8XX_MINIMAL_FPEMU)
-	int errcode;
-#endif
-
 	CHECK_FULL_REGS(regs);
 
 	if (!user_mode(regs)) {
@@ -1327,48 +1468,10 @@ void SoftwareEmulation(struct pt_regs *regs)
 		die("Kernel Mode Software FPU Emulation", regs, SIGFPE);
 	}
 
-#ifdef CONFIG_MATH_EMULATION
-	errcode = do_mathemu(regs);
-	if (errcode >= 0)
-		PPC_WARN_EMULATED(math, regs);
+	if (!emulate_math(regs))
+		return;
 
-	switch (errcode) {
-	case 0:
-		emulate_single_step(regs);
-		return;
-	case 1: {
-			int code = 0;
-			code = __parse_fpscr(current->thread.fpscr.val);
-			_exception(SIGFPE, regs, code, regs->nip);
-			return;
-		}
-	case -EFAULT:
-		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
-		return;
-	default:
-		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-		return;
-	}
-
-#elif defined(CONFIG_8XX_MINIMAL_FPEMU)
-	errcode = Soft_emulate_8xx(regs);
-	if (errcode >= 0)
-		PPC_WARN_EMULATED(8xx, regs);
-
-	switch (errcode) {
-	case 0:
-		emulate_single_step(regs);
-		return;
-	case 1:
-		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-		return;
-	case -EFAULT:
-		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
-		return;
-	}
-#else
 	_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-#endif
 }
 #endif /* CONFIG_8xx */
 
@@ -1715,8 +1818,6 @@ struct ppc_emulated ppc_emulated = {
 	WARN_EMULATED_SETUP(unaligned),
 #ifdef CONFIG_MATH_EMULATION
 	WARN_EMULATED_SETUP(math),
-#elif defined(CONFIG_8XX_MINIMAL_FPEMU)
-	WARN_EMULATED_SETUP(8xx),
 #endif
 #ifdef CONFIG_VSX
 	WARN_EMULATED_SETUP(vsx),

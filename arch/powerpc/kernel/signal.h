@@ -12,7 +12,7 @@
 
 extern void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags);
 
-extern void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+extern void __user * get_sigframe(struct k_sigaction *ka, unsigned long sp,
 				  size_t frame_size, int is_32);
 
 extern int handle_signal32(unsigned long sig, struct k_sigaction *ka,

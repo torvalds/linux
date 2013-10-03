@@ -60,7 +60,9 @@ void platform_restart(void)
 			      "wsr	a2, icountlevel\n\t"
 			      "movi	a2, 0\n\t"
 			      "wsr	a2, icount\n\t"
+#if XCHAL_NUM_IBREAK > 0
 			      "wsr	a2, ibreakenable\n\t"
+#endif
 			      "wsr	a2, lcount\n\t"
 			      "movi	a2, 0x1f\n\t"
 			      "wsr	a2, ps\n\t"
@@ -161,7 +163,7 @@ void platform_heartbeat(void)
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 
-void platform_calibrate_ccount(void)
+void __init platform_calibrate_ccount(void)
 {
 	long clk_freq = 0;
 #ifdef CONFIG_OF
@@ -177,8 +179,7 @@ void platform_calibrate_ccount(void)
 	if (!clk_freq)
 		clk_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
 
-	ccount_per_jiffy = clk_freq / HZ;
-	nsec_per_ccount = 1000000000UL / clk_freq;
+	ccount_freq = clk_freq;
 }
 
 #endif

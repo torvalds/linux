@@ -8,11 +8,24 @@
  * kind, whether express or implied.
  */
 
-/include/ "omap3.dtsi"
+#include "omap3.dtsi"
 
 / {
 	aliases {
 		serial3 = &uart4;
+	};
+
+	cpus {
+		/* OMAP3630/OMAP37xx 'standard device' variants OPP50 to OPP130 */
+		cpu@0 {
+			operating-points = <
+				/* kHz    uV */
+				300000  1012500
+				600000  1200000
+				800000  1325000
+			>;
+			clock-latency = <300000>; /* From legacy driver */
+		};
 	};
 
 	ocp {

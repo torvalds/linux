@@ -1,0 +1,18 @@
+* SiRFprimII/marco/atlas6 SDHCI Controller
+
+This file documents differences between the core properties in mmc.txt
+and the properties used by the sdhci-sirf driver.
+
+Required properties:
+- compatible: sirf,prima2-sdhc
+
+Optional properties:
+- cd-gpios: card detect gpio, with zero flags.
+
+Example:
+
+	sd0: sdhci@56000000 {
+		compatible = "sirf,prima2-sdhc";
+		reg = <0xcd000000 0x100000>;
+		cd-gpios = <&gpio 6 0>;
+	};

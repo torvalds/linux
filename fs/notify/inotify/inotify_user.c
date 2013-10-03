@@ -287,9 +287,6 @@ static int inotify_release(struct inode *ignored, struct file *file)
 
 	pr_debug("%s: group=%p\n", __func__, group);
 
-	if (file->f_flags & FASYNC)
-		fsnotify_fasync(-1, file, 0);
-
 	/* free this group, matching get was inotify_init->fsnotify_obtain_group */
 	fsnotify_destroy_group(group);
 
@@ -359,7 +356,6 @@ static int inotify_find_inode(const char __user *dirname, struct path *path, uns
 }
 
 static int inotify_add_to_idr(struct idr *idr, spinlock_t *idr_lock,
-			      int *last_wd,
 			      struct inotify_inode_mark *i_mark)
 {
 	int ret;
@@ -367,11 +363,10 @@ static int inotify_add_to_idr(struct idr *idr, spinlock_t *idr_lock,
 	idr_preload(GFP_KERNEL);
 	spin_lock(idr_lock);
 
-	ret = idr_alloc(idr, i_mark, *last_wd + 1, 0, GFP_NOWAIT);
+	ret = idr_alloc_cyclic(idr, i_mark, 1, 0, GFP_NOWAIT);
 	if (ret >= 0) {
 		/* we added the mark to the idr, take a reference */
 		i_mark->wd = ret;
-		*last_wd = i_mark->wd;
 		fsnotify_get_mark(&i_mark->fsn_mark);
 	}
 
@@ -572,7 +567,6 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	int add = (arg & IN_MASK_ADD);
 	int ret;
 
-	/* don't allow invalid bits: we don't want flags set */
 	mask = inotify_arg_to_mask(arg);
 
 	fsn_mark = fsnotify_find_inode_mark(group, inode);
@@ -623,7 +617,6 @@ static int inotify_new_watch(struct fsnotify_group *group,
 	struct idr *idr = &group->inotify_data.idr;
 	spinlock_t *idr_lock = &group->inotify_data.idr_lock;
 
-	/* don't allow invalid bits: we don't want flags set */
 	mask = inotify_arg_to_mask(arg);
 
 	tmp_i_mark = kmem_cache_alloc(inotify_inode_mark_cachep, GFP_KERNEL);
@@ -638,13 +631,13 @@ static int inotify_new_watch(struct fsnotify_group *group,
 	if (atomic_read(&group->inotify_data.user->inotify_watches) >= inotify_max_user_watches)
 		goto out_err;
 
-	ret = inotify_add_to_idr(idr, idr_lock, &group->inotify_data.last_wd,
-				 tmp_i_mark);
+	ret = inotify_add_to_idr(idr, idr_lock, tmp_i_mark);
 	if (ret)
 		goto out_err;
 
 	/* we are on the idr, now get on the inode */
-	ret = fsnotify_add_mark(&tmp_i_mark->fsn_mark, group, inode, NULL, 0);
+	ret = fsnotify_add_mark_locked(&tmp_i_mark->fsn_mark, group, inode,
+				       NULL, 0);
 	if (ret) {
 		/* we failed to get on the inode, get off the idr */
 		inotify_remove_from_idr(group, tmp_i_mark);
@@ -668,19 +661,13 @@ static int inotify_update_watch(struct fsnotify_group *group, struct inode *inod
 {
 	int ret = 0;
 
-retry:
+	mutex_lock(&group->mark_mutex);
 	/* try to update and existing watch with the new arg */
 	ret = inotify_update_existing_watch(group, inode, arg);
 	/* no mark present, try to add a new one */
 	if (ret == -ENOENT)
 		ret = inotify_new_watch(group, inode, arg);
-	/*
-	 * inotify_new_watch could race with another thread which did an
-	 * inotify_new_watch between the update_existing and the add watch
-	 * here, go back and try to update an existing mark again.
-	 */
-	if (ret == -EEXIST)
-		goto retry;
+	mutex_unlock(&group->mark_mutex);
 
 	return ret;
 }
@@ -697,7 +684,6 @@ static struct fsnotify_group *inotify_new_group(unsigned int max_events)
 
 	spin_lock_init(&group->inotify_data.idr_lock);
 	idr_init(&group->inotify_data.idr);
-	group->inotify_data.last_wd = 0;
 	group->inotify_data.user = get_current_user();
 
 	if (atomic_inc_return(&group->inotify_data.user->inotify_devs) >
@@ -750,6 +736,10 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
 	struct fd f;
 	int ret;
 	unsigned flags = 0;
+
+	/* don't allow invalid bits: we don't want flags set */
+	if (unlikely(!(mask & ALL_INOTIFY_BITS)))
+		return -EINVAL;
 
 	f = fdget(fd);
 	if (unlikely(!f.file))

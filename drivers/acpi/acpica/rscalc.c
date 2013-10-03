@@ -202,6 +202,12 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 			return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
 		}
 
+		/* Sanity check the length. It must not be zero, or we loop forever */
+
+		if (!resource->length) {
+			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
+		}
+
 		/* Get the base size of the (external stream) resource descriptor */
 
 		total_size = acpi_gbl_aml_resource_sizes[resource->type];
@@ -346,6 +352,7 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 			break;
 
 		default:
+
 			break;
 		}
 
@@ -533,6 +540,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			break;
 
 		default:
+
 			break;
 		}
 
@@ -644,8 +652,9 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 
 		name_found = FALSE;
 
-		for (table_index = 0; table_index < 4 && !name_found;
-		     table_index++) {
+		for (table_index = 0;
+		     table_index < package_element->package.count
+		     && !name_found; table_index++) {
 			if (*sub_object_list &&	/* Null object allowed */
 			    ((ACPI_TYPE_STRING ==
 			      (*sub_object_list)->common.type) ||

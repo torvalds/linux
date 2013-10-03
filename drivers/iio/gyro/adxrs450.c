@@ -383,16 +383,16 @@ static const struct iio_chan_spec adxrs450_channels[2][2] = {
 			.type = IIO_ANGL_VEL,
 			.modified = 1,
 			.channel2 = IIO_MOD_Z,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
-			IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_CALIBBIAS) |
+			BIT(IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		}, {
 			.type = IIO_TEMP,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		}
 	},
 	[ID_ADXRS453] = {
@@ -400,15 +400,15 @@ static const struct iio_chan_spec adxrs450_channels[2][2] = {
 			.type = IIO_ANGL_VEL,
 			.modified = 1,
 			.channel2 = IIO_MOD_Z,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
-			IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW),
 		}, {
 			.type = IIO_TEMP,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		}
 	},
 };
@@ -426,11 +426,9 @@ static int adxrs450_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	st = iio_priv(indio_dev);
 	st->us = spi;
 	mutex_init(&st->buf_lock);
@@ -447,7 +445,7 @@ static int adxrs450_probe(struct spi_device *spi)
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	/* Get the device into a sane initial state */
 	ret = adxrs450_initial_setup(indio_dev);
@@ -456,17 +454,12 @@ static int adxrs450_probe(struct spi_device *spi)
 	return 0;
 error_initial:
 	iio_device_unregister(indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-
-error_ret:
 	return ret;
 }
 
 static int adxrs450_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
-	iio_device_free(spi_get_drvdata(spi));
 
 	return 0;
 }

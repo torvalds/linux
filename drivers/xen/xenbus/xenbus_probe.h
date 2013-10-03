@@ -47,6 +47,13 @@ struct xen_bus_type {
 	struct bus_type bus;
 };
 
+enum xenstore_init {
+	XS_UNKNOWN,
+	XS_PV,
+	XS_HVM,
+	XS_LOCAL,
+};
+
 extern struct device_attribute xenbus_dev_attrs[];
 
 extern int xenbus_match(struct device *_dev, struct device_driver *_drv);

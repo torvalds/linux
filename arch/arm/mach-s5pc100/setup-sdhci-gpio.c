@@ -19,7 +19,6 @@
 #include <linux/mmc/card.h>
 
 #include <plat/gpio-cfg.h>
-#include <plat/regs-sdhci.h>
 #include <plat/sdhci.h>
 
 void s5pc100_setup_sdhci0_cfg_gpio(struct platform_device *dev, int width)

@@ -27,6 +27,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
+#include <mach/hardware.h>
+
 static struct resource omixp_flash_resources[] = {
 	{
 		.flags	= IORESOURCE_MEM,

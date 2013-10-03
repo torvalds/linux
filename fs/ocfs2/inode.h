@@ -147,8 +147,6 @@ void ocfs2_refresh_inode(struct inode *inode,
 int ocfs2_mark_inode_dirty(handle_t *handle,
 			   struct inode *inode,
 			   struct buffer_head *bh);
-int ocfs2_aio_read(struct file *file, struct kiocb *req, struct iocb *iocb);
-int ocfs2_aio_write(struct file *file, struct kiocb *req, struct iocb *iocb);
 struct buffer_head *ocfs2_bread(struct inode *inode,
 				int block, int *err, int reada);
 

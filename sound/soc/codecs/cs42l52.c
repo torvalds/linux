@@ -86,7 +86,7 @@ static const struct reg_default cs42l52_reg_defaults[] = {
 	{ CS42L52_BEEP_VOL, 0x00 },	/* r1D Beep Volume off Time */
 	{ CS42L52_BEEP_TONE_CTL, 0x00 },	/* r1E Beep Tone Cfg. */
 	{ CS42L52_TONE_CTL, 0x00 },	/* r1F Tone Ctl */
-	{ CS42L52_MASTERA_VOL, 0x88 },	/* r20 Master A Volume */
+	{ CS42L52_MASTERA_VOL, 0x00 },	/* r20 Master A Volume */
 	{ CS42L52_MASTERB_VOL, 0x00 },	/* r21 Master B Volume */
 	{ CS42L52_HPA_VOL, 0x00 },	/* r22 Headphone A Volume */
 	{ CS42L52_HPB_VOL, 0x00 },	/* r23 Headphone B Volume */
@@ -193,6 +193,10 @@ static DECLARE_TLV_DB_SCALE(mic_tlv, 1600, 100, 0);
 
 static DECLARE_TLV_DB_SCALE(pga_tlv, -600, 50, 0);
 
+static DECLARE_TLV_DB_SCALE(mix_tlv, -50, 50, 0);
+
+static DECLARE_TLV_DB_SCALE(beep_tlv, -56, 200, 0);
+
 static const unsigned int limiter_tlv[] = {
 	TLV_DB_RANGE_HEAD(2),
 	0, 2, TLV_DB_SCALE_ITEM(-3000, 600, 0),
@@ -225,7 +229,7 @@ static const char * const mic_bias_level_text[] = {
 };
 
 static const struct soc_enum mic_bias_level_enum =
-	SOC_ENUM_SINGLE(CS42L52_IFACE_CTL1, 0,
+	SOC_ENUM_SINGLE(CS42L52_IFACE_CTL2, 0,
 			ARRAY_SIZE(mic_bias_level_text), mic_bias_level_text);
 
 static const char * const cs42l52_mic_text[] = { "Single", "Differential" };
@@ -260,7 +264,7 @@ static const char * const hp_gain_num_text[] = {
 };
 
 static const struct soc_enum hp_gain_enum =
-	SOC_ENUM_SINGLE(CS42L52_PB_CTL1, 4,
+	SOC_ENUM_SINGLE(CS42L52_PB_CTL1, 5,
 		ARRAY_SIZE(hp_gain_num_text), hp_gain_num_text);
 
 static const char * const beep_pitch_text[] = {
@@ -413,7 +417,7 @@ static const struct snd_kcontrol_new cs42l52_snd_controls[] = {
 	SOC_ENUM("Headphone Analog Gain", hp_gain_enum),
 
 	SOC_DOUBLE_R_SX_TLV("Speaker Volume", CS42L52_SPKA_VOL,
-			      CS42L52_SPKB_VOL, 7, 0x1, 0xff, hl_tlv),
+			      CS42L52_SPKB_VOL, 0, 0x1, 0xff, hl_tlv),
 
 	SOC_DOUBLE_R_SX_TLV("Bypass Volume", CS42L52_PASSTHRUA_VOL,
 			      CS42L52_PASSTHRUB_VOL, 6, 0x18, 0x90, pga_tlv),
@@ -441,7 +445,7 @@ static const struct snd_kcontrol_new cs42l52_snd_controls[] = {
 
 	SOC_DOUBLE_R_SX_TLV("PCM Mixer Volume",
 			    CS42L52_PCMA_MIXER_VOL, CS42L52_PCMB_MIXER_VOL,
-				6, 0x7f, 0x19, hl_tlv),
+				0, 0x7f, 0x19, mix_tlv),
 	SOC_DOUBLE_R("PCM Mixer Switch",
 		     CS42L52_PCMA_MIXER_VOL, CS42L52_PCMB_MIXER_VOL, 7, 1, 1),
 
@@ -449,7 +453,8 @@ static const struct snd_kcontrol_new cs42l52_snd_controls[] = {
 	SOC_ENUM("Beep Pitch", beep_pitch_enum),
 	SOC_ENUM("Beep on Time", beep_ontime_enum),
 	SOC_ENUM("Beep off Time", beep_offtime_enum),
-	SOC_SINGLE_TLV("Beep Volume", CS42L52_BEEP_VOL, 0, 0x1f, 0x07, hl_tlv),
+	SOC_SINGLE_SX_TLV("Beep Volume", CS42L52_BEEP_VOL,
+			0, 0x07, 0x1f, beep_tlv),
 	SOC_SINGLE("Beep Mixer Switch", CS42L52_BEEP_TONE_CTL, 5, 1, 1),
 	SOC_ENUM("Beep Treble Corner Freq", beep_treble_enum),
 	SOC_ENUM("Beep Bass Corner Freq", beep_bass_enum),

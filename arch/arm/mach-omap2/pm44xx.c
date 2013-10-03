@@ -1,7 +1,7 @@
 /*
- * OMAP4 Power Management Routines
+ * OMAP4+ Power Management Routines
  *
- * Copyright (C) 2010-2011 Texas Instruments, Inc.
+ * Copyright (C) 2010-2013 Texas Instruments, Inc.
  * Rajendra Nayak <rnayak@ti.com>
  * Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
@@ -126,29 +126,25 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
  * omap_default_idle - OMAP4 default ilde routine.'
  *
  * Implements OMAP4 memory, IO ordering requirements which can't be addressed
- * with default cpu_do_idle() hook. Used by all CPUs with !CONFIG_CPUIDLE and
- * by secondary CPU with CONFIG_CPUIDLE.
+ * with default cpu_do_idle() hook. Used by all CPUs with !CONFIG_CPU_IDLE and
+ * by secondary CPU with CONFIG_CPU_IDLE.
  */
 static void omap_default_idle(void)
 {
-	local_fiq_disable();
-
 	omap_do_wfi();
-
-	local_fiq_enable();
 }
 
 /**
- * omap4_pm_init - Init routine for OMAP4 PM
+ * omap4_init_static_deps - Add OMAP4 static dependencies
  *
- * Initializes all powerdomain and clockdomain target states
- * and all PRCM settings.
+ * Add needed static clockdomain dependencies on OMAP4 devices.
+ * Return: 0 on success or 'err' on failures
  */
-int __init omap4_pm_init(void)
+static inline int omap4_init_static_deps(void)
 {
-	int ret;
-	struct clockdomain *emif_clkdm, *mpuss_clkdm, *l3_1_clkdm, *l4wkup;
-	struct clockdomain *ducati_clkdm, *l3_2_clkdm, *l4_per_clkdm;
+	struct clockdomain *emif_clkdm, *mpuss_clkdm, *l3_1_clkdm;
+	struct clockdomain *ducati_clkdm, *l3_2_clkdm;
+	int ret = 0;
 
 	if (omap_rev() == OMAP4430_REV_ES1_0) {
 		WARN(1, "Power Management not supported on OMAP4430 ES1.0\n");
@@ -167,7 +163,7 @@ int __init omap4_pm_init(void)
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
 		pr_err("Failed to setup powerdomains\n");
-		goto err2;
+		return ret;
 	}
 
 	/*
@@ -184,23 +180,52 @@ int __init omap4_pm_init(void)
 	emif_clkdm = clkdm_lookup("l3_emif_clkdm");
 	l3_1_clkdm = clkdm_lookup("l3_1_clkdm");
 	l3_2_clkdm = clkdm_lookup("l3_2_clkdm");
-	l4_per_clkdm = clkdm_lookup("l4_per_clkdm");
-	l4wkup = clkdm_lookup("l4_wkup_clkdm");
 	ducati_clkdm = clkdm_lookup("ducati_clkdm");
-	if ((!mpuss_clkdm) || (!emif_clkdm) || (!l3_1_clkdm) || (!l4wkup) ||
-		(!l3_2_clkdm) || (!ducati_clkdm) || (!l4_per_clkdm))
-		goto err2;
+	if ((!mpuss_clkdm) || (!emif_clkdm) || (!l3_1_clkdm) ||
+		(!l3_2_clkdm) || (!ducati_clkdm))
+		return -EINVAL;
 
 	ret = clkdm_add_wkdep(mpuss_clkdm, emif_clkdm);
 	ret |= clkdm_add_wkdep(mpuss_clkdm, l3_1_clkdm);
 	ret |= clkdm_add_wkdep(mpuss_clkdm, l3_2_clkdm);
-	ret |= clkdm_add_wkdep(mpuss_clkdm, l4_per_clkdm);
-	ret |= clkdm_add_wkdep(mpuss_clkdm, l4wkup);
 	ret |= clkdm_add_wkdep(ducati_clkdm, l3_1_clkdm);
 	ret |= clkdm_add_wkdep(ducati_clkdm, l3_2_clkdm);
 	if (ret) {
 		pr_err("Failed to add MPUSS -> L3/EMIF/L4PER, DUCATI -> L3 wakeup dependency\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+/**
+ * omap4_pm_init - Init routine for OMAP4+ devices
+ *
+ * Initializes all powerdomain and clockdomain target states
+ * and all PRCM settings.
+ * Return: Returns the error code returned by called functions.
+ */
+int __init omap4_pm_init(void)
+{
+	int ret = 0;
+
+	if (omap_rev() == OMAP4430_REV_ES1_0) {
+		WARN(1, "Power Management not supported on OMAP4430 ES1.0\n");
+		return -ENODEV;
+	}
+
+	pr_info("Power Management for TI OMAP4+ devices.\n");
+
+	ret = pwrdm_for_each(pwrdms_setup, NULL);
+	if (ret) {
+		pr_err("Failed to setup powerdomains.\n");
 		goto err2;
+	}
+
+	if (cpu_is_omap44xx()) {
+		ret = omap4_init_static_deps();
+		if (ret)
+			goto err2;
 	}
 
 	ret = omap4_mpuss_init();
@@ -218,7 +243,8 @@ int __init omap4_pm_init(void)
 	/* Overwrite the default cpu_do_idle() */
 	arm_pm_idle = omap_default_idle;
 
-	omap4_idle_init();
+	if (cpu_is_omap44xx())
+		omap4_idle_init();
 
 err2:
 	return ret;

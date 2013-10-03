@@ -86,7 +86,7 @@ static int pcf50633_regulator_probe(struct platform_device *pdev)
 	pcf = dev_to_pcf50633(pdev->dev.parent);
 
 	config.dev = &pdev->dev;
-	config.init_data = pdev->dev.platform_data;
+	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = pcf;
 	config.regmap = pcf->regmap;
 
@@ -106,7 +106,6 @@ static int pcf50633_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	regulator_unregister(rdev);
 
 	return 0;

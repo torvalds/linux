@@ -114,7 +114,7 @@ extern int objio_alloc_lseg(struct pnfs_layout_segment **outp,
 	gfp_t gfp_flags);
 extern void objio_free_lseg(struct pnfs_layout_segment *lseg);
 
-/* objio_free_result will free these @oir structs recieved from
+/* objio_free_result will free these @oir structs received from
  * objlayout_{read,write}_done
  */
 extern void objio_free_result(struct objlayout_io_res *oir);

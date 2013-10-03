@@ -23,6 +23,7 @@
  * Bank : 0x5
  */
 #define AB8500_USB_LINE_STAT_REG	0x80
+#define AB8500_USB_LINE_CTRL2_REG	0x82
 #define AB8500_USB_LINK1_STAT_REG	0x94
 
 /*
@@ -33,7 +34,7 @@
 #define AB8500_CH_STATUS2_REG		0x01
 #define AB8500_CH_USBCH_STAT1_REG	0x02
 #define AB8500_CH_USBCH_STAT2_REG	0x03
-#define AB8500_CH_FSM_STAT_REG		0x04
+#define AB8540_CH_USBCH_STAT3_REG	0x04
 #define AB8500_CH_STAT_REG		0x05
 
 /*
@@ -69,6 +70,8 @@
 #define AB8500_USBCH_CTRL1_REG		0xC0
 #define AB8500_USBCH_CTRL2_REG		0xC1
 #define AB8500_USBCH_IPT_CRNTLVL_REG	0xC2
+#define AB8540_USB_PP_MODE_REG		0xC5
+#define AB8540_USB_PP_CHR_REG		0xC6
 
 /*
  * Gas Gauge register offsets
@@ -105,6 +108,7 @@
 #define AB8500_RTC_BACKUP_CHG_REG	0x0C
 #define AB8500_RTC_CC_CONF_REG		0x01
 #define AB8500_RTC_CTRL_REG		0x0B
+#define AB8500_RTC_CTRL1_REG		0x11
 
 /*
  * OTP register offsets
@@ -154,6 +158,7 @@
 #define CH_OP_CUR_LVL_1P4		0x0D
 #define CH_OP_CUR_LVL_1P5		0x0E
 #define CH_OP_CUR_LVL_1P6		0x0F
+#define CH_OP_CUR_LVL_2P		0x3F
 
 /* BTEMP High thermal limits */
 #define BTEMP_HIGH_TH_57_0		0x00
@@ -179,10 +184,25 @@
 #define BUP_ICH_SEL_300UA		0x08
 #define BUP_ICH_SEL_700UA		0x0C
 
-#define BUP_VCH_SEL_2P5V		0x00
-#define BUP_VCH_SEL_2P6V		0x01
-#define BUP_VCH_SEL_2P8V		0x02
-#define BUP_VCH_SEL_3P1V		0x03
+enum bup_vch_sel {
+	BUP_VCH_SEL_2P5V,
+	BUP_VCH_SEL_2P6V,
+	BUP_VCH_SEL_2P8V,
+	BUP_VCH_SEL_3P1V,
+	/*
+	 * Note that the following 5 values 2.7v, 2.9v, 3.0v, 3.2v, 3.3v
+	 * are only available on ab8540. You can't choose these 5
+	 * voltage on ab8500/ab8505/ab9540.
+	 */
+	BUP_VCH_SEL_2P7V,
+	BUP_VCH_SEL_2P9V,
+	BUP_VCH_SEL_3P0V,
+	BUP_VCH_SEL_3P2V,
+	BUP_VCH_SEL_3P3V,
+};
+
+#define BUP_VCH_RANGE		0x02
+#define VBUP33_VRTCN		0x01
 
 /* Battery OVV constants */
 #define BATT_OVV_ENA			0x02
@@ -228,12 +248,32 @@
 #define BAT_CTRL_20U_ENA		0x02
 #define BAT_CTRL_18U_ENA		0x01
 #define BAT_CTRL_16U_ENA		0x02
+#define BAT_CTRL_60U_ENA		0x01
+#define BAT_CTRL_120U_ENA		0x02
 #define BAT_CTRL_CMP_ENA		0x04
 #define FORCE_BAT_CTRL_CMP_HIGH		0x08
 #define BAT_CTRL_PULL_UP_ENA		0x10
 
 /* Battery type */
 #define BATTERY_UNKNOWN			00
+
+/* Registers for pcut feature in ab8505 and ab9540 */
+#define AB8505_RTC_PCUT_CTL_STATUS_REG	0x12
+#define AB8505_RTC_PCUT_TIME_REG	0x13
+#define AB8505_RTC_PCUT_MAX_TIME_REG	0x14
+#define AB8505_RTC_PCUT_FLAG_TIME_REG	0x15
+#define AB8505_RTC_PCUT_RESTART_REG	0x16
+#define AB8505_RTC_PCUT_DEBOUNCE_REG	0x17
+
+/* USB Power Path constants for ab8540 */
+#define BUS_VSYS_VOL_SELECT_MASK		0x06
+#define BUS_VSYS_VOL_SELECT_3P6V		0x00
+#define BUS_VSYS_VOL_SELECT_3P325V		0x02
+#define BUS_VSYS_VOL_SELECT_3P9V		0x04
+#define BUS_VSYS_VOL_SELECT_4P3V		0x06
+#define BUS_POWER_PATH_MODE_ENA			0x01
+#define BUS_PP_PRECHG_CURRENT_MASK		0x0E
+#define BUS_POWER_PATH_PRECHG_ENA		0x01
 
 /**
  * struct res_to_temp - defines one point in a temp to res curve. To
@@ -283,6 +323,11 @@ struct ab8500_fg;
  *				points.
  * @maint_thres			This is the threshold where we stop reporting
  *				battery full while in maintenance, in per cent
+ * @pcut_enable:			Enable power cut feature in ab8505
+ * @pcut_max_time:		Max time threshold
+ * @pcut_flag_time:		Flagtime threshold
+ * @pcut_max_restart:		Max number of restarts
+ * @pcut_debunce_time:	Sets battery debounce time
  */
 struct ab8500_fg_parameters {
 	int recovery_sleep_timer;
@@ -299,6 +344,11 @@ struct ab8500_fg_parameters {
 	int battok_raising_th_sel1;
 	int user_cap_limit;
 	int maint_thres;
+	bool pcut_enable;
+	u8 pcut_max_time;
+	u8 pcut_flag_time;
+	u8 pcut_max_restart;
+	u8 pcut_debunce_time;
 };
 
 /**
@@ -415,6 +465,7 @@ void ab8500_fg_reinit(void);
 void ab8500_charger_usb_state_changed(u8 bm_usb_state, u16 mA);
 struct ab8500_btemp *ab8500_btemp_get(void);
 int ab8500_btemp_get_batctrl_temp(struct ab8500_btemp *btemp);
+int ab8500_btemp_get_temp(struct ab8500_btemp *btemp);
 struct ab8500_fg *ab8500_fg_get(void);
 int ab8500_fg_inst_curr_blocking(struct ab8500_fg *dev);
 int ab8500_fg_inst_curr_start(struct ab8500_fg *di);

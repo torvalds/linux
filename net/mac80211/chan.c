@@ -22,7 +22,7 @@ static void ieee80211_change_chanctx(struct ieee80211_local *local,
 	drv_change_chanctx(local, ctx, IEEE80211_CHANCTX_CHANGE_WIDTH);
 
 	if (!local->use_chanctx) {
-		local->_oper_channel_type = cfg80211_get_chandef_type(chandef);
+		local->_oper_chandef = *chandef;
 		ieee80211_hw_config(local, 0);
 	}
 }
@@ -57,12 +57,29 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 	return NULL;
 }
 
+static bool ieee80211_is_radar_required(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (sdata->radar_required) {
+			rcu_read_unlock();
+			return true;
+		}
+	}
+	rcu_read_unlock();
+
+	return false;
+}
+
 static struct ieee80211_chanctx *
 ieee80211_new_chanctx(struct ieee80211_local *local,
 		      const struct cfg80211_chan_def *chandef,
 		      enum ieee80211_chanctx_mode mode)
 {
 	struct ieee80211_chanctx *ctx;
+	u32 changed;
 	int err;
 
 	lockdep_assert_held(&local->chanctx_mtx);
@@ -75,24 +92,35 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 	ctx->conf.rx_chains_static = 1;
 	ctx->conf.rx_chains_dynamic = 1;
 	ctx->mode = mode;
+	ctx->conf.radar_enabled = ieee80211_is_radar_required(local);
+	if (!local->use_chanctx)
+		local->hw.conf.radar_enabled = ctx->conf.radar_enabled;
+
+	/* acquire mutex to prevent idle from changing */
+	mutex_lock(&local->mtx);
+	/* turn idle off *before* setting channel -- some drivers need that */
+	changed = ieee80211_idle_off(local);
+	if (changed)
+		ieee80211_hw_config(local, changed);
 
 	if (!local->use_chanctx) {
-		local->_oper_channel_type =
-			cfg80211_get_chandef_type(chandef);
-		local->_oper_channel = chandef->chan;
+		local->_oper_chandef = *chandef;
 		ieee80211_hw_config(local, 0);
 	} else {
 		err = drv_add_chanctx(local, ctx);
 		if (err) {
 			kfree(ctx);
-			return ERR_PTR(err);
+			ctx = ERR_PTR(err);
+
+			ieee80211_recalc_idle(local);
+			goto out;
 		}
 	}
 
+	/* and keep the mutex held until the new chanctx is on the list */
 	list_add_rcu(&ctx->list, &local->chanctx_list);
 
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
+ out:
 	mutex_unlock(&local->mtx);
 
 	return ctx;
@@ -101,12 +129,24 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 static void ieee80211_free_chanctx(struct ieee80211_local *local,
 				   struct ieee80211_chanctx *ctx)
 {
+	bool check_single_channel = false;
 	lockdep_assert_held(&local->chanctx_mtx);
 
 	WARN_ON_ONCE(ctx->refcount != 0);
 
 	if (!local->use_chanctx) {
-		local->_oper_channel_type = NL80211_CHAN_NO_HT;
+		struct cfg80211_chan_def *chandef = &local->_oper_chandef;
+		chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
+		chandef->center_freq1 = chandef->chan->center_freq;
+		chandef->center_freq2 = 0;
+
+		/* NOTE: Disabling radar is only valid here for
+		 * single channel context. To be sure, check it ...
+		 */
+		if (local->hw.conf.radar_enabled)
+			check_single_channel = true;
+		local->hw.conf.radar_enabled = false;
+
 		ieee80211_hw_config(local, 0);
 	} else {
 		drv_remove_chanctx(local, ctx);
@@ -114,6 +154,9 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 
 	list_del_rcu(&ctx->list);
 	kfree_rcu(ctx, rcu_head);
+
+	/* throw a warning if this wasn't the only channel context. */
+	WARN_ON(check_single_channel && !list_empty(&local->chanctx_list));
 
 	mutex_lock(&local->mtx);
 	ieee80211_recalc_idle(local);
@@ -226,19 +269,11 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
 				    struct ieee80211_chanctx *chanctx)
 {
-	struct ieee80211_sub_if_data *sdata;
-	bool radar_enabled = false;
+	bool radar_enabled;
 
 	lockdep_assert_held(&local->chanctx_mtx);
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->radar_required) {
-			radar_enabled = true;
-			break;
-		}
-	}
-	rcu_read_unlock();
+	radar_enabled = ieee80211_is_radar_required(local);
 
 	if (radar_enabled == chanctx->conf.radar_enabled)
 		return;
@@ -370,6 +405,64 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_recalc_smps_chanctx(local, ctx);
 	ieee80211_recalc_radar_chanctx(local, ctx);
+ out:
+	mutex_unlock(&local->chanctx_mtx);
+	return ret;
+}
+
+int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
+				 const struct cfg80211_chan_def *chandef,
+				 u32 *changed)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *ctx;
+	int ret;
+	u32 chanctx_changed = 0;
+
+	/* should never be called if not performing a channel switch. */
+	if (WARN_ON(!sdata->vif.csa_active))
+		return -EINVAL;
+
+	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, chandef,
+				     IEEE80211_CHAN_DISABLED))
+		return -EINVAL;
+
+	mutex_lock(&local->chanctx_mtx);
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ctx = container_of(conf, struct ieee80211_chanctx, conf);
+	if (ctx->refcount != 1) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (sdata->vif.bss_conf.chandef.width != chandef->width) {
+		chanctx_changed = IEEE80211_CHANCTX_CHANGE_WIDTH;
+		*changed |= BSS_CHANGED_BANDWIDTH;
+	}
+
+	sdata->vif.bss_conf.chandef = *chandef;
+	ctx->conf.def = *chandef;
+
+	chanctx_changed |= IEEE80211_CHANCTX_CHANGE_CHANNEL;
+	drv_change_chanctx(local, ctx, chanctx_changed);
+
+	if (!local->use_chanctx) {
+		local->_oper_chandef = *chandef;
+		ieee80211_hw_config(local, 0);
+	}
+
+	ieee80211_recalc_chanctx_chantype(local, ctx);
+	ieee80211_recalc_smps_chanctx(local, ctx);
+	ieee80211_recalc_radar_chanctx(local, ctx);
+
+	ret = 0;
  out:
 	mutex_unlock(&local->chanctx_mtx);
 	return ret;

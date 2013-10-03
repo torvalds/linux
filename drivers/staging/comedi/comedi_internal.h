@@ -8,9 +8,8 @@
  */
 int do_rangeinfo_ioctl(struct comedi_device *dev,
 		       struct comedi_rangeinfo __user *arg);
-int comedi_alloc_board_minor(struct device *hardware_device);
-void comedi_free_board_minor(unsigned minor);
-int comedi_find_board_minor(struct device *hardware_device);
+struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device);
+void comedi_release_hardware_device(struct device *hardware_device);
 int comedi_alloc_subdevice_minor(struct comedi_subdevice *s);
 void comedi_free_subdevice_minor(struct comedi_subdevice *s);
 
@@ -25,6 +24,7 @@ extern unsigned int comedi_default_buf_maxsize_kb;
 /* drivers.c */
 
 extern struct comedi_driver *comedi_drivers;
+extern struct mutex comedi_drivers_list_lock;
 
 int insn_inval(struct comedi_device *, struct comedi_subdevice *,
 	       struct comedi_insn *, unsigned int *);

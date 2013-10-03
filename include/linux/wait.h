@@ -23,6 +23,7 @@ struct __wait_queue {
 struct wait_bit_key {
 	void *flags;
 	int bit_nr;
+#define WAIT_ATOMIC_T_BIT_NR -1
 };
 
 struct wait_bit_queue {
@@ -59,6 +60,9 @@ struct task_struct;
 
 #define __WAIT_BIT_KEY_INITIALIZER(word, bit)				\
 	{ .flags = word, .bit_nr = bit, }
+
+#define __WAIT_ATOMIC_T_KEY_INITIALIZER(p)				\
+	{ .flags = p, .bit_nr = WAIT_ATOMIC_T_BIT_NR, }
 
 extern void __init_waitqueue_head(wait_queue_head_t *q, const char *name, struct lock_class_key *);
 
@@ -146,8 +150,10 @@ void __wake_up_bit(wait_queue_head_t *, void *, int);
 int __wait_on_bit(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned);
 int __wait_on_bit_lock(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned);
 void wake_up_bit(void *, int);
+void wake_up_atomic_t(atomic_t *);
 int out_of_line_wait_on_bit(void *, int, int (*)(void *), unsigned);
 int out_of_line_wait_on_bit_lock(void *, int, int (*)(void *), unsigned);
+int out_of_line_wait_on_atomic_t(atomic_t *, int (*)(atomic_t *), unsigned);
 wait_queue_head_t *bit_waitqueue(void *, int);
 
 #define wake_up(x)			__wake_up(x, TASK_NORMAL, 1, NULL)
@@ -217,6 +223,8 @@ do {									\
 		if (!ret)						\
 			break;						\
 	}								\
+	if (!ret && (condition))					\
+		ret = 1;						\
 	finish_wait(&wq, &__wait);					\
 } while (0)
 
@@ -233,8 +241,9 @@ do {									\
  * wake_up() has to be called after changing any variable that could
  * change the result of the wait condition.
  *
- * The function returns 0 if the @timeout elapsed, and the remaining
- * jiffies if the condition evaluated to true before the timeout elapsed.
+ * The function returns 0 if the @timeout elapsed, or the remaining
+ * jiffies (at least 1) if the @condition evaluated to %true before
+ * the @timeout elapsed.
  */
 #define wait_event_timeout(wq, condition, timeout)			\
 ({									\
@@ -302,6 +311,8 @@ do {									\
 		ret = -ERESTARTSYS;					\
 		break;							\
 	}								\
+	if (!ret && (condition))					\
+		ret = 1;						\
 	finish_wait(&wq, &__wait);					\
 } while (0)
 
@@ -318,15 +329,102 @@ do {									\
  * wake_up() has to be called after changing any variable that could
  * change the result of the wait condition.
  *
- * The function returns 0 if the @timeout elapsed, -ERESTARTSYS if it
- * was interrupted by a signal, and the remaining jiffies otherwise
- * if the condition evaluated to true before the timeout elapsed.
+ * Returns:
+ * 0 if the @timeout elapsed, -%ERESTARTSYS if it was interrupted by
+ * a signal, or the remaining jiffies (at least 1) if the @condition
+ * evaluated to %true before the @timeout elapsed.
  */
 #define wait_event_interruptible_timeout(wq, condition, timeout)	\
 ({									\
 	long __ret = timeout;						\
 	if (!(condition))						\
 		__wait_event_interruptible_timeout(wq, condition, __ret); \
+	__ret;								\
+})
+
+#define __wait_event_hrtimeout(wq, condition, timeout, state)		\
+({									\
+	int __ret = 0;							\
+	DEFINE_WAIT(__wait);						\
+	struct hrtimer_sleeper __t;					\
+									\
+	hrtimer_init_on_stack(&__t.timer, CLOCK_MONOTONIC,		\
+			      HRTIMER_MODE_REL);			\
+	hrtimer_init_sleeper(&__t, current);				\
+	if ((timeout).tv64 != KTIME_MAX)				\
+		hrtimer_start_range_ns(&__t.timer, timeout,		\
+				       current->timer_slack_ns,		\
+				       HRTIMER_MODE_REL);		\
+									\
+	for (;;) {							\
+		prepare_to_wait(&wq, &__wait, state);			\
+		if (condition)						\
+			break;						\
+		if (state == TASK_INTERRUPTIBLE &&			\
+		    signal_pending(current)) {				\
+			__ret = -ERESTARTSYS;				\
+			break;						\
+		}							\
+		if (!__t.task) {					\
+			__ret = -ETIME;					\
+			break;						\
+		}							\
+		schedule();						\
+	}								\
+									\
+	hrtimer_cancel(&__t.timer);					\
+	destroy_hrtimer_on_stack(&__t.timer);				\
+	finish_wait(&wq, &__wait);					\
+	__ret;								\
+})
+
+/**
+ * wait_event_hrtimeout - sleep until a condition gets true or a timeout elapses
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * @timeout: timeout, as a ktime_t
+ *
+ * The process is put to sleep (TASK_UNINTERRUPTIBLE) until the
+ * @condition evaluates to true or a signal is received.
+ * The @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * The function returns 0 if @condition became true, or -ETIME if the timeout
+ * elapsed.
+ */
+#define wait_event_hrtimeout(wq, condition, timeout)			\
+({									\
+	int __ret = 0;							\
+	if (!(condition))						\
+		__ret = __wait_event_hrtimeout(wq, condition, timeout,	\
+					       TASK_UNINTERRUPTIBLE);	\
+	__ret;								\
+})
+
+/**
+ * wait_event_interruptible_hrtimeout - sleep until a condition gets true or a timeout elapses
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * @timeout: timeout, as a ktime_t
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE) until the
+ * @condition evaluates to true or a signal is received.
+ * The @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * The function returns 0 if @condition became true, -ERESTARTSYS if it was
+ * interrupted by a signal, or -ETIME if the timeout elapsed.
+ */
+#define wait_event_interruptible_hrtimeout(wq, condition, timeout)	\
+({									\
+	long __ret = 0;							\
+	if (!(condition))						\
+		__ret = __wait_event_hrtimeout(wq, condition, timeout,	\
+					       TASK_INTERRUPTIBLE);	\
 	__ret;								\
 })
 
@@ -713,6 +811,63 @@ do {									\
 	__ret;								\
 })
 
+#define __wait_event_interruptible_lock_irq_timeout(wq, condition,	\
+						    lock, ret)		\
+do {									\
+	DEFINE_WAIT(__wait);						\
+									\
+	for (;;) {							\
+		prepare_to_wait(&wq, &__wait, TASK_INTERRUPTIBLE);	\
+		if (condition)						\
+			break;						\
+		if (signal_pending(current)) {				\
+			ret = -ERESTARTSYS;				\
+			break;						\
+		}							\
+		spin_unlock_irq(&lock);					\
+		ret = schedule_timeout(ret);				\
+		spin_lock_irq(&lock);					\
+		if (!ret)						\
+			break;						\
+	}								\
+	finish_wait(&wq, &__wait);					\
+} while (0)
+
+/**
+ * wait_event_interruptible_lock_irq_timeout - sleep until a condition gets true or a timeout elapses.
+ *		The condition is checked under the lock. This is expected
+ *		to be called with the lock taken.
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * @lock: a locked spinlock_t, which will be released before schedule()
+ *	  and reacquired afterwards.
+ * @timeout: timeout, in jiffies
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE) until the
+ * @condition evaluates to true or signal is received. The @condition is
+ * checked each time the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * This is supposed to be called while holding the lock. The lock is
+ * dropped before going to sleep and is reacquired afterwards.
+ *
+ * The function returns 0 if the @timeout elapsed, -ERESTARTSYS if it
+ * was interrupted by a signal, and the remaining jiffies otherwise
+ * if the condition evaluated to true before the timeout elapsed.
+ */
+#define wait_event_interruptible_lock_irq_timeout(wq, condition, lock,	\
+						  timeout)		\
+({									\
+	int __ret = timeout;						\
+									\
+	if (!(condition))						\
+		__wait_event_interruptible_lock_irq_timeout(		\
+					wq, condition, lock, __ret);	\
+	__ret;								\
+})
+
 
 /*
  * These are the old interfaces to sleep waiting for an event.
@@ -809,6 +964,24 @@ static inline int wait_on_bit_lock(void *word, int bit,
 	if (!test_and_set_bit(bit, word))
 		return 0;
 	return out_of_line_wait_on_bit_lock(word, bit, action, mode);
+}
+
+/**
+ * wait_on_atomic_t - Wait for an atomic_t to become 0
+ * @val: The atomic value being waited on, a kernel virtual address
+ * @action: the function used to sleep, which may take special actions
+ * @mode: the task state to sleep in
+ *
+ * Wait for an atomic_t to become 0.  We abuse the bit-wait waitqueue table for
+ * the purpose of getting a waitqueue, but we set the key to a bit number
+ * outside of the target 'word'.
+ */
+static inline
+int wait_on_atomic_t(atomic_t *val, int (*action)(atomic_t *), unsigned mode)
+{
+	if (atomic_read(val) == 0)
+		return 0;
+	return out_of_line_wait_on_atomic_t(val, action, mode);
 }
 	
 #endif

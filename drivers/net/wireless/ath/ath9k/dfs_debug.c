@@ -96,7 +96,7 @@ static ssize_t write_file_dfs(struct file *file, const char __user *user_buf,
 		return -EFAULT;
 
 	buf[len] = '\0';
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val == DFS_STATS_RESET_MAGIC)
@@ -104,6 +104,24 @@ static ssize_t write_file_dfs(struct file *file, const char __user *user_buf,
 		       sizeof(sc->debug.stats.dfs_stats));
 	return count;
 }
+
+static ssize_t write_file_simulate_radar(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+
+	ieee80211_radar_detected(sc->hw);
+
+	return count;
+}
+
+static const struct file_operations fops_simulate_radar = {
+	.write = write_file_simulate_radar,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
 
 static const struct file_operations fops_dfs_stats = {
 	.read = read_file_dfs,
@@ -117,4 +135,6 @@ void ath9k_dfs_init_debug(struct ath_softc *sc)
 {
 	debugfs_create_file("dfs_stats", S_IRUSR,
 			    sc->debug.debugfs_phy, sc, &fops_dfs_stats);
+	debugfs_create_file("dfs_simulate_radar", S_IWUSR,
+			    sc->debug.debugfs_phy, sc, &fops_simulate_radar);
 }

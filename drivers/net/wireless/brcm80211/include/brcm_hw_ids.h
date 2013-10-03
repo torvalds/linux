@@ -29,6 +29,7 @@
 
 /* Chipcommon Core Chip IDs */
 #define BCM4313_CHIP_ID		0x4313
+#define BCM43143_CHIP_ID	43143
 #define BCM43224_CHIP_ID	43224
 #define BCM43225_CHIP_ID	43225
 #define BCM43235_CHIP_ID	43235
@@ -39,5 +40,6 @@
 #define BCM4330_CHIP_ID		0x4330
 #define BCM4331_CHIP_ID		0x4331
 #define BCM4334_CHIP_ID		0x4334
+#define BCM4335_CHIP_ID		0x4335
 
 #endif				/* _BRCM_HW_IDS_H_ */

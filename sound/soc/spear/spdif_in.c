@@ -49,15 +49,12 @@ static void spdif_in_configure(struct spdif_in_dev *host)
 	writel(0xF, host->io_base + SPDIF_IN_IRQ_MASK);
 }
 
-static int spdif_in_startup(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *cpu_dai)
+static int spdif_in_dai_probe(struct snd_soc_dai *dai)
 {
-	struct spdif_in_dev *host = snd_soc_dai_get_drvdata(cpu_dai);
+	struct spdif_in_dev *host = snd_soc_dai_get_drvdata(dai);
 
-	if (substream->stream != SNDRV_PCM_STREAM_CAPTURE)
-		return -EINVAL;
+	dai->capture_dma_data = &host->dma_params;
 
-	snd_soc_dai_set_dma_data(cpu_dai, substream, (void *)&host->dma_params);
 	return 0;
 }
 
@@ -70,7 +67,6 @@ static void spdif_in_shutdown(struct snd_pcm_substream *substream,
 		return;
 
 	writel(0x0, host->io_base + SPDIF_IN_IRQ_MASK);
-	snd_soc_dai_set_dma_data(dai, substream, NULL);
 }
 
 static void spdif_in_format(struct spdif_in_dev *host, u32 format)
@@ -151,13 +147,13 @@ static int spdif_in_trigger(struct snd_pcm_substream *substream, int cmd,
 }
 
 static struct snd_soc_dai_ops spdif_in_dai_ops = {
-	.startup	= spdif_in_startup,
 	.shutdown	= spdif_in_shutdown,
 	.trigger	= spdif_in_trigger,
 	.hw_params	= spdif_in_hw_params,
 };
 
-struct snd_soc_dai_driver spdif_in_dai = {
+static struct snd_soc_dai_driver spdif_in_dai = {
+	.probe = spdif_in_dai_probe,
 	.capture = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -168,6 +164,10 @@ struct snd_soc_dai_driver spdif_in_dai = {
 			   SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE,
 	},
 	.ops = &spdif_in_dai_ops,
+};
+
+static const struct snd_soc_component_driver spdif_in_component = {
+	.name		= "spdif-in",
 };
 
 static irqreturn_t spdif_in_irq(int irq, void *arg)
@@ -231,7 +231,7 @@ static int spdif_in_probe(struct platform_device *pdev)
 	if (host->irq < 0)
 		return -EINVAL;
 
-	host->clk = clk_get(&pdev->dev, NULL);
+	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk))
 		return PTR_ERR(host->clk);
 
@@ -253,32 +253,20 @@ static int spdif_in_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, host->irq, spdif_in_irq, 0,
 			"spdif-in", host);
 	if (ret) {
-		clk_put(host->clk);
 		dev_warn(&pdev->dev, "request_irq failed\n");
 		return ret;
 	}
 
-	ret = snd_soc_register_dai(&pdev->dev, &spdif_in_dai);
-	if (ret != 0) {
-		clk_put(host->clk);
-		return ret;
-	}
-
-	return 0;
+	return snd_soc_register_component(&pdev->dev, &spdif_in_component,
+					 &spdif_in_dai, 1);
 }
 
 static int spdif_in_remove(struct platform_device *pdev)
 {
-	struct spdif_in_dev *host = dev_get_drvdata(&pdev->dev);
-
-	snd_soc_unregister_dai(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
-
-	clk_put(host->clk);
+	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }
-
 
 static struct platform_driver spdif_in_driver = {
 	.probe		= spdif_in_probe,

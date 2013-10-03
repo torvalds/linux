@@ -1001,7 +1001,6 @@ static int ti_hecc_remove(struct platform_device *pdev)
 	iounmap(priv->base);
 	release_mem_region(res->start, resource_size(res));
 	free_candev(ndev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -224,22 +224,6 @@ static int ade7754_reset(struct device *dev)
 	return ade7754_spi_write_reg_8(dev, ADE7754_OPMODE, val);
 }
 
-
-static ssize_t ade7754_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	if (len < 1)
-		return -1;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return ade7754_reset(dev);
-	}
-	return -1;
-}
-
 static IIO_DEV_ATTR_AENERGY(ade7754_read_24bit, ADE7754_AENERGY);
 static IIO_DEV_ATTR_LAENERGY(ade7754_read_24bit, ADE7754_LAENERGY);
 static IIO_DEV_ATTR_VAENERGY(ade7754_read_24bit, ADE7754_VAENERGY);
@@ -478,8 +462,6 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		ade7754_read_frequency,
 		ade7754_write_frequency);
 
-static IIO_DEV_ATTR_RESET(ade7754_write_reset);
-
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("26000 13000 65000 33000");
 
 static struct attribute *ade7754_attributes[] = {
@@ -488,7 +470,6 @@ static struct attribute *ade7754_attributes[] = {
 	&iio_const_attr_in_temp_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_aenergy.dev_attr.attr,
 	&iio_dev_attr_laenergy.dev_attr.attr,
 	&iio_dev_attr_vaenergy.dev_attr.attr,

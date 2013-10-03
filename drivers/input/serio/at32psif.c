@@ -314,8 +314,6 @@ static int __exit psif_remove(struct platform_device *pdev)
 	clk_put(psif->pclk);
 	kfree(psif);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
@@ -359,18 +357,7 @@ static struct platform_driver psif_driver = {
 	},
 };
 
-static int __init psif_init(void)
-{
-	return platform_driver_probe(&psif_driver, psif_probe);
-}
-
-static void __exit psif_exit(void)
-{
-	platform_driver_unregister(&psif_driver);
-}
-
-module_init(psif_init);
-module_exit(psif_exit);
+module_platform_driver_probe(psif_driver, psif_probe);
 
 MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("Atmel AVR32 PSIF PS/2 driver");

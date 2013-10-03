@@ -162,7 +162,7 @@ static int tlv320aic23b_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = kzalloc(sizeof(struct tlv320aic23b_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 	sd = &state->sd;
@@ -191,7 +191,6 @@ static int tlv320aic23b_probe(struct i2c_client *client,
 		int err = state->hdl.error;
 
 		v4l2_ctrl_handler_free(&state->hdl);
-		kfree(state);
 		return err;
 	}
 	v4l2_ctrl_handler_setup(&state->hdl);
@@ -205,7 +204,6 @@ static int tlv320aic23b_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
-	kfree(state);
 	return 0;
 }
 

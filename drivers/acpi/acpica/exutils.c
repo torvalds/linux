@@ -340,7 +340,7 @@ static u32 acpi_ex_digits_needed(u64 value, u32 base)
 	/* u64 is unsigned, so we don't worry about a '-' prefix */
 
 	if (value == 0) {
-		return_VALUE(1);
+		return_UINT32(1);
 	}
 
 	current_value = value;
@@ -354,7 +354,7 @@ static u32 acpi_ex_digits_needed(u64 value, u32 base)
 		num_digits++;
 	}
 
-	return_VALUE(num_digits);
+	return_UINT32(num_digits);
 }
 
 /*******************************************************************************

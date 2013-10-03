@@ -226,6 +226,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 			mm->len = PAGE_ALIGN(((1UL << uresp.size_log2) + 1) *
 					     sizeof(struct t3_cqe));
 			uresp.memsize = mm->len;
+			uresp.reserved = 0;
 			resplen = sizeof uresp;
 		}
 		if (ib_copy_to_udata(udata, &uresp, resplen)) {
@@ -559,7 +560,7 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 	__be64 *page_list = NULL;
 	int shift = 0;
 	u64 total_size;
-	int npages;
+	int npages = 0;
 	int ret;
 
 	PDBG("%s ib_mr %p ib_pd %p\n", __func__, mr, pd);

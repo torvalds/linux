@@ -597,13 +597,6 @@ mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 }
 
 static int
-mptctl_release(struct inode *inode, struct file *filep)
-{
-	fasync_helper(-1, filep, 0, &async_queue);
-	return 0;
-}
-
-static int
 mptctl_fasync(int fd, struct file *filep, int mode)
 {
 	MPT_ADAPTER	*ioc;
@@ -2822,7 +2815,6 @@ static const struct file_operations mptctl_fops = {
 	.llseek =	no_llseek,
 	.fasync = 	mptctl_fasync,
 	.unlocked_ioctl = mptctl_ioctl,
-	.release =	mptctl_release,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_mpctl_ioctl,
 #endif

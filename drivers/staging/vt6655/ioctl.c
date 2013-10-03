@@ -41,7 +41,7 @@
 static int msglevel = MSG_LEVEL_INFO;
 
 #ifdef WPA_SM_Transtatus
-	SWPAResult wpa_Result;
+SWPAResult wpa_Result;
 #endif
 
 int private_ioctl(PSDevice pDevice, struct ifreq *rq)
@@ -64,7 +64,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 	PKnownBSS	pBSS;
 	PKnownNodeDB	pNode;
 	unsigned int	ii, jj;
-	SCmdLinkStatus	sLinkStatus;
 	unsigned char	abySuppRates[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
 	unsigned char	abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	unsigned long	dwKeyIndex = 0;
@@ -104,9 +103,9 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
 
 		if (pItemSSID->len != 0)
-			bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
+			bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
 		else
-			bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+			bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 		spin_unlock_irq(&pDevice->lock);
 		break;
 
@@ -202,8 +201,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		netif_stop_queue(pDevice->dev);
 		spin_lock_irq(&pDevice->lock);
 		pMgmt->eCurrState = WMAC_STATE_IDLE;
-		bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-		bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
+		bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+		bScheduleCommand((void *)pDevice, WLAN_CMD_SSID, NULL);
 		spin_unlock_irq(&pDevice->lock);
 		break;
 
@@ -245,10 +244,12 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
 		break;
 
-	case WLAN_CMD_GET_LINK:
+	case WLAN_CMD_GET_LINK: {
+		SCmdLinkStatus sLinkStatus;
+
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_GET_LINK status.\n");
 
-		memset(sLinkStatus.abySSID, 0 , WLAN_SSID_MAXLEN + 1);
+		memset(&sLinkStatus, 0, sizeof(sLinkStatus));
 
 		if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)
 			sLinkStatus.wBSSType = ADHOC;
@@ -267,7 +268,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			memcpy(sLinkStatus.abySSID, pItemSSID->abySSID, pItemSSID->len);
 			memcpy(sLinkStatus.abyBSSID, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 			sLinkStatus.uLinkRate = pMgmt->sNodeDBTable[0].wTxDataRate;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Link Success!\n");
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Link Success!\n");
 		} else {
 			sLinkStatus.bLink = false;
 			sLinkStatus.uLinkRate = 0;
@@ -277,7 +278,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			break;
 		}
 		break;
-
+	}
 	case WLAN_CMD_GET_LISTLEN:
 		cbListCount = 0;
 		pBSS = &(pMgmt->sBSSList[0]);
@@ -311,7 +312,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		}
 		pList->uItem = sList.uItem;
 		pBSS = &(pMgmt->sBSSList[0]);
-		for (ii = 0, jj = 0; jj < MAX_BSS_NUM ; jj++) {
+		for (ii = 0, jj = 0; jj < MAX_BSS_NUM; jj++) {
 			pBSS = &(pMgmt->sBSSList[jj]);
 			if (pBSS->bActive) {
 				pList->sBSSIDList[ii].uChannel = pBSS->uChannel;
@@ -459,7 +460,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		}
 		if (sValue.dwValue == 1) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "up wpadev\n");
-			memcpy(pDevice->wpadev->dev_addr, pDevice->dev->dev_addr, ETH_ALEN);
+			eth_hw_addr_inherit(pDevice->wpadev, pDevice->dev);
 			pDevice->bWPADEVUp = true;
 		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "close wpadev\n");
@@ -540,7 +541,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		}
 
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Support Rate= %*ph\n",
-				4, pMgmt->abyIBSSSuppRates + 2);
+			4, pMgmt->abyIBSSSuppRates + 2);
 
 		netif_stop_queue(pDevice->dev);
 		spin_lock_irq(&pDevice->lock);

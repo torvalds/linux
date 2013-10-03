@@ -404,7 +404,7 @@ module_exit(hvc_vio_exit);
 void __init hvc_vio_init_early(void)
 {
 	struct device_node *stdout_node;
-	const u32 *termno;
+	const __be32 *termno;
 	const char *name;
 	const struct hv_ops *ops;
 
@@ -429,7 +429,7 @@ void __init hvc_vio_init_early(void)
 	termno = of_get_property(stdout_node, "reg", NULL);
 	if (termno == NULL)
 		goto out;
-	hvterm_priv0.termno = *termno;
+	hvterm_priv0.termno = of_read_number(termno, 1);
 	spin_lock_init(&hvterm_priv0.buf_lock);
 	hvterm_privs[0] = &hvterm_priv0;
 

@@ -2,6 +2,7 @@
  * H.323 connection tracking helper
  *
  * Copyright (c) 2006 Jing Min Zhao <zhaojingmin@users.sourceforge.net>
+ * Copyright (c) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * This source code is licensed under General Public License version 2.
  *

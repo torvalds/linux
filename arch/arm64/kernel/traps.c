@@ -32,6 +32,7 @@
 #include <linux/syscalls.h>
 
 #include <asm/atomic.h>
+#include <asm/debug-monitors.h>
 #include <asm/traps.h>
 #include <asm/stacktrace.h>
 #include <asm/exception.h>
@@ -167,13 +168,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	}
 }
 
-void dump_stack(void)
-{
-	dump_backtrace(NULL, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
 void show_stack(struct task_struct *tsk, unsigned long *sp)
 {
 	dump_backtrace(NULL, tsk);
@@ -268,13 +262,12 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	siginfo_t info;
 	void __user *pc = (void __user *)instruction_pointer(regs);
 
-#ifdef CONFIG_COMPAT
 	/* check for AArch32 breakpoint instructions */
-	if (compat_user_mode(regs) && aarch32_break_trap(regs) == 0)
+	if (!aarch32_break_handler(regs))
 		return;
-#endif
 
-	if (show_unhandled_signals) {
+	if (show_unhandled_signals && unhandled_signal(current, SIGILL) &&
+	    printk_ratelimit()) {
 		pr_info("%s[%d]: undefined instruction: pc=%p\n",
 			current->comm, task_pid_nr(current), pc);
 		dump_instr(KERN_INFO, regs);
@@ -301,7 +294,7 @@ asmlinkage long do_ni_syscall(struct pt_regs *regs)
 	}
 #endif
 
-	if (show_unhandled_signals) {
+	if (show_unhandled_signals && printk_ratelimit()) {
 		pr_info("%s[%d]: syscall %d\n", current->comm,
 			task_pid_nr(current), (int)regs->syscallno);
 		dump_instr("", regs);
@@ -317,14 +310,20 @@ asmlinkage long do_ni_syscall(struct pt_regs *regs)
  */
 asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 {
+	siginfo_t info;
+	void __user *pc = (void __user *)instruction_pointer(regs);
 	console_verbose();
 
 	pr_crit("Bad mode in %s handler detected, code 0x%08x\n",
 		handler[reason], esr);
+	__show_regs(regs);
 
-	die("Oops - bad mode", regs, 0);
-	local_irq_disable();
-	panic("bad mode");
+	info.si_signo = SIGILL;
+	info.si_errno = 0;
+	info.si_code  = ILL_ILLOPC;
+	info.si_addr  = pc;
+
+	arm64_notify_die("Oops - bad mode", regs, &info, 0);
 }
 
 void __pte_error(const char *file, int line, unsigned long val)

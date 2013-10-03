@@ -71,18 +71,27 @@ flush_cache_all_local(void)
 }
 EXPORT_SYMBOL(flush_cache_all_local);
 
+/* Virtual address of pfn.  */
+#define pfn_va(pfn)	__va(PFN_PHYS(pfn))
+
 void
 update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
-	struct page *page = pte_page(*ptep);
+	unsigned long pfn = pte_pfn(*ptep);
+	struct page *page;
 
-	if (pfn_valid(page_to_pfn(page)) && page_mapping(page) &&
-	    test_bit(PG_dcache_dirty, &page->flags)) {
+	/* We don't have pte special.  As a result, we can be called with
+	   an invalid pfn and we don't need to flush the kernel dcache page.
+	   This occurs with FireGL card in C8000.  */
+	if (!pfn_valid(pfn))
+		return;
 
-		flush_kernel_dcache_page(page);
+	page = pfn_to_page(pfn);
+	if (page_mapping(page) && test_bit(PG_dcache_dirty, &page->flags)) {
+		flush_kernel_dcache_page_addr(pfn_va(pfn));
 		clear_bit(PG_dcache_dirty, &page->flags);
 	} else if (parisc_requires_coherency())
-		flush_kernel_dcache_page(page);
+		flush_kernel_dcache_page_addr(pfn_va(pfn));
 }
 
 void
@@ -421,14 +430,11 @@ void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 	/* Note: purge_tlb_entries can be called at startup with
 	   no context.  */
 
-	/* Disable preemption while we play with %sr1.  */
-	preempt_disable();
-	mtsp(mm->context, 1);
 	purge_tlb_start(flags);
+	mtsp(mm->context, 1);
 	pdtlb(addr);
 	pitlb(addr);
 	purge_tlb_end(flags);
-	preempt_enable();
 }
 EXPORT_SYMBOL(purge_tlb_entries);
 
@@ -443,8 +449,8 @@ void __flush_tlb_range(unsigned long sid, unsigned long start,
 	else {
 		unsigned long flags;
 
-		mtsp(sid, 1);
 		purge_tlb_start(flags);
+		mtsp(sid, 1);
 		if (split_tlb) {
 			while (npages--) {
 				pdtlb(start);
@@ -498,44 +504,42 @@ static inline pte_t *get_ptep(pgd_t *pgd, unsigned long addr)
 
 void flush_cache_mm(struct mm_struct *mm)
 {
+	struct vm_area_struct *vma;
+	pgd_t *pgd;
+
 	/* Flushing the whole cache on each cpu takes forever on
 	   rp3440, etc.  So, avoid it if the mm isn't too big.  */
-	if (mm_total_size(mm) < parisc_cache_flush_threshold) {
-		struct vm_area_struct *vma;
+	if (mm_total_size(mm) >= parisc_cache_flush_threshold) {
+		flush_cache_all();
+		return;
+	}
 
-		if (mm->context == mfsp(3)) {
-			for (vma = mm->mmap; vma; vma = vma->vm_next) {
-				flush_user_dcache_range_asm(vma->vm_start,
-					vma->vm_end);
-				if (vma->vm_flags & VM_EXEC)
-					flush_user_icache_range_asm(
-					  vma->vm_start, vma->vm_end);
-			}
-		} else {
-			pgd_t *pgd = mm->pgd;
-
-			for (vma = mm->mmap; vma; vma = vma->vm_next) {
-				unsigned long addr;
-
-				for (addr = vma->vm_start; addr < vma->vm_end;
-				     addr += PAGE_SIZE) {
-					pte_t *ptep = get_ptep(pgd, addr);
-					if (ptep != NULL) {
-						pte_t pte = *ptep;
-						__flush_cache_page(vma, addr,
-						  page_to_phys(pte_page(pte)));
-					}
-				}
-			}
+	if (mm->context == mfsp(3)) {
+		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+			flush_user_dcache_range_asm(vma->vm_start, vma->vm_end);
+			if ((vma->vm_flags & VM_EXEC) == 0)
+				continue;
+			flush_user_icache_range_asm(vma->vm_start, vma->vm_end);
 		}
 		return;
 	}
 
-#ifdef CONFIG_SMP
-	flush_cache_all();
-#else
-	flush_cache_all_local();
-#endif
+	pgd = mm->pgd;
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		unsigned long addr;
+
+		for (addr = vma->vm_start; addr < vma->vm_end;
+		     addr += PAGE_SIZE) {
+			unsigned long pfn;
+			pte_t *ptep = get_ptep(pgd, addr);
+			if (!ptep)
+				continue;
+			pfn = pte_pfn(*ptep);
+			if (!pfn_valid(pfn))
+				continue;
+			__flush_cache_page(vma, addr, PFN_PHYS(pfn));
+		}
+	}
 }
 
 void
@@ -559,33 +563,32 @@ flush_user_icache_range(unsigned long start, unsigned long end)
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end)
 {
+	unsigned long addr;
+	pgd_t *pgd;
+
 	BUG_ON(!vma->vm_mm->context);
 
-	if ((end - start) < parisc_cache_flush_threshold) {
-		if (vma->vm_mm->context == mfsp(3)) {
-			flush_user_dcache_range_asm(start, end);
-			if (vma->vm_flags & VM_EXEC)
-				flush_user_icache_range_asm(start, end);
-		} else {
-			unsigned long addr;
-			pgd_t *pgd = vma->vm_mm->pgd;
-
-			for (addr = start & PAGE_MASK; addr < end;
-			     addr += PAGE_SIZE) {
-				pte_t *ptep = get_ptep(pgd, addr);
-				if (ptep != NULL) {
-					pte_t pte = *ptep;
-					flush_cache_page(vma,
-					   addr, pte_pfn(pte));
-				}
-			}
-		}
-	} else {
-#ifdef CONFIG_SMP
+	if ((end - start) >= parisc_cache_flush_threshold) {
 		flush_cache_all();
-#else
-		flush_cache_all_local();
-#endif
+		return;
+	}
+
+	if (vma->vm_mm->context == mfsp(3)) {
+		flush_user_dcache_range_asm(start, end);
+		if (vma->vm_flags & VM_EXEC)
+			flush_user_icache_range_asm(start, end);
+		return;
+	}
+
+	pgd = vma->vm_mm->pgd;
+	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
+		unsigned long pfn;
+		pte_t *ptep = get_ptep(pgd, addr);
+		if (!ptep)
+			continue;
+		pfn = pte_pfn(*ptep);
+		if (pfn_valid(pfn))
+			__flush_cache_page(vma, addr, PFN_PHYS(pfn));
 	}
 }
 
@@ -594,9 +597,10 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 {
 	BUG_ON(!vma->vm_mm->context);
 
-	flush_tlb_page(vma, vmaddr);
-	__flush_cache_page(vma, vmaddr, page_to_phys(pfn_to_page(pfn)));
-
+	if (pfn_valid(pfn)) {
+		flush_tlb_page(vma, vmaddr);
+		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
+	}
 }
 
 #ifdef CONFIG_PARISC_TMPALIAS
@@ -609,7 +613,7 @@ void clear_user_highpage(struct page *page, unsigned long vaddr)
 	/* Clear using TMPALIAS region.  The page doesn't need to
 	   be flushed but the kernel mapping needs to be purged.  */
 
-	vto = kmap_atomic(page, KM_USER0);
+	vto = kmap_atomic(page);
 
 	/* The PA-RISC 2.0 Architecture book states on page F-6:
 	   "Before a write-capable translation is enabled, *all*
@@ -644,8 +648,8 @@ void copy_user_highpage(struct page *to, struct page *from,
 	   the `to' page must be flushed in copy_user_page_asm since
 	   it can be used to bring in executable code.  */
 
-	vfrom = kmap_atomic(from, KM_USER0);
-	vto = kmap_atomic(to, KM_USER1);
+	vfrom = kmap_atomic(from);
+	vto = kmap_atomic(to);
 
 	purge_kernel_dcache_page_asm((unsigned long)vto);
 	purge_tlb_start(flags);

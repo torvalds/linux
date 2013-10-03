@@ -46,7 +46,7 @@ static unsigned int sysfs_name_hash(const void *ns, const char *name)
 	unsigned int len = strlen(name);
 	while (len--)
 		hash = partial_name_hash(*name++, hash);
-	hash = ( end_name_hash(hash) ^ hash_ptr( (void *)ns, 31 ) );
+	hash = (end_name_hash(hash) ^ hash_ptr((void *)ns, 31));
 	hash &= 0x7fffffffU;
 	/* Reserve hash numbers 0, 1 and INT_MAX for magic directory entries */
 	if (hash < 1)
@@ -74,7 +74,7 @@ static int sysfs_sd_compare(const struct sysfs_dirent *left,
 }
 
 /**
- *	sysfs_link_subling - link sysfs_dirent into sibling rbtree
+ *	sysfs_link_sibling - link sysfs_dirent into sibling rbtree
  *	@sd: sysfs_dirent of interest
  *
  *	Link @sd into its sibling rbtree which starts from
@@ -165,21 +165,8 @@ struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
 	if (unlikely(!sd))
 		return NULL;
 
-	while (1) {
-		int v, t;
-
-		v = atomic_read(&sd->s_active);
-		if (unlikely(v < 0))
-			return NULL;
-
-		t = atomic_cmpxchg(&sd->s_active, v, v + 1);
-		if (likely(t == v))
-			break;
-		if (t < 0)
-			return NULL;
-
-		cpu_relax();
-	}
+	if (!atomic_inc_unless_negative(&sd->s_active))
+		return NULL;
 
 	if (likely(!ignore_lockdep(sd)))
 		rwsem_acquire_read(&sd->dep_map, 0, 1, _RET_IP_);
@@ -271,7 +258,7 @@ static void sysfs_free_ino(unsigned int ino)
 	spin_unlock(&sysfs_ino_lock);
 }
 
-void release_sysfs_dirent(struct sysfs_dirent * sd)
+void release_sysfs_dirent(struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent *parent_sd;
 
@@ -280,6 +267,10 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 	 * sd->s_parent won't change beneath us.
 	 */
 	parent_sd = sd->s_parent;
+
+	WARN(!(sd->s_flags & SYSFS_FLAG_REMOVED),
+		"sysfs: free using entry: %s/%s\n",
+		parent_sd ? parent_sd->s_name : "", sd->s_name);
 
 	if (sysfs_type(sd) == SYSFS_KOBJ_LINK)
 		sysfs_put(sd->s_symlink.target_sd);
@@ -306,7 +297,6 @@ static int sysfs_dentry_delete(const struct dentry *dentry)
 static int sysfs_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct sysfs_dirent *sd;
-	int is_dir;
 	int type;
 
 	if (flags & LOOKUP_RCU)
@@ -350,18 +340,15 @@ out_bad:
 	 * is performed at its new name the dentry will be readded
 	 * to the dcache hashes.
 	 */
-	is_dir = (sysfs_type(sd) == SYSFS_DIR);
 	mutex_unlock(&sysfs_mutex);
-	if (is_dir) {
-		/* If we have submounts we must allow the vfs caches
-		 * to lie about the state of the filesystem to prevent
-		 * leaks and other nasty things.
-		 */
-		if (have_submounts(dentry))
-			goto out_valid;
-		shrink_dcache_parent(dentry);
-	}
-	d_drop(dentry);
+
+	/* If we have submounts we must allow the vfs caches
+	 * to lie about the state of the filesystem to prevent
+	 * leaks and other nasty things.
+	 */
+	if (check_submounts_and_drop(dentry) != 0)
+		goto out_valid;
+
 	return 0;
 }
 
@@ -399,7 +386,7 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 
 	sd->s_name = name;
 	sd->s_mode = mode;
-	sd->s_flags = type;
+	sd->s_flags = type | SYSFS_FLAG_REMOVED;
 
 	return sd;
 
@@ -460,7 +447,7 @@ int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 
 	if (!!sysfs_ns_type(acxt->parent_sd) != !!sd->s_ns) {
 		WARN(1, KERN_WARNING "sysfs: ns %s in '%s' for '%s'\n",
-			sysfs_ns_type(acxt->parent_sd)? "required": "invalid",
+			sysfs_ns_type(acxt->parent_sd) ? "required" : "invalid",
 			acxt->parent_sd->s_name, sd->s_name);
 		return -EINVAL;
 	}
@@ -478,6 +465,9 @@ int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 		struct iattr *ps_iattrs = &ps_iattr->ia_iattr;
 		ps_iattrs->ia_ctime = ps_iattrs->ia_mtime = CURRENT_TIME;
 	}
+
+	/* Mark the entry added into directory tree */
+	sd->s_flags &= ~SYSFS_FLAG_REMOVED;
 
 	return 0;
 }
@@ -625,7 +615,7 @@ struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
 
 	if (!!sysfs_ns_type(parent_sd) != !!ns) {
 		WARN(1, KERN_WARNING "sysfs: ns %s in '%s' for '%s'\n",
-			sysfs_ns_type(parent_sd)? "required": "invalid",
+			sysfs_ns_type(parent_sd) ? "required" : "invalid",
 			parent_sd->s_name, name);
 		return NULL;
 	}
@@ -680,7 +670,7 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	enum kobj_ns_type type, const void *ns, const char *name,
 	struct sysfs_dirent **p_sd)
 {
-	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
+	umode_t mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
 	int rc;
@@ -741,9 +731,9 @@ static enum kobj_ns_type sysfs_read_ns_type(struct kobject *kobj)
 
 /**
  *	sysfs_create_dir - create a directory for an object.
- *	@kobj:		object we're creating directory for. 
+ *	@kobj:		object we're creating directory for.
  */
-int sysfs_create_dir(struct kobject * kobj)
+int sysfs_create_dir(struct kobject *kobj)
 {
 	enum kobj_ns_type type;
 	struct sysfs_dirent *parent_sd, *sd;
@@ -770,8 +760,8 @@ int sysfs_create_dir(struct kobject * kobj)
 	return error;
 }
 
-static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
-				unsigned int flags)
+static struct dentry *sysfs_lookup(struct inode *dir, struct dentry *dentry,
+				   unsigned int flags)
 {
 	struct dentry *ret = NULL;
 	struct dentry *parent = dentry->d_parent;
@@ -863,7 +853,7 @@ static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
  *	what used to be sysfs_rmdir() below, instead of calling separately.
  */
 
-void sysfs_remove_dir(struct kobject * kobj)
+void sysfs_remove_dir(struct kobject *kobj)
 {
 	struct sysfs_dirent *sd = kobj->sd;
 
@@ -902,7 +892,9 @@ int sysfs_rename(struct sysfs_dirent *sd,
 		sd->s_name = new_name;
 	}
 
-	/* Move to the appropriate place in the appropriate directories rbtree. */
+	/*
+	 * Move to the appropriate place in the appropriate directories rbtree.
+	 */
 	sysfs_unlink_sibling(sd);
 	sysfs_get(new_parent_sd);
 	sysfs_put(sd->s_parent);
@@ -994,71 +986,49 @@ static struct sysfs_dirent *sysfs_dir_next_pos(const void *ns,
 	struct sysfs_dirent *parent_sd,	ino_t ino, struct sysfs_dirent *pos)
 {
 	pos = sysfs_dir_pos(ns, parent_sd, ino, pos);
-	if (pos) do {
-		struct rb_node *node = rb_next(&pos->s_rb);
-		if (!node)
-			pos = NULL;
-		else
-			pos = to_sysfs_dirent(node);
-	} while (pos && pos->s_ns != ns);
+	if (pos)
+		do {
+			struct rb_node *node = rb_next(&pos->s_rb);
+			if (!node)
+				pos = NULL;
+			else
+				pos = to_sysfs_dirent(node);
+		} while (pos && pos->s_ns != ns);
 	return pos;
 }
 
-static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
+static int sysfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct dentry *dentry = filp->f_path.dentry;
-	struct sysfs_dirent * parent_sd = dentry->d_fsdata;
-	struct sysfs_dirent *pos = filp->private_data;
+	struct dentry *dentry = file->f_path.dentry;
+	struct sysfs_dirent *parent_sd = dentry->d_fsdata;
+	struct sysfs_dirent *pos = file->private_data;
 	enum kobj_ns_type type;
 	const void *ns;
-	ino_t ino;
 
 	type = sysfs_ns_type(parent_sd);
 	ns = sysfs_info(dentry->d_sb)->ns[type];
 
-	if (filp->f_pos == 0) {
-		ino = parent_sd->s_ino;
-		if (filldir(dirent, ".", 1, filp->f_pos, ino, DT_DIR) == 0)
-			filp->f_pos++;
-		else
-			return 0;
-	}
-	if (filp->f_pos == 1) {
-		if (parent_sd->s_parent)
-			ino = parent_sd->s_parent->s_ino;
-		else
-			ino = parent_sd->s_ino;
-		if (filldir(dirent, "..", 2, filp->f_pos, ino, DT_DIR) == 0)
-			filp->f_pos++;
-		else
-			return 0;
-	}
+	if (!dir_emit_dots(file, ctx))
+		return 0;
 	mutex_lock(&sysfs_mutex);
-	for (pos = sysfs_dir_pos(ns, parent_sd, filp->f_pos, pos);
+	for (pos = sysfs_dir_pos(ns, parent_sd, ctx->pos, pos);
 	     pos;
-	     pos = sysfs_dir_next_pos(ns, parent_sd, filp->f_pos, pos)) {
-		const char * name;
-		unsigned int type;
-		int len, ret;
-
-		name = pos->s_name;
-		len = strlen(name);
-		ino = pos->s_ino;
-		type = dt_type(pos);
-		filp->f_pos = pos->s_hash;
-		filp->private_data = sysfs_get(pos);
+	     pos = sysfs_dir_next_pos(ns, parent_sd, ctx->pos, pos)) {
+		const char *name = pos->s_name;
+		unsigned int type = dt_type(pos);
+		int len = strlen(name);
+		ino_t ino = pos->s_ino;
+		ctx->pos = pos->s_hash;
+		file->private_data = sysfs_get(pos);
 
 		mutex_unlock(&sysfs_mutex);
-		ret = filldir(dirent, name, len, filp->f_pos, ino, type);
+		if (!dir_emit(ctx, name, len, ino, type))
+			return 0;
 		mutex_lock(&sysfs_mutex);
-		if (ret < 0)
-			break;
 	}
 	mutex_unlock(&sysfs_mutex);
-	if ((filp->f_pos > 1) && !pos) { /* EOF */
-		filp->f_pos = INT_MAX;
-		filp->private_data = NULL;
-	}
+	file->private_data = NULL;
+	ctx->pos = INT_MAX;
 	return 0;
 }
 
@@ -1076,7 +1046,7 @@ static loff_t sysfs_dir_llseek(struct file *file, loff_t offset, int whence)
 
 const struct file_operations sysfs_dir_operations = {
 	.read		= generic_read_dir,
-	.readdir	= sysfs_readdir,
+	.iterate	= sysfs_readdir,
 	.release	= sysfs_dir_release,
 	.llseek		= sysfs_dir_llseek,
 };

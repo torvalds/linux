@@ -13,10 +13,6 @@
 #include "ieee80211_i.h"
 #include "mesh.h"
 
-#define TMR_RUNNING_HK	0
-#define TMR_RUNNING_MP	1
-#define TMR_RUNNING_MPR	2
-
 static int mesh_allocated;
 static struct kmem_cache *rm_cache;
 
@@ -50,11 +46,6 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 
-	if (local->quiescing) {
-		set_bit(TMR_RUNNING_HK, &ifmsh->timers_running);
-		return;
-	}
-
 	ieee80211_queue_work(&local->hw, &sdata->work);
 }
 
@@ -71,7 +62,6 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_local *local = sdata->local;
 	u32 basic_rates = 0;
 	struct cfg80211_chan_def sta_chan_def;
 
@@ -94,7 +84,7 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
 		return false;
 
-	ieee80211_sta_get_rates(local, ie, ieee80211_get_sdata_band(sdata),
+	ieee80211_sta_get_rates(sdata, ie, ieee80211_get_sdata_band(sdata),
 				&basic_rates);
 
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
@@ -165,7 +155,7 @@ void mesh_sta_cleanup(struct sta_info *sta)
 	 * an update.
 	 */
 	changed = mesh_accept_plinks_update(sdata);
-	if (sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) {
+	if (!sdata->u.mesh.user_mpm) {
 		changed |= mesh_plink_deactivate(sta);
 		del_timer_sync(&sta->plink_timer);
 	}
@@ -280,11 +270,12 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	*pos++ = ifmsh->mesh_auth_id;
 	/* Mesh Formation Info - number of neighbors */
 	neighbors = atomic_read(&ifmsh->estab_plinks);
-	/* Number of neighbor mesh STAs or 15 whichever is smaller */
-	neighbors = (neighbors > 15) ? 15 : neighbors;
+	neighbors = min_t(int, neighbors, IEEE80211_MAX_MESH_PEERINGS);
 	*pos++ = neighbors << 1;
 	/* Mesh capability */
-	*pos = IEEE80211_MESHCONF_CAPAB_FORWARDING;
+	*pos = 0x00;
+	*pos |= ifmsh->mshcfg.dot11MeshForwarding ?
+			IEEE80211_MESHCONF_CAPAB_FORWARDING : 0x00;
 	*pos |= ifmsh->accepting_plinks ?
 			IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	/* Mesh PS mode. See IEEE802.11-2012 8.4.2.100.8 */
@@ -426,7 +417,9 @@ int mesh_add_ht_cap_ie(struct ieee80211_sub_if_data *sdata,
 
 	sband = local->hw.wiphy->bands[band];
 	if (!sband->ht_cap.ht_supported ||
-	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_5 ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_10)
 		return 0;
 
 	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_cap))
@@ -479,15 +472,8 @@ static void ieee80211_mesh_path_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_local *local = sdata->local;
 
-	if (local->quiescing) {
-		set_bit(TMR_RUNNING_MP, &ifmsh->timers_running);
-		return;
-	}
-
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
 
 static void ieee80211_mesh_path_root_timer(unsigned long data)
@@ -495,16 +481,10 @@ static void ieee80211_mesh_path_root_timer(unsigned long data)
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_local *local = sdata->local;
 
 	set_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags);
 
-	if (local->quiescing) {
-		set_bit(TMR_RUNNING_MPR, &ifmsh->timers_running);
-		return;
-	}
-
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
 
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
@@ -595,7 +575,7 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u32 changed;
 
-	ieee80211_sta_expire(sdata, IEEE80211_MESH_PEER_INACTIVITY_LIMIT);
+	ieee80211_sta_expire(sdata, ifmsh->mshcfg.plink_timeout * HZ);
 	mesh_path_expire(sdata);
 
 	changed = mesh_accept_plinks_update(sdata);
@@ -621,35 +601,6 @@ static void ieee80211_mesh_rootpath(struct ieee80211_sub_if_data *sdata)
 	mod_timer(&ifmsh->mesh_path_root_timer,
 		  round_jiffies(TU_TO_EXP_TIME(interval)));
 }
-
-#ifdef CONFIG_PM
-void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-
-	/* use atomic bitops in case all timers fire at the same time */
-
-	if (del_timer_sync(&ifmsh->housekeeping_timer))
-		set_bit(TMR_RUNNING_HK, &ifmsh->timers_running);
-	if (del_timer_sync(&ifmsh->mesh_path_timer))
-		set_bit(TMR_RUNNING_MP, &ifmsh->timers_running);
-	if (del_timer_sync(&ifmsh->mesh_path_root_timer))
-		set_bit(TMR_RUNNING_MPR, &ifmsh->timers_running);
-}
-
-void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-
-	if (test_and_clear_bit(TMR_RUNNING_HK, &ifmsh->timers_running))
-		add_timer(&ifmsh->housekeeping_timer);
-	if (test_and_clear_bit(TMR_RUNNING_MP, &ifmsh->timers_running))
-		add_timer(&ifmsh->mesh_path_timer);
-	if (test_and_clear_bit(TMR_RUNNING_MPR, &ifmsh->timers_running))
-		add_timer(&ifmsh->mesh_path_root_timer);
-	ieee80211_mesh_root_setup(ifmsh);
-}
-#endif
 
 static int
 ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
@@ -748,40 +699,38 @@ out_free:
 }
 
 static int
-ieee80211_mesh_rebuild_beacon(struct ieee80211_if_mesh *ifmsh)
+ieee80211_mesh_rebuild_beacon(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata;
 	struct beacon_data *old_bcn;
 	int ret;
-	sdata = container_of(ifmsh, struct ieee80211_sub_if_data, u.mesh);
 
-	mutex_lock(&ifmsh->mtx);
-
-	old_bcn = rcu_dereference_protected(ifmsh->beacon,
-					    lockdep_is_held(&ifmsh->mtx));
-	ret = ieee80211_mesh_build_beacon(ifmsh);
+	old_bcn = rcu_dereference_protected(sdata->u.mesh.beacon,
+					    lockdep_is_held(&sdata->wdev.mtx));
+	ret = ieee80211_mesh_build_beacon(&sdata->u.mesh);
 	if (ret)
 		/* just reuse old beacon */
-		goto out;
+		return ret;
 
 	if (old_bcn)
 		kfree_rcu(old_bcn, rcu_head);
-out:
-	mutex_unlock(&ifmsh->mtx);
-	return ret;
+	return 0;
 }
 
 void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				       u32 changed)
 {
-	if (sdata->vif.bss_conf.enable_beacon &&
-	    (changed & (BSS_CHANGED_BEACON |
-			BSS_CHANGED_HT |
-			BSS_CHANGED_BASIC_RATES |
-			BSS_CHANGED_BEACON_INT)))
-		if (ieee80211_mesh_rebuild_beacon(&sdata->u.mesh))
-			return;
-	ieee80211_bss_info_change_notify(sdata, changed);
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	unsigned long bits = changed;
+	u32 bit;
+
+	if (!bits)
+		return;
+
+	/* if we race with running work, worst case this work becomes a noop */
+	for_each_set_bit(bit, &bits, sizeof(changed) * BITS_PER_BYTE)
+		set_bit(bit, &ifmsh->mbss_changed);
+	set_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
 
 int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
@@ -793,7 +742,6 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 		      BSS_CHANGED_HT |
 		      BSS_CHANGED_BASIC_RATES |
 		      BSS_CHANGED_BEACON_INT;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 
 	local->fif_other_bss++;
 	/* mesh ifaces must set allmulti to forward mcast traffic */
@@ -801,7 +749,6 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_configure_filter(local);
 
 	ifmsh->mesh_cc_id = 0;	/* Disabled */
-	ifmsh->mesh_auth_id = 0;	/* Disabled */
 	/* register sync ops from extensible synchronization framework */
 	ifmsh->sync_ops = ieee80211_mesh_sync_ops_get(ifmsh->mesh_sp_id);
 	ifmsh->adjusting_tbtt = false;
@@ -812,8 +759,6 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.ht_operation_mode =
 				ifmsh->mshcfg.ht_opmode;
 	sdata->vif.bss_conf.enable_beacon = true;
-	sdata->vif.bss_conf.basic_rates =
-		ieee80211_mandatory_rates(local, band);
 
 	changed |= ieee80211_mps_local_status_update(sdata);
 
@@ -841,12 +786,10 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.enable_beacon = false;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
-	mutex_lock(&ifmsh->mtx);
 	bcn = rcu_dereference_protected(ifmsh->beacon,
-					lockdep_is_held(&ifmsh->mtx));
+					lockdep_is_held(&sdata->wdev.mtx));
 	rcu_assign_pointer(ifmsh->beacon, NULL);
 	kfree_rcu(bcn, rcu_head);
-	mutex_unlock(&ifmsh->mtx);
 
 	/* flush STAs and mpaths on this iface */
 	sta_info_flush(sdata);
@@ -859,20 +802,14 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_timer);
-	/*
-	 * If the timer fired while we waited for it, it will have
-	 * requeued the work. Now the work will be running again
-	 * but will not rearm the timer again because it checks
-	 * whether the interface is running, which, at this point,
-	 * it no longer is.
-	 */
-	cancel_work_sync(&sdata->work);
+
+	/* clear any mesh work (for next join) we may have accrued */
+	ifmsh->wrkq_flags = 0;
+	ifmsh->mbss_changed = 0;
 
 	local->fif_other_bss--;
 	atomic_dec(&local->iff_allmultis);
 	ieee80211_configure_filter(local);
-
-	sdata->u.mesh.timers_running = 0;
 }
 
 static void
@@ -886,15 +823,17 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *hdr;
 	struct ieee802_11_elems elems;
 	size_t baselen;
-	u8 *pos, *end;
+	u8 *pos;
 
-	end = ((u8 *) mgmt) + len;
 	pos = mgmt->u.probe_req.variable;
 	baselen = (u8 *) pos - (u8 *) mgmt;
 	if (baselen > len)
 		return;
 
-	ieee802_11_parse_elems(pos, len - baselen, &elems);
+	ieee802_11_parse_elems(pos, len - baselen, false, &elems);
+
+	if (!elems.mesh_id)
+		return;
 
 	/* 802.11-2012 10.1.4.3.2 */
 	if ((!ether_addr_equal(mgmt->da, sdata->vif.addr) &&
@@ -955,7 +894,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
-			       &elems);
+			       false, &elems);
 
 	/* ignore non-mesh or secure / unsecure mismatch */
 	if ((!elems.mesh_id || !elems.mesh_config) ||
@@ -963,7 +902,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	    (!elems.rsn && sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE))
 		return;
 
-	if (elems.ds_params && elems.ds_params_len == 1)
+	if (elems.ds_params)
 		freq = ieee80211_channel_to_frequency(elems.ds_params[0], band);
 	else
 		freq = rx_status->freq;
@@ -1010,6 +949,12 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	u16 stype;
 
+	sdata_lock(sdata);
+
+	/* mesh already went down */
+	if (!sdata->wdev.mesh_id_len)
+		goto out;
+
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	mgmt = (struct ieee80211_mgmt *) skb->data;
 	stype = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE;
@@ -1027,11 +972,41 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_mesh_rx_mgmt_action(sdata, mgmt, skb->len, rx_status);
 		break;
 	}
+out:
+	sdata_unlock(sdata);
+}
+
+static void mesh_bss_info_changed(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	u32 bit, changed = 0;
+
+	for_each_set_bit(bit, &ifmsh->mbss_changed,
+			 sizeof(changed) * BITS_PER_BYTE) {
+		clear_bit(bit, &ifmsh->mbss_changed);
+		changed |= BIT(bit);
+	}
+
+	if (sdata->vif.bss_conf.enable_beacon &&
+	    (changed & (BSS_CHANGED_BEACON |
+			BSS_CHANGED_HT |
+			BSS_CHANGED_BASIC_RATES |
+			BSS_CHANGED_BEACON_INT)))
+		if (ieee80211_mesh_rebuild_beacon(sdata))
+			return;
+
+	ieee80211_bss_info_change_notify(sdata, changed);
 }
 
 void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	sdata_lock(sdata);
+
+	/* mesh already went down */
+	if (!sdata->wdev.mesh_id_len)
+		goto out;
 
 	if (ifmsh->preq_queue_len &&
 	    time_after(jiffies,
@@ -1052,6 +1027,11 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 
 	if (test_and_clear_bit(MESH_WORK_DRIFT_ADJUST, &ifmsh->wrkq_flags))
 		mesh_sync_adjust_tbtt(sdata);
+
+	if (test_and_clear_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags))
+		mesh_bss_info_changed(sdata);
+out:
+	sdata_unlock(sdata);
 }
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
@@ -1097,7 +1077,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	spin_lock_init(&ifmsh->mesh_preq_queue_lock);
 	spin_lock_init(&ifmsh->sync_offset_lock);
 	RCU_INIT_POINTER(ifmsh->beacon, NULL);
-	mutex_init(&ifmsh->mtx);
 
 	sdata->vif.bss_conf.bssid = zero_addr;
 }

@@ -11,12 +11,17 @@
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <asm/debug.h>
 
 #include <asm/pci_dma.h>
 
 static struct dentry *debugfs_root;
+debug_info_t *pci_debug_msg_id;
+EXPORT_SYMBOL_GPL(pci_debug_msg_id);
+debug_info_t *pci_debug_err_id;
+EXPORT_SYMBOL_GPL(pci_debug_err_id);
 
 static char *pci_perf_names[] = {
 	/* hardware counters */
@@ -110,27 +115,6 @@ static const struct file_operations debugfs_pci_perf_fops = {
 	.release = single_release,
 };
 
-static int pci_debug_show(struct seq_file *m, void *v)
-{
-	struct zpci_dev *zdev = m->private;
-
-	zpci_debug_info(zdev, m);
-	return 0;
-}
-
-static int pci_debug_seq_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, pci_debug_show,
-			   file_inode(filp)->i_private);
-}
-
-static const struct file_operations debugfs_pci_debug_fops = {
-	.open	 = pci_debug_seq_open,
-	.read	 = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-};
-
 void zpci_debug_init_device(struct zpci_dev *zdev)
 {
 	zdev->debugfs_dev = debugfs_create_dir(dev_name(&zdev->pdev->dev),
@@ -144,19 +128,11 @@ void zpci_debug_init_device(struct zpci_dev *zdev)
 				&debugfs_pci_perf_fops);
 	if (IS_ERR(zdev->debugfs_perf))
 		zdev->debugfs_perf = NULL;
-
-	zdev->debugfs_debug = debugfs_create_file("debug",
-				S_IFREG | S_IRUGO | S_IWUSR,
-				zdev->debugfs_dev, zdev,
-				&debugfs_pci_debug_fops);
-	if (IS_ERR(zdev->debugfs_debug))
-		zdev->debugfs_debug = NULL;
 }
 
 void zpci_debug_exit_device(struct zpci_dev *zdev)
 {
 	debugfs_remove(zdev->debugfs_perf);
-	debugfs_remove(zdev->debugfs_debug);
 	debugfs_remove(zdev->debugfs_dev);
 }
 
@@ -168,7 +144,6 @@ int __init zpci_debug_init(void)
 		return -EINVAL;
 	debug_register_view(pci_debug_msg_id, &debug_sprintf_view);
 	debug_set_level(pci_debug_msg_id, 3);
-	zpci_dbg("Debug view initialized\n");
 
 	/* error log */
 	pci_debug_err_id = debug_register("pci_error", 2, 1, 16);
@@ -176,7 +151,6 @@ int __init zpci_debug_init(void)
 		return -EINVAL;
 	debug_register_view(pci_debug_err_id, &debug_hex_ascii_view);
 	debug_set_level(pci_debug_err_id, 6);
-	zpci_err("Debug view initialized\n");
 
 	debugfs_root = debugfs_create_dir("pci", NULL);
 	return 0;

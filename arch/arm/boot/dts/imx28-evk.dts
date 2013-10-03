@@ -123,19 +123,46 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a
 					     &lcdif_pins_evk>;
-				panel-enable-gpios = <&gpio3 30 0>;
+				lcd-supply = <&reg_lcd_3v3>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <32>;
+					bus-width = <24>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <33500000>;
+							hactive = <800>;
+							vactive = <480>;
+							hback-porch = <89>;
+							hfront-porch = <164>;
+							vback-porch = <23>;
+							vfront-porch = <10>;
+							hsync-len = <10>;
+							vsync-len = <10>;
+							hsync-active = <0>;
+							vsync-active = <0>;
+							de-active = <1>;
+							pixelclk-active = <0>;
+						};
+					};
+				};
 			};
 
 			can0: can@80032000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&can0_pins_a>;
+				xceiver-supply = <&reg_can_3v3>;
 				status = "okay";
 			};
 
 			can1: can@80034000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&can1_pins_a>;
+				xceiver-supply = <&reg_can_3v3>;
 				status = "okay";
 			};
 		};
@@ -168,7 +195,7 @@
 					reg = <0x0a>;
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
-
+					clocks = <&saif0>;
 				};
 
 				at24@51 {
@@ -193,6 +220,7 @@
 			auart0: serial@8006a000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&auart0_pins_a>;
+				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
@@ -285,6 +313,25 @@
 			gpio = <&gpio3 8 0>;
 			enable-active-high;
 		};
+
+		reg_lcd_3v3: lcd-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "lcd-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio3 30 0>;
+			enable-active-high;
+		};
+
+		reg_can_3v3: can-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "can-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 13 0>;
+			enable-active-high;
+		};
+
 	};
 
 	sound {

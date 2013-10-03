@@ -359,6 +359,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	}
 
 	device->default_expires = DIAG_TIMEOUT;
+	device->default_retries = DIAG_MAX_RETRIES;
 
 	/* Figure out position of label block */
 	switch (private->rdc_data.vdev_class) {
@@ -555,7 +556,7 @@ static struct dasd_ccw_req *dasd_diag_build_cp(struct dasd_device *memdev,
 			recid++;
 		}
 	}
-	cqr->retries = DIAG_MAX_RETRIES;
+	cqr->retries = memdev->default_retries;
 	cqr->buildclk = get_tod_clock();
 	if (blk_noretry_request(req) ||
 	    block->base->features & DASD_FEATURE_FAILFAST)
@@ -582,7 +583,10 @@ dasd_diag_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 
 static void dasd_diag_handle_terminated_request(struct dasd_ccw_req *cqr)
 {
-	cqr->status = DASD_CQR_FILLED;
+	if (cqr->retries < 0)
+		cqr->status = DASD_CQR_FAILED;
+	else
+		cqr->status = DASD_CQR_FILLED;
 };
 
 /* Fill in IOCTL data for device. */
@@ -641,7 +645,7 @@ dasd_diag_init(void)
 	}
 	ASCEBC(dasd_diag_discipline.ebcname, 4);
 
-	service_subclass_irq_register();
+	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
 	register_external_interrupt(0x2603, dasd_ext_handler);
 	dasd_diag_discipline_pointer = &dasd_diag_discipline;
 	return 0;
@@ -651,7 +655,7 @@ static void __exit
 dasd_diag_cleanup(void)
 {
 	unregister_external_interrupt(0x2603, dasd_ext_handler);
-	service_subclass_irq_unregister();
+	irq_subclass_unregister(IRQ_SUBCLASS_SERVICE_SIGNAL);
 	dasd_diag_discipline_pointer = NULL;
 }
 

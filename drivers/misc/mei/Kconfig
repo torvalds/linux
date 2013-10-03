@@ -10,10 +10,9 @@ config INTEL_MEI
 	  <http://software.intel.com/en-us/manageability/>
 
 config INTEL_MEI_ME
-	bool "ME Enabled Intel Chipsets"
-	depends on INTEL_MEI
+	tristate "ME Enabled Intel Chipsets"
+	select INTEL_MEI
 	depends on X86 && PCI && WATCHDOG_CORE
-	default y
 	help
 	  MEI support for ME Enabled Intel chipsets.
 

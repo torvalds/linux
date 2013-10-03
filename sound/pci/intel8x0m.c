@@ -1328,7 +1328,6 @@ static int snd_intel8x0m_probe(struct pci_dev *pci,
 static void snd_intel8x0m_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver intel8x0m_driver = {

@@ -381,11 +381,6 @@ static int s3c_adc_probe(struct platform_device *pdev)
 	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!regs) {
-		dev_err(dev, "failed to find registers\n");
-		return -ENXIO;
-	}
-
 	adc->regs = devm_ioremap_resource(dev, regs);
 	if (IS_ERR(adc->regs))
 		return PTR_ERR(adc->regs);

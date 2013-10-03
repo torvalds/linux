@@ -578,7 +578,6 @@ out3:
 out2:
 	free_dma(CH_PPI);
 out1:
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
@@ -608,7 +607,6 @@ static int bfin_t350mcqb_remove(struct platform_device *pdev)
 
 	bfin_t350mcqb_request_ports(0);
 
-	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);
 
 	printk(KERN_INFO DRIVER_NAME ": Unregister LCD driver.\n");

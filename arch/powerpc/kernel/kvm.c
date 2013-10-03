@@ -750,18 +750,8 @@ EXPORT_SYMBOL_GPL(kvm_hypercall);
 
 static __init void kvm_free_tmp(void)
 {
-	unsigned long start, end;
-
-	start = (ulong)&kvm_tmp[kvm_tmp_index + (PAGE_SIZE - 1)] & PAGE_MASK;
-	end = (ulong)&kvm_tmp[ARRAY_SIZE(kvm_tmp)] & PAGE_MASK;
-
-	/* Free the tmp space we don't need */
-	for (; start < end; start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(start));
-		init_page_count(virt_to_page(start));
-		free_page(start);
-		totalram_pages++;
-	}
+	free_reserved_area(&kvm_tmp[kvm_tmp_index],
+			   &kvm_tmp[ARRAY_SIZE(kvm_tmp)], -1, NULL);
 }
 
 static int __init kvm_guest_init(void)

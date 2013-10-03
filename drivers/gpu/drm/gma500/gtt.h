@@ -60,5 +60,5 @@ extern int psb_gtt_pin(struct gtt_range *gt);
 extern void psb_gtt_unpin(struct gtt_range *gt);
 extern void psb_gtt_roll(struct drm_device *dev,
 					struct gtt_range *gt, int roll);
-
+extern int psb_gtt_restore(struct drm_device *dev);
 #endif

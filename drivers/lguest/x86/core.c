@@ -59,14 +59,13 @@ static struct {
 /* Offset from where switcher.S was compiled to where we've copied it */
 static unsigned long switcher_offset(void)
 {
-	return SWITCHER_ADDR - (unsigned long)start_switcher_text;
+	return switcher_addr - (unsigned long)start_switcher_text;
 }
 
-/* This cpu's struct lguest_pages. */
+/* This cpu's struct lguest_pages (after the Switcher text page) */
 static struct lguest_pages *lguest_pages(unsigned int cpu)
 {
-	return &(((struct lguest_pages *)
-		  (SWITCHER_ADDR + SHARED_SWITCHER_PAGES*PAGE_SIZE))[cpu]);
+	return &(((struct lguest_pages *)(switcher_addr + PAGE_SIZE))[cpu]);
 }
 
 static DEFINE_PER_CPU(struct lg_cpu *, lg_last_cpu);
@@ -701,7 +700,7 @@ void lguest_arch_setup_regs(struct lg_cpu *cpu, unsigned long start)
 	 * interrupts are enabled.  We always leave interrupts enabled while
 	 * running the Guest.
 	 */
-	regs->eflags = X86_EFLAGS_IF | X86_EFLAGS_BIT1;
+	regs->eflags = X86_EFLAGS_IF | X86_EFLAGS_FIXED;
 
 	/*
 	 * The "Extended Instruction Pointer" register says where the Guest is

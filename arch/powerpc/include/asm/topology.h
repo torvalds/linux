@@ -71,12 +71,17 @@ static inline void sysfs_remove_device_from_node(struct device *dev,
 #if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
 extern int start_topology_update(void);
 extern int stop_topology_update(void);
+extern int prrn_is_enabled(void);
 #else
 static inline int start_topology_update(void)
 {
 	return 0;
 }
 static inline int stop_topology_update(void)
+{
+	return 0;
+}
+static inline int prrn_is_enabled(void)
 {
 	return 0;
 }
@@ -91,6 +96,7 @@ static inline int stop_topology_update(void)
 #ifdef CONFIG_PPC64
 #include <asm/smp.h>
 
+#define topology_physical_package_id(cpu)	(cpu_to_chip_id(cpu))
 #define topology_thread_cpumask(cpu)	(per_cpu(cpu_sibling_map, cpu))
 #define topology_core_cpumask(cpu)	(per_cpu(cpu_core_map, cpu))
 #define topology_core_id(cpu)		(cpu_to_core_id(cpu))

@@ -1,7 +1,7 @@
 /*
  * Glue Code for x86_64/AVX/AES-NI assembler optimized version of Camellia
  *
- * Copyright © 2012 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
+ * Copyright © 2012-2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,16 +26,44 @@
 
 #define CAMELLIA_AESNI_PARALLEL_BLOCKS 16
 
-/* 16-way AES-NI parallel cipher functions */
+/* 16-way parallel cipher functions (avx/aes-ni) */
 asmlinkage void camellia_ecb_enc_16way(struct camellia_ctx *ctx, u8 *dst,
 				       const u8 *src);
+EXPORT_SYMBOL_GPL(camellia_ecb_enc_16way);
+
 asmlinkage void camellia_ecb_dec_16way(struct camellia_ctx *ctx, u8 *dst,
 				       const u8 *src);
+EXPORT_SYMBOL_GPL(camellia_ecb_dec_16way);
 
 asmlinkage void camellia_cbc_dec_16way(struct camellia_ctx *ctx, u8 *dst,
 				       const u8 *src);
+EXPORT_SYMBOL_GPL(camellia_cbc_dec_16way);
+
 asmlinkage void camellia_ctr_16way(struct camellia_ctx *ctx, u8 *dst,
 				   const u8 *src, le128 *iv);
+EXPORT_SYMBOL_GPL(camellia_ctr_16way);
+
+asmlinkage void camellia_xts_enc_16way(struct camellia_ctx *ctx, u8 *dst,
+				       const u8 *src, le128 *iv);
+EXPORT_SYMBOL_GPL(camellia_xts_enc_16way);
+
+asmlinkage void camellia_xts_dec_16way(struct camellia_ctx *ctx, u8 *dst,
+				       const u8 *src, le128 *iv);
+EXPORT_SYMBOL_GPL(camellia_xts_dec_16way);
+
+void camellia_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
+				  GLUE_FUNC_CAST(camellia_enc_blk));
+}
+EXPORT_SYMBOL_GPL(camellia_xts_enc);
+
+void camellia_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
+				  GLUE_FUNC_CAST(camellia_dec_blk));
+}
+EXPORT_SYMBOL_GPL(camellia_xts_dec);
 
 static const struct common_glue_ctx camellia_enc = {
 	.num_funcs = 3,
@@ -69,6 +97,19 @@ static const struct common_glue_ctx camellia_ctr = {
 	} }
 };
 
+static const struct common_glue_ctx camellia_enc_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = CAMELLIA_AESNI_PARALLEL_BLOCKS,
+
+	.funcs = { {
+		.num_blocks = CAMELLIA_AESNI_PARALLEL_BLOCKS,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(camellia_xts_enc_16way) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(camellia_xts_enc) }
+	} }
+};
+
 static const struct common_glue_ctx camellia_dec = {
 	.num_funcs = 3,
 	.fpu_blocks_limit = CAMELLIA_AESNI_PARALLEL_BLOCKS,
@@ -98,6 +139,19 @@ static const struct common_glue_ctx camellia_dec_cbc = {
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(camellia_dec_blk) }
+	} }
+};
+
+static const struct common_glue_ctx camellia_dec_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = CAMELLIA_AESNI_PARALLEL_BLOCKS,
+
+	.funcs = { {
+		.num_blocks = CAMELLIA_AESNI_PARALLEL_BLOCKS,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(camellia_xts_dec_16way) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(camellia_xts_dec) }
 	} }
 };
 
@@ -261,54 +315,20 @@ static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[CAMELLIA_AESNI_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->crypt_ctx,
-		.fpu_enabled = false,
-	};
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
 
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(camellia_enc_blk),
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = encrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = xts_crypt(desc, dst, src, nbytes, &req);
-	camellia_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
+	return glue_xts_crypt_128bit(&camellia_enc_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(camellia_enc_blk),
+				     &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
 static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[CAMELLIA_AESNI_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->crypt_ctx,
-		.fpu_enabled = false,
-	};
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
 
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(camellia_enc_blk),
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = decrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = xts_crypt(desc, dst, src, nbytes, &req);
-	camellia_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
+	return glue_xts_crypt_128bit(&camellia_dec_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(camellia_enc_blk),
+				     &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
 static struct crypto_alg cmll_algs[10] = { {

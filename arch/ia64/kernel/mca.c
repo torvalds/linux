@@ -631,7 +631,7 @@ ia64_mca_register_cpev (int cpev)
  * Outputs
  *	None
  */
-void __cpuinit
+void
 ia64_mca_cmc_vector_setup (void)
 {
 	cmcv_reg_t	cmcv;
@@ -1814,7 +1814,7 @@ static struct irqaction mca_cpep_irqaction = {
  * format most of the fields.
  */
 
-static void __cpuinit
+static void
 format_mca_init_stack(void *mca_data, unsigned long offset,
 		const char *type, int cpu)
 {
@@ -1844,7 +1844,7 @@ static void * __init_refok mca_bootmem(void)
 }
 
 /* Do per-CPU MCA-related initialization.  */
-void __cpuinit
+void
 ia64_mca_cpu_init(void *cpu_data)
 {
 	void *pal_vaddr;
@@ -1896,7 +1896,7 @@ ia64_mca_cpu_init(void *cpu_data)
 							      PAGE_KERNEL));
 }
 
-static void __cpuinit ia64_mca_cmc_vector_adjust(void *dummy)
+static void ia64_mca_cmc_vector_adjust(void *dummy)
 {
 	unsigned long flags;
 
@@ -1906,7 +1906,7 @@ static void __cpuinit ia64_mca_cmc_vector_adjust(void *dummy)
 	local_irq_restore(flags);
 }
 
-static int __cpuinit mca_cpu_callback(struct notifier_block *nfb,
+static int mca_cpu_callback(struct notifier_block *nfb,
 				      unsigned long action,
 				      void *hcpu)
 {
@@ -1922,7 +1922,7 @@ static int __cpuinit mca_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mca_cpu_notifier __cpuinitdata = {
+static struct notifier_block mca_cpu_notifier = {
 	.notifier_call = mca_cpu_callback
 };
 
@@ -2074,22 +2074,16 @@ ia64_mca_init(void)
 	printk(KERN_INFO "MCA related initialization done\n");
 }
 
-/*
- * ia64_mca_late_init
- *
- *	Opportunity to setup things that require initialization later
- *	than ia64_mca_init.  Setup a timer to poll for CPEs if the
- *	platform doesn't support an interrupt driven mechanism.
- *
- *  Inputs  :   None
- *  Outputs :   Status
- */
-static int __init
-ia64_mca_late_init(void)
-{
-	if (!mca_init)
-		return 0;
 
+/*
+ * These pieces cannot be done in ia64_mca_init() because it is called before
+ * early_irq_init() which would wipe out our percpu irq registrations. But we
+ * cannot leave them until ia64_mca_late_init() because by then all the other
+ * processors have been brought online and have set their own CMC vectors to
+ * point at a non-existant action. Called from arch_early_irq_init().
+ */
+void __init ia64_mca_irq_init(void)
+{
 	/*
 	 *  Configure the CMCI/P vector and handler. Interrupts for CMC are
 	 *  per-processor, so AP CMC interrupts are setup in smp_callin() (smpboot.c).
@@ -2108,6 +2102,23 @@ ia64_mca_late_init(void)
 	/* Setup the CPEI/P handler */
 	register_percpu_irq(IA64_CPEP_VECTOR, &mca_cpep_irqaction);
 #endif
+}
+
+/*
+ * ia64_mca_late_init
+ *
+ *	Opportunity to setup things that require initialization later
+ *	than ia64_mca_init.  Setup a timer to poll for CPEs if the
+ *	platform doesn't support an interrupt driven mechanism.
+ *
+ *  Inputs  :   None
+ *  Outputs :   Status
+ */
+static int __init
+ia64_mca_late_init(void)
+{
+	if (!mca_init)
+		return 0;
 
 	register_hotcpu_notifier(&mca_cpu_notifier);
 

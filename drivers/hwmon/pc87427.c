@@ -627,8 +627,9 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute
 	pc87427_readall_pwm(data, nr);
 	mode = data->pwm_enable[nr] & PWM_ENABLE_MODE_MASK;
 	if (mode != PWM_MODE_MANUAL && mode != PWM_MODE_OFF) {
-		dev_notice(dev, "Can't set PWM%d duty cycle while not in "
-			   "manual mode\n", nr + 1);
+		dev_notice(dev,
+			   "Can't set PWM%d duty cycle while not in manual mode\n",
+			   nr + 1);
 		mutex_unlock(&data->lock);
 		return -EPERM;
 	}
@@ -982,7 +983,7 @@ static int pc87427_request_regions(struct platform_device *pdev,
 
 static void pc87427_init_device(struct device *dev)
 {
-	struct pc87427_sio_data *sio_data = dev->platform_data;
+	struct pc87427_sio_data *sio_data = dev_get_platdata(dev);
 	struct pc87427_data *data = dev_get_drvdata(dev);
 	int i;
 	u8 reg;
@@ -1074,7 +1075,7 @@ static void pc87427_remove_files(struct device *dev)
 
 static int pc87427_probe(struct platform_device *pdev)
 {
-	struct pc87427_sio_data *sio_data = pdev->dev.platform_data;
+	struct pc87427_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	struct pc87427_data *data;
 	int i, err, res_count;
 
@@ -1245,16 +1246,16 @@ static int __init pc87427_find(int sioaddr, struct pc87427_sio_data *sio_data)
 
 		val = superio_inb(sioaddr, SIOREG_MAP);
 		if (val & 0x01) {
-			pr_warn("Logical device 0x%02x is memory-mapped, "
-				"can't use\n", logdev[i]);
+			pr_warn("Logical device 0x%02x is memory-mapped, can't use\n",
+				logdev[i]);
 			continue;
 		}
 
 		val = (superio_inb(sioaddr, SIOREG_IOBASE) << 8)
 		    | superio_inb(sioaddr, SIOREG_IOBASE + 1);
 		if (!val) {
-			pr_info("I/O base address not set for logical device "
-				"0x%02x\n", logdev[i]);
+			pr_info("I/O base address not set for logical device 0x%02x\n",
+				logdev[i]);
 			continue;
 		}
 		sio_data->address[i] = val;

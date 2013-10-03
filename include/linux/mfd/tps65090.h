@@ -27,6 +27,7 @@
 
 /* TPS65090 IRQs */
 enum {
+	TPS65090_IRQ_INTERRUPT,
 	TPS65090_IRQ_VAC_STATUS_CHANGE,
 	TPS65090_IRQ_VSYS_STATUS_CHANGE,
 	TPS65090_IRQ_BAT_STATUS_CHANGE,
@@ -86,6 +87,11 @@ struct tps65090_regulator_plat_data {
 
 struct tps65090_platform_data {
 	int irq_base;
+
+	char **supplied_to;
+	size_t num_supplicants;
+	int enable_low_current_chrg;
+
 	struct tps65090_regulator_plat_data *reg_pdata[TPS65090_REGULATOR_MAX];
 };
 

@@ -244,7 +244,7 @@ TRACE_EVENT(block_bio_bounce,
 		__entry->dev		= bio->bi_bdev ?
 					  bio->bi_bdev->bd_dev : 0;
 		__entry->sector		= bio->bi_sector;
-		__entry->nr_sector	= bio->bi_size >> 9;
+		__entry->nr_sector	= bio_sectors(bio);
 		blk_fill_rwbs(__entry->rwbs, bio->bi_rw, bio->bi_size);
 		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
 	),
@@ -257,6 +257,7 @@ TRACE_EVENT(block_bio_bounce,
 
 /**
  * block_bio_complete - completed all work on the block operation
+ * @q: queue holding the block operation
  * @bio: block operation completed
  * @error: io error value
  *
@@ -265,9 +266,9 @@ TRACE_EVENT(block_bio_bounce,
  */
 TRACE_EVENT(block_bio_complete,
 
-	TP_PROTO(struct bio *bio, int error),
+	TP_PROTO(struct request_queue *q, struct bio *bio, int error),
 
-	TP_ARGS(bio, error),
+	TP_ARGS(q, bio, error),
 
 	TP_STRUCT__entry(
 		__field( dev_t,		dev		)
@@ -278,10 +279,9 @@ TRACE_EVENT(block_bio_complete,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bio->bi_bdev ?
-					  bio->bi_bdev->bd_dev : 0;
+		__entry->dev		= bio->bi_bdev->bd_dev;
 		__entry->sector		= bio->bi_sector;
-		__entry->nr_sector	= bio->bi_size >> 9;
+		__entry->nr_sector	= bio_sectors(bio);
 		__entry->error		= error;
 		blk_fill_rwbs(__entry->rwbs, bio->bi_rw, bio->bi_size);
 	),
@@ -309,7 +309,7 @@ DECLARE_EVENT_CLASS(block_bio_merge,
 	TP_fast_assign(
 		__entry->dev		= bio->bi_bdev->bd_dev;
 		__entry->sector		= bio->bi_sector;
-		__entry->nr_sector	= bio->bi_size >> 9;
+		__entry->nr_sector	= bio_sectors(bio);
 		blk_fill_rwbs(__entry->rwbs, bio->bi_rw, bio->bi_size);
 		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
 	),
@@ -376,7 +376,7 @@ TRACE_EVENT(block_bio_queue,
 	TP_fast_assign(
 		__entry->dev		= bio->bi_bdev->bd_dev;
 		__entry->sector		= bio->bi_sector;
-		__entry->nr_sector	= bio->bi_size >> 9;
+		__entry->nr_sector	= bio_sectors(bio);
 		blk_fill_rwbs(__entry->rwbs, bio->bi_rw, bio->bi_size);
 		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
 	),
@@ -404,7 +404,7 @@ DECLARE_EVENT_CLASS(block_get_rq,
 	TP_fast_assign(
 		__entry->dev		= bio ? bio->bi_bdev->bd_dev : 0;
 		__entry->sector		= bio ? bio->bi_sector : 0;
-		__entry->nr_sector	= bio ? bio->bi_size >> 9 : 0;
+		__entry->nr_sector	= bio ? bio_sectors(bio) : 0;
 		blk_fill_rwbs(__entry->rwbs,
 			      bio ? bio->bi_rw : 0, __entry->nr_sector);
 		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
@@ -580,7 +580,7 @@ TRACE_EVENT(block_bio_remap,
 	TP_fast_assign(
 		__entry->dev		= bio->bi_bdev->bd_dev;
 		__entry->sector		= bio->bi_sector;
-		__entry->nr_sector	= bio->bi_size >> 9;
+		__entry->nr_sector	= bio_sectors(bio);
 		__entry->old_dev	= dev;
 		__entry->old_sector	= from;
 		blk_fill_rwbs(__entry->rwbs, bio->bi_rw, bio->bi_size);
@@ -618,6 +618,7 @@ TRACE_EVENT(block_rq_remap,
 		__field( unsigned int,	nr_sector	)
 		__field( dev_t,		old_dev		)
 		__field( sector_t,	old_sector	)
+		__field( unsigned int,	nr_bios		)
 		__array( char,		rwbs,	RWBS_LEN)
 	),
 
@@ -627,15 +628,16 @@ TRACE_EVENT(block_rq_remap,
 		__entry->nr_sector	= blk_rq_sectors(rq);
 		__entry->old_dev	= dev;
 		__entry->old_sector	= from;
+		__entry->nr_bios	= blk_rq_count_bios(rq);
 		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, blk_rq_bytes(rq));
 	),
 
-	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu",
+	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector,
 		  MAJOR(__entry->old_dev), MINOR(__entry->old_dev),
-		  (unsigned long long)__entry->old_sector)
+		  (unsigned long long)__entry->old_sector, __entry->nr_bios)
 );
 
 #endif /* _TRACE_BLOCK_H */

@@ -1372,7 +1372,7 @@ retry_writepage:
 		 * The page may have dirty, unmapped buffers.  Make them
 		 * freeable here, so the page does not leak.
 		 */
-		block_invalidatepage(page, 0);
+		block_invalidatepage(page, 0, PAGE_CACHE_SIZE);
 		unlock_page(page);
 		ntfs_debug("Write outside i_size - truncated?");
 		return 0;
