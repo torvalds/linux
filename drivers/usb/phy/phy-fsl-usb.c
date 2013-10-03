@@ -134,7 +134,7 @@ int write_ulpi(u8 addr, u8 data)
 /* Operations that will be called from OTG Finite State Machine */
 
 /* Charge vbus for vbus pulsing in SRP */
-void fsl_otg_chrg_vbus(int on)
+void fsl_otg_chrg_vbus(struct otg_fsm *fsm, int on)
 {
 	u32 tmp;
 
@@ -170,7 +170,7 @@ void fsl_otg_dischrg_vbus(int on)
 }
 
 /* A-device driver vbus, controlled through PP bit in PORTSC */
-void fsl_otg_drv_vbus(int on)
+void fsl_otg_drv_vbus(struct otg_fsm *fsm, int on)
 {
 	u32 tmp;
 
@@ -188,7 +188,7 @@ void fsl_otg_drv_vbus(int on)
  * Pull-up D+, signalling connect by periperal. Also used in
  * data-line pulsing in SRP
  */
-void fsl_otg_loc_conn(int on)
+void fsl_otg_loc_conn(struct otg_fsm *fsm, int on)
 {
 	u32 tmp;
 
@@ -207,7 +207,7 @@ void fsl_otg_loc_conn(int on)
  * port.  In host mode, controller will automatically send SOF.
  * Suspend will block the data on the port.
  */
-void fsl_otg_loc_sof(int on)
+void fsl_otg_loc_sof(struct otg_fsm *fsm, int on)
 {
 	u32 tmp;
 
@@ -222,7 +222,7 @@ void fsl_otg_loc_sof(int on)
 }
 
 /* Start SRP pulsing by data-line pulsing, followed with v-bus pulsing. */
-void fsl_otg_start_pulse(void)
+void fsl_otg_start_pulse(struct otg_fsm *fsm)
 {
 	u32 tmp;
 
@@ -235,7 +235,7 @@ void fsl_otg_start_pulse(void)
 	fsl_otg_loc_conn(1);
 #endif
 
-	fsl_otg_add_timer(b_data_pulse_tmr);
+	fsl_otg_add_timer(fsm, b_data_pulse_tmr);
 }
 
 void b_data_pulse_end(unsigned long foo)
@@ -252,14 +252,14 @@ void b_data_pulse_end(unsigned long foo)
 void fsl_otg_pulse_vbus(void)
 {
 	srp_wait_done = 0;
-	fsl_otg_chrg_vbus(1);
+	fsl_otg_chrg_vbus(&fsl_otg_dev->fsm, 1);
 	/* start the timer to end vbus charge */
-	fsl_otg_add_timer(b_vbus_pulse_tmr);
+	fsl_otg_add_timer(&fsl_otg_dev->fsm, b_vbus_pulse_tmr);
 }
 
 void b_vbus_pulse_end(unsigned long foo)
 {
-	fsl_otg_chrg_vbus(0);
+	fsl_otg_chrg_vbus(&fsl_otg_dev->fsm, 0);
 
 	/*
 	 * As USB3300 using the same a_sess_vld and b_sess_vld voltage
@@ -267,7 +267,7 @@ void b_vbus_pulse_end(unsigned long foo)
 	 * residual voltage of vbus pulsing and A device pull up
 	 */
 	fsl_otg_dischrg_vbus(1);
-	fsl_otg_add_timer(b_srp_wait_tmr);
+	fsl_otg_add_timer(&fsl_otg_dev->fsm, b_srp_wait_tmr);
 }
 
 void b_srp_end(unsigned long foo)
@@ -289,7 +289,7 @@ void a_wait_enum(unsigned long foo)
 {
 	VDBG("a_wait_enum timeout\n");
 	if (!fsl_otg_dev->phy.otg->host->b_hnp_enable)
-		fsl_otg_add_timer(a_wait_enum_tmr);
+		fsl_otg_add_timer(&fsl_otg_dev->fsm, a_wait_enum_tmr);
 	else
 		otg_statemachine(&fsl_otg_dev->fsm);
 }
@@ -376,7 +376,7 @@ void fsl_otg_uninit_timers(void)
 }
 
 /* Add timer to timer list */
-void fsl_otg_add_timer(void *gtimer)
+void fsl_otg_add_timer(struct otg_fsm *fsm, void *gtimer)
 {
 	struct fsl_otg_timer *timer = gtimer;
 	struct fsl_otg_timer *tmp_timer;
@@ -395,7 +395,7 @@ void fsl_otg_add_timer(void *gtimer)
 }
 
 /* Remove timer from the timer list; clear timeout status */
-void fsl_otg_del_timer(void *gtimer)
+void fsl_otg_del_timer(struct otg_fsm *fsm, void *gtimer)
 {
 	struct fsl_otg_timer *timer = gtimer;
 	struct fsl_otg_timer *tmp_timer, *del_tmp;
@@ -468,7 +468,7 @@ int fsl_otg_start_host(struct otg_fsm *fsm, int on)
 				retval = dev->driver->pm->resume(dev);
 				if (fsm->id) {
 					/* default-b */
-					fsl_otg_drv_vbus(1);
+					fsl_otg_drv_vbus(fsm, 1);
 					/*
 					 * Workaround: b_host can't driver
 					 * vbus, but PP in PORTSC needs to
@@ -493,7 +493,7 @@ int fsl_otg_start_host(struct otg_fsm *fsm, int on)
 					retval = dev->driver->pm->suspend(dev);
 				if (fsm->id)
 					/* default-b */
-					fsl_otg_drv_vbus(0);
+					fsl_otg_drv_vbus(fsm, 0);
 			}
 			otg_dev->host_working = 0;
 		}
