@@ -64,11 +64,6 @@ static struct cpufreq_frequency_table maple_cpu_freqs[] = {
 	{0,			CPUFREQ_TABLE_END},
 };
 
-static struct freq_attr *maple_cpu_freqs_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 /* Power mode data is an array of the 32 bits PCR values to use for
  * the various frequencies, retrieved from the device-tree
  */
@@ -135,11 +130,6 @@ static int maple_scom_query_freq(void)
  * Common interface to the cpufreq core
  */
 
-static int maple_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, maple_cpu_freqs);
-}
-
 static int maple_cpufreq_target(struct cpufreq_policy *policy,
 	unsigned int target_freq, unsigned int relation)
 {
@@ -190,10 +180,10 @@ static struct cpufreq_driver maple_cpufreq_driver = {
 	.name		= "maple",
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= maple_cpufreq_cpu_init,
-	.verify		= maple_cpufreq_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= maple_cpufreq_target,
 	.get		= maple_cpufreq_get_speed,
-	.attr		= maple_cpu_freqs_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static int __init maple_cpufreq_init(void)
