@@ -4544,7 +4544,7 @@ int	main(void)
 	if(composer->hdmi_hpd)  init_composer(composer);
 
 	while (1) {
-		printf("dennis -- ???\n");
+//		printf("dennis -- ???\n");
 #if 0
 		usleep(500);
 #else
