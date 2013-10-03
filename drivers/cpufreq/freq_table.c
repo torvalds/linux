@@ -86,6 +86,20 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 }
 EXPORT_SYMBOL_GPL(cpufreq_frequency_table_verify);
 
+/*
+ * Generic routine to verify policy & frequency table, requires driver to call
+ * cpufreq_frequency_table_get_attr() prior to it.
+ */
+int cpufreq_generic_frequency_table_verify(struct cpufreq_policy *policy)
+{
+	struct cpufreq_frequency_table *table =
+		cpufreq_frequency_get_table(policy->cpu);
+	if (!table)
+		return -ENODEV;
+
+	return cpufreq_frequency_table_verify(policy, table);
+}
+EXPORT_SYMBOL_GPL(cpufreq_generic_frequency_table_verify);
 
 int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 				   struct cpufreq_frequency_table *table,
@@ -198,6 +212,12 @@ struct freq_attr cpufreq_freq_attr_scaling_available_freqs = {
 	.show = show_available_freqs,
 };
 EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_available_freqs);
+
+struct freq_attr *cpufreq_generic_attr[] = {
+	&cpufreq_freq_attr_scaling_available_freqs,
+	NULL,
+};
+EXPORT_SYMBOL_GPL(cpufreq_generic_attr);
 
 /*
  * if you use these, you must assure that the frequency table is valid
