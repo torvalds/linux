@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/usb/musb-omap.h>
 #include <linux/usb/omap_control_usb.h>
+#include <linux/of_platform.h>
 
 #include "musb_core.h"
 #include "omap2430.h"
@@ -524,8 +525,12 @@ static int omap2430_probe(struct platform_device *pdev)
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
 	glue->status			= OMAP_MUSB_UNKNOWN;
+	glue->control_otghs = ERR_PTR(-ENODEV);
 
 	if (np) {
+		struct device_node *control_node;
+		struct platform_device *control_pdev;
+
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
 			dev_err(&pdev->dev,
@@ -554,22 +559,20 @@ static int omap2430_probe(struct platform_device *pdev)
 		of_property_read_u32(np, "ram-bits", (u32 *)&config->ram_bits);
 		of_property_read_u32(np, "power", (u32 *)&pdata->power);
 		config->multipoint = of_property_read_bool(np, "multipoint");
-		pdata->has_mailbox = of_property_read_bool(np,
-		    "ti,has-mailbox");
 
 		pdata->board_data	= data;
 		pdata->config		= config;
-	}
 
-	if (pdata->has_mailbox) {
-		glue->control_otghs = omap_get_control_dev();
-		if (IS_ERR(glue->control_otghs)) {
-			dev_vdbg(&pdev->dev, "Failed to get control device\n");
-			ret = PTR_ERR(glue->control_otghs);
-			goto err2;
+		control_node = of_parse_phandle(np, "ctrl-module", 0);
+		if (control_node) {
+			control_pdev = of_find_device_by_node(control_node);
+			if (!control_pdev) {
+				dev_err(&pdev->dev, "Failed to get control device\n");
+				ret = -EINVAL;
+				goto err2;
+			}
+			glue->control_otghs = &control_pdev->dev;
 		}
-	} else {
-		glue->control_otghs = ERR_PTR(-ENODEV);
 	}
 	pdata->platform_ops		= &omap2430_ops;
 
