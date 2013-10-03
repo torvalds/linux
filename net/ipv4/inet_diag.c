@@ -635,12 +635,14 @@ static int inet_csk_diag_dump(struct sock *sk,
 				  cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh);
 }
 
-static int inet_twsk_diag_dump(struct inet_timewait_sock *tw,
+static int inet_twsk_diag_dump(struct sock *sk,
 			       struct sk_buff *skb,
 			       struct netlink_callback *cb,
 			       struct inet_diag_req_v2 *r,
 			       const struct nlattr *bc)
 {
+	struct inet_timewait_sock *tw = inet_twsk(sk);
+
 	if (bc != NULL) {
 		struct inet_diag_entry entry;
 
@@ -911,8 +913,7 @@ skip_listen_ht:
 
 		num = 0;
 
-		if (hlist_nulls_empty(&head->chain) &&
-			hlist_nulls_empty(&head->twchain))
+		if (hlist_nulls_empty(&head->chain))
 			continue;
 
 		if (i > s_i)
@@ -920,7 +921,7 @@ skip_listen_ht:
 
 		spin_lock_bh(lock);
 		sk_nulls_for_each(sk, node, &head->chain) {
-			struct inet_sock *inet = inet_sk(sk);
+			int res;
 
 			if (!net_eq(sock_net(sk), net))
 				continue;
@@ -929,15 +930,19 @@ skip_listen_ht:
 			if (!(r->idiag_states & (1 << sk->sk_state)))
 				goto next_normal;
 			if (r->sdiag_family != AF_UNSPEC &&
-					sk->sk_family != r->sdiag_family)
+			    sk->sk_family != r->sdiag_family)
 				goto next_normal;
-			if (r->id.idiag_sport != inet->inet_sport &&
+			if (r->id.idiag_sport != htons(sk->sk_num) &&
 			    r->id.idiag_sport)
 				goto next_normal;
-			if (r->id.idiag_dport != inet->inet_dport &&
+			if (r->id.idiag_dport != sk->sk_dport &&
 			    r->id.idiag_dport)
 				goto next_normal;
-			if (inet_csk_diag_dump(sk, skb, cb, r, bc) < 0) {
+			if (sk->sk_state == TCP_TIME_WAIT)
+				res = inet_twsk_diag_dump(sk, skb, cb, r, bc);
+			else
+				res = inet_csk_diag_dump(sk, skb, cb, r, bc);
+			if (res < 0) {
 				spin_unlock_bh(lock);
 				goto done;
 			}
@@ -945,33 +950,6 @@ next_normal:
 			++num;
 		}
 
-		if (r->idiag_states & TCPF_TIME_WAIT) {
-			struct inet_timewait_sock *tw;
-
-			inet_twsk_for_each(tw, node,
-				    &head->twchain) {
-				if (!net_eq(twsk_net(tw), net))
-					continue;
-
-				if (num < s_num)
-					goto next_dying;
-				if (r->sdiag_family != AF_UNSPEC &&
-						tw->tw_family != r->sdiag_family)
-					goto next_dying;
-				if (r->id.idiag_sport != tw->tw_sport &&
-				    r->id.idiag_sport)
-					goto next_dying;
-				if (r->id.idiag_dport != tw->tw_dport &&
-				    r->id.idiag_dport)
-					goto next_dying;
-				if (inet_twsk_diag_dump(tw, skb, cb, r, bc) < 0) {
-					spin_unlock_bh(lock);
-					goto done;
-				}
-next_dying:
-				++num;
-			}
-		}
 		spin_unlock_bh(lock);
 	}
 

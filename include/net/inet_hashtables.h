@@ -37,12 +37,11 @@
 #include <asm/byteorder.h>
 
 /* This is for all connections with a full identity, no wildcards.
- * One chain is dedicated to TIME_WAIT sockets.
- * I'll experiment with dynamic table growth later.
+ * The 'e' prefix stands for Establish, but we really put all sockets
+ * but LISTEN ones.
  */
 struct inet_ehash_bucket {
 	struct hlist_nulls_head chain;
-	struct hlist_nulls_head twchain;
 };
 
 /* There are a few simple rules, which allow for local port reuse by
@@ -123,7 +122,6 @@ struct inet_hashinfo {
 	 *
 	 *          TCP_ESTABLISHED <= sk->sk_state < TCP_CLOSE
 	 *
-	 * TIME_WAIT sockets use a separate chain (twchain).
 	 */
 	struct inet_ehash_bucket	*ehash;
 	spinlock_t			*ehash_locks;
@@ -317,9 +315,6 @@ static inline struct sock *inet_lookup_listener(struct net *net,
 	   ((__sk)->sk_bound_dev_if == (__dif))) 	&&		\
 	 net_eq(sock_net(__sk), (__net)))
 #endif /* 64-bit arch */
-
-#define INET_TW_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif)\
-	INET_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif)
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so we need

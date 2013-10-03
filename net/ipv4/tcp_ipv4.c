@@ -2194,18 +2194,6 @@ EXPORT_SYMBOL(tcp_v4_destroy_sock);
 #ifdef CONFIG_PROC_FS
 /* Proc filesystem TCP sock list dumping. */
 
-static inline struct inet_timewait_sock *tw_head(struct hlist_nulls_head *head)
-{
-	return hlist_nulls_empty(head) ? NULL :
-		list_entry(head->first, struct inet_timewait_sock, tw_node);
-}
-
-static inline struct inet_timewait_sock *tw_next(struct inet_timewait_sock *tw)
-{
-	return !is_a_nulls(tw->tw_node.next) ?
-		hlist_nulls_entry(tw->tw_node.next, typeof(*tw), tw_node) : NULL;
-}
-
 /*
  * Get next listener socket follow cur.  If cur is NULL, get first socket
  * starting from bucket given in st->bucket; when st->bucket is zero the
@@ -2309,10 +2297,9 @@ static void *listening_get_idx(struct seq_file *seq, loff_t *pos)
 	return rc;
 }
 
-static inline bool empty_bucket(struct tcp_iter_state *st)
+static inline bool empty_bucket(const struct tcp_iter_state *st)
 {
-	return hlist_nulls_empty(&tcp_hashinfo.ehash[st->bucket].chain) &&
-		hlist_nulls_empty(&tcp_hashinfo.ehash[st->bucket].twchain);
+	return hlist_nulls_empty(&tcp_hashinfo.ehash[st->bucket].chain);
 }
 
 /*
@@ -2329,7 +2316,6 @@ static void *established_get_first(struct seq_file *seq)
 	for (; st->bucket <= tcp_hashinfo.ehash_mask; ++st->bucket) {
 		struct sock *sk;
 		struct hlist_nulls_node *node;
-		struct inet_timewait_sock *tw;
 		spinlock_t *lock = inet_ehash_lockp(&tcp_hashinfo, st->bucket);
 
 		/* Lockless fast path for the common case of empty buckets */
@@ -2345,18 +2331,7 @@ static void *established_get_first(struct seq_file *seq)
 			rc = sk;
 			goto out;
 		}
-		st->state = TCP_SEQ_STATE_TIME_WAIT;
-		inet_twsk_for_each(tw, node,
-				   &tcp_hashinfo.ehash[st->bucket].twchain) {
-			if (tw->tw_family != st->family ||
-			    !net_eq(twsk_net(tw), net)) {
-				continue;
-			}
-			rc = tw;
-			goto out;
-		}
 		spin_unlock_bh(lock);
-		st->state = TCP_SEQ_STATE_ESTABLISHED;
 	}
 out:
 	return rc;
@@ -2365,7 +2340,6 @@ out:
 static void *established_get_next(struct seq_file *seq, void *cur)
 {
 	struct sock *sk = cur;
-	struct inet_timewait_sock *tw;
 	struct hlist_nulls_node *node;
 	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
@@ -2373,45 +2347,16 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 	++st->num;
 	++st->offset;
 
-	if (st->state == TCP_SEQ_STATE_TIME_WAIT) {
-		tw = cur;
-		tw = tw_next(tw);
-get_tw:
-		while (tw && (tw->tw_family != st->family || !net_eq(twsk_net(tw), net))) {
-			tw = tw_next(tw);
-		}
-		if (tw) {
-			cur = tw;
-			goto out;
-		}
-		spin_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
-		st->state = TCP_SEQ_STATE_ESTABLISHED;
-
-		/* Look for next non empty bucket */
-		st->offset = 0;
-		while (++st->bucket <= tcp_hashinfo.ehash_mask &&
-				empty_bucket(st))
-			;
-		if (st->bucket > tcp_hashinfo.ehash_mask)
-			return NULL;
-
-		spin_lock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
-		sk = sk_nulls_head(&tcp_hashinfo.ehash[st->bucket].chain);
-	} else
-		sk = sk_nulls_next(sk);
+	sk = sk_nulls_next(sk);
 
 	sk_nulls_for_each_from(sk, node) {
 		if (sk->sk_family == st->family && net_eq(sock_net(sk), net))
-			goto found;
+			return sk;
 	}
 
-	st->state = TCP_SEQ_STATE_TIME_WAIT;
-	tw = tw_head(&tcp_hashinfo.ehash[st->bucket].twchain);
-	goto get_tw;
-found:
-	cur = sk;
-out:
-	return cur;
+	spin_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
+	++st->bucket;
+	return established_get_first(seq);
 }
 
 static void *established_get_idx(struct seq_file *seq, loff_t pos)
@@ -2464,10 +2409,9 @@ static void *tcp_seek_last_pos(struct seq_file *seq)
 		if (rc)
 			break;
 		st->bucket = 0;
+		st->state = TCP_SEQ_STATE_ESTABLISHED;
 		/* Fallthrough */
 	case TCP_SEQ_STATE_ESTABLISHED:
-	case TCP_SEQ_STATE_TIME_WAIT:
-		st->state = TCP_SEQ_STATE_ESTABLISHED;
 		if (st->bucket > tcp_hashinfo.ehash_mask)
 			break;
 		rc = established_get_first(seq);
@@ -2524,7 +2468,6 @@ static void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		}
 		break;
 	case TCP_SEQ_STATE_ESTABLISHED:
-	case TCP_SEQ_STATE_TIME_WAIT:
 		rc = established_get_next(seq, v);
 		break;
 	}
@@ -2548,7 +2491,6 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 		if (v != SEQ_START_TOKEN)
 			spin_unlock_bh(&tcp_hashinfo.listening_hash[st->bucket].lock);
 		break;
-	case TCP_SEQ_STATE_TIME_WAIT:
 	case TCP_SEQ_STATE_ESTABLISHED:
 		if (v)
 			spin_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
@@ -2707,6 +2649,7 @@ static void get_timewait4_sock(const struct inet_timewait_sock *tw,
 static int tcp4_seq_show(struct seq_file *seq, void *v)
 {
 	struct tcp_iter_state *st;
+	struct sock *sk = v;
 	int len;
 
 	if (v == SEQ_START_TOKEN) {
@@ -2721,13 +2664,13 @@ static int tcp4_seq_show(struct seq_file *seq, void *v)
 	switch (st->state) {
 	case TCP_SEQ_STATE_LISTENING:
 	case TCP_SEQ_STATE_ESTABLISHED:
-		get_tcp4_sock(v, seq, st->num, &len);
+		if (sk->sk_state == TCP_TIME_WAIT)
+			get_timewait4_sock(v, seq, st->num, &len);
+		else
+			get_tcp4_sock(v, seq, st->num, &len);
 		break;
 	case TCP_SEQ_STATE_OPENREQ:
 		get_openreq4(st->syn_wait_sk, v, seq, st->num, st->uid, &len);
-		break;
-	case TCP_SEQ_STATE_TIME_WAIT:
-		get_timewait4_sock(v, seq, st->num, &len);
 		break;
 	}
 	seq_printf(seq, "%*s\n", TMPSZ - 1 - len, "");

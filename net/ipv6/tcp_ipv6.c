@@ -1834,6 +1834,7 @@ static void get_timewait6_sock(struct seq_file *seq,
 static int tcp6_seq_show(struct seq_file *seq, void *v)
 {
 	struct tcp_iter_state *st;
+	struct sock *sk = v;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq,
@@ -1849,13 +1850,13 @@ static int tcp6_seq_show(struct seq_file *seq, void *v)
 	switch (st->state) {
 	case TCP_SEQ_STATE_LISTENING:
 	case TCP_SEQ_STATE_ESTABLISHED:
-		get_tcp6_sock(seq, v, st->num);
+		if (sk->sk_state == TCP_TIME_WAIT)
+			get_timewait6_sock(seq, v, st->num);
+		else
+			get_tcp6_sock(seq, v, st->num);
 		break;
 	case TCP_SEQ_STATE_OPENREQ:
 		get_openreq6(seq, st->syn_wait_sk, v, st->num, st->uid);
-		break;
-	case TCP_SEQ_STATE_TIME_WAIT:
-		get_timewait6_sock(seq, v, st->num);
 		break;
 	}
 out:

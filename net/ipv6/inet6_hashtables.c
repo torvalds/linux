@@ -89,43 +89,36 @@ begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		if (sk->sk_hash != hash)
 			continue;
-		if (likely(INET6_MATCH(sk, net, saddr, daddr, ports, dif))) {
-			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
-				goto begintw;
+		if (sk->sk_state == TCP_TIME_WAIT) {
+			if (!INET6_TW_MATCH(sk, net, saddr, daddr, ports, dif))
+				continue;
+		} else {
+			if (!INET6_MATCH(sk, net, saddr, daddr, ports, dif))
+				continue;
+		}
+		if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
+			goto out;
+
+		if (sk->sk_state == TCP_TIME_WAIT) {
+			if (unlikely(!INET6_TW_MATCH(sk, net, saddr, daddr,
+						     ports, dif))) {
+				sock_gen_put(sk);
+				goto begin;
+			}
+		} else {
 			if (unlikely(!INET6_MATCH(sk, net, saddr, daddr,
 						  ports, dif))) {
 				sock_put(sk);
 				goto begin;
 			}
-		goto out;
+		goto found;
 		}
 	}
 	if (get_nulls_value(node) != slot)
 		goto begin;
-
-begintw:
-	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_nulls_for_each_rcu(sk, node, &head->twchain) {
-		if (sk->sk_hash != hash)
-			continue;
-		if (likely(INET6_TW_MATCH(sk, net, saddr, daddr,
-					  ports, dif))) {
-			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt))) {
-				sk = NULL;
-				goto out;
-			}
-			if (unlikely(!INET6_TW_MATCH(sk, net, saddr, daddr,
-						     ports, dif))) {
-				inet_twsk_put(inet_twsk(sk));
-				goto begintw;
-			}
-			goto out;
-		}
-	}
-	if (get_nulls_value(node) != slot)
-		goto begintw;
-	sk = NULL;
 out:
+	sk = NULL;
+found:
 	rcu_read_unlock();
 	return sk;
 }
@@ -248,31 +241,25 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
 	const struct hlist_nulls_node *node;
-	struct inet_timewait_sock *tw;
+	struct inet_timewait_sock *tw = NULL;
 	int twrefcnt = 0;
 
 	spin_lock(lock);
 
-	/* Check TIME-WAIT sockets first. */
-	sk_nulls_for_each(sk2, node, &head->twchain) {
-		if (sk2->sk_hash != hash)
-			continue;
-
-		if (likely(INET6_TW_MATCH(sk2, net, saddr, daddr,
-					  ports, dif))) {
-			tw = inet_twsk(sk2);
-			if (twsk_unique(sk, sk2, twp))
-				goto unique;
-			else
-				goto not_unique;
-		}
-	}
-	tw = NULL;
-
-	/* And established part... */
 	sk_nulls_for_each(sk2, node, &head->chain) {
 		if (sk2->sk_hash != hash)
 			continue;
+
+		if (sk2->sk_state == TCP_TIME_WAIT) {
+			if (likely(INET6_TW_MATCH(sk2, net, saddr, daddr,
+						  ports, dif))) {
+				tw = inet_twsk(sk2);
+				if (twsk_unique(sk, sk2, twp))
+					goto unique;
+				else
+					goto not_unique;
+			}
+		}
 		if (likely(INET6_MATCH(sk2, net, saddr, daddr, ports, dif)))
 			goto not_unique;
 	}
