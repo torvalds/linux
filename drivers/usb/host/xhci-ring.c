@@ -546,9 +546,9 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		struct xhci_dequeue_state *state)
 {
 	struct xhci_virt_device *dev = xhci->devs[slot_id];
+	struct xhci_virt_ep *ep = &dev->eps[ep_index];
 	struct xhci_ring *ep_ring;
 	struct xhci_generic_trb *trb;
-	struct xhci_ep_ctx *ep_ctx;
 	dma_addr_t addr;
 
 	ep_ring = xhci_triad_to_transfer_ring(xhci, slot_id,
@@ -573,8 +573,16 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 	/* Dig out the cycle state saved by the xHC during the stop ep cmd */
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 			"Finding endpoint context");
-	ep_ctx = xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
-	state->new_cycle_state = 0x1 & le64_to_cpu(ep_ctx->deq);
+	/* 4.6.9 the css flag is written to the stream context for streams */
+	if (ep->ep_state & EP_HAS_STREAMS) {
+		struct xhci_stream_ctx *ctx =
+			&ep->stream_info->stream_ctx_array[stream_id];
+		state->new_cycle_state = 0x1 & le64_to_cpu(ctx->stream_ring);
+	} else {
+		struct xhci_ep_ctx *ep_ctx
+			= xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
+		state->new_cycle_state = 0x1 & le64_to_cpu(ep_ctx->deq);
+	}
 
 	state->new_deq_ptr = cur_td->last_trb;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
