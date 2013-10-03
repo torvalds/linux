@@ -192,6 +192,7 @@ int kv_send_msg_to_smc_with_parameter(struct radeon_device *rdev,
 int kv_read_smc_sram_dword(struct radeon_device *rdev, u32 smc_address,
 			   u32 *value, u32 limit);
 int kv_smc_dpm_enable(struct radeon_device *rdev, bool enable);
+int kv_smc_bapm_enable(struct radeon_device *rdev, bool enable);
 int kv_copy_bytes_to_smc(struct radeon_device *rdev,
 			 u32 smc_start_address,
 			 const u8 *src, u32 byte_count, u32 limit);

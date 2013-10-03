@@ -620,7 +620,7 @@ static int bma180_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int bma180_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct bma180_data *data = iio_priv(indio_dev);
 	int ret;
 
@@ -633,7 +633,7 @@ static int bma180_suspend(struct device *dev)
 
 static int bma180_resume(struct device *dev)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct bma180_data *data = iio_priv(indio_dev);
 	int ret;
 

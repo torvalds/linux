@@ -8652,6 +8652,7 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 	else if (bp->wol) {
 		u32 emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 		u8 *mac_addr = bp->dev->dev_addr;
+		struct pci_dev *pdev = bp->pdev;
 		u32 val;
 		u16 pmc;
 
@@ -8668,9 +8669,9 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH + entry + 4, val);
 
 		/* Enable the PME and clear the status */
-		pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmc);
+		pci_read_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, &pmc);
 		pmc |= PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS;
-		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, pmc);
+		pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, pmc);
 
 		reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_EN;
 
@@ -10399,7 +10400,7 @@ static void bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		break;
 	}
 
-	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_PMC, &pmc);
+	pci_read_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_PMC, &pmc);
 	bp->flags |= (pmc & PCI_PM_CAP_PME_D3cold) ? 0 : NO_WOL_FLAG;
 
 	BNX2X_DEV_INFO("%sWoL capable\n",
@@ -12141,8 +12142,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	}
 
 	if (IS_PF(bp)) {
-		bp->pm_cap = pdev->pm_cap;
-		if (bp->pm_cap == 0) {
+		if (!pdev->pm_cap) {
 			dev_err(&bp->pdev->dev,
 				"Cannot find power management capability, aborting\n");
 			rc = -EIO;
@@ -13631,6 +13631,10 @@ void bnx2x_setup_cnic_info(struct bnx2x *bp)
 	cp->starting_cid = bnx2x_cid_ilt_lines(bp) * ILT_PAGE_CIDS;
 	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
 	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
+
+	DP(NETIF_MSG_IFUP, "BNX2X_1st_NON_L2_ETH_CID(bp) %x, cp->starting_cid %x, cp->fcoe_init_cid %x, cp->iscsi_l2_cid %x\n",
+	   BNX2X_1st_NON_L2_ETH_CID(bp), cp->starting_cid, cp->fcoe_init_cid,
+	   cp->iscsi_l2_cid);
 
 	if (NO_ISCSI_OOO(bp))
 		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;

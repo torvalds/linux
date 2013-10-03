@@ -116,12 +116,12 @@ ip_set_get_ip6_port(const struct sk_buff *skb, bool src,
 {
 	int protoff;
 	u8 nexthdr;
-	__be16 frag_off;
+	__be16 frag_off = 0;
 
 	nexthdr = ipv6_hdr(skb)->nexthdr;
 	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr,
 				   &frag_off);
-	if (protoff < 0)
+	if (protoff < 0 || (frag_off & htons(~0x7)) != 0)
 		return false;
 
 	return get_port(skb, nexthdr, protoff, src, port, proto);

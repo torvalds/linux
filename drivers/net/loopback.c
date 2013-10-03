@@ -146,6 +146,7 @@ static int loopback_dev_init(struct net_device *dev)
 
 static void loopback_dev_free(struct net_device *dev)
 {
+	dev_net(dev)->loopback_dev = NULL;
 	free_percpu(dev->lstats);
 	free_netdev(dev);
 }

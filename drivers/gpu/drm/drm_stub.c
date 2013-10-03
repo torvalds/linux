@@ -292,7 +292,13 @@ int drm_fill_in_dev(struct drm_device *dev,
 			goto error_out_unreg;
 	}
 
-	drm_legacy_ctxbitmap_init(dev);
+
+
+	retcode = drm_ctxbitmap_init(dev);
+	if (retcode) {
+		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
+		goto error_out_unreg;
+	}
 
 	if (driver->driver_features & DRIVER_GEM) {
 		retcode = drm_gem_init(dev);
@@ -446,7 +452,7 @@ void drm_put_dev(struct drm_device *dev)
 		drm_rmmap(dev, r_list->map);
 	drm_ht_remove(&dev->map_hash);
 
-	drm_legacy_ctxbitmap_cleanup(dev);
+	drm_ctxbitmap_cleanup(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);

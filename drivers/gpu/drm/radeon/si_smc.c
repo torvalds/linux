@@ -29,8 +29,8 @@
 #include "ppsmc.h"
 #include "radeon_ucode.h"
 
-int si_set_smc_sram_address(struct radeon_device *rdev,
-			    u32 smc_address, u32 limit)
+static int si_set_smc_sram_address(struct radeon_device *rdev,
+				   u32 smc_address, u32 limit)
 {
 	if (smc_address & 3)
 		return -EINVAL;
@@ -47,7 +47,8 @@ int si_copy_bytes_to_smc(struct radeon_device *rdev,
 			 u32 smc_start_address,
 			 const u8 *src, u32 byte_count, u32 limit)
 {
-	int ret;
+	unsigned long flags;
+	int ret = 0;
 	u32 data, original_data, addr, extra_shift;
 
 	if (smc_start_address & 3)
@@ -57,13 +58,14 @@ int si_copy_bytes_to_smc(struct radeon_device *rdev,
 
 	addr = smc_start_address;
 
+	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
 	while (byte_count >= 4) {
 		/* SMC address space is BE */
 		data = (src[0] << 24) | (src[1] << 16) | (src[2] << 8) | src[3];
 
 		ret = si_set_smc_sram_address(rdev, addr, limit);
 		if (ret)
-			return ret;
+			goto done;
 
 		WREG32(SMC_IND_DATA_0, data);
 
@@ -78,7 +80,7 @@ int si_copy_bytes_to_smc(struct radeon_device *rdev,
 
 		ret = si_set_smc_sram_address(rdev, addr, limit);
 		if (ret)
-			return ret;
+			goto done;
 
 		original_data = RREG32(SMC_IND_DATA_0);
 
@@ -96,11 +98,15 @@ int si_copy_bytes_to_smc(struct radeon_device *rdev,
 
 		ret = si_set_smc_sram_address(rdev, addr, limit);
 		if (ret)
-			return ret;
+			goto done;
 
 		WREG32(SMC_IND_DATA_0, data);
 	}
-	return 0;
+
+done:
+	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
+
+	return ret;
 }
 
 void si_start_smc(struct radeon_device *rdev)
@@ -203,6 +209,7 @@ PPSMC_Result si_wait_for_smc_inactive(struct radeon_device *rdev)
 
 int si_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 {
+	unsigned long flags;
 	u32 ucode_start_address;
 	u32 ucode_size;
 	const u8 *src;
@@ -241,6 +248,7 @@ int si_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 		return -EINVAL;
 
 	src = (const u8 *)rdev->smc_fw->data;
+	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
 	WREG32(SMC_IND_INDEX_0, ucode_start_address);
 	WREG32_P(SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, ~AUTO_INCREMENT_IND_0);
 	while (ucode_size >= 4) {
@@ -253,6 +261,7 @@ int si_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 		ucode_size -= 4;
 	}
 	WREG32_P(SMC_IND_ACCESS_CNTL, 0, ~AUTO_INCREMENT_IND_0);
+	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
 
 	return 0;
 }
@@ -260,25 +269,29 @@ int si_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 int si_read_smc_sram_dword(struct radeon_device *rdev, u32 smc_address,
 			   u32 *value, u32 limit)
 {
+	unsigned long flags;
 	int ret;
 
+	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
 	ret = si_set_smc_sram_address(rdev, smc_address, limit);
-	if (ret)
-		return ret;
+	if (ret == 0)
+		*value = RREG32(SMC_IND_DATA_0);
+	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
 
-	*value = RREG32(SMC_IND_DATA_0);
-	return 0;
+	return ret;
 }
 
 int si_write_smc_sram_dword(struct radeon_device *rdev, u32 smc_address,
 			    u32 value, u32 limit)
 {
+	unsigned long flags;
 	int ret;
 
+	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
 	ret = si_set_smc_sram_address(rdev, smc_address, limit);
-	if (ret)
-		return ret;
+	if (ret == 0)
+		WREG32(SMC_IND_DATA_0, value);
+	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
 
-	WREG32(SMC_IND_DATA_0, value);
-	return 0;
+	return ret;
 }

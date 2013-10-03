@@ -684,15 +684,12 @@ restart:
 			case NETDEV_RELEASE:
 			case NETDEV_JOIN:
 			case NETDEV_UNREGISTER:
-				/*
-				 * rtnl_lock already held
+				/* rtnl_lock already held
 				 * we might sleep in __netpoll_cleanup()
 				 */
 				spin_unlock_irqrestore(&target_list_lock, flags);
 
-				mutex_lock(&nt->mutex);
 				__netpoll_cleanup(&nt->np);
-				mutex_unlock(&nt->mutex);
 
 				spin_lock_irqsave(&target_list_lock, flags);
 				dev_put(nt->np.dev);

@@ -603,10 +603,11 @@ static int v9fs_cache_register(void)
 	if (ret < 0)
 		return ret;
 #ifdef CONFIG_9P_FSCACHE
-	return fscache_register_netfs(&v9fs_cache_netfs);
-#else
-	return ret;
+	ret = fscache_register_netfs(&v9fs_cache_netfs);
+	if (ret < 0)
+		v9fs_destroy_inode_cache();
 #endif
+	return ret;
 }
 
 static void v9fs_cache_unregister(void)
