@@ -826,7 +826,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 	int idx, ret;
 
 	node = of_node_get(node);
-	regulators = of_find_node_by_name(node, "regulators");
+	regulators = of_get_child_by_name(node, "regulators");
 	if (!regulators) {
 		dev_info(dev, "regulator node not found\n");
 		return;
