@@ -114,7 +114,7 @@
 
 	pfc: pfc@fffc0000 {
 		compatible = "renesas,pfc-r8a7778";
-		reg = <0xfffc000 0x118>;
+		reg = <0xfffc0000 0x118>;
 	};
 
 	i2c0: i2c@ffc70000 {
