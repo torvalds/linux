@@ -77,7 +77,7 @@ static int at32_set_target(struct cpufreq_policy *policy,
 
 static int __init at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 {
-	unsigned int frequency, rate;
+	unsigned int frequency, rate, min_freq;
 	int retval, steps, i;
 
 	if (policy->cpu != 0)
@@ -90,12 +90,9 @@ static int __init at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 		goto out_err;
 	}
 
-	policy->cpuinfo.min_freq = (clk_round_rate(cpuclk, 1) + 500) / 1000;
-	policy->cpuinfo.max_freq = (clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
+	min_freq = (clk_round_rate(cpuclk, 1) + 500) / 1000;
+	frequency = (clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
 	policy->cpuinfo.transition_latency = 0;
-	policy->cur = at32_get_speed(0);
-	policy->min = policy->cpuinfo.min_freq;
-	policy->max = policy->cpuinfo.max_freq;
 
 	/*
 	 * AVR32 CPU frequency rate scales in power of two between maximum and
@@ -104,7 +101,7 @@ static int __init at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 	 * Further validate that the frequency is usable, and append it to the
 	 * frequency table.
 	 */
-	steps = fls(policy->cpuinfo.max_freq / policy->cpuinfo.min_freq) + 1;
+	steps = fls(frequency / min_freq) + 1;
 	freq_table = kzalloc(steps * sizeof(struct cpufreq_frequency_table),
 			GFP_KERNEL);
 	if (!freq_table) {
@@ -112,7 +109,6 @@ static int __init at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 		goto out_err_put_clk;
 	}
 
-	frequency = policy->cpuinfo.max_freq;
 	for (i = 0; i < (steps - 1); i++) {
 		rate = clk_round_rate(cpuclk, frequency * 1000) / 1000;
 
