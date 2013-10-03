@@ -361,6 +361,15 @@
 #define PUNIT_OPCODE_REG_READ			6
 #define PUNIT_OPCODE_REG_WRITE			7
 
+#define PUNIT_REG_PWRGT_CTRL			0x60
+#define PUNIT_REG_PWRGT_STATUS			0x61
+#define	  PUNIT_CLK_GATE			1
+#define	  PUNIT_PWR_RESET			2
+#define	  PUNIT_PWR_GATE			3
+#define	  RENDER_PWRGT				(PUNIT_PWR_GATE << 0)
+#define	  MEDIA_PWRGT				(PUNIT_PWR_GATE << 2)
+#define	  DISP2D_PWRGT				(PUNIT_PWR_GATE << 6)
+
 #define PUNIT_REG_GPU_LFM			0xd3
 #define PUNIT_REG_GPU_FREQ_REQ			0xd4
 #define PUNIT_REG_GPU_FREQ_STS			0xd8
