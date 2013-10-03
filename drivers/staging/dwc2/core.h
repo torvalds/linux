@@ -294,7 +294,7 @@ struct dwc2_hw_params {
 	unsigned dev_token_q_depth:5;
 	unsigned max_transfer_size:26;
 	unsigned max_packet_count:11;
-	unsigned host_channels:4;
+	unsigned host_channels:5;
 	unsigned hs_phy_type:2;
 	unsigned fs_phy_type:2;
 	unsigned i2c_enable:1;
