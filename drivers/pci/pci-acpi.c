@@ -47,6 +47,9 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 	if (event != ACPI_NOTIFY_DEVICE_WAKE || !pci_dev)
 		return;
 
+	if (pci_dev->pme_poll)
+		pci_dev->pme_poll = false;
+
 	if (pci_dev->current_state == PCI_D3cold) {
 		pci_wakeup_event(pci_dev);
 		pm_runtime_resume(&pci_dev->dev);
@@ -56,9 +59,6 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 	/* Clear PME Status if set. */
 	if (pci_dev->pme_support)
 		pci_check_pme_status(pci_dev);
-
-	if (pci_dev->pme_poll)
-		pci_dev->pme_poll = false;
 
 	pci_wakeup_event(pci_dev);
 	pm_runtime_resume(&pci_dev->dev);
