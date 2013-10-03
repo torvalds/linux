@@ -383,13 +383,12 @@ static int __cpuidle_register_device(struct cpuidle_device *dev)
 	list_add(&dev->device_list, &cpuidle_detected_devices);
 
 	ret = cpuidle_coupled_register_device(dev);
-	if (ret) {
+	if (ret)
 		__cpuidle_unregister_device(dev);
-		return ret;
-	}
+	else
+		dev->registered = 1;
 
-	dev->registered = 1;
-	return 0;
+	return ret;
 }
 
 /**
