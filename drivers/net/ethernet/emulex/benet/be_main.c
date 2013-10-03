@@ -306,8 +306,12 @@ static void *hw_stats_from_cmd(struct be_adapter *adapter)
 		struct be_cmd_resp_get_stats_v0 *cmd = adapter->stats_cmd.va;
 
 		return &cmd->hw_stats;
-	} else  {
+	} else if (BE3_chip(adapter)) {
 		struct be_cmd_resp_get_stats_v1 *cmd = adapter->stats_cmd.va;
+
+		return &cmd->hw_stats;
+	} else {
+		struct be_cmd_resp_get_stats_v2 *cmd = adapter->stats_cmd.va;
 
 		return &cmd->hw_stats;
 	}
@@ -320,8 +324,12 @@ static void *be_erx_stats_from_cmd(struct be_adapter *adapter)
 		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
 
 		return &hw_stats->erx;
-	} else {
+	} else if (BE3_chip(adapter)) {
 		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->erx;
+	} else {
+		struct be_hw_stats_v2 *hw_stats = hw_stats_from_cmd(adapter);
 
 		return &hw_stats->erx;
 	}
@@ -382,6 +390,52 @@ static void populate_be_v1_stats(struct be_adapter *adapter)
 	struct be_pmem_stats *pmem_sts = &hw_stats->pmem;
 	struct be_rxf_stats_v1 *rxf_stats = &hw_stats->rxf;
 	struct be_port_rxf_stats_v1 *port_stats =
+					&rxf_stats->port[adapter->port_num];
+	struct be_drv_stats *drvs = &adapter->drv_stats;
+
+	be_dws_le_to_cpu(hw_stats, sizeof(*hw_stats));
+	drvs->pmem_fifo_overflow_drop = port_stats->pmem_fifo_overflow_drop;
+	drvs->rx_priority_pause_frames = port_stats->rx_priority_pause_frames;
+	drvs->rx_pause_frames = port_stats->rx_pause_frames;
+	drvs->rx_crc_errors = port_stats->rx_crc_errors;
+	drvs->rx_control_frames = port_stats->rx_control_frames;
+	drvs->rx_in_range_errors = port_stats->rx_in_range_errors;
+	drvs->rx_frame_too_long = port_stats->rx_frame_too_long;
+	drvs->rx_dropped_runt = port_stats->rx_dropped_runt;
+	drvs->rx_ip_checksum_errs = port_stats->rx_ip_checksum_errs;
+	drvs->rx_tcp_checksum_errs = port_stats->rx_tcp_checksum_errs;
+	drvs->rx_udp_checksum_errs = port_stats->rx_udp_checksum_errs;
+	drvs->rx_dropped_tcp_length = port_stats->rx_dropped_tcp_length;
+	drvs->rx_dropped_too_small = port_stats->rx_dropped_too_small;
+	drvs->rx_dropped_too_short = port_stats->rx_dropped_too_short;
+	drvs->rx_out_range_errors = port_stats->rx_out_range_errors;
+	drvs->rx_dropped_header_too_small =
+		port_stats->rx_dropped_header_too_small;
+	drvs->rx_input_fifo_overflow_drop =
+		port_stats->rx_input_fifo_overflow_drop;
+	drvs->rx_address_filtered = port_stats->rx_address_filtered;
+	drvs->rx_alignment_symbol_errors =
+		port_stats->rx_alignment_symbol_errors;
+	drvs->rxpp_fifo_overflow_drop = port_stats->rxpp_fifo_overflow_drop;
+	drvs->tx_pauseframes = port_stats->tx_pauseframes;
+	drvs->tx_controlframes = port_stats->tx_controlframes;
+	drvs->tx_priority_pauseframes = port_stats->tx_priority_pauseframes;
+	drvs->jabber_events = port_stats->jabber_events;
+	drvs->rx_drops_no_pbuf = rxf_stats->rx_drops_no_pbuf;
+	drvs->rx_drops_no_erx_descr = rxf_stats->rx_drops_no_erx_descr;
+	drvs->forwarded_packets = rxf_stats->forwarded_packets;
+	drvs->rx_drops_mtu = rxf_stats->rx_drops_mtu;
+	drvs->rx_drops_no_tpre_descr = rxf_stats->rx_drops_no_tpre_descr;
+	drvs->rx_drops_too_many_frags = rxf_stats->rx_drops_too_many_frags;
+	adapter->drv_stats.eth_red_drops = pmem_sts->eth_red_drops;
+}
+
+static void populate_be_v2_stats(struct be_adapter *adapter)
+{
+	struct be_hw_stats_v2 *hw_stats = hw_stats_from_cmd(adapter);
+	struct be_pmem_stats *pmem_sts = &hw_stats->pmem;
+	struct be_rxf_stats_v2 *rxf_stats = &hw_stats->rxf;
+	struct be_port_rxf_stats_v2 *port_stats =
 					&rxf_stats->port[adapter->port_num];
 	struct be_drv_stats *drvs = &adapter->drv_stats;
 
@@ -489,7 +543,7 @@ static void populate_erx_stats(struct be_adapter *adapter,
 
 void be_parse_stats(struct be_adapter *adapter)
 {
-	struct be_erx_stats_v1 *erx = be_erx_stats_from_cmd(adapter);
+	struct be_erx_stats_v2 *erx = be_erx_stats_from_cmd(adapter);
 	struct be_rx_obj *rxo;
 	int i;
 	u32 erx_stat;
@@ -499,11 +553,13 @@ void be_parse_stats(struct be_adapter *adapter)
 	} else {
 		if (BE2_chip(adapter))
 			populate_be_v0_stats(adapter);
-		else
-			/* for BE3 and Skyhawk */
+		else if (BE3_chip(adapter))
+			/* for BE3 */
 			populate_be_v1_stats(adapter);
+		else
+			populate_be_v2_stats(adapter);
 
-		/* as erx_v1 is longer than v0, ok to use v1 for v0 access */
+		/* erx_v2 is longer than v0, v1. use v2 for v0, v1 access */
 		for_all_rx_queues(adapter, rxo, i) {
 			erx_stat = erx->rx_drops_no_fragments[rxo->q.id];
 			populate_erx_stats(adapter, rxo, erx_stat);
@@ -4102,9 +4158,11 @@ static int be_stats_init(struct be_adapter *adapter)
 		cmd->size = sizeof(struct lancer_cmd_req_pport_stats);
 	else if (BE2_chip(adapter))
 		cmd->size = sizeof(struct be_cmd_req_get_stats_v0);
-	else
-		/* BE3 and Skyhawk */
+	else if (BE3_chip(adapter))
 		cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
+	else
+		/* ALL non-BE ASICs */
+		cmd->size = sizeof(struct be_cmd_req_get_stats_v2);
 
 	cmd->va = dma_zalloc_coherent(&adapter->pdev->dev, cmd->size, &cmd->dma,
 				      GFP_KERNEL);

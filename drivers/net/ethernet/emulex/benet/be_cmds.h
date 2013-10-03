@@ -1662,6 +1662,67 @@ struct be_erx_stats_v1 {
 	u32 rsvd[4];
 };
 
+struct be_port_rxf_stats_v2 {
+	u32 rsvd0[10];
+	u32 roce_bytes_received_lsd;
+	u32 roce_bytes_received_msd;
+	u32 rsvd1[5];
+	u32 roce_frames_received;
+	u32 rx_crc_errors;
+	u32 rx_alignment_symbol_errors;
+	u32 rx_pause_frames;
+	u32 rx_priority_pause_frames;
+	u32 rx_control_frames;
+	u32 rx_in_range_errors;
+	u32 rx_out_range_errors;
+	u32 rx_frame_too_long;
+	u32 rx_address_filtered;
+	u32 rx_dropped_too_small;
+	u32 rx_dropped_too_short;
+	u32 rx_dropped_header_too_small;
+	u32 rx_dropped_tcp_length;
+	u32 rx_dropped_runt;
+	u32 rsvd2[10];
+	u32 rx_ip_checksum_errs;
+	u32 rx_tcp_checksum_errs;
+	u32 rx_udp_checksum_errs;
+	u32 rsvd3[7];
+	u32 rx_switched_unicast_packets;
+	u32 rx_switched_multicast_packets;
+	u32 rx_switched_broadcast_packets;
+	u32 rsvd4[3];
+	u32 tx_pauseframes;
+	u32 tx_priority_pauseframes;
+	u32 tx_controlframes;
+	u32 rsvd5[10];
+	u32 rxpp_fifo_overflow_drop;
+	u32 rx_input_fifo_overflow_drop;
+	u32 pmem_fifo_overflow_drop;
+	u32 jabber_events;
+	u32 rsvd6[3];
+	u32 rx_drops_payload_size;
+	u32 rx_drops_clipped_header;
+	u32 rx_drops_crc;
+	u32 roce_drops_payload_len;
+	u32 roce_drops_crc;
+	u32 rsvd7[19];
+};
+
+struct be_rxf_stats_v2 {
+	struct be_port_rxf_stats_v2 port[4];
+	u32 rsvd0[2];
+	u32 rx_drops_no_pbuf;
+	u32 rx_drops_no_txpb;
+	u32 rx_drops_no_erx_descr;
+	u32 rx_drops_no_tpre_descr;
+	u32 rsvd1[6];
+	u32 rx_drops_too_many_frags;
+	u32 rx_drops_invalid_ring;
+	u32 forwarded_packets;
+	u32 rx_drops_mtu;
+	u32 rsvd2[35];
+};
+
 struct be_hw_stats_v1 {
 	struct be_rxf_stats_v1 rxf;
 	u32 rsvd0[BE_TXP_SW_SZ];
@@ -1678,6 +1739,29 @@ struct be_cmd_req_get_stats_v1 {
 struct be_cmd_resp_get_stats_v1 {
 	struct be_cmd_resp_hdr hdr;
 	struct be_hw_stats_v1 hw_stats;
+};
+
+struct be_erx_stats_v2 {
+	u32 rx_drops_no_fragments[136];     /* dwordS 0 to 135*/
+	u32 rsvd[3];
+};
+
+struct be_hw_stats_v2 {
+	struct be_rxf_stats_v2 rxf;
+	u32 rsvd0[BE_TXP_SW_SZ];
+	struct be_erx_stats_v2 erx;
+	struct be_pmem_stats pmem;
+	u32 rsvd1[18];
+};
+
+struct be_cmd_req_get_stats_v2 {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd[sizeof(struct be_hw_stats_v2)];
+};
+
+struct be_cmd_resp_get_stats_v2 {
+	struct be_cmd_resp_hdr hdr;
+	struct be_hw_stats_v2 hw_stats;
 };
 
 /************** get fat capabilites *******************/

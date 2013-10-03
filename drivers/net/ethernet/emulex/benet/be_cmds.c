@@ -1436,8 +1436,12 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 		OPCODE_ETH_GET_STATISTICS, nonemb_cmd->size, wrb, nonemb_cmd);
 
 	/* version 1 of the cmd is not supported only by BE2 */
-	if (!BE2_chip(adapter))
+	if (BE2_chip(adapter))
+		hdr->version = 0;
+	if (BE3_chip(adapter) || lancer_chip(adapter))
 		hdr->version = 1;
+	else
+		hdr->version = 2;
 
 	be_mcc_notify(adapter);
 	adapter->stats_cmd_sent = true;
