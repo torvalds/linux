@@ -131,7 +131,6 @@ static int cpu0_cpufreq_init(struct cpufreq_policy *policy)
 	}
 
 	policy->cpuinfo.transition_latency = transition_latency;
-	policy->cur = clk_get_rate(cpu_clk) / 1000;
 
 	/*
 	 * The driver only supports the SMP configuartion where all processors
