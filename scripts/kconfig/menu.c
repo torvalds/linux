@@ -597,7 +597,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 }
 
 /*
- * get peoperty of type P_SYMBOL
+ * get property of type P_SYMBOL
  */
 static struct property *get_symbol_prop(struct symbol *sym)
 {
