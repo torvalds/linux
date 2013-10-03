@@ -445,11 +445,6 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_CHANNEL_POLICY:
-		if (!enable_hs) {
-			err = -ENOPROTOOPT;
-			break;
-		}
-
 		if (put_user(chan->chan_policy, (u32 __user *) optval))
 			err = -EFAULT;
 		break;
@@ -720,11 +715,6 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_CHANNEL_POLICY:
-		if (!enable_hs) {
-			err = -ENOPROTOOPT;
-			break;
-		}
-
 		if (get_user(opt, (u32 __user *) optval)) {
 			err = -EFAULT;
 			break;
@@ -777,6 +767,12 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (sk->sk_state != BT_CONNECTED)
 		return -ENOTCONN;
 
+	lock_sock(sk);
+	err = bt_sock_wait_ready(sk, msg->msg_flags);
+	release_sock(sk);
+	if (err)
+		return err;
+
 	l2cap_chan_lock(chan);
 	err = l2cap_chan_send(chan, msg, len, sk->sk_priority);
 	l2cap_chan_unlock(chan);
@@ -799,8 +795,8 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		pi->chan->state = BT_CONFIG;
 
 		__l2cap_connect_rsp_defer(pi->chan);
-		release_sock(sk);
-		return 0;
+		err = 0;
+		goto done;
 	}
 
 	release_sock(sk);
