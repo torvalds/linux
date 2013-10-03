@@ -121,13 +121,13 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if (r->idiag_family == AF_INET6) {
-		const struct ipv6_pinfo *np = inet6_sk(sk);
 
-		*(struct in6_addr *)r->id.idiag_src = np->rcv_saddr;
-		*(struct in6_addr *)r->id.idiag_dst = np->daddr;
+		*(struct in6_addr *)r->id.idiag_src = sk->sk_v6_rcv_saddr;
+		*(struct in6_addr *)r->id.idiag_dst = sk->sk_v6_daddr;
 
 		if (ext & (1 << (INET_DIAG_TCLASS - 1)))
-			if (nla_put_u8(skb, INET_DIAG_TCLASS, np->tclass) < 0)
+			if (nla_put_u8(skb, INET_DIAG_TCLASS,
+				       inet6_sk(sk)->tclass) < 0)
 				goto errout;
 	}
 #endif
@@ -255,11 +255,8 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	r->idiag_inode	      = 0;
 #if IS_ENABLED(CONFIG_IPV6)
 	if (tw->tw_family == AF_INET6) {
-		const struct inet6_timewait_sock *tw6 =
-						inet6_twsk((struct sock *)tw);
-
-		*(struct in6_addr *)r->id.idiag_src = tw6->tw_v6_rcv_saddr;
-		*(struct in6_addr *)r->id.idiag_dst = tw6->tw_v6_daddr;
+		*(struct in6_addr *)r->id.idiag_src = tw->tw_v6_rcv_saddr;
+		*(struct in6_addr *)r->id.idiag_dst = tw->tw_v6_daddr;
 	}
 #endif
 
@@ -273,10 +270,11 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 			const struct nlmsghdr *unlh)
 {
 	if (sk->sk_state == TCP_TIME_WAIT)
-		return inet_twsk_diag_fill((struct inet_timewait_sock *)sk,
-					   skb, r, portid, seq, nlmsg_flags,
-					   unlh);
-	return inet_csk_diag_fill(sk, skb, r, user_ns, portid, seq, nlmsg_flags, unlh);
+		return inet_twsk_diag_fill(inet_twsk(sk), skb, r, portid, seq,
+					   nlmsg_flags, unlh);
+
+	return inet_csk_diag_fill(sk, skb, r, user_ns, portid, seq,
+				  nlmsg_flags, unlh);
 }
 
 int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *in_skb,
@@ -489,10 +487,9 @@ int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
 	entry.family = sk->sk_family;
 #if IS_ENABLED(CONFIG_IPV6)
 	if (entry.family == AF_INET6) {
-		struct ipv6_pinfo *np = inet6_sk(sk);
 
-		entry.saddr = np->rcv_saddr.s6_addr32;
-		entry.daddr = np->daddr.s6_addr32;
+		entry.saddr = sk->sk_v6_rcv_saddr.s6_addr32;
+		entry.daddr = sk->sk_v6_daddr.s6_addr32;
 	} else
 #endif
 	{
@@ -649,10 +646,8 @@ static int inet_twsk_diag_dump(struct sock *sk,
 		entry.family = tw->tw_family;
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == AF_INET6) {
-			struct inet6_timewait_sock *tw6 =
-						inet6_twsk((struct sock *)tw);
-			entry.saddr = tw6->tw_v6_rcv_saddr.s6_addr32;
-			entry.daddr = tw6->tw_v6_daddr.s6_addr32;
+			entry.saddr = tw->tw_v6_rcv_saddr.s6_addr32;
+			entry.daddr = tw->tw_v6_daddr.s6_addr32;
 		} else
 #endif
 		{

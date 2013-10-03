@@ -306,8 +306,8 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 		if (np) {
 			if (nla_put(skb, L2TP_ATTR_IP6_SADDR, sizeof(np->saddr),
 				    &np->saddr) ||
-			    nla_put(skb, L2TP_ATTR_IP6_DADDR, sizeof(np->daddr),
-				    &np->daddr))
+			    nla_put(skb, L2TP_ATTR_IP6_DADDR, sizeof(sk->sk_v6_daddr),
+				    &sk->sk_v6_daddr))
 				goto nla_put_failure;
 		} else
 #endif

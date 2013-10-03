@@ -304,12 +304,11 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 			}
 			case AF_INET6: {
 				struct inet_sock *inet = inet_sk(sk);
-				struct ipv6_pinfo *inet6 = inet6_sk(sk);
 
-				print_ipv6_addr(ab, &inet6->rcv_saddr,
+				print_ipv6_addr(ab, &sk->sk_v6_rcv_saddr,
 						inet->inet_sport,
 						"laddr", "lport");
-				print_ipv6_addr(ab, &inet6->daddr,
+				print_ipv6_addr(ab, &sk->sk_v6_daddr,
 						inet->inet_dport,
 						"faddr", "fport");
 				break;

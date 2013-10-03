@@ -89,30 +89,16 @@ begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		if (sk->sk_hash != hash)
 			continue;
-		if (sk->sk_state == TCP_TIME_WAIT) {
-			if (!INET6_TW_MATCH(sk, net, saddr, daddr, ports, dif))
-				continue;
-		} else {
-			if (!INET6_MATCH(sk, net, saddr, daddr, ports, dif))
-				continue;
-		}
+		if (!INET6_MATCH(sk, net, saddr, daddr, ports, dif))
+			continue;
 		if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
 			goto out;
 
-		if (sk->sk_state == TCP_TIME_WAIT) {
-			if (unlikely(!INET6_TW_MATCH(sk, net, saddr, daddr,
-						     ports, dif))) {
-				sock_gen_put(sk);
-				goto begin;
-			}
-		} else {
-			if (unlikely(!INET6_MATCH(sk, net, saddr, daddr,
-						  ports, dif))) {
-				sock_put(sk);
-				goto begin;
-			}
-		goto found;
+		if (unlikely(!INET6_MATCH(sk, net, saddr, daddr, ports, dif))) {
+			sock_gen_put(sk);
+			goto begin;
 		}
+		goto found;
 	}
 	if (get_nulls_value(node) != slot)
 		goto begin;
@@ -133,11 +119,10 @@ static inline int compute_score(struct sock *sk, struct net *net,
 
 	if (net_eq(sock_net(sk), net) && inet_sk(sk)->inet_num == hnum &&
 	    sk->sk_family == PF_INET6) {
-		const struct ipv6_pinfo *np = inet6_sk(sk);
 
 		score = 1;
-		if (!ipv6_addr_any(&np->rcv_saddr)) {
-			if (!ipv6_addr_equal(&np->rcv_saddr, daddr))
+		if (!ipv6_addr_any(&sk->sk_v6_rcv_saddr)) {
+			if (!ipv6_addr_equal(&sk->sk_v6_rcv_saddr, daddr))
 				return -1;
 			score++;
 		}
@@ -229,9 +214,8 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	struct inet_sock *inet = inet_sk(sk);
-	const struct ipv6_pinfo *np = inet6_sk(sk);
-	const struct in6_addr *daddr = &np->rcv_saddr;
-	const struct in6_addr *saddr = &np->daddr;
+	const struct in6_addr *daddr = &sk->sk_v6_rcv_saddr;
+	const struct in6_addr *saddr = &sk->sk_v6_daddr;
 	const int dif = sk->sk_bound_dev_if;
 	const __portpair ports = INET_COMBINED_PORTS(inet->inet_dport, lport);
 	struct net *net = sock_net(sk);
@@ -250,23 +234,19 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 		if (sk2->sk_hash != hash)
 			continue;
 
-		if (sk2->sk_state == TCP_TIME_WAIT) {
-			if (likely(INET6_TW_MATCH(sk2, net, saddr, daddr,
-						  ports, dif))) {
+		if (likely(INET6_MATCH(sk2, net, saddr, daddr, ports, dif))) {
+			if (sk2->sk_state == TCP_TIME_WAIT) {
 				tw = inet_twsk(sk2);
 				if (twsk_unique(sk, sk2, twp))
-					goto unique;
-				else
-					goto not_unique;
+					break;
 			}
-		}
-		if (likely(INET6_MATCH(sk2, net, saddr, daddr, ports, dif)))
 			goto not_unique;
+		}
 	}
 
-unique:
 	/* Must record num and sport now. Otherwise we will see
-	 * in hash table socket with a funny identity. */
+	 * in hash table socket with a funny identity.
+	 */
 	inet->inet_num = lport;
 	inet->inet_sport = htons(lport);
 	sk->sk_hash = hash;
@@ -299,9 +279,9 @@ not_unique:
 static inline u32 inet6_sk_port_offset(const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	const struct ipv6_pinfo *np = inet6_sk(sk);
-	return secure_ipv6_port_ephemeral(np->rcv_saddr.s6_addr32,
-					  np->daddr.s6_addr32,
+
+	return secure_ipv6_port_ephemeral(sk->sk_v6_rcv_saddr.s6_addr32,
+					  sk->sk_v6_daddr.s6_addr32,
 					  inet->inet_dport);
 }
 

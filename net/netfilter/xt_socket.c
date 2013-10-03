@@ -370,7 +370,7 @@ socket_mt6_v1_v2(const struct sk_buff *skb, struct xt_action_param *par)
 		 */
 		wildcard = (!(info->flags & XT_SOCKET_NOWILDCARD) &&
 			    sk->sk_state != TCP_TIME_WAIT &&
-			    ipv6_addr_any(&inet6_sk(sk)->rcv_saddr));
+			    ipv6_addr_any(&sk->sk_v6_rcv_saddr));
 
 		/* Ignore non-transparent sockets,
 		   if XT_SOCKET_TRANSPARENT is used */

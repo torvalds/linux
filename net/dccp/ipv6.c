@@ -67,7 +67,7 @@ static inline void dccp_v6_send_check(struct sock *sk, struct sk_buff *skb)
 	struct dccp_hdr *dh = dccp_hdr(skb);
 
 	dccp_csum_outgoing(skb);
-	dh->dccph_checksum = dccp_v6_csum_finish(skb, &np->saddr, &np->daddr);
+	dh->dccph_checksum = dccp_v6_csum_finish(skb, &np->saddr, &sk->sk_v6_daddr);
 }
 
 static inline __u64 dccp_v6_init_sequence(struct sk_buff *skb)
@@ -467,11 +467,11 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 
 		memcpy(newnp, np, sizeof(struct ipv6_pinfo));
 
-		ipv6_addr_set_v4mapped(newinet->inet_daddr, &newnp->daddr);
+		ipv6_addr_set_v4mapped(newinet->inet_daddr, &newsk->sk_v6_daddr);
 
 		ipv6_addr_set_v4mapped(newinet->inet_saddr, &newnp->saddr);
 
-		newnp->rcv_saddr = newnp->saddr;
+		newsk->sk_v6_rcv_saddr = newnp->saddr;
 
 		inet_csk(newsk)->icsk_af_ops = &dccp_ipv6_mapped;
 		newsk->sk_backlog_rcv = dccp_v4_do_rcv;
@@ -538,9 +538,9 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 
 	memcpy(newnp, np, sizeof(struct ipv6_pinfo));
 
-	newnp->daddr = ireq6->rmt_addr;
+	newsk->sk_v6_daddr = ireq6->rmt_addr;
 	newnp->saddr = ireq6->loc_addr;
-	newnp->rcv_saddr = ireq6->loc_addr;
+	newsk->sk_v6_rcv_saddr = ireq6->loc_addr;
 	newsk->sk_bound_dev_if = ireq6->iif;
 
 	/* Now IPv6 options...
@@ -885,7 +885,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			return -EINVAL;
 	}
 
-	np->daddr = usin->sin6_addr;
+	sk->sk_v6_daddr = usin->sin6_addr;
 	np->flow_label = fl6.flowlabel;
 
 	/*
@@ -915,16 +915,16 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			goto failure;
 		}
 		ipv6_addr_set_v4mapped(inet->inet_saddr, &np->saddr);
-		ipv6_addr_set_v4mapped(inet->inet_rcv_saddr, &np->rcv_saddr);
+		ipv6_addr_set_v4mapped(inet->inet_rcv_saddr, &sk->sk_v6_rcv_saddr);
 
 		return err;
 	}
 
-	if (!ipv6_addr_any(&np->rcv_saddr))
-		saddr = &np->rcv_saddr;
+	if (!ipv6_addr_any(&sk->sk_v6_rcv_saddr))
+		saddr = &sk->sk_v6_rcv_saddr;
 
 	fl6.flowi6_proto = IPPROTO_DCCP;
-	fl6.daddr = np->daddr;
+	fl6.daddr = sk->sk_v6_daddr;
 	fl6.saddr = saddr ? *saddr : np->saddr;
 	fl6.flowi6_oif = sk->sk_bound_dev_if;
 	fl6.fl6_dport = usin->sin6_port;
@@ -941,7 +941,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	if (saddr == NULL) {
 		saddr = &fl6.saddr;
-		np->rcv_saddr = *saddr;
+		sk->sk_v6_rcv_saddr = *saddr;
 	}
 
 	/* set the source address */
@@ -963,7 +963,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		goto late_failure;
 
 	dp->dccps_iss = secure_dccpv6_sequence_number(np->saddr.s6_addr32,
-						      np->daddr.s6_addr32,
+						      sk->sk_v6_daddr.s6_addr32,
 						      inet->inet_sport,
 						      inet->inet_dport);
 	err = dccp_connect(sk);

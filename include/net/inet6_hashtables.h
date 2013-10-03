@@ -43,9 +43,8 @@ static inline unsigned int inet6_ehashfn(struct net *net,
 static inline int inet6_sk_ehashfn(const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	const struct ipv6_pinfo *np = inet6_sk(sk);
-	const struct in6_addr *laddr = &np->rcv_saddr;
-	const struct in6_addr *faddr = &np->daddr;
+	const struct in6_addr *laddr = &sk->sk_v6_rcv_saddr;
+	const struct in6_addr *faddr = &sk->sk_v6_daddr;
 	const __u16 lport = inet->inet_num;
 	const __be16 fport = inet->inet_dport;
 	struct net *net = sock_net(sk);

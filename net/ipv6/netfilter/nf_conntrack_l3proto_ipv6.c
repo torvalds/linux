@@ -297,9 +297,9 @@ ipv6_getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	struct nf_conntrack_tuple tuple = { .src.l3num = NFPROTO_IPV6 };
 	struct nf_conn *ct;
 
-	tuple.src.u3.in6 = inet6->rcv_saddr;
+	tuple.src.u3.in6 = sk->sk_v6_rcv_saddr;
 	tuple.src.u.tcp.port = inet->inet_sport;
-	tuple.dst.u3.in6 = inet6->daddr;
+	tuple.dst.u3.in6 = sk->sk_v6_daddr;
 	tuple.dst.u.tcp.port = inet->inet_dport;
 	tuple.dst.protonum = sk->sk_protocol;
 

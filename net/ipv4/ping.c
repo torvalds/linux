@@ -202,15 +202,14 @@ static struct sock *ping_lookup(struct net *net, struct sk_buff *skb, u16 ident)
 #if IS_ENABLED(CONFIG_IPV6)
 		} else if (skb->protocol == htons(ETH_P_IPV6) &&
 			   sk->sk_family == AF_INET6) {
-			struct ipv6_pinfo *np = inet6_sk(sk);
 
 			pr_debug("found: %p: num=%d, daddr=%pI6c, dif=%d\n", sk,
 				 (int) isk->inet_num,
-				 &inet6_sk(sk)->rcv_saddr,
+				 &sk->sk_v6_rcv_saddr,
 				 sk->sk_bound_dev_if);
 
-			if (!ipv6_addr_any(&np->rcv_saddr) &&
-			    !ipv6_addr_equal(&np->rcv_saddr,
+			if (!ipv6_addr_any(&sk->sk_v6_rcv_saddr) &&
+			    !ipv6_addr_equal(&sk->sk_v6_rcv_saddr,
 					     &ipv6_hdr(skb)->daddr))
 				continue;
 #endif
@@ -362,7 +361,7 @@ static void ping_set_saddr(struct sock *sk, struct sockaddr *saddr)
 	} else if (saddr->sa_family == AF_INET6) {
 		struct sockaddr_in6 *addr = (struct sockaddr_in6 *) saddr;
 		struct ipv6_pinfo *np = inet6_sk(sk);
-		np->rcv_saddr = np->saddr = addr->sin6_addr;
+		sk->sk_v6_rcv_saddr = np->saddr = addr->sin6_addr;
 #endif
 	}
 }
@@ -376,7 +375,7 @@ static void ping_clear_saddr(struct sock *sk, int dif)
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (sk->sk_family == AF_INET6) {
 		struct ipv6_pinfo *np = inet6_sk(sk);
-		memset(&np->rcv_saddr, 0, sizeof(np->rcv_saddr));
+		memset(&sk->sk_v6_rcv_saddr, 0, sizeof(sk->sk_v6_rcv_saddr));
 		memset(&np->saddr, 0, sizeof(np->saddr));
 #endif
 	}
@@ -418,7 +417,7 @@ int ping_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	err = 0;
 	if ((sk->sk_family == AF_INET && isk->inet_rcv_saddr) ||
 	    (sk->sk_family == AF_INET6 &&
-	     !ipv6_addr_any(&inet6_sk(sk)->rcv_saddr)))
+	     !ipv6_addr_any(&sk->sk_v6_rcv_saddr)))
 		sk->sk_userlocks |= SOCK_BINDADDR_LOCK;
 
 	if (snum)
@@ -429,7 +428,7 @@ int ping_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sk->sk_family == AF_INET6)
-		memset(&inet6_sk(sk)->daddr, 0, sizeof(inet6_sk(sk)->daddr));
+		memset(&sk->sk_v6_daddr, 0, sizeof(sk->sk_v6_daddr));
 #endif
 
 	sk_dst_reset(sk);

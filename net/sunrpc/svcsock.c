@@ -294,7 +294,7 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 	case PF_INET6:
 		len = snprintf(buf, remaining, "ipv6 %s %pI6 %d\n",
 				proto_name,
-				&inet6_sk(sk)->rcv_saddr,
+				&sk->sk_v6_rcv_saddr,
 				inet_sk(sk)->inet_num);
 		break;
 	default:

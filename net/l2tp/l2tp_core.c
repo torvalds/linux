@@ -1181,7 +1181,7 @@ static void l2tp_xmit_ipv6_csum(struct sock *sk, struct sk_buff *skb,
 	    !(skb_dst(skb)->dev->features & NETIF_F_IPV6_CSUM)) {
 		__wsum csum = skb_checksum(skb, 0, udp_len, 0);
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		uh->check = csum_ipv6_magic(&np->saddr, &np->daddr, udp_len,
+		uh->check = csum_ipv6_magic(&np->saddr, &sk->sk_v6_daddr, udp_len,
 					    IPPROTO_UDP, csum);
 		if (uh->check == 0)
 			uh->check = CSUM_MANGLED_0;
@@ -1189,7 +1189,7 @@ static void l2tp_xmit_ipv6_csum(struct sock *sk, struct sk_buff *skb,
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct udphdr, check);
-		uh->check = ~csum_ipv6_magic(&np->saddr, &np->daddr,
+		uh->check = ~csum_ipv6_magic(&np->saddr, &sk->sk_v6_daddr,
 					     udp_len, IPPROTO_UDP, 0);
 	}
 }
@@ -1713,13 +1713,13 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 		struct ipv6_pinfo *np = inet6_sk(sk);
 
 		if (ipv6_addr_v4mapped(&np->saddr) &&
-		    ipv6_addr_v4mapped(&np->daddr)) {
+		    ipv6_addr_v4mapped(&sk->sk_v6_daddr)) {
 			struct inet_sock *inet = inet_sk(sk);
 
 			tunnel->v4mapped = true;
 			inet->inet_saddr = np->saddr.s6_addr32[3];
-			inet->inet_rcv_saddr = np->rcv_saddr.s6_addr32[3];
-			inet->inet_daddr = np->daddr.s6_addr32[3];
+			inet->inet_rcv_saddr = sk->sk_v6_rcv_saddr.s6_addr32[3];
+			inet->inet_daddr = sk->sk_v6_daddr.s6_addr32[3];
 		} else {
 			tunnel->v4mapped = false;
 		}

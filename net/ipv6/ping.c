@@ -116,7 +116,7 @@ int ping_v6_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	} else {
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
-		daddr = &np->daddr;
+		daddr = &sk->sk_v6_daddr;
 	}
 
 	if (!iif)

@@ -374,9 +374,8 @@ void tcp_retransmit_timer(struct sock *sk)
 		}
 #if IS_ENABLED(CONFIG_IPV6)
 		else if (sk->sk_family == AF_INET6) {
-			struct ipv6_pinfo *np = inet6_sk(sk);
 			LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("Peer %pI6:%u/%u unexpectedly shrunk window %u:%u (repaired)\n"),
-				       &np->daddr,
+				       &sk->sk_v6_daddr,
 				       ntohs(inet->inet_dport), inet->inet_num,
 				       tp->snd_una, tp->snd_nxt);
 		}

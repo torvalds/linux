@@ -426,20 +426,20 @@ static void sctp_v6_from_sk(union sctp_addr *addr, struct sock *sk)
 {
 	addr->v6.sin6_family = AF_INET6;
 	addr->v6.sin6_port = 0;
-	addr->v6.sin6_addr = inet6_sk(sk)->rcv_saddr;
+	addr->v6.sin6_addr = sk->sk_v6_rcv_saddr;
 }
 
 /* Initialize sk->sk_rcv_saddr from sctp_addr. */
 static void sctp_v6_to_sk_saddr(union sctp_addr *addr, struct sock *sk)
 {
 	if (addr->sa.sa_family == AF_INET && sctp_sk(sk)->v4mapped) {
-		inet6_sk(sk)->rcv_saddr.s6_addr32[0] = 0;
-		inet6_sk(sk)->rcv_saddr.s6_addr32[1] = 0;
-		inet6_sk(sk)->rcv_saddr.s6_addr32[2] = htonl(0x0000ffff);
-		inet6_sk(sk)->rcv_saddr.s6_addr32[3] =
+		sk->sk_v6_rcv_saddr.s6_addr32[0] = 0;
+		sk->sk_v6_rcv_saddr.s6_addr32[1] = 0;
+		sk->sk_v6_rcv_saddr.s6_addr32[2] = htonl(0x0000ffff);
+		sk->sk_v6_rcv_saddr.s6_addr32[3] =
 			addr->v4.sin_addr.s_addr;
 	} else {
-		inet6_sk(sk)->rcv_saddr = addr->v6.sin6_addr;
+		sk->sk_v6_rcv_saddr = addr->v6.sin6_addr;
 	}
 }
 
@@ -447,12 +447,12 @@ static void sctp_v6_to_sk_saddr(union sctp_addr *addr, struct sock *sk)
 static void sctp_v6_to_sk_daddr(union sctp_addr *addr, struct sock *sk)
 {
 	if (addr->sa.sa_family == AF_INET && sctp_sk(sk)->v4mapped) {
-		inet6_sk(sk)->daddr.s6_addr32[0] = 0;
-		inet6_sk(sk)->daddr.s6_addr32[1] = 0;
-		inet6_sk(sk)->daddr.s6_addr32[2] = htonl(0x0000ffff);
-		inet6_sk(sk)->daddr.s6_addr32[3] = addr->v4.sin_addr.s_addr;
+		sk->sk_v6_daddr.s6_addr32[0] = 0;
+		sk->sk_v6_daddr.s6_addr32[1] = 0;
+		sk->sk_v6_daddr.s6_addr32[2] = htonl(0x0000ffff);
+		sk->sk_v6_daddr.s6_addr32[3] = addr->v4.sin_addr.s_addr;
 	} else {
-		inet6_sk(sk)->daddr = addr->v6.sin6_addr;
+		sk->sk_v6_daddr = addr->v6.sin6_addr;
 	}
 }
 

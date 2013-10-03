@@ -374,7 +374,7 @@ static __inline__ void inet_reset_saddr(struct sock *sk)
 		struct ipv6_pinfo *np = inet6_sk(sk);
 
 		memset(&np->saddr, 0, sizeof(np->saddr));
-		memset(&np->rcv_saddr, 0, sizeof(np->rcv_saddr));
+		memset(&sk->sk_v6_rcv_saddr, 0, sizeof(sk->sk_v6_rcv_saddr));
 	}
 #endif
 }

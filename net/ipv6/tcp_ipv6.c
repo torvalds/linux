@@ -192,13 +192,13 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	}
 
 	if (tp->rx_opt.ts_recent_stamp &&
-	    !ipv6_addr_equal(&np->daddr, &usin->sin6_addr)) {
+	    !ipv6_addr_equal(&sk->sk_v6_daddr, &usin->sin6_addr)) {
 		tp->rx_opt.ts_recent = 0;
 		tp->rx_opt.ts_recent_stamp = 0;
 		tp->write_seq = 0;
 	}
 
-	np->daddr = usin->sin6_addr;
+	sk->sk_v6_daddr = usin->sin6_addr;
 	np->flow_label = fl6.flowlabel;
 
 	/*
@@ -237,17 +237,17 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		} else {
 			ipv6_addr_set_v4mapped(inet->inet_saddr, &np->saddr);
 			ipv6_addr_set_v4mapped(inet->inet_rcv_saddr,
-					       &np->rcv_saddr);
+					       &sk->sk_v6_rcv_saddr);
 		}
 
 		return err;
 	}
 
-	if (!ipv6_addr_any(&np->rcv_saddr))
-		saddr = &np->rcv_saddr;
+	if (!ipv6_addr_any(&sk->sk_v6_rcv_saddr))
+		saddr = &sk->sk_v6_rcv_saddr;
 
 	fl6.flowi6_proto = IPPROTO_TCP;
-	fl6.daddr = np->daddr;
+	fl6.daddr = sk->sk_v6_daddr;
 	fl6.saddr = saddr ? *saddr : np->saddr;
 	fl6.flowi6_oif = sk->sk_bound_dev_if;
 	fl6.flowi6_mark = sk->sk_mark;
@@ -266,7 +266,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	if (saddr == NULL) {
 		saddr = &fl6.saddr;
-		np->rcv_saddr = *saddr;
+		sk->sk_v6_rcv_saddr = *saddr;
 	}
 
 	/* set the source address */
@@ -279,7 +279,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	rt = (struct rt6_info *) dst;
 	if (tcp_death_row.sysctl_tw_recycle &&
 	    !tp->rx_opt.ts_recent_stamp &&
-	    ipv6_addr_equal(&rt->rt6i_dst.addr, &np->daddr))
+	    ipv6_addr_equal(&rt->rt6i_dst.addr, &sk->sk_v6_daddr))
 		tcp_fetch_timewait_stamp(sk, dst);
 
 	icsk->icsk_ext_hdr_len = 0;
@@ -298,7 +298,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	if (!tp->write_seq && likely(!tp->repair))
 		tp->write_seq = secure_tcpv6_sequence_number(np->saddr.s6_addr32,
-							     np->daddr.s6_addr32,
+							     sk->sk_v6_daddr.s6_addr32,
 							     inet->inet_sport,
 							     inet->inet_dport);
 
@@ -515,7 +515,7 @@ static struct tcp_md5sig_key *tcp_v6_md5_do_lookup(struct sock *sk,
 static struct tcp_md5sig_key *tcp_v6_md5_lookup(struct sock *sk,
 						struct sock *addr_sk)
 {
-	return tcp_v6_md5_do_lookup(sk, &inet6_sk(addr_sk)->daddr);
+	return tcp_v6_md5_do_lookup(sk, &addr_sk->sk_v6_daddr);
 }
 
 static struct tcp_md5sig_key *tcp_v6_reqsk_md5_lookup(struct sock *sk,
@@ -621,7 +621,7 @@ static int tcp_v6_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
 
 	if (sk) {
 		saddr = &inet6_sk(sk)->saddr;
-		daddr = &inet6_sk(sk)->daddr;
+		daddr = &sk->sk_v6_daddr;
 	} else if (req) {
 		saddr = &inet6_rsk(req)->loc_addr;
 		daddr = &inet6_rsk(req)->rmt_addr;
@@ -1116,11 +1116,11 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 		memcpy(newnp, np, sizeof(struct ipv6_pinfo));
 
-		ipv6_addr_set_v4mapped(newinet->inet_daddr, &newnp->daddr);
+		ipv6_addr_set_v4mapped(newinet->inet_daddr, &newsk->sk_v6_daddr);
 
 		ipv6_addr_set_v4mapped(newinet->inet_saddr, &newnp->saddr);
 
-		newnp->rcv_saddr = newnp->saddr;
+		newsk->sk_v6_rcv_saddr = newnp->saddr;
 
 		inet_csk(newsk)->icsk_af_ops = &ipv6_mapped;
 		newsk->sk_backlog_rcv = tcp_v4_do_rcv;
@@ -1185,9 +1185,9 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	memcpy(newnp, np, sizeof(struct ipv6_pinfo));
 
-	newnp->daddr = treq->rmt_addr;
+	newsk->sk_v6_daddr = treq->rmt_addr;
 	newnp->saddr = treq->loc_addr;
-	newnp->rcv_saddr = treq->loc_addr;
+	newsk->sk_v6_rcv_saddr = treq->loc_addr;
 	newsk->sk_bound_dev_if = treq->iif;
 
 	/* Now IPv6 options...
@@ -1244,13 +1244,13 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Copy over the MD5 key from the original socket */
-	if ((key = tcp_v6_md5_do_lookup(sk, &newnp->daddr)) != NULL) {
+	if ((key = tcp_v6_md5_do_lookup(sk, &newsk->sk_v6_daddr)) != NULL) {
 		/* We're using one, so create a matching key
 		 * on the newsk structure. If we fail to get
 		 * memory, then we end up not copying the key
 		 * across. Shucks.
 		 */
-		tcp_md5_do_add(newsk, (union tcp_md5_addr *)&newnp->daddr,
+		tcp_md5_do_add(newsk, (union tcp_md5_addr *)&newsk->sk_v6_daddr,
 			       AF_INET6, key->key, key->keylen,
 			       sk_gfp_atomic(sk, GFP_ATOMIC));
 	}
@@ -1758,10 +1758,9 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 	const struct inet_sock *inet = inet_sk(sp);
 	const struct tcp_sock *tp = tcp_sk(sp);
 	const struct inet_connection_sock *icsk = inet_csk(sp);
-	const struct ipv6_pinfo *np = inet6_sk(sp);
 
-	dest  = &np->daddr;
-	src   = &np->rcv_saddr;
+	dest  = &sp->sk_v6_daddr;
+	src   = &sp->sk_v6_rcv_saddr;
 	destp = ntohs(inet->inet_dport);
 	srcp  = ntohs(inet->inet_sport);
 
@@ -1810,11 +1809,10 @@ static void get_timewait6_sock(struct seq_file *seq,
 {
 	const struct in6_addr *dest, *src;
 	__u16 destp, srcp;
-	const struct inet6_timewait_sock *tw6 = inet6_twsk((struct sock *)tw);
 	s32 delta = tw->tw_ttd - inet_tw_time_stamp();
 
-	dest = &tw6->tw_v6_daddr;
-	src  = &tw6->tw_v6_rcv_saddr;
+	dest = &tw->tw_v6_daddr;
+	src  = &tw->tw_v6_rcv_saddr;
 	destp = ntohs(tw->tw_dport);
 	srcp  = ntohs(tw->tw_sport);
 

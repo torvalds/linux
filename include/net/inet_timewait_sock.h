@@ -116,7 +116,9 @@ struct inet_timewait_sock {
 #define tw_prot			__tw_common.skc_prot
 #define tw_net			__tw_common.skc_net
 #define tw_daddr        	__tw_common.skc_daddr
+#define tw_v6_daddr		__tw_common.skc_v6_daddr
 #define tw_rcv_saddr    	__tw_common.skc_rcv_saddr
+#define tw_v6_rcv_saddr    	__tw_common.skc_v6_rcv_saddr
 #define tw_dport		__tw_common.skc_dport
 #define tw_num			__tw_common.skc_num
 
@@ -133,7 +135,7 @@ struct inet_timewait_sock {
 				tw_transparent  : 1,
 				tw_pad		: 6,	/* 6 bits hole */
 				tw_tos		: 8,
-				tw_ipv6_offset  : 16;
+				tw_pad2		: 16 /* 16 bits hole */
 	kmemcheck_bitfield_end(flags);
 	u32			tw_ttd;
 	struct inet_bind_bucket	*tw_tb;

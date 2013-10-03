@@ -30,7 +30,6 @@ struct dccp6_request_sock {
 
 struct dccp6_timewait_sock {
 	struct inet_timewait_sock   inet;
-	struct inet6_timewait_sock  tw6;
 };
 
 #endif /* _DCCP_IPV6_H */
