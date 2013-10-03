@@ -1126,6 +1126,8 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	u16 template_id_2_4 = wl->scan_templ_id_2_4;
 	u16 template_id_5 = wl->scan_templ_id_5;
 
+	wl1271_debug(DEBUG_SCAN, "build probe request band %d", band);
+
 	skb = ieee80211_probereq_get(wl->hw, vif, ssid, ssid_len,
 				     ie_len);
 	if (!skb) {
@@ -1134,8 +1136,6 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	}
 	if (ie_len)
 		memcpy(skb_put(skb, ie_len), ie, ie_len);
-
-	wl1271_dump(DEBUG_SCAN, "PROBE REQ: ", skb->data, skb->len);
 
 	if (sched_scan &&
 	    (wl->quirks & WLCORE_QUIRK_DUAL_PROBE_TMPL)) {
@@ -1172,7 +1172,7 @@ struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 	if (!skb)
 		goto out;
 
-	wl1271_dump(DEBUG_SCAN, "AP PROBE REQ: ", skb->data, skb->len);
+	wl1271_debug(DEBUG_SCAN, "set ap probe request template");
 
 	rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[wlvif->band]);
 	if (wlvif->band == IEEE80211_BAND_2GHZ)
@@ -1607,33 +1607,43 @@ out:
 
 static int wlcore_get_reg_conf_ch_idx(enum ieee80211_band band, u16 ch)
 {
-	int idx = -1;
-
+	/*
+	 * map the given band/channel to the respective predefined
+	 * bit expected by the fw
+	 */
 	switch (band) {
-	case IEEE80211_BAND_5GHZ:
-		if (ch >= 8 && ch <= 16)
-			idx = ((ch-8)/4 + 18);
-		else if (ch >= 34 && ch <= 64)
-			idx = ((ch-34)/2 + 3 + 18);
-		else if (ch >= 100 && ch <= 140)
-			idx = ((ch-100)/4 + 15 + 18);
-		else if (ch >= 149 && ch <= 165)
-			idx = ((ch-149)/4 + 26 + 18);
-		else
-			idx = -1;
-		break;
 	case IEEE80211_BAND_2GHZ:
+		/* channels 1..14 are mapped to 0..13 */
 		if (ch >= 1 && ch <= 14)
-			idx = ch - 1;
-		else
-			idx = -1;
+			return ch - 1;
+		break;
+	case IEEE80211_BAND_5GHZ:
+		switch (ch) {
+		case 8 ... 16:
+			/* channels 8,12,16 are mapped to 18,19,20 */
+			return 18 + (ch-8)/4;
+		case 34 ... 48:
+			/* channels 34,36..48 are mapped to 21..28 */
+			return 21 + (ch-34)/2;
+		case 52 ... 64:
+			/* channels 52,56..64 are mapped to 29..32 */
+			return 29 + (ch-52)/4;
+		case 100 ... 140:
+			/* channels 100,104..140 are mapped to 33..43 */
+			return 33 + (ch-100)/4;
+		case 149 ... 165:
+			/* channels 149,153..165 are mapped to 44..48 */
+			return 44 + (ch-149)/4;
+		default:
+			break;
+		}
 		break;
 	default:
-		wl1271_error("get reg conf ch idx - unknown band: %d",
-			     (int)band);
+		break;
 	}
 
-	return idx;
+	wl1271_error("%s: unknown band/channel: %d/%d", __func__, band, ch);
+	return -1;
 }
 
 void wlcore_set_pending_regdomain_ch(struct wl1271 *wl, u16 channel,
@@ -1646,7 +1656,7 @@ void wlcore_set_pending_regdomain_ch(struct wl1271 *wl, u16 channel,
 
 	ch_bit_idx = wlcore_get_reg_conf_ch_idx(band, channel);
 
-	if (ch_bit_idx > 0 && ch_bit_idx <= WL1271_MAX_CHANNELS)
+	if (ch_bit_idx >= 0 && ch_bit_idx <= WL1271_MAX_CHANNELS)
 		set_bit(ch_bit_idx, (long *)wl->reg_ch_conf_pending);
 }
 
