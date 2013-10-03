@@ -22,7 +22,8 @@
 
 void ath10k_bmi_start(struct ath10k *ar)
 {
-	ath10k_dbg(ATH10K_DBG_CORE, "BMI started\n");
+	ath10k_dbg(ATH10K_DBG_BMI, "bmi start\n");
+
 	ar->bmi.done_sent = false;
 }
 
@@ -32,8 +33,10 @@ int ath10k_bmi_done(struct ath10k *ar)
 	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.done);
 	int ret;
 
+	ath10k_dbg(ATH10K_DBG_BMI, "bmi done\n");
+
 	if (ar->bmi.done_sent) {
-		ath10k_dbg(ATH10K_DBG_CORE, "%s skipped\n", __func__);
+		ath10k_dbg(ATH10K_DBG_BMI, "bmi skipped\n");
 		return 0;
 	}
 
@@ -46,7 +49,6 @@ int ath10k_bmi_done(struct ath10k *ar)
 		return ret;
 	}
 
-	ath10k_dbg(ATH10K_DBG_CORE, "BMI done\n");
 	return 0;
 }
 
@@ -58,6 +60,8 @@ int ath10k_bmi_get_target_info(struct ath10k *ar,
 	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.get_target_info);
 	u32 resplen = sizeof(resp.get_target_info);
 	int ret;
+
+	ath10k_dbg(ATH10K_DBG_BMI, "bmi get target info\n");
 
 	if (ar->bmi.done_sent) {
 		ath10k_warn("BMI Get Target Info Command disallowed\n");
@@ -80,6 +84,7 @@ int ath10k_bmi_get_target_info(struct ath10k *ar,
 
 	target_info->version = __le32_to_cpu(resp.get_target_info.version);
 	target_info->type    = __le32_to_cpu(resp.get_target_info.type);
+
 	return 0;
 }
 
@@ -92,14 +97,13 @@ int ath10k_bmi_read_memory(struct ath10k *ar,
 	u32 rxlen;
 	int ret;
 
+	ath10k_dbg(ATH10K_DBG_BMI, "bmi read address 0x%x length %d\n",
+		   address, length);
+
 	if (ar->bmi.done_sent) {
 		ath10k_warn("command disallowed\n");
 		return -EBUSY;
 	}
-
-	ath10k_dbg(ATH10K_DBG_CORE,
-		   "%s: (device: 0x%p, address: 0x%x, length: %d)\n",
-		   __func__, ar, address, length);
 
 	while (length) {
 		rxlen = min_t(u32, length, BMI_MAX_DATA_SIZE);
@@ -133,14 +137,13 @@ int ath10k_bmi_write_memory(struct ath10k *ar,
 	u32 txlen;
 	int ret;
 
+	ath10k_dbg(ATH10K_DBG_BMI, "bmi write address 0x%x length %d\n",
+		   address, length);
+
 	if (ar->bmi.done_sent) {
 		ath10k_warn("command disallowed\n");
 		return -EBUSY;
 	}
-
-	ath10k_dbg(ATH10K_DBG_CORE,
-		   "%s: (device: 0x%p, address: 0x%x, length: %d)\n",
-		   __func__, ar, address, length);
 
 	while (length) {
 		txlen = min(length, BMI_MAX_DATA_SIZE - hdrlen);
@@ -180,14 +183,13 @@ int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 *param)
 	u32 resplen = sizeof(resp.execute);
 	int ret;
 
+	ath10k_dbg(ATH10K_DBG_BMI, "bmi execute address 0x%x param 0x%x\n",
+		   address, *param);
+
 	if (ar->bmi.done_sent) {
 		ath10k_warn("command disallowed\n");
 		return -EBUSY;
 	}
-
-	ath10k_dbg(ATH10K_DBG_CORE,
-		   "%s: (device: 0x%p, address: 0x%x, param: %d)\n",
-		   __func__, ar, address, *param);
 
 	cmd.id            = __cpu_to_le32(BMI_EXECUTE);
 	cmd.execute.addr  = __cpu_to_le32(address);
@@ -215,6 +217,9 @@ int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length)
 	u32 hdrlen = sizeof(cmd.id) + sizeof(cmd.lz_data);
 	u32 txlen;
 	int ret;
+
+	ath10k_dbg(ATH10K_DBG_BMI, "bmi lz data buffer 0x%p length %d\n",
+		   buffer, length);
 
 	if (ar->bmi.done_sent) {
 		ath10k_warn("command disallowed\n");
@@ -250,6 +255,9 @@ int ath10k_bmi_lz_stream_start(struct ath10k *ar, u32 address)
 	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.lz_start);
 	int ret;
 
+	ath10k_dbg(ATH10K_DBG_BMI, "bmi lz stream start address 0x%x\n",
+		   address);
+
 	if (ar->bmi.done_sent) {
 		ath10k_warn("command disallowed\n");
 		return -EBUSY;
@@ -274,6 +282,10 @@ int ath10k_bmi_fast_download(struct ath10k *ar,
 	u32 head_len = rounddown(length, 4);
 	u32 trailer_len = length - head_len;
 	int ret;
+
+	ath10k_dbg(ATH10K_DBG_BMI,
+		   "bmi fast download address 0x%x buffer 0x%p length %d\n",
+		   address, buffer, length);
 
 	ret = ath10k_bmi_lz_stream_start(ar, address);
 	if (ret)

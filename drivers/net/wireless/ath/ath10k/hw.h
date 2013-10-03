@@ -74,7 +74,11 @@ enum ath10k_mcast2ucast_mode {
 #define TARGET_RX_CHAIN_MASK			(BIT(0) | BIT(1) | BIT(2))
 #define TARGET_RX_TIMEOUT_LO_PRI		100
 #define TARGET_RX_TIMEOUT_HI_PRI		40
-#define TARGET_RX_DECAP_MODE			ATH10K_HW_TXRX_ETHERNET
+
+/* Native Wifi decap mode is used to align IP frames to 4-byte boundaries and
+ * avoid a very expensive re-alignment in mac80211. */
+#define TARGET_RX_DECAP_MODE			ATH10K_HW_TXRX_NATIVE_WIFI
+
 #define TARGET_SCAN_MAX_PENDING_REQS		4
 #define TARGET_BMISS_OFFLOAD_MAX_VDEV		3
 #define TARGET_ROAM_OFFLOAD_MAX_VDEV		3

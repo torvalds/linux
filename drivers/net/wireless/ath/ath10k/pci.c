@@ -612,31 +612,20 @@ exit:
 }
 
 /* Called by lower (CE) layer when a send to Target completes. */
-static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state,
-				    void *transfer_context,
-				    u32 ce_data,
-				    unsigned int nbytes,
-				    unsigned int transfer_id)
+static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_pipe *pipe_info =  &ar_pci->pipe_info[ce_state->id];
 	struct ath10k_pci_compl *compl;
-	bool process = false;
+	void *transfer_context;
+	u32 ce_data;
+	unsigned int nbytes;
+	unsigned int transfer_id;
 
-	do {
-		/*
-		 * For the send completion of an item in sendlist, just
-		 * increment num_sends_allowed. The upper layer callback will
-		 * be triggered when last fragment is done with send.
-		 */
-		if (transfer_context == CE_SENDLIST_ITEM_CTXT) {
-			spin_lock_bh(&pipe_info->pipe_lock);
-			pipe_info->num_sends_allowed++;
-			spin_unlock_bh(&pipe_info->pipe_lock);
-			continue;
-		}
-
+	while (ath10k_ce_completed_send_next(ce_state, &transfer_context,
+					     &ce_data, &nbytes,
+					     &transfer_id) == 0) {
 		compl = get_free_compl(pipe_info);
 		if (!compl)
 			break;
@@ -655,38 +644,28 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state,
 		spin_lock_bh(&ar_pci->compl_lock);
 		list_add_tail(&compl->list, &ar_pci->compl_process);
 		spin_unlock_bh(&ar_pci->compl_lock);
-
-		process = true;
-	} while (ath10k_ce_completed_send_next(ce_state,
-							   &transfer_context,
-							   &ce_data, &nbytes,
-							   &transfer_id) == 0);
-
-	/*
-	 * If only some of the items within a sendlist have completed,
-	 * don't invoke completion processing until the entire sendlist
-	 * has been sent.
-	 */
-	if (!process)
-		return;
+	}
 
 	ath10k_pci_process_ce(ar);
 }
 
 /* Called by lower (CE) layer when data is received from the Target. */
-static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state,
-				    void *transfer_context, u32 ce_data,
-				    unsigned int nbytes,
-				    unsigned int transfer_id,
-				    unsigned int flags)
+static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_pipe *pipe_info =  &ar_pci->pipe_info[ce_state->id];
 	struct ath10k_pci_compl *compl;
 	struct sk_buff *skb;
+	void *transfer_context;
+	u32 ce_data;
+	unsigned int nbytes;
+	unsigned int transfer_id;
+	unsigned int flags;
 
-	do {
+	while (ath10k_ce_completed_recv_next(ce_state, &transfer_context,
+					     &ce_data, &nbytes, &transfer_id,
+					     &flags) == 0) {
 		compl = get_free_compl(pipe_info);
 		if (!compl)
 			break;
@@ -709,12 +688,7 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state,
 		spin_lock_bh(&ar_pci->compl_lock);
 		list_add_tail(&compl->list, &ar_pci->compl_process);
 		spin_unlock_bh(&ar_pci->compl_lock);
-
-	} while (ath10k_ce_completed_recv_next(ce_state,
-							   &transfer_context,
-							   &ce_data, &nbytes,
-							   &transfer_id,
-							   &flags) == 0);
+	}
 
 	ath10k_pci_process_ce(ar);
 }
@@ -728,12 +702,9 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_pipe *pipe_info = &(ar_pci->pipe_info[pipe_id]);
 	struct ath10k_ce_pipe *ce_hdl = pipe_info->ce_hdl;
-	struct ce_sendlist sendlist;
 	unsigned int len;
 	u32 flags = 0;
 	int ret;
-
-	memset(&sendlist, 0, sizeof(struct ce_sendlist));
 
 	len = min(bytes, nbuf->len);
 	bytes -= len;
@@ -749,8 +720,6 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 			"ath10k tx: data: ",
 			nbuf->data, nbuf->len);
 
-	ath10k_ce_sendlist_buf_add(&sendlist, skb_cb->paddr, len, flags);
-
 	/* Make sure we have resources to handle this request */
 	spin_lock_bh(&pipe_info->pipe_lock);
 	if (!pipe_info->num_sends_allowed) {
@@ -761,7 +730,8 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 	pipe_info->num_sends_allowed--;
 	spin_unlock_bh(&pipe_info->pipe_lock);
 
-	ret = ath10k_ce_sendlist_send(ce_hdl, nbuf, &sendlist, transfer_id);
+	ret = ath10k_ce_sendlist_send(ce_hdl, nbuf, transfer_id,
+				      skb_cb->paddr, len, flags);
 	if (ret)
 		ath10k_warn("CE send failed: %p\n", nbuf);
 
@@ -1316,15 +1286,14 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 
 	while (ath10k_ce_cancel_send_next(ce_hdl, (void **)&netbuf,
 					  &ce_data, &nbytes, &id) == 0) {
-		if (netbuf != CE_SENDLIST_ITEM_CTXT)
-			/*
-			 * Indicate the completion to higer layer to free
-			 * the buffer
-			 */
-			ATH10K_SKB_CB(netbuf)->is_aborted = true;
-			ar_pci->msg_callbacks_current.tx_completion(ar,
-								    netbuf,
-								    id);
+		/*
+		 * Indicate the completion to higer layer to free
+		 * the buffer
+		 */
+		ATH10K_SKB_CB(netbuf)->is_aborted = true;
+		ar_pci->msg_callbacks_current.tx_completion(ar,
+							    netbuf,
+							    id);
 	}
 }
 
@@ -1490,13 +1459,16 @@ err_dma:
 	return ret;
 }
 
-static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state,
-				     void *transfer_context,
-				     u32 data,
-				     unsigned int nbytes,
-				     unsigned int transfer_id)
+static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state)
 {
-	struct bmi_xfer *xfer = transfer_context;
+	struct bmi_xfer *xfer;
+	u32 ce_data;
+	unsigned int nbytes;
+	unsigned int transfer_id;
+
+	if (ath10k_ce_completed_send_next(ce_state, (void **)&xfer, &ce_data,
+					  &nbytes, &transfer_id))
+		return;
 
 	if (xfer->wait_for_resp)
 		return;
@@ -1504,14 +1476,17 @@ static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state,
 	complete(&xfer->done);
 }
 
-static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state,
-				     void *transfer_context,
-				     u32 data,
-				     unsigned int nbytes,
-				     unsigned int transfer_id,
-				     unsigned int flags)
+static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
 {
-	struct bmi_xfer *xfer = transfer_context;
+	struct bmi_xfer *xfer;
+	u32 ce_data;
+	unsigned int nbytes;
+	unsigned int transfer_id;
+	unsigned int flags;
+
+	if (ath10k_ce_completed_recv_next(ce_state, (void **)&xfer, &ce_data,
+					  &nbytes, &transfer_id, &flags))
+		return;
 
 	if (!xfer->wait_for_resp) {
 		ath10k_warn("unexpected: BMI data received; ignoring\n");
@@ -2374,10 +2349,10 @@ static void ath10k_pci_dump_features(struct ath10k_pci *ar_pci)
 
 		switch (i) {
 		case ATH10K_PCI_FEATURE_MSI_X:
-			ath10k_dbg(ATH10K_DBG_PCI, "device supports MSI-X\n");
+			ath10k_dbg(ATH10K_DBG_BOOT, "device supports MSI-X\n");
 			break;
 		case ATH10K_PCI_FEATURE_SOC_POWER_SAVE:
-			ath10k_dbg(ATH10K_DBG_PCI, "QCA98XX SoC power save enabled\n");
+			ath10k_dbg(ATH10K_DBG_BOOT, "QCA98XX SoC power save enabled\n");
 			break;
 		}
 	}
@@ -2502,6 +2477,8 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 				    RTC_SOC_BASE_ADDRESS + SOC_CHIP_ID_ADDRESS);
 
 	ath10k_do_pci_sleep(ar);
+
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot pci_mem 0x%p\n", ar_pci->mem);
 
 	ret = ath10k_core_register(ar, chip_id);
 	if (ret) {

@@ -52,18 +52,12 @@ struct ath10k_skb_cb {
 
 	struct {
 		u8 vdev_id;
-		u16 msdu_id;
 		u8 tid;
 		bool is_offchan;
-		bool is_conf;
-		bool discard;
-		bool no_ack;
-		u8 refcount;
-		struct sk_buff *txfrag;
-		struct sk_buff *msdu;
-	} __packed htt;
 
-	/* 4 bytes left on 64bit arch */
+		u8 frag_len;
+		u8 pad_len;
+	} __packed htt;
 } __packed;
 
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
@@ -112,11 +106,7 @@ struct ath10k_wmi {
 	enum ath10k_htc_ep_id eid;
 	struct completion service_ready;
 	struct completion unified_ready;
-	atomic_t pending_tx_count;
-	wait_queue_head_t wq;
-
-	struct sk_buff_head wmi_event_list;
-	struct work_struct wmi_event_work;
+	wait_queue_head_t tx_credits_wq;
 };
 
 struct ath10k_peer_stat {
@@ -203,6 +193,7 @@ struct ath10k_vif {
 	enum wmi_vdev_subtype vdev_subtype;
 	u32 beacon_interval;
 	u32 dtim_period;
+	struct sk_buff *beacon;
 
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;
@@ -246,6 +237,9 @@ struct ath10k_debug {
 	u32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
 
 	struct completion event_stats_compl;
+
+	unsigned long htt_stats_mask;
+	struct delayed_work htt_stats_dwork;
 };
 
 enum ath10k_state {
