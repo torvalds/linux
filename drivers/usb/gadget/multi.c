@@ -179,7 +179,7 @@ err_conf:
 	return ret;
 }
 
-static int rndis_config_register(struct usb_composite_dev *cdev)
+static __ref int rndis_config_register(struct usb_composite_dev *cdev)
 {
 	static struct usb_configuration config = {
 		.bConfigurationValue	= MULTI_RNDIS_CONFIG_NUM,
@@ -194,7 +194,7 @@ static int rndis_config_register(struct usb_composite_dev *cdev)
 
 #else
 
-static int rndis_config_register(struct usb_composite_dev *cdev)
+static __ref int rndis_config_register(struct usb_composite_dev *cdev)
 {
 	return 0;
 }
@@ -241,7 +241,7 @@ err_conf:
 	return ret;
 }
 
-static int cdc_config_register(struct usb_composite_dev *cdev)
+static __ref int cdc_config_register(struct usb_composite_dev *cdev)
 {
 	static struct usb_configuration config = {
 		.bConfigurationValue	= MULTI_CDC_CONFIG_NUM,
@@ -256,7 +256,7 @@ static int cdc_config_register(struct usb_composite_dev *cdev)
 
 #else
 
-static int cdc_config_register(struct usb_composite_dev *cdev)
+static __ref int cdc_config_register(struct usb_composite_dev *cdev)
 {
 	return 0;
 }

@@ -47,6 +47,13 @@ static inline void msg_exit_ns(struct ipc_namespace *ns) { }
 static inline void shm_exit_ns(struct ipc_namespace *ns) { }
 #endif
 
+struct ipc_rcu {
+	struct rcu_head rcu;
+	atomic_t refcount;
+} ____cacheline_aligned_in_smp;
+
+#define ipc_rcu_to_struct(p)  ((void *)(p+1))
+
 /*
  * Structure that holds the parameters needed by the ipc operations
  * (see after)
@@ -120,7 +127,8 @@ void ipc_free(void* ptr, int size);
  */
 void* ipc_rcu_alloc(int size);
 int ipc_rcu_getref(void *ptr);
-void ipc_rcu_putref(void *ptr);
+void ipc_rcu_putref(void *ptr, void (*func)(struct rcu_head *head));
+void ipc_rcu_free(struct rcu_head *head);
 
 struct kern_ipc_perm *ipc_lock(struct ipc_ids *, int);
 struct kern_ipc_perm *ipc_obtain_object(struct ipc_ids *ids, int id);

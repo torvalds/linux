@@ -111,6 +111,9 @@ enum {
 /* 0x0009 - 0x0014 -> 12 test regs */
 /* 0x0015 - visibility reg */
 
+/* Cirrus Logic CS4208 */
+#define CS4208_VENDOR_NID	0x24
+
 /*
  * Cirrus Logic CS4210
  *
@@ -223,6 +226,16 @@ static const struct hda_verb cs_coef_init_verbs[] = {
 	{} /* terminator */
 };
 
+static const struct hda_verb cs4208_coef_init_verbs[] = {
+	{0x01, AC_VERB_SET_POWER_STATE, 0x00}, /* AFG: D0 */
+	{0x24, AC_VERB_SET_PROC_STATE, 0x01},  /* VPW: processing on */
+	{0x24, AC_VERB_SET_COEF_INDEX, 0x0033},
+	{0x24, AC_VERB_SET_PROC_COEF, 0x0001}, /* A1 ICS */
+	{0x24, AC_VERB_SET_COEF_INDEX, 0x0034},
+	{0x24, AC_VERB_SET_PROC_COEF, 0x1C01}, /* A1 Enable, A Thresh = 300mV */
+	{} /* terminator */
+};
+
 /* Errata: CS4207 rev C0/C1/C2 Silicon
  *
  * http://www.cirrus.com/en/pubs/errata/ER880C3.pdf
@@ -295,6 +308,8 @@ static int cs_init(struct hda_codec *codec)
 		/* init_verb sequence for C0/C1/C2 errata*/
 		snd_hda_sequence_write(codec, cs_errata_init_verbs);
 		snd_hda_sequence_write(codec, cs_coef_init_verbs);
+	} else if (spec->vendor_nid == CS4208_VENDOR_NID) {
+		snd_hda_sequence_write(codec, cs4208_coef_init_verbs);
 	}
 
 	snd_hda_gen_init(codec);
@@ -434,6 +449,29 @@ static const struct hda_pintbl mba42_pincfgs[] = {
 	{} /* terminator */
 };
 
+static const struct hda_pintbl mba6_pincfgs[] = {
+	{ 0x10, 0x032120f0 }, /* HP */
+	{ 0x11, 0x500000f0 },
+	{ 0x12, 0x90100010 }, /* Speaker */
+	{ 0x13, 0x500000f0 },
+	{ 0x14, 0x500000f0 },
+	{ 0x15, 0x770000f0 },
+	{ 0x16, 0x770000f0 },
+	{ 0x17, 0x430000f0 },
+	{ 0x18, 0x43ab9030 }, /* Mic */
+	{ 0x19, 0x770000f0 },
+	{ 0x1a, 0x770000f0 },
+	{ 0x1b, 0x770000f0 },
+	{ 0x1c, 0x90a00090 },
+	{ 0x1d, 0x500000f0 },
+	{ 0x1e, 0x500000f0 },
+	{ 0x1f, 0x500000f0 },
+	{ 0x20, 0x500000f0 },
+	{ 0x21, 0x430000f0 },
+	{ 0x22, 0x430000f0 },
+	{} /* terminator */
+};
+
 static void cs420x_fixup_gpio_13(struct hda_codec *codec,
 				 const struct hda_fixup *fix, int action)
 {
@@ -556,22 +594,23 @@ static int patch_cs420x(struct hda_codec *codec)
 
 /*
  * CS4208 support:
- * Its layout is no longer compatible with CS4206/CS4207, and the generic
- * parser seems working fairly well, except for trivial fixups.
+ * Its layout is no longer compatible with CS4206/CS4207
  */
 enum {
+	CS4208_MBA6,
 	CS4208_GPIO0,
 };
 
 static const struct hda_model_fixup cs4208_models[] = {
 	{ .id = CS4208_GPIO0, .name = "gpio0" },
+	{ .id = CS4208_MBA6, .name = "mba6" },
 	{}
 };
 
 static const struct snd_pci_quirk cs4208_fixup_tbl[] = {
 	/* codec SSID */
-	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookPro 6,1", CS4208_GPIO0),
-	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookPro 6,2", CS4208_GPIO0),
+	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookAir 6,1", CS4208_MBA6),
+	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookAir 6,2", CS4208_MBA6),
 	{} /* terminator */
 };
 
@@ -588,18 +627,35 @@ static void cs4208_fixup_gpio0(struct hda_codec *codec,
 }
 
 static const struct hda_fixup cs4208_fixups[] = {
+	[CS4208_MBA6] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = mba6_pincfgs,
+		.chained = true,
+		.chain_id = CS4208_GPIO0,
+	},
 	[CS4208_GPIO0] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cs4208_fixup_gpio0,
 	},
 };
 
+/* correct the 0dB offset of input pins */
+static void cs4208_fix_amp_caps(struct hda_codec *codec, hda_nid_t adc)
+{
+	unsigned int caps;
+
+	caps = query_amp_caps(codec, adc, HDA_INPUT);
+	caps &= ~(AC_AMPCAP_OFFSET);
+	caps |= 0x02;
+	snd_hda_override_amp_caps(codec, adc, HDA_INPUT, caps);
+}
+
 static int patch_cs4208(struct hda_codec *codec)
 {
 	struct cs_spec *spec;
 	int err;
 
-	spec = cs_alloc_spec(codec, 0); /* no specific w/a */
+	spec = cs_alloc_spec(codec, CS4208_VENDOR_NID);
 	if (!spec)
 		return -ENOMEM;
 
@@ -608,6 +664,12 @@ static int patch_cs4208(struct hda_codec *codec)
 	snd_hda_pick_fixup(codec, cs4208_models, cs4208_fixup_tbl,
 			   cs4208_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+
+	snd_hda_override_wcaps(codec, 0x18,
+			       get_wcaps(codec, 0x18) | AC_WCAP_STEREO);
+	cs4208_fix_amp_caps(codec, 0x18);
+	cs4208_fix_amp_caps(codec, 0x1b);
+	cs4208_fix_amp_caps(codec, 0x1c);
 
 	err = cs_parse_auto_config(codec);
 	if (err < 0)
