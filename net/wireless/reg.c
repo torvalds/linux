@@ -972,6 +972,13 @@ static bool reg_dev_ignore_cell_hint(struct wiphy *wiphy)
 }
 #endif
 
+static bool wiphy_strict_alpha2_regd(struct wiphy *wiphy)
+{
+	if (wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY &&
+	    !(wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY))
+		return true;
+	return false;
+}
 
 static bool ignore_reg_update(struct wiphy *wiphy,
 			      enum nl80211_reg_initiator initiator)
@@ -995,9 +1002,8 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	 * wiphy->regd will be set once the device has its own
 	 * desired regulatory domain set
 	 */
-	if (wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY && !wiphy->regd &&
+	if (wiphy_strict_alpha2_regd(wiphy) && !wiphy->regd &&
 	    initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-	    !(wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) &&
 	    !is_world_regdom(lr->alpha2)) {
 		REG_DBG_PRINT("Ignoring regulatory request %s since the driver requires its own regulatory domain to be set first\n",
 			      reg_initiator_name(initiator));
