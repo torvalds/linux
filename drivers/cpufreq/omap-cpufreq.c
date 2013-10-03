@@ -40,13 +40,6 @@ static struct clk *mpu_clk;
 static struct device *mpu_dev;
 static struct regulator *mpu_reg;
 
-static int omap_verify_speed(struct cpufreq_policy *policy)
-{
-	if (!freq_table)
-		return -EINVAL;
-	return cpufreq_frequency_table_verify(policy, freq_table);
-}
-
 static unsigned int omap_getspeed(unsigned int cpu)
 {
 	unsigned long rate;
@@ -227,20 +220,15 @@ static int omap_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct freq_attr *omap_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver omap_driver = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= omap_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= omap_target,
 	.get		= omap_getspeed,
 	.init		= omap_cpu_init,
 	.exit		= omap_cpu_exit,
 	.name		= "omap",
-	.attr		= omap_cpufreq_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static int omap_cpufreq_probe(struct platform_device *pdev)
