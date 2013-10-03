@@ -378,11 +378,6 @@ static int s3c_cpufreq_init(struct cpufreq_policy *policy)
 	if (policy->cpu != 0)
 		return -EINVAL;
 
-	policy->cur = s3c_cpufreq_get(0);
-	policy->min = policy->cpuinfo.min_freq = 0;
-	policy->max = policy->cpuinfo.max_freq = cpu_cur.info->max.fclk / 1000;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-
 	/* feed the latency information from the cpu driver */
 	policy->cpuinfo.transition_latency = cpu_cur.info->latency;
 

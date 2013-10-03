@@ -235,8 +235,6 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 		freq++;
 	}
 
-	policy->cur = clk_get_rate(armclk) / 1000;
-
 	/* Datasheet says PLL stabalisation time (if we were to use
 	 * the PLLs, which we don't currently) is ~300us worst case,
 	 * but add some fudge.

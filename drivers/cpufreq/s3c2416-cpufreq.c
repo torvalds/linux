@@ -476,8 +476,6 @@ static int __init s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 		freq++;
 	}
 
-	policy->cur = clk_get_rate(s3c_freq->armclk) / 1000;
-
 	/* Datasheet says PLL stabalisation time must be at least 300us,
 	 * so but add some fudge. (reference in LOCKCON0 register description)
 	 */
