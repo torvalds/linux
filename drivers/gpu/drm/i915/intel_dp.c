@@ -1494,10 +1494,11 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	pipe_config->adjusted_mode.crtc_clock = dotclock;
 }
 
-static bool is_edp_psr(struct intel_dp *intel_dp)
+static bool is_edp_psr(struct drm_device *dev)
 {
-	return is_edp(intel_dp) &&
-		intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return dev_priv->psr.sink_support;
 }
 
 static bool intel_edp_is_psr_enabled(struct drm_device *dev)
@@ -1624,42 +1625,33 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 	struct drm_i915_gem_object *obj = to_intel_framebuffer(crtc->fb)->obj;
 	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
 
+	dev_priv->psr.source_ok = false;
+
 	if (!HAS_PSR(dev)) {
 		DRM_DEBUG_KMS("PSR not supported on this platform\n");
-		dev_priv->no_psr_reason = PSR_NO_SOURCE;
 		return false;
 	}
 
 	if ((intel_encoder->type != INTEL_OUTPUT_EDP) ||
 	    (dig_port->port != PORT_A)) {
 		DRM_DEBUG_KMS("HSW ties PSR to DDI A (eDP)\n");
-		dev_priv->no_psr_reason = PSR_HSW_NOT_DDIA;
-		return false;
-	}
-
-	if (!is_edp_psr(intel_dp)) {
-		DRM_DEBUG_KMS("PSR not supported by this panel\n");
-		dev_priv->no_psr_reason = PSR_NO_SINK;
 		return false;
 	}
 
 	if (!i915_enable_psr) {
 		DRM_DEBUG_KMS("PSR disable by flag\n");
-		dev_priv->no_psr_reason = PSR_MODULE_PARAM;
 		return false;
 	}
 
 	crtc = dig_port->base.base.crtc;
 	if (crtc == NULL) {
 		DRM_DEBUG_KMS("crtc not active for PSR\n");
-		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
 		return false;
 	}
 
 	intel_crtc = to_intel_crtc(crtc);
 	if (!intel_crtc_active(crtc)) {
 		DRM_DEBUG_KMS("crtc not active for PSR\n");
-		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
 		return false;
 	}
 
@@ -1667,29 +1659,26 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 	if (obj->tiling_mode != I915_TILING_X ||
 	    obj->fence_reg == I915_FENCE_REG_NONE) {
 		DRM_DEBUG_KMS("PSR condition failed: fb not tiled or fenced\n");
-		dev_priv->no_psr_reason = PSR_NOT_TILED;
 		return false;
 	}
 
 	if (I915_READ(SPRCTL(intel_crtc->pipe)) & SPRITE_ENABLE) {
 		DRM_DEBUG_KMS("PSR condition failed: Sprite is Enabled\n");
-		dev_priv->no_psr_reason = PSR_SPRITE_ENABLED;
 		return false;
 	}
 
 	if (I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config.cpu_transcoder)) &
 	    S3D_ENABLE) {
 		DRM_DEBUG_KMS("PSR condition failed: Stereo 3D is Enabled\n");
-		dev_priv->no_psr_reason = PSR_S3D_ENABLED;
 		return false;
 	}
 
 	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
-		dev_priv->no_psr_reason = PSR_INTERLACED_ENABLED;
 		return false;
 	}
 
+	dev_priv->psr.source_ok = true;
 	return true;
 }
 
@@ -1746,7 +1735,7 @@ void intel_edp_psr_update(struct drm_device *dev)
 		if (encoder->type == INTEL_OUTPUT_EDP) {
 			intel_dp = enc_to_intel_dp(&encoder->base);
 
-			if (!is_edp_psr(intel_dp))
+			if (!is_edp_psr(dev))
 				return;
 
 			if (!intel_edp_psr_match_conditions(intel_dp))
@@ -2725,6 +2714,10 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 static bool
 intel_dp_get_dpcd(struct intel_dp *intel_dp)
 {
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	char dpcd_hex_dump[sizeof(intel_dp->dpcd) * 3];
 
 	if (intel_dp_aux_native_read_retry(intel_dp, 0x000, intel_dp->dpcd,
@@ -2744,8 +2737,10 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		intel_dp_aux_native_read_retry(intel_dp, DP_PSR_SUPPORT,
 					       intel_dp->psr_dpcd,
 					       sizeof(intel_dp->psr_dpcd));
-		if (is_edp_psr(intel_dp))
+		if (intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED) {
+			dev_priv->psr.sink_support = true;
 			DRM_DEBUG_KMS("Detected EDP PSR Panel.\n");
+		}
 	}
 
 	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
