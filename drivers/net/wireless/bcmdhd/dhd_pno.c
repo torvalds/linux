@@ -302,13 +302,13 @@ _dhd_pno_set(dhd_pub_t *dhd, const dhd_pno_params_t *pno_params, dhd_pno_mode_t 
 		/* set bestn to calculate the max mscan which firmware supports */
 		err = dhd_iovar(dhd, 0, "pfnmem", (char *)&_tmp, sizeof(_tmp), 1);
 		if (err < 0) {
-			DHD_ERROR(("%s : failed to set pfnmscan\n", __FUNCTION__));
+			DHD_ERROR(("%s : failed to set pfnmem\n", __FUNCTION__));
 			goto exit;
 		}
 		/* get max mscan which the firmware supports */
 		err = dhd_iovar(dhd, 0, "pfnmem", (char *)&_tmp, sizeof(_tmp), 0);
 		if (err < 0) {
-			DHD_ERROR(("%s : failed to get pfnmscan\n", __FUNCTION__));
+			DHD_ERROR(("%s : failed to get pfnmem\n", __FUNCTION__));
 			goto exit;
 		}
 		DHD_PNO((" returned mscan : %d, set bestn : %d\n", _tmp, pfn_param.bestn));
@@ -997,6 +997,9 @@ dhd_pno_set_for_batch(dhd_pub_t *dhd, struct dhd_pno_batch_params *batch_params)
 				__FUNCTION__));
 			goto exit;
 		}
+	} else {
+		/* batch mode is already started */
+		return -EBUSY;
 	}
 	_params->params_batch.scan_fr = batch_params->scan_fr;
 	_params->params_batch.bestn = batch_params->bestn;
