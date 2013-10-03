@@ -160,50 +160,31 @@ static inline void freq_table_free(void)
 
 static int omap_cpu_init(struct cpufreq_policy *policy)
 {
-	int result = 0;
+	int result;
 
 	mpu_clk = clk_get(NULL, "cpufreq_ck");
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 
-	if (policy->cpu >= NR_CPUS) {
-		result = -EINVAL;
-		goto fail_ck;
-	}
-
-	if (!freq_table)
+	if (!freq_table) {
 		result = opp_init_cpufreq_table(mpu_dev, &freq_table);
-
-	if (result) {
-		dev_err(mpu_dev, "%s: cpu%d: failed creating freq table[%d]\n",
+		if (result) {
+			dev_err(mpu_dev,
+				"%s: cpu%d: failed creating freq table[%d]\n",
 				__func__, policy->cpu, result);
-		goto fail_ck;
+			goto fail;
+		}
 	}
 
 	atomic_inc_return(&freq_table_users);
 
-	result = cpufreq_table_validate_and_show(policy, freq_table);
-	if (result)
-		goto fail_table;
-
-	/*
-	 * On OMAP SMP configuartion, both processors share the voltage
-	 * and clock. So both CPUs needs to be scaled together and hence
-	 * needs software co-ordination. Use cpufreq affected_cpus
-	 * interface to handle this scenario. Additional is_smp() check
-	 * is to keep SMP_ON_UP build working.
-	 */
-	if (is_smp())
-		cpumask_setall(policy->cpus);
-
 	/* FIXME: what's the actual transition time? */
-	policy->cpuinfo.transition_latency = 300 * 1000;
+	result = cpufreq_generic_init(policy, freq_table, 300 * 1000);
+	if (!result)
+		return 0;
 
-	return 0;
-
-fail_table:
 	freq_table_free();
-fail_ck:
+fail:
 	clk_put(mpu_clk);
 	return result;
 }
