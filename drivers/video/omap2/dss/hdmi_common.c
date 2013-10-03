@@ -283,7 +283,7 @@ static bool hdmi_timings_compare(struct omap_video_timings *timing1,
 		timing2_hsync = timing2->hfp + timing2->hsw + timing2->hbp;
 		timing1_hsync = timing1->hfp + timing1->hsw + timing1->hbp;
 		timing2_vsync = timing2->vfp + timing2->vsw + timing2->vbp;
-		timing1_vsync = timing2->vfp + timing2->vsw + timing2->vbp;
+		timing1_vsync = timing1->vfp + timing1->vsw + timing1->vbp;
 
 		DSSDBG("timing1_hsync = %d timing1_vsync = %d"\
 			"timing2_hsync = %d timing2_vsync = %d\n",
