@@ -347,15 +347,8 @@ static unsigned int g5_cpufreq_get_speed(unsigned int cpu)
 
 static int g5_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	policy->cpuinfo.transition_latency = transition_latency;
-	/* secondary CPUs are tied to the primary one by the
-	 * cpufreq core if in the secondary policy we tell it that
-	 * it actually must be one policy together with all others. */
-	cpumask_copy(policy->cpus, cpu_online_mask);
-
-	return cpufreq_table_validate_and_show(policy, g5_cpu_freqs);
+	return cpufreq_generic_init(policy, g5_cpu_freqs, transition_latency);
 }
-
 
 static struct cpufreq_driver g5_cpufreq_driver = {
 	.name		= "powermac",
