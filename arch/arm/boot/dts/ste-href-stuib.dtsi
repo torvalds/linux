@@ -57,7 +57,6 @@
 			bu21013_tp@5c {
 				compatible = "rohm,bu21013_tp";
 				reg = <0x5c>;
-				touch-gpio = <&gpio2 20 0x4>;
 				avdd-supply = <&ab8500_ldo_aux1_reg>;
 
 				rohm,touch-max-x = <384>;
@@ -68,7 +67,6 @@
 			bu21013_tp@5d {
 				compatible = "rohm,bu21013_tp";
 				reg = <0x5d>;
-				touch-gpio = <&gpio2 20 0x4>;
 				avdd-supply = <&ab8500_ldo_aux1_reg>;
 
 				rohm,touch-max-x = <384>;

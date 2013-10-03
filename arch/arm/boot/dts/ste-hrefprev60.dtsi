@@ -49,12 +49,6 @@
 			};
 		};
 
-		i2c@80110000 {
-			bu21013_tp@5c {
-				reset-gpio = <&tc3589x_gpio 13 0x4>;
-			};
-		};
-
 		vmmci: regulator-gpio {
 			gpios = <&tc3589x_gpio 18 0x4>;
 			enable-gpio = <&tc3589x_gpio 17 0x4>;

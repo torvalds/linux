@@ -20,7 +20,13 @@
 	soc {
 		/* Reset line for the BU21013 touchscreen */
 		i2c@80110000 {
+			/* Only one of these will be used */
 			bu21013_tp@5c {
+				touch-gpio = <&gpio2 12 0x4>;
+				reset-gpio = <&tc3589x_gpio 13 0x4>;
+			};
+			bu21013_tp@5d {
+				touch-gpio = <&gpio2 12 0x4>;
 				reset-gpio = <&tc3589x_gpio 13 0x4>;
 			};
 		};
